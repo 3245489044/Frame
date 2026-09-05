@@ -1,19 +1,9 @@
 {
-  "description": "CallCenter 宿主函数库注册清单 — 由 CSharpFunctionLibrarySource 消费（C#Track 发现源的真实来源，替代硬编码种子）",
+  "description": "CallCenter 宿主函数库注册清单 — 由 CSharpFunctionLibrarySource 消费（C#Track 发现源，替代硬编码种子）。仅含平台自带库；FileDriven.Business 等产品真实业务库由产品宿主(FileDriven/Agent 组合根)自有清单消费，本 CLI 不承载(去平台→产品依赖)。",
   "libraries": [
     {
       "name": "CallCenterHostLibrary",
       "type": "CallCenter.Host.Libraries.CallCenterHostLibrary, CallCenter.Host",
-      "enabled": true
-    },
-    {
-      "name": "MathLibrary",
-      "type": "FunctionStorage.MathLibrary, FileDriven.Business",
-      "enabled": true
-    },
-    {
-      "name": "FunctionTesterFunctions",
-      "type": "FunctionStorage.Registrations.FunctionTesterFunctions, FileDriven.Business",
       "enabled": true
     }
   ]

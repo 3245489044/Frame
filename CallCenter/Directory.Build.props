@@ -1,10 +1,8 @@
 <Project>
-  <!-- 平台库(Frame 子模块)自身不再上溯父仓(Main)根取属性；CsharpProjectRoot = Frame 内 CsharpPrj（本层相对定位）。
-       FileDrivenProjectRoot 为【临时反向占位】：CallCenter.Host 当前 ProjectReference 到 FileDriven.Business 属
-       方向错误（平台库引用产品），待方向反转（改由 FileDriven/产品侧注入依赖本层提供的端口/函数库）后本属性一并移除。 -->
+  <!-- 平台库(Frame 子模块)自身不上溯父仓(Main)根取属性；CsharpProjectRoot = Frame 内 CsharpPrj（本层相对定位）。
+       已无对 Products 的引用（CallCenter 对 FileDriven 的方向依赖已反转/移除），故不再定义 FileDrivenProjectRoot。 -->
   <PropertyGroup>
     <CsharpProjectRoot>$(MSBuildThisFileDirectory)..\CsharpPrj</CsharpProjectRoot>
-    <FileDrivenProjectRoot>$(MSBuildThisFileDirectory)..\..\Projects\FileDriven</FileDrivenProjectRoot>
   </PropertyGroup>
 
   <PropertyGroup>

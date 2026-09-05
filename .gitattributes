@@ -1,0 +1,10 @@
+# ─────────────────────────────────────────────────────────────
+# Windows 批处理行尾约定（根治 cmd 对纯 LF 解析不稳定的问题）
+# cmd.exe 对仅 LF 行尾的 .bat/.cmd 解析不稳定：含中文注释/含括号块时会吞掉后续注释行
+# 并把注释当命令执行。强制：检出恒为 CRLF。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# PowerShell 走 text 规范化（默认 UTF-8），不强制 CRLF
+*.ps1 text
+*.psm1 text

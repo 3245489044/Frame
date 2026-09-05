@@ -12,11 +12,21 @@
     <!-- 适配层 = CallCenter 的终端面/执行后端落地：把仓库既有 ExecutionFramework（统一超时/取消/异步解包/异常映射）
          接进 ICSharpDelegateInvoker 执行缝。仅本层引用 ExecutionFramework，CallCenter.Core 保持精简（只 CSG.Unified + TConfig）。 -->
     <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Modules\ExecutionFramework\ExecutionFramework.csproj" />
-    <!-- P4-b C# 编译轨（Source→IL Build 腿）：复用仓库既有 Roslyn 编译核心 RoslynMethod.Core（微软 Roslyn 5.3.0，
-         已含自动引用解析/CompilationSkeleton，非自造编译栈）作 C# 源码→IL 的单一实现（SingleImplementation / TH-12）。
-         本层引用 Roslyn，CallCenter.Core 仍保持精简（不拖 Roslyn 栈，见架构 §16.1 注释）。 -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
+  </ItemGroup>
+
+  <!-- ★ CsharpPrj 二进制集中引用（方案 B，与 Agent 同约定）：本层不再把 CsharpPrj 源码拉进自身构建图，
+       全经 $(CsharpProjectRoot)\BuildOutput\$(Configuration)\（无 TFM 层）以 <Reference HintPath> 消费已烘焙 dll。
+       编译期类型仍可见；运行时经输出目录同名程序集解析。执行缝（ExecutionFramework）与 Roslyn 编译核
+       （RoslynMethod.Core）从 CsharpPrj 烘焙产物引入；CsharpPrj 其他程序集/包依赖不自动传递，须显式声明。
+       RoslynMethod.Core 的 Microsoft.CodeAnalysis.CSharp 走 NuGet（回调 csproj 用 MSBuild 无法随二进制 Reference 传递包），
+       版本与 RoslynMethod.Core.csproj 保持 $(MicrosoftCodeAnalysisCSharpVersion) 一致。 -->
+  <ItemGroup Label="CsharpPrjBinaryRefs">
+    <Reference Include="ExecutionFramework" HintPath="$(CsharpProjectRoot)\BuildOutput\$(Configuration)\ExecutionFramework.dll" Private="true" />
+    <Reference Include="RoslynMethod.Core" HintPath="$(CsharpProjectRoot)\BuildOutput\$(Configuration)\RoslynMethod.Core.dll" Private="true" />
+  </ItemGroup>
+
+  <ItemGroup Label="RoslynNuGet">
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,4 @@
 
-using System.Reflection;
 using System.Text.Json;
 using Modules.Registry;
 using TConfig;
@@ -37,32 +36,12 @@ public static class MathFunctionRegistrar
 
         var configDir = Path.GetDirectoryName(Path.GetFullPath(configPath))!;
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var engine = new AutoRegisterEngine(
-            resolveAssembly: path =>
-            {
-                if (Path.IsPathRooted(path))
-                    return Assembly.LoadFrom(path);
 
-                var configDirPath = Path.GetFullPath(Path.Combine(configDir, path));
-                if (File.Exists(configDirPath))
-                    return Assembly.LoadFrom(configDirPath);
-
-                var baseDirPath = Path.GetFullPath(Path.Combine(baseDir, path));
-                if (File.Exists(baseDirPath))
-                    return Assembly.LoadFrom(baseDirPath);
-
-                // ★ 薄启动层（FileDriven 不持有上游 dll）：configDir/baseDir 均缺时，交默认 ALC 的
-                //   Resolving 探针从 CsharpPrj\BuildOutput\$(Config) 权威目录原位解析（LauncherBootstrap 注册）。
-                //   探针缺位时回退显式 LoadFrom，保持既有诊断语义。
-                var simpleName = Path.GetFileNameWithoutExtension(path);
-                if (!string.IsNullOrEmpty(simpleName))
-                {
-                    try { return Assembly.Load(new AssemblyName(simpleName)); }
-                    catch (FileNotFoundException) { /* 探针未命中 → 回退 LoadFrom */ }
-                }
-
-                return Assembly.LoadFrom(Path.GetFullPath(path));
-            });
+        // ★ 通用程序集源装载（收敛 baseDir/CWD 就近猜）：configDir → 运行目录 → 注入权威目录 → 默认 ALC 按名 → 当前目录。
+        //   由 Route 布局 catalog 派生的权威产物根（如 CsharpProjectRoot\BuildOutput\Debug）经
+        //   Modules.Registry.AutoRegister.AssemblySourceProvider 注入，Frame 不反向依赖 Route。
+        var locator = AssemblySourceLocator.CreateForDirectory(configDir);
+        var engine = new AutoRegisterEngine(resolveAssembly: locator.Resolve);
         var results = engine.ProcessConfig(configPath, registry);
 
         // ★ 启动期自检：AutoRegister 完成后对照期望函数清单校验，缺失即启动时显式报错
@@ -159,26 +138,33 @@ public static class MathFunctionRegistrar
 
     private static string FindConfigPath()
     {
+        const string marker = "math-register-config.json";
+        string[] rel =
+        {
+            "Operation", "StateHoldDriven", "FunctionStorage", "Registrations", marker
+        };
 
-        try
-        {
-            var projectRoot = PathManager.ProjectPathManager.FindProjectRoot();
-            if (!string.IsNullOrEmpty(projectRoot))
-            {
-                var projectPath = Path.Combine(projectRoot, "CsharpPrj", "Operation", "StateHoldDriven",
-                    "FunctionStorage", "Registrations", "math-register-config.json");
-                if (File.Exists(projectPath))
-                    return projectPath;
-            }
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"解析项目根失败，无法定位 math-register-config.json：{ex.Message}", ex);
-        }
+        var searcher = new LayoutArtifactSearcher();
+
+        // ① 注入根派生：产品组合根把 Route 布局 catalog 的 CsharpProjectRoot（Frame\CsharpPrj）作为
+        //    LayoutRoot 注入，相对布局段据此派生 —— 不再硬编码 "projectRoot\CsharpPrj\..." 绝对段（收敛 D2/D4）。
+        var fromRoots = searcher.FindUnderRoots(rel);
+        if (fromRoots != null)
+            return fromRoots;
+
+        // ② 向上容器回溯：兼容未注入根 / 非 Main 拓扑（保留旧就近语义；容器名 "CsharpPrj" 为布局约定）。
+        var fromUp = searcher.FindUpward(AppDomain.CurrentDomain.BaseDirectory, "CsharpPrj", rel);
+        if (fromUp != null)
+            return fromUp;
 
         throw new FileNotFoundException(
-            "未找到数学函数注册配置 math-register-config.json，期望位置：" +
-            "CsharpPrj/Operation/StateHoldDriven/FunctionStorage/Registrations/");
+            "未找到数学函数注册配置 math-register-config.json。期望经产品组合根注入 Route 布局的 " +
+            "CsharpProjectRoot 作为 LayoutRoot 后命中 CsharpProjectRoot\\Operation\\StateHoldDriven\\FunctionStorage\\" +
+            "Registrations\\math-register-config.json，或在仓库布局未变更前提下由向上容器回溯命中。\n" +
+            $"运行上下文：BaseDirectory={AppDomain.CurrentDomain.BaseDirectory}；CWD={Directory.GetCurrentDirectory()}；" +
+            $"注入 LayoutRoots=[{string.Join(" ; ", new LayoutArtifactSearcher().LayoutRoots)}]；" +
+            $"注入 AssemblySearchDirectories=[{string.Join(" ; ", AssemblySourceProvider.Current.AssemblySearchDirectories)}]");
     }
+
 }
+

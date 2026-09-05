@@ -18,33 +18,33 @@ public static class PathManager
     {
         public string ProjectRoot { get; set; } = "";
 
-        public string FileDrivenRoot { get; set; } = "";
+        public string FileDrivenRoot { get; set; } = "Projects/FileDriven";
 
-        public string DrivenConfig { get; set; } = "FileDriven/DrivenConfig";
+        public string DrivenConfig { get; set; } = "Projects/Information/DrivenConfig";
 
-        public string JsonConfig { get; set; } = "FileDriven/DrivenConfig/JsonConfig";
+        public string JsonConfig { get; set; } = "Projects/Information/DrivenConfig/JsonConfig";
 
-        public string Scripts { get; set; } = "FileDriven/DrivenConfig/Scripts";
+        public string Scripts { get; set; } = "Projects/Information/DrivenConfig/Scripts";
 
-        public string Workflow { get; set; } = "FileDriven/DrivenConfig/WorkFlow";
+        public string Workflow { get; set; } = "Projects/Information/DrivenConfig/WorkFlow";
 
-        public string TempletConfig { get; set; } = "FileDriven/DrivenConfig/TempletConfig";
+        public string TempletConfig { get; set; } = "Projects/Information/DrivenConfig/TempletConfig";
 
-        public string Templates { get; set; } = "FileDriven/DrivenConfig/Templates";
+        public string Templates { get; set; } = "Projects/Information/DrivenConfig/Templates";
 
-        public string Configs { get; set; } = "FileDriven/DrivenConfig/Configs";
+        public string Configs { get; set; } = "Projects/Information/DrivenConfig/Configs";
 
-        public string Usings { get; set; } = "FileDriven/DrivenConfig/Usings";
+        public string Usings { get; set; } = "Projects/Information/DrivenConfig/Usings";
 
-        public string LogMessages { get; set; } = "FileDriven/filedriven_log_messages.json";
+        public string LogMessages { get; set; } = "Projects/FileDriven/filedriven_log_messages.json";
 
-        public string LogFilterConfig { get; set; } = "FileDriven/LogFilterConfig.json";
+        public string LogFilterConfig { get; set; } = "Projects/FileDriven/LogFilterConfig.json";
 
-        public string FrameworkConfig { get; set; } = "FileDriven/framework.config.json";
+        public string FrameworkConfig { get; set; } = "Projects/FileDriven/framework.config.json";
 
-        public string BuildOutput { get; set; } = "FileDriven/BuildOutput";
+        public string BuildOutput { get; set; } = "Projects/FileDriven/BuildOutput";
 
-        public string DiagnosticsConfig { get; set; } = "FileDriven/DiagnosticsConfig";
+        public string DiagnosticsConfig { get; set; } = "Projects/FileDriven/DiagnosticsConfig";
     }
 
 
@@ -345,6 +345,15 @@ public static class PathManager
         var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         if (assemblyDir != null)
         {
+            // 新 Main 拓扑：framework.config.json 现位于 Main\Projects\FileDriven（FileDriven 拆分进 Projects 子模块，
+            // 从 FrontEndDriven 所在 Frame 子树向上回溯找不到，故显式按 Main 根定位）。
+            var mainRoot = FindMainRepoRoot(assemblyDir);
+            if (mainRoot != null)
+            {
+                var inRepo = Path.Combine(mainRoot, "Projects", "FileDriven", "framework.config.json");
+                if (File.Exists(inRepo)) return inRepo;
+            }
+
             var found = FindFileUpward(assemblyDir, "framework.config.json");
             if (found != null) return found;
         }
@@ -384,5 +393,33 @@ public static class PathManager
     }
 
     private static string? FindProjectRootUpward(string startPath)
-        => ProjectRootLocator.FindRootUpward(startPath);
+    {
+        // 优先 Main 仓库根（统一包含 Projects/Frame 的目录 = 各相对路径单一基准；子模块就近 .git 会造成 Frame 误判）
+        var main = FindMainRepoRoot(startPath);
+        if (main != null)
+            return main;
+
+        // 旧布局/单仓兜底：就近 git 根（遗留，防布局回退回归）
+        return ProjectRootLocator.FindRootUpward(startPath);
+    }
+
+    /// <summary>自 startPath 向上，返回首个同时含 Projects 与 Frame\CsharpPrj 的目录（= Main 仓库根）；未找到返回 null。
+    /// 用目录特征而非 .git 锚定，避免 Frame/Projects 子模块就近命中造成根漂移。</summary>
+    private static string? FindMainRepoRoot(string startPath)
+    {
+        if (string.IsNullOrEmpty(startPath)) return null;
+        var current = startPath;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (Directory.Exists(Path.Combine(current, "Projects"))
+                && Directory.Exists(Path.Combine(current, "Frame", "CsharpPrj")))
+                return current;
+
+            var parent = Directory.GetParent(current)?.FullName;
+            if (parent == null || string.Equals(parent, current, StringComparison.OrdinalIgnoreCase))
+                break;
+            current = parent;
+        }
+        return null;
+    }
 }

@@ -62,11 +62,12 @@ function Get-FileDrivenConfig {
     # ★ 使用统一路径函数获取 FileDriven 目录（自动拼接 CsharpProjectRoot）
     $fileDrivenDir = Get-FileDrivenDir -ProjectRoot $projectRoot
 
-    # 测试脚本目录
-    $scriptsDir = Join-Path $fileDrivenDir "DrivenConfig\Scripts"
+    # 测试脚本目录：FileDriven 的 DrivenConfig 资源已整体迁入 Information 资源仓，
+    # 脚本现位于 Main\Projects\Information\DrivenConfig\Scripts
+    $scriptsDir = Join-Path $projectRoot "Projects\Information\DrivenConfig\Scripts"
 
-    # BatToolConfig 路径
-    $batToolConfigPath = Join-Path $projectRoot "PowerShellScript\Modules\Core\BatToolConfig.psm1"
+    # BatToolConfig 路径：PowerShellScript 现位于 Main\Frame\PowerShellScript
+    $batToolConfigPath = Join-Path (Get-ScriptModulesDir) "Core\BatToolConfig.psm1"
 
     # ★ 使用 ProjectPaths 模块获取路径别名
     $aliases = Get-PathAliases -ProjectRoot $projectRoot

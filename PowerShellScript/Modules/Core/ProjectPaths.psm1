@@ -179,20 +179,20 @@ function Get-PathAliases {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    $fileDrivenDir = Get-FileDrivenDir -ProjectRoot $ProjectRoot
+    # FileDriven 的 DrivenConfig 资源已迁入 Information 资源仓（Main\Projects\Information\DrivenConfig）
+    $infoDrivenConfig = Join-Path $ProjectRoot "Projects\Information\DrivenConfig"
 
-    # ★ 使用 ReadProjectConfig 动态获取启动器输出目录
-    #   优先查找实际存在的 exe 所在目录，回退到从 Directory.Build.props 解析的路径
+    # ★ 使用 ReadProjectConfig 动态获取启动器输出目录（launcher 位于 FileDriven\BuildOutput）
     $launcherDir = Get-LauncherOutputDir -ProjectRoot $ProjectRoot -AutoBuild $false
     if (-not $launcherDir) {
-        # 如果未找到 exe，使用从 Directory.Build.props 解析的路径
+        # 如果未找到 exe，使用构建输出路径
         $launcherDir = Get-BuildOutputPath -ProjectRoot $ProjectRoot -Configuration "Debug"
     }
 
     return @{
-        Configs  = Join-Path $fileDrivenDir "DrivenConfig\JsonConfig"
-        Scripts  = Join-Path $fileDrivenDir "DrivenConfig\Scripts"
-        WorkFlow = Join-Path $fileDrivenDir "DrivenConfig\WorkFlow"
+        Configs  = Join-Path $infoDrivenConfig "JsonConfig"
+        Scripts  = Join-Path $infoDrivenConfig "Scripts"
+        WorkFlow = Join-Path $infoDrivenConfig "WorkFlow"
         Output   = $launcherDir
         Root     = $ProjectRoot
     }

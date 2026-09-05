@@ -41,7 +41,16 @@ public class AutoRegisterEngine
             return new List<(RegistrationEntry, AutoRegisterResult)>();
         }
 
-        var batchResults = _service.ProcessBatch(config, _resolveAssembly, _resolveSource);
+        // 调用方未注入 resolveAssembly 时，统一用"配置目录 → 运行目录 → 注入权威目录 → ALC → 当前目录"的
+        // 通用 locator，取代 ProcessBatch 内散落的 CWD Path.GetFullPath + LoadFrom 重复实现（收敛"就近猜"）。
+        var configDir = Path.GetDirectoryName(Path.GetFullPath(configPath));
+        Func<string, Assembly>? resolver = _resolveAssembly;
+        if (resolver is null)
+        {
+            resolver = AssemblySourceLocator.CreateForDirectory(configDir).Resolve;
+        }
+
+        var batchResults = _service.ProcessBatch(config, configDir, resolver, _resolveSource);
 
         foreach (var (entry, result) in batchResults)
         {

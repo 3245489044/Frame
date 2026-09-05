@@ -9,6 +9,17 @@ namespace Modules.Registry;
     {
         private static readonly HashSet<string> _loadedLibraryTypes = new(StringComparer.Ordinal);
 
+        /// <summary>反射调用失败时解包 <see cref="TargetInvocationException"/>，把库内真实异常（含堆栈）抛给调用方，
+        /// 避免只留下 "Target of an invocation" 这类无法定位根因的外层黑盒。</summary>
+        private static string DescribeInvocationError(Exception ex)
+        {
+            var inner = ex is TargetInvocationException tie && tie.InnerException != null ? tie.InnerException : ex;
+            var text = inner.Message;
+            if (inner.StackTrace != null)
+                text += "\n" + inner.StackTrace;
+            return text;
+        }
+
         public sealed class LoadEntryResult
         {
             public string Name { get; init; } = "";
@@ -101,7 +112,7 @@ namespace Modules.Registry;
                 {
                     Name = name,
                     Success = false,
-                    Error = ex.Message
+                    Error = DescribeInvocationError(ex)
                 });
             }
         }
@@ -170,7 +181,7 @@ namespace Modules.Registry;
                 {
                     Name = type.Name,
                     Success = false,
-                    Error = ex.Message
+                    Error = DescribeInvocationError(ex)
                 });
             }
         }

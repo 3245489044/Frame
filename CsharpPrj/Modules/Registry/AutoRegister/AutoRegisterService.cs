@@ -31,6 +31,23 @@ public class SourceConfig
 {
     public string Type { get; set; } = "assembly";
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 配置驱动的"权威产物"声明（可选）：当程序集是源码树编译产物时，声明它在
+    /// <c>&lt;configDir 上溯到含该产物的源码根&gt;\Sub\Config\</c> 下的原二进制，AutoRegister 据此
+    /// <b>原地 LoadFrom 原二进制</b>，而不是要求运行目录持有它（收敛"就近猜/拷贝"）。
+    /// 典型：<c>Sub="BuildOutput", Config="Debug"</c> → <c>...\CsharpPrj\BuildOutput\Debug\Mathematics.dll</c>。
+    /// </summary>
+    public SourceOutputConfig? Output { get; set; }
+}
+
+public class SourceOutputConfig
+{
+    /// <summary>产物根子目录名（相对上溯命中的源码根）。默认 <c>BuildOutput</c>。</summary>
+    public string Sub { get; set; } = "BuildOutput";
+
+    /// <summary>构建配置名（产物子目录下的配置目录）。默认 <c>Debug</c>。</summary>
+    public string Config { get; set; } = "Debug";
 }
 
 
@@ -251,6 +268,13 @@ public class AutoRegisterService
         AutoRegisterConfig config,
         Func<string, Assembly>? resolveAssembly = null,
         Func<string, string>? resolveSource = null)
+        => ProcessBatch(config, configDir: null, resolveAssembly, resolveSource);
+
+    public List<(RegistrationEntry Entry, AutoRegisterResult Result)> ProcessBatch(
+        AutoRegisterConfig config,
+        string? configDir,
+        Func<string, Assembly>? resolveAssembly = null,
+        Func<string, string>? resolveSource = null)
     {
         var results = new List<(RegistrationEntry, AutoRegisterResult)>();
 
@@ -262,6 +286,24 @@ public class AutoRegisterService
                 if (entry.Source.Type == "assembly")
                 {
                     var assemblyPath = entry.Source.Path;
+
+                    // 配置驱动：source.Output 声明了源码树 BuildOutput\<Config> 产物时，
+                    // 从 configDir 上溯命中产物目录并原地 LoadFrom 原二进制（运行目录不持有该 dll）。
+                    if (entry.Source.Output != null
+                        && !string.IsNullOrWhiteSpace(configDir)
+                        && !Path.IsPathRooted(assemblyPath))
+                    {
+                        var productDir = OutputArtifactLocator.LocateProductDirectory(
+                            configDir, entry.Source.Output.Sub, entry.Source.Output.Config, assemblyPath);
+                        var productPath = OutputArtifactLocator.ResolveAssemblyPath(productDir, assemblyPath);
+                        if (productPath != null && File.Exists(productPath))
+                        {
+                            var productAsm = Assembly.LoadFrom(productPath);
+                            result = ProcessAssembly(productAsm, entry);
+                            results.Add((entry, result));
+                            continue;
+                        }
+                    }
 
                     if (resolveAssembly != null)
                     {

@@ -2,7 +2,11 @@
   "description": "数学函数注册配置 - 在此添加更多数学类即可自动注册",
   "registrations": [
     {
-      "source": { "type": "assembly", "path": "Mathematics.dll" },
+      "source": {
+        "type": "assembly",
+        "path": "Mathematics.dll",
+        "output": { "sub": "BuildOutput", "config": "Debug" }
+      },
       "className": "MathematicalAlgorithms.Maths",
       "naming": {
         "convention": "NestedClass_MethodName",

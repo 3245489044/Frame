@@ -34,18 +34,56 @@ $script:RPC_MarkerDirs = @(
 )
 
 # ============================================
-#  集中管理的硬编码路径
-#  所有脚本统一引用此处，路径变更时只需修改此处
+#  集中管理的拓扑路径（当前 Main/Frame/Projects/Plug 收纳后布局）
+#  唯一锚 = 仓库根 RepoRoot(Main)：从本模块所在位置向上找到同时含 Projects\ 与 Frame\ 的目录。
+#  单一真源：FileDriven / CsharpPrj 等可移动目录一律经本区根常量解析，禁止在下方函数里硬编码。
 # ============================================
 
-# FileDriven.Launcher.csproj 相对于项目根目录的路径
-$script:RPC_LauncherCsprojRelPath = "FileDriven\FileDriven.Launcher\FileDriven.Launcher.csproj"
+# RepoRoot（Main）：含 Projects\ 与 Frame\ 的目录
+$script:RPC_RepoRoot = ''
+# Projects 根（含 FileDriven/Plug 等）
+$script:RPC_ProjectsRoot = ''
+# FileDriven 项目根（Main\Projects\FileDriven）
+$script:RPC_FileDrivenRoot = ''
+# Frame 平台根（Main\Frame；CsharpPrj/PowerShellScript/CallCenter/TypeScriptPrj）
+$script:RPC_FrameRoot = ''
+# CsharpPrj 根（Main\Frame\CsharpPrj）
+$script:RPC_CsharpRoot = ''
 
-# FileDriven 项目目录名（相对于项目根目录）
-$script:RPC_FileDrivenDirName = "FileDriven"
+# ============================================
+#  拓扑锚解析（供上方根常量使用）
+# ============================================
 
-# FileDriven 构建输出目录（相对于 FileDriven 项目目录）
-$script:RPC_FileDrivenBuildOutputRelPath = "BuildOutput"
+function Get-CanonicalRepoRoot {
+    <#
+    .SYNOPSIS
+        返回当前仓库根（Main）——含 Projects\ 与 Frame\ 的目录。CWD 无关，无固定层数魔法数。
+    #>
+    $d = $PSScriptRoot          # ...\Frame\PowerShellScript\Modules\Core
+    while ($d) {
+        if ((Test-Path (Join-Path $d 'Projects')) -and (Test-Path (Join-Path $d 'Frame'))) {
+            return $d
+        }
+        $p = Split-Path $d -Parent
+        if ($p -eq $d -or -not $p) { break }
+        $d = $p
+    }
+    # 回退：Modules\Core 上移 4 级到 Main
+    $fallback = $PSScriptRoot
+    for ($i = 0; $i -lt 6; $i++) {
+        $parent = Split-Path $fallback -Parent
+        if (-not $parent) { break }
+        $fallback = $parent
+    }
+    return $fallback
+}
+
+$script:RPC_RepoRoot       = Get-CanonicalRepoRoot
+$script:RPC_ProjectsRoot   = Join-Path $script:RPC_RepoRoot 'Projects'
+$script:RPC_FrameRoot      = Join-Path $script:RPC_RepoRoot 'Frame'
+$script:RPC_FileDrivenRoot = Join-Path $script:RPC_ProjectsRoot 'FileDriven'
+$script:RPC_CsharpRoot     = Join-Path $script:RPC_FrameRoot 'CsharpPrj'
+
 
 # ============================================
 #  项目根目录检测
@@ -87,63 +125,27 @@ function Get-ProjectRoot {
         return $script:RPC_CachedProjectRoot
     }
 
+    # 默认根 = 新拓扑仓库根 Main（含 Projects\ 与 Frame\，消除了 .git 子模块歧义）
     if (-not $StartPath) {
-        $callStack = Get-PSCallStack
-        if ($callStack.Count -ge 2) {
-            $callerScript = $callStack[1].ScriptName
-            if ($callerScript) {
-                $StartPath = Split-Path -Parent $callerScript
-            }
-        }
+        $script:RPC_CachedProjectRoot = $script:RPC_RepoRoot
+        return $script:RPC_CachedProjectRoot
     }
 
-    if (-not $StartPath) {
-        $StartPath = $PSScriptRoot
-    }
-
+    # 显式起始路径：向上找到含 Projects\ 与 Frame\ 的目录（即 Main 仓库根）
     $current = $StartPath
     while ($current) {
-        foreach ($marker in $script:RPC_MarkerFiles) {
-            if (Test-Path (Join-Path $current $marker)) {
-                $script:RPC_CachedProjectRoot = $current
-                return $current
-            }
+        if ((Test-Path (Join-Path $current 'Projects')) -and (Test-Path (Join-Path $current 'Frame'))) {
+            $script:RPC_CachedProjectRoot = $current
+            return $current
         }
-
-        foreach ($marker in $script:RPC_MarkerDirs) {
-            if (Test-Path (Join-Path $current $marker)) {
-                $script:RPC_CachedProjectRoot = $current
-                return $current
-            }
-        }
-
         $parent = Split-Path $current -Parent
-        if ($parent -eq $current) { break }
+        if ($parent -eq $current -or -not $parent) { break }
         $current = $parent
     }
 
-    # ★ 回退：从脚本位置逐级上移，检测标记文件
-    # 脚本路径: Script\Modules\Core\ReadProjectConfig.ps1
-    # 预期项目根: 上移 3 级（Core -> Modules -> Script -> 项目根）
-    $fallback = $PSScriptRoot
-    for ($i = 0; $i -lt 10; $i++) {
-        $fallback = Split-Path $fallback -Parent
-        foreach ($marker in $script:RPC_MarkerFiles) {
-            if (Test-Path (Join-Path $fallback $marker)) {
-                $script:RPC_CachedProjectRoot = $fallback
-                return $fallback
-            }
-        }
-        foreach ($marker in $script:RPC_MarkerDirs) {
-            if (Test-Path (Join-Path $fallback $marker)) {
-                $script:RPC_CachedProjectRoot = $fallback
-                return $fallback
-            }
-        }
-        if ($fallback -eq (Split-Path $fallback -Parent)) { break }
-    }
-    $script:RPC_CachedProjectRoot = $fallback
-    return $fallback
+    # 未能命中仓库根：原样返回起始路径（保留调用方自定义根语义）
+    $script:RPC_CachedProjectRoot = $StartPath
+    return $StartPath
 }
 
 function Reset-ProjectRootCache {
@@ -197,64 +199,9 @@ function Get-BuildOutputPath {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    # 如果未指定 TargetFramework，自动从启动器项目文件读取
-    if (-not $TargetFramework) {
-        $TargetFramework = Get-TargetFramework -ProjectRoot $ProjectRoot
-    }
-
-    # ★ 查找 Directory.Build.props（可能在项目根目录或 CsharpPrj 子目录下）
-    $buildProps = $null
-    $csharpRoot = Get-CsharpProjectRoot -ProjectRoot $ProjectRoot -Quiet
-    $candidatePaths = @(
-        Join-Path $ProjectRoot "Directory.Build.props"
-        Join-Path $ProjectRoot "$csharpRoot\Directory.Build.props"
-    )
-    foreach ($candidate in $candidatePaths) {
-        if (Test-Path $candidate) {
-            $buildProps = $candidate
-            break
-        }
-    }
-
-    if (-not $buildProps) {
-        Write-Warning "Directory.Build.props 不存在（已检查根目录和 CsharpPrj 子目录），使用回退路径"
-        return Join-Path $ProjectRoot "BuildOutput\$Configuration\$TargetFramework"
-    }
-
-    try {
-        # 解析 XML
-        $propsXml = [xml](Get-Content $buildProps)
-
-        # 查找 OutputPath 节点（可能在多个 PropertyGroup 中，取第一个非空的）
-        $outputPathTemplate = ""
-        foreach ($pg in $propsXml.Project.PropertyGroup) {
-            if ($pg.OutputPath) {
-                $outputPathTemplate = $pg.OutputPath
-                break
-            }
-        }
-
-        if (-not $outputPathTemplate) {
-            Write-Warning "Directory.Build.props 中未找到 OutputPath 配置，使用回退路径"
-            return Join-Path $ProjectRoot "BuildOutput\$Configuration\$TargetFramework"
-        }
-
-        # 替换 MSBuild 变量
-        $outputPath = $outputPathTemplate
-        # MSBuildThisFileDirectory 指向 Directory.Build.props 所在目录
-        $buildPropsDir = Split-Path $buildProps -Parent
-        $outputPath = $outputPath -replace '\$\(MSBuildThisFileDirectory\)', "$buildPropsDir\"
-        $outputPath = $outputPath -replace '\$\(Configuration\)', $Configuration
-        $outputPath = $outputPath -replace '\$\(TargetFramework\)', $TargetFramework
-
-        # 规范化路径（处理 ..\ 等相对路径）
-        $fullPath = [System.IO.Path]::GetFullPath($outputPath)
-        return $fullPath
-    }
-    catch {
-        Write-Warning "解析 Directory.Build.props 失败: $($_.Exception.Message)，使用回退路径"
-        return Join-Path $ProjectRoot "BuildOutput\$Configuration\$TargetFramework"
-    }
+    # ★ 新拓扑单一真源：FileDriven.Launcher 输出位于 Main\Projects\FileDriven\BuildOutput\<Configuration>
+    #   （FileDriven 统一输出目录，launcher exe 实际落此，不带 TargetFramework 子目录）
+    return Join-Path $script:RPC_FileDrivenRoot "BuildOutput\$Configuration"
 }
 
 # ============================================
@@ -294,53 +241,11 @@ function Get-CsharpProjectRoot {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    # ★ 查找 Directory.Build.props（可能在项目根目录或 CsharpPrj 子目录下）
-    $buildProps = $null
-    $candidatePaths = @(
-        Join-Path $ProjectRoot "Directory.Build.props"
-        Join-Path $ProjectRoot "CsharpPrj\Directory.Build.props"
-    )
-    foreach ($candidate in $candidatePaths) {
-        if (Test-Path $candidate) {
-            $buildProps = $candidate
-            break
-        }
+    # ★ 新拓扑单一真源：CsharpPrj 固定位于 Main\Frame\CsharpPrj
+    if (-not $Quiet) {
+        Write-Debug "Get-CsharpProjectRoot 返回平台 CsharpPrj 根: $script:RPC_CsharpRoot"
     }
-
-    if (-not $buildProps) {
-        if (-not $Quiet) {
-            Write-Warning "Directory.Build.props 不存在（已检查根目录和 CsharpPrj 子目录），使用默认值 CsharpPrj"
-        }
-        return "CsharpPrj"
-    }
-
-    try {
-        $propsXml = [xml](Get-Content $buildProps)
-
-        # 查找 CsharpProjectRoot 属性（可能在任意 PropertyGroup 中）
-        $csharpRoot = ""
-        foreach ($pg in $propsXml.Project.PropertyGroup) {
-            if ($pg.CsharpProjectRoot) {
-                $csharpRoot = $pg.CsharpProjectRoot
-                break
-            }
-        }
-
-        if (-not $csharpRoot) {
-            if (-not $Quiet) {
-                Write-Debug "Directory.Build.props 中未找到 CsharpProjectRoot，使用默认值 CsharpPrj"
-            }
-            return "CsharpPrj"
-        }
-
-        return $csharpRoot
-    }
-    catch {
-        if (-not $Quiet) {
-            Write-Debug "解析 Directory.Build.props 失败: $($_.Exception.Message)，使用默认值 CsharpPrj"
-        }
-        return "CsharpPrj"
-    }
+    return $script:RPC_CsharpRoot
 }
 
 # ============================================
@@ -371,7 +276,7 @@ function Get-TargetFramework {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    $launcherCsproj = Join-Path $ProjectRoot $script:RPC_LauncherCsprojRelPath
+    $launcherCsproj = Join-Path $script:RPC_FileDrivenRoot "FileDriven.Launcher\FileDriven.Launcher.csproj"
     if (-not (Test-Path $launcherCsproj)) {
         Write-Warning "FileDriven.Launcher.csproj 不存在: $launcherCsproj，使用默认 net10.0-windows"
         return "net10.0-windows"
@@ -514,7 +419,7 @@ function Find-LauncherExe {
 
     # ★ 策略3：尝试 FileDriven\BuildOutput\Debug\ 根目录
     #   实际构建输出可能位于 FileDriven 项目下的 BuildOutput\Debug\（不带 TargetFramework 子目录）
-    $fileDrivenDebugDir = Join-Path $ProjectRoot "$($script:RPC_FileDrivenDirName)\$($script:RPC_FileDrivenBuildOutputRelPath)\Debug"
+    $fileDrivenDebugDir = Join-Path $script:RPC_FileDrivenRoot "BuildOutput\Debug"
     $fileDrivenDebugExe = Join-Path $fileDrivenDebugDir "FileDriven.Launcher.exe"
     if (Test-Path $fileDrivenDebugExe) {
         return $fileDrivenDebugExe
@@ -531,7 +436,7 @@ function Find-LauncherExe {
 
     # ★ 策略5：文件名遍历算法（FileDriven\BuildOutput 下）
     #   实际构建输出可能位于 FileDriven 项目下的 BuildOutput
-    $fileDrivenBuildOutputRoot = Join-Path $ProjectRoot "$($script:RPC_FileDrivenDirName)\$($script:RPC_FileDrivenBuildOutputRelPath)"
+    $fileDrivenBuildOutputRoot = Join-Path $script:RPC_FileDrivenRoot "BuildOutput"
     $foundExe = Find-FileDrivenLauncherExe -BuildOutputRoot $fileDrivenBuildOutputRoot
     if ($foundExe) {
         return $foundExe
@@ -559,7 +464,7 @@ function Find-LauncherExe {
         Write-Host "[INFO] 未找到编译产物，正在自动构建 Debug 版本..." -ForegroundColor Yellow
         Write-Host ""
 
-        $csproj = Join-Path $ProjectRoot $script:RPC_LauncherCsprojRelPath
+        $csproj = Join-Path $script:RPC_FileDrivenRoot "FileDriven.Launcher\FileDriven.Launcher.csproj"
         Write-Host "[INFO] 开始构建: dotnet build $csproj -c Debug" -ForegroundColor Cyan
         $buildOutput = dotnet build $csproj -c Debug 2>&1
         $exitCode = $LASTEXITCODE
@@ -667,7 +572,8 @@ function Get-FileDrivenDir {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    return Join-Path $ProjectRoot "FileDriven"
+    # ★ 新拓扑单一真源：FileDriven 固定位于 Main\Projects\FileDriven
+    return $script:RPC_FileDrivenRoot
 }
 
 function Get-ScriptModulesDir {
@@ -676,7 +582,7 @@ function Get-ScriptModulesDir {
         统一获取 Script 模块目录（PowerShellScript\Modules）
 
     .DESCRIPTION
-        返回 PowerShellScript\Modules 目录的完整路径。
+        返回 PowerShellScript\Modules 目录的完整路径（当前位于 Main\Frame\PowerShellScript\Modules）。
         所有脚本统一调用此函数，避免路径硬编码分散。
 
     .PARAMETER ProjectRoot
@@ -694,5 +600,5 @@ function Get-ScriptModulesDir {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    return Join-Path $ProjectRoot "PowerShellScript\Modules"
+    return Join-Path $script:RPC_FrameRoot "PowerShellScript\Modules"
 }

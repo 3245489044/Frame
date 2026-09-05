@@ -1,9 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <NoWarn>CS8632;CS8625;CS8618;CS8603;CS8604;CS8601;CS8602;CS8600;CS8619;CS8714;CS0108;CS0109;CS8622;CS0436;CS0618;CS8629;CS0219;CS8634;CS8765;CS0105;xUnit2002</NoWarn>
-  </PropertyGroup>
-</Project>

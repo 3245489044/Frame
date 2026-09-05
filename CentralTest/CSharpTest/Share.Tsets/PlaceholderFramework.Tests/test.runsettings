@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RunSettings>
-  <RunConfiguration>
-    <TestSessionTimeout>600000</TestSessionTimeout>
-  </RunConfiguration>
-  <MSTest>
-    <ApartmentState>STA</ApartmentState>
-  </MSTest>
-</RunSettings>

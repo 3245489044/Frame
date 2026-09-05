@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>BasicMethod.DecisionEngine</AssemblyName>
+    <RootNamespace>BasicMethod.DecisionEngine</RootNamespace>
+    <PackageId>BasicMethod.DecisionEngine</PackageId>
+    <Description>决策引擎框架 - 提供 IDecisionEngine / RuleBasedDecisionEngine / CompositeDecisionEngine / ConditionEvaluator 等决策型状态机组件，关注"下一步该做什么"而非"状态如何合法变化"</Description>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+
+  <!-- 零外部依赖 - 纯 .NET 基础类库 -->
+
+</Project>

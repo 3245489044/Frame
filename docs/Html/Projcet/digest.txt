@@ -1,0 +1,310 @@
+════════════════════════════════════════════════════════════════
+  Agent Runtime Framework Panoramic Analysis Report · English Summary
+  Source: docs/Html/AgentRuntimeUI_FrameworkAnalysisReport.html
+  Analysis Date: 2026-08-22 ｜ Method: Static Source Code Analysis (Line Numbers Verified)
+════════════════════════════════════════════════════════════════
+
+【Core Conclusions (Two Theses)】
+
+1) The LLM loop of this framework is built on a "database + task snapshot state" foundation.
+   - The loop is not a conversational loop based on a context window, but rather a "database / task snapshot state machine".
+   - Each task is itself a running snapshot (AgentTaskItem simultaneously implements
+     ITaskPoolItem + ILoopState + IAgentLoopState), and the entire snapshot is persisted
+     as a single PayloadJson entry in the ur_tasks table of SQLite — "task = snapshot, snapshot = task",
+     serving as the sole authoritative state root.
+   - Per-round flow: Write to ur_tasks (EnqueueAsync, writing activates, wakes consumption loop)
+     → TaskPool item-based state machine → TaskRouter routing (Hybrid→requires LLM /
+       Config·Deterministic→zero LLM)
+     → SnapshotDrivenLoopEngine (each round: read snapshot → execute five-step skeleton →
+       next[LLM + compute changes to overall state] → write back PayloadJson).
+   - Key code: AgentRunner.PersistRuntimeAsync writes the entire PayloadJson back to
+     ur_tasks at the boundary of each round (AgentTaskItem implements ILoopState).
+   - Therefore, the loop is inherently recoverable, auditable, and crash-safe; state resides
+     in the database, not the model's context window.
+
+2) Cline / Claude orchestration calls are scheduled by this loop as "sub-agents".
+   - The framework is the orchestrator (main agent), and Cline/Claude are the sub-agent
+     execution backends dispatched per round within the loop.
+   - Call chain: execute phase → cline_execute function → IAgentExecutor port
+     → ClineAgentExecutor (name parameter can name cline / claude / sk).
+   - ClineAgentExecutor assembles layered prompts into a single Cline coding agent task,
+     executed via ClineClient (daemon pool → Node bridge); the same IAgentExecutor port
+     supports claude/sk and other provider semantic naming.
+   - The LLM call gate (CheckLlmGateAsync) cooperatively suspends (Running⇄Paused) before
+     the actual LLM call.
+   - The comparison with Claude Code / CLine is thus reframed: they are, first and foremost,
+     sub-agent execution backends embedded within this framework's DB-driven loop, and only
+     secondarily industry benchmark references.
+
+────────────────────────────────────────────────────────────────
+【I. Framework Positioning】
+────────────────────────────────────────────────────────────────
+The Agent subsystem of WorkFlowPrj is a "configuration-centric, fully self-developed
+desktop-grade Agent runtime":
+Frontend rendering (JSON UI), command execution (ECS), function registration (registry),
+scheduling execution (AxiomLoop/task pool), storage (three-repository convergence), and
+LLM routing (hot-configurable) are all self-developed, uniformly exposed via the declarative
+AgentRuntimeUI.json console. Two-layer stack:
+  · Agent Framework Layer (Projects/Agent): Agent.Core (runtime engine) + Agent.Launcher
+    (assembly and exposure, composition root + 5 libraries with 62 AgentUi_* functions),
+    possessing business capabilities.
+  · Architecture Framework Layer (FileDriven + Share + Operation): JSON UI rendering pipeline,
+    ECS, event binding orchestration, function registry, InvocationKernel calling kernel,
+    task pool framework, graph framework, state management, possessing a general-purpose
+    execution base.
+
+KPI Overview: 17 function libraries; 67 registered functions (5 Ui_* + 62 AgentUi_*);
+9 major Agent functional domains; 14 RunJson top-level action branches; 2 scheduling modes
++ dual executors; 6-layer call chain.
+
+────────────────────────────────────────────────────────────────
+【II. Agent Framework Layer (Projects/Agent)】
+────────────────────────────────────────────────────────────────
+2.1 Project Composition
+  · Agent.Core: Engine core (no UI dependencies) — Loops(AxiomLoop), TaskPool(task pool + dual executors),
+    Boundaries(boundary framework), DataStream(event streams), Orchestration(orchestrator),
+    Prompts(prompting), Workflow/DynamicWorkflow(dynamic merging).
+  · Agent.Launcher: Assembly and external exposure (WinForms host) — composition root (12 Hosting/Assembler),
+    entry points (AgentHost/AgentLauncher/AxiomAgentLauncher), 5 function libraries.
+  · Agent.Axioms + Generator: Axiom system (L0/L1/L2 layering, source generator compiles declarations to code).
+  · Agent.Guardrails: Guardrails/safety (rule interception, coordinates with Core.Boundaries).
+  · Agent.Contract / Agent.Calculate: Contracts and calculations.
+
+2.2 Core Domains (Engine Layer)
+  · Loops Runtime Engine: AgentRunner (PreRound→RunRound→PostRound lifecycle);
+    dual scheduling Hybrid (LLM director) / Config (ConfigStateDirector hot-reads ur_config);
+    state root = task snapshot (written back to PayloadJson in ur_tasks at each round boundary).
+  · TaskPool: AgentTaskPoolAdapter (facade, also IConversationStore);
+    dual executors LlmTaskExecutor (LLM path) / RuleTaskExecutor (zero LLM, WirePauseGate cooperative suspension);
+    TaskRouter routing decision (:107/:119-120) requires LLM→Llm / zero LLM→Rule.
+  · Orchestration: RegisterModule / RegisterAgentExecutor / RunAsync;
+    P3 "configuration as data row" hot-reads ur_config per round, changes take effect immediately.
+  · Boundaries: DefaultBoundaryFramework / LogicalBoundaryEvaluator,
+    pre/post round hooks (PreRound/PostRound).
+  · DataStream: EventSink / ReactiveTrigger reactive data bridge.
+  · Prompts: IPromptComposer / PromptRequestComposer.
+
+2.3 Agent.Launcher (Assembly, Entry, Exposure)
+  · Composition root: 12 components assembled according to lifecycle: AgentFramework (facade),
+    LlmHosting (LLM gateway: :46 registers clients per provider, :70 assembles unified routing proxy
+    LlmRoutingClient, :89 LlmMode.LocalOnly runtime switch), TaskPoolHosting, DataStoreHosting,
+    ConversationHosting, DatabaseBootstrapper, etc.
+  · 67 functions across 5 libraries: Runtime(20)/Data(23)/TaskPool(10)/Db(3)/Conversation(5).
+  · Entry point: AgentHost.RunAsync (static) → AxiomLoopResult.
+
+────────────────────────────────────────────────────────────────
+【III. Architecture Framework Layer (FileDriven + Share + Operation)】
+────────────────────────────────────────────────────────────────
+3.1 Six-Layer Call Chain
+  L0 JSON UI config → L1 process entry (FrameworkInitializer, FailFast, explicit loading of 17 libraries)
+  → L2 rendering pipeline (ScopeLifecycleAdapter: EcsGate atomic rendering + triple validation + initCommands)
+  → L3 unified function facade (EventPlatform.InvokeFunctionAsync → FunctionCallFacade)
+  → L4 invocation kernel (InvocationKernel: budget/cancellation/failure classification/phase snapshot Dispatch→Start→End)
+  → L5 registered delegate → implementation library (Ui_* → FrontEndDriven / AgentUi_* → Agent.Launcher)
+  → L6 result write-back (WriteInitOutput / output binding → physical controls, UI thread scheduling).
+
+3.2 Key Components
+  · ECS Architecture: commands = entities, state = components, systems handle processing; snapshot-diff projection.
+  · Event Binding Orchestration: WinFormsEventBus + EventBindingOrchestrator maps physical events to function facade.
+  · Function Registry: function-libraries.json single manifest, autoDiscover=false explicit loading + FailFast.
+  · Invocation Kernel: InvocationKernel uniquely holds budget/timeout/cancellation/failure classification/observability,
+    phase snapshot.
+  · Task Pool Framework: Generic TaskPool<TItem,TResult>, writes ur_tasks + wakes consumption loop + TaskStateChanged.
+  · Graph Framework: LiteDB graph library (endpoints + pure edges), reference semantics.
+  · State Management: StateCenter facade + StorageCell + transactions + subscriptions.
+
+────────────────────────────────────────────────────────────────
+【IV. Functional Analysis】
+────────────────────────────────────────────────────────────────
+4.1 Nine Major Functional Domains (67 functions):
+  1) Task Pool System (enqueue/status/delete/pause/resume/cancel, write-through guard auto-creates references)
+  2) Conversation System (task = conversation, AgentTaskPoolAdapter : IConversationStore)
+  3) Runtime Engine Dual Scheduling (Hybrid LLM director / Config rule director zero LLM)
+  4) LLM Routing and Hot-Reconfiguration (LlmHosting unified gateway + LlmMode.LocalOnly one-click localization
+     + runtime hot switching)
+  5) Local Integration Testing (LocalOnly + CallLog playback + AgentUi_GetFunctions introspection, deterministic backend)
+  6) Node Data Read/Write (output/input/resource/config/event/checkpoint… idempotent upsert)
+  7) Reference Graph System (write-through guard + rebuildable projection, graph.rebuild/diff)
+  8) Unified Read-Only Queries (outputs/inputs/events/sessions/config/checkpoints/resources/snapshot/taskList)
+  9) Templates and Task Scoping (folders = categories zero hardcoding; TaskScope auto-expands multi-step JSON)
+
+4.2 Key Design Highlights:
+  · Task pool "requires LLM vs zero LLM" routing + mode=Config rule director: background tasks can run entirely
+    on rules without LLM, cost-controllable; change a config row to take effect.
+  · Conversation System: one conversation message enqueued as a task advances the conversation;
+    task = conversation, conversation = task, no duplicate state.
+  · Reference Graph: facade orchestrates but does not write edges; ReferenceGraphCoordinator is the sole edge writer;
+    nullable guard auto-skips; write-through guard automatically mirrors task graph endpoints on any enqueue path
+    (no edge creation to avoid high-frequency state thrashing).
+
+4.3 Workflow Logic — Declarative Skeleton, Loop Body Is Not LLM Improvisation:
+  · Skeleton Model RoundSpec: one round = ordered step list (declarative data, not scattered hardcode).
+    Stateless container, retains only steps + port contracts (InputPorts/OutputPorts) + global key mapping
+    (GlobalKeyMapping); runtime state entirely externalized to StateCenter. Success criteria declarable:
+    DecisionWord (must produce a decision word) or RunToEnd (completes without exception = success).
+  · Built-in default skeleton DefaultRoundSpec (agent-round):
+    guard_input → provide_prompt (layered assembly L0/L1/L2) → cline_execute →
+    rule_match (zero LLM decision routing); stop terminal state with guard_output (safe output filtering).
+    Default conversation template DefaultConversationSpec (collect-analyze-act):
+    cline_execute (collect) → answer (analyze) → cline_execute (act).
+  · Skeleton loading RoundSpecLoader: loads from Config/workflows/agent-loop.json,
+    extracts linear chain along start→on_success; falls back to built-in default if not found/parse fails;
+    old schema (<5.0.0) zero-exception migration. Changing template file changes loop body, engine unchanged.
+  · Per-round execution WorkflowRunner: calls registered workflow functions sequentially
+    according to declarative steps to execute "one round", decoupled from axiom engine via IWorkflowRunner port;
+    builds StaticAsyncPipeline for reuse across rounds; control flow statically materialized into reference graph
+    once; terminal envelope "patch" write (eliminates R1 double-write); final answer source determined by
+    workflow structure (reverse scan for the last step producing a readable value).
+  · Step execution RoundStepInvoker: "all logic is primarily in workflow nodes". Each step builds an AgentNode
+    (storage + execution unit), resolves input parameters via KeyMapping from data space + other node output ports,
+    calls registered functions, persists result as node output port (ur_nodes NodeType=output);
+    KeyMapping writes to SQL by category; node relationships auto-materialized via ReferenceGrounding
+    (no manual edge creation).
+  · Cross-round state mapping RoundStateMapper: Seed (HFSM lease slice → data space, includes LastResult/
+    SessionId/Cwd/DataDir/executor instance) ⇄ Harvest (data space → AxiomContext.Data,
+    i.e., task snapshot/ur_tasks); session workflow seed keys (system/l1/l2/prompt/question) explicitly passed through.
+  · Dynamic Workflow DynamicWorkflowMerger: parses/merges/executes arbitrary runtime fragments
+    (FragmentNode node types process/condition/loop/parallel + FuncName + ParameterKeys/ResultKeys +
+    InputMapping/OutputMapping + NextNodeConfig), produces DynamicWorkflowResult;
+    old key_mapping auto-migrates to Exact rules under GlobalKeyMapping.
+  · Relationship to LLM loop: skeleton is fixed (five-step pipeline), LLM is invoked only in
+    provide_prompt and cline_execute steps; decision routing (rule_match: Done/Error/Retry → Terminate/SwitchAgent/
+    Retry/Continue) is fully deterministic zero LLM; workflow nodes are storage units, outputs written back to ur_nodes.
+  · Platform-side workflow directory: FileDriven/DrivenConfig/WorkFlow/*.json (AgentRuntimeWorkflow,
+    CodeReviewWorkflow, BatchRefactorWorkflow, DeepSeekChatWorkflow, McpToolWorkflow,
+    NLToCodeWorkflow, MathWorkflows/*, etc.), a declarative workflow library driven by platform configuration.
+  · Underlying graph engine WorkFlowMethod (Operation layer): WorkflowContext unified state container
+    (GraphSnapshot immutable execution credential + CurrentNodeKey + ExecutionSession + SharedData);
+    IGraph → GraphSnapshot → WorkflowContext → ExecutionSession → DataContext pipeline;
+    PipelineBuilder registers skeletons like GraphDefinitionSkeleton (graph→snapshot) / NodeProcessSkeleton
+    (node processing GetConfig→Execute→Record→Resolve), etc.
+
+────────────────────────────────────────────────────────────────
+【V. Call Chain (Console Perspective)】
+────────────────────────────────────────────────────────────────
+[Run] click → AgentUi_RunJson → RunJsonAsync(:223, switch :238) distributes across 14 branches by action:
+  runLoop / task(enqueue,status,delete,submit) / node / resource.* / reference.*
+  / query / relations.* / graph.* / config(SetLlmConfigJson hot-reconfig) / unknown action outputs diagnostic text.
+initCommands dual-mode parsing: function-first, fallback to workflow on failure (function-first-then-workflow).
+
+────────────────────────────────────────────────────────────────
+【VI. Storage: Three-Repository Convergence Model】
+────────────────────────────────────────────────────────────────
+  · SQLite ur_nodes: base node repository (node = storage unit, NodeType discriminates output/input/resource/config…).
+  · SQLite ur_tasks: task state collection (task = state root, enqueue/status/delete, PayloadJson).
+  · LiteDB graph: relationship projection (ur_endpoints + ur_references pure reference edges), fully rebuildable (rebuild),
+    diff reports drift; authority is in SQL.
+  · In-memory hot adjacency CoreGraph: in-session graph view for UI/orchestrator reads.
+  Architectural highlight: Graph library is a "rebuildable projection", authority in SQL; AttachReferenceGrounding
+    single graph owner assertion prevents dual-coordinator read/write storage splits.
+
+────────────────────────────────────────────────────────────────
+【VII. Objective Assessment】
+────────────────────────────────────────────────────────────────
+Strengths:
+  1) Thoroughly configuration-driven, convention over configuration (UI/registration/LLM/test scripts fully JSONized,
+     zero hardcoded discovery).
+  2) Clean separation between engine layer and exposure layer (Agent.Core has no UI dependencies;
+     67 functions across 5 libraries).
+  3) Failures are diagnosable, never silent (FailFast + failure classification + timeout phase snapshot
+     + explicit diagnostic text).
+  4) Cost-sensitive design (dual executors + dual scheduling; requires LLM/zero LLM routing;
+     local deterministic testing system).
+
+Weaknesses:
+  1) Complexity is the biggest cost (a single click involves 9+ hops; six-layer mechanism stacking makes
+     onboarding extremely expensive).
+  2) Parallel paths coexist with historical compatibility (dual command execution paths, initCommands→onAfterLoad
+     dual support, behavior exhibits non-determinism; redundant code still exists).
+  3) String coupling, no compile-time protection (function names/control names/action/op are largely strings,
+     renaming/typos only exposed at runtime).
+  4) Dependency surface and observability (17 libraries across 5+ assemblies; logs scattered as loose string IDs,
+     no unified structured collection).
+
+────────────────────────────────────────────────────────────────
+【VIII. Industry Comparison: Claude Code and CLine (Both Sub-Agent and Benchmark)】
+────────────────────────────────────────────────────────────────
+Cline/Claude Dual Role:
+  ① Sub-agent execution backend — embedded within this framework's database/task snapshot-driven loop,
+     dispatched per round via cline_execute → IAgentExecutor for coding sub-tasks;
+  ② Industry benchmark — compared dimensionally with this framework (configuration-driven platform school)
+     to identify similarities, differences, and areas for inspiration.
+
+Comparison Matrix Highlights:
+  · Loop Form: This framework = database/task snapshot state machine (each round reads ur_tasks snapshot
+    → execute→next→write back PayloadJson); Claude Code = terminal-minimalist school (context window loop);
+    CLine = IDE-approval school.
+  · Sub-agents/Task Decomposition: This framework embeds Cline/Claude as sub-agents
+    (cline_execute → IAgentExecutor); Claude Code uses Task tool to spawn sub-agents (depth=1);
+    CLine uses new_task for hierarchical decomposition + sub-agents (v3.58 independent context).
+  · State Storage: This framework SQLite authoritative (ur_nodes/ur_tasks) + LiteDB graph projection (rebuildable) —
+    task snapshot is the loop state root; Claude Code append-only JSONL session files (--continue/--resume);
+    CLine SQLite + git hidden branch checkpoints.
+  · Failure Recovery/Observability: This framework classified failures + phase snapshots + unknown action diagnostics;
+    Claude Code Hook auditing + session replay + fork_session; CLine checkpoint recovery (file rollback,
+    conversation retention) + real-time cost tracking.
+  · Extension Mechanisms: This framework function registry (JSON declaration) + template tree zero hardcoding;
+    Claude Code MCP+plugins+skills+Hooks four channels (MCP lazy-loading saves 85% token);
+    CLine MCP multi-transport + plugins.
+
+Consensus and Inspiration Directions Across the Three:
+  · Simple loop + powerful periphery is consensus (complexity lies in permissions/context/extensions/recovery).
+  · Standard protocol extension (MCP) becomes an industry direction.
+  · State persistence and session recoverability converge across the three; this framework's SQLite
+    task state root is the most comprehensive design among them.
+
+────────────────────────────────────────────────────────────────
+【IX. Conclusion and Score】
+────────────────────────────────────────────────────────────────
+· Capability Landscape: Task pool (dual executors), conversation (task = conversation), AxiomLoop (dual scheduling),
+  LLM hot-reconfiguration, local integration testing, node data, reference graph, unified queries,
+  template system — 9 major functional domains with 67 functions, all declaratively JSON-exposed,
+  composable and reusable.
+· Cost: Complexity from multi-layer abstraction + multi-path convergent execution makes it better suited
+  as a long-term evolving platform core, rather than a quick-start solution for small teams;
+  "star-shaped convergence" ensures behavioral uniformity, but defects in any middle layer
+  (e.g., signal loss) manifest as "suspension with no error or log".
+· Industry Positioning: The loop is a database/task snapshot state machine, with the state root being
+  the persisted ur_tasks snapshot (PayloadJson); Cline/Claude are the sub-agent execution backends it orchestrates
+  (cline_execute→IAgentExecutor). As an industry prototype, it represents the "configuration-driven platform school",
+  forming three archetypes with Claude Code's "minimalist model school"
+  (while loop + model full decision-making) and CLine's "approval-augmented school"
+  (stepwise diff approval + checkpoint recovery). Differentiating capabilities: zero-LLM dual executors
+  + rebuildable reference graph; relative shortcomings: context compression pipeline,
+  MCP open ecosystem, diff approval interaction.
+· Weighted Total Score: 7.2 / 10 — Architecture worth long-term investment.
+  Recommended Priorities:
+  ① Context compression pipeline (drawing from Claude Code's five-phase compression)
+  ② MCP ecosystem bridging (reuse community's 150+ tools)
+  ③ Task checkpoint recovery (drawing from CLine's "file rollback, conversation retention")
+  ④ Call chain trace visualization
+  ⑤ Compile-time validation for function names/actions.
+
+────────────────────────────────────────────────────────────────
+【X. Key Source Code Index (Line Numbers Verified)】
+────────────────────────────────────────────────────────────────
+· Agent.Core/Loops/AgentRunner.cs(:54)  AxiomLoop main driver; PreRound/RunRound/PostRound;
+  ConfigStateDirector(:445)
+· Agent.Core/Orchestration/AgentOrchestrator.cs(:33)  Orchestrator; P3 hot-reads ur_config(:284)
+· Agent.Core/TaskPool/AgentTaskPool.cs(:32)  Pool facade (also IConversationStore); TaskRouter(:107/:119-120)
+· Agent.Core/TaskPool/LlmTaskExecutor.cs / RuleTaskExecutor.cs  Dual executors
+· Agent.Core/TaskPool/AgentTaskItem.cs  Task=snapshot singular authoritative state root (ILoopState)
+· Share/TaskStatusPool/Loops/SnapshotDrivenLoopEngine.cs  Snapshot-driven loop engine
+· Share/TaskStatusPool/TaskPool/TaskPool.cs  Generic task pool (writes ur_tasks + wakes consumption loop)
+· Agent.Modules/Cline/ClineAgentExecutor.cs + ClineExecutorFunction.cs  Cline/Claude sub-agent
+  (cline_execute → IAgentExecutor)
+· Composition/LlmHosting.cs(:46/:70/:89)  LLM gateway + unified routing proxy + LocalOnly
+· InvocationKernel.cs(:17/:52-56)  Invocation kernel: budget/cancellation/failure classification/phase snapshot
+· Agent.Orchestration/StepExecution/RoundSpec.cs / RoundSpecLoader.cs  Declarative round skeleton
+  (steps + port contracts + GlobalKeyMapping); loads Config/workflows/agent-loop.json, built-in fallback
+· Agent.Orchestration/StepExecution/WorkflowRunner.cs  Per-round runner (IWorkflowRunner port decoupling)
+· Agent.Orchestration/StepExecution/RoundStepInvoker.cs  Step→node executor
+  (KeyMapping + node output ports → ur_nodes; node = storage unit)
+· Agent.Orchestration/StepExecution/RoundStateMapper.cs  Cross-round Seed/Harvest state mapping
+· Agent.Core/DynamicWorkflow/DynamicWorkflowMerger.cs  Dynamic workflow fragment merging/execution
+  (FragmentNode process/condition/loop/parallel)
+· Projects/Agent/Config/workflows/agent-loop.json · collect-analyze-act.json
+  Main loop linear chain (guard_input→provide_prompt→cline_execute→rule_match) and conversation template
+  (collect→analyze→act)
+· Operation/WorkFlowMethod Context/Models/WorkflowContext.cs + Skeletons/PipelineBuilder.cs
+  Underlying workflow graph engine: unified state container + graph→snapshot→context→session→data pipeline

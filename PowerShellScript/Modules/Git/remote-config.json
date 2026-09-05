@@ -1,0 +1,39 @@
+{
+  "//": "Git 多远程仓库批量推送配置",
+  "//_": "enabled: false 的仓库会被跳过，除非显式指定",
+  "//__": "localBranch: 可选，本地分支名，不填则使用当前所在分支",
+  "//___": "remoteBranch: 可选，远程分支名，不填则使用 defaults.remoteBranch",
+  "//____": "推送格式: git push <remote> <localBranch>:<remoteBranch>",
+
+  "remotes": [
+    {
+      "name": "origin",
+      "url": "https://gitee.com/Ljy_111/ZhiLianStorage.git",
+      "remoteBranch": "Main",
+      "enabled": true,
+      "description": "Gitee - ZhiLianStorage 主仓库"
+    },
+    {
+      "name": "github",
+      "url": "https://github.com/3245489044/ZhiLianStorage.git",
+      "remoteBranch": "Main",
+      "enabled": true,
+      "description": "GitHub - ZhiLianStorage 镜像"
+    },
+    {
+      "name": "workflowprj",
+      "url": "https://gitee.com/Ljy_111/workflowprj.git",
+      "localBranch": "Main",
+      "remoteBranch": "master",
+      "enabled": true,
+      "description": "Gitee - WorkFlowPrj 仓库"
+    }
+  ],
+
+  "defaults": {
+    "remoteBranch": "Main",
+    "pushTags": true,
+    "force": false,
+    "timeoutSeconds": 60
+  }
+}

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>策略层</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>策略层聚合项目：以 BasicMethod.DecisionEngine 为基础引擎，提供可复用的决策/策略框架（决策规则、裁决引擎等），供 Operation/Modules 及 Agent 等上层消费。</ModuleRule_Description>
+    <ModuleRule_Keywords>策略;决策;规则;裁决;引擎</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
+    <ModuleRule_Rule Include="子项目包括 DecisionRules" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要决策/策略框架时，优先查看此模块" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Strategy</RootNamespace>
+    <AssemblyName>Strategy</AssemblyName>
+    <Description>Strategy 聚合项目 - 引用 Strategy 目录下所有子项目</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DecisionRules\DecisionRules.csproj" />
+  </ItemGroup>
+
+  <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
+  <ItemGroup>
+    <Compile Remove="DecisionRules\**\*.cs" />
+  </ItemGroup>
+
+</Project>

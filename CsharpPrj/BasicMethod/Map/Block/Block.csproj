@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Block</RootNamespace>
+    <AssemblyName>BasicMethod.Block</AssemblyName>
+    <Description>执行块框架 — 分块执行 + 隔离检测</Description>
+  </PropertyGroup>
+
+</Project>

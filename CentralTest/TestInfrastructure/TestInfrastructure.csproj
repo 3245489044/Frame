@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TestInfrastructure</RootNamespace>
+    <AssemblyName>TestInfrastructure</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- 编译输出统一到 CentralTest\BuildOutput（与仓库其余测试工程一致） -->
+    <OutputPath>..\BuildOutput\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <IntermediateOutputPath>..\BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- 导入版本号定义（从 CsharpPrj 共享的版本文件），MSTest 版本与全库测试工程保持一致（4.x） -->
+  <Import Project="..\..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
+
+  <ItemGroup>
+    <PackageReference Include="MSTest.TestFramework" Version="$(MSTestTestFrameworkVersion)" />
+  </ItemGroup>
+
+</Project>

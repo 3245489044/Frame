@@ -1,0 +1,75 @@
+<!--
+  此文件由 Generate-BuildProps.ps1 自动生成，请勿手动编辑。
+  版本号定义请修改 versions.json，然后重新运行 Generate-BuildProps.ps1。
+  生成时间: 2026-08-29 01:30:31
+-->
+<Project>
+  <PropertyGroup>
+    <AutoMapperVersion>16.1.1</AutoMapperVersion>
+    <CliWrapVersion>3.10.2</CliWrapVersion>
+    <CommunityToolkitDiagnosticsVersion>8.4.2</CommunityToolkitDiagnosticsVersion>
+    <CooneyAIVersion>2.1.0</CooneyAIVersion>
+    <coverletcollectorVersion>10.0.1</coverletcollectorVersion>
+    <DeepClonerVersion>0.10.4</DeepClonerVersion>
+    <DynamicExpressoCoreVersion>2.19.3</DynamicExpressoCoreVersion>
+    <EnvDTEVersion>17.14.40260</EnvDTEVersion>
+    <FluentAssertionsVersion>8.10.0</FluentAssertionsVersion>
+    <FluentValidationVersion>12.1.1</FluentValidationVersion>
+    <HtmlAgilityPackVersion>1.12.4</HtmlAgilityPackVersion>
+    <IsExternalInitVersion>1.0.3</IsExternalInitVersion>
+    <JsonPathNetVersion>3.0.2</JsonPathNetVersion>
+    <JsonSchemaNetVersion>9.2.2</JsonSchemaNetVersion>
+    <LibGit2SharpVersion>0.31.0</LibGit2SharpVersion>
+    <LiteDBVersion>5.0.21</LiteDBVersion>
+    <MathNetNumericsVersion>6.0.0-beta2</MathNetNumericsVersion>
+    <MediatRVersion>14.1.0</MediatRVersion>
+    <MicrosoftAgentsCoreVersion>1.6.150</MicrosoftAgentsCoreVersion>
+    <MicrosoftAspNetCoreVersion>2.3.9</MicrosoftAspNetCoreVersion>
+    <MicrosoftCodeAnalysisCommonVersion>5.3.0</MicrosoftCodeAnalysisCommonVersion>
+    <MicrosoftCodeAnalysisCSharpVersion>5.3.0</MicrosoftCodeAnalysisCSharpVersion>
+    <MicrosoftCodeAnalysisCSharpScriptingVersion>5.3.0</MicrosoftCodeAnalysisCSharpScriptingVersion>
+    <MicrosoftExtensionsCachingMemoryVersion>10.0.9</MicrosoftExtensionsCachingMemoryVersion>
+    <MicrosoftExtensionsConfigurationVersion>10.0.9</MicrosoftExtensionsConfigurationVersion>
+    <MicrosoftExtensionsConfigurationFileExtensionsVersion>10.0.9</MicrosoftExtensionsConfigurationFileExtensionsVersion>
+    <MicrosoftExtensionsConfigurationJsonVersion>10.0.9</MicrosoftExtensionsConfigurationJsonVersion>
+    <MicrosoftExtensionsDependencyInjectionVersion>10.0.9</MicrosoftExtensionsDependencyInjectionVersion>
+    <MicrosoftExtensionsDependencyInjectionAbstractionsVersion>10.0.9</MicrosoftExtensionsDependencyInjectionAbstractionsVersion>
+    <MicrosoftExtensionsDiagnosticsHealthChecksVersion>10.0.7</MicrosoftExtensionsDiagnosticsHealthChecksVersion>
+    <MicrosoftExtensionsHostingVersion>10.0.6</MicrosoftExtensionsHostingVersion>
+    <MicrosoftExtensionsLoggingVersion>10.0.9</MicrosoftExtensionsLoggingVersion>
+    <MicrosoftExtensionsLoggingAbstractionsVersion>10.0.9</MicrosoftExtensionsLoggingAbstractionsVersion>
+    <MicrosoftExtensionsLoggingConsoleVersion>10.0.9</MicrosoftExtensionsLoggingConsoleVersion>
+    <MicrosoftExtensionsPrimitivesVersion>10.0.7</MicrosoftExtensionsPrimitivesVersion>
+    <MicrosoftNETTestSdkVersion>18.6.0</MicrosoftNETTestSdkVersion>
+    <MicrosoftSemanticKernelVersion>1.74.0</MicrosoftSemanticKernelVersion>
+    <ModelContextProtocolVersion>2.2.0</ModelContextProtocolVersion>
+    <MoqVersion>4.20.72</MoqVersion>
+    <MSTestTestAdapterVersion>4.2.3</MSTestTestAdapterVersion>
+    <MSTestTestFrameworkVersion>4.2.3</MSTestTestFrameworkVersion>
+    <NewtonsoftJsonVersion>13.0.4</NewtonsoftJsonVersion>
+    <NJsonSchemaVersion>11.6.0</NJsonSchemaVersion>
+    <NJsonSchemaCodeGenerationVersion>11.6.0</NJsonSchemaCodeGenerationVersion>
+    <NJsonSchemaCodeGenerationCSharpVersion>11.6.0</NJsonSchemaCodeGenerationCSharpVersion>
+    <NLogVersion>6.1.2</NLogVersion>
+    <OptimizedPriorityQueueVersion>5.1.0</OptimizedPriorityQueueVersion>
+    <PdfPigVersion>0.1.14</PdfPigVersion>
+    <PollyVersion>8.7.0</PollyVersion>
+    <PollyCoreVersion>8.7.0</PollyCoreVersion>
+    <PythonNetVersion>3.1.0</PythonNetVersion>
+    <RestSharpVersion>114.0.0</RestSharpVersion>
+    <SeleniumWebDriverVersion>4.43.0</SeleniumWebDriverVersion>
+    <SQLitePCLRawCoreVersion>3.0.2</SQLitePCLRawCoreVersion>
+    <SQLitePCLRawLibESqlite3Version>2.1.11</SQLitePCLRawLibESqlite3Version>
+    <SystemCollectionsImmutableVersion>9.0.0</SystemCollectionsImmutableVersion>
+    <SystemCommandLineVersion>2.0.6</SystemCommandLineVersion>
+    <SystemDataSqlClientVersion>4.9.1</SystemDataSqlClientVersion>
+    <SystemDataSQLiteVersion>1.0.119</SystemDataSQLiteVersion>
+    <SystemDrawingCommonVersion>9.0.4</SystemDrawingCommonVersion>
+    <SystemLinqDynamicCoreVersion>1.7.2</SystemLinqDynamicCoreVersion>
+    <SystemReactiveVersion>6.1.0</SystemReactiveVersion>
+    <SystemRuntimeCachingVersion>7.0.0</SystemRuntimeCachingVersion>
+    <SystemTextJsonVersion>10.0.9</SystemTextJsonVersion>
+    <SystemThreadingTasksDataflowVersion>10.0.6</SystemThreadingTasksDataflowVersion>
+    <xunitVersion>2.6.2</xunitVersion>
+  </PropertyGroup>
+</Project>

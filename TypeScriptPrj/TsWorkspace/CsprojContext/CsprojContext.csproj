@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Name>CsprojContext</Name>
+    <OutDir>../../build/CsprojContext</OutDir>
+    <!-- 占位 TargetFramework：实际由 tsc 编译，MSBuild 仅做桥接 -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MCPFramework\MCPFramework.csproj" />
+  </ItemGroup>
+</Project>

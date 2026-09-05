@@ -1,0 +1,46 @@
+{
+  "name": "my-mcp-server",
+  "version": "1.0.0",
+  "description": "基于 MCPFramework 创建的 MCP 服务器",
+  "main": "build/index.js",
+  "bin": {
+    "my-mcp-server": "build/index.js",
+    "my-mcp-server-cli": "build/cli.js"
+  },
+  "scripts": {
+    "generate": "node build/generate.js",
+    "build": "npm run generate && tsc",
+    "dev": "tsx src/index.ts",
+    "dev:cli": "tsx src/cli.ts",
+    "start": "node build/index.js",
+    "cli": "node build/cli.js",
+    "watch": "tsc --watch",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": ["mcp", "server"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "commander": "^13.0.0",
+    "fast-glob": "^3.3.0"
+  },
+
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.5.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0",
+    "@vitest/coverage-v8": "^3.0.0"
+  }
+}

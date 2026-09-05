@@ -1,0 +1,94 @@
+<Project>
+  <PropertyGroup>
+    <!-- 预置默认 Configuration（仅空时设 Debug）：本文件用 $(Configuration) 求值 CsharpBuildOutputDir（见下），
+         而 Common.props 的 Debug 默认注入晚于本 props 求值，不预置会把权威烘焙目录固化成
+         无配置层的扁平 BuildOutput\（sln / msbuild 直跑 csproj 时必现）；显式 Release 不被覆盖。 -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <!-- .NET 配置（注意：TargetFramework 由各项目自行指定，此处不设置默认值以避免覆盖项目级配置） -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+    <!-- Linux 容器编译支持：允许在 Linux 上编译目标为 Windows 的项目（如 net10.0-windows） -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- 构建配置 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- 全局禁用引用程序集生成，避免聚合项目（如 Modules.csproj）通过 ProjectReference 引用子项目时产生 CS0121 二义性错误 -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <WarningsAsErrors />
+    <NoWarn>1701;1702;1591;MSB3026;MSTEST0037;xUnit2002;xUnit1013;CS0436;CS0618;CS0809;CS0414;CS8618;CS8625;CS8632;CS8603;CS8601;CS8604;CS8602;CS8600;CS8619;CS8714;CS8622;CS8629;CS8605;CS8765;CS8766;CS8768;CS8634;CS8620;CA1416;NU1510</NoWarn>
+  </PropertyGroup>
+
+  <!-- ★ CsharpPrj 唯一权威编译输出（方案B：单一烘焙点；供后续 PrjBridge HintPath 转发锚定） -->
+  <!-- 单一真源：全仓所有 CsharpPrj 项目只编译到这一处权威目录。
+       各产品(Agent/Engine/Produce/FileDriven…)经 ProjectReference 到这里取产物后仅做运行依赖复制，
+       不再另起输出炉灶；此目录是 CsharpPrj 产物的唯一来源（清理/部署/转发均以此为准）。 -->
+  <PropertyGroup Label="CsharpBuildOutput">
+    <!-- 单一权威烘焙目录：BuildOutput\$(Configuration)\（无 TargetFramework 段）。
+         重要：切勿加 $(TargetFramework)——Directory.Build.props 求值早于各 csproj 的 TFM 定义，
+         加了会导致"单独 build"落无 TFM 层、被 sln/ProjectReference 触发时落带 TFM 层"，产物目录分裂，
+         正是各产品 Reference HintPath 报 MSB3245 的根因。与仓库根 $(CsharpBuildOutputDir) 定义保持一致。 -->
+    <CsharpBuildOutputDir>$(MSBuildThisFileDirectory)BuildOutput\$(Configuration)\</CsharpBuildOutputDir>
+  </PropertyGroup>
+
+  <!-- 统一输出目录，消除跨项目 DLL 重复 -->
+  <PropertyGroup>
+    <!-- 所有项目输出到同一个目录（按目标框架分文件夹），消除 DLL 重复复制 -->
+    <OutputPath>$(CsharpBuildOutputDir)</OutputPath>
+    <IntermediateOutputPath>$(MSBuildThisFileDirectory)BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- ============================================================
+       导入自动生成的版本号定义
+       此文件由 Generate-BuildProps.ps1 从 versions.json 生成
+       如需修改版本号，请编辑 versions.json 后运行 Generate-BuildProps.ps1
+       ============================================================ -->
+  <Import Project="generated\Directory.Build.props.versions.generated.props" />
+
+  <!-- ★ NuGet 漏洞修复：全局锁定传递依赖安全版本 -->
+  <!-- 上游包（System.Data.SQLite、System.Configuration.ConfigurationManager）
+       未及时更新传递依赖，此处强制使用安全版本覆盖 -->
+  <ItemGroup Label="NuGetVulnerabilityFixes">
+    <PackageReference Include="System.Data.SqlClient" Version="$(SystemDataSqlClientVersion)" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- ★ C# 项目子目录根路径（MainProj.sln 所在目录） -->
+  <!-- 当 .sln 文件移动时，只需修改此路径即可同步所有脚本中的路径引用 -->
+  <PropertyGroup Label="CsharpPaths">
+    <CsharpProjectRoot>CsharpPrj</CsharpProjectRoot>
+  </PropertyGroup>
+
+  <!-- ★ 模块根目录路径变量 — 修改此处即可重命名任何模块目录，无需逐个修改 .csproj 中的 ProjectReference -->
+  <!-- 所有路径基于 $(MSBuildThisFileDirectory)（即 CsharpPrj/ 目录的绝对路径） -->
+  <PropertyGroup Label="ProjectRootPaths">
+    <BasicMethodDir>$(MSBuildThisFileDirectory)BasicMethod\</BasicMethodDir>
+    <BasicMethodRoot>$(BasicMethodDir)Map\</BasicMethodRoot>
+    <PlateDir>$(MSBuildThisFileDirectory)Plate\</PlateDir>
+    <ShareDir>$(MSBuildThisFileDirectory)Share\</ShareDir>
+    <ProtocolDir>$(MSBuildThisFileDirectory)Protocol\</ProtocolDir>
+  </PropertyGroup>
+
+  <!-- ★ 全局锁定 System.Drawing.Common 安全版本（9.0.4），覆盖 UseWindowsForms 引入的旧版本 -->
+  <!-- 使用 PrivateAssets=All 避免传递到下游项目，NU1510 已在全局 NoWarn 中抑制 -->
+  <ItemGroup Label="VersionLocking">
+    <PackageReference Include="System.Drawing.Common" Version="$(SystemDrawingCommonVersion)" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

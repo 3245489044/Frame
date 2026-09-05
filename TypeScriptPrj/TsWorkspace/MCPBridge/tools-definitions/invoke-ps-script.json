@@ -1,0 +1,25 @@
+{
+  "name": "invoke_ps_script",
+  "description": "调用 PowerShell 脚本/模块中的函数。支持调用 .ps1 脚本或 .psm1 模块中的导出函数，返回执行结果。",
+  "handler": "invoke-ps-script",
+  "template": "with-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "script_path": {
+        "type": "string",
+        "description": "脚本文件路径（相对于项目根目录，如 PowerShellScript/AIDecisionFramework/Invoke-Decision.ps1）"
+      },
+      "function_name": {
+        "type": "string",
+        "description": "要调用的函数名（可选，不传则执行整个脚本的默认逻辑）"
+      },
+      "arguments": {
+        "type": "object",
+        "description": "传递给函数的参数（JSON 对象，键为参数名，值为参数值）",
+        "additionalProperties": true
+      }
+    },
+    "required": ["script_path"]
+  }
+}

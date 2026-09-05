@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>CSG 统一框架</ModuleRule_Title>
+    <ModuleRule_Layer>0</ModuleRule_Layer>
+    <ModuleRule_Description>CSG (Configuration-StateMachine-Graph) 统一框架，整合抽象层、核心实现和领域适配器，定义规范形式、三投影接口、变换引擎、执行计划、优化规则、适配器注册和验证体系</ModuleRule_Description>
+    <ModuleRule_Keywords>CSG,规范形式,CanonicalForm,配置,状态机,图,变换引擎,执行计划,优化规则,适配器,验证</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是 CSG 统一框架的唯一模块，整合了抽象层、核心实现和领域适配器" />
+    <ModuleRule_Rule Include="定义 CanonicalForm、IConfiguration、IStateMachine、IGraph 等核心抽象" />
+    <ModuleRule_Rule Include="实现协议核心功能：构建器、变换引擎、适配器注册、协议验证" />
+    <ModuleRule_Rule Include="各适配器将现有领域实现适配到 CSG 统一协议接口，遵循零侵入原则" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要 CSG 统一框架的接口定义、核心实现或领域适配器时，查看此模块" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CSG.Unified</RootNamespace>
+    <AssemblyName>CSG.Unified</AssemblyName>
+    <Description>CSG 统一框架 - 抽象层、核心实现和领域适配器</Description>
+  </PropertyGroup>
+
+</Project>

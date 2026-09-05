@@ -1,0 +1,35 @@
+{
+  "name": "fs-sink",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "FsSink — 截获硬盘写入 API 的通用内存落盘框架：在进程内代理 node:fs / node:fs/promises，按路径规则把 SDK 会话落盘路由到内存卷并异步镜像到可插拔数据库后端（磁盘零残留）。",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "files": [
+    "build",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "keywords": [
+    "fs",
+    "intercept",
+    "memory-volume",
+    "sink",
+    "session",
+    "persistence"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "memfs": "^4.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

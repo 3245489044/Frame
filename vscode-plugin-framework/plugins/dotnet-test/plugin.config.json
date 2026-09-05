@@ -1,0 +1,12 @@
+{
+    "pluginName": "dotnet-test",
+    "version": "1.0",
+    "displayName": ".NET 测试执行器",
+    "description": "运行 .NET 单元测试",
+    "supportedTypes": ["dotnet"],
+    "dependencies": ["dotnet"],
+    "config": {
+        "testProjectPath": "",
+        "additionalArgs": ""
+    }
+}

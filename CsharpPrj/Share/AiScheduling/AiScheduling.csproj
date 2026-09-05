@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>AI 调度骨架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用 AI-in-the-loop 调度框架：状态导演（LLM/配置提议）+ 转移守卫（确定性校验）+ 状态机（原子施加，Held/Changed/Reject）。状态宿主经 IStateFacet 解耦，不绑定任何具体业务场景。</ModuleRule_Description>
+    <ModuleRule_Keywords>AI调度,状态导演,转移守卫,状态机,提议,裁决,非限定,通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.AiScheduling</RootNamespace>
+    <AssemblyName>Share.AiScheduling</AssemblyName>
+    <Description>通用基础框架 — AI-in-the-loop 调度（导演→守卫→状态机）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 状态宿主契约（IStateFacet / SnapshotTelemetry）下沉至 Share.StateManagement，调度层依赖状态层 -->
+    <ProjectReference Include="..\StateManagement\StateManagement.csproj" />
+  </ItemGroup>
+
+
+</Project>

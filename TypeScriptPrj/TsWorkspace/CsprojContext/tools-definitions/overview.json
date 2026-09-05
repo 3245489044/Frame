@@ -1,0 +1,33 @@
+{
+  "name": "get_overview",
+  "description": "获取项目架构概览（按层分组显示所有模块）",
+  "handler": "overview",
+  "template": "query-with-detail",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      },
+      "detail": {
+        "type": "boolean",
+        "description": "是否显示详细信息（默认：false）"
+      }
+    }
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getAllModuleRules", "from": "../core/parser" },
+      { "name": "formatOverview", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "mainCall": "getAllModuleRules(projectRoot, slnPath)",
+    "emptyCheck": "⚠️ 未找到任何包含 ModuleRule 属性的 .csproj 文件。\\n请先使用 set_module_rule 工具注入 ModuleRule 属性。",
+    "outputCall": "formatOverview(results, detail)"
+  }
+}

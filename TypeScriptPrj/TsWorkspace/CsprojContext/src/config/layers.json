@@ -1,0 +1,12 @@
+{
+  "layers": [
+    { "id": 0, "name": "辅助/测试", "description": "工具脚本、测试项目、CentralConsole" },
+    { "id": 1, "name": "基础层 (BasicMethod)", "description": "基础工具库（核心抽象层）" },
+    { "id": 2, "name": "模块层 (Modules)", "description": "模块层" },
+    { "id": 3, "name": "共享层 (Share)", "description": "共享复用层" },
+    { "id": 4, "name": "操作层 (Operation)", "description": "操作实现层" },
+    { "id": 5, "name": "应用层 (FileDriven)", "description": "应用层" },
+    { "id": 6, "name": "平台层 (Plate)", "description": "平台层（数据管理/数学/Roslyn）" },
+    { "id": 7, "name": "工具层 (Storage/Utilitys)", "description": "工具层（独立工具项目/代码分析器）" }
+  ]
+}

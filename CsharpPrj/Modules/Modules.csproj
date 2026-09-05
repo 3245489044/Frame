@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>模块层</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>模块层聚合项目，包含组件数据、图处理、逻辑组合、元命令、解析、管道、注册表等子模块</ModuleRule_Description>
+    <ModuleRule_Keywords>模块,组件,图处理,逻辑,元命令,解析,管道,注册表,线程</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
+    <ModuleRule_Rule Include="子项目包括 ComponentData, GraphProcessing, LogicComposition, MetaCommand, Parsing, Pipeline, Registry" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要模块化功能组件时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块是聚合项目，具体实现在其子项目中" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules</RootNamespace>
+    <AssemblyName>Modules</AssemblyName>
+    <Description>Modules 聚合项目 - 引用 Modules 目录下所有子项目</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="ComponentData\ComponentData.csproj" />
+    <ProjectReference Include="DiagnosticContext\DiagnosticContext.csproj" />
+    <ProjectReference Include="EventFramework\EventFramework.csproj" />
+    <ProjectReference Include="ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="GraphProcessing\GraphProcessing.csproj" />
+    <ProjectReference Include="LogicComposition\LogicComposition.csproj" />
+    <ProjectReference Include="MetaCommand\MetaCommand.csproj" />
+    <ProjectReference Include="Parsing\Parsing.csproj" />
+    <ProjectReference Include="Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="Registry\Registry.csproj" />
+    <ProjectReference Include="Threading\Threading.csproj" />
+    <ProjectReference Include="ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="InternalStorage\InternalStorage.csproj" />
+    <ProjectReference Include="ValidationFramework\ValidationFramework.csproj" />
+    <ProjectReference Include="Observe\Observe.csproj" />
+  </ItemGroup>
+
+  <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
+  <ItemGroup>
+    <Compile Remove="ComponentData\**\*.cs" />
+    <Compile Remove="DiagnosticContext\**\*.cs" />
+    <Compile Remove="ExecutionFramework\**\*.cs" />
+    <Compile Remove="GraphProcessing\**\*.cs" />
+    <Compile Remove="LogicComposition\**\*.cs" />
+    <Compile Remove="MetaCommand\**\*.cs" />
+    <Compile Remove="Parsing\**\*.cs" />
+    <Compile Remove="Pipeline\**\*.cs" />
+    <Compile Remove="Registry\**\*.cs" />
+    <Compile Remove="Threading\**\*.cs" />
+    <Compile Remove="ParameterResolver\**\*.cs" />
+    <Compile Remove="InternalStorage\**\*.cs" />
+    <Compile Remove="ValidationFramework\**\*.cs" />
+    <Compile Remove="EventFramework\**\*.cs" />
+    <Compile Remove="WinFormsValueContract\**\*.cs" />
+    <Compile Remove="Observe\**\*.cs" />
+  </ItemGroup>
+
+</Project>
+
+

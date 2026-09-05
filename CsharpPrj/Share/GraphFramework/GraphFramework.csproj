@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>GraphFramework</RootNamespace>
+    <AssemblyName>GraphFramework</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GraphFoundation 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+
+    <!-- 引用 Dispose.GraphProcessing 以复用实现层（归一化、编排、引用处理等） -->
+    <ProjectReference Include="..\..\Modules\GraphProcessing\GraphProcessing.csproj" />
+    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <!-- 引用 Modules.Pipeline 以复用通用管线框架（IPipeline、PipelineBase、PipelineContext 等） -->
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>调用链分析：从创建 task 到自动创建引用</title>
+<style>
+  :root {
+    --blue-50: #E6F1FB; --blue-600: #185FA5; --blue-800: #0C447C;
+    --purple-50: #EEEDFE; --purple-600: #534AB7; --purple-800: #3C3489;
+    --teal-50: #E1F5EE; --teal-600: #0F6E56; --teal-800: #085041;
+    --coral-50: #FAECE7; --coral-600: #993C1D; --coral-800: #712B13;
+    --gray-100: #F1EFE8; --gray-400: #888780; --gray-600: #5F5E5A; --gray-800: #2C2C2A;
+    --border: #E5E7EB;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px;
+    background: #FAFAF8; color: #2C2C2A;
+    font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    line-height: 1.7; font-size: 14px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  header.top { margin-bottom: 32px; }
+  header.top h1 { font-size: 24px; font-weight: 600; color: var(--blue-800); margin: 0 0 8px; }
+  header.top .meta { color: var(--gray-600); font-size: 13px; }
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 500; margin-right: 8px;
+  }
+  .badge-blue { background: var(--blue-50); color: var(--blue-600); }
+  .badge-teal { background: var(--teal-50); color: var(--teal-600); }
+  .badge-coral { background: var(--coral-50); color: var(--coral-600); }
+  h2 {
+    font-size: 18px; font-weight: 600; color: var(--blue-800);
+    margin: 40px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--blue-50);
+  }
+  h3 { font-size: 15px; font-weight: 600; color: var(--gray-800); margin: 24px 0 8px; }
+  p { margin: 8px 0; }
+  code, pre {
+    font-family: Consolas, "Courier New", monospace;
+  }
+  code {
+    background: var(--gray-100); padding: 1px 6px; border-radius: 4px; font-size: 13px;
+  }
+  pre {
+    background: #1E1E1E; color: #D4D4D4; padding: 14px 16px; border-radius: 10px;
+    overflow-x: auto; font-size: 13px; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--blue-50); color: var(--blue-800); font-weight: 600; white-space: nowrap; }
+  tr:nth-child(even) td { background: #FCFCFB; }
+  .card {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; margin: 12px 0;
+  }
+  .card-title { font-weight: 600; color: var(--blue-800); margin-bottom: 8px; font-size: 14px; }
+  .svg-box {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; margin: 12px 0; overflow-x: auto;
+  }
+  .svg-box svg { display: block; width: 100%; height: auto; min-width: 560px; }
+  .note {
+    background: var(--coral-50); border-left: 4px solid var(--coral-600);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 13px;
+  }
+  .step-list { margin: 8px 0 8px 4px; padding-left: 20px; }
+  .step-list li { margin: 6px 0; }
+  .file-table td:first-child { font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--gray-400); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>调用链分析：从创建 task 到自动创建引用</h1>
+  <div class="meta">
+    <span class="badge badge-blue">起点：AgentRuntimeUI.json</span>
+    <span class="badge badge-teal">落库：ur_tasks (SQLite) + ur_references (LiteDB)</span>
+    <span class="badge badge-coral">自动建引用：ReferenceGrounding 写透守卫</span>
+    <br>分析日期：2026-08-19 ｜ 覆盖工程：Agent / FileDriven / CsharpPrj（Operation.DataStoreDriven）
+  </div>
+</header>
+
+<h2>1. 背景与起点</h2>
+<p>
+<code>FileDriven/DrivenConfig/JsonConfig/AgentRuntimeUI.json</code> 本身只是 <b>UI 声明文件</b>
+（左侧统一请求体 + 「▶ 运行」按钮 + 右侧分页显示）。真正驱动调用链的是两个事件绑定：
+</p>
+<div class="card">
+  <div class="card-title">关键绑定（AgentRuntimeUI.json）</div>
+  <ul class="step-list">
+    <li><code>initCommands</code>：<code>exec Ui_ListCatalogTree output=templateListView</code> —— 仅填充左侧模板树，不参与任务创建</li>
+    <li><b>「▶ 运行」按钮</b>：<code>click → AgentUi_RunJson</code>，参数取 <code>jsonRequestTextBox</code> 的 <code>requestJson</code>，输出到 <code>resultTextBox</code>（第 166-181 行）</li>
+    <li>请求体预置 <code>{"action":"query",...}</code>；tooltip 说明可切换 <code>runLoop / task / resource / reference / query</code>（第 155-156 行）</li>
+  </ul>
+</div>
+
+<h2>2. 创建 task 主调用链</h2>
+<div class="svg-box" id="chain1"></div>
+<table>
+  <thead><tr><th>#</th><th>函数 / 位置</th><th>职责</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>AgentUi_RunJson</code><br>AgentUiLibraryRuntime.Register（:451）</td><td>UI 绑定的函数名，映射到 <code>RunJsonAsync</code>（<code>Func&lt;string, Task&lt;string&gt;&gt;</code>）</td></tr>
+    <tr><td>2</td><td><code>RunJsonAsync</code><br>AgentUiLibraryRuntime.cs :208</td><td>反序列化 <code>RunRequest</code>（含 <code>RelatedNodes</code> 字段，:163），按 <code>action</code> 分发</td></tr>
+    <tr><td>3</td><td><code>action=task</code> + <code>op=enqueue</code>（默认）<br>同文件 :234-257</td><td>task = 统一 Agent 任务/输入请求；enqueue 分支把 <code>req.RelatedNodes</code> 原样传入</td></tr>
+    <tr><td>4</td><td><code>TaskPoolEnqueueAsync</code><br>AgentUiLibraryTaskPool.cs :209</td><td>入队守卫（空输入 / 同 taskKey 在途拒绝）→ 构造 <code>AgentTaskItem</code> → <code>SeedStrategyDefaults</code> / <code>SyncActiveStrategyView</code> → <code>pool.EnqueueAsync(item)</code>（:278）</td></tr>
+    <tr><td>5</td><td><code>AgentTaskPoolAdapter.EnqueueAsync</code>（AgentTaskPool.cs :177）<br>→ <code>TaskPool&lt;TItem,TResult&gt;.EnqueueAsync</code>（TaskPool.cs :98）</td><td><code>_persistence.EnqueueAsync</code> 写 <b>ur_tasks</b>（SQLite）→ <code>_signal.Writer.WriteAsync(true)</code> <b>唤醒消费循环</b> → <code>Emit</code> 发 <code>TaskStateChanged</code> 事件（UI 任务池镜像订阅刷新）</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>至此「创建 task」完成</b>：SQL 侧 ur_tasks 多一条记录，消费循环被激活，任务按 priority 出队自动执行。</div>
+
+<h2>3. 自动创建引用的调用链</h2>
+<div class="svg-box" id="chain2"></div>
+<h3>路径 A：UI 请求触发（显式声明关联节点）</h3>
+<p><code>TaskPoolEnqueueAsync</code> 第 279-284 行的<b>写透守卫</b>——入队成功后自动建引用：</p>
+<pre><code>if (relatedNodes is { Count: > 0 } &amp;&amp; AgentUiHost.ReferenceGrounding is { } maintenance)
+    await maintenance.ReconcileTaskAsync(key, relatedNodes,
+        workflowId: threadId ?? "agent-round", ct: CancellationToken.None);</code></pre>
+<table>
+  <thead><tr><th>步骤</th><th>函数 / 位置</th><th>职责</th></tr></thead>
+  <tbody>
+    <tr><td>A1</td><td><code>AgentUiHost.ReferenceGrounding</code> 槽位<br>AgentUiHost.cs :93（<code>AttachReferenceGrounding</code>，:106）</td><td>组合根装配的守卫槽位；<b>未装配为 null 则守卫自动跳过</b>（可空守卫设计）</td></tr>
+    <tr><td>A2</td><td><code>ReferenceGrounding.ReconcileTaskAsync</code><br>ReferenceGrounding.cs :100</td><td>门面，<b>只做编排不写边</b>，委托图协调器</td></tr>
+    <tr><td>A3</td><td><code>ReferenceGraphCoordinator.ReconcileTaskAsync</code><br>ReferenceGraphCoordinator.cs :423</td><td><b>唯一写边执行者</b>，三步完成（cs:427-435）</td></tr>
+    <tr><td>A3.1</td><td><code>AddResourceAsync(taskId)</code>（cs:147）</td><td>注册 <b>task 端点</b>（Id=taskKey）——ur_endpoints 落盘 + 内存注册表</td></tr>
+    <tr><td>A3.2</td><td><code>AddResourceAsync(nodeId)</code> × N</td><td>对每个关联 nodeKey 注册 <b>node 端点</b>（Id=<code>wf.nodeKey</code>，经 <code>NodeRelationFactory.NodeId</code>）</td></tr>
+    <tr><td>A3.3</td><td><code>AddReferenceAsync(taskId, nodeId, "node_to_node", 1.0)</code>（cs:194）</td><td>建 <b>task→node 引用边</b>：<code>_edges.DeleteMany</code>（幂等去重）→ <code>_edges.Insert</code>（LiteDB <b>ur_references</b> 持久边）→ <code>_graph.AddEdge</code>（内存热邻接）</td></tr>
+  </tbody>
+</table>
+
+<h3>路径 B：存储桥兜底（任意入队路径）</h3>
+<p>
+装配期在 <code>TaskPoolHosting.TryBootstrapRulePoolAsync</code>（:48-49）与 <code>DataStoreHosting.BuildTaskPoolStoreAsync</code>（:116-117）
+用 <code>ReferenceGrounding</code> 包装持久化存储为 <code>WriteThroughTaskPoolStore&lt;TItem&gt;</code>
+（<code>CsharpPrj/Operation/DataStoreDriven/Core/WriteThroughTaskPoolStore.cs</code>）：
+</p>
+<ul class="step-list">
+  <li><b>入队</b>：写 ur_tasks 后自动 <code>EnsureTaskMirrorAsync</code> 建 <b>task 图端点镜像</b>（:33）</li>
+  <li><b>删除</b>：<code>RemoveTaskMirrorAsync</code> 级联清边（:68）</li>
+  <li><b>状态/载荷更新</b>：经 <code>UpdateAndMirrorAsync</code> 幂等注册端点，<b>不重建边</b>（避免任务高频变化导致图抖动，:50-61）</li>
+</ul>
+<div class="note"><b>关键差异</b>：存储桥拿不到 <code>relatedNodes</code>，因此<b>只建 task 端点、不建 task→node 边</b>——完整引用边必须走路径 A（请求体显式声明）。</div>
+
+<h2>4. 两个入口对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>路径 A：写透守卫（UI）</th><th>路径 B：WriteThroughTaskPoolStore（存储桥）</th></tr></thead>
+  <tbody>
+    <tr><td>触发位置</td><td><code>TaskPoolEnqueueAsync</code>（AgentUiLibraryTaskPool.cs:280）</td><td>任务池持久化层（任意入队路径自动生效）</td></tr>
+    <tr><td>触发条件</td><td>请求体 <code>relatedNodes</code> 非空 + 守卫已装配</td><td>装配期注入 <code>ReferenceGrounding</code> 即生效</td></tr>
+    <tr><td>建什么</td><td>task 端点 + node 端点 + <b>task→node 引用边</b></td><td>仅 task 端点镜像（无 relatedNodes 信息）</td></tr>
+    <tr><td>删除联动</td><td>经守卫 <code>RemoveTaskMirrorAsync</code></td><td><code>DeleteAsync</code> 级联清边</td></tr>
+    <tr><td>适用场景</td><td>任务创建时已知关联业务节点</td><td>后台/零 LLM 任务池的图端点保底同步</td></tr>
+  </tbody>
+</table>
+
+<h2>5. 关键设计点</h2>
+<ul class="step-list">
+  <li><b>声明式触发</b>：引用是「声明式」的——请求体带 <code>relatedNodes</code> 才建 task→node 边，不是每次入队都自动建</li>
+  <li><b>职责分层</b>：<code>ReferenceGrounding</code>（守卫）= 决策/编排，<code>ReferenceGraphCoordinator</code>（协调器）= 纯写边执行者，二者不复制逻辑（SingleImplementation 公理）</li>
+  <li><b>幂等性</b>：<code>AddResourceAsync</code> 是 upsert、<code>AddReferenceAsync</code> 先删后加，重复入队/声明不产生重复边</li>
+  <li><b>防图库分裂</b>：<code>AttachReferenceGrounding</code> 断言守卫协调器与 <code>AgentUiHost.Database.Resources</code> 必须为<b>同一实例</b>（AgentUiHost.cs:111），否则抛异常</li>
+  <li><b>数据分离</b>：实体在 <b>SQLite</b>（ur_tasks / ur_nodes），引用关系在 <b>LiteDB</b>（ur_endpoints 端点 + ur_references 纯边）；LiteDB 不复制实体数据</li>
+</ul>
+
+<h2>6. 相关文件清单</h2>
+<table class="file-table">
+  <thead><tr><th>文件</th><th>角色</th></tr></thead>
+  <tbody>
+    <tr><td>FileDriven/DrivenConfig/JsonConfig/AgentRuntimeUI.json</td><td>起点：UI 声明，绑定 AgentUi_RunJson / Ui_ListCatalogTree</td></tr>
+    <tr><td>Agent/src/Agent.Launcher/Modules/AgentUiLibraryRuntime.cs</td><td>RunJsonAsync 入口 + RunRequest DTO（含 RelatedNodes）</td></tr>
+    <tr><td>Agent/src/Agent.Launcher/Modules/AgentUiLibraryTaskPool.cs</td><td>TaskPoolEnqueueAsync：入队 + 写透守卫（自动建引用）</td></tr>
+    <tr><td>Agent/src/Agent.Core/TaskPool/AgentTaskPool.cs</td><td>AgentTaskPoolAdapter：入队门面</td></tr>
+    <tr><td>CsharpPrj/Share/TaskStatusPool/TaskPool/TaskPool.cs</td><td>通用任务池：写 ur_tasks + 唤醒消费循环</td></tr>
+    <tr><td>Agent/src/Agent.Launcher/Modules/AgentUiHost.cs</td><td>ReferenceGrounding 槽位 + AttachReferenceGrounding 装配</td></tr>
+    <tr><td>CsharpPrj/Operation/DataStoreDriven/Core/ReferenceGrounding.cs</td><td>引用落地守卫（门面，IReferenceMaintenance 实现）</td></tr>
+    <tr><td>CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphCoordinator.cs</td><td>图协调器：ReconcileTaskAsync / AddResourceAsync / AddReferenceAsync</td></tr>
+    <tr><td>CsharpPrj/Operation/DataStoreDriven/Core/WriteThroughTaskPoolStore.cs</td><td>存储桥：入队自动建 task 图镜像（路径 B）</td></tr>
+    <tr><td>CsharpPrj/Operation/DataStoreDriven/Abstractions/ReferenceMaintenance.cs</td><td>IReferenceMaintenance 端口（ReconcileTaskAsync 接口）</td></tr>
+    <tr><td>Agent/src/Agent.Launcher/Composition/TaskPoolHosting.cs / DataStoreHosting.cs</td><td>组合根装配：注入 ReferenceGrounding、包 WriteThroughTaskPoolStore</td></tr>
+    <tr><td>FileDriven/DrivenConfig/Templates/AgentRun/task/enqueue.json</td><td>请求体模板样例（action=task / op=enqueue）</td></tr>
+  </tbody>
+</table>
+
+<h2>7. 请求体模板示例</h2>
+<p>基础入队模板（<code>task/enqueue.json</code>）：</p>
+<pre><code>{
+  "_doc": "task/enqueue：任务入队（写 ur_tasks 激活消费，TaskKey 幂等 upsert，按 priority 出队自动执行）",
+  "action": "task",
+  "op": "enqueue",
+  "input": "后台任务：整理资源清单",
+  "taskKey": "tp_example",
+  "mode": "Config",
+  "schedulerRulesKey": "scheduler.rules.tp_example",
+  "priority": 0,
+  "maxRetries": 0
+}</code></pre>
+<p>触发<b>自动创建引用</b>的变体（追加 <code>relatedNodes</code> 声明关联业务节点，<code>threadId</code> 用作 workflowId）：</p>
+<pre><code>{
+  "action": "task",
+  "op": "enqueue",
+  "input": "后台任务：整理资源清单",
+  "taskKey": "tp_example",
+  "threadId": "agent-round",
+  "relatedNodes": ["node.order.001", "node.resource.002"]
+}</code></pre>
+<p>入队成功后，守卫将自动注册 <code>task:tp_example</code> 与 <code>node:agent-round.node.order.001</code>（×2）端点，
+并写入两条 <code>node_to_node</code> 引用边（task → node，strength=1.0）。</p>
+
+<h2>8. 数据落点总览</h2>
+<table>
+  <thead><tr><th>存储</th><th>集合 / 表</th><th>内容</th><th>写入者</th></tr></thead>
+  <tbody>
+    <tr><td>SQLite</td><td>ur_tasks</td><td>任务实体（TaskKey / 状态 / PayloadJson 快照）</td><td>TaskPool.EnqueueAsync / WriteStatusAsync</td></tr>
+    <tr><td>SQLite</td><td>ur_nodes</td><td>业务节点实体</td><td>node 写入（WriteNodeAsync）</td></tr>
+    <tr><td>LiteDB</td><td>ur_endpoints</td><td>端点符号/metadata（task / wf.node 镜像）</td><td>ReferenceGraphCoordinator.AddResourceAsync</td></tr>
+    <tr><td>LiteDB</td><td>ur_references</td><td>纯引用边（task→node / node↔node）</td><td>ReferenceGraphCoordinator.AddReferenceAsync</td></tr>
+    <tr><td>内存</td><td>热邻接 CoreGraph</td><td>边重建的会话内图视图（UI/编排器读）</td><td>AddEdge（由边文档重建）</td></tr>
+  </tbody>
+</table>
+
+<footer>Generated from codebase analysis · WorkFlowPrj · 2026-08-19</footer>
+</div>
+
+<script>
+const CHAIN1 = `<svg viewBox="0 0 680 516" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<g><rect x="170" y="20" width="340" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="38" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">AgentRuntimeUI.json 「▶ 运行」</text>
+<text x="340" y="58" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">起点：click → AgentUi_RunJson</text></g>
+<path d="M340 76 L340 116" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a1)"/>
+<g><rect x="140" y="116" width="400" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="134" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">RunJsonAsync 单一请求体入口</text>
+<text x="340" y="154" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">AgentUiLibraryRuntime.cs:208 · 解析 JSON 按 action 分发</text></g>
+<path d="M340 172 L340 212" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a1)"/>
+<g><rect x="170" y="212" width="340" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="230" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">action = task · op = enqueue</text>
+<text x="340" y="250" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">task = 统一 Agent 任务请求，默认 op=enqueue 入队</text></g>
+<path d="M340 268 L340 308" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a1)"/>
+<g><rect x="120" y="308" width="440" height="64" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="340" y="328" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#3C3489">TaskPoolEnqueueAsync（任务池入队）</text>
+<text x="340" y="348" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">AgentUiLibraryTaskPool.cs:209 · 守卫 + 构造 AgentTaskItem</text></g>
+<text x="340" y="392" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#5F5E5A">先入队，成功后经写透守卫建引用（两条子链）</text>
+<path d="M340 372 L340 402 L195 402 L195 424" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a1)"/>
+<path d="M340 372 L340 402 L495 402 L495 424" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a1)"/>
+<g><rect x="60" y="424" width="270" height="72" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="195" y="443" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#085041">① pool.EnqueueAsync 入队</text>
+<text x="195" y="462" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">写 ur_tasks（SQLite）</text>
+<text x="195" y="480" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">唤醒消费循环 + 状态事件</text></g>
+<g><rect x="350" y="424" width="270" height="72" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="485" y="443" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#712B13">② 写透守卫 → 自动建引用</text>
+<text x="485" y="462" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#993C1D">前提：relatedNodes>0 且</text>
+<text x="485" y="480" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#993C1D">ReferenceGrounding 已装配</text></g>
+</svg>`;
+
+const CHAIN2 = `<svg viewBox="0 0 680 632" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<g><rect x="150" y="20" width="380" height="56" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="340" y="38" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#712B13">写透守卫（TaskPoolEnqueueAsync 内）</text>
+<text x="340" y="58" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#993C1D">AgentUiLibraryTaskPool.cs:280 · relatedNodes>0 且守卫已装配</text></g>
+<path d="M340 76 L340 116" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a2)"/>
+<g><rect x="150" y="116" width="380" height="56" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="340" y="134" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#712B13">AgentUiHost.ReferenceGrounding 槽位</text>
+<text x="340" y="154" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#993C1D">AgentUiHost.cs:93 · 组合根经 AttachReferenceGrounding 装配</text></g>
+<path d="M340 172 L340 212" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a2)"/>
+<g><rect x="130" y="212" width="420" height="56" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="340" y="230" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#712B13">ReferenceGrounding.ReconcileTaskAsync</text>
+<text x="340" y="250" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#993C1D">ReferenceGrounding.cs:100 · 门面，委托图协调器（不做写边）</text></g>
+<path d="M340 268 L340 308" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a2)"/>
+<g><rect x="110" y="308" width="460" height="56" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="340" y="326" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#085041">ReferenceGraphCoordinator.ReconcileTaskAsync</text>
+<text x="340" y="346" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">ReferenceGraphCoordinator.cs:423 · 唯一写边执行者</text></g>
+<path d="M340 364 L340 404" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a2)"/>
+<g><rect x="80" y="404" width="520" height="96" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="340" y="423" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#085041">三步写边（cs:427-435，taskId / nodeId / 引用边）</text>
+<text x="340" y="443" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">① AddResourceAsync(taskId) — 注册 task 端点（Id=taskKey）</text>
+<text x="340" y="463" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">② AddResourceAsync(nodeId) × N — 注册每个关联 node 端点</text>
+<text x="340" y="483" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">③ AddReferenceAsync(task→node, "node_to_node", 1.0)</text></g>
+<path d="M340 500 L340 536" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#a2)"/>
+<g><rect x="130" y="536" width="420" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="554" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">落库：LiteDB ur_references 持久边</text>
+<text x="340" y="574" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">AddReferenceAsync:194 · 幂等 upsert + 内存热邻接重建</text></g>
+</svg>`;
+
+document.getElementById('chain1').innerHTML = CHAIN1;
+document.getElementById('chain2').innerHTML = CHAIN2;
+</script>
+</body>
+</html>

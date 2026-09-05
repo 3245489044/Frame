@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ValidationFramework</RootNamespace>
+    <AssemblyName>ValidationFramework</AssemblyName>
+    <Description>通用校验框架 — 与领域解耦的校验内核（诊断/报告/引擎/管线/契约/反馈/声明式约束）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 声明式约束层：IConstraint<T> / DeclarationValidator 等 -->
+    <ProjectReference Include="..\..\BasicMethod\Map\Declarative\Declarative.csproj" />
+    <!-- 执行管线：复用 ExecutionPipeline 的单规则隔离/重试/条件跳过能力 -->
+    <ProjectReference Include="..\..\BasicMethod\Map\Block\Block.csproj" />
+  </ItemGroup>
+
+</Project>

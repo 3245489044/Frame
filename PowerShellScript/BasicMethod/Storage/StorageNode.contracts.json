@@ -1,0 +1,32 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "store.resource",
+        "verb": "store",
+        "object": "resource",
+        "purpose": "写标准资源节点（resourceType,id,symbol,metadata）——经存储桥委托单一 C# 写入口路由到基础节点库（ur_nodes / LiteDB 图库）；无独立 SQL ur_resources 表",
+        "function": "Store-Resource",
+        "path": "PowerShellScript\\BasicMethod\\Storage\\StorageNode.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "ResourceType", "type": "string", "required": false, "constraint": "资源类型（分析结论=analysis；文件=file；一般=node，缺省 node）" },
+        { "name": "Id", "type": "string", "required": true, "constraint": "资源唯一 id" },
+        { "name": "Symbol", "type": "string", "required": false, "constraint": "符号名（如 analysis:xxx / 文件名）" },
+        { "name": "Metadata", "type": "object", "required": false, "constraint": "结构化元数据（分析结论 JSON / 文件元数据）" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "ResourceType": "string", "Id": "string", "Upserted": "bool" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

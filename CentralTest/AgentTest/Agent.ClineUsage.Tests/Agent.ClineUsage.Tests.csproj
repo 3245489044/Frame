@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Agent Cline 客户端测试</ModuleRule_Title>
+    <ModuleRule_Layer>0</ModuleRule_Layer>
+    <ModuleRule_Description>Agent.Modules 模块的单元测试与集成冒烟测试：模型反序列化、ClineClient 构造/私有逻辑、零成本命令冒烟与真实 AI 调用门控测试</ModuleRule_Description>
+    <ModuleRule_Keywords>Agent;Cline;ClineClient;ClineModels;测试;单元测试;集成测试</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- 编译输出统一到 CentralTest\BuildOutput -->
+    <OutputPath>..\..\BuildOutput\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <IntermediateOutputPath>..\..\BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- 导入版本号定义（从 CsharpPrj 共享的版本文件） -->
+  <Import Project="..\..\..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+    <PackageReference Include="MSTest.TestAdapter" Version="$(MSTestTestAdapterVersion)" />
+    <PackageReference Include="MSTest.TestFramework" Version="$(MSTestTestFrameworkVersion)" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 节点执行引擎已迁入 Agent.Core/Nodes（收敛 Phase 0），StepExecution 命名空间类型测试需引用 Core -->
+    <!-- GlobalUsings 别名指向 Share.TaskStatusPool.Loops（统一上下文原语下沉），测试工程需引用 TaskStatusPool -->
+  </ItemGroup>
+
+</Project>
+

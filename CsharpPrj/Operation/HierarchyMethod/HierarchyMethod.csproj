@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>层次方法通用框架（HierarchyMethod）</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>nodes / task / history 三层通用、LLM-free 基础框架：HierarchyMethod.Nodes（节点存储/输出/关系编排）、HierarchyMethod.Tasks（纯簿记 + 执行节点 + 循环快照根 + 注入端口）、HierarchyMethod.History（历史容器/消息日志/关系编排）。零 Agent 依赖，LLM 知识仅经注入端口由 Agent 应用层提供。</ModuleRule_Description>
+    <ModuleRule_Keywords>HierarchyMethod;Nodes;Tasks;History;LLM-free;NodeRecord;TaskRecord;HistoryRecord;端口注入;可空守卫</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="三层单向依赖：Nodes → Tasks → History（通用、LLM-free）；Agent 消费、不反向依赖" />
+    <ModuleRule_Rule Include="框架本体零 LLM 依赖；LLM 知识（执行器/导演/提示词）只能存在于 Agent 应用层，经注入端口提供" />
+    <ModuleRule_Rule Include="写边原语唯一收敛 DataStoreDriven.ReferenceGraphCoordinator，编排只编排不复制写边（SingleImplementation / TH-12）" />
+    <ModuleRule_Rule Include="未装配端口/关系库返回空集/诊断（UnavailableDiagnostics），不消耗 AI 额度、不阻断 DB-only 路径" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Operation.HierarchyMethod</RootNamespace>
+    <AssemblyName>Operation.HierarchyMethod</AssemblyName>
+    <Description>nodes/task/history 三层通用、LLM-free 基础框架（HierarchyMethod）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 任务池/状态机/循环引擎/确定性核心（TaskStatusPool.TaskPool / Loops / Routing） -->
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+<ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <!-- 支撑 DTO（SchedulingMode/DataSpace/DataContract/RuntimeSnapshot，LLM-free 纯数据） -->
+    <ProjectReference Include="..\..\Share\HierarchySupport\Share.HierarchySupport.csproj" />
+    <!-- 会话消息日志纯逻辑（ConversationLog/ConversationMessage/IHistoryStore） -->
+    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
+    <!-- 节点库/关系库/写边原语（NodeStore/NodeRelationStore/ReferenceGraphCoordinator） -->
+    <ProjectReference Include="..\DataStoreDriven\DataStoreDriven.csproj" />
+    <!-- AI 调度状态门面（IStateFacet 等共享状态视图，纯数据/端口） -->
+    <ProjectReference Include="..\..\Share\AiScheduling\AiScheduling.csproj" />
+    <!-- 工作流上下文/循环框架（WorkflowContext/LoopFramework 领域内核类型） -->
+    <ProjectReference Include="..\WorkFlowMethod\WorkFlowMethod.csproj" />
+    <!-- 通用 JSON 条件判定内核（JsonRuleEngine，LLM-free）：HierarchyMethod.Rules 规则评估引擎委托 -->
+    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <!-- 引用空间抽象（LoopFoldMethod.Reference）：HistoryRelationManager 等编排门面转发到 Reference.Gateways（单一 owner），
+         消费方端口（IHistoryRelationManager 等）形态不变；LoopFoldMethod 不反向依赖本模块，无环。 -->
+    <ProjectReference Include="..\LoopFoldMethod\LoopFoldMethod.csproj" />
+    <!-- 平台级统一 JSON 框架（Plate.JsonMethod）：节点输出载荷编解码统一编码（非 ASCII 直出，避免 \uXXXX 转义污染存储） -->
+    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+  </ItemGroup>
+
+</Project>

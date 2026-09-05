@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>BasicMethod.ECS</RootNamespace>
+    <AssemblyName>BasicMethod.ECS</AssemblyName>
+    <Description>ECS 框架 - 提供实体组件系统核心实现，包括 Archetype、Chunk、Query、System 等基础设施</Description>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <!-- S1: ControlPool 复用 StorageBidirectionalExtensions（Modules.InternalStorage），消除双向映射重复实现 -->
+    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+  </ItemGroup>
+
+</Project>

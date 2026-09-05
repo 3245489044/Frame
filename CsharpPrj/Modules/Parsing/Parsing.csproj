@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>Modules.Parsing</AssemblyName>
+    <RootNamespace>Modules.Parsing</RootNamespace>
+    <PackageId>Modules.Parsing</PackageId>
+    <Description>命令解析编译层 - 命令分词、解析、规范化、参数解析及核心数据模型</Description>
+    <Authors>WorkFlowPrj Team</Authors>
+    <Version>1.0.0</Version>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageTags>command;parsing;tokenizer;workflow</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Common、StateMachine 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+  </ItemGroup>
+
+
+</Project>

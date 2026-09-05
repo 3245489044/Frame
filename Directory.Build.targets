@@ -1,0 +1,69 @@
+<Project>
+
+  <!-- ============================================================
+       ★ 全局自投放部署框架 + CsharpPrj 权威烘焙上收（方案B配套）
+       由仓库根自动加载、作用于全仓每个项目；是否生效由各产品 props 声明属性决定（opt-in），
+       缺省不干扰 FileDriven / CsharpPrj 自身的构建。
+
+       设计依据：docs/design/SelfDeployFramework/README.md
+       ============================================================ -->
+
+  <!-- ============================================================
+       统一部署属性契约（由产品 props 打开/覆盖）：
+         SelfDeployEnabled=true                开启构建后自投放
+         SelfDeploySourceDir=...               要同步的权威输出目录（单一真源）
+         SelfDeployTargetDir=...               目标运行目录（默认 FileDriven 运行目录）
+         SelfDeployTriggerProjectName=...      仅当构建该 MSBuildProjectName 时触发（组合根门控）；
+                                               留空则本 csproj 自身构建即触发（如 PrjBridge）
+       语义：把 SelfDeploySourceDir 整闭包（含随带 deps.json / runtimeconfig / runtimes native）
+             递归拷入目标运行目录；deps.json 是否携带由源目录实况决定（完整部署=携带，轻量=不携带），
+             由此将 Agent/Produce/PrjBridge 三套部署收敛为一个 target 的两个属性。
+       ============================================================ -->
+  <Target Name="DeploySelfToRuntime" AfterTargets="Build"
+          Condition="'$(SelfDeployEnabled)' == 'true'
+                     And ('$(SelfDeployTriggerProjectName)' == ''
+                          Or '$(MSBuildProjectName)' == '$(SelfDeployTriggerProjectName)')">
+    <PropertyGroup>
+      <!-- 源目录：取产品显式声明的权威目录；未声明则回退到本工程 TargetDir（组合根/聚合器场景）。
+           注意：此处必须放在 Target 内求值，$(TargetDir) 是构建期属性，求值期(Project 级 PropertyGroup)为空。 -->
+      <_SelfSrc Condition="'$(SelfDeploySourceDir)' != ''">$(SelfDeploySourceDir)</_SelfSrc>
+      <_SelfSrc Condition="'$(_SelfSrc)' == ''">$(TargetDir)</_SelfSrc>
+      <_SelfDst Condition="'$(SelfDeployTargetDir)' != ''">$(SelfDeployTargetDir)</_SelfDst>
+      <_SelfDst Condition="'$(_SelfDst)' == ''">$(FileDrivenProjectRoot)\BuildOutput\$(Configuration)\</_SelfDst>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SelfFiles Include="$(_SelfSrc)**\*.*" Condition="'$(_SelfSrc)' != ''" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SelfFiles)"
+          DestinationFiles="@(_SelfFiles->'$(_SelfDst)%(RecursiveDir)%(Filename)%(Extension)')"
+          Condition="'@(_SelfFiles)' != ''"
+          SkipUnchangedFiles="true" />
+    <Message Condition="'@(_SelfFiles)' != ''" Importance="high"
+             Text="[DeploySelfToRuntime] $(_SelfSrc) → $(_SelfDst)（trigger: $(MSBuildProjectName)）" />
+  </Target>
+
+  <!-- ============================================================
+       EnsureCsharpBaked：方案B（二进制 &lt;Reference&gt; 消费 CsharpPrj dll）的权威烘焙兜底。
+       由 Agent / Produce 等产品 props 置 RequireCsharpPrjBaked=true 开启；
+       FileDriven（走聚合 ProjectReference）与 CsharpPrj 自身不消费该模式，默认关闭，不会自我触发递归烘焙。
+       上收自 Projects/Agent 与 Projects/Produce 各一份逐字重复的同名 target。
+       ============================================================ -->
+  <PropertyGroup>
+    <!-- 哨兵 dll：来自不同族，确保整个 CsharpPrj 已烘焙全集（BasicMethod/Operation/Share 均覆盖） -->
+    <_CsharpProbe1>$(CsharpBuildOutputDir)BasicMethod.dll</_CsharpProbe1>
+    <_CsharpProbe2>$(CsharpBuildOutputDir)Operation.HierarchyMethod.dll</_CsharpProbe2>
+    <_CsharpProbe3>$(CsharpBuildOutputDir)Share.HostAssembly.dll</_CsharpProbe3>
+  </PropertyGroup>
+  <Target Name="EnsureCsharpBaked" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(RequireCsharpPrjBaked)' == 'true'
+                     And '$(SkipEnsureCsharpBaked)' != 'true'
+                     And (!Exists('$(_CsharpProbe1)') Or !Exists('$(_CsharpProbe2)') Or !Exists('$(_CsharpProbe3)'))">
+    <Message Importance="high"
+             Text="[EnsureCsharpBaked] (Config=$(Configuration)) 权威烘焙目录缺少 CsharpPrj dll，先构建 CsharpPrj(MainProj.sln) → $(CsharpBuildOutputDir)" />
+    <MSBuild Projects="$(CsharpProjectRoot)\MainProj.sln"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             BuildInParallel="true" />
+  </Target>
+
+</Project>

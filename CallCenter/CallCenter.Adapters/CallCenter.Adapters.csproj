@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CallCenter.Adapters</RootNamespace>
+    <AssemblyName>CallCenter.Adapters</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 适配层 = CallCenter 的终端面/执行后端落地：把仓库既有 ExecutionFramework（统一超时/取消/异步解包/异常映射）
+         接进 ICSharpDelegateInvoker 执行缝。仅本层引用 ExecutionFramework，CallCenter.Core 保持精简（只 CSG.Unified + TConfig）。 -->
+    <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <!-- P4-b C# 编译轨（Source→IL Build 腿）：复用仓库既有 Roslyn 编译核心 RoslynMethod.Core（微软 Roslyn 5.3.0，
+         已含自动引用解析/CompilationSkeleton，非自造编译栈）作 C# 源码→IL 的单一实现（SingleImplementation / TH-12）。
+         本层引用 Roslyn，CallCenter.Core 仍保持精简（不拖 Roslyn 栈，见架构 §16.1 注释）。 -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
+  </ItemGroup>
+
+</Project>

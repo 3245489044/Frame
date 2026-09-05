@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Plate.MarkdownViewer</RootNamespace>
+    <AssemblyName>Plate.MarkdownViewer</AssemblyName>
+    <Description>WinForms 内嵌 Markdown 查看器：Markdig 解析 + WebView2 渲染；含 ur_tasks 任务池分页 md 渲染器。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.37.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
+  </ItemGroup>
+
+
+</Project>

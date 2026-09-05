@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Install Framework Manifest Schema",
+  "description": "Install Framework 的安装清单配置文件 schema",
+  "type": "object",
+  "required": ["name", "items"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "清单名称（显示名称）"
+    },
+    "description": {
+      "type": "string",
+      "description": "清单描述"
+    },
+    "version": {
+      "type": "string",
+      "description": "清单版本"
+    },
+    "target": {
+      "type": "string",
+      "enum": ["local", "docker"],
+      "default": "local",
+      "description": "默认安装目标"
+    },
+    "containerName": {
+      "type": "string",
+      "description": "默认 Docker 容器名称（target=docker 时）"
+    },
+    "items": {
+      "type": "array",
+      "description": "安装项列表",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "source"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "安装项名称（唯一标识符）"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["npm", "pip", "github-release", "git-clone", "zip-extract", "rustup", "msi", "local"],
+            "description": "安装类型（决定使用哪个 Provider）"
+          },
+          "source": {
+            "type": "string",
+            "description": "安装源（包名/仓库URL/下载URL/本地路径）"
+          },
+          "version": {
+            "type": "string",
+            "default": "latest",
+            "description": "目标版本"
+          },
+          "installDir": {
+            "type": "string",
+            "description": "安装目标目录（适用于 github-release/git-clone/zip-extract/local）"
+          },
+          "global": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否全局安装（适用于 npm/pip）"
+          },
+          "description": {
+            "type": "string",
+            "description": "安装项描述"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "标签列表"
+          },
+          "envVars": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "安装后需要设置的环境变量"
+          },
+          "pathEntries": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "需要添加到 PATH 的目录列表"
+          },
+          "preCheck": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "安装前需要检查的依赖项（如 docker, node, python）"
+          },
+          "verifyCommand": {
+            "type": "string",
+            "description": "安装后验证命令"
+          },
+          "options": {
+            "type": "object",
+            "description": "Provider 特定选项",
+            "properties": {
+              "branch": { "type": "string" },
+              "buildCommand": { "type": "string" },
+              "assetPattern": { "type": "string" },
+              "extractDir": { "type": "string" },
+              "binaryName": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

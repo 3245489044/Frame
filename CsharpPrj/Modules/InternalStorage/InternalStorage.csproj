@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.InternalStorage</RootNamespace>
+    <AssemblyName>Modules.InternalStorage</AssemblyName>
+    <Description>通用运行时内存存储管理框架 - 覆盖并统一现有 4 套独立的内存存储体系</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

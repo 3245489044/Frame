@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- 排除 LoggingValidator 子项目，它有独立的 Main 入口点 -->
+  <ItemGroup>
+    <Compile Remove="LoggingValidator\**\*" />
+    <Content Remove="LoggingValidator\**\*" />
+    <EmbeddedResource Remove="LoggingValidator\**\*" />
+    <None Remove="LoggingValidator\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+    <PackageReference Include="MSTest.TestAdapter" Version="$(MSTestTestAdapterVersion)" />
+    <PackageReference Include="MSTest.TestFramework" Version="$(MSTestTestFrameworkVersion)" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\TestInfrastructure\TestInfrastructure.csproj" />
+    <!-- ★ 添加对 UniversalReference 的引用，以获取 BatchManager、BatchMetadata、BatchLoggerBridge 等类型 -->
+    <!-- ★ 添加对 Share.Diagnostics 的引用，以获取 BatchRouter、LogRepository 等类型 -->
+  </ItemGroup>
+
+</Project>

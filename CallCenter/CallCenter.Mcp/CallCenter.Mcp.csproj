@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>CallCenter.Mcp</RootNamespace>
+    <AssemblyName>CallCenter.Mcp</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
+    <!-- 官方 ModelContextProtocol SDK（McpClient/StdioClientTransport），与 Agent 侧 McpClientManager 同源、SingleImplementation
+         （不复刻自研 JSON-RPC 读循环）；本工程不引用 Agent 项目，使 CallCenter 独立接入 MCPBridge（TS/PS 轨）。 -->
+    <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
+  </ItemGroup>
+
+</Project>

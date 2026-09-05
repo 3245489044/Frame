@@ -1,0 +1,25 @@
+packages:
+  - "TsWorkspace/BasicMethod"
+  - "TsWorkspace/MCPFramework"
+  - "TsWorkspace/MCPBridge"
+  - "TsWorkspace/CsprojContext"
+  - "TsWorkspace/ClineApi"
+  - "TsWorkspace/FsSink"
+  - "TsWorkspace/Protocol/CSG"
+  - "TsWorkspace/WorkflowGraph"
+  - "TsSln"
+
+# 允许执行这些依赖的构建脚本（pnpm 10 默认阻止）
+onlyBuiltDependencies:
+  - cline
+  - protobufjs
+
+# 统一工具链版本（原 ts-versions.json，由 catalog: 协议引用）
+# 修改版本只需编辑此处，所有子包自动同步
+catalog:
+  typescript: 7.0.2
+  "@types/node": 26.2.0
+  tsx: 4.23.12
+  vitest: 4.1.10
+  eslint: 10.8.0
+  prettier: 3.9.6

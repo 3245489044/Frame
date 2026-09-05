@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>平台层</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>平台层聚合项目，包含数据管理、数学库、Roslyn 代码分析等子模块</ModuleRule_Description>
+    <ModuleRule_Keywords>平台,数据管理,数学,Roslyn,代码分析,JSON</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
+    <ModuleRule_Rule Include="子项目包括 DataManage, Mathematics, RoslynMethod" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要数据管理、数学计算、Roslyn 代码分析等功能时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 RoslynMethod/ 包含 Roslyn 代码分析和重构功能" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- 排除子项目目录下的所有源码（由各子项目 .csproj 独立编译，避免源码与 DLL 二义性冲突） -->
+  <ItemGroup>
+    <Compile Remove="DataManage\**\*.cs" />
+    <Compile Remove="TConfig\**\*.cs" />
+    <Compile Remove="JsonMethod\**\*.cs" />
+    <Compile Remove="DslMethod\**\*.cs" />
+    <Compile Remove="MarkdownViewer\**\*.cs" />
+    <Compile Remove="HtmlViewer\**\*.cs" />
+    <Compile Remove="HttpMethod\**\*.cs" />
+    <Compile Remove="XmlMethod\**\*.cs" />
+    <!-- ★ 同族独立子项目（Mathematics/RoslynMethod）：聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
+    <Compile Remove="Mathematics\**\*.cs" />
+    <Compile Remove="RoslynMethod\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DataManage\DataManage.csproj" />
+    <ProjectReference Include="TConfig\TConfig.csproj" />
+    <ProjectReference Include="Mathematics\Mathematics.csproj" />
+    <ProjectReference Include="RoslynMethod\RoslynMethod.csproj" />
+    <ProjectReference Include="JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="DslMethod\DslMethod.csproj" />
+    <ProjectReference Include="MarkdownViewer\MarkdownViewer.csproj" />
+    <ProjectReference Include="HtmlViewer\HtmlViewer.csproj" />
+    <ProjectReference Include="HttpMethod\HttpMethod.Transport.csproj" />
+    <!-- ★ HttpMethod.Host（Kestrel 宿主）与 Transport 同族，聚合项目一并承载，供上层直接消费 -->
+    <ProjectReference Include="HttpMethod\HttpMethod.Host.csproj" />
+    <!-- ★ XML/SVG 通用构建框架（XmlMethod）：流式元素构建器 + SVG 便捷工厂，纯字符串输出，零第三方依赖 -->
+    <ProjectReference Include="XmlMethod\XmlMethod.csproj" />
+    <!-- ★ 子项目内独立工程一并纳入 Plate 聚合（其源码目录已被上方 Compile Remove，无重复编译风险） -->
+    <ProjectReference Include="DataManage\DataManage.PathManager\DataManage.PathManager.csproj" />
+    <ProjectReference Include="RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
+
+
+  </ItemGroup>
+
+</Project>
+
+

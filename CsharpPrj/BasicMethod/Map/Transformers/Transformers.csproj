@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>BasicMethod.Transformers</RootNamespace>
+    <AssemblyName>BasicMethod.Transformers</AssemblyName>
+    <Description>通用转换器框架 - 提供 ITransformer、GroupReducer、Validator 等数据转换和验证基础能力</Description>
+  </PropertyGroup>
+
+</Project>

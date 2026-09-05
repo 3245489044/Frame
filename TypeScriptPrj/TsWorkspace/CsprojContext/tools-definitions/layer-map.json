@@ -1,0 +1,28 @@
+{
+  "name": "get_layer_map",
+  "description": "获取层编号映射表（编号→名称→描述）",
+  "handler": "layer-map",
+  "template": "no-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    }
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getLayers", "from": "../core/utils" },
+      { "name": "formatLayerMap", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "mainCall": "getLayers()",
+    "outputCall": "formatLayerMap(results)"
+  }
+}

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>HTTP 通用框架（连接池传输 + OpenAI wire + 递归护栏）</ModuleRule_Title>
+    <ModuleRule_Layer>6</ModuleRule_Layer>
+    <ModuleRule_Description>平台级统一 HTTP 基础设施：受管 HttpClient 连接池传输、OpenAI 兼容 wire 层（出站）、递归跳数护栏。纯 System.Net.Http，零领域依赖</ModuleRule_Description>
+    <ModuleRule_Keywords>HTTP;连接池;传输;OpenAI;护栏;递归;Wire</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.HttpMethod</RootNamespace>
+    <AssemblyName>Plate.HttpMethod.Transport</AssemblyName>
+    <AssemblyTitle>Plate HTTP Transport Framework</AssemblyTitle>
+    <Description>平台级统一 HTTP 传输基础设施 - 连接池传输、OpenAI 兼容 wire 层、递归跳数护栏</Description>
+  </PropertyGroup>
+
+  <!-- 排除宿主目录源码（由 HttpMethod.Host.csproj 独立编译；本程序集仅承载纯 System.Net.Http 传输，零 AspNetCore 依赖） -->
+  <ItemGroup>
+    <Compile Remove="Host\**\*.cs" />
+  </ItemGroup>
+
+</Project>

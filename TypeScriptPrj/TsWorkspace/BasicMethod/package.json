@@ -1,0 +1,46 @@
+{
+  "name": "basic-method",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "基础方法库 — 提供通用字符串处理、格式化等工具函数",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./network/*": {
+      "import": "./build/network/*.js",
+      "types": "./build/network/*.d.ts"
+    },
+    "./file/*": {
+      "import": "./build/file/*.js",
+      "types": "./build/file/*.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "keywords": [
+    "basic-method",
+    "utils",
+    "string",
+    "format"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

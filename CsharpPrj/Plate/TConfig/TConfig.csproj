@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TConfig</RootNamespace>
+    <AssemblyName>Modules.TConfig</AssemblyName>
+    <Description>转换器配置框架 - 提供 ITrConfig、TrConfig、TrConfigRegistry、TrCall、TrPipeline 等配置化调用能力</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+  </ItemGroup>
+
+</Project>

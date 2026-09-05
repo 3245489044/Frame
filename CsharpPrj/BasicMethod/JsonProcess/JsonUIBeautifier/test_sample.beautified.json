@@ -1,0 +1,193 @@
+{
+  "form": {
+    "title": "用户管理",
+    "width": 800,
+    "height": 600
+  },
+  "views": [
+    {
+      "name": "mainView",
+      "controls": [
+        {
+          "name": "toolbar",
+          "type": "panel",
+          "layout": {
+            "left": 0.0,
+            "top": 0.0,
+            "width": 0.1,
+            "height": 1.0
+          },
+          "controls": [
+            {
+              "name": "btnAdd",
+              "type": "button",
+              "layout": {
+                "left": 0.0,
+                "top": 0.0,
+                "width": 0.05,
+                "height": 0.1
+              },
+              "backColor": "#2563EB",
+              "foreColor": "#FFFFFF"
+            },
+            {
+              "name": "btnEdit",
+              "type": "button",
+              "layout": {
+                "left": 0.1,
+                "top": 0.15,
+                "width": 0.05,
+                "height": 0.1
+              },
+              "backColor": "#2563EB",
+              "foreColor": "#FFFFFF"
+            },
+            {
+              "name": "btnDelete",
+              "type": "button",
+              "layout": {
+                "left": 0.2,
+                "top": 0.15,
+                "width": 0.05,
+                "height": 0.1
+              },
+              "backColor": "#2563eb",
+              "foreColor": "#FFFFFF"
+            }
+          ],
+          "layoutStrategy": "toolbar"
+        },
+        {
+          "name": "formPanel",
+          "type": "panel",
+          "layout": {
+            "left": 0.0,
+            "top": 0.1,
+            "width": 0.9,
+            "height": 0.5
+          },
+          "controls": [
+            {
+              "name": "lblName",
+              "type": "label",
+              "layout": {
+                "left": 0.05,
+                "top": 0.0,
+                "width": 0.05,
+                "height": 0.15
+              },
+              "styleRef": "sharedStyle_0"
+            },
+            {
+              "name": "txtName",
+              "type": "textBox",
+              "layout": {
+                "left": 0.2,
+                "top": 0.2,
+                "width": 0.05,
+                "height": 0.25
+              },
+              "styleRef": "sharedStyle_1"
+            },
+            {
+              "name": "lblAge",
+              "type": "label",
+              "layout": {
+                "left": 0.2,
+                "top": 0.1,
+                "width": 0.05,
+                "height": 0.15
+              },
+              "styleRef": "sharedStyle_0"
+            },
+            {
+              "name": "txtAge",
+              "type": "textBox",
+              "layout": {
+                "left": 0.35,
+                "top": 0.1,
+                "width": 0.05,
+                "height": 0.25
+              },
+              "styleRef": "sharedStyle_1"
+            },
+            {
+              "name": "lblEmail",
+              "type": "label",
+              "layout": {
+                "left": 0.2,
+                "top": 0.15,
+                "width": 0.05,
+                "height": 0.15
+              },
+              "styleRef": "sharedStyle_0"
+            },
+            {
+              "name": "txtEmail",
+              "type": "textBox",
+              "layout": {
+                "left": 0.35,
+                "top": 0.15,
+                "width": 0.05,
+                "height": 0.25
+              },
+              "styleRef": "sharedStyle_1"
+            }
+          ],
+          "layoutStrategy": "formrow"
+        },
+        {
+          "name": "listPanel",
+          "type": "panel",
+          "layout": {
+            "left": 0.5,
+            "top": 0.1,
+            "width": 0.9,
+            "height": 0.45
+          },
+          "controls": [
+            {
+              "name": "dataGrid",
+              "type": "dataGridView",
+              "layout": {
+                "left": 0.0,
+                "top": 0.0,
+                "width": 0.95,
+                "height": 0.95
+              },
+              "backColor": "#FFFFFF",
+              "foreColor": "#333333",
+              "borderColor": "#ffffff"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#ffffff",
+    "secondaryColor": "#333333",
+    "surfaceColor": "#FFFFFF",
+    "textPrimary": "#333333",
+    "textSecondary": "#333333",
+    "fontFamily": "微软雅黑",
+    "fontSize": 9.0
+  },
+  "styles": {
+    "sharedStyle_0": {
+      "foreColor": "#333333",
+      "font": {
+        "name": "微软雅黑",
+        "size": 9
+      }
+    },
+    "sharedStyle_1": {
+      "backColor": "#FFFFFF",
+      "foreColor": "#333333",
+      "font": {
+        "name": "微软雅黑",
+        "size": 9
+      }
+    }
+  }
+}

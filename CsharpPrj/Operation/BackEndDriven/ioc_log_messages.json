@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "description": "IoC 模块日志消息定义 - 使用 IoC_MethodName_description 命名",
+  "messages": {
+    "IoC_WriteOutput_SenderNotControl": {
+      "level": "Warning",
+      "category": "BackEndDriven_IoC",
+      "template": "[IoC] WriteOutputToControl: sender 不是 Control 类型: '{senderType}'"
+    },
+    "IoC_WriteOutput_TargetNotFound": {
+      "level": "Warning",
+      "category": "BackEndDriven_IoC",
+      "template": "[IoC] WriteOutputToControl: 未找到目标控件 '{outputTarget}'"
+    },
+    "IoC_WriteOutput_Written": {
+      "level": "Debug",
+      "category": "BackEndDriven_IoC",
+      "template": "[IoC] WriteOutputToControl: 已写入 '{value}' 到 '{outputTarget}'"
+    },
+    "IoC_WriteOutput_NoTextProperty": {
+      "level": "Warning",
+      "category": "BackEndDriven_IoC",
+      "template": "[IoC] WriteOutputToControl: 目标控件 '{outputTarget}' 没有可写的 Text 属性"
+    }
+  }
+}
+

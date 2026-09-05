@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://csg-schema.org/v1/canonical-form.json",
+  "title": "CSG CanonicalForm",
+  "description": "Configuration-StateMachine-Graph 统一中间表示（Unified Intermediate Representation）数据模型",
+  "type": "object",
+  "required": ["nodes", "edges", "metadata"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "description": "规范节点列表",
+      "items": {
+        "$ref": "#/$defs/canonicalNode"
+      },
+      "minItems": 0
+    },
+    "edges": {
+      "type": "array",
+      "description": "规范边列表",
+      "items": {
+        "$ref": "#/$defs/canonicalEdge"
+      },
+      "minItems": 0
+    },
+    "metadata": {
+      "type": "object",
+      "description": "元数据（来源、版本、创建时间等）",
+      "required": ["csgVersion"],
+      "properties": {
+        "csgVersion": {
+          "type": "string",
+          "description": "CSG 协议版本（语义化版本号）",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "source": {
+          "type": "string",
+          "description": "来源描述（如 \"UIConfiguration\"、\"WorkflowDefinition\"）"
+        },
+        "schema": {
+          "type": "string",
+          "description": "使用的 JSON Schema URI",
+          "format": "uri"
+        },
+        "created": {
+          "type": "string",
+          "description": "创建时间（ISO 8601 格式）",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": {
+        "description": "自定义元数据扩展（建议使用 x- 前缀）"
+      }
+    },
+    "state": {
+      "type": "string",
+      "description": "规范形式生命周期状态（FormState，字符串枚举，与 C#/TS 双端序列化对齐）",
+      "enum": ["Empty", "Populated", "Validated"]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "canonicalNode": {
+      "type": "object",
+      "description": "规范节点 — 所有配置元素、状态、图顶点统一用此类型表示",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "节点唯一标识（UUID、路径、名称均可）"
+        },
+        "label": {
+          "type": "string",
+          "description": "节点显示标签",
+          "default": ""
+        },
+        "type": {
+          "type": "string",
+          "description": "节点类型（见 CSG 类型注册表）",
+          "default": "Default"
+        },
+        "properties": {
+          "type": "object",
+          "description": "节点扩展属性字典",
+          "default": {},
+          "additionalProperties": {
+            "description": "任意类型的属性值"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "canonicalEdge": {
+      "type": "object",
+      "description": "规范边 — 所有配置关系、状态转移、图边统一用此类型表示",
+      "required": ["id", "sourceId", "targetId"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "边唯一标识"
+        },
+        "sourceId": {
+          "type": "string",
+          "description": "源节点 ID"
+        },
+        "targetId": {
+          "type": "string",
+          "description": "目标节点 ID"
+        },
+        "label": {
+          "type": "string",
+          "description": "边显示标签",
+          "default": ""
+        },
+        "type": {
+          "type": "string",
+          "description": "边类型（见 CSG 类型注册表）",
+          "default": "Default"
+        },
+        "condition": {
+          "type": "string",
+          "description": "转移条件表达式（状态机用）",
+          "default": null
+        },
+        "weight": {
+          "type": "number",
+          "description": "边权重（图算法用）",
+          "default": 1.0,
+          "minimum": 0
+        },
+        "properties": {
+          "type": "object",
+          "description": "边扩展属性字典",
+          "default": {},
+          "additionalProperties": {
+            "description": "任意类型的属性值"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

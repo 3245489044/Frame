@@ -1,0 +1,74 @@
+{
+  "comment": "MCP 服务清单 — 数据驱动启动（供 entrypoint.sh 通用循环使用）",
+  "version": "3.0",
+  "entrypoint": "DevEnvironment/Docker/scripts/entrypoint.sh",
+  "servers": [
+    {
+      "name": "mcp-sequentialthinking-tools",
+      "port": 3100,
+      "command": "npx",
+      "args": ["-y", "mcp-sequentialthinking-tools"],
+      "env": { "MAX_HISTORY_SIZE": "1000" },
+      "description": "顺序推理工具"
+    },
+    {
+      "name": "context7-mcp",
+      "port": 3101,
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "description": "Context7 文档查询"
+    },
+    {
+      "name": "context-mode",
+      "port": 3102,
+      "command": "node",
+      "args": ["/usr/local/lib/node_modules/context-mode/start.mjs"],
+      "description": "上下文模式"
+    },
+    {
+      "name": "memory",
+      "port": 3103,
+      "command": "mcp-server-memory",
+      "args": [],
+      "env": { "MEMORY_FILE_PATH": "/opt/mcp-data/memory.json" },
+      "preStart": "mkdir -p /opt/mcp-data /Users/quanle96/Documents/mcp-servers/memory",
+      "description": "知识图谱记忆"
+    },
+    {
+      "name": "filesystem",
+      "port": 3104,
+      "command": "mcp-server-filesystem",
+      "args": ["/workspace/WorkFlowPrj"],
+      "description": "文件系统操作"
+    },
+    {
+      "name": "lexis-mcp",
+      "port": 3105,
+      "command": "node",
+      "args": ["/usr/local/lib/node_modules/lexis-mcp/dist/cli/main.js", "mcp", "--path", "/workspace/WorkFlowPrj"],
+      "description": "代码搜索与分析"
+    },
+    {
+      "name": "token-savior-recall",
+      "port": 3106,
+      "command": "token-savior",
+      "args": [],
+      "env": {
+        "WORKSPACE_ROOTS": "/workspace/WorkFlowPrj",
+        "TOKEN_SAVIOR_CLIENT": "claude-code",
+        "TOKEN_SAVIOR_PROFILE": "optimized"
+      },
+      "condition": "command -v token-savior > /dev/null 2>&1 || pip install mcp -q 2>/dev/null; command -v token-savior > /dev/null 2>&1",
+      "description": "Token 节省与召回"
+    },
+    {
+      "name": "csproj-context",
+      "port": 3107,
+      "command": "node",
+      "args": ["/workspace/WorkFlowPrj/TypeScriptPrj/TsWorkspace/CsprojContext/build/index.js"],
+      "condition": "test -f /workspace/WorkFlowPrj/TypeScriptPrj/TsWorkspace/CsprojContext/build/index.js",
+      "preStart": "CSPROJ_DIR=/workspace/WorkFlowPrj/TypeScriptPrj/TsWorkspace/CsprojContext; if [ ! -d \"$CSPROJ_DIR/node_modules/@modelcontextprotocol/sdk\" ]; then cd \"$CSPROJ_DIR\" && npm install @modelcontextprotocol/sdk@1.29.0 --no-save --prefix \"$CSPROJ_DIR\" 2>/dev/null; fi",
+      "description": "C# 项目上下文"
+    }
+  ]
+}

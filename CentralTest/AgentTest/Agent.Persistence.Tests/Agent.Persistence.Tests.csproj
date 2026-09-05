@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- 编译输出统一到 CentralTest\BuildOutput -->
+    <OutputPath>..\..\BuildOutput\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <IntermediateOutputPath>..\..\BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- 导入版本号定义（从 CsharpPrj 共享的版本文件） -->
+  <Import Project="..\..\..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsDependencyInjectionVersion)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+    <PackageReference Include="MSTest.TestAdapter" Version="$(MSTestTestAdapterVersion)" />
+    <PackageReference Include="MSTest.TestFramework" Version="$(MSTestTestFrameworkVersion)" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 节点输出存储（模块 A 并入模块 C）测试需要 Agent.Core.Nodes.NodeOutputStore（Phase 2 收纳） -->
+    <ProjectReference Include="..\..\TestInfrastructure\TestInfrastructure.csproj" />
+
+    <!-- 节点发现 P1：投影/注入服务测试需要引用 Agent.StorageBridge（Exe 项目） -->
+
+    <!-- 历史关系管理（Operation.HierarchyMethod.History）：task/nodes/history 逻辑关系测试。
+         HistoryRelationManager 于 2026-08-25 由 Agent.Reference 迁入 HierarchyMethod（SingleImplementation），故引用框架替代旧项目。 -->
+
+    <!-- GlobalUsings 别名指向 Share.TaskStatusPool.Loops（统一上下文原语下沉），测试工程需引用 TaskStatusPool -->
+  </ItemGroup>
+
+</Project>
+

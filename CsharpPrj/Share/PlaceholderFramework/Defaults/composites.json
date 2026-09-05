@@ -1,0 +1,258 @@
+{
+  "description": "复合组件模板 - 多个控件的组合模板",
+  "version": "2.0",
+  "composites": {
+    "form-default": {
+      "description": "默认窗体配置",
+      "properties": {
+        "maximizeBox": true,
+        "minimizeBox": true,
+        "windowState": "Normal",
+        "startPosition": "CenterScreen"
+      }
+    },
+    "title-bar-with-text": {
+      "description": "标题栏（带动态文本）",
+      "type": "label",
+      "defaults": {
+        "backColor": "#2563EB",
+        "foreColor": "White",
+        "font": { "size": 12, "bold": true },
+        "layout": { "left": 0.0, "top": 0.0, "width": 1.0, "height": 0.06 }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true }
+      }
+    },
+    "status-bar": {
+      "description": "底部状态栏",
+      "type": "label",
+      "defaults": {
+        "foreColor": "#6B7280",
+        "layout": { "left": 0.05, "bottom": 0.02, "width": 0.9, "height": 0.04 }
+      },
+      "parameters": {
+        "name": { "default": "statusLabel" },
+        "text": { "required": true }
+      }
+    },
+    "labeled-textbox": {
+      "description": "标签+文本框组合",
+      "controls": [
+        {
+          "type": "label",
+          "defaults": {
+            "layout": { "left": 0.05, "top": 0.1, "width": 0.2, "height": 0.08 }
+          },
+          "parameters": {
+            "name": { "suffix": "Label" },
+            "text": { "required": true }
+          }
+        },
+        {
+          "type": "textbox",
+          "defaults": {
+            "layout": { "left": 0.25, "top": 0.1, "width": 0.6, "height": 0.08 }
+          },
+          "parameters": {
+            "name": { "suffix": "Input" },
+            "placeholder": { "from": "text", "prefix": "请输入" }
+          }
+        }
+      ]
+    },
+    "action-button": {
+      "description": "带事件绑定的操作按钮（蓝色主按钮）",
+      "type": "button",
+      "defaults": {
+        "backColor": "#2563EB",
+        "foreColor": "White",
+        "font": { "size": 11, "bold": true }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true },
+        "eventName": { "default": "click" },
+        "functionName": { "required": true },
+        "inputs": { "default": [] },
+        "output": { "default": "" }
+      },
+      "buildEvents": true
+    },
+    "toolbar-button": {
+      "description": "工具栏标准按钮（蓝色，固定尺寸）",
+      "type": "button",
+      "defaults": {
+        "backColor": "#2563EB",
+        "foreColor": "White",
+        "font": { "size": 11, "bold": true },
+        "layout": { "left": 0, "top": 0, "width": 0.12, "height": 0.05 }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true },
+        "eventName": { "default": "click" },
+        "functionName": { "required": true },
+        "inputs": { "default": [] },
+        "output": { "default": "" }
+      },
+      "buildEvents": true
+    },
+    "time-button": {
+      "description": "时间相关按钮（绿色，带时间戳输出）。默认输出到 outputTextBox",
+      "type": "button",
+      "defaults": {
+        "backColor": "#059669",
+        "foreColor": "White",
+        "font": { "size": 11 }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true },
+        "eventName": { "default": "click" },
+        "functionName": { "required": true },
+        "inputs": { "default": [] },
+        "output": { "default": "outputTextBox" }
+      },
+      "buildEvents": true
+    },
+    "danger-button": {
+      "description": "危险操作按钮（红色）",
+      "type": "button",
+      "defaults": {
+        "backColor": "#DC2626",
+        "foreColor": "White",
+        "font": { "size": 11, "bold": true }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true },
+        "eventName": { "default": "click" },
+        "functionName": { "required": true },
+        "inputs": { "default": [] },
+        "output": { "default": "" }
+      },
+      "buildEvents": true
+    },
+    "secondary-button": {
+      "description": "次要按钮（灰色）",
+      "type": "button",
+      "defaults": {
+        "backColor": "#6B7280",
+        "foreColor": "White",
+        "font": { "size": 11 }
+      },
+      "parameters": {
+        "name": { "required": true },
+        "text": { "required": true },
+        "eventName": { "default": "click" },
+        "functionName": { "required": true },
+        "inputs": { "default": [] },
+        "output": { "default": "" }
+      },
+      "buildEvents": true
+    },
+    "labeled-textbox-with-button": {
+      "description": "标签+文本框+按钮组合",
+      "controls": [
+        {
+          "type": "label",
+          "defaults": {
+            "layout": { "left": 0.05, "top": 0.1, "width": 0.2, "height": 0.08 }
+          },
+          "parameters": {
+            "name": { "suffix": "Label" },
+            "text": { "from": "labelText", "required": true }
+          }
+        },
+        {
+          "type": "textbox",
+          "defaults": {
+            "layout": { "left": 0.25, "top": 0.1, "width": 0.4, "height": 0.08 }
+          },
+          "parameters": {
+            "name": { "from": "inputName", "required": true }
+          }
+        },
+        {
+          "type": "button",
+          "defaults": {
+            "backColor": "#2563EB",
+            "foreColor": "White",
+            "font": { "size": 11, "bold": true },
+            "layout": { "left": 0.67, "top": 0.1, "width": 0.12, "height": 0.08 }
+          },
+          "parameters": {
+            "name": { "from": "buttonName", "required": true },
+            "text": { "from": "buttonText", "required": true },
+            "functionName": { "from": "functionName", "required": true }
+          },
+          "buildEvents": true
+        }
+      ],
+      "parameters": {
+        "labelText": { "required": true },
+        "inputName": { "required": true },
+        "buttonName": { "required": true },
+        "buttonText": { "required": true },
+        "functionName": { "required": true }
+      }
+    },
+    "load-config-show": {
+      "description": "加载 UI 配置文件并显示窗口",
+      "type": "command",
+      "defaults": {
+        "action": "load",
+        "modifier": "show",
+        "target": "${configPath}"
+      },
+      "parameters": {
+        "configPath": { "required": true }
+      }
+    },
+    "echo-section": {
+      "description": "输出标题文本段",
+      "type": "command",
+      "defaults": {
+        "action": "echo",
+        "target": "${title}"
+      },
+      "parameters": {
+        "title": { "required": true }
+      }
+    },
+    "math-operation": {
+      "description": "设置两个数值并点击运算按钮",
+      "type": "command-group",
+      "commands": [
+        {
+          "action": "set",
+          "target": "valueATextBox",
+          "value": "${valueA}"
+        },
+        {
+          "action": "set",
+          "target": "valueBTextBox",
+          "value": "${valueB}"
+        },
+        {
+          "action": "click",
+          "target": "${buttonName}"
+        }
+      ],
+      "parameters": {
+        "valueA": { "required": true },
+        "valueB": { "required": true },
+        "buttonName": { "required": true }
+      }
+    },
+    "list-forms": {
+      "description": "列出所有已加载的表单",
+      "type": "command",
+      "defaults": {
+        "action": "list"
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "../manifest-schema.json",
+  "name": "Rust Toolchain",
+  "description": "Rust 工具链安装清单",
+  "version": "1.0.0",
+  "target": "local",
+  "items": [
+    {
+      "name": "rustup",
+      "type": "rustup",
+      "installDir": "D:\\DevEnv\\Rust",
+      "description": "Rust 工具链 (rustup + cargo)",
+      "tags": ["rust", "cargo", "rustup"],
+      "envVars": {
+        "RUSTUP_HOME": "$installDir\\.rustup",
+        "CARGO_HOME": "$installDir\\.cargo"
+      },
+      "pathEntries": [
+        "$installDir\\.cargo\\bin",
+        "$installDir\\.rustup\\bin"
+      ]
+    }
+  ]
+}

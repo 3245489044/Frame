@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Framework.Abstractions</RootNamespace>
+    <AssemblyName>BasicMethod.Framework.Abstractions</AssemblyName>
+    <AssemblyTitle>BasicMethod Framework Abstractions</AssemblyTitle>
+    <Description>通用框架抽象层 - 纯接口定义，零外部依赖。提供配置管理、生命周期、事件总线、导航、对象工厂、布局引擎、树搜索等通用抽象。</Description>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+</Project>

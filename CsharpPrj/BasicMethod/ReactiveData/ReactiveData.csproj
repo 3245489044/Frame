@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.ReactiveData</RootNamespace>
+    <AssemblyName>Modules.ReactiveData</AssemblyName>
+    <Description>响应式数据处理框架 - 基于 Rx.NET 的数据变更通知、优先级反应器链、可观察数据存储</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Rx.NET 核心依赖 -->
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+    <!-- 依赖 BasicMethod（IContext 等基础抽象） -->
+  </ItemGroup>
+
+</Project>

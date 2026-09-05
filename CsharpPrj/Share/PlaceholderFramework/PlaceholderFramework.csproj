@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Common.PlaceholderFramework</RootNamespace>
+    <AssemblyName>PlaceholderFramework</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- BasicMethod.Pipeline 命名空间已迁移到 Share.Pipeline -->
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\UniversalReference\UniversalWorkflowFramework.csproj" />
+    <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <ProjectReference Include="..\GraphFramework\GraphFramework.csproj" />
+    <ProjectReference Include="..\..\Modules\MetaCommand\MetaCommand.csproj" />
+    <!-- 引入 BasicMethod.ReflectionMethod 框架，用于反射获取调用方信息 -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- 引入 Plate.JsonMethod 平台级统一 JSON 处理框架 -->
+    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" Version="$(JsonSchemaNetVersion)" />
+    <PackageReference Include="JsonPath.Net" Version="$(JsonPathNetVersion)" />
+  </ItemGroup>
+
+  <!-- 排除废弃的源文件，不被项目编译 -->
+  <ItemGroup>
+    <Compile Remove="_deprecated\**\*.cs" />
+    <None Include="_deprecated\**\*" />
+  </ItemGroup>
+
+</Project>

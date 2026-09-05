@@ -1,0 +1,121 @@
+{
+  "$schema": "../Install/manifest-schema.json",
+  "name": "ComfyUI 漫画套件",
+  "description": "ComfyUI 框架 + 漫画自制类节点 + 一致性模型(分批安装)",
+  "version": "1.0.0",
+  "target": "local",
+  "comfyRoot": "D:\\DevEnv\\ComfyUI",
+  "python": "python",
+  "torchIndex": "https://download.pytorch.org/whl/cu124",
+  "items": [
+    {
+      "phase": 1,
+      "name": "venv",
+      "type": "venv",
+      "source": "",
+      "version": "",
+      "installDir": "D:\\DevEnv\\ComfyUI\\.venv",
+      "description": "创建空 Python 虚拟环境"
+    },
+    {
+      "phase": 1,
+      "name": "torch-cu124",
+      "type": "pip",
+      "source": "torch torchvision torchaudio",
+      "version": "",
+      "pipExtra": "--index-url https://download.pytorch.org/whl/cu124",
+      "installDir": "D:\\DevEnv\\ComfyUI\\.venv",
+      "description": "CUDA 12.4 版 PyTorch"
+    },
+    {
+      "phase": 1,
+      "name": "comfyui-repo",
+      "type": "git-clone",
+      "source": "https://github.com/comfyanonymous/ComfyUI.git",
+      "installDir": "D:\\DevEnv\\ComfyUI",
+      "branch": "master",
+      "requiredFiles": ["main.py", "requirements.txt"],
+      "description": "ComfyUI 主仓库"
+    },
+    {
+      "phase": 1,
+      "name": "comfyui-deps",
+      "type": "pip-req",
+      "source": "D:\\DevEnv\\ComfyUI\\requirements.txt",
+      "installDir": "D:\\DevEnv\\ComfyUI\\.venv",
+      "description": "ComfyUI requirements 依赖"
+    },
+    {
+      "phase": 2,
+      "name": "comfyui-manager",
+      "type": "git-clone",
+      "source": "https://github.com/ltdrdata/ComfyUI-Manager.git",
+      "installDir": "D:\\DevEnv\\ComfyUI\\custom_nodes\\ComfyUI-Manager",
+      "requiredFiles": ["__init__.py"],
+      "description": "ComfyUI-Manager 节点管理器"
+    },
+    {
+      "phase": 2,
+      "name": "comfyui-ipadapter",
+      "type": "git-clone",
+      "source": "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git",
+      "installDir": "D:\\DevEnv\\ComfyUI\\custom_nodes\\ComfyUI_IPAdapter_plus",
+      "requiredFiles": ["__init__.py", "IPAdapterPlus.py"],
+      "description": "IPAdapter 角色/画风一致节点"
+    },
+    {
+      "phase": 2,
+      "name": "comicverse",
+      "type": "git-clone",
+      "source": "https://github.com/GeeeXYZ/ComfyUI-Comicverse.git",
+      "installDir": "D:\\DevEnv\\ComfyUI\\custom_nodes\\ComfyUI-Comicverse",
+      "requiredFiles": ["__init__.py"],
+      "description": "Comicverse 漫画量产节点"
+    },
+    {
+      "phase": 2,
+      "name": "kjnodes",
+      "type": "git-clone",
+      "source": "https://github.com/kijai/ComfyUI-KJNodes.git",
+      "installDir": "D:\\DevEnv\\ComfyUI\\custom_nodes\\ComfyUI-KJNodes",
+      "requiredFiles": ["__init__.py", "nodes.py"],
+      "description": "KJNodes 多宫格/排版节点"
+    },
+    {
+      "phase": 2,
+      "name": "storydiffusion",
+      "type": "git-clone",
+      "source": "https://github.com/smthemex/ComfyUI_StoryDiffusion.git",
+      "installDir": "D:\\DevEnv\\ComfyUI\\custom_nodes\\ComfyUI_StoryDiffusion",
+      "requiredFiles": ["__init__.py", "Storydiffusion_node.py"],
+      "description": "StoryDiffusion 多格一致性节点"
+    },
+    {
+      "phase": 3,
+      "name": "ipadapter-sdxl-model",
+      "type": "http-file",
+      "source": "https://hf-mirror.com/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter_sdxl_vit-h.safetensors",
+      "installDir": "D:\\DevEnv\\ComfyUI\\models\\ipadapter",
+      "fileName": "ip-adapter_sdxl_vit-h.safetensors",
+      "description": "IPAdapter SDXL 模型(角色一致核心)"
+    },
+    {
+      "phase": 3,
+      "name": "clip-vision-vit-h",
+      "type": "http-file",
+      "source": "https://hf-mirror.com/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors",
+      "installDir": "D:\\DevEnv\\ComfyUI\\models\\clip_vision",
+      "fileName": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
+      "description": "CLIP Vision 图像编码器(IPAdapter 前置)"
+    },
+    {
+      "phase": 3,
+      "name": "insightface",
+      "type": "pip",
+      "source": "insightface",
+      "version": "",
+      "installDir": "D:\\DevEnv\\ComfyUI\\.venv",
+      "description": "人脸检测(StoryDiffusion/IPAdapter FaceID 需要)"
+    }
+  ]
+}

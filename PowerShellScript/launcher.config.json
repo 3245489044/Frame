@@ -1,0 +1,274 @@
+{
+  "version": "2.0.0",
+  "description": "ScriptLauncher 工具配置文件 — 定义所有工具的元数据、分类和快捷别名",
+  "categories": {
+    "build": {
+      "name": "构建与清理",
+      "order": 1,
+      "icon": "🔧",
+      "description": "构建输出清理、bin/obj 清理、项目重建"
+    },
+    "solution": {
+      "name": "解决方案管理",
+      "order": 2,
+      "icon": "📋",
+      "description": ".sln 配置精简、磁盘同步、跨项目分析修复"
+    },
+    "analysis": {
+      "name": "代码分析",
+      "order": 3,
+      "icon": "🔍",
+      "description": "csproj 引用分析、依赖关系检查"
+    },
+    "git": {
+      "name": "Git 工具",
+      "order": 4,
+      "icon": "🌿",
+      "description": "分支管理、仓库维护"
+    },
+    "env-config": {
+      "name": "环境配置",
+      "order": 5,
+      "icon": "⚙️",
+      "description": "VS Code 配置、MCP 配置、Pester 环境、Code Runner"
+    },
+    "filedriven": {
+      "name": "FileDriven 测试",
+      "order": 6,
+      "icon": "🧪",
+      "description": "GUI 模式测试运行器、日志查看器"
+    },
+    "vscode": {
+      "name": "VS Code 工具",
+      "order": 7,
+      "icon": "💻",
+      "description": "VS Code 扩展同步、Code Runner 配置、entries 管理"
+    },
+    "test": {
+      "name": "测试工具",
+      "order": 8,
+      "icon": "🧪",
+      "description": "Pester 测试运行、测试环境搭建"
+    },
+    "migration": {
+      "name": "环境迁移",
+      "order": 9,
+      "icon": "🚚",
+      "description": "C盘开发数据迁移到D盘、环境变量管理"
+    },
+    "docker": {
+      "name": "Docker 管理",
+      "order": 10,
+      "icon": "🐳",
+      "description": "Docker 容器管理、MCP 服务管理、CLine 配置管理"
+    },
+    "script-mgr": {
+      "name": "脚本管理",
+      "order": 0,
+      "icon": "📜",
+      "description": "PScriptManager — 脚本扫描、注册、构建、脚手架"
+    }
+  },
+  "tools": {
+    "PScriptManager/Commands/Scan-Scripts.ps1": {
+      "category": "script-mgr",
+      "description": "扫描并显示所有 PowerShell 脚本信息",
+      "alias": "scan",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "PScriptManager/Commands/Register-Script.ps1": {
+      "category": "script-mgr",
+      "description": "注册脚本到 launcher.config.json（支持 -DryRun 预览）",
+      "alias": "register",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-DryRun"
+    },
+    "Build/CleanupExtraBuildOutput.ps1": {
+      "category": "build",
+      "description": "清理构建输出并修复项目配置",
+      "alias": "cleanup",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-All"
+    },
+    "Build/Invoke-CleanAll.ps1": {
+      "category": "build",
+      "description": "集中清理 BuildOutput + bin/obj + .tsbuildinfo",
+      "alias": "clean",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Force"
+    },
+    "Tools/Cleanup/Clean-Processes.ps1": {
+      "category": "build",
+      "description": "清理编译和 VS Code 运行时的冗余进程",
+      "alias": "kill-proc",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Force"
+    },
+    "Solution/Clean-SolutionConfig.ps1": {
+      "category": "solution",
+      "description": "精简 .sln 配置（仅保留 Debug|Any CPU）",
+      "alias": "sln-clean",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Solution/Sync-SlnToDisk.ps1": {
+      "category": "solution",
+      "description": "同步 .sln 文件与磁盘上的项目目录",
+      "alias": "sln-sync",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Solution/Fix-CrossProjectAnalysis.ps1": {
+      "category": "solution",
+      "description": "跨项目分析修复（引用、依赖等）",
+      "alias": "fix-cross",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Analysis/Analyze-CsprojReferences.ps1": {
+      "category": "analysis",
+      "description": "分析 csproj 引用关系并生成报告",
+      "alias": "analyze",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Git/Remove-BranchesExceptMain.ps1": {
+      "category": "git",
+      "description": "删除除 Main 外的所有本地分支",
+      "alias": "git-clean",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/VSCode/Update-EnvironmentConfig.ps1": {
+      "category": "env-config",
+      "description": "更新 VS Code / MCP / 启动项配置并生成文档",
+      "alias": "env-config",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/VSCode/Validate-ClineMCPConfig.ps1": {
+      "category": "env-config",
+      "description": "验证 CLine MCP 配置文件 JSON 格式",
+      "alias": "validate-mcp",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/Testing/Setup-PesterTestEnv.ps1": {
+      "category": "env-config",
+      "description": "一键搭建 PowerShell Pester 测试环境",
+      "alias": "setup-pester",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/Legacy/fix_coderunner_config.ps1": {
+      "category": "vscode",
+      "description": "修复 VS Code Code Runner 配置",
+      "alias": "fix-coderunner",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/Legacy/register_entry.ps1": {
+      "category": "vscode",
+      "description": "注册 BatTool 启动项到 entries.config.json",
+      "alias": "register-entry",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/Legacy/sync_vscode_entries.ps1": {
+      "category": "vscode",
+      "description": "同步 VS Code entries 配置中的 workDir",
+      "alias": "sync-entries",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/VSCode/Sync-VscodeExtensions.ps1": {
+      "category": "vscode",
+      "description": "VS Code 扩展同步（导出/安装/差异对比）",
+      "alias": "sync-ext",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "Tools/Cleanup/Clean-UserProfile.ps1": {
+      "category": "build",
+      "description": "安全清理用户目录缓存（AI IDE/浏览器/WPS/Temp 等）",
+      "alias": "clean-user",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Force"
+    },
+    "Build/Invoke-TypeScriptBuild.ps1": {
+      "category": "build",
+      "description": "编译 TypeScriptPrj 中所有 TypeScript 项目",
+      "alias": "ts-build",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Force"
+    },
+    "Tools/Get-CsprojModuleRule.ps1": {
+      "category": "analysis",
+      "description": "查询 .csproj 文件的 ModuleRule 属性（项目架构概览）",
+      "alias": "module-rule",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Overview"
+    },
+    "Tools/Set-CsprojModuleRule.ps1": {
+      "category": "analysis",
+      "description": "批量注入/更新/验证 .csproj 文件的 ModuleRule 属性",
+      "alias": "set-module-rule",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Validate"
+    },
+    "Tools/NuGet/Update-NuGetPackages.ps1": {
+      "category": "build",
+      "description": "NuGet 包批量升级 — 扫描并升级所有 NuGet 包",
+      "alias": "nuget-upgrade",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-All"
+    },
+    "Tools/Testing/Run-PesterTests.ps1": {
+      "category": "test",
+      "description": "运行 Pester 测试（支持按分类筛选）",
+      "alias": "test",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "FileDriven/运行测试GUI模式.ps1": {
+      "category": "filedriven",
+      "description": "FileDriven GUI 模式测试运行器",
+      "alias": "filedriven",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "FileDriven/LogViewer.ps1": {
+      "category": "filedriven",
+      "description": "分层交互式日志查看器",
+      "alias": "log",
+      "type": "ps1",
+      "workDir": "."
+    },
+    "EnvMigration/Migrate-DevEnv.ps1": {
+      "category": "migration",
+      "description": "C盘开发数据迁移到D盘（NuGet/npm/pip/MCP/VS Code等）",
+      "alias": "migrate",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-All"
+    },
+    "Tools/Docker/Manage-Docker.ps1": {
+      "category": "docker",
+      "description": "Docker 统一管理入口（交互式菜单 + 命令行模式）",
+      "alias": "docker",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": ""
+    }
+  }
+}

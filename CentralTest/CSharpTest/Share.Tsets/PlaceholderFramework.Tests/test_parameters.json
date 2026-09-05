@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "TestApp",
+    "version": "1.0.0",
+    "debug": true
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "timeout": 30.5,
+    "enabled": true
+  },
+  "features": {
+    "items": [1, 2, 3, 4, 5],
+    "names": ["alpha", "beta", "gamma"],
+    "flags": [true, false, true]
+  },
+  "nested": {
+    "level1": {
+      "level2": {
+        "value": "deep-value"
+      }
+    }
+  },
+  "thresholds": {
+    "cpu": 80.0,
+    "memory": 70.0
+  }
+}

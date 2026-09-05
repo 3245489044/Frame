@@ -1,0 +1,34 @@
+{
+  "name": "get_detail",
+  "description": "获取单个 .csproj 模块的 ModuleRule 详情",
+  "handler": "detail",
+  "template": "detail",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": ".csproj 文件路径（相对于项目根目录，如 BasicMethod/BasicMethod.csproj）"
+      },
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    },
+    "required": ["path"]
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getModuleDetail", "from": "../core/parser" },
+      { "name": "getLayerName", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "requiredParams": ["path"],
+    "mainCall": "getModuleDetail(path, projectRoot, slnPath)",
+    "notFoundCheck": "⚠️ 未找到 ModuleRule 属性: ${path}\\n可能原因：文件不存在或未配置 ModuleRule 属性。"
+  }
+}

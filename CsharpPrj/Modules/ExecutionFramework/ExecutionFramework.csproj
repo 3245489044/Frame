@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用化执行框架</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>通用化执行框架，提供执行引擎、编排、会话管理、图调度、管线执行、任务中心、热重载等核心功能。替代旧的 WorkflowExecution 模块。</ModuleRule_Description>
+    <ModuleRule_Keywords>执行引擎;编排器;会话管理;图调度;管线执行;热重载;任务中心</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="命名空间统一使用 ExecutionFramework" />
+    <ModuleRule_Rule Include="接口定义在 Abstractions 子命名空间" />
+    <ModuleRule_Rule Include="核心引擎实现定义在 Engine.Core 子目录" />
+    <ModuleRule_Rule Include="编排器定义在 Engine.Orchestration 子目录" />
+    <ModuleRule_Rule Include="管线执行定义在 Engine.Pipeline 子目录" />
+    <ModuleRule_Rule Include="图执行定义在 Engine.Graph 子目录" />
+    <ModuleRule_Rule Include="参数与类型转换定义在 Engine.Parameters 子目录" />
+    <ModuleRule_Rule Include="会话管理定义在 Session 子命名空间" />
+    <ModuleRule_Rule Include="内置函数单元定义在 BuiltIn 子命名空间" />
+    <ModuleRule_Rule Include="日志定义在 Logging 子命名空间" />
+    <ModuleRule_Rule Include="任务中心定义在 ExecutionCenter 子命名空间（独立子系统）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ExecutionFramework</RootNamespace>
+    <AssemblyName>ExecutionFramework</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="..\..\BasicMethod\ECS\ECS.csproj" />
+    <ProjectReference Include="..\..\Protocol\RGE\RGE.Unified\RGE.Unified.csproj" />
+  </ItemGroup>
+
+</Project>

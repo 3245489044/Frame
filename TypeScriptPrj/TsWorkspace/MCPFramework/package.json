@@ -1,0 +1,74 @@
+{
+  "name": "mcp-framework",
+  "version": "1.0.0",
+  "description": "通用 MCP 服务器框架 — 基于 CsprojContext 架构抽象，支持快速创建新的 MCP 服务器项目",
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "bin": {
+    "mcp-framework": "build/index.js",
+    "mcp-framework-cli": "build/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./build/*": {
+      "import": "./build/*.js",
+      "types": "./build/*.d.ts"
+    },
+    "./utils/*": {
+      "import": "./build/utils/*.js",
+      "types": "./build/utils/*.d.ts"
+    },
+    "./core/*": {
+      "import": "./build/core/*.js",
+      "types": "./build/core/*.d.ts"
+    },
+    "./transport/*": {
+      "import": "./build/transport/*.js",
+      "types": "./build/transport/*.d.ts"
+    },
+    "./interfaces/*": {
+      "import": "./build/interfaces/*.js",
+      "types": "./build/interfaces/*.d.ts"
+    },
+    "./tools/*": {
+      "import": "./build/tools/*.js",
+      "types": "./build/tools/*.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "dev:cli": "tsx src/cli.ts",
+    "start": "node build/index.js",
+    "cli": "node build/cli.js",
+    "watch": "tsc --watch",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"build/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"build/**/*.js\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "mcp",
+    "framework",
+    "model-context-protocol",
+    "server-template"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "basic-method": "workspace:*",
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

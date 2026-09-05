@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <RootNamespace>PythonModel.Bridge</RootNamespace>
+  </PropertyGroup>
+
+  <!-- pythonnet 依赖 -->
+  <ItemGroup>
+    <PackageReference Include="pythonnet" Version="3.1.0" />
+  </ItemGroup>
+
+  <!--
+    已移除 PythonModel 拷贝逻辑（原 None Include=..\*.py / clients\*.py / requirements.txt + CopyToOutputDirectory）：
+    该逻辑把仓库 PythonModel 的 .py 拷入输出目录 PythonModel\，多项目共享输出目录时导致并行构建 MSB3061 删除竞争。
+    运行时若需定位 PythonModel 脚本，改为显式指定 pythonModulePath / 运行时探测，不再依赖构建期拷贝。
+  -->
+
+</Project>

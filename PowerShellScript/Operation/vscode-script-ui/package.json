@@ -1,0 +1,45 @@
+{
+  "name": "workflowprj-script-ui",
+  "displayName": "WorkFlowPrj Script 工具面板",
+  "description": "为 WorkFlowPrj Script 目录提供 VS Code 侧边栏 UI 面板，支持一键执行 PowerShell 工具脚本并实时查看输出日志",
+  "version": "1.0.0",
+  "publisher": "WorkFlowPrj",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "icon": "media/icon.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "workflowprj-script-tools",
+          "title": "Script 工具",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "workflowprj-script-tools": [
+        {
+          "type": "webview",
+          "id": "workflowprjScriptTools",
+          "name": "Script 工具面板"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "workflowprjScriptTools.refresh",
+        "title": "刷新工具列表"
+      },
+      {
+        "command": "workflowprjScriptTools.openLauncher",
+        "title": "打开 ScriptLauncher (终端)"
+      }
+    ]
+  },
+  "main": "./extension.js"
+}

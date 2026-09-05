@@ -1,0 +1,38 @@
+<Project>
+  <!-- 加载仓库根属性（CsharpProjectRoot/FileDrivenProjectRoot 等单一真源；向上回溯，移动自适应） -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Linux 容器编译支持 -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <NoWarn>$(NoWarn);1701;1702;1591;MSB3026;CS0436;CS0618;CS0809;CS0414;CS8618;CS8625;CS8632;CS8603;CS8601;CS8604;CS8602;CS8600;CS8619;CS8714;CS8622;CS8629;CS8605;CS8765;CS8766;CS8768;CS8634;CS8620;CA1416;NU1510</NoWarn>
+  </PropertyGroup>
+
+  <!-- 统一 Configuration 默认值：Directory.Build.props 求值先于 csproj 主体，避免 $(Configuration) 为空导致 OutputPath 分叉 -->
+  <PropertyGroup Condition="'$(Configuration)' == ''">
+    <Configuration>Debug</Configuration>
+  </PropertyGroup>
+
+  <!-- 统一输出目录到 CallCenter/BuildOutput（与 CsharpPrj 一致，无 TFM 层） -->
+  <PropertyGroup>
+    <OutputPath>$(MSBuildThisFileDirectory)BuildOutput\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>$(MSBuildThisFileDirectory)BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- 导入 CsharpPrj 共享版本号定义（CallCenter 引用了 CsharpPrj 的项目） -->
+  <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
+
+  <!-- 全局 GlobalUsings：CallCenter 全部项目共享跨程序集公共命名空间 -->
+  <ItemGroup Label="GlobalUsings">
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.System.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs" />
+  </ItemGroup>
+</Project>

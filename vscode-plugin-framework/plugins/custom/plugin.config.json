@@ -1,0 +1,11 @@
+{
+    "pluginName": "custom",
+    "version": "1.0",
+    "displayName": "自定义命令执行器",
+    "description": "执行任意自定义命令",
+    "supportedTypes": ["custom"],
+    "dependencies": [],
+    "config": {
+        "historySize": 10
+    }
+}

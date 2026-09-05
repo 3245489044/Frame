@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>BasicMethod.SortMent</RootNamespace>
+    <AssemblyName>BasicMethod.SortMent</AssemblyName>
+    <Description>通用编排框架 - 提供 ISortMent、IClassifyMent、ISortableMent 等编排基础能力。SortMent 是 Pipeline 的上层泛型，比 Pipeline 更基础通用。</Description>
+  </PropertyGroup>
+
+</Project>

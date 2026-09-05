@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据存储驱动框架 (DataStoreDriven)</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>Agent 无关的数据存储驱动层（使用层）：内存后盾（InternalStorage）+ 长期落盘后盾（SQLite/LiteDB/Local/Graph）+ PersistencePort 端口。三库收敛：① 基础节点库 nodes（input/output/event/checkpoint/config/keymapping/resource，NodeType 判别）、② 状态集合 tasks、③ 关系库 resources。落库为框架在循环边界决定（不介入循环内部、不映射为 ECS 实体）。与 StateHoldDriven 相对，Agent 项目通过 ProjectReference 引用本模块。</ModuleRule_Description>
+    <ModuleRule_Keywords>数据存储;DataStore;SQLite;LiteDB;InternalStorage;PersistencePort;三库收敛;ur_nodes;ur_tasks;ur_resources;节点库;状态集合;关系库</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是 Operation 层的数据存储驱动框架，完全 Agent 无关（不引用任何 Agent 项目）" />
+    <ModuleRule_Rule Include="内存后盾复用 InternalStorage（StorageEngine/StorageCell/StorageLayer 三层 + DataChanged）" />
+    <ModuleRule_Rule Include="长期落盘后盾为 SQLite/LiteDB/Local/Graph（ur_* 表），配置驱动动态解析（PersistenceProviderFactory）" />
+    <ModuleRule_Rule Include="落库由框架经 PersistencePort 在循环边界决定，不介入循环内部、不映射为 ECS 实体" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要数据库处理、数据区契约、持久化端口、崩溃恢复时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 Abstractions/ 包含核心接口（IDataStore / IPersistenceStore / IPersistencePort / IZoneStore）" />
+    <ModuleRule_Prompt Include="此模块的 Sqlite/ 包含长期落盘后盾实现" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Operation.DataStoreDriven</RootNamespace>
+    <AssemblyName>Operation.DataStoreDriven</AssemblyName>
+    <Description>数据存储驱动框架 — Agent 无关的内存/长期存储使用层</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 内存后盾：InternalStorage（StorageEngine/StorageCell/StorageRegistry，三层存储 + DataChanged） -->
+    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+    <!-- 管线框架：门面初始化/批量对账等顺序步骤编排用 StaticAsyncPipeline / 组合子（Modules/Pipeline） -->
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <!-- 关系/图与资源模型（IUniversalReferenceManager / Resource / ResourceIdentifier） -->
+    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" />
+    <ProjectReference Include="..\..\Plate\DataManage\DataManage.csproj" />
+    <!-- 单写通道 host（ThreadingSqliteWriteHost）的并发原语（SingleWriterActor）：IoC 倒置后 DataManage 只依赖其 ISqliteWriteHost 端口，
+         基于 Modules.Threading 的实现由本模块（DataStoreDriven 组合根）提供并注入（DataManage 不再 import Threading）。 -->
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <!-- 引用 Schema（ReferenceSchema DSL 编译模型：ReferenceSchema/ReferenceEdgeType） -->
+    <ProjectReference Include="..\..\Plate\DslMethod\DslMethod.csproj" />
+    <!-- 平台级统一 JSON 框架（Layer 6）：Core 的序列化/反序列化统一委托 Plate.JsonMethod（JsonSerializationService + JsonSerializerFactory），
+        收敛 NodeCheckpointStore / NodeRelationDeriver 手写的 try/catch 安全反序列化（SingleImplementation）。 -->
+    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <!-- 任务池持久化端口契约（SqliteTaskPoolStore 实现 Share.TaskStatusPool.TaskPool.ITaskPoolPersistence）。
+        Share/TaskStatusPool 为 Share 层通用基础框架，非 Agent 项目，本模块保持 Agent-无关（依赖方向 Operation → Share 合法）。 -->
+    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+    <!-- 会话历史容器契约（SqliteHistoryStore 实现 Share.Conversation.IHistoryStore；History=Task 更上层的 class 容器，落 ur_histories）。
+        Share/Conversation 为 Share 层纯逻辑（ConversationLog 等），非 Agent 项目，依赖方向 Operation → Share 合法。 -->
+    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
+    <!-- 内存邻接图引擎（CoreGraph）：GraphIndexedResourceReferenceStore 的 hot 查询层（GraphFoundation 仅依赖 System.Reactive，无环） -->
+    <ProjectReference Include="..\..\BasicMethod\Map\GraphFoundation\GraphFoundation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 长期落盘后盾后端依赖（版本收敛于 CsharpPrj/versions.json） -->
+    <PackageReference Include="System.Data.SQLite.Core" Version="$(SystemDataSQLiteVersion)" />
+    <PackageReference Include="LiteDB" Version="$(LiteDBVersion)" />
+    <!-- 写入即触发信号（IZoneStoreReactive.Writes）：Rx.NET 可观测流，对齐 Modules.ComponentData -->
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 配置驱动解析 / 配置绑定（PersistenceProviderFactory / PersistenceConfigBinder） -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsDependencyInjectionAbstractionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+  </ItemGroup>
+
+</Project>
+

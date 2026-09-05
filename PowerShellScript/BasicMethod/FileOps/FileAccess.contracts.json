@@ -1,0 +1,63 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "read.file",
+        "verb": "read",
+        "object": "file",
+        "purpose": "读取文件内容（支持行号区间、原始字符串模式）",
+        "function": "Read-File",
+        "path": "PowerShellScript\\BasicMethod\\FileOps\\FileAccess.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Path", "type": "string", "required": true, "constraint": "非空，相对项目根或绝对路径" },
+        { "name": "StartLine", "type": "int", "required": false, "default": 0, "constraint": "1-based，0 表示从头读" },
+        { "name": "EndLine", "type": "int", "required": false, "default": 0, "constraint": "0 表示读到末尾" },
+        { "name": "Raw", "type": "switch", "required": false, "default": false, "constraint": "返回原始字符串而非行数组" },
+        { "name": "Persist", "type": "string", "required": false, "constraint": "off=不落库 | on=读后由薄绑定写入标准资源节点（经存储桥，不再落独立 SQL ur_resources） | auto=按策略谓词(扩展名/大小)自动落库" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "Path": "string", "TotalLines": "int", "Lines": "array", "Content": "string" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    },
+    {
+      "identity": {
+        "action": "write.file",
+        "verb": "write",
+        "object": "file",
+        "purpose": "写入文件内容（支持追加、编码、备份、哈希校验）",
+        "function": "Write-File",
+        "path": "PowerShellScript\\BasicMethod\\FileOps\\FileAccess.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Path", "type": "string", "required": true, "constraint": "非空，相对项目根或绝对路径" },
+        { "name": "Content", "type": "string", "required": true, "constraint": "写入内容（允许空字符串）" },
+        { "name": "Append", "type": "switch", "required": false, "default": false, "constraint": "追加模式（默认覆盖）" },
+        { "name": "Encoding", "type": "string", "required": false, "default": "UTF8", "constraint": "UTF8|UTF8-BOM|UTF16-LE|UTF16-BE|GBK|ASCII|Auto" },
+        { "name": "Backup", "type": "switch", "required": false, "default": false, "constraint": "写入前自动备份" },
+        { "name": "Verify", "type": "switch", "required": false, "default": false, "constraint": "写入后校验哈希" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "Path": "string", "Changed": "bool", "Backup": "string", "Verified": "bool" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

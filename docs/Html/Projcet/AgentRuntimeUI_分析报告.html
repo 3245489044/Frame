@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="WorkFlowPrj Agent 运行时框架全景分析：架构定位、Agent 引擎 (Projects/Agent)、执行框架 (FileDriven + Share + Operation)、功能分析、存储模型、行业对比 (Claude Code / CLine) 以及总体评分。基于静态源码分析，行号已验证。">
+<title>Agent 运行时框架全景分析 — 简介 / 架构 / 功能</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --border:#e2e8f0; --text:#1f2937; --sub:#6b7280;
+  --accent:#2563eb; --accent-bg:#eff4ff; --good:#16a34a; --good-bg:#f0fdf4;
+  --warn:#b45309; --warn-bg:#fffbeb; --bad:#dc2626; --bad-bg:#fef2f2;
+  --teal:#0d9488; --teal-bg:#ccfbf1; --purple:#7c3aed; --purple-bg:#ede9fe;
+  --code-bg:#f1f5f9; --mono:"Consolas","JetBrains Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",-apple-system,"Helvetica Neue",sans-serif;line-height:1.7;font-size:14.5px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px 60px}
+
+/* 页眉 */
+.header{background:linear-gradient(135deg,#0c2f5a 0%,#2563eb 55%,#7c3aed 100%);color:#fff;padding:52px 32px;border-radius:0 0 26px 26px;margin-bottom:34px}
+.header h1{font-size:26px;font-weight:700;margin-bottom:10px;letter-spacing:-0.3px}
+.header .subtitle{font-size:15px;opacity:.92;margin-bottom:18px}
+.header .meta{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;opacity:.85}
+.header .meta-item{display:flex;align-items:center;gap:6px}
+.header code{background:rgba(255,255,255,.18);color:#fff;padding:1px 7px;border-radius:4px}
+
+/* 导航 */
+.nav{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);padding:10px 24px;z-index:100;display:flex;gap:6px;flex-wrap:wrap;font-size:13px;margin-bottom:8px}
+.nav a{color:var(--sub);text-decoration:none;padding:4px 11px;border-radius:7px;transition:all .18s;font-weight:500}
+.nav a:hover{background:var(--accent-bg);color:var(--accent)}
+
+/* 章节 */
+h2{font-size:20px;margin:42px 0 6px;padding-bottom:10px;border-bottom:3px solid var(--accent);display:inline-block}
+.section-desc{color:var(--sub);font-size:13px;margin:4px 0 20px}
+h3{font-size:16px;margin:24px 0 10px;color:#111827}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+code{font-family:var(--mono);background:var(--code-bg);padding:1px 6px;border-radius:4px;font-size:12.8px;color:#0f172a}
+.fname{font-family:var(--mono);font-size:12.5px;background:var(--accent-bg);color:#1d4ed8;padding:1px 7px;border-radius:5px;white-space:nowrap}
+
+/* 徽章 */
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
+.badge-blue{background:var(--accent-bg);color:var(--accent)}
+.badge-teal{background:var(--teal-bg);color:var(--teal)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+.badge-good{background:var(--good-bg);color:var(--good)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-bad{background:var(--bad-bg);color:var(--bad)}
+
+/* KPI */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:18px 0}
+.kpi .box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 14px;text-align:center;transition:transform .15s}
+.kpi .box:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(37,99,235,.08)}
+.kpi .num{font-size:26px;font-weight:800;color:var(--accent)}
+.kpi .lbl{font-size:12.5px;color:var(--sub);margin-top:4px}
+
+/* 表格 */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#0c2f5a;color:#fff;padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap}
+td{border-bottom:1px solid var(--border);padding:9px 12px;vertical-align:top}
+tr:nth-child(even) td{background:#fafbfc}
+tr:hover td{background:var(--accent-bg)}
+.check{color:var(--good);font-weight:700}
+.cross{color:var(--bad);font-weight:700}
+.partial{color:var(--warn);font-weight:700}
+
+/* 流程图 / pre */
+pre{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;margin:12px 0;white-space:pre}
+pre .c{color:#64748b} pre .fn{color:#7dd3fc} pre .hl{color:#fbbf24} pre .ok{color:#4ade80} pre .red{color:#f87171}
+.flow{font-family:var(--mono);font-size:12.5px;background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px 18px;overflow-x:auto;line-height:1.55;margin:10px 0;white-space:pre}
+.flow .c{color:#64748b}.flow .fn{color:#7dd3fc}.flow .hl{color:#fbbf24}.flow .ok{color:#4ade80}
+
+/* 注释 */
+.note{background:var(--accent-bg);border-left:4px solid var(--accent);padding:11px 15px;border-radius:0 8px 8px 0;font-size:13.5px;margin:14px 0;color:#1e3a8a}
+.note-warn{background:var(--warn-bg);border-left-color:var(--warn);color:#7c4a12}
+.note-bad{background:var(--bad-bg);border-left-color:var(--bad);color:#991b1b}
+.note-good{background:var(--good-bg);border-left-color:var(--good);color:#14532d}
+
+/* 网格 */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;padding:1px 10px;border-radius:20px;margin-right:6px;font-weight:600}
+.tag.good{background:var(--good-bg);color:var(--good)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.info{background:var(--accent-bg);color:var(--accent)}
+.tag.teal{background:var(--teal-bg);color:var(--teal)}
+.tag.purple{background:var(--purple-bg);color:var(--purple)}
+
+/* SVG */
+.svg-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px;margin:12px 0;overflow-x:auto}
+.svg-box svg{display:block;width:100%;height:auto;min-width:700px}
+
+/* 评分 */
+.score-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:13px}
+.score-label{width:150px;flex-shrink:0;color:var(--sub);text-align:right}
+.score-bar-container{flex:1;background:var(--border);border-radius:6px;height:22px;overflow:hidden}
+.score-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;min-width:34px}
+.score-bar.high{background:linear-gradient(90deg,#16a34a,#22c55e)}
+.score-bar.mid{background:linear-gradient(90deg,#d97706,#f59e0b)}
+.score-bar.low{background:linear-gradient(90deg,#dc2626,#ef4444)}
+.score-note{width:34px;flex-shrink:0;color:var(--sub);font-size:12px}
+
+/* 结论 */
+.conclusion-box{background:linear-gradient(135deg,#0c2f5a,#2563eb);color:#fff;padding:28px 30px;border-radius:16px;margin:22px 0}
+.conclusion-box h3{color:#fff;font-size:19px;margin-bottom:14px}
+.conclusion-box p{opacity:.94;font-size:13.8px;margin-bottom:10px}
+.conclusion-box .score-line{font-size:14.5px;font-weight:700;margin-top:12px;color:#fde68a}
+
+.step-list{margin:8px 0 8px 4px;padding-left:22px}
+.step-list li{margin:6px 0}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--sub);font-size:12.5px;text-align:center}
+
+/* ---- 优化新增 ---- */
+:root{--nav-h:46px}
+h2[id],h3[id]{scroll-margin-top:calc(var(--nav-h) + 12px)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.nav a.active{background:var(--accent);color:#fff}
+.nav a.active:hover{background:var(--accent);color:#fff}
+
+/* 阅读进度条 */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,#2563eb,#7c3aed);z-index:200;transition:width .08s linear}
+@media(prefers-reduced-motion:reduce){#progress{display:none}}
+
+/* 回到顶部 */
+#toTop{position:fixed;right:22px;bottom:26px;width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:18px;box-shadow:0 6px 18px rgba(37,99,235,.35);opacity:0;visibility:hidden;transform:translateY(10px);transition:all .25s;z-index:150}
+#toTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#toTop:hover{background:#1d4ed8}
+#toTop:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(max-width:600px){#toTop{right:14px;bottom:18px;width:40px;height:40px}}
+
+/* 打印 */
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .nav,#toTop,#progress{display:none !important}
+  .header{background:#0c2f5a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card,.conclusion-box,.note{break-inside:avoid;box-shadow:none}
+  h2,h3{break-after:avoid}
+  .svg-box{overflow:visible}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="progress" role="presentation"></div>
+<button id="toTop" aria-label="回到顶部">↑</button>
+
+<!-- ============ 页眉 ============ -->
+<div class="header">
+  <h1>Agent 运行时框架全景分析 — 引言 · 架构深潜 · 功能分析</h1>
+  <div class="subtitle">核心是一个<b>基于数据库和任务快照状态的 LLM 循环</b>，<b>Cline / Claude 编排调用作为子 Agent</b> 运行其中。通过 AgentRuntimeUI 控制台剖析：自研 Agent 运行时 (Projects/Agent) 及其底层架构框架 (FileDriven + Share + Operation)</div>
+  <div class="meta">
+    <div class="meta-item">分析日期: 2026-08-22</div>
+    <div class="meta-item">目标: <code>Projects/Agent</code> + <code>FileDriven</code> + <code>CsharpPrj(Share, Operation)</code></div>
+    <div class="meta-item">方法: 静态源代码分析 (行号已验证)</div>
+    <div class="meta-item">入口点: <code>AgentRuntimeUI.json</code> 控制台</div>
+    <div class="meta-item">Cline / Claude: 子 Agent 后端 (通过 <code>IAgentExecutor</code>) · 同时作为行业基准 (v3.8x / v2.1.x)</div>
+  </div>
+</div>
+
+<!-- ============ 导航 ============ -->
+<div class="nav">
+  <a href="#s1">1 定位</a>
+  <a href="#s2">2 Agent 框架</a>
+  <a href="#s3">3 架构框架</a>
+  <a href="#s4">4 功能分析</a>
+  <a href="#s5">5 调用链</a>
+  <a href="#s6">6 存储模型</a>
+  <a href="#s7">7 评估</a>
+  <a href="#s8">8 行业对比</a>
+  <a href="#s9">9 结论</a>
+  <a href="#s10">10 源码索引</a>
+</div>
+
+<div class="wrap">
+
+<!-- ============ KPI ============ -->
+<div class="kpi">
+  <div class="box"><div class="num">17</div><div class="lbl">函数库 (function-libraries.json)</div></div>
+  <div class="box"><div class="num">67</div><div class="lbl">已注册函数 (5 个 Ui_* + 62 个 AgentUi_*)</div></div>
+  <div class="box"><div class="num">9</div><div class="lbl">Agent 功能领域 (任务池 / 对话 / 运行 / LLM…)</div></div>
+  <div class="box"><div class="num">14</div><div class="lbl">RunJson 顶级动作分支</div></div>
+  <div class="box"><div class="num">2</div><div class="lbl">调度模式 (Hybrid/Config) + 双执行器</div></div>
+  <div class="box"><div class="num">6</div><div class="lbl">调用链层级 (JSON → 内核 → 写回)</div></div>
+</div>
+
+<!-- ============ 1 定位 ============ -->
+<h2 id="s1">1. 框架定位概述</h2>
+<p class="section-desc">该系统是一个完全自研的全栈产品，堆叠了两层：“Agent 运行时框架”和“声明式 UI/执行架构框架”</p>
+
+<div class="card">
+<p><strong>一句话定位</strong>：WorkFlowPrj 的 Agent 子系统是一个<b>以配置为中心、完全自研的桌面 Agent 运行时</b>——前端渲染 (JSON UI)、命令执行 (ECS)、函数注册 (注册表)、调度与执行 (AxiomLoop/任务池)、存储 (三库合一)、LLM 路由 (热重配置) 全部自研，统一通过声明式的 <code>AgentRuntimeUI.json</code> 控制台暴露。<b>其定义性循环基于数据库 + 任务快照状态</b>——每个任务 <i>就是</i> 运行中的快照 (SQLite <code>ur_tasks</code> 中的单个 <code>PayloadJson</code>)，而 Cline / Claude 编码 Agent 作为<b>子 Agent</b> 在此循环内被编排 (详见下文)。</p>
+<p style="margin-top:10px">两层各有其职责：</p>
+<ul class="step-list">
+<li><b>Agent 框架层 (Projects/Agent)</b>：Agent.Core 提供运行引擎 (AxiomLoop / 任务池 / 边界 / 数据流)，Agent.Launcher 负责组装和 UI 暴露 (组合根 + 五个包含 62 个 AgentUi_* 函数的库)。它<b>拥有业务能力</b>。</li>
+<li><b>架构框架层 (FileDriven + Share + Operation)</b>：JSON UI 渲染管道、ECS、事件绑定编排、函数注册表、InvocationKernel 调用内核、任务池框架、图框架和状态管理。它<b>拥有通用执行底层</b>。</li>
+</ul>
+</div>
+
+<div class="card">
+<span class="tag good">核心论点</span><b>LLM 循环是一个基于数据库 + 任务快照的状态机 — Cline / Claude 是其中的子 Agent</b>
+<p style="margin-top:8px;font-size:13.5px">中心循环<b>不是</b>一个“上下文窗口对话循环”，而是一个<b>数据库 / 任务快照状态机</b>：每个任务 <i>就是</i> 运行中的快照 (<code>AgentTaskItem</code> 实现了 <code>ITaskPoolItem + ILoopState + IAgentLoopState</code>)，整个快照作为 SQLite <code>ur_tasks</code> 表中的单行 <code>PayloadJson</code> 持久化 — <b>任务 = 快照，快照 = 任务</b>，唯一的权威状态根。因此循环天然可恢复、可审计、崩溃安全。</p>
+<div class="flow"><span class="fn">写入 ur_tasks</span> (EnqueueAsync)  <span class="c">// 写入即激活 — 写入任务表会唤醒消费者循环</span>
+   └─ TaskPool 入口状态机 → TaskRouter (Hybrid→LLM / Config·Deterministic→零 LLM)
+        └─ <span class="hl">SnapshotDrivenLoopEngine</span>：每轮读取快照 → 执行 (五步) → 下一步 (LLM+计算改变状态) → <span class="ok">写回 PayloadJson</span>
+             └─ 执行阶段 → <span class="hl">cline_execute</span> → <span class="fn">IAgentExecutor</span> (ClineAgentExecutor, name = cline / claude / sk)
+                  └─ <span class="c">Cline / Claude = 子 Agent</span>：框架 (编排器/主 Agent) 每轮分派一个编码子任务并收集结果</div>
+<p style="font-size:13px;margin-top:10px"><b>为何这是差异化特性</b>：状态存在于<b>数据库</b>，而非模型的上下文窗口——Claude Code 从仅追加的 JSONL 会话文件恢复，CLine 从 git 检查点 + SQLite 恢复，而此框架的状态 <i>就是</i> 持久化的任务快照 (Budget / Token / Flag / Round / LastEval + DataSpace + RecentTransitions)。写入一次 → AI 循环被激活；读取 → 即可恢复。<b>Cline 和 Claude 不是循环的对等体——它们是循环通过 <code>IAgentExecutor</code> 端口调用的子 Agent 执行后端</b>，每当一轮需要编码 Agent 时被调用。</p>
+</div>
+
+
+<div class="svg-box" id="panorama"></div>
+<div class="note"><b>如何阅读此图</b>：四个垂直层——顶部是声明式控制台 (观察窗口)；中间两层是本报告的主角 (Agent 框架层 = 业务；架构框架层 = 底层)；底部是存储。水平阅读：任何按钮点击都从顶层向下到达底层存储，然后写回 UI。</div>
+
+<!-- ============ 2 Agent 框架 ============ -->
+<h2 id="s2">2. Agent 框架本身 (Projects/Agent)</h2>
+<p class="section-desc">两个核心程序集——Agent.Core (引擎) 和 Agent.Launcher (组装/暴露)——加上 Axioms 公理系统和 Guardrails</p>
+
+<h3>2.1 项目构成</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>项目</th><th>职责</th><th>主要内容</th></tr></thead>
+<tbody>
+<tr><td><strong>Agent.Core</strong></td><td>Agent 引擎核心 (无 UI 依赖)</td><td>Loops (AxiomLoop 运行引擎), TaskPool (任务池 + 双执行器), Boundaries (边界框架), DataStream (事件流), Orchestration (编排器), Prompts (提示组装), Workflow / DynamicWorkflow (工作流动态合并)</td></tr>
+<tr><td><strong>Agent.Launcher</strong></td><td>组装和外部暴露 (WinForms 宿主)</td><td>Composition 组合根 (12 个 Hosting/Assembler 组件), Entries 入口点 (AgentHost / AgentLauncher / AxiomAgentLauncher), Modules 五个库 (62 个 AgentUi_* 函数)</td></tr>
+<tr><td><strong>Agent.Axioms + Axioms.Generator</strong></td><td>公理系统</td><td>Axioms/L0/L1/L2 分层公理；源码生成器将公理声明编译为代码</td></tr>
+<tr><td><strong>Agent.Guardrails</strong></td><td>护栏 / 安全</td><td>基于规则的拦截，与 Core.Boundaries 协同工作</td></tr>
+<tr><td><strong>Agent.Contract / Agent.Calculate</strong></td><td>契约和计算</td><td>跨模块共享 DTO/契约；计算能力</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>2.2 Agent.Core 核心领域 (引擎层)</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag info">Loops</span><b>运行引擎</b>
+<ul class="step-list">
+<li><code>AgentRunner</code> (:54) — AxiomLoop 主驱动器：PreRound → RunRound → PostRound 生命周期 (:207/:265/:292)</li>
+<li><code>DecisionPoint / RoundLoopDriver / RuleEngine</code> — 循环决策点和规则引擎</li>
+<li>双调度：<code>SchedulingMode.Hybrid</code> (LLM 指挥) / <code>Config</code> (ConfigStateDirector 热读 ur_config, :445)</li>
+<li>状态根 = 任务快照：<code>AgentRunner.PersistRuntimeAsync</code> 在每轮边界将整个 <code>PayloadJson</code> 写回 <code>ur_tasks</code> (<code>AgentTaskItem</code> 实现 <code>ILoopState</code>)；Cline/Claude 通过 <code>cline_execute</code> → <code>IAgentExecutor</code> 作为子 Agent 运行</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">TaskPool</span><b>任务池</b>
+<ul class="step-list">
+<li><code>AgentTaskPoolAdapter</code> (:32) — 池外观，同时充当 IConversationStore</li>
+<li>双执行器：<code>LlmTaskExecutor</code> (通过 AgentOrchestrator 到达 LLM) / <code>RuleTaskExecutor</code> (零 LLM，WirePauseGate 协作式挂起)</li>
+<li>TaskRouter 路由决策 (:107/:119-120)：需要 LLM → Llm / 零 LLM → Rule</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">Orchestration</span><b>编排器</b>
+<ul class="step-list">
+<li><code>AgentOrchestrator</code> (:33) — RegisterModule (:145) / RegisterAgentExecutor (:151) / RunAsync 重载 (:233-255)</li>
+<li>P3 “配置即数据行”：每轮热读 ur_config；编辑一行立即生效 (:60/:284)</li>
+<li>FunctionRegistrar + LoopConfigHotReload + WorkflowAsyncFunctionHelper</li>
+</ul>
+</div>
+</div>
+<div class="grid3">
+<div class="card">
+<span class="tag teal">Boundaries</span><b>边界框架</b>
+<ul class="step-list">
+<li>DefaultBoundaryFramework / LogicalBoundaryEvaluator / NoopBoundaryFramework</li>
+<li>ReactiveBoundaryTrigger / ProactiveBoundaryTrigger — 轮前/轮后钩子 (PreRound/PostRound)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">DataStream</span><b>事件流</b>
+<ul class="step-list">
+<li>EventSink / ReactiveTrigger / ReactiveZoneBridge — 数据流的反应式桥接</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">Prompts</span><b>提示组装</b>
+<ul class="step-list">
+<li>PromptFrameworkFunction / PromptRequestComposer / PromptAssemblyContext / IPromptComposer</li>
+</ul>
+</div>
+</div>
+
+<h3>2.3 Agent.Launcher：组装、入口点和暴露</h3>
+<div class="grid2">
+<div class="card">
+<span class="tag info">组合根</span>
+<p style="font-size:13.5px;margin-bottom:8px">12 个组装组件按生命周期构建 Agent 运行时：</p>
+<div class="table-wrap">
+<table>
+<tr><th>组件</th><th>职责</th></tr>
+<tr><td><code>AgentFramework.cs</code> (:30)</td><td>组合根外观：RuntimeModule (:55) / DatabaseModule (:58) / RegisterModule (:212) / MaxProgress / DefaultTimeout (:183/:186)</td></tr>
+<tr><td><code>LlmHosting.cs</code></td><td>LLM 网关：:46 按提供者注册客户端；:70 组装统一路由代理；:89 LlmRoutingClient + LlmMode.LocalOnly 运行时切换</td></tr>
+<tr><td><code>TaskPoolHosting.cs</code></td><td>任务池组装：注入 ReferenceGrounding，包装 WriteThroughTaskPoolStore</td></tr>
+<tr><td><code>DataStoreHosting.cs</code></td><td>数据存储组装：SQLite 引导 + 图存储 + 存储桥接</td></tr>
+<tr><td><code>ConversationHosting.cs</code></td><td>对话服务组装 (“任务即对话”)</td></tr>
+<tr><td><code>DatabaseBootstrapper / GlobalGateHosting / AgentOptionalModules</code></td><td>数据库引导 / 全局门控 / 可选模块</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">模块：五个库 + 入口点</span>
+<p style="font-size:13.5px;margin-bottom:8px"><b>五个业务库 + <code>GetFunctions</code> 外观注册了 62 个 <code>AgentUi_*</code> 函数</b> (加上 5 个 <code>Ui_*</code> 模板目录函数，总共注册 67 个函数；AgentUiLibrary.cs 注册编排 + GetFunctions 自省 :22)：</p>
+<div class="table-wrap">
+<table>
+<tr><th>库</th><th>函数数</th><th>涵盖的能力</th></tr>
+<tr><td><span class="fname">AgentUiLibraryRuntime</span></td><td>20</td><td>RunJson 分发、本地测试 (LocalTestSet/CallLog)、LLM 配置、TaskScope 任务范围</td></tr>
+<tr><td><span class="fname">AgentUiLibraryData</span></td><td>23</td><td>节点 / 资源 / 引用 / 查询数据读写 (幂等 upsert 到 ur_nodes)</td></tr>
+<tr><td><span class="fname">AgentUiLibraryTaskPool</span></td><td>10</td><td>任务池生命周期 (入队/状态/删除/暂停/恢复/取消/处理待办)</td></tr>
+<tr><td><span class="fname">AgentUiLibraryDb</span></td><td>3</td><td>数据库概览 / Markdown 表格渲染 / 字体大小应用</td></tr>
+<tr><td><span class="fname">AgentUiLibraryConversation</span></td><td>5</td><td>对话：列表 / 新建 / 发送 / 历史 / 状态</td></tr>
+</table>
+<p style="font-size:12.5px;color:var(--sub);margin-top:8px">上述五个业务库总计 <b>61</b> 个 <code>AgentUi_*</code> 函数；<code>AgentUiLibrary.GetFunctions</code> (+1) 使 AgentUi_* 总数达到 <b>62</b>，加上 5 个 <code>Ui_*</code> 函数 (UiCatalogLibrary) 总共 <b>67</b> 个已注册函数。</p>
+</div>
+<p style="font-size:13.5px"><b>入口点</b>：<code>AgentHost.RunAsync</code> (:15 static) → AxiomLoopResult；AgentLauncher / AxiomAgentLauncher 双启动器；AgentUiHost (:94 ReferenceGrounding 槽位 / :107 AttachReferenceGrounding / :114/:142 单图拥有者断言)。</p>
+</div>
+</div>
+
+<!-- ============ 3 架构框架 ============ -->
+<h2 id="s3">3. 架构框架本身 (FileDriven + Share + Operation)</h2>
+<p class="section-desc">Agent 框架运行其上的通用执行底层：六层调用链 + 六个核心机制</p>
+
+<h3>3.1 六层调用链架构</h3>
+<div class="card">
+<div class="flow"><span class="c">┌──────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="c">│</span> L0  JSON UI 配置 (AgentRuntimeUI.json)：声明 forms/controls/events/initCommands <span class="c">│</span>
+<span class="c">│</span> L1  进程入口 FrameworkInitializer (:27 FailFast · :95 加载 17 个库，autoDiscover=false) <span class="c">│</span>
+<span class="c">│</span> L2  渲染管道 ScopeLifecycleAdapter：EcsGate 原子渲染 → 三重检查 → initCommands<span class="c">│</span>
+<span class="c">│</span> L3  统一函数外观 EventPlatform.InvokeFunctionAsync → FunctionCallFacade          <span class="c">│</span>
+<span class="c">│</span> L4  调用内核 InvocationKernel (:17)：预算/取消/失败分类/阶段快照 (:52-56)<span class="c">│</span>
+<span class="c">│</span> L5  已注册委托 → 实现库 (Ui_* → FrontEndDriven / AgentUi_* → Agent.Launcher)<span class="c">│</span>
+<span class="c">│</span> L6  结果写回 WriteInitOutput (:338) / 输出绑定 → 物理控件 (UI 线程封送)<span class="c">│</span>
+<span class="c">└──────────────────────────────────────────────────────────────────────────────┘</span></div>
+</div>
+
+<h3>3.2 架构框架构成 (CsharpPrj/Share + Operation 能力矩阵)</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>组件</th><th>位置</th><th>职责</th><th>Agent 运行时如何使用</th></tr></thead>
+<tbody>
+<tr><td><strong>ECS 架构</strong></td><td>Operation/FrontEndDriven</td><td>命令 = 实体，状态 = 组件，系统处理；快照差异投影</td><td>JSON 控件声明 → ECS 实体 → EventBindingSystem 物理布线</td></tr>
+<tr><td><strong>事件绑定编排</strong></td><td>Share/EventBindingOrchestrator + FileDriven.Execution/Lifecycle</td><td>WinFormsEventBus + EventBindingOrchestrator 将物理事件映射到函数外观</td><td>按钮 Click → ECS 事件链 → 函数调用</td></tr>
+<tr><td><strong>函数注册表</strong></td><td>FileDriven/DrivenConfig/Configs/function-libraries.json</td><td>17 个库的单一注册清单；autoDiscover=false 显式加载；FailFast</td><td>AgentUiLibrary / UiCatalogLibrary / RuleMatchFunction 等在此注册</td></tr>
+<tr><td><strong>调用内核</strong></td><td>Share/EventBindingOrchestrator/Invocation/InvocationKernel.cs</td><td>预算/超时/取消/失败分类/可观测性的唯一所有者；阶段快照 Dispatch→FunctionStart→FunctionEnd</td><td>所有 AgentUi_* / Ui_* 调用都经过它</td></tr>
+<tr><td><strong>任务池框架</strong></td><td>Share/TaskStatusPool</td><td>通用 TaskPool&lt;TItem,TResult&gt;：写入 ur_tasks + 唤醒消费者循环 + TaskStateChanged</td><td>AgentTaskPoolAdapter 包装它 (AgentTaskPool.cs:32)</td></tr>
+<tr><td><strong>图框架</strong></td><td>Share/GraphFramework + Share/UniversalReference</td><td>LiteDB 图存储 (端点 + 纯边)，引用语义</td><td>ReferenceGraphCoordinator / ReferenceGrounding 写入边</td></tr>
+<tr><td><strong>状态管理</strong></td><td>Share/StateManagement + Operation/StateHoldDriven</td><td>StateCenter 外观 + StorageCell + 事务 + 订阅</td><td>对话状态、运行时状态读取</td></tr>
+<tr><td><strong>通用中间件 / 外观</strong></td><td>Share/UniversalMiddleware + Share/ScopeFramework</td><td>横切管道 + 范围框架</td><td>TaskScope 多级范围包装</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>3.3 关键架构机制 (六个设计公理)</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag good">公理 1</span><b>星形汇聚</b>
+<p style="font-size:13px">所有入口点 (按钮 / initCommands / 脚本执行 / 外部端口) 汇聚到单个内核 <code>InvocationKernel.ExecuteAsync</code> — 统一行为，可观测。</p>
+</div>
+<div class="card">
+<span class="tag good">公理 2</span><b>单一实现</b>
+<p style="font-size:13px">ScopeCommandTranslator (AgentUiLibraryRuntime.cs:533-592) 将高级命令翻译成现有操作的单个 JSON，并且仍然通过 RunJsonAsync — 从不生成临时的机械代码。</p>
+</div>
+<div class="card">
+<span class="tag good">公理 3</span><b>配置即数据行</b>
+<p style="font-size:13px">P3 端口每轮热读 ur_config (AgentOrchestrator.cs:284)；编辑一行立即生效；缺失键保留当前值，避免与组合根覆盖冲突。</p>
+</div>
+<div class="card">
+<span class="tag good">公理 4</span><b>可诊断的失败</b>
+<p style="font-size:13px">FailFast + 分类失败 (函数错误 / 绝对超时 / 空闲挂起 / 信号丢失) + 超时时附加阶段快照 (:171) + 未知动作返回诊断文本 (:415)。</p>
+</div>
+<div class="card">
+<span class="tag good">公理 5</span><b>单一权威，可重建的投影</b>
+<p style="font-size:13px">实体存在于 SQL (ur_nodes/ur_tasks)；图存储 (LiteDB) 是 SQL 的可重建投影 (graph.rebuild/diff)；单图拥有者断言防止碎片化 (AgentUiHost.cs:114/:142)。</p>
+</div>
+<div class="card">
+<span class="tag good">公理 6</span><b>声明式触发</b>
+<p style="font-size:13px">引用/关系是声明式的：只有当请求体携带 relatedNodes 时才创建 task→node 边；入队不自动创建边，避免图抖动。</p>
+</div>
+</div>
+
+<!-- ============ 4 功能分析 ============ -->
+<h2 id="s4">4. 已实现功能分析</h2>
+<p class="section-desc">从控制台中可操作的 9 个主要功能领域入手，剖析每个领域：“能做什么 → 入口点是什么 → 落地何处”</p>
+
+<h3>4.1 功能领域概览</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>#</th><th>功能领域</th><th>能做什么</th><th>入口点 (函数/动作)</th><th>落地</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>任务池系统</b></td><td>任务入队/状态查询/删除/暂停/恢复/取消/处理积压；双执行器 (LLM vs 零 LLM 规则) 自动路由</td><td><code>action=task</code> + <span class="fname">AgentUi_TaskPool*</span> (10 个函数)</td><td>ur_tasks + 消费者循环</td></tr>
+<tr><td>2</td><td><b>对话系统</b></td><td>“任务即对话”：创建/发送/历史/状态/持久化对话；HTML 气泡渲染</td><td><span class="fname">AgentUi_Conversation*</span> (5 个函数)</td><td>对话工作流 + ur_tasks</td></tr>
+<tr><td>3</td><td><b>运行引擎</b></td><td>单次运行 (runLoop)：两种调度模式 — Hybrid (LLM 指挥) / Config (规则指挥，零 LLM)</td><td><code>action=runLoop</code></td><td>fw.Runtime.RunAsync (AxiomLoop)</td></tr>
+<tr><td>4</td><td><b>LLM 路由与热重配置</b></td><td>提供者注册 (local/deepseek/custom)；零网络本地测试；运行时热切换 LLM 配置并持久化</td><td><code>action=config</code> + <span class="fname">AgentUi_SetLlmConfigJson</span></td><td>LlmMode 网关 + agent-config.json</td></tr>
+<tr><td>5</td><td><b>本地集成测试</b></td><td>LocalOnly 模式 + CallLog 回放 + 自省 (AgentUi_GetFunctions)；确定性 LLM 后端支持断言</td><td><span class="fname">AgentUi_LocalTestSet / GetLocalTestCallLog</span></td><td>LlmMode.LocalOnly + CallLog</td></tr>
+<tr><td>6</td><td><b>节点数据读写</b></td><td>节点 (输出/输入/资源/配置/事件/检查点…) 幂等 upsert / 删除</td><td><code>action=node</code></td><td>ur_nodes (SQLite)</td></tr>
+<tr><td>7</td><td><b>引用图系统</b></td><td>资源端点注册；task→node / node↔node 引用边；关系声明式；图重建/差异报告</td><td><code>action=resource.* / reference.* / relations.* / graph.*</code></td><td>LiteDB ur_endpoints + ur_references + 内存中热邻接</td></tr>
+<tr><td>8</td><td><b>统一只读查询</b></td><td>对 outputs/inputs/events/sessions/config/checkpoints/resources/snapshot/taskList/taskStatus 的完整只读访问</td><td><code>action=query</code></td><td>跨多个存储的只读投影</td></tr>
+<tr><td>9</td><td><b>模板与任务范围</b></td><td>模板树 (文件夹 = 类别) 加载到请求体；TaskScope 将高级命令自动扩展为多步单个 JSON</td><td><span class="fname">Ui_*</span> (5 个函数) + <span class="fname">AgentUi_TaskScope*</span></td><td>Templates/AgentRun/** + 复用现有动作</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>4.2 关键功能深入</h3>
+
+<div class="card">
+<span class="tag info">功能 1</span><b>任务池系统 — 双执行器自动路由</b>
+<div class="flow"><span class="fn">TaskPoolEnqueueAsync</span> (AgentUiLibraryTaskPool.cs:209)
+  ├─ 入队守卫 (空输入 / 飞行中拒绝相同 taskKey) → 构建 AgentTaskItem → SeedStrategyDefaults
+  ├─ pool.EnqueueAsync → 写入 ur_tasks + 唤醒消费者循环 + TaskStateChanged 事件
+  └─ 消费时，TaskRouter 路由 (AgentTaskPool.cs:107/:119-120)：
+       ├─ 需要 LLM → <span class="fn">LlmTaskExecutor</span> (AgentOrchestrator.RunAsync 到达 LLM 调用门)
+       └─ 零 LLM → <span class="fn">RuleTaskExecutor</span> (WirePauseGate 注入池内暂停门，
+                   循环边界协作式挂起；无匹配规则或缺少 ur_config → 设置为 Faulted，RuleTaskExecutor.cs:72)
+  ├─ 请求体携带 relatedNodes → 直写守卫 ReconcileTaskAsync 自动创建 task→node 引用边
+  └─ 完整池操作集：Pause / PauseAll / Resume / ResumeAll / Cancel / ProcessPending / GetStatus / Delete</div>
+<p style="font-size:13px;color:var(--sub)">设计亮点：<b>“需要 LLM vs 零 LLM”路由决策</b>让后台任务完全基于规则运行，无需任何 LLM——这是成本敏感场景的关键能力；结合 mode=Config 规则指挥 (ConfigStateDirector 热读 ur_config)，任务池具有“编辑一行，立即生效”的动态行为。</p>
+</div>
+
+<div class="card">
+<span class="tag info">功能 2</span><b>对话系统 — “任务即对话”</b>
+<p>对话和任务共享同一个实体模型：<code>AgentUi_ConversationSend</code> 将消息作为任务入队以推进对话；对话工作流在每轮边界生成 HTML 气泡渲染回 UI。对话生命周期完整 (List/New/Send/History/State) 并通过 <code>AgentTaskPoolAdapter : IConversationStore</code> (AgentTaskPool.cs:32) 连接到任务池存储——对话即任务，任务即对话，无重复状态。</p>
+</div>
+
+<div class="card">
+<span class="tag info">功能 3</span><b>运行引擎 — 双调度模式</b>
+<div class="flow"><span class="fn">RunJsonAsync</span> action=runLoop → <span class="fn">RunLoopAsync</span> (AgentUiLibraryRuntime.cs:83)
+  └─ SchedulingMode (ResolveModeOrError 验证并规范化，:244)：
+       ├─ <span class="hl">Hybrid</span>：LLM 指挥 — LLM 每轮决定下一步 (ReAct 风格)
+       └─ <span class="hl">Config</span>：规则指挥 — ConfigStateDirector (AgentRunner.cs:445) 热读 ur_config，
+                    由规则集驱动，<b>零 LLM 网络调用</b>
+  └─ AgentRunner 生命周期：PreRound (边界钩子) → RunRound (工作流执行)
+       → PostRound (边界钩子) → FinalizeRun (AgentRunner.cs:207/:265/:292/:403)</div>
+</div>
+
+<div class="card">
+<span class="tag info">功能 4</span><b>LLM 路由与热重配置</b>
+<div class="flow"><span class="fn">LlmHosting.Configure</span> (LlmHosting.cs:46)
+  ├─ 组装时，按提供者注册客户端：<span class="hl">local</span> (无网络/无凭证) / deepseek / custom
+  ├─ :70 组装统一网关路由代理 LlmRoutingClient (:89) — 每个 ILlmClient 消费者获得同一代理
+  └─ 运行时切换：<span class="fn">LlmMode.LocalOnly</span> 一键切换到本地 (本地集成测试模式)；
+       如果默认后端解析失败，路由代理回退到本地 (:81)
+运行时热重配置：action=config → <span class="fn">SetLlmConfigJsonAsync</span> (:411) → 热交换路由 + 持久化 agent-config.json
+(AgentUi_SetLlmConfigJson 在 :661 注册)</div>
+</div>
+
+<div class="card">
+<span class="tag info">功能 5</span><b>引用图系统 — 直写守卫 + 可重建投影</b>
+
+<div class="flow"><span class="fn">ReferenceGrounding.ReconcileTaskAsync</span> (ReferenceGrounding.cs:100)
+  └─ 外观仅编排，从不写边 → <span class="fn">ReferenceGraphCoordinator</span> (唯一边写入者，:423)
+       ├─ ① AddResourceAsync(taskId) 注册任务端点 (ur_endpoints)
+       ├─ ② AddResourceAsync(nodeId) × N 注册相关节点端点
+       └─ ③ AddReferenceAsync(task→node) 删除-然后-添加幂等边写入 (ur_references)
+  └─ 守卫未组装 → 自动跳过 (可空守卫设计)；组装时单图拥有者断言 (防止图存储碎片化)
+存储桥接回退：WriteThroughTaskPoolStore 在任何入队路径上自动镜像任务图端点 (不创建边，
+  避免高频状态变化导致图抖动) — 完整引用边必须通过请求体中的 relatedNodes 显式声明</div>
+</div>
+
+<div class="card">
+<span class="tag info">功能 6</span><b>声明式工作流骨架 — 循环体是 RoundSpec，而非 LLM 即兴发挥</b>
+<div class="flow">RoundSpecLoader 加载 <span class="fname">Config/workflows/agent-loop.json</span> (或对话的 <span class="fname">collect-analyze-act.json</span>) → <span class="hl">WorkflowRunner</span> 按声明步骤执行一轮
+   └─ RoundSpec = 声明步骤 + 端口契约 (InputPorts/OutputPorts) + GlobalKeyMapping (内部无状态；运行时状态外部化到 StateCenter)
+   └─ DefaultRoundSpec (agent-round)：guard_input → provide_prompt(L0/L1/L2) → cline_execute → rule_match(零 LLM)；guard_output 在停止时附加
+   └─ 对话模板 collect-analyze-act：cline_execute(collect) → answer(analyze) → cline_execute(act)
+   └─ RoundStepInvoker：“所有逻辑围绕工作流节点” — 每步 → AgentNode (存储 + 执行单元)，
+       KeyMapping 从数据空间和其他节点的输出端口解析参数；结果作为节点输出端口持久化 (ur_nodes NodeType=output)
+   └─ RoundStateMapper：Seed (HFSM 租约切片 → 数据空间) ⇄ Harvest (数据空间 → AxiomContext.Data / 任务快照)
+   └─ DynamicWorkflowMerger：将任意运行时片段 (process / condition / loop / parallel) 合并到 WorkflowFragment</div>
+<p style="font-size:13px;color:var(--sub)">LLM 仅在 <code>provide_prompt</code> 和 <code>cline_execute</code> 时调用；路由 (<code>rule_match</code>: Done/Error/Retry → Terminate/Switch/Retry/Continue) 完全确定性，零 LLM。工作流节点是存储单元——输出写回 ur_nodes (节点输出端口)；切换模板文件即可改变整个循环体，无需修改引擎。</p>
+</div>
+
+
+<!-- ============ 5 调用链 ============ -->
+<h2 id="s5">5. 函数调用链 (控制台视角)</h2>
+<p class="section-desc">从“Run”按钮到 14 个分支分发，以及 initCommands 双模式解析</p>
+
+<div class="card">
+<span class="tag info">RunJson 分发</span>
+<div class="flow">[Run] 点击 → <span class="fn">AgentUi_RunJson</span> → <span class="fn">RunJsonAsync</span> (:223, switch :238)
+  ├─ <span class="hl">runLoop</span>     → RunLoopAsync → AxiomLoop (Hybrid LLM 指挥 / Config 规则指挥)
+  ├─ <span class="hl">task</span>        → Enqueue / SetStatus / Delete / Submit (四种状态，写入 ur_tasks)
+  ├─ <span class="hl">node</span>        → WriteNodeAsync / DeleteNodeAsync (幂等 upsert 到 ur_nodes)
+  ├─ <span class="hl">resource.*</span> → Add / Get / Remove / ListResources (图端点)
+  ├─ <span class="hl">reference.*</span>→ Add / Remove / ListReferences (引用边五个字段)
+  ├─ <span class="hl">query</span>       → QueryDataTextAsync (统一只读)
+  ├─ <span class="hl">relations.*</span> → Declare / Undeclare / List (声明式关系)
+  ├─ <span class="hl">graph.*</span>     → Rebuild / Status / Diff (图投影治理)
+  └─ <span class="hl">config</span>       → SetLlmConfigJson (LLM 热重配置)
+       未知动作 → “(unknown action) … allowed: …” 诊断文本 (:415, 不崩溃)</div>
+<div class="table-wrap">
+<table>
+<thead><tr><th>action</th><th>叶子分支</th><th>实现</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td><code>runLoop</code></td><td>—</td><td><span class="fname">RunLoopAsync</span> (:83)</td><td>AxiomLoop 指挥循环；强类型模式验证 (:244)</td></tr>
+<tr><td><code>task</code></td><td>enqueue / status / delete / submit</td><td><span class="fname">TaskPoolEnqueueAsync</span> (AgentUiLibraryTaskPool.cs:209) 等</td><td>任务池四种状态；入队通过直写守卫自动创建引用</td></tr>
+<tr><td><code>node</code></td><td>—</td><td><span class="fname">WriteNodeAsync / DeleteNodeAsync</span></td><td>直接写入 ur_nodes；NodeType 区分 output/input/resource/config/event/checkpoint…</td></tr>
+<tr><td><code>resource.*</code></td><td>add / get / remove / list</td><td><span class="fname">AddResourceAsync</span> 等</td><td>图端点注册；缺少 resourceType/id 时预验证 (:428)</td></tr>
+<tr><td><code>reference.*</code></td><td>add / remove / list</td><td><span class="fname">AddReferenceAsync</span> 等</td><td>引用边五个字段；RefEdgeError 预验证 (:432)</td></tr>
+<tr><td><code>query</code></td><td>—</td><td><span class="fname">QueryDataTextAsync</span> (:361)</td><td>outputs/inputs/events/sessions/config/checkpoints/resources/snapshot/taskList…</td></tr>
+<tr><td><code>relations.*</code></td><td>declare / undeclare / list</td><td>—</td><td>写入 NodeType=relation + 守卫派生边</td></tr>
+<tr><td><code>graph.*</code></td><td>rebuild / status / diff</td><td>—</td><td>LiteDB 图存储 = 可重建的 SQL 投影：rebuild 幂等收敛，diff 报告漂移</td></tr>
+<tr><td><code>config</code></td><td>—</td><td><span class="fname">SetLlmConfigJsonAsync</span> (:411)</td><td>LLM 路由热重配置 + 持久化 agent-config.json</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<span class="tag info">initCommands 双模式解析</span>
+<div class="flow"><span class="fn">exec Ui_ListCatalogTree output=templateListView</span> / <span class="fn">exec AgentUi_ConversationList output=sessionSelectorComboBox</span>
+  ├─ ExecuteInitCommandsAsync (ScopeLifecycleAdapter.cs:214) → ExecuteInitExecAsync (:251)
+  │    ├─ 解析符号 + output= + 命名参数 → InvokeFunctionAsync
+  │    └─ 成功时，WriteInitOutput 显式写回 (:275, 历史修复：output= 曾丢失)
+  └─ 失败时，回退到 ExecuteInitWorkflowAsync (:263/:281) — 函数优先，然后工作流，双模式解析</div>
+<div class="note-warn note"><b>迁移期兼容性</b>: :137 注释 “当 lifecycle.onAfterLoad 未声明时回退到旧 initCommands” — initCommands → lifecycle.onAfterLoad 双支持并存；行为带有历史包袱。</div>
+</div>
+
+<!-- ============ 6 存储模型 ============ -->
+<h2 id="s6">6. 存储：三库合一模型</h2>
+<p class="section-desc">实体在 SQL，关系在 LiteDB，会话内图在内存 — 单一权威，可重建投影</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag info">分工</span>
+<div class="table-wrap">
+<table>
+<tr><th>存储</th><th>引擎</th><th>角色</th><th>写入入口</th></tr>
+<tr><td><code>ur_nodes</code> 基础节点存储</td><td>SQLite</td><td>节点 = 存储单元 (output/input/resource/config…)</td><td>action=node (幂等 upsert)</td></tr>
+<tr><td><code>ur_tasks</code> 状态集合</td><td>SQLite</td><td>任务 = 状态根 (enqueue/status/delete)</td><td>action=task</td></tr>
+<tr><td><code>graph</code> 图存储</td><td>LiteDB</td><td>关系投影，完全可从 SQL 权威重建 (rebuild)</td><td><span class="fname">ReferenceGrounding</span> 唯一守卫</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">数据落地</span>
+<div class="table-wrap">
+<table>
+<tr><th>存储</th><th>集合/表</th><th>内容</th><th>写入者</th></tr>
+<tr><td>SQLite</td><td>ur_tasks</td><td>任务实体 (TaskKey/state/PayloadJson)</td><td>TaskPool.EnqueueAsync</td></tr>
+<tr><td>SQLite</td><td>ur_nodes</td><td>业务节点实体</td><td>WriteNodeAsync</td></tr>
+<tr><td>LiteDB</td><td>ur_endpoints</td><td>端点符号/元数据 (task / wf.node 镜像)</td><td>ReferenceGraphCoordinator.AddResourceAsync</td></tr>
+<tr><td>LiteDB</td><td>ur_references</td><td>纯引用边 (task→node / node↔node)</td><td>AddReferenceAsync (删除-然后-添加幂等)</td></tr>
+<tr><td>内存</td><td>热邻接 CoreGraph</td><td>会话内图视图 (由 UI/编排器读取)</td><td>AddEdge (从边文档重建)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<div class="note-good note"><b>架构亮点</b>：图存储是“可重建投影”；权威在 SQL — <code>graph.rebuild</code> 幂等收敛，<code>graph.diff</code> 报告漂移；<code>AttachReferenceGrounding</code> (AgentUiHost.cs:107) 配合单图拥有者断言 (:114/:142) 防止两个协调器读写分裂存储。</div>
+
+<!-- ============ 7 评估 ============ -->
+<h2 id="s7">7. 客观框架评估</h2>
+<p class="section-desc">从源代码中观察到的优点和缺点 (非营销文案)</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag good">优点 1</span><b>彻底的配置驱动，约定优于配置</b>
+<ul class="step-list">
+<li>UI、函数注册、LLM 路由和测试脚本都已 JSON 化；模板目录使用“文件夹 = 类别”零硬编码发现——新能力无需代码更改。</li>
+<li>单个请求体 + action 区分分发汇聚了 20+ 操作；ScopeCommandTranslator 复用现有操作，而非生成机械代码。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">优点 2</span><b>引擎层和暴露层清晰分离</b>
+<ul class="step-list">
+<li>Agent.Core (引擎，无 UI 依赖) 和 Agent.Launcher (组装/暴露) 严格分层；67 个函数分布在 Runtime/Data/TaskPool/Db/Conversation 五个库中。</li>
+<li>Loops/TaskPool/Boundaries/Orchestration 核心领域边界清晰；12 个组合根组件各司其职。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">优点 3</span><b>可诊断的失败，从不静默</b>
+<ul class="step-list">
+<li>FailFast + 分类失败 (函数错误 / 绝对超时 / 空闲挂起 / 信号丢失) + 超时时阶段快照 (Dispatch:12ms|FunctionStart:100ms…, :171)。</li>
+<li>未知动作 / 未组装守卫 / 无匹配规则都会产生明确的诊断文本或降级 (RuleTaskExecutor.cs:72)。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">优点 4</span><b>成本敏感设计 (双执行器 + 双调度)</b>
+<ul class="step-list">
+<li>“需要 LLM vs 零 LLM” TaskRouter 路由 + mode=Config 规则指挥：后台任务可完全基于规则运行，无需任何 LLM——成本可控。</li>
+<li>本地确定性 LLM 后端 + CallLog 回放 + AgentUi_GetFunctions 自省：完整的测试系统。</li>
+</ul>
+</div>
+</div>
+
+<div class="grid2">
+<div class="card">
+<span class="tag bad">缺点 1</span><b>复杂性是最大的成本</b>
+<ul class="step-list">
+<li>一次按钮点击 = 物理事件 → ECS 总线 → 参数绑定 → 外观 → 内核 → AEF 调度器 → 适配器 → 执行服务 → 已注册委托，9+ 跳。</li>
+<li>六层堆叠机制——ECS + 事件总线 + 命令框架 + 管道骨架 + 状态机 + DI——使上手成本极高。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">缺点 2</span><b>并行路径和遗留兼容并存</b>
+<ul class="step-list">
+<li>“双路径命令执行” (ECS 主路径 vs Router 旁路)，“initCommands → lifecycle.onAfterLoad 迁移期双支持”，“函数优先然后工作流回退”——行为存在不确定性。</li>
+<li>MatrixEventSink “从未注册”，Router “ExecuteSingle 回退使用中”——冗余代码仍存在。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">缺点 3</span><b>字符串耦合，无编译时保护</b>
+<ul class="step-list">
+<li>函数名、控件名、action/op/nodeType——大量字符串在 JSON 和代码间流动；重命名/拼写错误仅在运行时暴露 (依赖测试覆盖率)。</li>
+<li>渲染副作用仍依赖函数名映射表 (AffinityOverrides)；注释承认是临时方案，“TODO 迁移到注册表元数据”。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">缺点 4</span><b>依赖面与可观测性</b>
+<ul class="step-list">
+<li>17 个函数库跨越 5+ 程序集 (FileDriven → Share → Operation + Agent.Launcher + Agent.Core + Operation.StateBlock)；构建/调试链长。</li>
+<li>日志分散在各外观中，为松散字符串 ID (execution_log / launcher_log_messages / fde_log_messages)；无统一结构化收集。</li>
+</ul>
+</div>
+</div>
+
+<!-- ============ 8 行业对比 ============ -->
+<h2 id="s8">8. 行业对比：Claude Code 和 CLine</h2>
+<p class="section-desc">Claude Code 和 CLine 扮演<b>双重角色</b>：首先，它们是嵌入此框架数据库/任务快照驱动循环中的<b>子 Agent 执行后端</b> (每轮编码通过 <code>cline_execute</code> → <code>IAgentExecutor</code> 调用)；其次，作为行业基准——按维度对比 (配置驱动平台学派) 定位异同及值得借鉴的方向</p>
+
+<h3>8.1 对比目标概览</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag purple">本框架</span><b>WorkFlowPrj Agent 运行时</b>
+<ul class="step-list">
+<li><b>形态</b>：完全自研桌面栈 (WinForms + 声明式 JSON UI 控制台)</li>
+<li><b>循环</b>：<b>数据库/任务快照状态机</b> — AxiomLoop 双调度 (Hybrid LLM 指挥 / Config 规则指挥)；每轮读取持久化 <code>ur_tasks</code> 快照 → 执行 → 下一步 → 写回 <code>PayloadJson</code></li>
+<li><b>哲学</b>：<b>配置中心，星形汇聚</b> — 平台导向，确定性优先，热重配置</li>
+<li><b>独特点</b>：TaskRouter “需要 LLM vs 零 LLM” 路由；三库合一存储 (SQL 权威 + 图投影)；<b>Cline / Claude 作为子 Agent 运行</b> (<code>cline_execute</code> → <code>IAgentExecutor</code>, name = cline / claude / sk)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">Claude Code</span><b>Anthropic 的终端 Agent</b>
+<ul class="step-list">
+<li><b>形态</b>：原生终端 CLI (TS 实现，51 万+ 行)；单一 Agent 循环驱动 CLI / IDE 插件 / SDK</li>
+<li><b>循环</b>：最小化 <code>while(tool_call)</code> 主循环 — <b>无分类器、无路由器、无 DAG、无 RAG</b>；模型决定一切</li>
+<li><b>哲学</b>：<b>“更少脚手架，更多模型”</b> — 信任模型推理而非构建编排系统</li>
+<li><b>独特点</b>：8 个核心工具覆盖 90% 场景；五阶段 20 万上下文压缩管道；MCP 工具惰性加载 (55K→8.7K tokens)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">CLine</span><b>开源 VS Code Agent (原 Claude Dev)</b>
+<ul class="step-list">
+<li><b>形态</b>：VS Code / JetBrains / CLI 多宿主 (2026-05 提取为分层 <code>@cline/sdk</code>：shared→llms→agents→core)</li>
+<li><b>循环</b>：递归请求循环 + <b>Plan / Act 双模式</b> (计划用廉价推理模型，执行用强模型——可以不同)</li>
+<li><b>哲学</b>：<b>人机协同增强</b> — 每个状态改变动作经过审批门；AI 增强而非取代人类判断</li>
+<li><b>独特点</b>：git 隐藏分支检查点 (文件回滚，对话保留)；BYOK 40+ 提供者；MCP 市场 150+</li>
+</ul>
+</div>
+</div>
+
+<h3>8.2 十维架构对比矩阵</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>维度</th><th>本框架 (WorkFlowPrj)</th><th>Claude Code</th><th>CLine</th></tr></thead>
+<tbody>
+<tr><td><b>Agent 循环</b></td><td>AxiomLoop：PreRound→RunRound→PostRound 生命周期 + 双调度指挥 (LLM / 规则)</td><td><code>while(tool_call)</code> 单循环，由 stop_reason (tool_use/end_turn/max_tokens) 驱动</td><td>递归请求循环：构建提示 → 流调用 → 解析 → 审批 → 执行 → 反馈，直到 attempt_completion</td></tr>
+<tr><td><b>工具/函数系统</b></td><td>67 个函数的注册表 (五个库) + 声明式 <code>function-libraries.json</code> 注册，单请求体 action 分发</td><td>8 个核心工具 (Bash/Read/Edit/Write/Grep/Glob/Agent/TodoWrite) + MCP，工具定义惰性加载</td><td>20+ 内置工具 (含 ask_followup_question / attempt_completion / condense) + MCP 市场 150+</td></tr>
+<tr><td><b>LLM 路由</b></td><td>提供者注册 (local/deepseek/custom) + 统一路由代理 + <b>运行时热重配置并持久化</b></td><td>仅 Claude 家族 + 每任务模型选择 (可在会话中切换 Opus/Sonnet/Haiku)</td><td><b>BYOK</b>：40+ 提供者 (Anthropic/OpenAI/Gemini/Ollama…)；Plan/Act 可使用不同模型</td></tr>
+<tr><td><b>零 LLM 路径</b></td><td><span class="check">✔</span> RuleTaskExecutor + Config 规则指挥 (热读 ur_config)；任务可完全无 LLM 运行</td><td><span class="cross">✘</span> 无 — 循环高度依赖模型推理</td><td><span class="cross">✘</span> 无 — 无法无 LLM 运行</td></tr>
+<tr><td><b>上下文管理</b></td><td>TaskScope 多步扩展 + 对话状态管理 (轻量；未观察到压缩管道)</td><td>20 万预算 + <b>五阶段压缩管道</b> (~92% 自动压缩) + 子 Agent 上下文隔离</td><td><code>condense</code> 摘要压缩 + <code>focus_chain</code> 结构化进度跨压缩持久化</td></tr>
+<tr><td><b>人机协同 / 审批</b></td><td>声明式 UI 控制台由手动操作驱动；FailFast 诊断 (无细粒度权限模式)</td><td><b>7 种权限模式</b> (plan→…→bypass) + 4 安全层 + ML 分类器自动模式 + Hook 拦截</td><td>每个状态改变动作显式审批 + <b>差异审查</b> (可内联编辑提案) + 可选 YOLO 模式</td></tr>
+<tr><td><b>任务分解 / 子 Agent</b></td><td>任务池 (写入 ur_tasks + 消费者循环) + TaskRouter 双执行器；TaskScope 命令扩展；<b>Cline / Claude 作为子 Agent 嵌入</b> (cline_execute → IAgentExecutor)</td><td>Task 工具生成子 Agent (<b>depth=1</b> 防止递归爆炸，仅摘要流回)；Agent Teams (实验性)</td><td><code>new_task</code> 分层分解 + 子 Agent (v3.58，独立上下文窗口) — 原生多 Agent</td></tr>
+<tr><td><b>状态存储</b></td><td><b>SQLite 权威</b> (ur_nodes/ur_tasks) + LiteDB 图投影 (可重建) + 内存热图 — <b>任务快照即循环状态根</b> (每个任务一个 PayloadJson)</td><td>仅追加会话文件 (JSONL，通过 <code>--continue/--resume</code> 恢复)</td><td>SQLite (better-sqlite3 同步事务) + <b>git 隐藏分支检查点</b></td></tr>
+<tr><td><b>故障恢复 / 可观测性</b></td><td>分类失败 + 阶段快照 (Dispatch→Start→End) + 未知动作诊断文本</td><td>Hook 审计 (PreToolUse/PostToolUse) + 会话回放 + fork_session 分支</td><td>检查点恢复 (<b>文件回滚，对话保留</b> → 智能重试) + 实时成本跟踪</td></tr>
+<tr><td><b>扩展机制</b></td><td>函数注册表 (JSON 声明) + 模板树零硬编码发现</td><td><b>MCP + plugins + skills + hooks 四通道</b>；MCP 工具搜索惰性加载节省 85% 令牌</td><td>MCP (stdio/SSE/HTTP 多传输) + 插件系统 + 自定义提供者注册</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>8.3 三种循环形状并排</h3>
+<div class="svg-box">
+<svg viewBox="0 0 1080 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+<defs>
+<marker id="arrC" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- 面板 1: 本框架 -->
+<g><rect x="10" y="10" width="345" height="310" rx="12" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.6"/>
+<text x="182" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#3C3489">本框架：AxiomLoop (双指挥)</text>
+<rect x="28" y="48" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="69" text-anchor="middle" font-size="10.5" fill="#3C3489">PreRound (边界钩子)</text>
+<rect x="28" y="96" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="117" text-anchor="middle" font-size="10.5" fill="#3C3489">RunRound (工作流执行)</text>
+<rect x="28" y="144" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="165" text-anchor="middle" font-size="10.5" fill="#3C3489">PostRound (边界钩子)</text>
+<path d="M118 82 L118 96 M118 130 L118 144" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<path d="M118 178 L118 196" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="28" y="198" width="180" height="56" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="218" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3C3489">指挥决策 (每轮)</text>
+<text x="118" y="234" text-anchor="middle" font-size="10" fill="#7C3AED">Hybrid: LLM 决定下一步</text>
+<text x="118" y="248" text-anchor="middle" font-size="10" fill="#0F6E56">Config: 热读 ur_config 规则</text>
+<rect x="222" y="48" width="120" height="90" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="282" y="68" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3C3489">TaskRouter</text>
+<text x="282" y="86" text-anchor="middle" font-size="10" fill="#7C3AED">需要 LLM → Llm</text>
+<text x="282" y="102" text-anchor="middle" font-size="10" fill="#0F6E56">零 LLM → Rule</text>
+<text x="282" y="120" text-anchor="middle" font-size="9.5" fill="#888780">(WirePauseGate</text>
+<text x="282" y="132" text-anchor="middle" font-size="9.5" fill="#888780">协作挂起)</text>
+<path d="M208 116 L222 100" stroke="#888780" stroke-width="1" marker-end="url(#arrC)"/>
+<text x="182" y="286" text-anchor="middle" font-size="10" fill="#534AB7">确定性平台学派：编辑配置行，立即生效</text>
+<text x="182" y="304" text-anchor="middle" font-size="10" fill="#534AB7">可完全无 LLM 运行规则</text>
+<text x="182" y="322" text-anchor="middle" font-size="9" fill="#534AB7">写回 PayloadJson → ur_tasks (状态根) · cline_execute → IAgentExecutor (Cline/Claude 作为子 Agent)</text></g>
+
+<!-- 面板 2: Claude Code -->
+<g><rect x="370" y="10" width="345" height="310" rx="12" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.6"/>
+<text x="542" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#0C447C">Claude Code: while(tool_call)</text>
+<rect x="388" y="48" width="140" height="34" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="458" y="69" text-anchor="middle" font-size="10.5" fill="#0C447C">用户提示</text>
+<rect x="548" y="48" width="150" height="34" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="623" y="69" text-anchor="middle" font-size="10.5" fill="#0C447C">Claude 推理 (无路由)</text>
+<path d="M528 65 L548 65" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="388" y="104" width="310" height="42" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="543" y="121" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0C447C">stop_reason 检查</text>
+<text x="543" y="137" text-anchor="middle" font-size="10" fill="#185FA5">tool_use → 执行 | end_turn → 完成 | max_tokens → 压缩</text>
+<path d="M623 82 L623 104" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="388" y="164" width="310" height="46" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="543" y="182" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0C447C">工具执行 (8 核心 + MCP 惰性加载)</text>
+<text x="543" y="198" text-anchor="middle" font-size="10" fill="#185FA5">Bash · Read · Edit · Write · Grep · Glob · Agent(子Agent) · Todo</text>
+<path d="M543 146 L543 164" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<path d="M388 187 L368 187 L368 65 L388 65" stroke="#888780" stroke-width="1.2" fill="none" marker-end="url(#arrC)"/>
+<text x="362" y="130" text-anchor="end" font-size="9.5" fill="#888780">结果反馈 · 循环</text>
+<text x="542" y="240" text-anchor="middle" font-size="10" fill="#185FA5">七种权限模式 + 四安全层 + Hook 拦截</text>
+<text x="542" y="258" text-anchor="middle" font-size="10" fill="#185FA5">20 万上下文：五阶段压缩 + 子 Agent 隔离 (depth=1)</text>
+<text x="542" y="286" text-anchor="middle" font-size="10" fill="#0C447C">极简模型学派：模型决定一切</text>
+<text x="542" y="304" text-anchor="middle" font-size="10" fill="#0C447C">“更少脚手架，更多模型”</text></g>
+
+<!-- 面板 3: CLine -->
+<g><rect x="730" y="10" width="345" height="310" rx="12" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+<text x="902" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#085041">CLine：递归循环 + Plan/Act</text>
+<rect x="748" y="48" width="310" height="34" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="69" text-anchor="middle" font-size="10.5" fill="#085041">用户任务 (@file/@url 上下文注入 + .clinerules)</text>
+<path d="M903 82 L903 96" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="748" y="98" width="148" height="52" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="822" y="118" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">Plan 模式</text>
+<text x="822" y="133" text-anchor="middle" font-size="9.5" fill="#0F6E56">只读探索 · 廉价推理模型</text>
+<rect x="910" y="98" width="148" height="52" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="984" y="118" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">Act 模式</text>
+<text x="984" y="133" text-anchor="middle" font-size="9.5" fill="#0F6E56">执行变更 · 强模型 (可不同)</text>
+<path d="M896 124 L910 124 M910 138 L896 138" stroke="#888780" stroke-width="1" marker-end="url(#arrC)"/>
+<rect x="748" y="166" width="310" height="46" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="184" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">审批门 (每个状态改变动作)</text>
+<text x="903" y="200" text-anchor="middle" font-size="10" fill="#0F6E56">差异审查 + 内联编辑 · 只读操作自动批准 · YOLO 可退出</text>
+<path d="M903 150 L903 166" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="748" y="228" width="310" height="34" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="249" text-anchor="middle" font-size="10.5" fill="#085041">执行 → 反馈 → attempt_completion / condense 压缩</text>
+<path d="M903 212 L903 228" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<text x="902" y="286" text-anchor="middle" font-size="10" fill="#0F6E56">git 隐藏分支检查点：文件回滚 · 对话保留</text>
+<text x="902" y="304" text-anchor="middle" font-size="10" fill="#085041">审批增强学派：信任但验证</text></g>
+</svg>
+</div>
+
+<h3>8.4 设计哲学谱系</h3>
+<div class="card">
+<p style="font-size:13.5px;margin-bottom:10px">三者在两个轴上占据不同位置——<b>谁做决策</b>和<b>执行信任级别</b>——形成 Agent 运行时的三种原型形态：</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>哲学轴</th><th>本框架 (WorkFlowPrj)</th><th>Claude Code</th><th>CLine</th></tr></thead>
+<tbody>
+<tr><td><b>决策所有权</b></td><td><span class="partial">◆ 配置/规则优先</span> — 规则指挥可接管一切；LLM 是可选的增强 (Hybrid 模式)</td><td><span class="partial">◆ 模型优先</span> — 无手工启发式；模型推理即路由器；规则仅作为安全护栏</td><td><span class="partial">◆ 人机共同决策</span> — 模型提议，人类审批每一步；甚至模式切换也需用户确认</td></tr>
+<tr><td><b>执行信任</b></td><td>控制台手动触发 + FailFast 快速失败 (面向开发者自用)</td><td>渐进信任：7 种权限模式从 plan 到 bypass；ML 分类器自动裁决</td><td>默认零信任：完全审批门；YOLO 模式是显式豁免</td></tr>
+<tr><td><b>抽象导向</b></td><td><b>重编排</b>：ECS + 事件总线 + 调用内核 + 任务池；星形汇聚以换取确定性</td><td><b>轻编排</b>：单一 while 循环 + 周边系统 (权限/压缩/扩展)</td><td><b>中编排</b>：循环 + Controller 编排 + 审批/检查点周边</td></tr>
+<tr><td><b>生态策略</b></td><td>私有函数注册表 (17 个自研库，无 MCP)</td><td>开放协议 (MCP 为一等公民 + plugins/skills/hooks)</td><td>开放协议 + 市场 (MCP 市场，一键安装 150+)</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<h3>8.5 差异化洞察与值得借鉴的方向</h3>
+<div class="grid2">
+<div class="card">
+<span class="tag good">本框架的差异化优势</span>
+<ul class="step-list">
+<li><b>零 LLM 执行路径在三者中独一无二</b>：TaskRouter 双执行器 + Config 规则指挥让后台任务可完全基于规则运行，无需任何 LLM——Claude Code 和 CLine 的循环都高度依赖模型；两者均无此成本逃生舱。</li>
+<li><b>图存储是独特能力</b>：LiteDB 引用图投影 (可重建，差异治理) 超越两者——Claude Code 仅追加会话文件，CLine 仅有 SQLite + git 检查点；两者均无关系图语义。</li>
+<li><b>更细粒度的配置热重载</b>：P3 “配置即数据行” 每轮热读 ur_config——比 Claude Code 的设置重载或 CLine 的设置面板更即时。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag warn">值得向 Claude Code 借鉴</span>
+<ul class="step-list">
+<li><b>上下文压缩管道</b>：五阶段压缩 + 92% 自动压缩 + 子 Agent 上下文隔离——本框架未观察到系统性上下文预算管理；长会话/长任务将是弱点。</li>
+<li><b>MCP 生态接入</b>：惰性加载方案节省 85% 工具定义令牌；本框架的 17 库私有注册表可考虑桥接 MCP 标准以复用社区 150+ 工具。</li>
+<li><b>子 Agent 隔离模式</b>：depth=1 + 仅摘要流回保护主上下文——可与此框架的任务池 (任务即子 Agent) 结合。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag warn">值得向 CLine 借鉴</span>
+<ul class="step-list">
+<li><b>检查点恢复</b>：git 隐藏分支快照 + “文件回滚，对话保留”组合实现故障后智能重试而非盲目重复——任务池的 Faulted 状态可采纳类似机制。</li>
+<li><b>差异审批 UI</b>：写操作前显示差异并允许内联编辑提案——比单纯的 FailFast 更友好。</li>
+<li><b>跨模型 Plan/Act 拆分</b>：用廉价推理模型规划，用强模型执行——与此框架双执行器的根源思想相同；二者可叠加 (规则指挥 ≈ 零成本 Plan)。</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">共同趋势</span>
+<ul class="step-list">
+<li><b>简单循环 + 强力周边</b>是共识：三个核心循环都不复杂 (while / 递归 / AxiomLoop)；工程重量落在权限、上下文、扩展、恢复等周边系统。</li>
+<li><b>标准协议扩展</b> (MCP) 已成为行业方向；私有注册表生态面临长期孤岛风险。</li>
+<li><b>状态持久化和会话可恢复性</b> (--resume / 检查点 / ur_tasks) — 三者殊途同归；本框架的 SQLite 任务状态根是三者中最完整的持久化设计。</li>
+</ul>
+</div>
+</div>
+
+<div class="note"><b>数据来源</b>：Claude Code 基于官方工程博客和社区逆向分析 (v2.1.x，验证于 2026-02)；CLine 基于官方博客、SDK 文档和源码分析 (v3.8x / @cline/sdk 2026-05)。对比基于公开架构材料，非逐行源码验证。</div>
+
+<!-- ============ 9 结论 ============ -->
+<h2 id="s9">9. 总体评分与结论</h2>
+<p class="section-desc">主观五维评分 (个人观点，供架构评审参考)</p>
+
+<div class="card">
+<div class="score-row"><span class="score-label">架构设计</span><div class="score-bar-container"><div class="score-bar high" style="width:80%">8.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">工程质量</span><div class="score-bar-container"><div class="score-bar high" style="width:90%">9.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">功能完整性</span><div class="score-bar-container"><div class="score-bar high" style="width:82%">8.2</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">可维护性</span><div class="score-bar-container"><div class="score-bar mid" style="width:70%">7.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">可用性</span><div class="score-bar-container"><div class="score-bar low" style="width:50%">5.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">复杂度控制</span><div class="score-bar-container"><div class="score-bar mid" style="width:60%">6.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">加权总体</span><div class="score-bar-container"><div class="score-bar mid" style="width:72%">7.2</div></div><span class="score-note">10</span></div>
+</div>
+
+<div class="conclusion-box">
+<h3>总体结论</h3>
+<p><b>定性</b>：这是一个<b>以配置为中心、完全自研的桌面 Agent 运行时</b>，其工程成熟度显著高于典型的内部框架。Agent.Core (引擎) 和 Agent.Launcher (暴露) 的严格分层、成本敏感的双执行器/双调度设计、FailFast + 分类失败诊断、以及三库合一存储模型，都是“被现实坑打磨过”的产物 (例如 initCommands output=-丢弃的 bug 通过“注释 + 显式写回”双落地修复)。</p>
+<p><b>能力全景</b>：任务池 (双执行器)、对话 (任务即对话)、AxiomLoop (双调度)、LLM 热重配置、本地集成测试、节点数据、引用图、统一查询、模板系统——9 大功能领域共 67 个已注册函数，全部通过声明式 JSON 暴露，可组合可复用。</p>
+<p><b>代价</b>：众多抽象层和多重汇聚执行路径带来的复杂性，使其<b>更适合作为长期演进的核心平台，而非小团队快速上手</b>。“星形汇聚”保证了统一行为，但任何中间层缺陷 (如信号丢失) 都表现为“无错误无日志的卡死”。</p>
+<p><b>行业定位</b> (Cline / Claude 作为子 Agent，然后作为基准)：循环是一个<b>数据库/任务快照状态机</b>，状态根是持久化的 ur_tasks 快照 (PayloadJson)；Cline 和 Claude 是它编排的<b>子 Agent 执行后端</b> (cline_execute → IAgentExecutor)。作为行业原型，它走的是“<b>配置驱动平台学派</b>”路线——与 Claude Code 的“极简模型学派” (while 循环 + 模型决定一切) 和 CLine 的“审批增强学派” (每步差异审批 + 检查点恢复) 形成三种原型。<b>零 LLM 双执行器和可重建引用图是三者中独有的差异化能力</b>；相对差距在于上下文压缩管道、MCP 开放生态和差异审批交互 (见第 8 章)。</p>
+<p class="score-line">加权总体 7.2 / 10 — 架构值得长期投入；建议优先级 (结合行业对比)：上下文压缩管道 (学习 Claude Code 的五阶段压缩)、MCP 生态桥接 (复用社区 150+ 工具)、任务检查点恢复 (学习 CLine 的“文件回滚，对话保留”)、调用链可视化追踪、函数名/action 编译时验证。</p>
+</div>
+
+<!-- ============ 10 源码索引 ============ -->
+<h2 id="s10">10. 关键源码索引</h2>
+<p class="section-desc">以下路径和行号在本分析中已验证</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag info">Agent 引擎 (Agent.Core)</span>
+<div class="table-wrap">
+<table>
+<tr><th>文件</th><th>角色</th></tr>
+<tr><td><code>Agent.Core/Loops/AgentRunner.cs</code> (:54)</td><td>AxiomLoop 主驱动器；PreRound/RunRound/PostRound (:207/:265/:292)；ConfigStateDirector (:445)</td></tr>
+<tr><td><code>Agent.Core/Orchestration/AgentOrchestrator.cs</code> (:33)</td><td>编排器；RegisterModule (:145) / RegisterAgentExecutor (:151) / RunAsync 重载 (:233-255)；P3 热读 ur_config (:284)</td></tr>
+<tr><td><code>Agent.Core/TaskPool/AgentTaskPool.cs</code> (:32)</td><td>池外观 (同时充当 IConversationStore)；TaskRouter 路由 (:107/:119-120)</td></tr>
+<tr><td><code>Agent.Core/TaskPool/LlmTaskExecutor.cs / RuleTaskExecutor.cs</code></td><td>双执行器：LLM 路径 / 零 LLM 规则 (WirePauseGate 挂起；:72 无规则时置 Faulted)</td></tr>
+<tr><td><code>Agent.Core/Loops/RuleEngine.cs / DecisionPoint.cs</code></td><td>规则引擎和决策点</td></tr>
+<tr><td><code>Agent.Core/Boundaries/*</code></td><td>边界框架 (PreRound/PostRound 钩子，LogicalBoundaryEvaluator)</td></tr>
+<tr><td><code>Agent.Orchestration/StepExecution/RoundSpec.cs / RoundSpecLoader.cs</code></td><td>声明式轮骨架 (步骤 + 端口契约 + GlobalKeyMapping)；加载 Config/workflows/agent-loop.json 并内置回退</td></tr>
+<tr><td><code>Agent.Orchestration/StepExecution/WorkflowRunner.cs / RoundStepInvoker.cs / RoundStateMapper.cs</code></td><td>单轮运行器；步骤→节点执行器 (KeyMapping + 节点输出端口 → ur_nodes)；跨轮 Seed/Harvest 状态映射</td></tr>
+<tr><td><code>Agent.Core/DynamicWorkflow/DynamicWorkflowMerger.cs</code></td><td>动态工作流片段合并/执行 (FragmentNode process/condition/loop/parallel)</td></tr>
+<tr><td><code>Projects/Agent/Config/workflows/agent-loop.json · collect-analyze-act.json</code></td><td>主循环线性链 (guard_input→provide_prompt→cline_execute→rule_match) 和对话模板 (collect→analyze→act)</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">组装与暴露 (Agent.Launcher)</span>
+<div class="table-wrap">
+<table>
+<tr><th>文件</th><th>角色</th></tr>
+<tr><td><code>Composition/AgentFramework.cs</code> (:30)</td><td>组合根外观：RuntimeModule (:55) / DatabaseModule (:58) / RegisterModule (:212)</td></tr>
+<tr><td><code>Composition/LlmHosting.cs</code> (:46/:70/:89)</td><td>LLM 网关：提供者注册 + 统一路由代理 + LocalOnly 运行时切换</td></tr>
+<tr><td><code>Composition/TaskPoolHosting.cs / DataStoreHosting.cs / ConversationHosting.cs</code></td><td>任务池 / 存储 / 对话组装</td></tr>
+<tr><td><code>Entries/AgentHost.cs</code> (:15)</td><td>静态入口：RunAsync → AxiomLoopResult</td></tr>
+<tr><td><code>Modules/AgentUiLibrary*.cs</code> (6 个函数承载文件)</td><td>62 个 AgentUi_* 注册 (Runtime 20 / Data 23 / TaskPool 10 / Db 3 / Conversation 5 + GetFunctions) + 5 个 Ui_* = 共 67 个</td></tr>
+<tr><td><code>Modules/AgentUiHost.cs</code> (:94/:107/:114/:142)</td><td>宿主槽位 + 单图拥有者断言</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">架构框架 (FileDriven + Share + Operation)</span>
+<div class="table-wrap">
+<table>
+<tr><th>文件</th><th>角色</th></tr>
+<tr><td><code>FileDriven.Execution/Initial/FrameworkInitializer.cs</code> (:14/:27/:95-96)</td><td>组合根：FailFast + 显式加载 17 个库</td></tr>
+<tr><td><code>FileDriven.Execution/Lifecycle/EventBindingInitializer.cs</code></td><td>事件绑定编排 (WinFormsEventBus + EventBindingOrchestrator)</td></tr>
+<tr><td><code>Operation/FrontEndDriven/State/Projection/ScopeLifecycleAdapter.cs</code> (:137/:214/:251/:263/:338)</td><td>渲染生命周期 + initCommands 双模式执行</td></tr>
+<tr><td><code>Operation/FrontEndDriven/Lifecycle/EventPlatform.cs</code></td><td>统一函数调用外观 (IEventPlatform)</td></tr>
+<tr><td><code>Share/EventBindingOrchestrator/Invocation/InvocationKernel.cs</code> (:17/:52-56/:171)</td><td>调用内核：预算/取消/失败分类/阶段快照</td></tr>
+<tr><td><code>Operation/FrontEndDriven/UiCatalogLibrary.cs</code> (5 个函数)</td><td>模板目录 Ui_* 函数</td></tr>
+<tr><td><code>Operation/DataStoreDriven/Core/ReferenceGrounding.cs</code> + <code>Graph/ReferenceGraphCoordinator.cs</code></td><td>引用守卫 (外观) + 唯一边写入协调器</td></tr>
+<tr><td><code>Operation/DataStoreDriven/Core/WriteThroughTaskPoolStore.cs</code></td><td>存储桥接：任何入队路径自动镜像任务图端点</td></tr>
+<tr><td><code>Share/TaskStatusPool/TaskPool/TaskPool.cs</code></td><td>通用任务池：写入 ur_tasks + 唤醒消费者循环</td></tr>
+<tr><td><code>FileDriven/DrivenConfig/Configs/function-libraries.json</code></td><td>17 个库的单一注册清单 (autoDiscover=false)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<footer>由 WorkBuddy 生成 · 基于静态源代码分析 (行号已验证 2026-08-22) · 行业对比基于 Claude Code (v2.1.x) 和 CLine (v3.8x / SDK 2026-05) 的公开材料 · 评分为个人客观观点，供架构评审参考</footer>
+</div>
+
+<script>
+const PANORAMA = `<svg viewBox="0 0 760 700" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+<defs>
+<marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- L0 UI -->
+<g><rect x="150" y="12" width="460" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380" y="32" text-anchor="middle" font-size="14" font-weight="600" fill="#0C447C">观察窗口：AgentRuntimeUI 控制台 (WinForms)</text>
+<text x="380" y="52" text-anchor="middle" font-size="11" fill="#185FA5">左侧：统一输入 (模板树 + 请求体 + Run) · 右侧：任务池 / 文档 / 数据库 / 主对话框</text></g>
+<path d="M380 68 L380 100" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L1 Agent 框架层 -->
+<g><rect x="30" y="100" width="700" height="216" rx="14" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.6"/>
+<text x="48" y="124" font-size="13.5" font-weight="700" fill="#3C3489">Agent 框架层 (Projects/Agent) — 拥有业务能力</text>
+
+<rect x="46" y="136" width="330" height="166" rx="10" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="211" y="156" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3C3489">Agent.Core (引擎，无 UI 依赖)</text>
+<text x="211" y="178" text-anchor="middle" font-size="11" fill="#534AB7">Loops: AgentRunner · DecisionPoint · RuleEngine</text>
+<text x="211" y="196" text-anchor="middle" font-size="11" fill="#534AB7">TaskPool: LlmTaskExecutor / RuleTaskExecutor</text>
+<text x="211" y="214" text-anchor="middle" font-size="11" fill="#534AB7">Orchestration: AgentOrchestrator · FunctionRegistrar</text>
+<text x="211" y="232" text-anchor="middle" font-size="11" fill="#534AB7">Boundaries · DataStream · Prompts · Workflow</text>
+<text x="211" y="254" text-anchor="middle" font-size="10.5" fill="#888780">P3 配置即数据行：每轮热读 ur_config</text>
+<text x="211" y="270" text-anchor="middle" font-size="10.5" fill="#888780">双调度：Hybrid (LLM) / Config (规则指挥)</text>
+<text x="211" y="288" text-anchor="middle" font-size="10.5" fill="#888780">TaskRouter：需要-LLM vs 零-LLM 路由决策</text>
+
+<rect x="390" y="136" width="326" height="166" rx="10" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="553" y="156" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3C3489">Agent.Launcher (组装 + UI 暴露)</text>
+<text x="553" y="178" text-anchor="middle" font-size="11" fill="#534AB7">组合根 (12 组件)：AgentFramework</text>
+<text x="553" y="196" text-anchor="middle" font-size="11" fill="#534AB7">LlmHosting · TaskPoolHosting · DataStoreHosting</text>
+<text x="553" y="214" text-anchor="middle" font-size="11" fill="#534AB7">ConversationHosting · DatabaseBootstrapper</text>
+<text x="553" y="232" text-anchor="middle" font-size="11" fill="#534AB7">入口点：AgentHost · AgentLauncher · AxiomAgentLauncher</text>
+<text x="553" y="252" text-anchor="middle" font-size="10.5" fill="#0F6E56">模块五个库：Runtime(20) · Data(23)</text>
+<text x="553" y="268" text-anchor="middle" font-size="10.5" fill="#0F6E56">TaskPool(10) · Db(3) · Conversation(5)</text>
+<text x="553" y="286" text-anchor="middle" font-size="10.5" fill="#888780">AgentUiHost 槽位 + 单图拥有者断言</text></g>
+<path d="M380 316 L380 348" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L2 架构框架层 -->
+<g><rect x="30" y="348" width="700" height="196" rx="14" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+<text x="48" y="372" font-size="13.5" font-weight="700" fill="#085041">架构框架层 (FileDriven + CsharpPrj/Share + Operation) — 通用执行底层</text>
+
+<rect x="46" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="152" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">渲染管道 (FrontEndDriven)</text>
+<text x="152" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">EcsGate 原子渲染 → 三重检查验证</text>
+<text x="152" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">ScopeLifecycleAdapter 生命周期</text>
+<text x="152" y="458" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventBindingSystem 物理布线</text>
+<text x="152" y="476" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventPlatform 统一函数外观</text>
+<text x="152" y="494" text-anchor="middle" font-size="10.5" fill="#888780">UiCatalogLibrary (模板目录)</text>
+<text x="152" y="512" text-anchor="middle" font-size="10.5" fill="#888780">“文件夹 = 类别”，零硬编码</text>
+
+<rect x="274" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="380" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">执行内核 (Share)</text>
+<text x="380" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">★ InvocationKernel 星形汇聚点</text>
+<text x="380" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">预算 / 取消 / 失败分类 / 可观测性</text>
+<text x="380" y="456" text-anchor="middle" font-size="10.5" fill="#0F6E56">阶段快照 Dispatch→Start→End</text>
+<text x="380" y="474" text-anchor="middle" font-size="10.5" fill="#0F6E56">TaskPool 通用任务池框架</text>
+<text x="380" y="492" text-anchor="middle" font-size="10.5" fill="#888780">StateManagement · GraphFramework</text>
+<text x="380" y="510" text-anchor="middle" font-size="10.5" fill="#888780">UniversalReference · 事件总线</text>
+
+<rect x="502" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="608" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">注册与启动 (FileDriven)</text>
+<text x="608" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">function-libraries.json: 17 个库</text>
+<text x="608" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">autoDiscover=false 显式加载</text>
+<text x="608" y="458" text-anchor="middle" font-size="10.5" fill="#0F6E56">FrameworkInitializer FailFast</text>
+<text x="608" y="476" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventBindingInitializer</text>
+<text x="608" y="494" text-anchor="middle" font-size="10.5" fill="#888780">DataStoreDriven 存储驱动</text>
+<text x="608" y="512" text-anchor="middle" font-size="10.5" fill="#888780">ReferenceGrounding 守卫</text></g>
+<path d="M380 544 L380 572" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L3 存储 -->
+<g><rect x="70" y="572" width="620" height="84" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="380" y="593" text-anchor="middle" font-size="13" font-weight="600" fill="#712B13">存储层：三库合一模型</text>
+<text x="160" y="618" text-anchor="middle" font-size="11" fill="#993C1D">SQLite ur_nodes (节点实体)</text>
+<text x="160" y="636" text-anchor="middle" font-size="11" fill="#993C1D">SQLite ur_tasks (任务状态根)</text>
+<text x="380" y="618" text-anchor="middle" font-size="11" fill="#993C1D">LiteDB ur_endpoints + ur_references (图投影)</text>
+<text x="380" y="636" text-anchor="middle" font-size="10.5" fill="#888780">权威在 SQL · graph.rebuild 可重建 · diff 报告漂移</text>
+<text x="600" y="618" text-anchor="middle" font-size="11" fill="#993C1D">内存热邻接 CoreGraph (会话内图)</text>
+<text x="600" y="636" text-anchor="middle" font-size="10.5" fill="#888780">UI / 编排器的读取视图</text></g>
+</svg>`;
+
+document.getElementById('panorama').innerHTML = PANORAMA;
+</script>
+
+<script>
+(function(){
+  const nav = document.querySelector('.nav');
+  if(!nav) return;
+  const links = Array.from(nav.querySelectorAll('a'));
+  const ids = links.map(a => a.getAttribute('href').slice(1));
+  const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+  const toTop = document.getElementById('toTop');
+  const progress = document.getElementById('progress');
+
+  function onScroll(){
+    const y = window.scrollY;
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    if(progress) progress.style.width = (h > 0 ? (y / h * 100) : 0) + '%';
+    if(toTop) toTop.classList.toggle('show', y > 320);
+    let cur = ids[0];
+    for(const s of sections){ if(s.offsetTop - 100 <= y) cur = s.id; }
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+  }
+  if(toTop) toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+})();
+</script>
+</body>
+</html>

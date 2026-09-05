@@ -1,0 +1,37 @@
+{
+  "container": {
+    "name": "workflow-mcp-env",
+    "imageName": "workflow-mcp-env:latest",
+    "composeFile": "DevEnvironment\\Docker\\docker-compose.yml"
+  },
+  "docker": {
+    "dataDir": "$env:LOCALAPPDATA\\Docker",
+    "logDir": "$env:LOCALAPPDATA\\Docker\\log",
+    "configDir": "$env:USERPROFILE\\.docker",
+    "desktopExe": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe",
+    "serviceName": "com.docker.service"
+  },
+  "cline": {
+    "configPath": "$env:APPDATA\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\cline_mcp_settings.json",
+    "backupDir": "$env:USERPROFILE\\.cline-mcp-backups"
+  },
+  "mcp": {
+    "portStart": 3100,
+    "portEnd": 3107,
+    "configTemplate": "DevEnvironment\\Docker\\config\\mcp-gateway-config.json",
+    "serversConfigFile": "PowerShellScript\\Tools\\Docker\\mcp-servers-config.json"
+  },
+  "dotnetBuilder": {
+    "imageName": "workflow-mcp-env",
+    "containerName": "workflow-mcp-env",
+    "dockerfile": "DevEnvironment/Docker/Dockerfile",
+    "slnFile": "CsharpPrj/MainProj.sln",
+    "sdkImage": "mcr.microsoft.com/dotnet/sdk:10.0",
+    "composeDir": "DevEnvironment/Docker",
+    "composeService": "mcp-env"
+  },
+  "timeout": {
+    "maxWaitSeconds": 120,
+    "pollIntervalSeconds": 5
+  }
+}

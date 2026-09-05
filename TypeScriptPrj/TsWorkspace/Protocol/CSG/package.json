@@ -1,0 +1,30 @@
+{
+  "name": "csg-protocol",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CSG (Configuration-StateMachine-Graph) 协议 TypeScript 实现 — 镜像 C# CSG.Unified，提供跨语言 CanonicalForm 数据契约",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf build tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "csg",
+    "protocol",
+    "state-machine",
+    "canonical-form",
+    "csharp"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

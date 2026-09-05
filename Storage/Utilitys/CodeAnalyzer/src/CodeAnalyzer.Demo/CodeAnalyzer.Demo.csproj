@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CodeAnalyzer.Demo</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CodeAnalyzer.Analysis\CodeAnalyzer.Analysis.csproj" />
+    <ProjectReference Include="..\CodeAnalyzer.Prompt\CodeAnalyzer.Prompt.csproj" />
+    <ProjectReference Include="..\CodeAnalyzer.Optimization\CodeAnalyzer.Optimization.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,35 @@
+{
+  "name": "get_by_layer",
+  "description": "按层编号筛选模块",
+  "handler": "layer",
+  "template": "query",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "layer": {
+        "type": "number",
+        "description": "层编号（0=辅助/测试, 1=基础层, 2=模块层, 3=共享层, 4=操作层, 5=应用层, 6=平台层, 7=工具层）"
+      },
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    },
+    "required": ["layer"]
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getModulesByLayer", "from": "../core/parser" },
+      { "name": "getLayerName", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "requiredParams": ["layer"],
+    "mainCall": "getModulesByLayer(layer, projectRoot, slnPath)",
+    "emptyCheck": "⚠️ 层 [${layer}] ${getLayerName(layer)} 下没有已配置 ModuleRule 属性的项目",
+    "outputCall": "formatLayerResults(results, layer, getLayerName)"
+  }
+}

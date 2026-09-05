@@ -1,0 +1,59 @@
+{
+  "name": "cline-api",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cline 桥接 API — 在 C#/PowerShell 中通过 JSON CLI 调用 Cline 编码代理（headless 模式）",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "bin": {
+    "cline-api": "build/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/cli.js",
+    "dev": "tsc --watch",
+    "clean": "rm -rf build",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "keywords": [
+    "cline",
+    "api",
+    "bridge",
+    "csharp"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@cline/sdk": "0.0.70",
+    "csg-protocol": "workspace:*",
+    "fs-sink": "workspace:*"
+  },
+  "overrides": {
+    "@ai-sdk/openai": "4.0.31",
+    "@ai-sdk/google": "4.0.35",
+    "@ai-sdk/anthropic": "4.0.33",
+    "@ai-sdk/mistral": "4.0.25",
+    "@ai-sdk/google-vertex": "5.0.44",
+    "@ai-sdk/amazon-bedrock": "5.0.46",
+    "@ai-sdk/openai-compatible": "3.0.25",
+    "@ai-sdk/provider": "4.0.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "@ai-sdk/openai": "4.0.31",
+      "@ai-sdk/google": "4.0.35",
+      "@ai-sdk/anthropic": "4.0.33",
+      "@ai-sdk/mistral": "4.0.25",
+      "@ai-sdk/google-vertex": "5.0.44",
+      "@ai-sdk/amazon-bedrock": "5.0.46",
+      "@ai-sdk/openai-compatible": "3.0.25",
+      "@ai-sdk/provider": "4.0.6"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

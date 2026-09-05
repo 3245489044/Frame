@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>UniversalLayoutMath</AssemblyName>
+    <RootNamespace>UniversalLayoutMath</RootNamespace>
+    <Description>纯数学逻辑类库 - 比例定位、重叠检测、尺寸约束、堆叠布局、冲突图分析、多目标优化</Description>
+    <Version>1.0.0</Version>
+    <Authors>WdUI</Authors>
+    <PackageTags>layout;math;overlap-detection;conflict-graph;optimization</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- LayFrameScript.cs 使用 System.Text.Json，netstandard2.0 需要显式引用 -->
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="$(SystemTextJsonVersion)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>RoslynMethod.Core</AssemblyName>
+    <RootNamespace>RoslynSpace</RootNamespace>
+    <Description>Roslyn 编译核心工具集 — 提供 CompilationReferenceHelper、UsingManager、CompilationSkeleton 等轻量级 Roslyn 工具</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" />
+  </ItemGroup>
+
+</Project>

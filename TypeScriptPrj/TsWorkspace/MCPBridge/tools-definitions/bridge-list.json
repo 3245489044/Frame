@@ -1,0 +1,18 @@
+{
+  "name": "bridge_list",
+  "description": "列出所有通过桥接连接的远程 MCP 服务器及其状态",
+  "handler": "bridge-list",
+  "template": "no-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getBridge", "from": "../core/bridge" }
+    ],
+    "mainCall": "getBridge().getHealthSummary()",
+    "outputCall": "results"
+  }
+}

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用执行容器框架</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>通用执行容器框架，基于 MediatR + Polly 提供原子执行单元和引擎容器，支持弹性策略（重试、熔断、超时、日志）</ModuleRule_Description>
+    <ModuleRule_Keywords>容器,执行,MediatR,Polly,弹性策略,重试,熔断,超时</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是通用容器框架，不依赖任何业务逻辑" />
+    <ModuleRule_Rule Include="所有输入输出通过不可变 record 传递，无 SharedData" />
+    <ModuleRule_Rule Include="运行时依赖通过构造函数注入，无隐式依赖" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要通用执行容器时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块基于 MediatR 的 IRequestHandler 和 IPipelineBehavior 实现" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Container</RootNamespace>
+    <AssemblyName>Container</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="$(MediatRVersion)" />
+    <PackageReference Include="Polly" Version="$(PollyVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsDependencyInjectionAbstractionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(BasicMethodDir)BasicMethod.csproj" />
+    <ProjectReference Include="$(PlateDir)TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

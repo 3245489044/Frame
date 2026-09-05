@@ -1,0 +1,573 @@
+{
+    "version": "1.3",
+  "description": "FrontEndDriven 模块日志消息注册文件 - ★ 2026-08-05 级别降噪：Skip_Child/ParentNotReady→Debug，ApplyResult_summary→Debug，RootMountedVisual→Debug，EventBindingSystem_update_start→Debug；新增 RootControlFallbackByName_debug/RenderStageRunner_ActualHostChildCount_normal 按条件分支；CsgEntryPoint_CollectSnapshot_complete 标记 dep（replaced-by CsgCollectSnapshot_summary）｜★ 2026-08-07 渲染分步成功汇总降噪：布局收敛报告/宿主基准/可见性契约/收集完成/开始应用/挂载结果/事件订阅/root挂载成功 降 Debug 并归 FrontEndDriven.RenderStage|EventBinding 分类（使 LogFilterConfig 黑名单生效）；保留 RenderPipelineComposition_Execute_summary 与 RenderRequestQueue_incremental_done 两条单行汇总为 Info｜★ 2026-08-08 级别降噪：RenderPipelineComposition_Execute_summary→Debug（Execute 仅 Load/Creation 区间，collected=0 为「区间未运行」噪音，真实渲染已由 RenderRequestQueue_incremental_done 单行承载）｜★ 2026-08-12 新增 RenderValidationStage_summary/details（RenderValidationStage 验证审计日志）｜★ 2026-08-27 布局收敛状态机门控：新增 LayoutSubsystem_reflow_converged / LayoutSubsystem_convergence_blocked / _retrying / _abandoned（确定性收敛状态机治「未就绪反复空转」——Blocked 等待挂载信号不重排、Retrying 有限递增退避、Abandoned 明确放弃）",
+  "messages": {
+    "EcsGate_DoLoadAndRender_mount": {
+      "template": "EcsGate 渲染挂载统计 — scope={scope}, succeeded={succeeded}, collected={collectedCount}, applied={appliedCount}, mounted={mountedCount}, orphan={orphanCount}, hostActualChildCount={hostActualChildCount}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "LayoutSubsystem_tracked": {
+      "template": "布局子系统：注册宿主 Resize 源 — scope={scope}, host={host}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_untracked": {
+      "template": "布局子系统：退订宿主 Resize — scope={scope}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_reflow": {
+      "template": "布局子系统反应式重排（仅 Bounds 投影） — scope={scope}, updated={updated}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_reflow_converged": {
+      "template": "布局子系统重排已收敛（本轮投影无实际变更，幂等短路） — scope={scope}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_geometry_unchanged": {
+      "template": "布局失效值差门控：宿主 Resize 提醒但几何未变，跳过重排调度 — scope={scope}, geometry={geometry}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_convergence_blocked": {
+      "template": "布局收敛状态机：宿主未挂载/Form，等待挂载信号，不重排不空转 — scope={scope}, note={note}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_convergence_retrying": {
+      "template": "布局收敛状态机：宿主/基准瞬态未就绪，有限递增退避重试 — scope={scope}, attempt={attempt}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_convergence_abandoned": {
+      "template": "布局收敛状态机：宿主/基准连续未就绪，退避预算耗尽，明确放弃（不再 ScheduleDrain） — scope={scope}, note={note}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutScheduler_work_failed": {
+      "template": "布局调度器执行失败 — scope={scope}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutScheduler_drain_budget_exhausted": {
+      "template": "布局调度器排空预算耗尽，剩余待重算作用域滞留，已重新调度 — pendingCount={pendingCount}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutScheduler_reflow_storm": {
+      "template": "布局调度器重排风暴护栏触发（单次 drain 内同一 scope 连续重排超阈值，跳过本轮 work） — scope={scope}, consecutive={consecutive}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutScheduler_drain_reschedule_giveup": {
+      "template": "布局调度器连续预算耗尽超过上限，放弃重新调度（scope 保持 pending，由后续 Schedule 再触发，防挂死 UI） — pendingCount={pendingCount}, consecutive={consecutive}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "VisibilityContract_self_heal_requested": {
+      "template": "可见性契约违规已入队自愈重渲染（2s 节流窗） — scope={scope}, healViolated={healViolated}",
+      "level": "Warning",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "OnSplitterMoved_truth_update": {
+      "template": "Splitter 拖拽真源回灌 — entity={entityId}, ratio={ratio}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Layout"
+    },
+    "ScopeLifecycleAdapter_render_outcome": {
+      "template": "ScopeLifecycleAdapter 渲染判据 — scope={scope}, config={configPath}, renderSucceeded={renderSucceeded}, rootAttached={rootAttached}, hostActualChildCount={hostActualChildCount}, contentMounted={contentMounted}, mountVisible={mountVisible}, succeeded={succeeded}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "ControlRegistryAwareFinder_FindByName_null_or_empty": {
+      "template": "[ControlRegistryAwareFinder] FindByName: name is null or empty",
+      "level": "Warning",
+      "category": "General"
+    },
+    "ControlRegistryAwareFinder_Not_found": {
+      "template": "[ControlRegistryAwareFinder] Not found: name={name}, openFormsCount={openFormsCount}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "ControlRegistryAwareFinder_Found_in_lookup": {
+      "template": "[ControlRegistryAwareFinder] Found in lookup: name={name}, source={source}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "UILogger_LogMessage": {
+      "template": "[UILogger] {message}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "CsgEntryPoint_Collect_start": {
+      "template": "CsgEntryPoint: 开始收集 ECS World 状态",
+      "level": "Debug",
+      "category": "General"
+    },
+    "CsgEntryPoint_Collect_complete": {
+      "template": "CsgEntryPoint: ECS World 状态收集完成, entityCount={entityCount}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsInputPort_LoadConfig_complete": {
+      "template": "EcsInputPort: UI 配置加载完成, rootEntityId={rootEntityId}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsInputPort_RegisterWorkflows": {
+      "template": "EcsInputPort: 配置侧工作流注册完成, workflowCount={workflowCount}, names={names}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsInputPort_ApplyDataChange_start": {
+      "template": "EcsInputPort: 开始应用数据变更: entityId={entityId}, componentType={componentType}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormsOutputPort_ApplySnapshot_start": {
+      "template": "WinFormsOutputPort: 开始应用 WinFormSnapshot, controlCount={controlCount}, relationCount={relationCount}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "WinFormsOutputPort_Skip_ChildNotReady": {
+      "template": "WinFormsOutputPort: 子控件未就绪跳过挂载 — childEntityId={childEntityId}, parentEntityId={parentEntityId}, note={note}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormsOutputPort_Skip_ParentNotReady": {
+      "template": "WinFormsOutputPort: 父控件未就绪跳过挂载 — childEntityId={childEntityId}, parentEntityId={parentEntityId}, note={note}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "SyncActualContainerSizes_mismatch": {
+      "template": "SyncActualContainerSizes: 容器尺寸不一致 — entityId={entityId}, controlName={controlName}, controlType={controlType}, ecsWidth={ecsWidth}, ecsHeight={ecsHeight}, actualWidth={actualWidth}, actualHeight={actualHeight}, note={note}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "SyncActualContainerSizes_combo_exempted": {
+      "template": "SyncActualContainerSizes: ComboBox DropDownList 高度平台豁免 — entityId={entityId}, controlName={controlName}, ecsWidth={ecsWidth}, ecsHeight={ecsHeight}, actualWidth={actualWidth}, actualHeight={actualHeight}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "SyncActualContainerSizes_failed": {
+      "template": "SyncActualContainerSizes: 读取容器尺寸失败 — entityId={entityId}, controlName={controlName}, error={error}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormApplier_FindControl_ParseFailed": {
+      "template": "Apply 跳过: Entity 解析失败 — nodeId={nodeId}, name={name}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormApplier_Apply_skipped_empty": {
+      "template": "WinFormApplier: 空快照跳过应用",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormApplier_Skip_CreateFailed": {
+      "template": "Apply 跳过: 控件创建失败 — nodeId={nodeId}, type={type}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "WinFormApplier_Skip_RelationControlNotFound": {
+      "template": "Apply 跳过: 关系控件未找到（孤儿控件）— parentId={parentId}, childId={childId}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "WinFormApplier_Skip_MountFailed": {
+      "template": "Apply 跳过: 挂载失败 — parentId={parentId}, childId={childId}, targetPanel={targetPanel}（父/子未就绪、目标面板无效、或 AddControl 失败如 TabPage 无 TabControl 宿主）",
+      "level": "Warning",
+      "category": "General"
+    },
+    "WinFormApplier_Skip_PhysicallyNotMounted": {
+      "template": "Apply 跳过: 物理核验失败（AddControl 返回 true 但控件未实际入宿主）— parentId={parentId}, childId={childId}",
+      "level": "Error",
+      "category": "General"
+    },
+    "WinFormApplier_ApplyResult_summary": {
+      "template": "WinFormApplier 挂载结果: {summary}, allMounted={allMounted}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "RenderPipelineComposition_Execute_summary": {
+      "template": "RenderPipelineComposition: 执行管线 — scope={scope}, rootEntityId={rootEntityId}, collectedCount={collectedCount}, appliedCount={appliedCount}, elapsedMs={elapsedMs}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "CsgCollectSnapshot_summary": {
+      "template": "CsgEntryPoint: WinFormSnapshot 收集完成 — scope={scope}, controlCount={controlCount}, relationCount={relationCount}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "EventBindingSystem_no_pending_entities": {
+      "template": "EventBindingSystem: {message}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "ContainerCommandExecutor_Load_NotSucceeded": {
+      "template": "ContainerCommandExecutor: 配置加载未成功 — scope={scope}, configPath={configPath}, error={error}, nodeCount={nodeCount}, configVersion={configVersion}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "ConfigLoadRender_RenderIntoContent": {
+      "template": "ConfigLoadRender: 渲染进主内容区 — configBaseName={configBaseName}, contentScope={contentScope}, configPath={configPath}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "RenderStageRunner_ActualHostChildCount": {
+      "template": "RenderStageRunner: 宿主真实子控件数 — scope={scope}, host={host}, childCount={childCount}",
+      "level": "Info",
+      "category": "General"
+    },
+    "RenderStageRunner_ActualHostChildCount_normal": {
+      "template": "RenderStageRunner: 宿主真实子控件数 — scope={scope}, host={host}, childCount={childCount}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "RenderValidationStage_summary": {
+      "template": "RenderValidationStage 校验汇总 — scope={scope}, summary={summary}, issues={issues}",
+      "level": "Info",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "RenderValidationStage_details": {
+      "template": "RenderValidationStage 校验详情 — scope={scope}, detail={detail}",
+      "level": "Warning",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "HostMountService_NotResolved": {
+      "template": "HostMountService: 宿主未解析，root 未挂载 — scope={scope}, note={note}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "HostMountService_RootControlFallbackByName": {
+      "template": "HostMountService: root 控件按实体未命中，退化为按名解析 — scope={scope}, rootName={rootName}, fallbackHit={fallbackHit}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "HostMountService_RootControlFallbackByName_debug": {
+      "template": "HostMountService: root 控件按实体未命中，退化为按名解析 — scope={scope}, rootName={rootName}, fallbackHit={fallbackHit}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "HostMountService_RootControlNotFound": {
+      "template": "HostMountService: root 控件不可解析，root 未挂 Form — scope={scope}, rootEntity={rootEntity}",
+      "level": "Error",
+      "category": "General"
+    },
+    "HostMountService_RootIsHost": {
+      "template": "HostMountService: root 控件==宿主，跳过物理挂载（疑似残留名字映射）— scope={scope}, note={note}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "HostMountService_AttachedRoot": {
+      "template": "HostMountService: root 物理挂载成功 — scope={scope}, rootName={rootName}, hostName={hostName}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "HostMountService_RootMountedVisual": {
+      "template": "HostMountService: root 挂载后可见性诊断 — scope={scope}, rootName={rootName}, rootSize={rootSize}, rootDock={rootDock}, rootAnchor={rootAnchor}, rootVisible={rootVisible}, rootParent={rootParent}, hostName={hostName}, hostClient={hostClient}, hostChildCount={hostChildCount}, hostParentChain={hostParentChain}, note={note}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "Layout_Positions": {
+      "template": "布局位置报告:\n{detail}",
+      "level": "Info",
+      "category": "General"
+    },
+    "Layout_Report": {
+      "template": "布局报告:\n表单数量: {formCount}, 控件数量: {controlCount}, 命名容器数: {containerCount}",
+      "level": "Info",
+      "category": "General"
+    },
+    "Layout_JsonReport": {
+      "template": "布局 JSON 报告:\n{json}",
+      "level": "Info",
+      "category": "General"
+    },
+    "Layout_Overlaps": {
+      "template": "布局重叠检测 — totalControls={totalControls}, totalPairs={totalPairs}, problematicCount={problematicCount}, hasOverlaps={hasOverlaps}",
+      "level": "Info",
+      "category": "General"
+    },
+    "Layout_Overlaps_ProblemReport": {
+      "template": "布局重叠问题报告:\n{report}",
+      "level": "Info",
+      "category": "General"
+    },
+    "EventPlatform_handler_error": {
+      "template": "EventPlatform: 事件处理异常 — eventType={eventType}, source={source}, error={error}",
+      "level": "Error",
+      "category": "General"
+    },
+    "EcsGate_audit_before": {
+      "template": "EcsGate: 审计(前) — operationName={operationName}, operationId={operationId}, timestamp={timestamp}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsGate_audit_after": {
+      "template": "EcsGate: 审计(后) — operationName={operationName}, operationId={operationId}, elapsedMs={elapsedMs}, result={result}, detail={detail}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsGate_audit_error": {
+      "template": "EcsGate: 审计(错误) — operationName={operationName}, operationId={operationId}, error={error}",
+      "level": "Error",
+      "category": "General"
+    },
+    "LayoutConvergenceReport": {
+      "template": "布局收敛报告 — scope={scope}, total={total}, valid={valid}, zeroSized={zeroSized}, missing={missing}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "LayoutConvergenceReport_violated": {
+      "template": "布局收敛报告违规 — scope={scope}, total={total}, valid={valid}, zeroSized={zeroSized}, missing={missing}, problems={problems}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "HostBasisSystem_ResolveBasis": {
+      "template": "宿主基准决议 — scope={scope}, host={host}, hostClient={hostClient}, basisSource={basisSource}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "HostBasisSystem_ResolveBasis_already_aligned": {
+      "template": "宿主基准决议（已对齐跳过） — scope={scope}, host={host}, hostClient={hostClient}, basisSource={basisSource}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "HostBasisSystem_ResolveBasis_skip": {
+      "template": "宿主基准决议（跳过） — scope={scope}, reason={reason}, host={host}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "HostBasisSystem_ResolveBasis_root_not_found": {
+      "template": "宿主基准决议失败（root 未找到） — scope={scope}, rootName={rootName}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "HostBasisSystem_ResolveBasis_unavailable": {
+      "template": "宿主基准决议失败（宿主与父面板客户区均不可用） — scope={scope}, host={host}, reason={reason}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "OnSplitterMoved_audit_failed": {
+      "template": "分割条拖拽审计失败 — entityId={entityId}, error={error}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "EcsEventBus_Enqueue": {
+      "template": "ECS 事件入队 — controlName={controlName}, eventName={eventName}, payload={payload}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_start": {
+      "template": "ECS 事件分发开始 — opId={opId}, controlName={controlName}, eventName={eventName}, functionName={functionName}, budgetMs={budgetMs}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_completed": {
+      "template": "ECS 事件分发完成 — opId={opId}, controlName={controlName}, eventName={eventName}, functionName={functionName}, success={success}, outcome={outcome}, elapsedMs={elapsedMs}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_decision": {
+      "template": "ECS 事件输出决策 — opId={opId}, controlName={controlName}, functionName={functionName}, success={success}, outcome={outcome}, outputTarget={outputTarget}, outputType={outputType}, outputPreview={outputPreview}",
+      "level": "Info",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_empty": {
+      "template": "ECS 事件输出为空（指定输出目标但函数无输出值）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, outputType={outputType}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch": {
+      "template": "ECS 事件分发 — controlName={controlName}, eventName={eventName}, functionName={functionName}, parameters={parameters}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_entity_not_found": {
+      "template": "ECS 事件分发失败（实体未找到） — controlName={controlName}, eventName={eventName}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "ScopeAwareResolver_cross_scope_fallback": {
+      "template": "跨作用域回退（目标不在活动 scope）: controlName={controlName}, activeScope={activeScope}, hitScope={hitScope}",
+      "level": "Warning",
+      "category": "General"
+    },
+
+    "EcsEventBus_Dispatch_no_bindings": {
+      "template": "ECS 事件分发跳过（实体无事件绑定） — controlName={controlName}, eventName={eventName}, entityId={entityId}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_no_match": {
+      "template": "ECS 事件分发未命中订阅 — controlName={controlName}, eventName={eventName}, entityId={entityId}, availableEvents={availableEvents}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_function_failed": {
+      "template": "ECS 事件函数执行失败 — controlName={controlName}, eventName={eventName}, functionName={functionName}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_signal_lost": {
+      "template": "ECS 事件函数完成信号未落定 — opId={opId}, controlName={controlName}, eventName={eventName}, functionName={functionName}, outcome={outcome}, elapsedMs={elapsedMs}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Parameter_source_missing": {
+      "template": "ECS 事件参数源控件缺失 — controlName={controlName}, eventName={eventName}, functionName={functionName}, sourceName={sourceName}, targetName={targetName}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsStateAccessor_SetValue": {
+      "template": "ECS 状态写入 — controlName={controlName}, value={value}, entityId={entityId}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsStateAccessor_SetValue_projection": {
+      "template": "ECS 状态写入物理投影 — controlName={controlName}, entityId={entityId}, value={value}, controlFound={controlFound}, physicalAfter={physicalAfter}, projection={projection}, error={error}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsStateAccessor_SetValue_projection_failed": {
+      "template": "ECS 状态写入投影失败 — controlName={controlName}, entityId={entityId}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsStateAccessor_SetValue_canonical": {
+      "template": "ECS 状态写入（契约写后规范值回写） — controlName={controlName}, value={value}, canonical={canonical}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "ControlStaticData_applied": {
+      "template": "静态数据应用 — controlName={controlName}, controlType={controlType}, itemCount={itemCount}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsStateAccessor_GetValue_contract_failed": {
+      "template": "ECS 状态读取契约失败 — controlName={controlName}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "InputCapturePort_Subscribed": {
+      "template": "输入采集端口挂接 — controlName={controlName}, entityId={entityId}, controlType={controlType}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EventBindingSystem_binding_skipped": {
+      "template": "物理事件挂接有跳过（手动点击将无响应）— entityCount={entityCount}, boundCount={boundCount}, skippedCount={skippedCount}, skipped={skipped}",
+      "level": "Warning",
+      "category": "FrontEndDriven.EventBinding"
+    },
+    "EventBindingSystem_binding_result": {
+      "template": "物理事件挂接结果 — entityCount={entityCount}, boundCount={boundCount}, skippedCount={skippedCount}, skipped={skipped}",
+      "level": "Info",
+      "category": "FrontEndDriven.EventBinding"
+    },
+    "PropertyApplier_Dock_applied": {
+      "template": "原生 Dock 应用 — controlName={controlName}, dock={dock}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "PropertyApplier_Dock_parse_failed": {
+      "template": "原生 Dock 解析失败 — controlName={controlName}, dockRaw={dockRaw}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "RenderRequestQueue_Enqueue": {
+      "template": "渲染请求入队 — scope={scope}, reason={reason}, pendingScopes={pendingScopes}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "RenderRequestQueue_render_failed": {
+      "template": "渲染请求执行失败 — scope={scope}, kind={kind}, reason={reason}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "RenderRequestQueue_render_unsuccessful": {
+      "template": "渲染请求未成功 — scope={scope}, kind={kind}, reason={reason}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "RenderRequestQueue_incremental_done": {
+      "template": "增量渲染完成 — scope={scope}, reason={reason}, result={result}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "RenderRequestQueue_fullLoad_no_statecenter": {
+      "template": "FullLoad 缺少 IStateCenter — scope={scope}, configPath={configPath}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "VisibilityContract_violated": {
+      "template": "可见性契约违规 — scope={scope}, controlName={controlName}, intent={intent}, size={size}, visible={visible}, inHost={inHost}, isStructural={isStructural}, parent={parent}, actualLeft={actualLeft}, actualTop={actualTop}, hostSize={hostSize}, hostRect={hostRect}, controlRect={controlRect}, ecsLayout={ecsLayout}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "VisibilityContract_semantic_exempt": {
+      "template": "可见性契约豁免（语义合法态） — scope={scope}, controlName={controlName}, intent={intent}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "RenderVisibilityCheckStage_skipped_not_applied": {
+      "template": "可见性检查跳过（布局未应用） — scope={scope}, reason={reason}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "RenderVisibilityCheckStage_deferred_host_zero_client": {
+      "template": "可见性检查延后（宿主客户区 0×0，布局未就位） — scope={scope}, host={host}, reason={reason}",
+      "level": "Debug",
+      "category": "Layout"
+    },
+    "VisibilityContract_summary_violated": {
+      "template": "可见性契约汇总（违规） — scope={scope}, checkedCount={checkedCount}, violated={violated}, healViolated={healViolated}, structuralViolated={structuralViolated}",
+      "level": "Warning",
+      "category": "Layout"
+    },
+    "VisibilityContract_summary_structural": {
+      "template": "可见性契约汇总（结构类违规，不自愈）— scope={scope}, checkedCount={checkedCount}, structuralViolated={structuralViolated} — {note}（config-error：请人工修配置）",
+      "level": "Error",
+      "category": "Layout"
+    },
+    "VisibilityContract_ok": {
+      "template": "可见性契约通过 — scope={scope}, checkedCount={checkedCount}",
+      "level": "Debug",
+      "category": "FrontEndDriven.RenderStage"
+    },
+    "ConfigDrivenControlFactory_invalid_hiddenSemantics": {
+      "template": "hiddenSemantics 值无效 — controlName={controlName}, value={value}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "ConfigDrivenControlFactory_tabpage_misnested": {
+      "template": "配置结构错误：tabpage 必须嵌套于 tabcontrol 内 — controlName={controlName}, parentType={parentType}（TabPage 直接挂到 {parentType} 无 TabControl 宿主将不显示，请将该 tabpage 移入 tabcontrol 的 controls）",
+      "level": "Error",
+      "category": "General"
+    },
+    "ConfigDrivenControlFactory_splitterpanel_misnested": {
+      "template": "配置结构错误：splitterpanel 必须嵌套于 splitcontainer 内 — controlName={controlName}, parentType={parentType}",
+      "level": "Error",
+      "category": "General"
+    },
+    "ConfigDrivenControlFactory_tabcontrol_nonpage_child": {
+      "template": "配置结构错误：tabcontrol 的直接子控件必须为 tabpage — controlName={controlName}, childType={childType}, parentType={parentType}",
+      "level": "Error",
+      "category": "General"
+    },
+    "ConfigDrivenControlFactory_container_leaf": {
+      "template": "配置结构错误：容器（tabcontrol/splitcontainer）不得作为叶子 — controlName={controlName}, type={type}（无任何子控件声明）",
+      "level": "Error",
+      "category": "General"
+    },
+    "WinFormsControlAdapter_Skip_TabPageNoTabControl": {
+      "template": "挂载失败：TabPage 未嵌套于 TabControl 宿主 — parent={parent}, child={child}（配置误嵌套：TabPage 直接挂到 {parent} 无 TabControl 宿主将不显示，请将该 tabpage 移入 tabcontrol 的 controls）",
+      "level": "Error",
+      "category": "General"
+    }
+  }
+}
+

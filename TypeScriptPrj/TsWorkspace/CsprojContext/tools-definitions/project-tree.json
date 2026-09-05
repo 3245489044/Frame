@@ -1,0 +1,19 @@
+{
+  "name": "get_project_tree",
+  "description": "获取项目完整树形结构（按层分组展示所有模块）",
+  "handler": "project-tree",
+  "template": "custom",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    }
+  }
+}

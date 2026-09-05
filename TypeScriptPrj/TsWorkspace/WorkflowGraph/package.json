@@ -1,0 +1,35 @@
+{
+  "name": "workflow-graph",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "WorkflowGraph — 工作流 JSON → 图的可视化渲染：消费 Produce 链的 nodes[]+next[]，经 DAG 分层布局，输出自包含 SVG/HTML（供 htmlviewer 内联，摆脱运行时内嵌第三方 JS）。",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "bin": {
+    "workflow-graph": "build/cli.js"
+  },
+  "files": [
+    "build",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "keywords": [
+    "workflow",
+    "graph",
+    "dag",
+    "svg",
+    "visualization",
+    "produce"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

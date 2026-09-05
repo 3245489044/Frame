@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>UniversalWorkflowFramework.DataManage</AssemblyName>
+    <RootNamespace>UniversalWorkflowFramework.DataManage</RootNamespace>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+      <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="StorageManagers.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tests\**" />
+    <EmbeddedResource Remove="Tests\**" />
+    <None Remove="Tests\**" />
+  </ItemGroup>
+
+  <!-- 排除 DataManage.PathManager 子目录，因为其类型由 DataManage.PathManager.csproj 独立编译 -->
+  <ItemGroup>
+    <Compile Remove="DataManage.PathManager\**" />
+    <EmbeddedResource Remove="DataManage.PathManager\**" />
+    <None Remove="DataManage.PathManager\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LiteDB" Version="$(LiteDBVersion)" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="$(SystemDataSQLiteVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" />
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="DataManage.PathManager\DataManage.PathManager.csproj" />
+  </ItemGroup>
+
+</Project>

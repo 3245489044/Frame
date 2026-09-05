@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>DataManage.PathManager</AssemblyName>
+    <RootNamespace>DataManage.PathManager</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>路径管理子项目，提供统一的存储路径管理和路径操作工具</Description>
+    <Company>DataManage</Company>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>

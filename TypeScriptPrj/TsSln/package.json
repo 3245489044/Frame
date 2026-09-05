@@ -1,0 +1,22 @@
+{
+  "name": "tssln",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "TypeScript 项目管理框架 — 支持 .sln 解析、多构建器、插件系统",
+  "scripts": {
+    "build": "tsc --build tsconfig.json",
+    "start": "node build/cli.js",
+    "start:list": "node build/cli.js list",
+    "start:info": "node build/cli.js info",
+    "start:install": "node build/cli.js install",
+    "clean": "node build/cli.js clean"
+  },
+
+  "keywords": ["typescript", "project-manager", "build-tool", "sln"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

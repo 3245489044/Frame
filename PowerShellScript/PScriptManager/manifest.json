@@ -1,0 +1,35 @@
+{
+  "name": "PScriptManager",
+  "version": "1.0.0",
+  "description": "PowerShell 脚本管理框架 — 自动扫描、注册、构建、脚手架",
+  "author": "WorkFlowPrj",
+  "minPowerShellVersion": "5.1",
+  "managedPaths": [
+    "PowerShellScript",
+    "CentralTest"
+  ],
+  "scanExcludePatterns": [
+    "**/backups/**",
+    "**/Temp/**",
+    "**/node_modules/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.git/**",
+    "**/Templates/**"
+  ],
+  "metadataTags": {
+    "requires": "@requires",
+    "version": "@version",
+    "author": "@author",
+    "description": "@description",
+    "category": "@category",
+    "alias": "@alias",
+    "exports": "@exports",
+    "deprecated": "@deprecated"
+  },
+  "registry": {
+    "enabled": true,
+    "autoLoad": true,
+    "file": "psm-registry.json"
+  }
+}

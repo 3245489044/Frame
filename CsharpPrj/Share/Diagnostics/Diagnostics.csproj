@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <!-- ★ 已移除 UseWindowsForms 依赖，FrameworkErrors 不再使用 MessageBox -->
+    <RootNamespace>Common.Diagnostics</RootNamespace>
+    <AssemblyName>Share.Diagnostics</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- Logging 已整合到 BasicMethod.csproj -->
+
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+
+    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+
+    <ProjectReference Include="..\UniversalReference\UniversalWorkflowFramework.csproj" />
+
+  </ItemGroup>
+
+  <!-- ★ 确保 config/ 目录下的配置文件复制到输出目录，供运行时加载 -->
+  <ItemGroup>
+    <None Update="config\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

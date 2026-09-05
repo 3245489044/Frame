@@ -1,0 +1,93 @@
+{
+  "description": "控件样式模板 - 从现有 JsonConfig 文件中提取的重复样式模式",
+  "version": "1.0",
+  "styles": {
+    "primary-button": {
+      "description": "主按钮样式（蓝色）",
+      "applyTo": ["button"],
+      "properties": {
+        "backColor": "#2563EB",
+        "foreColor": "White",
+        "font": { "size": 11, "bold": true }
+      }
+    },
+    "secondary-button": {
+      "description": "次要按钮样式（灰色）",
+      "applyTo": ["button"],
+      "properties": {
+        "backColor": "#6B7280",
+        "foreColor": "White"
+      }
+    },
+    "title-bar": {
+      "description": "顶部标题栏样式",
+      "applyTo": ["label"],
+      "properties": {
+        "backColor": "#2563EB",
+        "foreColor": "White",
+        "font": { "size": 12, "bold": true },
+        "layout": { "left": 0.0, "top": 0.0, "width": 1.0, "height": 0.06 }
+      }
+    },
+    "readonly-bg": {
+      "description": "只读文本框背景样式",
+      "applyTo": ["textbox"],
+      "properties": {
+        "backColor": "#F8FAFC",
+        "foreColor": "#1F2937"
+      }
+    },
+    "terminal-textbox": {
+      "description": "终端输出文本框样式",
+      "applyTo": ["textbox"],
+      "properties": {
+        "backColor": "#1E1E1E",
+        "foreColor": "#90EE90",
+        "font": { "name": "Consolas", "size": 10 }
+      }
+    },
+    "status-bar": {
+      "description": "底部状态栏样式",
+      "applyTo": ["label"],
+      "properties": {
+        "foreColor": "#6B7280",
+        "layout": { "left": 0.05, "bottom": 0.02, "width": 0.9, "height": 0.04 }
+      }
+    },
+    "toolbar-panel": {
+      "description": "工具栏面板样式",
+      "applyTo": ["panel"],
+      "properties": {
+        "backColor": "#F3F4F6"
+      }
+    },
+    "dark-panel": {
+      "description": "深色面板样式",
+      "applyTo": ["panel"],
+      "properties": {
+        "backColor": "#2D2D2D"
+      }
+    },
+    "groupbox-default": {
+      "description": "默认 GroupBox 样式",
+      "applyTo": ["groupbox"],
+      "properties": {
+        "layout": { "left": 0.02, "top": 0.08, "width": 0.96, "height": 0.14 }
+      }
+    },
+    "full-width": {
+      "description": "满宽布局",
+      "applyTo": ["*"],
+      "properties": {
+        "layout": { "left": 0.0, "width": 1.0 }
+      }
+    },
+    "consolas-font": {
+      "description": "Consolas 等宽字体",
+      "applyTo": ["textbox", "label"],
+      "properties": {
+        "font": { "name": "Consolas", "size": 10 }
+      }
+    }
+  }
+}

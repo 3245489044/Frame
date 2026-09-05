@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Name>MCPBridge</Name>
+    <OutDir>../../build/MCPBridge</OutDir>
+    <!-- 占位 TargetFramework：实际由 tsc 编译，MSBuild 仅做桥接 -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- 抑制 AssemblyInfo 自动生成，避免 CS0579 重复特性错误 -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MCPFramework\MCPFramework.csproj" />
+  </ItemGroup>
+</Project>

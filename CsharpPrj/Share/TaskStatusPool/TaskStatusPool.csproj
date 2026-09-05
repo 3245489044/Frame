@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>任务状态池</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用基础框架，提供池（Pool）、态射（Morphism）、上下文（Context）三大核心抽象。池是数据容器，态射是数据变换，上下文是数据载体。不绑定任何具体业务场景。</ModuleRule_Description>
+    <ModuleRule_Keywords>池,态射,上下文,管线,注册表,通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.TaskStatusPool</RootNamespace>
+    <AssemblyName>Share.TaskStatusPool</AssemblyName>
+    <Description>通用基础框架 — 池（Pool）+ 态射（Morphism）+ 上下文（Context）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- IEventExecutionService（FunctionExecuteMorphism 使用） -->
+    <ProjectReference Include="..\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <!-- IControlValueAccessor（ControlPool / ResultWriteMorphism 使用） -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

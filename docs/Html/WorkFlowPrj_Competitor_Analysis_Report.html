@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkFlowPrj 竞品分析报告</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f8f9fa;
+            --surface-2: #f1f3f5;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-secondary: #495057;
+            --text-muted: #6c757d;
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --success: #16a34a;
+            --success-light: #dcfce7;
+            --warning: #d97706;
+            --warning-light: #fef3c7;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --purple: #7c3aed;
+            --purple-light: #ede9fe;
+            --teal: #0d9488;
+            --teal-light: #ccfbf1;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 0;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #7c3aed 100%);
+            color: white;
+            padding: 60px 32px;
+            border-radius: 0 0 24px 24px;
+            margin-bottom: 48px;
+        }
+        .header h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
+        .header .subtitle { font-size: 16px; opacity: 0.9; margin-bottom: 20px; }
+        .header .meta { display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; opacity: 0.85; }
+        .header .meta-item { display: flex; align-items: center; gap: 6px; }
+
+        /* Section */
+        .section { margin-bottom: 56px; }
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--primary);
+            display: inline-block;
+        }
+        .section-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+        /* Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title { font-size: 17px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; margin-bottom: 20px; border-radius: 10px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            background: #1e3a5f;
+            color: white;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        tr:nth-child(even) td { background: var(--surface); }
+        tr:hover td { background: var(--primary-light); }
+        .check { color: var(--success); font-weight: 600; }
+        .cross { color: var(--danger); font-weight: 600; }
+        .partial { color: var(--warning); font-weight: 600; }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .badge-primary { background: var(--primary-light); color: var(--primary); }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); }
+        .badge-danger { background: var(--danger-light); color: var(--danger); }
+        .badge-purple { background: var(--purple-light); color: var(--purple); }
+        .badge-teal { background: var(--teal-light); color: var(--teal); }
+
+        /* Grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        /* Feature list */
+        .feature-list { list-style: none; padding: 0; }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .feature-list li:last-child { border-bottom: none; }
+        .feature-list .icon { flex-shrink: 0; width: 20px; text-align: center; }
+
+        /* Highlight box */
+        .highlight {
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
+            border-left: 4px solid var(--primary);
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .highlight-teal {
+            background: var(--teal-light);
+            border-left: 4px solid var(--teal);
+        }
+        .highlight-warning {
+            background: var(--warning-light);
+            border-left: 4px solid var(--warning);
+        }
+        .highlight-danger {
+            background: var(--danger-light);
+            border-left: 4px solid var(--danger);
+        }
+
+        /* Score bar */
+        .score-bar-container { background: var(--border); border-radius: 6px; height: 24px; overflow: hidden; position: relative; }
+        .score-bar { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 11px; font-weight: 600; }
+        .score-bar.high { background: linear-gradient(90deg, #16a34a, #22c55e); }
+        .score-bar.mid { background: linear-gradient(90deg, #d97706, #f59e0b); }
+        .score-bar.low { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+        /* Position matrix */
+        .matrix { display: grid; grid-template-columns: 80px 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .matrix-header { background: #1e3a5f; color: white; padding: 12px; font-weight: 600; font-size: 13px; text-align: center; }
+        .matrix-cell { padding: 16px; border-top: 1px solid var(--border); border-left: 1px solid var(--border); font-size: 13px; }
+        .matrix-cell.axis { background: var(--surface); font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .matrix-item { background: var(--surface); padding: 10px 12px; border-radius: 6px; margin-bottom: 6px; font-size: 12px; border-left: 3px solid var(--primary); }
+
+        /* Conclusion */
+        .conclusion-box {
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            color: white;
+            padding: 32px;
+            border-radius: 16px;
+            margin-top: 24px;
+        }
+        .conclusion-box h3 { font-size: 20px; margin-bottom: 16px; }
+        .conclusion-box p { opacity: 0.95; margin-bottom: 10px; font-size: 14px; }
+
+        /* Anchor nav */
+        .nav { position: sticky; top: 0; background: white; border-bottom: 1px solid var(--border); padding: 12px 32px; z-index: 100; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; }
+        .nav a { color: var(--text-secondary); text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: all 0.2s; }
+        .nav a:hover { background: var(--primary-light); color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WorkFlowPrj 竞品分析报告</h1>
+        <div class="subtitle">基于代码深度分析的五维度竞品对标</div>
+        <div class="meta">
+            <div class="meta-item">📅 2026-08-06</div>
+            <div class="meta-item">🔬 基于源码深度分析</div>
+            <div class="meta-item">📊 覆盖 5 大技术域 · 15+ 竞品</div>
+        </div>
+    </div>
+
+    <div class="nav">
+        <a href="#overview">总览</a>
+        <a href="#dim1">工作流引擎</a>
+        <a href="#dim2">AI Agent 编排</a>
+        <a href="#dim3">.NET 企业框架</a>
+        <a href="#dim4">低代码平台</a>
+        <a href="#dim5">MCP 生态</a>
+        <a href="#matrix">定位矩阵</a>
+        <a href="#unique">独特优势</a>
+        <a href="#gaps">短板与风险</a>
+        <a href="#conclusion">结论</a>
+    </div>
+
+    <div class="container">
+
+        <!-- 总览 -->
+        <div class="section" id="overview">
+            <h2 class="section-title">项目定位总览</h2>
+            <p class="section-desc">WorkFlowPrj 不是一个单一品类产品，而是横跨 5 个技术域的综合框架</p>
+
+            <div class="highlight">
+                <p style="font-size: 15px; line-height: 1.8;">
+                    <strong>WorkFlowPrj</strong> 是一个 .NET 10 原生综合开发框架，核心代码超过 2000 个 C# 源文件。
+                    通过对 <code>Operation</code> 项目的深度代码分析，其技术实质可归纳为五个融合维度：
+                    <strong>ECS 架构驱动的 UI 渲染引擎</strong>（FrontEndDriven）、
+                    <strong>命令管线驱动的后端执行框架</strong>（BackEndDriven）、
+                    <strong>RGE 图执行 + ReAct 循环的工作流引擎</strong>（WorkFlowMethod）、
+                    <strong>统一状态管理中心</strong>（StateHoldDriven）、以及
+                    <strong>MCP 工具链 + AI Agent 编排层</strong>（Agent 系统）。
+                </p>
+                <p style="font-size: 15px; margin-top: 12px;">
+                    这五个维度在代码层面通过 ECS 世界、事件总线和 StateCenter 深度耦合，形成了一个"五维融合"的整体——
+                    这在竞品中是独一无二的。没有任何一个现有竞品同时覆盖这五个维度。
+                </p>
+            </div>
+
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-title">技术栈</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        .NET 10 / C# 13<br>
+                        Semantic Kernel<br>
+                        Roslyn 动态编译<br>
+                        WinForms ECS<br>
+                        MCP JSON-RPC
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-title">代码规模</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        2000+ C# 源文件<br>
+                        4 层架构 (Boundary→Operation→Share→Engine)<br>
+                        11 个函数式数据结构子模块<br>
+                        15+ 业务模块<br>
+                        7 个独立解决方案
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-title">独创设计</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        CSG 三投影变换<br>
+                        M3 事件与命令收编<br>
+                        HybridStateMachine<br>
+                        HotReload 状态迁移<br>
+                        ECS 世界 = 唯一状态真源
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 维度1: 工作流引擎 -->
+        <div class="section" id="dim1">
+            <h2 class="section-title">维度 1: 工作流 / BPM 引擎</h2>
+            <p class="section-desc">对标 WorkFlowMethod 的 RGE 图执行、CentralPipeline 管线、LoopFramework ReAct 循环</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>竞品</th>
+                            <th>语言/平台</th>
+                            <th>Stars/活跃度</th>
+                            <th>核心能力</th>
+                            <th>WorkFlowPrj 的差异化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Elsa Workflows</strong><br><span class="badge badge-primary">最接近</span></td>
+                            <td>.NET 8+<br>MIT</td>
+                            <td>6.5K★<br>非常活跃</td>
+                            <td>
+                                • 可视化拖拽设计器 (Elsa Studio)<br>
+                                • BPMN 2.0 导入/导出<br>
+                                • 长流程 + Bookmark 挂起恢复<br>
+                                • 多持久化 (EF Core/MongoDB)<br>
+                                • 代码/JSON/可视化三模式定义
+                            </td>
+                            <td>
+                                <span class="check">✓</span> CSG 三投影验证 > Elsa 的静态流程定义<br>
+                                <span class="check">✓</span> Roslyn 动态编译 > 静态 Activity 组合<br>
+                                <span class="check">✓</span> ReAct 循环内建 > Elsa 无 AI Agent<br>
+                                <span class="cross">✗</span> 无可视化设计器 (Elsa 的核心优势)<br>
+                                <span class="cross">✗</span> 无 BPMN 标准支持<br>
+                                <span class="cross">✗</span> 无分布式持久化方案
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>WorkflowCore</strong></td>
+                            <td>.NET Standard<br>MIT</td>
+                            <td>5.2K★<br>维护中</td>
+                            <td>
+                                • Fluent API 定义工作流<br>
+                                • 轻量嵌入式引擎<br>
+                                • Saga 模式支持<br>
+                                • 多节点持久化
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 配置驱动 vs 代码驱动，更灵活<br>
+                                <span class="check">✓</span> 函数注册表 + 参数解析器更完善<br>
+                                <span class="check">✓</span> LoopFramework ReAct > 简单步骤序列<br>
+                                <span class="cross">✗</span> 无可视化设计器<br>
+                                <span class="cross">✗</span> 单机编排，无分布式能力
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Temporal</strong></td>
+                            <td>Go 核心<br>多语言 SDK<br>MIT</td>
+                            <td>13K★<br>极度活跃</td>
+                            <td>
+                                • 持久化执行引擎 (Durable Execution)<br>
+                                • Workflow-as-Code<br>
+                                • 自动重试/回滚/状态恢复<br>
+                                • 分布式集群<br>
+                                • 完整可观测性
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 配置驱动 vs 代码驱动，可热更新<br>
+                                <span class="check">✓</span> AI Agent 集成 (Temporal 无)<br>
+                                <span class="cross">✗</span> 无分布式可靠性保证<br>
+                                <span class="cross">✗</span> 无持久化执行日志<br>
+                                <span class="cross">✗</span> 单机架构 vs Temporal 的分布式集群
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Camunda</strong></td>
+                            <td>Java<br>商业+开源</td>
+                            <td>4K★<br>企业级</td>
+                            <td>
+                                • 完整 BPMN 2.0 引擎<br>
+                                • DMN 决策表<br>
+                                • Camunda Modeler 设计器<br>
+                                • 企业级运维平台<br>
+                                • 流程分析/审计
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 开发者框架 vs 黑盒平台<br>
+                                <span class="check">✓</span> AI Agent 编排能力 (Camunda 无)<br>
+                                <span class="check">✓</span> 动态编译 > 静态流程部署<br>
+                                <span class="cross">✗</span> 无 BPMN 标准<br>
+                                <span class="cross">✗</span> 无企业运维平台<br>
+                                <span class="cross">✗</span> 无流程分析/审计
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Azure Durable Functions</strong></td>
+                            <td>.NET/Python/JS<br>微软官方</td>
+                            <td>N/A<br>云服务</td>
+                            <td>
+                                • Serverless 工作流<br>
+                                • 自动检查点/重放<br>
+                                • 深度 Azure 集成<br>
+                                • 事件网格触发
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 不绑定云平台<br>
+                                <span class="check">✓</span> 完整代码级控制力<br>
+                                <span class="check">✓</span> AI Agent + MCP 集成<br>
+                                <span class="cross">✗</span> 无 Serverless 能力<br>
+                                <span class="cross">✗</span> 无自动检查点/重放机制
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">关键差距分析</div>
+                <div class="grid-2">
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--success);">WorkFlowPrj 的独特优势</h4>
+                        <ul class="feature-list">
+                            <li><span class="icon check">✓</span> <strong>CSG 三投影变换</strong>：配置(C)/状态(S)/图(G) 三视图交叉验证工作流一致性，竞品中无此设计</li>
+                            <li><span class="icon check">✓</span> <strong>ReAct 循环内建</strong>：LoopFramework 提供完整的推理→行动→更新→循环，支持规则引擎优先 + LLM 兜底</li>
+                            <li><span class="icon check">✓</span> <strong>热重载 + 状态迁移</strong>：HotReloadService 不中断业务的工作流版本切换 + 节点状态精确迁移</li>
+                            <li><span class="icon check">✓</span> <strong>Roslyn 动态编译</strong>：运行时生成代码，竞品均为静态流程定义</li>
+                            <li><span class="icon check">✓</span> <strong>FuncCallRun 递归调用</strong>：32 层深度保护的函数调用栈，竞品无此能力</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--danger);">竞品的压倒性优势</h4>
+                        <ul class="feature-list">
+                            <li><span class="icon cross">✗</span> <strong>可视化设计器</strong>：Elsa Studio / Camunda Modeler 提供拖拽式设计，WorkFlowPrj 纯配置文件</li>
+                            <li><span class="icon cross">✗</span> <strong>分布式持久化</strong>：Temporal / Elsa 支持多节点集群，WorkFlowPrj 为单机架构</li>
+                            <li><span class="icon cross">✗</span> <strong>BPMN 标准</strong>：Elsa/Camunda/Flowable 支持 BPMN 2.0，WorkFlowPrj 使用自有 JSON 格式</li>
+                            <li><span class="icon cross">✗</span> <strong>持久化执行日志</strong>：Temporal 完整记录每一步状态，WorkFlowPrj 无此机制</li>
+                            <li><span class="icon cross">✗</span> <strong>社区与文档</strong>：竞品有完善文档和活跃社区，WorkFlowPrj 文档有限</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 维度2: AI Agent 编排 -->
+        <div class="section" id="dim2">
+            <h2 class="section-title">维度 2: AI Agent 编排框架</h2>
+            <p class="section-desc">对标 Agent 系统的 ReAct 循环 + MCP 工具调用 + HybridStateMachine</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>竞品</th>
+                            <th>语言</th>
+                            <th>Stars</th>
+                            <th>核心能力</th>
+                            <th>WorkFlowPrj 的差异化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Semantic Kernel</strong><br><span class="badge badge-teal">底层依赖</span></td>
+                            <td>C#/Python/Java</td>
+                            <td>22.9K★</td>
+                            <td>
+                                • Plugin 系统 (语义函数 + 原生函数)<br>
+                                • Planner 自动编排 DAG<br>
+                                • Memory 语义记忆<br>
+                                • Azure 深度集成<br>
+                                • OpenTelemetry 可观测性
+                            </td>
+                            <td>
+                                <span class="badge badge-primary">WorkFlowPrj 直接使用 SK</span><br>
+                                <span class="check">✓</span> 在 SK 之上构建声明式工作流编排层<br>
+                                <span class="check">✓</span> HybridStateMachine = 规则优先 + LLM 兜底<br>
+                                <span class="check">✓</span> CSG 验证 > SK 的 Planner 黑盒<br>
+                                <span class="cross">✗</span> 无 Memory 语义记忆系统<br>
+                                <span class="cross">✗</span> 无 OpenTelemetry 集成
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>LangChain / LangGraph</strong></td>
+                            <td>Python/JS</td>
+                            <td>99.6K★</td>
+                            <td>
+                                • Chain / Agent / Tool 生态<br>
+                                • LangGraph 状态机编排<br>
+                                • LangSmith 可观测性<br>
+                                • 100+ 向量存储集成<br>
+                                • RAG 管道
+                            </td>
+                            <td>
+                                <span class="check">✓</span> .NET 原生 vs Python 生态<br>
+                                <span class="check">✓</span> 工作流引擎 + Agent 融合 (LangChain 纯 Agent)<br>
+                                <span class="check">✓</span> ECS UI 渲染 (LangChain 无 UI 能力)<br>
+                                <span class="cross">✗</span> 生态规模差距巨大 (99.6K vs 私有项目)<br>
+                                <span class="cross">✗</span> 无 RAG 管道<br>
+                                <span class="cross">✗</span> 无可观测性平台
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>AutoGen</strong></td>
+                            <td>C#/Python</td>
+                            <td>40K★</td>
+                            <td>
+                                • 多 Agent 对话协作<br>
+                                • GroupChat 编排<br>
+                                • Agent 间消息传递<br>
+                                • 正与 SK 合并为统一框架
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 单 Agent + 工作流引擎 (更偏业务编排)<br>
+                                <span class="check">✓</span> 配置驱动 vs 代码驱动<br>
+                                <span class="cross">✗</span> 无多 Agent 协作能力<br>
+                                <span class="cross">✗</span> 无 GroupChat 编排
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dify</strong><br><span class="badge badge-purple">综合竞品</span></td>
+                            <td>Python/TS</td>
+                            <td>150K★</td>
+                            <td>
+                                • 可视化 Workflow + Chatflow<br>
+                                • Agent + Function Calling + ReAct<br>
+                                • RAG 管道 (文档预处理→向量存储→检索)<br>
+                                • BaaS + LLMOps 闭环<br>
+                                • 100+ LLM 集成<br>
+                                • Docker 一键部署<br>
+                                • MCP 消费 + 发布
+                            </td>
+                            <td>
+                                <span class="check">✓</span> .NET 原生框架 vs Python SaaS<br>
+                                <span class="check">✓</span> ECS UI 渲染引擎 (Dify 无桌面 UI)<br>
+                                <span class="check">✓</span> Roslyn 动态编译 > Python 沙箱节点<br>
+                                <span class="check">✓</span> CSG 验证 + HotReload > Dify 的静态工作流<br>
+                                <span class="cross">✗</span> 无可视化设计器 (Dify 核心优势)<br>
+                                <span class="cross">✗</span> 无 RAG 管道<br>
+                                <span class="cross">✗</span> 无 LLMOps 运维闭环<br>
+                                <span class="cross">✗</span> 无多 LLM 管理面板
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>CrewAI</strong></td>
+                            <td>Python</td>
+                            <td>30K★</td>
+                            <td>
+                                • 角色扮演多 Agent 协作<br>
+                                • Task + Crew 编排模型<br>
+                                • 流程驱动 vs 消息驱动
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 工作流引擎更强大 (RGE 图执行)<br>
+                                <span class="check">✓</span> 配置驱动可热更新<br>
+                                <span class="cross">✗</span> 无多 Agent 角色协作
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="highlight highlight-teal">
+                <p style="font-size: 14px;">
+                    <strong>核心发现：</strong>Dify 是最接近的"综合竞品"——它也试图融合工作流 + AI Agent + 配置驱动。
+                    但 Dify 是 Python/TS SaaS 路线，面向"非技术人员也能用"的低门槛场景；
+                    WorkFlowPrj 是 .NET 原生框架路线，面向"开发者保留完整代码级控制力"的高门槛场景。
+                    两者目标用户群不同，但在技术能力上高度重叠。
+                </p>
+            </div>
+        </div>
+
+        <!-- 维度3: .NET 企业框架 -->
+        <div class="section" id="dim3">
+            <h2 class="section-title">维度 3: .NET 企业开发框架</h2>
+            <p class="section-desc">对标分层架构、模块化体系、DI/IoC、状态管理</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>竞品</th>
+                            <th>定位</th>
+                            <th>核心能力</th>
+                            <th>WorkFlowPrj 的差异化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>ABP Framework</strong><br><span class="badge badge-primary">最成熟</span></td>
+                            <td>.NET 企业 Web 应用平台</td>
+                            <td>
+                                • 模块化 + DDD 完整实践<br>
+                                • 预构建模块 (Identity/SaaS/CMS Kit)<br>
+                                • 多租户 / 多数据库<br>
+                                • ABP Studio 可视化开发工具<br>
+                                • 微服务就绪架构<br>
+                                • CLI 脚手架<br>
+                                • UI 多框架 (MVC/Blazor/Angular)
+                            </td>
+                            <td>
+                                <span class="check">✓</span> "引擎化" > ABP 的"脚手架化"<br>
+                                <span class="check">✓</span> 函数注册表 + 动态编译 (ABP 无)<br>
+                                <span class="check">✓</span> 工作流引擎 (ABP 无原生工作流)<br>
+                                <span class="check">✓</span> AI Agent 集成 (ABP 无)<br>
+                                <span class="cross">✗</span> 无预构建业务模块 (Identity/SaaS/CMS)<br>
+                                <span class="cross">✗</span> 无多租户支持<br>
+                                <span class="cross">✗</span> 无 CLI 脚手架生成<br>
+                                <span class="cross">✗</span> 无 UI 多框架支持 (仅 WinForms)<br>
+                                <span class="cross">✗</span> 无微服务架构方案
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>eShopOnContainers</strong></td>
+                            <td>微服务参考架构</td>
+                            <td>
+                                • 完整微服务示例<br>
+                                • Dapr 集成<br>
+                                • 事件总线 / Saga<br>
+                                • API 网关
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 可复用框架 vs 参考实现<br>
+                                <span class="check">✓</span> 工作流引擎 + AI Agent<br>
+                                <span class="cross">✗</span> 无微服务架构
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orchard Core</strong></td>
+                            <td>CMS + 模块化框架</td>
+                            <td>
+                                • CMS 内容管理<br>
+                                • 模块化租户<br>
+                                • 内容类型/字段系统<br>
+                                • Workflow 模块
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 通用工作流引擎 > CMS 工作流<br>
+                                <span class="check">✓</span> AI Agent + MCP 集成<br>
+                                <span class="cross">✗</span> 无 CMS 能力<br>
+                                <span class="cross">✗</span> 无 Web UI
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="highlight">
+                <p style="font-size: 14px;">
+                    <strong>关键对比：</strong>ABP 的核心价值是"不让开发者重复造轮子"——提供 Identity、SaaS、CMS 等预构建模块。
+                    WorkFlowPrj 的核心价值是"让开发者拥有引擎级能力"——函数注册、动态编译、工作流编排、AI Agent。
+                    两者是互补关系而非直接竞争：理论上可以在 ABP 框架内嵌入 WorkFlowPrj 的工作流引擎。
+                </p>
+            </div>
+        </div>
+
+        <!-- 维度4: 低代码 -->
+        <div class="section" id="dim4">
+            <h2 class="section-title">维度 4: 低代码 / 配置驱动平台</h2>
+            <p class="section-desc">对标 FileDriven 框架的 JSON 配置 → ECS 实体 → WinForms 渲染</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>竞品</th>
+                            <th>类型</th>
+                            <th>核心能力</th>
+                            <th>WorkFlowPrj 的差异化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Microsoft Power Automate</strong></td>
+                            <td>SaaS 低代码</td>
+                            <td>
+                                • 可视化流程设计器<br>
+                                • 500+ 连接器<br>
+                                • RPA 桌面自动化<br>
+                                • AI Builder<br>
+                                • 深度 M365 集成
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 完整代码级控制力 (非黑盒)<br>
+                                <span class="check">✓</span> 可自定义扩展 (非有限连接器)<br>
+                                <span class="cross">✗</span> 无可视化设计器<br>
+                                <span class="cross">✗</span> 无 500+ 预置连接器<br>
+                                <span class="cross">✗</span> 无 RPA 能力
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Retool / Appsmith</strong></td>
+                            <td>内部工具构建器</td>
+                            <td>
+                                • 拖拽式 UI 构建<br>
+                                • REST/GraphQL 数据源<br>
+                                • JavaScript 自定义逻辑<br>
+                                • 版本管理 + 协作
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 后端逻辑编排 (Retool 偏 UI)<br>
+                                <span class="check">✓</span> ECS 架构更强大<br>
+                                <span class="cross">✗</span> 仅 WinForms (Retool 支持 Web)<br>
+                                <span class="cross">✗</span> 无协作/版本管理<br>
+                                <span class="cross">✗</span> 无拖拽式 UI 构建
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>n8n</strong></td>
+                            <td>开源自动化</td>
+                            <td>
+                                • 可视化节点编辑器<br>
+                                • 400+ 集成节点<br>
+                                • Webhook / 定时触发<br>
+                                • 自托管 + 云服务
+                            </td>
+                            <td>
+                                <span class="check">✓</span> ECS + 工作流引擎 (n8n 偏集成)<br>
+                                <span class="check">✓</span> AI Agent + 动态编译<br>
+                                <span class="cross">✗</span> 无可视化编辑器<br>
+                                <span class="cross">✗</span> 无 400+ 集成节点<br>
+                                <span class="cross">✗</span> 无 Webhook/定时触发框架
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="highlight highlight-warning">
+                <p style="font-size: 14px;">
+                    <strong>短板提示：</strong>WorkFlowPrj 的 FileDriven 框架在技术上非常先进（ECS 架构、标记-处理流水线、两阶段投影），
+                    但缺少可视化设计器是进入低代码市场的致命短板。所有主流低代码平台的核心卖点都是"可视化拖拽"，
+                    纯 JSON 配置驱动的门槛对于低代码目标用户来说过高。
+                </p>
+            </div>
+        </div>
+
+        <!-- 维度5: MCP 生态 -->
+        <div class="section" id="dim5">
+            <h2 class="section-title">维度 5: MCP 服务生态</h2>
+            <p class="section-desc">对标 MCPBridge + MCPFramework + Docker 集群的端到端 MCP 工具链</p>
+
+            <div class="card">
+                <div class="card-title">MCP 生态现状 (2025-2026)</div>
+                <div class="grid-3" style="margin-bottom: 16px;">
+                    <div style="text-align: center; padding: 16px; background: var(--surface-2); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--primary);">17,000+</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">社区 MCP Server</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--surface-2); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--success);">97M+</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">月 SDK 下载量</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--surface-2); border-radius: 8px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--purple);">Linux Foundation</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">2025.12 捐赠治理</div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary);">
+                    MCP 已从 Anthropic 实验性标准发展为行业通用协议。Claude (原生)、ChatGPT (2025.9)、Gemini (2025.4) 均已支持。
+                    官方 SDK 覆盖 Python/TypeScript/Java/C#/Go。MCP Registry 已上线 (registry.modelcontextprotocol.io)。
+                </p>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>竞品/方案</th>
+                            <th>定位</th>
+                            <th>核心能力</th>
+                            <th>WorkFlowPrj 的差异化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Anthropic MCP 官方 SDK</strong></td>
+                            <td>协议定义 + 基础 SDK</td>
+                            <td>
+                                • JSON-RPC 2.0 协议<br>
+                                • stdio / HTTP/SSE 传输<br>
+                                • Tools / Resources / Prompts 三原语<br>
+                                • 官方 C# SDK
+                            </td>
+                            <td>
+                                <span class="check">✓</span> 自建 MCPBridge + MCPFramework (超出 SDK 层)<br>
+                                <span class="check">✓</span> Docker 集群管理 MCP 服务<br>
+                                <span class="check">✓</span> 与工作流引擎 + Agent 深度集成<br>
+                                <span class="cross">✗</span> 无 MCP Registry 发布能力<br>
+                                <span class="cross">✗</span> 社区生态规模差距巨大
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cline</strong></td>
+                            <td>VS Code 内 MCP 客户端</td>
+                            <td>
+                                • IDE 内 MCP 工具调用<br>
+                                • 文件系统 / 终端 / 浏览器<br>
+                                • 多 MCP Server 并发
+                            </td>
+                            <td>
+                                <span class="badge badge-purple">不同赛道</span><br>
+                                Cline 是消费端 IDE 工具，WorkFlowPrj 是生产端框架 + 消费端全覆盖。
+                                WorkFlowPrj 的 MCP 能力嵌入在工作流引擎中，可实现自动化编排。
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dify MCP 集成</strong></td>
+                            <td>SaaS 平台 MCP 消费+发布</td>
+                            <td>
+                                • 消费外部 MCP Server<br>
+                                • 工作流发布为 MCP 服务<br>
+                                • Plugin SDK 扩展
+                            </td>
+                            <td>
+                                <span class="check">✓</span> Docker 集群 > Dify 的单进程<br>
+                                <span class="check">✓</span> 与 ECS / 工作流引擎深度集成<br>
+                                <span class="cross">✗</span> 无工作流发布为 MCP 服务能力<br>
+                                <span class="cross">✗</span> 无 Plugin SDK
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 定位矩阵 -->
+        <div class="section" id="matrix">
+            <h2 class="section-title">竞品定位矩阵</h2>
+            <p class="section-desc">按"开发者控制力"和"生态成熟度"两个轴定位各竞品</p>
+
+            <div class="matrix">
+                <div class="matrix-header"></div>
+                <div class="matrix-header" style="background: var(--success);">生态成熟度高</div>
+                <div class="matrix-header" style="background: var(--warning);">生态成熟度低</div>
+
+                <div class="matrix-cell axis">开发者控制力高</div>
+                <div class="matrix-cell">
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>ABP Framework</strong> — 模块化 + DDD，开发者完全控制，生态成熟
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>Elsa Workflows</strong> — .NET 原生工作流，可嵌入，有设计器
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--primary);">
+                        <strong>Temporal</strong> — 代码即工作流，分布式可靠，但需自建集群
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--purple);">
+                        <strong>Semantic Kernel</strong> — Plugin + Planner，企业级 AI 编排
+                    </div>
+                </div>
+                <div class="matrix-cell">
+                    <div class="matrix-item" style="border-left-color: var(--purple); background: linear-gradient(135deg, var(--purple-light), var(--primary-light));">
+                        <strong>★ WorkFlowPrj</strong> — 五维融合，CSG/ReAct/动态编译/ECS/MCP 全栈控制力，但生态封闭
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--teal);">
+                        <strong>WorkflowCore</strong> — 轻量嵌入式，代码优先，生态较小
+                    </div>
+                </div>
+
+                <div class="matrix-cell axis">开发者控制力低</div>
+                <div class="matrix-cell">
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>Dify</strong> — 可视化 SaaS，非技术人员可用，150K Star
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>Camunda</strong> — 企业级 BPM 平台，黑盒但功能完整
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>Power Automate</strong> — SaaS 低代码，500+ 连接器
+                    </div>
+                    <div class="matrix-item" style="border-left-color: var(--success);">
+                        <strong>LangChain</strong> — Python 生态最大，99.6K Star，但灵活性高
+                    </div>
+                </div>
+                <div class="matrix-cell">
+                    <div class="matrix-item" style="border-left-color: var(--text-muted);">
+                        <strong>n8n</strong> — 开源自动化，可视化但生态中等
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight" style="margin-top: 20px;">
+                <p style="font-size: 14px;">
+                    <strong>WorkFlowPrj 独占"高控制力 + 低生态成熟度"象限。</strong>
+                    这个象限的特点是：技术能力极强，但缺乏社区、文档和可视化工具。
+                    这意味着 WorkFlowPrj 的核心策略应该是：<strong>在保持高控制力的同时，补齐生态短板</strong>，
+                    特别是可视化设计器、文档和开源社区运营。
+                </p>
+            </div>
+        </div>
+
+        <!-- 独特优势 -->
+        <div class="section" id="unique">
+            <h2 class="section-title">WorkFlowPrj 独特优势（竞品不具备）</h2>
+            <p class="section-desc">基于代码深度分析，以下能力在所有竞品中独一无二</p>
+
+            <div class="grid-2">
+                <div class="card" style="border-left: 4px solid var(--purple);">
+                    <div class="card-title">1. CSG 三投影变换</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        配置(C)、状态(S)、图(G) 三种视图交叉验证工作流一致性。运行时保证工作流定义的完整性，
+                        竞品均为单一视图定义，无此验证机制。<br>
+                        <span class="badge badge-purple">独创设计</span>
+                    </p>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--teal);">
+                    <div class="card-title">2. ECS 架构统一前后端</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        命令执行 (BackEndDriven) 和 UI 渲染 (FrontEndDriven) 共用同一 ECS 数据驱动模型。
+                        物理控件仅为 ECS 世界的投影产物。竞品均为前后端分离架构。<br>
+                        <span class="badge badge-teal">架构独创</span>
+                    </p>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--primary);">
+                    <div class="card-title">3. M3 事件与命令收编</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        Click/Set/Get 不再直接操作 WinForms 控件，而是经 ECS 事件链统一处理。
+                        使 CLI 和 GUI 模式共用同一执行路径，消除双路径问题。<br>
+                        <span class="badge badge-primary">设计模式独创</span>
+                    </p>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--success);">
+                    <div class="card-title">4. HybridStateMachine 混合决策</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        ReAct 循环中规则引擎优先 + LLM 兜底。确定性逻辑走规则，不确定性走 LLM，
+                        兼顾可靠性和灵活性。竞品要么纯规则，要么纯 LLM。<br>
+                        <span class="badge badge-success">AI 编排独创</span>
+                    </p>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--warning);">
+                    <div class="card-title">5. HotReload + 状态迁移</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        不中断业务的工作流版本切换 + 节点状态精确迁移。
+                        Temporal 有版本管理但需重放；Elsa 无热重载。<br>
+                        <span class="badge badge-warning">运维独创</span>
+                    </p>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--danger);">
+                    <div class="card-title">6. Roslyn 运行时动态编译</div>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        运行时生成 C# 代码并编译执行。所有竞品均为静态流程定义或解释执行。
+                        这使得工作流可以在运行时自我修改和扩展。<br>
+                        <span class="badge badge-danger">技术独创</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 短板与风险 -->
+        <div class="section" id="gaps">
+            <h2 class="section-title">短板与风险</h2>
+            <p class="section-desc">与竞品相比的显著差距，按严重程度排序</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>短板</th>
+                            <th>严重程度</th>
+                            <th>影响</th>
+                            <th>最接近的竞品</th>
+                            <th>建议优先级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>无可视化设计器</strong></td>
+                            <td><span class="badge badge-danger">致命</span></td>
+                            <td>无法进入低代码市场，纯 JSON 配置门槛过高</td>
+                            <td>Elsa Studio / Dify Workflow</td>
+                            <td><span class="badge badge-danger">P0</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无分布式架构</strong></td>
+                            <td><span class="badge badge-danger">致命</span></td>
+                            <td>无法满足企业级高可用/横向扩展需求</td>
+                            <td>Temporal / Elsa 集群</td>
+                            <td><span class="badge badge-danger">P0</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无持久化执行日志</strong></td>
+                            <td><span class="badge badge-warning">严重</span></td>
+                            <td>无法审计/回溯工作流执行历史</td>
+                            <td>Temporal / Camunda</td>
+                            <td><span class="badge badge-danger">P1</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无 RAG 管道</strong></td>
+                            <td><span class="badge badge-warning">严重</span></td>
+                            <td>AI Agent 无法基于私有知识库回答，限制了企业场景</td>
+                            <td>Dify / LangChain / LlamaIndex</td>
+                            <td><span class="badge badge-danger">P1</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无多 Agent 协作</strong></td>
+                            <td><span class="badge badge-warning">严重</span></td>
+                            <td>无法支持复杂的多 Agent 编排场景</td>
+                            <td>AutoGen / CrewAI</td>
+                            <td><span class="badge badge-warning">P2</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>仅 WinForms UI</strong></td>
+                            <td><span class="badge badge-warning">严重</span></td>
+                            <td>无法支持 Web/移动端，限制应用场景</td>
+                            <td>ABP (MVC/Blazor/Angular)</td>
+                            <td><span class="badge badge-warning">P2</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无多租户支持</strong></td>
+                            <td><span class="badge badge-warning">中等</span></td>
+                            <td>无法直接用于 SaaS 产品</td>
+                            <td>ABP / Dify</td>
+                            <td><span class="badge badge-warning">P2</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>社区与文档缺失</strong></td>
+                            <td><span class="badge badge-warning">中等</span></td>
+                            <td>学习曲线陡峭，难以吸引外部贡献者</td>
+                            <td>所有竞品</td>
+                            <td><span class="badge badge-warning">P2</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>无 OpenTelemetry 可观测性</strong></td>
+                            <td><span class="badge badge-primary">轻微</span></td>
+                            <td>生产环境监控/追踪能力不足</td>
+                            <td>SK / Temporal</td>
+                            <td><span class="badge badge-primary">P3</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 结论 -->
+        <div class="section" id="conclusion">
+            <h2 class="section-title">结论与建议</h2>
+
+            <div class="conclusion-box">
+                <h3>核心判断</h3>
+                <p>
+                    <strong>WorkFlowPrj 是一个技术深度极高但生态封闭的五维融合框架。</strong>
+                    它在"开发者控制力"维度超越了所有单一竞品，但在"生态成熟度"维度显著落后。
+                    没有任何一个竞品能同时覆盖工作流引擎 + AI Agent + ECS UI + 动态编译 + MCP 工具链这五个维度，
+                    但也没有任何一个维度 WorkFlowPrj 的生态成熟度能达到竞品水平。
+                </p>
+
+                <h3 style="margin-top: 24px;">最接近的竞品</h3>
+                <p><strong>① Dify</strong>（综合维度最接近）— 同样融合工作流 + AI Agent + 配置驱动，但路线不同（SaaS vs 框架）</p>
+                <p><strong>② ABP Framework</strong>（.NET 生态最接近）— 同为 .NET 企业框架，但定位不同（脚手架 vs 引擎）</p>
+                <p><strong>③ Elsa Workflows</strong>（工作流维度最接近）— 同为 .NET 工作流引擎，但能力维度不同（可视化 vs 动态编译）</p>
+
+                <h3 style="margin-top: 24px;">战略建议</h3>
+                <p><strong>1. 补齐可视化设计器 (P0)：</strong>这是进入低代码市场的必要条件。可参考 Elsa Studio 的 Blazor 方案。</p>
+                <p><strong>2. 补齐分布式持久化 (P0)：</strong>参考 Temporal 的 Event Sourcing 模式，为工作流执行增加持久化日志。</p>
+                <p><strong>3. 补齐 RAG 管道 (P1)：</strong>这是 AI Agent 进入企业场景的必要条件。可集成 Microsoft Kernel Memory。</p>
+                <p><strong>4. 开源 + 社区运营 (P2)：</strong>技术能力已足够独特，需要通过开源吸引外部贡献者和用户。</p>
+                <p><strong>5. 保持差异化优势：</strong>CSG 三投影、HybridStateMachine、Roslyn 动态编译、ECS 统一架构是护城河，不可放弃。</p>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

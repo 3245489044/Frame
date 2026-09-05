@@ -1,0 +1,25 @@
+{
+  "name": "example_tool",
+  "description": "示例工具 — 替换为你的工具描述",
+  "handler": "example",
+  "template": "query",
+  "inputSchema": {
+    "properties": {
+      "param1": {
+        "type": "string",
+        "description": "参数1说明"
+      }
+    },
+    "required": ["param1"]
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getBusinessService", "from": "../core/registry" },
+      { "name": "formatError", "from": "../core/utils" }
+    ],
+    "requiredParams": ["param1"],
+    "mainCall": "getBusinessService().exampleMethod(param1)",
+    "emptyCheck": "未找到结果",
+    "outputCall": "formatResult(results, param1)"
+  }
+}

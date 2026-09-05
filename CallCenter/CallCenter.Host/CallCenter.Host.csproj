@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CallCenter.Host</RootNamespace>
+    <AssemblyName>CallCenter.Host</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
+    <!-- 阶段 A：宿主 C#Track 接入 ExecutionFramework（经适配层），使 call/Func_Execute 同栈执行 -->
+    <ProjectReference Include="..\CallCenter.Adapters\CallCenter.Adapters.csproj" />
+    <!-- P3 TS/PS 接入：McpBridge 终端轨（官方 SDK 自包含客户端），mcp-list-tools / mcp-call 冒烟命令使用 -->
+    <ProjectReference Include="..\CallCenter.Mcp\CallCenter.Mcp.csproj" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
+    <!-- P2：并入 FileDriven 真实业务函数库（MathLibrary/FunctionTesterFunctions 等在 FileDriven.Business），
+         经 CSharpFunctionLibrarySource 反射执行 RegisterAll → CSharpTrack 可真实调用 -->
+    <ProjectReference Include="$(FileDrivenProjectRoot)\FileDriven.Business\FileDriven.Business.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- C#Track 发现清单：随宿主输出，Host 的 list-tools / smoke 模式据此做真实函数库发现 -->
+    <None Include="function-libraries.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

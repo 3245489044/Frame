@@ -1,0 +1,62 @@
+{
+  "name": "csprojcontext",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server for reading .csproj ModuleRule context - project architecture navigation",
+  "main": "build/index.js",
+  "bin": {
+    "csprojcontext": "build/index.js",
+    "csprojcontext-cli": "build/cli.js"
+  },
+  "scripts": {
+    "generate": "node build/generate.js",
+    "build": "npm run generate && tsc",
+    "start": "node build/index.js",
+    "cli": "node build/cli.js",
+    "dev": "tsx src/index.ts",
+    "dev:generate": "tsx src/generate.ts",
+    "watch": "tsc --watch",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"build/**/*.js\" \"tools-definitions/**/*.json\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"build/**/*.js\" \"tools-definitions/**/*.json\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "mcp",
+    "csproj",
+    "dotnet",
+    "project-navigation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "^3.2.6",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "^10.1.8",
+    "fast-glob": "^3.3.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.62.0",
+    "vitest": "catalog:"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.json": [
+      "prettier --write"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "bridge_status",
+  "description": "查看桥接器的详细统计信息，包括请求数、连接状态等",
+  "handler": "bridge-status",
+  "template": "no-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getBridge", "from": "../core/bridge" }
+    ],
+    "mainCall": "getBridge().getStats()",
+    "outputCall": "formatStats(results)"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "search_modules",
+  "description": "按关键词搜索模块（匹配标题、描述、关键词、路径）",
+  "handler": "search",
+  "template": "query",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "keyword": {
+        "type": "string",
+        "description": "搜索关键词"
+      },
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    },
+    "required": ["keyword"]
+  },
+  "implementation": {
+    "imports": [
+      { "name": "searchModules", "from": "../core/parser" },
+      { "name": "getLayerName", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "requiredParams": ["keyword"],
+    "mainCall": "searchModules(keyword, projectRoot, slnPath)",
+    "emptyCheck": "🔍 未找到匹配 \"${keyword}\" 的项目",
+    "outputCall": "formatSearchResults(results, keyword, getLayerName)"
+  }
+}

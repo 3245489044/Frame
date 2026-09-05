@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>CA1416</NoWarn>
+    <Nullable>enable</Nullable>
+    <RootNamespace>UniversalMiddleware</RootNamespace>
+    <AssemblyName>UniversalMiddleware</AssemblyName>
+    <AssemblyTitle>Universal JSON Middleware Framework</AssemblyTitle>
+    <Description>通用 JSON 中间件框架 - 统一项目中所有 JSON 处理模式为可组合管线</Description>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsLoggingConsoleVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsDependencyInjectionVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsCachingMemoryVersion)" />
+    <PackageReference Include="FluentValidation" Version="$(FluentValidationVersion)" />
+    <PackageReference Include="JsonPath.Net" Version="$(JsonPathNetVersion)" />
+    <PackageReference Include="MediatR" Version="$(MediatRVersion)" />
+  </ItemGroup>
+
+  <!-- UniversalMiddleware 不使用 System.Drawing，移除全局继承的引用以避免 NU1510 警告 -->
+  <ItemGroup>
+    <PackageReference Remove="System.Drawing.Common" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Common 已整合到 BasicMethod.csproj（保留别名避免命名空间冲突） -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj">
+      <Aliases>CommonLib</Aliases>
+    </ProjectReference>
+
+    <!-- Common 程序集（SystemJsonFramework 等基础序列化工具） -->
+    <ProjectReference Include="..\..\BasicMethod\Common\Common.csproj">
+      <Aliases>CommonAssembly</Aliases>
+    </ProjectReference>
+
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
+    <ProjectReference Include="ConfigurationModels\Share.ConfigurationModels.csproj" />
+    <ProjectReference Include="..\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+
+    <!-- ★ 2026-07-12 新增：直接引用 Plate.JsonMethod -->
+    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+  </ItemGroup>
+
+  <!-- ★ ConfigurationModels 目录中的源文件已移至 Share.ConfigurationModels 项目，此处排除避免类型冲突 -->
+  <ItemGroup>
+    <Compile Remove="ConfigurationModels\**\*.cs" />
+  </ItemGroup>
+
+</Project>

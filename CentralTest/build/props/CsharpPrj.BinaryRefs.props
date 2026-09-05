@@ -1,0 +1,20 @@
+<Project>
+  <!-- ============================================================
+       CentralTest 收敛用：CsharpPrj 二进制引用集（方案B）。消费 CsharpPrj 权威烘焙目录
+       $(CsharpBuildOutputDir)（= CsharpPrj\BuildOutput\$(Configuration)\，无 TFM 层）里
+       编译出的产品 dll，作为整棵 CentralTest 测试树的闭包类型面——与旧聚合 ProjectReference 等价，
+       但不再把 CsharpPrj 源码拉进 CentralTest 编译。
+       排除框架/第三方 dll（Microsoft.*、System.*、Newtonsoft.Json）避免与框架/包重复。
+       由 CentralTest\Directory.Build.props 统一点入，全子树(CSharpTest/AgentTest/TestInfrastructure)共享；
+       消费方 csproj 不再逐处手写 leaf ProjectReference。
+       前置：RequireCsharpPrjBaked=true 由仓库根 targets 的 EnsureCsharpBaked 兜底烘焙。
+       注：Reference Include 用完整文件路径（SDK 按文件引用解析），避免 %() 元数据在 ItemGroup 不展开的问题。
+       ============================================================ -->
+  <ItemGroup>
+    <_CsharpPrjDll Include="$(CsharpBuildOutputDir)*.dll"
+                   Exclude="$(CsharpBuildOutputDir)Microsoft.*.dll;$(CsharpBuildOutputDir)System.*.dll;$(CsharpBuildOutputDir)Newtonsoft.Json.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="@(_CsharpPrjDll)" Private="true" />
+  </ItemGroup>
+</Project>

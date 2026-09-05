@@ -1,0 +1,57 @@
+{
+  "name": "manage_context",
+  "description": "统一上下文管理工具 — 运行时通过 action 参数决定行为。支持 sync（同步上下文到 .csproj）、generate（生成 tools.config.json）、validate（验证一致性）、inject（注入上下文）、modify（修改上下文）、remove（删除上下文）、status（查看状态）",
+  "handler": "manage-context",
+  "template": "custom",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "操作类型: sync=同步上下文到.csproj, generate=生成tools.config.json, validate=验证一致性, inject=注入上下文, modify=修改上下文, remove=删除上下文, status=查看状态",
+        "enum": ["sync", "generate", "validate", "inject", "modify", "remove", "status"]
+      },
+      "contextFile": {
+        "type": "string",
+        "description": "聚合上下文文件路径（默认: context.md）"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认: 当前工作目录）"
+      },
+      "output": {
+        "type": "string",
+        "description": "输出文件路径（仅 generate 使用，默认: tools.config.json）"
+      },
+      "targetPath": {
+        "type": "string",
+        "description": "目标 .csproj 文件路径（相对项目根目录，如 CsharpPrj/BasicMethod/BasicMethod.csproj。不指定则操作所有文件）"
+      },
+      "moduleName": {
+        "type": "string",
+        "description": "模块名称（仅 modify 使用，用于修改指定模块的名称）"
+      },
+      "moduleLayer": {
+        "type": "number",
+        "description": "模块层编号 0-7（仅 modify 使用，用于修改指定模块的层）"
+      },
+      "moduleDescription": {
+        "type": "string",
+        "description": "模块描述（仅 modify 使用，用于修改指定模块的描述）"
+      },
+      "moduleKeywords": {
+        "type": "string",
+        "description": "模块关键词，分号分隔（仅 modify 使用）"
+      },
+      "moduleRules": {
+        "type": "string",
+        "description": "模块规则，分号分隔（仅 modify 使用）"
+      },
+      "modulePrompts": {
+        "type": "string",
+        "description": "模块提示词，分号分隔（仅 modify 使用）"
+      }
+    },
+    "required": ["action"]
+  }
+}

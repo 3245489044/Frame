@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>跨语言中央调用中心</ModuleRule_Title>
+    <ModuleRule_Layer>5</ModuleRule_Layer>
+    <ModuleRule_Description>CallCenter 聚合项目 - 引用 CallCenter 目录下所有子项目。以 CSG 协议作为语言无关数据面的跨语言函数运行时：统一整合 C#/TypeScript/PowerShell/外部 MCP 的调用，采取热加载 + 编译缓存多轨制，最终以统一的 MCP 工具面暴露给上层（数据面 CSG + 控制面路由/缓存 + 终端面各语言 Adapter）。</ModuleRule_Description>
+    <ModuleRule_Keywords>CallCenter;跨语言调用;CSG;工具调用平台;热加载;编译缓存;函数运行时</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是跨语言中央调用中心，依赖 CSG.Unified 与 TConfig（CsharpPrj）" />
+    <ModuleRule_Rule Include="启动入口：CallCenter.Host/Program.cs（--list-tools / --smoke / --call）" />
+    <ModuleRule_Rule Include="详细架构请参考 docs/analysis/2026/9/9.4/2026-09-04-跨语言中央调用中心-函数运行时架构.md" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CallCenter</RootNamespace>
+    <AssemblyName>CallCenter</AssemblyName>
+    <Description>CallCenter 聚合项目 - 引用 CallCenter 目录下所有子项目</Description>
+    <!-- 聚合项目没有自己的源代码，禁止自动包含子目录的 .cs 文件 -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="CallCenter.Core\CallCenter.Core.csproj" />
+    <ProjectReference Include="CallCenter.Adapters\CallCenter.Adapters.csproj" />
+    <ProjectReference Include="CallCenter.Mcp\CallCenter.Mcp.csproj" />
+    <ProjectReference Include="CallCenter.Host\CallCenter.Host.csproj" />
+  </ItemGroup>
+
+</Project>

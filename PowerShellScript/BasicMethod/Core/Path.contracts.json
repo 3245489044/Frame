@@ -1,0 +1,30 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "resolve.path",
+        "verb": "resolve",
+        "object": "path",
+        "purpose": "解析相对项目根的路径（自动处理容器路径↔宿主机路径转换）",
+        "function": "Resolve-ProjectPath",
+        "path": "PowerShellScript\\BasicMethod\\Core\\Path.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "RelativePath", "type": "string", "required": true, "constraint": "相对项目根路径、容器路径或宿主机绝对路径" },
+        { "name": "ProjectRoot", "type": "string", "required": false, "default": "", "constraint": "项目根目录（可选，默认自动检测）" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "ResolvedPath": "string" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

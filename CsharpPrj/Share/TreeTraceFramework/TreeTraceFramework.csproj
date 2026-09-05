@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Share.TreeTraceFramework</RootNamespace>
+    <AssemblyName>TreeTraceFramework</AssemblyName>
+    <AssemblyTitle>通用树追踪框架</AssemblyTitle>
+    <Description>通用树形追踪框架 - 从 CallFrame 提取的通用树追踪、查询、序列化能力</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+  </ItemGroup>
+
+</Project>

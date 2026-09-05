@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>状态管理框架 (StateBlock)</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>基于 Block 框架的状态管理框架，提供 StateActor、StateStore、StateOrchestrator 等核心类型，统一管理应用状态。借鉴 ASP (Actor Service Provider) 的 Actor 模型和 Block 框架的分段执行模型，解决服务定位器混乱、静态单例泛滥、初始化时序依赖、注册表实例不一致等问题。2026-08-05 升级为状态管理中心（StateCenter）：StateStore 迁移 IStorageCell 后端；新增 IStateCenter 门面 + 事务（StateTransaction）+ 订阅中枢（StateSubscriptionHub）+ 作用域生命周期状态机（ScopeLifecycleStateMachine）+ 生命周期 Provider 注册容器（StateLifecycleProviders）。契约在 Share.StateManagement（R1），StateHoldDriven 保持 UI/ECS 无关（R2）。</ModuleRule_Description>
+    <ModuleRule_Keywords>状态管理;StateBlock;StateActor;StateStore;StateOrchestrator;StateCenter;状态管线;初始化编排;IStorageCell;事务;订阅中枢</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是 Operation 层的状态管理框架，依赖 BasicMethod.Block（Layer 1）" />
+    <ModuleRule_Rule Include="StateOrchestrator 统一管理所有状态，替代 RegistryCoordinator + AppServiceProvider + SingletonCoordinator 三足鼎立" />
+    <ModuleRule_Rule Include="StateActor 实例化管理，不再有静态状态" />
+    <ModuleRule_Rule Include="StatePipeline 明确定义初始化顺序，每个块独立执行" />
+    <ModuleRule_Rule Include="StateStore.Registry 唯一实例，所有组件通过 StateOrchestrator 获取" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要状态管理、初始化编排、服务定位等功能时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 Abstractions/ 包含核心接口定义" />
+    <ModuleRule_Prompt Include="此模块的 Blocks/ 包含具体的状态块实现" />
+    <ModuleRule_Prompt Include="此模块的 Pipeline/ 包含状态管线和构建器" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Operation.StateBlock</RootNamespace>
+    <AssemblyName>Operation.StateBlock</AssemblyName>
+    <Description>状态管理框架 — 基于 Block 框架的统一状态管理</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(BasicMethodRoot)Block\Block.csproj" />
+    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+    <!-- P0: 状态驱动的决策框架复用 TaskStatusPool.Loops 裁决语义（R7 唯一权威），宿主向下引用不引入环 -->
+    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <!-- 2026-08-05 StateCenter 改造：StateStore 迁移 IStorageCell 后端 + 事务/订阅基于 StorageCell -->
+    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+  </ItemGroup>
+
+  <!-- 依赖类型所在的现有项目（编译时引用） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="..\WorkFlowMethod\WorkFlowMethod.csproj" />
+    <ProjectReference Include="..\..\Share\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="..\..\Share\PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="..\..\Share\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Share\UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="..\BackEndDriven\BackEndDriven.csproj" />
+  </ItemGroup>
+
+</Project>

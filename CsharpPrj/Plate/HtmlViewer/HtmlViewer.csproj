@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Plate.HtmlViewer</RootNamespace>
+    <AssemblyName>Plate.HtmlViewer</AssemblyName>
+    <Description>WinForms 内嵌 HTML 查看器（可信富文本通道）：WebView2 直接渲染 body 片段 + 文档壳；含气泡式对话渲染器。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
+  </ItemGroup>
+
+  <!-- ★ 2026-08-24 HTML 后端逻辑（Abstractions/ + Html/）已并入本项目：声明模型仍依赖 TConfig -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <!-- ★ 2026-08-25 通用 JSON 占位替换内核 + 脚本命令反序列化统一经 Plate.JsonMethod（TemplateFormatter / JsonSerializerFactory） -->
+    <ProjectReference Include="..\JsonMethod\JsonMethod.csproj" />
+    <!-- ★ 2026-08-30 通用会话消息流渲染（HtmlStreamRenderer）下沉：只依赖 Share.Conversation 纯逻辑子项目（IConversationRenderer / ConversationRenderItem 抽象，零 Plate 依赖，避免聚合 Share 引入回 Plate 的循环依赖） -->
+    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
+    <!-- ★ 2026-08-26 通用状态可观测/收敛同步框架（Observe）：WebView2Transport 把 HTML 通道适配为 ITransport，收敛由 IObserveCoordinator 承担 -->
+    <ProjectReference Include="..\..\Modules\Observe\Observe.csproj" />
+  </ItemGroup>
+
+</Project>

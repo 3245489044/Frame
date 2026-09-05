@@ -1,0 +1,69 @@
+<Project>
+  <!--
+    Directory.Build.props - TypeScript 项目 MSBuild 桥接层
+
+    作用：当 dotnet build/rebuild/clean 作用于 TypeScript.sln 时，
+    将 MSBuild 目标转发到 tsm CLI（TsSln 项目管理工具）。
+
+    桥接映射：
+      dotnet build              = node build/TsSln/cli.js build [ProjectName]
+      dotnet rebuild            = node build/TsSln/cli.js rebuild [ProjectName]
+      dotnet clean              = node build/TsSln/cli.js clean
+
+    设计原理：
+    - 通过 BeforeTargets 在 MSBuild 默认目标执行前拦截
+    - 使用 Exec 任务调用 tsm CLI
+    - 通过 ContinueOnError="false" 确保错误码正确传递
+    - 仅在 TypeScript 桥接项目中生效（通过 Name 属性判断）
+    - Rebuild 目标跳过 Build 和 Clean 的重复调用（MSBuild 的 Rebuild 内部已包含 Clean+Build）
+  -->
+
+  <PropertyGroup>
+    <!-- tsm CLI 路径（相对于 TypeScriptPrj 目录） -->
+    <_TsSlnCli>$(MSBuildThisFileDirectory)..\build\TsSln\cli.js</_TsSlnCli>
+  </PropertyGroup>
+
+  <!-- 抑制 NuGet 还原（TypeScript 项目不需要 NuGet 包） -->
+  <PropertyGroup Condition="'$(Name)' != ''">
+    <RestoreProjectStyle>None</RestoreProjectStyle>
+  </PropertyGroup>
+
+  <!-- 抑制 AssemblyInfo 自动生成（TypeScript 项目不需要，避免重复特性错误 CS0579） -->
+  <PropertyGroup Condition="'$(Name)' != ''">
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+
+  <!-- Build 目标桥接: dotnet build = tsm build [ProjectName] -->
+  <Target Name="TsBridgeBuild" BeforeTargets="Build" Condition="'$(Name)' != '' And '$(BuildingInsideRebuild)' != 'true' And '$(SkipTsBridge)' != 'true'">
+    <PropertyGroup>
+      <_TsBuildCmd>node "$(_TsSlnCli)" build "$(Name)"</_TsBuildCmd>
+    </PropertyGroup>
+    <Message Text="[TsBridge] dotnet build = tsm build $(Name)" Importance="high" />
+    <Exec Command="$(_TsBuildCmd)" ConsoleToMSBuild="true" ContinueOnError="false" />
+  </Target>
+
+  <!-- Rebuild 目标桥接: dotnet rebuild = tsm rebuild [ProjectName] -->
+  <Target Name="TsBridgeRebuild" BeforeTargets="Rebuild" Condition="'$(Name)' != '' And '$(SkipTsBridge)' != 'true'">
+    <PropertyGroup>
+      <_TsRebuildCmd>node "$(_TsSlnCli)" rebuild "$(Name)"</_TsRebuildCmd>
+    </PropertyGroup>
+    <Message Text="[TsBridge] dotnet rebuild = tsm rebuild $(Name)" Importance="high" />
+    <Exec Command="$(_TsRebuildCmd)" ConsoleToMSBuild="true" ContinueOnError="false" />
+  </Target>
+
+  <!-- Clean 目标桥接: dotnet clean = tsm clean -->
+  <Target Name="TsBridgeClean" BeforeTargets="Clean" Condition="'$(Name)' != '' And '$(BuildingInsideRebuild)' != 'true' And '$(SkipTsBridge)' != 'true'">
+    <PropertyGroup>
+      <_TsCleanCmd>node "$(_TsSlnCli)" clean</_TsCleanCmd>
+    </PropertyGroup>
+    <Message Text="[TsBridge] dotnet clean = tsm clean" Importance="high" />
+    <Exec Command="$(_TsCleanCmd)" ConsoleToMSBuild="true" ContinueOnError="false" />
+  </Target>
+
+  <!-- 抑制 MSBuild 默认的 CoreCompile 和 GenerateAssemblyInfo 目标（TypeScript 项目不需要；真实 C# 项目通过 SkipTsBridge=true 退出） -->
+  <Target Name="TsBridgeSuppressCompile" BeforeTargets="CoreCompile;GenerateAssemblyInfo" Condition="'$(Name)' != '' And '$(SkipTsBridge)' != 'true'">
+    <Message Text="[TsBridge] 跳过 MSBuild CoreCompile/GenerateAssemblyInfo（TypeScript 项目由 tsc 编译）" Importance="high" />
+  </Target>
+
+</Project>

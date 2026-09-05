@@ -1,0 +1,46 @@
+{
+  "Programs": [
+    {
+      "Name": "CellFramework.Host.Tests",
+      "Description": "CellFramework.Host 测试套件 - 支持测试过滤器: All, SqlTransaction, SqlQuery, CodeFunction, Config, Reference, Change, DependencyGraph, SetOperations, Gateway, ModuleState",
+      "ProjectPath": "CellFrame/CellFramework.Host/CellFramework.Host.csproj",
+      "WorkingDirectory": "CellFrame/CellFramework.Host",
+      "Enabled": true,
+      "BuildConfiguration": "Debug",
+      "IsLibrary": true,
+      "LibraryEntryMethod": "CellFramework.Host.TestRunner.RunAsync",
+      "Arguments": "All"
+    },
+    {
+      "Name": "WorkFlowMethod",
+      "Description": "工作流方法测试程序",
+      "ProjectPath": "WorkFlowMethod/WorkFlowMethod.csproj",
+      "WorkingDirectory": "WorkFlowMethod",
+      "Enabled": true,
+      "BuildConfiguration": "Debug",
+      "IsLibrary": true,
+      "LibraryEntryMethod": "WorkFlow.Methods.WorkflowBootstrapper.Run"
+    },
+    {
+      "Name": "UniversalReference.Tests",
+      "Description": "通用引用框架测试套件 - 支持测试过滤器: All, ActionMapping, BranchManagement, WorkflowExecution, Storage, ReferenceManagement, EventDriven, LiteDB, UniversalReference, GraphDatabase",
+      "ProjectPath": "UniversalReference/UniversalWorkflowFramework.csproj",
+      "WorkingDirectory": "UniversalReference",
+      "Enabled": true,
+      "BuildConfiguration": "Debug",
+      "IsLibrary": true,
+      "LibraryEntryMethod": "UniversalWorkflowFramework.Examples.TestRunner.RunAsync",
+      "Arguments": "All"
+    },
+    {
+      "Name": "WdUI.Tests",
+      "Description": "WdUI 框架测试套件 - 测试 UIBasicUsage 的所有功能，包括表单创建、布局策略、智能布局管理器、配置加载、布局校验、控件工厂、样式应用、事件系统和反射数据提取",
+      "ProjectPath": "WdUI/Test/WdUI.Test.csproj",
+      "WorkingDirectory": "WdUI/Test",
+      "Enabled": true,
+      "BuildConfiguration": "Debug",
+      "IsLibrary": false,
+      "Arguments": ""
+    }
+  ]
+}

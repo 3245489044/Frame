@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>HTTP 通用框架（OpenAI 兼容服务端宿主）</ModuleRule_Title>
+    <ModuleRule_Layer>6</ModuleRule_Layer>
+    <ModuleRule_Description>平台级统一 HTTP 服务端宿主：Kestrel + Minimal API 的 OpenAI 兼容端点（chat completions / responses / models / health），SSE + 递归护栏 + 后端委托</ModuleRule_Description>
+    <ModuleRule_Keywords>HTTP;OpenAI;宿主;Kestrel;SSE;服务端</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.HttpMethod</RootNamespace>
+    <AssemblyName>Plate.HttpMethod.Host</AssemblyName>
+    <AssemblyTitle>Plate HTTP Host Framework</AssemblyTitle>
+    <Description>平台级统一 HTTP 服务端宿主框架 - OpenAI 兼容端点（Kestrel + Minimal API）</Description>
+  </PropertyGroup>
+
+  <!-- 排除传输子目录源码（Transport/OpenAI/Guard 由 HttpMethod.Transport.csproj 独立编译，经 ProjectReference 消费，避免类型二义） -->
+  <ItemGroup>
+    <Compile Remove="Transport\**\*.cs" />
+    <Compile Remove="OpenAI\**\*.cs" />
+    <Compile Remove="Guard\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)HttpMethod.Transport.csproj" />
+  </ItemGroup>
+
+</Project>

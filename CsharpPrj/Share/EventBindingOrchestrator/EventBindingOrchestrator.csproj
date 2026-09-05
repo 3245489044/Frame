@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.EventBindingOrchestrator</RootNamespace>
+    <AssemblyName>Share.EventBindingOrchestrator</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="..\PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="..\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="..\UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
+    <ProjectReference Include="..\UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
+    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="$(FluentValidationVersion)" />
+  </ItemGroup>
+
+</Project>

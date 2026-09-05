@@ -1,0 +1,38 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "replace.file.batch",
+        "verb": "replace",
+        "object": "file.batch",
+        "purpose": "批量替换文件内容（SEARCH/REPLACE 块或正则，支持上下文感知）",
+        "function": "BatchReplace-InFile",
+        "path": "PowerShellScript\\BasicMethod\\FileOps\\FileBatch.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Paths", "type": "array", "required": true, "constraint": "文件路径数组，支持通配符" },
+        { "name": "Blocks", "type": "array", "required": false, "default": [], "constraint": "SEARCH/REPLACE 块数组：@(@{Search=\"\";Replace=\"\"}, ...)" },
+        { "name": "Pattern", "type": "string", "required": false, "default": "", "constraint": "正则模式（与 Blocks 互斥）" },
+        { "name": "Replacement", "type": "string", "required": false, "default": "", "constraint": "正则替换文本（配合 Pattern）" },
+        { "name": "ContextAware", "type": "switch", "required": false, "default": false, "constraint": "启用上下文感知替换" },
+        { "name": "ShowDiff", "type": "switch", "required": false, "default": false, "constraint": "显示差异预览" },
+        { "name": "Interactive", "type": "switch", "required": false, "default": false, "constraint": "交互式确认" },
+        { "name": "Escape", "type": "switch", "required": false, "default": false, "constraint": "自动转义正则特殊字符" },
+        { "name": "Backup", "type": "switch", "required": false, "default": false, "constraint": "替换前自动备份" },
+        { "name": "Verify", "type": "switch", "required": false, "default": false, "constraint": "替换后校验" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "TotalFiles": "int", "ModifiedFiles": "int", "Results": "array" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

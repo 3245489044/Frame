@@ -1,0 +1,42 @@
+{
+  "name": "get_dependencies",
+  "description": "获取指定模块的 ProjectReference 依赖关系",
+  "handler": "dependencies",
+  "template": "query",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": ".csproj 文件路径（相对于项目根目录）"
+      },
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      },
+      "depth": {
+        "type": "number",
+        "description": "递归深度（默认：1，最大：3）"
+      }
+    },
+    "required": ["path"]
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getDependencies", "from": "../core/parser" },
+      { "name": "formatDependenciesResult", "from": "../core/utils" },
+      { "name": "resolveProjectRootWithSln", "from": "../core/utils" }
+    ],
+    "requiredParams": ["path"],
+    "extraParams": [
+      { "name": "depth", "type": "number", "default": 1 }
+    ],
+    "mainCall": "getDependencies(path, projectRoot, depth, slnPath)",
+    "notFoundCheck": "⚠️ 文件不存在或无法读取: ${path}",
+    "outputCall": "formatDependenciesResult(results)"
+  }
+}

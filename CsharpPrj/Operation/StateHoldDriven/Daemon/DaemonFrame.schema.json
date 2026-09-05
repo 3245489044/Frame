@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://csg-schema.org/v1/daemon-frame.json",
+  "title": "ClineDaemon JSON-Line 协议帧",
+  "description": "Cline daemon（daemon.ts / engine.ts）与 C# 池（ClineDaemonIpc）之间 JSON-Line 协议的单一帧 schema（S5）。帧类型：result/heartbeat/pong/trace/csg。",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "请求关联 id（ping/warm/请求 id）；trace 帧可空"
+    },
+    "ok": {
+      "type": "boolean",
+      "description": "result 帧：终结成功标志（仅 result 帧携带）"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["result", "heartbeat", "pong", "trace", "csg"],
+      "description": "帧类型。缺省/result = 终结帧；heartbeat/pong = 非终结；trace/csg = 追踪"
+    },
+    "result": {
+      "description": "result 帧成功载荷"
+    },
+    "error": {
+      "type": "string",
+      "description": "result 帧失败原因（失败归因，含最后阶段）"
+    },
+    "elapsedMs": {
+      "type": "number",
+      "description": "heartbeat 帧：已耗时（毫秒）"
+    },
+    "stage": {
+      "type": "string",
+      "description": "trace/csg 帧：当前阶段/生命周期状态（如 engine-run-start / spawned / ready / api）"
+    },
+    "detail": {
+      "description": "trace 帧：阶段细节（结构化）"
+    },
+    "form": {
+      "type": "string",
+      "description": "csg 帧：CanonicalForm JSON 载荷（跨语言状态契约，字符串）"
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false
+}

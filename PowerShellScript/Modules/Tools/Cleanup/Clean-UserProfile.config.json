@@ -1,0 +1,238 @@
+{
+  "description": "Clean-UserProfile.ps1 的配置文件 - 定义要清理的应用缓存路径和规则",
+
+  "excludeDirs": [
+    "config", "Config", "CONFIG",
+    "users", "Users", "USERS",
+    "All Users",
+    "templates", "Templates",
+    "User Data",
+    "startup", "Startup",
+    "addons"
+  ],
+
+  "cacheKeywords": [
+    "cache", "cached", "cacheddata",
+    "temp", "tmp", "temporary",
+    "log", "logs",
+    "crash", "crashpad", "crashdump", "crashdumps",
+    "gpucache",
+    "webstorage",
+    "local storage",
+    "partitions",
+    "backup", "recover",
+    "update", "updater",
+    "download", "downloads",
+    "npm-cache",
+    "code cache", "code_cache",
+    "service worker", "service_worker", "serviceworker",
+    "session storage", "sessionstorage",
+    "blob storage", "blobstorage",
+    "file system", "filesystem",
+    "indexeddb",
+    "webfonts",
+    "origin trials", "origintrials",
+    "dcsdk",
+    "cachedextensionvsixs",
+    "http-cache", "packages-cache", "global-packages",
+    "cacheddata", "cacheddatav2",
+    "remote-cache", "remote-caches",
+    "keytar", "local-history"
+  ],
+
+  "categories": [
+    {
+      "name": "AI IDE",
+      "label": "AI IDE 缓存",
+      "items": [
+        {
+          "path": "{APPDATA}\\Trae CN",
+          "label": "Trae CN",
+          "description": "Trae AI IDE 的缓存/日志/临时文件",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\Code",
+          "label": "VS Code (Code)",
+          "description": "VS Code 的缓存/日志/临时文件",
+          "mode": "scan"
+        },
+        {
+          "path": "{USERPROFILE}\\.vscode",
+          "label": "VS Code (.vscode)",
+          "description": "VS Code 的缓存/日志/临时文件",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\Cursor",
+          "label": "Cursor",
+          "description": "Cursor IDE 的缓存/日志/临时文件",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\Windsurf",
+          "label": "Windsurf",
+          "description": "Windsurf IDE 的缓存/日志/临时文件",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\Trae",
+          "label": "Trae",
+          "description": "Trae IDE 的缓存/日志/临时文件",
+          "mode": "scan"
+        }
+      ]
+    },
+    {
+      "name": "腾讯系",
+      "label": "腾讯系应用缓存",
+      "items": [
+        {
+          "path": "{APPDATA}\\Tencent\\WeChat",
+          "label": "WeChat (微信)",
+          "description": "微信的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["All Users"]
+        },
+        {
+          "path": "{APPDATA}\\Tencent\\xwechat",
+          "label": "xwechat (企业微信)",
+          "description": "企业微信的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["All Users"]
+        },
+        {
+          "path": "{APPDATA}\\Tencent\\WeGame",
+          "label": "WeGame (游戏平台)",
+          "description": "WeGame 的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["data"]
+        },
+        {
+          "path": "{APPDATA}\\Tencent\\QQMusic",
+          "label": "QQMusic (QQ音乐)",
+          "description": "QQ音乐的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["UserData"]
+        }
+      ]
+    },
+    {
+      "name": "WPS Office",
+      "label": "WPS Office 缓存",
+      "items": [
+        {
+          "path": "{APPDATA}\\kingsoft\\wps",
+          "label": "WPS (wps)",
+          "description": "WPS Office 的缓存文件",
+          "mode": "scan",
+          "exclude": ["addons", "startup", "XLSTART"]
+        },
+        {
+          "path": "{APPDATA}\\kingsoft\\wpsphoto+",
+          "label": "WPS (wpsphoto+)",
+          "description": "WPS 图片处理缓存",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\kingsoft\\office6",
+          "label": "WPS (office6)",
+          "description": "WPS Office6 缓存",
+          "mode": "scan"
+        }
+      ]
+    },
+    {
+      "name": "百度",
+      "label": "百度网盘缓存",
+      "items": [
+        {
+          "path": "{APPDATA}\\Baidu\\BaiduNetdisk",
+          "label": "BaiduNetdisk",
+          "description": "百度网盘的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["users", "log"]
+        },
+        {
+          "path": "{APPDATA}\\Baidu\\BaiduYunGuanjia",
+          "label": "BaiduYunGuanjia",
+          "description": "百度云管家的缓存文件（保留配置）",
+          "mode": "scan",
+          "exclude": ["users", "log"]
+        }
+      ]
+    },
+    {
+      "name": "浏览器",
+      "label": "浏览器缓存",
+      "items": [
+        {
+          "path": "{LOCALAPPDATA}\\Google\\Chrome\\User Data",
+          "label": "Chrome 浏览器",
+          "description": "Chrome 浏览器缓存（保留用户配置和登录状态）",
+          "mode": "scan"
+        },
+        {
+          "path": "{LOCALAPPDATA}\\Microsoft\\Edge\\User Data",
+          "label": "Edge 浏览器",
+          "description": "Edge 浏览器缓存（保留用户配置和登录状态）",
+          "mode": "scan"
+        },
+        {
+          "path": "{LOCALAPPDATA}\\BraveSoftware\\Brave-Browser\\User Data",
+          "label": "Brave 浏览器",
+          "description": "Brave 浏览器缓存（保留用户配置和登录状态）",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\Opera Software",
+          "label": "Opera 浏览器",
+          "description": "Opera 浏览器缓存（保留用户配置和登录状态）",
+          "mode": "scan"
+        },
+        {
+          "path": "{LOCALAPPDATA}\\Vivaldi\\User Data",
+          "label": "Vivaldi 浏览器",
+          "description": "Vivaldi 浏览器缓存（保留用户配置和登录状态）",
+          "mode": "scan"
+        }
+      ]
+    },
+    {
+      "name": "Windows 临时文件",
+      "label": "Windows 临时文件",
+      "items": [
+        {
+          "path": "{LOCALAPPDATA}\\Temp",
+          "label": "Temp",
+          "description": "应用程序临时文件，可安全清理",
+          "mode": "temp"
+        }
+      ]
+    },
+    {
+      "name": "包管理器",
+      "label": "包管理器缓存",
+      "items": [
+        {
+          "path": "{USERPROFILE}\\.nuget",
+          "label": "NuGet 包缓存",
+          "description": ".NET NuGet 包缓存，可运行 'dotnet nuget locals all --clear' 替代",
+          "mode": "scan"
+        },
+        {
+          "path": "{APPDATA}\\npm-cache",
+          "label": "npm 缓存",
+          "description": "npm 包缓存，可运行 'npm cache clean --force' 替代",
+          "mode": "direct"
+        },
+        {
+          "path": "{LOCALAPPDATA}\\pip",
+          "label": "pip 缓存",
+          "description": "Python pip 包缓存",
+          "mode": "scan"
+        }
+      ]
+    }
+  ]
+}

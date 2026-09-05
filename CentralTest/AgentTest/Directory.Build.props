@@ -1,0 +1,19 @@
+<Project>
+  <!-- 向上导入 CentralTest\Directory.Build.props（其已 Import 仓库根并点入 CsharpPrj 二进制闭包 + RequireCsharpPrjBaked） -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <!-- ============================================================
+       AgentTest 子树（Agent 产品测试）：向上继承 CentralTest\Directory.Build.props —— 后者已 Import 仓库根
+       （RepoRoot/AgentProjectRoot 等）并点入 CsharpPrj 二进制闭包 + RequireCsharpPrjBaked。
+       本文件只追加【Agent 产品二进制引用】：消费 $(AgentProjectRoot)\BuildOutput\$(Configuration)\ 权威目录里
+       Agent.*.dll（与 Agent 消费 CsharpPrj 的"引用权威 dll"同一范式），不再逐 csproj ProjectReference
+       $(AgentProjectRoot)\src\*.csproj 把 Agent 源码拉进 CentralTest 编译。
+       注：Agent 权威输出目录含 Agent 产品与第三方/CsharpPrj 混合；此处只取 Agent.*.dll，避免重复引用。
+       ============================================================ -->
+  <ItemGroup>
+    <_AgentProductDll Include="$(AgentProjectRoot)\BuildOutput\$(Configuration)\Agent.*.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="@(_AgentProductDll)" Private="true" />
+  </ItemGroup>
+</Project>

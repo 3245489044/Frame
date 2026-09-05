@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.StateManagement</RootNamespace>
+    <AssemblyName>Share.StateManagement</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- StateMachine 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- 2026-09 StateBus 治理 P3：Modules.Threading（叶子）为派发原语家，供 IPublishDispatcher 桥接（PublishDispatcherAdapter） -->
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)Block\Block.csproj" />
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <!-- DiagnosticContext 诊断上下文 -->
+    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+    <!-- 2026-08-05 StateCenter 契约：IStateCenter.Cell 使用 IStorageCell（TConfig.ContextFrame.Abstractions），
+         TConfig 属 Plate 层（Layer 2），不违反 R1（契约仍在 Share）与 R2（无 Operation/UI 引用） -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+
+</Project>

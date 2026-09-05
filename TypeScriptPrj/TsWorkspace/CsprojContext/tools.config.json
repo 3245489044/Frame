@@ -1,0 +1,413 @@
+{
+  "_generated": true,
+  "_generatedAt": "2026-06-26T14:31:41.817Z",
+  "_source": "tools-definitions/*.json",
+  "_command": "npm run generate",
+  "tools": [
+    {
+      "name": "get_dependencies",
+      "description": "获取指定模块的 ProjectReference 依赖关系",
+      "handler": "dependencies",
+      "template": "query",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": ".csproj 文件路径（相对于项目根目录）"
+          },
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          },
+          "depth": {
+            "type": "number",
+            "description": "递归深度（默认：1，最大：3）"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "getDependencies",
+            "from": "../core/parser"
+          },
+          {
+            "name": "formatDependenciesResult",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "requiredParams": [
+          "path"
+        ],
+        "extraParams": [
+          {
+            "name": "depth",
+            "type": "number",
+            "default": 1
+          }
+        ],
+        "mainCall": "getDependencies(path, projectRoot, depth, slnPath)",
+        "notFoundCheck": "⚠️ 文件不存在或无法读取: ${path}",
+        "outputCall": "formatDependenciesResult(results)"
+      }
+    },
+    {
+      "name": "get_detail",
+      "description": "获取单个 .csproj 模块的 ModuleRule 详情",
+      "handler": "detail",
+      "template": "detail",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": ".csproj 文件路径（相对于项目根目录，如 BasicMethod/BasicMethod.csproj）"
+          },
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "getModuleDetail",
+            "from": "../core/parser"
+          },
+          {
+            "name": "getLayerName",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "requiredParams": [
+          "path"
+        ],
+        "mainCall": "getModuleDetail(path, projectRoot, slnPath)",
+        "notFoundCheck": "⚠️ 未找到 ModuleRule 属性: ${path}\\n可能原因：文件不存在或未配置 ModuleRule 属性。"
+      }
+    },
+    {
+      "name": "get_layer_map",
+      "description": "获取层编号映射表（编号→名称→描述）",
+      "handler": "layer-map",
+      "template": "no-args",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        }
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "getLayers",
+            "from": "../core/utils"
+          },
+          {
+            "name": "formatLayerMap",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "mainCall": "getLayers()",
+        "outputCall": "formatLayerMap(results)"
+      }
+    },
+    {
+      "name": "get_by_layer",
+      "description": "按层编号筛选模块",
+      "handler": "layer",
+      "template": "query",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "layer": {
+            "type": "number",
+            "description": "层编号（0=辅助/测试, 1=基础层, 2=模块层, 3=共享层, 4=操作层, 5=应用层, 6=平台层, 7=工具层）"
+          },
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        },
+        "required": [
+          "layer"
+        ]
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "getModulesByLayer",
+            "from": "../core/parser"
+          },
+          {
+            "name": "getLayerName",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "requiredParams": [
+          "layer"
+        ],
+        "mainCall": "getModulesByLayer(layer, projectRoot, slnPath)",
+        "emptyCheck": "⚠️ 层 [${layer}] ${getLayerName(layer)} 下没有已配置 ModuleRule 属性的项目",
+        "outputCall": "formatLayerResults(results, layer, getLayerName)"
+      }
+    },
+    {
+      "name": "get_overview",
+      "description": "获取项目架构概览（按层分组显示所有模块）",
+      "handler": "overview",
+      "template": "query-with-detail",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          },
+          "detail": {
+            "type": "boolean",
+            "description": "是否显示详细信息（默认：false）"
+          }
+        }
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "getAllModuleRules",
+            "from": "../core/parser"
+          },
+          {
+            "name": "formatOverview",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "mainCall": "getAllModuleRules(projectRoot, slnPath)",
+        "emptyCheck": "⚠️ 未找到任何包含 ModuleRule 属性的 .csproj 文件。\\n请先使用 set_module_rule 工具注入 ModuleRule 属性。",
+        "outputCall": "formatOverview(results, detail)"
+      }
+    },
+    {
+      "name": "get_project_tree",
+      "description": "获取项目完整树形结构（按层分组展示所有模块）",
+      "handler": "project-tree",
+      "template": "custom",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        }
+      }
+    },
+    {
+      "name": "search_modules",
+      "description": "按关键词搜索模块（匹配标题、描述、关键词、路径）",
+      "handler": "search",
+      "template": "query",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "description": "搜索关键词"
+          },
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        },
+        "required": [
+          "keyword"
+        ]
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "searchModules",
+            "from": "../core/parser"
+          },
+          {
+            "name": "getLayerName",
+            "from": "../core/utils"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "requiredParams": [
+          "keyword"
+        ],
+        "mainCall": "searchModules(keyword, projectRoot, slnPath)",
+        "emptyCheck": "🔍 未找到匹配 \"${keyword}\" 的项目",
+        "outputCall": "formatSearchResults(results, keyword, getLayerName)"
+      }
+    },
+    {
+      "name": "set_module_rule",
+      "description": "注入或更新 .csproj 文件的 ModuleRule 属性",
+      "handler": "set-rule",
+      "template": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": ".csproj 文件路径（相对于项目根目录）"
+          },
+          "title": {
+            "type": "string",
+            "description": "模块显示名称"
+          },
+          "layer": {
+            "type": "number",
+            "description": "层编号（0-7）"
+          },
+          "description": {
+            "type": "string",
+            "description": "模块功能描述"
+          },
+          "keywords": {
+            "type": "string",
+            "description": "关键词列表（分号分隔，如：数据;分析;工具）"
+          },
+          "rules": {
+            "type": "string",
+            "description": "模块级规则列表（分号分隔）"
+          },
+          "prompts": {
+            "type": "string",
+            "description": "模块级提示词列表（分号分隔）"
+          },
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        },
+        "required": [
+          "path",
+          "title",
+          "layer",
+          "description"
+        ]
+      },
+      "implementation": {
+        "imports": [
+          {
+            "name": "setModuleRule",
+            "from": "../core/parser"
+          },
+          {
+            "name": "resolveProjectRootWithSln",
+            "from": "../core/utils"
+          }
+        ],
+        "requiredParams": [
+          "path",
+          "title",
+          "layer",
+          "description"
+        ],
+        "optionalParams": [
+          {
+            "name": "keywords",
+            "type": "string"
+          },
+          {
+            "name": "rules",
+            "type": "string"
+          },
+          {
+            "name": "prompts",
+            "type": "string"
+          }
+        ],
+        "mainCall": "setModuleRule(path, { title, layer, description, keywords, rules, prompts }, projectRoot, slnPath)"
+      }
+    },
+    {
+      "name": "validate_rules",
+      "description": "验证所有 .csproj 文件的 ModuleRule 属性状态",
+      "handler": "validate",
+      "template": "custom",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slnPath": {
+            "type": "string",
+            "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+          },
+          "projectRoot": {
+            "type": "string",
+            "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+          }
+        }
+      }
+    }
+  ]
+}

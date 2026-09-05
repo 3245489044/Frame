@@ -1,0 +1,141 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>工作流编排与执行引擎</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>WorkFlow 体系的核心引擎层，提供工作流编排、函数注册、管线执行、运行时动态更新等全生命周期管理能力。包含 FunctionExecutionFramework、Execution、WorkFlowPipeline、NodeProcess、Orchestration、CSG、CallFrame、LoopFramework、GraphUsing、Config、Infrastructure 等子模块。</ModuleRule_Description>
+    <ModuleRule_Keywords>工作流编排;函数执行;管线化处理;运行时动态更新;CSG协议;LLM增强;万物皆函数;一切皆配置</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是 Operation 层的核心引擎，依赖 BasicMethod、GraphProcessing、LogicComposition 等基础框架" />
+    <ModuleRule_Rule Include="万物皆函数 — 工作流中的每个步骤都是一个可注册的函数，支持任意委托签名" />
+    <ModuleRule_Rule Include="一切皆配置 — 工作流定义可通过 JSON 配置文件驱动，无需重新编译" />
+    <ModuleRule_Rule Include="运行时动态更新 — 工作流结构可在运行中动态调整，无需重启" />
+    <ModuleRule_Rule Include="双注册表桥接 — IFunctionRegistry（通用委托注册）与 IWorkflowRegistry（工作流上下文注册）的桥接" />
+    <ModuleRule_Rule Include="CSG 三投影一致性 — 配置/状态机/图结构三投影交叉验证" />
+    <ModuleRule_Rule Include="LLM 增强 — 支持规则优先 + LLM 兜底的混合决策模式（RuleBased / LLMBased / Hybrid）" />
+    <ModuleRule_Rule Include="统一入口 — WorkflowUseage 提供函数注册、执行、管线编排、文件驱动的统一静态入口" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要工作流编排、函数注册、管线执行等功能时，优先查看此模块" />
+    <ModuleRule_Prompt Include="当需要了解工作流从 JSON 配置到执行的完整路径时，查看 WorkflowUseage 和 FunctionExecutionFramework" />
+    <ModuleRule_Prompt Include="当需要了解运行时动态更新机制时，查看 NodeProcess 和 GraphUsing" />
+    <ModuleRule_Prompt Include="当需要了解 CSG 三投影一致性验证时，查看 CSG 子模块" />
+    <ModuleRule_Prompt Include="当需要了解 LLM 驱动的循环工作流时，查看 LoopFramework" />
+    <ModuleRule_Prompt Include="当需要了解调用链追踪与调试能力时，查看 CallFrame 子模块" />
+    <ModuleRule_Prompt Include="当需要了解预定义工作流模板时，查看 Config/WorkFlowsSet.cs" />
+    <ModuleRule_Prompt Include="当需要了解节点处理系统的完整生命周期时，查看 NodeProcess 目录" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>WorkFlowMethod</RootNamespace>
+    <AssemblyName>WorkFlowMethod</AssemblyName>
+    <Description>WorkFlow 体系的核心引擎层 — 工作流编排、函数执行、管线化处理、运行时动态更新</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- FunctionExecution、GraphFoundation 已整合到 BasicMethod.csproj -->
+
+    <ProjectReference Include="..\..\Modules\GraphProcessing\GraphProcessing.csproj" />
+    <ProjectReference Include="..\..\Modules\LogicComposition\LogicComposition.csproj" />
+    <ProjectReference Include="..\..\Share\GraphFramework\GraphFramework.csproj" />
+    <!-- ★ 引用 ScopeFramework 以承载 GraphKey↔ITemplateExpander 调用方绑定（GraphChainTemplateExpander 适配器），依赖方向由调用方（本层）承载 -->
+    <ProjectReference Include="..\..\Share\ScopeFramework\ScopeFramework.csproj" />
+    <ProjectReference Include="..\..\Share\TreeTraceFramework\TreeTraceFramework.csproj" />
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 引用 UniversalWorkflowFramework.csproj 以获取 ReferenceManagement 命名空间（使用别名避免与 BasicMethod 的类型冲突） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" Aliases="ShareAlias" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsCachingMemoryVersion)" />
+  </ItemGroup>
+
+  <!-- ★ 引用 Share.StateManagement 以使用状态管理框架组件 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-08-13 统一上下文原语整体下沉：LoopFramework 的 FailureBudget/ProgressToken/LoopDecision 等经 Share.TaskStatusPool.Loops 提供（GlobalUsings 别名消费） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 引用 Share.UniversalMiddleware 以使用通用 JSON 工具 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\UniversalMiddleware\UniversalMiddleware.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 引用 Share.ParameterResolver 以使用统一参数处理层 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 引用 WinFormsValueContract（WinForms 值语义后端：ParameterValueResolver 默认 ControlValueBridge） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\WinFormsValueContract\WinFormsValueContract.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 引用 CSG.Unified 以使用 CSG 协议（Configuration-StateMachine-Graph 统一中间表示） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-04 新增：引用 Share.EventBindingOrchestrator 以桥接 IEventExecutionService -->
+  <!--   WorkflowMethodExecutionService 实现 IEventExecutionService 接口， -->
+  <!--   使 EventTriggerFramework 通过接口调用 WorkFlowMethod，避免编译时依赖。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-05 重构：移除 DiagnosticContext，改为引用 PlaceholderFramework 日志体系 -->
+  <!--   WorkflowMethodExecutionService 使用 WorkFlowMethodLog 输出结构化日志， -->
+  <!--   日志消息定义在 workflowmethod_log_messages.json 中。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\PlaceholderFramework\PlaceholderFramework.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-08 新增：引用 EventFramework 以获取 IFunctionExecutor 接口定义 -->
+  <!--   IEventExecutionService 继承自 IFunctionExecutor（定义在 Modules.EventFramework.Abstractions）， -->
+  <!--   WorkflowMethodExecutionService 需要实现 IFunctionExecutor.ExecuteAsync。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-08 新增：引用 Registry 以使用 RegistryCoordinator -->
+  <!--   WorkFlowMethodUsage.BasicRegistry 委托给 RegistryCoordinator 获取共享注册表实例。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-14 新增：引用 Threading 以使用 ReentryGuard -->
+  <!--   OutputHelper.WriteOutputToControl 使用 ReentryGuard 防止写回重入。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-14 新增：引用 CommandFramework 以使用 IParameterExecutionWorkflow 接口 -->
+  <!--   WorkflowMethodExecutionWorkflow 实现 IParameterExecutionWorkflow 接口。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\CommandFramework\CommandFramework.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-14 新增：引用 FrameworkAbstractions 以使用 IControlFinder 接口 -->
+  <!--   WorkflowMethodExecutionWorkflow 依赖 IControlFinder 进行控件查找。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+  </ItemGroup>
+
+</Project>

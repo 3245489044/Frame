@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>JSON 方法库</ModuleRule_Title>
+    <ModuleRule_Layer>6</ModuleRule_Layer>
+    <ModuleRule_Description>平台级统一 JSON 处理框架，提供序列化、反序列化、路径导航、合并、预处理、验证、错误诊断等全套 JSON 处理能力</ModuleRule_Description>
+    <ModuleRule_Keywords>JSON;序列化;反序列化;验证;合并;路径;预处理;诊断</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是平台级 JSON 统一框架，所有上层模块（Share、Operation 等）应通过此模块处理 JSON" />
+    <ModuleRule_Rule Include="BasicMethod 的 JSON 处理逻辑已迁移至此，BasicMethod 通过 ProjectReference 引用此模块" />
+    <ModuleRule_Rule Include="命名空间统一使用 Plate.JsonMethod.*" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要 JSON 序列化/反序列化时，使用 JsonSerializationService" />
+    <ModuleRule_Prompt Include="当需要 JSON 序列化选项时，使用 JsonSerializerFactory.Contexts 或 GetOptions(JsonContext)" />
+    <ModuleRule_Prompt Include="当需要 JSON 验证时，使用 JsonValidationService" />
+    <ModuleRule_Prompt Include="当需要 JSON 合并时，使用 JsonMergeService" />
+    <ModuleRule_Prompt Include="当需要 JSON 路径导航时，使用 JsonPathHelper 或 JsonPathNavigator" />
+    <ModuleRule_Prompt Include="当需要 JSON 预处理时，使用 JsonPreprocessor" />
+    <ModuleRule_Prompt Include="当需要 JSON 错误诊断时，使用 JsonErrorDiagnostics" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.JsonMethod</RootNamespace>
+    <AssemblyName>Plate.JsonMethod</AssemblyName>
+    <AssemblyTitle>Plate JSON Method Framework</AssemblyTitle>
+    <Description>平台级统一 JSON 处理框架 - 序列化、反序列化、路径导航、合并、预处理、验证、错误诊断</Description>
+  </PropertyGroup>
+
+</Project>

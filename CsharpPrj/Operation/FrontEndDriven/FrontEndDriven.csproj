@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FrontEndDriven</RootNamespace>
+    <AssemblyName>FrontEndDriven</AssemblyName>
+    <Description>通用前端驱动框架 — 提供控件查找、值读写、注册、统一服务等前端通用能力。WinForms 强相关逻辑已分离到 WinForms/ 子目录。</Description>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 抽象接口层 -->
+    <ProjectReference Include="..\..\Share\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+
+    <!-- 基础框架 -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="..\..\Modules\MetaCommand\MetaCommand.csproj" />
+
+    <!-- ★ 2026-08-06 新增：值语义契约层（IControlService 实现：ControlValueBridge/ValueContractRegistry）——
+         EcsStateAccessor/InputCapturePort 按契约读写/订阅，删除控件类型特判（ListView 等） -->
+    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <!-- ★ WinForms 值语义后端：ControlValueBridge/ValueContractRegistry 已从 ParameterResolver 分离至此 -->
+    <ProjectReference Include="..\..\Modules\WinFormsValueContract\WinFormsValueContract.csproj" />
+
+    <!-- ★ 2026-08-11 新增：验证引擎对齐——EntityValidationEngine 委托到通用 ValidationFramework（消除自造验证器） -->
+    <ProjectReference Include="..\..\Modules\ValidationFramework\ValidationFramework.csproj" />
+
+    <!-- 共享框架 -->
+    <ProjectReference Include="..\..\Share\PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="..\..\Share\UniversalMiddleware\UniversalMiddleware.csproj" />
+
+    <!-- 诊断框架（FrameworkErrors、FrameworkErrorEventArgs） -->
+    <ProjectReference Include="..\..\Share\Diagnostics\Diagnostics.csproj" />
+
+
+    <!-- ConfigurationModels（UIConfiguration、ControlConfig 等配置模型） -->
+    <ProjectReference Include="..\..\Share\UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
+
+    <!-- EventBindingOrchestrator（IRenderPipeline、ContainerBinderPipeline 等事件绑定管线） -->
+    <ProjectReference Include="..\..\Share\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <!-- Modules.Registry（[FunctionLibrary]/ITrConfigRegistry，UiCatalogLibrary 通用目录函数注册） -->
+    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+    <!-- TConfig 统一控件值读写接口 -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+
+    <!-- InternalStorage（StorageCell — EcsRenderPipeline 内部创建默认 IStorageCell 实例） -->
+    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+
+    <!-- ComponentData（组件数据存储、反应器链、生命周期管理） -->
+    <ProjectReference Include="..\..\Modules\ComponentData\ComponentData.csproj" />
+    <!-- LayoutAnalysis（共享布局分析：控件遍历、重叠检测等） -->
+    <ProjectReference Include="..\..\Share\LayoutAnalysis\LayoutAnalysis.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-25 新增：Threading（通用执行状态结果类 ExecutionResult/StepRecord/ExecutionPhase） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-23 新增：命令执行子系统依赖 -->
+  <!-- ★★ 2026-08-02 清理：命令系统残留迁移/删除后，Pipeline/Container/ExecutionFramework
+       在 FrontEndDriven 内零使用，移除引用（权威依据：重构方案 Phase 3 §3.1） -->
+
+  <!-- ★ 2026-08-05 新增：通用控件查找框架（Share.ControlLookup）——ControlRegistryAwareFinder 多级查找收敛为「查找源 + 聚合器」 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\ControlLookup\ControlLookup.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 2026-08-05 新增：StateCenter 契约 + 中心实现（Provider 接线）——StateHoldDriven 不引用 FrontEndDriven（R2），反向单向依赖 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="..\StateHoldDriven\StateHoldDriven.csproj" />
+    <!-- TaskPoolMarkdownRenderer（FrontEndDriven.Rendering）：ur_tasks 分页 → md 渲染（依赖 TaskPoolRowView/TaskExecutionStatus） -->
+    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+
+    <ProjectReference Include="..\..\Plate\MarkdownViewer\MarkdownViewer.csproj" />
+    <!-- ★ 2026-08-22 新增：HtmlViewer（可信富文本通道，htmlviewer 控件类型）——与 MarkdownViewer 平级独立模块；
+         ★ 2026-08-24 HTML 后端逻辑并入 HtmlViewer（IUiElementNode/IDomBridge 等类型驻留 Plate.HtmlViewer），WinFormsElementNode 复用 -->
+    <ProjectReference Include="..\..\Plate\HtmlViewer\HtmlViewer.csproj" />
+
+  </ItemGroup>
+
+</Project>

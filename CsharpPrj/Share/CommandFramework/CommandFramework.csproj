@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyTitle>CommandFramework</AssemblyTitle>
+    <AssemblyDescription>通用命令执行框架 — 提供命令解析、注册、执行、撤销/重做、工作流编排功能</AssemblyDescription>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <RootNamespace>CommandFramework</RootNamespace>
+    <AssemblyName>CommandFramework</AssemblyName>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 原有 CommandFramework 依赖 -->
+    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+
+    <!-- TConfig 统一控件值读写接口 -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+
+    <!-- WorkflowExecution 合并过来的依赖 -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="..\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="..\GraphFramework\GraphFramework.csproj" />
+
+    <!-- ★ 2026-07-05 新增：Container 通用执行容器框架引用
+         用于 ExecuteCommandStage 通过 IExecutionCell 执行事件命令，
+         获得 Container 弹性策略链（重试、熔断、超时、日志） -->
+    <ProjectReference Include="$(BasicMethodRoot)Container\Container.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsDependencyInjectionAbstractionsVersion)" />
+    <PackageReference Include="Polly" Version="$(PollyVersion)" />
+    <PackageReference Include="Polly.Core" Version="$(PollyCoreVersion)" />
+    <PackageReference Include="FluentValidation" Version="$(FluentValidationVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+  </ItemGroup>
+
+  <!-- ★ 2026-07-23 新增：排除 _deprecated 目录，避免已废弃的接口定义造成歧义引用 -->
+  <ItemGroup>
+    <Compile Remove="_deprecated\**\*" />
+    <None Include="_deprecated\**\*" />
+  </ItemGroup>
+
+</Project>
+
+

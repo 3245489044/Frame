@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>RGE 引用图统一框架</ModuleRule_Title>
+    <ModuleRule_Layer>0</ModuleRule_Layer>
+    <ModuleRule_Description>RGE (Reference-Graph Execution) 统一框架，定义引用图执行的核心数据模型（Entity/Component/DependencyEdge/ExecutionGraph）、引用传递解析与 System 契约，作为执行框架消费的纯模型层（L0）</ModuleRule_Description>
+    <ModuleRule_Keywords>RGE,引用图,ReferenceGraph,Entity,Component,ParamRef,引用解析,执行模型,嵌套图</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是 RGE 引用图统一框架的唯一模块，定义纯模型层（L0），零依赖" />
+    <ModuleRule_Rule Include="定义 Entity（递归含 SubGraph）、Component、DependencyEdge、ExecutionGraph 核心数据模型" />
+    <ModuleRule_Rule Include="实现引用传递语义：ParamRef 路径解析、作用域规则、缺失引用处理" />
+    <ModuleRule_Rule Include="声明 System 契约（IReferenceSystem/IIntentSystem/ILifecycleSystem），实现由执行框架提供" />
+    <ModuleRule_Rule Include="L0 不变式：图结构定义、引用解析逻辑、System 契约签名固化，禁止渗入执行/调度/策略概念" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要 RGE 引用图执行模型的核心定义、引用解析或 System 契约时，查看此模块" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Rge.Unified</RootNamespace>
+    <AssemblyName>RGE.Unified</AssemblyName>
+    <Description>RGE 统一框架 - 引用图执行核心数据模型（纯模型层 L0）</Description>
+  </PropertyGroup>
+
+</Project>

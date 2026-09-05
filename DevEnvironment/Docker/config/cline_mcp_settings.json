@@ -1,0 +1,115 @@
+{
+  "mcpServers": {
+    "mcp-sequentialthinking-tools": {
+      "type": "http",
+      "url": "http://localhost:3100/mcp",
+      "autoApprove": ["sequentialthinking_tools"],
+      "disabled": false
+    },
+    "context7-mcp": {
+      "type": "http",
+      "url": "http://localhost:3101/mcp",
+      "autoApprove": ["resolve-library-id", "query-docs"],
+      "disabled": false
+    },
+    "context-mode": {
+      "type": "http",
+      "url": "http://localhost:3102/mcp",
+      "autoApprove": [
+        "ctx_batch_execute",
+        "ctx_execute",
+        "ctx_execute_file",
+        "ctx_index",
+        "ctx_search",
+        "ctx_fetch_and_index",
+        "ctx_stats",
+        "ctx_doctor",
+        "ctx_upgrade",
+        "ctx_purge",
+        "ctx_insight"
+      ],
+      "disabled": false
+    },
+    "memory": {
+      "type": "http",
+      "url": "http://localhost:3103/mcp",
+      "autoApprove": [
+        "create_entities",
+        "create_relations",
+        "add_observations",
+        "read_graph",
+        "search_nodes",
+        "open_nodes"
+      ],
+      "disabled": false
+    },
+    "filesystem": {
+      "type": "http",
+      "url": "http://localhost:3104/mcp",
+      "autoApprove": [
+        "read_file",
+        "read_media_file",
+        "read_multiple_files",
+        "write_file",
+        "create_directory",
+        "move_file",
+        "list_directory",
+        "list_directory_with_sizes",
+        "directory_tree",
+        "get_file_info",
+        "search_files"
+      ],
+      "disabled": false
+    },
+    "lexis-mcp": {
+      "type": "http",
+      "url": "http://localhost:3105/mcp",
+      "autoApprove": [
+        "search_code",
+        "get_symbol",
+        "find_references",
+        "find_file",
+        "list_symbols",
+        "pattern_search",
+        "call_chain",
+        "list_entrypoints",
+        "impact_analysis",
+        "dead_code",
+        "find_writes",
+        "interface_implementations",
+        "event_handlers"
+      ],
+      "disabled": false
+    },
+    "token-savior-recall": {
+      "type": "http",
+      "url": "http://localhost:3106/mcp",
+      "autoApprove": [],
+      "disabled": false
+    },
+    "csproj-context": {
+      "type": "http",
+      "url": "http://localhost:3107/mcp",
+      "autoApprove": [
+        "get_overview",
+        "get_detail",
+        "search_modules",
+        "get_by_layer",
+        "get_dependencies",
+        "get_layer_map",
+        "get_project_tree",
+        "validate_rules",
+        "set_module_rule"
+      ],
+      "disabled": false
+    },
+    "fetch-mcp": {
+      "type": "http",
+      "url": "http://localhost:3108/mcp",
+      "autoApprove": [
+        "fetch"
+      ],
+      "disabled": false
+    }
+  }
+}

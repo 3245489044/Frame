@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Directory.Build.props - TypeScript.sln 全局配置
+
+    作用：抑制 NuGet 还原警告，确保 dotnet build 能正确传递到项目级构建。
+  -->
+
+  <!-- 抑制 NuGet 还原（TypeScript 项目不需要 NuGet 包） -->
+  <PropertyGroup>
+    <RestoreProjectStyle>None</RestoreProjectStyle>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>CSG 统一框架 - 单元测试</ModuleRule_Title>
+    <ModuleRule_Layer>0</ModuleRule_Layer>
+    <ModuleRule_Description>CSG 统一框架的单元测试项目，覆盖规范形式、变换引擎、验证引擎、适配器注册等核心功能</ModuleRule_Description>
+    <ModuleRule_Keywords>CSG,测试,单元测试,xUnit</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CSG.Unified.Tests</RootNamespace>
+    <AssemblyName>CSG.Unified.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- 覆盖 Directory.Build.props 中的 GenerateAssemblyInfo=false，xunit 需要程序集信息 -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A 修复：CSG.Unified 已收敛为单一模块（旧 Abstractions/Core/Adapters 多项目布局已废弃） -->
+  </ItemGroup>
+
+</Project>
+

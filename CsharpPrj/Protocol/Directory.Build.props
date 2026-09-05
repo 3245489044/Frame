@@ -1,0 +1,40 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- 协议层独立构建配置 -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+    <!-- 构建配置 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <WarningsAsErrors />
+    <NoWarn>1701;1702;1591;CS8618;CS8625;CS8632;CS8603;CS8601;CS8604;CS8602;CS8600;CS8619;CS8714;CS8622;CS8629;CS8605;CS8765;CS8766;CS8768;CS8634;CS8620;CA1416</NoWarn>
+  </PropertyGroup>
+
+  <!-- 统一输出目录 -->
+  <PropertyGroup>
+    <OutputPath>$(MSBuildThisFileDirectory)..\BuildOutput\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <IntermediateOutputPath>$(MSBuildThisFileDirectory)..\BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+</Project>

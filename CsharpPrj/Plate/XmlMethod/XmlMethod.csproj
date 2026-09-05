@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>XML / SVG 构建框架</ModuleRule_Title>
+    <ModuleRule_Layer>6</ModuleRule_Layer>
+    <ModuleRule_Description>平台级通用 XML 构建框架：流式元素构建器（属性/子节点/文本自动转义/自闭合）、字符串化渲染，并提供 SVG（可缩放矢量图）便捷工厂，纯字符串输出（零 NuGet 依赖），目标是 HtmlViewer(NavigateToString) 之类的字符串注入渲染</ModuleRule_Description>
+    <ModuleRule_Keywords>XML;SVG;矢量图;构建器;转义;自闭合;HtmlViewer;字符串注入</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是平台级通用 XML/SVG 框架，所有上层模块需要生成 XML/SVG 时应通过此模块构建，勿手拼 XML 字符串" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要生成工作流/节点边等矢量图（SVG）时，使用 XmlMethod 的 Svg 工厂（Svg.Svg/Svg.Rect/Svg.Line/Svg.Text ...）" />
+    <ModuleRule_Prompt Include="当需要生成任意 XML 时，使用 XmlElement 流式构建器，文本内容自动转义" />
+    <ModuleRule_Prompt Include="需要整页 HTML 包装给 htmlviewer 时，使用 Svg.WrapHtml" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.XmlMethod</RootNamespace>
+    <AssemblyName>Plate.XmlMethod</AssemblyName>
+    <AssemblyTitle>Plate XML / SVG Builder Framework</AssemblyTitle>
+    <Description>平台级通用 XML / SVG 构建框架 - 流式元素构建器 + SVG 便捷工厂，纯字符串输出，零第三方依赖</Description>
+  </PropertyGroup>
+
+</Project>

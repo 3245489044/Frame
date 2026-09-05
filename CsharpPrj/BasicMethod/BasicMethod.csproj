@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>基础方法库</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>核心抽象层，提供基础工具函数、框架、ECS、状态机、图算法等基础设施</ModuleRule_Description>
+    <ModuleRule_Keywords>基础,工具,框架,ECS,状态机,图算法</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要基础工具函数、框架抽象、ECS、状态机等功能时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 BasicAlgorithm/ 包含图算法和树结构算法" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="RefectionMethod\ReflectionDataExtractor.cs" />
+    <Compile Include="RefectionMethod\DynamicInvocationFramework.cs" />
+    <!-- LayoutAnalysis 布局分析层已迁移到 Share/LayoutAnalysis/ -->
+    <!-- ReflectionCommon 通用反射框架 -->
+    <Compile Include="RefectionMethod\ReflectionCommon\IDataExtractor.cs" />
+    <Compile Include="RefectionMethod\ReflectionCommon\TypeExtensions.cs" />
+    <Compile Include="RefectionMethod\ReflectionCommon\IReflectionService.cs" />
+    <Compile Include="RefectionMethod\ReflectionCommon\ReflectionService.cs" />
+    <Compile Include="RefectionMethod\ReflectionCommon\Cache.cs" />
+    <Compile Include="RefectionMethod\ReflectionCommon\DataModels.cs" />
+    <Compile Include="RefectionMethod\Reflection\*.cs" />
+    <Compile Include="RefectionMethod\ReflectionConfig.cs" />
+    <Compile Include="Map\GraphFoundation\FrameworkTree\TreeNode.cs" />
+    <!-- TreeIndex.cs, TreeWalker.cs, TreePathFinder.cs 由 GraphFoundation.csproj 编译，BasicMethod 通过 ProjectReference 获取 -->
+    <Compile Include="BasicAlgorithm\GraphAlgorithm.cs" />
+    <!-- GraphKeyUsings.cs 和 GraphKeyScenarios.cs 已迁移到 Share/GraphFramework/，由 GraphFramework.csproj 编译 -->
+    <Compile Include="FrameMethod\Usings\SkeletonUsings.cs" />
+    <Compile Include="BasicAlgorithm\DependencyGraphAlgorithms.cs" />
+    <Compile Include="FrameMethod\SkeletonFlow.cs" />
+    <!-- ContextFrame.cs 已迁移到 ContextFrame/ContextFrame.csproj -->
+    <Compile Include="ElementCalculateFramework.cs" />
+    <Compile Include="ElementCalculate_Script.cs" />
+    <Compile Include="FileProcess.cs" />
+    <Compile Include="FrameMethod\DictionaryFrame.cs" />
+    <Compile Include="GlobalUsings.cs" />
+    <!-- ★ ECS 已拆分为独立子项目 ECS.csproj -->
+    <ProjectReference Include="ECS\ECS.csproj" />
+    <Compile Include="Printer.cs" />
+    <!-- ★ 以下类型由 Common.csproj 编译，BasicMethod 通过 ProjectReference 获取 -->
+    <Compile Include="Common\Utilities\RefectionMethods.cs" />
+    <Compile Include="Common\Utilities\PackageManager.cs" />
+    <Compile Include="Common\Utilities\Extensions.cs" />
+    <Compile Include="Common\Utilities\DataBase.cs" />
+    <Compile Include="Common\Utilities\BasicValidator.cs" />
+    <Compile Include="Common\TestStringFunctions.cs" />
+    <!-- WinForms 通用工具库 -->
+    <Compile Include="Common\WinForms\AsyncFormBase.cs" />
+    <!-- ★ WinFormsControlService.cs 等执行器已迁移到 Modules/MetaCommand/Executors/ -->
+    <!-- ★ Common.Models、Common.AsyncSync、Common.StepCoordination 由 Common.csproj 编译 -->
+    <!-- ★ GraphFundation 已迁移到 GraphFoundation 项目 -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Common\Common.csproj" />
+    <!-- ConfigurationModels 已迁移到 Share/UniversalMiddleware/ConfigurationModels -->
+    <!-- FunctionExecution 已迁移到 Modules/Registry，此引用已删除 -->
+    <ProjectReference Include="PathManager\PathManager.csproj" />
+    <!-- 已移除：Share/Pipeline 和 UniversalJsonMiddleware 不再被 BasicMethod 直接引用 -->
+    <ProjectReference Include="UniversalLayout\UniversalLayoutMath.csproj" />
+    <ProjectReference Include="Logging\BasicMethod.Logging.csproj" />
+    <!-- ★ MetaCommand 引用已移除：ConfigExecutor.cs、FileSystemExecutor.cs、RegistryExecutor.cs、WinFormsExecutor.cs 已迁移到 Modules/MetaCommand/Executors/ -->
+    <ProjectReference Include="..\Share\UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
+    <ProjectReference Include="..\Share\LayoutAnalysis\LayoutAnalysis.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)GraphFoundation\GraphFoundation.csproj" />
+    <ProjectReference Include="ContextFrame\ContextFrame.csproj" />
+    <!-- ★ 整合 BasicMethod 子项目（方案B：先整合再精简） -->
+    <ProjectReference Include="Framework.Abstractions\BasicMethod.Framework.Abstractions.csproj" />
+    <ProjectReference Include="Framework\BasicMethod.Framework.csproj" />
+    <ProjectReference Include="..\Plate\JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="ReactiveData\ReactiveData.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)StateMachine\StateMachine.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)DecisionEngine\DecisionEngine.csproj" />
+    <ProjectReference Include="..\Plate\TConfig\TConfig.csproj" />
+    <!-- ★ SortMent 编排态射框架（注册表/管线/分类） -->
+    <ProjectReference Include="$(BasicMethodRoot)SortMent\SortMent.csproj" />
+    <!-- ★ Transformers 通用转换器框架 -->
+    <ProjectReference Include="Map\Transformers\Transformers.csproj" />
+    <!-- JsonUIBeautifier（JsonUIBeautifier.Models、JsonUIBeautifier.Pipeline 等） -->
+    <ProjectReference Include="JsonProcess\JsonUIBeautifier\JsonUIBeautifier.csproj" />
+    <!-- ★ 并入 BasicMethod 目录下的其他子项目（Container/ReflectionMethod 依赖 BasicMethod 本体，已排除防环） -->
+    <ProjectReference Include="Map\Block\Block.csproj" />
+    <ProjectReference Include="Map\Calculus\Calculus.csproj" />
+    <ProjectReference Include="Map\Functor\Functor.csproj" />
+    <ProjectReference Include="Map\Queue\Queue.csproj" />
+    <ProjectReference Include="Map\Declarative\Declarative.csproj" />
+    <ProjectReference Include="JsonProcess\ProcessJsonConfig\ProcessJsonConfig.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+
+    <PackageReference Include="DeepCloner" Version="$(DeepClonerVersion)" />
+    <PackageReference Include="DynamicExpresso.Core" Version="$(DynamicExpressoCoreVersion)" />
+    <PackageReference Include="HtmlAgilityPack" Version="$(HtmlAgilityPackVersion)" />
+    <PackageReference Include="MathNet.Numerics" Version="$(MathNetNumericsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+    <PackageReference Include="System.Data.SQLite" Version="$(SystemDataSQLiteVersion)" />
+    <PackageReference Include="System.Linq.Dynamic.Core" Version="$(SystemLinqDynamicCoreVersion)" />
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+</Project>
+
+

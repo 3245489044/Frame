@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://csg-schema.org/v1/type-registry.json",
+  "title": "CSG Type Registry",
+  "description": "CSG 标准类型注册表 — 定义所有标准节点类型和边类型",
+  "type": "object",
+  "required": ["version", "nodeTypes", "edgeTypes"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "类型注册表版本",
+      "enum": ["1.0"]
+    },
+    "description": {
+      "type": "string",
+      "description": "类型注册表描述"
+    },
+    "nodeTypes": {
+      "type": "object",
+      "description": "节点类型定义（按领域分组）",
+      "required": ["core"],
+      "properties": {
+        "core": {
+          "type": "array",
+          "description": "Core 节点类型 — 所有领域通用的基础类型",
+          "items": { "$ref": "#/$defs/nodeTypeDefinition" },
+          "minItems": 1
+        },
+        "ui": {
+          "type": "array",
+          "description": "UI 领域节点类型",
+          "items": { "$ref": "#/$defs/nodeTypeDefinition" }
+        },
+        "database": {
+          "type": "array",
+          "description": "Database 领域节点类型",
+          "items": { "$ref": "#/$defs/nodeTypeDefinition" }
+        },
+        "ecs": {
+          "type": "array",
+          "description": "ECS 领域节点类型",
+          "items": { "$ref": "#/$defs/nodeTypeDefinition" }
+        }
+      },
+      "additionalProperties": {
+        "description": "其他领域的节点类型扩展"
+      }
+    },
+    "edgeTypes": {
+      "type": "object",
+      "description": "边类型定义（按领域分组）",
+      "required": ["core"],
+      "properties": {
+        "core": {
+          "type": "array",
+          "description": "Core 边类型 — 所有领域通用的基础类型",
+          "items": { "$ref": "#/$defs/edgeTypeDefinition" },
+          "minItems": 1
+        },
+        "ui": {
+          "type": "array",
+          "description": "UI 领域边类型",
+          "items": { "$ref": "#/$defs/edgeTypeDefinition" }
+        }
+      },
+      "additionalProperties": {
+        "description": "其他领域的边类型扩展"
+      }
+    },
+    "extensionRule": {
+      "type": "object",
+      "description": "自定义类型扩展规则",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "扩展规则说明"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "自定义类型命名模式",
+          "default": "x-{domain}-{name}"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nodeTypeDefinition": {
+      "type": "object",
+      "description": "节点类型定义",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "类型名称"
+        },
+        "description": {
+          "type": "string",
+          "description": "类型说明"
+        },
+        "projections": {
+          "type": "array",
+          "description": "适用的投影（C=配置, S=状态机, G=图）",
+          "items": {
+            "type": "string",
+            "enum": ["C", "S", "G"]
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "推荐的标准属性",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "description": { "type": "string" },
+              "default": {}
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "edgeTypeDefinition": {
+      "type": "object",
+      "description": "边类型定义",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "类型名称"
+        },
+        "description": {
+          "type": "string",
+          "description": "类型说明"
+        },
+        "projections": {
+          "type": "array",
+          "description": "适用的投影（C=配置, S=状态机, G=图）",
+          "items": {
+            "type": "string",
+            "enum": ["C", "S", "G"]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

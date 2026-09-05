@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="WorkFlowPrj Agent Runtime Framework panorama analysis: architecture positioning, Agent engine (Projects/Agent), execution framework (FileDriven + Share + Operation), feature analysis, storage model, industry comparison (Claude Code / CLine), and overall scoring. Static source analysis, line numbers verified.">
+<title>Agent Runtime Framework Panorama Analysis — Introduction / Architecture / Features</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --border:#e2e8f0; --text:#1f2937; --sub:#6b7280;
+  --accent:#2563eb; --accent-bg:#eff4ff; --good:#16a34a; --good-bg:#f0fdf4;
+  --warn:#b45309; --warn-bg:#fffbeb; --bad:#dc2626; --bad-bg:#fef2f2;
+  --teal:#0d9488; --teal-bg:#ccfbf1; --purple:#7c3aed; --purple-bg:#ede9fe;
+  --code-bg:#f1f5f9; --mono:"Consolas","JetBrains Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",-apple-system,"Helvetica Neue",sans-serif;line-height:1.7;font-size:14.5px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px 60px}
+
+/* Header */
+.header{background:linear-gradient(135deg,#0c2f5a 0%,#2563eb 55%,#7c3aed 100%);color:#fff;padding:52px 32px;border-radius:0 0 26px 26px;margin-bottom:34px}
+.header h1{font-size:26px;font-weight:700;margin-bottom:10px;letter-spacing:-0.3px}
+.header .subtitle{font-size:15px;opacity:.92;margin-bottom:18px}
+.header .meta{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;opacity:.85}
+.header .meta-item{display:flex;align-items:center;gap:6px}
+.header code{background:rgba(255,255,255,.18);color:#fff;padding:1px 7px;border-radius:4px}
+
+/* Nav */
+.nav{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);padding:10px 24px;z-index:100;display:flex;gap:6px;flex-wrap:wrap;font-size:13px;margin-bottom:8px}
+.nav a{color:var(--sub);text-decoration:none;padding:4px 11px;border-radius:7px;transition:all .18s;font-weight:500}
+.nav a:hover{background:var(--accent-bg);color:var(--accent)}
+
+/* Sections */
+h2{font-size:20px;margin:42px 0 6px;padding-bottom:10px;border-bottom:3px solid var(--accent);display:inline-block}
+.section-desc{color:var(--sub);font-size:13px;margin:4px 0 20px}
+h3{font-size:16px;margin:24px 0 10px;color:#111827}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+code{font-family:var(--mono);background:var(--code-bg);padding:1px 6px;border-radius:4px;font-size:12.8px;color:#0f172a}
+.fname{font-family:var(--mono);font-size:12.5px;background:var(--accent-bg);color:#1d4ed8;padding:1px 7px;border-radius:5px;white-space:nowrap}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
+.badge-blue{background:var(--accent-bg);color:var(--accent)}
+.badge-teal{background:var(--teal-bg);color:var(--teal)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+.badge-good{background:var(--good-bg);color:var(--good)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-bad{background:var(--bad-bg);color:var(--bad)}
+
+/* KPI */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:18px 0}
+.kpi .box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 14px;text-align:center;transition:transform .15s}
+.kpi .box:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(37,99,235,.08)}
+.kpi .num{font-size:26px;font-weight:800;color:var(--accent)}
+.kpi .lbl{font-size:12.5px;color:var(--sub);margin-top:4px}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#0c2f5a;color:#fff;padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap}
+td{border-bottom:1px solid var(--border);padding:9px 12px;vertical-align:top}
+tr:nth-child(even) td{background:#fafbfc}
+tr:hover td{background:var(--accent-bg)}
+.check{color:var(--good);font-weight:700}
+.cross{color:var(--bad);font-weight:700}
+.partial{color:var(--warn);font-weight:700}
+
+/* Flow / pre */
+pre{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;margin:12px 0;white-space:pre}
+pre .c{color:#64748b} pre .fn{color:#7dd3fc} pre .hl{color:#fbbf24} pre .ok{color:#4ade80} pre .red{color:#f87171}
+.flow{font-family:var(--mono);font-size:12.5px;background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px 18px;overflow-x:auto;line-height:1.55;margin:10px 0;white-space:pre}
+.flow .c{color:#64748b}.flow .fn{color:#7dd3fc}.flow .hl{color:#fbbf24}.flow .ok{color:#4ade80}
+
+/* Note */
+.note{background:var(--accent-bg);border-left:4px solid var(--accent);padding:11px 15px;border-radius:0 8px 8px 0;font-size:13.5px;margin:14px 0;color:#1e3a8a}
+.note-warn{background:var(--warn-bg);border-left-color:var(--warn);color:#7c4a12}
+.note-bad{background:var(--bad-bg);border-left-color:var(--bad);color:#991b1b}
+.note-good{background:var(--good-bg);border-left-color:var(--good);color:#14532d}
+
+/* Grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;padding:1px 10px;border-radius:20px;margin-right:6px;font-weight:600}
+.tag.good{background:var(--good-bg);color:var(--good)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.info{background:var(--accent-bg);color:var(--accent)}
+.tag.teal{background:var(--teal-bg);color:var(--teal)}
+.tag.purple{background:var(--purple-bg);color:var(--purple)}
+
+/* SVG */
+.svg-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px;margin:12px 0;overflow-x:auto}
+.svg-box svg{display:block;width:100%;height:auto;min-width:700px}
+
+/* Score */
+.score-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:13px}
+.score-label{width:150px;flex-shrink:0;color:var(--sub);text-align:right}
+.score-bar-container{flex:1;background:var(--border);border-radius:6px;height:22px;overflow:hidden}
+.score-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;min-width:34px}
+.score-bar.high{background:linear-gradient(90deg,#16a34a,#22c55e)}
+.score-bar.mid{background:linear-gradient(90deg,#d97706,#f59e0b)}
+.score-bar.low{background:linear-gradient(90deg,#dc2626,#ef4444)}
+.score-note{width:34px;flex-shrink:0;color:var(--sub);font-size:12px}
+
+/* Conclusion */
+.conclusion-box{background:linear-gradient(135deg,#0c2f5a,#2563eb);color:#fff;padding:28px 30px;border-radius:16px;margin:22px 0}
+.conclusion-box h3{color:#fff;font-size:19px;margin-bottom:14px}
+.conclusion-box p{opacity:.94;font-size:13.8px;margin-bottom:10px}
+.conclusion-box .score-line{font-size:14.5px;font-weight:700;margin-top:12px;color:#fde68a}
+
+.step-list{margin:8px 0 8px 4px;padding-left:22px}
+.step-list li{margin:6px 0}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--sub);font-size:12.5px;text-align:center}
+
+/* ---- Optimized additions ---- */
+:root{--nav-h:46px}
+h2[id],h3[id]{scroll-margin-top:calc(var(--nav-h) + 12px)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.nav a.active{background:var(--accent);color:#fff}
+.nav a.active:hover{background:var(--accent);color:#fff}
+
+/* Reading progress bar */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,#2563eb,#7c3aed);z-index:200;transition:width .08s linear}
+@media(prefers-reduced-motion:reduce){#progress{display:none}}
+
+/* Back to top */
+#toTop{position:fixed;right:22px;bottom:26px;width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:18px;box-shadow:0 6px 18px rgba(37,99,235,.35);opacity:0;visibility:hidden;transform:translateY(10px);transition:all .25s;z-index:150}
+#toTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#toTop:hover{background:#1d4ed8}
+#toTop:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(max-width:600px){#toTop{right:14px;bottom:18px;width:40px;height:40px}}
+
+/* Print */
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .nav,#toTop,#progress{display:none !important}
+  .header{background:#0c2f5a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card,.conclusion-box,.note{break-inside:avoid;box-shadow:none}
+  h2,h3{break-after:avoid}
+  .svg-box{overflow:visible}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="progress" role="presentation"></div>
+<button id="toTop" aria-label="Back to top">↑</button>
+
+<!-- ============ Header ============ -->
+<div class="header">
+  <h1>Agent Runtime Framework Panorama Analysis — Introduction · Architecture Deep-Dive · Feature Analysis</h1>
+  <div class="subtitle">The core is a <b>database &amp; task-snapshot state-driven LLM loop</b>, with <b>Cline / Claude orchestration calls running as sub-agents</b> inside it. Dissected through the AgentRuntimeUI console: the in-house Agent runtime (Projects/Agent) and the underlying architecture framework (FileDriven + Share + Operation)</div>
+  <div class="meta">
+    <div class="meta-item">Analysis date: 2026-08-22</div>
+    <div class="meta-item">Targets: <code>Projects/Agent</code> + <code>FileDriven</code> + <code>CsharpPrj(Share, Operation)</code></div>
+    <div class="meta-item">Method: static source-code analysis (line numbers verified)</div>
+    <div class="meta-item">Entry point: <code>AgentRuntimeUI.json</code> console</div>
+    <div class="meta-item">Cline / Claude: sub-agent backends (via <code>IAgentExecutor</code>) · also industry benchmarks (v3.8x / v2.1.x)</div>
+  </div>
+</div>
+
+<!-- ============ Nav ============ -->
+<div class="nav">
+  <a href="#s1">1 Positioning</a>
+  <a href="#s2">2 Agent Framework</a>
+  <a href="#s3">3 Architecture Framework</a>
+  <a href="#s4">4 Feature Analysis</a>
+  <a href="#s5">5 Call Chains</a>
+  <a href="#s6">6 Storage Model</a>
+  <a href="#s7">7 Evaluation</a>
+  <a href="#s8">8 Industry Comparison</a>
+  <a href="#s9">9 Conclusion</a>
+  <a href="#s10">10 Source Index</a>
+</div>
+
+<div class="wrap">
+
+<!-- ============ KPI ============ -->
+<div class="kpi">
+  <div class="box"><div class="num">17</div><div class="lbl">Function libraries (function-libraries.json)</div></div>
+  <div class="box"><div class="num">67</div><div class="lbl">Registered functions (5 Ui_* + 62 AgentUi_*)</div></div>
+  <div class="box"><div class="num">9</div><div class="lbl">Agent feature domains (task pool / conversation / run / LLM…)</div></div>
+  <div class="box"><div class="num">14</div><div class="lbl">RunJson top-level action branches</div></div>
+  <div class="box"><div class="num">2</div><div class="lbl">Scheduling modes (Hybrid/Config) + dual executors</div></div>
+  <div class="box"><div class="num">6</div><div class="lbl">Call-chain layers (JSON → kernel → write-back)</div></div>
+</div>
+
+<!-- ============ 1 Positioning ============ -->
+<h2 id="s1">1. Framework Positioning Overview</h2>
+<p class="section-desc">This system is a fully in-house, full-stack product stacking two layers: an "Agent runtime framework" and a "declarative UI/execution architecture framework"</p>
+
+<div class="card">
+<p><strong>One-line positioning</strong>: the Agent subsystem of WorkFlowPrj is a <b>configuration-centric, fully in-house desktop Agent runtime</b> — front-end rendering (JSON UI), command execution (ECS), function registration (registry), scheduling &amp; execution (AxiomLoop/task pool), storage (three-database convergence), and LLM routing (hot-reconfigurable) are all built in-house, all uniformly exposed through the declarative <code>AgentRuntimeUI.json</code> console. <b>Its defining loop is built on database + task-snapshot state</b> — every task <i>is</i> the running snapshot (a single <code>PayloadJson</code> in SQLite <code>ur_tasks</code>), and Cline / Claude coding agents are orchestrated as <b>sub-agents</b> inside that loop (detailed below).</p>
+<p style="margin-top:10px">The two layers each have their own responsibilities:</p>
+<ul class="step-list">
+<li><b>Agent framework layer (Projects/Agent)</b>: Agent.Core provides the run engine (AxiomLoop / task pool / boundaries / data streams), Agent.Launcher handles assembly and UI exposure (composition root + five libraries with 62 AgentUi_* functions). It <b>owns the business capabilities</b>.</li>
+<li><b>Architecture framework layer (FileDriven + Share + Operation)</b>: the JSON UI rendering pipeline, ECS, event-binding orchestration, the function registry, the InvocationKernel invocation kernel, the task-pool framework, the graph framework, and state management. It <b>owns the general-purpose execution substrate</b>.</li>
+</ul>
+</div>
+
+<div class="card">
+<span class="tag good">Core thesis</span><b>The LLM loop is a database + task-snapshot state machine — Cline / Claude are sub-agents inside it</b>
+<p style="margin-top:8px;font-size:13.5px">The central loop is <b>not a context-window conversation loop</b> but a <b>database / task-snapshot state machine</b>: every task <i>is</i> the running snapshot (<code>AgentTaskItem</code> implements <code>ITaskPoolItem + ILoopState + IAgentLoopState</code>), and the whole snapshot is persisted as a single <code>PayloadJson</code> row in SQLite <code>ur_tasks</code> — <b>task = snapshot, snapshot = task</b>, the single authoritative state root. The loop is therefore resumable, auditable and crash-safe by construction.</p>
+<div class="flow"><span class="fn">write ur_tasks</span> (EnqueueAsync)  <span class="c">// 写入即激活 — a write to the task table wakes the consumer loop</span>
+   └─ TaskPool entry state machine → TaskRouter (Hybrid→LLM / Config·Deterministic→zero-LLM)
+        └─ <span class="hl">SnapshotDrivenLoopEngine</span>: each round read snapshot → execute (five-step) → next (LLM+compute mutate state) → <span class="ok">write back PayloadJson</span>
+             └─ execute phase → <span class="hl">cline_execute</span> → <span class="fn">IAgentExecutor</span> (ClineAgentExecutor, name = cline / claude / sk)
+                  └─ <span class="c">Cline / Claude = sub-agents</span>: the framework (orchestrator / main agent) dispatches a coding sub-task per round and collects the result</div>
+<p style="font-size:13px;margin-top:10px"><b>Why this is the differentiator</b>: state lives in the <b>database</b>, not in the model's context window — Claude Code resumes from append-only JSONL session files, CLine from git checkpoints + SQLite, whereas this framework's state <i>is</i> the persisted task snapshot (Budget / Token / Flag / Round / LastEval + DataSpace + RecentTransitions). Write once → the AI loop is activated; read → it is resumable. <b>Cline and Claude are not peers of the loop — they are sub-agent execution backends the loop invokes</b> via the <code>IAgentExecutor</code> port whenever a round needs a coding agent.</p>
+</div>
+
+
+<div class="svg-box" id="panorama"></div>
+<div class="note"><b>How to read this diagram</b>: four vertical layers — at the top is the declarative console (the observation window); the two middle layers are the protagonists of this report (Agent framework layer = business; architecture framework layer = substrate); at the bottom is storage. Read horizontally: any button click travels from the top layer down to the bottom storage layer, then writes back to the UI.</div>
+
+<!-- ============ 2 Agent Framework ============ -->
+<h2 id="s2">2. The Agent Framework Itself (Projects/Agent)</h2>
+<p class="section-desc">Two core assemblies — Agent.Core (engine) and Agent.Launcher (assembly/exposure) — plus the Axioms axiom system and Guardrails</p>
+
+<h3>2.1 Project Composition</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Project</th><th>Responsibility</th><th>Key contents</th></tr></thead>
+<tbody>
+<tr><td><strong>Agent.Core</strong></td><td>Agent engine core (no UI dependencies)</td><td>Loops (AxiomLoop run engine), TaskPool (task pool + dual executors), Boundaries (boundary framework), DataStream (event streams), Orchestration (orchestrator), Prompts (prompt assembly), Workflow / DynamicWorkflow (workflow dynamic merging)</td></tr>
+<tr><td><strong>Agent.Launcher</strong></td><td>Assembly and external exposure (WinForms host)</td><td>Composition composition root (12 Hosting/Assembler components), Entries entry points (AgentHost / AgentLauncher / AxiomAgentLauncher), Modules five libraries (62 AgentUi_* functions)</td></tr>
+<tr><td><strong>Agent.Axioms + Axioms.Generator</strong></td><td>Axiom system</td><td>Axioms/L0/L1/L2 layered axioms; a source generator compiles axiom declarations into code</td></tr>
+<tr><td><strong>Agent.Guardrails</strong></td><td>Guardrails / safety</td><td>Rule-based interception working with Core.Boundaries</td></tr>
+<tr><td><strong>Agent.Contract / Agent.Calculate</strong></td><td>Contracts and calculation</td><td>Cross-module shared DTOs/contracts; calculation capabilities</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>2.2 Agent.Core Core Domains (Engine Layer)</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag info">Loops</span><b>Run Engine</b>
+<ul class="step-list">
+<li><code>AgentRunner</code> (:54) — AxiomLoop main driver: PreRound → RunRound → PostRound lifecycle (:207/:265/:292)</li>
+<li><code>DecisionPoint / RoundLoopDriver / RuleEngine</code> — loop decision points and rule engine</li>
+<li>Dual scheduling: <code>SchedulingMode.Hybrid</code> (LLM director) / <code>Config</code> (ConfigStateDirector hot-reads ur_config, :445)</li>
+<li>State root = the task snapshot: <code>AgentRunner.PersistRuntimeAsync</code> writes the whole <code>PayloadJson</code> back to <code>ur_tasks</code> at each round boundary (<code>AgentTaskItem</code> implements <code>ILoopState</code>); Cline/Claude run as sub-agents via <code>cline_execute</code> → <code>IAgentExecutor</code></li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">TaskPool</span><b>Task Pool</b>
+<ul class="step-list">
+<li><code>AgentTaskPoolAdapter</code> (:32) — pool facade, doubling as IConversationStore</li>
+<li>Dual executors: <code>LlmTaskExecutor</code> (reaches the LLM via AgentOrchestrator) / <code>RuleTaskExecutor</code> (zero LLM, WirePauseGate cooperative suspension)</li>
+<li>TaskRouter routing decision (:107/:119-120): needs LLM → Llm / zero LLM → Rule</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">Orchestration</span><b>Orchestrator</b>
+<ul class="step-list">
+<li><code>AgentOrchestrator</code> (:33) — RegisterModule (:145) / RegisterAgentExecutor (:151) / RunAsync overloads (:233-255)</li>
+<li>P3 "configuration as data rows": hot-reads ur_config every round; editing a row takes effect immediately (:60/:284)</li>
+<li>FunctionRegistrar + LoopConfigHotReload + WorkflowAsyncFunctionHelper</li>
+</ul>
+</div>
+</div>
+<div class="grid3">
+<div class="card">
+<span class="tag teal">Boundaries</span><b>Boundary Framework</b>
+<ul class="step-list">
+<li>DefaultBoundaryFramework / LogicalBoundaryEvaluator / NoopBoundaryFramework</li>
+<li>ReactiveBoundaryTrigger / ProactiveBoundaryTrigger — pre/post-round hooks (PreRound/PostRound)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">DataStream</span><b>Event Streams</b>
+<ul class="step-list">
+<li>EventSink / ReactiveTrigger / ReactiveZoneBridge — reactive bridging of data streams</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">Prompts</span><b>Prompt Assembly</b>
+<ul class="step-list">
+<li>PromptFrameworkFunction / PromptRequestComposer / PromptAssemblyContext / IPromptComposer</li>
+</ul>
+</div>
+</div>
+
+<h3>2.3 Agent.Launcher: Assembly, Entry Points, and Exposure</h3>
+<div class="grid2">
+<div class="card">
+<span class="tag info">Composition root</span>
+<p style="font-size:13.5px;margin-bottom:8px">12 assembly components build the Agent runtime by lifecycle:</p>
+<div class="table-wrap">
+<table>
+<tr><th>Component</th><th>Responsibility</th></tr>
+<tr><td><code>AgentFramework.cs</code> (:30)</td><td>Composition-root facade: RuntimeModule (:55) / DatabaseModule (:58) / RegisterModule (:212) / MaxProgress / DefaultTimeout (:183/:186)</td></tr>
+<tr><td><code>LlmHosting.cs</code></td><td>LLM gateway: :46 Configure registers clients per provider; :70 assembles the unified routing proxy; :89 LlmRoutingClient + LlmMode.LocalOnly runtime switch</td></tr>
+<tr><td><code>TaskPoolHosting.cs</code></td><td>Task pool assembly: injects ReferenceGrounding, wraps WriteThroughTaskPoolStore</td></tr>
+<tr><td><code>DataStoreHosting.cs</code></td><td>Data storage assembly: SQLite bootstrap + graph store + storage bridge</td></tr>
+<tr><td><code>ConversationHosting.cs</code></td><td>Conversation service assembly ("a task is a conversation")</td></tr>
+<tr><td><code>DatabaseBootstrapper / GlobalGateHosting / AgentOptionalModules</code></td><td>DB bootstrap / global gates / optional modules</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">Modules: five libraries + Entries</span>
+<p style="font-size:13.5px;margin-bottom:8px"><b>Five business libraries + the <code>GetFunctions</code> facade register 62 <code>AgentUi_*</code> functions</b> (plus 5 <code>Ui_*</code> template-catalog functions = 67 registered functions in total; AgentUiLibrary.cs registration orchestration + GetFunctions introspection :22):</p>
+<div class="table-wrap">
+<table>
+<tr><th>Library</th><th>Functions</th><th>Capabilities covered</th></tr>
+<tr><td><span class="fname">AgentUiLibraryRuntime</span></td><td>20</td><td>RunJson dispatch, local testing (LocalTestSet/CallLog), LLM configuration, TaskScope task scoping</td></tr>
+<tr><td><span class="fname">AgentUiLibraryData</span></td><td>23</td><td>node / resource / reference / query data read-write (idempotent upsert into ur_nodes)</td></tr>
+<tr><td><span class="fname">AgentUiLibraryTaskPool</span></td><td>10</td><td>Task pool lifecycle (enqueue/status/delete/pause/resume/cancel/processPending)</td></tr>
+<tr><td><span class="fname">AgentUiLibraryDb</span></td><td>3</td><td>Database overview / Markdown table rendering / font-size application</td></tr>
+<tr><td><span class="fname">AgentUiLibraryConversation</span></td><td>5</td><td>Conversations: List / New / Send / History / State</td></tr>
+</table>
+<p style="font-size:12.5px;color:var(--sub);margin-top:8px">The five business libraries above sum to <b>61</b> <code>AgentUi_*</code> functions; <code>AgentUiLibrary.GetFunctions</code> (+1) brings the AgentUi_* total to <b>62</b>, and the 5 <code>Ui_*</code> functions (UiCatalogLibrary) make <b>67</b> registered functions overall.</p>
+</div>
+<p style="font-size:13.5px"><b>Entries</b>: <code>AgentHost.RunAsync</code> (:15 static) → AxiomLoopResult; AgentLauncher / AxiomAgentLauncher dual launchers; AgentUiHost (:94 ReferenceGrounding slot / :107 AttachReferenceGrounding / :114/:142 single-graph-owner assertion).</p>
+</div>
+</div>
+
+<!-- ============ 3 Architecture Framework ============ -->
+<h2 id="s3">3. The Architecture Framework Itself (FileDriven + Share + Operation)</h2>
+<p class="section-desc">The general-purpose execution substrate the Agent framework runs on: a six-layer call chain + six core mechanisms</p>
+
+<h3>3.1 Six-Layer Call Chain Architecture</h3>
+<div class="card">
+<div class="flow"><span class="c">┌──────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="c">│</span> L0  JSON UI configuration (AgentRuntimeUI.json): declares forms/controls/events/initCommands <span class="c">│</span>
+<span class="c">│</span> L1  Process entry FrameworkInitializer (:27 FailFast · :95 loads 17 libraries, autoDiscover=false) <span class="c">│</span>
+<span class="c">│</span> L2  Rendering pipeline ScopeLifecycleAdapter: EcsGate atomic render → triple checks → initCommands<span class="c">│</span>
+<span class="c">│</span> L3  Unified function facade EventPlatform.InvokeFunctionAsync → FunctionCallFacade          <span class="c">│</span>
+<span class="c">│</span> L4  Invocation kernel InvocationKernel (:17): budget/cancel/failure classification/stage snapshots (:52-56)<span class="c">│</span>
+<span class="c">│</span> L5  Registered delegates → implementation libraries (Ui_* → FrontEndDriven / AgentUi_* → Agent.Launcher)<span class="c">│</span>
+<span class="c">│</span> L6  Result write-back WriteInitOutput (:338) / output binding → physical controls (UI-thread marshal)<span class="c">│</span>
+<span class="c">└──────────────────────────────────────────────────────────────────────────────┘</span></div>
+</div>
+
+<h3>3.2 Architecture Framework Composition (capability matrix of CsharpPrj/Share + Operation)</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Component</th><th>Location</th><th>Responsibility</th><th>How the Agent runtime consumes it</th></tr></thead>
+<tbody>
+<tr><td><strong>ECS architecture</strong></td><td>Operation/FrontEndDriven</td><td>Commands = entities, state = components, systems process; snapshot-diff projection</td><td>JSON control declarations → ECS entities → EventBindingSystem physical wiring</td></tr>
+<tr><td><strong>Event-binding orchestration</strong></td><td>Share/EventBindingOrchestrator + FileDriven.Execution/Lifecycle</td><td>WinFormsEventBus + EventBindingOrchestrator map physical events to the function facade</td><td>Button Click → ECS event chain → function call</td></tr>
+<tr><td><strong>Function registry</strong></td><td>FileDriven/DrivenConfig/Configs/function-libraries.json</td><td>Single registration manifest for 17 libraries; autoDiscover=false explicit loading; FailFast</td><td>AgentUiLibrary / UiCatalogLibrary / RuleMatchFunction etc. are registered here</td></tr>
+<tr><td><strong>Invocation kernel</strong></td><td>Share/EventBindingOrchestrator/Invocation/InvocationKernel.cs</td><td>Sole owner of budget/timeout/cancellation/failure classification/observability; stage snapshots Dispatch→FunctionStart→FunctionEnd</td><td>All AgentUi_* / Ui_* calls pass through it</td></tr>
+<tr><td><strong>Task pool framework</strong></td><td>Share/TaskStatusPool</td><td>Generic TaskPool&lt;TItem,TResult&gt;: writes ur_tasks + wakes the consumer loop + TaskStateChanged</td><td>AgentTaskPoolAdapter wraps it (AgentTaskPool.cs:32)</td></tr>
+<tr><td><strong>Graph framework</strong></td><td>Share/GraphFramework + Share/UniversalReference</td><td>LiteDB graph store (endpoints + pure edges), reference semantics</td><td>ReferenceGraphCoordinator / ReferenceGrounding write edges</td></tr>
+<tr><td><strong>State management</strong></td><td>Share/StateManagement + Operation/StateHoldDriven</td><td>StateCenter facade + StorageCell + transactions + subscriptions</td><td>Conversation state, runtime state reads</td></tr>
+<tr><td><strong>Generic middleware / facades</strong></td><td>Share/UniversalMiddleware + Share/ScopeFramework</td><td>Cross-cutting pipeline + scope framework</td><td>TaskScope multi-level scope wrapping</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>3.3 Key Architectural Mechanisms (Six Design Axioms)</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag good">Axiom 1</span><b>Star convergence</b>
+<p style="font-size:13px">All entry points (buttons / initCommands / script exec / external ports) converge into a single kernel <code>InvocationKernel.ExecuteAsync</code> — uniform behavior, observable.</p>
+</div>
+<div class="card">
+<span class="tag good">Axiom 2</span><b>SingleImplementation</b>
+<p style="font-size:13px">ScopeCommandTranslator (AgentUiLibraryRuntime.cs:533-592) translates high-level commands into a single JSON of existing actions and still goes through RunJsonAsync — never generates ad-hoc mechanical code.</p>
+</div>
+<div class="card">
+<span class="tag good">Axiom 3</span><b>Configuration as data rows</b>
+<p style="font-size:13px">The P3 port hot-reads ur_config every round (AgentOrchestrator.cs:284); editing a row takes effect immediately; missing keys keep current values, avoiding conflicts with composition-root overrides.</p>
+</div>
+<div class="card">
+<span class="tag good">Axiom 4</span><b>Diagnosable failures</b>
+<p style="font-size:13px">FailFast + classified failures (function error / absolute timeout / idle suspension / lost signal) + stage snapshot attached to timeouts (:171) + unknown actions return diagnostic text (:415).</p>
+</div>
+<div class="card">
+<span class="tag good">Axiom 5</span><b>Single authority, rebuildable projections</b>
+<p style="font-size:13px">Entities live in SQL (ur_nodes/ur_tasks); the graph store (LiteDB) is a rebuildable projection of SQL (graph.rebuild/diff); single-graph-owner assertion prevents fragmentation (AgentUiHost.cs:114/:142).</p>
+</div>
+<div class="card">
+<span class="tag good">Axiom 6</span><b>Declarative triggering</b>
+<p style="font-size:13px">References/relations are declarative: a task→node edge is only created when the request body carries relatedNodes; enqueue does not auto-create edges, avoiding graph jitter.</p>
+</div>
+</div>
+
+<!-- ============ 4 Feature Analysis ============ -->
+<h2 id="s4">4. Implemented Feature Analysis</h2>
+<p class="section-desc">Approached from the 9 major feature domains operable in the console, dissecting each domain: "what it can do → what the entry point is → where it lands"</p>
+
+<h3>4.1 Feature Domain Overview</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>#</th><th>Feature domain</th><th>What it can do</th><th>Entry point (function/action)</th><th>Landing point</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Task pool system</b></td><td>Task enqueue/status query/delete/pause/resume/cancel/process backlog; dual executors (LLM vs zero-LLM rules) with automatic routing</td><td><code>action=task</code> + <span class="fname">AgentUi_TaskPool*</span> (10 functions)</td><td>ur_tasks + consumer loop</td></tr>
+<tr><td>2</td><td><b>Conversation system</b></td><td>"A task is a conversation": create/send/history/state/persist conversations; HTML bubble rendering</td><td><span class="fname">AgentUi_Conversation*</span> (5 functions)</td><td>Conversation workflow + ur_tasks</td></tr>
+<tr><td>3</td><td><b>Run engine</b></td><td>Single run (runLoop): two scheduling modes — Hybrid (LLM director) / Config (rule director, zero LLM)</td><td><code>action=runLoop</code></td><td>fw.Runtime.RunAsync (AxiomLoop)</td></tr>
+<tr><td>4</td><td><b>LLM routing &amp; hot reconfiguration</b></td><td>Provider registration (local/deepseek/custom); local testing with zero network; hot-switch LLM config at runtime and persist</td><td><code>action=config</code> + <span class="fname">AgentUi_SetLlmConfigJson</span></td><td>LlmMode gateway + agent-config.json</td></tr>
+<tr><td>5</td><td><b>Local integration testing</b></td><td>LocalOnly mode + CallLog replay + introspection (AgentUi_GetFunctions); deterministic LLM backend supports assertions</td><td><span class="fname">AgentUi_LocalTestSet / GetLocalTestCallLog</span></td><td>LlmMode.LocalOnly + CallLog</td></tr>
+<tr><td>6</td><td><b>Node data read/write</b></td><td>Nodes (output/input/resource/config/event/checkpoint…) idempotent upsert / delete</td><td><code>action=node</code></td><td>ur_nodes (SQLite)</td></tr>
+<tr><td>7</td><td><b>Reference graph system</b></td><td>Resource endpoint registration; task→node / node↔node reference edges; relations declarative relations; graph rebuild/diff reports</td><td><code>action=resource.* / reference.* / relations.* / graph.*</code></td><td>LiteDB ur_endpoints + ur_references + in-memory hot adjacency</td></tr>
+<tr><td>8</td><td><b>Unified read-only queries</b></td><td>Full read-only access to outputs/inputs/events/sessions/config/checkpoints/resources/snapshot/taskList/taskStatus</td><td><code>action=query</code></td><td>Read-only projections over multiple stores</td></tr>
+<tr><td>9</td><td><b>Templates &amp; task scoping</b></td><td>Template tree (folders = categories) loaded into the request body; TaskScope auto-expands high-level commands into multi-step single JSON</td><td><span class="fname">Ui_*</span> (5 functions) + <span class="fname">AgentUi_TaskScope*</span></td><td>Templates/AgentRun/** + reuse of existing actions</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>4.2 Key Feature Deep-Dives</h3>
+
+<div class="card">
+<span class="tag info">Feature 1</span><b>Task Pool System — dual-executor automatic routing</b>
+<div class="flow"><span class="fn">TaskPoolEnqueueAsync</span> (AgentUiLibraryTaskPool.cs:209)
+  ├─ Enqueue guards (empty input / reject same taskKey while in flight) → build AgentTaskItem → SeedStrategyDefaults
+  ├─ pool.EnqueueAsync → write ur_tasks + wake consumer loop + TaskStateChanged event
+  └─ On consumption, TaskRouter routes (AgentTaskPool.cs:107/:119-120):
+       ├─ needs LLM → <span class="fn">LlmTaskExecutor</span> (AgentOrchestrator.RunAsync reaches the LLM call gate)
+       └─ zero LLM → <span class="fn">RuleTaskExecutor</span> (WirePauseGate injects an in-pool pause gate,
+                   cooperative suspension at loop boundaries; no matching rule or missing ur_config → set Faulted, RuleTaskExecutor.cs:72)
+  ├─ Request body carries relatedNodes → write-through guard ReconcileTaskAsync auto-creates task→node reference edges
+  └─ Full pool operation set: Pause / PauseAll / Resume / ResumeAll / Cancel / ProcessPending / GetStatus / Delete</div>
+<p style="font-size:13px;color:var(--sub)">Design highlight: the <b>"needs LLM vs zero LLM" routing decision</b> lets background tasks run entirely on rules without any LLM — a key capability for cost-sensitive scenarios; combined with the mode=Config rule director (ConfigStateDirector hot-reads ur_config), the task pool has "edit a row, take effect" dynamic behavior.</p>
+</div>
+
+<div class="card">
+<span class="tag info">Feature 2</span><b>Conversation System — "a task is a conversation"</b>
+<p>Conversations and tasks share one entity model: <code>AgentUi_ConversationSend</code> enqueues a message as a task to advance the conversation; the conversation workflow produces an HTML bubble rendered back to the UI at each round boundary. The conversation lifecycle is complete (List/New/Send/History/State) and connects to task-pool storage via <code>AgentTaskPoolAdapter : IConversationStore</code> (AgentTaskPool.cs:32) — a conversation is a task, a task is a conversation, no duplicate state.</p>
+</div>
+
+<div class="card">
+<span class="tag info">Feature 3</span><b>Run Engine — dual scheduling modes</b>
+<div class="flow"><span class="fn">RunJsonAsync</span> action=runLoop → <span class="fn">RunLoopAsync</span> (AgentUiLibraryRuntime.cs:83)
+  └─ SchedulingMode (ResolveModeOrError validates &amp; normalizes, :244):
+       ├─ <span class="hl">Hybrid</span>: LLM director — the LLM decides the next step every round (ReAct style)
+       └─ <span class="hl">Config</span>: rule director — ConfigStateDirector (AgentRunner.cs:445) hot-reads ur_config,
+                     driven by rule sets, <b>zero LLM network calls</b>
+  └─ AgentRunner lifecycle: PreRound (boundary hooks) → RunRound (workflow execution)
+       → PostRound (boundary hooks) → FinalizeRun (AgentRunner.cs:207/:265/:292/:403)</div>
+</div>
+
+<div class="card">
+<span class="tag info">Feature 4</span><b>LLM Routing &amp; Hot Reconfiguration</b>
+<div class="flow"><span class="fn">LlmHosting.Configure</span> (LlmHosting.cs:46)
+  ├─ Assembly time, registers clients per provider: <span class="hl">local</span> (no network / no credentials) / deepseek / custom
+  ├─ :70 assembles the unified gateway routing proxy LlmRoutingClient (:89) — every ILlmClient consumer gets the same proxy
+  └─ Runtime switch: <span class="fn">LlmMode.LocalOnly</span> one-click switch to local (local integration test mode);
+       if default backend resolution fails, the routing proxy falls back to local (:81)
+Hot reconfiguration at runtime: action=config → <span class="fn">SetLlmConfigJsonAsync</span> (:411) → hot-swap routing + persist agent-config.json
+(AgentUi_SetLlmConfigJson registered at :661)</div>
+</div>
+
+<div class="card">
+<span class="tag info">Feature 5</span><b>Reference Graph System — write-through guard + rebuildable projection</b>
+
+<div class="flow"><span class="fn">ReferenceGrounding.ReconcileTaskAsync</span> (ReferenceGrounding.cs:100)
+  └─ The facade only orchestrates, never writes edges → <span class="fn">ReferenceGraphCoordinator</span> (sole edge writer, :423)
+       ├─ ① AddResourceAsync(taskId) registers the task endpoint (ur_endpoints)
+       ├─ ② AddResourceAsync(nodeId) × N registers the related node endpoints
+       └─ ③ AddReferenceAsync(task→node) delete-then-add idempotent edge write (ur_references)
+  └─ Guard not assembled → auto-skip (nullable-guard design); assembly-time single-graph-owner assertion (prevents graph-store fragmentation)
+Storage bridge fallback: WriteThroughTaskPoolStore automatically mirrors a task graph endpoint on any enqueue path (no edge created,
+  avoiding graph jitter from high-frequency state changes) — full reference edges must be declared explicitly via relatedNodes in the request body</div>
+</div>
+
+<div class="card">
+<span class="tag info">Feature 6</span><b>Declarative Workflow Skeleton — the loop body is a RoundSpec, not LLM improvisation</b>
+<div class="flow">RoundSpecLoader loads <span class="fname">Config/workflows/agent-loop.json</span> (or <span class="fname">collect-analyze-act.json</span> for conversation) → <span class="hl">WorkflowRunner</span> executes one round by the declared steps
+   └─ RoundSpec = declarative steps + port contract (InputPorts/OutputPorts) + GlobalKeyMapping (no state inside; runtime state externalized to StateCenter)
+   └─ DefaultRoundSpec (agent-round): guard_input → provide_prompt(L0/L1/L2) → cline_execute → rule_match(zero-LLM); guard_output attached at stop
+   └─ Conversation template collect-analyze-act: cline_execute(collect) → answer(analyze) → cline_execute(act)
+   └─ RoundStepInvoker: "all logic centers on the workflow node" — each step → AgentNode (storage + execution unit),
+        KeyMapping resolves params from data space + other nodes' output ports; result persisted as a node output port (ur_nodes NodeType=output)
+   └─ RoundStateMapper: Seed (HFSM lease slice → data space) ⇄ Harvest (data space → AxiomContext.Data / task snapshot)
+   └─ DynamicWorkflowMerger: merge arbitrary runtime fragments (process / condition / loop / parallel) into a WorkflowFragment</div>
+<p style="font-size:13px;color:var(--sub)">LLM is invoked only at <code>provide_prompt</code> and <code>cline_execute</code>; routing (<code>rule_match</code>: Done/Error/Retry → Terminate/Switch/Retry/Continue) is fully deterministic, zero-LLM. Workflow nodes are the storage unit — outputs write back to ur_nodes (node output ports); swapping the template file changes the whole loop body with zero engine changes.</p>
+</div>
+
+
+<!-- ============ 5 Call Chains ============ -->
+<h2 id="s5">5. Function Call Chains (Console Perspective)</h2>
+<p class="section-desc">From the "Run" button to the 14-branch dispatch, and the initCommands dual-mode resolution</p>
+
+<div class="card">
+<span class="tag info">RunJson dispatch</span>
+<div class="flow">[Run] click → <span class="fn">AgentUi_RunJson</span> → <span class="fn">RunJsonAsync</span> (:223, switch :238)
+  ├─ <span class="hl">runLoop</span>     → RunLoopAsync → AxiomLoop (Hybrid LLM director / Config rule director)
+  ├─ <span class="hl">task</span>        → Enqueue / SetStatus / Delete / Submit (four states, write ur_tasks)
+  ├─ <span class="hl">node</span>        → WriteNodeAsync / DeleteNodeAsync (idempotent upsert into ur_nodes)
+  ├─ <span class="hl">resource.*</span> → Add / Get / Remove / ListResources (graph endpoints)
+  ├─ <span class="hl">reference.*</span>→ Add / Remove / ListReferences (reference edge five fields)
+  ├─ <span class="hl">query</span>       → QueryDataTextAsync (unified read-only)
+  ├─ <span class="hl">relations.*</span> → Declare / Undeclare / List (declarative relations)
+  ├─ <span class="hl">graph.*</span>     → Rebuild / Status / Diff (graph projection governance)
+  └─ <span class="hl">config</span>       → SetLlmConfigJson (LLM hot reconfiguration)
+       unknown action → "(unknown action) … allowed: …" diagnostic text (:415, no crash)</div>
+<div class="table-wrap">
+<table>
+<thead><tr><th>action</th><th>Leaf branches</th><th>Implementation</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td><code>runLoop</code></td><td>—</td><td><span class="fname">RunLoopAsync</span> (:83)</td><td>AxiomLoop director loop; strongly-typed mode validation (:244)</td></tr>
+<tr><td><code>task</code></td><td>enqueue / status / delete / submit</td><td><span class="fname">TaskPoolEnqueueAsync</span> (AgentUiLibraryTaskPool.cs:209) etc.</td><td>Task pool four states; enqueue auto-creates references via the write-through guard</td></tr>
+<tr><td><code>node</code></td><td>—</td><td><span class="fname">WriteNodeAsync / DeleteNodeAsync</span></td><td>Direct writes to ur_nodes; NodeType discriminates output/input/resource/config/event/checkpoint…</td></tr>
+<tr><td><code>resource.*</code></td><td>add / get / remove / list</td><td><span class="fname">AddResourceAsync</span> etc.</td><td>Graph endpoint registration; missing resourceType/id pre-validation (:428)</td></tr>
+<tr><td><code>reference.*</code></td><td>add / remove / list</td><td><span class="fname">AddReferenceAsync</span> etc.</td><td>Reference edge five fields; RefEdgeError pre-validation (:432)</td></tr>
+<tr><td><code>query</code></td><td>—</td><td><span class="fname">QueryDataTextAsync</span> (:361)</td><td>outputs/inputs/events/sessions/config/checkpoints/resources/snapshot/taskList…</td></tr>
+<tr><td><code>relations.*</code></td><td>declare / undeclare / list</td><td>—</td><td>Writes NodeType=relation + guard-derived edges</td></tr>
+<tr><td><code>graph.*</code></td><td>rebuild / status / diff</td><td>—</td><td>LiteDB graph store = rebuildable SQL projection: rebuild converges idempotently, diff reports drift</td></tr>
+<tr><td><code>config</code></td><td>—</td><td><span class="fname">SetLlmConfigJsonAsync</span> (:411)</td><td>LLM routing hot reconfiguration + persist agent-config.json</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<span class="tag info">initCommands dual-mode resolution</span>
+<div class="flow"><span class="fn">exec Ui_ListCatalogTree output=templateListView</span> / <span class="fn">exec AgentUi_ConversationList output=sessionSelectorComboBox</span>
+  ├─ ExecuteInitCommandsAsync (ScopeLifecycleAdapter.cs:214) → ExecuteInitExecAsync (:251)
+  │    ├─ Parse symbol + output= + named parameters → InvokeFunctionAsync
+  │    └─ On success, WriteInitOutput explicitly writes back (:275, historical fix: output= was once discarded)
+  └─ On failure, falls back to ExecuteInitWorkflowAsync (:263/:281) — function-first, then workflow, dual-mode resolution</div>
+<div class="note-warn note"><b>Migration-period compatibility</b>: the :137 comment "falls back to legacy initCommands when lifecycle.onAfterLoad is not declared" — initCommands → lifecycle.onAfterLoad dual support coexists; behavior carries historical baggage.</div>
+</div>
+
+<!-- ============ 6 Storage Model ============ -->
+<h2 id="s6">6. Storage: The Three-Database Convergence Model</h2>
+<p class="section-desc">Entities in SQL, relations in LiteDB, in-session graphs in memory — single authority, rebuildable projections</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag info">Division of labor</span>
+<div class="table-wrap">
+<table>
+<tr><th>Store</th><th>Engine</th><th>Role</th><th>Write entry</th></tr>
+<tr><td><code>ur_nodes</code> base node store</td><td>SQLite</td><td>Node = unit of storage (output/input/resource/config…)</td><td>action=node (idempotent upsert)</td></tr>
+<tr><td><code>ur_tasks</code> state collection</td><td>SQLite</td><td>Task = state root (enqueue/status/delete)</td><td>action=task</td></tr>
+<tr><td><code>graph</code> graph store</td><td>LiteDB</td><td>Relation projection, fully rebuildable from the SQL authority (rebuild)</td><td><span class="fname">ReferenceGrounding</span> sole guard</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">Data landing points</span>
+<div class="table-wrap">
+<table>
+<tr><th>Store</th><th>Collection/table</th><th>Contents</th><th>Writer</th></tr>
+<tr><td>SQLite</td><td>ur_tasks</td><td>Task entities (TaskKey/state/PayloadJson)</td><td>TaskPool.EnqueueAsync</td></tr>
+<tr><td>SQLite</td><td>ur_nodes</td><td>Business node entities</td><td>WriteNodeAsync</td></tr>
+<tr><td>LiteDB</td><td>ur_endpoints</td><td>Endpoint symbols/metadata (task / wf.node mirrors)</td><td>ReferenceGraphCoordinator.AddResourceAsync</td></tr>
+<tr><td>LiteDB</td><td>ur_references</td><td>Pure reference edges (task→node / node↔node)</td><td>AddReferenceAsync (delete-then-add idempotent)</td></tr>
+<tr><td>Memory</td><td>Hot adjacency CoreGraph</td><td>In-session graph view (read by UI/orchestrator)</td><td>AddEdge (rebuilt from edge documents)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<div class="note-good note"><b>Architectural highlight</b>: the graph store is a "rebuildable projection"; the authority lives in SQL — <code>graph.rebuild</code> converges idempotently, <code>graph.diff</code> reports drift; <code>AttachReferenceGrounding</code> (AgentUiHost.cs:107) with the single-graph-owner assertion (:114/:142) prevents two coordinators reading/writing split stores.</div>
+
+<!-- ============ 7 Evaluation ============ -->
+<h2 id="s7">7. Objective Framework Evaluation</h2>
+<p class="section-desc">Strengths and weaknesses observed from the source code (not marketing copy)</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag good">Strength 1</span><b>Thoroughly configuration-driven, convention over configuration</b>
+<ul class="step-list">
+<li>UI, function registration, LLM routing, and test scripts are all JSON-ized; the template directory uses "folders = categories" zero-hard-code discovery — new capabilities need no code changes.</li>
+<li>A single request body + action-discriminated dispatch converges 20+ operations; ScopeCommandTranslator reuses existing actions instead of generating mechanical code.</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">Strength 2</span><b>Engine layer and exposure layer cleanly separated</b>
+<ul class="step-list">
+<li>Agent.Core (engine, no UI dependencies) and Agent.Launcher (assembly/exposure) are strictly layered; 67 functions split across the five Runtime/Data/TaskPool/Db/Conversation libraries.</li>
+<li>Clear boundaries for the Loops/TaskPool/Boundaries/Orchestration core domains; 12 composition-root components each with a single responsibility.</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">Strength 3</span><b>Diagnosable failures, never silent</b>
+<ul class="step-list">
+<li>FailFast + classified failures (function error / absolute timeout / idle suspension / lost signal) + stage snapshots on timeout (Dispatch:12ms|FunctionStart:100ms…, :171).</li>
+<li>Unknown actions / un-assembled guards / no matching rule all produce explicit diagnostic text or degradation (RuleTaskExecutor.cs:72).</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag good">Strength 4</span><b>Cost-sensitive design (dual executors + dual scheduling)</b>
+<ul class="step-list">
+<li>"Needs LLM vs zero LLM" TaskRouter routing + mode=Config rule director: background tasks can run entirely on rules without any LLM — controllable cost.</li>
+<li>Local deterministic LLM backend + CallLog replay + AgentUi_GetFunctions introspection: a complete testing system.</li>
+</ul>
+</div>
+</div>
+
+<div class="grid2">
+<div class="card">
+<span class="tag bad">Weakness 1</span><b>Complexity is the biggest cost</b>
+<ul class="step-list">
+<li>One button click = physical event → ECS bus → parameter binding → facade → kernel → AEF scheduler → adapter → execution service → registered delegate, 9+ hops.</li>
+<li>Six stacked mechanisms — ECS + event bus + command framework + pipeline skeleton + state machine + DI — make onboarding extremely expensive.</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">Weakness 2</span><b>Parallel paths and legacy compatibility coexist</b>
+<ul class="step-list">
+<li>"Dual-path command execution" (ECS main path vs Router bypass), "initCommands → lifecycle.onAfterLoad migration-period dual support", "function-first-then-workflow fallback" — behavior has nondeterminism.</li>
+<li>MatrixEventSink "never registered", Router "ExecuteSingle fallback in use" — redundant code still present.</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">Weakness 3</span><b>String coupling, no compile-time protection</b>
+<ul class="step-list">
+<li>Function names, control names, action/op/nodeType — large volumes of strings flow between JSON and code; renames/typos only surface at runtime (dependent on test coverage).</li>
+<li>Rendering side effects still rely on a function-name mapping table (AffinityOverrides); a comment admits it is an interim scheme, a "TODO migrate to registry metadata".</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag bad">Weakness 4</span><b>Dependency surface &amp; observability</b>
+<ul class="step-list">
+<li>17 function libraries span 5+ assemblies (FileDriven → Share → Operation + Agent.Launcher + Agent.Core + Operation.StateBlock); long build/debug chains.</li>
+<li>Logging is scattered across facades as loose string IDs (execution_log / launcher_log_messages / fde_log_messages); no unified structured collection.</li>
+</ul>
+</div>
+</div>
+
+<!-- ============ 8 Industry Comparison ============ -->
+<h2 id="s8">8. Industry Comparison: Claude Code and CLine</h2>
+<p class="section-desc">Claude Code and CLine play <b>two roles</b>: first, <b>sub-agent execution backends embedded in this framework's database/task-snapshot-driven loop</b> (invoked per coding round via <code>cline_execute</code> → <code>IAgentExecutor</code>); second, industry benchmarks — a dimension-by-dimension comparison (configuration-driven platform school) locating similarities, differences, and directions worth borrowing</p>
+
+<h3>8.1 Comparison Targets at a Glance</h3>
+<div class="grid3">
+<div class="card">
+<span class="tag purple">This framework</span><b>WorkFlowPrj Agent Runtime</b>
+<ul class="step-list">
+<li><b>Form</b>: fully in-house desktop stack (WinForms + declarative JSON UI console)</li>
+<li><b>Loop</b>: <b>database/task-snapshot state machine</b> — AxiomLoop dual scheduling (Hybrid LLM director / Config rule director); each round reads the persisted <code>ur_tasks</code> snapshot → execute → next → writes back <code>PayloadJson</code></li>
+<li><b>Philosophy</b>: <b>configuration-centric, star convergence</b> — platform-oriented, determinism first, hot-reconfigurable</li>
+<li><b>Unique points</b>: TaskRouter "needs LLM vs zero LLM" routing; three-database convergent storage (SQL authority + graph projection); <b>Cline / Claude run as sub-agents</b> (<code>cline_execute</code> → <code>IAgentExecutor</code>, name = cline / claude / sk)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">Claude Code</span><b>Anthropic's terminal Agent</b>
+<ul class="step-list">
+<li><b>Form</b>: native terminal CLI (TS implementation, 510K+ lines); one agent loop drives CLI / IDE plugin / SDK</li>
+<li><b>Loop</b>: minimal <code>while(tool_call)</code> main loop — <b>no classifiers, no routers, no DAG, no RAG</b>; the model decides everything</li>
+<li><b>Philosophy</b>: <b>"Less scaffolding, more model"</b> — trust model reasoning instead of building orchestration systems</li>
+<li><b>Unique points</b>: 8 core tools cover 90% of scenarios; five-stage 200K-context compaction pipeline; MCP tool lazy-loading (55K→8.7K tokens)</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag teal">CLine</span><b>Open-source VS Code Agent (formerly Claude Dev)</b>
+<ul class="step-list">
+<li><b>Form</b>: VS Code / JetBrains / CLI multi-host (2026-05 extracted into the layered <code>@cline/sdk</code>: shared→llms→agents→core)</li>
+<li><b>Loop</b>: recursive request loop + <b>Plan / Act dual mode</b> (planning on a cheap reasoning model, execution on a strong model — can differ)</li>
+<li><b>Philosophy</b>: <b>Human-in-the-loop augmentation</b> — every state-changing action passes an approval gate; AI augments rather than replaces human judgment</li>
+<li><b>Unique points</b>: git hidden-branch checkpoints (files roll back but the conversation is preserved); BYOK 40+ providers; MCP Marketplace 150+</li>
+</ul>
+</div>
+</div>
+
+<h3>8.2 Ten-Dimension Architecture Comparison Matrix</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Dimension</th><th>This framework (WorkFlowPrj)</th><th>Claude Code</th><th>CLine</th></tr></thead>
+<tbody>
+<tr><td><b>Agent loop</b></td><td>AxiomLoop: PreRound→RunRound→PostRound lifecycle + dual-scheduling director (LLM / rules)</td><td><code>while(tool_call)</code> single loop driven by stop_reason (tool_use/end_turn/max_tokens)</td><td>Recursive request loop: build prompt → stream call → parse → approve → execute → feed back, until attempt_completion</td></tr>
+<tr><td><b>Tool/function system</b></td><td>Registry of 67 functions (five libraries) + declarative <code>function-libraries.json</code> registration, single request-body action dispatch</td><td>8 core tools (Bash/Read/Edit/Write/Grep/Glob/Agent/TodoWrite) + MCP, tool definitions lazily loaded</td><td>20+ built-in tools (incl. ask_followup_question / attempt_completion / condense) + MCP Market 150+</td></tr>
+<tr><td><b>LLM routing</b></td><td>Provider registration (local/deepseek/custom) + unified routing proxy + <b>runtime hot reconfiguration with persistence</b></td><td>Claude-family only + per-task model selection (can switch Opus/Sonnet/Haiku mid-session)</td><td><b>BYOK</b>: 40+ providers (Anthropic/OpenAI/Gemini/Ollama…); Plan/Act can use different models</td></tr>
+<tr><td><b>Zero-LLM path</b></td><td><span class="check">✔</span> RuleTaskExecutor + Config rule director (hot-reads ur_config); tasks can run entirely without an LLM</td><td><span class="cross">✘</span> None — the loop depends heavily on model reasoning</td><td><span class="cross">✘</span> None — cannot run without an LLM</td></tr>
+<tr><td><b>Context management</b></td><td>TaskScope multi-step expansion + conversation state management (lightweight; no compaction pipeline observed)</td><td>200K budget + <b>five-stage compaction pipeline</b> (~92% auto-compact) + sub-agent context isolation</td><td><code>condense</code> summary compaction + <code>focus_chain</code> structured progress persisted across compaction</td></tr>
+<tr><td><b>Human-in-the-loop / approval</b></td><td>Declarative UI console driven by manual operations; FailFast diagnostics (no fine-grained permission modes)</td><td><b>7 permission modes</b> (plan→…→bypass) + 4 security layers + ML-classifier auto mode + Hook interception</td><td>Explicit approval for every state-changing action + <b>diff review</b> (inline edits to proposals possible) + optional YOLO mode</td></tr>
+<tr><td><b>Task decomposition / sub-agents</b></td><td>Task pool (writes ur_tasks + consumer loop) + TaskRouter dual executors; TaskScope command expansion; <b>Cline / Claude embedded as sub-agents</b> (cline_execute → IAgentExecutor)</td><td>Task tool spawns sub-agents (<b>depth=1</b> prevents recursive blowup, only summaries flow back); Agent Teams (experimental)</td><td><code>new_task</code> hierarchical decomposition + sub-agents (v3.58, independent context windows) — native multi-agent</td></tr>
+<tr><td><b>State storage</b></td><td><b>SQLite authority</b> (ur_nodes/ur_tasks) + LiteDB graph projection (rebuildable) + in-memory hot graph — <b>the task snapshot IS the loop state root</b> (a single PayloadJson per task)</td><td>Append-only session files (JSONL, restored via <code>--continue/--resume</code>)</td><td>SQLite (better-sqlite3 synchronous transactions) + <b>git hidden-branch checkpoints</b></td></tr>
+<tr><td><b>Failure recovery / observability</b></td><td>Classified failures + stage snapshots (Dispatch→Start→End) + unknown-action diagnostic text</td><td>Hook auditing (PreToolUse/PostToolUse) + session replay + fork_session branching</td><td>Checkpoint recovery (<b>files roll back, conversation preserved</b> → smart retry) + real-time cost tracking</td></tr>
+<tr><td><b>Extension mechanisms</b></td><td>Function registry (JSON declaration) + template tree with zero-hard-code discovery</td><td><b>MCP + plugins + skills + hooks, four channels</b>; MCP tool-search lazy-loading saves 85% tokens</td><td>MCP (stdio/SSE/HTTP multi-transport) + plugin system + custom provider registration</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>8.3 The Three Loop Shapes Side by Side</h3>
+<div class="svg-box">
+<svg viewBox="0 0 1080 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+<defs>
+<marker id="arrC" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- Panel 1: This framework -->
+<g><rect x="10" y="10" width="345" height="310" rx="12" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.6"/>
+<text x="182" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#3C3489">This framework: AxiomLoop (dual director)</text>
+<rect x="28" y="48" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="69" text-anchor="middle" font-size="10.5" fill="#3C3489">PreRound (boundary hooks)</text>
+<rect x="28" y="96" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="117" text-anchor="middle" font-size="10.5" fill="#3C3489">RunRound (workflow execution)</text>
+<rect x="28" y="144" width="180" height="34" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="165" text-anchor="middle" font-size="10.5" fill="#3C3489">PostRound (boundary hooks)</text>
+<path d="M118 82 L118 96 M118 130 L118 144" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<path d="M118 178 L118 196" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="28" y="198" width="180" height="56" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="118" y="218" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3C3489">Director decision (each round)</text>
+<text x="118" y="234" text-anchor="middle" font-size="10" fill="#7C3AED">Hybrid: LLM decides next step</text>
+<text x="118" y="248" text-anchor="middle" font-size="10" fill="#0F6E56">Config: hot-reads ur_config rules</text>
+<rect x="222" y="48" width="120" height="90" rx="8" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="282" y="68" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3C3489">TaskRouter</text>
+<text x="282" y="86" text-anchor="middle" font-size="10" fill="#7C3AED">needs LLM → Llm</text>
+<text x="282" y="102" text-anchor="middle" font-size="10" fill="#0F6E56">zero LLM → Rule</text>
+<text x="282" y="120" text-anchor="middle" font-size="9.5" fill="#888780">(WirePauseGate</text>
+<text x="282" y="132" text-anchor="middle" font-size="9.5" fill="#888780">cooperative suspend)</text>
+<path d="M208 116 L222 100" stroke="#888780" stroke-width="1" marker-end="url(#arrC)"/>
+<text x="182" y="286" text-anchor="middle" font-size="10" fill="#534AB7">Deterministic platform school: edit a config row, take effect</text>
+<text x="182" y="304" text-anchor="middle" font-size="10" fill="#534AB7">Can run rules entirely without an LLM</text>
+<text x="182" y="322" text-anchor="middle" font-size="9" fill="#534AB7">write-back PayloadJson → ur_tasks (state root) · cline_execute → IAgentExecutor (Cline/Claude as sub-agents)</text></g>
+
+<!-- Panel 2: Claude Code -->
+<g><rect x="370" y="10" width="345" height="310" rx="12" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.6"/>
+<text x="542" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#0C447C">Claude Code: while(tool_call)</text>
+<rect x="388" y="48" width="140" height="34" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="458" y="69" text-anchor="middle" font-size="10.5" fill="#0C447C">User prompt</text>
+<rect x="548" y="48" width="150" height="34" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="623" y="69" text-anchor="middle" font-size="10.5" fill="#0C447C">Claude reasoning (no routing)</text>
+<path d="M528 65 L548 65" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="388" y="104" width="310" height="42" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="543" y="121" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0C447C">stop_reason check</text>
+<text x="543" y="137" text-anchor="middle" font-size="10" fill="#185FA5">tool_use → execute | end_turn → done | max_tokens → compact</text>
+<path d="M623 82 L623 104" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="388" y="164" width="310" height="46" rx="8" fill="#fff" stroke="#185FA5" stroke-width="0.5"/>
+<text x="543" y="182" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0C447C">Tool execution (8 core + MCP lazy-loading)</text>
+<text x="543" y="198" text-anchor="middle" font-size="10" fill="#185FA5">Bash · Read · Edit · Write · Grep · Glob · Agent(sub-agent) · Todo</text>
+<path d="M543 146 L543 164" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<path d="M388 187 L368 187 L368 65 L388 65" stroke="#888780" stroke-width="1.2" fill="none" marker-end="url(#arrC)"/>
+<text x="362" y="130" text-anchor="end" font-size="9.5" fill="#888780">results fed back · loop</text>
+<text x="542" y="240" text-anchor="middle" font-size="10" fill="#185FA5">Seven permission modes + four security layers + Hook interception</text>
+<text x="542" y="258" text-anchor="middle" font-size="10" fill="#185FA5">200K context: five-stage compaction + sub-agent isolation (depth=1)</text>
+<text x="542" y="286" text-anchor="middle" font-size="10" fill="#0C447C">Minimalist model school: the model decides everything</text>
+<text x="542" y="304" text-anchor="middle" font-size="10" fill="#0C447C">"Less scaffolding, more model"</text></g>
+
+<!-- Panel 3: CLine -->
+<g><rect x="730" y="10" width="345" height="310" rx="12" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+<text x="902" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#085041">CLine: recursive loop + Plan/Act</text>
+<rect x="748" y="48" width="310" height="34" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="69" text-anchor="middle" font-size="10.5" fill="#085041">User task (@file/@url context injection + .clinerules)</text>
+<path d="M903 82 L903 96" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="748" y="98" width="148" height="52" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="822" y="118" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">Plan mode</text>
+<text x="822" y="133" text-anchor="middle" font-size="9.5" fill="#0F6E56">read-only exploration · cheap reasoning model</text>
+<rect x="910" y="98" width="148" height="52" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="984" y="118" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">Act mode</text>
+<text x="984" y="133" text-anchor="middle" font-size="9.5" fill="#0F6E56">executes changes · strong model (can differ)</text>
+<path d="M896 124 L910 124 M910 138 L896 138" stroke="#888780" stroke-width="1" marker-end="url(#arrC)"/>
+<rect x="748" y="166" width="310" height="46" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="184" text-anchor="middle" font-size="10.5" font-weight="600" fill="#085041">Approval gate (every state-changing action)</text>
+<text x="903" y="200" text-anchor="middle" font-size="10" fill="#0F6E56">diff review with inline edits · read-only ops auto-approved · YOLO can opt out</text>
+<path d="M903 150 L903 166" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<rect x="748" y="228" width="310" height="34" rx="8" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="903" y="249" text-anchor="middle" font-size="10.5" fill="#085041">Execute → feed back → attempt_completion / condense compaction</text>
+<path d="M903 212 L903 228" stroke="#888780" stroke-width="1.2" marker-end="url(#arrC)"/>
+<text x="902" y="286" text-anchor="middle" font-size="10" fill="#0F6E56">git hidden-branch checkpoints: files roll back · conversation preserved</text>
+<text x="902" y="304" text-anchor="middle" font-size="10" fill="#085041">Approval-augmented school: trust but verify</text></g>
+</svg>
+</div>
+
+<h3>8.4 Design Philosophy Spectrum</h3>
+<div class="card">
+<p style="font-size:13.5px;margin-bottom:10px">The three occupy different positions on two axes — <b>who makes decisions</b> and <b>execution trust level</b> — forming three archetypal shapes of an Agent runtime:</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Philosophy axis</th><th>This framework (WorkFlowPrj)</th><th>Claude Code</th><th>CLine</th></tr></thead>
+<tbody>
+<tr><td><b>Decision ownership</b></td><td><span class="partial">◆ Config/rules first</span> — the rule director can take over everything; the LLM is an optional enhancement (Hybrid mode)</td><td><span class="partial">◆ Model first</span> — no hand-crafted heuristics; model reasoning is the router; rules only as safety guardrails</td><td><span class="partial">◆ Human-machine co-decision</span> — the model proposes, humans approve each step; even mode switches need user confirmation</td></tr>
+<tr><td><b>Execution trust</b></td><td>Console manually triggered + FailFast fail-fast (aimed at developer self-use)</td><td>Graduated trust: 7 permission modes from plan to bypass; ML classifier auto-adjudicates</td><td>Zero trust by default: full approval gates; YOLO mode is an explicit exemption</td></tr>
+<tr><td><b>Abstraction orientation</b></td><td><b>Heavy orchestration</b>: ECS + event bus + invocation kernel + task pool; star convergence trades for determinism</td><td><b>Light orchestration</b>: one while loop + surrounding systems (permissions/compaction/extensions)</td><td><b>Medium orchestration</b>: loop + Controller orchestration + approval/checkpoint surroundings</td></tr>
+<tr><td><b>Ecosystem strategy</b></td><td>Private function registry (17 in-house libraries, no MCP)</td><td>Open protocol (MCP as first-class citizen + plugins/skills/hooks)</td><td>Open protocol + marketplace (MCP Marketplace, one-click install of 150+)</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<h3>8.5 Differentiation Insights and Directions Worth Borrowing</h3>
+<div class="grid2">
+<div class="card">
+<span class="tag good">Differentiated strengths of this framework</span>
+<ul class="step-list">
+<li><b>The zero-LLM execution path is unique among the three</b>: TaskRouter dual executors + Config rule director let background tasks run entirely on rules without any LLM — both Claude Code's and CLine's loops depend heavily on the model; neither has this cost escape hatch.</li>
+<li><b>Graph storage is a unique capability</b>: the LiteDB reference-graph projection (rebuildable, diff-governed) goes beyond both — Claude Code only appends session files, CLine only has SQLite + git checkpoints; neither has relational-graph semantics.</li>
+<li><b>Finer-grained config hot-reloading</b>: P3 "configuration as data rows" hot-reads ur_config every round — more immediate than Claude Code's settings reload or CLine's settings panel.</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag warn">Worth borrowing from Claude Code</span>
+<ul class="step-list">
+<li><b>Context compaction pipeline</b>: five-stage compaction + 92% auto-compact + sub-agent context isolation — no systematic context budget management was observed in this framework; long sessions/long tasks will be a weak point.</li>
+<li><b>MCP ecosystem access</b>: the lazy-loading scheme saves 85% of tool-definition tokens; this framework's 17-library private registry could consider bridging the MCP standard to reuse the community's 150+ tools.</li>
+<li><b>Sub-agent isolation pattern</b>: depth=1 + summaries-only flow-back protects the main context — can be combined with this framework's task pool (a task as a sub-agent).</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag warn">Worth borrowing from CLine</span>
+<ul class="step-list">
+<li><b>Checkpoint recovery</b>: git hidden-branch snapshots + the "files roll back, conversation preserved" combination enables smart retries after failure instead of blind repetition — the task pool's Faulted state could adopt a similar mechanism.</li>
+<li><b>Diff approval UI</b>: show the diff before write operations and allow inline edits to proposals — friendlier than plain FailFast.</li>
+<li><b>Plan/Act split across models</b>: plan with a cheap reasoning model, execute with a strong model — same root idea as this framework's dual executors; the two can stack (rule director ≈ zero-cost Plan).</li>
+</ul>
+</div>
+<div class="card">
+<span class="tag info">Shared trends</span>
+<ul class="step-list">
+<li><b>Simple loop + strong surroundings</b> is the consensus: none of the three core loops is complex (while / recursion / AxiomLoop); the engineering weight sits in permissions, context, extensions, recovery, and other surrounding systems.</li>
+<li><b>Standard-protocol extension</b> (MCP) has become the industry direction; private-registry ecosystems face long-term island risks.</li>
+<li><b>State persistence and session resumability</b> (--resume / checkpoints / ur_tasks) — all three converge on the same destination; this framework's SQLite task state root is the most complete persistence design of the three.</li>
+</ul>
+</div>
+</div>
+
+<div class="note"><b>Data sources</b>: Claude Code is based on the official engineering blog and community reverse-engineering analyses (v2.1.x, verified 2026-02); CLine is based on the official blog, SDK docs, and source analyses (v3.8x / @cline/sdk 2026-05). The comparison relies on public architecture material, not line-by-line source verification.</div>
+
+<!-- ============ 9 Conclusion ============ -->
+<h2 id="s9">9. Overall Scoring and Conclusion</h2>
+<p class="section-desc">Subjective five-dimension scores (personal opinion, for architecture-review reference)</p>
+
+<div class="card">
+<div class="score-row"><span class="score-label">Architecture design</span><div class="score-bar-container"><div class="score-bar high" style="width:80%">8.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Engineering quality</span><div class="score-bar-container"><div class="score-bar high" style="width:90%">9.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Feature completeness</span><div class="score-bar-container"><div class="score-bar high" style="width:82%">8.2</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Maintainability</span><div class="score-bar-container"><div class="score-bar mid" style="width:70%">7.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Usability</span><div class="score-bar-container"><div class="score-bar low" style="width:50%">5.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Complexity control</span><div class="score-bar-container"><div class="score-bar mid" style="width:60%">6.0</div></div><span class="score-note">10</span></div>
+<div class="score-row"><span class="score-label">Weighted overall</span><div class="score-bar-container"><div class="score-bar mid" style="width:72%">7.2</div></div><span class="score-note">10</span></div>
+</div>
+
+<div class="conclusion-box">
+<h3>Overall Conclusion</h3>
+<p><b>Characterization</b>: this is a <b>configuration-centric, fully in-house desktop Agent runtime</b> whose engineering maturity is notably above the typical internal framework. The strict layering of Agent.Core (engine) and Agent.Launcher (exposure), the cost-sensitive dual-executor/dual-scheduling design, the FailFast + classified-failure diagnostics, and the three-database convergent storage model are all artifacts "polished by real pitfalls" (e.g., the initCommands output=-discarded bug was fixed with a dual landing of "comment + explicit write-back").</p>
+<p><b>Capability panorama</b>: task pool (dual executors), conversations (a task is a conversation), AxiomLoop (dual scheduling), LLM hot reconfiguration, local integration testing, node data, reference graph, unified queries, template system — 9 major feature domains with 67 registered functions in total, all exposed via declarative JSON, composable and reusable.</p>
+<p><b>Cost</b>: the complexity brought by many abstraction layers and multiply-converging execution paths makes it <b>better suited as a core platform for long-term evolution than for small teams needing quick onboarding</b>. "Star convergence" guarantees uniform behavior, but any mid-layer defect (e.g., a lost signal) manifests as a "hang with no error and no log".</p>
+<p><b>Industry positioning</b> (Cline / Claude as sub-agents, then as benchmarks): the loop is a <b>database/task-snapshot state machine</b> whose state root is the persisted ur_tasks snapshot (PayloadJson); Cline and Claude are <b>sub-agent execution backends</b> it orchestrates (cline_execute → IAgentExecutor). As industry archetypes it takes the "<b>configuration-driven platform school</b>" route — forming three archetypes together with Claude Code's "minimalist model school" (a while loop + the model decides everything) and CLine's "approval-augmented school" (per-step diff approval + checkpoint recovery). <b>The zero-LLM dual executors and the rebuildable reference graph are differentiated capabilities unique among the three</b>; the relative gaps are the context-compaction pipeline, the MCP open ecosystem, and diff-approval interaction (see Chapter 8).</p>
+<p class="score-line">Weighted overall 7.2 / 10 — the architecture merits long-term investment; recommended priorities (informed by the industry comparison): context-compaction pipeline (learn Claude Code's five-stage compaction), MCP ecosystem bridging (reuse the community's 150+ tools), task checkpoint recovery (learn CLine's "files roll back, conversation preserved"), call-chain trace visualization, and compile-time validation of function names/actions.</p>
+</div>
+
+<!-- ============ 10 Source Index ============ -->
+<h2 id="s10">10. Key Source Index</h2>
+<p class="section-desc">The paths and line numbers below were verified during this analysis</p>
+
+<div class="grid2">
+<div class="card">
+<span class="tag info">Agent engine (Agent.Core)</span>
+<div class="table-wrap">
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>Agent.Core/Loops/AgentRunner.cs</code> (:54)</td><td>AxiomLoop main driver; PreRound/RunRound/PostRound (:207/:265/:292); ConfigStateDirector (:445)</td></tr>
+<tr><td><code>Agent.Core/Orchestration/AgentOrchestrator.cs</code> (:33)</td><td>Orchestrator; RegisterModule (:145) / RegisterAgentExecutor (:151) / RunAsync overloads (:233-255); P3 hot-reads ur_config (:284)</td></tr>
+<tr><td><code>Agent.Core/TaskPool/AgentTaskPool.cs</code> (:32)</td><td>Pool facade (doubles as IConversationStore); TaskRouter routing (:107/:119-120)</td></tr>
+<tr><td><code>Agent.Core/TaskPool/LlmTaskExecutor.cs / RuleTaskExecutor.cs</code></td><td>Dual executors: LLM path / zero-LLM rules (WirePauseGate suspension; :72 sets Faulted when no rule)</td></tr>
+<tr><td><code>Agent.Core/Loops/RuleEngine.cs / DecisionPoint.cs</code></td><td>Rule engine and decision points</td></tr>
+<tr><td><code>Agent.Core/Boundaries/*</code></td><td>Boundary framework (PreRound/PostRound hooks, LogicalBoundaryEvaluator)</td></tr>
+<tr><td><code>Agent.Orchestration/StepExecution/RoundSpec.cs / RoundSpecLoader.cs</code></td><td>Declarative round skeleton (steps + port contract + GlobalKeyMapping); loads Config/workflows/agent-loop.json with built-in fallback</td></tr>
+<tr><td><code>Agent.Orchestration/StepExecution/WorkflowRunner.cs / RoundStepInvoker.cs / RoundStateMapper.cs</code></td><td>One-round runner; step→node executor (KeyMapping + node output port → ur_nodes); cross-round Seed/Harvest state mapping</td></tr>
+<tr><td><code>Agent.Core/DynamicWorkflow/DynamicWorkflowMerger.cs</code></td><td>Dynamic workflow fragment merge/execution (FragmentNode process/condition/loop/parallel)</td></tr>
+<tr><td><code>Projects/Agent/Config/workflows/agent-loop.json · collect-analyze-act.json</code></td><td>Main-loop linear chain (guard_input→provide_prompt→cline_execute→rule_match) and conversation template (collect→analyze→act)</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">Assembly &amp; exposure (Agent.Launcher)</span>
+<div class="table-wrap">
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>Composition/AgentFramework.cs</code> (:30)</td><td>Composition-root facade: RuntimeModule (:55) / DatabaseModule (:58) / RegisterModule (:212)</td></tr>
+<tr><td><code>Composition/LlmHosting.cs</code> (:46/:70/:89)</td><td>LLM gateway: provider registration + unified routing proxy + LocalOnly runtime switch</td></tr>
+<tr><td><code>Composition/TaskPoolHosting.cs / DataStoreHosting.cs / ConversationHosting.cs</code></td><td>Task pool / storage / conversation assembly</td></tr>
+<tr><td><code>Entries/AgentHost.cs</code> (:15)</td><td>Static entry: RunAsync → AxiomLoopResult</td></tr>
+<tr><td><code>Modules/AgentUiLibrary*.cs</code> (6 function-bearing files)</td><td>62 AgentUi_* registrations (Runtime 20 / Data 23 / TaskPool 10 / Db 3 / Conversation 5 + GetFunctions) + 5 Ui_* = 67 total</td></tr>
+<tr><td><code>Modules/AgentUiHost.cs</code> (:94/:107/:114/:142)</td><td>Host slot + single-graph-owner assertion</td></tr>
+</table>
+</div>
+</div>
+<div class="card">
+<span class="tag info">Architecture framework (FileDriven + Share + Operation)</span>
+<div class="table-wrap">
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>FileDriven.Execution/Initial/FrameworkInitializer.cs</code> (:14/:27/:95-96)</td><td>Composition root: FailFast + explicit loading of 17 libraries</td></tr>
+<tr><td><code>FileDriven.Execution/Lifecycle/EventBindingInitializer.cs</code></td><td>Event-binding orchestration (WinFormsEventBus + EventBindingOrchestrator)</td></tr>
+<tr><td><code>Operation/FrontEndDriven/State/Projection/ScopeLifecycleAdapter.cs</code> (:137/:214/:251/:263/:338)</td><td>Rendering lifecycle + initCommands dual-mode execution</td></tr>
+<tr><td><code>Operation/FrontEndDriven/Lifecycle/EventPlatform.cs</code></td><td>Unified function-call facade (IEventPlatform)</td></tr>
+<tr><td><code>Share/EventBindingOrchestrator/Invocation/InvocationKernel.cs</code> (:17/:52-56/:171)</td><td>Invocation kernel: budget/cancellation/failure classification/stage snapshots</td></tr>
+<tr><td><code>Operation/FrontEndDriven/UiCatalogLibrary.cs</code> (5 functions)</td><td>Template-catalog Ui_* functions</td></tr>
+<tr><td><code>Operation/DataStoreDriven/Core/ReferenceGrounding.cs</code> + <code>Graph/ReferenceGraphCoordinator.cs</code></td><td>Reference guard (facade) + sole edge-writing coordinator</td></tr>
+<tr><td><code>Operation/DataStoreDriven/Core/WriteThroughTaskPoolStore.cs</code></td><td>Storage bridge: auto-mirrors task graph endpoints on any enqueue path</td></tr>
+<tr><td><code>Share/TaskStatusPool/TaskPool/TaskPool.cs</code></td><td>Generic task pool: writes ur_tasks + wakes the consumer loop</td></tr>
+<tr><td><code>FileDriven/DrivenConfig/Configs/function-libraries.json</code></td><td>Single registration manifest for 17 libraries (autoDiscover=false)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<footer>Generated by WorkBuddy · Based on static source-code analysis (line numbers verified 2026-08-22) · Industry comparison based on public material for Claude Code (v2.1.x) and CLine (v3.8x / SDK 2026-05) · Scores are personal objective opinions, for architecture-review reference</footer>
+</div>
+
+<script>
+const PANORAMA = `<svg viewBox="0 0 760 700" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+<defs>
+<marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- L0 UI -->
+<g><rect x="150" y="12" width="460" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380" y="32" text-anchor="middle" font-size="14" font-weight="600" fill="#0C447C">Observation window: AgentRuntimeUI console (WinForms)</text>
+<text x="380" y="52" text-anchor="middle" font-size="11" fill="#185FA5">Left: unified input (template tree + request body + Run) · Right: Task Pool / Docs / Database / Main Dialog</text></g>
+<path d="M380 68 L380 100" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L1 Agent framework layer -->
+<g><rect x="30" y="100" width="700" height="216" rx="14" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.6"/>
+<text x="48" y="124" font-size="13.5" font-weight="700" fill="#3C3489">Agent framework layer (Projects/Agent) — owns the business capabilities</text>
+
+<rect x="46" y="136" width="330" height="166" rx="10" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="211" y="156" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3C3489">Agent.Core (engine, no UI dependencies)</text>
+<text x="211" y="178" text-anchor="middle" font-size="11" fill="#534AB7">Loops: AgentRunner · DecisionPoint · RuleEngine</text>
+<text x="211" y="196" text-anchor="middle" font-size="11" fill="#534AB7">TaskPool: LlmTaskExecutor / RuleTaskExecutor</text>
+<text x="211" y="214" text-anchor="middle" font-size="11" fill="#534AB7">Orchestration: AgentOrchestrator · FunctionRegistrar</text>
+<text x="211" y="232" text-anchor="middle" font-size="11" fill="#534AB7">Boundaries · DataStream · Prompts · Workflow</text>
+<text x="211" y="254" text-anchor="middle" font-size="10.5" fill="#888780">P3 config as data rows: hot-reads ur_config every round</text>
+<text x="211" y="270" text-anchor="middle" font-size="10.5" fill="#888780">Dual scheduling: Hybrid (LLM) / Config (rule director)</text>
+<text x="211" y="288" text-anchor="middle" font-size="10.5" fill="#888780">TaskRouter: needs-LLM vs zero-LLM routing decision</text>
+
+<rect x="390" y="136" width="326" height="166" rx="10" fill="#fff" stroke="#534AB7" stroke-width="0.5"/>
+<text x="553" y="156" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3C3489">Agent.Launcher (assembly + UI exposure)</text>
+<text x="553" y="178" text-anchor="middle" font-size="11" fill="#534AB7">Composition root (12 components): AgentFramework</text>
+<text x="553" y="196" text-anchor="middle" font-size="11" fill="#534AB7">LlmHosting · TaskPoolHosting · DataStoreHosting</text>
+<text x="553" y="214" text-anchor="middle" font-size="11" fill="#534AB7">ConversationHosting · DatabaseBootstrapper</text>
+<text x="553" y="232" text-anchor="middle" font-size="11" fill="#534AB7">Entries: AgentHost · AgentLauncher · AxiomAgentLauncher</text>
+<text x="553" y="252" text-anchor="middle" font-size="10.5" fill="#0F6E56">Modules five libraries: Runtime(20) · Data(23)</text>
+<text x="553" y="268" text-anchor="middle" font-size="10.5" fill="#0F6E56">TaskPool(10) · Db(3) · Conversation(5)</text>
+<text x="553" y="286" text-anchor="middle" font-size="10.5" fill="#888780">AgentUiHost slot + single-graph-owner assertion</text></g>
+<path d="M380 316 L380 348" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L2 Architecture framework layer -->
+<g><rect x="30" y="348" width="700" height="196" rx="14" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+<text x="48" y="372" font-size="13.5" font-weight="700" fill="#085041">Architecture framework layer (FileDriven + CsharpPrj/Share + Operation) — general-purpose execution substrate</text>
+
+<rect x="46" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="152" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">Rendering pipeline (FrontEndDriven)</text>
+<text x="152" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">EcsGate atomic render → triple-check validation</text>
+<text x="152" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">ScopeLifecycleAdapter lifecycle</text>
+<text x="152" y="458" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventBindingSystem physical wiring</text>
+<text x="152" y="476" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventPlatform unified function facade</text>
+<text x="152" y="494" text-anchor="middle" font-size="10.5" fill="#888780">UiCatalogLibrary (template catalog)</text>
+<text x="152" y="512" text-anchor="middle" font-size="10.5" fill="#888780">"folders = categories", zero hard-coding</text>
+
+<rect x="274" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="380" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">Execution kernel (Share)</text>
+<text x="380" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">★ InvocationKernel star-convergence point</text>
+<text x="380" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">Budget / cancellation / failure classification / observability</text>
+<text x="380" y="456" text-anchor="middle" font-size="10.5" fill="#0F6E56">Stage snapshots Dispatch→Start→End</text>
+<text x="380" y="474" text-anchor="middle" font-size="10.5" fill="#0F6E56">TaskPool generic task-pool framework</text>
+<text x="380" y="492" text-anchor="middle" font-size="10.5" fill="#888780">StateManagement · GraphFramework</text>
+<text x="380" y="510" text-anchor="middle" font-size="10.5" fill="#888780">UniversalReference · event bus</text>
+
+<rect x="502" y="384" width="212" height="146" rx="10" fill="#fff" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="608" y="404" text-anchor="middle" font-size="12" font-weight="600" fill="#085041">Registration &amp; startup (FileDriven)</text>
+<text x="608" y="424" text-anchor="middle" font-size="10.5" fill="#0F6E56">function-libraries.json: 17 libraries</text>
+<text x="608" y="440" text-anchor="middle" font-size="10.5" fill="#0F6E56">autoDiscover=false explicit loading</text>
+<text x="608" y="458" text-anchor="middle" font-size="10.5" fill="#0F6E56">FrameworkInitializer FailFast</text>
+<text x="608" y="476" text-anchor="middle" font-size="10.5" fill="#0F6E56">EventBindingInitializer</text>
+<text x="608" y="494" text-anchor="middle" font-size="10.5" fill="#888780">DataStoreDriven storage driver</text>
+<text x="608" y="512" text-anchor="middle" font-size="10.5" fill="#888780">ReferenceGrounding guard</text></g>
+<path d="M380 544 L380 572" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+<!-- L3 Storage -->
+<g><rect x="70" y="572" width="620" height="84" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="380" y="593" text-anchor="middle" font-size="13" font-weight="600" fill="#712B13">Storage layer: three-database convergence model</text>
+<text x="160" y="618" text-anchor="middle" font-size="11" fill="#993C1D">SQLite ur_nodes (node entities)</text>
+<text x="160" y="636" text-anchor="middle" font-size="11" fill="#993C1D">SQLite ur_tasks (task state root)</text>
+<text x="380" y="618" text-anchor="middle" font-size="11" fill="#993C1D">LiteDB ur_endpoints + ur_references (graph projection)</text>
+<text x="380" y="636" text-anchor="middle" font-size="10.5" fill="#888780">Authority in SQL · graph.rebuild can rebuild · diff reports drift</text>
+<text x="600" y="618" text-anchor="middle" font-size="11" fill="#993C1D">In-memory hot adjacency CoreGraph (in-session graph)</text>
+<text x="600" y="636" text-anchor="middle" font-size="10.5" fill="#888780">Read view for UI / orchestrator</text></g>
+</svg>`;
+
+document.getElementById('panorama').innerHTML = PANORAMA;
+</script>
+
+<script>
+(function(){
+  const nav = document.querySelector('.nav');
+  if(!nav) return;
+  const links = Array.from(nav.querySelectorAll('a'));
+  const ids = links.map(a => a.getAttribute('href').slice(1));
+  const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+  const toTop = document.getElementById('toTop');
+  const progress = document.getElementById('progress');
+
+  function onScroll(){
+    const y = window.scrollY;
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    if(progress) progress.style.width = (h > 0 ? (y / h * 100) : 0) + '%';
+    if(toTop) toTop.classList.toggle('show', y > 320);
+    let cur = ids[0];
+    for(const s of sections){ if(s.offsetTop - 100 <= y) cur = s.id; }
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+  }
+  if(toTop) toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+})();
+</script>
+</body>
+</html>

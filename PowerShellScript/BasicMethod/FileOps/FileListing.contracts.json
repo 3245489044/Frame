@@ -1,0 +1,31 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "list.dir",
+        "verb": "list",
+        "object": "dir",
+        "purpose": "枚举文件夹内容（文件+子目录，支持递归/通配）",
+        "function": "List-Dir",
+        "path": "PowerShellScript\\BasicMethod\\FileOps\\FileListing.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Path", "type": "string", "required": true, "constraint": "非空，相对项目根或绝对路径" },
+        { "name": "Recurse", "type": "switch", "required": false, "constraint": "递归子目录（缺省不递归）" },
+        { "name": "Pattern", "type": "string", "required": false, "constraint": "通配模式（如 *.cs，缺省 *）" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "Path": "string", "Recurse": "bool", "Pattern": "string", "Files": "array", "Dirs": "array", "TotalFiles": "int", "TotalDirs": "int" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

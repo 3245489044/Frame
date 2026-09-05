@@ -1,0 +1,81 @@
+{
+  "version": "2.1",
+  "bridge": {
+    "name": "docker-mcp-bridge",
+    "description": "Cline ↔ Docker MCP 桥接服务器（v2 优化版）"
+  },
+  "paths": {
+    "projectRoot": "d:\\Project\\Program\\WorkFlowPrj",
+    "workspaceRoot": "TypeScriptPrj\\TsWorkspace",
+    "bridgeRoot": "TypeScriptPrj\\TsWorkspace\\MCPBridge",
+    "dockerComposeDir": "DevEnvironment\\Docker",
+    "dockerComposeFile": "DevEnvironment\\Docker\\docker-compose.yml",
+    "configFile": "mcp-bridge.config.json",
+    "containerRoot": "/workspace/WorkFlowPrj"
+  },
+  "docker": {
+    "enabled": false,
+    "autoStart": false,
+    "autoStartDesktop": false,
+    "desktopPath": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe",
+    "composePath": "DevEnvironment/Docker/docker-compose.yml",
+    "containerName": "workflow-mcp-env",
+    "healthCheckPort": 3100
+  },
+  "localTools": {
+    "definitionsDir": "tools-definitions"
+  },
+  "nodeDiscovery": {
+    "enabled": true,
+    "defaultBudgetTokens": 6000,
+    "compressor": "tiktoken-truncate",
+    "projection": "relevance",
+    "readVerify": true,
+    "incrementalReconcile": true,
+    "storageHost": "Projects\\Agent\\BuildOutput\\Debug\\Agent.StorageBridge.exe"
+  },
+  "servers": [
+    {
+      "name": "mcp-sequentialthinking-tools",
+      "url": "http://localhost:3100/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "context7-mcp",
+      "url": "http://localhost:3101/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "context-mode",
+      "url": "http://localhost:3102/mcp",
+      "timeout": 60000
+    },
+    {
+      "name": "memory",
+      "url": "http://localhost:3103/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "lexis-mcp",
+      "url": "http://localhost:3105/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "token-savior-recall",
+      "url": "http://localhost:3106/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "csproj-context",
+      "url": "http://localhost:3107/mcp",
+      "timeout": 30000
+    },
+    {
+      "name": "csharp-agent",
+      "url": "http://localhost:3200/mcp",
+      "timeout": 30000,
+      "enabled": false,
+      "origin": "csharp"
+    }
+  ]
+}

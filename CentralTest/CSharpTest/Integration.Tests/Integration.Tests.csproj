@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <!-- 版本与 TestInfrastructure 对齐（其要求 MSTest.TestFramework >= 4.2.3），避免 NU1605 包降级错误 -->
+    <PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 排除已废弃的 FunctionStorage 相关测试（FunctionStorage.csproj 已删除） -->
+    <Compile Remove="FunctionStorageRegistryUsageTests.cs" />
+    <!-- 排除已过时的 FunctionLibraryLifecycle 测试（重构为 scoped ALC 后该类型已移除） -->
+    <Compile Remove="FunctionLibraryLifecycleTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CentralConsole.csproj" />
+    <!-- Common、PathManager 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\TestInfrastructure\TestInfrastructure.csproj" />
+
+    <!-- FunctionLibraryLifecycle 测试依赖 -->
+  </ItemGroup>
+
+</Project>
+

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DeepCloner" Version="$(DeepClonerVersion)" />
+    <PackageReference Include="HtmlAgilityPack" Version="$(HtmlAgilityPackVersion)" />
+    <PackageReference Include="LiteDB" Version="$(LiteDBVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+    <PackageReference Include="System.Data.SQLite" Version="$(SystemDataSQLiteVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinForms 通用工具库（在 BasicMethod.csproj 中编译，避免命名冲突） -->
+    <Compile Remove="WinForms\**\*.cs" />
+    <!-- FileSystem/Registry/Config 执行器（在 BasicMethod.csproj 中编译，依赖 MetaCommand 项目） -->
+    <Compile Remove="FileSystem\**\*.cs" />
+    <Compile Remove="Registry\**\*.cs" />
+    <Compile Remove="Config\**\*.cs" />
+    <!-- Extensions.cs 在 BasicMethod.csproj 中编译，避免 CS0121 二义性错误 -->
+    <Compile Remove="Utilities\Extensions.cs" />
+  </ItemGroup>
+
+  <!-- ★ 日志框架已迁移到独立的 BasicMethod.Logging 项目 -->
+  <!-- ★ Common/Diagnostics/ 下的所有文件现在在 BasicMethod.Logging 中编译 -->
+  <!-- ★ 通过项目引用，所有引用 Common 的项目自动获得日志功能 -->
+  <ItemGroup>
+    <Compile Remove="Diagnostics\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PathManager\PathManager.csproj" />
+  </ItemGroup>
+
+</Project>

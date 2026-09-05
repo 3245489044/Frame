@@ -1,0 +1,95 @@
+{
+  "comment": "MCP 服务器清单配置文件 — 供 Install-McpServer.ps1 使用",
+  "version": "1.0",
+  "mcpServers": [
+    {
+      "name": "mcp-sequentialthinking-tools",
+      "type": "npm",
+      "package": "@anthropic/mcp-sequentialthinking-tools",
+      "global": true,
+      "source": "npm",
+      "description": "顺序推理工具",
+      "defaultVersion": "latest",
+      "tags": ["reasoning", "thinking"]
+    },
+    {
+      "name": "context7-mcp",
+      "type": "npm",
+      "package": "@context7/context7-mcp",
+      "global": true,
+      "source": "npm",
+      "description": "Context7 文档查询",
+      "defaultVersion": "latest",
+      "tags": ["docs", "search"]
+    },
+    {
+      "name": "context-mode",
+      "type": "npm",
+      "package": "@context7/context-mode",
+      "global": true,
+      "source": "npm",
+      "description": "上下文模式",
+      "defaultVersion": "latest",
+      "tags": ["context", "mode"]
+    },
+    {
+      "name": "memory",
+      "type": "npm",
+      "package": "@anthropic/mcp-server-memory",
+      "global": true,
+      "source": "npm",
+      "description": "知识图谱记忆",
+      "defaultVersion": "latest",
+      "tags": ["memory", "knowledge-graph"]
+    },
+    {
+      "name": "filesystem",
+      "type": "npm",
+      "package": "@anthropic/mcp-server-filesystem",
+      "global": true,
+      "source": "npm",
+      "description": "文件系统操作",
+      "defaultVersion": "latest",
+      "tags": ["filesystem", "file-ops"]
+    },
+    {
+      "name": "lexis-mcp",
+      "type": "npm",
+      "package": "@anthropic/lexis-mcp",
+      "global": true,
+      "source": "npm",
+      "description": "代码搜索与分析",
+      "defaultVersion": "latest",
+      "tags": ["code-search", "analysis"]
+    },
+    {
+      "name": "token-savior-recall",
+      "type": "pip",
+      "package": "token-savior-recall",
+      "global": true,
+      "source": "pypi",
+      "description": "Token 节省与召回",
+      "defaultVersion": "latest",
+      "tags": ["token", "savior"]
+    },
+    {
+      "name": "csproj-context",
+      "type": "local",
+      "package": "/workspace/WorkFlowPrj/TypeScriptPrj/CsprojContext",
+      "global": false,
+      "source": "local",
+      "description": "C# 项目上下文",
+      "tags": ["csproj", "dotnet"]
+    },
+    {
+      "name": "fetch-mcp",
+      "type": "npm",
+      "package": "mcp-fetch-server",
+      "global": true,
+      "source": "npm",
+      "description": "通用网页抓取与联网搜索（支持 HTML/JSON/Markdown/YouTube 字幕）",
+      "defaultVersion": "latest",
+      "tags": ["fetch", "web", "search"]
+    }
+  ]
+}

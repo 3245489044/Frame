@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CallCenter.Core</RootNamespace>
+    <AssemblyName>CallCenter.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <!-- 仅引用 TConfig 契约（ITrConfigRegistry/IParamConfig/FunctionDescriptor），供 C#Track 发现源以
+         轻量收集器执行函数库 RegisterAll(ITrConfigRegistry)，不把 Modules.Registry/Roslyn 栈拉进 Core。 -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

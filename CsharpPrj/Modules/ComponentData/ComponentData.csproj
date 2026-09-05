@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.ComponentData</RootNamespace>
+    <AssemblyName>Modules.ComponentData</AssemblyName>
+    <Description>ECS 组件数据处理框架 - 基于 ECS 上下文的组件数据变更通知、优先级反应器链、组件数据存储</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Rx.NET 核心依赖 -->
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+    <!-- 不可变集合（用于 ComponentLifecycleManager） -->
+    <PackageReference Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
+    <!-- 依赖 ContextFrame（IContext、ContextBase 等上下文抽象） -->
+    <ProjectReference Include="..\..\BasicMethod\ContextFrame\ContextFrame.csproj" />
+    <!-- 依赖 ECS 框架（EntityManager、IEcsComponentReactor 等） -->
+    <ProjectReference Include="..\..\BasicMethod\ECS\ECS.csproj" />
+    <!-- 依赖 FrameworkAbstractions（IComponentEventSource、IComponentLifecycleHandler 等共享抽象） -->
+    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <!-- 依赖 TConfig（TConfig.ECS、TConfig.ContextFrame.Abstractions 等配置抽象） -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

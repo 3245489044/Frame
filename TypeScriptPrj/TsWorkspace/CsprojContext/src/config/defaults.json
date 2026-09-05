@@ -1,0 +1,4 @@
+{
+  "defaultProjectRoot": "/workspace/WorkFlowPrj",
+  "excludePatterns": ["obj", "bin", "backups", "node_modules", ".git", "build"]
+}

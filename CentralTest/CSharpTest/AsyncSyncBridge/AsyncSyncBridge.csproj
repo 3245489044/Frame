@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CentralConsole.AsyncSyncBridge</RootNamespace>
+    <AssemblyName>CentralConsole.AsyncSyncBridge</AssemblyName>
+    <Description>异步同步协调框架 — 统一管理 async/await 与同步上下文的协调，解决 STA/UI 线程上的死锁问题</Description>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+</Project>

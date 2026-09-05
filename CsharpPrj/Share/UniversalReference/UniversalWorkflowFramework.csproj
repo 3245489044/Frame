@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+      <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <!-- ★ UniversalReferenceLayer.cs 现在由本项目编译（Share.csproj 已删除） -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="$(MicrosoftExtensionsConfigurationFileExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftExtensionsConfigurationJsonVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsLoggingConsoleVersion)" />
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- ★ 基于 Modules.Pipeline 重构：管线编排统一收敛到 Share.Pipeline（Frame/Pipeline.cs 死代码已移除） -->
+    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <!-- ★ 日志插桩收敛到 Modules.DiagnosticContext 框架：Share 层只做字符串插桩，不负责日志输出 -->
+    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+    <!-- ★ 平台级统一 JSON 框架：Share 层 JSON 逻辑收敛到 Plate.JsonMethod（经 BasicMethod 传递可用，此处显式声明以便依赖可视化） -->
+    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <!-- ★ 图处理通用能力：GraphProcessing 下沉通用图算法/去重/归一化/快照（UR → GraphProcessing → BasicMethod，禁止反向） -->
+    <ProjectReference Include="..\..\Modules\GraphProcessing\GraphProcessing.csproj" />
+    <!-- PathManager 和 Logging 已整合到 BasicMethod.csproj -->
+
+  </ItemGroup>
+
+</Project>

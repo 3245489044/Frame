@@ -1,0 +1,40 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.320.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicMethod", "BasicMethod\BasicMethod.csproj", "{30383259-20CD-4A50-BD5F-70040DF8AEFD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules", "Modules\Modules.csproj", "{9BFEFBC6-B8AA-4AE5-A138-33E7D6C32CD4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Share", "Share\Share.csproj", "{A6F3FD02-A14A-43A6-97F5-43BFDAA0E7E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Operation", "Operation\Operation.csproj", "{B8C4D2E1-F3A6-7890-BCDE-F12345678901}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plate", "Plate\Plate.csproj", "{03C2CF87-4F51-4987-8CFD-69C41FED8CFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Strategy", "Strategy\Strategy.csproj", "{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}"
+EndProject
+Global
+GlobalSection(SolutionConfigurationPlatforms) = preSolution
+Debug|Any CPU = Debug|Any CPU
+Debug|x64 = Debug|x64
+Debug|x86 = Debug|x86
+Release|Any CPU = Release|Any CPU
+Release|x64 = Release|x64
+Release|x86 = Release|x86
+EndGlobalSection
+GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|x64.Build.0 = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Debug|x86.Build.0 = Debug|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|x64.ActiveCfg = Release|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|x64.Build.0 = Release|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|x86.ActiveCfg = Release|Any CPU
+		{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}.Release|x86.Build.0 = Release|Any CPU
+EndGlobalSection
+EndGlobal

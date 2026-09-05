@@ -1,0 +1,507 @@
+# WdUI JSON 逻辑迁移到 UniversalMiddleware 方案
+
+## 一、背景与目标
+
+### 1.1 背景
+
+WdUI 中存在大量 JSON 相关逻辑，部分已迁移到 `FileDriven.Utilities.Services`（如 `JsonFileService`、`JsonConfigPathManager`），但仍有部分 JSON 逻辑与 WinForms 深度耦合，或属于管线编排/数据转换逻辑。
+
+### 1.2 目标
+
+将 WdUI 中所有 JSON 相关逻辑迁移到 `UniversalMiddleware` 框架层，使：
+- **UniversalMiddleware** 成为所有 JSON 处理的标准框架（平台无关）
+- **WdUI** 仅保留 WinForms 特有的 UI 渲染/事件绑定逻辑
+- 其他项目（如 FileDriven.UI）可直接复用框架层的 JSON 能力
+
+### 1.3 原则
+
+> **不存在不可迁移的逻辑** — 如果框架不够通用，就扩展框架使其通用，把平台相关引用外置（通过接口/抽象/依赖注入解耦）。
+
+---
+
+## 二、UniversalMiddleware 现有架构分析
+
+### 2.1 已有基础设施
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| **序列化** | `Serialization.cs` | `UnifiedJsonSerializer` — 统一序列化器 |
+| **验证** | `Serialization.cs` | `JsonValidator` — 语法/结构/模型验证 |
+| **管线构建** | `Core.cs` | `JsonPipelineBuilder<TInput, TOutput>` — 链式传参管线 |
+| **变换器** | `Core.cs` | `JsonParseTransform`、`JsonValidateTransform`、`JsonDeserializeTransform<T>`、`JsonFileLoadTransform`、`JsonFileSaveTransform` |
+| **渲染管线** | `Rendering/RenderPipelineBase.cs` | 三阶段渲染（创建→布局→事件绑定） |
+| **容器抽象** | `Container.cs` | `IConfigContainer`、`ContainerConfig`、`IContainerManager` |
+| **布局抽象** | `Abstractions.cs` | `ILayoutContainer`、`ILayoutElement`、`LayoutPosition`、`LayoutDefinition` |
+| **UI 泛型接口** | `Abstractions.cs` | `IUILayoutManager<TControl>`、`IUIManager<TControl, TForm, TConfig>`、`IControlFactory<TControl, TConfig>`、`IViewManager<TForm>` |
+| **事件绑定** | `Abstractions.cs` | `IEventBindingService` |
+| **预处理** | `Serialization/JsonPreprocessor.cs` | `JsonPreprocessor` — 反序列化前预处理 |
+| **合并** | `Transformation` | `JsonMerger` — JSON 合并 |
+| **导航** | `Navigation` | `JsonPathEngine` — JSON Path 导航 |
+| **中间件** | `Middleware` | `MiddlewarePipeline` — 洋葱模型中间件 |
+
+### 2.2 缺少的能力
+
+| 缺失能力 | 说明 |
+|---------|------|
+| `IConfigLoader` 接口 | 面向 `UIConfiguration` 模型的高级配置加载接口 |
+| `LayoutPositionConverter` | 将 `BasicMethod.ConfigurationModels.LayoutPosition` 转换为框架 `LayoutPosition` |
+| `JsonConfigLoadStage` | 作为 `IRenderStage` 的 JSON 配置加载阶段 |
+| `TemplatePreprocessStage` | 作为 `IRenderStage` 的模板预处理阶段 |
+| `ConfigRenderPipeline<TContainer>` | 完整的 JSON 配置→容器渲染管线编排 |
+
+---
+
+## 三、UniversalMiddleware 框架扩展方案
+
+### 3.1 新增：`Abstractions/IConfigLoader.cs`
+
+**位置**：`Share/UniversalMiddleware/Abstractions/IConfigLoader.cs`
+
+**说明**：将 `WdUI.UI.Configuration.ConfigurationLoader` 抽象为框架接口，面向 `UIConfiguration` 模型。
+
+```csharp
+namespace UniversalMiddleware.Abstractions;
+
+/// <summary>
+/// 配置加载器接口 — 面向 UIConfiguration 模型的高级配置加载
+/// <para>★ 框架抽象层: 不依赖任何 UI 框架 ★</para>
+/// </summary>
+public interface IConfigLoader
+{
+    /// <summary>从文件加载配置</summary>
+    Task<UIConfiguration> LoadConfigAsync(string configPath);
+    
+    /// <summary>保存配置到文件</summary>
+    Task SaveConfigAsync(string configPath, UIConfiguration config);
+    
+    /// <summary>从 JSON 字符串反序列化配置</summary>
+    UIConfiguration? DeserializeConfig(string json);
+    
+    /// <summary>序列化配置到 JSON 字符串</summary>
+    string SerializeConfig(UIConfiguration config);
+    
+    /// <summary>验证 JSON 配置内容</summary>
+    JsonValidationResult? ValidateConfigContent(string jsonContent);
+    
+    /// <summary>从 JSON 文件中提取错误上下文</summary>
+    string? ExtractJsonErrorContext(string configPath, JsonException ex);
+    
+    // ========== 缓存管理 ==========
+    
+    /// <summary>获取缓存的配置</summary>
+    UIConfiguration GetCachedConfig(string configPath);
+    
+    /// <summary>将配置对象加载到缓存</summary>
+    void LoadConfigToCache(UIConfiguration config);
+    
+    /// <summary>清除缓存</summary>
+    void ClearCache();
+    
+    // ========== 变更通知 ==========
+    
+    /// <summary>注册配置变更处理器</summary>
+    void RegisterChangeHandler(string configPath, Action<string> handler);
+    
+    /// <summary>取消注册配置变更处理器</summary>
+    void UnregisterChangeHandler(string configPath);
+}
+```
+
+### 3.2 新增：`Layout/LayoutPositionConverter.cs`
+
+**位置**：`Share/UniversalMiddleware/Layout/LayoutPositionConverter.cs`
+
+**说明**：从 `WdUI.LayoutEngine.ConvertLayoutPosition()` 迁移，纯数据转换逻辑。
+
+```csharp
+namespace UniversalMiddleware.Layout;
+
+/// <summary>
+/// LayoutPosition 转换器 — 将配置模型的 LayoutPosition 转换为框架 LayoutPosition
+/// <para>★ 纯数据转换，不依赖任何 UI 框架 ★</para>
+/// </summary>
+public static class LayoutPositionConverter
+{
+    /// <summary>
+    /// 将 BasicMethod.ConfigurationModels.LayoutPosition 转换为
+    /// UniversalMiddleware.Abstractions.LayoutPosition
+    /// <para>支持 left/top 和 x/y 两种字段名</para>
+    /// <para>支持 Bottom/Right → 负 Top/Left 转换</para>
+    /// </summary>
+    public static LayoutPosition Convert(BasicMethod.ConfigurationModels.LayoutPosition src)
+    {
+        // left/top 模式（比例值，0~1）
+        // x/y 模式（像素值）
+        // Bottom/Right → 负 Top/Left（从底部/右侧对齐）
+    }
+    
+    /// <summary>将 ControlConfig 转换为 ElementDefinition</summary>
+    public static ElementDefinition ToElementDefinition(ControlConfig config)
+    
+    /// <summary>将多个 ControlConfig 转换为 LayoutDefinition</summary>
+    public static LayoutDefinition ToLayoutDefinition(IEnumerable<ControlConfig> configs, string name = "AutoGenerated")
+}
+```
+
+### 3.3 新增：`Rendering/JsonConfigLoadStage.cs`
+
+**位置**：`Share/UniversalMiddleware/Rendering/JsonConfigLoadStage.cs`
+
+**说明**：从 `WdUI.Layout.Skeletons.ConfigLoadSkeleton` 迁移，作为 `IRenderStage` 的标准实现。
+
+```csharp
+namespace UniversalMiddleware.Rendering;
+
+/// <summary>
+/// JSON 配置加载阶段 — 从文件路径加载 UIConfiguration
+/// <para>★ 通过 IConfigLoader 接口加载，不依赖 WdUI ★</para>
+/// </summary>
+public class JsonConfigLoadStage : IRenderStage
+{
+    public string Name => "JsonConfigLoad";
+    public int Order => 10;
+    
+    /// <summary>配置加载器（通过依赖注入或直接设置）</summary>
+    public IConfigLoader? ConfigLoader { get; set; }
+    
+    public async Task ExecuteAsync(IRenderSession session)
+    {
+        // 从 session 获取 configPath
+        // 通过 IConfigLoader 加载 UIConfiguration
+        // 将结果存入 session
+    }
+}
+```
+
+### 3.4 新增：`Rendering/TemplatePreprocessStage.cs`
+
+**位置**：`Share/UniversalMiddleware/Rendering/TemplatePreprocessStage.cs`
+
+**说明**：从 `WdUI.Layout.Skeletons.TemplatePreprocessSkeleton` 迁移。
+
+```csharp
+namespace UniversalMiddleware.Rendering;
+
+/// <summary>
+/// 模板预处理阶段 — 在 JSON 加载前进行模板展开
+/// <para>★ 通过 JsonPreprocessor 进行预处理，不依赖 WdUI ★</para>
+/// </summary>
+public class TemplatePreprocessStage : IRenderStage
+{
+    public string Name => "TemplatePreprocess";
+    public int Order => 5;
+    
+    public async Task ExecuteAsync(IRenderSession session)
+    {
+        // 从 session 获取 configPath
+        // 通过 JsonPreprocessor 或 TemplateProcessor 委托进行预处理
+        // 将处理后的 JSON 字符串或路径存入 session
+    }
+}
+```
+
+### 3.5 新增：`Rendering/ConfigRenderPipeline.cs`
+
+**位置**：`Share/UniversalMiddleware/Rendering/ConfigRenderPipeline.cs`
+
+**说明**：从 `WdUI.Layout.Skeletons.ConfigPipelineBuilder` 迁移，泛型化。
+
+```csharp
+namespace UniversalMiddleware.Rendering;
+
+/// <summary>
+/// 配置渲染管线 — 将 JSON 配置文件加载并渲染到容器
+/// <para>★ 泛型化: TContainer 必须实现 IConfigContainer ★</para>
+/// <para>★ 不依赖任何 UI 框架 ★</para>
+/// 
+/// 管线流程：
+///   configPath (string)
+///     → [可选] TemplatePreprocessStage (模板预处理)
+///     → JsonConfigLoadStage (加载 UIConfiguration)
+///     → [用户自定义渲染阶段] (渲染到容器)
+/// </summary>
+public class ConfigRenderPipeline<TContainer> where TContainer : IConfigContainer
+{
+    /// <summary>创建默认管线（含可选模板预处理）</summary>
+    public Flow<string, TContainer> CreateDefaultPipeline(bool hasTemplateProcessor = false)
+    
+    /// <summary>创建简化管线（跳过模板预处理）</summary>
+    public Flow<string, TContainer> CreateSimplePipeline()
+    
+    /// <summary>创建仅渲染管线（跳过加载）</summary>
+    public Flow<UIConfiguration, TContainer> CreateRenderOnlyPipeline()
+    
+    /// <summary>便捷方法：一步执行完整管线</summary>
+    public async Task<TContainer> ExecuteAsync(
+        string configPath,
+        TContainer container,
+        Func<string, string>? templateProcessor = null,
+        Action<TContainer, UIConfiguration>? onPostProcess = null)
+}
+```
+
+### 3.6 新增：`Extensions/LayoutPositionExtensions.cs`
+
+**位置**：`Share/UniversalMiddleware/Extensions/LayoutPositionExtensions.cs`
+
+**说明**：从 `WdUI.LayoutEngine` 的 `ConvertLayoutPosition` 迁移，作为扩展方法。
+
+```csharp
+namespace UniversalMiddleware.Extensions;
+
+/// <summary>
+/// LayoutPosition 扩展方法
+/// </summary>
+public static class LayoutPositionExtensions
+{
+    /// <summary>
+    /// 将 BasicMethod.ConfigurationModels.LayoutPosition 转换为
+    /// UniversalMiddleware.Abstractions.LayoutPosition
+    /// </summary>
+    public static LayoutPosition ToFrameworkPosition(this BasicMethod.ConfigurationModels.LayoutPosition src)
+    
+    /// <summary>
+    /// 将 ControlConfig 集合转换为 LayoutDefinition
+    /// </summary>
+    public static LayoutDefinition ToLayoutDefinition(this IEnumerable<ControlConfig> configs, string name = "AutoGenerated")
+}
+```
+
+### 3.7 更新：`UniversalMiddleware.cs` — 新增入口方法
+
+在 `UniversalMiddlewareEntry` 中新增以下方法：
+
+```csharp
+// ========== 配置加载 ==========
+public IConfigLoader ConfigLoader { get; }
+
+// ========== 配置渲染管线 ==========
+public ConfigRenderPipeline<TContainer> CreateConfigPipeline<TContainer>(string name = "ConfigPipeline")
+    where TContainer : IConfigContainer
+
+// ========== LayoutPosition 转换 ==========
+public LayoutPosition ConvertLayoutPosition(BasicMethod.ConfigurationModels.LayoutPosition src)
+public LayoutDefinition ConvertToLayoutDefinition(IEnumerable<ControlConfig> configs, string name = "AutoGenerated")
+```
+
+---
+
+## 四、WdUI 迁移方案
+
+### 4.1 迁移清单
+
+| 当前 WdUI 文件 | 迁移方式 | 迁移后状态 |
+|---------------|---------|-----------|
+| `Serialization/WdUIJson.cs` | 全部委托到 `IConfigLoader` + `UniversalMiddlewareEntry` | 可移除 |
+| `UI/WdUI.Configuration.cs` | 实现 `IConfigLoader` 接口，委托到 `JsonFileService` | 保留接口实现 |
+| `UI/WdUI.Management.cs` (ConfigPathManager) | 已委托到 `JsonConfigPathManager` | 已迁移 |
+| `WdUIUsage.cs` (JSON 部分) | 改为调用 `UniversalMiddlewareEntry` | 更新引用 |
+| `UI/WdUI.Adapters.cs` | 使用 `UniversalMiddlewareEntry.CreateFilePipeline<T>()` | 可移除 |
+| `Layout/Skeletons/ConfigLoadSkeleton.cs` | 使用 `JsonConfigLoadStage` | 委托到框架 |
+| `Layout/Skeletons/TemplatePreprocessSkeleton.cs` | 使用 `TemplatePreprocessStage` | 委托到框架 |
+| `Layout/Skeletons/ConfigPipelineBuilder.cs` | 使用 `ConfigRenderPipeline<ConfigContainer>` | 委托到框架 |
+| `UI/WdUI.LayoutEngine.cs` (ConvertLayoutPosition) | 使用 `LayoutPositionConverter` | 委托到框架 |
+| `UI/WdUI.Container.cs` (LoadConfigAsync) | 通过 `IConfigLoader` 注入 | 解耦 JSON 加载 |
+
+### 4.2 详细迁移步骤
+
+#### Step 1: WdUIJson.cs → 移除
+
+```csharp
+// 迁移前：WdUIJson.cs 是纯委托层
+public static class WdUIJson
+{
+    private static JsonFileService Service => JsonFileService.Instance;
+    
+    public static UIConfiguration? DeserializeConfig(string json)
+        => Service.DeserializeConfig(json);
+    
+    public static string SerializeConfig(UIConfiguration config)
+        => Service.SerializeConfig(config);
+    
+    // ... 其他委托方法
+}
+
+// 迁移后：直接使用 UniversalMiddlewareEntry
+var middleware = WdUIComposer.Middleware;
+var config = middleware.ConfigLoader.DeserializeConfig(json);
+var json = middleware.ConfigLoader.SerializeConfig(config);
+```
+
+#### Step 2: WdUI.Configuration.cs → 实现 IConfigLoader
+
+```csharp
+// 迁移后：ConfigurationLoader 实现框架的 IConfigLoader 接口
+public class ConfigurationLoader : IConfigLoader
+{
+    public static ConfigurationLoader Instance { get; } = new();
+    
+    // 内部仍委托到 JsonFileService
+    private static JsonFileService Service => JsonFileService.Instance;
+    
+    public async Task<UIConfiguration> LoadConfigAsync(string configPath)
+        => await Service.LoadConfigAsync(configPath);
+    
+    // ... 其他方法
+}
+```
+
+#### Step 3: ConfigLoadSkeleton.cs → 委托到框架
+
+```csharp
+// 迁移后：ConfigLoadSkeleton 委托到 JsonConfigLoadStage
+public class ConfigLoadSkeleton : SkeletonBase<string, UIConfiguration>
+{
+    private readonly JsonConfigLoadStage _stage = new();
+    
+    protected override async Task<UIConfiguration> ExecuteCoreAsync(string input, SkeletonContext ctx)
+    {
+        var session = new RenderSession(input);
+        await _stage.ExecuteAsync(session);
+        return session.GetResult<UIConfiguration>();
+    }
+}
+```
+
+#### Step 4: TemplatePreprocessSkeleton.cs → 委托到框架
+
+```csharp
+// 迁移后：TemplatePreprocessSkeleton 委托到 TemplatePreprocessStage
+public class TemplatePreprocessSkeleton : SkeletonBase<string, string>
+{
+    private readonly TemplatePreprocessStage _stage = new();
+    
+    protected override async Task<string> ExecuteCoreAsync(string input, SkeletonContext ctx)
+    {
+        var session = new RenderSession(input);
+        await _stage.ExecuteAsync(session);
+        return session.GetResult<string>();
+    }
+}
+```
+
+#### Step 5: ConfigPipelineBuilder.cs → 委托到框架
+
+```csharp
+// 迁移后：ConfigPipelineBuilder 委托到 ConfigRenderPipeline<ConfigContainer>
+public static class ConfigPipelineBuilder
+{
+    private static readonly ConfigRenderPipeline<ConfigContainer> _pipeline = new();
+    
+    public static Flow<string, ConfigContainer> CreateDefaultPipeline(bool hasTemplateProcessor = false)
+        => _pipeline.CreateDefaultPipeline(hasTemplateProcessor);
+    
+    public static async Task<ConfigContainer> ExecuteAsync(
+        string configPath, ConfigContainer container, ...)
+        => await _pipeline.ExecuteAsync(configPath, container, ...);
+}
+```
+
+#### Step 6: WdUI.LayoutEngine.cs → 使用 LayoutPositionConverter
+
+```csharp
+// 迁移前：WdUI.LayoutEngine 中有 ConvertLayoutPosition
+private static LayoutPosition ConvertLayoutPosition(BasicMethod.ConfigurationModels.LayoutPosition src)
+{
+    // 复杂的转换逻辑
+}
+
+// 迁移后：直接使用 LayoutPositionConverter
+using UniversalMiddleware.Layout;
+var position = LayoutPositionConverter.Convert(srcPosition);
+```
+
+#### Step 7: WdUIUsage.cs → 更新 JSON 相关方法
+
+```csharp
+// 迁移后：WdUIUsage 中的 JSON 方法改为调用 Middleware
+public static UIConfiguration? DeserializeConfig(string json)
+    => Middleware.ConfigLoader.DeserializeConfig(json);
+
+public static string SerializeConfig(UIConfiguration config)
+    => Middleware.ConfigLoader.SerializeConfig(config);
+
+public static async Task<UIConfiguration> LoadConfigAsync(string configPath)
+    => await Middleware.ConfigLoader.LoadConfigAsync(configPath);
+```
+
+### 4.3 依赖关系变化
+
+```
+迁移前：
+  WdUI ──依赖──> FileDriven.Utilities (JsonFileService)
+    │
+    └──依赖──> BasicMethod.ConfigurationModels (UIConfiguration)
+
+迁移后：
+  WdUI ──依赖──> UniversalMiddleware (IConfigLoader, LayoutPositionConverter, ...)
+    │                 │
+    │                 └──依赖──> FileDriven.Utilities (JsonFileService)
+    │
+    └──依赖──> BasicMethod.ConfigurationModels (UIConfiguration)
+```
+
+---
+
+## 五、实施计划
+
+### 5.1 阶段划分
+
+| 阶段 | 内容 | 预计文件数 | 风险 |
+|------|------|-----------|------|
+| **P0** | UniversalMiddleware: 新增 `IConfigLoader` 接口 | 1 个接口文件 | ✅ 已完成 |
+| **P1** | UniversalMiddleware: 新增 `LayoutPositionConverter` | 1 个转换器文件 | ✅ 已完成 |
+| **P2** | UniversalMiddleware: 新增 `JsonConfigLoadStage` + `TemplatePreprocessStage` | 2 个阶段文件 | ✅ 已完成 |
+| **P3** | UniversalMiddleware: 新增 `ConfigRenderPipeline<TContainer>` | 1 个管线文件 | ✅ 已完成 |
+| **P4** | UniversalMiddleware: 更新 `UniversalMiddlewareEntry` | 1 个入口文件 | ✅ 已完成 |
+| **P5** | WdUI: ConfigLoadSkeleton → 委托到框架 | 1 个文件修改 | ✅ 已完成 |
+| **P6** | WdUI: TemplatePreprocessSkeleton → 委托到框架 | 1 个文件修改 | ✅ 已完成 |
+| **P7** | WdUI: ConfigPipelineBuilder → 委托到框架 | 1 个文件修改 | ✅ 已完成 |
+| **P8** | WdUI: LayoutEngine → 使用 LayoutPositionConverter | 1 个文件修改 | ✅ 已完成 |
+| **P9** | WdUI: WdUIUsage → 更新 JSON 方法引用 | 1 个文件修改 | ✅ 已完成 |
+| **P10** | WdUI: 移除 WdUIJson.cs（可选） | 1 个文件删除 | ✅ 已完成 |
+
+### 5.2 优先级
+
+```
+P0 ──→ P1 ──→ P2 ──→ P3 ──→ P4
+                                  │
+                                  └──→ P5 ──→ P6 ──→ P7 ──→ P8 ──→ P9 ──→ P10
+```
+
+- **P0-P4**：框架层扩展（UniversalMiddleware），可独立完成
+- **P5-P10**：WdUI 侧迁移，依赖 P0-P4 完成
+
+### 5.3 验证方式
+
+1. **编译验证**：每个阶段完成后确保解决方案编译通过
+2. **单元测试**：`LayoutPositionConverter` 可编写纯逻辑单元测试
+3. **集成测试**：`ConfigRenderPipeline` 可用 mock 容器测试
+4. **WdUI 功能测试**：确保 WdUI 原有功能不受影响
+
+---
+
+## 六、附录
+
+### 6.1 相关文件路径
+
+| 文件 | 路径 |
+|------|------|
+| UniversalMiddleware 入口 | `Share/UniversalMiddleware/UniversalMiddleware.cs` |
+| UniversalMiddleware 抽象 | `Share/UniversalMiddleware/Abstractions.cs` |
+| UniversalMiddleware 核心 | `Share/UniversalMiddleware/Core.cs` |
+| UniversalMiddleware 序列化 | `Share/UniversalMiddleware/Serialization.cs` |
+| UniversalMiddleware 容器 | `Share/UniversalMiddleware/Container.cs` |
+| UniversalMiddleware 渲染管线 | `Share/UniversalMiddleware/Rendering/RenderPipelineBase.cs` |
+| UniversalMiddleware 项目文件 | `Share/UniversalMiddleware/UniversalMiddleware.csproj` |
+| WdUI JSON 入口 | `Operation/WdUI/Serialization/WdUIJson.cs` |
+| WdUI 配置加载器 | `Operation/WdUI/UI/WdUI.Configuration.cs` |
+| WdUI 管线构建器 | `Operation/WdUI/Layout/Skeletons/ConfigPipelineBuilder.cs` |
+| WdUI 配置加载 Skeleton | `Operation/WdUI/Layout/Skeletons/ConfigLoadSkeleton.cs` |
+| WdUI 模板预处理 Skeleton | `Operation/WdUI/Layout/Skeletons/TemplatePreprocessSkeleton.cs` |
+| WdUI 布局引擎 | `Operation/WdUI/UI/WdUI.LayoutEngine.cs` |
+| WdUI 统一入口 | `Operation/WdUI/WdUIUsage.cs` |
+
+### 6.2 现有文档
+
+- `docs/analysis/WdUI_Json逻辑下迁方案.md` — 之前的下迁方案文档

@@ -1,0 +1,89 @@
+{
+  "$schema": "../manifest-schema.json",
+  "name": "MCP 服务器",
+  "description": "Anthropic MCP 服务器安装清单",
+  "version": "1.0.0",
+  "target": "local",
+  "items": [
+    {
+      "name": "mcp-sequentialthinking-tools",
+      "type": "npm",
+      "source": "@anthropic/mcp-sequentialthinking-tools",
+      "version": "latest",
+      "global": true,
+      "description": "顺序推理工具",
+      "tags": ["reasoning", "thinking"]
+    },
+    {
+      "name": "context7-mcp",
+      "type": "npm",
+      "source": "@context7/context7-mcp",
+      "version": "latest",
+      "global": true,
+      "description": "Context7 文档查询",
+      "tags": ["docs", "search"]
+    },
+    {
+      "name": "context-mode",
+      "type": "npm",
+      "source": "@context7/context-mode",
+      "version": "latest",
+      "global": true,
+      "description": "上下文模式",
+      "tags": ["context", "mode"]
+    },
+    {
+      "name": "memory",
+      "type": "npm",
+      "source": "@anthropic/mcp-server-memory",
+      "version": "latest",
+      "global": true,
+      "description": "知识图谱记忆",
+      "tags": ["memory", "knowledge-graph"]
+    },
+    {
+      "name": "filesystem",
+      "type": "npm",
+      "source": "@anthropic/mcp-server-filesystem",
+      "version": "latest",
+      "global": true,
+      "description": "文件系统操作",
+      "tags": ["filesystem", "file-ops"]
+    },
+    {
+      "name": "lexis-mcp",
+      "type": "npm",
+      "source": "@anthropic/lexis-mcp",
+      "version": "latest",
+      "global": true,
+      "description": "代码搜索与分析",
+      "tags": ["code-search", "analysis"]
+    },
+    {
+      "name": "token-savior-recall",
+      "type": "pip",
+      "source": "token-savior-recall",
+      "version": "latest",
+      "global": true,
+      "description": "Token 节省与召回",
+      "tags": ["token", "savior"]
+    },
+    {
+      "name": "fetch-mcp",
+      "type": "npm",
+      "source": "mcp-fetch-server",
+      "version": "latest",
+      "global": true,
+      "description": "通用网页抓取与联网搜索（支持 HTML/JSON/Markdown/YouTube 字幕）",
+      "tags": ["fetch", "web", "search"]
+    },
+    {
+      "name": "csproj-context",
+      "type": "local",
+      "source": "/workspace/WorkFlowPrj/TypeScriptPrj/CsprojContext",
+      "global": false,
+      "description": "C# 项目上下文",
+      "tags": ["csproj", "dotnet"]
+    }
+  ]
+}

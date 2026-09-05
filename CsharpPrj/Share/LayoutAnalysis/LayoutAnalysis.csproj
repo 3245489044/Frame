@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Share.LayoutAnalysis</AssemblyName>
+    <RootNamespace>Share.LayoutAnalysis</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 纯数学库：UniversalLayoutMath（不依赖 BasicMethod 上层） -->
+    <ProjectReference Include="..\..\BasicMethod\UniversalLayout\UniversalLayoutMath.csproj" />
+    <!-- 图/树基础框架：GraphFoundation（TreeWalker / TreePathFinder / TreeIndex / CoreGraph 等） -->
+    <ProjectReference Include="..\..\BasicMethod\Map\GraphFoundation\GraphFoundation.csproj" />
+    <!-- 通用 XML/SVG 构建框架：LayoutSvgGenerator 把 LayoutGraphContext 渲染为自包含 SVG 的图元基础 -->
+    <ProjectReference Include="..\..\Plate\XmlMethod\XmlMethod.csproj" />
+  </ItemGroup>
+</Project>

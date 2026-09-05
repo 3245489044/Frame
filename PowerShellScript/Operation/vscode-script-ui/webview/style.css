@@ -1,0 +1,441 @@
+/* ============================================================
+   WorkFlowPrj Script 工具面板 — 样式
+   适配 VS Code 暗色主题
+   ============================================================ */
+
+:root {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d2d;
+    --bg-hover: #333333;
+    --bg-active: #37373d;
+    --border-color: #3c3c3c;
+    --text-primary: #cccccc;
+    --text-secondary: #969696;
+    --text-muted: #6e6e6e;
+    --accent-blue: #007acc;
+    --accent-green: #4ec9b0;
+    --accent-red: #f44747;
+    --accent-yellow: #dcdcaa;
+    --accent-orange: #ce9178;
+    --success-color: #4ec9b0;
+    --error-color: #f44747;
+    --running-color: #dcdcaa;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --radius: 6px;
+    --radius-sm: 4px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    overflow-x: hidden;
+}
+
+/* ============================================================
+   面板头部
+   ============================================================ */
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* ============================================================
+   通用按钮
+   ============================================================ */
+
+.btn-icon {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    line-height: 1;
+    transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.btn-icon:active {
+    background: var(--bg-active);
+}
+
+/* ============================================================
+   状态栏
+   ============================================================ */
+
+.status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.status-text {
+    flex: 1;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.3s ease;
+}
+
+.status-dot.idle {
+    background: var(--text-muted);
+}
+
+.status-dot.running {
+    background: var(--running-color);
+    animation: pulse 1s infinite;
+}
+
+.status-dot.success {
+    background: var(--success-color);
+}
+
+.status-dot.error {
+    background: var(--error-color);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   分类卡片网格
+   ============================================================ */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 8px;
+}
+
+.section-header h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px 16px 12px;
+}
+
+.category-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: var(--card-shadow);
+}
+
+.category-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-blue);
+    transform: translateY(-1px);
+}
+
+.category-card:active {
+    transform: translateY(0);
+}
+
+.category-card .cat-icon {
+    font-size: 20px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.category-card .cat-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 2px;
+}
+
+.category-card .cat-count {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* ============================================================
+   工具列表
+   ============================================================ */
+
+.btn-back {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 2px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    transition: all 0.15s ease;
+}
+
+.btn-back:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tool-list {
+    padding: 4px 16px 12px;
+}
+
+.tool-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    transition: all 0.15s ease;
+}
+
+.tool-item:hover {
+    border-color: var(--accent-blue);
+}
+
+.tool-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tool-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tool-desc {
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tool-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.tool-meta .alias {
+    color: var(--accent-orange);
+}
+
+.tool-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.btn-run {
+    background: var(--accent-blue);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-run:hover {
+    background: #0098ff;
+}
+
+.btn-run:active {
+    background: #005a9e;
+}
+
+.btn-run.running {
+    background: var(--bg-tertiary);
+    color: var(--running-color);
+    cursor: not-allowed;
+}
+
+.btn-open {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    transition: all 0.15s ease;
+}
+
+.btn-open:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ============================================================
+   日志输出区域
+   ============================================================ */
+
+.log-section {
+    border-top: 1px solid var(--border-color);
+}
+
+.log-header {
+    padding: 8px 16px;
+}
+
+.log-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.log-container {
+    padding: 0 16px 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.log-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.log-placeholder {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-style: italic;
+    padding: 8px 0;
+}
+
+.log-line {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 1px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.log-line.stdout {
+    color: var(--text-primary);
+}
+
+.log-line.stderr {
+    color: var(--error-color);
+}
+
+.log-line.system {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.log-line.success {
+    color: var(--success-color);
+}
+
+.log-line.error {
+    color: var(--error-color);
+    font-weight: 500;
+}
+
+.log-line.info {
+    color: var(--accent-blue);
+}
+
+.log-line .timestamp {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-right: 8px;
+}
+
+/* ============================================================
+   空状态
+   ============================================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-muted);
+}
+
+.empty-state .empty-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.empty-state .empty-text {
+    font-size: 13px;
+}
+
+/* ============================================================
+   加载动画
+   ============================================================ */
+
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0% { content: ''; }
+    33% { content: '.'; }
+    66% { content: '..'; }
+    100% { content: '...'; }
+}

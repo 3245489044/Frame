@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+    <title>Script 工具面板</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 头部 -->
+        <header class="panel-header">
+            <h1 class="panel-title">🔧 Script 工具面板</h1>
+            <div class="header-actions">
+                <button class="btn-icon" id="btnRefresh" title="刷新工具列表">🔄</button>
+                <button class="btn-icon" id="btnTerminal" title="在终端中打开">💻</button>
+            </div>
+        </header>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" id="statusBar">
+            <span class="status-text">就绪</span>
+            <span class="status-dot" id="statusDot"></span>
+        </div>
+
+        <!-- 分类卡片网格 -->
+        <section class="categories-section" id="categoriesSection">
+            <div class="section-header">
+                <h2>工具分类</h2>
+            </div>
+            <div class="category-grid" id="categoryGrid">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </section>
+
+        <!-- 工具列表 -->
+        <section class="tools-section" id="toolsSection" style="display:none;">
+            <div class="section-header">
+                <button class="btn-back" id="btnBack">← 返回</button>
+                <h2 id="categoryTitle">工具列表</h2>
+            </div>
+            <div class="tool-list" id="toolList">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </section>
+
+        <!-- 日志输出区域 -->
+        <section class="log-section">
+            <div class="section-header log-header">
+                <h2>输出日志</h2>
+                <div class="log-actions">
+                    <button class="btn-icon" id="btnCancel" title="取消执行" style="display:none;">⏹</button>
+                    <button class="btn-icon" id="btnClearLog" title="清空日志">🗑</button>
+                    <button class="btn-icon" id="btnScrollLock" title="自动滚动">📌</button>
+                </div>
+            </div>
+            <div class="log-container" id="logContainer">
+                <div class="log-placeholder">点击工具按钮执行脚本，输出将显示在这里...</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

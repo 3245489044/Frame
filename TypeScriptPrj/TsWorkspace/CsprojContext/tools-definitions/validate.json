@@ -1,0 +1,19 @@
+{
+  "name": "validate_rules",
+  "description": "验证所有 .csproj 文件的 ModuleRule 属性状态",
+  "handler": "validate",
+  "template": "custom",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "slnPath": {
+        "type": "string",
+        "description": ".sln 文件路径（如 CsharpPrj/MainProj.sln），提供后以 .sln 为基准坐标"
+      },
+      "projectRoot": {
+        "type": "string",
+        "description": "项目根目录路径（默认：WorkFlowPrj，与 slnPath 互斥）"
+      }
+    }
+  }
+}

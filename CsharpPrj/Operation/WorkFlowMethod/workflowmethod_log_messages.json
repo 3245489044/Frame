@@ -1,0 +1,302 @@
+{
+  "version": "1.0",
+  "description": "WorkFlowMethod 日志消息定义 - 使用 class_function_position 命名",
+  "messages": {
+    "WorkflowMethodExecution_Items_Getter": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] Items getter: HasWrapper={HasWrapper}, SdType={SdType}"
+    },
+    "WorkflowMethodExecution_Registry_empty": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[WorkflowMethodExecution] Registry empty: {Message} (RegistryHash={RegistryHash})"
+    },
+    "WorkflowMethodExecution_Registry_diagnostic": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[WorkflowMethodExecution] Registry diagnostic: Count={Count}, RegistryHash={RegistryHash}, IsInitialized={IsInitialized}, HasDefaultProvider={HasDefaultProvider}, StackTrace={StackTrace}"
+    },
+    "WorkflowMethodExecution_Rge_Error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] RGE 图调度执行异常: WorkflowName={WorkflowName}, Error={Error}"
+    },
+    "WorkflowMethodExecution_BasicRegistry_diag": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[WorkflowMethodExecution] BasicRegistry diag: Hash={Hash}, Type={Type}, Count={Count}, IsInitialized={IsInitialized}, HasDefaultProvider={HasDefaultProvider}, Message={Message}"
+    },
+    "PipelineSession_Execute_start": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] Execute start: Workflow={WorkflowName}, StepCount={StepCount}"
+    },
+    "PipelineSession_Stage_start": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] Stage start: {StageName}"
+    },
+    "PipelineSession_Stage_complete": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] Stage complete: {StageName} (Success={Success}, ElapsedMs={ElapsedMs})"
+    },
+    "PipelineSession_Execute_complete": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] Execute complete: Workflow={WorkflowName} (Success={Success}, ElapsedMs={ElapsedMs})"
+    },
+
+    "CentralPipeline_Execution_start": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[CentralPipeline] Execution start: StepCount={StepCount}"
+    },
+    "CentralPipeline_Execution_error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[CentralPipeline] RGE 图调度执行失败: Error={Error}"
+    },
+
+    "output.written": {
+
+      "level": "Debug",
+      "category": "WorkFlowMethod_Output",
+      "template": "[OutputHelper] 输出已写入: value={value}"
+    },
+    "output.not_supported": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[OutputHelper] 控件不支持 Text 属性: controlType={controlType}"
+    },
+    "output.listview.addmethod_not_found": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[OutputHelper] ListView 未找到 Add 方法"
+    },
+    "output.listview.write_complete": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Output",
+      "template": "[OutputHelper] ListView 写入完成: itemCount={itemCount}"
+    },
+    "Wfm_SessionInfo": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkFlowMethod] [{category}] {message} {data}"
+    },
+    "Wfm_SessionWarn": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkFlowMethod] [{category}] 警告: {message} {data}"
+    },
+    "Wfm_SessionDebug": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkFlowMethod] [{category}] 调试: {message} {data}"
+    },
+    "Wfm_SessionError": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkFlowMethod] [{category}] 错误: {message} {error} {data}"
+    },
+    "WorkflowEngine_ExecutionStarted": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流开始: workflowId={workflowId}, name={workflowName}, sessionId={sessionId}"
+    },
+    "WorkflowEngine_ExecutionCompleted": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流完成: workflowId={workflowId}, elapsedMs={elapsedMs}"
+    },
+    "WorkflowEngine_ExecutionFailed": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流失败: workflowId={workflowId}, error={error}, exception={exception}"
+    },
+    "WorkflowEngine_ExecutionCancelled": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流已取消: workflowId={workflowId}"
+    },
+    "WorkflowEngine_SessionPaused": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流暂停: workflowId={workflowId}, sessionId={sessionId}"
+    },
+    "WorkflowEngine_SessionResumed": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Engine",
+      "template": "工作流恢复: workflowId={workflowId}, sessionId={sessionId}"
+    },
+    "PipelineSession_Stage_failed": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] Stage 失败: StageName={stageName}, Error={error}"
+    },
+    "PipelineSession_StateTransitionFailed": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] 状态迁移失败: from={from}, to={to}"
+    },
+    "PipelineSession_Execute_exception": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineSession] 执行异常: Error={error}"
+    },
+    "StageContext_Info": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[Stage:{stage}] {message}"
+    },
+    "StageContext_Warn": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[Stage:{stage}] {message}"
+    },
+    "StageContext_Error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[Stage:{stage}] {message} {error}"
+    },
+    "StageContext_Debug": {
+      "level": "Debug",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[Stage:{stage}] {message}"
+    },
+    "ParameterValueResolver_PlaceholderNotFound": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_ParameterBuilder",
+      "template": "[ParameterValueResolver] 表达式 '{expression}' 中的变量 '${key}' 未找到，且未提供默认值，保留占位符。"
+    },
+    "output.listview.items_not_found": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[OutputHelper] ListView 未找到 Items 属性"
+    },
+    "DefaultModuleCreator_CreateModuleAsync_failed": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Module",
+      "template": "[DefaultModuleCreator] 创建模块失败: WorkflowId={workflowId}, Symbol={symbol}, Error={error}"
+    },
+    "ModuleCreationExtensions_CreateModuleSafeAsync_error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Module",
+      "template": "[ModuleCreationExtensions] CreateModuleSafeAsync 异常: {error}"
+    },
+    "WorkflowBuilder_ConvertQuotedStringToArrayValues_failed": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Builder",
+      "template": "[WorkflowBuilder] ConvertQuotedStringToArrayValues 失败: {error}"
+    },
+    "NodeRegistry_Register_duplicate": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[NodeRegistry] 重复注册节点: Callkey={callkey}"
+    },
+    "NodeExecutionStage_ScheduleStateRemoval_failed": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[NodeExecutionStage] ScheduleStateRemoval 失败: ExecutionId={executionId}, Error={error}"
+    },
+    "NodeProcessPipelineBuilder_NodeExecution_error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[NodeProcessPipelineBuilder] NodeExecutionStage 执行异常: {error}"
+    },
+    "ConfigDeduplicationProcessor_ComposeWarning": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[ConfigDeduplicationProcessor] 组合去重警告: {error}"
+    },
+    "PipelineStages_LoggingStage": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Pipeline",
+      "template": "[PipelineStage] {message}"
+    },
+    "CallChainGuard_DepthExceeded": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Guards",
+      "template": "[CallChainGuard] 调用链超出最大深度 {maxDepth}，触发点: '{callPoint}'. {suggestion}"
+    },
+    "ExecutionManager_CancelError": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[ExecutionManager] 取消会话失败: sessionId={sessionId}, error={error}"
+    },
+    "ExecutionManager_DisposeError": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[ExecutionManager] 释放会话失败: sessionId={sessionId}, error={error}"
+    },
+    "KeyProcessor_DeserializeError": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[KeyProcessor] 反序列化失败: type={type}, error={error}"
+    },
+    "ParameterTypeConverter_Convert_Failed": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_ParameterBuilder",
+      "template": "[ParameterTypeConverter] 类型转换失败: value={value}, targetType={targetType}, error={error}"
+    },
+    "ParameterTypeConverter_ChangeType_Failed": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_ParameterBuilder",
+      "template": "[ParameterTypeConverter] ChangeType 失败: value={value}, targetType={targetType}, error={error}"
+    },
+    "Workflow_DefinitionNotFound": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Registry",
+      "template": "[WorkflowMethodExecution] 未找到工作流定义: functionName={functionName}. {suggestion}"
+    },
+    "WorkflowMethodExecution_Start": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] 执行开始: functionName={functionName}, inputControls={inputControls}, isGuiMode={isGuiMode}"
+    },
+    "WorkflowMethodExecution_Complete": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] 执行完成: functionName={functionName}, elapsedMs={time}"
+    },
+    "WorkflowMethodExecution_Cancelled": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] 执行被取消: functionName={functionName}"
+    },
+    "WorkflowMethodExecution_Error": {
+      "level": "Error",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[WorkflowMethodExecution] 执行异常: functionName={functionName}, error={error}"
+    },
+    "WorkflowMethodExecution_TypeConversionFallback": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_ParameterBuilder",
+      "template": "[WorkflowMethodExecution] 类型转换失败回退原始值: parameter={parameter}, targetType={targetType}, value={value}"
+    },
+    "WorkflowMethodExecution_WriteResult_NoFinder": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[WorkflowMethodExecution] 未找到控件查找器，无法写回: target={target}, value={value}"
+    },
+    "WorkflowMethodExecution_WriteResult_ControlNotFound": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[WorkflowMethodExecution] 写回控件未找到: target={target}, value={value}"
+    },
+    "WorkflowMethodExecution_WriteResult_NoTarget": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Output",
+      "template": "[WorkflowMethodExecution] 无有效写回目标: target={target}, value={value}, isGuiMode={isGuiMode}, virtualStoreNull={virtualStoreNull}"
+    },
+    "WorkflowMethodExecution_WriteResult_Ok": {
+      "level": "Info",
+      "category": "WorkFlowMethod_Output",
+      "template": "[WorkflowMethodExecution] 写回成功: target={target}, value={value}, writeTarget={writeTarget}"
+    }
+  }
+}
+
+
+

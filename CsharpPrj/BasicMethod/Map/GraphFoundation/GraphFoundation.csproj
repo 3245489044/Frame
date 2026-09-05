@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>GraphFoundation</RootNamespace>
+    <AssemblyName>GraphFoundation</AssemblyName>
+    <Description>图基础框架 - 提供 CoreGraph、GraphExtensions、Normalization 等图数据结构和算法基础能力</Description>
+  </PropertyGroup>
+
+  <!-- CoreGraph 和 GraphExtensions 仍使用 System.Reactive -->
+  <ItemGroup>
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+  <!-- Normalization 层已移除对 System.Reactive 和 DeepCloner 的依赖 -->
+  <!-- 使用内置的 GraphObservableExtensions 替代 System.Reactive -->
+  <!-- 使用 JsonCloner/DeepCopyUtility 替代 DeepCloner -->
+
+</Project>

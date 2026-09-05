@@ -1,0 +1,242 @@
+
+============================================
+  FileDriven GUI 模式测试运行器
+============================================
+
+  可用操作:
+
+    [1] 运行脚本
+        运行测试GUI模式.ps1 <脚本文件名>
+        不传参进入交互选择界面
+
+    [2] 列出可用脚本
+        运行测试GUI模式.ps1 --list
+
+    [3] 显示配置信息
+        运行测试GUI模式.ps1 --info
+
+    [4] 显示脚本内容
+        运行测试GUI模式.ps1 --show <文件名>
+
+    [5] 显示目录结构
+        运行测试GUI模式.ps1 --dirs
+
+    [6] 显示帮助
+        运行测试GUI模式.ps1 --help
+
+    [7] Docker 容器管理（重启/重置）
+        运行测试GUI模式.ps1 --docker
+
+    [8] 代码路径分析（CodePathExplorer）
+        运行测试GUI模式.ps1 --analyze
+
+    [9] 查看日志（分层交互式日志查看器）
+        运行测试GUI模式.ps1 --log
+
+
+  当前模式: auto
+  脚本目录: D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts
+
+============================================
+
+
+请输入序号（1-12），或命令（list/info/dirs/show/help/mode/analyze/docker/log），直接回车退出: 6
+
+============================================
+  FileDriven GUI 模式测试运行器
+============================================
+
+  启动器               : D:\Project\Program\WorkFlowPrj\FileDriven\BuildOutput\Debug\net10.0-windows\FileDriven.Launcher.exe
+  测试脚本              : D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json
+  运行模式              : GUI (--show-gui)
+
+  说明: 将显示真实 WinForms 窗口
+        脚本中的 set/get 操作真实控件
+        请勿在纯命令行环境中运行
+
+
+============================================
+
+============================================
+  正在启动测试窗口...
+  [自动模式] 启动测试窗口（--auto-close），等待测试完成...
+  等待 Launcher 连接...
+  Launcher 已连接，开始接收输出...
+
+[00:27:23.609] [INFO] [FileDriven] 日志过滤配置已加载: mode=blacklist, configPath=D:\Project\Program\WorkFlowPrj\FileDriven\LogFilterConfig.json, stats=已检查: 0, 已过滤: 0, 已打印: 0
+[00:27:23.626] [DEBUG] [BackEndDriven] [backend:FrameworkExecutor_Start] {"mode":"CLI"}
+[00:27:23.631] [INFO] [FileDriven] 框架初始化开始: cliMode=true, message=框架初始化开始
+[00:27:23.631] [INFO] [FileDriven] 项目根目录: D:\Project\Program\WorkFlowPrj
+info: Universal[0]
+      UniversalMiddleware initialized
+[00:27:23.693] [INFO] [FileDriven] 事件绑定服务已注册: {serviceName}
+[00:27:23.694] [INFO] [FileDriven] 事件绑定服务已注入: {serviceName}
+[00:27:23.694] [INFO] [FileDriven] 开始初始化 FunctionStorageLifecycle: message=开始初始化 FunctionStorageLifecycle
+[00:27:23.699] [INFO] [FileDriven] FunctionStorageLifecycle 初始化完成: message=FunctionStorageLifecycle 初始化完成
+[00:27:23.699] [INFO] [FileDriven] 开始初始化 FileDrivenLifecycle: message=开始初始化 FileDrivenLifecycle
+[00:27:23.712] [INFO] [FileDriven] FileDrivenLifecycle 初始化完成: message=FileDrivenLifecycle 初始化完成
+[00:27:23.712] [WARN] [FileDriven] Log message 'FrameworkInitializer_IFunctionRegistry_registered' not found for keyPrefix 'filedriven:'.
+[00:27:23.713] [WARN] [FileDriven] Log message 'FrameworkInitializer_IEventExecutionService_registered' not found for keyPrefix 'filedriven:'.
+[00:27:23.714] [WARN] [FileDriven] Log message 'FrameworkInitializer_AppServiceProvider_initialized' not found for keyPrefix 'filedriven:'.
+[00:27:23.742] [INFO] [FileDriven] UICommandManager 创建完成: message=UICommandManager 创建完成
+[00:27:23.742] [INFO] [FileDriven] 开始注册 ExecutionCenter 处理器: message=开始注册 ExecutionCenter 处理器
+[00:27:23.746] [INFO] [FileDriven] ExecutionCenter 已注册: handlerType=FileDrivenPipeline (actual execution)
+[00:27:23.771] [INFO] [FileDriven] ExecutionCenter 处理器注册完成: message=ExecutionCenter 处理器注册完成
+[00:27:23.771] [INFO] [FileDriven] 框架初始化完成: message=框架初始化完成
+[00:27:23.773] [INFO] [FileDriven] 开始创建 Container IExecutionCell（首次访问时初始化）: message=开始创建 Container IExecutionCell（首次访问时初始化）
+[00:27:23.779] [INFO] [FileDriven] Container IExecutionCell 创建成功: cellType=Container.Core.ExecutionCell
+[00:27:23.781] [INFO] [FileDriven] [FrameworkExecutor] ExecuteMode 入口: cliMode=true, shouldRunGui=true, mode=Gui, commandFile=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json, configPath=(null)
+[00:27:23.784] [INFO] [FileDriven] [StartGuiMode] 入口: commandFile=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json, configPath=(null), autoClose=true, mode=Gui
+[00:27:23.786] [INFO] [FileDriven] [StartGuiMode] 开始创建 MainForm...
+[00:27:23.795] [INFO] [FileDriven] [GuiInitializer] CreateAndConfigure 入口: commandFile=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json, configPath=(null)
+[00:27:23.834] [INFO] [FileDriven] [GuiInitializer] MainForm 已创建: formText=FileDriven
+[00:27:23.835] [INFO] [FileDriven] [GuiInitializer] 依赖注入完成: message=依赖注入完成
+[00:27:23.836] [INFO] [FileDriven] [StartGuiMode] MainForm 创建完成: formText=FileDriven
+[00:27:23.836] [INFO] [FileDriven] Starting WinForms message loop with MainForm: FileDriven
+[00:27:23.850] [DEBUG] [FileDriven] [MainForm] OnInitializeAsync 开始: MainLayoutPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json
+[00:27:23.850] [DEBUG] [FileDriven] [MainForm] 正在加载 MainLayout: D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json
+[00:27:23.853] [DEBUG] [FileDriven] [PreprocessConfig] 开始预处理: configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json, fileExists=true
+[00:27:23.855] [DEBUG] [FileDriven] [PreprocessConfig] baseDir=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\TempletConfig, stylesExists=true, compositesExists=true
+[00:27:23.855] [DEBUG] [FileDriven] [PreprocessConfig] 即将调用 JsonTemplateProcessor.Process, configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json
+[00:27:23.858] [DEBUG] [FileDriven] [ProcessJsonWithTemplate] 输入: sourceType=file, sourcePath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json, jsonLength=6314, jsonPreview={jsonPreview}
+[00:27:23.882] [DEBUG] [FileDriven] [ProcessJsonWithTemplate] 输出: success=true, outputLength=12266
+[00:27:23.884] [DEBUG] [FileDriven] [PreprocessConfig] 预处理成功: configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\MainLayout.json, resultLength=12266
+[00:27:23.884] [DEBUG] [FileDriven] [PreprocessConfig] 结果预览: {
+  "description": "\u4E3B\u5E03\u5C40 - \u4F7F\u7528\u6A21\u677F\u5F15\u7528\u7CBE\u7B80",
+  "form": {
+    "title": "FileDriven",
+    "width": 1200,
+    "height": 800
+  },
+  "views": [
+    {
+...
+[00:27:23.941] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_ExecuteCreateLayoutPanel_start' not found for keyPrefix 'wdui:'.
+[00:27:23.954] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_RegisterSubContainer_direct' not found for keyPrefix 'wdui:'.
+[00:27:23.958] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_RegisterSubContainer_direct' not found for keyPrefix 'wdui:'.
+[00:27:23.973] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_ExecuteCreateLayoutPanel_after_resume' not found for keyPrefix 'wdui:'.
+[00:27:23.975] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_TreeAdapterCreated' not found for keyPrefix 'wdui:'.
+[00:27:23.976] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteCreateStage_done' not found for keyPrefix 'wdui:'.
+[00:27:23.981] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_FindForm] {"targetName":"ConfigContainer","formName":"FileDriven"}
+[00:27:23.982] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_BindStart] {"targetName":"MainForm","viewCount":1}
+[00:27:23.983] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_SearchRoot] {"targetName":"MainForm","searchRootType":"ConfigContainer"}
+[00:27:23.985] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"toolbarPanel"}
+[00:27:23.988] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"toolbarPanel","childCount":5}
+[00:27:23.988] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"loadConfigButton"}
+[00:27:23.989] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"loadConfigButton"}
+[00:27:23.993] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"LoadConfigButton_Click","controlName":"loadConfigButton"}
+[00:27:23.993] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"loadWorkflowButton"}
+[00:27:23.994] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"loadWorkflowButton"}
+[00:27:23.994] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"LoadWorkflowButton_Click","controlName":"loadWorkflowButton"}
+[00:27:23.994] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"clearButton"}
+[00:27:23.995] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"clearButton"}
+[00:27:23.995] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"ClearButton_Click","controlName":"clearButton"}
+[00:27:23.996] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"helpButton"}
+[00:27:23.996] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"helpButton"}
+[00:27:23.997] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"HelpButton_Click","controlName":"helpButton"}
+[00:27:23.997] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"loadSideButton"}
+[00:27:23.998] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"loadSideButton"}
+[00:27:23.998] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"LoadSideButton_Click","controlName":"loadSideButton"}
+[00:27:23.998] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"mainSplitter"}
+[00:27:23.999] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"mainSplitter","childCount":2}
+[00:27:24.000] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"mainArea"}
+[00:27:24.000] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"mainArea","childCount":1}
+[00:27:24.000] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"contentSplitter"}
+[00:27:24.001] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"contentSplitter","childCount":2}
+[00:27:24.001] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"contentContainer"}
+[00:27:24.002] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"terminalPanel"}
+[00:27:24.002] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"terminalPanel","childCount":2}
+[00:27:24.002] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"outputTextBox"}
+[00:27:24.003] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"commandBar"}
+[00:27:24.003] [DEBUG] [EventTrigger] [eventtrigger:ControlTreeWalker_ChildCount] {"controlName":"commandBar","childCount":3}
+[00:27:24.004] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"cmdLabel"}
+[00:27:24.004] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"commandTextBox"}
+[00:27:24.005] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"executeButton"}
+[00:27:24.005] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BindingControl] {"controlName":"executeButton"}
+[00:27:24.005] [DEBUG] [EventTrigger] [eventtrigger:EventBinder_BoundEvent] {"eventName":"click","functionName":"ExecuteButton_Click","controlName":"executeButton"}
+[00:27:24.006] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"sideContainer"}
+[00:27:24.007] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_BindComplete] {"targetName":"MainForm","boundCount":6,"skippedCount":11}
+[00:27:24.008] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteBindEventsStage_done' not found for keyPrefix 'wdui:'.
+[00:27:24.030] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteLayoutStage_done' not found for keyPrefix 'wdui:'.
+[00:27:24.031] [WARN] [WdUI] Log message 'ConfigContainer_RenderConfigAsync_ApplyLayout_done' not found for keyPrefix 'wdui:'.
+[00:27:24.034] [INFO] [FileDriven] [MainForm] OnRootContainerLoaded: success=true, error=
+[00:27:24.035] [DEBUG] [FileDriven] [MainForm] 控件引用获取完成
+[00:27:24.041] [DEBUG] [FileDriven] [MainForm] 控件引用获取完成
+[00:27:24.043] [DEBUG] [FileDriven] [MainForm] 开始调用 LoadConfigSelectorAsync
+[00:27:24.046] [DEBUG] [FileDriven] [MainForm] 正在加载 ConfigSelector
+[00:27:24.047] [DEBUG] [FileDriven] [PreprocessConfig] 开始预处理: configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\ConfigSelector.json, fileExists=true
+[00:27:24.048] [DEBUG] [FileDriven] [PreprocessConfig] baseDir=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\TempletConfig, stylesExists=true, compositesExists=true
+[00:27:24.049] [DEBUG] [FileDriven] [PreprocessConfig] 即将调用 JsonTemplateProcessor.Process, configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\ConfigSelector.json
+[00:27:24.049] [DEBUG] [FileDriven] [ProcessJsonWithTemplate] 输入: sourceType=file, sourcePath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\ConfigSelector.json, jsonLength=2417, jsonPreview={jsonPreview}
+[00:27:24.050] [DEBUG] [FileDriven] [ProcessJsonWithTemplate] 输出: success=true, outputLength=4003
+[00:27:24.051] [DEBUG] [FileDriven] [PreprocessConfig] 预处理成功: configPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\JsonConfig\ConfigSelector.json, resultLength=4003
+[00:27:24.052] [DEBUG] [FileDriven] [PreprocessConfig] 结果预览: {
+  "description": "\u914D\u7F6E\u6587\u4EF6\u9009\u62E9\u5668 - \u4F7F\u7528\u6A21\u677F\u5F15\u7528\u7CBE\u7B80",
+  "views": [
+    {
+      "name": "ConfigSelectorView",
+      "type": "Panel",
+...
+[00:27:24.055] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_ExecuteCreateLayoutPanel_start' not found for keyPrefix 'wdui:'.
+[00:27:24.074] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_ExecuteCreateLayoutPanel_after_resume' not found for keyPrefix 'wdui:'.
+[00:27:24.075] [WARN] [WdUI] Log message 'CreateLayoutPanelSkeleton_TreeAdapterCreated' not found for keyPrefix 'wdui:'.
+[00:27:24.076] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteCreateStage_done' not found for keyPrefix 'wdui:'.
+[00:27:24.076] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_FindForm] {"targetName":"ConfigContainer","formName":"FileDriven"}
+[00:27:24.077] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_BindStart] {"targetName":"MainForm","viewCount":1}
+[00:27:24.077] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_SearchRoot] {"targetName":"MainForm","searchRootType":"ConfigContainer"}
+[00:27:24.078] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"titleLabel"}
+[00:27:24.078] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"searchTextBox"}
+[00:27:24.078] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"configListView"}
+[00:27:24.079] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"loadSelButton"}
+[00:27:24.080] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"browseButton"}
+[00:27:24.080] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"statusLabel"}
+[00:27:24.080] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"enableProcessingCheckBox"}
+[00:27:24.081] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"styleLabel"}
+[00:27:24.081] [DEBUG] [EventTrigger] [eventtrigger:ControlFinder_Strategy2_Found] {"controlName":"styleComboBox"}
+[00:27:24.082] [DEBUG] [EventTrigger] [eventtrigger:DefaultEventBindingService_BindComplete] {"targetName":"MainForm","boundCount":0,"skippedCount":9}
+[00:27:24.083] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteBindEventsStage_done' not found for keyPrefix 'wdui:'.
+[00:27:24.088] [WARN] [WdUI] Log message 'wdui:RenderPipeline_ExecuteLayoutStage_done' not found for keyPrefix 'wdui:'.
+[00:27:24.088] [WARN] [WdUI] Log message 'ConfigContainer_RenderConfigAsync_ApplyLayout_done' not found for keyPrefix 'wdui:'.
+[00:27:24.090] [INFO] [FileDriven] [MainForm] OnConfigSelectorLoaded: success=true, error=
+[00:27:24.101] [DEBUG] [FileDriven] [MainForm] ConfigSelector 加载完成
+[00:27:24.102] [DEBUG] [FileDriven] [MainForm] MainLayout 加载完成
+[00:27:24.128] [INFO] [FileDriven] [DIAG] MainForm Shown event triggered, commandFile=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json
+[00:27:24.144] [INFO] [FileDriven] [DIAG] ExecuteScriptAsync eventBinding found: commandFile={commandFile}
+[00:27:24.146] [INFO] [FileDriven] [DIAG] ScriptExecutor start: commandFile=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json
+[00:27:24.156] [INFO] [FileDriven] [PipelineRunner] 管线执行开始: mode=GUI, scriptPath={scriptPath}, configPath={configPath}
+[00:27:24.165] [INFO] [FileDriven] [ScriptMode] 进入: mode={mode}
+[00:27:24.195] [INFO] [FileDriven] [ScriptLoad] 开始加载: scriptPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json, projectRoot=null
+[00:27:24.208] [INFO] [FileDriven] [ScriptLoad] 加载完成: scriptPath=D:\Project\Program\WorkFlowPrj\FileDriven\DrivenConfig\Scripts\Math\math_functions_test.json, totalCommands=36, commandFilePath=C:\Users\Ljy\AppData\Local\Temp\script_math_functions_test_13c0f8c5e449409bb4ca20b25837782c.txt
+[00:27:24.221] [INFO] [FileDriven] [ScriptMode] 退出: mode={mode}
+[00:27:24.224] [INFO] [FileDriven] [DIAG] ExecutionCenter Handler AfterExecute: threadId=6, isThreadPoolThread=true, hasError=true, errorMessage=Parse error: Command cannot be empty (Parameter 'command')
+[00:27:24.229] [INFO] [FileDriven] [DIAG] ScriptExecutor complete: success=false, totalCommands=0
+[00:27:24.232] [INFO] [FileDriven] [StartGuiMode] 脚本执行完成: success=false, totalCommands={totalCommands}
+[00:27:24.234] [INFO] [FileDriven] [DIAG] StartGuiMode stage result: {result}
+[00:27:24.235] [INFO] [FileDriven] Auto-close mode: exiting application.
+info: Universal[0]
+      UniversalMiddleware disposed
+[00:27:24.264] [INFO] [FileDriven] [StartGuiMode] Application.Run 返回，窗口已关闭
+[00:27:24.265] [INFO] [FileDriven] [FrameworkExecutor] ExecuteMode 返回: resultSuccess=true
+[00:27:24.266] [DEBUG] [BackEndDriven] [backend:FrameworkExecutor_Complete] {"success":true,"time":639}
+[00:27:24.728] [INFO] [FileDriven] [OK] ExecutionPool disposed
+[00:27:24.728] [INFO] [FileDriven] [OK] FileDrivenLifecycle shutdown
+[00:27:24.731] [INFO] [FileDriven] [OK] FunctionStorageLifecycle shutdown
+[00:27:24.731] [INFO] [FileDriven] [OK] UICommandManager shutdown
+[00:27:24.732] [INFO] [FileDriven] Framework shutdown complete
+[00:27:24.734] [INFO] [FileDriven] ===== 日志摘要（Console 模式）=====
+[00:27:24.734] [INFO] [FileDriven]   输出模式: Console（日志未写入数据库）
+[00:27:24.735] [INFO] [FileDriven]   所有批次:
+[00:27:24.736] [INFO] [FileDriven] ===== 批次日志摘要 =====
+[00:27:24.738] [INFO] [FileDriven]   批次: (无批次)
+[00:27:24.739] [INFO] [FileDriven]   日志数: 0
+[00:27:24.739] [INFO] [FileDriven]   所有批次:
+批次总数: 0
+运行中: 0
+已完成: 0
+失败: 0
+已取消: 0
+
+
+[完成] 测试执行结束
+
+请输入序号（1-12），或命令（list/info/dirs/show/help/mode/analyze/docker/log），直接回车退出:

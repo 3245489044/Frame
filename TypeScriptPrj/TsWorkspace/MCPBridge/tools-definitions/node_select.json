@@ -1,0 +1,16 @@
+{
+  "name": "node_select",
+  "description": "预算内注入：给定 select 节点键集，加载载荷、逐节点压缩、按 token_budget 限额注入上下文文本。",
+  "handler": "node-select",
+  "template": "with-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "taskKey": { "type": "string", "description": "task 键" },
+      "workflowId": { "type": "string", "description": "workflow 标识" },
+      "select": { "type": "array", "items": { "type": "string" }, "description": "本轮要加载载荷的节点键集" },
+      "budgetTokens": { "type": "number", "description": "注入预算（token），缺省取配置 defaultBudgetTokens" }
+    },
+    "required": ["select"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "bridge_reload",
+  "description": "重新加载桥接配置并重新聚合所有远程 MCP 服务器的工具列表",
+  "handler": "bridge-reload",
+  "template": "no-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "implementation": {
+    "imports": [
+      { "name": "getBridge", "from": "../core/bridge" }
+    ],
+    "mainCall": "getBridge().reload()",
+    "outputCall": "`✅ 桥接配置已重新加载`"
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "version": "1.0",
+  "description": "BackEndDriven 日志消息定义 - 使用 ClassName_MethodName_description 命名 | ★ 2026-08-08 级别降噪：Command_Get(读取成功)→Debug（消除配置 JSON 重复读取/空值读取刷屏；与 Command_Set/Click/Validate_Success 对齐）",
+  "messages": {
+    "Command_Sideload_Render_Succeeded": {
+      "level": "Info",
+      "category": "General",
+      "template": "sideload 渲染成功 — scope={scope}, config={configPath}, nodeCount={nodeCount}, hostChildCount={hostChildCount}"
+    },
+    "Command_Sideload_Render_Failed": {
+      "level": "Warning",
+      "category": "General",
+      "template": "sideload 渲染失败 — scope={scope}, config={configPath}, error={error}, nodeCount={nodeCount}, hostChildCount={hostChildCount}"
+    },
+    "Command_Sideload_Config_NotResolved": {
+      "level": "Warning",
+      "category": "General",
+      "template": "sideload 配置解析失败（文件不存在）— target={target}, resolved={fullPath}"
+    },
+    "ScriptLoad_Start": {
+      "level": "Debug",
+      "category": "BackEndDriven_Pipeline",
+      "template": "[ScriptLoad] 开始加载脚本: '{scriptPath}'"
+    },
+    "ScriptLoad_Failed": {
+      "level": "Error",
+      "category": "BackEndDriven_Pipeline",
+      "template": "[ScriptLoad] 脚本加载失败: '{scriptPath}' (原因: {reason})"
+    },
+    "WorkflowMethodExecution_Start": {
+      "level": "Info",
+      "category": "BackEndDriven_Workflow",
+      "template": "[WorkflowMethodExecution] 开始执行工作流: Function='{functionName}', InputControls='{inputControls}', IsGuiMode={isGuiMode}"
+    },
+    "WorkflowMethodExecution_Complete": {
+      "level": "Info",
+      "category": "BackEndDriven_Workflow",
+      "template": "[WorkflowMethodExecution] 工作流执行完成: Function='{functionName}', TotalTime={time}ms"
+    },
+    "WorkflowMethodExecution_Cancelled": {
+      "level": "Warning",
+      "category": "BackEndDriven_Workflow",
+      "template": "[WorkflowMethodExecution] 工作流执行被取消: Function='{functionName}'"
+    },
+    "WorkflowMethodExecution_Error": {
+      "level": "Error",
+      "category": "BackEndDriven_Workflow",
+      "template": "[WorkflowMethodExecution] 工作流执行失败: Function='{functionName}', Error={error}"
+    },
+
+    "FrameworkExecutor_Start": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[FrameworkExecutor] 工作流开始执行: Mode={mode}"
+    },
+    "FrameworkExecutor_Complete": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[FrameworkExecutor] 工作流执行完成: Success={success}, Time={time}ms"
+    },
+    "FrameworkExecutor_Error": {
+      "level": "Error",
+      "category": "BackEndDriven_Execution",
+      "template": "[FrameworkExecutor] 工作流执行失败: {error}"
+    },
+    "CommandInputPort_LoadCommandLines": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandInputPort] 加载命令行: count={count}"
+    },
+    "CommandInputPort_CommandLinesLoaded": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandInputPort] 命令行已加载: commandCount={commandCount}"
+    },
+    "CommandInputPort_LoadMetaCommands": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandInputPort] 加载元命令: count={count}"
+    },
+    "CommandInputPort_MetaCommandsLoaded": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandInputPort] 元命令已加载: commandCount={commandCount}"
+    },
+    "Command_Echo": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] Echo: {message}"
+    },
+    "Command_DoubleClick_Success": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 双击成功: target={target}"
+    },
+    "Command_Click_Success": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 点击成功: target={target}"
+    },
+    "Command_Click_NotDispatched": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 点击未分发（目标未渲染或无匹配绑定）: target={target}, outcome={outcome}"
+    },
+    "Command_Set_Success": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 设置成功: target={target}, value={value}"
+    },
+    "Command_Get": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 读取成功: target={target}, value={value}"
+    },
+    "Command_Validate_Success": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 校验成功: target={target}"
+    },
+    "Command_Validate_TextMatch": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 文本匹配: target={target}, expected={expected}, actual={actual}"
+    },
+    "Command_Validate_PositionMatch": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 位置匹配: target={target}, expected=({expectedX},{expectedY}), actual=({actualX},{actualY})"
+    },
+    "Command_Validate_NotMounted": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] validate 失败: 控件存在但未挂载到可见窗体（孤儿控件）— target={target}, note={note}"
+    },
+    "Command_Validate_Fallback_PoolExistence": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] validate 池直查降级（控件未挂载到可见窗体树）: target={target}, note={note}"
+    },
+    "Command_Validate_Mount_Success": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 挂载断言通过: target={target}, parent={parent}, visible={visible}"
+    },
+    "Command_Assert_Container": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 容器断言通过: hostName={hostName}, actual={actual}, expected={expected}"
+    },
+    "Command_Assert_EventBound": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 断言事件绑定: controlName={controlName}, subscribed={subscribed}"
+    },
+    "Command_Assert_TextEmpty": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 断言文本为空: controlName={controlName}"
+    },
+    "Command_Assert_TextContains": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 断言文本包含（assert text-contains）通过: controlName={controlName}, expected={expected}"
+    },
+    "Command_Exec_Sync": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 同步执行函数: function={function}"
+    },
+    "Command_Exec_Success": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 函数执行成功: function={function}, result={result}"
+    },
+    "Command_Exec_Failed": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 函数执行失败: function={function}, error={error}"
+    },
+    "Command_Exec_Error": {
+      "level": "Error",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 函数执行异常: function={function}, error={error}"
+    },
+    "Command_Exec_ExpectedContains_Match": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] exec 结果断言通过（函数返回文本含期望子串）: function={function}, expectedContains={expectedContains}"
+    },
+    "Command_Exec_ExpectedContains_Mismatch": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] exec 结果断言失配（函数返回即 success 但结果不达标 → fail-fast）: function={function}, expectedContains={expectedContains}, actual={actual}"
+    },
+    "Command_Load": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 加载: target={target}, fullPath={fullPath}"
+    },
+    "Command_Load_ActiveScope": {
+      "level": "Debug",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 加载后置活动作用域: scope={scope}"
+    },
+    "Command_Await_Timeout": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 等待超时: target={target}, key={key}, timeoutMs={timeoutMs}"
+    },
+    "Command_ClickWait_Success": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] click 等待函数完成成功: target={target}, output={output}"
+    },
+    "FunctionExecutor_DelegateFailed": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[FuncExec] 委托执行失败 — method={method}, errorType={errorType}, error={error}, elapsedMs={elapsedMs}"
+    },
+    "AEF_OpTerminated": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[AEF] 操作非正常终止 — name={name}, phase={phase}, elapsedMs={elapsedMs}, error={error}"
+    },
+    "InvocationKernel_Terminated": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[InvocationKernel] 函数框架态终止 — functionName={functionName}, outcome={outcome}, elapsedMs={elapsedMs}, stages={stages}, error={error}"
+    },
+    "Cline_ConfigExec": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[Cline_Config] 执行 — status={status}, elapsedMs={elapsedMs}, error={error}"
+    },
+    "CommandCoordinator_realtime_slow": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandCoordinator] 运行期慢(疑似卡死): #{index} {rawCommand} (action={action}, target={target}, elapsedMs={elapsedMs})"
+    },
+    "CommandCoordinator_realtime_hang": {
+      "level": "Error",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandCoordinator] 运行期卡死: #{index} {rawCommand} (action={action}, target={target}, elapsedMs={elapsedMs})"
+    },
+    "CommandCoordinator_realtime_failure": {
+      "level": "Error",
+      "category": "BackEndDriven_Execution",
+      "template": "[CommandCoordinator] 运行期命令失败: #{index} {rawCommand} (action={action}, target={target}) error={error}, elapsedMs={elapsedMs}"
+    }
+  }
+}
+

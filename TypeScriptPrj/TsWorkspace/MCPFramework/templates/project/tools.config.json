@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "example_tool",
+      "description": "示例工具 — 替换为你的工具描述",
+      "handler": "example",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "param1": {
+            "type": "string",
+            "description": "参数1说明"
+          }
+        },
+        "required": ["param1"]
+      }
+    }
+  ]
+}

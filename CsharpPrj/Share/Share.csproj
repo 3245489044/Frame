@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>共享库</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>共享复用层聚合项目，包含适配器、命令框架（含工作流执行）、诊断、执行中心、图框架、布局分析、参数解析、占位符、状态管理、树追踪、通用中间件、通用引用、事件绑定编排器等子模块</ModuleRule_Description>
+    <ModuleRule_Keywords>共享,复用,适配器,命令,工作流,诊断,图框架,中间件,事件绑定,编排器</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share</RootNamespace>
+    <AssemblyName>Share</AssemblyName>
+    <Description>Share 聚合项目 - 引用 Share 目录下所有子项目</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Adapters\Share.Adapters.csproj" />
+    <ProjectReference Include="CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="Conversation\Share.Conversation.csproj" />
+    <ProjectReference Include="HierarchySupport\Share.HierarchySupport.csproj" />
+    <ProjectReference Include="Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="GraphFramework\GraphFramework.csproj" />
+    <ProjectReference Include="LayoutAnalysis\LayoutAnalysis.csproj" />
+    <ProjectReference Include="PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="TreeTraceFramework\TreeTraceFramework.csproj" />
+    <ProjectReference Include="UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="UniversalReference\UniversalWorkflowFramework.csproj" />
+    <ProjectReference Include="EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <ProjectReference Include="TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="AiScheduling\AiScheduling.csproj" />
+    <ProjectReference Include="ControlLookup\ControlLookup.csproj" />
+    <ProjectReference Include="ScopeFramework\ScopeFramework.csproj" />
+    <!-- ★ HostAssembly 通用宿主装配框架：与 Share 家族其他子项目一致，聚合项目引用并排除其源码，避免类型在 Share.dll 重复编译（CS0433） -->
+    <ProjectReference Include="HostAssembly\HostAssembly.csproj" />
+    <ProjectReference Include="UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
+  </ItemGroup>
+
+  <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
+  <ItemGroup>
+    <Compile Remove="Adapters\**\*.cs" />
+    <Compile Remove="CommandFramework\**\*.cs" />
+    <Compile Remove="Conversation\**\*.cs" />
+    <Compile Remove="HierarchySupport\**\*.cs" />
+    <Compile Remove="Diagnostics\**\*.cs" />
+    <Compile Remove="FrameworkAbstractions\**\*.cs" />
+    <Compile Remove="GraphFramework\**\*.cs" />
+    <Compile Remove="LayoutAnalysis\**\*.cs" />
+    <Compile Remove="ParameterResolver\**\*.cs" />
+    <Compile Remove="PlaceholderFramework\**\*.cs" />
+    <Compile Remove="StateManagement\**\*.cs" />
+    <Compile Remove="TreeTraceFramework\**\*.cs" />
+    <Compile Remove="UniversalMiddleware\**\*.cs" />
+    <Compile Remove="UniversalReference\**\*.cs" />
+    <Compile Remove="EventBindingOrchestrator\**\*.cs" />
+    <Compile Remove="TaskStatusPool\**\*.cs" />
+    <Compile Remove="AiScheduling\**\*.cs" />
+    <Compile Remove="ControlLookup\**\*.cs" />
+    <Compile Remove="ScopeFramework\**\*.cs" />
+    <Compile Remove="HostAssembly\**\*.cs" />
+  </ItemGroup>
+
+</Project>
+
+

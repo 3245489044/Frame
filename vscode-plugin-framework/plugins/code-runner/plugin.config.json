@@ -1,0 +1,18 @@
+{
+    "pluginName": "code-runner",
+    "version": "1.0",
+    "displayName": "Code Runner 执行器",
+    "description": "运行各种脚本文件（bat、ps1、py 等）",
+    "supportedTypes": [".bat", ".ps1", ".py", ".js", ".cmd"],
+    "dependencies": [],
+    "config": {
+        "runInTerminal": false,
+        "executorMap": {
+            "bat": "cmd /c",
+            "cmd": "cmd /c",
+            "ps1": "powershell -ExecutionPolicy ByPass -File",
+            "py": "python -u",
+            "js": "node"
+        }
+    }
+}

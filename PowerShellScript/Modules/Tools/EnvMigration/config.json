@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "description": "开发环境迁移配置 — 低风险模式：仅设置环境变量 + 删除原数据",
+  "devEnvRoot": "D:\\DevEnv",
+
+  "migrationItems": {
+    "NuGet": {
+      "displayName": "NuGet 包缓存",
+      "description": "设置 NUGET_PACKAGES 指向 D:\\DevEnv\\NuGet，删除 %USERPROFILE%\\.nuget\\packages",
+      "enabled": true,
+      "order": 1,
+      "strategy": "env",
+      "envVar": "NUGET_PACKAGES",
+      "source": "%USERPROFILE%\\.nuget\\packages",
+      "target": "NuGet\\packages"
+    },
+    "npm": {
+      "displayName": "npm 全局包和缓存",
+      "description": "设置 npm config prefix/cache 指向 D:\\DevEnv\\npm，删除 %APPDATA%\\npm 和缓存",
+      "enabled": true,
+      "order": 2,
+      "strategy": "config",
+      "configType": "npm",
+      "source": {
+        "prefix": "%APPDATA%\\npm",
+        "cache": "%LOCALAPPDATA%\\npm-cache"
+      },
+      "target": {
+        "prefix": "npm\\global",
+        "cache": "npm\\cache"
+      }
+    },
+    "pip": {
+      "displayName": "pip 缓存",
+      "description": "设置 PIP_CACHE_DIR 指向 D:\\DevEnv\\pip，删除 %LOCALAPPDATA%\\pip\\cache",
+      "enabled": true,
+      "order": 3,
+      "strategy": "env",
+      "envVar": "PIP_CACHE_DIR",
+      "source": "%LOCALAPPDATA%\\pip\\cache",
+      "target": "pip\\cache"
+    },
+    "Python": {
+      "displayName": "Python 用户包",
+      "description": "设置 PYTHONUSERBASE 指向 D:\\DevEnv\\Python，删除 %APPDATA%\\Python",
+      "enabled": true,
+      "order": 4,
+      "strategy": "env",
+      "envVar": "PYTHONUSERBASE",
+      "source": "%APPDATA%\\Python",
+      "target": "Python"
+    },
+    "DotNet": {
+      "displayName": ".NET SDK 工具",
+      "description": "设置 DOTNET_CLI_HOME 指向 D:\\DevEnv\\dotnet，删除 %USERPROFILE%\\.dotnet",
+      "enabled": true,
+      "order": 5,
+      "strategy": "env",
+      "envVar": "DOTNET_CLI_HOME",
+      "source": "%USERPROFILE%\\.dotnet",
+      "target": "dotnet"
+    },
+    "Rust": {
+      "displayName": "Rust 工具链",
+      "description": "设置 RUSTUP_HOME/CARGO_HOME 指向 D:\\DevEnv\\Rust，删除 %USERPROFILE%\\.rustup 和 %USERPROFILE%\\.cargo",
+      "enabled": true,
+      "order": 6,
+      "strategy": "env",
+      "envVar": "RUSTUP_HOME",
+      "source": "%USERPROFILE%\\.rustup",
+      "target": "Rust\\.rustup",
+      "cargoSource": "%USERPROFILE%\\.cargo",
+      "cargoTarget": "Rust\\.cargo"
+    }
+  }
+}

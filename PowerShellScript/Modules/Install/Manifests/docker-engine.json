@@ -1,0 +1,25 @@
+{
+  "$schema": "../manifest-schema.json",
+  "name": "Docker Engine",
+  "description": "Docker Engine CLI 版安装清单",
+  "version": "1.0.0",
+  "target": "local",
+  "items": [
+    {
+      "name": "docker-engine",
+      "type": "zip-extract",
+      "source": "https://download.docker.com/win/static/stable/x86_64/docker-29.5.3.zip",
+      "version": "29.5.3",
+      "installDir": "D:\\DevEnv\\DockerEngine",
+      "extractRoot": "docker",
+      "binaryName": "docker.exe",
+      "requiredFiles": ["docker.exe", "dockerd.exe"],
+      "pathEntries": ["D:\\DevEnv\\DockerEngine"],
+      "envVars": {
+        "DOCKER_DATA_ROOT": "D:\\DevEnv\\DockerData"
+      },
+      "description": "Docker Engine CLI 版",
+      "tags": ["docker", "container"]
+    }
+  ]
+}

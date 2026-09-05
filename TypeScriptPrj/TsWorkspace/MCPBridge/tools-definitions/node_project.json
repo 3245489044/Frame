@@ -1,0 +1,15 @@
+{
+  "name": "node_project",
+  "description": "候选投影：给定 taskKey，沿引用边投影本 task 候选节点索引（nodeKey/类型/状态/大小/一句话摘要 + token 估算），不携带载荷。",
+  "handler": "node-project",
+  "template": "with-args",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "taskKey": { "type": "string", "description": "task 键（task 作用域寻址依据）" },
+      "workflowId": { "type": "string", "description": "workflow 标识，缺省由桥自动解析" },
+      "limit": { "type": "number", "description": "候选数量上限，0=不限" }
+    },
+    "required": ["taskKey"]
+  }
+}

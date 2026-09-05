@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PsContract",
+  "type": "object",
+  "required": ["identity", "params", "output_schema", "env_tags"],
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["action", "verb", "object", "purpose", "function", "path"],
+      "properties": {
+        "action": { "type": "string", "description": "动词优先动作 ID，如 read.file" },
+        "verb": { "type": "string" },
+        "object": { "type": "string" },
+        "purpose": { "type": "string" },
+        "function": { "type": "string" },
+        "path": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "params": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "required"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "required": { "type": "boolean" },
+          "constraint": { "type": "string" },
+          "default": {}
+        }
+      }
+    },
+    "output_schema": {
+      "type": "object",
+      "required": ["status", "message", "data", "errors"],
+      "properties": {
+        "status": { "type": "string", "enum": ["success", "failure"] },
+        "message": { "type": "string" },
+        "data": { "type": "object" },
+        "errors": { "type": "array" }
+      }
+    },
+    "env_tags": {
+      "type": "object",
+      "required": ["ps_version", "os"],
+      "properties": {
+        "ps_version": { "type": "string" },
+        "admin": { "type": "boolean" },
+        "os": { "type": "string" },
+        "modules": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

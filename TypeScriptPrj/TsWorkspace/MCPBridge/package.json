@@ -1,0 +1,31 @@
+{
+  "name": "mcp-bridge",
+  "version": "2.0.0",
+  "description": "Cline ↔ MCP 桥接服务器 — 默认无 Docker 调用，可按需启用 Docker 管理",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "mcp-bridge": "build/index.js",
+    "mcp-bridge-cli": "build/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch",
+    "clean": "rm -rf build",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "basic-method": "workspace:*",
+    "commander": "^12.1.0",
+    "mcp-framework": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

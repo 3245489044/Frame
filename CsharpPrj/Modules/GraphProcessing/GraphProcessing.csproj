@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Dispose.GraphProcessing</RootNamespace>
+    <AssemblyName>Dispose.GraphProcessing</AssemblyName>
+    <Description>图处理框架 - 基于 Graph + Transformers 重构 Other 逻辑，提供去重、归一化等能力</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GraphFoundation、Transformers 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+  </ItemGroup>
+
+
+</Project>

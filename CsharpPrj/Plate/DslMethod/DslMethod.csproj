@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>DSL 方法库</ModuleRule_Title>
+    <ModuleRule_Layer>6</ModuleRule_Layer>
+    <ModuleRule_Description>平台级统一 DSL/契约框架：声明式 DSL 解析、符号索引、[CR] 交叉引用解析、[Bind] 契约绑定（实现↔公理对应）的建模、校验与导航</ModuleRule_Description>
+    <ModuleRule_Keywords>DSL;解析;符号索引;引用;契约;绑定;公理;对应</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是平台级统一 DSL/契约框架，供上层模块处理 clinerules DSL 与 [Bind] 契约绑定" />
+    <ModuleRule_Rule Include="新增 DSL 前缀 = 在 DslConstants 前缀注册表增条目，文法不变" />
+    <ModuleRule_Rule Include="命名空间统一使用 Plate.DslMethod.*" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要解析 clinerules DSL 声明时，使用 DslParser.Parse" />
+    <ModuleRule_Prompt Include="当需要解析 [CR] 交叉引用时，使用 CrReferenceParser" />
+    <ModuleRule_Prompt Include="当需要建立实现↔公理对应关系时，使用 ContractRegistry（[Bind] 符号）" />
+    <ModuleRule_Prompt Include="当需要校验绑定悬空/缺口/漂移时，使用 ContractRegistry.Validate / FindGaps / BuildMatrix" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.DslMethod</RootNamespace>
+    <AssemblyName>Plate.DslMethod</AssemblyName>
+    <AssemblyTitle>Plate DSL Method Framework</AssemblyTitle>
+    <Description>平台级统一 DSL 框架 - 解析、符号索引、引用解析、契约绑定</Description>
+  </PropertyGroup>
+
+</Project>

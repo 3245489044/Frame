@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Framework</RootNamespace>
+    <AssemblyName>BasicMethod.Framework</AssemblyName>
+    <AssemblyTitle>BasicMethod Framework</AssemblyTitle>
+    <Description>通用框架实现层 - 提供模块生命周期、配置管理、事件总线、导航、对象工厂、布局引擎、树搜索等通用功能的默认实现。</Description>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Framework.Abstractions\BasicMethod.Framework.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

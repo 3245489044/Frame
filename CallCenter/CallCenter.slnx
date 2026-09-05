@@ -1,0 +1,9 @@
+<Solution>
+  <!-- 参照 FileDriven：产品工程平铺于 CallCenter 根，根聚合工程 CallCenter.csproj 引用全部子项目；
+       测试已外迁 CentralTest\CallCenterTest（不再注册进产品解决方案）。 -->
+  <Project Path="CallCenter.csproj" />
+  <Project Path="CallCenter.Core/CallCenter.Core.csproj" />
+  <Project Path="CallCenter.Adapters/CallCenter.Adapters.csproj" />
+  <Project Path="CallCenter.Mcp/CallCenter.Mcp.csproj" />
+  <Project Path="CallCenter.Host/CallCenter.Host.csproj" />
+</Solution>

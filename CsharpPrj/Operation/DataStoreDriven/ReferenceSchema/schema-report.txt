@@ -1,0 +1,29 @@
+﻿# 引用 Schema 映射报告（纯编译产物，源: D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md
+# Version: 1.0
+Node	workflow	工作流	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:13
+Node	module	模块	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:14
+Node	resource	资源	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:15
+Node	checkpoint	检查点	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:16
+Node	node	节点	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:17
+Node	task	任务	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:18
+Node	keymapping	键映射	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:19
+Edge	Dependency	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:25
+Edge	Includes	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:26
+Edge	Uses	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:27
+Edge	Extends	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:28
+Edge	Requires	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:29
+Edge	Other	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:30
+Edge	node_to_node	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:31
+Edge	keymapping_to_node	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:32
+Edge	Calls	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:33
+Edge	Owns	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:34
+Constraint	Dependency	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:40
+Constraint	Includes	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:41
+Constraint	Uses	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:42
+Constraint	Extends	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:43
+Constraint	Requires	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:44
+Constraint	Other	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:45
+Constraint	node_to_node	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:46
+Constraint	keymapping_to_node	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:47
+Constraint	Calls	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:48
+Constraint	Owns	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:49

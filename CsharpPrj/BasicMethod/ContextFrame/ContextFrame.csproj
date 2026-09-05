@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>BasicMethod.ContextFrame</RootNamespace>
+    <AssemblyName>BasicMethod.ContextFrame</AssemblyName>
+    <Description>上下文框架 - 提供上下文抽象、作用域管理、构建器、适配器等上下文处理基础能力</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Abstractions\**\*.cs" />
+    <Compile Include="Core\**\*.cs" />
+    <Compile Include="Scoping\**\*.cs" />
+    <Compile Include="Builders\**\*.cs" />
+    <Compile Include="Adapters\**\*.cs" />
+    <Compile Include="Utilities\**\*.cs" />
+    <Compile Include="Locking\Lock.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

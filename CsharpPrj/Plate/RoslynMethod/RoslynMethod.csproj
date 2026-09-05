@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mathematics\Mathematics.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DeepCloner" Version="$(DeepClonerVersion)" />
+    <PackageReference Include="DynamicExpresso.Core" Version="$(DynamicExpressoCoreVersion)" />
+    <PackageReference Include="MathNet.Numerics" Version="$(MathNetNumericsVersion)" />
+    <PackageReference Include="Microsoft.Agents.Core" Version="$(MicrosoftAgentsCoreVersion)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+    <PackageReference Include="System.Linq.Dynamic.Core" Version="$(SystemLinqDynamicCoreVersion)" />
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
+
+  <!-- 排除非本项目的目录（测试项目、其他独立项目） -->
+  <ItemGroup>
+    <Compile Remove="TestMent\**\*.cs" />
+    <None Include="TestMent\**\*.cs" />
+    <Compile Remove="CodePathExplorer\**\*.cs" />
+    <None Include="CodePathExplorer\**\*.cs" />
+    <Compile Remove="CodePathExplorer.Tests\**\*.cs" />
+    <None Include="CodePathExplorer.Tests\**\*.cs" />
+    <Compile Remove="CodeRLFramework\**\*.cs" />
+    <None Include="CodeRLFramework\**\*.cs" />
+    <Compile Remove="Agent\**\*.cs" />
+    <None Include="Agent\**\*.cs" />
+    <Compile Remove="Agent.Tests\**\*.cs" />
+    <None Include="Agent.Tests\**\*.cs" />
+    <Compile Remove="Mathematics\**\*.cs" />
+    <None Include="Mathematics\**\*.cs" />
+  </ItemGroup>
+
+</Project>

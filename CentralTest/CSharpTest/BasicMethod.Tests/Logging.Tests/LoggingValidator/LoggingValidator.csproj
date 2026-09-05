@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>LoggingValidator</RootNamespace>
+    <AssemblyName>LoggingValidator</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logging 已整合到 BasicMethod.csproj -->
+  </ItemGroup>
+
+
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.ScopeFramework</RootNamespace>
+    <AssemblyName>Share.ScopeFramework</AssemblyName>
+    <Description>任务中心多层作用域封装框架 —— 高层命令 → 短路步骤链 → 既有 action 单 JSON 序列的纯逻辑翻译器（零 Agent 依赖，CentralTest 可直测）</Description>
+  </PropertyGroup>
+
+</Project>

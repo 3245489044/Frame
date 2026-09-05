@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>宿主装配框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用宿主装配框架：组合根装配管线（门控阶段）+ 可观测降级（FailSilent）+ 线程安全槽位 + 单实例工厂 + 同步异步桥 + 统一错误边界 + 表驱动命令分发 + 内存键值存储。零第三方依赖，不绑定任何具体业务/领域类型。</ModuleRule_Description>
+    <ModuleRule_Keywords>装配,组合根,降级,槽位,单实例,错误分类,命令分发,通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.HostAssembly</RootNamespace>
+    <AssemblyName>Share.HostAssembly</AssemblyName>
+    <Description>通用宿主装配框架 — 组合根装配 + 可观测降级 + 线程安全基建 + 统一错误边界 + 命令分发</Description>
+  </PropertyGroup>
+
+</Project>

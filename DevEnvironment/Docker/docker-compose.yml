@@ -1,0 +1,42 @@
+services:
+
+  mcp-env:
+    build:
+      context: ..\..
+      dockerfile: DevEnvironment\Docker\Dockerfile
+    image: workflow-mcp-env:latest
+    container_name: workflow-mcp-env
+    restart: unless-stopped
+
+    ports:
+      - "3100-3107:3100-3107"
+
+    volumes:
+      - D:\Project\Program\WorkFlowPrj:/workspace/WorkFlowPrj
+      # 挂载宿主机 NuGet 包目录，避免容器内重复下载
+      - D:\DevEnv\NuGet\packages:/root/.nuget/packages
+      - mcp-data:/opt/mcp-data
+      - npm-cache:/root/.npm
+      # 挂载修复后的 entrypoint.sh 覆盖镜像内旧版本（解决 BOM 问题）
+      - D:\Project\Program\WorkFlowPrj\DevEnvironment\Docker\scripts\entrypoint.sh:/entrypoint.sh
+
+    environment:
+      - TZ=Asia/Shanghai
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      - PYTHONUNBUFFERED=1
+
+    deploy:
+      resources:
+        limits:   { cpus: "4", memory: "8G" }
+        reservations: { cpus: "2", memory: "4G" }
+
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  mcp-data:
+  npm-cache:

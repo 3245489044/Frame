@@ -1,0 +1,23 @@
+{
+  "$schema": "./cline.config.schema.json",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "cwd": "D:\\Project\\Program\\WorkFlowPrj\\TypeScriptPrj",
+  "timeoutSec": 600,
+  "autoApprove": true,
+  "thinking": "medium",
+  "credentialsFile": "../../../credentials/cline.json",
+  "commandPermissions": {
+    "allow": [
+      "git *",
+      "npm *",
+      "pnpm *",
+      "dotnet *",
+      "node *"
+    ],
+    "deny": [
+      "rm -rf *"
+    ],
+    "allowRedirects": false
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "pipeline": {
+    "name": "CodeRL-Training",
+    "enableLLMNavigation": true,
+    "enableGraphReward": true
+  },
+  "weights": {
+    "codebaseWeight": 0.7,
+    "templateWeight": 0.3,
+    "explorationRate": 0.1,
+    "temperature": 1.0,
+    "confidenceThreshold": 0.3,
+    "graphStructureWeight": 0.20,
+    "navigationQualityWeight": 0.15,
+    "normalizeWeights": true
+  },
+  "llmNavigation": {
+    "enabled": true,
+    "confidenceThreshold": 0.3,
+    "maxNavSteps": 20
+  },
+  "skeletons": {
+    "enabled": [],
+    "disabled": []
+  },
+  "training": {
+    "maxEpisodes": 100,
+    "maxStepsPerEpisode": 50,
+    "convergenceThreshold": 0.01,
+    "convergenceWindow": 10,
+    "codebasePath": null,
+    "templateCode": null,
+    "testCode": null
+  }
+}

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Share.ControlLookup</AssemblyName>
+    <RootNamespace>Share.ControlLookup</RootNamespace>
+    <Description>通用控件查找框架（ControlLookup）——将「按名/类型/祖先/后代」的多种查找语义统一为「查找源 + 有序聚合器」，供 Share/FrontEndDriven/FileDriven 等跨项目收敛 finder 族群使用。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinFormsAbstractions：官方单一面 IControlFinder（FrameworkAbstractions） -->
+    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <!-- ECS.Bridge.ControlPool / EntityManager（BasicMethod）：多级查找源 -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <!-- IControlRegistry（TConfig）：普通控件索引源 -->
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <!-- IEntityTreeService / IEntityTreeRoot（UniversalMiddleware）：实体树查找源 -->
+    <ProjectReference Include="..\UniversalMiddleware\UniversalMiddleware.csproj" />
+  </ItemGroup>
+
+</Project>

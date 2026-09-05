@@ -1,0 +1,71 @@
+<Project>
+
+  <UsingTask TaskName="FilterDeletableFiles"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <DeletableFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="Microsoft.Build.Framework" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        var list = new System.Collections.Generic.List<ITaskItem>();
+        foreach (var item in Files ?? System.Array.Empty<ITaskItem>())
+        {
+          try
+          {
+            using (var fs = File.Open(item.ItemSpec, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+            list.Add(item);
+          }
+          catch
+          {
+            // 文件正被占用/锁定 → 保留，避免删除被拒的 MSB3061 警告
+          }
+        }
+        DeletableFiles = list.ToArray();
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="CoreClean" DependsOnTargets="$(CoreCleanDependsOn)">
+
+    <Delete Files="@(Clean)" TreatErrorsAsWarnings="true" />
+
+    <ReadLinesFromFile File="$(IntermediateOutputPath)$(CleanFile)">
+      <Output TaskParameter="Lines" ItemName="_CleanPriorFileWrites" />
+    </ReadLinesFromFile>
+
+    <!-- 筛选位于最终输出目录与中间输出目录的文件。 -->
+    <FindUnderPath Path="$(OutDir)" Files="@(_CleanPriorFileWrites)">
+      <Output TaskParameter="InPath" ItemName="_CleanPriorFileWritesInOutput" />
+    </FindUnderPath>
+    <FindUnderPath Path="$(IntermediateOutputPath)" Files="@(_CleanPriorFileWrites)">
+      <Output TaskParameter="InPath" ItemName="_CleanPriorFileWritesInIntermediate" />
+    </FindUnderPath>
+
+    <!-- 只删除当前未被锁定的文件。 -->
+    <FilterDeletableFiles Files="@(_CleanPriorFileWritesInOutput);@(_CleanPriorFileWritesInIntermediate)">
+      <Output TaskParameter="DeletableFiles" ItemName="_CleanDeletableFiles" />
+    </FilterDeletableFiles>
+    <Delete Files="@(_CleanDeletableFiles)" TreatErrorsAsWarnings="true">
+      <Output TaskParameter="DeletedFiles" ItemName="_CleanPriorFileWritesDeleted" />
+    </Delete>
+
+    <!-- 汇总未删除文件，写回清理清单（与 SDK 原逻辑一致）。 -->
+    <ItemGroup>
+      <_CleanRemainingFileWritesAfterClean Include="@(_CleanPriorFileWrites)" Exclude="@(_CleanPriorFileWritesDeleted)" />
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_CleanRemainingFileWritesAfterClean)">
+      <Output TaskParameter="Filtered" ItemName="_CleanUniqueRemainingFileWrites" />
+    </RemoveDuplicates>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)$(CleanFile)" Lines="@(_CleanUniqueRemainingFileWrites)" WriteOnlyWhenDifferent="true" Overwrite="true" />
+
+  </Target>
+
+</Project>

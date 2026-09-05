@@ -1,0 +1,39 @@
+{
+  "private": true,
+  "name": "typescript-sln-root",
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "TsWorkspace/BasicMethod",
+    "TsWorkspace/MCPFramework",
+    "TsWorkspace/MCPBridge",
+    "TsWorkspace/CsprojContext",
+    "TsWorkspace/ClineApi",
+    "TsWorkspace/Protocol/CSG",
+    "TsWorkspace/WorkflowGraph",
+    "TsSln"
+  ],
+  "scripts": {
+    "build": "node build/TsSln/cli.js build",
+    "clean": "node build/TsSln/cli.js clean",
+    "rebuild": "node build/TsSln/cli.js rebuild",
+    "list": "node build/TsSln/cli.js list",
+    "info": "node build/TsSln/cli.js info",
+    "build:ts": "npm run build --workspace=TsSln",
+    "tsm": "node build/TsSln/cli.js",
+    "install:deps": "pnpm install"
+  },
+  "pnpm": {
+    "overrides": {
+      "@ai-sdk/openai": "4.0.31",
+      "@ai-sdk/google": "4.0.35",
+      "@ai-sdk/anthropic": "4.0.33",
+      "@ai-sdk/mistral": "4.0.25",
+      "@ai-sdk/google-vertex": "5.0.44",
+      "@ai-sdk/amazon-bedrock": "5.0.46",
+      "@ai-sdk/openai-compatible": "3.0.25",
+      "@ai-sdk/provider": "4.0.6"
+    }
+  },
+  "packageManager": "pnpm@10.8.1"
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://csg-schema.org/v1/operations.json",
+  "title": "CSG Operations Specification",
+  "description": "CSG 变换操作规范 — 定义所有标准操作的签名和语义",
+  "type": "object",
+  "required": ["version", "operations"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "操作规范版本",
+      "enum": ["1.0"]
+    },
+    "operations": {
+      "type": "array",
+      "description": "标准操作列表",
+      "items": {
+        "$ref": "#/$defs/operationDefinition"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "operationDefinition": {
+      "type": "object",
+      "description": "操作定义",
+      "required": ["name", "category", "description", "inputType", "outputType"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "操作唯一名称"
+        },
+        "label": {
+          "type": "string",
+          "description": "操作显示标签"
+        },
+        "description": {
+          "type": "string",
+          "description": "操作详细描述"
+        },
+        "category": {
+          "type": "string",
+          "description": "操作分类",
+          "enum": ["transform", "cross-domain", "validate", "analyze", "build"]
+        },
+        "inputType": {
+          "type": "string",
+          "description": "输入类型描述"
+        },
+        "outputType": {
+          "type": "string",
+          "description": "输出类型描述"
+        },
+        "isReversible": {
+          "type": "boolean",
+          "description": "是否支持反向变换",
+          "default": false
+        },
+        "reverseOperationName": {
+          "type": "string",
+          "description": "反向操作名称（当 isReversible 为 true 时）"
+        },
+        "version": {
+          "type": "string",
+          "description": "操作版本",
+          "default": "1.0"
+        },
+        "tags": {
+          "type": "array",
+          "description": "标签（用于分类过滤）",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,458 @@
+{
+    "version": "1.1",
+    "description": "FunctionStorage 模块日志消息注册文件 - ★ 2026-08-05 级别降噪：MathFunctionRegistrar_RegisterAll_result→Debug，WorkflowLibrary_RegisterAll_completed→Debug（超长 warnings 仅排查时查看）",
+    "messages": {
+        "MathFunctionRegistrar_FindConfigPath_result": {
+            "level": "Debug",
+            "category": "FunctionStorage_Registration",
+            "template": "[MathFunctionRegistrar] 查找配置路径: configPath={configPath}, baseDir={baseDir}, currentDir={currentDir}"
+        },
+        "MathFunctionRegistrar_RegisterAll_result": {
+            "level": "Debug",
+            "category": "FunctionStorage_Registration",
+            "template": "[MathFunctionRegistrar] 注册完成: configPath={configPath}, successCount={successCount}, failCount={failCount}"
+        },
+        "MathLibrary_RegisterAll_start": {
+            "level": "Debug",
+            "category": "FunctionStorage_Registration",
+            "template": "[MathLibrary] 开始注册"
+        },
+        "MathLibrary_RegisterAll_completed": {
+            "level": "Debug",
+            "category": "FunctionStorage_Registration",
+            "template": "[MathLibrary] 注册完成"
+        },
+        "MathBrowserFunctions_GetDomains_called": {
+            "level": "Debug",
+            "category": "FrontEndDriven_General",
+            "template": "[MathBrowserFunctions] GetDomains 被调用: {message}"
+        },
+        "DefaultInputDispatcher_GetAllDefaultInputAsJson": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 获取所有默认输入(JSON): workflowName={workflowName}"
+        },
+        "DefaultInputDispatcher_GetAllDefaultInputAsJson_empty": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 默认输入为空: workflowName={workflowName}"
+        },
+        "DefaultInputDispatcher_GetAllDefaultInputAsJson_json": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 默认输入 JSON: json={json}"
+        },
+        "DefaultInputDispatcher_GetDefaultInputSmart": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 智能获取默认输入: workflowName={workflowName}"
+        },
+        "DefaultInputDispatcher_GetDefaultInputSmart_empty": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 默认输入为空(智能): workflowName={workflowName}"
+        },
+        "DefaultInputDispatcher_GetDefaultInputSmart_json_value": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] JSON 值格式化: key={key}, originalLength={originalLength}, formattedLength={formattedLength}"
+        },
+        "DefaultInputDispatcher_GetDefaultInputSmart_single": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 单字段返回: key={key}, value={value}"
+        },
+        "DefaultInputDispatcher_GetDefaultInputSmart_multi": {
+            "level": "Debug",
+            "category": "FunctionStorage_Execution",
+            "template": "[DefaultInputDispatcher] 多字段返回 JSON: json={json}"
+        },
+        "FunctionStorageRegistry_Register_delegate": {
+            "level": "Info",
+            "category": "FunctionStorage_Registration",
+            "template": "[FunctionStorageRegistry] 注册委托: Name={Name}, Description={Description}"
+        },
+        "FunctionStorageRegistry_Register_unit": {
+            "level": "Info",
+            "category": "FunctionStorage_Registration",
+            "template": "[FunctionStorageRegistry] 注册单元: Name={Name}, TotalCount={TotalCount}"
+        },
+        "FunctionStorageLifecycle_ctor_registry_diag": {
+            "level": "Debug",
+            "category": "FunctionStorage_Initialization",
+            "template": "[FunctionStorageLifecycle] 构造函数 - 注册表诊断: hash={hash}, type={type}, count={count}, isInitialized={isInitialized}, message={message}"
+        },
+        "FunctionStorageLifecycle_Initialize_registeredCount": {
+            "level": "Info",
+            "category": "FunctionStorage_Initialization",
+            "template": "[FunctionStorageLifecycle] 初始化完成: count={count}"
+        },
+        "WorkflowBrowserService_LoadListView": {
+            "level": "Debug",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 加载列表视图"
+        },
+        "WorkflowBrowserService_LoadListView_invalid_path": {
+            "level": "Warn",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图无效路径"
+        },
+        "WorkflowBrowserService_LoadListView_completed": {
+            "level": "Info",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图加载完成: dir={dir}, count={count}"
+        },
+        "WorkflowBrowserService_LoadListView_error": {
+            "level": "Error",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图加载错误: error={error}"
+        },
+        "WorkflowBrowserService_GetSelectedWorkflowName": {
+            "level": "Debug",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 获取选中工作流名: workflowName={workflowName}"
+        },
+        "WorkflowBrowserService_GetSelectedWorkflowName_error": {
+            "level": "Error",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 获取选中工作流名错误: error={error}"
+        },
+        "WorkflowBrowserService_PopulateListView": {
+            "level": "Debug",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 填充列表视图"
+        },
+        "WorkflowBrowserService_PopulateListView_empty": {
+            "level": "Warn",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图填充为空"
+        },
+        "WorkflowBrowserService_PopulateListView_completed": {
+            "level": "Info",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图填充完成: count={count}"
+        },
+        "WorkflowBrowserService_PopulateListView_error": {
+            "level": "Error",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 列表视图填充错误: error={error}"
+        },
+        "WorkflowBrowserService_GetFirstWorkflowName_empty": {
+            "level": "Warn",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 首个工作流名为空"
+        },
+        "WorkflowBrowserService_GetFirstWorkflowName": {
+            "level": "Debug",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 获取首个工作流名: firstName={firstName}"
+        },
+        "WorkflowBrowserService_GetFirstWorkflowName_error": {
+            "level": "Error",
+            "category": "FrontEndDriven_General",
+            "template": "[WorkflowBrowserService] 获取首个工作流名错误: error={error}"
+        },
+        "WorkflowExecutionLayer_LoadWorkflowDefinition_file_not_found": {
+            "level": "Warn",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 加载工作流定义文件不存在: filePath={filePath}"
+        },
+        "WorkflowExecutionLayer_LoadWorkflowDefinition_failed": {
+            "level": "Error",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 加载工作流定义失败: message={message}"
+        },
+        "WorkflowExecutionLayer_cache_dir_not_found": {
+            "level": "Warn",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 缓存目录未找到: configPath={configPath}"
+        },
+        "WorkflowExecutionLayer_cache_populated": {
+            "level": "Info",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 缓存已填充: count={count}"
+        },
+        "WorkflowExecutionLayer_GetWorkflow_not_found": {
+            "level": "Warn",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 工作流未找到: workflowName={workflowName}"
+        },
+        "WorkflowExecutionLayer_GetAllWorkflowNames_cache_hit": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 从缓存获取全部工作流名: count={count}"
+        },
+        "WorkflowExecutionLayer_ClearCache": {
+            "level": "Info",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 清空缓存: count={count}"
+        },
+        "WorkflowExecutionLayer_GetWorkflowDetails": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 获取工作流详情: workflowName={workflowName}"
+        },
+        "WorkflowExecutionLayer_ExecuteWorkflow_cancelled": {
+            "level": "Warn",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 工作流执行已取消: workflowName={workflowName}"
+        },
+        "WorkflowExecutionLayer_ExecuteWorkflowByName": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 按名称执行工作流: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 处理工作流切换: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_empty": {
+            "level": "Warn",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流切换名为空"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_not_found": {
+            "level": "Error",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流切换未找到: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_event1": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 加载工作流详情: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_details_loaded": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流详情已加载: length={length}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_event2": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 加载默认输入: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_input_loaded": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 默认输入已加载: defaultInput={defaultInput}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_completed": {
+            "level": "Info",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流切换完成: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_HandleWorkflowSwitch_failed": {
+            "level": "Error",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流切换失败: message={message}"
+        },
+        "WorkflowCommandCenter_ExecuteWorkflow": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 执行工作流: workflowName={workflowName}"
+        },
+        "WorkflowCommandCenter_ExecuteWorkflow_input": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流输入: {message}"
+        },
+        "WorkflowCommandCenter_ExecuteWorkflow_completed": {
+            "level": "Info",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流执行完成: {message}"
+        },
+        "WorkflowCommandCenter_ExecuteWorkflow_failed": {
+            "level": "Error",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 工作流执行失败: message={message}"
+        },
+        "WorkflowCommandCenter_ExecuteWorkflowAsync": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowCommandCenter] 异步执行工作流: workflowName={workflowName}"
+        },
+        "WorkflowLibrary_RegisterAll_completed": {
+            "level": "Debug",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 注册完成: total={total}, registered={registered}, errors={errors}, warnings=\"{warnings}\""
+        },
+        "WorkflowLibrary_RegisterWorkflow": {
+            "level": "Debug",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 注册工作流: workflowName={workflowName}"
+        },
+        "WorkflowLibrary_RegisterWorkflow_completed": {
+            "level": "Info",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 工作流注册完成: workflowName={workflowName}, description={description}"
+        },
+        "WorkflowLibrary_RegisterWorkflowsToHub_no_service": {
+            "level": "Warn",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 注册工作流到 Hub 失败: 事件执行服务未装配（IEventExecutionService 为空）"
+        },
+        "WorkflowLibrary_RegisterWorkflowsToHub_completed": {
+            "level": "Debug",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 已注册工作流到 Hub: count={count}"
+        },
+        "WorkflowLibrary_ReloadAll": {
+            "level": "Info",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 重新加载所有工作流"
+        },
+        "WorkflowIOGroup_GetDefaultInputAsJson_empty": {
+            "level": "Debug",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowIOGroup] 默认输入 JSON 为空: WorkflowName={WorkflowName}"
+        },
+        "UIToolbox_RegisterAll_start": {
+            "level": "Debug",
+            "category": "UIToolbox_Registration",
+            "template": "[UIToolbox] 开始注册"
+        },
+        "UIToolbox_ClearOutput": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 清空输出"
+        },
+        "UIToolbox_ExecuteWorkflow": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 执行工作流: workflowName={workflowName}"
+        },
+        "UIToolbox_ReloadWorkflows": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 重新加载工作流"
+        },
+        "UIToolbox_SaveResultToFile": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 保存结果到文件: filePath={filePath}"
+        },
+        "UIToolbox_LoadWorkflowDetails": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载工作流详情: workflowName={workflowName}"
+        },
+        "UIToolbox_LoadEnvironmentApiKey": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载环境 API Key: status={status}"
+        },
+        "UIToolbox_LoadDefaultInput": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载默认输入: workflowName={workflowName}"
+        },
+        "UIToolbox_GetWorkflowNames_completed": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 获取工作流名完成: count={count}, names={names}"
+        },
+        "UIToolbox_SetValue": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 设置值: value={value}"
+        },
+        "UIToolbox_LoadJsonConfigList_start": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载 JsonConfig 列表开始"
+        },
+        "UIToolbox_LoadJsonConfigList_completed": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载 JsonConfig 列表完成: count={count}"
+        },
+        "UIToolbox_LoadConfigToTarget": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置到目标容器: configPath={configPath}, targetContainer={targetContainer}"
+        },
+        "UIToolbox_LoadConfigToTarget_error": {
+            "level": "Error",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置到目标容器失败: configPath={configPath}, error={error}"
+        },
+        "UIToolbox_Execute_start": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 执行命令开始"
+        },
+        "UIToolbox_Execute_completed": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 执行命令完成: result={result}"
+        },
+        "UIToolbox_Execute_error": {
+            "level": "Error",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 执行命令错误: error={error}"
+        },
+        "UIToolbox_LoadJsonConfigList_error": {
+            "level": "Error",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载 JsonConfig 列表错误: error={error}"
+        },
+        "UIToolbox_LoadConfigToScope": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置到作用域: path={path}, scopeName={scopeName}, targetControl={targetControl}"
+        },
+        "UIToolbox_LoadConfigToScope_dispatch": {
+            "level": "Debug",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置已派发（请求受理，结果走状态通道）: path={path}, scope={scope}"
+        },
+        "UIToolbox_LoadConfigToScope_cancelled": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置已取消: scopeName={scopeName}"
+        },
+        "UIToolbox_LoadConfigToScope_error": {
+            "level": "Error",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载配置到作用域失败: path={configPath}, error={error}"
+        },
+        "WorkflowExecutionLayer_ReloadCache": {
+            "level": "Info",
+            "category": "Workflow_Execution",
+            "template": "[WorkflowExecutionLayer] 重新加载缓存"
+        },
+        "UIToolbox_LoadWorkflow": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载工作流"
+        },
+        "UIToolbox_LoadWorkflow_error": {
+            "level": "Error",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 加载工作流失败: error={error}"
+        },
+        "UIToolbox_ShowHelp": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 显示帮助"
+        },
+        "UIToolbox_RegisterAll_completed": {
+            "level": "Info",
+            "category": "UIToolbox_Registration",
+            "template": "[UIToolbox] 注册完成"
+        },
+        "WorkflowFunctionLibrary_RegisterAll_start": {
+            "level": "Debug",
+            "category": "FunctionStorage_Registration",
+            "template": "[WorkflowFunctionLibrary] 开始注册"
+        },
+        "WorkflowFunctionLibrary_RegisterAll_completed": {
+            "level": "Info",
+            "category": "FunctionStorage_Registration",
+            "template": "[WorkflowFunctionLibrary] 注册完成"
+        }
+    },
+    "description": "FunctionStorage 日志消息定义 - 由 FsLog 静态类使用，keyPrefix='fs:'",
+    "version": "1.1"
+}

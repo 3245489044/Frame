@@ -1,0 +1,109 @@
+{
+  "form": {
+    "title": "用户管理",
+    "width": 800,
+    "height": 600
+  },
+  "views": [
+    {
+      "name": "mainView",
+      "controls": [
+        {
+          "name": "toolbar",
+          "type": "panel",
+          "layout": { "left": 0, "top": 0, "width": 1, "height": 0.08 },
+          "controls": [
+            {
+              "name": "btnAdd",
+              "type": "button",
+              "layout": { "left": 0.02, "top": 0.01, "width": 0.08, "height": 0.06 },
+              "backColor": "#2563EB",
+              "foreColor": "#FFFFFF"
+            },
+            {
+              "name": "btnEdit",
+              "type": "button",
+              "layout": { "left": 0.11, "top": 0.01, "width": 0.08, "height": 0.06 },
+              "backColor": "#2563EB",
+              "foreColor": "#FFFFFF"
+            },
+            {
+              "name": "btnDelete",
+              "type": "button",
+              "layout": { "left": 0.20, "top": 0.01, "width": 0.08, "height": 0.06 },
+              "backColor": "#EF4444",
+              "foreColor": "#FFFFFF"
+            }
+          ]
+        },
+        {
+          "name": "formPanel",
+          "type": "panel",
+          "layout": { "left": 0, "top": 0.09, "width": 0.5, "height": 0.9 },
+          "controls": [
+            {
+              "name": "lblName",
+              "type": "label",
+              "layout": { "left": 0.05, "top": 0.02, "width": 0.15, "height": 0.05 },
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            },
+            {
+              "name": "txtName",
+              "type": "textBox",
+              "layout": { "left": 0.22, "top": 0.02, "width": 0.25, "height": 0.05 },
+              "backColor": "#FFFFFF",
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            },
+            {
+              "name": "lblAge",
+              "type": "label",
+              "layout": { "left": 0.05, "top": 0.09, "width": 0.15, "height": 0.05 },
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            },
+            {
+              "name": "txtAge",
+              "type": "textBox",
+              "layout": { "left": 0.22, "top": 0.09, "width": 0.25, "height": 0.05 },
+              "backColor": "#FFFFFF",
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            },
+            {
+              "name": "lblEmail",
+              "type": "label",
+              "layout": { "left": 0.05, "top": 0.16, "width": 0.15, "height": 0.05 },
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            },
+            {
+              "name": "txtEmail",
+              "type": "textBox",
+              "layout": { "left": 0.22, "top": 0.16, "width": 0.25, "height": 0.05 },
+              "backColor": "#FFFFFF",
+              "foreColor": "#333333",
+              "font": { "name": "微软雅黑", "size": 9 }
+            }
+          ]
+        },
+        {
+          "name": "listPanel",
+          "type": "panel",
+          "layout": { "left": 0.52, "top": 0.09, "width": 0.46, "height": 0.9 },
+          "controls": [
+            {
+              "name": "dataGrid",
+              "type": "dataGridView",
+              "layout": { "left": 0.02, "top": 0.02, "width": 0.96, "height": 0.96 },
+              "backColor": "#FFFFFF",
+              "foreColor": "#333333",
+              "borderColor": "#E5E7EB"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

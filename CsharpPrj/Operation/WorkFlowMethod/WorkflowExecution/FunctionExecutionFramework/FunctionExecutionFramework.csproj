@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>WorkFlowMethod.FunctionExecutionFramework</RootNamespace>
+    <AssemblyName>WorkFlowMethod.FunctionExecutionFramework</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ★ 直接引用 BM.FE 模块，复用其 Core 接口和基础实现 -->
+    <ProjectReference Include="..\..\..\BasicMethod\FunctionExecution\FunctionExecution.csproj" />
+    <ProjectReference Include="..\..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="..\..\FunctionStorage\FunctionStorage.csproj" />
+    <ProjectReference Include="..\..\..\Modules\Modules.csproj" />
+  </ItemGroup>
+
+</Project>

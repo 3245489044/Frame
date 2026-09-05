@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Queue</RootNamespace>
+    <AssemblyName>BasicMethod.Queue</AssemblyName>
+    <Description>消息队列框架 — 队列理论 M/M/1, M/M/c, 优先级队列, 延迟队列, 批量队列</Description>
+  </PropertyGroup>
+
+</Project>

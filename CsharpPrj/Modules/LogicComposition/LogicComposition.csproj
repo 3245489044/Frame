@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.LogicComposition</RootNamespace>
+    <AssemblyName>Share.LogicComposition</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>通用逻辑组合框架 — 提供与领域无关的合并、组合、插入、连接、验证抽象</Description>
+  </PropertyGroup>
+
+  <!-- LogicComposition 是独立项目，不依赖 FrameworkAbstractions -->
+  <!-- 内部包含 ObjectMerger、TemplateConfigProvider 等自包含实现 -->
+  <!-- 依赖 BasicMethod.Transformers 复用 GroupReducer、Validator、ITransformer 等基础能力 -->
+
+  <ItemGroup>
+    <!-- Transformers 已整合到 BasicMethod.csproj -->
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+  </ItemGroup>
+
+
+</Project>

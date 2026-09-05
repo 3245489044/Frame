@@ -1,0 +1,57 @@
+{
+  "description": "StringTools 替换规则配置文件",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "name": "example-simple-rename",
+      "description": "示例：简单文本替换",
+      "type": "simple",
+      "old": "OldName",
+      "new": "NewName",
+      "filePattern": "*.cs",
+      "excludePattern": ["*AssemblyInfo*", "*.g.cs", "*.Designer.cs"],
+      "excludeDir": [".git", "node_modules", "bin", "obj", "BuildOutput", ".vs", "backups"],
+      "skipLines": ["using ", "// ", "/// ", "/*", " * ", "#"],
+      "backup": true
+    },
+    {
+      "name": "example-regex-rename",
+      "description": "示例：正则替换（带单词边界）",
+      "type": "regex",
+      "pattern": "(?<![a-zA-Z.])OldContext(?![a-zA-Z])",
+      "replacement": "NewContext",
+      "filePattern": "*.cs",
+      "excludePattern": ["*AssemblyInfo*"],
+      "skipLines": ["using ", "// "],
+      "backup": true
+    },
+    {
+      "name": "example-version-update",
+      "description": "示例：版本号更新",
+      "type": "regex",
+      "pattern": "<Version>([\\d]+\\.[\\d]+\\.[\\d]+)(?:-[a-zA-Z0-9.-]+)?</Version>",
+      "replacement": "<Version>2.0.0</Version>",
+      "filePattern": "*.csproj",
+      "backup": true
+    },
+    {
+      "name": "example-namespace-update",
+      "description": "示例：命名空间更新",
+      "type": "simple",
+      "old": "namespace WorkFlowPrj",
+      "new": "namespace NewProject",
+      "filePattern": "*.cs",
+      "skipLines": ["// ", "/// "],
+      "backup": true
+    },
+    {
+      "name": "example-tab-to-spaces",
+      "description": "示例：制表符替换为4空格",
+      "type": "regex",
+      "pattern": "\\t",
+      "replacement": "    ",
+      "filePattern": ["*.cs", "*.ps1", "*.json", "*.xml", "*.csproj"],
+      "backup": true
+    }
+  ]
+}

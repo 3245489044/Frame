@@ -1,0 +1,46 @@
+{
+  "registrations": [
+    {
+      "source": {
+        "type": "assembly",
+        "path": "Mathematics.dll",
+        "sourceFile": "Mathematics/Maths.cs"
+      },
+      "className": "MathematicalAlgorithms.Maths",
+      "methodFilters": {
+        "includeNestedClasses": ["Activation", "Distance", "Vector", "Statistics"],
+        "excludeByReturnType": ["void"],
+        "maxParams": 5,
+        "includeStaticOnly": true,
+        "excludeMethodNames": ["GetHashCode", "Equals", "ToString", "GetType"]
+      },
+      "naming": {
+        "convention": "NestedClass_MethodName",
+        "separator": "_",
+        "prefix": "",
+        "suffix": ""
+      },
+      "description": {
+        "source": "xmlDoc",
+        "fallback": "Auto-registered method from MathematicalAlgorithms.Maths"
+      }
+    },
+    {
+      "source": {
+        "type": "source",
+        "path": "BasicMethod/FileProcess.cs"
+      },
+      "className": "FileProcess",
+      "methodFilters": {
+        "includeStaticOnly": true,
+        "maxParams": 5
+      },
+      "naming": {
+        "convention": "MethodName"
+      },
+      "description": {
+        "source": "none"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.EventFramework</RootNamespace>
+    <AssemblyName>Modules.EventFramework</AssemblyName>
+    <Description>通用事件框架 - 事件总线、事件源节点、事件绑定服务等通用事件抽象</Description>
+    <!-- ModuleRule: 层2(模块层) -->
+    <ModuleRule>
+      {
+        "Title": "EventFramework - 通用事件框架",
+        "Layer": 2,
+        "Description": "通用事件框架模块，提供事件源节点（IEventSourceNode）、事件绑定服务（IEventBindingService）、事件触发服务（IEventTriggerService）、控件树遍历器（IControlTreeWalker）、参数构建器（IParameterBuilder）等纯接口定义和基础实现。不依赖任何外部模块（除 BasicMethod 和 TConfig）。",
+        "Keywords": "事件源;事件绑定;事件触发;控件树遍历;参数构建;IoC",
+        "Rules": "不依赖任何 UI 框架;不引用 Share 层或 Operation 层;依赖 BasicMethod 和 TConfig;所有实现类由调用方提供"
+      }
+    </ModuleRule>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
+    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

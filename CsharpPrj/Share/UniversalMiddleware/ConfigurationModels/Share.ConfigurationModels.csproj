@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- RootNamespace 保持 BasicMethod 以兼容现有 using BasicMethod.ConfigurationModels 的引用 -->
+    <RootNamespace>BasicMethod</RootNamespace>
+    <AssemblyName>Share.ConfigurationModels</AssemblyName>
+    <AssemblyTitle>Share Configuration Models</AssemblyTitle>
+    <Description>共享配置模型库 - 纯 POCO，无任何 UI 框架依赖</Description>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 仅依赖 UniversalLayoutMath（纯数学库，不依赖 BasicMethod） -->
+    <ProjectReference Include="..\..\..\BasicMethod\UniversalLayout\UniversalLayoutMath.csproj" />
+    <!-- ★ 2026-07-04 新增：引用 CSG.Unified 以使用 ParameterBinding 参数契约类型 -->
+    <ProjectReference Include="..\..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <!-- ★ 2026-07-15 新增：引用 TConfig 以使用 WorkflowDefinitionEntry 类型 -->
+    <ProjectReference Include="..\..\..\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Name>MCPFramework</Name>
+    <OutDir>../../build/MCPFramework</OutDir>
+    <!-- 占位 TargetFramework：实际由 tsc 编译，MSBuild 仅做桥接 -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- 抑制 AssemblyInfo 自动生成，避免与 Directory.Build.props 条件继承不可靠导致 CS0579 重复特性错误 -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BasicMethod\BasicMethod.csproj" />
+  </ItemGroup>
+</Project>

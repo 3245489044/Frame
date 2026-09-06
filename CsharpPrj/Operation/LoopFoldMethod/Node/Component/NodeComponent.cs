@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Operation.LoopFoldMethod.Node.Model;
 
 namespace Operation.LoopFoldMethod.Node.Component;
@@ -17,6 +18,9 @@ namespace Operation.LoopFoldMethod.Node.Component;
 /// <param name="PromptText">提示词源（可选；null/空 = 纯工具/执行组件，无散文提示段）。</param>
 /// <param name="Tool">声明式机器工具元数据（可选；喂 LLM Function-Calling 前端的声明）。</param>
 /// <param name="ExecutorKey">确定性执行端键（可选；字符串指向消费侧执行端，不引执行端类型）。</param>
+/// <param name="Tags">上下文关键词自动选择标签（可选；用于按 goal/userInput/scopeId 打分）。</param>
+/// <param name="Trigger">显式触发键（可选；命中权重高于 Tags）。</param>
+/// <param name="OnDemand">是否按需注入（True = 不进关键词自动选择池，仅点名注入，类似懒加载语义）。</param>
 public sealed record NodeComponent(
     string Name,
     NodeCategory Category,
@@ -24,4 +28,7 @@ public sealed record NodeComponent(
     bool AlwaysOn = false,
     string? PromptText = null,
     ComponentToolSpec? Tool = null,
-    string? ExecutorKey = null);
+    string? ExecutorKey = null,
+    IReadOnlyList<string>? Tags = null,
+    string? Trigger = null,
+    bool OnDemand = false);

@@ -7,9 +7,10 @@
  * 该目录已被 git 忽略（.gitignore: credentials/），禁止提交。
  *
  * 读取优先级（高 → 低）：
- *   1. 环境变量 CLINE_CREDENTIALS_PATH（绝对路径）
+ *   1. 环境变量 CLINE_CREDENTIALS_PATH（绝对路径；Agent 外置装配期会把外部凭据路径写入，TS 子进程继承）
  *   2. cline.config.json 中 credentialsFile 字段（相对 ClineApi 项目根）
- *   3. 默认 <TypeScriptPrj>/credentials/cline.json
+ *   3. 环境变量 ROUTE_STATE_ROOT → <root>/credentials/cline.json（与 Agent(.NET) 数据库同外部根，跨语言一致）
+ *   4. 默认 <TypeScriptPrj>/credentials/cline.json
  */
 
 import * as fs from "fs";
@@ -80,7 +81,16 @@ export function resolveCredentialsFile(credentialsFile?: string): string {
     }
   }
 
-  // 3. 默认：<WorkFlowPrj>/credentials/cline.json（仓库级集中管理）
+  // 3. 外部状态根（ROUTE_STATE_ROOT）凭据：与 Agent(.NET) 数据库同外部根，跨语言读取同一份（文件存在方认可）
+  const stateRoot = process.env["ROUTE_STATE_ROOT"];
+  if (stateRoot) {
+    const external = path.resolve(stateRoot, "credentials", "cline.json");
+    if (fs.existsSync(external)) {
+      return external;
+    }
+  }
+
+  // 4. 默认：<TypeScriptPrj>/credentials/cline.json（仓库级集中管理）
   return path.resolve(resolveProjectRoot(), "../../../credentials/cline.json");
 }
 

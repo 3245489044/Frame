@@ -233,6 +233,8 @@ public class AssertSystem : CommandSystemBase
         var actual = ctl.Text ?? string.Empty;
         if (actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) < 0)
         {
+            BackEndLog.Log("Command_Assert_TextContains_Mismatch",
+                new { controlName, expected, actual });
             SetFailure(entity, $"assert-text-contains: 控件 '{controlName}' 文本不包含期望子串 '{expected}' — 实际 '{actual}'");
             return;
         }

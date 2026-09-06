@@ -163,6 +163,11 @@
       "category": "BackEndDriven_Execution",
       "template": "[Command] 断言文本包含（assert text-contains）通过: controlName={controlName}, expected={expected}"
     },
+    "Command_Assert_TextContains_Mismatch": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] assert text-contains 失配（控件文本不含期望子串，命令将计 FAIL）: controlName={controlName}, expected={expected}, actual={actual}"
+    },
     "Command_Exec_Sync": {
       "level": "Debug",
       "category": "BackEndDriven_Execution",

@@ -33,6 +33,12 @@
     <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
     <ProjectReference Include="..\GraphFramework\GraphFramework.csproj" />
 
+    <!-- ★ 2026-09-06：路径单一真源收敛 —— 命令配置解析经 Route.InformationPaths（锚定 Projects\Information\DrivenConfig），
+         替代 CommandSystemBase.ResolveConfigPath 旧硬编码 projectRoot\FileDriven\DrivenConfig（该目录已迁移迁空）。
+         决策 A（2026-09-05-路径收敛设计 §四）：Route 为自包含零依赖共享核心，FileDriven 薄启动层白名单保留其 dll。 -->
+    <ProjectReference Include="..\..\..\..\Projects\Route\Route.csproj" />
+
+
     <!-- ★ 2026-07-05 新增：Container 通用执行容器框架引用
          用于 ExecuteCommandStage 通过 IExecutionCell 执行事件命令，
          获得 Container 弹性策略链（重试、熔断、超时、日志） -->

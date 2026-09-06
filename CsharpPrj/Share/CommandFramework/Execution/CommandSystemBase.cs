@@ -1,6 +1,5 @@
 using ECS.Core;
 using CommandFramework.Extensions;
-using CommandFramework.Utilities;
 
 namespace CommandFramework.Execution.Commands;
 
@@ -76,52 +75,50 @@ public abstract class CommandSystemBase : ICommandSystem
         });
     }
 
-    private static string? FindProjectRootViaLocator()
+    /// <summary>
+    /// 解析配置文件路径（经 Route 单一真源：资源统一锚定 <c>Projects\Information\DrivenConfig</c>）。
+    /// <paramref name="subFolder"/> 为 DrivenConfig 下的子目录（如 "JsonConfig"/"WorkFlow"/"Templates"）；空则直接在 DrivenConfig 根下查找。
+    /// 支持：绝对路径已存在 → 直接返回；绝对 / 相对路径经 DrivenConfig（+subFolder）组合 → JsonConfig 兜底 → 返回最终候选。
+    /// 兼容旧脚本的相对路径形态（如 "..\..\DrivenConfig\JsonConfig\X.json"，Path.GetFullPath 归一后同样落在 JsonConfig）。
+    /// </summary>
+    protected static string? ResolveConfigPath(string target, string subFolder = "")
     {
+        if (string.IsNullOrWhiteSpace(target))
+            return null;
+
         try
         {
-            foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
+            // 绝对路径已存在 → 直接命中（历史调用方可能直接传绝对路径）。
+            if (File.Exists(target))
+                return Path.GetFullPath(target);
+
+            // ★ 2026-09-06：经 Route.InformationPaths 取资源仓根，替代旧 projectRoot\FileDriven\DrivenConfig 硬编码
+            //（该目录已迁移至 Projects\Information\DrivenConfig，旧解析对裸配置名必落空 → load 报「配置文件不存在」）。
+            var drivenConfig = Route.InformationPaths.DrivenConfigDir;
+            var basePath = string.IsNullOrEmpty(subFolder)
+                ? drivenConfig
+                : Path.Combine(drivenConfig, subFolder);
+
+            var fullPath = Path.GetFullPath(Path.Combine(basePath, target));
+            if (File.Exists(fullPath))
+                return fullPath;
+
+            // JsonConfig 兜底：UI 配置约定存放于 DrivenConfig/JsonConfig（boot/configLoader 同源）。
+            // sideload/load 缺省 subFolder 时，目标若位于 JsonConfig 也应解析成功。
+            if (string.IsNullOrEmpty(subFolder))
             {
-                var root = ProjectRootLocator.FindRootUpward(start);
-                if (root != null)
-                    return root;
+                var jsonPath = Path.GetFullPath(Path.Combine(Route.InformationPaths.JsonConfigDir, target));
+                if (File.Exists(jsonPath))
+                    return jsonPath;
             }
-            return null;
+
+            // 返回最终候选（可能不存在），交由调用方 File.Exists 判失败并报明细路径（便于定位解析结果落点）。
+            return fullPath;
         }
         catch
         {
             return null;
         }
-    }
-
-    protected static string? ResolveConfigPath(string target, string subFolder = "")
-    {
-        var projectRoot = FindProjectRootViaLocator();
-        if (projectRoot == null)
-            return null;
-
-        if (string.IsNullOrWhiteSpace(target))
-            return null;
-
-        var basePath = string.IsNullOrEmpty(subFolder)
-            ? Path.Combine(projectRoot, "FileDriven", "DrivenConfig")
-            : Path.Combine(projectRoot, "FileDriven", "DrivenConfig", subFolder);
-
-        var fullPath = Path.GetFullPath(Path.Combine(basePath, target));
-        if (File.Exists(fullPath))
-            return fullPath;
-
-        // JsonConfig 兜底：UI 配置约定存放于 DrivenConfig/JsonConfig（boot/configLoader 同源）。
-        // sideload/load 缺省 subFolder 时，目标若位于 JsonConfig 也应解析成功——此前仅解析 DrivenConfig 根，
-        // 导致 sideload AgentRuntimeUI.json 等 JsonConfig 配置静默 SetFailure「配置文件不存在」、完全不渲染。
-        if (string.IsNullOrEmpty(subFolder))
-        {
-            var jsonPath = Path.GetFullPath(Path.Combine(projectRoot, "FileDriven", "DrivenConfig", "JsonConfig", target));
-            if (File.Exists(jsonPath))
-                return jsonPath;
-        }
-
-        return Path.GetFullPath(Path.Combine(projectRoot, target));
     }
 
     /// <summary>

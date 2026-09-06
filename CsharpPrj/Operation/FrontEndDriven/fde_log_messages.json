@@ -54,7 +54,7 @@
     },
     "LayoutScheduler_drain_budget_exhausted": {
       "template": "布局调度器排空预算耗尽，剩余待重算作用域滞留，已重新调度 — pendingCount={pendingCount}",
-      "level": "Warning",
+      "level": "Debug",
       "category": "FrontEndDriven.Layout"
     },
     "LayoutScheduler_reflow_storm": {
@@ -144,7 +144,7 @@
     },
     "SyncActualContainerSizes_mismatch": {
       "template": "SyncActualContainerSizes: 容器尺寸不一致 — entityId={entityId}, controlName={controlName}, controlType={controlType}, ecsWidth={ecsWidth}, ecsHeight={ecsHeight}, actualWidth={actualWidth}, actualHeight={actualHeight}, note={note}",
-      "level": "Warning",
+      "level": "Debug",
       "category": "General"
     },
     "SyncActualContainerSizes_combo_exempted": {
@@ -344,12 +344,12 @@
     },
     "HostBasisSystem_ResolveBasis_root_not_found": {
       "template": "宿主基准决议失败（root 未找到） — scope={scope}, rootName={rootName}",
-      "level": "Warning",
+      "level": "Debug",
       "category": "Layout"
     },
     "HostBasisSystem_ResolveBasis_unavailable": {
       "template": "宿主基准决议失败（宿主与父面板客户区均不可用） — scope={scope}, host={host}, reason={reason}",
-      "level": "Warning",
+      "level": "Debug",
       "category": "Layout"
     },
     "OnSplitterMoved_audit_failed": {

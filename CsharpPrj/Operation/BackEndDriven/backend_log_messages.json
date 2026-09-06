@@ -174,7 +174,7 @@
       "template": "[Command] 同步执行函数: function={function}"
     },
     "Command_Exec_Success": {
-      "level": "Info",
+      "level": "Debug",
       "category": "BackEndDriven_Execution",
       "template": "[Command] 函数执行成功: function={function}, result={result}"
     },

@@ -8,9 +8,9 @@ namespace Operation.LoopFoldMethod.Core;
 /// </summary>
 public static class SpinalDecisions
 {
-    /// <summary>是否为预算终止终态（引擎内 break 语义：TS/TO/TM，阈值到达即触发）。</summary>
+    /// <summary>是否为预算终止终态（引擎内 break 语义：TS/TO/TM，阈值到达即触发）。委托 <see cref="DecisionTerminals.IsTerminal"/> 单一权威。</summary>
     public static bool IsTerminal(LoopDecision decision)
-        => decision is LoopDecision.Success or LoopDecision.Timeout or LoopDecision.TripTerminated;
+        => DecisionTerminals.IsTerminal(decision);
 
     /// <summary>是否为纯继续（Continue / None / SwitchStrategy 均属需继续推进侧）。</summary>
     public static bool IsContinue(LoopDecision decision) => !IsTerminal(decision);

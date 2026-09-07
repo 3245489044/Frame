@@ -93,7 +93,7 @@ public sealed class SnapshotDrivenLoopEngine<TState, TResult>
                 if (budgetTerminate != null)
                 {
                     var decision = budgetTerminate(state);
-                    if (decision is LoopDecision.Success or LoopDecision.Timeout or LoopDecision.TripTerminated)
+                    if (DecisionTerminals.IsTerminal(decision))
                     {
                         result.TerminatedByBudget = true;
                         result.FinalDecision = decision;

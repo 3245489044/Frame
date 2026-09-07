@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 namespace Strategy.DecisionRules
 {
@@ -14,17 +15,20 @@ namespace Strategy.DecisionRules
         private readonly IOutputStrategyRegistry _output;
         private readonly ITemplateRenderer _renderer;
         private readonly IRuleAuditSink _audit;
+        private readonly IDelegateRegistry? _delegates;
 
         public DecisionRulesEngine(
             IMatchStrategyRegistry? match = null,
             IOutputStrategyRegistry? output = null,
             ITemplateRenderer? renderer = null,
-            IRuleAuditSink? audit = null)
+            IRuleAuditSink? audit = null,
+            IDelegateRegistry? delegates = null)
         {
             _match = match ?? new DefaultMatchStrategyRegistry();
             _output = output ?? new DefaultOutputStrategyRegistry();
             _renderer = renderer ?? new PlaceholderTemplateRenderer();
             _audit = audit ?? NullAudit.Instance;
+            _delegates = delegates;
         }
 
         /// <summary>
@@ -61,6 +65,19 @@ namespace Strategy.DecisionRules
             _audit.Record(new RuleAuditEntry(rs.Id, null, null, "text", true));
             return empty;
         }
+
+        /// <summary>
+        /// JSON 输入重载（JSON 进/JSON 出）：把单一 JSON 根交给引擎裁决，字段统一按 JSONPath（$.a.b / a.b / context.&lt;key&gt;）
+        /// 从根解析。非 LLM 专属，任意 JSON 消费者可直接调用。
+        /// </summary>
+        public DecisionRuleResult Evaluate(
+            DecisionRuleSet? ruleSet,
+            JsonObject? input,
+            IReadOnlyCollection<string>? excludeRuleIds = null,
+            IReadOnlyDictionary<string, object?>? context = null,
+            int? index = null)
+            => Evaluate(ruleSet, DecisionRuleContext.FromJson(input, context, index), excludeRuleIds, request: input);
+
 
         private DecisionRule? SelectBest(
             DecisionRuleSet rs, DecisionRuleContext ctx, IReadOnlyCollection<string>? excludeRuleIds)
@@ -130,8 +147,26 @@ namespace Strategy.DecisionRules
                 case OutputKind.Structured:
                     result.Structured = output;
                     break;
+                case OutputKind.Merge:
+                    // Merge 输出器产出单一 JsonObject（JSON 进/JSON 出：result 即合成后的输出 JSON）。
+                    result.Structured = output is JsonNode node ? node.DeepClone() : output;
+                    break;
                 case OutputKind.Delegate:
-                    result.DelegateName = output as string;
+                    // 经 IDelegateRegistry 解析委托：注册则执行产出 JSON/对象；未注册保留委托名（零回归，Agent 适配层注入）。
+                    var del = _delegates?.Resolve(clause.DelegateName);
+                    result.DelegateName = clause.DelegateName;
+                    if (del is not null)
+                    {
+                        try
+                        {
+                            var produced = del(ctx);
+                            result.Structured = produced is JsonNode dn ? dn.DeepClone() : produced;
+                        }
+                        catch
+                        {
+                            // 委托执行失败：保留委托名（不吞决策，交由消费方 / 默认裁决处理）。
+                        }
+                    }
                     break;
             }
             return result;
@@ -155,6 +190,9 @@ namespace Strategy.DecisionRules
                     MatchStrategy.JsonPath => 6,
                     MatchStrategy.Semantic => 6,
                     MatchStrategy.Expression => 6,
+                    MatchStrategy.ArrayContains => 6,
+                    MatchStrategy.NumericCompare => 6,
+                    MatchStrategy.JsonSchema => 7,
                     MatchStrategy.Wildcard => 5,
                     MatchStrategy.Regex => 4,
                     MatchStrategy.StartsWith => 4,

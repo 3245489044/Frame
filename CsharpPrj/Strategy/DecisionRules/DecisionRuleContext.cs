@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace Strategy.DecisionRules
 {
@@ -21,10 +22,33 @@ namespace Strategy.DecisionRules
 
         /// <summary>轮次索引（渲染占位符 {index}）。</summary>
         public int? Index { get; set; }
+        /// <summary>可选 JSON 根（JSON 进/JSON 出）：非空时 field 可写 JSONPath（$.a.b / $ / a.b），
+        /// 且 context.&lt;key&gt; 归一到 $.context.&lt;key&gt;；空时保持旧 LLM 形状取值（零回归）。</summary>
+        public JsonNode? Root { get; set; }
+
+        /// <summary>构造 JSON 进上下文（根即决策输入）。</summary>
+        public static DecisionRuleContext FromJson(JsonNode? root, IReadOnlyDictionary<string, object?>? context = null, int? index = null)
+            => new() { Root = root, Context = context, Index = index };
+
+
 
         /// <summary>取指定字段文本：null/"messages"=完整对话；"system"/"user"/"history"；"role:&lt;名&gt;"；"context.&lt;key&gt;"。</summary>
         public string? Field(string? field)
         {
+            // JSON 根优先：JSONPath（$ / $.a.b / a.b / context.<key> → $.context.<key>）。
+            if (Root is not null && !string.IsNullOrEmpty(field))
+            {
+                if (field == "$" || field.StartsWith("$.", StringComparison.Ordinal)
+                    || (field.IndexOf('.') > 0 && !IsLegacyLlmField(field)))
+                    return JsonPathResolver.ResolveText(Root, field);
+                if (field.StartsWith("context.", StringComparison.OrdinalIgnoreCase))
+                {
+                    var key = field.Substring("context.".Length);
+                    var hit = JsonPathResolver.ResolveText(Root, "$.context." + key);
+                    if (hit is not null) return hit;
+                }
+            }
+
             if (string.IsNullOrEmpty(field) || field == "messages")
                 return JoinMessages();
             if (field == "system") return System;
@@ -44,6 +68,13 @@ namespace Strategy.DecisionRules
             }
             return null;
         }
+
+        /// <summary>field 是否为旧 LLM 形状保留键（role:&lt;名&gt; / context.&lt;key&gt; / system / user / history / messages），
+        /// 用于判定是否应经 JSON 根按相对路径解析。</summary>
+        private static bool IsLegacyLlmField(string field)
+            => field.StartsWith("role:", StringComparison.OrdinalIgnoreCase)
+               || field.StartsWith("context.", StringComparison.OrdinalIgnoreCase)
+               || field == "system" || field == "user" || field == "history" || field == "messages";
 
         /// <summary>某角色全部消息 content 列表（Role 匹配用）。</summary>
         public IReadOnlyList<string> RoleContents(string role)

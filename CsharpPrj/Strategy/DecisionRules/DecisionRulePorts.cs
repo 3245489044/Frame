@@ -70,4 +70,11 @@ namespace Strategy.DecisionRules
         string? OutputKind,
         bool IsFallback,
         string? Source = null);
+
+    /// <summary>委托注册表端口：输出类型 Delegate 时，引擎经此解析 C# 函数产出 JSON（预留，Agent/领域适配层注入）。</summary>
+    public interface IDelegateRegistry
+    {
+        /// <summary>解析委托名 → 函数；未注册返回 null（引擎回退块/默认）。</summary>
+        Func<DecisionRuleContext, object?>? Resolve(string? delegateName);
+    }
 }

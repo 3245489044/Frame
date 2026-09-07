@@ -30,6 +30,12 @@ namespace Strategy.DecisionRules
         Expression,
         /// <summary>全等匹配。</summary>
         Exact,
+        /// <summary>JSON 数组包含（field 为 JSONPath → 数组，value 为待含元素；配合 options.match=exact|contains）。Root 非空时生效。</summary>
+        ArrayContains,
+        /// <summary>数值比较（field 为 JSONPath → 数值，value 为数值，options.op=eq|ne|gt|gte|lt|lte）。Root 非空时生效。</summary>
+        NumericCompare,
+        /// <summary>JSON Schema 校验（field 为 JSONPath → 节点，options.schema 提供约束）。[预留] 未实现，返回不命中。</summary>
+        JsonSchema,
     }
 
     /// <summary>输出器枚举化（可经 <see cref="IOutputStrategyRegistry"/> 扩展）。</summary>
@@ -47,7 +53,10 @@ namespace Strategy.DecisionRules
         ToolCalls,
         /// <summary>结构化对象（非 JSON 字符串）→ 对象透传（供非 LLM 消费方）。</summary>
         Structured,
-        /// <summary>委托 C# 函数（动态动作，预留）。</summary>
+        /// <summary>合并：把 MergeSegments 各段 JSON 深合并为单一输出 JSON（JSON 进/JSON 出，合成单一 result）。</summary>
+        [JsonStringEnumMemberName("merge")]
+        Merge,
+        /// <summary>委托 C# 函数（经 <see cref="IDelegateRegistry"/> 解析产出 JSON/对象，预留）。</summary>
         Delegate,
     }
 
@@ -113,6 +122,12 @@ namespace Strategy.DecisionRules
 
         /// <summary>structured：对象透传。</summary>
         public object? Structured { get; set; }
+
+        /// <summary>merge：待合并的各 JSON 段（每段为 template JSON 文本或 Structured 对象）。</summary>
+        public IReadOnlyList<OutputClause>? MergeSegments { get; set; }
+
+        /// <summary>merge：数组合并模式（replace|append|merge|deduplicate，缺省 replace）。</summary>
+        public string? MergeArrayMode { get; set; }
 
         /// <summary>delegate：委托名（经委托注册表解析，预留）。</summary>
         public string? DelegateName { get; set; }

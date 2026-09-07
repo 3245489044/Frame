@@ -26,6 +26,8 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly int _heartbeatIntervalMs;
         private readonly TriggerRateGate _rateGate;
         private readonly Func<ITaskPoolItem, bool>? _skipRateLimitFor;
+        private readonly TimeSpan _drainTimeout;
+        private readonly TimeSpan _idleReconcile;
 
         private readonly TaskStateStore _states = new();
         private readonly ConcurrentDictionary<string, TaskPauseHandle> _pauses = new(StringComparer.Ordinal);
@@ -44,6 +46,9 @@ namespace Share.TaskStatusPool.TaskPool
         /// <summary>任务状态变更（写即触发观测）。</summary>
         public event EventHandler<TaskPoolStateChangedEventArgs>? TaskStateChanged;
 
+        /// <summary>消费循环单次 drain 失败事件（诊断）：记录后消费循环自愈续跑（不退出），宿主可订阅取证根因。</summary>
+        public event EventHandler<Exception>? DrainFault;
+
         public TaskPool(
             ITaskPoolPersistence<TItem> persistence,
             TaskPoolHandler<TItem, TResult> handler,
@@ -57,6 +62,8 @@ namespace Share.TaskStatusPool.TaskPool
             _heartbeatIntervalMs = Math.Max(0, options.HeartbeatIntervalMs);
             _rateGate = new TriggerRateGate(TimeSpan.FromMilliseconds(Math.Max(0, options.MinTriggerIntervalMs)));
             _skipRateLimitFor = options?.SkipRateLimitFor;
+            _drainTimeout = TimeSpan.FromMilliseconds(Math.Max(0, options.DrainTimeoutMs));
+            _idleReconcile = TimeSpan.FromMilliseconds(Math.Max(0, options.IdleReconcileIntervalMs));
             _gate = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
             _signal = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions { SingleReader = true });
         }
@@ -307,14 +314,42 @@ namespace Share.TaskStatusPool.TaskPool
         {
             try
             {
-                while (await _signal.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
+                while (await WaitSignalOrReconcileAsync(ct).ConfigureAwait(false))
                 {
                     while (_signal.Reader.TryRead(out _)) { }
-                    await DrainOnceAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        await DrainOnceAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        // 单次 drain 失败（异常/超时）只记一次并续跑（自愈），
+                        // 避免任何单点异常/卡死杀死整条消费循环 → 后续新入队任务永远不被消费（hang）。
+                        DrainFault?.Invoke(this, ex);
+                        TriggerNext();
+                    }
                 }
             }
             catch (OperationCanceledException) { }
             catch { }
+        }
+
+        /// <summary>等待唤醒信号或低频终局兜底超周期；返回 true = 有活要干（信号数据到达或兜底超周期到达），false = 通道已完成（应退出循环）。</summary>
+        private async Task<bool> WaitSignalOrReconcileAsync(CancellationToken ct)
+        {
+            // 默认（未启用 reconcile）：纯事件驱动，等价原 WaitToReadAsync——true=有数据，false=通道完成退出。
+            if (_idleReconcile <= TimeSpan.Zero)
+                return await _signal.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
+
+            // 已关闭（StopAsync 完成写入端）→ 直接退出，不再等待。
+            if (_signal.Reader.Completion.IsCompleted) return false;
+
+            // 事件驱动为主，仅当空闲超周期无人唤醒才兜底返回一次 true 补跑 drain（DrainOnce 空待办立即返回，成本近零）。
+            var wait = _signal.Reader.WaitToReadAsync(ct).AsTask();
+            var tick = Task.Delay(_idleReconcile, ct);
+            var done = await Task.WhenAny(wait, tick).ConfigureAwait(false);
+            return done == wait ? await wait.ConfigureAwait(false) : true; // tick 命中 → 兜底唤醒
         }
 
         private async Task DrainOnceAsync(CancellationToken ct)
@@ -322,8 +357,8 @@ namespace Share.TaskStatusPool.TaskPool
             ct.ThrowIfCancellationRequested();
 
             // 队列级全局暂停（TCS 反应式，零轮询）：暂停"派发新任务"（在途自然跑完）。
-            await _pauseManager.WaitForResumeAsync(ct).ConfigureAwait(false);
-            var pending = await _persistence.ListAsync(TaskExecutionStatus.NotStarted, _batchSize, ct).ConfigureAwait(false);
+            await DrainAsync(t => _pauseManager.WaitForResumeAsync(t), ct).ConfigureAwait(false);
+            var pending = await DrainAsync(t => _persistence.ListAsync(TaskExecutionStatus.NotStarted, _batchSize, t), ct).ConfigureAwait(false);
             // 激活门：激活标志（Active）与写入解耦 —— 仅采用「NotStarted 且 Active=true」的任务；Active=false（休眠）仅持久化不被消费。
             // 未实现 IActivatableTaskPoolItem 的条目恒视为 Active=true（无门控，向后兼容）。
             var usable = pending.Where(IsActive).ToList();
@@ -334,13 +369,13 @@ namespace Share.TaskStatusPool.TaskPool
             // 触发频率限制门（仅在有事件到达时门控，非周期轮询）：限入队→Drain→DB 查询频率。
             // 任务级跳过判定（SkipRateLimitFor）：零 LLM 任务即使真实环境也不限频。
             if (_skipRateLimitFor?.Invoke(item) != true)
-                await _rateGate.AcquireAsync(ct).ConfigureAwait(false);
+                await DrainAsync(t => _rateGate.AcquireAsync(t), ct).ConfigureAwait(false);
             var key = item.TaskKey;
             var state = _states.GetOrCreate(key);
             if (state.CurrentState != TaskExecutionStatus.NotStarted) { TriggerNext(); return; }
             if (!state.TryStart()) { TriggerNext(); return; }
 
-            await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, ct).ConfigureAwait(false);
+            await DrainAsync(t => _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, t), ct).ConfigureAwait(false);
             lock (_lock) _inFlight.Add(key);
             Emit(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, "started");
 
@@ -396,6 +431,34 @@ namespace Share.TaskStatusPool.TaskPool
         }
 
         private void TriggerNext() => _signal.Writer.TryWrite(true);
+
+        /// <summary>对 drain 读/写侧 await 施加有界等待（配置 <see cref="TaskPoolOptions.DrainTimeoutMs"/> &gt; 0 时生效）：
+        /// 卡死（异步互斥/DB 读锁等）到点抛 <see cref="TimeoutException"/> 而非无限等待，由消费循环自愈续跑。
+        /// 未配置（=0）时完全透传原调用（向后兼容）。</summary>
+        private async Task DrainAsync(Func<CancellationToken, Task> op, CancellationToken ct)
+        {
+            if (_drainTimeout <= TimeSpan.Zero) { await op(ct).ConfigureAwait(false); return; }
+            using var tct = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            tct.CancelAfter(_drainTimeout);
+            try { await op(tct.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException($"TaskPool drain 操作等待超时（{_drainTimeout.TotalMilliseconds}ms）");
+            }
+        }
+
+        /// <summary>同上，带返回值的变体。</summary>
+        private async Task<T> DrainAsync<T>(Func<CancellationToken, Task<T>> op, CancellationToken ct)
+        {
+            if (_drainTimeout <= TimeSpan.Zero) return await op(ct).ConfigureAwait(false);
+            using var tct = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            tct.CancelAfter(_drainTimeout);
+            try { return await op(tct.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException($"TaskPool drain 操作等待超时（{_drainTimeout.TotalMilliseconds}ms）");
+            }
+        }
 
         /// <summary>激活判定：实现 <see cref="IActivatableTaskPoolItem"/> 的条目以 Active 标志为准；未实现（无激活语义）恒真（向后兼容）。</summary>
         private static bool IsActive(TItem item)

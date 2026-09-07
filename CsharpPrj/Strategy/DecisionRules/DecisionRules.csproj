@@ -3,7 +3,7 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>通用决策框架（Decision Rules）</ModuleRule_Title>
     <ModuleRule_Layer>3</ModuleRule_Layer>
-    <ModuleRule_Description>通用、规范、可扩展的运行时裁决框架：声明式规则模型（when/then）+ 匹配/输出策略 + 加载/校验/审计 + 热重载。以 BasicMethod.DecisionEngine 为基础引擎（复用其条件求值/优先级选择/引擎组合），对基础引擎覆盖不了的声明式/匹配/输出/文件化逻辑在框架层扩充。LLM-free，可脱离 Agent 供调度/路由/护栏等任意决策点复用。</ModuleRule_Description>
+    <ModuleRule_Description>通用、规范、可扩展的运行时裁决框架：决策 = 纯函数（单一 JSON → 单一 JSON）。声明式规则模型（when/then：field 统一 JSONPath + 匹配/输出策略）+ 加载/校验/审计 + 热重载 + Merge/Delegate 输出。以 BasicMethod.DecisionEngine 为基础引擎（复用其条件求值/优先级选择/引擎组合），对基础引擎覆盖不了的声明式/匹配/输出/文件化逻辑在框架层扩充。LLM-free，可脱离 Agent 供调度/路由/护栏等任意 JSON 消费者复用。</ModuleRule_Description>
     <ModuleRule_Keywords>决策;规则;引擎;裁决;匹配;输出;校验;审计;热重载;策略</ModuleRule_Keywords>
   </PropertyGroup>
 

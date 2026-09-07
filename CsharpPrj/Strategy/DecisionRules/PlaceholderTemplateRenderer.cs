@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Plate.JsonMethod.Utilities;
 
 namespace Strategy.DecisionRules
@@ -17,7 +18,23 @@ namespace Strategy.DecisionRules
         public string Render(string? template, DecisionRuleContext ctx)
         {
             if (string.IsNullOrEmpty(template)) return "";
-            return _formatter.Format(template, BuildParameters(ctx));
+            var resolved = ResolveJsonPathPlaceholders(template, ctx);
+            return _formatter.Format(resolved, BuildParameters(ctx));
+        }
+
+        /// <summary>
+        /// 解析 {{ jsonPath }} 占位符：从 ctx 按字段/JSONPath 取值替换（复用 ctx.Field 的 JSON 根解析）。
+        /// Root 非空时支持 {{ $.input.a.b }} / {{ context.x }}；Root 为空时保留原样（旧 LLM 模板零回归）。
+        /// </summary>
+        private static string ResolveJsonPathPlaceholders(string template, DecisionRuleContext ctx)
+        {
+            if (ctx.Root is null) return template;
+            return Regex.Replace(template, @"\{\{\s*([^{}]+?)\s*\}\}", match =>
+            {
+                var key = match.Groups[1].Value.Trim();
+                var value = ctx.Field(key);
+                return value ?? match.Value; // 取不到保留占位符，交 TemplateFormatter / 原样。
+            });
         }
 
         private static IDictionary<string, object?> BuildParameters(DecisionRuleContext ctx)

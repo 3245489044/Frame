@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
+using Plate.JsonMethod.Utilities;
 
 namespace Strategy.DecisionRules
 {
@@ -12,6 +14,7 @@ namespace Strategy.DecisionRules
         public static IOutputStrategy ToolCall { get; } = new ToolCallOutput();
         public static IOutputStrategy ToolCalls { get; } = new ToolCallsOutput();
         public static IOutputStrategy Structured { get; } = new StructuredOutput();
+        public static IOutputStrategy Merge { get; } = new MergeOutput();
         public static IOutputStrategy Delegate { get; } = new DelegateOutput();
 
         private sealed class TextOutput : IOutputStrategy
@@ -63,6 +66,56 @@ namespace Strategy.DecisionRules
                 => clause.Structured;
         }
 
+        /// <summary>合并输出：渲染 MergeSegments 各段为 JsonObject 后按 JsonArrayMergeMode 深合并为单一输出 JSON。</summary>
+        private sealed class MergeOutput : IOutputStrategy
+        {
+            public OutputKind Kind => OutputKind.Merge;
+            public object? Render(OutputClause clause, DecisionRuleContext ctx, ITemplateRenderer renderer)
+            {
+                if (clause.MergeSegments is not { Count: > 0 }) return new JsonObject();
+                var arrayMode = ParseArrayMode(clause.MergeArrayMode);
+                JsonObject? merged = null;
+                foreach (var seg in clause.MergeSegments)
+                {
+                    var obj = RenderSegment(seg, ctx, renderer);
+                    if (obj is null) continue;
+                    merged = merged is null ? obj : JsonMergeService.Merge(merged, obj, arrayMode);
+                }
+                return merged ?? new JsonObject();
+            }
+
+            private static JsonObject? RenderSegment(OutputClause seg, DecisionRuleContext ctx, ITemplateRenderer renderer)
+            {
+                // 优先 template（含 {{ jsonPath }}）渲染为 JSON；否则 Structured 对象序列化。
+                if (!string.IsNullOrWhiteSpace(seg.Template))
+                {
+                    var text = renderer.Render(seg.Template, ctx);
+                    if (System.Text.Json.Nodes.JsonNode.Parse(text) is JsonObject parsed) return parsed;
+                    return null;
+                }
+                if (seg.Structured is not null)
+                {
+                    if (seg.Structured is JsonObject obj) return obj.DeepClone().AsObject();
+                    try
+                    {
+                        var text = System.Text.Json.JsonSerializer.Serialize(seg.Structured);
+                        if (System.Text.Json.Nodes.JsonNode.Parse(text) is JsonObject parsed) return parsed;
+                    }
+                    catch { /* 段无效：跳过该段。 */ }
+                }
+                return null;
+            }
+
+            private static JsonArrayMergeMode ParseArrayMode(string? mode)
+                => mode?.ToLowerInvariant() switch
+                {
+                    "append" => JsonArrayMergeMode.Append,
+                    "merge" => JsonArrayMergeMode.Merge,
+                    "deduplicate" => JsonArrayMergeMode.Deduplicate,
+                    _ => JsonArrayMergeMode.Replace,
+                };
+        }
+
         private sealed class DelegateOutput : IOutputStrategy
         {
             public OutputKind Kind => OutputKind.Delegate;
@@ -87,6 +140,9 @@ namespace Strategy.DecisionRules
             [MatchStrategy.JsonPath] = DefaultMatchStrategies.JsonPath,
             [MatchStrategy.Semantic] = DefaultMatchStrategies.Semantic,
             [MatchStrategy.Expression] = DefaultMatchStrategies.Expression,
+            [MatchStrategy.ArrayContains] = DefaultMatchStrategies.ArrayContains,
+            [MatchStrategy.NumericCompare] = DefaultMatchStrategies.NumericCompare,
+            [MatchStrategy.JsonSchema] = DefaultMatchStrategies.JsonSchema,
         };
 
         public IMatchStrategy Get(MatchStrategy strategy)
@@ -106,6 +162,7 @@ namespace Strategy.DecisionRules
             [OutputKind.ToolCall] = DefaultOutputStrategies.ToolCall,
             [OutputKind.ToolCalls] = DefaultOutputStrategies.ToolCalls,
             [OutputKind.Structured] = DefaultOutputStrategies.Structured,
+            [OutputKind.Merge] = DefaultOutputStrategies.Merge,
             [OutputKind.Delegate] = DefaultOutputStrategies.Delegate,
         };
 

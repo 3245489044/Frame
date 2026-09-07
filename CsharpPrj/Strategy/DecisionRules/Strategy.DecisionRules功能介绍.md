@@ -36,13 +36,16 @@
 
 ### 3.1 声明式模型（扩充层）
 - `DecisionRuleSet` / `DecisionRule` / `WhenCondition` / `MatchCondition` / `MatchClause` / `OutputClause`
-- 枚举：`MatchStrategy`（Always/Role/Contains/Regex/StartsWith/EndsWith/Wildcard/JsonPath/Semantic/**Expression**/Exact）、`OutputKind`（Text/Json/ToolCall/ToolCalls/Structured/Delegate）、`RuleSetPriorityMode`（Ordered/Declared）
+- 枚举：`MatchStrategy`（Always/Role/Contains/Regex/StartsWith/EndsWith/Wildcard/JsonPath/Semantic/**Expression**/Exact/**ArrayContains**/**NumericCompare**/**JsonSchema**）、`OutputKind`（Text/Json/ToolCall/ToolCalls/Structured/**Merge**/Delegate）、`RuleSetPriorityMode`（Ordered/Declared）
+- `DecisionRuleContext`：可选承载 JSON 根（`Root`）→ field 支持 JSONPath（`$.a.b` / `a.b`），`context.<key>` 归一到 `$.context.<key>`；空根时保持旧 LLM 形状取值（零回归）。
+- `JsonPathResolver`（新）：复用 `Plate.JsonMethod.JsonPathHelper` 的取值/节点/数组/数值解析（SingleImplementation）。
 
 ### 3.2 端口（Open-Closed 扩展）
-`IMatchStrategy` / `IOutputStrategy` / `ITemplateRenderer` / `IRuleSetLoader` / `IRuleSetValidator` / `IMatchStrategyRegistry` / `IOutputStrategyRegistry` / `IRuleAuditSink`
+`IMatchStrategy` / `IOutputStrategy` / `ITemplateRenderer` / `IRuleSetLoader` / `IRuleSetValidator` / `IMatchStrategyRegistry` / `IOutputStrategyRegistry` / `IRuleAuditSink` / `IDelegateRegistry`（Delegate 委托解析端口）
 
 ### 3.3 引擎
 - `DecisionRulesEngine`：`MatchWhen(短路) → Select(优先级/数组序) → Render → Execute(输出器) → Fallback(default) → Audit`，**无状态**，单输入→裁决输出。
+- JSON 输入重载：`Evaluate(ruleSet, JsonObject input, …)` —— 决策 = 纯函数 `单一 JSON → 单一 JSON`，任意 JSON 消费者直接调用（调度/路由/护栏），LLM 形状经 `DecisionRuleContext` 翻译层兼容。
 - `DecisionRuleRouter`：把「输入文本 → 裁决输出」封装为单一调用（路由/护栏/工具选择复用入口）。
 - `RuleSetDecisionEngine`（底座适配器）：把声明式 `DecisionRuleSet` 暴露为 `IDecisionEngine<RuleDecisionOutcome, DecisionRuleContext>`，可被 `CompositeDecisionEngine` 组合。
 
@@ -81,6 +84,43 @@ var composite = new CompositeDecisionEngine<RuleDecisionOutcome, DecisionRuleCon
     .AddEngine(new RuleSetDecisionEngine(setB, name: "setB"));
 var decision = await composite.DecideAsync(new DecisionRuleContext { User = "x" });
 ```
+
+**JSON 进/JSON 出（领域中立）**——决策 = 纯函数 `单一 JSON → 单一 JSON`，任意 JSON 消费者直接调用，不依赖 LLM 形状：
+
+```csharp
+// 规则：field 用 JSONPath 从输入根取值；then 用 merge 合成单一输出 JSON（含 {{ $.… }} 占位符拉值）。
+var rs = new DecisionRuleSet
+{
+    Id = "json-router",
+    Rules = new[]
+    {
+        new DecisionRule
+        {
+            Id = "r-sched",
+            When = new WhenCondition { All = new[] { new MatchCondition {
+                Match = new MatchClause { Field = "$.input.task.schedulingMode", Strategy = MatchStrategy.Exact, Value = "Hybrid" } } } },
+            Then = new OutputClause
+            {
+                Type = OutputKind.Merge,
+                MergeSegments = new[]
+                {
+                    new OutputClause { Type = OutputKind.Json, Template = "{ \"action\": \"continue\" }" },
+                    new OutputClause { Type = OutputKind.Json, Template = "{ \"taskKey\": \"{{ $.input.task.taskKey }}\" }" },
+                },
+            },
+        },
+    },
+};
+var input = JsonNode.Parse("""
+    { "decisionPoint": "task_scheduler", "input": { "task": { "taskKey": "tp_x", "schedulingMode": "Hybrid" } } }
+    """) as JsonObject;
+var out = new DecisionRulesEngine().Evaluate(rs, input);      // JSON 输入重载
+var merged = out.Structured as JsonObject;                     // → { action, taskKey }（合成单一 JSON）
+```
+
+- 匹配器新增 `arrayContains` / `numericCompare`（结构型比较）；`jsonSchema` 预留（对齐 `Semantic` 预留模式，未实现）。
+- 输出新增 `merge`（经 `Plate.JsonMethod.JsonMergeService` 深合并，SingleImplementation）；`delegate` 经 `IDelegateRegistry` 端口解析 C# 函数产出 JSON。
+- `context.<key>` 旧别名在 JSON 根下归一到 `$.context.<key>`（翻译适配，老规则零回归）。
 
 ---
 

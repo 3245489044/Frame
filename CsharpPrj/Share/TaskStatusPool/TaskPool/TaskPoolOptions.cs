@@ -19,4 +19,14 @@ public sealed class TaskPoolOptions
 
     /// <summary>按任务判定是否跳过触发频率限制门（true = 该任务不限频、立即放行；不更新限频窗口）。null = 不跳过（对所有任务统一限频）。用途：零 LLM / 本地任务即便真实环境也不受 30s 窗口限制；真实 LLM 任务仍限频。</summary>
     public Func<ITaskPoolItem, bool>? SkipRateLimitFor { get; set; }
+
+    /// <summary>单次 drain 内持久化/门控 await 的有界等待超时（毫秒）。默认 0 = 不加超时（保持无界等待，向后兼容）；
+    /// 显式配置（如对齐 9.1 语义设为 ≥5000）后，读侧卡死会在该时长后抛 TimeoutException 而非无限等待，由消费循环自愈续跑。</summary>
+    public int DrainTimeoutMs { get; set; }
+
+    /// <summary>消费循环低频终局兜底校验间隔（毫秒）。默认 0 = 关闭（纯事件驱动，向后兼容）。
+    /// 显式配置后，事件驱动空闲等待的每个超周期唤醒一次：若存在「未被消费的 NotStarted 且 Active」条目（信号在某次该发而未发的路径丢失 → 睡死），
+    /// 补跑一次 drain 兜底消费，纠正"该醒未醒"；系统确无待办时该次 drain 立即空返回（ListAsync 空 → 无额外 DB 压力）。
+    /// 与缺陷一"写即醒拾"配合：前者从源头保证信号必发，本项兜底因 legacy 直写等历史残留行产生的睡死。建议仅在有"NotStarted 可能滞留"的池上启用。</summary>
+    public int IdleReconcileIntervalMs { get; set; }
 }

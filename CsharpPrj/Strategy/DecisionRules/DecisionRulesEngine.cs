@@ -168,6 +168,18 @@ namespace Strategy.DecisionRules
                         }
                     }
                     break;
+                case OutputKind.LLM:
+                    // LLM：LLM-free。默认注册产出 LlmCallDescriptor（延迟请求）；若引擎以不含 LLM 的注册表构建
+                    // （Get 回退 Text 产出字符串），LlmRequest 保持 null → 视同未声明（fail-safe 空文本，不静默吞）。
+                    if (output is LlmCallDescriptor desc)
+                    {
+                        result.LlmRequest = desc;
+                    }
+                    else
+                    {
+                        result.Text = output as string ?? "";
+                    }
+                    break;
             }
             return result;
         }

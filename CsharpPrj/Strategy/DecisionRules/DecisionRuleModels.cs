@@ -58,6 +58,10 @@ namespace Strategy.DecisionRules
         Merge,
         /// <summary>委托 C# 函数（经 <see cref="IDelegateRegistry"/> 解析产出 JSON/对象，预留）。</summary>
         Delegate,
+        /// <summary>LLM 兜底输出（默认关）：引擎同步产出 <see cref="LlmCallDescriptor"/>（延迟请求描述，不进 LLM——核心保持 LLM-free）；
+        /// 异步执行 + 结果解析由消费方薄包装适配层完成（对齐 LlmStateDirector 下沉为 llm 输出策略）。仅规则显式声明 llm 时触发。</summary>
+        [JsonStringEnumMemberName("llm")]
+        LLM,
     }
 
     /// <summary>规则集优先级模式：ordered=数组序（LocalLlm 旧行为，零回归）；declared=按 Rule.Priority 权重。</summary>
@@ -131,6 +135,15 @@ namespace Strategy.DecisionRules
 
         /// <summary>delegate：委托名（经委托注册表解析，预留）。</summary>
         public string? DelegateName { get; set; }
+
+        /// <summary>llm：系统提示模板（占位符渲染；{context.&lt;key&gt;} 等可用）。可选。</summary>
+        public string? LlmSystemTemplate { get; set; }
+
+        /// <summary>llm：用户提示模板（占位符渲染）；缺省回退 <see cref="Template"/>。</summary>
+        public string? LlmUserTemplate { get; set; }
+
+        /// <summary>llm：要求 LLM 产出 JSON 并经适配层解析（true=走 JSON 生成器；false=纯文本）。缺省 true。</summary>
+        public bool LlmParseJson { get; set; } = true;
     }
 
     /// <summary>单条规则：when（条件）→ then（输出）。</summary>

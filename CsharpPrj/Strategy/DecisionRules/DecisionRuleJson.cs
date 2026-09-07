@@ -128,6 +128,11 @@ namespace Strategy.DecisionRules
                 if (rule.Then is null) { errors.Add($"规则 {rule.Id ?? "(未命名)"} 缺少 then 输出"); continue; }
                 if (rule.Then.Type == OutputKind.ToolCall && string.IsNullOrWhiteSpace(rule.Then.ToolName))
                     errors.Add($"规则 {rule.Id ?? "(未命名)"}：tool_call 缺少 toolName");
+                if (rule.Then.Type == OutputKind.LLM
+                    && string.IsNullOrWhiteSpace(rule.Then.LlmUserTemplate)
+                    && string.IsNullOrWhiteSpace(rule.Then.Template)
+                    && string.IsNullOrWhiteSpace(rule.Then.LlmSystemTemplate))
+                    errors.Add($"规则 {rule.Id ?? "(未命名)"}：llm 至少需 llmUserTemplate / template / llmSystemTemplate 之一，否则无提示可执行");
                 LintWhen(rule.When, rule.Id, errors);
             }
             if (ruleSet.Default is not null && ruleSet.Default.Then is not null)

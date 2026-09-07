@@ -4,11 +4,10 @@ using Operation.LoopFoldMethod.Signal;
 namespace Operation.LoopFoldMethod.Decision;
 
 /// <summary>
-/// 规则决策 → 折叠决策结果映射（LLM-free，Agent 无关）—— 使 P2 通用接缝 <see cref="IRuleDecider"/> 的产出
-/// （<see cref="RuleDecision"/>，Continue/Stop/Error）可以作为 <see cref="IDecisionSkill{TState,TVertex}"/> 的确定性实现，
-/// 与 LLM 协程共用同一个 <see cref="DecisionFoldEngine{TState,TVertex}"/>"规则/LLM 混合决策"（化解多导演/多格式）。
-/// Continue → <see cref="DecisionOutcome.Next"/>（软推进 D′）；Stop → <see cref="DecisionOutcome.Stop"/>；
-/// Error → <see cref="DecisionOutcome.Fail"/>（显式中止，R7：不回退静默 continue）。
+/// 规则决策 → 折叠决策结果映射（LLM-free，Agent 无关）—— 把 <see cref="RuleDecision"/>（Continue/Stop/Error）
+/// 映为统一 <see cref="DecisionOutcome"/> 词表（输出适配）：Continue → <see cref="DecisionOutcome.Next"/>（软推进 D′）；
+/// Stop → <see cref="DecisionOutcome.Stop"/>；Error → <see cref="DecisionOutcome.Fail"/>（显式中止，R7：不回退静默 continue）。
+/// 供 Agent 侧工具动作适配（DecisionActionExecutor 等）与规则决策消费者把规则判定收敛到决策词表。
 /// </summary>
 public static class RuleDecisionToOutcome
 {

@@ -145,5 +145,8 @@ namespace Strategy.DecisionRules
 
         /// <summary>delegate：委托名。</summary>
         public string? DelegateName { get; set; }
+
+        /// <summary>llm：LLM 延迟请求描述（引擎 LLM-free 产出；异步执行/解析由消费方适配层完成）。</summary>
+        public LlmCallDescriptor? LlmRequest { get; set; }
     }
 }

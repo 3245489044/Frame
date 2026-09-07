@@ -16,6 +16,8 @@ namespace Strategy.DecisionRules
         public static IOutputStrategy Structured { get; } = new StructuredOutput();
         public static IOutputStrategy Merge { get; } = new MergeOutput();
         public static IOutputStrategy Delegate { get; } = new DelegateOutput();
+        // LLM：LLM-free 描述符构建（默认注册 → type:llm 规则确定性产出 LlmCallDescriptor；异步执行由消费方适配层决定）。
+        public static IOutputStrategy Llm { get; } = LlmOutputStrategy.Default;
 
         private sealed class TextOutput : IOutputStrategy
         {
@@ -164,6 +166,7 @@ namespace Strategy.DecisionRules
             [OutputKind.Structured] = DefaultOutputStrategies.Structured,
             [OutputKind.Merge] = DefaultOutputStrategies.Merge,
             [OutputKind.Delegate] = DefaultOutputStrategies.Delegate,
+            [OutputKind.LLM] = DefaultOutputStrategies.Llm,
         };
 
         public IOutputStrategy Get(OutputKind kind)

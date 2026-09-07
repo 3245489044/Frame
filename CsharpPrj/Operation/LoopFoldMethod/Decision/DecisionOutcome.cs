@@ -23,8 +23,8 @@ public enum TerminationSignal
 /// 决策统一结果 ——「决策 = 产出折叠链标识符 D′ 或终止信号」。统一决策式终止（RoundLifecycle.Decide）
 /// 与折叠链收敛（resolver 表驱动）为单一语义：每步决策产物即下一步折叠链标识符 D′（<see cref="ContinueTo"/>），
 /// 无 D′ = 链终点 / 终止（<see cref="Terminate"/>）。对齐 [CR: axioms:AX.DecisionOutputSet@consume]。
-/// 分层（SEP.DeterministicCoreDisjoint）：确定性硬性部分经 <see cref="IDeterministicTermination{TState}"/> 引擎内裁决
-/// 产 <see cref="Terminate"/>；LLM 软决策经 <see cref="IDecisionSkill{TState,TVertex}"/> 协程产 <see cref="ContinueTo"/>。
+/// 分层（SEP.DeterministicCoreDisjoint）：确定性硬性部分引擎内裁决产 <see cref="Terminate"/>；
+/// LLM 软决策经决策 skill 协程产 <see cref="ContinueTo"/>。
 /// </summary>
 public abstract record DecisionOutcome
 {

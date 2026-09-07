@@ -36,7 +36,8 @@
 
 ### 3.1 声明式模型（扩充层）
 - `DecisionRuleSet` / `DecisionRule` / `WhenCondition` / `MatchCondition` / `MatchClause` / `OutputClause`
-- 枚举：`MatchStrategy`（Always/Role/Contains/Regex/StartsWith/EndsWith/Wildcard/JsonPath/Semantic/**Expression**/Exact/**ArrayContains**/**NumericCompare**/**JsonSchema**）、`OutputKind`（Text/Json/ToolCall/ToolCalls/Structured/**Merge**/Delegate）、`RuleSetPriorityMode`（Ordered/Declared）
+- 枚举：`MatchStrategy`（Always/Role/Contains/Regex/StartsWith/EndsWith/Wildcard/JsonPath/Semantic/**Expression**/Exact/**ArrayContains**/**NumericCompare**/**JsonSchema**）、`OutputKind`（Text/Json/ToolCall/ToolCalls/Structured/**Merge**/Delegate/**LLM**）、`RuleSetPriorityMode`（Ordered/Declared）
+- `OutputClause` LLM 专属字段：`llmSystemTemplate` / `llmUserTemplate`（缺省回退 `template`）/ `llmParseJson`（缺省 true）—— `then.type:"llm"` 经 `LlmOutputStrategy` 同步产出 `LlmCallDescriptor`（延迟请求描述，**LLM-free**，异步执行/解析由消费方适配层完成）。
 - `DecisionRuleContext`：可选承载 JSON 根（`Root`）→ field 支持 JSONPath（`$.a.b` / `a.b`），`context.<key>` 归一到 `$.context.<key>`；空根时保持旧 LLM 形状取值（零回归）。
 - `JsonPathResolver`（新）：复用 `Plate.JsonMethod.JsonPathHelper` 的取值/节点/数组/数值解析（SingleImplementation）。
 
@@ -48,6 +49,12 @@
 - JSON 输入重载：`Evaluate(ruleSet, JsonObject input, …)` —— 决策 = 纯函数 `单一 JSON → 单一 JSON`，任意 JSON 消费者直接调用（调度/路由/护栏），LLM 形状经 `DecisionRuleContext` 翻译层兼容。
 - `DecisionRuleRouter`：把「输入文本 → 裁决输出」封装为单一调用（路由/护栏/工具选择复用入口）。
 - `RuleSetDecisionEngine`（底座适配器）：把声明式 `DecisionRuleSet` 暴露为 `IDecisionEngine<RuleDecisionOutcome, DecisionRuleContext>`，可被 `CompositeDecisionEngine` 组合。
+
+#### 3.3.1 JSON 聚拢契约与门面（单一裁决入口，LLM-free）
+- `DecisionOutput`：统一结果信封 `{ matched, ruleId, kind, fallback, result }`，由 `DecisionOutput.FromResult(DecisionRuleResult)` 归一。
+- `DecisionPortal`：全决策点唯一裁决入口，标准形态 `Evaluate(ruleSetOf(point), BuildInput(state)) → DecisionOutput`；`DecisionPortal.BuildInput(point,input,context)` 装配 `{ decisionPoint, input, context }`；可注入 `IRuleAuditSink`（命中/兜底审计）。**动态规则源重载** `Evaluate(ruleSet, point, input, exclude)`（ur_config 每次热读/规则文件等规则集随调用变化时显式传本次规则集走门面，消费方不再各自包 `FromResult`）+ **无 provider 默认构造**（rule-set 重载用不到注册表）；provider 版委托该重载保单一引擎路径。
+- `IDecisionRuleSetProvider`：决策点 → 规则集供给端口（静态注册点用；动态规则源点走 rule-set 重载）。
+- `IConfigRuleTranslator` / `UrConfigRuleTranslator`：把既有 ur_config（scheduler.rules.*，snake_case）翻译为统一 `DecisionRuleSet`（数值谓词 eq、`current_strategy` Ordinal、`last_eval` OrdinalIgnoreCase、空 action 行丢弃、缺 id 补合成 id），作为 Config 调度 / 规则任务的规则源。
 
 ### 3.4 加载 / 校验
 - `FileRuleSetLoader`（按 LastWriteTime 失效缓存 + 可选热重载，失败回退已加载版本）

@@ -5,7 +5,7 @@ namespace CallCenter.Mcp;
 /// <summary>
 /// MCPBridge 入口脚本（Node stdio MCP server）的仓库相对路径与定位单一权威（SingleImplementation / TH-12）。
 /// 收敛此前散在 CallCenter.Host 的 <c>LocateMcpBridgeScript</c>（自写相对路径+逐级上溯）与 Agent.Axioms
-/// 中同名重复常量的两份定义；Host 与 Agent（McpClientManager）一律经本类解析，禁止各自写死路径。
+/// 中同名重复常量的两份定义；Host 与 Agent（McpBridgeClient）一律经本类解析，禁止各自写死路径。
 /// </summary>
 public static class McpBridgeLocator
 {

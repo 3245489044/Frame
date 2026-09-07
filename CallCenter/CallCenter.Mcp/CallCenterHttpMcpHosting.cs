@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting; // WebHost.UseUrls
 using Microsoft.Extensions.DependencyInjection; // AddMcpServer（IServiceCollection 扩展）
 using Microsoft.Extensions.Hosting;
-using ModelContextProtocol.Server; // WithTools/WithHttpTransport
+using ModelContextProtocol.AspNetCore; // HttpServerSessionMode
+using ModelContextProtocol.Server; // McpServerTool/CallToolResult
+using System.Reflection;
 
 
 namespace CallCenter.Mcp;
@@ -15,8 +17,9 @@ namespace CallCenter.Mcp;
 /// <b>承载收拢位置</b>：HTTP MCP server 承载从 Agent 侧（McpServerHosting/RegistryMcpHosting）收拢至 CallCenter（平台层），
 /// Agent/FileDriven 等上层宿主不再自行持有 HTTP MCP server；本类即承载实现（唯一）。上层宿主只做<b>接线</b>——
 /// 构造一个 <see cref="ToolRouter"/>（含其能力工具）后经 <see cref="StartHostedHttpAsync"/> / <see cref="RunHttpAsync"/> 拉起端点，
-/// 并经本机 Loopback MCP client（指向本端点）调用。工具集经 <see cref="CallCenterMcpTools.Inject"/> 静态注入（照抄 Agent
-/// RegistryMcpTools「静态真源」已验证形态，确保 WithTools 稳定注册）；不反引用任何 Agent 类型（9.4 D7：平台不依赖产品）。
+/// 并经本机 Loopback MCP client（指向本端点）调用。工具集经 <see cref="CallCenterMcpTools.Inject"/> 静态注入（静态真源，
+/// 承载装配唯一装配点）；MCP 层 tools/list 经 ConfigureSessionOptions 把其 [McpServerTool] 方法放入会话 ToolCollection
+/// （见 <see cref="BuildHttpApplication"/>，2.2.0 HTTP 会话 tools 生效路径）。不反引用任何 Agent 类型（9.4 D7：平台不依赖产品）。
 /// </para>
 /// <para>生命周期：返回已 <c>StartAsync</c> 的 <see cref="WebApplication"/>（实现 <see cref="IHost"/>），调用方持有
 /// Start/Stop/Dispose。绑定 localhost（仅回环），无鉴权——仅限本机受信客户端。</para>
@@ -51,19 +54,46 @@ public static class CallCenterHttpMcpHosting
         return 0;
     }
 
-    /// <summary>构建本机 Streamable HTTP MCP server（不启动）。工具类型 = <see cref="CallCenterMcpTools"/>（静态工具）。</summary>
+    /// <summary>构建本机 Streamable HTTP MCP server（不启动）。MCP 层暴露的工具 = <see cref="CallCenterMcpTools"/> 的
+    /// <c>cc_list_tools</c>/<c>cc_call_tool</c> 双入口（tools/list 枚举的就是它们；具体 CallCenter 工具面经 cc_call_tool 按名路由）。</summary>
     private static WebApplication BuildHttpApplication(int port, string path)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{port}");
 
+        // ModelContextProtocol 2.2.0（当前最新稳定版）：经 HTTP(Streamable) 服务 tools 时，`.WithTools(...)` 并不会把工具
+        // 挂进会话 —— tools/list 对已 initialize 的 client 仍返回 -32601 / "no handler available"（Phase-1 已知边界真根因）。
+        // 实测唯一生效路径 = Stateful 会话 + ConfigureSessionOptions 把工具显式放入每会话 ToolCollection（对齐官方 per-session 样例）。
+        // 故：置 Stateful，并在每会话建立时把 CallCenterMcpTools 的 [McpServerTool] 方法扫描进会话 ToolCollection。
         builder.Services.AddMcpServer()
-            .WithHttpTransport()
-            .WithTools(new[] { typeof(CallCenterMcpTools) });
+            .WithHttpTransport(o =>
+            {
+                o.SessionMode = HttpServerSessionMode.Stateful;
+                o.ConfigureSessionOptions = (_, mcpOptions, _) =>
+                {
+                    mcpOptions.Capabilities ??= new();
+                    mcpOptions.Capabilities.Tools ??= new();
+                    var tools = mcpOptions.ToolCollection = [];
+                    foreach (var t in BuildCallCenterMcpTools()) tools.Add(t);
+                    return Task.CompletedTask;
+                };
+            });
 
         var app = builder.Build();
         app.MapMcp(path); // 挂载 /mcp 端点
         return app;
+    }
+
+    /// <summary>把 <see cref="CallCenterMcpTools"/> 的 [McpServerTool] 方法扫描为 <see cref="McpServerTool"/> 集（承载层唯一暴露面）。</summary>
+    private static McpServerTool[] BuildCallCenterMcpTools()
+    {
+        var list = new List<McpServerTool>();
+        foreach (var m in typeof(CallCenterMcpTools).GetMethods(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (m.GetCustomAttribute<McpServerToolAttribute>() is null) continue;
+            list.Add(McpServerTool.Create(m, target: null, new McpServerToolCreateOptions()));
+        }
+        return list.ToArray();
     }
 
     /// <summary>预留一个空闲本机端口（port=0 语义；避免多承载/测试并发抢同一端口）。</summary>

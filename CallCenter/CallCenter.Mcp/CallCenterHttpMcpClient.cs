@@ -55,8 +55,8 @@ public sealed class CallCenterHttpMcpClient : IMcpToolClient
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
 
-        var response = await mcp.CallToolAsync(toolName, ParseArguments(argumentsJson), cancellationToken: cts.Token).ConfigureAwait(false);
-        var text = ExtractText(response.Content);
+        var response = await mcp.CallToolAsync(toolName, McpProtocol.ParseArguments(argumentsJson), cancellationToken: cts.Token).ConfigureAwait(false);
+        var text = McpProtocol.ExtractText(response.Content);
         return response.IsError == true
             ? McpCallResponse.Fail(string.IsNullOrWhiteSpace(text) ? $"调用 '{toolName}' 失败（MCP isError）" : text)
             : McpCallResponse.Ok(string.IsNullOrWhiteSpace(text) ? "null" : text);
@@ -89,54 +89,9 @@ public sealed class CallCenterHttpMcpClient : IMcpToolClient
         }
     }
 
-    private static IReadOnlyDictionary<string, object?>? ParseArguments(string? argumentsJson)
-    {
-        if (string.IsNullOrWhiteSpace(argumentsJson))
-            return null;
-
-        var obj = JsonSerializer.Deserialize<Dictionary<string, object?>>(argumentsJson);
-        if (obj is null)
-            return null;
-
-        var map = new Dictionary<string, object?>(obj.Count, StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in obj)
-            map[kv.Key] = kv.Value;
-        return map;
-    }
-
-    /// <summary>把 MCP CallTool 响应的 content（多为 text 片段数组）拼接为文本；无可提取时回退整段序列化。</summary>
-    private static string ExtractText(object content)
-    {
-        string json;
-        try
-        {
-            json = JsonSerializer.Serialize(content);
-        }
-        catch
-        {
-            return string.Empty;
-        }
-
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.ValueKind != JsonValueKind.Array)
-            return json;
-
-        var parts = new List<string>();
-        foreach (var item in doc.RootElement.EnumerateArray())
-        {
-            if (item.ValueKind == JsonValueKind.Object &&
-                item.TryGetProperty("text", out var text) &&
-                text.ValueKind == JsonValueKind.String)
-            {
-                var s = text.GetString();
-                if (!string.IsNullOrWhiteSpace(s))
-                    parts.Add(s);
-            }
-        }
-
-        return parts.Count > 0 ? string.Join(Environment.NewLine, parts) : json;
-    }
-
+    /// <summary>
+    /// 与具体端点 / 传输无关的入参解析与 content 提取已收敛至 <see cref="McpProtocol"/>（SingleImplementation / TH-12）。
+    /// </summary>
     private void ThrowIfDisposed()
     {
         if (_disposed)

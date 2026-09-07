@@ -4,7 +4,7 @@ namespace CallCenter.Mcp;
 
 /// <summary>
 /// 到 MCPBridge（Node stdio MCP server）的自包含客户端：用官方 ModelContextProtocol SDK 的 <see cref="McpClient"/>
-/// 承载「spawn node + stdio + JSON-RPC」，技术路径与 Agent 侧 <see cref="McpClientManager"/> 同源（SingleImplementation，
+/// 承载「spawn node + stdio + JSON-RPC」，技术路径与 Agent 侧 <see cref="McpBridgeClient"/> 同源（SingleImplementation，
 /// 不复刻自研 JSON-RPC 读循环）。本实现不引用 Agent 工程，使 CallCenter 独立接入 Node MCPBridge（TS/PS 轨）。
 /// 调用方持有生命周期（连接后经 <see cref="DisposeAsync"/> 释放 node 进程）。
 /// </summary>
@@ -80,67 +80,18 @@ public sealed class McpClientConnection : IMcpToolClient
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
 
-        var args = ParseArguments(argumentsJson);
+        var args = McpProtocol.ParseArguments(argumentsJson);
         var response = await _client!.CallToolAsync(toolName, args, cancellationToken: cts.Token).ConfigureAwait(false);
 
-        var text = ExtractText(response.Content);
+        var text = McpProtocol.ExtractText(response.Content);
         return response.IsError == true
             ? McpCallResponse.Fail(string.IsNullOrWhiteSpace(text) ? $"调用 '{toolName}' 失败（MCP isError）" : text)
             : McpCallResponse.Ok(string.IsNullOrWhiteSpace(text) ? "null" : text);
     }
 
-    /// <summary>把 JSON 对象入参解析为 SDK 可空值字典；空/非法入参 → null（无实参调用）。</summary>
-    private static IReadOnlyDictionary<string, object?>? ParseArguments(string? argumentsJson)
-    {
-        if (string.IsNullOrWhiteSpace(argumentsJson))
-            return null;
-
-        var obj = JsonSerializer.Deserialize<Dictionary<string, object?>>(argumentsJson);
-        if (obj == null)
-            return null;
-
-        var map = new Dictionary<string, object?>(obj.Count, StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in obj)
-            map[kv.Key] = kv.Value;
-        return map;
-    }
-
     /// <summary>
-    /// 把 MCP CallTool 响应的 content（多为 text 片段数组）拼接为文本；无可提取片段时回退整段序列化 JSON。
-    /// 这是从统一 JSON 线缆到结果的确定性提取（对齐 FormatFidelity/Collect 语义），不绑定具体 content 子类型。
+    /// 与具体端点 / 传输无关的入参解析与 content 提取已收敛至 <see cref="McpProtocol"/>（SingleImplementation / TH-12）。
     /// </summary>
-    private static string ExtractText(object content)
-    {
-        string json;
-        try
-        {
-            json = JsonSerializer.Serialize(content);
-        }
-        catch
-        {
-            return string.Empty;
-        }
-
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.ValueKind != JsonValueKind.Array)
-            return json;
-
-        var parts = new List<string>();
-        foreach (var item in doc.RootElement.EnumerateArray())
-        {
-            if (item.ValueKind == JsonValueKind.Object &&
-                item.TryGetProperty("text", out var text) &&
-                text.ValueKind == JsonValueKind.String)
-            {
-                var s = text.GetString();
-                if (!string.IsNullOrWhiteSpace(s))
-                    parts.Add(s);
-            }
-        }
-
-        return parts.Count > 0 ? string.Join(Environment.NewLine, parts) : json;
-    }
-
     private async Task ConnectCoreAsync(CancellationToken ct)
     {
         if (_connected)

@@ -11,6 +11,11 @@
     <!-- 官方 ModelContextProtocol SDK（McpClient/StdioClientTransport），与 Agent 侧 McpClientManager 同源、SingleImplementation
          （不复刻自研 JSON-RPC 读循环）；本工程不引用 Agent 项目，使 CallCenter 独立接入 MCPBridge（TS/PS 轨）。 -->
     <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
+    <!-- HTTP MCP server 承载（Streamable HTTP /mcp）：把 CallCenter 统一工具面（ToolRouter）以官方 server 暴露，
+         供外部 LLM 与本机 Loopback MCP client 经同一端点访问。承载收拢于 CallCenter（平台层），Agent 只做接线/调用；
+         AspNetCore framework 提供 WebApplication/MapMcp。 -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="$(ModelContextProtocolVersion)" />
   </ItemGroup>
 
 </Project>

@@ -7,8 +7,6 @@ using CSG.Unified;
 using CallCenter.Adapters;
 using CallCenter.Mcp;
 using CallCenter.Core.Tools;
-using ExecutionFramework.Abstractions;
-using ExecutionFramework.Engine;
 
 
 // P0 验证闸：发现源工具 → CSG 工具表 + 一致性校验。
@@ -50,6 +48,15 @@ if (mode == "watch")
 if (mode == "face")
     return await UnifiedFaceAsync(catalog);
 
+// P2-承载 收拢（CallCenter.Mcp HTTP MCP server）：--http [--port N] 把统一工具面（C# 轨 router）暴露为本机 /mcp，
+//   供外部 LLM / Loopback client 经同一端点访问（承载收拢 CallCenter，宿主只接线）。
+if (mode == "http")
+    return await RunHttpServerAsync(csharpSource, csharpDefs, cliArgs);
+
+// --http-call <toolName> [jsonArgs]：以官方 HTTP client（Loopback）连本机承载端点调用一个工具（承载收拢冒烟/自检）。
+if (mode == "http-call")
+    return await HttpCallToolAsync(cliArgs);
+
 if (mode == "call")
     return await CallToolAsync(BuildRouter(csharpSource, csharpDefs), cliArgs);
 
@@ -64,7 +71,7 @@ switch (mode)
         break;
 
     default:
-        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs]");
+        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs] | --http [--port N] | --http-call <toolName> [jsonArgs]");
         return 2;
 }
 
@@ -281,3 +288,57 @@ static async Task<int> UnifiedFaceAsync(CsgToolCatalog catalog)
     Console.WriteLine($"合计 {catalog.Tools.Count} 个 C#/种子工具（上方）+ MCPBridge 段。");
     return 0;
 }
+
+// ─── 承载收拢（CallCenter.Mcp HTTP MCP server）：把统一工具面暴露为本机 /mcp，宿主只接线 ──
+// C# 轨 router 承载；后续 Agent 能力（create 等）以 ToolRouter 轨注入同一承载，Agent 经 Loopback client 调用。
+
+static int ReadPortArg(string[] args)
+{
+    for (var i = 0; i + 1 < args.Length; i++)
+        if (string.Equals(args[i], "--port", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(args[i + 1], out var p) && p > 0)
+            return p;
+    return 0; // 0 → 宿主预留空闲端口
+}
+
+/// <summary>--http：起 CallCenter HTTP MCP server 承载（统一工具面 → 本机 /mcp），阻塞常驻直到 Ctrl+C。</summary>
+static async Task<int> RunHttpServerAsync(
+    CSharpFunctionLibrarySource? csharpSource, IReadOnlyList<CSharpToolDefinition>? csharpDefs, string[] args)
+{
+    var router = BuildRouter(csharpSource, csharpDefs);
+    Console.WriteLine($"[http] CallCenter MCP server 承载启动，工具面 {router.Tools.Count} 个（router 轨）。");
+    var port = ReadPortArg(args);
+    await CallCenter.Mcp.CallCenterHttpMcpHosting.RunHttpAsync(router, defaultPort: port).ConfigureAwait(false);
+    return 0;
+}
+
+/// <summary>--http-call <toolName> [jsonArgs]：经官方 HTTP client（Loopback）连本机承载端点调用一个工具。</summary>
+static async Task<int> HttpCallToolAsync(string[] args)
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("用法：--http-call <toolName> [jsonArgs]");
+        return 2;
+    }
+
+    var name = args[1];
+    var argJson = args.Length > 2 ? args[2] : null;
+
+    // 复用官方 SDK HttpClientTransport 连本机承载 /mcp（与 Agent LoopbackMcpFoldToolProvider 同源路径）。
+    var port = ReadPortArg(args) is var p && p > 0 ? p : CallCenter.Mcp.CallCenterHttpMcpClient.DefaultMcpPort;
+    var uri = new Uri($"http://localhost:{port}/mcp");
+    await using var client = await CallCenterHttpMcpClient.ConnectAsync(uri);
+    var tools = await client.ListToolsAsync();
+    Console.WriteLine($"[http-call] 本机承载 {uri} 工具面：{string.Join(", ", tools.Select(t => t.Name))}");
+
+    if (!tools.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
+    {
+        Console.Error.WriteLine($"[http-call] 承载无工具 '{name}'。");
+        return 1;
+    }
+
+    var result = await client.CallToolAsync(name, argJson);
+    Console.WriteLine(result.IsError ? $"[error] {result.Text}" : (result.Text ?? "null"));
+    return result.IsError ? 1 : 0;
+}
+

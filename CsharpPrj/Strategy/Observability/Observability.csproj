@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用语义观测内核（Strategy.Observability）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>Agent 无关的通用语义观测内核 E1-E8：实体模型/事件信封/契约注册表/收集总线/持久化/查询投影/度量聚合/诊断兜底。机制层零 Agent 字符串，仅供上层注册语义契约实例复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>观测;语义;事件;契约;时间线;投影;聚合;持久化</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核不得出现 decision/tool/skill/llm 领域字符串（越界红线）" />
+    <ModuleRule_Rule Include="唯一外部引用 = Modules.Threading（复用 AmbientSlot / BatchedAsyncSink / FlowBoundary / StallDetector 插槽范本）" />
+    <ModuleRule_Rule Include="JSON 统一经 System.Text.Json（内置，无外部包依赖）" />
+    <ModuleRule_Rule Include="持久化经自有窄端口 IEventStore（append-only 批写）；生产可对 Operation.DataStoreDriven.IZoneStore 适配成事件区" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Strategy.Observability</RootNamespace>
+    <AssemblyName>Strategy.Observability</AssemblyName>
+    <Description>通用语义观测内核（E1-E8），Agent 无关，供上层注册语义契约复用。</Description>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Observability.Demo</RootNamespace>
+    <AssemblyName>Observability.Demo</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Description>Strategy.Observability 最小演示（Batch1 验收）：注册契约 + 埋点 + Timeline/EntityChain/Aggregate，无任何 Agent 依赖。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Observability\Observability.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="observability_semantics.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

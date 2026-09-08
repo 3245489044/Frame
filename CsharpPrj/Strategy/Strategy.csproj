@@ -3,13 +3,13 @@
     <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>策略层</ModuleRule_Title>
     <ModuleRule_Layer>3</ModuleRule_Layer>
-    <ModuleRule_Description>策略层聚合项目：以 BasicMethod.DecisionEngine 为基础引擎，提供可复用的决策/策略框架（决策规则、裁决引擎等），供 Operation/Modules 及 Agent 等上层消费。</ModuleRule_Description>
-    <ModuleRule_Keywords>策略;决策;规则;裁决;引擎</ModuleRule_Keywords>
+    <ModuleRule_Description>策略层聚合项目：以 BasicMethod.DecisionEngine 为基础引擎，提供可复用的决策/策略框架（决策规则、裁决引擎等）与通用语义观测内核，供 Operation/Modules 及 Agent 等上层消费。</ModuleRule_Description>
+    <ModuleRule_Keywords>策略;决策;规则;裁决;引擎;观测</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
-    <ModuleRule_Rule Include="子项目包括 DecisionRules" />
+    <ModuleRule_Rule Include="子项目包括 DecisionRules、Observability" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Prompts">
@@ -27,11 +27,13 @@
 
   <ItemGroup>
     <ProjectReference Include="DecisionRules\DecisionRules.csproj" />
+    <ProjectReference Include="Observability\Observability.csproj" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
     <Compile Remove="DecisionRules\**\*.cs" />
+    <Compile Remove="Observability\**\*.cs" />
   </ItemGroup>
 
 </Project>

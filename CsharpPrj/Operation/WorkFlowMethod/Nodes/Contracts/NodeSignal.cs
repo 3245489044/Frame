@@ -1,4 +1,4 @@
-namespace Operation.HierarchyMethod.Nodes;
+namespace Operation.WorkFlowMethod.Nodes.Contracts;
 
 /// <summary>
 /// 节点信号 NodeSignal ——「节点 + 信号驱动」的最近/价值/区域评判载体（解决「最近」的多维价值评判）。

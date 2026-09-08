@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Plate.JsonMethod.Serialization;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Nodes {
     /// <summary>节点输出端口的 JSON 载荷形态（ur_nodes NodeType=output 记录承载，每个节点一条记录）。</summary>

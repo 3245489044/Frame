@@ -21,6 +21,7 @@ using WorkFlowMethod.Skeletons.NodeProcess.Execution;
 using WorkFlowMethod.Skeletons.NodeProcess.Graph;
 using WorkFlowMethod.Skeletons.NodeProcess.Lifecycle;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 
 using WfPipelineContext = WorkflowExecution.Pipeline.PipelineContext;
 using SMExecutionStatus = Share.StateManagement.ExecutionStatus;
@@ -30,7 +31,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
     public class NodeProcessPipelineBuilder
     {
         private readonly StagePipeline<WfPipelineContext> _pipeline;
-        private INodeProcessOutputStore? _outputStore;
+        private INodeOutputStore? _outputStore;
         private NodePersistCoordinator? _persistCoordinator;
 
         public NodeProcessPipelineBuilder(string? name = null)
@@ -182,7 +183,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
         /// 请在 <see cref="AddNodeLoop"/>（或 <see cref="AddAllStages"/>）之前调用；未装配（store 为 null）→ 管线零回归。
         /// </summary>
         public NodeProcessPipelineBuilder AddNodeOutputStore(
-            INodeProcessOutputStore? store,
+            INodeOutputStore? store,
             NodePersistCoordinator? coordinator = null)
         {
             _outputStore = store;

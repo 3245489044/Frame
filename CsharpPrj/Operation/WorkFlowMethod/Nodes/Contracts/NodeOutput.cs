@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Operation.HierarchyMethod.Nodes
+namespace Operation.WorkFlowMethod.Nodes.Contracts
 {
     /// <summary>
     /// 节点输出可见性（对齐 C# 块级作用域变量 / public 成员）：

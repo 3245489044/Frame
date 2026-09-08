@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Nodes {
     /// <summary>

@@ -3,21 +3,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using WorkFlowMethod.Skeletons.NodeProcess.Abstractions;
-using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 #endregion
 
 namespace WorkFlowMethod.Skeletons.NodeProcess.Persistence
 {
     /// <summary>
-    /// 节点输出读视图 —— 基于 <see cref="INodeProcessOutputStore"/> 构建入参源键空间 + 溯源。
+    /// 节点输出读视图 —— 基于 <see cref="INodeOutputStore"/> 构建入参源键空间 + 溯源。
     /// 语义：{node}.{port} 恒有；裸 {port} 仅在某端口尚未被任一更早节点输出占用时并入
     /// （防跨节点裸端口互覆盖，溯源随之归一）。源键集合与溯源键集合恒一致。
     /// </summary>
     public sealed class NodeOutputReadView : INodeOutputReadView
     {
-        private readonly INodeProcessOutputStore _store;
+        private readonly INodeOutputStore _store;
 
-        public NodeOutputReadView(INodeProcessOutputStore store) => _store = store;
+        public NodeOutputReadView(INodeOutputStore store) => _store = store;
 
         public async Task<IReadOnlyDictionary<string, object?>> BuildInputSourceAsync(string workflowId, CancellationToken ct = default)
         {

@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using WorkflowExecution.Pipeline;
 using WorkFlowMethod.Execution.Session;
-using WorkFlowMethod.Skeletons.NodeProcess.Abstractions;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 #endregion
 
 using WfPipelineContext = WorkflowExecution.Pipeline.PipelineContext;
@@ -21,7 +21,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
     {
         public static async Task HydrateCurrentNodeAsync(
             WfPipelineContext context,
-            INodeProcessOutputStore store,
+            INodeOutputStore store,
             CancellationToken ct = default)
         {
             var nodeKey = context.CurrentNodeKey;

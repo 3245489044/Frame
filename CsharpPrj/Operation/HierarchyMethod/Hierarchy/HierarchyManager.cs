@@ -6,6 +6,7 @@ using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.History;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Tasks;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Hierarchy;
 

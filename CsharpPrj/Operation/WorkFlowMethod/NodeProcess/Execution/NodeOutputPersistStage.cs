@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Modules.Pipeline;
 using GraphFramework.Snapshots;
 using WorkflowExecution.Pipeline;
-using WorkFlowMethod.Skeletons.NodeProcess.Abstractions;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 #endregion
 
 using WfPipelineContext = WorkflowExecution.Pipeline.PipelineContext;
@@ -15,16 +15,16 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
     /// <summary>
     /// 节点即存储单元 —— 节点输出持久化 stage。
     /// 在 NodeLoop 循环体内、单节点执行步之后调用：把当前节点产出的 <see cref="PipelineContext.CurrentOutput"/>
-    /// 提取为端口，写入 <see cref="INodeProcessOutputStore"/>，使节点成为下游入参的持久化读源。
+    /// 提取为端口，写入 <see cref="INodeOutputStore"/>，使节点成为下游入参的持久化读源。
     /// 未注入 store（null）→ 直接返回，管线零回归。
     /// </summary>
     public sealed class NodeOutputPersistStage : PipelineStageBase<WfPipelineContext>
     {
-        private readonly INodeProcessOutputStore? _store;
+        private readonly INodeOutputStore? _store;
         private readonly NodePersistCoordinator? _coordinator;
 
         public NodeOutputPersistStage(
-            INodeProcessOutputStore? store = null,
+            INodeOutputStore? store = null,
             NodePersistCoordinator? coordinator = null)
             : base("NodeOutputPersist", "节点即存储单元 - 持久化节点产出端口")
         {
@@ -46,7 +46,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         /// </summary>
         public static async Task PersistAsync(
             WfPipelineContext context,
-            INodeProcessOutputStore store,
+            INodeOutputStore store,
             CancellationToken ct = default,
             NodePersistCoordinator? coordinator = null)
         {

@@ -1,6 +1,7 @@
 using System;
 using Operation.LoopFoldMethod.Reference.Derivation;
 using Operation.LoopFoldMethod.Reference.Model;
+using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Nodes;
 

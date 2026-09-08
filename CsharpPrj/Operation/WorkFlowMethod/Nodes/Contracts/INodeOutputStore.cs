@@ -2,10 +2,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Operation.HierarchyMethod.Nodes
+namespace Operation.WorkFlowMethod.Nodes.Contracts
 {
     /// <summary>
-    /// 节点输出存储端口 —— 把 Agent 所有输出按「工作流节点」为基底持久化与检索。
+    /// 节点输出存储端口 —— 把 Agent 所有输出按「工作流节点」为基底持久化与检索（共享低层契约，NodeProcess 与 HierarchyMethod 同用一套）。
     /// 节点即存储单元：WriteOutput 落盘节点端口，Enumerate/TryGet 提供按节点维度组合与使用。
     /// 存储收敛（模块 A 并入模块 C，见「节点即存储单元」架构）：落点 = 基础节点库 ur_nodes（NodeType=output），
     /// 每个节点一条记录（NodeKey = nodes.{workflowId}.{nodeKey}），端口以 JSON 载荷承载、值经类型保真往返，

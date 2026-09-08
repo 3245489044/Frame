@@ -30,6 +30,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
     public class NodeProcessPipelineBuilder
     {
         private readonly StagePipeline<WfPipelineContext> _pipeline;
+        private INodeProcessOutputStore? _outputStore;
+        private NodePersistCoordinator? _persistCoordinator;
 
         public NodeProcessPipelineBuilder(string? name = null)
         {
@@ -120,6 +122,18 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                 {
                     var skeletonCtx = new SkeletonContext();
                     stepSkeleton.ExecuteAsync(ctx, skeletonCtx).GetAwaiter().GetResult();
+
+                    // 节点即存储单元：注入 store 时，单节点执行后持久化当前节点产出端口（未注入 → 零回归）
+                    if (_outputStore != null)
+                    {
+                        NodeOutputPersistStage.PersistAsync(ctx, _outputStore, pipelineCtx.CancellationToken, _persistCoordinator)
+                            .GetAwaiter().GetResult();
+
+                        // S4 入参读源：将刚持久化的当前节点输出端口水化进参数解析器，
+                        // 使下游节点经 MergeParameters 可按 {port} 或 {nodeKey}.{port} 取用。
+                        NodeParameterHydrator.HydrateCurrentNodeAsync(ctx, _outputStore, pipelineCtx.CancellationToken)
+                            .GetAwaiter().GetResult();
+                    }
                 });
 
             var loopPipeline = PipelineUsage.Loop<WfPipelineContext>(
@@ -157,6 +171,20 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                 body: stepPipeline);
 
             _pipeline.Register(new PipelineToStageAdapter(loopPipeline));
+            return this;
+        }
+
+        /// <summary>
+        /// 装配「节点即存储单元」：注册节点输出存储；NodeLoop 循环体内单节点执行后会持久化该节点产出端口。
+        /// <paramref name="coordinator"/> 非空时为同 workflowId 写入套单写门（fail-fast + 有界等待）。
+        /// 请在 <see cref="AddNodeLoop"/>（或 <see cref="AddAllStages"/>）之前调用；未装配（store 为 null）→ 管线零回归。
+        /// </summary>
+        public NodeProcessPipelineBuilder AddNodeOutputStore(
+            INodeProcessOutputStore? store,
+            NodePersistCoordinator? coordinator = null)
+        {
+            _outputStore = store;
+            _persistCoordinator = coordinator;
             return this;
         }
 

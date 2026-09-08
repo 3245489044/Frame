@@ -36,7 +36,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             IParameterResolver? parameterResolver = null)
             : base("NodeExecution", "节点执行状态管理 - 基于 StateManagement 框架")
         {
-            _stateStore = stateStore ?? (IExecutionStateStore<SMExecutionStatus>)new Modules.StateMachine.StateMachineStore<SMExecutionStatus>();
+            _stateStore = stateStore ?? new ExecutionStateStore<SMExecutionStatus>();
             _coordinator = coordinator ?? new NodeExecutionCoordinator(10, _stateStore);
             _parameterResolver = parameterResolver ?? new CommandFramework.Parameters.ParameterResolver();
         }
@@ -223,6 +223,14 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         #endregion
 
         #region 参数管理（委托给 IParameterResolver）
+
+        /// <summary>
+        /// 判断某参数键在指定 executionId 分区下是否已存在。
+        /// 用于「裸端口先到者胜」语义（E1）：写入裸端口前先探测，避免后续节点覆盖先行节点产出，
+        /// 与 ReadView/ResolveInputs 的裸端口合并规则保持一致。
+        /// </summary>
+        public bool ContainsExecutionParameter(string executionId, string key)
+            => _parameterResolver.GetParameters(executionId).ContainsKey(key);
 
         public void SetExecutionParameter(string executionId, string key, object value)
         {

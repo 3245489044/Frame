@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 #endregion
 
@@ -94,8 +95,26 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         {
             if (string.IsNullOrWhiteSpace(raw)) return Enumerable.Empty<string>();
             var text = raw.Trim();
-            if (text.StartsWith("[")) text = text.Substring(1, text.Length - 1).TrimEnd();
-            if (text.EndsWith("]")) text = text.Substring(0, text.Length - 1);
+
+            // JSON 数组形态（真实落库形态，见 KeyProcessor.AddHierarchyToKeysJson 的 JsonSerializer.Serialize）→ 权威解析器。
+            if (text.StartsWith("[", StringComparison.Ordinal))
+            {
+                var parsed = KeyProcessor.ParseKeysFromJson(text);
+                // 严格 JSON 失败（返回空且非合法空数组 "[]"）→ 兼容旧宽松形态；"[]" → 合法空数组，保持空。
+                return (parsed.Count == 0 && text != "[]")
+                    ? SplitLegacyCommaForm(text)
+                    : parsed;
+            }
+
+            // 非 JSON 数组（旧宽松落库/字面量）→ 旧宽松形态。
+            return SplitLegacyCommaForm(text);
+        }
+
+        /// <summary>旧宽松形态：剥引号/外部括号后按逗号切分，过滤空白（仅供非 JSON 数组输入兼容；JSON 走权威解析器）。</summary>
+        private static IEnumerable<string> SplitLegacyCommaForm(string text)
+        {
+            if (text.StartsWith("[", StringComparison.Ordinal)) text = text.Substring(1).TrimEnd();
+            if (text.EndsWith("]", StringComparison.Ordinal)) text = text.Substring(0, text.Length - 1);
             return text.Split(',')
                 .Select(s => s.Trim().Trim('"'))
                 .Where(s => s.Length > 0);

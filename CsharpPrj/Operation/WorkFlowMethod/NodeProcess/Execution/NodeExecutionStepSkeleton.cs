@@ -17,11 +17,15 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
     public class NodeExecutionStepSkeleton : SkeletonBase<WfPipelineContext, WfPipelineContext>
     {
         private readonly ISkeleton<WfPipelineContext, WfPipelineContext> _nodeProcessor;
+        private readonly Share.StateManagement.INodeExecutor? _executor;
 
-        public NodeExecutionStepSkeleton(ISkeleton<WfPipelineContext, WfPipelineContext>? nodeProcessor = null)
+        public NodeExecutionStepSkeleton(
+            ISkeleton<WfPipelineContext, WfPipelineContext>? nodeProcessor = null,
+            Share.StateManagement.INodeExecutor? executor = null)
             : base("NodeExecutionStep", "单步节点执行 - 注册执行、处理节点、标记完成")
         {
             _nodeProcessor = nodeProcessor ?? new NodeChainSkeleton();
+            _executor = executor;
         }
 
         protected override WfPipelineContext ExecuteCore(WfPipelineContext input, SkeletonContext context)
@@ -33,6 +37,12 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 
         protected override async Task<WfPipelineContext> ExecuteCoreAsync(WfPipelineContext input, SkeletonContext context)
         {
+            if (_executor != null)
+            {
+                await ExecuteWithExecutorAsync(input, context).ConfigureAwait(false);
+                return input;
+            }
+
             var session = input.GetSession<ExecutionSession>();
             var executionStage = input.GetData<NodeExecutionStage>("ExecutionStage");
             var executionId = session?.SessionId;
@@ -46,6 +56,26 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             }
 
             return result;
+        }
+
+        private async Task ExecuteWithExecutorAsync(WfPipelineContext input, SkeletonContext context)
+        {
+            var session = input.GetSession<ExecutionSession>();
+            var executionStage = input.GetData<NodeExecutionStage>("ExecutionStage");
+            var executionId = session?.SessionId;
+
+            if (executionStage == null || executionId == null || string.IsNullOrEmpty(input.CurrentNodeKey))
+            {
+                return;
+            }
+
+            var parameters = executionStage.GetExecutionParameters(executionId);
+            await executionStage.ExecuteNodeWithParametersAsync(
+                executionId,
+                input.CurrentNodeKey,
+                _executor!,
+                parameters,
+                context.CancellationToken).ConfigureAwait(false);
         }
     }
 }

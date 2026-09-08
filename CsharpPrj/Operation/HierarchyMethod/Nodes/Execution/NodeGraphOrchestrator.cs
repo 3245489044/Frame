@@ -18,7 +18,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 /// 自 Agent WorkflowRunner 主循环平移的中立骨架；Agent 专属（seed/harvest 键、guard_output、终态信封、return spec）
 /// 经注入策略/执行器保留在 Agent 应用层。
 /// </summary>
-public sealed class NodeGraphOrchestrator
+public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
 {
     private readonly INodeExecutor _executor;
     private readonly INodeExecutorHooks? _hooks;

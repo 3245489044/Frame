@@ -111,10 +111,12 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
 
         public NodeProcessPipelineBuilder AddNodeLoop(
             INodeProcessor<string, NodeConfig, object, WfPipelineContext>? nodeProcessor = null,
-            int maxIterations = 10000)
+            int maxIterations = 10000,
+            Share.StateManagement.INodeExecutor? executor = null)
         {
             var stepSkeleton = new NodeExecutionStepSkeleton(
-                nodeProcessor != null ? new NodeChainSkeleton() : null);
+                nodeProcessor != null ? new NodeChainSkeleton() : null,
+                executor);
 
             var stepPipeline = PipelineUsage.CreateStage<WfPipelineContext>(
                 name: "NodeLoopStep",
@@ -218,7 +220,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
             IExecutionStateStore<SMExecutionStatus>? stateStore = null,
             Share.StateManagement.INodeExecutionCoordinator? coordinator = null,
             INodeProcessor<string, NodeConfig, object, WfPipelineContext>? nodeProcessor = null,
-            bool enableErrorHandling = true)
+            bool enableErrorHandling = true,
+            Share.StateManagement.INodeExecutor? executor = null)
         {
             return this
                 .AddGraphDefinition(graph, sessionFactory)
@@ -226,7 +229,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                 .AddNodeExtractor()
                 .AddGraphChainUpdate()
                 .AddNodeExecution(stateStore, coordinator, enableErrorHandling)
-                .AddNodeLoop(nodeProcessor)
+                .AddNodeLoop(nodeProcessor, executor: executor)
                 .AddNodeMetrics();
         }
 

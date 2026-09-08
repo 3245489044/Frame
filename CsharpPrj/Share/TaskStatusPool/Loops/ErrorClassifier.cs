@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Modules.Threading;
 
 namespace Share.TaskStatusPool.Loops;
 
@@ -29,18 +30,10 @@ public enum Action
 }
 
 /// <summary>
-/// 执行边界预算耗尽标记（clinerules TerminationPriority：预算终止 = 引擎内可判定，区别于协作式取消）。
-/// 由更高层（Operation.HierarchyMethod.Center 边界异常族 / 消费方单步超时异常）实现；分类器据此归为 Timeout，
-/// 避免「有界窗口到点」被默认误归为 ExecutionFailure。属协议标记：Share 层不引用任何 Operation/Agent 类型。
-/// </summary>
-public interface IBudgetExhausted
-{
-}
-
-/// <summary>
 /// 错误分类器（clinerules axioms §4 / formula §5.2 SM.ErrorHandler）。分类（纯函数）与动作域（作用域策略参数注入）分离：
 /// 分类逻辑唯一（ClassifyError），动作由 Scope 与 FailureBudget.level 决定。
 /// 通用任务循环 canonical（SingleImplementation / TH-12），消费方（Agent 等使用层）仅调用本类，不重复实现。
+/// <para>预算耗尽标记 <see cref="Modules.Threading.IBudgetExhausted"/> 已下沉 Modules.Threading（叶子层，防 TaskStatusPool→Modules.Pipeline 反向成环）。</para>
 /// </summary>
 public static class ErrorClassifier
 {

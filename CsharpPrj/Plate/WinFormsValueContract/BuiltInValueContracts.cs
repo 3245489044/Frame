@@ -95,8 +95,9 @@ internal static partial class BuiltInValueContracts
                                 else if (TryParseThemeDirective(text, out var mode))
                                     hv.ThemeMode = mode;
                                 else
-                                    // 收敛写（Observe 落地）：fire-and-forget 保留原非阻塞语义，但写经收敛确认——渲染完成+桥就绪才 Converged，界内未就绪 Degraded（不再对「写即成功」无观察）。
-                                    _ = hv.WriteAsync(text);
+                                    // 纯渲染（fire-and-forget）：写回内容经 SetHtmlAsync 渲染（WebView2 封送收敛在控件内）。
+                                    // Observe 收敛写 WriteAsync 已上移 FrontEndDriven/HtmlViewerBridge，plate 值契约不依赖 Observe。
+                                    _ = hv.SetHtmlAsync(text);
                             }
                             return v?.ToString();
                         }),

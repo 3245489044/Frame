@@ -3,7 +3,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Modules.Observe;
 using Plate.HtmlViewer;
 
 namespace UiBackend.Html;
@@ -20,13 +19,6 @@ public interface IHtmlChannel
 {
     /// <summary>整页内容渲染（htmlviewer 宿主整页；body 片段经 HtmlDocumentRenderer 包页壳）。后台线程调用自动封送 UI 线程。</summary>
     Task RenderHtmlAsync(string html, CancellationToken ct = default);
-
-    /// <summary>
-    /// 收敛写（通用状态同步框架落地）：投递 HTML 并等待「可观测」收敛——渲染完成 + 桥就绪（Converged）才视为成功；
-    /// 界内未就绪返回 <see cref="ChangeResult.Degraded"/>（显式降级，绝不静默成功）。依 <see cref="WriteOptions.Barrier"/> 决定返回时机。
-    /// 内部经 <see cref="IObserveCoordinator"/>（WebView2Transport 适配本通道）实现；只依赖 Observe 收敛层接口，不暴露传输细节。
-    /// </summary>
-    Task<ObserveOutcome> WriteAsync(string html, WriteOptions? options = null, CancellationToken ct = default);
 
     /// <summary>对 data-name 元素执行受控 DOM 指令。op 白名单（见 <see cref="DomOps"/>）：set/get/click/bounds/event/realclick。</summary>
     Task<string> ExecuteAsync(string op, string name, string? value, CancellationToken ct = default);

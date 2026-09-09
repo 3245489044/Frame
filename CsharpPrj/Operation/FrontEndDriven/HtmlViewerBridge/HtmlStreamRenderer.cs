@@ -7,18 +7,20 @@ using System.Net;
 using System.Text;
 using Share.Conversation;
 using Share.Conversation.Rendering;
+using UiBackend.Html;
 
-namespace UiBackend.Html;
+namespace FrontEndDriven.HtmlViewerBridge;
 
 /// <summary>
 /// 通用会话消息流 HTML 渲染器 —— <see cref="IConversationRenderer"/> 的通用实现：
 /// 会话历史 → 气泡式对话 body HTML 片段（供 htmlviewer 可信通道渲染）。
 /// 纯函数式渲染：按角色布局（user 右蓝 / 其余左灰），附 轮次/角色/阶段 角标。
-/// HTML 片段由 round/message 模板经 <see cref="HtmlTemplateEngine"/> 渲染，C# 只构造行数据模型；
+/// HTML 片段由 round/message 模板经 <see cref="HtmlTemplateEngine"/>（plate）渲染，C# 只构造行数据模型；
 /// 所有文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
 /// 模板源经构造注入延迟 <see cref="Func{TResult}"/> 解析（宿主可在运行时动态装配，如 Agent 读 AgentRuntimeUI.json 注入）；
 /// 未注入/缺模板时输出内嵌空态兜底，不崩。
-/// [下沉自 Agent.Launcher HtmlConversationRenderer 的通用实现；Agent 侧旧类改为薄壳委托过渡]
+/// <para>历史归属：本文件原置于 Plate.HtmlViewer（UiBackend.Html），属 Conversation×plate(HtmlTemplateEngine) 的桥
+/// （跨层胶水），现迁入 FrontEndDriven 连接层（真实组合根宿主层），使 plate 不再引用 Share.Conversation。</para>
 /// </summary>
 public sealed class HtmlStreamRenderer : IConversationRenderer
 {

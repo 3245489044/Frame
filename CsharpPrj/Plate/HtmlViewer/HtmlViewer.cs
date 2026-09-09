@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
-using Modules.Observe;
-using Modules.Observe.Transports;
 using UiBackend.Html;
 
 namespace Plate.HtmlViewer;
@@ -615,19 +613,8 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
             ReportDiagnostics("HtmlChannel_writeback_not_converged", "RenderHtmlAsync 写回后点击桥未就绪（重渲染产物可能未落地）。");
     }
 
-    // 收敛写协调器：懒加载并绑定本通道（WebView2Transport 适配）；随控件释放由 GC 回收（后台确认任务至多存活 _convergeTimeout）。
-    private ObserveSessionManager? _observe;
-
-    /// <summary>
-    /// 收敛写（<see cref="IHtmlChannel.WriteAsync"/>）：投递 HTML 并确认「可观测」收敛——渲染完成 + 桥就绪（Converged）才返回成功；
-    /// 界内未就绪返回 <see cref="ChangeResult.Degraded"/>（显式降级，I4）。这是通用状态同步框架在 HTML 场景的落地入口。
-    /// </summary>
-    public Task<ObserveOutcome> WriteAsync(string html, WriteOptions? options = null, CancellationToken ct = default)
-    {
-        _observe ??= new ObserveSessionManager(new WebView2Transport(this));
-        return _observe.WriteAsync("html:document", html, options, ct);
-    }
-
+    // 收敛写已上移连接层 FrontEndDriven（ObservedHtmlChannel 装饰器 = ObserveSessionManager + WebView2Transport 适配本通道），
+    // 本控件不再内建 Observe 依赖（DIP 剥离）；如需收敛写，由组合根包一层 IObservedHtmlChannel 后使用。
     Task<string> IHtmlChannel.ExecuteAsync(string op, string name, string? value, CancellationToken ct)
         => ExecuteDomAsync(op, name, value, ct);
 

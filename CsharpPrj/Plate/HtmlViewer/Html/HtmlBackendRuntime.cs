@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Modules.Observe;
 using Plate.HtmlViewer;
 using TConfig;
 
@@ -23,6 +22,9 @@ public sealed class HtmlBackendRuntime
     private readonly HtmlEventBridge _eventBridge;
     private readonly HtmlScriptBridge _scriptBridge;
     private readonly IReadOnlyDictionary<string, ControlConfig> _controlsByName;
+    // 宿主内容写回端口（DIP 剥离后的 Observe 收敛写抽象）：由连接层 FrontEndDriven 注入实现
+    // （ObservedHtmlChannel 内部经 ObserveSessionManager + WebView2Transport）；null → 走纯渲染（无收敛语义）。
+    private readonly HtmlWritePump? _writePump;
 
     // 已装配的宿主 htmlviewer 消息订阅（控件名 → 订阅；幂等，重复 AttachHostMessage 先解除旧订阅）
     private readonly Dictionary<string, IDisposable> _hostSubscriptions = new(StringComparer.OrdinalIgnoreCase);
@@ -30,11 +32,13 @@ public sealed class HtmlBackendRuntime
     public HtmlBackendRuntime(
         IHtmlChannel channel,
         IReadOnlyDictionary<string, ControlConfig> declaration,
-        HtmlEventBridge.HtmlFunctionInvoker invoker)
+        HtmlEventBridge.HtmlFunctionInvoker invoker,
+        HtmlWritePump? writePump = null)
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
         _controlsByName = declaration ?? throw new ArgumentNullException(nameof(declaration));
+        _writePump = writePump;
         Readiness = new HtmlRuntimeReadinessReport();
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
         // 脚本桥与事件桥共享同一通道 + Invoker；单一实例，避免每次执行 new 新桥（消息桥单一化）。
@@ -95,16 +99,25 @@ public sealed class HtmlBackendRuntime
         }
 
         // output 双通道：宿主内容写回（output=宿主控件名 → RenderHtmlAsync）
-        // S1 统一写回：经 IHtmlChannel.WriteAsync（Observe 收敛框架）投递并等待「可观测」收敛（Converged/Degraded），
+        // S1 统一写回：经注入的 HtmlWritePump（连接层 Observe 收敛实现，保留 Converged/Degraded 语义）投递并等待「可观测」收敛，
         // 取代裸 RenderHtmlAsync fire-and-forget——消除「写回已应用但 DOM 未就绪 → 后续交互命中旧 DOM」窗口（通用状态同步框架 I1–I4）。
+        // 未注入 pump（无 Observe 消费的宿主）→ 回退纯渲染（channel.RenderHtmlAsync），plate 仍不感知 Observe 类型。
         _eventBridge.RegisterHostWriter(hostControlName, async html =>
         {
             contentSink?.Invoke(html);
-            var outcome = await channel.WriteAsync(html, new WriteOptions(
-                Barrier: BarrierMode.Timeout,
-                WindowTimeout: TimeSpan.FromSeconds(5))).ConfigureAwait(false);
-            Report("EventBridge_writeback",
-                $"收敛写回 {hostControlName}: result={outcome.Result}, ack={outcome.HighestAck}, window={outcome.Window.TotalMilliseconds:F0}ms");
+            if (_writePump is not null)
+            {
+                var result = await _writePump(html).ConfigureAwait(false);
+                Report("EventBridge_writeback",
+                    $"收敛写回 {hostControlName}: result={result.Status}" +
+                    (result.Detail is not null ? $", ack={result.Detail}" : "") +
+                    (result.Window is not null ? $", window={result.Window.Value.TotalMilliseconds:F0}ms" : ""));
+            }
+            else
+            {
+                await channel.RenderHtmlAsync(html).ConfigureAwait(false);
+                Report("EventBridge_writeback", $"写回 {hostControlName}（无收敛 pump，走纯渲染）");
+            }
         });
 
         var handler = new EventHandler<HtmlMessageReceivedEventArgs>(async (_, e) =>

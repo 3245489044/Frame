@@ -81,6 +81,11 @@
          ★ 2026-08-24 HTML 后端逻辑并入 HtmlViewer（IUiElementNode/IDomBridge 等类型驻留 Plate.HtmlViewer），WinFormsElementNode 复用 -->
     <ProjectReference Include="..\..\Plate\HtmlViewer\HtmlViewer.csproj" />
 
+    <!-- ★ 2026-09 依赖倒置（DIP）连接层：HtmlViewerBridge（Observe 收敛写 ObservedHtmlChannel/WebView2Transport + Conversation
+         会话渲染 HtmlStreamRenderer 的真实宿主落点）——本层作为「能同时看见 HtmlViewer × Observe × Conversation 的中性连接层/组合根」，
+         倒转 plate→上游 污染为 上层(FrontEndDriven)→plate 抽象。Observe/Share.Conversation 均为 leaf 子项目，无环。 -->
+    <ProjectReference Include="..\..\Modules\Observe\Observe.csproj" />
+    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
   </ItemGroup>
 
 </Project>

@@ -394,7 +394,7 @@
     },
     "ScopeAwareResolver_cross_scope_fallback": {
       "template": "跨作用域回退（目标不在活动 scope）: controlName={controlName}, activeScope={activeScope}, hitScope={hitScope}",
-      "level": "Warning",
+      "level": "Debug",
       "category": "General"
     },
 

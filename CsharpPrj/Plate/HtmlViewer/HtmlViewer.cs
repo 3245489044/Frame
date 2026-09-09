@@ -407,6 +407,9 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
         // （WebView2 首次初始化未稳、导航进行中、消息桥订阅随 CoreWebView2 重建丢失）。
         // 每次尝试前经 EnsureReadyAsync → EnsureMessageBridgeInstalled（首次 / 重建后重新订阅消息桥），
         // 从源头消除「postMessage 已发出、C# 订阅随旧实例丢失 → 回流断裂」缺陷，而非只探测失败。
+        // ★ 降噪：各次瞬态失败先归拢本地——自愈成功属预期路径，不再逐条回显（终态「通过」由调用方一行确认）；
+        //   仅终态失败时把归拢的失败细节整块上报，保证诊断数据不因降噪而丢。
+        var transientNotes = new List<string>();
         for (var attempt = 1; attempt <= LoopbackProbeAttempts; attempt++)
         {
             ct.ThrowIfCancellationRequested();
@@ -415,9 +418,12 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
                 await EnsureReadyAsync(ct).ConfigureAwait(false);
                 if (CoreWebView2 is null)
                 {
-                    if (attempt == LoopbackProbeAttempts) return false;
-                    await Task.Delay(LoopbackProbeDelayMs, ct).ConfigureAwait(false);
-                    continue;
+                    if (attempt < LoopbackProbeAttempts)
+                    {
+                        await Task.Delay(LoopbackProbeDelayMs, ct).ConfigureAwait(false);
+                        continue;
+                    }
+                    break; // 终态仍无 CoreWebView2 → 失败（下方统一上报）
                 }
 
                 var nonce = "lb-" + Interlocked.Increment(ref _loopbackSeq) + "-" + Guid.NewGuid().ToString("N");
@@ -430,9 +436,8 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                     var done = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token)).ConfigureAwait(false);
                     if (done == tcs.Task && tcs.Task.IsCompletedSuccessfully)
-                        return true;
-                    ReportDiagnostics("HtmlChannel_loopback",
-                        $"回流自检尝试 {attempt}/{LoopbackProbeAttempts} 未达 C# 消息桥（ExecuteScriptAsync 返回={TextUtil.Truncate(exec ?? string.Empty)}）");
+                        return true; // 成功：瞬时失败不占行，终态确认由调用方统一输出
+                    transientNotes.Add($"回流自检尝试 {attempt}/{LoopbackProbeAttempts} 未达 C# 消息桥（ExecuteScriptAsync 返回={TextUtil.Truncate(exec ?? string.Empty)}）");
                 }
                 finally
                 {
@@ -441,14 +446,17 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
             }
             catch (Exception ex)
             {
-                if (attempt == LoopbackProbeAttempts) return false;
-                ReportDiagnostics("HtmlChannel_loopback",
-                    $"回流自检异常 {attempt}/{LoopbackProbeAttempts}: {ex.GetType().Name}: {ex.Message}");
+                if (attempt == LoopbackProbeAttempts) break; // 终态异常 → 失败（下方统一上报）
+                transientNotes.Add($"回流自检异常 {attempt}/{LoopbackProbeAttempts}: {ex.GetType().Name}: {ex.Message}");
             }
 
             if (attempt < LoopbackProbeAttempts)
                 await Task.Delay(LoopbackProbeDelayMs, ct).ConfigureAwait(false);
         }
+
+        // 终态失败：把各次瞬态失败整块上报（保留失败定位所需细节）
+        foreach (var note in transientNotes)
+            ReportDiagnostics("HtmlChannel_loopback", note);
         return false;
     }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting; // WebHost.UseUrls
 using Microsoft.Extensions.DependencyInjection; // AddMcpServer（IServiceCollection 扩展）
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging; // LoggingBuilder.AddFilter（框架类别日志提级降噪）
 using ModelContextProtocol.AspNetCore; // HttpServerSessionMode
 using ModelContextProtocol.Server; // McpServerTool/CallToolResult
 using System.Reflection;
@@ -60,6 +61,14 @@ public static class CallCenterHttpMcpHosting
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{port}");
+
+        // 降噪：本机 MCP 承载的例行请求/路由/生命周期日志默认 Info 级会刷屏（每请求 Request starting/finished、
+        // Now listening、McpServer initialize/tools-call 各两行）。提级到 Warning——仅异常可见，不改变执行语义，
+        // 请求失败/错误仍照常上报。类别前缀覆盖 ModelContextProtocol.Server.* 等子类别。
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+        builder.Logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Warning);
+        builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
+        builder.Logging.AddFilter("ModelContextProtocol", LogLevel.Warning);
 
         // ModelContextProtocol 2.2.0（当前最新稳定版）：经 HTTP(Streamable) 服务 tools 时，`.WithTools(...)` 并不会把工具
         // 挂进会话 —— tools/list 对已 initialize 的 client 仍返回 -32601 / "no handler available"（Phase-1 已知边界真根因）。

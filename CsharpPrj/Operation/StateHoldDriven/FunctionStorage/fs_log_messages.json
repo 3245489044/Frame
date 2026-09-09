@@ -288,9 +288,14 @@
             "template": "[WorkflowLibrary] 工作流注册完成: workflowName={workflowName}, description={description}"
         },
         "WorkflowLibrary_RegisterWorkflowsToHub_no_service": {
-            "level": "Warn",
+            "level": "Info",
             "category": "Workflow_Registration",
-            "template": "[WorkflowLibrary] 注册工作流到 Hub 失败: 事件执行服务未装配（IEventExecutionService 为空）"
+            "template": "[WorkflowLibrary] 工作流定义暂存待 PostInit 补注册: 事件执行服务尚未就绪（IEventExecutionService 为空，预期待办）"
+        },
+        "WorkflowLibrary_RegisterWorkflowsToHub_not_registered": {
+            "level": "Error",
+            "category": "Workflow_Registration",
+            "template": "[WorkflowLibrary] 工作流注册到 Hub 失败: 原因={reason}, 残留待注册={count}"
         },
         "WorkflowLibrary_RegisterWorkflowsToHub_completed": {
             "level": "Debug",

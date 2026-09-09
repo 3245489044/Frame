@@ -39,7 +39,7 @@
     <ProjectReference Include="Registry\Registry.csproj" />
     <ProjectReference Include="Threading\Threading.csproj" />
     <ProjectReference Include="ParameterResolver\ParameterResolver.csproj" />
-    <ProjectReference Include="WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
     <ProjectReference Include="InternalStorage\InternalStorage.csproj" />
     <ProjectReference Include="ValidationFramework\ValidationFramework.csproj" />
     <ProjectReference Include="Observe\Observe.csproj" />
@@ -61,7 +61,6 @@
     <Compile Remove="InternalStorage\**\*.cs" />
     <Compile Remove="ValidationFramework\**\*.cs" />
     <Compile Remove="EventFramework\**\*.cs" />
-    <Compile Remove="WinFormsValueContract\**\*.cs" />
     <Compile Remove="Observe\**\*.cs" />
   </ItemGroup>
 

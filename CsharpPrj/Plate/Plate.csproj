@@ -36,6 +36,10 @@
     <!-- ★ 同族独立子项目（Mathematics/RoslynMethod）：聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
     <Compile Remove="Mathematics\**\*.cs" />
     <Compile Remove="RoslynMethod\**\*.cs" />
+    <!-- ★ WinFormsValueContract：物理位于 Plate 下但不可纳入聚合（依赖 ParameterResolver→Plate 导致循环），仅排除源码避免 Plate.dll 重复编译 -->
+    <Compile Remove="WinFormsValueContract\**\*.cs" />
+    <!-- ★ Logic：独立子项目（纯函数逻辑算子库），聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
+    <Compile Remove="Logic\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,6 +59,8 @@
     <!-- ★ 子项目内独立工程一并纳入 Plate 聚合（其源码目录已被上方 Compile Remove，无重复编译风险） -->
     <ProjectReference Include="DataManage\DataManage.PathManager\DataManage.PathManager.csproj" />
     <ProjectReference Include="RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
+    <!-- ★ Logic 独立子项目（纯函数逻辑算子库） -->
+    <ProjectReference Include="Logic\Logic.csproj" />
 
 
   </ItemGroup>

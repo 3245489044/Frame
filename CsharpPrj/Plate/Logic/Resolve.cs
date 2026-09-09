@@ -1,4 +1,4 @@
-namespace WorkFlowMethod.LoopFramework.Logic;
+namespace Plate.Logic;
 
 /// <summary>Resolve 策略（clinerules logic §1）。</summary>
 public enum ResolveStrategy

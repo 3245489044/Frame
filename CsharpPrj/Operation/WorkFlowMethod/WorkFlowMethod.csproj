@@ -85,7 +85,7 @@
 
   <!-- ★ 引用 WinFormsValueContract（WinForms 值语义后端：ParameterValueResolver 默认 ControlValueBridge） -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="..\..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
   </ItemGroup>
 
   <!-- ★ 引用 CSG.Unified 以使用 CSG 协议（Configuration-StateMachine-Graph 统一中间表示） -->

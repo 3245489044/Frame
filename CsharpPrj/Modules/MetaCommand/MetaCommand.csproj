@@ -62,7 +62,7 @@
          迁出为委托 ControlValueBridge（ValueContractRegistry），消除 MetaCommand 侧"每种 UI 单独适配"残留 -->
     <ProjectReference Include="..\ParameterResolver\ParameterResolver.csproj" />
     <!-- ★ WinForms 值语义后端：WinFormsControlService 默认后端 ControlValueBridge 已从 ParameterResolver 分离至此 -->
-    <ProjectReference Include="..\WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="..\..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
   </ItemGroup>
 
 

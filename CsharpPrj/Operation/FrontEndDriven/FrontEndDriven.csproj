@@ -23,7 +23,7 @@
          EcsStateAccessor/InputCapturePort 按契约读写/订阅，删除控件类型特判（ListView 等） -->
     <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
     <!-- ★ WinForms 值语义后端：ControlValueBridge/ValueContractRegistry 已从 ParameterResolver 分离至此 -->
-    <ProjectReference Include="..\..\Modules\WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="..\..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
 
     <!-- ★ 2026-08-11 新增：验证引擎对齐——EntityValidationEngine 委托到通用 ValidationFramework（消除自造验证器） -->
     <ProjectReference Include="..\..\Modules\ValidationFramework\ValidationFramework.csproj" />

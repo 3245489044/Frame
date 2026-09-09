@@ -1,4 +1,4 @@
-namespace WorkFlowMethod.LoopFramework.Logic;
+namespace Plate.Logic;
 
 /// <summary>Assess 策略（clinerules logic §1）。</summary>
 public enum AssessStrategy

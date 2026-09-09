@@ -1,4 +1,4 @@
-namespace WorkFlowMethod.LoopFramework.Logic;
+namespace Plate.Logic;
 
 /// <summary>
 /// 三值真值域（clinerules AX-CORE.TruthValueDomainLogic）：Judgment∈{T,F,⊥}。

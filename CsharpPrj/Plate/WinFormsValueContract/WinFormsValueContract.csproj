@@ -8,7 +8,7 @@
     <RootNamespace>WinFormsValueContract</RootNamespace>
     <AssemblyName>WinFormsValueContract</AssemblyName>
     <AssemblyTitle>WinFormsValueContract</AssemblyTitle>
-    <AssemblyDescription>WinForms 值语义后端 — 控件值契约具体实现（BuiltInValueContracts/ValueContractRegistry/ControlValueBridge/ControlTextNormalizer）+ WinForms 参数源。
+    <AssemblyDescription>WinForms 值语义后端 — 控件值契约具体实现（BuiltInValueContracts/ValueContractRegistry/ControlValueBridge/ControlTextNormalizer/ControlValueAccessor）。
       · 从 ParameterResolver 分离：ParameterResolver 保持 UI 无关（不再引用 WinForms）。
       · 消费方（MetaCommand/WorkFlowMethod/FrontEndDriven）依赖 TConfig.Controls.IControlService 抽象，本模块提供默认后端实现。</AssemblyDescription>
   </PropertyGroup>
@@ -16,10 +16,10 @@
   <ItemGroup>
     <!-- 值语义契约（TConfig.Controls：ValueSemantic/ControlValueContract/ValueAccessor/IControlService） -->
     <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
-    <!-- WinFormsControlSource 依赖 ParameterResolver 的 IParameterSource/IReadStrategy/Models（ParameterResolver 自身不引用 WinForms） -->
-    <ProjectReference Include="..\ParameterResolver\ParameterResolver.csproj" />
     <!-- MarkdownViewer 控件值契约（markdownviewer → WebView2 SetMarkdownAsync 渲染） -->
     <ProjectReference Include="..\..\Plate\MarkdownViewer\MarkdownViewer.csproj" />
+    <!-- HtmlViewer 主题模式（BuiltInValueContracts 的 html 值契约使用 ThemeMode） -->
+    <ProjectReference Include="..\..\Plate\HtmlViewer\HtmlViewer.csproj" />
 
   </ItemGroup>
 

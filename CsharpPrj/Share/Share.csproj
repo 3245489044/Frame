@@ -20,7 +20,7 @@
     <ProjectReference Include="Adapters\Share.Adapters.csproj" />
     <ProjectReference Include="CommandFramework\CommandFramework.csproj" />
     <ProjectReference Include="Conversation\Share.Conversation.csproj" />
-    <ProjectReference Include="HierarchySupport\Share.HierarchySupport.csproj" />
+    <!-- ★ HierarchySupport 叶工程已整项目并入 Strategy\Observability（命名空间 Share.HierarchySupport 保留，源文件随迁）；本聚合不再承载该子项 -->
     <ProjectReference Include="Diagnostics\Diagnostics.csproj" />
     <ProjectReference Include="FrameworkAbstractions\FrameworkAbstractions.csproj" />
     <ProjectReference Include="GraphFramework\GraphFramework.csproj" />
@@ -45,7 +45,7 @@
     <Compile Remove="Adapters\**\*.cs" />
     <Compile Remove="CommandFramework\**\*.cs" />
     <Compile Remove="Conversation\**\*.cs" />
-    <Compile Remove="HierarchySupport\**\*.cs" />
+
     <Compile Remove="Diagnostics\**\*.cs" />
     <Compile Remove="FrameworkAbstractions\**\*.cs" />
     <Compile Remove="GraphFramework\**\*.cs" />

@@ -11,7 +11,7 @@ public interface IEventStore : IAsyncDisposable
 {
     Task InitializeAsync(CancellationToken ct = default);
 
-    /// <summary>整批追加（由 BatchedAsyncSink 单一写者调用；at-least-once 允许重放，行键幂等）。</summary>
+    /// <summary>整批追加（由 PersistentEventSink.FlushAsync 调用方显式驱动；at-least-once 允许重放，行键幂等）。</summary>
     Task AppendBatchAsync(IReadOnlyList<PersistedEvent> events, CancellationToken ct = default);
 
     /// <summary>按作用域返回时序事件（升序 EventSeq；afterSeq 续读）。</summary>

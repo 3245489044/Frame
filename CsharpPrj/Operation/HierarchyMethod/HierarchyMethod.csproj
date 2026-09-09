@@ -29,8 +29,8 @@
     <!-- 任务池/状态机/循环引擎/确定性核心（TaskStatusPool.TaskPool / Loops / Routing） -->
     <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
 <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
-    <!-- 支撑 DTO（SchedulingMode/DataSpace/DataContract/RuntimeSnapshot，LLM-free 纯数据） -->
-    <ProjectReference Include="..\..\Share\HierarchySupport\Share.HierarchySupport.csproj" />
+    <!-- 支撑 DTO（SchedulingMode/DataSpace/DataContract/RuntimeSnapshot，LLM-free 纯数据）；源文件随 HierarchySupport 叶工程并入 Strategy\Observability，命名空间 Share.HierarchySupport 保留 -->
+    <ProjectReference Include="..\..\Strategy\Observability\Observability.csproj" />
     <!-- 会话消息日志纯逻辑（ConversationLog/ConversationMessage/IHistoryStore） -->
     <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
     <!-- 节点库/关系库/写边原语（NodeStore/NodeRelationStore/ReferenceGraphCoordinator） -->

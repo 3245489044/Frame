@@ -8,7 +8,7 @@ namespace Strategy.Observability.Persistence;
 /// <summary>
 /// append-only JSONL 文件事件区（E5）：每行一条 <see cref="PersistedEvent"/>，重启不丢、零外部依赖，
 /// 满足 Batch1 持久化验收；供生产把同一端口适配到 SQLite / IZoneStore 事件区。
-/// 单写者（BatchedAsyncSink）持文件锁追加；查询按需全量读后过滤（原型语义）。
+/// 单写者（PersistentEventSink.FlushAsync 显式驱动）持文件锁追加；查询按需全量读后过滤（原型语义）。
 /// </summary>
 public sealed class FileAppendEventStore : IEventStore
 {

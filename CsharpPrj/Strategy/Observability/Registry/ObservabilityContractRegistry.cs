@@ -76,7 +76,7 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
             {
                 foreach (var (field, allowed) in c.Enums)
                 {
-                    if (root.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String)
+                    if (TryGetPropertyIgnoreCase(root, field, out var v) && v.ValueKind == JsonValueKind.String)
                     {
                         if (!allowed.Contains(v.GetString()!))
                         {
@@ -100,12 +100,33 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 return required;
-            return required.Where(f => !root.TryGetProperty(f, out _)).ToList();
+            return required.Where(f => !HasPropertyIgnoreCase(root, f)).ToList();
         }
         catch (JsonException)
         {
             return required;
         }
+    }
+
+    /// <summary>大小写不敏感判定 JSON 对象是否含某属性（对齐载荷 camelCase 与契约任意大小写声明）。</summary>
+    private static bool HasPropertyIgnoreCase(JsonElement obj, string name)
+    {
+        foreach (var prop in obj.EnumerateObject())
+            if (string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
+    private static bool TryGetPropertyIgnoreCase(JsonElement obj, string name, out JsonElement value)
+    {
+        foreach (var prop in obj.EnumerateObject())
+        {
+            if (!string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase)) continue;
+            value = prop.Value.Clone();
+            return true;
+        }
+        value = default;
+        return false;
     }
 
     private static JsonElement? ParsePayload(string? payloadJson)

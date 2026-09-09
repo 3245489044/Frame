@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Strategy.Observability.Entity;
 using Strategy.Observability.Envelope;
@@ -50,6 +51,7 @@ public sealed class ObservabilityQuery : IObservabilityQuery
         {
             ct.ThrowIfCancellationRequested();
             if (!kindSet.Contains(p.Event.EventKind)) continue;
+            if (fromUtc.HasValue && !AtOrAfterUtc(p.Event.CreatedAt, fromUtc.Value)) continue;
             if (p.Event.Metrics is null) continue;
             foreach (var key in keySet)
             {
@@ -70,4 +72,9 @@ public sealed class ObservabilityQuery : IObservabilityQuery
         }
         return result;
     }
+
+    /// <summary>事件创建时刻（"O" 往返格式）是否不早于 <paramref name="fromUtc"/>；解析失败按不满足处理。</summary>
+    private static bool AtOrAfterUtc(string createdAt, DateTime fromUtc)
+        => DateTime.TryParse(createdAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt)
+           && dt >= fromUtc;
 }

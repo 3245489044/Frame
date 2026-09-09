@@ -9,7 +9,6 @@ public sealed class InMemoryEventStore : IEventStore
 {
     private readonly List<PersistedEvent> _events = new();
     private readonly object _gate = new();
-    private bool _disposed;
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
@@ -58,9 +57,5 @@ public sealed class InMemoryEventStore : IEventStore
         }
     }
 
-    public ValueTask DisposeAsync()
-    {
-        _disposed = true;
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

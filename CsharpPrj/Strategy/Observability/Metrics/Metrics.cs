@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Strategy.Observability.Metrics;
 
@@ -14,7 +14,7 @@ public sealed class Counter
 /// <summary>通用 Histogram（E7）：分桶累计，快照即分桶映射。</summary>
 public sealed class Histogram
 {
-    private readonly ConcurrentDictionary<double, long> _buckets = new();
+    private readonly Dictionary<double, long> _buckets = new();
     private readonly object _gate = new();
     private long _count;
     private double _sum;
@@ -23,7 +23,7 @@ public sealed class Histogram
     {
         lock (_gate)
         {
-            _buckets.AddOrUpdate(value, 1, (_, c) => c + 1);
+            _buckets[value] = _buckets.TryGetValue(value, out var c) ? c + 1 : 1;
             _count++;
             _sum += value;
         }
@@ -34,8 +34,8 @@ public sealed class Histogram
         lock (_gate)
         {
             return new HistogramSnapshot(
-                _buckets.ToDictionary(kv => kv.Key, kv => kv.Value),
-                Interlocked.Read(ref _count),
+                new Dictionary<double, long>(_buckets),
+                _count,
                 _sum);
         }
     }

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Strategy.Observability.Diagnostics;
 using Strategy.Observability.Persistence;
 
@@ -71,9 +70,9 @@ public sealed class PersistentEventSink : IObservabilitySink
 /// <summary>内存环形缓冲热查 Sink（E4）：保留最近 N 条便于进程内即时查询，不承担事实源（无需落库排空）。</summary>
 public sealed class HotRingSink : IObservabilitySink
 {
-    private readonly ConcurrentQueue<PersistedEvent> _queue = new();
+    private readonly Queue<PersistedEvent> _queue = new();
+    private readonly object _gate = new();
     private readonly int _capacity;
-    private int _count;
 
     public HotRingSink(int capacity = 1000)
     {
@@ -82,17 +81,19 @@ public sealed class HotRingSink : IObservabilitySink
 
     public void Push(PersistedEvent evt)
     {
-        _queue.Enqueue(evt);
-        if (Interlocked.Increment(ref _count) > _capacity)
+        lock (_gate)
         {
-            if (_queue.TryDequeue(out _)) Interlocked.Decrement(ref _count);
+            _queue.Enqueue(evt);
+            while (_queue.Count > _capacity) _queue.Dequeue();
         }
     }
 
     public Task FlushAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     public IReadOnlyList<PersistedEvent> Snapshot()
-        => _queue.OrderBy(e => e.EventSeq).ToList();
+    {
+        lock (_gate) return _queue.OrderBy(e => e.EventSeq).ToList();
+    }
 }
 
 /// <summary>可选 Console 透出 Sink（E4 调试；无需落库排空）。</summary>

@@ -16,7 +16,6 @@ public sealed class FileAppendEventStore : IEventStore
 
     private readonly string _path;
     private readonly object _writeGate = new();
-    private bool _disposed;
 
     public FileAppendEventStore(string path)
     {
@@ -95,9 +94,5 @@ public sealed class FileAppendEventStore : IEventStore
         }
     }
 
-    public ValueTask DisposeAsync()
-    {
-        _disposed = true;
-        return ValueTask.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
-}

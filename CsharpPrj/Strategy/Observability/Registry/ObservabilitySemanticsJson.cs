@@ -12,8 +12,6 @@ public static class ObservabilitySemanticsJson
 
     public sealed class SemanticsFile
     {
-        public string Version { get; set; } = "1.0";
-        public string[] Entities { get; set; } = Array.Empty<string>();
         public Dictionary<string, EventSpec> Events { get; set; } = new(StringComparer.Ordinal);
     }
 
@@ -21,7 +19,7 @@ public static class ObservabilitySemanticsJson
     {
         public string? Entity { get; set; }
         public string[] Required { get; set; } = Array.Empty<string>();
-        public Dictionary<string, string> Metrics { get; set; } = new();
+        public string[] Metrics { get; set; } = Array.Empty<string>();
         public Dictionary<string, string[]> Enum { get; set; } = new();
     }
 
@@ -39,7 +37,7 @@ public static class ObservabilitySemanticsJson
                 EventKind = kind,
                 EntityType = string.IsNullOrWhiteSpace(spec.Entity) ? null : spec.Entity,
                 Required = spec.Required ?? Array.Empty<string>(),
-                MetricKeys = spec.Metrics?.Keys.ToList() ?? new List<string>(),
+                MetricKeys = spec.Metrics ?? Array.Empty<string>(),
                 Enums = spec.Enum?.ToDictionary(kv => kv.Key, kv => (IReadOnlyList<string>)kv.Value) ?? new Dictionary<string, IReadOnlyList<string>>(),
             });
         }

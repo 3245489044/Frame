@@ -28,7 +28,6 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
     private readonly IObservabilityContractRegistry _registry;
     private readonly IReadOnlyList<IObservabilitySink> _sinks;
     private readonly ConcurrentDictionary<string, long> _seq = new(StringComparer.Ordinal);
-    private readonly List<IAsyncDisposable> _asyncSinks = new();
     private bool _disposed;
 
     public ObservabilityBus(
@@ -37,7 +36,6 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _sinks = (sinks ?? throw new ArgumentNullException(nameof(sinks))).ToList();
-        _asyncSinks = _sinks.OfType<IAsyncDisposable>().ToList();
     }
 
     public IReadOnlyList<IObservabilitySink> Sinks => _sinks;
@@ -90,7 +88,7 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
         if (_disposed) return;
         _disposed = true;
         await FlushAsync(ct).ConfigureAwait(false);
-        foreach (var s in _asyncSinks) await s.DisposeAsync().ConfigureAwait(false);
+        foreach (var s in _sinks.OfType<IAsyncDisposable>()) await s.DisposeAsync().ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync() => await ShutdownAsync();

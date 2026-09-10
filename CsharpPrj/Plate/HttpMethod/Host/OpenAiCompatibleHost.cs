@@ -293,12 +293,42 @@ namespace Plate.HttpMethod.OpenAI
                 {
                     if (m.ValueKind != JsonValueKind.Object) continue;
                     var role = GetString(m, "role");
+                    if (string.IsNullOrWhiteSpace(role)) continue;
                     var content = ExtractContent(m, "content");
-                    if (string.IsNullOrWhiteSpace(role) || string.IsNullOrWhiteSpace(content)) continue;
-                    list.Add(new OpenAiChatMessage(role, content));
+                    // P2：保留 assistant(tool_calls)（content 可能为空）与 tool(tool_call_id) 回填消息，
+                    // 使 L1 多轮工具循环在 LocalLlmHttp 与真实后端间语义一致（否则回填被过滤掉）。
+                    var toolCalls = ParseToolCalls(m);
+                    var toolCallId = GetString(m, "tool_call_id");
+                    if (string.IsNullOrWhiteSpace(content) && toolCalls is null && string.IsNullOrEmpty(toolCallId)) continue;
+                    list.Add(new OpenAiChatMessage(role, content)
+                    {
+                        ToolCalls = toolCalls,
+                        ToolCallId = toolCallId,
+                    });
                 }
             }
             return list;
+        }
+
+        /// <summary>解析 message.tool_calls（OpenAI 标准格式）为 wire 工具调用列表；缺失/空 → null。</summary>
+        private static List<OpenAiToolCall>? ParseToolCalls(JsonElement m)
+        {
+            if (!m.TryGetProperty("tool_calls", out var tc) || tc.ValueKind != JsonValueKind.Array) return null;
+            var calls = new List<OpenAiToolCall>();
+            foreach (var call in tc.EnumerateArray())
+            {
+                if (call.ValueKind != JsonValueKind.Object) continue;
+                var id = GetString(call, "id") ?? "";
+                var name = "";
+                var args = "";
+                if (call.TryGetProperty("function", out var fn) && fn.ValueKind == JsonValueKind.Object)
+                {
+                    name = GetString(fn, "name") ?? "";
+                    args = GetString(fn, "arguments") ?? "";
+                }
+                calls.Add(new OpenAiToolCall(id, name, args));
+            }
+            return calls.Count > 0 ? calls : null;
         }
 
         /// <summary>解析 Responses 输入为完整消息数组：instructions 作 system 前缀，input 消息项（任意 role / 字符串）追加。</summary>
@@ -329,8 +359,15 @@ namespace Plate.HttpMethod.OpenAI
                         continue;
                     }
 
-                    if (string.IsNullOrWhiteSpace(content)) continue;
-                    list.Add(new OpenAiChatMessage(role, content));
+                    // P2：同 ParseChatMessages —— 保留携带工具字段的空文本消息（多轮回填）。
+                    var itemToolCalls = ParseToolCalls(item);
+                    var itemToolCallId = GetString(item, "tool_call_id");
+                    if (string.IsNullOrWhiteSpace(content) && itemToolCalls is null && string.IsNullOrEmpty(itemToolCallId)) continue;
+                    list.Add(new OpenAiChatMessage(role, content)
+                    {
+                        ToolCalls = itemToolCalls,
+                        ToolCallId = itemToolCallId,
+                    });
                 }
             }
 

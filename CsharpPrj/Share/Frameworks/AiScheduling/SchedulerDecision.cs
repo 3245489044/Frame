@@ -15,4 +15,7 @@ public sealed record SchedulerDecision(
     string? Intent = null,
     string? Reason = null,
     double Confidence = 0.0,
-    string? ArbitrationKey = null);
+    string? ArbitrationKey = null,
+    // E4：导演<b>未产出提议</b>（降级/异常 → 状态机 fail-safe stay）的真实事实；供回灌 director_state 轴
+    // （route=switch 规则依赖它，避免"恒不可达"）。低置信度但确有提议 → false（非降级）。
+    bool DirectorDegraded = false);

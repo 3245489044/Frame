@@ -215,7 +215,8 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
             applied: false, action: action, verdict: TransitionVerdict.Held,
             targetStrategy: p?.TargetStrategyId, targetRunStatus: p?.TargetRunStatusId,
             targetExecutor: p?.TargetExecutorId, intent: p?.Intent, reason: p?.Reason,
-            confidence: p?.Confidence ?? 0.0, arbitrationKey: _arbitrationKey);
+            confidence: p?.Confidence ?? 0.0, arbitrationKey: _arbitrationKey,
+            directorDegraded: p is null);   // E4：无提议（导演 null/异常）→ 降级事实
 
     /// <summary>
     /// <see cref="SchedulerDecision"/> 构造单一收敛点（D3）：统一填充 10+ 命名参数与仲裁锚点，
@@ -224,8 +225,9 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
     private static SchedulerDecision Decide(
         bool applied, SchedulerAction action, TransitionVerdict verdict,
         string? targetStrategy = null, string? targetRunStatus = null, string? targetExecutor = null,
-        string? intent = null, string? reason = null, double confidence = 0.0, string? arbitrationKey = null)
-        => new(applied, action, verdict, targetStrategy, targetRunStatus, targetExecutor, intent, reason, confidence, arbitrationKey);
+        string? intent = null, string? reason = null, double confidence = 0.0, string? arbitrationKey = null,
+        bool directorDegraded = false)
+        => new(applied, action, verdict, targetStrategy, targetRunStatus, targetExecutor, intent, reason, confidence, arbitrationKey, directorDegraded);
 
     private void RecordTransition(string text)
     {

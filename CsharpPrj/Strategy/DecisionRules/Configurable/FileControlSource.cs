@@ -73,9 +73,11 @@ namespace Strategy.DecisionRules.Configurable
 
         private (DecisionControlSpec? spec, IReadOnlyList<string> errors) TryLoadCore(string path)
         {
-            var errors = DecisionControlJson.Validate(File.ReadAllText(path));
+            // 单次读盘：校验与反序列化共用同一份文本，消除两次读之间的 TOCTOU 不一致窗口。
+            var text = File.ReadAllText(path);
+            var errors = DecisionControlJson.Validate(text);
             if (errors.Count > 0) return (null, errors);
-            return (DecisionControlJson.Deserialize(File.ReadAllText(path)), Array.Empty<string>());
+            return (DecisionControlJson.Deserialize(text), Array.Empty<string>());
         }
     }
 }

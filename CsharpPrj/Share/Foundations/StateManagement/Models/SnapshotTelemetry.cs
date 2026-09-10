@@ -20,7 +20,10 @@ public sealed record SnapshotTelemetry(
     // 由 Agent 层每轮边界以 BuildContext(telemetryOverride) 覆写喂入，供语义导演（SemanticVerdictDirector）富化决策，
     // 不再因无源而恒 DirectorDegraded=true（对应原障碍 B）。
     bool? ToolExpected = null,
-    bool? Produced = null)
+    bool? Produced = null,
+    // E4：上一轮路由/导演是否降级（未产出提议 → fail-safe stay 的真实事实，由 Agent 层每轮边界覆写喂入）。
+    // 供语义导演回灌 director_state 轴（route=switch 规则的真实可达条件），非"自证降级"。
+    bool? DirectorDegraded = null)
 {
     public static SnapshotTelemetry Empty { get; } = new(0, 0, 0, 0, false, 0, null, null);
 }

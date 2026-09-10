@@ -15,14 +15,11 @@ namespace Plate.HttpMethod.OpenAI
     /// <summary>
     /// OpenAI 兼容出站传输（通用 wire 层，不依赖任何领域契约）—— 对任意 OpenAI 兼容端点
     /// <c>POST {baseUrl}/v1/chat/completions</c>。承载文本 / 消息数组 / Function Calling（tools）/ JSON（response_format=json_object）四通道。
-    /// <para>本地与真实后端共用同一实现，仅 endpoint 不同；失败（网络异常 / 非 2xx / 响应解析失败 / 工具循环超限 / 空文本）
-    /// → <see cref="OpenAiChatResult.Fail"/>（含 status/body 摘要），不静默空等。</para>
+    /// <para>本地与真实后端共用同一实现，仅 endpoint 不同；失败（网络异常 / 非 2xx / 响应解析失败 / 空文本）
+    /// → <see cref="OpenAiChatResult.Fail"/>（含 status/body 摘要），不静默空等。工具多轮循环不在本层（归 L1 会话内核）。</para>
     /// </summary>
     public sealed class OpenAiCompatibleTransport
     {
-        /// <summary>Function Calling 工具调用循环默认最大迭代数（防 LLM 反复调工具死循环）。</summary>
-        public const int DefaultMaxToolIterations = 8;
-
         /// <summary>响应体错误摘要最大字符数。</summary>
         public const int ErrorSummaryMax = 500;
 
@@ -54,53 +51,38 @@ namespace Plate.HttpMethod.OpenAI
         /// <summary>客户端名（provider key，用于日志归因；缺省 openai-compatible）。</summary>
         public string Name => _name;
 
-        /// <summary>无工具循环入口：统一委派到带工具循环实现（无 tools 时首次迭代即返回）。</summary>
+        /// <summary>兼容入口（等价 <see cref="ChatOnceAsync"/>）：传输零工具执行，只做单次往返并透出 <c>tool_calls</c>；
+        /// 工具多轮循环归 L1 会话内核（P2 执行归属收口）。新代码请直接用 <see cref="ChatOnceAsync"/>。</summary>
         public Task<OpenAiChatResult> ChatAsync(
             IReadOnlyList<OpenAiChatMessage> messages,
             IReadOnlyList<OpenAiTool>? tools = null,
             bool jsonMode = false,
             double? temperature = null,
             int hop = 0,
-            int maxToolIterations = DefaultMaxToolIterations,
             CancellationToken ct = default)
-            => ChatWithToolsAsync(messages, tools ?? Array.Empty<OpenAiTool>(), jsonMode, temperature, hop, maxToolIterations, ct);
+            => ChatOnceAsync(messages, tools, jsonMode, temperature, hop, ct);
 
-        /// <summary>带 Function Calling 工具循环的调用：发请求 → 有 tool_calls 则执行工具并回填 → 再发，直至无 tool_calls 或超限。</summary>
-        private async Task<OpenAiChatResult> ChatWithToolsAsync(
+        /// <summary>单次往返（传输零领域：只发一次并透出 <c>tool_calls</c>，<b>不执行、不回填</b>）。
+        /// 多轮工具循环归 L1 会话内核（P2 执行归属收口）：内核执行工具后携带 assistant/tool 消息再调本入口。
+        /// 空响应契约沿用：无文本且无 tool_calls → <see cref="OpenAiChatResult.Fail"/>。</summary>
+        public async Task<OpenAiChatResult> ChatOnceAsync(
             IReadOnlyList<OpenAiChatMessage> messages,
-            IReadOnlyList<OpenAiTool> tools,
-            bool jsonMode, double? temperature, int hop, int maxToolIterations, CancellationToken ct)
+            IReadOnlyList<OpenAiTool>? tools = null,
+            bool jsonMode = false,
+            double? temperature = null,
+            int hop = 0,
+            CancellationToken ct = default)
         {
-            var list = messages.ToList();
-            var toolList = tools.ToList();
-            for (var i = 0; i < maxToolIterations; i++)
-            {
-                var parsed = await SendOnceAsync(list, temperature, jsonMode, toolList, hop, ct).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(parsed.Error))
-                    return OpenAiChatResult.Fail(parsed.Error);
-                if (parsed.ToolCalls is null || parsed.ToolCalls.Count == 0 || toolList.Count == 0)
-                {
-                    // 空结果契约（模型管理面·框架层）：后端返回无文本内容 → 显式失败而非静默
-                    // IsSuccess=true/Content=null。避免下游执行端拿到空内容仍判成功、产出空终答且零归因日志。
-                    if (string.IsNullOrWhiteSpace(parsed.Content))
-                        return OpenAiChatResult.Fail($"{_name} 返回空响应（无文本内容，可能后端失败或未生成文本）");
-                    return OpenAiChatResult.Ok(parsed.Content); // 无工具调用 / 后端不支持工具 → 最终文本
-                }
-
-                // 有 tool_calls → 回填 assistant（含 tool_calls）+ 逐个执行工具回填 tool 消息
-                list.Add(new OpenAiChatMessage
-                {
-                    Role = "assistant",
-                    Content = parsed.Content,
-                    ToolCalls = parsed.ToolCalls,
-                });
-                foreach (var call in parsed.ToolCalls)
-                {
-                    var toolResult = await ExecuteToolAsync(toolList, call).ConfigureAwait(false);
-                    list.Add(new OpenAiChatMessage { Role = "tool", ToolCallId = call.Id, Content = toolResult });
-                }
-            }
-            return OpenAiChatResult.Fail($"OpenAI 兼容端点在 {maxToolIterations} 次工具调用循环内未产出最终文本（{_name}）。");
+            var parsed = await SendOnceAsync(
+                messages?.ToList() ?? new List<OpenAiChatMessage>(),
+                temperature, jsonMode,
+                (tools ?? Array.Empty<OpenAiTool>()).ToList(),
+                hop, ct).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(parsed.Error))
+                return OpenAiChatResult.Fail(parsed.Error);
+            if (string.IsNullOrWhiteSpace(parsed.Content) && (parsed.ToolCalls is null || parsed.ToolCalls.Count == 0))
+                return OpenAiChatResult.Fail($"{_name} 返回空响应（无文本内容，可能后端失败或未生成文本）");
+            return OpenAiChatResult.Ok(parsed.Content, parsed.ToolCalls);
         }
 
         /// <summary>执行一次 HTTP POST 并解析响应（网络/状态/解析错误 → ParsedResponse.Error）。</summary>
@@ -224,20 +206,6 @@ namespace Plate.HttpMethod.OpenAI
                 });
             }
             return list;
-        }
-
-        private static async Task<string> ExecuteToolAsync(List<OpenAiTool> toolList, OpenAiToolCall call)
-        {
-            var tool = toolList.FirstOrDefault(t => t.Name == call.Name);
-            if (tool is null) return $"工具不存在: {call.Name}";
-            try
-            {
-                return await tool.ExecuteAsync(call.Arguments).ConfigureAwait(false) ?? "";
-            }
-            catch (Exception ex)
-            {
-                return $"工具执行失败: {ex.Message}";
-            }
         }
 
         // ---- 辅助 ----

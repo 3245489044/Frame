@@ -67,11 +67,13 @@ namespace Strategy.DecisionRules.Configurable
         /// <summary>读文件 → 校验 → 反序列化；文件缺失抛 <see cref="System.IO.FileNotFoundException"/>。</summary>
         public static DecisionControlSpec? LoadFromFile(string path)
         {
-            var errors = Validate(System.IO.File.ReadAllText(path));
+            // 单次读盘：校验与反序列化共用同一份文本（同 FileControlSource 口径，消除 TOCTOU）。
+            var text = System.IO.File.ReadAllText(path);
+            var errors = Validate(text);
             if (errors.Count > 0)
                 throw new System.InvalidOperationException(
                     $"决策控制规格文件校验失败（{path}）：{string.Join("；", errors)}");
-            return Deserialize(System.IO.File.ReadAllText(path));
+            return Deserialize(text);
         }
     }
 }

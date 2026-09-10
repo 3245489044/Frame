@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using Strategy.DecisionRules;
 
 namespace Strategy.DecisionRules.Configurable
@@ -22,11 +23,14 @@ namespace Strategy.DecisionRules.Configurable
         // 按 (decisionPoint) 缓存已构筑计划；Spec.Version 变才重建（动态演算：依据变 → 重演算，不变 → 复用）。
         private readonly Dictionary<string, ControlPlan> _cache = new(StringComparer.Ordinal);
 
+        // 构筑失败负缓存（decisionPoint → 首个失败版本与异常）：同版本不再重复构筑并抛。
+        private readonly Dictionary<string, BuildFailure> _failures = new(StringComparer.Ordinal);
+
         /// <param name="source">决策依据外部供给端口；null = 未装配（任何求值 → 未命中兜底）。</param>
         public ConfigDrivenDecisionController(IDecisionControlSource? source = null)
             => _source = source ?? NullControlSource.Instance;
 
-        /// <summary>暴露当前 Expiration：按决策点查缓存计划是否存在（供热重载方比版本）。</summary>
+        /// <summary>当前已构筑计划的规格版本（未构筑/已失效返回 null）；供外部探询热重载进度。</summary>
         public int? CachedVersion(string decisionPoint)
             => _cache.TryGetValue(decisionPoint, out var p) ? p.Spec.Version : null;
 
@@ -84,19 +88,45 @@ namespace Strategy.DecisionRules.Configurable
             public required Dictionary<string, string> OutputAxisByLayer;
         }
 
+        /// <summary>
+        /// 取当前依据并（版本变则重建）返回可复用计划。
+        /// 版本比较是热重载的正确性根：源已按 LastWrite 重载出新 Spec，若此处不比版本即命中缓存，
+        /// 消费方将永远拿到旧计划（配置热重载对该控制器失效）。
+        /// 同版本的构筑失败做<b>负缓存</b>：不再每轮重复 BuildPlan+Validate 并抛，直接复抛首次异常。
+        /// </summary>
         private ControlPlan? GetOrBuild(string decisionPoint)
         {
-            if (_cache.TryGetValue(decisionPoint, out var cached))
+            var spec = _source.Get(decisionPoint);
+            if (spec is null)
+            {
+                _failures.Remove(decisionPoint);              // 依据缺失 → 清失败态，交未命中兜底
+                return null;
+            }
+
+            if (_cache.TryGetValue(decisionPoint, out var cached) && cached.Spec.Version == spec.Version)
                 return cached;
 
-            var spec = _source.Get(decisionPoint);
-            if (spec is null) return null;
+            if (_failures.TryGetValue(decisionPoint, out var failed) && failed.Version == spec.Version)
+                failed.Error.Throw();                         // 同版本已知非法 → 复抛（保留原始栈），不重复构筑
 
-            var plan = BuildPlan(spec);
-            Validate(plan);                                   // 构筑期校验（引用列/输出轴/标签/环/词元注册）
-            _cache[decisionPoint] = plan;
-            return plan;
+            try
+            {
+                var plan = BuildPlan(spec);
+                Validate(plan);                               // 构筑期校验（引用列/输出轴/标签/环/词元注册）
+                _cache[decisionPoint] = plan;
+                _failures.Remove(decisionPoint);
+                return plan;
+            }
+            catch (Exception ex)
+            {
+                _cache.Remove(decisionPoint);                 // 非法新版不留旧计划（避免版本/计划错配）
+                _failures[decisionPoint] = new BuildFailure(spec.Version, ExceptionDispatchInfo.Capture(ex));
+                throw;
+            }
         }
+
+        /// <summary>构筑失败负缓存条目（版本 → 首次异常，供同版本复抛）。</summary>
+        private sealed record BuildFailure(int Version, ExceptionDispatchInfo Error);
 
         /// <summary>由 Spec → 可复用 DecisionGraph（纯组装；拓扑/吸收/增量由内核承载）。</summary>
         private static ControlPlan BuildPlan(DecisionControlSpec spec)
@@ -163,46 +193,27 @@ namespace Strategy.DecisionRules.Configurable
             return new SemanticTerm(s.Substring(0, eq).Trim(), s.Substring(eq + 1).Trim());
         }
 
-        /// <summary>构筑期校验（对齐 DecisionCoordinateSchema.Validate 语义）：轴唯一 / 输出轴在 Evidence 且 O 区 /
-        /// 标签与引用词元已注册 / 规则引用轴存在 / 层名与输出轴唯一。</summary>
+        /// <summary>构筑期校验（唯一实现下沉 <see cref="CoordinateInvariants"/>，D3）：轴名唯一 + 坐标一致性（输出轴/标签/引用/死轴）。</summary>
         private static void Validate(ControlPlan plan)
         {
             var spec = plan.Spec;
             var axes = spec.Evidence ?? new List<DecisionControlAxis>();
 
-            // 轴名唯一 + 轴内词元互斥（重复即抛，防坐标错位）。
+            // 轴名唯一（重复即抛，防坐标错位）。
             if (axes.GroupBy(a => a.Axis ?? "").Any(g => g.Count() > 1))
                 throw new ArgumentException("决策控制 Spec：轴名重复。");
-            var outAxes = axes.Where(a => a.Zone == "O").Select(a => a.Axis ?? "").ToHashSet(StringComparer.Ordinal);
 
-            foreach (var lc in spec.Layers ?? new List<DecisionControlLayer>())
-            {
-                if (!outAxes.Contains(lc.Output ?? ""))
-                    throw new ArgumentException($"决策控制 Spec：层 {lc.Name} 输出轴 {lc.Output} 未注册为 O 区轴。");
-                foreach (var r in lc.Rules ?? new List<DecisionControlRule>())
-                {
-                    if (plan.Vocabulary.IndexOf(new SemanticTerm(lc.Output ?? "", r.Label ?? "")) < 0)
-                        throw new ArgumentException($"决策控制 Spec：层 {lc.Name} 输出标签 {r.Label} 未在坐标注册。");
-                    foreach (var req in ResolveRequired(r, new Dictionary<string, SemanticTerm[]>()))
-                        if (plan.Vocabulary.IndexOf(req) < 0)
-                            throw new ArgumentException($"决策控制 Spec：层 {lc.Name} 规则 {r.Label} 引用未注册词元 {req}。");
-                }
-            }
+            CoordinateInvariants.ValidateGraph(
+                plan.Vocabulary,
+                spec.OutputAxes().Select(a => a.Axis ?? ""),
+                spec.InputAxes().Select(a => a.Axis ?? ""),
+                plan.Graph);
         }
 
-        /// <summary>契约：I+E 每输入轴恰一词元（轴内互斥完备、无空档/多值）。</summary>
+        /// <summary>契约：I+E 每输入轴恰一词元（唯一实现 <see cref="CoordinateInvariants.AssertEvidenceComplete"/>）。</summary>
         private static void AssertEvidenceComplete(ControlPlan plan, IReadOnlyList<(string Axis, string Term)> evidence)
-        {
-            var inputAxes = plan.Spec.InputAxes().Select(a => a.Axis ?? "").ToHashSet(StringComparer.Ordinal);
-            var byAxis = evidence.GroupBy(e => e.Axis).ToDictionary(g => g.Key, g => g.ToList());
-            foreach (var axis in inputAxes)
-            {
-                if (!byAxis.TryGetValue(axis, out var list) || list.Count != 1)
-                    throw new ArgumentException($"决策控制 Spec：输入轴 {axis} 必须恰有一个词元；实际 {(byAxis.TryGetValue(axis, out var l) ? l.Count : 0)}。");
-                if (plan.Vocabulary.IndexOf(new SemanticTerm(axis, byAxis[axis][0].Term)) < 0)
-                    throw new ArgumentException($"决策控制 Spec：输入轴 {axis} 词元未注册：{byAxis[axis][0].Term}。");
-            }
-        }
+            => CoordinateInvariants.AssertEvidenceComplete(
+                plan.Vocabulary, plan.Spec.InputAxes().Select(a => a.Axis ?? ""), evidence);
 
         // ---- 输出解析 / 审计 ----
 

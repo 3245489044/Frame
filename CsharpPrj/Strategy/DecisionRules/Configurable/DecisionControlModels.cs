@@ -77,10 +77,12 @@ namespace Strategy.DecisionRules.Configurable
         /// <summary>层集（可乱序；内部按依赖自动拓扑，如 eval→terminal→route）。</summary>
         public List<DecisionControlLayer>? Layers { get; set; }
 
-        /// <summary>通用标签 → 消费方动作/终态映射（键 "axis=label"，如 "eval=pass"→"advance"）。域中立，由适配层翻译。</summary>
+        /// <summary>通用标签 → 消费方动作/终态映射（键 "axis=label"，如 "eval=pass"→"advance"）。域中立，由适配层翻译。
+        /// 注：Agent 轮内/路由路径<b>不消费</b>本字段（只读标签），ur_config 翻译等场景使用。</summary>
         public Dictionary<string, string>? OutputMap { get; set; }
 
-        /// <summary>无命中/未注册的兜底标签（fail-safe stay/continue）；null = 引擎不匹配。</summary>
+        /// <summary>无命中/未注册的兜底标签（fail-safe stay/continue）；null = 引擎不匹配。
+        /// 注：Agent 轮内/路由路径<b>不消费</b>本字段（未命中由包装层回退代码矩阵）。</summary>
         public string? Fallback { get; set; }
 
         // ---- 便捷访问 ----

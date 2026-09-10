@@ -48,9 +48,10 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         }
 
         /// <summary>
-        /// 创建任务 + 关联节点 + 引用边（复合原子能力）。顺序：写任务节点 + 关联节点（幂等）→ 建引用边
-        /// （<see cref="IResourceReferenceStore.AddReferenceAsync"/> fail-fast，端点缺失抛 InvalidOperationException）→ 入队任务。
-        /// 任一步失败整体回滚：引用边 fail-fast 已防止悬空边；节点失败仅记诊断（幂等：已存在跳过）。
+        /// 创建任务 + 关联节点 + 引用边（复合顺序编排）。顺序：写任务节点 + 关联节点（幂等）→ 建引用边
+        /// （<see cref="IResourceReferenceStore.AddReferenceAsync"/> 端点缺失时由存储侧 fail-fast 抛错）→ 入队任务。
+        /// 失败语义：节点/引用边失败**不回滚**，仅逐条记入 <see cref="TaskGraphResult.Diagnostics"/>（已完成节点保留）；
+        /// 未装配任务端口时入队返回 -1 并记诊断。调用方须据 Diagnostics 判定部分成功，不可假定整体原子。
         /// </summary>
         public async Task<TaskGraphResult> CreateTaskWithRelationsAsync(
             CreateTaskGraphRequest request, CancellationToken ct = default)

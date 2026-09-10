@@ -93,20 +93,7 @@ namespace Operation.HierarchyMethod.Nodes {
         public static string EncodeBusiness(BusinessNodePayload payload)
             => JsonSerializer.Serialize(payload ?? new BusinessNodePayload(), DocJsonOptions);
 
-        /// <summary>载荷 JSON → 文档（解析失败返回空文档，容错）。</summary>
-        public static NodeOutputDoc DecodeDoc(string json)
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<NodeOutputDoc>(json, DocJsonOptions) ?? new NodeOutputDoc();
-            }
-            catch (JsonException)
-            {
-                return new NodeOutputDoc();
-            }
-        }
-
-        /// <summary>文档 → 载荷 JSON。</summary>
+        /// <summary>文档 → 载荷 JSON（NodeOutputDoc 独立承载场景，如投影/测试装配）。</summary>
         public static string EncodeDoc(NodeOutputDoc doc)
             => JsonSerializer.Serialize(doc, DocJsonOptions);
 

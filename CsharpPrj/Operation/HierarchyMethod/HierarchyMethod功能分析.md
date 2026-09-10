@@ -165,14 +165,44 @@
 
 | 类型 | 职责 |
 |------|------|
-| `IHierarchyManager` | 三层层级统一管理端口（消费方唯一入口）：建/删历史、注册/删除任务、task↔node M:N 关联（Link/Unlink）、派生查询（GetTasks/GetNodes/GetHistoryNodes）、节点输出持久化 |
-| `HierarchyManager` | 默认实现（LLM-free 组合根）：注入 `IHierarchyReferenceManager`（引用面，实现=DataStoreDriven.ReferenceGrounding）+ `INodeOutputStore`（节点）+ 任务簿记委托；只编排不复制写边原语（SingleImplementation / TH-12） |
+| `IHierarchyManager` | 三层层级统一管理端口（消费方唯一入口）：建/删历史、注册/删除任务、task↔node M:N 关联（Link/Unlink）、派生查询（GetTasks/GetNodes/GetHistoryNodes）、节点输出持久化；**以及层次处理与查询**（`ProcessHistoryAsync` / `ProcessTaskAsync` / `ProcessTaskTreeAsync` / `DescendantsAsync` / `AncestorsAsync`，见 §3.7；其中 `ProcessTaskTreeAsync` 用 `task_owns_task` 自环 schema 展开不定深度子任务树） |
+| `HierarchyManager` | 默认实现（LLM-free 组合根）：注入 `IHierarchyReferenceManager`（引用面，实现=DataStoreDriven.ReferenceGrounding）+ `INodeOutputStore`（节点）+ 任务簿记委托 + 可选运行态/图读端口；只编排不复制写边原语（SingleImplementation / TH-12）。**同时是层次处理引擎的组合根**：懒构 `HierarchyProcessFacade`（层结构 = `HierarchySchema` 数据），端口全可空 |
 
 **引用/实例分离边界**：
 - **LiteDB 引用管理** = `IHierarchyReferenceManager`（`DataStoreDriven.Abstractions`，唯一中立端口）→ `ReferenceGrounding` → `ReferenceGraphCoordinator`（唯一 LiteDB 写边 owner）。三层实例与门面**只依赖此接口、不触碰任何 LiteDB 具体类型**。
 - **三层实例**（NodeRecord/TaskRecord/HistoryRecord）零 LiteDB 依赖，实例内冗余引用字段（TaskRecord.HistoryId/RelatedNodes、HistoryRecord.TaskKeys）标注为"权威承载在引用图，实例仅为冗余视图"。
 
 **数据模型**：单 history（顶层 class 容器）→ 多 task；task ↔ node 为**真多对多**（`cross_db_link` 边，一条 (task,workflowId,nodeKey) 一条边，同一节点可被多 task 共享引用，`LinkTaskNodeAsync`/`UnlinkTaskNodeAsync`）。历史节点集**派生** = 其全部任务的节点并集（`history_owns_node` 已降级为派生视图，不再独立存边）。
+
+**层次处理引擎接线（框架真正生效点）**：
+- **门面即入口**：`IHierarchyManager.ProcessHistoryAsync` / `ProcessTaskAsync` / `ProcessTaskTreeAsync` / `DescendantsAsync` / `AncestorsAsync` 直接落 `HierarchyProcessFacade`（§3.7），消费方拿到 `IHierarchyManager` 即可用引擎，**无需自行 new 框架类型**；
+- **查询分工**：成员集查询（`GetHistoryNodesAsync` 等）为**无界**契约（不施加展开预算、只返回键集），其遍历实现已统一到声明式引擎；引擎无法表达该查询时（如任务自递归 schema 下以 history 为起点）回退 owner 侧直读端口，保持 **schema 无关**。引擎查询/处理带**显式预算**，截断以 `IsTruncated` 在结论上可观测 —— 二者语义互补，不互相替代；
+- **运行期装配（Agent 侧）**：`ConversationHosting.TryAttach` 装配 `HierarchyManager`（grounding + NodeOutputStore + `AgentHistoryRuntimePort` + `HistoryRuntimeService` + `grounding.Graph`）→ `AgentUiHost.AttachHierarchy` 槽位；UI 库 `AgentUi_HistoryTree`（`AgentUiLibraryHistory.HistoryTreeAsync`，history → task → node）与 `AgentUi_TaskTree`（`TaskTreeAsync`，task → sub-task → node 自递归树）为只读消费入口，输出层遍历 + 处理结论；
+- **分发前提**：Agent/Produce 经 `Projects/BuildFramework/CsharpBakeRefs.props` 烘焙清单消费 Frame 程序集，已登记 `Modules.DeclarativeDataflow`（新增程序集在该清单改一处）。
+
+### 3.7 Hierarchy.Dataflow 层（层次处理：复用 DeclarativeDataflow 引擎）
+
+> 定位：把「层数/层名/包含关系」外置为数据、把「遍历与终止」交给框架，本模块只提供**数据真源与读端口**。
+> 层次结构不再硬编码遍历：`Nodes` → `Tasks` → `History` 的三层语义经 `HierarchySchema` 声明，由
+> `Modules.DeclarativeDataflow` 的递归引擎（TopDown/BottomUp + 环守卫/深度预算/节点预算三重护栏）解释。
+
+| 类型 | 职责 |
+|------|------|
+| `HierarchySchemas` | 层次 schema 唯一声明点：标准三层（history → task → node）与任务自递归 `TaskTree(CrossDbReferenceTypes.TaskOwnsTask)`（不定深度 sub-task）；包含边类型直接引用 `CrossDbReferenceTypes` 常量。**层次外置**：同一 schema 提供 JSON 形态（`HistoryTaskNodeJson` / `TaskTreeJson` / `SerializeDefault`）与配置装载（`FromJson` / `LoadOrDefault`，非法配置回退内置默认并给诊断），改层次 = 改数据 |
+| `HierarchyLevelRefs` | 三层实体 ↔ `LevelRef` 的唯一转换点（作用域承载 node 层的 workflowId 命名空间，与 ur_nodes 寻址同源） |
+| `ReferenceHierarchyRelationReader` | `IHierarchyRelationReader` 适配器：正向读取**领域端口优先**（`history_owns_task` → `GetHistoryTaskKeysAsync`、`cross_db_link` → `GetTaskNodeKeysAsync`），未覆盖 / 为空时**回退引用图出边**并按包含声明的子层投影端点（故任意已声明包含边、含自递归 `task_owns_task` 同构可跑）；反向（子 → 父）经引用图入边实现；全部**只读**、未装配即返回空集 / null |
+| `LevelProcessors/` | 层处理器（`ILevelProcessor`）：`HistoryOverviewLevelProcessor`（历史运行态概览）/ `TaskStatusLevelProcessor`（任务状态投影）/ `NodeOutputLevelProcessor`（节点输出端口投影），全部只读投影既有端口、零 LLM |
+| `HierarchyProcessFacade` | 组合根（LLM-free）：装配 schema + 读适配器 + 三层处理器为一台引擎，暴露 `ProcessHistoryAsync` / `ProcessTaskAsync` / `ProcessAsync`，以及层次查询 `AncestorsAsync`（node → task → history，需 `referenceStore`）/ `DescendantsAsync`（按 schema 展开、按实体去重） |
+
+**边界与语义**：
+- **只读不写边**：写边唯一 owner 仍是 `DataStoreDriven.ReferenceGraphCoordinator`（SingleImplementation / TH-12），本层不触碰；
+- **端点 Id 约定唯一权威**：层级资源 Id 的构造与还原收敛于 `DataStoreDriven.Abstractions.HierarchyResourceKeys`（`history.{id}` / taskKey / `{workflowId}.{nodeKey}`），适配器不自行拼接前缀；
+- **反向查询可选**：子 → 父需引用图入边，故经可选 `IResourceReferenceStore`（运行期可传 `ReferenceGrounding.Graph`）；以端点相等判定入边、以父层 Id 消歧，未装配即返回 null（正向遍历不依赖）；
+- **全局去重**：同一实体在单次处理中至多处理一次（`LevelRef` 值相等去重），故被多 task 共享的 node 只处理一次（接受该语义，避免每 task 重复处理）；
+- **诊断而非失败**：未装配端口 / 尚无产出 / 未命中任务均记为成功 + `available=false`；只有业务失败（终态 Faulted/Cancelled/Error）才置 `Success=false`；
+- **截断可观测**：预算截断在根结论上以 `IsTruncated=true` 暴露，消费方据此区分「展开未穷尽」与「业务失败」；
+- **自递归可跑（不定深度）**：`task_owns_task` 归属边由 `ReferenceGrounding.LinkSubTaskAsync` / `UnlinkSubTaskAsync` / `GetSubTaskKeysAsync` 维护（写边仍唯一收敛到图协调器），`HierarchySchemas.TaskTree(CrossDbReferenceTypes.TaskOwnsTask)` + 装配 `referenceStore` 即可逐层展开任务树，深度由 `ProcessBudget.MaxDepth` / 节点预算收口（信任反转：不信任层次数据自终止）；
+- **不改变既有职责**：`IHierarchyManager`（三层实例编排）与本门面并列，互不侵入。
 
 ---
 
@@ -185,6 +215,7 @@
 5. **可空守卫**：未装配端口 / 关系库返回空集 / 诊断（`UnavailableDiagnostics`），不消耗 AI 额度、不阻断 DB-only 路径。
 6. **节点即存储单元**：一次步骤执行 = 一个节点的一次产出；输出按节点维度持久化、跨轮/跨任务可检索复用（存储收敛：模块 A 并入模块 C）。
 7. **确定性核心与簿记解耦**：循环快照（Budget/Token/Flag/Round）独立于任务簿记（TaskRecord），任务不感知执行器 / LLM / 循环快照。
+8. **层次外置（层次是数据不是类型）**：层数/层名/包含关系声明为 `HierarchySchema`，遍历与终止由 `DeclarativeDataflow` 引擎执法；新增层 / 改层数只改数据，不改编排代码。
 
 ---
 
@@ -192,9 +223,10 @@
 
 ```
 HierarchyMethod/
-├── HierarchyMethod.csproj              模块规则 + 项目引用（TaskStatusPool / HierarchySupport /
+├── HierarchyMethod.csproj              模块规则 + 项目引用（TaskStatusPool / Observability /
 │                                       Conversation / DataStoreDriven / AiScheduling /
-│                                       WorkFlowMethod / Parsing）
+│                                       WorkFlowMethod / Parsing / LoopFoldMethod /
+│                                       JsonMethod / DeclarativeDataflow）
 ├── Abstractions/
 │   ├── HierarchyMethodNamespaces.cs    三层 + 抽象命名空间占位标记
 │   ├── UnavailableDiagnostics.cs       未装配诊断占位常量
@@ -223,7 +255,13 @@ HierarchyMethod/
 │   ├── IHistoryRelationManager.cs / HistoryRelationManager.cs
 ├── Hierarchy/
 │   ├── IHierarchyManager.cs              三层层级统一管理端口（多 nodes↔多 tasks↔单 history）
-│   └── HierarchyManager.cs               LLM-free 组合根（引用面 + 三层实例编排，零 LiteDB）
+│   ├── HierarchyManager.cs               LLM-free 组合根（引用面 + 三层实例编排，零 LiteDB）
+│   └── Dataflow/                          层次处理（复用 Modules.DeclarativeDataflow 引擎）
+│       ├── HierarchySchemas.cs            层次 schema 外置唯一声明点（三层 / 任务自递归）
+│       ├── HierarchyLevelRefs.cs          三层实体 ↔ LevelRef 唯一转换点
+│       ├── ReferenceHierarchyRelationReader.cs  引用图 → 父/子事实的只读适配器
+│       ├── HierarchyProcessFacade.cs      组合根（schema + 读适配器 + 处理器 → 引擎）
+│       └── LevelProcessors/               history / task / node 层处理器（只读投影，零 LLM）
 └── Rules/
     └── RuleEngine.cs                   确定性规则评估引擎
 ```
@@ -241,6 +279,9 @@ HierarchyMethod/
 | `Share/AiScheduling` | AI 调度状态门面（IStateFacet 等共享状态视图） |
 | `Operation/WorkFlowMethod` | 工作流上下文/循环框架（WorkflowContext / LoopFramework 领域内核类型） |
 | `Modules/Parsing` | 通用 JSON 条件判定内核（JsonRuleEngine）：Rules 规则评估引擎委托 |
+| `Modules/DeclarativeDataflow` | 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：`Hierarchy/Dataflow` 的层遍历 / 终止 / 子结论收敛复用，不硬编码层遍历；框架零项目引用 → 单向无环 |
+| `DataStoreDriven.HierarchyResourceKeys` | 三层层级引用图端点 Id 约定的唯一权威（构造 + 还原）：`ReferenceGrounding` 与 `Hierarchy/Dataflow` 适配器共用，消除前缀字符串分叉 |
+| `DataStoreDriven.CrossDbReferenceTypes.TaskOwnsTask` | 不定深度任务树的归属边常量（`task_owns_task`）：`ReferenceGrounding.LinkSubTaskAsync` / `GetSubTaskKeysAsync` 读写，`HierarchySchemas.TaskTree` 声明为包含边 |
 
 ---
 

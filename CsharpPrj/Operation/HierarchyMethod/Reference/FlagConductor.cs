@@ -29,14 +29,18 @@ public sealed class FlagConductor : IDisposable
     /// <summary>注入运行端口（把生效标志落到既有任务池执行；可空 = 仅状态编排，零执行）。</summary>
     public void SetRunPort(Func<EntityRef, ExecutionFlag, CancellationToken, Task>? port) => _runPort = port;
 
-    /// <summary>反应式触发点：写入图元数据后调用，入队并启动后台 drain（fire-and-forget）。</summary>
+    /// <summary>
+    /// 反应式触发点：写入图元数据后调用，入队并启动后台 drain（fire-and-forget）。
+    /// drain 经 <see cref="Task.Run(Func{Task})"/> 异步启动，**不在调用方线程内联执行**——
+    /// 声明写入（<see cref="ExecutionFlagService.SetFlagAsync"/>）返回时不应已被反应式闭环回切 Std。
+    /// </summary>
     public void Signal(EntityRef entity)
     {
         _signals.Writer.TryWrite(entity.Normalize());
         lock (this)
         {
             if (_drain is null || _drain.IsCompleted)
-                _drain = DrainAsync(_cts.Token);
+                _drain = Task.Run(() => DrainAsync(_cts.Token));
         }
     }
 
@@ -47,31 +51,32 @@ public sealed class FlagConductor : IDisposable
                 await ProcessAsync(e, ct).ConfigureAwait(false);
     }
 
-    /// <summary>反应式闭环（可 await，测试用）：①解析 → ②路由 → ③运行 → ④回切 Std。</summary>
+    /// <summary>反应式闭环（可 await，测试用）：①解析 → ②路由 → ③运行 → ④回切 Std。生命周期经状态机推进（非法跃迁保持原状态）。</summary>
     public async Task ProcessAsync(EntityRef entity, CancellationToken ct)
     {
         var norm = entity.Normalize();
         // ① 解析生效标志（沿引用边向上找最近非 Auto/Std 父层）
         var effective = await _svc.ResolveFlagAsync(norm, ct).ConfigureAwait(false);
-        // ② 路由（复用 TaskRouter canonical：ExecutionFlagAutonomy → ExecutionDisposition）
-        var disposition = TaskRouter.Route(ExecutionFlagRouteItem.Instance, ExecutionFlagAutonomy.From(effective), ruleBackend: null).Disposition;
-        await _svc.UpdateLifecycleAsync(norm, FlagLifecycleState.Routed, ct).ConfigureAwait(false);
-        await _svc.UpdateLifecycleAsync(norm, FlagLifecycleState.Running, ct).ConfigureAwait(false);
+        // ② 路由判定（复用 TaskRouter canonical：ExecutionFlagAutonomy → ExecutionDisposition）；
+        //    disposition 仅确认路由可达，落库留待观测需求（当前不写元数据）。
+        TaskRouter.Route(ExecutionFlagRouteItem.Instance, ExecutionFlagAutonomy.From(effective), ruleBackend: null);
+        await _svc.AdvanceLifecycleAsync(norm, FlagLifecycleTrigger.Resolve, ct).ConfigureAwait(false);
+        await _svc.AdvanceLifecycleAsync(norm, FlagLifecycleTrigger.Run, ct).ConfigureAwait(false);
         // ③ 运行（经注入 runPort 落到已适配框架；未装配 → 直接完成，仅状态编排）
         try
         {
             if (_runPort is not null)
                 await _runPort(norm, effective, ct).ConfigureAwait(false);
-            await _svc.UpdateLifecycleAsync(norm, FlagLifecycleState.Completed, ct).ConfigureAwait(false);
+            await _svc.AdvanceLifecycleAsync(norm, FlagLifecycleTrigger.Complete, ct).ConfigureAwait(false);
             await _svc.WriteResultAsync(norm, effective, "completed", ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            await _svc.UpdateLifecycleAsync(norm, FlagLifecycleState.Cancelled, ct).ConfigureAwait(false);
+            await _svc.AdvanceLifecycleAsync(norm, FlagLifecycleTrigger.Cancel, ct).ConfigureAwait(false);
         }
         catch
         {
-            await _svc.UpdateLifecycleAsync(norm, FlagLifecycleState.Faulted, ct).ConfigureAwait(false);
+            await _svc.AdvanceLifecycleAsync(norm, FlagLifecycleTrigger.Fail, ct).ConfigureAwait(false);
             await _svc.WriteResultAsync(norm, effective, "faulted", ct).ConfigureAwait(false);
         }
         // ④ 回切标准标识符（exec.flag=Std、lifecycle=idle，回稳态等待下一次 SetFlag）
@@ -81,8 +86,9 @@ public sealed class FlagConductor : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        // 先结束信号通道再取消：避免 drain 循环在 CTS 释放后仍等待（原实现 Cancel 后立即 Dispose 会让 drain 抛 ObjectDisposedException）。
+        _signals.Writer.TryComplete();
         _cts.Cancel();
-        _cts.Dispose();
     }
 }
 

@@ -5,6 +5,8 @@ namespace Operation.DataStoreDriven.Abstractions;
 /// <c>cross_db_link</c>：运行时节点产出后由守卫 <c>ReferenceGrounding.EnsureTaskNodeLinkAsync</c>
 /// 建立的「ur_tasks.{taskKey} → ur_nodes.{wf.node}」归属边（幂等加法，不并入数据流权威边集），
 /// 供读侧（task 作用域寻址）按 task 过滤节点、根除跨 task 污染。
+/// <para>本组归属边经 <c>ReferenceGraphCoordinator</c>（LiteDB 纯边）读写，不依赖 UniversalReference 引用 Schema 词汇表
+/// （后者服务 UniversalReferenceResourceReferenceStore 路径）；新增归属边只需在此加常量 + 在守卫加写/读路径。</para>
 /// </summary>
 public static class CrossDbReferenceTypes
 {
@@ -15,6 +17,11 @@ public static class CrossDbReferenceTypes
     /// <summary>会话归属边（方案 C）：session.{name} → 会话消息/产出节点（会话图子图挂载，读侧按 session 过滤节点）。
     /// 与 <see cref="CrossDbLink"/>（ur_tasks → ur_nodes）正交：本边以会话根为锚，不依赖任务池行。</summary>
     public const string SessionOwns = "session_owns";
+
+    /// <summary>task → sub-task 归属边（**不定深度任务树**）：一条 (parentTaskKey, subTaskKey) 一条边，
+    /// 同一 sub-task 唯一父（树而非图）。读侧按本边逐层展开子任务，深度由遍历预算收口
+    /// （信任反转：不信任层次数据自终止）。写/读见 <c>ReferenceGrounding.LinkSubTaskAsync</c> / <c>GetSubTaskKeysAsync</c>。</summary>
+    public const string TaskOwnsTask = "task_owns_task";
 
     /// <summary>会话时序边（方案 C）：消息节点 → 下一消息节点（round 时序链；会话历史顺序由 LiteDB 引用边决定，
     /// 每节点 seq = 其在链上的序号）。</summary>

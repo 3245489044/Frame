@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.DeclarativeDataflow.Model;
+using Modules.DeclarativeDataflow.Processing;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.HierarchyMethod.Hierarchy.Dataflow;
 using Operation.HierarchyMethod.History;
+using Operation.HierarchyMethod.History.Runtime;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Tasks;
 using Operation.WorkFlowMethod.Nodes.Contracts;
+using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
 namespace Operation.HierarchyMethod.Hierarchy;
 
@@ -14,6 +20,11 @@ namespace Operation.HierarchyMethod.Hierarchy;
 /// 三层层级统一管理门面默认实现（LLM-free 组合根）：编排「引用管理（IHierarchyReferenceManager）」与
 /// 「三层实例（节点输出 / 任务簿记）」—— 只编排不复制写边原语（SingleImplementation / TH-12）。
 /// 装配可空：未装配引用端口 → 查询空集 / 写 no-op；未装配节点/任务端口 → 对应持久化跳过。不阻断 DB-only 路径。
+/// <para>
+/// 本门面同时是**层次处理引擎的组合根**：三层结构声明为 <see cref="HierarchySchemas.HistoryTaskNode"/> 数据，
+/// 遍历 / 终止 / 子结论收敛由 <c>Modules.DeclarativeDataflow</c> 的引擎执法
+/// （见 <see cref="IHierarchyManager.ProcessHistoryAsync"/> 等）；运行态端口与引用图读端口可空装配。
+/// </para>
 /// </summary>
 public sealed class HierarchyManager : IHierarchyManager
 {
@@ -21,21 +32,50 @@ public sealed class HierarchyManager : IHierarchyManager
     private readonly INodeOutputStore? _nodes;
     private readonly Func<TaskRecord, CancellationToken, Task>? _saveTask;
     private readonly Func<string, CancellationToken, Task>? _deleteTask;
+    private readonly Lazy<HierarchyProcessFacade> _processing;
+    private readonly Lazy<HierarchyProcessFacade> _taskTreeProcessing;
 
     /// <param name="reference">引用管理端口（可空；实现 = DataStoreDriven.ReferenceGrounding）。本门面及三层实例只依赖此接口、零 LiteDB 具体类型。</param>
     /// <param name="nodes">节点输出存储（可空；ur_nodes NodeType=output）。</param>
     /// <param name="saveTask">任务簿记保存端口（可空；由组合根注入任务池持久化）。</param>
     /// <param name="deleteTask">任务簿记删除端口（可空）。</param>
+    /// <param name="runtimePort">单 task 运行状态端口（可空；任务层处理器用）。</param>
+    /// <param name="historyRuntime">history 会话编排门面（可空；历史层处理器用）。</param>
+    /// <param name="referenceStore">引用图读写端口（可空；反向祖先链查询用，如 ReferenceGrounding.Graph）。</param>
+    /// <param name="schema">层次 schema（可空；缺省 = 三层异构 history → task → node）。</param>
+    /// <param name="workflowId">节点层工作流命名空间（可空；缺省 = agent-round，对齐 ur_nodes 约定）。</param>
     public HierarchyManager(
         IHierarchyReferenceManager? reference = null,
         INodeOutputStore? nodes = null,
         Func<TaskRecord, CancellationToken, Task>? saveTask = null,
-        Func<string, CancellationToken, Task>? deleteTask = null)
+        Func<string, CancellationToken, Task>? deleteTask = null,
+        IHistoryRuntimePort? runtimePort = null,
+        IHistoryRuntimeService? historyRuntime = null,
+        IResourceReferenceStore? referenceStore = null,
+        HierarchySchema? schema = null,
+        string? workflowId = null)
     {
         _reference = reference;
         _nodes = nodes;
         _saveTask = saveTask;
         _deleteTask = deleteTask;
+        _processing = new Lazy<HierarchyProcessFacade>(() => HierarchyProcessFacade.Create(
+            reference: _reference,
+            nodeOutputs: _nodes,
+            runtimePort: runtimePort,
+            historyRuntime: historyRuntime,
+            workflowId: workflowId,
+            schema: schema ?? HierarchySchemas.HistoryTaskNode,
+            referenceStore: referenceStore));
+        // 任务自递归层次（task → sub-task → … → node）单独装配：schema 不同（含自环），端口与上者同源。
+        _taskTreeProcessing = new Lazy<HierarchyProcessFacade>(() => HierarchyProcessFacade.Create(
+            reference: _reference,
+            nodeOutputs: _nodes,
+            runtimePort: runtimePort,
+            historyRuntime: historyRuntime,
+            workflowId: workflowId,
+            schema: HierarchySchemas.TaskTree(CrossDbReferenceTypes.TaskOwnsTask),
+            referenceStore: referenceStore));
     }
 
     public async Task<HistoryRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default)
@@ -72,8 +112,8 @@ public sealed class HierarchyManager : IHierarchyManager
     {
         if (_deleteTask is not null)
             await _deleteTask(taskKey, ct).ConfigureAwait(false);
-        // 引用侧 task 端点的级联清边由 DataStoreDriven 守卫（RemoveTaskMirrorAsync）负责，
-        // 本门面仅负责实例删除；如需同步图侧可在组合根注入 reference 的 task 镜像删除委托。
+        // 引用侧 task 端点镜像与入/出边的级联清理由注入的删除端口承担（Agent 侧 WriteThroughTaskPoolStore.DeleteAsync
+        // → ReferenceGrounding.RemoveTaskMirrorAsync）；本门面不重复写边（SingleImplementation / TH-12）。
     }
 
     public Task LinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
@@ -83,17 +123,91 @@ public sealed class HierarchyManager : IHierarchyManager
         => _reference is null ? Task.CompletedTask : _reference.UnlinkTaskNodeAsync(taskKey, workflowId, nodeKey, ct);
 
     public Task<IReadOnlyList<string>> GetTasksAsync(string historyId, CancellationToken ct = default)
-        => _reference is null ? Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>())
-            : _reference.GetHistoryTaskKeysAsync(historyId, ct);
+        => MemberKeysAsync(
+            HierarchyLevelRefs.History(historyId),
+            HierarchySchemas.TaskLevel,
+            () => _reference!.GetHistoryTaskKeysAsync(historyId, ct));
 
     public Task<IReadOnlyList<string>> GetNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
-        => _reference is null ? Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>())
-            : _reference.GetTaskNodeKeysAsync(taskKey, workflowId, ct);
+        => MemberKeysAsync(
+            HierarchyLevelRefs.Task(taskKey),
+            HierarchySchemas.NodeLevel,
+            () => _reference!.GetTaskNodeKeysAsync(taskKey, workflowId, ct));
 
     public Task<IReadOnlyList<string>> GetHistoryNodesAsync(string historyId, string workflowId, CancellationToken ct = default)
-        => _reference is null ? Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>())
-            : _reference.GetHistoryNodeKeysAsync(historyId, workflowId, ct);
+        => MemberKeysAsync(
+            HierarchyLevelRefs.History(historyId),
+            HierarchySchemas.NodeLevel,
+            () => _reference!.GetHistoryNodeKeysAsync(historyId, workflowId, ct));
+
+    /// <summary>
+    /// 成员集查询（**无界**：不施加展开预算，仅按实体去重）——优先经声明式引擎（与
+    /// <see cref="ProcessHistoryAsync"/> 共用层序 / 环守卫 / 去重的**单一遍历实现**），
+    /// 引擎无法表达该查询时回退 owner 侧直读端口。
+    /// <para>
+    /// 引擎路径仅在「起点层已声明 <b>且</b> 目标层自根可达」时启用；否则（如任务自递归 schema 下以 history 为起点）
+    /// 回退 <paramref name="fallback"/>，保持成员集查询的 **schema 无关** 语义。
+    /// </para>
+    /// </summary>
+    private async Task<IReadOnlyList<string>> MemberKeysAsync(
+        LevelRef root, string targetLevelId, Func<Task<IReadOnlyList<string>>> fallback)
+    {
+        if (_reference is null) return Array.Empty<string>();
+
+        if (CanExpress(root.LevelId, targetLevelId))
+        {
+            var nodes = await _processing.Value
+                .DescendantsAsync(root, stopLevelId: null, maxDepth: UnboundedDepth)
+                .ConfigureAwait(false);
+            return nodes
+                .Where(n => string.Equals(n.LevelId, targetLevelId, StringComparison.Ordinal))
+                .Select(n => n.Id)
+                .ToList();
+        }
+
+        return await fallback().ConfigureAwait(false);
+    }
+
+    /// <summary>该层次 schema 能否表达「起点层 → 目标层」的展开（起点层须已声明且目标层自根可达）。</summary>
+    private bool CanExpress(string rootLevelId, string targetLevelId)
+    {
+        var schema = _processing.Value.Schema;
+        return schema.Level(rootLevelId) is not null
+            && schema.LevelOrderFromRoot().Contains(targetLevelId, StringComparer.Ordinal);
+    }
+
+    /// <summary>成员集查询的无界深度（终止由按实体去重保证，故不设截断——对齐「成员集查询无上限」契约）。</summary>
+    private const int UnboundedDepth = int.MaxValue;
 
     public Task PersistNodeOutputAsync(string workflowId, string nodeKey, string port, object? value, CancellationToken ct = default)
         => _nodes is null ? Task.CompletedTask : _nodes.WriteOutputAsync(workflowId, nodeKey, port, value, ct);
+
+    /// <inheritdoc />
+    public Task<LevelProcessResult> ProcessHistoryAsync(string historyId, HierarchyProcessPlan? plan = null, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
+        return _processing.Value.ProcessHistoryAsync(historyId, plan, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<LevelProcessResult> ProcessTaskAsync(string taskKey, HierarchyProcessPlan? plan = null, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        return _processing.Value.ProcessTaskAsync(taskKey, plan, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<LevelProcessResult> ProcessTaskTreeAsync(string taskKey, HierarchyProcessPlan? plan = null, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        return _taskTreeProcessing.Value.ProcessAsync(HierarchyLevelRefs.Task(taskKey), plan, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<LevelRef>> DescendantsAsync(LevelRef node, string? stopLevelId = null, int maxDepth = 64, CancellationToken ct = default)
+        => _processing.Value.DescendantsAsync(node, stopLevelId, maxDepth, ct);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<LevelRef>> AncestorsAsync(LevelRef node, CancellationToken ct = default)
+        => _processing.Value.AncestorsAsync(node, ct);
 }

@@ -12,6 +12,7 @@
     <ModuleRule_Rule Include="框架本体零 LLM 依赖；LLM 知识（执行器/导演/提示词）只能存在于 Agent 应用层，经注入端口提供" />
     <ModuleRule_Rule Include="写边原语唯一收敛 DataStoreDriven.ReferenceGraphCoordinator，编排只编排不复制写边（SingleImplementation / TH-12）" />
     <ModuleRule_Rule Include="未装配端口/关系库返回空集/诊断（UnavailableDiagnostics），不消耗 AI 额度、不阻断 DB-only 路径" />
+    <ModuleRule_Rule Include="层次结构外置：层数/层名/包含关系由 Modules.DeclarativeDataflow 的 HierarchySchema 声明（Hierarchy/Dataflow/HierarchySchemas），遍历/护栏/子结论收敛复用它，不硬编码层遍历" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -46,6 +47,8 @@
     <ProjectReference Include="..\LoopFoldMethod\LoopFoldMethod.csproj" />
     <!-- 平台级统一 JSON 框架（Plate.JsonMethod）：节点输出载荷编解码统一编码（非 ASCII 直出，避免 \uXXXX 转义污染存储） -->
     <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <!-- 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：Hierarchy/Dataflow 层遍历不再手写；单向依赖，框架零项目引用 -->
+    <ProjectReference Include="..\..\Modules\DeclarativeDataflow\DeclarativeDataflow.csproj" />
   </ItemGroup>
 
 </Project>

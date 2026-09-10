@@ -138,6 +138,55 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 | `Operation.HierarchyMethod` | **容器语义**：数据/关系/历史存哪、怎么归（本框架的一个消费方） |
 | `Operation.DataStoreDriven` | **存储真源**：引用图写边原语（唯一 owner，本框架不触碰） |
 
+## 消费矩阵（谁在用、怎么用）
+
+| 消费方 | 复用能力 | 装配方式 |
+|--------|----------|----------|
+| `Operation.HierarchyMethod`（`Hierarchy/Dataflow`） | 全部四项（schema / 拓扑 / 引擎 / 护栏） | `HierarchySchemas` 声明层次（支持 JSON 外置）、`ReferenceHierarchyRelationReader` 对接引用图、三个 `ILevelProcessor` 按层投影；经 `HierarchyProcessFacade` 组合，由 `IHierarchyManager` 门面暴露 |
+| `Modules.Tests/DeclarativeDataflow.Tests` | 全部四项 | 直接以 `FakeHierarchyRelationReader` + 记录型处理器做零 IO 验证 |
+
+## 边界（不得越界）
+
+| 不做 | 原因 |
+|------|------|
+| ❌ 替换控制流 / 顺序执行编排（如 `NodeGraphOrchestrator`、`RoundSpec.Steps`） | 那是**执行序**（控制流），不是**包含层次**（part-of） |
+| ❌ 合并时间折叠预算（`LoopFoldMethod.Fold.FoldBudget`）与层次展开预算（`ProcessBudget`） | 二者语义正交（时间 vs 空间），只统一"护栏模式"不统一"预算语义" |
+| ❌ 承接一般图算法（最短路径 / 任意边路径枚举，见 `Modules.GraphProcessing`） | 本内核只表达 containment，保持零依赖与单一职责 |
+| ❌ 承接写边 / 持久化 | TH-12：写边唯一 owner = `DataStoreDriven.ReferenceGraphCoordinator` |
+
+## 遍历 / 环守卫归属裁决表（R2 决策记录）
+
+> 全仓存在多套「遍历 + 环守卫 + 深度/节点预算」实现。逐项裁决：**只收敛「包含层次」**；一般图算法与领域树各自保留（把一般图并进零依赖内核会同时破坏零依赖与单一职责）。
+
+| 现有实现 | 域 | 裁决 | 理由 |
+|----------|----|------|------|
+| `RelationalHierarchyTopology.DescendantsAsync`（BFS + `seen` + `maxDepth`） | 包含层次（本内核） | ✅ 内核算权威 | 引擎处理与成员集查询共用同一遍历 |
+| `HierarchyProcessEngine`（递归 + 路径环守卫 + `ProcessBudget`） | 包含层次（本内核） | ✅ 内核算权威 | 处理代数 + 结论聚合 + 三重护栏 |
+| `Modules.GraphProcessing.Algorithms`（`ICycleDetector` DFS 着色 / `IPathFinder` 全路径 / `IShortestPathFinder` BFS） | **一般图**（任意边、最短路径、环路径输出） | ⛔ 保留，不并入 | 内核只表达 containment；并入即破坏零依赖 |
+| `Share.UniversalReference`（`GraphValidator.FindAllPaths` / `ReferenceManagement._visited` DFS） | 一般引用图（诊断） | ⛔ 保留 | 同上；属引用图诊断，非层次展开 |
+| `Share.TreeTraceFramework`（`TraceQueryEngine` + `TraceQueryStep`） | UI/JSON 树查询 | ⛔ 保留（无生产消费方，另行评估废弃） | 域不同（元素树/参数树），无实体层次语义 |
+| `Share.ControlLookup` / `Share.LayoutAnalysis` / `Share.PlaceholderFramework` / `BasicMethod` 的 `TreeWalker` 系列 | UI 控件树 / JSON 树 | ⛔ 保留 | 同上 |
+| `LoopFoldMethod.Reference`（`IHierarchyContainer<T>` / `RefHead` / `IRefProjector`） | 引用空间（投影 + 时序折叠） | ⛔ 不并入，且**不造适配器** | 见下「R1 结论」 |
+| `HierarchyMethod` 的 `WorkflowResultDeriver` / `OutputScopeResolver` | 纯推演 | ✅ 已收敛（无需动作） | 二者已薄委托 `LoopFoldMethod.Reference.Derivation`（`TreeHeadProjector` / `ScopeResolver`），无重复实现 |
+
+### R1 结论（层次抽象收敛）
+
+核查事实：
+- `LoopFoldMethod.Reference.Model.IHierarchyContainer<T>` **零代码消费者**（仅自身文件 + `ReferenceEdge` 文档引用），设计文档标注"纯类型，不接线"；
+- `RefHead` / `RefView` / `IRefProjector` 是**投影**（累积历史 → 判定视图），与 `LevelRef` + schema 的**遍历**语义正交，不是重复实现；
+- `HierarchyMethod` 侧两处"收敛自 Reference"的纯推演**已实际委托**，无重复。
+
+裁决：**不新增适配器**——新适配器将无消费者，即为死代码，违反 `Strategy.RedundancyElimination` / `@ ANTI-BLOAT` / `@ ANTI-OVER-DESIGN`。
+待 `IHierarchyContainer` 出现**首个真实接线需求**时，再于 `Operation.HierarchyMethod`（同时可见 `LoopFoldMethod` 与 `Modules.DeclarativeDataflow`）落地 `IHierarchyRelationReader` 适配器。
+
+## 公理对齐（与 `.clinerules` 的语义衔接）
+
+| 内核机制 | 对应公理 | 说明 |
+|----------|----------|------|
+| `ProcessBudget` 到界即截断、不可被上层忽略 | `AX.TerminationBipartition`（Budgetary 分支） | 层次展开在**空间维度**的可判定终止；外置/不可判定的探索终止仍由宿主承担 |
+| 引擎只读遍历、写边经注入端口 | `SEP.DeterministicCoreDisjoint` / `Strategy.SingleImplementation` | 确定性核心写路径单一；内核不引入第二写者 |
+| `LevelProcessResult.IsTruncated` 与 `Error` 分离 | `AX.EvaluationOutcomeSet` | "未穷尽"≠"业务失败"，消费方可区分 |
+
 ## 构建
 
 ```powershell

@@ -44,21 +44,10 @@ namespace Operation.HierarchyMethod.Nodes {
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             ArgumentException.ThrowIfNullOrWhiteSpace(port);
             if (value is null) return;
-            var wf = NormalizeWf(workflowId);
-            var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            var payload = existing != null ? NodeOutputCodec.DecodeBusiness(existing.PayloadJson) : new BusinessNodePayload();
-            payload.Outputs ??= new NodeOutputDoc();
-            payload.Outputs.Ports[port] = NodeOutputCodec.EncodeValue(value);
-            payload.Outputs.Visibility = visibility.ToString();
-            await _nodes.PutAsync(new NodeRecord
-            {
-                NodeKey = nodeKey,
-                NodeType = NodeTypes.Node,
-                ThreadId = wf,
-                Status = existing?.Status,
-                PayloadJson = NodeOutputCodec.EncodeBusiness(payload),
-                RelationsJson = existing?.RelationsJson,
-            }, ct).ConfigureAwait(false);
+            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
+            doc.Ports[port] = NodeOutputCodec.EncodeValue(value);
+            doc.Visibility = visibility.ToString();
+            await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
         }
 
         public async Task<NodeOutput?> TryGetNodeOutputAsync(string workflowId, string nodeKey, CancellationToken ct = default)
@@ -109,11 +98,7 @@ namespace Operation.HierarchyMethod.Nodes {
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             ArgumentNullException.ThrowIfNull(signal);
-            var wf = NormalizeWf(workflowId);
-            var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            var payload = existing != null ? NodeOutputCodec.DecodeBusiness(existing.PayloadJson) : new BusinessNodePayload();
-            payload.Outputs ??= new NodeOutputDoc();
-            var doc = payload.Outputs;
+            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
             doc.Module = signal.Module;
             doc.Region = signal.Region;
             doc.NodeType = signal.NodeType;
@@ -122,15 +107,7 @@ namespace Operation.HierarchyMethod.Nodes {
             doc.OutputDigest = signal.OutputDigest;
             doc.Sticky = signal.Sticky;
             doc.Priority = signal.Priority;
-            await _nodes.PutAsync(new NodeRecord
-            {
-                NodeKey = nodeKey,
-                NodeType = NodeTypes.Node,
-                ThreadId = wf,
-                Status = existing?.Status,
-                PayloadJson = NodeOutputCodec.EncodeBusiness(payload),
-                RelationsJson = existing?.RelationsJson,
-            }, ct).ConfigureAwait(false);
+            await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
         }
 
         /// <summary>枚举工作流下全部节点信号摘要（NodeSignal）：从记录载荷读信号元数据 + 摘要，免读正文。
@@ -153,7 +130,7 @@ namespace Operation.HierarchyMethod.Nodes {
                 if (!string.IsNullOrWhiteSpace(region) && !string.Equals(doc.Region, region, StringComparison.Ordinal)) continue;
                 signals.Add(BuildSignal(rec.NodeKey, wf, doc));
             }
-            // 信号 rank：sticky → valueScore desc → freshness desc（spec §五）。
+            // 信号 rank：sticky → priority desc → valueScore desc → freshness desc（spec §五）。
             var ranked = signals
                 .OrderByDescending(s => s.Sticky)
                 .ThenByDescending(s => s.Priority)
@@ -163,11 +140,10 @@ namespace Operation.HierarchyMethod.Nodes {
             return limit >= 0 ? ranked.Take(limit).ToList() : ranked;
         }
 
-        public async Task ClearNodeAsync(string workflowId, string nodeKey, CancellationToken ct = default)
-        {
-            var wf = NormalizeWf(workflowId);
-            await _nodes.DeleteAsync(nodeKey, ct).ConfigureAwait(false);
-        }
+        // 业务节点主键为裸 nodeKey（输出并入业务节点后不含 workflowId 命名空间），故 workflowId 不参与删除目标；
+        // 参数保留以对齐 INodeOutputStore 契约（工作流作用域清理由 ClearWorkflowAsync 承担）。
+        public Task ClearNodeAsync(string workflowId, string nodeKey, CancellationToken ct = default)
+            => _nodes.DeleteAsync(nodeKey, ct);
 
         public async Task ClearWorkflowAsync(string workflowId, CancellationToken ct = default)
         {
@@ -203,6 +179,27 @@ namespace Operation.HierarchyMethod.Nodes {
             }
             return all;
         }
+
+        /// <summary>读业务节点并按需初始化输出文档（写侧读-改-写共用入口；existing 供 PutBusinessAsync 保留 Status/RelationsJson）。</summary>
+        private async Task<(NodeRecord? Existing, BusinessNodePayload Payload, NodeOutputDoc Doc)> LoadForWriteAsync(string nodeKey, CancellationToken ct)
+        {
+            var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            var payload = existing != null ? NodeOutputCodec.DecodeBusiness(existing.PayloadJson) : new BusinessNodePayload();
+            payload.Outputs ??= new NodeOutputDoc();
+            return (existing, payload, payload.Outputs);
+        }
+
+        /// <summary>写回业务节点载荷（NodeType=node、裸键；保留既有 Status/RelationsJson，与 PersistNodeReferencesAsync 写标识/关系互不覆盖）。</summary>
+        private Task PutBusinessAsync(string workflowId, string nodeKey, NodeRecord? existing, BusinessNodePayload payload, CancellationToken ct)
+            => _nodes.PutAsync(new NodeRecord
+            {
+                NodeKey = nodeKey,
+                NodeType = NodeTypes.Node,
+                ThreadId = NormalizeWf(workflowId),
+                Status = existing?.Status,
+                PayloadJson = NodeOutputCodec.EncodeBusiness(payload),
+                RelationsJson = existing?.RelationsJson,
+            }, ct);
 
         private static NodeOutput? BuildOutput(string workflowId, string nodeKey, string payloadJson)
         {

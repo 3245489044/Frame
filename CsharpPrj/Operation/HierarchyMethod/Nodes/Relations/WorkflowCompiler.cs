@@ -89,11 +89,14 @@ public static class WorkflowCompiler
         // ② 图完整性（未定义/悬空/重复节点、起止节点）—— 对齐 CS0103
         CheckIntegrity(result, nodeIds, callEdges);
 
+        // ③④ 邻接表一次构建，供环检测与引用诊断共用（避免重复构建同一图）
+        var deps = BuildAdjacency(callEdges);
+
         // ③ 调用环检测（Calls 边成环 → 死循环风险）
-        CheckCycles(result, nodeIds, callEdges);
+        CheckCycles(result, nodeIds, deps);
 
         // ④ 引用诊断（孤立/未使用）
-        CheckDiagnostics(result, nodeIds, callEdges);
+        CheckDiagnostics(result, nodeIds, callEdges, deps);
 
         // ⑤ 端口类型签名（实参端口类型 ≠ 形参端口类型）—— 对齐 CS0029；registry 未装配 → 跳过
         if (registry is null)
@@ -117,9 +120,8 @@ public static class WorkflowCompiler
             result.AddError($"图完整性校验失败: {vr.Message}");
     }
 
-    private static void CheckCycles(WorkflowCompileResult result, List<string> nodeIds, List<(string, string)> callEdges)
+    private static void CheckCycles(WorkflowCompileResult result, List<string> nodeIds, Dictionary<string, List<string>> deps)
     {
-        var deps = BuildAdjacency(callEdges);
         var cr = CircularDependencyDetector.Analyze(
             nodeIds,
             id => deps.TryGetValue(id, out var list) ? list : Enumerable.Empty<string>());
@@ -128,9 +130,8 @@ public static class WorkflowCompiler
                 result.AddWarning($"检测到调用环（死循环风险）: {string.Join(" → ", cycle.ResourceChain)}");
     }
 
-    private static void CheckDiagnostics(WorkflowCompileResult result, List<string> nodeIds, List<(string, string)> callEdges)
+    private static void CheckDiagnostics(WorkflowCompileResult result, List<string> nodeIds, List<(string, string)> callEdges, Dictionary<string, List<string>> deps)
     {
-        var deps = BuildAdjacency(callEdges);
         var allRefs = new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal);
         foreach (var id in nodeIds)
             allRefs[id] = deps.TryGetValue(id, out var list) ? list : Enumerable.Empty<string>();

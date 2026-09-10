@@ -134,11 +134,44 @@ public sealed class ExecutionFlagService : IExecutionFlagService
         return list;
     }
 
-    /// <summary>更新生命周期状态（供 <see cref="FlagConductor"/> 反应式驱动使用）。未装配 store → 原样返回，不写。</summary>
-    internal Task<FlagLifecycleState> UpdateLifecycleAsync(EntityRef entity, FlagLifecycleState state, CancellationToken ct)
-        => _store is null
-            ? Task.FromResult(state)
-            : UpdateLifecycleCoreAsync(entity, state, ct).ContinueWith(t => state, ct);
+    /// <summary>更新生命周期状态（未装配 store → 原样返回，不写）。生命周期为观测元数据：写失败显式忽略（不阻断反应式链路），
+    /// 取消原样上抛。经 <see cref="FlagConductor"/> 的推进请走 <see cref="AdvanceLifecycleAsync"/>（状态机约束）。</summary>
+    internal async Task<FlagLifecycleState> UpdateLifecycleAsync(EntityRef entity, FlagLifecycleState state, CancellationToken ct)
+    {
+        if (_store is null) return state;
+        try
+        {
+            await UpdateLifecycleCoreAsync(entity, state, ct).ConfigureAwait(false);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            // 显式忽略：避免 ContinueWith 静默吞并异常，也避免生命周期写失败阻断运行链路。
+        }
+        return state;
+    }
+
+    /// <summary>读当前生命周期状态（未装配 / 未声明 → Idle）。</summary>
+    internal async Task<FlagLifecycleState> ReadLifecycleAsync(EntityRef entity, CancellationToken ct)
+    {
+        if (_store is null) return FlagLifecycleState.Idle;
+        var res = await _store.GetResourceAsync(entity.ToResourceIdentifier(), ct).ConfigureAwait(false);
+        if (res?.Metadata is null) return FlagLifecycleState.Idle;
+        return res.Metadata.TryGetValue(ExecutionFlagMetadata.LifecycleKey, out var v) && v is string s
+            && System.Enum.TryParse<FlagLifecycleState>(s, ignoreCase: true, out var state)
+            ? state
+            : FlagLifecycleState.Idle;
+    }
+
+    /// <summary>经 <see cref="ExecutionFlagLifecycle.Transition"/> 推进生命周期（非法跃迁保持原状态，不落非法值）。
+    /// 反应式驱动（<see cref="FlagConductor"/>）唯一推进入口；合法序列 Idle→Flagged→Routed→Running→Completed/Faulted/Cancelled→Reset。</summary>
+    internal async Task<FlagLifecycleState> AdvanceLifecycleAsync(EntityRef entity, FlagLifecycleTrigger trigger, CancellationToken ct)
+    {
+        var current = await ReadLifecycleAsync(entity, ct).ConfigureAwait(false);
+        var next = ExecutionFlagLifecycle.Transition(current, trigger) ?? current;
+        if (next != current)
+            await UpdateLifecycleAsync(entity, next, ct).ConfigureAwait(false);
+        return next;
+    }
 
     /// <summary>写运行结果摘要（供 <see cref="FlagConductor"/> 使用）。未装配 store → no-op。</summary>
     internal async Task WriteResultAsync(EntityRef entity, ExecutionFlag flag, string status, CancellationToken ct)

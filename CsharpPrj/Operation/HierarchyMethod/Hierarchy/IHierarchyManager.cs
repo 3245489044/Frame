@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.DeclarativeDataflow.Model;
+using Modules.DeclarativeDataflow.Processing;
 using Operation.HierarchyMethod.History;
 using Operation.HierarchyMethod.Tasks;
 
@@ -43,17 +45,43 @@ public interface IHierarchyManager
     /// <summary>解除节点与任务的关联（M:N 撤销；不影响其它 task）。</summary>
     Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
-    // ---- 查询（成员集经引用边推导）----
-    /// <summary>该历史归拢的任务键集。</summary>
+    // ---- 查询（成员集经引用边推导；**无界**：不施加展开预算）----
+    // 遍历实现与下方「层次处理与查询」组同一（经声明式引擎；schema 无法表达该查询时回退 owner 侧直读端口）。
+    // 二者分工：本组 = schema 无关、无预算、只返回键集；引擎组 = schema 驱动、带显式预算、返回层引用/结论。
+    /// <summary>该历史归拢的任务键集（无界成员集；遍历复用声明式引擎，schema 无法表达时回退 owner 侧直读）。</summary>
     Task<IReadOnlyList<string>> GetTasksAsync(string historyId, CancellationToken ct = default);
 
-    /// <summary>该 task 关联的节点键集。</summary>
+    /// <summary>该 task 关联的节点键集（无界成员集；遍历复用声明式引擎，schema 无法表达时回退 owner 侧直读）。</summary>
     Task<IReadOnlyList<string>> GetNodesAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
-    /// <summary>该历史的节点键集（派生：= 其全部任务节点并集）。</summary>
+    /// <summary>该历史的节点键集（派生：= 其全部任务节点并集；无界成员集，遍历复用声明式引擎）。</summary>
     Task<IReadOnlyList<string>> GetHistoryNodesAsync(string historyId, string workflowId, CancellationToken ct = default);
 
     // ---- 三层实例持久化（NodeOutputStore）----
     /// <summary>持久化单端口节点输出（ur_nodes NodeType=output，重启可恢复）。</summary>
     Task PersistNodeOutputAsync(string workflowId, string nodeKey, string port, object? value, CancellationToken ct = default);
+
+    // ---- 层次处理与查询（声明式引擎：遍历 / 终止 / 子结论收敛由 Modules.DeclarativeDataflow 执法）----
+    // 层数/层名/包含关系外置为 HierarchySchema 数据；本组方法是「消费方经统一门面即可用框架」的入口，
+    // 与上面的成员集查询（owner 侧派生、无上限）分工：本组带**显式预算**（截断可在结论上观测）。
+    /// <summary>按层处理以历史为根的层次（history → task → node），返回根结论（子层结论已按方向聚合）。</summary>
+    Task<LevelProcessResult> ProcessHistoryAsync(string historyId, HierarchyProcessPlan? plan = null, CancellationToken ct = default);
+
+    /// <summary>按层处理以任务为根的层次（task → node；自递归 schema 下即不定深度任务树）。</summary>
+    Task<LevelProcessResult> ProcessTaskAsync(string taskKey, HierarchyProcessPlan? plan = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// 按**任务自递归**层次处理（task → sub-task → … → node，返回根结论，子层结论已按方向聚合）。
+    /// <para>
+    /// 与 <see cref="ProcessTaskAsync"/> 的差别仅在 schema：本方法用 `task_owns_task` 自环表达**不定深度**子任务树，
+    /// 故必须配展开预算（<see cref="HierarchyProcessPlan.Budget"/>，缺省为有限预算）；子任务边未建模时退化为单层。
+    /// </para>
+    /// </summary>
+    Task<LevelProcessResult> ProcessTaskTreeAsync(string taskKey, HierarchyProcessPlan? plan = null, CancellationToken ct = default);
+
+    /// <summary>取后代集合（广度优先、按实体去重、带环守卫与显式深度上限；如 history → 全部 task / node）。</summary>
+    Task<IReadOnlyList<LevelRef>> DescendantsAsync(LevelRef node, string? stopLevelId = null, int maxDepth = 64, CancellationToken ct = default);
+
+    /// <summary>取祖先链（自近及远，如 node → task → history）；未装配引用图读端口时返回空链。</summary>
+    Task<IReadOnlyList<LevelRef>> AncestorsAsync(LevelRef node, CancellationToken ct = default);
 }

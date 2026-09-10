@@ -29,6 +29,18 @@ namespace Operation.HierarchyMethod.Hierarchy
     internal static class HierarchyNamespaceMarker { }
 }
 
+namespace Operation.HierarchyMethod.Hierarchy.Dataflow
+{
+    /// <summary>层次处理（声明式数据流）命名空间占位：层次 schema 外置 + 引用图读取适配 + 处理门面，遍历复用于 DeclarativeDataflow 引擎。</summary>
+    internal static class DataflowNamespaceMarker { }
+}
+
+namespace Operation.HierarchyMethod.Hierarchy.Dataflow.LevelProcessors
+{
+    /// <summary>层处理器命名空间占位：history / task / node 三层各一个「处理代数」，只读投影既有端口。</summary>
+    internal static class LevelProcessorsNamespaceMarker { }
+}
+
 namespace Operation.HierarchyMethod.Abstractions
 {
     /// <summary>框架共享抽象命名空间占位（骨架阶段）。可空守卫诊断、跨层端口将落位于此。</summary>

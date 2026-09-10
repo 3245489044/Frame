@@ -32,7 +32,7 @@ public sealed class HistoryProjector : IHistoryProjector
     {
         if (_relations is null || scope is null) return;
 
-        var historyId = string.IsNullOrWhiteSpace(scope.HistoryId) ? scope.TaskKey : scope.HistoryId;
+        var historyId = ResolveHistoryId(scope.HistoryId, scope.TaskKey);
         var taskKey = scope.TaskKey;
         await _relations.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(taskKey))
@@ -57,17 +57,27 @@ public sealed class HistoryProjector : IHistoryProjector
     /// 从某 task 累积历史重建下一轮执行上下文（事务无关的只读重建）。本默认实现仅回喂已归拢任务键集；
     /// 完整历史投影（L0/L1/L2 提示词上下文）由 <see cref="IContextProjector"/> 层（阶段五）完成。
     /// </summary>
+    /// <remarks>
+    /// 统一 Id 规则（<see cref="ResolveHistoryId"/>）：无显式 HistoryId 时 historyId == taskKey。
+    /// 若沉淀（<see cref="PersistRoundAsync"/>）使用了显式 <see cref="TaskScope.HistoryId"/>，
+    /// 则回读须以同一容器键发起（本方法参数即容器键），否则历史回读与沉淀不对称。
+    /// </remarks>
     public async Task<NodeRoundInput> BuildContextAsync(string taskKey, string? sessionId, CancellationToken ct = default)
     {
         var vars = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (_relations is not null && !string.IsNullOrWhiteSpace(taskKey))
         {
-            // 以 taskKey 为历史容器枚举归拢任务键（历史回读的轻量形态）。
-            var keys = await _relations.GetTaskKeysAsync(taskKey, ct).ConfigureAwait(false);
+            // 以容器键（按统一规则 = taskKey）枚举归拢任务键（历史回读的轻量形态）。
+            var historyId = ResolveHistoryId(null, taskKey);
+            var keys = await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);
             if (keys is { Count: > 0 })
                 vars["history_task_keys"] = keys;
         }
 
         return new NodeRoundInput(taskKey, sessionId, 0, vars);
     }
+
+    /// <summary>统一历史容器 Id 解析（单一规则）：显式 historyId 优先，缺省回退 taskKey（historyId == taskKey 约定）。</summary>
+    private static string ResolveHistoryId(string? historyId, string taskKey)
+        => string.IsNullOrWhiteSpace(historyId) ? taskKey : historyId;
 }

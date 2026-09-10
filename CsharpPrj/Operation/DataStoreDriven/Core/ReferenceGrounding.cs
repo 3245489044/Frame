@@ -183,8 +183,8 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         return tasks.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>历史 Id 单一权威：history.{historyId}（对齐 <see cref="NodeResourceTypes.History"/> 约定）。</summary>
-    private static string HistoryNodeId(string historyId) => "history." + (historyId ?? string.Empty).Trim();
+    /// <summary>历史 Id 单一权威：history.{historyId}（构造与还原见 <see cref="HierarchyResourceKeys"/>）。</summary>
+    private static string HistoryNodeId(string historyId) => HierarchyResourceKeys.History(historyId);
 
     /// <summary>历史挂载节点：history.{historyId} → wf.node（history_owns_node 边，幂等加法）。
     /// 历史 class 容器归拢其工作流节点产出（跨多任务，区别于 session_owns 的会话语义）。</summary>
@@ -316,6 +316,50 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             var id = r.Target?.Id;
             if (string.IsNullOrWhiteSpace(id) || !id.StartsWith(prefix, StringComparison.Ordinal)) continue;
             keys.Add(id.Substring(prefix.Length));
+        }
+        return keys.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>
+    /// task → sub-task 归属边（task_owns_task，**不定深度任务树**；幂等加法）。
+    /// 先幂等建父 / 子 task 端点，再写边；深度一侧由遍历预算收口（本方法不做深度限制）。
+    /// 非接口成员：供组合根按需接线（与其他会话 / 历史镜像方法一致）。
+    /// </summary>
+    public async Task LinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentTaskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
+        if (string.Equals(parentTaskKey, subTaskKey, StringComparison.Ordinal)) return; // 自指无意义
+
+        await EnsureTaskMirrorAsync(parentTaskKey, ct).ConfigureAwait(false);
+        await EnsureTaskMirrorAsync(subTaskKey, ct).ConfigureAwait(false);
+        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
+        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
+        await _graph.AddReferenceAsync(parentId, childId, CrossDbReferenceTypes.TaskOwnsTask, 1.0, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>解除 task → sub-task 归属边（幂等：不存在则无副作用）。</summary>
+    public Task UnlinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentTaskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
+        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
+        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
+        return _graph.RemoveReferenceAsync(parentId, childId, CrossDbReferenceTypes.TaskOwnsTask, ct);
+    }
+
+    /// <summary>按 task 查 task_owns_task 出边，返回其**直属**子任务键集（不定深度树的一层展开；逐层展开由调用方 / 遍历引擎推进）。</summary>
+    public async Task<IReadOnlyList<string>> GetSubTaskKeysAsync(string taskKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+        var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: false, ct).ConfigureAwait(false);
+        var keys = new List<string>();
+        foreach (var r in refs)
+        {
+            if (!string.Equals(r.RefType, CrossDbReferenceTypes.TaskOwnsTask, StringComparison.Ordinal)) continue;
+            var id = r.Target?.Id;
+            if (!string.IsNullOrWhiteSpace(id)) keys.Add(id);
         }
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }

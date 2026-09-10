@@ -29,23 +29,22 @@ namespace Modules.GraphProcessing.Diagnostics
         public bool HasIssues => Errors.Count > 0 || Warnings.Count > 0;
     }
 
-    /// <summary>引用诊断器（循环/孤立/未用/缺失，泛化自 UniversalReference.ReferenceDiagnostics）。</summary>
-    public interface IReferenceDiagnostics
-    {
-        ReferenceDiagnosticResult RunFullDiagnostics(
-            IDictionary<string, IEnumerable<string>> allReferences,
-            Func<string, IEnumerable<string>> getDependencies,
-            Func<HashSet<string>> getUsedReferences);
-    }
-
-    /// <summary>默认引用诊断实现。</summary>
-    public class DefaultReferenceDiagnostics : IReferenceDiagnostics
+    /// <summary>
+    /// 默认引用诊断实现（循环/孤立/未用/缺失，泛化自 UniversalReference.ReferenceDiagnostics）。
+    /// <para>
+    /// 注意：原 <c>IReferenceDiagnostics</c> 接口已移除（2026-09-10，M6）——它零接口消费者，
+    /// 消费方始终绕过接口直用本具体类（<c>UniversalReference.Core.ReferenceDiagnostics</c> 薄转发 + 测试），
+    /// 接口无存在价值；仅本类与 <see cref="ReferenceDiagnosticResult"/> 依需保留。
+    /// </para>
+    /// </summary>
+    public class DefaultReferenceDiagnostics
     {
         private readonly ICycleDetector<string> _cycleDetector;
 
         public DefaultReferenceDiagnostics(ICycleDetector<string>? cycleDetector = null)
             => _cycleDetector = cycleDetector ?? new DefaultCycleDetector<string>();
 
+        /// <summary>对全量引用执行四类诊断（循环/孤立/未用/缺失）。</summary>
         public ReferenceDiagnosticResult RunFullDiagnostics(
             IDictionary<string, IEnumerable<string>> allReferences,
             Func<string, IEnumerable<string>> getDependencies,

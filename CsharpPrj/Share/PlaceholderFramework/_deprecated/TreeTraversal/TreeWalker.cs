@@ -1,4 +1,11 @@
 
+// ============================================================
+// TreeWalker.cs —— 通用树遍历器（BFS/DFS，TreeTraversal 用）
+// 状态：已废弃（_deprecated）· 2026-09-10 · M4 树基座收敛
+// 原因：全仓 0 消费者（无代码/测试引用，历史文档描述已过时），
+//       与 Framework.Tree.TreeWalker<TNode>（BasicMethod/Map/GraphFoundation）
+//       语义重复。通用树遍历原语已收敛至 Framework.Tree.TreeWalker。可于 git 找回。
+// ============================================================
 namespace Common.PlaceholderFramework.TreeTraversal;
 
 public enum TraversalMode

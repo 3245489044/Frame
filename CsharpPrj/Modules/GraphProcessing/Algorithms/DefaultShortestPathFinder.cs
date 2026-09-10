@@ -5,17 +5,17 @@ using System.Collections.Generic;
 
 namespace Modules.GraphProcessing.Algorithms
 {
-    /// <summary>最短路径查找器（BFS，保证无权图最优解）。</summary>
-    /// <typeparam name="TKey">节点键类型。</typeparam>
-    public interface IShortestPathFinder<TKey> where TKey : notnull
+    /// <summary>
+    /// 默认 BFS 最短路径实现（移植自 UniversalReference.ReferenceManagerBase.FindShortestPathAsync）。
+    /// <para>
+    /// 注意：原 <c>IShortestPathFinder&lt;TKey&gt;</c> 接口已移除（2026-09-10，M6）——它零接口消费者，
+    /// 消费方始终绕过接口直用本具体类（ReferenceManagerBase / ReferenceGraphEngine），接口无存在价值。
+    /// </para>
+    /// <para>与 <c>RelationalHierarchyTopology.DescendantsAsync</c> 的 BFS 语义不同：本类任意图最短路、后者包含层次展开，不可互相替代。</para>
+    /// </summary>
+    public class DefaultShortestPathFinder<TKey> where TKey : notnull
     {
-        /// <summary>返回 start 到 end 的最短路径节点序列（BFS）；不可达返回空序列。</summary>
-        IReadOnlyList<TKey> FindShortestPath(TKey start, TKey end, Func<TKey, IEnumerable<TKey>> getOutgoingEdges);
-    }
-
-    /// <summary>默认 BFS 最短路径实现（移植自 UniversalReference.ReferenceManagerBase.FindShortestPathAsync）。</summary>
-    public class DefaultShortestPathFinder<TKey> : IShortestPathFinder<TKey> where TKey : notnull
-    {
+        /// <summary>返回 start 到 end 的最短路径节点序列（BFS，无权图最优解）；不可达返回空序列。</summary>
         public IReadOnlyList<TKey> FindShortestPath(TKey start, TKey end, Func<TKey, IEnumerable<TKey>> getOutgoingEdges)
         {
             if (start == null) throw new ArgumentNullException(nameof(start));

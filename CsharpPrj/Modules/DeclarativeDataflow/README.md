@@ -119,6 +119,16 @@ using Modules.DeclarativeDataflow.Serialization;
 var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 ```
 
+## 唯一层次契约（收敛锚点 · M1）
+
+本模块是「**包含层次**」语义域的唯一实现，其余层次（引用空间、trace、UI 树）一律**经窄端口适配器接入，不复制引擎**：
+
+- **唯一层次模型** = `LevelRef` + `HierarchySchema`（寻址 + 层声明）；
+- **唯一窄端口** = `IHierarchyRelationReader`（取子/取父的最小只读接口）；
+- **唯一引擎** = `HierarchyProcessEngine` + `RelationalHierarchyTopology`（遍历 / 护栏 / 聚合）。
+
+任何新层次消费方若需遍历，**必须**实现 `IHierarchyRelationReader` 接入本内核；**禁止**自建平行层次遍历。另两处形似抽象（`Operation.LoopFoldMethod.Reference.IHierarchyContainer<T>`、`Share.TreeTraceFramework`）已被裁决为"未接线端口 / 复活复用对象"，不得当作独立引擎（见文末"遍历/环守卫归属裁决表"）。
+
 ## 接线方式（框架零依赖）
 
 | 端口 | 方向 | 未装配行为 |
@@ -178,6 +188,30 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 
 裁决：**不新增适配器**——新适配器将无消费者，即为死代码，违反 `Strategy.RedundancyElimination` / `@ ANTI-BLOAT` / `@ ANTI-OVER-DESIGN`。
 待 `IHierarchyContainer` 出现**首个真实接线需求**时，再于 `Operation.HierarchyMethod`（同时可见 `LoopFoldMethod` 与 `Modules.DeclarativeDataflow`）落地 `IHierarchyRelationReader` 适配器。
+
+### 层次适配器候选契约（M2 登记 · 按需落地，不预先造）
+
+| 源层次模型 | 适配器 | 建议落点 | 触发条件 |
+|-----------|--------|---------|----------|
+| `Operation.LoopFoldMethod.Reference.IHierarchyContainer<T>` | `ContainerHierarchyReader` | `Operation.HierarchyMethod.Hierarchy.Dataflow` | `LoopFoldMethod.Reference` 出现首个需要层次遍历的消费方 |
+| `Share.TreeTraceFramework.TraceNode` | `TraceHierarchyReader` | 同上（或 `Share.TreeTraceFramework` 若获准引用内核） | `TreeTraceFramework` 被**复活**且需要带护栏遍历（**当前已定复活复用，见 M3**，用时按此接入） |
+| `ResourceIdentifier` 引用图 | `ReferenceHierarchyRelationReader` | `Operation.HierarchyMethod.Hierarchy.Dataflow` | ✅ 已落地 |
+
+> 触发前一律**不写实现**（零消费者即死代码，`@ ANTI-OVER-DESIGN`）；出现真实消费方后再按上表落地。
+
+### 域内结构树归属（M7 收口确认）
+
+「结构树」为**域内单点原语**，各域自持、**不并入本内核**（无实体层次语义，见 §4 边界）：
+
+| 域 | 唯一原语 | 位置 | 状态 |
+|----|----------|------|------|
+| UI 控件树 | `ControlTraverser`（显式栈 DFS + maxDepth） | `Share.ControlLookup` | ✅ 收敛点 |
+| UI 布局树 | `ControlTreeWalker` → 状态抽取**经** `Framework.Tree.TreeWalker` | `Share.LayoutAnalysis` | ✅ 消费者（合规） |
+| JSON 参数树 | `JsonTreeWalker`（值+路径） | `Modules.ParameterResolver` | ✅ 单点保留 |
+| 对象图 | `FullCollectionTraverser`（`ReferenceEqualityComparer` + 回溯） | `Share.UniversalReference` | ✅ 单点保留 |
+| 通用结构树 | `Framework.Tree.TreeWalker<TNode>` | `BasicMethod.Map.GraphFoundation` | ✅ 唯一通用原语 |
+
+**约束**：新增代码**禁止**再声明第 2 个通用 `TreeWalker` / 平行 walker，一律复用上表原语或经其委托。
 
 ## 公理对齐（与 `.clinerules` 的语义衔接）
 

@@ -44,6 +44,9 @@ public sealed class HierarchyManager : IHierarchyManager
     /// <param name="referenceStore">引用图读写端口（可空；反向祖先链查询用，如 ReferenceGrounding.Graph）。</param>
     /// <param name="schema">层次 schema（可空；缺省 = 三层异构 history → task → node）。</param>
     /// <param name="workflowId">节点层工作流命名空间（可空；缺省 = agent-round，对齐 ur_nodes 约定）。</param>
+    /// <param name="observer">可选观测（护栏触发 / 进出节点；缺省 = 不可观测，见 S2）。</param>
+    /// <param name="aggregator">子层结论聚合器（可空；缺省 = AX.ResultComposition：按子层 round argmax 取最新终态，
+    /// 数据面缺失时回退合取，见 S4）。如需改回全合取，显式传 <see cref="Modules.DeclarativeDataflow.Processing.CollectChildResultAggregator.Default"/>。</param>
     public HierarchyManager(
         IHierarchyReferenceManager? reference = null,
         INodeOutputStore? nodes = null,
@@ -53,12 +56,17 @@ public sealed class HierarchyManager : IHierarchyManager
         IHistoryRuntimeService? historyRuntime = null,
         IResourceReferenceStore? referenceStore = null,
         HierarchySchema? schema = null,
-        string? workflowId = null)
+        string? workflowId = null,
+        ILevelProcessObserver? observer = null,
+        IChildResultAggregator? aggregator = null)
     {
         _reference = reference;
         _nodes = nodes;
         _saveTask = saveTask;
         _deleteTask = deleteTask;
+        // S4：默认启用 AX.ResultComposition（子层 round argmax 取最新终态；数据面缺失回退合取）。
+        // 可选参数默认值须为编译时常量，故以 null 占位、此处回退到 ResultCompositionAggregator。
+        var effectiveAggregator = aggregator ?? ResultCompositionAggregator.Default;
         _processing = new Lazy<HierarchyProcessFacade>(() => HierarchyProcessFacade.Create(
             reference: _reference,
             nodeOutputs: _nodes,
@@ -66,6 +74,8 @@ public sealed class HierarchyManager : IHierarchyManager
             historyRuntime: historyRuntime,
             workflowId: workflowId,
             schema: schema ?? HierarchySchemas.HistoryTaskNode,
+            observer: observer,
+            aggregator: effectiveAggregator,
             referenceStore: referenceStore));
         // 任务自递归层次（task → sub-task → … → node）单独装配：schema 不同（含自环），端口与上者同源。
         _taskTreeProcessing = new Lazy<HierarchyProcessFacade>(() => HierarchyProcessFacade.Create(
@@ -75,6 +85,8 @@ public sealed class HierarchyManager : IHierarchyManager
             historyRuntime: historyRuntime,
             workflowId: workflowId,
             schema: HierarchySchemas.TaskTree(CrossDbReferenceTypes.TaskOwnsTask),
+            observer: observer,
+            aggregator: effectiveAggregator,
             referenceStore: referenceStore));
     }
 

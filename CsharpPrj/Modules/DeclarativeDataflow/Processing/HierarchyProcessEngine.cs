@@ -52,8 +52,21 @@ public sealed class HierarchyProcessEngine : IHierarchyProcessEngine
         var effectivePlan = plan ?? HierarchyProcessPlan.Default;
         var budget = effectivePlan.EffectiveBudget;
         var state = new RunState();
-        return await ProcessNodeAsync(root, LevelPath.Root(root), upstream: null, effectivePlan, budget, state, ct)
+        var result = await ProcessNodeAsync(root, LevelPath.Root(root), upstream: null, effectivePlan, budget, state, ct)
             .ConfigureAwait(false);
+        // S3：把本次处理的跳过分账（DAG 共享 / 真环）聚合进根结论 —— 仅在有跳过时注入新键，
+        // 缺省不出现（保持结论阻抗不变），供消费方区分「共享节点」与「真环」。计数取自全局 RunState
+        //（去重拦截 / 环守卫均在子树各处累计），而非仅根节点直接子层，故上卷后仍正确。
+        if (state.SkipShared > 0 || state.SkipCycle > 0)
+        {
+            var payload = new Dictionary<string, object?>(result.PayloadOrEmpty, StringComparer.Ordinal)
+            {
+                ["skippedShared"] = state.SkipShared,
+                ["skippedCycle"] = state.SkipCycle,
+            };
+            return result with { Payload = payload };
+        }
+        return result;
     }
 
     private async Task<LevelProcessResult> ProcessNodeAsync(
@@ -76,7 +89,10 @@ public sealed class HierarchyProcessEngine : IHierarchyProcessEngine
 
         // 去重：同一实体在本次处理中至多处理一次（DAG 共享节点 / 重复抵达归此）。
         if (!state.Visited.Add(node))
+        {
+            state.SkipShared++; // S3：DAG 共享（重复抵达）跳过分账。
             return LevelProcessResult.Skipped("already-visited");
+        }
 
         // 护栏③：节点总数（按实体去重的处理节点数，含根；计数一旦越界即截断，
         // 其后节点必然同样越界且不再展开，故运行走向必然收敛）。
@@ -142,6 +158,7 @@ public sealed class HierarchyProcessEngine : IHierarchyProcessEngine
             if (path.Contains(child))
             {
                 _observer?.OnGuardTriggered(child, "cycle-detected");
+                state.SkipCycle++; // S3：真环跳过分账（环守卫拦截）。
                 results.Add(LevelProcessResult.Skipped("cycle-detected"));
                 continue;
             }
@@ -167,7 +184,7 @@ public sealed class HierarchyProcessEngine : IHierarchyProcessEngine
         return result ?? LevelProcessResult.Failed($"层处理器 '{processor.ProcessId}' 返回 null。");
     }
 
-    /// <summary>单次处理的运行态（去重集 + 节点计数）。</summary>
+    /// <summary>单次处理的运行态（去重集 + 节点计数 + 跳过分账）。</summary>
     private sealed class RunState
     {
         /// <summary>已处理实体（按实体值相等去重，与 Key 字符串编码解耦）。</summary>
@@ -175,5 +192,11 @@ public sealed class HierarchyProcessEngine : IHierarchyProcessEngine
 
         /// <summary>已纳入处理预算的节点数（含根；按实体去重后递增）。</summary>
         public int NodeCount { get; set; }
+
+        /// <summary>S3：DAG 共享跳过计数（already-visited，重复抵达去重）。</summary>
+        public int SkipShared { get; set; }
+
+        /// <summary>S3：真环跳过计数（cycle-detected，环守卫拦截）。</summary>
+        public int SkipCycle { get; set; }
     }
 }

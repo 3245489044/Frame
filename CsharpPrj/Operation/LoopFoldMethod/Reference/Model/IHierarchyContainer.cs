@@ -9,6 +9,11 @@ namespace Operation.LoopFoldMethod.Reference.Model;
 /// 本抽象不复制任何写边逻辑（TH-12 单一实现）。
 /// </summary>
 /// <typeparam name="T">下一层容器类型（History→Task→Node 逐层收窄）。</typeparam>
+/// <remarks>
+/// 本类型现为**零消费者的未接线端口**（设计标注"纯类型，不接线"），已裁决**不预先造适配器**（避免死代码）。
+/// 若将来出现首个真实接线需求，**必须**实现 <c>Modules.DeclarativeDataflow.IHierarchyRelationReader</c>
+/// 接入层次内核、复用其遍历/护栏（M1 收敛锚点），**不得自建层次遍历**。
+/// </remarks>
 public interface IHierarchyContainer<out T>
 {
     /// <summary>本容器的稳定 Id（如 history.{id} / taskKey / wf.node）。</summary>

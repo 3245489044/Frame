@@ -1,4 +1,3 @@
-using Modules.DeclarativeDataflow.Builtin;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Serialization;
 using Operation.DataStoreDriven.Abstractions;
@@ -33,33 +32,27 @@ public static class HierarchySchemas
     /// <summary>节点层默认处理器 Id（节点输出端口投影）。</summary>
     public const string NodeProcessId = "node-output";
 
-    private static readonly HierarchySchema HistoryTaskNodeSchema = HierarchySchemaBuilder
-        .Root(HistoryLevel)
-        .Level(HistoryLevel, HistoryLevel, HistoryProcessId)
-        .Level(TaskLevel, TaskLevel, TaskProcessId)
-        .Level(NodeLevel, NodeLevel, NodeProcessId)
-        .Contains(HistoryLevel, TaskLevel, CrossDbReferenceTypes.HistoryOwnsTask)
-        .Contains(TaskLevel, NodeLevel, CrossDbReferenceTypes.CrossDbLink)
-        .BuildValidated();
+    /// <summary>
+    /// 标准三层异构 schema：history → task → node（node 为叶）。**单一来源**：由声明式 JSON
+    /// <see cref="HistoryTaskNodeJson"/> 解析而来，不再平行维护 builder 形态（消除双形态漂移，
+    /// 配置化后「文件 JSON 解析」与「代码默认值」走同一条 <see cref="FromJson"/> 路径）。
+    /// 惰性求值以规避静态初始化顺序（JSON 字面量声明于其后的静态字段）。
+    /// </summary>
+    private static readonly Lazy<HierarchySchema> HistoryTaskNodeSchema = new(() => FromJson(HistoryTaskNodeJson));
 
-    /// <summary>标准三层异构 schema：history → task → node（node 为叶）。</summary>
-    public static HierarchySchema HistoryTaskNode => HistoryTaskNodeSchema;
+    /// <summary>标准三层异构 schema：history → task → node（node 为叶）。单一来源 = <see cref="HistoryTaskNodeJson"/>。</summary>
+    public static HierarchySchema HistoryTaskNode => HistoryTaskNodeSchema.Value;
 
     /// <summary>
     /// 任务自递归 schema（task 自包含 = 不定深度 sub-task，node 为叶），装载期即校验层图合法性。
+    /// 单一来源 = <see cref="TaskTreeJson"/>：由声明式 JSON 解析，不再平行维护 builder 形态。
     /// <para>图侧须已为 <paramref name="subtaskEdgeType"/> 建立写路径；未建立时子层查询恒为空集，
     /// 引擎按容器层透传（不报错、不阻断）。</para>
     /// </summary>
     public static HierarchySchema TaskTree(string subtaskEdgeType)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subtaskEdgeType);
-        return HierarchySchemaBuilder
-            .Root(TaskLevel)
-            .Level(TaskLevel, TaskLevel, TaskProcessId)
-            .Level(NodeLevel, NodeLevel, NodeProcessId)
-            .Contains(TaskLevel, TaskLevel, subtaskEdgeType)
-            .Contains(TaskLevel, NodeLevel, CrossDbReferenceTypes.CrossDbLink)
-            .BuildValidated();
+        return FromJson(TaskTreeJson(subtaskEdgeType));
     }
 
     /// <summary>

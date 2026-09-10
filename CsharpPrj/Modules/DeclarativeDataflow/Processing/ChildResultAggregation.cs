@@ -63,3 +63,57 @@ public sealed class CollectChildResultAggregator : IChildResultAggregator
             Kind: truncated ? LevelProcessKind.Truncated : LevelProcessKind.Processed);
     }
 }
+
+/// <summary>
+/// AX.ResultComposition 聚合器 —— <c>latest_terminal = argmax_{chain} causal_chain_depth</c>。
+/// <para>
+/// 在本层次引擎中 causal_chain_depth 由子层结论 payload 的 <c>round</c> 键代理
+///（任务层处理器产出推进轮次）：取「推进最深（round 最大）」的子层结论作为最新终态向上代表——
+/// 即「以最深层成功终态为准」，而非「全子层合取才成功」。
+/// </para>
+/// <para>
+/// 数据面缺失（子层全无 round / 全部 round=0）时**回退默认合取**（<see cref="CollectChildResultAggregator"/>），
+/// 保留计数与类别语义，避免在叶 / 非链层无谓地选首个结论（对齐 AX.ResultComposition 的 argmax 前置要求）。
+/// </para>
+/// </summary>
+public sealed class ResultCompositionAggregator : IChildResultAggregator
+{
+    /// <summary>共享实例（无状态）。</summary>
+    public static readonly ResultCompositionAggregator Default = new();
+
+    public LevelProcessResult Aggregate(LevelRef node, IReadOnlyList<LevelProcessResult> childResults)
+    {
+        ArgumentNullException.ThrowIfNull(childResults);
+        if (childResults.Count == 0) return LevelProcessResult.Passed;
+
+        LevelProcessResult? best = null;
+        var bestDepth = int.MinValue;
+        var anyDepth = false;
+        foreach (var result in childResults)
+        {
+            if (result is null) continue;
+            var depth = ExtractDepth(result);
+            if (depth > 0) anyDepth = true;
+            if (depth > bestDepth)
+            {
+                bestDepth = depth;
+                best = result;
+            }
+        }
+
+        // 子层全无链深度（round 缺失 / 全 0）→ 回退默认合取：AX 语义要求 argmax 有可比较的深度，
+        // 缺数据时按合取 + 计数处理（保留既有叶/非链层行为，避免选首个误判为终态）。
+        return best is null || !anyDepth
+            ? CollectChildResultAggregator.Default.Aggregate(node, childResults)
+            : best;
+    }
+
+    /// <summary>因果链深度：读子层结论 payload 的 <c>round</c> 键；缺失 / 非数值 → 0。</summary>
+    private static int ExtractDepth(LevelProcessResult result)
+    {
+        if (result.Payload is null
+            || !result.Payload.TryGetValue("round", out var v)
+            || v is null) return 0;
+        try { return Convert.ToInt32(v); } catch { return 0; }
+    }
+}

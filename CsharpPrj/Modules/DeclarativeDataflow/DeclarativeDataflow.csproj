@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>声明式数据流通用框架（DeclarativeDataflow）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>层次外置的通用多层处理框架：层次（层数/层名/包含关系/每层处理器）由外部 HierarchySchema 声明，引擎按层递归处理并向上聚合。支持层图（异构 N 层）与自环（同构不定深度）统一模型。零 LLM、零领域依赖、可空装配。</ModuleRule_Description>
+    <ModuleRule_Keywords>层次外置;多层处理;层图;自环;Schema;递归遍历;树折叠;LLM-free</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="层次是数据不是类型：层数/层名/包含关系/每层处理器全部由 HierarchySchema 外部声明（新增层=加数据，不改代码）" />
+    <ModuleRule_Rule Include="框架零 LLM、零领域依赖：处理器与关系读取经注入端口提供；未装配即返回诊断/空集，不阻断纯内存路径" />
+    <ModuleRule_Rule Include="框架只做只读遍历与处理编排，不写边：持久化由上层经注入端口完成（SingleImplementation / TH-12）" />
+    <ModuleRule_Rule Include="不定深度必须由 ProcessBudget（节点数 + 深度）+ 环守卫三重护栏收口（信任反转：不信任子层自停）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.DeclarativeDataflow</RootNamespace>
+    <AssemblyName>Modules.DeclarativeDataflow</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>声明式数据流通用框架 — 层次外置的多层处理（层图 + 自环，LLM-free）</Description>
+  </PropertyGroup>
+
+</Project>

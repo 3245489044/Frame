@@ -9,7 +9,7 @@
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
-    <ModuleRule_Rule Include="子项目包括 ComponentData, GraphProcessing, LogicComposition, MetaCommand, Parsing, Pipeline, Registry" />
+    <ModuleRule_Rule Include="子项目包括 ComponentData, DeclarativeDataflow, GraphProcessing, LogicComposition, MetaCommand, Parsing, Pipeline, Registry" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Prompts">
@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="ComponentData\ComponentData.csproj" />
+    <ProjectReference Include="DeclarativeDataflow\DeclarativeDataflow.csproj" />
     <ProjectReference Include="DiagnosticContext\DiagnosticContext.csproj" />
     <ProjectReference Include="EventFramework\EventFramework.csproj" />
     <ProjectReference Include="ExecutionFramework\ExecutionFramework.csproj" />
@@ -48,6 +49,7 @@
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
     <Compile Remove="ComponentData\**\*.cs" />
+    <Compile Remove="DeclarativeDataflow\**\*.cs" />
     <Compile Remove="DiagnosticContext\**\*.cs" />
     <Compile Remove="ExecutionFramework\**\*.cs" />
     <Compile Remove="GraphProcessing\**\*.cs" />

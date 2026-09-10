@@ -60,7 +60,7 @@ namespace Strategy.DecisionRules
         private readonly List<LayerRule> _rules = new();
 
         /// <param name="name">层名（图内唯一）。</param>
-        /// <param name="outputAxis">该层专属输出轴（如 eval_out / terminal / route）。</param>
+        /// <param name="outputAxis">该层专属输出轴（如 eval / terminal / route，或任意域自定义轴名）。</param>
         /// <param name="terminalLabels">命中即吸收并短路下游的标签集（可空）。</param>
         public DecisionLayer(string name, string outputAxis, IEnumerable<string>? terminalLabels = null)
         {

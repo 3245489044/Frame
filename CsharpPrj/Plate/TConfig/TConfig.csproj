@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" />
   </ItemGroup>
 
 </Project>

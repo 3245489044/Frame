@@ -26,8 +26,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="DecisionRules\DecisionRules.csproj" />
-    <ProjectReference Include="Observability\Observability.csproj" />
+    <ProjectReference Include="$(Proj_DecisionRules)" />
+    <ProjectReference Include="$(Proj_Observability)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->

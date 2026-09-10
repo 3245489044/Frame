@@ -11,7 +11,7 @@
 
   <!-- ★ 2026-07-18 添加 TConfig 引用：IDeclaration 继承 TConfig.Declarative.IDeclaration -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

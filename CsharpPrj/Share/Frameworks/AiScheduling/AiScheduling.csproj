@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <!-- 状态宿主契约（IStateFacet / SnapshotTelemetry）下沉至 Share.StateManagement，调度层依赖状态层 -->
-    <ProjectReference Include="..\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="$(Proj_StateManagement)" />
   </ItemGroup>
 
 

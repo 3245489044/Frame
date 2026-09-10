@@ -1,0 +1,139 @@
+{
+  "$schema": "module-paths/v1",
+  "comment": "CsharpPrj 模块目录单一真源。项目名 -> 相对 csproj 路径。修改后运行 Frame/PowerShellScript/Share/Solution/Generate-ModulePaths.ps1 重新生成 generated/Directory.Build.props.modules.generated.props。",
+  "roots": {
+    "Protocol": {
+      "path": "Protocol",
+      "layer": 0
+    },
+    "BasicMethod": {
+      "path": "BasicMethod",
+      "layer": 1
+    },
+    "Modules": {
+      "path": "Modules",
+      "layer": 1
+    },
+    "Plate": {
+      "path": "Plate",
+      "layer": 1
+    },
+    "Share": {
+      "path": "Share",
+      "layer": 2
+    },
+    "Strategy": {
+      "path": "Strategy",
+      "layer": 3
+    },
+    "Operation": {
+      "path": "Operation",
+      "layer": 4
+    }
+  },
+  "exceptions": {
+    "references": [
+      {
+        "from": "CommandFramework",
+        "to": "$(CsharpPrjDir)..\\..\\Projects\\Route\\Route.csproj",
+        "kind": "layer",
+        "reason": "Share->Frame 外：命令配置资源路径经 Route.InformationPaths 解析（CommandSystemBase.cs L97/L110，2026-09-06 路径单一真源收敛 决策A）；待收敛为 Frame 侧抽象 + 组合根注入后移除此例外"
+      }
+    ]
+  },
+  "projects": {
+    "BasicMethod": "BasicMethod\\BasicMethod.csproj",
+    "Common": "BasicMethod\\Common\\Common.csproj",
+    "ContextFrame": "BasicMethod\\ContextFrame\\ContextFrame.csproj",
+    "ECS": "BasicMethod\\ECS\\ECS.csproj",
+    "BasicMethod.Framework.Abstractions": "BasicMethod\\Framework.Abstractions\\BasicMethod.Framework.Abstractions.csproj",
+    "BasicMethod.Framework": "BasicMethod\\Framework\\BasicMethod.Framework.csproj",
+    "JsonUIBeautifier": "BasicMethod\\JsonProcess\\JsonUIBeautifier\\JsonUIBeautifier.csproj",
+    "ProcessJsonConfig": "BasicMethod\\JsonProcess\\ProcessJsonConfig\\ProcessJsonConfig.csproj",
+    "BasicMethod.Logging": "BasicMethod\\Logging\\BasicMethod.Logging.csproj",
+    "Block": "BasicMethod\\Map\\Block\\Block.csproj",
+    "Calculus": "BasicMethod\\Map\\Calculus\\Calculus.csproj",
+    "Container": "BasicMethod\\Map\\Container\\Container.csproj",
+    "DecisionEngine": "BasicMethod\\Map\\DecisionEngine\\DecisionEngine.csproj",
+    "Declarative": "BasicMethod\\Map\\Declarative\\Declarative.csproj",
+    "Functor": "BasicMethod\\Map\\Functor\\Functor.csproj",
+    "GraphFoundation": "BasicMethod\\Map\\GraphFoundation\\GraphFoundation.csproj",
+    "Queue": "BasicMethod\\Map\\Queue\\Queue.csproj",
+    "SortMent": "BasicMethod\\Map\\SortMent\\SortMent.csproj",
+    "StateMachine": "BasicMethod\\Map\\StateMachine\\StateMachine.csproj",
+    "Transformers": "BasicMethod\\Map\\Transformers\\Transformers.csproj",
+    "PathManager": "BasicMethod\\PathManager\\PathManager.csproj",
+    "ReactiveData": "BasicMethod\\ReactiveData\\ReactiveData.csproj",
+    "ReflectionMethod": "BasicMethod\\RefectionMethod\\ReflectionMethod.csproj",
+    "UniversalLayoutMath": "BasicMethod\\UniversalLayout\\UniversalLayoutMath.csproj",
+    "ComponentData": "Modules\\ComponentData\\ComponentData.csproj",
+    "DeclarativeDataflow": "Modules\\DeclarativeDataflow\\DeclarativeDataflow.csproj",
+    "DiagnosticContext": "Modules\\DiagnosticContext\\DiagnosticContext.csproj",
+    "EventFramework": "Modules\\EventFramework\\EventFramework.csproj",
+    "ExecutionFramework": "Modules\\ExecutionFramework\\ExecutionFramework.csproj",
+    "GraphProcessing": "Modules\\GraphProcessing\\GraphProcessing.csproj",
+    "InternalStorage": "Modules\\InternalStorage\\InternalStorage.csproj",
+    "LogicComposition": "Modules\\LogicComposition\\LogicComposition.csproj",
+    "Maintain": "Modules\\Maintain\\Maintain.csproj",
+    "MetaCommand": "Modules\\MetaCommand\\MetaCommand.csproj",
+    "Modules": "Modules\\Modules.csproj",
+    "Observe": "Modules\\Observe\\Observe.csproj",
+    "ParameterResolver": "Modules\\ParameterResolver\\ParameterResolver.csproj",
+    "Parsing": "Modules\\Parsing\\Parsing.csproj",
+    "Pipeline": "Modules\\Pipeline\\Pipeline.csproj",
+    "Registry": "Modules\\Registry\\Registry.csproj",
+    "Threading": "Modules\\Threading\\Threading.csproj",
+    "ValidationFramework": "Modules\\ValidationFramework\\ValidationFramework.csproj",
+    "BackEndDriven": "Operation\\BackEndDriven\\BackEndDriven.csproj",
+    "DataStoreDriven": "Operation\\DataStoreDriven\\DataStoreDriven.csproj",
+    "FrontEndDriven": "Operation\\FrontEndDriven\\FrontEndDriven.csproj",
+    "HierarchyMethod": "Operation\\HierarchyMethod\\HierarchyMethod.csproj",
+    "LoopFoldMethod": "Operation\\LoopFoldMethod\\LoopFoldMethod.csproj",
+    "Operation": "Operation\\Operation.csproj",
+    "StateHoldDriven": "Operation\\StateHoldDriven\\StateHoldDriven.csproj",
+    "FunctionExecutionFramework": "Operation\\WorkFlowMethod\\WorkflowExecution\\FunctionExecutionFramework\\FunctionExecutionFramework.csproj",
+    "WorkFlowMethod": "Operation\\WorkFlowMethod\\WorkFlowMethod.csproj",
+    "DataManage": "Plate\\DataManage\\DataManage.csproj",
+    "DataManage.PathManager": "Plate\\DataManage\\DataManage.PathManager\\DataManage.PathManager.csproj",
+    "DslMethod": "Plate\\DslMethod\\DslMethod.csproj",
+    "HtmlViewer": "Plate\\HtmlViewer\\HtmlViewer.csproj",
+    "HttpMethod.Host": "Plate\\HttpMethod\\HttpMethod.Host.csproj",
+    "HttpMethod.Transport": "Plate\\HttpMethod\\HttpMethod.Transport.csproj",
+    "JsonMethod": "Plate\\JsonMethod\\JsonMethod.csproj",
+    "Logic": "Plate\\Logic\\Logic.csproj",
+    "MarkdownViewer": "Plate\\MarkdownViewer\\MarkdownViewer.csproj",
+    "Mathematics": "Plate\\Mathematics\\Mathematics.csproj",
+    "Plate": "Plate\\Plate.csproj",
+    "ClearCSharpComments": "Plate\\RoslynMethod.Tools\\ClearCSharpComments\\ClearCSharpComments.csproj",
+    "RoslynMethod.Core": "Plate\\RoslynMethod\\RoslynMethod.Core\\RoslynMethod.Core.csproj",
+    "RoslynMethod": "Plate\\RoslynMethod\\RoslynMethod.csproj",
+    "TConfig": "Plate\\TConfig\\TConfig.csproj",
+    "WinFormsValueContract": "Plate\\WinFormsValueContract\\WinFormsValueContract.csproj",
+    "XmlMethod": "Plate\\XmlMethod\\XmlMethod.csproj",
+    "CSG.Unified": "Protocol\\CSG\\CSG.Unified\\CSG.Unified.csproj",
+    "RGE.Unified": "Protocol\\RGE\\RGE.Unified\\RGE.Unified.csproj",
+    "CommandFramework": "Share\\Composition\\CommandFramework\\CommandFramework.csproj",
+    "ControlLookup": "Share\\Composition\\ControlLookup\\ControlLookup.csproj",
+    "PlaceholderFramework": "Share\\Composition\\PlaceholderFramework\\PlaceholderFramework.csproj",
+    "UniversalMiddleware": "Share\\Composition\\UniversalMiddleware\\UniversalMiddleware.csproj",
+    "Share.ConfigurationModels": "Share\\Foundations\\ConfigurationModels\\Share.ConfigurationModels.csproj",
+    "FrameworkAbstractions": "Share\\Foundations\\FrameworkAbstractions\\FrameworkAbstractions.csproj",
+    "ScopeFramework": "Share\\Foundations\\ScopeFramework\\ScopeFramework.csproj",
+    "StateManagement": "Share\\Foundations\\StateManagement\\StateManagement.csproj",
+    "TreeTraceFramework": "Share\\Foundations\\TreeTraceFramework\\TreeTraceFramework.csproj",
+    "AiScheduling": "Share\\Frameworks\\AiScheduling\\AiScheduling.csproj",
+    "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
+    "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
+    "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",
+    "LayoutAnalysis": "Share\\Frameworks\\LayoutAnalysis\\LayoutAnalysis.csproj",
+    "UniversalWorkflowFramework": "Share\\Frameworks\\UniversalReference\\UniversalWorkflowFramework.csproj",
+    "Share.Adapters": "Share\\Orchestration\\Adapters\\Share.Adapters.csproj",
+    "EventBindingOrchestrator": "Share\\Orchestration\\EventBindingOrchestrator\\EventBindingOrchestrator.csproj",
+    "HostAssembly": "Share\\Orchestration\\HostAssembly\\HostAssembly.csproj",
+    "TaskStatusPool": "Share\\Orchestration\\TaskStatusPool\\TaskStatusPool.csproj",
+    "Share": "Share\\Share.csproj",
+    "DecisionRules": "Strategy\\DecisionRules\\DecisionRules.csproj",
+    "Observability": "Strategy\\Observability\\Observability.csproj",
+    "Strategy": "Strategy\\Strategy.csproj"
+  }
+}

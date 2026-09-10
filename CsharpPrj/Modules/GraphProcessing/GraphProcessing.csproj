@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <!-- GraphFoundation、Transformers 已整合到 BasicMethod.csproj -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
   </ItemGroup>
 
 

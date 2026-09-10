@@ -22,10 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
-    <ProjectReference Include="..\..\Plate\RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
-    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
+    <ProjectReference Include="$(Proj_RoslynMethod_Core)" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" />
 
   </ItemGroup>
 

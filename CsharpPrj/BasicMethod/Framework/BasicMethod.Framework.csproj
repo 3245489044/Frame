@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Framework.Abstractions\BasicMethod.Framework.Abstractions.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod_Framework_Abstractions)" />
   </ItemGroup>
 
 </Project>

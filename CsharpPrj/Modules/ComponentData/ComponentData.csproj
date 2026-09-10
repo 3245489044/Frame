@@ -15,13 +15,13 @@
     <!-- 不可变集合（用于 ComponentLifecycleManager） -->
     <PackageReference Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
     <!-- 依赖 ContextFrame（IContext、ContextBase 等上下文抽象） -->
-    <ProjectReference Include="..\..\BasicMethod\ContextFrame\ContextFrame.csproj" />
+    <ProjectReference Include="$(Proj_ContextFrame)" />
     <!-- 依赖 ECS 框架（EntityManager、IEcsComponentReactor 等） -->
-    <ProjectReference Include="..\..\BasicMethod\ECS\ECS.csproj" />
+    <ProjectReference Include="$(Proj_ECS)" />
     <!-- 依赖 FrameworkAbstractions（IComponentEventSource、IComponentLifecycleHandler 等共享抽象） -->
-    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <!-- 依赖 TConfig（TConfig.ECS、TConfig.ContextFrame.Abstractions 等配置抽象） -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

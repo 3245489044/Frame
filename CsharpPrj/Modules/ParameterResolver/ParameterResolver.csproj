@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Plate\Plate.csproj" />
+    <ProjectReference Include="$(Proj_Plate)" />
     <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
   </ItemGroup>
 

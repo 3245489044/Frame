@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>适配器</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>共享适配器：命名管道客户端与连接管理（NamedPipeClient/Manager）及日志查询适配器（LogQueryAdapter），把外部进程通信与日志检索接入命令框架。</ModuleRule_Description>
+    <ModuleRule_Keywords>适配器,命名管道,IPC,日志查询,客户端,命令框架</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -10,11 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\MetaCommand\MetaCommand.csproj" />
-    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
-    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
-    <ProjectReference Include="..\CommandFramework\CommandFramework.csproj" />
-    <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="$(Proj_MetaCommand)" />
+    <ProjectReference Include="$(Proj_Parsing)" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
+    <ProjectReference Include="$(Proj_Diagnostics)" />
   </ItemGroup>
 
 </Project>

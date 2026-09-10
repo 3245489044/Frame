@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>控件查找框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用控件查找框架——将「按名/类型/祖先/后代」多种查找语义统一为「查找源 + 有序聚合器」，供 Share/FrontEndDriven/FileDriven 跨项目收敛 finder 族群。</ModuleRule_Description>
+    <ModuleRule_Keywords>控件,查找,查找源,聚合器,WinForms,通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -12,13 +18,13 @@
 
   <ItemGroup>
     <!-- WinFormsAbstractions：官方单一面 IControlFinder（FrameworkAbstractions） -->
-    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <!-- ECS.Bridge.ControlPool / EntityManager（BasicMethod）：多级查找源 -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
     <!-- IControlRegistry（TConfig）：普通控件索引源 -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
     <!-- IEntityTreeService / IEntityTreeRoot（UniversalMiddleware）：实体树查找源 -->
-    <ProjectReference Include="..\UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="$(Proj_UniversalMiddleware)" />
   </ItemGroup>
 
 </Project>

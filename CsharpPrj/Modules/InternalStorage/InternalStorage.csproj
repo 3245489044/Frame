@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

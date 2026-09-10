@@ -24,9 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
     <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

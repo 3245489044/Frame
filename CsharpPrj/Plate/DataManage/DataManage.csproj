@@ -33,9 +33,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" />
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="DataManage.PathManager\DataManage.PathManager.csproj" />
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_DataManage_PathManager)" />
   </ItemGroup>
 
 </Project>

@@ -13,17 +13,17 @@
 
   <ItemGroup>
     <!-- Common 已整合到 BasicMethod.csproj -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- 引用 TConfig 以使用 IStageCoordinator / StageState -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- StepTimeoutException 实现 IBudgetExhausted：标记接口已下沉 Modules.Threading（叶子层）。TaskStatusPool 反依赖 Pipeline（经 EventBindingOrchestrator）故不能反向引用，直接引 Threading。 -->
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
   </ItemGroup>
 
 </Project>

@@ -13,9 +13,9 @@
 
   <ItemGroup>
     <!-- 复用 LogicComposition 的合并/折叠核心（DefaultChainComposer / CompositionOptions / DuplicateHandling） -->
-    <ProjectReference Include="..\LogicComposition\LogicComposition.csproj" />
+    <ProjectReference Include="$(Proj_LogicComposition)" />
     <!-- 复用 GraphProcessing 的标识归一化与命名能力（IdentifierExtractor / DefaultNameGenerator） -->
-    <ProjectReference Include="..\GraphProcessing\GraphProcessing.csproj" />
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
   </ItemGroup>
 
 </Project>

@@ -43,24 +43,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="DataManage\DataManage.csproj" />
-    <ProjectReference Include="TConfig\TConfig.csproj" />
-    <ProjectReference Include="Mathematics\Mathematics.csproj" />
-    <ProjectReference Include="RoslynMethod\RoslynMethod.csproj" />
-    <ProjectReference Include="JsonMethod\JsonMethod.csproj" />
-    <ProjectReference Include="DslMethod\DslMethod.csproj" />
-    <ProjectReference Include="MarkdownViewer\MarkdownViewer.csproj" />
-    <ProjectReference Include="HtmlViewer\HtmlViewer.csproj" />
-    <ProjectReference Include="HttpMethod\HttpMethod.Transport.csproj" />
+    <ProjectReference Include="$(Proj_DataManage)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
+    <ProjectReference Include="$(Proj_Mathematics)" />
+    <ProjectReference Include="$(Proj_RoslynMethod)" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
+    <ProjectReference Include="$(Proj_DslMethod)" />
+    <ProjectReference Include="$(Proj_MarkdownViewer)" />
+    <ProjectReference Include="$(Proj_HtmlViewer)" />
+    <ProjectReference Include="$(Proj_HttpMethod_Transport)" />
     <!-- ★ HttpMethod.Host（Kestrel 宿主）与 Transport 同族，聚合项目一并承载，供上层直接消费 -->
-    <ProjectReference Include="HttpMethod\HttpMethod.Host.csproj" />
+    <ProjectReference Include="$(Proj_HttpMethod_Host)" />
     <!-- ★ XML/SVG 通用构建框架（XmlMethod）：流式元素构建器 + SVG 便捷工厂，纯字符串输出，零第三方依赖 -->
-    <ProjectReference Include="XmlMethod\XmlMethod.csproj" />
+    <ProjectReference Include="$(Proj_XmlMethod)" />
     <!-- ★ 子项目内独立工程一并纳入 Plate 聚合（其源码目录已被上方 Compile Remove，无重复编译风险） -->
-    <ProjectReference Include="DataManage\DataManage.PathManager\DataManage.PathManager.csproj" />
-    <ProjectReference Include="RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj" />
+    <ProjectReference Include="$(Proj_DataManage_PathManager)" />
+    <ProjectReference Include="$(Proj_RoslynMethod_Core)" />
     <!-- ★ Logic 独立子项目（纯函数逻辑算子库） -->
-    <ProjectReference Include="Logic\Logic.csproj" />
+    <ProjectReference Include="$(Proj_Logic)" />
 
 
   </ItemGroup>

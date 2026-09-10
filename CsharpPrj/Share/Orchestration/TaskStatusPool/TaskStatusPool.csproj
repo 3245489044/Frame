@@ -18,9 +18,9 @@
 
   <ItemGroup>
     <!-- IEventExecutionService（FunctionExecuteMorphism 使用） -->
-    <ProjectReference Include="..\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
     <!-- IControlValueAccessor（ControlPool / ResultWriteMorphism 使用） -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

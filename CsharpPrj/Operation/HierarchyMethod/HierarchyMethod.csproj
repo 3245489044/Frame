@@ -28,27 +28,27 @@
 
   <ItemGroup>
     <!-- 任务池/状态机/循环引擎/确定性核心（TaskStatusPool.TaskPool / Loops / Routing） -->
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
-<ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
+<ProjectReference Include="$(Proj_TaskStatusPool)" />
     <!-- 支撑 DTO（SchedulingMode/DataSpace/DataContract/RuntimeSnapshot，LLM-free 纯数据）；源文件随 HierarchySupport 叶工程并入 Strategy\Observability，命名空间 Share.HierarchySupport 保留 -->
-    <ProjectReference Include="..\..\Strategy\Observability\Observability.csproj" />
+    <ProjectReference Include="$(Proj_Observability)" />
     <!-- 会话消息日志纯逻辑（ConversationLog/ConversationMessage/IHistoryStore） -->
-    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- 节点库/关系库/写边原语（NodeStore/NodeRelationStore/ReferenceGraphCoordinator） -->
-    <ProjectReference Include="..\DataStoreDriven\DataStoreDriven.csproj" />
+    <ProjectReference Include="$(Proj_DataStoreDriven)" />
     <!-- AI 调度状态门面（IStateFacet 等共享状态视图，纯数据/端口） -->
-    <ProjectReference Include="..\..\Share\AiScheduling\AiScheduling.csproj" />
+    <ProjectReference Include="$(Proj_AiScheduling)" />
     <!-- 工作流上下文/循环框架（WorkflowContext/LoopFramework 领域内核类型） -->
-    <ProjectReference Include="..\WorkFlowMethod\WorkFlowMethod.csproj" />
+    <ProjectReference Include="$(Proj_WorkFlowMethod)" />
     <!-- 通用 JSON 条件判定内核（JsonRuleEngine，LLM-free）：HierarchyMethod.Rules 规则评估引擎委托 -->
-    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <ProjectReference Include="$(Proj_Parsing)" />
     <!-- 引用空间抽象（LoopFoldMethod.Reference）：HistoryRelationManager 等编排门面转发到 Reference.Gateways（单一 owner），
          消费方端口（IHistoryRelationManager 等）形态不变；LoopFoldMethod 不反向依赖本模块，无环。 -->
-    <ProjectReference Include="..\LoopFoldMethod\LoopFoldMethod.csproj" />
+    <ProjectReference Include="$(Proj_LoopFoldMethod)" />
     <!-- 平台级统一 JSON 框架（Plate.JsonMethod）：节点输出载荷编解码统一编码（非 ASCII 直出，避免 \uXXXX 转义污染存储） -->
-    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：Hierarchy/Dataflow 层遍历不再手写；单向依赖，框架零项目引用 -->
-    <ProjectReference Include="..\..\Modules\DeclarativeDataflow\DeclarativeDataflow.csproj" />
+    <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
   </ItemGroup>
 
 </Project>

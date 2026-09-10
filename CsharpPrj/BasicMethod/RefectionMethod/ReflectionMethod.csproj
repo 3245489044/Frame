@@ -18,7 +18,7 @@
 
   <!-- 作为 BasicMethod 的引用转发层，不独立编译任何文件 -->
   <ItemGroup>
-    <ProjectReference Include="..\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
   </ItemGroup>
 
 </Project>

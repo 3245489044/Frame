@@ -27,23 +27,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="ComponentData\ComponentData.csproj" />
-    <ProjectReference Include="DeclarativeDataflow\DeclarativeDataflow.csproj" />
-    <ProjectReference Include="DiagnosticContext\DiagnosticContext.csproj" />
-    <ProjectReference Include="EventFramework\EventFramework.csproj" />
-    <ProjectReference Include="ExecutionFramework\ExecutionFramework.csproj" />
-    <ProjectReference Include="GraphProcessing\GraphProcessing.csproj" />
-    <ProjectReference Include="LogicComposition\LogicComposition.csproj" />
-    <ProjectReference Include="MetaCommand\MetaCommand.csproj" />
-    <ProjectReference Include="Parsing\Parsing.csproj" />
-    <ProjectReference Include="Pipeline\Pipeline.csproj" />
-    <ProjectReference Include="Registry\Registry.csproj" />
-    <ProjectReference Include="Threading\Threading.csproj" />
-    <ProjectReference Include="ParameterResolver\ParameterResolver.csproj" />
-    <ProjectReference Include="..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
-    <ProjectReference Include="InternalStorage\InternalStorage.csproj" />
-    <ProjectReference Include="ValidationFramework\ValidationFramework.csproj" />
-    <ProjectReference Include="Observe\Observe.csproj" />
+    <ProjectReference Include="$(Proj_ComponentData)" />
+    <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
+    <ProjectReference Include="$(Proj_DiagnosticContext)" />
+    <ProjectReference Include="$(Proj_EventFramework)" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
+    <ProjectReference Include="$(Proj_LogicComposition)" />
+    <ProjectReference Include="$(Proj_MetaCommand)" />
+    <ProjectReference Include="$(Proj_Parsing)" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_Registry)" />
+    <ProjectReference Include="$(Proj_Threading)" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
+    <ProjectReference Include="$(Proj_WinFormsValueContract)" />
+    <ProjectReference Include="$(Proj_InternalStorage)" />
+    <ProjectReference Include="$(Proj_ValidationFramework)" />
+    <ProjectReference Include="$(Proj_Observe)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->

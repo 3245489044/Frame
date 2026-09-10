@@ -11,71 +11,71 @@
 
   <ItemGroup>
     <!-- 管线引擎 -->
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
 
     <!-- 命令框架 -->
-    <ProjectReference Include="..\..\Share\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
 
     <!-- 执行框架 -->
-    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
 
     <!-- 基础方法（SkeletonFlow） -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
 
     <!-- 框架抽象 -->
-    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
 
     <!-- ★ INonEventCommandRegistry 已迁移至 CommandFramework.Abstractions，不再需要直接引用 FunctionStorage -->
     <!-- <ProjectReference Include="..\FunctionStorage\FunctionStorage.csproj" /> -->
 
     <!-- 事件绑定编排器（IEventExecutionService 等抽象接口） -->
-    <ProjectReference Include="..\..\Share\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
 
     <!-- ★ 2026-07-02 新增：Modules.Registry（IFunctionRegistry 等统一注册表接口） -->
-    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+    <ProjectReference Include="$(Proj_Registry)" />
 
     <!-- ★ 2026-07-14 恢复：BackEndDrivenBuilder.WithWorkflowMethodExecution() 直接 new WorkflowMethodExecutionWorkflow，需要编译时引用 -->
-    <ProjectReference Include="..\WorkFlowMethod\WorkFlowMethod.csproj" />
+    <ProjectReference Include="$(Proj_WorkFlowMethod)" />
 
     <!-- ================================================================ -->
     <!-- ★ 2026-07-05 合并：EventTriggerFramework 原依赖的额外 ProjectReference -->
     <!-- ================================================================ -->
 
     <!-- 元命令系统 -->
-    <ProjectReference Include="..\..\Modules\MetaCommand\MetaCommand.csproj" />
+    <ProjectReference Include="$(Proj_MetaCommand)" />
 
     <!-- 线程框架（ReentryGuard 重入守卫） -->
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
 
     <!-- 占位符框架 -->
-    <ProjectReference Include="..\..\Share\PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="$(Proj_PlaceholderFramework)" />
 
     <!-- 通用中间件 -->
-    <ProjectReference Include="..\..\Share\UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="$(Proj_UniversalMiddleware)" />
 
     <!-- 解析系统 -->
-    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <ProjectReference Include="$(Proj_Parsing)" />
 
     <!-- TConfig 统一控件值读写接口 -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
 
     <!-- Container 执行容器（IExecutionCell 等抽象接口） -->
     <ProjectReference Include="$(BasicMethodRoot)Container\Container.csproj" />
 
     <!-- ★ 2026-07-06 新增：TaskStatusPool（池 + 态射 + 上下文，用于跨模块多控件读写） -->
-    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
 
     <!-- ★ 2026-07-07 新增：DiagnosticContext（结构化日志事件收集） -->
-    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+    <ProjectReference Include="$(Proj_DiagnosticContext)" />
 
     <!-- ★ 2026-07-08 新增：EventFramework（通用事件总线框架，从 EventBindingOrchestrator 提取） -->
-    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
-    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="$(Proj_EventFramework)" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
 
     <!-- ★ 2026-07-12 新增：Plate.JsonMethod（JsonSerializerFactory.LogExport 用于降级路径日志序列化） -->
-    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- ★ 2026-08-07 新增：ComponentData（响应式 ComponentDataStore，await 命令订阅 control:{name} 发布流） -->
-    <ProjectReference Include="..\..\Modules\ComponentData\ComponentData.csproj" />
+    <ProjectReference Include="$(Proj_ComponentData)" />
 
 
   </ItemGroup>

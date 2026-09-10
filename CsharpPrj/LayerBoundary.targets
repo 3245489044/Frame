@@ -1,0 +1,67 @@
+<Project>
+
+  <!-- ============================================================
+       Frame/CsharpPrj 层边界守卫（LayerBoundary）
+
+       规则（基线：2026-09-10 确认）：
+         Share 层只允许引用 BasicMethod / Modules / Plate / Protocol；
+         禁止引用 Strategy / Operation；
+         禁止跨出 CsharpPrj（引用 Frame 之外的产品工程）。
+
+       与 Projects\ReferenceBoundary.targets 互补：后者守「非 Frame 工程不得源引用 Frame」，
+       本守卫守「Frame 内部 Share 层出口」。两者共存不重叠。
+
+       属性（可在工程/命令行以 -p: 覆盖）：
+         LayerBarrier_Enforce        error|warn|off，默认 error
+         LayerBarrier_ExceptionPaths 已登记例外（小写绝对路径，分号分隔），
+                                     与 CsharpPrj\modules.json exceptions.references 一一对应
+         LayerBarrier_Verbose        true 时输出合规消息
+
+       全量离线校验（四类检查 + 例外 + 孤儿 + 反向引用报告）：
+         Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1 -Check
+       ============================================================ -->
+  <PropertyGroup>
+    <LayerBarrier_Enforce Condition="'$(LayerBarrier_Enforce)' == ''">error</LayerBarrier_Enforce>
+    <!-- 路径判定统一转小写，避免 Windows 路径大小写不一致导致守卫静默失效（fail-open） -->
+    <_LB_ShareRoot>$([System.String]::Copy('$(ModDir_Share)').ToLowerInvariant())</_LB_ShareRoot>
+    <_LB_StrategyRoot>$([System.String]::Copy('$(ModDir_Strategy)').ToLowerInvariant())</_LB_StrategyRoot>
+    <_LB_OperationRoot>$([System.String]::Copy('$(ModDir_Operation)').ToLowerInvariant())</_LB_OperationRoot>
+    <_LB_CsharpPrjRoot>$([System.String]::Copy('$(CsharpPrjDir)').ToLowerInvariant())</_LB_CsharpPrjRoot>
+    <!-- 已登记例外的绝对路径（小写）。每一项都必须有 modules.json 中的 reason 佐证。 -->
+    <LayerBarrier_ExceptionRoute Condition="'$(LayerBarrier_ExceptionRoute)' == ''">$([System.IO.Path]::GetFullPath('$(CsharpPrjDir)..\..\Projects\Route\Route.csproj').ToLowerInvariant())</LayerBarrier_ExceptionRoute>
+  </PropertyGroup>
+
+  <Target Name="EnforceLayerBoundary" BeforeTargets="ResolveProjectReferences"
+          Condition="'$(LayerBarrier_Enforce)' != 'off'
+                     And '@(ProjectReference)' != ''
+                     And '$(_LB_ShareRoot)' != ''
+                     And $([System.String]::Copy('$(MSBuildProjectDirectory)').ToLowerInvariant().StartsWith('$(_LB_ShareRoot)'))">
+
+    <ItemGroup>
+      <_LB_Violation Remove="@(_LB_Violation)" />
+
+      <!-- 违规一：Share 引用 Strategy / Operation -->
+      <_LB_Violation Include="@(ProjectReference)"
+          Condition="$([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().StartsWith('$(_LB_StrategyRoot)'))
+                  Or $([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().StartsWith('$(_LB_OperationRoot)'))" />
+
+      <!-- 违规二：Share 跨出 CsharpPrj（已登记例外除外） -->
+      <_LB_Violation Include="@(ProjectReference)"
+          Condition="!$([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().StartsWith('$(_LB_CsharpPrjRoot)'))
+                 And !$([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().Equals('$(LayerBarrier_ExceptionRoute)'))" />
+    </ItemGroup>
+
+    <Error Condition="'@(_LB_Violation)' != '' And '$(LayerBarrier_Enforce)' == 'error'"
+           Code="LB0001"
+           Text="[LayerBoundary] $(MSBuildProjectName) 违反 Share 层出口规则：@(_LB_Violation->'&quot;%(Filename)&quot;', ', ')。Share 只允许引用 BasicMethod/Modules/Plate/Protocol；例外须登记于 CsharpPrj\modules.json exceptions.references。" />
+
+    <Warning Condition="'@(_LB_Violation)' != '' And '$(LayerBarrier_Enforce)' == 'warn'"
+             Code="LB0001"
+             Text="[LayerBoundary] (warn) $(MSBuildProjectName) 违反 Share 层出口规则：@(_LB_Violation->'&quot;%(Filename)&quot;', ', ')。" />
+
+    <Message Condition="'@(_LB_Violation)' == '' And '$(LayerBarrier_Verbose)' == 'true'"
+             Importance="high"
+             Text="[LayerBoundary] $(MSBuildProjectName) 出口引用合规。" />
+  </Target>
+
+</Project>

@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用中间件</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用 JSON 中间件框架——统一项目中所有 JSON 处理模式为可组合管线（链/容器/转换/序列化/渲染/事件管线等）。</ModuleRule_Description>
+    <ModuleRule_Keywords>中间件,JSON,管线,链,转换,序列化,渲染</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -31,23 +37,23 @@
 
   <ItemGroup>
     <!-- Common 已整合到 BasicMethod.csproj（保留别名避免命名空间冲突） -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj">
+    <ProjectReference Include="$(Proj_BasicMethod)">
       <Aliases>CommonLib</Aliases>
     </ProjectReference>
 
     <!-- Common 程序集（SystemJsonFramework 等基础序列化工具） -->
-    <ProjectReference Include="..\..\BasicMethod\Common\Common.csproj">
+    <ProjectReference Include="$(Proj_Common)">
       <Aliases>CommonAssembly</Aliases>
     </ProjectReference>
 
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
-    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
-    <ProjectReference Include="ConfigurationModels\Share.ConfigurationModels.csproj" />
-    <ProjectReference Include="..\CommandFramework\CommandFramework.csproj" />
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_EventFramework)" />
+    <ProjectReference Include="$(Proj_Share_ConfigurationModels)" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
 
     <!-- ★ 2026-07-12 新增：直接引用 Plate.JsonMethod -->
-    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
   </ItemGroup>
 
   <!-- ★ ConfigurationModels 目录中的源文件已移至 Share.ConfigurationModels 项目，此处排除避免类型冲突 -->

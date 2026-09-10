@@ -43,19 +43,19 @@
 
   <ItemGroup>
     <!-- 决策域权威（LoopDecision/SnapshotDrivenLoopEngine）：Share.TaskStatusPool.Loops（唯一依赖，纯折叠无调度耦合） -->
-    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
 
     <!-- 算子层复用（BasicMethod.Calculus，方案 A 薄适配）：Adapters/ 三个适配器引用其算子（IEvolver/IConverger/IIntegrator）；
          只引算子不迁移引擎，EvolveUntilConverged 不充当 FoldEngine（引擎推进仍在 FoldEngine/SnapshotDrivenLoopEngine） -->
-    <ProjectReference Include="..\..\BasicMethod\Map\Calculus\Calculus.csproj" />
+    <ProjectReference Include="$(Proj_Calculus)" />
 
     <!-- 引用空间抽象（Reference/）：边类型常量委托 + 写边原语/读边端口（IReferenceMaintenance / IResourceReferenceStore）。
          Reference 只编排/投影/纯推演，写边唯一 owner 仍在 DataStoreDriven 图协调器（TH-12），本引用仅消费其契约。 -->
-    <ProjectReference Include="..\DataStoreDriven\DataStoreDriven.csproj" />
+    <ProjectReference Include="$(Proj_DataStoreDriven)" />
 
     <!-- 有界守卫归一（A₀）：ActionPoint 单次 HandleAsync 的有界执行上收 Modules.Threading.Bounded（BoundedExecution，
          协作取消 + 自身预算耗尽抛强类型 BoundedTimeoutException；外层取消一律上抛 OCE 不误报超时）。Threading 为叶子模块，无环。 -->
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
   </ItemGroup>
 
 </Project>

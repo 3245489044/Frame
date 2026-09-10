@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="..\..\BasicMethod\Map\Queue\Queue.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_Queue)" />
   </ItemGroup>
 
   <ItemGroup>

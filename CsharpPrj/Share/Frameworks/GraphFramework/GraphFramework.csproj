@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>图框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用图框架：图模型与快照、ECS 图、分析、指令、执行与桥接，提供图构建与遍历的通用能力。</ModuleRule_Description>
+    <ModuleRule_Keywords>图,模型,快照,ECS,分析,指令,执行</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -10,13 +16,13 @@
 
   <ItemGroup>
     <!-- GraphFoundation 已整合到 BasicMethod.csproj -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
 
     <!-- 引用 Dispose.GraphProcessing 以复用实现层（归一化、编排、引用处理等） -->
-    <ProjectReference Include="..\..\Modules\GraphProcessing\GraphProcessing.csproj" />
-    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <!-- 引用 Modules.Pipeline 以复用通用管线框架（IPipeline、PipelineBase、PipelineContext 等） -->
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
   </ItemGroup>
 
 </Project>

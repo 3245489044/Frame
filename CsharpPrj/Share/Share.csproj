@@ -14,55 +14,35 @@
     <RootNamespace>Share</RootNamespace>
     <AssemblyName>Share</AssemblyName>
     <Description>Share 聚合项目 - 引用 Share 目录下所有子项目</Description>
+    <!-- 聚合项目不含自有源码：关闭默认通配，避免把分组子目录中的 .cs 误编译进 Share.dll（替代原先 19 条 <Compile Remove>） -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Adapters\Share.Adapters.csproj" />
-    <ProjectReference Include="CommandFramework\CommandFramework.csproj" />
-    <ProjectReference Include="Conversation\Share.Conversation.csproj" />
+    <ProjectReference Include="$(Proj_Share_Adapters)" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- ★ HierarchySupport 叶工程已整项目并入 Strategy\Observability（命名空间 Share.HierarchySupport 保留，源文件随迁）；本聚合不再承载该子项 -->
-    <ProjectReference Include="Diagnostics\Diagnostics.csproj" />
-    <ProjectReference Include="FrameworkAbstractions\FrameworkAbstractions.csproj" />
-    <ProjectReference Include="GraphFramework\GraphFramework.csproj" />
-    <ProjectReference Include="LayoutAnalysis\LayoutAnalysis.csproj" />
-    <ProjectReference Include="PlaceholderFramework\PlaceholderFramework.csproj" />
-    <ProjectReference Include="StateManagement\StateManagement.csproj" />
-    <ProjectReference Include="TreeTraceFramework\TreeTraceFramework.csproj" />
-    <ProjectReference Include="UniversalMiddleware\UniversalMiddleware.csproj" />
-    <ProjectReference Include="UniversalReference\UniversalWorkflowFramework.csproj" />
-    <ProjectReference Include="EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
-    <ProjectReference Include="TaskStatusPool\TaskStatusPool.csproj" />
-    <ProjectReference Include="AiScheduling\AiScheduling.csproj" />
-    <ProjectReference Include="ControlLookup\ControlLookup.csproj" />
-    <ProjectReference Include="ScopeFramework\ScopeFramework.csproj" />
+    <ProjectReference Include="$(Proj_Diagnostics)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
+    <ProjectReference Include="$(Proj_GraphFramework)" />
+    <ProjectReference Include="$(Proj_LayoutAnalysis)" />
+    <ProjectReference Include="$(Proj_PlaceholderFramework)" />
+    <ProjectReference Include="$(Proj_StateManagement)" />
+    <ProjectReference Include="$(Proj_TreeTraceFramework)" />
+    <ProjectReference Include="$(Proj_UniversalMiddleware)" />
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+    <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <ProjectReference Include="$(Proj_AiScheduling)" />
+    <ProjectReference Include="$(Proj_ControlLookup)" />
+    <ProjectReference Include="$(Proj_ScopeFramework)" />
     <!-- ★ HostAssembly 通用宿主装配框架：与 Share 家族其他子项目一致，聚合项目引用并排除其源码，避免类型在 Share.dll 重复编译（CS0433） -->
-    <ProjectReference Include="HostAssembly\HostAssembly.csproj" />
-    <ProjectReference Include="UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
+    <ProjectReference Include="$(Proj_HostAssembly)" />
+    <ProjectReference Include="$(Proj_Share_ConfigurationModels)" />
   </ItemGroup>
 
-  <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
-  <ItemGroup>
-    <Compile Remove="Adapters\**\*.cs" />
-    <Compile Remove="CommandFramework\**\*.cs" />
-    <Compile Remove="Conversation\**\*.cs" />
-
-    <Compile Remove="Diagnostics\**\*.cs" />
-    <Compile Remove="FrameworkAbstractions\**\*.cs" />
-    <Compile Remove="GraphFramework\**\*.cs" />
-    <Compile Remove="LayoutAnalysis\**\*.cs" />
-    <Compile Remove="ParameterResolver\**\*.cs" />
-    <Compile Remove="PlaceholderFramework\**\*.cs" />
-    <Compile Remove="StateManagement\**\*.cs" />
-    <Compile Remove="TreeTraceFramework\**\*.cs" />
-    <Compile Remove="UniversalMiddleware\**\*.cs" />
-    <Compile Remove="UniversalReference\**\*.cs" />
-    <Compile Remove="EventBindingOrchestrator\**\*.cs" />
-    <Compile Remove="TaskStatusPool\**\*.cs" />
-    <Compile Remove="AiScheduling\**\*.cs" />
-    <Compile Remove="ControlLookup\**\*.cs" />
-    <Compile Remove="ScopeFramework\**\*.cs" />
-    <Compile Remove="HostAssembly\**\*.cs" />
-  </ItemGroup>
+  <!-- 子项目源码排除由上方 EnableDefaultCompileItems=false 统一承担（不再逐条 <Compile Remove>） -->
 
 </Project>
 

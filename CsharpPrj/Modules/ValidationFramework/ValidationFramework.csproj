@@ -11,9 +11,9 @@
 
   <ItemGroup>
     <!-- 声明式约束层：IConstraint<T> / DeclarationValidator 等 -->
-    <ProjectReference Include="..\..\BasicMethod\Map\Declarative\Declarative.csproj" />
+    <ProjectReference Include="$(Proj_Declarative)" />
     <!-- 执行管线：复用 ExecutionPipeline 的单规则隔离/重试/条件跳过能力 -->
-    <ProjectReference Include="..\..\BasicMethod\Map\Block\Block.csproj" />
+    <ProjectReference Include="$(Proj_Block)" />
   </ItemGroup>
 
 </Project>

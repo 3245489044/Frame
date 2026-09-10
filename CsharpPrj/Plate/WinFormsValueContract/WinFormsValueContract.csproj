@@ -15,11 +15,11 @@
 
   <ItemGroup>
     <!-- 值语义契约（TConfig.Controls：ValueSemantic/ControlValueContract/ValueAccessor/IControlService） -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
     <!-- MarkdownViewer 控件值契约（markdownviewer → WebView2 SetMarkdownAsync 渲染） -->
-    <ProjectReference Include="..\..\Plate\MarkdownViewer\MarkdownViewer.csproj" />
+    <ProjectReference Include="$(Proj_MarkdownViewer)" />
     <!-- HtmlViewer 主题模式（BuiltInValueContracts 的 html 值契约使用 ThemeMode） -->
-    <ProjectReference Include="..\..\Plate\HtmlViewer\HtmlViewer.csproj" />
+    <ProjectReference Include="$(Proj_HtmlViewer)" />
 
   </ItemGroup>
 

@@ -12,9 +12,9 @@
 
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
     <!-- S1: ControlPool 复用 StorageBidirectionalExtensions（Modules.InternalStorage），消除双向映射重复实现 -->
-    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+    <ProjectReference Include="$(Proj_InternalStorage)" />
   </ItemGroup>
 
 </Project>

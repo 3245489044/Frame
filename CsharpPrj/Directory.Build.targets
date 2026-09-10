@@ -1,5 +1,10 @@
 <Project>
 
+  <!-- ★ 层边界守卫：Share 层出口规则（禁止引用 Strategy/Operation/Frame 外）。
+       与 Projects\ReferenceBoundary.targets（非 Frame 工程不得源引用 Frame）互补。
+       全量离线校验：PowerShellScript\Share\Solution\Test-ProjectReferences.ps1 -Check -->
+  <Import Project="LayerBoundary.targets" Condition="Exists('$(MSBuildThisFileDirectory)LayerBoundary.targets')" />
+
   <UsingTask TaskName="FilterDeletableFiles"
              TaskFactory="RoslynCodeTaskFactory"
              AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">

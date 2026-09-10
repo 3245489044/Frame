@@ -30,29 +30,29 @@
 
   <ItemGroup>
     <!-- 内存后盾：InternalStorage（StorageEngine/StorageCell/StorageRegistry，三层存储 + DataChanged） -->
-    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+    <ProjectReference Include="$(Proj_InternalStorage)" />
     <!-- 管线框架：门面初始化/批量对账等顺序步骤编排用 StaticAsyncPipeline / 组合子（Modules/Pipeline） -->
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
     <!-- 关系/图与资源模型（IUniversalReferenceManager / Resource / ResourceIdentifier） -->
-    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" />
-    <ProjectReference Include="..\..\Plate\DataManage\DataManage.csproj" />
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+    <ProjectReference Include="$(Proj_DataManage)" />
     <!-- 单写通道 host（ThreadingSqliteWriteHost）的并发原语（SingleWriterActor）：IoC 倒置后 DataManage 只依赖其 ISqliteWriteHost 端口，
          基于 Modules.Threading 的实现由本模块（DataStoreDriven 组合根）提供并注入（DataManage 不再 import Threading）。 -->
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
     <!-- 引用 Schema（ReferenceSchema DSL 编译模型：ReferenceSchema/ReferenceEdgeType） -->
-    <ProjectReference Include="..\..\Plate\DslMethod\DslMethod.csproj" />
+    <ProjectReference Include="$(Proj_DslMethod)" />
     <!-- 平台级统一 JSON 框架（Layer 6）：Core 的序列化/反序列化统一委托 Plate.JsonMethod（JsonSerializationService + JsonSerializerFactory），
         收敛 NodeCheckpointStore / NodeRelationDeriver 手写的 try/catch 安全反序列化（SingleImplementation）。 -->
-    <ProjectReference Include="..\..\Plate\JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 任务池持久化端口契约（SqliteTaskPoolStore 实现 Share.TaskStatusPool.TaskPool.ITaskPoolPersistence）。
         Share/TaskStatusPool 为 Share 层通用基础框架，非 Agent 项目，本模块保持 Agent-无关（依赖方向 Operation → Share 合法）。 -->
-    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
-    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <ProjectReference Include="$(Proj_StateManagement)" />
     <!-- 会话历史容器契约（SqliteHistoryStore 实现 Share.Conversation.IHistoryStore；History=Task 更上层的 class 容器，落 ur_histories）。
         Share/Conversation 为 Share 层纯逻辑（ConversationLog 等），非 Agent 项目，依赖方向 Operation → Share 合法。 -->
-    <ProjectReference Include="..\..\Share\Conversation\Share.Conversation.csproj" />
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- 内存邻接图引擎（CoreGraph）：GraphIndexedResourceReferenceStore 的 hot 查询层（GraphFoundation 仅依赖 System.Reactive，无环） -->
-    <ProjectReference Include="..\..\BasicMethod\Map\GraphFoundation\GraphFoundation.csproj" />
+    <ProjectReference Include="$(Proj_GraphFoundation)" />
   </ItemGroup>
 
   <ItemGroup>

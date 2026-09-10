@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>作用域框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>任务中心多层作用域封装框架——高层命令到短路步骤链再到既有 action 单 JSON 序列的纯逻辑翻译器（零 Agent 依赖，可直测）。</ModuleRule_Description>
+    <ModuleRule_Keywords>作用域,多层,命令,步骤链,JSON,翻译器</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>

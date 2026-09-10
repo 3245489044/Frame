@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>事件绑定编排器</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>事件绑定编排器：把声明式事件/命令绑定（Declarative/CSG）编译并编排到通用中间件与命令框架，统一事件管线装配。</ModuleRule_Description>
+    <ModuleRule_Keywords>事件绑定,编排,声明式,中间件,命令,装配</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -9,23 +15,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
     <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
-    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
-    <ProjectReference Include="..\PlaceholderFramework\PlaceholderFramework.csproj" />
-    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
-    <ProjectReference Include="..\CommandFramework\CommandFramework.csproj" />
-    <ProjectReference Include="..\UniversalMiddleware\ConfigurationModels\Share.ConfigurationModels.csproj" />
-    <ProjectReference Include="..\UniversalMiddleware\UniversalMiddleware.csproj" />
-    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
-    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
-    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
-    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
-    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
-    <ProjectReference Include="..\..\Modules\InternalStorage\InternalStorage.csproj" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_Parsing)" />
+    <ProjectReference Include="$(Proj_Threading)" />
+    <ProjectReference Include="$(Proj_PlaceholderFramework)" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
+    <ProjectReference Include="$(Proj_Share_ConfigurationModels)" />
+    <ProjectReference Include="$(Proj_UniversalMiddleware)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" />
+    <ProjectReference Include="$(Proj_DiagnosticContext)" />
+    <ProjectReference Include="$(Proj_EventFramework)" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
+    <ProjectReference Include="$(Proj_InternalStorage)" />
   </ItemGroup>
 
   <ItemGroup>

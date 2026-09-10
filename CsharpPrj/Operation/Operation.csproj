@@ -27,13 +27,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="FrontEndDriven\FrontEndDriven.csproj" />
-    <ProjectReference Include="BackEndDriven\BackEndDriven.csproj" />
-    <ProjectReference Include="WorkFlowMethod\WorkFlowMethod.csproj" />
-    <ProjectReference Include="StateHoldDriven\StateHoldDriven.csproj" />
-    <ProjectReference Include="DataStoreDriven\DataStoreDriven.csproj" />
-    <ProjectReference Include="HierarchyMethod\HierarchyMethod.csproj" />
-    <ProjectReference Include="LoopFoldMethod\LoopFoldMethod.csproj" />
+    <ProjectReference Include="$(Proj_FrontEndDriven)" />
+    <ProjectReference Include="$(Proj_BackEndDriven)" />
+    <ProjectReference Include="$(Proj_WorkFlowMethod)" />
+    <ProjectReference Include="$(Proj_StateHoldDriven)" />
+    <ProjectReference Include="$(Proj_DataStoreDriven)" />
+    <ProjectReference Include="$(Proj_HierarchyMethod)" />
+    <ProjectReference Include="$(Proj_LoopFoldMethod)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->

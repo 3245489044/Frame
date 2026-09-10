@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>命令框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用命令执行框架：命令字符串解析、注册、管线执行到结果返回的完整生命周期，含抽象/执行/调用/模型/参数/校验等子域。</ModuleRule_Description>
+    <ModuleRule_Keywords>命令,解析,注册,执行,管线,校验,通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -18,25 +24,25 @@
 
   <ItemGroup>
     <!-- 原有 CommandFramework 依赖 -->
-    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
-    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
-    <ProjectReference Include="..\FrameworkAbstractions\FrameworkAbstractions.csproj" />
-    <ProjectReference Include="..\..\Modules\Parsing\Parsing.csproj" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_Registry)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
+    <ProjectReference Include="$(Proj_Parsing)" />
 
     <!-- TConfig 统一控件值读写接口 -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
 
     <!-- WorkflowExecution 合并过来的依赖 -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="..\StateManagement\StateManagement.csproj" />
-    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
-    <ProjectReference Include="..\GraphFramework\GraphFramework.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_StateManagement)" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
+    <ProjectReference Include="$(Proj_GraphFramework)" />
 
     <!-- ★ 2026-09-06：路径单一真源收敛 —— 命令配置解析经 Route.InformationPaths（锚定 Projects\Information\DrivenConfig），
          替代 CommandSystemBase.ResolveConfigPath 旧硬编码 projectRoot\FileDriven\DrivenConfig（该目录已迁移迁空）。
          决策 A（2026-09-05-路径收敛设计 §四）：Route 为自包含零依赖共享核心，FileDriven 薄启动层白名单保留其 dll。 -->
-    <ProjectReference Include="..\..\..\..\Projects\Route\Route.csproj" />
+    <ProjectReference Include="$(CsharpPrjDir)..\..\Projects\Route\Route.csproj" />
 
 
     <!-- ★ 2026-07-05 新增：Container 通用执行容器框架引用

@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>框架抽象</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>框架抽象基座：组件注册表、容器抽象、引导、配置、数据绑定、控制/布局抽象、线程、错误处理、模式与 WinForms 抽象等通用契约。</ModuleRule_Description>
+    <ModuleRule_Keywords>抽象,契约,组件注册,容器,引导,数据绑定,线程,错误处理</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -14,11 +20,11 @@
 
   <ItemGroup>
     <!-- Framework.Abstractions 和 Framework 已整合到 BasicMethod.csproj -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
     <!-- TConfig 统一控件值读写接口 -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
     <!-- DiagnosticContext 诊断上下文 -->
-    <ProjectReference Include="..\..\Modules\DiagnosticContext\DiagnosticContext.csproj" />
+    <ProjectReference Include="$(Proj_DiagnosticContext)" />
   </ItemGroup>
 
 </Project>

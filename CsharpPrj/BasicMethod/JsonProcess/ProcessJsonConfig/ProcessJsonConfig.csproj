@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <!-- Program.cs 消费 PathManager.FileDrivenPaths（namespace PathManager，BasicMethod\PathManager）；缺引用导致 CS0103 且阻断 CsharpPrj(MainProj.sln) 权威烘焙 -->
-    <ProjectReference Include="..\..\PathManager\PathManager.csproj" />
-    <ProjectReference Include="..\JsonUIBeautifier\JsonUIBeautifier.csproj" />
+    <ProjectReference Include="$(Proj_PathManager)" />
+    <ProjectReference Include="$(Proj_JsonUIBeautifier)" />
   </ItemGroup>
 
 </Project>

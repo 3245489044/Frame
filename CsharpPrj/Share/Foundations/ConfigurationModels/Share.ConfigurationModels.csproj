@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>配置模型</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>共享配置模型库——纯 POCO，无任何 UI 框架依赖。</ModuleRule_Description>
+    <ModuleRule_Keywords>配置,模型,POCO,共享,无依赖</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -15,10 +21,10 @@
 
   <ItemGroup>
     <!-- 仅依赖 UniversalLayoutMath（纯数学库，不依赖 BasicMethod） -->
-    <ProjectReference Include="..\..\..\BasicMethod\UniversalLayout\UniversalLayoutMath.csproj" />
+    <ProjectReference Include="$(Proj_UniversalLayoutMath)" />
     <!-- ★ 2026-07-04 新增：引用 CSG.Unified 以使用 ParameterBinding 参数契约类型 -->
-    <ProjectReference Include="..\..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" />
     <!-- ★ 2026-07-15 新增：引用 TConfig 以使用 WorkflowDefinitionEntry 类型 -->
-    <ProjectReference Include="..\..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 </Project>

@@ -52,17 +52,17 @@
 
   <ItemGroup>
     <!-- Common、Logging、StateMachine 已整合到 BasicMethod.csproj -->
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="..\Parsing\Parsing.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_Parsing)" />
     <!-- TConfig 统一控件值读写接口 -->
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_TConfig)" />
     <!-- Threading 框架（ReentryGuard 重入守卫） -->
-    <ProjectReference Include="..\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
     <!-- ★ 2026-08-06 新增：值语义契约层（P4 单轨化）——WinFormsControlService 的控件值适配器表
          迁出为委托 ControlValueBridge（ValueContractRegistry），消除 MetaCommand 侧"每种 UI 单独适配"残留 -->
-    <ProjectReference Include="..\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
     <!-- ★ WinForms 值语义后端：WinFormsControlService 默认后端 ControlValueBridge 已从 ParameterResolver 分离至此 -->
-    <ProjectReference Include="..\..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="$(Proj_WinFormsValueContract)" />
   </ItemGroup>
 
 

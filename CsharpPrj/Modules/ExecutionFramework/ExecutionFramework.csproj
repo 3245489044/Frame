@@ -36,10 +36,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
-    <ProjectReference Include="..\..\Plate\TConfig\TConfig.csproj" />
-    <ProjectReference Include="..\..\BasicMethod\ECS\ECS.csproj" />
-    <ProjectReference Include="..\..\Protocol\RGE\RGE.Unified\RGE.Unified.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
+    <ProjectReference Include="$(Proj_ECS)" />
+    <ProjectReference Include="$(Proj_RGE_Unified)" />
   </ItemGroup>
 
 </Project>

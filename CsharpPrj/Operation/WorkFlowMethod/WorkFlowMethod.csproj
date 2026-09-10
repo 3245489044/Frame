@@ -42,22 +42,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BasicMethod\BasicMethod.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
     <!-- FunctionExecution、GraphFoundation 已整合到 BasicMethod.csproj -->
 
-    <ProjectReference Include="..\..\Modules\GraphProcessing\GraphProcessing.csproj" />
-    <ProjectReference Include="..\..\Modules\LogicComposition\LogicComposition.csproj" />
-    <ProjectReference Include="..\..\Share\GraphFramework\GraphFramework.csproj" />
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
+    <ProjectReference Include="$(Proj_LogicComposition)" />
+    <ProjectReference Include="$(Proj_GraphFramework)" />
     <!-- ★ 引用 ScopeFramework 以承载 GraphKey↔ITemplateExpander 调用方绑定（GraphChainTemplateExpander 适配器），依赖方向由调用方（本层）承载 -->
-    <ProjectReference Include="..\..\Share\ScopeFramework\ScopeFramework.csproj" />
-    <ProjectReference Include="..\..\Share\TreeTraceFramework\TreeTraceFramework.csproj" />
-    <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
-    <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+    <ProjectReference Include="$(Proj_ScopeFramework)" />
+    <ProjectReference Include="$(Proj_TreeTraceFramework)" />
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_ExecutionFramework)" />
   </ItemGroup>
 
   <!-- ★ 引用 UniversalWorkflowFramework.csproj 以获取 ReferenceManagement 命名空间（使用别名避免与 BasicMethod 的类型冲突） -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\UniversalReference\UniversalWorkflowFramework.csproj" Aliases="ShareAlias" />
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" Aliases="ShareAlias" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsCachingMemoryVersion)" />
@@ -65,77 +65,77 @@
 
   <!-- ★ 引用 Share.StateManagement 以使用状态管理框架组件 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="$(Proj_StateManagement)" />
   </ItemGroup>
 
   <!-- ★ 2026-08-13 统一上下文原语整体下沉：LoopFramework 的 FailureBudget/ProgressToken/LoopDecision 等经 Share.TaskStatusPool.Loops 提供（GlobalUsings 别名消费） -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
   </ItemGroup>
 
   <!-- ★ 引用 Share.UniversalMiddleware 以使用通用 JSON 工具 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\UniversalMiddleware\UniversalMiddleware.csproj" />
+    <ProjectReference Include="$(Proj_UniversalMiddleware)" />
   </ItemGroup>
 
   <!-- ★ 引用 Share.ParameterResolver 以使用统一参数处理层 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\ParameterResolver\ParameterResolver.csproj" />
+    <ProjectReference Include="$(Proj_ParameterResolver)" />
   </ItemGroup>
 
   <!-- ★ 引用 WinFormsValueContract（WinForms 值语义后端：ParameterValueResolver 默认 ControlValueBridge） -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Plate\WinFormsValueContract\WinFormsValueContract.csproj" />
+    <ProjectReference Include="$(Proj_WinFormsValueContract)" />
   </ItemGroup>
 
   <!-- ★ 引用 CSG.Unified 以使用 CSG 协议（Configuration-StateMachine-Graph 统一中间表示） -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-04 新增：引用 Share.EventBindingOrchestrator 以桥接 IEventExecutionService -->
   <!--   WorkflowMethodExecutionService 实现 IEventExecutionService 接口， -->
   <!--   使 EventTriggerFramework 通过接口调用 WorkFlowMethod，避免编译时依赖。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\EventBindingOrchestrator\EventBindingOrchestrator.csproj" />
+    <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-05 重构：移除 DiagnosticContext，改为引用 PlaceholderFramework 日志体系 -->
   <!--   WorkflowMethodExecutionService 使用 WorkFlowMethodLog 输出结构化日志， -->
   <!--   日志消息定义在 workflowmethod_log_messages.json 中。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\PlaceholderFramework\PlaceholderFramework.csproj" />
+    <ProjectReference Include="$(Proj_PlaceholderFramework)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-08 新增：引用 EventFramework 以获取 IFunctionExecutor 接口定义 -->
   <!--   IEventExecutionService 继承自 IFunctionExecutor（定义在 Modules.EventFramework.Abstractions）， -->
   <!--   WorkflowMethodExecutionService 需要实现 IFunctionExecutor.ExecuteAsync。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\EventFramework\EventFramework.csproj" />
+    <ProjectReference Include="$(Proj_EventFramework)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-08 新增：引用 Registry 以使用 RegistryCoordinator -->
   <!--   WorkFlowMethodUsage.BasicRegistry 委托给 RegistryCoordinator 获取共享注册表实例。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\Registry\Registry.csproj" />
+    <ProjectReference Include="$(Proj_Registry)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-14 新增：引用 Threading 以使用 ReentryGuard -->
   <!--   OutputHelper.WriteOutputToControl 使用 ReentryGuard 防止写回重入。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-14 新增：引用 CommandFramework 以使用 IParameterExecutionWorkflow 接口 -->
   <!--   WorkflowMethodExecutionWorkflow 实现 IParameterExecutionWorkflow 接口。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\CommandFramework\CommandFramework.csproj" />
+    <ProjectReference Include="$(Proj_CommandFramework)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-14 新增：引用 FrameworkAbstractions 以使用 IControlFinder 接口 -->
   <!--   WorkflowMethodExecutionWorkflow 依赖 IControlFinder 进行控件查找。 -->
   <ItemGroup>
-    <ProjectReference Include="..\..\Share\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
   </ItemGroup>
 
 </Project>

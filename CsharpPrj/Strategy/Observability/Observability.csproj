@@ -25,9 +25,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\Threading\Threading.csproj" />
+    <ProjectReference Include="$(Proj_Threading)" />
     <!-- Share.HierarchySupport（纯 DTO，命名空间保留 Share.HierarchySupport）整项目并入本工程；RuntimeStage 依赖 TaskExecutionStatus -->
-    <ProjectReference Include="..\..\Share\TaskStatusPool\TaskStatusPool.csproj" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
   </ItemGroup>
 
 </Project>

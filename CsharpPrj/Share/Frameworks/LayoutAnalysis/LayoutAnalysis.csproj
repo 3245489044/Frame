@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>布局分析</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>布局关系分析：基于图基座（GraphFoundation）与通用布局数学（UniversalLayoutMath）计算层次关系与布局坐标。</ModuleRule_Description>
+    <ModuleRule_Keywords>布局,关系,层次,分析,图,坐标</ModuleRule_Keywords>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -11,10 +17,10 @@
 
   <ItemGroup>
     <!-- 纯数学库：UniversalLayoutMath（不依赖 BasicMethod 上层） -->
-    <ProjectReference Include="..\..\BasicMethod\UniversalLayout\UniversalLayoutMath.csproj" />
+    <ProjectReference Include="$(Proj_UniversalLayoutMath)" />
     <!-- 图/树基础框架：GraphFoundation（TreeWalker / TreePathFinder / TreeIndex / CoreGraph 等） -->
-    <ProjectReference Include="..\..\BasicMethod\Map\GraphFoundation\GraphFoundation.csproj" />
+    <ProjectReference Include="$(Proj_GraphFoundation)" />
     <!-- 通用 XML/SVG 构建框架：LayoutSvgGenerator 把 LayoutGraphContext 渲染为自包含 SVG 的图元基础 -->
-    <ProjectReference Include="..\..\Plate\XmlMethod\XmlMethod.csproj" />
+    <ProjectReference Include="$(Proj_XmlMethod)" />
   </ItemGroup>
 </Project>

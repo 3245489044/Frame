@@ -35,7 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PathManager\PathManager.csproj" />
+    <ProjectReference Include="$(Proj_PathManager)" />
   </ItemGroup>
 
 </Project>

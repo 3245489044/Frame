@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace Strategy.DecisionRules
 {
@@ -31,8 +30,9 @@ namespace Strategy.DecisionRules
         public int RowCount => _rows.Count;
 
         /// <summary>
-        /// 定义输出参数 <paramref name="output"/> 的一行：<c>out = Bias + Σ weight[i]·source[i]</c>。
-        /// <paramref name="source"/> 取：参数名（当前参数态）、事件键（该步 Variables）、常量 "1"。
+        /// 定义输出参数 <paramref name="output"/> 的一行：<c>out = Bias + Σ weight[i]·Get(role_i, axisId_i)</c>。
+        /// 引用取规范坐标 <c>(role, axisId)</c>；裸字符串按 state → event → 常量 "1" 隐式解析（同名跨 role 时须显式带 role）。
+        /// <b>装载期闸A</b>：行内每个引用必须已在 <see cref="ParameterSchema"/> 声明，否则此处即抛（不再运行期静默计 0）。
         /// 配置后用 <see cref="ApplyTo"/> 对整向量一次性执行。
         /// </summary>
         public ParameterMatrix Row(string output, Action<ParameterMatrixRow> configure)
@@ -45,9 +45,39 @@ namespace Strategy.DecisionRules
             var row = new ParameterMatrixRow();
             configure(row);
             var cells = new List<Cell>(row.Cells.Count);
-            foreach (var (src, w) in row.Cells) cells.Add(new Cell(src, w));
+            foreach (var (declaredRole, src, w) in row.Cells)
+            {
+                var (role, axisId) = ResolveAxis(declaredRole, src);
+                cells.Add(new Cell(role, axisId, w));
+            }
             _rows.Add((spec, row.BiasValue, cells));
             return this;
+        }
+
+        /// <summary>
+        /// 装载期坐标解析（闸A）：显式 role 引用直接校验存在性；裸名按声明数解析（0 未声明 / 1 隐式 / &gt;1 歧义），
+        /// 三种失败均在此抛 <see cref="ArgumentException"/>。
+        /// </summary>
+        private (AxisRole Role, string AxisId) ResolveAxis(AxisRole? declaredRole, string source)
+        {
+            if (declaredRole is { } role)
+            {
+                if (_schema.TryGetAxis(role, source) is null)
+                    throw new ArgumentException($"矩阵行引用了未声明的坐标轴：({role},{source})。");
+                return (role, source);
+            }
+
+            var count = _schema.RoleCountOf(source);
+            if (count == 0)
+                throw new ArgumentException(
+                    $"矩阵行引用了未声明的坐标轴：'{source}'（参数名 / event 轴 / 常量 \"1\" 必须已在 ParameterSchema 声明）。");
+            if (count > 1)
+                throw new ArgumentException(
+                    $"矩阵引用 '{source}' 在多个 role 下均有声明，存在歧义 —— 请显式指定 AxisRole（如 Plus(AxisRole.Event, \"{source}\", w)）。");
+
+            if (_schema.TryGetAxis(AxisRole.State, source) is not null) return (AxisRole.State, source);
+            if (_schema.TryGetAxis(AxisRole.Event, source) is not null) return (AxisRole.Event, source);
+            return (AxisRole.Const, source);
         }
 
         /// <summary>
@@ -65,7 +95,7 @@ namespace Strategy.DecisionRules
                 var acc = bias;
                 foreach (var cell in cells)
                 {
-                    var v = Resolve(cell.Source, input);
+                    var v = Resolve(cell, input);
                     if (v is not null) acc += cell.Weight * v.Value;
                 }
                 writes.Add(ParameterWrite.Engine(spec.Name, Quantize(spec, acc)));
@@ -73,12 +103,26 @@ namespace Strategy.DecisionRules
             return writes;
         }
 
-        /// <summary>解析矩阵行引用：参数名 → 当前参数值；"1" → 常量；否则按事件键读该步 Variables；未知 → null（计 0 贡献）。</summary>
-        private static double? Resolve(string source, ParametricStepInput input)
+        /// <summary>
+        /// 按规范坐标读值：state → 当前参数态；event → 该步 Variables 经所属轴的 <see cref="ParameterSpec.Coerce"/> 换算并
+        /// <see cref="ParameterSpec.Clamp"/> 到值域（闸B）；const → 常量 1.0。缺省（该步无此事件）返回 null（不贡献）。
+        /// </summary>
+        private double? Resolve(Cell cell, ParametricStepInput input)
         {
-            if (input.State.TryGet(source, out var p)) return p;
-            if (source == "1") return 1.0;
-            return input.Variable(source) is { } raw ? AsDouble(raw) : null;
+            switch (cell.Role)
+            {
+                case AxisRole.State:
+                    return input.State.TryGet(cell.AxisId, out var p) ? p : null;
+                case AxisRole.Event:
+                    var raw = input.Variable(cell.AxisId);
+                    if (raw is null) return null;
+                    var spec = _schema.GetAxis(AxisRole.Event, cell.AxisId);
+                    return spec.Clamp(spec.Coerce(raw));
+                case AxisRole.Const:
+                    return 1.0;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>把矩阵连续值按输出参数值域离散量化：Flag 阈值门 / Ordinal 取整 + 边界 / Numeric 边界。</summary>
@@ -93,46 +137,44 @@ namespace Strategy.DecisionRules
             };
         }
 
-        /// <summary>把事件原始值换算为数值贡献（布尔 / 数 / 数值串）。</summary>
-        private static double? AsDouble(object? raw)
-            => raw switch
-            {
-                double d => d,
-                int i => i,
-                long l => l,
-                float f => f,
-                decimal m => (double)m,
-                bool b => b ? 1.0 : 0.0,
-                string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) => v,
-                string sb when bool.TryParse(sb, out var bv) => bv ? 1.0 : 0.0,
-                _ => null,
-            };
-
-        private sealed record Cell(string Source, double Weight);
+        private sealed record Cell(AxisRole Role, string AxisId, double Weight);
     }
 
     /// <summary>
-    /// 矩阵单行的流式装配器：<c>out = Bias + Σ weight[i]·source[i]</c>。
-    /// 由 <see cref="ParameterMatrix.Row"/> 创建并装配，装配器本身不参与矩阵计算（纯声明式构建）。
+    /// 矩阵单行的流式装配器：<c>out = Bias + Σ weight[i]·Get(role_i, axisId_i)</c>。
+    /// 由 <see cref="ParameterMatrix.Row"/> 创建并装配，装配器本身不参与矩阵计算（纯声明式构建）；
+    /// 引用以规范坐标 <c>(role, axisId)</c> 声明（裸名由 <see cref="ParameterMatrix.Row"/> 装载期隐式解析）。
     /// </summary>
     public sealed class ParameterMatrixRow
     {
         private double _bias;
-        private readonly List<(string Source, double Weight)> _cells = new();
+        private readonly List<(AxisRole? Role, string AxisId, double Weight)> _cells = new();
 
         internal ParameterMatrixRow() { }
 
-        /// <summary>加一个源贡献：<paramref name="source"/> 为参数名 / 事件键 / 常量 "1"；权重 0 忽略。</summary>
+        /// <summary>加一个裸名源贡献（隐式 role：state → event → 常量 "1"；同名跨 role 时由装载期报歧义）；权重 0 忽略。</summary>
         public ParameterMatrixRow Plus(string source, double weight)
         {
             if (string.IsNullOrWhiteSpace(source)) throw new ArgumentException("矩阵输入源不允许空白。", nameof(source));
-            if (weight != 0) _cells.Add((source, weight));
+            if (weight != 0) _cells.Add((null, source, weight));
             return this;
         }
 
-        /// <summary>保留/承接某参数原值：<c>out += weight·param</c>（如进度承接自身当前值）。</summary>
+        /// <summary>按规范坐标 <c>(role, axisId)</c> 加一个源贡献（消歧义、可审计）；权重 0 忽略。</summary>
+        public ParameterMatrixRow Plus(AxisRole role, string axisId, double weight)
+        {
+            if (string.IsNullOrWhiteSpace(axisId)) throw new ArgumentException("矩阵输入轴 Id 不允许空白。", nameof(axisId));
+            if (weight != 0) _cells.Add((role, axisId, weight));
+            return this;
+        }
+
+        /// <summary>保留/承接某参数原值（裸名）：<c>out += weight·axis</c>（如进度承接自身当前值）。</summary>
         public ParameterMatrixRow Carry(string param, double weight = 1.0)
             => Plus(param, weight);
+
+        /// <summary>保留/承接某轴原值（规范坐标）：<c>out += weight·Get(role, axisId)</c>。</summary>
+        public ParameterMatrixRow Carry(AxisRole role, string axisId, double weight = 1.0)
+            => Plus(role, axisId, weight);
 
         /// <summary>常量偏置（不依赖输入，整行平移）。</summary>
         public ParameterMatrixRow Bias(double value)
@@ -142,7 +184,7 @@ namespace Strategy.DecisionRules
         }
 
         internal double BiasValue => _bias;
-        internal IReadOnlyList<(string Source, double Weight)> Cells => _cells;
+        internal IReadOnlyList<(AxisRole? Role, string AxisId, double Weight)> Cells => _cells;
     }
 }
 

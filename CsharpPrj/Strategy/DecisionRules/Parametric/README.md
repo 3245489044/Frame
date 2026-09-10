@@ -30,7 +30,7 @@
 
 | 段 | 类型 | 职责 |
 |----|------|------|
-| 坐标系 | `ParameterSchema` / `ParameterSpec` | 参数定义（名 + 值域 + 边界 + `IsForced` 引擎强制） |
+| 坐标系 | `ParameterSchema` / `ParameterSpec` / `AxisRole` | 轴 = (role, kind, domain)；state 轴（含 `IsForced` 引擎强制）+ `eventAxes`（瞬时，不进状态）+ 内建 const "1" |
 | 状态 | `ParameterState` | 不可变参数快照（各分量 double 承载） |
 | ①归约 | `ParameterReducer` / `Parametric.ReduceFromVariableMap` | 语义变量 → 参数写 |
 | ②演进 | `ParameterMatrix` / `ParameterTransfer` / `Parametric.AsTransfer` | **整向量经矩阵 W·x+b 一次变换 + 逐轴量化**（非逐分量线性写） |
@@ -45,7 +45,8 @@
 x_next = Quantize( W·x + b )
 ```
 
-- 每一行 = 一个输出参数：`out = Bias + Σ weight[i]·source[i]`，`source` 可取参数名 / 事件键 / 常量 "1"。
+- 每一行 = 一个输出参数：`out = Bias + Σ weight[i]·Get(role_i, axisId_i)`；引用取规范坐标 `(role, axisId)` ∈ `{(state,参数名), (event,事件键), (const,"1")}`。
+- **装载期闸A**：行内每个引用必须已在 `ParameterSchema` 声明（state 轴 / `eventAxes` 声明 / 常量 `"1"`），否则 `Row(...)` 即抛 —— 不再运行期静默计 0；同名跨 role 时裸名报歧义，须显式带 role（如 `Plus(AxisRole.Event,"failure",1)`）。事件轴值为瞬时量，读值经该轴 `Coerce`+`Clamp`（闸B）。
 - 所有行由同一矩阵 **并行** 算出（整向量一次变换），不再像早期版本那样逐分量顺序写。
 - 逐轴按 <see cref="ParameterKind"/> **离散量化**：`Flag` 阈值门、`Ordinal` 取整 + 边界、`Numeric` 边界 —— 保证结果永远落在可判定参数域。
 
@@ -53,8 +54,8 @@ x_next = Quantize( W·x + b )
 
 ```csharp
 var m = ParameterMatrix.For(schema)
-    .Row("progress", r => r.Carry("progress").Plus("failure", 1))
-    .Row("budget",   r => r.Carry("budget").Plus("failure", 1));
+    .Row("progress", r => r.Carry("progress").Plus(AxisRole.Event, "failure", 1))
+    .Row("budget",   r => r.Carry("budget").Plus(AxisRole.Event, "failure", 1));
 var run = new ParametricKernel<Outcome>(schema, maxSteps: 8).Run(
     variables: new() { ["failure"] = true },
     transfer: Parametric.AsTransfer(m),   // 矩阵即演进算子（Engine 源）
@@ -122,6 +123,11 @@ var schema = new ParameterSchema(new[]
     new ParameterSpec("halt",     ParameterKind.Flag,    Default: 0, IsForced: true),
     new ParameterSpec("intent",   ParameterKind.Flag),
     new ParameterSpec("produced", ParameterKind.Flag),
+},
+eventAxes: new[]
+{
+    // 事件轴（单步瞬时，不进 ParameterState）：矩阵引用须为 (AxisRole.Event, "failure")
+    new ParameterSpec("failure", ParameterKind.Flag, Role: AxisRole.Event),
 });
 
 // ③ 解码：意图未达成(intent=1∧produced=0)→IntentFail(非绿)；预算触顶→TM
@@ -154,4 +160,7 @@ var run = new ParametricKernel<string>(schema).Run(
 
 ## 测试
 
-`Strategy.Tests/DecisionRules.Tests/ParametricKernelTests.cs`（5 项）覆盖：单步成功收敛、假阳性命门（IntentFail 非绿）、预算连续升级到 TM、外部越权写强制分量被拒、每步轨迹留痕。
+`Strategy.Tests/DecisionRules.Tests/`：
+- `ParametricKernelTests.cs` 覆盖：单步成功收敛、假阳性命门（IntentFail 非绿）、预算连续升级到 TM、外部越权写强制分量被拒、每步轨迹留痕、吸收/闩锁位不可翻盘。
+- `ParametricMatrixTests.cs` 覆盖：整向量一次变换、重复失败升级到 TO、Flag 阈值门、Ordinal 取整+边界、未定义输出参数抛。
+- `ParametricCoordinateTests.cs`（C0 统一坐标系）覆盖：装载期闸A（未声明轴即抛）、跨 role 同名须规范坐标、event 轴 Coerce+Clamp、event 轴禁 IsForced/IsLatched、const 轴唯一 `"1"`、裸名唯一声明下的向后兼容。

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.Maintain</RootNamespace>
+    <AssemblyName>Modules.Maintain</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>通用数据维护与迁移框架 — 数据变更的迁移与状态管理（维护/迁移/状态操作集 + 声明式管线）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 复用 LogicComposition 的合并/折叠核心（DefaultChainComposer / CompositionOptions / DuplicateHandling） -->
+    <ProjectReference Include="..\LogicComposition\LogicComposition.csproj" />
+    <!-- 复用 GraphProcessing 的标识归一化与命名能力（IdentifierExtractor / DefaultNameGenerator） -->
+    <ProjectReference Include="..\GraphProcessing\GraphProcessing.csproj" />
+  </ItemGroup>
+
+</Project>

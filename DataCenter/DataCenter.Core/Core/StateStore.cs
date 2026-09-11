@@ -1,33 +1,29 @@
 using TConfig;
 using TConfig.ContextFrame.Abstractions;
-using ExecutionFramework.Engine;
-using WorkflowExecution.Pipeline;
-using Operation.StateBlock.Abstractions;
 using Share.StateManagement;
-using OpStateStore = Operation.StateBlock.Abstractions.IStateStore;
 
 namespace Operation.StateBlock.Core
 {
     /// <summary>
-    /// 状态存储（StateStore）——基于 IStorageCell 的统一后端（2026-08-05 StateCenter 收敛）。
+    /// 状态存储（StateStore）——基于 IStorageCell 的统一后端（2026-08-05 StateCenter 收敛；2026-09-12 迁入 DataCenter）。
     /// 字符串 KV 委托 <see cref="StorageCellStateStore"/>（同 cell Session 层），对象 KV 委托
     /// <see cref="ObjectKeyValueStore"/>（"_obj:" 前缀隔离，保持原双字典不互相覆盖语义）。
     /// StateChanged 事件经 cell.DataChanged 转发（底层唯一物理事件源）。
+    /// <para>
+    /// <b>分层边界</b>：本类为 DataCenter 通用件，**只承载状态 KV 能力**，不含任何业务端口
+    /// （服务定位器字段如 Registry/Executor/Pipeline 属产品侧，由派生类 <c>OperationStateStore</c> 承载）。
+    /// </para>
     /// </summary>
-    public class StateStore : OpStateStore
+    public class StateStore : Share.StateManagement.IStateStore
     {
         /// <summary>对象态（Get&lt;T&gt;/Set&lt;T&gt;/ExtendedStates）键前缀，与字符串 KV 隔离。</summary>
-        private const string ObjectKeyPrefix = "_obj:";
+        protected const string ObjectKeyPrefix = "_obj:";
 
         private readonly object _lock = new();
         private readonly IStorageCell _cell;
         private readonly StorageCellStateStore _stringStore;
         private readonly ObjectKeyValueStore _objectStore;
-        private volatile IPublishDispatcher? _stateChangedDispatcher;
-        private ITrConfigRegistry? _registry;
-        private IWorkflowRegistry? _workflowRegistry;
-        private FunctionExecutor? _executor;
-        private PipelineExecutor? _pipeline;
+        private readonly IPublishDispatcher? _stateChangedDispatcher;
 
         public event Action<string, object?>? StateChanged;
 
@@ -43,45 +39,8 @@ namespace Operation.StateBlock.Core
         /// <summary>统一存储后端（StateCenter 收敛目标）。</summary>
         public IStorageCell Cell => _cell;
 
-        public ITrConfigRegistry? Registry
-        {
-            get { lock (_lock) return _registry; }
-            set
-            {
-                ArgumentNullException.ThrowIfNull(value);
-                lock (_lock) _registry = value;
-            }
-        }
-
-        public IWorkflowRegistry? WorkflowRegistry
-        {
-            get { lock (_lock) return _workflowRegistry; }
-            set
-            {
-                ArgumentNullException.ThrowIfNull(value);
-                lock (_lock) _workflowRegistry = value;
-            }
-        }
-
-        public FunctionExecutor? Executor
-        {
-            get { lock (_lock) return _executor; }
-            set
-            {
-                ArgumentNullException.ThrowIfNull(value);
-                lock (_lock) _executor = value;
-            }
-        }
-
-        public PipelineExecutor? Pipeline
-        {
-            get { lock (_lock) return _pipeline; }
-            set
-            {
-                ArgumentNullException.ThrowIfNull(value);
-                lock (_lock) _pipeline = value;
-            }
-        }
+        /// <summary>底层分层存储单元（StateCenter 收敛目标）。</summary>
+        public IPublishDispatcher? StateChangedDispatcher => _stateChangedDispatcher;
 
         // ── 对象 KV（带前缀隔离，委托 ObjectKeyValueStore） ──
 
@@ -91,38 +50,17 @@ namespace Operation.StateBlock.Core
 
         public void Set<TState>(string key, TState value) => _objectStore.Set(key, value);
 
-        /// <summary>仅清对象态（extendedStates），字符串 KV 保留（原语义）。</summary>
-        public void Reset()
+        public bool Contains<TState>(string key) => _objectStore.Contains(key);
+
+        /// <summary>仅清对象态（extendedStates），字符串 KV 保留（原语义）。派生类可覆写以级联清理扩展端口。</summary>
+        public virtual void Reset()
         {
             lock (_lock)
             {
-                _registry = null;
-                _workflowRegistry = null;
-                _executor = null;
-                _pipeline = null;
+                // 对象态清理；字符串 KV 不在本方法职责内（原语义）
             }
 
             _objectStore.Clear();
-        }
-
-        public bool HasRegistry
-        {
-            get { lock (_lock) return _registry != null; }
-        }
-
-        public bool HasExecutor
-        {
-            get { lock (_lock) return _executor != null; }
-        }
-
-        public bool HasPipeline
-        {
-            get { lock (_lock) return _pipeline != null; }
-        }
-
-        public bool HasWorkflowRegistry
-        {
-            get { lock (_lock) return _workflowRegistry != null; }
         }
 
         // ── IStateStore（字符串 KV，委托 StorageCellStateStore） ──
@@ -133,18 +71,8 @@ namespace Operation.StateBlock.Core
 
         public bool Has(string key) => _stringStore.Has(key);
 
-        public void Clear()
-        {
-            lock (_lock)
-            {
-                _registry = null;
-                _workflowRegistry = null;
-                _executor = null;
-                _pipeline = null;
-            }
-
-            _stringStore.Clear();
-        }
+        /// <summary>清字符串 KV；派生类可覆写以级联清理扩展端口。</summary>
+        public virtual void Clear() => _stringStore.Clear();
 
         public IReadOnlyCollection<string> GetAllKeys() => _stringStore.GetAllKeys();
 

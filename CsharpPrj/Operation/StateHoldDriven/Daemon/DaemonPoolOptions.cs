@@ -22,4 +22,8 @@ public sealed class DaemonPoolOptions
 
     /// <summary>池内基建故障重试上限（换 worker/补位）。</summary>
     public int InfraRetryLimit { get; set; } = 1;
+
+    /// <summary>池语义名（可选；与建池序号合成日志池标识 "名#序号"，供同一进程多池并存时日志归属消歧）。
+    /// 缺省 null → 标识退化为 "pool#序号"。</summary>
+    public string? PoolName { get; set; }
 }

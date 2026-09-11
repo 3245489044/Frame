@@ -29,6 +29,12 @@ public sealed class DaemonPool : IDisposable
     private readonly object _busyLock = new();
     private readonly HashSet<string> _busy = new(StringComparer.Ordinal);
 
+    /// <summary>池实例标识（同一进程多池并存时用于日志归属消歧；形如 "cline#2"，序号为进程内建池顺序）。</summary>
+    private readonly string _poolTag;
+
+    /// <summary>建池序号（进程内自增，单一来源；不依赖宿主传入，故任何建池点都自带唯一标识）。</summary>
+    private static int _poolSeq;
+
     /// <summary>池诊断钩子（宿主注入日志器；缺省 no-op）。</summary>
     public static Action<string, object?>? Diagnostics { get; set; }
 
@@ -39,11 +45,12 @@ public sealed class DaemonPool : IDisposable
         _idleTimeout = options.IdleTimeout;
         _warmupBudget = options.WarmupTimeout;
         _infraRetries = Math.Max(0, options.InfraRetryLimit);
-        _state = new DaemonPoolState(options, transport);
+        _poolTag = $"{options.PoolName ?? "pool"}#{System.Threading.Interlocked.Increment(ref _poolSeq)}";
+        _state = new DaemonPoolState(options, transport, _poolTag);
         _transport = transport;
         _scheduler = new AsyncOperationScheduler(concurrency, _idleTimeout);
         _slotGate = new SemaphoreSlim(concurrency, concurrency);
-        StateBlockLog.PoolInit(_options.PoolSize, _idleTimeout.TotalSeconds, _warmupBudget.TotalSeconds, _infraRetries);
+        StateBlockLog.PoolInit(_poolTag, _options.PoolSize, _idleTimeout.TotalSeconds, _warmupBudget.TotalSeconds, _infraRetries);
     }
 
     /// <summary>worker 状态变化（透传 WorkerPool 事件，诊断用）。</summary>
@@ -76,7 +83,7 @@ public sealed class DaemonPool : IDisposable
         var timeBudget = TimeBudget.From(effective, TimingDefaults.ClineBudgetMargin, _clock);
         var started = _clock.UtcNow;
         var warmup = TriggerWarmup(timeBudget);
-        StateBlockLog.Step("EnsureReady", new { effectiveSec = effective.TotalSeconds, deadline = timeBudget.Deadline });
+        StateBlockLog.Step(_poolTag, "EnsureReady", new { effectiveSec = effective.TotalSeconds, deadline = timeBudget.Deadline });
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_poolCts.Token, ct);
         timeoutCts.CancelAfter(effective);
         var token = timeoutCts.Token;
@@ -86,7 +93,7 @@ public sealed class DaemonPool : IDisposable
             {
                 if (_state.ReadyWorkerCount > 0)
                 {
-                    StateBlockLog.PoolReady(_state.ReadyWorkerCount, (_clock.UtcNow - started).TotalSeconds);
+                    StateBlockLog.PoolReady(_poolTag, _state.ReadyWorkerCount, (_clock.UtcNow - started).TotalSeconds);
                     return _state.ReadyWorkerCount;
                 }
                 if (timeBudget.IsExpired(_clock)) break; // 预算耗尽（显式归因，非取消）
@@ -104,7 +111,7 @@ public sealed class DaemonPool : IDisposable
             // 预算耗尽路径（ready==0 → 明确归因；先快照后清理，保留每 worker 状态/阶段供归因，避免 InformationMonotonicity 违例）
             var workers = DescribeWorkers();       // S3：KillAllDaemons 清空 _runtime 前先快照
             KillAllWorkers();                      // 后清理：清占用标记 + 杀进程树，避免泄漏孤儿进程与脏 busy 残留
-            StateBlockLog.ReadyTimeoutCleanup(_state.ReadyWorkerCount, workers);
+            StateBlockLog.ReadyTimeoutCleanup(_poolTag, _state.ReadyWorkerCount, workers);
             throw new InvalidOperationException(
                 $"daemon 池未在预算 {effective.TotalSeconds:0}s 内就绪（{_state.ReadyWorkerCount} ready，实际耗时 {(_clock.UtcNow - started).TotalSeconds:0}s）。" +
                 $"各 worker 状态/阶段: {workers}。" +
@@ -118,7 +125,7 @@ public sealed class DaemonPool : IDisposable
             var elapsed = (_clock.UtcNow - started).TotalSeconds;
             var workers = DescribeWorkers();       // S3：先快照后清理
             KillAllWorkers();
-            StateBlockLog.ReadyTimeoutCleanup(_state.ReadyWorkerCount, workers);
+            StateBlockLog.ReadyTimeoutCleanup(_poolTag, _state.ReadyWorkerCount, workers);
             // 归因修正：外部取消优先于预算耗尽，不再笼统报"预算 Ns"。
             if (ct.IsCancellationRequested)
                 throw new OperationCanceledException(
@@ -163,7 +170,7 @@ public sealed class DaemonPool : IDisposable
         // 预热对象：未就绪（Spawned/Running）或已 Dead（需先补位重 spawn）的 worker；InFlight 占用中不预热。
         var ids = _state.GetWorkerIds().Where(id => _state.NeedsWarmup(id) || _state.IsDead(id)).ToList();
         if (ids.Count == 0) return _state.ReadyWorkerCount;
-        StateBlockLog.Step("WarmupCore_Start", new { ids, ready = _state.ReadyWorkerCount });
+        StateBlockLog.Step(_poolTag, "WarmupCore_Start", new { ids, ready = _state.ReadyWorkerCount });
 
         // 串行预热：一次只预热一个 worker。多个工具实例并发初始化在共享数据目录上会锁竞争
         // （实测并发近乎零 CPU 阻塞死等、预算内永不完成）；首个 ready 即令就绪门闩提前返回。
@@ -179,7 +186,7 @@ public sealed class DaemonPool : IDisposable
                 var remaining = timeBudget.Remaining(_clock);
                 if (remaining <= TimeSpan.Zero) return 0;
                 await EnsureWarmableAsync(id, timeBudget, token).ConfigureAwait(false);
-                StateBlockLog.Step("WarmupCore", new { workerId = id, ok = true });
+                StateBlockLog.Step(_poolTag, "WarmupCore", new { workerId = id, ok = true });
                 return 1;
             }
             catch (OperationCanceledException) { throw; }
@@ -187,8 +194,8 @@ public sealed class DaemonPool : IDisposable
             {
                 // 归因落库：池最终抛错时带出真实预热错误（不再恒为“(无)”）。
                 _lastWarmupError = ex.GetBaseException().Message;
-                StateBlockLog.Fail("WarmupCore", new { workerId = id, error = ex.Message });
-                StateBlockLog.WarmupFailed(id, _state.GetLastStage(id), _state.GetStderrTail(id), ex.Message);
+                StateBlockLog.Fail(_poolTag, "WarmupCore", new { workerId = id, error = ex.Message });
+                StateBlockLog.WarmupFailed(_poolTag, id, _state.GetLastStage(id), _state.GetStderrTail(id), ex.Message);
                 try { await _state.RespawnAsync(id, token).ConfigureAwait(false); }
                 catch { /* 补位失败，交由就绪门闩继续重试 */ }
                 return 0;
@@ -201,7 +208,7 @@ public sealed class DaemonPool : IDisposable
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         var warmed = results.Sum();
-        StateBlockLog.WarmupSummary(warmed, ids.Count);
+        StateBlockLog.WarmupSummary(_poolTag, warmed, ids.Count);
         return warmed;
     }
 
@@ -225,7 +232,7 @@ public sealed class DaemonPool : IDisposable
         var aefBudget = timeBudget.RemainingAfterMargin(_clock);
         if (aefBudget <= TimeSpan.Zero) return;
         var request = _transport.CreateWarmRequest(host, aefBudget);
-        StateBlockLog.Step("WarmSend", new { workerId, requestId = request.Id, aefBudgetSec = aefBudget.TotalSeconds });
+        StateBlockLog.Step(_poolTag, "WarmSend", new { workerId, requestId = request.Id, aefBudgetSec = aefBudget.TotalSeconds });
 
         // 预热与请求同机（AEF）：看门狗 + 进程树 kill + 阶段归因。
         var result = await _scheduler.RunAsync($"warm-{workerId}", async (opCt, op) =>
@@ -257,7 +264,7 @@ public sealed class DaemonPool : IDisposable
         var tail = _state.GetStderrTail(workerId);
         if (IsHangPhase(result.EndPhase))
         {
-            StateBlockLog.WarmupHung(workerId, stage, result.EndPhase.ToString(), tail, result.Error);
+            StateBlockLog.WarmupHung(_poolTag, workerId, stage, result.EndPhase.ToString(), tail, result.Error);
             throw new TimeoutException($"daemon 预热超时/挂起（阶段={stage ?? "(无)"}, stderrTail={tail}）: {result.Error}");
         }
         // 失败归因统一由 WarmupCoreAsync 的 catch 记录（DaemonPool_WarmupFailed），此处不重复打诊断（D1）。
@@ -301,7 +308,7 @@ public sealed class DaemonPool : IDisposable
                     continue;
                 }
                 requestId = _state.RequestTracker.Assign(picked);
-                StateBlockLog.SendStart(requestId, picked, cmd, remaining.TotalSeconds);
+                StateBlockLog.SendStart(_poolTag, requestId, picked, cmd, remaining.TotalSeconds);
 
                 var host = _state.GetHost(picked)!;
                 var request = new DaemonRequest(requestId, cmd, payload);
@@ -327,14 +334,14 @@ public sealed class DaemonPool : IDisposable
                     if (string.IsNullOrEmpty(result.Output))
                         throw new DaemonPoolException(cmd, "daemon 返回结果在传输层丢失（Output 为空）");
                     _state.MarkFree(picked); // InFlight → Ready，归还占用
-                    StateBlockLog.SendDone(requestId, picked, cmd, (_clock.UtcNow - started).TotalMilliseconds);
+                    StateBlockLog.SendDone(_poolTag, requestId, picked, cmd, (_clock.UtcNow - started).TotalMilliseconds);
                     return JsonSerializer.Deserialize<JsonElement>(result.Output);
                 }
 
                 // 错误分类
                 if (result.EndPhase == AsyncOpPhase.Cancelled)
                 {
-                    StateBlockLog.SendCancelled(requestId, picked, cmd, result.Error);
+                    StateBlockLog.SendCancelled(_poolTag, requestId, picked, cmd, result.Error);
                     _state.MarkFree(picked);             // 归还占用
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false); // 被 kill → 驱逐补位，避免选中死 worker
                     throw new OperationCanceledException(result.Error ?? "操作被取消");
@@ -344,7 +351,7 @@ public sealed class DaemonPool : IDisposable
                     // 基建故障（挂起/被杀）→ 补位，剩余预算内换 worker 重试
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
                     var infraAttempt = ++attempt;
-                    StateBlockLog.SendRetry(requestId, picked, cmd, infraAttempt, result.Error);
+                    StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, infraAttempt, result.Error);
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false);
                     if (infraAttempt > _infraRetries)
                         throw new TimeoutException(
@@ -353,7 +360,7 @@ public sealed class DaemonPool : IDisposable
                 }
                 // Failed：daemon 正常返回业务错误（含内层任务超时）→ 不重试，映射为业务结果
                 _state.MarkFree(picked); // 归还占用
-                StateBlockLog.SendFailed(requestId, picked, cmd, result.Error);
+                StateBlockLog.SendFailed(_poolTag, requestId, picked, cmd, result.Error);
                 throw new DaemonPoolException(cmd, result.Error);
             }
             finally
@@ -397,7 +404,7 @@ public sealed class DaemonPool : IDisposable
                 throw new InvalidOperationException("daemon 池无可用已就绪 worker（预热失败或全部补位中）。");
             if (!waited)
             {
-                StateBlockLog.BackpressureWait(_state.ReadyWorkerCount);
+                StateBlockLog.BackpressureWait(_poolTag, _state.ReadyWorkerCount);
                 waited = true;
             }
             await Task.Delay(100, ct).ConfigureAwait(false);
@@ -409,7 +416,7 @@ public sealed class DaemonPool : IDisposable
     {
         lock (_busyLock) _busy.Remove(workerId);
         try { await _state.RespawnAsync(workerId, ct).ConfigureAwait(false); }
-        catch (Exception ex) { StateBlockLog.RespawnFailed(workerId, ex.Message); /* 补位失败：下轮选路跳过 */ }
+        catch (Exception ex) { StateBlockLog.RespawnFailed(_poolTag, workerId, ex.Message); /* 补位失败：下轮选路跳过 */ }
     }
 
     /// <summary>就绪预算耗尽/取消清理：清占用标记 + 杀全部 daemon 进程树（避免孤儿进程与脏 busy 残留）。</summary>
@@ -421,7 +428,7 @@ public sealed class DaemonPool : IDisposable
 
     public void Dispose()
     {
-        StateBlockLog.PoolDispose();
+        StateBlockLog.PoolDispose(_poolTag);
         _poolCts.Cancel();
         _scheduler.Dispose();
         _slotGate.Dispose();

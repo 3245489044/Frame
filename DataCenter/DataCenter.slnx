@@ -1,0 +1,6 @@
+<Solution>
+  <!-- 参照 CallCenter：平台工程平铺于 DataCenter 根，根聚合工程 DataCenter.csproj 引用全部子项目；
+       测试外迁 CentralTest（不注册进产品解决方案）。 -->
+  <Project Path="DataCenter.csproj" />
+  <Project Path="DataCenter.Core/DataCenter.Core.csproj" />
+</Solution>

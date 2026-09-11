@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>跨语言数据中心</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>DataCenter 聚合项目 - 引用 DataCenter 目录下所有子项目。以 CSG 协议（Configuration-StateMachine-Graph 统一中间表示）作为语言无关数据面的「运行时数据中枢」：把状态值/状态迁移/引用图/代数版本/作用域分区统一建模为 CanonicalForm，控制面提供作用域·分层·事务·订阅·代数·迁移，各语言经终端面 Adapter 读写同一 CanonicalForm。插件不持有运行数据，只经 DataCenter 读写 —— 从而实现「带着运行数据热更新」。全仓唯一的状态中心实现（StateCenter 家族）归于此。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;数据中心;运行时数据;CSG;StateCenter;状态中心;热更新;分层;事务;订阅;代数;迁移;跨语言</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="此模块是跨语言通用运行时数据框架，依赖 CSG.Unified（协议）与 Share.StateManagement（纯契约）" />
+    <ModuleRule_Rule Include="启动入口：DataCenter.Host（--dump-state / --swap-generation / --migrate / --smoke）" />
+    <ModuleRule_Rule Include="详细架构请参考 Doc/DataCenter-架构设计.md" />
+    <ModuleRule_Rule Include="R1'：Share.StateManagement 降为纯契约；状态中心实现（StateOrchestrator/订阅/事务/Actor）唯一归属 DataCenter.Core" />
+    <ModuleRule_Rule Include="R-DC1：CSG 主 schema 只扩不改（扩展域 csg://runtime-data），CsgProtocol v1.0.0 语义冻结" />
+    <ModuleRule_Rule Include="R-DC2：DataCenter.Core 不引语言栈（FileDriven/FunctionStorage/WinForms/Agent/Engine）" />
+    <ModuleRule_Rule Include="R7：裁决语义唯一权威仍在 Share.TaskStatusPool.Loops，本层只做状态落地，不复制裁决" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DataCenter</RootNamespace>
+    <AssemblyName>DataCenter</AssemblyName>
+    <Description>DataCenter 聚合项目 - 引用 DataCenter 目录下所有子项目</Description>
+    <!-- 聚合项目没有自己的源代码，禁止自动包含子目录的 .cs 文件 -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DataCenter.Core\DataCenter.Core.csproj" />
+  </ItemGroup>
+
+</Project>

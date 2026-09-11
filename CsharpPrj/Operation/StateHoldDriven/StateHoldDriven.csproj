@@ -3,12 +3,13 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>状态管理框架 (StateBlock)</ModuleRule_Title>
     <ModuleRule_Layer>4</ModuleRule_Layer>
-    <ModuleRule_Description>基于 Block 框架的状态管理框架，提供 StateActor、StateStore、StateOrchestrator 等核心类型，统一管理应用状态。借鉴 ASP (Actor Service Provider) 的 Actor 模型和 Block 框架的分段执行模型，解决服务定位器混乱、静态单例泛滥、初始化时序依赖、注册表实例不一致等问题。2026-08-05 升级为状态管理中心（StateCenter）：StateStore 迁移 IStorageCell 后端；新增 IStateCenter 门面 + 事务（StateTransaction）+ 订阅中枢（StateSubscriptionHub）+ 作用域生命周期状态机（ScopeLifecycleStateMachine）+ 生命周期 Provider 注册容器（StateLifecycleProviders）。契约在 Share.StateManagement（R1），StateHoldDriven 保持 UI/ECS 无关（R2）。</ModuleRule_Description>
-    <ModuleRule_Keywords>状态管理;StateBlock;StateActor;StateStore;StateOrchestrator;StateCenter;状态管线;初始化编排;IStorageCell;事务;订阅中枢</ModuleRule_Keywords>
+    <ModuleRule_Description>状态装配件层（原「状态管理框架 StateBlock」）—— 基于 Block 框架的状态初始化编排：产品侧 StateBlock（Registry/FunctionStorage/FileDriven/Executor/AppService）+ 状态管线构建器 + 产品状态存储（OperationStateStore：通用 StateStore + Registry/WorkflowRegistry/Executor/Pipeline 服务定位器端口）。2026-09-12 DataCenter 立项（全量上收）：状态中心家族（StateCenter/通用 StateStore/分层键 Layering/决策状态化 Decision/StateCenterBlock）已物理迁出至 Frame\DataCenter\DataCenter.Core（命名空间 Operation.StateBlock.* 保留，消费方零破坏）；契约仍在 Share.StateManagement（R1）。本模块与 Daemon（进程池）、FunctionStorage（函数存储）同址共库，二者与状态管理无关，待单独立项校正归属。</ModuleRule_Description>
+    <ModuleRule_Keywords>状态装配;StateBlock;状态初始化管线;服务定位器端口;OperationStateStore;DataCenter 消费方</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="此模块是 Operation 层的状态管理框架，依赖 BasicMethod.Block（Layer 1）" />
+    <ModuleRule_Rule Include="此模块是 Operation 层的状态装配件层，依赖 BasicMethod.Block（Layer 1）与 DataCenter.Core（Frame 平台层）" />
+    <ModuleRule_Rule Include="通用状态能力（StateCenter/StateStore/Layering/Decision）唯一归属 DataCenter.Core；本模块不再定义同类实现（SingleImplementation / TH-12）" />
     <ModuleRule_Rule Include="StateOrchestrator 统一管理所有状态，替代 RegistryCoordinator + AppServiceProvider + SingletonCoordinator 三足鼎立" />
     <ModuleRule_Rule Include="StateActor 实例化管理，不再有静态状态" />
     <ModuleRule_Rule Include="StatePipeline 明确定义初始化顺序，每个块独立执行" />
@@ -34,6 +35,10 @@
   <ItemGroup>
     <ProjectReference Include="$(BasicMethodRoot)Block\Block.csproj" />
     <ProjectReference Include="$(Proj_StateManagement)" />
+    <!-- ★ 2026-09-12 DataCenter 立项（全量上收）：StateCenter 家族的通用逻辑（分层键/决策状态化…）
+         物理迁出至 Frame\DataCenter\DataCenter.Core（命名空间沿用 Operation.StateBlock.*，消费方零破坏）。
+         本模块降为「产品装配件」（初始化 StateBlock 管线 + Daemon + FunctionStorage）。 -->
+    <ProjectReference Include="..\..\..\DataCenter\DataCenter.Core\DataCenter.Core.csproj" />
     <!-- P0: 状态驱动的决策框架复用 TaskStatusPool.Loops 裁决语义（R7 唯一权威），宿主向下引用不引入环 -->
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <!-- 2026-08-05 StateCenter 改造：StateStore 迁移 IStorageCell 后端 + 事务/订阅基于 StorageCell -->

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://csg-schema.org/v1/runtime-data.json",
+  "title": "CSG RuntimeData Profile",
+  "description": "CSG 扩展域 csg://runtime-data —— 运行时数据的语言无关表示档（Profile）。不改 CSG 主 schema（csg-canonical-form.json）：本文件只对 CanonicalForm.Metadata 的运行时数据契约与节点/边类型登记做约束性扩展，使『状态值/状态迁移/引用图/代数版本/作用域分区』四类运行时数据在 C#/TS/PS 等任意语言间可互操作。",
+  "type": "object",
+  "required": ["nodes", "edges", "metadata"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "description": "运行时数据节点（State/Property/Record 等；类型登记见 $defs/runtimeNodeTypes）",
+      "items": { "$ref": "#/$defs/runtimeNode" }
+    },
+    "edges": {
+      "type": "array",
+      "description": "运行时数据边（Transition=状态迁移 / Reference=数据引用）",
+      "items": { "$ref": "#/$defs/runtimeEdge" }
+    },
+    "metadata": { "$ref": "#/$defs/runtimeMetadata" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "runtimeNode": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "节点 ID —— 运行时数据键的 URI 形式：csg://{domain}/{layer}/{scope}/{key}",
+          "pattern": "^csg://[^/]+/(config|session|transient)/[^/]+/.+$"
+        },
+        "label": { "type": "string" },
+        "type": { "enum": ["State", "Property", "Record", "Action"] },
+        "properties": {
+          "type": "object",
+          "description": "节点属性；运行时数据约定：value=实际值，layer=Config|Session|Transient，scope=分区标识，key=裸键"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "runtimeEdge": {
+      "type": "object",
+      "required": ["id", "sourceId", "targetId", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "sourceId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "type": { "enum": ["Transition", "Reference", "Composition", "ControlFlow"] },
+        "label": { "type": "string" },
+        "condition": { "type": "string" },
+        "weight": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+
+    "runtimeMetadata": {
+      "type": "object",
+      "required": ["csgVersion", "schema"],
+      "properties": {
+        "csgVersion": {
+          "type": "string",
+          "description": "CSG 协议版本（CsgProtocol.CurrentVersion，决定兼容窗口）",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "schema": {
+          "type": "string",
+          "const": "csg://runtime-data",
+          "description": "本 Profile 标识（运行时数据域）"
+        },
+        "kind": {
+          "type": "string",
+          "description": "投影类别：state-value(Configuration) | state-machine(StateMachine) | reference-graph(Graph)",
+          "enum": ["state-value", "state-machine", "reference-graph", "mixed"]
+        },
+        "domain": {
+          "type": "string",
+          "description": "域命名空间（如 Agent / StateBlock.Decision / Engine）；对应 IR 分层方案 ForDomain(domain)"
+        },
+        "scope": {
+          "type": "string",
+          "description": "分区 scope（threadHash / sessionId / roundId / taskKey / plugin-generation）"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "插件代数（热更新用）：同一份运行时数据可跨代际连续承载"
+        },
+        "fingerprint": {
+          "type": "string",
+          "description": "内容指纹（换代去重与在途版本判据，对齐 HotReloadVersionStore 的指纹语义）"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "运行时数据 schema 版本；跨代际结构演进时递增，触发 Migration"
+        },
+        "source": { "type": "string" },
+        "created": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

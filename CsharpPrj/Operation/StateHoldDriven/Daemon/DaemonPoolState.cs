@@ -50,6 +50,7 @@ public sealed class DaemonPoolState : IDisposable
         int TimeoutCount = 0);
 
     private readonly DaemonPoolOptions _options;
+    private readonly string _poolTag;
     private const int StderrTailMax = 25; // stderr 环形缓冲上限（失败归因，防静默挂死无任何输出）
     private readonly IDaemonTransport _transport;
     private readonly RequestTracker _requestTracker = new();
@@ -70,10 +71,11 @@ public sealed class DaemonPoolState : IDisposable
     /// <summary>worker 状态变化（透传池/诊断用）。</summary>
     public event Action<WorkerStateInfo>? WorkerStateChanged;
 
-    public DaemonPoolState(DaemonPoolOptions options, IDaemonTransport transport)
+    public DaemonPoolState(DaemonPoolOptions options, IDaemonTransport transport, string poolTag)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _poolTag = poolTag ?? string.Empty;
     }
 
     // ---- 就绪语义：Running（进程起/ping 通过）与 Ready/warm（工具初始化完成）明确拆分 ----
@@ -147,7 +149,7 @@ public sealed class DaemonPoolState : IDisposable
             if (_hosts.ContainsKey(id)) continue;
             await SpawnWorkerAsync(id, ct).ConfigureAwait(false);
         }
-        StateBlockLog.Step("Start_Spawned", new { poolSize = _options.PoolSize, workers = GetWorkerIds() });
+        StateBlockLog.Step(_poolTag, "Start_Spawned", new { poolSize = _options.PoolSize, workers = GetWorkerIds() });
 
         // S1：探活非空超时兜底（_options.ProbeTimeout 缺省可能为 null → 无超时则 StartAsync 无限挂起）。
         var probeTimeout = _options.ProbeTimeout ?? TimingDefaults.ClineProbe;
@@ -158,7 +160,7 @@ public sealed class DaemonPoolState : IDisposable
             if (!ok)
             {
                 // 探活仅失败时记录（成功探活由 Start_Done 汇总承载，避免每 worker 刷屏）
-                StateBlockLog.Step("Start_Probe", new { workerId = id, ok, timeoutSec = probeTimeout.TotalSeconds });
+                StateBlockLog.Step(_poolTag, "Start_Probe", new { workerId = id, ok, timeoutSec = probeTimeout.TotalSeconds });
                 MarkDead(id, "心跳探活失败（已达重试上限）");
                 hung.Add(id);
             }
@@ -167,13 +169,13 @@ public sealed class DaemonPoolState : IDisposable
         if (hung.Count > 0)
             throw new InvalidOperationException($"{hung.Count} 个 worker 心跳探活失败: {string.Join(", ", hung)}");
         _started = true;
-        StateBlockLog.Step("Start_Done", new { running = GetWorkerIds(), ready = ReadyWorkerCount });
+        StateBlockLog.Step(_poolTag, "Start_Done", new { running = GetWorkerIds(), ready = ReadyWorkerCount });
     }
 
     /// <summary>补位/重启单个 daemon（被 kill/挂起后）。</summary>
     public async Task RespawnAsync(string workerId, CancellationToken ct)
     {
-        StateBlockLog.Respawn(workerId);
+        StateBlockLog.Respawn(_poolTag, workerId);
         if (_hosts.TryRemove(workerId, out var old)) old.Dispose();
         _runtime.TryRemove(workerId, out _); // 新 worker 未就绪，需重新预热
         _stderrTail.TryRemove(workerId, out _); // 清旧 stderr，避免归因串脏
@@ -211,7 +213,7 @@ public sealed class DaemonPoolState : IDisposable
                 q.Enqueue(line);
                 while (q.Count > StderrTailMax && q.TryDequeue(out _)) { }
             }
-            StateBlockLog.DaemonStderr(workerId, line);
+            StateBlockLog.DaemonStderr(_poolTag, workerId, line);
         };
         // 阶段追踪（观测默认开）：trace 协议帧 → 透传诊断（lastStage 由宿主自行累计）。
         host.Trace += resp => OnTrace(workerId, resp);
@@ -232,17 +234,17 @@ public sealed class DaemonPoolState : IDisposable
             // CSG 状态帧（type:"csg"）：首帧透传完整 CanonicalForm 契约载荷，供 C# 侧消费/核对 worker 生命周期状态；
             // 后续迁移 form 主体（nodes/edges/metadata）恒定，仅记迁移状态，避免整表刷屏。
             if (_csgFirstLogged.TryAdd(workerId, true))
-                StateBlockLog.DaemonCsg(workerId, resp.Stage, resp.Form);
+                StateBlockLog.DaemonCsg(_poolTag, workerId, resp.Stage, resp.Form);
             else
-                StateBlockLog.DaemonCsgTransition(workerId, resp.Stage);
+                StateBlockLog.DaemonCsgTransition(_poolTag, workerId, resp.Stage);
             return;
         }
-        StateBlockLog.DaemonTrace(workerId, resp.Stage, resp.Detail);
+        StateBlockLog.DaemonTrace(_poolTag, workerId, resp.Stage, resp.Detail);
     }
 
     private void OnHostExited(string workerId)
     {
-        StateBlockLog.WorkerExited(workerId);
+        StateBlockLog.WorkerExited(_poolTag, workerId);
         _hosts.TryRemove(workerId, out _);
         TransitionTo(workerId, WorkerLifecycleState.Dead);
     }
@@ -306,7 +308,7 @@ public sealed class DaemonPoolState : IDisposable
         {
             if (!MigrationTable.TryGetValue(r.State, out var allowed) || !allowed.Contains(to))
             {
-                StateBlockLog.IllegalTransition(workerId, r.State.ToString(), to.ToString());
+                StateBlockLog.IllegalTransition(_poolTag, workerId, r.State.ToString(), to.ToString());
                 throw new InvalidOperationException(
                     $"非法 worker 状态迁移: {r.State} → {to}（worker={workerId}）");
             }

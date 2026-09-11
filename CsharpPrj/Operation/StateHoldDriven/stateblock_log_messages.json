@@ -5,117 +5,117 @@
     "StateBlock_Step": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "{step}: {data}"
+      "template": "pool={pool} | {step}: {data}"
     },
     "StateBlock_Fail": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "{step} 失败: {data}"
+      "template": "pool={pool} | {step} 失败: {data}"
     },
     "StateBlock_WarmupFailed": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "预热失败: worker={workerId}, stage={stage}, stderrTail={stderrTail}, error={error}"
+      "template": "预热失败: pool={pool}, worker={workerId}, stage={stage}, stderrTail={stderrTail}, error={error}"
     },
     "StateBlock_WarmupHung": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "预热挂起: worker={workerId}, stage={stage}, phase={phase}, stderrTail={stderrTail}, error={error}"
+      "template": "预热挂起: pool={pool}, worker={workerId}, stage={stage}, phase={phase}, stderrTail={stderrTail}, error={error}"
     },
     "StateBlock_ReadyTimeoutCleanup": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "就绪预算耗尽/取消，清理未就绪 daemon: warm={warm}, workers={workers}"
+      "template": "就绪预算耗尽/取消，清理未就绪 daemon: pool={pool}, warm={warm}, workers={workers}"
     },
     "StateBlock_DaemonStderr": {
       "level": "Debug",
       "category": "StateBlock_Daemon",
-      "template": "daemon stderr: worker={workerId}, line={line}"
+      "template": "daemon stderr: pool={pool}, worker={workerId}, line={line}"
     },
     "StateBlock_DaemonTrace": {
       "level": "Debug",
       "category": "StateBlock_Daemon",
-      "template": "daemon trace: worker={workerId}, stage={stage}, detail={detail}"
+      "template": "daemon trace: pool={pool}, worker={workerId}, stage={stage}, detail={detail}"
     },
     "StateBlock_DaemonCsg": {
       "level": "Debug",
       "category": "StateBlock_Daemon",
-      "template": "daemon csg: worker={workerId}, stage={stage}, form={form}"
+      "template": "daemon csg: pool={pool}, worker={workerId}, stage={stage}, form={form}"
     },
     "StateBlock_DaemonCsgTransition": {
       "level": "Debug",
       "category": "StateBlock_Daemon",
-      "template": "daemon csg 迁移: worker={workerId}, state={stage}"
+      "template": "daemon csg 迁移: pool={pool}, worker={workerId}, state={stage}"
     },
     "StateBlock_SendStart": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "请求开始: requestId={requestId}, worker={workerId}, cmd={cmd}, remainingSec={remainingSec}"
+      "template": "请求开始: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, remainingSec={remainingSec}"
     },
     "StateBlock_SendDone": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "请求完成: requestId={requestId}, worker={workerId}, cmd={cmd}, elapsedMs={elapsedMs}"
+      "template": "请求完成: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, elapsedMs={elapsedMs}"
     },
     "StateBlock_SendRetry": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "基建故障换 worker 重试: requestId={requestId}, worker={workerId}, cmd={cmd}, attempt={attempt}, error={error}"
+      "template": "基建故障换 worker 重试: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, attempt={attempt}, error={error}"
     },
     "StateBlock_SendFailed": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "请求业务失败: requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}"
+      "template": "请求业务失败: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}"
     },
     "StateBlock_SendCancelled": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "请求被取消: requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}"
+      "template": "请求被取消: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}"
     },
     "StateBlock_WorkerExited": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "worker 进程退出(被 kill/崩溃): worker={workerId}"
+      "template": "worker 进程退出(被 kill/崩溃): pool={pool}, worker={workerId}"
     },
     "StateBlock_RespawnFailed": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "补位/重启失败: worker={workerId}, error={error}"
+      "template": "补位/重启失败: pool={pool}, worker={workerId}, error={error}"
     },
     "StateBlock_IllegalTransition": {
       "level": "Error",
       "category": "StateBlock_Daemon",
-      "template": "非法 worker 状态迁移: worker={workerId}, from={from}, to={to}"
+      "template": "非法 worker 状态迁移: pool={pool}, worker={workerId}, from={from}, to={to}"
     },
     "StateBlock_PoolReady": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "池就绪: ready={readyCount}, elapsedSec={elapsedSec}"
+      "template": "池就绪: pool={pool}, ready={readyCount}, elapsedSec={elapsedSec}"
     },
     "StateBlock_BackpressureWait": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "背压等待可用 worker: ready={readyCount}"
+      "template": "背压等待可用 worker: pool={pool}, ready={readyCount}"
     },
     "StateBlock_Respawn": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "补位/重启: worker={workerId}"
+      "template": "补位/重启: pool={pool}, worker={workerId}"
     },
     "StateBlock_WarmupSummary": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "预热汇总: warmed={warmed}, total={total}"
+      "template": "预热汇总: pool={pool}, warmed={warmed}, total={total}"
     },
     "StateBlock_PoolInit": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "池初始化: poolSize={poolSize}, idleTimeoutSec={idleTimeoutSec}, warmupBudgetSec={warmupBudgetSec}, infraRetries={infraRetries}"
+      "template": "池初始化: pool={pool}, poolSize={poolSize}, idleTimeoutSec={idleTimeoutSec}, warmupBudgetSec={warmupBudgetSec}, infraRetries={infraRetries}"
     },
     "StateBlock_PoolDispose": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "池已销毁"
+      "template": "池已销毁: pool={pool}"
     }
   }
 }

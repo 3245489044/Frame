@@ -64,6 +64,11 @@ public class EchoSystem : CommandSystemBase
 
 public class SleepSystem : CommandSystemBase
 {
+    /// <summary>声明内等待可见化阈值：≥ 该毫秒数的 sleep/wait 记一条日志，使「脚本显式长等待」在时间线上可见
+    /// （短等待为 UI 轮询/布局让位用，保持静默，避免刷屏）。等待本身不属卡死，见
+    /// <c>CommandCoordinator.DeclaredWaitGraceMs</c> 的声明内等待豁免。</summary>
+    private const int DeclaredWaitLogMinMs = 1000;
+
     public SleepSystem(EntityManager entityManager)
         : base(entityManager, "sleep", "wait") { }
 
@@ -75,6 +80,9 @@ public class SleepSystem : CommandSystemBase
             return;
         }
 
+        // 等待前记录（而非等待后）：卡住现场可立即判定「脚本声明等待 N ms」而非「命令挂死」。
+        if (ms >= DeclaredWaitLogMinMs)
+            BackEndLog.Log("Command_Sleep", new { action = meta.Action, sleepMs = ms });
         Thread.Sleep(ms);
         SetSuccess(entity);
     }

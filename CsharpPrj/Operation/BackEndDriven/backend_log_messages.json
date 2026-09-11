@@ -88,6 +88,11 @@
       "category": "BackEndDriven_Execution",
       "template": "[Command] Echo: {message}"
     },
+    "Command_Sleep": {
+      "level": "Info",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 声明内等待: action={action}, sleepMs={sleepMs}（等待本身不计为慢/卡；见 CommandCoordinator 声明内等待豁免）"
+    },
     "Command_DoubleClick_Success": {
       "level": "Debug",
       "category": "BackEndDriven_Execution",

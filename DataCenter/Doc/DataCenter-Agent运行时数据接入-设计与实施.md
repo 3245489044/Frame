@@ -246,6 +246,14 @@ A0 Hosting（根由 Frame\DataCenter 持有）──▶ A1 槽清单 + 去静态
 > **A0 是总前置**：对象槽、投影、换代都必须挂在根上（而非各自的静态持有），否则每加一件都要再改一次持有关系。
 > **A1 是接入主体**：B 类 6 个槽是"Agent 运行时数据"的绝大部分；A 类与 C 类风险更低，可穿插进行。
 
+### 4.2 构建 / 烘焙顺序（实测要求，A0 落地时踩到）
+
+| # | 事实 | 动作 |
+|---|---|---|
+| B1 | 契约程序集（`DataCenter.{Abstractions,Protocol,Core,Adapters}`）会被 **CsharpPrj 烘焙副本**（`Frame\CsharpPrj\BuildOutput\$(Configuration)`）与 **CentralTest 共享输出**（`Environment\CentralTest\BuildOutput\$(Configuration)\net10.0-windows`）各自复制一份 | 改契约后若不刷新烘焙副本，测试运行期会加载**旧契约**（实测症状：`TypeLoadException: Could not load type 'DataCenter.Protocol.Roots.IRuntimeSlotPartition'`） |
+| B2 | 刷新触发点 = 唯一引用 DataCenter 的 CsharpPrj 工程 | `dotnet build Frame\CsharpPrj\Operation\StateHoldDriven\StateHoldDriven.csproj -c Debug`（随后常规 `dotnet test` 会同步 CentralTest 共享输出） |
+| B3 | 判定"是否已刷新" | `Get-ChildItem Frame\CsharpPrj\BuildOutput\Debug -Filter 'DataCenter.*.dll'`：时间戳须晚于本次契约改动 |
+
 ---
 
 ## 5. 门禁扩展（把纪律变成可回归的检查）

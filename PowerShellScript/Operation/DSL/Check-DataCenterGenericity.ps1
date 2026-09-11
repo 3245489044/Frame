@@ -194,8 +194,10 @@ foreach ($dir in $k9ScanDirs) {
             foreach ($m in $matched) {
                 $trimmed = $m.Line.Trim()
                 if ($trimmed.StartsWith('//') -or $trimmed.StartsWith('/*') -or $trimmed.StartsWith('*')) { continue }
-                # 只读形态（const/static readonly/仅 get 属性）不构成"可变运行时槽/静态持有根"
+                # 只读形态（const/static readonly/仅 get 属性）不构成"可变运行时槽/静态持有根"；
+                # "持有" = 静态字段或可写自动属性：方法签名（含 `(`）与表达式体属性（含 `=>`）不算持有
                 if ($name -like 'static*' -and ($trimmed -match '\bstatic\s+readonly\b' -or $trimmed -match '\{\s*get;\s*\}')) { continue }
+                if ($name -like 'static*' -and ($trimmed -match '=>' -or $trimmed -match '\(')) { continue }
                 $entry = [pscustomobject]@{ File = $rel; Line = $m.LineNumber; Pattern = $name; Text = $trimmed }
                 $white = $k9Whitelist | Where-Object { $_.Pattern -eq $name -and $rel -like ('*' + $_.Path + '*') } | Select-Object -First 1
                 if (-not $white) { $k9Hits.Add($entry); continue }

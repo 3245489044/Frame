@@ -3,6 +3,7 @@
        测试外迁 CentralTest（不注册进产品解决方案）。 -->
   <Project Path="DataCenter.csproj" />
   <Project Path="DataCenter.Abstractions/DataCenter.Abstractions.csproj" />
+  <Project Path="DataCenter.Protocol/DataCenter.Protocol.csproj" />
   <Project Path="DataCenter.Core/DataCenter.Core.csproj" />
   <Project Path="DataCenter.Adapters/DataCenter.Adapters.csproj" />
   <Project Path="DataCenter.Extensions.LoopDecision/DataCenter.Extensions.LoopDecision.csproj" />

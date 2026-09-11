@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据中心契约（图契约与端口）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>DataCenter 契约层：承载语言无关图契约与框架端口——图投影（IStateProjector/ProjectionRequest/值编解码/状态枚举接缝）、类型注册表（IStateRegistry）、代际读口（IStateGeneration）、根实例面（IDataCenterRoot/IRootProvider）。引 CSG.Unified（语言无关图表示 IR）与 DataCenter.Abstractions（数据单元端口）；不引引擎/宿主设施，不引任何实现工程。实现方为 DataCenter.Core（TierStateProjector/GraphRegistry/GenerationState/DataCenterRoot）与域扩展。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;契约;图契约;投影;IStateProjector;注册表;代际;根实例;CSG</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="L1 契约层：只声明端口 + 值类型（无实现、无状态）；实现一律经 Core/域扩展注入" />
+    <ModuleRule_Rule Include="DF1：图是投影（IStateProjector.Project 只读派生），图侧不得出现任何写状态调用" />
+    <ModuleRule_Rule Include="DF2：本工程不引引擎/宿主设施（IStorageCell/Block/服务定位器）；只经 DataCenter.Abstractions 端口" />
+    <ModuleRule_Rule Include="DF7：tier/nodeKind/edgeKind 全部注册制（IStateRegistry 为只读消费面，默认集仅为示例）" />
+    <ModuleRule_Rule Include="DF8：整体数据流由单一根实例持有（IDataCenterRoot），禁止平行根/静态槽/兜底造根" />
+    <ModuleRule_Rule Include="路径唯一映射点（全键↔csg URI）在 Core，不在本工程（本工程只声明取值类型）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DataCenter.Protocol</RootNamespace>
+    <AssemblyName>DataCenter.Protocol</AssemblyName>
+    <Description>DataCenter 契约层 —— 图契约/投影/注册表/代际/根端口（零引擎设施依赖）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 数据单元端口（IDataCell）：根只持端口真源，不持具体存储实现 -->
+    <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <!-- 语言无关图表示（CanonicalForm）：投影产物的对外形态（R-DC1：只扩不改主 schema） -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+  </ItemGroup>
+
+</Project>

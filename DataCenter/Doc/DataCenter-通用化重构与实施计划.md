@@ -228,6 +228,8 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 
 ### G7 · 消费方接入与插件可收集
 
+> **单根持有的设计依据**：见 `DataCenter-可追踪数据流图框架-设计与实施.md §12`（根实例契约 `IDataCenterRoot`/`IRootProvider`/`ISwapPoint`、取得纪律、生命周期与换代、反模式清单）。G7.1–G7.3 即该章的落地步骤。
+
 | 步骤 | 内容 | 判据 |
 |---|---|---|
 | G7.1 | Agent 删除插件内 `new StateCenter(...)`（`AgentOrchestrator.cs:93`、`WorkflowRunner.cs:89` 含第二根）与静态槽 | `grep` `new StateCenter(` 于 `Projects\Plug` 归零 |

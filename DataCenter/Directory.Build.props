@@ -34,11 +34,11 @@
   <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
 
   <!-- 全局 GlobalUsings：DataCenter 全部项目共享跨程序集公共命名空间。
-       例外：DataCenter.Abstractions 为「零依赖纯端口」，不得继承外部命名空间（CSG/TConfig），
-       否则零引用约束被 GlobalUsings 击穿。 -->
+       例外：DataCenter.Abstractions 为「零依赖纯端口」、DataCenter.Protocol 为「契约层（只引 CSG + Abstractions）」，
+       二者不得继承外部命名空间（CSG/TConfig），否则零引用约束被 GlobalUsings 击穿（新增纯契约工程沿用本豁免）。 -->
   <ItemGroup Label="GlobalUsings">
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.System.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs"
-             Condition="'$(MSBuildProjectName)' != 'DataCenter.Abstractions'" />
+             Condition="'$(MSBuildProjectName)' != 'DataCenter.Abstractions' and '$(MSBuildProjectName)' != 'DataCenter.Protocol'" />
   </ItemGroup>
 </Project>

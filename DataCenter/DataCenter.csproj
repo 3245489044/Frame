@@ -15,6 +15,7 @@
     <ModuleRule_Rule Include="R-DC1：CSG 主 schema 只扩不改（扩展域 csg://runtime-data），CsgProtocol v1.0.0 语义冻结" />
     <ModuleRule_Rule Include="R-DC2：不引语言栈与应用层工程" />
     <ModuleRule_Rule Include="G4：领域逻辑经 DataCenter.Extensions.* 单向引用 Core 注入，Core 不含任何反向引用" />
+    <ModuleRule_Rule Include="D0/D1：契约层 DataCenter.Protocol 承载图契约与框架端口（投影/注册表/代际/根），Core 提供其实现（TierStateProjector/GraphRegistry/GenerationState/DataCenterRoot）" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -30,6 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <ProjectReference Include="DataCenter.Protocol\DataCenter.Protocol.csproj" />
     <ProjectReference Include="DataCenter.Core\DataCenter.Core.csproj" />
     <ProjectReference Include="DataCenter.Adapters\DataCenter.Adapters.csproj" />
     <ProjectReference Include="DataCenter.Extensions.LoopDecision\DataCenter.Extensions.LoopDecision.csproj" />

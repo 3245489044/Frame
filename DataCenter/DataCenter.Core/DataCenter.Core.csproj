@@ -31,6 +31,8 @@
     <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" />
     <!-- 端口层：IDataCell/IDataCellFactory/IStateDispatch/IStateInitializer（零依赖纯端口） -->
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <!-- 契约层：图契约与框架端口（IStateProjector/IStateRegistry/IStateGeneration/IDataCenterRoot）；Core 提供其实现 -->
+    <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />
     <!-- 契约枚举 StorageLayer（Plate 层）+ Compat 适配器所需的 IStorageCell 契约面（引擎实现不进本层） -->
     <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
     <!-- 契约强制（非自主选择）：Share 契约 IStateOrchestrator 暴露 ExecutionPipeline/PipelineResult（BasicMethod.Block 类型），

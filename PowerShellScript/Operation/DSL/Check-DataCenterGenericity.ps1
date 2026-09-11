@@ -1,7 +1,7 @@
 # Check-DataCenterGenericity.ps1
 # DataCenter 通用化不变式校验器（对齐 Frame\DataCenter\Doc\DataCenter-通用化重构与实施计划.md §2 G1/G2 与 §6 A1/A2/A3）
 # 两级检查：
-#   [G1 领域词汇零出现] 扫描 DataCenter.Core 源码 + 工程元数据 + schemas，断言无 Loop/Decision/Eval/Budget/Token/Flag/Round/Agent/Engine。
+#   [G1 领域词汇零出现] 扫描 DataCenter.Core + DataCenter.Protocol（契约层）源码/工程元数据 + schemas，断言无 Loop/Decision/Eval/Budget/Token/Flag/Round/Agent/Engine。
 #   [G2 设施端口化]     扫描 DataCenter.Core，断言不自主出现引擎/宿主设施类型
 #                       （IStorageCell/StorageCell/BasicMethod.Block/FrameworkAbstractions），并校验 csproj 无设施工程引用。
 #                       白名单 = 契约强制点（Compat 适配目录 / 契约签名暴露处），逐条登记理由。
@@ -28,12 +28,17 @@ $coreDir = Join-Path $Root 'Frame\DataCenter\DataCenter.Core'
 $schemaDir = Join-Path $Root 'Frame\DataCenter\schemas'
 if (-not (Test-Path $coreDir)) { Write-Error "未找到 DataCenter.Core: $coreDir"; exit 2 }
 
-# 扫描面：Core 全部 .cs（排除 obj/bin）+ Core 工程文件（ModuleRule 元数据）+ schemas（跨语言中立性）
+# 扫描面：Core + 契约层（DataCenter.Protocol）全部 .cs/.csproj（排除 obj/bin）+ schemas（跨语言中立性）
+$contractDirs = @(
+    $coreDir,
+    (Join-Path $Root 'Frame\DataCenter\DataCenter.Protocol')
+)
 $files = @()
-$files += Get-ChildItem -Path $coreDir -Recurse -File -Include *.cs -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
-$files += Get-ChildItem -Path $coreDir -Recurse -File -Include *.csproj -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' }
+foreach ($dir in $contractDirs) {
+    if (-not (Test-Path $dir)) { continue }
+    $files += Get-ChildItem -Path $dir -Recurse -File -Include *.cs, *.csproj -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
+}
 if (Test-Path $schemaDir) {
     $files += Get-ChildItem -Path $schemaDir -Recurse -File -Include *.json -ErrorAction SilentlyContinue
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
@@ -14,6 +15,12 @@ namespace Share.TaskStatusPool.TaskPool
     /// + <see cref="TaskPauseHandle"/>（任务级暂停，TCS）+ <see cref="TaskPauseManager"/>（队列级全局暂停）+ SemaphoreSlim（并发闸门）。
     /// 写入（Enqueue/Payload 持久化）→ 激活标志（Active，与写入解耦）→ 唤醒消费循环；暂停为循环内非终止决策（Running ⇄ Paused）。
     /// 消费门仅采用「NotStarted 且 Active=true」的任务；休眠（Active=false）仅持久化不被消费，经 <see cref="SetActiveAsync"/> 翻转后唤醒。
+    /// <para>触发架构（三层单一机制，**无时间窗节流**）：
+    /// ① 事件驱动——写即唤醒（Enqueue/SetActive/回填/完成触发均写 <c>_signal</c>），非周期轮询；
+    /// ② 信号合并——一次唤醒先排空全部待处理信号再 drain 一次，写风暴折叠为单次持久化查询；
+    /// ③ 空闲兜底——<see cref="TaskPoolOptions.IdleReconcileIntervalMs"/> 超周期补跑（唯一节流点，防信号丢失睡死）。
+    /// 任务启动不节流（写即激活即消费）：时间窗式全局限频与「写即激活」事件语义冲突，且其声称保护的持久化查询发生在门控之前，
+    /// 且与①②③职责重叠（机制冗余），故已废除（见 options 说明）。</para>
     /// 与 Agent 无关（通用基础框架内自包含状态原语，不依赖 Modules.StateMachine / Share.StateManagement）。
     /// </summary>
     public sealed class TaskPool<TItem, TResult> : ITaskPool<TItem>
@@ -24,8 +31,6 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly int _maxConcurrency;
         private readonly int _batchSize;
         private readonly int _heartbeatIntervalMs;
-        private readonly TriggerRateGate _rateGate;
-        private readonly Func<ITaskPoolItem, bool>? _skipRateLimitFor;
         private readonly TimeSpan _drainTimeout;
         private readonly TimeSpan _idleReconcile;
 
@@ -40,6 +45,7 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly object _lock = new();
         private CancellationTokenSource? _loopCts;
         private Task? _consumer;
+        private Timer? _reconcileTimer;
         private volatile bool _started;
         private bool _disposed;
 
@@ -48,6 +54,10 @@ namespace Share.TaskStatusPool.TaskPool
 
         /// <summary>消费循环单次 drain 失败事件（诊断）：记录后消费循环自愈续跑（不退出），宿主可订阅取证根因。</summary>
         public event EventHandler<Exception>? DrainFault;
+
+        /// <summary>消费循环阶段观测（诊断）：每次 drain 的结束（耗时/待办数/启动键/故障原因）。
+        /// 用于把「已入队却长时间未启动」判定为「drain 被阻塞（耗时长）」vs「拉取为空（pending=0）」——任务池不再是不透明黑盒。</summary>
+        public event EventHandler<TaskPoolConsumptionEventArgs>? ConsumptionObserved;
 
         public TaskPool(
             ITaskPoolPersistence<TItem> persistence,
@@ -60,8 +70,6 @@ namespace Share.TaskStatusPool.TaskPool
             _maxConcurrency = Math.Max(1, options.MaxConcurrency);
             _batchSize = Math.Max(1, options.BatchSize);
             _heartbeatIntervalMs = Math.Max(0, options.HeartbeatIntervalMs);
-            _rateGate = new TriggerRateGate(TimeSpan.FromMilliseconds(Math.Max(0, options.MinTriggerIntervalMs)));
-            _skipRateLimitFor = options?.SkipRateLimitFor;
             _drainTimeout = TimeSpan.FromMilliseconds(Math.Max(0, options.DrainTimeoutMs));
             _idleReconcile = TimeSpan.FromMilliseconds(Math.Max(0, options.IdleReconcileIntervalMs));
             _gate = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
@@ -75,6 +83,10 @@ namespace Share.TaskStatusPool.TaskPool
             if (_started) return;
             _started = true;
             _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            // 空闲兜底：定时把 tick 写入**同一唤醒通道**（而非旁路 Task.WhenAny+Task.Delay）——
+            // 保证「单一读者、始终恰有一个挂起读」，消除放弃挂起读/每次迭代分配定时器的语义歧义。
+            if (_idleReconcile > TimeSpan.Zero)
+                _reconcileTimer = new Timer(_ => _signal.Writer.TryWrite(true), null, _idleReconcile, _idleReconcile);
             _consumer = Task.Run(() => ConsumeLoopAsync(_loopCts.Token));
         }
 
@@ -84,6 +96,9 @@ namespace Share.TaskStatusPool.TaskPool
             _started = false;
             var cts = _loopCts;
             _loopCts = null;
+            var timer = _reconcileTimer;
+            _reconcileTimer = null;
+            timer?.Dispose();
             _signal.Writer.TryComplete();
             if (cts is not null)
             {
@@ -99,7 +114,6 @@ namespace Share.TaskStatusPool.TaskPool
             _disposed = true;
             await StopAsync().ConfigureAwait(false);
             _gate.Dispose();
-            _rateGate.Dispose();
             _pauseManager.ResumeGlobalPause();
         }
 
@@ -135,7 +149,8 @@ namespace Share.TaskStatusPool.TaskPool
                 _retries.TryRemove(item.TaskKey, out _);
             }
             await _signal.Writer.WriteAsync(true, ct).ConfigureAwait(false);
-            Emit(item.TaskKey, TaskExecutionStatus.NotStarted, TaskExecutionStatus.NotStarted, "enqueued");
+            // 状态迁移真值：from 取复位前真实内存态（消除恒 NotStarted→NotStarted 的日志失真——取消/完成后重跑可见 Cancelled/Completed→NotStarted）。
+            Emit(item.TaskKey, cur, TaskExecutionStatus.NotStarted, "enqueued");
             return id;
         }
 
@@ -314,18 +329,27 @@ namespace Share.TaskStatusPool.TaskPool
         {
             try
             {
-                while (await WaitSignalOrReconcileAsync(ct).ConfigureAwait(false))
+                while (await WaitSignalAsync(ct).ConfigureAwait(false))
                 {
                     while (_signal.Reader.TryRead(out _)) { }
+                    var sw = Stopwatch.StartNew();
                     try
                     {
-                        await DrainOnceAsync(ct).ConfigureAwait(false);
+                        var (pending, started, skipped, skippedRows) = await DrainOnceAsync(ct).ConfigureAwait(false);
+                        sw.Stop();
+                        ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                            TaskPoolConsumptionPhase.DrainEnd, sw.ElapsedMilliseconds, pending, started, skipped: skipped,
+                            skippedRows: skippedRows));
                     }
                     catch (OperationCanceledException) { throw; }
                     catch (Exception ex)
                     {
                         // 单次 drain 失败（异常/超时）只记一次并续跑（自愈），
                         // 避免任何单点异常/卡死杀死整条消费循环 → 后续新入队任务永远不被消费（hang）。
+                        sw.Stop();
+                        ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                            TaskPoolConsumptionPhase.DrainFault, sw.ElapsedMilliseconds, 0, null,
+                            $"{ex.GetType().Name}: {ex.Message}"));
                         DrainFault?.Invoke(this, ex);
                         TriggerNext();
                     }
@@ -335,24 +359,13 @@ namespace Share.TaskStatusPool.TaskPool
             catch { }
         }
 
-        /// <summary>等待唤醒信号或低频终局兜底超周期；返回 true = 有活要干（信号数据到达或兜底超周期到达），false = 通道已完成（应退出循环）。</summary>
-        private async Task<bool> WaitSignalOrReconcileAsync(CancellationToken ct)
-        {
-            // 默认（未启用 reconcile）：纯事件驱动，等价原 WaitToReadAsync——true=有数据，false=通道完成退出。
-            if (_idleReconcile <= TimeSpan.Zero)
-                return await _signal.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
+        /// <summary>等待唤醒：单一唤醒通道（事件信号 + 空闲兜底 tick 同源写入），返回 false = 通道已完成（应退出循环）。
+        /// 空闲兜底不再经 <c>Task.WhenAny(Task.Delay)</c>（会放弃挂起读、每次迭代分配定时器），而由 <see cref="Start"/> 的定时器写入本通道。</summary>
+        private async Task<bool> WaitSignalAsync(CancellationToken ct)
+            => await _signal.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
 
-            // 已关闭（StopAsync 完成写入端）→ 直接退出，不再等待。
-            if (_signal.Reader.Completion.IsCompleted) return false;
-
-            // 事件驱动为主，仅当空闲超周期无人唤醒才兜底返回一次 true 补跑 drain（DrainOnce 空待办立即返回，成本近零）。
-            var wait = _signal.Reader.WaitToReadAsync(ct).AsTask();
-            var tick = Task.Delay(_idleReconcile, ct);
-            var done = await Task.WhenAny(wait, tick).ConfigureAwait(false);
-            return done == wait ? await wait.ConfigureAwait(false) : true; // tick 命中 → 兜底唤醒
-        }
-
-        private async Task DrainOnceAsync(CancellationToken ct)
+        private async Task<(int Pending, string? Started, int Skipped,
+            List<(string TaskKey, TaskExecutionStatus MemoryState)> SkippedRows)> DrainOnceAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -362,18 +375,38 @@ namespace Share.TaskStatusPool.TaskPool
             // 激活门：激活标志（Active）与写入解耦 —— 仅采用「NotStarted 且 Active=true」的任务；Active=false（休眠）仅持久化不被消费。
             // 未实现 IActivatableTaskPoolItem 的条目恒视为 Active=true（无门控，向后兼容）。
             var usable = pending.Where(IsActive).ToList();
-            if (usable.Count == 0) return;
+            if (usable.Count == 0) return (0, null, 0, new());
 
-            var item = usable.OrderByDescending(p => p.Priority).First();
+            // 候选遍历（而非只看排序第一件）+ 陈旧行对齐：
+            // 「持久化行可消费（NotStarted ∧ Active）但内存态已非 NotStarted」= 状态分叉（毒化/陈旧行）。
+            // 旧实现对此走 `TriggerNext(); return;`——立即再唤醒→再选中同一行→**忙等自旋**，
+            // 且每次只试一件 ⇒ 毒化行**队首阻塞**真实任务（表现为随机长时间滞留 NotStarted）。
+            // 现改为：跳过该行并把其持久化状态**对齐到内存真态**（一次性消除毒化源），继续尝试其余候选。
+            TItem? item = default;
+            var skipped = 0;
+            // 陈旧/毒化行明细（键 + 内存真态）：随 drain 上报，供宿主逐键留痕「分叉已对齐」。
+            var skippedRows = new List<(string TaskKey, TaskExecutionStatus MemoryState)>();
+            foreach (var candidate in usable.OrderByDescending(p => p.Priority))
+            {
+                var candidateState = _states.GetOrCreate(candidate.TaskKey);
+                if (candidateState.CurrentState != TaskExecutionStatus.NotStarted)
+                {
+                    skipped++;
+                    skippedRows.Add((candidate.TaskKey, candidateState.CurrentState));
+                    await ReconcileStaleRowAsync(candidate.TaskKey, candidateState.CurrentState, ct).ConfigureAwait(false);
+                    continue;
+                }
+                if (!candidateState.TryStart())
+                {
+                    skipped++;
+                    continue;
+                }
+                item = candidate;
+                break;
+            }
+            if (item is null) return (usable.Count, null, skipped, skippedRows); // 全部候选不可启动：不再自旋（交由下一信号/兜底重试）
 
-            // 触发频率限制门（仅在有事件到达时门控，非周期轮询）：限入队→Drain→DB 查询频率。
-            // 任务级跳过判定（SkipRateLimitFor）：零 LLM 任务即使真实环境也不限频。
-            if (_skipRateLimitFor?.Invoke(item) != true)
-                await DrainAsync(t => _rateGate.AcquireAsync(t), ct).ConfigureAwait(false);
             var key = item.TaskKey;
-            var state = _states.GetOrCreate(key);
-            if (state.CurrentState != TaskExecutionStatus.NotStarted) { TriggerNext(); return; }
-            if (!state.TryStart()) { TriggerNext(); return; }
 
             await DrainAsync(t => _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, t), ct).ConfigureAwait(false);
             lock (_lock) _inFlight.Add(key);
@@ -421,13 +454,29 @@ namespace Share.TaskStatusPool.TaskPool
             finally
             {
                 hbCts.Cancel();
-                try { await heartbeat.ConfigureAwait(false); } catch { }
+                // 心跳纯观测（周期刷新 UpdatedAt）：**不得**在消费关键路径上 await——其持久化写入若阻塞，
+                // 会顺带冻结整条消费链（已就绪的下一个任务也只能排队等待）。此处仅取消并观测异常，不阻塞后续 TriggerNext。
+                _ = heartbeat.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
                 _gate.Release();
                 lock (_lock) _inFlight.Remove(key);
             }
 
             // 状态变更（完成/失败/取消/重试）触发取下一个：事件驱动链（入队→完成→取下一个），无内层自转、无定时。
             TriggerNext();
+            return (usable.Count, key, skipped, skippedRows);
+        }
+
+        /// <summary>陈旧/毒化行对齐：持久化行仍处可消费态（NotStarted ∧ Active）但内存态已非 NotStarted 时，
+        /// 把持久化状态对齐到内存真态（内存态为权威：由同一状态机写入），使该行不再被 ListAsync 命中 → 一次性消除毒化源、终止自旋。
+        /// 对齐失败不抛（不翻转消费循环）：本轮不再自旋重试，下一轮信号/空闲兜底再试。</summary>
+        private async Task ReconcileStaleRowAsync(string taskKey, TaskExecutionStatus actual, CancellationToken ct)
+        {
+            try
+            {
+                await _persistence.UpdateStatusAsync(taskKey, TaskExecutionStatus.NotStarted, actual, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch { /* 对齐属可恢复的收敛动作：失败留给下一轮，绝不在本轮自旋 */ }
         }
 
         private void TriggerNext() => _signal.Writer.TryWrite(true);

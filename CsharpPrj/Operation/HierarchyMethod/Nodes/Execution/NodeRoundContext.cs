@@ -38,6 +38,10 @@ public sealed class NodeRoundContext
     /// <summary>本轮会话作用域（taskKey，供 task→node 归属边与读侧 task 过滤）。由编排器注入。</summary>
     public string? SessionId { get; set; }
 
+    /// <summary>本轮轮序号（1-based；= run/round 观测键 <c>runId+"R"+n</c> 的 n，由轮驱动经编排器注入）。
+    /// 本层只当不透明整数承载，不感知类型；0 = 未注入（直跑/非 Agent 路径，埋点方据此跳过观测）。</summary>
+    public int RoundNo { get; set; }
+
     /// <summary>
     /// 透明 run 作用域槽（跨层中性透传）：由宿主（Agent 运行持有方）每轮填充当前 run 作用域对象，
     /// 供本节点编排期间到达深层函数/过滤器的显式承载——AsyncLocal 去除后的替代通道。

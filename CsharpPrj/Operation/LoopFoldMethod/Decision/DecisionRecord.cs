@@ -17,8 +17,11 @@ public enum DecisionRecordKind
     /// <summary>工具执行异常/返回空（R7，归因可见）。</summary>
     ToolCallError,
 
-    /// <summary>工具执行成功。</summary>
+    /// <summary>工具执行成功（执行侧观测：工具注册表/LlmToolExecutor 的实际调用结果）。</summary>
     ToolCallOk,
+
+    /// <summary>决策命中并选定工具调用（决策侧观测：规则解析产出 tool_call，尚未执行）。</summary>
+    ToolCallSelected,
 
     /// <summary>导演/解析失败（R7：空 stay 不再吞成 Success）。</summary>
     DirectorParseFailed,

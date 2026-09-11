@@ -2,7 +2,7 @@
 
 > **日期**：2026-09-12 | **定位**：Frame 平台层「接入方」设计（L4/L5，构建在 `Frame\DataCenter` 之上） | **性质**：接入方案 + 分步实施
 > **一句话**：把 Agent 侧全部运行时数据收敛为**四条通道**（状态 KV / 对象槽 / 投影 / 域真源对接）；整体数据流的**根实例由 `Frame\DataCenter` 持有**（新增 `DataCenter.Hosting` 单根宿主），Agent 只经端口消费、不再自持运行数据。
-> **关联**：`DataCenter-架构设计.md`（立项与红线）、`DataCenter-通用化重构与实施计划.md`（G1–G8）、`DataCenter-可追踪数据流图框架-设计与实施.md`（DF1–DF8 / D0–D5）
+> **关联**：`DataCenter-架构设计.md`（立项与红线）、`DataCenter-通用化重构与实施计划.md`（G1–G8）、`DataCenter-可追踪数据流图框架-设计与实施.md`（DF1–DF8 / D0–D5）、`DataCenter-Agent运行时数据接入-实施进展与后续.md`（**执行台账**：已完成阶段的提交与实测判据）、`DataCenter-Agent运行时数据接入-下一步实施计划.md`（**下一步权威**：S1–S5 步骤/改动点/判据/回退/提交粒度）
 
 ---
 

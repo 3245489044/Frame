@@ -39,34 +39,16 @@
 - `IStateRegistry` 增 `DomainAliases` / `TryResolveDomainAlias`；`GraphRegistry.WithDomainAliases(...)`（增量复制，原表不变）。
 - `StateUriMapper.Resolve(entry, registry?)` 别名优先；`TierStateProjector` 传注册表 → `Agent.{Scheduler,Session,Round}` 可在装配期登记为同一 domain（零落盘迁移）。
 
-## 3. 后续步骤（可直接执行）
+## 3. 后续步骤
 
-### D-A3（需确认）：`DataCenter.Extensions.AgentState` 的落点
+> **权威**：下一步的**步骤 / 改动点 / 判据 / 回退 / 提交粒度**以 `DataCenter-Agent运行时数据接入-下一步实施计划.md` 为唯一权威（含 D-A3/D-A4/D-A5 决策点与 S1–S5 明细）。此处仅保留阶段级状态与阻塞原因，避免两处重复维护。
 
-| 方案 | 说明 | 风险 |
+| 阶段 | 状态 | 阻塞 / 前置 |
 |---|---|---|
-| **①（推荐）扩展工程放 Agent 侧**（如 `Projects\Plug\Agent\src\Agent.DataCenter`），Core 只提供通用机制（A3a-1 已完成） | 域键权威（`AgentStateKeys`）在 `Projects`，扩展与其同侧，符合"Frame 不反向依赖 Projects"的既有分层；LoopDecision 扩展在 Frame 是因为其域权威（`TaskStatusPool`）也在 Frame | 与设计文档 §2.1 的 L4 命名不一致 → 需回写文档 |
-| ② 严格按文档放 `Frame\DataCenter\DataCenter.Extensions.AgentState` | 需要 Frame→Projects 引用（逆向），破坏现有分层与门禁口径 | 高（层级倒置） |
-
-### A3a-2 步骤（选定落点后）
-1. 新建扩展工程 + 装配期注册：`WithDomainAliases(("Agent.Scheduler","Agent"),("Agent.Session","Agent"),("Agent.Round","Agent"))` + 域 nodeKind 登记。
-2. 域投影接入（复用 `TierStateProjector`）+ 对象槽可观测投影（只读快照：LLM 路由模式/后端清单、技能热集计数、工作流编译缓存键）。
-3. 判据：K3（CSG 校验）/K4（悬空边 0）/K5（Kind 注册完备）、投影幂等（两次 `ToJson` 全等）、`Ancestors(终答节点)` 闭合。
-
-### A3b（前置：D2/D3 追踪面契约入 Protocol）
-- `IDataCenterRoot` 增 `ITraceQuery`（`Ancestors`/`ReverseRefs`/`Validate`）；`TraceStamp` 盖章接入写路径（`writer` = `AgentRunner`/`NodeExecutionService`/`RoundStateMapper` 显式传入）。
-- 判据：K7 追踪四要素。
-
-### A4（风险最高：独立提交 + 独立开关）
-- `vars`(Transient) ↔ `ur_nodes`：`NodeExecutionService` 写侧收敛「单写 + 投影重算」（读侧 ur_nodes 优先已具备）。
-- `AgentTaskItem.PayloadJson` ↔ `state.Data`：以任务快照为唯一权威根，`state.Data` 降为缓存/投影（`RoundStateMapper.Harvest` 二次收割点）。
-- 判据：按后端（Sqlite / 内存占位）可开关、故障注入（写后崩溃）无漂移、`NodeGraphReconciler` 跨介质缺口 0、Agent 全量绿。
-
-### A5（换代闭环，含宿主侧改动）
-1. `Frame\CsharpPrj\Modules\Registry\ExtensionAssemblyHost.cs:218` `isCollectible: false → true` + 实例化代数工厂（消除 `static ExtensionAssemblyHost`，G7.2）。
-2. `DataCenterHost.SwapAsync` 接入新 ALC：Drain → Export（agent 分区）→ 新 ALC 装配新根 → Import（`generation+1`/fingerprint/Seq 连续）→ Resume → 旧 ALC `Unload`；对象槽 = **重建 + 状态迁移**。
-3. 移除 K9 待迁移两项（`AgentOrchestrator.cs:93`、`WorkflowRunner.cs:89` 兜底造根）；宿主（PrjBridge/FileDriven 引导）经 `DataCenterHost.Boot` 持有根并注入 `AgentFrameworkAssemblyContext.RootProvider`。
-4. 判据：同 scope 值/Seq 连续；旧代数 `WeakReference.IsAlive == false`；换代失败保留旧代数；K9 待迁移归零。
+| **A3a-2** 域扩展工程（域 Keys + 域投影） | ⏳ 待开工 | 需先定 **D-A3 落点**（设计文档要求放 Frame，但代理域键权威在 Projects → 会造成逆向引用；推荐 Agent 侧） |
+| **A3b** `TraceStamp` + `ITraceQuery` | ⏸ 阻塞 | 前置 = 框架侧 **D2/D3** 追踪面契约入 Protocol（见 `DataCenter-可追踪数据流图框架-设计与实施.md` §7 D2/D3） |
+| **A4** 双写收敛 | ⏸ 未开始 | 风险最高：须独立开关（默认关）+ 故障注入 + 单独评审 |
+| **A5** 换代闭环 | ⏸ 未开始 | 依赖宿主侧改动（可收集 ALC、引导注入根）与 K9 待迁移两项归零 |
 
 ## 4. 复用命令清单
 

@@ -121,7 +121,7 @@ namespace Modules.Registry;
     /// <summary>
     /// 按程序集限定名解析函数库类型。
     /// 两段式：① 默认 ALC（deps.json 已登记的正常库，如 FileDriven.Business/FrontEndDriven）用 Type.GetType；
-    /// ② 默认 ALC 失败时交 ExtensionAssemblyHost 的 scoped ALC 显式发现（扩展层 Agent.* / GameEditor.*）。
+    /// ② 默认 ALC 失败时交扩展代数工厂（当前代数的 scoped ALC）显式发现（扩展层 Agent.* / GameEditor.*）。
     /// 不再依赖全局 AssemblyLoadContext.Default.Resolving 隐式兜底。
     /// </summary>
     private static Type? ResolveTypeFromQualifiedName(string typeStr)
@@ -130,7 +130,7 @@ namespace Modules.Registry;
         if (type != null)
             return type;
 
-        return ExtensionAssemblyHost.ResolveType(typeStr);
+        return ExtensionGenerationFactory.ResolveType(typeStr);
     }
 
     private static void LoadFromAutoDiscovery(

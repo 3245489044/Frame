@@ -1,39 +1,49 @@
-# DataCenter · Agent 侧运行时数据接入 —— 下一步实施计划（A3a-2 → A5）
+# DataCenter · Agent 侧运行时数据接入 —— 下一步实施计划（S4-2 → S5）
 
-> **日期**：2026-09-12 | **权威边界**：本文件是「**下一步怎么做**」的唯一权威（步骤 / 改动点 / 判据 / 回退 / 提交粒度）；
-> 设计语义以 `DataCenter-Agent运行时数据接入-设计与实施.md` 为唯一权威；**已完成阶段的实测记录**见 `DataCenter-Agent运行时数据接入-实施进展与后续.md`。
+> **日期**：2026-09-12（S4-1 完成后重编） | **权威边界**：本文件是「**下一步怎么做**」的唯一权威（步骤 / 改动点 / 判据 / 回退 / 提交粒度）；
+> 设计语义以 `DataCenter-Agent运行时数据接入-设计与实施.md` 为唯一权威；**已完成阶段的实测记录**见 `DataCenter-Agent运行时数据接入-实施进展与后续.md`（执行台账）。
 > **通则**（沿用设计文档 §4）：每步**独立可编译、可回退**；判据必须可执行（命令 / 断言）；不改真源（SQL/LiteDB）、不改 CSG 主 schema。
 
 ---
 
-## 0. 当前基线（开工前核对）
+## 0. 当前基线（开工前核对，全部为实测值）
 
 | 项 | 状态 |
 |---|---|
-| A0 / A1 / A2 / A3a-1 | ✅ 已完成并提交（明细见进展台账） |
-| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1/G2/K9；K9 待迁移 2 项 = A5 目标）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（0 新增；22 项存量基线） |
-| 测试基线 | DataCenter.Tests **44/44**、StateHoldDriven.Tests **73/73**、Agent.Core.Tests **396/396**、Agent.Axioms.Tests **84/84**、Agent.Runtime.Tests **21/21**、Agent.Launcher.Tests **26/26** |
-| 关键纪律 | 改契约后必须刷新烘焙副本（设计文档 §4.2），否则测试运行期加载旧契约（`TypeLoadException`） |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** —— 明细见进展台账 §2 |
+| **未完成** | S4-2 / S4-3 / S4-4（换代闭环）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
+| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 2 + **待迁移 2** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（456 文件 / **新增 0** / 存量基线 22） |
+| 测试基线 | DataCenter.Tests **49/49** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **26/26** · Integration.Tests **30 通过 / 1 跳过** |
+| 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
+| 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
+| 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
+| 待决策 | **D-批次序**（§2）· **D-S42**（§2）· D-A4（A4 开关形态，建议已给）· D-A5（换代不承诺零停机，建议 ①） |
 
 ---
 
-## 1. 阶段依赖与建议批次
+## 1. 剩余阶段依赖与建议批次
 
 ```
-[S1] A3a-2 域扩展工程 ──┬──► [S3] A4 双写收敛（独立开关，最后做）
-                        │
-[S2] A3b 追踪面 ◄────────┘   （S2 前置 = D2/D3 契约入 Protocol，待框架侧排期）
-[S4] A5 换代闭环（宿主侧；与 S1 落点/根注入强相关，可与 S3 并行）
-[S5] 收尾（文档回写 + 门禁基线清零）
+[S4-2] SwapAsync 接新 ALC ──► [S4-3] 宿主引导 Boot 根 + 注入域表 ──► [S4-4] K9 待迁移归零 ──┐
+                                                                                        ├──► [S5] 收尾
+[S3] A4 双写收敛（独立开关；与上述无依赖，但风险最高）──────────────────────────────────┘
+[S1-④] 对象槽可观测投影（纯新增，可任意穿插）
+[S2] A3b 追踪面（⏸ 阻塞于框架侧 D2/D3：`IDataCenterRoot` 现无 `Trace` 成员 —— 已实测）
 ```
 
 | 批次 | 内容 | 说明 |
 |---|---|---|
-| 批次 1 | **S1** | 无外部依赖，落点确认后可立即开工 |
-| 批次 2 | **S4-1**（ALC 可收集化） | 独立可提交、可回退；不触碰根交换 |
-| 批次 3 | **S3**（A4） | 风险最高：必须独立开关 + 故障注入 + 单独评审 |
-| 批次 4 | **S4-2..S4-4**（换代闭环 + K9 归零） | 依赖批次 2 与宿主引导改动 |
-| 待排期 | **S2**（A3b） | 前置：框架侧 D2（`TraceStamp`/`GraphNode`/`GraphEdge`）/ D3（`ITraceQuery`）落地 |
+| 批次 3 | **S4-2**（`DataCenterHost` 换代接口） | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托/端口注入 |
+| 批次 4 | **S4-3**（宿主引导：FileDriven.Launcher 首次 Boot 根 + 注入 `AgentStateDomain.Default`） | 端到端"带着运行数据换代"证据（热换 + 数据连续 + ALC 回收） |
+| 批次 5 | **S4-4**（K9 待迁移归零） | 两处兜底造根移除 |
+| 批次 6 | **S3**（A4 双写收敛） | 风险最高：独立开关（默认关）+ 故障注入 + 单独评审 |
+| 可穿插 | **S1-④**（对象槽只读投影） | 纯新增、可独立提交 |
+| 待排期 | **S2**（A3b） | 前置 = 框架侧 D2/D3 |
+| 收尾 | **S5** | 文档回写 + 门禁基线归零 + 既有缺陷修复 |
+
+> **为何把 S4-2/S4-3 提到 S3（A4）之前**：S4-1 已交付"可收集 ALC + 代数工厂"，换代链路自此**无阻塞**；
+> 而"整体数据流由 `Frame\DataCenter` 持有 + 带着运行数据热更新"是本方案的**目标本身**，越早端到端跑通，后续 S3 的收敛才有真实宿主可验证。
+> 反方意见（保持原序）见 §2 D-批次序 —— **需确认后开工**。
 
 ---
 
@@ -41,75 +51,95 @@
 
 | # | 议题 | 选项 | 建议 | 影响面 |
 |---|---|---|---|---|
-| **D-A3** | 域扩展工程落点 | ① Agent 侧（`Projects\Plug\Agent\src`）② Frame 侧（严格按设计文档 §2.1） | **①**：域键权威 `AgentStateKeys` 在 `Projects`；②会造成 Frame→Projects 逆向引用（层级倒置），并击穿现有门禁口径 | 新工程位置、`Agent.sln` 注册、文档 §2.1 回写 |
-| **D-A4** | A4 收敛开关形态 | ① `AgentConfig` 开关（默认关）② `project.md` 参数 ③ 环境变量 | **①**：与既有 `EnableTaskPool` 等同构，配置注入链已具备 | 失效注入测试与回退路径 |
-| **D-A5** | 换代期间是否承诺零请求失败 | ① 不承诺（对齐架构设计 §8）② Drain 超时后拒绝新写 | **①** | `SwapAsync` 的 Drain/Resume 超时语义 |
+| **D-批次序** | S3(A4) 与 S4-2..S4-4 的先后 | ① 先换代闭环（S4-2 → S4-3 → S4-4）② 先 A4 双写收敛（原序） | **①**：S4-1 已解除换代阻塞；换代闭环是本方案目标本身，且能给 S3 提供**真实宿主**验证面 | 批次顺序、评审安排 |
+| **D-S42** | 新代数装配入口形态 | ① `DataCenterHostOptions` 增委托 `Func<GenerationPlan, IDataCenterRoot>` ② Protocol 增端口 `IRootFactory` | **①**：Hosting 保持零设施依赖（G2）—— ALC 工厂在 CsharpPrj，`DataCenter.Hosting` 不引 `Modules.Registry`；若后续需跨 ALC 传递工厂实例，再提升为端口 | `DataCenter.Hosting` 公开面、宿主注入点 |
+| **D-S43** | 宿主引导开关默认值 | ① 默认**关**（现行为：Agent 回落本地容器）② 默认开 | **①**：与 A1「根未绑定 → 回落进程本地容器」语义一致；先开关验证再切默认 | 宿主启动路径、回归面 |
+| D-A4 | A4 收敛开关形态 | ① `AgentConfig` 布尔（默认关）② project.md 参数 ③ 环境变量 | **①**：与 `AgentConfig.EnableTaskPool`（`Agent.McpRegistryHost\Configuration\AgentConfig.cs:128`）同构 | S3 的失效注入与回退路径 |
+| D-A5 | 换代期间是否承诺零请求失败 | ① 不承诺 ② Drain 超时后拒绝新写 | **①**（对齐架构设计 §8） | S4-2/S4-3 的 Drain/Resume 语义 |
 
 ---
 
 ## 3. 步骤明细
 
-### S1 · A3a-2 域扩展工程（`AgentState` 域 Keys + 域投影）
+### S4-2 · `SwapAsync` 接入新 ALC（换代宿主侧核心）
 
 | 项 | 内容 |
 |---|---|
-| **目标** | 把 `Agent.{Scheduler,Session,Round}` 归并为同一逻辑域（使跨层因果链闭合），并提供域 Kind 注册与对象槽只读投影 |
-| **改动点** | ① 新增扩展工程（依 D-A3 落点；方案①→ `Projects\Plug\Agent\src\Agent.DataCenter\Agent.DataCenter.csproj`），注册进 `Projects\Plug\Agent\Agent.sln`<br>② 域别名 + Kind 注册（建议文件 `AgentStateDomain.cs`）：`WithDomainAliases(("Agent.Scheduler","Agent"),("Agent.Session","Agent"),("Agent.Round","Agent"))`、`WithNodeKinds("decision.record", ...)`<br>③ 装配期接入：`AgentFrameworkAssemblyContext` 增 `IStateRegistry? Registry` 并在 **E 段**（`AgentComposition.RunSegmentERootSlotsAsync`）完成注册<br>④ 域投影适配（复用 Core `TierStateProjector`，不新造投影器）；对象槽可观测投影（只读快照：LLM 路由模式/后端清单、技能热集计数、工作流编译缓存键） |
-| **实现要点** | 机制已在 A3a-1 落地（`IStateRegistry.DomainAliases` / `GraphRegistry.WithDomainAliases` / `StateUriMapper.Resolve(entry, registry)`）；本步**只登记、不新增机制**（Core 仍零领域词汇 → G1/K1 保持绿） |
-| **判据①** | `dotnet build Projects\Plug\Agent\Agent.sln -c Debug` → 0 错 0 警 |
-| **判据②** | 新增单测（复用 `DataCenter.Tests` 或新 `Agent.DataCenter.Tests`）：三个命名空间投影后 `Metadata["domain"] == "Agent"`；值节点 `domain` 全等；投影幂等（两次 `ToJson` 全等） |
-| **判据③** | K3（CSG 校验通过）/ K4（悬空边 0）/ K5（未注册 Kind 数 0） |
-| **回退** | 纯新增（工程 + 注册行）；撤出即回退 |
-| **提交粒度** | Projects 一处提交（+ 主仓测试/子模块指针） |
-| **风险** | 低（机制已就绪）；唯一外部依赖 = D-A3 决策 |
+| **目标** | 换代时新代数在**新 ALC** 内装配（旧代数 `Unload` 后可回收），状态经 Export/Import 迁移保持连续 |
+| **现状（实测）** | `DataCenterHost.SwapAsync`（`Frame\DataCenter\DataCenter.Hosting\Hosting\DataCenterHost.cs:138-174`）为**同 ALC 代际推进**：Drain → 释放旧根 → `BuildRoot(nextGeneration)`（复用 `_cell/_center`）→ 绑根 → Resume；失败回建旧代数（`:159-165`，语义已对）。`GenerationPlan`（`Hosting\GenerationPlan.cs:12`）= `record(Fingerprint, SchemaVersion, Drain, Resume)` |
+| **改动点** | ① 依 **D-S42** 在 `DataCenterHostOptions` 增「新代数装配入口」（宿主注入）<br>② `GenerationPlan` 增 `Export` / `Import` 钩子（agent 分区状态导出/导入；Seq 连续）<br>③ `SwapAsync` 插入：Drain → **Export** → 新代数装配（新 ALC）→ **Import**（`generation+1` / `fingerprint` / Seq 连续）→ 绑根 → Resume → **旧代数 `Unload`**<br>④ 与 `ExtensionGenerationFactory.Swap`（S4-1 已交付）对齐：扩展代数与数据代数同号推进 |
+| **判据** | ① 换代前后**同 scope 值不丢、`Seq` 连续**（新增断言）② 旧代数 `WeakReference.IsAlive == false`（端到端）③ 换代失败**保留旧代数**（`:159-165` 现语义不回归）④ `DataCenter.Tests` 49/49 基线不回归 |
+| **回退** | 未注入装配入口 = 现同 ALC 路径（行为等价）；换代流程独立提交 |
+| **提交粒度** | Frame 一处（Hosting + 测试）+ 主仓判据 |
+| **风险** | 中；Drain/Resume 语义决定抖动面（R3：**不承诺零停机**） |
 
-### S2 · A3b 追踪面（`TraceStamp` 盖章 + `ITraceQuery`）
+### S4-3 · 宿主引导注入根（首次 Boot + 注入域表）
 
 | 项 | 内容 |
 |---|---|
-| **前置** | 框架侧 **D2**（`TraceStamp` 值类型、`GraphNode`/`GraphEdge`、schema 扩展 `seqRange/writers/assertion`、`StateCenter.Write` 统一盖 `writer/at/seq`）与 **D3**（`ITraceQuery` 查询/索引/导出）—— 见 `DataCenter-可追踪数据流图框架-设计与实施.md` §7 D2/D3、§4.1 |
-| **目标** | 让「接入」可追踪：回答"这一步为什么是这样"（`Ancestors(终答节点)` 闭合） |
-| **改动点** | ① Protocol：`IDataCenterRoot` 增 `ITraceQuery Trace`（框架侧 D3 落地后）<br>② 盖章接入（域显式传 `writer`）：`Agent.Core\Nodes\NodeExecutionService.cs`、`Agent.Core\Nodes\RoundStateMapper.cs`、`Agent.Core\Loops\AgentRunner.cs`（运行轮边界）<br>③ 域侧查询面接入（`Ancestors`/`ReverseRefs`/`Validate`） |
-| **判据** | K7（追踪四要素：`writer/at/seq/causedBy`，`causedBy` 允许 null 但须显式声明为根）缺失 0；`Ancestors(终答节点)` 可闭合 |
-| **回退** | 追踪为只读旁路，撤出不影响写入与执行 |
-| **提交粒度** | Frame（契约/盖章）+ Projects（域接入）分开提交 |
-| **风险** | 中；**当前阻塞**：Protocol 尚无追踪面契约（`IDataCenterRoot` 注释已声明随 D3 加入） |
+| **目标** | 产品宿主经 `DataCenterHost.Boot` **持有根**并把 `IRootProvider` 注入 Agent 装配，落实「整体数据流的根实例由 `Frame\DataCenter` 持有」 |
+| **现状（实测）** | ① **无任何产品宿主 Boot 根**：全仓 `DataCenterHost` 仅出现在 `DataCenter.Tests`<br>② 宿主侧**零 DataCenter 引用**：`Projects\FileDriven\**` 与 `Projects\BuildFramework\**` 的 props/csproj 中 `DataCenter` 命中 **0**<br>③ `DataCenter.Hosting` **不在** CsharpPrj 烘焙输出（仅 `Abstractions/Adapters/Core/Protocol` 在）<br>④ Agent 侧注入点已就位：`AgentFrameworkAssemblyContext.RootProvider`（`AgentFrameworkAssembler.cs:86`，A2）+ E 段 `ctx.Registry`（A3a-2） |
+| **改动点** | ① `Projects\FileDriven\FileDriven.Launcher\Bootstrap\LauncherBootstrap.cs`（`EnableExtensions` 之后）Boot 根：`Registry = AgentStateDomain.Default`（**Boot 前**并入，§0 纪律 ④）、`RootCellFactory`/`PartitionCellFactory` 按宿主存储适配<br>② 把 `host.Root` 注入 `AgentFrameworkAssemblyContext.RootProvider`（`AgentFrameworkHosting` → `AgentComposition.StartAsync` 调用链）<br>③ 扩展代数与数据代数对齐（`ExtensionGenerationFactory.Generation` ↔ `host.Generation`）<br>④ 宿主侧登记 `DataCenter.{Protocol,Core,Hosting,Adapters}` 到二进制引用/烘焙清单（**P1**：契约程序集须由宿主**默认 ALC** 加载，跨 ALC 类型身份唯一）<br>⑤ 引导**开关**（依 **D-S43**，默认关） |
+| **判据** | ① 端到端：热换一轮后「状态连续 + `Seq` 连续 + 旧 ALC 回收（`WeakReference` 证）」② 开关**关** = 现行为（回落本地容器，既有测试全绿）③ `FileDriven.sln` 0 错 0 警 + `Check-BakeFramework.ps1` 通过 ④ K9 扫描面（含 `Projects\Plug\Agent`）无新增违规 |
+| **回退** | 引导开关关即回旧路径；本步独立提交 |
+| **提交粒度** | Projects（宿主引导）+ Frame（补烘焙/引用清单）+ 主仓（端到端判据） |
+| **风险** | 中高（宿主启动面首次引入 Frame 平台库）；换代抖动见 R3 |
+
+### S4-4 · K9 待迁移归零（移除产品侧兜底造根）
+
+| 项 | 内容 |
+|---|---|
+| **目标** | 产品侧不再有「兜底造根」，`StateRootSingleSource` / DF8 在产品侧成立 |
+| **改动点** | ① `Projects\Plug\Agent\src\Agent.Core\Composition\AgentOrchestrator.cs:93`（`_stateCenter = new StateCenter(new StorageCell("agent-orchestrator"))`）→ 经 `IRootProvider.Root.Root`（`IDataCell`）取状态真源<br>② `Projects\Plug\Agent\src\Agent.Core\Nodes\WorkflowRunner.cs:89`（`_center = center ?? new StateCenter(new StorageCell("agent-default"))`）→ 同上<br>③ 门禁白名单删两行（`Check-DataCenterGenericity.ps1` 的 `$k9Whitelist` 中 `Pending=$true` 两项） |
+| **前置** | 出 `_stateCenter` / `_center` **用点清单**（确认替换为 `IDataCell` 不破既有写路径与既有单测行为） |
+| **判据** | ① K9「待迁移」= **0**、违规 0 ② `Agent.Core.Tests` 396/396 不回归 ③ 根未注入路径仍可用（回落策略显式化，不静默造根） |
+| **回退** | 每处独立提交；白名单删行可与代码分离提交 |
+| **风险** | 中（改动面在 Agent.Core 组合点与节点执行入口） |
 
 ### S3 · A4 双写收敛（风险最高，独立开关）
 
 | 项 | 内容 |
 |---|---|
-| **目标** | 消除两类双写/漂移对，使权威单一 |
-| **收敛点 1** | `vars`(Transient) ↔ `ur_nodes`：`Projects\Plug\Agent\src\Agent.Core\Nodes\NodeExecutionService.cs`（现「先内存 `vars.Set`，后落库 `WriteOutputAsync`」）→ 写侧收敛为「**单写 + 投影重算**」（读侧 ur_nodes 优先已具备） |
-| **收敛点 2** | `AgentTaskItem.PayloadJson` ↔ `state.Data`：`Agent.Core\TaskPool\AgentTaskItem.cs`（唯一权威根）+ `Agent.Core\Nodes\RoundStateMapper.cs`（`Harvest` 二次收割 vars 进跨轮状态）→ `state.Data` 降为缓存/投影 |
-| **开关** | 依 D-A4；建议 `AgentConfig` 布尔开关（默认**关**），Sqlite / 内存占位两种后端分别验证 |
-| **判据①** | 按后端可开关：开关关闭 = 旧路径行为等价（全量测试绿）；开关开启 = 无漂移 |
-| **判据②** | 故障注入（写后崩溃）：重启后状态与落盘一致（`state.Data` 与 `PayloadJson` 不冲突） |
-| **判据③** | `NodeGraphReconciler` 跨介质缺口 0；Agent 全量测试绿（6 个测试项目） |
-| **判据④** | 落盘键迁移仅当选择"改名方案"（设计文档 §3.3 ②）时执行；**默认走域别名表（已具备），不做落盘迁移** |
-| **回退** | 开关关闭即回旧路径；本阶段**独立提交，不与其它阶段混** |
-| **提交粒度** | Projects 独立提交（+ 主仓失效注入测试） |
-| **风险** | **高**：触及写热路径，须单独评审 + 独立开关 + 故障注入证据 |
+| **目标** | 消除两类双写/漂移对，使权威单一（设计文档 §1.4） |
+| **收敛点 1（实测）** | `vars`(Transient) ↔ `ur_nodes`：`Agent.Core\Nodes\NodeExecutionService.cs`（`:254` `vars.Set(key, v)` 与 `:325` `_store.WriteOutputAsync(...)` = 双写）→ 写侧收敛为「**单写 + 投影重算**」（读侧 ur_nodes 优先已具备；`:349` 注释已声明两者互不覆盖） |
+| **收敛点 2（实测）** | `AgentTaskItem.PayloadJson` ↔ `state.Data`：`Agent.Core\Nodes\RoundStateMapper.cs` `Harvest`（`:117`；`:124` `state.Data[key] = v!`）二次收割 vars 进跨轮状态 → 以**统一任务快照为唯一权威根**（唯一写入口 `AgentRunner.Persistence.cs:114`），`state.Data` 降为缓存/投影（`:132` 注释已声明 ur_nodes 权威，需把 `ExecResult` 之外的键一并归类） |
+| **S3-1 开关** | `AgentConfig` 布尔（默认**关**），注入链同 `EnableTaskPool`（`Agent.McpRegistryHost\Configuration\AgentConfig.cs:128`） |
+| **S3-2 / S3-3** | 按开关分别落两个收敛点（`NodeExecutionService` / `RoundStateMapper`），**每处独立提交** |
+| **S3-4 证据** | 故障注入（写后崩溃）+ 两后端（Sqlite / 内存占位）分别验证 |
+| **判据** | ① 开关**关** = 旧路径行为等价（全量测试绿）② 开关**开** = 无漂移；故障注入后重启状态与落盘一致（`state.Data` 与 `PayloadJson` 不冲突）③ `NodeGraphReconciler` 跨介质缺口 0 ④ 7 个测试项目全绿 |
+| **落盘迁移** | **不做**（走域别名表，A3a-2 已落地；设计文档 §3.3 ② 改名方案仅作备选） |
+| **回退** | 开关关闭即回旧路径；本阶段**独立提交、不与其它阶段混** |
+| **风险** | **高**：触及写热路径 → 单独评审 + 独立开关 + 故障注入证据 |
 
-### S4 · A5 换代闭环（热更新带数据）
+### S1-④ · 对象槽可观测投影（A3a-2 未落地项，纯新增）
 
-| # | 子步 | 改动点 | 判据 | 回退 |
-|---|---|---|---|---|
-| S4-1 | ALC 可收集化 + 实例化代数工厂 | `Frame\CsharpPrj\Modules\Registry\ExtensionAssemblyHost.cs:218`（`isCollectible: false → true`）；消除 `static ExtensionAssemblyHost`（G7.2） | 旧代数 `WeakReference.IsAlive == false`（新增单测）；既有插件加载测试零回归 | 独立提交；`isCollectible` 一行可回滚 |
-| S4-2 | `SwapAsync` 接入新 ALC | `Frame\DataCenter\DataCenter.Hosting\Hosting\DataCenterHost.cs`（现为同 ALC 代际推进）：Drain → Export（agent 分区）→ 新 ALC 装配新根 → Import（`generation+1`/`fingerprint`/Seq 连续）→ Resume → 旧 ALC `Unload` | 换代前后同 scope 值/Seq 连续；换代失败**保留旧代数**（不半迁） | 换代流程独立；与 S4-1 分步提交 |
-| S4-3 | 宿主引导注入根 | 宿主（`Projects\FileDriven\FileDriven.Launcher\Bootstrap\LauncherBootstrap.cs` / `Projects\PrjBridge`）经 `DataCenterHost.Boot` 持有根，并注入 `AgentFrameworkAssemblyContext.RootProvider` | 端到端：热换 + 数据连续 + ALC 回收证 | 引导开关；不注入时回落本地容器（A1 已有） |
-| S4-4 | K9 待迁移归零 | 移除 `Projects\Plug\Agent\src\Agent.Core\Composition\AgentOrchestrator.cs:93`、`Agent.Core\Nodes\WorkflowRunner.cs:89` 的兜底造根（改经 `IRootProvider`） | `Check-DataCenterGenericity.ps1 -Check` 中 K9「待迁移」计数 = 0；白名单表删两行 | 每处独立提交 |
+| 项 | 内容 |
+|---|---|
+| **目标** | 对象槽（B/C 类）进入图的可观测面：LLM 路由模式 / 后端清单、技能热集计数、工作流编译缓存键 |
+| **改动点** | ① `Agent.DataCenter` 工程（命名空间 `Agent.StateDomain`）增 `IRuntimeSlotEntrySource : IStateEntrySource`：读 `root.Slots.Partition(AgentRuntimeSlotKeys.Domain)` **只读快照** → `StateEntry`（nodeKind `slot.snapshot` 已在 `AgentStateDomain.NodeKinds` 预登记）<br>② 快照提供者按槽类型各出一行（LLM / 技能 / 工作流），**只含快照值，不含对象引用** |
+| **判据** | ① 投影幂等（两次 `ToJson` 全等；**时间戳不进产物**）② K5（未注册 Kind = 0）③ 投影失败不升级为状态写失败（只读旁路，撤出不影响写入） |
+| **回退** | 纯新增；不注册即无投影 |
+| **风险** | 低 |
 
-> **对象槽策略（文档 D5）**：换代时对象槽 = **重建 + 状态迁移**（LLM 网关 / daemon / 句柄不跨代数复用）；状态经 Export/Import 迁移以保连续。
+### S2 · A3b 追踪面（⏸ 阻塞，含等待期可做项）
 
-### S5 · 收尾（文档与门禁基线）
+| 项 | 内容 |
+|---|---|
+| **前置（阻塞已实测）** | 框架侧 **D2**（`TraceStamp` 值类型 / `GraphNode`·`GraphEdge` / schema 扩 `seqRange/writers/assertion` / `StateCenter.Write` 统一盖 `writer/at/seq`）与 **D3**（`ITraceQuery`）—— 见 `DataCenter-可追踪数据流图框架-设计与实施.md` §7 D2/D3。**现状**：`IDataCenterRoot` **无** `Trace` 成员、Protocol **无** `TraceStamp`/`ITraceQuery` |
+| **改动点** | ① Protocol：`IDataCenterRoot` 增 `ITraceQuery Trace`（D3 落地后）② 盖章接入：`Agent.Core\Nodes\NodeExecutionService.cs`、`Agent.Core\Nodes\RoundStateMapper.cs`、`Agent.Core\Loops\AgentRunner.cs`（`writer` 由域显式传入，Core 不认领域语义）③ 域侧查询接入（`Ancestors` / `ReverseRefs` / `Validate`） |
+| **等待期可做（无依赖）** | Agent 侧 **writer 身份常量表**（`AgentRunner` / `NodeExecutionService` / `RoundStateMapper`），纯新增、可独立提交 |
+| **判据** | K7（追踪四要素 `writer/at/seq/causedBy`，`causedBy` 允许 null 但须显式声明为根）缺失 0；`Ancestors(终答节点)` 可闭合 |
+| **回退** | 追踪为只读旁路，撤出不影响写入与执行 |
+
+### S5 · 收尾
 
 | # | 动作 | 落点 |
 |---|---|---|
-| S5-1 | 回写设计文档：L4 扩展命名（依 D-A3 结论）、§5 门禁表补 K9/K10 实测状态、§8 槽登记表勾选状态列 | `DataCenter-Agent运行时数据接入-设计与实施.md` |
-| S5-2 | K10 存量基线（22 项）纳入 A2+ 收敛计划：逐项判定「保留（注册表/机制类）」或「迁槽」，归零后清空 `$baseline` | `Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1` |
-| S5-3 | K9 白名单移除 A5 待迁移两行；实施进展台账状态列更新为 ✅ | `Check-DataCenterGenericity.ps1`、进展台账 |
-| S5-4 | 四条接入通道验收小结（A/B/C/D 各自判据实测截图或命令输出） | 进展台账 §2 追加 |
+| S5-1 | 设计文档回写：L4 命名（D-A3 已回写）、§5 门禁表补 K9/K10 实测、§8 槽登记表勾状态、`database` 槽补齐（已回写） | 设计文档 |
+| S5-2 | K10 存量基线（22 项）逐项判定「保留（注册表/机制类）」或「迁槽」，归零后清空 `$baseline` | `Check-AgentRuntimeSlots.ps1` |
+| S5-3 | K9 白名单移除 A5 待迁移两行；台账状态列更新为 ✅ | `Check-DataCenterGenericity.ps1`、进展台账 |
+| S5-4 | 四条接入通道（A 状态 KV / B 对象槽 / C 投影 / D 域真源）验收小结 | 进展台账 §2 |
+| S5-5 | 既有缺陷修复（独立提交）：`Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 的 `Share.Registry.` → `Modules.Registry.`，随后纳入回归集 | 主仓 |
 
 ---
 
@@ -117,12 +147,15 @@
 
 ```powershell
 # ── 构建 ──
-dotnet build Frame\DataCenter\DataCenter.slnx -c Debug                                    # 契约/宿主
+dotnet build Frame\CsharpPrj\MainProj.sln -c Debug                                        # Frame 平台层
+dotnet build Frame\DataCenter\DataCenter.slnx -c Debug                                    # 契约 / 单根宿主
 dotnet build Projects\Plug\Agent\Agent.sln -c Debug                                       # Agent 侧
-dotnet build Frame\CsharpPrj\Operation\StateHoldDriven\StateHoldDriven.csproj -c Debug    # 契约变更后刷新烘焙（必须先做，见 §4.2）
+dotnet build Projects\FileDriven\FileDriven.sln -c Debug                                  # 宿主侧（S4-3 起）
+dotnet build Frame\CsharpPrj\Operation\StateHoldDriven\StateHoldDriven.csproj -c Debug    # ★ 契约变更后先刷新烘焙（设计文档 §4.2）
 
-# ── 回归（基线：44 / 73 / 396 / 84 / 21 / 26）──
+# ── 回归（基线：49 / 73 / 396 / 84 / 21 / 26 / 30+1跳过）──
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Tests\DataCenter.Tests.csproj
+dotnet test Environment\CentralTest\CSharpTest\Integration.Tests\Integration.Tests.csproj    # S4-1 起纳入（代数回收 / 换代语义）
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\StateHoldDriven.Tests.csproj
 dotnet test Environment\CentralTest\AgentTest\Agent.Core.Tests\Agent.Core.Tests.csproj
 dotnet test Environment\CentralTest\AgentTest\Agent.Axioms.Tests\Agent.Axioms.Tests.csproj
@@ -130,21 +163,25 @@ dotnet test Environment\CentralTest\AgentTest\Agent.Runtime.Tests\Agent.Runtime.
 dotnet test Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Agent.Launcher.Tests.csproj
 
 # ── 门禁 ──
-pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → 期望 EXIT 0
-pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10      → 期望 EXIT 0
+pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → EXIT 0（S4-4 后「待迁移」须为 0）
+pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10      → EXIT 0
 ```
+
+> 实测提示：本仓 shell 集成偶发吞输出 → 长命令统一用 `> $env:TEMP\x.log 2>&1; Get-Content $env:TEMP\x.log -Tail N` 取结果；
+> `FunctionStorage.Tests` 是 WinExe 演示程序（无 Test SDK），**不属** `dotnet test` 判据集。
 
 ---
 
-## 5. 提交规范（每步三处提交）
+## 5. 提交规范（每步三处）
 
 | 仓库 | 内容 | 消息模板 |
 |---|---|---|
-| `Frame`（子模块） | 契约 / Core / Hosting / 门禁脚本 / 文档 | `A<n> <主题>：<改动摘要>` + 判据行 |
-| `Projects`（子模块） | Agent 侧改动 | 同上 |
-| 主仓 `Main` | CentralTest 测试 / 子模块指针 | `A<n> 判据：<测试>；子模块指针同步` |
+| `Frame`（子模块） | 契约 / Core / Hosting / CsharpPrj（S4-1 的 ALC 工厂）/ 门禁脚本 / 文档 | `S<n> <主题>：<改动摘要>` + 判据行 |
+| `Projects`（子模块） | Agent 侧 / 宿主引导（FileDriven·PrjBridge） | 同上 |
+| 主仓 `Main` | CentralTest 测试 / 子模块指针 | `S<n> 判据：<测试>；子模块指针同步` |
 
-> 提交顺序：先 Frame（契约）→ 再 Projects（消费方）→ 最后主仓（测试 + `git add Frame Projects` 同步指针）；**契约变更后必须刷新烘焙副本**（§4.2），否则 CI/本地测试会因旧契约假失败。
+> 顺序：先 Frame（契约）→ 再 Projects（消费方 / 宿主）→ 最后主仓（测试 + `git add Frame Projects`）；
+> **契约变更后必须刷新烘焙副本**（§4），否则 CI/本地测试会因旧契约假失败。
 
 ---
 
@@ -152,10 +189,12 @@ pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check    
 
 | # | 风险 | 缓解 / 回退 |
 |---|---|---|
-| R-1 | 契约变更后测试加载旧契约（`TypeLoadException`） | 强制刷新烘焙副本（§4.2，B2 命令） |
-| R-2 | S1 落点选择错误导致层级倒置（Frame→Projects） | 开工前定 D-A3；方案①（Agent 侧）避免逆向引用 |
-| R-3 | S3 双写收敛触及写热路径（文档 R5） | 独立开关（默认关）+ 故障注入 + 单独评审；关即回旧路径 |
-| R-4 | S4 换代抖动（LLM 网关/后端连接随代数重建，文档 R3） | Drain/Resume 钩子 + 重连超时；**不承诺零停机**（架构设计 §8） |
-| R-5 | 单根守卫为进程级，测试并行互相干扰（文档 R4） | 相关测试类 `[DoNotParallelize]`；`RootInstanceGuard` 释放后配平 |
-| R-6 | 对象槽跨代数复用导致跨 ALC 类型失效 | 换代 = 重建 + 状态迁移（不跨代复用句柄/委托） |
+| R-1 | 契约变更后测试加载旧契约（`TypeLoadException`） | 强制刷新烘焙副本（§4 的 StateHoldDriven 命令） |
+| R-2 | 换代抖动（LLM 网关 / 后端连接随代数重建，设计文档 R3） | Drain/Resume 钩子 + 重连超时；**不承诺零停机**（架构设计 §8） |
+| R-3 | 对象槽跨代数复用 → 跨 ALC 类型失效（文档 D5） | 换代 = **重建 + 状态迁移**；不跨代复用句柄 / 委托 / daemon |
+| R-4 | **可收集 ≠ 必然回收**（默认 ALC 侧长期持有扩展类型） | 回收证须在 S4-3 端到端断言；不达标则退为「不回收但可换根」并显式登记 |
+| R-5 | S3 双写收敛触及写热路径（设计文档 R5） | 独立开关（默认关）+ 故障注入 + 单独评审；关即回旧路径 |
+| R-6 | 单根守卫为进程级，测试并行互相干扰（设计文档 R4） | 相关测试类 `[DoNotParallelize]`；`ResetForTesting()` 配平 |
+| R-7 | 宿主侧首次引入 Frame 平台库 → 烘焙 / 引用边界漂移 | S4-3 与 `Check-BakeFramework.ps1` 联动；引导开关默认关 |
+| R-8 | 既有缺陷（`Registry.Tests` 编译失败）掩盖回归信号 | S5-5 独立修复；修复前该工程回归**不纳入判据**（已显式声明） |
 

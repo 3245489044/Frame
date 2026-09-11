@@ -2,7 +2,7 @@
 
 > **日期**：2026-09-12 | **定位**：Frame 平台层「接入方」设计（L4/L5，构建在 `Frame\DataCenter` 之上） | **性质**：接入方案 + 分步实施
 > **一句话**：把 Agent 侧全部运行时数据收敛为**四条通道**（状态 KV / 对象槽 / 投影 / 域真源对接）；整体数据流的**根实例由 `Frame\DataCenter` 持有**（新增 `DataCenter.Hosting` 单根宿主），Agent 只经端口消费、不再自持运行数据。
-> **关联**：`DataCenter-架构设计.md`（立项与红线）、`DataCenter-通用化重构与实施计划.md`（G1–G8）、`DataCenter-可追踪数据流图框架-设计与实施.md`（DF1–DF8 / D0–D5）、`DataCenter-Agent运行时数据接入-实施进展与后续.md`（**执行台账**：已完成阶段的提交与实测判据）、`DataCenter-Agent运行时数据接入-下一步实施计划.md`（**下一步权威**：S1–S5 步骤/改动点/判据/回退/提交粒度）
+> **关联**：`DataCenter-架构设计.md`（立项与红线）、`DataCenter-通用化重构与实施计划.md`（G1–G8）、`DataCenter-可追踪数据流图框架-设计与实施.md`（DF1–DF8 / D0–D5）、`DataCenter-Agent运行时数据接入-实施进展与后续.md`（**执行台账**：已完成阶段的提交与实测判据）、`DataCenter-Agent运行时数据接入-下一步实施计划.md`（**下一步权威**：S4-2 → S5 步骤/改动点/判据/回退/提交粒度 + D-批次序/D-S42/D-S43/D-A4/D-A5 决策点）
 
 ---
 
@@ -114,6 +114,12 @@
 | `DataCenter.Protocol` | 图契约与端口（已落地 D0/D1） | CSG.Unified + Abstractions | G1（领域词汇零出现） |
 | `DataCenter.Core` | 通用实现（StateCenter / TierStateProjector / DataCenterRoot / …） | Protocol + CSG + Share 契约 | G1/G2（现状：命中 0 / 违规 0） |
 
+> **落点决策（D-A3，2026-09-12 实施确认）**：Agent 域扩展落在 **Agent 侧** `Projects\Plug\Agent\src\Agent.DataCenter\`
+> （程序集 `Agent.DataCenter`、**命名空间 `Agent.StateDomain`**），而非 Frame 侧 `DataCenter.Extensions.AgentState` —— 域键权威
+> （`AgentStateKeys`）在 `Projects`，Frame 侧会构成 **Frame→Projects 逆向引用**并击穿现有门禁口径（G1 扫描面实测仅 Core + Protocol）。
+> 命名空间不取 `Agent.DataCenter`：C# 名字查找中该命名空间会在 `Agent.*` 内**遮蔽全局 `DataCenter` 命名空间**
+> （同层代码 `DataCenter.Protocol.*` 被解析为 `Agent.DataCenter.Protocol` → `CS0234`，实测）。
+
 ### 2.2 跨 ALC 前提（关键技术事实，必须满足）
 
 | # | 前提 | 依据 / 落点 |
@@ -172,6 +178,11 @@
 | `AgentStateKeys`（`Agent.Contract\StateAdapters\AgentStateKeys.cs:12-14`）使用三个独立命名空间：`Agent.Scheduler` / `Agent.Session` / `Agent.Round`，由 tier 决定用哪个 | `StateUriMapper.DomainOf` 按 `{domain}.{Tier}` 后缀拆域；这三个名**都不带 tier 后缀** → 会被投影为 **3 个逻辑域**（`csg://Agent.Scheduler/config/...`、`csg://Agent.Session/session/...`、`csg://Agent.Round/transient/...`），跨层因果链无法闭合 | **不动落盘键**，在映射点登记**域别名表**（`Agent.{Scheduler,Session,Round}` → domain=`Agent`，tier=`config/session/transient`），零落盘迁移 |
 | 改名方案（`Agent.Config` / `Agent.Session` / `Agent.Transient`） | 落盘键格式变更 → 需迁移与回放兼容 | 仅在"必然要迁移"时采用（A4 合并考虑） |
 
+> **落地（A3a-2，2026-09-12）**：采用「域别名表」方案（零落盘迁移）—— 登记点 = `Agent.StateDomain.AgentStateDomain`（Agent 侧 `Agent.DataCenter` 工程），
+> 三个命名空间归并为 `domain=agent`（与运行时槽分区域键 `AgentRuntimeSlotKeys.Domain` 同源），并登记域节点种类 `decision.record`。
+> **硬约束（实施发现）**：域别名必须在宿主 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry`
+> —— 投影器在 Boot 时（`DataCenterHost.cs:114`）**固化注册表实例**，之后再登记对已建投影器无效（会静默域分裂）。
+
 ---
 
 ## 4. 实施阶段（A0–A5）
@@ -210,8 +221,8 @@
 
 | 项 | 内容 |
 |---|---|
-| 交付 | ① 新 L4 工程 `DataCenter.Extensions.AgentState`：**域 Keys**（`AgentStateKeys` 收敛，含 §3.3 域别名表）+ **域投影**（A/B/C 类 → 节点与边：`state.value` / `decision.record` / `task` / `node.output`）<br>② `TraceStamp` 盖章接入写路径：`writer` = `AgentRunner` / `NodeExecutionService` / `RoundStateMapper` 等（域显式传入，Core 不认领域语义）<br>③ `ITraceQuery` 查询面（`Ancestors(终端)` 闭合回根、`ReverseRefs`、`Validate`）<br>④ 对象槽的**可观测投影**（只读、非真源）：LLM 路由模式 / 后端清单、技能热集计数、工作流编译缓存键 |
-| 关键决策 | 投影只读派生（DF1）；对象槽投影到图的是"快照值"而非对象引用；时间戳不进投影产物（保幂等） |
+| 交付 | ① 新 L4 工程（**D-A3 ① = Agent 侧**：`Projects\Plug\Agent\src\Agent.DataCenter\`，程序集 `Agent.DataCenter` / 命名空间 `Agent.StateDomain`；原拟 Frame 侧 `DataCenter.Extensions.AgentState` 因逆向引用弃用）：**域 Keys**（`AgentStateKeys` 收敛，含 §3.3 域别名表）+ **域投影**（A/B/C 类 → 节点与边：`state.value` / `decision.record` / `task` / `node.output`）<br>② `TraceStamp` 盖章接入写路径：`writer` = `AgentRunner` / `NodeExecutionService` / `RoundStateMapper` 等（域显式传入，Core 不认领域语义）<br>③ `ITraceQuery` 查询面（`Ancestors(终端)` 闭合回根、`ReverseRefs`、`Validate`）<br>④ 对象槽的**可观测投影**（只读、非真源）：LLM 路由模式 / 后端清单、技能热集计数、工作流编译缓存键 |
+| 关键决策 | 投影只读派生（DF1）；对象槽投影到图的是"快照值"而非对象引用；时间戳不进投影产物（保幂等）；**域别名/Kind 必须在宿主 Boot 前并入 `DataCenterHostOptions.Registry`（投影器 Boot 时固化注册表实例，之后登记无效）** |
 | 判据 | ① K3（CSG 校验）/ K4（悬空边 0）/ K5（Kind 注册完备）/ K7（追踪四要素）② 投影幂等（两次 `ToJson` 全等）③ `Ancestors(终答节点)` 可闭合（回答"这一步为什么是这样"） |
 | 回退 | 投影与查询是只读旁路，撤出不影响写入与执行 |
 
@@ -314,6 +325,8 @@ A0 Hosting（根由 Frame\DataCenter 持有）──▶ A1 槽清单 + 去静态
 | 11 | `prompt` | `Agent.Runtime\State\Prompts\PromptRuntimeState.cs` | C | 根分区（**持有方待核实**） | ☐ |
 
 **A 类（已外置，无需改造，仅接投影/追踪）**：`Agent.Round`（Transient）/ `Agent.Session` / `Agent.Scheduler` / `TaskRecord`+`ExecutionNode`+`AgentLoopState`（`ur_tasks` PayloadJson）/ `ur_nodes` / `graph-log.db`
+
+> 注（实测）：`AgentRuntimeSlotKeys` 另含 `database`（独立数据库模块，可脱离运行时装配），A1 落地时随槽键注册表一并加入（本表 11 行为 A/C 类对象槽，`database` 属模块产物槽）。
 
 **E 类（明确不接入）**：`Agent.Core\Nodes\RunContext.cs`、`Agent.Runtime\State\Loops\RunContext.cs`、`AgentRunCancellation`、UI/native/共享栈、进程外资源
 

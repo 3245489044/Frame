@@ -37,6 +37,14 @@ public sealed class DataCenterHostOptions
     /// <summary>运行时槽装配委托（域键分区注册装配产物）；null = 不注册槽（只读空分区）。</summary>
     public Action<IRuntimeSlot>? ConfigureSlots { get; init; }
 
+    /// <summary>
+    /// 新代数装配入口（宿主注入；S4-2）—— 传 null = 同 ALC 代际推进（A0 行为，等价回退）。
+    /// 注入后 <see cref="DataCenterHost.SwapAsync"/> 在旧代数释放后调用本入口装配新根
+    /// （扩展装配产物在新 ALC 内重建）；交出物必须挂上下文的状态真源与目标代际，否则 fail-fast。
+    /// 纪律（ALC 边界）：根 / 真源 / 守卫由默认 ALC 承载，勿在 scoped ALC 内装载 DataCenter 契约/实现副本。
+    /// </summary>
+    public Func<RootSwapContext, IDataCenterRoot>? RootFactory { get; init; }
+
     /// <summary>根单元名（诊断用）。</summary>
     public string RootCellName { get; init; } = "datacenter-root";
 }

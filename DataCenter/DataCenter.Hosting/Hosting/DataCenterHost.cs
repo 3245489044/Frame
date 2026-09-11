@@ -28,8 +28,9 @@ public sealed class DataCenterHost : IAsyncDisposable
     private readonly IStateRegistry _registry;
     private readonly IStateValueCodec _codec;
     private readonly IStateProjector? _projectorOverride;
+    private readonly Func<RootSwapContext, IDataCenterRoot>? _rootFactory;
 
-    private DataCenterRoot _root;
+    private IDataCenterRoot _root;
     private IStateGeneration _generation;
     private int _shutdown;
 
@@ -39,7 +40,7 @@ public sealed class DataCenterHost : IAsyncDisposable
         StateCenter center,
         HostRuntimeSlot slots,
         HostRootProvider provider,
-        DataCenterRoot root,
+        IDataCenterRoot root,
         IStateGeneration generation)
     {
         _cell = cell;
@@ -51,6 +52,7 @@ public sealed class DataCenterHost : IAsyncDisposable
         _registry = options.Registry;
         _codec = options.ValueCodec;
         _projectorOverride = options.Projector;
+        _rootFactory = options.RootFactory;
     }
 
     /// <summary>整体数据流持有者（当前代数根）。</summary>
@@ -130,10 +132,17 @@ public sealed class DataCenterHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// 换代交换（A0 = 同 ALC 内代际推进；A5 接入新 ALC 装配）：
-    /// Drain → 释放旧代数根 → 装配新代数根（generation+1）→ 交换取根指向 → Resume。
-    /// 状态真源（cell/center）跨代数复用，故同 scope 值天然连续（"带着运行数据换代"）。
-    /// 失败语义：新代数装配失败 → 回建旧代数根（不半迁）并把原异常抛出。
+    /// 换代交换（A0 = 同 ALC 内代际推进；A5/S4-2 = 接入宿主注入的新代数装配入口）：
+    /// Drain → Export → 释放旧代数根 → 装配新代数根（generation+1）→ 绑根 → Import → Resume（finally 放行写入）。
+    /// 状态真源（cell/center）跨代数复用，故同 scope 值与版本序列天然连续（"带着运行数据换代"）。
+    /// <para>
+    /// 失败语义：① Drain/Export 失败 → 不动旧根（旧代数完好）并照常放行写入；
+    /// ② 新代数装配/Import 失败 → 释放新根并<b>回建旧代数根</b>（不半迁）后外抛原异常。
+    /// </para>
+    /// <para>
+    /// Resume 在 <c>finally</c> 中以 <see cref="CancellationToken.None"/> 调用：换代成功/失败/取消都必须放行写入，
+    /// 否则宿主写路径将永久停在停写态（D-A5 ①：只承诺边界，不承诺零停机）。
+    /// </para>
     /// </summary>
     public async Task<IDataCenterRoot> SwapAsync(GenerationPlan plan, CancellationToken ct = default)
     {
@@ -143,34 +152,49 @@ public sealed class DataCenterHost : IAsyncDisposable
         var previousRoot = _root;
         var previousGeneration = _generation;
 
-        if (plan.Drain is not null)
-            await plan.Drain(ct).ConfigureAwait(false);
-
-        var nextGeneration = Advance(previousGeneration, plan);
-
-        // 单根守卫不允许两根并存：先解绑取根面（避免读到半迁移根）并释放旧代数，再装配新代数
-        _provider.Unbind();
-        previousRoot.Dispose();
-
         try
         {
-            _root = BuildRoot(nextGeneration);
+            if (plan.Drain is not null)
+                await plan.Drain(ct).ConfigureAwait(false);
+
+            // Export 在旧代数释放前调用（载荷只承载"不在状态真源里"的跨代迁移数据）
+            var payload = plan.Export is null ? null : await plan.Export(ct).ConfigureAwait(false);
+
+            var nextGeneration = Advance(previousGeneration, plan);
+
+            // 单根守卫不允许两根并存：先解绑取根面（避免读到半迁移根）并释放旧代数，再装配新代数
+            _provider.Unbind();
+            previousRoot.Dispose();
+
+            IDataCenterRoot? nextRoot = null;
+            try
+            {
+                nextRoot = BuildRoot(nextGeneration, previousGeneration);
+                _root = nextRoot;
+                _generation = nextGeneration;
+                _provider.Bind(_root);
+
+                if (plan.Import is not null)
+                    await plan.Import(payload ?? GenerationPayload.Empty, ct).ConfigureAwait(false);
+
+                return _root;
+            }
+            catch
+            {
+                // 回建旧代数（尽力恢复，保证"换代失败保留旧代数"语义；真源复用 → 值不丢）
+                ReleaseRoot(nextRoot);
+                _provider.Unbind();
+                _root = BuildRoot(previousGeneration);
+                _generation = previousGeneration;
+                _provider.Bind(_root);
+                throw;
+            }
         }
-        catch
+        finally
         {
-            // 回建旧代数（尽力恢复，保证"换代失败保留旧代数"语义）
-            _root = BuildRoot(previousGeneration);
-            _provider.Bind(_root);
-            throw;
+            if (plan.Resume is not null)
+                await plan.Resume(CancellationToken.None).ConfigureAwait(false);
         }
-
-        _generation = nextGeneration;
-        _provider.Bind(_root);
-
-        if (plan.Resume is not null)
-            await plan.Resume(ct).ConfigureAwait(false);
-
-        return _root;
     }
 
     /// <summary>
@@ -197,11 +221,64 @@ public sealed class DataCenterHost : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>核心装配路径（默认 ALC + 复用真源/投影器）—— 未注入装配入口时的唯一路径。</summary>
     private DataCenterRoot BuildRoot(IStateGeneration generation)
     {
         var projector = _projectorOverride
             ?? new TierStateProjector(new StateCenterEntrySource(_center), _registry, _codec, generation);
         return new DataCenterRoot(_cell, projector, _registry, generation, _slots);
+    }
+
+    /// <summary>
+    /// 装配新代数根：注入装配入口时经其装配（扩展装配产物在新 ALC 内重建），否则走核心路径。
+    /// 交出物校验（fail-fast，不静默降级）：① 不得为 null（避免"以为换了其实没换"）；
+    /// ② 必须挂当前状态真源（否则换代 = 换空真源，运行数据丢失、版本序列重置）；③ 代际必须为目标代数。
+    /// 校验不通过先释放交出物再抛错：根构造已占用单根守卫，泄漏会使"回建旧代数"二次占用而失败。
+    /// </summary>
+    private IDataCenterRoot BuildRoot(IStateGeneration generation, IStateGeneration previousGeneration)
+    {
+        var factory = _rootFactory;
+        if (factory is null)
+            return BuildRoot(generation);
+
+        var root = factory(new RootSwapContext(_cell, _registry, generation, previousGeneration, _slots));
+        if (root is null)
+            throw new InvalidOperationException(
+                "RootFactory 返回 null：新代数装配入口必须交出根实例（不静默回退同 ALC 路径）。");
+
+        try
+        {
+            if (!ReferenceEquals(root.Root, _cell))
+                throw new InvalidOperationException(
+                    "RootFactory 交出的新代数根未挂当前状态真源（DataCenterHost 的 cell）：换代必须复用真源以保持状态连续（S4-2）。");
+
+            if (root.Generation.Generation != generation.Generation)
+                throw new InvalidOperationException(
+                    $"RootFactory 交出的新代数根代际不符（期望 {generation.Generation}，实得 {root.Generation.Generation}）：请使用上下文 Generation 装配。");
+        }
+        catch
+        {
+            ReleaseRoot(root);
+            throw;
+        }
+
+        return root;
+    }
+
+    /// <summary>尽力释放根（失败不掩盖原始换代异常）。</summary>
+    private static void ReleaseRoot(IDataCenterRoot? root)
+    {
+        if (root is null)
+            return;
+
+        try
+        {
+            root.Dispose();
+        }
+        catch
+        {
+            // 尽力释放：释放失败不覆盖原始换代异常（根由单根守卫配平，泄漏面优于异常丢失）
+        }
     }
 
     private static GenerationState Advance(IStateGeneration current, GenerationPlan plan)

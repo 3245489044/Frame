@@ -10,10 +10,10 @@
 
 | 项 | 状态 |
 |---|---|
-| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** —— 明细见进展台账 §2 |
-| **未完成** | S4-2 / S4-3 / S4-4（换代闭环）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** —— 明细见进展台账 §2 |
+| **未完成** | S4-3 / S4-4（换代闭环）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
 | 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 2 + **待迁移 2** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（456 文件 / **新增 0** / 存量基线 22） |
-| 测试基线 | DataCenter.Tests **49/49** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **26/26** · Integration.Tests **30 通过 / 1 跳过** |
+| 测试基线 | DataCenter.Tests **53/53** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **26/26** · Integration.Tests **30 通过 / 1 跳过** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
 | 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
@@ -33,8 +33,8 @@
 
 | 批次 | 内容 | 说明 |
 |---|---|---|
-| 批次 3 | **S4-2**（`DataCenterHost` 换代接口） | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托/端口注入 |
-| 批次 4 | **S4-3**（宿主引导：FileDriven.Launcher 首次 Boot 根 + 注入 `AgentStateDomain.Default`） | 端到端"带着运行数据换代"证据（热换 + 数据连续 + ALC 回收） |
+| 批次 3 | **S4-2**（`DataCenterHost` 换代接口）**✅ 已完成** | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托注入（`RootFactory` + `RootSwapContext`） |
+| 批次 4 | **S4-3**（宿主引导：FileDriven.Launcher 首次 Boot 根 + 注入 `AgentStateDomain.Default`）← **当前批次** | 端到端"带着运行数据换代"证据（热换 + 数据连续 + ALC 回收） |
 | 批次 5 | **S4-4**（K9 待迁移归零） | 两处兜底造根移除 |
 | 批次 6 | **S3**（A4 双写收敛） | 风险最高：独立开关（默认关）+ 故障注入 + 单独评审 |
 | 可穿插 | **S1-④**（对象槽只读投影） | 纯新增、可独立提交 |
@@ -52,25 +52,24 @@
 | # | 议题 | 选项 | 建议 | 影响面 |
 |---|---|---|---|---|
 | **D-批次序** | S3(A4) 与 S4-2..S4-4 的先后 | ① 先换代闭环（S4-2 → S4-3 → S4-4）② 先 A4 双写收敛（原序） | **①**：S4-1 已解除换代阻塞；换代闭环是本方案目标本身，且能给 S3 提供**真实宿主**验证面 | 批次顺序、评审安排 |
-| **D-S42** | 新代数装配入口形态 | ① `DataCenterHostOptions` 增委托 `Func<GenerationPlan, IDataCenterRoot>` ② Protocol 增端口 `IRootFactory` | **①**：Hosting 保持零设施依赖（G2）—— ALC 工厂在 CsharpPrj，`DataCenter.Hosting` 不引 `Modules.Registry`；若后续需跨 ALC 传递工厂实例，再提升为端口 | `DataCenter.Hosting` 公开面、宿主注入点 |
+| **D-S42** | 新代数装配入口形态 | ① `DataCenterHostOptions` 增委托 ② Protocol 增端口 `IRootFactory` | **①（已采纳，S4-2 落地；签名修正为 `Func<RootSwapContext, IDataCenterRoot>`）**：Hosting 保持零设施依赖（G2）；文档原拟 `Func<GenerationPlan, IDataCenterRoot>` 拿不到 cell/registry/generation/slots，无法装配合法根，故引入 `RootSwapContext` 承载装配输入（含旧代际快照） | `DataCenter.Hosting` 公开面、宿主注入点 |
 | **D-S43** | 宿主引导开关默认值 | ① 默认**关**（现行为：Agent 回落本地容器）② 默认开 | **①**：与 A1「根未绑定 → 回落进程本地容器」语义一致；先开关验证再切默认 | 宿主启动路径、回归面 |
 | D-A4 | A4 收敛开关形态 | ① `AgentConfig` 布尔（默认关）② project.md 参数 ③ 环境变量 | **①**：与 `AgentConfig.EnableTaskPool`（`Agent.McpRegistryHost\Configuration\AgentConfig.cs:128`）同构 | S3 的失效注入与回退路径 |
-| D-A5 | 换代期间是否承诺零请求失败 | ① 不承诺 ② Drain 超时后拒绝新写 | **①**（对齐架构设计 §8） | S4-2/S4-3 的 Drain/Resume 语义 |
+| D-A5 | 换代期间是否承诺零请求失败 | ① 不承诺 ② Drain 超时后拒绝新写 | **①（已采纳；S4-2 落地：`Resume` 于 finally 放行写入，不承诺零停机）**（对齐架构设计 §8） | S4-2/S4-3 的 Drain/Resume 语义 |
 
 ---
 
 ## 3. 步骤明细
 
-### S4-2 · `SwapAsync` 接入新 ALC（换代宿主侧核心）
+### S4-2 · `SwapAsync` 接入新 ALC（换代宿主侧核心）—— ✅ 已完成（2026-09-12，Frame `S4-2` 提交 + 主仓判据提交）
 
 | 项 | 内容 |
 |---|---|
-| **目标** | 换代时新代数在**新 ALC** 内装配（旧代数 `Unload` 后可回收），状态经 Export/Import 迁移保持连续 |
-| **现状（实测）** | `DataCenterHost.SwapAsync`（`Frame\DataCenter\DataCenter.Hosting\Hosting\DataCenterHost.cs:138-174`）为**同 ALC 代际推进**：Drain → 释放旧根 → `BuildRoot(nextGeneration)`（复用 `_cell/_center`）→ 绑根 → Resume；失败回建旧代数（`:159-165`，语义已对）。`GenerationPlan`（`Hosting\GenerationPlan.cs:12`）= `record(Fingerprint, SchemaVersion, Drain, Resume)` |
-| **改动点** | ① 依 **D-S42** 在 `DataCenterHostOptions` 增「新代数装配入口」（宿主注入）<br>② `GenerationPlan` 增 `Export` / `Import` 钩子（agent 分区状态导出/导入；Seq 连续）<br>③ `SwapAsync` 插入：Drain → **Export** → 新代数装配（新 ALC）→ **Import**（`generation+1` / `fingerprint` / Seq 连续）→ 绑根 → Resume → **旧代数 `Unload`**<br>④ 与 `ExtensionGenerationFactory.Swap`（S4-1 已交付）对齐：扩展代数与数据代数同号推进 |
-| **判据** | ① 换代前后**同 scope 值不丢、`Seq` 连续**（新增断言）② 旧代数 `WeakReference.IsAlive == false`（端到端）③ 换代失败**保留旧代数**（`:159-165` 现语义不回归）④ `DataCenter.Tests` 49/49 基线不回归 |
-| **回退** | 未注入装配入口 = 现同 ALC 路径（行为等价）；换代流程独立提交 |
-| **提交粒度** | Frame 一处（Hosting + 测试）+ 主仓判据 |
+| **交付** | ① `DataCenterHostOptions.RootFactory`：`Func<RootSwapContext, IDataCenterRoot>?`（宿主注入的新代数装配入口；null = 同 ALC 路径，等价回退）<br>② `RootSwapContext`（新）：`(RootCell, Registry, Generation, PreviousGeneration, Slots)` —— 装配入口的全部输入；旧根因单根不变量先释放，故只暴露其代际快照<br>③ `GenerationPlan` 增 `Export` / `Import` 钩子 + `GenerationPayload`（新；只承载**不在状态真源里**的跨代迁移数据，禁止塞状态 KV）<br>④ `SwapAsync` 新流程：Drain → Export → 解绑/释放旧代数根 → 装配新代数根（generation+1）→ 绑根 → Import → Resume（**finally 放行**）<br>⑤ 装配入口交出物校验（fail-fast）：非 null / 必须挂当前真源 / 代际必须为目标代数；校验不过先释放交出物再抛错 |
+| **实施发现（3 条，已写进代码注释）** | ① **ALC 边界**：`RootInstanceGuard` 为 `DataCenter.Core` 内 static → 若在 scoped ALC 装载 Core 副本，单根守卫各持一份计数（DF8 静默失效）+ 跨 ALC 类型身份分裂。故"新 ALC"只覆盖**扩展装配产物**，根/真源/守卫必须由默认 ALC 承载<br>② **Seq 语义**：Core 无独立 `Seq` 字段；同一 `(namespace, scope)` 的版本单调由 `StateSubscriptionHub._lastSeen` 承担且归 `StateCenter` 私有 → 只要沿用同一 `_cell/_center`，Seq 天然连续。故 `Export/Import` **不承载状态 KV**（否则=第二真源）<br>③ **非法交出物须先释放**：交出物若挂异真源/代际不符而直接抛错，其已占用的单根守卫计数会泄漏 → 回建旧代数二次占用失败（实测踩到并修复） |
+| **Resume 语义（新增口径）** | `Resume` 在 `finally` 中以 `CancellationToken.None` 调用：换代成功/失败/取消都必须放行写入，否则宿主写路径永久停在停写态（D-A5 ①） |
+| **判据（实测）** | `DataCenter.slnx` **0 错 0 警**；`DataCenter.Tests` **53/53**（新增 4 项：① 装配入口被调用 + 上下文真源/槽/代际 + 状态连续 + 默认 ALC；② 边界顺序 Drain→Export→Import→Resume；③ 装配失败保留旧代数、放行写入、失败可重复（守卫配平）；④ 交出异真源 fail-fast 且保留旧代数）；`Integration.Tests` 30 通过 / 1 跳过；`StateHoldDriven.Tests` 73/73；`Agent.Core/Axioms/Runtime/Launcher` 396/84/21/26；K9/K10 **EXIT 0** |
+| **回退** | 不注入 `RootFactory` 即完全等价 A0 路径（单提交可撤） |
 | **风险** | 中；Drain/Resume 语义决定抖动面（R3：**不承诺零停机**） |
 
 ### S4-3 · 宿主引导注入根（首次 Boot + 注入域表）
@@ -153,7 +152,7 @@ dotnet build Projects\Plug\Agent\Agent.sln -c Debug                             
 dotnet build Projects\FileDriven\FileDriven.sln -c Debug                                  # 宿主侧（S4-3 起）
 dotnet build Frame\CsharpPrj\Operation\StateHoldDriven\StateHoldDriven.csproj -c Debug    # ★ 契约变更后先刷新烘焙（设计文档 §4.2）
 
-# ── 回归（基线：49 / 73 / 396 / 84 / 21 / 26 / 30+1跳过）──
+# ── 回归（基线：53 / 73 / 396 / 84 / 21 / 26 / 30+1跳过）──
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Tests\DataCenter.Tests.csproj
 dotnet test Environment\CentralTest\CSharpTest\Integration.Tests\Integration.Tests.csproj    # S4-1 起纳入（代数回收 / 换代语义）
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\StateHoldDriven.Tests.csproj

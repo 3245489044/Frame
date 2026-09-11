@@ -239,9 +239,9 @@
 
 | 项 | 内容 |
 |---|---|
-| 交付 | ① `ExtensionLoadContext` 可收集化（`ExtensionAssemblyHost.cs:218` `isCollectible: false` → `true`）+ **实例化代数工厂**（消除 `static ExtensionAssemblyHost`，通用化 G7.2）<br>② `DataCenterHost.SwapAsync`：Drain（暂停新写、在途推到边界）→ Export（Agent 分区状态）→ 新 ALC 装配新根 → Import（`Seq` 连续、`generation+1`、`fingerprint` 更新）→ Resume → 旧 ALC `Unload`<br>③ 产品侧 `new StateCenter(` 归零（`AgentOrchestrator.cs:93` / `WorkflowRunner.cs:89` 两处兜底造根移除） |
-| 关键决策 | 换代时对象槽策略 = **重建 + 状态迁移**（LLM 网关 / daemon / 句柄不跨代数复用，避免跨 ALC 持有已卸载程序集的类型）；状态经 Export/Import 迁移以保连续 |
-| 判据 | ① 换代前后同 scope 值 / `Seq` 连续（不重置、不丢） ② 旧代数 `WeakReference.IsAlive == false` ③ 换代失败保留旧代数（不半迁） ④ K9（`new StateCenter(` 白名单 = Hosting / 测试） |
+| 交付 | ① `ExtensionLoadContext` 可收集化（`ExtensionAssemblyHost.cs:218` `isCollectible: false` → `true`）+ **实例化代数工厂**（消除 `static ExtensionAssemblyHost`，通用化 G7.2）<br>② `DataCenterHost.SwapAsync`（S4-2 已落地）：Drain → Export（跨代载荷）→ 装配新代数根（经宿主注入的 `RootFactory`，扩展装配产物在新 ALC 重建）→ Import → Resume（finally 放行）<br>③ 产品侧 `new StateCenter(` 归零（`AgentOrchestrator.cs:93` / `WorkflowRunner.cs:89` 两处兜底造根移除）<br>④ **ALC 边界**：根 / 真源 / 单根守卫由默认 ALC 承载，"新 ALC"只覆盖扩展装配产物（否则 DF8 静默失效） |
+| 关键决策 | 换代时对象槽策略 = **重建 + 状态迁移**（LLM 网关 / daemon / 句柄不跨代数复用，避免跨 ALC 持有已卸载程序集的类型）；**状态真源跨代数复用**（`_cell/_center` 复用 → 同 scope 值与版本序列天然连续；跨代载荷只承载"不在状态真源里"的数据） |
+| 判据 | ① 换代前后同 scope 值 / 版本序列连续（S4-2 判据测试） ② 旧代数 `WeakReference.IsAlive == false`（S4-1 判据；端到端在 S4-3） ③ 换代失败保留旧代数（不半迁） ④ K9（`new StateCenter(` 白名单 = Hosting / 测试） |
 | 回退 | 换代流程独立；ALC 可收集化与根交换可分两步提交 |
 
 ### 4.1 阶段依赖图

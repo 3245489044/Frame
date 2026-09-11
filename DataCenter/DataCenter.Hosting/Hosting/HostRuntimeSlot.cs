@@ -104,6 +104,24 @@ public sealed class HostRuntimeSlot : IRuntimeSlot, IDisposable
             }
         }
 
+        public void Replace(string key, object value)
+        {
+            ThrowIfDisposed();
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("槽键不能为空", nameof(key));
+            ArgumentNullException.ThrowIfNull(value);
+
+            lock (_gate)
+            {
+                if (_values.TryGetValue(key, out var existing) && ReferenceEquals(existing, value))
+                    return; // 同实例幂等
+
+                if (!_values.ContainsKey(key))
+                    _order.Add(key);
+                _values[key] = value;
+            }
+        }
+
         public bool TryGet<T>(string key, out T? value) where T : class
         {
             ThrowIfDisposed();

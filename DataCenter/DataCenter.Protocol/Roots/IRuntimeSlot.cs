@@ -34,6 +34,12 @@ public interface IRuntimeSlotPartition
     /// <summary>注册槽对象（装配期单点写入；重复注册不同实例 = fail-fast）。</summary>
     void Register(string key, object value);
 
+    /// <summary>
+    /// 替换槽对象（<b>处置期写口</b>：换代重装配 / 重装配覆盖；同实例幂等）。
+    /// 旧值处置由调用方负责（槽宿主不越权释放仍未解绑的对象）。
+    /// </summary>
+    void Replace(string key, object value);
+
     /// <summary>尝试解析槽对象（运行期只读路径；类型不符 = 未命中，不抛错）。</summary>
     bool TryGet<T>(string key, out T? value) where T : class;
 

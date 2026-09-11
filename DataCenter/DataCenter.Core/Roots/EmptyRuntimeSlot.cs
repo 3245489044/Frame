@@ -30,6 +30,10 @@ public sealed class EmptyRuntimeSlot : IRuntimeSlot
             => throw new InvalidOperationException(
                 $"运行时槽未装配：无法向分区 '{DomainKey}' 注册 '{key}'（槽由宿主装配层创建并注入，禁止就地自建第二根）。");
 
+        public void Replace(string key, object value)
+            => throw new InvalidOperationException(
+                $"运行时槽未装配：无法向分区 '{DomainKey}' 替换 '{key}'（槽由宿主装配层创建并注入，禁止就地自建第二根）。");
+
         public bool TryGet<T>(string key, out T? value) where T : class
         {
             value = null;

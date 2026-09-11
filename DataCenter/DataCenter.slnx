@@ -6,5 +6,6 @@
   <Project Path="DataCenter.Protocol/DataCenter.Protocol.csproj" />
   <Project Path="DataCenter.Core/DataCenter.Core.csproj" />
   <Project Path="DataCenter.Adapters/DataCenter.Adapters.csproj" />
+  <Project Path="DataCenter.Hosting/DataCenter.Hosting.csproj" />
   <Project Path="DataCenter.Extensions.LoopDecision/DataCenter.Extensions.LoopDecision.csproj" />
 </Solution>

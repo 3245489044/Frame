@@ -30,6 +30,12 @@ public interface IDataCenterRoot : IDisposable
 
     /// <summary>代际读口（generation/fingerprint/schemaVersion）。</summary>
     IStateGeneration Generation { get; }
+
+    /// <summary>
+    /// 运行时槽分区（根的另一半）—— 承载不可序列化的进程内对象（网关/缓存/装配产物）。
+    /// 装配期注册、运行期只读；未装配槽的宿主返回只读空分区（不抛错、不接受注册）。
+    /// </summary>
+    IRuntimeSlot Slots { get; }
 }
 
 /// <summary>

@@ -34,6 +34,7 @@
     <ProjectReference Include="DataCenter.Protocol\DataCenter.Protocol.csproj" />
     <ProjectReference Include="DataCenter.Core\DataCenter.Core.csproj" />
     <ProjectReference Include="DataCenter.Adapters\DataCenter.Adapters.csproj" />
+    <ProjectReference Include="DataCenter.Hosting\DataCenter.Hosting.csproj" />
     <ProjectReference Include="DataCenter.Extensions.LoopDecision\DataCenter.Extensions.LoopDecision.csproj" />
   </ItemGroup>
 

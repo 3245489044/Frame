@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据中心单根宿主</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>DataCenter 进程内单根宿主（DF8/P10）：装配、持有、生命周期与换代交换的唯一落点。Boot 时把 Cell 工厂 + 投影器 + 注册表 + 代际 + 运行时槽分区装配为单一根实例（DataCenterRoot 的守卫在此隐式生效，进程内 ≤ 1）；业务侧只经 IRootProvider 取根，不暴露 static Current。归入「宿主装配层」：允许引宿主设施（ALC / 宿主 cell），与 Core 的零设施门禁口径分列。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;宿主;Hosting;单根;DF8;运行时槽;RuntimeSlot;换代;Swap</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="根实例由本工程创建与持有（Frame\DataCenter 持有根）；业务侧不给 static Current，只给 IRootProvider" />
+    <ModuleRule_Rule Include="单根不变量：根 ≤ 1 由 DataCenterRoot 的 RootInstanceGuard 保证（本工程不另立第二套计数）" />
+    <ModuleRule_Rule Include="单向引用：本工程引用 Abstractions/Protocol/Core/Adapters；被引工程不得反向引用本工程" />
+    <ModuleRule_Rule Include="K9/K10 白名单点：new StateCenter( 与槽宿主实现只允许出现在本工程（业务侧禁止）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DataCenter.Hosting</RootNamespace>
+    <AssemblyName>DataCenter.Hosting</AssemblyName>
+    <Description>DataCenter 单根宿主 —— 装配/持有/生命周期/换代交换（进程内根实例 ≤ 1）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 端口与图契约（IDataCell/IDataCenterRoot/IRootProvider/IRuntimeSlot） -->
+    <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />
+    <!-- 通用实现（StateCenter/TierStateProjector/GraphRegistry/GenerationState/DataCenterRoot） -->
+    <ProjectReference Include="..\DataCenter.Core\DataCenter.Core.csproj" />
+    <!-- 宿主设施适配（Block 初始化块/服务定位器；换代与初始化编排经其接入） -->
+    <ProjectReference Include="..\DataCenter.Adapters\DataCenter.Adapters.csproj" />
+  </ItemGroup>
+
+</Project>

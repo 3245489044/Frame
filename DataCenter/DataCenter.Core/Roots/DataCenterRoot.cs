@@ -21,22 +21,26 @@ public sealed class DataCenterRoot : IDataCenterRoot
     private readonly IStateProjector _projector;
     private readonly IStateRegistry _registry;
     private readonly IStateGeneration _generation;
+    private readonly IRuntimeSlot _slots;
     private int _disposed;
 
     /// <param name="root">状态真源（端口；如 InMemoryDataCell 或 StorageCellAdapter）。</param>
     /// <param name="projector">图投影器（图的唯一产出点）。</param>
     /// <param name="registry">类型/键注册表（装配期注册、运行期只读）。</param>
     /// <param name="generation">代际读口（初始 <see cref="GenerationState.Initial"/>）。</param>
+    /// <param name="slots">运行时槽分区（根的另一半）；null = 未装配槽的宿主（只读空分区）。</param>
     public DataCenterRoot(
         IDataCell root,
         IStateProjector projector,
         IStateRegistry registry,
-        IStateGeneration generation)
+        IStateGeneration generation,
+        IRuntimeSlot? slots = null)
     {
         _root = root ?? throw new ArgumentNullException(nameof(root));
         _projector = projector ?? throw new ArgumentNullException(nameof(projector));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _generation = generation ?? throw new ArgumentNullException(nameof(generation));
+        _slots = slots ?? EmptyRuntimeSlot.Instance;
 
         // 单根：进入即断言（失败则本实例不成立，构造抛错）
         RootInstanceGuard.Enter();
@@ -75,6 +79,16 @@ public sealed class DataCenterRoot : IDataCenterRoot
         {
             ThrowIfDisposed();
             return _generation;
+        }
+    }
+
+    /// <summary>运行时槽分区（根的另一半）：装配期由宿主注册、运行期只读。</summary>
+    public IRuntimeSlot Slots
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _slots;
         }
     }
 

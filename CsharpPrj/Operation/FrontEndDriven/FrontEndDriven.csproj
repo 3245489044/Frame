@@ -86,6 +86,11 @@
          倒转 plate→上游 污染为 上层(FrontEndDriven)→plate 抽象。Observe/Share.Conversation 均为 leaf 子项目，无环。 -->
     <ProjectReference Include="$(Proj_Observe)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />
+
+    <!-- ★ 2026-09-11 通用 HTML 宿主门面（FrontEndDriven.HtmlHosting）：HtmlUiHost 插槽宿主复用 Share.HostAssembly 的
+         ThreadSafeSlot（唯一实现，勿复制锁槽样板）；HtmlBridgeAssembly 的配置模板加载复用 Plate.JsonMethod 节点读取。 -->
+    <ProjectReference Include="$(Proj_HostAssembly)" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
   </ItemGroup>
 
 </Project>

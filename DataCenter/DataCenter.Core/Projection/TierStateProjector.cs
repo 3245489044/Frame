@@ -60,7 +60,7 @@ public sealed class TierStateProjector : IStateProjector
                 continue;
             }
 
-            entries.Add((entry, StateUriMapper.Resolve(entry), tierId));
+            entries.Add((entry, StateUriMapper.Resolve(entry, _registry), tierId));
         }
 
         // 确定性排序（幂等判据）：tier → scope → key → domain

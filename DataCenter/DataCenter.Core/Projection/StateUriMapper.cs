@@ -1,5 +1,6 @@
 using DataCenter.Abstractions.Cells;
 using DataCenter.Protocol.Projection;
+using DataCenter.Protocol.Registry;
 
 namespace Operation.StateBlock.Projection;
 
@@ -32,9 +33,14 @@ public static class StateUriMapper
     };
 
     /// <summary>解析状态条目为图坐标（domain / tier / scope / key + 节点 URI）。</summary>
-    public static StateUriRef Resolve(StateEntry entry)
+    /// <param name="entry">状态条目。</param>
+    /// <param name="registry">
+    /// 注册表（可选）：提供域别名表时，命名空间先经别名归并到逻辑域（一个逻辑域的多个命名空间 → 同一 domain，
+    /// 使跨命名空间因果链闭合）；未提供则按 <c>.{Tier}</c> 后缀约定拆域。
+    /// </param>
+    public static StateUriRef Resolve(StateEntry entry, IStateRegistry? registry = null)
     {
-        var domain = DomainOf(entry.Namespace, entry.Tier);
+        var domain = DomainOf(entry.Namespace, entry.Tier, registry);
         var tierId = TierId(entry.Tier);
         var uri = $"{UriPrefix}{domain}/{tierId}/{entry.Scope}/{entry.Key}";
         return new StateUriRef(domain, tierId, entry.Scope, entry.Key, entry.Namespace, uri);
@@ -83,8 +89,12 @@ public static class StateUriMapper
         return true;
     }
 
-    private static string DomainOf(string ns, DataTier tier)
+    private static string DomainOf(string ns, DataTier tier, IStateRegistry? registry = null)
     {
+        // 域别名优先（装配期登记；机制通用，不含具体域名）：一个逻辑域的多个命名空间 → 同一 domain
+        if (registry is not null && registry.TryResolveDomainAlias(ns, out var alias) && alias.Length > 0)
+            return alias;
+
         var suffix = "." + tier.ToString();
         return ns.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
             ? ns[..^suffix.Length]

@@ -17,6 +17,15 @@ public interface IStateRegistry
     /// <summary>已登记的边种类（edgeKind）集；如 structure.owns / causality.derives。</summary>
     IReadOnlyCollection<string> EdgeKinds { get; }
 
+    /// <summary>
+    /// 已登记的域别名表（命名空间 → 逻辑域）—— 供"一个逻辑域的多个命名空间"在投影时归并为同一 domain
+    /// （否则跨命名空间因果链无法闭合）。机制通用：域侧装配期登记，Core 不含任何具体域名。
+    /// </summary>
+    IReadOnlyDictionary<string, string> DomainAliases { get; }
+
+    /// <summary>命名空间 → 逻辑域 的别名解析（未登记返回 false）。</summary>
+    bool TryResolveDomainAlias(string ns, out string domain);
+
     /// <summary>tier 是否已登记（未登记 = 投影/门禁应报缺口，而非静默放行）。</summary>
     bool IsTierRegistered(string tier);
 

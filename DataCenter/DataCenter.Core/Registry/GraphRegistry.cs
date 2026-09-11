@@ -12,15 +12,26 @@ public sealed class GraphRegistry : IStateRegistry
     private readonly HashSet<string> _tiers;
     private readonly HashSet<string> _nodeKinds;
     private readonly HashSet<string> _edgeKinds;
+    private readonly Dictionary<string, string> _domainAliases;
 
     public GraphRegistry(
         IEnumerable<string>? tiers = null,
         IEnumerable<string>? nodeKinds = null,
-        IEnumerable<string>? edgeKinds = null)
+        IEnumerable<string>? edgeKinds = null,
+        IEnumerable<KeyValuePair<string, string>>? domainAliases = null)
     {
         _tiers = NewSet(tiers, DefaultTiers);
         _nodeKinds = NewSet(nodeKinds, DefaultNodeKinds);
         _edgeKinds = NewSet(edgeKinds, DefaultEdgeKinds);
+        _domainAliases = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (domainAliases is not null)
+        {
+            foreach (var (ns, domain) in domainAliases)
+            {
+                if (!string.IsNullOrWhiteSpace(ns) && !string.IsNullOrWhiteSpace(domain))
+                    _domainAliases[ns] = domain;
+            }
+        }
     }
 
     /// <summary>默认注册集（示例；域扩展经增量复制，不改默认集）。</summary>
@@ -61,14 +72,35 @@ public sealed class GraphRegistry : IStateRegistry
 
     public bool IsEdgeKindRegistered(string edgeKind) => !string.IsNullOrWhiteSpace(edgeKind) && _edgeKinds.Contains(edgeKind);
 
+    public IReadOnlyDictionary<string, string> DomainAliases => _domainAliases;
+
+    public bool TryResolveDomainAlias(string ns, out string domain)
+    {
+        domain = string.Empty;
+        return !string.IsNullOrWhiteSpace(ns) && _domainAliases.TryGetValue(ns, out domain!);
+    }
+
     /// <summary>增量复制并追加分层标识（注册一行；原注册表不变）。</summary>
-    public GraphRegistry WithTiers(params string[] tiers) => new(_tiers.Concat(tiers), _nodeKinds, _edgeKinds);
+    public GraphRegistry WithTiers(params string[] tiers) => new(_tiers.Concat(tiers), _nodeKinds, _edgeKinds, _domainAliases);
 
     /// <summary>增量复制并追加节点种类（注册一行；原注册表不变）。</summary>
-    public GraphRegistry WithNodeKinds(params string[] nodeKinds) => new(_tiers, _nodeKinds.Concat(nodeKinds), _edgeKinds);
+    public GraphRegistry WithNodeKinds(params string[] nodeKinds) => new(_tiers, _nodeKinds.Concat(nodeKinds), _edgeKinds, _domainAliases);
 
     /// <summary>增量复制并追加边种类（注册一行；原注册表不变）。</summary>
-    public GraphRegistry WithEdgeKinds(params string[] edgeKinds) => new(_tiers, _nodeKinds, _edgeKinds.Concat(edgeKinds));
+    public GraphRegistry WithEdgeKinds(params string[] edgeKinds) => new(_tiers, _nodeKinds, _edgeKinds.Concat(edgeKinds), _domainAliases);
+
+    /// <summary>增量复制并追加域别名（注册一行；原注册表不变）：同名命名空间覆盖式登记。</summary>
+    public GraphRegistry WithDomainAliases(params (string Namespace, string Domain)[] aliases)
+    {
+        var merged = new Dictionary<string, string>(_domainAliases, StringComparer.Ordinal);
+        foreach (var (ns, domain) in aliases)
+        {
+            if (!string.IsNullOrWhiteSpace(ns) && !string.IsNullOrWhiteSpace(domain))
+                merged[ns] = domain;
+        }
+
+        return new GraphRegistry(_tiers, _nodeKinds, _edgeKinds, merged);
+    }
 
     private static HashSet<string> NewSet(IEnumerable<string>? declared, IReadOnlyCollection<string> fallback)
         => new(declared is null ? fallback : declared.Where(v => !string.IsNullOrWhiteSpace(v)), StringComparer.Ordinal);

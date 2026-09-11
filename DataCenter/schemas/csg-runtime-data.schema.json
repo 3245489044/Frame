@@ -27,14 +27,14 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "节点 ID —— 运行时数据键的 URI 形式：csg://{domain}/{layer}/{scope}/{key}",
-          "pattern": "^csg://[^/]+/(config|session|transient)/[^/]+/.+$"
+          "description": "节点 ID —— 运行时数据键的 URI 形式：csg://{domain}/{tier}/{scope}/{key}。tier 为注册制标识（见 metadata.tiers），不绑定任何引擎分层名",
+          "pattern": "^csg://[^/]+/[^/]+/[^/]+/.+$"
         },
         "label": { "type": "string" },
         "type": { "enum": ["State", "Property", "Record", "Action"] },
         "properties": {
           "type": "object",
-          "description": "节点属性；运行时数据约定：value=实际值，layer=Config|Session|Transient，scope=分区标识，key=裸键"
+          "description": "节点属性；运行时数据约定：value=实际值，tier=分层标识（注册制，须在 metadata.tiers 登记），scope=分区标识，key=裸键"
         }
       },
       "additionalProperties": true
@@ -76,11 +76,19 @@
         },
         "domain": {
           "type": "string",
-          "description": "域命名空间（如 Agent / StateBlock.Decision / Engine）；对应 IR 分层方案 ForDomain(domain)"
+          "description": "域命名空间（消费方自定义的域标识，由接入方决定取值）；对应 IR 分层方案 ForDomain(domain)"
+        },
+        "tiers": {
+          "type": "array",
+          "description": "分层标识注册表（注册制：消费方登记自己的分层标识；config/session/transient 仅为默认示例集，非封闭枚举）",
+          "items": { "type": "string" },
+          "default": ["config", "session", "transient"],
+          "minItems": 1,
+          "uniqueItems": true
         },
         "scope": {
           "type": "string",
-          "description": "分区 scope（threadHash / sessionId / roundId / taskKey / plugin-generation）"
+          "description": "分区 scope（消费方自定义的分区标识：会话/任务/世代等）"
         },
         "generation": {
           "type": "integer",

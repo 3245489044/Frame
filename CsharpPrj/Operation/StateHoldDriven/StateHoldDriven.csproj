@@ -39,6 +39,8 @@
          物理迁出至 Frame\DataCenter\DataCenter.Core（命名空间沿用 Operation.StateBlock.*，消费方零破坏）。
          本模块降为「产品装配件」（初始化 StateBlock 管线 + Daemon + FunctionStorage）。 -->
     <ProjectReference Include="..\..\..\DataCenter\DataCenter.Core\DataCenter.Core.csproj" />
+    <!-- ★ 2026-09-12 G2：宿主设施适配（Block 初始化块 / 服务定位器注册）迁至 DataCenter.Adapters；Core 只暴露端口。 -->
+    <ProjectReference Include="..\..\..\DataCenter\DataCenter.Adapters\DataCenter.Adapters.csproj" />
     <!-- P0: 状态驱动的决策框架复用 TaskStatusPool.Loops 裁决语义（R7 唯一权威），宿主向下引用不引入环 -->
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <!-- 2026-08-05 StateCenter 改造：StateStore 迁移 IStorageCell 后端 + 事务/订阅基于 StorageCell -->

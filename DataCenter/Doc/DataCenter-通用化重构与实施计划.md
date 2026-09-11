@@ -18,7 +18,9 @@
 | L6 | **数据面把引擎层名当枚举** | `schemas\csg-runtime-data.schema.json` 的 `id` 正则硬编码 `(config\|session\|transient)` | 中立性缺口（跨语言消费者被迫接受引擎分层名） |
 | L7 | **死代码** | `Extensions\StateBlockExtensions.cs` 为空类（0 成员） | 冗余（`Strategy.RedundancyElimination`） |
 
-**关键事实（降低迁移风险）**：L1 的领域件**没有任何产品消费方**——全仓仅 `Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\{LoopStateStoreTests,DecisionFrameworkTests}.cs` 使用（`LoopStateStore`/`DecisionCenter`/`DecisionRecord`）。即：**这 4 个文件是"框架内自持、无人消费"的领域件**，外移不触达任何产品代码。
+**关键事实（降低迁移风险）**：L1 的领域件**消费方仅 2 类**——(1) 测试：`Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\{LoopStateStoreTests,DecisionFrameworkTests}.cs`（`LoopStateStore`/`DecisionCenter`/`DecisionRecord`）；(2) **产品侧 1 处**：`Projects\Plug\Agent\src\Agent.Core\Loops\{AgentRunner.cs, AgentRunner.Persistence.cs, AgentRunner.Pipeline.cs}`（经 `Operation.StateBlock.Decision` 消费 `DecisionCenter`，把轮决策落 Center 供审计/回放）。
+> **勘误（2026-09-12 实施时实测）**：本节初稿称"领域件没有任何产品消费方、全仓仅测试使用"**不成立**——`Agent.Core` 确为消费者。因此 G1 必须补一步"Agent 侧二进制接线"（`Projects\Plug\Agent\Directory.Build.props` 的 `DataCenterBinaryRefs` 清单），否则 `Agent.sln`/`PrjBridge` 断链。命名空间保留策略使该消费方**源码零改动**，仅需新增程序集引用。
+
 
 **基线扫描证据**（对 `DataCenter.Core` 全量 `.cs` 扫 `Loop|Decision|EvalOutcome|FailureBudget|ProgressToken|ControlFlag|TaskStatusPool`）：
 
@@ -167,7 +169,10 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 | D0.4 | Agent `DataCenterBinaryRefs` 清单接线 | `Agent.sln` / `GameEditor.sln` / `PrjBridge` / `MainProj.sln` 全绿 |
 | D0.5 | 行为等价回归 | **StateHoldDriven.Tests 73/73**；**Agent.Axioms.Tests 84/84** |
 
-### G1 · 领域出 Core（本重构第一批，风险最低、收益最直观）
+### G1 · 领域出 Core（本重构第一批，风险最低、收益最直观） ✅ **已完成（2026-09-12）**
+
+> 实施记录见 §9。G1.1 的"测试工程加引用"实际落点是**两处二进制接线**（测试 + Agent），详见 §9.1。
+
 
 | 步骤 | 内容 | 判据 |
 |---|---|---|
@@ -177,7 +182,9 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 | G1.4 | 注释中立化（`StateCenter` Transient 注释去 "Agent Vars/骨架"） | G1 grep 通过 |
 | G1.5 | 校验器：新增 `Check-DataCenterGenericity.ps1`（对 Core 扫描领域词表，命中即失败） | 门禁可执行、可回归 |
 
-### G2 · 设施端口化（IoC 主干）
+### G2 · 设施端口化（IoC 主干） ✅ **已完成（2026-09-12，重载并存过渡；A3 为"契约强制白名单"态）**
+
+> 实施记录见 §10。关键纠偏：`IStateCenter.Cell`（返回 `IStorageCell`）被 **Agent/Engine 产品侧直接消费**（`ECSStorage(center.Cell)`、`StateContextAdapter.Cell`），故本轮**必须保留契约视图**，A3 以"自主依赖归零 + 契约强制点逐条白名单"达成。
 
 | 步骤 | 内容 | 判据 |
 |---|---|---|
@@ -194,7 +201,7 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 | G3.2 | 兼容：`Operation.StateBlock.*` 处加 `[assembly: TypeForwardedTo]`（旧 dll 指向新 dll） | 旧引用方零改动仍编译 |
 | G3.3 | `grep` 旧命名空间仅剩转发声明 | 迁移完成 |
 
-### G4 · 数据面中立化
+### G4 · 数据面中立化 ✅ **G4.1 已完成（2026-09-12）；G4.2 待办**
 
 | 步骤 | 内容 | 判据 |
 |---|---|---|
@@ -274,6 +281,93 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 | P8.2 | `StateCenter` 构造签名切换节奏：一次到位 vs 重载并存过渡 | **重载并存过渡**（先兼容后收紧，保证每步可编译可回退） |
 | P8.3 | 命名空间切换时机（G3） | **放在 G5 之后**（等实现上收完成，一次改名收益最大、转发层最少） |
 | P8.4 | 校验器（A1/A2）是否纳入 CI 门禁 | **纳入**（`PowerShellScript` 既有 DSL 校验同风格；防回退） |
+
+---
+
+## 9. 实施记录（B0 + G1 + G4.1，2026-09-12）
+
+### 9.1 交付清单
+
+| 步骤 | 落地 | 证据 |
+|---|---|---|
+| B0.1 | 新增门禁 `Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1`（`-Check` 非零退出；`-Words`/`-Whitelist` 可配；扫描面 = Core 源码 + Core csproj + schemas） | 改造前 145 命中 → 改造后 **0** |
+| B0.2 | 基线证据：`DataCenter.slnx` 0 错；`StateHoldDriven.Tests` 73/73 | 改造前实测 |
+| G1.1 | 新建 `Frame\DataCenter\DataCenter.Extensions.LoopDecision\`（ModuleRule Layer 3；引 Core + TaskStatusPool），`Decision\*` 4 文件整体外移（命名空间 `Operation.StateBlock.Decision` 保留 → 消费方源码零改动）；注册进 `DataCenter.slnx` + 聚合 `DataCenter.csproj` | 编译 0 错；`DataCenter.Core.dll` 30720→19968 字节且**不再含** `LoopStateStore` 符号（findstr 证）；扩展 dll 含之 |
+| G1.1a | **消费方二进制接线（两处，勘误补步）**：① `Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\StateHoldDriven.Tests.csproj` 增 `DataCenter.Core`/`DataCenter.Extensions.LoopDecision` 两条 `<Reference HintPath>`（CentralTest 通配清单只扫 CsharpPrj 烘焙目录，Frame 平台库产物需显式接线）；② `Projects\Plug\Agent\Directory.Build.props` 的 `DataCenterBinaryRefs` 清单增扩展 dll | 测试输出目录含两 dll；`Agent.sln`/`PrjBridge` 恢复绿 |
+| G1.2 | `DataCenter.Core.csproj` 删 `TaskStatusPool` 引用 | Core 编译 0 错 |
+| G1.2a | **G1.2 的连锁发现**：删引用后暴露 `StateCenterBlock` 用的 `FrameworkAbstractions.ComponentRegistry` 原为 `TaskStatusPool → EventBindingOrchestrator → FrameworkAbstractions` 的**隐式传递依赖**；G1 将其**显式化**（`$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj`），G2 时随 `StateCenterBlock` 下沉 Adapters。注：DataCenter 构建未 import `modules.generated.props`，`$(Proj_*)` 变量不可用，须用显式相对路径 | 编译 0 错 |
+| G1.3 | 删除空类 `DataCenter.Core\Extensions\StateBlockExtensions.cs`（含空目录） | Core 文件数 11→6 |
+| G1.4 | 注释/元数据中立化 4 处：`Core\StateCenter.cs`（去 "Agent Vars/骨架"）、`Layering\StateLayerScheme.cs`（去 "Agent 侧/AgentStateKeys"）、`DataCenter.Core.csproj` 与聚合 `DataCenter.csproj` 的 `ModuleRule_Rules`（R-DC2 去 Agent/Engine 举例；R7 改为 G4 单向注入表述） | 门禁 0 命中 |
+| G1.5 | 门禁可执行并可回归（同上 B0.1） | `-Check` exit=0 |
+| G4.1 | `schemas\csg-runtime-data.schema.json`：节点 `id.pattern` 去 `(config\|session\|transient)` 硬编码 → `^csg://[^/]+/[^/]+/[^/]+/.+$`；新增 `metadata.tiers` **分层标识注册表**（`config/session/transient` 降为 `default` 示例集）；节点属性描述 `layer=` → `tier=`（注册制）；`domain`/`scope` 描述去领域举例（原 "Agent / StateBlock.Decision / Engine"、"roundId"） | 门禁对 schemas 0 命中 |
+
+### 9.2 验收结果（实测）
+
+| 判据 | 结果 |
+|---|---|
+| A1 领域词汇零出现 | ✅ `Check-DataCenterGenericity.ps1 -Check` → 命中 0，exit 0 |
+| A2 依赖闭合（TaskStatusPool 已移除） | ✅ Core 现依赖：CSG.Unified / Share.StateManagement / TConfig / InternalStorage / Block / FrameworkAbstractions（末项为 G2 待下沉项） |
+| A3 设施端口化 | ⏳ 未达标（G2 范围）：Core 内仍有 `IStorageCell`/`BasicMethod.Block`/`FrameworkAbstractions` |
+| A4 领域经扩展注入 | ✅ 单向：扩展 → Core；Core 无反向引用 |
+| A5 行为等价 | ✅ `StateHoldDriven.Tests` **73/73**（测试代码零改动）；`Agent.Axioms.Tests` **84/84**；`Agent.Core.Tests` **396/396** |
+| A6 全仓编译 | ✅ `DataCenter.slnx` / `MainProj.sln` / `Agent.sln` / `GameEditor.sln` / `PrjBridge` / `FileDriven.sln` 全绿 0 错 0 警 |
+| G5 schema 中立 | ✅ 无引擎层名硬编码（`default` 仅示例集） |
+
+### 9.3 遗留与下一步
+
+| 项 | 说明 |
+|---|---|
+| G4.2 | `IStateProjector` + `TierStateProjector`；**注意 Core 当前零 CSG 代码**，属"新增实现"而非"加校验" |
+| G1 的依赖闭合仅为"半程" | `FrameworkAbstractions` 显式引用待 G2 随 `StateCenterBlock` 下沉 `DataCenter.Adapters` |
+| VSCodeCounter 等统计产物 | 含历史 `Operation.StateBlock.*` 快照，非代码引用，不在门禁扫描面内 |
+
+---
+
+## 10. 实施记录（G2 设施端口化，2026-09-12）
+
+### 10.1 交付清单
+
+| 步骤 | 落地 | 证据 |
+|---|---|---|
+| G2.1 | 新建 `Frame\DataCenter\DataCenter.Abstractions\`（**零 ProjectReference**）：`Cells\{DataTier, DataChangeKind, DataCellChangedEventArgs, IDataCell, IDataCellFactory}`、`Dispatch\IStateDispatch`、`Lifecycle\{IStateInitializer, InitializationOutcome}` | `DataCenter.Abstractions.csproj` 无任何引用；`Frame\DataCenter\Directory.Build.props` 对其豁免 `Usings.External`（否则 GlobalUsings 击穿零依赖） |
+| G2.2 | Core 新增 `Cells\InMemoryDataCell`（三 tier 字典 + 父链读回退 + Set/SetQuiet/ClearTier 通知语义）+ `Cells\InMemoryDataCellFactory`；`StateCenter`/`StateStore`/`LayeredStoreClient` 内部真源改吃 `IDataCell` | 新增 `DataCenter.Tests` **15/15**（含"双后端同构"一致性断言） |
+| G2.2a | **实现上收第一步**：Core 自建 `Storage\TierStringStore` + `Storage\TierObjectStore` 取代 Share 的 `StorageCellStateStore`/`ObjectKeyValueStore`（Core 不再消费 Share 的 StateStorage 实现） | 编译 0 错；73/73 |
+| G2.2b | `Compat\{TierMap, StorageCellAdapter, DataCellStorageView}`：契约枚举 ↔ 端口 tier 唯一映射点；IStorageCell→IDataCell 适配（兼容构造）；IDataCell→IStorageCell 视图（`Cell` 契约 + 事务 + 宿主 ECS 存储） | `DataCenter.Tests` 覆盖事务分区写入、`Cell` 直返原实例语义 |
+| G2.3 | 新建 `Frame\DataCenter\DataCenter.Adapters\`：`BlockStateInitializer`（原 Core `Blocks\StateCenterBlock` 迁出，实现端口 `IStateInitializer`）、`AppServiceRegistration`（服务定位器） | Core 已删 `Blocks\` 目录；Adapters 编译 0 错 |
+| G2.4 | 消费方切换：`StatePipelineBuilder` 改用 `DataCenter.Adapters.BlockStateInitializer`（StateHoldDriven 增引用）；`StateCenter` 双构造并存（端口构造为主 + IStorageCell 兼容构造）；测试/Agent/Engine/FrontEndDriven **源码零改动** | `StateHoldDriven.Tests` 73/73；`Agent.Core.Tests` 396/396；`Agent.Axioms.Tests` 84/84 |
+| G2.5 | 门禁扩展：`Check-DataCenterGenericity.ps1` 增 `[G2]` 设施面检查（`IStorageCell`/`StorageCell`/`BasicMethod.Block`/`FrameworkAbstractions` + csproj 引用闭合），注释提及不计入、契约强制点逐条白名单 | `-Check` → **G1 命中 0 / G2 违规 0**（白名单 16、注释提及 13） |
+| G2.6 | 消费方二进制接线：Agent `DataCenterBinaryRefs` 增 `DataCenter.Abstractions`（端口类型进 `StateCenter` 公开签名）；测试工程同步接线 | `Agent.sln`/`PrjBridge` 恢复绿 |
+
+### 10.2 关键纠偏（文档初稿未覆盖）
+
+| # | 事实 | 处置 |
+|---|---|---|
+| 1 | **`IStateCenter.Cell` 是产品级消费面**：`EngineHinge`（`ECSStorage(center.Cell)`）、`SceneManagerInitStage`、`StateContextAdapter.Cell` 均要求 `IStorageCell` | 契约视图保留（`DataCellStorageView`）；A3 改为"自主依赖归零 + 契约强制白名单"，彻底消除需 G5 契约收口 |
+| 2 | **`IStateOrchestrator` 暴露 `ExecutionPipeline`（BasicMethod.Block 类型）**，实现 `IStateCenter` 必须解析 | Block 引用按"契约强制"保留并在 csproj 注明；Core 不再使用 Block 初始化块设施 |
+| 3 | **DataCenter 构建不 import `modules.generated.props`** → `$(Proj_*)` 变量为空（静默失效） | 全部改用显式相对路径（`$(CsharpProjectRoot)\...`） |
+| 4 | **GlobalUsings 会击穿 Abstractions 零依赖**（平台级 `Usings.External.cs` 引 CSG/TConfig） | 在 `Directory.Build.props` 对该工程条件排除 |
+| 5 | 平台级 `GlobalUsings` 使零依赖工程无法通过"引共享 usings"实现 | 同上；未来新增纯端口工程需同样豁免 |
+| 6 | 端口类型进入公开签名会强制**消费方编译期解析**新程序集（CS0012） | 二进制接线清单显式登记（Agent + 测试） |
+
+### 10.3 验收结果（实测）
+
+| 判据 | 结果 |
+|---|---|
+| A1 领域词汇零出现 | ✅ 命中 0 |
+| A2 依赖闭合 | ✅ Core 引用：`CSG.Unified` / `Share.StateManagement` / `TConfig` / `BasicMethod.Block`（契约强制）/ `DataCenter.Abstractions`；**`Modules.InternalStorage`/`FrameworkAbstractions` 已移除** |
+| A3 设施端口化 | ✅ 自主依赖归零（0 违规）；契约强制点 16 处逐条白名单（`IStateCenter.Cell`→IStorageCell、`IStateOrchestrator`→ExecutionPipeline、P8.2 兼容构造） |
+| A4 领域经扩展注入 | ✅ 保持单向 |
+| A5 行为等价 | ✅ `StateHoldDriven.Tests` **73/73（测试代码零改动）**、`DataCenter.Tests` **15/15**、`Agent.Core.Tests` **396/396**、`Agent.Axioms.Tests` **84/84** |
+| A6 全仓编译 | ✅ `DataCenter.slnx` / `MainProj.sln` / `Agent.sln` / `GameEditor.sln` / `PrjBridge` / `FileDriven.sln` 全绿 0 错 |
+
+### 10.4 遗留与下一步
+
+| 项 | 说明 |
+|---|---|
+| 兼容构造收口 | `StateCenter(IStorageCell)` / `StateStore(IStorageCell)` 与 `Compat\` 适配器保留至 G5 契约收口后删除（届时 A3 可用严格规则，白名单缩减为 0） |
+| Share 实现仍在 Share | `StateOrchestrator`/`StateSubscriptionHub`/`StateTransaction` 仍为 Share 实现（G5.1 上收对象；G2 只做设施端口化） |
+| `IStateProjector`/`IGenerationParticipant`/`IStateMigration` 端口 | 未建（"不预置空端口"）：分别随 G4.2（CSG 投影）与 G6（代数/迁移）落地时建立 |
+| 精确白名单维护 | 新增契约强制点须在 `Check-DataCenterGenericity.ps1` 的 `$facilityAllowList` 登记理由（禁止整目录泛白） |
 
 ---
 

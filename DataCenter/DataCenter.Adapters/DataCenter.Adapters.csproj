@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据中心适配（宿主设施）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>DataCenter 宿主设施适配层：把引擎/宿主设施（BasicMethod.Block 初始化块、FrameworkAbstractions 服务定位器）适配为 DataCenter 端口实现，使 DataCenter.Core 的构造与实现不再出现引擎设施类型。G2 设施端口化的落点工程（对标 CallCenter.Adapters）。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;适配器;Adapters;Block;服务定位器;宿主设施</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="G2：引擎/宿主设施只在本工程出现（Core 经端口注入）" />
+    <ModuleRule_Rule Include="本工程单向引用 Core + Abstractions；Core 不得反向引用" />
+    <ModuleRule_Rule Include="CsharpPrj 经权威烘焙二进制引用（对齐 CallCenter.Adapters 约定）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DataCenter.Adapters</RootNamespace>
+    <AssemblyName>DataCenter.Adapters</AssemblyName>
+    <Description>DataCenter 宿主设施适配 —— Block 初始化块 / 服务定位器注册（端口实现）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 通用状态能力（StateCenter/StateStore）与端口契约 -->
+    <ProjectReference Include="..\DataCenter.Core\DataCenter.Core.csproj" />
+    <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <!-- 宿主初始化编排基类（BasicMethod.Block）/ 状态块契约 -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" />
+    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" />
+    <!-- 宿主服务定位器（FrameworkAbstractions） -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj" />
+    <!-- 引擎存储契约（IStorageCell）：兼容构造与适配器签名 -->
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
+  </ItemGroup>
+
+</Project>

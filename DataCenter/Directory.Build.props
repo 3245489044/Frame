@@ -33,9 +33,12 @@
   <!-- 导入 CsharpPrj 共享版本号定义（DataCenter 引用了 CsharpPrj 的项目） -->
   <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
 
-  <!-- 全局 GlobalUsings：DataCenter 全部项目共享跨程序集公共命名空间 -->
+  <!-- 全局 GlobalUsings：DataCenter 全部项目共享跨程序集公共命名空间。
+       例外：DataCenter.Abstractions 为「零依赖纯端口」，不得继承外部命名空间（CSG/TConfig），
+       否则零引用约束被 GlobalUsings 击穿。 -->
   <ItemGroup Label="GlobalUsings">
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.System.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs"
+             Condition="'$(MSBuildProjectName)' != 'DataCenter.Abstractions'" />
   </ItemGroup>
 </Project>

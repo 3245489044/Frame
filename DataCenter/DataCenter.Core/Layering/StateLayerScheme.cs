@@ -3,8 +3,7 @@ using TConfig;
 namespace Operation.StateBlock.Layering
 {
     /// <summary>
-    /// 分层键方案 —— 把「命名空间 + StorageLayer + scope + 裸键 → 全键/StateKey」的映射从上层调用方收进框架。
-    /// 泛化自 Agent 侧的三层键工厂（原 AgentStateKeys.Scheduler/Session/Round 的 NsScheduler/NsSession/NsRound），
+    /// 分层键方案 —— 把「命名空间 + StorageLayer + scope + 裸键 → 全键/StateKey」的映射从上层调用方收进框架，
     /// 使状态读写客户端只依赖本方案，不再持有 StateCenter 或手工拼接/剥离前缀。
     /// 每个「域（domain）」可声明一套按 StorageLayer 区分的命名空间表；同层允许多 scope 分区，枚举按 PartitionPrefix 隔离。
     /// </summary>

@@ -8,11 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="本模块是跨语言通用运行时数据框架的核心，依赖 CSG.Unified（协议）与 Share.StateManagement（纯契约）" />
+    <ModuleRule_Rule Include="本模块是跨语言通用运行时数据框架的核心，依赖 CSG.Unified（协议）、Share.StateManagement（纯契约）与 DataCenter.Abstractions（端口）" />
     <ModuleRule_Rule Include="R-DC1：CSG 主 schema 只扩不改（扩展域 csg://runtime-data），CsgProtocol v1.0.0 语义冻结" />
-    <ModuleRule_Rule Include="R-DC2：不引语言栈（FileDriven/FunctionStorage/WinForms/Agent 等），保持语言无关" />
-    <ModuleRule_Rule Include="R7：裁决语义唯一权威仍在 Share.TaskStatusPool.Loops，本层只做状态落地，不复制裁决" />
-    <ModuleRule_Rule Include="命名空间暂沿用 Operation.StateBlock.*（迁移期零破坏），后续可经类型转发切换为 DataCenter.Core.*" />
+    <ModuleRule_Rule Include="R-DC2：不引语言栈与应用层工程，保持语言无关" />
+    <ModuleRule_Rule Include="G1/G4：不出现领域词汇；领域逻辑经 DataCenter.Extensions.* 单向消费本层端口注入，本层无反向引用" />
+    <ModuleRule_Rule Include="G2：宿主设施（Block 初始化块/服务定位器/引擎存储/派发）不进本层——经端口 IDataCell/IStateDispatch/IStateInitializer 注入；Compat 目录仅保留契约强制的迁移期适配" />
+    <ModuleRule_Rule Include="契约强制引用（非自主选择）：IStateCenter.Cell→IStorageCell（TConfig）；IStateOrchestrator.ExecutePipelineAsync→ExecutionPipeline（BasicMethod.Block）。G5 契约收口后消除" />
+    <ModuleRule_Rule Include="命名空间暂沿用 Operation.StateBlock.*（迁移期零破坏），后续可经类型重构切换为 DataCenter.Core.*" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -27,13 +29,13 @@
     <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
     <!-- 纯契约：IStateCenter/IStateStore/StateKey/StateSnapshot/StateBlock/StatePipeline（R1 红线：契约只放 Share.StateManagement） -->
     <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" />
-    <!-- 循环决策原语（R7 唯一权威，本层只消费不复制） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Orchestration\TaskStatusPool\TaskStatusPool.csproj" />
-    <!-- 分层键的 StorageLayer 枚举 + IStorageCell（Plate 层，无 Operation/UI 依赖） -->
+    <!-- 端口层：IDataCell/IDataCellFactory/IStateDispatch/IStateInitializer（零依赖纯端口） -->
+    <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
+    <!-- 契约枚举 StorageLayer（Plate 层）+ Compat 适配器所需的 IStorageCell 契约面（引擎实现不进本层） -->
     <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
-    <!-- 状态后端：内存 StorageCell（分层读写/枚举/清理/DataChanged 单物理事件源） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Modules\InternalStorage\InternalStorage.csproj" />
-    <!-- 状态块基类 StateBlock（初始化编排管线） -->
+    <!-- 契约强制（非自主选择）：Share 契约 IStateOrchestrator 暴露 ExecutionPipeline/PipelineResult（BasicMethod.Block 类型），
+         实现 IStateCenter 必须解析这些类型。Core 自身不使用 Block 初始化块设施（已迁 DataCenter.Adapters）；
+         G5 契约收口（Share 降纯契约）后可消除。 -->
     <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" />
   </ItemGroup>
 

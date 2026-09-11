@@ -13,8 +13,8 @@
     <ModuleRule_Rule Include="详细架构请参考 Doc/DataCenter-架构设计.md" />
     <ModuleRule_Rule Include="R1'：Share.StateManagement 降为纯契约；状态中心实现（StateOrchestrator/订阅/事务/Actor）唯一归属 DataCenter.Core" />
     <ModuleRule_Rule Include="R-DC1：CSG 主 schema 只扩不改（扩展域 csg://runtime-data），CsgProtocol v1.0.0 语义冻结" />
-    <ModuleRule_Rule Include="R-DC2：DataCenter.Core 不引语言栈（FileDriven/FunctionStorage/WinForms/Agent/Engine）" />
-    <ModuleRule_Rule Include="R7：裁决语义唯一权威仍在 Share.TaskStatusPool.Loops，本层只做状态落地，不复制裁决" />
+    <ModuleRule_Rule Include="R-DC2：不引语言栈与应用层工程" />
+    <ModuleRule_Rule Include="G4：领域逻辑经 DataCenter.Extensions.* 单向引用 Core 注入，Core 不含任何反向引用" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -29,7 +29,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
     <ProjectReference Include="DataCenter.Core\DataCenter.Core.csproj" />
+    <ProjectReference Include="DataCenter.Adapters\DataCenter.Adapters.csproj" />
+    <ProjectReference Include="DataCenter.Extensions.LoopDecision\DataCenter.Extensions.LoopDecision.csproj" />
   </ItemGroup>
 
 </Project>

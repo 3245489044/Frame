@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据中心抽象（端口）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>DataCenter 纯端口层：分层数据单元（IDataCell/IDataCellFactory）、派发（IStateDispatch）、初始化编排（IStateInitializer）等 IoC 接缝。零 ProjectReference、零第三方依赖——领域/宿主/语言栈经实现方（DataCenter.Core / DataCenter.Adapters / 域扩展）注入，使 Core 的构造签名不再出现引擎设施类型。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;端口;IoC;IDataCell;分层数据单元;抽象</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="G2/G6：本工程零 ProjectReference（纯端口），不得引入任何实现工程或第三方包" />
+    <ModuleRule_Rule Include="端口仅在确有两个以上实现者时引入（IDataCell：InMemoryDataCell / StorageCellAdapter）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DataCenter.Abstractions</RootNamespace>
+    <AssemblyName>DataCenter.Abstractions</AssemblyName>
+    <Description>DataCenter 纯端口层 —— 分层数据单元/派发/初始化编排接缝（零依赖）</Description>
+  </PropertyGroup>
+
+</Project>

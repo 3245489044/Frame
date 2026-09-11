@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using BasicMethod.Block;
-using Modules.InternalStorage.Core;
+using DataCenter.Abstractions.Cells;
+using Operation.StateBlock.Core.Compat;
 using Share.StateManagement;
 using TConfig;
 using TConfig.ContextFrame.Abstractions;
@@ -9,13 +10,26 @@ using ShareStateStore = Share.StateManagement.IStateStore;
 namespace Operation.StateBlock.Core
 {
     /// <summary>
-    /// 状态中心（StateCenter）——全量状态唯一权威（治 L1–L5 架构层收敛）。
-    /// 聚合：StateManager 语义（scope 分区）、StateOrchestrator（Actor，保留）、
-    /// StateSubscriptionHub（订阅/版本去重）、三个生命周期 Provider（未注册前调用抛异常，装配顺序可见）。
+    /// 数据单元宿主（端口侧接缝）—— 使分层键客户端在端口真源上工作，而不经引擎存储契约。
     /// </summary>
-    public sealed class StateCenter : IStateCenter
+    public interface IDataCellProvider
     {
-        private readonly IStorageCell _cell;
+        /// <summary>根数据单元（端口真源）。</summary>
+        IDataCell Root { get; }
+    }
+
+    /// <summary>
+    /// 状态中心（StateCenter）——全量状态唯一权威。
+    /// 存储后端经端口 <see cref="IDataCell"/> 接入（主路径）；引擎存储（IStorageCell）经 Compat 适配器接入（G2 迁移期兼容）。
+    /// 聚合：StateManager 语义（scope 分区）、StateOrchestrator（Actor）、StateSubscriptionHub、
+    /// 三个生命周期 Provider（未注册前调用抛异常，装配顺序可见）。
+    /// </summary>
+    public sealed class StateCenter : IStateCenter, IDataCellProvider
+    {
+        private readonly IDataCell _root;
+        private readonly IDataCellFactory _factory;
+        private readonly IStorageCell? _legacyCell;
+        private IStorageCell? _rootView;
         private readonly StateSubscriptionHub _hub;
         private readonly StateStore _globalStore;
         private readonly StateOrchestrator _orchestrator;
@@ -27,21 +41,38 @@ namespace Operation.StateBlock.Core
         private readonly IPublishDispatcher? _dispatcher;
         private bool _disposed;
 
-        public StateCenter(IStorageCell cell, IPublishDispatcher? publishDispatcher = null)
+        /// <summary>
+        /// 端口后端构造（G2 主路径）—— 签名内不含任何引擎/宿主设施类型。
+        /// </summary>
+        /// <param name="root">根数据单元（端口实现，如 InMemoryDataCell）。</param>
+        /// <param name="factory">scope 分区子单元工厂；null = 内存工厂。</param>
+        /// <param name="publishDispatcher">可选派发器：null = 内联同步交付订阅回调；非 null = 出队解耦写线程。</param>
+        public StateCenter(IDataCell root, IDataCellFactory? factory = null, IPublishDispatcher? publishDispatcher = null)
         {
-            _cell = cell ?? throw new ArgumentNullException(nameof(cell));
+            _root = root ?? throw new ArgumentNullException(nameof(root));
+            _factory = factory ?? new InMemoryDataCellFactory();
             _dispatcher = publishDispatcher;
-            // P3/P4 装配口：可注入发布派发器（如 PublishDispatcherAdapter(Modules.Threading.SerialDispatcher)）。
-            // null = 内联同步交付订阅 handler / StateChanged（现状零回归）；非 null = 广播与 StateChanged 均经派发器
-            // （后台串行/按订阅上下文回投），写线程只提交不被订阅回调阻塞（两级同步广播统一解耦）。
             _hub = new StateSubscriptionHub().ConfigureDispatch(publishDispatcher);
-            _globalStore = new StateStore(cell, publishDispatcher);
+            _globalStore = new StateStore(_root, publishDispatcher);
             _orchestrator = new StateOrchestrator(_globalStore);
         }
 
+        /// <summary>
+        /// 引擎后端构造（迁移期兼容：IStorageCell 经 <see cref="StorageCellAdapter"/> 接入端口，存量消费方零改动）。
+        /// </summary>
+        public StateCenter(IStorageCell cell, IPublishDispatcher? publishDispatcher = null)
+            : this(new StorageCellAdapter(cell ?? throw new ArgumentNullException(nameof(cell))), null, publishDispatcher)
+        {
+            _legacyCell = cell;
+        }
+
+        /// <summary>根数据单元（分层键客户端经此访问端口真源）。</summary>
+        public IDataCell Root => _root;
+
         // ── IStateCenter ──
 
-        public IStorageCell Cell => _cell;
+        /// <summary>统一存储后端：兼容后端直返原实例（零语义漂移）；端口后端返回契约视图。</summary>
+        public IStorageCell Cell => _legacyCell ?? (_rootView ??= new DataCellStorageView(_root));
 
         public ShareStateStore GlobalStore => _globalStore;
 
@@ -50,12 +81,12 @@ namespace Operation.StateBlock.Core
             ArgumentException.ThrowIfNullOrWhiteSpace(scope);
             ThrowIfDisposed();
 
-            // scope 状态分区：根会话下的子 cell（parent 链回退，等价 StorageEngine.CreateSession 分区语义）
-            // GetOrAdd 原子创建，消除原索引赋值（_scopeStores[scope] = store）的并发覆盖
+            // scope 状态分区：根单元下派生子单元（父链读回退，等价原 StorageCell 子会话语义）；
+            // GetOrAdd 原子创建，消除原索引赋值的并发覆盖。
             return _scopeStores.GetOrAdd(scope, s =>
             {
-                var scopeCell = new StorageCell($"StateCenter.Scope.{s}", _cell);
-                return new StateStore(scopeCell, _dispatcher); // P4：scope store 的 StateChanged 与根 store 共享同一派发器
+                var scopeCell = _factory.CreateChild($"StateCenter.Scope.{s}", _root);
+                return new StateStore(scopeCell, _dispatcher);
             });
         }
 
@@ -63,11 +94,9 @@ namespace Operation.StateBlock.Core
         {
             ThrowIfDisposed();
 
-            // scope 事务定向到 scope 分区 cell（与 GetOrCreateScope 隔离语义一致）；
-            // 无 scope 落根 cell。原实现恒写根 cell，scope 参数仅作装饰（未真正隔离）。
-            // scope 分区 store 均为 StateStore 实例（GetOrCreateScope 创建），转具体类型取 Cell 安全。
+            // scope 事务定向到 scope 分区存储（与 GetOrCreateScope 隔离语义一致）；无 scope 落根存储。
             var cell = string.IsNullOrWhiteSpace(scope)
-                ? _cell
+                ? Cell
                 : ((StateStore)GetOrCreateScope(scope)).Cell;
 
             return new StateTransaction(cell, _hub, scope);
@@ -102,14 +131,14 @@ namespace Operation.StateBlock.Core
         public TState? Read<TState>(StateKey key)
         {
             ThrowIfDisposed();
-            return _cell.Get<TState>(key.FullKey, StorageLayer.Session);
+            return _root.Get<TState>(key.FullKey, DataTier.Session);
         }
 
         /// <summary>按 StateKey 读状态（指定存储层）。</summary>
         public TState? Read<TState>(StateKey key, StorageLayer layer)
         {
             ThrowIfDisposed();
-            return _cell.Get<TState>(key.FullKey, layer);
+            return _root.Get<TState>(key.FullKey, layer.ToTier());
         }
 
         public void Write<TState>(StateKey key, TState value, string? source = null)
@@ -122,18 +151,17 @@ namespace Operation.StateBlock.Core
         {
             ThrowIfDisposed();
 
-            // 广播分级（Transient 隔离）：Transient 层为「轮内执行期瞬态」（Agent Vars / 骨架临时空间），
-            // 属写线程本地、数量多、无需逐 key 投影。写侧只做静默持久化（SetQuiet：不 raise DataChanged、不进 StateChanged
-            // 转发），且不进全局 hub（不逐 key Publish）；投影方在轮边界读取汇总快照而非逐 key 广播，
-            // 从根源消除「写线程被瞬态订阅/广播焊死」——写线程只提交、不被两级同步广播阻塞。
+            // 广播分级（Transient 隔离）：Transient 层为作用域内瞬态（写线程本地、数量多、无需逐 key 投影）。
+            // 写侧只做静默持久化（SetQuiet：不触发变更通知），且不进全局 hub（不逐 key Publish）；
+            // 投影方在边界读取汇总快照而非逐 key 广播，从根源消除「写线程被瞬态订阅/广播焊死」。
             // Session/Config（持久/跨轮）保持原两级广播路径（可经装配 IPublishDispatcher 出队解耦）。
             if (layer == StorageLayer.Transient)
             {
-                _cell.SetQuiet(key.FullKey, value, layer);
+                _root.SetQuiet(key.FullKey, value, DataTier.Transient);
                 return;
             }
 
-            _cell.Set(key.FullKey, value, layer);
+            _root.Set(key.FullKey, value, layer.ToTier());
             var version = _hub.GetLastVersion(key.Namespace, key.Scope) + 1;
             _hub.Publish(key, value, version, source);
         }
@@ -143,10 +171,10 @@ namespace Operation.StateBlock.Core
             if (_disposed) return;
             _disposed = true;
 
-            // 进程退出唯一释放点：内部调用 Composition.AppShutdown()（R3）
+            // 进程退出唯一释放点：内部调用 Composition.AppShutdown()
             _compositionLifecycle?.AppShutdown();
 
-            // Actor 资源释放（原实现遗漏：Shutdown 未关闭 Actor）
+            // Actor 资源释放（Shutdown 未关闭 Actor 属原实现遗漏）
             try
             {
                 _orchestrator.ShutdownAllActorsAsync().GetAwaiter().GetResult();

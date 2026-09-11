@@ -452,9 +452,12 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
                 await Task.Delay(LoopbackProbeDelayMs, ct).ConfigureAwait(false);
         }
 
-        // 终态失败：把各次瞬态失败整块上报（保留失败定位所需细节）
+        // 终态失败：把各次瞬态失败整块上报（保留失败定位所需细节）。
+        // 降噪分流：这些是「内层探针 3 次尝试」的明细，而外层 HtmlBridgeLibrary 还有 3 次自愈重试，
+        // 自愈成功属预期路径（实测：「回流自检异常 1/3、2/3」后紧跟「回流链路自检通过」）→ 明细走 Debug；
+        // 终态结论由外层以 HtmlChannel_loopback（Info）单独上报，失败信号不丢（注册见 execution_log_messages.json）。
         foreach (var note in transientNotes)
-            ReportDiagnostics("HtmlChannel_loopback", note);
+            ReportDiagnostics("HtmlChannel_loopback_transient", note);
         return false;
     }
 

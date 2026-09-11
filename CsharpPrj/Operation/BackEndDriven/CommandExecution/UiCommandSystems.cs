@@ -233,9 +233,13 @@ public class AssertSystem : CommandSystemBase
         var actual = ctl.Text ?? string.Empty;
         if (actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) < 0)
         {
+            // 控件文本可能达数 KB（会话历史 HTML 含 L0 提示词）：日志/失败消息只带截断副本，判定仍用全文。
+            // 断言用「头+尾」窗口——失配证据常在尾部（末条回答/错误气泡），仅留头部会截掉关键证据。
+            // 附带长度：区分「空串/半截/全量」三种红灯语义（exec 未回写 → 空串，属零信息红）。
+            var actualForLog = LogTextTruncation.TruncateForAssert(actual);
             BackEndLog.Log("Command_Assert_TextContains_Mismatch",
-                new { controlName, expected, actual });
-            SetFailure(entity, $"assert-text-contains: 控件 '{controlName}' 文本不包含期望子串 '{expected}' — 实际 '{actual}'");
+                new { controlName, expected, actual = actualForLog, len = actual.Length });
+            SetFailure(entity, $"assert-text-contains: 控件 '{controlName}' 文本不包含期望子串 '{expected}' — 实际（长度 {actual.Length} 字符）'{actualForLog}'");
             return;
         }
 

@@ -166,12 +166,12 @@
     "Command_Assert_TextContains_Mismatch": {
       "level": "Warning",
       "category": "BackEndDriven_Execution",
-      "template": "[Command] assert text-contains 失配（控件文本不含期望子串，命令将计 FAIL）: controlName={controlName}, expected={expected}, actual={actual}"
+      "template": "[Command] assert text-contains 失配（控件文本不含期望子串，命令将计 FAIL）: controlName={controlName}, expected={expected}, len={len}, actual={actual}"
     },
     "Command_Exec_Sync": {
       "level": "Debug",
       "category": "BackEndDriven_Execution",
-      "template": "[Command] 同步执行函数: function={function}"
+      "template": "[Command] 同步执行函数: function={function}, timeoutMs={timeoutMs}, output={output}"
     },
     "Command_Exec_Success": {
       "level": "Debug",

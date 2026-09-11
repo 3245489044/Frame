@@ -98,6 +98,17 @@ public class CommandSystemCoordinator
         }
     }
 
+    // 声明内等待豁免：sleep/wait 的 target 即脚本声明的等待毫秒数，等待本身不是卡。
+    // 扣除「声明时长 + 余量」后仍超阈才报慢/卡死——真卡死（远超声明仍未返回）依旧被捕获。
+    private static readonly HashSet<string> DeclaredWaitActions = new(StringComparer.OrdinalIgnoreCase) { "sleep", "wait" };
+    private const long DeclaredWaitMarginMs = 5_000;
+
+    private static long DeclaredWaitGraceMs(CommandMetaComponent meta)
+    {
+        if (meta.Action is null || !DeclaredWaitActions.Contains(meta.Action)) return 0;
+        return long.TryParse(meta.Target, out var ms) && ms > 0 ? ms + DeclaredWaitMarginMs : 0;
+    }
+
     /// <summary>共享监视器主循环：周期扫描仍在执行的命令，越过 SlowReport/HangReport 即即时上报（报告型，不打断执行）。</summary>
     private async Task WatchLoopAsync()
     {
@@ -125,13 +136,18 @@ public class CommandSystemCoordinator
                     if (!stillActive) continue; // 快命令已结束，跳过
 
                     var elapsedMs = cmd.Watch.ElapsedMilliseconds;
-                    if (!cmd.SlowReported && opts.SlowReport > TimeSpan.Zero && elapsedMs >= opts.SlowReport.TotalMilliseconds)
+                    // 声明内等待不计入慢/卡判定（sleep/wait 的 target 即声明时长）：扣除豁免后仍超阈才报，
+                    // 既消「脚本显式长等待被误报卡死」，又保住「远超声明仍未返回=真卡死」的捕获能力。
+                    var chargeableMs = elapsedMs - cmd.GraceMs;
+                    if (chargeableMs <= 0) continue;
+
+                    if (!cmd.SlowReported && opts.SlowReport > TimeSpan.Zero && chargeableMs >= opts.SlowReport.TotalMilliseconds)
                     {
                         cmd.SlowReported = true;
                         telemetry.OnCommandSlowOrHang(cmd.Meta.Index, cmd.Meta.RawCommand, cmd.Meta.Action, cmd.Meta.Target, elapsedMs, isHang: false);
                     }
 
-                    if (!cmd.HangReported && opts.HangReport > TimeSpan.Zero && elapsedMs >= opts.HangReport.TotalMilliseconds)
+                    if (!cmd.HangReported && opts.HangReport > TimeSpan.Zero && chargeableMs >= opts.HangReport.TotalMilliseconds)
                     {
                         cmd.HangReported = true;
                         telemetry.OnCommandSlowOrHang(cmd.Meta.Index, cmd.Meta.RawCommand, cmd.Meta.Action, cmd.Meta.Target, elapsedMs, isHang: true);
@@ -149,14 +165,19 @@ public class CommandSystemCoordinator
     /// <summary>一条正在执行命令的监视登记（共享监视器的最小观测单元）。</summary>
     private sealed class ActiveCommand
     {
-        public ActiveCommand(CommandMetaComponent meta, Stopwatch watch)
+        public ActiveCommand(CommandMetaComponent meta, Stopwatch watch, long graceMs)
         {
             Meta = meta;
             Watch = watch;
+            GraceMs = graceMs;
         }
 
         public CommandMetaComponent Meta { get; }
         public Stopwatch Watch { get; }
+
+        /// <summary>声明内等待豁免毫秒（sleep/wait 的 target 声明时长 + 余量）；其它命令为 0。</summary>
+        public long GraceMs { get; }
+
         public bool SlowReported;
         public bool HangReported;
     }
@@ -245,7 +266,7 @@ public class CommandSystemCoordinator
 
         // 运行期慢/卡死报告：命令登记进共享监视器（批级共享轮询，空闲自停），替代逐命令 CTS/双定时器/Task.Run。
         // 快命令零监视资源；真卡死（同步体阻塞不返回）停留登记 → 由监视器并发判卡即时上报。
-        var active = TelemetryMonitorEnabled(_telemetry) ? new ActiveCommand(meta, sw) : null;
+        var active = TelemetryMonitorEnabled(_telemetry) ? new ActiveCommand(meta, sw, DeclaredWaitGraceMs(meta)) : null;
         if (active is not null) RegisterActive(active);
 
         try
@@ -308,7 +329,7 @@ public class CommandSystemCoordinator
 
         // 运行期慢/卡死报告：命令登记进共享监视器（批级共享轮询，空闲自停），替代逐命令 CTS/双定时器。
         // 快命令零监视资源；真卡死（await 永不返回）停留登记 → 由监视器并发判卡即时上报。
-        var active = TelemetryMonitorEnabled(_telemetry) ? new ActiveCommand(meta, sw) : null;
+        var active = TelemetryMonitorEnabled(_telemetry) ? new ActiveCommand(meta, sw, DeclaredWaitGraceMs(meta)) : null;
         if (active is not null) RegisterActive(active);
 
         try

@@ -406,7 +406,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 if (string.IsNullOrWhiteSpace(expectedContains))
                 {
                     BackEndLog.Log("Command_Exec_ExpectedContains_Mismatch",
-                        new { function = target, expectedContains, actual = TruncateForLog(actualOutput), note = "空期望恒真，拒绝静默通过" });
+                        new { function = target, expectedContains, actual = LogTextTruncation.TruncateForLog(actualOutput), note = "空期望恒真，拒绝静默通过" });
                     SetFailure(entity, $"exec '{target}' 结果断言失败: expectedContains 为空（空期望恒真，拒绝静默通过）");
                     return;
                 }
@@ -414,9 +414,9 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 if (actualOutput.IndexOf(expectedContains, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     BackEndLog.Log("Command_Exec_ExpectedContains_Mismatch",
-                        new { function = target, expectedContains, actual = TruncateForLog(actualOutput) });
+                        new { function = target, expectedContains, actual = LogTextTruncation.TruncateForLog(actualOutput) });
                     SetFailure(entity,
-                        $"exec '{target}' 结果断言失败: 函数返回文本不含期望子串 '{expectedContains}' — 实际 '{TruncateForLog(actualOutput)}'");
+                        $"exec '{target}' 结果断言失败: 函数返回文本不含期望子串 '{expectedContains}' — 实际 '{LogTextTruncation.TruncateForLog(actualOutput)}'");
                     return;
                 }
 
@@ -425,7 +425,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
             }
 
             BackEndLog.Log("Command_Exec_Success",
-                new { function = target, result = TruncateForLog(result.Output) });
+                new { function = target, result = LogTextTruncation.TruncateForLog(result.Output) });
             SetSuccess(entity, result.Output);
         }
         else
@@ -434,44 +434,6 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 new { function = target, error = result.ErrorMessage });
             SetFailure(entity, $"exec '{target}' 失败: {result.ErrorMessage}");
         }
-    }
-
-    /// <summary>日志副本截断：避免超大函数结果（如会话历史 HTML，内含 L0 基础提示词）整段灌入控制台；真实输出仍原样回写控件。
-    /// 仅对明显的 HTML 文档做结构化压平（剥标签 + 压空白）后再按预算截断，避免把整棵视图树撕碎；
-    /// 普通长文本保留原截断语义与标注（首 maxChars + 截断计数），兼容既有日志/断言。</summary>
-    private static string? TruncateForLog(object? output)
-    {
-        if (output is not string s) return output?.ToString();
-        const int maxChars = 400;
-        if (s.Length <= maxChars) return s;
-
-        if (IsHtmlDocument(s))
-        {
-            var flat = FlattenHtml(s);
-            if (flat.Length <= maxChars) return flat;
-            return flat.Substring(0, maxChars) + $"...(截断 {s.Length - maxChars} 字符)";
-        }
-
-        return s.Substring(0, maxChars) + $"...(截断 {s.Length - maxChars} 字符)";
-    }
-
-    /// <summary>判定字符串是否为 HTML 文档（忽略前导空白后的首字符为 '&lt;'）。</summary>
-    private static bool IsHtmlDocument(string s)
-    {
-        foreach (var c in s)
-        {
-            if (char.IsWhiteSpace(c)) continue;
-            return c == '<';
-        }
-        return false;
-    }
-
-    /// <summary>剥 HTML 标签并压连续空白，返回纯文本轮廓（可能短于预算）；全部压空时给可辨识占位。</summary>
-    private static string FlattenHtml(string s)
-    {
-        var noTags = System.Text.RegularExpressions.Regex.Replace(s, "<[^>]*>", " ");
-        var collapsed = System.Text.RegularExpressions.Regex.Replace(noTags, "\\s+", " ").Trim();
-        return string.IsNullOrEmpty(collapsed) ? "[html 压平后为空，仅存视图结构]" : collapsed;
     }
 }
 

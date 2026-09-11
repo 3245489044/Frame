@@ -2,11 +2,11 @@
   "$schema": "./cline.config.schema.json",
   "provider": "deepseek",
   "model": "deepseek-v4-flash",
-  "cwd": "D:\\Project\\Program\\WorkFlowPrj\\TypeScriptPrj",
+  "cwd": "D:\\Project\\Main\\Frame\\TypeScriptPrj",
   "timeoutSec": 600,
   "autoApprove": true,
   "thinking": "medium",
-  "credentialsFile": "../../../credentials/cline.json",
+  "credentialsFile": "../../../../EnableMent/credentials/cline.json",
   "commandPermissions": {
     "allow": [
       "git *",

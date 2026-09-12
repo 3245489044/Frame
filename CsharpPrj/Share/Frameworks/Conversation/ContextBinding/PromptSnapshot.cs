@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
+using Share.Composition;
 
 namespace Share.Conversation.ContextBinding;
 
@@ -26,8 +26,8 @@ public sealed class PromptSnapshot
     /// <summary>逐段绑定（prompt.l0/l1/l2 / skill.block），供 UI 与 LLM 双向比对。</summary>
     public IReadOnlyList<MessageBinding> Bindings { get; init; } = Array.Empty<MessageBinding>();
 
-    /// <summary>system 槽位全文 = L0 + SkillBlock（与 PromptText.Assemble(L0, SkillBlock) 逐字一致）。</summary>
-    public string System => JoinNonEmpty(L0, SkillBlock);
+    /// <summary>system 槽位全文 = L0 + SkillBlock（与 <c>PromptText.Assemble(L0, SkillBlock)</c> 逐字一致）。</summary>
+    public string System => TextComposer.JoinNonEmpty(new[] { L0, SkillBlock });
 
     public MessageBinding? BindingFor(AnchorKey key)
         => Bindings.FirstOrDefault(b => b.Key == key);
@@ -56,16 +56,4 @@ public sealed class PromptSnapshot
 
     /// <summary>空快照（未捕获时的兜底；BindingFor 返回 null，校验视为无 system 段）。</summary>
     public static PromptSnapshot Empty => new();
-
-    private static string JoinNonEmpty(params string?[] parts)
-    {
-        var sb = new StringBuilder();
-        foreach (var p in parts)
-        {
-            if (string.IsNullOrEmpty(p)) continue;
-            if (sb.Length > 0) { sb.Append('\n'); sb.Append('\n'); }
-            sb.Append(p);
-        }
-        return sb.ToString();
-    }
 }

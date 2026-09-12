@@ -255,38 +255,4 @@ foreach ($p in @('WriteOutputAsync',            # DP-1：8 命中/5 文件（3 �
 
 **DP 项专属判据**：见 §四 各项「判据」行。
 
----
-
-## 七、诚实边界
-
-| # | 说明 |
-|---|---|
-| 1 | **本文只做识别与排序，不改代码**：DP-1…DP-8 的落地须经对应批次（W2/W3/W4/W5）的独立评审与单独提交。 |
-| 2 | **DP-0.x 不得重造**：`WriteCoordinator`/`SqliteWriteChannel`/`ReferenceGraphCoordinator`/`NodeRelationGateway`/`AgentRuntimeRoot`/`AgentRuntimeSlotKeys`/`AgentStateDomain`/`data-ownership.json` 是既有权威单点，禁止新起平行实现（`SingleImplementation` / TH-12）。 |
-| 3 | **`vars` 的"语义双写"边界**：`vars.Set` 并非全部为冗余双写 —— `NodeExecutionService.cs:251-254` 自述为「扁平兼容写入（供后续步骤直接读原键；P3 拷贝语义）」。DP-3 收敛前须**逐处取证读侧用途**，不得一律删除。 |
-| 4 | **DP-6 受框架侧排期约束**：K7 追踪四要素依赖框架 D2（`TraceStamp`/schema 扩）与 D3（`ITraceQuery`）；`IDataCenterRoot` 实测**无 `Trace` 成员** ⇒ 等待期只做无依赖项。 |
-| 5 | **计数口径**：本文 hits/files 为 2026-09-12 实测（`Projects\Plug\Agent\src`，排除 `obj/bin`）；`PayloadJson` 全量命中 69 处含**读**点，构造点以「赋值」为准（§二 N2 已分列）。 |
-| 6 | **不承诺"零散点"**：部分散点属**分层职责**（如 `NodeWritePipeline` 与会话链分工），收敛目标是"同一事实单一写者"而非"全局只有一个类"。 |
-| 7 | **DP-1 的旁路结论须以改动前取证为准**：`RoundStepInvoker.WriteNodeOutputAsync` 不经 `WriteCoordinator` 系静态阅读所得，落地前须以断言（旁路调用点 = 0）验证。 |
-
----
-
-## 八、建议执行顺序
-
-```
-[P0 · 与 W2 同批（最高风险，单独评审）]
-  DP-1（ur_nodes 写通道：消除 RoundStepInvoker 旁路）   ──► W2-1 前置
-  DP-3（状态 KV 单写 + 投影重算）                        ──► W2-1 / W2-2
-  DP-4（任务快照权威单一）                              ──► W2-2
-  DP-2（节点记录 Codec 唯一 + W-DEC-4 缺省形归位）      ──► W-DEC-4 独立提交
-
-[P1 · 框架侧就绪后（只读旁路）]
-  DP-5（决策记录面唯一）► DP-6（统一事件流）             ──► W3-2 → W3-3 → W-DEC-2
-
-[P2 · 收尾批次（低风险）]
-  DP-7（ur_histories 入口）► DP-8（ur_outputs 入口）     ──► W4/W5
-```
-
-**批末统一动作**：① 跑 §六 全部门禁 + 散点计数；② 回写 `data-ownership.json` 状态列与 `Agent-DataOwnership.md`；③ 同步第五轮计划 §0 基线；④ 若 DP 项落地，回到本文更新对应「散点证据」行（**保留原计数**以便对比）。
-
-
+ 

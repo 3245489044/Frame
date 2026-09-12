@@ -112,8 +112,7 @@ public sealed class DataCenterHost : IAsyncDisposable
 
             var cell = options.RootCellFactory?.Invoke() ?? new InMemoryDataCell(options.RootCellName);
             center = new StateCenter(cell, options.PartitionCellFactory);
-            var projector = options.Projector
-                ?? new TierStateProjector(new StateCenterEntrySource(center), options.Registry, options.ValueCodec, options.Generation);
+            var projector = CreateProjector(options.Projector, center, options.Registry, options.ValueCodec, options.Generation);
 
             // 单根守卫在此隐式生效：已存在存活根 → 构造抛错（不产生第二根）
             var root = new DataCenterRoot(cell, projector, options.Registry, options.Generation, slots);
@@ -221,11 +220,38 @@ public sealed class DataCenterHost : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// 投影器装配单一工厂（F-02/T3）—— 首建（<see cref="Boot"/>）与换代（<see cref="BuildRoot(IStateGeneration)"/>）
+    /// 两条路径共用本口径，消除"改一处漏一处"的装配表达式重复。
+    /// </summary>
+    private static IStateProjector CreateProjector(
+        IStateProjector? projectorOverride, StateCenter center, IStateRegistry registry,
+        IStateValueCodec codec, IStateGeneration generation)
+        => projectorOverride
+           ?? new TierStateProjector(new StateCenterEntrySource(center), registry, codec, generation);
+
+    /// <summary>当前实例口径的投影器（注入者优先）。</summary>
+    private IStateProjector CreateProjector(IStateGeneration generation)
+        => CreateProjector(_projectorOverride, _center, _registry, _codec, generation);
+
+    /// <summary>
+    /// 核心装配路径根（默认 ALC；复用当前真源/投影器/槽，目标代际为 <paramref name="generation"/>）。
+    /// 供宿主在 <see cref="DataCenterHostOptions.RootFactory"/> 内<b>复用同一装配口径</b>（T3/F-02：
+    /// 宿主自建 RootFactory 时经此委派，勿在宿主侧重复投影器表达式），以及需要"重建根但扩展产物不变"的换代场景。
+    /// 纪律：本方法交出物必挂本宿主的状态真源与槽承载（故必然通过 <see cref="BuildRoot(IStateGeneration, IStateGeneration)"/> 的交出物校验），
+    /// 不得用于绕过单根守卫另立第二根。
+    /// </summary>
+    public IDataCenterRoot CreateCoreRoot(IStateGeneration generation)
+    {
+        ArgumentNullException.ThrowIfNull(generation);
+        ThrowIfShutdown();
+        return BuildRoot(generation);
+    }
+
     /// <summary>核心装配路径（默认 ALC + 复用真源/投影器）—— 未注入装配入口时的唯一路径。</summary>
     private DataCenterRoot BuildRoot(IStateGeneration generation)
     {
-        var projector = _projectorOverride
-            ?? new TierStateProjector(new StateCenterEntrySource(_center), _registry, _codec, generation);
+        var projector = CreateProjector(generation);
         return new DataCenterRoot(_cell, projector, _registry, generation, _slots);
     }
 

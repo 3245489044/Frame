@@ -14,9 +14,11 @@
 | **A3a-2** Agent 域扩展（Agent 侧 `Agent.DataCenter`，命名空间 `Agent.StateDomain`） | ✅ 完成 | Projects 见本次提交、主仓见本次提交 | `Agent.sln` 0 错 0 警；`DataCenter.Tests` **49/49**（新增 5 项 Agent 域判据）；`StateHoldDriven.Tests` 73/73、`Agent.Core.Tests` 396/396、`Agent.Axioms.Tests` 84/84、`Agent.Runtime.Tests` 21/21、`Agent.Launcher.Tests` 26/26；K9/K10 均 **EXIT 0**（0 新增违规） |
 | **A3b** `TraceStamp` + `ITraceQuery` | ⏸ 阻塞于 D2/D3 | — | Protocol 尚无追踪面契约 |
 | **A4** 双写收敛 | ⏸ 未开始（风险最高，须独立开关 + 独立评审） | — | — |
-| **A5** 换代闭环 | 🚧 进行中（**S4-1 / S4-2 已完成**；S4-3..S4-4 待做） | Frame `f0dc593`（S4-1）、S4-2 见本次提交；Projects `cac5b26`（A3a-2）/`32f5043`（S4-1 消费方）；主仓 `ab5e8aa`（S4-1/A3a-2 判据） | S4-1：`Frame\CsharpPrj\MainProj.sln` **0 错 0 警**、`Projects\FileDriven\FileDriven.sln` **0 错 0 警**；`Integration.Tests` **30 通过 / 1 跳过**（代数回收 + 换代语义判据；原插件加载 4 项零回归）；S4-2：`DataCenter.slnx` **0 错 0 警**、`DataCenter.Tests` **53/53**、K9/K10 **EXIT 0** |
+| **A5** 换代闭环 | 🚧 进行中（**S4-1 / S4-2 / S4-3 / S4-4a 已完成**；S4-4b 待做） | Frame `f0dc593`（S4-1）、`2520832`（T3）；Projects `32f5043`（S4-1 消费方）、`46ac754`（S4-4a）；其余见本条各行 | S4-1/S4-2/S4-3 判据见下行各行；**S4-4a**：K9 待迁移 **2 → 0**（白名单 3/违规 0）、`Agent.Core.Tests` **399/399**、`Check-AgentDataSeparation -Check` EXIT 0 |
 | **B1+B2** P0 前置（F-16/F-17/F-18） | ✅ 完成 | 见本次提交（Frame 契约/Hosting/Core、Projects Agent 侧、主仓判据） | `DataCenter.slnx` **0 错 0 警**、`Agent.sln` **0 错 0 警**；`DataCenter.Tests` **56/56**（新增 3 项：非抛探测语义 / 换代解绑窗口回落 + 换代后重绑 / 无指纹沿用）；`Agent.Launcher.Tests` **28/28**（新增 2 项：未绑定回落 / 已注入未绑根回落）；StateHoldDriven 73/73、Core 396/396、Axioms 84/84、Runtime 21/21、Integration 30+1；K9/K10 **EXIT 0** |
 | **S4-3** 宿主引导注入根（批次 4） | ✅ 完成 | 见本次提交（Projects：PrjBridge + Agent；Frame：文档） | `DataCenter.Tests` **58/58**（新增 2 项引导判据）、`Agent.Launcher.Tests` **30/30**（新增 2 项注入面判据）；`Agent.sln`/`FileDriven.sln`/`PrjBridge.csproj` 均 **0 错 0 警**；回归零变动（73/396/84/21/30+1）；K9/K10 **EXIT 0**；`Check-BakeFramework.ps1` #2 为既有工具问题（非本步引入） |
+| **S4-4a** 状态真源注入面 + K9 待迁移归零（批次 5） | ✅ 完成 | Frame `ff5da13`/`73f3773`；Projects `46ac754`/`5431283`；主仓 `cd5a3eb` | K9 白名单 3 / 待迁移 **0** / 违规 0 → **EXIT 0**；`Agent.Core.Tests` **396 → 399**（+3 注入面断言）；`Agent.Launcher.Tests` 30/30、`DataCenter.Tests` 58/58、`Integration.Tests` 30+1；`Agent.sln`/`FileDriven.sln`/`MainProj.sln`/`PrjBridge` 全 **0 错 0 警**；`Check-AgentDataSeparation -Check` **EXIT 0**（D5 疑似持有 24 → 22） |
+| **T3** 投影器装配单一工厂（关 F-02） | ✅ 完成 | Frame `2520832`；Projects `b984950`；主仓 `b231b8f` | `DataCenter.Tests` **58 → 59**（新增「首建/换代同投影器实例」断言）；`StateHoldDriven.Tests` 73/73；`DataCenter.slnx`/`MainProj.sln`/`Agent.sln`/`FileDriven.sln` 全 **0 错 0 警**；四门禁 EXIT 0 |
 
 ## 2. 已落地实现要点
 
@@ -85,7 +87,21 @@
 - **ALC 边界（3a）**：`LauncherBootstrap` 的 `Default.Resolving` 探针增 `Frame\DataCenter\BuildOutput\$(Config)` 解析（懒求值）——宿主/桥侧首次消费平台库时由**默认 ALC** 就地解析 ⇒ 契约程序集身份唯一（避免 scoped ALC 自装副本 → 类型分裂 + 单根守卫失效）。
 - **判据（实测）**：`DataCenter.Tests` **58/58**（新增 2 项：开关关不引导 / 开关开引导 + 代数对齐 + 域表齐备 + 幂等同实例）；`Agent.Launcher.Tests` **30/30**（新增 2 项：注入取根面 → E 段绑定 + 槽落根分区〔同实例断言〕 / 未注入 → 回落本地容器 + 默认域表）；`PrjBridge.csproj` **0 错 0 警**（薄输出保持：bin 仍仅 dll/pdb/deps.json/runtimeconfig.json）；`Agent.sln` / `FileDriven.sln` **0 错 0 警**；回归零变动（73/396/84/21/30+1）；K9 **EXIT 0**（白名单 2 / 待迁移 2 / 违规 0）、K10 **EXIT 0**（457 文件 / 新增 0 / 基线 22 / 违规 0）。
 - **诚实边界**：`Check-BakeFramework.ps1` #1/#3/#4/#5 通过、**#2 失败**（`csharp-bake.manifest.json` 缺失）—— 既有工具口径问题（2026-09-11 已记录并保持基线回退：生成 manifest 会使 #3 转为失败），**非本步引入**。
-- **未做（下一批）**：`RootFactory`（跨 ALC 装配入口）接线、端到端「热换一轮 + 旧 ALC 回收（`WeakReference` 证）」判据（属 S4-4 前置与 S5 验收）。
+- **未做（下一批）**：`RootFactory`（跨 ALC 装配入口）接线、端到端「热换一轮 + 旧 ALC 回收（`WeakReference` 证）」判据 —— 归 **S4-4b**（= 分离方案 Batch 1c/1d/1e）。
+
+### S4-4a（状态真源注入面 + K9 待迁移归零，2026-09-12）
+- **用点清单（1a 前置，实测）**：`AgentOrchestrator._stateCenter` 唯一消费点 `:117 new AgentRunnerCore(_loopConfig, _stateCenter)` → `AgentRunnerFactory` → `AgentRunner.cs:133 new WorkflowRunner(center: core.StateCenter, …)`；`WorkflowRunner._center` 唯一消费点 `:200 new StateContextAdapter(_center, …)`。两处原各有一个 `?? new StateCenter(...)` 兜底（同一职责两个真源）。
+- **注入面**：`AgentRuntimeSlotKeys` 增 `state-center` 键（注册一行）；`AgentRuntimeRoot.ResolveStateCenter()`（槽注册优先 → 显式回落）+ `RegisterStateCenter()`（装配期注册，`Replace` 覆盖语义）；`AgentOrchestrator(IAgentLoopConfig, StateCenter?)` 末位注入 + 只读 `StateCenter` 属性；`AgentModuleRegistrar.SetupAgentAsync` 末位透传；`AgentFrameworkAssemblyContext.StateCenter` → C 段注入编排器 / E 段登记根槽分区（`host.State` 经此进入通道 A）。
+- **兜底造根归零**：删 `AgentOrchestrator.cs:93` 与 `WorkflowRunner.cs:89` 的 `?? new StateCenter(...)`，两处改经 `ResolveStateCenter()`；`$k9Whitelist` 删两行 `Pending=$true`（不再命中，保留会掩盖回流）。
+- **回落真源落点（Frame）**：新增 `DataCenter.Hosting.FallbackStateCenter.Create(Func<IStorageCell>)` —— `new StateCenter(` 属「根的创建」，只允许出现在宿主装配层（命中既有 `\DataCenter.Hosting\` 白名单路径）；存储后端不在此绑定（单元格工厂由调用方提供）⇒ 后端语义零变化。
+- **与设计口径的差异（实测）**：原拟「经 `IRootProvider.Root.Root`（`IDataCell`）取真源」不可行 —— `IDataCenterRoot` 只暴露 `Root`（真源 cell），不暴露 `StateCenter`；Agent 侧 `new StateCenter(cell)` 会绕开宿主 `StateCenter` 的订阅/生命周期，且重新触发 K9。故取「槽注册优先 + 显式回落」；是否给 `IDataCenterRoot` 增开 `State` 成员留待 S4-4b 评审。
+- **判据（实测）**：K9 白名单 **3** / 待迁移 **0** / 违规 0 → **EXIT 0**；`Agent.Core.Tests` **399/399**（+3：注入原样采用 `ReferenceEquals` / 未注入同实例幂等 / 注册优先于回落）；`Agent.Launcher.Tests` 30/30、`DataCenter.Tests` 58/58、`Integration.Tests` 30+1；`Agent.sln`/`FileDriven.sln`/`MainProj.sln`/`PrjBridge` 全 0 错 0 警；`Check-AgentDataSeparation.ps1 -Check` EXIT 0（D5 疑似持有 24 → 22）。
+
+### T3（投影器装配单一工厂，2026-09-12；关 F-02）
+- **病灶**：`DataCenterHost.cs` 的 `Boot(:115)` 与 `BuildRoot(:254)` 两处重复投影器装配表达式（`new TierStateProjector(new StateCenterEntrySource(...))`）⇒ 首建/换代口径可能分叉（改一处漏一处）。
+- **实现**：抽 `private static CreateProjector(projectorOverride, center, registry, codec, generation)` 单一工厂（`Boot` 与 `BuildRoot` 共用）+ 实例口径 `CreateProjector(generation)`；**新增公开** `IDataCenterRoot CreateCoreRoot(IStateGeneration)` —— 宿主注入 `RootFactory` 时经此复用同一口径（交出物必挂本宿主真源/槽，故必然通过交出物校验），消除宿主侧再复制一遍投影器表达式。
+- **判据（实测）**：`DataCenter.Tests` **59/59**（新增 `CoreRootFactory_SingleAssemblyPath_BootAndSwapShareSameProjector`：注入投影器在首建与换代两路径同实例）；既有 `SwapAsync_WithInjectedRootFactory` / `SwapAsync_DuringRebindWindow` 两用例改用 `CreateCoreRoot` 后继续通过（证明「委派即合法交出物」）；`StateHoldDriven.Tests` 73/73；四门禁 EXIT 0。
+- **意义**：为 S4-4b（1c）扫清障碍 —— 宿主 `RootFactory` 无需重复装配表达式即可交出合法新代数根。
 
 ## 3. 后续步骤
 
@@ -97,7 +113,8 @@
 | **A3a-2** 域扩展工程（域 Keys + 域投影） | ✅ 完成（实现要点见 §2 A3a-2） | ④ 对象槽可观测投影未落地（独立提交，待排期） |
 | **A3b** `TraceStamp` + `ITraceQuery` | ⏸ 阻塞 | 前置 = 框架侧 **D2/D3** 追踪面契约入 Protocol（见 `DataCenter-可追踪数据流图框架-设计与实施.md` §7 D2/D3） |
 | **A4** 双写收敛 | ⏸ 未开始 | 风险最高：须独立开关（默认关）+ 故障注入 + 单独评审 |
-| **A5** 换代闭环 | 🚧 S4-1 / S4-2 已完成（见 §2 A5-1/A5-2）；S4-3..S4-4 待做 | 依赖宿主侧引导注入根 + K9 待迁移两项归零 |
+| **A5** 换代闭环 | 🚧 **S4-1 / S4-2 / S4-3 / S4-4a 已完成**（见 §2 各条）；**S4-4b 待做** | S4-3/S4-4a 已解除；S4-4b 前置 **T3 已交付**（`CreateCoreRoot`） |
+| **S4-4b** `RootFactory` 生产注入 + `SwapAsync` 触发 + 引导开关默认切开 | ⏸ 未开始（= 分离方案 Batch 1c/1d/1e） | 步骤权威见 `Projects\Plug\Agent\doc\Agent数据与代码分离-架构整理与通用化方案.md` §7；风险 = ALC 边界（R-2）+ 默认路径切换（R-7） |
 
 ## 4. 复用命令清单
 

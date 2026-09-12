@@ -1,6 +1,6 @@
 # DataCenter · Agent 侧运行时数据接入 —— 下一步实施计划（S4-2 → S5）
 
-> **日期**：2026-09-12（S4-1 完成后重编） | **权威边界**：本文件是「**下一步怎么做**」的唯一权威（步骤 / 改动点 / 判据 / 回退 / 提交粒度）；
+> **日期**：2026-09-12（S4-4a 完成后重编） | **权威边界**：本文件是「**下一步怎么做**」的唯一权威（步骤 / 改动点 / 判据 / 回退 / 提交粒度）；
 > 设计语义以 `DataCenter-Agent运行时数据接入-设计与实施.md` 为唯一权威；**已完成阶段的实测记录**见 `DataCenter-Agent运行时数据接入-实施进展与后续.md`（执行台账）。
 > **通则**（沿用设计文档 §4）：每步**独立可编译、可回退**；判据必须可执行（命令 / 断言）；不改真源（SQL/LiteDB）、不改 CSG 主 schema。
 
@@ -10,23 +10,23 @@
 
 | 项 | 状态 |
 |---|---|
-| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** —— 明细见进展台账 §2、缺陷清单 §5 |
-| **未完成** | S4-4（K9 待迁移归零）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
-| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 2 + **待迁移 2** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（456 文件 / **新增 0** / 存量基线 22） |
-| 测试基线 | DataCenter.Tests **58/58** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** —— 明细见进展台账 §2、缺陷清单 §5 |
+| **未完成** | **S4-4b**（= 分离方案 Batch 1c/1d/1e：`RootFactory` 生产注入 + `SwapAsync` 生产触发 + 引导开关默认切开）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
+| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **3** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 22）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2） |
+| 测试基线 | DataCenter.Tests **59/59** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **399/399** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
 | 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
-| 待决策 | **D-批次序**（§2）· **D-S42**（§2）· D-A4（A4 开关形态，建议已给）· D-A5（换代不承诺零停机，建议 ①） |
+| 待决策 | **D-A4**（A4 开关形态，建议已给） —— 其余已定：**D-批次序** ①（S4-2→S4-3→S4-4 已按此执行）· **D-S42** ①（`Func<RootSwapContext, IDataCenterRoot>`，S4-2 落地）· **D-A5** ①（换代不承诺零停机，S4-2 落地）· **D-S43** ①（引导开关默认关，S4-3 落地；**默认切开**归 S4-4b/1e） |
 
 ---
 
 ## 1. 剩余阶段依赖与建议批次
 
 ```
-[S4-2] SwapAsync 接新 ALC ──► [S4-3] 宿主引导 Boot 根 + 注入域表 ──► [S4-4] K9 待迁移归零 ──┐
-                                                                                        ├──► [S5] 收尾
-[S3] A4 双写收敛（独立开关；与上述无依赖，但风险最高）──────────────────────────────────┘
+[S4-2] SwapAsync 接新 ALC ──► [S4-3] 宿主引导 Boot 根 + 注入域表 ──► [S4-4a] 注入面 + K9 归零 ✅ ──► [S4-4b] RootFactory 生产注入 + 触发 + 开关 ──┐
+                                                                                                              ├──► [S5] 收尾
+[S3] A4 双写收敛（独立开关；与上述无依赖，但风险最高）──────────────────────────────────────────────────────────┘
 [S1-④] 对象槽可观测投影（纯新增，可任意穿插）
 [S2] A3b 追踪面（⏸ 阻塞于框架侧 D2/D3：`IDataCenterRoot` 现无 `Trace` 成员 —— 已实测）
 ```
@@ -35,7 +35,8 @@
 |---|---|---|
 | 批次 3 | **S4-2**（`DataCenterHost` 换代接口）**✅ 已完成** | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托注入（`RootFactory` + `RootSwapContext`） |
 | 批次 4 | **S4-3**（宿主引导：PrjBridge 侧 Boot 根 + 注入 `AgentStateDomain` 域表）**✅ 已完成** | 落点由 `FileDriven.Launcher` 修正为 `PrjBridge`（薄启动层零上游静态引用）；实现与判据见进展台账 §2 S4-3。端到端"带着运行数据换代"证据（热换 + ALC 回收）归 S4-4/S5 |
-| 批次 5 | **S4-4**（K9 待迁移归零）← **当前批次** | 两处兜底造根移除（须先补 `state-center` 注入面，F-24） |
+| 批次 5 | **S4-4a**（状态真源注入面 + K9 待迁移归零）**✅ 已完成** | 落地与设计口径的差异见 §3 S4-4；实测 K9 白名单 3 / 待迁移 **0** / 违规 0 |
+| 批次 5b | **S4-4b**（`RootFactory` 生产注入 + `SwapAsync` 生产触发 + 引导开关默认切开）← **当前批次** | 与分离方案 **Batch 1c/1d/1e** 为同一工作项（方案侧为编排权威）；前置 T3（`CreateCoreRoot`）**✅ 已完成** |
 | 批次 6 | **S3**（A4 双写收敛） | 风险最高：独立开关（默认关）+ 故障注入 + 单独评审 |
 | 可穿插 | **S1-④**（对象槽只读投影） | 纯新增、可独立提交 |
 | 待排期 | **S2**（A3b） | 前置 = 框架侧 D2/D3 |
@@ -47,7 +48,7 @@
 
 > **缺陷清单（S4-3/S4-4 的前置修复，2026-09-12 审计）**：见 `DataCenter-Agent运行时数据接入-调用链逻辑缺陷清单.md`（F-01..F-26）。
 > **开工前必做**：S4-3 前置 **B1/P0**（F-16/F-17：换代窗口取根/取注册表抛异常而非回落）+ **B2/P0**（F-18：换代无指纹时既有 fingerprint 被静默清空）—— ✅ **均已完成（2026-09-12）**，实测：`DataCenter.Tests` **56/56**、`Agent.Launcher.Tests` **28/28**、其余回归零变动（见缺陷清单 §5 B1/B2 行）；
-> S4-4 前置 **B6/P1**（F-24：`AgentOrchestrator` 无 `StateCenter` 注入面 ⇒ 通道 A 实际未接通；须先补注入面再删兜底造根，否则 K9 归零会变成"没有状态真源"）。
+> S4-4 前置 **B6/P1**（F-24：`AgentOrchestrator` 无 `StateCenter` 注入面 ⇒ 通道 A 实际未接通；须先补注入面再删兜底造根，否则 K9 归零会变成"没有状态真源"）—— ✅ **已完成（2026-09-12，S4-4a）**，实测 `Agent.Core.Tests` **399/399**（新增 3 项注入面断言）、K9 待迁移 **2 → 0**。
 
 ---
 
@@ -92,16 +93,25 @@
 | **提交粒度** | Projects（宿主引导）+ Frame（补烘焙/引用清单）+ 主仓（端到端判据） |
 | **风险** | 中高（宿主启动面首次引入 Frame 平台库）；换代抖动见 R3 |
 
-### S4-4 · K9 待迁移归零（移除产品侧兜底造根）
+### S4-4a · K9 待迁移归零（移除产品侧兜底造根）—— ✅ 已完成（2026-09-12，批次 5）
 
 | 项 | 内容 |
 |---|---|
 | **目标** | 产品侧不再有「兜底造根」，`StateRootSingleSource` / DF8 在产品侧成立 |
-| **改动点** | ① `Projects\Plug\Agent\src\Agent.Core\Composition\AgentOrchestrator.cs:93`（`_stateCenter = new StateCenter(new StorageCell("agent-orchestrator"))`）→ 经 `IRootProvider.Root.Root`（`IDataCell`）取状态真源<br>② `Projects\Plug\Agent\src\Agent.Core\Nodes\WorkflowRunner.cs:89`（`_center = center ?? new StateCenter(new StorageCell("agent-default"))`）→ 同上<br>③ 门禁白名单删两行（`Check-DataCenterGenericity.ps1` 的 `$k9Whitelist` 中 `Pending=$true` 两项） |
-| **前置** | 出 `_stateCenter` / `_center` **用点清单**（确认替换为 `IDataCell` 不破既有写路径与既有单测行为） |
-| **判据** | ① K9「待迁移」= **0**、违规 0 ② `Agent.Core.Tests` 396/396 不回归 ③ 根未注入路径仍可用（回落策略显式化，不静默造根） |
-| **回退** | 每处独立提交；白名单删行可与代码分离提交 |
-| **风险** | 中（改动面在 Agent.Core 组合点与节点执行入口） |
+| **改动点（已落地）** | ① `AgentRuntimeSlotKeys` 注册 `state-center` 键（注册一行）<br>② `AgentRuntimeRoot.ResolveStateCenter()`（槽注册优先 → **显式回落**）+ `RegisterStateCenter()`（装配期注册，`Replace` 覆盖语义）<br>③ `AgentOrchestrator(IAgentLoopConfig, StateCenter?)` 末位注入 + 只读 `StateCenter` 属性；`AgentModuleRegistrar.SetupAgentAsync` 末位透传；`AgentFrameworkAssemblyContext.StateCenter` → C 段注入 / E 段登记槽分区<br>④ 删 `AgentOrchestrator.cs:93` 与 `WorkflowRunner.cs:89` 两处 `?? new StateCenter(...)`<br>⑤ 回落真源构造下沉 Frame 宿主装配层：`DataCenter.Hosting.FallbackStateCenter`（显式命名；单元格工厂由调用方提供 ⇒ 后端语义不变）<br>⑥ `$k9Whitelist` 删两行 `Pending=$true` |
+| **与设计口径的差异（实测记录）** | 设计原拟「经 `IRootProvider.Root.Root`（`IDataCell`）取状态真源」—— 实测不可行：`IDataCenterRoot` 只暴露 `Root`（真源 cell），**不暴露 `StateCenter`**；在 Agent 侧 `new StateCenter(cell)` 既会绕开宿主 `StateCenter` 的订阅/生命周期，也会重新触发 K9。故改为「**槽注册（装配方注入真源）优先 + 显式回落**」，真源由宿主经 E 段登记（`host.State`）；`IDataCenterRoot` 是否增开 `State` 成员留待 S4-4b 评审（若开，则回落分支可退化为「根可用即必得真源」） |
+| **前置** | 用点清单（实测）：`AgentOrchestrator._stateCenter` 唯一消费点 `:117 new AgentRunnerCore(...)` → `AgentRunnerFactory` → `AgentRunner.cs:133 new WorkflowRunner(center: core.StateCenter, …)`；`WorkflowRunner._center` 唯一消费点 `:200 new StateContextAdapter(...)` |
+| **判据（实测）** | ① K9 白名单 3 /「待迁移」**0** / 违规 0 → **EXIT 0** ② `Agent.Core.Tests` 396 → **399/399**（新增 3 项：注入真源原样采用 / 未注入同实例幂等 / 注册优先于回落）③ `Check-AgentDataSeparation.ps1 -Check` EXIT 0（D5 疑似持有 24 → 22）④ 根未注入路径仍可用（回落策略显式化，不静默造根） |
+| **回退** | 每处独立提交；回落真源在 Frame 侧独立提交；白名单删行与代码分离提交 |
+| **风险** | 中（改动面在 Agent.Core 组合点与节点执行入口）—— 已实测零回归 |
+
+### S4-4b · 换代生产闭环（`RootFactory` 注入 + 触发 + 开关）← 当前批次
+
+| 项 | 内容 |
+|---|---|
+| **权威** | 步骤/判据/回退以 `Projects\Plug\Agent\doc\Agent数据与代码分离-架构整理与通用化方案.md` §7 **Batch 1c/1d/1e** 为准（本文件不重复定义） |
+| **前置（已解除）** | **T3**：`DataCenterHost` 抽 `CreateProjector` 单一工厂 + 公开 `CreateCoreRoot(IStateGeneration)` —— 宿主 `RootFactory` 可委派 `ctx => host.CreateCoreRoot(ctx.Generation)`，复用同一装配口径（关 F-02）；实测 `DataCenter.Tests` **59/59** |
+| **判据（要点）** | ① 换代后槽对象类型来自新代数 ALC；跨 ALC 契约同一实例断言 ② 触发一次换代 → 同 scope 值 / `Seq` 连续 + 旧 ALC `WeakReference.IsAlive == false`（消 F-12）③ 引导开关**关** = 旧行为（回落本地容器）仍绿；**开** = 走根路径 |
 
 ### S3 · A4 双写收敛（风险最高，独立开关）
 
@@ -144,7 +154,7 @@
 |---|---|---|
 | S5-1 | 设计文档回写：L4 命名（D-A3 已回写）、§5 门禁表补 K9/K10 实测、§8 槽登记表勾状态、`database` 槽补齐（已回写） | 设计文档 |
 | S5-2 | K10 存量基线（22 项）逐项判定「保留（注册表/机制类）」或「迁槽」，归零后清空 `$baseline` | `Check-AgentRuntimeSlots.ps1` |
-| S5-3 | K9 白名单移除 A5 待迁移两行；台账状态列更新为 ✅ | `Check-DataCenterGenericity.ps1`、进展台账 |
+| S5-3 | ~~K9 白名单移除 A5 待迁移两行~~ **✅ 已完成（S4-4a，2026-09-12）**：白名单 3（Hosting 路径）/ 待迁移 0；台账状态列已更新 | `Check-DataCenterGenericity.ps1`、进展台账 |
 | S5-4 | 四条接入通道（A 状态 KV / B 对象槽 / C 投影 / D 域真源）验收小结 | 进展台账 §2 |
 | S5-5 | 既有缺陷修复（独立提交）：`Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 的 `Share.Registry.` → `Modules.Registry.`，随后纳入回归集 | 主仓 |
 
@@ -160,7 +170,7 @@ dotnet build Projects\Plug\Agent\Agent.sln -c Debug                             
 dotnet build Projects\FileDriven\FileDriven.sln -c Debug                                  # 宿主侧（S4-3 起）
 dotnet build Frame\CsharpPrj\Operation\StateHoldDriven\StateHoldDriven.csproj -c Debug    # ★ 契约变更后先刷新烘焙（设计文档 §4.2）
 
-# ── 回归（基线：53 / 73 / 396 / 84 / 21 / 26 / 30+1跳过）──
+# ── 回归（基线：59 / 73 / 399 / 84 / 21 / 30 / 30+1跳过）──
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Tests\DataCenter.Tests.csproj
 dotnet test Environment\CentralTest\CSharpTest\Integration.Tests\Integration.Tests.csproj    # S4-1 起纳入（代数回收 / 换代语义）
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\StateHoldDriven.Tests.csproj
@@ -170,8 +180,10 @@ dotnet test Environment\CentralTest\AgentTest\Agent.Runtime.Tests\Agent.Runtime.
 dotnet test Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Agent.Launcher.Tests.csproj
 
 # ── 门禁 ──
-pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → EXIT 0（S4-4 后「待迁移」须为 0）
+pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → EXIT 0（S4-4a 后「待迁移」= 0）
 pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10      → EXIT 0
+pwsh Frame\PowerShellScript\Operation\DSL\Check-SingleWriter.ps1                  # 单写者   → EXIT 0（告警 12 不计失败）
+pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentDataSeparation.ps1 -Check    # D1–D5 聚合 → EXIT 0（Batch 0 交付）
 ```
 
 > 实测提示：本仓 shell 集成偶发吞输出 → 长命令统一用 `> $env:TEMP\x.log 2>&1; Get-Content $env:TEMP\x.log -Tail N` 取结果；

@@ -24,7 +24,7 @@
 | **P0** | F-18 | ✅ 已修（B2）：换代未带指纹**沿用既有 fingerprint**（不再静默清空） | 契约口径修正 |
 | **P1** | F-19 · F-21 | `Resume` 抛错**掩盖换代原始异常**；失败回建**不走装配入口**（"保留旧代数"在对象层不成立） | S4-2 补强 |
 | **P1** | F-20 · F-04 | `Resolve` 并发注册竞态；`Register`/`Replace` 双语义并用 | Agent 取根面 |
-| **P1** | F-24 | 编排器**无状态中心注入面** → 通道 A（状态 KV 接入）实际未接通 | S4-4 前置（拆两步） |
+| **P1** | F-24 | 编排器**无状态中心注入面** → 通道 A（状态 KV 接入）实际未接通 | ✅ 已修（S4-4a；原 S4-4 前置，拆两步已落地） |
 | **P2** | F-01 · F-02 · F-03 · F-14 | 槽分区双实现 / 投影器装配重复 / 取根面双通道 / `Default` 每次新建注册表 | 收敛 |
 | **P2** | F-09 ~ F-13 · F-15 | 无消费方公开面（`LiveCount` / 域校验 / `GenerationPayload` / `Swap` / 转发方法） | 收敛 |
 | **P3** | F-05 · F-06 · F-07 · F-08 · F-22 · F-23 · F-25 · F-26 | 双造根（K9 待迁移）/ 双写键 / 重复判定 / 迁移期冗余 / 异常覆盖 / 门禁豁免过宽 / 惰性自举冲突 | 分散 |
@@ -52,7 +52,7 @@
 | **F-02** | 重复 | `DataCenterHost.cs:115`（`Boot`）与 `:254`（`BuildRoot`）`[已收敛 T3]` | 投影器装配表达式重复两次：`new TierStateProjector(new StateCenterEntrySource(_center), _registry, _codec, generation)` | 首建/换代两条路径的投影器口径可能不一致（改一处漏一处）；建议抽 `CreateProjector(generation)` | ✅ 已收敛（T3：单一 `CreateProjector` 工厂 + 公开 `CreateCoreRoot(generation)` 供宿主 `RootFactory` 复用；判据 `DataCenter.Tests` 59/59，新增「首建/换代同投影器实例」断言，宿主侧重复表达式已消除） |
 | **F-03** | 重复 | `AgentRuntimeRoot.cs:25`（`ProviderSlot`）· `:32`（`Binding.Value.Provider`）· `:58`（`CurrentProvider => ProviderSlot.Current ?? Volatile.Read(...)`）`[已核]` | 取根面**双通道承载同一 provider**：AmbientSlot（逻辑链级） + 进程级字段；`:44` `Enter` 返回的句柄被丢弃（"设置语义"） | 两个"真源"叠加；AmbientSlot 值沿逻辑链泄漏且无人 `Restore`；语义边界仅靠注释 | ⏸ 待收敛 |
 | **F-04** | 重复 | `AgentComposition.cs:111`（`partition.Replace`）vs `AgentRuntimeRoot.cs:77`（`partition.Register`）`[已核]` | 同一分区**两套写语义并用**：装配期 E 段用"覆盖式替换"，取根解析用"同键异实例即抛" | 同一动作在不同路径一覆盖一抛错；与 F-20 叠加即"并发首访炸"。建议统一为 `GetOrAdd` + 显式 `Replace` 仅限处置期 | ⏸ 待收敛 |
-| **F-05** | 重复 | `AgentOrchestrator.cs:93` 与 `WorkflowRunner.cs:89` `[已核]` | 同一职责（"轮次状态真源"）两处构造 `StateCenter`（即 K9 待迁移 2 项） | 生产路径实际用 orchestrator 的（`AgentRunner.cs:133` 显式 `center: core.StateCenter`）→ `WorkflowRunner` 的 `?? new StateCenter(...)` 属**无生产调用者的兜底构造**；但仍是"静默第二真源"的入口面 | ⏸ S4-4 |
+| **F-05** | 重复 | `AgentOrchestrator.cs:93` 与 `WorkflowRunner.cs:89` `[已收敛 S4-4a]` | 同一职责（"轮次状态真源"）两处构造 `StateCenter`（即 K9 待迁移 2 项） | 生产路径实际用 orchestrator 的（`AgentRunner.cs:133` 显式 `center: core.StateCenter`）→ `WorkflowRunner` 的 `?? new StateCenter(...)` 属**无生产调用者的兜底构造**；但仍是"静默第二真源"的入口面 | ✅ 已收敛（S4-4a：两处改经 `AgentRuntimeRoot.ResolveStateCenter()` 单一解析，K9 待迁移归零） |
 | **F-06** | 重复 | `RoundStateMapper.cs:135`（`Harvest` 白名单含 `RoundKeys.SessionId`）与 `WorkflowRunner.cs:252`（`state.Data[RoundKeys.SessionId] = sid`）`[已核]` | `state.Data[SessionId]` **两个写点**（`ExecResult` 已在 `RoundStateMapper.cs:131-132` 收敛为单点，`SessionId` 漏收敛） | 双写漂移面（写入时序不同即出现"最后写者赢"）；`S3`（A4）收敛点 2 的一部分 | ⏸ S3 |
 | **F-07** | 重复 | `ExtensionGenerationHost.cs:99-107` 与 `ExtensionLoadContext.cs:329-333 / :342` `[已核]` | "默认 ALC 已有同名程序集则复用"判定做了**两遍**：外层 `Load` 先经 `LoadFromAssemblyName` 触发 ALC，而 ALC 内部（`ExtensionLoadContext.Load`）自己又遍历 `Default.Assemblies` + `Default.LoadFromAssemblyName` | 冗余遍历（每次装载多扫一遍默认 ALC 程序集表）；两处判定未来可能给出不同答案 | ⏸ 待收敛 |
 | **F-08** | 重复 `[已登记]` | `AgentFramework.cs:178-180`（`Attach` + `AttachTaskPool`）· `AgentComposition.cs:64`（`AttachDatabase`）· `AgentFrameworkHosting.cs:43-67`（再 `EnsureComplete`）`[已核]` | 三条装配入口分层"薄委托"，各自附带一次槽发布/对账 | 代码自注为 **B4-2 迁移期**（B4-3..B4-6 待收敛）；当前无功能错误，属结构性重复 | ⏸ 迁移期 |
@@ -85,7 +85,7 @@
 | **F-21** | `DataCenterHost.cs:185-190`（失败回建走 `BuildRoot(previousGeneration)` 单参重载）`[已核]` `(S4-2)` | 回建**不调用 `RootFactory`** → 回建的是"默认 ALC 根"而非"旧代数的装配入口产物" ⇒ **「换代失败保留旧代数」在对象层并不成立**（当前判据只覆盖"值不丢 / 代际不前进"） | 中 | ⏸ P1（语义缺口，需回写文档） |
 | **F-22** | `DataCenterHost.cs:182-191` `[条件性]` | 若回建 `BuildRoot(previousGeneration)` 自身抛错（守卫被占用等），`_root` 仍指向已 `Dispose` 的旧根、`_generation` 未回滚 → `Lifetime` 抛 `ObjectDisposedException`、`Root` 抛 `RootMissingException`，**无显式降级态且错误信息误导** | 中低 | ⏸ P3 |
 | **F-23** | `ExtensionGenerationHost.cs:340-347`（只捕 `FileNotFoundException` / `BadImageFormatException`）`[已核]` | 未捕 `FileLoadException` / `IOException` → scoped ALC 装载期异常可冒泡；`ResolveType`/`Load` 有外层兜底，但 **ALC 装载上下文（`AssemblyResolve` 路径）无兜底** | 中低 | ⏸ P3 |
-| **F-24** | `AgentOrchestrator.cs:59/93`（`private readonly StateCenter _stateCenter` 仅 ctor 内构造，**无 `SetStateCenter`/构造参数注入面**；消费点仅 `:117 new AgentRunnerCore(_loopConfig, _stateCenter)`）`[已核]` | 即便宿主已持根，编排器仍用私有 `StorageCell("agent-orchestrator")` ⇒ **通道 A（状态 KV 接入）在编排器路径上实际未接通**（A1/A2 只把对象槽挂根，状态真源没挂） | **高** | ⏸ P1（S4-4 需拆两步：先补注入面） |
+| **F-24** | `AgentOrchestrator.cs:59/93`（`private readonly StateCenter _stateCenter` 仅 ctor 内构造，**无 `SetStateCenter`/构造参数注入面**；消费点仅 `:117 new AgentRunnerCore(_loopConfig, _stateCenter)`）`[已修 S4-4a]` | 即便宿主已持根，编排器仍用私有 `StorageCell("agent-orchestrator")` ⇒ **通道 A（状态 KV 接入）在编排器路径上实际未接通**（A1/A2 只把对象槽挂根，状态真源没挂） | **高** | ✅ 已修（S4-4a：`AgentOrchestrator(IAgentLoopConfig, StateCenter?)` 注入面 + 只读 `StateCenter` 属性；槽键 `state-center` + E 段登记宿主真源；未注入 → 显式回落。判据：`Agent.Core.Tests` 399/399 含 3 项注入面断言） |
 | **F-25** | `Check-DataCenterGenericity.ps1:200`（`if ($name -like 'static*' -and ($trimmed -match '=>' -or $trimmed -match '\(')) { continue }`）`[已核]` | K9 豁免规则过宽：命中行只要含 `(` 或 `=>` 即跳过 ⇒ `static IRootProvider p = Make();` 之类**可绕过门禁** | 中低（门禁） | ⏸ P3 |
 | **F-26** | `AgentUiHost.cs:102-110`（`AttachDatabase` → `:107 EnsureSingleGraphOwnerLocked`）+ `:164-170`（比对 `_referenceGrounding.Graph` 与 `dbResources`）+ `:350-360`（惰性 DB-only 自举）`[条件性]` | **惰性 DB 自举与全框架装配的图 owner 冲突**：若"引用守卫已挂（`AgentComposition.cs:217`）但 `State.Database` 仍为空"的窗口内发生惰性自举，新模块自带**另一个** coordinator ⇒ 断言抛"图库分裂"，而真实原因是装配半途 | 中 | ⏸ P3（需构造用例确认） |
 
@@ -130,7 +130,7 @@ var next = state.Next(plan.Fingerprint);   // plan.Fingerprint 为 null → 指�
 | **B3/P1** | F-19：`Resume` 异常不覆盖原始异常（原始异常优先，Resume 失败聚合/记录） | 新增：Drain 抛 + Resume 抛 → 对外异常为 **Drain 的**异常（且 Resume 失败可见于日志/聚合） | 单提交可撤 |
 | **B4/P1** | F-20 · F-04：统一为 `GetOrAdd` 语义（冲突后重读既有实例），`Replace` 仅保留处置期语义 | 新增：并发 8 线程 `Resolve` 同一键 → 全部返回**同一实例**、无异常 | 单提交可撤 |
 | **B5/P1** | F-21：回建亦经装配入口；若决定不修则**显式降级承诺**（文档 + 判据措辞） | 二选一：回建后 `RootFactory` 调用次数 = 2（成功 1 次失败路径 1 次）；或判据改为"值保留 + 代际不前进" | 单提交可撤 |
-| **B6/P1** | F-24：拆两步（先补 `StateCenter` 注入面 + 槽键，再删兜底造根清白名单） | 步骤 1：注入后 orchestrator 使用注入实例（`ReferenceEquals` 断言）；步骤 2：K9「待迁移」= 0 且 `Agent.Core.Tests` 396/396 | 两步各自可撤 |
+| **B6/P1** | F-24：拆两步（先补 `StateCenter` 注入面 + 槽键，再删兜底造根清白名单）**✅ 已完成（S4-4a）** | 步骤 1：注入后 orchestrator 使用注入实例（`ReferenceEquals` 断言）；步骤 2：K9「待迁移」= 0 且 `Agent.Core.Tests` **399/399** —— **实测均已达成** | 两步各自可撤 |
 | **B7/P2** | F-01 · F-02 · F-14 · F-15：抽单一 `IRuntimeSlotPartition` 实现 + `CreateProjector(generation)` + 注册表单例 | `DataCenter.Tests` 不回归；槽语义判据（同键同实例幂等 / 异实例抛 / 处置期逆序释放）集中一处 | 单提交可撤 |
 | **B8/P2** | F-09 · F-10 · F-11 · F-12 · F-13：删/接线冗余公开面 | F-10 接线后：装配期 `IsFullyRegistered` 断言（缺失即抛）；F-12 随 S4-3 接线而消解 | 单提交可撤 |
 | **B9/P3** | F-22 · F-23 · F-25 · F-26 | F-25：收窄豁免后 K9 重扫仍 EXIT 0（当前无新增违规）；F-26：补一条惰性自举 × 半装配窗口的单测 | 单提交可撤 |

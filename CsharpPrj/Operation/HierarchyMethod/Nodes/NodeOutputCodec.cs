@@ -97,6 +97,40 @@ namespace Operation.HierarchyMethod.Nodes {
         public static string EncodeDoc(NodeOutputDoc doc)
             => JsonSerializer.Serialize(doc, DocJsonOptions);
 
+        /// <summary>
+        /// 外部载荷 → ur_nodes 记录载荷 JSON（DP-2 单一构造入口）：输出文档形态经本 Codec 统一落库 ——
+        /// 已含 <c>Outputs</c>（业务节点载荷）→ 规范化重编码（补 Symbol）；已含 <c>Ports</c>（输出文档）→ 包成业务节点载荷；
+        /// 其余任意 JSON / 非 JSON（通用外部透传口：storage-bridge / MCP / UI 函数库）→ **原样返回**
+        /// （读侧为 node.read / UI 原始载荷展示，不进执行链端口读回）。空载荷 → 空业务载荷。
+        /// </summary>
+        public static string EncodeExternal(string? payloadJson, string? symbol)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson))
+                return EncodeBusiness(new BusinessNodePayload { Symbol = symbol });
+            try
+            {
+                using var probe = JsonDocument.Parse(payloadJson);
+                if (probe.RootElement.ValueKind != JsonValueKind.Object) return payloadJson;
+                if (probe.RootElement.TryGetProperty(nameof(BusinessNodePayload.Outputs), out _))
+                {
+                    var business = DecodeBusiness(payloadJson);
+                    business.Symbol ??= symbol;
+                    return EncodeBusiness(business);
+                }
+                if (probe.RootElement.TryGetProperty(nameof(NodeOutputDoc.Ports), out _))
+                {
+                    var doc = JsonSerializer.Deserialize<NodeOutputDoc>(payloadJson, DocJsonOptions);
+                    if (doc is not null)
+                        return EncodeBusiness(new BusinessNodePayload { Symbol = symbol, Outputs = doc });
+                }
+            }
+            catch (JsonException)
+            {
+                return payloadJson; // 非 JSON 载荷：原样保留（不抛、不改写外部契约）
+            }
+            return payloadJson;
+        }
+
         /// <summary>编码单个端口值：非 null 值存「运行时类型 + JSON」；null 值存空位。</summary>
         public static NodeOutputPortValue EncodeValue(object? value)
         {

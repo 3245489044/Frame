@@ -27,6 +27,4 @@ public sealed class JsonValueCodec : IStateValueCodec
         Enum e => e.ToString(),
         _ => JsonSerializer.Serialize(value, value.GetType(), SerializerOptions),
     };
-
-    public object? Decode(object? payload) => payload;
 }

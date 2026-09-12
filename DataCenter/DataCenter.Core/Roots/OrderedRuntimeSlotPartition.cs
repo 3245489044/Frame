@@ -60,7 +60,8 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
         }
     }
 
-    /// <summary>取或装配（运行期并发首访路径，F-20）：装配在锁内完成 ⇒ 工厂至多生效一次。</summary>
+    /// <summary>取或装配（运行期并发首访路径，F-20）：装配在锁内完成 ⇒ 工厂至多生效一次。
+    /// 工厂内（同线程）重入注册同键时不得被覆盖（F-44）：以先登为准返回既有实例。</summary>
     public T GetOrAdd<T>(string key, Func<T> factory) where T : class
     {
         ThrowIfDisposed();
@@ -70,20 +71,26 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
         lock (_gate)
         {
             if (_values.TryGetValue(key, out var existingRaw))
-            {
-                if (existingRaw is T existing)
-                    return existing;
-                throw new InvalidOperationException(
-                    $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册类型不兼容的实例（期望 {typeof(T).Name}，实得 {existingRaw.GetType().Name}）。");
-            }
+                return ResolveRegistered<T>(key, existingRaw);
 
             var created = factory();
             ArgumentNullException.ThrowIfNull(created);
+
+            // 工厂内重入已登记同键（装配期自注册）→ 后写不得覆盖先登
+            if (_values.TryGetValue(key, out var reentrantRaw))
+                return ResolveRegistered<T>(key, reentrantRaw);
+
             _values[key] = created;
             _order.Add(key);
             return created;
         }
     }
+
+    /// <summary>已登记实例的类型兼容解析（不符 = fail-fast，不给静默换类型）。</summary>
+    private T ResolveRegistered<T>(string key, object registeredRaw) where T : class
+        => registeredRaw as T
+           ?? throw new InvalidOperationException(
+               $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册类型不兼容的实例（期望 {typeof(T).Name}，实得 {registeredRaw.GetType().Name}）。");
 
     public void Replace(string key, object value)
     {

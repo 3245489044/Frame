@@ -81,6 +81,7 @@ public sealed class TierStateProjector : IStateProjector
         var scopes = new HashSet<string>(StringComparer.Ordinal);
         var unregisteredTiers = 0;
 
+        var duplicates = 0;
         foreach (var (entry, reference, tierId) in entries)
         {
             domains.Add(reference.Domain);
@@ -89,10 +90,11 @@ public sealed class TierStateProjector : IStateProjector
                 unregisteredTiers++;
 
             EmitScopeAnchor(nodes, emitted, reference);
-            EmitValueNode(nodes, edges, emitted, entry, reference);
+            if (!EmitValueNode(nodes, edges, emitted, entry, reference))
+                duplicates++;   // F-41：同 URI 去重显式计数（§5.6「静默降级」检测点，不再静默丢弃）
         }
 
-        return BuildForm(nodes, edges, request, scan.UnparsedKeys, unregisteredTiers, filtered, domains, scopes);
+        return BuildForm(nodes, edges, request, scan.UnparsedKeys, unregisteredTiers, filtered, duplicates, domains, scopes);
     }
 
     private static void EmitScopeAnchor(List<CanonicalNode> nodes, HashSet<string> emitted, StateUriRef reference)
@@ -117,7 +119,7 @@ public sealed class TierStateProjector : IStateProjector
         });
     }
 
-    private void EmitValueNode(
+    private bool EmitValueNode(
         List<CanonicalNode> nodes,
         List<CanonicalEdge> edges,
         HashSet<string> emitted,
@@ -126,7 +128,7 @@ public sealed class TierStateProjector : IStateProjector
     {
         var scopeNodeId = StateUriMapper.ScopeNodeUri(reference);
         if (!emitted.Add(reference.Uri))
-            return;
+            return false;
 
         nodes.Add(new CanonicalNode
         {
@@ -158,6 +160,8 @@ public sealed class TierStateProjector : IStateProjector
                 ["assertion"] = "Asserted",
             },
         });
+
+        return true;
     }
 
     private CanonicalForm BuildForm(
@@ -167,6 +171,7 @@ public sealed class TierStateProjector : IStateProjector
         int unparsedKeys,
         int unregisteredTierEntries,
         int filteredByTier,
+        int duplicateKeys,
         HashSet<string> domains,
         HashSet<string> scopes)
     {
@@ -183,6 +188,7 @@ public sealed class TierStateProjector : IStateProjector
             .WithMetadata("schemaVersion", _generation.SchemaVersion)
             .WithMetadata("unparsedKeys", unparsedKeys)
             .WithMetadata("unregisteredTierEntries", unregisteredTierEntries)
+            .WithMetadata("duplicateKeys", duplicateKeys)
             .WithMetadata("filteredByTier", filteredByTier);
 
         if (_generation.Fingerprint is { Length: > 0 } fingerprint)

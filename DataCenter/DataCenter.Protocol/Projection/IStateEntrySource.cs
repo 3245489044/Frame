@@ -44,7 +44,4 @@ public interface IStateValueCodec
 {
     /// <summary>值 → 载荷（跨语言稳定形态：标量直通，其余经确定性序列化）。</summary>
     object? Encode(object? value);
-
-    /// <summary>载荷 → 值（<see cref="Encode"/> 的逆；不可逆场景由消费方按 Schema 处理）。</summary>
-    object? Decode(object? payload);
 }

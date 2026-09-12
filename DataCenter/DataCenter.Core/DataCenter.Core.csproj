@@ -12,7 +12,7 @@
     <ModuleRule_Rule Include="R-DC1：CSG 主 schema 只扩不改（扩展域 csg://runtime-data），CsgProtocol v1.0.0 语义冻结" />
     <ModuleRule_Rule Include="R-DC2：不引语言栈与应用层工程，保持语言无关" />
     <ModuleRule_Rule Include="G1/G4：不出现领域词汇；领域逻辑经 DataCenter.Extensions.* 单向消费本层端口注入，本层无反向引用" />
-    <ModuleRule_Rule Include="G2：宿主设施（Block 初始化块/服务定位器/引擎存储/派发）不进本层——经端口 IDataCell/IStateDispatch/IStateInitializer 注入；Compat 目录仅保留契约强制的迁移期适配" />
+    <ModuleRule_Rule Include="G2：宿主设施（Block 初始化块/服务定位器/引擎存储/派发）不进本层——经端口 IDataCell/IStateInitializer 注入；Compat 目录仅保留契约强制的迁移期适配" />
     <ModuleRule_Rule Include="契约强制引用（非自主选择）：IStateCenter.Cell→IStorageCell（TConfig）；IStateOrchestrator.ExecutePipelineAsync→ExecutionPipeline（BasicMethod.Block）。G5 契约收口后消除" />
     <ModuleRule_Rule Include="命名空间暂沿用 Operation.StateBlock.*（迁移期零破坏），后续可经类型重构切换为 DataCenter.Core.*" />
   </ItemGroup>
@@ -49,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 端口层：IDataCell/IDataCellFactory/IStateDispatch/IStateInitializer（零依赖纯端口） -->
+    <!-- 端口层：IDataCell/IDataCellFactory/IStateInitializer（零依赖纯端口） -->
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
     <!-- 契约层：图契约与框架端口（IStateProjector/IStateRegistry/IStateGeneration/IDataCenterRoot）；Core 提供其实现 -->
     <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />

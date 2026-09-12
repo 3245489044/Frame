@@ -40,7 +40,8 @@ public sealed class DecisionCenter
     {
         var json = _client.Read<string>(_scheme.Session(scope, LoopKeys.DecisionLatest));
         if (string.IsNullOrWhiteSpace(json)) return null;
+        // 载荷不可读（损坏 / 结构演进 / 类型不受支持）→ 视为「无记录」，不外溢异常（F-46 异常面收窄）
         try { return JsonSerializer.Deserialize<DecisionRecord>(json, Json); }
-        catch (JsonException) { return null; }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException) { return null; }
     }
 }

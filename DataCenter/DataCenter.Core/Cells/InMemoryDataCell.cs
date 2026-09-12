@@ -29,9 +29,17 @@ public sealed class InMemoryDataCell : IDataCell
     public void Set<T>(string key, T value, DataTier tier = DataTier.Session)
     {
         var store = GetStore(tier);
-        var exists = store.TryGetValue(key, out var old);
-        store[key] = value;
-        Raise(key, exists ? old : null, value, exists ? DataChangeKind.Updated : DataChangeKind.Added, tier);
+
+        // 原子读-改-写（F-44）：原「先 TryGetValue 再索引赋值」在并发写同键时会误判
+        // ChangeKind（Added/Updated）并回传失真 OldValue；AddOrUpdate 的工厂在键锁内执行 ⇒ 判定与写入同源。
+        object? oldValue = null;
+        var kind = DataChangeKind.Added;
+        store.AddOrUpdate(
+            key,
+            _ => { kind = DataChangeKind.Added; oldValue = null; return value; },
+            (_, existing) => { kind = DataChangeKind.Updated; oldValue = existing; return value; });
+
+        Raise(key, oldValue, value, kind, tier);
     }
 
     public void SetObject(string key, object? value, DataTier tier) => Set<object?>(key, value, tier);

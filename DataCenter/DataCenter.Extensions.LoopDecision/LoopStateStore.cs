@@ -16,7 +16,9 @@ public readonly record struct CoreStateView(
     EvalOutcome LastEval)
 {
     public bool IsExhausted => TokenValue >= TokenMax;
-    public bool IsTripped => BudgetLevel >= 3 || Halt;
+
+    /// <summary>是否已熔断（预算打满或 halt）—— 阈值取 <see cref="FailureBudget.MaxLevel"/>（F-45：不再硬编码 3）。</summary>
+    public bool IsTripped => BudgetLevel >= FailureBudget.MaxLevel || Halt;
 }
 
 /// <summary>
@@ -68,7 +70,7 @@ public sealed class LoopStateStore
             ReadLastEval());
     }
 
-    private static CoreStateView DefaultView() => new(0, 0, 3, false, 1, EvalOutcome.None);
+    private static CoreStateView DefaultView() => new(0, 0, LoopKeys.DefaultTokenMax, false, 1, EvalOutcome.None);
 
     private EvalOutcome ReadLastEval()
         => Enum.TryParse<EvalOutcome>(_client.Read<string>(K(LoopKeys.LastEval)), ignoreCase: true, out var e) ? e : EvalOutcome.None;

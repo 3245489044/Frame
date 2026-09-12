@@ -29,7 +29,7 @@ namespace Operation.StateBlock.Core
         private readonly IDataCell _root;
         private readonly IDataCellFactory _factory;
         private readonly IStorageCell? _legacyCell;
-        private IStorageCell? _rootView;
+        private DataCellStorageView? _rootView;
         private readonly StateSubscriptionHub _hub;
         private readonly StateStore _globalStore;
         private readonly StateOrchestrator _orchestrator;
@@ -103,6 +103,12 @@ namespace Operation.StateBlock.Core
             });
         }
 
+        /// <summary>
+        /// 开启事务。载体纪律（F-50）：<paramref name="scope"/> 非空 → 事务落 <b>scope 分区子单元</b>
+        /// （分区隔离：根单元与 scope 分区互不可见）；无 scope → 落根单元。
+        /// 注意与非事务 <see cref="Write{TState}(StateKey, TState, StorageLayer, string?)"/> 的载体差异：
+        /// 后者按「scope 是键的一段」把 <c>ns:scope:key</c> 落根单元 —— 两个 API 载体不同、跨 API 不互通，禁止混用。
+        /// </summary>
         public IStateTransaction BeginTransaction(string? scope = null)
         {
             ThrowIfDisposed();
@@ -179,26 +185,56 @@ namespace Operation.StateBlock.Core
             _hub.Publish(key, value, version, source);
         }
 
+        /// <summary>
+        /// 进程退出唯一释放点：Composition.AppShutdown() → Actor 关闭 → 订阅面/存储视图解绑。
+        /// 纪律（F-40）：三段<b>各自隔离</b> —— 任一阶段失败不得阻断后续阶段（原实现中
+        /// Composition 段未包裹：抛错即跳过 hub 与 scope 分区释放，且 <c>_disposed</c> 已置位 ⇒ 永久泄漏）。
+        /// 本方法<b>承诺不抛</b>：进程退出语义下释放失败仅跳过（资源由进程退出回收）。
+        /// </summary>
         public void Shutdown()
         {
             if (_disposed) return;
             _disposed = true;
 
-            // 进程退出唯一释放点：内部调用 Composition.AppShutdown()
-            _compositionLifecycle?.AppShutdown();
+            // ① 组合生命周期（唯一释放点：内部调用 Composition.AppShutdown()）
+            try
+            {
+                _compositionLifecycle?.AppShutdown();
+            }
+            catch
+            {
+                // 承诺不抛：释放失败仅跳过（不阻断后续阶段）
+            }
 
-            // Actor 资源释放（Shutdown 未关闭 Actor 属原实现遗漏）
+            // ② Actor 资源释放（Shutdown 未关闭 Actor 属原实现遗漏）
             try
             {
                 _orchestrator.ShutdownAllActorsAsync().GetAwaiter().GetResult();
             }
             catch
             {
-                // Shutdown 承诺不抛：Actor 关闭失败仅跳过（资源由进程退出回收）
+                // 同上
             }
 
-            _hub.Dispose();
-            _scopeStores.Clear();
+            // ③ 订阅面与存储视图解绑（F-49）：hub 与各 StateStore 对 cell 的变更订阅必须解绑，
+            //    否则停机后 cell 仍持有 handler（写路径继续回调已停机中心）。
+            try
+            {
+                _globalStore.Dispose();
+                foreach (var store in _scopeStores.Values)
+                {
+                    if (store is StateStore stateStore)
+                        stateStore.Dispose();
+                }
+                _scopeStores.Clear();
+                _rootView?.Dispose();
+                _rootView = null;
+                _hub.Dispose();
+            }
+            catch
+            {
+                // 同上
+            }
         }
 
         // ── IStateManager（scope 分区） ──

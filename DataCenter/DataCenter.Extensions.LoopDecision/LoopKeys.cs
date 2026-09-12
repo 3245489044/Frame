@@ -31,4 +31,10 @@ public static class LoopKeys
 
     /// <summary>决策域分层 scheme（Config/Session/Transient 三段命名空间）。</summary>
     public static StateLayerScheme BuildScheme() => StateLayerScheme.ForDomain(Domain);
+
+    /// <summary>
+    /// 确定性核心的初始进度上限（F-45 常量归一）—— 对齐 Share.TaskStatusPool.Loops.ProgressToken.Max 的默认值，
+    /// 使 <c>LoopStateStore</c> 的默认只读投影与初始内存工作副本同源（原三处硬编码 3 已归一）。
+    /// </summary>
+    public const int DefaultTokenMax = 3;
 }

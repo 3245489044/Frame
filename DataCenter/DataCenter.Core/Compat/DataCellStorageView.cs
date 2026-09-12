@@ -11,16 +11,31 @@ namespace Operation.StateBlock.Core.Compat;
 /// 语义对齐 Modules.InternalStorage.StorageCell：集合族/数组族为容器就地变更（不触发变更通知）；
 /// 引擎特有的快照行为（GetSnapshotBehavior）在端口层无对应语义 → 恒为 null。
 /// </summary>
-internal sealed class DataCellStorageView : IStorageCell
+internal sealed class DataCellStorageView : IStorageCell, IDisposable
 {
     private readonly IDataCell _inner;
-    private IStorageCell? _parentView;
+    private DataCellStorageView? _parentView;
     private StorageCellAdapter? _parentAdapter;
+    private bool _disposed;
 
     internal DataCellStorageView(IDataCell inner)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _inner.DataChanged += OnInnerDataChanged;
+    }
+
+    /// <summary>
+    /// 解绑内层变更订阅（F-49，幂等）—— 契约视图与端口单元的事件链必须在停机时断开，
+    /// 否则已被释放的中心仍会被写路径回调；父视图由本视图创建者身份一并释放。
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _inner.DataChanged -= OnInnerDataChanged;
+        _parentView?.Dispose();
+        _parentView = null;
     }
 
     internal IDataCell Inner => _inner;

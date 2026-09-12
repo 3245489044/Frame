@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using DataCenter.Protocol.Registry;
 
 namespace Operation.StateBlock.Registry;
@@ -35,6 +36,10 @@ public sealed class GraphRegistry : IStateRegistry
                     _domainAliases[ns] = domain;
             }
         }
+
+        // 只读包装（F-42）：原暴露内部可变字典，消费方可强转 Dictionary 就地改写注册表
+        // （Tiers/NodeKinds/EdgeKinds 已用 Array.AsReadOnly，此处补齐同类处理）。
+        DomainAliases = new ReadOnlyDictionary<string, string>(_domainAliases);
     }
 
     /// <summary>默认注册集（示例；域扩展经增量复制，不改默认集）。</summary>
@@ -78,7 +83,7 @@ public sealed class GraphRegistry : IStateRegistry
 
     public bool IsEdgeKindRegistered(string edgeKind) => !string.IsNullOrWhiteSpace(edgeKind) && _edgeKinds.Contains(edgeKind);
 
-    public IReadOnlyDictionary<string, string> DomainAliases => _domainAliases;
+    public IReadOnlyDictionary<string, string> DomainAliases { get; }
 
     public bool TryResolveDomainAlias(string ns, out string domain)
     {

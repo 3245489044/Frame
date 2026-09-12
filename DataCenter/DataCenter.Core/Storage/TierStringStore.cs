@@ -12,6 +12,7 @@ internal sealed class TierStringStore
 
     private readonly IDataCell _cell;
     private readonly string? _excludedKeyPrefix;
+    private readonly object _getOrAddGate = new();
 
     internal TierStringStore(IDataCell cell, string? excludedKeyPrefix = null)
     {
@@ -50,16 +51,23 @@ internal sealed class TierStringStore
 
     public IReadOnlyCollection<string> GetAllKeys() => _cell.GetKeys(Tier).Where(k => !IsExcluded(k)).ToArray();
 
+    /// <summary>
+    /// 取或添加。实例级锁内完成「探测-写入」（F-43）：端口的 <see cref="IDataCell"/> 无「条件写」原语，
+    /// 故跨实例（同一 cell 上的两个 store）并发仍以最后写者胜 —— 该残留面记录于台账。
+    /// </summary>
     public string? GetOrAdd(string key, string? defaultValue)
     {
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Key cannot be empty", nameof(key));
 
-        if (_cell.Contains(key, Tier))
-            return _cell.Get<string>(key, Tier);
+        lock (_getOrAddGate)
+        {
+            if (_cell.Contains(key, Tier))
+                return _cell.Get<string>(key, Tier);
 
-        _cell.Set(key, defaultValue, Tier);
-        return defaultValue;
+            _cell.Set(key, defaultValue, Tier);
+            return defaultValue;
+        }
     }
 
     public void Remove(string key)
@@ -89,7 +97,9 @@ internal sealed class TierStringStore
 
     public Dictionary<string, string?> GetAll()
     {
-        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        // 比较器与 Set/Get/GetAllKeys/Count/IsEmpty 统一为 Ordinal（F-43）：原 OrdinalIgnoreCase
+        // 会合并大小写相异的键，使 GetAll().Count 与 Count 口径不一致。
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var entry in _cell.GetEntries(Tier))
         {
             if (IsExcluded(entry.Key)) continue;

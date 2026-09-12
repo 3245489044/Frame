@@ -3,7 +3,7 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>数据中心抽象（端口）</ModuleRule_Title>
     <ModuleRule_Layer>3</ModuleRule_Layer>
-    <ModuleRule_Description>DataCenter 纯端口层：分层数据单元（IDataCell/IDataCellFactory）、派发（IStateDispatch）、初始化编排（IStateInitializer）等 IoC 接缝。零 ProjectReference、零第三方依赖——领域/宿主/语言栈经实现方（DataCenter.Core / DataCenter.Adapters / 域扩展）注入，使 Core 的构造签名不再出现引擎设施类型。</ModuleRule_Description>
+    <ModuleRule_Description>DataCenter 纯端口层：分层数据单元（IDataCell/IDataCellFactory）、初始化编排（IStateInitializer）等 IoC 接缝。零 ProjectReference、零第三方依赖——领域/宿主/语言栈经实现方（DataCenter.Core / DataCenter.Adapters / 域扩展）注入，使 Core 的构造签名不再出现引擎设施类型。</ModuleRule_Description>
     <ModuleRule_Keywords>DataCenter;端口;IoC;IDataCell;分层数据单元;抽象</ModuleRule_Keywords>
   </PropertyGroup>
 

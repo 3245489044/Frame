@@ -19,7 +19,7 @@ namespace Operation.StateBlock.Core
     /// （服务定位器字段如 Registry/Executor/Pipeline 属产品侧，由派生类 <c>OperationStateStore</c> 承载）。
     /// </para>
     /// </summary>
-    public class StateStore : Share.StateManagement.IStateStore
+    public class StateStore : Share.StateManagement.IStateStore, IDisposable
     {
         /// <summary>对象态（Get&lt;T&gt;/Set&lt;T&gt;/ExtendedStates）键前缀，与字符串 KV 隔离。</summary>
         protected const string ObjectKeyPrefix = "_obj:";
@@ -29,7 +29,8 @@ namespace Operation.StateBlock.Core
         private readonly TierObjectStore _objectStore;
         private readonly IPublishDispatcher? _stateChangedDispatcher;
         private readonly IStorageCell? _legacyCell;
-        private IStorageCell? _cellView;
+        private DataCellStorageView? _cellView;
+        private bool _disposed;
 
         public event Action<string, object?>? StateChanged;
 
@@ -117,6 +118,20 @@ namespace Operation.StateBlock.Core
                 return;
             }
             dispatcher.Dispatch(() => StateChanged?.Invoke(e.Key, e.NewValue));
+        }
+
+        /// <summary>
+        /// 解绑底层数据单元的变更订阅与契约视图（F-49，幂等）。
+        /// 不释放注入的 cell（外部所有权）：仅断链，停机后本实例不再接收 cell 事件。
+        /// </summary>
+        public virtual void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            _cell.DataChanged -= OnCellDataChanged;
+            _cellView?.Dispose();
+            _cellView = null;
         }
     }
 }

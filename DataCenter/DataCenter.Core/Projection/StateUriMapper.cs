@@ -21,6 +21,19 @@ public static class StateUriMapper
     /// <summary>合成 scope 节点键（承载"分区归属"结构边的锚点；nodeKind = state.scope）。</summary>
     public const string ScopeNodeKey = "__scope";
 
+    /// <summary>保留键转义前缀（<c>__</c> → <c>%5F%5F</c>）。</summary>
+    private const string ReservedKeyEscape = "%5F%5F";
+
+    /// <summary>
+    /// 值节点 URI 的键段（F-41 保留键隔离）—— 真实状态键与 scope 锚点保留键（<see cref="ScopeNodeKey"/>）撞名时，
+    /// 对值节点做百分号转义，使「锚点」与「同名状态值」落在不同节点 ID；否则锚点先占 ID，值节点被静默丢弃
+    /// （设计文档 §5.6「静默降级」检测点）。仅对保留键转义 ⇒ 其余键的 URI 形态不变（既有产物零漂移）。
+    /// </summary>
+    public static string ValueKeySegment(string key)
+        => string.Equals(key, ScopeNodeKey, StringComparison.Ordinal)
+            ? ReservedKeyEscape + key[2..]
+            : key;
+
     private const string UriPrefix = "csg://";
 
     /// <summary>分层标识的线上表示（URI 段/注册键）；默认集 config/session/transient 仅为示例。</summary>
@@ -42,7 +55,7 @@ public static class StateUriMapper
     {
         var domain = DomainOf(entry.Namespace, entry.Tier, registry);
         var tierId = TierId(entry.Tier);
-        var uri = $"{UriPrefix}{domain}/{tierId}/{entry.Scope}/{entry.Key}";
+        var uri = $"{UriPrefix}{domain}/{tierId}/{entry.Scope}/{ValueKeySegment(entry.Key)}";
         return new StateUriRef(domain, tierId, entry.Scope, entry.Key, entry.Namespace, uri);
     }
 

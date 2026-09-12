@@ -29,6 +29,6 @@ public sealed record DecisionRecord
     /// <summary>决策来源（引擎/骨架/导演/边界）。</summary>
     public string Source { get; init; } = string.Empty;
 
-    /// <summary>决策时刻（审计/回放时间戳）。</summary>
-    public DateTimeOffset At { get; init; } = DateTimeOffset.Now;
+    /// <summary>决策时刻（审计/回放时间戳；UTC —— 跨语言 date-time 契约不绑定本地时区，F-46）。</summary>
+    public DateTimeOffset At { get; init; } = DateTimeOffset.UtcNow;
 }

@@ -28,9 +28,11 @@ public sealed class StateCenterEntrySource : IStateEntrySource
         var entries = new List<StateEntry>();
         var unparsed = 0;
 
-        // 唯一分层真源：根单元（StateCenter.Write 的 canonical 写入路径把 ns:scope:key 落根单元，
-        // scope 是键的一段而非独立单元）；scope 分区子单元另经 IStateManager 的 store API 写入（原始键），
-        // 一并枚举以保证"全部分区"完整。scope 过滤在条目级进行（不靠选单元）。
+        // 唯一分层真源有两处载体，二者互不可见，须一并枚举：
+        // ① 根单元 —— StateCenter.Write 按「scope 是键的一段」写 ns:scope:key（解析为图坐标）；
+        // ② scope 分区子单元 —— IStateManager 的 store API / BeginTransaction(scope) 写原始键
+        //    （无 ns:scope: 前缀 → 计入 unparsedKeys 的显式缺口，不静默吞掉，见 StateEntryScan 契约）。
+        // scope 过滤在条目级进行（不靠选单元）。
         Collect(_root, entries, ref unparsed);
         foreach (var name in _manager.GetScopeNames())
         {

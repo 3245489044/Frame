@@ -24,6 +24,16 @@ public static class PersistenceConfigBinder
         if (!string.IsNullOrWhiteSpace(section["DatabasePath"]))
             options.DatabasePath = section["DatabasePath"]!;
 
+        // 状态根（目录）——落点唯一入口；派生数据库/图库/运行时/凭据/日志，见 PersistenceOptions.StateRoot。
+        if (!string.IsNullOrWhiteSpace(section["StateRoot"]))
+            options.StateRoot = section["StateRoot"]!;
+
+        if (!string.IsNullOrWhiteSpace(section["DatabaseFileName"]))
+            options.DatabaseFileName = section["DatabaseFileName"]!;
+
+        if (!string.IsNullOrWhiteSpace(section["GraphDatabaseFileName"]))
+            options.GraphDatabaseFileName = section["GraphDatabaseFileName"]!;
+
         if (!string.IsNullOrWhiteSpace(section["ConnectionString"]))
             options.ConnectionString = section["ConnectionString"]!;
 

@@ -16,7 +16,7 @@
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
 
 .PARAMETER Root
-    扫描根目录（默认仓库根，相对本脚本上溯两级）。
+    扫描根目录（默认仓库根，相对本脚本上溯四级）。
 
 .PARAMETER ShowDetail
     输出全部命中/检查详情（默认仅输出违规摘要）。
@@ -34,7 +34,8 @@ param(
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+    # 脚本位于 Frame\PowerShellScript\Operation\DSL\，上溯四级即仓库根（与 Check-AgentRuntimeSlots.ps1 一致）
+    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 $violations = [System.Collections.Generic.List[string]]::new()
 $warnings   = [System.Collections.Generic.List[string]]::new()

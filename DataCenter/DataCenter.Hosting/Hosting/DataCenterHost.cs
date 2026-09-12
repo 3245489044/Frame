@@ -285,7 +285,8 @@ public sealed class DataCenterHost : IAsyncDisposable
     {
         var state = current as GenerationState
             ?? new GenerationState(current.Generation, current.Fingerprint, current.SchemaVersion);
-        var next = state.Next(plan.Fingerprint);
+        // 未提供指纹 → 沿用既有（不得静默置空）：世代指纹可回溯（B2/F-18，AX-CORE.InformationMonotonicity）
+        var next = state.Next(plan.Fingerprint ?? state.Fingerprint);
         return plan.SchemaVersion is { } schemaVersion ? next.WithSchemaVersion(schemaVersion) : next;
     }
 

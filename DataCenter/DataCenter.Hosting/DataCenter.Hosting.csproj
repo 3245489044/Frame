@@ -21,6 +21,16 @@
     <Description>DataCenter 单根宿主 —— 装配/持有/生命周期/换代交换（进程内根实例 ≤ 1）</Description>
   </PropertyGroup>
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CsharpPrj 上游走权威烘焙二进制引用（Private=false 不复制产物）。
+       烘焙轨不传递编译期引用，凡本工程直接使用的上游类型/命名空间（含本区共享 Usings.External.cs 的 CSG/TConfig）
+       必须在此直接声明。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+    <!-- 状态契约（DataCenterHost 直接使用 IPublishDispatcher） -->
+    <Reference Include="Share.StateManagement" HintPath="$(CsharpBuildOutputDir)Share.StateManagement.dll" Private="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- 端口与图契约（IDataCell/IDataCenterRoot/IRootProvider/IRuntimeSlot） -->
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />

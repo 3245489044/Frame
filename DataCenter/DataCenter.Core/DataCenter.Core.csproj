@@ -24,21 +24,35 @@
     <Description>数据中心核心 —— 跨语言运行时数据框架（数据面 CSG + 控制面）</Description>
   </PropertyGroup>
 
-  <ItemGroup>
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CsharpPrj 上游一律走权威烘焙二进制引用（$(CsharpBuildOutputDir)），
+       Private=false 不复制产物；程序集名/闭包完整性单一真源见 Projects\BuildFramework\CsharpBakeRefs.props。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
     <!-- 数据面协议：CSG 统一中间表示（Configuration-StateMachine-Graph） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
     <!-- 纯契约：IStateCenter/IStateStore/StateKey/StateSnapshot/StateBlock/StatePipeline（R1 红线：契约只放 Share.StateManagement） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" />
+    <Reference Include="Share.StateManagement" HintPath="$(CsharpBuildOutputDir)Share.StateManagement.dll" Private="false" />
+    <!-- 契约枚举 StorageLayer（Plate 层）+ Compat 适配器所需的 IStorageCell 契约面（引擎实现不进本层） -->
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+    <!-- 契约强制（非自主选择）：Share 契约 IStateOrchestrator 暴露 ExecutionPipeline/PipelineResult（BasicMethod.Block 类型），
+         实现 IStateCenter 必须解析这些类型；G5 契约收口（Share 降纯契约）后可消除。 -->
+    <Reference Include="BasicMethod.Block" HintPath="$(CsharpBuildOutputDir)BasicMethod.Block.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- ★ 仅顺序边（ReferenceOutputAssembly=false）：二进制引用无 MSBuild 顺序边，而本工程处于 MainProj.sln 烘焙闭包内
+       （CsharpPrj\Operation\StateHoldDriven 源码引用本工程）——这些边不消费上游源码类型、不复制其产物，
+       只把上游工程排在编译之前，保证干净机器上 `dotnet build MainProj.sln` 与 `DataCenter.slnx` 不出现上游 dll 竞态缺失。 -->
+  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 端口层：IDataCell/IDataCellFactory/IStateDispatch/IStateInitializer（零依赖纯端口） -->
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
     <!-- 契约层：图契约与框架端口（IStateProjector/IStateRegistry/IStateGeneration/IDataCenterRoot）；Core 提供其实现 -->
     <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />
-    <!-- 契约枚举 StorageLayer（Plate 层）+ Compat 适配器所需的 IStorageCell 契约面（引擎实现不进本层） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
-    <!-- 契约强制（非自主选择）：Share 契约 IStateOrchestrator 暴露 ExecutionPipeline/PipelineResult（BasicMethod.Block 类型），
-         实现 IStateCenter 必须解析这些类型。Core 自身不使用 Block 初始化块设施（已迁 DataCenter.Adapters）；
-         G5 契约收口（Share 降纯契约）后可消除。 -->
-    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" />
   </ItemGroup>
 
 </Project>

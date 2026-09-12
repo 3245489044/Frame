@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DataCenter.Protocol.Roots;
 
 namespace DataCenter.Hosting;
@@ -14,6 +15,13 @@ public sealed class HostRootProvider : IRootProvider
     /// <summary>当前代数根；未装配/已解绑 → 抛 <see cref="RootMissingException"/>。</summary>
     public IDataCenterRoot Root
         => Volatile.Read(ref _root) ?? throw RootMissingException.Throw(nameof(HostRootProvider));
+
+    /// <summary>非抛探测（换代窗口内消费方回落用）：未装配/已解绑 → false，不抛。</summary>
+    public bool TryGetRoot([NotNullWhen(true)] out IDataCenterRoot? root)
+    {
+        root = Volatile.Read(ref _root);
+        return root is not null;
+    }
 
     /// <summary>绑定根（Boot 装配 / 换代交换时调用；幂等覆盖）。</summary>
     internal void Bind(IDataCenterRoot root)

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DataCenter.Abstractions.Cells;
 using DataCenter.Protocol.Generation;
 using DataCenter.Protocol.Projection;
@@ -47,6 +48,13 @@ public interface IRootProvider
 {
     /// <summary>整体数据流持有者；未装配 = 装配期错误（fail-fast，见 <see cref="RootMissingException"/>）。</summary>
     IDataCenterRoot Root { get; }
+
+    /// <summary>
+    /// 非抛探测（换代/停机窗口内的取根面探询）：未注入、已解绑、或处于解绑窗口时返回 <c>false</c>，
+    /// 供消费方回落既有路径。与 <see cref="Root"/> 分工：<b>装配错误</b>用 <see cref="Root"/>（fail-fast），
+    /// <b>窗口内暂时无根</b>用本方法（回落，不得升格为异常）。
+    /// </summary>
+    bool TryGetRoot([NotNullWhen(true)] out IDataCenterRoot? root);
 }
 
 /// <summary>

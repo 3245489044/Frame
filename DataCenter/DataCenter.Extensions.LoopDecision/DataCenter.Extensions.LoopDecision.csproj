@@ -21,11 +21,25 @@
     <Description>DataCenter 域扩展 —— 循环决策状态化（消费 Core 通用状态能力与端口）</Description>
   </PropertyGroup>
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CsharpPrj 上游走权威烘焙二进制引用（Private=false 不复制产物）。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <!-- 循环决策原语（裁决语义唯一权威，本扩展只消费不复制） -->
+    <Reference Include="Share.TaskStatusPool" HintPath="$(CsharpBuildOutputDir)Share.TaskStatusPool.dll" Private="false" />
+    <!-- 状态契约（本扩展源码直用 Share.StateManagement） -->
+    <Reference Include="Share.StateManagement" HintPath="$(CsharpBuildOutputDir)Share.StateManagement.dll" Private="false" />
+    <!-- 本区共享 Usings.External.cs 的编译期依赖（烘焙轨不传递，须直接声明） -->
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：保证干净机器上本工程先编出上游再编译。 -->
+  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Orchestration\TaskStatusPool\TaskStatusPool.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- 通用状态能力：分层键方案/客户端 + 状态中心门面（Core 通用件） -->
     <ProjectReference Include="..\DataCenter.Core\DataCenter.Core.csproj" />
-    <!-- 循环决策原语（裁决语义唯一权威，本扩展只消费不复制） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Orchestration\TaskStatusPool\TaskStatusPool.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,19 +10,24 @@
 
   <ItemGroup>
     <!-- 适配层 = CallCenter 的终端面/执行后端落地：把仓库既有 ExecutionFramework（统一超时/取消/异步解包/异常映射）
-         接进 ICSharpDelegateInvoker 执行缝。仅本层引用 ExecutionFramework，CallCenter.Core 保持精简（只 CSG.Unified + TConfig）。 -->
+         接进 ICSharpDelegateInvoker 执行缝。 -->
     <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
+    <!-- ★ 烘焙轨（方案 B，2026-09-12）：本工程消费 CSG/TConfig 命名空间（本区共享 Usings.External.cs），
+         烘焙轨不传递编译期引用，须直接声明；Private=false 不复制上游产物。 -->
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
   </ItemGroup>
 
-  <!-- ★ CsharpPrj 二进制集中引用（方案 B，与 Agent 同约定）：本层不再把 CsharpPrj 源码拉进自身构建图，
-       全经 $(CsharpProjectRoot)\BuildOutput\$(Configuration)\（无 TFM 层）以 <Reference HintPath> 消费已烘焙 dll。
-       编译期类型仍可见；运行时经输出目录同名程序集解析。执行缝（ExecutionFramework）与 Roslyn 编译核
-       （RoslynMethod.Core）从 CsharpPrj 烘焙产物引入；CsharpPrj 其他程序集/包依赖不自动传递，须显式声明。
-       RoslynMethod.Core 的 Microsoft.CodeAnalysis.CSharp 走 NuGet（回调 csproj 用 MSBuild 无法随二进制 Reference 传递包），
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CsharpPrj 二进制集中引用（与 Agent/PrjBridge 烘焙轨同约定）。
+       本层不把 CsharpPrj 源码拉进自身构建图，也不复制其产物（Private=false）：全经 $(CsharpBuildOutputDir)
+       （= Frame\CsharpPrj\BuildOutput\$(Configuration)\，无 TFM 层）以 <Reference HintPath> 消费已烘焙 dll。
+       编译期类型仍可见；运行期由 CallCenter.Host 的默认 ALC 探针（Bootstrap\FrameBootstrap.cs）就地解析。
+       执行缝（ExecutionFramework）与 Roslyn 编译核（RoslynMethod.Core）从 CsharpPrj 烘焙产物引入；
+       NuGet 不沿二进制引用传递，须显式声明 —— RoslynMethod.Core 的 Microsoft.CodeAnalysis.CSharp
        版本与 RoslynMethod.Core.csproj 保持 $(MicrosoftCodeAnalysisCSharpVersion) 一致。 -->
-  <ItemGroup Label="CsharpPrjBinaryRefs">
-    <Reference Include="ExecutionFramework" HintPath="$(CsharpProjectRoot)\BuildOutput\$(Configuration)\ExecutionFramework.dll" Private="true" />
-    <Reference Include="RoslynMethod.Core" HintPath="$(CsharpProjectRoot)\BuildOutput\$(Configuration)\RoslynMethod.Core.dll" Private="true" />
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <Reference Include="ExecutionFramework" HintPath="$(CsharpBuildOutputDir)ExecutionFramework.dll" Private="false" />
+    <Reference Include="RoslynMethod.Core" HintPath="$(CsharpBuildOutputDir)RoslynMethod.Core.dll" Private="false" />
   </ItemGroup>
 
   <ItemGroup Label="RoslynNuGet">

@@ -8,6 +8,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
+    <!-- ★ 烘焙轨（方案 B，2026-09-12）：McpBridge 终端轨消费 CSG/TConfig 类型（本区共享 Usings.External.cs），
+         烘焙轨不传递编译期引用，须直接声明；Private=false 不复制上游产物。 -->
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
     <!-- 官方 ModelContextProtocol SDK（McpClient/StdioClientTransport），与 Agent 侧 McpClientManager 同源、SingleImplementation
          （不复刻自研 JSON-RPC 读循环）；本工程不引用 Agent 项目，使 CallCenter 独立接入 MCPBridge（TS/PS 轨）。 -->
     <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />

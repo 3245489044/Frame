@@ -15,6 +15,8 @@
 | **A3b** `TraceStamp` + `ITraceQuery` | ⏸ 阻塞于 D2/D3 | — | Protocol 尚无追踪面契约 |
 | **A4** 双写收敛 | ⏸ 未开始（风险最高，须独立开关 + 独立评审） | — | — |
 | **A5** 换代闭环 | 🚧 进行中（**S4-1 / S4-2 已完成**；S4-3..S4-4 待做） | Frame `f0dc593`（S4-1）、S4-2 见本次提交；Projects `cac5b26`（A3a-2）/`32f5043`（S4-1 消费方）；主仓 `ab5e8aa`（S4-1/A3a-2 判据） | S4-1：`Frame\CsharpPrj\MainProj.sln` **0 错 0 警**、`Projects\FileDriven\FileDriven.sln` **0 错 0 警**；`Integration.Tests` **30 通过 / 1 跳过**（代数回收 + 换代语义判据；原插件加载 4 项零回归）；S4-2：`DataCenter.slnx` **0 错 0 警**、`DataCenter.Tests` **53/53**、K9/K10 **EXIT 0** |
+| **B1+B2** P0 前置（F-16/F-17/F-18） | ✅ 完成 | 见本次提交（Frame 契约/Hosting/Core、Projects Agent 侧、主仓判据） | `DataCenter.slnx` **0 错 0 警**、`Agent.sln` **0 错 0 警**；`DataCenter.Tests` **56/56**（新增 3 项：非抛探测语义 / 换代解绑窗口回落 + 换代后重绑 / 无指纹沿用）；`Agent.Launcher.Tests` **28/28**（新增 2 项：未绑定回落 / 已注入未绑根回落）；StateHoldDriven 73/73、Core 396/396、Axioms 84/84、Runtime 21/21、Integration 30+1；K9/K10 **EXIT 0** |
+| **S4-3** 宿主引导注入根（批次 4） | ✅ 完成 | 见本次提交（Projects：PrjBridge + Agent；Frame：文档） | `DataCenter.Tests` **58/58**（新增 2 项引导判据）、`Agent.Launcher.Tests` **30/30**（新增 2 项注入面判据）；`Agent.sln`/`FileDriven.sln`/`PrjBridge.csproj` 均 **0 错 0 警**；回归零变动（73/396/84/21/30+1）；K9/K10 **EXIT 0**；`Check-BakeFramework.ps1` #2 为既有工具问题（非本步引入） |
 
 ## 2. 已落地实现要点
 
@@ -66,6 +68,24 @@
   ② **Seq 语义**：Core 无独立 `Seq`；版本单调归 `StateSubscriptionHub._lastSeen`（`StateCenter` 私有）→ 复用 `_cell/_center` 即天然连续，故 `Export/Import` 不承载状态 KV（避免第二真源）。
   ③ **非法交出物须先释放**：交出物若挂异真源/代际不符，直接抛错会泄漏单根守卫计数 → 回建旧代数二次占用失败（已修复：先 `Dispose` 再抛）。
 - 判据：`DataCenter.Tests` **53/53**（新增 4 项：装配入口被调用 + 上下文真源/槽/代际 + 状态连续 + 默认 ALC；边界顺序 Drain→Export→Import→Resume；装配失败保留旧代数 + 放行写入 + 失败可重复；交出异真源 fail-fast 且保留旧代数）。
+
+### B1+B2（P0 前置：换代窗口取根回落 + 指纹保留，2026-09-12）
+- **B1（F-16/F-17）**：`IRootProvider` 增**非抛探测** `TryGetRoot(out root)`（`DataCenter.Protocol` 契约）；`HostRootProvider`（Hosting）与 `RootProvider`（Core，含 `Unbound` 哨兵）实现；`AgentRuntimeRoot` 以私有 `TryGetCurrentRoot` 统一"根当前可用"判定 —— `IsBound` 与 `Partition` 回落语义一致（未注入 / 未绑根 / **解绑窗口** 均回落进程本地容器）；`AgentStateDomain.Resolve` 窗口内回落 `Default`。
+- **语义分工（本轮口径）**：**装配错误** → `Root`（fail-fast 保留，`RootMissingException`）；**窗口内暂时无根** → `TryGetRoot`（回落，不得升格为异常）。
+- **B2（F-18）**：`DataCenterHost.Advance` 改取 `plan.Fingerprint ?? state.Fingerprint`（未提供指纹**不再静默置空**）；`GenerationPlan.Fingerprint` 与 `GenerationState.Next` 注释口径同步（null = 沿用 / 置空的分工显式化）。
+- **判据（实测）**：`SwapAsync` **解绑窗口**（`Export` 之后至绑根前，观测点 = `RootFactory` 内）`TryGetRoot`=false 且 `Root` 仍 fail-fast，换代后取根面重新可用；`swap("fp-1")` → `swap(无指纹)` 后 `Fingerprint == "fp-1"`。
+- 新增落点：`Environment\CentralTest\AgentTest\Agent.Launcher.Tests\AgentRuntimeRootFallbackTests.cs`（该 csproj 显式接线 `DataCenter.Protocol`，AgentTest 通配清单只取 `Agent.*.dll`）。
+
+### S4-3（宿主引导注入根 + 取根面注入面，2026-09-12）
+- **落点（实测修正）**：Boot 触发点 = **`Projects\PrjBridge\Agent\AgentSelfHostPlugin`**（宿主侧组合根）；Boot **装配实现** = `Agent.DataCenter` 新增 `AgentRuntimeRootBootstrap`（命名空间 `Agent.StateDomain`）。
+  - 修正理由（实测）：`FileDriven.Execution.csproj:71-72` 已明确「本层删除对 `Projects\Agent` 的直接引用」，且 `FileDriven` 为**薄启动层**（零上游静态引用）；故 Boot 不能落在 `LauncherBootstrap`（原计划字面落点），否则须打破既有引用边界。
+  - 实现上把 Boot 门面放在 Agent 侧：域表（`AgentStateDomain`）与 Boot 同程序集 ⇒ **纪律④（域别名须在 Boot 前并入）顺序天然成立**；PrjBridge 仅新增 1 条 `Agent.DataCenter` 引用（`Private=false`，保持薄输出）+ 1 条 `DataCenter.Protocol`（`Agent.DataCenter` 公开签名需要）。
+- **`AgentRuntimeRootBootstrap`**（`Projects\Plug\Agent\src\Agent.DataCenter\AgentRuntimeRootBootstrap.cs`）：**实例**持有唯一 `DataCenterHost`（不设静态槽 → K9/K10 零命中）；`Enabled` 实例属性 = **开关默认关**（env `AGENT_DATACENTER_ROOT=1|true` 可开，D-S43 ①）；`TryBoot()` 交出 `IRootProvider`（开关关 → `null`）；域表并入 + **`IsFullyRegistered` 装配期自检**（F-10 首个消费方）；根代际起点 = `ExtensionGenerationFactory.Generation`（③ 扩展代数↔数据代数对齐）；`Shutdown()` 幂等。
+- **取根面注入面（3d）**：`AgentFrameworkHosting.TryBootstrapGuiAsync(..., IRootProvider? rootProvider)` → `AgentComposition.StartAsync` → `AgentFramework.StartAsync` → `AgentFrameworkAssembler.AssembleAsync` → `AgentFrameworkAssemblyContext.RootProvider`（**新参数一律追加末位**，既有调用零破坏）→ E 段 `RunSegmentERootSlotsAsync` 绑定取根面 + 对象槽落根分区。
+- **ALC 边界（3a）**：`LauncherBootstrap` 的 `Default.Resolving` 探针增 `Frame\DataCenter\BuildOutput\$(Config)` 解析（懒求值）——宿主/桥侧首次消费平台库时由**默认 ALC** 就地解析 ⇒ 契约程序集身份唯一（避免 scoped ALC 自装副本 → 类型分裂 + 单根守卫失效）。
+- **判据（实测）**：`DataCenter.Tests` **58/58**（新增 2 项：开关关不引导 / 开关开引导 + 代数对齐 + 域表齐备 + 幂等同实例）；`Agent.Launcher.Tests` **30/30**（新增 2 项：注入取根面 → E 段绑定 + 槽落根分区〔同实例断言〕 / 未注入 → 回落本地容器 + 默认域表）；`PrjBridge.csproj` **0 错 0 警**（薄输出保持：bin 仍仅 dll/pdb/deps.json/runtimeconfig.json）；`Agent.sln` / `FileDriven.sln` **0 错 0 警**；回归零变动（73/396/84/21/30+1）；K9 **EXIT 0**（白名单 2 / 待迁移 2 / 违规 0）、K10 **EXIT 0**（457 文件 / 新增 0 / 基线 22 / 违规 0）。
+- **诚实边界**：`Check-BakeFramework.ps1` #1/#3/#4/#5 通过、**#2 失败**（`csharp-bake.manifest.json` 缺失）—— 既有工具口径问题（2026-09-11 已记录并保持基线回退：生成 manifest 会使 #3 转为失败），**非本步引入**。
+- **未做（下一批）**：`RootFactory`（跨 ALC 装配入口）接线、端到端「热换一轮 + 旧 ALC 回收（`WeakReference` 证）」判据（属 S4-4 前置与 S5 验收）。
 
 ## 3. 后续步骤
 

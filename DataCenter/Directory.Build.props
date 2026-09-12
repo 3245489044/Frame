@@ -33,6 +33,13 @@
   <!-- 导入 CsharpPrj 共享版本号定义（DataCenter 引用了 CsharpPrj 的项目） -->
   <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：DataCenter 对 CsharpPrj 只吃「权威烘焙二进制引用」，
+       本属性 = 该权威目录的唯一表达点（Frame\CsharpPrj\BuildOutput\$(Configuration)，无 TFM 层，与 CsharpPrj 同约定）；
+       csproj 内一律用 $(CsharpBuildOutputDir) 拼装 HintPath，不再各自写相对路径。 -->
+  <PropertyGroup Label="CsharpBakeRefs">
+    <CsharpBuildOutputDir>$([MSBuild]::NormalizeDirectory('$(CsharpProjectRoot)'))BuildOutput\$(Configuration)\</CsharpBuildOutputDir>
+  </PropertyGroup>
+
   <!-- 全局 GlobalUsings：DataCenter 全部项目共享跨程序集公共命名空间。
        例外：DataCenter.Abstractions 为「零依赖纯端口」、DataCenter.Protocol 为「契约层（只引 CSG + Abstractions）」，
        二者不得继承外部命名空间（CSG/TConfig），否则零引用约束被 GlobalUsings 击穿（新增纯契约工程沿用本豁免）。 -->

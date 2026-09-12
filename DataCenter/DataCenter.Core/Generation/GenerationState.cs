@@ -14,7 +14,8 @@ public sealed record GenerationState(int Generation, string? Fingerprint, int Sc
     /// <summary>初始代际（装配期起点）。</summary>
     public static GenerationState Initial { get; } = new(0, null, 1);
 
-    /// <summary>换代推进（generation+1）；指纹为 null 表示保持未计算。</summary>
+    /// <summary>换代推进（generation+1）。注意 <paramref name="fingerprint"/> 为 <c>null</c> 时**置空**指纹；
+    /// 调用方若意图"保持既有"，须显式传入现值（见 <c>DataCenterHost.Advance</c> 的 <c>plan.Fingerprint ?? state.Fingerprint</c>）。</summary>
     public GenerationState Next(string? fingerprint = null)
         => new(Generation + 1, fingerprint, SchemaVersion);
 

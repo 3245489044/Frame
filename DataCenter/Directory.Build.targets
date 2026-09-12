@@ -1,0 +1,24 @@
+<Project>
+
+  <!-- ============================================================
+       ★ 烘焙轨薄输出（方案 B，2026-09-12）
+       DataCenter 对 CsharpPrj 全面转「权威烘焙二进制引用」（<Reference HintPath Private=false>），
+       本区输出不再持有上游产物：除自有 dll/pdb/deps/runtimeconfig + NuGet + native 外，
+       源路径位于 CsharpPrj 权威目录 / Projects 的条目一律剪除（共享单一真源 ThinOutput.targets）。
+       运行期解析：宿主默认 ALC 探针（LauncherBootstrap 探 CsharpPrj 与 DataCenter 权威目录）。
+       ============================================================ -->
+  <PropertyGroup Label="ThinOutput">
+    <ThinOutputEnabled>true</ThinOutputEnabled>
+    <ThinOutputWhitelistSubstr></ThinOutputWhitelistSubstr>
+  </PropertyGroup>
+
+  <Import Project="..\..\Projects\BuildFramework\ThinOutput.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\ThinOutput.targets')" />
+
+  <!-- 注（与 CallCenter 的差异，勿照抄）：本区 DataCenter.Core/Adapters/Protocol 处于 MainProj.sln 烘焙闭包内
+       （CsharpPrj\Operation\StateHoldDriven 源码引用本区），故**不置** RequireCsharpPrjBaked ——
+       在 MainProj 构建过程中触发嵌套 `dotnet build MainProj.sln` 会与外层并发写同一权威目录（重入竞态）。
+       干净机器上的顺序已由各 csproj 的「仅顺序边」（ReferenceOutputAssembly=false 的 ProjectReference）保证：
+       二进制引用无 MSBuild 顺序边，这些边不消费源码类型、不复制产物，只把上游工程排在编译之前。 -->
+
+</Project>

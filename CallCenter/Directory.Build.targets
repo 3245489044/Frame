@@ -1,0 +1,29 @@
+<Project>
+
+  <!-- ============================================================
+       ★ 烘焙轨薄输出（方案 B，2026-09-12）
+       CallCenter 对 CsharpPrj 全面转「权威烘焙二进制引用」（<Reference HintPath Private=false>），
+       本区输出不再持有上游产物：除自有 dll/pdb/deps/runtimeconfig + NuGet + native 外，
+       源路径位于 CsharpPrj 权威目录 / Projects 的条目一律剪除（共享单一真源 ThinOutput.targets）。
+       运行期解析：CallCenter.Host 的 [ModuleInitializer] 探针（Bootstrap\FrameBootstrap.cs）从 CsharpPrj /
+       CallCenter / DataCenter 权威目录就地解析；库形态消费方（Agent/PrjBridge 等）由宿主探针承担。
+       ============================================================ -->
+  <PropertyGroup Label="ThinOutput">
+    <ThinOutputEnabled>true</ThinOutputEnabled>
+    <!-- 无白名单：本区没有「必须随输出复制」的上游产物；NuGet/native 不在剪枝判据内，天然保留 -->
+    <ThinOutputWhitelistSubstr></ThinOutputWhitelistSubstr>
+  </PropertyGroup>
+
+  <Import Project="..\..\Projects\BuildFramework\ThinOutput.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\ThinOutput.targets')" />
+
+  <!-- 烘焙轨兜底：权威目录未就绪（干净机首次 / 被误清）时按 MainProj.sln 补烘一次。
+       CallCenter 不在 MainProj.sln 闭包内（CsharpPrj 无对本区的源码引用），故补烘无重入风险。 -->
+  <PropertyGroup Label="Bake">
+    <RequireCsharpPrjBaked>true</RequireCsharpPrjBaked>
+  </PropertyGroup>
+
+  <Import Project="..\..\Projects\BuildFramework\CsharpBakeDeploy.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\CsharpBakeDeploy.targets')" />
+
+</Project>

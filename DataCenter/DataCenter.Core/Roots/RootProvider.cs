@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DataCenter.Protocol.Roots;
 
 namespace Operation.StateBlock.Roots;
@@ -21,8 +22,20 @@ public sealed class RootProvider : IRootProvider
 
     public IDataCenterRoot Root => _root;
 
+    public bool TryGetRoot([NotNullWhen(true)] out IDataCenterRoot? root)
+    {
+        root = _root;
+        return true;
+    }
+
     private sealed class UnboundRootProvider : IRootProvider
     {
         public IDataCenterRoot Root => throw RootMissingException.Throw(nameof(RootProvider));
+
+        public bool TryGetRoot([NotNullWhen(true)] out IDataCenterRoot? root)
+        {
+            root = null;
+            return false;
+        }
     }
 }

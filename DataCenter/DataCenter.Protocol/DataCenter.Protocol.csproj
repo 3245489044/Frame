@@ -23,11 +23,20 @@
     <Description>DataCenter 契约层 —— 图契约/投影/注册表/代际/根端口（零引擎设施依赖）</Description>
   </PropertyGroup>
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CSG.Unified 走权威烘焙二进制引用（Private=false 不复制产物）。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <!-- 语言无关图表示（CanonicalForm）：投影产物的对外形态（R-DC1：只扩不改主 schema） -->
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：二进制引用无 MSBuild 顺序边，本工程在 MainProj.sln 闭包内。 -->
+  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- 数据单元端口（IDataCell）：根只持端口真源，不持具体存储实现 -->
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
-    <!-- 语言无关图表示（CanonicalForm）：投影产物的对外形态（R-DC1：只扩不改主 schema） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" />
   </ItemGroup>
 
 </Project>

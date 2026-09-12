@@ -15,7 +15,10 @@
     <ProjectReference Include="..\CallCenter.Adapters\CallCenter.Adapters.csproj" />
     <!-- P3 TS/PS 接入：McpBridge 终端轨（官方 SDK 自包含客户端），mcp-list-tools / mcp-call 冒烟命令使用 -->
     <ProjectReference Include="..\CallCenter.Mcp\CallCenter.Mcp.csproj" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
+    <!-- ★ 烘焙轨（方案 B，2026-09-12）：TConfig/CSG 走权威烘焙二进制引用（Private=false 不复制产物）；
+         运行期由 Bootstrap\FrameBootstrap.cs 的默认 ALC 探针从 CsharpPrj 权威目录解析。 -->
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
     <!-- 方向约束(父仓化/去 平台→产品 依赖)：CallCenter(平台) 不 ProjectReference FileDriven(产品)。
          真实业务函数库(FileDriven.Business: MathLibrary/FunctionTesterFunctions 等)的接入由产品宿主组合根
          (FileDriven/Agent, 见 ConversationHosting.FrontToolProvider)承载——产品侧引用自身 FileDriven.Business 并

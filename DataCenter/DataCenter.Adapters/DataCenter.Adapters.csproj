@@ -20,17 +20,32 @@
     <Description>DataCenter 宿主设施适配 —— Block 初始化块 / 服务定位器注册（端口实现）</Description>
   </PropertyGroup>
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CsharpPrj 上游走权威烘焙二进制引用（Private=false 不复制产物）。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <!-- 宿主初始化编排基类（BasicMethod.Block）/ 状态块契约 -->
+    <Reference Include="BasicMethod.Block" HintPath="$(CsharpBuildOutputDir)BasicMethod.Block.dll" Private="false" />
+    <!-- 宿主服务定位器（FrameworkAbstractions） -->
+    <Reference Include="FrameworkAbstractions" HintPath="$(CsharpBuildOutputDir)FrameworkAbstractions.dll" Private="false" />
+    <!-- 状态块契约（Share.StateManagement） -->
+    <Reference Include="Share.StateManagement" HintPath="$(CsharpBuildOutputDir)Share.StateManagement.dll" Private="false" />
+    <!-- 数据面协议（CSG.Unified）：本区共享 GlobalUsings\Usings.External.cs 的编译期依赖（须直接声明，烘焙轨不传递） -->
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <!-- 引擎存储契约（IStorageCell）：兼容构造与适配器签名 -->
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：本工程在 MainProj.sln 烘焙闭包内。 -->
+  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- 通用状态能力（StateCenter/StateStore）与端口契约 -->
     <ProjectReference Include="..\DataCenter.Core\DataCenter.Core.csproj" />
     <ProjectReference Include="..\DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
-    <!-- 宿主初始化编排基类（BasicMethod.Block）/ 状态块契约 -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" />
-    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" />
-    <!-- 宿主服务定位器（FrameworkAbstractions） -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj" />
-    <!-- 引擎存储契约（IStorageCell）：兼容构造与适配器签名 -->
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" />
   </ItemGroup>
 
 </Project>

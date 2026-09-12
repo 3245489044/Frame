@@ -10,10 +10,10 @@
 
 | 项 | 状态 |
 |---|---|
-| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** —— 明细见进展台账 §2 |
-| **未完成** | S4-3 / S4-4（换代闭环）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** —— 明细见进展台账 §2、缺陷清单 §5 |
+| **未完成** | S4-4（K9 待迁移归零）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
 | 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 2 + **待迁移 2** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（456 文件 / **新增 0** / 存量基线 22） |
-| 测试基线 | DataCenter.Tests **53/53** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **26/26** · Integration.Tests **30 通过 / 1 跳过** |
+| 测试基线 | DataCenter.Tests **58/58** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **396/396** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
 | 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
@@ -34,8 +34,8 @@
 | 批次 | 内容 | 说明 |
 |---|---|---|
 | 批次 3 | **S4-2**（`DataCenterHost` 换代接口）**✅ 已完成** | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托注入（`RootFactory` + `RootSwapContext`） |
-| 批次 4 | **S4-3**（宿主引导：FileDriven.Launcher 首次 Boot 根 + 注入 `AgentStateDomain.Default`）← **当前批次** | 端到端"带着运行数据换代"证据（热换 + 数据连续 + ALC 回收） |
-| 批次 5 | **S4-4**（K9 待迁移归零） | 两处兜底造根移除 |
+| 批次 4 | **S4-3**（宿主引导：PrjBridge 侧 Boot 根 + 注入 `AgentStateDomain` 域表）**✅ 已完成** | 落点由 `FileDriven.Launcher` 修正为 `PrjBridge`（薄启动层零上游静态引用）；实现与判据见进展台账 §2 S4-3。端到端"带着运行数据换代"证据（热换 + ALC 回收）归 S4-4/S5 |
+| 批次 5 | **S4-4**（K9 待迁移归零）← **当前批次** | 两处兜底造根移除（须先补 `state-center` 注入面，F-24） |
 | 批次 6 | **S3**（A4 双写收敛） | 风险最高：独立开关（默认关）+ 故障注入 + 单独评审 |
 | 可穿插 | **S1-④**（对象槽只读投影） | 纯新增、可独立提交 |
 | 待排期 | **S2**（A3b） | 前置 = 框架侧 D2/D3 |
@@ -46,7 +46,7 @@
 > 反方意见（保持原序）见 §2 D-批次序 —— **需确认后开工**。
 
 > **缺陷清单（S4-3/S4-4 的前置修复，2026-09-12 审计）**：见 `DataCenter-Agent运行时数据接入-调用链逻辑缺陷清单.md`（F-01..F-26）。
-> **开工前必做**：S4-3 前置 **B1/P0**（F-16/F-17：换代窗口取根/取注册表抛异常而非回落）+ **B2/P0**（F-18：换代无指纹时既有 fingerprint 被静默清空）；
+> **开工前必做**：S4-3 前置 **B1/P0**（F-16/F-17：换代窗口取根/取注册表抛异常而非回落）+ **B2/P0**（F-18：换代无指纹时既有 fingerprint 被静默清空）—— ✅ **均已完成（2026-09-12）**，实测：`DataCenter.Tests` **56/56**、`Agent.Launcher.Tests` **28/28**、其余回归零变动（见缺陷清单 §5 B1/B2 行）；
 > S4-4 前置 **B6/P1**（F-24：`AgentOrchestrator` 无 `StateCenter` 注入面 ⇒ 通道 A 实际未接通；须先补注入面再删兜底造根，否则 K9 归零会变成"没有状态真源"）。
 
 ---
@@ -76,7 +76,11 @@
 | **回退** | 不注入 `RootFactory` 即完全等价 A0 路径（单提交可撤） |
 | **风险** | 中；Drain/Resume 语义决定抖动面（R3：**不承诺零停机**） |
 
-### S4-3 · 宿主引导注入根（首次 Boot + 注入域表）
+### S4-3 · 宿主引导注入根（首次 Boot + 注入域表）—— ✅ 已完成（2026-09-12）
+
+> **落点修正（实测，2026-09-12）**：原计划落点 `FileDriven.Launcher` 与既有引用边界冲突 —— `FileDriven.Execution.csproj:71-72` 已明确「本层**删除**对 `Projects\Agent` 的直接引用」，且 FileDriven 为薄启动层（零上游静态引用），在该处 Boot 必然要同时引 `DataCenter.Hosting` + Agent 域表。
+> 实际落点：**Boot 触发点 = `Projects\PrjBridge\Agent\AgentSelfHostPlugin`**（宿主侧组合根，经 `IDisposable` 释放）；**Boot 装配实现 = `Agent.DataCenter` 的 `AgentRuntimeRootBootstrap`**（域表与 Boot 同程序集 ⇒ 纪律④"Boot 前并入域别名"顺序天然成立）。
+> 实现/判据明细见进展台账 §2 S4-3；本表以下内容保留为原设计口径（改动点 ①②③ 已落地，④⑤ 落点随之下移）。
 
 | 项 | 内容 |
 |---|---|

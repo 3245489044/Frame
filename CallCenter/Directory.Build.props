@@ -33,6 +33,14 @@
   <!-- 导入 CsharpPrj 共享版本号定义（CallCenter 引用了 CsharpPrj 的项目） -->
   <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：CallCenter 对 CsharpPrj 只吃「权威烘焙二进制引用」，
+       本属性 = 该权威目录的唯一表达点（Frame\CsharpPrj\BuildOutput\$(Configuration)，无 TFM 层，与 CsharpPrj 同约定）；
+       csproj 内一律用 $(CsharpBuildOutputDir) 拼装 HintPath，不再各自写相对路径。
+       CsharpBakeDeploy.targets 的 EnsureCsharpBaked / CsharpBakeRefs.props 同消费本属性。 -->
+  <PropertyGroup Label="CsharpBakeRefs">
+    <CsharpBuildOutputDir>$([MSBuild]::NormalizeDirectory('$(CsharpProjectRoot)'))BuildOutput\$(Configuration)\</CsharpBuildOutputDir>
+  </PropertyGroup>
+
   <!-- 全局 GlobalUsings：CallCenter 全部项目共享跨程序集公共命名空间 -->
   <ItemGroup Label="GlobalUsings">
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.System.cs" />

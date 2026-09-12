@@ -29,6 +29,13 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
+  <!-- ★ 烘焙轨（方案 B，2026-09-12）：聚合壳工程自身无源码，但仍编译本区共享 GlobalUsings\Usings.External.cs，
+       故须直接声明其命名空间所在程序集（烘焙轨不传递编译期引用）。Private=false：不复制上游产物。 -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="DataCenter.Abstractions\DataCenter.Abstractions.csproj" />
     <ProjectReference Include="DataCenter.Protocol\DataCenter.Protocol.csproj" />

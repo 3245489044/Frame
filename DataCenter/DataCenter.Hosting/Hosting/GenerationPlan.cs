@@ -6,7 +6,7 @@ namespace DataCenter.Hosting;
 /// Drain/Resume 为宿主侧的写入边界钩子，Export/Import 为跨代数载荷钩子
 /// （A0 = 同 ALC 内代际推进；A5/S4-2 = 接入新 ALC 装配入口）。
 /// </summary>
-/// <param name="Fingerprint">内容指纹（换代去重与在途版本判据；null = 保持未计算）。</param>
+/// <param name="Fingerprint">内容指纹（换代去重与在途版本判据；null = 沿用既有指纹，**不置空**；B2/F-18）。</param>
 /// <param name="SchemaVersion">运行时数据结构版本（null = 保持不变；非 null = 迁移触发）。</param>
 /// <param name="Drain">停写钩子（暂停新写、在途推至边界）；null = 跳过。</param>
 /// <param name="Resume">放行写入钩子（在 <c>finally</c> 中调用且不接收取消令牌 —— 换代成功/失败/取消都必须放行写入）；null = 跳过。</param>

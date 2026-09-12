@@ -20,8 +20,8 @@
 
 | 优先级 | 条目 | 一句话 | 归口 |
 |---|---|---|---|
-| **P0** | F-16 · F-17 | 换代窗口内取根/取注册表**抛异常而非回落**（类注释承诺的反面） | S4-3 前置 |
-| **P0** | F-18 | 换代未带指纹 → **既有 fingerprint 被静默清空** | 契约口径修正 |
+| **P0** | F-16 · F-17 | ✅ 已修（B1）：换代窗口内取根/取注册表改为**非抛探测回落** | S4-3 前置 |
+| **P0** | F-18 | ✅ 已修（B2）：换代未带指纹**沿用既有 fingerprint**（不再静默清空） | 契约口径修正 |
 | **P1** | F-19 · F-21 | `Resume` 抛错**掩盖换代原始异常**；失败回建**不走装配入口**（"保留旧代数"在对象层不成立） | S4-2 补强 |
 | **P1** | F-20 · F-04 | `Resolve` 并发注册竞态；`Register`/`Replace` 双语义并用 | Agent 取根面 |
 | **P1** | F-24 | 编排器**无状态中心注入面** → 通道 A（状态 KV 接入）实际未接通 | S4-4 前置（拆两步） |
@@ -64,9 +64,9 @@
 | # | 类别 | 位置（证据） | 现象 | 影响 / 严重度 | 状态 |
 |---|---|---|---|---|---|
 | **F-09** | 冗余 | `Frame\DataCenter\DataCenter.Core\Roots\RootInstanceGuard.cs:14`（`internal static int LiveCount`）`[已核]` | 公开诊断面**零消费方**（注释称"诊断/判据用"，全库无引用） | `Strategy.RedundancyElimination` 判据（¬∃caller→redundant）成立；建议删除或补一条装配期断言使其有实义 | ⏸ |
-| **F-10** | 冗余 | `AgentStateDomain.cs:60`（`MissingRegistrations`）· `:88`（`IsFullyRegistered`）`[已核]` | 域登记校验函数**零消费方** → **K5（Kind 注册完备）在装配期并未真正执行**，仅靠 `DataCenter.Tests\AgentStateDomainTests` 事后断言 | 冗余 + 判据虚化：装配期自检缺失（域分裂只能在测试里发现） | ⏸ 建议 S4-3 接线 |
+| **F-10** | 冗余 | `AgentStateDomain.cs:60`（`MissingRegistrations`）· `:88`（`IsFullyRegistered`）`[已核]` | 域登记校验函数**零消费方** → **K5（Kind 注册完备）在装配期并未真正执行**，仅靠 `DataCenter.Tests\AgentStateDomainTests` 事后断言 | 冗余 + 判据虚化：装配期自检缺失（域分裂只能在测试里发现） | ✅ 已接线（S4-3：`AgentRuntimeRootBootstrap` 引导前 `IsFullyRegistered` 自检 + `Agent.Launcher.Tests` 断言） |
 | **F-11** | 冗余 `(S4-2)` | `GenerationPayload`（`Frame\DataCenter\DataCenter.Hosting\Hosting\GenerationPayload.cs`，消费点仅 `DataCenterHost.cs:178`）`[已核]` | 跨代载荷**无真实生产/消费方**（`Export`/`Import` 钩子目前仅测试使用）；`Empty` 与 `new GenerationPayload()` 等价 | 预置空壳抽象：若 S4-3 仍无消费方，应显式收窄（明确唯一用途）或降级为内部类型，避免"看起来有机制"的误导 | ⏸ S4-3 判定 |
-| **F-12** | 冗余 | `ExtensionGenerationFactory.Swap`（`Frame\CsharpPrj\Modules\Registry\ExtensionGenerationHost.cs:267`）`[已核]` | **零生产调用方**（仅 `Integration.Tests\ExtensionGenerationTests` 使用） | S4-1 交付未接线（S4-3 才消费）；此前属"未使用公开面"，会误导读者以为换代链已闭环 | ⏸ S4-3 接线 |
+| **F-12** | 冗余 | `ExtensionGenerationFactory.Swap`（`Frame\CsharpPrj\Modules\Registry\ExtensionGenerationHost.cs:267`）`[已核]` | **零生产调用方**（仅 `Integration.Tests\ExtensionGenerationTests` 使用） | S4-1 交付未接线；S4-3 已消费 `Generation`（根代际 ↔ 扩展代数对齐），`Swap` 仍未接线（留待换代闭环批次） | 🟡 部分接线（Generation ✅ / Swap ⏸） |
 | **F-13** | 冗余 | `AgentRuntimeRoot.cs:89`（`ResetForTesting() => Unbind()`）`[已核]` | 纯转发方法（与 `Unbind` 完全等价） | 低；可并入测试夹具 | ⏸ 低 |
 | **F-14** | 冗余 | `AgentStateDomain.cs:51`（`Default => Apply(GraphRegistry.CreateDefault())`）`[已核]` | 每次属性访问都**新建并重建注册表**；`Resolve`（`:57`）在未绑定时亦每次新建 | 破坏"注册表同源/同实例"前提（`ReferenceEquals` 判据不可用）+ 重复建表开销 | ⏸ 建议惰性单例 |
 | **F-15** | 冗余 | `IRuntimeSlot` 三实现（`HostRuntimeSlot` / `LocalRuntimeSlot`（`AgentRuntimeRoot.cs:102`）/ `EmptyRuntimeSlot`）+ 两个 cell 工厂（`DataCenterHostOptions.RootCellFactory` / `PartitionCellFactory`，`DataCenterHost.cs:113-114`）`[已核]` | 承载面重叠，职责边界仅靠注释区分（"哪个是真路径"不可从类型判断） | 与 F-01 同源；增加新宿主时的选择歧义 | ⏸ 待收敛 |
@@ -77,9 +77,9 @@
 
 | # | 位置（证据） | 问题 | 严重度 | 状态 |
 |---|---|---|---|---|
-| **F-16** | `AgentRuntimeRoot.cs:61`（`CurrentRoot => CurrentProvider?.Root`）+ `HostRootProvider.cs:16`（`Root => ... ?? throw RootMissingException.Throw(...)`）；窗口在 `DataCenterHost.cs:166-175` `[已核]` | `?.` 只防 `provider` 为 `null`，**不防"已注入但处于 Unbind 窗口"** → 换代期间 `IsBound`/`Partition`/`Resolve`/`TryResolve` 全部抛 `RootMissingException`，**而非类注释承诺的"回落进程本地容器"** | **高** | ⏸ P0（S4-3 前置） |
-| **F-17** | `AgentStateDomain.cs:57`（`Resolve(provider) => provider?.Root.Registry ?? Default`）`[已核]` | 与 F-16 同型：provider 注入但未绑定时抛异常，落不到 `Default` | 中 | ⏸ P0 |
-| **F-18** | `DataCenterHost.cs:288`（`state.Next(plan.Fingerprint)`）+ `GenerationState.cs:18-19`（`Next(fingerprint = null)` 语义为**赋值**）`[已核]` | 换代未提供指纹 → **既有 `fingerprint` 被静默清空**；与 `GenerationPlan` 注释「null = 保持未计算」矛盾 → 世代指纹不可回溯（违反 `AX-CORE.InformationMonotonicity` 精神） | 中 | ⏸ P0 |
+| **F-16** | `AgentRuntimeRoot.cs:61`（`CurrentRoot => CurrentProvider?.Root`）+ `HostRootProvider.cs:16`（`Root => ... ?? throw RootMissingException.Throw(...)`）；窗口在 `DataCenterHost.cs:166-175` `[已核]` | `?.` 只防 `provider` 为 `null`，**不防"已注入但处于 Unbind 窗口"** → 换代期间 `IsBound`/`Partition`/`Resolve`/`TryResolve` 全部抛 `RootMissingException`，**而非类注释承诺的"回落进程本地容器"** | **高** | ✅ 已修（B1，2026-09-12；非抛探测 `IRootProvider.TryGetRoot` + `AgentRuntimeRoot` 回落；判据 `DataCenter.Tests` 56/56、`Agent.Launcher.Tests` 28/28） |
+| **F-17** | `AgentStateDomain.cs:57`（`Resolve(provider) => provider?.Root.Registry ?? Default`）`[已核]` | 与 F-16 同型：provider 注入但未绑定时抛异常，落不到 `Default` | 中 | ✅ 已修（B1，2026-09-12；`AgentStateDomain.Resolve` 经非抛探测回落 `Default`；判据 `DataCenter.Tests` 56/56） |
+| **F-18** | `DataCenterHost.cs:288`（`state.Next(plan.Fingerprint)`）+ `GenerationState.cs:18-19`（`Next(fingerprint = null)` 语义为**赋值**）`[已核]` | 换代未提供指纹 → **既有 `fingerprint` 被静默清空**；与 `GenerationPlan` 注释「null = 保持未计算」矛盾 → 世代指纹不可回溯（违反 `AX-CORE.InformationMonotonicity` 精神） | 中 | ✅ 已修（B2，2026-09-12；`Advance` 改取 `plan.Fingerprint ?? state.Fingerprint`；判据 `SwapAsync_WithoutFingerprint_PreservesPreviousFingerprint`） |
 | **F-19** | `DataCenterHost.cs:193-197`（`finally { await plan.Resume(CancellationToken.None) }`）`[已核]` `(S4-2)` | `Resume` 自身抛错**覆盖** Drain/Export/装配/Import 的原始异常 → 换代失败根因被替换（错误处理逻辑瑕疵） | 中 | ⏸ P1 |
 | **F-20** | `AgentRuntimeRoot.cs:74-78`（`TryGet` 未命中 → `partition.Register(key, factory())`）+ `HostRuntimeSlot.cs:93-100` / `AgentRuntimeRoot.cs:124-129`（冲突即抛）`[已核]` | **并发首访竞态**：两个线程同时 `Resolve` 同一键 → 后者 `Register` 抛 `InvalidOperationException`，而不是拿到既有实例 | 中 | ⏸ P1 |
 | **F-21** | `DataCenterHost.cs:185-190`（失败回建走 `BuildRoot(previousGeneration)` 单参重载）`[已核]` `(S4-2)` | 回建**不调用 `RootFactory`** → 回建的是"默认 ALC 根"而非"旧代数的装配入口产物" ⇒ **「换代失败保留旧代数」在对象层并不成立**（当前判据只覆盖"值不丢 / 代际不前进"） | 中 | ⏸ P1（语义缺口，需回写文档） |
@@ -125,8 +125,8 @@ var next = state.Next(plan.Fingerprint);   // plan.Fingerprint 为 null → 指�
 
 | 批次 | 内容 | 判据建议 | 回退 |
 |---|---|---|---|
-| **B1/P0** | F-16 · F-17：取根/取注册表改为**非抛探测**（`IRootProvider` 增 `TryGetRoot`；`AgentRuntimeRoot`/`AgentStateDomain` 改为"未绑定或已解绑 → 回落/默认"） | 新增：`SwapAsync` 进行中（Drain 内）调用 `AgentRuntimeRoot.Partition` **不抛**、`IsBound` 语义与注释一致；`Agent.Launcher.Tests` 26/26 不回归 | 单提交可撤；行为等价于 A1 语义 |
-| **B2/P0** | F-18：`Advance` 保留既有指纹（`plan.Fingerprint ?? state.Fingerprint`），同步 `GenerationPlan` 注释 | 新增：`swap("fp-1")` → `swap(无指纹)` 后 `Fingerprint == "fp-1"` | 单提交可撤 |
+| **B1/P0** ✅ | F-16 · F-17：取根/取注册表改为**非抛探测**（`IRootProvider` 增 `TryGetRoot`；`AgentRuntimeRoot`/`AgentStateDomain` 改为"未绑定或已解绑 → 回落/默认"） | 新增（实测）：`SwapAsync` **解绑窗口**（`Export` 之后至绑根前，观测点 = `RootFactory` 内）`TryGetRoot`=false、`Root` 仍 fail-fast、`AgentRuntimeRoot.Partition` 不抛、`IsBound` 语义与注释一致；`DataCenter.Tests` 53→**56**、`Agent.Launcher.Tests` 26→**28** | 单提交可撤；行为等价于 A1 语义 |
+| **B2/P0** ✅ | F-18：`Advance` 保留既有指纹（`plan.Fingerprint ?? state.Fingerprint`），同步 `GenerationPlan` 注释 | 新增（实测）：`swap("fp-1")` → `swap(无指纹)` 后 `Fingerprint == "fp-1"`（`SwapAsync_WithoutFingerprint_PreservesPreviousFingerprint`） | 单提交可撤 |
 | **B3/P1** | F-19：`Resume` 异常不覆盖原始异常（原始异常优先，Resume 失败聚合/记录） | 新增：Drain 抛 + Resume 抛 → 对外异常为 **Drain 的**异常（且 Resume 失败可见于日志/聚合） | 单提交可撤 |
 | **B4/P1** | F-20 · F-04：统一为 `GetOrAdd` 语义（冲突后重读既有实例），`Replace` 仅保留处置期语义 | 新增：并发 8 线程 `Resolve` 同一键 → 全部返回**同一实例**、无异常 | 单提交可撤 |
 | **B5/P1** | F-21：回建亦经装配入口；若决定不修则**显式降级承诺**（文档 + 判据措辞） | 二选一：回建后 `RootFactory` 调用次数 = 2（成功 1 次失败路径 1 次）；或判据改为"值保留 + 代际不前进" | 单提交可撤 |

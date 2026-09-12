@@ -9,7 +9,7 @@
 #   [D5] 每类数据登记归属     → 扫描「疑似数据持有」逐条核对 doc\data-ownership.json（本脚本独有）
 # 疑似数据持有 = K10 的 S1/S2（静态可变槽）∪ K9 的 new StateCenter( / static … IRootProvider；
 #   未在 data-ownership.json 登记 → 无主数据违规（D5 判据）。
-# 基线冻结（Batch 0 实测 2026-09-12）：K10 命中 22 / 16 文件；K9 待迁移 2；单写者告警 12；G1/G2 违规 0。
+# 基线冻结（Batch 0 实测 2026-09-12；W0 同步实测 20 命中 / 15 文件，AgentUiHost.cs 已收敛出）：K10 命中 20 / 15 文件；K9 待迁移 0；单写者告警 12；G1/G2 违规 0。
 #   「待迁移」只允许下降，回涨即违规（防基线静默漂移）。
 # 模式：报告模式（默认）列出全部清单并 EXIT 0；
 #       -Check 模式在「D1–D4 违规 > 0」或「D5 无主数据 > 0」或「待迁移回涨」时 EXIT 1（CI 门禁）。
@@ -34,8 +34,8 @@ if (-not (Test-Path $ledgerPath)) { Write-Error "未找到归属台账（D5 核�
 
 # 冻结基线（Batch 0 实测；归零后由 Batch 7 清空）—— 待迁移项只允许下降
 $frozen = [ordered]@{
-    K10Hits     = 22   # K10 存量基线命中（对象槽逐项收敛 → 最终 0）
-    K10Files    = 16   # K10 存量基线涉及文件数
+    K10Hits     = 20   # K10 存量基线命中（对象槽逐项收敛 → 最终 0）
+    K10Files    = 15   # K10 存量基线涉及文件数
     K9Pending   = 0    # K9 待迁移（Batch 1b 已归零：产品侧兜底造根移除）
     K9Violation = 0
     G1Hits      = 0

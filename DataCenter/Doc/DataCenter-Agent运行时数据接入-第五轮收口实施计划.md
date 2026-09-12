@@ -16,7 +16,7 @@
 
 | 本文件 | 上级计划 | 分离方案 | 内容 | 风险 |
 |---|---|---|---|---|
-| **W0** | S5-2 前置 | Batch 7-2 前置 | 台账登记归零 + 冻结值同步（D5 无主 1 处） | 低 |
+| **W0** | S5-2 前置 | Batch 7-2 前置 | 台账登记归零 + 冻结值同步（D5 无主 1 处）—— ✅ **已完成（2026-09-12）** | 低 |
 | **W1** | S5-2 | **Batch 3** | 静态槽归零（数据面收口，工作量最大） | 高（后 3 序含 UI/HTTP/进程资源） |
 | **W2** | **S3** | **Batch 4** | 双写收敛（单一权威，独立开关） | **最高**（触写热路径） |
 | **W3** | **S1-④** + **S2** | **Batch 5** | 投影与观测统一（对象槽只读投影 + T4 观测内核 + 追踪面） | 中低（只读旁路） |
@@ -33,7 +33,7 @@
 | 构建 | `Projects\Plug\Agent\Agent.sln` **0 错 0 警**；宿主 `Projects\PrjBridge\PrjBridge.csproj` **0 错 0 警** |
 | 测试 | Core **405/405** · Axioms 86/86 · Launcher **37/37** · Persistence 88/88 · Session 20/20 · Modules 20/20 · Operation 47/47 · Observe 11/11 · Guardrails 10/10 · Api 34/34 · Api.Contract 22/22 · Runtime 21/21 · DataCenter 95/95 |
 | 门禁 | `Check-DataCenterGenericity`：G1 命中 0 / G2 违规 0 / **K9 违规 0 · 待迁移 0**（白名单 4）· `Check-SingleWriter`：**OK**（告警 12 不计失败）· `Check-AgentRuntimeSlots`：457 文件 · **违规 0** · 存量基线 **20 命中 / 15 文件仍命中**（基线表 16 条，`AgentUiHost.cs` 已收敛出）· `Check-AgentDecisionCoreBoundary`：494 文件 · **违规 0** |
-| **门禁（异常）** | `Check-AgentDataSeparation.ps1 -Check` = **EXIT 1** —— D5 无主数据 **1 处**（`Agent.Contract\Runtime\AgentRuntimeRoot.cs:128` S1 静态字段 `_stateCenterFallbackUsed`，台账无匹配 `pattern`）；D1 K10 命中 20（冻结 22）· D2/D4 全 0 · D3 违规 0。**该失败为既有状态**（非 B26/B27 引入：`git show HEAD~1` 证明该字段在 B26/B27 提交前不存在于仓库、但存在于当时工作树，本批未触碰该文件） |
+| **门禁（W0 后）** | 五道门禁全 **EXIT 0** —— `Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**：D5 无主数据 **0**（`Agent.Contract\Runtime\AgentRuntimeRoot.cs:128` 已登记归属 `round-state-kv`）· D1 K10 命中 **20 = 冻结 20** · D2/D3/D4 全 0。**W0 已落地（2026-09-12）**：台账 `pattern` 追加 1 行 + 冻结值同步 22/16 → 20/15（脚本 `$frozen` · JSON `frozenBaseline` · 台账 §5） |
 | 台账 | `data-ownership.json` **20 条** = registered 8 + migrated 1 + **pending 11** |
 | 双写（未收敛） | ① `NodeExecutionService.cs:254 vars.Set(...)` ↔ `:265 PersistAsync`（写侧双写仍在）② `RoundStateMapper.cs:117 Harvest` → `:124 state.Data[key] = v!`（`:132` 注释自述 ur_nodes 权威、`state.Data` 仅派生缓存） |
 | 追踪面（阻塞） | `IDataCenterRoot` 成员实测 = `Root` / `Projector` / `Registry` / `Generation` / `Slots` —— **无 `Trace` 成员**（S2 前置 D2/D3 未落地） |
@@ -45,8 +45,8 @@
 
 | # | 工单 | 判据（可执行） | 依赖 | 建议批次 |
 |---|---|---|---|---|
-| W0-1 | D5 无主 1 处登记归属 | `Check-AgentDataSeparation.ps1 -Check` = EXIT 0 | 无 | 批次 5b（可立即） |
-| W0-2 | 冻结值同步（K10Hits 22 → 20） | 台账 §5 + 脚本 `$frozen` 一致 | W0-1 | 同上 |
+| W0-1 | D5 无主 1 处登记归属 | `Check-AgentDataSeparation.ps1 -Check` = EXIT 0 | 无 | ✅ 已完成（2026-09-12） |
+| W0-2 | 冻结值同步（K10Hits 22 → 20） | 台账 §5 + 脚本 `$frozen` 一致 | W0-1 | ✅ 已完成（2026-09-12） |
 | W1-1..9 | 静态槽归零（9 序 / 20 命中 / 15 文件） | `Check-AgentRuntimeSlots.ps1 -Check` 违规 0 且**存量基线逐序下降至 0** | 无（可长期分项推进） | 批次 6 |
 | W2-1 | `vars` ↔ `ur_nodes` 写侧单写 + 投影重算 | 开关关 = 行为等价（全量绿）；开关开 = 故障注入后重启状态与落盘一致 | 无硬依赖（需真实宿主验证面，建议 W1 前若干序完成后） | 批次 6（**单独评审**） |
 | W2-2 | `PayloadJson` ↔ `state.Data` 权威单一化 | 同上；`NodeGraphReconciler` 跨介质缺口 0 | W2-1 同批 | 同上 |
@@ -65,9 +65,9 @@
 
 | # | 议题 | 关联 | 选项 | **建议** | 影响面 / 不可逆性 |
 |---|---|---|---|---|---|
-| **W-DEC-1** | D5「无主数据 1 处」处置 | W0-1 | ① 在 `data-ownership.json` 既有条目 `pattern` 追加 `Agent.Contract/Runtime/AgentRuntimeRoot.cs`（1 行）<br>② 为该回落标记单列一条 `status=pending` 条目<br>③ 仅修正台账 §5 冻结说明、不登记 | **①**：该字段是 A1「取根通道」的回落一次性置位标记（K10 白名单成员），归属 = 条目 `round-state-kv`（根真源解析面）语义最贴；不新增台账行、不改判据逻辑 | 台账冻结值、聚合门禁 EXIT 码；**不可逆度：低** |
+| **W-DEC-1** | D5「无主数据 1 处」处置 | W0-1 | ① 在 `data-ownership.json` 既有条目 `pattern` 追加 `Agent.Contract/Runtime/AgentRuntimeRoot.cs`（1 行）<br>② 为该回落标记单列一条 `status=pending` 条目<br>③ 仅修正台账 §5 冻结说明、不登记 | ✅ **已采纳（2026-09-12）①**：该字段是 A1「取根通道」的回落一次性置位标记（K10 白名单成员），归属 = 条目 `round-state-kv`（根真源解析面）语义最贴；不新增台账行、不改判据逻辑 | 台账冻结值、聚合门禁 EXIT 码；**不可逆度：低** |
 | **W-DEC-2** | 观测事实源唯一化（DEC-1①）时机 | W3-2 | ① 紧跟 W3-2 之后做（`events.jsonl` 降级为导出/投影）<br>② 先冻结两侧查询口径，唯一化推迟到 W6 之后 | **②**：`ObservabilityQuery` 的投影语义不得被库表 schema 改写；先做 W3-2 的 T4 内核下沉（同源化查询面），再谈介质合并 | 观测查询口径、历史事件形态；**不可逆度：中** |
-| **W-DEC-3** | 静态槽「归零」口径 | W1 | ① 仅 `AgentRuntimeRoot`（取根通道）永久保留在白名单，其余基线**清零**<br>② 连取根通道一并迁槽 | **①**：`AgentRuntimeRoot` 是 A1 的进程级取根承载（迁移期载体，白名单已有登记理由），迁它等于取消无根回落语义 | K10 门禁、无根宿主行为；**不可逆度：低** |
+| **W-DEC-3** | 静态槽「归零」口径 | W1 | ① 仅 `AgentRuntimeRoot`（取根通道）永久保留在白名单，其余基线**清零**<br>② 连取根通道一并迁槽 | ✅ **已采纳（2026-09-12）①**：`AgentRuntimeRoot` 是 A1 的进程级取根承载（迁移期载体，白名单已有登记理由），迁它等于取消无根回落语义 | K10 门禁、无根宿主行为；**不可逆度：低** |
 | **W-DEC-4** | API `node.write` 缺省形态（F-63 残余） | W1 后续 | ① 缺省 `NodeTypes.Node`（与执行链单形对齐）<br>② 保持 `NodeTypes.Output` 缺省，仅补文档 | **①**：使 API 写入的节点记录可被执行链读侧（`EnumerateOutputsAsync` 只枚举 `NodeType=node`）读回；显式 `nodeType` 参数仍可覆盖（向后兼容靠显式传参） | API 契约缺省行为；**不可逆度：中**（旧调用方未显式传 `nodeType` 时行为改变，须先全域 grep 调用面） |
 | **W-DEC-5** | 对象槽产物「新代数 ALC 重建」口径 | W1 后 | ① W1 归零后单独立批（新 ALC 重装配 + 槽产物归属断言）<br>② 与 W2 合并 | **①**：该残项的**唯一前置**是静态槽归零（Batch 3）；与写热路径收敛（W2）不同风险面，合并会污染回退粒度 | 换代端到端判据强度；**不可逆度：低** |
 
@@ -79,9 +79,10 @@
 
 | 项 | 内容 |
 |---|---|
-| **现状（实测）** | `Check-AgentDataSeparation.ps1 -Check` = **EXIT 1**：D5 无主 **1 处** = `Agent.Contract\Runtime\AgentRuntimeRoot.cs:128`（`private static int _stateCenterFallbackUsed;`，S1 静态字段）。台账 20 条无匹配 `pattern`；D1 K10 命中 **20**（冻结 **22**）→ 冻结值已失真 |
+| **现状（开工前实测）** | `Check-AgentDataSeparation.ps1 -Check` = **EXIT 1**：D5 无主 **1 处** = `Agent.Contract\Runtime\AgentRuntimeRoot.cs:128`（`private static int _stateCenterFallbackUsed;`，S1 静态字段）。台账 20 条无匹配 `pattern`；D1 K10 命中 **20**（冻结 **22**）→ 冻结值已失真 |
 | **改动点** | ① 按 **W-DEC-1①**：`data-ownership.json` 的 `round-state-kv` 条目 `pattern` 追加 `Agent.Contract/Runtime/AgentRuntimeRoot.cs`（1 行，无逻辑改动）；② 台账 `Agent-DataOwnership.md` §5 冻结表：`K10 存量基线命中 22（16 文件）` → **20（15 文件仍命中 + 1 文件已收敛）**、`D5 无主数据 0` 的表述改为**当前实测 0**（登记后）；③ 脚本 `Check-AgentDataSeparation.ps1` 的 `$frozen.K10Hits` 同步为 20（只允许下降的判据口径不变） |
 | **判据** | ① `Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 全过）② `Check-AgentRuntimeSlots.ps1 -Check` = EXIT 0（基线 20 ≤ 冻结 20）③ 无源码改动 ⇒ 全量测试零回归 |
+| **落地（2026-09-12 实测）** | ① `Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（已登记持有 21 / **无主 0** / 待迁移 11 未回涨）② `Check-AgentRuntimeSlots.ps1 -Check` = EXIT 0（存量基线 20 = 冻结 20 / 违规 0）；另 `Check-DataCenterGenericity` / `Check-SingleWriter`（告警 12）/ `Check-AgentDecisionCoreBoundary` 均 EXIT 0 ③ 改动面 = 台账 `.json` + 台账 `.md` + 脚本 `$frozen`，**零 `.cs` 改动**（`git status` 证实）⇒ 测试零回归 |
 | **回退** | 纯台账/脚本改动，单提交可撤 |
 | **风险** | 低；**注意**：只登记**既有**持有物，不得借机放宽 `$frozen` 兜底 |
 

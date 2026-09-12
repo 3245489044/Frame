@@ -66,7 +66,7 @@
 | **F-09** | 冗余 | `Frame\DataCenter\DataCenter.Core\Roots\RootInstanceGuard.cs:14`（`internal static int LiveCount`）`[已核]` | 公开诊断面**零消费方**（注释称"诊断/判据用"，全库无引用） | `Strategy.RedundancyElimination` 判据（¬∃caller→redundant）成立；建议删除或补一条装配期断言使其有实义 | ⏸ |
 | **F-10** | 冗余 | `AgentStateDomain.cs:60`（`MissingRegistrations`）· `:88`（`IsFullyRegistered`）`[已核]` | 域登记校验函数**零消费方** → **K5（Kind 注册完备）在装配期并未真正执行**，仅靠 `DataCenter.Tests\AgentStateDomainTests` 事后断言 | 冗余 + 判据虚化：装配期自检缺失（域分裂只能在测试里发现） | ✅ 已接线（S4-3：`AgentRuntimeRootBootstrap` 引导前 `IsFullyRegistered` 自检 + `Agent.Launcher.Tests` 断言） |
 | **F-11** | 冗余 `(S4-2)` | `GenerationPayload`（`Frame\DataCenter\DataCenter.Hosting\Hosting\GenerationPayload.cs`，消费点仅 `DataCenterHost.cs:178`）`[已核]` | 跨代载荷**无真实生产/消费方**（`Export`/`Import` 钩子目前仅测试使用）；`Empty` 与 `new GenerationPayload()` 等价 | 预置空壳抽象：若 S4-3 仍无消费方，应显式收窄（明确唯一用途）或降级为内部类型，避免"看起来有机制"的误导 | ⏸ S4-3 判定 |
-| **F-12** | 冗余 | `ExtensionGenerationFactory.Swap`（`Frame\CsharpPrj\Modules\Registry\ExtensionGenerationHost.cs:267`）`[已核]` | **零生产调用方**（仅 `Integration.Tests\ExtensionGenerationTests` 使用） | S4-1 交付未接线；S4-3 已消费 `Generation`（根代际 ↔ 扩展代数对齐），`Swap` 仍未接线（留待换代闭环批次） | 🟡 部分接线（Generation ✅ / Swap ⏸） |
+| **F-12** | 冗余 | `ExtensionGenerationFactory.Swap`（`Frame\CsharpPrj\Modules\Registry\ExtensionGenerationHost.cs:267`）`[已核]` | **零生产调用方**（仅 `Integration.Tests\ExtensionGenerationTests` 使用） | S4-1 交付未接线；S4-3 已消费 `Generation`（根代际 ↔ 扩展代数对齐），`Swap` 仍未接线（留待换代闭环批次） | ✅ 已接线（S4-4b/1d：`AgentRuntimeRootBootstrap.SwapAsync` 生产调用 → 扩展代数与数据代数同序推进；宿主触发点 `AgentSelfHostPlugin.SwapGenerationAsync`） |
 | **F-13** | 冗余 | `AgentRuntimeRoot.cs:89`（`ResetForTesting() => Unbind()`）`[已核]` | 纯转发方法（与 `Unbind` 完全等价） | 低；可并入测试夹具 | ⏸ 低 |
 | **F-14** | 冗余 | `AgentStateDomain.cs:51`（`Default => Apply(GraphRegistry.CreateDefault())`）`[已核]` | 每次属性访问都**新建并重建注册表**；`Resolve`（`:57`）在未绑定时亦每次新建 | 破坏"注册表同源/同实例"前提（`ReferenceEquals` 判据不可用）+ 重复建表开销 | ⏸ 建议惰性单例 |
 | **F-15** | 冗余 | `IRuntimeSlot` 三实现（`HostRuntimeSlot` / `LocalRuntimeSlot`（`AgentRuntimeRoot.cs:102`）/ `EmptyRuntimeSlot`）+ 两个 cell 工厂（`DataCenterHostOptions.RootCellFactory` / `PartitionCellFactory`，`DataCenterHost.cs:113-114`）`[已核]` | 承载面重叠，职责边界仅靠注释区分（"哪个是真路径"不可从类型判断） | 与 F-01 同源；增加新宿主时的选择歧义 | ⏸ 待收敛 |
@@ -132,7 +132,7 @@ var next = state.Next(plan.Fingerprint);   // plan.Fingerprint 为 null → 指�
 | **B5/P1** | F-21：回建亦经装配入口；若决定不修则**显式降级承诺**（文档 + 判据措辞） | 二选一：回建后 `RootFactory` 调用次数 = 2（成功 1 次失败路径 1 次）；或判据改为"值保留 + 代际不前进" | 单提交可撤 |
 | **B6/P1** | F-24：拆两步（先补 `StateCenter` 注入面 + 槽键，再删兜底造根清白名单）**✅ 已完成（S4-4a）** | 步骤 1：注入后 orchestrator 使用注入实例（`ReferenceEquals` 断言）；步骤 2：K9「待迁移」= 0 且 `Agent.Core.Tests` **399/399** —— **实测均已达成** | 两步各自可撤 |
 | **B7/P2** | F-01 · F-02 · F-14 · F-15：抽单一 `IRuntimeSlotPartition` 实现 + `CreateProjector(generation)` + 注册表单例 | `DataCenter.Tests` 不回归；槽语义判据（同键同实例幂等 / 异实例抛 / 处置期逆序释放）集中一处 | 单提交可撤 |
-| **B8/P2** | F-09 · F-10 · F-11 · F-12 · F-13：删/接线冗余公开面 | F-10 接线后：装配期 `IsFullyRegistered` 断言（缺失即抛）；F-12 随 S4-3 接线而消解 | 单提交可撤 |
+| **B8/P2** | F-09 · F-10 · F-11 · F-12 · F-13：删/接线冗余公开面 | F-10 接线后：装配期 `IsFullyRegistered` 断言（缺失即抛）；F-12 **✅ 已接线（S4-4b/1d）** | 单提交可撤 |
 | **B9/P3** | F-22 · F-23 · F-25 · F-26 | F-25：收窄豁免后 K9 重扫仍 EXIT 0（当前无新增违规）；F-26：补一条惰性自举 × 半装配窗口的单测 | 单提交可撤 |
 
 **验证纪律（沿用下一步实施计划 §4）**：任一批次提交前须跑 —— 四套解决方案构建（0 错 0 警）+ 7 个测试工程 + K9/K10 门禁；契约变更后必须刷新烘焙副本（`StateHoldDriven.csproj`）。

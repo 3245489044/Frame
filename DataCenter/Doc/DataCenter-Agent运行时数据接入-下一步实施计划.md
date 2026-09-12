@@ -10,10 +10,10 @@
 
 | 项 | 状态 |
 |---|---|
-| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** —— 明细见进展台账 §2、缺陷清单 §5 |
-| **未完成** | **S4-4b**（= 分离方案 Batch 1c/1d/1e：`RootFactory` 生产注入 + `SwapAsync` 生产触发 + 引导开关默认切开）· S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾） |
-| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **3** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 22）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2） |
-| 测试基线 | DataCenter.Tests **59/59** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **399/399** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** / **S4-4b（批次 5b：换代生产闭环）** —— 明细见进展台账 §2、缺陷清单 §5 |
+| **未完成** | S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾）· 残项：对象槽产物的新代数 ALC 重建（依赖 Batch 3 静态槽归零） |
+| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **3** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 22）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2）；`Check-SingleWriter.ps1` = **EXIT 0**（告警 12 不计失败） |
+| 测试基线 | DataCenter.Tests **65/65** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **399/399** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
 | 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
@@ -24,9 +24,9 @@
 ## 1. 剩余阶段依赖与建议批次
 
 ```
-[S4-2] SwapAsync 接新 ALC ──► [S4-3] 宿主引导 Boot 根 + 注入域表 ──► [S4-4a] 注入面 + K9 归零 ✅ ──► [S4-4b] RootFactory 生产注入 + 触发 + 开关 ──┐
+[S4-2] SwapAsync 接新 ALC ──► [S4-3] 宿主引导 Boot 根 + 注入域表 ──► [S4-4a] 注入面 + K9 归零 ✅ ──► [S4-4b] RootFactory 生产注入 + 触发 + 开关 ✅ ──┐
                                                                                                               ├──► [S5] 收尾
-[S3] A4 双写收敛（独立开关；与上述无依赖，但风险最高）──────────────────────────────────────────────────────────┘
+[S3] A4 双写收敛（独立开关；与上述无依赖，但风险最高）─────────────────────────────────────────────────────────┘
 [S1-④] 对象槽可观测投影（纯新增，可任意穿插）
 [S2] A3b 追踪面（⏸ 阻塞于框架侧 D2/D3：`IDataCenterRoot` 现无 `Trace` 成员 —— 已实测）
 ```
@@ -36,7 +36,7 @@
 | 批次 3 | **S4-2**（`DataCenterHost` 换代接口）**✅ 已完成** | 无外部依赖；`DataCenter.Hosting` **不得**引 `Modules.Registry`（平台层 vs 设施层）→ 经委托注入（`RootFactory` + `RootSwapContext`） |
 | 批次 4 | **S4-3**（宿主引导：PrjBridge 侧 Boot 根 + 注入 `AgentStateDomain` 域表）**✅ 已完成** | 落点由 `FileDriven.Launcher` 修正为 `PrjBridge`（薄启动层零上游静态引用）；实现与判据见进展台账 §2 S4-3。端到端"带着运行数据换代"证据（热换 + ALC 回收）归 S4-4/S5 |
 | 批次 5 | **S4-4a**（状态真源注入面 + K9 待迁移归零）**✅ 已完成** | 落地与设计口径的差异见 §3 S4-4；实测 K9 白名单 3 / 待迁移 **0** / 违规 0 |
-| 批次 5b | **S4-4b**（`RootFactory` 生产注入 + `SwapAsync` 生产触发 + 引导开关默认切开）← **当前批次** | 与分离方案 **Batch 1c/1d/1e** 为同一工作项（方案侧为编排权威）；前置 T3（`CreateCoreRoot`）**✅ 已完成** |
+| 批次 5b | **S4-4b**（`RootFactory` 生产注入 + `SwapAsync` 生产触发 + 引导开关默认切开）**✅ 已完成（2026-09-12）** | 与分离方案 **Batch 1c/1d/1e** 为同一工作项；落地与判据见 §3 S4-4b 行 + 进展台账 §2 |
 | 批次 6 | **S3**（A4 双写收敛） | 风险最高：独立开关（默认关）+ 故障注入 + 单独评审 |
 | 可穿插 | **S1-④**（对象槽只读投影） | 纯新增、可独立提交 |
 | 待排期 | **S2**（A3b） | 前置 = 框架侧 D2/D3 |
@@ -105,13 +105,17 @@
 | **回退** | 每处独立提交；回落真源在 Frame 侧独立提交；白名单删行与代码分离提交 |
 | **风险** | 中（改动面在 Agent.Core 组合点与节点执行入口）—— 已实测零回归 |
 
-### S4-4b · 换代生产闭环（`RootFactory` 注入 + 触发 + 开关）← 当前批次
+### S4-4b · 换代生产闭环（`RootFactory` 注入 + 触发 + 开关）**✅ 已完成（2026-09-12）**
 
 | 项 | 内容 |
 |---|---|
 | **权威** | 步骤/判据/回退以 `Projects\Plug\Agent\doc\Agent数据与代码分离-架构整理与通用化方案.md` §7 **Batch 1c/1d/1e** 为准（本文件不重复定义） |
-| **前置（已解除）** | **T3**：`DataCenterHost` 抽 `CreateProjector` 单一工厂 + 公开 `CreateCoreRoot(IStateGeneration)` —— 宿主 `RootFactory` 可委派 `ctx => host.CreateCoreRoot(ctx.Generation)`，复用同一装配口径（关 F-02）；实测 `DataCenter.Tests` **59/59** |
-| **判据（要点）** | ① 换代后槽对象类型来自新代数 ALC；跨 ALC 契约同一实例断言 ② 触发一次换代 → 同 scope 值 / `Seq` 连续 + 旧 ALC `WeakReference.IsAlive == false`（消 F-12）③ 引导开关**关** = 旧行为（回落本地容器）仍绿；**开** = 走根路径 |
+| **前置（已交付）** | **T3**：`DataCenterHost` 抽 `CreateProjector` 单一工厂 + 公开 `CreateCoreRoot(IStateGeneration)` —— 宿主 `RootFactory` 委派 `bootstrapped.CreateCoreRoot(ctx.Generation)`，复用同一装配口径（关 F-02）；实测 `DataCenter.Tests` **59/59** |
+| **落地（实测）** | ① **1c**：`AgentRuntimeRootBootstrap` Boot 注入 `RootFactory`（缺省委派 `CreateCoreRoot`；可覆写以在新扩展代数 ALC 内重建对象槽产物）+ 引导后把宿主真源登记进 `agent` 分区 `state-center` 键（通道 A 生产挂根）② **1d**：新增 `AgentRuntimeRootBootstrap.SwapAsync(GenerationPlan?, ct)`（扩展代数 `Swap` → 数据代数换根 → 旧代数 `Unload`；`SemaphoreSlim` 串行化）+ 薄重载 `SwapGenerationAsync(ct)`；宿主触发点 `PrjBridge.Agent.AgentSelfHostPlugin.SwapGenerationAsync(ct)`（消 F-12）③ **1e**：开关缺省**开**（仅 `AGENT_DATACENTER_ROOT=0\|false` 关） |
+| **判据（实测）** | ① `DataCenter.Tests` **59 → 65/65**（+6：开关默认切开语义 / 宿主真源登记进根分区 + Agent 侧读路径命中 / 换代双代数同序推进 + 真源复用（同 scope 值连续、`ReferenceEquals` 真源）/ 注入装配入口被采用 + `RootSwapContext` 校验 / 旧扩展代数卸载（ALC 卸载态可观测）/ 未引导换代 fail-fast）② 回归零变动（73 / 399 / 84 / 21 / 30 / 30+1）③ 开关**关** = 旧行为（回落本地容器）仍绿 ④ 五处构建 0 错 0 警 + 四门禁 EXIT 0 |
+| **实测修正（诚实边界）** | 「换代后槽对象类型来自新代数 ALC」需 **Agent 框架在新代数重装配**（依赖 Batch 3 静态槽归零），本批只交付装配入口（`RootFactory` 覆写点）+ 数据跨代连续 + 旧 ALC 卸载；「旧 ALC `WeakReference.IsAlive == false`」在进程内**不可达**（实测引用根不在本批代码内，工厂复位 + 宿主停机后仍存活）→ 端到端判据取「卸载态可观测」（`Unload` 后禁止再装载），机制面回收判据仍由 `Integration.Tests` 覆盖 |
+| **回退** | 1e 置 `AGENT_DATACENTER_ROOT=0`（或 `Enabled=false`）即回旧路径；1c/1d 单文件可撤（`RootFactory` 留空 = A0 路径） |
+| **风险** | 中（触及宿主启动默认路径 + 换代触发面；不触碰真源后端与 CSG schema） |
 
 ### S3 · A4 双写收敛（风险最高，独立开关）
 

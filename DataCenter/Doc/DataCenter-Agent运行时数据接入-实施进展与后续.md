@@ -19,6 +19,7 @@
 | **S4-3** 宿主引导注入根（批次 4） | ✅ 完成 | 见本次提交（Projects：PrjBridge + Agent；Frame：文档） | `DataCenter.Tests` **58/58**（新增 2 项引导判据）、`Agent.Launcher.Tests` **30/30**（新增 2 项注入面判据）；`Agent.sln`/`FileDriven.sln`/`PrjBridge.csproj` 均 **0 错 0 警**；回归零变动（73/396/84/21/30+1）；K9/K10 **EXIT 0**；`Check-BakeFramework.ps1` #2 为既有工具问题（非本步引入） |
 | **S4-4a** 状态真源注入面 + K9 待迁移归零（批次 5） | ✅ 完成 | Frame `ff5da13`/`73f3773`；Projects `46ac754`/`5431283`；主仓 `cd5a3eb` | K9 白名单 3 / 待迁移 **0** / 违规 0 → **EXIT 0**；`Agent.Core.Tests` **396 → 399**（+3 注入面断言）；`Agent.Launcher.Tests` 30/30、`DataCenter.Tests` 58/58、`Integration.Tests` 30+1；`Agent.sln`/`FileDriven.sln`/`MainProj.sln`/`PrjBridge` 全 **0 错 0 警**；`Check-AgentDataSeparation -Check` **EXIT 0**（D5 疑似持有 24 → 22） |
 | **T3** 投影器装配单一工厂（关 F-02） | ✅ 完成 | Frame `2520832`；Projects `b984950`；主仓 `b231b8f` | `DataCenter.Tests` **58 → 59**（新增「首建/换代同投影器实例」断言）；`StateHoldDriven.Tests` 73/73；`DataCenter.slnx`/`MainProj.sln`/`Agent.sln`/`FileDriven.sln` 全 **0 错 0 警**；四门禁 EXIT 0 |
+| **S4-4b** 换代生产闭环（`RootFactory` 注入 + `SwapAsync` 触发 + 开关默认切开） | ✅ 完成 | 见本次提交（Projects：Agent 侧 + PrjBridge；Frame：文档；主仓：判据） | `DataCenter.Tests` **59 → 65/65**（新增 6 项：开关默认切开语义 / 宿主真源登记进根分区 + Agent 侧读路径命中 / 换代双代数同序推进 + 真源复用 / 注入装配入口被采用 + 上下文校验 / 旧扩展代数卸载〔ALC 卸载态可观测〕 / 未引导换代 fail-fast）；回归零变动（73/399/84/21/30/30+1）；`DataCenter.slnx`/`Agent.sln`/`FileDriven.sln`/`MainProj.sln`/`PrjBridge` 全 **0 错 0 警**（薄输出保持）；K9 白名单 3 / 待迁移 0 / 违规 0、K10 457 文件 / 新增 0 / 基线 22 / 违规 0、D1–D5 与单写者均 **EXIT 0** |
 
 ## 2. 已落地实现要点
 
@@ -103,6 +104,16 @@
 - **判据（实测）**：`DataCenter.Tests` **59/59**（新增 `CoreRootFactory_SingleAssemblyPath_BootAndSwapShareSameProjector`：注入投影器在首建与换代两路径同实例）；既有 `SwapAsync_WithInjectedRootFactory` / `SwapAsync_DuringRebindWindow` 两用例改用 `CreateCoreRoot` 后继续通过（证明「委派即合法交出物」）；`StateHoldDriven.Tests` 73/73；四门禁 EXIT 0。
 - **意义**：为 S4-4b（1c）扫清障碍 —— 宿主 `RootFactory` 无需重复装配表达式即可交出合法新代数根。
 
+### S4-4b（换代生产闭环：1c/1d/1e，2026-09-12）
+- **1e 开关默认切开**：`AgentRuntimeRootBootstrap.Enabled` 缺省由「关」改为**开** —— 仅显式 `AGENT_DATACENTER_ROOT=0|false` 关闭（关 = 返回 `null`，装配侧回落进程本地容器，等价存量路径）；环境变量读取失败按开处理（不因环境异常静默失去根）。语义反转点 `ReadEnvSwitch`（原「显式 1/true 才开」）。
+- **1c 生产注入装配入口**：`TryBoot` 的 `DataCenterHostOptions.RootFactory` 不再留空 —— 注入 `context => (RootFactory ?? DefaultRootFactory)(context)`；`DefaultRootFactory` 委派新增公开 `CreateCoreRoot(IStateGeneration)`（T3 同一装配口径，不在宿主侧重复投影器表达式），宿主可覆写 `RootFactory` 属性在该入口内于**新扩展代数 ALC** 中重建对象槽产物（重建落点 = `RootSwapContext.Slots`）。
+- **1c-补 通道 A 挂根（生产路径）**：原先生产装配不注入 `StateCenter`（S4-4a 只落地注入面），`ResolveStateCenter()` 实际走回落真源。现由引导侧在 Boot 后把宿主真源登记进 Agent 域分区（`state-center` 键，`Replace` 语义）⇒ 「开 = 走根路径」对通道 A 真正成立；换代复用同一槽承载 ⇒ 该登记跨代延续（不产生第二份真源）。
+- **1d 换代触发接线（消 F-12）**：新增 `AgentRuntimeRootBootstrap.SwapAsync(GenerationPlan?, ct)` —— ① `ExtensionGenerationFactory.Swap(当前清单)`（扩展代数 N→N+1，返回旧代数）→ ② `DataCenterHost.SwapAsync(plan)`（数据代数同序推进，经注入装配入口）→ ③ 旧扩展代数 `Unload()`；`SemaphoreSlim(1,1)` 串行化换代。失败语义显式声明：根已由宿主回建旧代数（真源连续、值不丢）并外抛；扩展代数**不回滚**、旧 ALC 不卸载（工厂无回退语义）。另设 `SwapGenerationAsync(ct)` 薄重载（签名不含 `DataCenter.Hosting` 类型）供宿主薄启动层触发，避免桥层为单一触发点引入引用。
+- **1d 宿主触发点**：`PrjBridge.Agent.AgentSelfHostPlugin.SwapGenerationAsync(ct)`（宿主侧组合根唯一触发点；成功返回当前自读 Readiness，失败返回 `NotReady` 归因且**不改变**已装配可用性）。
+- **判据（实测）**：`DataCenter.Tests` **65/65**（59 → 65，新增 6 项，见 §1 总览行）；`StateHoldDriven.Tests` 73/73、`Agent.Core.Tests` 399/399、`Agent.Axioms.Tests` 84/84、`Agent.Runtime.Tests` 21/21、`Agent.Launcher.Tests` 30/30、`Integration.Tests` 30+1；`DataCenter.slnx`/`Agent.sln`/`FileDriven.sln`/`MainProj.sln`/`PrjBridge` 全 0 错 0 警（PrjBridge 薄输出保持：bin 仅 dll/pdb/deps.json/runtimeconfig.json）；K9/K10/`Check-AgentDataSeparation`/`Check-SingleWriter` 四门禁 **EXIT 0**。
+- **实测发现（诚实边界，写入判据注释）**：换代后旧扩展代数 ALC 的**卸载**可观测（`Unload` 后向其装载抛 `InvalidOperationException: AssemblyLoadContext is unloading or was already unloaded`），但**运行时回收（`WeakReference.IsAlive == false`）在进程内不可达** —— 实测旧代数宿主对象在「工厂复位 + 宿主停机 + 强制 GC」后仍存活（引用根不在本批新增代码内），对齐既有诚实边界 R-3/R-4「可收集 ≠ 必然回收」。故端到端判据取「卸载态可观测」，机制面回收判据仍由 `Integration.Tests\ExtensionGenerationTests` 覆盖。
+- **未纳入本批（依赖 Batch 3）**：对象槽产物类型的**新代数 ALC 重建**（= Agent 框架在新代数重装配）需先完成 16 项静态槽归零；本批交付的是换代机制的生产接线 + 数据跨代连续 + 旧 ALC 卸载（`RootFactory` 即宿主重建入口）。
+
 ## 3. 后续步骤
 
 > **权威**：下一步的**步骤 / 改动点 / 判据 / 回退 / 提交粒度**以 `DataCenter-Agent运行时数据接入-下一步实施计划.md` 为唯一权威（含 D-批次序 / D-S42 / D-S43 / D-A4 / D-A5 决策点与 S4-2–S5 明细）。此处仅保留阶段级状态与阻塞原因，避免两处重复维护。
@@ -113,8 +124,8 @@
 | **A3a-2** 域扩展工程（域 Keys + 域投影） | ✅ 完成（实现要点见 §2 A3a-2） | ④ 对象槽可观测投影未落地（独立提交，待排期） |
 | **A3b** `TraceStamp` + `ITraceQuery` | ⏸ 阻塞 | 前置 = 框架侧 **D2/D3** 追踪面契约入 Protocol（见 `DataCenter-可追踪数据流图框架-设计与实施.md` §7 D2/D3） |
 | **A4** 双写收敛 | ⏸ 未开始 | 风险最高：须独立开关（默认关）+ 故障注入 + 单独评审 |
-| **A5** 换代闭环 | 🚧 **S4-1 / S4-2 / S4-3 / S4-4a 已完成**（见 §2 各条）；**S4-4b 待做** | S4-3/S4-4a 已解除；S4-4b 前置 **T3 已交付**（`CreateCoreRoot`） |
-| **S4-4b** `RootFactory` 生产注入 + `SwapAsync` 触发 + 引导开关默认切开 | ⏸ 未开始（= 分离方案 Batch 1c/1d/1e） | 步骤权威见 `Projects\Plug\Agent\doc\Agent数据与代码分离-架构整理与通用化方案.md` §7；风险 = ALC 边界（R-2）+ 默认路径切换（R-7） |
+| **A5** 换代闭环 | ✅ **A5-1 / A5-2 / S4-3 / S4-4a / S4-4b 已完成**（见 §2 各条） | 后续强化（对象槽产物新代数 ALC 重建）依赖 Batch 3 静态槽归零 |
+| **S4-4b** `RootFactory` 生产注入 + `SwapAsync` 触发 + 引导开关默认切开 | ✅ 完成（= 分离方案 Batch 1c/1d/1e，2026-09-12） | 见 §2 S4-4b；残项 = 框架重装配（Batch 3） |
 
 ## 4. 复用命令清单
 

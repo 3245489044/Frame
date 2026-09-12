@@ -38,6 +38,7 @@
 | 双写（未收敛） | ① `NodeExecutionService.cs:254 vars.Set(...)` ↔ `:265 PersistAsync`（写侧双写仍在）② `RoundStateMapper.cs:117 Harvest` → `:124 state.Data[key] = v!`（`:132` 注释自述 ur_nodes 权威、`state.Data` 仅派生缓存） |
 | 追踪面（阻塞） | `IDataCenterRoot` 成员实测 = `Root` / `Projector` / `Registry` / `Generation` / `Slots` —— **无 `Trace` 成员**（S2 前置 D2/D3 未落地） |
 | 已确立不变量（实施须保持） | ① 根已绑 ⇒ 槽键 `state-center` 必须已登记 ② 状态真源出现**不同实例** ⇒ 装配期 fail-fast ③ 轮内 `Transient` 只按 **round scope** 清理 ④ 决策**观测契约词表**与**骨架词表**互不混用 ⑤ 会话作用域锚 = 稳定 `task_id` ⑥ 域别名须在 `DataCenterHost.Boot` **之前**并入注册表 ⑦ 对象槽值寄存根分区（F-65），未绑根回落进程本地容器 |
+| **阶段 A 后实测（2026-09-12）** | 测试：Core **414/414**（+9）· Persistence **93/93**（+5）· Api **35/35**（+1），其余 10 工程不变（Axioms 86 / Launcher 37 / Runtime 21 / Session 20 / Modules 20 / Operation 47 / Observe 11 / Guardrails 10 / Api.Contract 22 / McpRegistryHost 19）；门禁：五道全 **EXIT 0**（`Check-SingleWriter` 新增 E/F 项，告警仍 8）；构建：`Agent.sln` / `PrjBridge` / `MainProj.sln` 各 **0 错 0 警**。逐项证据见 `DataCenter-Agent运行时数据接入-数据流聚拢点阶段A落地记录.md` |
 
 ---
 
@@ -178,15 +179,17 @@
 
 | 聚拢点 | 内容（一句话） | 本文件批次 | 状态 |
 |---|---|---|---|
-| **DP-1** | `ur_nodes` 写路径收敛为 1（消除 `RoundStepInvoker` 旁路） | **W2-1 前置** | ⏸ 待做 |
-| **DP-2** | 节点记录构造经唯一 Codec（含 W-DEC-4 缺省形归位） | W-DEC-4 + W2-2 | ⏸ 待做 |
-| **DP-3** | 跨轮状态 KV 单写 + 投影重算 | **W2-2**（= W2-2 数据面表述） | ⏸ 待做 |
-| **DP-4** | 任务快照权威单一（`ur_tasks`） | W2-2 同批 | ⏸ 待做 |
+| **DP-1** | `ur_nodes` 写路径收敛为 1（消除 `RoundStepInvoker` 旁路） | **W2-1 前置** | ✅ **已落地（2026-09-12）**：`NodeExecutionService.WritePortAsync` 单点入口（同一 `WriteCoordinator` + writer 名）；`Check-SingleWriter` 新增 E 项（旁路调用点 = 0；白名单 1 = DP-1-R1）；`Agent.Core.Tests` 408/408 |
+| **DP-2** | 节点记录构造经唯一 Codec（含 W-DEC-4 缺省形归位） | W-DEC-4 + W2-2 | ✅ **已落地（2026-09-12）**：`NodeOutputCodec.EncodeExternal` 单形归一口；4 处构造点改经 Codec；API 缺省形 → `NodeTypes.Node`；`Agent.Persistence.Tests` 93/93 · `Agent.Api.Tests` 35/35 |
+| **DP-3** | 跨轮状态 KV 单写 + 投影重算 | **W2-2**（= W2-2 数据面表述） | ✅ **已落地（2026-09-12，开关默认关）**：`EnableUnifiedStateWrite`（W2-0）+ 收敛点1（写侧单写/读侧投影重算）+ 收敛点2（`StateProjection` 轮边界单点提交）；开关关 = 13 工程全绿；两侧断言见 `AgentRunnerStateProjectionTests` |
+| **DP-4** | 任务快照权威单一（`ur_tasks`） | W2-2 同批 | ✅ **已落地（2026-09-12）**：会话侧唯一门面 `NodeWritePipeline.UpdateSnapshotAsync`；`Check-SingleWriter` 新增 F 项（会话流水线不得直调 `UpdatePayloadAsync`） |
 | **DP-5** | 决策记录面收敛为 1 | W3-2 + W-DEC-2 | ⏸ 待做 |
 | **DP-6** | 观测事件收敛为 1 条流（`ScopeId=RunId`） | W3-2 → W3-3 | ⏸ 待做（W3-3 阻塞） |
 | **DP-7** | `ur_histories` 写入口收敛 | W4/W5 后 | ⏸ 待做 |
 | **DP-8** | `ur_outputs` 写入口收敛 | W4/W5 后 | ⏸ 待做 |
 | **DP-0.x** | 既成聚拢点 9 项（写门/单写通道/边 owner/引用门面/域登记/取根/槽键/台账/决策投影） | — | ✅ 已成立（回归门禁化，不得重造） |
+
+**阶段 A 落地记录（2026-09-12）**：见 `DataCenter-Agent运行时数据接入-数据流聚拢点阶段A落地记录.md`（含逐项改动文件 / 判据实测 / 提交 / 剩余项）。
 
 **纪律**：① 任一 DP 项落地后，须回聚拢点分析 §2.1 更新散点计数（保留原值以便对比）并回写本节状态列；② `DP-0.x` 属既有权威单点，任何新实现必须复用（`SingleImplementation` / TH-12）。
 

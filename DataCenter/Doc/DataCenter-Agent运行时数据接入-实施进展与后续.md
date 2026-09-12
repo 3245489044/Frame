@@ -143,3 +143,21 @@ pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check 
 pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10
 ```
 
+
+
+### B26 + B27 · 第四轮余项收敛（F-61/F-62/F-63/F-64/F-65/F-66/F-67/F-70，2026-09-12，单提交）
+
+| 子项 | 内容 | 判据 |
+|---|---|---|
+| B26-1（F-62） | 会话完成**单次 upsert**：删 `FinalizeAsync` 二次 `WriteStatusAsync` | `ConversationFinalizeSingleWriteTests`（Update=1 / Status=0） |
+| B26-2（F-66） | 确定性核心**边界化**（注释 + 新门禁 `Check-AgentDecisionCoreBoundary.ps1`，不删代码） | 门禁 EXIT 0（494 文件 / 违规 0） |
+| B26-3（F-63） | **取证结案**：执行链已单形（`NodeType=node` + 内嵌 `Outputs`）；残余 = API `node.write` 缺省形；注释按实证改写 + 读一致性判据 | `NodeOutputStoreTests.ReadView_TaskScoped_...`；Persistence 88/88 |
+| B27-1（F-61） | 删死实现 `SnapshotSerializer` + 3 测试消费点；`ur_snapshots` 表路由保留 | grep 命中 0；Core 405/405 |
+| B27-2（F-64） | 观测双源**分工声明**（零行为改动）+ 设计文档 §10 | Observe 11/11 |
+| B27-3（F-65） | UI 宿主 9 对象槽改**根分区承载**（`RootSlot<T>` + 9 槽键，未绑根回落本地容器） | `AgentUiSlotRootPartitionTests`；Launcher 37/37 |
+| B27-4（F-67） | 删未落地槽键 `Database`/`Prompt` | grep 命中 0；Agent.sln 0/0 |
+| B27-5（F-70） | 词种分工 + 覆盖断言 + `Reset/Clear` 语义表 | `DecisionSurfaceWordCoverageTests`；Core 405/405 |
+
+**统一验证**：`Agent.sln` 0/0 · `PrjBridge.csproj` 0/0 · 13 测试工程全绿（Core 405 / Launcher 37 / Persistence 88 / DataCenter 95 / 其余同上级 §0）· 四门禁全过。
+**实测偏差**：① F-63"写两形"已过期（执行链单形，残余在 API 写路径）② F-61"零消费方"仅对生产代码成立（测试 3 处，已删）③ F-65 的 `Framework` 槽此前已在根分区，本次收敛 `Attach*` 系列 9 槽。
+

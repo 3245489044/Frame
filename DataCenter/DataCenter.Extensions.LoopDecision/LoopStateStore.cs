@@ -28,6 +28,10 @@ public readonly record struct CoreStateView(
 /// 最后由 <see cref="Save"/>（唯一写口）提交回 Center。导演/边界持 <see cref="View"/> 只读投影。
 /// 不复制裁决逻辑（R7，裁决唯一权威仍在 Share.TaskStatusPool.Loops）。
 /// 对应文档 2026-09-04 StateHoldDriven §3.2 LoopStateStore / StateBackedLoopState。
+/// <para>
+/// 消费边界（F-66 边界化）：消费方 = StateHoldDriven 宿主线，Agent 侧零调用（Agent 运行期内核 =
+/// <c>AgentTaskItem</c>；Agent 经 <c>DecisionCenter.Record</c> 只写审计快照）。跨仓消费方取证前**不得删除本类**。
+/// </para>
 /// </summary>
 public sealed class LoopStateStore
 {

@@ -348,3 +348,18 @@ A0 Hosting（根由 Frame\DataCenter 持有）──▶ A1 槽清单 + 去静态
 
 
 
+
+## 10. 观测事实源分工（F-64 / DEC-1 采纳②，2026-09-12）
+
+> 结论：**保留双源、显式分工**；唯一化（DEC-1①）待消费方清单稳定后再落地，本阶段零行为改动。
+
+| 侧 | 真源 | 介质 / schema | 消费方（实测） | 保留策略 |
+|----|------|---------------|----------------|----------|
+| **语义观测** | `Agent.Observe` 事件区（`events.jsonl`） | append-only JSONL；`entity/eventKind` 语义契约（`observability_semantics.json`） | `ObservabilityQuery`（Timeline/EntityChain/Aggregate）、UI 语义时间线、`AgentTrace` 埋点、`ObserveTerminalSink`（宿主注入的终端回声） | 文件追加，进程内唯一；`ShutdownAsync` 前 `FlushAsync` 排空 |
+| **运行事件** | `Agent.Core.DataStream.EventSink` → `ur_events`（`IZoneStore`） | 库表；`EventRecord{ThreadId,EventType,EventKey,PayloadJson,CreatedAt}` | 运行事件查询/重放、反应式触发（`ReactiveTrigger` 订阅）、诊断脚本 | 有界缓冲 + 后台批写（at-least-once，重放/幂等兜底） |
+
+**边界纪律**：
+1. 两侧**不得互相冒充**：语义埋点不得写入 `ur_events` 冒充运行事件；运行事件不得写入语义事件区充当语义时间线。
+2. 装配点：语义侧 `AgentFrameworkHosting.TryArmObservabilityAsync`（fail-safe，失败只记 `ObserveArmError`）；运行侧 `DataStoreHosting.RegisterReactive`（`EventSink` 注册进编排器释放链）。
+3. 唯一化方向（DEC-1①，未实施）：以 `ur_events` 为唯一真源、文件事件区降级为导出/投影；落地前须先冻结两侧查询口径（`ObservabilityQuery` 的投影语义不得被库表 schema 改写）。
+

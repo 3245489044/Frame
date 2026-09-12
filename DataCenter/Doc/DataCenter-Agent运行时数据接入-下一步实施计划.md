@@ -10,10 +10,10 @@
 
 | 项 | 状态 |
 |---|---|
-| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** / **S4-4b（批次 5b：换代生产闭环）** —— 明细见进展台账 §2、缺陷清单 §5 |
-| **未完成** | S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾）· 残项：对象槽产物的新代数 ALC 重建（依赖 Batch 3 静态槽归零） |
-| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **3** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 22）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2）；`Check-SingleWriter.ps1` = **EXIT 0**（告警 12 不计失败） |
-| 测试基线 | DataCenter.Tests **65/65** · StateHoldDriven.Tests **73/73** · Agent.Core.Tests **399/399** · Agent.Axioms.Tests **84/84** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **30/30** · Integration.Tests **30 通过 / 1 跳过** |
+| **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** / **S4-4b（批次 5b：换代生产闭环）** / **B26+B27（第四轮余项：F-61/F-62/F-63取证/F-64分工/F-65/F-66边界/F-67/F-70，2026-09-12 单提交）** —— 明细见进展台账 §2、缺陷清单 §5 |
+| **未完成** | S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾）· 残项：① 对象槽产物的新代数 ALC 重建（依赖 Batch 3 静态槽归零）② **静态槽退役**（B27-3 只承诺"UI 面读到根分区同一实例 + 换代可见新代数产物"，退役属独立工作项）③ API `node.write` 缺省形态与执行链单形的口径收敛（F-63 残余，另立编号） |
+| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **4** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 **20**，AgentUiHost 静态槽已收敛出基线）；`Check-AgentDecisionCoreBoundary.ps1 -Check` = **EXIT 0**（B26-2 新增：494 文件 / 违规 0）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2）；`Check-SingleWriter.ps1` = **EXIT 0**（告警 12 不计失败） |
+| 测试基线 | DataCenter.Tests **95/95** · Agent.Core.Tests **405/405** · Agent.Axioms.Tests **86/86** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **37/37** · Agent.Persistence.Tests **88/88** · Agent.Session.Tests **20/20** · Agent.Modules.Tests **20/20** · Agent.Operation.Tests **47/47** · Agent.Observe.Tests **11/11** · Agent.Guardrails.Tests **10/10** · Agent.Api.Tests **34/34** · Agent.Api.Contract.Tests **22/22** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
 | 既有缺陷（**非本线引入**） | `Environment\CentralTest\CSharpTest\Share.Tsets\Registry.Tests\AutoRegisterTests.cs` 引用 `Share.Registry.AutoRegister.*`，源码实为 `Modules.Registry.AutoRegister.*` → 该测试工程**编译失败**（Frame `02d9b20` 遗留）。**建议**：独立小提交把 `using Share.Registry.` → `Modules.Registry.`，随后纳入回归集（见 S5-5） |
@@ -52,6 +52,11 @@
 
 ---
 
+> **第四轮余项（B26 · B27）**：`F-61`~`F-67` / `F-70` 的"怎么做"已独立为**下位子计划** ——
+> `DataCenter-Agent运行时数据接入-第四轮剩余收敛计划.md`（含 DEC-1..DEC-6 决策点、逐子项改动点/判据/回退、建议执行顺序）。
+> **该子计划中未决的 DEC 不得视为已定**；缺陷事实仍以缺陷清单为准。已完成批次 **B22–B25**（`F-55`~`F-60`/`F-68`/`F-69`）的实测基线见子计划 §0.2。
+> 基线变化：`Agent.Core.Tests` **404/404** · `Agent.Axioms.Tests` **86/86** · `Agent.Launcher.Tests` **34/34** · `DataCenter.Tests` **95/95** · 宿主 `PrjBridge` 构建 0 错 0 警 · K9 违规 0 / 待迁移 0。
+
 ## 2. 开工前决策点（需确认）
 
 | # | 议题 | 选项 | 建议 | 影响面 |
@@ -61,6 +66,7 @@
 | **D-S43** | 宿主引导开关默认值 | ① 默认**关**（现行为：Agent 回落本地容器）② 默认开 | **①**：与 A1「根未绑定 → 回落进程本地容器」语义一致；先开关验证再切默认 | 宿主启动路径、回归面 |
 | D-A4 | A4 收敛开关形态 | ① `AgentConfig` 布尔（默认关）② project.md 参数 ③ 环境变量 | **①**：与 `AgentConfig.EnableTaskPool`（`Agent.McpRegistryHost\Configuration\AgentConfig.cs:128`）同构 | S3 的失效注入与回退路径 |
 | D-A5 | 换代期间是否承诺零请求失败 | ① 不承诺 ② Drain 超时后拒绝新写 | **①（已采纳；S4-2 落地：`Resume` 于 finally 放行写入，不承诺零停机）**（对齐架构设计 §8） | S4-2/S4-3 的 Drain/Resume 语义 |
+| **D-第四轮余项** | 第四轮余项收敛方向（观测事实源 / 对象槽真源 / `ur_nodes` 读写形态 / 死实现处置 / 未落地槽键 / 词表关系） | 见子计划 §1 的 **DEC-1..DEC-6**（各含 2–3 选项） | **已采纳（2026-09-12）**：DEC-1②（先分工，①为目标态）· DEC-2①（根分区承载 + 回落）· DEC-3（**取证结案**：执行链已单形，残余在 API `node.write`，形态收敛另立编号）· DEC-4① · DEC-5① · DEC-6②；落地记录见子计划 §8 | 观测查询口径、UI 槽真源、`ur_nodes` 数据形态、公开面清理 |
 
 ---
 

@@ -8,6 +8,12 @@ namespace Operation.StateBlock.Decision;
 /// 域命名空间经 <see cref="StateLayerScheme.ForDomain"/> 三段展开（StateBlock.Decision.Config/.Session/.Transient），
 /// scope 由调用方给定（宿主侧用任务/sessionId）；本类仅承载键名与 scheme，不含 Agent 依赖。
 /// 对应文档 2026-09-04 StateHoldDriven §2.2 LoopKeys / §3.2。
+/// <para>
+/// 消费边界（F-66 边界化，禁止越界接线）：本键族消费方 = StateHoldDriven 宿主线
+/// （<c>StateDrivenRoundLifecycle</c> / <see cref="LoopStateStore"/>）。Agent 侧**不接线** ——
+/// Agent 运行期内核 = <c>AgentTaskItem</c>（内存 ILoopState），Center 侧审计快照 = <c>DecisionCenter.Record</c>；
+/// 门禁 <c>PowerShellScript/Operation/DSL/Check-AgentDecisionCoreBoundary.ps1</c> 断言产品侧零引用。
+/// </para>
 /// </summary>
 public static class LoopKeys
 {

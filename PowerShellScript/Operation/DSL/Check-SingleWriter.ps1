@@ -130,6 +130,17 @@ if (-not $bypassHits -and $ShowDetail)
     Write-Host "OK(E): ur_nodes 端口写调用点仅 NodeExecutionService（经确定性写门），白名单 $($nodePortWriteWhitelist.Count) 项。"
 }
 
+# F. 会话侧任务快照写（ur_tasks）必须经会话读写收敛点门面（DP-4）：会话流水线不得直调 IConversationStore.UpdatePayloadAsync。
+#    合法写者分工：轮内 = AgentRunner.PersistRuntimeAsync；池状态 = AgentTaskPool.ApplySnapshotStatusAsync；API 归属 = ITaskPoolPersistence 端口。
+$conversationPipelineFiles = @('ConversationPipeline.cs', 'ConversationCentralPipeline.cs')
+$snapshotBypass = $agentSrcFiles |
+    Where-Object { $conversationPipelineFiles -contains $_.Name } |
+    Select-String -Pattern '_store\.UpdatePayloadAsync\(' -ErrorAction SilentlyContinue
+foreach ($h in $snapshotBypass)
+{
+    $violations.Add("会话侧任务快照写旁路收敛点门面（DP-4）$($h.Path):$($h.LineNumber)")
+}
+
 foreach ($w in $warnings)
 {
     if ($ShowDetail) { Write-Host "WARN: $w" -ForegroundColor Yellow }

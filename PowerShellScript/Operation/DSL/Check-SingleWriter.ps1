@@ -114,6 +114,22 @@ foreach ($pat in @('lock (Gate)', 'lock(Gate)', 'SqliteWriteGate.Run'))
     }
 }
 
+# E. 节点输出端口写（ur_nodes）必须经确定性写门（DP-1）：端口写调用点只允许集中在 NodeExecutionService（写门持有者）。
+#    白名单 = 已登记剩余项（AgentUiLibraryConversation：UI 会话节点直写，待共享写门注入面落地后移出，见数据流聚拢点分析 DP-1-R1）。
+$nodePortWriteWhitelist = @('AgentUiLibraryConversation.cs')
+$agentSrcFiles = $csFiles | Where-Object { $_.FullName -match '\\Projects\\Plug\\Agent\\src\\' }
+$bypassHits = $agentSrcFiles |
+    Where-Object { $_.Name -ne 'NodeExecutionService.cs' -and $nodePortWriteWhitelist -notcontains $_.Name } |
+    Select-String -Pattern '\.WriteOutputAsync\(' -ErrorAction SilentlyContinue
+foreach ($h in $bypassHits)
+{
+    $violations.Add("节点输出端口写旁路确定性写门（DP-1）$($h.Path):$($h.LineNumber)")
+}
+if (-not $bypassHits -and $ShowDetail)
+{
+    Write-Host "OK(E): ur_nodes 端口写调用点仅 NodeExecutionService（经确定性写门），白名单 $($nodePortWriteWhitelist.Count) 项。"
+}
+
 foreach ($w in $warnings)
 {
     if ($ShowDetail) { Write-Host "WARN: $w" -ForegroundColor Yellow }

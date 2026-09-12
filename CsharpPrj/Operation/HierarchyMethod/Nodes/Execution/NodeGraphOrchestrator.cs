@@ -12,11 +12,16 @@ using Share.TaskStatusPool.Loops;
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
 /// <summary>
-/// 节点图编排器（Nodes 层编排收敛，零 LLM）：按工作流（<see cref="RoundSpec"/> 节点集）顺序列表，
-/// 委托注入的 <see cref="INodeExecutor"/> 执行节点 → 横切 <see cref="INodeExecutorHooks"/>（onAfterStep / onStepError）
+/// 节点图编排器（Nodes 层**唯一轮骨架**，零 LLM）：按工作流（<see cref="RoundSpec"/> 节点集）顺序列表，
+/// 委托注入的 <see cref="INodeExecutor"/>（或 <see cref="INodeStepDispatcher"/> 派发端口）执行节点
+/// → 横切 <see cref="INodeExecutorHooks"/>（onAfterStep / onStepError）
 /// → 依模板成功准则裁决 ok → 收割 <see cref="IRoundStatePort"/> → 终答归集 <see cref="IFinalAnswerPolicy"/>。
 /// 自 Agent WorkflowRunner 主循环平移的中立骨架；Agent 专属（seed/harvest 键、guard_output、终态信封、return spec）
 /// 经注入策略/执行器保留在 Agent 应用层。
+/// <para>
+/// S4 合一：原独立「NodeProcess 轮后端」已弃用——其唯一证据性差异（逐节点经执行状态机）经
+/// <see cref="INodeStepDispatcher"/> 注入点表达（<see cref="NodeExecutionStageDispatcher"/>），本层不再并存第二份轮骨架。
+/// </para>
 /// </summary>
 public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
 {
@@ -25,6 +30,7 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
     private readonly IWorkflowDecisionPolicy? _decisions;
     private readonly IFinalAnswerPolicy? _finalAnswer;
     private readonly IRoundStatePort? _statePort;
+    private readonly INodeStepDispatcher? _dispatcher;
 
     /// <param name="executor">节点执行器（必需；Agent 侧 NodeExecutionService/RoundStepInvoker 适配器）。</param>
     /// <param name="hooks">横切钩子（onAfterStep / onStepError；可空，未装配 no-op）。</param>
@@ -33,19 +39,23 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
     /// <param name="statePort">轮状态端口（seed/harvest；可空，纯内存路径 no-op）。</param>
     /// <param name="requireAllPorts">装配期端口契约严格校验（R10 fail-fast）：缺任一钩子/决策/终答/状态端口即抛错，不再静默 no-op。
     /// 默认 false 保留既有可空装配行为（直跑/单测零回归）；完整装配的组合根（Agent 生产路径已全装配）可开启以消除同链分叉。</param>
+    /// <param name="dispatcher">单步派发端口（可空 = 直接委托 <paramref name="executor"/>）：NodeProcess 执行状态机语义经此注入，
+    /// 使本编排器成为**唯一轮骨架**（原独立 NodeProcess 后端已弃用，S4 合一）。</param>
     public NodeGraphOrchestrator(
         INodeExecutor executor,
         INodeExecutorHooks? hooks = null,
         IWorkflowDecisionPolicy? decisions = null,
         IFinalAnswerPolicy? finalAnswer = null,
         IRoundStatePort? statePort = null,
-        bool requireAllPorts = false)
+        bool requireAllPorts = false,
+        INodeStepDispatcher? dispatcher = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _hooks = hooks;
         _decisions = decisions;
         _finalAnswer = finalAnswer;
         _statePort = statePort;
+        _dispatcher = dispatcher;
         if (requireAllPorts)
             PortContractGuard.Ensure(new[]
             {
@@ -76,6 +86,9 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
         if (_statePort != null)
             await _statePort.SeedAsync(spec, ctx, ct).ConfigureAwait(false);
 
+        // 单步派发端口轮级登记（NodeProcess 执行状态机 StartExecution；直接委托实现为 no-op）。
+        _dispatcher?.BeginRound(spec, ctx);
+
         var records = new List<NodeExecutionRecord>();
         NodeExecutionRecord? last = null;
         try
@@ -84,9 +97,12 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
             {
                 scope.Token.ThrowIfCancellationRequested();
                 // 委托节点执行器（含入参解析/函数调用/RecordStep 及 Agent 专属步骤横切）——纳入 Center 步骤级边界（取消级联 + 异常归一）。
+                // 派发端口已装配（NodeProcess 执行状态机语义）→ 经端口派发；否则直接委托执行器（默认零回归）。
                 var record = await scope.RunStepAsync(
                     step.FuncName,
-                    t => _executor.ExecuteStepAsync(step, ctx, spec.GlobalKeyMapping, t)).ConfigureAwait(false);
+                    t => _dispatcher is null
+                        ? _executor.ExecuteStepAsync(step, ctx, spec.GlobalKeyMapping, t)
+                        : _dispatcher.DispatchAsync(step, ctx, spec.GlobalKeyMapping, t)).ConfigureAwait(false);
                 if (record is null) continue; // 步骤未执行（如条件门控 CanExecute 跳过）
                 last = record;
                 records.Add(record);

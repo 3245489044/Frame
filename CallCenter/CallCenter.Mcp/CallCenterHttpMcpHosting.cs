@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging; // LoggingBuilder.AddFilter（框架类别日志提级降噪）
 using ModelContextProtocol.AspNetCore; // HttpServerSessionMode
 using ModelContextProtocol.Server; // McpServerTool/CallToolResult
-using System.Reflection;
 
 
 namespace CallCenter.Mcp;
@@ -95,15 +94,7 @@ public static class CallCenterHttpMcpHosting
 
     /// <summary>把 <see cref="CallCenterMcpTools"/> 的 [McpServerTool] 方法扫描为 <see cref="McpServerTool"/> 集（承载层唯一暴露面）。</summary>
     private static McpServerTool[] BuildCallCenterMcpTools()
-    {
-        var list = new List<McpServerTool>();
-        foreach (var m in typeof(CallCenterMcpTools).GetMethods(BindingFlags.Public | BindingFlags.Static))
-        {
-            if (m.GetCustomAttribute<McpServerToolAttribute>() is null) continue;
-            list.Add(McpServerTool.Create(m, target: null, new McpServerToolCreateOptions()));
-        }
-        return list.ToArray();
-    }
+        => McpServerToolScanner.Create(new[] { typeof(CallCenterMcpTools) }).ToArray();
 
     /// <summary>预留一个空闲本机端口（port=0 语义；避免多承载/测试并发抢同一端口）。</summary>
     private static int ReserveFreePort()

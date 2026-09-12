@@ -61,16 +61,16 @@ function newTempDir(tag: string): string {
 
 describe("AgentSinkHost — 通用验收（ClineRouteProvider 参数化）", () => {
   let host: AgentSinkHost;
-  let home: string;
+  let dataDir: string;
   let msgsPath: string;
   let otherPath: string;
 
   beforeEach(() => {
     tmpRoot = newTempDir("case");
-    home = path.join(tmpRoot, "home");
-    msgsPath = path.join(home, "data", "sessions", "sid1", "sid1.messages.json");
+    dataDir = path.join(tmpRoot, "home", "data");
+    msgsPath = path.join(dataDir, "sessions", "sid1", "sid1.messages.json");
     otherPath = path.join(tmpRoot, "src", "a.cs");
-    host = new AgentSinkHost([new ClineRouteProvider({ home })]);
+    host = new AgentSinkHost([new ClineRouteProvider({ dataDir })]);
     host.patchAll();
   });
 
@@ -113,7 +113,7 @@ describe("AgentSinkHost — 通用验收（ClineRouteProvider 参数化）", () 
   });
 
   it("5. 目录递归 mkdir → 内存成立、磁盘不落", () => {
-    const dir = path.join(home, "data", "sessions", "sid1");
+    const dir = path.join(dataDir, "sessions", "sid1");
     rf().mkdirSync(dir, { recursive: true });
     expect(fs.existsSync(dir)).toBe(false);
     expect(rf().existsSync(dir)).toBe(true);
@@ -127,43 +127,58 @@ describe("AgentSinkHost — 通用验收（ClineRouteProvider 参数化）", () 
     expect(host.getMessagesSync("cline", "sid1")).toEqual(msgs);
   });
 
-  it("7. miss 观测：命中根候选但未拦截的写计为该 sdk miss，命中路由计 hit", () => {
-    // 真实父目录先建（miss/透传写走 realFs，writeFileSync 不自动建目录）
-    fs.mkdirSync(home, { recursive: true });
+  it("7. miss 观测：观测面（sessions）全覆盖 → 零 miss；有意放行面 settings 不计 miss", () => {
+    fs.mkdirSync(dataDir, { recursive: true });
     fs.mkdirSync(path.dirname(otherPath), { recursive: true });
-    // 根下但未命中路由（无 data/sessions 前缀）→ 落根内却未拦截 → miss
-    const leaked = path.join(home, "other.json");
-    rf().writeFileSync(leaked, "x");
-    // 工具源码路径不在任何根下 → 不计 miss
+    // 有意放行面（settings/ 不入路由）→ 真实落盘，且不计 miss（不在观测面内）
+    const settings = path.join(dataDir, "settings", "global-settings.json");
+    fs.mkdirSync(path.dirname(settings), { recursive: true });
+    rf().writeFileSync(settings, "{}");
+    // 工具源码路径不在任何观测面 → 不计 miss
     rf().writeFileSync(otherPath, "y");
     // 命中路由的写 → 计 hit
     rf().writeFileSync(msgsPath, JSON.stringify({ messages: [] }));
     const obs = host.observe();
-    expect(obs.perSdk["cline"].misses).toBeGreaterThanOrEqual(1);
     expect(obs.perSdk["cline"].hits).toBeGreaterThanOrEqual(1);
+    expect(obs.perSdk["cline"].misses).toBe(0);
+    expect(fs.existsSync(settings)).toBe(true);
   });
 
-  it("8. 默认根回退也被拦截（双候选根）", () => {
-    const defaultHome = path.join(os.homedir(), ".cline");
-    const fallbackPath = path.join(defaultHome, "data", "sessions", "sidX", "sidX.messages.json");
-    rf().writeFileSync(fallbackPath, JSON.stringify({ messages: [] }));
-    expect(fs.existsSync(fallbackPath)).toBe(false);
-    expect(rf().existsSync(fallbackPath)).toBe(true);
+  it("7b. miss 观测面可参数化：显式指定观测面时，面内未拦截路径计入 miss", () => {
+    host.unpatchAll();
+    const probe = new AgentSinkHost([new ClineRouteProvider({ dataDir, missWatchRoots: [dataDir] })]);
+    probe.patchAll();
+    try {
+      fs.mkdirSync(dataDir, { recursive: true });
+      rf().writeFileSync(path.join(dataDir, "other.json"), "x");
+      expect(probe.observe().perSdk["cline"].misses).toBeGreaterThanOrEqual(1);
+    } finally {
+      probe.unpatchAll();
+    }
+  });
+
+  it("8. 单根语义：根外路径不猜、直接放行真实磁盘", () => {
+    // 权威根 = dataDir；兄弟目录下的同名会话路径不属该根 → 不做双根猜测，透传 realFs。
+    const sibling = path.join(tmpRoot, "other-data", "sessions", "sidX", "sidX.messages.json");
+    fs.mkdirSync(path.dirname(sibling), { recursive: true });
+    rf().writeFileSync(sibling, JSON.stringify({ messages: [] }));
+    expect(fs.existsSync(sibling)).toBe(true);
+    expect(rf().existsSync(sibling)).toBe(true);
   });
 });
 
 describe("AgentSinkHost — 多 SDK 并行 + sdk 隔离 + observe 帧", () => {
   it("同进程并行 patch Cline + Claude，同名 sessionId 不串库", async () => {
     tmpRoot = newTempDir("multi");
-    const clineHome = path.join(tmpRoot, "cline");
+    const clineDataDir = path.join(tmpRoot, "cline", "data");
     const claudeHome = path.join(tmpRoot, "claude");
     const host = new AgentSinkHost([
-      new ClineRouteProvider({ home: clineHome }),
+      new ClineRouteProvider({ dataDir: clineDataDir }),
       new FakeClaudeProvider(claudeHome),
     ]);
     host.patchAll();
     try {
-      const clineMsg = path.join(clineHome, "data", "sessions", "abc", "abc.messages.json");
+      const clineMsg = path.join(clineDataDir, "sessions", "abc", "abc.messages.json");
       const claudeMsg = path.join(claudeHome, "data", "sessions", "abc", "abc.messages.json");
       rf().writeFileSync(clineMsg, JSON.stringify({ messages: [{ role: "user", text: "cline" }] }));
       rf().writeFileSync(claudeMsg, JSON.stringify({ messages: [{ role: "user", text: "claude" }] }));
@@ -187,18 +202,21 @@ describe("AgentSinkHost — 多 SDK 并行 + sdk 隔离 + observe 帧", () => {
     }
   });
 
-  it("observe 返回 perRoute / perSdk / archives 结构", async () => {
+  it("observe 返回 perRoute / perSdk / archives / bindings 结构", async () => {
     tmpRoot = newTempDir("obs");
-    const host = new AgentSinkHost([new ClineRouteProvider({ home: path.join(tmpRoot, "h") })]);
+    const dataDir = path.join(tmpRoot, "h", "data");
+    const host = new AgentSinkHost([new ClineRouteProvider({ dataDir })]);
     host.patchAll();
     try {
-      const msg = path.join(tmpRoot, "h", "data", "sessions", "s", "s.messages.json");
+      const msg = path.join(dataDir, "sessions", "s", "s.messages.json");
       rf().writeFileSync(msg, JSON.stringify({ messages: [{ role: "assistant", text: "ok" }] }));
       await host.flushAll();
       const obs = host.observe();
       expect(obs.archives.attempted).toBeGreaterThanOrEqual(1);
       expect(obs.archives.failed).toBe(0);
       expect(obs.perRoute["cline-sessions"]).toBeGreaterThanOrEqual(1);
+      expect(obs.totalHits).toBeGreaterThanOrEqual(1);
+      expect(Array.isArray(obs.bindings)).toBe(true);
     } finally {
       host.unpatchAll();
       try {

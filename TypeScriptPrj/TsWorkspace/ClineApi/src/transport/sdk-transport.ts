@@ -11,9 +11,10 @@
  */
 
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
-import { AgentSinkHost, ClineRouteProvider, BridgeToCSharpDbBackend, DaemonIpcPersistenceTransport } from "fs-sink";
+// 仅类型引用（编译期擦除）：sink 由入口 preload 安装后注入，本模块不再自建/patch（唯一入口 = sink-preload）。
+import type { AgentSinkHost } from "fs-sink";
+import { fromClineDir, resolveClineDataRoot } from "../runtime/cline-data-root.js";
 
 // 仅保留类型导入（编译期擦除，无运行时副作用）。值（ClineCore / getClineDefaultSystemPrompt）
 // 一律经 loadSdk() 惰性加载，避免 cli.ts 顶层 import 触发 SDK 模块加载/本地后端初始化副作用，
@@ -52,11 +53,6 @@ function maskSecret(value?: string): string {
 /** 惰性加载 @cline/sdk —— 仅真实 LLM 调用路径才触发 SDK 模块加载与本地后端初始化副作用。 */
 async function loadSdk(): Promise<typeof import("@cline/sdk")> {
   return await import("@cline/sdk");
-}
-
-/** 解析 Cline 数据根目录：优先 CLINE_HOME（engine 子进程由 C# 注入），否则 ~/.cline。 */
-function resolveClineHome(): string {
-  return process.env.CLINE_HOME ?? path.join(os.homedir(), ".cline");
 }
 
 /** 读取 @cline/sdk 版本 */
@@ -242,12 +238,16 @@ export class EventCollector {
     }
   }
 
-  /** 落盘消息路径：快照声明优先，否则按 <clineHome>/data/sessions/<id>/<id>.messages.json 推导。 */
-  private resolveMessagesPath(dataDir?: string): string | undefined {
+  /**
+   * 落盘消息路径：快照声明优先，否则按权威根 `<sessionsDir>/<id>/<id>.messages.json` 推导。
+   * `clineDir` 为调用方显式覆盖（历史 `--data-dir` 语义：Cline 主目录），缺省用权威解析器
+   * （与 SDK 同一算法/同一环境变量，根不再靠猜）。
+   */
+  private resolveMessagesPath(clineDir?: string): string | undefined {
     if (this.snapshotMessagesPath) return this.snapshotMessagesPath;
     if (!this.sessionId) return undefined;
-    const home = dataDir ?? process.env.CLINE_HOME ?? path.join(os.homedir(), ".cline");
-    return path.join(home, "data", "sessions", this.sessionId, `${this.sessionId}.messages.json`);
+    const sessionsDir = clineDir ? fromClineDir(clineDir).sessionsDir : resolveClineDataRoot().sessionsDir;
+    return path.join(sessionsDir, this.sessionId, `${this.sessionId}.messages.json`);
   }
 
   /**
@@ -307,34 +307,22 @@ interface StartSessionConfigShape {
  * 基于 @cline/sdk 的调用通道。
  *
  * 用法：
- *   const transport = new SdkTransport();
- *   const result = await transport.ask({ prompt: "中文任务..." });
+ *   const transport = new SdkTransport({ sink: getInstalledSink() });
+ *   const result = await transport.run({ prompt: "中文任务..." });
  */
 export class SdkTransport {
   private corePromise?: Promise<ClineCoreWithHost>;
   /** 引擎进程内按 session 的调用计数（真实轮次观测；进程级，跨 worker 不一致，仅参考）。 */
   private readonly sessionRuns = new Map<string, number>();
-  /** FsSink 统一门面：仅 engine 子进程（fsSink:true）启用，patch 进程内 fs 拦截会话落盘。 */
-  private fsSink?: AgentSinkHost;
+  /** 已 patch 的 FsSink 门面（由入口 preload 安装后注入；未注入 = 不拦截）。 */
+  private readonly sink?: AgentSinkHost;
 
   /**
-   * @param opts.fsSink 是否启用 FsSink（仅 engine 执行面子进程传 true；H3 隔离）。
-   *        构造即 patch（须先于 loadSdk/import("@cline/sdk")，H1 preload 时序）。
-   *        opts.fsSink.persistBridge=true 时注入 BridgeToCSharpDbBackend（写侧实时推 persist 帧到 C#，
-   *        磁盘零残留 + 真落库同时成立；读侧仍由本地缓存承担）。缺省走 InMemoryDbBackend（Phase 1 行为，可回退）。
+   * @param opts.sink 入口 preload（`installSink`）安装的 FsSink 门面；仅 engine/cli 子进程注入（H3 隔离）。
+   *        patch 时机唯一归口 preload（须先于 loadSdk/import("@cline/sdk")，H1），本类不再自行 patch/unpatch。
    */
-  constructor(opts?: { fsSink?: boolean | { home?: string; persistBridge?: boolean } }) {
-    if (opts?.fsSink) {
-      const o = typeof opts.fsSink === "object" ? opts.fsSink : {};
-      const home = o.home ?? resolveClineHome();
-      // persistBridge：把 DbBackend 换成桥接 C# 持久化的实现（写侧单向推送，失败不阻断内存闭环）。
-      const db = o.persistBridge
-        ? new BridgeToCSharpDbBackend(new DaemonIpcPersistenceTransport())
-        : undefined;
-      this.fsSink = new AgentSinkHost([new ClineRouteProvider({ home })], db);
-      // preload patch：必须先于 loadSdk()/import("@cline/sdk")（H1）。
-      this.fsSink.patchAll();
-    }
+  constructor(opts?: { sink?: AgentSinkHost }) {
+    this.sink = opts?.sink;
   }
 
   /** 阶段追踪回调（执行面 engine 注入：把 loadSdk/create/core.start 等阶段作为协议帧上报控制面）。 */
@@ -521,8 +509,8 @@ export class SdkTransport {
 
     const collector = new EventCollector();
     // FsSink 启用：persisted-file 级从内存卷→DB 取消息（getAuthoritativeResultText 使用）。
-    if (this.fsSink) {
-      collector.messagesFromSink = (sid) => this.fsSink!.getMessagesSync("cline", sid);
+    if (this.sink) {
+      collector.messagesFromSink = (sid) => this.sink!.getMessagesSync("cline", sid);
     }
 
     const unsub = core.host.subscribe((ev: CoreSessionEvent) => collector.onEvent(ev));
@@ -572,18 +560,18 @@ export class SdkTransport {
     // 随终帧回带使 C# 归档不依赖读磁盘 messages.json（FsSink 拦截写盘 → 磁盘无文件）。
     // 仅成功且有会话 ID 时回带；未启用 / 未命中 / 空消息 → undefined（C# 回退磁盘/聚合）。
     let archivedMessages: unknown[] | undefined;
-    if (this.fsSink && collector.sessionId) {
+    if (this.sink && collector.sessionId) {
       try {
         // 先终态落库（取消 debounce，直接遍历内存卷快照镜像到 backend），再同步取读。
-        await this.fsSink.flushAll();
-        archivedMessages = this.fsSink.getMessagesSync("cline", collector.sessionId);
+        await this.sink.flushAll();
+        archivedMessages = this.sink.getMessagesSync("cline", collector.sessionId);
       } catch {
         archivedMessages = undefined; // 提取失败不阻断主返回链
       }
     }
     // 归档元信息：仅 FsSink 实际回带时置 source=sink；否则 undefined（C# 回退磁盘/聚合）。
     const archiveMeta =
-      this.fsSink && collector.sessionId && archivedMessages && archivedMessages.length > 0
+      this.sink && collector.sessionId && archivedMessages && archivedMessages.length > 0
         ? { messageCount: archivedMessages.length, source: "sink" as const }
         : undefined;
 
@@ -600,6 +588,8 @@ export class SdkTransport {
       }
     }
 
+    // 观测：FsSink 命中/miss/绑定自检（未注入 sink 时 undefined）。misses=命中权威根却未拦截的路径数。
+    const sinkObs = this.sink?.observe();
     const meta: ClineRunResultMeta = {
       messageCount: collector.getMessageCount(),
       eventSource: authoritative.source,
@@ -608,6 +598,14 @@ export class SdkTransport {
       inputTokens: collector.inputTokens,
       outputTokens: collector.outputTokens,
       cacheReadTokens: collector.cacheReadTokens,
+      sink: sinkObs
+        ? {
+            hits: sinkObs.totalHits,
+            perRoute: sinkObs.perRoute,
+            misses: sinkObs.perSdk["cline"]?.misses ?? 0,
+            bindings: sinkObs.bindings,
+          }
+        : undefined,
     };
 
     // 引擎回带真实轮次（进程内按 session 计数，供观测；归档权威轮次 = C# ur_nodes 已归档最大 + 1，跨 worker 一致）。
@@ -670,17 +668,17 @@ export class SdkTransport {
     return readSdkVersion();
   }
 
-  /** 释放 ClineCore 资源 */
+  /**
+   * 释放 ClineCore 资源。
+   * 终态落库（flushAll）在此收口；fs patch 的 uninstall 归口入口 preload 的 disposeSink（本类不做 unpatch）。
+   */
   async dispose(): Promise<void> {
-    if (this.fsSink) {
+    if (this.sink) {
       try {
-        // 终态落库：把内存卷会话数据镜像到 DbBackend，再恢复原 fs 行为。
-        await this.fsSink.flushAll();
+        await this.sink.flushAll();
       } catch {
         /* 忽略 */
       }
-      this.fsSink.unpatchAll();
-      this.fsSink = undefined;
     }
     if (this.corePromise) {
       try {

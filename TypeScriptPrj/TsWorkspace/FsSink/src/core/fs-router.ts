@@ -157,6 +157,34 @@ export class FsRouter {
     this.patched = true;
   }
 
+  /**
+   * 绑定自检（fail-fast 的判据来源）：patch 后动态 import 三个内建 specifier，
+   * 比对命名导出是否等于 patch 值（即 CJS 属性）。
+   *
+   * ESM 命名绑定是「facade 首次求值时的快照」——若有模块在本 patch 之前 import 过 node:fs，
+   * 则该 facade 已冻结为原函数，patch 对 ESM 消费者不可见（静默落盘的 A 类失效）。
+   * 返回未对齐的方法名清单（空 = 通过）；调用方（preload 入口）据此抛错终止。
+   * `fs` 与 `node:fs` 两个 specifier 都验：两者共享同一 facade，任一被提前建立都应被抓住。
+   */
+  async verifyEsmBindings(): Promise<string[]> {
+    if (!this.patched) return [];
+    const mismatched = new Set<string>();
+    const namespaces = [
+      (await import("fs")) as unknown as Record<string, unknown>,
+      (await import("node:fs")) as unknown as Record<string, unknown>,
+    ];
+    for (const name of METHODS) {
+      if (!this.originalsFs.has(name)) continue;
+      if (namespaces.some((ns) => ns[name] !== this.realFs[name])) mismatched.add(name);
+    }
+    const promises = (await import("node:fs/promises")) as unknown as Record<string, unknown>;
+    for (const name of METHODS) {
+      if (!this.originalsPromises.has(name)) continue;
+      if (promises[name] !== this.realPromises[name]) mismatched.add(`promises.${name}`);
+    }
+    return [...mismatched];
+  }
+
   /** 恢复原 fs 行为（engine 退出 / dispose 时调用）。 */
   unpatch(): void {
     if (!this.patched) return;

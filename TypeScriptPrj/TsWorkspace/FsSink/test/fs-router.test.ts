@@ -22,17 +22,17 @@ let tmpRoot: string;
 
 describe("FsSink — 拦截/放行/读回闭环", () => {
   let sink: FsSink;
-  let home: string;
+  let dataDir: string;
   let msgsPath: string;
   let otherPath: string;
 
   beforeEach(() => {
     tmpRoot = path.join(os.tmpdir(), "fssink-test", `case-${Date.now()}-${Math.random()}`);
-    home = path.join(tmpRoot, "home");
-    msgsPath = path.join(home, "data", "sessions", "sid1", "sid1.messages.json");
+    dataDir = path.join(tmpRoot, "home", "data");
+    msgsPath = path.join(dataDir, "sessions", "sid1", "sid1.messages.json");
     otherPath = path.join(tmpRoot, "src", "a.cs");
     sink = new FsSink();
-    sink.patchFs(clineRoutes({ home }));
+    sink.patchFs(clineRoutes({ dataDir }));
   });
 
   afterEach(() => {
@@ -78,7 +78,7 @@ describe("FsSink — 拦截/放行/读回闭环", () => {
   });
 
   it("目录递归：mkdir recursive 命中前缀，内存卷成立、磁盘不落", () => {
-    const dir = path.join(home, "data", "sessions", "sid1");
+    const dir = path.join(dataDir, "sessions", "sid1");
     rf().mkdirSync(dir, { recursive: true });
     expect(fs.existsSync(dir)).toBe(false);
     expect(rf().existsSync(dir)).toBe(true);

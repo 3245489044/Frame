@@ -13,7 +13,7 @@ import {
 
 export interface ClineRoutesOptions extends ClineRouteProviderOptions {}
 
-/** 为 CLINE_HOME（+ 默认 ~/.cline 兜底）生成 Cline 会话数据拦截规则（兼容薄封装）。 */
+/** 为权威数据根 dataDir 生成 Cline 会话数据拦截规则（兼容薄封装）。 */
 export function clineRoutes(opts: ClineRoutesOptions): Route[] {
   return new ClineRouteProvider(opts).buildRoutes();
 }

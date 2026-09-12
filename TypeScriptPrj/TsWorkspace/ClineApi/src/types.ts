@@ -114,6 +114,14 @@ export interface ClineRunResultMeta {
   outputTokens?: number;
   /** 真实缓存读取 token 用量（P4 遥测；provider 支持时存在）。 */
   cacheReadTokens?: number;
+  /**
+   * FsSink 观测（fsSink 已安装时有值）：
+   *  - hits：命中内存卷的调用计数（验收判据 > 0，证明拦截真的发生）；
+   *  - perRoute：每路由命中数；
+   *  - misses：命中权威数据根却未拦截的路径数（验收判据 == 0，证明根对齐）；
+   *  - bindings：ESM 绑定自检未对齐方法名（空 = 通过；非空 = facade 早于 patch 建立）。
+   */
+  sink?: { hits: number; perRoute: Record<string, number>; misses: number; bindings: string[] };
 }
 
 /** 单次运行结果 */

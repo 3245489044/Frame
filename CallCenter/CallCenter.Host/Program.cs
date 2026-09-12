@@ -31,7 +31,8 @@ var mode = cliArgs.Length == 0 ? "list-tools" : cliArgs[0].TrimStart('-').ToLowe
 //  · list-tools/smoke/face —— 走 CSG 数据面目录（catalog），描述符展示，无需控制面 router；
 //  · call —— 控制面 Router（C#Track 经 BuildRouter 建，仅在需要真实路由执行时构建）；
 //  · mcp-list-tools/mcp-call/face —— MCPBridge 发现统一经 MapBridgeToolsAsync；
-//  · watch —— 独立的 Router+TrackHotReloader（热换轨生命周期由它独占持有，与一次性 CLI 调用不共享）。
+//  · watch —— 独立的 Router+TrackHotReloader（热换轨生命周期由它独占持有，与一次性 CLI 调用不共享）；
+//  · http/stdio —— 承载出口对（同一 router 工具面的两种传输），宿主只接线，装配收敛 CallCenter.Mcp。
 
 // P3 TS/PS 接入：--mcp-list-tools / --mcp-call 经 stdio MCP 连 MCPBridge（node）冒烟验证（环境可选）。
 if (mode == "mcp-list-tools")
@@ -57,6 +58,11 @@ if (mode == "http")
 if (mode == "http-call")
     return await HttpCallToolAsync(cliArgs);
 
+// P2-承载 对称出口（CallCenter.Mcp stdio MCP server）：--stdio 把同一 router 工具面暴露为子进程 JSON-RPC 入口，
+//   由外部 LLM / 产品宿主（如 Agent.McpRegistryHost.App）经 stdio 拉起（与 --http 同一工具面、同一装配骨架）。
+if (mode == "stdio")
+    return await RunStdioServerAsync(csharpSource, csharpDefs);
+
 if (mode == "call")
     return await CallToolAsync(BuildRouter(csharpSource, csharpDefs), cliArgs);
 
@@ -71,7 +77,7 @@ switch (mode)
         break;
 
     default:
-        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs] | --http [--port N] | --http-call <toolName> [jsonArgs]");
+        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs] | --http [--port N] | --http-call <toolName> [jsonArgs] | --stdio | --mcp-list-tools | --mcp-call <toolName> [jsonArgs] | --watch | --face");
         return 2;
 }
 
@@ -310,6 +316,22 @@ static async Task<int> RunHttpServerAsync(
     var port = ReadPortArg(args);
     await CallCenter.Mcp.CallCenterHttpMcpHosting.RunHttpAsync(router, defaultPort: port).ConfigureAwait(false);
     return 0;
+}
+
+/// <summary>
+/// --stdio：起 CallCenter stdio MCP server 承载（与 <see cref="RunHttpServerAsync"/> 对称的出口，同一 router 工具面），
+/// 阻塞常驻至 stdin 关闭。工具面经 <see cref="CallCenterMcpTools.Inject"/> 静态注入（与 HTTP 承载同一装配点）。
+/// stdout 仅供 JSON-RPC 协议帧——本分支进入后不得再向 stdout 写业务输出（诊断一律 stderr）。
+/// </summary>
+static async Task<int> RunStdioServerAsync(
+    CSharpFunctionLibrarySource? csharpSource, IReadOnlyList<CSharpToolDefinition>? csharpDefs)
+{
+    var router = BuildRouter(csharpSource, csharpDefs);
+    CallCenterMcpTools.Inject(router); // 承载工具面唯一装配点（与 HTTP 承载同源）
+    // stdio 无额外宿主参数：不把本宿主的模式开关（--stdio）透传给 Host 配置。
+    return await CallCenter.Mcp.McpStdioHosting.RunAsync(
+        args: null,
+        toolTypes: new[] { typeof(CallCenterMcpTools) }).ConfigureAwait(false);
 }
 
 /// <summary>--http-call <toolName> [jsonArgs]：经官方 HTTP client（Loopback）连本机承载端点调用一个工具。</summary>

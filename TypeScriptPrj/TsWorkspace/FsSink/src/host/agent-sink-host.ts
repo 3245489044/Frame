@@ -16,12 +16,14 @@ import { ArtifactExtractorRegistry } from "../extract/artifact-extractor.js";
 import { DbMirror } from "../mirror/db-mirror.js";
 import type { AgentRouteProvider } from "../provider/agent-route-provider.js";
 
-/** 观测帧：每路由命中数、每 SDK 命中/miss 数、归档尝试/失败数。 */
+/** 观测帧：每路由命中数、每 SDK 命中/miss 数、归档尝试/失败数、绑定自检结果。 */
 export interface SinkObserveFrame {
   perRoute: Record<string, number>;
   perSdk: Record<string, { hits: number; misses: number }>;
   archives: { attempted: number; failed: number };
   totalHits: number;
+  /** ESM 绑定自检未对齐方法名（空 = 通过；非空 = facade 早于 patch 建立，拦截对 ESM 消费者不可见）。 */
+  bindings: string[];
 }
 
 export class AgentSinkHost {
@@ -34,6 +36,8 @@ export class AgentSinkHost {
   private readonly mirroredSinks = new Set<Sink>();
   private readonly routeNameToSdk = new Map<string, string>();
   private patched = false;
+  /** 最近一次绑定自检结果（未自检时为空数组 = 通过）。 */
+  private lastBindings: string[] = [];
 
   constructor(providers: AgentRouteProvider[], db?: DbBackend) {
     this.providers = providers;
@@ -128,6 +132,15 @@ export class AgentSinkHost {
     this.patched = false;
   }
 
+  /**
+   * 绑定自检：patch 后动态 import node:fs / node:fs/promises，比对 ESM 命名绑定是否等于 patch 值。
+   * 返回未对齐方法名（空 = 通过）并缓存到观测帧；非空即「facade 早于 patch 建立」——调用方应抛错终止。
+   */
+  async verifyBindings(): Promise<string[]> {
+    this.lastBindings = await this.fsRouter.verifyEsmBindings();
+    return this.lastBindings;
+  }
+
   /** 读取某 SDK 会话消息数组（来自内存卷→DB）。未写入返回 undefined。 */
   async getMessages(sdk: string, sessionId: string): Promise<unknown[] | undefined> {
     return this.db.getMessages(sdk, sessionId);
@@ -163,6 +176,12 @@ export class AgentSinkHost {
       attempted += m.stats.attempted;
       failed += m.stats.failed;
     }
-    return { perRoute, perSdk, archives: { attempted, failed }, totalHits: this.fsRouter.hits };
+    return {
+      perRoute,
+      perSdk,
+      archives: { attempted, failed },
+      totalHits: this.fsRouter.hits,
+      bindings: [...this.lastBindings],
+    };
   }
 }

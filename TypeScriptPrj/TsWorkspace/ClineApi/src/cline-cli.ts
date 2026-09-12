@@ -10,10 +10,12 @@
 
 import type { ClineRunOptions, ClineRunResult } from "./types.js";
 import { SdkTransport } from "./transport/sdk-transport.js";
+import { getInstalledSink } from "./preload/sink-preload.js";
 
 /** 执行一次 Cline 任务（act/plan 由 options.mode 决定） */
 export async function runCline(options: ClineRunOptions): Promise<ClineRunResult> {
-  const transport = new SdkTransport();
+  // sink 已由入口 bootstrap 安装（getInstalledSink 为 undefined 时不拦截，保持库调用兼容）。
+  const transport = new SdkTransport({ sink: getInstalledSink() });
 
   try {
     return await transport.run(options);
@@ -31,7 +33,7 @@ export async function runCliCommand(
   command: string[],
   traceEnabled?: boolean
 ): Promise<{ stdout: string; exitCode: number; error?: string; sessions?: unknown[] }> {
-  const transport = new SdkTransport();
+  const transport = new SdkTransport({ sink: getInstalledSink() });
   const [cmd, ...rest] = command;
 
   try {

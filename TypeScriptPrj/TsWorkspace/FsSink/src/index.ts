@@ -1,13 +1,15 @@
 /**
  * FsSink — 通用内存落盘框架门面（兼容薄封装，内部委托 AgentSinkHost）。
  *
+ * @deprecated 历史/测试兼容路径。生产入口唯一 = 入口 preload（`ClineApi/src/preload/sink-preload.ts`
+ * 的 `installSink`：构造 AgentSinkHost → patchAll → 绑定自检 fail-fast）；新接入请直接用
+ * `AgentSinkHost` + `AgentRouteProvider`，不要经本类自建 patch 时机（时序错误会静默失效）。
+ *
  * 组合 PathRouter + FsRouter + MemoryVolume(s) + DbMirror + DbBackend，向接入方提供：
  *  - `patchFs(routes)`：注册规则并 patch 进程内 node:fs / node:fs/promises（须先于 SDK import，H1）；
  *  - `unpatchFs()`：恢复原 fs 行为；
  *  - `getMessages(sessionId)`：结果提取改从 DB 取（不再读磁盘 messages.json）；
  *  - `flushAll()`：终态落库（session_snapshot/ended 事件触发）。
- *
- * 新接入（Claude 等）请直接使用 `AgentSinkHost` + `AgentRouteProvider`；本类保留为 Cline 兼容路径。
  */
 
 import type { DbBackend } from "./backend/db-backend.js";

@@ -10,6 +10,7 @@
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="此模块是跨语言中央调用中心，依赖 CSG.Unified 与 TConfig（CsharpPrj）" />
     <ModuleRule_Rule Include="启动入口：CallCenter.Host/Program.cs（--list-tools / --smoke / --call）" />
+    <ModuleRule_Rule Include="承载出口对：--http（本机 /mcp）与 --stdio（子进程 JSON-RPC），同一 ToolRouter 工具面经 CallCenterMcpTools 双入口 cc_list_tools/cc_call_tool 暴露" />
     <ModuleRule_Rule Include="详细架构请参考 docs/analysis/2026/9/9.4/2026-09-04-跨语言中央调用中心-函数运行时架构.md" />
   </ItemGroup>
 

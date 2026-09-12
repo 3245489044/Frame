@@ -1,11 +1,12 @@
 /**
- * patch.ts — 全局单例 preload 入口。
+ * patch-singleton.ts — **测试专用**的进程内 patch 单例（原 `src/core/patch.ts`）。
  *
- * 为接入方（ClineApi engine 子进程）提供进程级 patch/unpatch/isPatched 便利函数，
- * 内部持有唯一 FsSink 实例，避免同一进程重复 patch。
+ * 生产入口唯一 = `ClineApi/src/preload/sink-preload.ts`（installSink：构造 AgentSinkHost → patchAll →
+ * verifyBindings fail-fast）。本文件仅为 FsSink 自身的幂等/unpatch 单测提供便捷单例，
+ * 不再作为任何生产路径的入口（消除「看似可用」的第三入口）。
  */
 
-import { FsSink, type Route } from "../index.js";
+import { FsSink, type Route } from "../../src/index.js";
 
 let singleton: FsSink | undefined;
 

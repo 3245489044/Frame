@@ -54,6 +54,13 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             return null;
         }
 
+        /// <summary>
+        /// 查询某结果类型是否已注册特化提取器（供消费方按「是否已特化」决定分支，
+        /// 替代对具体强类型结果（如 Agent 侧执行结果）的硬编码类型判定）。线程安全。
+        /// </summary>
+        public static bool HasSpecialized(Type resultType)
+            => resultType is not null && ResolveSpecialized(resultType) is not null;
+
         /// <summary>按显式结果键集合定向提取端口（框架纯核心）。</summary>
         public static Dictionary<string, object?> ExtractResultKeys(IEnumerable<string>? resultKeys, object? result)
         {

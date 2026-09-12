@@ -114,20 +114,59 @@ foreach ($pat in @('lock (Gate)', 'lock(Gate)', 'SqliteWriteGate.Run'))
     }
 }
 
-# E. 节点输出端口写（ur_nodes）必须经确定性写门（DP-1）：端口写调用点只允许集中在 NodeExecutionService（写门持有者）。
-#    白名单 = 已登记剩余项（AgentUiLibraryConversation：UI 会话节点直写，待共享写门注入面落地后移出，见数据流聚拢点分析 DP-1-R1）。
+# E. 节点输出端口写（ur_nodes）必须经确定性写门（DP-1）。
+#    2026-09-12 S2 判据改造：原判据按「Agent 路径 + 文件名 NodeExecutionService.cs」豁免——写路径下沉框架后
+#    该文件名不再出现于 Agent 侧，判据退化为恒真（假绿）。现按「框架生产写面 + SingleWriteGuard 写者注册」判定：
+#      E1 Agent 侧：除白名单外不得出现端口写调用（防旁路复发）；
+#      E2 框架生产节点写面（HierarchyMethod\Nodes\）：端口写文件必须是写者注册（AssertSingleWriter）且经串行写门（RunWriteAsync）；
+#      E3 其余框架写面（POC NodeProcess 持久化 / Hierarchy 数据流）：告警（待各自收敛批次），不判失败。
 $nodePortWriteWhitelist = @('AgentUiLibraryConversation.cs')
 $agentSrcFiles = $csFiles | Where-Object { $_.FullName -match '\\Projects\\Plug\\Agent\\src\\' }
+
+# E1. Agent 侧端口写 = 白名单外一律违规（豁免随实现下沉取消）。
 $bypassHits = $agentSrcFiles |
-    Where-Object { $_.Name -ne 'NodeExecutionService.cs' -and $nodePortWriteWhitelist -notcontains $_.Name } |
+    Where-Object { $nodePortWriteWhitelist -notcontains $_.Name } |
     Select-String -Pattern '\.WriteOutputAsync\(' -ErrorAction SilentlyContinue
 foreach ($h in $bypassHits)
 {
     $violations.Add("节点输出端口写旁路确定性写门（DP-1）$($h.Path):$($h.LineNumber)")
 }
-if (-not $bypassHits -and $ShowDetail)
+
+# E2. 框架生产节点写面：端口写必须落在「写者注册 + 串行写门」的写路径持有者文件内。
+$frameworkNodeWriteFiles = $csFiles |
+    Where-Object { $_.FullName -match '\\Operation\\HierarchyMethod\\Nodes\\' } |
+    Select-String -Pattern '\.WriteOutputAsync\(' -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty Path -Unique
+foreach ($f in $frameworkNodeWriteFiles)
 {
-    Write-Host "OK(E): ur_nodes 端口写调用点仅 NodeExecutionService（经确定性写门），白名单 $($nodePortWriteWhitelist.Count) 项。"
+    $writerRegistered = Select-String -Path $f -Pattern 'SingleWriteGuard\.AssertSingleWriter' -ErrorAction SilentlyContinue
+    $throughGate = Select-String -Path $f -Pattern 'RunWriteAsync' -ErrorAction SilentlyContinue
+    if (-not $writerRegistered -or -not $throughGate)
+    {
+        $violations.Add("框架节点写面端口写未经确定性写门（缺写者注册或串行门）：$f")
+    }
+    elseif ($ShowDetail)
+    {
+        Write-Host "OK(E2): $([System.IO.Path]::GetFileName($f)) 为已注册写者且经串行写门。"
+    }
+}
+
+# E3. 其余框架写面（告警，不判失败）：待各自收敛批次（S7 DUP-D / Hierarchy 数据流写面）。
+$otherFrameworkWriteFiles = $csFiles |
+    Where-Object {
+        $_.FullName -match '\\Operation\\' -and
+        $_.FullName -notmatch '\\Operation\\HierarchyMethod\\Nodes\\'
+    } |
+    Select-String -Pattern '\.WriteOutputAsync\(' -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty Path -Unique
+foreach ($f in $otherFrameworkWriteFiles)
+{
+    $warnings.Add("框架其余写面端口写待收敛：$f（确认经写门，见 S7/后续批次）")
+}
+
+if (-not $bypassHits -and $frameworkNodeWriteFiles.Count -gt 0 -and $ShowDetail)
+{
+    Write-Host "OK(E): ur_nodes 端口写仅在框架生产写面（$($frameworkNodeWriteFiles.Count) 个已注册写者文件）+ Agent 白名单 $($nodePortWriteWhitelist.Count) 项。"
 }
 
 # F. 会话侧任务快照写（ur_tasks）必须经会话读写收敛点门面（DP-4）：会话流水线不得直调 IConversationStore.UpdatePayloadAsync。

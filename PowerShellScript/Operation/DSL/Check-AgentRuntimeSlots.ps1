@@ -49,26 +49,9 @@ $allowList = @(
     [pscustomobject]@{ Path = '\Runtime\AgentRuntimeRoot.cs'; Pending = $false; Reason = 'A1 取根通道：进程级装配绑定 + 无根回落容器（迁移期转发承载，注释已登记退役条件）' }
 )
 
-# 存量基线（A1 扫描基线：既有静态可变运行时槽，A2+ 对象槽分区逐项收敛；归零后本表清空）
-# 判据语义：K10 = 不得【新增】静态可变运行时槽；基线内为待迁移存量（报告可见，不阻断）。
-$baseline = @(
-    'Agent.Axioms\Infrastructure\ClineCredentials.cs',
-    'Agent.Axioms\Loops\DataContractRegistrar.cs',
-    'Agent.Core\Prompts\PromptFrameworkFunction.cs',
-    'Agent.Launcher\Composition\AgentFrameworkHosting.cs',
-    'Agent.Launcher\Composition\ConversationHosting.cs',
-    'Agent.Launcher\Modules\Libraries\AgentUiLibraryDb.cs',
-    'Agent.Launcher\Modules\AgentUiHost.cs',
-    'Agent.McpRegistryHost\MCP\GraphTaskTools.cs',
-    'Agent.McpRegistryHost\MCP\LocalDbMcpTools.cs',
-    'Agent.McpRegistryHost\AgentMcpLoopback.cs',
-    'Agent.McpRegistryHost\McpToolFunction.cs',
-    'Agent.McpRegistryHost\RegistrySkillProvider.cs',
-    'Agent.McpRegistryHost\RegistryToolService.cs',
-    'Agent.Modules\Cline\Pool\ClineDaemonPool.cs',
-    'Agent.Modules\Cline\ClineClient.cs',
-    'Agent.Operation\Skill\SkillsOptions.cs'
-)
+# 存量基线（A1 扫描基线：既有静态可变运行时槽，A2+ 对象槽分区逐项收敛）—— W1（Batch 3）逐序收敛后于 2026-09-12 **归零清空**：
+# 本表空 = 任何静态可变运行时槽均判违规（唯一例外见上 $allowList：A1 取根通道迁移期载体）。
+$baseline = @()
 
 $files = Get-ChildItem -Path $scanDir -Recurse -File -Include *.cs -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }

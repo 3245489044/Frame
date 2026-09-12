@@ -32,7 +32,7 @@
 |---|---|
 | 构建 | `Projects\Plug\Agent\Agent.sln` **0 错 0 警**；宿主 `Projects\PrjBridge\PrjBridge.csproj` **0 错 0 警** |
 | 测试 | Core **405/405** · Axioms 86/86 · Launcher **37/37** · Persistence 88/88 · Session 20/20 · Modules 20/20 · Operation 47/47 · Observe 11/11 · Guardrails 10/10 · Api 34/34 · Api.Contract 22/22 · Runtime 21/21 · DataCenter 95/95 |
-| 门禁 | `Check-DataCenterGenericity`：G1 命中 0 / G2 违规 0 / **K9 违规 0 · 待迁移 0**（白名单 4）· `Check-SingleWriter`：**OK**（告警 12 不计失败）· `Check-AgentRuntimeSlots`：457 文件 · **违规 0** · 存量基线 **20 命中 / 15 文件仍命中**（基线表 16 条，`AgentUiHost.cs` 已收敛出）· `Check-AgentDecisionCoreBoundary`：494 文件 · **违规 0** |
+| 门禁 | `Check-DataCenterGenericity`：G1 命中 0 / G2 违规 0 / **K9 违规 0 · 待迁移 0**（白名单 4）· `Check-SingleWriter`：**OK**（告警 12 不计失败）· `Check-AgentRuntimeSlots`：457 文件 · **违规 0** · 存量基线 **20 命中 / 15 文件仍命中**（基线表 16 条，`AgentUiHost.cs` 已收敛出）· `Check-AgentDecisionCoreBoundary`：494 文件 · **违规 0**。**W1 后（2026-09-12）**：`Check-AgentRuntimeSlots` 存量基线 **0**（`$baseline` 已清空）· `Check-SingleWriter` OK（告警 **8**） |
 | **门禁（W0 后）** | 五道门禁全 **EXIT 0** —— `Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**：D5 无主数据 **0**（`Agent.Contract\Runtime\AgentRuntimeRoot.cs:128` 已登记归属 `round-state-kv`）· D1 K10 命中 **20 = 冻结 20** · D2/D3/D4 全 0。**W0 已落地（2026-09-12）**：台账 `pattern` 追加 1 行 + 冻结值同步 22/16 → 20/15（脚本 `$frozen` · JSON `frozenBaseline` · 台账 §5） |
 | 台账 | `data-ownership.json` **20 条** = registered 8 + migrated 1 + **pending 11** |
 | 双写（未收敛） | ① `NodeExecutionService.cs:254 vars.Set(...)` ↔ `:265 PersistAsync`（写侧双写仍在）② `RoundStateMapper.cs:117 Harvest` → `:124 state.Data[key] = v!`（`:132` 注释自述 ur_nodes 权威、`state.Data` 仅派生缓存） |
@@ -47,7 +47,7 @@
 |---|---|---|---|---|
 | W0-1 | D5 无主 1 处登记归属 | `Check-AgentDataSeparation.ps1 -Check` = EXIT 0 | 无 | ✅ 已完成（2026-09-12） |
 | W0-2 | 冻结值同步（K10Hits 22 → 20） | 台账 §5 + 脚本 `$frozen` 一致 | W0-1 | ✅ 已完成（2026-09-12） |
-| W1-1..9 | 静态槽归零（9 序 / 20 命中 / 15 文件） | `Check-AgentRuntimeSlots.ps1 -Check` 违规 0 且**存量基线逐序下降至 0** | 无（可长期分项推进） | 批次 6 |
+| W1-1..9 | 静态槽归零（9 序 / 20 命中 / 15 文件） | `Check-AgentRuntimeSlots.ps1 -Check` 违规 0 且**存量基线逐序下降至 0** | 无（可长期分项推进） | ✅ **已完成（2026-09-12，20 → 0）** |
 | W2-1 | `vars` ↔ `ur_nodes` 写侧单写 + 投影重算 | 开关关 = 行为等价（全量绿）；开关开 = 故障注入后重启状态与落盘一致 | 无硬依赖（需真实宿主验证面，建议 W1 前若干序完成后） | 批次 6（**单独评审**） |
 | W2-2 | `PayloadJson` ↔ `state.Data` 权威单一化 | 同上；`NodeGraphReconciler` 跨介质缺口 0 | W2-1 同批 | 同上 |
 | W3-1 | 对象槽只读投影（`IRuntimeSlotEntrySource`） | 投影幂等（两次 `ToJson` 全等，时间戳不进产物）+ K5 未注册 Kind = 0 | 无（纯新增） | 批次 5（可穿插） |
@@ -86,9 +86,11 @@
 | **回退** | 纯台账/脚本改动，单提交可撤 |
 | **风险** | 低；**注意**：只登记**既有**持有物，不得借机放宽 `$frozen` 兜底 |
 
-### 3.2 W1 · 静态槽归零（分离方案 Batch 3；工作量最大，逐序独立提交）
+### 3.2 W1 · 静态槽归零（分离方案 Batch 3；工作量最大，逐序独立提交）—— ✅ **已完成（2026-09-12，20 → 0）**
 
 **收敛口径（W-DEC-3①）**：仅 `Agent.Contract\Runtime\AgentRuntimeRoot.cs`（A1 取根通道，白名单已登记理由）保留；其余 15 文件 20 处**清零**，随后清空脚本 `$baseline` 与账台 `frozenBaseline`。
+
+**统一配方**：`实例宿主 + 静态门面转发`——原静态可变字段移入 `XxxHost` 实例（私有实例字段不构成静态槽），静态门面经 `AgentRuntimeRoot.Resolve(槽键, 工厂)` 取用（根可用 ⇒ 根分区承载、可随换代迁移；无根宿主回落进程本地容器，行为等价原静态槽）。槽键在 `AgentRuntimeSlotKeys`（W1 段）注册一行（14 键）。**逐序落地记录见 `Projects\Plug\Agent\doc\Agent-DataOwnership.md` §8「W1 / Batch 3」**（含逐序文件/命中/槽键/判据）。
 
 | 序 | 文件（当前实测命中） | 命中数 | 风险 | 动作 | 单序判据 |
 |---|---|---|---|---|---|
@@ -105,6 +107,7 @@
 | 项 | 内容 |
 |---|---|
 | **每序通用判据** | ① `Check-AgentRuntimeSlots.ps1 -Check` 违规 0 且**基线命中按序递减**（不得回涨）② 该序对应**同实例/幂等**断言（槽内实例 ≡ 注入实例）③ `Agent.sln` 0 错 0 警 + 相关测试工程零回归 |
+| **落地（2026-09-12 实测）** | ① `Check-AgentRuntimeSlots.ps1 -Check` = EXIT 0（457 文件 / 白名单 1 / **存量基线 0** / 违规 0）② `Agent.sln` **0 错 0 警** · 宿主 `PrjBridge` 0 错 0 警 ③ 回归 14 工程全绿（Axioms 86 / Core 405 / Launcher 37 / Runtime 21 / Persistence 88 / Session 20 / Modules 20 / Operation 47 / Observe 11 / Guardrails 10 / Api 34 / Api.Contract 22 / McpRegistryHost 19 / DataCenter 95）④ 五道门禁全 EXIT 0 |
 | **回归面** | UI 函数库（`AgentUiLibrary*`）、MCP 工具面、Cline 链（含进程资源释放顺序）、会话装配链 |
 | **回退** | **逐序独立提交**，单序可撤；未收敛序保持基线（门禁不判失败） |
 | **风险** | 高（序 9 含进程资源；序 7 含生命周期句柄）⇒ 序 9 单独评审 |
@@ -251,16 +254,14 @@ Select-String -Path $all -Pattern 'NodeTypes\.Output|AgentRuntimeSlotKeys\.'    
 ## §8 建议执行顺序
 
 ```
-[可立即，零/低风险]
-  ├─ W0（台账登记归零 + 冻结值同步）                    ──► 门禁 D1–D5 复归 EXIT 0
-  ├─ W3-1（对象槽只读投影，纯新增）                      ┐
-  ├─ W3-3a（writer 身份常量表）                          ├─► 只读旁路，可任意穿插
-  └─ W1 序 1 → 2 → 3（低风险静态槽）
+[已完成]
+  ✅ W0（台账登记归零 + 冻结值同步，2026-09-12）        ──► 门禁 D1–D5 复归 EXIT 0
+  ✅ W1 序 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9（2026-09-12）──► K10 存量基线 20 → 0；$baseline 已清空
+      └─► 已解 W-DEC-5 前置：对象槽产物新代数 ALC 重建（可单独立批）
 
-[主力推进]
-  W1 序 4 → 5 → 6 → 7 → 9（逐序独立提交；序 9 单独评审）
-      └─► 归零后：清 $baseline / frozenBaseline（W6-2 前置）
-      └─► 解 W-DEC-5：对象槽产物新代数 ALC 重建（单独立批）
+[可立即，零/低风险]
+  ├─ W3-1（对象槽只读投影，纯新增）                      ┐
+  └─ W3-3a（writer 身份常量表）                          ┴─► 只读旁路，可任意穿插
 
 [最高风险，单独评审]
   W2-0 开关 ► W2-1 收敛点1 ► W2-2 收敛点2（含故障注入证据）

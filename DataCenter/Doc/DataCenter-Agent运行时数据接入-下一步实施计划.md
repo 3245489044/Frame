@@ -12,7 +12,7 @@
 |---|---|
 | **已完成** | A0 / A1 / A2 / A3a-1 / **A3a-2（S1）** / **S4-1（A5-1）** / **S4-2（A5-2）** / **B1+B2（P0 前置）** / **S4-3（批次 4）** / **S4-4a（注入面 + K9 归零）** / **T3（投影器装配单一工厂）** / **S4-4b（批次 5b：换代生产闭环）** / **B26+B27（第四轮余项：F-61/F-62/F-63取证/F-64分工/F-65/F-66边界/F-67/F-70，2026-09-12 单提交）** —— 明细见进展台账 §2、缺陷清单 §5 |
 | **未完成** | S3（A4 双写收敛）· S1-④（对象槽可观测投影）· S2（A3b，**阻塞**）· S5（收尾）· 残项：① 对象槽产物的新代数 ALC 重建（依赖 Batch 3 静态槽归零）② **静态槽退役**（B27-3 只承诺"UI 面读到根分区同一实例 + 换代可见新代数产物"，退役属独立工作项）③ API `node.write` 缺省形态与执行链单形的口径收敛（F-63 残余，另立编号） |
-| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **4** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 **20**，AgentUiHost 静态槽已收敛出基线）；`Check-AgentDecisionCoreBoundary.ps1 -Check` = **EXIT 0**（B26-2 新增：494 文件 / 违规 0）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 0**（D1–D5 聚合，见分离方案 §6.2）；`Check-SingleWriter.ps1` = **EXIT 0**（告警 12 不计失败） |
+| 门禁 | `Check-DataCenterGenericity.ps1 -Check` = **EXIT 0**（G1 命中 0 / G2 违规 0 / K9 白名单 **4** + 待迁移 **0** + 违规 0）；`Check-AgentRuntimeSlots.ps1 -Check` = **EXIT 0**（457 文件 / **新增 0** / 存量基线 **20**，AgentUiHost 静态槽已收敛出基线）；`Check-AgentDecisionCoreBoundary.ps1 -Check` = **EXIT 0**（B26-2 新增：494 文件 / 违规 0）；`Check-SingleWriter.ps1` = **EXIT 0**（告警 12 不计失败）；`Check-AgentDataSeparation.ps1 -Check` = **EXIT 1**（⚠ 既有：D5 无主 1 处 `AgentRuntimeRoot.cs:128`，处置见第五轮子计划 W0；D1 K10 命中 20 ≤ 冻结 22 / D2·D4 全 0 / D3 违规 0） |
 | 测试基线 | DataCenter.Tests **95/95** · Agent.Core.Tests **405/405** · Agent.Axioms.Tests **86/86** · Agent.Runtime.Tests **21/21** · Agent.Launcher.Tests **37/37** · Agent.Persistence.Tests **88/88** · Agent.Session.Tests **20/20** · Agent.Modules.Tests **20/20** · Agent.Operation.Tests **47/47** · Agent.Observe.Tests **11/11** · Agent.Guardrails.Tests **10/10** · Agent.Api.Tests **34/34** · Agent.Api.Contract.Tests **22/22** |
 | 构建基线 | `Frame\CsharpPrj\MainProj.sln` · `Projects\Plug\Agent\Agent.sln` · `Projects\FileDriven\FileDriven.sln` 均 **0 错 0 警** |
 | 关键纪律 | ① 改契约后必须刷新烘焙副本（设计文档 §4.2，命令见 §4）② Agent 侧不得 `ProjectReference` Frame（`Directory.Build.props:134`）③ 新工程命名空间不得在 `Agent.*` 内遮蔽全局命名空间（A3a-2 实测 `CS0234`）④ 域别名须在 `DataCenterHost.Boot` **之前**并入 `DataCenterHostOptions.Registry` |
@@ -56,6 +56,11 @@
 > `DataCenter-Agent运行时数据接入-第四轮剩余收敛计划.md`（含 DEC-1..DEC-6 决策点、逐子项改动点/判据/回退、建议执行顺序）。
 > **该子计划中未决的 DEC 不得视为已定**；缺陷事实仍以缺陷清单为准。已完成批次 **B22–B25**（`F-55`~`F-60`/`F-68`/`F-69`）的实测基线见子计划 §0.2。
 > 基线变化：`Agent.Core.Tests` **404/404** · `Agent.Axioms.Tests` **86/86** · `Agent.Launcher.Tests` **34/34** · `DataCenter.Tests` **95/95** · 宿主 `PrjBridge` 构建 0 错 0 警 · K9 违规 0 / 待迁移 0。
+>
+> **第五轮收口（W0–W6）**：剩余阶段 **S3 / S1-④ / S2 / S5** 与分离方案 **Batch 2–7** 的执行口径已独立为下位子计划 ——
+> `DataCenter-Agent运行时数据接入-第五轮收口实施计划.md`（含 `W-DEC-1..5` 决策点、逐子项改动点/判据/回退/风险、判据命令清单、建议执行顺序）。
+> **开工纪律**：`W-DEC` 未标注"已采纳（日期）"前视为**未决**；其中 **W3-3（追踪面）依赖框架侧 D2/D3**（`IDataCenterRoot` 实测无 `Trace` 成员），不得以 Agent 侧变通绕行。
+> **开工前实测（2026-09-12）**：K10 存量基线 **20 命中 / 15 文件仍命中**（`AgentUiHost.cs` 已随 F-65 收敛出）；台账 20 条 = registered 8 + migrated 1 + **pending 11**；D5 无主 **1 处** ⇒ `Check-AgentDataSeparation.ps1 -Check` = **EXIT 1**（既有状态，处置见子计划 W0）。
 
 ## 2. 开工前决策点（需确认）
 

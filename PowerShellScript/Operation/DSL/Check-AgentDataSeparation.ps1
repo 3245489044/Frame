@@ -36,7 +36,7 @@ if (-not (Test-Path $ledgerPath)) { Write-Error "未找到归属台账（D5 核�
 $frozen = [ordered]@{
     K10Hits     = 22   # K10 存量基线命中（对象槽逐项收敛 → 最终 0）
     K10Files    = 16   # K10 存量基线涉及文件数
-    K9Pending   = 2    # K9 待迁移（Batch 1b 归零）
+    K9Pending   = 0    # K9 待迁移（Batch 1b 已归零：产品侧兜底造根移除）
     K9Violation = 0
     G1Hits      = 0
     G2Violation = 0

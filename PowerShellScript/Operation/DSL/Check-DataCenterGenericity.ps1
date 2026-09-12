@@ -172,13 +172,12 @@ $k9Patterns = [ordered]@{
     'static DataCenterRoot'   = 'static\s+[^;\r\n=]*\bDataCenterRoot\b'
     'static IRootProvider'    = 'static\s+[^;\r\n=]*\bIRootProvider\b'
 }
-# 白名单：根的创建与持有唯一属 DataCenter.Hosting（宿主装配层）；迁移期存量项显式登记（A5 移除）
+# 白名单：根的创建与持有唯一属 DataCenter.Hosting（宿主装配层）；无根宿主回落真源同属该层
+# （FallbackStateCenter，显式命名）。产品侧兜底造根已归零（S4-4/Batch 1b：改经 AgentRuntimeRoot.ResolveStateCenter）。
 $k9Whitelist = @(
     [pscustomobject]@{ Pattern = 'new StateCenter(';       Path = '\DataCenter.Hosting\';                            Pending = $false; Reason = '根的创建与持有唯一落点（宿主装配层，DF8/P10）' }
     [pscustomobject]@{ Pattern = 'new StateCenter(';       Path = '\DataCenter.Adapters\BlockStateInitializer.cs';   Pending = $false; Reason = '宿主设施适配层：Block 初始化块的中心装配点（非业务侧业务代码）' }
     [pscustomobject]@{ Pattern = 'static IRootProvider';   Path = '\DataCenter.Core\Roots\RootProvider.cs';          Pending = $false; Reason = '未装配哨兵（不可变只读，非根持有）' }
-    [pscustomobject]@{ Pattern = 'new StateCenter(';       Path = '\Agent.Core\Composition\AgentOrchestrator.cs';    Pending = $true;  Reason = '待迁移：A5/G7.1 移除产品侧兜底造根' }
-    [pscustomobject]@{ Pattern = 'new StateCenter(';       Path = '\Agent.Core\Nodes\WorkflowRunner.cs';             Pending = $true;  Reason = '待迁移：A5/G7.1 移除产品侧兜底造根' }
 )
 $k9Hits = [System.Collections.Generic.List[object]]::new()
 $k9Allowed = [System.Collections.Generic.List[object]]::new()

@@ -28,6 +28,10 @@
 | **P2** | F-01 · F-02 · F-03 · F-14 | 槽分区双实现 / 投影器装配重复 / 取根面双通道 / `Default` 每次新建注册表 | 收敛 |
 | **P2** | F-09 ~ F-13 · F-15 | 无消费方公开面（`LiveCount` / 域校验 / `GenerationPayload` / `Swap` / 转发方法） | 收敛 |
 | **P3** | F-05 · F-06 · F-07 · F-08 · F-22 · F-23 · F-25 · F-26 | 双造根（K9 待迁移）/ 双写键 / 重复判定 / 迁移期冗余 / 异常覆盖 / 门禁豁免过宽 / 惰性自举冲突 | 分散 |
+| **P0** | F-33 · F-34 · F-35 | **第二轮（库内聚审计）**：契约-实现**父链回退矛盾** / 停机无异常隔离致**永久不可重启** / legacy 后端 **scope 分区落内存**（不持久化） | 批次 B10 · B11 · B12 |
+| **P1** | F-36 · F-37 · F-38 | 第二轮：`Clear` 越前缀清空 + 双 `Reset` 同名 / `SwapAsync` 无并发与停机守卫 / 变更事件 `Tier` 在删除路径必失真 | 批次 B13 · B14 · B15 |
+| **P2** | F-27 · F-30 | 第二轮：两套 Store 实现同构（**需先决策收敛方向**）/ 空端口与门面冗余面 | 批次 B16 |
+| **P3** | F-28 · F-29 · F-31 · F-32 · F-39 | 第二轮：双公开面与双 `Reset` 命名 / 死分支与双重重载 / 适配层冗余 / 未接线统计与死锁字段 / 类型保真等小项 | 批次 B17 |
 
 ---
 
@@ -41,6 +45,10 @@
 | **链 4** | 轮次状态写路径 | `WorkflowRunner` → `RoundStateMapper`（`Seed`/`Harvest`）→ `vars`(Transient) / `state.Data` → `AgentRunnerCore.StateCenter` |
 
 > **未覆盖**：LLM 网关链、任务池/调度链、持久化骨干（SQLite/LiteDB）链、UI 函数库链（不在本工作线变更面内）。
+>
+> **第二轮（2026-09-12 追加）**：分析范围扩展为 `Frame\DataCenter` **库内聚审计**（对象 = 库内源码，而非上述四条调用链），条目续编 `F-27~F-39`；证据以**符号名 + 行号**联合定位（基线：Frame `4583c1c`）。
+> 该轮为**只读审计 + 修复方案**（未改动产品代码）；与第一条链重叠的承载面（`IRootProvider`/`IRuntimeSlot` 多实现）交叉引用 F-01/F-15，**不另立编号**。
+> 归属口径：`F-27~F-39` 全为 `(P)` **既有代码问题**（非本轮引入）；证据等级见各行标注（`[已核]` / `[条件性]`）。
 
 ---
 
@@ -56,6 +64,9 @@
 | **F-06** | 重复 | `RoundStateMapper.cs:135`（`Harvest` 白名单含 `RoundKeys.SessionId`）与 `WorkflowRunner.cs:252`（`state.Data[RoundKeys.SessionId] = sid`）`[已核]` | `state.Data[SessionId]` **两个写点**（`ExecResult` 已在 `RoundStateMapper.cs:131-132` 收敛为单点，`SessionId` 漏收敛） | 双写漂移面（写入时序不同即出现"最后写者赢"）；`S3`（A4）收敛点 2 的一部分 | ⏸ S3 |
 | **F-07** | 重复 | `ExtensionGenerationHost.cs:99-107` 与 `ExtensionLoadContext.cs:329-333 / :342` `[已核]` | "默认 ALC 已有同名程序集则复用"判定做了**两遍**：外层 `Load` 先经 `LoadFromAssemblyName` 触发 ALC，而 ALC 内部（`ExtensionLoadContext.Load`）自己又遍历 `Default.Assemblies` + `Default.LoadFromAssemblyName` | 冗余遍历（每次装载多扫一遍默认 ALC 程序集表）；两处判定未来可能给出不同答案 | ⏸ 待收敛 |
 | **F-08** | 重复 `[已登记]` | `AgentFramework.cs:178-180`（`Attach` + `AttachTaskPool`）· `AgentComposition.cs:64`（`AttachDatabase`）· `AgentFrameworkHosting.cs:43-67`（再 `EnsureComplete`）`[已核]` | 三条装配入口分层"薄委托"，各自附带一次槽发布/对账 | 代码自注为 **B4-2 迁移期**（B4-3..B4-6 待收敛）；当前无功能错误，属结构性重复 | ⏸ 迁移期 |
+| **F-27** | 重复 | `DataCenter.Core\Storage\TierStringStore.cs:27-95` vs `Share\Foundations\StateManagement\StateStorage\Core\StorageCellStateStore.cs:39-124`；`TierObjectStore.cs` vs `StateStorage\Core\ObjectKeyValueStore.cs` `[已核]` | 端口侧 Store 与 Share 侧 Store **逐方法同构**（`Set/Get/Has/Clear/GetAllKeys/GetOrAdd/Remove/RemoveByPrefix/SetRange/GetAll/Count/IsEmpty` + `_excludedKeyPrefix` 同形），且**两份都在活跃使用**（旧实现消费方 `StateManager.cs:24/39`） | 违背 `Strategy.SingleImplementation`：改一处漏一处（F-36 的 `Clear` 越前缀缺陷即被原样复制）。**收敛方向需先决策**（Core 仅依赖端口 vs 复用 Share 实现），故列 B16 前置决策项 | ⏸ P2（B16） |
+| **F-28** | 重复 | `StateCenter.cs:77`（`GlobalStore`）vs `:206`（`Store`）；`StateCenter.cs:75` vs `StateStore.cs:58`（两个独立 `DataCellStorageView` 缓存）；`StateStore.Reset()`（`:74-82`）vs `StateCenter.Reset()`（`:219`→`StateOrchestrator.Reset()`→`Store.Clear()`）`[已核]` | ① 同一真源两个公开属性（`IStateManager.GlobalStore` / `IStateOrchestrator.Store`）+ 两个视图实例；② **同名 `Reset` 两义**（仅对象态 vs 清整层 Session） | 服务定位器语义回潮；按名字推断语义必错（与 F-36 同批，重命名区分） | ⏸ P3（B17） |
+| **F-29** | 重复 | `LayeredStoreClient.cs:30-32`（兜底分支 `new StorageCellAdapter(center.Cell)`）· `DataCenterHost.cs:227-235`（`CreateProjector` 静态+实例双重重载）`[已核]` | ① 端口后端下 `center.Cell` 已是 `DataCellStorageView` ⇒ 兜底形成 `IStorageCell→IDataCell→IStorageCell` 双层往返；且 `StateCenter` 恒实现 `IDataCellProvider`（`:27`）⇒ **该分支库内不可达**；② 实例版重载仅做参数透传 | 死分支 + 双重适配反模式；薄包装叠层 | ⏸ P3（B17） |
 
 ---
 
@@ -70,6 +81,9 @@
 | **F-13** | 冗余 | `AgentRuntimeRoot.cs:89`（`ResetForTesting() => Unbind()`）`[已核]` | 纯转发方法（与 `Unbind` 完全等价） | 低；可并入测试夹具 | ⏸ 低 |
 | **F-14** | 冗余 | `AgentStateDomain.cs:51`（`Default => Apply(GraphRegistry.CreateDefault())`）`[已核]` | 每次属性访问都**新建并重建注册表**；`Resolve`（`:57`）在未绑定时亦每次新建 | 破坏"注册表同源/同实例"前提（`ReferenceEquals` 判据不可用）+ 重复建表开销 | ⏸ 建议惰性单例 |
 | **F-15** | 冗余 | `IRuntimeSlot` 三实现（`HostRuntimeSlot` / `LocalRuntimeSlot`（`AgentRuntimeRoot.cs:102`）/ `EmptyRuntimeSlot`）+ 两个 cell 工厂（`DataCenterHostOptions.RootCellFactory` / `PartitionCellFactory`，`DataCenterHost.cs:113-114`）`[已核]` | 承载面重叠，职责边界仅靠注释区分（"哪个是真路径"不可从类型判断） | 与 F-01 同源；增加新宿主时的选择歧义 | ⏸ 待收敛 |
+| **F-30** | 冗余 | `DataCenter.Abstractions\Dispatch\IStateDispatch.cs:7`（`Frame`/`Projects`/`Environment` 全域零引用）· `DataCenter.Core\Roots\RootProvider.cs`（生产零 `new`，仅测试 `DataCenterRootTests.cs:75/91`、`AgentFrameworkInjectedRootTests.cs:41`）· `Projection\JsonValueCodec.cs:31`（`Decode` 恒等直通）· `Cell\IDataCell.cs:22`（`SetObject` 为 `Set<object?>` 别名）`[已核]` | 端口/门面冗余面：`IStateDispatch` 为空端口（实际派发用 `Share.StateManagement.IPublishDispatcher`，`StateCenter.cs:41/56`）；`RootProvider`+`UnboundRootProvider` 测试专用；`Decode` 逆语义空实现；`SetObject` 仅适配器往返需要 | `Strategy.RedundancyElimination` 判据成立（¬∃caller→redundant）；与 F-11 同批处理 | ⏸ P2（B16） |
+| **F-31** | 冗余 | `Compat\StorageCellAdapter.cs:29`（`_parentAdapter ??=` 非原子且无退订）· `:71-75`（`ProbeTier` 每次变更 3 次 `Contains`）· `Compat\DataCellStorageView.cs:78`（`GetSnapshotBehavior` 恒 null）`[已核]` | 兼容适配层：适配器与 inner 同寿、无退订 ⇒ 并发下多重订阅（事件放大）；写路径 3 次探测仅为一个诊断字段；引擎快照语义在端口视图上静默失效（`SnapshotManager` 经视图即无快照） | 写路径开销 + 静默降级；层信息来源与 F-38 同源 ⇒ 同批 | ⏸ P3（B17） |
+| **F-32** | 冗余 | `Projection\TierStateProjector.cs:184-186`（`unparsedKeys`/`unregisteredTierEntries`/`filteredByTier` 仅写 metadata）· `Registry\GraphRegistry.cs:41/48/54`（`IReadOnlyCollection` 实为数组）· `Extensions.LoopDecision\LoopStateStore.cs:59-98`（`View`/`LoadWorking` 各读 6 键 + `HasPersisted` 再加 1）· `Core\StateStore.cs:27`（`_lock` 仅被 `Reset` 空锁块引用）`[已核]` | 报缺口无门禁消费（设计文档 §5.6 检测点未接线）；只读承诺可被强转改写；同一快照 2× 读放大；死字段 + 装饰性临界区（锁内无语句） | 低（可维护性/微弱开销） | ⏸ P3（B17） |
 
 ---
 
@@ -88,6 +102,13 @@
 | **F-24** | `AgentOrchestrator.cs:59/93`（`private readonly StateCenter _stateCenter` 仅 ctor 内构造，**无 `SetStateCenter`/构造参数注入面**；消费点仅 `:117 new AgentRunnerCore(_loopConfig, _stateCenter)`）`[已修 S4-4a]` | 即便宿主已持根，编排器仍用私有 `StorageCell("agent-orchestrator")` ⇒ **通道 A（状态 KV 接入）在编排器路径上实际未接通**（A1/A2 只把对象槽挂根，状态真源没挂） | **高** | ✅ 已修（S4-4a：`AgentOrchestrator(IAgentLoopConfig, StateCenter?)` 注入面 + 只读 `StateCenter` 属性；槽键 `state-center` + E 段登记宿主真源；未注入 → 显式回落。判据：`Agent.Core.Tests` 399/399 含 3 项注入面断言） |
 | **F-25** | `Check-DataCenterGenericity.ps1:200`（`if ($name -like 'static*' -and ($trimmed -match '=>' -or $trimmed -match '\(')) { continue }`）`[已核]` | K9 豁免规则过宽：命中行只要含 `(` 或 `=>` 即跳过 ⇒ `static IRootProvider p = Make();` 之类**可绕过门禁** | 中低（门禁） | ⏸ P3 |
 | **F-26** | `AgentUiHost.cs:102-110`（`AttachDatabase` → `:107 EnsureSingleGraphOwnerLocked`）+ `:164-170`（比对 `_referenceGrounding.Graph` 与 `dbResources`）+ `:350-360`（惰性 DB-only 自举）`[条件性]` | **惰性 DB 自举与全框架装配的图 owner 冲突**：若"引用守卫已挂（`AgentComposition.cs:217`）但 `State.Database` 仍为空"的窗口内发生惰性自举，新模块自带**另一个** coordinator ⇒ 断言抛"图库分裂"，而真实原因是装配半途 | 中 | ⏸ P3（需构造用例确认） |
+| **F-33** | `Abstractions\Cells\IDataCell.cs:34,37`（契约\"存在性探测（含父链回退）\"/\"移除（含父链回退定位）\"）vs `Core\Cells\InMemoryDataCell.cs:59-65`（`Contains` 只查本地三层）· `:67-90`（`Remove` 只删本地）· `:43-57`（`Get/TryGet` 走父链）；`Compat\StorageCellAdapter.cs:50/52` 直通 `IStorageCell`（有父链语义）`[已核]` | **契约与实现矛盾（父链回退）**：`Contains(key)`/`Remove(key)`（`tier=null`）**从不走 `Parent`**，而 `Get/TryGet` 走 ⇒ 同一单元可 `Get` 命中而 `Contains` 判 `false`；两后端（`IStorageCell` vs `IDataCell`）在 `tier=null` 路径行为分裂 ⇒ G2.2「双后端同构」前提被破坏。测试 `InMemoryDataCellTests.cs:93-104` 只覆盖 `Get` 的父链回退（缺陷被测试盲区掩盖） | **高** | ⏸ P0（B10） |
+| **F-34** | `Hosting\DataCenterHost.cs:202-212`（`_provider.Unbind()` → `_slots.Dispose()` → `_center.Shutdown()` → `_root.Dispose()` 顺序无隔离）+ `HostRuntimeSlot.cs:56-57`（显式抛 `AggregateException`）；`Boot` catch `:125-130` `[已核]` | **停机无异常隔离**：槽释放一旦抛错，后续 `_center.Shutdown()` 与 `_root.Dispose()` **全部跳过** ⇒ `RootInstanceGuard._live` 不归零、`_shutdown` 已置 1 ⇒ 表现为**永久停机且进程内再也 Boot 不出根**（第二根 fail-fast）。`Boot` catch 同型：`slots.Dispose()` 抛错会**替换原始装配异常**（对比 `StateCenter.Shutdown` 明确承诺\"不抛\"） | **高** | ⏸ P0（B11） |
+| **F-35** | `Share\Foundations\StateManagement\Abstractions\IStateCenter.cs:13/19-20`（\"StorageEngine 根会话\"/\"落 StorageEngine.CreateSession\"）vs `StateCenter.cs:86-90`（`_factory.CreateChild`）+ `Core\Cells\InMemoryDataCellFactory.cs:11`；未被复用的既有能力 `Modules\InternalStorage\Extensions\StorageCellExtensions.cs:10`（`CreateChildCell`）`[已核]` | **scope 分区语义漂移**：分区载体改由 `IDataCellFactory` 派生，`DataCenterHostOptions.PartitionCellFactory` 与测试默认 `InMemoryDataCellFactory` ⇒ legacy `IStorageCell` 后端（迁移期实际生产路径）下 scope 状态落在**内存子单元**：不持久化、无引擎快照语义；且 `IStateCenter` 注释仍承诺引擎会话。测试 `StateCenterPortBackendTests.cs:32-53` 把漂移固化为\"两后端一致\"的期望 | **高** | ⏸ P0（B12） |
+| **F-36** | `Core\Storage\TierStringStore.cs:41`（`Clear() => _cell.ClearTier(Session)` **不遵守 `_excludedKeyPrefix`**，而 `GetAllKeys:43`/`GetAll:82-91`/`Count:93`/`IsEmpty:95`/`RemoveByPrefix:63-73` 均遵守）；后果链 `StateCenter.Reset():219`→`StateOrchestrator.Reset()`→`Store.Clear()`；`StateStore.Reset` 注释（`:73`）承诺\"字符串 KV 保留\" `[已核]` | 同一对象内**两套键可见性语义**：`Clear()` 会连带清掉 `_obj:` 对象态与同 cell 的 `StateBlock.Decision` 决策核心键（`LayeredStoreClient` 写入），与 `StateStore.Reset` 的承诺及\"字符串 KV / 对象 KV 隔离\"设计直接冲突（缺陷自 `StorageCellStateStore` 原样继承，未修） | 中高 | ⏸ P1（B13） |
+| **F-37** | `Hosting\DataCenterHost.cs:146-197`（`_root`/`_generation`/`_provider` 跨 `await` 非原子改写；仅入口 `ThrowIfShutdown()`，await 后不复检）`[条件性]` | `SwapAsync` **无并发与停机守卫**：Swap×Shutdown 交错可让 `_provider.Bind` 在停机后\"复活\"根（`Root.TryGetRoot` 又为 true）；两个并发 Swap ⇒ 旧根双释放 / `RootFactory` 双调用 / 代际跳号（与 F-22 同族） | 中高 | ⏸ P1（B14） |
+| **F-38** | `Compat\StorageCellAdapter.cs:71-75`（`ProbeTier`：键已删 ⇒ 三次探测全 false ⇒ 回退 `Session`）+ `Plate\TConfig\ContextFrame\Abstractions\IContext.cs:45-62`（`ContextDataChangedEventArgs` **无层字段**）`[已核]` | 变更事件的 `Tier` 契约字段在**删除路径必然错误**（Config/Transient 键的删除被报成 Session）⇒ 按 Tier 归类/审计的消费方出错；且该探测落在写路径上（F-31 同源） | 中 | ⏸ P1（B15） |
+| **F-39** | `Hosting\DataCenterHost.cs:310-317`（`Advance` 把自定义 `IStateGeneration` 降级为 `GenerationState`；`:172-173` 赋值窗口 `_root.Generation` 与 `_generation` 短暂不一致）· `Core\Roots\EmptyRuntimeSlot.cs:10`（未实现 `IDisposable`）· `Projection\TierStateProjector.cs:128`（URI 去重**静默丢弃**且不计入缺口计数）· `Core\StateCenter.cs:165`（调用方自算版本，而 hub `StateSubscriptionHub.cs:77-83` 内部重复分配）· `Extensions.LoopDecision\DecisionCenter.cs:43-44`（只捕 `JsonException`）/ `LoopStateStore.cs:71`（硬编码 `TokenMax=3`）`[已核]` | 类型保真缺失、空槽不可处置、\"静默降级\"违反设计文档 §5.6、版本分配双实现、异常面过窄与常量重复 | 中低 | ⏸ P3（B17） |
 
 ### 关键条目详注
 
@@ -134,6 +155,14 @@ var next = state.Next(plan.Fingerprint);   // plan.Fingerprint 为 null → 指�
 | **B7/P2** | F-01 · F-02 · F-14 · F-15：抽单一 `IRuntimeSlotPartition` 实现 + `CreateProjector(generation)` + 注册表单例 | `DataCenter.Tests` 不回归；槽语义判据（同键同实例幂等 / 异实例抛 / 处置期逆序释放）集中一处 | 单提交可撤 |
 | **B8/P2** | F-09 · F-10 · F-11 · F-12 · F-13：删/接线冗余公开面 | F-10 接线后：装配期 `IsFullyRegistered` 断言（缺失即抛）；F-12 **✅ 已接线（S4-4b/1d）** | 单提交可撤 |
 | **B9/P3** | F-22 · F-23 · F-25 · F-26 | F-25：收窄豁免后 K9 重扫仍 EXIT 0（当前无新增违规）；F-26：补一条惰性自举 × 半装配窗口的单测 | 单提交可撤 |
+| **B10/P0** | F-33：`InMemoryDataCell.Contains/Remove`（`tier=null`）补齐父链回退，与 `Get/TryGet` 对齐；`Remove` 未命中本地时委派 `Parent.Remove`，事件由**实际删除方**抛出（避免双通知） | 新增：`Contains_FallsBackToParent`、`Remove_FallsBackToParent_RaisesOnOwner`；**两后端同构断言**（`StorageCell` vs `InMemoryDataCell` 在 `tier=null` 下 `Get/Contains/Remove` 三态一致）；先扫全库无 `Contains(`/`Remove(`（`tier=null`）的隐式依赖；`DataCenter.Tests` 不回归 | 单提交可撤 |
+| **B11/P0** | F-34：`ShutdownAsync` 三段（槽 / 存储 / 根）各自 try/catch 收集，`_center.Shutdown()` 与 `_root.Dispose()` **必达**，末端聚合外抛；`Boot` catch 复用同一「尽力释放」helper（原始异常优先，释放异常降级为附加信息） | 新增：注入「释放即抛」的槽对象 → 停机后 `RootInstanceGuard` 归零且**可再次 `Boot` 成功**；装配期 `ConfigureSlots` 抛错时对外异常为原始装配异常 | 单提交可撤 |
+| **B12/P0** | F-35：分区载体**按后端选择** —— legacy 后端经 `StorageCellExtensions.CreateChildCell`（引擎会话）适配为 `IDataCell` 后交给 `StateStore`，端口后端维持 `InMemoryDataCellFactory`；二选一方案 B（不改行为）：同步改写 `IStateCenter.GetOrCreateScope`/`Cell` 注释与设计文档，显式降级「引擎会话语义」承诺 | 方案 A：legacy 后端下 scope 写值命中 `StorageCell` 子单元（`GetKeys(Session)` 含该键）+ 端口后端行为不变 + `DataCenter.Tests` 全绿；方案 B：文档/注释一致性核对（无代码断言） | 单提交可撤 |
+| **B13/P1** | F-36 · F-28②：`TierStringStore.Clear()` 改为**按排除前缀逐键移除**（与 `GetAllKeys` 同语义）；`StateStore.Reset` 更名 `ResetObjectState` 并更新调用点与注释，消除与 `StateCenter.Reset` 的同名两义 | 新增：`Clear()` 后 `_obj:` 键消失且同 cell 的 `ns:scope:key` **仍在**；`ResetObjectState` 只清对象态；`StateOrchestrator.Reset` 行为不回归 | 单提交可撤 |
+| **B14/P1** | F-37：`DataCenterHost` 增换代互斥（`SemaphoreSlim(1,1)`，`SwapAsync` 全程持锁）；`Drain` 后复检 `_shutdown`（停机中不绑新根，释放交出物后按停机语义返回） | 新增：并发 8 线程 `SwapAsync` → `RootFactory` 调用次数 = 1；Swap×Shutdown 交错后 `Root.TryGetRoot` 恒 false（无复活根）；`SwapAsync_WithoutFingerprint_PreservesPreviousFingerprint` 等既有断言不回归 | 单提交可撤 |
+| **B15/P1** | F-38 · F-31：`StorageCellAdapter` 维护 `key→tier` 旁表（`Set/SetQuiet/SetObject` 登记；事件回调优先查表、未命中再回退探测；删除事件用登记值并清理表项），使 `DataCellChangedEventArgs.Tier` 在删除路径正确 | 新增：Config 层键删除 → 事件 `Tier == Config`；旁表命中时**探测次数为 0**（以计数可注入的 cell 夹具断言） | 单提交可撤 |
+| **B16/P2** | F-27（**先决策收敛方向**：Core 仅依赖端口 ⇒ 删 Share 侧副本并迁移 `StateManager`；或反向）· F-30：删除/接线冗余端口面（`IStateDispatch` 删除或接线为 `IPublishDispatcher` 的端口化替身；`RootProvider` 收编入测试夹具；`Decode` 与 `SetObject` 按消费方证据决定去留） | F-30：删除后四套解构建 0 错 0 警 + 7 测试工程通过（零消费方 ⇒ 预期无回归）；F-27：决策记录（写入本台账「状态」列）后按方向执行并复查 `StateManager` 路径 | 单提交可撤 |
+| **B17/P3** | F-28① · F-29 · F-31 · F-32 · F-39：聚合清理 —— 双公开面（`GlobalStore`/`Store`、双视图）与死分支/双重重载；metadata 未接线计数（`unparsedKeys` 等接门禁或删）；`IReadOnlyCollection` 改只读视图（`Array.AsReadOnly`）；`LoopStateStore` 快照复用；`StateStore._lock` 死字段删除；`Advance` 类型保真（保留自定义 `IStateGeneration`）；`EmptyRuntimeSlot` 实现 `IDisposable`（no-op）；去重静默丢弃计入 `duplicateKeys` 计数；版本分配改走 3 参 `Publish` 重载；`Recent` 异常面收窄改为捕获必要异常集；`TokenMax` 常量归一（引用 `LoopKeys`） | 每子项一条最小断言；批末 `DataCenter.Tests` 全集 + K9/K10 门禁 EXIT 0 | 按子项拆分可撤 |
 
 **验证纪律（沿用下一步实施计划 §4）**：任一批次提交前须跑 —— 四套解决方案构建（0 错 0 警）+ 7 个测试工程 + K9/K10 门禁；契约变更后必须刷新烘焙副本（`StateHoldDriven.csproj`）。
 

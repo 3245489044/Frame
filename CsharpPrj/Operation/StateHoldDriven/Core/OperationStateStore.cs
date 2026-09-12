@@ -86,11 +86,11 @@ namespace Operation.StateBlock.Core
             get { lock (_lock) return _workflowRegistry != null; }
         }
 
-        /// <summary>清对象态 + 扩展端口（原 StateStore.Reset 语义）。</summary>
-        public override void Reset()
+        /// <summary>清对象态 + 扩展端口（原 StateStore.ResetObjectState 语义）。</summary>
+        public override void ResetObjectState()
         {
             ClearPorts();
-            base.Reset();
+            base.ResetObjectState();
         }
 
         /// <summary>清字符串 KV + 扩展端口（原 StateStore.Clear 语义）。</summary>

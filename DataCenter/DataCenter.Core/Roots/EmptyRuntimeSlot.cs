@@ -7,12 +7,17 @@ namespace Operation.StateBlock.Roots;
 /// 取值一律未命中（<see cref="KeyNotFoundException"/>），注册一律 fail-fast（无槽可注册）。
 /// 语义：槽是宿主装配层的产物，未装配 ≠ 静默容忍；但也不阻塞根实例化（槽缺席不影响状态面）。
 /// </summary>
-public sealed class EmptyRuntimeSlot : IRuntimeSlot
+public sealed class EmptyRuntimeSlot : IRuntimeSlot, IDisposable
 {
     /// <summary>共享只读实例（无状态）。</summary>
     public static IRuntimeSlot Instance { get; } = new EmptyRuntimeSlot();
 
     private EmptyRuntimeSlot()
+    {
+    }
+
+    /// <summary>无资源可释放（F-39：补齐 <see cref="IDisposable"/> 以便统一处置口径；恒为 no-op）。</summary>
+    public void Dispose()
     {
     }
 
@@ -29,6 +34,10 @@ public sealed class EmptyRuntimeSlot : IRuntimeSlot
         public void Register(string key, object value)
             => throw new InvalidOperationException(
                 $"运行时槽未装配：无法向分区 '{DomainKey}' 注册 '{key}'（槽由宿主装配层创建并注入，禁止就地自建第二根）。");
+
+        public T GetOrAdd<T>(string key, Func<T> factory) where T : class
+            => throw new InvalidOperationException(
+                $"运行时槽未装配：无法向分区 '{DomainKey}' 装配 '{key}'（槽由宿主装配层创建并注入，禁止就地自建第二根）。");
 
         public void Replace(string key, object value)
             => throw new InvalidOperationException(

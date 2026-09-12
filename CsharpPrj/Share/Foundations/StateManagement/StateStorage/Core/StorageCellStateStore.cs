@@ -60,7 +60,15 @@ namespace Share.StateManagement
             return _cell.Contains(key, Layer);
         }
 
-        public void Clear() => _cell.ClearLayer(Layer);
+        /// <summary>
+        /// 清理本层<b>非隔离键</b>（逐键移除；与 <see cref="GetAllKeys"/> 同语义：排除对端前缀，不越界清空）。
+        /// 与 DataCenter.Core 端口侧 <c>TierStringStore</c> 对齐修复（F-27/F-36 同构缺陷：原 <c>ClearLayer</c> 越前缀清空）。
+        /// </summary>
+        public void Clear()
+        {
+            foreach (var key in GetAllKeys())
+                Remove(key);
+        }
 
         public IReadOnlyCollection<string> GetAllKeys() => _cell.GetKeys(Layer).Where(k => !IsExcluded(k)).ToArray();
 

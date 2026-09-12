@@ -45,7 +45,9 @@ public class BlockStateInitializer : CoreStateBlock, IStateInitializer
     {
         try
         {
-            var center = _centerFactory?.Invoke(_store.Cell) ?? new StateCenter(_store.Cell);
+            // F-35 方案 A：legacy 后端的 scope 分区落引擎会话子单元（工厂按后端自选；端口后端回落内存工厂）
+            var center = _centerFactory?.Invoke(_store.Cell)
+                ?? new StateCenter(_store.Cell, new StorageCellPartitionFactory(_store.Cell));
             Center = center;
             AppServiceRegistration.Register(center);
             return (true, "StateCenter 创建并注册完成", null);

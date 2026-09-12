@@ -24,7 +24,6 @@ namespace Operation.StateBlock.Core
         /// <summary>对象态（Get&lt;T&gt;/Set&lt;T&gt;/ExtendedStates）键前缀，与字符串 KV 隔离。</summary>
         protected const string ObjectKeyPrefix = "_obj:";
 
-        private readonly object _lock = new();
         private readonly IDataCell _cell;
         private readonly TierStringStore _stringStore;
         private readonly TierObjectStore _objectStore;
@@ -70,14 +69,13 @@ namespace Operation.StateBlock.Core
 
         public bool Contains<TState>(string key) => _objectStore.Contains(key);
 
-        /// <summary>仅清对象态（extendedStates），字符串 KV 保留（原语义）。派生类可覆写以级联清理扩展端口。</summary>
-        public virtual void Reset()
+        /// <summary>
+        /// 仅清对象态（extendedStates），字符串 KV 保留（原语义）。
+        /// 更名（F-28②）：与 <see cref="StateCenter.Reset"/>（清整层 Session）区分，消除同名两义。
+        /// 派生类可覆写以级联清理扩展端口。
+        /// </summary>
+        public virtual void ResetObjectState()
         {
-            lock (_lock)
-            {
-                // 对象态清理；字符串 KV 不在本方法职责内（原语义）
-            }
-
             _objectStore.Clear();
         }
 

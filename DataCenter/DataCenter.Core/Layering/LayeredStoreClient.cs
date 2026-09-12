@@ -29,7 +29,9 @@ namespace Operation.StateBlock.Layering
             _scheme = scheme ?? throw new ArgumentNullException(nameof(scheme));
             _dataCell = center is IDataCellProvider provider
                 ? provider.Root
-                : new Operation.StateBlock.Core.Compat.StorageCellAdapter(center.Cell);
+                : throw new NotSupportedException(
+                    "LayeredStoreClient 需要端口后端状态中心（IDataCellProvider）；" +
+                    "F-29：原经 StorageCellAdapter 的兜底分支库内不可达，且形成 IStorageCell→IDataCell→IStorageCell 双重适配。");
         }
 
         /// <summary>底层分层存储单元（契约视图）；只读供高级枚举/批量操作，不做裸键访问。</summary>

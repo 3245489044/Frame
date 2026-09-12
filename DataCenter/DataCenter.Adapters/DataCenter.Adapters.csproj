@@ -32,10 +32,13 @@
     <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
     <!-- 引擎存储契约（IStorageCell）：兼容构造与适配器签名 -->
     <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+    <!-- 引擎存储实现（StorageCell）：legacy 后端 scope 分区载体（F-35 方案 A：引擎会话子单元） -->
+    <Reference Include="Modules.InternalStorage" HintPath="$(CsharpBuildOutputDir)Modules.InternalStorage.dll" Private="false" />
   </ItemGroup>
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：本工程在 MainProj.sln 烘焙闭包内。 -->
   <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\Modules\InternalStorage\InternalStorage.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" ReferenceOutputAssembly="false" Private="false" />

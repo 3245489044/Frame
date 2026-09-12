@@ -10,9 +10,6 @@ internal static class RootInstanceGuard
 {
     private static int _live;
 
-    /// <summary>当前存活的根实例数（诊断/判据用）。</summary>
-    internal static int LiveCount => Volatile.Read(ref _live);
-
     /// <summary>进入（已存在存活根 → 抛错，且不改变计数）。</summary>
     internal static void Enter()
     {

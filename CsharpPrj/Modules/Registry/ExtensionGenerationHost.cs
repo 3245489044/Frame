@@ -345,6 +345,10 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
         }
         catch (FileNotFoundException) { /* 默认 ALC 无法解析 = Agent-only/扩展专属，落入下方自装 */ }
         catch (BadImageFormatException) { /* 交由下方自装（按 deps.json 定位）兜底 */ }
+        // F-23：装载期还可能抛 FileLoadException/IOException（文件占用/损坏/权限/依赖缺失）——
+        // 原仅捕前两类会让异常从 ALC 装载路径（AssemblyResolve）冒泡；统一交下方自装兜底。
+        catch (FileLoadException) { /* 交下方自装兜底 */ }
+        catch (IOException) { /* 交下方自装兜底 */ }
 
         foreach (var resolver in _resolvers)
         {

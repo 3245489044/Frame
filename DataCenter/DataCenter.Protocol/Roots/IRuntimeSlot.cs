@@ -35,6 +35,14 @@ public interface IRuntimeSlotPartition
     void Register(string key, object value);
 
     /// <summary>
+    /// 取或装配槽对象（<b>运行期并发首访路径</b>，F-20/F-04）：已注册 → 返回既有实例（类型不符 = fail-fast）；
+    /// 未注册 → 调用 <paramref name="factory"/> 装配并注册，返回被采纳的实例（并发下工厂至多生效一次，
+    /// 由实现保证原子性）。与 <see cref="Register"/> 分工：本方法不因「并发首访」而抛错，装配期冲突仍由
+    /// <see cref="Register"/> 的 fail-fast 承担。
+    /// </summary>
+    T GetOrAdd<T>(string key, Func<T> factory) where T : class;
+
+    /// <summary>
     /// 替换槽对象（<b>处置期写口</b>：换代重装配 / 重装配覆盖；同实例幂等）。
     /// 旧值处置由调用方负责（槽宿主不越权释放仍未解绑的对象）。
     /// </summary>

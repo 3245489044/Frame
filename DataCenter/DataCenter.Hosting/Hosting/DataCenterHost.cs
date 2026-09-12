@@ -34,6 +34,9 @@ public sealed class DataCenterHost : IAsyncDisposable
     private IStateGeneration _generation;
     private int _shutdown;
 
+    /// <summary>换代互斥（F-37）：进程内同时至多一次 Swap，且与停机互斥（防交错产生"复活根"）。</summary>
+    private readonly SemaphoreSlim _swapGate = new(1, 1);
+
     private DataCenterHost(
         DataCenterHostOptions options,
         IDataCell cell,
@@ -122,10 +125,16 @@ public sealed class DataCenterHost : IAsyncDisposable
 
             return new DataCenterHost(options, cell, center, slots, provider, root, options.Generation);
         }
-        catch
+        catch (Exception assemblyFailure)
         {
-            center?.Shutdown();
-            slots.Dispose();
+            // 装配回滚（F-34）：释放异常不得覆盖原始装配异常 —— 原始异常优先，释放失败降级为附加信息
+            var rollbackFailures = new List<Exception>();
+            TryRelease(rollbackFailures, "state-center(rollback)", () => center?.Shutdown());
+            TryRelease(rollbackFailures, "runtime-slots(rollback)", slots.Dispose);
+
+            if (rollbackFailures.Count > 0)
+                throw new AggregateException(assemblyFailure.Message, [assemblyFailure, .. rollbackFailures]);
+
             throw;
         }
     }
@@ -148,13 +157,32 @@ public sealed class DataCenterHost : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(plan);
         ThrowIfShutdown();
 
+        // F-37：换代全程互斥（并发 Swap 只允许一次装配；后到者拿锁后复检停机态）
+        await _swapGate.WaitAsync(ct).ConfigureAwait(false);
+
         var previousRoot = _root;
         var previousGeneration = _generation;
+        Exception? failure = null;
 
         try
         {
+            ThrowIfShutdown();   // 等待互斥期间可能已停机
+
+            // F-37 去重：纯代际推进（无边界/载荷钩子）且内容指纹与当前代际相同 → 无需换代
+            // （并发同计划只装配一次；RootFactory 至多调用一次）
+            if (plan.Drain is null && plan.Resume is null && plan.Export is null && plan.Import is null &&
+                plan.Fingerprint is { Length: > 0 } fingerprint &&
+                string.Equals(fingerprint, _generation.Fingerprint, StringComparison.Ordinal))
+            {
+                return _root;
+            }
+
             if (plan.Drain is not null)
                 await plan.Drain(ct).ConfigureAwait(false);
+
+            // F-37：Drain 期间可能已停机 → 不绑新根（避免"复活根"）；旧根处置由停机路径负责
+            if (Volatile.Read(ref _shutdown) != 0)
+                throw new ObjectDisposedException(nameof(DataCenterHost));
 
             // Export 在旧代数释放前调用（载荷只承载"不在状态真源里"的跨代迁移数据）
             var payload = plan.Export is null ? null : await plan.Export(ct).ConfigureAwait(false);
@@ -178,46 +206,121 @@ public sealed class DataCenterHost : IAsyncDisposable
 
                 return _root;
             }
-            catch
+            catch (Exception assemblyFailure)
             {
                 // 回建旧代数（尽力恢复，保证"换代失败保留旧代数"语义；真源复用 → 值不丢）
                 ReleaseRoot(nextRoot);
                 _provider.Unbind();
-                _root = BuildRoot(previousGeneration);
-                _generation = previousGeneration;
-                _provider.Bind(_root);
-                throw;
+
+                try
+                {
+                    // F-21：回建亦经装配入口（RootFactory），与"重建 + 状态迁移"承诺一致（原走核心路径 →
+                    // 对象层"保留旧代数"不成立）；目标代际与上一代同为 previousGeneration，避免回建出"新一代"根。
+                    _root = BuildRoot(previousGeneration, previousGeneration);
+                    _generation = previousGeneration;
+                    _provider.Bind(_root);
+                }
+                catch (Exception rebuildFailure)
+                {
+                    // F-22：装配入口回建失败 → 显式降级到核心路径（同真源 + 旧代际；对象槽未释放仍在位）；
+                    // 降级成功仍抛原始装配异常（回建失败不得掩盖根因）；降级亦失败 → 聚合外抛（原始异常居首）。
+                    try
+                    {
+                        _root = BuildRoot(previousGeneration);
+                        _generation = previousGeneration;
+                        _provider.Bind(_root);
+                    }
+                    catch (Exception degradeFailure)
+                    {
+                        throw new AggregateException(
+                            "新代数装配失败、装配入口回建失败且降级回建亦失败（首个内部异常为装配根因）。",
+                            assemblyFailure, rebuildFailure, degradeFailure);
+                    }
+                }
+
+                throw;   // 原始装配异常优先（栈保留；回建/降级均不改写根因）
             }
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+            throw;
         }
         finally
         {
-            if (plan.Resume is not null)
-                await plan.Resume(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (plan.Resume is not null)
+                {
+                    try
+                    {
+                        await plan.Resume(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception resumeFailure) when (failure is not null)
+                    {
+                        // 换代根因优先（F-19）：Resume 失败不得覆盖 Drain/Export/装配/Import 的原始异常 ——
+                        // 原始异常置于首位（根因可辨），Resume 失败作为附加内部异常保留（不静默丢弃）。
+                        throw new AggregateException(
+                            "换代失败且 Resume 亦失败（首个内部异常为换代根因）。", failure, resumeFailure);
+                    }
+                }
+            }
+            finally
+            {
+                _swapGate.Release();   // F-37：Resume 是否抛错都必须释放换代互斥（防永久死锁）
+            }
         }
     }
 
     /// <summary>
     /// 停机（幂等）：先停写（运行时槽处置：域对象/任务池/网关）→ 再关 Actor 与存储编排 → 最后释放根（守卫配平）。
+    /// <para>
+    /// 三段各自隔离（F-34）：任一阶段释放失败都<b>不得阻断</b>后续阶段 —— 尤其 <see cref="_root"/>.Dispose 必达，
+    /// 否则单根守卫不归零而 <see cref="_shutdown"/> 已置位 ⇒ 进程内永久无法再 Boot。末端聚合外抛（不静默吞错）。
+    /// </para>
     /// </summary>
     public Task ShutdownAsync()
     {
         if (Interlocked.Exchange(ref _shutdown, 1) != 0)
             return Task.CompletedTask;
 
-        _provider.Unbind();
-        _slots.Dispose();
-        _center.Shutdown();
-        _root.Dispose();
-        return Task.CompletedTask;
+        // F-37：与换代互斥 —— 停机不得与在途 Swap 交错（否则可能在停机后又绑上新根 = "复活根"）
+        _swapGate.Wait();
+        try
+        {
+            var failures = new List<Exception>();
+            _provider.Unbind();
+
+            TryRelease(failures, "runtime-slots", _slots.Dispose);
+            TryRelease(failures, "state-center", _center.Shutdown);
+            TryRelease(failures, "root", _root.Dispose);
+
+            return failures.Count > 0
+                ? Task.FromException(new AggregateException("停机存在失败阶段（已尽力释放全部阶段）。", failures))
+                : Task.CompletedTask;
+        }
+        finally
+        {
+            _swapGate.Release();
+        }
     }
 
     /// <summary>同步释放（宿主退出路径；阻塞等待）。</summary>
     public void Dispose() => ShutdownAsync().GetAwaiter().GetResult();
 
-    public ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => new(ShutdownAsync());
+
+    /// <summary>尽力执行释放动作并收集失败（隔离单段异常，保证后续段必达）。</summary>
+    private static void TryRelease(List<Exception> failures, string stage, Action release)
     {
-        ShutdownAsync();
-        return ValueTask.CompletedTask;
+        try
+        {
+            release();
+        }
+        catch (Exception ex)
+        {
+            failures.Add(new InvalidOperationException($"停机阶段 '{stage}' 释放失败（已继续释放其余阶段）。", ex));
+        }
     }
 
     /// <summary>
@@ -229,10 +332,6 @@ public sealed class DataCenterHost : IAsyncDisposable
         IStateValueCodec codec, IStateGeneration generation)
         => projectorOverride
            ?? new TierStateProjector(new StateCenterEntrySource(center), registry, codec, generation);
-
-    /// <summary>当前实例口径的投影器（注入者优先）。</summary>
-    private IStateProjector CreateProjector(IStateGeneration generation)
-        => CreateProjector(_projectorOverride, _center, _registry, _codec, generation);
 
     /// <summary>
     /// 核心装配路径根（默认 ALC；复用当前真源/投影器/槽，目标代际为 <paramref name="generation"/>）。
@@ -251,7 +350,8 @@ public sealed class DataCenterHost : IAsyncDisposable
     /// <summary>核心装配路径（默认 ALC + 复用真源/投影器）—— 未注入装配入口时的唯一路径。</summary>
     private DataCenterRoot BuildRoot(IStateGeneration generation)
     {
-        var projector = CreateProjector(generation);
+        // F-29：投影器构造单点（原实例版重载仅透传，已收敛）
+        var projector = CreateProjector(_projectorOverride, _center, _registry, _codec, generation);
         return new DataCenterRoot(_cell, projector, _registry, generation, _slots);
     }
 

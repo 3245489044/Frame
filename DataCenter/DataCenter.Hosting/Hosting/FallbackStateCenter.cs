@@ -1,3 +1,4 @@
+using DataCenter.Abstractions.Cells;
 using Operation.StateBlock.Core;
 using TConfig.ContextFrame.Abstractions;
 
@@ -23,9 +24,17 @@ public static class FallbackStateCenter
 {
     /// <summary>创建回落状态中心（延迟构造引擎存储单元格；null 工厂 → fail-fast）。</summary>
     /// <param name="legacyCellFactory">引擎存储单元格工厂（迁移期兼容路径；实现由调用方决定）。</param>
-    public static StateCenter Create(Func<IStorageCell> legacyCellFactory)
+    /// <param name="partitionCellFactory">
+    /// scope 分区载体工厂（F-35 方案 A，可选）—— legacy 后端应传
+    /// <c>DataCenter.Adapters.StorageCellPartitionFactory</c> 使 scope 分区落引擎会话子单元；
+    /// null = 端口内存工厂（迁移期默认，行为不变）。本层不默认构造引擎工厂：引擎实现程序集不进宿主装配层闭包。
+    /// </param>
+    public static StateCenter Create(Func<IStorageCell> legacyCellFactory, IDataCellFactory? partitionCellFactory = null)
     {
         ArgumentNullException.ThrowIfNull(legacyCellFactory);
-        return new StateCenter(legacyCellFactory());
+        var cell = legacyCellFactory();
+        return partitionCellFactory is null
+            ? new StateCenter(cell)
+            : new StateCenter(cell, partitionCellFactory);
     }
 }

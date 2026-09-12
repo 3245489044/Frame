@@ -38,7 +38,15 @@ internal sealed class TierStringStore
 
     public bool Has(string key) => !string.IsNullOrWhiteSpace(key) && _cell.Contains(key, Tier);
 
-    public void Clear() => _cell.ClearTier(Tier);
+    /// <summary>
+    /// 清理本层<b>非隔离键</b>（逐键移除；与 <see cref="GetAllKeys"/> 同语义：排除对端前缀，不越界清空）。
+    /// 原实现直接 <c>ClearTier</c> 会连排除前缀（对象态）一并清掉 —— 越界清空（F-36）。
+    /// </summary>
+    public void Clear()
+    {
+        foreach (var key in GetAllKeys())
+            Remove(key);
+    }
 
     public IReadOnlyCollection<string> GetAllKeys() => _cell.GetKeys(Tier).Where(k => !IsExcluded(k)).ToArray();
 

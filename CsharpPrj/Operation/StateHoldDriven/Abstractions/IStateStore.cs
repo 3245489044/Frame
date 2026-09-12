@@ -22,6 +22,6 @@ namespace Operation.StateBlock.Abstractions
 
         void Set<TState>(string key, TState value);
 
-        void Reset();
+        void ResetObjectState();
     }
 }

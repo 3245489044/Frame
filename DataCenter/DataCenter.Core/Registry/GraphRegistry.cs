@@ -23,6 +23,9 @@ public sealed class GraphRegistry : IStateRegistry
         _tiers = NewSet(tiers, DefaultTiers);
         _nodeKinds = NewSet(nodeKinds, DefaultNodeKinds);
         _edgeKinds = NewSet(edgeKinds, DefaultEdgeKinds);
+        Tiers = Array.AsReadOnly(_tiers.OrderBy(static v => v, StringComparer.Ordinal).ToArray());
+        NodeKinds = Array.AsReadOnly(_nodeKinds.OrderBy(static v => v, StringComparer.Ordinal).ToArray());
+        EdgeKinds = Array.AsReadOnly(_edgeKinds.OrderBy(static v => v, StringComparer.Ordinal).ToArray());
         _domainAliases = new Dictionary<string, string>(StringComparer.Ordinal);
         if (domainAliases is not null)
         {
@@ -60,11 +63,14 @@ public sealed class GraphRegistry : IStateRegistry
         "control.transition",
     ];
 
-    public IReadOnlyCollection<string> Tiers => _tiers;
+    /// <summary>分层标识（只读视图；F-32：原返回内部 HashSet，可被强转改写）。</summary>
+    public IReadOnlyCollection<string> Tiers { get; }
 
-    public IReadOnlyCollection<string> NodeKinds => _nodeKinds;
+    /// <summary>节点种类（只读视图）。</summary>
+    public IReadOnlyCollection<string> NodeKinds { get; }
 
-    public IReadOnlyCollection<string> EdgeKinds => _edgeKinds;
+    /// <summary>边种类（只读视图）。</summary>
+    public IReadOnlyCollection<string> EdgeKinds { get; }
 
     public bool IsTierRegistered(string tier) => !string.IsNullOrWhiteSpace(tier) && _tiers.Contains(tier);
 

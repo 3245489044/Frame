@@ -61,7 +61,20 @@ namespace Operation.StateBlock.Core
         /// 引擎后端构造（迁移期兼容：IStorageCell 经 <see cref="StorageCellAdapter"/> 接入端口，存量消费方零改动）。
         /// </summary>
         public StateCenter(IStorageCell cell, IPublishDispatcher? publishDispatcher = null)
-            : this(new StorageCellAdapter(cell ?? throw new ArgumentNullException(nameof(cell))), null, publishDispatcher)
+            : this(cell, null, publishDispatcher)
+        {
+        }
+
+        /// <summary>
+        /// 引擎后端构造（指定 scope 分区载体工厂；F-35 方案 A）。
+        /// <para>
+        /// 分区载体<b>按后端选择</b>：legacy 后端须经引擎 <c>CreateChildCell</c> 派生会话子单元并把该子单元适配为
+        /// <see cref="IDataCell"/>（否则 scope 状态落入与引擎无关的内存子单元：无引擎快照语义）。工厂由持有引擎实现的上层
+        /// （<c>DataCenter.Adapters.StorageCellPartitionFactory</c>）提供；null = 端口内存工厂（迁移期默认，行为不变）。
+        /// </para>
+        /// </summary>
+        public StateCenter(IStorageCell cell, IDataCellFactory? partitionCellFactory, IPublishDispatcher? publishDispatcher = null)
+            : this(new StorageCellAdapter(cell ?? throw new ArgumentNullException(nameof(cell))), partitionCellFactory, publishDispatcher)
         {
             _legacyCell = cell;
         }

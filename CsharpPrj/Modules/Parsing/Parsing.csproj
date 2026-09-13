@@ -17,6 +17,10 @@
   <ItemGroup>
     <!-- Common、StateMachine 已整合到 BasicMethod.csproj -->
     <ProjectReference Include="$(Proj_BasicMethod)" />
+    <!-- 平台级统一 JSON 框架（Layer 6）：命令内嵌 JSON 片段的解析/规范化唯一出口（ParseJsonNode） -->
+    <ProjectReference Include="$(Proj_JsonMethod)" />
+    <!-- 转换内核（Modules 同层，netstandard2.0 零依赖）：文本扫描原语（TextScan，与 RoslynJson/分析器侧同源） -->
+    <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
   </ItemGroup>
 
 

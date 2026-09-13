@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Share.LogicComposition.Conversion.Models;
 
-namespace Share.RoslynJson.Generation;
+namespace Share.LogicComposition.Conversion.Generation;
 
 /// <summary>
 /// 源展开管线（**唯一编排实现**）：<c>解析 → 格式级诊断 → 语义级校验 → 确定性发射</c>。

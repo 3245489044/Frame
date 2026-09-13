@@ -10,6 +10,7 @@ using Share.LogicComposition.Conversion.Abstractions;
 using Share.LogicComposition.Conversion.Emitters;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Models.Ir;
+using Share.LogicComposition.Conversion.Diagnostics;
 
 namespace Share.RoslynJson.Emitters;
 
@@ -36,13 +37,13 @@ public sealed class CSharpEmbeddedJsonEmitter : IArtifactEmitter<string>
     public ConversionResult<string> Emit(ConversionNode node, EmbeddedJsonClassSpec spec, ConversionOptions? options = null)
     {
         if (node is null)
-            return ConversionResult<string>.Failure("RJ-EMIT-NULL", "待发射节点为 null");
+            return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitNull, "待发射节点为 null");
         if (spec is null)
             throw new ArgumentNullException(nameof(spec));
         if (string.IsNullOrWhiteSpace(spec.ClassName))
-            return ConversionResult<string>.Failure("RJ-EMIT-CLASS", "类名不能为空");
+            return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitClassName, "类名不能为空");
         if (string.IsNullOrWhiteSpace(spec.MemberName))
-            return ConversionResult<string>.Failure("RJ-EMIT-MEMBER", "成员名不能为空");
+            return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitMemberName, "成员名不能为空");
 
         // 头部注释走 C# 注释，不污染 JSON 值
         var jsonOptions = (options ?? ConversionOptions.Default).Clone();
@@ -71,7 +72,7 @@ public sealed class CSharpEmbeddedJsonEmitter : IArtifactEmitter<string>
             .GetResult();
 
         if (!generated.Success)
-            return ConversionResult<string>.Failure("RJ-EMIT-GEN", generated.Error?.Message ?? "C# 源码生成失败");
+            return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitGenerationFailed, generated.Error?.Message ?? "C# 源码生成失败");
 
         return ConversionResult<string>.Success(generated.GeneratedCode, jsonResult.Diagnostics);
     }

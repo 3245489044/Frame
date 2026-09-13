@@ -1,7 +1,7 @@
 using System;
 using Share.LogicComposition.Conversion.Models;
 
-namespace Share.RoslynJson.Hosting;
+namespace Share.LogicComposition.Conversion.Hosting;
 
 /// <summary>
 /// 宿主无关的日志条目：把转换诊断摊平为「文件/行/列/码/消息/严重度」，

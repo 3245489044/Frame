@@ -1,12 +1,27 @@
 using System.Globalization;
 using Modules.Parsing.Models;
+using Plate.JsonMethod.Serialization;
+using Share.LogicComposition.Conversion.Lexing;
 
 namespace Modules.Parsing.Parsing;
 
 public static class CommandParser
 {
-    public static Models.MetaCommand Parse(string command)
+    public static Models.MetaCommand Parse(string command) => ParseCore(command, out _);
+
+    /// <summary>
+    /// 解析命令并**显式回报**格式级问题（未闭合引号 → <see cref="ErrorCode.UnclosedQuote"/>；
+    /// JSON 片段非法 → <see cref="ErrorCode.SerializationError"/>）；是否升级为失败由调用方裁决。
+    /// </summary>
+    /// <param name="command">原始命令行。</param>
+    /// <param name="parseError">out：格式级问题；<see cref="ErrorCode.None"/> 表示无。</param>
+    public static Models.MetaCommand TryParse(string command, out ErrorCode parseError)
+        => ParseCore(command, out parseError);
+
+    private static Models.MetaCommand ParseCore(string command, out ErrorCode parseError)
     {
+        parseError = ErrorCode.None;
+
         if (string.IsNullOrWhiteSpace(command))
             throw new ArgumentException("Command cannot be null or empty", nameof(command));
 
@@ -17,8 +32,10 @@ public static class CommandParser
 
         var effectiveCommand = normalized;
 
-        var tokenizer = new CommandTokenizer(effectiveCommand);
-        var tokens = tokenizer.Tokenize();
+        var tokenized = new CommandTokenizer(effectiveCommand).TokenizeWithDiagnostics();
+        if (tokenized.HasUnterminatedQuote) parseError = ErrorCode.UnclosedQuote;
+
+        var tokens = new List<string>(tokenized.Tokens);
 
         if (tokens.Count == 0)
         {
@@ -35,7 +52,9 @@ public static class CommandParser
         var verbStr = tokens[0].ToLower();
         if (!Enum.TryParse<MetaVerb>(verbStr, true, out var verb))
         {
-            return ParseAsDoCommand(tokens, effectiveCommand);
+            var doCommand = ParseAsDoCommand(tokens, effectiveCommand, out var doError);
+            if (parseError == ErrorCode.None) parseError = doError;
+            return doCommand;
         }
 
         var cmd = new Models.MetaCommand
@@ -53,7 +72,7 @@ public static class CommandParser
                 cmd.Action = tokens[1];
                 if (tokens.Count > 2)
                 {
-                    ParseDoTargetAndParameters(tokens, cmd);
+                    ParseDoTargetAndParameters(tokens, cmd, ref parseError);
                 }
             }
             else
@@ -65,7 +84,7 @@ public static class CommandParser
         return cmd;
     }
 
-    private static void ParseDoTargetAndParameters(List<string> tokens, Models.MetaCommand cmd)
+    private static void ParseDoTargetAndParameters(List<string> tokens, Models.MetaCommand cmd, ref ErrorCode parseError)
     {
         var targetParts = new List<string>();
         var paramParts = new List<string>();
@@ -77,7 +96,8 @@ public static class CommandParser
 
             if (token.StartsWith("{") || token.StartsWith("["))
             {
-                var (jsonStr, endIndex) = MergeJsonTokens(tokens, i);
+                var (jsonStr, endIndex) = MergeJsonTokens(tokens, i, out var jsonError);
+                if (jsonError != ErrorCode.None && parseError == ErrorCode.None) parseError = jsonError;
                 if (!string.IsNullOrEmpty(jsonStr))
                 {
                     if (cmd.Parameters == null)
@@ -135,8 +155,10 @@ public static class CommandParser
         }
     }
 
-    private static Models.MetaCommand ParseAsDoCommand(List<string> tokens, string originalCommand)
+    private static Models.MetaCommand ParseAsDoCommand(List<string> tokens, string originalCommand, out ErrorCode parseError)
     {
+        parseError = ErrorCode.None;
+
         var cmd = new Models.MetaCommand
         {
             Verb = MetaVerb.Do,
@@ -149,14 +171,20 @@ public static class CommandParser
 
         if (tokens.Count > 1)
         {
-            ParseDoTargetAndParameters(tokens, cmd);
+            ParseDoTargetAndParameters(tokens, cmd, ref parseError);
         }
 
         return cmd;
     }
 
     public static (string mergedJson, int endIndex) MergeJsonTokens(List<string> tokens, int startIndex)
+        => MergeJsonTokens(tokens, startIndex, out _);
+
+    /// <summary>合并跨 token 的 JSON 片段（<paramref name="jsonError"/> 回报片段非法，不抛异常）。</summary>
+    public static (string mergedJson, int endIndex) MergeJsonTokens(List<string> tokens, int startIndex, out ErrorCode jsonError)
     {
+        jsonError = ErrorCode.None;
+
         if (startIndex >= tokens.Count)
             return (string.Empty, startIndex);
 
@@ -178,31 +206,8 @@ public static class CommandParser
             jsonParts.Add(token);
             endIndex = i;
 
-            bool inString = false;
-            bool escaped = false;
-            foreach (char c in token)
-            {
-                if (escaped)
-                {
-                    escaped = false;
-                    continue;
-                }
-                if (c == '\\')
-                {
-                    escaped = true;
-                    continue;
-                }
-                if (c == '"')
-                {
-                    inString = !inString;
-                    continue;
-                }
-                if (!inString)
-                {
-                    if (c == openChar) depth++;
-                    if (c == closeChar) depth--;
-                }
-            }
+            // 括号深度（跳过字符串内括号）由共享内核原语给出：与 RoslynJson 前端 / 分析器侧同一实现
+            depth += TextScan.BracketDepth(token, openChar, closeChar);
 
             if (depth == 0)
                 break;
@@ -212,109 +217,43 @@ public static class CommandParser
 
         if (openChar == '{' && !string.IsNullOrEmpty(merged))
         {
-            merged = RestoreJsonObject(merged);
+            if (!TryRestoreJsonObject(merged, out merged, out _)) jsonError = ErrorCode.SerializationError;
         }
 
         return (merged, endIndex);
     }
 
-    public static string RestoreJsonObject(string json)
+    /// <summary>
+    /// 规范化 JSON 对象文本：**解析权威 = <c>Plate.JsonMethod</c>**
+    /// （合法 → 规范化文本；非法 → 原文 + false）。
+    /// 不再手写 key/value 扫描与类型猜测，避免篡改作者原文（对齐 ANTI-FAILURE-REUSE）。
+    /// </summary>
+    /// <remarks>
+    /// 已知限制：<see cref="CommandTokenizer"/> 会剥离双引号（命令参数语义需要），故含字符串值的
+    /// 内嵌 JSON 经 token 合并后已不是合法 JSON —— 此时回报 <c>false</c>/<see cref="ErrorCode.SerializationError"/>
+    /// 而非猜测补引号；需要保留引号时应改由「按 token 偏移切原文」取得 JSON 片段（后续演进）。
+    /// </remarks>
+    /// <param name="json">待规范化的 JSON 文本。</param>
+    /// <param name="restored">out：规范化文本；非法时为原文。</param>
+    /// <param name="error">out：失败原因（合法/空输入为 null）。</param>
+    public static bool TryRestoreJsonObject(string json, out string restored, out string? error)
     {
-        if (string.IsNullOrEmpty(json))
-            return json;
+        restored = json ?? string.Empty;
+        error = null;
 
-        var inner = json.TrimStart('{').TrimEnd('}').Trim();
-        if (string.IsNullOrEmpty(inner))
-            return json;
+        if (string.IsNullOrWhiteSpace(json)) return true;
 
-        var restoredParts = new List<string>();
-        int currentIndex = 0;
-
-        while (currentIndex < inner.Length)
+        if (JsonSerializationService.Instance.TryParseNode(json, out var node) && node is not null)
         {
-            while (currentIndex < inner.Length && char.IsWhiteSpace(inner[currentIndex]))
-                currentIndex++;
-
-            if (currentIndex >= inner.Length)
-                break;
-
-            var colonIndex = inner.IndexOf(':', currentIndex);
-            if (colonIndex < 0)
-            {
-                restoredParts.Add(inner.Substring(currentIndex).Trim());
-                break;
-            }
-
-            var key = inner.Substring(currentIndex, colonIndex - currentIndex).Trim().Trim('"');
-
-            currentIndex = colonIndex + 1;
-
-            while (currentIndex < inner.Length && char.IsWhiteSpace(inner[currentIndex]))
-                currentIndex++;
-
-            if (currentIndex >= inner.Length)
-            {
-                restoredParts.Add($"\"{key}\":");
-                break;
-            }
-
-            string value;
-            if (inner[currentIndex] == '"' || inner[currentIndex] == '\'')
-            {
-                var quoteChar = inner[currentIndex];
-                currentIndex++;
-                var valueStart = currentIndex;
-                while (currentIndex < inner.Length && inner[currentIndex] != quoteChar)
-                {
-                    if (inner[currentIndex] == '\\') currentIndex++;
-                    currentIndex++;
-                }
-                value = inner.Substring(valueStart, currentIndex - valueStart);
-                if (currentIndex < inner.Length) currentIndex++;
-                value = $"\"{value}\"";
-            }
-            else if (inner[currentIndex] == '{' || inner[currentIndex] == '[')
-            {
-                var depth = 1;
-                var bracketChar = inner[currentIndex];
-                var closeChar = bracketChar == '{' ? '}' : ']';
-                var valueStart = currentIndex;
-                currentIndex++;
-                while (currentIndex < inner.Length && depth > 0)
-                {
-                    if (inner[currentIndex] == bracketChar) depth++;
-                    else if (inner[currentIndex] == closeChar) depth--;
-                    if (depth > 0) currentIndex++;
-                }
-                value = inner.Substring(valueStart, currentIndex - valueStart + 1);
-                if (currentIndex < inner.Length) currentIndex++;
-            }
-            else
-            {
-                var valueStart = currentIndex;
-                while (currentIndex < inner.Length && inner[currentIndex] != ',')
-                    currentIndex++;
-                value = inner.Substring(valueStart, currentIndex - valueStart).Trim();
-
-                if (!long.TryParse(value, out _) &&
-                    !double.TryParse(value, NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out _) &&
-                    !bool.TryParse(value, out _) &&
-                    value != "null" &&
-                    value != "true" &&
-                    value != "false" &&
-                    !(value.StartsWith("\"") && value.EndsWith("\"")))
-                {
-                    value = $"\"{value}\"";
-                }
-            }
-
-            restoredParts.Add($"\"{key}\":{value}");
-
-            if (currentIndex < inner.Length && inner[currentIndex] == ',')
-                currentIndex++;
+            restored = node.ToJsonString();
+            return true;
         }
 
-        return "{" + string.Join(",", restoredParts) + "}";
+        error = "JSON 对象片段非法";
+        return false;
     }
+
+    /// <summary>规范化 JSON 对象文本（非法即原样返回；需要错误码时用 <see cref="TryRestoreJsonObject"/>）。</summary>
+    public static string RestoreJsonObject(string json)
+        => TryRestoreJsonObject(json, out var restored, out _) ? restored : json;
 }

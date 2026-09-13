@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Models.Ir;
 using Share.RoslynJson.Abstractions;
+using Share.LogicComposition.Conversion.Diagnostics;
 using Share.RoslynJson.Roslyn;
 using Share.RoslynJson.Rules;
 
@@ -37,7 +38,7 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
         if (_options.WarnOnUnmapped)
         {
             context.Diagnostics.Report(ConversionDiagnostic.Warning(
-                "RJ-MAP-UNMAPPED",
+                RoslynJsonDiagnosticCodes.MapUnmapped,
                 $"语法节点 {node.Kind()} 未注册映射规则，已走兜底映射",
                 SourceLocation.ToSpan(node)));
         }
@@ -54,7 +55,7 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
         {
             result.Add("truncated", true);
             context.Diagnostics.Report(ConversionDiagnostic.Warning(
-                "RJ-MAP-MAXDEPTH",
+                RoslynJsonDiagnosticCodes.MapMaxDepth,
                 $"语法映射深度超过上限 {_options.MaxDepth}，已截断子节点",
                 SourceLocation.ToSpan(node)));
             return result;

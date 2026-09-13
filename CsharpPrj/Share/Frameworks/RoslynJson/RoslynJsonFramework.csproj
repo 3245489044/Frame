@@ -1,14 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>              <!-- 分析器硬约束 -->
+    <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <RootNamespace>Share.RoslynJson</RootNamespace>
     <AssemblyName>Share.RoslynJsonFramework</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Description>Roslyn→JSON 通用转换框架 — 语法树到转换 IR 的映射、规则表、发射器、增量源生成器脚手架</Description>
+    <!-- 定位（2026-09-13 收敛）：本工程为 Share 层 Windows 项目，只保留「Roslyn 语法树 → 转换 IR」链路
+         （当前未接线，见 README「接线状态」）。分析器侧通用件已按职责归位，不再由本工程承载：
+           · 纯 BCL 件（文本前端原语 / 展开管线 / 词表 / 配置读取 / 宿主原语 / 框架级诊断码）
+             → Modules\LogicComposition\Conversion（netstandard2.0 零依赖，分析器与运行期共用）；
+           · Roslyn 件（增量生成器脚手架 / 诊断描述符目录 / 诊断桥）→ SpecSourceGen.Analyzer（netstandard2.0）。 -->
+    <Description>Roslyn→JSON 转换框架 — 语法树到转换 IR 的映射、规则表与发射器（Share 层 Windows 项目）</Description>
     <!-- RS2008(分析器发布跟踪)：本工程为框架库而非发布型分析器包，
          AnalyzerReleases.Shipped/Unshipped.md 由最终分析器工程（Agent.Spec.SourceGen）承担。 -->
     <NoWarn>$(NoWarn);RS2008</NoWarn>

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace Share.RoslynJson.Generation;
+namespace Share.LogicComposition.Conversion.Generation;
 
 /// <summary>
 /// 生成物约定（路径 / 头注释）——多宿主（写盘 Task、重生成守卫）必须逐字一致，故共用纯函数。

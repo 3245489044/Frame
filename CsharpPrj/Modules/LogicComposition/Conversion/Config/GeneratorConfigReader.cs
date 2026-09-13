@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Share.LogicComposition.Conversion.Models.Ir;
-using Share.RoslynJson.Parsing;
+using Share.LogicComposition.Conversion.Json;
 
-namespace Share.RoslynJson.Configuration;
+namespace Share.LogicComposition.Conversion.Config;
 
 /// <summary>
 /// 生成器配置读取骨架（通用）：JSON 文本 → IR 根对象 + 字符串数组提取。

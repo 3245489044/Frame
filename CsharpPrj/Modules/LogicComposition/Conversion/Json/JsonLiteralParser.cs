@@ -1,14 +1,15 @@
 using System;
 using System.Globalization;
 using System.Text;
+using Share.LogicComposition.Conversion.Lexing;
 using Share.LogicComposition.Conversion.Models.Ir;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Json;
 
 /// <summary>
 /// 最小严格 JSON 字面量解析器：把作者书写的 JSON 区块（对象/数组成员）解析为转换内核 IR。
 /// <para>
-/// 自带而非引包的理由：① 分析器为 netstandard2.0（不引入 System.Text.Json，避免与编译器宿主冲突）；
+/// 自带而非引包的理由：① 本内核为 netstandard2.0（分析器侧加载；不引入 System.Text.Json，避免与编译器宿主冲突）；
 /// ② JSON 区块要求**逐字保真**（零语义变换），自解析可精确报位置而非重排语义。
 /// </para>
 /// <para>支持 RFC 8259 子集：object / array / string / number / true / false / null（无注释、无尾逗号）。</para>
@@ -123,26 +124,29 @@ public static class JsonLiteralParser
 
         private string ReadString()
         {
-            var builder = new StringBuilder();
-            Position++;              // 起始引号
+            var start = Position;                 // 起始引号
+            var end = TextScan.FindStringEnd(_text, start);
+            if (end == TextScan.Unterminated)
+                throw new JsonLiteralParseException("JSON 字符串未闭合", _text.Length);
 
-            while (true)
+            Position = end;                       // 停在闭合引号之后
+            return DecodeString(start + 1, end - 1);
+        }
+
+        /// <summary>解码字符串内容（不含首尾引号）；转义序列按 RFC 8259 表逐项还原。</summary>
+        private string DecodeString(int contentStart, int contentEnd)
+        {
+            var builder = new StringBuilder(contentEnd - contentStart);
+            var i = contentStart;
+
+            while (i < contentEnd)
             {
-                if (AtEnd) throw new JsonLiteralParseException("JSON 字符串未闭合", Position);
+                var ch = _text[i++];
+                if (ch != '\\') { builder.Append(ch); continue; }
 
-                var ch = _text[Position++];
+                if (i >= contentEnd) throw new JsonLiteralParseException("JSON 字符串转义不完整", i);
 
-                if (ch == '"') return builder.ToString();
-
-                if (ch != '\\')
-                {
-                    builder.Append(ch);
-                    continue;
-                }
-
-                if (AtEnd) throw new JsonLiteralParseException("JSON 字符串转义不完整", Position);
-
-                var escape = _text[Position++];
+                var escape = _text[i++];
                 switch (escape)
                 {
                     case '"': builder.Append('"'); break;
@@ -154,42 +158,47 @@ public static class JsonLiteralParser
                     case 'r': builder.Append('\r'); break;
                     case 't': builder.Append('\t'); break;
                     case 'u':
-                        builder.Append((char)int.Parse(ReadHex4(), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+                        if (i + 4 > contentEnd)
+                            throw new JsonLiteralParseException("JSON \\u 转义须为 4 位十六进制", i);
+
+                        var hex = _text.Substring(i, 4);
+                        if (!int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var code))
+                            throw new JsonLiteralParseException("JSON \\u 转义须为 4 位十六进制", i);
+
+                        builder.Append((char)code);
+                        i += 4;
                         break;
                     default:
-                        throw new JsonLiteralParseException("JSON 字符串含未知转义 '\\" + escape + "'", Position - 2);
+                        throw new JsonLiteralParseException("JSON 字符串含未知转义 '\\" + escape + "'", i - 2);
                 }
             }
+
+            return builder.ToString();
         }
 
-        private string ReadHex4()
-        {
-            if (Position + 4 > _text.Length)
-                throw new JsonLiteralParseException("JSON \\u 转义须为 4 位十六进制", Position);
-
-            var hex = _text.Substring(Position, 4);
-            Position += 4;
-            return hex;
-        }
-
+        /// <summary>
+        /// 读取数值（RFC 8259 文法：<c>-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?</c>）。
+        /// 前导 <c>+</c>、前导零、<c>.5</c>、<c>1.</c> 等非法规格均拒绝并给出精确位置。
+        /// </summary>
         private ConversionNode ReadNumber()
         {
             var start = Position;
+            var index = Position;
 
-            while (!AtEnd)
-            {
-                var ch = Current;
-                var isNumberChar = (ch >= '0' && ch <= '9')
-                                   || ch == '-' || ch == '+' || ch == '.' || ch == 'e' || ch == 'E';
-                if (!isNumberChar) break;
-                Position++;
-            }
+            if (index < _text.Length && _text[index] == '-') index++;
 
-            if (Position == start)
-                throw new JsonLiteralParseException("JSON 值无法识别：'" + Current + "'", Position);
+            if (index >= _text.Length || !IsDigit(_text[index]))
+                throw new JsonLiteralParseException(
+                    "JSON 值无法识别：'" + (index < _text.Length ? _text[index] : '?') + "'", index);
 
-            var token = _text.Substring(start, Position - start);
-            var isFloating = token.IndexOf('.') >= 0 || token.IndexOf('e') >= 0 || token.IndexOf('E') >= 0;
+            if (_text[index] == '0') index++;
+            else while (index < _text.Length && IsDigit(_text[index])) index++;
+
+            var isFloating = ReadFraction(ref index);
+            if (ReadExponent(ref index)) isFloating = true;
+
+            var token = _text.Substring(start, index - start);
+            Position = index;
 
             if (!isFloating
                 && long.TryParse(token, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var integer))
@@ -204,6 +213,34 @@ public static class JsonLiteralParser
 
             throw new JsonLiteralParseException("JSON 数值非法：" + token, start);
         }
+
+        private bool ReadFraction(ref int index)
+        {
+            if (index >= _text.Length || _text[index] != '.') return false;
+
+            index++;
+            if (index >= _text.Length || !IsDigit(_text[index]))
+                throw new JsonLiteralParseException("JSON 数值小数部分须为数字", index);
+
+            while (index < _text.Length && IsDigit(_text[index])) index++;
+            return true;
+        }
+
+        private bool ReadExponent(ref int index)
+        {
+            if (index >= _text.Length || (_text[index] != 'e' && _text[index] != 'E')) return false;
+
+            index++;
+            if (index < _text.Length && (_text[index] == '+' || _text[index] == '-')) index++;
+
+            if (index >= _text.Length || !IsDigit(_text[index]))
+                throw new JsonLiteralParseException("JSON 数值指数部分须为数字", index);
+
+            while (index < _text.Length && IsDigit(_text[index])) index++;
+            return true;
+        }
+
+        private static bool IsDigit(char ch) => ch >= '0' && ch <= '9';
 
         private void Expect(string literal)
         {

@@ -375,7 +375,14 @@ namespace MetaCommand
 
             try
             {
-                var MetaCommandModel = CommandParser.Parse(command);
+                var MetaCommandModel = CommandParser.TryParse(command, out var parseError);
+
+                if (parseError != ErrorCode.None)
+                {
+                    // 未闭合引号 / JSON 片段非法：显式记录（不静默丢弃），是否中断由本次解析结果决定
+                    _logger.LogWarning("命令格式问题（{ErrorCode}）：{Command}", parseError, command);
+                    _statistics.RecordError("parse", parseError);
+                }
 
                 if (MetaCommandModel == null)
                     return OperationResult<object>.SuccessResult(null, "Comment or empty command, skipped");

@@ -46,11 +46,22 @@ namespace Modules.Parsing.Parsing
             var result = new List<string>();
             var current = new StringBuilder();
             bool inQuotes = false;
+            bool escaped = false;
             int bracketDepth = 0;
 
             foreach (char c in input)
             {
-                if (c == '"')
+                // 反斜杠转义其后一个字符：使 \" 不再翻转引号态（与 CommandTokenizer 的转义语义一致）
+                if (escaped)
+                {
+                    current.Append(c);
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
                 {
                     inQuotes = !inQuotes;
                 }

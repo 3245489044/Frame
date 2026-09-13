@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Share.LogicComposition.Conversion.Models;
 
-namespace Share.RoslynJson.Generation;
+namespace Share.LogicComposition.Conversion.Generation;
 
 /// <summary>
 /// 展开结果：诊断（全量，含格式级 + 语义级 + 发射级）与产物文本。

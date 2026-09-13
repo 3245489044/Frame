@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Lexing;
 
 /// <summary>
 /// 多行括号区块扫描（<c>{}</c> / <c>[]</c>，跳过字符串内的括号）：
@@ -10,33 +10,7 @@ namespace Share.RoslynJson.Parsing;
 public static class BracketBlockScanner
 {
     /// <summary>括号深度（跳过字符串内的括号；仅计 <c>{}</c> 与 <c>[]</c>）。</summary>
-    public static int Depth(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return 0;
-
-        var depth = 0;
-        var inString = false;
-        var escaped = false;
-
-        for (var i = 0; i < text!.Length; i++)
-        {
-            var ch = text[i];
-
-            if (inString)
-            {
-                if (escaped) { escaped = false; continue; }
-                if (ch == '\\') { escaped = true; continue; }
-                if (ch == '"') inString = false;
-                continue;
-            }
-
-            if (ch == '"') { inString = true; continue; }
-            if (ch == '{' || ch == '[') depth++;
-            else if (ch == '}' || ch == ']') depth--;
-        }
-
-        return depth;
-    }
+    public static int Depth(string text) => TextScan.BracketDepth(text);
 
     /// <summary>
     /// 读取跨行区块（括号归零即止）；累积**原始行** → 行内列号精确。

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- netstandard2.0：源生成器/分析器侧（RoslynJson）硬约束要求；net10.0-windows 消费方（RoslynMethod/Plate/Registry）可正常引用 -->
+    <!-- netstandard2.0 单目标：被 RoslynJson（现 net10.0-windows）与 RoslynMethod/Plate/Registry（net10.0-windows）共同引用（TFM 高吃低）；
+         保持 netstandard2.0 亦使任意宿主可加载本内核。 -->
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Roslyn：PrivateAssets=all 不透传到下游（本工程被 RoslynJson 引用，分析器运行期闭包不得携带 Roslyn）；
+    <!-- Roslyn：PrivateAssets=all 不透传到下游（下游运行期闭包不得携带 Roslyn）；
          各消费方（RoslynMethod/Registry/RoslynJson）自行声明所需版本 -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" PrivateAssets="all" />
   </ItemGroup>

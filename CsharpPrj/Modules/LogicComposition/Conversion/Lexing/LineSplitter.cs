@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Lexing;
 
 /// <summary>
 /// 行切分（保留原行内容，不做 trim——列号须精确）。

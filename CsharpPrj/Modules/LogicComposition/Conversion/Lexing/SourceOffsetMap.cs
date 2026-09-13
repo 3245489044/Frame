@@ -1,7 +1,7 @@
 using System;
 using Share.LogicComposition.Conversion.Models;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Lexing;
 
 /// <summary>
 /// 区块内字符偏移 → 绝对源位置的换算（以区块起始位置 + 原始区块文本为准）。

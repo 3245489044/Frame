@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Share.RoslynJson.Hosting;
+namespace Share.LogicComposition.Conversion.Hosting;
 
 /// <summary>
 /// 逻辑写盘原语（宿主无关）：「内容未变不写盘 + 临时文件原子覆盖 + UTF-8 无 BOM」。
@@ -22,10 +22,24 @@ public static class LogicalFileWriter
 
         if (File.Exists(target) && Normalize(File.ReadAllText(target)) == Normalize(text)) return false;
 
-        var temporary = target + ".write.tmp";
-        File.WriteAllText(temporary, text ?? string.Empty, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.Copy(temporary, target, overwrite: true);
-        File.Delete(temporary);
+        var directory = Path.GetDirectoryName(Path.GetFullPath(target));
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) Directory.CreateDirectory(directory!);
+
+        // 同目录临时文件 + 原子替换：避免跨卷复制与「先删后写」造成的半成品窗口
+        var temporary = target + "." + Guid.NewGuid().ToString("N") + ".write.tmp";
+
+        try
+        {
+            File.WriteAllText(temporary, text ?? string.Empty, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            if (File.Exists(target)) File.Replace(temporary, target, destinationBackupFileName: null, ignoreMetadataErrors: true);
+            else File.Move(temporary, target);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+
         return true;
     }
 }

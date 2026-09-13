@@ -89,6 +89,35 @@ var root = new ConversionObject()
 - **单一发射**：JSON 文本生成逻辑唯一来源是 `JsonTextEmitter`（`JsonArtifactEmitter` 只叠加计量）。
 - **零外部依赖**：不引用 `BasicMethod`/`Transformers` 等上层能力（分析器复用前提）。
 
+## 文本前端原语与生成宿主原语（单源共享）
+
+> **2026-09-13 收敛**：原 `Share\Frameworks\RoslynJson` 的通用件按「是否依赖 Roslyn」归位——纯 BCL 件下沉本工程，
+> Roslyn 件（增量生成器脚手架 / 诊断描述符目录 / 诊断桥）迁入 `Environment\CentralTest\SpecSourceGen\Analyzer`（分析器侧自持）。
+> 目的：文本扫描与展开管线在**命令解析（运行期）与分析器侧**只有**一份**实现。
+
+| 目录 | 类型 | 职责 |
+|------|------|------|
+| `Lexing\` | `TextScan` / `LineSplitter` / `LineTokenizer`（含 `TextToken`/`LineTokenizeResult`）/ `BracketBlockScanner` / `SourceOffsetMap` | 文本扫描：**`TextScan` 是字符串边界与括号深度的唯一实现**（行内词法 / 区块扫描 / JSON 字面量 / 命令分词共用；禁止各自实现转义扫描） |
+| `Json\` | `JsonLiteralParser` / `JsonLiteralParseException` | 最小严格 JSON 字面量 → IR（RFC 8259 子集：数值文法严格、非法规格精确报位置） |
+| `Generation\` | `ISourceFrontEnd<TModel>` / `SourceExpansionPipeline<TModel>` / `ExpansionOutcome` / `GeneratorArtifactInfo` | 文本→IR 展开管线（解析 → 格式诊断 → 语义校验 → 确定性发射）与产物路径/头注释约定 |
+| `Config\` | `GeneratorConfigReader` / `GeneratorInputMatcher` | 生成器配置读取骨架（JSON→IR + 字符串数组提取）与输入路径判定 |
+| `Vocabulary\` | `OrderedWhitelist` | 追加式有序白名单（只增不改 / Ordinal / 排序去重） |
+| `Hosting\` | `LogicalFileWriter` / `BuildLogEntry` / `ConversionDiagnosticLogMap` | 宿主无关写盘原语（内容未变不写盘 + 原子覆盖）与「诊断 → 日志条目」换算 |
+| `Diagnostics\` | `RoslynJsonDiagnosticCodes` | 框架级稳定诊断码（RJ1xxx 唯一来源）+ `ToErrorClass`（对齐 `Gate.ClassifyError` 元素域）；映射器/发射器与领域诊断目录共用 |
+
+### `TextScan` API（单源）
+
+| API | 语义 |
+|-----|------|
+| `FindStringEnd(text, quoteIndex, quote = '"')` | 闭合引号**下一位**；未闭合 → `Unterminated(-1)` |
+| `FindUnterminatedQuote(text, quote = '"', alternativeQuote = null)` | 扫描结束仍处于引号开启态（含末尾反斜杠造成的转义态）→ **该引号起始偏移**；否则 `-1`（只回报不裁决） |
+| `BracketDepth(text)` | 括号深度（跳过字符串内括号；计 `{}` 与 `[]`） |
+| `BracketDepth(text, openChar, closeChar)` | 指定括号对的深度 |
+
+> 消费方：`Modules\Parsing`（`CommandTokenizer` 未闭合引号探测、`CommandParser.MergeJsonTokens` 括号深度）、
+> `Environment\CentralTest\SpecSourceGen`（`Lexing`/`Json`/`Generation`/`Config`/`Vocabulary` 全部 + `Diagnostics` 码段）、
+> `Share\RoslynJsonFramework`（`JsonLiteralParser` 等经本工程 IL 落点共用扫描原语；见「依赖关系」）。
+
 ## 双出口约定（重要）
 
 转换内核是 `netstandard2.0` **零依赖**工程（Roslyn 分析器可加载的前提），因此**不引用**平台级 JSON 框架 `Plate.JsonMethod`。
@@ -110,6 +139,7 @@ LogicComposition.Conversion（netstandard2.0，零外部依赖）
    ↑ 被引用
 LogicComposition（net10.0-windows）        ← 运行期可在此基础上写 Transformers 适配实现
   └── ConversionRuntime\                   ← 运行期 JSON 出口：桥接 Plate.JsonMethod（详见 ConversionRuntime\README.md）
-Share.RoslynJsonFramework（netstandard2.0）← Roslyn→JSON 通用框架
-Agent.Spec.SourceGen（netstandard2.0）      ← 实际源生成器（待阶段 1 spike 后落地）
+Modules\Parsing（net10.0-windows）         ← 命令分词/解析：共用 TextScan（未闭合引号探测 / 指定括号对深度）
+Environment\CentralTest\SpecSourceGen（netstandard2.0 Core + Analyzer）← 声明式用例源生成器：共用文本前端原语 + 展开管线 + 诊断码
+Share\RoslynJsonFramework（net10.0-windows）← Roslyn 语法树 → IR 链路（当前未接线；共用框架级诊断码）
 ```

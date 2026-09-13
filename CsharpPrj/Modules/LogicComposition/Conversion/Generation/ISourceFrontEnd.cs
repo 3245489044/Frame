@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Share.LogicComposition.Conversion.Models;
 
-namespace Share.RoslynJson.Generation;
+namespace Share.LogicComposition.Conversion.Generation;
 
 /// <summary>
 /// 源前端（通用管线注入点）：文本 → 模型，并暴露格式级诊断与语义级校验。

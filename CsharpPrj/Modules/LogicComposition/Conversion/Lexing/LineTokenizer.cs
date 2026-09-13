@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Lexing;
 
 /// <summary>行内 token（<c>Index</c> 为原始行内 0 基偏移；1 基列号 = Index+1）。</summary>
 public readonly struct TextToken
@@ -61,19 +61,11 @@ public static class LineTokenizer
             if (raw[i] == '"')
             {
                 var start = i;
-                i++;
-                var closed = false;
+                var end = TextScan.FindStringEnd(raw, start);
+                if (end == TextScan.Unterminated) return new LineTokenizeResult(tokens, start);
 
-                while (i < raw.Length)
-                {
-                    if (raw[i] == '\\') { i += 2; continue; }
-                    if (raw[i] == '"') { i++; closed = true; break; }
-                    i++;
-                }
-
-                if (!closed) return new LineTokenizeResult(tokens, start);
-
-                tokens.Add(new TextToken(raw.Substring(start, i - start), start, true));
+                tokens.Add(new TextToken(raw.Substring(start, end - start), start, true));
+                i = end;
                 continue;
             }
 

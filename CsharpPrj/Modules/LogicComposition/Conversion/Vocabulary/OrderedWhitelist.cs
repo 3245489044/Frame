@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Share.RoslynJson.Vocabulary;
+namespace Share.LogicComposition.Conversion.Vocabulary;
 
 /// <summary>
 /// 有序白名单（追加式）：默认项 + 追加项（**只增不改**、按 Ordinal 排序、去重）。

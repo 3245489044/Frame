@@ -1,6 +1,6 @@
 using System;
 
-namespace Share.RoslynJson.Parsing;
+namespace Share.LogicComposition.Conversion.Json;
 
 /// <summary>
 /// JSON 字面量解析失败（携带区块内 0 基字符偏移，供上层还原 <c>文件:行:列</c>）。

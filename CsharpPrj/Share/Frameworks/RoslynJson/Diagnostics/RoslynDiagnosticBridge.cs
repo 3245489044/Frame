@@ -47,6 +47,15 @@ public static class RoslynDiagnosticBridge
             messageArgs: new object[] { diagnostic.Code, diagnostic.Message });
     }
 
+    /// <summary>单条换算（描述符按 <paramref name="catalog"/> 的稳定码选定；未登记回落目录 fallback）。</summary>
+    public static Diagnostic ToDiagnostic(ConversionDiagnostic diagnostic, DiagnosticCatalog catalog)
+    {
+        if (diagnostic is null) throw new ArgumentNullException(nameof(diagnostic));
+        if (catalog is null) throw new ArgumentNullException(nameof(catalog));
+
+        return Diagnostic.Create(catalog.ForCode(diagnostic.Code), ToLocation(diagnostic.Span), diagnostic.Message);
+    }
+
     /// <summary>批量换算。</summary>
     public static IEnumerable<Diagnostic> ToDiagnostics(IEnumerable<ConversionDiagnostic> diagnostics, DiagnosticDescriptor fallback)
     {

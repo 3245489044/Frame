@@ -30,6 +30,42 @@
 | `RoslynJsonDiagnostics` / `RoslynDiagnosticBridge` | 框架级诊断描述符 + 转换诊断 → Roslyn 诊断/位置换算 |
 | `RoslynJsonConversionService` | 默认装配入口：`ToIr` / `ToJson` / `ToEmbeddedCSharp` |
 | `SourceLocation` | Roslyn 位置 → 转换内核 `SourceSpan` 的适配点（行列换算唯一实现在内核 `RoslynSourceLocator`） |
+| `SourceExpansionPipeline<TModel>` / `ISourceFrontEnd<TModel>` / `ExpansionOutcome` | **文本→IR 通用展开管线**：解析 → 格式级诊断 → 语义级校验 → 确定性发射（多宿主判定同源） |
+| `JsonLiteralParser` / `JsonLiteralParseException` / `SourceOffsetMap` | 最小严格 JSON 字面量 → IR 解析器（RFC 8259 子集）+ 区块偏移→源位置换算 |
+| `LineSplitter` / `LineTokenizer` / `TextToken` / `BracketBlockScanner` | 行导向 DSL 前端原语：行切分、行内词法（引号串/裸 token）、多行括号区块扫描 |
+| `GeneratorArtifactInfo` | 生成物约定：源→产物路径、工程相对路径、确定性头注释（只含相对源路径） |
+| `GeneratorConfigReader` / `GeneratorInputMatcher` | 生成器配置读取骨架（JSON→IR + 字符串数组提取）与输入路径判定 |
+| `OrderedWhitelist` | 追加式有序白名单（只增不改 / Ordinal / 排序去重） |
+| `DiagnosticCatalog` | 稳定码 → `DiagnosticDescriptor` 目录（取代手写 switch；未登记码回落 fallback） |
+| `LogicalFileWriter` / `BuildLogEntry` / `ConversionDiagnosticLogMap` | 宿主无关写盘原语（内容未变不写盘 + 原子覆盖）与「诊断 → 日志条目」换算 |
+
+## 通用生成前端与宿主原语（领域生成器共用层）
+
+本框架除「Roslyn 语法树 → IR」外，另提供一条**与 Roslyn 无关的通用生成链路**，供声明式 DSL 生成器
+（如 `Environment\CentralTest\SpecSourceGen`）复用；两条链路共用 P1 IR 与发射器：
+
+```
+作者文本 ──JsonLiteralParser/LineTokenizer/BracketBlockScanner──▶ 领域模型 ──领域绑定──▶ IR
+                                                                       │
+        SourceExpansionPipeline（解析→格式诊断→语义校验→确定性发射）───┘
+                                                                       ▼
+                                                 JsonTextEmitter（P1）/ CSharpEmbeddedJsonEmitter
+```
+
+| 能力 | 类型 | 说明 |
+|------|------|------|
+| 展开管线 | `SourceExpansionPipeline<TModel>` + `ISourceFrontEnd<TModel>` | 编排唯一实现；领域注入「源前端工厂 + 发射委托」 |
+| 文本前端原语 | `JsonLiteralParser` / `LineTokenizer` / `BracketBlockScanner` / `LineSplitter` / `SourceOffsetMap` | 零领域语义；诊断码/消息由调用方裁决 |
+| 产物约定 | `GeneratorArtifactInfo` | 路径映射 + 确定性头注释（多宿主逐字一致） |
+| 配置与词表 | `GeneratorConfigReader` / `GeneratorInputMatcher` / `OrderedWhitelist` | 领域只提供键名与默认值 |
+| Roslyn 侧装配 | `DiagnosticCatalog` + `RoslynDiagnosticBridge` | 稳定码 → 描述符 → 可点击 `Location` |
+| 宿主原语 | `LogicalFileWriter` / `BuildLogEntry` / `ConversionDiagnosticLogMap` | **宿主无关**（不绑定 MSBuild 类型）；MSBuild `Task` 子类由领域宿主承担 |
+
+> **依赖提示**：上述通用类型位于同一 `netstandard2.0` 程序集内，该程序集声明了
+> `Microsoft.CodeAnalysis.CSharp`（`PrivateAssets=all`）。因此**编译期引用本框架的程序集会解析到 Roslyn 程序集**；
+> 若消费方要求「零 Roslyn 闭包」，需将通用前端原语下沉到零依赖工程（当前不动，见框架 README 后续项）。
+
+---
 
 ## 与 RoslynMethod 的共用边界（RoslynMethod.Core）
 

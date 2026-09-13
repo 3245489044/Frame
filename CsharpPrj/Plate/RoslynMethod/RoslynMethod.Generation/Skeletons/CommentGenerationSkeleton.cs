@@ -22,16 +22,18 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Generation
             options ??= new CommentGenerationOptions();
             progress?.Report(new AnalysisProgress(0, 100, "Comment: Step 1/3 - Parsing code..."));
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var root = syntaxTree.GetRoot();
+            var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = $"CommentGeneration_{Guid.NewGuid():N}",
+                AutoResolveReferences = false,
+                CollectDiagnostics = false,
+                AdditionalReferences = { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) }
+            });
+            var root = build.Root;
 
             progress?.Report(new AnalysisProgress(33, 100, "Comment: Step 2/3 - Building compilation..."));
 
-            var compilation = CSharpCompilation.Create(
-                $"CommentGeneration_{Guid.NewGuid():N}",
-                new[] { syntaxTree },
-                new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) });
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
+            var semanticModel = build.SemanticModel;
 
             progress?.Report(new AnalysisProgress(66, 100, "Comment: Step 3/3 - Adding comments..."));
 

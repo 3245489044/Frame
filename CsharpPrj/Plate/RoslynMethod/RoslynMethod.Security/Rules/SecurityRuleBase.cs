@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using System.Collections.Generic;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Security
@@ -16,11 +17,10 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Security
         {
             int? line = null;
             int? column = null;
-            if (node.GetLocation().GetLineSpan().IsValid)
+            if (RoslynSourceLocator.TryGetPosition(node, out var positionLine, out var positionColumn))
             {
-                var span = node.GetLocation().GetLineSpan();
-                line = span.StartLinePosition.Line + 1;
-                column = span.StartLinePosition.Character + 1;
+                line = positionLine;
+                column = positionColumn;
             }
 
             issues.Add(new SecurityIssue

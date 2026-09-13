@@ -8,6 +8,11 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_Mathematics)" />
+    <!-- 共享内核独立工程（netstandard2.0），供本工程与 RoslynJson 分析器侧共用同一实现 -->
+    <!-- 共享内核独立工程（netstandard2.0），供本工程与 RoslynJson 分析器侧共用同一实现 -->
+    <ProjectReference Include="$(Proj_RoslynMethod_Core)" />
+    <!-- 转换内核（IR + JSON 文本发射器，netstandard2.0 零依赖）：JSON 结构一律经内核发射，避免第二份 JSON 文本实现 -->
+    <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +43,8 @@
     <None Include="Agent.Tests\**\*.cs" />
     <Compile Remove="Mathematics\**\*.cs" />
     <None Include="Mathematics\**\*.cs" />
+    <!-- ★ 独立子项目（低层共享内核）：经 ProjectReference 引用，须排除其源码避免类型在 RoslynMethod.dll 重复编译（CS0433） -->
+    <Compile Remove="RoslynMethod.Core\**\*.cs" />
   </ItemGroup>
 
 </Project>

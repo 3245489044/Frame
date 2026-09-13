@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,12 +46,15 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Generation
 
         public string Convert(string code, CancellationToken cancellationToken = default)
         {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var compilation = CSharpCompilation.Create("TempAssembly",
-                new[] { syntaxTree },
-                GetStandardReferences());
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
-            var root = syntaxTree.GetRoot();
+            var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = "TempAssembly",
+                AutoResolveReferences = false,
+                CollectDiagnostics = false,
+                AdditionalReferences = GetStandardReferences().ToList()
+            });
+            var semanticModel = build.SemanticModel;
+            var root = build.Root;
 
             var rewriter = new CommentAddingRewriter(semanticModel, _providers, _options);
             var newRoot = rewriter.Visit(root);

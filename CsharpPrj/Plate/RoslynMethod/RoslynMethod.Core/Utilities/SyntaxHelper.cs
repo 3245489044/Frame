@@ -134,19 +134,24 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         public static CompilationUnitSyntax ParseSyntaxTree(string code)
         {
-            return CSharpSyntaxTree.ParseText(code).GetCompilationUnitRoot();
+            return CSharpSourceProvider.Instance.Parse(code).GetCompilationUnitRoot();
         }
 
         public static (SyntaxTree syntaxTree, SemanticModel semanticModel) ParseCode(string code)
         {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var compilation = CSharpCompilation.Create("Temp")
-                .AddReferences(
+            var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = "Temp",
+                AutoResolveReferences = false,
+                CollectDiagnostics = false,
+                AdditionalReferences =
+                {
                     MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                    MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location))
-                .AddSyntaxTrees(syntaxTree);
+                    MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location)
+                }
+            });
 
-            return (syntaxTree, compilation.GetSemanticModel(syntaxTree));
+            return (build.SyntaxTree, build.SemanticModel);
         }
 
         #endregion

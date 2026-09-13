@@ -15,8 +15,10 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
         {
             if (modifiers.Any(SyntaxKind.PublicKeyword)) return "public";
             if (modifiers.Any(SyntaxKind.PrivateKeyword)) return "private";
-            if (modifiers.Any(SyntaxKind.ProtectedKeyword)) return "protected";
+            if (modifiers.Any(SyntaxKind.ProtectedKeyword))
+                return modifiers.Any(SyntaxKind.InternalKeyword) ? "protected internal" : "protected";
             if (modifiers.Any(SyntaxKind.InternalKeyword)) return "internal";
+            if (modifiers.Any(SyntaxKind.FileKeyword)) return "file";
             return "private";
         }
 

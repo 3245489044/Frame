@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Refactoring
 {
@@ -8,7 +9,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Refactoring
     {
         public static string TransformMethods(string code, string methodName)
         {
-            var tree = CSharpSyntaxTree.ParseText(code);
+            var tree = CSharpSourceProvider.Instance.Parse(code);
             var root = tree.GetRoot();
             var rewriter = new MethodRewriter(methodName);
             var newRoot = rewriter.Visit(root);

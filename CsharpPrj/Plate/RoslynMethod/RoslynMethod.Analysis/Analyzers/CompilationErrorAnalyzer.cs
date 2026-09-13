@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using RoslynSpace.RoslynSyntaxUtilities.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,11 +20,10 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Analysis
                 {
                     int? line = null;
                     int? column = null;
-                    if (d.Location.GetLineSpan().IsValid)
+                    if (RoslynSourceLocator.TryGetPosition(d, out _, out var positionLine, out var positionColumn))
                     {
-                        var span = d.Location.GetLineSpan();
-                        line = span.StartLinePosition.Line + 1;
-                        column = span.StartLinePosition.Character + 1;
+                        line = positionLine;
+                        column = positionColumn;
                     }
 
                     var severity = d.Id switch
@@ -48,11 +48,10 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Analysis
                 {
                     int? line = null;
                     int? column = null;
-                    if (d.Location.GetLineSpan().IsValid)
+                    if (RoslynSourceLocator.TryGetPosition(d, out _, out var positionLine, out var positionColumn))
                     {
-                        var span = d.Location.GetLineSpan();
-                        line = span.StartLinePosition.Line + 1;
-                        column = span.StartLinePosition.Character + 1;
+                        line = positionLine;
+                        column = positionColumn;
                     }
 
                     return new CompilationError(d.Id, d.GetMessage(), line, column, ErrorSeverity.SyntaxError);

@@ -91,11 +91,15 @@ namespace RoslynSpace.RoslynStringRefactoringFramework
                 return (cached.Item1, cached.Item2, semanticModel);
             }
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var compilation = CSharpCompilation.Create(projectName, new[] { syntaxTree }, references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-            _cache[cacheKey] = (syntaxTree, compilation, DateTime.Now);
-            var newSemanticModel = compilation.GetSemanticModel(syntaxTree);
-            return (syntaxTree, compilation, newSemanticModel);
+            var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = projectName,
+                AutoResolveReferences = false,
+                CollectDiagnostics = false,
+                AdditionalReferences = references
+            });
+            _cache[cacheKey] = (build.SyntaxTree, build.Compilation, DateTime.Now);
+            return (build.SyntaxTree, build.Compilation, build.SemanticModel);
         }
 
         public void ClearExpiredCache()
@@ -231,8 +235,8 @@ namespace RoslynSpace.RoslynStringRefactoringFramework
             if (string.IsNullOrWhiteSpace(targetCode) || string.IsNullOrWhiteSpace(codeToInsert))
                 return false;
 
-            var targetRoot = CSharpSyntaxTree.ParseText(targetCode).GetCompilationUnitRoot();
-            var insertRoot = CSharpSyntaxTree.ParseText(codeToInsert).GetCompilationUnitRoot();
+            var targetRoot = CSharpSourceProvider.Instance.Parse(targetCode).GetCompilationUnitRoot();
+            var insertRoot = CSharpSourceProvider.Instance.Parse(codeToInsert).GetCompilationUnitRoot();
 
             var targetHasClass = targetRoot.DescendantNodes().OfType<ClassDeclarationSyntax>().Any();
             var insertHasClass = insertRoot.DescendantNodes().OfType<ClassDeclarationSyntax>().Any();

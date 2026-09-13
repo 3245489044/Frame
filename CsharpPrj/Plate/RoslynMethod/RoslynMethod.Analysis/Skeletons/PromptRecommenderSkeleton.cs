@@ -107,12 +107,15 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
 
             try
             {
-                var syntaxTree = CSharpSyntaxTree.ParseText(code);
-                var root = syntaxTree.GetRoot();
-                var compilation = CSharpCompilation.Create("PromptAnalysis")
-                    .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-                    .AddSyntaxTrees(syntaxTree);
-                var semanticModel = compilation.GetSemanticModel(syntaxTree);
+                var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+                {
+                    AssemblyName = "PromptAnalysis",
+                    AutoResolveReferences = false,
+                    CollectDiagnostics = false,
+                    AdditionalReferences = { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) }
+                });
+                var root = build.Root;
+                var semanticModel = build.SemanticModel;
 
                 var skeleton = new AnalysisSkeleton(semanticModel);
                 var elements = skeleton.AnalyzeElements(root);

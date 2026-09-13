@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 
 namespace RoslynMethod.Tools.ClearCSharpComments;
 
@@ -116,7 +117,7 @@ internal static class Program
     private static FileResult ProcessFile(string path, bool whatIf)
     {
         var (encoding, text) = ReadFileWithEncoding(path);
-        var tree = CSharpSyntaxTree.ParseText(text);
+        var tree = CSharpSourceProvider.Instance.Parse(text, path);
 
         if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error))
         {

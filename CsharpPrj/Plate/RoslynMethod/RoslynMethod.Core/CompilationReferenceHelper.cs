@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -97,7 +98,7 @@ namespace RoslynSpace
             if (_referenceCache.TryGetValue(sourceCode, out var cached))
                 return cached;
 
-            var usingDirectives = CSharpSyntaxTree.ParseText(sourceCode).GetRoot()
+            var usingDirectives = CSharpSourceProvider.Instance.Parse(sourceCode).GetRoot()
                 .DescendantNodes().OfType<UsingDirectiveSyntax>()
                 .Select(u => u.Name.ToString()).Distinct().ToList();
 
@@ -191,7 +192,7 @@ namespace RoslynSpace
             public bool Equals(MetadataReference? x, MetadataReference? y) =>
                 string.Equals(x?.Display, y?.Display, StringComparison.OrdinalIgnoreCase);
             public int GetHashCode(MetadataReference obj) =>
-                obj.Display?.GetHashCode(StringComparison.OrdinalIgnoreCase) ?? 0;
+                obj.Display is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Display);
         }
 
         public static void ClearCache()

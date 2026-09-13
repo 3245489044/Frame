@@ -656,7 +656,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core
 
         #region 辅助工具类
 
-        [Obsolete("请使用 Core.Utilities.TypeDisplayHelper 替代")]
+        // 分工: 本类型处理 System.Reflection.Type 的显示名与值转换; Core.Utilities.TypeDisplayHelper 处理 Roslyn ITypeSymbol/IMethodSymbol
         internal static class TypeDisplayHelper
         {
             private static readonly Dictionary<Type, string> TypeAliases = new Dictionary<Type, string>

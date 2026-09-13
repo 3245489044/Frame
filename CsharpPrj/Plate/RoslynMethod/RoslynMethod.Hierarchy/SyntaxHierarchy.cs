@@ -2,8 +2,13 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoslynSpace.RoslynSyntaxUtilities.Base;
+using RoslynSpace.RoslynSyntaxUtilities.Core.Utilities;
+using Share.LogicComposition.Conversion.Emitters;
+using Share.LogicComposition.Conversion.Models;
+using Share.LogicComposition.Conversion.Models.Ir;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -49,7 +54,7 @@ namespace RoslynSpace.RoslynSyntaxHierarchy
                     MethodName = method.Identifier.Text,
                     ReturnType = method.ReturnType.ToString(),
                     Parameters = method.ParameterList.Parameters.Select(p => p.Identifier.Text).ToList(),
-                    Accessibility = SyntaxAccessor.GetAccessibilityString(method.Modifiers),
+                    Accessibility = AccessibilityConverter.GetAccessibilityString(method.Modifiers),
 
                     IsStatic = method.Modifiers.Any(m => m.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StaticKeyword)),
                     LineNumber = method.GetLocation().GetLineSpan().StartLinePosition.Line + 1
@@ -459,57 +464,74 @@ namespace RoslynSpace.RoslynSyntaxHierarchy
             return sb.ToString();
         }
 
-        public static string ToJson(List<FunctionHierarchyInfo> hierarchy)
+        public static string ToJson(List<FunctionHierarchyInfo> hierarchy, DateTimeOffset? generatedAt = null)
         {
-            var nodes = hierarchy.Select(info => new
+            var nodes = new ConversionArray();
+            foreach (var info in hierarchy)
             {
-                id = info.FunctionSignature,
-                name = info.FunctionName,
-                level = info.Level,
-                isTopLevel = info.IsTopLevel,
-                isLeaf = info.IsLeafFunction,
-                accessibility = info.Accessibility,
-                isStatic = info.IsStatic,
-                returnType = info.ReturnType,
-                parameters = info.Parameters,
-                line = info.LineNumber,
-                complexity = info.ComplexityScore,
-                callerCount = info.CallerCount
-            }).ToList();
+                nodes.Add(new ConversionObject()
+                    .Add("id", info.FunctionSignature)
+                    .Add("name", info.FunctionName)
+                    .Add("level", info.Level)
+                    .Add("isTopLevel", info.IsTopLevel)
+                    .Add("isLeaf", info.IsLeafFunction)
+                    .Add("accessibility", info.Accessibility)
+                    .Add("isStatic", info.IsStatic)
+                    .Add("returnType", info.ReturnType)
+                    .AddStrings("parameters", info.Parameters)
+                    .Add("line", info.LineNumber)
+                    .Add("complexity", info.ComplexityScore)
+                    .Add("callerCount", info.CallerCount));
+            }
 
-            var edges = hierarchy
-                .Where(h => h.CalledFunctions.Any())
-                .SelectMany(h => h.CalledFunctions
-                    .Select(cf => new
-                    {
-                        source = h.FunctionSignature,
-                        target = cf
-                    }))
-                .ToList();
-
-            var result = new
+            var edges = new ConversionArray();
+            var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var info in hierarchy)
             {
-                metadata = new
+                foreach (var called in info.CalledFunctions)
                 {
-                    generatedAt = DateTime.UtcNow,
-                    totalFunctions = hierarchy.Count,
-                    maxLevel = hierarchy.Max(h => h.Level),
-                    hasCircularDependency = edges.Any(e => edges.Any(e2 =>
-                        e2.source == e.target && e2.target == e.source))
-                },
-                nodes,
-                edges
-            };
+                    edges.Add(new ConversionObject()
+                        .Add("source", info.FunctionSignature)
+                        .Add("target", called));
+                    edgeKeys.Add(EdgeKey(info.FunctionSignature, called));
+                }
+            }
 
-            return System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var hasCircularDependency = false;
+            foreach (var info in hierarchy)
+            {
+                foreach (var called in info.CalledFunctions)
+                {
+                    if (edgeKeys.Contains(EdgeKey(called, info.FunctionSignature)))
+                    {
+                        hasCircularDependency = true;
+                        break;
+                    }
+                }
+
+                if (hasCircularDependency) break;
+            }
+
+            var root = new ConversionObject()
+                .Add("metadata", new ConversionObject()
+                    .Add("generatedAt", (generatedAt ?? DateTimeOffset.UtcNow).UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
+                    .Add("totalFunctions", hierarchy.Count)
+                    .Add("maxLevel", hierarchy.Max(h => h.Level))
+                    .Add("hasCircularDependency", hasCircularDependency))
+                .Add("nodes", nodes)
+                .Add("edges", edges);
+
+            return root.ToJson(ConversionOptions.Default);
         }
 
-        public static HierarchyExport Export(List<FunctionHierarchyInfo> hierarchy, string format = "dot")
+        private static string EdgeKey(string source, string target) => source + "\u0000" + target;
+
+        public static HierarchyExport Export(List<FunctionHierarchyInfo> hierarchy, string format = "dot", DateTimeOffset? generatedAt = null)
         {
             return format?.ToLower() switch
             {
                 "dot" => new HierarchyExport { Content = ToDotGraph(hierarchy), Format = "dot" },
-                "json" => new HierarchyExport { Content = ToJson(hierarchy), Format = "json" },
+                "json" => new HierarchyExport { Content = ToJson(hierarchy, generatedAt), Format = "json" },
                 _ => throw new ArgumentException($"不支持的导出格式: {format}。支持 'dot' 和 'json'。")
             };
         }

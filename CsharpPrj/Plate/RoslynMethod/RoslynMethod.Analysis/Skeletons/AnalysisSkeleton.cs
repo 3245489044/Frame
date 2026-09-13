@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoslynSpace.RoslynSyntaxUtilities.Base;
+using RoslynSpace.RoslynSyntaxUtilities.Core.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -111,19 +112,19 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
 
         private EnhancedCodeElement AnalyzeMethod(MethodDeclarationSyntax method)
         {
-            var containingType = SyntaxAccessor.GetContainingTypeName(method);
+            var containingType = SyntaxHelper.GetContainingTypeName(method);
             var element = new EnhancedCodeElement(
-                $"{ElementType.Method}_{method.Identifier.Text}_{SyntaxLocator.GetLineNumber(method)}_{containingType}",
+                $"{ElementType.Method}_{method.Identifier.Text}_{SyntaxHelper.GetLineNumber(method)}_{containingType}",
                 method.Identifier.Text,
                 ElementType.Method,
-                SyntaxLocator.GetLineNumber(method),
+                SyntaxHelper.GetLineNumber(method),
                 containingType)
             {
                 ReturnType = method.ReturnType.ToString(),
-                Accessibility = SyntaxAccessor.GetAccessibilityString(method.Modifiers),
-                IsStatic = SyntaxAccessor.IsStatic(method.Modifiers),
-                IsVirtual = SyntaxAccessor.IsVirtual(method.Modifiers),
-                IsAbstract = SyntaxAccessor.IsAbstract(method.Modifiers),
+                Accessibility = AccessibilityConverter.GetAccessibilityString(method.Modifiers),
+                IsStatic = SyntaxHelper.IsStatic(method.Modifiers),
+                IsVirtual = SyntaxHelper.IsVirtual(method.Modifiers),
+                IsAbstract = SyntaxHelper.IsAbstract(method.Modifiers),
                 ComplexityScore = ComplexityCalculator.CalculateMethodComplexity(method),
                 Parameters = method.ParameterList.Parameters.Select(p => p.ToString()).ToList()
             };
@@ -139,31 +140,31 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
 
         private EnhancedCodeElement AnalyzeProperty(PropertyDeclarationSyntax property)
         {
-            var containingType = SyntaxAccessor.GetContainingTypeName(property);
+            var containingType = SyntaxHelper.GetContainingTypeName(property);
             return new EnhancedCodeElement(
-                $"{ElementType.Property}_{property.Identifier.Text}_{SyntaxLocator.GetLineNumber(property)}_{containingType}",
+                $"{ElementType.Property}_{property.Identifier.Text}_{SyntaxHelper.GetLineNumber(property)}_{containingType}",
                 property.Identifier.Text,
                 ElementType.Property,
-                SyntaxLocator.GetLineNumber(property),
+                SyntaxHelper.GetLineNumber(property),
                 containingType)
             {
                 ReturnType = property.Type.ToString(),
-                Accessibility = SyntaxAccessor.GetAccessibilityString(property.Modifiers),
-                IsStatic = SyntaxAccessor.IsStatic(property.Modifiers)
+                Accessibility = AccessibilityConverter.GetAccessibilityString(property.Modifiers),
+                IsStatic = SyntaxHelper.IsStatic(property.Modifiers)
             };
         }
 
         private EnhancedCodeElement AnalyzeConstructor(ConstructorDeclarationSyntax constructor)
         {
-            var containingType = SyntaxAccessor.GetContainingTypeName(constructor);
+            var containingType = SyntaxHelper.GetContainingTypeName(constructor);
             return new EnhancedCodeElement(
-                $"{ElementType.Constructor}_{constructor.Identifier.Text}_{SyntaxLocator.GetLineNumber(constructor)}_{containingType}",
+                $"{ElementType.Constructor}_{constructor.Identifier.Text}_{SyntaxHelper.GetLineNumber(constructor)}_{containingType}",
                 constructor.Identifier.Text,
                 ElementType.Constructor,
-                SyntaxLocator.GetLineNumber(constructor),
+                SyntaxHelper.GetLineNumber(constructor),
                 containingType)
             {
-                Accessibility = SyntaxAccessor.GetAccessibilityString(constructor.Modifiers),
+                Accessibility = AccessibilityConverter.GetAccessibilityString(constructor.Modifiers),
                 ComplexityScore = ComplexityCalculator.CalculateConstructorComplexity(constructor),
                 Parameters = constructor.ParameterList.Parameters.Select(p => p.ToString()).ToList()
             };

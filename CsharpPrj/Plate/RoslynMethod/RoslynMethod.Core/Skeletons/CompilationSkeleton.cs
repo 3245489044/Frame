@@ -22,6 +22,9 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
             public bool CheckOverflow { get; set; } = false;
             public List<MetadataReference> AdditionalReferences { get; set; } = new();
             public bool AutoResolveReferences { get; set; } = true;
+
+            /// <summary>是否立即收集诊断（false 时跳过 <c>GetDiagnostics</c>，供只取语法树/语义模型的轻量通道使用）。</summary>
+            public bool CollectDiagnostics { get; set; } = true;
         }
 
         public class CompilationResult
@@ -44,7 +47,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
 
             try
             {
-                result.SyntaxTree = CSharpSyntaxTree.ParseText(code);
+                result.SyntaxTree = CSharpSourceProvider.Instance.Parse(code);
                 result.Root = result.SyntaxTree.GetRoot();
 
                 var references = new List<MetadataReference>(config.AdditionalReferences);
@@ -67,22 +70,39 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
 
                 result.SemanticModel = result.Compilation.GetSemanticModel(result.SyntaxTree);
 
-                result.Diagnostics = result.Compilation.GetDiagnostics().ToList();
-                result.Errors = result.Diagnostics
-                    .Where(d => d.Severity == DiagnosticSeverity.Error)
-                    .Select(d => CompilationError.FromDiagnostic(d, ErrorSeverity.CompilationError))
-                    .ToList();
+                if (config.CollectDiagnostics)
+                {
+                    result.Diagnostics = result.Compilation.GetDiagnostics().ToList();
+                    result.Errors = result.Diagnostics
+                        .Where(d => d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => CompilationError.FromDiagnostic(d, ErrorSeverity.CompilationError))
+                        .ToList();
 
-                result.Success = !result.Errors.Any();
-                result.ErrorSummary = result.Errors.Any()
-                    ? $"发现 {result.Errors.Count} 个编译错误"
-                    : "编译成功";
+                    result.Success = !result.Errors.Any();
+                    result.ErrorSummary = result.Errors.Any()
+                        ? $"发现 {result.Errors.Count} 个编译错误"
+                        : "编译成功";
+                }
+                else
+                {
+                    result.Success = true;
+                }
             }
             catch (Exception ex)
             {
                 result.Errors.Add(new CompilationError("SYSTEM", ex.Message, null, null, ErrorSeverity.SystemError));
                 result.ErrorSummary = $"编译过程异常: {ex.Message}";
             }
+
+            return result;
+        }
+
+        /// <summary>构建失败（未取得语义模型）即抛出，供要求「失败即异常」语义的调用点共用同一判定。</summary>
+        public static CompilationResult BuildOrThrow(string code, CompilationConfig config = null)
+        {
+            var result = Build(code, config);
+            if (result.SemanticModel == null)
+                throw new InvalidOperationException($"编译构建失败: {result.ErrorSummary ?? "未取得语义模型"}");
 
             return result;
         }

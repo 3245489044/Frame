@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoslynSpace.RoslynSyntaxUtilities.Base;
+using RoslynSpace.RoslynSyntaxUtilities.Core.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace RoslynSpace
         {
             try
             {
-                var (syntaxTree, semanticModel) = SyntaxParser.ParseCode(code);
+                var (syntaxTree, semanticModel) = SyntaxHelper.ParseCode(code);
                 var root = syntaxTree.GetRoot();
                 var elements = new ConcurrentBag<EC>();
 
@@ -164,8 +165,8 @@ namespace RoslynSpace
 
         private static EC CreateBaseElement(SyntaxNode node, ET type, string className)
         {
-            int lineNumber = SyntaxLocator.GetLineNumber(node);
-            string name = SyntaxAccessor.GetNodeName(node);
+            int lineNumber = SyntaxHelper.GetLineNumber(node);
+            string name = SyntaxHelper.GetNodeName(node);
 
             if (string.IsNullOrEmpty(name)) return null;
 
@@ -331,7 +332,7 @@ namespace RoslynSpace
                 var varInfo = new VU(
                     parameter.Identifier.Text,
                     parameter.Type?.ToString() ?? "unknown",
-                    SyntaxLocator.GetLineNumber(parameter),
+                    SyntaxHelper.GetLineNumber(parameter),
                     isParameter: true,
                     isLocal: false,
                     containingMethod: methodKey
@@ -361,7 +362,7 @@ namespace RoslynSpace
                     var varInfo = new VU(
                         variable.Identifier.Text,
                         declaration.Declaration.Type.ToString(),
-                        SyntaxLocator.GetLineNumber(variable),
+                        SyntaxHelper.GetLineNumber(variable),
                         isParameter: false,
                         isLocal: true,
                         containingMethod: methodKey
@@ -387,7 +388,7 @@ namespace RoslynSpace
                         var varInfo = new VU(
                             variable.Identifier.Text,
                             forStmt.Declaration.Type.ToString(),
-                            SyntaxLocator.GetLineNumber(variable),
+                            SyntaxHelper.GetLineNumber(variable),
                             isParameter: false,
                             isLocal: true,
                             containingMethod: methodKey
@@ -402,7 +403,7 @@ namespace RoslynSpace
             var foreachStatements = scope.DescendantNodes().OfType<ForEachStatementSyntax>();
             foreach (var foreachStmt in foreachStatements)
             {
-                int lineNumber = SyntaxLocator.GetLineNumber(foreachStmt);
+                int lineNumber = SyntaxHelper.GetLineNumber(foreachStmt);
 
                 var varInfo = new VU(
                     foreachStmt.Identifier.Text,
@@ -427,7 +428,7 @@ namespace RoslynSpace
             foreach (var identifier in identifiers)
             {
                 var identifierName = identifier.Identifier.Text;
-                var line = SyntaxLocator.GetLineNumber(identifier);
+                var line = SyntaxHelper.GetLineNumber(identifier);
 
                 var variable = variables.FirstOrDefault(v => v.Name == identifierName);
                 if (variable != null)
@@ -445,7 +446,7 @@ namespace RoslynSpace
 
             foreach (var usage in usages)
             {
-                var line = SyntaxLocator.GetLineNumber(usage);
+                var line = SyntaxHelper.GetLineNumber(usage);
                 variableInfo.AddUsage(line);
             }
         }
@@ -550,7 +551,7 @@ namespace RoslynSpace
             Dictionary<string, int> references,
             Dictionary<string, List<EC>> elementMap)
         {
-            var identifier = SyntaxAccessor.ExtractIdentifier(node);
+            var identifier = SyntaxHelper.ExtractIdentifier(node);
             if (!string.IsNullOrEmpty(identifier) && elementMap.ContainsKey(identifier))
             {
                 references[identifier] = references.GetValueOrDefault(identifier) + 1;
@@ -594,7 +595,7 @@ namespace RoslynSpace
         }
 
         private static SyntaxNode FindSyntaxNode(EC element, SyntaxNode root) =>
-            root.DescendantNodes().FirstOrDefault(n => SyntaxMatcher.IsMatch(n, element));
+            root.DescendantNodes().FirstOrDefault(n => SyntaxHelper.IsMatch(n, element));
     }
 
     #endregion

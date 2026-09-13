@@ -17,6 +17,8 @@
   <ItemGroup>
     <!-- 转换内核（netstandard2.0，零依赖） -->
     <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
+    <!-- Roslyn 低层共享内核（RoslynMethod.Core，netstandard2.0）：源提供器 / 源定位 / C# 生成基底（与 RoslynMethod 共用单一实现） -->
+    <ProjectReference Include="$(Proj_RoslynMethod_Core)" />
   </ItemGroup>
 
   <ItemGroup>

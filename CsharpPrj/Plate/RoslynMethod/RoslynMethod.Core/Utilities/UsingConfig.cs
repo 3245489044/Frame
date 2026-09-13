@@ -26,7 +26,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         #region 固定普通 Using 配置
 
-        public static IReadOnlySet<string> FixedUsings => _fixedUsings;
+        public static IReadOnlyCollection<string> FixedUsings => _fixedUsings;
 
         public static void AddFixedUsing(string ns)
         {
@@ -42,7 +42,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         #region 固定静态 Using 配置
 
-        public static IReadOnlySet<string> FixedStaticUsings => _fixedStaticUsings;
+        public static IReadOnlyCollection<string> FixedStaticUsings => _fixedStaticUsings;
 
         public static void AddFixedStaticUsing(string type)
         {
@@ -58,13 +58,13 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         #region 条件性 Using 配置
 
-        public static IReadOnlySet<string> ConditionalUsings => _conditionalUsings;
+        public static IReadOnlyCollection<string> ConditionalUsings => _conditionalUsings;
 
         #endregion
 
         #region 自定义静态类配置
 
-        public static IReadOnlySet<string> CustomStaticClasses => _customStaticClasses;
+        public static IReadOnlyCollection<string> CustomStaticClasses => _customStaticClasses;
 
         public static void AddCustomStaticClass(string name)
         {

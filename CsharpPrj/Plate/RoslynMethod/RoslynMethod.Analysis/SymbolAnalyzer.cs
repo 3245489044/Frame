@@ -1,23 +1,11 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Base
 {
-    internal static class AccessibilityConverter
-    {
-        public static AccessibilityLevel Convert(Microsoft.CodeAnalysis.Accessibility accessibility) => accessibility switch
-        {
-            Microsoft.CodeAnalysis.Accessibility.Public => AccessibilityLevel.Public,
-            Microsoft.CodeAnalysis.Accessibility.Protected => AccessibilityLevel.Protected,
-            Microsoft.CodeAnalysis.Accessibility.Internal => AccessibilityLevel.Internal,
-            _ => AccessibilityLevel.Private
-        };
-    }
-
     internal static class SymbolAnalyzer
     {
         public static ISymbol GetSymbol(SemanticModel semanticModel, SyntaxNode node)

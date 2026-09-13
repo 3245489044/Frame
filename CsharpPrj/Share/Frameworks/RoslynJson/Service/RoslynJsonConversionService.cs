@@ -1,6 +1,7 @@
 
 using System;
 using Microsoft.CodeAnalysis;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using Share.LogicComposition.Conversion.Abstractions;
 using Share.LogicComposition.Conversion.Emitters;
 using Share.LogicComposition.Conversion.Models;

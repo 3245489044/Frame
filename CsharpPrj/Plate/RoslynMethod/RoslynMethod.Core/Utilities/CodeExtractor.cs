@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Core
 {
@@ -14,7 +15,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core
             if (string.IsNullOrWhiteSpace(functionName))
                 throw new ArgumentException("函数名不能为空", nameof(functionName));
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(sourceCode);
             var root = syntaxTree.GetRoot();
 
             var targetMethod = root.DescendantNodes()

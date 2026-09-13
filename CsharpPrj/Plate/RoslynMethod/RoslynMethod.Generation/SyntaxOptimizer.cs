@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Generation
 {
@@ -8,7 +9,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Generation
     {
         public static string RewriteMethod(string code)
         {
-            var tree = CSharpSyntaxTree.ParseText(code);
+            var tree = CSharpSourceProvider.Instance.Parse(code);
             var root = tree.GetRoot();
             var rewriter = new OptimizedSyntaxRewriter();
             return rewriter.Visit(root).ToFullString();

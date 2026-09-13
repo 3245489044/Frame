@@ -81,22 +81,4 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
         public string Reason { get; set; } = "";
         public Dictionary<string, object> AnalysisDetails { get; set; } = new Dictionary<string, object>();
     }
-
-    internal class RecommendationAnalysis
-    {
-        public Dictionary<ScoreCategory, double> Scores { get; set; } = new Dictionary<ScoreCategory, double>();
-        public (ScoreCategory Category, double Score) DominantScore { get; set; }
-        public RecommendationType RecommendationType { get; set; }
-        public double Confidence { get; set; }
-        public Dictionary<string, object> AnalysisMetrics { get; set; } = new Dictionary<string, object>();
-    }
-
-    internal class RecommendationResult
-    {
-        public RecommendationType Type { get; set; }
-        public double Confidence { get; set; }
-        public ScoreCategory DominantCategory { get; set; }
-        public double DominantScore { get; set; }
-        public Dictionary<ScoreCategory, double> SupportingScores { get; set; } = new Dictionary<ScoreCategory, double>();
-    }
 }

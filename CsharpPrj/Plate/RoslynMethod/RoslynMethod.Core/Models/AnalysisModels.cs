@@ -25,12 +25,17 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
         {
             SourceCode = sourceCode;
             FilePath = filePath;
-            SyntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
-            Compilation = CSharpCompilation.Create("Analysis")
-                .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-                .AddSyntaxTrees(SyntaxTree);
-            SemanticModel = Compilation.GetSemanticModel(SyntaxTree);
-            Root = SyntaxTree.GetRoot();
+            var build = CompilationSkeleton.BuildOrThrow(sourceCode, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = "Analysis",
+                AutoResolveReferences = false,
+                CollectDiagnostics = false,
+                AdditionalReferences = { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) }
+            });
+            SyntaxTree = build.SyntaxTree;
+            Compilation = build.Compilation;
+            SemanticModel = build.SemanticModel;
+            Root = build.Root;
         }
 
         public AnalysisContext(SyntaxTree syntaxTree, SemanticModel semanticModel, Compilation compilation)
@@ -176,21 +181,5 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
             RelationshipType = relationshipType;
         }
     }
-
-    internal class LocationInfo
-    {
-        public SyntaxNode Node { get; }
-        public string FilePath { get; }
-        public int Line { get; }
-        public int Column { get; }
-
-        public LocationInfo(SyntaxNode node, string filePath = null)
-        {
-            Node = node;
-            FilePath = filePath;
-            var pos = node.GetLocation().GetLineSpan();
-            Line = pos.StartLinePosition.Line + 1;
-            Column = pos.StartLinePosition.Character + 1;
-        }
-    }
 }
+

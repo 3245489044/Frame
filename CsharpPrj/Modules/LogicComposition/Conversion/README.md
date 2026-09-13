@@ -98,8 +98,10 @@ JSON 出口按运行环境分为两条，实现互不重复：
 |---|---|---|
 | **分析器侧**（编译期：源生成器 / MSBuild Task 内联） | 本工程 `Emitters\JsonTextEmitter` | 零依赖，进程内可用；头注释由 `JsonHeaderComment` 统一渲染 |
 | **运行期**（宿主 / CLI / 测试基础设施） | `Share.LogicComposition.Conversion.Runtime`（`ConversionRuntime\`） | 桥接到 `Plate.JsonMethod`：缩进/编码/诊断/计量/路径/合并全部复用平台单一实现 |
+| **运行期·结构性投影**（进程内已构造 IR，只需 IR→JSON 文本） | 本工程 `Emitters\JsonTextEmitter` | 内核发射器是「IR→JSON 文本」的唯一实现；Plate 层模块（如 `RoslynMethod` 的 `FunctionGraphVisualizer.ToJson`）复用同一发射器，而非另写 JSON 文本生成 |
 
-> 判据：能用 `Plate.JsonMethod` 的地方（运行期）一律用它；只有分析器进程（加载不了 net10.0 程序集）才用内核发射器。
+> 判据：JSON 能力（解析/序列化/路径/合并/计量）在运行期一律用 `Plate.JsonMethod`（或经 `ConversionRuntime` 桥接），只有分析器进程（加载不了 net10.0 程序集）才用内核发射器；
+> 但**只要已是「IR → JSON 文本」这一形态**，无论运行期还是分析器侧，都复用本工程 `JsonTextEmitter`（唯一实现，保证键序/数字格式/转义一致），不再新增第二份 JSON 文本发射。
 
 ## 依赖关系
 

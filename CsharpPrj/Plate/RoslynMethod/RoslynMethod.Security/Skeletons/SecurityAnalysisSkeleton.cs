@@ -25,9 +25,6 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Security
 
             progress?.Report(new AnalysisProgress(0, 100, "Security: Step 1/4 - Parsing syntax tree..."));
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var root = syntaxTree.GetRoot();
-
             progress?.Report(new AnalysisProgress(25, 100, "Security: Step 2/4 - Building compilation..."));
 
             var config = new CompilationSkeleton.CompilationConfig
@@ -37,6 +34,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Security
                 CheckOverflow = false
             };
             var buildResult = CompilationSkeleton.Build(code, config);
+            var root = buildResult.Root;
             var compilation = buildResult.Compilation;
             var semanticModel = buildResult.SemanticModel;
 

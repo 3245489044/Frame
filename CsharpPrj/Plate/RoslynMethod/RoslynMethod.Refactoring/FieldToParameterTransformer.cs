@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using RoslynSpace.RoslynSyntaxUtilities.Core.Utilities;
 
 namespace RoslynSpace.RoslynSyntaxUtilities.Refactoring
@@ -53,14 +54,15 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Refactoring
 
             try
             {
-                var tree = CSharpSyntaxTree.ParseText(code);
-                var root = tree.GetRoot();
-
-                var compilation = CSharpCompilation.Create("TempAssembly")
-                    .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-                    .AddSyntaxTrees(tree);
-
-                var semanticModel = compilation.GetSemanticModel(tree);
+                var build = CompilationSkeleton.BuildOrThrow(code, new CompilationSkeleton.CompilationConfig
+                {
+                    AssemblyName = "TempAssembly",
+                    AutoResolveReferences = false,
+                    CollectDiagnostics = false,
+                    AdditionalReferences = { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) }
+                });
+                var root = build.Root;
+                var semanticModel = build.SemanticModel;
 
                 var fields = ExtractFields(code, className);
 
@@ -95,7 +97,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Refactoring
 
         private static List<FieldInfo> ExtractFields(string code, string className = null)
         {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(code);
             var root = syntaxTree.GetRoot();
 
             IEnumerable<FieldDeclarationSyntax> fieldDeclarations;

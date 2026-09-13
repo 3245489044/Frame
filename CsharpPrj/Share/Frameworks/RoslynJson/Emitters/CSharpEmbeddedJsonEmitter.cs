@@ -1,7 +1,11 @@
 
 using System;
 using System.Text;
+using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynStringCodeGeneration;
 using Share.LogicComposition.Conversion.Abstractions;
 using Share.LogicComposition.Conversion.Emitters;
 using Share.LogicComposition.Conversion.Models;
@@ -12,7 +16,8 @@ namespace Share.RoslynJson.Emitters;
 /// <summary>
 /// C# 内嵌 JSON 发射器：IR → 「类 + <c>public const string</c> 承载 JSON」的 C# 源码。
 /// 这是 Roslyn 源生成器**唯一合法**的产物形态（分析器只能经 <c>AddSource</c> 产出 C# 源码）。
-/// JSON 文本仍由转换内核的 <see cref="JsonTextEmitter"/> 生成（单一发射来源）。
+/// 结构生成基于共享内核 <see cref="RoslynGeneratorBase{TModel}"/>（<c>SyntaxFactory</c> 构建，与 RoslynMethod 共用同一实现），
+/// 不再手写字符串拼接；JSON 文本仍由转换内核 <see cref="JsonTextEmitter"/> 生成（单一发射来源）。
 /// </summary>
 public sealed class CSharpEmbeddedJsonEmitter : IArtifactEmitter<string>
 {
@@ -47,77 +52,92 @@ public sealed class CSharpEmbeddedJsonEmitter : IArtifactEmitter<string>
         if (!jsonResult.IsSuccess || jsonResult.Artifact is null)
             return ConversionResult<string>.Failure(jsonResult.Diagnostics);
 
-        var code = Render(spec, jsonResult.Artifact);
-        return ConversionResult<string>.Success(code, jsonResult.Diagnostics);
+        var model = new EmbeddedJsonClassModel
+        {
+            Json = jsonResult.Artifact,
+            HeaderComment = spec.HeaderComment,
+        };
+
+        var generationContext = new CodeGenerationContext
+        {
+            ClassName = spec.ClassName,
+            Namespace = spec.Namespace ?? string.Empty,
+            GenerateAsStatic = spec.IsStatic,
+        };
+
+        var generated = new EmbeddedJsonClassGenerator(spec)
+            .GenerateAsync(model, generationContext)
+            .GetAwaiter()
+            .GetResult();
+
+        if (!generated.Success)
+            return ConversionResult<string>.Failure("RJ-EMIT-GEN", generated.Error?.Message ?? "C# 源码生成失败");
+
+        return ConversionResult<string>.Success(generated.GeneratedCode, jsonResult.Diagnostics);
     }
 
-    private static string Render(EmbeddedJsonClassSpec spec, string json)
+    /// <summary>生成模型（已去头注释的 JSON 文本 + 类级头部注释）。</summary>
+    private sealed class EmbeddedJsonClassModel
     {
-        var builder = new StringBuilder(json.Length + 256);
+        public string Json { get; set; } = string.Empty;
+        public string? HeaderComment { get; set; }
+    }
 
-        if (!string.IsNullOrEmpty(spec.HeaderComment))
+    /// <summary>
+    /// 内嵌 JSON 类生成器：类/成员/命名空间结构由内核 <see cref="RoslynGeneratorBase{TModel}"/> 经语法树构建；
+    /// 字面量形态由 <see cref="EmbeddedJsonStyle"/> 选择（原始字符串 / 转义字面量）。
+    /// </summary>
+    private sealed class EmbeddedJsonClassGenerator : RoslynGeneratorBase<EmbeddedJsonClassModel>
+    {
+        private readonly EmbeddedJsonClassSpec _spec;
+
+        public EmbeddedJsonClassGenerator(EmbeddedJsonClassSpec spec) => _spec = spec;
+
+        protected override Task<CompilationUnitSyntax> BuildCompilationUnitAsync(
+            EmbeddedJsonClassModel model,
+            CodeGenerationContext context)
         {
-            var lines = spec.HeaderComment!.Split('\n');
+            // 字面量固定在列 0：规避原始字符串「内容行缩进不得少于闭合定界符缩进」的裁剪规则
+            var initializer = _spec.Style == EmbeddedJsonStyle.EscapedLiteral
+                ? CreateEscapedStringLiteral(model.Json)
+                : CreateRawStringLiteral(model.Json);
+
+            var field = CreateFieldWithInitializer("string", _spec.MemberName, initializer,
+                isConst: true, isPublic: true);
+
+            var classDeclaration = CreateClass(
+                context.ClassName,
+                SyntaxFactory.SingletonList<MemberDeclarationSyntax>(field),
+                isStatic: _spec.IsStatic,
+                isSealed: _spec.IsSealed);
+
+            MemberDeclarationSyntax member = classDeclaration;
+            if (!string.IsNullOrWhiteSpace(context.Namespace))
+                member = CreateNamespace(context.Namespace, SyntaxFactory.SingletonList(member));
+
+            return Task.FromResult(
+                SyntaxFactory.CompilationUnit().WithMembers(SyntaxFactory.SingletonList(member)));
+        }
+
+        protected override string Render(CompilationUnitSyntax compilationUnit)
+        {
+            var code = compilationUnit.NormalizeWhitespace().ToFullString();
+            return string.IsNullOrEmpty(_spec.HeaderComment)
+                ? code
+                : RenderHeaderComment(_spec.HeaderComment!) + code;
+        }
+
+        private static string RenderHeaderComment(string headerComment)
+        {
+            var lines = headerComment.Split('\n');
+            var builder = new StringBuilder(headerComment.Length + lines.Length * 3);
+
             for (var i = 0; i < lines.Length; i++)
             {
                 builder.Append("// ").Append(lines[i].TrimEnd('\r')).Append('\n');
             }
+
+            return builder.ToString();
         }
-
-        var hasNamespace = !string.IsNullOrWhiteSpace(spec.Namespace);
-        var indent = hasNamespace ? "    " : string.Empty;
-
-        if (hasNamespace) builder.Append("namespace ").Append(spec.Namespace).Append('\n').Append("{\n");
-
-        var modifiers = spec.IsStatic ? "public static class " : (spec.IsSealed ? "public sealed class " : "public class ");
-        builder.Append(indent).Append(modifiers).Append(spec.ClassName).Append('\n');
-        builder.Append(indent).Append("{\n");
-        builder.Append(indent).Append("    public const string ").Append(spec.MemberName).Append(" =\n");
-
-        // 字面量固定在列 0：规避原始字符串「内容行缩进不得少于闭合定界符缩进」的裁剪规则
-        builder.Append(RenderLiteral(json, spec.Style));
-        builder.Append(";\n");
-
-        builder.Append(indent).Append("}\n");
-        if (hasNamespace) builder.Append("}\n");
-
-        return builder.ToString();
-    }
-
-    private static string RenderLiteral(string json, EmbeddedJsonStyle style)
-    {
-        if (style == EmbeddedJsonStyle.EscapedLiteral)
-            return SymbolDisplay.FormatLiteral(json, quote: true);
-
-        var fence = new string('"', ComputeFenceLength(json));
-
-        var builder = new StringBuilder(json.Length + 16);
-        builder.Append(fence).Append('\n');
-        builder.Append(json);
-        if (!json.EndsWith("\n", StringComparison.Ordinal)) builder.Append('\n');
-        builder.Append(fence);
-        return builder.ToString();
-    }
-
-    /// <summary>围栏长度 = 内容中最长连续引号串 + 1（下限 3），保证原始字符串不被内容截断。</summary>
-    private static int ComputeFenceLength(string text)
-    {
-        var longest = 0;
-        var current = 0;
-
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '"')
-            {
-                current++;
-                if (current > longest) longest = current;
-            }
-            else
-            {
-                current = 0;
-            }
-        }
-
-        return Math.Max(3, longest + 1);
     }
 }

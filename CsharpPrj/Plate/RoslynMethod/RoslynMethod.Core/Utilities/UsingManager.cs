@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoslynSpace.RoslynSyntaxUtilities.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +20,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         public static List<string> ExtractUsings(string sourceCode)
         {
-            return (CSharpSyntaxTree.ParseText(sourceCode).GetRoot() as CompilationUnitSyntax)
+            return (CSharpSourceProvider.Instance.Parse(sourceCode).GetRoot() as CompilationUnitSyntax)
                 ?.Usings.Select(u => u.ToString()).ToList() ?? new List<string>();
         }
 
@@ -31,7 +32,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         public static List<string> ExtractUsingNames(string sourceCode)
         {
-            return (CSharpSyntaxTree.ParseText(sourceCode).GetRoot() as CompilationUnitSyntax)
+            return (CSharpSourceProvider.Instance.Parse(sourceCode).GetRoot() as CompilationUnitSyntax)
                 ?.Usings.Select(u => u.Name.ToString()).ToList() ?? new List<string>();
         }
 
@@ -50,18 +51,13 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
             if (string.IsNullOrWhiteSpace(sourceCode))
                 return sourceCode;
 
-            var tree = CSharpSyntaxTree.ParseText(sourceCode);
-            var root = tree.GetCompilationUnitRoot();
-
-            var references = CompilationReferenceHelper.GetRequiredReferences(sourceCode);
-
-            var compilation = CSharpCompilation.Create(
-                "TempAssembly",
-                new[] { tree },
-                references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            var semanticModel = compilation.GetSemanticModel(tree);
+            var build = CompilationSkeleton.BuildOrThrow(sourceCode, new CompilationSkeleton.CompilationConfig
+            {
+                AssemblyName = "TempAssembly",
+                CollectDiagnostics = false
+            });
+            var root = (CompilationUnitSyntax)build.Root;
+            var semanticModel = build.SemanticModel;
 
             var existingUsings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var existingStaticUsings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -136,7 +132,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
         {
             if (namespaces == null || namespaces.Length == 0) return code;
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(code);
             var root = syntaxTree.GetRoot() as CompilationUnitSyntax;
             if (root == null) return code;
 
@@ -167,7 +163,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
         {
             if (staticTypes == null || staticTypes.Length == 0) return code;
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(code);
             var root = syntaxTree.GetRoot() as CompilationUnitSyntax;
             if (root == null) return code;
 
@@ -197,7 +193,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
             try
             {
-                var root = CSharpSyntaxTree.ParseText(sourceCode).GetRoot() as CompilationUnitSyntax;
+                var root = CSharpSourceProvider.Instance.Parse(sourceCode).GetRoot() as CompilationUnitSyntax;
                 if (root == null) return sourceCode;
 
                 var existing = root.Usings
@@ -256,7 +252,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
         {
             if (namespaces == null || namespaces.Length == 0) return code;
 
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(code);
             var root = syntaxTree.GetRoot() as CompilationUnitSyntax;
             if (root == null) return code;
 
@@ -271,7 +267,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         public static string RemoveUnusedUsings(string code)
         {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var syntaxTree = CSharpSourceProvider.Instance.Parse(code);
             var root = syntaxTree.GetRoot() as CompilationUnitSyntax;
             if (root == null) return code;
 
@@ -297,10 +293,10 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
             if (string.IsNullOrWhiteSpace(sourceCode))
                 return targetCode;
 
-            var targetTree = CSharpSyntaxTree.ParseText(targetCode);
+            var targetTree = CSharpSourceProvider.Instance.Parse(targetCode);
             var targetRoot = targetTree.GetCompilationUnitRoot();
 
-            var sourceTree = CSharpSyntaxTree.ParseText(sourceCode);
+            var sourceTree = CSharpSourceProvider.Instance.Parse(sourceCode);
             var sourceRoot = sourceTree.GetCompilationUnitRoot();
 
             var sourceUsingStrings = sourceRoot.DescendantNodes()
@@ -342,7 +338,7 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
             try
             {
-                var root = CSharpSyntaxTree.ParseText(sourceCode).GetRoot() as CompilationUnitSyntax;
+                var root = CSharpSourceProvider.Instance.Parse(sourceCode).GetRoot() as CompilationUnitSyntax;
                 if (root == null) return sourceCode;
 
                 if (root.Usings.Any(u => u.Name?.ToString() == "System" &&
@@ -449,13 +445,16 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Core.Utilities
 
         private static void CollectUsedNames(SyntaxNode root, HashSet<string> names)
         {
+            // 头部 using 指令自身的名字片段不算「被使用」，否则 RemoveUnusedUsings 恒不移除任何 using
             foreach (var identifier in root.DescendantNodes().OfType<IdentifierNameSyntax>())
             {
+                if (identifier.Ancestors().Any(a => a is UsingDirectiveSyntax)) continue;
                 names.Add(identifier.Identifier.ValueText);
             }
 
             foreach (var memberAccess in root.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
             {
+                if (memberAccess.Ancestors().Any(a => a is UsingDirectiveSyntax)) continue;
                 if (memberAccess.Expression is IdentifierNameSyntax id)
                 {
                     names.Add(id.Identifier.ValueText);

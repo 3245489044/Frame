@@ -31,8 +31,13 @@ namespace Plate.JsonMethod.Diagnostics
                 catch { }
             }
 
-            var typeInfo = DescribeExpectedType(targetType, path);
-            if (typeInfo != null) sb.AppendLine($"  期望类型: {typeInfo}");
+            // 语法错误（JsonException.Path 为空）时路径不可知 → 不输出「期望类型」，避免
+            // “JsonNode.(unknown) (属性不存在)” 之类的误导性结论
+            if (!string.IsNullOrEmpty(ex.Path))
+            {
+                var typeInfo = DescribeExpectedType(targetType, ex.Path!);
+                if (typeInfo != null) sb.AppendLine($"  期望类型: {typeInfo}");
+            }
 
             sb.AppendLine($"  原始错误: {ex.Message}");
             return sb.ToString();
@@ -72,6 +77,8 @@ namespace Plate.JsonMethod.Diagnostics
 
         private static string? DescribeExpectedType(Type targetType, string path)
         {
+            if (string.IsNullOrEmpty(path)) return null;
+
             try
             {
                 var cleanPath = path.StartsWith("$.") ? path[2..] : path;

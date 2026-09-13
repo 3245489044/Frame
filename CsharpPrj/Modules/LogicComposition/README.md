@@ -102,6 +102,14 @@ LogicComposition（独立项目，无外部依赖）
     ├── DefaultMergeStrategy<T>（默认合并策略实现）
     ├── DefaultChainComposer<TElement>（默认链组合器）
     └── DefaultCompositionValidator（默认组合验证器）
+
+  Conversion\ 子工程（LogicComposition.Conversion，netstandard2.0 零外部依赖）
+    └── 通用转换内核：IR / 转换管线 / 规则链 / JSON 发射器 / 诊断与源定位
+        详见 Conversion\README.md；独立成 netstandard2.0 工程以便被 Roslyn 源生成器复用。
+
+  ConversionRuntime\（本工程，net10.0-windows）
+    └── 运行期 JSON 出口：IR ↔ JsonNode 桥 + Plate.JsonMethod 单一出口（解析/序列化/计量/诊断）
+        详见 ConversionRuntime\README.md
 ```
 
 ## 设计原则

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>              <!-- 分析器硬约束 -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Share.RoslynJson</RootNamespace>
+    <AssemblyName>Share.RoslynJsonFramework</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Roslyn→JSON 通用转换框架 — 语法树到转换 IR 的映射、规则表、发射器、增量源生成器脚手架</Description>
+    <!-- RS2008(分析器发布跟踪)：本工程为框架库而非发布型分析器包，
+         AnalyzerReleases.Shipped/Unshipped.md 由最终分析器工程（Agent.Spec.SourceGen）承担。 -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 转换内核（netstandard2.0，零依赖） -->
+    <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Roslyn：PrivateAssets=all 不透传到下游；本身含 lib\netstandard2.0 目标 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

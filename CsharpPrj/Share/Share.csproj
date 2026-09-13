@@ -35,6 +35,7 @@
     <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <ProjectReference Include="$(Proj_AiScheduling)" />
+    <ProjectReference Include="$(Proj_RoslynJsonFramework)" />
     <ProjectReference Include="$(Proj_ControlLookup)" />
     <ProjectReference Include="$(Proj_ScopeFramework)" />
     <!-- ★ HostAssembly 通用宿主装配框架：与 Share 家族其他子项目一致，聚合项目引用并排除其源码，避免类型在 Share.dll 重复编译（CS0433） -->

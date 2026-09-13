@@ -18,6 +18,17 @@
   <ItemGroup>
     <!-- Transformers 已整合到 BasicMethod.csproj -->
     <ProjectReference Include="$(Proj_BasicMethod)" />
+    <!-- 转换内核（netstandard2.0 零依赖子工程）：可被 Roslyn 分析器间接复用，故不下沉进本工程 -->
+    <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
+    <!-- 运行期 JSON 出口：平台级 JSON 统一框架（转换内核为 netstandard2.0 零依赖，
+         无法在分析器侧引用本模块；故「运行期」由 ConversionRuntime 桥接到 JsonMethod 单一出口） -->
+    <ProjectReference Include="$(Proj_JsonMethod)" />
+  </ItemGroup>
+
+  <!-- 子工程源码不并入本工程（对齐 Plate\RoslynMethod.csproj 的排除范式） -->
+  <ItemGroup>
+    <Compile Remove="Conversion\**\*.cs" />
+    <None Include="Conversion\**\*" />
   </ItemGroup>
 
 

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Share.LogicComposition.Conversion</RootNamespace>
+    <AssemblyName>Share.LogicComposition.Conversion</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>通用转换内核 — 领域无关的转换管线/IR/发射器/诊断/源定位（零外部依赖，可被 Roslyn 分析器复用）</Description>
+  </PropertyGroup>
+
+  <!-- 刻意零外部依赖：本工程被 Roslyn 分析器（netstandard2.0）间接引用，
+       不得引用 BasicMethod/Transformers（net10.0-windows）等上层能力。 -->
+
+</Project>

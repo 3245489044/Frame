@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-10 19:19:18
+  生成时间: 2026-09-13 09:20:25
 -->
 <Project>
 
@@ -52,6 +52,7 @@
     <Mod_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\</Mod_GraphProcessing>
     <Mod_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\</Mod_InternalStorage>
     <Mod_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\</Mod_LogicComposition>
+    <Mod_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\</Mod_LogicComposition_Conversion>
     <Mod_Maintain>$(CsharpPrjDir)Modules\Maintain\</Mod_Maintain>
     <Mod_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\</Mod_MetaCommand>
     <Mod_Modules>$(CsharpPrjDir)Modules\</Mod_Modules>
@@ -104,6 +105,7 @@
     <Mod_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\</Mod_Diagnostics>
     <Mod_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\</Mod_GraphFramework>
     <Mod_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\</Mod_LayoutAnalysis>
+    <Mod_RoslynJsonFramework>$(CsharpPrjDir)Share\Frameworks\RoslynJson\</Mod_RoslynJsonFramework>
     <Mod_UniversalWorkflowFramework>$(CsharpPrjDir)Share\Frameworks\UniversalReference\</Mod_UniversalWorkflowFramework>
     <Mod_Share_Adapters>$(CsharpPrjDir)Share\Orchestration\Adapters\</Mod_Share_Adapters>
     <Mod_EventBindingOrchestrator>$(CsharpPrjDir)Share\Orchestration\EventBindingOrchestrator\</Mod_EventBindingOrchestrator>
@@ -148,6 +150,7 @@
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>
+    <Proj_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\LogicComposition.Conversion.csproj</Proj_LogicComposition_Conversion>
     <Proj_Maintain>$(CsharpPrjDir)Modules\Maintain\Maintain.csproj</Proj_Maintain>
     <Proj_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\MetaCommand.csproj</Proj_MetaCommand>
     <Proj_Modules>$(CsharpPrjDir)Modules\Modules.csproj</Proj_Modules>
@@ -200,6 +203,7 @@
     <Proj_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\Diagnostics.csproj</Proj_Diagnostics>
     <Proj_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\GraphFramework.csproj</Proj_GraphFramework>
     <Proj_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\LayoutAnalysis.csproj</Proj_LayoutAnalysis>
+    <Proj_RoslynJsonFramework>$(CsharpPrjDir)Share\Frameworks\RoslynJson\RoslynJsonFramework.csproj</Proj_RoslynJsonFramework>
     <Proj_UniversalWorkflowFramework>$(CsharpPrjDir)Share\Frameworks\UniversalReference\UniversalWorkflowFramework.csproj</Proj_UniversalWorkflowFramework>
     <Proj_Share_Adapters>$(CsharpPrjDir)Share\Orchestration\Adapters\Share.Adapters.csproj</Proj_Share_Adapters>
     <Proj_EventBindingOrchestrator>$(CsharpPrjDir)Share\Orchestration\EventBindingOrchestrator\EventBindingOrchestrator.csproj</Proj_EventBindingOrchestrator>

@@ -19,4 +19,8 @@ public sealed class PersistedEvent
     public string? SessionId { get; init; }
 
     public string? CorrelationScopeKey { get; init; }
+    /// <summary>运行标识（G4 关联维度补全；由 E4 ambient 捕获）。</summary>
+    public string? RunId { get; init; }
+    /// <summary>轮次标识（G4 关联维度补全；由 E4 ambient 捕获）。</summary>
+    public string? RoundId { get; init; }
 }

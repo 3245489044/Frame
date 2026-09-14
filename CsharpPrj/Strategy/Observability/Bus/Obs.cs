@@ -22,6 +22,9 @@ public static class Obs
 
     private static IObservabilityBus Bus => _bus ?? throw new InvalidOperationException("Obs 尚未 Configure（须装配 IObservabilityBus）");
 
+    /// <summary>观测总线是否已装配（就绪守卫：未装配时埋点自动降级为直通，不阻断主路径）。</summary>
+    public static bool IsReady => _bus is not null;
+
     public static IObservabilityBus Current => Bus;
 
     /// <summary>进入关联键作用域（TraceId/SessionId/ScopeKey 透传）。</summary>

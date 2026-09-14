@@ -66,6 +66,8 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
             TraceId = bag?.TraceId,
             SessionId = bag?.SessionId,
             CorrelationScopeKey = bag?.ScopeKey,
+            RunId = bag?.RunId,
+            RoundId = bag?.RoundId,
         };
 
         foreach (var sink in _sinks) sink.Push(persisted);

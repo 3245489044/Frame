@@ -410,11 +410,17 @@ function Invoke-RegexReplace {
     是否移除空条目（默认：$true）
 .PARAMETER TrimEntries
     是否修剪条目两端的空白（默认：$true）
+.PARAMETER EscapeChar
+    转义字符（默认：[char]0 表示不启用）。启用后，转义字符与其后一个字符原样进入当前片段，
+    不参与括号/引号状态机 —— 用于 C#/JSON 这类以反斜杠转义的字符串文法（-EscapeChar '\'）。
 .OUTPUTS
     [string[]] 分割后的字符串数组
 .EXAMPLE
     Invoke-BracketAwareSplit -InputObject "a, b, {c, d}, e"
     # 返回 @("a", "b", "{c, d}", "e")
+.EXAMPLE
+    Invoke-BracketAwareSplit -InputObject '"a\,b", c' -EscapeChar '\'
+    # 返回 @('"a\,b"', "c")（转义逗号不切分）
 #>
 function Invoke-BracketAwareSplit {
     [CmdletBinding()]
@@ -429,7 +435,10 @@ function Invoke-BracketAwareSplit {
         [switch]$RemoveEmptyEntries = $true,
 
         [Parameter()]
-        [switch]$TrimEntries = $true
+        [switch]$TrimEntries = $true,
+
+        [Parameter()]
+        [char]$EscapeChar = [char]0
     )
     process {
         if ($null -eq $InputObject) { return }
@@ -443,6 +452,14 @@ function Invoke-BracketAwareSplit {
 
         for ($i = 0; $i -lt $InputObject.Length; $i++) {
             $c = $InputObject[$i]
+
+            # 转义字符：与被转义字符原样进入当前片段，不参与括号/引号状态机（C#/JSON 字符串语义）
+            if ($EscapeChar -ne [char]0 -and $c -eq $EscapeChar -and ($i + 1) -lt $InputObject.Length) {
+                [void]$current.Append($c)
+                $i++
+                [void]$current.Append($InputObject[$i])
+                continue
+            }
 
             $isInside = Test-IsInsideBracketOrQuote -Char $c -InSingleQuote ([ref]$inSingleQuote) -InDoubleQuote ([ref]$inDoubleQuote) -Depth $depth
 
@@ -1022,21 +1039,78 @@ Export-ModuleMember -Function Invoke-SimpleReplace,
 #  标识符与键片段（追加）  
 # ============================================  
   
-function Test-ValidIdentifier {  
-    [CmdletBinding()]  
-    param(  
-        [Parameter(Mandatory = $true, Position = 0)]  
-        [string]$Text,  
-  
-        [Parameter()]  
-        [switch]$AllowDot  
-    )  
-    if ([string]::IsNullOrEmpty($Text)) { return $false }  
-    $chars = 'A-Za-z0-9_'  
-    if ($AllowDot) { $chars += '.' }  
-    $chars += '-'  
-    return $Text -match ('^[A-Za-z_][' + $chars + ']*$')  
-}  
+function Test-ValidIdentifier {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [Parameter()]
+        [switch]$AllowDot,
+
+        [Parameter()]
+        [switch]$AllowLeadingDigit
+    )
+    if ([string]::IsNullOrEmpty($Text)) { return $false }
+    $chars = 'A-Za-z0-9_'
+    if ($AllowDot) { $chars += '.' }
+    $chars += '-'
+    $head = $(if ($AllowLeadingDigit) { '[A-Za-z0-9_]' } else { '[A-Za-z_]' })
+    return $Text -match ('^' + $head + '[' + $chars + ']*$')
+}
+
+<#
+.SYNOPSIS
+    判定是否为数值字面量
+.DESCRIPTION
+    统一数值字面量判定（整型/浮点/指数），消除各调用点各自书写的重复正则。
+.PARAMETER Text
+    要判定的文本
+.PARAMETER IntegerOnly
+    仅接受整数（^-?\d+$）
+.OUTPUTS
+    [bool]
+.EXAMPLE
+    Test-NumericLiteral -Text '1.5e-3'                # True
+    Test-NumericLiteral -Text '1.5' -IntegerOnly      # False
+#>
+function Test-NumericLiteral {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [Parameter()]
+        [switch]$IntegerOnly
+    )
+    if ([string]::IsNullOrEmpty($Text)) { return $false }
+    if ($IntegerOnly) { return $Text -match '^-?\d+$' }
+    return $Text -match '^-?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$'
+}
+
+<#
+.SYNOPSIS
+    压缩文本（移除全部空白字符）
+.DESCRIPTION
+    归一化比较用：移除所有空白（含换行/制表符），供"表达式文本全等比较"这类场景共用。
+.PARAMETER Text
+    要压缩的文本（$null 视为空串）
+.OUTPUTS
+    [string]
+.EXAMPLE
+    Get-CompactText -Text "a + ( b )"   # "a+(b)"
+#>
+function Get-CompactText {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [string]$Text
+    )
+    if ($null -eq $Text) { return '' }
+    return ($Text -replace '\s+', '')
+}
   
 function Get-NameHead {  
     [CmdletBinding()]  
@@ -1057,6 +1131,7 @@ function Get-FirstMatchingPrefix {
     [CmdletBinding()]  
     param(  
         [Parameter(Mandatory = $true, Position = 0)]  
+        [AllowEmptyString()]  
         [string]$Text,  
   
         [Parameter(Mandatory = $true)]  
@@ -1077,6 +1152,8 @@ function Get-FirstMatchingPrefix {
 }  
   
 # 追加导出（累积语义: 与文件头 Export-ModuleMember 叠加）  
-Export-ModuleMember -Function Test-ValidIdentifier,  
-                              Get-NameHead,  
-                              Get-FirstMatchingPrefix  
+Export-ModuleMember -Function Test-ValidIdentifier,
+                              Test-NumericLiteral,
+                              Get-CompactText,
+                              Get-NameHead,
+                              Get-FirstMatchingPrefix

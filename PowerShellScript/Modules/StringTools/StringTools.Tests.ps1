@@ -16,6 +16,10 @@ BeforeAll {
     $clinerulesModulePath = Join-Path $PSScriptRoot 'StringTools.Clinerules.psm1'
     Import-Module $clinerulesModulePath -Force -ErrorAction Stop
     Import-Module $markdownModulePath -Force -ErrorAction Stop
+
+    # FileBatch.Backup-FileWithTimestamp 委托 Core 的 Backup-File；生产路径由 Import-Modules.ps1 全量加载，此处补齐依赖
+    $coreHelpersPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'Core\FileSystemHelpers.psm1'
+    if (Test-Path -LiteralPath $coreHelpersPath) { Import-Module $coreHelpersPath -Force -DisableNameChecking -ErrorAction Stop }
 }
 
 # ============================================
@@ -498,6 +502,91 @@ Describe 'StringTools.LogMessages.Get-MsgIdSourceIndex' {
         Set-Content -LiteralPath $script:__lmTmp -Value $code -Encoding UTF8
         $ids = @((Get-MsgIdSourceIndex -Files ([System.IO.FileInfo]$script:__lmTmp)).Ids)
         $ids | Should -Not -Contain 'justAWord'
+    }
+}
+
+# ============================================
+#  追加能力测试（转义感知切分 / 数值字面量 / 空白压缩 / 标识符参数化 / 行首前缀容错）
+# ============================================
+
+Describe 'Invoke-BracketAwareSplit -EscapeChar' {
+    It '应跳过被转义的分隔符' {
+        $result = Invoke-BracketAwareSplit -InputObject '"a\,b", c' -EscapeChar '\'
+        $result.Count | Should -Be 2
+        $result[0] | Should -Be '"a\,b"'
+        $result[1] | Should -Be 'c'
+    }
+
+    It '被转义的引号不应终止字符串' {
+        $result = Invoke-BracketAwareSplit -InputObject '"a\"b, c", d' -EscapeChar '\'
+        $result.Count | Should -Be 2
+        $result[0] | Should -Be '"a\"b, c"'
+    }
+
+    It '未启用转义时保持既有行为' {
+        $result = Invoke-BracketAwareSplit -InputObject 'a, b, {c, d}, e'
+        $result.Count | Should -Be 4
+        $result[2] | Should -Be '{c, d}'
+    }
+}
+
+Describe 'Test-NumericLiteral' {
+    It '应识别整型/浮点/指数形式' {
+        Test-NumericLiteral -Text '-12' | Should -Be $true
+        Test-NumericLiteral -Text '1.5' | Should -Be $true
+        Test-NumericLiteral -Text '.5' | Should -Be $true
+        Test-NumericLiteral -Text '1.5e-3' | Should -Be $true
+    }
+
+    It 'IntegerOnly 应仅接受整数' {
+        Test-NumericLiteral -Text '-12' -IntegerOnly | Should -Be $true
+        Test-NumericLiteral -Text '1.5' -IntegerOnly | Should -Be $false
+    }
+
+    It '应拒绝非法形式' {
+        Test-NumericLiteral -Text '1e' | Should -Be $false
+        Test-NumericLiteral -Text '' | Should -Be $false
+        Test-NumericLiteral -Text 'abc' | Should -Be $false
+    }
+}
+
+Describe 'Get-CompactText' {
+    It '应移除全部空白字符' {
+        Get-CompactText -Text "a + ( b )`n`tc" | Should -Be 'a+(b)c'
+    }
+
+    It '$null 应返回空串' {
+        Get-CompactText -Text $null | Should -Be ''
+    }
+}
+
+Describe 'Test-ValidIdentifier -AllowLeadingDigit' {
+    It '应接受数字开头的规格标识符（配合 -AllowDot）' {
+        Test-ValidIdentifier -Text 'a1.b-c' -AllowDot -AllowLeadingDigit | Should -Be $true
+        Test-ValidIdentifier -Text '1case' -AllowLeadingDigit | Should -Be $true
+    }
+
+    It '默认仍拒绝数字开头' {
+        Test-ValidIdentifier -Text '1abc' | Should -Be $false
+    }
+
+    It '应接受点号（-AllowDot）与短横线' {
+        Test-ValidIdentifier -Text 'op.needsSync' -AllowDot | Should -Be $true
+    }
+}
+
+Describe 'Get-FirstMatchingPrefix 行首前缀' {
+    It '空串应返回 $null 而不抛参数绑定错误' {
+        $result = Get-FirstMatchingPrefix -Text '' -Prefixes @('then')
+        $result | Should -Be $null
+    }
+
+    It '缩进行首前缀应命中' {
+        Get-FirstMatchingPrefix -Text '  then path x eq 1' -Prefixes @('then') | Should -Be 'then'
+    }
+
+    It '行内出现的词不应误判为首前缀' {
+        Get-FirstMatchingPrefix -Text '  title then' -Prefixes @('then') | Should -Be $null
     }
 }
 

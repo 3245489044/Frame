@@ -92,6 +92,7 @@
     "LoopFoldMethod": "Operation\\LoopFoldMethod\\LoopFoldMethod.csproj",
     "Operation": "Operation\\Operation.csproj",
     "StateHoldDriven": "Operation\\StateHoldDriven\\StateHoldDriven.csproj",
+    "StatisticalDriven": "Operation\\StatisticalDriven\\StatisticalDriven.csproj",
     "FunctionExecutionFramework": "Operation\\WorkFlowMethod\\WorkflowExecution\\FunctionExecutionFramework\\FunctionExecutionFramework.csproj",
     "WorkFlowMethod": "Operation\\WorkFlowMethod\\WorkFlowMethod.csproj",
     "DataManage": "Plate\\DataManage\\DataManage.csproj",

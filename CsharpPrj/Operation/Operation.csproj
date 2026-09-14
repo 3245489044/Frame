@@ -32,6 +32,7 @@
     <ProjectReference Include="$(Proj_WorkFlowMethod)" />
     <ProjectReference Include="$(Proj_StateHoldDriven)" />
     <ProjectReference Include="$(Proj_DataStoreDriven)" />
+    <ProjectReference Include="$(Proj_StatisticalDriven)" />
     <ProjectReference Include="$(Proj_HierarchyMethod)" />
     <ProjectReference Include="$(Proj_LoopFoldMethod)" />
   </ItemGroup>
@@ -48,6 +49,8 @@
     <!-- ★ DataStoreDriven 亦为独立子项目（Operation.DataStoreDriven），聚合项目经 ProjectReference 引用，
          须排除其目录源码避免 IDataStore/IPersistenceStore 等类型在 Operation.dll 中重复编译（CS0433）。 -->
     <Compile Remove="DataStoreDriven\**\*.cs" />
+    <!-- ★ StatisticalDriven 亦为独立子项目（Operation.StatisticalDriven），同上排除避免重复编译。 -->
+    <Compile Remove="StatisticalDriven\**\*.cs" />
   </ItemGroup>
 
 </Project>

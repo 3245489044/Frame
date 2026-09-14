@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "entities": ["Compute", "Context", "Output"],
+  "events": {
+    "ComputeSpanStarted": { "entity": "Compute" },
+    "ComputeSpanCompleted": { "entity": "Compute",
+      "metrics": ["elapsed_ms", "cpu_user_seconds", "cpu_kernel_seconds", "memory_gb_seconds", "io_read_bytes", "io_write_bytes", "output_bytes", "output_tokens_estimated", "exit_code"] },
+    "ContextSnapshot": { "entity": "Context" },
+    "OutputEmitted": { "entity": "Output", "metrics": ["output_tokens_estimated"] },
+    "OutputReinjected": { "entity": "Output", "metrics": ["reinjected_tokens"] }
+  }
+}

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>统计驱动运营框架 (StatisticalDriven)</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>Operation 层统计驱动/观测分析框架。复用 Strategy.Observability 内核，注入 LLM Token + CPU 工作负载统一观测语义（Usage 标准化、进程树采集、上下文生命周期）与成本/资源查询投影。本项目以复用作根，不新造观测框架。</ModuleRule_Description>
+    <ModuleRule_Keywords>统计;成本;观测;Token;CPU;进程树;Usage;定价;查询投影</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="观测内核（信封/实体/契约注册表/总线/存储/查询）唯一归属 $(Proj_Observability)（Strategy.Observability），本模块不复刻内核" />
+    <ModuleRule_Rule Include="成本/资源指标为对事件流的查询投影（基于 IObservabilityQuery），不另起并行数据源（降级原则）" />
+    <ModuleRule_Rule Include="本模块只产出统计证据（StatSnapshot/成本投影），不实现第二决策机制；决策消费方统一走 DAG" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要 Token/CPU 工作负载成本核算、输出生命周期成本、统计驱动反馈时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 Pricing/ 包含定价表与成本公式引擎" />
+    <ModuleRule_Prompt Include="此模块的 Process/ 包含进程树资源采集器接口与实现" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Operation.StatisticalDriven</RootNamespace>
+    <AssemblyName>Operation.StatisticalDriven</AssemblyName>
+    <Description>统计驱动运营框架：LLM Token + CPU 工作负载统一观测与成本投影（复用 Strategy.Observability）。</Description>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 复用观测内核（Strategy.Observability，Layer 3）；不得复刻其 Envelope/Registry/Bus/Query -->
+    <ProjectReference Include="$(Proj_Observability)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 语义契约实例（应用侧资源，不属于内核；加载器 ObservabilitySemanticsJson.Load） -->
+    <EmbeddedResource Include="Semantics\statistical_semantics.json" />
+  </ItemGroup>
+
+</Project>

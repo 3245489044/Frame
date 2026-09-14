@@ -32,6 +32,15 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
         if (node is null) throw new ArgumentNullException(nameof(node));
         if (context is null) throw new ArgumentNullException(nameof(context));
 
+        return MapCore(node, context, 1);
+    }
+
+    /// <summary>
+    /// 唯一映射入口：查规则表 → 未命中报 <c>RJ1006</c> → 兜底映射。递归子节点也必经此入口，
+    /// 否则规则表对非根节点形同死代码、未映射诊断恒 ≤1 条（S0 spike 实测暴露）。
+    /// </summary>
+    private ConversionNode MapCore(SyntaxNode node, ConversionContext context, int depth)
+    {
         if (_rules.TryGet(node.Kind(), out var mapper))
             return mapper(node, context);
 
@@ -43,7 +52,7 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
                 SourceLocation.ToSpan(node)));
         }
 
-        return MapDefault(node, context, 1);
+        return MapDefault(node, context, depth);
     }
 
     private ConversionNode MapDefault(SyntaxNode node, ConversionContext context, int depth)
@@ -76,7 +85,7 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
             if (children.Count > 0)
             {
                 result.Add("children", new ConversionArray()
-                    .AddRange(children.Select(child => MapDefault(child, context, depth + 1))));
+                    .AddRange(children.Select(child => MapCore(child, context, depth + 1))));
             }
         }
 

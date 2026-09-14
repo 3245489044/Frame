@@ -1,5 +1,6 @@
 
 using System;
+using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using RoslynSpace.RoslynSyntaxUtilities.Base;
 using Share.LogicComposition.Conversion.Abstractions;
@@ -60,7 +61,7 @@ public sealed class RoslynJsonConversionService
         return _pipeline.Run(ir, ctx);
     }
 
-    /// <summary>源文本 → JSON 文本。</summary>
+    /// <summary>源文本 → JSON 文本（映射期 + 发射期诊断合并返回）。</summary>
     public ConversionResult<string> ToJson(string sourceText, string filePath, ConversionOptions? options = null)
     {
         var opts = options ?? ConversionOptions.Default;
@@ -70,8 +71,7 @@ public sealed class RoslynJsonConversionService
         if (!ir.IsSuccess || ir.Artifact is null)
             return ConversionResult<string>.Failure(ir.Diagnostics);
 
-        var json = JsonTextEmitter.Instance.Emit(ir.Artifact, opts);
-        return json;
+        return Merge(ir.Diagnostics, JsonTextEmitter.Instance.Emit(ir.Artifact, opts));
     }
 
     /// <summary>源文本 → C#（内嵌 JSON 的类）。</summary>
@@ -90,7 +90,24 @@ public sealed class RoslynJsonConversionService
         if (!ir.IsSuccess || ir.Artifact is null)
             return ConversionResult<string>.Failure(ir.Diagnostics);
 
-        return CSharpEmbeddedJsonEmitter.Instance.Emit(ir.Artifact, spec, opts);
+        return Merge(ir.Diagnostics, CSharpEmbeddedJsonEmitter.Instance.Emit(ir.Artifact, spec, opts));
+    }
+
+    /// <summary>
+    /// 合并映射期诊断与发射期诊断。只返回发射器结果会静默丢弃 <c>ctx</c> 中已收集的映射诊断，
+    /// 使调用方误判「0 诊断」（S0 spike 实测暴露）。
+    /// </summary>
+    private static ConversionResult<string> Merge(
+        IReadOnlyList<ConversionDiagnostic> irDiagnostics,
+        ConversionResult<string> emitted)
+    {
+        var diagnostics = new List<ConversionDiagnostic>(irDiagnostics.Count + emitted.Diagnostics.Count);
+        diagnostics.AddRange(irDiagnostics);
+        diagnostics.AddRange(emitted.Diagnostics);
+
+        return emitted.IsSuccess
+            ? ConversionResult<string>.Success(emitted.Artifact!, diagnostics)
+            : ConversionResult<string>.Failure(diagnostics, emitted.Artifact);
     }
 
     private static void ReportParseDiagnostics(SyntaxTree tree, ConversionContext context)

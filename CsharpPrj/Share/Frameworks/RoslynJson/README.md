@@ -153,9 +153,9 @@ var service = new RoslynJsonConversionService(sourceProvider: provider);
 | 链路 | 状态 | 消费方 |
 |------|------|--------|
 | 通用生成前端 | **已迁出**（纯件 → `Conversion`；Roslyn 件 → `SpecSourceGen.Analyzer`，两处均已接线） | `Environment\CentralTest\SpecSourceGen`（分析器 + Tasks 宿主 + 重生成守卫）、`Modules\Parsing` |
-| Roslyn 语法树 → IR（`ISyntaxToIrMapper` / `SyntaxRuleTable` / `SyntaxToConversionIrMapper` / `SyntaxMappingOptions` / `RoslynJsonConversionService` / `CSharpEmbeddedJsonEmitter` / `Roslyn\SourceLocation`） | **未接线（预留）** | 暂无（规划：`Agent.Spec.SourceGen` 阶段 2.5 生成壳类） |
+| Roslyn 语法树 → IR（`ISyntaxToIrMapper` / `SyntaxRuleTable` / `SyntaxToConversionIrMapper` / `SyntaxMappingOptions` / `RoslynJsonConversionService` / `CSharpEmbeddedJsonEmitter` / `Roslyn\SourceLocation`） | **已接线（2026-09-14）** | `Environment\CentralTest\Tools\Get-SpecIr.ps1`（中间层 IR spike：C# 源 → IR JSON）；`Environment\CentralTest\RoslynJson.Tests`（接线探针：规则表对非根节点生效 / 未映射诊断逐节点上报 / `ToJson` 不丢映射诊断） |
 
-> 未接线链路在接线或废弃前**不得增量修改行为**；其上新增实现须同步补测试，否则按 `RedundancyElimination` 处置（废弃或移入 `_deprecated/`）。
+> 接线纪律：未接线链路在接线或废弃前**不得增量修改行为**；其上新增实现须同步补测试（本条链路的接线探针 = `RoslynJson.Tests`），否则按 `RedundancyElimination` 处置（废弃或移入 `_deprecated/`）。
 
 ## 依赖关系
 

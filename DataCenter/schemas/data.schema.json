@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "数据标准（ports.json 的 data 段）：跨切数据项；direction ∈ In/Out/Both（产品台账既有约定）；producer/consumers 为可选声明（C5 校验其取值域）。",
+  "title": "数据标准",
+  "type": "object",
+  "required": ["data"],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["direction", "scope", "fields"],
+        "properties": {
+          "direction": { "type": "string", "enum": ["In", "Out", "Both", "CrossCutting"] },
+          "scope": { "type": "string", "enum": ["Lease", "Round", "Session", "Root"] },
+          "fields": { "type": "object" },
+          "producer": { "type": ["string", "array"] },
+          "producers": { "type": "array", "items": { "type": "string" } },
+          "consumers": { "type": "array", "items": { "type": "string" } },
+          "crossCutting": { "type": "boolean" },
+          "version": { "type": "integer" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

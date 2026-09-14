@@ -125,3 +125,39 @@ public sealed class FakeSequenceExhaustedException : ObservabilityException
     }
 }
 
+/// <summary>端口绑定声明/转换违规（缺 target/method、实参不可按声明转换、json 实参缺 key 等）。</summary>
+public sealed class PortBindingViolationException : ObservabilityException
+{
+    public string PortKey { get; }
+
+    public PortBindingViolationException(string portKey, string message)
+        : base($"[port:bind] {message}")
+    {
+        PortKey = portKey;
+    }
+}
+
+/// <summary>端口调用输入缺参（位置实参越界 / 具名实参未提供）。fail-fast，不静默取默认。</summary>
+public sealed class PortInputMissingException : ObservabilityException
+{
+    public string PortKey { get; }
+
+    public PortInputMissingException(string portKey, string issue)
+        : base($"[port:input] 端口 '{portKey}' {issue}")
+    {
+        PortKey = portKey;
+    }
+}
+
+/// <summary>端口调用输入的实参不能按声明类型转换（如布尔 / 整数文本非法）。</summary>
+public sealed class PortInputTypeException : ObservabilityException
+{
+    public string PortKey { get; }
+
+    public PortInputTypeException(string portKey, string issue)
+        : base($"[port:input] 端口 '{portKey}' {issue}")
+    {
+        PortKey = portKey;
+    }
+}
+

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "端口台账标准（ports.json）：键 = <类型/接口>.<方法>；in 列入参、out.fields 只列非入参产物（设计文档 §3.2/§6.1）。字段语义（跨语言）由 StandardConsistency C1–C6 把关。",
+  "title": "端口标准台账",
+  "type": "object",
+  "required": ["ports"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "ports": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "in": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": { "type": { "type": "string" }, "required": { "type": "boolean" } },
+              "additionalProperties": false
+            }
+          },
+          "out": {
+            "type": "object",
+            "properties": { "fields": { "type": "array", "items": { "type": "string" } } },
+            "additionalProperties": false
+          },
+          "depends": { "type": "array", "items": { "type": "string" } },
+          "scope": { "type": "string", "enum": ["Lease", "Round", "Session", "Root"] },
+          "version": { "type": "integer" },
+          "emits": { "type": "array", "items": { "type": "string" } },
+          "impl": { "type": ["string", "object"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "data": { "type": "object" },
+    "events": { "type": "object" },
+    "fakes": { "type": "object" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================================
+       DataCenter.Standards —— 三本台账（ports/data/events/fakes）的
+       模型读取 + 机器校验 + 装载（设计文档 §3.2）。
+       分层：只引 DataCenter.Protocol（纯契约）；零运行时设施依赖（只用 BCL + System.Text.Json）。
+       纪律：语言无关、无领域词汇；校验失败即阻断（不 warn）。
+       ============================================================ -->
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>数据标准（三本台账装载与校验）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>跨语言数据标准层：把端口/数据/事件/替身四类声明（JSON 台账）装载为中立的 IStandardCatalog，并执行六条机器判据（C1 键唯一、C2 ports.emits ⊆ events、C3 events.carries ⊆ data、C4 跨切字段 ⊆ data、C5 data.producer ⊆ ports∪白名单、C6 版本单调）。只引 DataCenter.Protocol；不引引擎/宿主/产品设施。</ModuleRule_Description>
+    <ModuleRule_Keywords>DataCenter;标准;端口台账;数据标准;事件标准;校验;C1-C6;跨语言</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="L0.5 标准层：台账模型 + 校验 + 装载（纯数据，零机制依赖）——不得引 Strategy.Observability 类型（避免机制↔标准互依赖）" />
+    <ModuleRule_Rule Include="校验失败即阻断（StandardViolationException，不 warn）——声明漂移必须当场可见" />
+    <ModuleRule_Rule Include="标准只读：本工程不写台账文件（真源 = 产品台账），不缓存跨进程状态" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DataCenter.Standards</RootNamespace>
+    <AssemblyName>DataCenter.Standards</AssemblyName>
+    <Description>DataCenter 数据标准层 —— 三本台账的模型读取 / 六条机器判据 / 装载</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

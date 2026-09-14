@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "替身标准（fakes.json / 用例侧 given ports）：端口键 → 替身种类（内核 StandardFakes 五种原语）+ seed。端口键须已在 ports 段登记（运行期由 PortCatalog.Replace 把关：未登记即抛）。",
+  "title": "替身标准",
+  "type": "object",
+  "required": ["fakes"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "fakes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["recording", "fixed", "echo", "notExpected", "sequence"] },
+          "seed": { "type": ["object", "array", "string", "number", "boolean", "null"] },
+          "version": { "type": "integer" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

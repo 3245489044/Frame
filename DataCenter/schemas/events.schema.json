@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "事件标准（observability_semantics.json 的 events 段）：事件类型 → 族（entity）/ carries（字段）/ required / metrics / enum / scope / version。C2 校验 ports.emits ⊆ 本表键集；C3 校验 carries ⊆ data 键集。",
+  "title": "事件标准",
+  "type": "object",
+  "required": ["events"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "version": { "type": "string" },
+    "entities": { "type": "array", "items": { "type": "string" } },
+    "events": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "entity": { "type": "string" },
+          "carries": { "type": "array", "items": { "type": "string" } },
+          "required": { "type": "array", "items": { "type": "string" } },
+          "metrics": { "type": "array", "items": { "type": "string" } },
+          "enum": { "type": "object" },
+          "scope": { "type": "string" },
+          "version": { "type": "integer" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

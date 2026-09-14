@@ -4,6 +4,7 @@
   <Project Path="DataCenter.csproj" />
   <Project Path="DataCenter.Abstractions/DataCenter.Abstractions.csproj" />
   <Project Path="DataCenter.Protocol/DataCenter.Protocol.csproj" />
+  <Project Path="DataCenter.Standards/DataCenter.Standards.csproj" />
   <Project Path="DataCenter.Core/DataCenter.Core.csproj" />
   <Project Path="DataCenter.Adapters/DataCenter.Adapters.csproj" />
   <Project Path="DataCenter.Hosting/DataCenter.Hosting.csproj" />

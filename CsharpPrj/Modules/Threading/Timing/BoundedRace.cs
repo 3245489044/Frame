@@ -23,7 +23,10 @@ public static class BoundedRace
     public sealed class Race<T> : IDisposable
     {
         private readonly CancellationTokenSource _linked;
-        /// <summary>body 在预算内完成（胜出）。</summary>
+        /// <summary>
+        /// body 在预算内**自行完成**（胜出）。判定不看竞速到达顺序（<c>WhenAny</c> 的顺序是线程池调度事实，
+        /// 非因果），而看 body 任务的终态：取消（预算到时 / 外层取消）一律不算胜出。
+        /// </summary>
         public bool Completed { get; }
         /// <summary>链路令牌在裁决时已被取消（CancelAfter 到时或外层取消触发）。</summary>
         public bool TokenCanceled { get; }
@@ -55,7 +58,12 @@ public static class BoundedRace
         var work = body(linked.Token);
         var timer = Task.Delay(Timeout.InfiniteTimeSpan, linked.Token);
         var winner = await Task.WhenAny(work, timer).ConfigureAwait(false);
-        var completed = ReferenceEquals(winner, work);
+        // 胜出 = body **自行终止且非取消**，而非「WhenAny 里先被观察到完成」：work 与 timer 由同一次
+        // linked 取消唤醒（预算到时 / 外层取消），两者的完成任务顺序只是线程池调度顺序 —— 同源事件无因果，
+        // 据此判胜出会把「被预算取消的 body」误判为完成，使调用方 await body 时漏出 OCE（三态分类外出口）。
+        // RanToCompletion → 真完成（定时器随后触发亦按「完成即真实」）；Faulted → 交调用方 await 上抛；
+        // Canceled → 非胜出（外层取消由 OuterCanceled 表达，预算取消由 TokenCanceled 表达）。
+        var completed = ReferenceEquals(winner, work) && work.Status != TaskStatus.Canceled;
         var tokenCanceled = linked.IsCancellationRequested;
         var outerCanceled = outer.IsCancellationRequested;
         return new Race<T>(linked, completed, tokenCanceled, outerCanceled, work);

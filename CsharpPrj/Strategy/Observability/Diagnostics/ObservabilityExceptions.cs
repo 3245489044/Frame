@@ -161,3 +161,18 @@ public sealed class PortInputTypeException : ObservabilityException
     }
 }
 
+/// <summary>端口内 probe 未命中声明清单（含可用清单：可用清单 = 声明集合，防拼写漂移静默通过）。</summary>
+public sealed class PortProbeUnknownException : ObservabilityException
+{
+    public string PortKey { get; }
+
+    public string? Probe { get; }
+
+    public PortProbeUnknownException(string portKey, string? probe, IEnumerable<string> available)
+        : base($"[spec:probe] 键 '{portKey}' 未知 probe '{probe}'（可用：{string.Join(" / ", available)}）")
+    {
+        PortKey = portKey;
+        Probe = probe;
+    }
+}
+

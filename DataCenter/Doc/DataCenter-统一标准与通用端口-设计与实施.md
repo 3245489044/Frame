@@ -330,9 +330,11 @@ case task-orchestrator.create-task…
 | **P1-3** `PortRegistry` → `Ports\PortAssembler.cs` | ✅ 完成 | 新增内核 `Ports\PortAssembler.cs`（`PortAssembler.Seed/Bind` + `PortBindingPlan`/`PortBindingPlanKind` + `Unbound/Frozen` 记账）；**记账唯一权威**上移内核：`AgentPortHost` 的 `Unbound/Frozen` 改为读装配器视图（`MarkUnbound/MarkFrozen` 删除），测试侧 `PortRegistry` 只提供 `Plans`（台账条目 → 绑定计划）；内核只接 JSON 文本与计划，不读文件/嵌入资源；判据：Observability **88** ✅、Guard **24** ✅（含 Unbound 负向探针 + 装配幂等） |
 | **P1-4** 端口宿主 → L2（按 D5） | ✅ 完成 | 新建 L2 工程 `Environment\CentralTest\SpecHost\`（`SpecPortHost` + 三注入接口，零领域引用）；内核新增 `Projection\EventProjection.cs`/`MetricTotalsProjection.cs`（U7/U8 实测：内核既有件语义不兼容 → 并列新件，只加不改）；Agent 面经 `Agent.TestShared\Fixtures\AgentSpec{PortSurface,ScopeProvider,EventSource}.cs` 注入；`Bridge\AgentPortHost.cs`+`PortProjections.cs` 同批删除；判据：内核 **92**、L0 **168/169**、Guard **24**、Core **422**、Observe **46** 全绿；`Bridge\` 110,395 B → **98,162 B**（−12,233 B）；细节见 `Docs\analysis\2026\9\15\DataCenter-统一标准与通用端口-P1-4开工卡.md` §9/§5.1 |
 | **P2** `DataCenter.Standards` | ✅ 完成 | 新增 `DataCenter.Protocol\Standards\`（5 模型：`PortStandard`/`DataStandardItem`/`EventStandard`/`FakeStandard`/`IStandardCatalog`）+ 新子工程 `DataCenter.Standards\`（`StandardJson` 读取含未知键 fail-fast、`StandardCatalog` 装载、`StandardConsistency` C1–C6、`StandardSchemaValidator` 结构门、`StandardViolationException`）+ `schemas\{ports,data,events,fakes}.schema.json`；`DataCenter.slnx`/`DataCenter.csproj`/`Directory.Build.props`（GlobalUsings 豁免）已登记；判据：`DataCenter.Standards.Tests` **11/11** ✅（含产品台账 C1–C6 + 结构门）、`Agent.Spec.Guard.Tests` **24 → 26** ✅（§3.4 落点② `StandardConsistencyGuardTests`）；**U1** 无环（Standards → Protocol → Abstractions）、**U2** 仅用 `System.Text.Json`（未引第三方）、**U5** 首轮基线 = **0 违例**（与 §8 预判「首轮必定报错」不符：产品台账现状已合规，无需修数据） |
-| **P3** Agent 端口化 A1–A5 | ⏳ 待开工 | — |
-| **P4** `.specs` `given ports` | ⏳ 待开工 | — |
-| **P5** Bridge 删除 + 守卫换代 | ⏳ 待开工 | — |
+| **P3** Agent 端口化 A1–A5 | ✅ 完成 | **A1**：`Agent.Contract\Observability\ports.json` 10 条端口各加 per-port `impl`（7 `delegate{id}` + 3 `frozen{reason}`）；**A2**：`AgentPortBindings` 收敛为「`impl` 读取器 + 实现字典」（`BuildPlans`/`DelegateIds`，两清单逐字保留）；**A3**：组合根 `TryArmPortCatalog` 改走内核 `PortAssembler`（`Seed(json)` → `Bind(plans)`，fail-safe/幂等不变，新增 `PortBoundCount` 诊断）；**A4**：`AgentPortCatalog` 收敛为内核 `PortCatalog` 薄包装（删无调用方的 `Has`/`IsBound`/`Resolve`/`ClearBindings`）；**A5**：事件语义台账迁至契约面唯一物理目录 `Agent.Contract\Observability\observability_semantics.json` + `SemanticsJson` 读取口 + `Agent.Observe` 双读兼容；**判据**：Observe **46 → 53** ✅（+7：`PortImplDeclarationTests` 4 / `SemanticsLedgerTests` 3）、Guard **26** ✅、Standards **11** ✅、Core **422** ✅、L0 **168/169** ✅、Api **44** ✅（Api.Contract **18/22** 已知红守恒）、Axioms **81** / Launcher **58** / Modules **20** / Operation **54** ✅；细节见 P3-P5 实施卡 §9 |
+| **P4** `.specs` `given ports` | ⚙️ 部分完成（驱动/语法 9 处 ✅ / 族改写待开工） | **P4-1**：`ISpecPortHost.Prepare(CompiledCase)`（DIM）+ `SpecRunner` 逐行调用（`Reset` 之后）+ L2 `SpecHost.SpecPortHost.Prepare`（`StandardFakes` × `PortCatalog.Replace`，**逐行回填**装配期绑定 = 隔离；回填来源 `ISpecPortSurface.BindingFactory`，由 `PortRegistry` 按台账计划供给）；**P4-2**：`SpecCompactParser`/`SpecCompactModel`/`SpecSchemaRules`/`SpecIrBinder`/`test-spec.schema.json`/L0 `SpecCompiler`+`CompiledPortDeclaration`/Analyzer/oracle `Expand-SpecSource.ps1`/文档（`DataDriven\README.md`、`AgentTest_紧凑作者格式.md`、`SKILL.md`）9 处全落地；**试点**：`axioms.strategy-guard` +2 用例（替身接管 + 逐案回填），Axioms **81 → 83** ✅、Guard **26** ✅（对拍守卫增「声明式替身用例」通道：端口侧独立成立 + 调用记录）；族改写（Task→…→Operation）按 **D7 方案 A** 待开工；**下一轮开工卡**：`Docs\analysis\2026\9\9.15\DataCenter-统一标准与通用端口-P4-3与P5收口-开工卡.md`（逐族依赖端口化清单 + 每族 4 步模板 + P5 五步 + 风险/D10·N3·N4·U12·U13） |
+| **P4-0** 依赖对象获取机制（D11 选项①） | ✅ 完成（2026-09-15） | 新增 L2 `SpecHost\PortBackedProxy.cs`（`DispatchProxy`：方法 → 端口键 `<类型>.<方法>` → 目录绑定调用；`CancellationToken` 不进端口实参；`JsonElement` 种子按目标类型还原；未登记键/属性访问器/泛型方法即抛可定位异常；**零内核改动、不重烘焙**）；装配入口改 `RegisterAll(catalog)` 并**刷新依赖目录槽** + `PortRegistry.ActiveCatalog`（迟绑定：逐次装配刷新，防锁死陈旧目录）；判据：`Agent.Spec.Guard.Tests` **26 → 35** ✅（+9：键映射/记录恰一条/返回类型还原/JSON 种子还原/sequence/未登记即抛/notExpected/属性面拒绝/目录刷新）、L0 **168/169** ✅、Core **422** ✅、Operation **54** ✅、Axioms **83** ✅、Observe **53** ✅；`Bridge\` 99,045 → **100,942 B**（机制件增量；族改写随 P4-3 单调下降） |
+| **P4-3-1** `Task` 族改写（依赖端口化 + `given ports`） | ↩ **已回退**（2026-09-15，同日执行后撤销） | **实测判定**：把依赖做成「端口缝」并要求用例 `given ports` 声明替身 = **把实现细节写进用例**（用例真源应为「输入 → 期望产物」）；Task 族 5 文件按 HEAD 复原、`seam` 台账字段与 `Port(...)` 端口记录断言一并撤销，Core **422** ✅ 复绿。**P4-3 目标形态改判**：见 `Docs\analysis\2026\9\9.15\AgentTest_Bridge消除-重构方案.md`（R1–R4 职责归位；硬约束 = 用例 `then` 逐字不改） |
+| **P5** Bridge 删除 + 守卫换代 | ⏳ 待开工 | 执行卡同上 §5（J1–J8 现状→目标；清除顺序 5 步 + 重烘焙）；现状：`Bridge\` 11 文件 / 98,162 B、`Adapters\` 11 文件 / 184,859 B（S6 剩余待退场） |
 
 ### 8.2 实施期实测偏差（就地留痕）
 
@@ -341,6 +343,10 @@ case task-orchestrator.create-task…
 | **X1** | §4.1 原定把宿主落 `TestInfrastructure\DataDriven\SpecPortHost.cs`（L2） | `SpecKernelLayeringGuardTests` 扫描 `DataDriven\*.cs` 顶层，禁 `Agent.*/Strategy.*/Operation.*/Share.*/DataCenter.*`；宿主需引 `Strategy.Observability` + Agent 作用域面 → 落此即破 I2 | 改落新 L2 工程（§9 **D5**） |
 | **X2** | §5.2 记 `.specs` 语法扩展「6 处联动」 | 实测改动面 **9 处**：`SpecCompactParser`（`DirectiveNames` 白名单 + `switch`）/`SpecCompactModel`/`SpecSchemaRules`/`SpecIrBinder`（键序）/`test-spec.schema.json`/`SpecRunner`+`JsonSpecTestBase`（驱动注入）/`Analyzer` 词表与诊断/`Tools\Expand-SpecSource.ps1`（参考实现同语义）/`README`+`SKILL.md` | P4 按 9 处排工 |
 | **X3** | §4「逐字节搬运」 | `Bridge\PortArgs.cs` 抛测试侧 `SpecRunException`（定义于 `TestInfrastructure\DataDriven\SpecModel.cs:183`）；内核（Frame 平台库）不可引测试件 | 新增内核异常族（消息体逐字保留，仅前缀与异常类型随内核惯例） |
+| **X4** | §6.1/§6.2 A1 记「`ports.json` 加 `impl` 段」 | 实测 `impl` 是 **per-port 键**（非顶层段）：`schemas\ports.schema.json:33` 已预留 `"impl": {"type":["string","object"]}`，`StandardJson.PortEntryKeys` 已白名单 `impl`，`PortStandard.Impl` 已存在（对象取 `GetRawText()`） | A1 只需改数据（标准层/守卫零改动）；顶层加 `impl` 段会被 `PortTopKeys` fail-fast |
+| **X5** | §6.1 A3 记「组合根一行 `PortAssembler.Assemble(catalog, portsJson, implJson)`」 | 内核 `PortAssembler` 只接 `Seed(json)` + `Bind(plans)`（刻意不读文件/不解析 impl，守 L0 纪律），且内核以**烘焙 DLL** 消费（改内核需触发 Frame 重烘焙 = P5 动作） | `impl → PortBindingPlan` 的构造落**产品侧组合根** `AgentPortBindings.BuildPlans`（复用内核 `PortBindingSpec`/`PortArgSpec`/`PortBindingPlan`，不新增内核符号、不触发重烘焙；I6 提交简化）；A5 事件台账落点仍待裁决（推荐仓内 `Agent.Contract\Observability\` 双读，避免框架仓内置产品词表） |
+| **X6** | P4-3 依赖接口的**登记落点**：开工卡 §3.1 第 1 步原定「登记进产品台账（`Agent.Contract\Observability\ports.json`，`impl: delegate{id}`）」 | 实测产品侧**无运行时发布面**（`AgentRuntime` 不持有 `IHierarchyReferenceManager`/`ITaskLifecyclePort` 实例；`ReferenceGrounding` 属 Frame 侧且不在 Agent 组合根）→ 若落产品台账 `delegate`：工厂返回 null ⇒ `PortAssembler` 记 **Unbound 且不登记句柄** ⇒ `given ports` 的 `PortCatalog.Replace` 抛（未登记）＋ `SpecPortHostTests.Unbound=0` 破 | **落测试台账**（`Bridge\ports.json`，`binding: inline` + 新增 `seam: "dependency"` 标记，无 `legacyKind`/`productFields`）：依赖缝是**测试注入面**、非产品发布面；产品台账 10 键面与其守卫（`PortBindingSurfaceTests`/`PortImplDeclarationTests`）**零改动**；守卫按 `seam` 放行（`SpecPortHostTests` 增「依赖缝不得声明 productFields」判据） |
+| **X7** | P4-3 的 Bridge 体积预期 = 「随族退场单调下降」 | Task 族一个批次实测：族文件 **−1,772 B**（9,802 → 8,030），但依赖缝**声明成本**使 `ports.json` **+2,108 B**（11,893 → 14,001，26 → 34 键）⇒ 目录总量 100,942 → **101,736 B（净增 794 B）** | 声明成本是**一次性**的（P5 台账消亡时随 `ports.json` 迁入标准目录/产品面）；真正的体量下降来自**族端口实现退场**（需产品侧发布面 = P3 已建的 `impl` 面扩面），故**`Bridge\` 单调下降不适用于族改写批**——本卡改判据为「族文件单调下降 + 依赖缝可声明」 |
 
 ---
 
@@ -353,6 +359,7 @@ case task-orchestrator.create-task…
 | **D3** | 产品绑定是否走声明式 `impl` 段 | 决定 `AgentPortBindings.cs` 是否可缩 | **走声明式**（`reflective` 可直接声明；需要替身/工厂的用 `delegate{id}` 索引到实现字典） |
 | **D4** | 测试侧台账何时删 | 决定 J3 达成时点 | 随 S6 各族退场**渐进删**（每族退场即删该族 `legacyKind` 条目），S6 结束即 J3 达成 |
 | **D5** | 端口宿主的 L2 落点（`AgentPortHost.cs` + `PortProjections.cs` 归宿；本卡 §4.1 原建议 `DataDriven\SpecPortHost.cs`） | 决定 I2 能否与 P1-4 同时成立 | **落新 L2 工程 `Environment\CentralTest\SpecHost\`**（只引 `TestInfrastructure` 的 `ISpecPortHost` + `Strategy.Observability`；Agent 特有面 `AgentTrace.AmbientScopeId`/`AgentObservability` 经注入接口）。**不可落 `DataDriven\`**：实测 `SpecKernelLayeringGuardTests`（C-1）扫描 `DataDriven\*.cs` 顶层并禁 `Agent.*/Strategy.*/Operation.*/Share.*/DataCenter.*`，落此即破 I2（本卡原落点据实测校正） |
+| **D11** | 族实现如何取得**依赖对象**（方案 A 的「从端口目录取依赖对象」；内核只出 `IPortBinding`，无类型化对象面） | 决定 P4-3 可行性与是否触发 Frame 重烘焙 | **选项① 已裁决**：L2 `SpecHost\PortBackedProxy`（`DispatchProxy` 代理：方法 → 端口键 → 目录绑定调用）+ 装配入口 `RegisterAll(catalog)` 注入依赖目录（迟绑定，逐次装配刷新）；**零内核改动**（选项②环境访问器引入隐式全局；选项③改内核须重烘焙 + I6 独立提交；均未采纳） |
 | **D6** | 仓库级 `fakes.json` 是否随 P4 建 | 决定 P4 表达力与体量 | **暂不建**：只做 `given ports` **内联**声明；5 原语覆盖不到的族**暂不迁**（回滚端口实现），缺口登记为新原语提案（内核评审后加） |
 
 ---
@@ -398,6 +405,7 @@ case task-orchestrator.create-task…
 | U4 | `given ports` 在 `SpecSourceExpander`/分析器/驱动三处的改动量 | §5.2 / §9 D2 |
 | U5 | 现有 26 条端口在 C2–C6 判据下的实际违例数（首轮基线） | §3.4 ｜ **实测（P2）**：产品台账（10 端口 / 36 数据项 / 33 事件）首轮 **0 违例**（C2/C3/C4/C5 现状因 `emits` 全登记、无 `carries`/跨切字段/`producer` 声明而通过；C6 无基线跳过）；测试侧 26 条端口台账不参与（P5 退场件） |
 | U6 | Bridge 各件上移后的 TestInfrastructure/内核 API 命名冲突与可见性（`internal`→`public` 面） | §4.2 |
+| U14 | 依赖代理（`PortBackedProxy`）在产品进程（非测试进程）对产品接口的生成可用性 | §4.1 ｜ **实测（P4-0）**：测试进程内 9 条判据全绿（含 `object` 成员本地应答、属性访问器拒绝、`CancellationToken` 不进实参）；产品进程接入留待 P4-3 首批（Task 族）实测 |
 
 ---
 
@@ -408,6 +416,7 @@ case task-orchestrator.create-task…
 | `Docs\analysis\2026\9\9.14\AgentTest_适配器归零_统一数据标准与观测内核方案.md` | **上位方案**（UDS-1/2/3、目标架构、113 kind 台账）；本卡为其 §四/§五 的落地补强 |
 | `Docs\analysis\2026\9\9.14\AgentTest_适配器归零_N5-N7实施卡.md` | 当前执行卡（S6 子批、守卫、实测偏差 E-N5-*/E-N6-*） |
 | `Docs\analysis\2026\9\9.14\AgentTest_适配器归零_N5收尾执行卡.md` | S5 收尾与 N6 交接（台账/生成器/接线状态） |
+| `Docs\analysis\2026\9\15\DataCenter-统一标准与通用端口-P3-P5实施卡.md` | **剩余阶段执行卡**（P3 A1–A5 / P4 `given ports` 9 处 + 按族改写 / P5 J1–J8 清除与守卫换代） |
 | `Frame\DataCenter\Doc\DataCenter-架构设计.md` | DataCenter 定位（跨语言数据中枢、CSG 数据面、schema 纪律） |
 | `Frame\CsharpPrj\Strategy\Observability\README.md` | 内核 E1–E8 职责与通用性边界 |
 | `Environment\CentralTest\TestInfrastructure\DataDriven\README.md` | L0 分层 / 17 算子封顶 / 守卫清单 |

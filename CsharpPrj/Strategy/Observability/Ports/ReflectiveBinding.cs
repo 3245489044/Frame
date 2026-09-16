@@ -155,28 +155,47 @@ internal static class ReflectivePortResolver
     }
 
     /// <summary>
-    /// 解析目标方法：优先「公开静态 + 参数个数 = 声明个数」的候选；无精确匹配则取参数最少者（尾部参数按默认值补齐）。
+    /// 解析目标方法：优先「公开 + 参数个数 = 声明个数」的候选；无精确匹配则取参数最少者（尾部参数按默认值补齐）。
     /// 同名方法零候选即抛（防静默绑错）。
     /// </summary>
     internal static MethodInfo ResolveMethod(PortBindingSpec spec, Type type)
+        => ResolveMethod(type, spec.PortKey, spec.Method, spec.Args.Count, isStatic: true);
+
+    /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志）。</summary>
+    internal static MethodInfo ResolveMethod(Type type, string portKey, string methodName, int declaredCount, bool isStatic)
     {
-        var cacheKey = $"{spec.Target}.{spec.Method}/{spec.Args.Count}";
+        var cacheKey = $"{type.FullName}.{methodName}/{declaredCount}/{(isStatic ? "s" : "i")}";
         if (MethodCache.TryGetValue(cacheKey, out var cached)) return cached;
 
+        var flags = BindingFlags.Public | BindingFlags.FlattenHierarchy
+                    | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
+
         var candidates = type
-            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-            .Where(m => string.Equals(m.Name, spec.Method, StringComparison.Ordinal))
+            .GetMethods(flags)
+            .Where(m => string.Equals(m.Name, methodName, StringComparison.Ordinal))
             .ToArray();
 
         if (candidates.Length == 0)
             throw new InvalidOperationException(
-                $"[port:bind] 端口 '{spec.PortKey}'：类型 {type.Name} 上找不到方法 {spec.Method}");
+                $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到方法 {methodName}");
 
-        var method = candidates.FirstOrDefault(m => m.GetParameters().Length == spec.Args.Count)
+        var method = candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
                      ?? candidates.OrderBy(m => m.GetParameters().Length).First();
 
         MethodCache[cacheKey] = method;
         return method;
+    }
+
+    /// <summary>成员读取解析（属性优先、缺失回落静态 / 实例字段）：属性与字段是产品表示选择，声明侧不区分。</summary>
+    internal static MemberInfo ResolveMember(Type type, string portKey, string name, bool isStatic)
+    {
+        var flags = BindingFlags.Public | BindingFlags.FlattenHierarchy
+                    | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
+
+        return (MemberInfo?)type.GetProperty(name, flags)
+               ?? type.GetField(name, flags)
+               ?? throw new InvalidOperationException(
+                   $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到成员 {name}");
     }
 
     /// <summary>目标形参的默认值（值类型 → 默认实例；<c>CancellationToken</c> → None；引用类型 → null）。</summary>

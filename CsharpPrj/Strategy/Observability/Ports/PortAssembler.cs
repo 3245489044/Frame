@@ -3,11 +3,14 @@ using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
-/// <summary>绑定计划种类（声明式装配的三种归宿）。</summary>
+/// <summary>绑定计划种类（声明式装配的四种归宿）。</summary>
 public enum PortBindingPlanKind
 {
     /// <summary>反射绑定（按 <see cref="PortBindingSpec"/> 的 target/method/args 调用）。</summary>
     Reflective,
+
+    /// <summary>组合绑定（按 <see cref="ComposedBindingSpec"/> 的 calls/project 多调用 + 投影）。</summary>
+    Composed,
 
     /// <summary>委托绑定（由调用方给出实现工厂，如产品真实实现 / 测试内联编排）。</summary>
     Delegate,
@@ -17,7 +20,7 @@ public enum PortBindingPlanKind
 }
 
 /// <summary>
-/// 端口绑定计划：<c>端口键 → 绑定方式</c>（+ 反射声明 / 实现工厂 / 冻结或未绑定原因）。
+/// 端口绑定计划：<c>端口键 → 绑定方式</c>（+ 反射声明 / 组合声明 / 实现工厂 / 冻结或未绑定原因）。
 /// <para>调用方（产品组合根 / 测试驱动）负责从台账构造计划；内核只按计划装配，不读产品文件。</para>
 /// </summary>
 public sealed record PortBindingPlan(
@@ -25,7 +28,8 @@ public sealed record PortBindingPlan(
     PortBindingPlanKind Kind,
     PortBindingSpec? Spec = null,
     Func<IPortBinding>? Factory = null,
-    string? Reason = null);
+    string? Reason = null,
+    ComposedBindingSpec? Composed = null);
 
 /// <summary>
 /// 声明式端口装配器（E15 / G1 · 原测试侧 <c>Bridge\PortRegistry.cs</c> 的装配职责上移）：
@@ -114,6 +118,15 @@ public sealed class PortAssembler
                 }
 
                 return Bind(plan.PortKey, new ReflectiveBinding(plan.Spec));
+
+            case PortBindingPlanKind.Composed:
+                if (plan.Composed is null)
+                {
+                    MarkUnbound(plan.PortKey, "声明 composed 绑定但缺少组合声明（ComposedBindingSpec）");
+                    return false;
+                }
+
+                return Bind(plan.PortKey, new ComposedBinding(plan.Composed));
 
             case PortBindingPlanKind.Delegate:
                 if (plan.Factory is null)

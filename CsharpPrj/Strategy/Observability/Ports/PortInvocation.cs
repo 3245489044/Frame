@@ -30,10 +30,13 @@ internal static class PortInvocation
         }
     }
 
-    /// <summary>异步折取：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> 同步取值（异常原样上抛）。</summary>
-    internal static object? Fold(object? value, bool await)
+    /// <summary>
+    /// 异步折取（W10 定档：**缺省自动折取**）：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> 同步取值（异常原样上抛）；
+    /// 非 awaitable 值原样返回（不再由声明开关决定，声明 <c>await</c> 降级为提示性字段）。
+    /// </summary>
+    internal static object? Fold(object? value)
     {
-        if (!await || value is null) return value;
+        if (value is null) return value;
 
         switch (value)
         {

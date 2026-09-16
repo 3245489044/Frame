@@ -271,6 +271,6 @@ public sealed class ComposedBinding : IPortBinding
         }
 
         /// <summary>异步折取：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> 同步取值（异常原样上抛）。</summary>
-        private object? Fold(object? value) => PortInvocation.Fold(value, Spec.Await);
+        private object? Fold(object? value) => PortInvocation.Fold(value);
     }
 }

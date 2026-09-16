@@ -47,10 +47,11 @@ internal static class ScriptedInvokeRunner
                 expect);
 
             return new Outcome(
-                PortInvocation.Fold(read, invoke.Await), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
+                PortInvocation.Fold(read), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
 
-        var method = ReflectivePortResolver.ResolveMethod(type, portKey, invoke.Method, declared.Count, isStatic);
+        var method = Close(portKey, invoke, ReflectivePortResolver.ResolveMethod(
+            type, portKey, invoke.Method, declared.Count, isStatic));
         var parameters = method.GetParameters();
         var args = new object?[parameters.Length];
         for (var i = 0; i < parameters.Length; i++)
@@ -61,7 +62,49 @@ internal static class ScriptedInvokeRunner
                 : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
 
         var result = PortInvocation.ExecuteAny(() => method.Invoke(instance, args), expect);
-        return new Outcome(PortInvocation.Fold(result, invoke.Await), parameters, args);
+        return new Outcome(PortInvocation.Fold(result), parameters, args);
+    }
+
+    /// <summary>
+    /// 对**显式实例**执行调用声明（W6 对象图链式调用）：把实例追加为末位依赖（<c>specs=null</c> ⇒ 按运行时类型解析），
+    /// 与 <see cref="Run"/> 共用同一执行路径（零重复实现）；链式实参里的 <c>dep</c> 下标仍指向原依赖序。
+    /// </summary>
+    internal static Outcome RunOn(
+        string portKey, ScriptedInvokeSpec invoke, object instance, ScriptedScope scope,
+        IPortInput input, object?[] resolvedDeps)
+    {
+        var own = new object?[resolvedDeps.Length + 1];
+        resolvedDeps.CopyTo(own, 0);
+        own[^1] = instance;
+
+        return Run(portKey, invoke with { Dep = resolvedDeps.Length }, specs: null, scope, input, own);
+    }
+
+    /// <summary>泛型方法闭合（W4）：声明 <c>genericArgs</c> 时按序闭合；非开放泛型方法声明了即抛（防静默错配）。</summary>
+    private static MethodInfo Close(string portKey, ScriptedInvokeSpec invoke, MethodInfo method)
+    {
+        if (invoke.GenericArgs is not { Count: > 0 } names) return method;
+
+        if (!method.IsGenericMethodDefinition)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的调用 '{invoke.Method}' 声明了 genericArgs，但目标方法不是开放泛型方法");
+
+        var types = names.Select(name => ComposedDeps.ResolveType(name, null)).ToArray();
+        if (types.Length != method.GetGenericArguments().Length)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的调用 '{invoke.Method}' 的 genericArgs 数量 {types.Length} 与其泛型形参数量 {method.GetGenericArguments().Length} 不一致");
+
+        try
+        {
+            return method.MakeGenericMethod(types);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的调用 '{invoke.Method}' 的泛型闭合失败（{ex.Message}）");
+        }
     }
 
     /// <summary>出参捕获（G2）：把 <c>out</c> / <c>ref</c> 形参按位写入槽（首个用声明名，多个按序加后缀）。</summary>

@@ -1,5 +1,6 @@
 namespace Strategy.Observability.Ports;
 
+using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
 
@@ -42,6 +43,13 @@ using Strategy.Observability.Diagnostics;
 /// <param name="Le">小于等于比较（恰两个操作数）。</param>
 /// <param name="AllOf">逻辑合取（子表达式列表；任一为假即假，遇 <c>⊥</c> 短路为 <c>⊥</c>）。</param>
 /// <param name="AnyOf">逻辑析取（子表达式列表；任一为真即真，遇 <c>⊥</c> 短路为 <c>⊥</c>）。</param>
+/// <param name="Agg">聚合来源（W3：遍历该表达式的元素后按 <see cref="AggOp"/> 聚合）。</param>
+/// <param name="AggOp">聚合算子：<c>sum</c>（缺省） / <c>max</c> / <c>min</c> / <c>avg</c>（后三者空集即抛）。</param>
+/// <param name="AggPath">聚合元素的取值路径（缺省 = 元素本身）。</param>
+/// <param name="SameReference">引用同一性比较（W5：恰两个操作数，按 <c>ReferenceEquals</c> 判定）。</param>
+/// <param name="Filter">筛选来源（W8：遍历该表达式的元素，按 <see cref="FilterWhere"/> 保留后成集）。</param>
+/// <param name="FilterWhere">保留条件（体内 <c>from:row</c> 即当前元素；缺省 = 元素非空）。</param>
+/// <param name="FilterPath">保留元素的取值路径（缺省 = 元素本身）。</param>
 /// <param name="Invoke">调用算子（表达式内调用：执行声明调用并取其结果；<c>as</c> / <c>collect</c> 不参与）。</param>
 public sealed record ScriptedExpr(
     ScriptedArgSpec? Source = null,
@@ -77,7 +85,18 @@ public sealed record ScriptedExpr(
     IReadOnlyList<ScriptedExpr>? Le = null,
     IReadOnlyList<ScriptedExpr>? AllOf = null,
     IReadOnlyList<ScriptedExpr>? AnyOf = null,
-    ScriptedInvokeSpec? Invoke = null);
+    ScriptedInvokeSpec? Invoke = null,
+    ScriptedExpr? First = null,
+    ScriptedExpr? FirstWhere = null,
+    string? FirstPath = null,
+    ScriptedExpr? Agg = null,
+    string? AggOp = null,
+    string? AggPath = null,
+    ScriptedExpr? Filter = null,
+    ScriptedExpr? FilterWhere = null,
+    string? FilterPath = null,
+    IReadOnlyList<ScriptedExpr>? SameReference = null,
+    IReadOnlyList<ScriptedExpr>? Coalesce = null);
 
 /// <summary>产物字段 ← 投影表达式（字段序 = 产物序；字段名须与契约声明逐字同序）。</summary>
 /// <param name="Field">产物字段名。</param>
@@ -96,13 +115,16 @@ public sealed record ScriptedFieldSpec(string Field, ScriptedExpr Expr);
 /// <param name="IssueField">清单来源字段 / 收集槽名（空 = 取投影首字段）。</param>
 /// <param name="Capture">issue 承载捕获（<c>kind=issues</c> 的主力形态）。</param>
 /// <param name="DeferSteps">延迟动作步骤（<c>kind=action</c>：断言期才执行这些步骤并取投影）。</param>
+/// <param name="Value">值载体表达式（<c>kind=value</c>：脚本执行后取该表达式结果为产物——原始标量 / 文本 / 字典，
+/// 用于「声明面产不出具名字段」的键，如分支序列化文本、动态键映射；与 <see cref="Capture"/> / <see cref="DeferSteps"/> 互斥）。</param>
 public sealed record ScriptedDeliverSpec(
     string? Kind = null,
     bool Defer = false,
     bool Issues = false,
     string? IssueField = null,
     ScriptedDeliverCaptureSpec? Capture = null,
-    IReadOnlyList<ScriptedStep>? DeferSteps = null);
+    IReadOnlyList<ScriptedStep>? DeferSteps = null,
+    ScriptedExpr? Value = null);
 
 /// <summary>
 /// issue 承载捕获（P4）：调用体 + 期望异常类型集 → 不命中期望即原样上抛；命中则产**一条** issue；
@@ -133,6 +155,7 @@ internal sealed class ScriptedScope
     private readonly Dictionary<string, object?> _slots = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _tempDirs = new(StringComparer.Ordinal);
     private readonly List<(string Name, object? Element, int Index)> _loops = new();
+    private readonly List<string> _notes = new();
 
     internal ScriptedScope(string portKey) => PortKey = portKey;
 
@@ -155,6 +178,12 @@ internal sealed class ScriptedScope
 
     /// <summary>写入槽（已存在的槽可被后续步骤覆盖：声明序即执行序）。</summary>
     internal void Set(string name, object? value) => _slots[name] = value;
+
+    /// <summary>诊断记录（W1：⊥ 语义导致的「不执行」须留痕，不静默）。</summary>
+    internal IReadOnlyList<string> Notes => _notes;
+
+    /// <summary>追加一条诊断记录（执行期不抛，仅供诊断面读取）。</summary>
+    internal void Note(string message) => _notes.Add(message);
 
     /// <summary>读槽（未定义 → fail-fast，不静默给 null）。</summary>
     internal object? Slot(string name, string context)
@@ -270,6 +299,18 @@ internal static class ScriptedValue
             case "literal":
                 return spec.Value is { } literal ? PortValues.Unwrap(literal) : null;
 
+            case "member":
+                return StaticMember(spec, scope.PortKey, context);
+
+            case null or "" when spec.Construct is not null:
+                return ScriptedConstruction.Build(spec.Construct!, scope, input, deps, context);
+
+            case "new":
+                return spec.Construct is { } construct
+                    ? ScriptedConstruction.Build(construct, scope, input, deps, context)
+                    : throw new PortBindingViolationException(
+                        scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 new 来源缺 construct（构造声明）");
+
             case null or "" when spec.Optional:
                 return null;
 
@@ -277,7 +318,7 @@ internal static class ScriptedValue
                 throw new PortBindingViolationException(
                     scope.PortKey,
                     $"端口 '{scope.PortKey}' 的 {context} 取值来源 '{spec.From}' 未知" +
-                    "（arg|with|item|row|var|dep|literal|table|presence|tmpPath|tmpDir）");
+                    "（arg|with|item|row|var|dep|literal|member|new|table|presence|tmpPath|tmpDir）");
         }
     }
 
@@ -355,7 +396,9 @@ internal static class ScriptedValue
 
                 var key = separator.Length == 0
                     ? head
-                    : string.Join(separator, cells.Select(cell => PortValues.Text(cell) ?? string.Empty));
+                    : string.Join(separator,
+                        cells.Select(cell => PortValues.Text(cell))
+                             .Where(cell => !string.IsNullOrEmpty(cell)));
 
                 var value = spec.RowValue is { } rowValue
                     ? ScriptedExprEvaluator.Evaluate(rowValue, scope, input, deps, context)
@@ -432,6 +475,9 @@ internal static class ScriptedValue
             case "csv":
                 return Csv(PortValues.Text(raw) ?? string.Empty, target, portKey, context);
 
+            case "array":
+                return ArrayLike(raw, spec, target, portKey, context);
+
             case "graph":
                 return raw is JsonElement graph ? PortValues.ToGraph(graph) : raw;
 
@@ -471,7 +517,7 @@ internal static class ScriptedValue
                 throw new PortBindingViolationException(
                     portKey,
                     $"端口 '{portKey}' 的 {context} 的 convert '{spec.Convert}' 未知" +
-                    "（string|bool|int|double|csv|json|object）");
+                    "（string|bool|int|double|csv|json|array|object|passthrough）");
         }
     }
 
@@ -517,6 +563,79 @@ internal static class ScriptedValue
     /// 位置实参取值（越界 → fail-fast）：对象直投形态（<see cref="PortValues.IsDirectPositional"/>）原样保留原对象
     /// （不 <c>ToString</c> 文本化），其余按 <c>convert</c> 原义取文本。
     /// </summary>
+    private static object? ArrayLike(
+        object? raw, ScriptedArgSpec spec, Type target, string portKey, string context)
+    {
+        var element = ElementTypeOf(spec, target, portKey, context);
+        var items = PortValues.Elements(raw).ToArray();
+        var array = Array.CreateInstance(element, items.Length);
+
+        for (var i = 0; i < items.Length; i++)
+            array.SetValue(ConvertElement(items[i], element, portKey, context), i);
+
+        if (target.IsInstanceOfType(array)) return array;
+
+        if (target.IsGenericType && target.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            var list = (System.Collections.IList)Activator.CreateInstance(target)!;
+            foreach (var item in array) list.Add(item);
+            return list;
+        }
+
+        return array;
+    }
+
+    private static Type ElementTypeOf(ScriptedArgSpec spec, Type target, string portKey, string context)
+    {
+        if (spec.ElementType is { Length: > 0 } name) return ComposedDeps.ResolveType(name, null);
+        if (target.IsArray && target.GetElementType() is { } element) return element;
+
+        if (target.IsGenericType
+            && target.GetGenericArguments() is { Length: 1 } arguments
+            && target != typeof(string)
+            && typeof(System.Collections.IEnumerable).IsAssignableFrom(target))
+        {
+            return arguments[0];
+        }
+
+        throw new PortBindingViolationException(
+            portKey,
+            $"端口 '{portKey}' 的 {context} 的 array 转换需要集合 / 数组目标类型或 elementType 声明（当前 {target.Name}）");
+    }
+
+    private static object? ConvertElement(object? value, Type element, string portKey, string context)
+    {
+        if (value is null) return null;
+        if (element == typeof(object) || element.IsInstanceOfType(value)) return value;
+
+        if (value is JsonElement json) return PortValues.Coerce(json, element);
+
+        throw new PortBindingViolationException(
+            portKey,
+            $"端口 '{portKey}' 的 {context} 的元素 {value.GetType().Name} 不能转为 {element.Name}");
+    }
+
+    private static object? StaticMember(ScriptedArgSpec spec, string portKey, string context)
+    {
+        if (spec.Type is not { Length: > 0 } typeName)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的 member 来源缺 type（声明类型全名）");
+
+        if (string.IsNullOrWhiteSpace(spec.Key))
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的 member 来源缺 key（成员名）");
+
+        var member = ReflectivePortResolver.ResolveMember(
+            ComposedDeps.ResolveType(typeName, spec.GenericArgs), portKey, spec.Key!, isStatic: true);
+
+        return member switch
+        {
+            PropertyInfo property => property.GetValue(null),
+            FieldInfo field => field.GetValue(null),
+            _ => null,
+        };
+    }
+
     private static object? Positional(ScriptedArgSpec spec, IPortInput input, string portKey, string context)
     {
         var position = spec.Index
@@ -594,6 +713,12 @@ internal static class ScriptedExprEvaluator
         if (expr.Le is { } le) return Compare(le, scope, input, deps, field, "le");
         if (expr.Invoke is { } call)
             return ScriptedInvokeRunner.Run(scope.PortKey, call, specs: null, scope, input, deps).Result;
+
+        if (expr.First is { } first) return First(expr, first, scope, input, deps, field);
+        if (expr.Agg is { } agg) return Aggregate(expr, agg, scope, input, deps, field);
+        if (expr.Filter is { } filter) return Filter(expr, filter, scope, input, deps, field);
+        if (expr.SameReference is { Count: 2 } same) return SameReference(same, scope, input, deps, field);
+        if (expr.Coalesce is { Count: 2 } coalesce) return Coalesce(coalesce, scope, input, deps, field);
 
         if (expr.Collect is { Length: > 0 } collect) return Collect(expr, collect, scope, input, deps, field);
 
@@ -765,6 +890,131 @@ internal static class ScriptedExprEvaluator
                 $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的比较算子 '{op}' 未知（eq|ne|gt|ge|lt|le）"),
         };
     }
+
+    private static object? First(
+        ScriptedExpr expr, ScriptedExpr over, ScriptedScope scope, IPortInput input, object?[] deps, string field)
+    {
+        var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
+        var index = -1;
+
+        foreach (var item in items)
+        {
+            index++;
+            scope.Push(ScriptedScope.RowFrame, item, index);
+
+            bool hit;
+            try
+            {
+                hit = expr.FirstWhere is { } predicate
+                    ? PortValues.Truthy(Sub(predicate, scope, input, deps, field))
+                    : item is not null;
+            }
+            finally
+            {
+                scope.Pop();
+            }
+
+            if (!hit) continue;
+
+            return expr.FirstPath is { Length: > 0 } path ? PortValues.PathOf(item, path) : item;
+        }
+
+        throw new PortBindingViolationException(
+            scope.PortKey,
+            $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 first 未命中（{items.Length} 个元素无匹配）");
+    }
+
+    /// <summary>
+    /// 聚合取值（W3）：对来源元素逐项取 <see cref="ScriptedExpr.AggPath"/> → 数值化 → 按 <c>sum|max|min|avg</c> 聚合。
+    /// <para>口径：非数值元素即抛（不静默跳过）；<c>sum</c> 空集 = 0，<c>max|min|avg</c> 空集即抛；
+    /// 全整数输入且结果可容纳于 <see cref="int"/> 时按整数返回（与夹具的整数期望可比）。</para>
+    /// </summary>
+    private static object? Aggregate(
+        ScriptedExpr expr, ScriptedExpr over, ScriptedScope scope, IPortInput input, object?[] deps, string field)
+    {
+        var op = expr.AggOp ?? "sum";
+        var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
+        var numbers = new List<double>(items.Length);
+
+        foreach (var item in items)
+        {
+            var value = expr.AggPath is { Length: > 0 } path ? PortValues.PathOf(item, path) : item;
+            if (value is null) continue;
+
+            if (PortValues.Number(value) is not { } number)
+                throw new PortBindingViolationException(
+                    scope.PortKey,
+                    $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 agg 元素 '{PortValues.Text(value)}' 非数值");
+
+            numbers.Add(number);
+        }
+
+        var integral = numbers.All(number => Math.Abs(number % 1) < double.Epsilon);
+        var total = numbers.Sum();
+
+        return op switch
+        {
+            "sum" => integral && total is >= int.MinValue and <= int.MaxValue ? (int)total : (object)total,
+            "max" when numbers.Count > 0 => Extreme(numbers.Max(), integral),
+            "min" when numbers.Count > 0 => Extreme(numbers.Min(), integral),
+            "avg" when numbers.Count > 0 => numbers.Average(),
+            "max" or "min" or "avg" => throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 agg.{op} 无可取值元素"),
+            _ => throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 agg 算子 '{op}' 未知（sum|max|min|avg）"),
+        };
+    }
+
+    /// <summary>聚合取值结果归一：整数输入按 <see cref="int"/> 返回（可比性），否则原样。</summary>
+    private static object Extreme(double value, bool integral)
+        => integral && value is >= int.MinValue and <= int.MaxValue ? (int)value : value;
+
+    /// <summary>
+    /// 筛选成集（W8）：遍历来源元素 → 按 <see cref="ScriptedExpr.FilterWhere"/> 保留（真值判定；<c>⊥</c> 视同不保留）
+    /// → 逐项取 <see cref="ScriptedExpr.FilterPath"/> → 数组。空集 = 空数组（不抛）。
+    /// </summary>
+    private static object?[] Filter(
+        ScriptedExpr expr, ScriptedExpr over, ScriptedScope scope, IPortInput input, object?[] deps, string field)
+    {
+        var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
+        var kept = new List<object?>(items.Length);
+        var index = -1;
+
+        foreach (var item in items)
+        {
+            index++;
+            scope.Push(ScriptedScope.RowFrame, item, index);
+
+            bool hit;
+            try
+            {
+                hit = expr.FilterWhere is { } predicate
+                    ? PortValues.Truthy(Sub(predicate, scope, input, deps, field))
+                    : item is not null;
+            }
+            finally
+            {
+                scope.Pop();
+            }
+
+            if (!hit) continue;
+            kept.Add(expr.FilterPath is { Length: > 0 } path ? PortValues.PathOf(item, path) : item);
+        }
+
+        return kept.ToArray();
+    }
+
+    /// <summary>引用同一性（W5）：<c>ReferenceEquals(左, 右)</c>（值相等但非同一引用 → false）。</summary>
+    private static bool SameReference(
+        IReadOnlyList<ScriptedExpr> operands, ScriptedScope scope, IPortInput input, object?[] deps, string field)
+        => ReferenceEquals(
+            Sub(operands[0], scope, input, deps, field),
+            Sub(operands[1], scope, input, deps, field));
+
+    private static object? Coalesce(
+        IReadOnlyList<ScriptedExpr> operands, ScriptedScope scope, IPortInput input, object?[] deps, string field)
+        => Sub(operands[0], scope, input, deps, field)
+           ?? Sub(operands[1], scope, input, deps, field);
 
     private static object?[] Collect(
         ScriptedExpr expr, string name, ScriptedScope scope, IPortInput input, object?[] deps, string field)

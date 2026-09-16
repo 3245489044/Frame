@@ -31,6 +31,8 @@ using System.Text.Json;
 /// <param name="OnBlankFirstKey">首列为空的处置（<c>table</c>：<c>fail</c> 缺省 / <c>skip</c>）。</param>
 /// <param name="OnDuplicate">键重复的处置（<c>table</c>：<c>fail</c> 缺省 / <c>last</c>）。</param>
 /// <param name="Distinct">词元去重（<c>presence</c> 用）。</param>
+/// <param name="ElementType">集合元素类型全名（<c>convert:array</c> 且目标类型未给出元素类型时用）。</param>
+/// <param name="Construct">内嵌构造声明（W6：本实参的值 = 构造结果；与 <c>convert:array</c> 连用即数组形参的对象图）。</param>
 public sealed record ScriptedArgSpec(
     string? From = null,
     int? Index = null,
@@ -53,7 +55,9 @@ public sealed record ScriptedArgSpec(
     string? Separator = null,
     string? OnBlankFirstKey = null,
     string? OnDuplicate = null,
-    bool Distinct = false);
+    bool Distinct = false,
+    string? ElementType = null,
+    ScriptedNewSpec? Construct = null);
 
 /// <summary>
 /// **收集声明**（G1）：把本步骤产物或指定槽的当前值按序追加到收集槽（槽在执行前预建空清单，短路 / 零迭代时投影取之不为空）。
@@ -85,11 +89,26 @@ public sealed record ScriptedStep(
 /// <param name="Type">类型全名（开放泛型形如 <c>Ns.Type`1</c>）。</param>
 /// <param name="GenericArgs">闭合泛型实参类型全名。</param>
 /// <param name="Args">构造实参声明。</param>
+/// <param name="Chain">链式后置调用（W6：构造后按序调用实例方法；见 <see cref="ScriptedChainSpec"/>）。</param>
 public sealed record ScriptedNewSpec(
     string As,
     string Type,
     IReadOnlyList<string>? GenericArgs = null,
-    IReadOnlyList<ScriptedArgSpec>? Args = null);
+    IReadOnlyList<ScriptedArgSpec>? Args = null,
+    IReadOnlyList<ScriptedChainSpec>? Chain = null);
+
+/// <summary>
+/// 链式后置调用（W6：对象图构造）：对已构造实例按序调用方法（<c>Add</c> 一类）。
+/// <para>返回值默认**忽略**（实例即链值，适配 <c>void</c> / <c>bool</c> 返回的 <c>Add</c>）；
+/// 声明 <see cref="Rebind"/> = true 时以返回值替换链值（适配返回新实例的流式 API）。</para>
+/// </summary>
+/// <param name="Method">实例方法名。</param>
+/// <param name="Args">实参声明（位序即语义）。</param>
+/// <param name="Rebind">true = 以本调用的返回值替换链值。</param>
+public sealed record ScriptedChainSpec(
+    string Method,
+    IReadOnlyList<ScriptedArgSpec>? Args = null,
+    bool Rebind = false);
 
 /// <summary>
 /// 调用步骤：方法调用 / 成员读取（静态或对依赖实例）。可异步折取、可期望异常、可捕获 <c>out</c> 出参。
@@ -104,6 +123,7 @@ public sealed record ScriptedNewSpec(
 /// <param name="Args">实参声明（位序即语义）。</param>
 /// <param name="Out">出参捕获槽名（G2：把方法的 <c>out</c> 实参按位写入该槽）。</param>
 /// <param name="Break">true = 本步骤执行后跳出最近一层 <c>foreach</c>。</param>
+/// <param name="GenericArgs">开放泛型方法的闭合实参类型全名（W4：按序 <c>MakeGenericMethod</c>）。</param>
 public sealed record ScriptedInvokeSpec(
     string? As = null,
     int? Dep = null,
@@ -114,7 +134,8 @@ public sealed record ScriptedInvokeSpec(
     string? Expect = null,
     IReadOnlyList<ScriptedArgSpec>? Args = null,
     string? Out = null,
-    bool Break = false);
+    bool Break = false,
+    IReadOnlyList<string>? GenericArgs = null);
 
 /// <summary>遍历步骤：取集合（槽 / 表达式）逐项执行体内步骤（可过滤）。</summary>
 /// <param name="Slot">集合槽名（与 <see cref="Items"/> 二选一）。</param>
@@ -158,6 +179,17 @@ public sealed record ScriptedFileSpec(
     ScriptedExpr? When = null);
 
 /// <summary>
+/// **多场景探针声明**（W2：<c>PortProbeRouter.Declare</c> / <c>.Of</c> 的一等声明等价）：
+/// 由 <see cref="Select"/> 取场景名 → 命中则执行该场景的主体（<see cref="Cases"/>）；**未命中即抛**（不静默回落）。
+/// <para>每个场景主体是一份独立的脚本绑定声明（同端口键）；基体自身的 <c>script</c> 可为空（主体由场景承载）。</para>
+/// </summary>
+/// <param name="Select">场景名取值来源（<c>with</c> / <c>arg</c> / <c>var</c> 等）。</param>
+/// <param name="Cases">场景名 → 场景主体（键 Ordinal 比较；未命中诊断列全部可用场景名）。</param>
+public sealed record ScriptedScenarioSpec(
+    ScriptedArgSpec Select,
+    IReadOnlyDictionary<string, ScriptedBindingSpec> Cases);
+
+/// <summary>
 /// 声明式**脚本绑定**（消除通道 C5）：把「遍历用例声明的数据 + 用上一步结果再调 + 一般取值投影 + 载体形态」
 /// 从夹具 C# 变为标准层声明，使编排型端口也能零夹具代码装配。
 /// <para>分工红线：本件与 <see cref="ComposedBindingSpec"/> 同为机制层——只认不透明字符串 + 反射 +
@@ -172,7 +204,8 @@ public sealed class ScriptedBindingSpec
         IReadOnlyList<ScriptedStep> script,
         IReadOnlyList<ScriptedFieldSpec> project,
         ScriptedDeliverSpec? deliver = null,
-        IReadOnlyList<ScriptedScopeSpec>? scopes = null)
+        IReadOnlyList<ScriptedScopeSpec>? scopes = null,
+        ScriptedScenarioSpec? scenarios = null)
     {
         PortKey = string.IsNullOrWhiteSpace(portKey)
             ? throw new ArgumentException("端口键不能为空", nameof(portKey))
@@ -183,6 +216,7 @@ public sealed class ScriptedBindingSpec
         Project = project ?? Array.Empty<ScriptedFieldSpec>();
         Deliver = deliver ?? new ScriptedDeliverSpec();
         Scopes = scopes ?? Array.Empty<ScriptedScopeSpec>();
+        Scenarios = scenarios;
     }
 
     /// <summary>端口键（诊断定位用）。</summary>
@@ -205,6 +239,9 @@ public sealed class ScriptedBindingSpec
 
     /// <summary>临时目录作用域序列（进入脚本前建 / 写盘，退出（含异常）递归清理）。</summary>
     public IReadOnlyList<ScriptedScopeSpec> Scopes { get; }
+
+    /// <summary>多场景探针声明（W2；非空时主体交由命中的场景承载，见 <see cref="Scenarios"/>）。</summary>
+    public ScriptedScenarioSpec? Scenarios { get; }
 
     /// <summary>数据半注入的工厂表（<c>deps.factory</c> 用；缺表且声明了 factory 即 fail-fast）。</summary>
     public IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> Factories { get; init; } =

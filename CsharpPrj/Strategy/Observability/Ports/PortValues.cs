@@ -13,29 +13,86 @@ internal static class PortValues
     internal static object? PathOf(object? value, string path)
     {
         var current = value;
-        foreach (var segment in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var raw in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (current is null) return null;
 
-            var type = current.GetType();
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
-
-            var member = (MemberInfo?)type.GetProperty(segment, flags)
-                         ?? type.GetProperties(flags).FirstOrDefault(p =>
-                             string.Equals(p.Name, segment, StringComparison.OrdinalIgnoreCase))
-                         ?? type.GetField(segment, flags)
-                         ?? (MemberInfo?)type.GetFields(flags).FirstOrDefault(f =>
-                             string.Equals(f.Name, segment, StringComparison.OrdinalIgnoreCase));
-
-            current = member switch
-            {
-                PropertyInfo property => property.GetValue(current),
-                FieldInfo field => field.GetValue(current),
-                _ => null,
-            };
+            var (segment, index) = Segment(raw);
+            if (segment is { Length: > 0 }) current = MemberOf(current, segment);
+            if (index is { } position) current = ElementAt(current, position);
         }
 
         return current;
+    }
+
+    private static (string? Segment, int? Index) Segment(string raw)
+    {
+        var open = raw.IndexOf('[', StringComparison.Ordinal);
+        if (open < 0 || !raw.EndsWith(']')) return (raw, null);
+
+        var digits = raw[(open + 1)..^1];
+        return int.TryParse(digits, out var index) ? (raw[..open], index) : (raw, null);
+    }
+
+    private static object? MemberOf(object value, string segment) => value switch
+    {
+        JsonElement element when element.ValueKind == JsonValueKind.Object
+            => JsonMember(element, segment),
+        IReadOnlyDictionary<string, object?> readOnly
+            => readOnly.TryGetValue(segment, out var item) ? item : null,
+        System.Collections.IDictionary dictionary
+            => dictionary.Contains(segment) ? dictionary[segment] : null,
+        _ => ReflectedMember(value, segment),
+    };
+
+    private static object? JsonMember(JsonElement element, string segment)
+    {
+        if (element.TryGetProperty(segment, out var direct)) return direct.Clone();
+
+        foreach (var property in element.EnumerateObject())
+            if (string.Equals(property.Name, segment, StringComparison.OrdinalIgnoreCase))
+                return property.Value.Clone();
+
+        return null;
+    }
+
+    private static object? ReflectedMember(object current, string segment)
+    {
+        var type = current.GetType();
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
+
+        var member = (MemberInfo?)type.GetProperty(segment, flags)
+                     ?? type.GetProperties(flags).FirstOrDefault(p =>
+                         string.Equals(p.Name, segment, StringComparison.OrdinalIgnoreCase))
+                     ?? type.GetField(segment, flags)
+                     ?? (MemberInfo?)type.GetFields(flags).FirstOrDefault(f =>
+                         string.Equals(f.Name, segment, StringComparison.OrdinalIgnoreCase));
+
+        return member switch
+        {
+            PropertyInfo property => property.GetValue(current),
+            FieldInfo field => field.GetValue(current),
+            _ => null,
+        };
+    }
+
+    private static object? ElementAt(object? value, int position)
+    {
+        if (position < 0) return null;
+
+        switch (value)
+        {
+            case null:
+                return null;
+            case JsonElement element when element.ValueKind == JsonValueKind.Array:
+                return element.GetArrayLength() > position ? element[position].Clone() : null;
+            case string text:
+                return position < text.Length ? text[position].ToString() : null;
+            case System.Collections.IList list:
+                return position < list.Count ? list[position] : null;
+            default:
+                return Elements(value).ElementAtOrDefault(position);
+        }
     }
 
     /// <summary>计数（集合 / 数组 / 字符串长度；空 → 0；不可计数 → null）。</summary>
@@ -148,6 +205,10 @@ internal static class PortValues
                 return Array.Empty<object?>();
             case string text:
                 return text.Select(c => (object?)c.ToString());
+            case JsonElement element when element.ValueKind == JsonValueKind.Array:
+                return element.EnumerateArray().Select(item => (object?)item.Clone()).ToArray();
+            case JsonElement scalar:
+                return new[] { (object?)scalar.Clone() };
             case System.Collections.IEnumerable sequence:
                 return sequence.Cast<object?>();
             default:

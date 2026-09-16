@@ -19,16 +19,21 @@ public sealed class ScriptedBinding : IPortBinding
     /// <summary>声明的收集槽名集（步骤 / 遍历 / 投影 collect / sameAsLast）。</summary>
     private readonly IReadOnlySet<string> _collections;
 
-    /// <summary>按声明构造绑定：无脚本且无投影、载体冲突、引用形态残缺 → 即抛（fail-fast，防静默绑错）。</summary>
+    /// <summary>按声明构造绑定：无行为声明、载体冲突、引用形态残缺 → 即抛（fail-fast，防静默绑错）。</summary>
     public ScriptedBinding(ScriptedBindingSpec spec)
     {
         _spec = spec ?? throw new ArgumentNullException(nameof(spec));
         _factories = spec.Factories;
         _collections = Collections(spec);
 
-        if (spec.Script.Count == 0 && spec.Project.Count == 0 && spec.Deliver.Capture is null)
+        if (spec.Script.Count == 0 && spec.Project.Count == 0 && spec.Deliver.Capture is null
+            && spec.Deliver.DeferSteps is not { Count: > 0 } && spec.Deliver.Value is null
+            && spec.Scenarios is null)
+        {
             throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 声明 scripted 绑定但 script 与 project 均为空（且无 issue 捕获体）");
+                spec.PortKey,
+                $"端口 '{spec.PortKey}' 声明 scripted 绑定但 script / project / 延迟步骤 / issue 捕获体 / 值载体表达式均为空（无行为可执行）");
+        }
 
         if (spec.Deliver.Defer && spec.Deliver.Issues)
             throw new PortBindingViolationException(
@@ -36,15 +41,21 @@ public sealed class ScriptedBinding : IPortBinding
 
         ValidateKind(spec);
         ValidateScopes(spec);
+        ValidateScenarios(spec);
     }
+
+    /// <summary>最近一次求值的诊断记录（W1：步骤 <c>when</c> / 遍历 <c>where</c> 求值为 ⊥ ⇒ 不执行且留痕，不静默）。</summary>
+    public IReadOnlyList<string> LastNotes { get; private set; } = Array.Empty<string>();
 
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
         => ValueTask.FromResult(Invoke(input));
 
-    /// <summary>求值（本件唯一执行序）：bind → scopes → deps → script → project → deliver。</summary>
+    /// <summary>求值（本件唯一执行序）：场景分派 → bind → scopes → deps → script → project → deliver。</summary>
     private object? Invoke(IPortInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
+
+        if (_spec.Scenarios is { } scenarios) return Dispatch(scenarios, input);
 
         return KindOf(_spec.Deliver) switch
         {
@@ -57,6 +68,27 @@ public sealed class ScriptedBinding : IPortBinding
 
             _ => Execute(input),
         };
+    }
+
+    /// <summary>
+    /// 多场景探针分派（W2：<c>PortProbeRouter.Declare</c> 的一等声明等价）：取场景名 → 命中即执行该场景主体
+    /// （独立绑定实例，共享同一端口键与工厂表）；**未命中即抛**，诊断列全部可用场景名（不静默回落）。
+    /// </summary>
+    private object? Dispatch(ScriptedScenarioSpec scenarios, IPortInput input)
+    {
+        var probe = new ScriptedScope(_spec.PortKey);
+        var chosen = PortValues.Text(ScriptedValue.Resolve(
+            scenarios.Select with { Optional = true }, probe, input, NoDeps, "场景选择（select）"));
+
+        if (chosen is not { Length: > 0 } || !scenarios.Cases.TryGetValue(chosen, out var body))
+        {
+            throw new PortBindingViolationException(
+                _spec.PortKey,
+                $"端口 '{_spec.PortKey}' 的探针 '{chosen ?? "<空>"}' 未命中" +
+                $"（可用场景：{string.Join(", ", scenarios.Cases.Keys.OrderBy(name => name, StringComparer.Ordinal))}）");
+        }
+
+        return new ScriptedBinding(body).Invoke(input);
     }
 
     /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；作用域在正常与异常路径均清理）。</summary>
@@ -76,6 +108,9 @@ public sealed class ScriptedBinding : IPortBinding
             var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
             Run(_spec.Script, scope, input, deps);
+
+            if (_spec.Deliver.Value is { } value)
+                return ScriptedExprEvaluator.Evaluate(value, scope, input, deps, $"载体值表达式（{_spec.PortKey}）");
 
             var product = Project(scope, input, deps);
 
@@ -191,6 +226,11 @@ public sealed class ScriptedBinding : IPortBinding
         if (conflict is not null)
             throw new PortBindingViolationException(
                 spec.PortKey, $"端口 '{spec.PortKey}' 的载体 kind='{kind}' 与 {conflict} 互斥（载体形态单一）");
+
+        if (spec.Deliver.Value is not null && kind != "value")
+            throw new PortBindingViolationException(
+                spec.PortKey,
+                $"端口 '{spec.PortKey}' 的 deliver.value（值载体表达式）仅与 kind='value' 同用（当前 kind='{kind}'）");
     }
 
     /// <summary>作用域声明装配期校验（种类 / 作用域名唯一 / 文件名规范）。</summary>
@@ -213,6 +253,28 @@ public sealed class ScriptedBinding : IPortBinding
                         spec.PortKey,
                         $"端口 '{spec.PortKey}' 的作用域 '{scope.As}' 的文件名 '{file.Name}' 非法" +
                         "（须非空 ∧ 不含路径分隔符；子目录用 dir 表达式声明）");
+        }
+    }
+
+    /// <summary>多场景声明装配期校验（W2：场景集非空 ∧ 场景名非空 ∧ 场景主体端口键一致）。</summary>
+    private static void ValidateScenarios(ScriptedBindingSpec spec)
+    {
+        if (spec.Scenarios is not { } scenarios) return;
+
+        if (scenarios.Cases.Count == 0)
+            throw new PortBindingViolationException(
+                spec.PortKey, $"端口 '{spec.PortKey}' 声明了 scenarios 但场景集为空（无可分派主体）");
+
+        foreach (var (name, body) in scenarios.Cases)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new PortBindingViolationException(
+                    spec.PortKey, $"端口 '{spec.PortKey}' 的 scenarios 含空场景名");
+
+            if (!string.Equals(body.PortKey, spec.PortKey, StringComparison.Ordinal))
+                throw new PortBindingViolationException(
+                    spec.PortKey,
+                    $"端口 '{spec.PortKey}' 的场景 '{name}' 的端口键 '{body.PortKey}' 与宿主不一致");
         }
     }
 
@@ -278,10 +340,14 @@ public sealed class ScriptedBinding : IPortBinding
 
         foreach (var step in steps)
         {
-            if (step.When is { } condition
-                && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(condition, scope, input, deps, "步骤条件 when")))
+            if (step.When is { } condition)
             {
-                continue;
+                var gate = ScriptedExprEvaluator.Evaluate(condition, scope, input, deps, "步骤条件 when");
+
+                // W1：⊥（缺槽 / 解析失败）语义 = 「不执行且记录」——留痕不静默（诊断面 LastNotes）。
+                if (gate is null) scope.Note("步骤条件 when 求值为 ⊥（缺值 / 解析失败）：本步骤不执行");
+
+                if (!PortValues.Truthy(gate)) continue;
             }
 
             if (step.New is { } construct) last = RunNew(step, construct, scope, input, deps);
@@ -292,28 +358,16 @@ public sealed class ScriptedBinding : IPortBinding
                     _spec.PortKey, $"端口 '{_spec.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
         }
 
+        LastNotes = scope.Notes;
         return last;
     }
 
-    /// <summary>构造步骤：反射构造 → 写槽 → 收集。返回构造对象。</summary>
+    /// <summary>构造步骤：反射构造（单源 <see cref="ScriptedConstruction"/>）→ 写槽 → 收集。返回构造对象。</summary>
     private object? RunNew(
         ScriptedStep step, ScriptedNewSpec construct, ScriptedScope scope, IPortInput input, object?[] deps)
     {
-        var context = $"步骤 new '{construct.As}'";
-        var type = ComposedDeps.ResolveType(construct.Type, construct.GenericArgs);
-        var declared = construct.Args ?? Array.Empty<ScriptedArgSpec>();
-        var parameters = ComposedDeps
-            .PickConstructor(_spec.PortKey, type, declared.Count, context)
-            .GetParameters();
+        var created = ScriptedConstruction.Build(construct, scope, input, deps, $"步骤 new '{construct.As}'");
 
-        var args = new object?[parameters.Length];
-        for (var i = 0; i < parameters.Length; i++)
-            args[i] = i < declared.Count
-                ? ScriptedValue.ResolveTyped(
-                    declared[i], parameters[i].ParameterType, scope, input, deps, $"{context} 第 {i} 个实参")
-                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
-
-        var created = Activator.CreateInstance(type, args);
         if (!string.IsNullOrWhiteSpace(construct.As)) scope.Set(construct.As, created);
         Collect(step, created, scope);
         return created;
@@ -367,12 +421,14 @@ public sealed class ScriptedBinding : IPortBinding
             scope.Push(loop.As, item, index);
             try
             {
-                if (loop.Where is not { } filter
-                    || PortValues.Truthy(ScriptedExprEvaluator.Evaluate(
-                        filter, scope, input, deps, $"{context} 的过滤条件")))
-                {
-                    produced = Run(body, scope, input, deps);
-                }
+                var gate = loop.Where is { } filter
+                    ? ScriptedExprEvaluator.Evaluate(filter, scope, input, deps, $"{context} 的过滤条件")
+                    : true;
+
+                if (loop.Where is not null && gate is null)
+                    scope.Note($"{context} 的过滤条件求值为 ⊥（缺值 / 解析失败）：本次迭代不执行");
+
+                if (PortValues.Truthy(gate)) produced = Run(body, scope, input, deps);
             }
             catch (BreakSignal)
             {
@@ -390,18 +446,30 @@ public sealed class ScriptedBinding : IPortBinding
         return last;
     }
 
-    /// <summary>投影：字段 ← 表达式；<c>spread</c> 形态改为动态键逐项写入产物。</summary>
+    /// <summary>投影：字段 ← 表达式；<c>spread</c> 形态改为动态键逐项写入产物（无字段名的 <c>spread</c> 项 = 纯动态键投影）。</summary>
     private void Project(
         ScriptedFieldSpec field, Dictionary<string, object?> product,
         ScriptedScope scope, IPortInput input, object?[] deps)
     {
         var value = ScriptedExprEvaluator.Evaluate(field.Expr, scope, input, deps, field.Field);
 
-        if (field.Expr.Spread is not null && value is IReadOnlyDictionary<string, object?> entries)
+        if (field.Expr.Spread is not null)
         {
-            foreach (var (key, item) in entries) product[key] = item;
-            return;
+            if (value is IReadOnlyDictionary<string, object?> entries)
+            {
+                foreach (var (key, item) in entries) product[key] = item;
+                return;
+            }
+
+            if (field.Field.Length == 0)
+                throw new PortBindingViolationException(
+                    _spec.PortKey,
+                    $"端口 '{_spec.PortKey}' 的动态键投影（无字段名）求值结果不是字典（不可展开为产物键）");
         }
+
+        if (field.Field.Length == 0)
+            throw new PortBindingViolationException(
+                _spec.PortKey, $"端口 '{_spec.PortKey}' 的投影项既无字段名亦非动态键投影（spread）");
 
         product[field.Field] = value;
     }
@@ -483,6 +551,7 @@ public sealed class ScriptedBinding : IPortBinding
         {
             expr.Count, expr.NotNull, expr.AsText, expr.TypeName, expr.Message, expr.Thrown,
             expr.Contains, expr.Of, expr.All, expr.Any, expr.AllIn, expr.Spread,
+            expr.First, expr.FirstWhere, expr.IsNull, expr.Not, expr.Agg,
         })
         {
             if (candidate is not null) yield return candidate;
@@ -490,5 +559,9 @@ public sealed class ScriptedBinding : IPortBinding
 
         foreach (var item in expr.Concat ?? Array.Empty<ScriptedExpr>()) yield return item;
         foreach (var item in expr.CountEqual ?? Array.Empty<ScriptedExpr>()) yield return item;
+        foreach (var item in expr.AllOf ?? Array.Empty<ScriptedExpr>()) yield return item;
+        foreach (var item in expr.AnyOf ?? Array.Empty<ScriptedExpr>()) yield return item;
+        foreach (var item in expr.Coalesce ?? Array.Empty<ScriptedExpr>()) yield return item;
+        foreach (var item in expr.SameReference ?? Array.Empty<ScriptedExpr>()) yield return item;
     }
 }

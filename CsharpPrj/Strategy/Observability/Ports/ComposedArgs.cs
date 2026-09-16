@@ -155,14 +155,7 @@ internal static class ComposedArgs
     }
 
     /// <summary>JSON 值 → 目标类型（<c>JsonElement</c>/<c>object</c> 位保留元素；null / undefined → null）。</summary>
-    private static object? Coerce(object? value, Type target)
-    {
-        if (value is not JsonElement element) return value;
-        if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return null;
-        if (target == typeof(JsonElement) || target == typeof(object)) return element.Clone();
-
-        return JsonSerializer.Deserialize(element.GetRawText(), target);
-    }
+    private static object? Coerce(object? value, Type target) => PortValues.Coerce(value, target);
 
     /// <summary>具名实参原始值（缺键 / null：<c>optional</c> → null，否则 fail-fast）。</summary>
     private static object? WithRaw(
@@ -185,16 +178,7 @@ internal static class ComposedArgs
                 $"端口 '{portKey}' 的 {context} 第 {index} 个实参引用了不可用的依赖下标 {reference}（依赖共 {deps.Length} 个）");
 
     /// <summary>常量 JSON → 原义值（标量取 CLR 值；结构保留元素）。</summary>
-    private static object? Unwrap(JsonElement element)
-        => element.ValueKind switch
-        {
-            JsonValueKind.Null or JsonValueKind.Undefined => null,
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Number => element.TryGetInt64(out var integer) ? integer : element.GetDouble(),
-            _ => element.Clone(),
-        };
+    private static object? Unwrap(JsonElement element) => PortValues.Unwrap(element);
 
     private static PortBindingViolationException Mismatch(
         string portKey, string context, int index, string text, string expected)

@@ -12,6 +12,9 @@ public enum PortBindingPlanKind
     /// <summary>组合绑定（按 <see cref="ComposedBindingSpec"/> 的 calls/project 多调用 + 投影）。</summary>
     Composed,
 
+    /// <summary>脚本绑定（按 <see cref="ScriptedBindingSpec"/> 的 bind/deps/script/project/deliver 编排求值）。</summary>
+    Scripted,
+
     /// <summary>委托绑定（由调用方给出实现工厂，如产品真实实现 / 测试内联编排）。</summary>
     Delegate,
 
@@ -29,7 +32,8 @@ public sealed record PortBindingPlan(
     PortBindingSpec? Spec = null,
     Func<IPortBinding>? Factory = null,
     string? Reason = null,
-    ComposedBindingSpec? Composed = null);
+    ComposedBindingSpec? Composed = null,
+    ScriptedBindingSpec? Scripted = null);
 
 /// <summary>
 /// 声明式端口装配器（E15 / G1 · 原测试侧 <c>Bridge\PortRegistry.cs</c> 的装配职责上移）：
@@ -127,6 +131,15 @@ public sealed class PortAssembler
                 }
 
                 return Bind(plan.PortKey, new ComposedBinding(plan.Composed));
+
+            case PortBindingPlanKind.Scripted:
+                if (plan.Scripted is null)
+                {
+                    MarkUnbound(plan.PortKey, "声明 scripted 绑定但缺少脚本声明（ScriptedBindingSpec）");
+                    return false;
+                }
+
+                return Bind(plan.PortKey, new ScriptedBinding(plan.Scripted));
 
             case PortBindingPlanKind.Delegate:
                 if (plan.Factory is null)

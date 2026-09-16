@@ -87,7 +87,8 @@ public sealed record ComposedCallSpec(
 /// <param name="Call">取值来源调用（<see cref="ComposedCallSpec.As"/>；<c>fakeCount</c> 可空）。</param>
 /// <param name="Select">取值法：<c>value</c>（原样）/ <c>count</c>（计数：集合 / 数组 / 字符串长度）/
 /// <c>notNull</c>（非空布尔）/ <c>text</c>（文本形式）/ <c>countEqual</c>（与 <paramref name="Other"/> 计数相等）/
-/// <c>path</c>（对象属性路径取值，见 <paramref name="Path"/>）/ <c>message</c>（异常消息）/ <c>thrown</c>（异常是否命中）/
+/// <c>path</c>（对象属性路径取值，见 <paramref name="Path"/>）/<c>pathText</c>（属性路径取值后取文本形式，
+/// 如枚举成员按名断言）/ <c>message</c>（异常消息）/ <c>thrown</c>（异常是否命中）/
 /// <c>fakeCount</c>（读替身的调用计数，见 <paramref name="Dep"/>/<paramref name="Method"/>/<paramref name="Key"/>）。</param>
 /// <param name="Other">仅 <c>countEqual</c> 用：被比较的另一调用引用名。</param>
 /// <param name="Path">仅 <c>path</c> 用：属性 / 字段路径（<c>A.B.C</c>；逐段属性优先、回落字段；任一段缺失 → null）。</param>

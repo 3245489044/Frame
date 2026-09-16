@@ -67,111 +67,18 @@ public sealed class ComposedBinding : IPortBinding
     // ── 依赖构建（new / factory / fake）────────────────────────────────────────
 
     /// <summary>按声明序构建依赖（下标引用只能指向更早的依赖：保证构建拓扑无环）。</summary>
+    /// <remarks>构建语义单源 = <see cref="ComposedDeps"/>（与脚本绑定 <c>deps</c> 共用）。</remarks>
     private object?[] BuildDeps(IPortInput input)
-    {
-        var deps = new object?[_spec.Deps.Count];
-        for (var i = 0; i < deps.Length; i++)
-            deps[i] = BuildDep(i, _spec.Deps[i], input, deps);
+        => ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
-        return deps;
-    }
+    // 依赖构建（new / factory / fake）语义单源：ComposedDeps（组合绑定与脚本绑定共用）
 
-    private object? BuildDep(int index, ComposedDepSpec spec, IPortInput input, object?[] deps)
-    {
-        if (spec.Fake is { Length: > 0 } kind) return BuildFake(index, kind, spec, deps);
-
-        if (spec.New is { Length: > 0 } typeName)
-        {
-            var type = ResolveType(typeName, spec.GenericArgs);
-            var ctor = PickConstructor(type, index, spec.Args);
-            var args = ComposedArgs.Build(
-                ctor.GetParameters(), spec.Args, input, deps, _spec.PortKey, $"dep[{index}].new {type.Name}");
-            return Activator.CreateInstance(type, args);
-        }
-
-        if (spec.Factory is { Length: > 0 } factory)
-        {
-            if (!_factories.TryGetValue(factory, out var builder))
-                throw new PortBindingViolationException(
-                    _spec.PortKey,
-                    $"端口 '{_spec.PortKey}' 的 dep[{index}] 引用未注入的工厂 '{factory}'" +
-                    $"（已注入：{(_factories.Count == 0 ? "(无)" : string.Join(", ", _factories.Keys))}）");
-
-            return builder(ComposedArgs.Values(spec.Args, input, deps, _spec.PortKey, $"dep[{index}].factory"));
-        }
-
-        throw new PortBindingViolationException(
-            _spec.PortKey, $"端口 '{_spec.PortKey}' 的 dep[{index}] 未声明形态（须给 new / factory / fake）");
-    }
-
-    /// <summary>构建代理替身（计数 / 记录 / 固定应答 / 序列应答 / 不该调用）。</summary>
-    private object? BuildFake(int index, string kind, ComposedDepSpec spec, object?[] deps)
-    {
-        var contract = ContractOf(index, spec);
-        var wrapped = spec.Wrap is { } wrap ? Dep(deps, wrap, index) : null;
-
-        return kind switch
-        {
-            "counting" => ProxyFakes.Counting(contract, Wrapped(index, wrapped, kind), spec.Methods),
-            "recording" => ProxyFakes.Recording(contract, Wrapped(index, wrapped, kind), spec.Methods),
-            "fixed" => ProxyFakes.Fixed(
-                contract, spec.Values is { Count: > 0 } values ? values[0] : null),
-            "sequence" => ProxyFakes.Sequence(
-                contract, (spec.Values ?? Array.Empty<System.Text.Json.JsonElement>()).Cast<object?>().ToArray()),
-            "notExpected" => ProxyFakes.NotExpected(contract, spec.Methods, wrapped),
-            _ => throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 dep[{index}] fake 种类 '{kind}' 未知" +
-                "（recording|counting|fixed|sequence|notExpected）"),
-        };
-    }
-
-    /// <summary>包装形态的被装饰对象（recording/counting 必须给出 wrap；否则无法转发）。</summary>
-    private object Wrapped(int index, object? wrapped, string kind)
-        => wrapped ?? throw new PortBindingViolationException(
-            _spec.PortKey,
-            $"端口 '{_spec.PortKey}' 的 dep[{index}] 声明 fake='{kind}' 但缺 wrap（该形态需装饰一个已有依赖）");
-
-    /// <summary>替身契约接口（声明必填：不从运行时类型猜接口，避免多接口时静默择一）。</summary>
-    private Type ContractOf(int index, ComposedDepSpec spec)
-        => spec.Contract is { Length: > 0 } name
-            ? ReflectivePortResolver.ResolveType(name)
-            : throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 dep[{index}] 声明 fake='{spec.Fake}' 但缺 contract（契约接口全名）");
-
-    /// <summary>依赖引用（下标必须存在且指向更早的依赖）。</summary>
-    private object? Dep(object?[] deps, int reference, int index)
-        => reference >= 0 && reference < deps.Length
-            ? deps[reference]
-            : throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 dep[{index}] 引用了不可用的依赖下标 {reference}" +
-                $"（依赖共 {deps.Length} 个，且只能引用更早的依赖）");
+    // 替身装配 / 依赖引用 / 构造选择语义单源：ComposedDeps（组合绑定与脚本绑定共用）
 
     /// <summary>类型解析（含开放泛型闭合：<c>GenericArgs</c> 按序闭合泛型形参）。</summary>
+    /// <remarks>解析语义单源 = <see cref="ComposedDeps.ResolveType"/>。</remarks>
     internal static Type ResolveType(string typeName, IReadOnlyList<string>? genericArgs)
-    {
-        var type = ReflectivePortResolver.ResolveType(typeName);
-        if (genericArgs is not { Count: > 0 }) return type;
-
-        return type.IsGenericTypeDefinition
-            ? type.MakeGenericType(genericArgs.Select(ReflectivePortResolver.ResolveType).ToArray())
-            : type;
-    }
-
-    /// <summary>构造选择：按声明实参个数精确匹配，否则取参数最少者（尾部参数按默认值补齐）。</summary>
-    private ConstructorInfo PickConstructor(Type type, int index, IReadOnlyList<ComposedArgSpec>? declared)
-    {
-        var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
-        var count = declared?.Count ?? 0;
-
-        return constructors.FirstOrDefault(c => c.GetParameters().Length == count)
-               ?? constructors.OrderBy(c => c.GetParameters().Length).FirstOrDefault()
-               ?? throw new PortBindingViolationException(
-                   _spec.PortKey,
-                   $"端口 '{_spec.PortKey}' 的 dep[{index}]：类型 {type.Name} 上没有公开构造函数");
-    }
+        => ComposedDeps.ResolveType(typeName, genericArgs);
 
     // ── 调用解析（静态 / 实例；方法 / 成员读取）──────────────────────────────
 
@@ -267,6 +174,13 @@ public sealed class ComposedBinding : IPortBinding
 
                 return PathOf(Result(field, results), path);
 
+            case "pathText":
+                if (field.Path is not { Length: > 0 } textPath)
+                    throw new PortBindingViolationException(
+                        _spec.PortKey, $"端口 '{_spec.PortKey}' 的 pathText 字段 '{field.Field}' 缺少 path（属性路径）");
+
+                return PathOf(Result(field, results), textPath)?.ToString();
+
             case "fakeCount":
                 if (field.Dep is not { } index || index < 0 || index >= deps.Length || deps[index] is not { } fake)
                     throw new PortBindingViolationException(
@@ -279,7 +193,7 @@ public sealed class ComposedBinding : IPortBinding
                 throw new PortBindingViolationException(
                     _spec.PortKey,
                     $"端口 '{_spec.PortKey}' 的投影字段 '{field.Field}' 取值法 '{field.Select}' 未知" +
-                    "（value|count|notNull|text|message|thrown|countEqual|path|fakeCount）");
+                    "（value|count|notNull|text|message|thrown|countEqual|path|pathText|fakeCount）");
         }
     }
 
@@ -297,55 +211,14 @@ public sealed class ComposedBinding : IPortBinding
         => new(_spec.PortKey, $"端口 '{_spec.PortKey}' 的字段 '{field.Field}' 取值法 '{field.Select}' 缺少 {key}");
 
     /// <summary>属性路径取值（<c>A.B.C</c>：逐段属性优先、回落字段、忽略大小写；任一段缺失 → null）。</summary>
-    private static object? PathOf(object? value, string path)
-    {
-        var current = value;
-        foreach (var segment in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (current is null) return null;
-
-            var type = current.GetType();
-            var flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
-
-            var member = (MemberInfo?)type.GetProperty(segment, flags)
-                         ?? type.GetProperties(flags).FirstOrDefault(p =>
-                             string.Equals(p.Name, segment, StringComparison.OrdinalIgnoreCase))
-                         ?? type.GetField(segment, flags)
-                         ?? (MemberInfo?)type.GetFields(flags).FirstOrDefault(f =>
-                             string.Equals(f.Name, segment, StringComparison.OrdinalIgnoreCase));
-
-            current = member switch
-            {
-                PropertyInfo property => property.GetValue(current),
-                FieldInfo field => field.GetValue(current),
-                _ => null,
-            };
-        }
-
-        return current;
-    }
+    private static object? PathOf(object? value, string path) => PortValues.PathOf(value, path);
 
     /// <summary>计数（集合 / 数组 / 字符串长度；未知载体 fail-fast，防静默投影为 0）。</summary>
     private int Count(object? value, string field)
-    {
-        switch (value)
-        {
-            case null:
-                return 0;
-            case string text:
-                return text.Length;
-            case System.Collections.ICollection collection:
-                return collection.Count;
-            case System.Collections.IEnumerable sequence:
-                var count = 0;
-                foreach (var _ in sequence) count++;
-                return count;
-            default:
-                throw new PortBindingViolationException(
-                    _spec.PortKey,
-                    $"端口 '{_spec.PortKey}' 的投影字段 '{field}' 取值法 count 不适用于 {value.GetType().Name}");
-        }
-    }
+        => PortValues.TryCount(value)
+           ?? throw new PortBindingViolationException(
+               _spec.PortKey,
+               $"端口 '{_spec.PortKey}' 的投影字段 '{field}' 取值法 count 不适用于 {value!.GetType().Name}");
 
     /// <summary>解析后的调用：构造实参 → 执行（静态 / 实例）→ 异常归一（期望异常转结果）→ 异步折取。</summary>
     private sealed class ResolvedCall
@@ -373,20 +246,7 @@ public sealed class ComposedBinding : IPortBinding
         internal int? DepIndex { get; }
 
         internal object? Invoke(IPortInput input, object?[] deps)
-        {
-            try
-            {
-                return Execute(input, deps);
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException is { } inner)
-            {
-                return FromException(inner);
-            }
-            catch (Exception ex)
-            {
-                return FromException(ex);
-            }
-        }
+            => PortInvocation.Execute(() => Execute(input, deps), _expect);
 
         private object? Execute(IPortInput input, object?[] deps)
         {
@@ -411,45 +271,6 @@ public sealed class ComposedBinding : IPortBinding
         }
 
         /// <summary>异步折取：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> 同步取值（异常原样上抛）。</summary>
-        private object? Fold(object? value)
-        {
-            if (!Spec.Await || value is null) return value;
-
-            switch (value)
-            {
-                case Task task:
-                    task.GetAwaiter().GetResult();
-                    return TaskResult(task);
-
-                case ValueTask valueTask:
-                    valueTask.GetAwaiter().GetResult();
-                    return null;
-            }
-
-            var type = value.GetType();
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>))
-            {
-                var asTask = (Task)type.GetMethod(nameof(ValueTask<int>.AsTask))!.Invoke(value, null)!;
-                asTask.GetAwaiter().GetResult();
-                return TaskResult(asTask);
-            }
-
-            return value;
-        }
-
-        private static object? TaskResult(Task task)
-        {
-            var type = task.GetType();
-            return type.IsGenericType ? type.GetProperty(nameof(Task<int>.Result))!.GetValue(task) : null;
-        }
-
-        /// <summary>异常归一：命中期望类型 → 异常对象即结果（供 <c>message</c>/<c>thrown</c> 投影）；否则原样上抛。</summary>
-        private object? FromException(Exception exception)
-        {
-            if (_expect is not null && _expect.IsInstanceOfType(exception)) return exception;
-
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
-            throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");
-        }
+        private object? Fold(object? value) => PortInvocation.Fold(value, Spec.Await);
     }
 }

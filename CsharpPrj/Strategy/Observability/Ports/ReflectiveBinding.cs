@@ -109,9 +109,14 @@ public sealed class ReflectiveBinding : IPortBinding
 
         if (!input.With.TryGetValue(spec.Key!, out var value) || value is null)
         {
-            if (spec.Optional) return ReflectivePortResolver.DefaultFor(parameter.ParameterType);
-            throw new PortBindingViolationException(
-                _spec.PortKey, $"端口 '{_spec.PortKey}' 缺具名实参 '{spec.Key}'（with）");
+            if (!spec.Optional)
+                throw new PortBindingViolationException(
+                    _spec.PortKey, $"端口 '{_spec.PortKey}' 缺具名实参 '{spec.Key}'（with）");
+
+            // 缺参口径与位置实参分支同源：声明 default → 按目标形参类型还原；否则取目标类型默认值。
+            return spec.Default is { } fallback
+                ? ReflectivePortResolver.FromJson(fallback, parameter.ParameterType)
+                : ReflectivePortResolver.DefaultFor(parameter.ParameterType);
         }
 
         return ReflectivePortResolver.FromJson(value, parameter.ParameterType);
@@ -179,12 +184,20 @@ internal static class ReflectivePortResolver
             throw new InvalidOperationException(
                 $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到方法 {methodName}");
 
-        var method = candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
+        var method = candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
+                     ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
                      ?? candidates.OrderBy(m => m.GetParameters().Length).First();
 
         MethodCache[cacheKey] = method;
         return method;
     }
+
+    /// <summary>
+    /// 声明实参数对应的方法形参数：<c>out</c> 形参不计（<c>invoke.out</c> 由出参捕获按位写入槽，
+    /// 声明面不为出参写实参）——见《…声明式编排框架》§9.1 试点写法。
+    /// </summary>
+    private static int DeclaredCount(MethodInfo method)
+        => method.GetParameters().Count(parameter => !parameter.IsOut);
 
     /// <summary>成员读取解析（属性优先、缺失回落静态 / 实例字段）：属性与字段是产品表示选择，声明侧不区分。</summary>
     internal static MemberInfo ResolveMember(Type type, string portKey, string name, bool isStatic)

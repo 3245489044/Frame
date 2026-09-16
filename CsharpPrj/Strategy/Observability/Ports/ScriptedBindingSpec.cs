@@ -1,6 +1,7 @@
 namespace Strategy.Observability.Ports;
 
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 /// <summary>
 /// 脚本绑定的**取值来源**（bind 槽 / 步骤实参 / 表达式源共用同一口径；位序即语义）。
@@ -62,7 +63,15 @@ public sealed record ScriptedArgSpec(
     string? ElementType = null,
     ScriptedNewSpec? Construct = null,
     string? Named = null,
-    ScriptedDelegateSpec? Delegate = null);
+    ScriptedDelegateSpec? Delegate = null)
+{
+    /// <summary>
+    /// 唯一转换表视图（R2-1）：取公共内核字段。脚本通道的扩展字段（<c>table</c>/<c>presence</c>/<c>construct</c>…）
+    /// 不属转换表，由 R2-2 的指令模型另行承载。
+    /// </summary>
+    [JsonIgnore]
+    public PortValueOptions Options => new(Convert, Optional, NullLiteral, Default, From, Key);
+}
 
 /// <summary>
 /// **收集声明**（G1）：把本步骤产物或指定槽的当前值按序追加到收集槽（槽在执行前预建空清单，短路 / 零迭代时投影取之不为空）。

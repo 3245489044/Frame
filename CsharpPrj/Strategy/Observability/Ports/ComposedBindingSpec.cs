@@ -1,6 +1,7 @@
 namespace Strategy.Observability.Ports;
 
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 /// <summary>
 /// 组合绑定的**实参**声明（机制件；位序即语义）。取值来源四选一：
@@ -30,7 +31,12 @@ public sealed record ComposedArgSpec(
     string? ElementType = null,
     bool Optional = false,
     JsonElement? Default = null,
-    bool NullLiteral = false);
+    bool NullLiteral = false)
+{
+    /// <summary>唯一转换表视图（R2-1）：取公共内核字段（来源由 <see cref="ArgIndex"/>/<see cref="Key"/>/<see cref="Dep"/>/<see cref="Value"/> 表达）。</summary>
+    [JsonIgnore]
+    public PortValueOptions Options => new(Convert, Optional, NullLiteral, Default, From: null, Key);
+}
 
 /// <summary>
 /// 组合绑定的**依赖**声明（装配期按声明序构建，供实例调用 / 注入）：

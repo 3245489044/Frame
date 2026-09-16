@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Strategy.Observability.Ports;
 
@@ -19,7 +20,12 @@ public sealed record PortArgSpec(
     bool NullLiteral = false,
     JsonElement? Default = null,
     string? From = null,
-    string? Key = null);
+    string? Key = null)
+{
+    /// <summary>唯一转换表视图（R2-1）：字段与旧声明同源，供指令模型 / 求值引擎单源消费（推导视图，不进声明序列化形态）。</summary>
+    [JsonIgnore]
+    public PortValueOptions Options => new(Convert, Optional, NullLiteral, Default, From, Key);
+}
 
 /// <summary>
 /// 端口绑定声明（E15 / G2）：交由 <see cref="ReflectiveBinding"/> 按 <see cref="Target"/>/<see cref="Method"/>/<see cref="Args"/>

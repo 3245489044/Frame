@@ -12,7 +12,7 @@ using System.Text.Json;
 /// </list>
 /// <para>全空 = 未取值：<see cref="Optional"/> → 目标类型默认值，否则 fail-fast。</para>
 /// </summary>
-/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c> / <c>json</c> / <c>dep</c>（依赖引用）/ <c>array</c>（空数组或元素数组）。</param>
+/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c> / <c>json</c> / <c>dep</c>（依赖引用）/ <c>array</c>（空数组或元素数组）/ <c>object</c>（位置实参对象直投：原样传实例，不文本化）。</param>
 /// <param name="ArgIndex">用例位置实参索引（<c>.specs</c> 的 <c>args</c>；越界 → <see cref="Optional"/> 决定默认值或抛）。</param>
 /// <param name="Key">具名实参键（<c>with</c>；<c>json</c>/<c>array</c> 用）。</param>
 /// <param name="Dep">依赖下标（<c>dep</c>/<c>array</c> 元素类型注入用）。</param>

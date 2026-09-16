@@ -9,8 +9,12 @@ namespace Strategy.Observability.Ports;
 /// </summary>
 internal static class PortInvocation
 {
-    /// <summary>执行并把异常按期望类型归一（命中 → 异常对象即结果；否则原样上抛）。</summary>
+    /// <summary>执行并把异常按期望类型归一（单类型快捷形态；null = 不捕获）。</summary>
     internal static object? Execute(Func<object?> body, Type? expect)
+        => ExecuteAny(body, expect is null ? null : new[] { expect });
+
+    /// <summary>执行并把异常按期望类型集归一（任一命中 → 异常对象即结果；否则原样上抛）。</summary>
+    internal static object? ExecuteAny(Func<object?> body, IReadOnlyList<Type>? expect)
     {
         try
         {
@@ -18,11 +22,11 @@ internal static class PortInvocation
         }
         catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is { } inner)
         {
-            return Expect(inner, expect);
+            return ExpectAny(inner, expect);
         }
         catch (Exception ex)
         {
-            return Expect(ex, expect);
+            return ExpectAny(ex, expect);
         }
     }
 
@@ -53,10 +57,11 @@ internal static class PortInvocation
         return value;
     }
 
-    /// <summary>异常归一：命中期望类型 → 异常对象即结果；否则原样上抛（保留原始栈）。</summary>
-    internal static object? Expect(Exception exception, Type? expect)
+    /// <summary>异常归一：命中任一期望类型 → 异常对象即结果；否则原样上抛（保留原始栈）。</summary>
+    internal static object? ExpectAny(Exception exception, IReadOnlyList<Type>? expect)
     {
-        if (expect is not null && expect.IsInstanceOfType(exception)) return exception;
+        if (expect is { Count: > 0 } expected && expected.Any(type => type.IsInstanceOfType(exception)))
+            return exception;
 
         ExceptionDispatchInfo.Capture(exception).Throw();
         throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");

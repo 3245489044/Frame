@@ -7,7 +7,7 @@ namespace Strategy.Observability.Ports;
 /// <para>迁移说明：本类型为原测试侧 <c>Agent.TestShared.Bridge.PortArgSpec</c> 的**机制上移**（原样搬迁），
 /// 作为「声明式绑定」的唯一模型载体（避免测试侧与内核两套同形类型）。</para>
 /// </summary>
-/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c>（CSV → List&lt;string&gt;）/ <c>json</c>（结构化直传，配 <paramref name="From"/>+<paramref name="Key"/>）。</param>
+/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c>（CSV → List&lt;string&gt;）/ <c>json</c>（结构化直传，配 <paramref name="From"/>+<paramref name="Key"/>）/ <c>object</c>（位置实参对象直投：原样传实例，不文本化）。</param>
 /// <param name="Optional">可省略（缺参 → <paramref name="Default"/> 或目标类型默认值）。</param>
 /// <param name="NullLiteral">字面串 <c>null</c> 视为 null。</param>
 /// <param name="Default">缺省值（可选槽位缺参时使用）。</param>

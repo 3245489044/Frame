@@ -26,47 +26,249 @@ public sealed class ScriptedBinding : IPortBinding
         _factories = spec.Factories;
         _collections = Collections(spec);
 
-        if (spec.Script.Count == 0 && spec.Project.Count == 0)
+        if (spec.Script.Count == 0 && spec.Project.Count == 0 && spec.Deliver.Capture is null)
             throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 声明 scripted 绑定但 script 与 project 均为空");
+                spec.PortKey, $"端口 '{spec.PortKey}' 声明 scripted 绑定但 script 与 project 均为空（且无 issue 捕获体）");
 
         if (spec.Deliver.Defer && spec.Deliver.Issues)
             throw new PortBindingViolationException(
                 spec.PortKey, $"端口 '{spec.PortKey}' 的载体 defer 与 issues 互斥（二选一）");
+
+        ValidateKind(spec);
+        ValidateScopes(spec);
     }
 
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
         => ValueTask.FromResult(Invoke(input));
 
-    /// <summary>求值（本件唯一执行序）：bind → deps → script → project → deliver。</summary>
+    /// <summary>求值（本件唯一执行序）：bind → scopes → deps → script → project → deliver。</summary>
     private object? Invoke(IPortInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        return _spec.Deliver.Defer
-            ? new DeferredAction(() => Execute(input))
-            : Execute(input);
+        return KindOf(_spec.Deliver) switch
+        {
+            "action" => new DeferredAction(() => _spec.Deliver.DeferSteps is { Count: > 0 } steps
+                ? RunDeferred(steps, input)
+                : Execute(input)),
+
+            "issues" when _spec.Deliver.Capture is { } capture
+                => new PortIssues(CaptureIssues(capture, input)),
+
+            _ => Execute(input),
+        };
     }
 
-    /// <summary>即时执行（<c>deliver.defer</c> 时由载体在断言期再次调用）。</summary>
+    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；作用域在正常与异常路径均清理）。</summary>
     private object? Execute(IPortInput input)
     {
         var scope = new ScriptedScope(_spec.PortKey);
 
         foreach (var name in _collections) scope.Collect(name);
 
-        foreach (var (name, bind) in _spec.Binds)
-            scope.Set(name, ScriptedValue.ResolveTyped(
-                bind, typeof(object), scope, input, NoDeps, $"输入绑定 '{name}'"));
+        BindInputs(scope, input);
+
+        var created = new List<string>();
+        try
+        {
+            foreach (var declared in _spec.Scopes) created.Add(Materialize(declared, scope, input));
+
+            var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
+
+            Run(_spec.Script, scope, input, deps);
+
+            var product = Project(scope, input, deps);
+
+            return _spec.Deliver.Issues ? new PortIssues(IssueList(IssueSource(product, scope))) : product;
+        }
+        finally
+        {
+            foreach (var directory in created) TryDelete(directory);
+        }
+    }
+
+    /// <summary>延迟步骤求值（<c>kind=action</c>：断言期才执行「步骤 + 投影」，与主执行共用同一求值路径）。</summary>
+    private object? RunDeferred(IReadOnlyList<ScriptedStep> steps, IPortInput input)
+    {
+        var scope = new ScriptedScope(_spec.PortKey);
+
+        foreach (var name in _collections) scope.Collect(name);
+
+        BindInputs(scope, input);
 
         var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
-        Run(_spec.Script, scope, input, deps);
+        Run(steps, scope, input, deps);
+        return Project(scope, input, deps);
+    }
 
+    /// <summary>
+    /// issue 承载（<c>kind=issues</c> + 捕获体）：命中期望异常 → 一条 issue（消息 / 类型名两口径）；
+    /// 未抛 → 空清单；非期望异常由共用调用路径原样上抛（不吞不换）。
+    /// </summary>
+    private IReadOnlyList<string> CaptureIssues(ScriptedDeliverCaptureSpec capture, IPortInput input)
+    {
+        var scope = new ScriptedScope(_spec.PortKey);
+
+        foreach (var name in _collections) scope.Collect(name);
+
+        BindInputs(scope, input);
+
+        var created = new List<string>();
+        try
+        {
+            foreach (var declared in _spec.Scopes) created.Add(Materialize(declared, scope, input));
+
+            var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
+            var context = $"载体 issues 的捕获调用 '{capture.Call.Method}'";
+
+            if (capture.When is { } gate
+                && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(gate, scope, input, deps, context)))
+            {
+                return Array.Empty<string>();
+            }
+
+            var call = capture.Call with { Expect = ExpectDeclaration(capture) };
+            var result = RunInvoke(new ScriptedStep(Invoke: call), call, scope, input, deps);
+            if (result is not Exception exception) return Array.Empty<string>();
+
+            return
+            [
+                string.Equals(capture.Message, "TypeName", StringComparison.Ordinal)
+                    ? exception.GetType().Name
+                    : exception.Message,
+            ];
+        }
+        finally
+        {
+            foreach (var directory in created) TryDelete(directory);
+        }
+    }
+
+    /// <summary>捕获体期望类型声明（<c>expect</c> 集 → 管道串；空集 → 不捕获任何异常，即恒空清单）。</summary>
+    private static string ExpectDeclaration(ScriptedDeliverCaptureSpec capture)
+        => capture.Call.Expect is { Length: > 0 } declared ? declared : string.Join('|', capture.Expect);
+
+    /// <summary>输入绑定求值（声明序 = 求值序；依赖尚未构建，故一律无 dep 源）。</summary>
+    private void BindInputs(ScriptedScope scope, IPortInput input)
+    {
+        foreach (var (name, bind) in _spec.Binds)
+            scope.Set(name, ScriptedValue.ResolveTyped(
+                bind, typeof(object), scope, input, NoDeps, $"输入绑定 '{name}'"));
+    }
+
+    /// <summary>投影（声明序 = 产物字段序；<c>spread</c> 自占位不写入字段）。</summary>
+    private Dictionary<string, object?> Project(ScriptedScope scope, IPortInput input, object?[] deps)
+    {
         var product = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var field in _spec.Project) Project(field, product, scope, input, deps);
+        return product;
+    }
 
-        return _spec.Deliver.Issues ? new PortIssues(IssueList(IssueSource(product, scope))) : product;
+    /// <summary>载体种类（<c>kind</c> 缺省时按旧布尔推断：<c>defer</c> → action；<c>issues</c> → issues）。</summary>
+    private static string KindOf(ScriptedDeliverSpec deliver)
+        => deliver.Kind is { Length: > 0 } kind
+            ? kind
+            : deliver.Defer ? "action" : deliver.Issues ? "issues" : "value";
+
+    /// <summary>载体形态装配期校验（取值域 + 载体单一性）。</summary>
+    private static void ValidateKind(ScriptedBindingSpec spec)
+    {
+        var kind = KindOf(spec.Deliver);
+        if (kind is not ("value" or "issues" or "action"))
+            throw new PortBindingViolationException(
+                spec.PortKey, $"端口 '{spec.PortKey}' 的载体 kind '{kind}' 非法（value|issues|action）");
+
+        var conflict = kind switch
+        {
+            "value" when spec.Deliver.Capture is not null || spec.Deliver.DeferSteps is { Count: > 0 }
+                => "issue 捕获体 / 延迟步骤",
+            "issues" when spec.Deliver.DeferSteps is { Count: > 0 } => "延迟步骤",
+            "action" when spec.Deliver.Capture is not null => "issue 捕获体",
+            _ => null,
+        };
+
+        if (conflict is not null)
+            throw new PortBindingViolationException(
+                spec.PortKey, $"端口 '{spec.PortKey}' 的载体 kind='{kind}' 与 {conflict} 互斥（载体形态单一）");
+    }
+
+    /// <summary>作用域声明装配期校验（种类 / 作用域名唯一 / 文件名规范）。</summary>
+    private static void ValidateScopes(ScriptedBindingSpec spec)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var scope in spec.Scopes)
+        {
+            if (!string.Equals(scope.Kind, "tempDir", StringComparison.Ordinal))
+                throw new PortBindingViolationException(
+                    spec.PortKey, $"端口 '{spec.PortKey}' 的作用域 kind '{scope.Kind}' 非法（tempDir）");
+
+            if (string.IsNullOrWhiteSpace(scope.As) || !names.Add(scope.As))
+                throw new PortBindingViolationException(
+                    spec.PortKey, $"端口 '{spec.PortKey}' 的作用域名 '{scope.As}' 为空或重复（须唯一）");
+
+            foreach (var file in scope.Files ?? Array.Empty<ScriptedFileSpec>())
+                if (string.IsNullOrWhiteSpace(file.Name) || file.Name.IndexOfAny(['\\', '/', ':']) >= 0)
+                    throw new PortBindingViolationException(
+                        spec.PortKey,
+                        $"端口 '{spec.PortKey}' 的作用域 '{scope.As}' 的文件名 '{file.Name}' 非法" +
+                        "（须非空 ∧ 不含路径分隔符；子目录用 dir 表达式声明）");
+        }
+    }
+
+    /// <summary>建作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件。返回目录绝对路径（供清理）。</summary>
+    private string Materialize(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    {
+        var prefix = declared.Prefix is { Length: > 0 } name ? name : "spec";
+        var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}");
+
+        System.IO.Directory.CreateDirectory(directory);
+        scope.SetTempDir(declared.As, directory);
+
+        foreach (var file in declared.Files ?? Array.Empty<ScriptedFileSpec>())
+        {
+            var context = $"作用域 '{declared.As}' 的文件 '{file.Name}'";
+
+            if (file.When is { } gate
+                && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(gate, scope, input, NoDeps, context)))
+            {
+                continue;
+            }
+
+            var root = file.Dir is { } relative
+                ? System.IO.Path.Combine(
+                    directory,
+                    PortValues.Text(
+                        ScriptedExprEvaluator.Evaluate(relative, scope, input, NoDeps, context)) ?? string.Empty)
+                : directory;
+
+            System.IO.Directory.CreateDirectory(root);
+
+            var content = file.Content is { } body
+                ? PortValues.Text(ScriptedExprEvaluator.Evaluate(body, scope, input, NoDeps, context))
+                : file.From is { } from
+                    ? PortValues.Text(ScriptedValue.Resolve(from, scope, input, NoDeps, context))
+                    : null;
+
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root, file.Name), content ?? string.Empty);
+        }
+
+        return directory;
+    }
+
+    /// <summary>递归清理作用域目录（清理失败不掩盖原始异常：保留现场供排查）。</summary>
+    private static void TryDelete(string directory)
+    {
+        try
+        {
+            if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, recursive: true);
+        }
+        catch (System.IO.IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     /// <summary>按声明序执行步骤（<c>When</c> 为假即短路跳过；形态未知 → fail-fast）。返回末步产物值。</summary>
@@ -77,7 +279,7 @@ public sealed class ScriptedBinding : IPortBinding
         foreach (var step in steps)
         {
             if (step.When is { } condition
-                && !Truthy(ScriptedValue.Resolve(condition, scope, input, deps, "步骤条件 when")))
+                && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(condition, scope, input, deps, "步骤条件 when")))
             {
                 continue;
             }
@@ -117,116 +319,26 @@ public sealed class ScriptedBinding : IPortBinding
         return created;
     }
 
-    /// <summary>调用步骤：解析目标（静态 / 依赖实例）→ 构参 → 调用（期望异常归一 + 异步折取）→ 写槽 / 出参捕获 / 收集 → 可选跳出遍历。</summary>
+    /// <summary>调用步骤：执行（调用单源 <see cref="ScriptedInvokeRunner"/>）→ 写槽 / 出参捕获 / 收集 → 可选跳出遍历。</summary>
     private object? RunInvoke(
         ScriptedStep step, ScriptedInvokeSpec invoke, ScriptedScope scope, IPortInput input, object?[] deps)
     {
-        if (string.IsNullOrWhiteSpace(invoke.Method))
-            throw new PortBindingViolationException(
-                _spec.PortKey, $"端口 '{_spec.PortKey}' 的调用步骤缺少 method");
-
         var context = $"步骤 invoke '{invoke.Method}'";
-        var isStatic = invoke.Dep is null;
-        var type = isStatic ? StaticType(invoke, context) : InstanceType(invoke, context);
-        var expect = invoke.Expect is { Length: > 0 } expectName
-            ? ComposedDeps.ResolveType(expectName, null)
-            : null;
-        var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
-        var instance = isStatic
-            ? null
-            : ComposedDeps.Dep(deps, invoke.Dep!.Value, invoke.Dep.Value, _spec.PortKey);
+        var outcome = ScriptedInvokeRunner.Run(_spec.PortKey, invoke, _spec.Deps, scope, input, deps);
 
-        object? result;
-        if (invoke.IsProperty)
-        {
-            var member = ReflectivePortResolver.ResolveMember(type, _spec.PortKey, invoke.Method, isStatic);
-            result = PortInvocation.Execute(
-                () => member switch
-                {
-                    PropertyInfo property => property.GetValue(instance),
-                    FieldInfo field => field.GetValue(instance),
-                    _ => null,
-                },
-                expect);
-        }
-        else
-        {
-            var method = ReflectivePortResolver.ResolveMethod(
-                type, _spec.PortKey, invoke.Method, declared.Count, isStatic);
-            var parameters = method.GetParameters();
-            var args = new object?[parameters.Length];
-            for (var i = 0; i < parameters.Length; i++)
-                args[i] = i < declared.Count
-                    ? ScriptedValue.ResolveTyped(
-                        declared[i], parameters[i].ParameterType, scope, input, deps, $"{context} 第 {i} 个实参")
-                    : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+        if (!invoke.IsProperty)
+            ScriptedInvokeRunner.CaptureOut(_spec.PortKey, invoke, outcome.Parameters, outcome.Args, scope, context);
 
-            result = PortInvocation.Execute(() => method.Invoke(instance, args), expect);
-            CaptureOut(invoke, parameters, args, scope, context);
-        }
-
-        result = PortInvocation.Fold(result, invoke.Await);
-
-        if (invoke.As is { Length: > 0 } asName) scope.Set(asName, result);
+        if (invoke.As is { Length: > 0 } asName) scope.Set(asName, outcome.Result);
 
         // break 语义：声明 expect 时「命中即跳出」（首遇失败即停）；未声明 expect 时执行后即跳出。
-        if (invoke.Break && (expect is null || (result is not null && expect.IsInstanceOfType(result))))
-            throw new BreakSignal();
+        if (invoke.Break && ScriptedInvokeRunner.ShouldBreak(invoke, outcome.Result)) throw new BreakSignal();
 
         // 收集置于跳出判定之后：被 break 中止的迭代「未完成」→ 其收集不入列
         // （夹具「仅登记成功者入列」等口径由此对齐；foreach 级收集仍记录本次迭代末产物，见 RunForeach）。
-        Collect(step, result, scope);
+        Collect(step, outcome.Result, scope);
 
-        return result;
-    }
-
-    /// <summary>出参捕获（G2）：把方法的 <c>out</c> 形参按位写入槽（首个用声明名，多个按序加后缀）。</summary>
-    private void CaptureOut(
-        ScriptedInvokeSpec invoke, ParameterInfo[] parameters, object?[] args, ScriptedScope scope, string context)
-    {
-        if (invoke.Out is not { Length: > 0 } name) return;
-
-        var written = 0;
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            if (!parameters[i].IsOut && !parameters[i].ParameterType.IsByRef) continue;
-
-            scope.Set(written == 0 ? name : $"{name}{written}", args[i]);
-            written++;
-        }
-
-        if (written == 0)
-            throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 {context} 声明 out='{name}' 但目标方法没有 out / ref 形参");
-    }
-
-    /// <summary>静态调用目标类型（<c>target</c> 必填）。</summary>
-    private Type StaticType(ScriptedInvokeSpec invoke, string context)
-        => invoke.Target is { Length: > 0 } target
-            ? ComposedDeps.ResolveType(target, null)
-            : throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 {context} 缺 target（静态调用）或 dep（实例调用）");
-
-    /// <summary>实例调用目标类型（取依赖声明的 contract / new 类型）。</summary>
-    private Type InstanceType(ScriptedInvokeSpec invoke, string context)
-    {
-        var index = invoke.Dep ?? -1;
-        if (index < 0 || index >= _spec.Deps.Count)
-            throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 {context} 引用了不存在的依赖下标 {index}（依赖 {_spec.Deps.Count} 个）");
-
-        var dep = _spec.Deps[index];
-        var typeName = dep.Contract ?? dep.New;
-        if (typeName is not { Length: > 0 })
-            throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的 {context} 对 dep[{index}] 取实例成员，但该依赖未声明 contract / new" +
-                "（实例类型不可知）");
-
-        return ComposedDeps.ResolveType(typeName, dep.GenericArgs);
+        return outcome.Result;
     }
 
     /// <summary>遍历步骤：取集合（槽 / 表达式）逐项入栈循环变量 → 过滤 → 执行体内步骤（<c>break</c> 跳出本层）。返回末次迭代产物值。</summary>
@@ -256,7 +368,8 @@ public sealed class ScriptedBinding : IPortBinding
             try
             {
                 if (loop.Where is not { } filter
-                    || Truthy(ScriptedValue.Resolve(filter, scope, input, deps, $"{context} 的过滤条件")))
+                    || PortValues.Truthy(ScriptedExprEvaluator.Evaluate(
+                        filter, scope, input, deps, $"{context} 的过滤条件")))
                 {
                     produced = Run(body, scope, input, deps);
                 }
@@ -332,25 +445,6 @@ public sealed class ScriptedBinding : IPortBinding
             scope.Collect(collect.Slot).Add(value);
         }
     }
-
-    /// <summary>条件真值（null / false / 空串 / 空 JSON → 假；其余 → 真）。</summary>
-    private static bool Truthy(object? value) => value switch
-    {
-        null => false,
-        bool flag => flag,
-        string text => text.Length > 0 && !string.Equals(text, "false", StringComparison.OrdinalIgnoreCase),
-        System.Text.Json.JsonElement element => element.ValueKind switch
-        {
-            System.Text.Json.JsonValueKind.True => true,
-            System.Text.Json.JsonValueKind.False or System.Text.Json.JsonValueKind.Null => false,
-            System.Text.Json.JsonValueKind.String => (element.GetString() ?? string.Empty).Length > 0,
-            System.Text.Json.JsonValueKind.Number => element.GetDouble() != 0,
-            System.Text.Json.JsonValueKind.Array => element.GetArrayLength() > 0,
-            System.Text.Json.JsonValueKind.Object => element.EnumerateObject().Any(),
-            _ => false,
-        },
-        _ => true,
-    };
 
     /// <summary>遍历跳出信号（<c>break: true</c> → 跳出最近一层 <c>foreach</c>）。</summary>
     private sealed class BreakSignal : Exception;

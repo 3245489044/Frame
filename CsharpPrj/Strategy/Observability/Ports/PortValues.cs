@@ -49,8 +49,58 @@ internal static class PortValues
             _ => null,
         };
 
-    /// <summary>文本形式（null → null，其余 <c>ToString</c>）。</summary>
-    internal static string? Text(object? value) => value?.ToString();
+    /// <summary>文本形式（null → null；JSON 元素按值语义取文本：字符串取值、结构取原文；其余 <c>ToString</c>）。</summary>
+    internal static string? Text(object? value) => value switch
+    {
+        null => null,
+        JsonElement element => element.ValueKind == JsonValueKind.String
+            ? element.GetString()
+            : element.GetRawText(),
+        _ => value.ToString(),
+    };
+
+    /// <summary>条件真值（null / false / 空串 / 空 JSON / 零数 → 假；其余 → 真）。</summary>
+    internal static bool Truthy(object? value) => value switch
+    {
+        null => false,
+        bool flag => flag,
+        string text => text.Length > 0 && !string.Equals(text, "false", StringComparison.OrdinalIgnoreCase),
+        JsonElement element => element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False or JsonValueKind.Null => false,
+            JsonValueKind.String => (element.GetString() ?? string.Empty).Length > 0,
+            JsonValueKind.Number => element.GetDouble() != 0,
+            JsonValueKind.Array => element.GetArrayLength() > 0,
+            JsonValueKind.Object => element.EnumerateObject().Any(),
+            _ => false,
+        },
+        _ => true,
+    };
+
+    /// <summary>数值形式（数值 / 数值文本 → <c>decimal</c>；其余 → null）。</summary>
+    internal static decimal? Number(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                return null;
+            case decimal decimalValue:
+                return decimalValue;
+            case sbyte or byte or short or ushort or int or uint or long or ulong or float or double:
+                return Convert.ToDecimal(value, System.Globalization.CultureInfo.InvariantCulture);
+            case JsonElement element when element.ValueKind == JsonValueKind.Number:
+                return element.TryGetDecimal(out var parsed) ? parsed : null;
+            case string text:
+                return decimal.TryParse(
+                    text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var number)
+                    ? number
+                    : null;
+            default:
+                return null;
+        }
+    }
 
     /// <summary>JSON 值 → 原义值（标量取 CLR 值；null / undefined → null；结构保留元素）。</summary>
     internal static object? Unwrap(JsonElement element)
@@ -73,6 +123,21 @@ internal static class PortValues
 
         return JsonSerializer.Deserialize(element.GetRawText(), target);
     }
+
+    /// <summary>
+    /// 位置实参**对象直投**判定（对象实参通道单源）：<c>convert</c> 显式为 <c>object</c>/<c>passthrough</c>；
+    /// 或 <c>convert</c> 缺省且实参本身**非文本载体**（非 <c>string</c> / 非 <c>JsonElement</c>）——
+    /// 后者为调用方直传对象的形态（如产品组合根注入的实例），不得被 <c>ToString</c> 文本化。
+    /// <para>null 实参不属直投（缺参语义仍由调用方按 <c>optional</c>/<c>default</c> 裁决）。</para>
+    /// </summary>
+    internal static bool IsDirectPositional(string? convert, object? raw)
+        => raw is not null
+           && (convert is "object" or "passthrough"
+               || (convert is null or "" && raw is not (string or JsonElement)));
+
+    /// <summary>直投值的目标类型兼容性（<c>object</c> 位恒兼容；null 由调用方先行裁决）。</summary>
+    internal static bool FitsDirect(object? value, Type target)
+        => target == typeof(object) || value is null || target.IsInstanceOfType(value);
 
     /// <summary>序列展开为元素集（非序载体 → 单元素；null → 空集，与夹具 <c>?? Array.Empty&lt;T&gt;()</c> 口径一致）。</summary>
     internal static IEnumerable<object?> Elements(object? value)

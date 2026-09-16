@@ -14,13 +14,23 @@ using System.Text.Json;
 /// <param name="Key">具名实参键（<c>with</c>） / 槽名（<c>var</c>） / 遍历变量名（<c>item</c>）。</param>
 /// <param name="Dep">依赖下标（<c>dep</c>）。</param>
 /// <param name="Path">属性路径（<c>item</c> / <c>var</c> 取元素或槽对象的属性）。</param>
-/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c> / <c>json</c>。</param>
+/// <param name="Convert">转换规则：<c>string</c> / <c>bool</c> / <c>int</c> / <c>double</c> / <c>csv</c> / <c>json</c> / <c>object</c>（位置实参对象直投：原样传实例，不文本化）。</param>
 /// <param name="Optional">可省略（无值 → <see cref="Default"/> 或目标类型默认值）。</param>
 /// <param name="Default">缺省值 JSON。</param>
 /// <param name="NullLiteral">字面串 <c>null</c> 视为 null。</param>
 /// <param name="Value">声明常量 JSON（<c>literal</c>）。</param>
 /// <param name="Type">目标类型全名（缺省 = 原义保留；声明后按该类型反序列化 / 校验）。</param>
 /// <param name="GenericArgs">闭合泛型实参类型全名（<see cref="Type"/> 为开放泛型时按序闭合）。</param>
+/// <param name="Scope">临时目录作用域名（仅 <c>tmpPath</c> / <c>tmpDir</c> 用，对应声明 <c>scopes[].as</c>）。</param>
+/// <param name="Name">作用域内文件相对名（仅 <c>tmpPath</c> 用；不得含路径分隔符）。</param>
+/// <param name="Rows">行集来源（仅 <c>table</c>：<c>with</c> / <c>var</c> / <c>item</c> 形态的二维行表）。</param>
+/// <param name="Items">词元集来源（仅 <c>presence</c>；缺省 = 复用 <see cref="Rows"/>）。</param>
+/// <param name="RowValue">行值表达式（<c>table</c> 用；体内 <c>from:row</c> 引当前行单元格；缺省 = 首列文本）。</param>
+/// <param name="Filter">行 / 词元过滤表达式（<c>table</c> / <c>presence</c> 用；求值为假即跳过该项）。</param>
+/// <param name="Separator">主键列分隔符（<c>table</c>；缺省 <c>|</c>；空串 = 不拼接，键取首列）。</param>
+/// <param name="OnBlankFirstKey">首列为空的处置（<c>table</c>：<c>fail</c> 缺省 / <c>skip</c>）。</param>
+/// <param name="OnDuplicate">键重复的处置（<c>table</c>：<c>fail</c> 缺省 / <c>last</c>）。</param>
+/// <param name="Distinct">词元去重（<c>presence</c> 用）。</param>
 public sealed record ScriptedArgSpec(
     string? From = null,
     int? Index = null,
@@ -33,7 +43,17 @@ public sealed record ScriptedArgSpec(
     bool NullLiteral = false,
     JsonElement? Value = null,
     string? Type = null,
-    IReadOnlyList<string>? GenericArgs = null);
+    IReadOnlyList<string>? GenericArgs = null,
+    string? Scope = null,
+    string? Name = null,
+    ScriptedArgSpec? Rows = null,
+    ScriptedArgSpec? Items = null,
+    ScriptedExpr? RowValue = null,
+    ScriptedExpr? Filter = null,
+    string? Separator = null,
+    string? OnBlankFirstKey = null,
+    string? OnDuplicate = null,
+    bool Distinct = false);
 
 /// <summary>
 /// **收集声明**（G1）：把本步骤产物或指定槽的当前值按序追加到收集槽（槽在执行前预建空清单，短路 / 零迭代时投影取之不为空）。
@@ -49,13 +69,13 @@ public sealed record ScriptedCollectSpec(string Slot, string? From = null);
 /// <c>foreach</c>（遍历）。三者互斥；<see cref="Collect"/> / <see cref="When"/> 为步骤修饰。
 /// </summary>
 /// <param name="Collect">收集声明（步产物 / 槽值 → 收集槽；G1）。</param>
-/// <param name="When">条件短路：求值为真才执行本步骤（G3）。</param>
+/// <param name="When">条件短路表达式（G3 + P1 谓词）：求值为真才执行本步骤；<c>⊥</c>（缺槽 / 解析失败）→ 不执行并记录。</param>
 /// <param name="New">构造步骤（<c>new</c>）。</param>
 /// <param name="Invoke">调用步骤（<c>invoke</c>）。</param>
 /// <param name="Foreach">遍历步骤（<c>foreach</c>）。</param>
 public sealed record ScriptedStep(
     IReadOnlyList<ScriptedCollectSpec>? Collect = null,
-    ScriptedArgSpec? When = null,
+    ScriptedExpr? When = null,
     ScriptedNewSpec? New = null,
     ScriptedInvokeSpec? Invoke = null,
     ScriptedForeachSpec? Foreach = null);
@@ -100,15 +120,42 @@ public sealed record ScriptedInvokeSpec(
 /// <param name="Slot">集合槽名（与 <see cref="Items"/> 二选一）。</param>
 /// <param name="Items">集合表达式（与 <see cref="Slot"/> 二选一）。</param>
 /// <param name="As">循环变量名（体内 <c>item</c> 源引用它）。</param>
-/// <param name="Where">过滤条件（求值为真才进入本次迭代）。</param>
+/// <param name="Where">过滤条件表达式（求值为真才进入本次迭代）。</param>
 /// <param name="Do">体内步骤序列（声明序 = 执行序）。</param>
 public sealed record ScriptedForeachSpec(
     string? Slot = null,
     ScriptedExpr? Items = null,
     string As = "",
-    ScriptedArgSpec? Where = null,
+    ScriptedExpr? Where = null,
     IReadOnlyList<ScriptedStep>? Do = null);
 
+/// <summary>
+/// 临时目录**作用域声明**（P2 / 缺口 G10）：进入 <c>script</c> 前建目录（前缀 + 唯一后缀）→ 按序写预置文件
+/// （可 <c>when</c> 门控；相对目录由表达式给出）→ 执行主体 → **正常与异常路径均递归清理**。
+/// <para>作用域隔离：每键每次调用独立实例（内层快照口径，防 ANTI-NESTED-POLLUTION）。</para>
+/// </summary>
+/// <param name="Kind">作用域种类（当前仅 <c>tempDir</c>）。</param>
+/// <param name="As">作用域名（值源 <c>tmpPath</c> / <c>tmpDir</c> 据它解析）。</param>
+/// <param name="Prefix">目录名前缀（诊断可读；缺省 <c>spec</c>）。</param>
+/// <param name="Files">预置文件序列（声明序 = 写盘序）。</param>
+public sealed record ScriptedScopeSpec(
+    string Kind,
+    string As,
+    string? Prefix = null,
+    IReadOnlyList<ScriptedFileSpec>? Files = null);
+
+/// <summary>作用域内预置文件（<c>name</c> 不得含路径分隔符；<c>dir</c> 为表达式，不做文本插值方言）。</summary>
+/// <param name="Name">文件名（相对 <paramref name="Dir"/>）。</param>
+/// <param name="Dir">相对子目录表达式（缺省 = 作用域根；用 <c>concat</c> / <c>var</c> / <c>row</c> 组合路径段）。</param>
+/// <param name="From">内容来源（缺省 = 空文件）。</param>
+/// <param name="Content">内容表达式（缺省 = <see cref="From"/> 取值的文本形式）。</param>
+/// <param name="When">写盘门控（求值为假即跳过该文件）。</param>
+public sealed record ScriptedFileSpec(
+    string Name,
+    ScriptedExpr? Dir = null,
+    ScriptedArgSpec? From = null,
+    ScriptedExpr? Content = null,
+    ScriptedExpr? When = null);
 
 /// <summary>
 /// 声明式**脚本绑定**（消除通道 C5）：把「遍历用例声明的数据 + 用上一步结果再调 + 一般取值投影 + 载体形态」
@@ -124,7 +171,8 @@ public sealed class ScriptedBindingSpec
         IReadOnlyList<ComposedDepSpec>? deps,
         IReadOnlyList<ScriptedStep> script,
         IReadOnlyList<ScriptedFieldSpec> project,
-        ScriptedDeliverSpec? deliver = null)
+        ScriptedDeliverSpec? deliver = null,
+        IReadOnlyList<ScriptedScopeSpec>? scopes = null)
     {
         PortKey = string.IsNullOrWhiteSpace(portKey)
             ? throw new ArgumentException("端口键不能为空", nameof(portKey))
@@ -134,6 +182,7 @@ public sealed class ScriptedBindingSpec
         Script = script ?? Array.Empty<ScriptedStep>();
         Project = project ?? Array.Empty<ScriptedFieldSpec>();
         Deliver = deliver ?? new ScriptedDeliverSpec();
+        Scopes = scopes ?? Array.Empty<ScriptedScopeSpec>();
     }
 
     /// <summary>端口键（诊断定位用）。</summary>
@@ -151,8 +200,11 @@ public sealed class ScriptedBindingSpec
     /// <summary>投影序列（声明序 = 产物字段序）。</summary>
     public IReadOnlyList<ScriptedFieldSpec> Project { get; }
 
-    /// <summary>载体开关（延迟动作 / 问题清单）。</summary>
+    /// <summary>载体开关（延迟动作 / 问题清单 / 延迟动作步骤）。</summary>
     public ScriptedDeliverSpec Deliver { get; }
+
+    /// <summary>临时目录作用域序列（进入脚本前建 / 写盘，退出（含异常）递归清理）。</summary>
+    public IReadOnlyList<ScriptedScopeSpec> Scopes { get; }
 
     /// <summary>数据半注入的工厂表（<c>deps.factory</c> 用；缺表且声明了 factory 即 fail-fast）。</summary>
     public IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> Factories { get; init; } =

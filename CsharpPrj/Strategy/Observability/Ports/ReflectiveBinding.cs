@@ -81,8 +81,17 @@ public sealed class ReflectiveBinding : IPortBinding
                 : ReflectivePortResolver.DefaultFor(parameter.ParameterType);
         }
 
-        var text = input.Args[index] as string ?? input.Args[index]?.ToString() ?? string.Empty;
-        if (spec.NullLiteral && string.Equals(text, "null", StringComparison.Ordinal)) return null;
+        var raw = input.Args[index];
+        if (spec.NullLiteral && raw is string literal && string.Equals(literal, "null", StringComparison.Ordinal)) return null;
+
+        if (PortValues.IsDirectPositional(spec.Convert, raw))
+            return PortValues.FitsDirect(raw, parameter.ParameterType)
+                ? raw
+                : throw new PortBindingViolationException(
+                    _spec.PortKey,
+                    $"{_spec.PortKey} 第 {index} 个位置实参按对象直投，但与形参 {parameter.ParameterType.Name} 不兼容");
+
+        var text = raw as string ?? raw?.ToString() ?? string.Empty;
 
         return spec.Convert switch
         {
@@ -96,7 +105,7 @@ public sealed class ReflectiveBinding : IPortBinding
                 ? doubleValue
                 : throw Mismatch(text, index, "数值"),
             "json" => FromWith(parameter, spec, input),
-            _ => throw Mismatch(spec.Convert, index, "string|bool|int|double|csv|json"),
+            _ => throw Mismatch(spec.Convert, index, "string|bool|int|double|csv|json|object"),
         };
     }
 

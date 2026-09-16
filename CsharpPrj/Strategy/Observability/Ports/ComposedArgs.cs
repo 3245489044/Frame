@@ -39,7 +39,7 @@ internal static class ComposedArgs
         ComposedArgSpec spec, IPortInput input, object?[] deps, string portKey, string context, int index)
     {
         if (spec.Dep is { } reference) return Dep(deps, reference, portKey, context, index);
-        if (spec.ArgIndex is { } position) return PositionalText(input, position, portKey, context);
+        if (spec.ArgIndex is { } position) return PositionalRaw(input, spec, position, portKey, context);
         if (spec.Key is { Length: > 0 } key) return WithRaw(input, key, portKey, context, index, spec.Optional);
         if (spec.Value is { } constant) return Unwrap(constant);
         if (spec.Optional) return null;
@@ -97,8 +97,16 @@ internal static class ComposedArgs
             return None(spec, target, portKey, context, position);
         }
 
-        var text = input.Args[position] as string ?? input.Args[position]?.ToString() ?? string.Empty;
-        if (spec.NullLiteral && string.Equals(text, "null", StringComparison.Ordinal)) return null;
+        var raw = input.Args[position];
+        if (spec.NullLiteral && raw is string literal && string.Equals(literal, "null", StringComparison.Ordinal)) return null;
+
+        if (PortValues.IsDirectPositional(spec.Convert, raw))
+            return PortValues.FitsDirect(raw, target)
+                ? raw
+                : throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 第 {position} 个位置实参按对象直投，但与目标类型 {target.Name} 不兼容");
+
+        var text = raw as string ?? raw?.ToString() ?? string.Empty;
 
         return ConvertText(target, spec, text, portKey, context, position);
     }
@@ -137,7 +145,7 @@ internal static class ComposedArgs
             "json" => string.IsNullOrWhiteSpace(text)
                 ? None(spec, target, portKey, context, index)
                 : Coerce(JsonDocument.Parse(text).RootElement.Clone(), target),
-            _ => throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json"),
+            _ => throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json|object"),
         };
 
     /// <summary>无值分支：声明 <c>default</c> → 反序列化；否则取目标类型默认值（数组 → 空数组，与空集语义一致）。</summary>
@@ -184,13 +192,20 @@ internal static class ComposedArgs
         string portKey, string context, int index, string text, string expected)
         => new(portKey, $"端口 '{portKey}' 的 {context} 第 {index} 个实参 '{text}' 不是{expected}");
 
-    /// <summary>位置实参文本（越界 fail-fast：诊断含实际个数）。</summary>
-    private static string PositionalText(IPortInput input, int position, string portKey, string context)
+    /// <summary>
+    /// 位置实参原值（越界 fail-fast：诊断含实际个数）：对象直投形态（<see cref="PortValues.IsDirectPositional"/>）
+    /// 原样返回，其余按 <c>convert</c> 原义文本化（无类型目标的工厂实参用）。
+    /// </summary>
+    private static object? PositionalRaw(
+        IPortInput input, ComposedArgSpec spec, int position, string portKey, string context)
     {
         if (position >= input.Args.Count)
             throw new PortBindingViolationException(
                 portKey, $"端口 '{portKey}' 的 {context} 需要第 {position} 个位置实参，实际只有 {input.Args.Count} 个");
 
-        return input.Args[position] as string ?? input.Args[position]?.ToString() ?? string.Empty;
+        var raw = input.Args[position];
+        if (PortValues.IsDirectPositional(spec.Convert, raw)) return raw;
+
+        return raw as string ?? raw?.ToString() ?? string.Empty;
     }
 }

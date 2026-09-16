@@ -1,0 +1,132 @@
+using System.Reflection;
+using Strategy.Observability.Diagnostics;
+
+namespace Strategy.Observability.Ports;
+
+/// <summary>
+/// 调用执行单源（步骤 <c>invoke</c> 与表达式内调用共用）：目标解析 → 实参构造 → 期望异常归一 →
+/// 异步折取 → 出参捕获。零领域词汇（类型 / 方法 / 形参名一律不透明字符串）。
+/// </summary>
+internal static class ScriptedInvokeRunner
+{
+    /// <summary>调用产物（结果 + 形参表 + 实参数组，供出参捕获与后续展开）。</summary>
+    internal sealed record Outcome(object? Result, ParameterInfo[] Parameters, object?[] Args);
+
+    /// <summary>
+    /// 执行一次调用声明。<paramref name="specs"/> = 依赖声明序列（供实例调用的静态类型解析）；
+    /// 表达式内调用可传 null（按依赖对象的运行时类型解析）。
+    /// </summary>
+    internal static Outcome Run(
+        string portKey, ScriptedInvokeSpec invoke, IReadOnlyList<ComposedDepSpec>? specs,
+        ScriptedScope scope, IPortInput input, object?[] resolvedDeps)
+    {
+        if (string.IsNullOrWhiteSpace(invoke.Method))
+            throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 的调用声明缺少 method");
+
+        var context = $"调用 '{invoke.Method}'";
+        var isStatic = invoke.Dep is null;
+        var type = isStatic
+            ? StaticType(portKey, invoke, context)
+            : InstanceType(portKey, invoke, specs, resolvedDeps, context);
+        var expect = ExpectTypes(invoke.Expect);
+        var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+        var instance = isStatic
+            ? null
+            : ComposedDeps.Dep(resolvedDeps, invoke.Dep!.Value, invoke.Dep.Value, portKey);
+
+        if (invoke.IsProperty)
+        {
+            var member = ReflectivePortResolver.ResolveMember(type, portKey, invoke.Method, isStatic);
+            var read = PortInvocation.ExecuteAny(
+                () => member switch
+                {
+                    PropertyInfo property => property.GetValue(instance),
+                    FieldInfo field => field.GetValue(instance),
+                    _ => null,
+                },
+                expect);
+
+            return new Outcome(
+                PortInvocation.Fold(read, invoke.Await), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
+        }
+
+        var method = ReflectivePortResolver.ResolveMethod(type, portKey, invoke.Method, declared.Count, isStatic);
+        var parameters = method.GetParameters();
+        var args = new object?[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+            args[i] = i < declared.Count
+                ? ScriptedValue.ResolveTyped(
+                    declared[i], parameters[i].ParameterType, scope, input, resolvedDeps,
+                    $"{context} 第 {i} 个实参")
+                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+
+        var result = PortInvocation.ExecuteAny(() => method.Invoke(instance, args), expect);
+        return new Outcome(PortInvocation.Fold(result, invoke.Await), parameters, args);
+    }
+
+    /// <summary>出参捕获（G2）：把 <c>out</c> / <c>ref</c> 形参按位写入槽（首个用声明名，多个按序加后缀）。</summary>
+    internal static void CaptureOut(
+        string portKey, ScriptedInvokeSpec invoke, ParameterInfo[] parameters, object?[] args,
+        ScriptedScope scope, string context)
+    {
+        if (invoke.Out is not { Length: > 0 } name) return;
+
+        var written = 0;
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (!parameters[i].IsOut && !parameters[i].ParameterType.IsByRef) continue;
+
+            scope.Set(written == 0 ? name : $"{name}{written}", args[i]);
+            written++;
+        }
+
+        if (written == 0)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 声明 out='{name}' 但目标方法没有 out / ref 形参");
+    }
+
+    /// <summary>期望异常类型声明解析（<c>|</c> 分隔多类型；缺省 → 不捕获任何异常）。</summary>
+    internal static IReadOnlyList<Type>? ExpectTypes(string? declared)
+        => declared is { Length: > 0 } text
+            ? text.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(name => ComposedDeps.ResolveType(name, null))
+                .ToArray()
+            : null;
+
+    /// <summary>跳出判定：声明 <c>expect</c> 时「命中期望异常即跳出」，未声明时执行后即跳出。</summary>
+    internal static bool ShouldBreak(ScriptedInvokeSpec invoke, object? result)
+        => ExpectTypes(invoke.Expect) is not { } expect
+           || (result is not null && expect.Any(type => type.IsInstanceOfType(result)));
+
+    /// <summary>静态调用目标类型（<c>target</c> 必填）。</summary>
+    private static Type StaticType(string portKey, ScriptedInvokeSpec invoke, string context)
+        => invoke.Target is { Length: > 0 } target
+            ? ComposedDeps.ResolveType(target, null)
+            : throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 缺 target（静态调用）或 dep（实例调用）");
+
+    /// <summary>实例调用目标类型（依赖声明的 contract / new；未给声明时取运行时类型）。</summary>
+    private static Type InstanceType(
+        string portKey, ScriptedInvokeSpec invoke, IReadOnlyList<ComposedDepSpec>? specs,
+        object?[] resolvedDeps, string context)
+    {
+        var index = invoke.Dep ?? -1;
+        if (specs is null)
+            return ComposedDeps.Dep(resolvedDeps, index, index, portKey)?.GetType()
+                ?? throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 的依赖下标 {index} 无实例（类型不可知）");
+
+        if (index < 0 || index >= specs.Count)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 引用了不存在的依赖下标 {index}（依赖 {specs.Count} 个）");
+
+        var dep = specs[index];
+        var typeName = dep.Contract ?? dep.New;
+        if (typeName is not { Length: > 0 })
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context} 对 dep[{index}] 取实例成员，但该依赖未声明 contract / new（实例类型不可知）");
+
+        return ComposedDeps.ResolveType(typeName, dep.GenericArgs);
+    }
+}

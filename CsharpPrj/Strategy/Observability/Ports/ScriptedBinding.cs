@@ -21,6 +21,9 @@ public sealed class ScriptedBinding : IPortBinding
     /// <summary>声明的收集槽名集（步骤 / 遍历 / 投影 collect / sameAsLast）。</summary>
     private readonly IReadOnlySet<string> _collections;
 
+    /// <summary>场景体绑定（构造期预构建：工厂表随宿主传播；分派不再逐次重建与重校验）。</summary>
+    private readonly IReadOnlyDictionary<string, ScriptedBinding>? _scenarioCases;
+
     /// <summary>按声明构造绑定：无行为声明、载体冲突、引用形态残缺 → 即抛（fail-fast，防静默绑错）。</summary>
     public ScriptedBinding(ScriptedBindingSpec spec)
     {
@@ -44,6 +47,7 @@ public sealed class ScriptedBinding : IPortBinding
         ValidateKind(spec);
         ValidateScopes(spec);
         ValidateScenarios(spec);
+        _scenarioCases = BuildScenarios(spec);
     }
 
     /// <summary>最近一次求值的诊断记录（W1：步骤 <c>when</c> / 遍历 <c>where</c> 求值为 ⊥ ⇒ 不执行且留痕，不静默）。</summary>
@@ -57,7 +61,7 @@ public sealed class ScriptedBinding : IPortBinding
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        if (_spec.Scenarios is { } scenarios) return Dispatch(scenarios, input);
+        if (_scenarioCases is not null) return Dispatch(input);
 
         return KindOf(_spec.Deliver) switch
         {
@@ -76,39 +80,52 @@ public sealed class ScriptedBinding : IPortBinding
     /// 多场景探针分派（W2：<c>PortProbeRouter.Declare</c> 的一等声明等价）：取场景名 → 命中即执行该场景主体
     /// （独立绑定实例，共享同一端口键与工厂表）；**未命中即抛**，诊断列全部可用场景名（不静默回落）。
     /// </summary>
-    private object? Dispatch(ScriptedScenarioSpec scenarios, IPortInput input)
+    private object? Dispatch(IPortInput input)
     {
+        var scenarios = _spec.Scenarios!;
         var probe = NewScope();
         var chosen = PortValues.Text(ScriptedValue.Resolve(
             scenarios.Select with { Optional = true }, probe, input, NoDeps, "场景选择（select）"));
 
-        if (chosen is not { Length: > 0 } || !scenarios.Cases.TryGetValue(chosen, out var body))
+        if (chosen is not { Length: > 0 } || !_scenarioCases!.TryGetValue(chosen, out var body))
         {
             throw new PortBindingViolationException(
                 _spec.PortKey,
                 $"端口 '{_spec.PortKey}' 的探针 '{chosen ?? "<空>"}' 未命中" +
-                $"（可用场景：{string.Join(", ", scenarios.Cases.Keys.OrderBy(name => name, StringComparer.Ordinal))}）");
+                $"（可用场景：{string.Join(", ", _scenarioCases!.Keys.OrderBy(name => name, StringComparer.Ordinal))}）");
         }
 
-        return new ScriptedBinding(body).Invoke(input);
+        return body.Invoke(input);
     }
 
-    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；作用域在正常与异常路径均按 LIFO 释放）。</summary>
+    /// <summary>场景体绑定预构建（工厂表未显式声明时随宿主传播：场景内 <c>deps.factory</c> 不再依赖调用方补注入）。</summary>
+    private static IReadOnlyDictionary<string, ScriptedBinding>? BuildScenarios(ScriptedBindingSpec spec)
+    {
+        if (spec.Scenarios is not { } scenarios) return null;
+
+        var cases = new Dictionary<string, ScriptedBinding>(StringComparer.Ordinal);
+        foreach (var (name, body) in scenarios.Cases)
+            cases[name] = new ScriptedBinding(body.Factories.Count > 0 ? body : Inherit(body, spec.Factories));
+
+        return cases;
+    }
+
+    /// <summary>场景体继承宿主工厂表（<see cref="ScriptedBindingSpec"/> 非 record，按声明字段重建一份带工厂表的实例）。</summary>
+    private static ScriptedBindingSpec Inherit(
+        ScriptedBindingSpec body, IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> factories)
+        => new(
+            body.PortKey, body.Binds, body.Deps, body.Script, body.Project, body.Deliver, body.Scopes, body.Scenarios)
+        {
+            Factories = factories,
+        };
+
+    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影）。</summary>
     private object? Execute(IPortInput input)
     {
-        var scope = NewScope();
+        var scope = Prepare(input);
 
-        foreach (var name in _collections) scope.Collect(name);
-
-        BindInputs(scope, input);
-
-        var releases = new List<Action>();
-        try
+        return WithScopes(input, scope, deps =>
         {
-            foreach (var declared in _spec.Scopes) releases.Add(Materialize(declared, scope, input));
-
-            var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
-
             Run(_spec.Script, scope, input, deps);
 
             if (_spec.Deliver.Value is { } value)
@@ -117,26 +134,47 @@ public sealed class ScriptedBinding : IPortBinding
             var product = Project(scope, input, deps);
 
             return _spec.Deliver.Issues ? new PortIssues(IssueList(IssueSource(product, scope))) : product;
+        });
+    }
+
+    /// <summary>延迟步骤求值（<c>kind=action</c>：断言期才执行「步骤 + 投影」，与主执行共用求值路径与作用域语义）。</summary>
+    private object? RunDeferred(IReadOnlyList<ScriptedStep> steps, IPortInput input)
+    {
+        var scope = Prepare(input);
+
+        return WithScopes(input, scope, deps =>
+        {
+            Run(steps, scope, input, deps);
+            return Project(scope, input, deps);
+        });
+    }
+
+    /// <summary>建作用域 + 预建收集槽 + 输入绑定（即时 / 延迟 / issue 捕获三条路径共用的前置）。</summary>
+    private ScriptedScope Prepare(IPortInput input)
+    {
+        var scope = NewScope();
+        foreach (var name in _collections) scope.Collect(name);
+        BindInputs(scope, input);
+        return scope;
+    }
+
+    /// <summary>
+    /// 执行骨架（作用域 + 依赖 + 主体）：作用域在正常与异常路径按 LIFO 释放 ——
+    /// 三条载体路径共用同一头尾，避免各自的释放语义漂移。
+    /// </summary>
+    private T WithScopes<T>(IPortInput input, ScriptedScope scope, Func<object?[], T> body)
+    {
+        var releases = new List<Action>();
+        try
+        {
+            foreach (var declared in _spec.Scopes) releases.Add(Materialize(declared, scope, input));
+
+            return body(ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey));
         }
         finally
         {
             Release(releases);
         }
-    }
-
-    /// <summary>延迟步骤求值（<c>kind=action</c>：断言期才执行「步骤 + 投影」，与主执行共用同一求值路径）。</summary>
-    private object? RunDeferred(IReadOnlyList<ScriptedStep> steps, IPortInput input)
-    {
-        var scope = NewScope();
-
-        foreach (var name in _collections) scope.Collect(name);
-
-        BindInputs(scope, input);
-
-        var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
-
-        Run(steps, scope, input, deps);
-        return Project(scope, input, deps);
     }
 
     /// <summary>
@@ -145,18 +183,10 @@ public sealed class ScriptedBinding : IPortBinding
     /// </summary>
     private IReadOnlyList<string> CaptureIssues(ScriptedDeliverCaptureSpec capture, IPortInput input)
     {
-        var scope = NewScope();
+        var scope = Prepare(input);
 
-        foreach (var name in _collections) scope.Collect(name);
-
-        BindInputs(scope, input);
-
-        var releases = new List<Action>();
-        try
+        return WithScopes(input, scope, deps =>
         {
-            foreach (var declared in _spec.Scopes) releases.Add(Materialize(declared, scope, input));
-
-            var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
             var context = $"载体 issues 的捕获调用 '{capture.Call.Method}'";
 
             if (capture.When is { } gate
@@ -169,18 +199,18 @@ public sealed class ScriptedBinding : IPortBinding
             var result = RunInvoke(new ScriptedStep(Invoke: call), call, scope, input, deps);
             if (result is not Exception exception) return Array.Empty<string>();
 
-            return
-            [
-                string.Equals(capture.Message, "TypeName", StringComparison.Ordinal)
-                    ? exception.GetType().Name
-                    : exception.Message,
-            ];
-        }
-        finally
-        {
-            Release(releases);
-        }
+            return IssueText(capture, exception, scope, context);
+        });
     }
+
+    /// <summary>issue 文本口径（<c>messageField</c> 非空 → 取该槽文本；否则按 <c>message</c> 取消息 / 类型名）。</summary>
+    private static IReadOnlyList<string> IssueText(
+        ScriptedDeliverCaptureSpec capture, Exception exception, ScriptedScope scope, string context)
+        => capture.MessageField is { Length: > 0 } slot
+            ? [PortValues.Text(scope.Slot(slot, context)) ?? string.Empty]
+            : [string.Equals(capture.Message, "TypeName", StringComparison.Ordinal)
+                ? exception.GetType().Name
+                : exception.Message];
 
     /// <summary>捕获体期望类型声明（<c>expect</c> 集 → 管道串；空集 → 不捕获任何异常，即恒空清单）。</summary>
     private static string ExpectDeclaration(ScriptedDeliverCaptureSpec capture)
@@ -446,15 +476,21 @@ public sealed class ScriptedBinding : IPortBinding
     private object? Run(IReadOnlyList<ScriptedStep> steps, ScriptedScope scope, IPortInput input, object?[] deps)
     {
         object? last = null;
+        var index = 0;
 
         foreach (var step in steps)
         {
+            index++;
+
             if (step.When is { } condition)
             {
                 var gate = ScriptedExprEvaluator.Evaluate(condition, scope, input, deps, "步骤条件 when");
 
-                // W1：⊥（缺槽 / 解析失败）语义 = 「不执行且记录」——留痕不静默（诊断面 LastNotes）。
-                if (gate is null) scope.Note("步骤条件 when 求值为 ⊥（缺值 / 解析失败）：本步骤不执行");
+                // W1 + E8：⊥（缺槽 / 解析失败）语义 = 「不执行且记录」——留痕含定位（端口键 / 步骤序号 / ⊥ 出处），不静默。
+                if (gate is null)
+                    scope.Note(
+                        $"端口 '{scope.PortKey}' 步骤 {index} 条件 when 求值为 ⊥" +
+                        $"（{scope.TakeBottom() ?? "缺值 / 解析失败"}）：本步骤不执行");
 
                 if (!PortValues.Truthy(gate)) continue;
             }
@@ -535,7 +571,9 @@ public sealed class ScriptedBinding : IPortBinding
                     : true;
 
                 if (loop.Where is not null && gate is null)
-                    scope.Note($"{context} 的过滤条件求值为 ⊥（缺值 / 解析失败）：本次迭代不执行");
+                    scope.Note(
+                        $"端口 '{scope.PortKey}' 的 {context} 第 {index} 次迭代的过滤条件求值为 ⊥" +
+                        $"（{scope.TakeBottom() ?? "缺值 / 解析失败"}）：本次迭代不执行");
 
                 if (PortValues.Truthy(gate)) produced = Run(body, scope, input, deps);
             }
@@ -560,7 +598,17 @@ public sealed class ScriptedBinding : IPortBinding
         ScriptedFieldSpec field, Dictionary<string, object?> product,
         ScriptedScope scope, IPortInput input, object?[] deps)
     {
+        var notes = scope.NoteCount;
+        _ = scope.TakeBottom();   // ⊥ 出处逐字段隔离（防上一字段的 ⊥ 误归到本字段）
         var value = ScriptedExprEvaluator.Evaluate(field.Expr, scope, input, deps, field.Field);
+
+        // E8：⊥（运行期未写入的槽 / 帧）用于投影字段 → **该字段不产出**（并留痕），不得静默产 null。
+        if (value is null && field.Expr.Spread is null && scope.NoteCount == notes
+            && scope.TakeBottom() is { } provenance)
+        {
+            scope.Note($"端口 '{scope.PortKey}' 投影字段 '{field.Field}' 为 ⊥（{provenance}）：该字段不产出");
+            return;
+        }
 
         if (field.Expr.Spread is not null)
         {

@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 
 namespace Strategy.Observability.Ports;
 
@@ -46,6 +45,26 @@ public static class PortReflection
     }
 
     /// <summary>
+    /// 程序集类型枚举（加载器异常带定位上抛）——声明扫描（实现标注 <see cref="PortImplementationRegistry"/> /
+    /// 探针路由 <see cref="PortProbeRouter"/>）共用的唯一入口，避免两套健壮性口径。
+    /// </summary>
+    public static IReadOnlyList<Type> TypesOf(Assembly assembly)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            throw new InvalidOperationException(
+                $"[port:scan] 程序集 '{assembly.GetName().Name}' 类型枚举失败（加载器异常：" +
+                string.Join("; ", ex.LoaderExceptions.Select(e => e?.Message ?? e?.GetType().Name)) + "）", ex);
+        }
+    }
+
+    /// <summary>
     /// 调用**非公开静态**方法（按「名 + 参数个数」解析，参数个数不匹配时取参数最少者）：
     /// 方法缺失 / 返回类型不符 → fail-fast（含类型名、方法名、期望与实际）。
     /// <para>
@@ -81,8 +100,7 @@ public static class PortReflection
         }
         catch (TargetInvocationException ex) when (ex.InnerException is { } inner)
         {
-            ExceptionDispatchInfo.Capture(inner).Throw();
-            throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");
+            return (T)PortInvocation.ExpectAny(inner, expect: null)!;   // 原样上抛（保留原始栈）
         }
     }
 }

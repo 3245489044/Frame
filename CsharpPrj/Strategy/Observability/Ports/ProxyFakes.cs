@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
@@ -15,23 +16,23 @@ public static class ProxyFakes
 {
     /// <summary>计数装饰：转发到 <paramref name="inner"/>，对关注方法按「方法名 + 主键」计次（主键 = 首个字符串实参；无则空串）。</summary>
     public static object Counting(Type contract, object inner, IReadOnlyList<string>? methods = null)
-        => Build(contract, inner, methods, new CallCounter(), fixedValues: null, notExpected: false);
+        => Build(contract, inner, methods, new CallCounter(), fixedValues: null, notExpected: false, reuseLast: false);
 
-    /// <summary>记录装饰：仅转发（转发即记录来源；留作对照与守卫样本）。</summary>
+    /// <summary>转发装饰：仅转发（记录由端口目录的调用记录面承担；留作对照与守卫样本）。</summary>
     public static object Recording(Type contract, object inner, IReadOnlyList<string>? methods = null)
-        => Build(contract, inner, methods, counters: null, fixedValues: null, notExpected: false);
+        => Build(contract, inner, methods, counters: null, fixedValues: null, notExpected: false, reuseLast: false);
 
-    /// <summary>固定应答：所有方法返回同一值（<c>Task</c>/<c>Task&lt;T&gt;</c> 返回类型自动包装为已完成任务）。</summary>
+    /// <summary>固定应答：所有方法返回同一值（单值复用，<c>Task</c>/<c>Task&lt;T&gt;</c> 返回类型自动包装为已完成任务）。</summary>
     public static object Fixed(Type contract, object? value)
-        => Build(contract, inner: null, methods: null, counters: null, fixedValues: new[] { value }, notExpected: false);
+        => Build(contract, inner: null, methods: null, counters: null, fixedValues: new[] { value }, notExpected: false, reuseLast: true);
 
-    /// <summary>序列应答：按调用次序取值（用尽后复用末项）。</summary>
+    /// <summary>序列应答：按调用次序取值，**用尽即抛**（口径与 <see cref="StandardFakes.Sequence"/> 同源）。</summary>
     public static object Sequence(Type contract, IReadOnlyList<object?> values)
-        => Build(contract, inner: null, methods: null, counters: null, fixedValues: values, notExpected: false);
+        => Build(contract, inner: null, methods: null, counters: null, fixedValues: values, notExpected: false, reuseLast: false);
 
     /// <summary>负向守卫：关注方法被调用即抛；未关注方法按 <paramref name="inner"/> 转发（null = 不转发，返回类型默认值）。</summary>
     public static object NotExpected(Type contract, IReadOnlyList<string>? methods = null, object? inner = null)
-        => Build(contract, inner, methods, counters: null, fixedValues: null, notExpected: true);
+        => Build(contract, inner, methods, counters: null, fixedValues: null, notExpected: true, reuseLast: false);
 
     /// <summary>取替身调用计数（<c>fakeCount</c> 投影入口）；非计数替身即抛（防静默取 0）。</summary>
     public static int CountOf(object fake, string method, string? key = null)
@@ -40,10 +41,10 @@ public static class ProxyFakes
             : throw new InvalidOperationException(
                 $"[port:fake] 目标不是本件生成的计数替身（方法 '{method}' 的调用计数不可用）");
 
-    /// <summary>统一装配：生成契约代理并按形态绑定行为（转发 / 计数 / 固定应答 / 负向守卫）。</summary>
+    /// <summary>统一装配：生成契约代理并按形态绑定行为（转发 / 计数 / 固定应答 / 序列 / 负向守卫）。</summary>
     private static object Build(
         Type contract, object? inner, IReadOnlyList<string>? methods, CallCounter? counters,
-        IReadOnlyList<object?>? fixedValues, bool notExpected)
+        IReadOnlyList<object?>? fixedValues, bool notExpected, bool reuseLast)
     {
         ArgumentNullException.ThrowIfNull(contract);
         if (!contract.IsInterface)
@@ -59,16 +60,19 @@ public static class ProxyFakes
             var isWatched = watched is null || watched.Contains(method.Name);
 
             if (notExpected && isWatched)
-                throw new InvalidOperationException($"[port:fake] '{contract.Name}.{method.Name}' 不应被调用");
+                throw new PortCallNotExpectedException($"{contract.Name}.{method.Name}");
 
             if (counters is not null && isWatched)
                 counters.Add(method.Name, KeyOf(args));
 
             if (fixedValues is { Count: > 0 })
             {
-                var value = fixedValues[Math.Min(index, fixedValues.Count - 1)];
-                if (index < fixedValues.Count) index++;
-                return Adapt(method.ReturnType, value);
+                // 序列口径单源：多值用尽即抛；单值（fixed）复用首项。
+                var position = Interlocked.Increment(ref index) - 1;
+                if (position >= fixedValues.Count && !reuseLast)
+                    throw new FakeSequenceExhaustedException($"{contract.Name}.{method.Name}", position);
+
+                return Adapt(method.ReturnType, fixedValues[Math.Min(position, fixedValues.Count - 1)]);
             }
 
             return inner is null
@@ -99,8 +103,7 @@ public static class ProxyFakes
         }
         catch (TargetInvocationException ex) when (ex.InnerException is { } innerException)
         {
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(innerException).Throw();
-            throw;   // 不可达
+            return PortInvocation.ExpectAny(innerException, expect: null);   // 原样上抛（保留原始栈）
         }
     }
 
@@ -141,29 +144,36 @@ public static class ProxyFakes
     }
 }
 
-/// <summary>调用计数表（方法名 + 主键 → 次数）。</summary>
+/// <summary>调用计数表（方法名 + 主键 → 次数）；并发安全（替身可被并行调用）。</summary>
 internal sealed class CallCounter
 {
     private readonly Dictionary<(string Method, string Key), int> _counts = new();
+    private readonly object _gate = new();
 
     /// <summary>计一次（主键为空串 = 无主键调用）。</summary>
     internal void Add(string method, string key)
     {
-        var slot = (method, key);
-        _counts[slot] = _counts.TryGetValue(slot, out var count) ? count + 1 : 1;
+        lock (_gate)
+        {
+            var slot = (method, key);
+            _counts[slot] = _counts.TryGetValue(slot, out var count) ? count + 1 : 1;
+        }
     }
 
     /// <summary>取计数（<paramref name="key"/> 为空 = 该方法的全部主键之和）。</summary>
     internal int Count(string method, string? key)
     {
-        if (key is not null)
-            return _counts.TryGetValue((method, key), out var exact) ? exact : 0;
+        lock (_gate)
+        {
+            if (key is not null)
+                return _counts.TryGetValue((method, key), out var exact) ? exact : 0;
 
-        var total = 0;
-        foreach (var ((name, _), value) in _counts)
-            if (string.Equals(name, method, StringComparison.Ordinal)) total += value;
+            var total = 0;
+            foreach (var ((name, _), value) in _counts)
+                if (string.Equals(name, method, StringComparison.Ordinal)) total += value;
 
-        return total;
+            return total;
+        }
     }
 }
 

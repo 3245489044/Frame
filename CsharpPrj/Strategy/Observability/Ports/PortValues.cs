@@ -77,30 +77,73 @@ internal static class PortValues
     }
 
     private static object? ElementAt(object? value, int position)
+        => TryElementAt(value, position, out var indexed)
+            ? indexed
+            : Elements(value).ElementAtOrDefault(position);
+
+    /// <summary>可索引载体判定（JSON 数组 / JSON 字符串 / 字符串 / <c>IList</c>）：用于区分「越界」与「不可索引」。</summary>
+    internal static bool IsIndexable(object? value)
+        => value switch
+        {
+            JsonElement element => element.ValueKind is JsonValueKind.Array or JsonValueKind.String,
+            string => true,
+            System.Collections.IList => true,
+            _ => false,
+        };
+
+    /// <summary>
+    /// 索引取值的**唯一实现**（JSON 数组 / JSON 字符串 / 字符串 / <c>IList</c>；越界 → false）。
+    /// 调用方按各自口径处理不可索引载体（属性路径取值取 null；脚本遍历对非序载体 fail-fast）。
+    /// </summary>
+    internal static bool TryElementAt(object? value, int position, out object? result)
     {
-        if (position < 0) return null;
+        result = null;
+        if (position < 0) return false;
 
         switch (value)
         {
-            case null:
-                return null;
             case JsonElement element when element.ValueKind == JsonValueKind.Array:
-                return element.GetArrayLength() > position ? element[position].Clone() : null;
+                if (element.GetArrayLength() <= position) return false;
+                result = element[position].Clone();
+                return true;
+
+            case JsonElement element when element.ValueKind == JsonValueKind.String:
+                var json = element.GetString() ?? string.Empty;
+                if (position >= json.Length) return false;
+                result = json[position].ToString();
+                return true;
+
             case string text:
-                return position < text.Length ? text[position].ToString() : null;
+                if (position >= text.Length) return false;
+                result = text[position].ToString();
+                return true;
+
             case System.Collections.IList list:
-                return position < list.Count ? list[position] : null;
+                if (position >= list.Count) return false;
+                result = list[position];
+                return true;
+
             default:
-                return Elements(value).ElementAtOrDefault(position);
+                return false;
         }
     }
 
-    /// <summary>计数（集合 / 数组 / 字符串长度；空 → 0；不可计数 → null）。</summary>
+    /// <summary>
+    /// 计数（集合 / 数组 / 字符串长度 / JSON 数组元素数 / JSON 对象属性数；空 → 0；不可计数 → null）。
+    /// <para>JSON 结构计入本口径（E7：<c>JsonElement</c> 不实现 <c>IEnumerable</c>，缺此分支则集合元素聚合走不进计数回退）。</para>
+    /// </summary>
     internal static int? TryCount(object? value)
         => value switch
         {
             null => 0,
             string text => text.Length,
+            JsonElement element => element.ValueKind switch
+            {
+                JsonValueKind.Array => element.GetArrayLength(),
+                JsonValueKind.Object => element.EnumerateObject().Count(),
+                JsonValueKind.Null or JsonValueKind.Undefined => 0,
+                _ => null,
+            },
             System.Collections.ICollection collection => collection.Count,
             System.Collections.IEnumerable sequence => CountByIteration(sequence),
             _ => null,
@@ -171,14 +214,252 @@ internal static class PortValues
             _ => element.Clone(),
         };
 
-    /// <summary>JSON 值 → 目标类型（<c>JsonElement</c>/<c>object</c> 位保留元素；null / undefined → null）。</summary>
+    /// <summary>
+    /// 原义解包（E9：对取值调用前的解包）：JSON **标量** → CLR 值；JSON **数组 / 对象保持 <c>JsonElement</c>**
+    /// （口径写死：与 <see cref="Elements"/> / <see cref="PathOf"/> 的既有分派一致，避免类型漂移）。
+    /// </summary>
+    internal static object? UnwrapValue(object? value) => value is JsonElement element ? Unwrap(element) : value;
+
+    /// <summary>
+    /// 值归一（**单一口径**，E4；<c>Direct</c> / <c>Coerce</c> / 数组元素共用）：源值 → 目标类型的可比转换。
+    /// <para>口径：JSON 数字逐级收窄（越界 / 有小数位落整型 → 不可归一，不静默截断）；JSON 字符串 → 值类型 / 枚举（宽松解析，InvariantCulture）；
+    /// JSON <c>true/false</c> → <c>bool</c> 直投；CLR 数值 → 目标数值 checked 转换；非文本值不隐式文本化。</para>
+    /// </summary>
+    internal static bool TryNormalize(object? value, Type target, out object? result)
+    {
+        result = null;
+        if (value is null) return false;
+
+        var underlying = Nullable.GetUnderlyingType(target) ?? target;
+        if (underlying == typeof(object) || underlying.IsInstanceOfType(value))
+        {
+            result = value;
+            return true;
+        }
+
+        if (value is JsonElement element) return TryNormalizeJson(element, target, underlying, out result);
+
+        if (underlying.IsEnum)
+        {
+            if (value is string name) return TryParseEnum(underlying, name, out result);
+            if (!IsNumeric(value)) return false;
+
+            try
+            {
+                result = Enum.ToObject(underlying, value);
+                return true;
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidCastException)
+            {
+                result = null;
+                return false;
+            }
+        }
+
+        if (IsNumeric(underlying))
+        {
+            if (value is string text) return TryParseNumeric(text, underlying, out result);
+            if (!IsNumeric(value)) return false;
+            if (IsIntegral(underlying) && HasFraction(value)) return false;
+
+            try
+            {
+                result = System.Convert.ChangeType(value, underlying, System.Globalization.CultureInfo.InvariantCulture);
+                return true;
+            }
+            catch (Exception ex) when (ex is OverflowException or FormatException or InvalidCastException)
+            {
+                result = null;
+                return false;
+            }
+        }
+
+        if (underlying == typeof(bool))
+        {
+            switch (value)
+            {
+                case bool flag:
+                    result = flag;
+                    return true;
+                case string literal when bool.TryParse(literal, out var parsed):
+                    result = parsed;
+                    return true;
+                case string digits when digits is "1" or "0":
+                    result = digits == "1";
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        if (underlying == typeof(char) && value is string single && single.Length == 1)
+        {
+            result = single[0];
+            return true;
+        }
+
+        if (value is not string text2) return false;
+
+        try
+        {
+            result = System.Convert.ChangeType(text2, underlying, System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>JSON 值 → 目标类型（null / undefined 归调用方裁决；标量走 <see cref="TryNormalize"/>，结构回落 STJ）。</summary>
+    private static bool TryNormalizeJson(JsonElement element, Type target, Type underlying, out object? result)
+    {
+        result = null;
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Null or JsonValueKind.Undefined:
+                return false;
+
+            case JsonValueKind.True or JsonValueKind.False:
+                return TryNormalize(element.GetBoolean(), target, out result);
+
+            case JsonValueKind.String:
+                return TryNormalize(element.GetString(), target, out result);
+
+            case JsonValueKind.Number:
+                if (element.TryGetInt64(out var integer)) return TryNormalize(integer, target, out result);
+                if (element.TryGetDecimal(out var dec) && TryNormalize(dec, target, out result)) return true;
+
+                return TryNormalize(element.GetDouble(), target, out result);
+        }
+
+        if (target == typeof(JsonElement) || underlying == typeof(object))
+        {
+            result = element.Clone();
+            return true;
+        }
+
+        try
+        {
+            result = JsonSerializer.Deserialize(element.GetRawText(), target);
+            return true;
+        }
+        catch (JsonException)
+        {
+            result = null;
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 可绑定度等级（E1 重载解析 / E9 方法解析共用评分：「精确类型命中」&gt;「可归一」&gt;「可选形参缺省」&gt;「不可绑定」）。
+    /// </summary>
+    internal enum Bindability
+    {
+        Unbindable = -1,
+        Defaulted = 0,
+        Normalizable = 1,
+        Exact = 2,
+    }
+
+    /// <summary>实参对目标形参的可绑定度（null 仅对可空 / 引用类型为精确命中）。</summary>
+    internal static Bindability Score(object? value, Type target)
+    {
+        if (value is null)
+            return target.IsValueType && Nullable.GetUnderlyingType(target) is null
+                ? Bindability.Unbindable
+                : Bindability.Exact;
+
+        var underlying = Nullable.GetUnderlyingType(target) ?? target;
+        if (target.IsInstanceOfType(value) || underlying.IsInstanceOfType(value)) return Bindability.Exact;
+
+        return TryNormalize(value, target, out _) ? Bindability.Normalizable : Bindability.Unbindable;
+    }
+
+    /// <summary>候选分数：未给出的形参位按「可选形参缺省」计；任一不可绑定实参 → 负分（即「不可绑定」）。</summary>
+    internal static int ScoreArguments(Type[] parameters, object?[] args)
+    {
+        var total = 0;
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var score = i < args.Length ? Score(args[i], parameters[i]) : Bindability.Defaulted;
+            if (score == Bindability.Unbindable) return -1;
+
+            total += (int)score;
+        }
+
+        return total;
+    }
+
+    private static bool TryParseEnum(Type type, string name, out object? result)
+    {
+        try
+        {
+            result = Enum.Parse(type, name, ignoreCase: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or OverflowException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    private static bool TryParseNumeric(string text, Type target, out object? result)
+    {
+        try
+        {
+            result = System.Convert.ChangeType(text, target, System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    private static bool IsNumeric(object value)
+        => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    private static bool IsNumeric(Type type)
+        => type == typeof(sbyte) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort)
+           || type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong)
+           || type == typeof(float) || type == typeof(double) || type == typeof(decimal);
+
+    private static bool IsIntegral(Type type)
+        => type == typeof(sbyte) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort)
+           || type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong);
+
+    private static bool HasFraction(object value)
+        => value switch
+        {
+            float real => real % 1 != 0,
+            double real => real % 1 != 0,
+            decimal real => real % 1 != 0,
+            _ => false,
+        };
+
+    /// <summary>JSON 值 → 目标类型（<c>JsonElement</c>/<c>object</c> 位保留元素；null / undefined → null；标量按归一口径）。</summary>
     internal static object? Coerce(object? value, Type target)
     {
-        if (value is not JsonElement element) return value;
-        if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return null;
-        if (target == typeof(JsonElement) || target == typeof(object)) return element.Clone();
+        if (value is JsonElement element)
+        {
+            if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return null;
 
-        return JsonSerializer.Deserialize(element.GetRawText(), target);
+            return TryNormalize(element, target, out var normalized)
+                ? normalized
+                : JsonSerializer.Deserialize(element.GetRawText(), target);
+        }
+
+        return TryNormalize(value, target, out var result) ? result : value;
     }
 
     /// <summary>
@@ -262,4 +543,11 @@ internal static class PortValues
                 .ToDictionary(property => property.Name, property => ToGraph(property.Value), StringComparer.Ordinal),
             _ => Unwrap(element),
         };
+
+    /// <summary>
+    /// CSV 文本切分（去空段 + 逐项去空白）——<c>convert: csv</c> 在三条绑定通道上的**唯一切分实现**
+    /// （口径与 DataDriven 侧 <c>SpecLiterals.SplitCsv</c> 一致）。
+    /// </summary>
+    internal static string[] SplitCsv(string text)
+        => text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

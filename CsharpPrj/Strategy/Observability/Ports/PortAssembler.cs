@@ -155,7 +155,6 @@ public sealed class PortAssembler
                 return false;
         }
     }
-
     /// <summary>登记绑定：契约未播种即抛（防绑定未声明边界）；同键重复绑定即抛（单一实现点）。</summary>
     private bool Bind(string portKey, IPortBinding binding)
     {

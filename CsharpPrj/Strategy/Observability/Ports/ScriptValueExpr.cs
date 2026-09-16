@@ -191,6 +191,7 @@ internal sealed class ScriptedScope
     private readonly Dictionary<string, string> _tempDirs = new(StringComparer.Ordinal);
     private readonly List<(string Name, object? Element, int Index)> _loops = new();
     private readonly List<string> _notes = new();
+    private string? _bottom;
 
     internal ScriptedScope(string portKey) => PortKey = portKey;
 
@@ -236,6 +237,30 @@ internal sealed class ScriptedScope
 
     internal bool Has(string name) => _slots.ContainsKey(name);
 
+    /// <summary>
+    /// 读槽（**⊥ 语义**，E8）：运行期未写入 → <c>⊥</c>（返回 null，**不抛**），并登记 ⊥ 出处
+    /// （由最近的求值站点经 <see cref="TakeBottom"/> 消费，用于「不执行 / 不产出」的留痕）。
+    /// <para>声明期拼写漂移仍由机检拦（⊥ 只覆盖运行期未定义）；步骤级槽引用（<c>foreach.slot</c> / <c>collect.from</c>）仍走严格 <see cref="Slot"/>。</para>
+    /// </summary>
+    internal object? SlotOrBottom(string name, string context)
+    {
+        if (_slots.TryGetValue(name, out var value)) return value;
+
+        _bottom = $"槽 '{name}'（{context}）在运行期未写入";
+        return null;
+    }
+
+    /// <summary>取走 ⊥ 出处（消费一次即清；无 ⊥ 时为 null）。</summary>
+    internal string? TakeBottom()
+    {
+        var provenance = _bottom;
+        _bottom = null;
+        return provenance;
+    }
+
+    /// <summary>诊断记录条数（判定「本次求值是否留痕」，E8 投影字段不产出的判据之一）。</summary>
+    internal int NoteCount => _notes.Count;
+
     /// <summary>收集槽（不存在则建）：循环结果按序追加（G1）。</summary>
     internal List<object?> Collect(string name)
     {
@@ -264,22 +289,28 @@ internal sealed class ScriptedScope
         return path is { Length: > 0 } ? ScriptedValue.PathOf(value, path) : value;
     }
 
-    /// <summary>元素下标取值（列表 / 数组 / 字符串；越界 / 非序载体 → fail-fast）。</summary>
+    /// <summary>
+    /// 元素下标取值（索引语义单源 = <see cref="PortValues.TryElementAt"/>）：**越界 → null**（与 <c>path</c> 的 <c>[n]</c> 段、
+    /// 实参 <c>optional</c> 同口径，E22-44 固化）；非序载体（JSON 对象 / 数字 / 布尔） → fail-fast（声明错误可见）。
+    /// </summary>
     private object? ElementAt(object? element, int position, string context)
     {
-        switch (element)
-        {
-            case null:
-                return null;
-            case System.Collections.IList list when position >= 0 && position < list.Count:
-                return list[position];
-            case string text when position >= 0 && position < text.Length:
-                return text[position].ToString();
-            default:
-                throw new PortBindingViolationException(
-                    PortKey,
-                    $"端口 '{PortKey}' 的 {context} 对 {element?.GetType().Name ?? "null"} 取下标 {position} 越界");
-        }
+        if (position < 0)
+            throw new PortBindingViolationException(
+                PortKey, $"端口 '{PortKey}' 的 {context} 的下标 {position} 非法（须 ≥ 0）");
+
+        if (element is null) return null;
+        if (PortValues.TryElementAt(element, position, out var indexed)) return indexed;
+        if (PortValues.IsIndexable(element)) return null;   // 可索引但越界 → null（与 path 的 [n] 段同口径）
+
+        if (element is JsonElement json)
+            throw new PortBindingViolationException(
+                PortKey,
+                $"端口 '{PortKey}' 的 {context} 对 JSON {json.ValueKind} 取下标 {position}（仅数组 / 字符串可索引）");
+
+        throw new PortBindingViolationException(
+            PortKey,
+            $"端口 '{PortKey}' 的 {context} 对 {element.GetType().Name} 取下标 {position}（不可索引载体）");
     }
 }
 
@@ -329,7 +360,8 @@ internal static class ScriptedValue
                     throw new PortBindingViolationException(
                         scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 var 来源缺 key（槽名）");
 
-                var slot = scope.Slot(spec.Key!, context);
+                // E8：运行期未写入的槽 → ⊥（不抛；声明期拼写漂移仍由机检拦）。
+                var slot = scope.SlotOrBottom(spec.Key!, context);
                 return spec.Path is { Length: > 0 } path ? PortValues.PathOf(slot, path) : slot;
 
             case "dep":
@@ -348,16 +380,18 @@ internal static class ScriptedValue
                 return TypeLiteral(spec, scope.PortKey, context);
 
             case "delegate":
-                return spec.Delegate is { } delegateSpec
-                    ? (scope.Delegates ?? throw new PortBindingViolationException(
-                        scope.PortKey,
-                        $"端口 '{scope.PortKey}' 的 {context} 的 delegate 来源未接线（委托工厂未注入）"))
-                      (delegateSpec, scope, input, deps, context)
-                    : throw new PortBindingViolationException(
-                        scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 delegate 来源缺 delegate（委托声明）");
+                return DelegateValue(spec, scope, input, deps, context);
 
             case null or "" when spec.Construct is not null:
                 return ScriptedConstruction.Build(spec.Construct!, scope, input, deps, context);
+
+            // E5：From 缺省按**声明内容**推断（优先级固定唯一）——Construct > Delegate > Value；
+            // 三者皆空 → 保留既有 fail-fast（列可用来源）。
+            case null or "" when spec.Delegate is not null:
+                return DelegateValue(spec, scope, input, deps, context);
+
+            case null or "" when spec.Value is { } constant:
+                return PortValues.Unwrap(constant);
 
             case "new":
                 return spec.Construct is { } construct
@@ -394,6 +428,40 @@ internal static class ScriptedValue
         => spec.From == "type"
             ? null
             : spec.Type is { Length: > 0 } name ? ComposedDeps.ResolveType(name, spec.GenericArgs) : null;
+
+    /// <summary>声明实参摘要（诊断文案：重载择优的「实参 […]」段）。</summary>
+    internal static string DescribeArgs(IReadOnlyList<ScriptedArgSpec>? declared)
+        => declared is not { Count: > 0 } ? "(无)" : string.Join(", ", declared.Select(DescribeArg));
+
+    private static string DescribeArg(ScriptedArgSpec spec)
+        => spec.From switch
+        {
+            "literal" when spec.Value is { } value => $"literal {value.GetRawText()}",
+            "arg" => $"arg[{spec.Index?.ToString() ?? "?"}]",
+            "with" => $"with '{spec.Key}'",
+            "var" => $"var '{spec.Key}'",
+            "item" or "row" => $"{spec.From} '{spec.Key}'",
+            "dep" => $"dep[{spec.Dep?.ToString() ?? "?"}]",
+            "member" => $"member {spec.Type}.{spec.Key}",
+            "type" => $"type {spec.Type}",
+            "new" => $"new {spec.Construct?.Type}",
+            "delegate" => $"delegate {spec.Delegate?.Kind}",
+            null or "" when spec.Construct is not null => $"new {spec.Construct.Type}",
+            null or "" when spec.Delegate is not null => $"delegate {spec.Delegate.Kind}",
+            null or "" when spec.Value is not null => $"literal {spec.Value.Value.GetRawText()}",
+            _ => spec.From ?? "(未声明来源)",
+        };
+
+    /// <summary>委托来源取值（<c>from:delegate</c> 与 E5 的 From 缺省推断共用）：委托工厂未接线 / 缺声明 → fail-fast。</summary>
+    private static object? DelegateValue(
+        ScriptedArgSpec spec, ScriptedScope scope, IPortInput input, object?[] deps, string context)
+        => spec.Delegate is { } delegateSpec
+            ? (scope.Delegates ?? throw new PortBindingViolationException(
+                scope.PortKey,
+                $"端口 '{scope.PortKey}' 的 {context} 的 delegate 来源未接线（委托工厂未注入）"))
+              (delegateSpec, scope, input, deps, context)
+            : throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 delegate 来源缺 delegate（委托声明）");
 
     /// <summary>属性路径取值（单源转调 <see cref="PortValues.PathOf"/>）。</summary>
     internal static object? PathOf(object? value, string path) => PortValues.PathOf(value, path);
@@ -521,6 +589,12 @@ internal static class ScriptedValue
         {
             if (spec.Default is { } fallback) return PortValues.Coerce(fallback, target);
             if (spec.Optional) return ReflectivePortResolver.DefaultFor(target);
+
+            // E4：null 不得落到非可空值类型形参（否则延迟到 Invoke 才炸，诊断不可定位）。
+            if (target.IsValueType && Nullable.GetUnderlyingType(target) is null)
+                throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 缺值（null）不得赋给非可空形参 {target.Name}");
+
             return null;
         }
 
@@ -546,8 +620,8 @@ internal static class ScriptedValue
                     target);
 
             case "bool":
-                return bool.TryParse(PortValues.Text(raw), out var flag)
-                    ? flag
+                return PortValues.TryNormalize(raw, typeof(bool), out var flag) && flag is bool parsed
+                    ? parsed
                     : throw Mismatch(portKey, context, raw, "布尔");
 
             case "int":
@@ -581,37 +655,21 @@ internal static class ScriptedValue
     private static PortBindingViolationException Mismatch(string portKey, string context, object raw, string expected)
         => new(portKey, $"端口 '{portKey}' 的 {context} 的值 '{PortValues.Text(raw)}' 不能转换为 {expected}");
 
-    /// <summary>无转换声明：JSON 值按目标类型反序列化；原类型直投；值类型按文本宽松解析。</summary>
+    /// <summary>无转换声明：走**值归一单源**（E4：JSON 标量 / CLR 数值 / 文本 → 目标类型的可比转换；不可归一 → 诊断）。</summary>
     private static object? Direct(object raw, Type target, string portKey, string context)
     {
-        if (raw is JsonElement) return PortValues.Coerce(raw, target);
-        if (target == typeof(object) || target.IsInstanceOfType(raw)) return raw;
-
-        if (target.IsValueType && raw is string text)
-        {
-            try
-            {
-                return System.Convert.ChangeType(text, target, System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
-            {
-                throw Mismatch(portKey, context, raw, target.Name);
-            }
-        }
+        if (PortValues.TryNormalize(raw, target, out var normalized)) return normalized;
 
         throw Mismatch(portKey, context, raw, target.Name);
     }
 
-    /// <summary>CSV 文本 → 目标集合类型（逗号拆分；数组 / 字符串集合均可）。</summary>
+    /// <summary>CSV 文本 → 目标集合类型（切分单源 = <see cref="PortValues.SplitCsv"/>：去空段 + 逐项去空白）。</summary>
     private static object? Csv(string text, Type target, string portKey, string context)
     {
-        var parts = text.Length == 0
-            ? new List<string?>()
-            : text.Split(',').Select(item => (string?)item.Trim()).ToList();
+        var parts = PortValues.SplitCsv(text).ToList();
 
         if (target.IsArray) return parts.ToArray();
-        if (target.IsAssignableFrom(parts.GetType())) return parts;
-        if (target == typeof(object)) return parts;
+        if (target == typeof(object) || target.IsAssignableFrom(parts.GetType())) return parts;
 
         throw Mismatch(portKey, context, text, target.Name);
     }
@@ -628,7 +686,7 @@ internal static class ScriptedValue
         var array = Array.CreateInstance(element, items.Length);
 
         for (var i = 0; i < items.Length; i++)
-            array.SetValue(ConvertElement(items[i], element, portKey, context), i);
+            array.SetValue(ConvertElement(items[i], element, portKey, context, i), i);
 
         if (target.IsInstanceOfType(array)) return array;
 
@@ -660,20 +718,55 @@ internal static class ScriptedValue
             $"端口 '{portKey}' 的 {context} 的 array 转换需要集合 / 数组目标类型或 elementType 声明（当前 {target.Name}）");
     }
 
-    private static object? ConvertElement(object? value, Type element, string portKey, string context)
+    /// <summary>
+    /// 数组元素转换（E3）：先**原义解包**（JSON 标量 → CLR；数组 / 对象保持 <c>JsonElement</c>）再按元素类型分派 ——
+    /// <c>Type</c> 按全名解析、枚举按名解析（忽略大小写，与 <c>SpecLiterals.ParseEnum</c> 同口径）、值类型走**归一单源**（E4）、
+    /// 其余回落 STJ；非法元素 → 诊断含**元素下标**与期望类型。
+    /// </summary>
+    private static object? ConvertElement(object? value, Type element, string portKey, string context, int index)
     {
         if (value is null) return null;
-        if (element == typeof(object) || element.IsInstanceOfType(value)) return value;
 
-        // 类型字面量元素（W22）：元素类型为 System.Type 时按类型全名解析（Type[] 的声明式装配）。
-        if (element == typeof(Type) && value is string typeName) return ComposedDeps.ResolveType(typeName, null);
+        var literal = PortValues.UnwrapValue(value);
+        if (element == typeof(object) || element.IsInstanceOfType(literal)) return literal;
 
-        if (value is JsonElement json) return PortValues.Coerce(json, element);
+        // 类型字面量元素（W22 / E3）：元素类型为 System.Type 时按类型全名解析（Type[] 的声明式装配）。
+        if (element == typeof(Type) && literal is string typeName)
+        {
+            try
+            {
+                return ComposedDeps.ResolveType(typeName, null);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+            {
+                throw new PortBindingViolationException(
+                    portKey,
+                    $"端口 '{portKey}' 的 {context} 的第 {index} 个元素 '{typeName}' 不是可解析的类型（{ex.Message}）");
+            }
+        }
 
-        throw new PortBindingViolationException(
-            portKey,
-            $"端口 '{portKey}' 的 {context} 的元素 {value.GetType().Name} 不能转为 {element.Name}");
+        var underlying = Nullable.GetUnderlyingType(element) ?? element;
+        if (underlying.IsEnum && literal is string enumName)
+        {
+            try
+            {
+                return Enum.Parse(underlying, enumName, ignoreCase: true);
+            }
+            catch (Exception ex) when (ex is ArgumentException or OverflowException)
+            {
+                throw ElementMismatch(portKey, context, index, literal, element);
+            }
+        }
+
+        if (PortValues.TryNormalize(literal, element, out var normalized)) return normalized;
+
+        throw ElementMismatch(portKey, context, index, literal, element);
     }
+
+    private static PortBindingViolationException ElementMismatch(
+        string portKey, string context, int index, object value, Type element)
+        => new(portKey,
+            $"端口 '{portKey}' 的 {context} 的第 {index} 个元素 '{PortValues.Text(value)}'（{value.GetType().Name}）不能转为 {element.Name}");
 
     private static object? StaticMember(ScriptedArgSpec spec, string portKey, string context)
     {
@@ -786,7 +879,7 @@ internal static class ScriptedExprEvaluator
             return ScriptedInvokeRunner.Run(scope.PortKey, call, specs: null, scope, input, deps).Result;
 
         if (expr.First is { } first) return First(expr, first, scope, input, deps, field, expr.FirstOrNull);
-        if (expr.Last is { } last) return Last(expr, last, scope, input, deps, field, expr.LastOrNull);
+        if (expr.Last is { } last) return Last(expr, last, scope, input, deps, field);
         if (expr.Agg is { } agg) return Aggregate(expr, agg, scope, input, deps, field);
         if (expr.Filter is { } filter) return Filter(expr, filter, scope, input, deps, field);
         if (expr.Distinct is { } distinct) return Distinct(distinct, scope, input, deps, field);
@@ -1119,7 +1212,7 @@ internal static class ScriptedExprEvaluator
     /// </summary>
     private static object? Last(
         ScriptedExpr expr, ScriptedExpr over, ScriptedScope scope, IPortInput input, object?[] deps,
-        string field, bool orNull)
+        string field)
     {
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
 
@@ -1144,8 +1237,7 @@ internal static class ScriptedExprEvaluator
             return expr.LastPath is { Length: > 0 } path ? PortValues.PathOf(items[index], path) : items[index];
         }
 
-        // 末命中语义：空集 / 无命中一律取 null（不抛；声明 orNull 仅作自描述）。
-        _ = orNull;
+        // 末命中语义：空集 / 无命中一律取 null（不抛；LastOrNull 为声明自描述字段）。
         return null;
     }
 
@@ -1220,9 +1312,9 @@ internal static class ScriptedExprEvaluator
 
             if (PortValues.Number(value) is not { } number)
             {
-                // 集合元素按**元素计数**参与聚合（W29：Sum(v => v.Items.Count) 的声明等价）。
-                if (value is System.Collections.IEnumerable and not string
-                    && PortValues.TryCount(value) is { } size)
+                // 集合元素按**元素计数**参与聚合（W29：Sum(v => v.Items.Count) 的声明等价）：
+                // 计数经 PortValues 单源（含 JSON 数组 / JSON 对象，E7）；**字符串不回退**（保持「非数值即抛」，防把长度当数值）。
+                if (value is not string && PortValues.TryCount(value) is { } size)
                 {
                     numbers.Add(size);
                     continue;
@@ -1252,9 +1344,12 @@ internal static class ScriptedExprEvaluator
         };
     }
 
-    /// <summary>聚合取值结果归一：整数输入按 <see cref="int"/> 返回（可比性），否则原样。</summary>
+    /// <summary>
+    /// 聚合取值结果归一：整数输入按 <see cref="int"/> 返回（可比性），否则原样 <see cref="double"/>。
+    /// <para>E6 修复点：三元两支须显式为 <c>object</c>（否则 <c>int</c> 被隐式提升回 <c>double</c> 再装箱，整数归一无效果）。</para>
+    /// </summary>
     private static object Extreme(double value, bool integral)
-        => integral && value is >= int.MinValue and <= int.MaxValue ? (int)value : value;
+        => integral && value is >= int.MinValue and <= int.MaxValue ? (int)value : (object)value;
 
     /// <summary>
     /// 筛选成集（W8）：遍历来源元素 → 按 <see cref="ScriptedExpr.FilterWhere"/> 保留（真值判定；<c>⊥</c> 视同不保留）

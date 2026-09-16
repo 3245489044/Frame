@@ -26,11 +26,7 @@ public static class StandardFakes
     public static IPortBinding Fixed(object? value) => new DelegateBinding(_ => value);
 
     /// <summary>固定应答替身（按输入计算固定结构，如多键 seed 表）。</summary>
-    public static IPortBinding FixedBy(Func<IPortInput, object?> projector)
-    {
-        ArgumentNullException.ThrowIfNull(projector);
-        return new DelegateBinding(projector);
-    }
+    public static IPortBinding FixedBy(Func<IPortInput, object?> projector) => Recording(projector);
 
     /// <summary>回显替身：第一个位置实参经投影后即应答（输入决定输出）。</summary>
     public static IPortBinding Echo(Func<object?, object?> projector)
@@ -40,11 +36,7 @@ public static class StandardFakes
     }
 
     /// <summary>回显替身（按完整输入投影）。</summary>
-    public static IPortBinding EchoBy(Func<IPortInput, object?> projector)
-    {
-        ArgumentNullException.ThrowIfNull(projector);
-        return new DelegateBinding(projector);
-    }
+    public static IPortBinding EchoBy(Func<IPortInput, object?> projector) => Recording(projector);
 
     /// <summary>负向守卫替身：被调用即失败（用例声明该端口不应被触达）。</summary>
     public static IPortBinding NotExpected() => new DelegateBinding(input => throw new PortCallNotExpectedException(input.PortKey));

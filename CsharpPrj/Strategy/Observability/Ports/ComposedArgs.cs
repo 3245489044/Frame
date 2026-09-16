@@ -27,6 +27,17 @@ internal static class ComposedArgs
         return args;
     }
 
+    /// <summary>声明实参摘要（诊断文案：构造择优的「实参 […]」段）。</summary>
+    internal static string Describe(IReadOnlyList<ComposedArgSpec>? declared)
+        => declared is not { Count: > 0 }
+            ? "(无)"
+            : string.Join(", ", declared.Select(spec => spec.Value is { } value
+                ? $"value {value.GetRawText()}"
+                : spec.ArgIndex is { } index ? $"arg[{index}]"
+                : spec.Key is { Length: > 0 } key ? $"with '{key}'"
+                : spec.Dep is { } dep ? $"dep[{dep}]"
+                : "optional"));
+
     /// <summary>按声明序求值（工厂实参：工厂签名自定，不做形参类型转换，值按原义传递）。</summary>
     internal static IReadOnlyList<object?> Values(
         IReadOnlyList<ComposedArgSpec>? declared, IPortInput input, object?[] deps, string portKey, string context)
@@ -40,7 +51,7 @@ internal static class ComposedArgs
     {
         if (spec.Dep is { } reference) return Dep(deps, reference, portKey, context, index);
         if (spec.ArgIndex is { } position) return PositionalRaw(input, spec, position, portKey, context);
-        if (spec.Key is { Length: > 0 } key) return WithRaw(input, key, portKey, context, index, spec.Optional);
+        if (spec.Key is { Length: > 0 } key) return WithRaw(input, key, portKey, context, spec.Optional);
         if (spec.Value is { } constant) return Unwrap(constant);
         if (spec.Optional) return null;
 
@@ -77,7 +88,7 @@ internal static class ComposedArgs
         if (spec.Optional)
             return spec.Default is { } fallback
                 ? Coerce(fallback, target)
-                : None(spec, target, portKey, context, index);
+                : None(spec, target);
 
         throw new PortBindingViolationException(
             portKey, $"端口 '{portKey}' 的 {context} 第 {index} 个实参未声明取值来源（argIndex|key|dep|value|optional）");
@@ -94,7 +105,7 @@ internal static class ComposedArgs
                 throw new PortBindingViolationException(
                     portKey, $"端口 '{portKey}' 的 {context} 需要第 {position} 个位置实参，实际只有 {input.Args.Count} 个");
 
-            return None(spec, target, portKey, context, position);
+            return None(spec, target);
         }
 
         var raw = input.Args[position];
@@ -115,8 +126,8 @@ internal static class ComposedArgs
     private static object? FromWith(
         Type target, ComposedArgSpec spec, IPortInput input, string key, string portKey, string context, int index)
     {
-        var raw = WithRaw(input, key, portKey, context, index, spec.Optional);
-        if (raw is null) return None(spec, target, portKey, context, index);
+        var raw = WithRaw(input, key, portKey, context, spec.Optional);
+        if (raw is null) return None(spec, target);
 
         if (spec.Convert is "json" or "array") return Coerce(raw, target);
         if (raw is not JsonElement element) return raw;
@@ -134,8 +145,10 @@ internal static class ComposedArgs
         => spec.Convert switch
         {
             "string" => text,
-            "csv" => text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-            "bool" => bool.TryParse(text, out var flag) ? flag : throw Mismatch(portKey, context, index, text, "布尔"),
+            "csv" => PortValues.SplitCsv(text).ToList(),
+            "bool" => PortValues.TryNormalize(text, typeof(bool), out var flag) && flag is bool parsed
+                ? parsed
+                : throw Mismatch(portKey, context, index, text, "布尔"),
             "int" => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
                 ? number
                 : throw Mismatch(portKey, context, index, text, "整数"),
@@ -143,18 +156,14 @@ internal static class ComposedArgs
                 ? real
                 : throw Mismatch(portKey, context, index, text, "数值"),
             "json" => string.IsNullOrWhiteSpace(text)
-                ? None(spec, target, portKey, context, index)
+                ? None(spec, target)
                 : Coerce(JsonDocument.Parse(text).RootElement.Clone(), target),
             _ => throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json|object"),
         };
 
     /// <summary>无值分支：声明 <c>default</c> → 反序列化；否则取目标类型默认值（数组 → 空数组，与空集语义一致）。</summary>
-    private static object? None(ComposedArgSpec spec, Type target, string portKey, string context, int index)
+    private static object? None(ComposedArgSpec spec, Type target)
     {
-        _ = portKey;
-        _ = context;
-        _ = index;
-
         if (spec.Default is { } fallback) return Coerce(fallback, target);
 
         return target.IsArray
@@ -166,13 +175,11 @@ internal static class ComposedArgs
     private static object? Coerce(object? value, Type target) => PortValues.Coerce(value, target);
 
     /// <summary>具名实参原始值（缺键 / null：<c>optional</c> → null，否则 fail-fast）。</summary>
-    private static object? WithRaw(
-        IPortInput input, string key, string portKey, string context, int index, bool optional)
+    private static object? WithRaw(IPortInput input, string key, string portKey, string context, bool optional)
     {
         if (input.With.TryGetValue(key, out var value) && value is not null) return value;
         if (optional) return null;
 
-        _ = index;
         throw new PortBindingViolationException(
             portKey, $"端口 '{portKey}' 的 {context} 缺具名实参 '{key}'（with）");
     }

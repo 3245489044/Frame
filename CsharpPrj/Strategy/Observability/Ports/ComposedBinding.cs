@@ -71,10 +71,6 @@ public sealed class ComposedBinding : IPortBinding
     private object?[] BuildDeps(IPortInput input)
         => ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
-    // 依赖构建（new / factory / fake）语义单源：ComposedDeps（组合绑定与脚本绑定共用）
-
-    // 替身装配 / 依赖引用 / 构造选择语义单源：ComposedDeps（组合绑定与脚本绑定共用）
-
     /// <summary>类型解析（含开放泛型闭合：<c>GenericArgs</c> 按序闭合泛型形参）。</summary>
     /// <remarks>解析语义单源 = <see cref="ComposedDeps.ResolveType"/>。</remarks>
     internal static Type ResolveType(string typeName, IReadOnlyList<string>? genericArgs)
@@ -123,15 +119,7 @@ public sealed class ComposedBinding : IPortBinding
                 _spec.PortKey,
                 $"端口 '{_spec.PortKey}' 的调用 '{call.As}' 引用了不存在的依赖下标 {index}（依赖 {_spec.Deps.Count} 个）");
 
-        var dep = _spec.Deps[index];
-        var typeName = dep.Contract ?? dep.New;
-        if (typeName is not { Length: > 0 })
-            throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的调用 '{call.As}' 对 dep[{index}] 取实例成员，但该依赖未声明 contract / new" +
-                "（实例类型不可知）");
-
-        return ResolveType(typeName, dep.GenericArgs);
+        return ComposedDeps.DeclaredInstanceType(_spec.Deps, index, _spec.PortKey, $"调用 '{call.As}'");
     }
 
     // ── 投影 ────────────────────────────────────────────────────────────────
@@ -151,7 +139,7 @@ public sealed class ComposedBinding : IPortBinding
                 return Result(field, results) is not null;
 
             case "text":
-                return Result(field, results)?.ToString();
+                return PortValues.Text(Result(field, results));
 
             case "message":
                 return (Result(field, results) as Exception)?.Message;
@@ -179,7 +167,7 @@ public sealed class ComposedBinding : IPortBinding
                     throw new PortBindingViolationException(
                         _spec.PortKey, $"端口 '{_spec.PortKey}' 的 pathText 字段 '{field.Field}' 缺少 path（属性路径）");
 
-                return PathOf(Result(field, results), textPath)?.ToString();
+                return PortValues.Text(PathOf(Result(field, results), textPath));
 
             case "fakeCount":
                 if (field.Dep is not { } index || index < 0 || index >= deps.Length || deps[index] is not { } fake)
@@ -246,7 +234,7 @@ public sealed class ComposedBinding : IPortBinding
         internal int? DepIndex { get; }
 
         internal object? Invoke(IPortInput input, object?[] deps)
-            => PortInvocation.Execute(() => Execute(input, deps), _expect);
+            => PortInvocation.Invoke(() => Execute(input, deps), _expect is null ? null : new[] { _expect });
 
         private object? Execute(IPortInput input, object?[] deps)
         {
@@ -256,21 +244,16 @@ public sealed class ComposedBinding : IPortBinding
             {
                 var args = ComposedArgs.Build(
                     _method.GetParameters(), Spec.Args, input, deps, _portKey, $"call '{Spec.As}'");
-                return Fold(_method.Invoke(instance, args));
+                return _method.Invoke(instance, args);
             }
 
-            var value = _member switch
+            return _member switch
             {
                 PropertyInfo property => property.GetValue(instance),
                 FieldInfo field => field.GetValue(instance),
                 _ => throw new PortBindingViolationException(
                     _portKey, $"端口 '{_portKey}' 的调用 '{Spec.As}' 未解析出成员（声明与解析不一致）"),
             };
-
-            return Fold(value);
         }
-
-        /// <summary>异步折取：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> 同步取值（异常原样上抛）。</summary>
-        private object? Fold(object? value) => PortInvocation.Fold(value);
     }
 }

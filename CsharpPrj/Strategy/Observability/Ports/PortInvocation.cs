@@ -13,6 +13,13 @@ internal static class PortInvocation
     internal static object? Execute(Func<object?> body, Type? expect)
         => ExecuteAny(body, expect is null ? null : new[] { expect });
 
+    /// <summary>
+    /// **调用唯一入口**：执行 + 期望异常归一 + 异步折取。折取（<see cref="Fold"/>）在归一保护之内 ——
+    /// 「返回 Task 的方法内部抛期望异常」与同步抛出同语义（否则异常绕过 <paramref name="expect"/> 上抛）。
+    /// </summary>
+    internal static object? Invoke(Func<object?> body, IReadOnlyList<Type>? expect)
+        => ExecuteAny(() => Fold(body()), expect);
+
     /// <summary>执行并把异常按期望类型集归一（任一命中 → 异常对象即结果；否则原样上抛）。</summary>
     internal static object? ExecuteAny(Func<object?> body, IReadOnlyList<Type>? expect)
     {

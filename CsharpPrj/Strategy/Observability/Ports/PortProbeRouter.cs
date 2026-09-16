@@ -114,7 +114,7 @@ public sealed class PortProbeRouter
 
         var collected = new SortedDictionary<string, PortProbeRouter>(StringComparer.Ordinal);
 
-        foreach (var type in assembly.GetTypes().OrderBy(t => t.FullName ?? t.Name, StringComparer.Ordinal))
+        foreach (var type in PortReflection.TypesOf(assembly).OrderBy(t => t.FullName ?? t.Name, StringComparer.Ordinal))
         {
             var fields = type
                 .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
@@ -123,8 +123,11 @@ public sealed class PortProbeRouter
 
             foreach (var field in fields)
             {
-                if (field.GetValue(null) is not PortProbeRouter router || collected.TryAdd(router.Key, router))
-                    continue;
+                if (field.GetValue(null) is not PortProbeRouter router)
+                    throw new InvalidOperationException(
+                        $"[port:probe] 字段 {type.FullName}.{field.Name} 未初始化（声明缺失：清单须单源且非空）");
+
+                if (collected.TryAdd(router.Key, router)) continue;
 
                 throw new InvalidOperationException(
                     $"[port:probe] 键 '{router.Key}' 重复声明（{type.FullName}.{field.Name}）：清单须单源");

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
 
@@ -44,8 +43,7 @@ public sealed class ReflectiveBinding : IPortBinding
         }
         catch (TargetInvocationException ex) when (ex.InnerException is { } inner)
         {
-            ExceptionDispatchInfo.Capture(inner).Throw();   // 业务异常原样上抛（错误分类交调用记录）
-            throw;                                          // 不可达（Throw 不返回）
+            return PortInvocation.ExpectAny(inner, expect: null);   // 业务异常原样上抛（错误分类交调用记录）
         }
     }
 
@@ -96,7 +94,7 @@ public sealed class ReflectiveBinding : IPortBinding
         return spec.Convert switch
         {
             "string" => text,
-            "csv" => SplitCsv(text).ToList(),
+            "csv" => PortValues.SplitCsv(text).ToList(),
             "bool" => ParseBool(text, index),
             "int" => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue)
                 ? intValue
@@ -112,6 +110,11 @@ public sealed class ReflectiveBinding : IPortBinding
     /// <summary>结构化直传：取具名实参 <c>with</c> 的原始 JSON 并按目标形参类型反序列化。</summary>
     private object? FromWith(ParameterInfo parameter, PortArgSpec spec, IPortInput input)
     {
+        if (spec.From is { Length: > 0 } source && !string.Equals(source, "with", StringComparison.Ordinal))
+            throw new PortBindingViolationException(
+                _spec.PortKey,
+                $"端口 '{_spec.PortKey}' 的 json 实参 from '{source}' 未知（仅 with = 具名实参）");
+
         if (string.IsNullOrWhiteSpace(spec.Key))
             throw new PortBindingViolationException(
                 _spec.PortKey, $"端口 '{_spec.PortKey}' 的 json 实参缺少 key");
@@ -143,29 +146,159 @@ public sealed class ReflectiveBinding : IPortBinding
 
     /// <summary>声明文本（诊断用；位序即语义）。</summary>
     private string DeclaredText() => string.Join(",", _spec.Args.Select(a => a.Convert));
-
-    /// <summary>逗号分隔 → 去空段去空白数组（口径与 DataDriven 侧 <c>SpecLiterals.SplitCsv</c> 一致）。</summary>
-    private static string[] SplitCsv(string text)
-        => text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
 /// <summary>反射端口绑定的解析小件（类型 / 方法 / 参数默认值 / JSON 反序列化）：分离后便于守卫与单测直接锁定。</summary>
 internal static class ReflectivePortResolver
 {
     private static readonly Dictionary<string, Type> TypeCache = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, MethodInfo> MethodCache = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, MethodInfo[]> MethodCache = new(StringComparer.Ordinal);
 
-    /// <summary>解析目标类型：已加载程序集 → 输出目录探测（宿主按二进制引用装配，目标程序集可能尚未加载）→ <c>Type.GetType</c>。</summary>
+    /// <summary>
+    /// 解析目标类型：已加载程序集 → 输出目录探测（宿主按二进制引用装配，目标程序集可能尚未加载）→ <c>Type.GetType</c>。
+    /// <para>
+    /// 支持泛型语法全名（E2）：<c>Ns.Type&lt;A,B&gt;</c>（实参递归解析，含嵌套泛型）、<c>T[]</c>、<c>T?</c>
+    /// （值类型视为 <c>Nullable&lt;T&gt;</c>）、嵌套类型 <c>Outer.Inner</c>；本件为类型解析**唯一实现**
+    /// （<see cref="ComposedDeps.ResolveType"/> 的「开放泛型 + 参数表」形态经本件转发）。
+    /// </para>
+    /// </summary>
     internal static Type ResolveType(string fullName)
     {
         if (TypeCache.TryGetValue(fullName, out var cached)) return cached;
 
-        var type = PortTypeLoader.Find(fullName)
+        var type = TryResolveType(fullName, out var deepest)
             ?? throw new InvalidOperationException(
-                $"[port:bind] 目标类型 '{fullName}' 未加载（检查工程二进制引用与命名空间）");
+                $"[port:bind] 目标类型 '{fullName}' 未加载（已解析到最深片段 '{deepest}'；" +
+                $"参与查找的程序集 {PortTypeLoader.SearchedAssemblyCount} 个；检查工程二进制引用与命名空间）");
 
         TypeCache[fullName] = type;
         return type;
+    }
+
+    /// <summary>类型解析（可失败形态：返回 null 并给出「已解析到的最深片段」供诊断）。</summary>
+    private static Type? TryResolveType(string text, out string deepest)
+    {
+        var name = text.Trim();
+        deepest = name;
+        if (name.Length == 0) return null;
+
+        if (name.EndsWith("[]", StringComparison.Ordinal))
+        {
+            var element = TryResolveType(name[..^2], out deepest);
+            return element?.MakeArrayType();
+        }
+
+        if (name.EndsWith('?'))
+        {
+            var inner = TryResolveType(name[..^1], out deepest);
+            if (inner is null) return null;
+
+            return inner.IsValueType ? typeof(Nullable<>).MakeGenericType(inner) : inner;
+        }
+
+        var open = name.IndexOf('<', StringComparison.Ordinal);
+        if (open >= 0 && name.EndsWith('>'))
+        {
+            var head = name[..open];
+            if (SplitGenericArguments(name[(open + 1)..^1]) is not { } arguments) return null;
+
+            var definition = FindType($"{head}`{arguments.Count}");
+            if (definition is null) return null;
+
+            var closed = new Type[arguments.Count];
+            for (var i = 0; i < arguments.Count; i++)
+            {
+                var argument = TryResolveType(arguments[i], out var fragment);
+                if (argument is null)
+                {
+                    deepest = fragment;
+                    return null;
+                }
+
+                closed[i] = argument;
+            }
+
+            try
+            {
+                return definition.MakeGenericType(closed);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        if (KeywordAliases.TryGetValue(name, out var alias)) return alias;
+
+        return FindType(name);
+    }
+
+    /// <summary>C# 关键字别名 → CLR 类型（E2：声明面按 C# 语法书写泛型实参，如 <c>Func&lt;object,Task&lt;object&gt;&gt;</c>）。</summary>
+    private static readonly Dictionary<string, Type> KeywordAliases = new(StringComparer.Ordinal)
+    {
+        ["object"] = typeof(object),
+        ["string"] = typeof(string),
+        ["bool"] = typeof(bool),
+        ["char"] = typeof(char),
+        ["byte"] = typeof(byte),
+        ["sbyte"] = typeof(sbyte),
+        ["short"] = typeof(short),
+        ["ushort"] = typeof(ushort),
+        ["int"] = typeof(int),
+        ["uint"] = typeof(uint),
+        ["long"] = typeof(long),
+        ["ulong"] = typeof(ulong),
+        ["float"] = typeof(float),
+        ["double"] = typeof(double),
+        ["decimal"] = typeof(decimal),
+        ["void"] = typeof(void),
+    };
+
+    /// <summary>按全名 / 嵌套名查找类型（嵌套类型由 <c>Outer.Inner</c> 逐级回落 <c>Outer+Inner</c>）。</summary>
+    private static Type? FindType(string name)
+    {
+        if (PortTypeLoader.Find(name) is { } type) return type;
+
+        for (var index = name.LastIndexOf('.'); index > 0; index = name.LastIndexOf('.', index - 1))
+        {
+            var nested = $"{name[..index]}+{name[(index + 1)..]}";
+            if (PortTypeLoader.Find(nested) is { } nestedType) return nestedType;
+        }
+
+        return null;
+    }
+
+    /// <summary>泛型实参表切分（按最外层逗号；括号不配对 → null）。</summary>
+    private static IReadOnlyList<string>? SplitGenericArguments(string text)
+    {
+        var parts = new List<string>();
+        var depth = 0;
+        var start = 0;
+
+        for (var i = 0; i < text.Length; i++)
+        {
+            switch (text[i])
+            {
+                case '<':
+                    depth++;
+                    break;
+                case '>':
+                    depth--;
+                    if (depth < 0) return null;
+                    break;
+                case ',' when depth == 0:
+                    parts.Add(text[start..i]);
+                    start = i + 1;
+                    break;
+            }
+        }
+
+        if (depth != 0) return null;
+
+        parts.Add(text[start..]);
+
+        var trimmed = parts.Select(part => part.Trim()).ToArray();
+        return trimmed.Any(part => part.Length == 0) ? null : trimmed;
     }
 
     /// <summary>
@@ -175,11 +308,80 @@ internal static class ReflectivePortResolver
     internal static MethodInfo ResolveMethod(PortBindingSpec spec, Type type)
         => ResolveMethod(type, spec.PortKey, spec.Method, spec.Args.Count, isStatic: true);
 
-    /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志）。</summary>
+    /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志；无实参判别 → 按「参数个数」精确匹配，再取参数最少者）。</summary>
     internal static MethodInfo ResolveMethod(
         Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic = false)
     {
-        var cacheKey = $"{type.FullName}.{methodName}/{declaredCount}/{(isStatic ? "s" : "i")}/{(nonPublic ? "n" : "p")}";
+        var candidates = ResolveMethodCandidates(type, portKey, methodName, isStatic, nonPublic);
+
+        return candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
+               ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
+               ?? candidates.OrderBy(m => m.GetParameters().Length).First();
+    }
+
+    /// <summary>
+    /// 方法解析**择优形态**（E9：多候选按实参可绑定度择一）：候选集 = 参数个数 == 声明个数（非 <c>out</c> 优先，回落总个数）；
+    /// 逐候选试绑定（<paramref name="tryBind"/> 失败即「不可绑定」）→ 唯一最高分选它；
+    /// **并列最高分 → 保持旧口径（首个参数个数匹配者）**（产品侧已硬约束「不得同名同参数个数重载」，故并列不出现；
+    /// 出现时保持旧行为，避免无谓回归）；全部不可绑定 → fail-fast 并列候选签名。
+    /// </summary>
+    internal static MethodInfo ResolveMethod(
+        Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic,
+        Func<MethodInfo, object?[]?> tryBind, string context)
+    {
+        var candidates = ResolveMethodCandidates(type, portKey, methodName, isStatic, nonPublic);
+        var compatible = candidates.Where(m => DeclaredCount(m) == declaredCount).ToArray();
+        if (compatible.Length == 0)
+            compatible = candidates.Where(m => m.GetParameters().Length == declaredCount).ToArray();
+
+        if (compatible.Length <= 1) return compatible.FirstOrDefault() ?? Legacy(candidates, declaredCount);
+
+        MethodInfo? best = null;
+        var bestScore = -1;
+        var tied = 0;
+
+        foreach (var candidate in compatible)
+        {
+            object?[]? bound;
+            try
+            {
+                bound = tryBind(candidate);
+            }
+            catch (PortBindingViolationException)
+            {
+                continue;
+            }
+
+            if (bound is null) continue;
+
+            var score = PortValues.ScoreArguments(
+                candidate.GetParameters().Select(parameter => parameter.ParameterType).ToArray(), bound);
+
+            if (score < bestScore) continue;
+            if (score == bestScore)
+            {
+                tied++;
+                continue;
+            }
+
+            best = candidate;
+            bestScore = score;
+            tied = 1;
+        }
+
+        if (best is null)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上无可绑定方法 {methodName}（候选 {Signatures(compatible)}）");
+
+        return tied > 1 ? Legacy(compatible, declaredCount) : best;
+    }
+
+    /// <summary>同名方法候选集（缓存：择优所需的实参判别在调用侧完成，故缓存的是候选集而非选择结果）。</summary>
+    internal static MethodInfo[] ResolveMethodCandidates(
+        Type type, string portKey, string methodName, bool isStatic, bool nonPublic)
+    {
+        var cacheKey = $"{type.FullName}.{methodName}//{(isStatic ? "s" : "i")}/{(nonPublic ? "n" : "p")}";
         if (MethodCache.TryGetValue(cacheKey, out var cached)) return cached;
 
         var flags = BindingFlags.Public | BindingFlags.FlattenHierarchy
@@ -193,14 +395,44 @@ internal static class ReflectivePortResolver
 
         if (candidates.Length == 0)
             throw new InvalidOperationException(
-                $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到方法 {methodName}");
+                $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到方法 {methodName}" +
+                $"（可用：{AvailableNames(type, flags)}）");
 
-        var method = candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
-                     ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
-                     ?? candidates.OrderBy(m => m.GetParameters().Length).First();
+        MethodCache[cacheKey] = candidates;
+        return candidates;
+    }
 
-        MethodCache[cacheKey] = method;
-        return method;
+    /// <summary>旧口径选择（参数个数精确匹配 → 参数最少者）：并列时保持既有行为。</summary>
+    private static MethodInfo Legacy(MethodInfo[] candidates, int declaredCount)
+        => candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
+           ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
+           ?? candidates.OrderBy(m => m.GetParameters().Length).First();
+
+    /// <summary>候选签名清单（诊断：`(Int32 capacity)` 形态）。</summary>
+    private static string Signatures(IEnumerable<MethodInfo> candidates)
+        => string.Join(" / ", candidates.Select(candidate => $"({string.Join(", ",
+            candidate.GetParameters().Select(parameter => $"{parameter.ParameterType.Name} {parameter.Name}"))})"));
+
+    /// <summary>可用方法清单（E9 诊断：方法缺失时给出同名方法与其重载签名，有界限长）。</summary>
+    private static string AvailableNames(Type type, BindingFlags flags)
+    {
+        const int limit = 12;
+
+        var groups = type.GetMethods(flags)
+            .Where(method => !method.IsSpecialName)
+            .GroupBy(method => method.Name, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToArray();
+
+        if (groups.Length == 0) return "(无)";
+
+        var listed = groups.Take(limit)
+            .Select(group => $"{group.Key}{Signatures(group.OrderBy(m => m.GetParameters().Length))}")
+            .ToArray();
+
+        return groups.Length > limit
+            ? string.Join(", ", listed) + $" …（共 {groups.Length} 个方法名）"
+            : string.Join(", ", listed);
     }
 
     /// <summary>
@@ -253,6 +485,9 @@ internal static class ReflectivePortResolver
 internal static class PortTypeLoader
 {
     private static readonly Lazy<IReadOnlyList<Assembly>> Probed = new(LoadProbed);
+
+    /// <summary>参与类型查找的程序集数（诊断信息：已加载 + 输出目录探测）。</summary>
+    internal static int SearchedAssemblyCount => AppDomain.CurrentDomain.GetAssemblies().Length + Probed.Value.Count;
 
     /// <summary>按全名查找类型；未找到 → null。</summary>
     internal static Type? Find(string fullName)

@@ -22,7 +22,12 @@ internal static class ScriptedConstruction
         var type = ComposedDeps.ResolveType(spec.Type, spec.GenericArgs);
         var declared = spec.Args ?? Array.Empty<ScriptedArgSpec>();
         var parameters = ComposedDeps
-            .PickConstructor(scope.PortKey, type, declared.Count, context)
+            .PickConstructor(
+                scope.PortKey, type, declared.Count, context,
+                constructor => ScriptedInvokeRunner.TryBind(
+                    scope.PortKey, $"{context}（{type.Name}）", declared,
+                    constructor.GetParameters(), scope, input, deps),
+                ScriptedValue.DescribeArgs(declared))
             .GetParameters();
 
         var args = ScriptedInvokeRunner.Bind(

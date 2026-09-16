@@ -36,11 +36,21 @@ public sealed class PortCatalog : IPortCatalog
         ArgumentNullException.ThrowIfNull(binding);
         EnsurePortKind(contract);
 
-        _contracts?.Register(contract);
-
         var handle = new PortHandle(contract, Decorate(contract.Key, binding));
         if (!_handles.TryAdd(contract.Key, handle))
             throw new DuplicateBoundaryException(contract.Key);
+
+        try
+        {
+            _contracts?.Register(contract);
+        }
+        catch
+        {
+            // 契约面登记失败（同键重复 / 校验不通过）→ 回滚句柄：两面保持一致，不留“有句柄无契约”的悬挂态。
+            _handles.TryRemove(contract.Key, out _);
+            throw;
+        }
+
         return handle;
     }
 
@@ -49,10 +59,11 @@ public sealed class PortCatalog : IPortCatalog
         ArgumentNullException.ThrowIfNull(contract);
         ArgumentNullException.ThrowIfNull(binding);
         EnsurePortKind(contract);
-        if (_handles.ContainsKey(contract.Key)) return false;
+
+        if (!_handles.TryAdd(contract.Key, new PortHandle(contract, Decorate(contract.Key, binding)))) return false;
 
         _contracts?.TryRegister(contract);
-        return _handles.TryAdd(contract.Key, new PortHandle(contract, Decorate(contract.Key, binding)));
+        return true;
     }
 
     public PortHandle Resolve(string portKey)
@@ -69,6 +80,7 @@ public sealed class PortCatalog : IPortCatalog
     public void Replace(string portKey, IPortBinding binding)
     {
         ArgumentNullException.ThrowIfNull(binding);
+        if (string.IsNullOrWhiteSpace(portKey)) throw new ArgumentException("端口键不能为空", nameof(portKey));
         if (!_handles.TryGetValue(portKey, out var handle))
             throw new PortNotRegisteredException(portKey, _handles.Keys.OrderBy(k => k, StringComparer.Ordinal));
         handle.Binding = Decorate(portKey, binding);

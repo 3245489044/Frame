@@ -38,14 +38,13 @@ public static class PortInputExtensions
         return string.Equals(text, "null", StringComparison.Ordinal) ? null : text;
     }
 
-    /// <summary>布尔位置实参（<c>true/false</c>，兼容 <c>1/0</c>）。非法 → <see cref="PortInputTypeException"/>。</summary>
+    /// <summary>布尔位置实参（<c>true/false</c>，兼容 <c>1/0</c>；解析单源 = <see cref="PortValues.TryNormalize"/>）。非法 → <see cref="PortInputTypeException"/>。</summary>
     public static bool ArgBool(this IPortInput input, int index)
     {
         var text = Arg(input, index);
-        if (bool.TryParse(text, out var value)) { return value; }
-        if (text is "1" or "0") { return text == "1"; }
-
-        throw new PortInputTypeException(input.PortKey, $"第 {index} 个实参 '{text}' 不是布尔（true/false）");
+        return PortValues.TryNormalize(text, typeof(bool), out var value) && value is bool parsed
+            ? parsed
+            : throw new PortInputTypeException(input.PortKey, $"第 {index} 个实参 '{text}' 不是布尔（true/false）");
     }
 
     /// <summary>整数位置实参（不变文化）。非法 → <see cref="PortInputTypeException"/>。</summary>
@@ -65,13 +64,12 @@ public static class PortInputExtensions
             throw new PortInputMissingException(input.PortKey, $"缺具名实参 '{key}'（with）");
 
         return value is JsonElement element
-            ? JsonSerializer.Deserialize<T>(element.GetRawText())!
+            ? (T)ReflectivePortResolver.FromJson(element, typeof(T))!
             : (T)value;
     }
 
-    /// <summary>文本化（非字符串实参按不变量字符串形式取值）。</summary>
-    private static string Text(object value)
-        => value as string ?? value.ToString() ?? string.Empty;
+    /// <summary>文本化（文本口径单源 = <see cref="PortValues.Text"/>；null → 空串）。</summary>
+    private static string Text(object value) => PortValues.Text(value) ?? string.Empty;
 
     private static PortInputMissingException Missing(IPortInput input, int index)
         => new(input.PortKey, $"需要第 {index} 个位置实参，实际只有 {input.Args.Count} 个");

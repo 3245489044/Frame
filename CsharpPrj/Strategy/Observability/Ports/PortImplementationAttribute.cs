@@ -61,32 +61,18 @@ public static class PortImplementationRegistry
 
     /// <summary>全程序集标注方法（含非公开类型 / 非公开方法；声明序稳定 = 类型名 + 方法名 Ordinal）。</summary>
     private static IEnumerable<MethodInfo> AnnotatedMethods(Assembly assembly)
-    {
-        Type[] types;
-        try
-        {
-            types = assembly.GetTypes();
-        }
-        catch (ReflectionTypeLoadException ex)
-        {
-            throw new InvalidOperationException(
-                $"[port:impl] 程序集 '{assembly.GetName().Name}' 类型枚举失败（加载器异常：" +
-                string.Join("; ", ex.LoaderExceptions.Select(e => e?.Message ?? e?.GetType().Name)) +
-                "）", ex);
-        }
-
-        return types
+        => PortReflection.TypesOf(assembly)
             .OrderBy(t => t.FullName ?? t.Name, StringComparer.Ordinal)
             .SelectMany(t => t
                 .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
                 .Where(m => m.GetCustomAttribute<PortImplementationAttribute>() is not null)
                 .OrderBy(m => m.Name, StringComparer.Ordinal));
-    }
 
     /// <summary>标注方法 → 实现委托（签名校验前置；绑定失败即抛，含键与方法名定位）。</summary>
     private static Func<IPortInput, object?> Bind(string key, MethodInfo method)
     {
-        if (!method.IsStatic || method.GetParameters() is not [{ } parameter] || !parameter.ParameterType.IsAssignableFrom(typeof(IPortInput)))
+        if (!method.IsStatic || method.GetParameters() is not [{ ParameterType: var parameterType }]
+            || parameterType != typeof(IPortInput))
             throw new InvalidOperationException(
                 $"[port:impl] 端口 '{key}' 的标注方法 '{method.DeclaringType?.FullName}.{method.Name}' 签名非法" +
                 "（要求：静态 ∧ 恰一个 IPortInput 形参）");

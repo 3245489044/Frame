@@ -51,7 +51,7 @@ internal static class ScriptedInvokeRunner
         {
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic, invoke.NonPublic);
-            var read = PortInvocation.ExecuteAny(
+            var read = PortInvocation.Invoke(
                 () => member switch
                 {
                     PropertyInfo property => property.GetValue(instance),
@@ -60,17 +60,16 @@ internal static class ScriptedInvokeRunner
                 },
                 expect);
 
-            return new Outcome(
-                PortInvocation.Fold(read), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
+            return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
 
-        var method = Close(portKey, invoke, ReflectivePortResolver.ResolveMethod(
-            type, portKey, invoke.Method, declared.Count, isStatic, invoke.NonPublic));
+        var method = Close(portKey, invoke, PickMethod(
+            portKey, context, type, invoke.Method, declared, isStatic, invoke.NonPublic, scope, input, resolvedDeps));
         var parameters = method.GetParameters();
         var args = Bind(portKey, $"{context}（{type.Name}.{method.Name}）", declared, parameters, scope, input, resolvedDeps);
 
-        var result = PortInvocation.ExecuteAny(() => method.Invoke(instance, args), expect);
-        return new Outcome(PortInvocation.Fold(result), parameters, args);
+        var result = PortInvocation.Invoke(() => method.Invoke(instance, args), expect);
+        return new Outcome(result, parameters, args);
     }
 
     /// <summary>
@@ -82,10 +81,18 @@ internal static class ScriptedInvokeRunner
         IPortInput input, object?[] deps)
     {
         var context = $"调用 '{invoke.Method}'";
-        var type = target.GetType();
+
+        // E9：对**取值调用**前先原义解包（JSON 标量 → CLR；数组 / 对象保持 JsonElement），
+        // 使「JSON 字符串元素上的实例方法」等声明可直达真实载体；方法解析亦按实参择优（同 E1）。
+        var unwrapped = PortValues.UnwrapValue(target);
+        if (unwrapped is null)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的目标取值解包后为 null（无可调用实例）");
+
+        var type = unwrapped.GetType();
         var expect = ExpectTypes(invoke.Expect);
 
-        if (target is Delegate)
+        if (unwrapped is Delegate)
         {
             var call = type.GetMethod("Invoke")
                 ?? throw new PortBindingViolationException(
@@ -94,37 +101,51 @@ internal static class ScriptedInvokeRunner
             var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
             var parameters = call.GetParameters();
             var bound = Bind(portKey, $"{context}（委托 {type.Name}）", declared, parameters, scope, input, deps);
-            var output = PortInvocation.ExecuteAny(() => call.Invoke(target, bound), expect);
-            return new Outcome(PortInvocation.Fold(output), parameters, bound);
+            var output = PortInvocation.Invoke(() => call.Invoke(unwrapped, bound), expect);
+            return new Outcome(output, parameters, bound);
         }
 
         if (invoke.IsProperty)
         {
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic: false, invoke.NonPublic);
-            var read = PortInvocation.ExecuteAny(
+            var read = PortInvocation.Invoke(
                 () => member switch
                 {
-                    PropertyInfo property => property.GetValue(target),
-                    FieldInfo field => field.GetValue(target),
+                    PropertyInfo property => property.GetValue(unwrapped),
+                    FieldInfo field => field.GetValue(unwrapped),
                     _ => null,
                 },
                 expect);
 
-            return new Outcome(
-                PortInvocation.Fold(read), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
+            return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
 
         var declaredArgs = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
-        var method = Close(portKey, invoke, ReflectivePortResolver.ResolveMethod(
-            type, portKey, invoke.Method, declaredArgs.Count, isStatic: false, invoke.NonPublic));
+        var method = Close(portKey, invoke, PickMethod(
+            portKey, context, type, invoke.Method, declaredArgs, isStatic: false, invoke.NonPublic,
+            scope, input, deps));
         var methodParameters = method.GetParameters();
         var args = Bind(
             portKey, $"{context}（{type.Name}.{method.Name}）", declaredArgs, methodParameters, scope, input, deps);
 
-        var result = PortInvocation.ExecuteAny(() => method.Invoke(target, args), expect);
-        return new Outcome(PortInvocation.Fold(result), methodParameters, args);
+        var result = PortInvocation.Invoke(() => method.Invoke(unwrapped, args), expect);
+        return new Outcome(result, methodParameters, args);
     }
+
+    /// <summary>
+    /// 方法解析择优（E1 / E9 共用「可绑定度」单源）：候选按实参试绑定择优；无法择优（并列）时保持旧口径；
+    /// 全部不可绑定 → fail-fast 并列候选签名。
+    /// </summary>
+    private static MethodInfo PickMethod(
+        string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
+        bool isStatic, bool nonPublic, ScriptedScope scope, IPortInput input, object?[] deps)
+        => ReflectivePortResolver.ResolveMethod(
+            type, portKey, methodName, declared.Count, isStatic, nonPublic,
+            candidate => TryBind(
+                portKey, $"{context}（{type.Name}.{methodName}）", declared,
+                candidate.GetParameters(), scope, input, deps),
+            context);
 
     /// <summary>
     /// 实参绑定单源（W13）：**位置绑定**（无 <c>named</c> 的项按序填入首个未占用形参位）+ **命名绑定**
@@ -177,6 +198,21 @@ internal static class ScriptedInvokeRunner
             if (!assigned[i]) args[i] = ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
 
         return args;
+    }
+
+    /// <summary>试绑定（重载择优用）：绑定失败（<see cref="PortBindingViolationException"/>）→ null（不可绑定），其余异常照抛。</summary>
+    internal static object?[]? TryBind(
+        string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared,
+        ParameterInfo[] parameters, ScriptedScope scope, IPortInput input, object?[] deps)
+    {
+        try
+        {
+            return Bind(portKey, context, declared, parameters, scope, input, deps);
+        }
+        catch (PortBindingViolationException)
+        {
+            return null;
+        }
     }
 
     /// <summary>形参名清单（诊断文案：命名实参拼错时列出可选名）。</summary>
@@ -281,13 +317,6 @@ internal static class ScriptedInvokeRunner
             throw new PortBindingViolationException(
                 portKey, $"端口 '{portKey}' 的 {context} 引用了不存在的依赖下标 {index}（依赖 {specs.Count} 个）");
 
-        var dep = specs[index];
-        var typeName = dep.Contract ?? dep.New;
-        if (typeName is not { Length: > 0 })
-            throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的 {context} 对 dep[{index}] 取实例成员，但该依赖未声明 contract / new（实例类型不可知）");
-
-        return ComposedDeps.ResolveType(typeName, dep.GenericArgs);
+        return ComposedDeps.DeclaredInstanceType(specs, index, portKey, context);
     }
 }

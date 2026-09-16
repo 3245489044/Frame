@@ -48,7 +48,7 @@ public sealed class ObservedPortDecorator : IPortBinding
         if (_enabled is not null && !_enabled()) return await _inner.InvokeAsync(input, ct).ConfigureAwait(false);
 
         var watch = Stopwatch.StartNew();
-        Emit(InvokedKind, b => b.Payload(new { port = input.PortKey, argsHash = input.ArgsHash, src = input.Src }));
+        Emit(InvokedKind, b => b.Payload(new { port = _portKey, argsHash = input.ArgsHash, src = input.Src }));
 
         try
         {
@@ -56,7 +56,7 @@ public sealed class ObservedPortDecorator : IPortBinding
             watch.Stop();
             Emit(SucceededKind, b => b
                 .WithMetric("elapsed_ms", watch.Elapsed.TotalMilliseconds)
-                .Payload(new { port = input.PortKey, resultKind = result?.GetType().Name ?? "null" }));
+                .Payload(new { port = _portKey, resultKind = result?.GetType().Name ?? "null" }));
             return result;
         }
         catch (Exception ex)
@@ -64,20 +64,13 @@ public sealed class ObservedPortDecorator : IPortBinding
             watch.Stop();
             Emit(FailedKind, b => b
                 .WithMetric("elapsed_ms", watch.Elapsed.TotalMilliseconds)
-                .Payload(new { port = input.PortKey, errorClass = Classify(ex), detail = ex.Message }));
+                .Payload(new { port = _portKey, errorClass = Classify(ex), detail = ex.Message }));
             throw;
         }
     }
 
-    /// <summary>错误分类（纯映射，无动作；与边界契约的 error 枚举域对齐）。</summary>
-    public static string Classify(Exception ex)
-        => ex switch
-        {
-            OperationCanceledException => "timeout",
-            TimeoutException => "timeout",
-            _ when ex.GetType().Name.Contains("Timeout", StringComparison.Ordinal) => "timeout",
-            _ => "execution_failure",
-        };
+    /// <summary>错误分类（纯映射，无动作；分类实现单源 = <see cref="PortErrorClass"/>）。</summary>
+    public static string Classify(Exception ex) => PortErrorClass.Of(ex);
 
     /// <summary>发射一条端口族事件（异常就地吞——观测不得阻断主路径）。</summary>
     private void Emit(string kind, Action<ObservabilityEventBuilder> build)

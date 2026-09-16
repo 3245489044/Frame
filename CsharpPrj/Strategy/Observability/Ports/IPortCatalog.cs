@@ -42,7 +42,7 @@ public interface IPortCatalog
     /// <summary>替换已登记端口的绑定（测试侧替身注入；未登记抛 <see cref="PortNotRegisteredException"/>）。</summary>
     void Replace(string portKey, IPortBinding binding);
 
-    /// <summary>全部已登记端口契约（按键 Ordinal 升序）。</summary>
+    /// <summary>已绑定端口的契约（按键 Ordinal 升序）；边界键集全量为 <see cref="IBoundaryContractRegistry.Contracts"/>。</summary>
     IReadOnlyList<BoundaryContract> Contracts { get; }
 
     /// <summary>调用记录（端口调用的单一记录点）。</summary>

@@ -33,7 +33,7 @@ internal static class ComposedDeps
         if (dep.New is { Length: > 0 } typeName)
         {
             var type = ResolveType(typeName, dep.GenericArgs);
-            var ctor = PickConstructor(portKey, type, index, dep.Args);
+            var ctor = PickConstructor(portKey, type, index, dep.Args, input, deps);
             var args = ComposedArgs.Build(
                 ctor.GetParameters(), dep.Args, input, deps, portKey, $"dep[{index}].new {type.Name}");
             return Activator.CreateInstance(type, args);
@@ -112,20 +112,105 @@ internal static class ComposedDeps
             : type;
     }
 
-    /// <summary>构造选择：按声明实参个数精确匹配，否则取参数最少者（尾部参数按默认值补齐）。</summary>
-    internal static ConstructorInfo PickConstructor(
-        string portKey, Type type, int index, IReadOnlyList<ComposedArgSpec>? declared)
-        => PickConstructor(portKey, type, declared?.Count ?? 0, $"dep[{index}]");
+    /// <summary>
+    /// 实例调用的**声明类型**（依赖声明的 <c>contract</c> / <c>new</c>；缺声明即抛）——
+    /// 组合绑定与脚本绑定共用的唯一实现。
+    /// </summary>
+    internal static Type DeclaredInstanceType(
+        IReadOnlyList<ComposedDepSpec> specs, int index, string portKey, string context)
+    {
+        var typeName = specs[index].Contract ?? specs[index].New;
+        if (typeName is not { Length: > 0 })
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context} 对 dep[{index}] 取实例成员，但该依赖未声明 contract / new（实例类型不可知）");
 
-    /// <summary>构造选择（按声明实参个数；脚本步骤 <c>new</c> 亦复用本单源）。</summary>
+        return ResolveType(typeName, specs[index].GenericArgs);
+    }
+
+    /// <summary>构造选择（组合绑定 <c>deps.new</c> 形态：带声明实参 → 按可绑定度择优，E1）。</summary>
     internal static ConstructorInfo PickConstructor(
-        string portKey, Type type, int declaredCount, string context)
+        string portKey, Type type, int index, IReadOnlyList<ComposedArgSpec>? declared,
+        IPortInput input, object?[] deps)
+        => PickConstructor(
+            portKey, type, declared?.Count ?? 0, $"dep[{index}]",
+            declared is not { Count: > 0 }
+                ? null
+                : constructor => ComposedArgs.Build(
+                    constructor.GetParameters(), declared, input, deps, portKey, $"dep[{index}]"),
+            ComposedArgs.Describe(declared));
+
+    /// <summary>
+    /// 构造选择（E1：**按实参可绑定度择优**）：候选集 = 参数个数 == 声明实参个数；逐候选试绑定（<paramref name="tryBind"/>
+    /// 返 null / 抛绑定异常即「不可绑定」）→ 精确类型命中 &gt; 可归一 &gt; 形参缺省；唯一最高分选它；
+    /// **并列最高分 / 全部不可绑定 → fail-fast 并列出候选签名**（防静默绑错）。
+    /// <para>无 <paramref name="tryBind"/> 或候选唯一时保持旧口径（首个个数匹配者），供无法求值的调用方使用。</para>
+    /// </summary>
+    internal static ConstructorInfo PickConstructor(
+        string portKey, Type type, int declaredCount, string context,
+        Func<ConstructorInfo, object?[]?>? tryBind = null, string? declaredText = null)
     {
         var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+        if (constructors.Length == 0)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上没有公开构造函数");
 
-        return constructors.FirstOrDefault(c => c.GetParameters().Length == declaredCount)
-               ?? constructors.OrderBy(c => c.GetParameters().Length).FirstOrDefault()
-               ?? throw new PortBindingViolationException(
-                   portKey, $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上没有公开构造函数");
+        var candidates = constructors.Where(c => c.GetParameters().Length == declaredCount).ToArray();
+        if (candidates.Length == 0) return constructors.OrderBy(c => c.GetParameters().Length).First();
+        if (tryBind is null || candidates.Length == 1) return candidates[0];
+
+        ConstructorInfo? best = null;
+        var bestScore = -1;
+        var tied = 0;
+
+        foreach (var candidate in candidates)
+        {
+            object?[]? bound;
+            try
+            {
+                bound = tryBind(candidate);
+            }
+            catch (PortBindingViolationException)
+            {
+                continue;
+            }
+
+            if (bound is null) continue;
+
+            var score = PortValues.ScoreArguments(
+                candidate.GetParameters().Select(parameter => parameter.ParameterType).ToArray(), bound);
+
+            if (score < 0) continue;
+
+            if (score > bestScore)
+            {
+                best = candidate;
+                bestScore = score;
+                tied = 1;
+            }
+            else if (score == bestScore)
+            {
+                tied++;
+            }
+        }
+
+        var described = $"实参 [{declaredText ?? $"{declaredCount} 个"}]";
+
+        if (best is null)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context}（{type.Name}）无可绑定构造：候选 {Signatures(candidates)}；{described}");
+
+        if (tied > 1)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context}（{type.Name}）构造并列歧义：候选 {Signatures(candidates)}；{described}");
+
+        return best;
     }
+
+    /// <summary>候选签名清单（诊断文案：<c>(Int32 capacity) / (String value)</c> 形态）。</summary>
+    private static string Signatures(IEnumerable<ConstructorInfo> candidates)
+        => string.Join(" / ", candidates.Select(candidate => $"({string.Join(", ",
+            candidate.GetParameters().Select(parameter => $"{parameter.ParameterType.Name} {parameter.Name}"))})"));
 }

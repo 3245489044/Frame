@@ -24,7 +24,7 @@ public interface IPortInput
     /// <summary>来源锚（用例中的 <c>src</c> 元数据；纯诊断用）。</summary>
     string? Src { get; }
 
-    /// <summary>实参指纹（确定性短哈希，供"同参重放"识别）。</summary>
+    /// <summary>实参指纹（确定性短哈希，供"同参重放"识别；不可 JSON 序列化的对象实参退化为类型指纹）。</summary>
     string ArgsHash { get; }
 }
 
@@ -68,8 +68,18 @@ public sealed class PortInput : IPortInput
     /// <summary>确定性实参指纹：JSON 序列化后取 SHA256 前 12 位十六进制。</summary>
     private static string Compute(IReadOnlyList<object?> args)
     {
-        var json = JsonSerializer.Serialize(args, HashJson);
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
-        return Convert.ToHexString(bytes)[..12];
+        try
+        {
+            return Digest(JsonSerializer.Serialize(args, HashJson));
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
+        {
+            // 对象直投实参（产品实例 / 委托 / 含环对象）不可 JSON 序列化：退化按运行时类型指纹。
+            // 指纹是记录/埋点的读取值，取值本身不得改变调用语义（同型同参仍得同指纹）。
+            return Digest(string.Join("|", args.Select(argument => argument?.GetType().FullName ?? "null")));
+        }
     }
+
+    private static string Digest(string text)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..12];
 }

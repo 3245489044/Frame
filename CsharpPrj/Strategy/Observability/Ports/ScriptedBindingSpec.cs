@@ -33,6 +33,9 @@ using System.Text.Json;
 /// <param name="Distinct">词元去重（<c>presence</c> 用）。</param>
 /// <param name="ElementType">集合元素类型全名（<c>convert:array</c> 且目标类型未给出元素类型时用）。</param>
 /// <param name="Construct">内嵌构造声明（W6：本实参的值 = 构造结果；与 <c>convert:array</c> 连用即数组形参的对象图）。</param>
+/// <param name="Named">命名实参（W13：按形参名绑定而非位置；缺省 = 位置绑定）。用于构造函数 / 方法的**可选命名形参**
+/// （如 <c>new AgentApiIntentSource(taskPool: null, history: …, nodeStore: …)</c>）。</param>
+/// <param name="Delegate">委托工厂声明（W26：<c>from:delegate</c> 时按本声明构造委托；闭包体在调用期执行）。</param>
 public sealed record ScriptedArgSpec(
     string? From = null,
     int? Index = null,
@@ -57,7 +60,9 @@ public sealed record ScriptedArgSpec(
     string? OnDuplicate = null,
     bool Distinct = false,
     string? ElementType = null,
-    ScriptedNewSpec? Construct = null);
+    ScriptedNewSpec? Construct = null,
+    string? Named = null,
+    ScriptedDelegateSpec? Delegate = null);
 
 /// <summary>
 /// **收集声明**（G1）：把本步骤产物或指定槽的当前值按序追加到收集槽（槽在执行前预建空清单，短路 / 零迭代时投影取之不为空）。
@@ -90,12 +95,24 @@ public sealed record ScriptedStep(
 /// <param name="GenericArgs">闭合泛型实参类型全名。</param>
 /// <param name="Args">构造实参声明。</param>
 /// <param name="Chain">链式后置调用（W6：构造后按序调用实例方法；见 <see cref="ScriptedChainSpec"/>）。</param>
+/// <param name="Init">构造后属性 / 字段初始化（W13：C# 对象初始化器 <c>new T { P = v, … }</c> 的声明等价；
+/// 声明序 = 赋值序；成员缺失即抛）。</param>
 public sealed record ScriptedNewSpec(
     string As,
     string Type,
     IReadOnlyList<string>? GenericArgs = null,
     IReadOnlyList<ScriptedArgSpec>? Args = null,
-    IReadOnlyList<ScriptedChainSpec>? Chain = null);
+    IReadOnlyList<ScriptedChainSpec>? Chain = null,
+    IReadOnlyList<ScriptedInitSpec>? Init = null);
+
+/// <summary>
+/// 属性 / 字段初始化项（W13）：<c>{ "member": "RulesFile", "value": { …ArgSpec } }</c>（<c>value</c> 必填）。
+/// <para>只做「构造后赋值」这一机制，不含任何领域语义；属性与字段不区分（与 <c>member</c> 读取同口径），
+/// 对象初始化器 / <c>init</c> 访问器成员同样适用。</para>
+/// </summary>
+/// <param name="Member">成员名（属性优先，回落字段）。</param>
+/// <param name="Value">取值声明（<c>arg</c> / <c>with</c> / <c>var</c> / <c>literal</c> / <c>member</c> / <c>new</c> …）。</param>
+public sealed record ScriptedInitSpec(string Member, ScriptedArgSpec? Value = null);
 
 /// <summary>
 /// 链式后置调用（W6：对象图构造）：对已构造实例按序调用方法（<c>Add</c> 一类）。
@@ -111,6 +128,42 @@ public sealed record ScriptedChainSpec(
     bool Rebind = false);
 
 /// <summary>
+/// **委托工厂声明**（W26：<c>from:delegate</c> 的值来源）：按 <see cref="Kind"/> 闭合委托类型后构造一个委托，
+/// 其**调用体**在委托被调用时执行 <see cref="Steps"/> 并取 <see cref="Result"/> 为返回值。
+/// <para>闭包语义：委托体复用**创建时**的作用域（外层槽 / 收集槽可见）⇒ 体内 <c>collect</c> 即为「带副作用的闭包」
+/// （调用期留痕）；委托实参以帧名 <c>argN</c>（或 <see cref="Parameters"/> 的形参名）注入，体内 <c>from:item</c> 取之。
+/// 体为异步任务时按「非 <c>Task</c> 结果 → <c>Task.FromResult</c> 包装」对齐声明返回类型。</para>
+/// <para>零领域词汇：委托类型 / 帧名均为不透明字符串；本件只提供「声明式可构造的委托」这一机制，
+/// 具体业务语义仍由类型 / 方法名承载。</para>
+/// </summary>
+/// <param name="Kind">委托类型全名（如 <c>System.Func&lt;object,System.Threading.Tasks.Task&lt;object&gt;&gt;</c>）。</param>
+/// <param name="Steps">调用期执行的步骤序列（声明序 = 执行序）。</param>
+/// <param name="Result">返回值表达式（缺省 = 末步骤产物）。</param>
+/// <param name="Parameters">形参帧名序列（缺省 = <c>arg0</c>/<c>arg1</c>/…；给名字时体内可用该名引用实参）。</param>
+/// <param name="Collect">调用留痕收集槽（非空时每次调用把实参数组追加到该槽——副作用可观测）。</param>
+/// <param name="Await">true = 体产物为 <c>Task</c>/<c>Task&lt;T&gt;</c> 时折取（声明返回类型非任务时用）。</param>
+public sealed record ScriptedDelegateSpec(
+    string? Kind = null,
+    IReadOnlyList<ScriptedStep>? Steps = null,
+    ScriptedExpr? Result = null,
+    IReadOnlyList<string>? Parameters = null,
+    string? Collect = null,
+    bool Await = false);
+
+/// <summary>
+/// 进入期**取值留存**项（W27：<c>restore</c> 作用域用）：把静态成员当前值读入槽，供退出期写回。
+/// </summary>
+/// <param name="Slot">留存槽名。</param>
+/// <param name="Type">成员所属类型全名。</param>
+/// <param name="Key">成员名（属性优先、回落字段）。</param>
+/// <param name="GenericArgs">类型泛型闭合实参（开放泛型类型用）。</param>
+public sealed record ScriptedSaveSpec(
+    string Slot,
+    string Type,
+    string Key,
+    IReadOnlyList<string>? GenericArgs = null);
+
+/// <summary>
 /// 调用步骤：方法调用 / 成员读取（静态或对依赖实例）。可异步折取、可期望异常、可捕获 <c>out</c> 出参。
 /// </summary>
 /// <param name="As">结果槽名（成员读取可省略）。</param>
@@ -124,6 +177,9 @@ public sealed record ScriptedChainSpec(
 /// <param name="Out">出参捕获槽名（G2：把方法的 <c>out</c> 实参按位写入该槽）。</param>
 /// <param name="Break">true = 本步骤执行后跳出最近一层 <c>foreach</c>。</param>
 /// <param name="GenericArgs">开放泛型方法的闭合实参类型全名（W4：按序 <c>MakeGenericMethod</c>）。</param>
+/// <param name="Value">调用目标**取值**（W24：对表达式值调用——委托走 <c>DynamicInvoke</c>，实例按其运行时类型解析方法；
+/// 与 <see cref="Dep"/> / <see cref="Target"/> 三选一）。</param>
+/// <param name="NonPublic">true = 目标方法 / 成员按「公开 + 非公开」解析（W20：产品未公开入口的结构探针）。</param>
 public sealed record ScriptedInvokeSpec(
     string? As = null,
     int? Dep = null,
@@ -135,7 +191,9 @@ public sealed record ScriptedInvokeSpec(
     IReadOnlyList<ScriptedArgSpec>? Args = null,
     string? Out = null,
     bool Break = false,
-    IReadOnlyList<string>? GenericArgs = null);
+    IReadOnlyList<string>? GenericArgs = null,
+    ScriptedArgSpec? Value = null,
+    bool NonPublic = false);
 
 /// <summary>遍历步骤：取集合（槽 / 表达式）逐项执行体内步骤（可过滤）。</summary>
 /// <param name="Slot">集合槽名（与 <see cref="Items"/> 二选一）。</param>
@@ -155,15 +213,23 @@ public sealed record ScriptedForeachSpec(
 /// （可 <c>when</c> 门控；相对目录由表达式给出）→ 执行主体 → **正常与异常路径均递归清理**。
 /// <para>作用域隔离：每键每次调用独立实例（内层快照口径，防 ANTI-NESTED-POLLUTION）。</para>
 /// </summary>
-/// <param name="Kind">作用域种类（当前仅 <c>tempDir</c>）。</param>
+/// <param name="Kind">作用域种类：<c>tempDir</c>（临时目录）/ <c>using</c>（资源释放，W18）/ <c>restore</c>（静态槽还原，W27）。</param>
 /// <param name="As">作用域名（值源 <c>tmpPath</c> / <c>tmpDir</c> 据它解析）。</param>
 /// <param name="Prefix">目录名前缀（诊断可读；缺省 <c>spec</c>）。</param>
 /// <param name="Files">预置文件序列（声明序 = 写盘序）。</param>
+/// <param name="Invoke">进入期调用（<c>kind=using</c>：结果写槽 <see cref="As"/>，退出（含异常路径）时若可释放即 <c>Dispose</c>）。</param>
+/// <param name="Save">进入期留存项（<c>kind=restore</c>：静态成员当前值 → 槽）。</param>
+/// <param name="Open">进入期步骤（<c>kind=restore</c>：声明序 = 执行序；在 <see cref="Save"/> 之后执行）。</param>
+/// <param name="Close">退出期步骤（<c>kind=restore</c>：正常与异常路径均执行）。</param>
 public sealed record ScriptedScopeSpec(
     string Kind,
     string As,
     string? Prefix = null,
-    IReadOnlyList<ScriptedFileSpec>? Files = null);
+    IReadOnlyList<ScriptedFileSpec>? Files = null,
+    ScriptedInvokeSpec? Invoke = null,
+    IReadOnlyList<ScriptedSaveSpec>? Save = null,
+    IReadOnlyList<ScriptedStep>? Open = null,
+    IReadOnlyList<ScriptedStep>? Close = null);
 
 /// <summary>作用域内预置文件（<c>name</c> 不得含路径分隔符；<c>dir</c> 为表达式，不做文本插值方言）。</summary>
 /// <param name="Name">文件名（相对 <paramref name="Dir"/>）。</param>

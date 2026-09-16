@@ -23,6 +23,19 @@ internal static class ScriptedInvokeRunner
         if (string.IsNullOrWhiteSpace(invoke.Method))
             throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 的调用声明缺少 method");
 
+        // W24：对**表达式值**调用（委托 / 实例）——目标类型取运行时类型，声明只给方法名与实参。
+        if (invoke.Value is { } declaredTarget)
+        {
+            var target = ScriptedValue.Resolve(
+                declaredTarget, scope, input, resolvedDeps, $"调用 '{invoke.Method}' 的目标取值");
+
+            if (target is null)
+                throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的调用 '{invoke.Method}' 的目标取值为 null（无可调用实例）");
+
+            return RunOnValue(portKey, invoke, target, scope, input, resolvedDeps);
+        }
+
         var context = $"调用 '{invoke.Method}'";
         var isStatic = invoke.Dep is null;
         var type = isStatic
@@ -36,7 +49,8 @@ internal static class ScriptedInvokeRunner
 
         if (invoke.IsProperty)
         {
-            var member = ReflectivePortResolver.ResolveMember(type, portKey, invoke.Method, isStatic);
+            var member = ReflectivePortResolver.ResolveMember(
+                type, portKey, invoke.Method, isStatic, invoke.NonPublic);
             var read = PortInvocation.ExecuteAny(
                 () => member switch
                 {
@@ -51,19 +65,123 @@ internal static class ScriptedInvokeRunner
         }
 
         var method = Close(portKey, invoke, ReflectivePortResolver.ResolveMethod(
-            type, portKey, invoke.Method, declared.Count, isStatic));
+            type, portKey, invoke.Method, declared.Count, isStatic, invoke.NonPublic));
         var parameters = method.GetParameters();
-        var args = new object?[parameters.Length];
-        for (var i = 0; i < parameters.Length; i++)
-            args[i] = i < declared.Count
-                ? ScriptedValue.ResolveTyped(
-                    declared[i], parameters[i].ParameterType, scope, input, resolvedDeps,
-                    $"{context} 第 {i} 个实参")
-                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+        var args = Bind(portKey, $"{context}（{type.Name}.{method.Name}）", declared, parameters, scope, input, resolvedDeps);
 
         var result = PortInvocation.ExecuteAny(() => method.Invoke(instance, args), expect);
         return new Outcome(PortInvocation.Fold(result), parameters, args);
     }
+
+    /// <summary>
+    /// 对**取值**调用（W24）：委托 → 其 <c>Invoke</c>（等价于夹具里 <c>next(ct)</c> 一类的「调用传入的委托」）；
+    /// 其余 → 按其运行时类型解析实例方法 / 成员（可含非公开，W20）。
+    /// </summary>
+    private static Outcome RunOnValue(
+        string portKey, ScriptedInvokeSpec invoke, object target, ScriptedScope scope,
+        IPortInput input, object?[] deps)
+    {
+        var context = $"调用 '{invoke.Method}'";
+        var type = target.GetType();
+        var expect = ExpectTypes(invoke.Expect);
+
+        if (target is Delegate)
+        {
+            var call = type.GetMethod("Invoke")
+                ?? throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 的目标委托 '{type.Name}' 缺 Invoke 方法");
+
+            var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+            var parameters = call.GetParameters();
+            var bound = Bind(portKey, $"{context}（委托 {type.Name}）", declared, parameters, scope, input, deps);
+            var output = PortInvocation.ExecuteAny(() => call.Invoke(target, bound), expect);
+            return new Outcome(PortInvocation.Fold(output), parameters, bound);
+        }
+
+        if (invoke.IsProperty)
+        {
+            var member = ReflectivePortResolver.ResolveMember(
+                type, portKey, invoke.Method, isStatic: false, invoke.NonPublic);
+            var read = PortInvocation.ExecuteAny(
+                () => member switch
+                {
+                    PropertyInfo property => property.GetValue(target),
+                    FieldInfo field => field.GetValue(target),
+                    _ => null,
+                },
+                expect);
+
+            return new Outcome(
+                PortInvocation.Fold(read), Array.Empty<ParameterInfo>(), Array.Empty<object?>());
+        }
+
+        var declaredArgs = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+        var method = Close(portKey, invoke, ReflectivePortResolver.ResolveMethod(
+            type, portKey, invoke.Method, declaredArgs.Count, isStatic: false, invoke.NonPublic));
+        var methodParameters = method.GetParameters();
+        var args = Bind(
+            portKey, $"{context}（{type.Name}.{method.Name}）", declaredArgs, methodParameters, scope, input, deps);
+
+        var result = PortInvocation.ExecuteAny(() => method.Invoke(target, args), expect);
+        return new Outcome(PortInvocation.Fold(result), methodParameters, args);
+    }
+
+    /// <summary>
+    /// 实参绑定单源（W13）：**位置绑定**（无 <c>named</c> 的项按序填入首个未占用形参位）+ **命名绑定**
+    /// （<c>named</c> = 形参名，Ordinal 精确匹配）；未声明位取该形参类型默认值；重复绑定 / 名字不存在 / 超出形参数 → 即抛。
+    /// <para>构造（<see cref="ScriptedConstruction"/>）与调用（<see cref="Run"/>）共用本实现，避免两处各写一套绑定口径。</para>
+    /// </summary>
+    internal static object?[] Bind(
+        string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared, ParameterInfo[] parameters,
+        ScriptedScope scope, IPortInput input, object?[] deps)
+    {
+        var args = new object?[parameters.Length];
+        var assigned = new bool[parameters.Length];
+        var cursor = 0;
+
+        foreach (var spec in declared)
+        {
+            int index;
+
+            if (spec.Named is { Length: > 0 } named)
+            {
+                index = Array.FindIndex(
+                    parameters, parameter => string.Equals(parameter.Name, named, StringComparison.Ordinal));
+
+                if (index < 0)
+                    throw new PortBindingViolationException(
+                        portKey, $"端口 '{portKey}' 的 {context} 命名实参 '{named}' 不在目标形参表中（可选：{ParameterNames(parameters)}）");
+            }
+            else
+            {
+                while (cursor < parameters.Length && assigned[cursor]) cursor++;
+
+                if (cursor >= parameters.Length)
+                    throw new PortBindingViolationException(
+                        portKey, $"端口 '{portKey}' 的 {context} 位置实参个数超出形参数（{parameters.Length}）");
+
+                index = cursor;
+            }
+
+            if (assigned[index])
+                throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 形参 '{parameters[index].Name}' 被重复绑定");
+
+            args[index] = ScriptedValue.ResolveTyped(
+                spec, parameters[index].ParameterType, scope, input, deps,
+                $"{context} 形参 '{parameters[index].Name}'");
+            assigned[index] = true;
+        }
+
+        for (var i = 0; i < parameters.Length; i++)
+            if (!assigned[i]) args[i] = ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+
+        return args;
+    }
+
+    /// <summary>形参名清单（诊断文案：命名实参拼错时列出可选名）。</summary>
+    private static string ParameterNames(ParameterInfo[] parameters)
+        => parameters.Length == 0 ? "(无)" : string.Join(", ", parameters.Select(parameter => parameter.Name));
 
     /// <summary>
     /// 对**显式实例**执行调用声明（W6 对象图链式调用）：把实例追加为末位依赖（<c>specs=null</c> ⇒ 按运行时类型解析），

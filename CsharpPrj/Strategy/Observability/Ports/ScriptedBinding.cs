@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
@@ -76,7 +78,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// </summary>
     private object? Dispatch(ScriptedScenarioSpec scenarios, IPortInput input)
     {
-        var probe = new ScriptedScope(_spec.PortKey);
+        var probe = NewScope();
         var chosen = PortValues.Text(ScriptedValue.Resolve(
             scenarios.Select with { Optional = true }, probe, input, NoDeps, "场景选择（select）"));
 
@@ -91,19 +93,19 @@ public sealed class ScriptedBinding : IPortBinding
         return new ScriptedBinding(body).Invoke(input);
     }
 
-    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；作用域在正常与异常路径均清理）。</summary>
+    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；作用域在正常与异常路径均按 LIFO 释放）。</summary>
     private object? Execute(IPortInput input)
     {
-        var scope = new ScriptedScope(_spec.PortKey);
+        var scope = NewScope();
 
         foreach (var name in _collections) scope.Collect(name);
 
         BindInputs(scope, input);
 
-        var created = new List<string>();
+        var releases = new List<Action>();
         try
         {
-            foreach (var declared in _spec.Scopes) created.Add(Materialize(declared, scope, input));
+            foreach (var declared in _spec.Scopes) releases.Add(Materialize(declared, scope, input));
 
             var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
@@ -118,14 +120,14 @@ public sealed class ScriptedBinding : IPortBinding
         }
         finally
         {
-            foreach (var directory in created) TryDelete(directory);
+            Release(releases);
         }
     }
 
     /// <summary>延迟步骤求值（<c>kind=action</c>：断言期才执行「步骤 + 投影」，与主执行共用同一求值路径）。</summary>
     private object? RunDeferred(IReadOnlyList<ScriptedStep> steps, IPortInput input)
     {
-        var scope = new ScriptedScope(_spec.PortKey);
+        var scope = NewScope();
 
         foreach (var name in _collections) scope.Collect(name);
 
@@ -143,16 +145,16 @@ public sealed class ScriptedBinding : IPortBinding
     /// </summary>
     private IReadOnlyList<string> CaptureIssues(ScriptedDeliverCaptureSpec capture, IPortInput input)
     {
-        var scope = new ScriptedScope(_spec.PortKey);
+        var scope = NewScope();
 
         foreach (var name in _collections) scope.Collect(name);
 
         BindInputs(scope, input);
 
-        var created = new List<string>();
+        var releases = new List<Action>();
         try
         {
-            foreach (var declared in _spec.Scopes) created.Add(Materialize(declared, scope, input));
+            foreach (var declared in _spec.Scopes) releases.Add(Materialize(declared, scope, input));
 
             var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
             var context = $"载体 issues 的捕获调用 '{capture.Call.Method}'";
@@ -176,7 +178,7 @@ public sealed class ScriptedBinding : IPortBinding
         }
         finally
         {
-            foreach (var directory in created) TryDelete(directory);
+            Release(releases);
         }
     }
 
@@ -233,19 +235,37 @@ public sealed class ScriptedBinding : IPortBinding
                 $"端口 '{spec.PortKey}' 的 deliver.value（值载体表达式）仅与 kind='value' 同用（当前 kind='{kind}'）");
     }
 
-    /// <summary>作用域声明装配期校验（种类 / 作用域名唯一 / 文件名规范）。</summary>
+    /// <summary>作用域声明装配期校验（种类 / 作用域名唯一 / 各类必填项 / 文件名规范）。</summary>
     private static void ValidateScopes(ScriptedBindingSpec spec)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var scope in spec.Scopes)
         {
-            if (!string.Equals(scope.Kind, "tempDir", StringComparison.Ordinal))
+            if (scope.Kind is not ("tempDir" or "using" or "restore"))
                 throw new PortBindingViolationException(
-                    spec.PortKey, $"端口 '{spec.PortKey}' 的作用域 kind '{scope.Kind}' 非法（tempDir）");
+                    spec.PortKey,
+                    $"端口 '{spec.PortKey}' 的作用域 kind '{scope.Kind}' 非法（tempDir|using|restore）");
 
             if (string.IsNullOrWhiteSpace(scope.As) || !names.Add(scope.As))
                 throw new PortBindingViolationException(
                     spec.PortKey, $"端口 '{spec.PortKey}' 的作用域名 '{scope.As}' 为空或重复（须唯一）");
+
+            if (scope.Kind == "using" && scope.Invoke is null)
+                throw new PortBindingViolationException(
+                    spec.PortKey, $"端口 '{spec.PortKey}' 的 using 作用域 '{scope.As}' 缺 invoke（进入期调用）");
+
+            if (scope.Kind == "restore"
+                && scope.Open is not { Count: > 0 } && scope.Close is not { Count: > 0 })
+            {
+                throw new PortBindingViolationException(
+                    spec.PortKey,
+                    $"端口 '{spec.PortKey}' 的 restore 作用域 '{scope.As}' 的 open / close 步骤均为空（无还原语义）");
+            }
+
+            if (scope.Kind != "tempDir" && scope.Files is { Count: > 0 })
+                throw new PortBindingViolationException(
+                    spec.PortKey,
+                    $"端口 '{spec.PortKey}' 的作用域 '{scope.As}'（kind='{scope.Kind}'）不支持 files（预置文件仅 tempDir）");
 
             foreach (var file in scope.Files ?? Array.Empty<ScriptedFileSpec>())
                 if (string.IsNullOrWhiteSpace(file.Name) || file.Name.IndexOfAny(['\\', '/', ':']) >= 0)
@@ -278,8 +298,70 @@ public sealed class ScriptedBinding : IPortBinding
         }
     }
 
-    /// <summary>建作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件。返回目录绝对路径（供清理）。</summary>
-    private string Materialize(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    /// <summary>建作用域并返回其**释放动作**（LIFO 逆序执行；正常与异常路径均执行；释放动作本身抛错即上抛）。</summary>
+    private Action Materialize(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+        => declared.Kind switch
+        {
+            "using" => EnterUsing(declared, scope, input),
+            "restore" => EnterRestore(declared, scope, input),
+            "tempDir" => EnterTempDir(declared, scope, input),
+            _ => throw new PortBindingViolationException(
+                _spec.PortKey,
+                $"端口 '{_spec.PortKey}' 的作用域 kind '{declared.Kind}' 非法（tempDir|using|restore）"),
+        };
+
+    /// <summary>资源释放作用域（W18：<c>using</c>）：进入期执行 <see cref="ScriptedScopeSpec.Invoke"/>，
+    /// 结果写槽 <see cref="ScriptedScopeSpec.As"/> 并要求可释放；退出（含异常路径）按 <c>IDisposable</c> / <c>IAsyncDisposable</c> 释放。</summary>
+    private Action EnterUsing(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    {
+        var invoke = declared.Invoke ?? throw new PortBindingViolationException(
+            _spec.PortKey, $"端口 '{_spec.PortKey}' 的 using 作用域 '{declared.As}' 缺 invoke（进入期调用）");
+
+        var outcome = ScriptedInvokeRunner.Run(_spec.PortKey, invoke, _spec.Deps, scope, input, NoDeps);
+        var value = outcome.Result;
+        scope.Set(declared.As, value);
+
+        if (value is null)
+            throw new PortBindingViolationException(
+                _spec.PortKey, $"端口 '{_spec.PortKey}' 的 using 作用域 '{declared.As}' 的进入期调用返回 null（不可释放）");
+
+        return value switch
+        {
+            IDisposable disposable => disposable.Dispose,
+            IAsyncDisposable asyncDisposable => () =>
+                asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult(),
+            _ => throw new PortBindingViolationException(
+                _spec.PortKey,
+                $"端口 '{_spec.PortKey}' 的 using 作用域 '{declared.As}' 的进入期结果 {value.GetType().Name} 不可释放（须 IDisposable / IAsyncDisposable）"),
+        };
+    }
+
+    /// <summary>
+    /// 静态槽还原作用域（W27：<c>restore</c>）：留存静态成员当前值 → 执行进入期步骤 → 退出（含异常路径）执行退出期步骤。
+    /// <para>作用域步骤**不得引用依赖**（依赖在其后构建），引用即抛；这是刻意的顺序约束（依赖构建可能需作用域内路径）。</para>
+    /// </summary>
+    private Action EnterRestore(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    {
+        foreach (var save in declared.Save ?? Array.Empty<ScriptedSaveSpec>())
+        {
+            var type = ComposedDeps.ResolveType(save.Type, save.GenericArgs);
+            var member = ReflectivePortResolver.ResolveMember(type, _spec.PortKey, save.Key, isStatic: true);
+
+            scope.Set(save.Slot, member switch
+            {
+                PropertyInfo property => property.GetValue(null),
+                FieldInfo field => field.GetValue(null),
+                _ => null,
+            });
+        }
+
+        Run(declared.Open ?? Array.Empty<ScriptedStep>(), scope, input, NoDeps);
+
+        return () => Run(declared.Close ?? Array.Empty<ScriptedStep>(), scope, input, NoDeps);
+    }
+
+    /// <summary>建临时目录作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件；释放 = 递归清理目录。</summary>
+    private Action EnterTempDir(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
     {
         var prefix = declared.Prefix is { Length: > 0 } name ? name : "spec";
         var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}");
@@ -315,7 +397,34 @@ public sealed class ScriptedBinding : IPortBinding
             System.IO.File.WriteAllText(System.IO.Path.Combine(root, file.Name), content ?? string.Empty);
         }
 
-        return directory;
+        return () => TryDelete(directory);
+    }
+
+    /// <summary>释放序列（LIFO 逆序；单个释放失败不掩盖其余释放：先跑完全部释放动作，末尾上抛首个异常）。</summary>
+    private static void Release(IReadOnlyList<Action> releases)
+    {
+        Exception? failure = null;
+        for (var i = releases.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                releases[i]();
+            }
+            catch (Exception ex)
+            {
+                failure ??= ex;
+            }
+        }
+
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    /// <summary>建作用域（统一注入委托工厂钩子，W26：<c>from:delegate</c> 的委托体需执行声明步骤）。</summary>
+    private ScriptedScope NewScope()
+    {
+        var scope = new ScriptedScope(_spec.PortKey);
+        scope.Delegates = BuildDelegate;
+        return scope;
     }
 
     /// <summary>递归清理作用域目录（清理失败不掩盖原始异常：保留现场供排查）。</summary>
@@ -552,6 +661,8 @@ public sealed class ScriptedBinding : IPortBinding
             expr.Count, expr.NotNull, expr.AsText, expr.TypeName, expr.Message, expr.Thrown,
             expr.Contains, expr.Of, expr.All, expr.Any, expr.AllIn, expr.Spread,
             expr.First, expr.FirstWhere, expr.IsNull, expr.Not, expr.Agg,
+            expr.Filter, expr.FilterWhere,
+            expr.Last, expr.LastWhere, expr.Dict, expr.DictKey, expr.DictValue, expr.DictWhere,
         })
         {
             if (candidate is not null) yield return candidate;
@@ -563,5 +674,129 @@ public sealed class ScriptedBinding : IPortBinding
         foreach (var item in expr.AnyOf ?? Array.Empty<ScriptedExpr>()) yield return item;
         foreach (var item in expr.Coalesce ?? Array.Empty<ScriptedExpr>()) yield return item;
         foreach (var item in expr.SameReference ?? Array.Empty<ScriptedExpr>()) yield return item;
+        foreach (var item in expr.SequenceEqual ?? Array.Empty<ScriptedExpr>()) yield return item;
+
+        if (expr.Distinct is { } distinct) yield return distinct;
+        if (expr.Fold is { } fold) yield return fold;
+
+        foreach (var part in expr.Parts ?? Array.Empty<ScriptedConcatPartSpec>())
+        {
+            yield return part.Expr;
+            if (part.When is { } gate) yield return gate;
+        }
+    }
+
+    /// <summary>
+    /// 委托工厂（W26）：闭合委托类型 → 生成「调用期执行声明步骤」的委托（<c>System.Linq.Expressions</c> 编译，
+    /// 无需 IL 发射 / 源生成器）。
+    /// <para>闭包语义：委托体复用**创建时**作用域（外层槽与收集槽可见）⇒ 体内 <c>collect</c> 即调用期留痕；
+    /// 委托实参以帧名注入（<c>parameters</c> 声明名，缺省 <c>arg0</c>/<c>arg1</c>/…），体内 <c>from:item</c> 取之。</para>
+    /// </summary>
+    private object? BuildDelegate(
+        ScriptedDelegateSpec declared, ScriptedScope scope, IPortInput input, object?[] deps, string context)
+    {
+        var typeName = declared.Kind is { Length: > 0 } kind
+            ? kind
+            : throw new PortBindingViolationException(
+                _spec.PortKey, $"端口 '{_spec.PortKey}' 的 {context} 的委托声明缺 kind（委托类型全名）");
+
+        var delegateType = ComposedDeps.ResolveType(typeName, null);
+        if (!typeof(Delegate).IsAssignableFrom(delegateType))
+            throw new PortBindingViolationException(
+                _spec.PortKey, $"端口 '{_spec.PortKey}' 的 {context} 的 kind '{typeName}' 不是委托类型");
+
+        var invoke = delegateType.GetMethod("Invoke")
+            ?? throw new PortBindingViolationException(
+                _spec.PortKey, $"端口 '{_spec.PortKey}' 的 {context} 的委托类型 '{delegateType.Name}' 缺 Invoke 方法");
+
+        var parameters = invoke.GetParameters()
+            .Select(parameter => Expression.Parameter(parameter.ParameterType, parameter.Name))
+            .ToArray();
+
+        var body = new ScriptedDelegateBody(this, declared, scope, input, deps, invoke.ReturnType);
+        var call = Expression.Call(
+            Expression.Constant(body),
+            typeof(ScriptedDelegateBody).GetMethod(nameof(ScriptedDelegateBody.Call))!,
+            Expression.NewArrayInit(
+                typeof(object), parameters.Select(parameter => (Expression)Expression.Convert(parameter, typeof(object)))));
+
+        var lambda = invoke.ReturnType == typeof(void)
+            ? (Expression)Expression.Block(call, Expression.Empty())
+            : Expression.Convert(call, invoke.ReturnType);
+
+        return Expression.Lambda(delegateType, lambda, parameters).Compile();
+    }
+
+    /// <summary>
+    /// 委托**调用体**（W26）：注入实参帧 → 执行声明步骤 → 按声明返回类型归一并返回（<c>Task</c> 类返回按需包装）。
+    /// </summary>
+    private sealed class ScriptedDelegateBody
+    {
+        private readonly ScriptedBinding _owner;
+        private readonly ScriptedDelegateSpec _declared;
+        private readonly ScriptedScope _scope;
+        private readonly IPortInput _input;
+        private readonly object?[] _deps;
+        private readonly Type _returnType;
+
+        internal ScriptedDelegateBody(
+            ScriptedBinding owner, ScriptedDelegateSpec declared, ScriptedScope scope,
+            IPortInput input, object?[] deps, Type returnType)
+        {
+            _owner = owner;
+            _declared = declared;
+            _scope = scope;
+            _input = input;
+            _deps = deps;
+            _returnType = returnType;
+        }
+
+        /// <summary>调用入口（表达式树调用目标；实参个数由委托签名决定）。</summary>
+        public object? Call(object?[] args)
+        {
+            var context = "委托调用体";
+
+            for (var i = 0; i < args.Length; i++) _scope.Push(FrameName(i), args[i], i);
+
+            try
+            {
+                if (_declared.Collect is { Length: > 0 } slot) _scope.Collect(slot).Add(args);
+
+                var last = _owner.Run(_declared.Steps ?? Array.Empty<ScriptedStep>(), _scope, _input, _deps);
+                var produced = _declared.Result is { } expression
+                    ? ScriptedExprEvaluator.Evaluate(expression, _scope, _input, _deps, context)
+                    : last;
+
+                return Align(produced);
+            }
+            finally
+            {
+                for (var i = 0; i < args.Length; i++) _scope.Pop();
+            }
+        }
+
+        /// <summary>实参帧名（<c>parameters</c> 声明名优先，缺省 <c>argN</c>）。</summary>
+        private string FrameName(int index)
+            => _declared.Parameters is { Count: > 0 } names && index < names.Count ? names[index] : $"arg{index}";
+
+        /// <summary>返回值归一到声明返回类型（<c>await</c> 折取 / <c>Task</c> 包装）。</summary>
+        private object? Align(object? produced)
+        {
+            var value = _declared.Await && produced is Task pending ? PortInvocation.Fold(pending) : produced;
+
+            if (_returnType == typeof(Task)) return value as Task ?? Task.CompletedTask;
+
+            if (_returnType.IsGenericType && _returnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                if (value is Task) return value;
+
+                var resultType = _returnType.GetGenericArguments()[0];
+                var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
+                return typeof(Task).GetMethod(nameof(Task.FromResult))!
+                    .MakeGenericMethod(resultType).Invoke(null, new[] { boxed });
+            }
+
+            return value;
+        }
     }
 }

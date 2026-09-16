@@ -176,12 +176,14 @@ internal static class ReflectivePortResolver
         => ResolveMethod(type, spec.PortKey, spec.Method, spec.Args.Count, isStatic: true);
 
     /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志）。</summary>
-    internal static MethodInfo ResolveMethod(Type type, string portKey, string methodName, int declaredCount, bool isStatic)
+    internal static MethodInfo ResolveMethod(
+        Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic = false)
     {
-        var cacheKey = $"{type.FullName}.{methodName}/{declaredCount}/{(isStatic ? "s" : "i")}";
+        var cacheKey = $"{type.FullName}.{methodName}/{declaredCount}/{(isStatic ? "s" : "i")}/{(nonPublic ? "n" : "p")}";
         if (MethodCache.TryGetValue(cacheKey, out var cached)) return cached;
 
         var flags = BindingFlags.Public | BindingFlags.FlattenHierarchy
+                    | (nonPublic ? BindingFlags.NonPublic : BindingFlags.Public)
                     | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
 
         var candidates = type
@@ -208,10 +210,13 @@ internal static class ReflectivePortResolver
     private static int DeclaredCount(MethodInfo method)
         => method.GetParameters().Count(parameter => !parameter.IsOut);
 
-    /// <summary>成员读取解析（属性优先、缺失回落静态 / 实例字段）：属性与字段是产品表示选择，声明侧不区分。</summary>
-    internal static MemberInfo ResolveMember(Type type, string portKey, string name, bool isStatic)
+    /// <summary>成员读取解析（属性优先、缺失回落静态 / 实例字段）：属性与字段是产品表示选择，声明侧不区分。
+    /// <para><paramref name="nonPublic"/> = true 时按「公开 + 非公开」解析（W20：产品未公开入口的结构探针）。</para>
+    /// </summary>
+    internal static MemberInfo ResolveMember(Type type, string portKey, string name, bool isStatic, bool nonPublic = false)
     {
         var flags = BindingFlags.Public | BindingFlags.FlattenHierarchy
+                    | (nonPublic ? BindingFlags.NonPublic : BindingFlags.Public)
                     | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
 
         return (MemberInfo?)type.GetProperty(name, flags)

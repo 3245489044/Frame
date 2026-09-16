@@ -1,4 +1,5 @@
 using System.Reflection;
+using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
@@ -24,14 +25,13 @@ internal static class ScriptedConstruction
             .PickConstructor(scope.PortKey, type, declared.Count, context)
             .GetParameters();
 
-        var args = new object?[parameters.Length];
-        for (var i = 0; i < parameters.Length; i++)
-            args[i] = i < declared.Count
-                ? ScriptedValue.ResolveTyped(
-                    declared[i], parameters[i].ParameterType, scope, input, deps, $"{context} 第 {i} 个实参")
-                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+        var args = ScriptedInvokeRunner.Bind(
+            scope.PortKey, $"{context}（{type.Name}）", declared, parameters, scope, input, deps);
 
         var value = Activator.CreateInstance(type, args);
+
+        if (spec.Init is { Count: > 0 } init) ApplyInit(init, value, scope, input, deps, context);
+
         if (spec.Chain is not { Count: > 0 } chain) return value;
 
         foreach (var link in chain)
@@ -47,5 +47,52 @@ internal static class ScriptedConstruction
         }
 
         return value;
+    }
+
+    /// <summary>
+    /// 对象初始化器求值（W13）：逐项按成员名赋值（属性优先、回落字段；<c>init</c> 访问器同样可赋值）；
+    /// 成员缺失 / 缺 <c>value</c> / 无可赋值实例 → 即抛。声明序 = 赋值序。
+    /// </summary>
+    private static void ApplyInit(
+        IReadOnlyList<ScriptedInitSpec> init, object? instance,
+        ScriptedScope scope, IPortInput input, object?[] deps, string context)
+    {
+        if (instance is null)
+            throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 init 无可赋值实例（构造返回 null）");
+
+        foreach (var item in init)
+        {
+            if (string.IsNullOrWhiteSpace(item.Member))
+                throw new PortBindingViolationException(
+                    scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 init 项缺 member（成员名）");
+
+            if (item.Value is null)
+                throw new PortBindingViolationException(
+                    scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 init 成员 '{item.Member}' 缺 value（取值声明）");
+
+            var descriptor = ReflectivePortResolver.ResolveMember(
+                instance.GetType(), scope.PortKey, item.Member, isStatic: false);
+
+            switch (descriptor)
+            {
+                case PropertyInfo property:
+                    property.SetValue(instance, ScriptedValue.ResolveTyped(
+                        item.Value, property.PropertyType, scope, input, deps,
+                        $"{context} 的 init 成员 '{item.Member}'"));
+                    break;
+
+                case FieldInfo field:
+                    field.SetValue(instance, ScriptedValue.ResolveTyped(
+                        item.Value, field.FieldType, scope, input, deps,
+                        $"{context} 的 init 成员 '{item.Member}'"));
+                    break;
+
+                default:
+                    throw new PortBindingViolationException(
+                        scope.PortKey,
+                        $"端口 '{scope.PortKey}' 的 {context} 的 init 成员 '{item.Member}' 不是属性 / 字段（不可赋值）");
+            }
+        }
     }
 }

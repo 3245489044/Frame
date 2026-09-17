@@ -150,7 +150,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>建作用域 + 预建收集槽 + 输入绑定（即时 / 延迟 / issue 捕获三条路径共用的前置）。</summary>
-    private ScriptedScope Prepare(IPortInput input)
+    private EvalScope Prepare(IPortInput input)
     {
         var scope = NewScope();
         foreach (var name in _collections) scope.Collect(name);
@@ -162,7 +162,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// 执行骨架（作用域 + 依赖 + 主体）：作用域在正常与异常路径按 LIFO 释放 ——
     /// 三条载体路径共用同一头尾，避免各自的释放语义漂移。
     /// </summary>
-    private T WithScopes<T>(IPortInput input, ScriptedScope scope, Func<object?[], T> body)
+    private T WithScopes<T>(IPortInput input, EvalScope scope, Func<object?[], T> body)
     {
         var releases = new List<Action>();
         try
@@ -205,7 +205,7 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>issue 文本口径（<c>messageField</c> 非空 → 取该槽文本；否则按 <c>message</c> 取消息 / 类型名）。</summary>
     private static IReadOnlyList<string> IssueText(
-        ScriptedDeliverCaptureSpec capture, Exception exception, ScriptedScope scope, string context)
+        ScriptedDeliverCaptureSpec capture, Exception exception, EvalScope scope, string context)
         => capture.MessageField is { Length: > 0 } slot
             ? [PortValues.Text(scope.Slot(slot, context)) ?? string.Empty]
             : [string.Equals(capture.Message, "TypeName", StringComparison.Ordinal)
@@ -217,7 +217,7 @@ public sealed class ScriptedBinding : IPortBinding
         => capture.Call.Expect is { Length: > 0 } declared ? declared : string.Join('|', capture.Expect);
 
     /// <summary>输入绑定求值（声明序 = 求值序；依赖尚未构建，故一律无 dep 源）。</summary>
-    private void BindInputs(ScriptedScope scope, IPortInput input)
+    private void BindInputs(EvalScope scope, IPortInput input)
     {
         foreach (var (name, bind) in _spec.Binds)
             scope.Set(name, ScriptedValue.ResolveTyped(
@@ -225,7 +225,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>投影（声明序 = 产物字段序；<c>spread</c> 自占位不写入字段）。</summary>
-    private Dictionary<string, object?> Project(ScriptedScope scope, IPortInput input, object?[] deps)
+    private Dictionary<string, object?> Project(EvalScope scope, IPortInput input, object?[] deps)
     {
         var product = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var field in _spec.Project) Project(field, product, scope, input, deps);
@@ -329,7 +329,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>建作用域并返回其**释放动作**（LIFO 逆序执行；正常与异常路径均执行；释放动作本身抛错即上抛）。</summary>
-    private Action Materialize(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    private Action Materialize(ScriptedScopeSpec declared, EvalScope scope, IPortInput input)
         => declared.Kind switch
         {
             "using" => EnterUsing(declared, scope, input),
@@ -342,7 +342,7 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>资源释放作用域（W18：<c>using</c>）：进入期执行 <see cref="ScriptedScopeSpec.Invoke"/>，
     /// 结果写槽 <see cref="ScriptedScopeSpec.As"/> 并要求可释放；退出（含异常路径）按 <c>IDisposable</c> / <c>IAsyncDisposable</c> 释放。</summary>
-    private Action EnterUsing(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    private Action EnterUsing(ScriptedScopeSpec declared, EvalScope scope, IPortInput input)
     {
         var invoke = declared.Invoke ?? throw new PortBindingViolationException(
             _spec.PortKey, $"端口 '{_spec.PortKey}' 的 using 作用域 '{declared.As}' 缺 invoke（进入期调用）");
@@ -370,7 +370,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// 静态槽还原作用域（W27：<c>restore</c>）：留存静态成员当前值 → 执行进入期步骤 → 退出（含异常路径）执行退出期步骤。
     /// <para>作用域步骤**不得引用依赖**（依赖在其后构建），引用即抛；这是刻意的顺序约束（依赖构建可能需作用域内路径）。</para>
     /// </summary>
-    private Action EnterRestore(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    private Action EnterRestore(ScriptedScopeSpec declared, EvalScope scope, IPortInput input)
     {
         foreach (var save in declared.Save ?? Array.Empty<ScriptedSaveSpec>())
         {
@@ -391,7 +391,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>建临时目录作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件；释放 = 递归清理目录。</summary>
-    private Action EnterTempDir(ScriptedScopeSpec declared, ScriptedScope scope, IPortInput input)
+    private Action EnterTempDir(ScriptedScopeSpec declared, EvalScope scope, IPortInput input)
     {
         var prefix = declared.Prefix is { Length: > 0 } name ? name : "spec";
         var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}");
@@ -450,9 +450,9 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>建作用域（统一注入委托工厂钩子，W26：<c>from:delegate</c> 的委托体需执行声明步骤）。</summary>
-    private ScriptedScope NewScope()
+    private EvalScope NewScope()
     {
-        var scope = new ScriptedScope(_spec.PortKey);
+        var scope = new EvalScope(_spec.PortKey);
         scope.Delegates = BuildDelegate;
         return scope;
     }
@@ -473,7 +473,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>按声明序执行步骤（<c>When</c> 为假即短路跳过；形态未知 → fail-fast）。返回末步产物值。</summary>
-    private object? Run(IReadOnlyList<ScriptedStep> steps, ScriptedScope scope, IPortInput input, object?[] deps)
+    private object? Run(IReadOnlyList<ScriptedStep> steps, EvalScope scope, IPortInput input, object?[] deps)
     {
         object? last = null;
         var index = 0;
@@ -509,7 +509,7 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>构造步骤：反射构造（单源 <see cref="ScriptedConstruction"/>）→ 写槽 → 收集。返回构造对象。</summary>
     private object? RunNew(
-        ScriptedStep step, ScriptedNewSpec construct, ScriptedScope scope, IPortInput input, object?[] deps)
+        ScriptedStep step, ScriptedNewSpec construct, EvalScope scope, IPortInput input, object?[] deps)
     {
         var created = ScriptedConstruction.Build(construct, scope, input, deps, $"步骤 new '{construct.As}'");
 
@@ -520,7 +520,7 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>调用步骤：执行（调用单源 <see cref="ScriptedInvokeRunner"/>）→ 写槽 / 出参捕获 / 收集 → 可选跳出遍历。</summary>
     private object? RunInvoke(
-        ScriptedStep step, ScriptedInvokeSpec invoke, ScriptedScope scope, IPortInput input, object?[] deps)
+        ScriptedStep step, ScriptedInvokeSpec invoke, EvalScope scope, IPortInput input, object?[] deps)
     {
         var context = $"步骤 invoke '{invoke.Method}'";
         var outcome = ScriptedInvokeRunner.Run(_spec.PortKey, invoke, _spec.Deps, scope, input, deps);
@@ -542,7 +542,7 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>遍历步骤：取集合（槽 / 表达式）逐项入栈循环变量 → 过滤 → 执行体内步骤（<c>break</c> 跳出本层）。返回末次迭代产物值。</summary>
     private object? RunForeach(
-        ScriptedStep step, ScriptedForeachSpec loop, ScriptedScope scope, IPortInput input, object?[] deps)
+        ScriptedStep step, ScriptedForeachSpec loop, EvalScope scope, IPortInput input, object?[] deps)
     {
         if (string.IsNullOrWhiteSpace(loop.As))
             throw new PortBindingViolationException(
@@ -596,7 +596,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// <summary>投影：字段 ← 表达式；<c>spread</c> 形态改为动态键逐项写入产物（无字段名的 <c>spread</c> 项 = 纯动态键投影）。</summary>
     private void Project(
         ScriptedFieldSpec field, Dictionary<string, object?> product,
-        ScriptedScope scope, IPortInput input, object?[] deps)
+        EvalScope scope, IPortInput input, object?[] deps)
     {
         var notes = scope.NoteCount;
         _ = scope.TakeBottom();   // ⊥ 出处逐字段隔离（防上一字段的 ⊥ 误归到本字段）
@@ -632,7 +632,7 @@ public sealed class ScriptedBinding : IPortBinding
     }
 
     /// <summary>清单来源：声明字段（槽优先，回落产物字段）→ 首个产物字段。</summary>
-    private object? IssueSource(Dictionary<string, object?> product, ScriptedScope scope)
+    private object? IssueSource(Dictionary<string, object?> product, EvalScope scope)
     {
         if (_spec.Deliver.IssueField is { Length: > 0 } name)
         {
@@ -658,7 +658,7 @@ public sealed class ScriptedBinding : IPortBinding
         };
 
     /// <summary>收集声明（可多源：步产物 ∪ 指定槽当前值）。</summary>
-    private static void Collect(ScriptedStep step, object? product, ScriptedScope scope)
+    private static void Collect(ScriptedStep step, object? product, EvalScope scope)
     {
         if (step.Collect is not { Count: > 0 } collects) return;
 
@@ -741,7 +741,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// 委托实参以帧名注入（<c>parameters</c> 声明名，缺省 <c>arg0</c>/<c>arg1</c>/…），体内 <c>from:item</c> 取之。</para>
     /// </summary>
     private object? BuildDelegate(
-        ScriptedDelegateSpec declared, ScriptedScope scope, IPortInput input, object?[] deps, string context)
+        ScriptedDelegateSpec declared, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         var typeName = declared.Kind is { Length: > 0 } kind
             ? kind
@@ -782,13 +782,13 @@ public sealed class ScriptedBinding : IPortBinding
     {
         private readonly ScriptedBinding _owner;
         private readonly ScriptedDelegateSpec _declared;
-        private readonly ScriptedScope _scope;
+        private readonly EvalScope _scope;
         private readonly IPortInput _input;
         private readonly object?[] _deps;
         private readonly Type _returnType;
 
         internal ScriptedDelegateBody(
-            ScriptedBinding owner, ScriptedDelegateSpec declared, ScriptedScope scope,
+            ScriptedBinding owner, ScriptedDelegateSpec declared, EvalScope scope,
             IPortInput input, object?[] deps, Type returnType)
         {
             _owner = owner;

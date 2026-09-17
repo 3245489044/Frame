@@ -13,7 +13,7 @@ internal static class ScriptedConstruction
 {
     /// <summary>构造并（可选）链式后置调用；<paramref name="context"/> 仅用于诊断定位。</summary>
     internal static object? Build(
-        ScriptedNewSpec spec, ScriptedScope scope, IPortInput input, object?[] deps, string context)
+        ScriptedNewSpec spec, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         if (string.IsNullOrWhiteSpace(spec.Type))
             throw new PortBindingViolationException(
@@ -60,7 +60,7 @@ internal static class ScriptedConstruction
     /// </summary>
     private static void ApplyInit(
         IReadOnlyList<ScriptedInitSpec> init, object? instance,
-        ScriptedScope scope, IPortInput input, object?[] deps, string context)
+        EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         if (instance is null)
             throw new PortBindingViolationException(

@@ -18,7 +18,7 @@ internal static class ScriptedInvokeRunner
     /// </summary>
     internal static Outcome Run(
         string portKey, ScriptedInvokeSpec invoke, IReadOnlyList<ComposedDepSpec>? specs,
-        ScriptedScope scope, IPortInput input, object?[] resolvedDeps)
+        EvalScope scope, IPortInput input, object?[] resolvedDeps)
     {
         if (string.IsNullOrWhiteSpace(invoke.Method))
             throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 的调用声明缺少 method");
@@ -77,7 +77,7 @@ internal static class ScriptedInvokeRunner
     /// 其余 → 按其运行时类型解析实例方法 / 成员（可含非公开，W20）。
     /// </summary>
     private static Outcome RunOnValue(
-        string portKey, ScriptedInvokeSpec invoke, object target, ScriptedScope scope,
+        string portKey, ScriptedInvokeSpec invoke, object target, EvalScope scope,
         IPortInput input, object?[] deps)
     {
         var context = $"调用 '{invoke.Method}'";
@@ -139,7 +139,7 @@ internal static class ScriptedInvokeRunner
     /// </summary>
     private static MethodInfo PickMethod(
         string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
-        bool isStatic, bool nonPublic, ScriptedScope scope, IPortInput input, object?[] deps)
+        bool isStatic, bool nonPublic, EvalScope scope, IPortInput input, object?[] deps)
         => ReflectivePortResolver.ResolveMethod(
             type, portKey, methodName, declared.Count, isStatic, nonPublic,
             candidate => TryBind(
@@ -154,7 +154,7 @@ internal static class ScriptedInvokeRunner
     /// </summary>
     internal static object?[] Bind(
         string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared, ParameterInfo[] parameters,
-        ScriptedScope scope, IPortInput input, object?[] deps)
+        EvalScope scope, IPortInput input, object?[] deps)
     {
         var args = new object?[parameters.Length];
         var assigned = new bool[parameters.Length];
@@ -203,7 +203,7 @@ internal static class ScriptedInvokeRunner
     /// <summary>试绑定（重载择优用）：绑定失败（<see cref="PortBindingViolationException"/>）→ null（不可绑定），其余异常照抛。</summary>
     internal static object?[]? TryBind(
         string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared,
-        ParameterInfo[] parameters, ScriptedScope scope, IPortInput input, object?[] deps)
+        ParameterInfo[] parameters, EvalScope scope, IPortInput input, object?[] deps)
     {
         try
         {
@@ -224,7 +224,7 @@ internal static class ScriptedInvokeRunner
     /// 与 <see cref="Run"/> 共用同一执行路径（零重复实现）；链式实参里的 <c>dep</c> 下标仍指向原依赖序。
     /// </summary>
     internal static Outcome RunOn(
-        string portKey, ScriptedInvokeSpec invoke, object instance, ScriptedScope scope,
+        string portKey, ScriptedInvokeSpec invoke, object instance, EvalScope scope,
         IPortInput input, object?[] resolvedDeps)
     {
         var own = new object?[resolvedDeps.Length + 1];
@@ -264,7 +264,7 @@ internal static class ScriptedInvokeRunner
     /// <summary>出参捕获（G2）：把 <c>out</c> / <c>ref</c> 形参按位写入槽（首个用声明名，多个按序加后缀）。</summary>
     internal static void CaptureOut(
         string portKey, ScriptedInvokeSpec invoke, ParameterInfo[] parameters, object?[] args,
-        ScriptedScope scope, string context)
+        EvalScope scope, string context)
     {
         if (invoke.Out is not { Length: > 0 } name) return;
 

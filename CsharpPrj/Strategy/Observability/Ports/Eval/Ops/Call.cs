@@ -142,3 +142,107 @@ internal static class PortCall
     /// <summary>声明文本（诊断用；位序即语义）。</summary>
     private static string DeclaredText(PortBindingSpec spec) => string.Join(",", spec.Args.Select(a => a.Convert));
 }
+
+/// <summary>
+/// 组合族**调用**的解算结果（R3-2）：构造实参 → 执行（静态 / 实例 / 成员读取）→ 期望异常归一 → 异步折取。
+/// <para>原 <c>ComposedBinding.ResolvedCall</c> 逐字迁入：组合族调用语义的唯一实现点。</para>
+/// </summary>
+internal sealed class ComposedCall
+{
+    private readonly string _portKey;
+    private readonly Type? _expect;
+    private readonly MethodInfo? _method;
+    private readonly MemberInfo? _member;
+
+    internal ComposedCall(
+        string portKey, ComposedCallSpec spec, int? depIndex, Type? expect,
+        MethodInfo? method = null, MemberInfo? member = null)
+    {
+        _portKey = portKey;
+        Spec = spec;
+        DepIndex = depIndex;
+        _expect = expect;
+        _method = method;
+        _member = member;
+    }
+
+    internal ComposedCallSpec Spec { get; }
+
+    /// <summary>实例调用的依赖下标（null = 静态调用）。</summary>
+    internal int? DepIndex { get; }
+
+    internal object? Invoke(IPortInput input, object?[] deps)
+        => PortInvocation.Invoke(() => Execute(input, deps), _expect is null ? null : new[] { _expect });
+
+    private object? Execute(IPortInput input, object?[] deps)
+    {
+        var instance = DepIndex is { } index ? deps[index] : null;
+
+        if (_method is not null)
+        {
+            var args = ComposedArgs.Build(
+                _method.GetParameters(), Spec.Args, input, deps, _portKey, $"call '{Spec.As}'");
+            return _method.Invoke(instance, args);
+        }
+
+        return _member switch
+        {
+            PropertyInfo property => property.GetValue(instance),
+            FieldInfo field => field.GetValue(instance),
+            _ => throw new PortBindingViolationException(
+                _portKey, $"端口 '{_portKey}' 的调用 '{Spec.As}' 未解析出成员（声明与解析不一致）"),
+        };
+    }
+}
+
+/// <summary>
+/// 组合族调用解算（R3-2）：按声明解析目标成员（静态取 <c>target</c>；实例取依赖的 <c>contract</c>/<c>new</c> 类型）。
+/// <para>原 <c>ComposedBinding.Resolve / ResolveCallType</c> 逐字迁入；诊断文案不变（RF-5）。</para>
+/// </summary>
+internal static class PortComposedCall
+{
+    internal static ComposedCall Resolve(IReadOnlyList<ComposedDepSpec> deps, string portKey, ComposedCallSpec call)
+    {
+        if (string.IsNullOrWhiteSpace(call.Method))
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的调用 '{call.As}' 缺少 method");
+
+        var type = ResolveCallType(deps, portKey, call, out var depIndex);
+        var isStatic = depIndex is null;
+        var expect = call.Expect is { Length: > 0 } expectName
+            ? ReflectivePortResolver.ResolveType(expectName)
+            : null;
+
+        if (call.IsProperty)
+            return new ComposedCall(
+                portKey, call, depIndex, expect,
+                member: ReflectivePortResolver.ResolveMember(type, portKey, call.Method, isStatic));
+
+        return new ComposedCall(
+            portKey, call, depIndex, expect,
+            method: ReflectivePortResolver.ResolveMethod(
+                type, portKey, call.Method, call.Args?.Count ?? 0, isStatic));
+    }
+
+    /// <summary>调用所属类型：静态调用取 <c>target</c>；实例调用取依赖的 <c>contract</c> / <c>new</c> 类型。</summary>
+    internal static Type ResolveCallType(
+        IReadOnlyList<ComposedDepSpec> deps, string portKey, ComposedCallSpec call, out int? depIndex)
+    {
+        depIndex = call.Dep;
+        if (call.Dep is not { } index)
+        {
+            if (string.IsNullOrWhiteSpace(call.Target))
+                throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的调用 '{call.As}' 缺少 target（静态调用）或 dep（实例调用）");
+
+            return ReflectivePortResolver.ResolveType(call.Target!);
+        }
+
+        if (index < 0 || index >= deps.Count)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的调用 '{call.As}' 引用了不存在的依赖下标 {index}（依赖 {deps.Count} 个）");
+
+        return ComposedDeps.DeclaredInstanceType(deps, index, portKey, $"调用 '{call.As}'");
+    }
+}

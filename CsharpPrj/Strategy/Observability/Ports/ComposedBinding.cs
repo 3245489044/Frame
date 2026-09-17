@@ -20,10 +20,10 @@ public sealed class ComposedBinding : IPortBinding
 {
     private readonly ComposedBindingSpec _spec;
     private readonly IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> _factories;
-    private readonly IReadOnlyList<ResolvedCall> _calls;
+    private readonly IReadOnlyList<ComposedCall> _calls;
 
     /// <summary>
-    /// 按声明构造绑定：调用 / 依赖声明残缺、引用名重复、目标类型或成员不可解析 → 即抛（fail-fast，防静默绑错）。
+    /// 按声明构造绑定：调用声明残缺、引用名重复、目标类型或成员不可解析 → 即抛（fail-fast，防静默绑错）。
     /// 数据半工厂表随 <see cref="ComposedBindingSpec.Factories"/> 传递。
     /// </summary>
     public ComposedBinding(ComposedBindingSpec spec)
@@ -41,17 +41,22 @@ public sealed class ComposedBinding : IPortBinding
                 throw new PortBindingViolationException(
                     spec.PortKey, $"端口 '{spec.PortKey}' 的调用引用名 '{call.As}' 重复（投影引用将歧义）");
 
-        _calls = spec.Calls.Select(Resolve).ToArray();
+        _calls = spec.Calls.Select(call => PortComposedCall.Resolve(spec.Deps, spec.PortKey, call)).ToArray();
     }
 
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
         => ValueTask.FromResult(Invoke(input));
 
+    /// <summary>
+    /// 编排（R3-2 后为**薄适配**）：依赖构建（单源 = <see cref="ComposedDeps"/>）→ 逐调用执行
+    /// （<see cref="PortComposedCall"/> / <see cref="ComposedCall"/>）→ 逐字段投影（<see cref="PortProjection"/>）。
+    /// <para>调用与投影语义已迁入 <c>Eval\Ops\</c>（唯一实现点），本件只保留声明校验与执行编排。</para>
+    /// </summary>
     private object? Invoke(IPortInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        var deps = BuildDeps(input);
+        var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
 
         var results = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var call in _calls)
@@ -59,201 +64,12 @@ public sealed class ComposedBinding : IPortBinding
 
         var product = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var field in _spec.Project)
-            product[field.Field] = Project(field, deps, results);
+            product[field.Field] = PortProjection.Field(_spec.PortKey, field, deps, results);
 
         return product;
     }
 
-    // ── 依赖构建（new / factory / fake）────────────────────────────────────────
-
-    /// <summary>按声明序构建依赖（下标引用只能指向更早的依赖：保证构建拓扑无环）。</summary>
-    /// <remarks>构建语义单源 = <see cref="ComposedDeps"/>（与脚本绑定 <c>deps</c> 共用）。</remarks>
-    private object?[] BuildDeps(IPortInput input)
-        => ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
-
-    /// <summary>类型解析（含开放泛型闭合：<c>GenericArgs</c> 按序闭合泛型形参）。</summary>
-    /// <remarks>解析语义单源 = <see cref="ComposedDeps.ResolveType"/>。</remarks>
+    /// <summary>类型解析（含开放泛型闭合：<c>GenericArgs</c> 按序闭合泛型形参）；解析语义单源 = <see cref="ComposedDeps.ResolveType"/>。</summary>
     internal static Type ResolveType(string typeName, IReadOnlyList<string>? genericArgs)
         => ComposedDeps.ResolveType(typeName, genericArgs);
-
-    // ── 调用解析（静态 / 实例；方法 / 成员读取）──────────────────────────────
-
-    private ResolvedCall Resolve(ComposedCallSpec call)
-    {
-        if (string.IsNullOrWhiteSpace(call.Method))
-            throw new PortBindingViolationException(
-                _spec.PortKey, $"端口 '{_spec.PortKey}' 的调用 '{call.As}' 缺少 method");
-
-        var type = ResolveCallType(call, out var depIndex);
-        var isStatic = depIndex is null;
-        var expect = call.Expect is { Length: > 0 } expectName
-            ? ReflectivePortResolver.ResolveType(expectName)
-            : null;
-
-        if (call.IsProperty)
-            return new ResolvedCall(
-                _spec.PortKey, call, depIndex, expect,
-                member: ReflectivePortResolver.ResolveMember(type, _spec.PortKey, call.Method, isStatic));
-
-        return new ResolvedCall(
-            _spec.PortKey, call, depIndex, expect,
-            method: ReflectivePortResolver.ResolveMethod(
-                type, _spec.PortKey, call.Method, call.Args?.Count ?? 0, isStatic));
-    }
-
-    /// <summary>调用所属类型：静态调用取 <c>target</c>；实例调用取依赖的 <c>contract</c> / <c>new</c> 类型。</summary>
-    private Type ResolveCallType(ComposedCallSpec call, out int? depIndex)
-    {
-        depIndex = call.Dep;
-        if (call.Dep is not { } index)
-        {
-            if (string.IsNullOrWhiteSpace(call.Target))
-                throw new PortBindingViolationException(
-                    _spec.PortKey, $"端口 '{_spec.PortKey}' 的调用 '{call.As}' 缺少 target（静态调用）或 dep（实例调用）");
-
-            return ReflectivePortResolver.ResolveType(call.Target!);
-        }
-
-        if (index < 0 || index >= _spec.Deps.Count)
-            throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的调用 '{call.As}' 引用了不存在的依赖下标 {index}（依赖 {_spec.Deps.Count} 个）");
-
-        return ComposedDeps.DeclaredInstanceType(_spec.Deps, index, _spec.PortKey, $"调用 '{call.As}'");
-    }
-
-    // ── 投影 ────────────────────────────────────────────────────────────────
-
-    /// <summary>按取值法投影（机制枚举，不含领域谓词；未知取值法 fail-fast）。</summary>
-    private object? Project(ComposedFieldSpec field, object?[] deps, IReadOnlyDictionary<string, object?> results)
-    {
-        switch (field.Select)
-        {
-            case "value":
-                return Result(field, results);
-
-            case "count":
-                return Count(Result(field, results), field.Field);
-
-            case "notNull":
-                return Result(field, results) is not null;
-
-            case "text":
-                return PortValues.Text(Result(field, results));
-
-            case "message":
-                return (Result(field, results) as Exception)?.Message;
-
-            case "thrown":
-                return Result(field, results) is Exception;
-
-            case "countEqual":
-                if (field.Other is not { Length: > 0 } other || !results.TryGetValue(other, out var right))
-                    throw new PortBindingViolationException(
-                        _spec.PortKey,
-                        $"端口 '{_spec.PortKey}' 的 countEqual 字段 '{field.Field}' 缺少可解析的比较调用（other='{field.Other}'）");
-
-                return Count(Result(field, results), field.Field) == Count(right, field.Field);
-
-            case "path":
-                if (field.Path is not { Length: > 0 } path)
-                    throw new PortBindingViolationException(
-                        _spec.PortKey, $"端口 '{_spec.PortKey}' 的 path 字段 '{field.Field}' 缺少 path（属性路径）");
-
-                return PathOf(Result(field, results), path);
-
-            case "pathText":
-                if (field.Path is not { Length: > 0 } textPath)
-                    throw new PortBindingViolationException(
-                        _spec.PortKey, $"端口 '{_spec.PortKey}' 的 pathText 字段 '{field.Field}' 缺少 path（属性路径）");
-
-                return PortValues.Text(PathOf(Result(field, results), textPath));
-
-            case "fakeCount":
-                if (field.Dep is not { } index || index < 0 || index >= deps.Length || deps[index] is not { } fake)
-                    throw new PortBindingViolationException(
-                        _spec.PortKey,
-                        $"端口 '{_spec.PortKey}' 的 fakeCount 字段 '{field.Field}' 缺少可解析的依赖（dep={field.Dep}）");
-
-                return ProxyFakes.CountOf(fake, field.Method ?? throw Missing(field, "method"), field.Key);
-
-            default:
-                throw new PortBindingViolationException(
-                    _spec.PortKey,
-                    $"端口 '{_spec.PortKey}' 的投影字段 '{field.Field}' 取值法 '{field.Select}' 未知" +
-                    "（value|count|notNull|text|message|thrown|countEqual|path|pathText|fakeCount）");
-        }
-    }
-
-    /// <summary>取某次调用结果（引用必须命中已声明调用）。</summary>
-    private object? Result(ComposedFieldSpec field, IReadOnlyDictionary<string, object?> results)
-    {
-        if (field.Call is not { Length: > 0 } call || !results.TryGetValue(call, out var value))
-            throw new PortBindingViolationException(
-                _spec.PortKey, $"端口 '{_spec.PortKey}' 的投影字段 '{field.Field}' 引用了未声明的调用 '{field.Call}'");
-
-        return value;
-    }
-
-    private PortBindingViolationException Missing(ComposedFieldSpec field, string key)
-        => new(_spec.PortKey, $"端口 '{_spec.PortKey}' 的字段 '{field.Field}' 取值法 '{field.Select}' 缺少 {key}");
-
-    /// <summary>属性路径取值（<c>A.B.C</c>：逐段属性优先、回落字段、忽略大小写；任一段缺失 → null）。</summary>
-    private static object? PathOf(object? value, string path) => PortValues.PathOf(value, path);
-
-    /// <summary>计数（集合 / 数组 / 字符串长度；未知载体 fail-fast，防静默投影为 0）。</summary>
-    private int Count(object? value, string field)
-        => PortValues.TryCount(value)
-           ?? throw new PortBindingViolationException(
-               _spec.PortKey,
-               $"端口 '{_spec.PortKey}' 的投影字段 '{field}' 取值法 count 不适用于 {value!.GetType().Name}");
-
-    /// <summary>解析后的调用：构造实参 → 执行（静态 / 实例）→ 异常归一（期望异常转结果）→ 异步折取。</summary>
-    private sealed class ResolvedCall
-    {
-        private readonly string _portKey;
-        private readonly Type? _expect;
-        private readonly MethodInfo? _method;
-        private readonly MemberInfo? _member;
-
-        internal ResolvedCall(
-            string portKey, ComposedCallSpec spec, int? depIndex, Type? expect,
-            MethodInfo? method = null, MemberInfo? member = null)
-        {
-            _portKey = portKey;
-            Spec = spec;
-            DepIndex = depIndex;
-            _expect = expect;
-            _method = method;
-            _member = member;
-        }
-
-        internal ComposedCallSpec Spec { get; }
-
-        /// <summary>实例调用的依赖下标（null = 静态调用）。</summary>
-        internal int? DepIndex { get; }
-
-        internal object? Invoke(IPortInput input, object?[] deps)
-            => PortInvocation.Invoke(() => Execute(input, deps), _expect is null ? null : new[] { _expect });
-
-        private object? Execute(IPortInput input, object?[] deps)
-        {
-            var instance = DepIndex is { } index ? deps[index] : null;
-
-            if (_method is not null)
-            {
-                var args = ComposedArgs.Build(
-                    _method.GetParameters(), Spec.Args, input, deps, _portKey, $"call '{Spec.As}'");
-                return _method.Invoke(instance, args);
-            }
-
-            return _member switch
-            {
-                PropertyInfo property => property.GetValue(instance),
-                FieldInfo field => field.GetValue(instance),
-                _ => throw new PortBindingViolationException(
-                    _portKey, $"端口 '{_portKey}' 的调用 '{Spec.As}' 未解析出成员（声明与解析不一致）"),
-            };
-        }
-    }
 }

@@ -57,7 +57,13 @@
 | 测试 | `Observability.Tests`（全量，含 `PortKernelDisciplineGuardTests`） | **215 / 215** |
 | 测试 | `Agent.Spec.Guard.Tests` | **80 / 80** |
 | 台账工具 | `Split-SpecPortLedger.ps1 -Check` | **OK（110 键 / 13 分片）** |
+| 测试 | `Declarative.Ledger.Tests`（台账机制 + 文本口径 `PsJsonText` + 区间改写 `LedgerTextEditor`） | **33 / 33** |
 | 台账工具 | `LedgerForge check`（F2-a 离线工具，输出与上者逐字一致） | **OK（110 键 / 13 分片）** |
+| 台账工具 | `LedgerForge check --bytes` / `compose` / `split`（dry-run 与磁盘文件**逐字节一致**） | **OK（13 分片 + _meta + 产物）** |
+| 台账工具 | `LedgerForge set-impl`（与 PS 工具产物**逐字节一致** + 幂等） | **OK（150,215 字节同比特 / 二次运行零变更）** |
+| 台账工具 | `LedgerForge normalize-key --check`（与 PS 工具输出**逐字一致**） | **OK（46 份用例 / 零残留）** |
+| 台账工具 | `LedgerForge derive-schema`（词表 ↔ 结构门对账） | **OK（enum 绑定 16 / 键集绑定 1）** |
+| 台账工具 | `LedgerForge emit-declaration`（声明化骨架 + 缺失落点清单） | **OK（10 族 / 69 键全落点）** |
 
 ---
 
@@ -91,9 +97,18 @@ pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'DataC
 pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'Observability.Tests' -Class 'PortKernelDisciplineGuardTests|E22'
 pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'Agent.Spec.Guard.Tests'
 
-# ④ 台账一致性（PS 与离线工具须逐字一致）
+# ④ 台账一致性（PS 与离线工具须逐字一致；写侧须逐字节一致）
+#    离线工具 = LedgerForge（**自有输出目录**，不进 CsharpPrj 权威烘焙目录）
+$LF = 'D:\Project\Main\Frame\CsharpPrj\Plate\DeclarativeLedger.Tools\LedgerForge\BuildOutput\Debug\LedgerForge.dll'
 pwsh D:\Project\Main\Environment\CentralTest\Tools\Split-SpecPortLedger.ps1 -Check
-dotnet D:\Project\Main\Frame\CsharpPrj\BuildOutput\Debug\LedgerForge.dll check
+dotnet $LF check                  # 语义对拍（输出与上者逐字一致）
+dotnet $LF check --bytes          # 追加「产物 + 分片 + _meta」逐字节对拍
+dotnet $LF compose                # dry-run：分片 → 产物（与磁盘产物逐字节比较，差异即红）
+dotnet $LF split                  # dry-run：产物 → 分片（与磁盘分片逐字节比较，差异即红）
+dotnet $LF set-impl --impl <d.json>          # impl 区间改写 dry-run（其余字节逐字保留；--write 才落盘）
+dotnet $LF normalize-key --project Agent.Core.Tests --check   # 步骤 kind → 端口键残留检查
+dotnet $LF derive-schema          # 词表 → 结构门只读对账（空 = 绿；--write 幂等写回）
+dotnet $LF emit-declaration --family <PortFixtures.X.cs>      # 声明化骨架草稿 + 缺失落点清单（哨兵 __BIND__）
 
 # ⑤ 体量指标
 $f='D:\Project\Main\Environment\CentralTest\AgentTest\Agent.TestShared\Fixtures\Agent'

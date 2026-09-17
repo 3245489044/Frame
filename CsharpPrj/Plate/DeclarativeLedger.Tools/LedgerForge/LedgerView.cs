@@ -18,6 +18,8 @@ internal sealed record LedgerView(
     string PortsProperty,
     string ShardCommentKey,
     IReadOnlyList<LedgerGroup> Groups,
+    int ExpectedTotal,
+    IReadOnlyDictionary<string, int> ExpectedByGroup,
     IReadOnlyDictionary<string, string> Messages)
 {
     /// <summary>装载数据视图（<paramref name="explicitPath"/> 为空则自动定位）。</summary>
@@ -46,6 +48,12 @@ internal sealed record LedgerView(
                 Strings(group, "keys")))
             .ToArray();
 
+        var expected = root.GetProperty("expectedCounts");
+        var expectedByGroup = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var property in expected.GetProperty("byGroup").EnumerateObject())
+            if (property.Value.ValueKind == JsonValueKind.Number)
+                expectedByGroup[property.Name] = property.Value.GetInt32();
+
         return new LedgerView(
             dataPath,
             centralTestRoot,
@@ -55,6 +63,8 @@ internal sealed record LedgerView(
             rules.GetProperty("portsProperty").GetString() ?? "ports",
             rules.GetProperty("shardCommentKey").GetString() ?? "$comment",
             groups,
+            expected.GetProperty("total").GetInt32(),
+            expectedByGroup,
             messages);
 
         string Relative(JsonElement pathsNode, string name)
@@ -63,7 +73,17 @@ internal sealed record LedgerView(
     }
 
     /// <summary>数据视图文案（<c>{0}</c>/<c>{1}</c> 为占位；与 PS 同源）。</summary>
-    internal string Message(string name) => Messages.TryGetValue(name, out var text) ? text : $"<missing:{name}>";
+    internal string Message(string name, params object[] args)
+    {
+        var text = Messages.TryGetValue(name, out var value) ? value : $"<missing:{name}>";
+        return args.Length == 0 ? text : string.Format(text, args);
+    }
+
+    /// <summary>分组登记键数（未登记即抛，与 PS <c>Get-ExpectedCount</c> 同口径：新增分组须登记）。</summary>
+    internal int ExpectedCount(string group)
+        => ExpectedByGroup.TryGetValue(group, out var count)
+            ? count
+            : throw new InvalidOperationException($"expectedCounts.byGroup 缺组 '{group}'（新增分组须登记键数）");
 
     /// <summary>按数据视图定位（自程序集位置向上；找不到即抛，不猜路径）。</summary>
     private static string Locate()

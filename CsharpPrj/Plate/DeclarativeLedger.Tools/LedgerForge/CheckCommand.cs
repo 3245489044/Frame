@@ -9,7 +9,7 @@ namespace BasicMethod.Declarative.Tools.LedgerForge;
 /// </summary>
 internal static class CheckCommand
 {
-    internal static int Run(LedgerView view)
+    internal static int Run(LedgerView view, bool bytes = false)
     {
         if (!Directory.Exists(view.PartsDirectory) || !File.Exists(view.MetaPath))
         {
@@ -52,6 +52,17 @@ internal static class CheckCommand
         if (diffs.Length != 0)
             throw new InvalidOperationException(string.Format(
                 view.Message("checkEntryDiff"), diffs.Length, string.Join(", ", diffs.Take(10))));
+
+        // (d) --bytes：字节对拍（产物 = compose 渲染；分片 + _meta = split 规划），任一漂移即红
+        if (bytes)
+        {
+            var problems = new List<string>();
+            problems.AddRange(ComposeCommand.Drift(view));
+            problems.AddRange(SplitCommand.Drift(view));
+            if (problems.Count != 0)
+                throw new InvalidOperationException(
+                    string.Join(Environment.NewLine, problems) + Environment.NewLine + view.Message("forgeDryRunHint"));
+        }
 
         Console.WriteLine(string.Format(view.Message("checkOk"), ledger.Ports.Count, view.Groups.Count));
         return 0;

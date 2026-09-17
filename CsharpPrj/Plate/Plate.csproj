@@ -28,6 +28,8 @@
     <Compile Remove="DataManage\**\*.cs" />
     <Compile Remove="TConfig\**\*.cs" />
     <Compile Remove="DeclarativeLedger\**\*.cs" />
+    <!-- ★ 离线工具（*.Tools 子树）不进伞聚合：独立工程（自有输出目录），其源码含 Frame 级依赖，聚合不承载 -->
+    <Compile Remove="DeclarativeLedger.Tools\**\*.cs" />
     <Compile Remove="JsonMethod\**\*.cs" />
     <Compile Remove="DslMethod\**\*.cs" />
     <Compile Remove="MarkdownViewer\**\*.cs" />

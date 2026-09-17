@@ -1,0 +1,386 @@
+impl.kind/delegate	Implementation	Unregistered	未提供外来证据
+impl.kind/delegate	Attestation	Unregistered	未提供外来证据
+impl.kind/reflective	Implementation	Unregistered	未提供外来证据
+impl.kind/reflective	Attestation	Unregistered	未提供外来证据
+impl.kind/composed	Implementation	Unregistered	未提供外来证据
+impl.kind/composed	Attestation	Unregistered	未提供外来证据
+impl.kind/scripted	Implementation	Unregistered	未提供外来证据
+impl.kind/scripted	Attestation	Unregistered	未提供外来证据
+impl.kind/frozen	Implementation	Unregistered	未提供外来证据
+impl.kind/frozen	Attestation	Unregistered	未提供外来证据
+convert/string	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/string	Implementation	Unregistered	未提供外来证据
+convert/string	Attestation	Unregistered	未提供外来证据
+convert/bool	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/bool	Implementation	Unregistered	未提供外来证据
+convert/bool	Attestation	Unregistered	未提供外来证据
+convert/int	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/int	Implementation	Unregistered	未提供外来证据
+convert/int	Attestation	Unregistered	未提供外来证据
+convert/double	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/double	Implementation	Unregistered	未提供外来证据
+convert/double	Attestation	Unregistered	未提供外来证据
+convert/csv	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/csv	Implementation	Unregistered	未提供外来证据
+convert/csv	Attestation	Unregistered	未提供外来证据
+convert/json	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/json	Implementation	Unregistered	未提供外来证据
+convert/json	Attestation	Unregistered	未提供外来证据
+convert/object	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/object	Implementation	Unregistered	未提供外来证据
+convert/object	Attestation	Unregistered	未提供外来证据
+convert/array	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/array	Implementation	Unregistered	未提供外来证据
+convert/array	Attestation	Unregistered	未提供外来证据
+convert/graph	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/graph	Implementation	Unregistered	未提供外来证据
+convert/graph	Attestation	Unregistered	未提供外来证据
+convert/passthrough	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/passthrough	Implementation	Unregistered	未提供外来证据
+convert/passthrough	Attestation	Unregistered	未提供外来证据
+convert/dep	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+convert/dep	Implementation	Unregistered	未提供外来证据
+convert/dep	Attestation	Unregistered	未提供外来证据
+from/arg	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/arg	Implementation	Unregistered	未提供外来证据
+from/arg	Attestation	Unregistered	未提供外来证据
+from/with	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/with	Implementation	Unregistered	未提供外来证据
+from/with	Attestation	Unregistered	未提供外来证据
+from/item	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/item	Implementation	Unregistered	未提供外来证据
+from/item	Attestation	Unregistered	未提供外来证据
+from/var	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/var	Implementation	Unregistered	未提供外来证据
+from/var	Attestation	Unregistered	未提供外来证据
+from/dep	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/dep	Implementation	Unregistered	未提供外来证据
+from/dep	Attestation	Unregistered	未提供外来证据
+from/literal	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/literal	Implementation	Unregistered	未提供外来证据
+from/literal	Attestation	Unregistered	未提供外来证据
+from/tmpPath	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/tmpPath	Implementation	Unregistered	未提供外来证据
+from/tmpPath	Attestation	Unregistered	未提供外来证据
+from/tmpDir	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/tmpDir	Implementation	Unregistered	未提供外来证据
+from/tmpDir	Attestation	Unregistered	未提供外来证据
+from/table	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/table	Implementation	Unregistered	未提供外来证据
+from/table	Attestation	Unregistered	未提供外来证据
+from/presence	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/presence	Implementation	Unregistered	未提供外来证据
+from/presence	Attestation	Unregistered	未提供外来证据
+from/delegate	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/delegate	Implementation	Unregistered	未提供外来证据
+from/delegate	Attestation	Unregistered	未提供外来证据
+from/new	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/new	Implementation	Unregistered	未提供外来证据
+from/new	Attestation	Unregistered	未提供外来证据
+from/row	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/row	Implementation	Unregistered	未提供外来证据
+from/row	Attestation	Unregistered	未提供外来证据
+from/member	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/member	Implementation	Unregistered	未提供外来证据
+from/member	Attestation	Unregistered	未提供外来证据
+from/type	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/type	Implementation	Unregistered	未提供外来证据
+from/type	Attestation	Unregistered	未提供外来证据
+select/value	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/value	Implementation	Unregistered	未提供外来证据
+select/value	Attestation	Unregistered	未提供外来证据
+select/count	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/count	Implementation	Unregistered	未提供外来证据
+select/count	Attestation	Unregistered	未提供外来证据
+select/notNull	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/notNull	Implementation	Unregistered	未提供外来证据
+select/notNull	Attestation	Unregistered	未提供外来证据
+select/text	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/text	Implementation	Unregistered	未提供外来证据
+select/text	Attestation	Unregistered	未提供外来证据
+select/countEqual	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/countEqual	Implementation	Unregistered	未提供外来证据
+select/countEqual	Attestation	Unregistered	未提供外来证据
+select/path	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/path	Implementation	Unregistered	未提供外来证据
+select/path	Attestation	Unregistered	未提供外来证据
+select/pathText	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/pathText	Implementation	Unregistered	未提供外来证据
+select/pathText	Attestation	Unregistered	未提供外来证据
+select/message	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/message	Implementation	Unregistered	未提供外来证据
+select/message	Attestation	Unregistered	未提供外来证据
+select/thrown	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/thrown	Implementation	Unregistered	未提供外来证据
+select/thrown	Attestation	Unregistered	未提供外来证据
+select/fakeCount	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/fakeCount	Implementation	Unregistered	未提供外来证据
+select/fakeCount	Attestation	Unregistered	未提供外来证据
+deliver.kind/value	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+deliver.kind/value	Implementation	Unregistered	未提供外来证据
+deliver.kind/value	Attestation	Unregistered	未提供外来证据
+deliver.kind/issues	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+deliver.kind/issues	Implementation	Unregistered	未提供外来证据
+deliver.kind/issues	Attestation	Unregistered	未提供外来证据
+deliver.kind/action	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+deliver.kind/action	Implementation	Unregistered	未提供外来证据
+deliver.kind/action	Attestation	Unregistered	未提供外来证据
+onBlankFirstKey/fail	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+onBlankFirstKey/fail	Implementation	Unregistered	未提供外来证据
+onBlankFirstKey/fail	Attestation	Unregistered	未提供外来证据
+onBlankFirstKey/skip	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+onBlankFirstKey/skip	Implementation	Unregistered	未提供外来证据
+onBlankFirstKey/skip	Attestation	Unregistered	未提供外来证据
+onDuplicate/fail	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+onDuplicate/fail	Implementation	Unregistered	未提供外来证据
+onDuplicate/fail	Attestation	Unregistered	未提供外来证据
+onDuplicate/last	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+onDuplicate/last	Implementation	Unregistered	未提供外来证据
+onDuplicate/last	Attestation	Unregistered	未提供外来证据
+aggOp/sum	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
+aggOp/sum	Parse	Unregistered	未登记探针
+aggOp/sum	Implementation	Unregistered	未提供外来证据
+aggOp/sum	Attestation	Unregistered	未提供外来证据
+aggOp/max	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
+aggOp/max	Parse	Unregistered	未登记探针
+aggOp/max	Implementation	Unregistered	未提供外来证据
+aggOp/max	Attestation	Unregistered	未提供外来证据
+aggOp/min	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
+aggOp/min	Parse	Unregistered	未登记探针
+aggOp/min	Implementation	Unregistered	未提供外来证据
+aggOp/min	Attestation	Unregistered	未提供外来证据
+aggOp/avg	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
+aggOp/avg	Parse	Unregistered	未登记探针
+aggOp/avg	Implementation	Unregistered	未提供外来证据
+aggOp/avg	Attestation	Unregistered	未提供外来证据
+message/Message	Schema	Missing	结构门无该节点：$defs/deliver/capture/properties/message
+message/Message	Parse	Unregistered	未登记探针
+message/Message	Implementation	Unregistered	未提供外来证据
+message/Message	Attestation	Unregistered	未提供外来证据
+message/TypeName	Schema	Missing	结构门无该节点：$defs/deliver/capture/properties/message
+message/TypeName	Parse	Unregistered	未登记探针
+message/TypeName	Implementation	Unregistered	未提供外来证据
+message/TypeName	Attestation	Unregistered	未提供外来证据
+expr/Source	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/Source	Parse	Unregistered	未登记探针
+expr/Source	Implementation	Unregistered	未提供外来证据
+expr/Source	Attestation	Unregistered	未提供外来证据
+expr/Path	Parse	Unregistered	未登记探针
+expr/Path	Implementation	Unregistered	未提供外来证据
+expr/Path	Attestation	Unregistered	未提供外来证据
+expr/Count	Parse	Unregistered	未登记探针
+expr/Count	Implementation	Unregistered	未提供外来证据
+expr/Count	Attestation	Unregistered	未提供外来证据
+expr/NotNull	Parse	Unregistered	未登记探针
+expr/NotNull	Implementation	Unregistered	未提供外来证据
+expr/NotNull	Attestation	Unregistered	未提供外来证据
+expr/AsText	Parse	Unregistered	未登记探针
+expr/AsText	Implementation	Unregistered	未提供外来证据
+expr/AsText	Attestation	Unregistered	未提供外来证据
+expr/TypeName	Parse	Unregistered	未登记探针
+expr/TypeName	Implementation	Unregistered	未提供外来证据
+expr/TypeName	Attestation	Unregistered	未提供外来证据
+expr/Message	Parse	Unregistered	未登记探针
+expr/Message	Implementation	Unregistered	未提供外来证据
+expr/Message	Attestation	Unregistered	未提供外来证据
+expr/Thrown	Parse	Unregistered	未登记探针
+expr/Thrown	Implementation	Unregistered	未提供外来证据
+expr/Thrown	Attestation	Unregistered	未提供外来证据
+expr/Concat	Parse	Unregistered	未登记探针
+expr/Concat	Implementation	Unregistered	未提供外来证据
+expr/Concat	Attestation	Unregistered	未提供外来证据
+expr/Separator	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/Separator	Parse	Unregistered	未登记探针
+expr/Separator	Implementation	Unregistered	未提供外来证据
+expr/Separator	Attestation	Unregistered	未提供外来证据
+expr/Contains	Parse	Unregistered	未登记探针
+expr/Contains	Implementation	Unregistered	未提供外来证据
+expr/Contains	Attestation	Unregistered	未提供外来证据
+expr/Of	Parse	Unregistered	未登记探针
+expr/Of	Implementation	Unregistered	未提供外来证据
+expr/Of	Attestation	Unregistered	未提供外来证据
+expr/All	Parse	Unregistered	未登记探针
+expr/All	Implementation	Unregistered	未提供外来证据
+expr/All	Attestation	Unregistered	未提供外来证据
+expr/Any	Parse	Unregistered	未登记探针
+expr/Any	Implementation	Unregistered	未提供外来证据
+expr/Any	Attestation	Unregistered	未提供外来证据
+expr/AllIn	Parse	Unregistered	未登记探针
+expr/AllIn	Implementation	Unregistered	未提供外来证据
+expr/AllIn	Attestation	Unregistered	未提供外来证据
+expr/Call	Parse	Unregistered	未登记探针
+expr/Call	Implementation	Unregistered	未提供外来证据
+expr/Call	Attestation	Unregistered	未提供外来证据
+expr/CallTarget	Parse	Unregistered	未登记探针
+expr/CallTarget	Implementation	Unregistered	未提供外来证据
+expr/CallTarget	Attestation	Unregistered	未提供外来证据
+expr/Spread	Parse	Unregistered	未登记探针
+expr/Spread	Implementation	Unregistered	未提供外来证据
+expr/Spread	Attestation	Unregistered	未提供外来证据
+expr/Except	Parse	Unregistered	未登记探针
+expr/Except	Implementation	Unregistered	未提供外来证据
+expr/Except	Attestation	Unregistered	未提供外来证据
+expr/CountEqual	Parse	Unregistered	未登记探针
+expr/CountEqual	Implementation	Unregistered	未提供外来证据
+expr/CountEqual	Attestation	Unregistered	未提供外来证据
+expr/Collect	Parse	Unregistered	未登记探针
+expr/Collect	Implementation	Unregistered	未提供外来证据
+expr/Collect	Attestation	Unregistered	未提供外来证据
+expr/CollectText	Parse	Unregistered	未登记探针
+expr/CollectText	Implementation	Unregistered	未提供外来证据
+expr/CollectText	Attestation	Unregistered	未提供外来证据
+expr/SameAsLast	Parse	Unregistered	未登记探针
+expr/SameAsLast	Implementation	Unregistered	未提供外来证据
+expr/SameAsLast	Attestation	Unregistered	未提供外来证据
+expr/IsNull	Parse	Unregistered	未登记探针
+expr/IsNull	Implementation	Unregistered	未提供外来证据
+expr/IsNull	Attestation	Unregistered	未提供外来证据
+expr/Not	Parse	Unregistered	未登记探针
+expr/Not	Implementation	Unregistered	未提供外来证据
+expr/Not	Attestation	Unregistered	未提供外来证据
+expr/Eq	Parse	Unregistered	未登记探针
+expr/Eq	Implementation	Unregistered	未提供外来证据
+expr/Eq	Attestation	Unregistered	未提供外来证据
+expr/Ne	Parse	Unregistered	未登记探针
+expr/Ne	Implementation	Unregistered	未提供外来证据
+expr/Ne	Attestation	Unregistered	未提供外来证据
+expr/Gt	Parse	Unregistered	未登记探针
+expr/Gt	Implementation	Unregistered	未提供外来证据
+expr/Gt	Attestation	Unregistered	未提供外来证据
+expr/Ge	Parse	Unregistered	未登记探针
+expr/Ge	Implementation	Unregistered	未提供外来证据
+expr/Ge	Attestation	Unregistered	未提供外来证据
+expr/Lt	Parse	Unregistered	未登记探针
+expr/Lt	Implementation	Unregistered	未提供外来证据
+expr/Lt	Attestation	Unregistered	未提供外来证据
+expr/Le	Parse	Unregistered	未登记探针
+expr/Le	Implementation	Unregistered	未提供外来证据
+expr/Le	Attestation	Unregistered	未提供外来证据
+expr/AllOf	Parse	Unregistered	未登记探针
+expr/AllOf	Implementation	Unregistered	未提供外来证据
+expr/AllOf	Attestation	Unregistered	未提供外来证据
+expr/AnyOf	Parse	Unregistered	未登记探针
+expr/AnyOf	Implementation	Unregistered	未提供外来证据
+expr/AnyOf	Attestation	Unregistered	未提供外来证据
+expr/Invoke	Parse	Unregistered	未登记探针
+expr/Invoke	Implementation	Unregistered	未提供外来证据
+expr/Invoke	Attestation	Unregistered	未提供外来证据
+expr/First	Parse	Unregistered	未登记探针
+expr/First	Implementation	Unregistered	未提供外来证据
+expr/First	Attestation	Unregistered	未提供外来证据
+expr/FirstWhere	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/FirstWhere	Parse	Unregistered	未登记探针
+expr/FirstWhere	Implementation	Unregistered	未提供外来证据
+expr/FirstWhere	Attestation	Unregistered	未提供外来证据
+expr/FirstPath	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/FirstPath	Parse	Unregistered	未登记探针
+expr/FirstPath	Implementation	Unregistered	未提供外来证据
+expr/FirstPath	Attestation	Unregistered	未提供外来证据
+expr/Agg	Parse	Unregistered	未登记探针
+expr/Agg	Implementation	Unregistered	未提供外来证据
+expr/Agg	Attestation	Unregistered	未提供外来证据
+expr/AggOp	Parse	Unregistered	未登记探针
+expr/AggOp	Implementation	Unregistered	未提供外来证据
+expr/AggOp	Attestation	Unregistered	未提供外来证据
+expr/AggPath	Parse	Unregistered	未登记探针
+expr/AggPath	Implementation	Unregistered	未提供外来证据
+expr/AggPath	Attestation	Unregistered	未提供外来证据
+expr/Filter	Parse	Unregistered	未登记探针
+expr/Filter	Implementation	Unregistered	未提供外来证据
+expr/Filter	Attestation	Unregistered	未提供外来证据
+expr/FilterWhere	Parse	Unregistered	未登记探针
+expr/FilterWhere	Implementation	Unregistered	未提供外来证据
+expr/FilterWhere	Attestation	Unregistered	未提供外来证据
+expr/FilterPath	Parse	Unregistered	未登记探针
+expr/FilterPath	Implementation	Unregistered	未提供外来证据
+expr/FilterPath	Attestation	Unregistered	未提供外来证据
+expr/SameReference	Parse	Unregistered	未登记探针
+expr/SameReference	Implementation	Unregistered	未提供外来证据
+expr/SameReference	Attestation	Unregistered	未提供外来证据
+expr/Coalesce	Parse	Unregistered	未登记探针
+expr/Coalesce	Implementation	Unregistered	未提供外来证据
+expr/Coalesce	Attestation	Unregistered	未提供外来证据
+expr/Dict	Parse	Unregistered	未登记探针
+expr/Dict	Implementation	Unregistered	未提供外来证据
+expr/Dict	Attestation	Unregistered	未提供外来证据
+expr/DictKey	Parse	Unregistered	未登记探针
+expr/DictKey	Implementation	Unregistered	未提供外来证据
+expr/DictKey	Attestation	Unregistered	未提供外来证据
+expr/DictValue	Parse	Unregistered	未登记探针
+expr/DictValue	Implementation	Unregistered	未提供外来证据
+expr/DictValue	Attestation	Unregistered	未提供外来证据
+expr/DictWhere	Parse	Unregistered	未登记探针
+expr/DictWhere	Implementation	Unregistered	未提供外来证据
+expr/DictWhere	Attestation	Unregistered	未提供外来证据
+expr/DictOnDuplicate	Parse	Unregistered	未登记探针
+expr/DictOnDuplicate	Implementation	Unregistered	未提供外来证据
+expr/DictOnDuplicate	Attestation	Unregistered	未提供外来证据
+expr/Last	Parse	Unregistered	未登记探针
+expr/Last	Implementation	Unregistered	未提供外来证据
+expr/Last	Attestation	Unregistered	未提供外来证据
+expr/LastWhere	Parse	Unregistered	未登记探针
+expr/LastWhere	Implementation	Unregistered	未提供外来证据
+expr/LastWhere	Attestation	Unregistered	未提供外来证据
+expr/LastPath	Parse	Unregistered	未登记探针
+expr/LastPath	Implementation	Unregistered	未提供外来证据
+expr/LastPath	Attestation	Unregistered	未提供外来证据
+expr/FirstOrNull	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/FirstOrNull	Parse	Unregistered	未登记探针
+expr/FirstOrNull	Implementation	Unregistered	未提供外来证据
+expr/FirstOrNull	Attestation	Unregistered	未提供外来证据
+expr/LastOrNull	Parse	Unregistered	未登记探针
+expr/LastOrNull	Implementation	Unregistered	未提供外来证据
+expr/LastOrNull	Attestation	Unregistered	未提供外来证据
+expr/Parts	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/Parts	Parse	Unregistered	未登记探针
+expr/Parts	Implementation	Unregistered	未提供外来证据
+expr/Parts	Attestation	Unregistered	未提供外来证据
+expr/Distinct	Parse	Unregistered	未登记探针
+expr/Distinct	Implementation	Unregistered	未提供外来证据
+expr/Distinct	Attestation	Unregistered	未提供外来证据
+expr/SequenceEqual	Parse	Unregistered	未登记探针
+expr/SequenceEqual	Implementation	Unregistered	未提供外来证据
+expr/SequenceEqual	Attestation	Unregistered	未提供外来证据
+expr/Fold	Parse	Unregistered	未登记探针
+expr/Fold	Implementation	Unregistered	未提供外来证据
+expr/Fold	Attestation	Unregistered	未提供外来证据
+expr/FoldAs	Schema	Unregistered	该成员未登记承载键（词表登记待补）
+expr/FoldAs	Parse	Unregistered	未登记探针
+expr/FoldAs	Implementation	Unregistered	未提供外来证据
+expr/FoldAs	Attestation	Unregistered	未提供外来证据
+expr/FoldInit	Parse	Unregistered	未登记探针
+expr/FoldInit	Implementation	Unregistered	未提供外来证据
+expr/FoldInit	Attestation	Unregistered	未提供外来证据
+expr/FoldStep	Parse	Unregistered	未登记探针
+expr/FoldStep	Implementation	Unregistered	未提供外来证据
+expr/FoldStep	Attestation	Unregistered	未提供外来证据
+scope.kind/tempDir	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/tempDir	Implementation	Unregistered	未提供外来证据
+scope.kind/tempDir	Attestation	Unregistered	未提供外来证据
+scope.kind/using	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/using	Implementation	Unregistered	未提供外来证据
+scope.kind/using	Attestation	Unregistered	未提供外来证据
+scope.kind/restore	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/restore	Implementation	Unregistered	未提供外来证据
+scope.kind/restore	Attestation	Unregistered	未提供外来证据
+fake/recording	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/recording	Implementation	Unregistered	未提供外来证据
+fake/recording	Attestation	Unregistered	未提供外来证据
+fake/counting	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/counting	Implementation	Unregistered	未提供外来证据
+fake/counting	Attestation	Unregistered	未提供外来证据
+fake/fixed	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/fixed	Implementation	Unregistered	未提供外来证据
+fake/fixed	Attestation	Unregistered	未提供外来证据
+fake/sequence	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/sequence	Implementation	Unregistered	未提供外来证据
+fake/sequence	Attestation	Unregistered	未提供外来证据
+fake/notExpected	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/notExpected	Implementation	Unregistered	未提供外来证据
+fake/notExpected	Attestation	Unregistered	未提供外来证据
+dep.form/new	Implementation	Unregistered	未提供外来证据
+dep.form/new	Attestation	Unregistered	未提供外来证据
+dep.form/factory	Implementation	Unregistered	未提供外来证据
+dep.form/factory	Attestation	Unregistered	未提供外来证据
+dep.form/fake	Implementation	Unregistered	未提供外来证据
+dep.form/fake	Attestation	Unregistered	未提供外来证据

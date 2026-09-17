@@ -13,7 +13,11 @@ namespace DataCenter.Standards;
 /// </summary>
 public static class SchemaEnumSynchronizer
 {
-    private sealed record EnumBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Vocabulary);
+    /// <summary>
+    /// 「词表 → 结构门 <c>enum</c>」绑定：某处 enum 由某份词表**机械派生**的登记项。
+    /// <paramref name="Pointer"/> 指向 enum 节点（<c>/</c> 分隔键路径，形如 <c>$defs/impl/properties/kind/enum</c>）。
+    /// </summary>
+    public sealed record EnumBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Vocabulary);
 
     /// <summary>词表绑定表（键路径按 <c>/</c> 分隔；表即「哪处 enum 由哪份词表派生」的唯一登记）。</summary>
     private static readonly EnumBinding[] Bindings =
@@ -36,7 +40,16 @@ public static class SchemaEnumSynchronizer
         new("fakes.schema.json", "properties/fakes/additionalProperties/properties/kind/enum", () => PortImplVocabulary.FakeKindEnum),
     ];
 
-    private sealed record PropertiesBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Keys);
+    /// <summary>「词表 → 结构门对象键集」绑定：该层 <c>properties</c> 的键集与键序由词表派生。</summary>
+    public sealed record PropertiesBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Keys);
+
+    /// <summary>
+    /// enum 绑定表（只读视图；消费方 = 六向完备性矩阵与镜像守卫，**不得另抄一份指针表**）。
+    /// </summary>
+    public static IReadOnlyList<EnumBinding> EnumBindings => Bindings;
+
+    /// <summary>对象键集绑定表（只读视图）。</summary>
+    public static IReadOnlyList<PropertiesBinding> PropertiesKeyBindings => PropertiesBindings;
 
     /// <summary>
     /// 「对象键集」绑定表：该层 <c>properties</c> 的**键集与键序**由词表派生（写回时保留既有声明原文，

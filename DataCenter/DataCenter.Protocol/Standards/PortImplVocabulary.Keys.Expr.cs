@@ -19,6 +19,7 @@ public static partial class PortImplVocabulary
         nameof(ArgKeys) => ArgKeys,
         nameof(ValueSourceKeys) => ValueSourceKeys,
         nameof(DepKeys) => DepKeys,
+        nameof(SeamKeys) => SeamKeys,
         nameof(CallKeys) => CallKeys,
         nameof(ComposedFieldKeys) => ComposedFieldKeys,
         nameof(StepKeys) => StepKeys,

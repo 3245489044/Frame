@@ -231,6 +231,21 @@ public static class StandardImplConsistency
     }
 
     /// <summary>
+    /// C15（实现注入声明，F2-d 一期）：<c>impl.seam</c> 每条须有**理由** —— seam 是「声明面无法表达」的
+    /// 显式出口，**不是垃圾桶**（缺理由即违规）；额度冻结由守卫棘轮承担（标准层只判声明完备性）。
+    /// </summary>
+    internal static void CheckC15Seam(PortStandard port, PortImplStandard? impl, List<string> violations)
+    {
+        if (impl?.Seam is not { } seam) return;
+
+        if (string.IsNullOrWhiteSpace(seam.Seam))
+            violations.Add($"C15 实现注入声明缺名：ports[{port.Key}].impl.seam");
+        else if (string.IsNullOrWhiteSpace(seam.Reason))
+            violations.Add($"C15 实现注入声明缺理由：ports[{port.Key}].impl.seam '{seam.Seam}'"
+                + "（seam 须逐条理由，不得作为未声明化项的垃圾桶）");
+    }
+
+    /// <summary>
     /// C14（断言面覆盖，D8-a 的装载期判据）：<c>ports[key].out.fields ⊆ impl.productFields</c>（Ordinal）——
     /// 契约输出面的每个字段都必须在**断言面**（<c>then.path</c> 首段取值域）有声明，否则用例无从断言。
     /// <para>与 C13 互为对偶（C13 管「产出不越界」，本判据管「契约不悬空」），二者与

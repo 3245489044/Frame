@@ -29,6 +29,7 @@ internal static class StandardRuleSet
         new ProjectionRule(),
         new ProductFieldCoverageRule(),
         new ValueSourceRule(),
+        new SeamRule(),
     ];
 }
 
@@ -175,5 +176,17 @@ internal sealed class ProductFieldCoverageRule : ILedgerRule<IStandardCatalog>
     {
         foreach (var port in catalog.Ports)
             StandardImplConsistency.CheckC14ProductFieldCoverage(port, port.Impl, violations);
+    }
+}
+
+/// <summary>C15 实现注入声明：<c>impl.seam</c> 每条须有理由（F2-d 一期；额度冻结由守卫棘轮承担）。</summary>
+internal sealed class SeamRule : ILedgerRule<IStandardCatalog>
+{
+    public string Code => "C15";
+
+    public void Check(IStandardCatalog catalog, List<string> violations)
+    {
+        foreach (var port in catalog.Ports)
+            StandardImplConsistency.CheckC15Seam(port, port.Impl, violations);
     }
 }

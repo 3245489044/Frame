@@ -48,7 +48,29 @@ public static partial class StandardJson
             scripted ? ReadScriptProject(portKey, impl) : null,
             scripted ? ReadDeliver(portKey, impl) : null,
             scripted ? ReadScopes(portKey, impl) : null,
-            scripted ? ReadScenarios(portKey, impl) : null);
+            scripted ? ReadScenarios(portKey, impl) : null,
+            ReadSeam(portKey, impl));
+    }
+
+    /// <summary>
+    /// 实现注入声明读取（<c>impl.seam{seam,args?,reason?}</c>；F2-d 一期）：<c>seam</c> 必填（不透明名，
+    /// 由执行面注册表解析）；<c>reason</c> 缺失留待 <c>C15</c> 判（读取器只判形状，不做额度裁决）。
+    /// </summary>
+    private static PortSeamStandard? ReadSeam(string portKey, JsonElement impl)
+    {
+        if (!impl.TryGetProperty("seam", out var declared) || declared.ValueKind != JsonValueKind.Object)
+            return null;
+
+        EnsureLayerKeys(nameof(PortImplVocabulary.SeamKeys), $"ports.{portKey}.impl.seam", declared);
+
+        var seam = Str(declared, "seam")
+            ?? throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.seam 缺 seam（注入名）");
+
+        return new PortSeamStandard(
+            seam,
+            Elements(declared, "args"),
+            Str(declared, "reason"));
     }
 
     /// <summary>种类归一（非法即抛；诊断文案与内核逐字一致）。</summary>

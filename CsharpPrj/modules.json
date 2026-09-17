@@ -109,6 +109,7 @@
     "Mathematics": "Plate\\Mathematics\\Mathematics.csproj",
     "Plate": "Plate\\Plate.csproj",
     "ClearCSharpComments": "Plate\\RoslynMethod.Tools\\ClearCSharpComments\\ClearCSharpComments.csproj",
+    "LedgerForge": "Plate\\DeclarativeLedger.Tools\\LedgerForge\\LedgerForge.csproj",
     "RoslynMethod.Core": "Plate\\RoslynMethod\\RoslynMethod.Core\\RoslynMethod.Core.csproj",
     "RoslynMethod": "Plate\\RoslynMethod\\RoslynMethod.csproj",
     "TConfig": "Plate\\TConfig\\TConfig.csproj",

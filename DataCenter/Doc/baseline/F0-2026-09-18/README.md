@@ -1,0 +1,117 @@
+# F0 基线冻结包 —— 2026-09-18
+
+> **定位**：F0 批次的产出物（判据母表 + 基线冻结）。后续每一批收口都以此包为**对拍基准**：
+> 红集合须与本节冻结值**逐条同名**；差集只减不增；台账 / 夹具指标只减不增。
+> **口径**：全部数字为 2026-09-18 本机实测（命令见 §4）；与《DataCenter-声明式框架补完…》v1.0 文档口径的差异见 §3。
+
+---
+
+## §1 六向完备性矩阵（F0 判据母表）
+
+| 指标 | 冻结值 |
+|---|---|
+| 词总数（族 = 13） | **127** |
+| 差集（任一轴未落地） | **127** |
+| ② 结构门：确定缺失 | **6** |
+| ② 结构门：无法判定（词表登记待补） | **7** |
+| ③ 读取器解析：无分派（承担方 = 结构门 enum） | **51** |
+| ③ 读取器解析：无探针登记 | **68** |
+| ⑤ 实现 / ⑥ 自证：无外来证据 | **127 / 127** |
+
+> 逐行矩阵 = `completeness-matrix.psv`；逐条差异 = `completeness-gaps.txt`；汇总 = `completeness-summary.txt`。
+
+### 1.1 ② 结构门 · 确定缺失（6 条 = 真缺口）
+
+| 词 | 条数 | 现象 |
+|---|---|---|
+| `aggOp`（sum/max/min/avg） | 4 | `$defs/expr/properties/aggOp` 仅声明为 `string`，**无 enum 绑定**（词表 `AggOps` 未被结构门强制） |
+| `message`（Message/TypeName） | 2 | 结构门**无该节点** `$defs/deliver/capture/properties/message` |
+
+### 1.2 ② 结构门 · 无法判定（7 条 = 词表登记待补）
+
+`expr` 族成员未在 `ExprSlots` 登记承载键（→ 结构门无从对账）：
+`Source` · `Separator` · `FirstWhere` · `FirstPath` · `FirstOrNull` · `Parts` · `FoldAs`
+
+### 1.3 ③ 读取器解析 · 承担方口径（本批新登记的事实）
+
+- **有读取器分派**：仅 `impl.kind`（`NormalizeKind` 白名单）与 `dep` 形态位（三选一）；
+- **无读取器分派，承担方 = 结构门 enum 绑定**：51 个词位（`convert`/`from`/`select`/`deliver.kind`/`scope.kind`/`fake`/`onBlankFirstKey`/`onDuplicate`）；
+- **无探针登记**：68 个词位（`expr` 62 + `aggOp` 4 + `message` 2）。
+
+> 结论：**标准层读取器只在 `kind` 与 `dep` 形态位做分派，其余词位由结构门承担** ——
+> 本事实此前无任何单点登记，F0 起由矩阵固化（F2-b 据此决定「补探针」或「记豁免」）。
+
+---
+
+## §2 其余冻结值
+
+| 面 | 指标 | 冻结值 |
+|---|---|---|
+| 内核 | `Ports\` 文件数 / 行数 | **41 / 6,153** |
+| 夹具 | `[PortImplementation]` / 行数 / 夹内 `private static` | **69 / 3,243 / 215** |
+| 台账 | 键数 / 分片 | **110 / 13** |
+| 台账 | `impl.kind` 分布 | `scripted=85` · `reflective=20` · `composed=5` · `delegate=0` |
+| 台账 | 派生工厂键（`deps[].factory`） | **70** |
+| 构建 | `DataCenter.slnx` / `MainProj.sln` | **0 错 0 警 / 0 错 0 警** |
+| 测试 | `DataCenter.Standards.Tests` | **96 总 / 94 通过 / 2 跳过 / 0 失败** |
+| 测试 | `Observability.Tests`（全量，含 `PortKernelDisciplineGuardTests`） | **215 / 215** |
+| 测试 | `Agent.Spec.Guard.Tests` | **80 / 80** |
+| 台账工具 | `Split-SpecPortLedger.ps1 -Check` | **OK（110 键 / 13 分片）** |
+| 台账工具 | `LedgerForge check`（F2-a 离线工具，输出与上者逐字一致） | **OK（110 键 / 13 分片）** |
+
+---
+
+## §3 与方案文档 v1.0 口径的差异（实测校正）
+
+| 项 | 文档 v1.0 | 实测 | 处置 |
+|---|---|---|---|
+| 夹内私有 helper | 146 | **215** | 口径统一为「`PortFixtures.*.cs` 内 `(?m)^\s*private static `」；F3 递减基准取 **215** |
+| `Protocol\Standards` 文件数 | 20 | **25**（含 5 partial + `ExprLayout` + `OutFieldContract`） | 以实测为准 |
+| `convert` 词表差 1（`dep`） | 差 1 未被门发现 | **已消**：`Conversions` = 11（含 `DependencyConversion`） | 矩阵 ② 上 `convert` 11 词全绿 |
+| 内核行数 | 6,153 | **6,153** | 一致 |
+| 夹具行数 / 标注 | 3,243 / 69 | **3,243 / 69** | 一致 |
+
+---
+
+## §4 复算命令
+
+```powershell
+# ① 矩阵与差集重生成（显式通道；默认跳过不写盘）
+$env:DC_COMPLETENESS_DUMP='1'
+dotnet test D:\Project\Main\Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Standards.Tests\DataCenter.Standards.Tests.csproj `
+  --filter "FullyQualifiedName~StandardCompletenessTests"
+Remove-Item Env:\DC_COMPLETENESS_DUMP
+
+# ② 构建门禁
+dotnet build D:\Project\Main\Frame\DataCenter\DataCenter.slnx -clp:ErrorsOnly
+dotnet build D:\Project\Main\Frame\CsharpPrj\MainProj.sln -clp:ErrorsOnly
+
+# ③ 测试面
+pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'DataCenter.Standards.Tests'
+pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'Observability.Tests' -Class 'PortKernelDisciplineGuardTests|E22'
+pwsh D:\Project\Main\Environment\CentralTest\Run-CSharpTests.ps1 -Project 'Agent.Spec.Guard.Tests'
+
+# ④ 台账一致性（PS 与离线工具须逐字一致）
+pwsh D:\Project\Main\Environment\CentralTest\Tools\Split-SpecPortLedger.ps1 -Check
+dotnet D:\Project\Main\Frame\CsharpPrj\BuildOutput\Debug\LedgerForge.dll check
+
+# ⑤ 体量指标
+$f='D:\Project\Main\Environment\CentralTest\AgentTest\Agent.TestShared\Fixtures\Agent'
+(Select-String -Path "$f\PortFixtures.*.cs" -Pattern '\[PortImplementation\(' -AllMatches).Matches.Count
+(Get-ChildItem $f -Recurse -Filter '*.cs' | Get-Content | Measure-Object -Line).Lines
+(Get-ChildItem "$f\PortFixtures.*.cs" | ForEach-Object {
+  ([regex]::Matches((Get-Content $_.FullName -Raw),'(?m)^\s*private static ')).Count } | Measure-Object -Sum).Sum
+$k='D:\Project\Main\Frame\CsharpPrj\Strategy\Observability\Ports'
+$pf=Get-ChildItem -Recurse $k -Filter '*.cs'; "$($pf.Count) / $((($pf | Get-Content | Measure-Object -Line).Lines))"
+```
+
+---
+
+## §5 变更规则
+
+| 场景 | 允许动作 |
+|---|---|
+| 差集下降（缺项被补齐） | 允许，且须同步更新本包 §1 冻结值（只减不增） |
+| 差集上升 | **红**（除 F2-b 门化前的过渡批，须附逐条理由） |
+| 夹具 / 派生工厂 / 内核行数上升 | **红**（F2-d / F3 的棘轮口径） |
+| 台账键数变化 | 仅声明面变更批，须附逐条理由 + golden 再生 |

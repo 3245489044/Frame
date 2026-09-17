@@ -64,8 +64,20 @@
         "script": { "type": "array", "items": { "$ref": "#/$defs/step" } },
         "deliver": { "$ref": "#/$defs/deliver" },
         "scopes": { "type": "array", "items": { "$ref": "#/$defs/scope" } },
-        "scenarios": { "$ref": "#/$defs/scenario" }
+        "scenarios": { "$ref": "#/$defs/scenario" },
+        "seam": { "$ref": "#/$defs/seam" }
       },
+      "additionalProperties": false
+    },
+    "seam": {
+      "$comment": "实现注入声明（F2-d 一期）：seam 名 + 实参 + 理由；理由为 C15 判据对象（缺理由即违规）。",
+      "type": "object",
+      "properties": {
+        "seam": { "type": "string" },
+        "args": { "type": "array" },
+        "reason": { "type": "string" }
+      },
+      "required": ["seam"],
       "additionalProperties": false
     },
     "arg": {

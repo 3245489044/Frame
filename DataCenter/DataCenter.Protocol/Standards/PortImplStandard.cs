@@ -29,6 +29,7 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Deliver">载体声明（value / issues / action）。</param>
 /// <param name="Scopes">作用域声明（tempDir / using / restore）。</param>
 /// <param name="Scenarios">多场景探针声明（声明了才非空）。</param>
+/// <param name="Seam">实现注入声明（F2-d 一期；非空 = 本端口由宿主/测试侧 seam provider 提供实现）。</param>
 public sealed record PortImplStandard(
     string Kind,
     string? Id = null,
@@ -46,7 +47,8 @@ public sealed record PortImplStandard(
     IReadOnlyList<FieldExprStandard>? ScriptProject = null,
     DeliverStandard? Deliver = null,
     IReadOnlyList<ScopeStandard>? Scopes = null,
-    ScenarioStandard? Scenarios = null);
+    ScenarioStandard? Scenarios = null,
+    PortSeamStandard? Seam = null);
 
 /// <summary>
 /// 端口实参声明（标准框架通用化重构 §2.2 第 2 项；对应内核 <c>PortArgSpec</c>）：

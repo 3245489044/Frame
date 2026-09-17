@@ -1,0 +1,21 @@
+词总数 = 127
+差集数 = 127
+缺失计数（按轴）：Schema=6, Parse=51
+无法判定计数（按轴）：Schema=7, Parse=68, Implementation=127, Attestation=127
+
+差集按家族分布：
+  expr = 62
+  from = 15
+  convert = 11
+  select = 10
+  impl.kind = 5
+  fake = 5
+  aggOp = 4
+  deliver.kind = 3
+  scope.kind = 3
+  dep.form = 3
+  onBlankFirstKey = 2
+  onDuplicate = 2
+  message = 2
+
+③ 无任何承担方的词位（真缺口）：

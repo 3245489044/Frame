@@ -98,3 +98,4 @@ dotnet test Environment\CentralTest\CSharpTest\Strategy.Tests\Observability.Test
 |---|---|---|
 | 2026-09-17 | v1.0 | 承接 B5+B6（v1.3），整理剩余为 M2/Boundary 收尾 → M3/B7 → M4/B8 三段执行清单。 |
 | 2026-09-17 | v1.1 | 补前置引用（无内容变更）：M3/M4 的前置收敛路线见《DataCenter-标准单源化-重复逻辑收敛-设计与实施.md》P0–P2（词表单源 / 键闭包 / 结构门接线）。 |
+| 2026-09-17 | v1.2 | 跳转登记（无内容变更）：上述 P0–P2 已交付，并**同批完成 P3（镜像守卫 / 判据单源 / 内核文案与择路判定源）+ P4 收口**（详见该文档 §10 v1.2：C14 = D8-a 裁决、`OutFieldContract` 为判据唯一实现、`StandardsDiagnosticsGuardTests` 三条棘轮）。本清单 M3/M4 中与其重叠的项（诊断口径、`ModuleRule_Description`、守卫棘轮）按该文档口径执行，不重复维护。 |

@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using BasicMethod.Declarative.Ledger;
 using DataCenter.Protocol.Standards;
+using Plate.JsonMethod.Utilities;
 
 namespace DataCenter.Standards;
 
@@ -10,6 +10,10 @@ namespace DataCenter.Standards;
 /// <c>$comment</c> 元数据键忽略；其余未知键 **fail-fast**（防声明漂移静默）。
 /// 另提供 <see cref="DuplicateKeys"/>（C1 的机器判据载体：JSON 对象重复键在
 /// <see cref="JsonDocument"/> 层被静默合并，故须在原始文本层扫描）。
+/// <para>
+/// 机制分工：读取骨架 / 原语 / 重复键扫描唯一实现于平台 JSON 框架（<see cref="Plate.JsonMethod"/>）；
+/// 本件只保留域文案与异常身份（<see cref="StandardViolationException"/>）。
+/// </para>
 /// </summary>
 public static partial class StandardJson
 {
@@ -111,7 +115,7 @@ public static partial class StandardJson
             }).OrderBy(x => x.PortKey, StringComparer.Ordinal).ToArray();
         });
 
-    /// <summary>扫描 JSON 文本中的重复键（同一对象内同名；Ordinal）。机制在框架（原文层扫描）。</summary>
+    /// <summary>扫描 JSON 文本中的重复键（同一对象内同名；Ordinal）。机制在平台 JSON 框架（原文层扫描）。</summary>
     public static IReadOnlyList<string> DuplicateKeys(string json) => JsonDuplicateKeyScanner.Scan(json);
 
     /// <summary>
@@ -123,24 +127,28 @@ public static partial class StandardJson
         if (PortImplVocabulary.KeysOf(level) is not { Count: > 0 } known) return;
 
         var violations = new List<string>();
-        JsonLedgerReader.CollectUnknownKeys(context, obj, known, violations);
+        JsonTolerantReader.CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));
         if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
 
-    /// <summary>解析 → 交给读者（机制在框架：注释/尾随逗号容忍 + 根元素先 Clone）。</summary>
+    /// <summary>解析 → 交给读者（机制在平台 JSON 框架：注释/尾随逗号容忍 + 根元素先 Clone）。</summary>
     private static IReadOnlyList<T> Read<T>(string json, Func<JsonElement, IReadOnlyList<T>> body)
-        => JsonLedgerReader.ParseRoot(json, body);
+        => JsonTolerantReader.ParseRoot(json, body);
 
     private static bool TrySection(JsonElement root, string name, out JsonElement section)
-        => JsonLedgerReader.TrySection(root, name, out section);
+        => JsonTolerantReader.TrySection(root, name, out section);
 
     /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。</summary>
     private static void EnsureKnownKeys(string context, JsonElement obj, IReadOnlyList<string> known)
     {
         var violations = new List<string>();
-        JsonLedgerReader.CollectUnknownKeys(context, obj, known, violations);
+        JsonTolerantReader.CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));
         if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
+
+    /// <summary>未知键诊断文案（单一构造点：域文案留本层；<c>$comment</c> 为元数据出口）。</summary>
+    private static string UnknownKeyMessage(string context, string name)
+        => $"未知键 '{context}.{name}'（fail-fast：非标准字段不得静默进入标准面，元数据请用 $comment）";
 
     private static IReadOnlyList<PortFieldStandard> ReadInputs(string context, JsonElement entry)
     {
@@ -165,13 +173,13 @@ public static partial class StandardJson
         return field.ValueKind == JsonValueKind.String ? field.GetString() ?? string.Empty : string.Empty;
     }
 
-    /// <summary>点链取值（如 <c>out.fields</c>）→ 字符串数组（缺失 → 空）。机制在框架（原语逐字搬迁）。</summary>
+    /// <summary>点链取值（如 <c>out.fields</c>）→ 字符串数组（缺失 → 空）。机制在平台 JSON 框架（原语逐字搬迁）。</summary>
     private static IReadOnlyList<string> PathStrings(JsonElement entry, string path)
-        => JsonLedgerReader.PathStrings(entry, path);
+        => JsonTolerantReader.PathStrings(entry, path);
 
-    /// <summary>字符串数组读取（裸字符串包单元素）。机制在框架（与 <c>StrList</c> 的分歧语义原样保留）。</summary>
+    /// <summary>字符串数组读取（裸字符串包单元素）。机制在平台 JSON 框架（与 <c>StrList</c> 的分歧语义原样保留）。</summary>
     private static IReadOnlyList<string> Strings(JsonElement entry, string name)
-        => JsonLedgerReader.Strings(entry, name);
+        => JsonTolerantReader.Strings(entry, name);
 
     /// <summary>字段枚举域（<c>enum</c> 段：字段名 → 允许值；非对象段 → 空域）；计数为零的域同样保留。</summary>
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> Enums(JsonElement entry)
@@ -196,7 +204,7 @@ public static partial class StandardJson
         return declared.Count > 0 ? declared : Strings(entry, "producer");
     }
 
-    private static string? Text(JsonElement entry, string name) => JsonLedgerReader.Text(entry, name);
+    private static string? Text(JsonElement entry, string name) => JsonTolerantReader.Text(entry, name);
 
-    private static double? Number(JsonElement entry, string name) => JsonLedgerReader.Number(entry, name);
+    private static double? Number(JsonElement entry, string name) => JsonTolerantReader.Number(entry, name);
 }

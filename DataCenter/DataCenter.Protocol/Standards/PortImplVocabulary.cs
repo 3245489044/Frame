@@ -5,8 +5,11 @@ namespace DataCenter.Protocol.Standards;
 /// 此前这些词表散在内核（<c>PortValueOptions</c>、<c>ScriptedArgSpec.From</c>、<c>ComposedFieldSpec.Select</c>、
 /// <c>ScriptedDeliverSpec.Kind</c>、<c>ScriptedScopeSpec.Kind</c> …），标准层零处 —— 本类把它们上收为**唯一 C# 源**。
 /// <para>
-/// 纪律（SingleImplementation）：① 内核执行侧只保留「字符串 → 执行分支」的解析，**判定与清单以本类为源**；
-/// ② <c>schemas\ports.schema.json</c> 内的 <c>enum</c> 是**数据副本**，由断言与 <see cref="Kinds"/> 等对账，禁两处各自维护。
+/// 纪律（SingleImplementation）：① 内核执行侧只保留「字符串 → 执行分支」的解析，**判定与清单以本类为源**
+/// （择路判定引用 <see cref="KindName"/>、异常文案词表段引用渲染面，见 <c>PortImplVocabulary.Render.cs</c>）；
+/// ② <c>schemas\*.schema.json</c> 内的 <c>enum</c> 是**生成物**——由 <c>SchemaEnumSynchronizer</c> 按本类渲染写回
+/// （<c>Verify()</c> 对账 / <c>Sync()</c> 幂等写盘），禁手改；③ 逐层键闭包由 <see cref="KeysOf"/> 派生，
+/// 唯一判据 = <c>DataCenter.Standards.StandardJson.EnsureLayerKeys</c>（装载期 fail-fast，schema 侧同源派生）。
 /// </para>
 /// </summary>
 public static partial class PortImplVocabulary

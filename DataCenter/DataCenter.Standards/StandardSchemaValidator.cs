@@ -1,4 +1,4 @@
-using BasicMethod.Declarative.Ledger;
+using Plate.JsonMethod.Validation;
 
 namespace DataCenter.Standards;
 
@@ -6,8 +6,8 @@ namespace DataCenter.Standards;
 /// 台账结构校验（设计文档 §3.2 <c>StandardSchemaValidator</c>）：按 <c>schemas\*.schema.json</c>
 /// 做 **结构校验（先结构、后语义）**——结构不过即阻断，不进 C1–C13 语义判据。
 /// <para>
-/// 薄外观：机制（含关键字子集与诊断文案）唯一实现于
-/// <see cref="BasicMethod.Declarative.Ledger.JsonSchemaSubsetValidator"/>；
+/// 薄外观：机制（含关键字子集与诊断文案）唯一实现于平台 JSON 框架
+/// <see cref="Plate.JsonMethod.Validation.JsonSchemaSubsetValidator"/>；
 /// 本件只保留域文案与异常类型身份（<see cref="StandardViolationException"/>）。
 /// </para>
 /// </summary>

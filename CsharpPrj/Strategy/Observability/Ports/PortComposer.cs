@@ -1,3 +1,4 @@
+using DataCenter.Protocol.Standards;
 using Strategy.Observability.Boundary;
 using Strategy.Observability.Diagnostics;
 
@@ -63,7 +64,7 @@ public sealed class PortComposer
         {
             ArgumentNullException.ThrowIfNull(binding);
 
-            if (binding.Kind == "frozen")
+            if (binding.Kind == PortImplVocabulary.KindName.Frozen)
             {
                 MarkFrozen(binding.PortKey, binding.Reason ?? "只登记不绑定");
                 continue;

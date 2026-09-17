@@ -12,7 +12,7 @@ namespace DataCenter.Standards;
 /// </summary>
 internal static class StandardRuleSet
 {
-    /// <summary>全部判据（顺序 = 迁移前执行顺序：C1–C6 契约面，C7–C13 实现面）。</summary>
+    /// <summary>全部判据（顺序 = 迁移前执行顺序：C1–C6 契约面，C7–C14 实现面）。</summary>
     public static IReadOnlyList<ILedgerRule<IStandardCatalog>> All(StandardConsistencyOptions options) =>
     [
         new KeyUniquenessRule(),
@@ -27,6 +27,7 @@ internal static class StandardRuleSet
         new DeliverRule(),
         new DepsRule(),
         new ProjectionRule(),
+        new ProductFieldCoverageRule(),
         new ValueSourceRule(),
     ];
 }
@@ -162,5 +163,17 @@ internal sealed class ProjectionRule : ILedgerRule<IStandardCatalog>
     public void Check(IStandardCatalog catalog, List<string> violations)
     {
         foreach (var port in catalog.Ports) StandardImplConsistency.CheckC13Projection(port, port.Impl, violations);
+    }
+}
+
+/// <summary>C14 断言面覆盖：<c>out.fields ⊆ impl.productFields</c>（D8-a：双源保留、对拍判据升为装载期判据）。</summary>
+internal sealed class ProductFieldCoverageRule : ILedgerRule<IStandardCatalog>
+{
+    public string Code => "C14";
+
+    public void Check(IStandardCatalog catalog, List<string> violations)
+    {
+        foreach (var port in catalog.Ports)
+            StandardImplConsistency.CheckC14ProductFieldCoverage(port, port.Impl, violations);
     }
 }

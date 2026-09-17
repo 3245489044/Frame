@@ -3,7 +3,7 @@ using DataCenter.Protocol.Standards;
 namespace DataCenter.Standards;
 
 /// <summary>
-/// 端口 <c>impl</c> 语义判据 C7–C13（标准框架通用化重构 §4.3/§5）：
+/// 端口 <c>impl</c> 语义判据 C7–C14（标准框架通用化重构 §4.3/§5）：
 /// 在 <c>PortStandard.Impl</c> 标准模型上直接求值，补 C1–C6「契约面」之外的「实现面」一致性。
 /// <para>
 /// 三条硬约束（防误杀 / 防双判，§5）：
@@ -20,7 +20,7 @@ namespace DataCenter.Standards;
 /// </summary>
 public static class StandardImplConsistency
 {
-    // 判据入口已规则化：C7–C13 由 StandardRuleSet 的规则类逐条调用本件判据体（宿主 = 框架 LedgerConsistency），
+    // 判据入口已规则化：C7–C14 由 StandardRuleSet 的规则类逐条调用本件判据体（宿主 = 框架 LedgerConsistency），
     // 此处不再保留并行入口（防同一规则两处表达）。
 
     // ---------------------------------------------------------------- C7
@@ -210,11 +210,11 @@ public static class StandardImplConsistency
         }
     }
 
-    // ---------------------------------------------------------------- C13
+    // ---------------------------------------------------------------- C13 / C14
 
     /// <summary>C13（投影对账）：<c>project[].field ⊆ ports[key].out.fields</c>（Ordinal；越界键即错）；
     /// 脚本 <c>scriptProject</c> 同理；<c>impl.productFields</c>（<c>|</c> 分隔）⊆ 契约字段。
-    /// <para>弱校验（对齐 <c>Projection\FieldContractValidator</c>）：<c>out.fields</c> 为空 ⇒ 一律不判（表形态/数据驱动键面）。</para>
+    /// <para>弱校验（口径唯一 = <see cref="OutFieldContract"/>）：<c>out.fields</c> 为空 ⇒ 一律不判（表形态/数据驱动键面）。</para>
     /// </summary>
     internal static void CheckC13Projection(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
@@ -223,19 +223,32 @@ public static class StandardImplConsistency
         var outFields = port.OutFields;
         if (outFields.Count == 0) return; // 弱校验：契约未声明字段
 
-        var outSet = new HashSet<string>(outFields, StringComparer.Ordinal);
+        foreach (var field in OutFieldContract.Excess(outFields, (impl.Project ?? []).Select(item => item.Field)))
+            violations.Add($"C13 端口[{port.Key}] 的 project 产出字段 '{field}' 未在 out.fields 声明");
 
-        foreach (var field in impl.Project ?? [])
-            if (!outSet.Contains(field.Field))
-                violations.Add($"C13 端口[{port.Key}] 的 project 产出字段 '{field.Field}' 未在 out.fields 声明");
+        foreach (var field in OutFieldContract.Excess(outFields, (impl.ScriptProject ?? []).Select(item => item.Field)))
+            violations.Add($"C13 端口[{port.Key}] 的 scriptProject 产出字段 '{field}' 未在 out.fields 声明");
 
-        foreach (var field in impl.ScriptProject ?? [])
-            if (!outSet.Contains(field.Field))
-                violations.Add($"C13 端口[{port.Key}] 的 scriptProject 产出字段 '{field.Field}' 未在 out.fields 声明");
+        foreach (var field in OutFieldContract.Excess(outFields, SplitProductFields(impl.ProductFields)))
+            violations.Add($"C13 端口[{port.Key}] 的 productFields 含字段 '{field}' 未在 out.fields 声明");
+    }
 
-        foreach (var productField in SplitProductFields(impl.ProductFields))
-            if (!outSet.Contains(productField))
-                violations.Add($"C13 端口[{port.Key}] 的 productFields 含字段 '{productField}' 未在 out.fields 声明");
+    /// <summary>
+    /// C14（断言面覆盖，D8-a 的装载期判据）：<c>ports[key].out.fields ⊆ impl.productFields</c>（Ordinal）——
+    /// 契约输出面的每个字段都必须在**断言面**（<c>then.path</c> 首段取值域）有声明，否则用例无从断言。
+    /// <para>与 C13 互为对偶（C13 管「产出不越界」，本判据管「契约不悬空」），二者与
+    /// <see cref="OutFieldContract"/> 同源：**双源保留、对拍判据单源**（D8-a 裁决）。</para>
+    /// <para>弱校验：<c>impl.productFields</c> 为空 ⇒ 一律不判（口径同 C13 与内核 FieldContractValidator）。</para>
+    /// </summary>
+    internal static void CheckC14ProductFieldCoverage(PortStandard port, PortImplStandard? impl, List<string> violations)
+    {
+        if (impl is null) return;
+
+        var productFields = SplitProductFields(impl.ProductFields).ToArray();
+        if (productFields.Length == 0) return; // 弱校验：断言面未声明
+
+        foreach (var field in OutFieldContract.Excess(productFields, port.OutFields))
+            violations.Add($"C14 端口[{port.Key}] 的 out.fields 契约字段 '{field}' 未进 impl.productFields（断言面缺声明）");
     }
 
     // ---------------------------------------------------------------- 递归下钻

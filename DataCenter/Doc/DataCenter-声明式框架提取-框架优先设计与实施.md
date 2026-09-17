@@ -70,22 +70,27 @@
 ### 3.1 工程布局
 
 ```
-Frame\CsharpPrj\BasicMethod\Map\
-├── Declarative\            现有：开放组合型（IDeclaration/Constraint/Relation/Mapper/Resolver）
-└── DeclarativeLedger\      新增：收敛治理型（契约台账机制），零项目引用
-    ├── BasicMethod.Declarative.Ledger.csproj
+Frame\CsharpPrj\Plate\
+├── JsonMethod\               平台 JSON 唯一权威（JSON 机制归属地）
+│   ├── Utilities\JsonTolerantReader.cs        容错读取骨架 + 元素原语（v1.3 上收）
+│   ├── Utilities\JsonDuplicateKeyScanner.cs   原文层重复键扫描（v1.3 上收）
+│   └── Validation\JsonSchemaSubsetValidator.cs schema 子集结构校验（v1.3 上收）
+└── DeclarativeLedger\        收敛治理型（契约台账机制），零项目引用
+    ├── DeclarativeLedger.csproj
     ├── DeclarationViolationException.cs
-    ├── Json\
-    │   ├── JsonLedgerReader.cs          读取骨架 + 容错原语
-    │   ├── JsonDuplicateKeyScanner.cs   原文层重复键扫描
-    │   └── JsonSchemaSubsetValidator.cs schema 子集结构校验
     ├── LedgerCatalog.cs                 单段键控目录（泛型）
     └── Rules\
         ├── ILedgerRule.cs               判据接口（Code + Check）
         └── LedgerConsistency.cs         判据宿主（一次跑全、一次报全）
 ```
 
-- 程序集/命名空间：`BasicMethod.Declarative.Ledger`；`net10.0-windows`，与同族工程一致。
+> ★ v1.3 依赖反转（IoC）：JSON 机制**归属平台 JSON 框架 `Plate.JsonMethod`**，使用端（`DataCenter.Standards`）
+> 直接复用；本框架只承载台账治理机制（目录 / 判据接口 / 判据宿主 / 违规异常），故仍为**零 ProjectReference**。
+> 机制层不抛消费侧异常、不内置域文案：未知键以 `UnknownKeys` / `CollectUnknownKeys(..., messageFactory)`
+> 返回违规，异常身份（`DeclarationViolationException` / `StandardViolationException`）与文案留消费方。
+
+- 程序集/命名空间：`BasicMethod.Declarative.Ledger`；`net10.0-windows`，与同族工程一致；
+  物理位置 `Frame\CsharpPrj\Plate\DeclarativeLedger\`（模块路径单一真源 = `CsharpPrj\modules.json`）。
 - 与 `BasicMethod.Declarative` **无项目引用**（依赖方向不允许 + 哲学不同，见 §5）；
   概念同族仅体现在命名与文档。未来如需桥接（判据→`IConstraint` 适配），另建三方可选桥接工程，本次不做。
 
@@ -230,6 +235,7 @@ StandardImplConsistency.cs        → C7–C13 拆为规则类（或规则适配
 ### F1 — 框架独立成型（不碰 DataCenter）
 
 1. 建 `Map\DeclarativeLedger\BasicMethod.Declarative.Ledger.csproj`（零 `ProjectReference`）。
+   <!-- v1.3：已迁至 Plate\DeclarativeLedger\（见 §3.1 与 §10 v1.3），本步为历史执行记录 -->
 2. 按 §4.1 第 1–6、8 项**逐字搬迁**六件机制（仅命名空间/异常名替换）。
 3. 落 `LedgerCatalog<TEntry>`（从 StandardCatalog 提炼单件行为）。
 4. 新建测试工程（MSTest，与 `DataCenter.Standards.Tests` 同范式），
@@ -325,6 +331,12 @@ StandardImplConsistency.cs        → C7–C13 拆为规则类（或规则适配
       （Agent 侧显式引用；CentralTest 侧由 `CsharpPrj.BinaryRefs.props` 目录通配自动覆盖）
 - [ ] DataCenter.Standards 私有判据逻辑除「宿主替换」外零改动（diff 仅机制替换 + rule 转发）
 
+**v1.3 校准（JSON 机制上收后）**
+- [ ] 框架工程仍为 `ProjectReference` 数 = 0（Ledger 不含任何 JSON 机制，JSON 机制在 `Plate.JsonMethod`）
+- [ ] 机制用例分宿：`Plate.JsonMethod.Tests`（读取原语 / 重复键 / schema 子集）+ `Declarative.Ledger.Tests`（目录 / 判据宿主）
+- [ ] `DataCenter.Standards` 烘焙引用含 `Plate.JsonMethod.dll`（JSON 机制唯一实现的传递依赖，需随行部署）
+- [ ] `Plate.dll` 不含 `BasicMethod.Declarative.Ledger` 类型（聚合工程 `Compile Remove` 生效，防 CS0433）
+
 ---
 
 ## §10 变更记录
@@ -334,3 +346,4 @@ StandardImplConsistency.cs        → C7–C13 拆为规则类（或规则适配
 | v1.0 | 2026-09-17 | 首版：框架优先提取方案；六件机制清单、零依赖新工程 `BasicMethod.Declarative.Ledger`、F1–F3 分批与验收 |
 | v1.1 | 2026-09-17 | 补下游引用（无内容变更）：《DataCenter-标准单源化-重复逻辑收敛-设计与实施.md》P3-E 复用本框架 `ILedgerRule` 作判据单源。 |
 | v1.2 | 2026-09-17 | **F1+F2 已落地**（实施记录）：① 框架工程建 `BasicMethod\Map\DeclarativeLedger\`（装配名/命名空间 = `BasicMethod.Declarative.Ledger`，**零 ProjectReference**），六件机制逐字搬迁（异常类名 `DeclarationViolationException`，**非 sealed** 以允许消费侧派生保留异常身份）；② `modules.json` 增 `DeclarativeLedger` 并挂入 `BasicMethod` 伞工程（`MainProj.sln` 烘焙必经）；③ 新增框架自有测试 `Environment\CentralTest\CSharpTest\Operation.Tests\Declarative.Ledger.Tests\`，**63 例全绿**（schema 子集各关键字/重复键/原语容错/目录/判据宿主）；④ F2 切换：`DataCenter.Standards` 改为消费框架（烘焙二进制引用 + 仅顺序边；异常子类化；`StandardSchemaValidator` 薄外观；`StandardJson` 原语委托、`StandardJson.Primitives.cs` 删除；C1–C13 规则化为 13 个 `ILedgerRule<IStandardCatalog>` 类，宿主 `LedgerConsistency`）；⑤ §6-F2 第 1 步与 §9 F2 门的「Ledger.dll 落 `DataCenter\BuildOutput`」已按 `ThinOutput.targets` 事实改写为烘焙轨交付。验收：框架 63/63；`DataCenter.Standards.Tests` 65/65（C1–C13 文案逐字）；`Agent.Spec.Guard.Tests` 74/74；Observability guards 52/52；`MainProj.sln` 与 `DataCenter.slnx` 0 错 0 警。 |
+| v1.3 | 2026-09-17 | **归位 + JSON 依赖反转（IoC）**：① 工程迁至 `Frame\CsharpPrj\Plate\DeclarativeLedger\`（模块路径单一真源 `modules.json` 同步、`Generate-ModulePaths.ps1` 重生成、`Plate.csproj` 补 `Compile Remove` + 聚合 `ProjectReference`，防 `Plate.dll` 重复编译）；② **JSON 机制上收平台框架**：`JsonLedgerReader`→`Plate.JsonMethod.Utilities.JsonTolerantReader`（新增 `UnknownKeys`）、`JsonDuplicateKeyScanner`→`Plate.JsonMethod.Utilities`、`JsonSchemaSubsetValidator`→`Plate.JsonMethod.Validation`，机制**只返回违规不抛**、域文案外置；③ 使用端直接复用：`DataCenter.Standards` 的 `StandardJson` / `StandardJson.Impl*` / `StandardSchemaValidator` 改调 `Plate.JsonMethod`，`UnknownKeyMessage` 域文案随之下沉本层；④ Ledger 只留目录 / 判据接口 / 判据宿主 / 违规异常，**零 ProjectReference 复归**（Ledger.dll 23.0KB→10.8KB）；⑤ `DataCenter.Standards.csproj` 增 `Plate.JsonMethod` 烘焙引用 + `$(Proj_*)` 化顺序边，`DataCenter\Directory.Build.props` 导入生成式模块路径；⑥ 机制用例随机制迁移：新建 `Plate.JsonMethod.Tests`（50 例），`Declarative.Ledger.Tests` 保留台账机制（13 例）。验收：`Plate.JsonMethod.Tests` 50/50；`Declarative.Ledger.Tests` 13/13；`DataCenter.Standards.Tests` 74/74（C1–C14 文案逐字）；`MainProj.sln` / `DataCenter.slnx` 0 错 0 警；`Test-ProjectReferences.ps1 -Check` 悬空 0 / 硬违规 0 / 循环 0；烘焙清单 94 程序集全就绪。 |

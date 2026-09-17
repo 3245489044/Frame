@@ -27,6 +27,7 @@
   <ItemGroup>
     <Compile Remove="DataManage\**\*.cs" />
     <Compile Remove="TConfig\**\*.cs" />
+    <Compile Remove="DeclarativeLedger\**\*.cs" />
     <Compile Remove="JsonMethod\**\*.cs" />
     <Compile Remove="DslMethod\**\*.cs" />
     <Compile Remove="MarkdownViewer\**\*.cs" />
@@ -45,6 +46,8 @@
   <ItemGroup>
     <ProjectReference Include="$(Proj_DataManage)" />
     <ProjectReference Include="$(Proj_TConfig)" />
+    <!-- ★ DeclarativeLedger（通用声明式契约台账机制）物理位于 Plate 下，同族纳入聚合（源码已在 Compile Remove 排除） -->
+    <ProjectReference Include="$(Proj_DeclarativeLedger)" />
     <ProjectReference Include="$(Proj_Mathematics)" />
     <ProjectReference Include="$(Proj_RoslynMethod)" />
     <ProjectReference Include="$(Proj_JsonMethod)" />

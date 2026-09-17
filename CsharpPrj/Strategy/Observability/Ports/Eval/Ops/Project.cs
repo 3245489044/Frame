@@ -1,5 +1,6 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
 
 /// <summary>
@@ -68,7 +69,7 @@ internal static class PortProjection
                 throw new PortBindingViolationException(
                     portKey,
                     $"端口 '{portKey}' 的投影字段 '{field.Field}' 取值法 '{field.Select}' 未知" +
-                    "（value|count|notNull|text|message|thrown|countEqual|path|pathText|fakeCount）");
+                    $"（{PortImplVocabulary.RenderList(PortImplVocabulary.SelectEnum)}）");
         }
     }
 

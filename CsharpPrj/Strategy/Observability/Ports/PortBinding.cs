@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// 端口绑定（A2 装配收敛 · R5-1/R5-2）：端口键 + 唯一规格 + 实现归属（派生自 <see cref="Spec.Impl"/>）。
 /// <para>
@@ -37,7 +39,7 @@ public sealed record PortBinding(
     {
         var kind = Kind;
 
-        if (kind == "reflective")
+        if (kind == PortImplVocabulary.KindName.Reflective)
         {
             // 规格可下行 → 求值引擎；否则回退旧绑定类（R3-1 唯一择路，非种类分派）。
             if (DeclSpec is null)
@@ -51,7 +53,7 @@ public sealed record PortBinding(
             return spec.IsEvaluable ? new PortEvaluatorBinding(spec) : new ReflectiveBinding(DeclSpec);
         }
 
-        if (kind == "composed")
+        if (kind == PortImplVocabulary.KindName.Composed)
         {
             if (Composed is null)
             {
@@ -63,7 +65,7 @@ public sealed record PortBinding(
             return new ComposedBinding(Composed);
         }
 
-        if (kind == "scripted")
+        if (kind == PortImplVocabulary.KindName.Scripted)
         {
             if (Scripted is null)
             {
@@ -75,7 +77,7 @@ public sealed record PortBinding(
             return new ScriptedBinding(Scripted);
         }
 
-        if (kind == "delegate")
+        if (kind == PortImplVocabulary.KindName.Delegate)
         {
             if (Factory is null)
             {
@@ -97,7 +99,7 @@ public sealed record PortBinding(
 
     /// <summary>冻结：只登记不绑定（理由缺省 = 只登记不绑定）。</summary>
     public static PortBinding Frozen(string portKey, string reason)
-        => new(portKey, Shell(portKey, "frozen", null, reason));
+        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Frozen, null, reason));
 
     /// <summary>反射：按绑定声明下行规格（target/method/args 驱动；不可求值回退旧绑定类）。</summary>
     public static PortBinding Reflective(string portKey, PortBindingSpec spec)
@@ -105,19 +107,19 @@ public sealed record PortBinding(
 
     /// <summary>组合：携带组合声明（calls/project/deps + 工厂表）。</summary>
     public static PortBinding FromComposed(string portKey, ComposedBindingSpec composed)
-        => new(portKey, Shell(portKey, "composed", null), Composed: composed);
+        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Composed, null), Composed: composed);
 
     /// <summary>脚本：携带脚本声明（bind/deps/script/project/deliver + 工厂表）。</summary>
     public static PortBinding FromScripted(string portKey, ScriptedBindingSpec scripted)
-        => new(portKey, Shell(portKey, "scripted", null), Scripted: scripted);
+        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Scripted, null), Scripted: scripted);
 
     /// <summary>委派：携带实现工厂（构建即得绑定实例）。</summary>
     public static PortBinding Delegate(string portKey, string? id, Func<IPortBinding> factory)
-        => new(portKey, Shell(portKey, "delegate", id), Factory: factory);
+        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Delegate, id), Factory: factory);
 
     /// <summary>未绑定：声明给定原因（fail-safe 记账入口；工厂缺省 = null → 装配记 Unbound）。</summary>
     public static PortBinding Unbound(string portKey, string? id, string reason)
-        => new(portKey, Shell(portKey, "delegate", id, reason), Reason: reason);
+        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Delegate, id, reason), Reason: reason);
 
     /// <summary>壳规格：未迁移族（composed/scripted/delegate/frozen）的规格形态 —— 空 Program + IsEvaluable=false（PortSpecCompiler 下行不抛不降级）。</summary>
     private static PortSpec Shell(string portKey, string kind, string? id, string? reason = null)

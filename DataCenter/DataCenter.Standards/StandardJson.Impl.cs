@@ -1,6 +1,6 @@
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
-using static BasicMethod.Declarative.Ledger.JsonLedgerReader;
+using static Plate.JsonMethod.Utilities.JsonTolerantReader;
 
 namespace DataCenter.Standards;
 

@@ -2,6 +2,7 @@ namespace Strategy.Observability.Ports;
 
 using System.Reflection;
 using System.Text.Json;
+using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
 
 
@@ -339,7 +340,7 @@ internal static class ScriptedValue
                 throw new PortBindingViolationException(
                     portKey,
                     $"端口 '{portKey}' 的 {context} 的 convert '{spec.Convert}' 未知" +
-                    "（string|bool|int|double|csv|json|array|object|passthrough）");
+                    $"（{PortImplVocabulary.RenderList(PortImplVocabulary.ScriptedConversionEnum)}）");
         }
     }
 

@@ -20,7 +20,7 @@ public sealed record StandardConsistencyOptions
 /// <summary>
 /// 标准一致性机器判据（设计文档 §3.4 + 通用化重构 §4.3）：C1 键唯一 / C2 <c>ports.emits ⊆ events</c> /
 /// C3 <c>events.carries ⊆ data</c> / C4 跨切字段 ⊆ data / C5 <c>data.producer ⊆ ports ∪ 白名单</c> /
-/// C6 版本单调（与上一快照比对）/ <b>C7–C13 端口 impl 实现面</b>（见 <see cref="StandardImplConsistency"/>：
+/// C6 版本单调（与上一快照比对）/ <b>C7–C14 端口 impl 实现面</b>（见 <see cref="StandardImplConsistency"/>：
 /// 只判跨项/跨字段一致性，枚举由结构门承担）。
 /// <para>
 /// 纪律：判据**只此一处**、失败即阻断；数据不合规时改数据，**禁改判据**（对齐上位方案「契约即断言」）。
@@ -28,7 +28,7 @@ public sealed record StandardConsistencyOptions
 /// </summary>
 public static class StandardConsistency
 {
-    /// <summary>跑 C1–C13，返回全部违规（空 = 全绿）。宿主骨架在框架（<see cref="LedgerConsistency"/>）。</summary>
+    /// <summary>跑 C1–C14，返回全部违规（空 = 全绿）。宿主骨架在框架（<see cref="LedgerConsistency"/>）。</summary>
     public static IReadOnlyList<string> Check(IStandardCatalog catalog, StandardConsistencyOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -37,7 +37,7 @@ public static class StandardConsistency
         return LedgerConsistency.Check(catalog, StandardRuleSet.All(options));
     }
 
-    /// <summary>跑 C1–C13，有违规即抛（一次报全，便于一次修数据）。</summary>
+    /// <summary>跑 C1–C14，有违规即抛（一次报全，便于一次修数据）。</summary>
     public static void EnsureValid(IStandardCatalog catalog, StandardConsistencyOptions? options = null)
     {
         var violations = Check(catalog, options);

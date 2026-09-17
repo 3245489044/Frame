@@ -422,6 +422,7 @@ dotnet test Environment\CentralTest\CSharpTest\Strategy.Tests\Observability.Test
 |---|---|---|
 | 2026-09-17 | v1.4 | 新增 §10 下一步实施（M2/Boundary 收尾 → M3/B7 → M4/B8 执行明细），承接 B5+B6 v1.3。 |
 | 2026-09-17 | v1.5 | **M2 交付（Boundary 顺延收尾）**：内核装载期解析退场 —— 删 `Boundary\BoundaryContractJson{,.Fields,.Tokens}.cs`，新增纯投影 `BoundaryContractProjection`（`PortStandard`/`DataStandardItem`/`EventStandard` → `BoundaryContract`），`PortComposer.Seed(IEnumerable<BoundaryContract>)`；产品侧 `AgentPortCatalog` 改经 `StandardCatalog.LoadValidated`（事件台账缺省 = Agent 侧语义契约台账）+ 投影；`DataCenter.Standards` 经 `FrameBinaryRefs.props` 的 `DataCenterBinaryRefs` 组供给（与 Hosting/LoopDecision 同轨）；L2 侧新增 `SpecHost.SpecBoundaryContracts` 注入点，由 `Agent.TestShared.AgentBoundaryContractProjection` 装配；标准层补 `EventStandard.Enums` + `ReadEvents` 读 `enum`，事件字段按名并集（required ∪ enum）。判据：`Boundary\**` 解析位 **0**、`Ports\**` **2**（守卫固化）、`Ports\` **6,133** 行、三解决方案 0/0、`Observability.Tests` 202/202 + `Guard.Tests` 74/74 + `Agent.Observe.Tests` 53/53 + `Standards.Tests` 55/55、`Check-BakeFramework #6` 绿。§3 增校正项 8/9/10，§10.1 判据拆分并加交付注记。 |
+| 2026-09-17 | v1.6 | 跳转登记（无内容变更）：M3/M4 的**前置收敛路线**《DataCenter-标准单源化-重复逻辑收敛-设计与实施.md》P0–P4 **已全量落地**（含 P3 镜像守卫 / 判据单源 / 内核文案与择路判定源、P4 收口与三条棘轮）；`ModuleRule_Description`（§10.3 M4 项⑤）已按该文档口径更新为 **C1–C14 + 四项职责**。本节 §10.2/§10.3 与其重叠项以该文档为准，不重复维护；遗留项（D-1 生成式镜像、U 线取证）见该文档 §10 v1.2「未做」栏。 |
 
 
 

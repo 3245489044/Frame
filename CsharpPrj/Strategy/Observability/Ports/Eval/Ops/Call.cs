@@ -2,6 +2,7 @@ namespace Strategy.Observability.Ports;
 
 using System.Globalization;
 using System.Reflection;
+using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
 
 /// <summary>
@@ -104,7 +105,7 @@ internal static class PortCall
 
         if (arg.Convert == "json") return FromWith(spec, parameter, arg, input);
 
-        throw Mismatch(spec, arg.Convert, index, "string|bool|int|double|csv|json|object");
+        throw Mismatch(spec, arg.Convert, index, PortImplVocabulary.RenderList(PortImplVocabulary.CommonConversionEnum));
     }
 
     /// <summary>结构化直传：取具名实参 <c>with</c> 的原始 JSON 并按目标形参类型反序列化。</summary>

@@ -28,7 +28,7 @@ public static class PortSpecCompiler
         var impl = standard.Impl;
 
         var implRef = new PortImplRef(
-            impl?.Kind ?? "delegate",
+            impl?.Kind ?? PortImplVocabulary.DefaultKind,
             impl?.Id,
             impl?.Target,
             impl?.Method,
@@ -36,7 +36,7 @@ public static class PortSpecCompiler
             impl?.LegacyKind,
             impl?.ProductFields ?? string.Empty);
 
-        if (!string.Equals(implRef.Kind, "reflective", StringComparison.Ordinal))
+        if (!string.Equals(implRef.Kind, PortImplVocabulary.KindName.Reflective, StringComparison.Ordinal))
             return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
 
         return Reflective(standard.Key, implRef, impl!.Target, impl.Method, MapArgs(impl.Args));
@@ -49,7 +49,7 @@ public static class PortSpecCompiler
     {
         ArgumentNullException.ThrowIfNull(spec);
 
-        var impl = new PortImplRef("reflective", Target: spec.Target, Method: spec.Method);
+        var impl = new PortImplRef(PortImplVocabulary.KindName.Reflective, Target: spec.Target, Method: spec.Method);
         return Reflective(portKey, impl, spec.Target, spec.Method, spec.Args);
     }
 

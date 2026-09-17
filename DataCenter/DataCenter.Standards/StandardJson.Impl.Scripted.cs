@@ -2,7 +2,7 @@ namespace DataCenter.Standards;
 
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
-using static BasicMethod.Declarative.Ledger.JsonLedgerReader;
+using static Plate.JsonMethod.Utilities.JsonTolerantReader;
 
 /// <summary>
 /// 脚本族 <c>impl</c> 读取（<c>bind / script / project / deliver / scopes / scenarios</c>；B3 自内核

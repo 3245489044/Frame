@@ -1,3 +1,4 @@
+using DataCenter.Protocol.Standards;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
@@ -169,7 +170,7 @@ internal static class ComposedArgs
                 ? None(spec, target)
                 : Coerce(JsonDocument.Parse(text).RootElement.Clone(), target);
 
-        throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json|object");
+        throw Mismatch(portKey, context, index, spec.Convert, PortImplVocabulary.RenderList(PortImplVocabulary.CommonConversionEnum));
     }
 
     /// <summary>无值分支：声明 <c>default</c> → 反序列化；否则取目标类型默认值（数组 → 空数组，与空集语义一致）。</summary>

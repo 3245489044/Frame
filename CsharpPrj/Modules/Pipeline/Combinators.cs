@@ -634,5 +634,25 @@ namespace Modules.Pipeline
             var pipeline = new TransformerToPipelineAdapter<T, T>(transformer, name ?? $"Retry({transformer.Name})");
             return new PipelineRetry<T>(pipeline, maxRetries, delayMs, shouldRetry, onRetry, name);
         }
+
+        /// <summary>
+        /// 动作体 → 同上下文分支管线：逐类型/逐键分派表（<see cref="PipelineSwitch{TContext, TKey}"/> /
+        /// <see cref="PipelineBranch{TContext}"/>）的分支统一包装。
+        /// <para>用途：把「<c>switch case</c> 的 case 体」原样搬进分支表——各有专名的分派表据键执行动作并对上下文置位，
+        /// 无需各处重复书写 <see cref="DelegatePipeline{TInput, TOutput}"/> 样板（分派机制单源）。</para>
+        /// </summary>
+        public static IPipeline<TContext, TContext> AsBranch<TContext>(
+            this Action<TContext> body,
+            string name = "Branch")
+        {
+            ArgumentNullException.ThrowIfNull(body);
+            return new DelegatePipeline<TContext, TContext>(
+                name,
+                syncWithCtx: (context, _) =>
+                {
+                    body(context);
+                    return context;
+                });
+        }
     }
 }

@@ -64,6 +64,15 @@
   <!-- ★★ 2026-08-02 清理：命令系统残留迁移/删除后，Pipeline/Container/ExecutionFramework
        在 FrontEndDriven 内零使用，移除引用（权威依据：重构方案 Phase 3 §3.1） -->
 
+  <!-- ★ 2026-09-17 新增（管线化重构 Q0-1 / X1 收口）：`Initial\RenderPipeline` 三件
+       （RenderPipelineStages / RenderStageRunner / RenderValidationStage）使用 `Modules.Pipeline`
+       （StagePipeline / IPipelineStage / PipelineContext）；此前该依赖仅经 PlaceholderFramework /
+       UniversalMiddleware / StateManagement / EventBindingOrchestrator **传递**获得（隐式依赖）。
+       显式声明后：新增 Pipeline 用法即同批声明，R2 棘轮用例机器校验。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Pipeline)" />
+  </ItemGroup>
+
   <!-- ★ 2026-08-05 新增：通用控件查找框架（Share.ControlLookup）——ControlRegistryAwareFinder 多级查找收敛为「查找源 + 聚合器」 -->
   <ItemGroup>
     <ProjectReference Include="$(Proj_ControlLookup)" />

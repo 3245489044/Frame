@@ -2,6 +2,7 @@
 using System.Text;
 using Common.PlaceholderFramework.Core;
 using Common.PlaceholderFramework.Storage;
+using Modules.Pipeline;
 
 namespace Common.PlaceholderFramework.Integrated.Query
 {
@@ -137,6 +138,10 @@ namespace Common.PlaceholderFramework.Integrated.Query
 
             var nodeKeyMap = new Dictionary<string, string>();
 
+            // Q2-2：逐元数据 Kind 分派收敛为 PipelineSwitch（分支表 = 该处唯一分派源）
+            var dataFlowBranches = BuildDataFlowBranches();
+            var branchContext = new DataFlowBranchContext(graph, allMetadata, nodeKeyMap);
+
             foreach (var metadata in allMetadata)
             {
                 var compositeKey = $"{metadata.Key}|{metadata.Kind}";
@@ -158,55 +163,10 @@ namespace Common.PlaceholderFramework.Integrated.Query
                     };
                 }
 
-                switch (metadata.Kind)
-                {
-                    case "Input":
-                        if (!graph.Inputs.Contains(nodeId))
-                            graph.Inputs.Add(nodeId);
-                        break;
-
-                    case "Prev":
-                        var prevNode = allMetadata
-                            .Where(m => m.Timestamp <= metadata.Timestamp
-                                        && !(m.Key == metadata.Key && m.Kind == metadata.Kind))
-                            .OrderByDescending(m => m.Timestamp)
-                            .FirstOrDefault();
-                        if (prevNode != null)
-                        {
-                            var prevCompositeKey = $"{prevNode.Key}|{prevNode.Kind}";
-                            if (nodeKeyMap.TryGetValue(prevCompositeKey, out var prevNodeId))
-                            {
-                                graph.Edges.Add(new DataFlowEdge
-                                {
-                                    From = prevNodeId,
-                                    To = nodeId,
-                                    Label = $"prev:{metadata.Key}"
-                                });
-                            }
-                        }
-                        break;
-
-                    case "NodeReference":
-                        if (!string.IsNullOrEmpty(metadata.NodeId))
-                        {
-                            var refNode = allMetadata
-                                .FirstOrDefault(m => m.NodeId == metadata.NodeId);
-                            if (refNode != null)
-                            {
-                                var refCompositeKey = $"{refNode.Key}|{refNode.Kind}";
-                                if (nodeKeyMap.TryGetValue(refCompositeKey, out var refNodeId))
-                                {
-                                    graph.Edges.Add(new DataFlowEdge
-                                    {
-                                        From = refNodeId,
-                                        To = nodeId,
-                                        Label = $"ref:{metadata.NodeId}"
-                                    });
-                                }
-                            }
-                        }
-                        break;
-                }
+                // Q2-2：Kind 分派经 PipelineSwitch；无匹配 = 无操作（与迁移前「switch 无 default」同语义）
+                branchContext.Current = metadata;
+                branchContext.NodeId = nodeId;
+                dataFlowBranches.Execute(branchContext);
             }
 
             return graph;
@@ -230,43 +190,8 @@ namespace Common.PlaceholderFramework.Integrated.Query
                 TargetValue = target.ResolvedValue
             };
 
-            switch (target.Kind)
-            {
-                case "Input":
-                    trace.SourceType = "ExternalInput";
-                    trace.SourceDescription = $"Input key: {target.Key}";
-                    break;
-
-                case "Prev":
-                    var prevSource = allMetadata
-                        .Where(m => m.Timestamp <= target.Timestamp
-                                    && m.MetadataId != target.MetadataId)
-                        .OrderByDescending(m => m.Timestamp)
-                        .FirstOrDefault();
-                    if (prevSource != null)
-                    {
-                        trace.SourceType = "PreviousStep";
-                        trace.SourceMetadataId = prevSource.MetadataId;
-                        trace.SourceDescription = $"From previous step: {prevSource.Key} = {prevSource.ResolvedValue}";
-                    }
-                    break;
-
-                case "NodeReference":
-                    trace.SourceType = "NodeReference";
-                    trace.SourceDescription = $"From node: {target.NodeId}";
-                    var nodeSource = allMetadata
-                        .FirstOrDefault(m => m.NodeId == target.NodeId);
-                    if (nodeSource != null)
-                    {
-                        trace.SourceMetadataId = nodeSource.MetadataId;
-                    }
-                    break;
-
-                case "NodeIndex":
-                    trace.SourceType = "NodeIndex";
-                    trace.SourceDescription = $"From node index: {target.NodeIndex}";
-                    break;
-            }
+            // Q2-2：Kind 分派经 PipelineSwitch（与数据流重建处**同构但不合并**——取值语义不同）
+            BuildTraceSourceBranches().Execute(new TraceSourceContext(allMetadata, target, trace));
 
             return trace;
         }
@@ -311,6 +236,160 @@ namespace Common.PlaceholderFramework.Integrated.Query
                     };
                 }
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Q2-2：两处 Kind 分派（数据流重建 / 数据源追溯）各自独立收敛为 PipelineSwitch。
+        // 纪律：① 两处语义不同（图增补 vs 来源描述），**禁合并为一条管线**，只统一分派机制；
+        //       ② 缺省分支 = 无操作 —— 保持迁移前「switch 无 default（未知 Kind 无副作用）」语义，
+        //          禁借 PipelineSwitch 缺省「无匹配即抛」改变既有行为。
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>分支包装：动作体 → 同上下文管线（分支体与迁移前逐字一致；机制由框架 <c>AsBranch</c> 单源提供）。</summary>
+        private static IPipeline<TContext, TContext> Branch<TContext>(Action<TContext> body)
+            => body.AsBranch("KindBranch");
+
+        /// <summary>数据流重建分支表（Kind → 图增补）。</summary>
+        private static PipelineSwitch<DataFlowBranchContext, string> BuildDataFlowBranches()
+            => new(
+                context => context.Current.Kind,
+                new Dictionary<string, IPipeline<DataFlowBranchContext, DataFlowBranchContext>>(StringComparer.Ordinal)
+                {
+                    ["Input"] = Branch<DataFlowBranchContext>(context =>
+                    {
+                        if (!context.Graph.Inputs.Contains(context.NodeId))
+                            context.Graph.Inputs.Add(context.NodeId);
+                    }),
+
+                    ["Prev"] = Branch<DataFlowBranchContext>(context =>
+                    {
+                        var metadata = context.Current;
+                        var prevNode = context.AllMetadata
+                            .Where(m => m.Timestamp <= metadata.Timestamp
+                                        && !(m.Key == metadata.Key && m.Kind == metadata.Kind))
+                            .OrderByDescending(m => m.Timestamp)
+                            .FirstOrDefault();
+                        if (prevNode != null)
+                        {
+                            var prevCompositeKey = $"{prevNode.Key}|{prevNode.Kind}";
+                            if (context.NodeKeyMap.TryGetValue(prevCompositeKey, out var prevNodeId))
+                            {
+                                context.Graph.Edges.Add(new DataFlowEdge
+                                {
+                                    From = prevNodeId,
+                                    To = context.NodeId,
+                                    Label = $"prev:{metadata.Key}"
+                                });
+                            }
+                        }
+                    }),
+
+                    ["NodeReference"] = Branch<DataFlowBranchContext>(context =>
+                    {
+                        var metadata = context.Current;
+                        if (!string.IsNullOrEmpty(metadata.NodeId))
+                        {
+                            var refNode = context.AllMetadata
+                                .FirstOrDefault(m => m.NodeId == metadata.NodeId);
+                            if (refNode != null)
+                            {
+                                var refCompositeKey = $"{refNode.Key}|{refNode.Kind}";
+                                if (context.NodeKeyMap.TryGetValue(refCompositeKey, out var refNodeId))
+                                {
+                                    context.Graph.Edges.Add(new DataFlowEdge
+                                    {
+                                        From = refNodeId,
+                                        To = context.NodeId,
+                                        Label = $"ref:{metadata.NodeId}"
+                                    });
+                                }
+                            }
+                        }
+                    }),
+                },
+                defaultBranch: Branch<DataFlowBranchContext>(_ => { }),
+                name: "DataFlowKindBranches",
+                description: "数据流重建：Kind 逐类型分派（Q2-2）");
+
+        /// <summary>数据流分支上下文（一次 <c>RebuildDataFlow</c> 内复用，逐项只换 <see cref="Current"/> / <see cref="NodeId"/>）。</summary>
+        private sealed class DataFlowBranchContext(
+            DataFlowGraph graph,
+            List<PlaceholderMetadata> allMetadata,
+            Dictionary<string, string> nodeKeyMap)
+        {
+            internal DataFlowGraph Graph { get; } = graph;
+
+            internal List<PlaceholderMetadata> AllMetadata { get; } = allMetadata;
+
+            internal Dictionary<string, string> NodeKeyMap { get; } = nodeKeyMap;
+
+            internal PlaceholderMetadata Current { get; set; } = null!;
+
+            internal string NodeId { get; set; } = string.Empty;
+        }
+
+        /// <summary>数据源追溯分支表（Kind → 来源描述）。</summary>
+        private static PipelineSwitch<TraceSourceContext, string> BuildTraceSourceBranches()
+            => new(
+                context => context.Target.Kind,
+                new Dictionary<string, IPipeline<TraceSourceContext, TraceSourceContext>>(StringComparer.Ordinal)
+                {
+                    ["Input"] = Branch<TraceSourceContext>(context =>
+                    {
+                        context.Trace.SourceType = "ExternalInput";
+                        context.Trace.SourceDescription = $"Input key: {context.Target.Key}";
+                    }),
+
+                    ["Prev"] = Branch<TraceSourceContext>(context =>
+                    {
+                        var target = context.Target;
+                        var prevSource = context.AllMetadata
+                            .Where(m => m.Timestamp <= target.Timestamp
+                                        && m.MetadataId != target.MetadataId)
+                            .OrderByDescending(m => m.Timestamp)
+                            .FirstOrDefault();
+                        if (prevSource != null)
+                        {
+                            context.Trace.SourceType = "PreviousStep";
+                            context.Trace.SourceMetadataId = prevSource.MetadataId;
+                            context.Trace.SourceDescription = $"From previous step: {prevSource.Key} = {prevSource.ResolvedValue}";
+                        }
+                    }),
+
+                    ["NodeReference"] = Branch<TraceSourceContext>(context =>
+                    {
+                        var target = context.Target;
+                        context.Trace.SourceType = "NodeReference";
+                        context.Trace.SourceDescription = $"From node: {target.NodeId}";
+                        var nodeSource = context.AllMetadata
+                            .FirstOrDefault(m => m.NodeId == target.NodeId);
+                        if (nodeSource != null)
+                        {
+                            context.Trace.SourceMetadataId = nodeSource.MetadataId;
+                        }
+                    }),
+
+                    ["NodeIndex"] = Branch<TraceSourceContext>(context =>
+                    {
+                        context.Trace.SourceType = "NodeIndex";
+                        context.Trace.SourceDescription = $"From node index: {context.Target.NodeIndex}";
+                    }),
+                },
+                defaultBranch: Branch<TraceSourceContext>(_ => { }),
+                name: "TraceSourceKindBranches",
+                description: "数据源追溯：Kind 逐类型分派（Q2-2）");
+
+        /// <summary>数据源追溯分支上下文。</summary>
+        private sealed class TraceSourceContext(
+            List<PlaceholderMetadata> allMetadata,
+            PlaceholderMetadata target,
+            DataSourceTrace trace)
+        {
+            internal List<PlaceholderMetadata> AllMetadata { get; } = allMetadata;
+
+            internal PlaceholderMetadata Target { get; } = target;
+
+            internal DataSourceTrace Trace { get; } = trace;
         }
     }
 

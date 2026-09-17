@@ -49,6 +49,10 @@
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：Hierarchy/Dataflow 层遍历不再手写；单向依赖，框架零项目引用 -->
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
+    <!-- ★ 2026-09-17 新增（管线化重构 Q0-1 / X1′ 收口，由 R2 棘轮用例发现）：
+         Nodes\Execution\NodeStepExecutionService.cs 使用 `Modules.Pipeline.StepExec`（步骤执行中间件），
+         此前该依赖经 WorkFlowMethod 等**传递**获得（隐式依赖）；显式声明后由守卫机器校验。 -->
+    <ProjectReference Include="$(Proj_Pipeline)" />
   </ItemGroup>
 
 </Project>

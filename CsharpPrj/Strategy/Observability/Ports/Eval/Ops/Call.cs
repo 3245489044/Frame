@@ -86,20 +86,25 @@ internal static class PortCall
 
         var text = raw as string ?? raw?.ToString() ?? string.Empty;
 
-        return arg.Convert switch
+        if (arg.Convert == "string") return text;
+        if (arg.Convert == "csv") return PortValues.SplitCsv(text).ToList();
+        if (arg.Convert == "bool") return ParseBool(spec, text, index);
+
+        if (arg.Convert == "int")
         {
-            "string" => text,
-            "csv" => PortValues.SplitCsv(text).ToList(),
-            "bool" => ParseBool(spec, text, index),
-            "int" => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue)
-                ? intValue
-                : throw Mismatch(spec, text, index, "整数"),
-            "double" => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue)
-                ? doubleValue
-                : throw Mismatch(spec, text, index, "数值"),
-            "json" => FromWith(spec, parameter, arg, input),
-            _ => throw Mismatch(spec, arg.Convert, index, "string|bool|int|double|csv|json|object"),
-        };
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue)) return intValue;
+            throw Mismatch(spec, text, index, "整数");
+        }
+
+        if (arg.Convert == "double")
+        {
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue)) return doubleValue;
+            throw Mismatch(spec, text, index, "数值");
+        }
+
+        if (arg.Convert == "json") return FromWith(spec, parameter, arg, input);
+
+        throw Mismatch(spec, arg.Convert, index, "string|bool|int|double|csv|json|object");
     }
 
     /// <summary>结构化直传：取具名实参 <c>with</c> 的原始 JSON 并按目标形参类型反序列化。</summary>

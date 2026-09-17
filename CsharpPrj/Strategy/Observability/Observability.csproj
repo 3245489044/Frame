@@ -28,6 +28,8 @@
     <ProjectReference Include="$(Proj_Threading)" />
     <!-- Share.HierarchySupport（纯 DTO，命名空间保留 Share.HierarchySupport）整项目并入本工程；RuntimeStage 依赖 TaskExecutionStatus -->
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <!-- B5 内核退场：PortSpecCompiler 入参 PortStandard（DataCenter.Protocol.Standards 纯契约，零依赖，禁 HintPath 分叉） -->
+    <ProjectReference Include="..\..\..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

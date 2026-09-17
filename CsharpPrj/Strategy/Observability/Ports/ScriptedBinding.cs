@@ -63,17 +63,17 @@ public sealed class ScriptedBinding : IPortBinding
 
         if (_scenarioCases is not null) return Dispatch(input);
 
-        return KindOf(_spec.Deliver) switch
-        {
-            "action" => new DeferredAction(() => _spec.Deliver.DeferSteps is { Count: > 0 } steps
+        var deliverKind = KindOf(_spec.Deliver);
+
+        if (deliverKind == "action")
+            return new DeferredAction(() => _spec.Deliver.DeferSteps is { Count: > 0 } steps
                 ? RunDeferred(steps, input)
-                : Execute(input)),
+                : Execute(input));
 
-            "issues" when _spec.Deliver.Capture is { } capture
-                => new PortIssues(CaptureIssues(capture, input)),
+        if (deliverKind == "issues" && _spec.Deliver.Capture is { } capture)
+            return new PortIssues(CaptureIssues(capture, input));
 
-            _ => Execute(input),
-        };
+        return Execute(input);
     }
 
     /// <summary>
@@ -246,14 +246,13 @@ public sealed class ScriptedBinding : IPortBinding
             throw new PortBindingViolationException(
                 spec.PortKey, $"端口 '{spec.PortKey}' 的载体 kind '{kind}' 非法（value|issues|action）");
 
-        var conflict = kind switch
-        {
-            "value" when spec.Deliver.Capture is not null || spec.Deliver.DeferSteps is { Count: > 0 }
-                => "issue 捕获体 / 延迟步骤",
-            "issues" when spec.Deliver.DeferSteps is { Count: > 0 } => "延迟步骤",
-            "action" when spec.Deliver.Capture is not null => "issue 捕获体",
-            _ => null,
-        };
+        string? conflict = null;
+        if (kind == "value" && (spec.Deliver.Capture is not null || spec.Deliver.DeferSteps is { Count: > 0 }))
+            conflict = "issue 捕获体 / 延迟步骤";
+        else if (kind == "issues" && spec.Deliver.DeferSteps is { Count: > 0 })
+            conflict = "延迟步骤";
+        else if (kind == "action" && spec.Deliver.Capture is not null)
+            conflict = "issue 捕获体";
 
         if (conflict is not null)
             throw new PortBindingViolationException(
@@ -330,15 +329,15 @@ public sealed class ScriptedBinding : IPortBinding
 
     /// <summary>建作用域并返回其**释放动作**（LIFO 逆序执行；正常与异常路径均执行；释放动作本身抛错即上抛）。</summary>
     private Action Materialize(ScriptedScopeSpec declared, EvalScope scope, IPortInput input)
-        => declared.Kind switch
-        {
-            "using" => EnterUsing(declared, scope, input),
-            "restore" => EnterRestore(declared, scope, input),
-            "tempDir" => EnterTempDir(declared, scope, input),
-            _ => throw new PortBindingViolationException(
-                _spec.PortKey,
-                $"端口 '{_spec.PortKey}' 的作用域 kind '{declared.Kind}' 非法（tempDir|using|restore）"),
-        };
+    {
+        if (declared.Kind == "using") return EnterUsing(declared, scope, input);
+        if (declared.Kind == "restore") return EnterRestore(declared, scope, input);
+        if (declared.Kind == "tempDir") return EnterTempDir(declared, scope, input);
+
+        throw new PortBindingViolationException(
+            _spec.PortKey,
+            $"端口 '{_spec.PortKey}' 的作用域 kind '{declared.Kind}' 非法（tempDir|using|restore）");
+    }
 
     /// <summary>资源释放作用域（W18：<c>using</c>）：进入期执行 <see cref="ScriptedScopeSpec.Invoke"/>，
     /// 结果写槽 <see cref="ScriptedScopeSpec.As"/> 并要求可释放；退出（含异常路径）按 <c>IDisposable</c> / <c>IAsyncDisposable</c> 释放。</summary>

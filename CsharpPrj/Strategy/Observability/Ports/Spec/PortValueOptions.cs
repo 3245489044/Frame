@@ -1,6 +1,7 @@
 namespace Strategy.Observability.Ports;
 
 using System.Text.Json;
+using DataCenter.Protocol.Standards;
 
 /// <summary>
 /// 端口取值声明（R2-1，**唯一转换表**）：三套旧模型（<see cref="PortArgSpec"/> / <see cref="ComposedArgSpec"/> /
@@ -28,18 +29,17 @@ public sealed record PortValueOptions(
     string? From = null,
     string? Key = null)
 {
-    /// <summary>三通道**共同**转换词汇（唯一清单；R2-3 后为终态词表）。</summary>
-    public static readonly IReadOnlyList<string> CommonConversions =
-        ["string", "bool", "int", "double", "csv", "json", "object"];
+    /// <summary>三通道**共同**转换词汇（唯一清单；R2-3 后为终态词表）；词表唯一 C# 源 = <see cref="PortImplVocabulary.CommonConversions"/>。
+    /// （B5 判定上收：内核不再另立清单，禁两处各自维护。）</summary>
+    public static IReadOnlyList<string> CommonConversions => PortImplVocabulary.CommonConversions;
 
-    /// <summary>通道**特有**转换词汇（D-1 分歧登记：<c>array</c>/<c>graph</c>/<c>passthrough</c> 仅脚本通道声明过）。</summary>
-    public static readonly IReadOnlyList<string> ExtendedConversions = ["array", "graph", "passthrough"];
+    /// <summary>通道**特有**转换词汇（D-1 分歧登记：<c>array</c>/<c>graph</c>/<c>passthrough</c> 仅脚本通道声明过）；
+    /// 词表唯一 C# 源 = <see cref="PortImplVocabulary.ExtendedConversions"/>。</summary>
+    public static IReadOnlyList<string> ExtendedConversions => PortImplVocabulary.ExtendedConversions;
 
-    /// <summary>转换词是否已登记（共同 ∪ 特有）；空串等价于「无转换声明」。</summary>
+    /// <summary>转换词是否已登记（共同 ∪ 特有 ∪ 组合指记 <c>dep</c>；空串 = 无转换声明）；判定源 = <see cref="PortImplVocabulary.IsKnownConversion"/>。</summary>
     public static bool IsKnownConversion(string? convert)
-        => string.IsNullOrEmpty(convert)
-           || CommonConversions.Contains(convert, StringComparer.Ordinal)
-           || ExtendedConversions.Contains(convert, StringComparer.Ordinal);
+        => PortImplVocabulary.IsKnownConversion(convert);
 
     /// <summary>结构化来源是否为具名实参（<c>with</c>）。</summary>
     public bool IsWithSource => string.Equals(From, "with", StringComparison.Ordinal);

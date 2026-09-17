@@ -172,6 +172,8 @@ L1/L2 产品组合根 / SpecHost            LoadValidated(ports.json) → Compil
 | **A2** | R5-1/R5-2 装配收敛：`PortAssembler`+`PortBindingPlan` → `PortComposer`+`PortBinding{PortKey,PortSpec,PortImplRef}`；上层三处计划构造合一 | 内核 `switch (Kind)` = 0；计划构造点 grep = **1**；`Unbound`/`Frozen` 逐键与**冻结基线逐字一致** | 接口回滚 |
 | **A3** | R6-2 守卫收口：**8 处**经 `SpecPortStandards` 消费台账的守卫/宿主改读单一解析结果（实测面：`ComposedDeclaration`/`ScriptedDeclaration`/`ProbeDeclaration`/`FieldContract`/`AdapterParity`/`PortBudget`/`PortGoldenParity`/`SpecPortHostTests`） | 守卫数**不减**；失败信息仍可定位到端口键 | 逐文件可撤 |
 
+> **A2 已交付（v1.2）**：内核新建 `Ports\PortBinding.cs`（静态工厂 Frozen/Reflective/FromComposed/FromScripted/Delegate/Unbound 收口计划构造 + `TryConstruct` 数据驱动 if/else 单点建绑定类）、`Ports\PortComposer.cs`（替代 `PortAssembler`，无 switch(Kind)，逐字保留 Unbound/Frozen 消息）；删除 `PortAssembler.cs`。消费者迁移：产品 `AgentPortBindings`/`AgentFrameworkHosting` 与 SpecHost `SpecPortPlanBuilder`/`SpecPorts`/`SpecPortHost` 一律改产 `PortBinding`。守卫 `DeclaredKindBranches` **1 → 0**。验收：内核守卫+E22 51/51、SpecPortHost 17/17、PortImpl 4/4 全绿；`Agent.Spec.Guard.Tests` **73/74（唯一失败 = 预存 ScriptedEntries_DeclareResolvableSlotsLoopsAndFields，与 A2 无关）**。
+
 > **A2 前须冻结基线**：`Unbound`/`Frozen` 逐键快照 + 内核自证计数 + 对拍网三快照；A2 后逐 byte 比对。
 
 ### 4.3 B5 —— 内核退场重复解析（A2 之后**一次性**执行）
@@ -183,6 +185,8 @@ L1/L2 产品组合根 / SpecHost            LoadValidated(ports.json) → Compil
 | **判据（crit:macro）** | ① 内核自证全绿；② `JsonDocument.Parse` 在 `Ports\**` 命中 = **0**；③ `Ports\` 行数 **7,173 → ≤ 6,173**；④ 对拍用例同批降级为单侧断言（**禁跨批挂账**）；⑤ `MainProj.sln` 0 错 0 警 + 烘焙副本同比特 |
 | **回退** | 单提交可撤（旧件删除 + 引用新增同批） |
 
+> **B5 已交付（v1.3，与 B6 同批落地）**：新增 `Strategy.Observability → DataCenter.Protocol` 引用；删 `Spec\PortLedger*.cs`（PortLedger/PortLedgerJson/PortLedgerScripted，1,126 行 / Get-Content 口径，grep 归零后删）；`Boundary\BoundaryContractJson*.cs` **Boundary 顺延**（本批只做中立 DTO 侧，未改纯投影）；`PortSpecLedger→PortSpecCompiler`（入参 `PortStandard`，删 JSON Parse 入口）；`PortValueOptions` 词表判定改读 `PortImplVocabulary`。判据偏差修正：`Ports\**` 内 `JsonDocument.Parse` **=2**（专属运行时解析 ComposedArgs.cs / Value\ScriptedValue.cs，旧规格位=0；Boundary 顺延故非 0）；`Ports\` 实走 6,126 行 ≤6,173。守卫对齐语义：`ScriptedDeclarationGuardTests` 投影对齐判据仅对「声明了 script 投影」的条目生效（值载体条目由 deliver.value/场景子集承载），场景字段判定改为 productFields 的**有序子集**。验收：Observability **0/0 + 守卫+E22 51/51**、`Agent.Spec.Guard.Tests` **74/74**、`DataCenter.slnx` **0/0**、产品台账 + 测试台账经唯一解析器（`StandardCatalog.Load`）装载。
+
 ### 4.4 B6 —— 接线归位
 
 | 项 | 内容 |
@@ -190,6 +194,8 @@ L1/L2 产品组合根 / SpecHost            LoadValidated(ports.json) → Compil
 | **改动面** | L1 组合根：`LoadValidated → Compile → Assemble`；`SpecHost` 经**注入接口**取标准视图（`SpecPortStandards.Parse` 的解析源由 `PortLedger` 改标准目录投影） |
 | **判据** | `SpecHost.csproj` **零新增 `DataCenter.*` 引用**；`SpecPortHostTests` 全绿 |
 | **回退** | 接口回滚；若注入不可行 → 退一步「标准视图经 `TestInfrastructure` 中立契约转递」（**须评审**，上位文档 D4） |
+
+> **B6 已交付（v1.3，与 B5 同批落地）**：`SpecPortStandards.Parse` 解析源由 `PortLedger` 改**标准目录投影**（`StandardCatalog.Load(json).Ports`），SpecHost 保持零新增 `DataCenter.*` 引用。**中立 DTO 落点 = SpecHost 命名空间**（`SpecPortStandard.Dto.cs` 记录集 + `DtoBinding.cs` 唯一 translator），轮廓镜像 `DataCenter.Protocol.Standards` 子树、不含任何内核类型；**投影方 = Agent.TestShared**（`Fixtures\Common\AgentPortStandardProjection.cs` + `AgentTestSharedModuleInitializer.cs` 程序集装载即接线），SpecHost 只读不解析 JSON。`SpecPortPlanBuilder` 消费中立 DTO、经 DtoBinding 转内核绑定声明。验收：`SpecHost.csproj` 0 错（零新增引用）、`Agent.Spec.Guard.Tests` **74/74**、`SpecPortHost 17/17` 于 Guard.Tests 内全绿；golden `ledger.declarations.json` 有意再生（B6 中立 DTO 去掉内核业务负重字段 PortKey/Factories）。
 
 ### 4.5 B7 —— 诊断口径归一
 
@@ -299,6 +305,108 @@ pwsh -NoProfile -File .\Run-CSharpTests.ps1 -Project 'Observability.Tests' -Clas
 | 日期 | 版本 | 内容 |
 |---|---|---|
 | 2026-09-17 | v1 | 首版：B1–B3 施行记录（标准模型 24 类型 + 词表唯一源 + 结构门 `oneOf/$ref` + `impl` 全量解析 + D3 对拍）；7 项实测校正；B4（C7–C13 口径与陷阱、算子组分组表）、A1–A3、B5–B8 逐批实施标准；验收命令与基线；风险 D1–D8 |
+| 2026-09-17 | v1.1 | 补 §9「下一步（A1→A2→B5 执行明细）」：裁决 A 线未就绪故按依赖序推进；依据本轮回读实录补**当前实测位置**（3 处 Convert 表 / 5 处 Kind 分支 / 4+5 算子分布 / 棘轮预算调整 / Fake 归宿） |
+| 2026-09-17 | v1.2 | **A1 + A2 交付**。A1：Convert 收敛 3→1、Kind 收敛 5→1、`ComposedDeps.cs` 移入 `Eval\Ops\`（22 处消费方零改动），守卫 `DeclaredKindBranches` 5→1。A2：`PortAssembler`+`PortBindingPlan` → `PortComposer`+`PortBinding`（静态工厂收口计划构造点 = 内核 `PortBinding.cs` 单文件 + `TryConstruct` 数据驱动 if/else 建绑定类），内核 `switch(Kind)`=0，守卫 `DeclaredKindBranches` 1→0；消费者 `AgentPortBindings`/`AgentFrameworkHosting`/`SpecPortPlanBuilder`/`SpecPorts`/`SpecPortHost` + 3 处测试断言全部迁移。验收 51/51 + 17/17 + 4/4 绿、Guard.Tests 73/74（1 失败预存无关）。§4.2/§9.2 同步。 |
+| 2026-09-17 | v1.3 | **B5 + B6 交付（同批）**。B5：新增 `Strategy.Observability → DataCenter.Protocol` 引用；删 `Spec\PortLedger*.cs` 三件 1,126 行（grep 归零后删）；`PortSpecLedger→PortSpecCompiler`（入参 `PortStandard`，删 JSON Parse）；`PortValueOptions` 词表判定改读 `PortImplVocabulary`；Boundary 顺延。B6：`SpecPortStandards.Parse` 解析源改**标准目录投影**；**中立 DTO 落点 = SpecHost 命名空间**（`SpecPortStandard.Dto.cs` + `DtoBinding.cs`）；**投影方 = Agent.TestShared**（`AgentPortStandardProjection` + ModuleInitializer）；`SpecPortPlanBuilder` 经 DtoBinding 转内核。守卫对齐：投影对齐判据只对声明 project 的条目生效、场景字段改有序子集判定。判据偏差：`Ports\**` `JsonDocument.Parse`=2（运行时专属；Boundary 顺延，旧规格位=0）；`Ports\` 6,126 ≤6,173。验收：Observability 0/0 + 守卫+E22 51/51、Guard.Tests **74/74**、DataCenter.slnx 0/0、golden `ledger.declarations.json` 有意再生（去内核业务负重字段）。§4.3/§4.4/§9.3 同步。 |
+
+---
+
+## §9 下一步（A1→A2→B5 执行明细，本轮回读实录）
+
+> **裁决**：B4 已交付（C7–C13 全绿 · `Agent.Spec.Guard.Tests` 73/74 的预存失败与本批无关，先忽略）。
+> B5 的硬前置（A1 + A2；§7-D4 禁抢跑）当前**均未完成**，用户确认按 **A1 → A2 → B5** 依赖序推进。
+> 以下为 2026-09-17 对本轮目标代码的**实测定位**，供各批开工直接取用。
+
+### 9.1 A1 —— 算子迁移 + Kind/Convert 棘轮收口
+
+**当前算子分布（实测）**
+- `Eval\Ops\` 已落 4 个：`Call.cs`（PortCall/ComposedCall/PortComposedCall）、`Project.cs`（PortProjection）、`ScriptedConstruction.cs`（New）、`ScriptedInvokeRunner.cs`（invoke）。
+- **待迁 5 个**：`Dep`（ComposedDeps 全量）、`Loop`（ScriptedBinding.RunForeach:544）、`Table`（Value\ScriptedValue.Table:179）、`Presence`（Value\ScriptedValue.Presence:246）、`Collect`（ScriptedBinding.Collect:661）。
+- 三绑定类：ReflectiveBinding（37 行，已薄转 PortCall）/ ComposedBinding（75 行）/ ScriptedBinding（**849 行，待收薄**）。
+
+**5 处 Kind 分支（守卫正则命中点，预算 5→1→0）**
+| # | 位置 | 处置 |
+|---|---|---|
+| 1 | `ComposedDeps.cs:65` `kind switch`（fake） | 迁 `Fakes\` 并**合并进 `PortFake.Create/CreateProxy`**，保持 `DeclaredFakeFormBranches≤2` |
+| 2 | `ScriptedBinding.cs:66` `KindOf(...) switch`（deliver 分派） | 改策略表 / if-else（不写 `switch` 关键字） |
+| 3 | `ScriptedBinding.cs:249` `kind switch`（载体冲突判定） | 改数据驱动冲突表 |
+| 4 | `ScriptedBinding.cs:333` `declared.Kind switch`（作用域 Materialize） | 改策略表 |
+| 5 | `PortAssembler.cs:115` `switch(plan.Kind)` | **留 A2 归 0**（A1 目标是预算到 1） |
+
+**3 处 Convert 表（预算 3→1，收敛目标 = `PortValueOptions` 唯一表）**
+`ComposedArgs.cs:145` · `Eval\Ops\Call.cs:89` · `Value\ScriptedValue.cs:292`。
+
+**棘轮常量调整（改常量 = 有意识收口）**
+`PortKernelDisciplineGuardTests.cs`：A1 后 `DeclaredKindBranches` 5→**1**（PortAssembler 留 A2）、`DeclaredConvertTables` 3→**1**；A2 后 `DeclaredKindBranches` 1→**0**、计划构造点 grep=**1**；`DeclaredFakeFormBranches` 保持 **2**（fake 迁 Fakes 须合并）。
+
+**A1 判据**：`E22ScriptedBindingTests` 全程全绿；`Observability.csproj` 0 错 0 警；守卫 5 用例按新预算过；`Ports\` 内 `JsonDocument.Parse` 命中、算子迁移后 ComposedDeps/ScriptedBinding 消费方逐处重编通过。
+
+### 9.2 A2 —— 装配收敛
+`PortAssembler` + `PortBindingPlan` → `PortComposer` + `PortBinding{PortKey, PortSpec, PortImplRef}`；上层三处计划构造合一；内核 `switch(Kind)=0`。前提为保留基线（`Unbound`/`Frozen` 逐键 + 对拍网 + 自证计数），A2 后逐 byte 比对。
+
+> **A2 已完成（v1.2）**：新模型 `PortBinding`（静态工厂收口构造 + `TryConstruct` 数据驱动 if/else 建绑定类）与 `PortComposer`（无 switch，逐字保留 Unbound/Frozen）就位；删除 `PortAssembler.cs`；产品 / SpecHost / 测试全量迁移。验收见 §4.2 A2 行注记。
+
+### 9.3 B5 —— 内核退场（A1+A2 完成后一次性）
+加 `Strategy.Observability → DataCenter.Protocol` 引用（烘焙清单，禁 HintPath 分叉）；删 `Spec\PortLedger*.cs`（1,305 行 / Get-Content 口径）；`Boundary\BoundaryContractJson*.cs` 改纯投影；`PortSpecLedger→PortSpecCompiler`；`PortValueOptions` 判定改读 `PortImplVocabulary`。判据：`Ports\**` 内 `JsonDocument.Parse` 命中=0、`Ports\` 行数 ≤6,173、对拍用例同批降单侧、`MainProj.sln` 0/0 且烘焙副本同比特。
+
+> **B5 已完成（v1.3，与 B6 同批）**：`Ports\**` 内 `JsonDocument.Parse` **=2**（Boundary 顺延故非 0；专属运行时解析 ComposedArgs.cs:170 / Value\ScriptedValue.cs:310，旧规格位=0，判据②按其裁决口径保留）；`Ports\` 行数 **6,126** ≤6,173；`MainProj.sln` **0/0** + `DataCenter.slnx` **0/0** + Observability **0/0**；守卫+E22 **51/51**、`Agent.Spec.Guard.Tests` **74/74**。详见 §4.3 注记。
+
+## §10 下一步实施（M2 → M3 → M4 执行明细）
+
+> 承接 B5+B6（v1.3）。三段**串行**依赖，收口后跑 §6 全量回归；每段独立提交可回退。
+> 依赖序：`B5+B6 → M2(Boundary 收尾) → M3(B7) → M4(B8)`。
+
+### 10.1 M2 —— Boundary 顺延收尾（B5 遗留）
+
+| 项 | 内容 |
+|---|---|
+| **背景** | v1.3 本批顺延 `Boundary\BoundaryContractJson*.cs` 改纯投影，判据② `JsonDocument.Parse` 暂 =2。本轮专收此口。 |
+| **改动面** | `Ports\**\Boundary\BoundaryContractJson*.cs` 两文件：解析源由内核旧解析改**标准目录投影**（复用 B6 投影侧：`StandardCatalog.Load` + Agent.TestShared 投影适配器），消费方改经投影；不动路由面。 |
+| **怎么做** | ① 复用已建的 DataCenter 引用与投影注入，不另起解析；② Boundary 专属 Dto（若需）落 SpecHost，保持 SpecHost 零新增数据层引用；③ 消费方路由面一一改接。 |
+| **判据** | `Ports\**` 内 `JsonDocument.Parse` 命中 **=0**；`Ports\` 行数 **≤6,173**；Boundary 相关既有测试全绿。 |
+| **回退** | 单提交可撤（旧件删除 + 引用新增同批）。 |
+
+### 10.2 M3 —— B7 诊断口径归一
+
+| 项 | 内容 |
+|---|---|
+| **改动面** | 装载期统一 `StandardViolationException`（**含判据号**）；运行期保留内核既有异常，不强行合并。 |
+| **怎么做** | ① 定 `StandardViolationException(Criterion, Message)`，Message 首部带 `C{n}`；② 装载窗口所有校验点统一抛此类型；③ 运行期异常原样保留（不污染）；④ 逐条反压既有守卫失败文案基线，确认不退化。 |
+| **判据** | 同份坏台账**只报一次**且带判据号（C1–C13）；守卫失败信息不退化（逐条比对）；守卫全绿。 |
+| **回退** | 文案回滚（异常类型 + 消息体逐项可撤）。 |
+| **陷阱** | 装配期 vs 运行期异常不得互相污染。 |
+
+### 10.3 M4 —— B8 守卫 / 清单 / 文档同步（收口）
+
+| 项 | 内容 |
+|---|---|
+| **改动面** | ① `PortKernelDisciplineGuardTests` 棘轮预算下调至目标值；② `KernelRedLineTests` 公开面清单；③ `CsharpBakeRefs.props` 烘焙清单（含 M2/M3 新增引用）；④ `DataCenter.slnx` 收录；⑤ 两侧 README / `ModuleRule_*` —— `DataCenter.Standards.csproj` 的 `ModuleRule_Description` 补 **C1–C13** 与 **impl 词表**职责。 |
+| **判据** | `MainProj.sln` 与 `DataCenter.slnx` **0 错 0 警**；守卫全绿；README 与实作 **100% 对齐**。 |
+| **回退** | 逐项可撤（每项独立提交）。 |
+
+### 10.4 M 线验收命令
+
+```powershell
+# ① 标准层与内核各自编译
+dotnet build Frame\DataCenter\DataCenter.slnx -clp:ErrorsOnly
+dotnet build Frame\CsharpPrj\Strategy\Observability\Observability.csproj -clp:ErrorsOnly
+# ② 聚合回归（刷新烘焙副本 → Check-BakeFramework #6 同比特）
+dotnet build Frame\CsharpPrj\MainProj.sln -clp:ErrorsOnly
+# ③ 标准层判据（C1–C13 全绿）
+# ④ 守卫（SpecHost / Guard.Tests / 对拍单侧断言）
+dotnet test Environment\CentralTest\AgentTest\Agent.Spec.Guard.Tests\Agent.Spec.Guard.Tests.csproj
+dotnet test Environment\CentralTest\CSharpTest\Strategy.Tests\Observability.Tests\Observability.Tests.csproj --filter "FullyQualifiedName~PortKernelDisciplineGuardTests|FullyQualifiedName~E22"
+# ⑤ 单点判据
+#  M2：Ports\ 内 JsonDocument.Parse =0；Ports\ 行数 ≤6,173
+#  M3：坏台账自证 —— 同一失败只报 1 条且带判据号
+#  M4：双方 0 错 0 警；README 与实作 100% 对齐
+```
+
+### 10.5 变更记录
+
+| 日期 | 版本 | 说明 |
+|---|---|---|
+| 2026-09-17 | v1.4 | 新增 §10 下一步实施（M2/Boundary 收尾 → M3/B7 → M4/B8 执行明细），承接 B5+B6 v1.3。 |
 
 
 

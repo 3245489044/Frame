@@ -62,20 +62,26 @@ internal static class ComposedDeps
         var contract = ContractOf(index, dep, portKey);
         var wrapped = dep.Wrap is { } wrap ? Dep(deps, wrap, index, portKey) : null;
 
-        return kind switch
-        {
-            "counting" => ProxyFakes.Counting(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods),
-            "recording" => ProxyFakes.Recording(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods),
-            "fixed" => ProxyFakes.Fixed(
-                contract, dep.Values is { Count: > 0 } values ? values[0] : null),
-            "sequence" => ProxyFakes.Sequence(
-                contract, (dep.Values ?? Array.Empty<System.Text.Json.JsonElement>()).Cast<object?>().ToArray()),
-            "notExpected" => ProxyFakes.NotExpected(contract, dep.Methods, wrapped),
-            _ => throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的 dep[{index}] fake 种类 '{kind}' 未知" +
-                "（recording|counting|fixed|sequence|notExpected）"),
-        };
+        if (string.Equals(kind, "counting", StringComparison.Ordinal))
+            return ProxyFakes.Counting(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods);
+
+        if (string.Equals(kind, "recording", StringComparison.Ordinal))
+            return ProxyFakes.Recording(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods);
+
+        if (string.Equals(kind, "fixed", StringComparison.Ordinal))
+            return ProxyFakes.Fixed(contract, dep.Values is { Count: > 0 } values ? values[0] : null);
+
+        if (string.Equals(kind, "sequence", StringComparison.Ordinal))
+            return ProxyFakes.Sequence(
+                contract, (dep.Values ?? Array.Empty<System.Text.Json.JsonElement>()).Cast<object?>().ToArray());
+
+        if (string.Equals(kind, "notExpected", StringComparison.Ordinal))
+            return ProxyFakes.NotExpected(contract, dep.Methods, wrapped);
+
+        throw new PortBindingViolationException(
+            portKey,
+            $"端口 '{portKey}' 的 dep[{index}] fake 种类 '{kind}' 未知" +
+            "（recording|counting|fixed|sequence|notExpected）");
     }
 
     /// <summary>包装形态的被装饰对象（recording/counting 必须给出 wrap；否则无法转发）。</summary>

@@ -142,24 +142,35 @@ internal static class ComposedArgs
     /// <summary>文本 → 目标类型（位置实参与具名实参共用的标量口径）。</summary>
     private static object? ConvertText(
         Type target, ComposedArgSpec spec, string text, string portKey, string context, int index)
-        => spec.Convert switch
+    {
+        if (spec.Convert == "string") return text;
+        if (spec.Convert == "csv") return PortValues.SplitCsv(text).ToList();
+
+        if (spec.Convert == "bool")
         {
-            "string" => text,
-            "csv" => PortValues.SplitCsv(text).ToList(),
-            "bool" => PortValues.TryNormalize(text, typeof(bool), out var flag) && flag is bool parsed
-                ? parsed
-                : throw Mismatch(portKey, context, index, text, "布尔"),
-            "int" => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
-                ? number
-                : throw Mismatch(portKey, context, index, text, "整数"),
-            "double" => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var real)
-                ? real
-                : throw Mismatch(portKey, context, index, text, "数值"),
-            "json" => string.IsNullOrWhiteSpace(text)
+            if (PortValues.TryNormalize(text, typeof(bool), out var flag) && flag is bool parsed) return parsed;
+            throw Mismatch(portKey, context, index, text, "布尔");
+        }
+
+        if (spec.Convert == "int")
+        {
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)) return number;
+            throw Mismatch(portKey, context, index, text, "整数");
+        }
+
+        if (spec.Convert == "double")
+        {
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var real)) return real;
+            throw Mismatch(portKey, context, index, text, "数值");
+        }
+
+        if (spec.Convert == "json")
+            return string.IsNullOrWhiteSpace(text)
                 ? None(spec, target)
-                : Coerce(JsonDocument.Parse(text).RootElement.Clone(), target),
-            _ => throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json|object"),
-        };
+                : Coerce(JsonDocument.Parse(text).RootElement.Clone(), target);
+
+        throw Mismatch(portKey, context, index, spec.Convert, "string|bool|int|double|csv|json|object");
+    }
 
     /// <summary>无值分支：声明 <c>default</c> → 反序列化；否则取目标类型默认值（数组 → 空数组，与空集语义一致）。</summary>
     private static object? None(ComposedArgSpec spec, Type target)

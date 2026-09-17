@@ -5,7 +5,7 @@ namespace DataCenter.Standards;
 /// <summary>
 /// 标准目录实现（设计文档 §3.2 <c>StandardCatalog</c>）：惰性、确定性排序（键 Ordinal 升序）、键唯一。
 /// <para>
-/// 四视图 = 端口 / 数据 / 事件 / 替身；原始文本随目录同行（供内核 <c>PortAssembler.Seed</c> 播种——
+/// 四视图 = 端口 / 数据 / 事件 / 替身；原始文本随目录同行（供内核 <c>PortComposer.Seed</c> 播种——
 /// 内核只吃文本，不读文件）。
 /// </para>
 /// </summary>

@@ -10,7 +10,7 @@ namespace DataCenter.Standards;
 /// 另提供 <see cref="DuplicateKeys"/>（C1 的机器判据载体：JSON 对象重复键在
 /// <see cref="JsonDocument"/> 层被静默合并，故须在原始文本层扫描）。
 /// </summary>
-public static class StandardJson
+public static partial class StandardJson
 {
     private static readonly string[] PortTopKeys = ["$comment", "ports", "data", "events", "fakes"];
     private static readonly string[] PortEntryKeys = ["in", "out", "depends", "scope", "version", "emits", "impl"];
@@ -40,7 +40,7 @@ public static class StandardJson
                     Text(p.Value, "scope") ?? string.Empty,
                     (int)(Number(p.Value, "version") ?? 1),
                     Strings(p.Value, "emits"),
-                    Impl(p.Value));
+                    ReadImpl(p.Name, p.Value));
             }).OrderBy(x => x.Key, StringComparer.Ordinal).ToArray();
         });
 
@@ -234,10 +234,5 @@ public static class StandardJson
     private static double? Number(JsonElement entry, string name)
         => entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number)
             ? number
-            : null;
-
-    private static string? Impl(JsonElement entry)
-        => entry.TryGetProperty("impl", out var impl)
-            ? impl.ValueKind == JsonValueKind.String ? impl.GetString() : impl.GetRawText()
             : null;
 }

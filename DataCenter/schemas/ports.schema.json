@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "端口台账标准（ports.json）：键 = <类型/接口>.<方法>；in 列入参、out.fields 只列非入参产物（设计文档 §3.2/§6.1）。字段语义（跨语言）由 StandardConsistency C1–C6 把关。",
+  "$comment": "端口台账标准（ports.json）：键 = <类型/接口>.<方法>；in 列入参、out.fields 只列非入参产物。结构层由本 schema 闭合（含 impl 全词表，B2 扩面）；语义判据 C1–C13 见 DataCenter.Standards\\StandardConsistency。词表唯一 C# 源 = DataCenter.Protocol\\Standards\\PortImplVocabulary（本文件 enum 为数据副本，由用例对账）。",
   "title": "端口标准台账",
   "type": "object",
   "required": ["ports"],
@@ -30,7 +30,12 @@
           "scope": { "type": "string", "enum": ["Lease", "Round", "Session", "Root"] },
           "version": { "type": "integer" },
           "emits": { "type": "array", "items": { "type": "string" } },
-          "impl": { "type": ["string", "object"] }
+          "impl": {
+            "oneOf": [
+              { "type": "string", "enum": ["delegate", "reflective", "composed", "scripted", "frozen"] },
+              { "$ref": "#/$defs/impl" }
+            ]
+          }
         },
         "additionalProperties": false
       }
@@ -39,5 +44,468 @@
     "events": { "type": "object" },
     "fakes": { "type": "object" }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "impl": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["delegate", "reflective", "composed", "scripted", "frozen"] },
+        "id": { "type": "string" },
+        "target": { "type": "string" },
+        "method": { "type": "string" },
+        "reason": { "type": "string" },
+        "legacyKind": { "type": "string" },
+        "productFields": { "type": "string" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/arg" } },
+        "bind": { "type": "object", "additionalProperties": { "$ref": "#/$defs/valueSource" } },
+        "deps": { "type": "array", "items": { "$ref": "#/$defs/dep" } },
+        "calls": { "type": "array", "items": { "$ref": "#/$defs/call" } },
+        "project": { "type": "array", "items": { "$ref": "#/$defs/projectItem" } },
+        "script": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "deliver": { "$ref": "#/$defs/deliver" },
+        "scopes": { "type": "array", "items": { "$ref": "#/$defs/scope" } },
+        "scenarios": { "$ref": "#/$defs/scenario" }
+      },
+      "additionalProperties": false
+    },
+    "arg": {
+      "type": "object",
+      "required": ["convert"],
+      "properties": {
+        "convert": {
+          "type": "string",
+          "enum": ["string", "bool", "int", "double", "csv", "json", "object", "array", "graph", "passthrough", "dep"]
+        },
+        "optional": { "type": "boolean" },
+        "nullLiteral": { "type": "boolean" },
+        "default": {},
+        "from": { "type": "string" },
+        "key": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "valueSource": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table",
+                   "presence", "delegate", "new", "row", "member", "type"]
+        },
+        "index": { "type": "integer" },
+        "key": { "type": "string" },
+        "dep": { "type": "integer" },
+        "path": { "type": "string" },
+        "convert": {
+          "type": "string",
+          "enum": ["string", "bool", "int", "double", "csv", "json", "object", "array", "graph", "passthrough", "dep"]
+        },
+        "optional": { "type": "boolean" },
+        "nullLiteral": { "type": "boolean" },
+        "default": {},
+        "value": {},
+        "literal": {},
+        "type": { "type": "string" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "scope": { "type": "string" },
+        "name": { "type": "string" },
+        "elementType": { "type": "string" },
+        "named": { "type": "string" },
+        "separator": { "type": "string" },
+        "onBlankFirstKey": { "type": "string", "enum": ["fail", "skip"] },
+        "onDuplicate": { "type": "string", "enum": ["fail", "last"] },
+        "distinct": { "type": "boolean" },
+        "arg": { "type": ["integer", "string"] },
+        "with": { "type": ["string", "object"] },
+        "var": { "type": "string" },
+        "slot": { "type": "string" },
+        "item": { "type": ["string", "object"] },
+        "rows": { "$ref": "#/$defs/valueSource" },
+        "items": { "$ref": "#/$defs/valueSource" },
+        "table": { "$ref": "#/$defs/valueSource" },
+        "presence": { "$ref": "#/$defs/valueSource" },
+        "rowValue": { "$ref": "#/$defs/expr" },
+        "where": { "$ref": "#/$defs/expr" },
+        "construct": { "$ref": "#/$defs/new" },
+        "new": { "$ref": "#/$defs/new" },
+        "delegate": { "$ref": "#/$defs/delegate" }
+      },
+      "additionalProperties": false
+    },
+    "dep": {
+      "type": "object",
+      "properties": {
+        "new": { "type": "string" },
+        "factory": { "type": "string" },
+        "fake": { "type": "string", "enum": ["recording", "counting", "fixed", "sequence", "notExpected", "proxy"] },
+        "contract": { "type": "string" },
+        "wrap": { "type": "integer" },
+        "methods": { "type": "array", "items": { "type": "string" } },
+        "values": { "type": "array" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/composedArg" } }
+      },
+      "additionalProperties": false
+    },
+    "composedArg": {
+      "type": "object",
+      "required": ["convert"],
+      "properties": {
+        "convert": {
+          "type": "string",
+          "enum": ["string", "bool", "int", "double", "csv", "json", "object", "array", "graph", "passthrough", "dep"]
+        },
+        "argIndex": { "type": "integer" },
+        "key": { "type": "string" },
+        "dep": { "type": "integer" },
+        "value": {},
+        "elementType": { "type": "string" },
+        "optional": { "type": "boolean" },
+        "default": {},
+        "nullLiteral": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "call": {
+      "type": "object",
+      "required": ["as", "method"],
+      "properties": {
+        "as": { "type": "string" },
+        "target": { "type": "string" },
+        "method": { "type": "string" },
+        "property": { "type": "boolean" },
+        "dep": { "type": "integer" },
+        "await": { "type": "boolean" },
+        "expect": { "type": "string" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/composedArg" } }
+      },
+      "additionalProperties": false
+    },
+    "projectItem": {
+      "type": "object",
+      "$comment": "投影项两形态（组合 {field,call,select} / 脚本 {field,expr|算子平铺}）无法在不引入 not 的前提下结构判别，故本层开放；闭合与形态对账由 C9/C13 承担。",
+      "properties": { "field": { "type": "string" } }
+    },
+    "composedField": {
+      "type": "object",
+      "required": ["field", "call", "select"],
+      "properties": {
+        "field": { "type": "string" },
+        "call": { "type": "string" },
+        "select": {
+          "type": "string",
+          "enum": ["value", "count", "notNull", "text", "countEqual", "path", "pathText", "message", "thrown", "fakeCount"]
+        },
+        "other": { "type": "string" },
+        "path": { "type": "string" },
+        "dep": { "type": "integer" },
+        "method": { "type": "string" },
+        "key": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "collect": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/$defs/collect" } }
+          ]
+        },
+        "when": { "$ref": "#/$defs/expr" },
+        "foreach": { "type": "string" },
+        "items": { "$ref": "#/$defs/expr" },
+        "as": { "type": "string" },
+        "where": { "$ref": "#/$defs/expr" },
+        "do": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "new": { "$ref": "#/$defs/new" },
+        "invoke": { "$ref": "#/$defs/invoke" }
+      },
+      "additionalProperties": false
+    },
+    "invoke": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "as": { "type": "string" },
+        "dep": { "type": "integer" },
+        "target": { "type": "string" },
+        "method": { "type": "string" },
+        "property": { "type": "boolean" },
+        "await": { "type": "boolean" },
+        "expect": { "type": "string" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
+        "out": { "type": "string" },
+        "break": { "type": "boolean" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "on": { "$ref": "#/$defs/valueSource" },
+        "nonPublic": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "new": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "as": { "type": "string" },
+        "type": { "type": "string" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
+        "chain": { "type": "array", "items": { "$ref": "#/$defs/chain" } },
+        "init": { "type": "array", "items": { "$ref": "#/$defs/init" } }
+      },
+      "additionalProperties": false
+    },
+    "init": {
+      "type": "object",
+      "required": ["member", "value"],
+      "properties": {
+        "member": { "type": "string" },
+        "value": { "$ref": "#/$defs/valueSource" }
+      },
+      "additionalProperties": false
+    },
+    "chain": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
+        "rebind": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "delegate": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "result": { "$ref": "#/$defs/expr" },
+        "parameters": { "type": "array", "items": { "type": "string" } },
+        "collect": { "type": "string" },
+        "await": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "save": {
+      "type": "object",
+      "required": ["slot", "type", "key"],
+      "properties": {
+        "slot": { "type": "string" },
+        "type": { "type": "string" },
+        "key": { "type": "string" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "collect": {
+      "type": "object",
+      "required": ["slot"],
+      "properties": {
+        "slot": { "type": "string" },
+        "from": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": ["as"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["tempDir", "using", "restore"] },
+        "as": { "type": "string" },
+        "prefix": { "type": "string" },
+        "files": { "type": "array", "items": { "$ref": "#/$defs/file" } },
+        "invoke": { "$ref": "#/$defs/invoke" },
+        "save": { "type": "array", "items": { "$ref": "#/$defs/save" } },
+        "open": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "close": { "type": "array", "items": { "$ref": "#/$defs/step" } }
+      },
+      "additionalProperties": false
+    },
+    "file": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "dir": { "$ref": "#/$defs/expr" },
+        "from": { "$ref": "#/$defs/valueSource" },
+        "content": { "$ref": "#/$defs/expr" },
+        "when": { "$ref": "#/$defs/expr" }
+      },
+      "additionalProperties": false
+    },
+    "deliver": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["value", "issues", "action"] },
+        "defer": {
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "properties": { "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } } },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "issues": { "type": "boolean" },
+        "issueField": { "type": "string" },
+        "capture": { "$ref": "#/$defs/capture" },
+        "value": { "$ref": "#/$defs/expr" }
+      },
+      "additionalProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "call": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/invoke" }
+          ]
+        },
+        "as": { "type": "string" },
+        "dep": { "type": "integer" },
+        "target": { "type": "string" },
+        "method": { "type": "string" },
+        "await": { "type": "boolean" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
+        "out": { "type": "string" },
+        "expect": { "type": "array", "items": { "type": "string" } },
+        "message": { "type": "string" },
+        "messageField": { "type": "string" },
+        "when": { "$ref": "#/$defs/expr" }
+      },
+      "additionalProperties": false
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["cases"],
+      "properties": {
+        "select": { "$ref": "#/$defs/valueSource" },
+        "cases": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scenarioBody" } }
+      },
+      "additionalProperties": false
+    },
+    "scenarioBody": {
+      "type": "object",
+      "properties": {
+        "bind": { "type": "object", "additionalProperties": { "$ref": "#/$defs/valueSource" } },
+        "deps": { "type": "array", "items": { "$ref": "#/$defs/dep" } },
+        "script": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "project": { "type": "array", "items": { "$ref": "#/$defs/projectItem" } },
+        "deliver": { "$ref": "#/$defs/deliver" },
+        "scopes": { "type": "array", "items": { "$ref": "#/$defs/scope" } }
+      },
+      "additionalProperties": false
+    },
+    "expr": {
+      "type": "object",
+      "$comment": "表达式对象：取值来源键（Source）+ 算子键（每次恰一个）—— 键集 = PortImplVocabulary.ExprKeys，由用例对账。",
+      "properties": {
+        "from": {
+          "type": "string",
+          "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table",
+                   "presence", "delegate", "new", "row", "member", "type"]
+        },
+        "index": { "type": "integer" },
+        "key": { "type": "string" },
+        "dep": { "type": "integer" },
+        "path": { "type": "string" },
+        "convert": {
+          "type": "string",
+          "enum": ["string", "bool", "int", "double", "csv", "json", "object", "array", "graph", "passthrough", "dep"]
+        },
+        "optional": { "type": "boolean" },
+        "nullLiteral": { "type": "boolean" },
+        "default": {},
+        "value": {},
+        "literal": {},
+        "type": { "type": "string" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "scope": { "type": "string" },
+        "name": { "type": "string" },
+        "elementType": { "type": "string" },
+        "named": { "type": "string" },
+        "separator": { "type": "string" },
+        "onBlankFirstKey": { "type": "string", "enum": ["fail", "skip"] },
+        "onDuplicate": { "type": "string", "enum": ["fail", "last"] },
+        "distinct": { "type": ["object", "boolean"] },
+        "arg": { "type": ["integer", "string"] },
+        "with": { "type": ["string", "object"] },
+        "var": { "type": "string" },
+        "slot": { "type": "string" },
+        "item": { "type": ["string", "object"] },
+        "rows": { "type": "object" },
+        "items": { "type": "object" },
+        "table": { "type": "object" },
+        "presence": { "type": "object" },
+        "rowValue": { "type": "object" },
+        "where": { "type": "object" },
+        "construct": { "type": "object" },
+        "new": { "type": "object" },
+        "delegate": { "type": "object" },
+        "count": { "type": "object" },
+        "notNull": { "type": "object" },
+        "text": { "type": ["object", "boolean"] },
+        "typeName": { "type": "object" },
+        "message": { "type": "object" },
+        "thrown": { "type": "object" },
+        "concat": { "type": ["object", "array"] },
+        "contains": { "type": "object" },
+        "of": { "type": "object" },
+        "all": { "type": ["object", "array"] },
+        "any": { "type": ["object", "array"] },
+        "allIn": { "type": "object" },
+        "call": { "type": "string" },
+        "callTarget": { "type": "string" },
+        "spread": { "type": "object" },
+        "except": { "type": "array", "items": { "type": "string" } },
+        "countEqual": { "type": "object" },
+        "collect": { "type": "string" },
+        "sameAsLast": { "type": "string" },
+        "isNull": { "type": "object" },
+        "not": { "type": "object" },
+        "eq": { "type": ["array", "object"] },
+        "ne": { "type": ["array", "object"] },
+        "gt": { "type": ["array", "object"] },
+        "ge": { "type": ["array", "object"] },
+        "lt": { "type": ["array", "object"] },
+        "le": { "type": ["array", "object"] },
+        "sameReference": { "type": ["array", "object"] },
+        "coalesce": { "type": ["array", "object"] },
+        "dict": { "type": "object" },
+        "dictKey": { "type": "object" },
+        "dictValue": { "type": "object" },
+        "dictWhere": { "type": "object" },
+        "dictOnDuplicate": { "type": "string" },
+        "last": { "type": "object" },
+        "lastWhere": { "type": "object" },
+        "lastPath": { "type": "string" },
+        "lastOrNull": { "type": "boolean" },
+        "first": { "type": "object" },
+        "orNull": { "type": "boolean" },
+        "agg": { "type": "object" },
+        "aggOp": { "type": "string" },
+        "aggPath": { "type": "string" },
+        "filter": { "type": "object" },
+        "filterWhere": { "type": "object" },
+        "filterPath": { "type": "string" },
+        "sequenceEqual": { "type": ["array", "object"] },
+        "fold": { "type": "object" },
+        "over": { "type": "object" },
+        "rebind": { "type": "boolean" },
+        "method": { "type": "string" },
+        "args": { "type": "array" },
+        "step": { "type": "object" },
+        "init": { "type": "object" },
+        "when": { "type": "object" },
+        "expr": { "type": "object" },
+        "invoke": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  }
 }

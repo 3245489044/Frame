@@ -49,9 +49,12 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
             return false;
         }
 
+        // 载荷只解析一次（必填字段与枚举约束共用同一 JsonElement；缺失 / 非法 → null）。
+        var payload = c.Required.Count > 0 || c.Enums.Count > 0 ? ParsePayload(evt.PayloadJson) : null;
+
         if (c.Required.Count > 0)
         {
-            var missing = MissingRequiredPayloadFields(evt.PayloadJson, c.Required);
+            var missing = MissingRequiredPayloadFields(payload, c.Required);
             if (missing.Count > 0)
             {
                 issue = $"{evt.EventKind} 缺少必填载荷字段: {string.Join(", ", missing)}";
@@ -71,8 +74,7 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
 
         if (c.Enums.Count > 0)
         {
-            var payload = ParsePayload(evt.PayloadJson);
-            if (payload is JsonElement root && root.ValueKind == JsonValueKind.Object)
+            if (payload is { ValueKind: JsonValueKind.Object } root)
             {
                 foreach (var (field, allowed) in c.Enums)
                 {
@@ -91,22 +93,14 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
         return true;
     }
 
-    private static IReadOnlyList<string> MissingRequiredPayloadFields(string? payloadJson, IReadOnlyList<string> required)
-    {
-        if (payloadJson is null) return required;
-        try
-        {
-            using var doc = JsonDocument.Parse(payloadJson);
-            var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-                return required;
-            return required.Where(f => !HasPropertyIgnoreCase(root, f)).ToList();
-        }
-        catch (JsonException)
-        {
-            return required;
-        }
-    }
+    /// <summary>按键注销（登记失败补偿用；不存在返回 false）。</summary>
+    public bool TryRemove(string eventKind) => _byKind.TryRemove(eventKind, out _);
+
+    /// <summary>必填字段缺失清单（载荷缺失 / 非法 / 非对象 → 全部视为缺失）。</summary>
+    private static IReadOnlyList<string> MissingRequiredPayloadFields(JsonElement? payload, IReadOnlyList<string> required)
+        => payload is { ValueKind: JsonValueKind.Object } root
+            ? required.Where(f => !HasPropertyIgnoreCase(root, f)).ToList()
+            : required;
 
     /// <summary>大小写不敏感判定 JSON 对象是否含某属性（对齐载荷 camelCase 与契约任意大小写声明）。</summary>
     private static bool HasPropertyIgnoreCase(JsonElement obj, string name)

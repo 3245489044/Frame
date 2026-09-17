@@ -159,6 +159,23 @@ internal static class PortValues
         _ => value.ToString(),
     };
 
+    /// <summary>
+    /// 不变量文本化（null → null；bool → True/False；数值不变量；JSON 按值语义）——<b>出证文本唯一单源</b>：
+    /// 调用记录（<see cref="PortCallView.Text"/>）与观测产物（<c>ObservationOutcome.TextOf</c>）同调本件，禁各写一份 switch。
+    /// </summary>
+    internal static string? TextInvariant(object? value) => value switch
+    {
+        null => null,
+        string text => text,
+        bool flag => flag ? "True" : "False",
+        JsonElement element => element.ValueKind == JsonValueKind.Null ? null : element.ToString(),
+        double real => real.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        float real => real.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        decimal real => real.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        IFormattable formattable => formattable.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        _ => value.ToString(),
+    };
+
     /// <summary>条件真值（null / false / 空串 / 空 JSON / 零数 → 假；其余 → 真）。</summary>
     internal static bool Truthy(object? value) => value switch
     {

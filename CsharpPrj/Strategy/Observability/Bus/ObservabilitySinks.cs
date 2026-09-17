@@ -20,17 +20,34 @@ public interface IObservabilitySink
 /// <summary>
 /// 持久化 Sink（E5 内核实例）：无后台线程、无内部重试。Push 缓冲，FlushAsync 单批落库；
 /// 落库失败不静默记日志，直接抛 <see cref="SinkWriteException"/>（缓冲保留，供调用方重放 / at-least-once）。
+/// <para>
+/// 有界与可重入：缓冲封顶（<see cref="MaxBuffered"/>，超限丢最旧并入 <see cref="DroppedCount"/> 可见账）；
+/// 失败不回滚到队首（无 head-of-line 阻塞——时序由 <see cref="PersistedEvent.EventSeq"/> 决定，不依赖文件行序）；
+/// 并发 FlushAsync 由闸串行化（同一批不会被重复落库之外的并发写放大）。
+/// </para>
 /// </summary>
 public sealed class PersistentEventSink : IObservabilitySink
 {
-    private readonly IEventStore _store;
-    private readonly object _gate = new();
-    private List<PersistedEvent> _buffer = new();
+    /// <summary>缺省缓冲上限（条）：超限丢最旧并记账，防 store 持续故障时缓冲无界膨胀。</summary>
+    public const int DefaultMaxBuffered = 65_536;
 
-    public PersistentEventSink(IEventStore store)
+    private readonly IEventStore _store;
+    private readonly int _maxBuffered;
+    private readonly object _gate = new();
+    private readonly SemaphoreSlim _flushGate = new(1, 1);
+    private List<PersistedEvent> _buffer = new();
+    private long _dropped;
+
+    public PersistentEventSink(IEventStore store, int maxBuffered = DefaultMaxBuffered)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        if (maxBuffered <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxBuffered), maxBuffered, "缓冲上限须为正数");
+        _maxBuffered = maxBuffered;
     }
+
+    /// <summary>缓冲上限（条）。</summary>
+    public int MaxBuffered => _maxBuffered;
 
     /// <summary>当前尚未排空（FlushAsync）的缓冲条数（诊断可见性）。</summary>
     public int BufferedCount
@@ -38,31 +55,61 @@ public sealed class PersistentEventSink : IObservabilitySink
         get { lock (_gate) return _buffer.Count; }
     }
 
+    /// <summary>因缓冲超限被丢弃的条数（有界缓冲的可见账；丢弃不静默）。</summary>
+    public long DroppedCount => Interlocked.Read(ref _dropped);
+
     public void Push(PersistedEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
-        lock (_gate) _buffer.Add(evt);
+        lock (_gate)
+        {
+            _buffer.Add(evt);
+
+            var overflow = _buffer.Count - _maxBuffered;
+            if (overflow <= 0) return;
+
+            _buffer.RemoveRange(0, overflow);
+            Interlocked.Add(ref _dropped, overflow);
+        }
     }
 
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        List<PersistedEvent> batch;
-        lock (_gate)
-        {
-            if (_buffer.Count == 0) return;
-            batch = _buffer;
-            _buffer = new List<PersistedEvent>();
-        }
-
+        await _flushGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await _store.AppendBatchAsync(batch, ct).ConfigureAwait(false);
+            IReadOnlyList<PersistedEvent> batch;
+            lock (_gate)
+            {
+                if (_buffer.Count == 0) return;
+                batch = _buffer.ToArray();   // 前缀快照：失败时不重排缓冲（无 head-of-line 累积）
+            }
+
+            try
+            {
+                await _store.AppendBatchAsync(batch, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new SinkWriteException(
+                    $"观测事件显式排空落库失败（待落库 {BufferedCount} 条，累计丢弃 {DroppedCount} 条），缓冲保留可重试。",
+                    ex);
+            }
+
+            lock (_gate)
+            {
+                // 只移除确实已落库的前缀（按引用比对：缓冲曾因超限丢弃队首时不误删未落库条目，重复落库由 EventSeq 行键幂等承担）。
+                var written = 0;
+                while (written < batch.Count && written < _buffer.Count
+                       && ReferenceEquals(_buffer[written], batch[written]))
+                    written++;
+
+                if (written > 0) _buffer.RemoveRange(0, written);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            // 落库失败：回滚缓冲（at-least-once，允许整批重放），把错误抛给调用方决定，而非内部静默吞掉。
-            lock (_gate) _buffer.InsertRange(0, batch);
-            throw new SinkWriteException($"观测事件显式排空落库失败（{batch.Count} 条），缓冲已保留可重试。", ex);
+            _flushGate.Release();
         }
     }
 }
@@ -90,9 +137,10 @@ public sealed class HotRingSink : IObservabilitySink
 
     public Task FlushAsync(CancellationToken ct = default) => Task.CompletedTask;
 
+    /// <summary>最近 N 条快照（接收序 = 时间序；<c>EventSeq</c> 为作用域内序号，跨作用域不可排序，故不按它排）。</summary>
     public IReadOnlyList<PersistedEvent> Snapshot()
     {
-        lock (_gate) return _queue.OrderBy(e => e.EventSeq).ToList();
+        lock (_gate) return _queue.ToList();
     }
 }
 

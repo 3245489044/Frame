@@ -28,7 +28,8 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
     private readonly IObservabilityContractRegistry _registry;
     private readonly IReadOnlyList<IObservabilitySink> _sinks;
     private readonly ConcurrentDictionary<string, long> _seq = new(StringComparer.Ordinal);
-    private bool _disposed;
+    private readonly object _emitGate = new();
+    private volatile bool _disposed;
 
     public ObservabilityBus(
         IObservabilityContractRegistry registry,
@@ -51,28 +52,34 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
 
         var builder = new ObservabilityEventBuilder(entity, eventKind);
         build?.Invoke(builder);
-        var evt = builder.Build(NextSeq(entity.ScopeId));
-
-        // 校验失败一律抛错（原 ThrowOnValidationFailure=false 的记日志降级路径已移除）。
-        if (!_registry.Validate(evt, out var issue))
-            throw new ContractValidationException(issue!);
-
         var bag = ObsScope.Current;
-        var persisted = new PersistedEvent
+
+        // 序号分配与 Sink 投递同临界区：同进程并发 Emit 时，行序（落库/入环）与 EventSeq 顺序一致（不重排）。
+        lock (_emitGate)
         {
-            ScopeId = entity.ScopeId,
-            EventSeq = evt.EventSeq,
-            Event = evt,
-            TraceId = bag?.TraceId,
-            SessionId = bag?.SessionId,
-            CorrelationScopeKey = bag?.ScopeKey,
-            RunId = bag?.RunId,
-            RoundId = bag?.RoundId,
-        };
+            var seq = NextSeq(entity.ScopeId);
+            var evt = builder.Build(seq);
 
-        foreach (var sink in _sinks) sink.Push(persisted);
+            // 校验失败一律抛错（原 ThrowOnValidationFailure=false 的记日志降级路径已移除）。
+            if (!_registry.Validate(evt, out var issue))
+                throw new ContractValidationException(issue!);
 
-        return new EmitResult(evt.EventSeq, eventKind);
+            var persisted = new PersistedEvent
+            {
+                ScopeId = entity.ScopeId,
+                EventSeq = evt.EventSeq,
+                Event = evt,
+                TraceId = bag?.TraceId,
+                SessionId = bag?.SessionId,
+                CorrelationScopeKey = bag?.ScopeKey,
+                RunId = bag?.RunId,
+                RoundId = bag?.RoundId,
+            };
+
+            foreach (var sink in _sinks) sink.Push(persisted);
+
+            return new EmitResult(evt.EventSeq, eventKind);
+        }
     }
 
     private long NextSeq(string scopeId) => _seq.AddOrUpdate(scopeId, 1, (_, c) => c + 1);

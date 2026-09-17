@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using BasicMethod.Declarative.Graph;
+using BasicMethod.Declarative.Spec;
 using Strategy.DecisionRules;
 
 namespace Strategy.DecisionRules.Configurable

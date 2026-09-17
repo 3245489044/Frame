@@ -29,19 +29,16 @@ public sealed class InMemoryEventStore : IEventStore
             if (count++ >= limit) yield break;
             yield return e;
         }
-        await Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<PersistedEvent> EntityChainAsync(EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var window = Snapshot(entity.ScopeId, null);
-        foreach (var e in window)
+        foreach (var e in Snapshot(entity.ScopeId, null))
         {
             ct.ThrowIfCancellationRequested();
-            if (string.Equals(e.Event.Entity.EntityType, entity.EntityType, StringComparison.Ordinal))
-                yield return e;
+            if (!e.Event.Entity.Matches(entity)) continue;
+            yield return e;
         }
-        await Task.CompletedTask;
     }
 
     private IReadOnlyList<PersistedEvent> Snapshot(string scopeId, long? afterSeq)

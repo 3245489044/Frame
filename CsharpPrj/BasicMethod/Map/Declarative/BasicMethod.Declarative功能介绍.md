@@ -423,7 +423,43 @@ graph TD
     root --> Resolvers[Resolvers/]
     Resolvers --> DeclarationResolver.cs
     Resolvers --> DeclarationValidator.cs
+
+    root --> Spec[Spec/]
+    Spec --> ParameterModel.cs
+    Spec --> ParameterState.cs
+    Spec --> SemanticVocabulary.cs
+    Spec --> SemanticClassRules.cs
+
+    root --> Graph[Graph/]
+    Graph --> DecisionLayer.cs
+    Graph --> DecisionGraph.cs
 ```
+
+## 声明原子扩展（Spec / Graph）
+
+> 2026-09-17 自 `Strategy.DecisionRules` 上移的纯声明原子（零外部依赖，仅 BCL）。
+> 判据：结构只描述"是什么"（轴/词元/规则/图），不含 IO、不含领域词汇。
+
+| 类型族 | 能力 | 语义 |
+|--------|------|------|
+| `ParameterSchema` / `ParameterSpec` / `ParameterKind` / `AxisRole` | 轴空间声明 | 轴 = (role, kind, domain)；强制位 `IsForced`（确定性核心写路径单一）、闩锁位 `IsLatched`（吸收律：单调不降） |
+| `ParameterState` / `ParameterWrite` / `ParameterWriteSource` | 声明驱动状态演进 | 不可变快照；`Engine` / `Reduce` / `Policy` 写来源分域，越权写强制位被拒并计入 `rejected` |
+| `SemanticTerm` / `SemanticVocabulary` | 有限语义正交基 | 轴 → 词元集单一真源；one-hot 完备基，`Sample(Embed(x)) = x` |
+| `SemanticClassRules` | 声明 → 判别向量编译 | 必需词元 AND 命中 ⇔ 得分 ≥ 0.5（`bias = -(n-0.5)`）；互斥裁决按「显式优先级 → 注册序」 |
+| `DecisionLayer` / `LayerRule` / `CrossFeature` | 分层规则声明 | 面内互斥规则 + 终值吸收标签集；跨轴关联一处声明、多面共享 |
+| `DecisionGraph` | 轴编排 DAG 求值 | 依赖拓扑求值 + 吸收短路剪枝 + 按「消费证据指纹」的增量重算 |
+
+```csharp
+var vocab = new SemanticVocabulary(new Dictionary<string, IReadOnlyList<string>>
+{
+    ["eval"] = new[] { "pass", "partial", "fail" },
+    ["produced"] = new[] { "yes", "no" },
+});
+var rules = new SemanticClassRules(vocab).WhenAllOf("fail_prod", new("eval", "fail"), new("produced", "yes"));
+var label = rules.ClassifyExclusive(new[] { new SemanticTerm("eval", "fail"), new SemanticTerm("produced", "yes") });
+```
+
+---
 
 ## 与现有代码的对应关系
 

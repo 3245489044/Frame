@@ -79,20 +79,8 @@ public sealed class ObservationOutcome
     /// <summary>字段文本化（不变量格式；null → null）。</summary>
     public string? Text(string name) => TextOf(Field(name));
 
-    /// <summary>不变量文本化（null → null；bool → True/False；数值 → 不变量）。</summary>
-    public static string? TextOf(object? value)
-        => value switch
-        {
-            null => null,
-            string s => s,
-            bool b => b ? "True" : "False",
-            JsonElement element => element.ValueKind == JsonValueKind.Null ? null : element.ToString(),
-            double d => d.ToString(CultureInfo.InvariantCulture),
-            float f => f.ToString(CultureInfo.InvariantCulture),
-            decimal m => m.ToString(CultureInfo.InvariantCulture),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString(),
-        };
+    /// <summary>不变量文本化（null → null；bool → True/False；数值 → 不变量；JSON 按值语义）——单源 = <see cref="Ports.PortValues.TextInvariant"/>。</summary>
+    public static string? TextOf(object? value) => Ports.PortValues.TextInvariant(value);
 
     /// <summary>载荷 JSON → 字段表（非对象载荷归入 <c>value</c> 键；解析失败 → 空表）。</summary>
     private static IReadOnlyDictionary<string, object?> Flatten(string? payloadJson)

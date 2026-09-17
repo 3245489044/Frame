@@ -13,6 +13,15 @@ public readonly record struct EntityId(string ScopeId, string EntityType, int Se
     public static EntityId Derive(string parentScopeId, string suffix, string entityType, int seq)
         => new($"{parentScopeId}{suffix}", entityType, seq);
 
+    /// <summary>
+    /// 同一实体判定（三元全等）：<c>ScopeId</c>（分区）+ <c>EntityType</c>（族）+ <c>Seq</c>（同族实例）。
+    /// 事件区实体链查询的唯一判据（禁只比 ScopeId+EntityType 而使 Seq 静默失效）。
+    /// </summary>
+    public bool Matches(EntityId other)
+        => Seq == other.Seq
+           && string.Equals(ScopeId, other.ScopeId, StringComparison.Ordinal)
+           && string.Equals(EntityType, other.EntityType, StringComparison.Ordinal);
+
     public override string ToString() => Key;
 }
 

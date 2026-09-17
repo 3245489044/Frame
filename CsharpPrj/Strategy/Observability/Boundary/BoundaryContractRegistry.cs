@@ -22,6 +22,9 @@ public interface IBoundaryContractRegistry
 
     bool IsRegistered(string key);
 
+    /// <summary>按键注销（登记失败补偿用；不存在返回 false）。</summary>
+    bool TryRemove(string key);
+
     /// <summary>全部契约（按键 Ordinal 升序，保证确定性）。</summary>
     IReadOnlyList<BoundaryContract> Contracts { get; }
 
@@ -67,6 +70,8 @@ public sealed class BoundaryContractRegistry : IBoundaryContractRegistry
         => _byKey.TryGetValue(key, out contract!);
 
     public bool IsRegistered(string key) => _byKey.ContainsKey(key);
+
+    public bool TryRemove(string key) => _byKey.TryRemove(key, out _);
 
     public IReadOnlyList<BoundaryContract> Contracts
         => _byKey.Values.OrderBy(c => c.Key, StringComparer.Ordinal).ToArray();

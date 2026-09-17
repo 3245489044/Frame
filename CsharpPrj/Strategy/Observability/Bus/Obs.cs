@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Strategy.Observability.Envelope;
 using Strategy.Observability.Entity;
 
@@ -49,7 +50,8 @@ public static class Obs
 
 /// <summary>
 /// 活动句柄：记录开始时间，结束时补发完成事件（含 elapsed_ms），并产成类型化 <see cref="ObservationResult"/>。
-/// 幂等：Complete（成功）/ Fail（失败）先到先得，Dispose 默认按成功终结。
+/// 幂等：Complete（成功）/ Fail（失败）先到先得；Dispose 只在尚未终结时按失败兜底
+/// （避免 using 体内异常路径被记成成功，见 <see cref="Dispose"/>）。
 /// 完成事件的投递结果经 <see cref="Delivery"/> 回读（契约未注册/校验失败在 Complete/Fail 时抛错）。
 /// </summary>
 public sealed class Activity : IDisposable
@@ -58,7 +60,8 @@ public sealed class Activity : IDisposable
     private readonly EntityId _entity;
     private readonly string _completionKind;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private int _ended;
+    private readonly object _gate = new();
+    private bool _ended;
 
     public Activity(IObservabilityBus bus, EntityId entity, string startKind, string? completionKind = null)
     {
@@ -75,48 +78,49 @@ public sealed class Activity : IDisposable
 
     /// <summary>正常完成（幂等）：补发完成事件 stage=completed + elapsed_ms，产成 Succeeded 结果。</summary>
     public EmitResult Complete(Action<ObservabilityEventBuilder>? complete = null)
-    {
-        if (!TryEnd(out var elapsed))
-            return Delivery ?? new EmitResult(0, _completionKind);
-
-        var emit = _bus.Emit(_entity, _completionKind, b =>
+        => End(ObservationStatus.Succeeded, reason: null, build: (b, elapsedMs) =>
         {
-            b.Stage("completed").WithMetric("elapsed_ms", elapsed);
+            b.Stage("completed").WithMetric("elapsed_ms", elapsedMs);
             complete?.Invoke(b);
         });
-        Delivery = emit;
-        Result = new ObservationResult(ObservationStatus.Succeeded, _completionKind, elapsed, null);
-        return emit;
-    }
 
     /// <summary>失败结束（幂等）：补发完成事件 stage=failed + failed 载荷，产成 Failed 结果。</summary>
     public EmitResult Fail(string? reason = null)
-    {
-        if (!TryEnd(out var elapsed))
-            return Delivery ?? new EmitResult(0, _completionKind);
+        => End(ObservationStatus.Failed, reason, build: (b, elapsedMs) => b
+            .Stage("failed")
+            .WithMetric("elapsed_ms", elapsedMs)
+            .Payload(reason is null ? new { failed = true } : new { failed = true, reason }));
 
-        var emit = _bus.Emit(_entity, _completionKind, b =>
-        {
-            b.Stage("failed").WithMetric("elapsed_ms", elapsed)
-                .Payload(reason is null ? new { failed = true } : new { failed = true, reason });
-        });
-        Delivery = emit;
-        Result = new ObservationResult(ObservationStatus.Failed, _completionKind, elapsed, reason);
-        return emit;
+    /// <summary>
+    /// using 兜底终结：无异常在途 → 按成功补完成事件（轮末 Dispose 即语义，见 <c>AgentTrace.Round</c>）；
+    /// 异常在途 → 按失败终结（不把 using 体内的异常记成成功帧）。
+    /// </summary>
+    public void Dispose()
+    {
+        if (Unwinding) Fail("活动未显式终结即因异常退出（Dispose 兜底）");
+        else Complete();
     }
 
-    public void Dispose() => Complete();
+    /// <summary>是否有异常正在展开（Windows SEH；判定不可用时返回 false = 沿用正常完成语义）。</summary>
+    private static bool Unwinding => Marshal.GetExceptionPointers() != IntPtr.Zero;
 
-    /// <summary>幂等终结闸：首次调用停表并返回 true + 耗时；重复调用返回 false。</summary>
-    private bool TryEnd(out double elapsed)
+    /// <summary>
+    /// 终结闸（幂等，先到先得）：终态事件投递成功后落定 <see cref="Delivery"/> / <see cref="Result"/>；
+    /// 投递抛错则不落定（活动保持未终结，供调用方重试 / 显式终结）。
+    /// </summary>
+    private EmitResult End(ObservationStatus status, string? reason, Action<ObservabilityEventBuilder, double> build)
     {
-        if (Interlocked.Exchange(ref _ended, 1) != 0)
+        lock (_gate)
         {
-            elapsed = 0;
-            return false;
+            if (_ended) return Delivery!;
+            _clock.Stop();
+
+            var elapsedMs = _clock.Elapsed.TotalMilliseconds;
+            var emit = _bus.Emit(_entity, _completionKind, b => build(b, elapsedMs));
+            Delivery = emit;
+            Result = new ObservationResult(status, _completionKind, elapsedMs, reason);
+            _ended = true;
+            return emit;
         }
-        _clock.Stop();
-        elapsed = _clock.Elapsed.TotalMilliseconds;
-        return true;
     }
 }

@@ -23,6 +23,7 @@
 | 优先级选择（Priority 降序） | **对齐底座** `RuleBasedDecisionEngine` 语义 | `SelectBest`（declared 模式，`⟨Priority,Specificity,Order⟩`） |
 | 多引擎/多规则集组合 | **复用底座** `CompositeDecisionEngine` | `RuleSetDecisionEngine` 适配器 |
 | 声明式规则模型（when/then） | **扩充**（底座仅命令式） | 模型层 |
+| 轴/参数态/语义词元/分层决策图 声明原子 | **下沉**通用框架 `BasicMethod.Map.Declarative`（`Spec/`+`Graph/`，零外部依赖） | `BasicMethod.Declarative.Spec` / `.Graph` |
 | 匹配策略（10 种 + 注册表） | **扩充** | 匹配层 |
 | 输出策略（6 种 + 注册表） | **扩充** | 输出层 |
 | 加载 / 校验 / 审计 / 热重载 | **扩充** | 加载校验层 |

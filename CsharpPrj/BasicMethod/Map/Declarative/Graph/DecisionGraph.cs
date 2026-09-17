@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BasicMethod.Declarative.Spec;
 
-namespace Strategy.DecisionRules
+namespace BasicMethod.Declarative.Graph
 {
     /// <summary>一次决策图求值的单层产出。</summary>
     public sealed record DecisionRunEntry(
@@ -32,12 +33,12 @@ namespace Strategy.DecisionRules
     }
 
     /// <summary>
-    /// 决策图求值器（P-A 原型）——把多个 <see cref="DecisionLayer"/> 排成一张<b>按轴编排的有向无环图</b>：
+    /// 决策图求值器 ——把多个 <see cref="DecisionLayer"/> 排成一张<b>按轴编排的有向无环图</b>：
     /// <list type="number">
     /// <item><b>feed-forward（一次嵌入、逐层恰好算一次）</b>：层按依赖拓扑求值；某层产出 (OutputAxis,label) 词元即写入激活集，
-    ///       下游层可把它当输入轴引用（R3 输出轴层间回引；同一激活集被多面共享 = R2 共享证据）。</item>
-    /// <item><b>短路剪枝</b>：某层命中吸收标签（TerminalLabels，Law A 语义）→ 其传递下游层被跳过、不再求值
-    ///       （如 terminal→TM 后 route 不再激活 —— 对齐 TerminationPriority 传播截止）。</item>
+    ///       下游层可把它当输入轴引用（输出轴层间回引；同一激活集被多面共享 = 共享证据）。</item>
+    /// <item><b>短路剪枝</b>：某层命中吸收标签（<see cref="DecisionLayer.TerminalLabels"/>，定律 A 语义）→ 其传递下游层被跳过、不再求值
+    ///       （吸收即传播截止）。</item>
     /// <item><b>增量 dirty 传播</b>：层按"消费证据指纹"记忆缓存；仅当某层消费的证据变化（上游产出或输入轴变）才重算，
     ///       未受影响层复用缓存（跨调用只重算受影响下游）。</item>
     /// </list>
@@ -125,7 +126,7 @@ namespace Strategy.DecisionRules
                     var cached = ToTerm(layer, _cachedLabel[layer.Name]);
                     // 缓存的产出若是吸收标签，仍须传播吸收（其下游可能未缓存）
                     if (_cachedLabel[layer.Name] is { } lab && layer.IsAbsorbing(lab)) absorbedNow.Add(layer.Name);
-                    if (cached is { } c) active.Add(c); // 复用的产出词元同样写入激活集 → 下游可见（R3）
+                    if (cached is { } c) active.Add(c); // 复用的产出词元同样写入激活集 → 下游可见
                     entries.Add(new DecisionRunEntry(layer, cached, Array.Empty<LayerRule>(), Recomputed: false, Skipped: false));
                     continue; // 消费证据未变 → 复用缓存（增量，不重算）
                 }
@@ -139,8 +140,8 @@ namespace Strategy.DecisionRules
                 _cachedFingerprint[layer.Name] = fp;
 
                 SemanticTerm? term = label is null ? null : new SemanticTerm(layer.OutputAxis, label);
-                if (term is { } t) active.Add(t); // 输出轴词元写入激活集 → 下游可见（R3）
-                if (label is not null && layer.IsAbsorbing(label)) absorbedNow.Add(layer.Name); // Law A 吸收
+                if (term is { } t) active.Add(t); // 输出轴词元写入激活集 → 下游可见
+                if (label is not null && layer.IsAbsorbing(label)) absorbedNow.Add(layer.Name); // 定律 A 吸收
 
                 entries.Add(new DecisionRunEntry(layer, term, hits, Recomputed: true, Skipped: false));
             }

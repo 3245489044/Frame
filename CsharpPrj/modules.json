@@ -99,6 +99,7 @@
     "DataManage": "Plate\\DataManage\\DataManage.csproj",
     "DataManage.PathManager": "Plate\\DataManage\\DataManage.PathManager\\DataManage.PathManager.csproj",
     "DslMethod": "Plate\\DslMethod\\DslMethod.csproj",
+    "StructuralWalk": "Plate\\StructuralWalk\\StructuralWalk.csproj",
     "HtmlViewer": "Plate\\HtmlViewer\\HtmlViewer.csproj",
     "HttpMethod.Host": "Plate\\HttpMethod\\HttpMethod.Host.csproj",
     "HttpMethod.Transport": "Plate\\HttpMethod\\HttpMethod.Transport.csproj",

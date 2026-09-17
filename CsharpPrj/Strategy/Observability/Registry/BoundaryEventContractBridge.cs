@@ -36,9 +36,27 @@ public static class BoundaryEventContractBridge
     {
         ArgumentNullException.ThrowIfNull(contract);
 
-        var fields = contract.Required.Select(name => new FieldSpec(name, FieldTypes.Any)).ToList();
+        // required 与 enum 同名 = 同一字段（enum 是字段属性，非第二个字段）→ 按名并集；
+        // 口径与标准投影（BoundaryContractProjection.Event）一致，禁重复声明（否则边界注册表按重复字段名 fail-fast）。
+        var fields = new List<FieldSpec>();
+        var index = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var name in contract.Required)
+        {
+            index[name] = fields.Count;
+            fields.Add(new FieldSpec(name, FieldTypes.Any));
+        }
+
         foreach (var (name, allowed) in contract.Enums)
+        {
+            if (index.TryGetValue(name, out var at))
+            {
+                fields[at] = fields[at] with { Enum = allowed };
+                continue;
+            }
+
+            index[name] = fields.Count;
             fields.Add(new FieldSpec(name, FieldTypes.String, Required: false, Enum: allowed));
+        }
 
         return BoundaryContract.Event(
             contract.EventKind,

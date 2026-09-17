@@ -9,6 +9,7 @@
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="基础引擎 = BasicMethod.DecisionEngine：复用其 ConditionEvaluator(条件求值) / RuleBasedDecisionEngine(优先级选择) / CompositeDecisionEngine(引擎组合)，不重写底座" />
+    <ModuleRule_Rule Include="声明式框架 = BasicMethod.Map.Declarative：参数坐标系/语义词元/分层决策图 等声明原子（零外部依赖）归此，本层只做决策域的计算与编排" />
     <ModuleRule_Rule Include="基础引擎覆盖不了的逻辑（声明式模型 / 匹配策略 / 输出策略 / 加载校验审计热重载 / 模板渲染）在本层扩充" />
     <ModuleRule_Rule Include="JSON 统一经 Plate.JsonMethod（JsonPathHelper/TemplateFormatter/JsonValidationService）" />
     <ModuleRule_Rule Include="引擎 LLM-free：不引用 LlmMessage/LlmResult 等 LLM 契约，结果经 RuleContext/DecisionRuleResult 消费方适配" />
@@ -31,6 +32,8 @@
   <ItemGroup>
     <!-- 底座：基础决策引擎（零依赖），复用其条件求值 / 优先级选择 / 引擎组合 -->
     <ProjectReference Include="$(BasicMethodRoot)DecisionEngine\DecisionEngine.csproj" />
+    <!-- 声明式框架（BasicMethod.Map.Declarative）：参数坐标系/语义词元/分层决策图 等声明原子归此（零外部依赖） -->
+    <ProjectReference Include="$(Proj_Declarative)" />
     <!-- 扩充依赖：平台级统一 JSON 框架（jsonPath 匹配 / 占位符渲染 / 规则文件校验），不污染底座 -->
     <ProjectReference Include="$(PlateDir)JsonMethod\JsonMethod.csproj" />
   </ItemGroup>

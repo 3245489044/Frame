@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用结构遍历骨架</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>零依赖结构遍历骨架（收敛治理型）：把「对象树 / 对象图的递归下钻」收敛到一处实现——前序访问 + 显式栈（免栈溢出）+ 深度上限（截断可见化）+ 引用环去重（防自引用图死循环）+ 声明序保序（诊断定位依赖声明序）。消费方以 getChildren 函数式描述子节点（语义契约沿用 Framework.Tree.TreeWalker，不引其二进制）。</ModuleRule_Description>
+    <ModuleRule_Keywords>结构遍历;递归;前序;深度上限;环去重;零依赖;收敛治理</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零 ProjectReference 为硬约束：消费方（如只引纯契约的标准层）不得经本工程拖入任何外部依赖链" />
+    <ModuleRule_Rule Include="只承载遍历算法，不含任何领域类型：节点与子节点由消费方以泛型 + getChildren 提供" />
+    <ModuleRule_Rule Include="遍历序 = 前序（父先于子）且同级保序（按 getChildren 返回序）——诊断定位依赖声明序，禁改序" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要下钻对象树 / 对象图并对每个节点做同一件事时，使用 StructuralWalk.Visit（勿各写一份递归）" />
+    <ModuleRule_Prompt Include="当需要按子树收集节点或查找首个命中时，使用 StructuralWalk.Collect / FindFirst" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Declarative.StructuralWalk</RootNamespace>
+    <AssemblyName>BasicMethod.Declarative.StructuralWalk</AssemblyName>
+    <Description>通用结构遍历骨架 —— 前序下钻 / 显式栈 / 深度上限 / 环去重；零 ProjectReference（仅 BCL）</Description>
+  </PropertyGroup>
+
+  <!-- 零 ProjectReference 为硬约束：消费方（如只引纯契约的标准层）不得经本工程拖入任何外部依赖链。 -->
+
+</Project>

@@ -62,7 +62,17 @@ public sealed class PortCatalog : IPortCatalog
 
         if (!_handles.TryAdd(contract.Key, new PortHandle(contract, Decorate(contract.Key, binding)))) return false;
 
-        _contracts?.TryRegister(contract);
+        try
+        {
+            _contracts?.TryRegister(contract);
+        }
+        catch
+        {
+            // 契约面登记失败（校验不通过）→ 与 Register 同补偿：回滚句柄，不留“有句柄无契约”的悬挂态。
+            _handles.TryRemove(contract.Key, out _);
+            throw;
+        }
+
         return true;
     }
 

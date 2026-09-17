@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strategy.DecisionRules
+namespace BasicMethod.Declarative.Spec
 {
     /// <summary>
     /// 语义规则到线性判别向量的编译器。语义以"可读规则"声明（决策 C 需要词元集 AND 命中），
@@ -12,7 +12,7 @@ namespace Strategy.DecisionRules
     /// </summary>
     /// <remarks>
     /// 复合矩阵运算基础定律 D（字典序优先 / 显式支配）：互斥裁决的胜出由<b>显式优先级</b>（数值越小越优先）决定，
-    /// 而非注册顺序的副作用。默认优先级 = 注册序（向后兼容）；主控/终值类（如 halt→TM、progress触顶→TO、intent_fail）
+    /// 而非注册顺序的副作用。默认优先级 = 注册序（向后兼容）；主控/终值类
     /// 应显式给更低优先级值，使其即使与从属类同时命中也能确定胜出 —— 杜绝"装配偶然决定语义 / 注册序误支配"。
     /// </remarks>
     public sealed class SemanticClassRules

@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strategy.DecisionRules
+namespace BasicMethod.Declarative.Spec
 {
     /// <summary>
     /// 语义词元：一个"域(轴) × 取值"。命名承载语义（如 Axis=eval, Term=pass），是人话与向量之间的锚点。
-    /// 轴的概念对齐 clinerules axioms（轴 = 正交独立关注面；词元 = 该轴上的可判定取值，如 eval∈{pass,partial,fail}）。
+    /// 轴 = 正交独立关注面；词元 = 该轴上的可判定取值。
     /// </summary>
     public readonly record struct SemanticTerm(string Axis, string Term)
     {

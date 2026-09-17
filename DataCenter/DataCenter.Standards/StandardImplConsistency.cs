@@ -58,7 +58,7 @@ public static class StandardImplConsistency
     {
         if (impl is null) return;
 
-        WalkValueSources(impl, source =>
+        StandardNodeWalk.VisitValueSources(impl, source =>
         {
             var from = source.From;
             if (string.IsNullOrWhiteSpace(from)) return;
@@ -128,7 +128,7 @@ public static class StandardImplConsistency
     {
         if (impl is null || !string.Equals(impl.Kind, "scripted", StringComparison.Ordinal)) return;
 
-        WalkSteps(impl, step =>
+        StandardNodeWalk.VisitSteps(impl, step =>
         {
             var forms = 0;
             if (step.New is not null) forms++;
@@ -137,11 +137,8 @@ public static class StandardImplConsistency
 
             if (forms > 1)
                 violations.Add($"C10 端口[{port.Key}] 的脚本步骤形态不止一个（new/invoke/foreach 出现了 {forms} 个），须恰一");
-        });
 
-        WalkForeaches(impl, foreachStep =>
-        {
-            if (foreachStep.Do is null || foreachStep.Do.Count == 0)
+            if (step.Foreach is { } foreachStep && (foreachStep.Do is null || foreachStep.Do.Count == 0))
                 violations.Add($"C10 端口[{port.Key}] 的 foreach 步骤缺 do（遍历体不得为空）");
         });
     }
@@ -169,7 +166,7 @@ public static class StandardImplConsistency
         var scopes = new HashSet<string>(StringComparer.Ordinal);
         CollectScopeNames(impl, scopes);
 
-        WalkValueSources(impl, source =>
+        StandardNodeWalk.VisitValueSources(impl, source =>
         {
             if (source.From is not ("tmpPath" or "tmpDir")) return;
 
@@ -253,176 +250,7 @@ public static class StandardImplConsistency
 
     // ---------------------------------------------------------------- 递归下钻
 
-    /// <summary>递归访问 impl 下全部 <see cref="ValueSourceStandard"/>（含场景主体），供 C8/C11。</summary>
-    private static void WalkValueSources(PortImplStandard impl, Action<ValueSourceStandard> visit)
-    {
-        foreach (var bind in (impl.Binds ?? new Dictionary<string, ValueSourceStandard>()).Values) WalkValueSource(bind, visit);
-        foreach (var dep in impl.Deps ?? []) foreach (var arg in dep.Args ?? []) WalkValueSource(AsValueSource(arg), visit);
-        foreach (var call in impl.Calls ?? []) foreach (var arg in call.Args ?? []) WalkValueSource(AsValueSource(arg), visit);
-        foreach (var step in impl.Script ?? []) WalkStep(step, visit);
-        foreach (var scope in impl.Scopes ?? []) WalkScope(scope, visit);
-        if (impl.Deliver is { } deliver) WalkDeliver(deliver, visit);
-        foreach (var scenario in (impl.Scenarios?.Cases ?? new Dictionary<string, ScenarioBodyStandard>()).Values)
-            WalkScenario(scenario, visit);
-    }
-
-    /// <summary>递归访问全部脚本步骤（含场景/折叠/委托体内），供 C10。</summary>
-    private static void WalkSteps(PortImplStandard impl, Action<StepStandard> visit)
-    {
-        foreach (var step in impl.Script ?? []) WalkStep(step, visit);
-        foreach (var scope in impl.Scopes ?? [])
-        {
-            foreach (var open in scope.Open ?? []) WalkStep(open, visit);
-            foreach (var close in scope.Close ?? []) WalkStep(close, visit);
-        }
-        if (impl.Deliver is { } deliver)
-        {
-            foreach (var deferred in deliver.DeferSteps ?? []) WalkStep(deferred, visit);
-            // capture 是载体元声明（含 Call 但不属主脚本步骤），step 遍历不进入
-        }
-        foreach (var scenario in (impl.Scenarios?.Cases ?? new Dictionary<string, ScenarioBodyStandard>()).Values)
-            WalkScenarioSteps(scenario, visit);
-    }
-
-    /// <summary>递归访问全部 foreach 步骤，供 C10。</summary>
-    private static void WalkForeaches(PortImplStandard impl, Action<ForeachStandard> visit)
-    {
-        WalkSteps(impl, step =>
-        {
-            if (step.Foreach is { } foreachStep) visit(foreachStep);
-        });
-    }
-
-    /// <summary>步骤递归（step 访问版）：下钻嵌套步骤（foreach.do / 委托体内 / 场景 / 裁剪），对每个步骤回调。</summary>
-    private static void WalkStep(StepStandard step, Action<StepStandard> visit)
-    {
-        visit(step);
-        if (step.Foreach is { } foreachStep)
-            foreach (var body in foreachStep.Do ?? []) WalkStep(body, visit);
-    }
-
-    /// <summary>步骤递归（值源访问版）：下钻全部取值来源（含嵌套步骤体内、委实体、场景）。</summary>
-    private static void WalkStep(StepStandard step, Action<ValueSourceStandard> visit)
-    {
-        if (step.When is { } when) WalkExpr(when, visit);
-        if (step.New is { } newStep) WalkNew(newStep, visit);
-        if (step.Invoke is { } invoke) WalkInvoke(invoke, visit);
-        if (step.Foreach is { } foreachStep)
-        {
-            if (foreachStep.Items is { } items) WalkExpr(items, visit);
-            if (foreachStep.Where is { } where) WalkExpr(where, visit);
-            foreach (var body in foreachStep.Do ?? []) WalkStep(body, visit);
-        }
-    }
-
-    private static void WalkNew(NewStandard newStep, Action<ValueSourceStandard> visit)
-    {
-        foreach (var arg in newStep.Args ?? []) WalkValueSource(arg, visit);
-        foreach (var chain in newStep.Chain ?? []) foreach (var arg in chain.Args ?? []) WalkValueSource(arg, visit);
-        foreach (var init in newStep.Init ?? []) if (init.Value is { } value) WalkValueSource(value, visit);
-    }
-
-    private static void WalkInvoke(InvokeStandard invoke, Action<ValueSourceStandard> visit)
-    {
-        foreach (var arg in invoke.Args ?? []) WalkValueSource(arg, visit);
-        if (invoke.Value is { } value) WalkValueSource(value, visit);
-    }
-
-    private static void WalkScope(ScopeStandard scope, Action<ValueSourceStandard> visit)
-    {
-        if (scope.Invoke is { } invoke) WalkInvoke(invoke, visit);
-        foreach (var file in scope.Files ?? [])
-        {
-            if (file.From is { } from) WalkValueSource(from, visit);
-            if (file.Content is { } content) WalkExpr(content, visit);
-        }
-        foreach (var open in scope.Open ?? []) WalkStep(open, visit);
-        foreach (var close in scope.Close ?? []) WalkStep(close, visit);
-    }
-
-    private static void WalkDeliver(DeliverStandard deliver, Action<ValueSourceStandard> visit)
-    {
-        if (deliver.Value is { } value) WalkExpr(value, visit);
-        foreach (var deferred in deliver.DeferSteps ?? []) WalkStep(deferred, visit);
-        if (deliver.Capture is { } capture)
-        {
-            if (capture.Call is { } call) WalkInvoke(call, visit);
-            if (capture.When is { } when) WalkExpr(when, visit);
-        }
-    }
-
-    private static void WalkScenario(ScenarioBodyStandard body, Action<ValueSourceStandard> visit)
-    {
-        foreach (var bind in (body.Binds ?? new Dictionary<string, ValueSourceStandard>()).Values) WalkValueSource(bind, visit);
-        foreach (var dep in body.Deps ?? []) foreach (var arg in dep.Args ?? []) WalkValueSource(AsValueSource(arg), visit);
-        foreach (var step in body.Script ?? []) WalkStep(step, visit);
-        foreach (var scope in body.Scopes ?? []) WalkScope(scope, visit);
-        if (body.Deliver is { } deliver) WalkDeliver(deliver, visit);
-    }
-
-    /// <summary>场景主体内的步骤（step 访问版），供 C10。</summary>
-    private static void WalkScenarioSteps(ScenarioBodyStandard body, Action<StepStandard> visit)
-    {
-        foreach (var step in body.Script ?? []) WalkStep(step, visit);
-        foreach (var scope in body.Scopes ?? [])
-        {
-            foreach (var open in scope.Open ?? []) WalkStep(open, visit);
-            foreach (var close in scope.Close ?? []) WalkStep(close, visit);
-        }
-        if (body.Deliver is { } deliver)
-        {
-            foreach (var deferred in deliver.DeferSteps ?? []) WalkStep(deferred, visit);
-        }
-    }
-
-    private static void WalkExpr(ExprStandard expr, Action<ValueSourceStandard> visit)
-    {
-        if (expr.Source is { } source) WalkValueSource(source, visit);
-        Walk(expr.Count, visit); Walk(expr.NotNull, visit); Walk(expr.AsText, visit); Walk(expr.TypeName, visit);
-        Walk(expr.Message, visit); Walk(expr.Thrown, visit); Walk(expr.Contains, visit); Walk(expr.Of, visit);
-        Walk(expr.All, visit); Walk(expr.Any, visit); Walk(expr.AllIn, visit); Walk(expr.Spread, visit);
-        Walk(expr.IsNull, visit); Walk(expr.Not, visit); Walk(expr.First, visit); Walk(expr.FirstWhere, visit);
-        Walk(expr.Agg, visit); Walk(expr.Filter, visit); Walk(expr.FilterWhere, visit); Walk(expr.Dict, visit);
-        Walk(expr.DictKey, visit); Walk(expr.DictValue, visit); Walk(expr.DictWhere, visit); Walk(expr.Last, visit);
-        Walk(expr.LastWhere, visit); Walk(expr.Distinct, visit);
-        foreach (var e in expr.Concat ?? []) Walk(e, visit);
-        foreach (var e in expr.CountEqual ?? []) Walk(e, visit);
-        foreach (var e in expr.Eq ?? []) Walk(e, visit);
-        foreach (var e in expr.Ne ?? []) Walk(e, visit);
-        foreach (var e in expr.Gt ?? []) Walk(e, visit);
-        foreach (var e in expr.Ge ?? []) Walk(e, visit);
-        foreach (var e in expr.Lt ?? []) Walk(e, visit);
-        foreach (var e in expr.Le ?? []) Walk(e, visit);
-        foreach (var e in expr.AllOf ?? []) Walk(e, visit);
-        foreach (var e in expr.AnyOf ?? []) Walk(e, visit);
-        foreach (var e in expr.SameReference ?? []) Walk(e, visit);
-        foreach (var e in expr.Coalesce ?? []) Walk(e, visit);
-        foreach (var e in expr.SequenceEqual ?? []) Walk(e, visit);
-        foreach (var part in expr.Parts ?? []) { Walk(part.Expr, visit); if (part.When is { } when) Walk(when, visit); }
-        if (expr.Invoke is { } invoke) WalkInvoke(invoke, visit);
-        if (expr.FoldInit is { } foldInit) WalkValueSource(foldInit, visit);
-        if (expr.FoldStep is { } foldStep) foreach (var arg in foldStep.Args ?? []) WalkValueSource(arg, visit);
-
-        void Walk(ExprStandard? e, Action<ValueSourceStandard> v)
-        {
-            if (e is not null) WalkExpr(e, v);
-        }
-    }
-
-    private static void WalkValueSource(ValueSourceStandard source, Action<ValueSourceStandard> visit)
-    {
-        visit(source);
-        if (source.Rows is { } rows) WalkValueSource(rows, visit);
-        if (source.Items is { } items) WalkValueSource(items, visit);
-        if (source.RowValue is { } rowValue) WalkExpr(rowValue, visit);
-        if (source.Filter is { } filter) WalkExpr(filter, visit);
-        if (source.Construct is { } construct) WalkNew(construct, visit);
-        if (source.Delegate is { } delegateSpec) foreach (var step in delegateSpec.Steps ?? []) WalkStep(step, visit);
-    }
-
-    /// <summary>组合族实参暂时以取值来源形态参与遍历（只取 C8 关心的 <c>Dep</c> 伴生字段——组合实参无 <c>from</c>，故实际不触发 C8）。</summary>
-    private static ValueSourceStandard AsValueSource(ComposedArgStandard arg)
-        => new(Dep: arg.Dep, Index: arg.ArgIndex, Key: arg.Key);
+    // 唯一「父→子」规则与遍历入口 = StandardNodeWalk（契约层子槽表 + 零依赖遍历骨架）；本件只留判据体。
 
     /// <summary>汇总端口级 + 场景级作用域名（<c>scopes[].as</c>）。</summary>
     private static void CollectScopeNames(PortImplStandard impl, HashSet<string> scopes)

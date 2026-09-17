@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strategy.DecisionRules
+namespace BasicMethod.Declarative.Spec
 {
     /// <summary>
-    /// 参数写来源（写路径分域，对齐 clinerules SEP.DeterministicCoreDisjoint：确定性核心写路径单一）：
+    /// 参数写来源（写路径分域，实现「确定性核心写路径单一」）：
     /// <list type="bullet">
     /// <item><see cref="Engine"/>：引擎确定性写（唯一被允许触碰 <see cref="ParameterSpec.IsForced"/> 分量的来源）。</item>
     /// <item><see cref="Reduce"/>：① 变量→参数 归约写（语义输入落位；禁止写强制分量）。</item>
-    /// <item><see cref="Policy"/>：外部策略供给写（LLM/Config/导演的提议；禁止写强制分量）。</item>
+    /// <item><see cref="Policy"/>：外部策略供给写（LLM/Config 的提议；禁止写强制分量）。</item>
     /// </list>
     /// </summary>
     public enum ParameterWriteSource
@@ -29,7 +29,7 @@ namespace Strategy.DecisionRules
 
     /// <summary>
     /// 参数态：不可变快照（<c>IReadOnlyDictionary&lt;string,double&gt;</c>），所有分量以 <see cref="double"/> 数值承载。
-    /// 演进不就地改本对象，而是经 <see cref="Apply"/> 派生新态 —— 每步留痕，天然支持闭环轨迹回溯与 InformationMonotonicity。
+    /// 演进不就地改本对象，而是经 <see cref="Apply"/> 派生新态 —— 每步留痕，天然支持闭环轨迹回溯与信息单调性。
     /// </summary>
     public sealed class ParameterState
     {

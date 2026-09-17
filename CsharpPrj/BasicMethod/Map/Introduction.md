@@ -500,6 +500,13 @@ flowchart TB
 | `IDeclarativeMapper<TDeclaration, TRuntime>` | 声明→运行时映射器 |
 | `DeclarationValidator<T>` | 声明验证器 |
 | `DeclarationResult` | 声明执行结果 |
+| `ParameterSchema` / `ParameterSpec` | 参数坐标系声明（轴 = role + 值域 + 强制/闩锁位） |
+| `ParameterState` / `ParameterWrite` | 参数态快照与写来源分域守卫（越权写强制位被拒） |
+| `SemanticVocabulary` / `SemanticTerm` | 有限词元表 + one-hot 正交基（embed/sample 双射） |
+| `SemanticClassRules` | 声明规则 → 线性判别向量编译（AND 阈值门 + 显式优先级） |
+| `DecisionGraph` / `DecisionLayer` / `LayerRule` | 轴编排 DAG：拓扑求值 + 吸收短路 + 增量重算 |
+
+> 子目录：`Spec/`（轴/参数态/语义词元声明）、`Graph/`（分层规则图），与既有 `Abstractions/Constraints/Relations/Mappers/Resolvers` 并列。
 
 ---
 
@@ -578,13 +585,15 @@ CsharpPrj/BasicMethod/Map/
 │   ├── Behaviors/         # 弹性策略行为
 │   ├── Decorators/        # 装饰器实现
 │   └── Extensions/        # 扩展方法
-├── Declarative/           # 声明式框架（21 文件）
+├── Declarative/           # 声明式框架（27 文件）
 │   ├── Interfaces.cs      # 核心接口
 │   ├── Abstractions/      # 抽象基类
 │   ├── Constraints/       # 5 种约束类型
 │   ├── Relations/         # 4 种关系操作
 │   ├── Mappers/           # 声明→运行时映射
-│   └── Resolvers/         # 声明解析器
+│   ├── Resolvers/         # 声明解析器
+│   ├── Spec/              # 轴声明/参数态+写守卫/语义正交基/判别编译
+│   └── Graph/             # 轴编排 DAG（拓扑 + 吸收短路 + 增量重算）
 └── Functor/               # 函子框架（5 文件）
     ├── Interfaces.cs      # IFunctor, IFunctorScope, IFunctorFactory
     ├── FunctorScope.cs    # 核心实现（AsyncLocal 隐式传播）

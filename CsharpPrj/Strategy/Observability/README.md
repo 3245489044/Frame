@@ -12,8 +12,8 @@
 | E2 | 事件信封 | `Envelope/` | `ObservabilityEvent` / `ObservabilityEventBuilder` |
 | E3 | 契约注册表 | `Registry/` | `EventContract` / `ObservabilityContractRegistry` / `ObservabilitySemanticsJson` |
 | E4 | 收集总线 | `Bus/` | `ObservabilityBus` / `Obs` / `Activity` / `ObsScope`(复用 AmbientSlot) / `EmitResult` / `ObservationResult` |
-| E5 | 持久化 | `Persistence/` | `IEventStore` / `InMemoryEventStore` / `FileAppendEventStore` / `PersistentEventSink`(调用方驱动 flush) |
-| E6 | 查询投影 | `Query/` | `ObservabilityQuery`(Timeline / EntityChain / Aggregate) |
+| E5 | 持久化 | `Persistence/` | `IEventStore` / `InMemoryEventStore` / `FileAppendEventStore` / `PersistentEventSink`(调用方驱动 flush；缓冲封顶 + 超限丢弃计入 `DroppedCount`) |
+| E6 | 查询投影 | `Query/` | `ObservabilityQuery`(Timeline / EntityChain / Aggregate；EntityChain 按 `EntityId` 三元全等) |
 | E7 | 度量聚合 | `Metrics/` | `Counter` / `Histogram` |
 | 异常 | 类型化错误 | `Diagnostics/` | `ObservabilityException`(基) / `UnregisteredEventException` / `ContractValidationException` / `SinkWriteException` |
 
@@ -25,7 +25,8 @@
 
 ## 反转与控制边界（设计要点）
 
-- **错误一律在调用边界抛，不做内部降级**：Emit 遇未注册契约抛 `UnregisteredEventException`、契约校验失败抛 `ContractValidationException`；调用方显式 `FlushAsync()` 落库失败抛 `SinkWriteException`（缓冲保留可重放）。内核不再用 `ObservabilityBusOptions` / `ObservabilityFallback` 这类内部布尔或日志插槽替你决定吞错。
+- **错误一律在调用边界抛，不做内部降级**：Emit 遇未注册契约抛 `UnregisteredEventException`、契约校验失败抛 `ContractValidationException`；调用方显式 `FlushAsync()` 落库失败抛 `SinkWriteException`（缓冲保留可重放，且封顶 `PersistentEventSink.DefaultMaxBuffered`：超限丢最旧并入 `DroppedCount`，丢弃不静默）。内核不再用 `ObservabilityBusOptions` / `ObservabilityFallback` 这类内部布尔或日志插槽替你决定吞错。
+- **Activity 终结语义**：`Complete`/`Fail` 幂等（先到先得，重复终结回读同一次投递结果）；轮末 `using` 兜底终结时**无异常在途按成功补完成事件**（`AgentTrace.Round` 依赖），**有异常在途按失败终结**（`Fail` + stage=failed，不把异常路径记成成功帧）。
 - **成败对调用方可见（两维）**：① 业务任务成败 = `Activity.Result` 产成的类型化 `ObservationResult`（`ObservationStatus.Succeeded/Failed` + 耗时 + 原因）；② 观测投递成败 = `Emit`/`Activity.Complete/Fail` 返回 `EmitResult`，持久化落库成败由 `FlushAsync` 的异常体现。
 - **后台长期逻辑外置**：持久化无内建线程。每轮 / 批处理结束 `await bus.FlushAsync()`（或 `Obs.FlushAsync()`）即知是否落库；进程退出前 `await bus.ShutdownAsync()`（先 flush 再释放）。
 

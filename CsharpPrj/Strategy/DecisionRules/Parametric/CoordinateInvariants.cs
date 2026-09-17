@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BasicMethod.Declarative.Graph;
+using BasicMethod.Declarative.Spec;
 
 namespace Strategy.DecisionRules
 {

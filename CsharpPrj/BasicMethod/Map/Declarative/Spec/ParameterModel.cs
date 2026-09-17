@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strategy.DecisionRules
+namespace BasicMethod.Declarative.Spec
 {
     /// <summary>
-    /// 参数值域。所有决策变量经规则归约后都以 <see cref="double"/> 编码承载在参数态里，便于直接数值/序数计算：
+    /// 参数值域。所有声明变量经归约后都以 <see cref="double"/> 编码承载在参数态里，便于直接数值/序数计算：
     /// <list type="bullet">
-    /// <item><see cref="Flag"/>：二值（0/1），归约自布尔语义（如 halt 位、是否落库）。</item>
-    /// <item><see cref="Ordinal"/>：有界序数（如 FailureBudget.level 0..3、ProgressToken.value）。</item>
-    /// <item><see cref="Numeric"/>：实数（含连续/可测度量，如归一的进度 [0,1]、Quality）。</item>
+    /// <item><see cref="Flag"/>：二值（0/1），归约自布尔语义（如停机位、是否落库）。</item>
+    /// <item><see cref="Ordinal"/>：有界序数（如等级 0..3、计数器）。</item>
+    /// <item><see cref="Numeric"/>：实数（含连续/可测度量，如归一的进度 [0,1]、质量分）。</item>
     /// </list>
-    /// 语义类型轴见 clinerules axioms.md（ProgressToken/FailureBudget/ControlFlag 参数化承载）。
+    /// 纯机制件：只定义值域形态，不承载任何领域语义。
     /// </summary>
     public enum ParameterKind
     {
@@ -24,7 +24,7 @@ namespace Strategy.DecisionRules
     /// 坐标轴演化角色（统一坐标系第一属性，独立于值类型 <see cref="ParameterKind"/>）：
     /// <list type="bullet">
     /// <item><see cref="State"/>：跨步持久，进 <see cref="ParameterState"/>（含 <see cref="ParameterSpec.IsForced"/> 强制分量）。</item>
-    /// <item><see cref="Event"/>：单步瞬时，不进状态演进，只在 <see cref="ParametricStepInput.Variables"/> 中存活（须在 schema 显式声明）。</item>
+    /// <item><see cref="Event"/>：单步瞬时，不进状态演进，只在步输入变量集中存活（须在 schema 显式声明）。</item>
     /// <item><see cref="Const"/>：内建常量轴，仅 <c>"1"</c>（不依赖输入）。</item>
     /// </list>
     /// </summary>
@@ -38,11 +38,11 @@ namespace Strategy.DecisionRules
     /// <summary>
     /// 轴定义（一个可判定分量）：轴身份 <see cref="Role"/>（state/event/const）+ 名称 + 值类型 + 值域 + 边界
     /// + <see cref="IsForced"/> + <see cref="IsLatched"/> —— 规范坐标为 <c>(Role, Name)</c>。
-    /// <para><see cref="IsForced"/> = true 表示「确定性强制分量」（引擎/确定性核心单一写入，如预算/进度/halt），
-    /// 禁止被输入归约/外部策略供给写入 —— 对齐 clinerules SEP.DeterministicCoreDisjoint（写路径单一）。</para>
+    /// <para><see cref="IsForced"/> = true 表示「确定性强制分量」（确定性核心单一写入，如预算/进度/停机位），
+    /// 禁止被输入归约/外部策略供给写入 —— 写路径单一。</para>
     /// <para><see cref="IsLatched"/> = true 表示「吸收/闩锁触发分量」（复合矩阵运算定律 A）：该分量在
     /// 一次运行内只允许单调不降——一旦到达某触发值即成为吸收态，后续任何来源（含 Engine）的低值写都会被忽略
-    /// （见 <see cref="ParameterState.Apply"/>）。用于 halt 这类"一旦置真绝不被后续复合步翻盘"的终值主控位。</para>
+    /// （见 <see cref="ParameterState.Apply"/>）。用于「一旦置真绝不被后续复合步翻盘」的终值主控位。</para>
     /// </summary>
     public sealed record ParameterSpec(
         string Name,
@@ -84,7 +84,7 @@ namespace Strategy.DecisionRules
     /// <summary>
     /// 参数 schema：轴空间单一真源 —— state 轴集合（<see cref="Specs"/>，构成「参数态」坐标系）
     /// + event 轴声明（<see cref="EventAxes"/>，单步瞬时、不进状态）+ 内建 const 轴（<c>"1"</c>）。
-    /// 一份 schema 同时驱动：①变量→参数归约、②内层参数演进、③参数→标签解码（JSON 聚拢点在参数域的对偶）。
+    /// 一份 schema 同时驱动：①变量→参数归约、②内层参数演进、③参数→标签解码。
     /// </summary>
     public sealed class ParameterSchema
     {

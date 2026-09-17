@@ -32,19 +32,8 @@ public sealed record PortCallView(
         return Method + separator + string.Join(separator, Args.Select(Text));
     }
 
-    /// <summary>不变量文本化（null→空串；bool→True/False；数值→不变量格式）。</summary>
-    public static string Text(object? value)
-        => value switch
-        {
-            null => string.Empty,
-            string s => s,
-            bool b => b ? "True" : "False",
-            double d => d.ToString(CultureInfo.InvariantCulture),
-            float f => f.ToString(CultureInfo.InvariantCulture),
-            decimal m => m.ToString(CultureInfo.InvariantCulture),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty,
-        };
+    /// <summary>不变量文本化（null→空串；bool→True/False；数值→不变量格式）——单源 = <see cref="PortValues.TextInvariant"/>。</summary>
+    public static string Text(object? value) => PortValues.TextInvariant(value) ?? string.Empty;
 }
 
 /// <summary>

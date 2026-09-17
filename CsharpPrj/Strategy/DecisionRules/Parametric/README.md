@@ -4,6 +4,13 @@
 > 定位：本模块地基之一 —— 把「决策 / 混合调度」收敛为一次参数化计算：
 > **① 变量→参数（归约）→ ② 参数态闭环演进（内层计算）→ ③ 参数→标签（对外解码）**。
 > LLM-free，可脱离 Agent 供任意决策点复用（同 `DecisionRules` 其余类型一致）。
+>
+> **声明面归属（2026-09-17 提取）**：坐标/词元/分层图三类**纯声明原子**已上移通用框架
+> `BasicMethod.Map.Declarative`（零外部依赖），本目录只留引擎侧计算与编排：
+> - `BasicMethod.Declarative.Spec`：`ParameterKind`/`AxisRole`/`ParameterSpec`/`ParameterSchema`/
+>   `ParameterState`/`ParameterWrite`/`ParameterWriteSource`/`SemanticTerm`/`SemanticVocabulary`/`SemanticClassRules`
+> - `BasicMethod.Declarative.Graph`：`DecisionGraph`/`DecisionLayer`/`LayerRule`/`CrossFeature`
+> 决策域特有的匹配/输出/编排（`ParameterMatrix`/`ParametricKernel`/`CoordinateInvariants` 等）仍在本目录。
 
 ## 为什么这样建模
 

@@ -56,7 +56,6 @@ public sealed class FileAppendEventStore : IEventStore
             if (count++ >= limit) yield break;
             yield return e;
         }
-        await Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<PersistedEvent> EntityChainAsync(EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
@@ -64,11 +63,9 @@ public sealed class FileAppendEventStore : IEventStore
         foreach (var e in ReadAll())
         {
             ct.ThrowIfCancellationRequested();
-            if (!string.Equals(e.ScopeId, entity.ScopeId, StringComparison.Ordinal)) continue;
-            if (!string.Equals(e.Event.Entity.EntityType, entity.EntityType, StringComparison.Ordinal)) continue;
+            if (!e.Event.Entity.Matches(entity)) continue;
             yield return e;
         }
-        await Task.CompletedTask;
     }
 
     private IReadOnlyList<PersistedEvent> ReadAll()

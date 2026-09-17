@@ -17,6 +17,6 @@ public interface IEventStore : IAsyncDisposable
     /// <summary>按作用域返回时序事件（升序 EventSeq；afterSeq 续读）。</summary>
     IAsyncEnumerable<PersistedEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, CancellationToken ct = default);
 
-    /// <summary>同一实体（scopeId+EntityType 相同）的完整事件链（升序 EventSeq）。</summary>
+    /// <summary>同一实体（ScopeId+EntityType+Seq 三元全等）的完整事件链（升序 EventSeq）。</summary>
     IAsyncEnumerable<PersistedEvent> EntityChainAsync(EntityId entity, CancellationToken ct = default);
 }

@@ -115,13 +115,19 @@ public sealed class PortAssembler
         switch (plan.Kind)
         {
             case PortBindingPlanKind.Reflective:
+            {
                 if (plan.Spec is null)
                 {
                     MarkUnbound(plan.PortKey, "声明 reflective 绑定但缺少绑定声明（PortBindingSpec）");
                     return false;
                 }
 
-                return Bind(plan.PortKey, new ReflectiveBinding(plan.Spec));
+                // R3-1 择路（唯一插点，非种类分派）：规格可下行 → 求值引擎；否则回退旧绑定类（一版兼容，R3-4 退场）。
+                var spec = PortSpecLedger.FromReflective(plan.PortKey, plan.Spec);
+                return Bind(
+                    plan.PortKey,
+                    spec.IsEvaluable ? new PortEvaluatorBinding(spec) : new ReflectiveBinding(plan.Spec));
+            }
 
             case PortBindingPlanKind.Composed:
                 if (plan.Composed is null)

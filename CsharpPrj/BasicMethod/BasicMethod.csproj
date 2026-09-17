@@ -96,6 +96,8 @@
     <ProjectReference Include="$(Proj_Functor)" />
     <ProjectReference Include="$(Proj_Queue)" />
     <ProjectReference Include="$(Proj_Declarative)" />
+    <!-- ★ 通用声明式契约台账机制（收敛治理型；零项目引用，供标准层消费） -->
+    <ProjectReference Include="$(Proj_DeclarativeLedger)" />
     <ProjectReference Include="$(Proj_ProcessJsonConfig)" />
   </ItemGroup>
 

@@ -2,6 +2,7 @@ namespace DataCenter.Standards;
 
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using static BasicMethod.Declarative.Ledger.JsonLedgerReader;
 
 /// <summary>
 /// 脚本族 <c>impl</c> 读取（<c>bind / script / project / deliver / scopes / scenarios</c>；B3 自内核
@@ -55,7 +56,7 @@ public static partial class StandardJson
             var field = Str(item, "field");
             var isSpread = body.TryGetProperty("spread", out var spread) && spread.ValueKind == JsonValueKind.Object;
             if (field is null && !isSpread)
-                throw new InvalidOperationException(
+                throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 impl.project 项缺 field（或声明 spread 动态键投影）");
 
             fields.Add(new FieldExprStandard(
@@ -77,9 +78,10 @@ public static partial class StandardJson
         var scopes = new List<ScopeStandard>();
         foreach (var item in declared.EnumerateArray())
         {
+            EnsureLayerKeys(nameof(PortImplVocabulary.ScopeKeys), $"ports.{portKey}.impl.scopes", item);
             var kind = Str(item, "kind") ?? "tempDir";
             var asName = Str(item, "as")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 impl.scopes 项缺 as（作用域名）");
 
             scopes.Add(new ScopeStandard(
@@ -112,13 +114,13 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             var slot = Str(item, "slot")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的 save 项缺 slot（留存槽名）");
             var type = Str(item, "type")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的 save 项 '{slot}' 缺 type（类型全名）");
             var key = Str(item, "key")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的 save 项 '{slot}' 缺 key（成员名）");
 
             saves.Add(new SaveStandard(slot, type, key, StrList(item, "genericArgs")));
@@ -137,7 +139,7 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             var name = Str(item, "name")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的文件项缺 name（文件名）");
 
             var from = item.TryGetProperty("from", out var declaredFrom) && declaredFrom.ValueKind == JsonValueKind.Object
@@ -168,10 +170,11 @@ public static partial class StandardJson
         if (!impl.TryGetProperty("deliver", out var declared) || declared.ValueKind != JsonValueKind.Object)
             return null;
 
+        EnsureLayerKeys(nameof(PortImplVocabulary.DeliverKeys), $"ports.{portKey}.impl.deliver", declared);
         var defer = Bool(declared, "defer") ?? false;
         var issues = Bool(declared, "issues") ?? false;
         if (defer && issues)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 impl.deliver 载体 defer 与 issues 互斥（二选一）");
 
         return new DeliverStandard(
@@ -201,7 +204,7 @@ public static partial class StandardJson
                 Method: call.ValueKind == JsonValueKind.String
                     ? call.GetString()!
                     : Str(capture, "method")
-                      ?? throw new InvalidOperationException(
+                      ?? throw new StandardViolationException(
                           $"[port:standard] 端口 '{portKey}' 的 impl.deliver.capture 缺 call（被捕获的调用对象或方法名）"),
                 Await: Bool(capture, "await") ?? false,
                 Args: ReadArgs(portKey, capture, "deliver.capture"),
@@ -227,6 +230,7 @@ public static partial class StandardJson
     /// <summary>单步读取：形态三选一（new / invoke / foreach）+ 修饰（collect / when）。</summary>
     private static StepStandard ReadStep(string portKey, JsonElement item)
     {
+        EnsureLayerKeys(nameof(PortImplVocabulary.StepKeys), $"ports.{portKey}.impl.script.step", item);
         var collect = ReadCollects(portKey, item);
         var when = item.TryGetProperty("when", out var condition)
             ? ReadExpr(portKey, condition, "步骤 when")
@@ -241,7 +245,7 @@ public static partial class StandardJson
         if (item.TryGetProperty("invoke", out var invoke) && invoke.ValueKind == JsonValueKind.Object)
             return new StepStandard(collect, when, Invoke: ReadInvoke(portKey, invoke));
 
-        throw new InvalidOperationException(
+        throw new StandardViolationException(
             $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach）");
     }
 
@@ -257,14 +261,14 @@ public static partial class StandardJson
             return [new CollectStandard(declared.GetString()!)];
 
         if (declared.ValueKind != JsonValueKind.Array)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤 collect 须为槽名或 collect 声明数组");
 
         var collects = new List<CollectStandard>();
         foreach (var entry in declared.EnumerateArray())
         {
             var slot = Str(entry, "slot")
-                ?? throw new InvalidOperationException(
+                ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤 collect 项缺 slot（收集槽名）");
             collects.Add(new CollectStandard(slot, Str(entry, "from")));
         }
@@ -277,7 +281,7 @@ public static partial class StandardJson
     {
         var asName = Str(body, "as") ?? string.Empty;
         var type = Str(body, "type")
-            ?? throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的构造声明缺 type（类型全名）");
+            ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的构造声明缺 type（类型全名）");
 
         return new NewStandard(
             asName, type,
@@ -297,12 +301,12 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             var member = Str(item, "member")
-                ?? throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 init 项缺 member（成员名）");
+                ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 init 项缺 member（成员名）");
 
             if (item.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Object)
                 items.Add(new InitStandard(member, ReadArg(portKey, value, $"init '{member}'")));
             else
-                throw new InvalidOperationException(
+                throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 init 成员 '{member}' 缺 value（取值声明对象）");
         }
 
@@ -319,7 +323,7 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             var method = Str(item, "method")
-                ?? throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 chain 项缺 method");
+                ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 chain 项缺 method");
             links.Add(new ChainStandard(
                 method,
                 ReadArgs(portKey, item, $"chain '{method}'"),
@@ -337,7 +341,7 @@ public static partial class StandardJson
     private static InvokeStandard ReadInvoke(string portKey, JsonElement body)
     {
         var method = Str(body, "method")
-            ?? throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 script.invoke 缺 method");
+            ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 script.invoke 缺 method");
 
         var target = body.TryGetProperty("on", out var on) && on.ValueKind == JsonValueKind.Object
             ? ReadArg(portKey, on, $"script.invoke '{method}' 的目标取值")
@@ -369,7 +373,7 @@ public static partial class StandardJson
             return null;
 
         if (!scenarios.TryGetProperty("cases", out var declared) || declared.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 scenarios 缺 cases（场景表）");
+            throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 scenarios 缺 cases（场景表）");
 
         var select = scenarios.TryGetProperty("select", out var selector)
             ? ReadArg(portKey, selector, "scenarios.select")
@@ -395,7 +399,7 @@ public static partial class StandardJson
     private static ForeachStandard ReadForeach(string portKey, JsonElement body)
     {
         var asName = Str(body, "as")
-            ?? throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 script.foreach 缺 as（循环变量名）");
+            ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 script.foreach 缺 as（循环变量名）");
 
         var slot = Str(body, "foreach");
         var items = body.TryGetProperty("items", out var declared)
@@ -403,7 +407,7 @@ public static partial class StandardJson
             : null;
 
         if (slot is null && items is null)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 script.foreach '{asName}' 缺集合来源（foreach 槽名或 items）");
 
         var where = body.TryGetProperty("where", out var filter)
@@ -436,7 +440,9 @@ public static partial class StandardJson
     internal static ValueSourceStandard ReadArg(string portKey, JsonElement element, string context)
     {
         if (element.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 {context} 取值来源须为对象");
+            throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 {context} 取值来源须为对象");
+
+        EnsureLayerKeys(nameof(PortImplVocabulary.ValueSourceKeys), $"ports.{portKey}.{context}", element);
 
         var from = Str(element, "from");
         var index = Int(element, "index");
@@ -528,7 +534,7 @@ public static partial class StandardJson
             return null;
 
         if (!declared.TryGetProperty("kind", out var kind) || kind.ValueKind != JsonValueKind.String)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context} 的 delegate 缺 kind（委托类型全名）");
 
         return new DelegateStandard(
@@ -596,7 +602,7 @@ public static partial class StandardJson
     internal static ExprStandard ReadExpr(string portKey, JsonElement element, string context)
     {
         if (element.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException($"[port:standard] 端口 '{portKey}' 的 {context} 表达式须为对象");
+            throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 {context} 表达式须为对象");
 
         var collect = Str(element, "collect");
 
@@ -624,11 +630,11 @@ public static partial class StandardJson
         var dict = Dict(portKey, element, context);
 
         if (all is not null && any is not null)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context} 不能同时声明 all 与 any（量词形态互斥）");
 
         if (allIsList && anyIsList)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context} 不能同时声明 all 与 any（合取 / 析取互斥）");
 
         var concat = ExprList(portKey, element, "concat", context);
@@ -750,21 +756,21 @@ public static partial class StandardJson
             return null;
 
         if (!declared.TryGetProperty("over", out var over))
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.fold 缺 over（被遍历集合）");
 
         if (!declared.TryGetProperty("init", out var declaredInit) || declaredInit.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.fold 缺 init（初值来源）");
 
         init = ReadArg(portKey, declaredInit, $"{context}.fold.init");
 
         if (!declared.TryGetProperty("step", out var declaredStep) || declaredStep.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.fold 缺 step（累积调用声明）");
 
         var method = Str(declaredStep, "method")
-            ?? throw new InvalidOperationException(
+            ?? throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.fold.step 缺 method");
 
         asName = Str(declared, "as");
@@ -865,7 +871,7 @@ public static partial class StandardJson
             return (null, null, null, false);
 
         if (!body.TryGetProperty("over", out var over))
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.first 缺 over（被取集合）");
 
         return (
@@ -914,7 +920,7 @@ public static partial class StandardJson
             return (null, null, null, null, null);
 
         if (!body.TryGetProperty("over", out var over))
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.dict 缺 over（被遍历集合）");
 
         return (
@@ -943,7 +949,7 @@ public static partial class StandardJson
             ];
         }
 
-        throw new InvalidOperationException(
+        throw new StandardViolationException(
             $"[port:standard] 端口 '{portKey}' 的 {context}.{name} 须为 [左, 右] 数组或 {{ a, b }} 对象");
     }
 
@@ -954,7 +960,7 @@ public static partial class StandardJson
             return null;
 
         if (!body.TryGetProperty("a", out var left) || !body.TryGetProperty("b", out var right))
-            throw new InvalidOperationException(
+            throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 {context}.countEqual 须同时给出 a 与 b");
 
         return

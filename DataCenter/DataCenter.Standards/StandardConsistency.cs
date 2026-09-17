@@ -1,3 +1,4 @@
+using BasicMethod.Declarative.Ledger;
 using DataCenter.Protocol.Standards;
 
 namespace DataCenter.Standards;
@@ -27,31 +28,16 @@ public sealed record StandardConsistencyOptions
 /// </summary>
 public static class StandardConsistency
 {
-    /// <summary>跑 C1–C6，返回全部违规（空 = 全绿）。</summary>
+    /// <summary>跑 C1–C13，返回全部违规（空 = 全绿）。宿主骨架在框架（<see cref="LedgerConsistency"/>）。</summary>
     public static IReadOnlyList<string> Check(IStandardCatalog catalog, StandardConsistencyOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         options ??= new StandardConsistencyOptions();
 
-        var violations = new List<string>();
-        var portKeys = new HashSet<string>(catalog.Ports.Select(p => p.Key), StringComparer.Ordinal);
-        var dataKeysNormalized = new HashSet<string>(catalog.Data.Select(d => Normalize(d.Key)), StringComparer.Ordinal);
-        var eventKeys = new HashSet<string>(catalog.Events.Select(e => e.Key), StringComparer.Ordinal);
-
-        CheckKeyUniqueness(catalog, violations);
-        CheckEmits(catalog, eventKeys, violations);
-        CheckCarries(catalog, dataKeysNormalized, violations);
-        CheckCrossCutFields(catalog, dataKeysNormalized, options, violations);
-        CheckProducers(catalog, portKeys, options, violations);
-        CheckVersionMonotonic(catalog, options, violations);
-
-        // C7–C13：端口 impl 实现面语义判据（只判跨项/跨字段一致性；枚举由结构门承担）
-        StandardImplConsistency.Check(catalog, violations);
-
-        return violations;
+        return LedgerConsistency.Check(catalog, StandardRuleSet.All(options));
     }
 
-    /// <summary>跑 C1–C6，有违规即抛（一次报全，便于一次修数据）。</summary>
+    /// <summary>跑 C1–C13，有违规即抛（一次报全，便于一次修数据）。</summary>
     public static void EnsureValid(IStandardCatalog catalog, StandardConsistencyOptions? options = null)
     {
         var violations = Check(catalog, options);
@@ -63,8 +49,16 @@ public static class StandardConsistency
             violations);
     }
 
+    /// <summary>数据键归一集（C3/C4 的取值域；单一构造点）。</summary>
+    internal static HashSet<string> DataKeysNormalized(IStandardCatalog catalog)
+        => new(catalog.Data.Select(d => Normalize(d.Key)), StringComparer.Ordinal);
+
+    /// <summary>端口键集（C5 的取值域；单一构造点）。</summary>
+    internal static HashSet<string> PortKeys(IStandardCatalog catalog)
+        => new(catalog.Ports.Select(p => p.Key), StringComparer.Ordinal);
+
     /// <summary>C1：四本台账各自键唯一（Ordinal；JSON 层重复键被静默合并，须扫原始文本）。</summary>
-    private static void CheckKeyUniqueness(IStandardCatalog catalog, List<string> violations)
+    internal static void CheckKeyUniqueness(IStandardCatalog catalog, List<string> violations)
     {
         foreach (var (name, json) in RawTexts(catalog))
             foreach (var duplicate in StandardJson.DuplicateKeys(json))
@@ -77,7 +71,7 @@ public static class StandardConsistency
     }
 
     /// <summary>C2：<c>ports[x].emits</c> ⊆ 事件键集。</summary>
-    private static void CheckEmits(IStandardCatalog catalog, HashSet<string> eventKeys, List<string> violations)
+    internal static void CheckEmits(IStandardCatalog catalog, HashSet<string> eventKeys, List<string> violations)
     {
         foreach (var port in catalog.Ports)
             foreach (var emitted in port.Emits)
@@ -86,7 +80,7 @@ public static class StandardConsistency
     }
 
     /// <summary>C3：<c>events[x].carries</c> ⊆ 数据键集。</summary>
-    private static void CheckCarries(IStandardCatalog catalog, HashSet<string> dataKeysNormalized, List<string> violations)
+    internal static void CheckCarries(IStandardCatalog catalog, HashSet<string> dataKeysNormalized, List<string> violations)
     {
         foreach (var evt in catalog.Events)
             foreach (var carried in evt.Carries)
@@ -95,7 +89,7 @@ public static class StandardConsistency
     }
 
     /// <summary>C4：端口契约中出现的跨切字段 ⊆ 数据键集（端口契约与数据标准不得脱节）。</summary>
-    private static void CheckCrossCutFields(
+    internal static void CheckCrossCutFields(
         IStandardCatalog catalog, HashSet<string> dataKeysNormalized, StandardConsistencyOptions options, List<string> violations)
     {
         var crossCut = new HashSet<string>(options.CrossCutFields.Select(Normalize), StringComparer.Ordinal);
@@ -110,7 +104,7 @@ public static class StandardConsistency
     }
 
     /// <summary>C5：<c>data[x].producer</c>（若声明）⊆ 端口键集 ∪ 白名单。</summary>
-    private static void CheckProducers(
+    internal static void CheckProducers(
         IStandardCatalog catalog, HashSet<string> portKeys, StandardConsistencyOptions options, List<string> violations)
     {
         var whitelist = new HashSet<string>(options.ProducerWhitelist, StringComparer.Ordinal);
@@ -122,7 +116,7 @@ public static class StandardConsistency
     }
 
     /// <summary>C6：同键 version 只增不减（与上一快照比对；无基线则跳过）。</summary>
-    private static void CheckVersionMonotonic(
+    internal static void CheckVersionMonotonic(
         IStandardCatalog catalog, StandardConsistencyOptions options, List<string> violations)
     {
         if (options.PreviousVersions is not { } previous) return;

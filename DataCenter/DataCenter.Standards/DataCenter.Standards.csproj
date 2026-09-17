@@ -30,4 +30,23 @@
     <ProjectReference Include="..\DataCenter.Protocol\DataCenter.Protocol.csproj" />
   </ItemGroup>
 
+  <!-- 结构门内嵌：schema 物理位置不动（真源仍在 DataCenter\schemas），构建期链接进本程序集，
+       使「装载期结构校验」零路径接线（消费方无需知道仓库布局）。 -->
+  <ItemGroup Label="EmbeddedSchemas">
+    <EmbeddedResource Include="..\schemas\ports.schema.json" Link="Schemas\ports.schema.json" LogicalName="DataCenter.Standards.Schemas.ports.schema.json" />
+    <EmbeddedResource Include="..\schemas\events.schema.json" Link="Schemas\events.schema.json" LogicalName="DataCenter.Standards.Schemas.events.schema.json" />
+    <EmbeddedResource Include="..\schemas\fakes.schema.json" Link="Schemas\fakes.schema.json" LogicalName="DataCenter.Standards.Schemas.fakes.schema.json" />
+    <EmbeddedResource Include="..\schemas\data.schema.json" Link="Schemas\data.schema.json" LogicalName="DataCenter.Standards.Schemas.data.schema.json" />
+  </ItemGroup>
+
+  <!-- ★ 烘焙轨（方案 B）：通用声明式契约台账机制走权威烘焙二进制引用（Private=false 不复制产物）； -->
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <Reference Include="BasicMethod.Declarative.Ledger" HintPath="$(CsharpBuildOutputDir)BasicMethod.Declarative.Ledger.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- 仅顺序边：二进制引用无 MSBuild 顺序边，把框架工程排在编译之前（不消费其源码类型、不复制产物）。 -->
+  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\DeclarativeLedger\DeclarativeLedger.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
 </Project>

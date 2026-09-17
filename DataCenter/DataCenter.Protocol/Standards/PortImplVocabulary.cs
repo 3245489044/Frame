@@ -68,9 +68,9 @@ public static partial class PortImplVocabulary
     /// <summary>依赖形态：<c>new</c> / <c>factory</c> / <c>fake</c> 恰一（三选一）。</summary>
     public static readonly IReadOnlyList<string> DepForms = ["new", "factory", "fake"];
 
-    /// <summary>替身 <c>fake</c> 种类（5）+ 代理形态（<c>proxy</c>）。</summary>
+    /// <summary>替身 <c>fake</c> 种类（5；= 执行器支持集，禁列未实现词——结构门放行而执行器无分支即假阳性放行）。</summary>
     public static readonly IReadOnlyList<string> FakeKinds =
-        ["recording", "counting", "fixed", "sequence", "notExpected", "proxy"];
+        ["recording", "counting", "fixed", "sequence", "notExpected"];
 
     /// <summary>表处置 <c>onBlankFirstKey</c>：<c>fail</c>（缺省）/ <c>skip</c>。</summary>
     public static readonly IReadOnlyList<string> OnBlankFirstKey = ["fail", "skip"];

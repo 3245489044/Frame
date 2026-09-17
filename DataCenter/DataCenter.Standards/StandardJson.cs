@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using BasicMethod.Declarative.Ledger;
 using DataCenter.Protocol.Standards;
 
 namespace DataCenter.Standards;
@@ -87,7 +88,8 @@ public static partial class StandardJson
                     Strings(p.Value, "required"),
                     Strings(p.Value, "metrics"),
                     Text(p.Value, "scope"),
-                    (int)(Number(p.Value, "version") ?? 1));
+                    (int)(Number(p.Value, "version") ?? 1),
+                    Enums(p.Value));
             }).OrderBy(x => x.Key, StringComparer.Ordinal).ToArray();
         });
 
@@ -109,67 +111,35 @@ public static partial class StandardJson
             }).OrderBy(x => x.PortKey, StringComparer.Ordinal).ToArray();
         });
 
-    /// <summary>扫描 JSON 文本中的重复键（同一对象内同名；Ordinal）。</summary>
-    public static IReadOnlyList<string> DuplicateKeys(string json)
+    /// <summary>扫描 JSON 文本中的重复键（同一对象内同名；Ordinal）。机制在框架（原文层扫描）。</summary>
+    public static IReadOnlyList<string> DuplicateKeys(string json) => JsonDuplicateKeyScanner.Scan(json);
+
+    /// <summary>
+    /// 逐层未知键闭合（唯一实现）：取值域 = <see cref="PortImplVocabulary.KeysOf"/> 派生的键表；
+    /// **未登记层 → 不判**（防越界误杀）。装载期即拦，诊断带键路径。
+    /// </summary>
+    private static void EnsureLayerKeys(string level, string context, JsonElement obj)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        if (PortImplVocabulary.KeysOf(level) is not { Count: > 0 } known) return;
 
-        var duplicates = new List<string>();
-        var stack = new Stack<HashSet<string>>();
-        var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(json));
-        while (reader.Read())
-        {
-            switch (reader.TokenType)
-            {
-                case JsonTokenType.StartObject:
-                    stack.Push(new HashSet<string>(StringComparer.Ordinal));
-                    break;
-                case JsonTokenType.EndObject:
-                    if (stack.Count > 0) stack.Pop();
-                    break;
-                case JsonTokenType.PropertyName:
-                    var name = reader.GetString() ?? string.Empty;
-                    if (stack.Count > 0 && !stack.Peek().Add(name)) duplicates.Add(name);
-                    break;
-            }
-        }
-
-        return duplicates;
+        var violations = new List<string>();
+        JsonLedgerReader.CollectUnknownKeys(context, obj, known, violations);
+        if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
 
-    /// <summary>解析 → 交给读者 → 释放文档（根元素先 Clone，脱离文档生命周期）。</summary>
+    /// <summary>解析 → 交给读者（机制在框架：注释/尾随逗号容忍 + 根元素先 Clone）。</summary>
     private static IReadOnlyList<T> Read<T>(string json, Func<JsonElement, IReadOnlyList<T>> body)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(json);
-        using var document = JsonDocument.Parse(json, new JsonDocumentOptions
-        {
-            CommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-        });
-
-        return body(document.RootElement.Clone());
-    }
+        => JsonLedgerReader.ParseRoot(json, body);
 
     private static bool TrySection(JsonElement root, string name, out JsonElement section)
-    {
-        if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Object)
-        {
-            section = value;
-            return true;
-        }
+        => JsonLedgerReader.TrySection(root, name, out section);
 
-        section = default;
-        return false;
-    }
-
+    /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。</summary>
     private static void EnsureKnownKeys(string context, JsonElement obj, IReadOnlyList<string> known)
     {
-        if (obj.ValueKind != JsonValueKind.Object) return;
-
-        foreach (var property in obj.EnumerateObject())
-            if (!known.Contains(property.Name, StringComparer.Ordinal))
-                throw new StandardViolationException(
-                    $"未知键 '{context}.{property.Name}'（fail-fast：非标准字段不得静默进入标准面，元数据请用 $comment）");
+        var violations = new List<string>();
+        JsonLedgerReader.CollectUnknownKeys(context, obj, known, violations);
+        if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
 
     private static IReadOnlyList<PortFieldStandard> ReadInputs(string context, JsonElement entry)
@@ -195,31 +165,29 @@ public static partial class StandardJson
         return field.ValueKind == JsonValueKind.String ? field.GetString() ?? string.Empty : string.Empty;
     }
 
-    /// <summary>点链取值（如 <c>out.fields</c>）→ 字符串数组（缺失 → 空）。</summary>
+    /// <summary>点链取值（如 <c>out.fields</c>）→ 字符串数组（缺失 → 空）。机制在框架（原语逐字搬迁）。</summary>
     private static IReadOnlyList<string> PathStrings(JsonElement entry, string path)
-    {
-        var current = entry;
-        foreach (var segment in path.Split('.'))
-        {
-            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out var next)) return [];
-            current = next;
-        }
+        => JsonLedgerReader.PathStrings(entry, path);
 
-        return current.ValueKind == JsonValueKind.Array
-            ? current.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray()
-            : [];
-    }
-
+    /// <summary>字符串数组读取（裸字符串包单元素）。机制在框架（与 <c>StrList</c> 的分歧语义原样保留）。</summary>
     private static IReadOnlyList<string> Strings(JsonElement entry, string name)
-    {
-        if (!entry.TryGetProperty(name, out var value)) return [];
+        => JsonLedgerReader.Strings(entry, name);
 
-        return value.ValueKind switch
-        {
-            JsonValueKind.Array => value.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray(),
-            JsonValueKind.String => [value.GetString()!],
-            _ => [],
-        };
+    /// <summary>字段枚举域（<c>enum</c> 段：字段名 → 允许值；非对象段 → 空域）；计数为零的域同样保留。</summary>
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> Enums(JsonElement entry)
+    {
+        var enums = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        if (!entry.TryGetProperty("enum", out var node) || node.ValueKind != JsonValueKind.Object) return enums;
+
+        foreach (var field in node.EnumerateObject())
+            enums[field.Name] = field.Value.ValueKind == JsonValueKind.Array
+                ? field.Value.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.String)
+                    .Select(e => e.GetString()!)
+                    .ToArray()
+                : [];
+
+        return enums;
     }
 
     private static IReadOnlyList<string> Producers(JsonElement entry)
@@ -228,11 +196,7 @@ public static partial class StandardJson
         return declared.Count > 0 ? declared : Strings(entry, "producer");
     }
 
-    private static string? Text(JsonElement entry, string name)
-        => entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static string? Text(JsonElement entry, string name) => JsonLedgerReader.Text(entry, name);
 
-    private static double? Number(JsonElement entry, string name)
-        => entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number)
-            ? number
-            : null;
+    private static double? Number(JsonElement entry, string name) => JsonLedgerReader.Number(entry, name);
 }

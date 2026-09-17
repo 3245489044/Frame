@@ -5,7 +5,7 @@ namespace Strategy.Observability.Ports;
 
 /// <summary>
 /// 声明式端口装配器（A2 装配收敛 · R5-1/R5-2；E15 / G1 · 原测试侧 <c>Bridge\PortRegistry.cs</c> 的装配职责上移）：
-/// 「播种契约（文本）→ 逐端口装配 <see cref="PortBinding"/> → Unbound/Frozen 记账（fail-safe）」。
+/// 「播种契约（标准目录投影）→ 逐端口装配 <see cref="PortBinding"/> → Unbound/Frozen 记账（fail-safe）」。
 /// <para>
 /// 纪律：单个端口绑定失败只记 <see cref="Unbound"/>，不阻断其余端口；记账是**唯一权威**（调用方不再自持一份）。
 /// 内核只接受 JSON 文本与 <see cref="PortBinding"/> 计划，不读文件、不读嵌入资源（L0 不碰产品台账）。
@@ -34,13 +34,20 @@ public sealed class PortComposer
     /// <summary>冻结（只登记未绑定）端口键 → 原因。</summary>
     public IReadOnlyDictionary<string, string> Frozen => _frozen;
 
-    /// <summary>播种契约（端口 / 数据 / 事件三类；幂等：已登记的键跳过）。返回新登记条数。</summary>
-    public int Seed(string contractsJson)
+    /// <summary>
+    /// 播种契约（端口 / 数据 / 事件三类；幂等：已登记的键跳过）。返回新登记条数。
+    /// <para>
+    /// 入参 = **已装载的边界契约**（装配侧经标准目录投影：<c>StandardCatalog</c> →
+    /// <see cref="BoundaryContractProjection"/>）。内核**不解析 JSON、不读文件**——装载期解析与校验
+    /// 单一归 <c>DataCenter.Standards</c>。
+    /// </para>
+    /// </summary>
+    public int Seed(IEnumerable<BoundaryContract> contracts)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(contractsJson);
+        ArgumentNullException.ThrowIfNull(contracts);
 
         var added = 0;
-        foreach (var contract in BoundaryContractJson.Load(contractsJson))
+        foreach (var contract in contracts)
             if (_contracts.TryRegister(contract)) added++;
 
         return added;

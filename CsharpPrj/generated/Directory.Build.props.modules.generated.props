@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-14 23:53:15
+  生成时间: 2026-09-17 19:04:28
 -->
 <Project>
 
@@ -34,6 +34,7 @@
     <Mod_Container>$(CsharpPrjDir)BasicMethod\Map\Container\</Mod_Container>
     <Mod_DecisionEngine>$(CsharpPrjDir)BasicMethod\Map\DecisionEngine\</Mod_DecisionEngine>
     <Mod_Declarative>$(CsharpPrjDir)BasicMethod\Map\Declarative\</Mod_Declarative>
+    <Mod_DeclarativeLedger>$(CsharpPrjDir)BasicMethod\Map\DeclarativeLedger\</Mod_DeclarativeLedger>
     <Mod_Functor>$(CsharpPrjDir)BasicMethod\Map\Functor\</Mod_Functor>
     <Mod_GraphFoundation>$(CsharpPrjDir)BasicMethod\Map\GraphFoundation\</Mod_GraphFoundation>
     <Mod_Queue>$(CsharpPrjDir)BasicMethod\Map\Queue\</Mod_Queue>
@@ -133,6 +134,7 @@
     <Proj_Container>$(CsharpPrjDir)BasicMethod\Map\Container\Container.csproj</Proj_Container>
     <Proj_DecisionEngine>$(CsharpPrjDir)BasicMethod\Map\DecisionEngine\DecisionEngine.csproj</Proj_DecisionEngine>
     <Proj_Declarative>$(CsharpPrjDir)BasicMethod\Map\Declarative\Declarative.csproj</Proj_Declarative>
+    <Proj_DeclarativeLedger>$(CsharpPrjDir)BasicMethod\Map\DeclarativeLedger\DeclarativeLedger.csproj</Proj_DeclarativeLedger>
     <Proj_Functor>$(CsharpPrjDir)BasicMethod\Map\Functor\Functor.csproj</Proj_Functor>
     <Proj_GraphFoundation>$(CsharpPrjDir)BasicMethod\Map\GraphFoundation\GraphFoundation.csproj</Proj_GraphFoundation>
     <Proj_Queue>$(CsharpPrjDir)BasicMethod\Map\Queue\Queue.csproj</Proj_Queue>

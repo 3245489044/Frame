@@ -23,20 +23,32 @@ $outDir = Join-Path $root "BuildOutput\$Configuration"
 $manifestPath = Join-Path $outDir 'csharp-bake.manifest.json'
 $stampPath   = Join-Path $outDir '.csharp-bake-complete.stamp'
 
-# ---------- 1. 从 CsharpPrj\Directory.Build.props 收集简单属性映射（用于展开 $(X) 引用）----------
+# ---------- 1. 收集简单属性映射（用于展开 $(X) 引用）----------
+# 注：须连同**导入的生成式属性**一起读——$(Proj_X)/$(Mod_X) 定义在
+#     generated\Directory.Build.props.modules.generated.props，只读 Directory.Build.props
+#     会令 $(Proj_X) 无法展开 → 闭包递归在伞工程处即中断（清单只剩 6 伞）。
 $props = @{}
-$propsFile = Join-Path $root 'Directory.Build.props'
-if (Test-Path $propsFile) {
+$propsFiles = @(
+    (Join-Path $root 'Directory.Build.props'),
+    (Join-Path $root 'generated\Directory.Build.props.modules.generated.props'),
+    (Join-Path $root 'generated\Directory.Build.props.versions.generated.props')
+)
+foreach ($propsFile in $propsFiles) {
+    if (-not (Test-Path $propsFile)) { continue }
     $xml = Get-Content $propsFile -Raw
     foreach ($m in [regex]::Matches($xml, '<([A-Za-z][A-Za-z0-9_]*)[^>]*>([^<]+)</\1>')) {
         if ($m.Groups[2].Value -match '[\\/]') { $props[$m.Groups[1].Value] = $m.Groups[2].Value }
     }
-    for ($i = 0; $i -lt 8; $i++) {
-        foreach ($k in @($props.Keys)) {
-            $props[$k] = [regex]::Replace($props[$k], '\$\(([A-Za-z][A-Za-z0-9_]*)\)', {
-                param($mm) if ($props.ContainsKey($mm.Groups[1].Value)) { $props[$mm.Groups[1].Value] } else { $mm.Value }
-            })
-        }
+}
+# 生成式文件把 CsharpPrjDir 定义为 GetFullPath 调用（非简单路径）→ 展开后会残留 $(MSBuildThisFileDirectory)，
+# 故以本脚本已解析的权威根目录覆盖之（须在收集之后、展开之前；**保留尾随分隔符**——生成式定义带 '\'，
+# $(CsharpPrjDir)BasicMethod\... 依赖它拼出正确路径，缺分隔符会拼成 ...\CsharpPrjBasicMethod\...）。
+$props["CsharpPrjDir"] = $root.TrimEnd('\') + '\'
+for ($i = 0; $i -lt 8; $i++) {
+    foreach ($k in @($props.Keys)) {
+        $props[$k] = [regex]::Replace($props[$k], '\$\(([A-Za-z][A-Za-z0-9_]*)\)', {
+            param($mm) if ($props.ContainsKey($mm.Groups[1].Value)) { $props[$mm.Groups[1].Value] } else { $mm.Value }
+        })
     }
 }
 
@@ -47,8 +59,10 @@ function Resolve-Prj([string]$inc, [string]$fromFile) {
     if ($inc -match '^\$\((MSBuildThisFileDirectory|MSBuildProjectDirectory)\)\\?(.*)$') {
         $inc = Join-Path $dir $matches[2]
     } else {
-        $inc = [regex]::Replace($inc, '\$\(([A-Za-z][A-Za-z0-9_]*)\)\\?', {
-            param($mm) if ($props.ContainsKey($mm.Groups[1].Value)) { ($props[$mm.Groups[1].Value]).TrimEnd('\') + '\' } else { $mm.Value }
+        # 属性值一律**逐字替换**：生成式定义自带约定（目录型 $(X) 含尾随 '\'，$(Proj_X) 为完整 csproj 路径）；
+        # 旧实现统一补 '\' 会把 $(Proj_X) 变成 "X.csproj\"，令下方 .csproj 后缀判定失败 → 闭包递归静默中断。
+        $inc = [regex]::Replace($inc, '\$\(([A-Za-z][A-Za-z0-9_]*)\)', {
+            param($mm) if ($props.ContainsKey($mm.Groups[1].Value)) { $props[$mm.Groups[1].Value] } else { $mm.Value }
         })
     }
     if ($inc -match '\$\([A-Za-z]') { return $null }   # 无法展开 → 跳过（极少）

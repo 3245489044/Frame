@@ -73,16 +73,46 @@ public sealed class StandardCatalog : IStandardCatalog
             eventsJson,
             fakesJson);
 
-    /// <summary>装载并校验（校验失败即抛 <see cref="StandardViolationException"/>，阻塞装载）。</summary>
+    /// <summary>装载并校验（结构门 + 语义判据；失败即抛 <see cref="StandardViolationException"/>，阻塞装载）。</summary>
+    /// <param name="validateSchema">是否先跑结构门（默认 true）；置 false 可单独回退结构校验。</param>
     public static StandardCatalog LoadValidated(
         string portsJson,
         string? eventsJson = null,
         string? fakesJson = null,
-        StandardConsistencyOptions? options = null)
+        StandardConsistencyOptions? options = null,
+        bool validateSchema = true)
     {
+        var schemaViolations = validateSchema ? CollectSchemaViolations(portsJson, eventsJson, fakesJson) : [];
+
         var catalog = Load(portsJson, eventsJson, fakesJson);
-        StandardConsistency.EnsureValid(catalog, options);
-        return catalog;
+        if (schemaViolations.Count == 0)
+        {
+            // 结构门全绿 → 走语义判据单一路径（文案与异常与迁移前逐字一致）
+            StandardConsistency.EnsureValid(catalog, options);
+            return catalog;
+        }
+
+        // 结构与语义一次报全（避免「先修结构再发现语义违规」的往返）
+        var violations = new List<string>(schemaViolations);
+        violations.AddRange(StandardConsistency.Check(catalog, options));
+
+        throw new StandardViolationException(
+            $"标准装载校验失败（先结构后语义；{violations.Count} 条）：" +
+            Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", violations),
+            violations);
+    }
+
+    /// <summary>结构门违规收集（四本台账各按其内嵌 schema；无文本的台账跳过）。</summary>
+    private static List<string> CollectSchemaViolations(string portsJson, string? eventsJson, string? fakesJson)
+    {
+        var violations = new List<string>();
+        violations.AddRange(StandardSchemaValidator.Validate(portsJson, StandardSchemas.Ports, "ports.json"));
+        if (eventsJson is not null)
+            violations.AddRange(StandardSchemaValidator.Validate(eventsJson, StandardSchemas.Events, "events.json"));
+        if (fakesJson is not null)
+            violations.AddRange(StandardSchemaValidator.Validate(fakesJson, StandardSchemas.Fakes, "fakes.json"));
+
+        return violations;
     }
 
     /// <summary>取端口标准（未登记 → null）。</summary>

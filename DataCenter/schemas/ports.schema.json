@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "端口台账标准（ports.json）：键 = <类型/接口>.<方法>；in 列入参、out.fields 只列非入参产物。结构层由本 schema 闭合（含 impl 全词表，B2 扩面）；语义判据 C1–C13 见 DataCenter.Standards\\StandardConsistency。词表唯一 C# 源 = DataCenter.Protocol\\Standards\\PortImplVocabulary（本文件 enum 为数据副本，由用例对账）。",
+  "$comment": "端口台账标准（ports.json）：键 = <类型/接口>.<方法>；in 列入参、out.fields 只列非入参产物。结构层由本 schema 闭合（含 impl 全词表，B2 扩面）；语义判据 C1–C13 见 DataCenter.Standards\\StandardConsistency。词表唯一 C# 源 = DataCenter.Protocol\\Standards\\PortImplVocabulary；**本文件 enum 为生成物**（由 SchemaEnumSynchronizer 按源写回，禁手改；对账见相应测试）。",
   "title": "端口标准台账",
   "type": "object",
   "required": ["ports"],
@@ -137,7 +137,7 @@
       "properties": {
         "new": { "type": "string" },
         "factory": { "type": "string" },
-        "fake": { "type": "string", "enum": ["recording", "counting", "fixed", "sequence", "notExpected", "proxy"] },
+        "fake": { "type": "string", "enum": ["recording", "counting", "fixed", "sequence", "notExpected"] },
         "contract": { "type": "string" },
         "wrap": { "type": "integer" },
         "methods": { "type": "array", "items": { "type": "string" } },

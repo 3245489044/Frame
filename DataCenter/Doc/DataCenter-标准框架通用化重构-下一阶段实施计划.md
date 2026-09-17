@@ -141,6 +141,9 @@ L1/L2 产品组合根 / SpecHost            LoadValidated(ports.json) → Compil
 | **5** | §5 schema 草案 `"project": { "$ref": "#/$defs/fieldOrExpr" }` + 闭合 | 投影项两形态（组合 `{field,call,select}` / 脚本 `{field,expr｜算子平铺}`）**无法在不引入 `not` 的前提下结构判别**（`oneOf` 会双命中） | `projectItem` **有意开放**（schema `$comment` 注明）；闭合与形态对账交 **C9/C13**；不引入 §5 约束之外的新关键字 |
 | **6** | §2.3「`ReadImpl`：未知键 fail-fast」+ §1.2「双真源」 | 结构门（B2）已对 `impl` 全量闭合，并经 120 端口验证；读取器再判一次将形成**两处各判一遍** | 读取器只保「形状 fail-fast（缺失必填即抛）」；未知键/枚举**单一由结构门承担**（消除双判） |
 | **7** | §1.2「`PortLedger*` 1,126 行」 | 同口径（`Measure-Object -Line`）为 1,126；`Get-Content .Count` 口径为 **1,305** | B5 体积判据沿用 `Measure-Object -Line` 口径（与文档一致）；文档补注两口径差异 |
+| **8** | §10.1 M2 判据①「`Ports\**` 内 `JsonDocument.Parse` 命中 = 0」 | M2 的改动对象 `Boundary\BoundaryContractJson*.cs` **不在 `Ports\` 子树内**（Boundary 与 Ports 互为兄弟目录）；`Ports\` 内两处命中原为**运行期载荷解析**（`convert:"json"`，B5 已裁决保留）⇒ 判据按字面**不可达** | 判据拆二：①**装载期解析位**（度量对象 = `Boundary\**`）**= 0**；② `Ports\**` **= 2 且落点固定**（`Ports\ComposedArgs.cs` / `Ports\Value\ScriptedValue.cs`），新增即红 —— 已落守卫用例 `PortKernelDisciplineGuardTests.JsonParsingSites_AreRuntimeOnly_AndDeclared` |
+| **9** | §10.1 M2「不动路由面」（改动面 = Boundary 两文件） | `BoundaryContractJson` 另有**产品侧消费点**：`AgentPortCatalog.LoadContracts`（由组合根 `AgentFrameworkHosting` 驱动）与 `SpecPorts.Assemble`（SpecHost，经注入面）；且产品侧原**无任何** `DataCenter.Standards` 引用 | 接线分两处：**产品侧** = `AgentPortCatalog` 改经 `StandardCatalog.LoadValidated` + `BoundaryContractProjection`（新增引用走 `FrameBinaryRefs.props` 的 `DataCenterBinaryRefs` 组，与 `Hosting/LoopDecision` 同轨——`CsharpBakeRefs` 只收 CsharpPrj 闭包内程序集，其 manifest 校验 `Check-BakeFramework #3` 不覆盖 Frame 区件）；**L2 侧** = SpecHost 新增 `SpecBoundaryContracts.Projection` 注入点（与 B6 的 `SpecPortStandards.Projection` 同模式），由 `Agent.TestShared` 装配 |
+| **10** | 未覆盖 | 标准模型 `EventStandard` **缺 `enum` 域**（而 `events.schema.json` 与台账均声明 `enum`），且 `required` 与 `enum` **常同名**（如 `DecisionResolved.word`）⇒ 直接投影将丢枚举域，或产生同名字段重复声明 | `EventStandard` 补 `Enums`（可选参，向后兼容）；`StandardJson.ReadEvents` 补读 `enum`；`BoundaryContractProjection.Event` 按名**并集**（required 与 enum 同名 = 同一字段，enum 为其属性），杜绝重名 |
 
 ---
 
@@ -361,10 +364,21 @@ pwsh -NoProfile -File .\Run-CSharpTests.ps1 -Project 'Observability.Tests' -Clas
 | 项 | 内容 |
 |---|---|
 | **背景** | v1.3 本批顺延 `Boundary\BoundaryContractJson*.cs` 改纯投影，判据② `JsonDocument.Parse` 暂 =2。本轮专收此口。 |
-| **改动面** | `Ports\**\Boundary\BoundaryContractJson*.cs` 两文件：解析源由内核旧解析改**标准目录投影**（复用 B6 投影侧：`StandardCatalog.Load` + Agent.TestShared 投影适配器），消费方改经投影；不动路由面。 |
+| **改动面** | `Boundary\BoundaryContractJson*.cs`（3 件）删除，改**纯投影** `Boundary\BoundaryContractProjection.cs`；`PortComposer.Seed` 收投影结果；消费点两处改接（产品侧 `AgentPortCatalog`、L2 侧 `SpecPorts` 经 `SpecBoundaryContracts` 注入面）；`FrameBinaryRefs.props` 增 `DataCenter.Standards`（见 §3 校正项 9）。 |
 | **怎么做** | ① 复用已建的 DataCenter 引用与投影注入，不另起解析；② Boundary 专属 Dto（若需）落 SpecHost，保持 SpecHost 零新增数据层引用；③ 消费方路由面一一改接。 |
-| **判据** | `Ports\**` 内 `JsonDocument.Parse` 命中 **=0**；`Ports\` 行数 **≤6,173**；Boundary 相关既有测试全绿。 |
+| **判据** | ① `Boundary\**`（**装载期解析位**）内 `JsonDocument.Parse` 命中 **=0**；② `Ports\**` 内 **=2** 且落点为已登记运行期站位（守卫用例固化）；③ `Ports\` 行数 **≤6,173**；④ Boundary / 装配相关既有测试全绿（口径按 §3 校正项 8 拆二）。 |
 | **回退** | 单提交可撤（旧件删除 + 引用新增同批）。 |
+
+> **M2 已交付（v1.5）**：`Boundary\BoundaryContractJson{,.Fields,.Tokens}.cs` 三件（234 行）**删除**，装载期解析退场；
+> 新增内核**纯投影** `Boundary\BoundaryContractProjection.cs`（`PortStandard`/`DataStandardItem`/`EventStandard` → `BoundaryContract`，零 JSON、零文件）；
+> `PortComposer.Seed(string)` → `Seed(IEnumerable<BoundaryContract>)`（内核只收投影结果）。**接线**：产品侧 `AgentPortCatalog.LoadContracts` 改经
+> `StandardCatalog.LoadValidated(portsJson, 事件台账缺省=Agent 侧语义契约台账)` + 投影（`DataCenter.Standards` 经 `FrameBinaryRefs` 的 `DataCenterBinaryRefs` 组供给，与 `Hosting/LoopDecision` 同轨）；
+> L2 侧 SpecHost 新增 `SpecBoundaryContracts.Projection` 注入点（`SpecPorts` 消费），由 `Agent.TestShared` 的 `AgentBoundaryContractProjection` 随程序集装载装配；
+> 标准层补口：`EventStandard.Enums` + `StandardJson.ReadEvents` 读 `enum`（§3 校正项 10）。
+> **判据实测**（口径按 §3 校正项 8 拆二）：① `Boundary\**` `JsonDocument.Parse` **= 0**；② `Ports\**` **= 2** 且落点 = 已登记运行期站位（守卫用例固化）；
+> ③ `Ports\` **6,133 行** ≤6,173；④ `DataCenter.slnx` 0/0 + `MainProj.sln` 0/0 + `Agent.sln` 0/0；⑤ 回归：`Observability.Tests` **202/202**（含守卫+E22）、
+> `Agent.Spec.Guard.Tests` **74/74**、`Agent.Observe.Tests` **53/53**、`DataCenter.Standards.Tests` **55/55**（B4 基线 33）；`Check-BakeFramework #6` 绿（4 副本同比特）。
+> 附带发现（本批不动）：`Check-BakeFramework` 的 **#3**（manifest 仅 6 伞条目 → 47 条 Frame/CsharpPrj 引用"不在 manifest"）与 **#5**（FileDriven 误置 `RequireCsharpPrjBaked=true`）为**既存失败**，属 M4 治理项。
 
 ### 10.2 M3 —— B7 诊断口径归一
 
@@ -407,6 +421,7 @@ dotnet test Environment\CentralTest\CSharpTest\Strategy.Tests\Observability.Test
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-09-17 | v1.4 | 新增 §10 下一步实施（M2/Boundary 收尾 → M3/B7 → M4/B8 执行明细），承接 B5+B6 v1.3。 |
+| 2026-09-17 | v1.5 | **M2 交付（Boundary 顺延收尾）**：内核装载期解析退场 —— 删 `Boundary\BoundaryContractJson{,.Fields,.Tokens}.cs`，新增纯投影 `BoundaryContractProjection`（`PortStandard`/`DataStandardItem`/`EventStandard` → `BoundaryContract`），`PortComposer.Seed(IEnumerable<BoundaryContract>)`；产品侧 `AgentPortCatalog` 改经 `StandardCatalog.LoadValidated`（事件台账缺省 = Agent 侧语义契约台账）+ 投影；`DataCenter.Standards` 经 `FrameBinaryRefs.props` 的 `DataCenterBinaryRefs` 组供给（与 Hosting/LoopDecision 同轨）；L2 侧新增 `SpecHost.SpecBoundaryContracts` 注入点，由 `Agent.TestShared.AgentBoundaryContractProjection` 装配；标准层补 `EventStandard.Enums` + `ReadEvents` 读 `enum`，事件字段按名并集（required ∪ enum）。判据：`Boundary\**` 解析位 **0**、`Ports\**` **2**（守卫固化）、`Ports\` **6,133** 行、三解决方案 0/0、`Observability.Tests` 202/202 + `Guard.Tests` 74/74 + `Agent.Observe.Tests` 53/53 + `Standards.Tests` 55/55、`Check-BakeFramework #6` 绿。§3 增校正项 8/9/10，§10.1 判据拆分并加交付注记。 |
 
 
 

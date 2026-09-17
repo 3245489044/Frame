@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using static BasicMethod.Declarative.Ledger.JsonLedgerReader;
 
 namespace DataCenter.Standards;
 
@@ -27,6 +28,7 @@ public static partial class StandardJson
         }
 
         var kind = NormalizeKind(portKey, Str(impl, "kind"));
+        EnsureLayerKeys(nameof(PortImplVocabulary.ImplKeys), $"ports.{portKey}.impl", impl);
         var scripted = string.Equals(kind, "scripted", StringComparison.Ordinal);
 
         return new PortImplStandard(
@@ -69,8 +71,12 @@ public static partial class StandardJson
             return [];
 
         var args = new List<PortArgStandard>();
+        var index = -1;
         foreach (var item in declared.EnumerateArray())
         {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.ArgKeys), $"ports.{portKey}.impl.args[{index}]", item);
+
             var convert = Str(item, "convert")
                 ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 impl.args 项缺少 convert");
@@ -102,6 +108,8 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.DepKeys), $"ports.{portKey}.impl.deps[{index}]", item);
+
             var spec = new DepStandard(
                 Str(item, "new"),
                 Str(item, "factory"),
@@ -133,8 +141,12 @@ public static partial class StandardJson
             return [];
 
         var calls = new List<CallStandard>();
+        var index = -1;
         foreach (var item in declared.EnumerateArray())
         {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.CallKeys), $"ports.{portKey}.impl.calls[{index}]", item);
+
             var alias = Str(item, "as")
                 ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 impl.calls 项缺少 as");
             var method = Str(item, "method")
@@ -164,8 +176,12 @@ public static partial class StandardJson
             return [];
 
         var fields = new List<ComposedFieldStandard>();
+        var index = -1;
         foreach (var item in declared.EnumerateArray())
         {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.ComposedFieldKeys), $"ports.{portKey}.impl.project[{index}]", item);
+
             var field = Str(item, "field")
                 ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 impl.project 项缺少 field");
             var call = Str(item, "call")
@@ -193,8 +209,12 @@ public static partial class StandardJson
             return null;
 
         var args = new List<ComposedArgStandard>();
+        var index = -1;
         foreach (var item in declared.EnumerateArray())
         {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.ComposedArgKeys), $"ports.{portKey}.args[{index}]", item);
+
             var convert = Str(item, "convert")
                 ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 args 项缺少 convert");

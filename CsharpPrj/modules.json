@@ -56,6 +56,7 @@
     "Container": "BasicMethod\\Map\\Container\\Container.csproj",
     "DecisionEngine": "BasicMethod\\Map\\DecisionEngine\\DecisionEngine.csproj",
     "Declarative": "BasicMethod\\Map\\Declarative\\Declarative.csproj",
+    "DeclarativeLedger": "BasicMethod\\Map\\DeclarativeLedger\\DeclarativeLedger.csproj",
     "Functor": "BasicMethod\\Map\\Functor\\Functor.csproj",
     "GraphFoundation": "BasicMethod\\Map\\GraphFoundation\\GraphFoundation.csproj",
     "Queue": "BasicMethod\\Map\\Queue\\Queue.csproj",

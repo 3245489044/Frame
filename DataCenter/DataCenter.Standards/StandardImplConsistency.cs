@@ -20,24 +20,8 @@ namespace DataCenter.Standards;
 /// </summary>
 public static class StandardImplConsistency
 {
-    /// <summary>跑 C7–C13（全部违例一次报全）；空 = 全绿。供 <see cref="StandardConsistency.Check"/> 尾部接入。</summary>
-    internal static void Check(IStandardCatalog catalog, List<string> violations)
-    {
-        foreach (var port in catalog.Ports)
-        {
-            var impl = port.Impl;
-
-            CheckC7(port, impl, violations);
-            CheckC9Composed(port, impl, violations);
-            CheckC10Scripted(port, impl, violations);
-            CheckC11Deliver(port, impl, violations);
-            CheckC12Deps(port, impl, violations);
-            CheckC13Projection(port, impl, violations);
-
-            // C8：对全 impl 递归下钻所有取值来源，验证 from ↔ 伴生键 跨字段一致性。
-            CheckC8ValueSources(port, impl, violations);
-        }
-    }
+    // 判据入口已规则化：C7–C13 由 StandardRuleSet 的规则类逐条调用本件判据体（宿主 = 框架 LedgerConsistency），
+    // 此处不再保留并行入口（防同一规则两处表达）。
 
     // ---------------------------------------------------------------- C7
 
@@ -45,7 +29,7 @@ public static class StandardImplConsistency
     /// <para><c>kind∈词表</c> 由读取期 <c>NormalizeKind</c> 守，此处不重复；<c>impl</c> 缺失 ⇒ 视为 <c>delegate</c> 且 id=∅ ⇒ 判据消费，防「忘写实现」静默。</para>
     /// <para>实测量产校准：<c>reflective</c> 三形态均带 <c>target/method</c>（<c>id</c> 仅作 legacy 元数据，不妨碍本判据）。</para>
     /// </summary>
-    private static void CheckC7(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC7(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null || string.IsNullOrWhiteSpace(impl.Kind) || string.Equals(impl.Kind, "delegate", StringComparison.Ordinal))
         {
@@ -70,7 +54,7 @@ public static class StandardImplConsistency
     /// <summary>C8：取值来源 <c>from</c> ↔ 伴生键 一致性（校对 #7：仅 <c>arg</c> 须带 <c>index</c>；<c>item</c> 配 <c>key</c>+<c>path</c>，不强制 index）。
     /// <para>枚举成员（<c>from</c>/<c>convert</c>）由结构门守，此处只判「选了某来源却缺其必随键」的条件关系。</para>
     /// </summary>
-    private static void CheckC8ValueSources(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC8ValueSources(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null) return;
 
@@ -96,7 +80,7 @@ public static class StandardImplConsistency
     /// <c>deps[i].args[*].dep &lt; i</c>（只引更早）；<c>project[].dep &lt; deps.Count</c>。
     /// <para><c>select∈词表</c> 因 <c>projectItem</c> 结构门开放（校正 #5）而无法由 schema 闭合，故此处判（非重复）。</para>
     /// </summary>
-    private static void CheckC9Composed(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC9Composed(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null || !string.Equals(impl.Kind, "composed", StringComparison.Ordinal)) return;
 
@@ -140,7 +124,7 @@ public static class StandardImplConsistency
     /// <para>尚未接入（D2/D3 对齐前不接入，防误杀）：表达式「算子组恰一」、<c>collect</c> 引用⊆槽集——须先以
     /// <c>ScriptedExprEvaluator</c> 与脚本执行器逐组核对口径后放开。</para>
     /// </summary>
-    private static void CheckC10Scripted(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC10Scripted(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null || !string.Equals(impl.Kind, "scripted", StringComparison.Ordinal)) return;
 
@@ -168,7 +152,7 @@ public static class StandardImplConsistency
     /// <c>from=tmpPath/tmpDir</c> 的取值来源须引用已声明的 <c>scopes[].as</c>。
     /// <para>（<c>deliver.kind</c>/<c>scope.kind</c> 枚举由结构门守，此处只判条件关系；实测台账 <c>scopes</c> 未使用，该分支由用例覆盖。）</para>
     /// </summary>
-    private static void CheckC11Deliver(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC11Deliver(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null || !string.Equals(impl.Kind, "scripted", StringComparison.Ordinal)) return;
 
@@ -199,7 +183,7 @@ public static class StandardImplConsistency
     /// <summary>C12（依赖/替身形态）：<c>fake=∅</c> ⇒ contract/wrap/methods/values 全空；<c>fake≠∅</c> ⇒ contract 或 wrap 至少一个。
     /// <para>依赖形态三选一（new/factory/fake）由读取期 <c>ReadDeps</c> 守；<c>fake∈词表</c> 由结构门守。（实测台账无 fake 依赖，本判据由用例覆盖；口径对齐 <c>Fakes\PortFake.cs</c> 的 contract/wrap 形态要求。）</para>
     /// </summary>
-    private static void CheckC12Deps(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC12Deps(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null) return;
 
@@ -232,7 +216,7 @@ public static class StandardImplConsistency
     /// 脚本 <c>scriptProject</c> 同理；<c>impl.productFields</c>（<c>|</c> 分隔）⊆ 契约字段。
     /// <para>弱校验（对齐 <c>Projection\FieldContractValidator</c>）：<c>out.fields</c> 为空 ⇒ 一律不判（表形态/数据驱动键面）。</para>
     /// </summary>
-    private static void CheckC13Projection(PortStandard port, PortImplStandard? impl, List<string> violations)
+    internal static void CheckC13Projection(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
         if (impl is null) return;
 

@@ -22,7 +22,7 @@ Boundary 顺延项目前仍骑旧解析，须在 **M2 改纯投影**后归 0。
 
 | 段 | 主题 | 一句话目标 | 完成标志 |
 |---|---|---|---|
-| **M2** | Boundary 顺延收尾 | `Boundary\BoundaryContractJson*.cs` 改纯投影 | `Ports\**` `JsonDocument.Parse` **2→0**；守卫/自证仍全绿 |
+| **M2** | Boundary 顺延收尾 | `Boundary\BoundaryContractJson*.cs` 改纯投影 | **已交付（v1.5）**：`Boundary\**` 解析位 **0**；`Ports\**` **2**（运行期已登记，守卫固化）；`Ports\` **6,133** 行；守卫/自证全绿（见 `下一阶段实施计划` §10.1 注记） |
 | **M3** | B7 诊断口径归一 | 装载期统一 `StandardViolationException`（含判据号） | 同一份坏台账**只报一次且带判据号**；既有守卫失败信息不退化 |
 | **M4** | B8 守卫/清单/文档同步（收口） | 棘轮预算下调 + 清单/文档 100% 对齐 | `MainProj.sln` 与 `DataCenter.slnx` 0 错 0 警；README 与实作一致 |
 
@@ -97,3 +97,4 @@ dotnet test Environment\CentralTest\CSharpTest\Strategy.Tests\Observability.Test
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-09-17 | v1.0 | 承接 B5+B6（v1.3），整理剩余为 M2/Boundary 收尾 → M3/B7 → M4/B8 三段执行清单。 |
+| 2026-09-17 | v1.1 | 补前置引用（无内容变更）：M3/M4 的前置收敛路线见《DataCenter-标准单源化-重复逻辑收敛-设计与实施.md》P0–P2（词表单源 / 键闭包 / 结构门接线）。 |

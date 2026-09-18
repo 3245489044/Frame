@@ -83,7 +83,8 @@ internal sealed class TierStringStore
 
         foreach (var key in GetAllKeys())
         {
-            if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            // Ordinal 口径与 IsExcluded/GetAll/Count 一致（F-43）：IgnoreCase 会误删大小写相异前缀的键。
+            if (key.StartsWith(prefix, StringComparison.Ordinal))
                 Remove(key);
         }
     }

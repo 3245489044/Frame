@@ -16,6 +16,7 @@ internal sealed class DataCellStorageView : IStorageCell, IDisposable
     private readonly IDataCell _inner;
     private DataCellStorageView? _parentView;
     private StorageCellAdapter? _parentAdapter;
+    private readonly object _setGate = new();
     private bool _disposed;
 
     internal DataCellStorageView(IDataCell inner)
@@ -143,9 +144,18 @@ internal sealed class DataCellStorageView : IStorageCell, IDisposable
         if (_inner.Get<ConcurrentDictionary<T, byte>>(key, tier) is { } existing)
             return existing;
 
-        var created = new ConcurrentDictionary<T, byte>();
-        _inner.SetQuiet(key, created, tier);
-        return created;
+        // 实例级锁内 double-check「探测-创建」：并发首访只允许一个集合落 cell，
+        // 否则败者线程的 SetAdd 落进被 SetQuiet 覆盖的游离字典（静默丢元素）。
+        // 跨实例（同一 cell 上的两个视图）并发仍为最后写者胜 —— 与 TierStringStore.GetOrAdd 同型残留面。
+        lock (_setGate)
+        {
+            if (_inner.Get<ConcurrentDictionary<T, byte>>(key, tier) is { } current)
+                return current;
+
+            var created = new ConcurrentDictionary<T, byte>();
+            _inner.SetQuiet(key, created, tier);
+            return created;
+        }
     }
 
     private void OnInnerDataChanged(object? sender, DataCellChangedEventArgs e)

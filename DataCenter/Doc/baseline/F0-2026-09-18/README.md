@@ -12,31 +12,35 @@
 |---|---|
 | 词总数（族 = 13） | **127** |
 | 差集（任一轴未落地） | **127** |
-| ② 结构门：确定缺失 | **6** |
-| ② 结构门：无法判定（词表登记待补） | **7** |
+| ② 结构门：确定缺失 | **0**（F2-b 收口：aggOp 4 + message 2 已核销，见 §6） |
+| ② 结构门：无法判定（词表登记待补） | **5**（`Separator` / `Parts` 已补登记；余 5 为宿主内直取成员，见 §6） |
 | ③ 读取器解析：无分派（承担方 = 结构门 enum） | **51** |
-| ③ 读取器解析：无探针登记 | **68** |
+| ③ 读取器解析：无探针登记 | **62**（aggOp 4 + message 2 已补探针并加读取器分派） |
 | ⑤ 实现 / ⑥ 自证：无外来证据 | **127 / 127** |
 
 > 逐行矩阵 = `completeness-matrix.psv`；逐条差异 = `completeness-gaps.txt`；汇总 = `completeness-summary.txt`。
 
-### 1.1 ② 结构门 · 确定缺失（6 条 = 真缺口）
+### 1.1 ② 结构门 · 确定缺失（**0 条 = 已清零**）
 
-| 词 | 条数 | 现象 |
-|---|---|---|
-| `aggOp`（sum/max/min/avg） | 4 | `$defs/expr/properties/aggOp` 仅声明为 `string`，**无 enum 绑定**（词表 `AggOps` 未被结构门强制） |
-| `message`（Message/TypeName） | 2 | 结构门**无该节点** `$defs/deliver/capture/properties/message` |
+| 词 | 条数 | 原缺口 | 核销方式 |
+|---|---|---|---|
+| `aggOp`（sum/max/min/avg） | 4 | 结构门无 enum 绑定（词表 `AggOps` 未被结构门强制） | 词表派生绑定 `$defs/expr/properties/aggOp/enum` + 结构门补 enum（见 §6） |
+| `message`（Message/TypeName） | 2 | 结构门节点无 enum；族指针 `$defs/deliver/capture/...` 因 `deliver.capture` 为 `$ref` 而**悬空** | 指针修正为 `$defs/capture/properties/message` + 绑定 `.../enum` + 补 enum（见 §6） |
 
-### 1.2 ② 结构门 · 无法判定（7 条 = 词表登记待补）
+### 1.2 ② 结构门 · 无法判定（5 条 = 宿主内直取成员，显式登记）
 
-`expr` 族成员未在 `ExprSlots` 登记承载键（→ 结构门无从对账）：
-`Source` · `Separator` · `FirstWhere` · `FirstPath` · `FirstOrNull` · `Parts` · `FoldAs`
+`expr` 族中**无独立顶层 JSON 键**的成员（键在宿主对象内读取，或直取取值来源键），结构门对该层为浅校验：
+`Source` · `FirstWhere` · `FirstPath` · `FirstOrNull` · `FoldAs`
+
+> `Separator`（顶层键 `separator`）与 `Parts`（顶层键 `concat`）**已于 F2-b 补登记**；该补登记顺带修正了
+> **词表与结构门的不一致**：结构门早已声明 `separator`，而词表 `ExprKeys` 未登记 ⇒ 表达式层白名单此前会拒该键。
+> 核销前 7 条 → 现 5 条（5 条均在守卫 `RegisteredSchemaUnregistered` 显式登记）。
 
 ### 1.3 ③ 读取器解析 · 承担方口径（本批新登记的事实）
 
 - **有读取器分派**：仅 `impl.kind`（`NormalizeKind` 白名单）与 `dep` 形态位（三选一）；
 - **无读取器分派，承担方 = 结构门 enum 绑定**：51 个词位（`convert`/`from`/`select`/`deliver.kind`/`scope.kind`/`fake`/`onBlankFirstKey`/`onDuplicate`）；
-- **无探针登记**：68 个词位（`expr` 62 + `aggOp` 4 + `message` 2）。
+- **无探针登记**：62 个词位（`expr` 62；`aggOp` 4 + `message` 2 已于 F2-b 补探针 + 加读取器词位校验）。
 
 > 结论：**标准层读取器只在 `kind` 与 `dep` 形态位做分派，其余词位由结构门承担** ——
 > 本事实此前无任何单点登记，F0 起由矩阵固化（F2-b 据此决定「补探针」或「记豁免」）。
@@ -53,7 +57,7 @@
 | 台账 | `impl.kind` 分布 | `scripted=85` · `reflective=20` · `composed=5` · `delegate=0` |
 | 台账 | 派生工厂键（`deps[].factory`） | **70** |
 | 构建 | `DataCenter.slnx` / `MainProj.sln` | **0 错 0 警 / 0 错 0 警** |
-| 测试 | `DataCenter.Standards.Tests` | **96 总 / 94 通过 / 2 跳过 / 0 失败** |
+| 测试 | `DataCenter.Standards.Tests` | **101 总 / 99 通过 / 2 跳过 / 0 失败**（F2-b 收口新增 `StandardRelationsTests` 4 例 + ② 无法判定登记判据 1 例） |
 | 测试 | `Observability.Tests`（全量，含 `PortKernelDisciplineGuardTests`） | **215 / 215** |
 | 测试 | `Agent.Spec.Guard.Tests` | **80 / 80** |
 | 台账工具 | `Split-SpecPortLedger.ps1 -Check` | **OK（110 键 / 13 分片）** |
@@ -62,7 +66,7 @@
 | 台账工具 | `LedgerForge check --bytes` / `compose` / `split`（dry-run 与磁盘文件**逐字节一致**） | **OK（13 分片 + _meta + 产物）** |
 | 台账工具 | `LedgerForge set-impl`（与 PS 工具产物**逐字节一致** + 幂等） | **OK（150,215 字节同比特 / 二次运行零变更）** |
 | 台账工具 | `LedgerForge normalize-key --check`（与 PS 工具输出**逐字一致**） | **OK（46 份用例 / 零残留）** |
-| 台账工具 | `LedgerForge derive-schema`（词表 ↔ 结构门对账） | **OK（enum 绑定 16 / 键集绑定 1）** |
+| 台账工具 | `LedgerForge derive-schema`（词表 ↔ 结构门对账） | **OK（enum 绑定 18 / 键集绑定 1）** |
 | 台账工具 | `LedgerForge emit-declaration`（声明化骨架 + 缺失落点清单） | **OK（10 族 / 69 键全落点）** |
 
 ---
@@ -130,3 +134,22 @@ $pf=Get-ChildItem -Recurse $k -Filter '*.cs'; "$($pf.Count) / $((($pf | Get-Cont
 | 差集上升 | **红**（除 F2-b 门化前的过渡批，须附逐条理由） |
 | 夹具 / 派生工厂 / 内核行数上升 | **红**（F2-d / F3 的棘轮口径） |
 | 台账键数变化 | 仅声明面变更批，须附逐条理由 + golden 再生 |
+
+---
+
+## §6 收口记录（F2-b · 2026-09-18）
+
+> 本节按 §5「差集下降须同步更新 §1 冻结值」登记**已核销**的缺项；冻结值变动只减不增。
+
+| 项 | 收口前 | 收口后 | 判据 |
+|---|---|---|---|
+| ② 结构门确定缺失 | 6（aggOp 4 + message 2） | **2**（message） | 新增词表派生绑定 `ports.schema.json#$defs/expr/properties/aggOp/enum`（`SchemaEnumSynchronizer`）+ 结构门补 enum 声明；`LedgerForge derive-schema` 对账绿（enum 绑定 17） |
+| `message` 族结构门指针 | `$defs/deliver/capture/properties/message`（`$ref` 嵌套 → 悬空） | **`$defs/capture/properties/message`**（可达节点） | `StandardRelationsTests.DanglingDetector_...`：旧指针判悬空（反证检测器非空转）、当前图悬空 = 0 |
+| 关系图能力（A5 并入 F2-b） | 无（仅逐格矩阵） | `StandardRelations` / `RelationGraph`：单跳关系 + **影响分析**（传递闭包）+ 悬空检测 + 词表绑定视图 | `StandardRelationsTests` 4 例（非空转 / 检测器 / 影响闭包 / 确定性） |
+| ③ 解析面（`aggOp` / `message`） | 无探针（68 个词位无登记） | **62**（两族补探针 + **读取器词位校验**：`IsKnownAggOp` / `IsKnownMessageMode`） | 探针纪律自证：哨兵被读取器拒（分派成立）+ 合法词被接受 ⇒ ③ 转 Present |
+| ② 无法判定（`expr` 族） | 7（成员未登记承载键） | **5**（`Separator` → `separator`、`Parts` → `concat` 已补登记） | `RegisteredSchemaUnregistered` 显式登记余 5 条（宿主内直取），僵尸条目即红 |
+| 基线冻结值 | — | §1 ② 缺失 = **0** / ② 无法判定 = **5** / ③ 无探针 = **62**；§2 测试 **101 / 99 / 2 / 0**；`derive-schema` enum 绑定 **18** | 矩阵 / 差集 / 汇总已按 §4 ① 重生成 |
+
+**未做（显式登记，不静默）**：`expr` 族的**成员级**探针（表达式键由结构门 `$defs/expr/properties` 闭合、读取器不分派词位，登记于守卫 `RegisteredParseProbeGaps`）；
+`expr` 族 5 个宿主内直取成员的 ② 无法判定（登记于 `RegisteredSchemaUnregistered`，结构门对该层为浅校验）；
+PS 命令补口（`new-ledger` / `emit-spec`）；F2-d 二期与 F3 消费侧退场。

@@ -34,6 +34,8 @@ public static class SchemaEnumSynchronizer
         new("ports.schema.json", "$defs/composedField/properties/select/enum", () => PortImplVocabulary.SelectEnum),
         new("ports.schema.json", "$defs/scope/properties/kind/enum", () => PortImplVocabulary.ScopeKindEnum),
         new("ports.schema.json", "$defs/deliver/properties/kind/enum", () => PortImplVocabulary.DeliverKindEnum),
+        new("ports.schema.json", "$defs/capture/properties/message/enum", () => PortImplVocabulary.MessageModeEnum),
+        new("ports.schema.json", "$defs/expr/properties/aggOp/enum", () => PortImplVocabulary.AggOpEnum),
         new("ports.schema.json", "$defs/expr/properties/from/enum", () => PortImplVocabulary.FromEnum),
         new("ports.schema.json", "$defs/expr/properties/convert/enum", () => PortImplVocabulary.ConversionEnum),
         new("ports.schema.json", "$defs/expr/properties/onBlankFirstKey/enum", () => PortImplVocabulary.OnBlankFirstKeyEnum),

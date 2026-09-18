@@ -1,7 +1,7 @@
 词总数 = 127
 差集数 = 127
-缺失计数（按轴）：Schema=6, Parse=51
-无法判定计数（按轴）：Schema=7, Parse=68, Implementation=127, Attestation=127
+缺失计数（按轴）：Parse=51
+无法判定计数（按轴）：Schema=5, Parse=62, Implementation=127, Attestation=127
 
 差集按家族分布：
   expr = 62

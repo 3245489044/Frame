@@ -182,6 +182,44 @@ public static class StandardCompleteness
     /// <summary>已登记家族名（登记序）；外来族不在其列。</summary>
     public static IReadOnlyList<string> FamilyNames => FamilyTable.Select(family => family.Name).ToArray();
 
+    /// <summary>
+    /// 词的落点投影（L3 关系图的**唯一取数口**：家族登记表不另抄一份，见 <see cref="StandardRelations"/>）。
+    /// </summary>
+    /// <param name="SchemaFile">结构门文件名。</param>
+    /// <param name="SchemaPointer">结构门指针（null = 未登记落点）。</param>
+    /// <param name="ModelType">中立模型类型名（null = 未登记模型落点）。</param>
+    /// <param name="ModelMember">模型成员名（null = 未登记模型落点）。</param>
+    /// <param name="HasReaderProbe">是否登记了③ 向解析探针。</param>
+    public sealed record CompletenessLanding(
+        string Family,
+        string Word,
+        string SchemaFile,
+        string? SchemaPointer,
+        string? ModelType,
+        string? ModelMember,
+        bool HasReaderProbe);
+
+    /// <summary>全部词的落点投影（登记序；词源 = 家族登记表，禁手抄）。</summary>
+    public static IReadOnlyList<CompletenessLanding> Landings
+    {
+        get
+        {
+            var landings = new List<CompletenessLanding>();
+            foreach (var family in FamilyTable)
+                foreach (var word in family.Words)
+                    landings.Add(new CompletenessLanding(
+                        family.Name,
+                        word,
+                        family.SchemaFile,
+                        family.SchemaPointer,
+                        family.ModelType?.Name,
+                        family.ModelMember?.Invoke(word),
+                        family.WordProbe is not null));
+
+            return landings;
+        }
+    }
+
     /// <summary>家族描述：词源 + 六向落点（探针 / 指针 / 模型成员）。</summary>
     private sealed record Family(
         string Name,
@@ -217,10 +255,11 @@ public static class StandardCompleteness
             null,
             word => TableProbe("onDuplicate", word), TableProbe("onDuplicate", Sentinel),
             typeof(ValueSourceStandard), _ => nameof(ValueSourceStandard.OnDuplicate)),
-        new("aggOp", PortImplVocabulary.AggOps, "$defs/expr/properties/aggOp", null,
-            null, null, typeof(ExprStandard), _ => nameof(ExprStandard.AggOp)),
-        new("message", PortImplVocabulary.MessageModes, "$defs/deliver/capture/properties/message", null,
-            null, null, typeof(DeliverCaptureStandard), _ => nameof(DeliverCaptureStandard.Message)),
+        new("aggOp", PortImplVocabulary.AggOps, "$defs/expr/properties/aggOp/enum", null,
+            AggOpProbe, AggOpProbe(Sentinel), typeof(ExprStandard), _ => nameof(ExprStandard.AggOp)),
+        // 指针修正（F2-b 收口）：deliver.capture 是 $ref，嵌套指针不可达；消息口径的实节点在 $defs/capture。
+        new("message", PortImplVocabulary.MessageModes, "$defs/capture/properties/message/enum", null,
+            MessageProbe, MessageProbe(Sentinel), typeof(DeliverCaptureStandard), _ => nameof(DeliverCaptureStandard.Message)),
         new("expr", PortImplVocabulary.ExprSlots.Select(slot => slot.Member).ToArray(), "$defs/expr/properties",
             ExprSchemaWords, null, null, typeof(ExprStandard), member => member),
         new("scope.kind", PortImplVocabulary.ScopeKinds, "$defs/scope/properties/kind/enum", null,
@@ -253,6 +292,17 @@ public static class StandardCompleteness
 
     private static string SelectProbe(string word) =>
         Envelope("{\"kind\":\"composed\",\"project\":[{\"field\":\"f\",\"call\":\"c\",\"select\":" + Quoted(word) + "}]}");
+
+    /// <summary><c>aggOp</c> 词位探针（<c>deliver.value</c> 表达式位：算子键仅在表达式层合法，<c>bind</c> 层只认取值来源键）。</summary>
+    private static string AggOpProbe(string word) =>
+        Envelope("{\"kind\":\"scripted\",\"deliver\":{\"kind\":\"value\",\"value\":"
+                 + "{\"agg\":{\"from\":\"with\",\"key\":\"xs\"},\"aggOp\":" + Quoted(word) + "}}}");
+
+    /// <summary><c>message</c> 词位探针（<c>deliver.capture.message</c> 消息口径）。</summary>
+    private static string MessageProbe(string word) =>
+        Envelope("{\"kind\":\"scripted\",\"deliver\":{\"kind\":\"issues\",\"capture\":"
+                 + "{\"call\":{\"target\":\"T\",\"method\":\"M\"},\"expect\":[\"System.Exception\"],"
+                 + "\"message\":" + Quoted(word) + "}}}");
 
     private static string DeliverProbe(string word) =>
         Envelope("{\"kind\":\"scripted\",\"deliver\":{\"kind\":" + Quoted(word) + "}}");
@@ -437,6 +487,10 @@ public static class StandardCompleteness
             return false;
         }
     }
+
+    /// <summary>结构门节点探针（关系图共用**同一实现**；禁第二份指针解析）。</summary>
+    internal static (bool Exists, IReadOnlyList<string>? Members) SchemaNode(string schemaFile, string pointer)
+        => ReadSchemaNode(SchemaText(schemaFile), pointer);
 
     /// <summary>
     /// 结构门节点读取：返回「节点是否存在」与「可校验成员」（<c>enum</c> 数组值 / <c>properties</c> 对象键集）；

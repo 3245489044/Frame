@@ -137,28 +137,16 @@ onDuplicate/fail	Attestation	Unregistered	未提供外来证据
 onDuplicate/last	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 onDuplicate/last	Implementation	Unregistered	未提供外来证据
 onDuplicate/last	Attestation	Unregistered	未提供外来证据
-aggOp/sum	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
-aggOp/sum	Parse	Unregistered	未登记探针
 aggOp/sum	Implementation	Unregistered	未提供外来证据
 aggOp/sum	Attestation	Unregistered	未提供外来证据
-aggOp/max	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
-aggOp/max	Parse	Unregistered	未登记探针
 aggOp/max	Implementation	Unregistered	未提供外来证据
 aggOp/max	Attestation	Unregistered	未提供外来证据
-aggOp/min	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
-aggOp/min	Parse	Unregistered	未登记探针
 aggOp/min	Implementation	Unregistered	未提供外来证据
 aggOp/min	Attestation	Unregistered	未提供外来证据
-aggOp/avg	Schema	Missing	结构门无 enum / 键集声明：$defs/expr/properties/aggOp
-aggOp/avg	Parse	Unregistered	未登记探针
 aggOp/avg	Implementation	Unregistered	未提供外来证据
 aggOp/avg	Attestation	Unregistered	未提供外来证据
-message/Message	Schema	Missing	结构门无该节点：$defs/deliver/capture/properties/message
-message/Message	Parse	Unregistered	未登记探针
 message/Message	Implementation	Unregistered	未提供外来证据
 message/Message	Attestation	Unregistered	未提供外来证据
-message/TypeName	Schema	Missing	结构门无该节点：$defs/deliver/capture/properties/message
-message/TypeName	Parse	Unregistered	未登记探针
 message/TypeName	Implementation	Unregistered	未提供外来证据
 message/TypeName	Attestation	Unregistered	未提供外来证据
 expr/Source	Schema	Unregistered	该成员未登记承载键（词表登记待补）
@@ -189,7 +177,6 @@ expr/Thrown	Attestation	Unregistered	未提供外来证据
 expr/Concat	Parse	Unregistered	未登记探针
 expr/Concat	Implementation	Unregistered	未提供外来证据
 expr/Concat	Attestation	Unregistered	未提供外来证据
-expr/Separator	Schema	Unregistered	该成员未登记承载键（词表登记待补）
 expr/Separator	Parse	Unregistered	未登记探针
 expr/Separator	Implementation	Unregistered	未提供外来证据
 expr/Separator	Attestation	Unregistered	未提供外来证据
@@ -331,7 +318,6 @@ expr/FirstOrNull	Attestation	Unregistered	未提供外来证据
 expr/LastOrNull	Parse	Unregistered	未登记探针
 expr/LastOrNull	Implementation	Unregistered	未提供外来证据
 expr/LastOrNull	Attestation	Unregistered	未提供外来证据
-expr/Parts	Schema	Unregistered	该成员未登记承载键（词表登记待补）
 expr/Parts	Parse	Unregistered	未登记探针
 expr/Parts	Implementation	Unregistered	未提供外来证据
 expr/Parts	Attestation	Unregistered	未提供外来证据

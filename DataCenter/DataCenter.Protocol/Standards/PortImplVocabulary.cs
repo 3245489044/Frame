@@ -100,4 +100,12 @@ public static partial class PortImplVocabulary
     /// <summary><c>from</c> 是否已登记（空 = 无来源声明，合法）。</summary>
     public static bool IsKnownFrom(string? from)
         => string.IsNullOrEmpty(from) || ValueSourceFromAll.Contains(from, StringComparer.Ordinal);
+
+    /// <summary>聚合算子 <c>aggOp</c> / <c>agg.op</c> 是否已登记（空 = 无声明，按缺省 <c>sum</c>，合法）。</summary>
+    public static bool IsKnownAggOp(string? op)
+        => string.IsNullOrEmpty(op) || AggOps.Contains(op, StringComparer.Ordinal);
+
+    /// <summary>issue 消息口径 <c>capture.message</c> 是否已登记（空 = 缺省 <c>Message</c>，合法）。</summary>
+    public static bool IsKnownMessageMode(string? mode)
+        => string.IsNullOrEmpty(mode) || MessageModes.Contains(mode, StringComparer.Ordinal);
 }

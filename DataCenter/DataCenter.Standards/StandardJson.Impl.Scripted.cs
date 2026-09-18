@@ -213,7 +213,7 @@ public static partial class StandardJson
         return new DeliverCaptureStandard(
             invoke,
             StrList(capture, "expect") ?? Array.Empty<string>(),
-            Str(capture, "message"),
+            EnsureKnownMessageMode(portKey, Str(capture, "message"), "deliver.capture.message"),
             Str(capture, "messageField"),
             capture.TryGetProperty("when", out var gate) ? ReadExpr(portKey, gate, "deliver.capture.when") : null);
     }
@@ -787,6 +787,25 @@ public static partial class StandardJson
     /// 聚合读取（W3）：长形 <c>{ "agg": { "over": …, "op": "sum|max|min|avg", "path": … } }</c>；
     /// 短形 <c>"agg"</c> 直给 over 时取平铺 <c>aggOp</c> / <c>aggPath</c>。缺省 op = <c>sum</c>。
     /// </summary>
+    /// <summary>
+    /// 聚合算子词位校验（词表唯一源 <see cref="PortImplVocabulary.AggOps"/>）：未知算子即 fail-fast，不静默回退缺省。
+    /// 与结构门 enum 派生绑定构成**双保险**（结构门拦声明期、读取器拦读取期）。
+    /// </summary>
+    private static string? EnsureKnownAggOp(string portKey, string? op, string where)
+        => PortImplVocabulary.IsKnownAggOp(op)
+            ? op
+            : throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {where} 未知聚合算子 '{op}'"
+                + $"（可用：{string.Join(", ", PortImplVocabulary.AggOps)}）");
+
+    /// <summary>issue 消息口径词位校验（词表唯一源 <see cref="PortImplVocabulary.MessageModes"/>）。</summary>
+    private static string? EnsureKnownMessageMode(string portKey, string? mode, string where)
+        => PortImplVocabulary.IsKnownMessageMode(mode)
+            ? mode
+            : throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {where} 未知消息口径 '{mode}'"
+                + $"（可用：{string.Join(", ", PortImplVocabulary.MessageModes)}）");
+
     private static (ExprStandard? Over, string? Op, string? Path) Aggregate(
         string portKey, JsonElement owner, string context)
     {
@@ -798,13 +817,13 @@ public static partial class StandardJson
         {
             return (
                 ReadExpr(portKey, over, $"{context}.agg.over"),
-                Str(agg, "op"),
+                EnsureKnownAggOp(portKey, Str(agg, "op"), $"{context}.agg.op"),
                 Str(agg, "path"));
         }
 
         return (
             ReadExpr(portKey, agg, $"{context}.agg"),
-            Str(owner, "aggOp"),
+            EnsureKnownAggOp(portKey, Str(owner, "aggOp"), $"{context}.aggOp"),
             Str(owner, "aggPath"));
     }
 

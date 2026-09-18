@@ -386,7 +386,7 @@
         "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
         "out": { "type": "string" },
         "expect": { "type": "array", "items": { "type": "string" } },
-        "message": { "type": "string" },
+        "message": { "type": "string", "enum": ["Message", "TypeName"] },
         "messageField": { "type": "string" },
         "when": { "$ref": "#/$defs/expr" }
       },
@@ -486,7 +486,7 @@
         "first": { "type": "object" },
         "orNull": { "type": "boolean" },
         "agg": { "type": "object" },
-        "aggOp": { "type": "string" },
+        "aggOp": { "type": "string", "enum": ["sum", "max", "min", "avg"] },
         "aggPath": { "type": "string" },
         "filter": { "type": "object" },
         "filterWhere": { "type": "object" },

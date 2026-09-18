@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Share.StateManagement;
 using Operation.StateBlock.Layering;
 
@@ -16,6 +17,10 @@ public sealed class DecisionCenter
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = false,
+        // 枚举以字符串落库 —— 与 JsonValueCodec「枚举取名字」及 TS 侧字符串枚举的跨语言契约一致
+        // （默认数字形态会使 LoopDecision/EvalOutcome/ErrorClass 在跨语言消费侧不可读）。
+        // JsonStringEnumConverter 反序列化仍接受数字，旧数字载荷可正常回放（向后兼容）。
+        Converters = { new JsonStringEnumConverter() },
     };
 
     private readonly StateLayerScheme _scheme;

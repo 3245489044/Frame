@@ -1,7 +1,7 @@
-using System.Text;
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
 using Plate.JsonMethod.Utilities;
+using static Plate.JsonMethod.Utilities.JsonTolerantReader;
 
 namespace DataCenter.Standards;
 
@@ -29,7 +29,7 @@ public static partial class StandardJson
 
     /// <summary>端口标准（<c>ports</c> 段；键 Ordinal 升序）。</summary>
     public static IReadOnlyList<PortStandard> ReadPorts(string portsJson)
-        => Read(portsJson, root =>
+        => ParseRoot<PortStandard[]>(portsJson, root =>
         {
             EnsureKnownKeys("ports.json", root, PortTopKeys);
             if (!TrySection(root, "ports", out var ports)) return [];
@@ -51,7 +51,7 @@ public static partial class StandardJson
 
     /// <summary>数据标准（<c>data</c> 段；键 Ordinal 升序）。</summary>
     public static IReadOnlyList<DataStandardItem> ReadData(string portsJson)
-        => Read(portsJson, root =>
+        => ParseRoot<DataStandardItem[]>(portsJson, root =>
         {
             EnsureKnownKeys("ports.json", root, PortTopKeys);
             if (!TrySection(root, "data", out var data)) return [];
@@ -77,7 +77,7 @@ public static partial class StandardJson
 
     /// <summary>事件标准（<c>events</c> 段；键 Ordinal 升序）。</summary>
     public static IReadOnlyList<EventStandard> ReadEvents(string eventsJson)
-        => Read(eventsJson, root =>
+        => ParseRoot<EventStandard[]>(eventsJson, root =>
         {
             EnsureKnownKeys("events.json", root, EventTopKeys);
             if (!TrySection(root, "events", out var events)) return [];
@@ -99,7 +99,7 @@ public static partial class StandardJson
 
     /// <summary>替身标准（<c>fakes</c> 段；端口键 Ordinal 升序）。</summary>
     public static IReadOnlyList<FakeStandard> ReadFakes(string fakesJson)
-        => Read(fakesJson, root =>
+        => ParseRoot<FakeStandard[]>(fakesJson, root =>
         {
             EnsureKnownKeys("fakes.json", root, FakeTopKeys);
             if (!TrySection(root, "fakes", out var fakes)) return [];
@@ -119,30 +119,22 @@ public static partial class StandardJson
     public static IReadOnlyList<string> DuplicateKeys(string json) => JsonDuplicateKeyScanner.Scan(json);
 
     /// <summary>
-    /// 逐层未知键闭合（唯一实现）：取值域 = <see cref="PortImplVocabulary.KeysOf"/> 派生的键表；
-    /// **未登记层 → 不判**（防越界误杀）。装载期即拦，诊断带键路径。
+    /// 逐层未知键闭合（层适配器）：取值域 = <see cref="PortImplVocabulary.KeysOf"/> 派生的键表；
+    /// **未登记层 → 不判**（防越界误杀）。实现单源 = <see cref="EnsureKnownKeys"/>（本件不另写一遍收集/抛出）。
     /// </summary>
     private static void EnsureLayerKeys(string level, string context, JsonElement obj)
     {
         if (PortImplVocabulary.KeysOf(level) is not { Count: > 0 } known) return;
 
-        var violations = new List<string>();
-        JsonTolerantReader.CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));
-        if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
+        EnsureKnownKeys(context, obj, known);
     }
 
-    /// <summary>解析 → 交给读者（机制在平台 JSON 框架：注释/尾随逗号容忍 + 根元素先 Clone）。</summary>
-    private static IReadOnlyList<T> Read<T>(string json, Func<JsonElement, IReadOnlyList<T>> body)
-        => JsonTolerantReader.ParseRoot(json, body);
-
-    private static bool TrySection(JsonElement root, string name, out JsonElement section)
-        => JsonTolerantReader.TrySection(root, name, out section);
-
-    /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。</summary>
+    /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。
+    /// 键闭合**唯一实现**：逐层入口经 <see cref="EnsureLayerKeys"/> 转调。</summary>
     private static void EnsureKnownKeys(string context, JsonElement obj, IReadOnlyList<string> known)
     {
         var violations = new List<string>();
-        JsonTolerantReader.CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));
+        CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));
         if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
 
@@ -173,14 +165,6 @@ public static partial class StandardJson
         return field.ValueKind == JsonValueKind.String ? field.GetString() ?? string.Empty : string.Empty;
     }
 
-    /// <summary>点链取值（如 <c>out.fields</c>）→ 字符串数组（缺失 → 空）。机制在平台 JSON 框架（原语逐字搬迁）。</summary>
-    private static IReadOnlyList<string> PathStrings(JsonElement entry, string path)
-        => JsonTolerantReader.PathStrings(entry, path);
-
-    /// <summary>字符串数组读取（裸字符串包单元素）。机制在平台 JSON 框架（与 <c>StrList</c> 的分歧语义原样保留）。</summary>
-    private static IReadOnlyList<string> Strings(JsonElement entry, string name)
-        => JsonTolerantReader.Strings(entry, name);
-
     /// <summary>字段枚举域（<c>enum</c> 段：字段名 → 允许值；非对象段 → 空域）；计数为零的域同样保留。</summary>
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> Enums(JsonElement entry)
     {
@@ -203,8 +187,4 @@ public static partial class StandardJson
         var declared = Strings(entry, "producers");
         return declared.Count > 0 ? declared : Strings(entry, "producer");
     }
-
-    private static string? Text(JsonElement entry, string name) => JsonTolerantReader.Text(entry, name);
-
-    private static double? Number(JsonElement entry, string name) => JsonTolerantReader.Number(entry, name);
 }

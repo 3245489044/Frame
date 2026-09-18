@@ -64,7 +64,8 @@ internal static class ScriptedInvokeRunner
         }
 
         var method = Close(portKey, invoke, PickMethod(
-            portKey, context, type, invoke.Method, declared, isStatic, invoke.NonPublic, scope, input, resolvedDeps));
+            portKey, context, type, invoke.Method, declared, isStatic, invoke.NonPublic, scope, input, resolvedDeps,
+            invoke.GenericArgs));
         var parameters = method.GetParameters();
         var args = Bind(portKey, $"{context}（{type.Name}.{method.Name}）", declared, parameters, scope, input, resolvedDeps);
 
@@ -124,7 +125,7 @@ internal static class ScriptedInvokeRunner
         var declaredArgs = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
         var method = Close(portKey, invoke, PickMethod(
             portKey, context, type, invoke.Method, declaredArgs, isStatic: false, invoke.NonPublic,
-            scope, input, deps));
+            scope, input, deps, invoke.GenericArgs));
         var methodParameters = method.GetParameters();
         var args = Bind(
             portKey, $"{context}（{type.Name}.{method.Name}）", declaredArgs, methodParameters, scope, input, deps);
@@ -139,13 +140,44 @@ internal static class ScriptedInvokeRunner
     /// </summary>
     private static MethodInfo PickMethod(
         string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
-        bool isStatic, bool nonPublic, EvalScope scope, IPortInput input, object?[] deps)
+        bool isStatic, bool nonPublic, EvalScope scope, IPortInput input, object?[] deps,
+        IReadOnlyList<string>? genericArgs)
         => ReflectivePortResolver.ResolveMethod(
             type, portKey, methodName, declared.Count, isStatic, nonPublic,
-            candidate => TryBind(
-                portKey, $"{context}（{type.Name}.{methodName}）", declared,
-                candidate.GetParameters(), scope, input, deps),
-            context);
+            candidate => TryBindCandidate(
+                portKey, context, type, methodName, declared, candidate, genericArgs, scope, input, deps),
+            context,
+            genericArgs is { Count: > 0 } args ? args.Count : null);
+
+    /// <summary>
+    /// 候选试绑定（W4 修正）：声明 <c>genericArgs</c> 时**先闭合、再按闭合后形参试绑定**（未闭合的泛型形参
+    /// 无法参与类型匹配 ⇒ 泛型重载被误判不可绑定，旧口径因此误选非泛型重载并报「不是开放泛型方法」）；
+    /// 未声明时保持旧口径（不做泛型过滤，避免无谓回归）。
+    /// </summary>
+    private static object?[]? TryBindCandidate(
+        string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
+        MethodInfo candidate, IReadOnlyList<string>? genericArgs,
+        EvalScope scope, IPortInput input, object?[] deps)
+    {
+        var label = $"{context}（{type.Name}.{methodName}）";
+
+        if (genericArgs is not { Count: > 0 } names)
+            return TryBind(portKey, label, declared, candidate.GetParameters(), scope, input, deps);
+
+        if (!candidate.IsGenericMethodDefinition) return null;   // 声明了闭合实参 ⇒ 非泛型候选不可选
+
+        MethodInfo closed;
+        try
+        {
+            closed = CloseMethod(portKey, methodName, candidate, names);
+        }
+        catch (PortBindingViolationException)
+        {
+            return null;   // 该候选不可闭合（数量不符 / 闭合失败）⇒ 交其它候选
+        }
+
+        return TryBind(portKey, label, declared, closed.GetParameters(), scope, input, deps);
+    }
 
     /// <summary>
     /// 实参绑定单源（W13）：**位置绑定**（无 <c>named</c> 的项按序填入首个未占用形参位）+ **命名绑定**
@@ -236,19 +268,28 @@ internal static class ScriptedInvokeRunner
 
     /// <summary>泛型方法闭合（W4）：声明 <c>genericArgs</c> 时按序闭合；非开放泛型方法声明了即抛（防静默错配）。</summary>
     private static MethodInfo Close(string portKey, ScriptedInvokeSpec invoke, MethodInfo method)
-    {
-        if (invoke.GenericArgs is not { Count: > 0 } names) return method;
+        => invoke.GenericArgs is { Count: > 0 } names
+            ? CloseMethod(portKey, invoke.Method, method, names)
+            : method;
 
+    /// <summary>
+    /// 泛型闭合单源（W4）。消费方：① <see cref="Close"/>（解析结果闭合）；② <see cref="PickMethod"/> 的择优试绑定
+    /// ——**声明 <c>genericArgs</c> 时须先闭合再按闭合后形参试绑定**：未替换的泛型形参无法参与类型匹配，
+    /// 泛型重载会被误判为不可绑定，进而误选非泛型重载并报「不是开放泛型方法」。
+    /// </summary>
+    internal static MethodInfo CloseMethod(
+        string portKey, string methodName, MethodInfo method, IReadOnlyList<string> names)
+    {
         if (!method.IsGenericMethodDefinition)
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的调用 '{invoke.Method}' 声明了 genericArgs，但目标方法不是开放泛型方法");
+                $"端口 '{portKey}' 的调用 '{methodName}' 声明了 genericArgs，但目标方法不是开放泛型方法");
 
         var types = names.Select(name => ComposedDeps.ResolveType(name, null)).ToArray();
         if (types.Length != method.GetGenericArguments().Length)
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的调用 '{invoke.Method}' 的 genericArgs 数量 {types.Length} 与其泛型形参数量 {method.GetGenericArguments().Length} 不一致");
+                $"端口 '{portKey}' 的调用 '{methodName}' 的 genericArgs 数量 {types.Length} 与其泛型形参数量 {method.GetGenericArguments().Length} 不一致");
 
         try
         {
@@ -257,7 +298,7 @@ internal static class ScriptedInvokeRunner
         catch (ArgumentException ex)
         {
             throw new PortBindingViolationException(
-                portKey, $"端口 '{portKey}' 的调用 '{invoke.Method}' 的泛型闭合失败（{ex.Message}）");
+                portKey, $"端口 '{portKey}' 的调用 '{methodName}' 的泛型闭合失败（{ex.Message}）");
         }
     }
 

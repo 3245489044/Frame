@@ -31,21 +31,21 @@ public static class StandardImplConsistency
     /// </summary>
     internal static void CheckC7(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
-        if (impl is null || string.IsNullOrWhiteSpace(impl.Kind) || string.Equals(impl.Kind, "delegate", StringComparison.Ordinal))
+        if (impl is null || string.IsNullOrWhiteSpace(impl.Kind) || string.Equals(impl.Kind, PortImplVocabulary.KindName.Delegate, StringComparison.Ordinal))
         {
             if (string.IsNullOrWhiteSpace(impl?.Id))
                 violations.Add($"C7 端口[{port.Key}] 的 impl 缺实现（kind=delegate 但未给 id）——疑忘写实现");
             return;
         }
 
-        if (string.Equals(impl.Kind, "reflective", StringComparison.Ordinal))
+        if (string.Equals(impl.Kind, PortImplVocabulary.KindName.Reflective, StringComparison.Ordinal))
         {
             if (string.IsNullOrWhiteSpace(impl.Target) || string.IsNullOrWhiteSpace(impl.Method))
                 violations.Add($"C7 端口[{port.Key}] 的 impl.kind=reflective 须给 target 与 method（当前 target='{impl.Target}' method='{impl.Method}'）");
             return;
         }
 
-        if (string.Equals(impl.Kind, "frozen", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(impl.Reason))
+        if (string.Equals(impl.Kind, PortImplVocabulary.KindName.Frozen, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(impl.Reason))
             violations.Add($"C7 端口[{port.Key}] 的 impl.kind=frozen 须给 reason（冻结须说明原因）");
     }
 
@@ -82,7 +82,7 @@ public static class StandardImplConsistency
     /// </summary>
     internal static void CheckC9Composed(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
-        if (impl is null || !string.Equals(impl.Kind, "composed", StringComparison.Ordinal)) return;
+        if (impl is null || !string.Equals(impl.Kind, PortImplVocabulary.KindName.Composed, StringComparison.Ordinal)) return;
 
         var deps = impl.Deps ?? [];
         var calls = impl.Calls ?? [];
@@ -126,7 +126,7 @@ public static class StandardImplConsistency
     /// </summary>
     internal static void CheckC10Scripted(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
-        if (impl is null || !string.Equals(impl.Kind, "scripted", StringComparison.Ordinal)) return;
+        if (impl is null || !string.Equals(impl.Kind, PortImplVocabulary.KindName.Scripted, StringComparison.Ordinal)) return;
 
         StandardNodeWalk.VisitSteps(impl, step =>
         {
@@ -151,7 +151,7 @@ public static class StandardImplConsistency
     /// </summary>
     internal static void CheckC11Deliver(PortStandard port, PortImplStandard? impl, List<string> violations)
     {
-        if (impl is null || !string.Equals(impl.Kind, "scripted", StringComparison.Ordinal)) return;
+        if (impl is null || !string.Equals(impl.Kind, PortImplVocabulary.KindName.Scripted, StringComparison.Ordinal)) return;
 
         if (impl.Deliver is { } deliver)
         {

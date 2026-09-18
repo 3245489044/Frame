@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using Plate.JsonMethod.Utilities;
 
 namespace DataCenter.Standards;
 
@@ -443,7 +444,7 @@ public static class StandardCompleteness
     /// </summary>
     private static (bool Exists, IReadOnlyList<string>? Members) ReadSchemaNode(string schemaText, string pointer)
     {
-        using var document = JsonDocument.Parse(schemaText);
+        using var document = JsonDocument.Parse(schemaText, JsonTolerantReader.Tolerant);
         var node = document.RootElement;
         foreach (var token in pointer.Split('/'))
         {

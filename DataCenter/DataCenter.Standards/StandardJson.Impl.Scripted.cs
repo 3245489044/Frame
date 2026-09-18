@@ -465,8 +465,8 @@ public static partial class StandardJson
             owner = presence;
         }
 
-        var rows = from == "table" ? RowSource(portKey, element, owner, context) : null;
-        var items = from == "presence" ? TokenSource(portKey, element, owner, context) : null;
+        var rows = from == "table" ? RowSource(portKey, owner, context) : null;
+        var items = from == "presence" ? TokenSource(portKey, owner, context) : null;
 
         if (from is null)
         {
@@ -565,9 +565,10 @@ public static partial class StandardJson
     /// <remarks>
     /// 迁移保真注记（R2-2）：原实现为 <c>ReferenceEquals(owner, element) ? throw : …</c>，而
     /// <see cref="JsonElement"/> 是值类型 —— 装箱比较恒为 false，故「缺行集来源」分支**从未可达**。
-    /// 本处按**既有行为**（永不触发该断言）等价改写以消除 CA2013，并把该历史口径缺陷登记待裁决（见 R2 落地记录）。
+    /// 本处按**既有行为**（永不触发该断言）等价改写以消除 CA2013，并把该历史口径缺陷登记待裁决（见 R2 落地记录）；
+    /// 原 `element` 形参只服务于那条恒不可达的分支，随等价改写一并去除。
     /// </remarks>
-    private static ValueSourceStandard RowSource(string portKey, JsonElement element, JsonElement owner, string context)
+    private static ValueSourceStandard RowSource(string portKey, JsonElement owner, string context)
     {
         if (owner.TryGetProperty("rows", out var declared))
             return ReadArg(portKey, declared, $"{context} 的行集");
@@ -577,7 +578,7 @@ public static partial class StandardJson
 
     /// <summary>判定表词元集来源（<c>items</c> 子对象优先；嵌套简写下内层对象即词元集来源）。</summary>
     /// <remarks>迁移保真注记同 <see cref="RowSource"/>（原「缺词元集来源」分支对值类型恒不可达）。</remarks>
-    private static ValueSourceStandard TokenSource(string portKey, JsonElement element, JsonElement owner, string context)
+    private static ValueSourceStandard TokenSource(string portKey, JsonElement owner, string context)
     {
         if (owner.TryGetProperty("items", out var declared))
             return ReadArg(portKey, declared, $"{context} 的词元集");

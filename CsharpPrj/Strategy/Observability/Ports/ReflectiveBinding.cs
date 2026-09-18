@@ -211,22 +211,31 @@ internal static class ReflectivePortResolver
     /// 方法解析**择优形态**（E9：多候选按实参可绑定度择一）：候选集 = 参数个数 == 声明个数（非 <c>out</c> 优先，回落总个数）；
     /// 逐候选试绑定（<paramref name="tryBind"/> 失败即「不可绑定」）→ 唯一最高分选它；
     /// **并列最高分 → 保持旧口径（首个参数个数匹配者）**（产品侧已硬约束「不得同名同参数个数重载」，故并列不出现；
-    /// 出现时保持旧行为，避免无谓回归）；全部不可绑定 → fail-fast 并列候选签名。
+    /// 出现时保持旧行为，避免无谓回归）；全部不可绑定 → fail-fast 并列候选签名 + 逐候选原因。
+    /// <para>
+    /// <paramref name="genericArity"/> 非空 = 声明了 <c>genericArgs</c>：候选集**先收敛到同元数泛型定义**
+    /// （否则非泛型重载可能以「形参个数相同」混入并被选中，闭合时即报「不是开放泛型方法」）。
+    /// </para>
     /// </summary>
     internal static MethodInfo ResolveMethod(
         Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic,
-        Func<MethodInfo, object?[]?> tryBind, string context)
+        Func<MethodInfo, object?[]?> tryBind, string context, int? genericArity = null)
     {
         var candidates = ResolveMethodCandidates(type, portKey, methodName, isStatic, nonPublic);
-        var compatible = candidates.Where(m => DeclaredCount(m) == declaredCount).ToArray();
-        if (compatible.Length == 0)
-            compatible = candidates.Where(m => m.GetParameters().Length == declaredCount).ToArray();
+        var universe = genericArity is { } arity
+            ? candidates.Where(m => m.IsGenericMethodDefinition && m.GetGenericArguments().Length == arity).ToArray()
+            : candidates;
 
-        if (compatible.Length <= 1) return compatible.FirstOrDefault() ?? Legacy(candidates, declaredCount);
+        var compatible = universe.Where(m => DeclaredCount(m) == declaredCount).ToArray();
+        if (compatible.Length == 0)
+            compatible = universe.Where(m => m.GetParameters().Length == declaredCount).ToArray();
+
+        if (compatible.Length <= 1) return compatible.FirstOrDefault() ?? Legacy(universe, declaredCount);
 
         MethodInfo? best = null;
-        var bestScore = -1;
+        var bestScore = 0;
         var tied = 0;
+        var rejected = new List<string>();
 
         foreach (var candidate in compatible)
         {
@@ -235,15 +244,29 @@ internal static class ReflectivePortResolver
             {
                 bound = tryBind(candidate);
             }
-            catch (PortBindingViolationException)
+            catch (PortBindingViolationException ex)
             {
+                rejected.Add($"{Signature(candidate)} ⇒ {ex.Message}");
                 continue;
             }
 
-            if (bound is null) continue;
+            if (bound is null)
+            {
+                rejected.Add($"{Signature(candidate)} ⇒ 实参不可绑定（试绑定拒绝）");
+                continue;
+            }
 
             var score = PortValues.ScoreArguments(
                 candidate.GetParameters().Select(parameter => parameter.ParameterType).ToArray(), bound);
+
+            // 首个可绑定候选即基准（不得用 -1 之类哨兵初值：得分恰为哨兵值时会与之「并列」而永不入选）。
+            if (best is null)
+            {
+                best = candidate;
+                bestScore = score;
+                tied = 1;
+                continue;
+            }
 
             if (score < bestScore) continue;
             if (score == bestScore)
@@ -260,7 +283,10 @@ internal static class ReflectivePortResolver
         if (best is null)
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上无可绑定方法 {methodName}（候选 {Signatures(compatible)}）");
+                $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上无可绑定方法 {methodName}（候选 {Signatures(compatible)}）"
+                + (rejected.Count > 0
+                    ? $"{Environment.NewLine}逐候选试绑定原因：" + string.Join(Environment.NewLine, rejected)
+                    : string.Empty));
 
         return tied > 1 ? Legacy(compatible, declaredCount) : best;
     }
@@ -300,6 +326,9 @@ internal static class ReflectivePortResolver
     private static string Signatures(IEnumerable<MethodInfo> candidates)
         => string.Join(" / ", candidates.Select(candidate => $"({string.Join(", ",
             candidate.GetParameters().Select(parameter => $"{parameter.ParameterType.Name} {parameter.Name}"))})"));
+
+    /// <summary>单候选签名（逐候选试绑定原因诊断用；与 <see cref="Signatures"/> 同口径）。</summary>
+    private static string Signature(MethodInfo candidate) => Signatures([candidate]);
 
     /// <summary>可用方法清单（E9 诊断：方法缺失时给出同名方法与其重载签名，有界限长）。</summary>
     private static string AvailableNames(Type type, BindingFlags flags)

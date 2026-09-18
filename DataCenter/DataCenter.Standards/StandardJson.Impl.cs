@@ -29,7 +29,7 @@ public static partial class StandardJson
 
         var kind = NormalizeKind(portKey, Str(impl, "kind"));
         EnsureLayerKeys(nameof(PortImplVocabulary.ImplKeys), $"ports.{portKey}.impl", impl);
-        var scripted = string.Equals(kind, "scripted", StringComparison.Ordinal);
+        var scripted = string.Equals(kind, PortImplVocabulary.KindName.Scripted, StringComparison.Ordinal);
 
         return new PortImplStandard(
             kind,
@@ -42,8 +42,8 @@ public static partial class StandardJson
             ReadArgs(portKey, impl),
             scripted ? ReadBinds(portKey, impl) : null,
             ReadDeps(portKey, impl),
-            string.Equals(kind, "composed", StringComparison.Ordinal) ? ReadCalls(portKey, impl) : null,
-            string.Equals(kind, "composed", StringComparison.Ordinal) ? ReadProject(portKey, impl) : null,
+            string.Equals(kind, PortImplVocabulary.KindName.Composed, StringComparison.Ordinal) ? ReadCalls(portKey, impl) : null,
+            string.Equals(kind, PortImplVocabulary.KindName.Composed, StringComparison.Ordinal) ? ReadProject(portKey, impl) : null,
             scripted ? ReadScript(portKey, impl) : null,
             scripted ? ReadScriptProject(portKey, impl) : null,
             scripted ? ReadDeliver(portKey, impl) : null,
@@ -73,15 +73,14 @@ public static partial class StandardJson
             Str(declared, "reason"));
     }
 
-    /// <summary>种类归一（非法即抛；诊断文案与内核逐字一致）。</summary>
+    /// <summary>种类归一（非法即抛；诊断文案与内核逐字一致）。取值域 = 词表唯一源（<c>Kinds</c>/<c>KindName</c>，禁手抄 kind）。</summary>
     private static string NormalizeKind(string portKey, string? text)
-        => text switch
-        {
-            null or "" or "delegate" => "delegate",
-            "reflective" or "composed" or "scripted" or "frozen" => text,
-            _ => throw new StandardViolationException(
-                $"[port:standard] 端口 '{portKey}' 的 impl.kind '{text}' 非法（delegate|reflective|composed|scripted|frozen）"),
-        };
+        => text is null or ""
+            ? PortImplVocabulary.KindName.Delegate
+            : PortImplVocabulary.IsKnownKind(text)
+                ? text
+                : throw new StandardViolationException(
+                    $"[port:standard] 端口 '{portKey}' 的 impl.kind '{text}' 非法（{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}）");
 
     /// <summary>
     /// 反射族位置实参读取（<c>impl.args[]</c>）：每项 <c>{ convert, optional?, nullLiteral?, default?, from?, key? }</c>；

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using Plate.JsonMethod.Utilities;
 
 namespace DataCenter.Standards;
 
@@ -340,7 +341,7 @@ public static class SchemaEnumSynchronizer
 
     private static IReadOnlyList<string>? ReadEnum(string text, string pointer)
     {
-        using var document = JsonDocument.Parse(text, JsonDocumentOptions);
+        using var document = JsonDocument.Parse(text, JsonTolerantReader.Tolerant);
         var current = document.RootElement;
         foreach (var segment in pointer.Split('/', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -352,12 +353,6 @@ public static class SchemaEnumSynchronizer
             ? current.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray()
             : null;
     }
-
-    private static readonly JsonDocumentOptions JsonDocumentOptions = new()
-    {
-        CommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
 
     /// <summary>定位 <paramref name="pointer"/> 所指值的原始文本范围（字节偏移）。</summary>
     private static bool TryFindValueSpan(string text, string pointer, out int start, out int length)

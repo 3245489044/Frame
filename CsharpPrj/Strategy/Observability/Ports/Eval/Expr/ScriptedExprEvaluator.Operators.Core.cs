@@ -189,6 +189,12 @@ internal static partial class ScriptedExprEvaluator
                 scope.PortKey, $"端口 '{scope.PortKey}' 的谓词 '{name}' 缺 callTarget（静态类型全名）");
 
         var method = ReflectivePortResolver.ResolveMethod(target, scope.PortKey, name, 1, isStatic: true);
+        if (method.ReturnType != typeof(bool))
+            throw new PortBindingViolationException(
+                scope.PortKey,
+                $"端口 '{scope.PortKey}' 的量词谓词 '{target.Name}.{name}' 必须返回 bool" +
+                $"（实际返回 {method.ReturnType.Name}）：非布尔谓词会被静默当作 false，all/any 判定将永不成立");
+
         return item => PortInvocation.Execute(() => method.Invoke(null, new[] { item }), expect: null) is true;
     }
 

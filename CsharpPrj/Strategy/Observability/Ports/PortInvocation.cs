@@ -67,6 +67,24 @@ internal static class PortInvocation
         return value;
     }
 
+    /// <summary>
+    /// 反射构造唯一入口：<see cref="Activator.CreateInstance(Type, object[])"/> 会把构造函数抛出的业务异常
+    /// 包成 <see cref="System.Reflection.TargetInvocationException"/> —— 这里拆包原样重抛（保留原始栈，
+    /// 与方法调用 <see cref="ExecuteAny"/> 的拆包口径一致）；构造函数缺失等直接异常保持原样。
+    /// </summary>
+    internal static object Construct(Type type, object?[]? args)
+    {
+        try
+        {
+            return Activator.CreateInstance(type, args);
+        }
+        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is { } inner)
+        {
+            ExceptionDispatchInfo.Capture(inner).Throw();
+            throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");
+        }
+    }
+
     /// <summary>异常归一：命中任一期望类型 → 异常对象即结果；否则原样上抛（保留原始栈）。</summary>
     internal static object? ExpectAny(Exception exception, IReadOnlyList<Type>? expect)
     {

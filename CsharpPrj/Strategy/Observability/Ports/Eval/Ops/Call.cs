@@ -1,6 +1,5 @@
 namespace Strategy.Observability.Ports;
 
-using System.Globalization;
 using System.Reflection;
 using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
@@ -44,18 +43,9 @@ internal static class PortCall
         return args;
     }
 
-    /// <summary>调用目标方法；业务异常原样上抛（错误分类交调用记录）。</summary>
+    /// <summary>调用目标方法；业务异常原样上抛（反射 TargetInvocationException 拆包走调用单源，错误分类交调用记录）。</summary>
     internal static object? Invoke(MethodInfo method, object?[] arguments)
-    {
-        try
-        {
-            return method.Invoke(null, arguments);
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException is { } inner)
-        {
-            return PortInvocation.ExpectAny(inner, expect: null);
-        }
-    }
+        => PortInvocation.ExecuteAny(() => method.Invoke(null, arguments), expect: null);
 
     private static object? Convert(PortBindingSpec spec, ParameterInfo parameter, PortArgSpec arg, IPortInput input, int index)
     {
@@ -89,19 +79,11 @@ internal static class PortCall
 
         if (arg.Convert == "string") return text;
         if (arg.Convert == "csv") return PortValues.SplitCsv(text).ToList();
-        if (arg.Convert == "bool") return ParseBool(spec, text, index);
 
-        if (arg.Convert == "int")
-        {
-            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue)) return intValue;
-            throw Mismatch(spec, text, index, "整数");
-        }
-
-        if (arg.Convert == "double")
-        {
-            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue)) return doubleValue;
-            throw Mismatch(spec, text, index, "数值");
-        }
+        if (PortValues.TryConvertScalar(arg.Convert, text, out var scalar, out var scalarExpected))
+            return scalar;
+        if (scalarExpected.Length > 0)
+            throw Mismatch(spec, text, index, scalarExpected);
 
         if (arg.Convert == "json") return FromWith(spec, parameter, arg, input);
 
@@ -134,13 +116,6 @@ internal static class PortCall
 
         return ReflectivePortResolver.FromJson(value, parameter.ParameterType);
     }
-
-    private static bool ParseBool(PortBindingSpec spec, string text, int index)
-        => bool.TryParse(text, out var value)
-            ? value
-            : text is "1" or "0"
-                ? text == "1"
-                : throw Mismatch(spec, text, index, "布尔");
 
     private static PortBindingViolationException Mismatch(PortBindingSpec spec, string text, int index, string expected)
         => new(spec.PortKey, $"端口 '{spec.PortKey}' 第 {index} 个实参 '{text}' 不是{expected}");
@@ -191,13 +166,11 @@ internal sealed class ComposedCall
             return _method.Invoke(instance, args);
         }
 
-        return _member switch
-        {
-            PropertyInfo property => property.GetValue(instance),
-            FieldInfo field => field.GetValue(instance),
-            _ => throw new PortBindingViolationException(
-                _portKey, $"端口 '{_portKey}' 的调用 '{Spec.As}' 未解析出成员（声明与解析不一致）"),
-        };
+        if (_member is not { } member)
+            throw new PortBindingViolationException(
+                _portKey, $"端口 '{_portKey}' 的调用 '{Spec.As}' 未解析出成员（声明与解析不一致）");
+
+        return ReflectivePortResolver.ReadMember(member, instance);
     }
 }
 

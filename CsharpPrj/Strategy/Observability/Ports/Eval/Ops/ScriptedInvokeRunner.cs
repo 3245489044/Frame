@@ -52,13 +52,7 @@ internal static class ScriptedInvokeRunner
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic, invoke.NonPublic);
             var read = PortInvocation.Invoke(
-                () => member switch
-                {
-                    PropertyInfo property => property.GetValue(instance),
-                    FieldInfo field => field.GetValue(instance),
-                    _ => null,
-                },
-                expect);
+                () => ReflectivePortResolver.ReadMember(member, instance), expect);
 
             return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
@@ -111,13 +105,7 @@ internal static class ScriptedInvokeRunner
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic: false, invoke.NonPublic);
             var read = PortInvocation.Invoke(
-                () => member switch
-                {
-                    PropertyInfo property => property.GetValue(unwrapped),
-                    FieldInfo field => field.GetValue(unwrapped),
-                    _ => null,
-                },
-                expect);
+                () => ReflectivePortResolver.ReadMember(member, unwrapped), expect);
 
             return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }

@@ -67,25 +67,7 @@ public static class BoundaryContractProjection
         ArgumentNullException.ThrowIfNull(evt);
 
         // required 与 enum 同名 = 同一字段（enum 是字段属性，不是第二个字段）→ 按名并集，禁重复声明。
-        var fields = new List<FieldSpec>();
-        var index = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var name in evt.Required)
-        {
-            index[name] = fields.Count;
-            fields.Add(new FieldSpec(name, FieldTypes.Any));
-        }
-
-        foreach (var (name, allowed) in evt.Enums ?? new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal))
-        {
-            if (index.TryGetValue(name, out var at))
-            {
-                fields[at] = fields[at] with { Enum = allowed };
-                continue;
-            }
-
-            index[name] = fields.Count;
-            fields.Add(new FieldSpec(name, FieldTypes.String, Required: false, Enum: allowed));
-        }
+        var fields = FieldSpec.UnionRequiredAndEnums(evt.Required, evt.Enums);
 
         return BoundaryContract.Event(evt.Key, fields, evt.Metrics, evt.Entity, evt.Version);
     }

@@ -166,14 +166,16 @@ internal static partial class ScriptedExprEvaluator
         }
 
         var integral = numbers.All(number => Math.Abs(number % 1) < double.Epsilon);
-        var total = numbers.Sum();
+        var stats = PortValues.NumericStats.Over(numbers);
 
         return op switch
         {
-            "sum" => integral && total is >= int.MinValue and <= int.MaxValue ? (int)total : (object)total,
-            "max" when numbers.Count > 0 => Extreme(numbers.Max(), integral),
-            "min" when numbers.Count > 0 => Extreme(numbers.Min(), integral),
-            "avg" when numbers.Count > 0 => numbers.Average(),
+            "sum" => integral && stats.Sum is >= int.MinValue and <= int.MaxValue
+                ? (int)stats.Sum
+                : (object)stats.Sum,
+            "max" when stats.Max is { } max => Extreme(max, integral),
+            "min" when stats.Min is { } min => Extreme(min, integral),
+            "avg" when stats.Count > 0 => stats.Mean,
             "max" or "min" or "avg" => throw new PortBindingViolationException(
                 scope.PortKey, $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 agg.{op} 无可取值元素"),
             _ => throw new PortBindingViolationException(

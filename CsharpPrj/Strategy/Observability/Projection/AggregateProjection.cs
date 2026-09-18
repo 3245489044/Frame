@@ -1,3 +1,5 @@
+using Strategy.Observability.Ports;
+
 namespace Strategy.Observability.Projection;
 
 /// <summary>
@@ -44,27 +46,13 @@ public sealed class AggregateProjection
         return Over(metricKey, source.Select(e => e.Metric(metricKey)).Where(v => v.HasValue).Select(v => v!.Value));
     }
 
-    /// <summary>在数值序列上聚合。</summary>
+    /// <summary>在数值序列上聚合（累加口径单源 = <see cref="PortValues.NumericStats"/>）。</summary>
     public static AggregateProjection Over(string metricKey, IEnumerable<double> values)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(metricKey);
         ArgumentNullException.ThrowIfNull(values);
 
-        long count = 0;
-        double sum = 0;
-        double max = double.MinValue;
-        double min = double.MaxValue;
-
-        foreach (var value in values)
-        {
-            count++;
-            sum += value;
-            if (value > max) max = value;
-            if (value < min) min = value;
-        }
-
-        return count == 0
-            ? new AggregateProjection(metricKey, 0, 0, null, null)
-            : new AggregateProjection(metricKey, count, sum, max, min);
+        var stats = PortValues.NumericStats.Over(values);
+        return new AggregateProjection(metricKey, stats.Count, stats.Sum, stats.Max, stats.Min);
     }
 }

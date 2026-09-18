@@ -68,12 +68,7 @@ internal static class PortValues
                      ?? (MemberInfo?)type.GetFields(flags).FirstOrDefault(f =>
                          string.Equals(f.Name, segment, StringComparison.OrdinalIgnoreCase));
 
-        return member switch
-        {
-            PropertyInfo property => property.GetValue(current),
-            FieldInfo field => field.GetValue(current),
-            _ => null,
-        };
+        return member is null ? null : ReflectivePortResolver.ReadMember(member, current);
     }
 
     private static object? ElementAt(object? value, int position)
@@ -326,6 +321,104 @@ internal static class PortValues
         {
             result = null;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 标量文本转换单源（reflective 位置实参 / 组合实参 / 脚本取值三处共用）：<c>bool</c>（True/False + 1/0）、
+    /// <c>int</c>、<c>double</c>（InvariantCulture）。只做解析，失败由各调用方按其自有诊断文案报错（文案不收敛）。
+    /// <para><paramref name="expected"/>：命中已知标量转换时给出该转换的期望文案（布尔/整数/数值），供调用方拼自有诊断；
+    /// 非标量转换为空串（调用方继续其 string/csv/json/未知分派）。</para>
+    /// </summary>
+    internal static bool TryConvertScalar(string convert, string text, out object? value, out string expected)
+    {
+        switch (convert)
+        {
+            case "bool":
+                expected = "布尔";
+                if (TryNormalize(text, typeof(bool), out var parsed) && parsed is bool flag)
+                {
+                    value = flag;
+                    return true;
+                }
+                break;
+
+            case "int":
+                expected = "整数";
+                if (int.TryParse(text, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out var number))
+                {
+                    value = number;
+                    return true;
+                }
+                break;
+
+            case "double":
+                expected = "数值";
+                if (double.TryParse(text, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var real))
+                {
+                    value = real;
+                    return true;
+                }
+                break;
+
+            default:
+                expected = string.Empty;
+                break;
+        }
+
+        value = null;
+        return false;
+    }
+
+    /// <summary>
+    /// 数值序列统计单源（聚合投影 <c>AggregateProjection</c> 与脚本 <c>agg</c> 算子共用）：单遍累加
+    /// count/sum/max/min。空集：Count=0、Sum=0、Max/Min=null（均值空集口径由调用方自定：投影返 0，脚本 fail-fast）。
+    /// 极值哨兵沿用 double.MinValue/MaxValue 实现（保持既有 NaN 比较行为逐字不变）。
+    /// </summary>
+    internal readonly struct NumericStats
+    {
+        private NumericStats(long count, double sum, double? max, double? min)
+        {
+            Count = count;
+            Sum = sum;
+            Max = max;
+            Min = min;
+        }
+
+        /// <summary>参与统计的样本数。</summary>
+        public long Count { get; }
+
+        /// <summary>总和（空集 = 0）。</summary>
+        public double Sum { get; }
+
+        /// <summary>最大值（空集 = null）。</summary>
+        public double? Max { get; }
+
+        /// <summary>最小值（空集 = null）。</summary>
+        public double? Min { get; }
+
+        /// <summary>均值（空集 = 0；调用方需 fail-fast 时先判 <see cref="Count"/>）。</summary>
+        public double Mean => Count == 0 ? 0 : Sum / Count;
+
+        /// <summary>单遍累加（求和序 = 枚举序，与 LINQ Sum 同序）。</summary>
+        public static NumericStats Over(IEnumerable<double> values)
+        {
+            long count = 0;
+            double sum = 0;
+            var max = double.MinValue;
+            var min = double.MaxValue;
+
+            foreach (var value in values)
+            {
+                count++;
+                sum += value;
+                if (value > max) max = value;
+                if (value < min) min = value;
+            }
+
+            return new NumericStats(count, sum, count == 0 ? null : max, count == 0 ? null : min);
         }
     }
 

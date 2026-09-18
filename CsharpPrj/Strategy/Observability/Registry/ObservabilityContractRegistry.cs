@@ -78,13 +78,19 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
             {
                 foreach (var (field, allowed) in c.Enums)
                 {
-                    if (TryGetPropertyIgnoreCase(root, field, out var v) && v.ValueKind == JsonValueKind.String)
+                    if (!TryGetPropertyIgnoreCase(root, field, out var v)) continue;
+
+                    // 枚举字段已出现但不是字符串（数字/对象/显式 null）→ 违约：旧口径静默放过会把脏数据当合法。
+                    if (v.ValueKind != JsonValueKind.String)
                     {
-                        if (!allowed.Contains(v.GetString()!))
-                        {
-                            issue = $"{evt.EventKind}.{field} 取值 '{v.GetString()}' 不在允许集合中";
-                            return false;
-                        }
+                        issue = $"{evt.EventKind}.{field} 枚举字段须为字符串值（实际 {v.ValueKind}）";
+                        return false;
+                    }
+
+                    if (!allowed.Contains(v.GetString()!))
+                    {
+                        issue = $"{evt.EventKind}.{field} 取值 '{v.GetString()}' 不在允许集合中";
+                        return false;
                     }
                 }
             }

@@ -36,7 +36,7 @@ internal static class ComposedDeps
             var ctor = PickConstructor(portKey, type, index, dep.Args, input, deps);
             var args = ComposedArgs.Build(
                 ctor.GetParameters(), dep.Args, input, deps, portKey, $"dep[{index}].new {type.Name}");
-            return Activator.CreateInstance(type, args);
+            return PortInvocation.Construct(type, args);
         }
 
         if (dep.Factory is { Length: > 0 } factory)

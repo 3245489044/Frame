@@ -33,7 +33,7 @@ internal static class ScriptedConstruction
         var args = ScriptedInvokeRunner.Bind(
             scope.PortKey, $"{context}（{type.Name}）", declared, parameters, scope, input, deps);
 
-        var value = Activator.CreateInstance(type, args);
+        var value = PortInvocation.Construct(type, args);
 
         if (spec.Init is { Count: > 0 } init) ApplyInit(init, value, scope, input, deps, context);
 

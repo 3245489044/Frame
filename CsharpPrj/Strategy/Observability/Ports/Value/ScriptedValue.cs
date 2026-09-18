@@ -312,21 +312,17 @@ internal static class ScriptedValue
                     target);
 
             case "bool":
+                // 注意：此处走对象归一（非文本）——JSON 数字 1 不接受为布尔，与文本实参端口径有意不同，勿收敛。
                 return PortValues.TryNormalize(raw, typeof(bool), out var flag) && flag is bool parsed
                     ? parsed
                     : throw Mismatch(portKey, context, raw, "布尔");
 
-            case "int":
-                return int.TryParse(PortValues.Text(raw), System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture, out var number)
-                    ? number
-                    : throw Mismatch(portKey, context, raw, "整数");
+            case "int" or "double":
+                if (PortValues.TryConvertScalar(
+                        spec.Convert, PortValues.Text(raw) ?? string.Empty, out var number, out _))
+                    return number;
 
-            case "double":
-                return double.TryParse(PortValues.Text(raw), System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var real)
-                    ? real
-                    : throw Mismatch(portKey, context, raw, "数值");
+                throw Mismatch(portKey, context, raw, spec.Convert == "int" ? "整数" : "数值");
 
             case "object" or "passthrough":
                 return PortValues.FitsDirect(raw, target)
@@ -473,12 +469,7 @@ internal static class ScriptedValue
         var member = ReflectivePortResolver.ResolveMember(
             ComposedDeps.ResolveType(typeName, spec.GenericArgs), portKey, spec.Key!, isStatic: true);
 
-        return member switch
-        {
-            PropertyInfo property => property.GetValue(null),
-            FieldInfo field => field.GetValue(null),
-            _ => null,
-        };
+        return ReflectivePortResolver.ReadMember(member, instance: null);
     }
 
     /// <summary>

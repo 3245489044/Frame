@@ -50,8 +50,14 @@ public sealed class ScriptedBinding : IPortBinding
         _scenarioCases = BuildScenarios(spec);
     }
 
-    /// <summary>最近一次求值的诊断记录（W1：步骤 <c>when</c> / 遍历 <c>where</c> 求值为 ⊥ ⇒ 不执行且留痕，不静默）。</summary>
-    public IReadOnlyList<string> LastNotes { get; private set; } = Array.Empty<string>();
+    /// <summary>
+    /// 最近一次求值的诊断记录（W1：步骤 <c>when</c> / 遍历 <c>where</c> 求值为 ⊥ ⇒ 不执行且留痕，不静默）。
+    /// 绑定实例在端口目录中为单例、可被并发调用 —— 记录按异步执行流（AsyncLocal）隔离，防调用间最后写胜串台。
+    /// </summary>
+    private readonly AsyncLocal<IReadOnlyList<string>?> _lastNotes = new();
+
+    /// <summary>最近一次求值的诊断记录（按当前异步执行流隔离；尚未执行过为空清单）。</summary>
+    public IReadOnlyList<string> LastNotes => _lastNotes.Value ?? Array.Empty<string>();
 
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
         => ValueTask.FromResult(Invoke(input));
@@ -152,6 +158,8 @@ public sealed class ScriptedBinding : IPortBinding
     /// <summary>建作用域 + 预建收集槽 + 输入绑定（即时 / 延迟 / issue 捕获三条路径共用的前置）。</summary>
     private EvalScope Prepare(IPortInput input)
     {
+        // 每次求值开新执行流前清空留痕：并发 / 线程复用时不得读到上一次调用的记录。
+        _lastNotes.Value = Array.Empty<string>();
         var scope = NewScope();
         foreach (var name in _collections) scope.Collect(name);
         BindInputs(scope, input);
@@ -376,12 +384,7 @@ public sealed class ScriptedBinding : IPortBinding
             var type = ComposedDeps.ResolveType(save.Type, save.GenericArgs);
             var member = ReflectivePortResolver.ResolveMember(type, _spec.PortKey, save.Key, isStatic: true);
 
-            scope.Set(save.Slot, member switch
-            {
-                PropertyInfo property => property.GetValue(null),
-                FieldInfo field => field.GetValue(null),
-                _ => null,
-            });
+            scope.Set(save.Slot, ReflectivePortResolver.ReadMember(member, instance: null));
         }
 
         Run(declared.Open ?? Array.Empty<ScriptedStep>(), scope, input, NoDeps);
@@ -502,7 +505,7 @@ public sealed class ScriptedBinding : IPortBinding
                     _spec.PortKey, $"端口 '{_spec.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
         }
 
-        LastNotes = scope.Notes;
+        _lastNotes.Value = scope.Notes;
         return last;
     }
 
@@ -574,7 +577,19 @@ public sealed class ScriptedBinding : IPortBinding
                         $"端口 '{scope.PortKey}' 的 {context} 第 {index} 次迭代的过滤条件求值为 ⊥" +
                         $"（{scope.TakeBottom() ?? "缺值 / 解析失败"}）：本次迭代不执行");
 
-                if (PortValues.Truthy(gate)) produced = Run(body, scope, input, deps);
+                if (PortValues.Truthy(gate))
+                {
+                    produced = Run(body, scope, input, deps);
+
+                    // foreach 级收集只记录本迭代 body 实际执行后的产物（与「break 迭代未完成不入列」同一口径）。
+                    scope.Pop();
+                    Collect(step, produced, scope);
+                }
+                else
+                {
+                    // where 过滤：body 未执行 → 本次迭代无产物，不收集（旧口径收上一轮末产物 → 幻影重复 / 首元素 null）。
+                    scope.Pop();
+                }
             }
             catch (BreakSignal)
             {
@@ -583,8 +598,6 @@ public sealed class ScriptedBinding : IPortBinding
                 return produced;
             }
 
-            scope.Pop();
-            Collect(step, produced, scope);
             last = produced;
             index++;
         }
@@ -826,12 +839,15 @@ public sealed class ScriptedBinding : IPortBinding
         private string FrameName(int index)
             => _declared.Parameters is { Count: > 0 } names && index < names.Count ? names[index] : $"arg{index}";
 
-        /// <summary>返回值归一到声明返回类型（<c>await</c> 折取 / <c>Task</c> 包装）。</summary>
+        /// <summary>返回值归一到声明返回类型（<c>await</c> 折取 / <c>Task</c> / <c>ValueTask</c> 包装）。</summary>
         private object? Align(object? produced)
         {
             var value = _declared.Await && produced is Task pending ? PortInvocation.Fold(pending) : produced;
 
             if (_returnType == typeof(Task)) return value as Task ?? Task.CompletedTask;
+
+            // 非泛型 ValueTask 无结果：同步体 → 已完成 ValueTask（与 Task 分支同口径）。
+            if (_returnType == typeof(ValueTask)) return value is ValueTask existing ? existing : default(ValueTask);
 
             if (_returnType.IsGenericType && _returnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
@@ -841,6 +857,17 @@ public sealed class ScriptedBinding : IPortBinding
                 var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
                 return typeof(Task).GetMethod(nameof(Task.FromResult))!
                     .MakeGenericMethod(resultType).Invoke(null, new[] { boxed });
+            }
+
+            // ValueTask<T>：同步产物（或 null）→ 走 .ctor(T result) 包成已完成 ValueTask<T>；
+            // 已是 ValueTask<T> 原样返回（表达式树按声明返回类型做装箱转换，裸 int 会 InvalidCast）。
+            if (_returnType.IsGenericType && _returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+            {
+                if (value is not null && value.GetType() == _returnType) return value;
+
+                var resultType = _returnType.GetGenericArguments()[0];
+                var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
+                return PortInvocation.Construct(_returnType, new[] { boxed });
             }
 
             return value;

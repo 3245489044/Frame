@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
@@ -39,8 +40,9 @@ public sealed class ReflectiveBinding : IPortBinding
 /// <summary>反射端口绑定的解析小件（类型 / 方法 / 参数默认值 / JSON 反序列化）：分离后便于守卫与单测直接锁定。</summary>
 internal static class ReflectivePortResolver
 {
-    private static readonly Dictionary<string, Type> TypeCache = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, MethodInfo[]> MethodCache = new(StringComparer.Ordinal);
+    // 并发缓存：绑定实例在端口目录中为单例、可被多线程并发调用，解析缓存须并发安全（禁非线程安全 Dictionary）。
+    private static readonly ConcurrentDictionary<string, Type> TypeCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, MethodInfo[]> MethodCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 解析目标类型：已加载程序集 → 输出目录探测（宿主按二进制引用装配，目标程序集可能尚未加载）→ <c>Type.GetType</c>。
@@ -373,6 +375,19 @@ internal static class ReflectivePortResolver
                ?? throw new InvalidOperationException(
                    $"[port:bind] 端口 '{portKey}'：类型 {type.Name} 上找不到成员 {name}");
     }
+
+    /// <summary>
+    /// 成员读取唯一入口（属性优先、字段；静态成员 <paramref name="instance"/> 传 null）：
+    /// 全端口目录成员取值共用（调用算子 / 脚本调用 / 取值表达式 / restore 留存 / 属性路径）。
+    /// <see cref="ResolveMember"/> 只可能产出属性或字段，其余成员即内部不变量破坏（抛 <see cref="InvalidOperationException"/>）。
+    /// </summary>
+    internal static object? ReadMember(MemberInfo member, object? instance) => member switch
+    {
+        PropertyInfo property => property.GetValue(instance),
+        FieldInfo field => field.GetValue(instance),
+        _ => throw new InvalidOperationException(
+            $"成员 '{member.DeclaringType?.Name}.{member.Name}' 不是可读属性 / 字段（实际 {member.GetType().Name}）"),
+    };
 
     /// <summary>目标形参的默认值（值类型 → 默认实例；<c>CancellationToken</c> → None；引用类型 → null）。</summary>
     internal static object? DefaultFor(Type type)

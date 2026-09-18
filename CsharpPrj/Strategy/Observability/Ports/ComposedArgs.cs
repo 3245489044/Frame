@@ -1,5 +1,4 @@
 using DataCenter.Protocol.Standards;
-using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -147,23 +146,10 @@ internal static class ComposedArgs
         if (spec.Convert == "string") return text;
         if (spec.Convert == "csv") return PortValues.SplitCsv(text).ToList();
 
-        if (spec.Convert == "bool")
-        {
-            if (PortValues.TryNormalize(text, typeof(bool), out var flag) && flag is bool parsed) return parsed;
-            throw Mismatch(portKey, context, index, text, "布尔");
-        }
-
-        if (spec.Convert == "int")
-        {
-            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)) return number;
-            throw Mismatch(portKey, context, index, text, "整数");
-        }
-
-        if (spec.Convert == "double")
-        {
-            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var real)) return real;
-            throw Mismatch(portKey, context, index, text, "数值");
-        }
+        if (PortValues.TryConvertScalar(spec.Convert, text, out var scalar, out var scalarExpected))
+            return scalar;
+        if (scalarExpected.Length > 0)
+            throw Mismatch(portKey, context, index, text, scalarExpected);
 
         if (spec.Convert == "json")
             return string.IsNullOrWhiteSpace(text)

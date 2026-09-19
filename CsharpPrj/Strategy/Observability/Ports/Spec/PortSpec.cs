@@ -116,10 +116,25 @@ public sealed record PortImplRef(
 /// 载体声明（脚本族；① 标准记录 <c>DeliverStandard</c>；null = 常规值载体）。承载「问题清单 / 延迟动作」两态，
 /// 由求值引擎在产物投影后按声明包装（J2 <c>Project</c>/载体路径承接）。
 /// </param>
+/// <param name="Binds">输入绑定（槽名 → 取值来源；脚本族签名面，① 记录引用）。</param>
+/// <param name="Deps">依赖声明（声明序 = 构建序；脚本族签名面，① 记录引用）。</param>
+/// <param name="ScriptProject">脚本投影声明（字段 ← 表达式；脚本族签名面，① 记录引用）。</param>
+/// <param name="Scopes">作用域声明（tempDir / using / restore；脚本族签名面，① 记录引用）。</param>
+/// <param name="Scenarios">多场景探针声明（声明了才非空；脚本族签名面，① 记录引用）。</param>
+/// <remarks>
+/// 签名面（<see cref="Deliver"/> / <see cref="Binds"/> / <see cref="Deps"/> / <see cref="ScriptProject"/> /
+/// <see cref="Scopes"/> / <see cref="Scenarios"/>）一律为 ① 标准记录的**引用**（零运行期成员、零同形副本）；
+/// 缺省 null = 无该面（reflective / composed 即如此，其可执行面全在 <see cref="Program"/>）。
+/// </remarks>
 public sealed record PortSpec(
     string PortKey,
     PortImplRef Impl,
     IReadOnlyList<PortParam> Params,
     IReadOnlyList<PortInstr> Program,
     bool IsEvaluable,
-    object? Deliver = null);
+    DeliverStandard? Deliver = null,
+    IReadOnlyDictionary<string, ValueSourceStandard>? Binds = null,
+    IReadOnlyList<DepStandard>? Deps = null,
+    IReadOnlyList<FieldExprStandard>? ScriptProject = null,
+    IReadOnlyList<ScopeStandard>? Scopes = null,
+    ScenarioStandard? Scenarios = null);

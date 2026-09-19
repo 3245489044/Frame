@@ -85,7 +85,7 @@ public static class SpecPortPlanBuilder
 
                 case SpecPortBindingKind.Scripted:
                     plans.Add(PortBinding.FromScripted(
-                        portKey, Scripted(standard, factories), injection: Injection(factories)));
+                        portKey, Scripted(standard, factories), PortSpecCompiler.Compile(standard), Injection(factories)));
                     break;
 
                 default:

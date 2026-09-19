@@ -75,8 +75,9 @@ public sealed record PortBinding(
                 return null;
             }
 
+            // 规格已下行（计划构造点传入）→ 求值引擎（执行单源）；未下行（无行为声明）→ 回退旧绑定类（既有诊断不变）。
             failReason = null;
-            return new ScriptedBinding(Scripted);
+            return Spec.IsEvaluable ? new PortEvaluatorBinding(Spec, null, Injection) : new ScriptedBinding(Scripted);
         }
 
         if (kind == PortImplVocabulary.KindName.Delegate)

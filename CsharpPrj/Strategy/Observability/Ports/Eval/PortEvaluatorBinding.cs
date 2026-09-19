@@ -15,6 +15,7 @@ public sealed class PortEvaluatorBinding : IPortBinding
     private readonly PortSpec _spec;
     private readonly PortEvaluator _evaluator;
     private readonly PortInjection _injection;
+    private readonly PortExecutor? _executor;
 
     /// <summary>
     /// 按规格构造绑定（<paramref name="evaluator"/> 缺省 = <see cref="PortEvaluator.Shared"/>；
@@ -36,6 +37,14 @@ public sealed class PortEvaluatorBinding : IPortBinding
             return;
         }
 
+        // 脚本族签名面（Deliver 非空 = 带载体 / 输入绑定 / 作用域 / 场景）：构造期建**执行单源**
+        // （声明校验与旧绑定类构造同口径 ⇒ 装配期 fail-fast / Unbound 记账零漂移）；求值走同一实现。
+        if (_spec.Deliver is not null)
+        {
+            _executor = new PortExecutor(_spec, _injection);
+            return;
+        }
+
         // 组合族（J2）：调用解算与 ComposedBinding 构造同口径（声明漂移在装配期即 fail-fast → Unbound 记账一致）。
         if (!_spec.Program.Any(instruction => instruction.Op == PortOp.Call && instruction.Operand is CallStandard)) return;
 
@@ -47,5 +56,7 @@ public sealed class PortEvaluatorBinding : IPortBinding
 
     /// <summary>求值（每调用一个上下文；上下文承载定位与留痕设施）。</summary>
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
-        => _evaluator.EvaluateAsync(_spec, input, new EvalContext(_spec.PortKey), _injection, ct);
+        => _executor is null
+            ? _evaluator.EvaluateAsync(_spec, input, new EvalContext(_spec.PortKey), _injection, ct)
+            : ValueTask.FromResult(_executor.Run(input));
 }

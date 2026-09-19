@@ -46,6 +46,9 @@ public static class PortSpecCompiler
         if (string.Equals(implRef.Kind, PortImplVocabulary.KindName.Composed, StringComparison.Ordinal))
             return Composed(standard, implRef);
 
+        if (string.Equals(implRef.Kind, PortImplVocabulary.KindName.Scripted, StringComparison.Ordinal))
+            return Scripted(standard, implRef);
+
         return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
     }
 
@@ -119,6 +122,38 @@ public static class PortSpecCompiler
             program.Add(new PortInstr(PortOp.Project, Operand: field));
 
         return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), program, true);
+    }
+
+    /// <summary>
+    /// 脚本族下行（J2-8）：<c>Program = Steps(script)</c>（步骤指令序列）+ **签名面**引用
+    /// （载体 / 输入绑定 / 依赖 / 投影 / 作用域 / 场景 —— 一律 ① 标准记录引用，零运行期成员、零同形副本）。
+    /// <para>
+    /// 可求值判据（与旧绑定类构造同口径，**不抛不降级**）：有行为声明
+    /// （script / project / 延迟步骤 / issue 捕获体 / 值载体表达式 / 场景）→ <c>IsEvaluable = true</c>；
+    /// 无行为声明 → 空 <c>Program</c> + false（由旧绑定类给既有诊断，装配期 fail-safe 不变）。
+    /// </para>
+    /// </summary>
+    private static PortSpec Scripted(PortStandard standard, PortImplRef implRef)
+    {
+        var impl = standard.Impl!;
+        var deliver = impl.Deliver ?? new DeliverStandard();
+        var program = Steps(impl.Script ?? Array.Empty<StepStandard>());
+        var project = impl.ScriptProject ?? Array.Empty<FieldExprStandard>();
+
+        var behaves = program.Count > 0 || project.Count > 0 || deliver.Capture is not null
+            || deliver.DeferSteps is { Count: > 0 } || deliver.Value is not null || impl.Scenarios is not null;
+
+        if (!behaves)
+            return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
+
+        return new PortSpec(
+            standard.Key, implRef, Array.Empty<PortParam>(), program, true,
+            Deliver: deliver,
+            Binds: impl.Binds,
+            Deps: impl.Deps,
+            ScriptProject: impl.ScriptProject,
+            Scopes: impl.Scopes,
+            Scenarios: impl.Scenarios);
     }
 
     /// <summary>

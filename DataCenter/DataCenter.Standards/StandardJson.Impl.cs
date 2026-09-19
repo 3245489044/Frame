@@ -73,14 +73,21 @@ public static partial class StandardJson
             Str(declared, "reason"));
     }
 
-    /// <summary>种类归一（非法即抛；诊断文案与内核逐字一致）。取值域 = 词表唯一源（<c>Kinds</c>/<c>KindName</c>，禁手抄 kind）。</summary>
+    /// <summary>
+    /// 种类归一（SK-28：**缺省已取消** —— <c>impl.kind</c> 必填，缺即抛并指路 <c>impl.seam</c>；非法即抛）。
+    /// 取值域 = 词表唯一源（<c>Kinds</c>，禁手抄 kind）；<c>delegate</c> 属遗留值（只读兼容，新增禁止）。
+    /// </summary>
     private static string NormalizeKind(string portKey, string? text)
         => text is null or ""
-            ? PortImplVocabulary.KindName.Delegate
+            ? throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.kind 必填（缺省已取消：不得再隐式按 delegate 处理；"
+                + $"需注入实现请声明 impl.seam；允许值：{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}，"
+                + "其中 delegate 为遗留值（新增禁止））")
             : PortImplVocabulary.IsKnownKind(text)
                 ? text
                 : throw new StandardViolationException(
-                    $"[port:standard] 端口 '{portKey}' 的 impl.kind '{text}' 非法（{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}）");
+                    $"[port:standard] 端口 '{portKey}' 的 impl.kind '{text}' 非法（允许值："
+                    + $"{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}，其中 delegate 为遗留值（新增禁止））");
 
     /// <summary>
     /// 反射族位置实参读取（<c>impl.args[]</c>）：每项 <c>{ convert, optional?, nullLiteral?, default?, from?, key? }</c>；

@@ -274,12 +274,21 @@ public static class StandardCompleteness
     private static string Envelope(string implBody) =>
         "{\"ports\":{\"P.K\":{\"scope\":\"Lease\",\"impl\":" + implBody + "}}}";
 
+    /// <summary>
+    /// SK-28 起 <c>impl.kind</c> **必填**（缺省已取消）：未自带 <c>kind</c> 的词位探针一律经本件补
+    /// <paramref name="kind"/>（缺省 <c>reflective</c>），否则读取器在进入词位分派前即抛「impl.kind 必填」。
+    /// </summary>
+    /// <param name="implFragment">impl 对象体的**余部**（逗号起首、已含闭合 <c>}</c>，如 <c>,"args":[…]}</c>）。</param>
+    /// <param name="kind">补入的绑定方式。</param>
+    private static string EnvelopeWithKind(string implFragment, string kind = "reflective") =>
+        Envelope("{\"kind\":\"" + kind + "\"" + implFragment);
+
     private static string Quoted(string value) => "\"" + value + "\"";
 
     private static string KindProbe(string word) => Envelope("{\"kind\":" + Quoted(word) + "}");
 
     private static string ConvertProbe(string word) =>
-        Envelope("{\"args\":[{\"convert\":" + Quoted(word) + "}]}");
+        EnvelopeWithKind(",\"args\":[{\"convert\":" + Quoted(word) + "}]}");
 
     /// <summary>
     /// <c>from</c> 词位探针：<c>table</c>/<c>presence</c> 必须带 <c>rows</c>/<c>items</c> 来源 —— 否则读取器的
@@ -311,18 +320,18 @@ public static class StandardCompleteness
         Envelope("{\"kind\":\"scripted\",\"scopes\":[{\"kind\":" + Quoted(word) + ",\"as\":\"s\"}]}");
 
     private static string FakeProbe(string word) =>
-        Envelope("{\"deps\":[{\"fake\":" + Quoted(word) + ",\"contract\":\"I\"}]}");
+        EnvelopeWithKind(",\"deps\":[{\"fake\":" + Quoted(word) + ",\"contract\":\"I\"}]}");
 
     /// <summary>表单形态位哨兵：<c>deps[]</c> 未声明 <c>new</c>/<c>factory</c>/<c>fake</c> 即抛。</summary>
     private static string DepFormSentinel =>
-        Envelope("{\"deps\":[{\"" + Sentinel + "\":1}]}");
+        EnvelopeWithKind(",\"deps\":[{\"" + Sentinel + "\":1}]}");
 
     private static string DepFormProbe(string word) => word switch
     {
-        "new" => Envelope("{\"deps\":[{\"new\":\"T\"}]}"),
-        "factory" => Envelope("{\"deps\":[{\"factory\":\"f\"}]}"),
-        "fake" => Envelope("{\"deps\":[{\"fake\":\"recording\",\"contract\":\"I\"}]}"),
-        _ => Envelope("{\"deps\":[{\"new\":\"T\"}]}"),
+        "new" => EnvelopeWithKind(",\"deps\":[{\"new\":\"T\"}]}"),
+        "factory" => EnvelopeWithKind(",\"deps\":[{\"factory\":\"f\"}]}"),
+        "fake" => EnvelopeWithKind(",\"deps\":[{\"fake\":\"recording\",\"contract\":\"I\"}]}"),
+        _ => EnvelopeWithKind(",\"deps\":[{\"new\":\"T\"}]}"),
     };
 
     private static string? DepFormMember(string word) => word switch

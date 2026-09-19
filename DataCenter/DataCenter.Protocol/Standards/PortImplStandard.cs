@@ -12,8 +12,8 @@ namespace DataCenter.Protocol.Standards;
 /// 词表取值域见 <see cref="PortImplVocabulary"/>。
 /// </para>
 /// </summary>
-/// <param name="Kind">绑定方式：<c>delegate</c>（缺省）｜<c>reflective</c>｜<c>composed</c>｜<c>scripted</c>｜<c>frozen</c>。</param>
-/// <param name="Id">委派实现的登记 id（<c>kind=delegate</c>）。</param>
+/// <param name="Kind">绑定方式（**必填**：<c>reflective</c>｜<c>composed</c>｜<c>scripted</c>｜<c>frozen</c>；SK-28 起缺省已取消，遗留值仅 <c>delegate</c> 读兼容，需注入实现声明 <c>impl.seam</c>）。</param>
+/// <param name="Id">委派实现的登记 id（仅遗留 <c>kind=delegate</c> 用）。</param>
 /// <param name="Target">目标类型全名（反射族）。</param>
 /// <param name="Method">目标方法名（反射族）。</param>
 /// <param name="Reason">冻结 / 未绑定原因（<c>kind=frozen</c>）。</param>

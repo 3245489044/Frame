@@ -20,7 +20,11 @@ public static class PortSpecCompiler
 {
     /// <summary>
     /// 标准条目 → 规格（<c>PortStandard.Impl</c> 为反射族 → <c>Program = [Call]</c>；
-    /// 其余族 → 空 Program + IsEvaluable=false；<c>Impl</c> 缺省 ⇒ 视作 <c>delegate</c>）。
+    /// 其余族 → 空 Program + IsEvaluable=false）。
+    /// <para>
+    /// SK-28：<c>impl</c> **缺省已在读取面被拒**（<c>StandardJson.NormalizeKind</c> 必填）；此处保留 <c>impl == null</c>
+    /// 的形状兜底（模型可空），按**遗留** <c>delegate</c> 语义处理，不再是声明缺省。
+    /// </para>
     /// </summary>
     public static PortSpec Compile(PortStandard standard)
     {
@@ -28,7 +32,7 @@ public static class PortSpecCompiler
         var impl = standard.Impl;
 
         var implRef = new PortImplRef(
-            impl?.Kind ?? PortImplVocabulary.DefaultKind,
+            impl?.Kind ?? PortImplVocabulary.KindName.Delegate,
             impl?.Id,
             impl?.Target,
             impl?.Method,

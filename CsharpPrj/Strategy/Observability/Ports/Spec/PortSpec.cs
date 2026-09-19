@@ -56,6 +56,14 @@ public enum PortOp
 /// <c>Project</c>→<c>ComposedFieldStandard</c>/<c>FieldExprStandard</c>）。形状不符即 fail-fast（不静默）。
 /// </param>
 /// <param name="Body">嵌套指令块（<c>Loop</c> 的循环体；空 = 无体）。声明序 = 执行序。</param>
+/// <param name="When">
+/// 步骤条件短路（<c>when</c> 表达式；null = 无条件）。求值为假即跳过本指令；
+/// 求值为 ⊥（缺槽 / 解析失败）→ **不执行且留痕**（不静默）。
+/// </param>
+/// <param name="Collects">
+/// 步骤收集声明（步产物 / 指定槽当前值 → 收集槽；空 = 不收集）。**步骤修饰**，与指令同体承载
+/// （不另立指令），执行序 = 主体执行后按声明序收集。
+/// </param>
 public sealed record PortInstr(
     PortOp Op,
     string? Out = null,
@@ -65,7 +73,9 @@ public sealed record PortInstr(
     IReadOnlyList<PortArgStandard>? Args = null,
     JsonElement? Value = null,
     object? Operand = null,
-    IReadOnlyList<PortInstr>? Body = null);
+    IReadOnlyList<PortInstr>? Body = null,
+    ExprStandard? When = null,
+    IReadOnlyList<CollectStandard>? Collects = null);
 
 /// <summary>
 /// 实现归属（R2-2b）：规格的落地点 + **只读驱动元数据**（<see cref="LegacyKind"/> / <see cref="ProductFields"/>）。

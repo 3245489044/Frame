@@ -27,6 +27,12 @@ public sealed class ScriptedBinding : IPortBinding
     private readonly IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> _factories;
     private static readonly object?[] NoDeps = Array.Empty<object?>();
 
+    /// <summary>脚本步骤指令序列（③ 声明经 <see cref="PortSpecCompiler.Steps"/> 编译；执行单源 = <see cref="ScriptedSteps"/>）。</summary>
+    private readonly IReadOnlyList<PortInstr> _program;
+
+    /// <summary>步骤执行宿主（端口键 + 依赖声明 + 留痕回传；执行单源 = <see cref="ScriptedSteps"/>）。</summary>
+    private readonly ScriptedSteps.Host _host;
+
     private static readonly IReadOnlyDictionary<string, ValueSourceStandard> EmptyBinds =
         new Dictionary<string, ValueSourceStandard>(StringComparer.Ordinal);
 
@@ -65,7 +71,9 @@ public sealed class ScriptedBinding : IPortBinding
         _scopes = impl.Scopes ?? Array.Empty<ScopeStandard>();
         _scenarios = impl.Scenarios;
         _factories = factories ?? PortInjection.Empty.Factories;
-        _collections = Collections(_script, _project);
+        _program = PortSpecCompiler.Steps(_script);
+        _host = new ScriptedSteps.Host(portKey, _deps, notes => _lastNotes.Value = notes);
+        _collections = ScriptedSteps.Collections(_program, _project);
 
         if (_script.Count == 0 && _project.Count == 0 && _deliver.Capture is null
             && _deliver.DeferSteps is not { Count: > 0 } && _deliver.Value is null
@@ -170,7 +178,7 @@ public sealed class ScriptedBinding : IPortBinding
 
         return WithScopes(input, scope, deps =>
         {
-            Run(_script, scope, input, deps);
+            ScriptedSteps.Run(_host, _program, scope, input, deps);
 
             if (_deliver.Value is { } value)
                 return ScriptedExprEvaluator.Evaluate(value, scope, input, deps, $"载体值表达式（{_portKey}）");
@@ -242,7 +250,8 @@ public sealed class ScriptedBinding : IPortBinding
             }
 
             var call = capture.Call with { Expect = ExpectDeclaration(capture) };
-            var result = RunInvoke(new StepStandard(Invoke: call), call, scope, input, deps);
+            var result = ScriptedSteps.RunInvoke(
+                _host, new PortInstr(PortOp.Call, Operand: call), call, scope, input, deps);
             if (result is not Exception exception) return Array.Empty<string>();
 
             return IssueText(capture, exception, scope, context);
@@ -514,136 +523,12 @@ public sealed class ScriptedBinding : IPortBinding
         }
     }
 
-    /// <summary>按声明序执行步骤（<c>When</c> 为假即短路跳过；形态未知 → fail-fast）。返回末步产物值。</summary>
+    /// <summary>
+    /// 按声明序执行步骤：③ 声明经 <see cref="PortSpecCompiler.Steps"/> 映射为指令后交执行单源
+    /// <see cref="ScriptedSteps"/>；本件不再持有步骤语义（单一实现点，防两套语义分叉）。
+    /// </summary>
     private object? Run(IReadOnlyList<StepStandard> steps, EvalScope scope, IPortInput input, object?[] deps)
-    {
-        object? last = null;
-        var index = 0;
-
-        foreach (var step in steps)
-        {
-            index++;
-
-            if (step.When is { } condition)
-            {
-                var gate = ScriptedExprEvaluator.Evaluate(condition, scope, input, deps, "步骤条件 when");
-
-                // W1 + E8：⊥（缺槽 / 解析失败）语义 = 「不执行且记录」——留痕含定位（端口键 / 步骤序号 / ⊥ 出处），不静默。
-                if (gate is null)
-                    scope.Note(
-                        $"端口 '{scope.PortKey}' 步骤 {index} 条件 when 求值为 ⊥" +
-                        $"（{scope.TakeBottom() ?? "缺值 / 解析失败"}）：本步骤不执行");
-
-                if (!PortValues.Truthy(gate)) continue;
-            }
-
-            if (step.New is { } construct) last = RunNew(step, construct, scope, input, deps);
-            else if (step.Invoke is { } invoke) last = RunInvoke(step, invoke, scope, input, deps);
-            else if (step.Foreach is { } loop) last = RunForeach(step, loop, scope, input, deps);
-            else
-                throw new PortBindingViolationException(
-                    _portKey, $"端口 '{_portKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
-        }
-
-        _lastNotes.Value = scope.Notes;
-        return last;
-    }
-
-    /// <summary>构造步骤：反射构造（单源 <see cref="ScriptedConstruction"/>）→ 写槽 → 收集。返回构造对象。</summary>
-    private object? RunNew(
-        StepStandard step, NewStandard construct, EvalScope scope, IPortInput input, object?[] deps)
-    {
-        var created = ScriptedConstruction.Build(construct, scope, input, deps, $"步骤 new '{construct.As}'");
-
-        if (!string.IsNullOrWhiteSpace(construct.As)) scope.Set(construct.As, created);
-        Collect(step, created, scope);
-        return created;
-    }
-
-    /// <summary>调用步骤：执行（调用单源 <see cref="ScriptedInvokeRunner"/>）→ 写槽 / 出参捕获 / 收集 → 可选跳出遍历。</summary>
-    private object? RunInvoke(
-        StepStandard step, InvokeStandard invoke, EvalScope scope, IPortInput input, object?[] deps)
-    {
-        var context = $"步骤 invoke '{invoke.Method}'";
-        var outcome = ScriptedInvokeRunner.Run(_portKey, invoke, _deps, scope, input, deps);
-
-        if (!invoke.IsProperty)
-            ScriptedInvokeRunner.CaptureOut(_portKey, invoke, outcome.Parameters, outcome.Args, scope, context);
-
-        if (invoke.As is { Length: > 0 } asName) scope.Set(asName, outcome.Result);
-
-        // break 语义：声明 expect 时「命中即跳出」（首遇失败即停）；未声明 expect 时执行后即跳出。
-        if (invoke.Break && ScriptedInvokeRunner.ShouldBreak(invoke, outcome.Result)) throw new BreakSignal();
-
-        // 收集置于跳出判定之后：被 break 中止的迭代「未完成」→ 其收集不入列
-        // （夹具「仅登记成功者入列」等口径由此对齐；foreach 级收集仍记录本次迭代末产物，见 RunForeach）。
-        Collect(step, outcome.Result, scope);
-
-        return outcome.Result;
-    }
-
-    /// <summary>遍历步骤：取集合（槽 / 表达式）逐项入栈循环变量 → 过滤 → 执行体内步骤（<c>break</c> 跳出本层）。返回末次迭代产物值。</summary>
-    private object? RunForeach(
-        StepStandard step, ForeachStandard loop, EvalScope scope, IPortInput input, object?[] deps)
-    {
-        if (string.IsNullOrWhiteSpace(loop.As))
-            throw new PortBindingViolationException(
-                _portKey, $"端口 '{_portKey}' 的遍历步骤缺少 as（循环变量名）");
-
-        var context = $"遍历 '{loop.As}'";
-        var items = loop.Slot is { Length: > 0 } slotName
-            ? scope.Slot(slotName, context)
-            : ScriptedExprEvaluator.Evaluate(
-                loop.Items ?? throw new PortBindingViolationException(
-                    _portKey, $"端口 '{_portKey}' 的 {context} 缺集合来源（slot 或 items）"),
-                scope, input, deps, context);
-
-        var body = loop.Do ?? Array.Empty<StepStandard>();
-        var index = 0;
-        object? last = null;
-
-        foreach (var item in PortValues.Elements(items))
-        {
-            var produced = last;
-            scope.Push(loop.As, item, index);
-            try
-            {
-                var gate = loop.Where is { } filter
-                    ? ScriptedExprEvaluator.Evaluate(filter, scope, input, deps, $"{context} 的过滤条件")
-                    : true;
-
-                if (loop.Where is not null && gate is null)
-                    scope.Note(
-                        $"端口 '{scope.PortKey}' 的 {context} 第 {index} 次迭代的过滤条件求值为 ⊥" +
-                        $"（{scope.TakeBottom() ?? "缺值 / 解析失败"}）：本次迭代不执行");
-
-                if (PortValues.Truthy(gate))
-                {
-                    produced = Run(body, scope, input, deps);
-
-                    // foreach 级收集只记录本迭代 body 实际执行后的产物（与「break 迭代未完成不入列」同一口径）。
-                    scope.Pop();
-                    Collect(step, produced, scope);
-                }
-                else
-                {
-                    // where 过滤：body 未执行 → 本次迭代无产物，不收集（旧口径收上一轮末产物 → 幻影重复 / 首元素 null）。
-                    scope.Pop();
-                }
-            }
-            catch (BreakSignal)
-            {
-                scope.Pop();
-                Collect(step, produced, scope);
-                return produced;
-            }
-
-            last = produced;
-            index++;
-        }
-
-        return last;
-    }
+        => ScriptedSteps.Run(_host, PortSpecCompiler.Steps(steps), scope, input, deps);
 
     /// <summary>投影：字段 ← 表达式；<c>spread</c> 形态改为动态键逐项写入产物（无字段名的 <c>spread</c> 项 = 纯动态键投影）。</summary>
     private void Project(
@@ -708,84 +593,6 @@ public sealed class ScriptedBinding : IPortBinding
             Exception exception => new[] { exception.Message },
             _ => PortValues.Elements(value).Select(item => PortValues.Text(item) ?? string.Empty).ToArray(),
         };
-
-    /// <summary>收集声明（可多源：步产物 ∪ 指定槽当前值）。</summary>
-    private static void Collect(StepStandard step, object? product, EvalScope scope)
-    {
-        if (step.Collects is not { Count: > 0 } collects) return;
-
-        foreach (var collect in collects)
-        {
-            var value = collect.From is { Length: > 0 } source
-                ? scope.Slot(source, $"步骤 collect 的 from 槽 '{source}'")
-                : product;
-            scope.Collect(collect.Slot).Add(value);
-        }
-    }
-
-    /// <summary>遍历跳出信号（<c>break: true</c> → 跳出最近一层 <c>foreach</c>）。</summary>
-    private sealed class BreakSignal : Exception;
-
-    /// <summary>声明的收集槽名集（执行前预建空集合：短路 / 零迭代时投影仍可取空清单）。</summary>
-    private static IReadOnlySet<string> Collections(
-        IReadOnlyList<StepStandard> script, IReadOnlyList<FieldExprStandard> project)
-    {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        CollectSteps(script, names);
-
-        foreach (var field in project) CollectExpr(field.Expr, names);
-
-        return names;
-    }
-
-    private static void CollectSteps(IReadOnlyList<StepStandard> steps, HashSet<string> names)
-    {
-        foreach (var step in steps)
-        {
-            foreach (var collect in step.Collects ?? Array.Empty<CollectStandard>()) names.Add(collect.Slot);
-            if (step.Foreach is { } loop) CollectSteps(loop.Do ?? Array.Empty<StepStandard>(), names);
-        }
-    }
-
-    private static void CollectExpr(ExprStandard expr, HashSet<string> names)
-    {
-        if (expr.Collect is { Length: > 0 } collect) names.Add(collect);
-        if (expr.SameAsLast is { Length: > 0 } other) names.Add(other);
-
-        foreach (var sub in Subs(expr)) CollectExpr(sub, names);
-    }
-
-    private static IEnumerable<ExprStandard> Subs(ExprStandard expr)
-    {
-        foreach (var candidate in new[]
-        {
-            expr.Count, expr.NotNull, expr.AsText, expr.TypeName, expr.Message, expr.Thrown,
-            expr.Contains, expr.Of, expr.All, expr.Any, expr.AllIn, expr.Spread,
-            expr.First, expr.FirstWhere, expr.IsNull, expr.Not, expr.Agg,
-            expr.Filter, expr.FilterWhere,
-            expr.Last, expr.LastWhere, expr.Dict, expr.DictKey, expr.DictValue, expr.DictWhere,
-        })
-        {
-            if (candidate is not null) yield return candidate;
-        }
-
-        foreach (var item in expr.Concat ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.CountEqual ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.AllOf ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.AnyOf ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.Coalesce ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.SameReference ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.SequenceEqual ?? Array.Empty<ExprStandard>()) yield return item;
-
-        if (expr.Distinct is { } distinct) yield return distinct;
-        if (expr.Fold is { } fold) yield return fold;
-
-        foreach (var part in expr.Parts ?? Array.Empty<ConcatPartStandard>())
-        {
-            yield return part.Expr;
-            if (part.When is { } gate) yield return gate;
-        }
-    }
 
     /// <summary>
     /// 委托工厂（W26）：闭合委托类型 → 生成「调用期执行声明步骤」的委托（<c>System.Linq.Expressions</c> 编译，

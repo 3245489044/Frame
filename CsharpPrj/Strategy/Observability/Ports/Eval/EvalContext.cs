@@ -36,4 +36,13 @@ public sealed class EvalContext
 
     /// <summary>追加留痕（R3-3 起的写入入口）。</summary>
     public void Note(string note) => _notes.Add(note);
+
+    /// <summary>
+    /// 整体替换留痕面（步骤执行单源按调用回传；⊥ 记录不跨调用串台 —— 并发调用下各自独立）。
+    /// </summary>
+    internal void ReplaceNotes(IReadOnlyList<string> notes)
+    {
+        _notes.Clear();
+        _notes.AddRange(notes);
+    }
 }

@@ -22,7 +22,16 @@ internal static class PortDependency
         return declared;
     }
 
-    /// <summary>构建第 <paramref name="index"/> 个依赖（写依赖槽；供后续指令与调用解算引用）。</summary>
+    /// <summary>
+    /// 构建第 <paramref name="index"/> 个依赖（写依赖槽；供后续指令与调用解算引用）。
+    /// <para>写槽与 <c>ComposedDeps.Build</c> 同口径（第 i 条指令写槽 i；下标引用只指更早者）。</para>
+    /// </summary>
     internal static object? Build(EvalFrame frame, int index, IPortInput input)
-        => ComposedDeps.BuildDep(frame.Declared, index, input, frame.Deps, frame.Factories, frame.PortKey);
+    {
+        var dependency = ComposedDeps.BuildDep(
+            frame.Declared, index, input, frame.Deps, frame.Factories, frame.PortKey);
+
+        frame.Deps[index] = dependency;
+        return dependency;
+    }
 }

@@ -120,4 +120,43 @@ public static class PortSpecCompiler
 
         return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), program, true);
     }
+
+    /// <summary>
+    /// 脚本步骤声明 → 指令序列（**通用框架的单向映射**；<c>Loop</c> 体递归编译）：
+    /// 形态判别式（<c>new</c> / <c>invoke</c> / <c>foreach</c>）映射为操作码，步骤修饰
+    /// （<c>When</c> / <c>Collects</c>）随指令同体承载（不另立指令，语义由步骤执行单源消费）。
+    /// <para>
+    /// 形态未声明的步骤 → **无操作数指令**（执行期按既有文案 fail-fast，不静默）；
+    /// <c>Loop</c> 不写槽（循环变量由执行期入栈管理，<c>Out</c> 仅为形态保留位）。
+    /// </para>
+    /// </summary>
+    internal static IReadOnlyList<PortInstr> Steps(IReadOnlyList<StepStandard> steps)
+    {
+        ArgumentNullException.ThrowIfNull(steps);
+
+        var program = new List<PortInstr>(steps.Count);
+        foreach (var step in steps) program.Add(Step(step));
+
+        return program;
+    }
+
+    /// <summary>单步映射（声明 → 指令；形态判别式 ↔ 操作码）。</summary>
+    private static PortInstr Step(StepStandard step)
+    {
+        if (step.New is { } construct)
+            return new PortInstr(
+                PortOp.New, Out: construct.As, Operand: construct, When: step.When, Collects: step.Collects);
+
+        if (step.Invoke is { } invoke)
+            return new PortInstr(
+                PortOp.Call, Out: invoke.As, Target: invoke.Target, Method: invoke.Method,
+                Dep: invoke.Dep, Operand: invoke, When: step.When, Collects: step.Collects);
+
+        if (step.Foreach is { } loop)
+            return new PortInstr(
+                PortOp.Loop, Operand: loop, Body: Steps(loop.Do ?? Array.Empty<StepStandard>()),
+                When: step.When, Collects: step.Collects);
+
+        return new PortInstr(PortOp.New, When: step.When, Collects: step.Collects);
+    }
 }

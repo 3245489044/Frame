@@ -45,7 +45,8 @@ public sealed class PortEvaluator
         ct.ThrowIfCancellationRequested();
 
         var scope = new EvalScope(spec.PortKey);    // ② 依赖构建（Dep 指令逐条累加；依赖声明 = 操作数序）
-        var frame = new EvalFrame(spec.PortKey, PortDependency.Declare(spec.Program), injection);
+        var frame = new EvalFrame(
+            spec.PortKey, PortDependency.Declare(spec.Program), injection, context.ReplaceNotes);
         object? product = null;
 
         for (var index = 0; index < spec.Program.Count; index++)
@@ -56,7 +57,8 @@ public sealed class PortEvaluator
             context.InstructionIndex = index;
             context.OutSlot = instruction.Out;
 
-            product = Instruct(spec, instruction, index, input, frame);
+            product = Instruct(spec, instruction, index, input, scope, frame);
+            frame.Last = product;
 
             if (!string.IsNullOrEmpty(instruction.Out)) scope.Set(instruction.Out!, product);
         }
@@ -66,14 +68,34 @@ public sealed class PortEvaluator
 
     /// <summary>
     /// 单条指令执行（**唯一分派点**：本文件是全内核唯一 <c>switch (Op)</c>；未迁移操作码入 <c>_</c> 臂 fail-fast）。
+    /// <para>
+    /// 步骤类操作码（<c>New</c> / <c>Loop</c> / <c>Collect</c> / <c>Table</c> / <c>Presence</c>）一律委托
+    /// 步骤执行单源 <see cref="ScriptedSteps"/>：与旧绑定类共用同一实现 ⇒ 引擎与旧路径语义不可能分叉。
+    /// </para>
     /// </summary>
     private static object? Instruct(
-        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalFrame frame)
+        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalScope scope, EvalFrame frame)
         => instruction.Op switch
         {
-            PortOp.Call => Call(spec, instruction, index, input, frame),
+            PortOp.Call => Call(spec, instruction, index, input, scope, frame),
 
             PortOp.Dep => PortDependency.Build(frame, frame.TakeDependencyIndex(), input),
+
+            PortOp.New => ScriptedSteps.RunNew(
+                frame.Steps, instruction, Operand<NewStandard>(spec, instruction, index), scope, input, frame.Deps),
+
+            PortOp.Loop => ScriptedSteps.RunForeach(
+                frame.Steps, instruction, Operand<ForeachStandard>(spec, instruction, index), scope, input, frame.Deps),
+
+            PortOp.Collect => Collect(spec, instruction, index, scope, frame),
+
+            PortOp.Table => ScriptedSteps.RunValueSource(
+                frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
+                scope, input, frame.Deps),
+
+            PortOp.Presence => ScriptedSteps.RunValueSource(
+                frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
+                scope, input, frame.Deps),
 
             PortOp.Project => Project(spec, instruction, frame),
 
@@ -83,10 +105,52 @@ public sealed class PortEvaluator
         };
 
     /// <summary>
-    /// 调用指令：按 <see cref="PortInstr.Operand"/> 承载的声明形态择路 —— 组合族（<see cref="CallStandard"/>）走
-    /// 组合调用解算与执行；无操作数 = 反射族单次直连（既有路径，诊断文案逐字不变）。
+    /// 指令操作数（按 <see cref="PortInstr.Op"/> 解释）：形态不符即 fail-fast（不静默）。
+    /// <para>
+    /// 脚本族的「形态未声明」与执行单源同为**无操作数指令** ⇒ 文案保持
+    /// <c>脚本步骤未声明形态（new|invoke|foreach）</c> 逐字不变（与 <see cref="ScriptedSteps.Run"/> 同口径）。
+    /// </para>
     /// </summary>
-    private static object? Call(PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalFrame frame)
+    private static T Operand<T>(PortSpec spec, PortInstr instruction, int index) where T : class
+    {
+        if (instruction.Operand is T operand) return operand;
+
+        if (instruction.Operand is null
+            && instruction.Op is PortOp.New or PortOp.Call or PortOp.Loop)
+        {
+            throw new PortBindingViolationException(
+                spec.PortKey, $"端口 '{spec.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
+        }
+
+        throw new PortBindingViolationException(
+            spec.PortKey,
+            $"端口 '{spec.PortKey}' 的指令 '{instruction.Op}'（第 {index} 条）操作数形态"
+            + $" '{instruction.Operand?.GetType().Name ?? "(空)"}' 未知（只认 ① 标准记录）");
+    }
+
+    /// <summary>
+    /// 显式收集指令（<c>Collect</c>）：按 <c>Operand</c>（<see cref="CollectStandard"/>）取源
+    /// （<c>from</c> 槽 → 否则上一条指令产物）追加到收集槽。
+    /// </summary>
+    private static object? Collect(PortSpec spec, PortInstr instruction, int index, EvalScope scope, EvalFrame frame)
+    {
+        var collect = Operand<CollectStandard>(spec, instruction, index);
+
+        var value = collect.From is { Length: > 0 } source
+            ? scope.Slot(source, $"步骤 collect 的 from 槽 '{source}'")
+            : frame.Last;
+
+        scope.Collect(collect.Slot).Add(value);
+        return value;
+    }
+
+    /// <summary>
+    /// 调用指令：按 <see cref="PortInstr.Operand"/> 承载的声明形态择路 —— 组合族（<see cref="CallStandard"/>）走
+    /// 组合调用解算与执行；脚本族（<see cref="InvokeStandard"/>）走调用单源；无操作数 = 反射族单次直连
+    /// （既有路径，诊断文案逐字不变）。
+    /// </summary>
+    private static object? Call(
+        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalScope scope, EvalFrame frame)
     {
         if (instruction.Operand is CallStandard call)
         {
@@ -94,6 +158,9 @@ public sealed class PortEvaluator
             frame.Results[call.As] = result;
             return result;
         }
+
+        if (instruction.Operand is InvokeStandard invoke)
+            return ScriptedSteps.RunInvoke(frame.Steps, instruction, invoke, scope, input, frame.Deps);
 
         if (instruction.Operand is not null)
             throw new PortBindingViolationException(

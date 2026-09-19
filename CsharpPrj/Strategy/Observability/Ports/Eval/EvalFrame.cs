@@ -17,16 +17,25 @@ internal sealed class EvalFrame
     private readonly Dictionary<int, ComposedCall> _calls = new();
     private int _nextDependency;
 
-    internal EvalFrame(string portKey, IReadOnlyList<DepStandard> declared, PortInjection injection)
+    internal EvalFrame(
+        string portKey, IReadOnlyList<DepStandard> declared, PortInjection injection,
+        Action<IReadOnlyList<string>> notes)
     {
         PortKey = portKey;
         Declared = declared;
         Deps = new object?[declared.Count];
         Factories = injection.Factories;
+        Steps = new ScriptedSteps.Host(portKey, declared, notes);
     }
 
     /// <summary>端口键（诊断定位用）。</summary>
     internal string PortKey { get; }
+
+    /// <summary>步骤执行宿主（脚本步骤单源 <see cref="ScriptedSteps"/> 的接线面）。</summary>
+    internal ScriptedSteps.Host Steps { get; }
+
+    /// <summary>上一条指令产物（<c>Collect</c> 指令缺 <c>from</c> 时的收集源）。</summary>
+    internal object? Last { get; set; }
 
     /// <summary>依赖声明（<c>Dep</c> 指令操作数按声明序；下标引用只指向更早者）。</summary>
     internal IReadOnlyList<DepStandard> Declared { get; }

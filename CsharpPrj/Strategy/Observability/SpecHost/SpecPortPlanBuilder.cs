@@ -78,11 +78,14 @@ public static class SpecPortPlanBuilder
                             (impl?.Project ?? Array.Empty<ComposedFieldStandard>()).Select(StandardBinding.Field).ToArray())
                         {
                             Factories = factories ?? NoFactories,
-                        }));
+                        },
+                        PortSpecCompiler.Compile(standard),
+                        Injection(factories)));
                     break;
 
                 case SpecPortBindingKind.Scripted:
-                    plans.Add(PortBinding.FromScripted(portKey, Scripted(standard, factories)));
+                    plans.Add(PortBinding.FromScripted(
+                        portKey, Scripted(standard, factories), injection: Injection(factories)));
                     break;
 
                 default:
@@ -187,6 +190,14 @@ public static class SpecPortPlanBuilder
 
     private static readonly IReadOnlyDictionary<string, ValueSourceStandard> EmptyBinds =
         new Dictionary<string, ValueSourceStandard>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 装配产物注入袋（I5c/J4b 接线）：数据半工厂表随绑定下发执行侧 —— 声明模型与 IR 零运行期成员，
+    /// 而 <c>dep.factory</c> 的求值仍可解析（缺表且声明了工厂即 fail-fast）。
+    /// </summary>
+    private static PortInjection Injection(
+        IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories)
+        => factories is null ? PortInjection.Empty : new PortInjection { Factories = factories };
 
     /// <summary>标准条目 → 内核绑定声明（驱动元数据 legacyKind/productFields 不入内核模型）。</summary>
     private static PortBindingSpec ToBindingSpec(PortStandard standard)

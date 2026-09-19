@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// 引擎对目录的**唯一接线面**（R3-1）：把 <see cref="PortSpec"/> 适配为 <see cref="IPortBinding"/>，
 /// 使引擎绑定与旧绑定在 <see cref="PortCatalog"/> 面不可区分（装饰链 <c>Decorate</c> / 记录零改动）。
@@ -31,7 +33,16 @@ public sealed class PortEvaluatorBinding : IPortBinding
             var program = _spec.Program[0];
             _ = PortCall.Resolve(new PortBindingSpec(
                 _spec.PortKey, program.Target ?? string.Empty, program.Method ?? string.Empty, program.Args));
+            return;
         }
+
+        // 组合族（J2）：调用解算与 ComposedBinding 构造同口径（声明漂移在装配期即 fail-fast → Unbound 记账一致）。
+        if (!_spec.Program.Any(instruction => instruction.Op == PortOp.Call && instruction.Operand is CallStandard)) return;
+
+        var declared = PortDependency.Declare(_spec.Program);
+        foreach (var instruction in _spec.Program)
+            if (instruction.Op == PortOp.Call && instruction.Operand is CallStandard call)
+                _ = PortComposedCall.Resolve(declared, _spec.PortKey, call);
     }
 
     /// <summary>求值（每调用一个上下文；上下文承载定位与留痕设施）。</summary>

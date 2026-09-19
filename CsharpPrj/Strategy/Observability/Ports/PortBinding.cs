@@ -23,7 +23,8 @@ public sealed record PortBinding(
     ComposedBindingSpec? Composed = null,
     ScriptedBindingSpec? Scripted = null,
     Func<IPortBinding>? Factory = null,
-    string? Reason = null)
+    string? Reason = null,
+    PortInjection? Injection = null)
 {
     /// <summary>实现归属（派生自规格；携带只读驱动元数据 kind/id/target/method/reason）。</summary>
     public PortImplRef Impl => Spec.Impl;
@@ -50,7 +51,7 @@ public sealed record PortBinding(
 
             var spec = Spec.IsEvaluable ? Spec : PortSpecCompiler.FromReflective(PortKey, DeclSpec);
             failReason = null;
-            return spec.IsEvaluable ? new PortEvaluatorBinding(spec) : new ReflectiveBinding(DeclSpec);
+            return spec.IsEvaluable ? new PortEvaluatorBinding(spec, null, Injection) : new ReflectiveBinding(DeclSpec);
         }
 
         if (kind == PortImplVocabulary.KindName.Composed)
@@ -61,8 +62,9 @@ public sealed record PortBinding(
                 return null;
             }
 
+            // 规格已下行（计划构造点传入）→ 求值引擎；未下行（结构性判据不满足）→ 回退旧绑定类（既有诊断不变）。
             failReason = null;
-            return new ComposedBinding(Composed);
+            return Spec.IsEvaluable ? new PortEvaluatorBinding(Spec, null, Injection) : new ComposedBinding(Composed);
         }
 
         if (kind == PortImplVocabulary.KindName.Scripted)
@@ -105,13 +107,26 @@ public sealed record PortBinding(
     public static PortBinding Reflective(string portKey, PortBindingSpec spec)
         => new(portKey, PortSpecCompiler.FromReflective(portKey, spec), DeclSpec: spec);
 
-    /// <summary>组合：携带组合声明（calls/project/deps + 工厂表）。</summary>
-    public static PortBinding FromComposed(string portKey, ComposedBindingSpec composed)
-        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Composed, null), Composed: composed);
+    /// <summary>
+    /// 组合：携带组合声明（calls/project/deps + 工厂表）与**已下行规格**
+    /// （<paramref name="spec"/> = 计划构造点传入的 <c>PortSpecCompiler.Compile</c> 产物；null = 未下行）。
+    /// </summary>
+    public static PortBinding FromComposed(
+        string portKey, ComposedBindingSpec composed, PortSpec? spec = null, PortInjection? injection = null)
+        => new(
+            portKey,
+            spec ?? Shell(portKey, PortImplVocabulary.KindName.Composed, null),
+            Composed: composed,
+            Injection: injection);
 
     /// <summary>脚本：携带脚本声明（bind/deps/script/project/deliver + 工厂表）。</summary>
-    public static PortBinding FromScripted(string portKey, ScriptedBindingSpec scripted)
-        => new(portKey, Shell(portKey, PortImplVocabulary.KindName.Scripted, null), Scripted: scripted);
+    public static PortBinding FromScripted(
+        string portKey, ScriptedBindingSpec scripted, PortSpec? spec = null, PortInjection? injection = null)
+        => new(
+            portKey,
+            spec ?? Shell(portKey, PortImplVocabulary.KindName.Scripted, null),
+            Scripted: scripted,
+            Injection: injection);
 
     /// <summary>委派：携带实现工厂（构建即得绑定实例）。</summary>
     public static PortBinding Delegate(string portKey, string? id, Func<IPortBinding> factory)

@@ -1,5 +1,6 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
 
 /// <summary>
@@ -28,7 +29,8 @@ public sealed class PortEvaluator
     /// 求值（带装配注入袋；J4a 起「工厂表 / 场景选择」等运行期成员经本参数进入执行侧，声明模型与 IR 零运行期成员）。
     /// <para>
     /// 执行口径（R3-2 起）：**按 <see cref="PortSpec.Program"/> 指令序列逐条执行**（声明序 = 执行序），
-    /// 写槽结果（<see cref="PortInstr.Out"/> 非空）落入本次求值的作用域，供后续指令与投影读取；末条指令产物即直出产物。
+    /// 写槽结果（<see cref="PortInstr.Out"/> 非空）落入本次求值的作用域，供后续指令与投影读取；末条指令产物即直出产物
+    /// （组合族 = 投影产物字典）。
     /// 未迁移操作码遇到即 fail-fast（不静默返回空）。
     /// </para>
     /// </summary>
@@ -42,8 +44,8 @@ public sealed class PortEvaluator
 
         ct.ThrowIfCancellationRequested();
 
-        var scope = new EvalScope(spec.PortKey);    // ② 依赖构建（reflective：空；Dep 指令逐条累加）
-        var dependencies = new List<object?>();
+        var scope = new EvalScope(spec.PortKey);    // ② 依赖构建（Dep 指令逐条累加；依赖声明 = 操作数序）
+        var frame = new EvalFrame(spec.PortKey, PortDependency.Declare(spec.Program), injection);
         object? product = null;
 
         for (var index = 0; index < spec.Program.Count; index++)
@@ -54,33 +56,79 @@ public sealed class PortEvaluator
             context.InstructionIndex = index;
             context.OutSlot = instruction.Out;
 
-            product = Instruct(spec, instruction, index, input, scope, dependencies, injection);
+            product = Instruct(spec, instruction, index, input, frame);
 
             if (!string.IsNullOrEmpty(instruction.Out)) scope.Set(instruction.Out!, product);
         }
 
-        return ValueTask.FromResult(Deliver(spec, product));        // ④⑤ 产物投影 / 载体交付
+        return ValueTask.FromResult(Deliver(frame, product));       // ④⑤ 产物投影 / 载体交付
     }
 
     /// <summary>
     /// 单条指令执行（**唯一分派点**：本文件是全内核唯一 <c>switch (Op)</c>；未迁移操作码入 <c>_</c> 臂 fail-fast）。
     /// </summary>
     private static object? Instruct(
-        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalScope scope,
-        List<object?> dependencies, PortInjection injection)
+        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalFrame frame)
         => instruction.Op switch
         {
-            PortOp.Call => PortCall.Invoke(
-                PortCall.Resolve(ToBinding(spec, instruction)),
-                PortCall.BuildArguments(ToBinding(spec, instruction), PortCall.Resolve(ToBinding(spec, instruction)), input)),
+            PortOp.Call => Call(spec, instruction, index, input, frame),
+
+            PortOp.Dep => PortDependency.Build(frame, frame.TakeDependencyIndex(), input),
+
+            PortOp.Project => Project(spec, instruction, frame),
 
             _ => throw new PortBindingViolationException(
                 spec.PortKey,
                 $"端口 '{spec.PortKey}' 的指令 '{instruction.Op}'（第 {index} 条）尚未迁移到求值引擎（R3-2/R3-3）"),
         };
 
-    /// <summary>④ 产物投影：本批无显式投影 —— 末条指令产物即产物（<c>Project</c> 指令承接显式投影）。</summary>
-    private static object? Deliver(PortSpec spec, object? product) => product;
+    /// <summary>
+    /// 调用指令：按 <see cref="PortInstr.Operand"/> 承载的声明形态择路 —— 组合族（<see cref="CallStandard"/>）走
+    /// 组合调用解算与执行；无操作数 = 反射族单次直连（既有路径，诊断文案逐字不变）。
+    /// </summary>
+    private static object? Call(PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalFrame frame)
+    {
+        if (instruction.Operand is CallStandard call)
+        {
+            var result = frame.ResolveCall(index, call).Invoke(input, frame.Deps);
+            frame.Results[call.As] = result;
+            return result;
+        }
+
+        if (instruction.Operand is not null)
+            throw new PortBindingViolationException(
+                spec.PortKey,
+                $"端口 '{spec.PortKey}' 的指令 'Call'（第 {index} 条）操作数形态 '{instruction.Operand.GetType().Name}' 未知"
+                + "（声明面只承载 *Standard 记录）");
+
+        var binding = ToBinding(spec, instruction);
+        return PortCall.Invoke(PortCall.Resolve(binding), PortCall.BuildArguments(binding, PortCall.Resolve(binding), input));
+    }
+
+    /// <summary>
+    /// 投影指令：组合族「产物字段 ← 取值法」（唯一实现点 = <see cref="PortProjection.Field"/>）；
+    /// 逐字段累加进投影产物，由 <see cref="Deliver"/> 作为直出。
+    /// </summary>
+    private static object? Project(PortSpec spec, PortInstr instruction, EvalFrame frame)
+    {
+        if (instruction.Operand is not ComposedFieldStandard field)
+            throw new PortBindingViolationException(
+                spec.PortKey,
+                $"端口 '{spec.PortKey}' 的指令 'Project' 操作数形态"
+                + $" '{instruction.Operand?.GetType().Name ?? "(空)"}' 未知（投影只认 ComposedFieldStandard）");
+
+        var value = PortProjection.Field(spec.PortKey, field, frame.Deps, frame.Results);
+        frame.RequireProduct()[field.Field] = value;
+        return value;
+    }
+
+    /// <summary>
+    /// ④ 产物投影：出现投影指令（组合族）→ 投影产物字典即产物；否则末条指令产物即产物
+    /// （脚本族退场前由 <c>Project</c>/载体路径承接显式投影）。
+    /// </summary>
+    private static object? Deliver(EvalFrame frame, object? product)
+        => frame.Product is { } projected ? projected : product;
+
 
     /// <summary>指令 → 调用声明（目标 / 方法 / 实参声明；只承机制可见信息）。</summary>
     private static PortBindingSpec ToBinding(PortSpec spec, PortInstr instruction)

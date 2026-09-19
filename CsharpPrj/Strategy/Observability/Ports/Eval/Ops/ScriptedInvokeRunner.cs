@@ -3,6 +3,8 @@ using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// 调用执行单源（步骤 <c>invoke</c> 与表达式内调用共用）：目标解析 → 实参构造 → 期望异常归一 →
 /// 异步折取 → 出参捕获。零领域词汇（类型 / 方法 / 形参名一律不透明字符串）。
@@ -17,7 +19,7 @@ internal static class ScriptedInvokeRunner
     /// 表达式内调用可传 null（按依赖对象的运行时类型解析）。
     /// </summary>
     internal static Outcome Run(
-        string portKey, ScriptedInvokeSpec invoke, IReadOnlyList<ComposedDepSpec>? specs,
+        string portKey, InvokeStandard invoke, IReadOnlyList<DepStandard>? specs,
         EvalScope scope, IPortInput input, object?[] resolvedDeps)
     {
         if (string.IsNullOrWhiteSpace(invoke.Method))
@@ -42,7 +44,7 @@ internal static class ScriptedInvokeRunner
             ? StaticType(portKey, invoke, context)
             : InstanceType(portKey, invoke, specs, resolvedDeps, context);
         var expect = ExpectTypes(invoke.Expect);
-        var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+        var declared = invoke.Args ?? Array.Empty<ValueSourceStandard>();
         var instance = isStatic
             ? null
             : ComposedDeps.Dep(resolvedDeps, invoke.Dep!.Value, invoke.Dep.Value, portKey);
@@ -72,7 +74,7 @@ internal static class ScriptedInvokeRunner
     /// 其余 → 按其运行时类型解析实例方法 / 成员（可含非公开，W20）。
     /// </summary>
     private static Outcome RunOnValue(
-        string portKey, ScriptedInvokeSpec invoke, object target, EvalScope scope,
+        string portKey, InvokeStandard invoke, object target, EvalScope scope,
         IPortInput input, object?[] deps)
     {
         var context = $"调用 '{invoke.Method}'";
@@ -93,7 +95,7 @@ internal static class ScriptedInvokeRunner
                 ?? throw new PortBindingViolationException(
                     portKey, $"端口 '{portKey}' 的 {context} 的目标委托 '{type.Name}' 缺 Invoke 方法");
 
-            var declared = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+            var declared = invoke.Args ?? Array.Empty<ValueSourceStandard>();
             var parameters = call.GetParameters();
             var bound = Bind(portKey, $"{context}（委托 {type.Name}）", declared, parameters, scope, input, deps);
             var output = PortInvocation.Invoke(() => call.Invoke(unwrapped, bound), expect);
@@ -110,7 +112,7 @@ internal static class ScriptedInvokeRunner
             return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
 
-        var declaredArgs = invoke.Args ?? Array.Empty<ScriptedArgSpec>();
+        var declaredArgs = invoke.Args ?? Array.Empty<ValueSourceStandard>();
         var method = Close(portKey, invoke, PickMethod(
             portKey, context, type, invoke.Method, declaredArgs, isStatic: false, invoke.NonPublic,
             scope, input, deps, invoke.GenericArgs));
@@ -127,7 +129,7 @@ internal static class ScriptedInvokeRunner
     /// 全部不可绑定 → fail-fast 并列候选签名。
     /// </summary>
     private static MethodInfo PickMethod(
-        string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
+        string portKey, string context, Type type, string methodName, IReadOnlyList<ValueSourceStandard> declared,
         bool isStatic, bool nonPublic, EvalScope scope, IPortInput input, object?[] deps,
         IReadOnlyList<string>? genericArgs)
         => ReflectivePortResolver.ResolveMethod(
@@ -143,7 +145,7 @@ internal static class ScriptedInvokeRunner
     /// 未声明时保持旧口径（不做泛型过滤，避免无谓回归）。
     /// </summary>
     private static object?[]? TryBindCandidate(
-        string portKey, string context, Type type, string methodName, IReadOnlyList<ScriptedArgSpec> declared,
+        string portKey, string context, Type type, string methodName, IReadOnlyList<ValueSourceStandard> declared,
         MethodInfo candidate, IReadOnlyList<string>? genericArgs,
         EvalScope scope, IPortInput input, object?[] deps)
     {
@@ -173,7 +175,7 @@ internal static class ScriptedInvokeRunner
     /// <para>构造（<see cref="ScriptedConstruction"/>）与调用（<see cref="Run"/>）共用本实现，避免两处各写一套绑定口径。</para>
     /// </summary>
     internal static object?[] Bind(
-        string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared, ParameterInfo[] parameters,
+        string portKey, string context, IReadOnlyList<ValueSourceStandard> declared, ParameterInfo[] parameters,
         EvalScope scope, IPortInput input, object?[] deps)
     {
         var args = new object?[parameters.Length];
@@ -222,7 +224,7 @@ internal static class ScriptedInvokeRunner
 
     /// <summary>试绑定（重载择优用）：绑定失败（<see cref="PortBindingViolationException"/>）→ null（不可绑定），其余异常照抛。</summary>
     internal static object?[]? TryBind(
-        string portKey, string context, IReadOnlyList<ScriptedArgSpec> declared,
+        string portKey, string context, IReadOnlyList<ValueSourceStandard> declared,
         ParameterInfo[] parameters, EvalScope scope, IPortInput input, object?[] deps)
     {
         try
@@ -244,7 +246,7 @@ internal static class ScriptedInvokeRunner
     /// 与 <see cref="Run"/> 共用同一执行路径（零重复实现）；链式实参里的 <c>dep</c> 下标仍指向原依赖序。
     /// </summary>
     internal static Outcome RunOn(
-        string portKey, ScriptedInvokeSpec invoke, object instance, EvalScope scope,
+        string portKey, InvokeStandard invoke, object instance, EvalScope scope,
         IPortInput input, object?[] resolvedDeps)
     {
         var own = new object?[resolvedDeps.Length + 1];
@@ -255,7 +257,7 @@ internal static class ScriptedInvokeRunner
     }
 
     /// <summary>泛型方法闭合（W4）：声明 <c>genericArgs</c> 时按序闭合；非开放泛型方法声明了即抛（防静默错配）。</summary>
-    private static MethodInfo Close(string portKey, ScriptedInvokeSpec invoke, MethodInfo method)
+    private static MethodInfo Close(string portKey, InvokeStandard invoke, MethodInfo method)
         => invoke.GenericArgs is { Count: > 0 } names
             ? CloseMethod(portKey, invoke.Method, method, names)
             : method;
@@ -292,7 +294,7 @@ internal static class ScriptedInvokeRunner
 
     /// <summary>出参捕获（G2）：把 <c>out</c> / <c>ref</c> 形参按位写入槽（首个用声明名，多个按序加后缀）。</summary>
     internal static void CaptureOut(
-        string portKey, ScriptedInvokeSpec invoke, ParameterInfo[] parameters, object?[] args,
+        string portKey, InvokeStandard invoke, ParameterInfo[] parameters, object?[] args,
         EvalScope scope, string context)
     {
         if (invoke.Out is not { Length: > 0 } name) return;
@@ -320,12 +322,12 @@ internal static class ScriptedInvokeRunner
             : null;
 
     /// <summary>跳出判定：声明 <c>expect</c> 时「命中期望异常即跳出」，未声明时执行后即跳出。</summary>
-    internal static bool ShouldBreak(ScriptedInvokeSpec invoke, object? result)
+    internal static bool ShouldBreak(InvokeStandard invoke, object? result)
         => ExpectTypes(invoke.Expect) is not { } expect
            || (result is not null && expect.Any(type => type.IsInstanceOfType(result)));
 
     /// <summary>静态调用目标类型（<c>target</c> 必填）。</summary>
-    private static Type StaticType(string portKey, ScriptedInvokeSpec invoke, string context)
+    private static Type StaticType(string portKey, InvokeStandard invoke, string context)
         => invoke.Target is { Length: > 0 } target
             ? ComposedDeps.ResolveType(target, null)
             : throw new PortBindingViolationException(
@@ -333,7 +335,7 @@ internal static class ScriptedInvokeRunner
 
     /// <summary>实例调用目标类型（依赖声明的 contract / new；未给声明时取运行时类型）。</summary>
     private static Type InstanceType(
-        string portKey, ScriptedInvokeSpec invoke, IReadOnlyList<ComposedDepSpec>? specs,
+        string portKey, InvokeStandard invoke, IReadOnlyList<DepStandard>? specs,
         object?[] resolvedDeps, string context)
     {
         var index = invoke.Dep ?? -1;

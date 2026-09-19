@@ -49,6 +49,13 @@ public enum PortOp
 /// <param name="Dep">依赖下标（实例调用）。</param>
 /// <param name="Args">实参声明（位序即语义）。</param>
 /// <param name="Value">常量 / 内联结构。</param>
+/// <param name="Operand">
+/// 指令操作数（**按 <see cref="Op"/> 解释**）：承载 ① 标准声明记录（<c>DataCenter.Protocol.Standards</c> 的
+/// <c>*Standard</c>）—— 声明面是唯一数据源，IR 只做**引用**，不另立同形副本（<c>Dep</c>→<c>DepStandard</c>、
+/// <c>New</c>→<c>NewStandard</c>、<c>Loop</c>→<c>ForeachStandard</c>、<c>Table</c>/<c>Presence</c>→<c>ValueSourceStandard</c>、
+/// <c>Project</c>→<c>ComposedFieldStandard</c>/<c>FieldExprStandard</c>）。形状不符即 fail-fast（不静默）。
+/// </param>
+/// <param name="Body">嵌套指令块（<c>Loop</c> 的循环体；空 = 无体）。声明序 = 执行序。</param>
 public sealed record PortInstr(
     PortOp Op,
     string? Out = null,
@@ -56,7 +63,9 @@ public sealed record PortInstr(
     string? Method = null,
     int? Dep = null,
     IReadOnlyList<PortArgStandard>? Args = null,
-    JsonElement? Value = null);
+    JsonElement? Value = null,
+    object? Operand = null,
+    IReadOnlyList<PortInstr>? Body = null);
 
 /// <summary>
 /// 实现归属（R2-2b）：规格的落地点 + **只读驱动元数据**（<see cref="LegacyKind"/> / <see cref="ProductFields"/>）。
@@ -93,9 +102,14 @@ public sealed record PortImplRef(
 /// <param name="Params">形参表（位序即语义；R2-1 <see cref="PortParam"/>）。</param>
 /// <param name="Program">指令序列（声明序 = 执行序）。</param>
 /// <param name="IsEvaluable">是否已可经求值引擎执行（Program 非空且该族已迁移）。</param>
+/// <param name="Deliver">
+/// 载体声明（脚本族；① 标准记录 <c>DeliverStandard</c>；null = 常规值载体）。承载「问题清单 / 延迟动作」两态，
+/// 由求值引擎在产物投影后按声明包装（J2 <c>Project</c>/载体路径承接）。
+/// </param>
 public sealed record PortSpec(
     string PortKey,
     PortImplRef Impl,
     IReadOnlyList<PortParam> Params,
     IReadOnlyList<PortInstr> Program,
-    bool IsEvaluable);
+    bool IsEvaluable,
+    object? Deliver = null);

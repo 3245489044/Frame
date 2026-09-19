@@ -134,7 +134,7 @@ internal sealed class ComposedCall
     private readonly MemberInfo? _member;
 
     internal ComposedCall(
-        string portKey, ComposedCallSpec spec, int? depIndex, Type? expect,
+        string portKey, CallStandard spec, int? depIndex, Type? expect,
         MethodInfo? method = null, MemberInfo? member = null)
     {
         _portKey = portKey;
@@ -145,7 +145,7 @@ internal sealed class ComposedCall
         _member = member;
     }
 
-    internal ComposedCallSpec Spec { get; }
+    internal CallStandard Spec { get; }
 
     /// <summary>实例调用的依赖下标（null = 静态调用）。</summary>
     internal int? DepIndex { get; }
@@ -178,7 +178,7 @@ internal sealed class ComposedCall
 /// </summary>
 internal static class PortComposedCall
 {
-    internal static ComposedCall Resolve(IReadOnlyList<ComposedDepSpec> deps, string portKey, ComposedCallSpec call)
+    internal static ComposedCall Resolve(IReadOnlyList<DepStandard> deps, string portKey, CallStandard call)
     {
         if (string.IsNullOrWhiteSpace(call.Method))
             throw new PortBindingViolationException(
@@ -203,7 +203,7 @@ internal static class PortComposedCall
 
     /// <summary>调用所属类型：静态调用取 <c>target</c>；实例调用取依赖的 <c>contract</c> / <c>new</c> 类型。</summary>
     internal static Type ResolveCallType(
-        IReadOnlyList<ComposedDepSpec> deps, string portKey, ComposedCallSpec call, out int? depIndex)
+        IReadOnlyList<DepStandard> deps, string portKey, CallStandard call, out int? depIndex)
     {
         depIndex = call.Dep;
         if (call.Dep is not { } index)

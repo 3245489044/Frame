@@ -3,6 +3,8 @@ using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// 声明式组合绑定（E15 续 / 消除通道 C1–C4）：把「装配（new/工厂/替身）→ 调用（静态/实例/异步折取/期望异常）→
 /// 投影（字段 ← 取值法）」从夹具 C# 变为标准层声明后，由本件按声明执行并产出
@@ -18,30 +20,51 @@ namespace Strategy.Observability.Ports;
 /// </summary>
 public sealed class ComposedBinding : IPortBinding
 {
-    private readonly ComposedBindingSpec _spec;
+    private readonly string _portKey;
+    private readonly IReadOnlyList<DepStandard> _deps;
+    private readonly IReadOnlyList<ComposedFieldStandard> _project;
     private readonly IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> _factories;
     private readonly IReadOnlyList<ComposedCall> _calls;
 
     /// <summary>
-    /// 按声明构造绑定：调用声明残缺、引用名重复、目标类型或成员不可解析 → 即抛（fail-fast，防静默绑错）。
-    /// 数据半工厂表随 <see cref="ComposedBindingSpec.Factories"/> 传递。
+    /// 按 ③ 绑定声明构造（测试 / 旧装配入口）：声明经 <see cref="LegacyStandard"/> 归一到 ① 标准声明（唯一数据源）
+    /// 后与求值引擎共用同一套助手（单一实现点）。
     /// </summary>
     public ComposedBinding(ComposedBindingSpec spec)
+        : this(
+            (spec ?? throw new ArgumentNullException(nameof(spec))).PortKey,
+            LegacyStandard.Impl(spec),
+            spec.Factories)
     {
-        _spec = spec ?? throw new ArgumentNullException(nameof(spec));
-        _factories = spec.Factories;
+    }
 
-        if (spec.Calls.Count == 0)
+    /// <summary>
+    /// 按 ① 标准声明构造（求值面入口）：调用声明残缺、引用名重复、目标类型或成员不可解析 → 即抛（fail-fast，防静默绑错）。
+    /// </summary>
+    public ComposedBinding(
+        string portKey, PortImplStandard impl,
+        IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories = null)
+    {
+        ArgumentNullException.ThrowIfNull(impl);
+        ArgumentException.ThrowIfNullOrWhiteSpace(portKey);
+
+        _portKey = portKey;
+        _deps = impl.Deps ?? Array.Empty<DepStandard>();
+        _project = impl.Project ?? Array.Empty<ComposedFieldStandard>();
+        _factories = factories ?? PortInjection.Empty.Factories;
+
+        var calls = impl.Calls ?? Array.Empty<CallStandard>();
+        if (calls.Count == 0)
             throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 声明 composed 绑定但未声明任何调用（calls 为空）");
+                portKey, $"端口 '{portKey}' 声明 composed 绑定但未声明任何调用（calls 为空）");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var call in spec.Calls)
+        foreach (var call in calls)
             if (!names.Add(call.As))
                 throw new PortBindingViolationException(
-                    spec.PortKey, $"端口 '{spec.PortKey}' 的调用引用名 '{call.As}' 重复（投影引用将歧义）");
+                    portKey, $"端口 '{portKey}' 的调用引用名 '{call.As}' 重复（投影引用将歧义）");
 
-        _calls = spec.Calls.Select(call => PortComposedCall.Resolve(spec.Deps, spec.PortKey, call)).ToArray();
+        _calls = calls.Select(call => PortComposedCall.Resolve(_deps, portKey, call)).ToArray();
     }
 
     public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
@@ -56,15 +79,15 @@ public sealed class ComposedBinding : IPortBinding
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        var deps = ComposedDeps.Build(_spec.Deps, input, _factories, _spec.PortKey);
+        var deps = ComposedDeps.Build(_deps, input, _factories, _portKey);
 
         var results = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var call in _calls)
             results[call.Spec.As] = call.Invoke(input, deps);
 
         var product = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var field in _spec.Project)
-            product[field.Field] = PortProjection.Field(_spec.PortKey, field, deps, results);
+        foreach (var field in _project)
+            product[field.Field] = PortProjection.Field(_portKey, field, deps, results);
 
         return product;
     }

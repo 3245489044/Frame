@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -30,7 +32,7 @@ internal sealed class EvalScope
     /// <para>由 <see cref="ScriptedBinding"/> 在构造作用域后注入（委托体需执行声明步骤，属执行器职责，不属取值单源）；
     /// 未注入而声明了 <c>delegate</c> 来源 → fail-fast（不静默给 null）。</para>
     /// </summary>
-    internal Func<ScriptedDelegateSpec, EvalScope, IPortInput, object?[], string, object?>? Delegates { get; set; }
+    internal Func<DelegateStandard, EvalScope, IPortInput, object?[], string, object?>? Delegates { get; set; }
 
     /// <summary>登记临时目录（作用域名 → 绝对路径；同名重复即 fail-fast）。</summary>
     internal void SetTempDir(string name, string path)

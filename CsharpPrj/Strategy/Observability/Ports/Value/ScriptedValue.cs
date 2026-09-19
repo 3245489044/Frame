@@ -15,7 +15,7 @@ internal static class ScriptedValue
 {
     /// <summary>按来源取值（不做类型转换；缺来源 / 未定义槽 / 越界依赖 → fail-fast）。</summary>
     internal static object? Resolve(
-        ScriptedArgSpec? spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+        ValueSourceStandard? spec, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         if (spec is null)
             throw new PortBindingViolationException(
@@ -104,7 +104,7 @@ internal static class ScriptedValue
 
     /// <summary>按目标类型取值（声明 <c>type</c> 优先，否则用调用方给的形参类型；无声明 → 目标类型默认值）。</summary>
     internal static object? ResolveTyped(
-        ScriptedArgSpec? spec, Type target, EvalScope scope, IPortInput input, object?[] deps, string context)
+        ValueSourceStandard? spec, Type target, EvalScope scope, IPortInput input, object?[] deps, string context)
         => spec is null
             ? ReflectivePortResolver.DefaultFor(target)
             : Convert(
@@ -116,16 +116,16 @@ internal static class ScriptedValue
 
     /// <summary>声明目标类型（<c>type</c> + <c>genericArgs</c>；未声明 → null）。<c>from:type</c> 时
     /// <c>type</c> 是**取值本身**（类型字面量）而非目标类型，故不参与目标类型解析。</summary>
-    internal static Type? DeclaredType(ScriptedArgSpec spec)
+    internal static Type? DeclaredType(ValueSourceStandard spec)
         => spec.From == "type"
             ? null
             : spec.Type is { Length: > 0 } name ? ComposedDeps.ResolveType(name, spec.GenericArgs) : null;
 
     /// <summary>声明实参摘要（诊断文案：重载择优的「实参 […]」段）。</summary>
-    internal static string DescribeArgs(IReadOnlyList<ScriptedArgSpec>? declared)
+    internal static string DescribeArgs(IReadOnlyList<ValueSourceStandard>? declared)
         => declared is not { Count: > 0 } ? "(无)" : string.Join(", ", declared.Select(DescribeArg));
 
-    private static string DescribeArg(ScriptedArgSpec spec)
+    private static string DescribeArg(ValueSourceStandard spec)
         => spec.From switch
         {
             "literal" when spec.Value is { } value => $"literal {value.GetRawText()}",
@@ -146,7 +146,7 @@ internal static class ScriptedValue
 
     /// <summary>委托来源取值（<c>from:delegate</c> 与 E5 的 From 缺省推断共用）：委托工厂未接线 / 缺声明 → fail-fast。</summary>
     private static object? DelegateValue(
-        ScriptedArgSpec spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
         => spec.Delegate is { } delegateSpec
             ? (scope.Delegates ?? throw new PortBindingViolationException(
                 scope.PortKey,
@@ -159,7 +159,7 @@ internal static class ScriptedValue
     internal static object? PathOf(object? value, string path) => PortValues.PathOf(value, path);
 
     /// <summary>作用域内文件绝对路径（<c>name</c> 不得含路径分隔符：子目录由 <c>dir</c> 表达式声明）。</summary>
-    private static string TempFile(ScriptedArgSpec spec, EvalScope scope, string context)
+    private static string TempFile(ValueSourceStandard spec, EvalScope scope, string context)
     {
         if (spec.Name is not { Length: > 0 } name)
             throw new PortBindingViolationException(
@@ -178,7 +178,7 @@ internal static class ScriptedValue
     /// （体内 <c>from:row</c> 取列），缺省 = 首列文本。逐行以行帧入栈（行内可再引 <c>item</c> / <c>var</c>）。</para>
     /// </summary>
     private static Dictionary<string, object?> Table(
-        ScriptedArgSpec spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         var source = spec.Rows ?? throw new PortBindingViolationException(
             scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 table 来源缺 rows（行集来源）");
@@ -245,7 +245,7 @@ internal static class ScriptedValue
     /// 缺 <c>filter</c> 时按「词元非空」判定）。缺首列为空的词元直接跳过（不可作键）。
     /// </summary>
     private static Dictionary<string, object?> Presence(
-        ScriptedArgSpec spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         var source = spec.Items ?? spec.Rows ?? throw new PortBindingViolationException(
             scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 presence 来源缺 items（词元集来源）");
@@ -275,7 +275,7 @@ internal static class ScriptedValue
     }
 
     /// <summary>按 <c>convert</c> 与目标形参类型转换（无 <c>convert</c>：JSON 反序列化 / 原类型直投）。</summary>
-    private static object? Convert(object? raw, ScriptedArgSpec spec, Type target, string portKey, string context)
+    private static object? Convert(object? raw, ValueSourceStandard spec, Type target, string portKey, string context)
     {
         if (raw is null)
         {
@@ -367,7 +367,7 @@ internal static class ScriptedValue
     /// （不 <c>ToString</c> 文本化），其余按 <c>convert</c> 原义取文本。
     /// </summary>
     private static object? ArrayLike(
-        object? raw, ScriptedArgSpec spec, Type target, string portKey, string context)
+        object? raw, ValueSourceStandard spec, Type target, string portKey, string context)
     {
         var element = ElementTypeOf(spec, target, portKey, context);
         var items = PortValues.Elements(raw).ToArray();
@@ -388,7 +388,7 @@ internal static class ScriptedValue
         return array;
     }
 
-    private static Type ElementTypeOf(ScriptedArgSpec spec, Type target, string portKey, string context)
+    private static Type ElementTypeOf(ValueSourceStandard spec, Type target, string portKey, string context)
     {
         if (spec.ElementType is { Length: > 0 } name) return ComposedDeps.ResolveType(name, null);
         if (target.IsArray && target.GetElementType() is { } element) return element;
@@ -456,7 +456,7 @@ internal static class ScriptedValue
         => new(portKey,
             $"端口 '{portKey}' 的 {context} 的第 {index} 个元素 '{PortValues.Text(value)}'（{value.GetType().Name}）不能转为 {element.Name}");
 
-    private static object? StaticMember(ScriptedArgSpec spec, string portKey, string context)
+    private static object? StaticMember(ValueSourceStandard spec, string portKey, string context)
     {
         if (spec.Type is not { Length: > 0 } typeName)
             throw new PortBindingViolationException(
@@ -477,13 +477,13 @@ internal static class ScriptedValue
     /// <para>用于「把类型本身作实参」（结构探针的 <c>typeof(T)</c> 形态）；数组形态经 <c>convert:array</c> +
     /// <c>elementType:"System.Type"</c> 得到 <c>Type[]</c>。</para>
     /// </summary>
-    private static Type TypeLiteral(ScriptedArgSpec spec, string portKey, string context)
+    private static Type TypeLiteral(ValueSourceStandard spec, string portKey, string context)
         => spec.Type is { Length: > 0 } name
             ? ComposedDeps.ResolveType(name, spec.GenericArgs)
             : throw new PortBindingViolationException(
                 portKey, $"端口 '{portKey}' 的 {context} 的 type 来源缺 type（类型全名）");
 
-    private static object? Positional(ScriptedArgSpec spec, IPortInput input, string portKey, string context)
+    private static object? Positional(ValueSourceStandard spec, IPortInput input, string portKey, string context)
     {
         var position = spec.Index
             ?? throw new PortBindingViolationException(
@@ -506,7 +506,7 @@ internal static class ScriptedValue
     }
 
     /// <summary>具名实参取值（原始 JSON；缺键 → <c>optional</c> 决定 null 或 fail-fast）。</summary>
-    private static object? With(ScriptedArgSpec spec, IPortInput input, string portKey, string context)
+    private static object? With(ValueSourceStandard spec, IPortInput input, string portKey, string context)
     {
         if (string.IsNullOrWhiteSpace(spec.Key))
             throw new PortBindingViolationException(

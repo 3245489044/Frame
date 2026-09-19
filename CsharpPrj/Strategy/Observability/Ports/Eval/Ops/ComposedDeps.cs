@@ -3,6 +3,8 @@ using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// 依赖构建单源（组合绑定 <c>deps</c> 与脚本绑定 <c>deps</c>/<c>script[].new</c> 共用；E15 续）：
 /// <c>new</c>（反射构造，含开放泛型闭合）｜<c>factory</c>（数据半工厂表）｜<c>fake</c>（代理替身）。
@@ -12,7 +14,7 @@ internal static class ComposedDeps
 {
     /// <summary>按声明序构建依赖（下标引用只能指向更早的依赖：保证构建拓扑无环）。</summary>
     internal static object?[] Build(
-        IReadOnlyList<ComposedDepSpec> spec, IPortInput input,
+        IReadOnlyList<DepStandard> spec, IPortInput input,
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> factories, string portKey)
     {
         var deps = new object?[spec.Count];
@@ -24,7 +26,7 @@ internal static class ComposedDeps
 
     /// <summary>构建单个依赖（形态三选一：<c>new</c>/<c>factory</c>/<c>fake</c>）。</summary>
     internal static object? BuildDep(
-        IReadOnlyList<ComposedDepSpec> spec, int index, IPortInput input, object?[] deps,
+        IReadOnlyList<DepStandard> spec, int index, IPortInput input, object?[] deps,
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> factories, string portKey)
     {
         var dep = spec[index];
@@ -56,7 +58,7 @@ internal static class ComposedDeps
 
     /// <summary>构建代理替身（计数 / 记录 / 固定应答 / 序列应答 / 不该调用）。</summary>
     internal static object? BuildFake(
-        IReadOnlyList<ComposedDepSpec> spec, int index, string kind, object?[] deps, string portKey)
+        IReadOnlyList<DepStandard> spec, int index, string kind, object?[] deps, string portKey)
     {
         var dep = spec[index];
         var contract = ContractOf(index, dep, portKey);
@@ -91,7 +93,7 @@ internal static class ComposedDeps
             $"端口 '{portKey}' 的 dep[{index}] 声明 fake='{kind}' 但缺 wrap（该形态需装饰一个已有依赖）");
 
     /// <summary>替身契约接口（声明必填：不从运行时类型猜接口，避免多接口时静默择一）。</summary>
-    private static Type ContractOf(int index, ComposedDepSpec spec, string portKey)
+    private static Type ContractOf(int index, DepStandard spec, string portKey)
         => spec.Contract is { Length: > 0 } name
             ? ReflectivePortResolver.ResolveType(name)
             : throw new PortBindingViolationException(
@@ -123,7 +125,7 @@ internal static class ComposedDeps
     /// 组合绑定与脚本绑定共用的唯一实现。
     /// </summary>
     internal static Type DeclaredInstanceType(
-        IReadOnlyList<ComposedDepSpec> specs, int index, string portKey, string context)
+        IReadOnlyList<DepStandard> specs, int index, string portKey, string context)
     {
         var typeName = specs[index].Contract ?? specs[index].New;
         if (typeName is not { Length: > 0 })
@@ -136,7 +138,7 @@ internal static class ComposedDeps
 
     /// <summary>构造选择（组合绑定 <c>deps.new</c> 形态：带声明实参 → 按可绑定度择优，E1）。</summary>
     internal static ConstructorInfo PickConstructor(
-        string portKey, Type type, int index, IReadOnlyList<ComposedArgSpec>? declared,
+        string portKey, Type type, int index, IReadOnlyList<ComposedArgStandard>? declared,
         IPortInput input, object?[] deps)
         => PickConstructor(
             portKey, type, declared?.Count ?? 0, $"dep[{index}]",

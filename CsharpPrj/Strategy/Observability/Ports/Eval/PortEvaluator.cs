@@ -22,69 +22,65 @@ public sealed class PortEvaluator
     /// <summary>求值（五段流水线；同步实现对外呈异步签名，与 <see cref="IPortBinding"/> 对齐）。</summary>
     public ValueTask<object?> EvaluateAsync(
         PortSpec spec, IPortInput input, EvalContext context, CancellationToken ct = default)
+        => EvaluateAsync(spec, input, context, PortInjection.Empty, ct);
+
+    /// <summary>
+    /// 求值（带装配注入袋；J4a 起「工厂表 / 场景选择」等运行期成员经本参数进入执行侧，声明模型与 IR 零运行期成员）。
+    /// <para>
+    /// 执行口径（R3-2 起）：**按 <see cref="PortSpec.Program"/> 指令序列逐条执行**（声明序 = 执行序），
+    /// 写槽结果（<see cref="PortInstr.Out"/> 非空）落入本次求值的作用域，供后续指令与投影读取；末条指令产物即直出产物。
+    /// 未迁移操作码遇到即 fail-fast（不静默返回空）。
+    /// </para>
+    /// </summary>
+    public ValueTask<object?> EvaluateAsync(
+        PortSpec spec, IPortInput input, EvalContext context, PortInjection injection, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(injection);
 
         ct.ThrowIfCancellationRequested();
 
-        var arguments = BindParams(spec, input, context);              // ① 形参逐位绑定
-        _ = BuildDeps();                                               // ② 依赖构建（reflective：空）
-        var product = RunProgram(spec, arguments, context, ct);        // ③ 指令序列执行
-        var projected = Project(product);                              // ④ 产物投影
-        return ValueTask.FromResult(Deliver(projected));               // ⑤ 载体交付
-    }
+        var scope = new EvalScope(spec.PortKey);    // ② 依赖构建（reflective：空；Dep 指令逐条累加）
+        var dependencies = new List<object?>();
+        object? product = null;
 
-    /// <summary>
-    /// ① 形参逐位绑定：仅单条 <see cref="PortOp.Call"/> 的规格存在形参（Args 位序即语义）；
-    /// 转换与缺参口径逐字委托 <see cref="PortCall.BuildArguments"/>。
-    /// </summary>
-    private static object?[] BindParams(PortSpec spec, IPortInput input, EvalContext context)
-    {
-        if (spec.Program.Count != 1 || spec.Program[0].Op != PortOp.Call) return Array.Empty<object?>();
-
-        var instruction = spec.Program[0];
-        context.InstructionIndex = 0;
-        context.OutSlot = instruction.Out;
-
-        var binding = ToBinding(spec, instruction);
-        return PortCall.BuildArguments(binding, PortCall.Resolve(binding), input);
-    }
-
-    /// <summary>② 依赖构建：reflective 族无依赖（R3-2 由 <c>Dep</c>/<c>New</c> 指令承接）。</summary>
-    private static object?[] BuildDeps() => Array.Empty<object?>();
-
-    /// <summary>③ 指令序列执行（SSA：结果写槽；本批仅 <see cref="PortOp.Call"/>）。</summary>
-    private static object? RunProgram(
-        PortSpec spec, object?[] arguments, EvalContext context, CancellationToken ct)
-    {
-        object? result = null;
         for (var index = 0; index < spec.Program.Count; index++)
         {
             ct.ThrowIfCancellationRequested();
 
-            var instruction = spec.Program[index];
+            var instruction = spec.Program[index];                  // ③ 指令序列执行（SSA：结果写槽）
             context.InstructionIndex = index;
             context.OutSlot = instruction.Out;
 
-            result = instruction.Op switch
-            {
-                PortOp.Call => PortCall.Invoke(PortCall.Resolve(ToBinding(spec, instruction)), arguments),
-                _ => throw new PortBindingViolationException(
-                    spec.PortKey,
-                    $"端口 '{spec.PortKey}' 的指令 '{instruction.Op}'（第 {index} 条）尚未迁移到求值引擎（R3-2/R3-3）"),
-            };
+            product = Instruct(spec, instruction, index, input, scope, dependencies, injection);
+
+            if (!string.IsNullOrEmpty(instruction.Out)) scope.Set(instruction.Out!, product);
         }
 
-        return result;
+        return ValueTask.FromResult(Deliver(spec, product));        // ④⑤ 产物投影 / 载体交付
     }
 
-    /// <summary>④ 产物投影：reflective 族无显式投影 —— 调用返回值即产物（R3-2/R3-3 承接 <c>Project</c> 指令）。</summary>
-    private static object? Project(object? product) => product;
+    /// <summary>
+    /// 单条指令执行（**唯一分派点**：本文件是全内核唯一 <c>switch (Op)</c>；未迁移操作码入 <c>_</c> 臂 fail-fast）。
+    /// </summary>
+    private static object? Instruct(
+        PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalScope scope,
+        List<object?> dependencies, PortInjection injection)
+        => instruction.Op switch
+        {
+            PortOp.Call => PortCall.Invoke(
+                PortCall.Resolve(ToBinding(spec, instruction)),
+                PortCall.BuildArguments(ToBinding(spec, instruction), PortCall.Resolve(ToBinding(spec, instruction)), input)),
 
-    /// <summary>⑤ 载体交付：<c>value</c> = 产物原样（<c>issues</c> / <c>action</c> 载体随 R3-3 引入，届时按声明 fail-fast 而非静默）。</summary>
-    private static object? Deliver(object? product) => product;
+            _ => throw new PortBindingViolationException(
+                spec.PortKey,
+                $"端口 '{spec.PortKey}' 的指令 '{instruction.Op}'（第 {index} 条）尚未迁移到求值引擎（R3-2/R3-3）"),
+        };
+
+    /// <summary>④ 产物投影：本批无显式投影 —— 末条指令产物即产物（<c>Project</c> 指令承接显式投影）。</summary>
+    private static object? Deliver(PortSpec spec, object? product) => product;
 
     /// <summary>指令 → 调用声明（目标 / 方法 / 实参声明；只承机制可见信息）。</summary>
     private static PortBindingSpec ToBinding(PortSpec spec, PortInstr instruction)

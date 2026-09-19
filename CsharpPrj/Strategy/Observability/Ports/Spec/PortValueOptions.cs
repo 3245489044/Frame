@@ -70,4 +70,24 @@ public static class PortArgStandardExtensions
 
         return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
     }
+
+    /// <summary>
+    /// 组合族实参声明（<see cref="ComposedArgStandard"/>）→ 唯一转换表视图（R3-2 起求值链一律经本入口取视图）。
+    /// </summary>
+    public static PortValueOptions Options(this ComposedArgStandard arg)
+    {
+        ArgumentNullException.ThrowIfNull(arg);
+
+        return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, From: null, arg.Key);
+    }
+
+    /// <summary>
+    /// 脚本取值来源（<see cref="ValueSourceStandard"/>）→ 唯一转换表视图（脚本通道的扩展字段不属转换表，由指令承载）。
+    /// </summary>
+    public static PortValueOptions Options(this ValueSourceStandard arg)
+    {
+        ArgumentNullException.ThrowIfNull(arg);
+
+        return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
+    }
 }

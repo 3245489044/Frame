@@ -13,7 +13,7 @@ internal static class ComposedArgs
 {
     /// <summary>按目标形参表构造实参数组（声明不足 → 该形参类型默认值，与反射绑定同口径）。</summary>
     internal static object?[] Build(
-        ParameterInfo[] parameters, IReadOnlyList<ComposedArgSpec>? declared,
+        ParameterInfo[] parameters, IReadOnlyList<ComposedArgStandard>? declared,
         IPortInput input, object?[] deps, string portKey, string context)
     {
         var count = declared?.Count ?? 0;
@@ -28,7 +28,7 @@ internal static class ComposedArgs
     }
 
     /// <summary>声明实参摘要（诊断文案：构造择优的「实参 […]」段）。</summary>
-    internal static string Describe(IReadOnlyList<ComposedArgSpec>? declared)
+    internal static string Describe(IReadOnlyList<ComposedArgStandard>? declared)
         => declared is not { Count: > 0 }
             ? "(无)"
             : string.Join(", ", declared.Select(spec => spec.Value is { } value
@@ -40,14 +40,14 @@ internal static class ComposedArgs
 
     /// <summary>按声明序求值（工厂实参：工厂签名自定，不做形参类型转换，值按原义传递）。</summary>
     internal static IReadOnlyList<object?> Values(
-        IReadOnlyList<ComposedArgSpec>? declared, IPortInput input, object?[] deps, string portKey, string context)
+        IReadOnlyList<ComposedArgStandard>? declared, IPortInput input, object?[] deps, string portKey, string context)
         => declared is not { Count: > 0 }
             ? Array.Empty<object?>()
             : declared.Select((spec, index) => Value(spec, input, deps, portKey, context, index)).ToArray();
 
     /// <summary>无类型目标的取值（工厂实参用）。</summary>
     internal static object? Value(
-        ComposedArgSpec spec, IPortInput input, object?[] deps, string portKey, string context, int index)
+        ComposedArgStandard spec, IPortInput input, object?[] deps, string portKey, string context, int index)
     {
         if (spec.Dep is { } reference) return Dep(deps, reference, portKey, context, index);
         if (spec.ArgIndex is { } position) return PositionalRaw(input, spec, position, portKey, context);
@@ -61,7 +61,7 @@ internal static class ComposedArgs
 
     /// <summary>按目标形参类型转换（位序即语义；无值分支由 <c>optional</c> 决定默认值或 fail-fast）。</summary>
     private static object? Convert(
-        ParameterInfo parameter, ComposedArgSpec spec,
+        ParameterInfo parameter, ComposedArgStandard spec,
         IPortInput input, object?[] deps, string portKey, string context, int index)
     {
         var target = parameter.ParameterType;
@@ -96,7 +96,7 @@ internal static class ComposedArgs
 
     /// <summary>位置实参 → 目标类型（<c>.specs</c> 的 <c>args</c>）。</summary>
     private static object? FromPositional(
-        Type target, ComposedArgSpec spec, IPortInput input, int position, string portKey, string context)
+        Type target, ComposedArgStandard spec, IPortInput input, int position, string portKey, string context)
     {
         var present = position < input.Args.Count && input.Args[position] is not null;
         if (!present)
@@ -124,7 +124,7 @@ internal static class ComposedArgs
 
     /// <summary>具名实参（<c>with</c>）→ 目标类型（<c>json</c>/<c>array</c> 走反序列化；标量按文本口径转换）。</summary>
     private static object? FromWith(
-        Type target, ComposedArgSpec spec, IPortInput input, string key, string portKey, string context, int index)
+        Type target, ComposedArgStandard spec, IPortInput input, string key, string portKey, string context, int index)
     {
         var raw = WithRaw(input, key, portKey, context, spec.Optional);
         if (raw is null) return None(spec, target);
@@ -141,7 +141,7 @@ internal static class ComposedArgs
 
     /// <summary>文本 → 目标类型（位置实参与具名实参共用的标量口径）。</summary>
     private static object? ConvertText(
-        Type target, ComposedArgSpec spec, string text, string portKey, string context, int index)
+        Type target, ComposedArgStandard spec, string text, string portKey, string context, int index)
     {
         if (spec.Convert == "string") return text;
         if (spec.Convert == "csv") return PortValues.SplitCsv(text).ToList();
@@ -160,7 +160,7 @@ internal static class ComposedArgs
     }
 
     /// <summary>无值分支：声明 <c>default</c> → 反序列化；否则取目标类型默认值（数组 → 空数组，与空集语义一致）。</summary>
-    private static object? None(ComposedArgSpec spec, Type target)
+    private static object? None(ComposedArgStandard spec, Type target)
     {
         if (spec.Default is { } fallback) return Coerce(fallback, target);
 
@@ -202,7 +202,7 @@ internal static class ComposedArgs
     /// 原样返回，其余按 <c>convert</c> 原义文本化（无类型目标的工厂实参用）。
     /// </summary>
     private static object? PositionalRaw(
-        IPortInput input, ComposedArgSpec spec, int position, string portKey, string context)
+        IPortInput input, ComposedArgStandard spec, int position, string portKey, string context)
     {
         if (position >= input.Args.Count)
             throw new PortBindingViolationException(

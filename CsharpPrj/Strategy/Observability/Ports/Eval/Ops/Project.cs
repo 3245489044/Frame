@@ -13,7 +13,7 @@ internal static class PortProjection
 {
     /// <summary>按取值法投影单个产物字段。</summary>
     internal static object? Field(
-        string portKey, ComposedFieldSpec field, object?[] deps, IReadOnlyDictionary<string, object?> results)
+        string portKey, ComposedFieldStandard field, object?[] deps, IReadOnlyDictionary<string, object?> results)
     {
         switch (field.Select)
         {
@@ -74,7 +74,7 @@ internal static class PortProjection
     }
 
     /// <summary>取某次调用结果（引用必须命中已声明调用）。</summary>
-    private static object? Result(string portKey, ComposedFieldSpec field, IReadOnlyDictionary<string, object?> results)
+    private static object? Result(string portKey, ComposedFieldStandard field, IReadOnlyDictionary<string, object?> results)
     {
         if (field.Call is not { Length: > 0 } call || !results.TryGetValue(call, out var value))
             throw new PortBindingViolationException(
@@ -83,7 +83,7 @@ internal static class PortProjection
         return value;
     }
 
-    private static PortBindingViolationException Missing(string portKey, ComposedFieldSpec field, string key)
+    private static PortBindingViolationException Missing(string portKey, ComposedFieldStandard field, string key)
         => new(portKey, $"端口 '{portKey}' 的字段 '{field.Field}' 取值法 '{field.Select}' 缺少 {key}");
 
     /// <summary>属性路径取值（<c>A.B.C</c>：逐段属性优先、回落字段、忽略大小写；任一段缺失 → null）。</summary>

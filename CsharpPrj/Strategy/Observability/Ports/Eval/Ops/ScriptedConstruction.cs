@@ -3,6 +3,8 @@ using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 /// <summary>
 /// **对象图构造单源**（W6）：解析类型（含泛型闭合）→ 构实参 → 反射构造 → 链式后置调用。
 /// <para>三处消费共用同一实现：步骤 <c>new</c>、声明链式 <c>chain</c>、取值来源 <c>from:new</c>（实参内嵌构造，
@@ -13,14 +15,14 @@ internal static class ScriptedConstruction
 {
     /// <summary>构造并（可选）链式后置调用；<paramref name="context"/> 仅用于诊断定位。</summary>
     internal static object? Build(
-        ScriptedNewSpec spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+        NewStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         if (string.IsNullOrWhiteSpace(spec.Type))
             throw new PortBindingViolationException(
                 scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 缺 type（构造类型全名）");
 
         var type = ComposedDeps.ResolveType(spec.Type, spec.GenericArgs);
-        var declared = spec.Args ?? Array.Empty<ScriptedArgSpec>();
+        var declared = spec.Args ?? Array.Empty<ValueSourceStandard>();
         var parameters = ComposedDeps
             .PickConstructor(
                 scope.PortKey, type, declared.Count, context,
@@ -45,7 +47,7 @@ internal static class ScriptedConstruction
                 throw new PortBindingViolationException(
                     scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的链式调用 '{link.Method}' 无可调用实例");
 
-            var call = new ScriptedInvokeSpec(Method: link.Method, Args: link.Args);
+            var call = new InvokeStandard(Method: link.Method, Args: link.Args);
             var result = ScriptedInvokeRunner.RunOn(scope.PortKey, call, value, scope, input, deps).Result;
 
             if (link.Rebind) value = result;
@@ -59,7 +61,7 @@ internal static class ScriptedConstruction
     /// 成员缺失 / 缺 <c>value</c> / 无可赋值实例 → 即抛。声明序 = 赋值序。
     /// </summary>
     private static void ApplyInit(
-        IReadOnlyList<ScriptedInitSpec> init, object? instance,
+        IReadOnlyList<InitStandard> init, object? instance,
         EvalScope scope, IPortInput input, object?[] deps, string context)
     {
         if (instance is null)

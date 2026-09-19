@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -15,7 +17,7 @@ internal static partial class ScriptedExprEvaluator
 {
     /// <summary>求值（<paramref name="field"/> 仅用于诊断定位）。</summary>
     internal static object? Evaluate(
-        ScriptedExpr expr, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var context = $"投影字段 '{field}'";
 

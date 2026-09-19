@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -8,7 +10,7 @@ using Strategy.Observability.Diagnostics;
 internal static partial class ScriptedExprEvaluator
 {
     private static object? Sub(
-        ScriptedExpr expr, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, EvalScope scope, IPortInput input, object?[] deps, string field)
         => Evaluate(expr, scope, input, deps, field);
 
     private static int Count(object? value, string portKey, string field)
@@ -25,7 +27,7 @@ internal static partial class ScriptedExprEvaluator
     };
 
     private static string Concat(
-        ScriptedExpr expr, IReadOnlyList<ScriptedExpr> parts,
+        ExprStandard expr, IReadOnlyList<ExprStandard> parts,
         EvalScope scope, IPortInput input, object?[] deps, string field)
         => string.Join(expr.Separator ?? string.Empty,
             parts.Select(part => PortValues.Text(Sub(part, scope, input, deps, field)) ?? string.Empty));
@@ -35,7 +37,7 @@ internal static partial class ScriptedExprEvaluator
     /// <para>条件行省略（「有则一行、无则整行消失」）的声明等价；缺值段按空串参与（与 <c>concat</c> 同口径）。</para>
     /// </summary>
     private static string ConcatParts(
-        ScriptedExpr expr, IReadOnlyList<ScriptedConcatPartSpec> parts,
+        ExprStandard expr, IReadOnlyList<ConcatPartStandard> parts,
         EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var texts = new List<string>(parts.Count);
@@ -54,7 +56,7 @@ internal static partial class ScriptedExprEvaluator
     /// <para>与 <c>count</c> / <c>all</c> 组合即「去重计数 / 去重判定」（对齐夹具 <c>Distinct(Ordinal).Count()</c>）。</para>
     /// </summary>
     private static object?[] Distinct(
-        ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var kept = new List<object?>();
         foreach (var item in PortValues.Elements(Sub(over, scope, input, deps, field)))
@@ -72,7 +74,7 @@ internal static partial class ScriptedExprEvaluator
     /// 任一侧缺值 → <c>⊥</c>（null），与二元比较同口径。
     /// </summary>
     private static object? SequenceEqual(
-        IReadOnlyList<ScriptedExpr> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
+        IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var left = Sub(operands[0], scope, input, deps, field);
         var right = Sub(operands[1], scope, input, deps, field);
@@ -95,7 +97,7 @@ internal static partial class ScriptedExprEvaluator
     /// <para>调用单源复用 <see cref="ScriptedInvokeRunner.RunOn"/>（与 <c>chain</c> 同一实例调用口径）。</para>
     /// </summary>
     private static object? Fold(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var step = expr.FoldStep ?? throw new PortBindingViolationException(
             scope.PortKey, $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 fold 缺 step（累积调用声明）");
@@ -122,7 +124,7 @@ internal static partial class ScriptedExprEvaluator
                         scope.PortKey,
                         $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 fold 累积值为 null（不可调用 '{step.Method}'）");
 
-                var call = new ScriptedInvokeSpec(Method: step.Method, Args: step.Args);
+                var call = new InvokeStandard(Method: step.Method, Args: step.Args);
                 var result = ScriptedInvokeRunner
                     .RunOn(scope.PortKey, call, accumulator, scope, input, deps).Result;
 
@@ -140,7 +142,7 @@ internal static partial class ScriptedExprEvaluator
     }
 
     private static bool Contains(
-        ScriptedExpr expr, ScriptedExpr container, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard container, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var needle = expr.Of is { } of
             ? Sub(of, scope, input, deps, field)
@@ -159,7 +161,7 @@ internal static partial class ScriptedExprEvaluator
     }
 
     private static bool Quantify(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps,
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps,
         string field, bool every)
     {
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
@@ -179,7 +181,7 @@ internal static partial class ScriptedExprEvaluator
     }
 
     /// <summary>量词判据：声明 <c>call</c> 时取静态谓词（每元素求布尔）；否则按 <c>allIn</c> / 非空判据处理。</summary>
-    private static Func<object?, bool>? Predicate(ScriptedExpr expr, EvalScope scope)
+    private static Func<object?, bool>? Predicate(ExprStandard expr, EvalScope scope)
     {
         if (expr.Call is not { Length: > 0 } name) return null;
 
@@ -199,7 +201,7 @@ internal static partial class ScriptedExprEvaluator
     }
 
     private static IReadOnlyDictionary<string, object?> Spread(
-        ScriptedExpr expr, ScriptedExpr source, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard source, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var entries = PortValues.Spread(Sub(source, scope, input, deps, field));
         if (expr.Except is not { Count: > 0 } except) return entries;
@@ -212,7 +214,7 @@ internal static partial class ScriptedExprEvaluator
     }
 
     private static bool CountEqual(
-        IReadOnlyList<ScriptedExpr> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
+        IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
         => Count(Sub(operands[0], scope, input, deps, field), scope.PortKey, field)
            == Count(Sub(operands[1], scope, input, deps, field), scope.PortKey, field);
 
@@ -224,7 +226,7 @@ internal static partial class ScriptedExprEvaluator
     /// <para><c>⊥</c> 语义：调用方（步骤 <c>when</c>）按「不执行」处理（<c>Truthy(null)=false</c>），不静默成真。</para>
     /// </summary>
     private static object? Junction(
-        IReadOnlyList<ScriptedExpr> parts, EvalScope scope, IPortInput input, object?[] deps,
+        IReadOnlyList<ExprStandard> parts, EvalScope scope, IPortInput input, object?[] deps,
         string field, bool every)
     {
         if (parts.Count == 0)
@@ -252,7 +254,7 @@ internal static partial class ScriptedExprEvaluator
     /// 二元比较（三值：任一侧缺值 → <c>⊥</c>；<c>eq</c>/<c>ne</c> 按值相等，其余按数值序优先、回落文本序）。
     /// </summary>
     private static object? Compare(
-        IReadOnlyList<ScriptedExpr> operands, EvalScope scope, IPortInput input, object?[] deps,
+        IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps,
         string field, string op)
     {
         if (operands.Count != 2)

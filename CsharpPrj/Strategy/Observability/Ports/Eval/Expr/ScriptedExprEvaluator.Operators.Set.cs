@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Ports;
 
+using DataCenter.Protocol.Standards;
+
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -8,7 +10,7 @@ using Strategy.Observability.Diagnostics;
 internal static partial class ScriptedExprEvaluator
 {
     private static object? First(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps,
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps,
         string field, bool orNull)
     {
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
@@ -48,7 +50,7 @@ internal static partial class ScriptedExprEvaluator
     /// 用于夹具 <c>FirstOrDefault</c> / <c>LastOrDefault</c> / <c>SingleOrDefault</c> 一类「缺省即空」取值。
     /// </summary>
     private static object? Last(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps,
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps,
         string field)
     {
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
@@ -84,7 +86,7 @@ internal static partial class ScriptedExprEvaluator
     /// （夹具 <c>map[k]=v</c> 口径）；空集 = 空字典（不抛）。</para>
     /// </summary>
     private static object? Dict(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var keyExpr = expr.DictKey ?? throw new PortBindingViolationException(
             scope.PortKey, $"端口 '{scope.PortKey}' 的投影字段 '{field}' 的 dict 缺 key（表键表达式）");
@@ -131,12 +133,12 @@ internal static partial class ScriptedExprEvaluator
     }
 
     /// <summary>
-    /// 聚合取值（W3）：对来源元素逐项取 <see cref="ScriptedExpr.AggPath"/> → 数值化 → 按 <c>sum|max|min|avg</c> 聚合。
+    /// 聚合取值（W3）：对来源元素逐项取 <see cref="ExprStandard.AggPath"/> → 数值化 → 按 <c>sum|max|min|avg</c> 聚合。
     /// <para>口径：非数值元素即抛（不静默跳过）；<c>sum</c> 空集 = 0，<c>max|min|avg</c> 空集即抛；
     /// 全整数输入且结果可容纳于 <see cref="int"/> 时按整数返回（与夹具的整数期望可比）。</para>
     /// </summary>
     private static object? Aggregate(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var op = expr.AggOp ?? "sum";
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
@@ -191,11 +193,11 @@ internal static partial class ScriptedExprEvaluator
         => integral && value is >= int.MinValue and <= int.MaxValue ? (int)value : (object)value;
 
     /// <summary>
-    /// 筛选成集（W8）：遍历来源元素 → 按 <see cref="ScriptedExpr.FilterWhere"/> 保留（真值判定；<c>⊥</c> 视同不保留）
-    /// → 逐项取 <see cref="ScriptedExpr.FilterPath"/> → 数组。空集 = 空数组（不抛）。
+    /// 筛选成集（W8）：遍历来源元素 → 按 <see cref="ExprStandard.FilterWhere"/> 保留（真值判定；<c>⊥</c> 视同不保留）
+    /// → 逐项取 <see cref="ExprStandard.FilterPath"/> → 数组。空集 = 空数组（不抛）。
     /// </summary>
     private static object?[] Filter(
-        ScriptedExpr expr, ScriptedExpr over, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
         var kept = new List<object?>(items.Length);
@@ -227,18 +229,18 @@ internal static partial class ScriptedExprEvaluator
 
     /// <summary>引用同一性（W5）：<c>ReferenceEquals(左, 右)</c>（值相等但非同一引用 → false）。</summary>
     private static bool SameReference(
-        IReadOnlyList<ScriptedExpr> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
+        IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
         => ReferenceEquals(
             Sub(operands[0], scope, input, deps, field),
             Sub(operands[1], scope, input, deps, field));
 
     private static object? Coalesce(
-        IReadOnlyList<ScriptedExpr> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
+        IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps, string field)
         => Sub(operands[0], scope, input, deps, field)
            ?? Sub(operands[1], scope, input, deps, field);
 
     private static object?[] Collect(
-        ScriptedExpr expr, string name, EvalScope scope, IPortInput input, object?[] deps, string field)
+        ExprStandard expr, string name, EvalScope scope, IPortInput input, object?[] deps, string field)
     {
         var items = PortValues.Elements(scope.Slot(name, $"投影字段 '{field}' 的 collect")).ToArray();
 

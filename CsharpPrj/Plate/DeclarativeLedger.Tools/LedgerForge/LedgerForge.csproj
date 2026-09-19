@@ -26,8 +26,8 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>声明式台账离线工具（LedgerForge）</ModuleRule_Title>
     <ModuleRule_Layer>1</ModuleRule_Layer>
-    <ModuleRule_Description>通用声明式台账的**离线写入器**（非运行时面）：读台账数据视图执行 ① 只读对拍（check / check --bytes）② 分片重组与切分（compose / split，缺省 dry-run + 字节对拍门）③ impl 区间改写（set-impl，花括号配平 / 其余字节逐字保留 / 幂等）④ 步骤 kind → 端口键归一（normalize-key，冻结 legacyMap 为唯一映射源 / --check 残留即红）⑤ 词表 → 结构门 CLI 入口（derive-schema，算法唯一实现在标准层）⑥ 声明化骨架草稿与缺失落点清单（emit-declaration，哨兵 __BIND__ 须人工审定）。纪律：只准离线工具写台账；词表/键/分组规则/文案一律取自外部单源；一切写入缺省 dry-run，先过对拍门再落盘。</ModuleRule_Description>
-    <ModuleRule_Keywords>声明式;台账;离线工具;分片;重组;对拍;字节对拍;impl改写;键归一;结构门;骨架草稿;LedgerForge</ModuleRule_Keywords>
+    <ModuleRule_Description>通用声明式台账的**离线写入器**（非运行时面）：读台账数据视图执行 ① 只读对拍（check / check --bytes）② 分片重组与切分（compose / split，缺省 dry-run + 字节对拍门）③ impl 区间改写（set-impl，花括号配平 / 其余字节逐字保留 / 幂等）④ 步骤 kind → 端口键归一（normalize-key，冻结 legacyMap 为唯一映射源 / --check 残留即红）⑤ 词表 → 结构门 CLI 入口（derive-schema，算法唯一实现在标准层）⑥ 声明化骨架草稿与缺失落点清单（emit-declaration，哨兵 __BIND__ 须人工审定）⑦ **声明体干跑校验**（lint，不构建即报键位置 / 算子可达 / 槽拼写 / 平铺失效；政策读数据视图 lint 段，口径对齐构建期 ScriptedDeclarationGuardTests，不作放行依据）。纪律：只准离线工具写台账；词表/键/分组规则/文案一律取自外部单源；一切写入缺省 dry-run，先过对拍门再落盘。</ModuleRule_Description>
+    <ModuleRule_Keywords>声明式;台账;离线工具;分片;重组;对拍;字节对拍;impl改写;键归一;结构门;骨架草稿;干跑校验;声明体校验;入口形态判据;LedgerForge</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">

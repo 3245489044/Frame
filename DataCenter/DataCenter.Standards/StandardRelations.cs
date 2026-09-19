@@ -1,3 +1,5 @@
+using DataCenter.Protocol.Standards;
+
 namespace DataCenter.Standards;
 
 /// <summary>
@@ -23,6 +25,12 @@ public enum RelationKind
 
     /// <summary>词 → 自证 / 对拍证据（⑥ 外来证据）。</summary>
     WordAttestation,
+
+    /// <summary>端口 → 产品符号（<c>impl</c> 声明面的目标类型 / 成员：<c>reflective</c> 的 target·method、
+    /// <c>composed</c> 的 calls/deps、<c>scripted</c> 的 new/invoke、表达式内联 invoke、构造内嵌、委托类型等）。
+    /// <para>方向 = **声明者 → 被声明符号**（沿用本图 owner→member 约定）：改符号的波及面 = <c>Incoming(symbol:…)</c>
+    /// （谁引用了它）；端口依赖了谁 = <c>Impact(port:…)</c>。</para></summary>
+    PortSymbol,
 }
 
 /// <summary>关系边（<paramref name="From"/> → <paramref name="To"/>；<paramref name="Detail"/> 承载悬空等诊断）。</summary>
@@ -128,6 +136,18 @@ public static class StandardRelations
 {
     /// <summary>构建关系图（只读）；<paramref name="evidence"/> 非空时追加 ⑤/⑥ 外来证据边。</summary>
     public static RelationGraph Build(StandardCompletenessEvidence? evidence = null)
+        => BuildGraph([], evidence);
+
+    /// <summary>
+    /// 构建关系图（含**端口 → 产品符号**边，源 = 台账 <c>impl</c> 声明面）：影响分析可回答
+    /// 「改这个产品符号波及哪些端口」（单源 = 标准目录，禁另抄实体表）。
+    /// </summary>
+    public static RelationGraph Build(IStandardCatalog catalog, StandardCompletenessEvidence? evidence = null)
+        => BuildGraph(StandardPortRelations.PortSymbolEdges(catalog), evidence);
+
+    /// <summary>构图骨架（家族登记落点边 + 可选外来端口边；边序 = 家族登记序 → 端口键序，确定性）。</summary>
+    private static RelationGraph BuildGraph(
+        IReadOnlyList<RelationEdge> portEdges, StandardCompletenessEvidence? evidence)
     {
         var edges = new List<RelationEdge>();
         var existing = new HashSet<string>(StringComparer.Ordinal);
@@ -162,8 +182,16 @@ public static class StandardRelations
                 edges.Add(new RelationEdge(word, "attest:" + key, RelationKind.WordAttestation));
         }
 
+        edges.AddRange(portEdges);
+
         return new RelationGraph(edges, existing, BoundNodes());
     }
+
+    /// <summary>端口节点 id（不透明字符串，仅 Ordinal 比较）。</summary>
+    public static string PortId(string portKey) => "port:" + portKey;
+
+    /// <summary>产品符号节点 id（不透明字符串，仅 Ordinal 比较）。</summary>
+    public static string SymbolId(string symbol) => "symbol:" + symbol;
 
     /// <summary>悬空判定（单点实现）：结构门指针在内嵌单源中不存在即悬空。</summary>
     public static bool IsDanglingSchema(string schemaFile, string pointer)

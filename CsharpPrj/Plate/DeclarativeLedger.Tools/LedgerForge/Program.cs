@@ -27,9 +27,11 @@ internal static class Program
                     SpecKindView.Load(options.Data), options.Project!, options.Suite, options.Write, options.Check),
                 "derive-schema" => DeriveSchemaCommand.Run(LedgerView.Load(options.Data), options.Schemas, options.Write),
                 "emit-declaration" => EmitDeclarationCommand.Run(LedgerView.Load(options.Data), options.Family!, options.Out),
+                "lint" => LintCommand.Run(LedgerView.Load(options.Data), options.Only),
+                "entry-check" => EntryCheckCommand.Run(LedgerView.Load(options.Data), options.Bin!, options.Only),
                 "help" or "--help" or "-h" or "" => Help(),
                 _ => Fail($"未知命令 '{options.Command}'"
-                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | help）"),
+                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | help）"),
             };
         }
         catch (Exception exception)
@@ -54,6 +56,10 @@ internal static class Program
         Console.WriteLine("                                         词表 → 结构门（schema enum / 键集）；缺省只读对账，--write 幂等写回");
         Console.WriteLine("  emit-declaration --family <fixture.cs> [--out <dir>]");
         Console.WriteLine("                                         声明化骨架草稿 + 缺失落点清单（哨兵 __BIND__；草稿须人工审定）");
+        Console.WriteLine("  lint [--only <键前缀>] [--data <view>] 声明体**干跑校验**（不构建）：键位置 / 算子可达 / 槽拼写");
+        Console.WriteLine("                                         政策（严重度 / 平铺组 / 不可达算子 / 文案）= 数据视图 lint 段");
+        Console.WriteLine("  entry-check --bin <dir> [--only <键前缀>] 产品**入口形态判据**（离线反射 indicative）：public static / 无委托");
+        Console.WriteLine("                                         / 非 async / 有返回 / 实参可匹配；政策 = 数据视图 entry 段");
         Console.WriteLine("  help                                   本帮助");
         Console.WriteLine();
         Console.WriteLine("  开关约束：--bytes 仅 check；--check 仅 normalize-key；--write 不适用于 check / help");
@@ -71,7 +77,8 @@ internal static class Program
     /// <summary>命令行选项（命令 + 数据视图 + 各命令专属参数与开关）。</summary>
     private sealed record Options(
         string Command, string? Data, bool Write, bool Bytes, bool Check,
-        string? Impl, string? Project, string? Suite, string? Schemas, string? Family, string? Out);
+        string? Impl, string? Project, string? Suite, string? Schemas, string? Family, string? Out, string? Only,
+        string? Bin);
 
     /// <summary>命令行解析（无第三方依赖；未知选项即抛；命令与开关不匹配即抛）。</summary>
     private static class Cli
@@ -80,6 +87,8 @@ internal static class Program
         {
             var command = string.Empty;
             string? data = null, impl = null, project = null, suite = null, schemas = null, family = null, output = null;
+            string? only = null;
+            string? bin = null;
             var write = false;
             var bytes = false;
             var check = false;
@@ -91,6 +100,14 @@ internal static class Program
                 {
                     case "--data" or "-d":
                         data = Value(args, ref index, arg);
+                        continue;
+
+                    case "--only" or "-o":
+                        only = Value(args, ref index, arg);
+                        continue;
+
+                    case "--bin":
+                        bin = Value(args, ref index, arg);
                         continue;
 
                     case "--impl":
@@ -137,6 +154,10 @@ internal static class Program
 
             if (bytes && command != "check")
                 throw new ArgumentException($"--bytes 仅适用于 check（实得命令 '{command}'）");
+            if (only is not null && command is not ("lint" or "entry-check"))
+                throw new ArgumentException($"--only 仅适用于 lint / entry-check（实得命令 '{command}'）");
+            if (command == "entry-check" && string.IsNullOrWhiteSpace(bin))
+                throw new ArgumentException("entry-check 需要 --bin <产品输出目录>");
             if (check && command != "normalize-key")
                 throw new ArgumentException($"--check 仅适用于 normalize-key（实得命令 '{command}'）");
             if (write && command is "check" or "help" or "" or "--help" or "-h")
@@ -148,7 +169,7 @@ internal static class Program
             if (command == "emit-declaration" && string.IsNullOrWhiteSpace(family))
                 throw new ArgumentException("emit-declaration 需要 --family <夹具文件>");
 
-            return new Options(command, data, write, bytes, check, impl, project, suite, schemas, family, output);
+            return new Options(command, data, write, bytes, check, impl, project, suite, schemas, family, output, only, bin);
         }
 
         private static string Value(string[] args, ref int index, string option)

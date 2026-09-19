@@ -5,9 +5,15 @@ using System.Text.Json;
 namespace BasicMethod.Declarative.Tools.LedgerForge;
 
 /// <summary>
-/// <c>entry-check</c>：**产品入口形态判据**（离线反射，非运行时面）—— 对台账 <c>reflective</c> 条目检查其目标方法
+/// <c>entry-check</c>：**产品入口形态判据**（离线反射，非运行时面）—— 对台账条目检查其目标方法
 /// 是否满足「声明面可绑定」的入口形态：① <c>public static</c>；② 无委托 / 无 <c>out·ref</c> / 无泛型形参；
 /// ③ 非 <c>async</c>（无 <c>AsyncStateMachine</c>）；④ 有返回值；⑤ 实参个数存在可匹配重载（D-9 风险提示）。
+/// <para>
+/// <c>--kind</c>：<c>reflective</c>（缺省）只判已切反射绑定的条目；<c>declared</c> 判**凡声明了
+/// <c>target</c> + <c>method</c> 的条目（不论 <c>kind</c>）** —— 支撑「产品入口已补、分片已写
+/// <c>target</c>/<c>method</c>、<c>kind</c> 尚未切换」的先验证后落盘（缺省模式对未切换条目零扫描，
+/// 直接用于预检会得到「扫描 0 键 / error 0」的假绿）。
+/// </para>
 /// <para>
 /// 定位：把「产品侧缺语义化观测入口」从**事后报错**提前为**离线可查**；类型 / 程序集未命中
 /// （<c>--bin</c> 面不全或目标在别的程序集）记 <c>info</c>，不计 error（离线工具不拥有全量装配面）。
@@ -16,11 +22,13 @@ namespace BasicMethod.Declarative.Tools.LedgerForge;
 /// </summary>
 internal static class EntryCheckCommand
 {
-    internal static int Run(LedgerView view, string binDirectory, string? only)
+    /// <param name="kind">条目筛选面：<c>reflective</c>（缺省）/ <c>declared</c>（预检未切 kind 的已声明条目）。</param>
+    internal static int Run(LedgerView view, string binDirectory, string? only, string? kind)
     {
         if (!Directory.Exists(binDirectory))
             throw new DirectoryNotFoundException(string.Format(view.Message("forgeDirectoryMissing"), binDirectory));
 
+        var declared = string.Equals(kind, "declared", StringComparison.Ordinal);
         var policy = EntryPolicy.Load(view.DataPath);
         var issues = new List<EntryIssue>();
         var keys = 0;
@@ -39,7 +47,7 @@ internal static class EntryCheckCommand
                 if (only is { Length: > 0 } filter && !property.Name.StartsWith(filter, StringComparison.Ordinal)) continue;
                 if (!property.Value.TryGetProperty("impl", out var impl) || impl.ValueKind != JsonValueKind.Object)
                     continue;
-                if (!string.Equals(Text(impl, "kind"), "reflective", StringComparison.Ordinal)) continue;
+                if (!Matches(impl, declared)) continue;
 
                 keys++;
                 Check(view, policy, resolver, property.Name, impl, issues);
@@ -51,7 +59,8 @@ internal static class EntryCheckCommand
         var infos = issues.Count(issue => issue.Severity == "info");
 
         Console.WriteLine(string.Format(
-            view.Message("entryHeader"), keys, resolver.LoadedCount, Path.GetFileName(binDirectory)));
+            view.Message(declared ? "entryHeaderDeclared" : "entryHeader"),
+            keys, resolver.LoadedCount, Path.GetFileName(binDirectory)));
 
         foreach (var issue in issues
                      .OrderBy(item => item.PortKey, StringComparer.Ordinal)
@@ -62,6 +71,12 @@ internal static class EntryCheckCommand
         Console.WriteLine(view.Message("entryHint"));
         return errors == 0 ? 0 : 1;
     }
+
+    /// <summary>条目筛选：<paramref name="declared"/> 只要求声明了 target + method（不论 kind），否则须 kind=reflective。</summary>
+    private static bool Matches(JsonElement impl, bool declared)
+        => declared
+            ? Text(impl, "target") is { Length: > 0 } && Text(impl, "method") is { Length: > 0 }
+            : string.Equals(Text(impl, "kind"), "reflective", StringComparison.Ordinal);
 
     /// <summary>逐键检查（E1–E5；文案经策略单源）。</summary>
     private static void Check(

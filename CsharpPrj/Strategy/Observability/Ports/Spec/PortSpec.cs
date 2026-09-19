@@ -1,6 +1,7 @@
 namespace Strategy.Observability.Ports;
 
 using System.Text.Json;
+using DataCenter.Protocol.Standards;
 
 /// <summary>
 /// 端口指令操作码（R2-2b）：三通道差异压平为**指令序列**的判别键。
@@ -38,7 +39,7 @@ public enum PortOp
 
 /// <summary>
 /// 端口指令（R2-2b）：**SSA 形式** —— 每条指令一个结果写槽（<see cref="Out"/>），操作数经
-/// <see cref="Args"/> 承载唯一转换表视图（<see cref="PortValueOptions"/> 经 <see cref="PortArgSpec"/> 投影）。
+/// <see cref="Args"/> 承载唯一转换表视图（<see cref="PortValueOptions"/> 经标准单源 <see cref="PortArgStandard"/> 投影）。
 /// <para>机制件：只认不透明字符串（类型全名 / 方法名）+ 结构算子，零领域语义。</para>
 /// </summary>
 /// <param name="Op">操作码（判别键）。</param>
@@ -54,7 +55,7 @@ public sealed record PortInstr(
     string? Target = null,
     string? Method = null,
     int? Dep = null,
-    IReadOnlyList<PortArgSpec>? Args = null,
+    IReadOnlyList<PortArgStandard>? Args = null,
     JsonElement? Value = null);
 
 /// <summary>

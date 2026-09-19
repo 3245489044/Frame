@@ -672,7 +672,7 @@ public sealed class ScriptedBinding : IPortBinding
     /// <summary>收集声明（可多源：步产物 ∪ 指定槽当前值）。</summary>
     private static void Collect(ScriptedStep step, object? product, EvalScope scope)
     {
-        if (step.Collect is not { Count: > 0 } collects) return;
+        if (step.Collects is not { Count: > 0 } collects) return;
 
         foreach (var collect in collects)
         {
@@ -701,7 +701,7 @@ public sealed class ScriptedBinding : IPortBinding
     {
         foreach (var step in steps)
         {
-            foreach (var collect in step.Collect ?? Array.Empty<ScriptedCollectSpec>()) names.Add(collect.Slot);
+            foreach (var collect in step.Collects ?? Array.Empty<ScriptedCollectSpec>()) names.Add(collect.Slot);
             if (step.Foreach is { } loop) CollectSteps(loop.Do ?? Array.Empty<ScriptedStep>(), names);
         }
     }

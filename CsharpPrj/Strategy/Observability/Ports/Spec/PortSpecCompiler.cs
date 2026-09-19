@@ -43,7 +43,7 @@ public static class PortSpecCompiler
         if (!string.Equals(implRef.Kind, PortImplVocabulary.KindName.Reflective, StringComparison.Ordinal))
             return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
 
-        return Reflective(standard.Key, implRef, impl!.Target, impl.Method, MapArgs(impl.Args));
+        return Reflective(standard.Key, implRef, impl!.Target, impl.Method, impl.Args ?? Array.Empty<PortArgStandard>());
     }
 
     /// <summary>
@@ -57,34 +57,21 @@ public static class PortSpecCompiler
         return Reflective(portKey, impl, spec.Target, spec.Method, spec.Args);
     }
 
-    /// <summary>标准族实参 → 内核取值声明（字段一一对应；位序即语义）。</summary>
-    private static IReadOnlyList<PortArgSpec> MapArgs(IReadOnlyList<PortArgStandard>? args)
-    {
-        if (args is null || args.Count == 0)
-            return Array.Empty<PortArgSpec>();
-
-        var mapped = new PortArgSpec[args.Count];
-        for (var index = 0; index < args.Count; index++)
-        {
-            var arg = args[index];
-            mapped[index] = new PortArgSpec(
-                arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
-        }
-
-        return mapped;
-    }
-
     /// <summary>
     /// 反射族下行：<c>Program = [Call{Target, Method, Args}]</c>；<c>Params</c> ← <c>Args</c> 逐位
-    /// （位序 = 声明序，名未知故为 null，取值声明经 R2-1 的唯一转换表投影）。
+    /// （位序 = 声明序，名未知故为 null，取值声明经唯一转换表视图投影）。
+    /// <para>
+    /// 实参声明**不再中转**：标准族实参（<see cref="PortArgStandard"/>）即内核声明形态（H2 单源化），
+    /// 旧 <c>MapArgs</c> 逐位复制通道随之退场（同字段集多份翻译 = 静默丢字段面）。
+    /// </para>
     /// <para>目标类型 / 方法缺失（拼写漂移）→ 为空 Program（不可求值），由旧绑定类在装配期给出既有诊断。</para>
     /// </summary>
     private static PortSpec Reflective(
-        string portKey, PortImplRef impl, string? target, string? method, IReadOnlyList<PortArgSpec> args)
+        string portKey, PortImplRef impl, string? target, string? method, IReadOnlyList<PortArgStandard> args)
     {
         var parameters = new PortParam[args.Count];
         for (var index = 0; index < args.Count; index++)
-            parameters[index] = new PortParam(index, null, args[index].Options);
+            parameters[index] = new PortParam(index, null, args[index].Options());
 
         var complete = !string.IsNullOrWhiteSpace(target) && !string.IsNullOrWhiteSpace(method);
         var program = complete

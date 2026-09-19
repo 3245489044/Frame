@@ -1,0 +1,198 @@
+using DataCenter.Protocol.Standards;
+using Strategy.Observability.Ports;
+
+namespace Strategy.Observability.SpecHost;
+
+/// <summary>
+/// 标准条目 → 绑定计划（机制半）：只认「标准模型 + 实现查询 + 实现登记点文案」三件，
+/// **不认识族 / 文件 / 领域命名空间**（故实现登记点描述由调用方注入，本类不含领域词汇）。
+/// <para>
+/// 归位批 I2：本类**直读标准模型**（<see cref="PortStandard"/> / <see cref="PortImplStandard"/>），
+/// 中立 DTO 镜像层与 <c>DtoBinding</c> 映射随 DTO 退场删除；标准 → 内核声明的逐位映射改由
+/// 生成物 <c>StandardBinding</c> 承载（源 = 标准模型，唯一的转换点）。
+/// </para>
+/// </summary>
+public static class SpecPortPlanBuilder
+{
+    /// <summary>缺省实现登记点描述（诊断文案兜底；领域字样由数据半注入）。</summary>
+    public const string DefaultImplementationPoint = "实现登记表";
+
+    /// <summary>缺省工厂表（未注入时组合绑定的 <c>dep.factory</c> 一律 fail-fast，不静默造空）。</summary>
+    private static readonly IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> NoFactories =
+        new Dictionary<string, Func<IReadOnlyList<object?>, object?>>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 逐标准条目产出绑定计划（端口键 Ordinal 升序，与 <see cref="SpecPortStandards.Entries"/> 同序）：
+    /// <c>frozen</c> = 只登记（结构型转守卫面）；<c>reflective</c> = 声明驱动；<c>delegate</c> = 命中工厂，否则记名未绑定。
+    /// <para>
+    /// 产出载体统一为内核 <see cref="PortBinding"/>（计划构造点合一）：本类只做「标准条目 → 声明」投影，
+    /// 绑定类构建一律下沉 <see cref="PortBinding"/> 的静态工厂（内核唯一构造点）。
+    /// <paramref name="resolveImplementation"/> = 本次装配的实现查询（registry 查表）；未命中 → <c>null</c>
+    /// （装配期 fail-safe 记入 <c>Unbound</c>，原因文案含实现登记点）。
+    /// <paramref name="implementationPointOf"/>：可选「端口键 → 该端口所在族的实现登记点文案」（F7 族声明单源）；
+    /// 返回 null 或未提供 → 回退 <paramref name="implementationPoint"/> 全局文案（零回归）。
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<PortBinding> Build(
+        SpecPortStandards standards,
+        Func<string, Func<IPortInput, object?>?> resolveImplementation,
+        string implementationPoint = DefaultImplementationPoint,
+        Func<string, string?>? implementationPointOf = null,
+        IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories = null)
+    {
+        ArgumentNullException.ThrowIfNull(standards);
+        ArgumentNullException.ThrowIfNull(resolveImplementation);
+
+        var plans = new List<PortBinding>();
+
+        foreach (var standard in standards.Entries)
+        {
+            var portKey = standard.Key;
+            var impl = standard.Impl;
+
+            // F2-d 二期接线：显式实现注入（impl.seam）**优先**——声明面无法表达者才走 seam（额度由守卫棘轮冻结）。
+            if (impl?.Seam is { } seam)
+            {
+                plans.Add(Seam(portKey, seam));
+                continue;
+            }
+
+            switch (SpecPortStandards.KindOf(standard))
+            {
+                case SpecPortBindingKind.Frozen:
+                    plans.Add(PortBinding.Frozen(
+                        portKey, impl?.Reason ?? "结构型端口：只登记不绑定，结构断言迁守卫面"));
+                    break;
+
+                case SpecPortBindingKind.Reflective:
+                    plans.Add(PortBinding.Reflective(portKey, ToBindingSpec(standard)));
+                    break;
+
+                case SpecPortBindingKind.Composed:
+                    plans.Add(PortBinding.FromComposed(
+                        portKey,
+                        new ComposedBindingSpec(
+                            portKey,
+                            (impl?.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray(),
+                            (impl?.Calls ?? Array.Empty<CallStandard>()).Select(StandardBinding.Call).ToArray(),
+                            (impl?.Project ?? Array.Empty<ComposedFieldStandard>()).Select(StandardBinding.Field).ToArray())
+                        {
+                            Factories = factories ?? NoFactories,
+                        }));
+                    break;
+
+                case SpecPortBindingKind.Scripted:
+                    plans.Add(PortBinding.FromScripted(portKey, Scripted(standard, factories)));
+                    break;
+
+                default:
+                    var id = impl?.Id ?? portKey;
+                    var invoke = resolveImplementation(id);
+                    var point = implementationPointOf?.Invoke(portKey) ?? implementationPoint;
+                    plans.Add(invoke is null
+                        ? PortBinding.Unbound(
+                            portKey, id,
+                            $"标准声明 impl.kind=delegate，但 {point} 未登记实现")
+                        : PortBinding.Delegate(portKey, id, () => StandardFakes.Recording(invoke)));
+                    break;
+            }
+        }
+
+        return plans;
+    }
+
+    /// <summary>
+    /// seam 声明 → 绑定计划（F2-d 二期）：**装配期**解析 provider 产出可调用边界。
+    /// 未注册 provider 即记 <see cref="PortBinding.Unbound"/>（与 delegate 缺实现同口径 fail-safe，
+    /// 由装配守卫兜住，不静默回落）。
+    /// </summary>
+    private static PortBinding Seam(string portKey, PortSeamStandard seam)
+    {
+        if (!PortSeamRegistry.IsRegistered(seam.Seam))
+            return PortBinding.Unbound(portKey, seam.Seam,
+                $"[port:seam] 端口 '{portKey}' 声明 impl.seam '{seam.Seam}' 但未注册 provider"
+                + $"（已注册：{string.Join(", ", PortSeamRegistry.Seams)}）");
+
+        return PortBinding.Delegate(portKey, seam.Seam, () => ResolveSeam(portKey, seam));
+    }
+
+    /// <summary>
+    /// seam provider 产出必须是**可调用边界**（<see cref="IPortBinding"/>，如 <c>StandardFakes</c> 各形态）；
+    /// 其余类型即抛（防静默错配：seam 不是惰性对象袋）。
+    /// </summary>
+    private static IPortBinding ResolveSeam(string portKey, PortSeamStandard seam)
+    {
+        var args = seam.Args is null
+            ? Array.Empty<object?>()
+            : seam.Args.Cast<object?>().ToArray();
+
+        var resolved = PortSeamRegistry.Resolve(seam.Seam, args);
+
+        return resolved as IPortBinding
+            ?? throw new InvalidOperationException(
+                $"[port:seam] 端口 '{portKey}' 的 seam '{seam.Seam}' 产出 {resolved?.GetType().FullName ?? "null"} 不是 IPortBinding"
+                + "（provider 须产出可调用边界，如 StandardFakes.Recording(...)）");
+    }
+
+    /// <summary>
+    /// 脚本绑定声明装配：W2 场景主体是**独立绑定实例**，故工厂表（<c>dep.factory</c> 求值器）须显式随之下发
+    /// （否则场景内声明工厂即装配期 fail-fast）。
+    /// </summary>
+    private static ScriptedBindingSpec Scripted(
+        PortStandard standard, IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories)
+    {
+        var table = factories ?? NoFactories;
+        var impl = standard.Impl;
+
+        var binds = Binds(impl?.Binds);
+        var deps = (impl?.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray();
+        var script = (impl?.Script ?? Array.Empty<StepStandard>()).Select(StandardBinding.Step).ToArray();
+        var project = (impl?.ScriptProject ?? Array.Empty<FieldExprStandard>()).Select(StandardBinding.FieldSpec).ToArray();
+        var deliver = impl?.Deliver is null ? null : StandardBinding.Deliver(impl.Deliver);
+        var scopes = (impl?.Scopes ?? Array.Empty<ScopeStandard>()).Select(StandardBinding.Scope).ToArray();
+
+        if (impl?.Scenarios is not { } scenarios)
+            return new ScriptedBindingSpec(standard.Key, binds, deps, script, project, deliver, scopes)
+            {
+                Factories = table,
+            };
+
+        var cases = new Dictionary<string, ScriptedBindingSpec>(StringComparer.Ordinal);
+        foreach (var (name, body) in scenarios.Cases)
+        {
+            cases[name] = new ScriptedBindingSpec(
+                standard.Key,
+                Binds(body.Binds),
+                (body.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray(),
+                (body.Script ?? Array.Empty<StepStandard>()).Select(StandardBinding.Step).ToArray(),
+                (body.Project ?? Array.Empty<FieldExprStandard>()).Select(StandardBinding.FieldSpec).ToArray(),
+                body.Deliver is null ? null : StandardBinding.Deliver(body.Deliver),
+                (body.Scopes ?? Array.Empty<ScopeStandard>()).Select(StandardBinding.Scope).ToArray())
+            {
+                Factories = table,
+            };
+        }
+
+        return new ScriptedBindingSpec(standard.Key, binds, deps, script, project, deliver, scopes,
+            new ScriptedScenarioSpec(StandardBinding.ArgSpec(scenarios.Select), cases))
+        {
+            Factories = table,
+        };
+    }
+
+    /// <summary>取值来源映射（槽名 → 内核取值声明；标准模型 → 内核声明的唯一转换点）。</summary>
+    private static Dictionary<string, ScriptedArgSpec> Binds(IReadOnlyDictionary<string, ValueSourceStandard>? binds)
+        => (binds ?? EmptyBinds).ToDictionary(
+            bind => bind.Key, bind => StandardBinding.ArgSpec(bind.Value), StringComparer.Ordinal);
+
+    private static readonly IReadOnlyDictionary<string, ValueSourceStandard> EmptyBinds =
+        new Dictionary<string, ValueSourceStandard>(StringComparer.Ordinal);
+
+    /// <summary>标准条目 → 内核绑定声明（驱动元数据 legacyKind/productFields 不入内核模型）。</summary>
+    private static PortBindingSpec ToBindingSpec(PortStandard standard)
+        => new(
+            standard.Key,
+            standard.Impl?.Target ?? string.Empty,
+            standard.Impl?.Method ?? string.Empty,
+            standard.Impl?.Args ?? Array.Empty<PortArgStandard>());
+}

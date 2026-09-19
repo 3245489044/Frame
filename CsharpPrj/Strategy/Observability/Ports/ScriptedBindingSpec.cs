@@ -86,13 +86,13 @@ public sealed record ScriptedCollectSpec(string Slot, string? From = null);
 /// 脚本**步骤**（声明序 = 执行序）：<c>new</c>（构造）｜<c>invoke</c>（调用 / 成员读取）｜
 /// <c>foreach</c>（遍历）。三者互斥；<see cref="Collect"/> / <see cref="When"/> 为步骤修饰。
 /// </summary>
-/// <param name="Collect">收集声明（步产物 / 槽值 → 收集槽；G1）。</param>
+/// <param name="Collects">收集声明（步产物 / 槽值 → 收集槽；G1）。</param>
 /// <param name="When">条件短路表达式（G3 + P1 谓词）：求值为真才执行本步骤；<c>⊥</c>（缺槽 / 解析失败）→ 不执行并记录。</param>
 /// <param name="New">构造步骤（<c>new</c>）。</param>
 /// <param name="Invoke">调用步骤（<c>invoke</c>）。</param>
 /// <param name="Foreach">遍历步骤（<c>foreach</c>）。</param>
 public sealed record ScriptedStep(
-    IReadOnlyList<ScriptedCollectSpec>? Collect = null,
+    IReadOnlyList<ScriptedCollectSpec>? Collects = null,
     ScriptedExpr? When = null,
     ScriptedNewSpec? New = null,
     ScriptedInvokeSpec? Invoke = null,

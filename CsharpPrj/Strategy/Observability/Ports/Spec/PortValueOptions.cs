@@ -4,8 +4,8 @@ using System.Text.Json;
 using DataCenter.Protocol.Standards;
 
 /// <summary>
-/// 端口取值声明（R2-1，**唯一转换表**）：三套旧模型（<see cref="PortArgSpec"/> / <see cref="ComposedArgSpec"/> /
-/// <see cref="ScriptedArgSpec"/>）的**公共内核** —— 转换规则 / 可省略 / 空字面 / 缺省值 / 结构化来源 / 键名。
+/// 端口取值声明（R2-1，**唯一转换表**）：取值声明族（标准 <see cref="PortArgStandard"/> / 内核
+/// <see cref="ComposedArgSpec"/> / <see cref="ScriptedArgSpec"/>）的**公共内核** —— 转换规则 / 可省略 / 空字面 / 缺省值 / 结构化来源 / 键名。
 /// <para>
 /// 分工：本件只承载「机制可见」的取值信息（不含领域语义）。三套旧模型经各自 <c>Options</c> 视图投影到本件，
 /// 使转换与取值判定的消费方（R2-2 指令模型 / R2-3 求值引擎）只需面对**一份**声明形态。
@@ -53,3 +53,21 @@ public sealed record PortValueOptions(
 /// <param name="Name">形参名（具名绑定 / 诊断用；未知可为空）。</param>
 /// <param name="Options">取值声明（唯一转换表）。</param>
 public sealed record PortParam(int Index, string? Name, PortValueOptions Options);
+
+/// <summary>
+/// 标准取值声明的**内核视图**（唯一转换表投影）：字段同源、零语义搬运。
+/// <para>
+/// 纪律：实参声明的**单源** = 标准层 <see cref="PortArgStandard"/>（禁内核另立同形类型）；
+/// 本扩展是该单源在内核侧的**唯一**投影点，求值链路（<c>PortCall</c> / 指令模型）一律经本入口取视图。
+/// </para>
+/// </summary>
+public static class PortArgStandardExtensions
+{
+    /// <summary>标准取值声明 → 内核取值声明（位序即语义，字段逐个对应）。</summary>
+    public static PortValueOptions Options(this PortArgStandard arg)
+    {
+        ArgumentNullException.ThrowIfNull(arg);
+
+        return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
+    }
+}

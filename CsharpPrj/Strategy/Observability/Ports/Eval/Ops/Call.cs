@@ -47,7 +47,7 @@ internal static class PortCall
     internal static object? Invoke(MethodInfo method, object?[] arguments)
         => PortInvocation.ExecuteAny(() => method.Invoke(null, arguments), expect: null);
 
-    private static object? Convert(PortBindingSpec spec, ParameterInfo parameter, PortArgSpec arg, IPortInput input, int index)
+    private static object? Convert(PortBindingSpec spec, ParameterInfo parameter, PortArgStandard arg, IPortInput input, int index)
     {
         if (string.Equals(arg.Convert, "json", StringComparison.Ordinal))
             return FromWith(spec, parameter, arg, input);
@@ -85,13 +85,11 @@ internal static class PortCall
         if (scalarExpected.Length > 0)
             throw Mismatch(spec, text, index, scalarExpected);
 
-        if (arg.Convert == "json") return FromWith(spec, parameter, arg, input);
-
         throw Mismatch(spec, arg.Convert, index, PortImplVocabulary.RenderList(PortImplVocabulary.CommonConversionEnum));
     }
 
     /// <summary>结构化直传：取具名实参 <c>with</c> 的原始 JSON 并按目标形参类型反序列化。</summary>
-    private static object? FromWith(PortBindingSpec spec, ParameterInfo parameter, PortArgSpec arg, IPortInput input)
+    private static object? FromWith(PortBindingSpec spec, ParameterInfo parameter, PortArgStandard arg, IPortInput input)
     {
         if (arg.From is { Length: > 0 } source && !string.Equals(source, "with", StringComparison.Ordinal))
             throw new PortBindingViolationException(

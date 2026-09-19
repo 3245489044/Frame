@@ -51,7 +51,8 @@ public sealed record PortImplStandard(
     PortSeamStandard? Seam = null);
 
 /// <summary>
-/// 端口实参声明（标准框架通用化重构 §2.2 第 2 项；对应内核 <c>PortArgSpec</c>）：
+/// 端口实参声明（标准框架通用化重构 §2.2 第 2 项）：**实参声明的唯一单源** ——
+/// 内核求值链直接消费本类型（<c>PortBindingSpec</c> + <c>PortArgStandardExtensions</c>），不再另立同形副本）：
 /// 位序即语义，取值口径由 <see cref="Convert"/> + <see cref="From"/>/<see cref="Key"/> 表达。
 /// </summary>
 /// <param name="Convert">转换规则（取值域见 <see cref="PortImplVocabulary.Conversions"/>）。</param>

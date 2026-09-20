@@ -51,7 +51,11 @@ public sealed record PortBinding(
 
             var spec = Spec.IsEvaluable ? Spec : PortSpecCompiler.FromReflective(PortKey, DeclSpec);
             failReason = null;
-            return spec.IsEvaluable ? new PortEvaluatorBinding(spec, null, Injection) : new ReflectiveBinding(DeclSpec);
+
+            if (spec.IsEvaluable) return new PortEvaluatorBinding(spec, null, Injection);
+
+            PortBindingFallbackProbe.Record(PortKey, kind);   // 批 0 计量：回退旧绑定类（批 1 后本分支消失）
+            return new ReflectiveBinding(DeclSpec);
         }
 
         if (kind == PortImplVocabulary.KindName.Composed)
@@ -64,7 +68,11 @@ public sealed record PortBinding(
 
             // 规格已下行（计划构造点传入）→ 求值引擎；未下行（结构性判据不满足）→ 回退旧绑定类（既有诊断不变）。
             failReason = null;
-            return Spec.IsEvaluable ? new PortEvaluatorBinding(Spec, null, Injection) : new ComposedBinding(Composed);
+
+            if (Spec.IsEvaluable) return new PortEvaluatorBinding(Spec, null, Injection);
+
+            PortBindingFallbackProbe.Record(PortKey, kind);   // 批 0 计量：回退旧绑定类（批 1 后本分支消失）
+            return new ComposedBinding(Composed);
         }
 
         if (kind == PortImplVocabulary.KindName.Scripted)
@@ -77,7 +85,11 @@ public sealed record PortBinding(
 
             // 规格已下行（计划构造点传入）→ 求值引擎（执行单源）；未下行（无行为声明）→ 回退旧绑定类（既有诊断不变）。
             failReason = null;
-            return Spec.IsEvaluable ? new PortEvaluatorBinding(Spec, null, Injection) : new ScriptedBinding(Scripted);
+
+            if (Spec.IsEvaluable) return new PortEvaluatorBinding(Spec, null, Injection);
+
+            PortBindingFallbackProbe.Record(PortKey, kind);   // 批 0 计量：回退旧绑定类（批 1 后本分支消失）
+            return new ScriptedBinding(Scripted);
         }
 
         if (kind == PortImplVocabulary.KindName.Delegate)

@@ -6,8 +6,8 @@ using DataCenter.Protocol.Standards;
 /// <summary>
 /// 端口指令操作码（R2-2b）：三通道差异压平为**指令序列**的判别键。
 /// <para>
-/// 本批实现 <see cref="Call"/>；其余为**已登记待迁移项**（R3-2 `Dep`/`New`/`Project`、R3-3 `Loop`/`Table`/`Presence`/`Collect`），
-/// 求值引擎遇到未迁移操作码即 fail-fast（不静默返回空）。
+/// 8 个操作码**已全部落地**（求值分派点 = <see cref="PortEvaluator"/> 的 <c>switch (Op)</c>）；
+/// 形态残缺的指令（操作数为空或类型不符）在求值期 fail-fast（不静默返回空），见 <c>PortEvaluator.Operand</c>。
 /// </para>
 /// </summary>
 public enum PortOp
@@ -103,8 +103,9 @@ public sealed record PortImplRef(
 /// 端口求值规格（R2-2b，唯一规格模型）：声明视图（<see cref="PortLedgerEntry"/>）的**单向形态** ——
 /// 形参表 + 指令序列 + 实现归属。
 /// <para>
-/// 迁移期并存口径：<see cref="IsEvaluable"/> 为**唯一择路判据**（装配面据其决定走引擎或旧绑定类），
-/// 不使用「种类分派」（路线 §2.7 I-4）；未迁移族 <see cref="Program"/> 为空且 <see cref="IsEvaluable"/> = false。
+/// 求值面上 <see cref="Program"/> 是唯一执行载体（全族一视同仁）；<see cref="IsEvaluable"/> 为**装配期择路判据**
+/// —— 签名面已编译为指令者为 true（走求值引擎），否则为 false（由旧绑定类给既有诊断、记 Unbound）。
+/// 本判据随签名面编译入指令一并退场（批 2）。
 /// </para>
 /// </summary>
 /// <param name="PortKey">端口键（不透明字符串）。</param>

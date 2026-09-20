@@ -7,8 +7,8 @@ using Strategy.Observability.Diagnostics;
 /// 端口求值引擎（R3-1）：五段固定流水线 <c>BindParams → BuildDeps → RunProgram → Project → Deliver</c>，
 /// 消费唯一规格模型 <see cref="PortSpec"/>；**除 <c>switch (Op)</c> 外无通道分支**（路线 §2.7 I-4）。
 /// <para>
-/// 本批实现 <see cref="PortOp.Call"/>（reflective 族）；其余操作码为已登记待迁移项，遇到即 fail-fast
-/// （不静默返回空）。调用路径的解析 / 实参绑定 / 异常归一全部经 <see cref="PortCall"/>（唯一实现点）。
+/// 8 个操作码全部落地；步骤类操作码一律委托执行单源 <see cref="ScriptedSteps"/>，调用路径的解析 / 实参绑定 /
+/// 异常归一全部经 <see cref="PortCall"/>（唯一实现点）。形态残缺的指令 fail-fast（不静默返回空）。
 /// </para>
 /// <para>
 /// 性能（RF-4）：指令分派用 <c>switch (Op)</c> 编译型分派（非字典查表）；方法解析结果由
@@ -169,7 +169,8 @@ public sealed class PortEvaluator
                 + "（声明面只承载 *Standard 记录）");
 
         var binding = ToBinding(spec, instruction);
-        return PortCall.Invoke(PortCall.Resolve(binding), PortCall.BuildArguments(binding, PortCall.Resolve(binding), input));
+        var method = PortCall.Resolve(binding);
+        return PortCall.Invoke(method, PortCall.BuildArguments(binding, method, input));
     }
 
     /// <summary>

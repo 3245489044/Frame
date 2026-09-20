@@ -1,4 +1,3 @@
-using System.Reflection;
 using DataCenter.Protocol.Standards;
 
 namespace Strategy.Observability.SpecHost;
@@ -72,22 +71,6 @@ public sealed class SpecPortStandards
             ? standard
             : throw new InvalidOperationException(
                 $"[port:standard] 端口 '{portKey}' 未登记。已登记：{string.Join(", ", PortKeys)}");
-
-    /// <summary>从程序集嵌入资源读取（按后缀定位；缺失即抛，防「静默空端口面」）。</summary>
-    public static SpecPortStandards FromEmbeddedResource(Assembly assembly, string resourceSuffix = "test-ports.json")
-    {
-        ArgumentNullException.ThrowIfNull(assembly);
-
-        var name = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(resourceSuffix, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException(
-                $"[port:standard] 程序集 {assembly.GetName().Name} 缺少嵌入资源 *{resourceSuffix}（测试专用端口标准）");
-
-        using var stream = assembly.GetManifestResourceStream(name)
-            ?? throw new InvalidOperationException($"[port:standard] 无法打开嵌入资源 {name}");
-        using var reader = new StreamReader(stream);
-        return Parse(reader.ReadToEnd());
-    }
 
     /// <summary>按 JSON 文本装载（装载源 = 注入的标准装载器；本件只索引，不解析）。</summary>
     public static SpecPortStandards Parse(string json)

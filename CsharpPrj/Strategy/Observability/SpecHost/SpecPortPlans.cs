@@ -15,14 +15,13 @@ namespace Strategy.Observability.SpecHost;
 public sealed class SpecPortPlans : ISpecPortPlans
 {
     private readonly Assembly _assembly;
-    private readonly string _resourceSuffix;
     private readonly Func<string?, SpecPortResources> _resources;
     private readonly IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>> _factories;
     private readonly string _implementationPoint;
 
     /// <summary>
     /// <paramref name="resources"/>：领域资源构造（入参 = 观测事件区路径，null = 未装配观测）；
-    /// <paramref name="resourceSuffix"/>：嵌入标准资源后缀（宿主按 <c>EndsWith</c> 定位，产物文件名口径）；
+    /// <paramref name="resourceSuffix"/>：**保留形参**（H3b 起标准载体 = 构建期常量，不再走嵌入资源；留参为二进制兼容）；
     /// <paramref name="factories"/>：具名工厂表（声明面不承载的领域构造；缺省空表 = 引用工厂即装配期 fail-fast）。
     /// </summary>
     public SpecPortPlans(
@@ -36,14 +35,22 @@ public sealed class SpecPortPlans : ISpecPortPlans
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceSuffix);
 
-        _resourceSuffix = resourceSuffix;
         _factories = factories
             ?? new Dictionary<string, Func<IReadOnlyList<object?>, object?>>(StringComparer.Ordinal);
         _implementationPoint = implementationPoint ?? SpecPortPlanBuilder.DefaultImplementationPoint;
     }
 
-    /// <summary>标准资源 = 本程序集内 <c>*{后缀}</c> 嵌入件（缺件即抛可定位异常，不静默空表）。</summary>
-    public SpecPortStandards Standards() => SpecPortStandards.FromEmbeddedResource(_assembly, _resourceSuffix);
+    /// <summary>
+    /// 标准文档 JSON 常量（构建期由 <c>Standards\ports\*.specs</c> 生成）——
+    /// **唯一装载源**（运行期零文件读取、零嵌入资源）。
+    /// </summary>
+    public string? StandardsJson { get; init; }
+
+    /// <summary>标准资源 = 构建期常量（未注入即抛：不静默空表）。</summary>
+    public SpecPortStandards Standards()
+        => SpecPortStandards.Parse(StandardsJson
+            ?? throw new InvalidOperationException(
+                "[port:standard] 标准常量未注入：装配方须设置 SpecPortPlans.StandardsJson（源 = Standards\\ports\\*.specs 生成物）"));
 
     /// <summary>装配资源（领域侧构造：产品目录 + 契约注册表 + 作用域 / 事件源）。</summary>
     public SpecPortResources Resources(string? observeEventStorePath) => _resources(observeEventStorePath);

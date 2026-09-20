@@ -168,9 +168,8 @@ public sealed class PortEvaluator
                 $"端口 '{spec.PortKey}' 的指令 'Call'（第 {index} 条）操作数形态 '{instruction.Operand.GetType().Name}' 未知"
                 + "（声明面只承载 *Standard 记录）");
 
-        var binding = ToBinding(spec, instruction);
-        var method = PortCall.Resolve(binding);
-        return PortCall.Invoke(method, PortCall.BuildArguments(binding, method, input));
+        var method = PortCall.Resolve(spec.PortKey, instruction.Target, instruction.Method, instruction.Args);
+        return PortCall.Invoke(method, PortCall.BuildArguments(spec.PortKey, instruction.Args, method, input));
     }
 
     /// <summary>
@@ -196,9 +195,4 @@ public sealed class PortEvaluator
     /// </summary>
     private static object? Deliver(EvalFrame frame, object? product)
         => frame.Product is { } projected ? projected : product;
-
-
-    /// <summary>指令 → 调用声明（目标 / 方法 / 实参声明；只承机制可见信息）。</summary>
-    private static PortBindingSpec ToBinding(PortSpec spec, PortInstr instruction)
-        => new(spec.PortKey, instruction.Target ?? string.Empty, instruction.Method ?? string.Empty, instruction.Args);
 }

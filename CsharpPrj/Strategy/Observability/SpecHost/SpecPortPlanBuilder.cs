@@ -64,28 +64,12 @@ public static class SpecPortPlanBuilder
                         portKey, impl?.Reason ?? "结构型端口：只登记不绑定，结构断言迁守卫面"));
                     break;
 
+                // 声明驱动族（reflective / composed / scripted）：**唯一规格**（① → 指令序）即装配面全部输入；
+                // ③ 绑定声明家族退场后不再有第二份声明形态（批 1 收敛）。
                 case SpecPortBindingKind.Reflective:
-                    plans.Add(PortBinding.Reflective(portKey, ToBindingSpec(standard)));
-                    break;
-
                 case SpecPortBindingKind.Composed:
-                    plans.Add(PortBinding.FromComposed(
-                        portKey,
-                        new ComposedBindingSpec(
-                            portKey,
-                            (impl?.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray(),
-                            (impl?.Calls ?? Array.Empty<CallStandard>()).Select(StandardBinding.Call).ToArray(),
-                            (impl?.Project ?? Array.Empty<ComposedFieldStandard>()).Select(StandardBinding.Field).ToArray())
-                        {
-                            Factories = factories ?? NoFactories,
-                        },
-                        PortSpecCompiler.Compile(standard),
-                        Injection(factories)));
-                    break;
-
                 case SpecPortBindingKind.Scripted:
-                    plans.Add(PortBinding.FromScripted(
-                        portKey, Scripted(standard, factories), PortSpecCompiler.Compile(standard), Injection(factories)));
+                    plans.Add(PortBinding.FromSpec(portKey, PortSpecCompiler.Compile(standard), Injection(factories)));
                     break;
 
                 default:
@@ -138,72 +122,10 @@ public static class SpecPortPlanBuilder
     }
 
     /// <summary>
-    /// 脚本绑定声明装配：W2 场景主体是**独立绑定实例**，故工厂表（<c>dep.factory</c> 求值器）须显式随之下发
-    /// （否则场景内声明工厂即装配期 fail-fast）。
-    /// </summary>
-    private static ScriptedBindingSpec Scripted(
-        PortStandard standard, IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories)
-    {
-        var table = factories ?? NoFactories;
-        var impl = standard.Impl;
-
-        var binds = Binds(impl?.Binds);
-        var deps = (impl?.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray();
-        var script = (impl?.Script ?? Array.Empty<StepStandard>()).Select(StandardBinding.Step).ToArray();
-        var project = (impl?.ScriptProject ?? Array.Empty<FieldExprStandard>()).Select(StandardBinding.FieldSpec).ToArray();
-        var deliver = impl?.Deliver is null ? null : StandardBinding.Deliver(impl.Deliver);
-        var scopes = (impl?.Scopes ?? Array.Empty<ScopeStandard>()).Select(StandardBinding.Scope).ToArray();
-
-        if (impl?.Scenarios is not { } scenarios)
-            return new ScriptedBindingSpec(standard.Key, binds, deps, script, project, deliver, scopes)
-            {
-                Factories = table,
-            };
-
-        var cases = new Dictionary<string, ScriptedBindingSpec>(StringComparer.Ordinal);
-        foreach (var (name, body) in scenarios.Cases)
-        {
-            cases[name] = new ScriptedBindingSpec(
-                standard.Key,
-                Binds(body.Binds),
-                (body.Deps ?? Array.Empty<DepStandard>()).Select(StandardBinding.Dep).ToArray(),
-                (body.Script ?? Array.Empty<StepStandard>()).Select(StandardBinding.Step).ToArray(),
-                (body.Project ?? Array.Empty<FieldExprStandard>()).Select(StandardBinding.FieldSpec).ToArray(),
-                body.Deliver is null ? null : StandardBinding.Deliver(body.Deliver),
-                (body.Scopes ?? Array.Empty<ScopeStandard>()).Select(StandardBinding.Scope).ToArray())
-            {
-                Factories = table,
-            };
-        }
-
-        return new ScriptedBindingSpec(standard.Key, binds, deps, script, project, deliver, scopes,
-            new ScriptedScenarioSpec(StandardBinding.ArgSpec(scenarios.Select), cases))
-        {
-            Factories = table,
-        };
-    }
-
-    /// <summary>取值来源映射（槽名 → 内核取值声明；标准模型 → 内核声明的唯一转换点）。</summary>
-    private static Dictionary<string, ScriptedArgSpec> Binds(IReadOnlyDictionary<string, ValueSourceStandard>? binds)
-        => (binds ?? EmptyBinds).ToDictionary(
-            bind => bind.Key, bind => StandardBinding.ArgSpec(bind.Value), StringComparer.Ordinal);
-
-    private static readonly IReadOnlyDictionary<string, ValueSourceStandard> EmptyBinds =
-        new Dictionary<string, ValueSourceStandard>(StringComparer.Ordinal);
-
-    /// <summary>
     /// 装配产物注入袋（I5c/J4b 接线）：数据半工厂表随绑定下发执行侧 —— 声明模型与 IR 零运行期成员，
     /// 而 <c>dep.factory</c> 的求值仍可解析（缺表且声明了工厂即 fail-fast）。
     /// </summary>
     private static PortInjection Injection(
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories)
         => factories is null ? PortInjection.Empty : new PortInjection { Factories = factories };
-
-    /// <summary>标准条目 → 内核绑定声明（驱动元数据 legacyKind/productFields 不入内核模型）。</summary>
-    private static PortBindingSpec ToBindingSpec(PortStandard standard)
-        => new(
-            standard.Key,
-            standard.Impl?.Target ?? string.Empty,
-            standard.Impl?.Method ?? string.Empty,
-            standard.Impl?.Args ?? Array.Empty<PortArgStandard>());
 }

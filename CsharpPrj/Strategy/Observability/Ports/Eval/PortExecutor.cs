@@ -111,9 +111,7 @@ internal sealed class PortExecutor
             && _deliver.DeferSteps is not { Count: > 0 } && _deliver.Value is null
             && _scenarios is null)
         {
-            throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 声明 scripted 绑定但 script / project / 延迟步骤 / issue 捕获体 / 值载体表达式均为空（无行为可执行）");
+            throw new PortBindingViolationException(portKey, PortTerminalReasons.ScriptedNoBehavior(portKey));
         }
 
         if (_deliver.Defer && _deliver.Issues)

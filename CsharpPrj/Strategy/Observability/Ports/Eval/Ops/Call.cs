@@ -7,58 +7,63 @@ using Strategy.Observability.Diagnostics;
 /// <summary>
 /// 调用算子（R3-1）：解析目标成员 → 逐位实参绑定（唯一转换表）→ 调用归一。
 /// <para>
-/// **唯一实现点**：反射绑定（<see cref="ReflectiveBinding"/>）转薄适配后与本算子共用同一份代码，
+/// **唯一实现点**：求值引擎的 <c>Call</c> 指令与该算子的构造期解析前置共用同一份代码，
 /// 消除「绑定类各持一份解析/转换」的漂移面（D-2）；诊断文案与迁移前逐字一致（RF-5）。
 /// </para>
+/// <para>入参为**显式三元组**（端口键 / target / method + 实参声明）：不再中转绑定声明记录（A2 收敛后声明载体唯一）。</para>
 /// </summary>
 internal static class PortCall
 {
     /// <summary>声明 → 目标方法（构造期 fail-fast：缺 <c>target/method</c> 或不可解析即抛）。</summary>
-    internal static MethodInfo Resolve(PortBindingSpec spec)
+    internal static MethodInfo Resolve(
+        string portKey, string? target, string? method, IReadOnlyList<PortArgStandard>? args = null)
     {
-        ArgumentNullException.ThrowIfNull(spec);
+        ArgumentException.ThrowIfNullOrWhiteSpace(portKey);
 
-        if (string.IsNullOrWhiteSpace(spec.Target) || string.IsNullOrWhiteSpace(spec.Method))
-            throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 声明 reflective 绑定但缺少 target/method");
+        if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(method))
+            throw new PortBindingViolationException(portKey, PortTerminalReasons.ReflectiveMissingTarget(portKey));
 
-        return ReflectivePortResolver.ResolveMethod(spec, ReflectivePortResolver.ResolveType(spec.Target));
+        return ReflectivePortResolver.ResolveMethod(portKey, method, args?.Count ?? 0, ReflectivePortResolver.ResolveType(target));
     }
 
     /// <summary>按声明转换位置实参；未声明槽位（如尾部注入参数）取该类型默认值。</summary>
-    internal static object?[] BuildArguments(PortBindingSpec spec, MethodInfo method, IPortInput input)
+    internal static object?[] BuildArguments(
+        string portKey, IReadOnlyList<PortArgStandard>? args, MethodInfo method, IPortInput input)
     {
-        ArgumentNullException.ThrowIfNull(spec);
+        ArgumentException.ThrowIfNullOrWhiteSpace(portKey);
         ArgumentNullException.ThrowIfNull(method);
         ArgumentNullException.ThrowIfNull(input);
 
+        var declared = args ?? Array.Empty<PortArgStandard>();
         var parameters = method.GetParameters();
-        var args = new object?[parameters.Length];
+        var values = new object?[parameters.Length];
 
         for (var i = 0; i < parameters.Length; i++)
-            args[i] = i < spec.Args.Count
-                ? Convert(spec, parameters[i], spec.Args[i], input, i)
+            values[i] = i < declared.Count
+                ? Convert(portKey, declared, parameters[i], declared[i], input, i)
                 : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
 
-        return args;
+        return values;
     }
 
     /// <summary>调用目标方法；业务异常原样上抛（反射 TargetInvocationException 拆包走调用单源，错误分类交调用记录）。</summary>
     internal static object? Invoke(MethodInfo method, object?[] arguments)
         => PortInvocation.ExecuteAny(() => method.Invoke(null, arguments), expect: null);
 
-    private static object? Convert(PortBindingSpec spec, ParameterInfo parameter, PortArgStandard arg, IPortInput input, int index)
+    private static object? Convert(
+        string portKey, IReadOnlyList<PortArgStandard> args,
+        ParameterInfo parameter, PortArgStandard arg, IPortInput input, int index)
     {
         if (string.Equals(arg.Convert, "json", StringComparison.Ordinal))
-            return FromWith(spec, parameter, arg, input);
+            return FromWith(portKey, parameter, arg, input);
 
         var present = index < input.Args.Count && input.Args[index] is not null;
         if (!present)
         {
             if (!arg.Optional)
                 throw new PortBindingViolationException(
-                    spec.PortKey,
-                    $"{spec.PortKey} 需要第 {index} 个位置实参（声明 {DeclaredText(spec)}），实际只有 {input.Args.Count} 个");
+                    portKey,
+                    $"{portKey} 需要第 {index} 个位置实参（声明 {DeclaredText(args)}），实际只有 {input.Args.Count} 个");
 
             return arg.Default is { } fallback
                 ? ReflectivePortResolver.FromJson(fallback, parameter.ParameterType)
@@ -72,8 +77,8 @@ internal static class PortCall
             return PortValues.FitsDirect(raw, parameter.ParameterType)
                 ? raw
                 : throw new PortBindingViolationException(
-                    spec.PortKey,
-                    $"{spec.PortKey} 第 {index} 个位置实参按对象直投，但与形参 {parameter.ParameterType.Name} 不兼容");
+                    portKey,
+                    $"{portKey} 第 {index} 个位置实参按对象直投，但与形参 {parameter.ParameterType.Name} 不兼容");
 
         var text = raw as string ?? raw?.ToString() ?? string.Empty;
 
@@ -83,28 +88,25 @@ internal static class PortCall
         if (PortValues.TryConvertScalar(arg.Convert, text, out var scalar, out var scalarExpected))
             return scalar;
         if (scalarExpected.Length > 0)
-            throw Mismatch(spec, text, index, scalarExpected);
+            throw Mismatch(portKey, text, index, scalarExpected);
 
-        throw Mismatch(spec, arg.Convert, index, PortImplVocabulary.RenderList(PortImplVocabulary.CommonConversionEnum));
+        throw Mismatch(portKey, arg.Convert, index, PortImplVocabulary.RenderList(PortImplVocabulary.CommonConversionEnum));
     }
 
     /// <summary>结构化直传：取具名实参 <c>with</c> 的原始 JSON 并按目标形参类型反序列化。</summary>
-    private static object? FromWith(PortBindingSpec spec, ParameterInfo parameter, PortArgStandard arg, IPortInput input)
+    private static object? FromWith(string portKey, ParameterInfo parameter, PortArgStandard arg, IPortInput input)
     {
         if (arg.From is { Length: > 0 } source && !string.Equals(source, "with", StringComparison.Ordinal))
             throw new PortBindingViolationException(
-                spec.PortKey,
-                $"端口 '{spec.PortKey}' 的 json 实参 from '{source}' 未知（仅 with = 具名实参）");
+                portKey, $"端口 '{portKey}' 的 json 实参 from '{source}' 未知（仅 with = 具名实参）");
 
         if (string.IsNullOrWhiteSpace(arg.Key))
-            throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 的 json 实参缺少 key");
+            throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 的 json 实参缺少 key");
 
         if (!input.With.TryGetValue(arg.Key!, out var value) || value is null)
         {
             if (!arg.Optional)
-                throw new PortBindingViolationException(
-                    spec.PortKey, $"端口 '{spec.PortKey}' 缺具名实参 '{arg.Key}'（with）");
+                throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 缺具名实参 '{arg.Key}'（with）");
 
             // 缺参口径与位置实参分支同源：声明 default → 按目标形参类型还原；否则取目标类型默认值。
             return arg.Default is { } fallback
@@ -115,11 +117,12 @@ internal static class PortCall
         return ReflectivePortResolver.FromJson(value, parameter.ParameterType);
     }
 
-    private static PortBindingViolationException Mismatch(PortBindingSpec spec, string text, int index, string expected)
-        => new(spec.PortKey, $"端口 '{spec.PortKey}' 第 {index} 个实参 '{text}' 不是{expected}");
+    private static PortBindingViolationException Mismatch(string portKey, string text, int index, string expected)
+        => new(portKey, $"端口 '{portKey}' 第 {index} 个实参 '{text}' 不是{expected}");
 
     /// <summary>声明文本（诊断用；位序即语义）。</summary>
-    private static string DeclaredText(PortBindingSpec spec) => string.Join(",", spec.Args.Select(a => a.Convert));
+    private static string DeclaredText(IReadOnlyList<PortArgStandard> args)
+        => string.Join(",", args.Select(a => a.Convert));
 }
 
 /// <summary>

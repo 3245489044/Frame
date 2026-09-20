@@ -54,13 +54,13 @@ public static class PortSpecCompiler
 
     /// <summary>
     /// 反射声明 → 规格（装配面按已有声明择路用；不经标准目录往返，保持声明来源单一）。
+    /// <para>入参为**显式三元组**（端口键 / target / method + 实参声明）：声明载体唯一，不再中转绑定声明记录。</para>
     /// </summary>
-    public static PortSpec FromReflective(string portKey, PortBindingSpec spec)
+    public static PortSpec FromReflective(
+        string portKey, string? target, string? method, IReadOnlyList<PortArgStandard>? args = null)
     {
-        ArgumentNullException.ThrowIfNull(spec);
-
-        var impl = new PortImplRef(PortImplVocabulary.KindName.Reflective, Target: spec.Target, Method: spec.Method);
-        return Reflective(portKey, impl, spec.Target, spec.Method, spec.Args);
+        var impl = new PortImplRef(PortImplVocabulary.KindName.Reflective, Target: target, Method: method);
+        return Reflective(portKey, impl, target, method, args ?? Array.Empty<PortArgStandard>());
     }
 
     /// <summary>
@@ -84,7 +84,9 @@ public static class PortSpecCompiler
             ? new[] { new PortInstr(PortOp.Call, Target: target, Method: method, Args: args) }
             : Array.Empty<PortInstr>();
 
-        return new PortSpec(portKey, impl, parameters, program, complete);
+        return new PortSpec(
+            portKey, impl, parameters, program, complete,
+            TerminalReason: complete ? null : PortTerminalReasons.ReflectiveMissingTarget(portKey));
     }
 
     /// <summary>
@@ -104,10 +106,22 @@ public static class PortSpecCompiler
         var project = impl.Project ?? Array.Empty<ComposedFieldStandard>();
 
         var names = new HashSet<string>(StringComparer.Ordinal);
-        var unique = calls.All(call => names.Add(call.As));
+        var duplicate = calls.FirstOrDefault(call => !names.Add(call.As));
 
-        if (calls.Count == 0 || project.Count == 0 || !unique)
-            return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
+        if (calls.Count == 0)
+            return new PortSpec(
+                standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false,
+                TerminalReason: PortTerminalReasons.ComposedNoCalls(standard.Key));
+
+        if (duplicate is not null)
+            return new PortSpec(
+                standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false,
+                TerminalReason: PortTerminalReasons.ComposedDuplicateReference(standard.Key, duplicate.As));
+
+        if (project.Count == 0)
+            return new PortSpec(
+                standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false,
+                TerminalReason: PortTerminalReasons.ComposedNoProject(standard.Key));
 
         var program = new List<PortInstr>(deps.Count + calls.Count + project.Count);
 
@@ -144,7 +158,9 @@ public static class PortSpecCompiler
             || deliver.DeferSteps is { Count: > 0 } || deliver.Value is not null || impl.Scenarios is not null;
 
         if (!behaves)
-            return new PortSpec(standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false);
+            return new PortSpec(
+                standard.Key, implRef, Array.Empty<PortParam>(), Array.Empty<PortInstr>(), false,
+                TerminalReason: PortTerminalReasons.ScriptedNoBehavior(standard.Key));
 
         return new PortSpec(
             standard.Key, implRef, Array.Empty<PortParam>(), program, true,

@@ -27,13 +27,12 @@ public sealed class PortEvaluatorBinding : IPortBinding
         _evaluator = evaluator ?? PortEvaluator.Shared;
         _injection = injection ?? PortInjection.Empty;
 
-        // 构造期解析：reflective 形态（无载体的单条 Call）与 ReflectiveBinding 构造语义逐字对齐
-        // （fail-fast → 装配期 Unbound 记账一致）。声明驱动的其它形态在求值期按指令逐一解析。
+        // 构造期解析：reflective 形态（无载体的单条 Call）在装配期即解析目标成员（fail-fast → 装配期 Unbound 记账一致）。
+        // 声明驱动的其它形态在求值期按指令逐一解析。
         if (_spec.Program.Count == 1 && _spec.Program[0].Op == PortOp.Call && _spec.Program[0].Operand is null)
         {
             var program = _spec.Program[0];
-            _ = PortCall.Resolve(new PortBindingSpec(
-                _spec.PortKey, program.Target ?? string.Empty, program.Method ?? string.Empty, program.Args));
+            _ = PortCall.Resolve(_spec.PortKey, program.Target, program.Method, program.Args);
             return;
         }
 

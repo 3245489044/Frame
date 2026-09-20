@@ -122,6 +122,10 @@ public sealed record PortImplRef(
 /// <param name="ScriptProject">脚本投影声明（字段 ← 表达式；脚本族签名面，① 记录引用）。</param>
 /// <param name="Scopes">作用域声明（tempDir / using / restore；脚本族签名面，① 记录引用）。</param>
 /// <param name="Scenarios">多场景探针声明（声明了才非空；脚本族签名面，① 记录引用）。</param>
+/// <param name="TerminalReason">
+/// 不可求值**原因**（<see cref="IsEvaluable"/> = false 时由编译器给出；null = 可求值）。
+/// 装配面据此抛出既有诊断（异常型与文案逐字），把「不可求值」在构造期显性化，而非静默建壳。
+/// </param>
 /// <remarks>
 /// 签名面（<see cref="Deliver"/> / <see cref="Binds"/> / <see cref="Deps"/> / <see cref="ScriptProject"/> /
 /// <see cref="Scopes"/> / <see cref="Scenarios"/>）一律为 ① 标准记录的**引用**（零运行期成员、零同形副本）；
@@ -138,4 +142,5 @@ public sealed record PortSpec(
     IReadOnlyList<DepStandard>? Deps = null,
     IReadOnlyList<FieldExprStandard>? ScriptProject = null,
     IReadOnlyList<ScopeStandard>? Scopes = null,
-    ScenarioStandard? Scenarios = null);
+    ScenarioStandard? Scenarios = null,
+    string? TerminalReason = null);

@@ -7,37 +7,9 @@ using Strategy.Observability.Diagnostics;
 namespace Strategy.Observability.Ports;
 
 /// <summary>
-/// 反射端口绑定（E15 / G2 · 原测试侧 <c>Bridge\ReflectivePortBinding.cs</c> 上移）：按声明
-/// （<see cref="PortBindingSpec.Target"/>/<see cref="PortBindingSpec.Method"/>/<see cref="PortBindingSpec.Args"/>）解析目标方法、
-/// 依声明转换位置实参并调用，返回值即 subject（调用记录与端口族事件由 <see cref="PortCatalog"/> 统一出证）。
-/// <para>
-/// 参数来源：位置实参 = 调用方直传文本（按 <c>convert</c> 转换）；结构化输入 = 具名实参 <c>with</c>
-/// （原始 JSON，按目标形参类型反序列化）。目标方法抛出的业务异常原样上抛（调用记录照记 errorClass）。
-/// </para>
-/// <para>迁移说明：逐字搬语义；差异仅诊断异常类型由测试侧 <c>SpecRunException</c> 换为
-/// <see cref="PortBindingViolationException"/>（内核不可引测试件），消息体保持逐字可定位。</para>
+/// 反射端口绑定的解析小件（类型 / 方法 / 参数默认值 / JSON 反序列化）：分离后便于守卫与单测直接锁定。
+/// <para>批 1 收敛：<c>ReflectiveBinding</c> 薄适配类随 ③ 家族退场（反射族一律经求值引擎），本件保留为**解析唯一实现**。</para>
 /// </summary>
-public sealed class ReflectiveBinding : IPortBinding
-{
-    private readonly PortBindingSpec _spec;
-    private readonly MethodInfo _method;
-
-    /// <summary>按声明构造绑定：缺 <c>target/method</c> 即抛；目标类型/方法不可解析即抛（fail-fast，防静默绑错）。</summary>
-    public ReflectiveBinding(PortBindingSpec spec)
-    {
-        _spec = spec ?? throw new ArgumentNullException(nameof(spec));
-        _method = PortCall.Resolve(spec);
-    }
-
-    /// <summary>
-    /// 调用（R3-1 后为**薄适配**）：解析 / 实参绑定 / 调用归一的唯一实现点 = <see cref="PortCall"/>
-    /// （求值引擎同类算子共用同一份代码，消除「绑定类各持一份」的漂移面）。
-    /// </summary>
-    public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
-        => ValueTask.FromResult(PortCall.Invoke(_method, PortCall.BuildArguments(_spec, _method, input)));
-}
-
-/// <summary>反射端口绑定的解析小件（类型 / 方法 / 参数默认值 / JSON 反序列化）：分离后便于守卫与单测直接锁定。</summary>
 internal static class ReflectivePortResolver
 {
     // 并发缓存：绑定实例在端口目录中为单例、可被多线程并发调用，解析缓存须并发安全（禁非线程安全 Dictionary）。
@@ -195,8 +167,8 @@ internal static class ReflectivePortResolver
     /// 解析目标方法：优先「公开 + 参数个数 = 声明个数」的候选；无精确匹配则取参数最少者（尾部参数按默认值补齐）。
     /// 同名方法零候选即抛（防静默绑错）。
     /// </summary>
-    internal static MethodInfo ResolveMethod(PortBindingSpec spec, Type type)
-        => ResolveMethod(type, spec.PortKey, spec.Method, spec.Args.Count, isStatic: true);
+    internal static MethodInfo ResolveMethod(string portKey, string methodName, int declaredCount, Type type)
+        => ResolveMethod(type, portKey, methodName, declaredCount, isStatic: true);
 
     /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志；无实参判别 → 按「参数个数」精确匹配，再取参数最少者）。</summary>
     internal static MethodInfo ResolveMethod(

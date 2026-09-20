@@ -7,9 +7,9 @@ namespace Strategy.Observability.SpecHost;
 /// 标准条目 → 绑定计划（机制半）：只认「标准模型 + 实现查询 + 实现登记点文案」三件，
 /// **不认识族 / 文件 / 领域命名空间**（故实现登记点描述由调用方注入，本类不含领域词汇）。
 /// <para>
-/// 归位批 I2：本类**直读标准模型**（<see cref="PortStandard"/> / <see cref="PortImplStandard"/>），
-/// 中立 DTO 镜像层与 <c>DtoBinding</c> 映射随 DTO 退场删除；标准 → 内核声明的逐位映射改由
-/// 生成物 <c>StandardBinding</c> 承载（源 = 标准模型，唯一的转换点）。
+/// 归位批 I2，批 1 收敛：本类**直读标准模型**（<see cref="PortStandard"/> / <see cref="PortImplStandard"/>），
+/// 声明驱动族（reflective / composed / scripted）一律经 <c>PortSpecCompiler.Compile</c> 编为**唯一规格**
+/// （③ 声明镜像层与生成物映射已随批 1 退场，装配面只有一份声明形态）。
 /// </para>
 /// </summary>
 public static class SpecPortPlanBuilder

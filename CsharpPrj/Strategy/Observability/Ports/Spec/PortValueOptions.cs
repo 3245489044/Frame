@@ -5,7 +5,7 @@ using DataCenter.Protocol.Standards;
 
 /// <summary>
 /// 端口取值声明（R2-1，**唯一转换表**）：取值声明族（标准 <see cref="PortArgStandard"/> / 内核
-/// <see cref="ComposedArgSpec"/> / <see cref="ScriptedArgSpec"/>）的**公共内核** —— 转换规则 / 可省略 / 空字面 / 缺省值 / 结构化来源 / 键名。
+/// <see cref="ComposedArgStandard"/> / <see cref="ValueSourceStandard"/>）的**公共内核** —— 转换规则 / 可省略 / 空字面 / 缺省值 / 结构化来源 / 键名。
 /// <para>
 /// 分工：本件只承载「机制可见」的取值信息（不含领域语义）。三套旧模型经各自 <c>Options</c> 视图投影到本件，
 /// 使转换与取值判定的消费方（R2-2 指令模型 / R2-3 求值引擎）只需面对**一份**声明形态。

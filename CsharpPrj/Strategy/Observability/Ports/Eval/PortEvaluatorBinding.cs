@@ -58,4 +58,10 @@ public sealed class PortEvaluatorBinding : IPortBinding
         => _executor is null
             ? _evaluator.EvaluateAsync(_spec, input, new EvalContext(_spec.PortKey), _injection, ct)
             : ValueTask.FromResult(_executor.Run(input));
+
+    /// <summary>
+    /// 最近一次求值的诊断记录（W1：步骤 <c>when</c> / 遍历 <c>where</c> 求值为 ⊥ ⇒ 不执行且留痕）。
+    /// 记录按异步执行流隔离（防调用间最后写胜串台）；非脚本族规格为空集。
+    /// </summary>
+    public IReadOnlyList<string> LastNotes => _executor?.LastNotes ?? Array.Empty<string>();
 }

@@ -13,10 +13,12 @@
                            Get-ToolDiagnosticSummary / Write-ToolDiagnosticSummary
         EnvScope.psm1    : Enter-EnvScope / Set-EnvScopeVariable / Clear-EnvScopeVariable / Exit-EnvScope /
                            Test-EnvScopeResidue
+        Batch.psm1       : Invoke-ProcessBatch / Invoke-ProcessBatchJob / Get-BatchSummary /
+                           Get-BatchOutputLines / Write-BatchReport
 
-    边界（显式登记）：`Report.psm1`（报告分节/kv 表渲染）与 `Batch.psm1`（子进程批量驱动 + 并发 + 逐 job 记账）
-    须与消费方（`Tools\Convert-CSharpToSpec.ps1` 外壳重写）**同批**落地（M3），故本批不产出 —— 避免「只新增」
-    之外的空壳件与随之而来的第二份实现。
+    边界（显式登记）：报告渲染未提取 —— 实测其重复面仅「分节/空行」与表格表头两行样板，且两处消费方
+    （`Convert-CSharpToSpec` 的数据驱动 `$RPT.*` 模板 / `Get-SpecIr` 的硬编码 markdown 表）格式不同，
+    抽取只增间接层（对齐判据口径「不许以更整洁为由重构」），故不做。
 
     依赖方向：CentralTest → Frame（单向）；本模块零 CentralTest 引用。
 .NOTES
@@ -29,7 +31,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $toolKitModules = @(
     'ToolData.psm1',      # 数据真源 fail-fast 加载 + 点路径取值 + 消息模板
     'Diagnostics.psm1',   # `文件:行:列: 码 消息` 记账与汇总
-    'EnvScope.psm1'       # 进程级环境变量作用域（FD-11 口径）
+    'EnvScope.psm1',      # 进程级环境变量作用域（FD-11 口径）
+    'Batch.psm1'          # 子进程批量驱动（并发 + 逐 job 记账 + 证据落盘）
 )
 
 foreach ($module in $toolKitModules) {

@@ -1,8 +1,10 @@
-# Script 目录使用介绍
+# PowerShellScript 目录使用介绍
 
 ## 概述
 
-`Script/` 目录包含 WorkFlowPrj 项目的 PowerShell 脚本和模块，提供构建输出清理、项目配置修复、测试运行、文件操作等辅助功能。
+`PowerShellScript/` 目录包含 WorkFlowPrj 项目的 PowerShell 脚本和模块，提供构建输出清理、项目配置修复、测试运行、文件操作等辅助功能。
+
+> 本文档对应**目录重构后的布局**（原 `Script/` → `PowerShellScript/`；模块迁入 `Modules/` 分类子目录；主入口脚本迁入 `Share/`、`Operation/`、`Modules/Tools/`）。
 
 ## 快速开始
 
@@ -10,102 +12,96 @@
 
 ```powershell
 # 显示交互菜单
-.\Script\ScriptLauncher.ps1
+.\PowerShellScript\ScriptLauncher.ps1
 
-# 或双击 ScriptLauncher.bat
+# 或双击 PowerShellScript\ScriptLauncher.bat
 ```
 
 ```powershell
 # 快捷调用特定工具
-.\Script\ScriptLauncher.ps1 -Tool clean          # 快速清理 bin/obj
-.\Script\ScriptLauncher.ps1 -Tool kill-proc      # 清理编译/运行时冗余进程
-.\Script\ScriptLauncher.ps1 -Tool analyze        # csproj 引用分析
-.\Script\ScriptLauncher.ps1 -Tool env-config     # 更新环境配置
-.\Script\ScriptLauncher.ps1 -Tool log            # 日志查看器
-.\Script\ScriptLauncher.ps1 -Tool filedriven     # FileDriven 测试
-.\Script\ScriptLauncher.ps1 -Tool sync-ext       # VS Code 扩展同步
-.\Script\ScriptLauncher.ps1 -Tool test           # 运行 Pester 测试
-.\Script\ScriptLauncher.ps1 -List                # 列出所有工具
+.\PowerShellScript\ScriptLauncher.ps1 -Tool clean          # 快速清理 bin/obj
+.\PowerShellScript\ScriptLauncher.ps1 -Tool kill-proc      # 清理编译/运行时冗余进程
+.\PowerShellScript\ScriptLauncher.ps1 -Tool analyze        # csproj 引用分析
+.\PowerShellScript\ScriptLauncher.ps1 -Tool env-config     # 更新环境配置
+.\PowerShellScript\ScriptLauncher.ps1 -Tool log            # 日志查看器
+.\PowerShellScript\ScriptLauncher.ps1 -Tool filedriven     # FileDriven 测试
+.\PowerShellScript\ScriptLauncher.ps1 -Tool sync-ext       # VS Code 扩展同步
+.\PowerShellScript\ScriptLauncher.ps1 -Tool test           # 运行 Pester 测试
+.\PowerShellScript\ScriptLauncher.ps1 -List                # 列出所有工具
 ```
 
-> 💡 **ScriptLauncher** 覆盖了 Script/ 目录下所有工具，按功能分类组织，支持分层菜单导航和快捷参数调用。
+> 💡 **ScriptLauncher** 覆盖了 `PowerShellScript/` 目录下所有工具，按功能分类组织，支持分层菜单导航和快捷参数调用。
 
 ## 目录结构
 
 ```
-Script/
-├── README.md                          # 本文档
+PowerShellScript/
+├── doc/                               # 本文档 + UI 自动化框架技术方案
 ├── ScriptLauncher.ps1                 # 统一启动器（主入口）
 ├── ScriptLauncher.bat                 # 统一启动器（双击入口）
 ├── launcher.config.json               # 工具配置文件
-├── Build/                             # 🔧 构建与清理
-│   └── CleanupExtraBuildOutput.ps1    # 构建输出清理与项目配置修复
-├── Solution/                          # 📋 解决方案管理
-│   ├── Clean-SolutionConfig.ps1       # 精简 .sln 配置
-│   ├── Sync-SlnToDisk.ps1             # 同步 .sln ↔ 磁盘
-│   └── Fix-CrossProjectAnalysis.ps1   # 跨项目分析修复
-├── Analysis/                          # 🔍 代码分析
-│   └── Analyze-CsprojReferences.ps1   # csproj 引用分析
-├── Git/                               # 🌿 Git 工具
-│   └── Remove-BranchesExceptMain.ps1  # 删除非 Main 分支
-├── ConfigDrivenUIAutomationFramework.md # UI 自动化框架技术方案文档
+├── Maintain-SystemPromptLinks.ps1     # 系统提示词链接维护
 ├── ref_report.json                    # 引用分析报告输出
-├── backups/                           # 文件备份目录
-│   └── deprecated/                    # 废弃脚本归档
-│       ├── ScriptTools.bat            # 旧启动器（已废弃）
-│       ├── ScriptTools.ps1            # 旧启动器（已废弃）
-│       ├── Remove-BranchesExceptMain.bat # 分支清理包装器（已废弃）
-│       ├── Rebuild_With_Kill.bat      # 编译重建包装器（已废弃）
-│       └── clean.bat                  # 清理包装器（已废弃）
+├── backups/                           # 文件备份目录（含废弃脚本归档）
+├── BasicMethod/                       # 通用能力模块（可被外部工程直接引用）
+│   ├── Core/                          # FileUtils / Json / Network / Output / Path / Utils
+│   ├── DevOps/                        # Docker / GitClone / GitHubRelease / MCP / PackageManager
+│   ├── FileOps/                       # FileAccess / FileBatch / FileDiff / FileListing / Download
+│   ├── Storage/                       # StorageNode
+│   └── Tooling/                       # Diagnostic / ToolBridge
 ├── Modules/                           # 模块目录
-│   ├── Import-Modules.ps1             # 模块加载器
-│   │   ├── OutputHelpers.psm1         # 统一输出辅助函数
-│   │   ├── ProjectPaths.psm1          # 项目路径框架
-│   │   ├── ProjectConfig.psm1         # 项目配置常量
-│   │   ├── InteractiveHelpers.psm1    # 交互式确认工具模块
-│   │   ├── FileSystemHelpers.psm1     # 文件系统工具模块
-│   │   ├── XmlHelpers.psm1            # XML 操作工具模块
-│   │   ├── BatToolConfig.psm1         # BatTool 路径别名模块（从 BatTool 迁移）
-│   │   └── ReadProjectConfig.ps1      # 项目配置读取器
-│   ├── Csproj/
-│   │   ├── CsprojFixEngine.psm1       # .csproj 配置修复引擎
-│   │   ├── CsprojDetection.psm1       # csproj 检测
-│   │   ├── CsprojFixActions.psm1      # csproj 修复操作
-│   │   └── CsprojNewProjectInit.psm1  # 新建项目初始化
-│   ├── BuildOutput/
-│   │   └── BuildOutputCleaner.psm1    # 构建输出清理引擎
-│   ├── FileDriven/
-│   │   ├── FileDrivenTestUtils.ps1    # FileDriven 测试工具函数
-│   │   ├── ScriptRunner.ps1           # 通用脚本运行器框架
-│   │   └── FindLauncherDir.ps1        # 启动器目录查找
-│   └── SelectScript.ps1               # 通用脚本选择器
-├── Tools/                             # 工具子目录
-│   ├── clean.ps1                      # 快速清理 bin/obj
-│   ├── Update-EnvironmentConfig.ps1   # 环境配置更新与文档生成
-│   ├── Validate-ClineMCPConfig.ps1    # 验证 CLine MCP 配置
-│   ├── Setup-PesterTestEnv.ps1        # 搭建 Pester 测试环境
-│   ├── fix_coderunner_config.ps1      # 修复 VS Code Code Runner 配置
-│   ├── register_entry.ps1             # 注册启动项到 entries.config.json
-│   ├── sync_vscode_entries.ps1        # 同步 VS Code entries 配置
-│   ├── Sync-VscodeExtensions.ps1      # VS Code 扩展同步（导出/安装/差异对比）
-│   ├── Run-PesterTests.ps1            # Pester 测试运行器
-│   ├── vscode-extensions.list         # VS Code 扩展列表
-│   └── modules/                       # Tools 子模块
-├── FileDriven/                        # FileDriven 测试脚本
-│   └── FileDriven/
-│       ├── 运行测试GUI模式.ps1        # GUI 模式测试运行器
-│       └── LogViewer.ps1              # 分层交互式日志查看器
-└── TEST/                              # 测试脚本目录
-    ├── README.md
-    ├── test_gui.bat / test_gui.ps1    # GUI 测试
-    ├── ui-runner.bat / ui-runner.ps1  # UI 运行器
-    ├── load_database.bat / .ps1       # 数据库加载
-    ├── read_database.bat / .ps1 / .cmd / .sh  # 数据库读取
-    ├── test_ui_operations.ps1         # UI 操作测试
-    ├── advanced_query.cmd             # 高级查询
-    ├── db_query_commands.txt          # 数据库查询命令
-    └── GraphReference/                # 图数据库引用
+│   ├── Import-Modules.ps1             # 模块加载器（函数映射表由 Operation\DSL\Build-ModuleIndex.ps1 编译）
+│   ├── BuildOutputCleaner.psm1         # 构建输出清理引擎
+│   ├── Core/                           # OutputHelpers / ProjectPaths / ProjectConfig / InteractiveHelpers / FileSystemHelpers / XmlHelpers / BatToolConfig / BuildHelpers / ReadProjectConfig.ps1
+│   ├── Csproj/                         # CsprojFixEngine / CsprojDetection / CsprojFixActions / CsprojNewProjectInit（+ 维护脚本）
+│   ├── Docker/                         # DockerCommon / DockerBuild / DockerManagement / McpConfiguration / McpInstallation
+│   ├── FileDriven/                     # FileDrivenTestUtils / ScriptRunner / SelectScript / FindLauncherDir / LogOptions
+│   ├── Git/                            # GitHelpers.psm1（git 只读查询单一实现）+ 分支/快照/推送维护脚本
+│   ├── Install/                        # 依赖安装框架（Commands / Core / Manifests / Providers，`_init.ps1` 装配）
+│   ├── Manifest/                       # Manifest.psm1 —— 清单读取 + 形状校验 + 幂等写盘
+│   ├── Md/                             # MarkdownLintFix
+│   ├── Path/                           # Core（PathConversion / PathEnvManager / ScriptContext / RootDetection）+ Project（FrameworkPaths / ProjectPaths / BuildConfig）
+│   ├── PsRuntime/                      # 绑定层（Binding / Bootstrap / Capability / Contract / Extension / Gate / Runtime）
+│   ├── StringTools/                    # 文本原语（Core / FileBatch / Markdown / StructuredText / LogMessages / Clinerules）
+│   ├── TestRunner/                     # dotnet 测试运行框架（DotnetTestRunner / DotnetTest / KnownFailures，`_init.ps1` 装配）
+│   ├── Testing/                        # PesterKit.psm1 —— 测试脚手架（结果收集 / 展示 / 汇总）
+│   ├── ToolKit/                        # CLI 工具外壳（ToolData / Diagnostics / EnvScope / Batch，`_init.ps1` 装配）
+│   └── Tools/                          # 工具脚本树（Cleanup / Disk / Docker / EnvMigration / Legacy / NuGet / Testing / VSCode / modules）
+├── FileDriven/                        # FileDriven 测试脚本 + 其 Pester 测试
+│   ├── FileDriven/                    # 运行测试GUI模式.ps1 / LogViewer.ps1
+│   └── *.Tests.ps1                    # FileDrivenTestUtils / ScriptRunner / SelectScript / FindLauncherDir
+├── Operation/                         # 运维与校验
+│   ├── Analysis/                      # Analyze-CsprojReferences.ps1
+│   ├── DSL/                           # clinerules 校验与索引编译（Check-*.ps1 / Build-ModuleIndex.ps1 / Add-Axiom.ps1）
+│   ├── TaskPool/                      # Test-AgentTaskPool.ps1
+│   └── vscode-script-ui/              # VS Code 脚本面板扩展
+├── PScriptManager/                    # 脚本注册与启动菜单框架
+├── Share/                             # 共享入口
+│   ├── Build/                         # CleanupExtraBuildOutput / Invoke-FullRebuild / Deploy-* / Repair-MCPServices ...
+│   └── Solution/                      # Clean-SolutionConfig / Sync-SlnToDisk / Fix-CrossProjectAnalysis / Generate-ModulePaths ...
+└── Temp/                              # 临时产物（不入库）
 ```
+
+---
+
+## 模块地图（工具链通用面 → 消费方）
+
+> CentralTest（`Environment\CentralTest\`）侧的工具链**通用面**全部下沉 Frame `Modules\`；装配唯一入口 = CentralTest 根
+> `Import-FrameModules.ps1`（按簇装配 + fail-fast + 幂等 + `-Global` 导入，使算子对脚本 / 模块 / 并行 runspace 一致可见）。
+> 依赖方向恒为 CentralTest → Frame（单向）。
+
+| 簇（`Modules\`） | 导出面 | 消费方 |
+|---|---|---|
+| `TestRunner\` | `New-DotnetTestArgs` · `Get-TestResultCounts` · `Get-FailedTestNames` · `Write-TestUnitPlan` · `Write-TestUnitResult` · `Write-TestRunSummary` · `Find-RunSettings` · `Invoke-TestUnit` · `Compare-KnownFailures` | `Run-CSharpTests.ps1` · `RunWdUITests.ps1` · `RunTestForm.ps1`（含 `ForEach-Object -Parallel` 独立 runspace） |
+| `ToolKit\` | `Import-ToolData` · `Get-ToolDataValue` · `Get-ToolMessage` · `New-ToolDiagnostic` · `Add-ToolViolation` · `Format-ToolViolation` · `Get/Write-ToolDiagnosticSummary` · `Enter/Set/Clear/Exit-EnvScope` · `Test-EnvScopeResidue` · `Invoke-ProcessBatch` · `Invoke-ProcessBatchJob` · `Get-BatchSummary` · `Get-BatchOutputLines` · `Write-BatchReport` | `Tools\Convert-CSharpToSpec.ps1` · `Tools\Invoke-SpecBatch.ps1` · `Tools\Sync-SpecBaseline.ps1` · `Tools\Update-SpecGolden.ps1` · `Run-CSharpTests.ps1` |
+| `Manifest\` | `Read-Manifest` · `Write-Manifest` · `Get-ManifestUnit` · `Test-Ratchet` | `Tools\Sync-SpecBaseline.ps1` · `Run-CSharpTests.ps1` |
+| `Testing\` | `New-TestResultCollector` · `Add-TestCheck` · `Get-TestCheckSummary` · `Write-TestCheckSummary` · `Write-TestHeader` · `Write-TestResult` · `Write-TestSummary` | `Tools\Test-SpecConvertTooling.ps1` · `PowerShellTests\BasicMethod.Tests\TestHelper.psm1` |
+| `Git\` | `Get-GitDiff` · `Test-GitClean` · `Get-GitRevisionFile` · `Resolve-GitRevisionWithPath` | `Tools\Update-SpecGolden.ps1` · `Tools\Convert-CSharpToSpec.ps1` |
+
+> 工具链**专属面**（工程发现 / 目标解析 / 别名表 / suite 语义 / WdUI 启动）留在 CentralTest `TestRunner\TestRunner.psm1`（导出 8 个），
+> 由 `Run-*.ps1` 按需导入。
+> `Modules\Import-Modules.ps1` 是 Frame 侧全量加载器；其函数映射表为**编译产物**（由 `Operation\DSL\Build-ModuleIndex.ps1` 写回并做写回校验），
+> 新增/重命名导出函数后须重编译。
 
 ---
 
@@ -128,13 +124,13 @@ Script/
 
 **交互菜单：**
 ```powershell
-.\Script\ScriptLauncher.ps1
-# 或双击 Script\ScriptLauncher.bat
+.\PowerShellScript\ScriptLauncher.ps1
+# 或双击 PowerShellScript\ScriptLauncher.bat
 ```
 
 **快捷调用：**
 ```powershell
-.\Script\ScriptLauncher.ps1 -Tool <别名>
+.\PowerShellScript\ScriptLauncher.ps1 -Tool <别名>
 ```
 
 | 别名 | 对应工具 |
@@ -161,7 +157,7 @@ Script/
 
 **列出所有工具：**
 ```powershell
-.\Script\ScriptLauncher.ps1 -List
+.\PowerShellScript\ScriptLauncher.ps1 -List
 ```
 
 ### 配置驱动
@@ -176,9 +172,9 @@ Script/
 
 ## 主入口脚本
 
-### CleanupExtraBuildOutput.ps1
+### CleanupExtraBuildOutput.ps1（`Share\Build\`）
 
-**构建输出清理与项目配置修复脚本**，是 Script 目录的核心入口。
+**构建输出清理与项目配置修复脚本**，是构建入口的核心脚本。
 
 **功能：**
 
@@ -199,7 +195,7 @@ Script/
 
 ```powershell
 # 直接运行（交互式，每一步都会询问确认）
-.\Script\CleanupExtraBuildOutput.ps1
+.\PowerShellScript\Share\Build\CleanupExtraBuildOutput.ps1
 ```
 
 **新建项目注意事项：**
@@ -208,7 +204,7 @@ Script/
 - 首次构建后，运行此脚本清理项目本地的 `bin\` 和 `obj\` 目录
 
 
-### Clean-Processes.ps1 — 进程清理工具
+### Clean-Processes.ps1 — 进程清理工具（`Modules\Tools\Cleanup\`）
 
 **清理编译和 VS Code 运行时的冗余进程**，解决编译时 DLL 被占用导致的编译失败问题。
 
@@ -237,19 +233,19 @@ Script/
 
 ```powershell
 # 交互式清理（默认）
-.\Tools\Clean-Processes.ps1
+.\PowerShellScript\Modules\Tools\Cleanup\Clean-Processes.ps1
 
 # 一键清理，不询问
-.\Tools\Clean-Processes.ps1 -Force
+.\PowerShellScript\Modules\Tools\Cleanup\Clean-Processes.ps1 -Force
 
 # 仅列出不终止
-.\Tools\Clean-Processes.ps1 -List
+.\PowerShellScript\Modules\Tools\Cleanup\Clean-Processes.ps1 -List
 
 # 编译前模式（集成在 rebuild 中自动调用）
-.\Tools\Clean-Processes.ps1 -BeforeBuild
+.\PowerShellScript\Modules\Tools\Cleanup\Clean-Processes.ps1 -BeforeBuild
 
 # 指定进程名
-.\Tools\Clean-Processes.ps1 -ProcessName "FileDriven.Launcher","dotnet"
+.\PowerShellScript\Modules\Tools\Cleanup\Clean-Processes.ps1 -ProcessName "FileDriven.Launcher","dotnet"
 ```
 
 **安全保护：**
@@ -271,21 +267,26 @@ Script/
 
 ### Import-Modules.ps1 — 模块加载器
 
-所有模块的集中加载入口。按依赖顺序自动加载所有 `.psm1` 和 `.ps1` 模块文件。
+`Modules\Import-Modules.ps1` = 所有模块的集中加载入口（IoC），支持两种模式：
 
-**加载顺序：**
-1. `XmlHelpers.psm1` — XML 操作（无依赖）
-2. `FileSystemHelpers.psm1` — 文件系统操作（无依赖）
-3. `InteractiveHelpers.psm1` — 交互确认（依赖 FileSystemHelpers）
-4. `CsprojFixEngine.psm1` — .csproj 修复（依赖以上三个模块）
-5. `BuildOutputCleaner.psm1` — 构建输出清理（依赖以上模块）
-6. `FileDrivenTestUtils.ps1` — 测试工具函数
-7. `ScriptRunner.ps1` — 脚本运行器
+**加载机制：**
+
+1. **按需加载（模式 A，新）**：脚本头部以 `# @requires Get-OutputEncoding, Write-Header` 声明所需函数，
+   加载器按 `$functionModuleMap`（函数 → 模块，**编译产物**，由 `Operation\DSL\Build-ModuleIndex.ps1` 扫描写回）
+   只导入用到的模块；
+2. **全量加载（模式 B，旧）**：无 `@requires` 时回退到 `$moduleOrder` 全量顺序导入（兼容旧脚本）；
+3. 缺失模块/函数即报错，不静默降级。
+
+> ⚠️ 函数映射表是编译产物 ⇒ 新增 / 重命名 / 删除导出函数后**必须重编译**：
+> `pwsh .\Operation\DSL\Build-ModuleIndex.ps1 -ImportModulesPath <本文件> -PowerShellRoot .\`（写回并做校验）。
 
 **用法：**
 
 ```powershell
-# 在其他脚本中加载所有模块
+# 按需加载（推荐）：脚本头部声明 @requires 后
+. (Join-Path $PSScriptRoot "..\Modules\Import-Modules.ps1")
+
+# 全量加载（兼容旧脚本）
 . "$PSScriptRoot\Import-Modules.ps1"
 ```
 
@@ -418,7 +419,7 @@ $fixed = Confirm-And-FixProjects -projectList @("proj1", "proj2") `
 
 ```powershell
 # 一键修复
-$result = Invoke-CsprojRepair -rootDir "D:\Project" -backupDir "D:\Project\Script\backups"
+$result = Invoke-CsprojRepair -rootDir "D:\Project" -backupDir "D:\Project\Frame\PowerShellScript\backups"
 
 # 单独修复无效 TargetFramework
 $fixed = Fix-InvalidTargetFramework -csprojFiles $csprojFiles `
@@ -578,15 +579,17 @@ $launcherDir = powershell -File FindLauncherDir.ps1 -FileDrivenDir "D:\Project\F
 ## 模块依赖关系
 
 ```
-XmlHelpers.psm1          (无依赖)
-FileSystemHelpers.psm1   (无依赖)
-InteractiveHelpers.psm1  (依赖 FileSystemHelpers.psm1)
-CsprojFixEngine.psm1     (依赖 XmlHelpers + FileSystemHelpers + InteractiveHelpers)
-BuildOutputCleaner.psm1  (依赖 FileSystemHelpers + InteractiveHelpers)
-FileDrivenTestUtils.ps1  (无依赖)
-ScriptRunner.ps1         (依赖 FileDrivenTestUtils.ps1)
-SelectScript.ps1         (独立脚本，无依赖)
-FindLauncherDir.ps1      (独立脚本，无依赖)
+Modules\Core\XmlHelpers.psm1             (无依赖)
+Modules\Core\FileSystemHelpers.psm1      (无依赖)
+Modules\Core\InteractiveHelpers.psm1     (依赖 FileSystemHelpers.psm1)
+Modules\Csproj\CsprojFixEngine.psm1      (依赖 XmlHelpers + FileSystemHelpers + InteractiveHelpers)
+Modules\BuildOutputCleaner.psm1          (依赖 FileSystemHelpers + InteractiveHelpers)
+Modules\FileDriven\FileDrivenTestUtils.ps1 (无依赖)
+Modules\FileDriven\ScriptRunner.ps1      (依赖 FileDrivenTestUtils.ps1)
+Modules\FileDriven\SelectScript.ps1      (独立脚本，无依赖)
+Modules\FileDriven\FindLauncherDir.ps1   (独立脚本，无依赖)
+Modules\{TestRunner,ToolKit}\_init.ps1 · Manifest\Manifest.psm1 · Testing\PesterKit.psm1 · Git\GitHelpers.psm1
+                                         (Frame 工具链通用面；由 CentralTest 根 Import-FrameModules.ps1 装配，见「模块地图」)
 ```
 
 ---
@@ -597,14 +600,14 @@ FindLauncherDir.ps1      (独立脚本，无依赖)
 
 ```powershell
 # 直接运行主脚本
-.\Script\CleanupExtraBuildOutput.ps1
+.\PowerShellScript\Share\Build\CleanupExtraBuildOutput.ps1
 ```
 
 ### 场景二：仅修复 .csproj 配置
 
 ```powershell
 # 加载模块
-. .\Script\Modules\Import-Modules.ps1
+. .\PowerShellScript\Modules\Import-Modules.ps1
 
 # 获取 csproj 文件
 $csprojFiles = Get-CsprojFiles -rootDir "." -excludePaths @(".\BuildOutput")
@@ -612,17 +615,17 @@ $csprojFiles = Get-CsprojFiles -rootDir "." -excludePaths @(".\BuildOutput")
 # 修复无效 TargetFramework
 Fix-InvalidTargetFramework -csprojFiles $csprojFiles `
     -invalidTfmMap @{ 'net10.0-windows7.0' = 'net10.0-windows' } `
-    -backupDir ".\Script\backups"
+    -backupDir ".\PowerShellScript\backups"
 
 # 移除自定义 OutputPath
-Fix-CustomOutputPath -csprojFiles $csprojFiles -backupDir ".\Script\backups"
+Fix-CustomOutputPath -csprojFiles $csprojFiles -backupDir ".\PowerShellScript\backups"
 ```
 
 ### 场景三：运行 FileDriven 测试
 
 ```powershell
 # 使用脚本运行器
-. .\Script\Modules\Import-Modules.ps1
+. .\PowerShellScript\Modules\Import-Modules.ps1
 
 $config = Get-FileDrivenConfig -ScriptPath $MyInvocation.MyCommand.Path
 $runner = New-ScriptRunner -Config $config -RunAction { param($scriptName) ... }
@@ -632,7 +635,7 @@ $runner.Invoke($args)
 ### 场景四：查找并启动 FileDriven.Launcher
 
 ```powershell
-$launcherDir = & powershell -File .\Script\Modules\FindLauncherDir.ps1 -FileDrivenDir ".\FileDriven"
+$launcherDir = & powershell -File .\PowerShellScript\Modules\FileDriven\FindLauncherDir.ps1 -FileDrivenDir ".\FileDriven"
 if ($LASTEXITCODE -eq 0) {
     Start-Process (Join-Path $launcherDir "FileDriven.Launcher.exe")
 }

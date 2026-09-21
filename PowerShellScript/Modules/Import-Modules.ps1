@@ -26,6 +26,10 @@
 # 函数→模块映射表（IoC 核心）— 编译产物
 # 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
+# ============================================================
+# 函数→模块映射表（IoC 核心）— 编译产物
+# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # <!-- PROTO_AUTO:functionModuleMap:BEGIN -->
 # ============================================================
 $functionModuleMap = @{
@@ -442,9 +446,13 @@ $functionModuleMap = @{
     'Get-SlnProjectPathMap'            = 'Modules/StringTools/StringTools.StructuredText.psm1'
 
     # ===== Modules\Testing =====
-    'Write-TestHeader'      = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestResult'      = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestSummary'     = 'Modules/Testing/PesterKit.psm1'
+    'Add-TestCheck'               = 'Modules/Testing/PesterKit.psm1'
+    'Get-TestCheckSummary'        = 'Modules/Testing/PesterKit.psm1'
+    'New-TestResultCollector'     = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestCheckSummary'      = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestHeader'            = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestResult'            = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestSummary'           = 'Modules/Testing/PesterKit.psm1'
 
     # ===== Modules\TestRunner =====
     'Find-RunSettings'     = 'Modules/TestRunner/DotnetTest.psm1'

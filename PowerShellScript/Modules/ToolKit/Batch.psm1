@@ -36,7 +36,8 @@ function Invoke-ProcessBatch {
 
     $limit = [Math]::Max(1, $ThrottleLimit)
 
-    $results = @($Jobs | ForEach-Object -Parallel {
+    # 自然枚举返回（勿用 `return , $results`：那会把整批包成单元素数组，消费方 `@()` 再包一层即嵌套）
+    return @($Jobs | ForEach-Object -Parallel {
             $job = $_
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             $argv = @($job.Argv)
@@ -49,8 +50,6 @@ function Invoke-ProcessBatch {
                 Output    = $output
             }
         } -ThrottleLimit $limit)
-
-    return , $results
 }
 
 function Invoke-ProcessBatchJob {
@@ -113,7 +112,8 @@ function Get-BatchOutputLines {
 
     $lines = @($Output -split "`r?`n")
     if ($Pattern) { $lines = @($lines | Where-Object { $_ -match $Pattern }) }
-    return , @($lines | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    # 自然枚举返回（消费方以 `foreach` 逐行回显；`return , @(...)` 会让整批行落成单元素，回显挤成一行）
+    return @($lines | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }
 
 function Write-BatchReport {

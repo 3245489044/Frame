@@ -33,5 +33,7 @@ foreach ($module in $runnerModules) {
     if (-not (Test-Path -LiteralPath $modulePath)) {
         throw "[TestRunner] 子模块缺失：$modulePath"
     }
-    Import-Module -Name $modulePath -Force -DisableNameChecking
+    # `-Global` 必要：本件作为**装配点**可能被模块加载（CentralTest `TestRunner.psm1`），届时非全局导入会
+    # 落成嵌套模块 —— 算子只在该模块作用域可见，调用方脚本（Run-*.ps1）与并行 runspace 都拿不到（实测）。
+    Import-Module -Name $modulePath -Force -Global -DisableNameChecking
 }

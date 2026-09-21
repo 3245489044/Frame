@@ -40,5 +40,7 @@ foreach ($module in $toolKitModules) {
     if (-not (Test-Path -LiteralPath $modulePath)) {
         throw "[ToolKit] 子模块缺失：$modulePath"
     }
-    Import-Module -Name $modulePath -Force -DisableNameChecking
+    # `-Global` 必要：装配点可能被模块加载（同一加载器也被 TestRunner.psm1 装配），非全局导入会落成嵌套模块，
+    # 算子只在模块作用域可见 —— 消费方脚本/运行器便取不到（实测 ToolKit 随 Runner 簇一并装配时踩过）。
+    Import-Module -Name $modulePath -Force -Global -DisableNameChecking
 }

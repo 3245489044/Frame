@@ -2,19 +2,29 @@ namespace DataCenter.Protocol.Standards;
 
 /// <summary>
 /// 脚本步骤（标准框架通用化重构 §2.2 第 7 项；对应内核 <c>ScriptedStep</c>）：
-/// 形态恰一个（<c>new</c> / <c>invoke</c> / <c>foreach</c>），<see cref="Collects"/> / <see cref="When"/> 为步骤修饰。
+/// 形态恰一个（<c>new</c> / <c>invoke</c> / <c>foreach</c> / <c>throw</c>），<see cref="Collects"/> / <see cref="When"/> 为步骤修饰。
 /// </summary>
 /// <param name="Collects">收集声明（步产物 / 槽值 → 收集槽）。</param>
 /// <param name="When">条件短路表达式（求值为真才执行本步骤）。</param>
 /// <param name="New">构造步骤（判别式）。</param>
 /// <param name="Invoke">调用步骤（判别式）。</param>
 /// <param name="Foreach">遍历步骤（判别式）。</param>
+/// <param name="Throw">主动抛出步骤（判别式；G3）。</param>
 public sealed record StepStandard(
     IReadOnlyList<CollectStandard>? Collects = null,
     ExprStandard? When = null,
     NewStandard? New = null,
     InvokeStandard? Invoke = null,
-    ForeachStandard? Foreach = null);
+    ForeachStandard? Foreach = null,
+    ThrowStandard? Throw = null);
+
+/// <summary>
+/// 主动抛出步骤（<c>script[].throw</c>；G3）：与 <see cref="NewStandard.Expect"/>（构造期）/ 
+/// <see cref="InvokeStandard.Expect"/>（调用期）构成判据三件套的「主动」一支。
+/// </summary>
+/// <param name="Type">异常类型全名（须可解析且为 <see cref="System.Exception"/> 子类，否则即抛）。</param>
+/// <param name="Message">异常消息（可空；给定则类型须有 <c>(string)</c> 构造，否则即抛）。</param>
+public sealed record ThrowStandard(string Type = "", string? Message = null);
 
 /// <summary>
 /// 调用步骤（标准框架通用化重构 §2.2 第 8 项；对应内核 <c>ScriptedInvokeSpec</c>）：
@@ -91,7 +101,14 @@ public sealed record NewStandard(
 /// </summary>
 /// <param name="Member">成员名（属性优先，回落字段）。</param>
 /// <param name="Value">取值声明。</param>
-public sealed record InitStandard(string Member, ValueSourceStandard? Value = null);
+/// <param name="Key">
+/// 容器写入键（G7；可空）：给出时 <see cref="Member"/> 取值须为**可写索引容器**
+/// （字典 / 列表 / 具索引器者），写入 <c>member[key] = value</c>；空 = 按属性 / 字段整体赋值。
+/// </param>
+public sealed record InitStandard(
+    string Member,
+    ValueSourceStandard? Value = null,
+    ValueSourceStandard? Key = null);
 
 /// <summary>
 /// 链式后置调用（标准框架通用化重构 §2.2 第 12 项；对应内核 <c>ScriptedChainSpec</c>）：

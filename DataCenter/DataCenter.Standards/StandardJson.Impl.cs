@@ -147,7 +147,9 @@ public static partial class StandardJson
                 StrList(item, "methods"),
                 Elements(item, "values"),
                 StrList(item, "genericArgs"),
-                ReadComposedArgs(portKey, item));
+                ReadComposedArgs(portKey, item),
+                ReadFakeCalls(portKey, item, index),
+                ReadFakeCapture(portKey, item, index));
 
             if (spec.New is null && spec.Factory is null && spec.Fake is null)
                 throw new StandardViolationException(
@@ -157,6 +159,66 @@ public static partial class StandardJson
         }
 
         return deps;
+    }
+
+    /// <summary>
+    /// 替身应答脚本读取（<c>deps[].calls[]</c>；G1）：每项 <c>{ member?, position?, value?, throw?, message? }</c>；
+    /// <c>value</c> 与 <c>throw</c> 二选一（皆缺 = 应答 null），两皆给出即抛（防声明歧义静默择一）。
+    /// </summary>
+    private static IReadOnlyList<FakeCallStandard>? ReadFakeCalls(string portKey, JsonElement dep, int depIndex)
+    {
+        if (!dep.TryGetProperty("calls", out var declared)) return null;
+
+        if (declared.ValueKind != JsonValueKind.Array)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.deps[{depIndex}].calls 须为数组");
+
+        var calls = new List<FakeCallStandard>();
+        var index = -1;
+
+        foreach (var item in declared.EnumerateArray())
+        {
+            index++;
+            EnsureLayerKeys(
+                nameof(PortImplVocabulary.FakeCallKeys),
+                $"ports.{portKey}.impl.deps[{depIndex}].calls[{index}]", item);
+
+            var hasValue = item.TryGetProperty("value", out var value);
+            var throwType = Str(item, "throw");
+
+            if (hasValue && throwType is not null)
+                throw new StandardViolationException(
+                    $"[port:standard] 端口 '{portKey}' 的 impl.deps[{depIndex}].calls[{index}] 同时声明 value 与 throw" +
+                    "（应答与抛出二选一）");
+
+            calls.Add(new FakeCallStandard(
+                Str(item, "member"),
+                Int(item, "position"),
+                hasValue ? value : null,
+                hasValue,
+                throwType,
+                Str(item, "message")));
+        }
+
+        return calls.Count > 0 ? calls : null;
+    }
+
+    /// <summary>
+    /// 替身调用捕获读取（<c>deps[].capture</c>；G8）：<c>{ member? }</c>；非对象即抛（防声明残缺静默降级）。
+    /// </summary>
+    private static FakeCaptureStandard? ReadFakeCapture(string portKey, JsonElement dep, int depIndex)
+    {
+        if (!dep.TryGetProperty("capture", out var declared)) return null;
+
+        if (declared.ValueKind != JsonValueKind.Object)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.deps[{depIndex}].capture 须为对象");
+
+        EnsureLayerKeys(
+            nameof(PortImplVocabulary.FakeCaptureKeys),
+            $"ports.{portKey}.impl.deps[{depIndex}].capture", declared);
+
+        return new FakeCaptureStandard(Str(declared, "member"));
     }
 
     /// <summary>

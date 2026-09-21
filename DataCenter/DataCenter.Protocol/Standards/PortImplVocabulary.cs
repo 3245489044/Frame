@@ -52,16 +52,23 @@ public static partial class PortImplVocabulary
     /// 辨异（防两处同名混淆）：<see cref="CollectStandard.From"/> 是**收集源槽名**（不透明名，实测出现
     /// <c>from:"exec"</c>/<c>from:"executor"</c>），**不属本词表**、不做枚举校验。
     /// </para>
+    /// <para>
+    /// 辨异（G4）：<c>file</c> = 读**仓库相对真实文件**（只读 + fail-fast），与 <c>tmpPath</c>/<c>tmpDir</c>
+    /// （临时盘作用域内文件）分属不同资源域；前者用 <c>path</c>（仓库相对路径），后者用 <c>scope</c> + <c>name</c>。
+    /// </para>
     /// </summary>
     public static readonly IReadOnlyList<string> ValueSourceExtendedFrom =
-        ["tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type"];
+        ["tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type", "file"];
 
     /// <summary><c>from</c> 全词表。</summary>
     public static IReadOnlyList<string> ValueSourceFromAll => [.. ValueSourceFrom, .. ValueSourceExtendedFrom];
 
-    /// <summary>组合投影 <c>select</c>：取值法（10）。</summary>
+    /// <summary>组合投影 <c>select</c>：取值法（16）。</summary>
     public static readonly IReadOnlyList<string> Selects =
-        ["value", "count", "notNull", "text", "countEqual", "path", "pathText", "message", "thrown", "fakeCount"];
+    [
+        "value", "count", "notNull", "text", "countEqual", "path", "pathText", "message", "thrown", "fakeCount",
+        "typeName", "capturedCount", "capturedFirst", "capturedLast", "capturedFirstOrNull", "capturedLastOrNull",
+    ];
 
     /// <summary>载体 <c>deliver.kind</c>（3）。</summary>
     public static readonly IReadOnlyList<string> DeliverKinds = ["value", "issues", "action"];

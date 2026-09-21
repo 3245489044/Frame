@@ -86,6 +86,9 @@ from/member	Attestation	Unregistered	未提供外来证据
 from/type	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 from/type	Implementation	Unregistered	未提供外来证据
 from/type	Attestation	Unregistered	未提供外来证据
+from/file	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/file	Implementation	Unregistered	未提供外来证据
+from/file	Attestation	Unregistered	未提供外来证据
 select/value	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 select/value	Implementation	Unregistered	未提供外来证据
 select/value	Attestation	Unregistered	未提供外来证据
@@ -116,6 +119,24 @@ select/thrown	Attestation	Unregistered	未提供外来证据
 select/fakeCount	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 select/fakeCount	Implementation	Unregistered	未提供外来证据
 select/fakeCount	Attestation	Unregistered	未提供外来证据
+select/typeName	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/typeName	Implementation	Unregistered	未提供外来证据
+select/typeName	Attestation	Unregistered	未提供外来证据
+select/capturedCount	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/capturedCount	Implementation	Unregistered	未提供外来证据
+select/capturedCount	Attestation	Unregistered	未提供外来证据
+select/capturedFirst	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/capturedFirst	Implementation	Unregistered	未提供外来证据
+select/capturedFirst	Attestation	Unregistered	未提供外来证据
+select/capturedLast	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/capturedLast	Implementation	Unregistered	未提供外来证据
+select/capturedLast	Attestation	Unregistered	未提供外来证据
+select/capturedFirstOrNull	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/capturedFirstOrNull	Implementation	Unregistered	未提供外来证据
+select/capturedFirstOrNull	Attestation	Unregistered	未提供外来证据
+select/capturedLastOrNull	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+select/capturedLastOrNull	Implementation	Unregistered	未提供外来证据
+select/capturedLastOrNull	Attestation	Unregistered	未提供外来证据
 deliver.kind/value	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 deliver.kind/value	Implementation	Unregistered	未提供外来证据
 deliver.kind/value	Attestation	Unregistered	未提供外来证据

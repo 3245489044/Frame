@@ -47,6 +47,9 @@ internal static class ScriptedValue
             case "tmpPath":
                 return TempFile(spec, scope, context);
 
+            case "file":
+                return FileOf(spec, scope, context);
+
             case "var":
                 if (string.IsNullOrWhiteSpace(spec.Key))
                     throw new PortBindingViolationException(
@@ -171,6 +174,22 @@ internal static class ScriptedValue
 
         return System.IO.Path.Combine(scope.TempDir(spec.Scope, context), name);
     }
+    /// <summary>
+    /// 仓库相对文件取值（G4）：<c>path</c> 必填（仓库相对路径），<c>content</c>/<c>json</c> 决定内容形态
+    /// （缺省文本）；越界 / 不存在 / 形态非法一律 fail-fast（单源 <see cref="PortFileSource"/>）。
+    /// </summary>
+    private static object? FileOf(ValueSourceStandard spec, EvalScope scope, string context)
+    {
+        if (spec.Path is not { Length: > 0 } path)
+            throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 file 来源缺 path（仓库相对路径）");
+
+        var mode = PortFileSource.ModeOf(spec, scope.PortKey, context);
+
+        return PortFileSource.Read(path, mode, scope.PortKey, context);
+    }
+
+
 
     /// <summary>
     /// 行表装配（P3）：行集 → 键值表（空首列 / 重复键的处置与 L0 <c>SpecTables.Rows</c> 同口径）。

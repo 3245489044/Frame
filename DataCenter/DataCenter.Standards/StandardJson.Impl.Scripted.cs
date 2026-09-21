@@ -227,7 +227,7 @@ public static partial class StandardJson
             ? steps.EnumerateArray().Select(item => ReadStep(portKey, item)).ToArray()
             : null;
 
-    /// <summary>单步读取：形态三选一（new / invoke / foreach）+ 修饰（collect / when）。</summary>
+    /// <summary>单步读取：形态四选一（new / invoke / foreach / throw）+ 修饰（collect / when）。</summary>
     private static StepStandard ReadStep(string portKey, JsonElement item)
     {
         EnsureLayerKeys(nameof(PortImplVocabulary.StepKeys), $"ports.{portKey}.impl.script.step", item);
@@ -245,9 +245,30 @@ public static partial class StandardJson
         if (item.TryGetProperty("invoke", out var invoke) && invoke.ValueKind == JsonValueKind.Object)
             return new StepStandard(collect, when, Invoke: ReadInvoke(portKey, invoke));
 
+        if (item.TryGetProperty("throw", out var raised) && raised.ValueKind == JsonValueKind.Object)
+            return new StepStandard(collect, when, Throw: ReadThrow(portKey, raised));
+
+
         throw new StandardViolationException(
-            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach）");
+            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach|throw）");
     }
+
+    /// <summary>
+    /// 主动抛出步骤读取（<c>script[].throw</c>；G3）：<c>{ type, message? }</c>；
+    /// 缺 <c>type</c> 即抛（防声明残缺静默绑定）。
+    /// </summary>
+    private static ThrowStandard ReadThrow(string portKey, JsonElement raised)
+    {
+        EnsureLayerKeys(nameof(PortImplVocabulary.ThrowKeys), $"ports.{portKey}.impl.script.throw", raised);
+
+        var type = Str(raised, "type");
+
+        return string.IsNullOrEmpty(type)
+            ? throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤 throw 缺 type（异常类型全名）")
+            : new ThrowStandard(type, Str(raised, "message"));
+    }
+
 
     /// <summary>
     /// 收集声明读取（<c>collect</c>）：字符串 = 槽名（步产物 → 该槽）；数组 = 多条
@@ -292,7 +313,10 @@ public static partial class StandardJson
             Str(body, "expect"));
     }
 
-    /// <summary>对象初始化器读取（W13：<c>init:[{ member, value }]</c>；声明序 = 赋值序；缺 value 即抛）。</summary>
+    /// <summary>
+    /// 对象初始化器读取（W13：<c>init:[{ member, value, key? }]</c>；声明序 = 赋值序；缺 value 即抛）。
+    /// <c>key</c>（G7）给出时 = 容器写入键（写入 <c>member[key] = value</c>）。
+    /// </summary>
     private static IReadOnlyList<InitStandard>? ReadInit(string portKey, JsonElement body)
     {
         if (!body.TryGetProperty("init", out var declared) || declared.ValueKind != JsonValueKind.Array)
@@ -304,8 +328,12 @@ public static partial class StandardJson
             var member = Str(item, "member")
                 ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 init 项缺 member（成员名）");
 
+            var key = item.TryGetProperty("key", out var keySource)
+                ? ReadArg(portKey, keySource, $"init '{member}' 的 key")
+                : null;
+
             if (item.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Object)
-                items.Add(new InitStandard(member, ReadArg(portKey, value, $"init '{member}'")));
+                items.Add(new InitStandard(member, ReadArg(portKey, value, $"init '{member}'"), key));
             else
                 throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的 init 成员 '{member}' 缺 value（取值声明对象）");
@@ -525,7 +553,9 @@ public static partial class StandardJson
             ElementType: Str(element, "elementType"),
             Construct: ReadConstruct(portKey, element),
             Named: Str(element, "named"),
-            Delegate: ReadDelegate(portKey, element, context));
+            Delegate: ReadDelegate(portKey, element, context),
+            Json: Bool(element, "json"),
+            Content: Str(element, "content"));
     }
 
     /// <summary>委托工厂读取（W26：<c>delegate:{ kind, steps?, result?, parameters?, collect?, await? }</c>；缺省 null）。</summary>

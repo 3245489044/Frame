@@ -102,7 +102,7 @@
         "from": {
           "type": "string",
           "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table",
-                   "presence", "delegate", "new", "row", "member", "type"]
+                   "presence", "delegate", "new", "row", "member", "type", "file"]
         },
         "index": { "type": "integer" },
         "key": { "type": "string" },
@@ -140,7 +140,9 @@
         "where": { "$ref": "#/$defs/expr" },
         "construct": { "$ref": "#/$defs/new" },
         "new": { "$ref": "#/$defs/new" },
-        "delegate": { "$ref": "#/$defs/delegate" }
+        "delegate": { "$ref": "#/$defs/delegate" },
+        "json": { "type": "boolean" },
+        "content": { "type": "string" }
       },
       "additionalProperties": false
     },
@@ -155,10 +157,40 @@
         "methods": { "type": "array", "items": { "type": "string" } },
         "values": { "type": "array" },
         "genericArgs": { "type": "array", "items": { "type": "string" } },
-        "args": { "type": "array", "items": { "$ref": "#/$defs/composedArg" } }
+        "args": { "type": "array", "items": { "$ref": "#/$defs/composedArg" } },
+        "calls": { "type": "array", "items": { "$ref": "#/$defs/fakeCall" } },
+        "capture": { "$ref": "#/$defs/fakeCapture" }
       },
       "additionalProperties": false
     },
+    "fakeCapture": {
+      "type": "object",
+      "properties": {
+        "member": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "fakeCall": {
+      "type": "object",
+      "properties": {
+        "member": { "type": "string" },
+        "position": { "type": "integer" },
+        "value": {},
+        "throw": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "throw": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
     "composedArg": {
       "type": "object",
       "required": ["convert"],
@@ -206,7 +238,7 @@
         "call": { "type": "string" },
         "select": {
           "type": "string",
-          "enum": ["value", "count", "notNull", "text", "countEqual", "path", "pathText", "message", "thrown", "fakeCount"]
+          "enum": ["value", "count", "notNull", "text", "countEqual", "path", "pathText", "message", "thrown", "fakeCount", "typeName", "capturedCount", "capturedFirst", "capturedLast", "capturedFirstOrNull", "capturedLastOrNull"]
         },
         "other": { "type": "string" },
         "path": { "type": "string" },
@@ -232,7 +264,8 @@
         "where": { "$ref": "#/$defs/expr" },
         "do": { "type": "array", "items": { "$ref": "#/$defs/step" } },
         "new": { "$ref": "#/$defs/new" },
-        "invoke": { "$ref": "#/$defs/invoke" }
+        "invoke": { "$ref": "#/$defs/invoke" },
+        "throw": { "$ref": "#/$defs/throw" }
       },
       "additionalProperties": false
     },
@@ -275,7 +308,8 @@
       "required": ["member", "value"],
       "properties": {
         "member": { "type": "string" },
-        "value": { "$ref": "#/$defs/valueSource" }
+        "value": { "$ref": "#/$defs/valueSource" },
+        "key": { "$ref": "#/$defs/valueSource" }
       },
       "additionalProperties": false
     },
@@ -418,7 +452,7 @@
       "type": "object",
       "$comment": "表达式对象：取值来源键（Source）+ 算子键（每次恰一个）—— **本块 properties 的键集与键序为生成物**（由 SchemaEnumSynchronizer 按 PortImplVocabulary.ExprKeys 写回，声明原文保留；禁手改）。",
       "properties": {
-        "from": { "type": "string", "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type"] },
+        "from": { "type": "string", "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type", "file"] },
         "index": { "type": "integer" },
         "key": { "type": "string" },
         "dep": { "type": "integer" },
@@ -453,6 +487,8 @@
         "new": { "type": "object" },
         "named": { "type": "string" },
         "delegate": { "type": "object" },
+        "json": { "type": "boolean" },
+        "content": { "type": "string" },
         "count": { "type": "object" },
         "notNull": { "type": "object" },
         "text": { "type": ["object", "boolean"] },

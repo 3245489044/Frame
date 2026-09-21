@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Reflection;
 using Strategy.Observability.Diagnostics;
 
@@ -76,6 +77,7 @@ internal static class ScriptedConstruction
     /// <summary>
     /// 对象初始化器求值（W13）：逐项按成员名赋值（属性优先、回落字段；<c>init</c> 访问器同样可赋值）；
     /// 成员缺失 / 缺 <c>value</c> / 无可赋值实例 → 即抛。声明序 = 赋值序。
+    /// <para>G7：项给出 <c>key</c> 时改为**容器写入**（<c>member[key] = value</c>）。</para>
     /// </summary>
     private static void ApplyInit(
         IReadOnlyList<InitStandard> init, object? instance,
@@ -98,25 +100,97 @@ internal static class ScriptedConstruction
             var descriptor = ReflectivePortResolver.ResolveMember(
                 instance.GetType(), scope.PortKey, item.Member, isStatic: false);
 
+            var label = $"{context} 的 init 成员 '{item.Member}'";
+
+            if (item.Key is { } keySource)
+            {
+                SetEntry(instance, descriptor, item, keySource, scope, input, deps, label);
+                continue;
+            }
+
             switch (descriptor)
             {
                 case PropertyInfo property:
                     property.SetValue(instance, ScriptedValue.ResolveTyped(
-                        item.Value, property.PropertyType, scope, input, deps,
-                        $"{context} 的 init 成员 '{item.Member}'"));
+                        item.Value, property.PropertyType, scope, input, deps, label));
                     break;
 
                 case FieldInfo field:
                     field.SetValue(instance, ScriptedValue.ResolveTyped(
-                        item.Value, field.FieldType, scope, input, deps,
-                        $"{context} 的 init 成员 '{item.Member}'"));
+                        item.Value, field.FieldType, scope, input, deps, label));
                     break;
 
                 default:
                     throw new PortBindingViolationException(
                         scope.PortKey,
-                        $"端口 '{scope.PortKey}' 的 {context} 的 init 成员 '{item.Member}' 不是属性 / 字段（不可赋值）");
+                        $"端口 '{scope.PortKey}' 的 {label} 不是属性 / 字段（不可赋值）");
             }
         }
+    }
+
+    /// <summary>
+    /// 容器写入（G7：<c>member[key] = value</c>）：成员取值须为字典（<see cref="IDictionary"/>）或
+    /// 列表（<see cref="IList"/>）——键与值按容器的键 / 元素类型做类型定向转换；取值为 null /
+    /// 键为 null / 不可写容器 / 下标越界 → 即抛（禁静默丢弃）。
+    /// </summary>
+    private static void SetEntry(
+        object instance, MemberInfo member, InitStandard item, ValueSourceStandard keySource,
+        EvalScope scope, IPortInput input, object?[] deps, string label)
+    {
+        var container = ReflectivePortResolver.ReadMember(member, instance)
+            ?? throw new PortBindingViolationException(
+                scope.PortKey, $"端口 '{scope.PortKey}' 的 {label} 取值为 null（容器写入需已初始化容器）");
+
+        var (keyType, valueType) = EntryTypes(container.GetType());
+
+        var key = ScriptedValue.ResolveTyped(keySource, keyType, scope, input, deps, $"{label} 的 key");
+
+        switch (container)
+        {
+            case IDictionary dictionary:
+                if (key is null)
+                    throw new PortBindingViolationException(
+                        scope.PortKey, $"端口 '{scope.PortKey}' 的 {label} 的 key 求值为 null（字典键不得为空）");
+
+                dictionary[key] = ScriptedValue.ResolveTyped(item.Value!, valueType, scope, input, deps, label);
+                return;
+
+            case IList list:
+                if (key is not int position)
+                    throw new PortBindingViolationException(
+                        scope.PortKey,
+                        $"端口 '{scope.PortKey}' 的 {label} 的 key 须为整型下标（列表写入；实际 {keyType.Name}）");
+
+                if (position < 0 || position >= list.Count)
+                    throw new PortBindingViolationException(
+                        scope.PortKey,
+                        $"端口 '{scope.PortKey}' 的 {label} 的下标 {position} 越界（列表长度 {list.Count}）");
+
+                list[position] = ScriptedValue.ResolveTyped(item.Value!, valueType, scope, input, deps, label);
+                return;
+
+            default:
+                throw new PortBindingViolationException(
+                    scope.PortKey,
+                    $"端口 '{scope.PortKey}' 的 {label} 取值类型 {container.GetType().Name} 不支持按 key 写入" +
+                    "（须为 IDictionary / IList）");
+        }
+    }
+
+    /// <summary>容器的键 / 值类型（泛型实参可用时取其精确类型；否则按 <see cref="object"/> 原样传递）。</summary>
+    private static (Type Key, Type Value) EntryTypes(Type container)
+    {
+        if (container.IsGenericType)
+        {
+            var arguments = container.GetGenericArguments();
+
+            if (arguments.Length == 2 && typeof(IDictionary).IsAssignableFrom(container))
+                return (arguments[0], arguments[1]);
+
+            if (arguments.Length == 1 && typeof(IList).IsAssignableFrom(container))
+                return (typeof(int), arguments[0]);
+        }
+
+        return (typeof(object), typeof(object));
     }
 }

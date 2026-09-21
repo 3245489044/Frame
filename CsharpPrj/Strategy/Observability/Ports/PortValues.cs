@@ -42,8 +42,37 @@ internal static class PortValues
             => readOnly.TryGetValue(segment, out var item) ? item : null,
         System.Collections.IDictionary dictionary
             => dictionary.Contains(segment) ? dictionary[segment] : null,
+        _ when GenericDictionary(value) is { } generic
+            => GenericMember(generic, value, segment),
         _ => ReflectedMember(value, segment),
     };
+
+    /// <summary>
+    /// 泛型字典接口视图（键类型为 <c>string</c> / <c>object</c> 的 <c>IDictionary&lt;,&gt;</c> /
+    /// <c>IReadOnlyDictionary&lt;,&gt;</c>）。
+    /// <para>
+    /// 为什么需要（静默错值防线）：只实现泛型字典接口而**不**实现非泛型 <c>IDictionary</c> 的容器
+    /// （如 <c>DataSpace : IDictionary&lt;string,object&gt;</c>），落到 <see cref="ReflectedMember"/> 会把
+    /// <c>path Data.count</c> 解析成 <c>Count</c> **属性**（得条目数而非键值，且不报错）。
+    /// 本视图使其按**键**取值优先，缺失即 null（⊥，可见），不静默取反射成员。
+    /// </para>
+    /// </summary>
+    private static Type? GenericDictionary(object value)
+        => value.GetType().GetInterfaces().FirstOrDefault(candidate =>
+            candidate.IsGenericType
+            && (candidate.GetGenericTypeDefinition() == typeof(IDictionary<,>)
+                || candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
+            && candidate.GetGenericArguments()[0] is var key
+            && (key == typeof(string) || key == typeof(object)));
+
+    private static object? GenericMember(Type view, object value, string segment)
+    {
+        var tryGet = view.GetMethod("TryGetValue");
+        if (tryGet is null) return null;
+
+        var arguments = new object?[] { segment, null };
+        return tryGet.Invoke(value, arguments) is true ? arguments[1] : null;
+    }
 
     private static object? JsonMember(JsonElement element, string segment)
     {

@@ -95,6 +95,37 @@ internal static class PortInvocation
         throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");
     }
 
+    /// <summary>
+    /// 异常构造唯一入口（G1 应答脚本 / G3 脚本步骤 <c>throw</c> 共用）：按声明类型名构造异常实例。
+    /// <para>
+    /// 判据：类型须可解析且为 <see cref="Exception"/> 子类；声明的消息须有 <c>(string)</c> 构造可施加；
+    /// 构造不可用即抛（**禁静默回落**为无参构造 / 丢弃消息）。类型解析口径 = <see cref="ReflectivePortResolver.ResolveType"/>。
+    /// </para>
+    /// </summary>
+    internal static Exception ForgeThrow(string typeName, string? message, string context)
+    {
+        var type = ReflectivePortResolver.ResolveType(typeName);
+
+        if (!typeof(Exception).IsAssignableFrom(type))
+            throw new InvalidOperationException(
+                $"[port:throw] 声明的抛出类型 '{typeName}' 不是异常类型（{context}）");
+
+        var textual = type.GetConstructor([typeof(string)]);
+        var parameterless = type.GetConstructor(Type.EmptyTypes);
+
+        if (message is not null)
+            return textual is not null
+                ? (Exception)textual.Invoke([message])
+                : throw new InvalidOperationException(
+                    $"[port:throw] 抛出类型 '{typeName}' 无 (string) 构造，无法施加声明消息（{context}）");
+
+        if (parameterless is not null) return (Exception)parameterless.Invoke(null);
+        if (textual is not null) return (Exception)textual.Invoke([typeName]);
+
+        throw new InvalidOperationException(
+            $"[port:throw] 抛出类型 '{typeName}' 无可用构造（需 () 或 (string)；{context}）");
+    }
+
     private static object? TaskResult(Task task)
     {
         var type = task.GetType();

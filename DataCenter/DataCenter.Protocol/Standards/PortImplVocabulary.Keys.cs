@@ -37,12 +37,19 @@ public static partial class PortImplVocabulary
         "from", "index", "key", "dep", "value", "table", "presence", "arg", "with", "var", "slot", "item",
         "literal", "path", "convert", "optional", "default", "nullLiteral", "type", "genericArgs", "scope",
         "name", "rows", "items", "rowValue", "where", "separator", "onBlankFirstKey", "onDuplicate",
-        "distinct", "elementType", "construct", "new", "named", "delegate",
+        "distinct", "elementType", "construct", "new", "named", "delegate", "json", "content",
     ];
 
     /// <summary>依赖声明键（<see cref="DepStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> DepKeys =
-        ["new", "factory", "fake", "contract", "wrap", "methods", "values", "genericArgs", "args"];
+        ["new", "factory", "fake", "contract", "wrap", "methods", "values", "genericArgs", "args", "calls", "capture"];
+
+    /// <summary>替身调用捕获键（<see cref="FakeCaptureStandard"/>；<c>deps[].capture</c>；G8）。</summary>
+    public static readonly IReadOnlyList<string> FakeCaptureKeys = ["member"];
+
+    /// <summary>替身应答脚本项键（<see cref="FakeCallStandard"/>；<c>deps[].calls[]</c>；G1）。</summary>
+    public static readonly IReadOnlyList<string> FakeCallKeys =
+        ["member", "position", "value", "throw", "message"];
 
     /// <summary>实现注入声明键（<see cref="PortSeamStandard"/>；F2-d 一期）。</summary>
     public static readonly IReadOnlyList<string> SeamKeys = ["seam", "args", "reason"];

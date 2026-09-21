@@ -27,6 +27,9 @@ public enum PortOp
     /// <summary>遍历（R3-3）。</summary>
     Loop,
 
+    /// <summary>主动抛出（G3：<c>script[].throw</c>）。</summary>
+    Throw,
+
     /// <summary>行表值源（R3-3）。</summary>
     Table,
 

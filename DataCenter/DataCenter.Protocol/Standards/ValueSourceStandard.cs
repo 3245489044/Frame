@@ -12,7 +12,7 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Index">位置实参下标（<c>arg</c>）或元素下标（<c>item</c>）。</param>
 /// <param name="Key">具名实参键（<c>with</c>）/ 槽名（<c>var</c>）/ 遍历变量名（<c>item</c>）。</param>
 /// <param name="Dep">依赖下标（<c>dep</c>）。</param>
-/// <param name="Path">属性路径（<c>item</c> / <c>var</c> 取元素或槽对象的属性）。</param>
+/// <param name="Path">属性路径（<c>item</c> / <c>var</c> 取元素或槽对象的属性）。**辨异**：仅 <c>from:file</c> 时 = 仓库相对文件路径（非属性路径）。</param>
 /// <param name="Convert">转换规则（取值域见 <see cref="PortImplVocabulary.Conversions"/>）。</param>
 /// <param name="Optional">可省略（无值 → <see cref="Default"/> 或目标类型默认值）。</param>
 /// <param name="Default">缺省值 JSON（载荷位）。</param>
@@ -34,6 +34,8 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Construct">内嵌构造声明（本实参的值 = 构造结果）。</param>
 /// <param name="Named">命名实参（按形参名绑定而非位置）。</param>
 /// <param name="Delegate">委托工厂声明（<c>from:delegate</c> 时按本声明构造委托）。</param>
+/// <param name="Json">仅 <c>from:file</c> 用：按 JSON 解析文件内容（等价 <c>content:"json"</c>；与 <c>content</c> 矛盾即抛）。</param>
+/// <param name="Content">仅 <c>from:file</c> 用：内容形态（<c>text</c> 缺省 / <c>lines</c> / <c>json</c>）。</param>
 public sealed record ValueSourceStandard(
     string? From = null,
     int? Index = null,
@@ -60,4 +62,6 @@ public sealed record ValueSourceStandard(
     string? ElementType = null,
     NewStandard? Construct = null,
     string? Named = null,
-    DelegateStandard? Delegate = null);
+    DelegateStandard? Delegate = null,
+    bool? Json = null,
+    string? Content = null);

@@ -29,18 +29,46 @@ public sealed record ComposedArgStandard(
     bool NullLiteral = false);
 
 /// <summary>
+/// 替身应答脚本项（<c>deps[].calls[]</c>；G1）：按「成员名 / 调用序」给应答或抛指定异常。
+/// <para>只承载「值 / 结构 / 声明」——无控制流、无领域语义词、不引入表达式语言。</para>
+/// </summary>
+/// <param name="Member">目标成员名（方法名）；空 = 任意成员。</param>
+/// <param name="Position">调用序（该成员第 N 次调用，0 起）；空 = 该成员每次调用都适用。</param>
+/// <param name="Value">应答值（<see cref="HasValue"/> 区分「应答 null」与「未给值」）。</param>
+/// <param name="HasValue">应答已给值（<c>value: null</c> 亦为给值）。</param>
+/// <param name="Throw">抛出异常类型全名（与 <see cref="Value"/> 二选一）。</param>
+/// <param name="Message">抛出异常消息（可空）。</param>
+public sealed record FakeCallStandard(
+    string? Member = null,
+    int? Position = null,
+    JsonElement? Value = null,
+    bool HasValue = false,
+    string? Throw = null,
+    string? Message = null);
+
+/// <summary>
+/// 替身**调用捕获**声明（<c>deps[].capture</c>；G8）：被测方回调时把实参数组按调用序记录下来，
+/// 供投影取值法 <c>capturedCount</c> / <c>capturedFirst</c> / <c>capturedLast</c> 读取
+/// （补 <c>fakeCount</c> 只有计数、无实参/末次值之缺）。
+/// </summary>
+/// <param name="Member">被捕获的成员名（方法名）；空 = 全部成员。</param>
+public sealed record FakeCaptureStandard(string? Member = null);
+
+/// <summary>
 /// 组合族依赖声明（标准框架通用化重构 §2.2 第 4 项；对应内核 <c>ComposedDepSpec</c>）：
 /// <c>new</c>（构造）｜<c>factory</c>（数据半工厂）｜<c>fake</c>（代理替身，可包装既有依赖）三选一。
 /// </summary>
 /// <param name="New">构造目标类型全名（泛型开放类型形如 <c>Ns.Type`1</c>）。</param>
 /// <param name="Factory">数据半工厂名（不透明字符串；由装配方注入的工厂表解析）。</param>
 /// <param name="Fake">代理替身种类（取值域见 <see cref="PortImplVocabulary.FakeKinds"/>）。</param>
-/// <param name="Contract">替身实现的契约接口全名（<see cref="Wrap"/> 为空时必填）。</param>
+/// <param name="Contract">替身实现的契约接口全名（<see cref="Wrap"/> 为空且无 <see cref="Calls"/> 时必填）。</param>
 /// <param name="Wrap">包装目标依赖下标（recording/counting 装饰真实实现用）。</param>
 /// <param name="Methods">关注的方法名（counting/notExpected 用；空 = 全部方法）。</param>
 /// <param name="Values">固定 / 序列应答值（fixed/sequence 用；载荷位）。</param>
 /// <param name="GenericArgs">闭合泛型实参类型全名。</param>
 /// <param name="Args">构造 / 工厂实参声明。</param>
+/// <param name="Calls">应答脚本（G1；按成员名 / 调用序给值或抛异常；空 = 不启用）。</param>
+/// <param name="Capture">调用捕获（G8；按调用序记录实参；空 = 不捕获）。</param>
 public sealed record DepStandard(
     string? New = null,
     string? Factory = null,
@@ -50,7 +78,9 @@ public sealed record DepStandard(
     IReadOnlyList<string>? Methods = null,
     IReadOnlyList<JsonElement>? Values = null,
     IReadOnlyList<string>? GenericArgs = null,
-    IReadOnlyList<ComposedArgStandard>? Args = null);
+    IReadOnlyList<ComposedArgStandard>? Args = null,
+    IReadOnlyList<FakeCallStandard>? Calls = null,
+    FakeCaptureStandard? Capture = null);
 
 /// <summary>
 /// 组合族单次调用声明（标准框架通用化重构 §2.2 第 5 项；对应内核 <c>ComposedCallSpec</c>）：
@@ -82,9 +112,9 @@ public sealed record CallStandard(
 /// <param name="Call">取值来源调用（<see cref="CallStandard.As"/>；<c>fakeCount</c> 可空）。</param>
 /// <param name="Select">取值法（取值域见 <see cref="PortImplVocabulary.Selects"/>）。</param>
 /// <param name="Other">仅 <c>countEqual</c> 用：被比较的另一调用引用名。</param>
-/// <param name="Path">仅 <c>path</c> / <c>pathText</c> 用：属性 / 字段路径。</param>
-/// <param name="Dep">仅 <c>fakeCount</c> 用：替身依赖下标。</param>
-/// <param name="Method">仅 <c>fakeCount</c> 用：被计数的方法名。</param>
+/// <param name="Path">仅 <c>path</c> / <c>pathText</c> / <c>capturedFirst(OrNull)</c> / <c>capturedLast(OrNull)</c> 用：属性 / 字段路径（后四者为捕获实参上的路径）。</param>
+/// <param name="Dep">仅 <c>fakeCount</c> / <c>capturedCount</c> / <c>capturedFirst(OrNull)</c> / <c>capturedLast(OrNull)</c> 用：替身依赖下标。</param>
+/// <param name="Method">仅 <c>fakeCount</c> / 捕获族用：被计数 / 被捕获的方法名（捕获族可空 = 全部成员）。</param>
 /// <param name="Key">仅 <c>fakeCount</c> 用：主键（空 = 不按键聚合）。</param>
 public sealed record ComposedFieldStandard(
     string Field,

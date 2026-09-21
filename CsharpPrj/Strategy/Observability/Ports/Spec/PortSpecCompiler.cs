@@ -194,6 +194,9 @@ public static class PortSpecCompiler
     /// <summary>单步映射（声明 → 指令；形态判别式 ↔ 操作码）。</summary>
     private static PortInstr Step(StepStandard step)
     {
+        if (step.Throw is { } raised)
+            return new PortInstr(PortOp.Throw, Operand: raised, When: step.When, Collects: step.Collects);
+
         if (step.New is { } construct)
             return new PortInstr(
                 PortOp.New, Out: construct.As, Operand: construct, When: step.When, Collects: step.Collects);

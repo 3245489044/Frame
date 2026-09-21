@@ -30,6 +30,7 @@ from	new	OK	OK	MISS	OK	UNREG	UNREG
 from	row	OK	OK	MISS	OK	UNREG	UNREG
 from	member	OK	OK	MISS	OK	UNREG	UNREG
 from	type	OK	OK	MISS	OK	UNREG	UNREG
+from	file	OK	OK	MISS	OK	UNREG	UNREG
 select	value	OK	OK	MISS	OK	UNREG	UNREG
 select	count	OK	OK	MISS	OK	UNREG	UNREG
 select	notNull	OK	OK	MISS	OK	UNREG	UNREG
@@ -40,6 +41,12 @@ select	pathText	OK	OK	MISS	OK	UNREG	UNREG
 select	message	OK	OK	MISS	OK	UNREG	UNREG
 select	thrown	OK	OK	MISS	OK	UNREG	UNREG
 select	fakeCount	OK	OK	MISS	OK	UNREG	UNREG
+select	typeName	OK	OK	MISS	OK	UNREG	UNREG
+select	capturedCount	OK	OK	MISS	OK	UNREG	UNREG
+select	capturedFirst	OK	OK	MISS	OK	UNREG	UNREG
+select	capturedLast	OK	OK	MISS	OK	UNREG	UNREG
+select	capturedFirstOrNull	OK	OK	MISS	OK	UNREG	UNREG
+select	capturedLastOrNull	OK	OK	MISS	OK	UNREG	UNREG
 deliver.kind	value	OK	OK	MISS	OK	UNREG	UNREG
 deliver.kind	issues	OK	OK	MISS	OK	UNREG	UNREG
 deliver.kind	action	OK	OK	MISS	OK	UNREG	UNREG

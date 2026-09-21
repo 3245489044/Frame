@@ -7,7 +7,10 @@ public static partial class PortImplVocabulary
 {
     /// <summary>脚本步骤键（<see cref="StepStandard"/>；<c>foreach</c> 形态的键与步骤同层）。</summary>
     public static readonly IReadOnlyList<string> StepKeys =
-        ["collect", "when", "foreach", "items", "as", "where", "do", "new", "invoke"];
+        ["collect", "when", "foreach", "items", "as", "where", "do", "new", "invoke", "throw"];
+
+    /// <summary>主动抛出步骤键（<see cref="ThrowStandard"/>；G3）。</summary>
+    public static readonly IReadOnlyList<string> ThrowKeys = ["type", "message"];
 
     /// <summary>调用步骤键（<see cref="InvokeStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> InvokeKeys =
@@ -24,8 +27,8 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> NewKeys =
         ["as", "type", "genericArgs", "args", "chain", "init", "expect"];
 
-    /// <summary>初始化项键（<see cref="InitStandard"/>）。</summary>
-    public static readonly IReadOnlyList<string> InitKeys = ["member", "value"];
+    /// <summary>初始化项键（<see cref="InitStandard"/>；<c>key</c> = 容器写入键，G7）。</summary>
+    public static readonly IReadOnlyList<string> InitKeys = ["member", "value", "key"];
 
     /// <summary>链式调用键（<see cref="ChainStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> ChainKeys = ["method", "args", "rebind"];

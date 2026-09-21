@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Strategy.Observability.Diagnostics;
 
 namespace Strategy.Observability.Ports;
@@ -56,34 +57,85 @@ internal static class ComposedDeps
             portKey, $"端口 '{portKey}' 的 dep[{index}] 未声明形态（须给 new / factory / fake）");
     }
 
-    /// <summary>构建代理替身（计数 / 记录 / 固定应答 / 序列应答 / 不该调用）。</summary>
+    /// <summary>
+    /// 构建代理替身（计数 / 记录 / 固定应答 / 序列应答 / 不该调用 / 应答脚本）。
+    /// <para>
+    /// G1：声明了 <c>calls[]</c> 应答脚本时，recording/counting 允许**不包装**真实实现
+    /// （即「从零多成员桩」）——应答由脚本给出、调用计数仍由装饰层记录。
+    /// </para>
+    /// </summary>
     internal static object? BuildFake(
         IReadOnlyList<DepStandard> spec, int index, string kind, object?[] deps, string portKey)
     {
         var dep = spec[index];
         var contract = ContractOf(index, dep, portKey);
+        var shaped = ParseKind(kind, index, portKey);
+        var calls = CallsOf(index, dep, portKey);
+
         var wrapped = dep.Wrap is { } wrap ? Dep(deps, wrap, index, portKey) : null;
+        if (calls is null && shaped is FakeKind.Recording or FakeKind.Counting)
+            wrapped = Wrapped(index, wrapped, kind, portKey);
 
-        if (string.Equals(kind, "counting", StringComparison.Ordinal))
-            return ProxyFakes.Counting(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods);
+        return PortFake.CreateProxy(contract, shaped, new FakeOptions
+        {
+            Inner = wrapped,
+            Methods = dep.Methods,
+            Calls = calls,
+            CaptureMember = dep.Capture is { } capture ? capture.Member ?? string.Empty : null,
+            HasValue = shaped == FakeKind.Fixed,
+            Value = shaped == FakeKind.Fixed && dep.Values is { Count: > 0 } ? dep.Values[0] : null,
+            Values = shaped == FakeKind.Sequence
+                ? (dep.Values ?? Array.Empty<JsonElement>()).Cast<object?>().ToArray()
+                : null,
+        });
+    }
 
-        if (string.Equals(kind, "recording", StringComparison.Ordinal))
-            return ProxyFakes.Recording(contract, Wrapped(index, wrapped, kind, portKey), dep.Methods);
+    /// <summary>
+    /// 替身种类词 → 内核形态（未登记即抛，防静默回落；取值域权威 = 标准词表 <c>PortImplVocabulary.FakeKinds</c>）。
+    /// <para>
+    /// 数据驱动（按词表成员校验 + 枚举名解析），**不新增形态分派分支** —— 形态分派预算只留给
+    /// <c>PortFake</c> 的两载体入口（见 <c>PortKernelDisciplineGuardTests</c>）；词表段经
+    /// <see cref="PortImplVocabulary.RenderList"/> 派生（禁手抄清单）。
+    /// </para>
+    /// </summary>
+    private static FakeKind ParseKind(string kind, int index, string portKey)
+        => PortImplVocabulary.FakeKinds.Contains(kind, StringComparer.Ordinal)
+           && Enum.TryParse(kind, ignoreCase: true, out FakeKind shaped)
+            ? shaped
+            : throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 dep[{index}] fake 种类 '{kind}' 未知" +
+                $"（{PortImplVocabulary.RenderList(PortImplVocabulary.FakeKinds)}）");
 
-        if (string.Equals(kind, "fixed", StringComparison.Ordinal))
-            return ProxyFakes.Fixed(contract, dep.Values is { Count: > 0 } values ? values[0] : null);
+    /// <summary>应答脚本转换（标准声明 → 内核脚本项；空 = 不启用）。</summary>
+    private static IReadOnlyList<FakeCall>? CallsOf(int index, DepStandard dep, string portKey)
+    {
+        if (dep.Calls is not { Count: > 0 } calls) return null;
 
-        if (string.Equals(kind, "sequence", StringComparison.Ordinal))
-            return ProxyFakes.Sequence(
-                contract, (dep.Values ?? Array.Empty<System.Text.Json.JsonElement>()).Cast<object?>().ToArray());
+        var shaped = new List<FakeCall>(calls.Count);
+        var position = -1;
 
-        if (string.Equals(kind, "notExpected", StringComparison.Ordinal))
-            return ProxyFakes.NotExpected(contract, dep.Methods, wrapped);
+        foreach (var call in calls)
+        {
+            position++;
 
-        throw new PortBindingViolationException(
-            portKey,
-            $"端口 '{portKey}' 的 dep[{index}] fake 种类 '{kind}' 未知" +
-            "（recording|counting|fixed|sequence|notExpected）");
+            if (call.Position is < 0)
+                throw new PortBindingViolationException(
+                    portKey,
+                    $"端口 '{portKey}' 的 dep[{index}].calls[{position}] 的 position 为负（调用序自 0 起）");
+
+            shaped.Add(new FakeCall
+            {
+                Member = call.Member,
+                Position = call.Position,
+                Value = call.Value?.Clone(),
+                HasValue = call.HasValue,
+                ThrowType = call.Throw,
+                Message = call.Message,
+            });
+        }
+
+        return shaped;
     }
 
     /// <summary>包装形态的被装饰对象（recording/counting 必须给出 wrap；否则无法转发）。</summary>

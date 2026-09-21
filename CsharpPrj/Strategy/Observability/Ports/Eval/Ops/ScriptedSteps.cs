@@ -53,9 +53,11 @@ internal static class ScriptedSteps
                 last = RunInvoke(host, step, invoke, scope, input, deps);
             else if (step.Op == PortOp.Loop && step.Operand is ForeachStandard loop)
                 last = RunForeach(host, step, loop, scope, input, deps);
+            else if (step.Op == PortOp.Throw && step.Operand is ThrowStandard raised)
+                last = RunThrow(host, raised);
             else
                 throw new PortBindingViolationException(
-                    host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
+                    host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|throw）");
         }
 
         host.Notes(scope.Notes);
@@ -94,6 +96,16 @@ internal static class ScriptedSteps
 
         return outcome.Result;
     }
+
+    /// <summary>
+    /// 主动抛出步骤（G3）：按 <see cref="ThrowStandard"/> 构造异常并抛出 —— 与构造期 <c>new.expect</c>、
+    /// 调用期 <c>invoke.expect</c> 构成判据三件套的「主动」一支
+    /// （类型不可解析 / 非异常类型 / 构造不可用即 fail-fast，单源 <see cref="PortInvocation.ForgeThrow"/>）。
+    /// </summary>
+    internal static object? RunThrow(Host host, ThrowStandard raised)
+        => throw PortInvocation.ForgeThrow(
+            raised.Type, raised.Message, $"端口 '{host.PortKey}' 的脚本步骤 throw");
+
 
     /// <summary>遍历步骤：取集合（槽 / 表达式）逐项入栈循环变量 → 过滤 → 执行体内步骤（<c>break</c> 跳出本层）。返回末次迭代产物值。</summary>
     internal static object? RunForeach(

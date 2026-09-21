@@ -33,6 +33,31 @@ public enum FakeKind
 }
 
 /// <summary>
+/// 应答脚本项（G1）：按「成员名 / 调用序」给应答或抛指定异常（通用替身机制，服务任何接口桩）。
+/// <para>本件只认不透明名与值（L1 红线：零领域词汇、无控制流、无表达式语言）。</para>
+/// </summary>
+public sealed record FakeCall
+{
+    /// <summary>目标成员名（方法名）；空 = 任意成员。</summary>
+    public string? Member { get; init; }
+
+    /// <summary>调用序（该成员第 N 次调用，0 起）；空 = 该成员每次调用都适用。</summary>
+    public int? Position { get; init; }
+
+    /// <summary>应答值（<see cref="HasValue"/> 区分「应答 null」与「未给值」）。</summary>
+    public object? Value { get; init; }
+
+    /// <summary>应答已给值（<c>Value = null</c> 亦为给值）。</summary>
+    public bool HasValue { get; init; }
+
+    /// <summary>抛出异常类型全名（与 <see cref="Value"/> 二选一；类型须可解析，否则即抛）。</summary>
+    public string? ThrowType { get; init; }
+
+    /// <summary>抛出异常消息（可空；类型无 (string) 构造时回落无参构造）。</summary>
+    public string? Message { get; init; }
+}
+
+/// <summary>
 /// 替身选项（R4 联合形态）：两载体共用一个选项对象，缺项由 <see cref="PortFake"/> 按形态显式校验
 /// （缺契约 / 缺序列即抛，不静默造空）。
 /// </summary>
@@ -58,6 +83,18 @@ public sealed record FakeOptions
 
     /// <summary>代理载体的关注方法名（空 = 全部方法）。</summary>
     public IReadOnlyList<string>? Methods { get; init; }
+
+    /// <summary>
+    /// 应答脚本（G1；空 = 不启用）。命中脚本项即给值 / 抛异常，优先于 <see cref="Values"/> 与 <see cref="Inner"/>；
+    /// 未命中则回落常规形态（序列 / 转发 / 返回类型默认值）。
+    /// </summary>
+    public IReadOnlyList<FakeCall>? Calls { get; init; }
+
+    /// <summary>
+    /// 调用捕获成员（G8；空 = 不捕获）。非空时每次该成员被调用，其**实参数组**按调用序入捕获表，
+    /// 供投影取值法 <c>capturedCount</c> / <c>capturedFirst</c> / <c>capturedLast</c> 读取。
+    /// </summary>
+    public string? CaptureMember { get; init; }
 }
 
 /// <summary>
@@ -75,6 +112,14 @@ public static class PortFake
     public static IPortBinding Create(FakeKind kind, FakeOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+
+        if (options.Calls is { Count: > 0 })
+            throw new InvalidOperationException(
+                "[port:fake] calls（按成员应答脚本）只适用于代理载体——委托载体无成员名可分派");
+
+        if (options.CaptureMember is not null)
+            throw new InvalidOperationException(
+                "[port:fake] capture（按成员调用捕获）只适用于代理载体——委托载体无成员名可分派");
 
         return kind switch
         {
@@ -98,11 +143,11 @@ public static class PortFake
 
         return kind switch
         {
-            FakeKind.Recording => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: false, reuseLast: false),
-            FakeKind.Counting or FakeKind.Proxy => Build(contract, options.Inner, options.Methods, new CallCounter(), fixedValues: null, notExpected: false, reuseLast: false),
-            FakeKind.Fixed => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: new[] { options.HasValue ? options.Value : null }, notExpected: false, reuseLast: true),
-            FakeKind.Sequence => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: Values(options), notExpected: false, reuseLast: false),
-            FakeKind.NotExpected => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: true, reuseLast: false),
+            FakeKind.Recording => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: false, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
+            FakeKind.Counting or FakeKind.Proxy => Build(contract, options.Inner, options.Methods, new CallCounter(), fixedValues: null, notExpected: false, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
+            FakeKind.Fixed => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: new[] { options.HasValue ? options.Value : null }, notExpected: false, reuseLast: true, calls: options.Calls, captureMember: options.CaptureMember),
+            FakeKind.Sequence => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: Values(options), notExpected: false, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
+            FakeKind.NotExpected => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: true, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
             _ => throw new InvalidOperationException(
                 $"[port:fake] 代理载体不支持形态 '{kind}'（可用：recording|counting|proxy|fixed|sequence|notExpected）"),
         };
@@ -118,6 +163,20 @@ public static class PortFake
             ? counter.Count(method, key)
             : throw new InvalidOperationException(
                 $"[port:fake] 目标不是本件生成的计数替身（方法 '{method}' 的调用计数不可用）");
+    }
+
+    /// <summary>
+    /// 取替身捕获的调用实参序（投影 <c>capturedCount</c> / <c>capturedFirst</c> / <c>capturedLast</c> 入口）；
+    /// 非捕获替身即抛（防静默取空序）。<paramref name="member"/> 为空 = 主捕获成员。
+    /// </summary>
+    public static IReadOnlyList<object?[]> CapturedOf(object fake, string? member = null)
+    {
+        ArgumentNullException.ThrowIfNull(fake);
+
+        return fake is FakeDispatchProxy { Capture: { } capture }
+            ? capture.Of(member)
+            : throw new InvalidOperationException(
+                $"[port:fake] 目标不是本件生成的捕获替身（成员 '{member ?? "(default)"}' 的调用实参不可用）");
     }
 
     /// <summary>回显（首实参经投影；缺投影即抛）。</summary>
@@ -158,10 +217,11 @@ public static class PortFake
         }
     }
 
-    /// <summary>统一装配：生成契约代理并按形态绑定行为（转发 / 计数 / 固定应答 / 序列 / 负向守卫）。</summary>
+    /// <summary>统一装配：生成契约代理并按形态绑定行为（脚本 / 转发 / 计数 / 捕获 / 固定应答 / 序列 / 负向守卫）。</summary>
     private static object Build(
         Type contract, object? inner, IReadOnlyList<string>? methods, CallCounter? counters,
-        IReadOnlyList<object?>? fixedValues, bool notExpected, bool reuseLast)
+        IReadOnlyList<object?>? fixedValues, bool notExpected, bool reuseLast,
+        IReadOnlyList<FakeCall>? calls = null, string? captureMember = null)
     {
         ArgumentNullException.ThrowIfNull(contract);
         if (!contract.IsInterface)
@@ -170,17 +230,30 @@ public static class PortFake
 
         var proxy = (FakeDispatchProxy)DispatchProxy.Create(contract, typeof(FakeDispatchProxy));
         var watched = methods is { Count: > 0 } ? new HashSet<string>(methods, StringComparer.Ordinal) : null;
+        var script = calls is { Count: > 0 } ? new FakeCallScript(calls) : null;
+        var captures = captureMember is { } ? new FakeCaptureTable() : null;
         var index = 0;
 
         proxy.Initialize((method, args) =>
         {
             var isWatched = watched is null || watched.Contains(method.Name);
 
+            if (captures is not null && IsCaptured(captureMember!, method.Name))
+                captures.Add(method.Name, args);
+
             if (notExpected && isWatched)
                 throw new PortCallNotExpectedException($"{contract.Name}.{method.Name}");
 
             if (counters is not null && isWatched)
                 counters.Add(method.Name, KeyOf(args));
+
+            if (script is not null && script.TryResolve(method.Name, out var call))
+            {
+                if (call.ThrowType is { Length: > 0 } throwType)
+                    throw ForgeThrow(throwType, call.Message, contract, method);
+
+                return Adapt(method.ReturnType, call.HasValue ? call.Value : null);
+            }
 
             if (fixedValues is { Count: > 0 })
             {
@@ -195,20 +268,27 @@ public static class PortFake
             return inner is null
                 ? Adapt(method.ReturnType, null)
                 : Forward(inner, method, args);
-        }, counters);
+        }, counters, captures);
 
         return proxy;
     }
+
+    /// <summary>本次调用是否入捕获表（G8：声明成员为空 = 捕获全部成员）。</summary>
+    private static bool IsCaptured(string member, string called)
+        => member.Length == 0 || string.Equals(member, called, StringComparison.Ordinal);
 
     /// <summary>主键：首个字符串实参（无 → 空串）。</summary>
     private static string KeyOf(object?[] args)
         => args.FirstOrDefault(argument => argument is string) as string ?? string.Empty;
 
-    /// <summary>转发到真实实现（按方法名 + 形参类型精确匹配；不可解析即抛，防静默空转）。</summary>
+    /// <summary>
+    /// 转发到真实实现：先按「方法名 + 形参类型」解析公共方法，未命中再经**接口映射**解析**显式接口实现**
+    /// （G2：显式实现不落在公共面上，<see cref="Type.GetMethod(string, Type[])"/> 找不到 ⇒ 反射按名匹配不足）。
+    /// 仍不可解析即抛，防静默空转。
+    /// </summary>
     private static object? Forward(object inner, MethodInfo method, object?[] args)
     {
-        var target = inner.GetType().GetMethod(
-            method.Name, method.GetParameters().Select(p => p.ParameterType).ToArray());
+        var target = ResolveForwardTarget(inner.GetType(), method);
 
         if (target is null)
             throw new InvalidOperationException(
@@ -223,6 +303,40 @@ public static class PortFake
             return PortInvocation.ExpectAny(innerException, expect: null);   // 原样上抛（保留原始栈）
         }
     }
+
+    /// <summary>转发目标解析（公共方法优先，回落显式接口实现的接口映射）。</summary>
+    private static MethodInfo? ResolveForwardTarget(Type implementation, MethodInfo method)
+    {
+        var parameters = method.GetParameters().Select(parameter => parameter.ParameterType).ToArray();
+
+        try
+        {
+            if (implementation.GetMethod(method.Name, parameters) is { } direct) return direct;
+        }
+        catch (AmbiguousMatchException)
+        {
+            // 同名同签名多候选（泛型元数差异）：交由接口映射按槽位精确解析。
+        }
+
+        var declared = method.DeclaringType;
+        if (declared is null || !declared.IsInterface || !declared.IsAssignableFrom(implementation)) return null;
+
+        var map = implementation.GetInterfaceMap(declared);
+
+        for (var i = 0; i < map.InterfaceMethods.Length; i++)
+        {
+            if (!string.Equals(map.InterfaceMethods[i].Name, method.Name, StringComparison.Ordinal)) continue;
+            if (!map.InterfaceMethods[i].GetParameters().Select(p => p.ParameterType).SequenceEqual(parameters)) continue;
+
+            return map.TargetMethods[i];
+        }
+
+        return null;
+    }
+
+    /// <summary>按声明类型名抛出异常（类型须可解析且为异常类型；构造不可用即抛，禁静默回落）。</summary>
+    private static Exception ForgeThrow(string typeName, string? message, Type contract, MethodInfo method)
+        => PortInvocation.ForgeThrow(typeName, message, $"{contract.Name}.{method.Name}");
 
     /// <summary>应答值适配：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask</c> 包装为已完成任务；其余按返回类型反序列化。</summary>
     private static object? Adapt(Type returnType, object? value)
@@ -258,6 +372,105 @@ public static class PortFake
         return target == typeof(JsonElement)
             ? element.Clone()
             : JsonSerializer.Deserialize(element.GetRawText(), target);
+    }
+}
+
+/// <summary>
+/// 替身应答脚本解析（G1）：按「成员名 + 调用序」定位应答项（表驱动；不含控制流与表达式语言）。
+/// <para>
+/// 优先级（声明序内取最低秩，同秩取先声明者）：① 成员 + 精确序 → ② 成员 + 任意序 →
+/// ③ 任意成员 + 全局序 → ④ 任意成员 + 任意序；未命中即返回 false（回落常规形态）。
+/// </para>
+/// </summary>
+internal sealed class FakeCallScript
+{
+    private readonly IReadOnlyList<FakeCall> _calls;
+    private readonly Dictionary<string, int> _memberPositions = new(StringComparer.Ordinal);
+    private readonly object _gate = new();
+    private int _globalPosition;
+
+    internal FakeCallScript(IReadOnlyList<FakeCall> calls) => _calls = calls;
+
+    /// <summary>解析本次调用的应答项（无匹配返回 false）。</summary>
+    internal bool TryResolve(string member, out FakeCall call)
+    {
+        int memberPosition;
+        int globalPosition;
+
+        lock (_gate)
+        {
+            memberPosition = _memberPositions.TryGetValue(member, out var seen) ? seen : 0;
+            _memberPositions[member] = memberPosition + 1;
+            globalPosition = _globalPosition++;
+        }
+
+        FakeCall? best = null;
+        var bestRank = int.MaxValue;
+
+        foreach (var candidate in _calls)
+        {
+            var rank = Rank(candidate, member, memberPosition, globalPosition);
+            if (rank >= bestRank) continue;
+
+            best = candidate;
+            bestRank = rank;
+        }
+
+        call = best!;
+        return best is not null;
+    }
+
+    /// <summary>匹配秩（越小越优先；<see cref="int.MaxValue"/> = 不匹配）。</summary>
+    private static int Rank(FakeCall candidate, string member, int memberPosition, int globalPosition)
+    {
+        var named = candidate.Member is { Length: > 0 };
+
+        if (named && !string.Equals(candidate.Member, member, StringComparison.Ordinal)) return int.MaxValue;
+
+        if (named)
+            return candidate.Position == memberPosition ? 0
+                : candidate.Position is null ? 1
+                : int.MaxValue;
+
+        return candidate.Position == globalPosition ? 2
+            : candidate.Position is null ? 3
+            : int.MaxValue;
+    }
+}
+
+/// <summary>
+/// 调用捕获表（G8）：按成员分桶记录**调用实参数组**（声明序 = 调用序）；并发安全（替身可被并行调用）。
+/// <para>分工：本件只记录不判定（断言语义由投影取值法承担，L1 红线：零领域词汇）。</para>
+/// </summary>
+internal sealed class FakeCaptureTable
+{
+    private readonly Dictionary<string, List<object?[]>> _byMember = new(StringComparer.Ordinal);
+    private readonly List<object?[]> _all = [];
+    private readonly object _gate = new();
+
+    /// <summary>记录一次调用的实参（入表前快照：调用方不复用数组）。</summary>
+    internal void Add(string member, object?[] args)
+    {
+        var snapshot = args.ToArray();
+
+        lock (_gate)
+        {
+            _all.Add(snapshot);
+
+            if (!_byMember.TryGetValue(member, out var bucket)) _byMember[member] = bucket = [];
+            bucket.Add(snapshot);
+        }
+    }
+
+    /// <summary>取某成员的调用实参序（成员为空 = 全部成员的调用序）；未记录成员 → 空序。</summary>
+    internal IReadOnlyList<object?[]> Of(string? member)
+    {
+        lock (_gate)
+        {
+            if (member is not { Length: > 0 }) return _all.ToArray();
+
+            return _byMember.TryGetValue(member, out var bucket) ? bucket.ToArray() : [];
+        }
     }
 }
 
@@ -302,10 +515,15 @@ internal class FakeDispatchProxy : DispatchProxy
     /// <summary>调用计数表（仅计数形态非空；供 <see cref="ProxyFakes.CountOf"/> 读取）。</summary>
     internal CallCounter? Counter { get; private set; }
 
-    internal void Initialize(Func<MethodInfo, object?[], object?> handler, CallCounter? counter)
+    /// <summary>调用捕获表（仅捕获形态非空；供 <see cref="PortFake.CapturedOf"/> 读取）。</summary>
+    internal FakeCaptureTable? Capture { get; private set; }
+
+    internal void Initialize(
+        Func<MethodInfo, object?[], object?> handler, CallCounter? counter, FakeCaptureTable? capture = null)
     {
         _handler = handler;
         Counter = counter;
+        Capture = capture;
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)

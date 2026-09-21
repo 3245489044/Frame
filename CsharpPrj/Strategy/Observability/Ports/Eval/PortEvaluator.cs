@@ -87,6 +87,9 @@ public sealed class PortEvaluator
             PortOp.Loop => ScriptedSteps.RunForeach(
                 frame.Steps, instruction, Operand<ForeachStandard>(spec, instruction, index), scope, input, frame.Deps),
 
+            PortOp.Throw => ScriptedSteps.RunThrow(
+                frame.Steps, Operand<ThrowStandard>(spec, instruction, index)),
+
             PortOp.Collect => Collect(spec, instruction, index, scope, frame),
 
             PortOp.Table => ScriptedSteps.RunValueSource(

@@ -119,6 +119,11 @@ function Write-TestUnitPlan {
         Write-Host ("  [{0}] {1}  <- {2}" -f $unit.Order, $unit.ProjectName, $unit.Reason) -ForegroundColor White
         Write-Host ("        filter: {0}" -f $filter) -ForegroundColor DarkGray
         if ($ShowCommand) {
+            # 跨件依赖（本件 = 依赖根，DotnetTest 依赖本件，不得反向 import 造成环）：
+            # `Find-RunSettings` 不可用时显式 fail-fast，不静默回落为「无 runsettings」。
+            if (-not (Get-Command 'Find-RunSettings' -ErrorAction SilentlyContinue)) {
+                throw '[TestRunner] Write-TestUnitPlan -ShowCommand 需同族 Find-RunSettings（请装配 Modules\TestRunner\_init.ps1）'
+            }
             $planArgs = New-DotnetTestArgs -ProjectPath $unit.ProjectPath -Filters @($unit.Filters) `
                 -RunSettings (Find-RunSettings -ProjectPath $unit.ProjectPath -Root $Root)
             Write-Host ("        cmd   : dotnet {0}" -f ($planArgs -join ' ')) -ForegroundColor DarkGray

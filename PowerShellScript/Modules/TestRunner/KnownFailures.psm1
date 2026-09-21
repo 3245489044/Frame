@@ -78,7 +78,9 @@ function Compare-KnownFailures {
         # 目标收敛运行（-Test/-Class/…）只跑了单元内**子集**：未运行的已知红不在本次实际失败集里，
         # 若照全量口径判「未销账」即误报（实测：收敛跑 1 个用例失败 → 误报「名单未销账 9 条」）。
         # 故收敛运行只判「新失败」；销账检查以全量运行为权威。
-        $stale = if ($PartialRun) { @() } else { @($known | Where-Object { $actual -notcontains $_ }) }
+        # 恒定数组：`if` 输出空数组会被解包为 $null（StrictMode 下 `.Count` 即抛；原模块未设 StrictMode 故静默为 0）。
+        $stale = @()
+        if (-not $PartialRun) { $stale = @($known | Where-Object { $actual -notcontains $_ }) }
 
         if ($new.Count -gt 0) {
             $ok = $false

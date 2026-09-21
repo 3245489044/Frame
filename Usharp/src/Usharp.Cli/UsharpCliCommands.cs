@@ -24,10 +24,13 @@ public static class UsharpCliCommands
           lint   <file|dir>                                         四检：悬空 / 废弃 / 循环 / 反向引用
           graph  <file|dir> [--reachable <n>] [--path <a> <b>]       引用图查询（环检测 / 影响域 / 两点路径）
           matrix <file|dir>                                         矩阵装配取数（值域矩阵 / 转移表）
+          obs    <file|dir>                                         观测取数（[Obs] 闸A + manifest；未装配后端 → US9002）
         """;
 
     /// <summary>命令入口。</summary>
-    public static int Run(IReadOnlyList<string> args, TextWriter output, IUsharpGraphBackend? backend = null)
+    public static int Run(
+        IReadOnlyList<string> args, TextWriter output,
+        IUsharpGraphBackend? backend = null, IUsharpObservabilityBackend? obsBackend = null)
     {
         ArgumentNullException.ThrowIfNull(output);
 
@@ -51,6 +54,7 @@ public static class UsharpCliCommands
             "matrix" => RunWithPath(rest, output, Matrix),
             "lint" => RunWithPath(rest, output, (path, writer) => Lint(path, writer, backend)),
             "graph" => RunGraph(rest, output, backend),
+            "obs" => RunWithPath(rest, output, (path, writer) => Obs(path, writer, obsBackend)),
             _ => Unknown(command, output),
         };
     }
@@ -142,6 +146,26 @@ public static class UsharpCliCommands
         WriteDiagnostics(result.Diagnostics, output);
 
         return result.HasErrors ? ExitFailed : ExitOk;
+    }
+
+    /// <summary>
+    /// 观测取数（批 O5）：<c>[Obs]</c> 闸A 诊断 + 契约登记 + manifest 产出。
+    /// 未装配观测后端（默认）→ 观测面产出跳过并可见化 <see cref="UsharpCodes.ObsBackendUnavailable"/>（不假装产出）。
+    /// </summary>
+    public static int Obs(string path, TextWriter output, IUsharpObservabilityBackend? backend = null)
+    {
+        var compilation = Compile(path, output, out var failure);
+        if (compilation is null) return failure;
+
+        output.WriteLine($"[Obs] 作用域 {compilation.Obs.Scopes.Count} / 实体 {compilation.Obs.Entities.Count} / "
+                         + $"事件 {compilation.Obs.Events.Count} / version={(compilation.Obs.FileVersion ?? "(未声明)")}");
+
+        var service = new UsharpObsService(backend);
+        foreach (var notice in service.Analyze(compilation))
+            output.WriteLine($"   · {notice.Code}: {notice.Message}");
+
+        output.WriteLine(service.RenderManifest(compilation));
+        return compilation.HasErrors ? ExitFailed : ExitOk;
     }
 
     // ---------- 内部：解析与报表 ----------

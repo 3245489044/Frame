@@ -19,6 +19,7 @@ public sealed class UsharpCompilation
         IReadOnlyList<UsharpFlowDecl> flows,
         IReadOnlyList<UsharpRefDecl> refs,
         IReadOnlyList<UsharpEdge> edges,
+        ObsRegistry obs,
         IReadOnlyList<UsharpDiagnostic> diagnostics)
     {
         Documents = documents;
@@ -28,6 +29,7 @@ public sealed class UsharpCompilation
         Flows = flows;
         Refs = refs;
         Edges = edges;
+        Obs = obs;
         Diagnostics = diagnostics;
     }
 
@@ -38,6 +40,13 @@ public sealed class UsharpCompilation
     public IReadOnlyList<UsharpFlowDecl> Flows { get; }
     public IReadOnlyList<UsharpRefDecl> Refs { get; }
     public IReadOnlyList<UsharpEdge> Edges { get; }
+
+    /// <summary>观测声明注册中心（<c>[Obs]</c>：作用域 / 实体 / 事件；第五语言单元）。</summary>
+    public ObsRegistry Obs { get; }
+
+    /// <summary><c>[Obs]</c> 声明（声明序；manifest 产出与书写面同序）。</summary>
+    public IReadOnlyList<UsharpObsDecl> ObsDecls => Obs.Declarations;
+
     public IReadOnlyList<UsharpDiagnostic> Diagnostics { get; }
 
     public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
@@ -63,15 +72,21 @@ public sealed class UsharpCompilation
         }
 
         var spaces = new SpaceRegistry();
+        var obs = new ObsRegistry();
         var matrices = new List<UsharpMatrixDecl>();
         var flows = new List<UsharpFlowDecl>();
         var refs = new List<UsharpRefDecl>();
 
-        // 两遍：先登记全部空间（闸A 判据），再投影其余声明。
+        // 两遍：先登记全部空间与观测声明（闸A 判据），再投影其余声明。
         foreach (var doc in documents)
             foreach (var s in UsharpSyntaxProjector.Spaces(doc))
                 spaces.Add(s);
         diagnostics.AddRange(spaces.Diagnostics);
+
+        foreach (var doc in documents)
+            foreach (var o in UsharpSyntaxProjector.Obs(doc))
+                obs.Add(o);
+        diagnostics.AddRange(obs.Diagnostics);
 
         foreach (var doc in documents)
         {
@@ -81,9 +96,9 @@ public sealed class UsharpCompilation
         }
 
         var edges = UsharpGraphBuilder.Build(documents, matrices, flows, refs);
-        diagnostics.AddRange(UsharpValidator.Validate(documents, index, spaces, matrices, flows, refs));
+        diagnostics.AddRange(UsharpValidator.Validate(documents, index, spaces, matrices, flows, refs, obs));
 
-        return new UsharpCompilation(documents, index, spaces, matrices, flows, refs, edges, diagnostics);
+        return new UsharpCompilation(documents, index, spaces, matrices, flows, refs, edges, obs, diagnostics);
     }
 
     /// <summary>编译一组 Usharp 文件（缺省 lib = <see cref="UsharpParser.DefaultLib"/>；lib 相同者可互相解析 [CR]）。</summary>

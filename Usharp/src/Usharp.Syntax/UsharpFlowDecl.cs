@@ -3,15 +3,21 @@ using Plate.DslMethod.Model;
 
 namespace Usharp.Syntax;
 
-/// <summary>流的一步：节点键 + 可选子链引用（<c>~ subflow</c> ⇒ 工作流连接链的唯一语法）。</summary>
+/// <summary>流的一步：节点键 + 可选子链引用（<c>~ subflow</c> ⇒ 工作流连接链的唯一语法）+ 可选发射绑定（<c>emit=k1,k2</c>）。</summary>
 public sealed record UsharpFlowStep(string Key, string? SubFlow)
 {
+    /// <summary>本步发射的事件分类（<c>emit=</c> 缺省 → 空表 = 不发射）。</summary>
+    public IReadOnlyList<string> Emits { get; init; } = Array.Empty<string>();
+
     public static UsharpFlowStep? Parse(string line)
     {
         var text = line.Trim();
         if (text.Length == 0) return null;
         if (text.StartsWith(UsharpLanguage.StepMarker, StringComparison.Ordinal))
             text = text[UsharpLanguage.StepMarker.Length..].TrimStart(':', '=', ' ', '\t');
+
+        // 发射绑定须先于 `~` 剥离：否则 `step k emit=a,b ~ Sub` 的 emit 段会被吞进子流名。
+        var emits = ExtractEmits(ref text);
 
         string? sub = null;
         var tilde = text.IndexOf(UsharpLanguage.SubFlowMarker);
@@ -21,7 +27,25 @@ public sealed record UsharpFlowStep(string Key, string? SubFlow)
             text = text[..tilde].Trim();
             if (sub.Length == 0) sub = null;
         }
-        return text.Length == 0 ? null : new UsharpFlowStep(text, sub);
+        return text.Length == 0 ? null : new UsharpFlowStep(text, sub) { Emits = emits };
+    }
+
+    /// <summary>从步骤行剥离 <c>emit=&lt;k1,k2&gt;</c>（值止于空白或 <c>~</c>），返回事件分类表。</summary>
+    private static IReadOnlyList<string> ExtractEmits(ref string text)
+    {
+        var marker = UsharpLanguage.FieldEmit + "=";
+        var at = text.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0) return Array.Empty<string>();
+
+        var after = text[(at + marker.Length)..];
+        var end = after.Length;
+        for (var i = 0; i < after.Length; i++)
+            if (char.IsWhiteSpace(after[i]) || after[i] == UsharpLanguage.SubFlowMarker) { end = i; break; }
+
+        var value = after[..end];
+        text = (text[..at] + after[end..]).Trim();
+
+        return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }
 
@@ -115,4 +139,9 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpRefDecl> Refs(DslDocument doc)
         => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Ref)
             .Select(UsharpRefDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Obs]</c> 观测声明（作用域 / 实体 / 事件；第五语言单元）。</summary>
+    public static IReadOnlyList<UsharpObsDecl> Obs(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Obs)
+            .Select(UsharpObsDecl.From).Where(s => s is not null).Select(s => s!).ToList();
 }

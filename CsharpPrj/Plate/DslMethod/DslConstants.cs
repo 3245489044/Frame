@@ -12,6 +12,8 @@ public enum DslSymbolKind
     Template, Schema,
     // Ushar 语言层（Frame\Ushar）：空间 / 矩阵 / 流 / 引用（见 Ushar README「语言规范」）
     Space, Matrix, Flow, Ref,
+    // Ushar 第五语言单元：观测声明（作用域 / 实体 / 事件；见 Ushar README「观测接入」）
+    Obs,
     Unknown,
 }
 
@@ -19,8 +21,13 @@ public enum DslSymbolKind
 public sealed record DslPrefixDef(string Prefix, DslSymbolKind Kind, string Stub);
 
 /// <summary>
-/// DSL 定义层：前缀注册表与契约维度常量。
-/// 新增前缀 = 在此增条目（文法不变，对齐 dsl.md §4.5「新增 STYP = 增条目」扩展规则）。
+/// DSL 定义层：框架核心前缀表与契约维度常量。
+/// <para>
+/// 本表是<b>框架核心前缀集</b>（通用 DSL 词汇，<b>不含任何领域前缀</b>）；领域前缀由各领域包在自身程序集内
+/// 声明为 <see cref="Parsing.DslPrefixSet"/> 并注册到 <see cref="Parsing.DslPrefixRegistry"/>
+/// （如 Usharp 的 <c>[Space]</c>/<c>[Matrix]</c>/<c>[Flow]</c>/<c>[Ref]</c>/<c>[Obs]</c>）。
+/// 新增核心前缀 = 在此增条目（文法不变，对齐 dsl.md §4.5「新增 STYP = 增条目」扩展规则）。
+/// </para>
 /// </summary>
 public static class DslConstants
 {
@@ -58,14 +65,11 @@ public static class DslConstants
         new("[Template]",   DslSymbolKind.Template,   "Template"),
         // 结构化 Schema 声明（format.system.md 等；字段/必填/枚举），对齐 clinerules dsl.md §4.5
         new("[Schema]",     DslSymbolKind.Schema,     "Schema"),
-        // Ushar 语言层四前缀（Frame\Ushar）：Space=坐标空间 / Matrix=空间上的一次变换 / Flow=链与工作流 / Ref=带空间归属的引用
-        new("[Space]",      DslSymbolKind.Space,      "Space"),
-        new("[Matrix]",     DslSymbolKind.Matrix,     "Matrix"),
-        new("[Flow]",       DslSymbolKind.Flow,       "Flow"),
-        new("[Ref]",        DslSymbolKind.Ref,        "Ref"),
+        // 注：Usharp 五前缀（[Space]/[Matrix]/[Flow]/[Ref]/[Obs]）不在此核心表 —— 由 Usharp 领域包自持并
+        //     注册到 DslPrefixRegistry（见 Frame\Usharp\src\Usharp.Syntax\UsharpPrefixes.cs）。
     };
 
-    /// <summary>按前缀查注册条目（未注册返回 null）。</summary>
+    /// <summary>按前缀查核心表条目（未注册返回 null；领域前缀请用 <see cref="Parsing.DslPrefixSet.Find"/>）。</summary>
     public static DslPrefixDef? Find(string prefix)
     {
         foreach (var p in Prefixes)

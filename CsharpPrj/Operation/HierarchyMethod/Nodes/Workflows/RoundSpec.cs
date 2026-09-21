@@ -40,6 +40,12 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// <summary>稳定节点实例 ID：优先模板声明的 NodeId，缺失（旧模板/内置骨架）回退 FuncName。</summary>
         public string EffectiveNodeId => string.IsNullOrWhiteSpace(NodeId) ? FuncName : NodeId;
 
+    /// <summary>
+    /// 本步发射的观测事件分类（<c>[Flow]</c> 步骤的 <c>emit=k1,k2</c> 绑定；空 = 不发射）。
+    /// 加法式扩展：缺省空集合，旧模板/内置骨架零影响；埋点由宿主编排（Usharp 适配层）消费，执行层不解释。
+    /// </summary>
+    public IReadOnlyList<string> Emits { get; init; } = Array.Empty<string>();
+
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingStep ToBindingStep() => new()
         {

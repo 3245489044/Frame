@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp × Observability 适配层</ModuleRule_Title>
+    <ModuleRule_Description>把 Usharp 观测声明（[Obs]：作用域/实体/事件）与 [Flow] 步骤发射绑定接到 Strategy.Observability 内核（全库唯一引观测处）：契约映射（→ BoundaryContract/EventContract）、端口实现（IUsharpObservabilityBackend）、确定性 manifest 产出（读写同源 ObservabilitySemanticsJson 格式）、发射层自动埋点（RoundStep.Emits → Activity）。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;Observability;适配;端口实现;BoundaryContract;manifest;埋点</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="唯一引 Strategy.Observability 处：Usharp.Syntax/Usharp.Semantics 保持零观测依赖，观测类型不得进入核心公共签名" />
+    <ModuleRule_Rule Include="禁引 UR 执行器（UniversalWorkflowFramework.WorkflowExecution）：执行机制唯一 = [Flow] → RoundSpec / FoldEngine" />
+    <ModuleRule_Rule Include="不新增第二观测机制：信封/契约/作用域/持久化一律复用内核件（BoundaryContract/EventContract/CorrelationBag/Obs/IEventStore）" />
+    <ModuleRule_Rule Include="编译期不写库：manifest 只产文本，落库由宿主显式 FlushAsync 驱动" />
+    <ModuleRule_Rule Include="校验委托内核（IBoundaryContractRegistry.Validate / IObservabilityContractRegistry.Validate），本层不另写一份" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Adapters.Observability</RootNamespace>
+    <AssemblyName>Usharp.Adapters.Observability</AssemblyName>
+    <Description>Usharp × Observability 适配层 — 契约映射 / 端口实现 / manifest 产出 / 步骤自动埋点</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Strategy\Observability\Observability.csproj" />
+  </ItemGroup>
+
+  <!-- 不引 Operation.HierarchyMethod（RoundSpec 载体）：埋点入参由宿主编排把 step 投影为
+       (stepKey, emits)，以免适配层连带平台闭包（H1 轻量依赖方向）。 -->
+
+</Project>

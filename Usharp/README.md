@@ -1,6 +1,6 @@
 # Usharp —— 以矩阵为框架、引用关系为核心的逻辑语言
 
-> **层级**：语言框架（表层语言 + 编译器） | **状态**：U1 已落地（四前缀 + 闸A + 引用即边 + 测试 14/14 通过）
+> **层级**：语言框架（表层语言 + 编译器） | **状态**：五前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`）+ 闸A + 引用即边 + UR 接入 + 观测接入（批 U1–U6 / O0–O5 已落地）
 > **日期**：2026-09-22 | **基座**：`Frame\CsharpPrj`（不新造运行时）
 > **本文件 = 语言规范唯一权威**：语法/规则/诊断码在此定义，实现里不得重复语义（防抽象再生）。
 
@@ -13,9 +13,10 @@
 | 1 | Usharp **不是新运行时**，而是「唯一表层语言 + 编译器」：文本 → 编译器 → 落到 CsharpPrj 既有类型（`RoundSpec` / `ParameterMatrix` / `DecisionGraph` / `ReferenceSchema` / `ReferenceGraphEngine`） |
 | 2 | **矩阵只有一种**：空间到自身的一步映射 `x′ = M·x`。决策矩阵 / 转移矩阵 / 判据矩阵 / 治理矩阵 / 引用邻接矩阵是它的五种读法（§1.1） |
 | 3 | **引用关系为核心**：一切声明都是节点，一切引用都是边；编译器的首要产物是引用图，矩阵只是图上的属性（§1.2） |
-| 4 | **解析器零自有实现**：四前缀注册进 `Plate.DslMethod` 的既有前缀表，直接复用 `DslParser`/`DslIndex`/`Registry` |
+| 4 | **解析器零自有实现**：五前缀注册进 `Plate.DslMethod` 的既有前缀表，直接复用 `DslParser`/`DslIndex`/`Registry` |
 | 5 | **闸A 是存在理由**：装载期校验「引用必须落在已声明空间」；未声明即**编译报错**（对齐 `ParameterMatrix.Row` 闸A 语义，覆盖面从参数轴扩到空间键/词元） |
 | 6 | 现状静默截断类缺陷（工作流 `NextNodeConfig` 只取 `on_success`、其余分支无告警）在本语言里由 `US1005` 拦下 |
+| 7 | **观测是第五语言单元 `[Obs]`**（非第二观测机制）：观测语义唯一的书写面 = `.ushar` 声明，编译产出既有 `BoundaryContract`/`EventContract`，把运行期 `UnregisteredEventException` **前移到编译期**（`US6001`–`US6007`）；信封/契约/作用域/持久化一律复用 `Strategy.Observability` 内核（§9.5） |
 
 ---
 
@@ -50,7 +51,7 @@
 
 ## 2. 表层语法（复用行首前缀式）
 
-### 2.1 四前缀（已注册进 `Plate.DslMethod.DslConstants.Prefixes`）
+### 2.1 五前缀（Usharp 包自持，注册进 `Plate.DslMethod.Parsing.DslPrefixRegistry`，id=`usharp`）
 
 | 前缀 | 语义 | 符号类型 | 编译到 |
 |---|---|---|---|
@@ -58,6 +59,7 @@
 | `[Matrix]` | 空间上的一次变换（行 = 输出坐标） | `Matrix` | `ParameterMatrix` / `DecisionGraph` / `ChainSignalResolver` |
 | `[Flow]` | 链 / 工作流（以链为节点） | `Flow` | `RoundSpec` + `ChainTransitionMatrix` |
 | `[Ref]` | 带空间归属的引用 | `Ref` | `CoordinateRef` + 引用图边 |
+| `[Obs]` | 观测声明（作用域 / 实体 / 事件；`kind=` 分子类） | `Obs` | `BoundaryContract` / `EventContract`（经适配层登记；核心零观测依赖） |
 
 既有 `[Node]` / `[Edge]` / `[Constraint]` / `[CR]` / `%` / `#` 等前缀**继续沿用**（同一解析器、同一符号索引）。
 
@@ -79,9 +81,19 @@
 [Flow] <FlowId>: over=<SpaceId>
   step <key>
   step <key> ~ <SubFlowId>
+  step <key> emit=<EventKind1>,<EventKind2>          # 观测发射绑定（起始 / 完成事件）
 
 [Ref] <Name>: <SpaceId>:<Key> | src=<src> | tgt=<tgt> | intent=<intent> | edge=<EdgeType>
+
+[Obs] <Name>: kind=file                               # 语义文件头（至多一条，承载 version=）
+[Obs] <ScopeKey>: kind=scope | parent=<ScopeKey>       # 关联键作用域（可声明层级）
+[Obs] <EntityType>: kind=entity | scope=<ScopeKey>      # 实体类型（+ 归属作用域）
+[Obs] <EventKind>: kind=event | entity=<EntityType> | scope=<ScopeKey> \
+      | required=<f1,f2> | metrics=<m1,m2> | enum=<field>:<v1,v2>[;<field2>:<v3>]
 ```
+
+> `[Obs]` 字段：`required=`（别名 `fields=`）/ `metrics=` / `enum=`（多字段以 `;` 分段；`|` 与 `,` 已被字段/列表占用）。
+> `step … emit=` 的正交绑定（不新前缀，符合 U-V4）：首个 kind = 起始事件，第二个（可选）= 完成事件。
 
 **硬性书写规则**（由既有解析器决定，非 Usharp 自定）：
 
@@ -173,7 +185,15 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 | `US5001` | error | 发射目标流未声明 |
 | `US5002` | error | 步骤键无 `[Node]` 声明（无法解析 FuncName，不可发射） |
 | `US5003` | warn | `[Flow]` 成功准则未知（按 decision 处理） |
+| `US6001` | error | `[Obs]` 事件的 `entity=`/`scope=`（或实体的 `scope=`、作用域的 `parent=`）指向未声明实体/作用域（闸A） |
+| `US6002` | error | `[Flow] step emit=` 引用未声明事件分类（**运行期 `UnregisteredEventException` 前移到编译期**） |
+| `US6003` | error | `[Obs]` 同 `kind` 同名重复声明 |
+| `US6004` | error | `[Obs]` 的 `enum=` 字段未出现在 `required=`（或 `fields=`）中（声明自洽性） |
+| `US6005` | warn | `[Obs]` 事件声明无任何 `[Flow] step emit=` 消费（声明未接线，显式可见化） |
+| `US6006` | error | `[Obs] kind=file` 多条（`version=` 版本双源；至多一条） |
+| `US6007` | error | `[Obs]` 的 `kind=` 缺省或非法（合法值：`file`/`scope`/`entity`/`event`） |
 | `US9001` | info | 未装配图后端（`NullGraphBackend`）：图类判据跳过，**显式可见化**（不假装通过） |
+| `US9002` | info | 未装配观测后端（`NullObservabilityBackend`）：契约产出与编译期自观测跳过，**显式可见化**（不假装产出） |
 
 所有诊断一律携带 `文件:行` 归因（`UsharpDiagnostic.ToString()`）。
 
@@ -192,11 +212,14 @@ Frame/Usharp/
   src/Usharp.Semantics/       ← 语义层（空间注册 + 闸A + 引用图）
   src/Usharp.Matrix/          ← 矩阵实例化层（[Matrix] → ParameterMatrix / 转移表）
   src/Usharp.Emit/            ← 发射层（[Flow] → RoundSpec + 链转移表）
-  src/Usharp.Cli/             ← 命令行（build / lint / graph / matrix；零 UR）
+    src/Usharp.Cli/             ← 命令行（build / lint / graph / matrix / obs；零 UR）
   src/Usharp.Adapters.UniversalReference/  ← UR 适配层（**唯一引 UR 处**：端口实现 / 边类型映射 / Schema / 落库）
-  tests/Usharp.Tests/         ← MSTest（39 例；核心，零 UR）
-  tests/Usharp.Emit.Tests/    ← MSTest（8 例；与 agent-loop.json 等价比对）
-  tests/Usharp.Adapters.Tests/ ← MSTest（18 例；唯一引 UR 的测试工程）
+  src/Usharp.Adapters.Observability/       ← 观测适配层（**唯一引 Strategy.Observability 处**：契约映射 / 端口实现 / manifest / 步骤自动埋点）
+  tests/（已迁 Environment\CentralTest\UsharpTests）：
+    Usharp.Tests/             ← MSTest（50 例；核心，零 UR）
+    Usharp.Emit.Tests/        ← MSTest（9 例；与 agent-loop.json 等价比对）
+    Usharp.Adapters.Tests/    ← MSTest（18 例；唯一引 UR 的测试工程）
+    Usharp.Adapters.Observability.Tests/ ← MSTest（7 例；manifest 全量等价门 + 步骤自动埋点）
 ```
 
 | 接线决策 | 内容 | 理由 |
@@ -215,20 +238,28 @@ Frame/Usharp/
 cd D:\Project\Main\Frame\Usharp
 # 核心回路（快；零 UR）
 dotnet build Usharp.sln
-dotnet test  tests\Usharp.Tests\Usharp.Tests.csproj
 # 发射层回路（慢；连带平台闭包）
 dotnet build Usharp.Emit.sln
-dotnet test  tests\Usharp.Emit.Tests\Usharp.Emit.Tests.csproj
-dotnet test  tests\Usharp.Adapters.Tests\Usharp.Adapters.Tests.csproj
+# 观测适配回路（慢；连带观测内核闭包；Usharp.sln 保持零观测）
+dotnet build Usharp.Observability.sln
+# 测试（真源 = Environment\CentralTest\UsharpTests；二进制消费权威烘焙 dll）
+cd D:\Project\Main\Environment\CentralTest\UsharpTests
+dotnet test Usharp.Tests\Usharp.Tests.csproj
+dotnet test Usharp.Emit.Tests\Usharp.Emit.Tests.csproj
+dotnet test Usharp.Adapters.Tests\Usharp.Adapters.Tests.csproj
+dotnet test Usharp.Adapters.Observability.Tests\Usharp.Adapters.Observability.Tests.csproj
 # 命令行（核心回路，零 UR）
+cd D:\Project\Main\Frame\Usharp
 dotnet run --project src\Usharp.Cli -- build  samples\agent-loop.ushar
 dotnet run --project src\Usharp.Cli -- lint   samples\agent-loop.ushar
 dotnet run --project src\Usharp.Cli -- graph  samples\agent-loop.ushar --reachable AgentLoop --path AgentLoop answer
 dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
+dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agent.Contract\Observability\agent-semantics.ushar
 ```
 
 **CsharpPrj 侧唯一改动**（additive，遵循该文件自述扩展规则「新增前缀 = 在此增条目，文法不变」）：
-`Plate\DslMethod\DslConstants.cs` 增 `DslSymbolKind.{Space,Matrix,Flow,Ref}` + 4 条前缀注册；`AxiomCodeGenerator.IsAxiomSymbol` 的 `_ => false` 兜底保持不变（无穷尽 switch 破坏）。
+`Plate\DslMethod\DslConstants.cs` 增 `DslSymbolKind.{Space,Matrix,Flow,Ref,Obs}` + 5 条前缀注册；`AxiomCodeGenerator.IsAxiomSymbol` 的 `_ => false` 兜底保持不变（无穷尽 switch 破坏）。
+`Operation\HierarchyMethod\Nodes\Workflows\RoundSpec.cs` 增 `RoundStep.Emits`（init 属性，加法式，不改位置参数）。
 
 ---
 
@@ -239,7 +270,7 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 | **U-V1** | 单一表层语言（不新增第二运行时） | 表层零自有行解析器；全部落到既有基座类型 | ✓ `UsharpParser` 仅薄包 `DslParser` |
 | **U-V2** | 引用即边 | 反向引用/边由编译器产出（不依赖外部脚本清单） | ✓ `UsharpGraphBuilder`；`Edges` 6 类 |
 | **U-V3** | 闸A：未声明坐标编译期报错 | `US1002/1003/1004/1005` 各有用例，含 `文件:行` | ✓ 5 例（`UsharpGateATests`） |
-| **U-V4** | 矩阵即函数：语法层无分支 | 前缀表中无 `if`/`loop`/`switch` 类前缀 | ✓（四前缀 + 既有声明前缀均无分支语义） |
+| **U-V4** | 矩阵即函数：语法层无分支 | 前缀表中无 `if`/`loop`/`switch` 类前缀 | ✓（五前缀 + 既有声明前缀均无分支语义；`[Obs]` 为观测声明单元，无分支语义） |
 | **U-V5** | linter 单一实现 | 悬空/废弃/循环/反向 四检收敛为语言级 | ◐ `Usharp.Cli lint` 四检已可跑（悬空 US2001 / 废弃 US2002 / 循环 US4001 经图后端 / 反向引用报表，单一实现复用核心）；clinerules 侧 PowerShell 四检迁移 → **U4b 待开工** |
 | **U-V6** | dogfooding：`agent-loop` 由 Usharp 编译且等价 | 样例零 error + 既有测试零回归 | ✓ 样例零 error；`RoundSpec` 与 `agent-loop.json` 等价（8 例，批 U3） |
 | **U-V7** | 核心零 UR 依赖 | `Usharp.Syntax`/`Usharp.Semantics` 的 csproj 不含 `UniversalWorkflowFramework`；核心公共签名无 UR 类型 | ✓ 4 个核心 csproj 零命中；`Usharp.sln`（核心解决方案）UR 条目 0 |
@@ -249,6 +280,12 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 | **U-V11** | 边类型不塌缩 | `[Edge] E: ur=Dependency` → `refType="Dependency"`（非 `Other`）；未给 `ur=` → US4002 | ✓ 5 例（显式映射优先 / 边名即词汇表 / 内置边表 / US4002 / US4003 / 映射表闸A） |
 | **U-V12** | 图能力可用 | `A→B→A` 报 `US4001`；影响域与流完整性各 ≥1 例 | ✓ 4 例（UR 真实环检测 / 可达集+两点路径 / 流完整性 / 落图子集裁决） |
 | **U-V13** | 改名收敛 | 全库无 `Ushar.` 命名空间（保留：`.ushar` 扩展名、`US` 诊断前缀、`U-V*` 编号） | ✓ `src`/`tests`/`samples` 零命中（已清改名期陈旧产物与缓存；仅 README 改名说明行含旧名） |
+| **U-O1** | 核心零观测依赖 | 核心 csproj 零命中 + 核心公共签名无观测类型 | ✓ 核心 `using Strategy.Observability` 命中 **0**（观测类型仅现于适配工程） |
+| **U-O2** | 闭环不依赖观测 | `NullObservabilityBackend` 下闸A/引用即边/诊断全可用；≥3 例 | ✓ 9 例（`usharp.obs` 规格：闸A 各码 + `US9002` 可见化 + 绑定共存） |
+| **U-O3** | 未声明即编译报错 | `US6001`/`US6002` 各 ≥1 反例（含 `文件:行`）；`US6003`/`US6004`/`US6006`/`US6007` 各 ≥1 例；`US6005` warn ≥1 例 | ✓ `usharp.obs.specs` 9 例逐码覆盖 |
+| **U-O4** | 契约产出同源 | L1 结构门 + L2 C1–C14 门 + L3 逐条等价（35 事件 / 9 实体 / version 全等 + 规范化 JSON 全等） | ✓ 5 例（`Usharp.Adapters.Observability.Tests`） |
+| **U-O5** | 零第二机制 | 观测类型只现于适配工程 | ✓ `src` 内 `namespace Strategy.Observability*` 零命中；`using` 命中仅适配工程 3 文件 |
+| **U-O6** | 适配隔离 | 适配工程零 `WorkflowExecution`、零 UR 类型 | ✓ 零命中（适配工程只引 `Usharp.Semantics` + `Strategy.Observability`） |
 
 **规模取数（防幻觉，可直接复现）**：`UsharpCompilation.Snapshot()` ⇒ 样例 `agent-loop.ushar` = 空间 4 / 坐标 16 / 矩阵 1 / 流 3 / 引用 1 / 边 13 / 错误 0。
 （16 = 闸A 覆盖坐标数；13 = 边数，即「引用即边」的可见产出 = 1 Ref + 1 Over + 3 RowRef + 8 StepRef/Invokes。）
@@ -261,6 +298,12 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 
 **命令行取数**：`Usharp.Cli build samples\agent-loop.ushar` ⇒ `空间 4 / 坐标 16 / 矩阵 1 / 流 3 / 引用 1 / 边 13 / 错误 0 / 警告 0`；
 `graph` ⇒ `引用图：节点 9 / 边 9`（落图子集 = 13 - 1 Over - 3 RowRef）；未装配图后端时输出 `US9001` 可见化提示（判据跳过而非假装通过）。
+
+**观测取数（批 O1–O5）**：`Usharp.Cli obs Projects\Plug\Agent\src\Agent.Contract\Observability\agent-semantics.ushar` ⇒
+`[Obs] 作用域 0 / 实体 9 / 事件 35 / version=1.2` + `US9002` 可见化（核心默认不装配观测后端）；
+装配 `UsharpObservabilityBackend` 后产出 manifest：`StandardSchemaValidator` 零违例（L1）/ `StandardConsistency.Check` 零违例（L2）/
+与手写 `observability_semantics.json` **规范化 JSON 逐字符全等**（L3：35 事件 / 9 实体同序 / version 1.2）。
+**步骤自动埋点取数**：`[Flow] step … emit=StepStarted,StepDone` ⇒ `RoundStep.Emits` 承载绑定；执行时经 `UsharpFlowObserver` 自动发 2 帧（起始无度量 / 完成补 `elapsed_ms`），未声明 `emit=` 的步骤零事件。
 
 ---
 
@@ -282,9 +325,23 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 | **U5b** | 词表单选落地：`reference-schema.dsl.md` 的 `[Node]/[Edge]/[Constraint]` 声明迁至 Usharp 侧声明文件，由 CLI 写到既有提交路径 `reference-schema.generated.json`，旧 `.dsl.md` 退役 | U-V10 | 待开工（CentralTest `ReferenceSchemaDslTests` 3 处直接读取该文件，须与 U6 迁移看板一并收口） |
 | **U6** | 规范固化：README 增「UR 接入」章节（装配模式 / 映射表 / 禁引清单 / 诊断码真源）+ 迁移看板（旧声明退役条件）；回写分析文件结论 | 文档评审 | ✓ **已完成**（见本文件 §9） |
 
+### 8.1 批 O0–O5（观测模块语言级引入；方案 = 第五语言单元 `[Obs]`）
+
+> 详细方案见 `Docs\analysis\2026\9\9.22\Usharp_观测模块语言级引入分析与批次.md`（引入架构 / 映射表 / H1–H6 硬约束）；
+> 施工计划见 `…\Usharp_观测模块语言级引入实施计划.md`；收敛裁决见 `…\Usharp_观测收敛裁决.md`；实施记录见 `…\Usharp_观测接入-实施记录.md`。
+
+| 批 | 内容 | 判据 | 状态 |
+|---|---|---|---|
+| **O0** | 收敛裁决（纯文档）：三代观测机制的单真源与降级表 + 迁移看板（每行含退役条件与负责批次） | 文档评审（看板无「无退役条件」行） | ✓ **已完成** |
+| **O1** | 第五前缀 `[Obs]` + 语法模型（`UsharpObsDecl`）+ `[Flow] step … emit=` 正交绑定 | U-V4 修订 + CLI 规模逐字不回归 | ✓ **已完成**（CLI 输出零回归） |
+| **O2** | 闸A `US6001`–`US6007` + `US9002` + 观测端口 `IUsharpObservabilityBackend` + `NullObservabilityBackend`（核心零观测依赖） | U-O1/U-O2/U-O3 | ✓ **已完成**（9 例） |
+| **O3** | 适配工程 `Usharp.Adapters.Observability`（唯一引观测处）+ manifest **全量等价门** | U-O4（L1+L2+L3）/U-O5/U-O6 | ✓ **已完成**（5 例；含规范化 JSON 全等） |
+| **O4** | 发射层自动埋点：`RoundStep.Emits` + `UsharpRoundSpecEmitter` 填充 + 适配层 `UsharpFlowObserver` | 等价比对零回归 + 执行含 `Emits` 的骨架自动发事件 | ✓ **已完成**（2 例；`agent-loop` 8 例零回归） |
+| **O5** | 编译期自观测接线（`obs` 命令 + `US9002` 可见化）+ README 固化 + 迁移看板 | U-O1…U-O6 并入 §7；文档评审 | ✓ **已完成**（Agent 台账切换/O5b 见 §9.5 看板） |
+
 ---
 
-## 9. UR 接入（批 U5 / U6）
+## 9. 接入（UR / 观测）
 
 > UniversalReference（`Share\Frameworks\UniversalReference`）是**既有共享框架**：Usharp 接入 = 接既有图能力，不新造图算法、不引入第二套执行器。
 > **唯一引 UR 处** = `src\Usharp.Adapters.UniversalReference`（发射层 `Usharp.Emit` 因取 `RoundSpec` 亦携带平台闭包，见 §6「发射层例外」）。
@@ -327,6 +384,42 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 | `.clinerules` 四检（`PowerShellScript\Operation\DSL\Check-ClinerulesReferences.ps1`） | `Usharp.Cli lint`（悬空 / 废弃 / 循环 / 反向，四检单一实现） | ◐ 语言侧四检可跑（U4），clinerules 侧未迁（**U4b**） | PS 脚本改为委托 `Usharp.Cli lint`（含 `references.md` 生成通道迁移）后退役 |
 | `[Matrix]` 判据读法（`DecisionGraph`）/ 治理读法（`ModuleAxisMatrix`） | 待 U2b：需 `kind=terms|modules` 空间词法与规则体语法 | 暂缓（无真实消费方） | 出现真实消费方且语法面通过闸A 设计评审 |
 
+### 9.5 观测接入（批 O0–O5）
+
+> `Strategy.Observability` 是**既有观测内核**：Usharp 接入 = 接既有契约/信封/作用域/持久化，不新造第二套观测机制（H2）。
+> **唯一引观测处** = `src\Usharp.Adapters.Observability`（核心 `Usharp.Syntax`/`Usharp.Semantics` 经 `IUsharpObservabilityBackend` 端口调用，零观测类型）。
+
+**装配三档（宿主决定）**
+
+| 模式 | 装配 | 能力 |
+|---|---|---|
+| **纯声明校验**（默认） | 不注入后端（`NullObservabilityBackend`） | `[Obs]` 闸A（`US6001`–`US6007`）+ 结构化诊断；零观测依赖；产出面可见化 `US9002` |
+| **契约产出** | 注入 `UsharpObservabilityBackend`（持 `IBoundaryContractRegistry`） | 增契约登记（`BoundaryContract`/`EventContract`）+ manifest 产出 |
+| **契约产出 + 落库** | 再注入 `IObservabilityBus` + `IEventStore`（宿主显式 `FlushAsync`） | 增事件落库（ur_events）——**编译期不写库**（H3） |
+
+**映射表（Usharp `[Obs]` → `Strategy.Observability`）**
+
+| Usharp 声明 | 内核对应 | 实现 |
+|---|---|---|
+| `[Obs] S: kind=scope` | 关联键作用域词汇表（`CorrelationBag.ScopeKey`） | `BoundaryContract.Data("scope:S", …)`；`parent=` 只作闸A 判据 |
+| `[Obs] E: kind=entity \| scope=S` | `EntityId.EntityType`（+ 归属作用域） | `BoundaryContract.Data("entity:E", …)`；`Seq` 由 `IEntitySequenceSource` 运行期分配 |
+| `[Obs] k: kind=event \| entity=… \| required=… \| metrics=… \| enum=…` | `EventContract{EventKind,EntityType,Required,MetricKeys,Enums}` | `BoundaryContract.Event(...)`；字段并集复用内核单源 `FieldSpec.UnionRequiredAndEnums` |
+| `[Flow] F step <key> emit=k1,k2` | `BoundaryContract.Port("F.<key>", emits:[k1,k2])` | `Emits` 字段已存在，不新增内核类型 |
+| `[Obs] kind=file \| version=v` | manifest 顶层 `version` | `UsharpObsManifestEmitter`（声明序、2 空格缩进、不排序） |
+
+**禁引清单**：适配工程禁引 `UniversalWorkflowFramework.WorkflowExecution`（第二套执行机制）与 `Share.Frameworks.Diagnostics`（含 UR 闭包）；核心禁引任何观测类型。
+
+**迁移看板（旧载体 → 新真源；每行一个退役条件）**
+
+| 旧载体 | 新真源 | 切换动作 | 退役条件 |
+|---|---|---|---|
+| `Agent.Contract\Observability\observability_semantics.json`（手写台账） | `agent-semantics.ushar`（`[Obs]` 书写面）→ `UsharpObsManifestEmitter` 产出 | Agent 侧嵌入资源改指生成物（或生成物入库替换同名文件） | 三处守卫（`SemanticsLedgerTests` / `StandardConsistencyGuardTests` / `StandardConsistencyTests`）全绿 + 生成物入库（**O5b**，需 Agent 构建顺序接线） |
+| `LogPipeline`（批次 init/flush/emergency/summary） | 宿主编排 + `Obs.FlushAsync` | 降级为宿主管道，flush 对齐调用方驱动 | 宿主 Flush 接线后 |
+| `DiagnosticScopeStore.CallChainId`（`AsyncLocal`） | `CorrelationBag` + `ObsScope`（`AmbientSlot`） | 经 `DiagnosticContextProxy` 兼容期并存 | 兼容期结束且 `grep` 断言无第二 ambient |
+| SQLite `Logs` 表 | `IEventStore`（JSONL / ur_events） | 降为可选 sink | sink 接线或直接退役 |
+
+> **恒真**：`[Obs]` 不进矩阵 / 流值域，不落引用图边（观测声明只产契约，不参与引用图与矩阵运算面）。
+
 ---
 
 ## 10. 边界与风险
@@ -336,11 +429,12 @@ dotnet run --project src\Usharp.Cli -- matrix samples\agent-loop.ushar
 | **不新增决策机制** | `IDecisionMatrix` / `DecisionPointSemantics` 仍是唯一裁决权威；Usharp 只做「声明面 + 编译 + 组合面」 |
 | **终态域不变** | `TerminationSignal`（`Success`/`Timeout`/`TripTerminated`/`Halt`）与推进域（步骤键）分属不同值域，不塞进同一空间 |
 | **语法风格锁定** | 行首前缀式（已选）；**不得**再引入第二种表层风格（否则解析器双实现 = 抽象再生） |
+| **观测不进运算面** | `[Obs]` 不进矩阵 / 流值域、不落引用图边；观测契约由适配工程登记，核心零观测类型（H1/H2，见 §9.5） |
 
 | 风险 | 对策（硬约束） |
 |---|---|
 | **双语言并存**（Usharp 与既有 4 类声明长期并行） | 迁移看板：每类旧声明有且仅有一个退役日；Usharp 不得只为新增而存在 |
-| **抽象再生**（先例：`Convert` 3→1、`Kind` 5→1 修后又长出新分散） | 四前缀之外不得新增语言单元（U-V4）；语言面常量只在 `UsharpLanguage` 一处 |
+| **抽象再生**（先例：`Convert` 3→1、`Kind` 5→1 修后又长出新分散） | **四前缀 + 观测单元（`[Obs]`，批 O1 引入）之外不得新增语言单元**（U-V4 修订）；观测单元新增须附真实消费方与闸A 判据；语言面常量只在 `UsharpLanguage` 一处 |
 | **语法先行、语义滞后** | 先有 U1 闸A（真实收益）再扩语法（拒绝无校验的新前缀） |
 | **闸A 被绕过** | 一切消费方必须经 `UsharpCompilation`（`HasErrors` 为闸）；禁止直接用 `DslParser` 后跳过 `UsharpValidator` |
 | **项目接入断裂** | 引用一律经 `$(UsharpCsharpPrjRoot)`；Usharp 不参与 CsharpPrj `modules.json`（避免双向耦合） |

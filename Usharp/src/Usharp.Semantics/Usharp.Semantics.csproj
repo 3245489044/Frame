@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Syntax\Usharp.Syntax.csproj" />
+    <!-- 通用 DSL 内核（闸A 执行器 GateEngine + 领域包契约）：格式无关、零外部依赖。 -->
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Modules\LogicComposition\Conversion\LogicComposition.Conversion.csproj" />
   </ItemGroup>
 
 </Project>

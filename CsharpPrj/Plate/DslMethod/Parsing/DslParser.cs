@@ -5,7 +5,7 @@ namespace Plate.DslMethod.Parsing;
 /// <summary>
 /// DSL 声明解析器。把 clinerules / 契约文件 / 提示词协议 DSL 逐行解析为 <see cref="DslDocument"/>。
 /// 规则（对齐 dsl.md §1 + 统一 DSL 解析器与双模型投影方案）：
-///  - 注册前缀 `[X]`（见 DslConstants.Prefixes）与特殊行 `%`/`@`/`# TH-`/`$`/`!`；
+///  - 注册前缀 `[X]`（由传入的前缀作用域 <see cref="DslPrefixSet"/> 决定；缺省为框架核心集）与特殊行 `%`/`@`/`# TH-`/`$`/`!`；
 ///  - 名称 = 前缀后至首个 `:`；值 = 首个 `|` 之前；`k=v` 分段为结构化字段；
 ///  - `[Gate]`/`[Bind]`/`[SM]` 后紧邻的缩进行并入 Continuation（字段/引用合并）；
 ///  - fenced 模板通道：[SM]/[Template] 头后 ``` 块 → Template + `| slots:` → Slots；
@@ -15,11 +15,12 @@ namespace Plate.DslMethod.Parsing;
 /// </summary>
 public static class DslParser
 {
-    /// <summary>注册前缀按长度降序缓存（最长优先：[AX] vs [AX-CORE]，一次性排序避免逐行重排）。</summary>
-    private static readonly DslPrefixDef[] OrderedPrefixes =
-        DslConstants.Prefixes.OrderByDescending(p => p.Prefix.Length).ToArray();
-
+    /// <summary>按框架核心前缀作用域解析（<see cref="DslPrefixRegistry.Core"/>，不含任何领域前缀）。</summary>
     public static DslDocument Parse(string text, string sourceFile, string lib)
+        => Parse(text, sourceFile, lib, DslPrefixRegistry.Core);
+
+    /// <summary>按指定前缀作用域解析（领域包传入自身 <see cref="DslPrefixSet"/>，各包前缀互不可见）。</summary>
+    public static DslDocument Parse(string text, string sourceFile, string lib, DslPrefixSet scope)
     {
         var doc = new DslDocument { FilePath = sourceFile, Lib = lib };
         if (string.IsNullOrEmpty(text)) return doc;
@@ -65,7 +66,7 @@ public static class DslParser
                 continue;
             }
 
-            var decl2 = TryParseDeclaration(trimmed, sourceFile, i + 1);
+            var decl2 = TryParseDeclaration(trimmed, sourceFile, i + 1, scope);
             if (decl2 != null)
             {
                 // ① fenced 模板通道：[SM]/[Template] 头后 ``` 块 → Template + 紧随 | slots: 行 → Slots
@@ -129,10 +130,10 @@ public static class DslParser
         return doc;
     }
 
-    private static DslDeclaration? TryParseDeclaration(string line, string file, int lineNo)
+    private static DslDeclaration? TryParseDeclaration(string line, string file, int lineNo, DslPrefixSet scope)
     {
-        // 注册前缀，最长优先（[AX] vs [AX-CORE]），顺序已缓存
-        foreach (var pd in OrderedPrefixes)
+        // 注册前缀，最长优先（[AX] vs [AX-CORE]），顺序由作用域内部预排
+        foreach (var pd in scope.OrderedPrefixes)
         {
             if (line.StartsWith(pd.Prefix, StringComparison.Ordinal))
             {

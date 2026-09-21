@@ -38,7 +38,10 @@ public static class UsharpRoundSpecEmitter
                     flow.SourceFile, flow.LineNumber));
                 continue;
             }
-            steps.Add(new RoundStep(node.FuncName, node.InputPorts, node.OutputPorts, NodeId: step.Key));
+            steps.Add(new RoundStep(node.FuncName, node.InputPorts, node.OutputPorts, NodeId: step.Key)
+            {
+                Emits = step.Emits,
+            });
         }
 
         var spec = new RoundSpec(flow.FlowId, steps)

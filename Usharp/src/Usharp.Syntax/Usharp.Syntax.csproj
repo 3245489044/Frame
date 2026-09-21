@@ -9,6 +9,7 @@
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="本层只做语法（文本→语法模型），不做校验（校验归 Usharp.Semantics）" />
     <ModuleRule_Rule Include="解析一律复用 Plate.DslMethod.Parsing.DslParser，禁止另写行解析器（抽象再生）" />
+    <ModuleRule_Rule Include="[Obs] 观测声明只做语法投影（UsharpObsDecl），不引任何观测类型（核心零观测依赖）" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -16,6 +17,9 @@
     <RootNamespace>Usharp.Syntax</RootNamespace>
     <AssemblyName>Usharp.Syntax</AssemblyName>
     <Description>Usharp 语言语法层 — 四前缀语法模型 + DslParser 复用</Description>
+    <!-- CA2255：本包用 [ModuleInitializer] 在程序集加载时把 Usharp 前缀作用域登记进 DslPrefixRegistry，
+         属刻意为之的「包自持注册」模式（保证 Registry 在任何解析前即可发现本包），故显式抑制。 -->
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

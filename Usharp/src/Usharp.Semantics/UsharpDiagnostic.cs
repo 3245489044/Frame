@@ -33,7 +33,8 @@ public sealed record UsharpDiagnostic(
 
 /// <summary>
 /// 诊断码（单一真源）。装载体：「SpaceDup/AxisDup」声明面；「SpaceUnknown/CoordUndeclared」= 闸A；
-/// 「FlowStepUndeclared」= 原 C1 缺陷（声明被静默截断）的语言级判据；「CrDangling」= 原有 linter 检查 1。
+/// 「FlowStepUndeclared」= 原 C1 缺陷（声明被静默截断）的语言级判据；「CrDangling」= 原有 linter 检查 1；
+/// 「US6001–US6007」= 观测声明（<c>[Obs]</c>）闸A；「US9002」= 观测后端未装配可见化。
 /// </summary>
 public static class UsharpCodes
 {
@@ -67,6 +68,15 @@ public static class UsharpCodes
     // 边（引用即边）报告面
     public const string EdgePeerUnknown = "US3001";
 
+    // 观测声明面（[Obs]：第五语言单元；编译产出 BoundaryContract/EventContract）
+    public const string ObsEntityScopeUndefined = "US6001";
+    public const string ObsEmitUndeclared = "US6002";
+    public const string ObsDeclDuplicate = "US6003";
+    public const string ObsEnumFieldNotRequired = "US6004";
+    public const string ObsEventUnconsumed = "US6005";
+    public const string ObsFileDuplicate = "US6006";
+    public const string ObsKindUnknown = "US6007";
+
     // 图能力（经 IUsharpGraphBackend 端口）
     public const string CircularReference = "US4001";
     public const string EdgeTypeUnmapped = "US4002";
@@ -75,4 +85,5 @@ public static class UsharpCodes
 
     // 能力未装配（Info，非错误）
     public const string GraphBackendUnavailable = "US9001";
+    public const string ObsBackendUnavailable = "US9002";
 }

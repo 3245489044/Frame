@@ -1,9 +1,10 @@
 namespace Usharp.Syntax;
 
 /// <summary>
-/// Usharp 语言面常量（单一真源）：四前缀已在 <c>Plate.DslMethod.DslConstants.Prefixes</c> 注册，
+/// Usharp 语言面常量（单一真源）：五前缀由本包自持（见 <see cref="UsharpPrefixes.Scope"/>，
+/// 已注册到 <c>Plate.DslMethod.Parsing.DslPrefixRegistry</c>，<b>不写入框架核心表</b>），
 /// 本类只登记「字段名 / 空间种类」等语言层词汇，避免在语法/语义两处各写一份字面量。
-/// 前缀注册表是唯一权威（新增前缀 = 在 DslConstants 增条目，文法不变）。
+/// 前缀注册表是唯一权威（新增前缀 = 在 <see cref="UsharpPrefixes.Scope"/> 增条目，文法不变）。
 /// </summary>
 public static class UsharpLanguage
 {
@@ -18,6 +19,31 @@ public static class UsharpLanguage
 
     /// <summary>引用声明前缀（带空间归属的引用）。</summary>
     public const string RefPrefix = "[Ref]";
+
+    /// <summary>观测声明前缀（第五语言单元：作用域 / 实体 / 事件；子类由 <c>kind=</c> 区分）。</summary>
+    public const string ObsPrefix = "[Obs]";
+
+    /// <summary>观测声明子类取值：<c>kind=file|scope|entity|event</c>。</summary>
+    public const string KindFile = "file";
+    public const string KindScope = "scope";
+    public const string KindEntity = "entity";
+    public const string KindEvent = "event";
+
+    /// <summary>[Obs] 字段名：父作用域 / 所属作用域 / 实体类型 / 必填字段 / 度量键 / 枚举域 / 版本。</summary>
+    public const string FieldParent = "parent";
+    public const string FieldScope = "scope";
+    public const string FieldEntity = "entity";
+    public const string FieldRequired = "required";
+    public const string FieldFields = "fields";
+    public const string FieldMetrics = "metrics";
+    public const string FieldEnum = "enum";
+    public const string FieldVersion = "version";
+
+    /// <summary>[Flow] 步骤行的发射绑定字段（<c>step &lt;key&gt; emit=k1,k2</c>）。</summary>
+    public const string FieldEmit = "emit";
+
+    /// <summary><c>enum=</c> 多字段分段符（<c>|</c> 与 <c>,</c> 已被字段/列表占用）。</summary>
+    public const char EnumFieldSeparator = ';';
 
     /// <summary>空间种类字段名（<c>kind=keys|values</c>）。</summary>
     public const string FieldKind = "kind";

@@ -265,7 +265,8 @@
         "genericArgs": { "type": "array", "items": { "type": "string" } },
         "args": { "type": "array", "items": { "$ref": "#/$defs/valueSource" } },
         "chain": { "type": "array", "items": { "$ref": "#/$defs/chain" } },
-        "init": { "type": "array", "items": { "$ref": "#/$defs/init" } }
+        "init": { "type": "array", "items": { "$ref": "#/$defs/init" } },
+        "expect": { "type": "string" }
       },
       "additionalProperties": false
     },

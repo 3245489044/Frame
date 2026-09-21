@@ -35,25 +35,42 @@ internal static class ScriptedConstruction
         var args = ScriptedInvokeRunner.Bind(
             scope.PortKey, $"{context}（{type.Name}）", declared, parameters, scope, input, deps);
 
-        var value = PortInvocation.Construct(type, args);
-
-        if (spec.Init is { Count: > 0 } init) ApplyInit(init, value, scope, input, deps, context);
-
-        if (spec.Chain is not { Count: > 0 } chain) return value;
-
-        foreach (var link in chain)
+        // 构造期期望异常（`new.expect`）：口径与 `invoke.expect` **同源**（PortInvocation.ExecuteAny）——
+        // 命中 ⇒ 结果 = 异常对象本身（构造未发生 ⇒ 不施加 init / chain）；未命中 / 未抛 ⇒ 结果为构造实例。
+        if (spec.Expect is { Length: > 0 } expected)
         {
-            if (value is null)
-                throw new PortBindingViolationException(
-                    scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的链式调用 '{link.Method}' 无可调用实例");
+            var captured = PortInvocation.ExecuteAny(
+                () => PortInvocation.Construct(type, args), ScriptedInvokeRunner.ExpectTypes(expected));
 
-            var call = new InvokeStandard(Method: link.Method, Args: link.Args);
-            var result = ScriptedInvokeRunner.RunOn(scope.PortKey, call, value, scope, input, deps).Result;
+            if (captured is Exception) return captured;
 
-            if (link.Rebind) value = result;
+            return Finish(captured);
         }
 
-        return value;
+        return Finish(PortInvocation.Construct(type, args));
+
+        // 构造后置处理（init 赋值 → chain 链式调用）单源：期望异常命中时不经此路（结果即异常对象）。
+        object? Finish(object? instance)
+        {
+            if (spec.Init is { Count: > 0 } init) ApplyInit(init, instance, scope, input, deps, context);
+
+            if (spec.Chain is not { Count: > 0 } chain) return instance;
+
+            var current = instance;
+            foreach (var link in chain)
+            {
+                if (current is null)
+                    throw new PortBindingViolationException(
+                        scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的链式调用 '{link.Method}' 无可调用实例");
+
+                var call = new InvokeStandard(Method: link.Method, Args: link.Args);
+                var result = ScriptedInvokeRunner.RunOn(scope.PortKey, call, current, scope, input, deps).Result;
+
+                if (link.Rebind) current = result;
+            }
+
+            return current;
+        }
     }
 
     /// <summary>

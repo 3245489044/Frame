@@ -26,6 +26,9 @@ public sealed record UsharpDiagnostic(
 
     public static UsharpDiagnostic Warn(string code, string message, string file, int line)
         => new(UsharpSeverity.Warning, code, message, file, line);
+
+    public static UsharpDiagnostic Info(string code, string message, string file, int line)
+        => new(UsharpSeverity.Info, code, message, file, line);
 }
 
 /// <summary>
@@ -59,7 +62,17 @@ public static class UsharpCodes
 
     // 跨库引用（复用 DslIndex）
     public const string CrDangling = "US2001";
+    public const string DeprecatedReferenced = "US2002";
 
     // 边（引用即边）报告面
     public const string EdgePeerUnknown = "US3001";
+
+    // 图能力（经 IUsharpGraphBackend 端口）
+    public const string CircularReference = "US4001";
+    public const string EdgeTypeUnmapped = "US4002";
+    public const string EdgeTypeUnknown = "US4003";
+    public const string FlowIntegrityViolation = "US4004";
+
+    // 能力未装配（Info，非错误）
+    public const string GraphBackendUnavailable = "US9001";
 }

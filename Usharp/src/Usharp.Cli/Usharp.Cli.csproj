@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp 命令行</ModuleRule_Title>
+    <ModuleRule_Description>Usharp CLI：build（编译取数）/ lint（悬空·废弃·循环·反向引用四检）/ graph（环检测·影响域·两点路径）/ matrix（矩阵装配取数）四命令；逻辑与 IO 分离（TextWriter 注入）便于测试。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;CLI;lint;graph;matrix;构建校验</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="命令逻辑只做编排：编译/校验/装配一律复用 UsharpCompilation / UsharpGraphService / UsharpMatrixEmitter，不另写第二份判据" />
+    <ModuleRule_Rule Include="本工程只引语言核心与矩阵层（零 UniversalReference）：环检测等图能力经 IUsharpGraphBackend 端口，未装配时显式可见化（US9001）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Usharp.Cli</RootNamespace>
+    <AssemblyName>Usharp.Cli</AssemblyName>
+    <Description>Usharp 命令行 — build / lint / graph / matrix</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="..\Usharp.Matrix\Usharp.Matrix.csproj" />
+  </ItemGroup>
+
+</Project>

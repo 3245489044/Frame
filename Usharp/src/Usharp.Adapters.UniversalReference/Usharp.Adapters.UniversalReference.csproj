@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp × UniversalReference 适配层</ModuleRule_Title>
+    <ModuleRule_Description>把 Usharp 引用图接到 UniversalReference（全库唯一引 UR 处）：图后端端口实现（环检测/可达/流完整性）、边类型映射（ur= → ReferenceType）、ReferenceSchema 产出、诊断投影、落库写入（宿主注入 IResourceReferenceStore）。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;UniversalReference;适配;端口实现;ReferenceSchema;诊断投影;落库</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="唯一引 UniversalWorkflowFramework 处：Usharp.Syntax/Usharp.Semantics 保持零 UR，UR 类型不得进入核心公共签名" />
+    <ModuleRule_Rule Include="禁引 UR 执行器（UniversalWorkflowFramework.WorkflowExecution 命名空间）：执行机制唯一 = [Flow] → RoundSpec / FoldEngine，禁止第二套执行器" />
+    <ModuleRule_Rule Include="编译期只产 ReferenceSchema / 边集快照，不写库；写库由宿主显式调用（IResourceReferenceStore 注入）" />
+    <ModuleRule_Rule Include="诊断权威单向：UsharpDiagnostic（结构化、含 文件:行）→ DiagnosticResult（字符串报表），禁反向解析" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Adapters.UniversalReference</RootNamespace>
+    <AssemblyName>Usharp.Adapters.UniversalReference</AssemblyName>
+    <Description>Usharp × UniversalReference 适配层 — 图后端 / 边类型映射 / Schema 产出 / 诊断投影 / 落库</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Share\Frameworks\UniversalReference\UniversalWorkflowFramework.csproj" />
+    <!-- [Node]/[Edge]/[Constraint] → ReferenceSchema 的既有实现（零依赖，复用不重建） -->
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Plate\DslMethod\DslMethod.csproj" />
+  </ItemGroup>
+
+</Project>

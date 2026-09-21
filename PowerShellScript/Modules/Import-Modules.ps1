@@ -22,6 +22,10 @@
 # 函数→模块映射表（IoC 核心）— 编译产物
 # 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
+# ============================================================
+# 函数→模块映射表（IoC 核心）— 编译产物
+# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # <!-- PROTO_AUTO:functionModuleMap:BEGIN -->
 # ============================================================
 $functionModuleMap = @{
@@ -438,18 +442,9 @@ $functionModuleMap = @{
     'Get-SlnProjectPathMap'            = 'Modules/StringTools/StringTools.StructuredText.psm1'
 
     # ===== Modules\Testing =====
-    'Add-TestCheck'                = 'Modules/Testing/PesterKit.psm1'
-    'Assert-ExitCode'              = 'Modules/Testing/PesterKit.psm1'
-    'Get-TestCheckSummary'         = 'Modules/Testing/PesterKit.psm1'
-    'Invoke-TestCase'              = 'Modules/Testing/PesterKit.psm1'
-    'New-TestFilePath'             = 'Modules/Testing/PesterKit.psm1'
-    'New-TestResultCollector'      = 'Modules/Testing/PesterKit.psm1'
-    'New-TestTempWorkspace'        = 'Modules/Testing/PesterKit.psm1'
-    'Remove-TestTempWorkspace'     = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestCheckSummary'       = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestHeader'             = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestResult'             = 'Modules/Testing/PesterKit.psm1'
-    'Write-TestSummary'            = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestHeader'      = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestResult'      = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestSummary'     = 'Modules/Testing/PesterKit.psm1'
 
     # ===== Modules\TestRunner =====
     'Find-RunSettings'     = 'Modules/TestRunner/DotnetTest.psm1'
@@ -467,6 +462,13 @@ $functionModuleMap = @{
     'Compare-KnownFailures'     = 'Modules/TestRunner/KnownFailures.psm1'
 
     # ===== Modules\ToolKit =====
+    'Get-BatchOutputLines'       = 'Modules/ToolKit/Batch.psm1'
+    'Get-BatchSummary'           = 'Modules/ToolKit/Batch.psm1'
+    'Invoke-ProcessBatch'        = 'Modules/ToolKit/Batch.psm1'
+    'Invoke-ProcessBatchJob'     = 'Modules/ToolKit/Batch.psm1'
+    'Write-BatchReport'          = 'Modules/ToolKit/Batch.psm1'
+
+    # ===== Modules\ToolKit =====
     'Add-ToolViolation'               = 'Modules/ToolKit/Diagnostics.psm1'
     'Format-ToolViolation'            = 'Modules/ToolKit/Diagnostics.psm1'
     'Get-ToolDiagnosticSummary'       = 'Modules/ToolKit/Diagnostics.psm1'
@@ -474,9 +476,11 @@ $functionModuleMap = @{
     'Write-ToolDiagnosticSummary'     = 'Modules/ToolKit/Diagnostics.psm1'
 
     # ===== Modules\ToolKit =====
-    'Enter-EnvScope'           = 'Modules/ToolKit/EnvScope.psm1'
-    'Exit-EnvScope'            = 'Modules/ToolKit/EnvScope.psm1'
-    'Test-EnvScopeResidue'     = 'Modules/ToolKit/EnvScope.psm1'
+    'Clear-EnvScopeVariable'     = 'Modules/ToolKit/EnvScope.psm1'
+    'Enter-EnvScope'             = 'Modules/ToolKit/EnvScope.psm1'
+    'Exit-EnvScope'              = 'Modules/ToolKit/EnvScope.psm1'
+    'Set-EnvScopeVariable'       = 'Modules/ToolKit/EnvScope.psm1'
+    'Test-EnvScopeResidue'       = 'Modules/ToolKit/EnvScope.psm1'
 
     # ===== Modules\ToolKit =====
     'Get-ToolDataValue'     = 'Modules/ToolKit/ToolData.psm1'

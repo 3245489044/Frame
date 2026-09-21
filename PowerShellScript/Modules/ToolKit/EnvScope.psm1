@@ -1,14 +1,17 @@
 <#
 .SYNOPSIS
-    进程级环境变量作用域（通用）：快照 → 写入 → 还原；未指定即**清除**的反泄漏语义。
+    进程级环境变量作用域（通用）：快照 → 可选写入/清除 → 退出还原。
 
 .DESCRIPTION
-    消 D-3 的 3 处手写（`Run-CSharpTests.ps1` 的 FD-11 收口 · `Tools\Update-SpecGolden.ps1` 的
-    `PORT_GOLDEN_UPDATE` finally 还原 · 同族工具），并保留 FD-11 实测踩坑的两条口径：
+    `Run-CSharpTests.ps1` 的 FD-11 收口的**单一实现**（原为该脚本内手写的 `$envEntered` / `$envRestore` +
+    `Exit-Script` 还原循环）。语义与 FD-11 实测口径逐条一致：
 
-      ① **还原只针对「本次显式写入」的变量**：原本未设 → 退出时删除（不复活）；
-      ② **「清除」不算写入**：`-Clear` 指定的变量在退出时**不回填**（回填会把上一次的残留复活 ——
-         实测 `SPEC_CASE_FILTER` 残留致守卫 84/9/1 → 81/12/1 假失败）。
+      ① **只快照、不写**：`Enter-EnvScope -Names` 仅记录进入时的值（写入时机由调用方决定 —— 实测
+         `MSBUILDDISABLENODEREUSE` 只在构建前才置 `1`）；
+      ② **写入即登记还原**：`Set-EnvScopeVariable` 写入并把该名登记为「退出时还原」（重复调用幂等）；
+         原本未设 → 退出时删除（不复活为残留）；
+      ③ **清除不算写入**：`Clear-EnvScopeVariable` 删除并**撤销**还原登记 —— 回填会把上一次的残留复活
+         （实测 `SPEC_CASE_FILTER` 残留致守卫 84/9/1 → 81/12/1 假失败）。
 
     依赖方向（硬约束）：CentralTest → Frame（单向）；本件零 CentralTest 引用。
 #>
@@ -18,47 +21,81 @@ Set-StrictMode -Version Latest
 function Enter-EnvScope {
     <#
     .SYNOPSIS
-        进入环境变量作用域：先按 `-Clear` 清除、再按 `-Set` 写入；返回还原凭据。
-    .PARAMETER Clear
-        进入时清除（置空 = 删除）的变量名。
-    .PARAMETER Set
-        进入时写入的 `名称 → 值`；**仅这些项在退出时还原**。
+        进入环境变量作用域：快照 `-Names` 的当前值（不写任何变量）。
+    .PARAMETER Names
+        本作用域**可能触碰**的变量名（写或不写由后续调用决定，故进入即全部快照）。
     .OUTPUTS
-        pscustomobject：`{ Restore = @{ 名称 = 进入前的值 } }`（原值 `$null` = 进入前未设）。
+        pscustomobject：`{ Snapshot = ordered@{ 名称 = 进入前的值 }; Restore = List[string] }`
     #>
     [CmdletBinding()]
     param(
-        [string[]]$Clear = @(),
-        [hashtable]$Set = @{}
+        [Parameter(Mandatory = $true)][string[]]$Names
     )
 
-    $restore = [ordered]@{}
-    foreach ($name in $Set.Keys) {
-        $restore[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    $snapshot = [ordered]@{}
+    foreach ($name in $Names) {
+        $snapshot[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
 
-    foreach ($name in $Clear) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
-    foreach ($name in $Set.Keys) { [Environment]::SetEnvironmentVariable($name, [string]$Set[$name], 'Process') }
+    return [pscustomobject]@{
+        Snapshot = $snapshot
+        Restore  = [System.Collections.Generic.List[string]]::new()
+    }
+}
 
-    return [pscustomobject]@{ Restore = $restore }
+function Set-EnvScopeVariable {
+    <#
+    .SYNOPSIS
+        在作用域内写入变量，并登记为「退出时还原」（幂等）；进入前未设 ⇒ 退出时删除。
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$Scope,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value
+    )
+
+    if (-not $Scope.Snapshot.Contains($Name)) {
+        throw "[EnvScope] 变量 '$Name' 未在 Enter-EnvScope -Names 中登记（无法还原，禁静默写入）"
+    }
+
+    [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
+    if (-not $Scope.Restore.Contains($Name)) { $Scope.Restore.Add($Name) }
+}
+
+function Clear-EnvScopeVariable {
+    <#
+    .SYNOPSIS
+        在作用域内清除变量（反泄漏语义：**退出时也不还原**）。
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$Scope,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if (-not $Scope.Snapshot.Contains($Name)) {
+        throw "[EnvScope] 变量 '$Name' 未在 Enter-EnvScope -Names 中登记（禁越界清除）"
+    }
+
+    [Environment]::SetEnvironmentVariable($Name, $null, 'Process')
+    [void]$Scope.Restore.Remove($Name)
 }
 
 function Exit-EnvScope {
     <#
     .SYNOPSIS
-        退出环境变量作用域：还原**本次显式写入**的变量（原值 `$null` → 删除）。
-    .DESCRIPTION
-        `-Clear` 项不在还原集内（反泄漏语义，见模块说明 ②）。
+        退出作用域：还原**本次写入过**的变量（快照为 `$null` → 删除）；清除项保持未设。
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$Scope
     )
 
-    if ($null -eq $Scope -or $null -eq $Scope.Restore) { return }
-    foreach ($name in $Scope.Restore.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $Scope.Restore[$name], 'Process')
+    foreach ($name in $Scope.Restore) {
+        [Environment]::SetEnvironmentVariable($name, $Scope.Snapshot[$name], 'Process')
     }
+    $Scope.Restore.Clear()
 }
 
 function Test-EnvScopeResidue {
@@ -81,4 +118,6 @@ function Test-EnvScopeResidue {
     return , @($residue)
 }
 
-Export-ModuleMember -Function @('Enter-EnvScope', 'Exit-EnvScope', 'Test-EnvScopeResidue')
+Export-ModuleMember -Function @(
+    'Enter-EnvScope', 'Set-EnvScopeVariable', 'Clear-EnvScopeVariable', 'Exit-EnvScope', 'Test-EnvScopeResidue'
+)

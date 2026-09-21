@@ -707,12 +707,12 @@ $moduleOrder = @(
     # git 只读查询面（diff / 干净度 / 历史版本文件）
     'Git\GitHelpers.psm1',
 
-    # Tools 公共模块
-    '..\Tools\modules\Write-Format.psm1',
-    '..\Tools\modules\Write-Diagnostic.psm1',
-    '..\Tools\modules\Test-Environment.psm1',
-    '..\Tools\modules\Confirm-Action.psm1',
-    '..\Tools\modules\Convert-Format.psm1'
+    # Tools 公共模块（相对基准 = Modules\ ⇒ 不带 `..\`；原 `..\` 写法已失效）
+    'Tools\modules\Write-Format.psm1',
+    'Tools\modules\Write-Diagnostic.psm1',
+    'Tools\modules\Test-Environment.psm1',
+    'Tools\modules\Confirm-Action.psm1',
+    'Tools\modules\Convert-Format.psm1'
 )
 
 # 支持调用方通过 $SkipModules 跳过特定模块

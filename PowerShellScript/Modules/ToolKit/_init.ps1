@@ -11,7 +11,8 @@
         ToolData.psm1    : Import-ToolData / Get-ToolDataValue / Get-ToolMessage
         Diagnostics.psm1 : New-ToolDiagnostic / Add-ToolViolation / Format-ToolViolation /
                            Get-ToolDiagnosticSummary / Write-ToolDiagnosticSummary
-        EnvScope.psm1    : Enter-EnvScope / Exit-EnvScope / Test-EnvScopeResidue
+        EnvScope.psm1    : Enter-EnvScope / Set-EnvScopeVariable / Clear-EnvScopeVariable / Exit-EnvScope /
+                           Test-EnvScopeResidue
 
     边界（显式登记）：`Report.psm1`（报告分节/kv 表渲染）与 `Batch.psm1`（子进程批量驱动 + 并发 + 逐 job 记账）
     须与消费方（`Tools\Convert-CSharpToSpec.ps1` 外壳重写）**同批**落地（M3），故本批不产出 —— 避免「只新增」

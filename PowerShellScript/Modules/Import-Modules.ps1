@@ -1,4 +1,4 @@
-﻿# Import-Modules.ps1 - IoC 模块加载器
+# Import-Modules.ps1 - IoC 模块加载器
 # 支持两种模式：
 #   模式 A（新）：按需加载 — 脚本头部声明 @requires，加载器按需提供
 #   模式 B（旧）：全量加载 — 无 @requires 时回退到原有的全量加载逻辑
@@ -14,6 +14,10 @@
 #
 # ★ 使用方式（全量加载，兼容旧脚本）：
 #   . (Join-Path $PSScriptRoot "..\Modules\Import-Modules.ps1")
+# ============================================================
+# 函数→模块映射表（IoC 核心）— 编译产物
+# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
 # 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
@@ -167,9 +171,6 @@ $functionModuleMap = @{
     'Test-McpServiceToolCall'       = 'BasicMethod/Tooling/ToolBridge.psm1'
     'Test-McpServiceToolsList'      = 'BasicMethod/Tooling/ToolBridge.psm1'
 
-    # ===== Md =====
-    'Invoke-MarkdownLintFix'     = 'Md/MarkdownLintFix.psm1'
-
     # ===== Modules =====
     'Check-OutputDirectoryIntegrity'          = 'Modules/BuildOutputCleaner.psm1'
     'Check-TargetFrameworkSubdirectories'     = 'Modules/BuildOutputCleaner.psm1'
@@ -312,6 +313,74 @@ $functionModuleMap = @{
     'Update-AllMcpServers'        = 'Modules/Docker/McpInstallation.psm1'
     'Update-McpServer'            = 'Modules/Docker/McpInstallation.psm1'
 
+    # ===== Modules\Git =====
+    'Get-GitDiff'                     = 'Modules/Git/GitHelpers.psm1'
+    'Get-GitRevisionFile'             = 'Modules/Git/GitHelpers.psm1'
+    'Resolve-GitRevisionWithPath'     = 'Modules/Git/GitHelpers.psm1'
+    'Test-GitClean'                   = 'Modules/Git/GitHelpers.psm1'
+
+    # ===== Modules\Manifest =====
+    'Get-ManifestUnit'     = 'Modules/Manifest/Manifest.psm1'
+    'Read-Manifest'        = 'Modules/Manifest/Manifest.psm1'
+    'Test-Ratchet'         = 'Modules/Manifest/Manifest.psm1'
+    'Write-Manifest'       = 'Modules/Manifest/Manifest.psm1'
+
+    # ===== Modules\Md =====
+    'Invoke-MarkdownLintFix'     = 'Modules/Md/MarkdownLintFix.psm1'
+
+    # ===== Modules\Path\Core =====
+    'Get-EnvironmentVariable'      = 'Modules/Path/Core/PathEnvManager.psm1'
+    'Get-PathEntryExists'          = 'Modules/Path/Core/PathEnvManager.psm1'
+    'Remove-PathEntry'             = 'Modules/Path/Core/PathEnvManager.psm1'
+    'Set-EnvironmentVariables'     = 'Modules/Path/Core/PathEnvManager.psm1'
+    'Set-PathEntries'              = 'Modules/Path/Core/PathEnvManager.psm1'
+
+    # ===== Modules\Path\Core =====
+    'Get-ScriptDirectory'     = 'Modules/Path/Core/ScriptContext.psm1'
+    'Resolve-SiblingPath'     = 'Modules/Path/Core/ScriptContext.psm1'
+
+    # ===== Modules\Path\Project =====
+    'Clear-FrameworkPaths'       = 'Modules/Path/Project/FrameworkPaths.psm1'
+    'Get-AllFrameworkPaths'      = 'Modules/Path/Project/FrameworkPaths.psm1'
+    'Get-FrameworkDataPath'      = 'Modules/Path/Project/FrameworkPaths.psm1'
+    'Get-FrameworkPath'          = 'Modules/Path/Project/FrameworkPaths.psm1'
+    'Register-FrameworkPath'     = 'Modules/Path/Project/FrameworkPaths.psm1'
+
+    # ===== Modules\PsRuntime\Capability =====
+    'Normalize-PsAction'         = 'Modules/PsRuntime/Capability/CapabilityResolver.psm1'
+    'Register-PsActionAlias'     = 'Modules/PsRuntime/Capability/CapabilityResolver.psm1'
+    'Resolve-PsCapability'       = 'Modules/PsRuntime/Capability/CapabilityResolver.psm1'
+
+    # ===== Modules\PsRuntime\Contract =====
+    'Get-PsContracts'      = 'Modules/PsRuntime/Contract/ContractParser.psm1'
+    'Get-PsScriptTags'     = 'Modules/PsRuntime/Contract/ContractParser.psm1'
+
+    # ===== Modules\PsRuntime\Contract =====
+    'Get-PsContractSchema'     = 'Modules/PsRuntime/Contract/ContractSchema.psm1'
+    'Test-PsContract'          = 'Modules/PsRuntime/Contract/ContractSchema.psm1'
+
+    # ===== Modules\PsRuntime\Contract =====
+    'Test-PsContractEnv'        = 'Modules/PsRuntime/Contract/ContractValidator.psm1'
+    'Test-PsContractParams'     = 'Modules/PsRuntime/Contract/ContractValidator.psm1'
+
+    # ===== Modules\PsRuntime\Extension =====
+    'Register-PsContract'     = 'Modules/PsRuntime/Extension/ContractRegistrar.psm1'
+
+    # ===== Modules\PsRuntime\Extension =====
+    'New-PsContractScript'     = 'Modules/PsRuntime/Extension/ContractScaffold.psm1'
+
+    # ===== Modules\PsRuntime\Extension =====
+    'Get-PsContractPromotion'     = 'Modules/PsRuntime/Extension/UsageTracker.psm1'
+    'Get-PsContractUsage'         = 'Modules/PsRuntime/Extension/UsageTracker.psm1'
+    'Update-PsContractUsage'      = 'Modules/PsRuntime/Extension/UsageTracker.psm1'
+
+    # ===== Modules\PsRuntime\Gate =====
+    'Test-PsCanHandle'     = 'Modules/PsRuntime/Gate/CanHandler.psm1'
+
+    # ===== Modules\PsRuntime\Runtime =====
+    'ConvertTo-PsResult'     = 'Modules/PsRuntime/Runtime/OutputSchema.psm1'
+    'New-PsResult'           = 'Modules/PsRuntime/Runtime/OutputSchema.psm1'
+
     # ===== Modules\StringTools =====
     'ConvertFrom-CrReference'           = 'Modules/StringTools/StringTools.Clinerules.psm1'
     'ConvertFrom-LegacyCrReference'     = 'Modules/StringTools/StringTools.Clinerules.psm1'
@@ -321,6 +390,7 @@ $functionModuleMap = @{
     # ===== Modules\StringTools =====
     'Convert-NameCase'                   = 'Modules/StringTools/StringTools.Core.psm1'
     'ConvertTo-CompoundKey'              = 'Modules/StringTools/StringTools.Core.psm1'
+    'Get-CompactText'                    = 'Modules/StringTools/StringTools.Core.psm1'
     'Get-FirstMatchingPrefix'            = 'Modules/StringTools/StringTools.Core.psm1'
     'Get-NameHead'                       = 'Modules/StringTools/StringTools.Core.psm1'
     'Invoke-BracketAwareReplace'         = 'Modules/StringTools/StringTools.Core.psm1'
@@ -333,6 +403,7 @@ $functionModuleMap = @{
     'Invoke-ReplacePlaceholder'          = 'Modules/StringTools/StringTools.Core.psm1'
     'Invoke-SimpleReplace'               = 'Modules/StringTools/StringTools.Core.psm1'
     'Invoke-TemplateReplace'             = 'Modules/StringTools/StringTools.Core.psm1'
+    'Test-NumericLiteral'                = 'Modules/StringTools/StringTools.Core.psm1'
     'Test-ValidIdentifier'               = 'Modules/StringTools/StringTools.Core.psm1'
 
     # ===== Modules\StringTools =====
@@ -345,6 +416,7 @@ $functionModuleMap = @{
     # ===== Modules\StringTools =====
     'Get-MsgIdCandidates'             = 'Modules/StringTools/StringTools.LogMessages.psm1'
     'Get-MsgIdDynamicMatches'         = 'Modules/StringTools/StringTools.LogMessages.psm1'
+    'Get-MsgIdKeyPrefixIndex'         = 'Modules/StringTools/StringTools.LogMessages.psm1'
     'Get-MsgIdLiteralCallMatches'     = 'Modules/StringTools/StringTools.LogMessages.psm1'
     'Get-MsgIdSourceIndex'            = 'Modules/StringTools/StringTools.LogMessages.psm1'
     'Remove-MsgBlock'                 = 'Modules/StringTools/StringTools.LogMessages.psm1'
@@ -365,23 +437,79 @@ $functionModuleMap = @{
     'Get-SlnProjectGuidMap'            = 'Modules/StringTools/StringTools.StructuredText.psm1'
     'Get-SlnProjectPathMap'            = 'Modules/StringTools/StringTools.StructuredText.psm1'
 
-    # ===== Path\Core =====
-    'Get-EnvironmentVariable'      = 'Path/Core/PathEnvManager.psm1'
-    'Get-PathEntryExists'          = 'Path/Core/PathEnvManager.psm1'
-    'Remove-PathEntry'             = 'Path/Core/PathEnvManager.psm1'
-    'Set-EnvironmentVariables'     = 'Path/Core/PathEnvManager.psm1'
-    'Set-PathEntries'              = 'Path/Core/PathEnvManager.psm1'
+    # ===== Modules\Testing =====
+    'Add-TestCheck'                = 'Modules/Testing/PesterKit.psm1'
+    'Assert-ExitCode'              = 'Modules/Testing/PesterKit.psm1'
+    'Get-TestCheckSummary'         = 'Modules/Testing/PesterKit.psm1'
+    'Invoke-TestCase'              = 'Modules/Testing/PesterKit.psm1'
+    'New-TestFilePath'             = 'Modules/Testing/PesterKit.psm1'
+    'New-TestResultCollector'      = 'Modules/Testing/PesterKit.psm1'
+    'New-TestTempWorkspace'        = 'Modules/Testing/PesterKit.psm1'
+    'Remove-TestTempWorkspace'     = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestCheckSummary'       = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestHeader'             = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestResult'             = 'Modules/Testing/PesterKit.psm1'
+    'Write-TestSummary'            = 'Modules/Testing/PesterKit.psm1'
 
-    # ===== Path\Core =====
-    'Get-ScriptDirectory'     = 'Path/Core/ScriptContext.psm1'
-    'Resolve-SiblingPath'     = 'Path/Core/ScriptContext.psm1'
+    # ===== Modules\TestRunner =====
+    'Find-RunSettings'     = 'Modules/TestRunner/DotnetTest.psm1'
+    'Invoke-TestUnit'      = 'Modules/TestRunner/DotnetTest.psm1'
 
-    # ===== Path\Project =====
-    'Clear-FrameworkPaths'       = 'Path/Project/FrameworkPaths.psm1'
-    'Get-AllFrameworkPaths'      = 'Path/Project/FrameworkPaths.psm1'
-    'Get-FrameworkDataPath'      = 'Path/Project/FrameworkPaths.psm1'
-    'Get-FrameworkPath'          = 'Path/Project/FrameworkPaths.psm1'
-    'Register-FrameworkPath'     = 'Path/Project/FrameworkPaths.psm1'
+    # ===== Modules\TestRunner =====
+    'Get-FailedTestNames'      = 'Modules/TestRunner/DotnetTestRunner.psm1'
+    'Get-TestResultCounts'     = 'Modules/TestRunner/DotnetTestRunner.psm1'
+    'New-DotnetTestArgs'       = 'Modules/TestRunner/DotnetTestRunner.psm1'
+    'Write-TestRunSummary'     = 'Modules/TestRunner/DotnetTestRunner.psm1'
+    'Write-TestUnitPlan'       = 'Modules/TestRunner/DotnetTestRunner.psm1'
+    'Write-TestUnitResult'     = 'Modules/TestRunner/DotnetTestRunner.psm1'
+
+    # ===== Modules\TestRunner =====
+    'Compare-KnownFailures'     = 'Modules/TestRunner/KnownFailures.psm1'
+
+    # ===== Modules\ToolKit =====
+    'Add-ToolViolation'               = 'Modules/ToolKit/Diagnostics.psm1'
+    'Format-ToolViolation'            = 'Modules/ToolKit/Diagnostics.psm1'
+    'Get-ToolDiagnosticSummary'       = 'Modules/ToolKit/Diagnostics.psm1'
+    'New-ToolDiagnostic'              = 'Modules/ToolKit/Diagnostics.psm1'
+    'Write-ToolDiagnosticSummary'     = 'Modules/ToolKit/Diagnostics.psm1'
+
+    # ===== Modules\ToolKit =====
+    'Enter-EnvScope'           = 'Modules/ToolKit/EnvScope.psm1'
+    'Exit-EnvScope'            = 'Modules/ToolKit/EnvScope.psm1'
+    'Test-EnvScopeResidue'     = 'Modules/ToolKit/EnvScope.psm1'
+
+    # ===== Modules\ToolKit =====
+    'Get-ToolDataValue'     = 'Modules/ToolKit/ToolData.psm1'
+    'Get-ToolMessage'       = 'Modules/ToolKit/ToolData.psm1'
+    'Import-ToolData'       = 'Modules/ToolKit/ToolData.psm1'
+
+    # ===== Modules\Tools\modules =====
+    'Confirm-Prompt'      = 'Modules/Tools/modules/Confirm-Action.psm1'
+    'Pause-Message'       = 'Modules/Tools/modules/Confirm-Action.psm1'
+    'Read-MenuChoice'     = 'Modules/Tools/modules/Confirm-Action.psm1'
+
+    # ===== Modules\Tools\modules =====
+    'ConvertTo-Hashtable'          = 'Modules/Tools/modules/Convert-Format.psm1'
+    'ConvertTo-PSCustomObject'     = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Format-Size'                  = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Get-DirSize'                  = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Get-HumanSize'                = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Get-RelativePath'             = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Resolve-EnvPath'              = 'Modules/Tools/modules/Convert-Format.psm1'
+    'Resolve-PathTemplate'         = 'Modules/Tools/modules/Convert-Format.psm1'
+
+    # ===== Modules\Tools\modules =====
+    'Find-VscodeCmd'            = 'Modules/Tools/modules/Test-Environment.psm1'
+    'Test-DockerRunning'        = 'Modules/Tools/modules/Test-Environment.psm1'
+    'Test-WslCommand'           = 'Modules/Tools/modules/Test-Environment.psm1'
+    'Test-WslDockerDesktop'     = 'Modules/Tools/modules/Test-Environment.psm1'
+
+    # ===== Modules\Tools\modules =====
+    'Get-DiagnosticResultsText'     = 'Modules/Tools/modules/Write-Diagnostic.psm1'
+    'Initialize-Diagnostic'         = 'Modules/Tools/modules/Write-Diagnostic.psm1'
+
+    # ===== Modules\Tools\modules =====
+    'Write-Color'     = 'Modules/Tools/modules/Write-Format.psm1'
 
     # ===== PScriptManager\Core =====
     'Add-CategoryIfNotExists'      = 'PScriptManager/Core/ConfigGenerator.psm1'
@@ -401,72 +529,25 @@ $functionModuleMap = @{
     'Resolve-ScriptPath'        = 'PScriptManager/Core/ScriptScanner.psm1'
     'Show-ScriptScanResult'     = 'PScriptManager/Core/ScriptScanner.psm1'
 
+    # ===== PScriptManager\Framework =====
+    'Get-FrameworkOwners'          = 'PScriptManager/Framework/FrameworkInvoke.psm1'
+    'Get-FrameworkRepoRoot'        = 'PScriptManager/Framework/FrameworkInvoke.psm1'
+    'Import-FrameworkRequires'     = 'PScriptManager/Framework/FrameworkInvoke.psm1'
+    'Invoke-FrameworkFunction'     = 'PScriptManager/Framework/FrameworkInvoke.psm1'
+
     # ===== PScriptManager =====
     'Get-PScriptManagerInfo'        = 'PScriptManager/PScriptManager.psm1'
     'Get-PScriptManagerVersion'     = 'PScriptManager/PScriptManager.psm1'
 
-    # ===== PsRuntime\Capability =====
-    'Normalize-PsAction'         = 'PsRuntime/Capability/CapabilityResolver.psm1'
-    'Register-PsActionAlias'     = 'PsRuntime/Capability/CapabilityResolver.psm1'
-    'Resolve-PsCapability'       = 'PsRuntime/Capability/CapabilityResolver.psm1'
-
-    # ===== PsRuntime\Contract =====
-    'Get-PsContracts'      = 'PsRuntime/Contract/ContractParser.psm1'
-    'Get-PsScriptTags'     = 'PsRuntime/Contract/ContractParser.psm1'
-
-    # ===== PsRuntime\Contract =====
-    'Get-PsContractSchema'     = 'PsRuntime/Contract/ContractSchema.psm1'
-    'Test-PsContract'          = 'PsRuntime/Contract/ContractSchema.psm1'
-
-    # ===== PsRuntime\Contract =====
-    'Test-PsContractEnv'        = 'PsRuntime/Contract/ContractValidator.psm1'
-    'Test-PsContractParams'     = 'PsRuntime/Contract/ContractValidator.psm1'
-
-    # ===== PsRuntime\Extension =====
-    'Register-PsContract'     = 'PsRuntime/Extension/ContractRegistrar.psm1'
-
-    # ===== PsRuntime\Extension =====
-    'New-PsContractScript'     = 'PsRuntime/Extension/ContractScaffold.psm1'
-
-    # ===== PsRuntime\Extension =====
-    'Get-PsContractPromotion'     = 'PsRuntime/Extension/UsageTracker.psm1'
-    'Get-PsContractUsage'         = 'PsRuntime/Extension/UsageTracker.psm1'
-    'Update-PsContractUsage'      = 'PsRuntime/Extension/UsageTracker.psm1'
-
-    # ===== PsRuntime\Gate =====
-    'Test-PsCanHandle'     = 'PsRuntime/Gate/CanHandler.psm1'
-
-    # ===== PsRuntime\Runtime =====
-    'ConvertTo-PsResult'     = 'PsRuntime/Runtime/OutputSchema.psm1'
-    'New-PsResult'           = 'PsRuntime/Runtime/OutputSchema.psm1'
-
-    # ===== Tools\modules =====
-    'Confirm-Prompt'      = 'Tools/modules/Confirm-Action.psm1'
-    'Pause-Message'       = 'Tools/modules/Confirm-Action.psm1'
-    'Read-MenuChoice'     = 'Tools/modules/Confirm-Action.psm1'
-
-    # ===== Tools\modules =====
-    'ConvertTo-Hashtable'          = 'Tools/modules/Convert-Format.psm1'
-    'ConvertTo-PSCustomObject'     = 'Tools/modules/Convert-Format.psm1'
-    'Format-Size'                  = 'Tools/modules/Convert-Format.psm1'
-    'Get-DirSize'                  = 'Tools/modules/Convert-Format.psm1'
-    'Get-HumanSize'                = 'Tools/modules/Convert-Format.psm1'
-    'Get-RelativePath'             = 'Tools/modules/Convert-Format.psm1'
-    'Resolve-EnvPath'              = 'Tools/modules/Convert-Format.psm1'
-    'Resolve-PathTemplate'         = 'Tools/modules/Convert-Format.psm1'
-
-    # ===== Tools\modules =====
-    'Find-VscodeCmd'            = 'Tools/modules/Test-Environment.psm1'
-    'Test-DockerRunning'        = 'Tools/modules/Test-Environment.psm1'
-    'Test-WslCommand'           = 'Tools/modules/Test-Environment.psm1'
-    'Test-WslDockerDesktop'     = 'Tools/modules/Test-Environment.psm1'
-
-    # ===== Tools\modules =====
-    'Get-DiagnosticResultsText'     = 'Tools/modules/Write-Diagnostic.psm1'
-    'Initialize-Diagnostic'         = 'Tools/modules/Write-Diagnostic.psm1'
-
-    # ===== Tools\modules =====
-    'Write-Color'     = 'Tools/modules/Write-Format.psm1'
+    # ===== Share\Solution =====
+    'Get-CsharpPrjRoot'                = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-EnumeratedProjects'           = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-ModuleGeneratedPropsPath'     = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-ModuleManifestPath'           = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-ModulePathMap'                = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-SafeModuleName'               = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-WorkflowFrameRoot'            = 'Share/Solution/ModulePaths.Common.psm1'
+    'Read-ModuleManifest'              = 'Share/Solution/ModulePaths.Common.psm1'
 }
 # <!-- PROTO_AUTO:functionModuleMap:END -->
 # ============================================================
@@ -606,6 +687,25 @@ $moduleOrder = @(
     # FileDriven 测试工具
     'FileDriven\FileDrivenTestUtils.ps1',
     'FileDriven\ScriptRunner.ps1',
+
+    # TestRunner 运行器框架（dotnet test 执行面；依赖顺序：DotnetTestRunner -> DotnetTest）
+    'TestRunner\DotnetTestRunner.psm1',
+    'TestRunner\DotnetTest.psm1',
+    'TestRunner\KnownFailures.psm1',
+
+    # ToolKit CLI 工具外壳（数据真源 / 诊断 / 环境作用域）
+    'ToolKit\ToolData.psm1',
+    'ToolKit\Diagnostics.psm1',
+    'ToolKit\EnvScope.psm1',
+
+    # 清单/台账与棘轮（Test-Ratchet）
+    'Manifest\Manifest.psm1',
+
+    # Pester/探针测试脚手架
+    'Testing\PesterKit.psm1',
+
+    # git 只读查询面（diff / 干净度 / 历史版本文件）
+    'Git\GitHelpers.psm1',
 
     # Tools 公共模块
     '..\Tools\modules\Write-Format.psm1',

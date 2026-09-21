@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp 语法层</ModuleRule_Title>
+    <ModuleRule_Description>Usharp 语言表层：复用 Plate.DslMethod 的 DslParser/DslIndex，把 [Space]/[Matrix]/[Flow]/[Ref] 四前缀解析为语法模型（SpaceDecl/MatrixDecl/FlowDecl/RefDecl）。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;DSL;语法;空间;矩阵;流;引用</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="本层只做语法（文本→语法模型），不做校验（校验归 Usharp.Semantics）" />
+    <ModuleRule_Rule Include="解析一律复用 Plate.DslMethod.Parsing.DslParser，禁止另写行解析器（抽象再生）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Syntax</RootNamespace>
+    <AssemblyName>Usharp.Syntax</AssemblyName>
+    <Description>Usharp 语言语法层 — 四前缀语法模型 + DslParser 复用</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Plate\DslMethod\DslMethod.csproj" />
+  </ItemGroup>
+
+</Project>

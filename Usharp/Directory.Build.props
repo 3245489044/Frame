@@ -1,0 +1,44 @@
+<Project>
+
+  <!-- Usharp 语言框架（Frame\Usharp）编译约定：本文件只作用于本子树（MSBuild 自项目目录上溯取最近者），
+       不导入 CsharpPrj 的 Directory.Build.props（其 modules.json 路径属性与 LayerBoundary 只服务于 CsharpPrj 内部）。
+       引用 CsharpPrj 项目一律走相对路径 ProjectReference（$(UsharpCsharpPrjRoot)）。 -->
+  <PropertyGroup Label="CompileBasics">
+    <!-- 预置默认 Configuration（仅空时设 Debug）：本文件用 $(Configuration) 求值 OutputPath，
+         而 SDK 的 Debug 默认注入晚于本 props 求值 —— 不预置会让「直接 build csproj」落 BuildOutput\、
+         「经 sln build」落 BuildOutput\$(Configuration)\，产物目录分裂且 DEBUG 常量两态不一致。 -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <WarningsAsErrors />
+    <NoWarn>1701;1702;1591;CS8618;CS8603;CS8600;CS8602;CS8604;CS8625;CS8632</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="UsharpPaths">
+    <UsharpFrameRoot>$(MSBuildThisFileDirectory)</UsharpFrameRoot>
+    <UsharpCsharpPrjRoot>$(MSBuildThisFileDirectory)..\CsharpPrj\</UsharpCsharpPrjRoot>
+    <UsharpBuildOutputDir>$(MSBuildThisFileDirectory)BuildOutput\$(Configuration)\</UsharpBuildOutputDir>
+    <OutputPath>$(UsharpBuildOutputDir)</OutputPath>
+    <IntermediateOutputPath>$(MSBuildThisFileDirectory)BuildOutput\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+</Project>

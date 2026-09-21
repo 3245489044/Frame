@@ -10,6 +10,8 @@ public enum DslSymbolKind
     Param, Theorem, AntiPattern, Symbol, AxiomBlock,
     Node, Edge, Constraint,
     Template, Schema,
+    // Ushar 语言层（Frame\Ushar）：空间 / 矩阵 / 流 / 引用（见 Ushar README「语言规范」）
+    Space, Matrix, Flow, Ref,
     Unknown,
 }
 
@@ -56,6 +58,11 @@ public static class DslConstants
         new("[Template]",   DslSymbolKind.Template,   "Template"),
         // 结构化 Schema 声明（format.system.md 等；字段/必填/枚举），对齐 clinerules dsl.md §4.5
         new("[Schema]",     DslSymbolKind.Schema,     "Schema"),
+        // Ushar 语言层四前缀（Frame\Ushar）：Space=坐标空间 / Matrix=空间上的一次变换 / Flow=链与工作流 / Ref=带空间归属的引用
+        new("[Space]",      DslSymbolKind.Space,      "Space"),
+        new("[Matrix]",     DslSymbolKind.Matrix,     "Matrix"),
+        new("[Flow]",       DslSymbolKind.Flow,       "Flow"),
+        new("[Ref]",        DslSymbolKind.Ref,        "Ref"),
     };
 
     /// <summary>按前缀查注册条目（未注册返回 null）。</summary>

@@ -1,0 +1,53 @@
+# Usharp 样例 —— Agent 主循环（对齐 Config/workflows/agent-loop.json 主路径线性链）
+# 口径：一个 [Space] 声明即闸A 的校验域；[Flow] 以 [Space] 的键为节点；`~` 即工作流连接链。
+# 节点可执行体经 [Node] 的 fn=/inports=/outports= 声明（发射层据此产出 RoundSpec 的 FuncName/入参键/结果键）。
+
+[Space] Step: kind=keys
+  start
+  guard_input
+  provide_prompt
+  cline_execute
+  task_orchestrate
+  rule_match
+
+[Space] SessionStep: kind=keys
+  cline_execute
+  answer
+
+[Space] Param: kind=values
+  progress:ordinal(0..3)
+  budget:ordinal(0..3)
+  halt:flag
+  intent:flag
+  produced:flag
+
+[Space] Decision: kind=keys
+  eval
+  terminal
+  route
+
+[Matrix] ProgressMatrix: over=Param
+  progress = progress + 1
+  budget = budget + 1
+  halt = halt
+
+[Node] guard_input: fn=guard_input | inports=input | outports=filtered_input
+[Node] provide_prompt: fn=provide_prompt | inports=user_input,goal,constraints,plan_summary,exec_result,next_prompt_hint,task_id | outports=prompt,system,replanned,l1,l2,boundary_action
+[Node] cline_execute: fn=cline_execute | inports=system,l1,l2,session_id,executor,provider,model,base_url,client_type,context_scope,context_key,context_role | outports=exec_result
+[Node] task_orchestrate: fn=task_orchestrate
+[Node] rule_match: fn=rule_match | inports=exec_result,step_count,return_spec | outports=decision,next_prompt_hint,reason,rule,step_count
+[Node] answer: fn=answer
+
+[Ref] TaskOrchestrateLink: Step:task_orchestrate | src=AgentLoop | tgt=task_orchestrate | intent=consume | edge=RefersTo
+
+[Flow] AgentLoop: over=Step | success=decision
+  step guard_input
+  step provide_prompt
+  step cline_execute ~ SessionCline
+  step rule_match
+
+[Flow] SessionCline: over=SessionStep
+  step cline_execute ~ SessionSingle
+
+[Flow] SessionSingle: over=SessionStep
+  step answer

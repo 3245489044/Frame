@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp 语义层</ModuleRule_Title>
+    <ModuleRule_Description>Usharp 语义层：空间注册（SpaceRegistry）+ 装载期闸A（每个坐标引用必须已在某已声明空间内可解析）+ 编译诊断（文件:行 归因）。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;语义;空间;闸A;校验;诊断</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="闸A = 装载期校验：未声明坐标一律报错，禁止运行期静默计 0（对齐 ParameterMatrix 闸A 语义）" />
+    <ModuleRule_Rule Include="本层只校验不执行：矩阵/流的运行语义由既有框架承担（ParameterMatrix / ChainSignalResolver / FoldEngine / ReferenceGraphEngine）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Semantics</RootNamespace>
+    <AssemblyName>Usharp.Semantics</AssemblyName>
+    <Description>Usharp 语义层 — 空间注册、装载期闸A、诊断</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Syntax\Usharp.Syntax.csproj" />
+  </ItemGroup>
+
+</Project>

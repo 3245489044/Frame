@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp 工作流发射层</ModuleRule_Title>
+    <ModuleRule_Description>Usharp 发射层：[Flow] 声明 → 既有骨架契约 RoundSpec（步骤 + 端口键）+ 链转移表（ChainSignalResolver 的构造输入），把 on_success 之外的静默截断变为编译期判据。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;发射;RoundSpec;转移表;工作流;dogfood</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="骨架契约唯一权威 = Operation.HierarchyMethod.Nodes.Workflows.RoundSpec（不另立第二份骨架类型）" />
+    <ModuleRule_Rule Include="节点可执行体经 [Node] 声明的 fn/inports/outports 解析（复用 Plate.DslMethod.Schema.ResourceNodeType.ParsePorts），不另写字段解析" />
+    <ModuleRule_Rule Include="已知偏差：本层引 HierarchyMethod ⇒ 构建闭包含 UniversalReference（H2 的重量隔离不适用于发射层，仅核心 Usharp.Syntax/Semantics 保持零 UR）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Emit</RootNamespace>
+    <AssemblyName>Usharp.Emit</AssemblyName>
+    <Description>Usharp 发射层 — [Flow] → RoundSpec + 链转移表</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\HierarchyMethod\HierarchyMethod.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp 矩阵实例化层</ModuleRule_Title>
+    <ModuleRule_Description>Usharp 矩阵实例化层：把 [Space]（值型）/ [Matrix] 声明装配为既有矩阵实例（Strategy.DecisionRules.ParameterMatrix / ChainSignalResolver 的转移表），只做实例化不新增矩阵语义。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;矩阵;ParameterMatrix;转移表;闸A;实例化</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="矩阵只有一种：空间到自身的一步映射 —— 本层不定义新矩阵语义，只把声明装配为既有实例（ParameterMatrix / 转移表）" />
+    <ModuleRule_Rule Include="闸A 唯一权威 = ParameterMatrix.Row 与 UsharpValidator；本层预检/归因不构成第二份判据" />
+    <ModuleRule_Rule Include="不引第三方：只引 Usharp.Semantics 与 Strategy.DecisionRules（后者闭包 = Map\DecisionEngine + Declarative + JsonMethod）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Matrix</RootNamespace>
+    <AssemblyName>Usharp.Matrix</AssemblyName>
+    <Description>Usharp 矩阵实例化层 — [Matrix] 声明 → ParameterMatrix / 转移表</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Strategy\DecisionRules\DecisionRules.csproj" />
+  </ItemGroup>
+
+</Project>

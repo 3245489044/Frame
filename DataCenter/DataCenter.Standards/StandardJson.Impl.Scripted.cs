@@ -288,7 +288,8 @@ public static partial class StandardJson
             StrList(body, "genericArgs"),
             ReadArgs(portKey, body, $"构造 '{type}'"),
             ReadChain(portKey, body),
-            ReadInit(portKey, body));
+            ReadInit(portKey, body),
+            Str(body, "expect"));
     }
 
     /// <summary>对象初始化器读取（W13：<c>init:[{ member, value }]</c>；声明序 = 赋值序；缺 value 即抛）。</summary>

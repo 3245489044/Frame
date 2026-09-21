@@ -16,9 +16,13 @@ public static partial class PortImplVocabulary
         "genericArgs", "on", "nonPublic",
     ];
 
-    /// <summary>构造步骤键（<see cref="NewStandard"/>）。</summary>
+    /// <summary>
+    /// 构造步骤键（<see cref="NewStandard"/>）。
+    /// <para><c>expect</c> = 构造期期望异常类型集（<c>|</c> 分隔全名）：命中 ⇒ 结果为该异常对象（供
+    /// <c>typeName</c>/<c>message</c> 投影），构造未抛或类型不符 ⇒ 结果为构造实例 / 原样上抛（口径同 <c>invoke.expect</c>）。</para>
+    /// </summary>
     public static readonly IReadOnlyList<string> NewKeys =
-        ["as", "type", "genericArgs", "args", "chain", "init"];
+        ["as", "type", "genericArgs", "args", "chain", "init", "expect"];
 
     /// <summary>初始化项键（<see cref="InitStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> InitKeys = ["member", "value"];

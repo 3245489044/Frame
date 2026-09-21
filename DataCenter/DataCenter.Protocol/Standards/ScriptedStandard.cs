@@ -74,13 +74,16 @@ public sealed record ForeachStandard(
 /// <param name="Args">构造实参声明。</param>
 /// <param name="Chain">链式后置调用（构造后按序调用实例方法）。</param>
 /// <param name="Init">构造后属性 / 字段初始化（声明序 = 赋值序）。</param>
+/// <param name="Expect">构造期期望异常类型全名（<c>|</c> 分隔多类型；解析单源 = <c>ScriptedInvokeRunner.ExpectTypes</c>）：命中 ⇒ 结果为该异常对象（<see cref="Chain"/> / <see cref="Init"/> 不再施加），
+/// 未命中 / 未抛 ⇒ 结果为构造实例（口径与 <see cref="InvokeStandard.Expect"/> 同源，单源实现 = <c>PortInvocation.ExecuteAny</c>）。</param>
 public sealed record NewStandard(
     string As,
     string Type,
     IReadOnlyList<string>? GenericArgs = null,
     IReadOnlyList<ValueSourceStandard>? Args = null,
     IReadOnlyList<ChainStandard>? Chain = null,
-    IReadOnlyList<InitStandard>? Init = null);
+    IReadOnlyList<InitStandard>? Init = null,
+    string? Expect = null);
 
 /// <summary>
 /// 属性 / 字段初始化项（标准框架通用化重构 §2.2 第 11 项；对应内核 <c>ScriptedInitSpec</c>）：

@@ -13,6 +13,8 @@ namespace Modules.Maintain.Plan
         Remap,
         Snapshot,
         Revert,
+        /// <summary>抽取共享片段（数据项改写为引用形态）。</summary>
+        Extract,
     }
 
     /// <summary>单条变更记录（统一审计载体）。</summary>
@@ -54,5 +56,6 @@ namespace Modules.Maintain.Plan
         public int Merged => Count(MaintainOperationKind.Merge);
         public int Pruned => Count(MaintainOperationKind.Prune);
         public int Upserted => Count(MaintainOperationKind.Upsert);
+        public int Extracted => Count(MaintainOperationKind.Extract);
     }
 }

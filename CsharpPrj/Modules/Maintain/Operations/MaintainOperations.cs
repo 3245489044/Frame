@@ -8,10 +8,14 @@ using Share.LogicComposition.Models;
 
 namespace Modules.Maintain.Operations
 {
+    /// <summary>片段抽取结果：被改写的数据项数 + 合成出的片段内容（无可提取段时为 null）。</summary>
+    public sealed record ExtractFragmentResult(int Rewritten, string? FragmentContent);
+
     /// <summary>
     /// 维护/迁移/状态操作集。各操作独立、幂等、可组合；
     /// 仅依赖端口（<see cref="IDataWorkspace{TData}"/> / <see cref="IIdentityResolver{TData}"/> /
-    /// <see cref="IReferenceMap{TData}"/> / <see cref="IMaintainStateStore{TData}"/>），不绑定具体数据类型。
+    /// <see cref="IReferenceMap{TData}"/> / <see cref="IMaintainStateStore{TData}"/> /
+    /// <see cref="IFragmentStrategy{TData}"/>），不绑定具体数据类型。
     /// </summary>
     public static class MaintainOperations<TData>
     {
@@ -139,6 +143,48 @@ namespace Modules.Maintain.Operations
             var refs = 0;
             if (refMap != null) refs = ReferenceRemapper<TData>.Rewrite(workspace, refMap, map);
             return (renamed, conflicting, refs);
+        }
+
+        /// <summary>
+        /// ExtractFragment：把各数据项中「一致声明」的段抽取为共享片段，并把数据项改写为引用形态。
+        /// <para>
+        /// 编排：读段（来源项 + 既有片段项）→ <see cref="FragmentComposer"/> 合成共享段 →
+        /// <see cref="IFragmentStrategy{TData}.ComposeFragment"/> 生成片段内容 → 写回片段项 →
+        /// 逐项 <see cref="IFragmentStrategy{TData}.RewriteAsReference"/> 改写。
+        /// </para>
+        /// 幂等：已引用形态的来源项读不出共享段，结果恒等于既有片段，重复执行为空操作。
+        /// </summary>
+        public static ExtractFragmentResult ExtractFragment(
+            IDataWorkspace<TData> workspace,
+            IFragmentStrategy<TData> strategy)
+        {
+            if (workspace == null) throw new ArgumentNullException(nameof(workspace));
+            if (strategy == null) throw new ArgumentNullException(nameof(strategy));
+
+            var items = new List<TData>();
+            var sources = new List<IReadOnlyList<FragmentSegment>>();
+            foreach (var item in workspace.Data)
+            {
+                if (workspace.GetKey(item) == strategy.FragmentKey) continue;
+                items.Add(item);
+                sources.Add(strategy.ReadSegments(item));
+            }
+
+            var existingItem = workspace.Find(strategy.FragmentKey);
+            var existing = existingItem is null
+                ? Array.Empty<FragmentSegment>()
+                : strategy.ReadSegments(existingItem);
+
+            var shared = FragmentComposer.Compose(sources, existing);
+            if (shared.Count == 0) return new ExtractFragmentResult(0, null);
+
+            var content = strategy.ComposeFragment(shared);
+            workspace.Upsert(strategy.CreateFragmentItem(content));
+
+            foreach (var item in items)
+                workspace.Upsert(strategy.RewriteAsReference(item, strategy.ReferenceFor(item)));
+
+            return new ExtractFragmentResult(items.Count, content);
         }
 
         /// <summary>Snapshot：登记当前工作区快照，返回状态 id。</summary>

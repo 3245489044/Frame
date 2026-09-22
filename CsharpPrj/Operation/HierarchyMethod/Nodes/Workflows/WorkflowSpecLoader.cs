@@ -70,6 +70,15 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
                     !node.NextNodeConfig.Configs.TryGetValue("on_success", out var next))
                     break;
 
+                // C1 修复：非 on_success 分支（on_error/on_fail/continue/stop…）被 RoundSpec 线性链丢弃 → 显性告警
+                var discarded = node.NextNodeConfig.Configs.Keys
+                    .Where(k => !string.Equals(k, "on_success", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (discarded.Count > 0)
+                    logInvalid?.Invoke(
+                        $"节点 '{node.NodeId}' 声明了非 on_success 分支 [{string.Join(", ", discarded)}]，RoundSpec 线性链仅提取 on_success 主路径，这些分支被丢弃（Usharp [Flow] 声明式工作流可消除此截断）",
+                        def.WorkflowId);
+
                 currentId = next;
             }
 

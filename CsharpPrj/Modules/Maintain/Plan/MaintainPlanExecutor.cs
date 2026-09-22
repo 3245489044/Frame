@@ -93,6 +93,15 @@ namespace Modules.Maintain.Plan
                                 restored != null ? $"restored {restored.Count} items" : "state not found");
                         }
                         break;
+
+                    case MaintainOperationKind.Extract:
+                        var strategy = (IFragmentStrategy<TData>)step.Payload!;
+                        var extracted = MaintainOperations<TData>.ExtractFragment(workspace, strategy);
+                        report.AddPair(MaintainOperationKind.Extract, null, strategy.FragmentKey,
+                            extracted.FragmentContent is null
+                                ? "no shared segments"
+                                : $"rewritten {extracted.Rewritten}");
+                        break;
                 }
             }
             return report;

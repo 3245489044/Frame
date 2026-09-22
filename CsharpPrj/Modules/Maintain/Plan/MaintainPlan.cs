@@ -49,5 +49,9 @@ namespace Modules.Maintain.Plan
 
         public MaintainPlan<TData> Revert(string stateId)
         { _steps.Add(new PlanStep(MaintainOperationKind.Revert, stateId)); return this; }
+
+        /// <summary>抽取共享片段：把各数据项中一致声明的段收敛为片段项，数据项改写为引用形态。</summary>
+        public MaintainPlan<TData> Extract(Ports.IFragmentStrategy<TData> strategy)
+        { _steps.Add(new PlanStep(MaintainOperationKind.Extract, strategy)); return this; }
     }
 }

@@ -101,8 +101,7 @@
       "properties": {
         "from": {
           "type": "string",
-          "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table",
-                   "presence", "delegate", "new", "row", "member", "type", "file"]
+          "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table", "presence", "list", "map", "delegate", "new", "row", "member", "type", "file"]
         },
         "index": { "type": "integer" },
         "key": { "type": "string" },
@@ -133,9 +132,12 @@
         "slot": { "type": "string" },
         "item": { "type": ["string", "object"] },
         "rows": { "$ref": "#/$defs/valueSource" },
-        "items": { "$ref": "#/$defs/valueSource" },
+        "items": { "$ref": "#/$defs/valueSourceOrList" },
+        "pairs": { "$ref": "#/$defs/valueSourcePairList" },
         "table": { "$ref": "#/$defs/valueSource" },
         "presence": { "$ref": "#/$defs/valueSource" },
+        "list": { "$ref": "#/$defs/valueSource" },
+        "map": { "$ref": "#/$defs/valueSource" },
         "rowValue": { "$ref": "#/$defs/expr" },
         "where": { "$ref": "#/$defs/expr" },
         "construct": { "$ref": "#/$defs/new" },
@@ -145,6 +147,26 @@
         "content": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "valueSourceOrList": {
+      "description": "单值源（presence 的 items）或值源数组（from:list 的 items）",
+      "oneOf": [
+        { "$ref": "#/$defs/valueSource" },
+        { "type": "array", "items": { "$ref": "#/$defs/valueSource" } }
+      ]
+    },
+    "valueSourcePairList": {
+      "description": "from:map 的 pairs：[键值源, 值值源] 二元素数组序列",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "prefixItems": [
+          { "$ref": "#/$defs/valueSource" },
+          { "$ref": "#/$defs/valueSource" }
+        ]
+      }
     },
     "dep": {
       "type": "object",
@@ -259,13 +281,22 @@
         },
         "when": { "$ref": "#/$defs/expr" },
         "foreach": { "type": "string" },
-        "items": { "$ref": "#/$defs/expr" },
+        "from": { "type": "string", "enum": ["list", "map"] },
+        "items": {
+          "oneOf": [
+            { "$ref": "#/$defs/expr" },
+            { "type": "array", "items": { "$ref": "#/$defs/valueSource" } }
+          ]
+        },
+        "pairs": { "$ref": "#/$defs/valueSourcePairList" },
         "as": { "type": "string" },
         "where": { "$ref": "#/$defs/expr" },
         "do": { "type": "array", "items": { "$ref": "#/$defs/step" } },
         "new": { "$ref": "#/$defs/new" },
         "invoke": { "$ref": "#/$defs/invoke" },
-        "throw": { "$ref": "#/$defs/throw" }
+        "throw": { "$ref": "#/$defs/throw" },
+        "elementType": { "type": "string" },
+        "genericArgs": { "type": "array", "items": { "type": "string" } }
       },
       "additionalProperties": false
     },
@@ -452,13 +483,15 @@
       "type": "object",
       "$comment": "表达式对象：取值来源键（Source）+ 算子键（每次恰一个）—— **本块 properties 的键集与键序为生成物**（由 SchemaEnumSynchronizer 按 PortImplVocabulary.ExprKeys 写回，声明原文保留；禁手改）。",
       "properties": {
-        "from": { "type": "string", "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type", "file"] },
+        "from": { "type": "string", "enum": ["arg", "with", "item", "var", "dep", "literal", "tmpPath", "tmpDir", "table", "presence", "list", "map", "delegate", "new", "row", "member", "type", "file"] },
         "index": { "type": "integer" },
         "key": { "type": "string" },
         "dep": { "type": "integer" },
         "value": {},
         "table": { "type": "object" },
         "presence": { "type": "object" },
+        "list": {},
+        "map": {},
         "arg": { "type": ["integer", "string"] },
         "with": { "type": ["string", "object"] },
         "var": { "type": "string" },
@@ -476,6 +509,7 @@
         "name": { "type": "string" },
         "rows": { "type": "object" },
         "items": { "type": "object" },
+        "pairs": {},
         "rowValue": { "type": "object" },
         "where": { "type": "object" },
         "separator": { "type": "string" },

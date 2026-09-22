@@ -10,13 +10,17 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Invoke">调用步骤（判别式）。</param>
 /// <param name="Foreach">遍历步骤（判别式）。</param>
 /// <param name="Throw">主动抛出步骤（判别式；G3）。</param>
+/// <param name="Source">纯值源步骤（判别式；集合字面量 <c>from:list</c> / <c>from:map</c>）：求值结果写入 <see cref="As"/> 槽。</param>
+/// <param name="As">值源步骤的写槽名（仅 <see cref="Source"/> 形态用）。</param>
 public sealed record StepStandard(
     IReadOnlyList<CollectStandard>? Collects = null,
     ExprStandard? When = null,
     NewStandard? New = null,
     InvokeStandard? Invoke = null,
     ForeachStandard? Foreach = null,
-    ThrowStandard? Throw = null);
+    ThrowStandard? Throw = null,
+    ValueSourceStandard? Source = null,
+    string? As = null);
 
 /// <summary>
 /// 主动抛出步骤（<c>script[].throw</c>；G3）：与 <see cref="NewStandard.Expect"/>（构造期）/ 

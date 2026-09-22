@@ -5,9 +5,15 @@ namespace DataCenter.Protocol.Standards;
 /// </summary>
 public static partial class PortImplVocabulary
 {
-    /// <summary>脚本步骤键（<see cref="StepStandard"/>；<c>foreach</c> 形态的键与步骤同层）。</summary>
+    /// <summary>
+    /// 脚本步骤键（<see cref="StepStandard"/>；四形态键 + 值源步骤（from:list/map）同层载荷键的**并集**，
+    /// 与 schema <c>$defs/step</c> 的扁平闭合同口径；形态判别由读取器 fail-fast，跨形态杂键即「未声明形态」）。
+    /// </summary>
     public static readonly IReadOnlyList<string> StepKeys =
-        ["collect", "when", "foreach", "items", "as", "where", "do", "new", "invoke", "throw"];
+        [
+            "collect", "when", "foreach", "items", "as", "where", "do", "new", "invoke", "throw",
+            "from", "pairs", "elementType", "genericArgs",
+        ];
 
     /// <summary>主动抛出步骤键（<see cref="ThrowStandard"/>；G3）。</summary>
     public static readonly IReadOnlyList<string> ThrowKeys = ["type", "message"];

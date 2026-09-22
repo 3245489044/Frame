@@ -236,6 +236,10 @@ public static partial class StandardJson
             ? ReadExpr(portKey, condition, "步骤 when")
             : null;
 
+        // 纯值源步骤（集合字面量）：须先于 foreach 判别 —— list 步骤同层带 items 键。
+        if (Str(item, "from") is "list" or "map")
+            return ReadValueSourceStep(portKey, item, collect, when);
+
         if (item.TryGetProperty("foreach", out _) || item.TryGetProperty("items", out _))
             return new StepStandard(collect, when, Foreach: ReadForeach(portKey, item));
 
@@ -250,8 +254,26 @@ public static partial class StandardJson
 
 
         throw new StandardViolationException(
-            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach|throw）");
+            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach|throw|from:list|from:map）");
     }
+
+    /// <summary>
+    /// 纯值源步骤读取（<c>script[].from = list|map</c> 集合字面量）：步骤同层即值源声明 + <c>as</c> 写槽（缺即抛）。
+    /// </summary>
+    private static StepStandard ReadValueSourceStep(
+        string portKey, JsonElement item, IReadOnlyList<CollectStandard>? collect, ExprStandard? when)
+    {
+        var asName = Str(item, "as");
+        if (string.IsNullOrWhiteSpace(asName))
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 impl.script 值源步骤缺 as（写槽名）");
+
+        var source = ReadArg(portKey, item, $"impl.script 值源步骤 '{asName}'", StepModifierKeys);
+        return new StepStandard(collect, when, Source: source, As: asName);
+    }
+
+    /// <summary>步骤同层修饰键（值源步骤形态下与值源键并存：collect / when / as）。</summary>
+    private static readonly IReadOnlyList<string> StepModifierKeys = ["collect", "when", "as"];
 
     /// <summary>
     /// 主动抛出步骤读取（<c>script[].throw</c>；G3）：<c>{ type, message? }</c>；
@@ -466,12 +488,19 @@ public static partial class StandardJson
             .ToArray();
     }
     /// <summary>取值来源读取（<c>bind</c> / 步骤实参 / 表达式源共用口径：<c>from</c> 显式或按键简写推断）。</summary>
-    internal static ValueSourceStandard ReadArg(string portKey, JsonElement element, string context)
+    internal static ValueSourceStandard ReadArg(
+        string portKey, JsonElement element, string context, IReadOnlyList<string>? extraKeys = null)
     {
         if (element.ValueKind != JsonValueKind.Object)
             throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 {context} 取值来源须为对象");
 
-        EnsureLayerKeys(nameof(PortImplVocabulary.ValueSourceKeys), $"ports.{portKey}.{context}", element);
+        if (PortImplVocabulary.KeysOf(nameof(PortImplVocabulary.ValueSourceKeys)) is { Count: > 0 } known)
+        {
+            var allowed = extraKeys is { Count: > 0 }
+                ? known.Concat(extraKeys).Distinct(StringComparer.Ordinal).ToArray()
+                : known;
+            EnsureKnownKeys(context, element, allowed);
+        }
 
         var from = Str(element, "from");
         var index = Int(element, "index");
@@ -481,6 +510,7 @@ public static partial class StandardJson
 
         // 嵌套简写：`{ "table": { "from": "with", "key": "pairs", … } }` / `{ "presence": { … } }`
         // （内层对象即行集 / 词元集来源；见规范 §4.3/§4.4）。
+        // list / map 同口径：`{ "list": { "items": [ … ] } }` / `{ "map": { "pairs": [ … ] } }`。
         var owner = element;
         if (from is null && element.TryGetProperty("table", out var table) && table.ValueKind == JsonValueKind.Object)
         {
@@ -493,9 +523,23 @@ public static partial class StandardJson
             from = "presence";
             owner = presence;
         }
+        else if (from is null && element.TryGetProperty("list", out var listBody)
+                 && listBody.ValueKind == JsonValueKind.Object)
+        {
+            from = "list";
+            owner = listBody;
+        }
+        else if (from is null && element.TryGetProperty("map", out var mapBody)
+                 && mapBody.ValueKind == JsonValueKind.Object)
+        {
+            from = "map";
+            owner = mapBody;
+        }
 
         var rows = from == "table" ? RowSource(portKey, owner, context) : null;
         var items = from == "presence" ? TokenSource(portKey, owner, context) : null;
+        var listItems = from == "list" ? ListItemSources(portKey, owner, context) : null;
+        var pairs = from == "map" ? PairSources(portKey, owner, context) : null;
 
         if (from is null)
         {
@@ -555,7 +599,9 @@ public static partial class StandardJson
             Named: Str(element, "named"),
             Delegate: ReadDelegate(portKey, element, context),
             Json: Bool(element, "json"),
-            Content: Str(element, "content"));
+            Content: Str(element, "content"),
+            ListItems: listItems,
+            Pairs: pairs);
     }
 
     /// <summary>委托工厂读取（W26：<c>delegate:{ kind, steps?, result?, parameters?, collect?, await? }</c>；缺省 null）。</summary>
@@ -615,6 +661,42 @@ public static partial class StandardJson
             return ReadArg(portKey, declared, $"{context} 的词元集");
 
         return ReadArg(portKey, owner, $"{context} 的词元集");
+    }
+
+    /// <summary>列表字面量元素（<c>from:list</c> 的 <c>items</c>：值源数组；缺 / 非数组即抛）。</summary>
+    private static IReadOnlyList<ValueSourceStandard> ListItemSources(string portKey, JsonElement owner, string context)
+    {
+        if (!owner.TryGetProperty("items", out var declared) || declared.ValueKind != JsonValueKind.Array)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {context} 的 list 来源缺 items 数组（元素值源序列）");
+
+        return declared.EnumerateArray()
+            .Select((item, index) => ReadArg(portKey, item, $"{context} 的 list 第 {index + 1} 元素"))
+            .ToArray();
+    }
+
+    /// <summary>字典字面量键值对（<c>from:map</c> 的 <c>pairs</c>：<c>[键值源, 值值源]</c> 二元素数组序列）。</summary>
+    private static IReadOnlyList<PairStandard> PairSources(string portKey, JsonElement owner, string context)
+    {
+        if (!owner.TryGetProperty("pairs", out var declared) || declared.ValueKind != JsonValueKind.Array)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {context} 的 map 来源缺 pairs 数组（[键, 值] 序列）");
+
+        var result = new List<PairStandard>();
+        var index = 0;
+        foreach (var pair in declared.EnumerateArray())
+        {
+            if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() != 2)
+                throw new StandardViolationException(
+                    $"[port:standard] 端口 '{portKey}' 的 {context} 的 map 第 {index + 1} 对须为 [键, 值] 二元素数组");
+
+            result.Add(new PairStandard(
+                ReadArg(portKey, pair[0], $"{context} 的 map 第 {index + 1} 对的键"),
+                ReadArg(portKey, pair[1], $"{context} 的 map 第 {index + 1} 对的值")));
+            index++;
+        }
+
+        return result;
     }
 
     /// <summary>表达式是否声明了源值（<c>from</c> / 槽 / 实参 / 遍历变量 / 依赖 / 常量 / 内嵌构造）。</summary>

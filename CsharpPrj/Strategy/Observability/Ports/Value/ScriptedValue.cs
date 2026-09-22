@@ -41,6 +41,12 @@ internal static class ScriptedValue
             case "presence":
                 return Presence(spec, scope, input, deps, context);
 
+            case "list":
+                return ListLiteral(spec, scope, input, deps, context);
+
+            case "map":
+                return MapLiteral(spec, scope, input, deps, context);
+
             case "tmpDir":
                 return scope.TempDir(spec.Scope, context);
 
@@ -101,7 +107,7 @@ internal static class ScriptedValue
                 throw new PortBindingViolationException(
                     scope.PortKey,
                     $"端口 '{scope.PortKey}' 的 {context} 取值来源 '{spec.From}' 未知" +
-                    "（arg|with|item|row|var|dep|literal|member|new|type|delegate|table|presence|tmpPath|tmpDir）");
+                    "（arg|with|item|row|var|dep|literal|member|new|type|delegate|table|presence|list|map|tmpPath|tmpDir）");
         }
     }
 
@@ -290,6 +296,72 @@ internal static class ScriptedValue
             {
                 scope.Pop();
             }
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// 列表字面量（<c>from:list</c>）：逐项求值值源 → 构造具体 <see cref="System.Collections.Generic.List{T}"/>。
+    /// <para>元素类型：<c>elementType</c> 显式声明优先；否则按首个非 null 元素的运行时类型推断；全空 → <c>List&lt;object&gt;</c>。</para>
+    /// </summary>
+    private static object ListLiteral(
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+    {
+        var declared = spec.ListItems ?? throw new PortBindingViolationException(
+            scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 list 来源缺 items（元素值源数组）");
+
+        var values = new object?[declared.Count];
+        for (var i = 0; i < declared.Count; i++)
+            values[i] = Resolve(declared[i], scope, input, deps, $"{context} 的 list 第 {i + 1} 元素");
+
+        var element = spec.ElementType is { Length: > 0 } name
+            ? ComposedDeps.ResolveType(name, null)
+            : values.FirstOrDefault(value => value is not null)?.GetType() ?? typeof(object);
+
+        var list = (System.Collections.IList)Activator.CreateInstance(
+            typeof(List<>).MakeGenericType(element))!;
+
+        for (var i = 0; i < values.Length; i++)
+            list.Add(Convert(values[i], declared[i], element, scope.PortKey, $"{context} 的 list 第 {i + 1} 元素"));
+
+        return list;
+    }
+
+    /// <summary>
+    /// 字典字面量（<c>from:map</c>）：逐对求值键 / 值值源 → 构造具体 <see cref="Dictionary{TKey,TValue}"/>。
+    /// <para>K/V：<c>genericArgs</c> 前两位显式声明优先；否则按首个非 null 键 / 值的运行时类型推断；缺省 <c>&lt;string,object&gt;</c>。</para>
+    /// </summary>
+    private static object MapLiteral(
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+    {
+        var declared = spec.Pairs ?? throw new PortBindingViolationException(
+            scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 map 来源缺 pairs（键值对数组）");
+
+        var keys = new object?[declared.Count];
+        var values = new object?[declared.Count];
+        for (var i = 0; i < declared.Count; i++)
+        {
+            keys[i] = Resolve(declared[i].Key, scope, input, deps, $"{context} 的 map 第 {i + 1} 对的键");
+            values[i] = Resolve(declared[i].Value, scope, input, deps, $"{context} 的 map 第 {i + 1} 对的值");
+        }
+
+        var keyType = spec.GenericArgs is { Count: >= 2 } names && names[0] is { Length: > 0 } keyName
+            ? ComposedDeps.ResolveType(keyName, null)
+            : keys.FirstOrDefault(key => key is not null)?.GetType() ?? typeof(string);
+
+        var valueType = spec.GenericArgs is { Count: >= 2 } args2 && args2[1] is { Length: > 0 } valueName
+            ? ComposedDeps.ResolveType(valueName, null)
+            : values.FirstOrDefault(value => value is not null)?.GetType() ?? typeof(object);
+
+        var map = (System.Collections.IDictionary)Activator.CreateInstance(
+            typeof(Dictionary<,>).MakeGenericType(keyType, valueType))!;
+
+        for (var i = 0; i < declared.Count; i++)
+        {
+            var key = Convert(keys[i], declared[i].Key, keyType, scope.PortKey, $"{context} 的 map 第 {i + 1} 对的键");
+            var value = Convert(values[i], declared[i].Value, valueType, scope.PortKey, $"{context} 的 map 第 {i + 1} 对的值");
+            map[key!] = value;
         }
 
         return map;

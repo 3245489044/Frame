@@ -374,7 +374,7 @@
     },
     "EcsEventBus_Dispatch_output_decision": {
       "template": "ECS 事件输出决策 — opId={opId}, controlName={controlName}, functionName={functionName}, success={success}, outcome={outcome}, outputTarget={outputTarget}, outputType={outputType}, outputPreview={outputPreview}",
-      "level": "Debug",
+      "level": "Info",
       "category": "General"
     },
     "EcsEventBus_Dispatch_output_empty": {

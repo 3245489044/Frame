@@ -293,11 +293,19 @@ public static class StandardCompleteness
     /// <summary>
     /// <c>from</c> 词位探针：<c>table</c>/<c>presence</c> 必须带 <c>rows</c>/<c>items</c> 来源 —— 否则读取器的
     /// 「缺来源」分支对 <see cref="JsonElement"/>（值类型）恒不可达，会自递归（既有登记缺陷，见 <c>RowSource</c> 注记）。
+    /// <c>list</c>/<c>map</c> 为集合字面量原语：<c>items</c> 必须是元素值源**数组**、<c>pairs</c> 必须是 <c>[键,值]</c> 数组序列。
     /// </summary>
-    private static string FromProbe(string word) =>
-        Envelope("{\"kind\":\"scripted\",\"bind\":{\"s\":{\"from\":" + Quoted(word)
-                 + ",\"rows\":{\"from\":\"with\",\"key\":\"pairs\"}"
-                 + ",\"items\":{\"from\":\"with\",\"key\":\"tokens\"}}}}");
+    private static string FromProbe(string word) => word switch
+    {
+        "list" => Envelope("{\"kind\":\"scripted\",\"bind\":{\"s\":{\"from\":\"list\","
+                   + "\"elementType\":\"System.String\",\"items\":[{\"literal\":\"a\"}]}}}"),
+        "map" => Envelope("{\"kind\":\"scripted\",\"bind\":{\"s\":{\"from\":\"map\","
+                   + "\"genericArgs\":[\"System.String\",\"System.String\"],"
+                   + "\"pairs\":[[{\"literal\":\"k\"},{\"literal\":\"v\"}]]}}}"),
+        _ => Envelope("{\"kind\":\"scripted\",\"bind\":{\"s\":{\"from\":" + Quoted(word)
+                      + ",\"rows\":{\"from\":\"with\",\"key\":\"pairs\"}"
+                      + ",\"items\":{\"from\":\"with\",\"key\":\"tokens\"}}}}"),
+    };
 
     private static string SelectProbe(string word) =>
         Envelope("{\"kind\":\"composed\",\"project\":[{\"field\":\"f\",\"call\":\"c\",\"select\":" + Quoted(word) + "}]}");

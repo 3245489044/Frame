@@ -36,6 +36,9 @@ public enum PortOp
     /// <summary>词元值源（R3-3）。</summary>
     Presence,
 
+    /// <summary>纯值源步骤（集合字面量 <c>from:list</c> / <c>from:map</c> 等；操作数 = <see cref="ValueSourceStandard"/>）。</summary>
+    Value,
+
     /// <summary>收集（R3-3）。</summary>
     Collect,
 }

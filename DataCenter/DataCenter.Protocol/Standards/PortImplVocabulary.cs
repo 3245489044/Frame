@@ -58,7 +58,7 @@ public static partial class PortImplVocabulary
     /// </para>
     /// </summary>
     public static readonly IReadOnlyList<string> ValueSourceExtendedFrom =
-        ["tmpPath", "tmpDir", "table", "presence", "delegate", "new", "row", "member", "type", "file"];
+        ["tmpPath", "tmpDir", "table", "presence", "list", "map", "delegate", "new", "row", "member", "type", "file"];
 
     /// <summary><c>from</c> 全词表。</summary>
     public static IReadOnlyList<string> ValueSourceFromAll => [.. ValueSourceFrom, .. ValueSourceExtendedFrom];

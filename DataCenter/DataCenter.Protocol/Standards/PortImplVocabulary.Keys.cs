@@ -34,10 +34,11 @@ public static partial class PortImplVocabulary
     /// <summary>取值来源键（<see cref="ValueSourceStandard"/>；含 <c>table</c>/<c>presence</c> 内层键）。</summary>
     public static readonly IReadOnlyList<string> ValueSourceKeys =
     [
-        "from", "index", "key", "dep", "value", "table", "presence", "arg", "with", "var", "slot", "item",
-        "literal", "path", "convert", "optional", "default", "nullLiteral", "type", "genericArgs", "scope",
-        "name", "rows", "items", "rowValue", "where", "separator", "onBlankFirstKey", "onDuplicate",
-        "distinct", "elementType", "construct", "new", "named", "delegate", "json", "content",
+        "from", "index", "key", "dep", "value", "table", "presence", "list", "map", "arg", "with", "var",
+        "slot", "item", "literal", "path", "convert", "optional", "default", "nullLiteral", "type",
+        "genericArgs", "scope", "name", "rows", "items", "pairs", "rowValue", "where", "separator",
+        "onBlankFirstKey", "onDuplicate", "distinct", "elementType", "construct", "new", "named",
+        "delegate", "json", "content",
     ];
 
     /// <summary>依赖声明键（<see cref="DepStandard"/>）。</summary>

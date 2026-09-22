@@ -71,6 +71,12 @@ from/table	Attestation	Unregistered	未提供外来证据
 from/presence	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 from/presence	Implementation	Unregistered	未提供外来证据
 from/presence	Attestation	Unregistered	未提供外来证据
+from/list	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/list	Implementation	Unregistered	未提供外来证据
+from/list	Attestation	Unregistered	未提供外来证据
+from/map	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+from/map	Implementation	Unregistered	未提供外来证据
+from/map	Attestation	Unregistered	未提供外来证据
 from/delegate	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
 from/delegate	Implementation	Unregistered	未提供外来证据
 from/delegate	Attestation	Unregistered	未提供外来证据

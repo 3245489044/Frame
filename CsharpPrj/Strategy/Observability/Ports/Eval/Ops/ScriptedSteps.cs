@@ -49,6 +49,8 @@ internal static class ScriptedSteps
 
             if (step.Op == PortOp.New && step.Operand is NewStandard construct)
                 last = RunNew(host, step, construct, scope, input, deps);
+            else if (step.Op == PortOp.Value && step.Operand is ValueSourceStandard source)
+                last = RunValueSource(host, step, source, scope, input, deps);
             else if (step.Op == PortOp.Call && step.Operand is InvokeStandard invoke)
                 last = RunInvoke(host, step, invoke, scope, input, deps);
             else if (step.Op == PortOp.Loop && step.Operand is ForeachStandard loop)

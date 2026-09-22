@@ -36,6 +36,8 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Delegate">委托工厂声明（<c>from:delegate</c> 时按本声明构造委托）。</param>
 /// <param name="Json">仅 <c>from:file</c> 用：按 JSON 解析文件内容（等价 <c>content:"json"</c>；与 <c>content</c> 矛盾即抛）。</param>
 /// <param name="Content">仅 <c>from:file</c> 用：内容形态（<c>text</c> 缺省 / <c>lines</c> / <c>json</c>）。</param>
+/// <param name="ListItems">列表字面量元素来源（仅 <c>from:list</c>；声明序 = 元素序）。</param>
+/// <param name="Pairs">字典字面量键值对（仅 <c>from:map</c>；声明序 = 写入序）。</param>
 public sealed record ValueSourceStandard(
     string? From = null,
     int? Index = null,
@@ -64,4 +66,11 @@ public sealed record ValueSourceStandard(
     string? Named = null,
     DelegateStandard? Delegate = null,
     bool? Json = null,
-    string? Content = null);
+    string? Content = null,
+    IReadOnlyList<ValueSourceStandard>? ListItems = null,
+    IReadOnlyList<PairStandard>? Pairs = null);
+
+/// <summary>字典字面量键值对（<c>from:map</c> 的 <c>pairs</c> 项；键 / 值各自为取值来源）。</summary>
+/// <param name="Key">键来源（多为字符串字面量）。</param>
+/// <param name="Value">值来源。</param>
+public sealed record PairStandard(ValueSourceStandard Key, ValueSourceStandard Value);

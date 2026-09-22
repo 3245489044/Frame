@@ -69,7 +69,7 @@ public sealed class PortEvaluator
     /// <summary>
     /// 单条指令执行（**唯一分派点**：本文件是全内核唯一 <c>switch (Op)</c>；未迁移操作码入 <c>_</c> 臂 fail-fast）。
     /// <para>
-    /// 步骤类操作码（<c>New</c> / <c>Loop</c> / <c>Collect</c> / <c>Table</c> / <c>Presence</c>）一律委托
+    /// 步骤类操作码（<c>New</c> / <c>Loop</c> / <c>Collect</c> / <c>Table</c> / <c>Presence</c> / <c>Value</c>）一律委托
     /// 步骤执行单源 <see cref="ScriptedSteps"/>：与旧绑定类共用同一实现 ⇒ 引擎与旧路径语义不可能分叉。
     /// </para>
     /// </summary>
@@ -97,6 +97,10 @@ public sealed class PortEvaluator
                 scope, input, frame.Deps),
 
             PortOp.Presence => ScriptedSteps.RunValueSource(
+                frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
+                scope, input, frame.Deps),
+
+            PortOp.Value => ScriptedSteps.RunValueSource(
                 frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
                 scope, input, frame.Deps),
 

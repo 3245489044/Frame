@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Plate.JsonMethod.Diagnostics;
+using Plate.JsonMethod.Utilities;
 
 namespace Plate.JsonMethod.Serialization
 {
@@ -176,15 +177,44 @@ namespace Plate.JsonMethod.Serialization
         }
 
         /// <summary>安全反序列化（不抛异常）：解析成功 → 返回 true、result 为结果（可能为 null）；解析异常 → 返回 false、error 为诊断、result 为 default。
-        /// 通用模板：供「解析请求体 → 为空/解析失败 诊断」类宿主复用，消除各调用方重复 try/catch 头部。</summary>
+        /// 通用模板：供「解析请求体 → 为空/解析失败 诊断」类宿主复用，消除各调用方重复 try/catch 头部。
+        /// <para>严格解析失败时做一次宽松兜底（未转义反斜杠 / 尾随噪声，机制见 <see cref="JsonEscapeRepair"/>）：
+        /// 两种改动面分别只是「字符串字面量内反斜杠加倍」与「根值闭合后截断」，不会凭空构造结构；
+        /// 且以**完整重解析成功**为唯一采纳门，修复态不缓存、不落盘，失败即回原始诊断。
+        /// 落库数据由 <c>JsonSerializer</c> 写出（转义始终合法），故内部数据读取路径实际不会触发该兜底。</para></summary>
         public bool TryDeserialize<T>(string json, JsonContext context, out T? result, out string? error)
+            => TryDeserialize<T>(json, context, out result, out error, out _);
+
+        /// <summary>同 <see cref="TryDeserialize{T}(string, JsonContext, out T?, out string?)"/>，另回报宽松修复命中明细（供调用方可见化，修复不得静默）。</summary>
+        public bool TryDeserialize<T>(string json, JsonContext context, out T? result, out string? error, out JsonRepairReport report)
         {
             result = default;
             error = null;
+            report = default;
             try
             {
                 result = Deserialize<T>(json, context);
                 return true;
+            }
+            catch (JsonException strictFailure)
+            {
+                if (JsonEscapeRepair.TryRepair(json, out var repaired, out var repair))
+                {
+                    try
+                    {
+                        result = Deserialize<T>(repaired, context);
+                        report = repair;
+                        Logger?.Invoke($"[JsonSerializationService] 宽松修复后解析成功: 反斜杠 {repair.EscapeHits} 处 / 尾随噪声 {repair.TrimmedChars} 字符");
+                        return true;
+                    }
+                    catch (Exception)
+                    {
+                        // 修复后仍非法：回原始诊断，绝不使用修复中间态。
+                    }
+                }
+
+                error = strictFailure.Message;
+                return false;
             }
             catch (Exception ex)
             {

@@ -74,11 +74,16 @@ namespace Common.Diagnostics
                 return;
             _writeDedupCache[dedupKey] = nowMs;
 
+            // 过滤一次、两处共用：Console 打印与 LogWritten 广播必须同口径（否则终端与控制台内容漂移）。
+            var printable = LogFilterLoader.ShouldPrint(entry);
+
             if (OutputMode == LogOutputMode.Console)
             {
-                if (LogFilterLoader.ShouldPrint(entry))
+                if (printable)
                 {
                     LogCollapser.Write(formatted);
+                    // Console 模式同样广播：GUI 默认即 Console 模式，不广播则进程内订阅者（UI 终端）永收不到日志。
+                    LogWritten?.Invoke(entry);
                 }
 
                 return;
@@ -86,7 +91,7 @@ namespace Common.Diagnostics
 
             if (entry.Level is "Error" or "Warning")
             {
-                if (LogFilterLoader.ShouldPrint(entry))
+                if (printable)
                 {
                     LogCollapser.Write(formatted);
                 }

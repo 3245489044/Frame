@@ -603,6 +603,7 @@ export class SdkTransport {
             hits: sinkObs.totalHits,
             perRoute: sinkObs.perRoute,
             misses: sinkObs.perSdk["cline"]?.misses ?? 0,
+            dbMisses: sinkObs.perSdk["cline"]?.dbMisses ?? 0,
             bindings: sinkObs.bindings,
           }
         : undefined,

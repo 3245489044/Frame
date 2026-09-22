@@ -226,6 +226,28 @@ describe("AgentSinkHost — 多 SDK 并行 + sdk 隔离 + observe 帧", () => {
       }
     }
   });
+
+  it("db 根观测面：db 根内未拦截的 fs 路径计 dbMisses，且不计入 fs 判据 misses", () => {
+    tmpRoot = newTempDir("dbobs");
+    const dataDir = path.join(tmpRoot, "h", "data");
+    const host = new AgentSinkHost([new ClineRouteProvider({ dataDir })]);
+    host.patchAll();
+    try {
+      // 模拟 SDK 建库目录（sqlite 的 mkdirSync 步骤：不经路由 → 观测为 db miss，非 fs miss）。
+      // 注意：静态 `import * as fs` 是 patch 前快照（始终原函数），须经 rf() 取 patch 后方法。
+      rf().mkdirSync(path.join(dataDir, "db"), { recursive: true });
+      const obs = host.observe();
+      expect(obs.perSdk["cline"].dbMisses).toBeGreaterThanOrEqual(1);
+      expect(obs.perSdk["cline"].misses).toBe(0);
+    } finally {
+      host.unpatchAll();
+      try {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      } catch {
+        /* 忽略 */
+      }
+    }
+  });
 });
 
 describe("BridgeToCSharpDbBackend — 写侧推送到传输 + 本地读缓存", () => {

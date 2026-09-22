@@ -19,7 +19,8 @@ import type { AgentRouteProvider } from "../provider/agent-route-provider.js";
 /** 观测帧：每路由命中数、每 SDK 命中/miss 数、归档尝试/失败数、绑定自检结果。 */
 export interface SinkObserveFrame {
   perRoute: Record<string, number>;
-  perSdk: Record<string, { hits: number; misses: number }>;
+  /** perSdk：misses = 会话产物面（fs）未拦截计数（判据 misses==0）；dbMisses = 索引库根观测面（单独分账）。 */
+  perSdk: Record<string, { hits: number; misses: number; dbMisses: number }>;
   archives: { attempted: number; failed: number };
   totalHits: number;
   /** ESM 绑定自检未对齐方法名（空 = 通过；非空 = facade 早于 patch 建立，拦截对 ESM 消费者不可见）。 */
@@ -60,7 +61,11 @@ export class AgentSinkHost {
     for (const provider of this.providers) {
       // miss 观测：SDK 根候选（显式隔离根 + 默认根）落在路由外的写 → 计该 sdk miss。
       for (const root of provider.roots) {
-        this.fsRouter.registerMissWatch(root, provider.name);
+        this.fsRouter.registerMissWatch(root, provider.name, "fs");
+      }
+      // db 根候选：索引库面（原生 SQLite 不经 fs）→ 单列计数，不污染 fs 判据。
+      for (const root of provider.dbRoots ?? []) {
+        this.fsRouter.registerMissWatch(root, provider.name, "db");
       }
       const registry = new ArtifactExtractorRegistry();
       for (const ex of provider.extractors) registry.register(ex);
@@ -161,13 +166,17 @@ export class AgentSinkHost {
     const perRoute: Record<string, number> = {};
     for (const [name, n] of this.fsRouter.routeHits()) perRoute[name] = n;
 
-    const perSdk: Record<string, { hits: number; misses: number }> = {};
+    const perSdk: Record<string, { hits: number; misses: number; dbMisses: number }> = {};
     for (const provider of this.providers) {
       let hits = 0;
       for (const [name, n] of this.fsRouter.routeHits()) {
         if (this.routeNameToSdk.get(name) === provider.name) hits += n;
       }
-      perSdk[provider.name] = { hits, misses: this.fsRouter.misses(provider.name) };
+      perSdk[provider.name] = {
+        hits,
+        misses: this.fsRouter.misses(provider.name),
+        dbMisses: this.fsRouter.missesDb(provider.name),
+      };
     }
 
     let attempted = 0;

@@ -119,9 +119,11 @@ export interface ClineRunResultMeta {
    *  - hits：命中内存卷的调用计数（验收判据 > 0，证明拦截真的发生）；
    *  - perRoute：每路由命中数；
    *  - misses：命中权威数据根却未拦截的路径数（验收判据 == 0，证明根对齐）；
+   *  - dbMisses：索引库根（<dataDir>/db）面被触碰而未拦截的 fs 路径数（原生 SQLite 不经 fs，
+   *    故该计数不参与 misses==0 判据，仅作「db 根正被触碰」的观测；真值为 G4 的磁盘断言）；
    *  - bindings：ESM 绑定自检未对齐方法名（空 = 通过；非空 = facade 早于 patch 建立）。
    */
-  sink?: { hits: number; perRoute: Record<string, number>; misses: number; bindings: string[] };
+  sink?: { hits: number; perRoute: Record<string, number>; misses: number; dbMisses: number; bindings: string[] };
 }
 
 /** 单次运行结果 */

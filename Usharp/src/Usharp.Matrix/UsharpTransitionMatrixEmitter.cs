@@ -6,6 +6,8 @@ namespace Usharp.Matrix;
 /// <summary>
 /// 转移矩阵发射器：<c>[Space] kind=keys</c> + <c>[Matrix] over=&lt;键型空间&gt;</c>，行形态 <c>next = cur</c>
 /// ⇒ 「已完成步骤键 → 下一步骤键」转移表（<c>ChainSignalResolver</c> 的构造输入，对齐声明式链 <c>on_success</c> 语义）。
+/// <para>行方向即矩阵语义 <c>x′[out] = x[in]</c>：左式 = 输出坐标 = **下一步骤键**，右式坐标 = **当前步骤键**
+/// ⇒ 表键取右式（当前/已完成步骤键）、表值取左式（下一步骤键），与 <c>ChainSignalResolver</c> 的键约定同向。</para>
 /// <para>实例化 <c>ChainSignalResolver&lt;TState,TVertex&gt;</c> 需泛型实参 ⇒ 由消费方（U3 Emit 层）承担，本层只产转移表数据
 /// （避免把 LoopFoldMethod 重量带进本层）。坐标存在性闸A 由 <see cref="UsharpValidator"/> 统一裁决，此处仅做行形态归因。</para>
 /// </summary>
@@ -38,7 +40,8 @@ public static class UsharpTransitionMatrixEmitter
             }
 
             rows.Add(new UsharpMatrixRowBinding(row.OutputKey, expression));
-            table[row.OutputKey] = expression.Terms[0].Axis;
+            // 表键 = 右式坐标（当前/已完成步骤键），表值 = 左式输出坐标（下一步骤键）——与 ChainSignalResolver 键约定同向。
+            table[expression.Terms[0].Axis] = row.OutputKey;
         }
 
         return new UsharpMatrixBinding(decl.MatrixId, UsharpMatrixKind.Transition, space.SpaceId, rows,

@@ -24,6 +24,12 @@ export interface ClineRouteProviderOptions {
    * 以检出「又走了默认盘」的泄漏——路由仍只有单根，绝不据此放行/兜底拦截。
    */
   missWatchRoots?: string[];
+  /**
+   * db 根观测面（仅观测，不路由）：命中该前缀但未命中路由 → 计该 sdk 的 `dbMisses`。
+   * 缺省 = `<dataDir>/db`（索引库被隔离后的落点）；装配方可另传「SDK 默认根 db」
+   * （`resolveDefaultClineDataRoot().dbDir`）以检出「又走了默认盘」的索引库泄漏。
+   */
+  dbWatchRoots?: string[];
 }
 
 /** 从归一化路径解析 sessionId：`<...>/sessions/<id>/<file>.messages.json`。 */
@@ -36,6 +42,7 @@ export function extractClineSessionId(pathName: string): string | undefined {
 export class ClineRouteProvider implements AgentRouteProvider {
   readonly name = "cline";
   readonly roots: string[];
+  readonly dbRoots: string[];
   readonly extractSessionId = extractClineSessionId;
   readonly extractors = clineExtractors;
 
@@ -45,6 +52,8 @@ export class ClineRouteProvider implements AgentRouteProvider {
     this.dataDir = normalizeFsPath(opts.dataDir);
     // miss 观测面（仅观测，不参与路由）：缺省 = 被拦截面 <dataDir>/sessions。
     this.roots = (opts.missWatchRoots ?? [`${this.dataDir}/sessions`]).map(normalizeFsPath);
+    // db 观测面（同上，仅观测）：索引库为原生 SQLite，不经 fs → 单列计数（dbMisses）。
+    this.dbRoots = (opts.dbWatchRoots ?? [`${this.dataDir}/db`]).map(normalizeFsPath);
   }
 
   buildRoutes(): Route[] {

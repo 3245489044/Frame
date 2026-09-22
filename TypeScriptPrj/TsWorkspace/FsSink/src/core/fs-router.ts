@@ -59,6 +59,12 @@ function isSyncName(name: string): boolean {
 
 type Adapter = "sync" | "promise" | "callback";
 
+/**
+ * miss 观测类别：fs = 会话产物面（判据 misses==0）；db = 索引库根（原生 SQLite 不经 JS fs，
+ * 拦截原理不可达 → 单独计数，避免污染 fs 侧判据）。
+ */
+export type MissWatchKind = "fs" | "db";
+
 export interface FsRouterDeps {
   router: PathRouter;
 }
@@ -77,8 +83,10 @@ export class FsRouter {
   /** 每路由命中计数（按 route.spec.name，供 observe() 观测帧）。 */
   private readonly perRouteHits = new Map<string, number>();
   /** 路由 miss 观测：SDK 根候选前缀 → sdk（定位「又走了默认盘」）。 */
-  private readonly missWatch: Array<{ prefix: string; sdk: string }> = [];
+  private readonly missWatch: Array<{ prefix: string; sdk: string; kind: MissWatchKind }> = [];
   private readonly missesBySdk = new Map<string, number>();
+  /** 索引库根 miss（db 根观测面；与 fs miss 分账，见 MissWatchKind）。 */
+  private readonly missesDbBySdk = new Map<string, number>();
 
 
   constructor(
@@ -103,13 +111,18 @@ export class FsRouter {
     return this._hits;
   }
   /** 注册路由 miss 观测前缀（SDK 根候选）。命中该前缀但未命中路由的路径计为该 sdk 的 miss。 */
-  registerMissWatch(prefix: string, sdk: string): void {
-    this.missWatch.push({ prefix: normalizeFsPath(prefix), sdk });
+  registerMissWatch(prefix: string, sdk: string, kind: MissWatchKind = "fs"): void {
+    this.missWatch.push({ prefix: normalizeFsPath(prefix), sdk, kind });
   }
 
   /** 某 sdk 的 miss 计数（「落根内却未拦截」的路径数，定位又走了默认盘）。 */
   misses(sdk: string): number {
     return this.missesBySdk.get(sdk) ?? 0;
+  }
+
+  /** 某 sdk 的索引库根 miss 计数（db 观测面；原生 SQLite 不经 fs，单列不污染 fs 判据）。 */
+  missesDb(sdk: string): number {
+    return this.missesDbBySdk.get(sdk) ?? 0;
   }
 
   /** 每路由命中计数（route.spec.name → 次数）。 */
@@ -122,11 +135,12 @@ export class FsRouter {
     this.perRouteHits.set(routeName, (this.perRouteHits.get(routeName) ?? 0) + 1);
   }
 
-  /** 观测快照：命中某 sdk 根候选但未命中路由 → 计 miss。 */
+  /** 观测快照：命中某 sdk 根候选但未命中路由 → 计 miss（按 kind 分账：fs 判据 / db 观测面）。 */
   private recordMiss(p: string): void {
     for (const w of this.missWatch) {
       if (p.startsWith(w.prefix)) {
-        this.missesBySdk.set(w.sdk, (this.missesBySdk.get(w.sdk) ?? 0) + 1);
+        const bucket = w.kind === "db" ? this.missesDbBySdk : this.missesBySdk;
+        bucket.set(w.sdk, (bucket.get(w.sdk) ?? 0) + 1);
         break;
       }
     }

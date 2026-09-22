@@ -14,6 +14,8 @@
          （process.env.CLINE_DIR / GetEnvironmentVariable("CLINE_DIR")）只允许出现在两个权威解析器
          （TS: ClineApi/src/runtime/cline-data-root.ts；C#: CallCenter.Core/Cline/ClineDataRoot.cs）。
       D. 构造单点：`new AgentSinkHost(` 只允许出现在 preload（生产入口唯一）。
+      E. db 落盘面（DbSink 文档 P0-1/P0-4）：仓库树内不得出现 `sessions.db*`（原生 SQLite，fs 层拦不住；
+         落到仓库树即「状态根未注册」症状）。默认 WARN；-StrictDbResidue 时升级为违规。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（拦截链路回归）。
 
 .PARAMETER Root
@@ -22,6 +24,9 @@
 .PARAMETER ShowDetail
     输出全部检查详情（默认仅输出违规摘要）。
 
+.PARAMETER StrictDbResidue
+    把 E 段的「仓库树内 sessions.db* 残留」从 WARN 升级为违规（用于清理完成后的棘轮锁定）。
+
 .EXAMPLE
     .\Check-FsSinkEntry.ps1
     .\Check-FsSinkEntry.ps1 -Root d:\Project\Main
@@ -29,7 +34,8 @@
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [switch]$ShowDetail
+    [switch]$ShowDetail,
+    [switch]$StrictDbResidue
 )
 
 $ErrorActionPreference = 'Stop'
@@ -123,6 +129,30 @@ foreach ($f in $bootstrapFiles)
         $violations.Add('入口未走 preload bootstrap（H1）: ' + $f + ' 缺少动态 import("./preload/sink-preload.js")')
     }
 }
+
+# ── E. db 落盘面（DbSink 文档 P0-1/P0-4） ──
+# E1：仓库树内不得出现 sessions.db*（sqlite 为原生写盘，fs 层原理上拦不住 → 落到仓库树即「状态根未注册」症状，
+#     见 RepositoryPaths.ResolveClineDaemonDataDir 的显性告警 P0-3）。默认 WARN，保持既有退出码语义。
+$dbResidue = @(Get-ChildItem -Path $Root -Recurse -File -Filter 'sessions.db*' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '\\(node_modules|BuildOutput|obj|bin|_deprecated|TestResults|\.git)\\' })
+foreach ($f in $dbResidue)
+{
+    $msg = "db 落盘残留（仓库树内，P0-4）: $($f.FullName)"
+    if ($StrictDbResidue) { $violations.Add($msg) } else { Write-Host "  [WARN] $msg" -ForegroundColor Yellow }
+}
+
+# E2：默认根（~/.cline/data/db）落点观测（信息性；真值判据 = 仓库树无残留 ∧ 隔离根下出现写入）。
+if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE))
+{
+    $defaultDb = Join-Path $env:USERPROFILE '.cline\data\db'
+    if (Test-Path -LiteralPath $defaultDb)
+    {
+        $latest = Get-ChildItem -LiteralPath $defaultDb -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) { Write-Host "E2: 默认根最新写入 = $($latest.Name) @ $($latest.LastWriteTime)" }
+    }
+}
+if ($ShowDetail) { Write-Host "E: db 落盘面已检（仓库树残留 $($dbResidue.Count) 处；严格模式=$StrictDbResidue）。" }
 
 if ($violations.Count -eq 0)
 {

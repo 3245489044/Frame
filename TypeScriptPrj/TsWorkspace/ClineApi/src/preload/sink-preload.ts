@@ -51,9 +51,11 @@ export async function installSink(opts: SinkInstallOptions = {}): Promise<Instal
 
   const root = resolveClineDataRoot();
   const dataDir = opts.dataDir ?? root.dataDir;
-  // 泄漏观测面（仅观测，不路由）：忽略 CLINE_* 后的同算法 sessions 目录 = SDK 默认根；
+  // 泄漏观测面（仅观测，不路由）：忽略 CLINE_* 后的同算法 sessions/db 目录 = SDK 默认根；
   // 若 SDK 无视注入变量写到那里，路径命中该前缀却未命中路由 → 计 miss，定位「又走了默认盘」。
-  const defaultSessionDir = resolveDefaultClineDataRoot().sessionsDir;
+  const defaults = resolveDefaultClineDataRoot();
+  const defaultSessionDir = defaults.sessionsDir;
+  const defaultDbDir = defaults.dbDir;
 
   // persistBridge：把 DbBackend 换成桥接 C# 持久化的实现（写侧单向推送，失败不阻断内存闭环）。
   const db = opts.persistBridge
@@ -61,7 +63,14 @@ export async function installSink(opts: SinkInstallOptions = {}): Promise<Instal
     : undefined;
 
   const sink = new AgentSinkHost(
-    [new ClineRouteProvider({ dataDir, missWatchRoots: [`${dataDir}/sessions`, defaultSessionDir] })],
+    [
+      new ClineRouteProvider({
+        dataDir,
+        missWatchRoots: [`${dataDir}/sessions`, defaultSessionDir],
+        // db 根观测面（仅观测）：索引库原生 SQLite 不经 fs，拦截不可达 → 单列 dbMisses 计数。
+        dbWatchRoots: [`${dataDir}/db`, defaultDbDir],
+      }),
+    ],
     db
   );
   sink.patchAll();

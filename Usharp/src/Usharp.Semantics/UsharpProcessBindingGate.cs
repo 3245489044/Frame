@@ -39,14 +39,8 @@ internal sealed class ProcessBindingGateRule : IGateRule<UsharpGateModel>
                 return;
             }
 
-            if (bindings.TryGetValue(spaceId, out var existing))
-            {
-                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProcessorBindingNotSingle,
-                    $"层 '{spaceId}' 的处理代数重复声明：{existing.Owner}（{existing.File}:{existing.Line}）"
-                    + $"与 {owner} —— 一层恰一个处理器声明者",
-                    file, line));
-                return;
-            }
+            if (bindings.ContainsKey(spaceId))
+                return;   // 重复声明者由 MultiBoundLayers 统一裁决（一层一报，不逐条重复）
 
             bindings[spaceId] = (owner, file, line);
         }
@@ -56,6 +50,23 @@ internal sealed class ProcessBindingGateRule : IGateRule<UsharpGateModel>
 
         foreach (var f in model.Flows)
             Bind(f.OverSpaceId, f.ProcessId, $"[Flow] {f.FlowId}", f.SourceFile, f.LineNumber);
+
+        // 一层多绑定：一次一因（判定单源 = UsharpProcessBindings；产出面据此「不产出」）
+        foreach (var layer in UsharpProcessBindings.MultiBoundLayers(
+                     model.Matrices.Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
+                         .Concat(model.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId)))))
+        {
+            var owners = model.Matrices.Where(m => string.Equals(m.OverSpaceId, layer, StringComparison.Ordinal) && m.ProcessId is not null)
+                    .Select(m => $"[Matrix] {m.MatrixId}")
+                .Concat(model.Flows.Where(f => string.Equals(f.OverSpaceId, layer, StringComparison.Ordinal) && f.ProcessId is not null)
+                    .Select(f => $"[Flow] {f.FlowId}"));
+
+            var first = model.Matrices.FirstOrDefault(m => string.Equals(m.OverSpaceId, layer, StringComparison.Ordinal) && m.ProcessId is not null);
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProcessorBindingNotSingle,
+                $"层 '{layer}' 的处理代数重复声明：{string.Join(" / ", owners)} —— 一层恰一个处理器声明者",
+                first?.SourceFile ?? model.Flows.First(f => string.Equals(f.OverSpaceId, layer, StringComparison.Ordinal)).SourceFile,
+                first?.LineNumber ?? 0));
+        }
     }
 }
 
@@ -76,14 +87,23 @@ internal sealed class ProcessPlanGateRule : IGateRule<UsharpGateModel>
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
+        // US1012（按**层维度**判定）：含自环的层须被「覆盖它的流」（over= 该层自身 ∨ 该层祖先层）以 budget= 覆盖；
+        // 无任何流覆盖的自环层不报（无声明面可承载预算 —— US1013 待开工面，本规则不猜）。
+        foreach (var layer in SelfRecursiveLayers(model))
+        {
+            var covering = CoveringFlows(model, layer.SpaceId).ToList();
+            if (covering.Count == 0) continue;
+            if (covering.Any(f => UsharpPlanFields.TryBudget(f, out var budget) && budget is not null)) continue;
+
+            var owner = covering[0];
+            sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.SelfRecursiveBudgetMissing,
+                $"[Flow] {owner.FlowId}: 层 '{layer.SpaceId}' 含自环（递归划分 = 不定深度）但覆盖它的流均未声明 "
+                + "budget=<maxNodes>;<maxDepth>（预算风险前移；运行期由 ProcessBudget 强制收口）",
+                owner.SourceFile, owner.LineNumber));
+        }
+
         foreach (var flow in model.Flows)
         {
-            if (IsSelfRecursive(model, flow) && flow.Budget is null)
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.SelfRecursiveBudgetMissing,
-                    $"[Flow] {flow.FlowId}: 层 '{flow.OverSpaceId}' 含自环（递归划分 = 不定深度）但未声明 "
-                    + "budget=<maxNodes>;<maxDepth>（预算风险前移；运行期由 ProcessBudget 强制收口）",
-                    flow.SourceFile, flow.LineNumber));
-
             if (!UsharpPlanFields.TryOrder(flow, out _))
                 sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.PlanFieldInvalid,
                     $"[Flow] {flow.FlowId}: 未知处理方向 order='{flow.Order}'"
@@ -98,9 +118,14 @@ internal sealed class ProcessPlanGateRule : IGateRule<UsharpGateModel>
         }
     }
 
-    /// <summary>本流的绑定层是否含自环声明（<c>contains=自我:edge</c>）。</summary>
-    private static bool IsSelfRecursive(UsharpGateModel model, UsharpFlowDecl flow)
-        => flow.OverSpaceId is { } layer
-           && model.Spaces.TryGet(layer, out var space)
-           && space.Contains.Any(c => string.Equals(c.ParentSpaceId, space.SpaceId, StringComparison.Ordinal));
+    /// <summary>含自环声明（<c>contains=自我:edge</c>）的层集（声明序）。</summary>
+    private static IEnumerable<UsharpSpaceDecl> SelfRecursiveLayers(UsharpGateModel model)
+        => model.Spaces.Spaces.Where(s => s.Contains.Any(c => string.Equals(c.ParentSpaceId, s.SpaceId, StringComparison.Ordinal)));
+
+    /// <summary>覆盖某层的流：<c>over=</c> 该层自身 ∨ 该层祖先层（层维度判据的直接来源）。</summary>
+    private static IEnumerable<UsharpFlowDecl> CoveringFlows(UsharpGateModel model, string layerId)
+    {
+        var covering = new HashSet<string>(model.Spaces.AncestorSpaces(layerId), StringComparer.Ordinal) { layerId };
+        return model.Flows.Where(f => f.OverSpaceId is { } over && covering.Contains(over));
+    }
 }

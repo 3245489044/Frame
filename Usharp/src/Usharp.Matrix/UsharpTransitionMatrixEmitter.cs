@@ -37,7 +37,7 @@ public static class UsharpTransitionMatrixEmitter
                 continue;
             }
 
-            rows.Add(new UsharpMatrixRowBinding(row.OutputKey, expression, expression.Axes));
+            rows.Add(new UsharpMatrixRowBinding(row.OutputKey, expression));
             table[row.OutputKey] = expression.Terms[0].Axis;
         }
 

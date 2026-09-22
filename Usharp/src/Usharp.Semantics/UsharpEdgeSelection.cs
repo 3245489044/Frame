@@ -52,11 +52,4 @@ public static class UsharpEdgeSelection
 
         return node => map.TryGetValue(node ?? string.Empty, out var t) ? t : Array.Empty<string>();
     }
-
-    /// <summary>边端点对（流完整性判据用）。</summary>
-    public static IReadOnlyList<(string Source, string Target)> Pairs(IReadOnlyList<UsharpEdge> edges)
-    {
-        ArgumentNullException.ThrowIfNull(edges);
-        return edges.Select(e => (e.Source, e.Target)).ToList();
-    }
 }

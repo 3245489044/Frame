@@ -18,14 +18,8 @@ public sealed record UsharpHierarchyPlanResult(
     /// <summary>发射是否失败（含闸A 投影出的 error；warn 不算失败）。</summary>
     public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
 
-    /// <summary>计划已产出（口径：<c>EffectiveBudget</c> 永不为 null，未声明 <c>budget=</c> 时取内核缺省有限预算）。</summary>
-    public bool Emitted => Plan is not null && !HasErrors;
-
-    /// <summary>诊断单行报表（对齐 <c>UsharpFlowEmitResult.Report()</c> 风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0
-            ? "(no plan diagnostics)"
-            : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no plan diagnostics)");
 }
 
 /// <summary>
@@ -36,12 +30,8 @@ public sealed record UsharpHierarchyPlanResult(
 /// </summary>
 public static class UsharpHierarchyProcessPlanEmitter
 {
-    /// <summary>本层透出的计划相关闸A 码（判据来源 = <c>ProcessPlanGateRule</c>）。</summary>
-    private static readonly string[] PlanCodes =
-    {
-        UsharpCodes.SelfRecursiveBudgetMissing,
-        UsharpCodes.PlanFieldInvalid,
-    };
+    /// <summary>本层透出的计划相关闸A 码（判据来源 = <c>ProcessPlanGateRule</c>；名单单源 = <see cref="UsharpCodes.PlanRelated"/>）。</summary>
+    private static readonly string[] PlanCodes = UsharpCodes.PlanRelated.ToArray();
 
     /// <summary>发射指定流的处理计划（未声明 / 计划字段非法时按缺省回退，并把闸A 诊断原样透出）。</summary>
     public static UsharpHierarchyPlanResult Emit(UsharpCompilation compilation, string flowId)

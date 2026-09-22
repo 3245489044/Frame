@@ -30,7 +30,4 @@ public interface IUsharpGraphBackend
         IReadOnlyList<(string Source, string Target)> edges,
         Func<string, bool> isEntry,
         Func<string, bool> isExit);
-
-    /// <summary>诊断报表渲染（对外字符串报表的单一入口）。</summary>
-    string RenderReport(IReadOnlyList<UsharpDiagnostic> diagnostics);
 }

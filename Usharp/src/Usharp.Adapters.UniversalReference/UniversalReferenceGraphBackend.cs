@@ -44,9 +44,6 @@ public sealed class UniversalReferenceGraphBackend : IUsharpGraphBackend
         };
     }
 
-    public string RenderReport(IReadOnlyList<UsharpDiagnostic> diagnostics)
-        => UsharpDiagnosticProjector.ToDiagnosticResult(diagnostics).GenerateReport();
-
     /// <summary>归因占位（由 <see cref="UsharpGraphService"/> 覆盖为流的声明位置）。</summary>
     private const string GraphPlaceholder = "(graph)";
 }

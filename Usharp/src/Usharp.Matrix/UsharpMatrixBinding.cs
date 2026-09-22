@@ -17,11 +17,10 @@ public enum UsharpMatrixKind
     Transition,
 }
 
-/// <summary>矩阵一行的装配结果：输出坐标 + 解析后的线性表达式 + 引用坐标（取数用，与声明逐条对应）。</summary>
+/// <summary>矩阵一行的装配结果：输出坐标 + 解析后的线性表达式（引用坐标取 <see cref="UsharpLinearExpression.Axes"/>，不另存镜像字段）。</summary>
 public sealed record UsharpMatrixRowBinding(
     string OutputKey,
-    UsharpLinearExpression Expression,
-    IReadOnlyList<string> InputRefs);
+    UsharpLinearExpression Expression);
 
 /// <summary>
 /// 一个 <c>[Matrix]</c> 声明的实例化产物：按读法携带 <see cref="ParameterMatrix"/> 或转移表。
@@ -63,9 +62,6 @@ public sealed record UsharpMatrixEmitResult(
         return false;
     }
 
-    /// <summary>诊断单行报表（对齐 <c>UsharpCompilation.Report()</c> 风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0
-            ? "(no matrix diagnostics)"
-            : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no matrix diagnostics)");
 }

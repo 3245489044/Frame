@@ -222,13 +222,13 @@ public static class UsharpCliCommands
     private static UsharpCompilation? Compile(string path, TextWriter output, out int exitCode)
     {
         exitCode = ExitOk;
-        if (string.IsNullOrWhiteSpace(path) || !UsharpCliSources.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || !UsharpSourceLoader.Exists(path))
         {
             output.WriteLine($"路径不存在：{path}");
             exitCode = ExitUsage;
             return null;
         }
-        return UsharpCompilation.Compile(UsharpCliSources.Load(path));
+        return UsharpCompilation.CompileSources(UsharpSourceLoader.FromPath(path));
     }
 
     private static void ReportSection(string title, IReadOnlyList<UsharpDiagnostic> items, TextWriter output, ref int errors)
@@ -245,10 +245,10 @@ public static class UsharpCliCommands
     {
         if (diagnostics.Count == 0)
         {
-            output.WriteLine("(no diagnostics)");
+            output.WriteLine(UsharpDiagnosticRenderer.Empty);
             return;
         }
-        foreach (var d in diagnostics) output.WriteLine(d.ToString());
+        foreach (var line in UsharpDiagnosticRenderer.Lines(diagnostics)) output.WriteLine(line);
     }
 
     /// <summary>④ 反向引用报表（谁引用了谁；<c>DslIndex.Reverse</c> 单一来源）。</summary>
@@ -271,29 +271,27 @@ public static class UsharpCliCommands
         var edgeTypes = new HashSet<string>(
             UsharpEdgeSelection.GraphEdges(compilation).Select(e => e.Type), StringComparer.Ordinal);
 
-        foreach (var doc in compilation.Documents)
-            foreach (var decl in doc.Declarations)
+        foreach (var decl in compilation.Declarations.Nodes)
+        {
+            if (ResourceNodeType.From(decl) is { Deprecated: true } node && stepKeys.Contains(node.Name))
             {
-                if (decl.Kind == DslSymbolKind.Node
-                    && ResourceNodeType.From(decl) is { Deprecated: true } node
-                    && stepKeys.Contains(node.Name))
-                {
-                    issues.Add(UsharpDiagnostic.Warn(UsharpCodes.DeprecatedReferenced,
-                        $"[Node] {node.Name} 已废弃（replaced-by={(string.IsNullOrWhiteSpace(node.ReplacedBy) ? "(未声明)" : node.ReplacedBy)}），"
-                        + "仍被流步骤引用 —— 请迁移到替代节点",
-                        node.SourceFile, node.LineNumber));
-                }
-
-                if (decl.Kind == DslSymbolKind.Edge
-                    && ReferenceEdgeType.From(decl) is { Deprecated: true } edge
-                    && edgeTypes.Contains(edge.Name))
-                {
-                    issues.Add(UsharpDiagnostic.Warn(UsharpCodes.DeprecatedReferenced,
-                        $"[Edge] {edge.Name} 已废弃（replaced-by={(string.IsNullOrWhiteSpace(edge.ReplacedBy) ? "(未声明)" : edge.ReplacedBy)}），"
-                        + "仍被引用边使用 —— 请迁移到替代边类型",
-                        edge.SourceFile, edge.LineNumber));
-                }
+                issues.Add(UsharpDiagnostic.Warn(UsharpCodes.DeprecatedReferenced,
+                    $"[Node] {node.Name} 已废弃（replaced-by={(string.IsNullOrWhiteSpace(node.ReplacedBy) ? "(未声明)" : node.ReplacedBy)}），"
+                    + "仍被流步骤引用 —— 请迁移到替代节点",
+                    node.SourceFile, node.LineNumber));
             }
+        }
+
+        foreach (var decl in compilation.Declarations.Edges)
+        {
+            if (ReferenceEdgeType.From(decl) is { Deprecated: true } edge && edgeTypes.Contains(edge.Name))
+            {
+                issues.Add(UsharpDiagnostic.Warn(UsharpCodes.DeprecatedReferenced,
+                    $"[Edge] {edge.Name} 已废弃（replaced-by={(string.IsNullOrWhiteSpace(edge.ReplacedBy) ? "(未声明)" : edge.ReplacedBy)}），"
+                    + "仍被引用边使用 —— 请迁移到替代边类型",
+                    edge.SourceFile, edge.LineNumber));
+            }
+        }
 
         return issues;
     }

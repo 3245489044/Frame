@@ -32,18 +32,14 @@ public static class UsharpParameterSchemaFactory
     public static ParameterKind ToParameterKind(
         UsharpAxis axis, UsharpSpaceDecl? owner = null, ICollection<UsharpDiagnostic>? diagnostics = null)
     {
-        switch (axis.ValueKind)
-        {
-            case "flag": return ParameterKind.Flag;
-            case "ordinal": return ParameterKind.Ordinal;
-            case "numeric": return ParameterKind.Numeric;
-            case null: return ParameterKind.Numeric;
-            default:
-                diagnostics?.Add(UsharpDiagnostic.Warn(UsharpCodes.AxisKindUnknown,
-                    $"空间 {owner?.SpaceId ?? "(unknown)"} 坐标 '{axis.Name}' 声明了未知值类 '{axis.ValueKind}'"
-                    + $"（合法值类：{string.Join("/", UsharpLanguage.ValueKinds)}），按 numeric 装配",
-                    owner?.SourceFile ?? string.Empty, owner?.LineNumber ?? 0));
-                return ParameterKind.Numeric;
-        }
+        // 值类白名单与映射的单一真源 = UsharpLanguage.ValueKinds + UsharpValueKindMap（本类不再各写一份）
+        if (axis.ValueKind is null) return ParameterKind.Numeric;
+        if (UsharpValueKindMap.TryParse(axis.ValueKind, out var kind)) return kind;
+
+        diagnostics?.Add(UsharpDiagnostic.Warn(UsharpCodes.AxisKindUnknown,
+            $"空间 {owner?.SpaceId ?? "(unknown)"} 坐标 '{axis.Name}' 声明了未知值类 '{axis.ValueKind}'"
+            + $"（合法值类：{string.Join("/", UsharpLanguage.ValueKinds)}），按 numeric 装配",
+            owner?.SourceFile ?? string.Empty, owner?.LineNumber ?? 0));
+        return ParameterKind.Numeric;
     }
 }

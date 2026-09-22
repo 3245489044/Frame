@@ -24,21 +24,7 @@ public sealed class NullObservabilityBackend : IUsharpObservabilityBackend
 
     public void RegisterFlowEmits(string flowId, string stepKey, IReadOnlyList<string> eventKinds) { }
 
-    public IDisposable BeginCompilationScope(string sourcePath) => EmptyScope.Instance;
-
-    public void EmitCompilationEvent(string eventKind, IReadOnlyDictionary<string, double>? metrics = null) { }
-
     public string RenderManifest(UsharpCompilation compilation)
         => $"{UsharpCodes.ObsBackendUnavailable} 未装配观测后端（NullObservabilityBackend）：契约产出与编译期自观测跳过；"
          + "闸A、引用即边与结构化诊断不受影响（显式可见化，不假装通过）";
-
-    /// <summary>空句柄（单例）。</summary>
-    private sealed class EmptyScope : IDisposable
-    {
-        public static readonly EmptyScope Instance = new();
-
-        private EmptyScope() { }
-
-        public void Dispose() { }
-    }
 }

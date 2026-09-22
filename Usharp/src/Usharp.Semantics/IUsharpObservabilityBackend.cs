@@ -3,9 +3,11 @@ using Usharp.Syntax;
 namespace Usharp.Semantics;
 
 /// <summary>
-/// 观测后端端口：Usharp 核心只认端口 —— 契约登记 / 步骤发射绑定 / 编译期自观测 / manifest 产出由装配方提供；
+/// 观测后端端口：Usharp 核心只认端口 —— 契约登记 / 步骤发射绑定 / manifest 产出由装配方提供；
 /// 未装配时为 <see cref="NullObservabilityBackend"/>（纯声明校验模式：<c>[Obs]</c> 闸A、引用即边与结构化诊断
 /// 100% 在核心内，不依赖任何观测实现）。
+/// <para>端口**最小化**：无消费方的「编译期自观测」面（进入编译作用域 / 发编译事件）不设端口成员 ——
+/// 编译期不写库（H3）由端口面直接保证，绝无绕过路径。</para>
 /// <para>签名只用 Usharp 自有类型 + BCL：观测内核类型（<c>BoundaryContract</c>/<c>EventContract</c>/<c>Obs</c>…）
 /// 不得进入核心公共签名（H1 核心零观测重依赖）。</para>
 /// </summary>
@@ -25,12 +27,6 @@ public interface IUsharpObservabilityBackend
 
     /// <summary>登记 <c>[Flow]</c> 步骤的发射绑定（映射为端口契约的 <c>Emits</c>）。</summary>
     void RegisterFlowEmits(string flowId, string stepKey, IReadOnlyList<string> eventKinds);
-
-    /// <summary>进入一次编译的观测作用域（返回句柄；Dispose 退出）。</summary>
-    IDisposable BeginCompilationScope(string sourcePath);
-
-    /// <summary>编译期自观测事件（kind 属应用侧语义实例，由宿主注册；内核零领域字符串）。</summary>
-    void EmitCompilationEvent(string eventKind, IReadOnlyDictionary<string, double>? metrics = null);
 
     /// <summary>确定性 manifest 产出（<c>[Obs]</c> → JSON；未装配 → 返回可见化提示，不产假 manifest）。</summary>
     string RenderManifest(UsharpCompilation compilation);

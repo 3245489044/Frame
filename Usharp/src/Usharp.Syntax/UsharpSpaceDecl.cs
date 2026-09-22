@@ -35,14 +35,10 @@ public sealed record UsharpContainmentDecl(string ParentSpaceId, string EdgeType
         if (string.IsNullOrWhiteSpace(field)) return Array.Empty<UsharpContainmentDecl>();
 
         var items = new List<UsharpContainmentDecl>();
-        foreach (var segment in field.Split(UsharpLanguage.EnumFieldSeparator, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var segment in UsharpLanguage.SplitSegments(field))
         {
-            var raw = segment.Trim();
-            if (raw.Length == 0) continue;
-            var colon = raw.IndexOf(':');
-            items.Add(colon < 0
-                ? new UsharpContainmentDecl(raw, string.Empty)
-                : new UsharpContainmentDecl(raw[..colon].Trim(), raw[(colon + 1)..].Trim()));
+            var (id, edgeType) = UsharpLanguage.SplitPair(segment);
+            items.Add(new UsharpContainmentDecl(id, edgeType));
         }
         return items;
     }
@@ -62,21 +58,40 @@ public sealed record UsharpSpaceDecl(
     /// </summary>
     public IReadOnlyList<UsharpContainmentDecl> Contains { get; init; } = Array.Empty<UsharpContainmentDecl>();
 
+    /// <summary>
+    /// <c>kind=</c> 字段原文（null = 缺省）——「在场但非法」据其报 <c>US0006</c>，不静默降级为值型空间。
+    /// </summary>
+    public string? KindRaw { get; init; }
+
+    /// <summary>
+    /// 缩进块内无法解析的坐标行原文（空表 = 全部解析成功）——据其报 <c>US0007</c>，禁止静默丢弃声明行。
+    /// </summary>
+    public IReadOnlyList<string> UnparsedLines { get; init; } = Array.Empty<string>();
+
     private static readonly Regex AxisRegex = new(
-        @"^(?<name>[A-Za-z_][A-Za-z0-9_\-]*)\s*(?::\s*(?<kind>[A-Za-z]+))?\s*(?:\(\s*(?<min>-?[\d.]+)\s*\.\.\s*(?<max>-?[\d.]+)\s*\))?$",
+        $"^(?<name>{UsharpIdentifier.Pattern})\\s*(?::\\s*(?<kind>[A-Za-z]+))?\\s*(?:\\(\\s*(?<min>-?[\\d.]+)\\s*\\.\\.\\s*(?<max>-?[\\d.]+)\\s*\\))?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static UsharpSpaceDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
-        var kind = string.Equals(d.Field(UsharpLanguage.FieldKind), UsharpLanguage.KindKeys,
+        var kindRaw = d.Field(UsharpLanguage.FieldKind)?.Trim();
+        var kind = string.Equals(kindRaw, UsharpLanguage.KindKeys,
             StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Keys : UsharpSpaceKind.Values;
 
         var axes = new List<UsharpAxis>();
+        var unparsed = new List<string>();
         foreach (var raw in d.Continuation)
         {
-            var m = AxisRegex.Match(raw.Trim());
-            if (!m.Success) continue;
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+
+            var m = AxisRegex.Match(line);
+            if (!m.Success)
+            {
+                unparsed.Add(line);
+                continue;
+            }
             var valueKind = kind == UsharpSpaceKind.Keys ? null
                 : (m.Groups["kind"].Success ? m.Groups["kind"].Value.ToLowerInvariant() : "numeric");
             double? min = m.Groups["min"].Success && double.TryParse(m.Groups["min"].Value, out var mn) ? mn : null;
@@ -88,6 +103,8 @@ public sealed record UsharpSpaceDecl(
         return new UsharpSpaceDecl(d.Name, kind, axes, d.SourceFile, d.LineNumber)
         {
             Contains = contains,
+            KindRaw = string.IsNullOrWhiteSpace(kindRaw) ? null : kindRaw,
+            UnparsedLines = unparsed,
         };
     }
 }

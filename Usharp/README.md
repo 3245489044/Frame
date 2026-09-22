@@ -115,6 +115,7 @@
 |---|---|
 | 字段一律 `|` 分隔 | `src=F \| tgt=G`；`k=v` 之间**不得**只用空格（否则整段被当作一个字段值） |
 | 名称 = 前缀后至首个 `:` | `[Matrix] ProgressMatrix: over=Param` ⇒ 名 = `ProgressMatrix` |
+| 坐标标识符 | 坐标名 = `[A-Za-z_][A-Za-z0-9_]*`（**不含 `-`**：与线性表达式减号同形）；声明面（`[Space]` 坐标行）与引用面（矩阵行/表达式）**同一字符集**，权威 = `UsharpIdentifier`。声明名（`[Obs] agent-loop`、`process=progress-step` 等）不受此限 |
 | 缩进块 = 坐标/行/步骤 | 缩进（≥1 空格）行进入 `Continuation`；**块内不得有空行**（空行终止块） |
 | 引用即 `[CR]` | `[CR: axioms:AX.MacroFirst@consume]` 与既有 clinerules 引用同文法、同索引 |
 
@@ -182,6 +183,8 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 | `US0003` | error | 声明块为空（未声明任何坐标/行/步骤） |
 | `US0004` | error | `[Matrix]` 行右式不可解析（非 `bias + Σ weight·axis` 形态） |
 | `US0005` | warn | 值型坐标声明了未知值类（按 numeric 装配，不静默） |
+| **`US0006`** | **error** | **`[Space]` 的 `kind=` 取值非法（合法值：`keys`/`values`）—— 不静默按 `values` 装配** |
+| **`US0007`** | **error** | **`[Space]` 缩进块内出现无法解析的坐标行 —— 禁止静默丢弃声明行** |
 | `US1001` | error | 引用了未声明的空间（`over=` / `space=` 指向不存在） |
 | `US1002` | error | `[Ref]` 坐标未在空间中声明（闸A） |
 | `US1003` | error | `[Matrix]` 输出坐标未声明（闸A） |
@@ -209,6 +212,8 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 | `US5001` | error | 发射目标流未声明 |
 | `US5002` | error | 步骤键无 `[Node]` 声明（无法解析 FuncName，不可发射） |
 | `US5003` | warn | `[Flow]` 成功准则未知（按 decision 处理） |
+| `US5004` | error | 层次 schema 不可产出（`contains=` 形状非法 / 单根不成立 / 一层多处理器绑定）——产出面域内判据，不复读闸A 码 |
+| `US5005` | warn | 链尾重复连接：首个连接生效，后续 `connects=` 被忽略（可见化，不静默覆盖） |
 | `US6001` | error | `[Obs]` 事件的 `entity=`/`scope=`（或实体的 `scope=`、作用域的 `parent=`）指向未声明实体/作用域（闸A） |
 | `US6002` | error | `[Flow] step emit=` 引用未声明事件分类（**运行期 `UnregisteredEventException` 前移到编译期**） |
 | `US6003` | error | `[Obs]` 同 `kind` 同名重复声明 |
@@ -323,6 +328,20 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | **U-P8** | 零新增语言单元 | 仅五前缀的**字段扩展**；前缀表无新条目 | ✓ `UsharpParser.PrefixesRegistered()` 5 前缀不变（`usharp.syntax` 用例） |
 | **U-P9** | 连接可解析且不增第二路径 | `US1015`/`US1016` 各 ≥1 反例；连接产出经**既有** `RoundSpecChainMapper` → 建链路径 | ✓ `emit.connects.ok`（`linkCount=1`）+ 两反例 |
 | **U-P10** | 连接进入图校验 | 跨块写依赖未声明 → `US1017` | ✓ `emit.connects.write-dependency-missing`（恰 1 条 error） |
+
+### 7.1 质量收敛判据（`U-R*`；施工口径 = `Docs\analysis\2026\9\9.22\Usharp_重复冗余错误逻辑重构方案.md`）
+
+| 判据 | 面 | 内容 | 状态 |
+|---|---|---|---|
+| **U-R0** | 构建 | 聚合 `Usharp.sln` 0 error；测试可定位 | ✓ 已闭合（Q0；7 工程 0 警告 / 0 错误） |
+| **U-R1** | 止血 | E1/E4/E6/E7/E9 各 ≥1 反例用例 | ✓ 已实施（Q1；5 例 + `US0007` 复核项） |
+| **U-R2** | 真源收敛 | 坐标标识符字符集只剩 `UsharpIdentifier` 一处；`ToParameterKind` 消费 `ValueKinds` | ✓ 已实施（Q2；字符集字面量全库仅 `UsharpIdentifier.Pattern` 命中） |
+| **U-R3** | 声明索引 / 加载器 | `[Node]`/`[Edge]` 扫描点 = 1；文件加载点 = 1 | ✓ 已实施（Q3；`DslSymbolKind.Node\|Edge` 命中仅 `UsharpDeclarationIndex`；`File.ReadAllText` 命中仅 `UsharpSourceLoader`） |
+| **U-R4** | 双判据归并 | 矩阵行闸A 只由 `UsharpValidator` 产出；US3001/US5002 口径一致 | ✓ 已实施（Q4；发射器不再映射闸A 码；US3001 去空守卫后与 US5002 同条件） |
+| **U-R5** | 渲染 / 图视图 / 冗余 | 删除清单内 API 后 0 警告；`Report()` 只剩一份实现 | ✓ 已实施（Q5；`string.Join` 报表仅 `UsharpDiagnosticRenderer`；`RenderReport`/`Emitted`/`Pairs`/`ParseAll` 等全库 0 命中；`UsharpGraphView` 每编译缓存一次） |
+| **U-R6** | 增量错误面 | E10/E13/E14/E15 各 ≥1 反例用例；产出面不复读闸A 码 | ✓ 已实施（Q6；US5004 不产出 + US5005 可见化 + 祖先层预算覆盖 + 无 `[Flow]` 不报 US1017） |
+| **U-R7** | 层图 / 诊断码单源 | 层图遍历实现点 = 1（委托内核 `LevelOrderFromRoot`）；计划诊断码名单单源 | ✓ 已实施（Q7；`UsharpHierarchyGraph` + `UsharpCodes.PlanRelated`） |
+| **U-R8** | 端口最小化 | 端口每成员均有消费方或已移除 | ✓ 已实施（Q8；观测端口编译期自观测面移除（H3 编译期不写库）、`connects` 语义记录独立、`budget=` 合法性单点） |
 
 **规模取数（防幻觉，可直接复现）**：`UsharpCompilation.Snapshot()` ⇒ 样例 `agent-loop.ushar` = 空间 4 / 坐标 16 / 矩阵 1 / 流 3 / 引用 1 / 边 13 / 错误 0。
 （16 = 闸A 覆盖坐标数；13 = 边数，即「引用即边」的可见产出 = 1 Ref + 1 Over + 3 RowRef + 8 StepRef/Invokes。）

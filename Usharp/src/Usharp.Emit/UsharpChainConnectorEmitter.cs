@@ -42,11 +42,8 @@ public sealed record UsharpChainLinkResult(
 
     public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
 
-    /// <summary>诊断单行报表（对齐 <c>UsharpFlowEmitResult.Report()</c> 风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0
-            ? "(no connect diagnostics)"
-            : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no connect diagnostics)");
 }
 
 /// <summary>
@@ -56,7 +53,8 @@ public sealed record UsharpChainLinkResult(
 /// <c>Chain&lt;string,NodeConfig&gt;</c>（不新增第二份 <c>RoundStep ↔ NodeConfig</c> 映射），再把上游链尾节点的
 /// <c>NextNodeConfig.NextNodeKey</c> 接下游链首节点键 —— 连接能力本身是 <c>Operation\WorkFlowMethod</c> 的既有真源。
 /// </para>
-/// <para>一条链尾在本模型中至多接一个后继（后声明者覆盖前声明者）；端点不可解析 / 边类型为空由闸A 报出，本层不产连接。</para>
+/// <para>一条链尾在本模型中至多接一个后继：已连接 ⇒ 保留首个并把后续 connects= **可见化**（US5005，不静默覆盖）；
+/// 端点不可解析 / 边类型为空由闸A 报出，本层不产连接。</para>
 /// </summary>
 public static class UsharpChainConnectorEmitter
 {
@@ -74,10 +72,10 @@ public static class UsharpChainConnectorEmitter
             {
                 // 形状 / 端点非法由闸A（US1016/US1015）报出；此处不猜、不产连接。
                 if (connects.EdgeType.Length == 0) continue;
-                if (string.Equals(connects.ParentSpaceId, flow.FlowId, StringComparison.Ordinal)) continue;
+                if (string.Equals(connects.UpstreamFlowId, flow.FlowId, StringComparison.Ordinal)) continue;
 
                 var upstream = compilation.Flows
-                    .FirstOrDefault(f => string.Equals(f.FlowId, connects.ParentSpaceId, StringComparison.Ordinal));
+                    .FirstOrDefault(f => string.Equals(f.FlowId, connects.UpstreamFlowId, StringComparison.Ordinal));
                 if (upstream is null) continue;
 
                 var upstreamChain = ChainOf(compilation, upstream, chains, diagnostics);
@@ -85,6 +83,19 @@ public static class UsharpChainConnectorEmitter
                 if (upstreamChain?.EndNode is not { } tail || downstreamChain?.StartNode is not { } head) continue;
 
                 // 连接动作：上游链尾的下一节点键 = 下游链首键（既有 NextNodeKey 通道，不新造连接结构）。
+                // E14：一条链尾至多接一个后继 —— 已连接则**可见化**并保留首个（不静默覆盖）。
+                var existing = tail.nextNodeConfig.NextNodeKey;
+                if (!string.IsNullOrWhiteSpace(existing))
+                {
+                    if (string.Equals(existing, head.Id, StringComparison.Ordinal)) continue;   // 同一连接重复声明：幂等
+
+                    diagnostics.Add(UsharpDiagnostic.Warn(UsharpCodes.ChainTailAlreadyLinked,
+                        $"[Flow] {flow.FlowId}: 上游 '{upstream.FlowId}' 链尾 '{tail.Id}' 已连接 '{existing}'，"
+                        + $"本次 connects= 指向 '{head.Id}' 被忽略（一条链尾至多接一个后继，首个连接生效）",
+                        flow.SourceFile, flow.LineNumber));
+                    continue;
+                }
+
                 tail.nextNodeConfig.NextNodeKey = head.Id;
                 links.Add(new UsharpChainLink(upstream.FlowId, flow.FlowId, connects.EdgeType, tail.Id, head.Id));
             }

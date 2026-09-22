@@ -38,6 +38,20 @@ public sealed class SpaceRegistry
                 _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.AxisDup,
                     $"空间 {decl.SpaceId} 内坐标重复声明：{axis.Name}", decl.SourceFile, decl.LineNumber));
 
+        // 声明面取值合法性：kind= 在场但非法 ⇒ 显式报错（不静默按 values 装配）
+        if (decl.KindRaw is not null
+            && !string.Equals(decl.KindRaw, UsharpLanguage.KindKeys, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(decl.KindRaw, UsharpLanguage.KindValues, StringComparison.OrdinalIgnoreCase))
+            _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.SpaceKindUnknown,
+                $"空间 {decl.SpaceId}: kind='{decl.KindRaw}' 非法（合法值：{UsharpLanguage.KindKeys}|{UsharpLanguage.KindValues}）",
+                decl.SourceFile, decl.LineNumber));
+
+        // 缩进块内不可解析的声明行 ⇒ 显式报错（禁止静默丢弃）
+        foreach (var line in decl.UnparsedLines)
+            _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.AxisLineUnparsed,
+                $"空间 {decl.SpaceId}: 坐标行无法解析（'{line}'）——形如 <坐标>[:<值类>] 或 <坐标>:<值类>(<min>..<max>)",
+                decl.SourceFile, decl.LineNumber));
+
         if (decl.Axes.Count == 0)
             _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.DeclEmpty,
                 $"空间 {decl.SpaceId} 未声明任何坐标（缩进块为空）", decl.SourceFile, decl.LineNumber));

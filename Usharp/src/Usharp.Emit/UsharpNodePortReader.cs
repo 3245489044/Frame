@@ -1,6 +1,6 @@
-using Plate.DslMethod;
 using Plate.DslMethod.Model;
 using Plate.DslMethod.Schema;
+using Usharp.Semantics;
 
 namespace Usharp.Emit;
 
@@ -23,25 +23,24 @@ public sealed record UsharpNodeSpec(
 public static class UsharpNodePortReader
 {
     /// <summary>读取全部 <c>[Node]</c> 声明（重复节点号保留首个，与闸A 的「声明即登记」一致）。</summary>
-    public static IReadOnlyDictionary<string, UsharpNodeSpec> Read(IReadOnlyList<DslDocument> documents)
+    public static IReadOnlyDictionary<string, UsharpNodeSpec> Read(UsharpDeclarationIndex declarations)
     {
-        ArgumentNullException.ThrowIfNull(documents);
+        ArgumentNullException.ThrowIfNull(declarations);
 
         var map = new Dictionary<string, UsharpNodeSpec>(StringComparer.Ordinal);
-        foreach (var doc in documents)
-            foreach (var decl in doc.Declarations)
-            {
-                if (decl.Kind != DslSymbolKind.Node || string.IsNullOrWhiteSpace(decl.Name)) continue;
+        foreach (var decl in declarations.Nodes)
+        {
+            if (string.IsNullOrWhiteSpace(decl.Name)) continue;
 
-                var fn = decl.Field("fn");
-                map.TryAdd(decl.Name, new UsharpNodeSpec(
-                    decl.Name,
-                    string.IsNullOrWhiteSpace(fn) ? decl.Name : fn.Trim(),
-                    ResourceNodeType.ParsePorts(decl.Field("inports")).Keys.ToList(),
-                    ResourceNodeType.ParsePorts(decl.Field("outports")).Keys.ToList(),
-                    decl.SourceFile,
-                    decl.LineNumber));
-            }
+            var fn = decl.Field("fn");
+            map.TryAdd(decl.Name, new UsharpNodeSpec(
+                decl.Name,
+                string.IsNullOrWhiteSpace(fn) ? decl.Name : fn.Trim(),
+                ResourceNodeType.ParsePorts(decl.Field("inports")).Keys.ToList(),
+                ResourceNodeType.ParsePorts(decl.Field("outports")).Keys.ToList(),
+                decl.SourceFile,
+                decl.LineNumber));
+        }
         return map;
     }
 }

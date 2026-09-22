@@ -42,14 +42,24 @@ public static class UsharpPlanFields
     }
 
     /// <summary>
-    /// 解析 <c>budget=</c>：缺省 / 合法 → true；**在场但非法** → false（调用方报 `US1018`），此时
-    /// <paramref name="budget"/> 为 null（不静默兜底造预算）。
+    /// 解析 <c>budget=</c>：缺省 / 合法 → true（<paramref name="budget"/> = 解析结果，缺省时为 null）；
+    /// **在场但非法** → false（调用方报 `US1018`），此时 <paramref name="budget"/> 为 null（不静默兜底造预算）。
+    /// <para>合法性判定（段数 / 两段正整数 / 空白）只此一处实现，Syntax 层只存 <c>budget=</c> 原文。</para>
     /// </summary>
     public static bool TryBudget(UsharpFlowDecl flow, out ProcessBudget? budget)
     {
         ArgumentNullException.ThrowIfNull(flow);
 
-        budget = flow.Budget is { } parsed ? new ProcessBudget(parsed.MaxNodes, parsed.MaxDepth) : null;
-        return flow.BudgetRaw is null || flow.Budget is not null;
+        budget = null;
+        var raw = flow.BudgetRaw;
+        if (string.IsNullOrWhiteSpace(raw)) return true;   // 缺省 = 无显式预算（合法）
+
+        var segments = UsharpLanguage.SplitSegments(raw);
+        if (segments.Length != 2) return false;
+        if (!int.TryParse(segments[0], out var maxNodes) || maxNodes <= 0) return false;
+        if (!int.TryParse(segments[1], out var maxDepth) || maxDepth <= 0) return false;
+
+        budget = new ProcessBudget(maxNodes, maxDepth);
+        return true;
     }
 }

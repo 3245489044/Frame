@@ -8,8 +8,9 @@ namespace Usharp.Matrix;
 /// <summary>
 /// 值域矩阵发射器：<c>[Space] kind=values</c> → <see cref="ParameterSchema"/>；
 /// <c>[Matrix] over=&lt;值型空间&gt;</c> → <see cref="ParameterMatrix"/>（整向量一次变换 <c>x′ = Quantize(W·x+b)</c>）。
-/// <para>闸A 唯一权威 = <see cref="ParameterMatrix.Row"/>（行内每个引用必须已在 schema 声明，否则装载期即抛）；
-/// 本类的异常归因只为把失败报成带 <c>文件:行</c> 的 Usharp 诊断，不构成第二份判据。</para>
+/// <para>闸A 唯一权威 = <see cref="UsharpValidator"/>（US1003/US1010/US1004 的判据与归因）；
+/// 本类只做装配：装载期闸A 不通过的行不入绑定、不重复映射诊断码（同一缺陷只报一次）。
+/// 行右式不可解析（US0004）属本层判据（表达式文法），仍由本类报出。</para>
 /// </summary>
 public static class UsharpParameterMatrixEmitter
 {
@@ -34,8 +35,6 @@ public static class UsharpParameterMatrixEmitter
                 continue;
             }
 
-            rows.Add(new UsharpMatrixRowBinding(row.OutputKey, expression, expression.Axes));
-
             try
             {
                 matrix.Row(row.OutputKey, r =>
@@ -44,16 +43,14 @@ public static class UsharpParameterMatrixEmitter
                     if (expression.Bias != 0.0) r.Bias(expression.Bias);
                 });
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
-                // 装载期闸A 失败：按「输出坐标未声明」或「行内引用未声明」归因到既有闸A 诊断码
-                var code = schema.TryGet(row.OutputKey) is null
-                    ? UsharpCodes.MatrixRowOutUndeclared
-                    : UsharpCodes.MatrixRowInputUndeclared;
-                diagnostics.Add(UsharpDiagnostic.Error(code,
-                    $"[Matrix] {decl.MatrixId}: 行 '{row.OutputKey}' 未通过装载期闸A（ParameterMatrix.Row）—— {ex.Message}",
-                    decl.SourceFile, decl.LineNumber));
+                // 装载期闸A 不通过：行不入绑定（US1003/US1010/US1004 的判据与归因**唯一权威 = UsharpValidator**，
+                // 本类只做装配，不再第二次映射闸A 码 —— 同一缺陷只报一次）。
+                continue;
             }
+
+            rows.Add(new UsharpMatrixRowBinding(row.OutputKey, expression));
         }
 
         return new UsharpMatrixBinding(decl.MatrixId, UsharpMatrixKind.Parameter, space.SpaceId, rows,

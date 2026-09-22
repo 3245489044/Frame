@@ -36,13 +36,13 @@ internal sealed class ConnectGateRule : IGateRule<UsharpGateModel>
                 }
 
                 // ② 端点：必须在本编译内可解析，且不得自连（自连 = 环，属非法连接）。
-                if (string.Equals(connects.ParentSpaceId, flow.FlowId, StringComparison.Ordinal))
+                if (string.Equals(connects.UpstreamFlowId, flow.FlowId, StringComparison.Ordinal))
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ConnectEndpointUnknown,
                         $"[Flow] {flow.FlowId}: connects 指向自身（自连成环；上游须是另一流号）",
                         flow.SourceFile, flow.LineNumber));
-                else if (!model.FlowIds.Contains(connects.ParentSpaceId))
+                else if (!model.FlowIds.Contains(connects.UpstreamFlowId))
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ConnectEndpointUnknown,
-                        $"[Flow] {flow.FlowId}: connects 上游 '{connects.ParentSpaceId}' 在本编译内不可解析"
+                        $"[Flow] {flow.FlowId}: connects 上游 '{connects.UpstreamFlowId}' 在本编译内不可解析"
                         + $"（已声明流：{string.Join(", ", model.FlowIds.OrderBy(id => id, StringComparer.Ordinal))}）",
                         flow.SourceFile, flow.LineNumber));
             }
@@ -52,6 +52,11 @@ internal sealed class ConnectGateRule : IGateRule<UsharpGateModel>
             if (string.IsNullOrWhiteSpace(matrix.OverSpaceId)) continue;
 
             var planFlow = model.Flows.FirstOrDefault(f => string.Equals(f.OverSpaceId, matrix.OverSpaceId, StringComparison.Ordinal));
+
+            // E15：本层无 [Flow] ⇒ 连接无处声明（US1017 不可修复）——不报，避免不可修复错误淹没可见化面。
+            if (planFlow is null) continue;
+
+            var reported = new HashSet<string>(StringComparer.Ordinal);
             foreach (var row in matrix.Rows)
                 foreach (var input in row.InputRefs)
                 {
@@ -62,12 +67,13 @@ internal sealed class ConnectGateRule : IGateRule<UsharpGateModel>
                     if (model.UpstreamConnectedLayers.TryGetValue(matrix.OverSpaceId, out var upstream)
                         && writers.All(upstream.Contains)) continue;
 
+                    // E12：同一 (层, 被依赖坐标) 只报一次（多行读同一坐标属同因，不逐条重复）。
+                    if (!reported.Add(matrix.OverSpaceId + "\u0000" + input)) continue;
+
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.CrossBlockWriteDependencyMissing,
                         $"[Matrix] {matrix.MatrixId}: 行 '{row.OutputKey}' 读了由非祖先块写的坐标 '{input}'"
                         + $"（写者层：{string.Join("/", writers)}）但未声明 connects=<上游流号>:<边类型>"
-                        + (planFlow is null
-                            ? "（本层无 [Flow] 声明，连接无处声明）"
-                            : $"（声明面 = [Flow] {planFlow.FlowId} 的 connects=）"),
+                        + $"（声明面 = [Flow] {planFlow.FlowId} 的 connects=）",
                         matrix.SourceFile, matrix.LineNumber));
                 }
         }

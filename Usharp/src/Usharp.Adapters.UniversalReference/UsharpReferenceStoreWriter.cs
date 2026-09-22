@@ -42,52 +42,32 @@ public sealed class UsharpReferenceStoreWriter
     {
         ArgumentNullException.ThrowIfNull(compilation);
 
+        // 资源登记与端点解析共用同一次枚举（键型坐标 → 流号 → [Node] 名；不再各跑一遍三组遍历）
         var endpoints = EndpointIndex.Build(compilation);
-
-        foreach (var space in compilation.Spaces.Spaces.Where(s => s.Kind == UsharpSpaceKind.Keys))
-            foreach (var axis in space.Axes)
-                await _store.AddResourceAsync(
-                    new ResourceIdentifier { ResourceType = space.SpaceId, Id = axis.Name }, ct: ct).ConfigureAwait(false);
-
-        foreach (var flow in compilation.Flows)
-            await _store.AddResourceAsync(
-                new ResourceIdentifier { ResourceType = WorkflowResourceType, Id = flow.FlowId }, ct: ct).ConfigureAwait(false);
-
-        foreach (var node in compilation.Documents.SelectMany(d => d.Declarations).Where(d => d.Kind == DslSymbolKind.Node))
-            await _store.AddResourceAsync(
-                new ResourceIdentifier { ResourceType = NodeResourceType, Id = node.Name }, ct: ct).ConfigureAwait(false);
+        foreach (var resource in endpoints.Resources)
+            await _store.AddResourceAsync(resource, ct: ct).ConfigureAwait(false);
 
         var written = 0;
         foreach (var edge in UsharpEdgeSelection.GraphEdges(compilation))
         {
             await _store.AddReferenceAsync(
                 endpoints.Resolve(edge.Source), endpoints.Resolve(edge.Target),
-                RefTypeOf(compilation, edge.Type), ct: ct).ConfigureAwait(false);
+                compilation.Declarations.EdgeRefType(edge.Type), ct: ct).ConfigureAwait(false);
             written++;
         }
 
         return written;
     }
 
-    /// <summary>引用类型字符串：<c>ur=</c> 显式映射优先，否则用边类型原名（string 通道不塌缩）。</summary>
-    private static string RefTypeOf(UsharpCompilation compilation, string edgeType)
-    {
-        foreach (var doc in compilation.Documents)
-            foreach (var decl in doc.Declarations)
-            {
-                if (decl.Kind != DslSymbolKind.Edge || !string.Equals(decl.Name, edgeType, StringComparison.Ordinal))
-                    continue;
-
-                var ur = decl.Field(UsharpEdgeTypeMap.FieldUr);
-                return string.IsNullOrWhiteSpace(ur) ? edgeType : ur.Trim();
-            }
-        return edgeType;
-    }
-
     /// <summary>端点 → 资源标识（键型空间坐标优先，其次流号 / <c>[Node]</c> 名，最后兜底）。</summary>
     private sealed class EndpointIndex
     {
         private readonly Dictionary<string, ResourceIdentifier> _byToken = new(StringComparer.Ordinal);
+        private readonly List<ResourceIdentifier> _resources = new();
+        private readonly HashSet<string> _resourceKeys = new(StringComparer.Ordinal);
+
+        /// <summary>登记序资源清单（与 <see cref="WriteAsync"/> 的资源登记同一枚举）。</summary>
+        public IReadOnlyList<ResourceIdentifier> Resources => _resources;
 
         public static EndpointIndex Build(UsharpCompilation compilation)
         {
@@ -98,8 +78,11 @@ public sealed class UsharpReferenceStoreWriter
                     index.Add(axis.Name, space.SpaceId);
 
             foreach (var flow in compilation.Flows) index.Add(flow.FlowId, WorkflowResourceType);
-            foreach (var node in compilation.Documents.SelectMany(d => d.Declarations).Where(d => d.Kind == DslSymbolKind.Node))
+            foreach (var node in compilation.Declarations.Nodes)
+            {
+                if (string.IsNullOrWhiteSpace(node.Name)) continue;
                 index.Add(node.Name, NodeResourceType);
+            }
 
             return index;
         }
@@ -110,6 +93,12 @@ public sealed class UsharpReferenceStoreWriter
                 : new ResourceIdentifier { ResourceType = FallbackResourceType, Id = token ?? string.Empty };
 
         private void Add(string token, string resourceType)
-            => _byToken.TryAdd(token, new ResourceIdentifier { ResourceType = resourceType, Id = token });
+        {
+            // 资源登记按 (资源类型, Id) 去重（同名 token 可同时是坐标与节点 ⇒ 两条资源各登记一次）；
+            // 端点解析仍取首个登记（与闸A「声明序首个」口径一致）。
+            var resource = new ResourceIdentifier { ResourceType = resourceType, Id = token };
+            if (_resourceKeys.Add(resourceType + "\u0000" + token)) _resources.Add(resource);
+            _byToken.TryAdd(token, resource);
+        }
     }
 }

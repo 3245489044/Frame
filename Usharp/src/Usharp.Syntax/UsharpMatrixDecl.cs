@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Plate.DslMethod.Model;
 
 namespace Usharp.Syntax;
@@ -6,9 +5,6 @@ namespace Usharp.Syntax;
 /// <summary>矩阵的一行：输出坐标 = 线性表达式（引用取坐标名；带 `'` 后缀视为 next-state）。</summary>
 public sealed record UsharpMatrixRow(string OutputKey, string Expression, IReadOnlyList<string> InputRefs)
 {
-    private static readonly Regex IdentRegex = new(
-        @"[A-Za-z_][A-Za-z0-9_]*", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     /// <summary>从缩进行 `outKey = expr` 解析（首个 `=` 切分；输出键剥离 next-state 后缀 `'`）。</summary>
     public static UsharpMatrixRow? Parse(string line)
     {
@@ -18,9 +14,10 @@ public sealed record UsharpMatrixRow(string OutputKey, string Expression, IReadO
         var expr = line[(eq + 1)..].Trim();
         if (output.Length == 0 || expr.Length == 0) return null;
 
+        // 切词权威 = UsharpIdentifier（与 [Space] 坐标行、线性表达式词法共用同一字符集）
         var refs = new List<string>();
-        foreach (Match m in IdentRegex.Matches(expr))
-            if (!refs.Contains(m.Value, StringComparer.Ordinal)) refs.Add(m.Value);
+        foreach (var name in UsharpIdentifier.Scan(expr))
+            if (!refs.Contains(name, StringComparer.Ordinal)) refs.Add(name);
         return new UsharpMatrixRow(output, expr, refs);
     }
 }
@@ -30,7 +27,6 @@ public sealed record UsharpMatrixDecl(
     string MatrixId,
     string? OverSpaceId,
     IReadOnlyList<UsharpMatrixRow> Rows,
-    IReadOnlyList<DslReference> References,
     string SourceFile,
     int LineNumber)
 {
@@ -51,7 +47,7 @@ public sealed record UsharpMatrixDecl(
         }
         var over = d.Field(UsharpLanguage.FieldOver);
         return new UsharpMatrixDecl(d.Name, string.IsNullOrWhiteSpace(over) ? null : over.Trim(),
-            rows, d.References.ToList(), d.SourceFile, d.LineNumber)
+            rows, d.SourceFile, d.LineNumber)
         {
             ProcessId = d.HasField(UsharpLanguage.FieldProcess)
                 ? d.Field(UsharpLanguage.FieldProcess).Trim()

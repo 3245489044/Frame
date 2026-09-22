@@ -18,6 +18,7 @@ public static class UsharpValidator
 {
     public static IReadOnlyList<UsharpDiagnostic> Validate(
         IReadOnlyList<DslDocument> documents,
+        UsharpDeclarationIndex declarations,
         DslIndex index,
         SpaceRegistry spaces,
         IReadOnlyList<UsharpMatrixDecl> matrices,
@@ -25,7 +26,7 @@ public static class UsharpValidator
         IReadOnlyList<UsharpRefDecl> refs,
         ObsRegistry? obs = null)
     {
-        var model = new UsharpGateModel(documents, index, spaces, matrices, flows, refs, obs);
+        var model = new UsharpGateModel(documents, declarations, index, spaces, matrices, flows, refs, obs);
         var result = UsharpDomainPack.Instance.CreateEngine().Run(model);
         return result.Diagnostics.Select(UsharpDiagnosticProjection.ToUsharp).ToList();
     }

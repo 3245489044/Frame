@@ -30,9 +30,4 @@ public sealed class NullGraphBackend : IUsharpGraphBackend
         Func<string, bool> isEntry,
         Func<string, bool> isExit)
         => Array.Empty<UsharpDiagnostic>();
-
-    public string RenderReport(IReadOnlyList<UsharpDiagnostic> diagnostics)
-        => diagnostics.Count == 0
-            ? "(no diagnostics)"
-            : string.Join(Environment.NewLine, diagnostics.Select(d => d.ToString()));
 }

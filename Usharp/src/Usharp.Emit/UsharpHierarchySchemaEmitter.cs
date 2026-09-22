@@ -16,14 +16,8 @@ public sealed record UsharpHierarchySchemaResult(
 {
     public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
 
-    /// <summary>schema 已产出（且规范化 JSON 在场）。</summary>
-    public bool Emitted => Schema is not null && Json is not null && !HasErrors;
-
-    /// <summary>诊断单行报表（对齐 <c>UsharpFlowEmitResult.Report()</c> 风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0
-            ? "(no schema diagnostics)"
-            : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no schema diagnostics)");
 }
 
 /// <summary>
@@ -39,80 +33,57 @@ public sealed record UsharpHierarchySchemaResult(
 /// </summary>
 public static class UsharpHierarchySchemaEmitter
 {
-    /// <summary>发射本编译的层次 schema（层图非法 / 单根不成立 → 不产出 + error 诊断）。</summary>
+    /// <summary>发射本编译的层次 schema（层图非法 / 单根不成立 / 一层多处理器 → 不产出 + error 诊断）。</summary>
     public static UsharpHierarchySchemaResult Emit(UsharpCompilation compilation)
     {
         ArgumentNullException.ThrowIfNull(compilation);
 
         var diagnostics = new List<UsharpDiagnostic>();
-        var declared = compilation.Spaces.Spaces.Where(s => s.Contains.Count > 0).ToList();
-        if (declared.Count == 0)
-            return new UsharpHierarchySchemaResult(null, null, diagnostics);
+        var graph = UsharpHierarchyGraph.Build(compilation.Spaces);
+        if (graph is null) return new UsharpHierarchySchemaResult(null, null, diagnostics);
 
-        // ① 包含对（子声明父）：形状 / 父层可解析不满足即不产出（闸A US1008 已在编译期报出）。
-        var pairs = new List<(string Parent, string Child, string Edge)>();
-        foreach (var space in declared)
-            foreach (var containment in space.Contains)
-            {
-                if (containment.ParentSpaceId.Length == 0 || containment.EdgeType.Length == 0
-                    || !compilation.Spaces.TryGet(containment.ParentSpaceId, out _))
-                {
-                    diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.SpaceHierarchyInvalid,
-                        $"[Space] {space.SpaceId}: 划分声明 '{containment.ParentSpaceId}:{containment.EdgeType}' 不可产出"
-                        + "（须为 <已声明父空间>:<包含边类型>）", space.SourceFile, space.LineNumber));
-                    return new UsharpHierarchySchemaResult(null, null, diagnostics);
-                }
+        var attribution = graph.DeclaredSpaces[0];
 
-                pairs.Add((containment.ParentSpaceId, space.SpaceId, containment.EdgeType));
-            }
-
-        // ② 层 Id 集 + 单根判定（自环不计入"有父"，对齐内核 LevelOrderFromRoot 口径）。
-        var levelIds = new List<string>();
-        var childIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var (parent, child, _) in pairs)
+        // ① 形状非法 ⇒ 不产出（域内判据码；不复读闸A 的 US1008）
+        if (graph.InvalidDeclarations.Count > 0)
         {
-            if (!levelIds.Contains(parent, StringComparer.Ordinal)) levelIds.Add(parent);
-            if (!levelIds.Contains(child, StringComparer.Ordinal)) levelIds.Add(child);
-            if (!string.Equals(parent, child, StringComparison.Ordinal)) childIds.Add(child);
-        }
-
-        var roots = levelIds.Where(id => !childIds.Contains(id)).ToList();
-        if (roots.Count != 1)
-        {
-            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.SpaceHierarchyInvalid,
-                $"空间划分{(roots.Count == 0 ? "无根" : "多根")}（根：{string.Join(", ", roots)}）"
-                + "—— 内核 HierarchySchema 是单根模型，不产出",
-                declared[0].SourceFile, declared[0].LineNumber));
+            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.HierarchySchemaNotProducible,
+                $"层次 schema 不可产出：划分声明形状非法（{string.Join("；", graph.InvalidDeclarations)}）"
+                + "—— 须为 <已声明父空间>:<包含边类型>",
+                attribution.SourceFile, attribution.LineNumber));
             return new UsharpHierarchySchemaResult(null, null, diagnostics);
         }
 
-        // ③ 层序 = 自根广度优先（含自环声明但自环不推进层序，避免自引用掩盖后续层）。
-        var ordered = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var queue = new Queue<string>();
-        queue.Enqueue(roots[0]);
-        while (queue.Count > 0)
+        // ② 一层多处理器绑定 ⇒ 不产出（判定单源 = UsharpProcessBindings；静默择一属「错误状态下仍产出」）
+        var multiBound = UsharpProcessBindings.MultiBoundLayers(
+            compilation.Matrices.Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
+                .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId))));
+        if (multiBound.Count > 0)
         {
-            var levelId = queue.Dequeue();
-            if (!seen.Add(levelId)) continue;
-            ordered.Add(levelId);
-            foreach (var (parent, child, _) in pairs)
-            {
-                if (!string.Equals(parent, levelId, StringComparison.Ordinal)) continue;
-                if (string.Equals(child, levelId, StringComparison.Ordinal)) continue;
-                if (!seen.Contains(child)) queue.Enqueue(child);
-            }
+            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.HierarchySchemaNotProducible,
+                $"层次 schema 不可产出：层 {string.Join("/", multiBound)} 的处理代数重复声明（一层恰一个处理器声明者）",
+                attribution.SourceFile, attribution.LineNumber));
+            return new UsharpHierarchySchemaResult(null, null, diagnostics);
         }
 
-        var levels = ordered.Select(levelId => new HierarchyLevelSpec(
+        // ③ 单根判定（内核 HierarchySchema 是单根模型）
+        if (!graph.IsSingleRoot)
+        {
+            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.HierarchySchemaNotProducible,
+                $"层次 schema 不可产出：空间划分{(graph.Roots.Count == 0 ? "无根" : "多根")}"
+                + $"（根：{string.Join(", ", graph.Roots)}）—— 内核 HierarchySchema 是单根模型",
+                attribution.SourceFile, attribution.LineNumber));
+            return new UsharpHierarchySchemaResult(null, null, diagnostics);
+        }
+
+        var root = graph.Roots[0];
+        var levels = graph.LevelOrder(root).Select(levelId => new HierarchyLevelSpec(
             levelId,
             levelId,
-            pairs.Where(p => string.Equals(p.Parent, levelId, StringComparison.Ordinal))
-                 .Select(p => new HierarchyContainment(p.Child, p.Edge))
-                 .ToList(),
+            graph.ChildrenOf(levelId).Select(c => new HierarchyContainment(c.Child, c.Edge)).ToList(),
             ProcessIdOf(compilation, levelId))).ToList();
 
-        var schema = new HierarchySchema(roots[0], levels);
+        var schema = new HierarchySchema(root, levels);
         return new UsharpHierarchySchemaResult(schema, HierarchySchemaJson.Serialize(schema), diagnostics);
     }
 

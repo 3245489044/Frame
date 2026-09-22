@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+using Usharp.Syntax;
+
 namespace Usharp.Semantics;
 
 /// <summary>
@@ -18,6 +21,16 @@ public sealed class UsharpGraphService
     /// <summary>是否已装配真实图能力。</summary>
     public bool HasBackend => Backend.IsAvailable;
 
+    /// <summary>每编译一份图视图（环检测 / 可达 / 路径共用；避免同一编译重复重建邻接表）。</summary>
+    private static readonly ConditionalWeakTable<UsharpCompilation, UsharpGraphView> Views = new();
+
+    /// <summary>取（或构建）编译产物的图视图。</summary>
+    public static UsharpGraphView View(UsharpCompilation compilation)
+    {
+        ArgumentNullException.ThrowIfNull(compilation);
+        return Views.GetValue(compilation, UsharpGraphView.Build);
+    }
+
     /// <summary>图类判据全量分析（环检测 + 每个 <c>[Flow]</c> 的流完整性）。</summary>
     public IReadOnlyList<UsharpDiagnostic> Analyze(UsharpCompilation compilation)
     {
@@ -32,30 +45,36 @@ public sealed class UsharpGraphService
             return diagnostics;
         }
 
-        var edges = UsharpEdgeSelection.GraphEdges(compilation);
-        var nodes = UsharpEdgeSelection.Nodes(edges);
-        var outgoing = UsharpEdgeSelection.Adjacency(edges);
+        var view = View(compilation);
 
-        foreach (var cycle in Backend.FindCycles(nodes, outgoing))
+        foreach (var cycle in Backend.FindCycles(view.Nodes, view.Adjacency))
         {
             if (cycle.Count == 0) continue;
-            var (file, line) = AttributeCycle(edges, cycle);
+            var (file, line) = AttributeCycle(view.Edges, cycle);
             diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.CircularReference,
                 $"引用图成环：{string.Join(" → ", cycle)} → {cycle[0]}", file, line));
         }
 
         foreach (var flow in compilation.Flows)
         {
-            var steps = flow.Steps.Select(s => s.Key).ToList();
+            var steps = UsharpStepSequence.Keys(flow);
             if (steps.Count == 0) continue;
 
-            var pairs = new List<(string Source, string Target)>(Math.Max(0, steps.Count - 1));
-            for (var i = 0; i + 1 < steps.Count; i++) pairs.Add((steps[i], steps[i + 1]));
+            var pairs = UsharpStepSequence.Pairs(steps);
+
+            // 入口/终点按「无入边 / 无出边」判定：重复步骤键（循环流）不得使判定函数命中 >1。
+            var hasIncoming = new HashSet<string>(StringComparer.Ordinal);
+            var hasOutgoing = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (source, target) in pairs)
+            {
+                hasOutgoing.Add(source);
+                hasIncoming.Add(target);
+            }
 
             var integrity = Backend.ValidateFlowIntegrity(
                 flow.FlowId, steps, pairs,
-                isEntry: node => string.Equals(node, steps[0], StringComparison.Ordinal),
-                isExit: node => string.Equals(node, steps[^1], StringComparison.Ordinal));
+                isEntry: node => !hasIncoming.Contains(node),
+                isExit: node => !hasOutgoing.Contains(node));
 
             // 归因统一由门面填写（后端只给判据结果，不承担 Usharp 侧的文件/行号知识）
             foreach (var d in integrity)
@@ -69,19 +88,15 @@ public sealed class UsharpGraphService
     public IReadOnlySet<string> Reachable(UsharpCompilation compilation, string start)
     {
         ArgumentNullException.ThrowIfNull(compilation);
-        return Backend.Reachable(start, UsharpEdgeSelection.Adjacency(UsharpEdgeSelection.GraphEdges(compilation)));
+        return Backend.Reachable(start, View(compilation).Adjacency);
     }
 
     /// <summary>两点是否可达。</summary>
     public bool HasPath(UsharpCompilation compilation, string source, string target)
     {
         ArgumentNullException.ThrowIfNull(compilation);
-        return Backend.HasPath(source, target, UsharpEdgeSelection.Adjacency(UsharpEdgeSelection.GraphEdges(compilation)));
+        return Backend.HasPath(source, target, View(compilation).Adjacency);
     }
-
-    /// <summary>诊断报表渲染（后端单一入口）。</summary>
-    public string RenderReport(IReadOnlyList<UsharpDiagnostic> diagnostics)
-        => Backend.RenderReport(diagnostics);
 
     /// <summary>把环归因到参与该环的第一条边的位置（禁止无源报错）。</summary>
     private static (string File, int Line) AttributeCycle(IReadOnlyList<UsharpEdge> edges, IReadOnlyList<string> cycle)

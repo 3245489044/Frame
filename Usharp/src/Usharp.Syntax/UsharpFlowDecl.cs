@@ -13,7 +13,7 @@ public sealed record UsharpFlowStep(string Key, string? SubFlow)
     {
         var text = line.Trim();
         if (text.Length == 0) return null;
-        if (text.StartsWith(UsharpLanguage.StepMarker, StringComparison.Ordinal))
+        if (UsharpLanguage.HasStepMarker(text))
             text = text[UsharpLanguage.StepMarker.Length..].TrimStart(':', '=', ' ', '\t');
 
         // 发射绑定须先于 `~` 剥离：否则 `step k emit=a,b ~ Sub` 的 emit 段会被吞进子流名。
@@ -49,13 +49,32 @@ public sealed record UsharpFlowStep(string Key, string? SubFlow)
     }
 }
 
+/// <summary>
+/// 链间连接声明的一条：<c>connects=&lt;UpstreamFlowId&gt;:&lt;EdgeType&gt;</c>（**方向即语义**：上游流号在前）。
+/// <para>与 <see cref="UsharpContainmentDecl"/> 语义分离：此处的第一分量是**上游流号**（不是空间号），
+/// 二者共用书写形状但不共用类型，避免一词双义。</para>
+/// </summary>
+public sealed record UsharpConnectDecl(string UpstreamFlowId, string EdgeType)
+{
+    /// <summary>解析 <c>&lt;上游流号&gt;:&lt;边类型&gt;</c> 列表（<c>;</c> 分段；形状校验留给闸A）。</summary>
+    public static IReadOnlyList<UsharpConnectDecl> ParseList(string? field)
+    {
+        var items = new List<UsharpConnectDecl>();
+        foreach (var segment in UsharpLanguage.SplitSegments(field))
+        {
+            var (upstream, edgeType) = UsharpLanguage.SplitPair(segment);
+            items.Add(new UsharpConnectDecl(upstream, edgeType));
+        }
+        return items;
+    }
+}
+
 /// <summary>[Flow] Name: over=&lt;SpaceId&gt; 的语法视图（链 / 工作流 = 以链为节点的图）。</summary>
 public sealed record UsharpFlowDecl(
     string FlowId,
     string? OverSpaceId,
     string? SuccessCriterion,
     IReadOnlyList<UsharpFlowStep> Steps,
-    IReadOnlyList<DslReference> References,
     string SourceFile,
     int LineNumber)
 {
@@ -75,12 +94,9 @@ public sealed record UsharpFlowDecl(
     public string? StopSpaceId { get; init; }
 
     /// <summary>
-    /// 处理预算（<c>budget=&lt;maxNodes&gt;;&lt;maxDepth&gt;</c> 两段正整数的解析结果；非法/缺省 → null）。
-    /// </summary>
-    public (int MaxNodes, int MaxDepth)? Budget { get; init; }
-
-    /// <summary>
-    /// <c>budget=</c> 字段原文（缺省 = null；**在场但非法** = 非空串 —— 闸A 据此报 US1018 而非静默降级）。
+    /// <c>budget=</c> 字段原文（缺省 = null；**在场但非法** = 非空串）。
+    /// 解析与合法性判定**唯一实现** = <c>UsharpPlanFields.TryBudget</c>（Syntax 层不再另存解析结果，
+    /// 避免「null 的两种含义」被反推）。
     /// </summary>
     public string? BudgetRaw { get; init; }
 
@@ -88,7 +104,7 @@ public sealed record UsharpFlowDecl(
     /// 链间连接（<c>connects=&lt;上游流号&gt;:&lt;边类型&gt;</c>；**方向即语义**：上游在前）——
     /// 补齐「块间连接」既有能力的前端声明面（连接算法仍归 WorkFlowMethod，不新增第二执行路径）。
     /// </summary>
-    public IReadOnlyList<UsharpContainmentDecl> Connects { get; init; } = Array.Empty<UsharpContainmentDecl>();
+    public IReadOnlyList<UsharpConnectDecl> Connects { get; init; } = Array.Empty<UsharpConnectDecl>();
 
     public static UsharpFlowDecl? From(DslDeclaration d)
     {
@@ -117,25 +133,23 @@ public sealed record UsharpFlowDecl(
         return new UsharpFlowDecl(d.Name,
             string.IsNullOrWhiteSpace(over) ? null : over.Trim(),
             string.IsNullOrWhiteSpace(success) ? null : success.Trim(),
-            steps, d.References.ToList(), d.SourceFile, d.LineNumber)
+            steps, d.SourceFile, d.LineNumber)
         {
             ProcessId = process,
             Order = string.IsNullOrWhiteSpace(order) ? null : order,
             StopSpaceId = string.IsNullOrWhiteSpace(stop) ? null : stop,
-            Budget = ParseBudget(budgetRaw),
             BudgetRaw = string.IsNullOrWhiteSpace(budgetRaw) ? null : budgetRaw,
-            Connects = UsharpContainmentDecl.ParseList(d.Field(UsharpLanguage.FieldConnects)),
+            Connects = UsharpConnectDecl.ParseList(d.Field(UsharpLanguage.FieldConnects)),
         };
     }
 
     /// <summary>预算：<c>&lt;maxNodes&gt;;&lt;maxDepth&gt;</c> 两段正整数（任一段非正整数或段数不为 2 → null）。</summary>
     private static (int MaxNodes, int MaxDepth)? ParseBudget(string? raw)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return null;
-        var segments = raw.Split(UsharpLanguage.EnumFieldSeparator, StringSplitOptions.RemoveEmptyEntries);
+        var segments = UsharpLanguage.SplitSegments(raw);
         if (segments.Length != 2) return null;
-        if (!int.TryParse(segments[0].Trim(), out var maxNodes) || maxNodes <= 0) return null;
-        if (!int.TryParse(segments[1].Trim(), out var maxDepth) || maxDepth <= 0) return null;
+        if (!int.TryParse(segments[0], out var maxNodes) || maxNodes <= 0) return null;
+        if (!int.TryParse(segments[1], out var maxDepth) || maxDepth <= 0) return null;
         return (maxNodes, maxDepth);
     }
 }
@@ -149,7 +163,6 @@ public sealed record UsharpRefDecl(
     string? Target,
     string? Intent,
     string? Edge,
-    IReadOnlyList<DslReference> References,
     string SourceFile,
     int LineNumber)
 {
@@ -184,7 +197,7 @@ public sealed record UsharpRefDecl(
             NullIfEmpty(d.Field(UsharpLanguage.FieldTgt)),
             NullIfEmpty(d.Field(UsharpLanguage.FieldIntent)),
             NullIfEmpty(d.Field(UsharpLanguage.FieldEdge)),
-            d.References.ToList(), d.SourceFile, d.LineNumber)
+            d.SourceFile, d.LineNumber)
         {
             Scope = d.HasField(UsharpLanguage.FieldScope) ? NullIfEmpty(d.Field(UsharpLanguage.FieldScope)) : null,
         };

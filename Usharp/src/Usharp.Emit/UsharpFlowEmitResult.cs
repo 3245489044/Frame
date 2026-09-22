@@ -14,12 +14,6 @@ public sealed record UsharpFlowEmitResult(
 {
     public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
 
-    /// <summary>发射成功（骨架与转移表均已产出且无 error）。</summary>
-    public bool Emitted => Spec is not null && !HasErrors;
-
-    /// <summary>诊断单行报表（对齐 <c>UsharpCompilation.Report()</c> 风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0
-            ? "(no emit diagnostics)"
-            : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no emit diagnostics)");
 }

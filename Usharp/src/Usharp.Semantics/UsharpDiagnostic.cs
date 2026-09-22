@@ -43,6 +43,12 @@ public static class UsharpCodes
     public const string AxisDup = "US0002";
     public const string DeclEmpty = "US0003";
 
+    /// <summary><c>[Space]</c> 的 <c>kind=</c> 取值非法（合法值：<c>keys</c>|<c>values</c>）——不静默按 values 装配。</summary>
+    public const string SpaceKindUnknown = "US0006";
+
+    /// <summary><c>[Space]</c> 缩进块内出现无法解析的坐标行（禁止静默丢弃声明行）。</summary>
+    public const string AxisLineUnparsed = "US0007";
+
     // 矩阵装配面（[Matrix] 行 → 既有矩阵实例；判据/治理读法见 U2b）
     public const string MatrixRowInvalid = "US0004";
     public const string AxisKindUnknown = "US0005";
@@ -51,6 +57,19 @@ public static class UsharpCodes
     public const string FlowNotDeclared = "US5001";
     public const string FlowStepUnmapped = "US5002";
     public const string SuccessCriterionUnknown = "US5003";
+
+    /// <summary>层次产出面域内判据：<c>contains=</c> 图形状非法 / 单根不成立 / 一层多处理器绑定 ⇒ **不产出**（不复读闸A 码）。</summary>
+    public const string HierarchySchemaNotProducible = "US5004";
+
+    /// <summary>链尾重复连接（一条链尾至多接一个后继）：首个连接生效，后续 connects= 被忽略（可见化，不静默覆盖）。</summary>
+    public const string ChainTailAlreadyLinked = "US5005";
+
+    /// <summary>
+    /// 计划（处理编排）相关诊断码名单 —— 判据侧（<c>ProcessPlanGateRule</c> 产出）与发射侧
+    /// （<c>UsharpHierarchyProcessPlanEmitter</c> 投影筛选）**共同引用**，避免名单两处维护（漏改即静默丢诊断）。
+    /// </summary>
+    public static readonly IReadOnlyList<string> PlanRelated =
+        new[] { SelfRecursiveBudgetMissing, PlanFieldInvalid };
 
     // 闸A（引用必须落在已声明空间）
     public const string SpaceUnknown = "US1001";

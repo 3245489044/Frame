@@ -27,7 +27,7 @@ public static class UsharpRoundSpecEmitter
             return new UsharpFlowEmitResult(null, null, diagnostics);
         }
 
-        var nodes = UsharpNodePortReader.Read(compilation.Documents);
+        var nodes = UsharpNodePortReader.Read(compilation.Declarations);
         var steps = new List<RoundStep>(flow.Steps.Count);
         foreach (var step in flow.Steps)
         {

@@ -14,6 +14,7 @@ public sealed class UsharpGateModel
 {
     public UsharpGateModel(
         IReadOnlyList<DslDocument> documents,
+        UsharpDeclarationIndex declarations,
         DslIndex index,
         SpaceRegistry spaces,
         IReadOnlyList<UsharpMatrixDecl> matrices,
@@ -22,6 +23,7 @@ public sealed class UsharpGateModel
         ObsRegistry? obs)
     {
         Documents = documents;
+        Declarations = declarations;
         Index = index;
         Spaces = spaces;
         Matrices = matrices;
@@ -31,15 +33,15 @@ public sealed class UsharpGateModel
 
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
         FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
-        NodeNames = new HashSet<string>(
-            documents.SelectMany(d => d.Declarations)
-                     .Where(d => d.Kind == DslSymbolKind.Node)
-                     .Select(d => d.Name), StringComparer.Ordinal);
+        NodeNames = new HashSet<string>(declarations.NodeNames, StringComparer.Ordinal);
         WrittenCoordinates = BuildWrittenCoordinates(matrices);
         UpstreamConnectedLayers = BuildUpstreamConnectedLayers(flows);
     }
 
     public IReadOnlyList<DslDocument> Documents { get; }
+
+    /// <summary>声明索引（<c>[Node]</c>/<c>[Edge]</c> 扫描的单点来源）。</summary>
+    public UsharpDeclarationIndex Declarations { get; }
 
     public DslIndex Index { get; }
 
@@ -114,7 +116,7 @@ public sealed class UsharpGateModel
             foreach (var connects in flow.Connects)
             {
                 // 端点不可解析（未声明 / 自连）由闸A（US1015）报出，此处不猜。
-                if (!byId.TryGetValue(connects.ParentSpaceId, out var upstream)) continue;
+                if (!byId.TryGetValue(connects.UpstreamFlowId, out var upstream)) continue;
                 if (string.IsNullOrWhiteSpace(upstream.OverSpaceId)) continue;
                 if (!map.TryGetValue(flow.OverSpaceId, out var layers))
                     map[flow.OverSpaceId] = layers = new HashSet<string>(StringComparer.Ordinal);

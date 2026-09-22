@@ -1,4 +1,5 @@
 using System.Globalization;
+using Usharp.Syntax;
 
 namespace Usharp.Matrix;
 
@@ -8,7 +9,7 @@ public readonly record struct UsharpLinearTerm(string Axis, double Weight);
 /// <summary>
 /// 矩阵行的线性表达式 <c>bias + Σ weight·axis</c> —— <c>[Matrix]</c> 行右式的唯一解释器。
 /// 文法：<c>factor (('+'|'-') factor)*</c>；<c>factor ::= number | [number '*'] axis | axis ['*' number]</c>。
-/// 坐标名字符集与 <c>UsharpMatrixRow.InputRefs</c> 同源（<c>[A-Za-z_][A-Za-z0-9_]*</c>），避免「引用即边」与「矩阵装配」两处口径分叉。
+/// 坐标名字符集 = <c>UsharpIdentifier</c>（单一真源：声明面坐标行 / 行内引用 / 本词法三处共用），避免两处口径分叉。
 /// 本类型只做词法/算术解析，不承载任何矩阵语义（线性变换语义由 ParameterMatrix 承担）。
 /// </summary>
 public sealed record UsharpLinearExpression(double Bias, IReadOnlyList<UsharpLinearTerm> Terms)
@@ -150,13 +151,5 @@ public sealed record UsharpLinearExpression(double Bias, IReadOnlyList<UsharpLin
     }
 
     private static bool TryReadAxis(string src, ref int i, out string axis)
-    {
-        axis = string.Empty;
-        var start = i;
-        if (i >= src.Length || !(char.IsAsciiLetter(src[i]) || src[i] == '_')) return false;
-        i++;
-        while (i < src.Length && (char.IsAsciiLetterOrDigit(src[i]) || src[i] == '_')) i++;
-        axis = src[start..i];
-        return true;
-    }
+        => UsharpIdentifier.TryRead(src, ref i, out axis);
 }

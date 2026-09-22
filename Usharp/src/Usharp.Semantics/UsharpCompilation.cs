@@ -13,6 +13,7 @@ public sealed class UsharpCompilation
 {
     private UsharpCompilation(
         IReadOnlyList<DslDocument> documents,
+        UsharpDeclarationIndex declarations,
         DslIndex index,
         SpaceRegistry spaces,
         IReadOnlyList<UsharpMatrixDecl> matrices,
@@ -23,6 +24,7 @@ public sealed class UsharpCompilation
         IReadOnlyList<UsharpDiagnostic> diagnostics)
     {
         Documents = documents;
+        Declarations = declarations;
         Index = index;
         Spaces = spaces;
         Matrices = matrices;
@@ -34,6 +36,10 @@ public sealed class UsharpCompilation
     }
 
     public IReadOnlyList<DslDocument> Documents { get; }
+
+    /// <summary>声明索引（按 Kind 分组一次遍历；规则 / 发射 / 落库共用的单点）。</summary>
+    public UsharpDeclarationIndex Declarations { get; }
+
     public DslIndex Index { get; }
     public SpaceRegistry Spaces { get; }
     public IReadOnlyList<UsharpMatrixDecl> Matrices { get; }
@@ -57,19 +63,33 @@ public sealed class UsharpCompilation
     public IReadOnlyList<UsharpDiagnostic> Warnings
         => Diagnostics.Where(d => d.Severity == UsharpSeverity.Warning).ToList();
 
-    /// <summary>编译一组内存源（path 仅用于诊断归因与 lib 归属）。</summary>
+    /// <summary>编译一组内存源（同一 lib；path 仅用于诊断归因）。</summary>
     public static UsharpCompilation Compile(IEnumerable<(string Path, string Text)> sources, string lib = UsharpParser.DefaultLib)
     {
+        ArgumentNullException.ThrowIfNull(sources);
+        return CompileSources(sources.Select(s => new UsharpSourceFile(s.Path, s.Text ?? "", lib)).ToList());
+    }
+
+    /// <summary>
+    /// 编译源集（**每文件 lib 独立**，跨 lib 的 <c>[CR]</c> 解析口径与加载面一致）。
+    /// 加载一律经 <see cref="UsharpSourceLoader"/>（路径 → 源集的单一实现）。
+    /// </summary>
+    public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+
         var documents = new List<DslDocument>();
         var index = new DslIndex();
         var diagnostics = new List<UsharpDiagnostic>();
 
-        foreach (var (path, text) in sources)
+        foreach (var source in sources)
         {
-            var doc = UsharpParser.Parse(text ?? "", path ?? "(memory)", lib);
+            var doc = UsharpParser.Parse(source.Text ?? "", source.Path ?? "(memory)", source.Lib ?? UsharpParser.DefaultLib);
             documents.Add(doc);
             index.AddDocument(doc);
         }
+
+        var declarations = UsharpDeclarationIndex.Build(documents);
 
         var spaces = new SpaceRegistry();
         var obs = new ObsRegistry();
@@ -96,25 +116,16 @@ public sealed class UsharpCompilation
         }
 
         var edges = UsharpGraphBuilder.Build(documents, matrices, flows, refs);
-        diagnostics.AddRange(UsharpValidator.Validate(documents, index, spaces, matrices, flows, refs, obs));
+        diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, spaces, matrices, flows, refs, obs));
 
-        return new UsharpCompilation(documents, index, spaces, matrices, flows, refs, edges, obs, diagnostics);
+        return new UsharpCompilation(documents, declarations, index, spaces, matrices, flows, refs, edges, obs, diagnostics);
     }
-
-    /// <summary>编译一组 Usharp 文件（缺省 lib = <see cref="UsharpParser.DefaultLib"/>；lib 相同者可互相解析 [CR]）。</summary>
-    public static UsharpCompilation CompileFiles(IEnumerable<(string Path, string? Lib)> files)
-        => Compile(files.Select(f => (f.Path, File.ReadAllText(f.Path))));
-
-    /// <summary>闸A 查询：坐标 (spaceId, key) 是否已声明。</summary>
-    public bool TryResolveCoordinate(string spaceId, string key, out UsharpAxis axis)
-        => Spaces.HasCoordinate(spaceId, key, out axis);
 
     /// <summary>本编译的规模快照（验收取数：空间坐标数 = 闸A 拦截面）。</summary>
     public (int Spaces, int Coordinates, int Matrices, int Flows, int Refs, int Edges, int Errors, int Warnings) Snapshot()
         => (Spaces.SpaceCount, Spaces.TotalCoordinates, Matrices.Count, Flows.Count, Refs.Count,
             Edges.Count, Errors.Count, Warnings.Count);
 
-    /// <summary>诊断的单行报表（对齐 linter 输出风格）。</summary>
-    public string Report()
-        => Diagnostics.Count == 0 ? "(no diagnostics)" : string.Join(Environment.NewLine, Diagnostics.Select(d => d.ToString()));
+    /// <summary>诊断的单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
+    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics);
 }

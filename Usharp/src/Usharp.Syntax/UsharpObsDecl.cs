@@ -39,7 +39,6 @@ public sealed record UsharpObsDecl(
     IReadOnlyList<string> Metrics,
     IReadOnlyDictionary<string, IReadOnlyList<string>> Enums,
     string? Version,
-    IReadOnlyList<DslReference> References,
     string SourceFile,
     int LineNumber)
 {
@@ -62,7 +61,6 @@ public sealed record UsharpObsDecl(
             SplitList(d.Field(UsharpLanguage.FieldMetrics)),
             ParseEnums(d.Field(UsharpLanguage.FieldEnum)),
             NullIfEmpty(d.Field(UsharpLanguage.FieldVersion)),
-            d.References.ToList(),
             d.SourceFile,
             d.LineNumber);
     }
@@ -92,13 +90,10 @@ public sealed record UsharpObsDecl(
         var enums = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (string.IsNullOrWhiteSpace(value)) return enums;
 
-        foreach (var segment in value.Split(UsharpLanguage.EnumFieldSeparator,
-                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var segment in UsharpLanguage.SplitSegments(value))
         {
-            var colon = segment.IndexOf(':');
-            if (colon <= 0) continue;
-            var field = segment[..colon].Trim();
-            var allowed = SplitList(segment[(colon + 1)..]);
+            var (field, rawAllowed) = UsharpLanguage.SplitPair(segment);
+            var allowed = SplitList(rawAllowed);
             if (field.Length == 0 || allowed.Count == 0) continue;
             enums[field] = allowed;
         }

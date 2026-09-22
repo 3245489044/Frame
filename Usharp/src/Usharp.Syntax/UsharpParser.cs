@@ -18,25 +18,6 @@ public static class UsharpParser
     public static DslDocument Parse(string text, string sourceFile, string lib = DefaultLib)
         => DslParser.Parse(text, sourceFile, lib, UsharpPrefixes.Scope);
 
-    /// <summary>解析一个 Usharp 文件（作用域 = 本包五前缀）。</summary>
-    public static DslDocument ParseFile(string path, string lib = DefaultLib)
-        => DslParser.Parse(File.ReadAllText(path), path, lib, UsharpPrefixes.Scope);
-
-    /// <summary>批量解析并按 lib 建符号索引（<c>lib</c> 逐文件指定；缺省 <see cref="DefaultLib"/>）。</summary>
-    public static (IReadOnlyList<DslDocument> Documents, DslIndex Index) ParseAll(
-        IEnumerable<(string Path, string? Lib)> files)
-    {
-        var docs = new List<DslDocument>();
-        var index = new DslIndex();
-        foreach (var (path, lib) in files)
-        {
-            var doc = ParseFile(path, lib ?? DefaultLib);
-            docs.Add(doc);
-            index.AddDocument(doc);
-        }
-        return (docs, index);
-    }
-
     /// <summary>五前缀是否均已注册（查本包作用域；缺失即语言面未接线）。</summary>
     public static bool PrefixesRegistered()
         => UsharpPrefixes.Scope.Find(UsharpLanguage.SpacePrefix) is { Kind: DslSymbolKind.Space }

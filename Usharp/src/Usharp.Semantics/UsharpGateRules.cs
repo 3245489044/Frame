@@ -138,9 +138,9 @@ internal sealed class FlowGateRule : IGateRule<UsharpGateModel>
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.FlowStepUndeclared,
                         $"[Flow] {f.FlowId}: 步骤键 '{step.Key}' 未在空间 '{f.OverSpaceId}' 声明（闸A；现状等价缺陷=声明被静默丢弃）",
                         f.SourceFile, f.LineNumber));
-                else if (model.NodeNames.Count > 0 && !model.NodeNames.Contains(step.Key))
+                else if (!model.NodeNames.Contains(step.Key))
                     sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.EdgePeerUnknown,
-                        $"[Flow] {f.FlowId}: 步骤键 '{step.Key}' 尚无对应 [Node] 声明（可执行体未登记）",
+                        $"[Flow] {f.FlowId}: 步骤键 '{step.Key}' 尚无对应 [Node] 声明（可执行体未登记）——与发射层 US5002 同条件",
                         f.SourceFile, f.LineNumber));
 
                 if (step.SubFlow is not null && !model.FlowIds.Contains(step.SubFlow))

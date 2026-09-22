@@ -1,5 +1,6 @@
 using UniversalWorkflowFramework.Reference.Models;
 using Usharp.Semantics;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.UniversalReference;
 
@@ -17,8 +18,8 @@ namespace Usharp.Adapters.UniversalReference;
 /// </summary>
 public sealed class UsharpEdgeTypeMap
 {
-    /// <summary>显式映射字段名（<c>[Edge] E: ... | ur=Dependency</c>）。</summary>
-    public const string FieldUr = "ur";
+    /// <summary>显式映射字段名（<c>[Edge] E: ... | ur=Dependency</c>；语言面单源 = <see cref="UsharpLanguage.FieldUr"/>）。</summary>
+    public const string FieldUr = UsharpLanguage.FieldUr;
 
     /// <summary>内置边表（Usharp 内建边 → UR 词汇表；<c>Over</c>/<c>RowRef</c> 不落图故无映射）。</summary>
     public static readonly IReadOnlyDictionary<string, ReferenceType> BuiltIn =
@@ -43,14 +44,14 @@ public sealed class UsharpEdgeTypeMap
 
         if (!string.IsNullOrWhiteSpace(ur))
         {
-            if (Enum.TryParse<ReferenceType>(ur.Trim(), ignoreCase: true, out var declared)) return declared;
+            if (TryParseVocabulary(ur, out var declared)) return declared;
 
             diagnostic = UsharpDiagnostic.Error(UsharpCodes.EdgeTypeUnknown,
                 $"边 '{edgeName}' 的 ur='{ur}' 不是合法 ReferenceType（合法值：{string.Join("/", Vocabulary)}）", file, line);
             return ReferenceType.Other;
         }
 
-        if (Enum.TryParse<ReferenceType>(edgeName, ignoreCase: true, out var byName)) return byName;
+        if (TryParseVocabulary(edgeName, out var byName)) return byName;
         if (BuiltIn.TryGetValue(edgeName, out var builtIn)) return builtIn;
 
         diagnostic = UsharpDiagnostic.Warn(UsharpCodes.EdgeTypeUnmapped,
@@ -58,6 +59,13 @@ public sealed class UsharpEdgeTypeMap
             file, line);
         return ReferenceType.Other;
     }
+
+    /// <summary>
+    /// 词表解析：仅接受**名称**形式的 6 值 —— <c>Enum.IsDefined</c> 兜住数值旁路
+    /// （<c>ur=999</c> 不得借 <c>Enum.TryParse</c> 的数值解析绕过 US4003）。
+    /// </summary>
+    private static bool TryParseVocabulary(string value, out ReferenceType parsed)
+        => Enum.TryParse(value.Trim(), ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
 
     /// <summary>
     /// 映射表闸A：扫描全部 <c>[Edge]</c> 声明 —— <c>ur=</c> 非法 → US4003（Error）；
@@ -68,14 +76,13 @@ public sealed class UsharpEdgeTypeMap
         ArgumentNullException.ThrowIfNull(compilation);
 
         var diagnostics = new List<UsharpDiagnostic>();
-        foreach (var doc in compilation.Documents)
-            foreach (var decl in doc.Declarations)
-            {
-                if (decl.Kind != Plate.DslMethod.DslSymbolKind.Edge || string.IsNullOrWhiteSpace(decl.Name)) continue;
+        foreach (var decl in compilation.Declarations.Edges)
+        {
+            if (string.IsNullOrWhiteSpace(decl.Name)) continue;
 
-                Resolve(decl.Name, decl.Field(FieldUr), out var diagnostic, decl.SourceFile, decl.LineNumber);
-                if (diagnostic is not null) diagnostics.Add(diagnostic);
-            }
+            Resolve(decl.Name, decl.Field(FieldUr), out var diagnostic, decl.SourceFile, decl.LineNumber);
+            if (diagnostic is not null) diagnostics.Add(diagnostic);
+        }
         return diagnostics;
     }
 }

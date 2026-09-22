@@ -35,6 +35,8 @@ public sealed class UsharpGateModel
             documents.SelectMany(d => d.Declarations)
                      .Where(d => d.Kind == DslSymbolKind.Node)
                      .Select(d => d.Name), StringComparer.Ordinal);
+        WrittenCoordinates = BuildWrittenCoordinates(matrices);
+        UpstreamConnectedLayers = BuildUpstreamConnectedLayers(flows);
     }
 
     public IReadOnlyList<DslDocument> Documents { get; }
@@ -57,4 +59,68 @@ public sealed class UsharpGateModel
 
     /// <summary>已声明 <c>[Node]</c> 名集（规则 ③ 告警判据复用）。</summary>
     public HashSet<string> NodeNames { get; }
+
+    /// <summary>
+    /// 写集：层 Id → 该层矩阵行的输出坐标集（跨块写依赖 `US1017` 的判据输入；写域单一性由 `US1010` 保证）。
+    /// </summary>
+    public IReadOnlyDictionary<string, HashSet<string>> WrittenCoordinates { get; }
+
+    /// <summary>
+    /// 显式连接的上游层：层 Id → 该层各流经 <c>connects=</c> 指向的上游流所在层
+    /// （`US1017` 的「依赖是否已声明」判据来源；读域仍 = 自身 ∪ 祖先闭包，见设计方案 §10.4 实施修正 ④）。
+    /// </summary>
+    public IReadOnlyDictionary<string, HashSet<string>> UpstreamConnectedLayers { get; }
+
+    /// <summary>
+    /// 坐标的**非祖先写者层**（写该坐标、且既非本层亦非祖先层的层；按声明序去重）——
+    /// `US1017`（写依赖未声明）与 `US1004`（读域不成立）的归因分工依据。
+    /// </summary>
+    public IReadOnlyList<string> NonAncestorWriters(string spaceId, string key)
+    {
+        if (string.IsNullOrWhiteSpace(spaceId) || string.IsNullOrWhiteSpace(key))
+            return Array.Empty<string>();
+
+        var excluded = new HashSet<string>(Spaces.AncestorSpaces(spaceId), StringComparer.Ordinal) { spaceId };
+        var writers = new List<string>();
+        foreach (var (layer, writes) in WrittenCoordinates)
+            if (!excluded.Contains(layer) && writes.Contains(key)) writers.Add(layer);
+        return writers;
+    }
+
+    private static IReadOnlyDictionary<string, HashSet<string>> BuildWrittenCoordinates(
+        IReadOnlyList<UsharpMatrixDecl> matrices)
+    {
+        var map = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var matrix in matrices)
+        {
+            if (string.IsNullOrWhiteSpace(matrix.OverSpaceId)) continue;
+            if (!map.TryGetValue(matrix.OverSpaceId, out var keys))
+                map[matrix.OverSpaceId] = keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var row in matrix.Rows) keys.Add(row.OutputKey);
+        }
+        return map;
+    }
+
+    private static IReadOnlyDictionary<string, HashSet<string>> BuildUpstreamConnectedLayers(IReadOnlyList<UsharpFlowDecl> flows)
+    {
+        var byId = new Dictionary<string, UsharpFlowDecl>(StringComparer.Ordinal);
+        foreach (var flow in flows)
+            if (!string.IsNullOrWhiteSpace(flow.FlowId)) byId.TryAdd(flow.FlowId, flow);
+
+        var map = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var flow in flows)
+        {
+            if (string.IsNullOrWhiteSpace(flow.OverSpaceId)) continue;
+            foreach (var connects in flow.Connects)
+            {
+                // 端点不可解析（未声明 / 自连）由闸A（US1015）报出，此处不猜。
+                if (!byId.TryGetValue(connects.ParentSpaceId, out var upstream)) continue;
+                if (string.IsNullOrWhiteSpace(upstream.OverSpaceId)) continue;
+                if (!map.TryGetValue(flow.OverSpaceId, out var layers))
+                    map[flow.OverSpaceId] = layers = new HashSet<string>(StringComparer.Ordinal);
+                layers.Add(upstream.OverSpaceId);
+            }
+        }
+        return map;
+    }
 }

@@ -61,6 +61,12 @@ public static class HierarchySchemas
     /// 层名 / 处理器 Id 经类内常量、包含边类型经 <see cref="CrossDbReferenceTypes"/> 常量插值，与图侧单一权威同源；
     /// 消费方可将其落入配置后经 <see cref="LoadOrDefault"/> 装载，从而在不改代码的前提下调整层次。
     /// </para>
+    /// <para>
+    /// **真源迁移（P6）**：本常量的真源 = 语言声明面
+    /// <c>Environment\CentralTest\UsharpTests\Usharp.TestShared\Docs\usharp.emit\hierarchy-history-task-node.ushar</c>
+    /// （经 <c>Usharp.Emit.UsharpHierarchySchemaEmitter</c> 产出本 JSON 形态）；反引不可行——<c>Usharp.Emit → HierarchyMethod</c>
+    /// 为单向依赖，故本常量是其**快照**，漂移由等价门用例 <c>emit.hierarchy.equivalent-to-history-task-node</c> 锁死。
+    /// </para>
     /// </summary>
     public static readonly string HistoryTaskNodeJson = $$"""
         {

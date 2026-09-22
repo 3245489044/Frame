@@ -22,6 +22,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
     <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\HierarchyMethod\HierarchyMethod.csproj" />
+    <!-- 处理计划载体（HierarchyProcessPlan / ProcessBudget）：本层只装配计划数据，遍历/护栏/聚合语义仍归内核。 -->
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Modules\DeclarativeDataflow\DeclarativeDataflow.csproj" />
+    <!-- 连接载体（Chain&lt;string,NodeConfig&gt; / RoundSpecChainMapper 的建链入口）：显式直引，不依赖传递可见性（设计方案 R8）。 -->
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\WorkFlowMethod\WorkFlowMethod.csproj" />
   </ItemGroup>
 
 </Project>

@@ -60,4 +60,53 @@ public sealed class SpaceRegistry
         }
         return false;
     }
+
+    /// <summary>
+    /// 祖先空间链（自近及远；沿 <c>contains=</c> 向上，BFS 且去重 —— 多父层时取并集）。
+    /// 环由闸A（US1008）报出，此处以 visited 集合保证**永不挂起**（只读遍历，不做环判定）。
+    /// </summary>
+    public IReadOnlyList<string> AncestorSpaces(string spaceId)
+    {
+        var result = new List<string>();
+        if (!TryGet(spaceId, out var start)) return result;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal) { start.SpaceId };
+        var queue = new Queue<string>();
+        if (start.Contains.Count > 0) queue.Enqueue(start.SpaceId);
+
+        while (queue.Count > 0)
+        {
+            if (!TryGet(queue.Dequeue(), out var current)) continue;
+            foreach (var containment in current.Contains)
+            {
+                if (!seen.Add(containment.ParentSpaceId)) continue;
+                if (!TryGet(containment.ParentSpaceId, out var parent)) continue;
+                result.Add(parent.SpaceId);
+                if (parent.Contains.Count > 0) queue.Enqueue(parent.SpaceId);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 可读域判据（设计方案 §3.2 读侧）：坐标 ∈ 自身空间 ∪ 祖先闭包。
+    /// <para>兄弟块 / 跨子树块的连接**不**在此放宽（须显式 `connects=`，见设计方案 §3.8）。</para>
+    /// </summary>
+    public bool IsReadable(string spaceId, string key, out UsharpAxis axis)
+    {
+        if (HasCoordinate(spaceId, key, out axis)) return true;
+        foreach (var ancestor in AncestorSpaces(spaceId))
+            if (HasCoordinate(ancestor, key, out axis)) return true;
+
+        axis = null!;
+        return false;
+    }
+
+    /// <summary>可读域描述（闸A 报文用；空串 = 仅自身）。</summary>
+    public string ReadScope(string spaceId)
+    {
+        var ancestors = AncestorSpaces(spaceId);
+        return ancestors.Count == 0 ? string.Empty : string.Join("/", ancestors);
+    }
 }

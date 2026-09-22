@@ -51,6 +51,38 @@ public static class UsharpLanguage
     /// <summary>矩阵/流绑定空间字段名（<c>over=&lt;SpaceId&gt;</c>）。</summary>
     public const string FieldOver = "over";
 
+    /// <summary>
+    /// 子空间划分字段（<c>contains=&lt;ParentSpaceId&gt;:&lt;EdgeType&gt;</c>；多父层以 <c>;</c> 分段）——
+    /// 本空间是父空间的**坐标子集**（垂直轴的划分归属，见设计方案 §3.1）。
+    /// 方向 = 子声明父（与内核 <c>HierarchyContainment</c> 的父子方向一致，避免反向推导双实现）。
+    /// </summary>
+    public const string FieldContains = "contains";
+
+    /// <summary>
+    /// 层处理器绑定字段（<c>process=&lt;ProcessId&gt;</c>；<c>[Matrix]</c>/<c>[Flow]</c> 共用）——
+    /// 「小矩阵 = 该层的处理代数」（喂 <c>HierarchyLevelSpec.ProcessId</c>，见设计方案 §3.1）。
+    /// 一层恰一个声明者（多者 → US1011）。
+    /// </summary>
+    public const string FieldProcess = "process";
+
+    /// <summary>
+    /// 处理编排字段（<c>order=</c> / <c>stop=</c> / <c>budget=</c>；<c>[Flow]</c> 专属）——
+    /// 喂内核 <c>HierarchyProcessPlan</c>（方向 / 展开止层 / 预算）。
+    /// </summary>
+    public const string FieldOrder = "order";
+    public const string FieldStop = "stop";
+    public const string FieldBudget = "budget";
+
+    /// <summary>遍历方向取值（<c>order=</c>；书写面 = 内核 <c>HierarchyTraversalOrder</c> 的合法值域）。</summary>
+    public const string OrderBottomUp = "bottom_up";
+    public const string OrderTopDown = "top_down";
+
+    /// <summary>
+    /// 链间连接字段（<c>connects=&lt;上游流号&gt;:&lt;连接边类型&gt;</c>；多上游以 <c>;</c> 分段）——
+    /// **方向即语义**（上游在前）；补齐「块间连接」既有能力的前端声明面（连接算法仍归 WorkFlowMethod）。
+    /// </summary>
+    public const string FieldConnects = "connects";
+
     /// <summary>引用字段：所属空间 / 坐标键 / 源 / 目标 / 意图 / 边类型。</summary>
     public const string FieldSpace = "space";
     public const string FieldKey = "key";

@@ -19,6 +19,10 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>
         new RefGateRule(),
         new MatrixGateRule(),
         new FlowGateRule(),
+        new HierarchyGateRule(),
+        new ProcessBindingGateRule(),
+        new ProcessPlanGateRule(),
+        new ConnectGateRule(),
         new CrossReferenceGateRule(),
         new ObsGateRule(),
     };

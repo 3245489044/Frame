@@ -61,6 +61,36 @@ public static class UsharpCodes
     public const string SubFlowUnknown = "US1006";
     public const string RefShapeInvalid = "US1007";
 
+    /// <summary>层图非法（<c>contains=</c> 形状非法 / 父层未声明 / 层自根不可达 / 非自环层间环）。</summary>
+    public const string SpaceHierarchyInvalid = "US1008";
+
+    /// <summary>子空间坐标未在父空间声明（子集不成立 ⇒ 划分非法）。</summary>
+    public const string SubSpaceAxisUndeclared = "US1009";
+
+    /// <summary>矩阵行输出坐标属**祖先层**但不属自身层（越界写 / 父子双写）。</summary>
+    public const string MatrixRowWriteOutOfSubSpace = "US1010";
+
+    /// <summary>处理器绑定非单源（<c>process=</c> 为空 / 同一层重复声明处理器）。</summary>
+    public const string ProcessorBindingNotSingle = "US1011";
+
+    /// <summary>含自环（递归划分）的层未声明 <c>budget=</c> —— 不定深度风险前移可见化。</summary>
+    public const string SelfRecursiveBudgetMissing = "US1012";
+
+    /// <summary><c>[Ref] scope=</c> 指向未声明的作用域（白名单 = <c>[Obs] kind=scope</c> 声明面）。</summary>
+    public const string RefScopeUndeclared = "US1014";
+
+    /// <summary><c>connects=</c> 端点在本编译内不可解析（上游流号未声明 / 自连）。</summary>
+    public const string ConnectEndpointUnknown = "US1015";
+
+    /// <summary><c>connects=</c> 连接边类型为空（须形如 <c>&lt;上游流号&gt;:&lt;边类型&gt;</c>）。</summary>
+    public const string ConnectEdgeTypeEmpty = "US1016";
+
+    /// <summary>跨块写依赖未声明：块读了由非祖先块写的坐标，而无 <c>connects=</c> 声明。</summary>
+    public const string CrossBlockWriteDependencyMissing = "US1017";
+
+    /// <summary>处理编排字段取值非法（<c>order=</c> 未知值 / <c>budget=</c> 非两段正整数）——按缺省处理。</summary>
+    public const string PlanFieldInvalid = "US1018";
+
     // 跨库引用（复用 DslIndex）
     public const string CrDangling = "US2001";
     public const string DeprecatedReferenced = "US2002";

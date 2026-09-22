@@ -34,6 +34,12 @@ public sealed record UsharpMatrixDecl(
     string SourceFile,
     int LineNumber)
 {
+    /// <summary>
+    /// 层处理器绑定（<c>process=&lt;ProcessId&gt;</c>；空 = 未绑定）——本矩阵即该层的处理代数。
+    /// **加法式 init 属性**（不改位置参数）；一层恰一个声明者（多者 → US1011）。
+    /// </summary>
+    public string? ProcessId { get; init; }
+
     public static UsharpMatrixDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
@@ -45,6 +51,14 @@ public sealed record UsharpMatrixDecl(
         }
         var over = d.Field(UsharpLanguage.FieldOver);
         return new UsharpMatrixDecl(d.Name, string.IsNullOrWhiteSpace(over) ? null : over.Trim(),
-            rows, d.References.ToList(), d.SourceFile, d.LineNumber);
+            rows, d.References.ToList(), d.SourceFile, d.LineNumber)
+        {
+            ProcessId = d.HasField(UsharpLanguage.FieldProcess)
+                ? d.Field(UsharpLanguage.FieldProcess).Trim()
+                : null,
+        };
     }
+
+    private static string? NullIfEmpty(string value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

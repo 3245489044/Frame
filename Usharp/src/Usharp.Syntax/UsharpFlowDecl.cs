@@ -59,6 +59,37 @@ public sealed record UsharpFlowDecl(
     string SourceFile,
     int LineNumber)
 {
+    /// <summary>
+    /// 层处理器绑定（<c>process=&lt;ProcessId&gt;</c>；空 = 未绑定）——本流即该层的处理代数。
+    /// **加法式 init 属性**（不改位置参数）；与 <c>[Matrix] process=</c> 共域，一层恰一个声明者（多者 → US1011）。
+    /// </summary>
+    public string? ProcessId { get; init; }
+
+    /// <summary>
+    /// 处理编排方向原文（<c>order=</c>；缺省 null = <c>bottom_up</c>）。
+    /// **加法式 init 属性**；取值合法性/回退由 <c>UsharpPlanFields</c>（单一实现）裁决，闸A 对未知值报 US1018。
+    /// </summary>
+    public string? Order { get; init; }
+
+    /// <summary>展开止层（<c>stop=&lt;LevelId&gt;</c>；null = 按 schema 展开到底）。</summary>
+    public string? StopSpaceId { get; init; }
+
+    /// <summary>
+    /// 处理预算（<c>budget=&lt;maxNodes&gt;;&lt;maxDepth&gt;</c> 两段正整数的解析结果；非法/缺省 → null）。
+    /// </summary>
+    public (int MaxNodes, int MaxDepth)? Budget { get; init; }
+
+    /// <summary>
+    /// <c>budget=</c> 字段原文（缺省 = null；**在场但非法** = 非空串 —— 闸A 据此报 US1018 而非静默降级）。
+    /// </summary>
+    public string? BudgetRaw { get; init; }
+
+    /// <summary>
+    /// 链间连接（<c>connects=&lt;上游流号&gt;:&lt;边类型&gt;</c>；**方向即语义**：上游在前）——
+    /// 补齐「块间连接」既有能力的前端声明面（连接算法仍归 WorkFlowMethod，不新增第二执行路径）。
+    /// </summary>
+    public IReadOnlyList<UsharpContainmentDecl> Connects { get; init; } = Array.Empty<UsharpContainmentDecl>();
+
     public static UsharpFlowDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
@@ -70,10 +101,42 @@ public sealed record UsharpFlowDecl(
         }
         var over = d.Field(UsharpLanguage.FieldOver);
         var success = d.Field(UsharpLanguage.FieldSuccess);
+        var process = d.HasField(UsharpLanguage.FieldProcess)
+            ? d.Field(UsharpLanguage.FieldProcess).Trim()
+            : null;
+        var order = d.HasField(UsharpLanguage.FieldOrder)
+            ? d.Field(UsharpLanguage.FieldOrder).Trim()
+            : null;
+        var stop = d.HasField(UsharpLanguage.FieldStop)
+            ? d.Field(UsharpLanguage.FieldStop).Trim()
+            : null;
+        var budgetRaw = d.HasField(UsharpLanguage.FieldBudget)
+            ? d.Field(UsharpLanguage.FieldBudget).Trim()
+            : null;
+
         return new UsharpFlowDecl(d.Name,
             string.IsNullOrWhiteSpace(over) ? null : over.Trim(),
             string.IsNullOrWhiteSpace(success) ? null : success.Trim(),
-            steps, d.References.ToList(), d.SourceFile, d.LineNumber);
+            steps, d.References.ToList(), d.SourceFile, d.LineNumber)
+        {
+            ProcessId = process,
+            Order = string.IsNullOrWhiteSpace(order) ? null : order,
+            StopSpaceId = string.IsNullOrWhiteSpace(stop) ? null : stop,
+            Budget = ParseBudget(budgetRaw),
+            BudgetRaw = string.IsNullOrWhiteSpace(budgetRaw) ? null : budgetRaw,
+            Connects = UsharpContainmentDecl.ParseList(d.Field(UsharpLanguage.FieldConnects)),
+        };
+    }
+
+    /// <summary>预算：<c>&lt;maxNodes&gt;;&lt;maxDepth&gt;</c> 两段正整数（任一段非正整数或段数不为 2 → null）。</summary>
+    private static (int MaxNodes, int MaxDepth)? ParseBudget(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var segments = raw.Split(UsharpLanguage.EnumFieldSeparator, StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length != 2) return null;
+        if (!int.TryParse(segments[0].Trim(), out var maxNodes) || maxNodes <= 0) return null;
+        if (!int.TryParse(segments[1].Trim(), out var maxDepth) || maxDepth <= 0) return null;
+        return (maxNodes, maxDepth);
     }
 }
 
@@ -90,6 +153,12 @@ public sealed record UsharpRefDecl(
     string SourceFile,
     int LineNumber)
 {
+    /// <summary>
+    /// 作用域归属（<c>scope=&lt;ScopeKey&gt;</c>；**加法式 init 属性**）——白名单 = <c>[Obs] kind=scope</c>
+    /// 的既有声明面（零新语法）；未声明值 → US1014。<c>HasField</c> 区分「缺省」与「在场」。
+    /// </summary>
+    public string? Scope { get; init; }
+
     public static UsharpRefDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
@@ -115,7 +184,10 @@ public sealed record UsharpRefDecl(
             NullIfEmpty(d.Field(UsharpLanguage.FieldTgt)),
             NullIfEmpty(d.Field(UsharpLanguage.FieldIntent)),
             NullIfEmpty(d.Field(UsharpLanguage.FieldEdge)),
-            d.References.ToList(), d.SourceFile, d.LineNumber);
+            d.References.ToList(), d.SourceFile, d.LineNumber)
+        {
+            Scope = d.HasField(UsharpLanguage.FieldScope) ? NullIfEmpty(d.Field(UsharpLanguage.FieldScope)) : null,
+        };
     }
 
     private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

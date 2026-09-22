@@ -42,6 +42,12 @@ internal sealed class RefGateRule : IGateRule<UsharpGateModel>
             if (!model.Spaces.HasCoordinate(r.SpaceId, r.Key, out _))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.CoordUndeclared,
                     $"[Ref] {r.Name}: 坐标 '{r.Key}' 未在空间 '{r.SpaceId}' 声明（闸A）", r.SourceFile, r.LineNumber));
+
+            // 作用域白名单 = [Obs] kind=scope 的既有声明面（零新语法，见设计方案 R9 方案 A）。
+            if (r.Scope is { } scope && !(model.Obs?.HasScope(scope) ?? false))
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RefScopeUndeclared,
+                    $"[Ref] {r.Name}: scope='{scope}' 未声明（闸A；白名单 = [Obs] <名>: kind=scope 声明面）",
+                    r.SourceFile, r.LineNumber));
         }
     }
 }
@@ -66,17 +72,41 @@ internal sealed class MatrixGateRule : IGateRule<UsharpGateModel>
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DeclEmpty,
                     $"[Matrix] {m.MatrixId}: 未声明任何输出行（缩进块为空）", m.SourceFile, m.LineNumber));
 
+            var readScope = model.Spaces.ReadScope(m.OverSpaceId);
             foreach (var row in m.Rows)
             {
+                // 写侧（设计方案 §3.2）：输出坐标须**严格**属自身层 ⇒ 属祖先层即「越界写」（US1010，比 US1003 更精确的归因）
                 if (!model.Spaces.HasCoordinate(m.OverSpaceId, row.OutputKey, out _))
-                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowOutUndeclared,
-                        $"[Matrix] {m.MatrixId}: 输出坐标 '{row.OutputKey}' 未在空间 '{m.OverSpaceId}' 声明（闸A）",
-                        m.SourceFile, m.LineNumber));
-                foreach (var input in row.InputRefs)
-                    if (!model.Spaces.HasCoordinate(m.OverSpaceId, input, out _))
-                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowInputUndeclared,
-                            $"[Matrix] {m.MatrixId}: 行 '{row.OutputKey}' 引用了未声明坐标 '{input}'（闸A）",
+                {
+                    var ancestor = model.Spaces.AncestorSpaces(m.OverSpaceId)
+                        .FirstOrDefault(a => model.Spaces.HasCoordinate(a, row.OutputKey, out _));
+
+                    if (ancestor is not null)
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowWriteOutOfSubSpace,
+                            $"[Matrix] {m.MatrixId}: 输出坐标 '{row.OutputKey}' 属祖先空间 '{ancestor}'"
+                            + $" 但不属自身空间 '{m.OverSpaceId}'（越界写 / 父子双写）",
                             m.SourceFile, m.LineNumber));
+                    else
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowOutUndeclared,
+                            $"[Matrix] {m.MatrixId}: 输出坐标 '{row.OutputKey}' 未在空间 '{m.OverSpaceId}' 声明（闸A）",
+                            m.SourceFile, m.LineNumber));
+                }
+
+                // 读侧（设计方案 §3.2 + §10.4 实施修正 ④）：可读域 = 自身层 ∪ 祖先闭包（兄弟块依赖走显式 connects=）
+                foreach (var input in row.InputRefs)
+                    if (!model.Spaces.IsReadable(m.OverSpaceId, input, out _))
+                    {
+                        // 归因分工：由非祖先块写入的坐标归 US1017（跨块写依赖未声明，ConnectGateRule 报，更精确）；
+                        // 其余（本层体系内无处可解析）才归 US1004。
+                        if (model.NonAncestorWriters(m.OverSpaceId, input).Count > 0) continue;
+
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowInputUndeclared,
+                            $"[Matrix] {m.MatrixId}: 行 '{row.OutputKey}' 引用了未声明坐标 '{input}'"
+                            + $"（闸A；可读域 = over 空间 '{m.OverSpaceId}'"
+                            + (readScope.Length == 0 ? "，无祖先层" : $" ∪ 祖先闭包 {readScope}")
+                            + "）",
+                            m.SourceFile, m.LineNumber));
+                    }
             }
         }
     }

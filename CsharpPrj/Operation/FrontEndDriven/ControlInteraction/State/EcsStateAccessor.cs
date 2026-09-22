@@ -124,6 +124,54 @@ public sealed class EcsStateAccessor : IEcsStateAccessor
         return null;
     }
 
+    /// <summary>
+    /// 追加写（outputMode=append 输出语义，终端/日志型目标专用）：
+    /// 读取目标控件当前显示值（物理优先，见 <see cref="GetLiveValue"/>）→ 追加一行 → 复用 <see cref="SetValue"/>
+    /// 回写 ECS 并投影。基值取物理真值，避免覆盖经非 ECS 路径直写的内容（如命令回显）。
+    /// 空文本按空行追加（保持「每次运行一行」的节奏，不静默丢弃）。
+    /// </summary>
+    public bool AppendValue(string controlName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(controlName)) return false;
+
+        var line = value ?? string.Empty;
+        var current = GetLiveValue(controlName);
+
+        string next;
+        if (string.IsNullOrEmpty(current))
+            next = line;
+        else if (current.EndsWith(Environment.NewLine, StringComparison.Ordinal)
+                 || current.EndsWith("\n", StringComparison.Ordinal))
+            next = current + line;
+        else
+            next = current + Environment.NewLine + line;
+
+        var written = SetValue(controlName, next);
+        FrontEndDrivenLog.Log("EcsStateAccessor_AppendValue",
+            new { controlName, appendedLength = line.Length, totalLength = next.Length, written });
+        if (written) FollowTail(controlName);
+        return written;
+    }
+
+    /// <summary>
+    /// 终端跟随：写后把插入点移到文本末尾并滚动至光标——追加输出像控制台一样始终显示最新一行。
+    /// 仅对多行文本框（<see cref="TextBoxBase"/>）生效；其它控件类型直接跳过（无滚动语义）。
+    /// </summary>
+    private void FollowTail(string controlName)
+    {
+        var entity = FindEntityByName(controlName);
+        if (!entity.IsValid) return;
+
+        var control = _controlPool.GetControl(entity);
+        if (control is not TextBoxBase textBox) return;
+
+        RunOnUiThread(control, () =>
+        {
+            textBox.SelectionStart = textBox.TextLength;
+            textBox.ScrollToCaret();
+        });
+    }
+
     public bool SetValue(string controlName, string? value)
     {
         if (string.IsNullOrWhiteSpace(controlName)) return false;

@@ -32,6 +32,23 @@ type ClineCoreWithHost = import("@cline/sdk").ClineCore & { host: RuntimeHost };
 const DEFAULT_INIT_TIMEOUT_MS = 15000;
 
 /**
+ * 工具循环最大迭代数缺省值（LLM 回合数）。
+ * 优先级：payload（options.maxIterations，C# 配置 Agents.<name>.MaxIterations / Llm.MaxIterations 下发）> 本默认。
+ * 本常量是 daemon 侧唯一缺省来源（此前为 sessionConfig 内联字面量 5 → 多步骤写码任务撞顶）。
+ * 取 30：真实写码任务（读码→改多文件→跑验证）通常需要 10~30 个 LLM 回合；30 与 C# 侧随仓配置同值，
+ * 避免「C# 未下发时静默回落到一个更紧的上限」。整轮绝对超时仍由框架预算（ClineCallCap 5min / 循环预算）兜底。
+ */
+export const DEFAULT_MAX_ITERATIONS = 30;
+
+/** 解析本次调用的工具循环迭代上限（非法值回落默认，避免 0/负数把 SDK 卡死）。 */
+function resolveMaxIterations(options: Pick<ClineRunOptions, "maxIterations">): number {
+  const value = options.maxIterations;
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : DEFAULT_MAX_ITERATIONS;
+}
+
+/**
  * 传输层阶段追踪（--trace）：向 stderr 流式打阶段标记，不污染 stdout 的最终 JSON。
  * C# 侧（ClineClient.RunNodeAsync）增量捕获 stderr，超时时 dump 尾部，
  * 从而定位「卡在哪个阶段」（SDK 加载 / ClineCore 初始化 / core.start / API 请求）。
@@ -476,7 +493,7 @@ export class SdkTransport {
       enableAgentTeams: false,
       cwd: cwd ?? undefined,
       mode,
-      maxIterations: 5,
+      maxIterations: resolveMaxIterations(options),
       systemPrompt: sdk.getClineDefaultSystemPrompt({
         rootPath: cwd ?? process.cwd(),
         providerId: provider,

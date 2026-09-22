@@ -20,6 +20,9 @@ import {
   BridgeToCSharpDbBackend,
   DaemonIpcPersistenceTransport,
   ClineRouteProvider,
+  ClineDbProvider,
+  DbSink,
+  type DbSinkObserveFrame,
   type SinkObserveFrame,
 } from "fs-sink";
 import { resolveClineDataRoot, resolveDefaultClineDataRoot } from "../runtime/cline-data-root.js";
@@ -34,6 +37,8 @@ export interface SinkInstallOptions {
 export interface InstalledSink {
   /** 已 patch 的统一门面（注入 SdkTransport 用）。 */
   sink: AgentSinkHost;
+  /** 模块层 sqlite shim（缺省 off；`CLINE_DB_SINK=observe|relocate|memory` 时生效）。 */
+  dbSink: DbSink;
   /** 生效的数据根（供诊断回带）。 */
   dataDir: string;
   /** 绑定自检结果（空 = 通过；非空已 fail-fast 抛错，不会返回）。 */
@@ -73,7 +78,15 @@ export async function installSink(opts: SinkInstallOptions = {}): Promise<Instal
     ],
     db
   );
+
+  // DbSink（模块层 sqlite 拦截）：`CLINE_DB_SINK` 缺省 off ⇒ 不 patch（零行为变更）。
+  // 构造须早于 fs patch（捕获原始 fs 引用用于 relocate 建目录）；安装与 fs patch 同一窗口。
+  const dbSink = new DbSink([
+    new ClineDbProvider({ dataDir, defaultDbDir, dbNames: ["sessions.db"] }),
+  ]);
+
   sink.patchAll();
+  dbSink.patchAll();
 
   const bindings = await sink.verifyBindings();
   if (bindings.length > 0) {
@@ -84,7 +97,7 @@ export async function installSink(opts: SinkInstallOptions = {}): Promise<Instal
     );
   }
 
-  installed = { sink, dataDir, bindings };
+  installed = { sink, dbSink, dataDir, bindings };
   return installed;
 }
 
@@ -98,6 +111,11 @@ export function observeSink(): SinkObserveFrame | undefined {
   return installed?.sink.observe();
 }
 
+/** DbSink 观测帧（mode/opened/relocated/memoryHits/denied/fallbacks）；未安装返回 undefined。 */
+export function dbObserve(): DbSinkObserveFrame | undefined {
+  return installed?.dbSink.observe();
+}
+
 /** 终态落库 + 卸载 patch（进程退出/dispose 时调用；可重复调用）。 */
 export async function disposeSink(): Promise<void> {
   const current = installed;
@@ -108,5 +126,6 @@ export async function disposeSink(): Promise<void> {
   } catch {
     /* 终态落库失败不阻断卸载 */
   }
+  current.dbSink.unpatchAll();
   current.sink.unpatchAll();
 }

@@ -13,9 +13,27 @@ public class EventBinding
 
     public string? Output { get; set; }
 
+    /// <summary>输出写语义（见 <see cref="OutputWriteModes"/>）；null/空 = <see cref="OutputWriteModes.Replace"/>。</summary>
+    public string? OutputMode { get; set; }
+
     public Dictionary<string, string>? OutputMapping { get; set; }
 
     public Dictionary<string, WorkflowDefinitionEntry>? Workflows { get; set; }
+}
+
+/// <summary>
+/// 输出写语义（<c>bindings.outputMode</c>）：决定函数返回值如何落到 <c>bindings.output</c> 目标控件。
+/// <see cref="Replace"/>（缺省）= 覆盖写（普通结果区）；<see cref="Append"/> = 追加一行（终端/日志型目标，
+/// 使多次运行的结果累积可见，如 MainLayout 右侧 outputTextBox 终端）。
+/// 消费方：EcsEventBus 输出回写（唯一裁决点，见 IEcsStateAccessor.AppendValue）。
+/// </summary>
+public static class OutputWriteModes
+{
+    /// <summary>覆盖写（缺省）：目标控件 Text = 本次函数返回值。</summary>
+    public const string Replace = "replace";
+
+    /// <summary>追加写：目标控件 Text = 现有内容 + 换行 + 本次函数返回值（终端日志语义）。</summary>
+    public const string Append = "append";
 }
 
 public class ParameterBinding

@@ -117,10 +117,12 @@ internal static class ScriptedValue
                 scope.PortKey,
                 context);
 
-    /// <summary>声明目标类型（<c>type</c> + <c>genericArgs</c>；未声明 → null）。<c>from:type</c> 时
-    /// <c>type</c> 是**取值本身**（类型字面量）而非目标类型，故不参与目标类型解析。</summary>
+    /// <summary>声明目标类型（<c>type</c> + <c>genericArgs</c>；未声明 → null）。
+    /// <c>from:type</c> 时 <c>type</c> 是**取值本身**（类型字面量）而非目标类型；
+    /// <c>from:member</c> 时 <c>type</c> 是**成员所在的声明类型**（仅用于定位成员），成员值类型由成员自身决定。
+    /// 二者均不参与目标类型解析，回落到调用点形参类型。</summary>
     internal static Type? DeclaredType(ValueSourceStandard spec)
-        => spec.From == "type"
+        => spec.From is "type" or "member"
             ? null
             : spec.Type is { Length: > 0 } name ? ComposedDeps.ResolveType(name, spec.GenericArgs) : null;
 

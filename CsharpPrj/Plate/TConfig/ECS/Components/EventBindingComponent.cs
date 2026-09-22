@@ -13,4 +13,7 @@ public struct EventBindingComponent : IComponent
     public TConfig.ParameterBinding[] Parameters;
 
     public string OutputTarget;
+
+    /// <summary>输出写语义（<see cref="TConfig.OutputWriteModes"/>）；null/空 = replace（覆盖写）。</summary>
+    public string? OutputMode;
 }

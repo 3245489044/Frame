@@ -13,9 +13,11 @@
       C. 数据根单点权威（I4）：`CLINE_HOME` 全仓（*.ts/*.cs）零残留；`CLINE_DIR` 的**读取**
          （process.env.CLINE_DIR / GetEnvironmentVariable("CLINE_DIR")）只允许出现在两个权威解析器
          （TS: ClineApi/src/runtime/cline-data-root.ts；C#: CallCenter.Core/Cline/ClineDataRoot.cs）。
-      D. 构造单点：`new AgentSinkHost(` 只允许出现在 preload（生产入口唯一）。
+      D. 构造单点：`new AgentSinkHost(` 只允许出现在 preload（生产入口唯一）；DbSink 同理
+         （`new DbSink(` 只允许出现在 preload）。
       E. db 落盘面（DbSink 文档 P0-1/P0-4）：仓库树内不得出现 `sessions.db*`（原生 SQLite，fs 层拦不住；
          落到仓库树即「状态根未注册」症状）。默认 WARN；-StrictDbResidue 时升级为违规。
+         E3：`CLINE_DB_SINK=memory` 时该断言恒为硬承诺（零落盘），无需 -StrictDbResidue。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（拦截链路回归）。
 
 .PARAMETER Root
@@ -53,6 +55,7 @@ $csFiles = Get-ChildItem -Path $Root -Recurse -Filter *.cs -File -ErrorAction Si
     Where-Object { $_.FullName -notmatch '\\(obj|bin|BuildOutput|_deprecated)\\' }
 
 $clineApiSrc = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\src'
+$fsSinkSrc = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\FsSink\src'
 $preloadFile = Join-Path $clineApiSrc 'preload\sink-preload.ts'
 $bootstrapFiles = @(
     (Join-Path $clineApiSrc 'engine.ts'),
@@ -60,7 +63,12 @@ $bootstrapFiles = @(
 )
 
 # ── A. preload 静态图洁净（I1） ──
-$cleanScope = @($preloadFile) + $bootstrapFiles + @(Join-Path $clineApiSrc 'runtime\cline-data-root.ts')
+# DbSink（模块层 sqlite shim）与其声明式 provider 同属 preload 静态闭包，一并纳管（I1 扩展）。
+$cleanScope = @($preloadFile) + $bootstrapFiles + @(Join-Path $clineApiSrc 'runtime\cline-data-root.ts') + @(
+    (Join-Path $fsSinkSrc 'db\db-sink.ts'),
+    (Join-Path $fsSinkSrc 'db\db-route-provider.ts'),
+    (Join-Path $fsSinkSrc 'cline\cline-db-provider.ts')
+)
 $staticFsPattern = '^\s*import\s+[^;]*from\s+["''](node:)?fs(/promises)?["'']'
 foreach ($f in $cleanScope)
 {
@@ -110,14 +118,14 @@ foreach ($h in $envLiteralHits)
     }
 }
 
-# ── D. 构造单点：new AgentSinkHost 只允许出现在 preload ──
-$ctorHits = $tsFiles | Select-String -Pattern 'new\s+AgentSinkHost\s*\(' -ErrorAction SilentlyContinue |
+# ── D. 构造单点：new AgentSinkHost / new DbSink 只允许出现在 preload ──
+$ctorHits = $tsFiles | Select-String -Pattern 'new\s+AgentSinkHost\s*\(|new\s+DbSink\s*\(' -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -notmatch '\\FsSink\\(src|test)\\' }
 foreach ($h in $ctorHits)
 {
     if ($h.Path -ne $preloadFile)
     {
-        $violations.Add("AgentSinkHost 越权构造（入口非单点）$($h.Path):$($h.LineNumber) —— 生产入口唯一 = sink-preload")
+        $violations.Add("AgentSinkHost/DbSink 越权构造（入口非单点）$($h.Path):$($h.LineNumber) —— 生产入口唯一 = sink-preload")
     }
 }
 
@@ -153,6 +161,17 @@ if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE))
     }
 }
 if ($ShowDetail) { Write-Host "E: db 落盘面已检（仓库树残留 $($dbResidue.Count) 处；严格模式=$StrictDbResidue）。" }
+
+# E3：DbSink.memory 形态即「零落盘」硬承诺 —— 仓库树残留直接违规（无需 -StrictDbResidue）。
+$dbSinkMode = ''
+if (-not [string]::IsNullOrWhiteSpace($env:CLINE_DB_SINK)) { $dbSinkMode = $env:CLINE_DB_SINK.Trim().ToLower() }
+if (-not $StrictDbResidue -and $dbSinkMode -eq 'memory')
+{
+    foreach ($f in $dbResidue)
+    {
+        $violations.Add("CLINE_DB_SINK=memory 下仓库树仍有 db 残留（零落盘承诺）: $($f.FullName)")
+    }
+}
 
 if ($violations.Count -eq 0)
 {

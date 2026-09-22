@@ -302,6 +302,7 @@ public class ControlFactory
                                 updated.Parameters = binding.Parameters?.ToArray()
                                     ?? Array.Empty<TConfig.ParameterBinding>();
                                 updated.OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty;
+                                updated.OutputMode = binding.OutputMode;
                                 bindings[i] = updated;
                             }
                         }
@@ -320,6 +321,7 @@ public class ControlFactory
                                     updated.Parameters = binding.Parameters?.ToArray()
                                         ?? Array.Empty<TConfig.ParameterBinding>();
                                     updated.OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty;
+                                    updated.OutputMode = binding.OutputMode;
                                     bindings[i] = updated;
                                 }
                                 break;
@@ -336,7 +338,8 @@ public class ControlFactory
                         // D6 收敛：参数 DTO 直通
                         Parameters = binding.Parameters?.ToArray()
                             ?? Array.Empty<TConfig.ParameterBinding>(),
-                        OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty
+                        OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty,
+                        OutputMode = binding.OutputMode
                     });
                 }
             }

@@ -111,4 +111,10 @@ export { ClineRouteProvider, extractClineSessionId } from "./cline/cline-route-p
 export type { ClineRouteProviderOptions } from "./cline/cline-route-provider.js";
 export { clineRoutes } from "./cline/cline-route.js";
 export type { ClineRoutesOptions } from "./cline/cline-route.js";
+export { ClineDbProvider } from "./cline/cline-db-provider.js";
+export type { ClineDbProviderOptions } from "./cline/cline-db-provider.js";
+export { DbSink } from "./db/db-sink.js";
+export type { DbOpenedRecord, DbSinkDeps, DbSinkObserveFrame } from "./db/db-sink.js";
+export { DB_SINK_ENV, DB_SINK_MODES, parseDbSinkMode, routeDbPath } from "./db/db-route-provider.js";
+export type { DbRouteDecision, DbRouteProvider, DbSinkMode } from "./db/db-route-provider.js";
 

@@ -26,6 +26,14 @@ public interface IEcsStateAccessor
 
     /// <summary>按控件名写 ECS 状态值并触发投影同步（物理控件同步更新）。</summary>
     bool SetValue(string controlName, string? value);
+
+    /// <summary>
+    /// 按控件名<b>追加</b>写（outputMode=append 输出语义）：以目标控件当前显示值为基，
+    /// 逐条追加一行后回写 ECS 并投影——终端/日志型目标（如 MainLayout 右侧 outputTextBox）多次运行结果累积可见。
+    /// 基值取物理当前值（<see cref="GetLiveValue"/>）：终端可能被非 ECS 路径直写（如命令回显），
+    /// 以物理真值为基可避免覆盖掉那部分内容。
+    /// </summary>
+    bool AppendValue(string controlName, string? value);
 }
 
 /// <summary>

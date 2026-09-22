@@ -382,6 +382,11 @@
       "level": "Warning",
       "category": "General"
     },
+    "EcsEventBus_Dispatch_output_appended": {
+      "template": "ECS 事件输出追加写（outputMode=append，终端语义）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, appended={appended}",
+      "level": "Info",
+      "category": "General"
+    },
     "EcsEventBus_Dispatch": {
       "template": "ECS 事件分发 — controlName={controlName}, eventName={eventName}, functionName={functionName}, parameters={parameters}",
       "level": "Debug",
@@ -426,6 +431,11 @@
     "EcsStateAccessor_SetValue": {
       "template": "ECS 状态写入 — controlName={controlName}, value={value}, entityId={entityId}",
       "level": "Debug",
+      "category": "General"
+    },
+    "EcsStateAccessor_AppendValue": {
+      "template": "ECS 状态追加写（终端语义） — controlName={controlName}, appendedLength={appendedLength}, totalLength={totalLength}, written={written}",
+      "level": "Info",
       "category": "General"
     },
     "EcsStateAccessor_SetValue_projection": {

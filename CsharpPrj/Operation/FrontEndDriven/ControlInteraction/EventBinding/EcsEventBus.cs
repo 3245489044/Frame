@@ -280,6 +280,7 @@ public sealed class EcsEventBus : IInteractionEventPort
                     success = result.IsSuccess,
                     outcome = result.Outcome.ToString(),
                     outputTarget = binding.OutputTarget,
+                    outputMode = binding.OutputMode,
                     outputType = result.Output?.GetType().Name ?? "(null)",
                     outputPreview = Preview(result.Output, 160)
                 });
@@ -288,7 +289,7 @@ public sealed class EcsEventBus : IInteractionEventPort
                 && !string.IsNullOrWhiteSpace(binding.OutputTarget)
                 && effectiveOutput != null)
             {
-                _stateAccessor.SetValue(binding.OutputTarget, effectiveOutput.ToString());
+                WriteOutput(binding, effectiveOutput.ToString(), opId, evt);
                 op?.Complete(EventFunctionOutcome.Success());
             }
             else if (!result.IsSuccess)
@@ -379,6 +380,24 @@ public sealed class EcsEventBus : IInteractionEventPort
             // 完成信号 AsyncOp 已终结（op.Complete），释放资源（已终结则 Dispose 不会取消）。
             op?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// 输出回写（单一裁决点）：按绑定的 outputMode 选择写语义。
+    /// append（终端/日志型目标）= 追加一行累积（<see cref="IEcsStateAccessor.AppendValue"/>）；
+    /// 其余（缺省 replace）= 覆盖写。语义取值权威见 <see cref="TConfig.OutputWriteModes"/>。
+    /// </summary>
+    private void WriteOutput(EventBindingComponent binding, string? text, Guid opId, UIInteractionEvent evt)
+    {
+        if (string.Equals(binding.OutputMode, TConfig.OutputWriteModes.Append, StringComparison.OrdinalIgnoreCase))
+        {
+            var appended = _stateAccessor.AppendValue(binding.OutputTarget, text);
+            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_appended",
+                new { opId, controlName = evt.ControlName, functionName = binding.FunctionName, outputTarget = binding.OutputTarget, appended });
+            return;
+        }
+
+        _stateAccessor.SetValue(binding.OutputTarget, text);
     }
 
     private static EventFunctionResultKind ToKind(InvocationOutcome outcome) => outcome switch

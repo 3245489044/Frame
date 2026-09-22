@@ -63,6 +63,12 @@ export interface ClineRunOptions {
   dataDir?: string;
   /** 推理努力级别 */
   thinking?: ClineThinking;
+  /**
+   * SDK 工具循环最大迭代数（LLM 回合数）。
+   * 未指定时回落 {@link DEFAULT_MAX_ITERATIONS}；由 C# 侧经 payload 下发
+   * （配置键 Agents.<name>.MaxIterations / Llm.MaxIterations，见 ClinePayloadKeys.MaxIterations）。
+   */
+  maxIterations?: number;
   /** 自定义系统提示词 */
   systemPrompt?: string;
   /** 连续错误最大重试次数 */

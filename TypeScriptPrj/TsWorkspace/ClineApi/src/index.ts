@@ -10,10 +10,12 @@ export {
   installSink,
   getInstalledSink,
   observeSink,
+  dbObserve,
   disposeSink,
   type SinkInstallOptions,
   type InstalledSink,
 } from "./preload/sink-preload.js";
+export type { DbSinkObserveFrame, DbSinkMode } from "fs-sink";
 export {
   resolveClineDataRoot,
   resolveDefaultClineDataRoot,

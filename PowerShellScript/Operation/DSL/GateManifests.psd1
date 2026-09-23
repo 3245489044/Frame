@@ -1,32 +1,32 @@
 @{
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
     AgentBuildPoint = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 
     AgentDataSeparation = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 
     AgentDecisionCoreBoundary = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 
     AgentRuntimeSlots = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 
     DataCenterGenericity = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 
     DataContracts = @{
-        Args   = @('-Check')
+        Args   = @{ Check = $true }
         Expect = 0
     }
 

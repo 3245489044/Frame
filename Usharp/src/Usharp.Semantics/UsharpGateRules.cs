@@ -61,14 +61,19 @@ internal sealed class MatrixGateRule : IGateRule<UsharpGateModel>
     {
         foreach (var m in model.Matrices)
         {
-            if (string.IsNullOrWhiteSpace(m.OverSpaceId) || !model.Spaces.TryGet(m.OverSpaceId, out _))
+            if (string.IsNullOrWhiteSpace(m.OverSpaceId) || !model.Spaces.TryGet(m.OverSpaceId, out var overSpace))
             {
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceUnknown,
                     $"[Matrix] {m.MatrixId}: over 指向未声明的空间 '{m.OverSpaceId ?? "(缺 over=)"}'",
                     m.SourceFile, m.LineNumber));
                 continue;
             }
-            if (m.Rows.Count == 0)
+
+            // 判据读法（over = kind=terms 空间）：续行是 layer/rule/cross，无「输出行」概念；
+            // 其形态判据归 DecisionGateRule（US1101–US1106），此处放行（既有两读法行为零改）。
+            if (overSpace.Kind == UsharpSpaceKind.Terms) continue;
+
+            if (m.Rows.Count == 0 && !HasDecisionLines(m))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DeclEmpty,
                     $"[Matrix] {m.MatrixId}: 未声明任何输出行（缩进块为空）", m.SourceFile, m.LineNumber));
 
@@ -109,6 +114,16 @@ internal sealed class MatrixGateRule : IGateRule<UsharpGateModel>
                     }
             }
         }
+    }
+    /// <summary>
+    /// 是否含判据读法续行（<c>layer</c>/<c>rule</c>/<c>cross</c>）——读法错误归 <c>DecisionGateRule</c>（<c>US1105</c>），
+    /// 此处不再叠加 <c>US0003</c>（同一缺陷只报一次）。
+    /// </summary>
+    private static bool HasDecisionLines(UsharpMatrixDecl matrix)
+    {
+        foreach (var line in matrix.RawLines)
+            if (UsharpLanguage.TryReadRowMarker(line, out _)) return true;
+        return false;
     }
 }
 

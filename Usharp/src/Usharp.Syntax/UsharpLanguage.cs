@@ -130,6 +130,65 @@ public static class UsharpLanguage
     public static readonly string[] ValueKinds = { KindFlag, KindOrdinal, KindNumeric };
 
     /// <summary>
+    /// 第三空间种类：词元空间（<c>kind=terms</c>）—— 坐标带**词元集**（命名枚举，不可量化、不可比较），
+    /// 与值型空间的「值域」互斥。书写面 = <c>&lt;轴&gt; | zone=&lt;象限&gt; | terms=&lt;t1&gt;,&lt;t2&gt;</c>；
+    /// 装配产物 = 判据读法（<c>DecisionGraph</c>），非值域矩阵（见 E1 施工计划 §2/§4）。
+    /// </summary>
+    public const string KindTerms = "terms";
+
+    /// <summary>
+    /// 空间种类取值集合（**单源**）：<c>[Space] kind=</c> 的合法性判据（<c>US0006</c>）与书写模板由此派生，
+    /// 禁在注册表/语法/发射各写一份取值域。
+    /// </summary>
+    public static readonly string[] SpaceKinds = { KindKeys, KindValues, KindTerms };
+
+    /// <summary><c>[Space] kind=terms</c> 词元行字段名：象限归属 / 词元集。</summary>
+    public const string FieldZone = "zone";
+    public const string FieldTerms = "terms";
+
+    /// <summary><c>[Matrix]</c> 判据读法的层 / 规则字段名（E1）。</summary>
+    public const string FieldOutput = "output";
+    public const string FieldAbsorb = "absorb";
+
+    /// <summary><c>[Matrix]</c> 判据读法的规则字段名：面内优先级 / 必需词元集 / 产出标签（E1）。</summary>
+    public const string FieldPriority = "priority";
+    public const string FieldWhen = "when";
+    public const string FieldLabel = "label";
+
+    /// <summary><c>[Matrix]</c> 判据读法的续行首词（层 / 规则 / 复合特征）。</summary>
+    public const string RowLayerMarker = "layer";
+    public const string RowRuleMarker = "rule";
+    public const string RowCrossMarker = "cross";
+
+    /// <summary>词元引用 <c>&lt;轴&gt;.&lt;词元&gt;</c> 的分隔符（禁用 <c>-</c>，坐标名文法见 <see cref="UsharpIdentifier"/>）。</summary>
+    public const char TermSeparator = '.';
+
+    /// <summary>判据读法续行首词集合（<see cref="TryReadRowMarker"/> 的判据源；声明序）。</summary>
+    public static readonly string[] RowMarkers = { RowLayerMarker, RowRuleMarker, RowCrossMarker };
+
+    /// <summary>
+    /// 续行首词判据（<c>layer</c>/<c>rule</c>/<c>cross</c>）：首词后须跟分隔符（空白 / <c>|</c>），或整行即首词
+    /// —— 与 <see cref="HasStepMarker"/> 同款防裸键误剥（<c>layer_count</c> 不得被判为层行）。
+    /// </summary>
+    /// <param name="text">续行原文（调用方已 Trim）。</param>
+    /// <param name="marker">out：命中的首词（未命中 = 空串，调用方据 false 判定）。</param>
+    public static bool TryReadRowMarker(string text, out string marker)
+    {
+        marker = string.Empty;
+        if (string.IsNullOrEmpty(text)) return false;
+
+        foreach (var candidate in RowMarkers)
+        {
+            if (!text.StartsWith(candidate, StringComparison.Ordinal)) continue;
+            if (text.Length == candidate.Length) { marker = candidate; return true; }
+            var next = text[candidate.Length];
+            if (next == '|' || char.IsWhiteSpace(next)) { marker = candidate; return true; }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// 多段字段切分（`;` 分段、去空段、逐段去空白）—— `enum=` / `contains=` / `connects=` / `budget=`
     /// 共用同一分段口径（`|` 与 `,` 已被字段/列表占用）。
     /// </summary>

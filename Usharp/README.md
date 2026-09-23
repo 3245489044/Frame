@@ -59,7 +59,7 @@
 
 | 前缀 | 语义 | 符号类型 | 编译到 |
 |---|---|---|---|
-| `[Space]` | 坐标空间（键型 / 值型） | `Space` | `ParameterSchema` / 步骤键集 / 词元轴集 |
+| `[Space]` | 坐标空间（键型 / 值型 / 词元型） | `Space` | `ParameterSchema` / 步骤键集 / 词元轴集 → `DecisionGraph` |
 | `[Matrix]` | 空间上的一次变换（行 = 输出坐标） | `Matrix` | `ParameterMatrix` / `DecisionGraph` / `ChainSignalResolver` |
 | `[Flow]` | 链 / 工作流（以链为节点） | `Flow` | `RoundSpec` + `ChainTransitionMatrix` |
 | `[Ref]` | 带空间归属的引用 | `Ref` | `CoordinateRef` + 引用图边 |
@@ -87,6 +87,14 @@
 
 [Matrix] <BlockId>: over=<SubSpaceId> | process=<ProcessId>       # 小矩阵 = 该层的处理代数
   <outAxis> = <线性表达式>
+
+[Space] <TermsSpaceId>: kind=terms                                # 词元空间（判据读法的输入证据轴；E1/U2b）
+  <axis> | zone=<I|E|O> | terms=<term1>,<term2>
+
+[Matrix] <DecisionId>: over=<TermsSpaceId>                        # 判据读法 → DecisionGraph（面内优先级 + 命中即停 + 吸收短路）
+  layer <layerId> | output=<outAxis> | absorb=<label1>,<label2>
+  cross <name> | when=<axis>.<term>[,<axis>.<term>]
+  rule <layerId> | label=<label> | priority=<n> | when=<axis>.<term>[,cross.<name>]
 
 [Flow] <FlowId>: over=<SpaceId>
   step <key>
@@ -206,6 +214,12 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 | `US1016` | error | `connects=` 边类型为空（须形如 `<上游流号>:<连接边类型>`） |
 | `US1017` | error | 跨块写依赖未声明：块读了由**非祖先块**写的坐标，而无 `connects=`（比 `US1004` 更精确的归因） |
 | `US1018` | warn | 处理编排字段取值非法（`order=` 未知值 / `budget=` 非两段正整数）——按缺省处理，不静默兜底 |
+| `US1101` | error | 词元空间（`kind=terms`）词元行的 `zone=` 缺失或非法（合法：`I`/`E`/`O`），或 `terms=` 未声明词元 |
+| `US1102` | error | 判据规则 `when=` 引用未声明词元（`<输入轴>.<词元>` 与 `<层输出轴>.<标签>` 二者皆不可解析） |
+| `US1103` | error | 判据层内 `priority` 冲突（面内须全序显式支配） |
+| `US1104` | error | 判据层 `absorb=` 的值不在该层标签集内（吸收集悬空） |
+| `US1105` | error | 判据读法形态非法（层缺 `output=` / 规则缺 `label=`·`priority=` / 续行不可归位 / 非词元空间含判据续行 / 无层） |
+| `US1106` | error | `cross.<名>` 引用未声明的复合特征（或 `cross` 行 `when=` 为空） |
 | `US2001` | warn | `[CR]` 悬空（符号索引不可解析；跨库引用需同批装载） |
 | `US2002` | warn | 标记 `dep` 的 `[Node]`/`[Edge]` 仍被流步骤 / 引用边使用（废弃指向） |
 | `US3001` | warn | `[Flow]` 步骤键尚无对应 `[Node]` 声明（可执行体未登记） |
@@ -377,7 +391,7 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | **U0′** | 命名收敛：`Ushar.*` → `Usharp.*`（工程文件/命名空间/类型名/测试目录；保留 `.ushar` 扩展名、`US` 诊断前缀、`U-V*` 编号） | U-V13 | ✓ **已完成**（0/0 构建，14/14 测试） |
 | **U1** | 四前缀 + `[Space]`/`[Ref]`/`[Matrix]`/`[Flow]` 语法模型 + **闸A** + 引用即边 | U-V1..U-V4 | ✓ **已完成** |
 | **U2** | `Usharp.Matrix`：**值域矩阵**（`[Space] kind=values` → `ParameterSchema`/`ParameterMatrix`）＋**转移矩阵**（`[Space] kind=keys` → 步骤键转移表 = `ChainSignalResolver` 的构造输入）；`[Matrix]` 行复用 `ParameterMatrix.Row` 装载期闸A | 矩阵可由 `[Matrix]` 声明驱动 | ✓ **已完成**（两读法；0/0 构建，23/23 测试） |
-| **U2b** | 判据读法（`DecisionGraph`，需 `kind=terms` 词元轴与规则体语法）＋治理读法（`ModuleAxisMatrix`，需 `kind=modules` 与绑定声明面） | 语法扩张须先有真实消费方 | 暂缓（拒绝无校验的新前缀） |
+| **U2b** | 判据读法（`DecisionGraph`：`kind=terms` 词元轴 + `layer`/`rule`/`cross` 规则体语法 + 闸A `US1101`–`US1106`）＋治理读法（`ModuleAxisMatrix`，需 `kind=modules` 与绑定声明面） | 语法扩张须先有真实消费方 | ◐ **判据读法已完成（E1，2026-09-23）**：`usharp.decision` 9 例 + 6 码反例全绿（`Usharp.Tests` 80/80）；治理读法仍暂缓（拒绝无校验的新前缀） |
 | **U3** | `Usharp.Emit`：`[Flow]` → `RoundSpec` + 链转移表；样例 `agent-loop.ushar` 与 `Config\workflows\agent-loop.json` 等价（步骤序 / FuncName / 入参键 / 结果键 / 成功准则逐条一致）；`on_success` 之外的键由闸A 编译期拦下 → 解 C1 | U-V6 | ✓ **已完成**（8 例；构建经聚合 `Usharp.sln`） |
 | **U4** | `Usharp.Cli`：`build`/`lint`/`graph`/`matrix` 四命令；lint 四检（悬空/废弃/循环/反向）；**图能力端口**（`IUsharpGraphBackend` + `NullGraphBackend` + `UsharpGraphService`）提前落核心（零 UR） | U-V5（语言侧部分）/ U-V9 | ✓ **已完成**（9 CLI 例 + 7 图例） |
 | **U4b** | clinerules 侧的 PowerShell 四检（悬空/废弃/循环/反向 + `references.md` 生成）迁移/委托到 `Usharp.Cli lint` | U-V5（全量） | 待开工（涉及 `references.md` 模板生成与 CI 接入） |
@@ -443,7 +457,8 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | `Config\workflows\agent-loop.json`（`on_success` 主路径） | `samples\agent-loop.ushar` + `UsharpRoundSpecEmitter`（`RoundSpec` 逐字段等价） | ✓ 等价已验证（U3，8 例） | Agent 侧改为消费 Usharp 产出后退役（含 `RoundSpecLoader` 回退路径保留期） |
 | `Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md` | Usharp 侧 `[Node]/[Edge]/[Constraint]` 声明 + `UsharpReferenceSchemaEmitter` 产出同名 JSON | ◐ 能力具备（U5），声明未迁（**U5b**） | CentralTest `ReferenceSchemaDslTests` 三处直读取值改到产出路径 + 重烘焙通过 |
 | `.clinerules` 四检（`PowerShellScript\Operation\DSL\Check-ClinerulesReferences.ps1`） | `Usharp.Cli lint`（悬空 / 废弃 / 循环 / 反向，四检单一实现） | ◐ 语言侧四检可跑（U4），clinerules 侧未迁（**U4b**） | PS 脚本改为委托 `Usharp.Cli lint`（含 `references.md` 生成通道迁移）后退役 |
-| `[Matrix]` 判据读法（`DecisionGraph`）/ 治理读法（`ModuleAxisMatrix`） | 待 U2b：需 `kind=terms|modules` 空间词法与规则体语法 | 暂缓（无真实消费方） | 出现真实消费方且语法面通过闸A 设计评审 |
+| `[Matrix]` 判据读法（`DecisionGraph`） | Usharp 侧 `[Space] kind=terms` + `[Matrix]` 判据续行（`layer`/`rule`/`cross`）→ `UsharpDecisionMatrixEmitter` | ✓ 已落地（**E1/U2b**；`usharp.decision` 9 例 + 6 码闸A 反例） | 治理判据表由 `.ushar` 单源承载（JSON 规则表退役）后销账 |
+| `[Matrix]` 治理读法（`ModuleAxisMatrix`） | 待 `kind=modules` 空间词法与绑定声明面 | 暂缓（无真实消费方） | 出现真实消费方且语法面通过闸A 设计评审 |
 
 ### 9.5 观测接入（批 O0–O5）
 

@@ -1,9 +1,10 @@
 using System.Text.RegularExpressions;
 using Plate.DslMethod.Model;
+using Plate.DslMethod.Parsing;
 
 namespace Usharp.Syntax;
 
-/// <summary>空间种类（键型 = 无值域、不可比较；值型 = 有值域、可量化）。</summary>
+/// <summary>空间种类（键型 = 无值域、不可比较；值型 = 有值域、可量化；词元型 = 有词元集、不可量化）。</summary>
 public enum UsharpSpaceKind
 {
     /// <summary>键型空间：坐标是名字（步骤键 / op 键），无值域。</summary>
@@ -11,13 +12,22 @@ public enum UsharpSpaceKind
 
     /// <summary>值型空间：坐标有值域（flag/ordinal/numeric），可量化。</summary>
     Values,
+
+    /// <summary>词元型空间（<c>kind=terms</c>）：坐标带词元集（命名枚举）与象限归属，装配为判据读法。</summary>
+    Terms,
 }
 
-/// <summary>空间的一个坐标轴（值型带值类与值域；键型只有名字）。</summary>
+/// <summary>空间的一个坐标轴（值型带值类与值域；键型只有名字；词元型带象限与词元集）。</summary>
 public sealed record UsharpAxis(string Name, string? ValueKind = null, double? Min = null, double? Max = null)
 {
     /// <summary>是否键型坐标（无值类）。</summary>
     public bool IsKey => ValueKind is null;
+
+    /// <summary>象限归属（<c>zone=</c>；仅 <c>kind=terms</c> 空间；null = 未声明，闸A <c>US1101</c>）。</summary>
+    public string? Zone { get; init; }
+
+    /// <summary>词元集（仅 <c>kind=terms</c> 空间；空表 = 未声明词元，闸A <c>US1101</c>）。</summary>
+    public IReadOnlyList<string> Terms { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>包含声明的一条：<c>contains=&lt;ParentSpaceId&gt;:&lt;EdgeType&gt;</c>（子空间 → 父空间 + 包含边类型）。</summary>
@@ -72,12 +82,56 @@ public sealed record UsharpSpaceDecl(
         $"^(?<name>{UsharpIdentifier.Pattern})\\s*(?::\\s*(?<kind>[A-Za-z]+))?\\s*(?:\\(\\s*(?<min>-?[\\d.]+)\\s*\\.\\.\\s*(?<max>-?[\\d.]+)\\s*\\))?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>
+    /// 词元行文法（仅 <c>kind=terms</c>）：<c>&lt;轴&gt; | zone=&lt;象限&gt; | terms=&lt;t1&gt;,&lt;t2&gt;</c>
+    /// —— 字段序无关、字段可省（在场但非法由闸A <c>US1101</c> 报，不静默丢弃声明行）。
+    /// </summary>
+    private static readonly Regex TermAxisRegex = new(
+        $"^(?<name>{UsharpIdentifier.Pattern})\\s*(?<rest>(\\|.*)?)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>解析一条词元行（未识别字段 ⇒ false，交由调用方记入 <see cref="UsharpSpaceDecl.UnparsedLines"/>）。</summary>
+    private static bool TryParseTermAxis(string line, out UsharpAxis axis)
+    {
+        axis = null!;
+        var m = TermAxisRegex.Match(line);
+        if (!m.Success) return false;
+
+        string? zone = null;
+        var terms = new List<string>();
+        var rest = m.Groups["rest"].Value ?? string.Empty;
+        foreach (var segment in rest.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            // `k=v` 切分单源 = 解析器字段词法（本读法不接受散文段：无 `=` 即形状非法，不静默丢弃）。
+            var kv = FieldParser.TryParsePart(segment);
+            if (kv is null) return false;
+
+            var (key, value) = (kv.Value.Key, kv.Value.Value);
+            if (string.Equals(key, UsharpLanguage.FieldZone, StringComparison.OrdinalIgnoreCase))
+            {
+                zone = string.IsNullOrWhiteSpace(value) ? null : value;
+                continue;
+            }
+            if (string.Equals(key, UsharpLanguage.FieldTerms, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var term in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    terms.Add(term);
+                continue;
+            }
+            return false;   // 未识别字段：不静默丢弃（既有 US0007 通道报出）
+        }
+
+        axis = new UsharpAxis(m.Groups["name"].Value) { Zone = zone, Terms = terms };
+        return true;
+    }
+
     public static UsharpSpaceDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var kindRaw = d.Field(UsharpLanguage.FieldKind)?.Trim();
-        var kind = string.Equals(kindRaw, UsharpLanguage.KindKeys,
-            StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Keys : UsharpSpaceKind.Values;
+        var kind = string.Equals(kindRaw, UsharpLanguage.KindKeys, StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Keys
+            : string.Equals(kindRaw, UsharpLanguage.KindTerms, StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Terms
+            : UsharpSpaceKind.Values;
 
         var axes = new List<UsharpAxis>();
         var unparsed = new List<string>();
@@ -85,6 +139,18 @@ public sealed record UsharpSpaceDecl(
         {
             var line = raw.Trim();
             if (line.Length == 0) continue;
+
+            if (kind == UsharpSpaceKind.Terms)
+            {
+                // 词元行（独立文法，不并入 keys/values 的 AxisRegex ⇒ 既有两读法零回归）。
+                if (!TryParseTermAxis(line, out var termAxis))
+                {
+                    unparsed.Add(line);
+                    continue;
+                }
+                axes.Add(termAxis);
+                continue;
+            }
 
             var m = AxisRegex.Match(line);
             if (!m.Success)

@@ -26,7 +26,16 @@ function Get-FrameworkRepoRoot {
 
 function Get-FrameworkIndex {
     if ($script:__idx) { return $script:__idx }
-    if (-not (Test-Path -LiteralPath $script:__idxPath)) { throw "索引不存在: $script:__idxPath （先运行 Build-FunctionIndex.ps1）" }
+    if (-not (Test-Path -LiteralPath $script:__idxPath)) {
+        $builder = Join-Path $PSScriptRoot 'Build-FunctionIndex.ps1'
+        if (Test-Path -LiteralPath $builder) {
+            Write-Host "  [框架自举] 生成函数索引: $builder" -ForegroundColor Yellow
+            & $builder
+        } else {
+            throw "索引不存在且无法自举: $script:__idxPath （Build-FunctionIndex.ps1 不存在: $builder）"
+        }
+    }
+    if (-not (Test-Path -LiteralPath $script:__idxPath)) { throw "索引不存在: $script:__idxPath （自举后仍缺失，请手动运行 Build-FunctionIndex.ps1）" }
     $script:__idx = Get-Content -LiteralPath $script:__idxPath -Raw -Encoding UTF8 | ConvertFrom-Json
     return $script:__idx
 }

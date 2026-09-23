@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
     <ProjectReference Include="$(UsharpCsharpPrjRoot)Strategy\DecisionRules\DecisionRules.csproj" />
+    <!-- 判据读法（E1/U2b）：DecisionGraph 归既有 BasicMethod.Map.Declarative（零外部依赖），不新造裁决机制。 -->
+    <ProjectReference Include="$(Proj_Declarative)" />
   </ItemGroup>
 
 </Project>

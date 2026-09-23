@@ -53,7 +53,28 @@ param(
 )
 
 # param 默认值延迟计算: [CmdletBinding()] 脚本中 param 块内 $PSScriptRoot 不可用（PS 5.1 限制）
-if (-not $RulesRoot)  { $RulesRoot  = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\clinerules')) }
+if (-not $RulesRoot)  {
+    # 哨兵定位：从 $PSScriptRoot 上溯找 .clinerules 目录（跳过子模块边界）
+    $search = $PSScriptRoot
+    $found = $null
+    while ($search -and $search -ne (Split-Path $search -Parent)) {
+        $candidate = Join-Path $search '.clinerules'
+        if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
+        $search = Split-Path $search -Parent
+    }
+    if ($found) {
+        $RulesRoot = $found
+    } else {
+        # 退路：上溯四级到 Main 根
+        $fallback = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..\.clinerules'))
+        if (Test-Path -LiteralPath $fallback) {
+            $RulesRoot = $fallback
+        } else {
+            Write-Error "找不到 .clinerules 目录（已从 $PSScriptRoot 上溯至仓库根）"
+            exit 2
+        }
+    }
+}
 if (-not $OutputJson) { $OutputJson = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\ref_report.json')) }
 
 $ErrorActionPreference = 'Stop'

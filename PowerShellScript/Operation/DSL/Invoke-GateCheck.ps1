@@ -67,10 +67,17 @@ foreach ($name in $names) {
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # 收集输出以便失败时回显（数组 splatting 传参）
-    $argList = @($spec.Args)
-    $output = @(& $scriptPath @argList 2>&1)
-    $rc = $LASTEXITCODE
+    # 哈希表 splatting（按名传参）；$spec.Args 若为 hashtable 则直接用，若为空数组则空 splatting
+    $argList = $spec.Args
+    $output = @()
+    $rc = 2
+    try {
+        $output = @(& $scriptPath @argList 2>&1)
+        $rc = if ($null -eq $LASTEXITCODE) { 2 } else { $LASTEXITCODE }
+    } catch {
+        $rc = 2
+        $output = @($_.Exception.Message)
+    }
 
     $sw.Stop()
     $ms = [int]$sw.Elapsed.TotalMilliseconds

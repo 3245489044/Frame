@@ -141,12 +141,20 @@ public static class UsharpCliCommands
         var result = UsharpMatrixEmitter.Emit(compilation);
         output.WriteLine($"矩阵绑定 {result.Bindings.Count} 个 / 装配诊断 {result.Diagnostics.Count}");
         foreach (var b in result.Bindings)
-            output.WriteLine($"   · {b.MatrixId}（{(b.Kind == UsharpMatrixKind.Parameter ? "值域矩阵" : "转移矩阵")}"
+            output.WriteLine($"   · {b.MatrixId}（{KindLabel(b.Kind)}"
                              + $"，over={b.OverSpaceId}，行 {b.RowCount}）");
         WriteDiagnostics(result.Diagnostics, output);
 
         return result.HasErrors ? ExitFailed : ExitOk;
     }
+
+    /// <summary>矩阵读法标签（<c>matrix</c> 取数可读性；读法集合权威 = <see cref="UsharpMatrixKind"/>）。</summary>
+    private static string KindLabel(UsharpMatrixKind kind) => kind switch
+    {
+        UsharpMatrixKind.Parameter => "值域矩阵",
+        UsharpMatrixKind.Decision => "判据矩阵",
+        _ => "转移矩阵",
+    };
 
     /// <summary>
     /// 观测取数（批 O5）：<c>[Obs]</c> 闸A 诊断 + 契约登记 + manifest 产出。

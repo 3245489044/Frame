@@ -36,13 +36,28 @@ public sealed record UsharpMatrixDecl(
     /// </summary>
     public string? ProcessId { get; init; }
 
+    /// <summary>
+    /// 全部续行原文（去空白；空行已剔除）——判据读法的层/规则/复合特征行由此解析
+    /// （见 <see cref="UsharpDecisionDecl"/>）。**加法式 init 属性**（不改位置参数）。
+    /// </summary>
+    public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
+
     public static UsharpMatrixDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var rows = new List<UsharpMatrixRow>();
+        var rawLines = new List<string>();
         foreach (var raw in d.Continuation)
         {
-            var row = UsharpMatrixRow.Parse(raw.Trim());
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            rawLines.Add(line);
+
+            // 判据读法续行（layer/rule/cross）不进入线性表达式行集合：否则其 `=` 会被误切成行右式，
+            // 并把伪输出键写进 UsharpGateModel 的写集（E1 施工计划 §2.2/§4）。
+            if (UsharpLanguage.TryReadRowMarker(line, out _)) continue;
+
+            var row = UsharpMatrixRow.Parse(line);
             if (row is not null) rows.Add(row);
         }
         var over = d.Field(UsharpLanguage.FieldOver);
@@ -52,6 +67,7 @@ public sealed record UsharpMatrixDecl(
             ProcessId = d.HasField(UsharpLanguage.FieldProcess)
                 ? d.Field(UsharpLanguage.FieldProcess).Trim()
                 : null,
+            RawLines = rawLines,
         };
     }
 

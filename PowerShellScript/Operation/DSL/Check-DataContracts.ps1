@@ -6,11 +6,23 @@
 # 规则定死的是"每个使用键必须登记"；内容不定死（新增键 = 在 RegisterAll 加一条契约，本脚本自动识别）。
 
 param(
-    [string]$Root = "d:\Project\Program\WorkFlowPrj",
+    [string]$Root = '',
     [switch]$Check
 )
 
-$src = Join-Path $Root "Projects\Agent\src"
+# 哨兵定位仓库根：上溯找同时含 Projects\ 与 Frame\ 的目录
+if (-not $Root) {
+    $search = $PSScriptRoot
+    while ($search -and $search -ne (Split-Path $search -Parent)) {
+        if ((Test-Path (Join-Path $search 'Projects')) -and (Test-Path (Join-Path $search 'Frame'))) {
+            $Root = $search; break
+        }
+        $search = Split-Path $search -Parent
+    }
+    if (-not $Root) { Write-Error "找不到仓库根（含 Projects\ 与 Frame\）"; exit 2 }
+}
+
+$src = Join-Path $Root "Projects\Plug\Agent\src"
 $regFile = Join-Path $src "Agent.Axioms\Loops\DataContractRegistrar.cs"
 if (-not (Test-Path $regFile)) { Write-Error "未找到 DataContractRegistrar.cs: $regFile"; exit 2 }
 
@@ -24,9 +36,14 @@ Get-ChildItem -Path $src -Recurse -Include *.cs | ForEach-Object {
         $usages[$m.Groups[1].Value] = $true
     }
 }
-# RoundKeys.cs 内常量声明不是"使用"，剔除其自身文件后重扫该文件的依赖引用保持一致性
+# RoundKeys.cs 内常量声明不是"使用"，按名剔除
 $roundKeysFile = Join-Path $src "Agent.Axioms\Loops\RoundKeys.cs"
-if (Test-Path $roundKeysFile) { $usages.Remove((Get-Content $roundKeysFile -Raw) -match '.') }
+if (Test-Path $roundKeysFile) {
+    $raw = Get-Content $roundKeysFile -Raw
+    foreach ($m in [regex]::Matches($raw, $pattern)) {
+        $usages.Remove($m.Groups[1].Value) | Out-Null
+    }
+}
 
 # 第二遍：解析注册表登记的 RoundKeys.<Name>。
 $regNames = @{}

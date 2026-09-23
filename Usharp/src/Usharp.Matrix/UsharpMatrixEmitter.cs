@@ -32,9 +32,12 @@ public static class UsharpMatrixEmitter
             var over = decl.OverSpaceId;
             if (string.IsNullOrWhiteSpace(over) || !spaces.TryGet(over!, out var space)) continue;
 
-            var binding = space.Kind == UsharpSpaceKind.Values
-                ? UsharpParameterMatrixEmitter.Emit(decl, space)
-                : UsharpTransitionMatrixEmitter.Emit(decl, space);
+            var binding = space.Kind switch
+            {
+                UsharpSpaceKind.Values => UsharpParameterMatrixEmitter.Emit(decl, space),
+                UsharpSpaceKind.Terms => UsharpDecisionMatrixEmitter.Emit(decl, space),
+                _ => UsharpTransitionMatrixEmitter.Emit(decl, space),
+            };
 
             bindings.Add(binding);
             diagnostics.AddRange(binding.Diagnostics);

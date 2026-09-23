@@ -1,3 +1,4 @@
+using BasicMethod.Declarative.Graph;
 using BasicMethod.Declarative.Spec;
 using Strategy.DecisionRules;
 using Usharp.Semantics;
@@ -5,8 +6,8 @@ using Usharp.Semantics;
 namespace Usharp.Matrix;
 
 /// <summary>
-/// 矩阵读法（U2 只实例化两类）。判据读法（<c>DecisionGraph</c>）与治理读法（<c>ModuleAxisMatrix</c>）待 U2b
-/// —— 前者需 <c>kind=terms</c> 词元轴与规则体语法，后者需 <c>BindKind/BindStatus</c> 声明面，均属语法扩张，须先有真实消费方（对齐「拒绝无校验的新前缀」）。
+/// 矩阵读法（U2 实例化两类；E1 增判据读法）。治理读法（<c>ModuleAxisMatrix</c>）仍待 U2b
+/// —— 需 <c>kind=modules</c> 声明面，属语法扩张，须先有真实消费方（对齐「拒绝无校验的新前缀」）。
 /// </summary>
 public enum UsharpMatrixKind
 {
@@ -15,6 +16,9 @@ public enum UsharpMatrixKind
 
     /// <summary>转移矩阵：<c>[Matrix] over=&lt;kind=keys 空间&gt;</c> → 步骤键转移表（<c>ChainSignalResolver</c> 的构造输入）。</summary>
     Transition,
+
+    /// <summary>判据矩阵：<c>[Matrix] over=&lt;kind=terms 空间&gt;</c> → <c>DecisionGraph</c>（面内优先级 + 命中即停 + 吸收短路）。</summary>
+    Decision,
 }
 
 /// <summary>矩阵一行的装配结果：输出坐标 + 解析后的线性表达式（引用坐标取 <see cref="UsharpLinearExpression.Axes"/>，不另存镜像字段）。</summary>
@@ -40,6 +44,12 @@ public sealed record UsharpMatrixBinding(
 {
     /// <summary>已装配行数（取数：与 <c>[Matrix]</c> 缩进块声明行数比对）。</summary>
     public int RowCount => Rows.Count;
+
+    /// <summary>
+    /// 判据读法的装配产物（<see cref="UsharpMatrixKind.Decision"/> 时非空；其余读法 null）。
+    /// **加法式 init 属性**（不改位置参数）；类型归既有 <c>BasicMethod.Map.Declarative</c>（不新造裁决机制）。
+    /// </summary>
+    public DecisionGraph? DecisionGraph { get; init; }
 }
 
 /// <summary>一次矩阵装配的批产物（<see cref="UsharpMatrixEmitter"/> 输出；诊断与编译诊断分离，避免重复计入）。</summary>

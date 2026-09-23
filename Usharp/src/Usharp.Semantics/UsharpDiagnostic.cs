@@ -126,6 +126,25 @@ public static class UsharpCodes
     public const string ObsFileDuplicate = "US6006";
     public const string ObsKindUnknown = "US6007";
 
+    // 判据读法面（[Matrix] over=<kind=terms 空间>；E1/U2b）
+    /// <summary>词元行的 <c>zone=</c> 缺失或非法（象限须为 I/E/O 单字母）。</summary>
+    public const string TermZoneInvalid = "US1101";
+
+    /// <summary>规则的 <c>when=</c> 引用未声明的词元（<c>&lt;轴&gt;.&lt;词元&gt;</c>）。</summary>
+    public const string DecisionTermUndeclared = "US1102";
+
+    /// <summary>同层 <c>priority</c> 冲突（面内须全序显式支配；缺失归 <c>US1105</c>）。</summary>
+    public const string DecisionPriorityConflict = "US1103";
+
+    /// <summary>层 <c>absorb=</c> 的值不在该层标签集内（吸收集悬空）。</summary>
+    public const string DecisionAbsorbUndeclared = "US1104";
+
+    /// <summary>判据读法形态非法（层缺 <c>output=</c> / 规则缺 <c>label=</c> / 层号不可解析 / 读法混用 / 无层）。</summary>
+    public const string DecisionShapeInvalid = "US1105";
+
+    /// <summary><c>cross.&lt;名&gt;</c> 引用未声明的复合特征。</summary>
+    public const string DecisionCrossUndeclared = "US1106";
+
     // 图能力（经 IUsharpGraphBackend 端口）
     public const string CircularReference = "US4001";
     public const string EdgeTypeUnmapped = "US4002";

@@ -40,10 +40,9 @@ public sealed class SpaceRegistry
 
         // 声明面取值合法性：kind= 在场但非法 ⇒ 显式报错（不静默按 values 装配）
         if (decl.KindRaw is not null
-            && !string.Equals(decl.KindRaw, UsharpLanguage.KindKeys, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(decl.KindRaw, UsharpLanguage.KindValues, StringComparison.OrdinalIgnoreCase))
+            && !UsharpLanguage.SpaceKinds.Contains(decl.KindRaw, StringComparer.OrdinalIgnoreCase))
             _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.SpaceKindUnknown,
-                $"空间 {decl.SpaceId}: kind='{decl.KindRaw}' 非法（合法值：{UsharpLanguage.KindKeys}|{UsharpLanguage.KindValues}）",
+                $"空间 {decl.SpaceId}: kind='{decl.KindRaw}' 非法（合法值：{string.Join("|", UsharpLanguage.SpaceKinds)}）",
                 decl.SourceFile, decl.LineNumber));
 
         // 缩进块内不可解析的声明行 ⇒ 显式报错（禁止静默丢弃）

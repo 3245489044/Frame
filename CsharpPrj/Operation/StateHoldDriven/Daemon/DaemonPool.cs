@@ -405,15 +405,34 @@ public sealed class DaemonPool : IDisposable
                 }
                 if (IsHangPhase(result.EndPhase))
                 {
-                    // 基建故障（挂起/被杀）→ 补位，剩余预算内换 worker 重试
+                    // 基建故障（挂起/被杀）→ 补位；**是否重发由宿主策略裁决**（施工单 §13：无证据整轮重发 = 报错）。
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
                     var infraAttempt = ++attempt;
                     StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, infraAttempt, result.Error,
                         _state.GetLastStage(picked), _state.GetStderrTail(picked));
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false);
-                    if (infraAttempt > _infraRetries)
-                        throw new TimeoutException(
-                            $"daemon 请求超时/挂起（已重试 {infraAttempt} 次, stderrTail={_state.GetStderrTail(picked)}）: {result.Error}");
+
+                    var decision = _options.InfraRetryPolicy?.Invoke(new DaemonInfraRetryContext(
+                            cmd, payload, infraAttempt, _infraRetries, result.Error,
+                            _state.GetLastStage(picked), _state.GetStderrTail(picked)))
+                        ?? DaemonInfraRetryDecision.Reject(
+                            "未注入重发策略（缺省禁止无证据整轮重放）");
+
+                    if (!decision.Allowed)
+                        throw new DaemonPoolException(cmd,
+                            $"基建故障（{result.EndPhase}）且不允许重发——{decision.Reason}；"
+                            + $"已尝试 {infraAttempt} 次, stderrTail={_state.GetStderrTail(picked)}");
+
+                    Diagnostics?.Invoke("DaemonPool_infra_retry_allowed", new
+                    {
+                        pool = _poolTag,
+                        requestId,
+                        workerId = picked,
+                        cmd,
+                        attempt = infraAttempt,
+                        resume = decision.IsResume,
+                        reason = decision.Reason,
+                    });
                     continue;
                 }
                 // Failed：daemon 正常返回业务错误（含内层任务超时）→ 不重试，映射为业务结果

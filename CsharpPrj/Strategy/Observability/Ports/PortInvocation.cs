@@ -16,9 +16,13 @@ internal static class PortInvocation
     /// <summary>
     /// **调用唯一入口**：执行 + 期望异常归一 + 异步折取。折取（<see cref="Fold"/>）在归一保护之内 ——
     /// 「返回 Task 的方法内部抛期望异常」与同步抛出同语义（否则异常绕过 <paramref name="expect"/> 上抛）。
+    /// <para>
+    /// <paramref name="fold"/>=false（声明 <c>keepTask:true</c>，D2）时**不折取**：任务作为**值**返回，
+    /// 供「Task 当数据传」的语义（下游编排 / <c>Task.WhenAll</c>）；缺省 true = 折取为同步值。
+    /// </para>
     /// </summary>
-    internal static object? Invoke(Func<object?> body, IReadOnlyList<Type>? expect)
-        => ExecuteAny(() => Fold(body()), expect);
+    internal static object? Invoke(Func<object?> body, IReadOnlyList<Type>? expect, bool fold = true)
+        => ExecuteAny(() => fold ? Fold(body()) : body(), expect);
 
     /// <summary>执行并把异常按期望类型集归一（任一命中 → 异常对象即结果；否则原样上抛）。</summary>
     internal static object? ExecuteAny(Func<object?> body, IReadOnlyList<Type>? expect)
@@ -93,6 +97,55 @@ internal static class PortInvocation
 
         ExceptionDispatchInfo.Capture(exception).Throw();
         throw new InvalidOperationException("不可达（ExceptionDispatchInfo.Throw 不返回）");
+    }
+
+    /// <summary>
+    /// 任务类判定（D2 单源）：<c>Task</c> / <c>ValueTask</c> / <c>Task&lt;T&gt;</c> / <c>ValueTask&lt;T&gt;</c>。
+    /// 消费方：装配期红线（形参声明任务类却收到已折取值）、返回值归一（<see cref="Realize"/>）。
+    /// </summary>
+    internal static bool IsAwaitable(Type type)
+        => type == typeof(Task) || type == typeof(ValueTask)
+           || (type.IsGenericType
+               && (type.GetGenericTypeDefinition() == typeof(Task<>)
+                   || type.GetGenericTypeDefinition() == typeof(ValueTask<>)));
+
+    /// <summary>
+    /// 返回值归一（**造任务**唯一实现，D2）：同步产物按声明返回类型包装为已完成任务
+    /// （<c>Task</c> → <c>CompletedTask</c>；<c>Task&lt;T&gt;</c> → <c>Task.FromResult</c>；<c>ValueTask</c> / <c>ValueTask&lt;T&gt;</c> 同口径）；
+    /// 非任务返回类型原样返回值。与 <see cref="Fold"/>（**拆任务**）构成互补对。
+    /// </summary>
+    internal static object? Realize(object? value, Type returnType)
+    {
+        if (returnType == typeof(Task)) return value as Task ?? Task.CompletedTask;
+
+        // 非泛型 ValueTask 无结果：同步体 → 已完成 ValueTask。
+        if (returnType == typeof(ValueTask)) return value is ValueTask existing ? existing : default(ValueTask);
+
+        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+        {
+            if (value is Task) return value;
+            return TaskOfResult(returnType, value);
+        }
+
+        // ValueTask<T>：同步产物（或 null）→ 包成已完成 ValueTask<T>；已是 ValueTask<T> 原样返回。
+        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+        {
+            if (value is not null && value.GetType() == returnType) return value;
+
+            var result = value ?? ReflectivePortResolver.DefaultFor(returnType.GetGenericArguments()[0]);
+            return Construct(returnType, [result]);
+        }
+
+        return value;
+    }
+
+    /// <summary>已完成 <c>Task&lt;T&gt;</c> 包装（<c>Task.FromResult</c>，按声明结果类型闭合）。</summary>
+    private static object TaskOfResult(Type taskType, object? value)
+    {
+        var resultType = taskType.GetGenericArguments()[0];
+        var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
+        return typeof(Task).GetMethod(nameof(Task.FromResult))!
+            .MakeGenericMethod(resultType).Invoke(null, new[] { boxed })!;
     }
 
     /// <summary>

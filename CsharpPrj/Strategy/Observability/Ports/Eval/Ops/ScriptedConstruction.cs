@@ -24,17 +24,18 @@ internal static class ScriptedConstruction
 
         var type = ComposedDeps.ResolveType(spec.Type, spec.GenericArgs);
         var declared = spec.Args ?? Array.Empty<ValueSourceStandard>();
-        var parameters = ComposedDeps
-            .PickConstructor(
-                scope.PortKey, type, declared.Count, context,
-                constructor => ScriptedInvokeRunner.TryBind(
-                    scope.PortKey, $"{context}（{type.Name}）", declared,
-                    constructor.GetParameters(), scope, input, deps),
-                ScriptedValue.DescribeArgs(declared))
-            .GetParameters();
+        var constructor = ComposedDeps.PickConstructor(
+            scope.PortKey, type, declared.Count, context,
+            candidate => ScriptedInvokeRunner.Bind(
+                scope.PortKey, $"{context}（{type.Name}）", declared,
+                candidate.GetParameters(), scope, input, deps),
+            ScriptedValue.DescribeArgs(declared),
+            namedBinding: declared.Any(arg => arg.Named is { Length: > 0 }));
+        var parameters = constructor.GetParameters();
 
         var args = ScriptedInvokeRunner.Bind(
-            scope.PortKey, $"{context}（{type.Name}）", declared, parameters, scope, input, deps);
+            scope.PortKey, $"{context}（{type.Name}{ScriptedInvokeRunner.Signature(parameters)}）",
+            declared, parameters, scope, input, deps);
 
         // 构造期期望异常（`new.expect`）：口径与 `invoke.expect` **同源**（PortInvocation.ExecuteAny）——
         // 命中 ⇒ 结果 = 异常对象本身（构造未发生 ⇒ 不施加 init / chain）；未命中 / 未抛 ⇒ 结果为构造实例。

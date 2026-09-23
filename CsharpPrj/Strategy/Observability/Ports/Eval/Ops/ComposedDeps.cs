@@ -201,27 +201,49 @@ internal static class ComposedDeps
             ComposedArgs.Describe(declared));
 
     /// <summary>
-    /// 构造选择（E1：**按实参可绑定度择优**）：候选集 = 参数个数 == 声明实参个数；逐候选试绑定（<paramref name="tryBind"/>
-    /// 返 null / 抛绑定异常即「不可绑定」）→ 精确类型命中 &gt; 可归一 &gt; 形参缺省；唯一最高分选它；
-    /// **并列最高分 / 全部不可绑定 → fail-fast 并列出候选签名**（防静默绑错）。
-    /// <para>无 <paramref name="tryBind"/> 或候选唯一时保持旧口径（首个个数匹配者），供无法求值的调用方使用。</para>
+    /// 构造选择（E1：**按实参可绑定度择优**）：候选集 = **可容纳区间**（必填数 ≤ 声明数 ≤ 形参数）；命名绑定
+    /// （<c>named</c>）时个数不参与判别（候选取全集）。逐候选试绑定（<paramref name="tryBind"/> 返 null / 抛绑定异常
+    /// 即「不可绑定」）→ 精确类型命中 &gt; 可归一 &gt; 形参缺省，并对「靠缺省填满」的候选降权；唯一最高分选它；
+    /// **并列最高分 / 全部不可绑定 / 无可容纳候选 → fail-fast 并列出候选签名与逐候选拒绝原因**（防静默绑错：D1 消除
+    /// 「回落首个构造函数 + CLR 默认值填充」导致的语义反转）。
+    /// <para>无 <paramref name="tryBind"/> 时仅在**唯一可容纳候选**下直取；多个候选则 fail-fast（摘要候选签名，不猜）。</para>
     /// </summary>
     internal static ConstructorInfo PickConstructor(
         string portKey, Type type, int declaredCount, string context,
-        Func<ConstructorInfo, object?[]?>? tryBind = null, string? declaredText = null)
+        Func<ConstructorInfo, object?[]?>? tryBind = null, string? declaredText = null, bool namedBinding = false)
     {
         var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
         if (constructors.Length == 0)
             throw new PortBindingViolationException(
                 portKey, $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上没有公开构造函数");
 
-        var candidates = constructors.Where(c => c.GetParameters().Length == declaredCount).ToArray();
-        if (candidates.Length == 0) return constructors.OrderBy(c => c.GetParameters().Length).First();
-        if (tryBind is null || candidates.Length == 1) return candidates[0];
+        var described = $"实参 [{declaredText ?? $"{declaredCount} 个"}]";
+        var candidates = namedBinding ? constructors : Fittable(constructors, declaredCount);
+
+        if (candidates.Length == 0)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context}（{type.Name}）无可容纳声明实参数的构造函数：" +
+                $"候选 {Signatures(constructors)}；{described}（可容纳 = 必填数 ≤ 声明数 ≤ 形参数）");
+
+        if (tryBind is null)
+        {
+            // 无实参判别依据：优先「形参数 == 声明数」的精确候选；仍非唯一 → fail-fast（不猜）。
+            var exact = candidates.Where(c => c.GetParameters().Length == declaredCount).ToArray();
+            var pick = exact.Length > 0 ? exact : candidates;
+
+            return pick.Length == 1
+                ? pick[0]
+                : throw new PortBindingViolationException(
+                    portKey,
+                    $"端口 '{portKey}' 的 {context}（{type.Name}）构造并列（无可绑定度判别依据）：" +
+                    $"候选 {Signatures(pick)}；{described}");
+        }
 
         ConstructorInfo? best = null;
-        var bestScore = -1;
+        var bestScore = 0;
         var tied = 0;
+        var rejected = new List<string>();
 
         foreach (var candidate in candidates)
         {
@@ -230,17 +252,34 @@ internal static class ComposedDeps
             {
                 bound = tryBind(candidate);
             }
-            catch (PortBindingViolationException)
+            catch (PortBindingViolationException ex)
             {
+                rejected.Add($"{Signature(candidate)} ⇒ {ex.Message}");
                 continue;
             }
 
-            if (bound is null) continue;
+            if (bound is null)
+            {
+                rejected.Add($"{Signature(candidate)} ⇒ 实参不可绑定（试绑定拒绝）");
+                continue;
+            }
 
-            var score = PortValues.ScoreArguments(
-                candidate.GetParameters().Select(parameter => parameter.ParameterType).ToArray(), bound);
+            var score = PortValues.ScoreArguments(candidate.GetParameters(), bound, declaredCount);
 
-            if (score < 0) continue;
+            if (score < 0)
+            {
+                rejected.Add($"{Signature(candidate)} ⇒ 实参与形参类型不可绑定");
+                continue;
+            }
+
+            // 首个可绑定候选即基准（不得用哨兵初值：得分恰为哨兵值时会与之「并列」而永不入选；降权后得分可为负）。
+            if (best is null)
+            {
+                best = candidate;
+                bestScore = score;
+                tied = 1;
+                continue;
+            }
 
             if (score > bestScore)
             {
@@ -254,12 +293,11 @@ internal static class ComposedDeps
             }
         }
 
-        var described = $"实参 [{declaredText ?? $"{declaredCount} 个"}]";
-
         if (best is null)
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的 {context}（{type.Name}）无可绑定构造：候选 {Signatures(candidates)}；{described}");
+                $"端口 '{portKey}' 的 {context}（{type.Name}）无可绑定构造：候选 {Signatures(candidates)}；{described}"
+                + Reasons(rejected));
 
         if (tied > 1)
             throw new PortBindingViolationException(
@@ -268,6 +306,25 @@ internal static class ComposedDeps
 
         return best;
     }
+
+    /// <summary>逐候选拒绝原因段（诊断单源：无拒绝记录则为空串）。</summary>
+    private static string Reasons(IReadOnlyList<string> rejected)
+        => rejected.Count == 0
+            ? string.Empty
+            : $"{Environment.NewLine}逐候选试绑定原因：" + string.Join(Environment.NewLine, rejected);
+
+    /// <summary>单候选签名（与 <see cref="Signatures"/> 同口径）。</summary>
+    private static string Signature(ConstructorInfo candidate) => Signatures([candidate]);
+
+    /// <summary>
+    /// 可容纳声明实参数的构造函数候选（区间：必填数 ≤ 声明数 ≤ 形参数；按总形参数升序 = 最少补齐优先）。
+    /// </summary>
+    private static ConstructorInfo[] Fittable(ConstructorInfo[] constructors, int declaredCount)
+        => constructors
+            .Where(c => PortValues.Required(c.GetParameters()) <= declaredCount
+                        && declaredCount <= c.GetParameters().Length)
+            .OrderBy(c => c.GetParameters().Length)
+            .ToArray();
 
     /// <summary>候选签名清单（诊断文案：<c>(Int32 capacity) / (String value)</c> 形态）。</summary>
     private static string Signatures(IEnumerable<ConstructorInfo> candidates)

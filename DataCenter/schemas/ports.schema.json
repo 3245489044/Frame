@@ -316,7 +316,8 @@
         "break": { "type": "boolean" },
         "genericArgs": { "type": "array", "items": { "type": "string" } },
         "on": { "$ref": "#/$defs/valueSource" },
-        "nonPublic": { "type": "boolean" }
+        "nonPublic": { "type": "boolean" },
+        "keepTask": { "type": "boolean" }
       },
       "additionalProperties": false
     },

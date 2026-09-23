@@ -714,38 +714,12 @@ internal sealed class PortExecutor
         private string FrameName(int index)
             => _declared.Parameters is { Count: > 0 } names && index < names.Count ? names[index] : $"arg{index}";
 
-        /// <summary>返回值归一到声明返回类型（<c>await</c> 折取 / <c>Task</c> / <c>ValueTask</c> 包装）。</summary>
+        /// <summary>返回值归一到声明返回类型（<c>await</c> 折取 / 任务包装单源 <see cref="PortInvocation.Realize"/>）。</summary>
         private object? Align(object? produced)
         {
             var value = _declared.Await && produced is Task pending ? PortInvocation.Fold(pending) : produced;
 
-            if (_returnType == typeof(Task)) return value as Task ?? Task.CompletedTask;
-
-            // 非泛型 ValueTask 无结果：同步体 → 已完成 ValueTask（与 Task 分支同口径）。
-            if (_returnType == typeof(ValueTask)) return value is ValueTask existing ? existing : default(ValueTask);
-
-            if (_returnType.IsGenericType && _returnType.GetGenericTypeDefinition() == typeof(Task<>))
-            {
-                if (value is Task) return value;
-
-                var resultType = _returnType.GetGenericArguments()[0];
-                var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
-                return typeof(Task).GetMethod(nameof(Task.FromResult))!
-                    .MakeGenericMethod(resultType).Invoke(null, new[] { boxed });
-            }
-
-            // ValueTask<T>：同步产物（或 null）→ 走 .ctor(T result) 包成已完成 ValueTask<T>；
-            // 已是 ValueTask<T> 原样返回（表达式树按声明返回类型做装箱转换，裸 int 会 InvalidCast）。
-            if (_returnType.IsGenericType && _returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-            {
-                if (value is not null && value.GetType() == _returnType) return value;
-
-                var resultType = _returnType.GetGenericArguments()[0];
-                var boxed = value ?? ReflectivePortResolver.DefaultFor(resultType);
-                return PortInvocation.Construct(_returnType, new[] { boxed });
-            }
-
-            return value;
+            return PortInvocation.Realize(value, _returnType);
         }
     }
 }

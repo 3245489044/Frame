@@ -170,7 +170,9 @@ internal static class ReflectivePortResolver
     internal static MethodInfo ResolveMethod(string portKey, string methodName, int declaredCount, Type type)
         => ResolveMethod(type, portKey, methodName, declaredCount, isStatic: true);
 
-    /// <summary>方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志；无实参判别 → 按「参数个数」精确匹配，再取参数最少者）。</summary>
+    /// <summary>
+    /// 方法解析（声明式组合绑定用：同一口径支持静态 / 实例两种绑定标志；无实参判别 → 精确个数 → 位置个数 → **区间容纳**）。
+    /// </summary>
     internal static MethodInfo ResolveMethod(
         Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic = false)
     {
@@ -178,12 +180,12 @@ internal static class ReflectivePortResolver
 
         return candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
                ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
-               ?? candidates.OrderBy(m => m.GetParameters().Length).First();
+               ?? Legacy(candidates, declaredCount, portKey, $"调用 '{methodName}'", type, methodName);
     }
 
     /// <summary>
-    /// 方法解析**择优形态**（E9：多候选按实参可绑定度择一）：候选集 = 参数个数 == 声明个数（非 <c>out</c> 优先，回落总个数）；
-    /// 逐候选试绑定（<paramref name="tryBind"/> 失败即「不可绑定」）→ 唯一最高分选它；
+    /// 方法解析**择优形态**（E9：多候选按实参可绑定度择一）：候选集 = 参数个数 == 声明个数（非 <c>out</c> 优先，
+    /// 回落总个数，再回落**区间容纳**）；逐候选试绑定（<paramref name="tryBind"/> 失败即「不可绑定」）→ 唯一最高分选它；
     /// **并列最高分 → 保持旧口径（首个参数个数匹配者）**（产品侧已硬约束「不得同名同参数个数重载」，故并列不出现；
     /// 出现时保持旧行为，避免无谓回归）；全部不可绑定 → fail-fast 并列候选签名 + 逐候选原因。
     /// <para>
@@ -193,18 +195,29 @@ internal static class ReflectivePortResolver
     /// </summary>
     internal static MethodInfo ResolveMethod(
         Type type, string portKey, string methodName, int declaredCount, bool isStatic, bool nonPublic,
-        Func<MethodInfo, object?[]?> tryBind, string context, int? genericArity = null)
+        Func<MethodInfo, object?[]?> tryBind, string context, int? genericArity = null, bool namedBinding = false)
     {
         var candidates = ResolveMethodCandidates(type, portKey, methodName, isStatic, nonPublic);
         var universe = genericArity is { } arity
             ? candidates.Where(m => m.IsGenericMethodDefinition && m.GetGenericArguments().Length == arity).ToArray()
             : candidates;
 
-        var compatible = universe.Where(m => DeclaredCount(m) == declaredCount).ToArray();
-        if (compatible.Length == 0)
+        // 命名绑定（`named` = 形参名）时声明个数不构成判别依据（形参按名对位，可超过声明个数）⇒ 候选集不按个数过滤，
+        // 错因由绑定期给出（含未知名），避免 arity 前置过滤把精确诊断挡掉。
+        var compatible = namedBinding
+            ? universe
+            : universe.Where(m => DeclaredCount(m) == declaredCount).ToArray();
+
+        if (!namedBinding && compatible.Length == 0)
             compatible = universe.Where(m => m.GetParameters().Length == declaredCount).ToArray();
 
-        if (compatible.Length <= 1) return compatible.FirstOrDefault() ?? Legacy(universe, declaredCount);
+        // 第三级：区间容纳（必填数 ≤ 声明数 ≤ 形参数，最少补齐优先）——使「尾部可选形参」重载可被选中，
+        // 而不是让下游以 DefaultFor 静默补齐一个容纳不了的候选（D1 同口径）。
+        if (!namedBinding && compatible.Length == 0) compatible = Fittable(universe, declaredCount);
+
+        if (compatible.Length <= 1)
+            return compatible.FirstOrDefault()
+                   ?? Legacy(universe, declaredCount, portKey, context, type, methodName, namedBinding);
 
         MethodInfo? best = null;
         var bestScore = 0;
@@ -230,8 +243,7 @@ internal static class ReflectivePortResolver
                 continue;
             }
 
-            var score = PortValues.ScoreArguments(
-                candidate.GetParameters().Select(parameter => parameter.ParameterType).ToArray(), bound);
+            var score = PortValues.ScoreArguments(candidate.GetParameters(), bound, declaredCount);
 
             // 首个可绑定候选即基准（不得用 -1 之类哨兵初值：得分恰为哨兵值时会与之「并列」而永不入选）。
             if (best is null)
@@ -262,7 +274,7 @@ internal static class ReflectivePortResolver
                     ? $"{Environment.NewLine}逐候选试绑定原因：" + string.Join(Environment.NewLine, rejected)
                     : string.Empty));
 
-        return tied > 1 ? Legacy(compatible, declaredCount) : best;
+        return tied > 1 ? Legacy(compatible, declaredCount, portKey, context, type, methodName, namedBinding) : best;
     }
 
     /// <summary>同名方法候选集（缓存：择优所需的实参判别在调用侧完成，故缓存的是候选集而非选择结果）。</summary>
@@ -290,11 +302,42 @@ internal static class ReflectivePortResolver
         return candidates;
     }
 
-    /// <summary>旧口径选择（参数个数精确匹配 → 参数最少者）：并列时保持既有行为。</summary>
-    private static MethodInfo Legacy(MethodInfo[] candidates, int declaredCount)
-        => candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
-           ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount)
-           ?? candidates.OrderBy(m => m.GetParameters().Length).First();
+    /// <summary>
+    /// 旧口径选择（参数个数精确匹配 → 位置个数匹配 → **区间容纳**：必填数 ≤ 声明数 ≤ 形参数，取最小总形参数者）；
+    /// 三者皆无 → fail-fast 列候选签名（替代旧的「取参数最少者」静默绑错：旧口径会把声明实参数喂给一个容纳不了的
+    /// 重载，尾部形参被 <see cref="DefaultFor(Type)"/> 静默补齐 ⇒ 语义反转；D1 同口径）。
+    /// <para><paramref name="namedBinding"/> 时个数不参与判别 → 保持旧「最小形参数」择一，错因由绑定期给出（含未知名）。</para>
+    /// </summary>
+    private static MethodInfo Legacy(
+        MethodInfo[] candidates, int declaredCount, string portKey, string context, Type type, string methodName,
+        bool namedBinding = false)
+    {
+        var selected = candidates.FirstOrDefault(m => DeclaredCount(m) == declaredCount)
+                       ?? candidates.FirstOrDefault(m => m.GetParameters().Length == declaredCount);
+
+        if (selected is not null) return selected;
+
+        if (namedBinding) return candidates.OrderBy(m => m.GetParameters().Length).First();
+
+        var fittable = Fittable(candidates, declaredCount);
+        if (fittable.Length > 0) return fittable[0];
+
+        throw new PortBindingViolationException(
+            portKey,
+            $"端口 '{portKey}' 的 {context}：类型 {type.Name} 上无方法 {methodName} 可容纳声明实参数 {declaredCount}" +
+            $"（候选 {Signatures(candidates)}）");
+    }
+
+    /// <summary>可容纳声明实参数的方法候选（区间：必填数 ≤ 声明数 ≤ 形参数；按总形参数升序 = 最少补齐优先）。</summary>
+    private static MethodInfo[] Fittable(MethodInfo[] candidates, int declaredCount)
+        => candidates
+            .Where(m => RequiredCount(m) <= declaredCount && declaredCount <= m.GetParameters().Length)
+            .OrderBy(m => m.GetParameters().Length)
+            .ToArray();
+
+    /// <summary>必填形参数（<c>out</c> 不计：出参由捕获写槽，声明面不为它写实参；有默认值者不计）。</summary>
+    private static int RequiredCount(MethodInfo method)
+        => method.GetParameters().Count(p => !p.IsOut && !p.HasDefaultValue && !p.IsOptional);
 
     /// <summary>候选签名清单（诊断：`(Int32 capacity)` 形态）。</summary>
     private static string Signatures(IEnumerable<MethodInfo> candidates)
@@ -366,6 +409,23 @@ internal static class ReflectivePortResolver
         => type == typeof(CancellationToken)
             ? CancellationToken.None
             : type.IsValueType ? Activator.CreateInstance(type) : null;
+
+    /// <summary>
+    /// 形参默认值单源（D1）：**先取声明的 <see cref="ParameterInfo.DefaultValue"/>**（<c>= true</c> 之类的可选参数
+    /// 按其声明默认值补齐，禁以 CLR 默认值顶替 ⇒ 消除「语义反转」），无声明默认值再回落
+    /// <see cref="DefaultFor(Type)"/>。
+    /// <para><c>CancellationToken</c> 不取声明默认值：其默认值恒为 <c>default</c>，语义上与 <c>None</c> 等价但类型不可直投。</para>
+    /// </summary>
+    internal static object? DefaultFor(ParameterInfo parameter)
+    {
+        if (parameter.ParameterType == typeof(CancellationToken)) return CancellationToken.None;
+
+        if (parameter.HasDefaultValue && parameter.DefaultValue is { } declared
+            && declared is not DBNull && declared is not Missing)
+            return declared;
+
+        return DefaultFor(parameter.ParameterType);
+    }
 
     /// <summary>JSON 值 → 目标类型（JsonElement 按原始文本反序列化；其余直传）。</summary>
     internal static object? FromJson(object value, Type targetType)

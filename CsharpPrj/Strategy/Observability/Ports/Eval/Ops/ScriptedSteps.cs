@@ -117,12 +117,14 @@ internal static class ScriptedSteps
             throw new PortBindingViolationException(
                 host.PortKey, $"端口 '{host.PortKey}' 的遍历步骤缺少 as（循环变量名）");
 
-        var context = $"遍历 '{loop.As}'";
+        var context = loop.Slot is { Length: > 0 } collectionSlot
+            ? $"遍历 '{loop.As}'（集合槽 '{collectionSlot}'）"
+            : $"遍历 '{loop.As}'（集合表达式 items）";
         var items = loop.Slot is { Length: > 0 } slotName
             ? scope.Slot(slotName, context)
             : ScriptedExprEvaluator.Evaluate(
                 loop.Items ?? throw new PortBindingViolationException(
-                    host.PortKey, $"端口 '{host.PortKey}' 的 {context} 缺集合来源（slot 或 items）"),
+                    host.PortKey, $"端口 '{host.PortKey}' 的 {context} 缺集合来源（items 集合表达式）"),
                 scope, input, deps, context);
 
         var body = step.Body ?? Array.Empty<PortInstr>();

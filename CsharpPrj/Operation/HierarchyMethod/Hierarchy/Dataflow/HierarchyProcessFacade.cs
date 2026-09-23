@@ -7,6 +7,8 @@ using Operation.HierarchyMethod.History.Runtime;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
+using Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow;
 
 /// <summary>
@@ -71,8 +73,9 @@ public sealed class HierarchyProcessFacade
     /// </summary>
     /// <param name="reference">三层层级引用管理端口（子层读取来源）。</param>
     /// <param name="nodeOutputs">节点输出存储（节点层处理器使用）。</param>
-    /// <param name="runtimePort">单 task 运行状态端口（任务层处理器使用）。</param>
+    /// <param name="runtimePort">单实体运行状态端口（任务层处理器使用）。</param>
     /// <param name="historyRuntime">history 会话编排门面（历史层处理器使用）。</param>
+    /// <param name="runStateProvider">运行态门面（任务层处理器使用；多来源 live/snapshot 合并的唯一入口，可空）。</param>
     /// <param name="workflowId">节点层工作流命名空间（空 → 默认工作流）。</param>
     /// <param name="schema">层次 schema（缺省 = <see cref="HierarchySchemas.HistoryTaskNode"/>）。</param>
     /// <param name="aggregator">子层结论聚合器（缺省 = 合取）。</param>
@@ -91,7 +94,8 @@ public sealed class HierarchyProcessFacade
         HierarchySchema? schema = null,
         IChildResultAggregator? aggregator = null,
         ILevelProcessObserver? observer = null,
-        IResourceReferenceStore? referenceStore = null)
+        IResourceReferenceStore? referenceStore = null,
+        IRunStateProvider? runStateProvider = null)
     {
         var topology = new RelationalHierarchyTopology(
             new SchemaTopology(schema ?? HierarchySchemas.HistoryTaskNode),
@@ -99,7 +103,7 @@ public sealed class HierarchyProcessFacade
 
         var processors = new LevelProcessorRegistry(
             new HistoryOverviewLevelProcessor(historyRuntime),
-            new TaskStatusLevelProcessor(runtimePort),
+            new TaskStatusLevelProcessor(runtimePort, runStateProvider),
             new NodeOutputLevelProcessor(nodeOutputs, workflowId));
 
         return new HierarchyProcessFacade(topology, processors, aggregator, observer);

@@ -7,6 +7,7 @@ using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Hierarchy.Dataflow;
+using Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
 using Operation.HierarchyMethod.History;
 using Operation.HierarchyMethod.History.Runtime;
 using Operation.HierarchyMethod.Nodes;
@@ -47,6 +48,7 @@ public sealed class HierarchyManager : IHierarchyManager
     /// <param name="observer">可选观测（护栏触发 / 进出节点；缺省 = 不可观测，见 S2）。</param>
     /// <param name="aggregator">子层结论聚合器（可空；缺省 = AX.ResultComposition：按子层 round argmax 取最新终态，
     /// 数据面缺失时回退合取，见 S4）。如需改回全合取，显式传 <see cref="Modules.DeclarativeDataflow.Processing.CollectChildResultAggregator.Default"/>。</param>
+    /// <param name="runStateProvider">运行态门面（可空；多来源 live/snapshot/derived 合并的唯一入口，经注入由组合根装配）。</param>
     public HierarchyManager(
         IHierarchyReferenceManager? reference = null,
         INodeOutputStore? nodes = null,
@@ -58,7 +60,8 @@ public sealed class HierarchyManager : IHierarchyManager
         HierarchySchema? schema = null,
         string? workflowId = null,
         ILevelProcessObserver? observer = null,
-        IChildResultAggregator? aggregator = null)
+        IChildResultAggregator? aggregator = null,
+        IRunStateProvider? runStateProvider = null)
     {
         _reference = reference;
         _nodes = nodes;
@@ -76,7 +79,8 @@ public sealed class HierarchyManager : IHierarchyManager
             schema: schema ?? HierarchySchemas.HistoryTaskNode,
             observer: observer,
             aggregator: effectiveAggregator,
-            referenceStore: referenceStore));
+            referenceStore: referenceStore,
+            runStateProvider: runStateProvider));
         // 任务自递归层次（task → sub-task → … → node）单独装配：schema 不同（含自环），端口与上者同源。
         _taskTreeProcessing = new Lazy<HierarchyProcessFacade>(() => HierarchyProcessFacade.Create(
             reference: _reference,
@@ -87,7 +91,8 @@ public sealed class HierarchyManager : IHierarchyManager
             schema: HierarchySchemas.TaskTree(CrossDbReferenceTypes.TaskOwnsTask),
             observer: observer,
             aggregator: effectiveAggregator,
-            referenceStore: referenceStore));
+            referenceStore: referenceStore,
+            runStateProvider: runStateProvider));
     }
 
     public async Task<HistoryRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default)

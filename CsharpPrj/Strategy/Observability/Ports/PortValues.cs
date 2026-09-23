@@ -522,20 +522,31 @@ internal static class PortValues
         return TryNormalize(value, target, out _) ? Bindability.Normalizable : Bindability.Unbindable;
     }
 
-    /// <summary>候选分数：未给出的形参位按「可选形参缺省」计；任一不可绑定实参 → 负分（即「不可绑定」）。</summary>
-    internal static int ScoreArguments(Type[] parameters, object?[] args)
+    /// <summary>
+    /// 候选分数（D1/E2 口径）：仅计**已声明实参位**（未声明位不计分）；任一已声明实参不可绑定 → 负分（即「不可绑定」）；
+    /// 候选**必填形参数超出声明实参数**时按超出量**降权**（该位必被 <c>DefaultFor</c> 填满 ⇒ 语义靠缺省，不应胜出）。
+    /// </summary>
+    internal static int ScoreArguments(ParameterInfo[] parameters, object?[] args, int declaredCount)
     {
         var total = 0;
         for (var i = 0; i < parameters.Length; i++)
         {
-            var score = i < args.Length ? Score(args[i], parameters[i]) : Bindability.Defaulted;
+            var score = i < args.Length ? Score(args[i], parameters[i].ParameterType) : Bindability.Defaulted;
             if (score == Bindability.Unbindable) return -1;
 
             total += (int)score;
         }
 
-        return total;
+        var surplus = Required(parameters) - declaredCount;
+        return surplus > 0 ? total - (surplus * DefaultedPenalty) : total;
     }
+
+    /// <summary>必填形参数（<c>out</c> 不计：出参由捕获写槽；有默认值者不计）。</summary>
+    internal static int Required(ParameterInfo[] parameters)
+        => parameters.Count(parameter => !parameter.IsOut && !parameter.HasDefaultValue && !parameter.IsOptional);
+
+    /// <summary>「靠缺省填满」的每形参位降权量（须大于单个形参位满分，确保精确候选恒胜缺省候选）。</summary>
+    private const int DefaultedPenalty = 10;
 
     private static bool TryParseEnum(Type type, string name, out object? result)
     {

@@ -81,14 +81,22 @@ foreach ($script in $entryScripts) {
 $checkScripts = Get-ChildItem -Path $PSScriptRoot -Filter 'Check-*.ps1' -File
 foreach ($f in $checkScripts) {
     $lines = Get-Content -LiteralPath $f.FullName
+    $inBlockComment = $false
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $line = $lines[$i]
-        # 跳过注释行
         $trimmed = $line.TrimStart()
+        # 跳过块注释 <# ... #> 与行注释 #（含 .EXAMPLE 用法示例）
+        if ($inBlockComment) {
+            if ($line -match '#>') { $inBlockComment = $false }
+            continue
+        }
+        if ($trimmed.StartsWith('<#')) {
+            if ($line -notmatch '#>') { $inBlockComment = $true }
+            continue
+        }
         if ($trimmed.StartsWith('#')) { continue }
         # 检测硬编码绝对路径：[a-zA-Z]:\
         if ($line -match '[a-zA-Z]:\\') {
-            # 排除 PSScriptRoot 引用（如 Join-Path $PSScriptRoot）
             $violations.Add("[$($f.Name):$($i+1)] 硬编码绝对路径: $($line.Trim())")
         }
     }

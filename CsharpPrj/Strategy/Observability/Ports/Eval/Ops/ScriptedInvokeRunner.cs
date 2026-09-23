@@ -39,6 +39,7 @@ internal static class ScriptedInvokeRunner
         }
 
         var context = $"调用 '{invoke.Method}'";
+        var fold = FoldFlag(portKey, invoke, context);
         var isStatic = invoke.Dep is null;
         var type = isStatic
             ? StaticType(portKey, invoke, context)
@@ -54,7 +55,7 @@ internal static class ScriptedInvokeRunner
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic, invoke.NonPublic);
             var read = PortInvocation.Invoke(
-                () => ReflectivePortResolver.ReadMember(member, instance), expect);
+                () => ReflectivePortResolver.ReadMember(member, instance), expect, fold);
 
             return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
@@ -63,10 +64,26 @@ internal static class ScriptedInvokeRunner
             portKey, context, type, invoke.Method, declared, isStatic, invoke.NonPublic, scope, input, resolvedDeps,
             invoke.GenericArgs));
         var parameters = method.GetParameters();
-        var args = Bind(portKey, $"{context}（{type.Name}.{method.Name}）", declared, parameters, scope, input, resolvedDeps);
+        var args = Bind(
+            portKey, $"{context}（{type.Name}.{method.Name}{Signature(parameters)}）",
+            declared, parameters, scope, input, resolvedDeps);
 
-        var result = PortInvocation.Invoke(() => method.Invoke(instance, args), expect);
+        var result = PortInvocation.Invoke(() => method.Invoke(instance, args), expect, fold);
         return new Outcome(result, parameters, args);
+    }
+
+    /// <summary>
+    /// 折取开关（D2 单源）：<c>await:true</c> = 折取为同步值（缺省行为）；<c>keepTask:true</c> = 保留任务为值；
+    /// 两者同声明即二义 → fail-fast（不静默取其一）。
+    /// </summary>
+    private static bool FoldFlag(string portKey, InvokeStandard invoke, string context)
+    {
+        if (invoke.Await && invoke.KeepTask)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context} 同时声明了 await 与 keepTask（折取 / 不折取二义）：二者互斥，择一");
+
+        return !invoke.KeepTask;
     }
 
     /// <summary>
@@ -88,6 +105,7 @@ internal static class ScriptedInvokeRunner
 
         var type = unwrapped.GetType();
         var expect = ExpectTypes(invoke.Expect);
+        var fold = FoldFlag(portKey, invoke, context);
 
         if (unwrapped is Delegate)
         {
@@ -98,7 +116,7 @@ internal static class ScriptedInvokeRunner
             var declared = invoke.Args ?? Array.Empty<ValueSourceStandard>();
             var parameters = call.GetParameters();
             var bound = Bind(portKey, $"{context}（委托 {type.Name}）", declared, parameters, scope, input, deps);
-            var output = PortInvocation.Invoke(() => call.Invoke(unwrapped, bound), expect);
+            var output = PortInvocation.Invoke(() => call.Invoke(unwrapped, bound), expect, fold);
             return new Outcome(output, parameters, bound);
         }
 
@@ -107,7 +125,7 @@ internal static class ScriptedInvokeRunner
             var member = ReflectivePortResolver.ResolveMember(
                 type, portKey, invoke.Method, isStatic: false, invoke.NonPublic);
             var read = PortInvocation.Invoke(
-                () => ReflectivePortResolver.ReadMember(member, unwrapped), expect);
+                () => ReflectivePortResolver.ReadMember(member, unwrapped), expect, fold);
 
             return new Outcome(read, Array.Empty<ParameterInfo>(), Array.Empty<object?>());
         }
@@ -118,11 +136,21 @@ internal static class ScriptedInvokeRunner
             scope, input, deps, invoke.GenericArgs));
         var methodParameters = method.GetParameters();
         var args = Bind(
-            portKey, $"{context}（{type.Name}.{method.Name}）", declaredArgs, methodParameters, scope, input, deps);
+            portKey, $"{context}（{type.Name}.{method.Name}{Signature(methodParameters)}）",
+            declaredArgs, methodParameters, scope, input, deps);
 
-        var result = PortInvocation.Invoke(() => method.Invoke(unwrapped, args), expect);
+        var result = PortInvocation.Invoke(() => method.Invoke(unwrapped, args), expect, fold);
         return new Outcome(result, methodParameters, args);
     }
+
+    /// <summary>
+    /// 形参签名文本（E1-lite：把**选中重载**带进绑定期上下文，使「选错重载」在诊断里自证，
+    /// 而不是只留下与声明无关的产品异常）。
+    /// </summary>
+    internal static string Signature(ParameterInfo[] parameters)
+        => parameters.Length == 0
+            ? "()"
+            : $"({string.Join(", ", parameters.Select(parameter => parameter.ParameterType.Name))})";
 
     /// <summary>
     /// 方法解析择优（E1 / E9 共用「可绑定度」单源）：候选按实参试绑定择优；无法择优（并列）时保持旧口径；
@@ -137,7 +165,8 @@ internal static class ScriptedInvokeRunner
             candidate => TryBindCandidate(
                 portKey, context, type, methodName, declared, candidate, genericArgs, scope, input, deps),
             context,
-            genericArgs is { Count: > 0 } args ? args.Count : null);
+            genericArgs is { Count: > 0 } args ? args.Count : null,
+            declared.Any(spec => spec.Named is { Length: > 0 }));
 
     /// <summary>
     /// 候选试绑定（W4 修正）：声明 <c>genericArgs</c> 时**先闭合、再按闭合后形参试绑定**（未闭合的泛型形参
@@ -152,7 +181,7 @@ internal static class ScriptedInvokeRunner
         var label = $"{context}（{type.Name}.{methodName}）";
 
         if (genericArgs is not { Count: > 0 } names)
-            return TryBind(portKey, label, declared, candidate.GetParameters(), scope, input, deps);
+            return Bind(portKey, label, declared, candidate.GetParameters(), scope, input, deps);
 
         if (!candidate.IsGenericMethodDefinition) return null;   // 声明了闭合实参 ⇒ 非泛型候选不可选
 
@@ -166,7 +195,7 @@ internal static class ScriptedInvokeRunner
             return null;   // 该候选不可闭合（数量不符 / 闭合失败）⇒ 交其它候选
         }
 
-        return TryBind(portKey, label, declared, closed.GetParameters(), scope, input, deps);
+        return Bind(portKey, label, declared, closed.GetParameters(), scope, input, deps);
     }
 
     /// <summary>
@@ -213,28 +242,25 @@ internal static class ScriptedInvokeRunner
             args[index] = ScriptedValue.ResolveTyped(
                 spec, parameters[index].ParameterType, scope, input, deps,
                 $"{context} 形参 '{parameters[index].Name}'");
+
+            // D2 装配期红线：形参声明为**任务类**却收到非任务值（折取残留 / 类型漂移）⇒ 立即 fail-fast。
+            // 旧口径下该值被静默传入，语义被绕过且零诊断（TaskHelper 类缺口即由此产生）。
+            if (args[index] is { } bound
+                && PortInvocation.IsAwaitable(parameters[index].ParameterType)
+                && !parameters[index].ParameterType.IsInstanceOfType(bound))
+                throw new PortBindingViolationException(
+                    portKey,
+                    $"端口 '{portKey}' 的 {context} 形参 '{parameters[index].Name}' 声明为任务类型" +
+                    $"（{parameters[index].ParameterType.Name}）却收到 {bound.GetType().Name} —— 值已被折取？" +
+                    "若需把任务当值传递，该取值来源须声明 keepTask:true；若需同步值，形参类型不应为任务类型");
+
             assigned[index] = true;
         }
 
         for (var i = 0; i < parameters.Length; i++)
-            if (!assigned[i]) args[i] = ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+            if (!assigned[i]) args[i] = ReflectivePortResolver.DefaultFor(parameters[i]);
 
         return args;
-    }
-
-    /// <summary>试绑定（重载择优用）：绑定失败（<see cref="PortBindingViolationException"/>）→ null（不可绑定），其余异常照抛。</summary>
-    internal static object?[]? TryBind(
-        string portKey, string context, IReadOnlyList<ValueSourceStandard> declared,
-        ParameterInfo[] parameters, EvalScope scope, IPortInput input, object?[] deps)
-    {
-        try
-        {
-            return Bind(portKey, context, declared, parameters, scope, input, deps);
-        }
-        catch (PortBindingViolationException)
-        {
-            return null;
-        }
     }
 
     /// <summary>形参名清单（诊断文案：命名实参拼错时列出可选名）。</summary>

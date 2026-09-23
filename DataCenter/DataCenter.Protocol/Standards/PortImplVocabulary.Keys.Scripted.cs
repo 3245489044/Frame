@@ -22,7 +22,7 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> InvokeKeys =
     [
         "as", "dep", "target", "method", "property", "await", "expect", "args", "out", "break",
-        "genericArgs", "on", "nonPublic",
+        "genericArgs", "on", "nonPublic", "keepTask",
     ];
 
     /// <summary>

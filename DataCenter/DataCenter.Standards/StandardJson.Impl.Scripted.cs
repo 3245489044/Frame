@@ -411,7 +411,8 @@ public static partial class StandardJson
             Bool(body, "break") ?? false,
             StrList(body, "genericArgs"),
             target,
-            Bool(body, "nonPublic") ?? false);
+            Bool(body, "nonPublic") ?? false,
+            Bool(body, "keepTask") ?? false);
     }
 
     /// <summary>
@@ -446,20 +447,31 @@ public static partial class StandardJson
         return new ScenarioStandard(select, cases);
     }
 
-    /// <summary>遍历步骤读取（<c>script[].foreach</c> + <c>items</c> / <c>as</c> / <c>where</c> / <c>do</c>）。</summary>
+    /// <summary>
+    /// 遍历步骤读取（<c>script[].foreach</c> + <c>items</c> / <c>as</c> / <c>where</c> / <c>do</c>）。
+    /// <para>
+    /// 形状单义（D3）：<c>items</c> = 集合表达式（**唯一推荐形态**）；<c>foreach</c> = 兼容的集合**槽名**形态，
+    /// 仅在其后无 <c>items</c> 时接受；两者同声明 = 二义 → 拒（不静默取其一）。
+    /// </para>
+    /// </summary>
     private static ForeachStandard ReadForeach(string portKey, JsonElement body)
     {
         var asName = Str(body, "as")
             ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 script.foreach 缺 as（循环变量名）");
 
         var slot = Str(body, "foreach");
-        var items = body.TryGetProperty("items", out var declared)
-            ? ReadExpr(portKey, declared, "script.foreach.items")
-            : null;
+        var hasItems = body.TryGetProperty("items", out var declared);
+
+        if (slot is not null && hasItems)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 script.foreach '{asName}' 同时声明了 foreach（集合槽 '{slot}'）" +
+                "与 items（集合表达式）：二者互斥（集合来源二义），保留 items、删除 foreach");
+
+        var items = hasItems ? ReadExpr(portKey, declared, "script.foreach.items") : null;
 
         if (slot is null && items is null)
             throw new StandardViolationException(
-                $"[port:standard] 端口 '{portKey}' 的 script.foreach '{asName}' 缺集合来源（foreach 槽名或 items）");
+                $"[port:standard] 端口 '{portKey}' 的 script.foreach '{asName}' 缺集合来源（items 集合表达式）");
 
         var where = body.TryGetProperty("where", out var filter)
             ? ReadExpr(portKey, filter, $"script.foreach '{asName}' 的 where")

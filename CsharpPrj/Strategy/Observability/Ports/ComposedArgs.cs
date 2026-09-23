@@ -22,7 +22,7 @@ internal static class ComposedArgs
         for (var i = 0; i < parameters.Length; i++)
             args[i] = i < count
                 ? Convert(parameters[i], declared![i], input, deps, portKey, context, i)
-                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+                : ReflectivePortResolver.DefaultFor(parameters[i]);
 
         return args;
     }

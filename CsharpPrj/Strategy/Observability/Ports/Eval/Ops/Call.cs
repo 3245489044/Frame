@@ -41,7 +41,7 @@ internal static class PortCall
         for (var i = 0; i < parameters.Length; i++)
             values[i] = i < declared.Count
                 ? Convert(portKey, declared, parameters[i], declared[i], input, i)
-                : ReflectivePortResolver.DefaultFor(parameters[i].ParameterType);
+                : ReflectivePortResolver.DefaultFor(parameters[i]);
 
         return values;
     }
@@ -67,7 +67,7 @@ internal static class PortCall
 
             return arg.Default is { } fallback
                 ? ReflectivePortResolver.FromJson(fallback, parameter.ParameterType)
-                : ReflectivePortResolver.DefaultFor(parameter.ParameterType);
+                : ReflectivePortResolver.DefaultFor(parameter);
         }
 
         var raw = input.Args[index];
@@ -108,10 +108,10 @@ internal static class PortCall
             if (!arg.Optional)
                 throw new PortBindingViolationException(portKey, $"端口 '{portKey}' 缺具名实参 '{arg.Key}'（with）");
 
-            // 缺参口径与位置实参分支同源：声明 default → 按目标形参类型还原；否则取目标类型默认值。
+            // 缺参口径与位置实参分支同源：声明 default → 按目标形参类型还原；否则取目标形参默认值（D1）。
             return arg.Default is { } fallback
                 ? ReflectivePortResolver.FromJson(fallback, parameter.ParameterType)
-                : ReflectivePortResolver.DefaultFor(parameter.ParameterType);
+                : ReflectivePortResolver.DefaultFor(parameter);
         }
 
         return ReflectivePortResolver.FromJson(value, parameter.ParameterType);

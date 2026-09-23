@@ -47,6 +47,9 @@ public sealed record ThrowStandard(string Type = "", string? Message = null);
 /// <param name="GenericArgs">开放泛型方法的闭合实参类型全名。</param>
 /// <param name="Value">调用目标取值（对表达式值调用；与 <see cref="Dep"/> / <see cref="Target"/> 三选一）。</param>
 /// <param name="NonPublic">true = 目标方法 / 成员按「公开 + 非公开」解析。</param>
+/// <param name="KeepTask">true = **不折取**任务结果（D2）：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c>
+/// 作为**值**进入结果槽（供「Task 当数据传」的语义，如把任务交给下游编排 / <c>Task.WhenAll</c>）；
+/// 缺省 false = 折取为同步值（<see cref="Await"/> 的原义）。与 <see cref="Await"/>=true 同声明即 fail-fast（二义）。</param>
 public sealed record InvokeStandard(
     string? As = null,
     int? Dep = null,
@@ -60,7 +63,8 @@ public sealed record InvokeStandard(
     bool Break = false,
     IReadOnlyList<string>? GenericArgs = null,
     ValueSourceStandard? Value = null,
-    bool NonPublic = false);
+    bool NonPublic = false,
+    bool KeepTask = false);
 
 /// <summary>
 /// 遍历步骤（标准框架通用化重构 §2.2 第 9 项；对应内核 <c>ScriptedForeachSpec</c>）：

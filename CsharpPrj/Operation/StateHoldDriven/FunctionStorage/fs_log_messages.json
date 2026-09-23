@@ -322,6 +322,16 @@
             "category": "UIToolbox_General",
             "template": "[UIToolbox] 清空输出"
         },
+        "UIToolbox_CopyLogText": {
+            "level": "Info",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 复制日志到剪贴板"
+        },
+        "UIToolbox_CopyLogText_error": {
+            "level": "Warning",
+            "category": "UIToolbox_General",
+            "template": "[UIToolbox] 复制日志失败: error={error}"
+        },
         "UIToolbox_ExecuteWorkflow": {
             "level": "Debug",
             "category": "UIToolbox_General",

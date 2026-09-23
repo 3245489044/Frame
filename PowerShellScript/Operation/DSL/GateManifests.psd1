@@ -32,44 +32,51 @@
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     ClinerulesReferences = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认即校验；-UpdateIndex 为写操作，聚合器禁用'
     }
 
     AgentRuntimeUIConfig = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认校验模式；-FailOnWarning 为严格模式（默认关闭）'
     }
 
     BatchLineEndings = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认检查模式；-Fix 为写操作，聚合器禁用'
     }
 
     ConversationConversion = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认检查模式；-ShowDetail 显示详情'
     }
 
     FsSinkEntry = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认检查模式；-ShowDetail / -StrictDbResidue'
     }
 
     LogMessages = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认检查模式；-Strict / -FailOnDynamic / -StrictOrphans 为严格模式'
     }
 
     SingleWriter = @{
-        Args   = @()
+        Args   = @{}
         Expect = 0
         Note   = '默认检查模式；-ShowDetail 显示详情'
+    }
+
+    # ===== 入口框架守卫 =====
+    InvokeEntrypoints = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '入口框架守卫：① 禁数组 splatting 传开关 ② Args 须 hashtable ③ 入口 try/catch/exit ④ 禁硬编码绝对路径'
     }
 }

@@ -20,8 +20,7 @@
 param(
     [switch]$All,
     [string[]]$Only = @(),
-    [string]$Manifest = '',
-    [int]$Parallel = 1
+    [string]$Manifest = ''
 )
 
 $target = Join-Path $PSScriptRoot "..\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1"
@@ -30,7 +29,13 @@ $params = @{}
 if ($All)      { $params['All'] = $true }
 if ($PSBoundParameters.ContainsKey('Only') -and $Only.Count -gt 0) { $params['Only'] = $Only }
 if ($PSBoundParameters.ContainsKey('Manifest')) { $params['Manifest'] = $Manifest }
-if ($PSBoundParameters.ContainsKey('Parallel')) { $params['Parallel'] = $Parallel }
 
-& $target @params
-exit $LASTEXITCODE
+$rc = 0
+try {
+    & $target @params
+    $rc = if ($null -eq $LASTEXITCODE) { 2 } else { $LASTEXITCODE }
+} catch {
+    $rc = 2
+    Write-Error $_.Exception.Message
+}
+exit $rc

@@ -54,5 +54,12 @@ if ($List)       { $params['List'] = $true }
 if ($PSBoundParameters.ContainsKey('MaxFiles')) { $params['MaxFiles'] = $MaxFiles }
 if ($FailOnEmpty){ $params['FailOnEmpty'] = $true }
 
-& $target @params
-exit $LASTEXITCODE
+$rc = 0
+try {
+    & $target @params
+    $rc = if ($null -eq $LASTEXITCODE) { 2 } else { $LASTEXITCODE }
+} catch {
+    $rc = 2
+    Write-Error $_.Exception.Message
+}
+exit $rc

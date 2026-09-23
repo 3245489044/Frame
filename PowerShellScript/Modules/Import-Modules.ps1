@@ -619,8 +619,7 @@ function Invoke-RequirementBasedLoad {
     $loadedModules = @{}
     foreach ($funcName in $requiredFunctions) {
         if (-not $functionModuleMap.ContainsKey($funcName)) {
-            Write-Warning "[Import-Modules] 未找到函数 '$funcName' 的模块映射"
-            continue
+            throw "[Import-Modules] 未找到函数 '$funcName' 的模块映射（请运行 Build-FunctionIndex.ps1 重建索引，或检查 @requires 声明）"
         }
 
         $moduleRelPath = $functionModuleMap[$funcName]

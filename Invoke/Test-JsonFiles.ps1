@@ -22,9 +22,10 @@
 param(
     [Parameter(Mandatory = $true)][string[]]$Path,
     [string]$Filter = '*.json',
-    [string]$Exclude = 'BuildOutput|obj|bin|_deprecated|node_modules|backups|TestResults',
+    [string]$Exclude = '',
     [string]$Schema = '',
-    [switch]$Quiet
+    [switch]$Quiet,
+    [switch]$IncludeDeprecated
 )
 
 $target = Join-Path $PSScriptRoot "..\PowerShellScript\Share\Validate\Test-JsonFiles.ps1"
@@ -33,7 +34,15 @@ $params = @{ Path = $Path }
 if ($PSBoundParameters.ContainsKey('Filter'))  { $params['Filter'] = $Filter }
 if ($PSBoundParameters.ContainsKey('Exclude')) { $params['Exclude'] = $Exclude }
 if ($PSBoundParameters.ContainsKey('Schema'))  { $params['Schema'] = $Schema }
-if ($Quiet)   { $params['Quiet'] = $true }
+if ($Quiet)           { $params['Quiet'] = $true }
+if ($IncludeDeprecated){ $params['IncludeDeprecated'] = $true }
 
-& $target @params
-exit $LASTEXITCODE
+$rc = 0
+try {
+    & $target @params
+    $rc = if ($null -eq $LASTEXITCODE) { 2 } else { $LASTEXITCODE }
+} catch {
+    $rc = 2
+    Write-Error $_.Exception.Message
+}
+exit $rc

@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string[]]$Pattern,
-    [string[]]$PathSpec = @('*.cs','*.json','*.jsonc','*.md','*.ps1','*.psm1'),
+    [string[]]$PathSpec = @('*.cs','*.json','*.jsonc','*.md','*.ps1','*.psm1','*.ushar','*.specs'),
     [string[]]$Repo = @('Frame','Projects'),
     [switch]$Literal,
     [switch]$Regex,

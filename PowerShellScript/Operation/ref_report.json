@@ -1,317 +1,305 @@
-﻿{
-    "timestamp":  "2026-09-23 20:40:16",
-    "summary":  {
-                    "files_scanned":  6,
-                    "index_symbols":  215,
-                    "references_total":  151,
-                    "references_strict":  151,
-                    "errors_total":  0,
-                    "legacy_pending":  0,
-                    "prompt_misalignments":  0
-                },
-    "check1_dangling":  [
-
-                        ],
-    "check2_unindexed":  [
-
-                         ],
-    "check3_deprecated":  [
-
-                          ],
-    "check4_cycles":  [
-
-                      ],
-    "check5_prompt_alignment":  [
-
-                                ],
-    "legacy_migrations":  [
-
-                          ],
-    "reverse_references":  {
-                               "project:Sec.1.5":  [
-                                                       "formula.md:171"
-                                                   ],
-                               "project:Sec.1.6":  [
-                                                       "formula.md:172"
-                                                   ],
-                               "axioms:AX.StateSnapshot":  [
-                                                               "formula.md:80"
-                                                           ],
-                               "axioms:AX.RepeatedCallStable":  [
-                                                                    "axioms.md:64",
-                                                                    "formula.md:132"
-                                                                ],
-                               "axioms:AX.RoundLifecycle":  [
-                                                                "formula.md:99",
-                                                                "formula.md:108",
-                                                                "formula.md:111",
-                                                                "formula.md:131"
-                                                            ],
-                               "axioms:AX-CORE.InformationMonotonicity":  [
-                                                                              "formula.md:198"
-                                                                          ],
-                               "axioms:Sec.2":  [
-                                                    "formula.md:5"
-                                                ],
-                               "axioms:AX.FailureSubtyping":  [
-                                                                  "axioms.md:90"
-                                                              ],
-                               "formula:Gate.ShouldWrite":  [
-                                                                "axioms.md:200"
-                                                            ],
-                               "logic:LO.Assess":  [
-                                                       "axioms.md:80",
-                                                       "axioms.md:113",
-                                                       "axioms.md:149",
-                                                       "axioms.md:157",
-                                                       "axioms.md:174",
-                                                       "formula.md:83",
-                                                       "formula.md:158"
-                                                   ],
-                               "formula:Gate.MacroGate":  [
-                                                              "axioms.md:140",
-                                                              "axioms.md:170"
-                                                          ],
-                               "formula:SM.DecideDrivenUpdate":  [
-                                                                     "axioms.md:81",
-                                                                     "axioms.md:82"
-                                                                 ],
-                               "axioms:AX-META.OutputWellFormedness":  [
-                                                                           "formula.md:192"
-                                                                       ],
-                               "axioms:AX.InitialState":  [
-                                                              "formula.md:114",
-                                                              "theorems.md:12"
-                                                          ],
-                               "theorems:TH.TH-9":  [
-                                                        "formula.md:72",
-                                                        "formula.md:134"
-                                                    ],
-                               "axioms:AX.TerminationPriority":  [
-                                                                     "axioms.md:82",
-                                                                     "formula.md:114",
-                                                                     "formula.md:134",
-                                                                     "formula.md:233"
-                                                                 ],
-                               "axioms:AX.FirstCallTransient":  [
-                                                                    "formula.md:130"
-                                                                ],
-                               "axioms:AX.StateMerge":  [
-                                                            "formula.md:149"
-                                                        ],
-                               "formula:SM.FormatCheck":  [
-                                                              "logic.md:61"
-                                                          ],
-                               "axioms:Sec.0":  [
-                                                    "formula.md:4",
-                                                    "formula.md:42"
-                                                ],
-                               "project:Sec.1.7":  [
-                                                       "formula.md:173"
-                                                   ],
-                               "axioms:AX-META.ContextPollutionIsolation":  [
-                                                                                "formula.md:195"
-                                                                            ],
-                               "project:Sec.1.8":  [
-                                                       "formula.md:176"
-                                                   ],
-                               "axioms:AX.FailureBudgetEscalation":  [
-                                                                         "formula.md:93",
-                                                                         "formula.md:140"
-                                                                     ],
-                               "axioms:AX-META.ToolCallWellFormedness":  [
-                                                                             "formula.md:158"
-                                                                         ],
-                               "axioms:Param.BUDGET_ALLOC":  [
-                                                                 "axioms.md:80"
-                                                             ],
-                               "logic:LO.Aggregate":  [
-                                                          "axioms.md:49",
-                                                          "axioms.md:178",
-                                                          "formula.md:78",
-                                                          "formula.md:162",
-                                                          "formula.md:198"
-                                                      ],
-                               "axioms:AX-FRAME.CriterionWellFormedness":  [
-                                                                               "axioms.md:45",
-                                                                               "formula.md:90",
-                                                                               "formula.md:92"
-                                                                           ],
-                               "logic:Sec.3":  [
-                                                   "formula.md:99"
-                                               ],
-                               "axioms:Type.Context":  [
-                                                           "formula.md:75",
-                                                           "formula.md:76"
-                                                       ],
-                               "axioms:AX.EntryCondition":  [
-                                                                "theorems.md:12"
-                                                            ],
-                               "axioms:AX.TerminationBipartition":  [
-                                                                        "axioms.md:119",
-                                                                        "axioms.md:175"
-                                                                    ],
-                               "axioms:Param.PATCH_MAX_LINES":  [
-                                                                    "formula.md:210"
-                                                                ],
-                               "axioms:SEP.AxisIndependence":  [
-                                                                   "formula.md:10",
-                                                                   "formula.md:42"
-                                                               ],
-                               "axioms:AX.ResultComposition":  [
-                                                                   "formula.md:204"
-                                                               ],
-                               "axioms:Def.GlobalDecisionKey":  [
-                                                                    "formula.md:36",
-                                                                    "formula.md:146"
-                                                                ],
-                               "dsl:Sec.0":  [
-                                                 "project.md:100"
-                                             ],
-                               "axioms:Sec.10":  [
-                                                     "dsl.md:115",
-                                                     "theorems.md:6"
-                                                 ],
-                               "formula:SM.ErrorHandler":  [
-                                                               "axioms.md:98",
-                                                               "axioms.md:106",
-                                                               "dsl.md:217",
-                                                               "formula.md:93"
-                                                           ],
-                               "axioms:Def.handle":  [
-                                                         "formula.md:138"
-                                                     ],
-                               "axioms:Sec.3":  [
-                                                    "formula.md:36",
-                                                    "formula.md:37"
-                                                ],
-                               "formula:SM.FocusDecision":  [
-                                                                "axioms.md:171"
-                                                            ],
-                               "axioms:AX.MacroMicroSeparation":  [
-                                                                      "axioms.md:61",
-                                                                      "axioms.md:62",
-                                                                      "axioms.md:81",
-                                                                      "formula.md:90",
-                                                                      "formula.md:95"
-                                                                  ],
-                               "axioms:AX.DecisionOutputSet":  [
-                                                                   "axioms.md:33",
-                                                                   "formula.md:102",
-                                                                   "formula.md:135"
-                                                               ],
-                               "logic:Sec.2":  [
-                                                   "axioms.md:5"
-                                               ],
-                               "logic:Sec.1":  [
-                                                   "formula.md:4",
-                                                   "formula.md:5"
-                                               ],
-                               "axioms:Def.op.needsSync":  [
-                                                               "theorems.md:18"
-                                                           ],
-                               "axioms:Strategy.RedundancyElimination":  [
-                                                                             "formula.md:184"
-                                                                         ],
-                               "formula:SM.SyncGuard":  [
-                                                            "axioms.md:148"
-                                                        ],
-                               "axioms:Gate.ClassifyError":  [
-                                                                 "axioms.md:63",
-                                                                 "axioms.md:152",
-                                                                 "formula.md:93",
-                                                                 "formula.md:138"
-                                                             ],
-                               "axioms:Type.Scope":  [
-                                                         "formula.md:49"
-                                                     ],
-                               "axioms:AX.DependencyCycleDetection":  [
-                                                                          "formula.md:178"
-                                                                      ],
-                               "axioms:AX.SubRoundInitialState":  [
-                                                                      "formula.md:133",
-                                                                      "theorems.md:12"
-                                                                  ],
-                               "axioms:AX-CORE.EssentiallyUndecidable":  [
-                                                                             "axioms.md:82"
-                                                                         ],
-                               "project:Sec.1.4":  [
-                                                       "formula.md:166"
-                                                   ],
-                               "axioms:AX.AttentionWeighting":  [
-                                                                    "formula.md:125",
-                                                                    "logic.md:32"
-                                                                ],
-                               "axioms:Param.TOOL_FALLBACK_ATTEMPT":  [
-                                                                          "formula.md:209"
-                                                                      ],
-                               "axioms:AX-CORE.AxiomHierarchyStructure":  [
-                                                                              "axioms.md:131",
-                                                                              "formula.md:10"
-                                                                          ],
-                               "axioms:AX.TransientRetryNoCost":  [
-                                                                      "formula.md:130"
-                                                                  ],
-                               "project:Sec.2":  [
-                                                     "formula.md:189"
-                                                 ],
-                               "logic:LO.Resolve":  [
-                                                        "axioms.md:132",
-                                                        "axioms.md:133",
-                                                        "axioms.md:156",
-                                                        "axioms.md:158",
-                                                        "axioms.md:162",
-                                                        "axioms.md:176",
-                                                        "axioms.md:187",
-                                                        "axioms.md:189",
-                                                        "axioms.md:190",
-                                                        "axioms.md:192",
-                                                        "axioms.md:193",
-                                                        "formula.md:52",
-                                                        "formula.md:86",
-                                                        "formula.md:92",
-                                                        "formula.md:93",
-                                                        "formula.md:94",
-                                                        "formula.md:95",
-                                                        "formula.md:155",
-                                                        "formula.md:156",
-                                                        "formula.md:157",
-                                                        "formula.md:161",
-                                                        "formula.md:171",
-                                                        "formula.md:172",
-                                                        "formula.md:173",
-                                                        "formula.md:177",
-                                                        "formula.md:184",
-                                                        "formula.md:189",
-                                                        "formula.md:192",
-                                                        "formula.md:195",
-                                                        "formula.md:201",
-                                                        "formula.md:208",
-                                                        "formula.md:209",
-                                                        "formula.md:210",
-                                                        "logic.md:6"
-                                                    ],
-                               "axioms:AX-CORE.TruthValueDomainLogic":  [
-                                                                            "logic.md:4"
-                                                                        ],
-                               "axioms:AX.FormatInstructionLocality":  [
-                                                                           "formula.md:167"
-                                                                       ],
-                               "axioms:AX.MacroFirst":  [
-                                                            "formula.md:52",
-                                                            "formula.md:94"
-                                                        ],
-                               "dsl:Sec.4.5":  [
-                                                   "axioms.md:90",
-                                                   "formula.md:33"
-                                               ],
-                               "formula:SM.StateValidity":  [
-                                                                "formula.md:181",
-                                                                "logic.md:4"
-                                                            ],
-                               "axioms:Sec.9":  [
-                                                    "formula.md:57",
-                                                    "formula.md:236"
-                                                ]
-                           }
+{
+  "timestamp": "2026-09-23 20:58:17",
+  "summary": {
+    "files_scanned": 6,
+    "index_symbols": 215,
+    "references_total": 151,
+    "references_strict": 151,
+    "errors_total": 0,
+    "legacy_pending": 0,
+    "prompt_misalignments": 0
+  },
+  "check1_dangling": [],
+  "check2_unindexed": [],
+  "check3_deprecated": [],
+  "check4_cycles": [],
+  "check5_prompt_alignment": [],
+  "legacy_migrations": [],
+  "reverse_references": {
+    "formula:SM.StateValidity": [
+      "formula.md:181",
+      "logic.md:4"
+    ],
+    "project:Sec.1.4": [
+      "formula.md:166"
+    ],
+    "axioms:AX-CORE.TruthValueDomainLogic": [
+      "logic.md:4"
+    ],
+    "logic:Sec.1": [
+      "formula.md:4",
+      "formula.md:5"
+    ],
+    "axioms:Param.TOOL_FALLBACK_ATTEMPT": [
+      "formula.md:209"
+    ],
+    "axioms:AX.FormatInstructionLocality": [
+      "formula.md:167"
+    ],
+    "logic:Sec.2": [
+      "axioms.md:5"
+    ],
+    "axioms:Gate.ClassifyError": [
+      "axioms.md:63",
+      "axioms.md:152",
+      "formula.md:93",
+      "formula.md:138"
+    ],
+    "axioms:SEP.AxisIndependence": [
+      "formula.md:10",
+      "formula.md:42"
+    ],
+    "axioms:AX.FailureSubtyping": [
+      "axioms.md:90"
+    ],
+    "axioms:AX.MacroMicroSeparation": [
+      "axioms.md:61",
+      "axioms.md:62",
+      "axioms.md:81",
+      "formula.md:90",
+      "formula.md:95"
+    ],
+    "axioms:AX-CORE.EssentiallyUndecidable": [
+      "axioms.md:82"
+    ],
+    "axioms:AX.DecisionOutputSet": [
+      "axioms.md:33",
+      "formula.md:102",
+      "formula.md:135"
+    ],
+    "project:Sec.1.7": [
+      "formula.md:173"
+    ],
+    "formula:SM.FormatCheck": [
+      "logic.md:61"
+    ],
+    "axioms:Type.Context": [
+      "formula.md:75",
+      "formula.md:76"
+    ],
+    "axioms:AX.MacroFirst": [
+      "formula.md:52",
+      "formula.md:94"
+    ],
+    "logic:LO.Aggregate": [
+      "axioms.md:49",
+      "axioms.md:178",
+      "formula.md:78",
+      "formula.md:162",
+      "formula.md:198"
+    ],
+    "axioms:Sec.10": [
+      "dsl.md:115",
+      "theorems.md:6"
+    ],
+    "logic:LO.Resolve": [
+      "axioms.md:132",
+      "axioms.md:133",
+      "axioms.md:156",
+      "axioms.md:158",
+      "axioms.md:162",
+      "axioms.md:176",
+      "axioms.md:187",
+      "axioms.md:189",
+      "axioms.md:190",
+      "axioms.md:192",
+      "axioms.md:193",
+      "formula.md:52",
+      "formula.md:86",
+      "formula.md:92",
+      "formula.md:93",
+      "formula.md:94",
+      "formula.md:95",
+      "formula.md:155",
+      "formula.md:156",
+      "formula.md:157",
+      "formula.md:161",
+      "formula.md:171",
+      "formula.md:172",
+      "formula.md:173",
+      "formula.md:177",
+      "formula.md:184",
+      "formula.md:189",
+      "formula.md:192",
+      "formula.md:195",
+      "formula.md:201",
+      "formula.md:208",
+      "formula.md:209",
+      "formula.md:210",
+      "logic.md:6"
+    ],
+    "axioms:Sec.2": [
+      "formula.md:5"
+    ],
+    "axioms:AX-META.ToolCallWellFormedness": [
+      "formula.md:158"
+    ],
+    "axioms:AX.FirstCallTransient": [
+      "formula.md:130"
+    ],
+    "axioms:AX-CORE.AxiomHierarchyStructure": [
+      "axioms.md:131",
+      "formula.md:10"
+    ],
+    "axioms:AX-META.ContextPollutionIsolation": [
+      "formula.md:195"
+    ],
+    "project:Sec.1.6": [
+      "formula.md:172"
+    ],
+    "formula:SM.ErrorHandler": [
+      "axioms.md:98",
+      "axioms.md:106",
+      "dsl.md:217",
+      "formula.md:93"
+    ],
+    "axioms:Strategy.RedundancyElimination": [
+      "formula.md:184"
+    ],
+    "formula:Gate.ShouldWrite": [
+      "axioms.md:200"
+    ],
+    "logic:LO.Assess": [
+      "axioms.md:80",
+      "axioms.md:113",
+      "axioms.md:149",
+      "axioms.md:157",
+      "axioms.md:174",
+      "formula.md:83",
+      "formula.md:158"
+    ],
+    "axioms:AX.InitialState": [
+      "formula.md:114",
+      "theorems.md:12"
+    ],
+    "dsl:Sec.0": [
+      "project.md:100"
+    ],
+    "axioms:Def.handle": [
+      "formula.md:138"
+    ],
+    "axioms:AX.RoundLifecycle": [
+      "formula.md:99",
+      "formula.md:108",
+      "formula.md:111",
+      "formula.md:131"
+    ],
+    "axioms:AX.StateMerge": [
+      "formula.md:149"
+    ],
+    "axioms:AX-FRAME.CriterionWellFormedness": [
+      "axioms.md:45",
+      "formula.md:90",
+      "formula.md:92"
+    ],
+    "project:Sec.1.5": [
+      "formula.md:171"
+    ],
+    "project:Sec.2": [
+      "formula.md:189"
+    ],
+    "dsl:Sec.4.5": [
+      "axioms.md:90",
+      "formula.md:33"
+    ],
+    "axioms:AX.TerminationBipartition": [
+      "axioms.md:119",
+      "axioms.md:175"
+    ],
+    "axioms:AX-META.OutputWellFormedness": [
+      "formula.md:192"
+    ],
+    "axioms:Sec.0": [
+      "formula.md:4",
+      "formula.md:42"
+    ],
+    "axioms:Sec.9": [
+      "formula.md:57",
+      "formula.md:236"
+    ],
+    "axioms:AX.StateSnapshot": [
+      "formula.md:80"
+    ],
+    "axioms:AX.EntryCondition": [
+      "theorems.md:12"
+    ],
+    "axioms:AX.ResultComposition": [
+      "formula.md:204"
+    ],
+    "axioms:Param.PATCH_MAX_LINES": [
+      "formula.md:210"
+    ],
+    "axioms:AX.DependencyCycleDetection": [
+      "formula.md:178"
+    ],
+    "axioms:AX-CORE.InformationMonotonicity": [
+      "formula.md:198"
+    ],
+    "formula:SM.FocusDecision": [
+      "axioms.md:171"
+    ],
+    "axioms:AX.FailureBudgetEscalation": [
+      "formula.md:93",
+      "formula.md:140"
+    ],
+    "axioms:Type.Scope": [
+      "formula.md:49"
+    ],
+    "axioms:Sec.3": [
+      "formula.md:36",
+      "formula.md:37"
+    ],
+    "axioms:AX.RepeatedCallStable": [
+      "axioms.md:64",
+      "formula.md:132"
+    ],
+    "logic:Sec.3": [
+      "formula.md:99"
+    ],
+    "axioms:AX.AttentionWeighting": [
+      "formula.md:125",
+      "logic.md:32"
+    ],
+    "axioms:AX.SubRoundInitialState": [
+      "formula.md:133",
+      "theorems.md:12"
+    ],
+    "axioms:AX.TransientRetryNoCost": [
+      "formula.md:130"
+    ],
+    "axioms:Param.BUDGET_ALLOC": [
+      "axioms.md:80"
+    ],
+    "theorems:TH.TH-9": [
+      "formula.md:72",
+      "formula.md:134"
+    ],
+    "formula:SM.DecideDrivenUpdate": [
+      "axioms.md:81",
+      "axioms.md:82"
+    ],
+    "axioms:Def.op.needsSync": [
+      "theorems.md:18"
+    ],
+    "axioms:AX.TerminationPriority": [
+      "axioms.md:82",
+      "formula.md:114",
+      "formula.md:134",
+      "formula.md:233"
+    ],
+    "axioms:Def.GlobalDecisionKey": [
+      "formula.md:36",
+      "formula.md:146"
+    ],
+    "project:Sec.1.8": [
+      "formula.md:176"
+    ],
+    "formula:Gate.MacroGate": [
+      "axioms.md:140",
+      "axioms.md:170"
+    ],
+    "formula:SM.SyncGuard": [
+      "axioms.md:148"
+    ]
+  }
 }

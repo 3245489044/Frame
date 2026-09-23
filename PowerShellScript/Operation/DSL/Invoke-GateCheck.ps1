@@ -14,8 +14,7 @@
 param(
     [switch]$All,
     [string[]]$Only = @(),
-    [string]$Manifest = '',
-    [int]$Parallel = 1
+    [string]$Manifest = ''
 )
 
 # 按需加载模块
@@ -47,7 +46,7 @@ if ($invalid) {
     exit 1
 }
 
-Write-Section "门禁检查（共 $($names.Count) 件，并行度=$Parallel）"
+Write-Section "门禁检查（共 $($names.Count) 件）"
 
 # ---- 执行 ----
 $failed = 0

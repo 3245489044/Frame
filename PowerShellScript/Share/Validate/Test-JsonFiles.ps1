@@ -15,10 +15,19 @@
 param(
     [Parameter(Mandatory = $true)][string[]]$Path,
     [string]$Filter = '*.json',
-    [string]$Exclude = 'BuildOutput|obj|bin|_deprecated|node_modules|backups|TestResults',
+    [string]$Exclude = '',
     [string]$Schema = '',
-    [switch]$Quiet
+    [switch]$Quiet,
+    [switch]$IncludeDeprecated
 )
+
+if (-not $Exclude) {
+    if ($IncludeDeprecated) {
+        $Exclude = 'BuildOutput|obj|bin|node_modules|backups|TestResults'
+    } else {
+        $Exclude = 'BuildOutput|obj|bin|_deprecated|node_modules|backups|TestResults'
+    }
+}
 
 # 按需加载模块
 . (Join-Path $PSScriptRoot "..\..\Modules\Import-Modules.ps1")

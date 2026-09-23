@@ -58,6 +58,11 @@ if (-not $__repo) { throw '无法定位仓库根（.git）' }
 . (Join-Path $__repo 'PowerShellScript\PScriptManager\Framework\FrameworkRequires.ps1')
 Import-FrameworkRequires -Name @('Get-ProjectRoot','Get-FileList','Get-MsgIdDynamicMatches','Get-MsgIdLiteralCallMatches','Get-MsgIdSourceIndex','Get-MsgIdKeyPrefixIndex','Test-MsgIdReferenced') -Owner @{ 'Get-ProjectRoot' = 'PowerShellScript/Modules/Core/ReadProjectConfig.ps1' }
 
+# FrameworkRequires 在函数作用域内 dot-source .ps1 文件，函数返回后不可见；
+# 直接在脚本作用域 dot-source ReadProjectConfig.ps1 以确保 Get-ProjectRoot 可用
+$__rpc = Join-Path $__repo 'PowerShellScript\Modules\Core\ReadProjectConfig.ps1'
+if (Test-Path -LiteralPath $__rpc) { . $__rpc }
+
 # ---- 仓库根定位 ----
 # 委托框架 Get-ProjectRoot（.git 标记）。脚本原判据为「含 CsharpPrj」，
 # 两者在本仓库内等价（CsharpPrj 与 .git 均位于仓库根，上层无 .git）。

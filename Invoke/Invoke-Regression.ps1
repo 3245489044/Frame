@@ -45,5 +45,12 @@ if ($PSBoundParameters.ContainsKey('Parallel'))  { $params['Parallel'] = $Parall
 if ($NoKnownRedOk) { $params['NoKnownRedOk'] = $true }
 if ($WithGates)    { $params['WithGates'] = $true }
 
-& $target @params
-exit $LASTEXITCODE
+$rc = 0
+try {
+    & $target @params
+    $rc = if ($null -eq $LASTEXITCODE) { 2 } else { $LASTEXITCODE }
+} catch {
+    $rc = 2
+    Write-Error $_.Exception.Message
+}
+exit $rc

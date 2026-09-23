@@ -59,6 +59,9 @@ public sealed class DaemonPoolState : IDisposable
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _stderrTail = new(StringComparer.Ordinal);
     // 基建故障（挂起/被杀）计数：按 workerId 累计，跨补位/重启保留（健康上报用）。
     private readonly ConcurrentDictionary<string, int> _timeoutCounts = new(StringComparer.Ordinal);
+    // worker 代次（= 进程实例序号）：每次 spawn/重生 +1，初值 1；跨补位保留不随 _runtime 清理。
+    // 承载点 = B0-4 裁决 ⓐ（租约/代次守卫的唯一判据来源）。
+    private readonly ConcurrentDictionary<string, int> _generations = new(StringComparer.Ordinal);
     // CSG 全表日志去重：每 worker 仅首帧透传完整 CanonicalForm，后续迁移只记状态（form 主体恒定）。
     private readonly ConcurrentDictionary<string, bool> _csgFirstLogged = new(StringComparer.Ordinal);
     // 就绪门闩命中计数：池已就绪后请求路径复用（EnsureReadyAsync 快速路径）次数，聚合替代逐条日志。
@@ -67,6 +70,17 @@ public sealed class DaemonPoolState : IDisposable
 
     public IRequestTracker RequestTracker => _requestTracker;
     public int PoolSize => _options.PoolSize;
+
+    /// <summary>该 worker 当前代次（= 进程实例序号；每次 spawn/重生 +1，初值 1）。未知名单返回 0。</summary>
+    public int GenerationOf(string workerId)
+        => _generations.TryGetValue(workerId, out var generation) ? generation : 0;
+
+    /// <summary>
+    /// 代次校验（lease/generation guard 的唯一判据）：名单已知 ∧ 代次相符 ⇒ true。
+    /// 越代（迟到看门狗/旧租约）与未知名单一律 false —— 拒绝越代操作。
+    /// </summary>
+    public bool MatchesGeneration(string workerId, int generation)
+        => generation > 0 && GenerationOf(workerId) == generation;
 
     /// <summary>worker 状态变化（透传池/诊断用）。</summary>
     public event Action<WorkerStateInfo>? WorkerStateChanged;
@@ -201,6 +215,8 @@ public sealed class DaemonPoolState : IDisposable
     {
         _runtime.TryRemove(workerId, out _); // 清理残留（Dead/半初始化），确保从 Spawned 干净重建
         _csgFirstLogged.TryRemove(workerId, out _); // 新进程实例重新允许透传一次完整 CSG form 基线
+        // 代次 +1（首次 = 1）：每次 spawn 即新一代实例；迟到的越代操作据此被拒（B0-4 裁决 ⓐ）。
+        _generations.AddOrUpdate(workerId, 1, static (_, g) => g + 1);
         Add(workerId);
 
         var host = _transport.CreateHost(workerId);

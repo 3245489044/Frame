@@ -64,6 +64,62 @@ public sealed class DaemonPool : IDisposable
     public bool IsReady => _state.ReadyWorkerCount > 0;
     public int ReadyWorkerCount => _state.ReadyWorkerCount;
 
+    /// <summary>worker 当前代次（0 = 未知名单）。承载点见 B0-4 裁决 ⓐ。</summary>
+    public int GenerationOf(string workerId) => _state.GenerationOf(workerId);
+
+    /// <summary>取 worker 状态快照（含 pid 等宿主元数据；未知名单 ⇒ false）。供治理端口 <c>engine_pid</c> 契约取值。</summary>
+    public bool TryGetWorkerInfo(string workerId, out WorkerStateInfo? info) => _state.TryGet(workerId, out info);
+
+    /// <summary>
+    /// **代次校验后**驱逐该 worker（复用既有基建故障清理：释放占用 + 补位重生）。
+    /// 代次不符（越代 / 未知名单）⇒ 不执行并返回 false —— 治「迟到看门狗杀在飞引擎」，
+    /// 即治理规则 <c>lease.generation-guard</c> 的宿主入口（唯一执行通道不变，只是加了守卫）。
+    /// </summary>
+    public async Task<bool> TryEvictAsync(string workerId, int generation, CancellationToken ct = default)
+    {
+        if (!_state.MatchesGeneration(workerId, generation))
+        {
+            NoteGuardRejected("evict", workerId, generation);
+            return false;
+        }
+
+        await EvictWorkerAsync(workerId, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// **代次校验后**终止该 worker 底层进程树（= engine_cancel 的宿主入口：唯一 killer 仍是传输层 AEF 进程句柄，
+    /// 不新造执行机制）；被终止 worker 的在飞请求按既有错误分类路径以 Cancelled 收束并补位。
+    /// 代次不符 ⇒ 不执行并返回 false。
+    /// </summary>
+    public bool TryCancel(string workerId, int generation)
+    {
+        if (!_state.MatchesGeneration(workerId, generation))
+        {
+            NoteGuardRejected("cancel", workerId, generation);
+            return false;
+        }
+
+        var host = _state.GetHost(workerId);
+        if (host is null) return false;
+
+        try
+        {
+            host.ProcessHandle.Kill(entireProcessTree: true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Diagnostics?.Invoke("DaemonPool_cancel_failed", new { workerId, generation, error = ex.Message });
+            return false;
+        }
+    }
+
+    /// <summary>代次守卫拒绝可见化（不静默：越代操作被拒是终止事实的一部分）。</summary>
+    private void NoteGuardRejected(string op, string workerId, int generation)
+        => Diagnostics?.Invoke("DaemonPool_generation_guard_rejected",
+            new { op, workerId, generation, current = _state.GenerationOf(workerId) });
+
     /// <summary>
     /// 就绪门闩：触发（幂等，用池生命周期令牌，不被任一调用方 ct 绑架）+ 等待至少一个就绪 worker；
     /// 预热失败在预算内补位重试。返回就绪 worker 数；预算耗尽抛明确归因异常（不降级到其他通道）。

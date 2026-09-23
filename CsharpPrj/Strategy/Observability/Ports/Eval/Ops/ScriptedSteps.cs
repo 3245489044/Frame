@@ -231,38 +231,7 @@ internal static class ScriptedSteps
         if (expr.Collect is { Length: > 0 } collect) names.Add(collect);
         if (expr.SameAsLast is { Length: > 0 } other) names.Add(other);
 
-        foreach (var sub in Subs(expr)) CollectExpr(sub, names);
-    }
-
-    private static IEnumerable<ExprStandard> Subs(ExprStandard expr)
-    {
-        foreach (var candidate in new[]
-        {
-            expr.Count, expr.NotNull, expr.AsText, expr.TypeName, expr.Message, expr.Thrown,
-            expr.Contains, expr.Of, expr.All, expr.Any, expr.AllIn, expr.Spread,
-            expr.First, expr.FirstWhere, expr.IsNull, expr.Not, expr.Agg,
-            expr.Filter, expr.FilterWhere,
-            expr.Last, expr.LastWhere, expr.Dict, expr.DictKey, expr.DictValue, expr.DictWhere,
-        })
-        {
-            if (candidate is not null) yield return candidate;
-        }
-
-        foreach (var item in expr.Concat ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.CountEqual ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.AllOf ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.AnyOf ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.Coalesce ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.SameReference ?? Array.Empty<ExprStandard>()) yield return item;
-        foreach (var item in expr.SequenceEqual ?? Array.Empty<ExprStandard>()) yield return item;
-
-        if (expr.Distinct is { } distinct) yield return distinct;
-        if (expr.Fold is { } fold) yield return fold;
-
-        foreach (var part in expr.Parts ?? Array.Empty<ConcatPartStandard>())
-        {
-            yield return part.Expr;
-            if (part.When is { } gate) yield return gate;
-        }
+        // 子节点枚举单源（R3）：反射驱动 + 声明序，新增算子自动纳入（旧实现为手写清单，已漏比较算子族）。
+        foreach (var sub in ExprStandardWalker.Children(expr)) CollectExpr(sub, names);
     }
 }

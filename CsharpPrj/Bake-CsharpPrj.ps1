@@ -23,6 +23,19 @@ Write-Host "[Bake-CsharpPrj] dotnet build MainProj.sln（权威烘焙全集）�
 & dotnet build $sln -c $Configuration -v m --nologo
 if ($LASTEXITCODE -ne 0) { throw "烘焙失败（exit=$LASTEXITCODE）：$sln" }
 
+# ★ D9/E1：DataCenter 平台库（独立解决方案 Frame\DataCenter\DataCenter.slnx）——
+#   此前不在烘焙入口内 ⇒ 改了标准层源码而 dll 未重建时，manifest 仍报「全部就绪」（假绿），
+#   下游以旧 dll 运行即 MissingMethodException（本批实测踩坑）。此处显式纳入烘焙；
+#   陈旧件判据见 Generate-CsharpBakeManifest.ps1 的新鲜度段（存在性 ≠ 新鲜度）。
+$dcSln = Join-Path (Split-Path -Parent $root) 'DataCenter\DataCenter.slnx'
+if (Test-Path $dcSln) {
+    Write-Host '[Bake-CsharpPrj] dotnet build DataCenter.slnx（平台库：标准层 / 协议层 …）…' -ForegroundColor Cyan
+    & dotnet build $dcSln -c $Configuration -v m --nologo
+    if ($LASTEXITCODE -ne 0) { throw "烘焙失败（exit=$LASTEXITCODE）：$dcSln" }
+} else {
+    Write-Host "[Bake-CsharpPrj] 跳过 DataCenter：未找到 $dcSln" -ForegroundColor DarkYellow
+}
+
 Write-Host '[Bake-CsharpPrj] 刷新完整性 manifest + stamp …' -ForegroundColor Cyan
 $gen = Join-Path $root 'Generate-CsharpBakeManifest.ps1'
 & pwsh -NoProfile -File $gen -Configuration $Configuration

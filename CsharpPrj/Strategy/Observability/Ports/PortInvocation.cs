@@ -110,6 +110,32 @@ internal static class PortInvocation
                    || type.GetGenericTypeDefinition() == typeof(ValueTask<>)));
 
     /// <summary>
+    /// 任务返回类型的**载荷类型**（D14）：<c>Task</c> / <c>ValueTask</c> → false（无载荷）；
+    /// <c>Task&lt;T&gt;</c> / <c>ValueTask&lt;T&gt;</c> → true 并给出 <c>T</c>。
+    /// <para>
+    /// 用途：替身应答 / 端口代理在调用 <see cref="Realize"/>（**造任务唯一实现**）前，
+    /// 按本判据决定「是否需要先把值归一到内层类型」——避免各站点自行 if/else 重写任务包装口径
+    /// （D14 的三份口径差异正是这样来的：<c>Task&lt;T&gt;</c> 是否丢弃已实现任务、<c>ValueTask&lt;T&gt;</c>
+    /// 的 null 是否补默认值）。
+    /// </para>
+    /// </summary>
+    internal static bool TryPayloadType(Type returnType, out Type payloadType)
+    {
+        if (returnType.IsGenericType)
+        {
+            var definition = returnType.GetGenericTypeDefinition();
+            if (definition == typeof(Task<>) || definition == typeof(ValueTask<>))
+            {
+                payloadType = returnType.GetGenericArguments()[0];
+                return true;
+            }
+        }
+
+        payloadType = typeof(void);
+        return false;
+    }
+
+    /// <summary>
     /// 返回值归一（**造任务**唯一实现，D2）：同步产物按声明返回类型包装为已完成任务
     /// （<c>Task</c> → <c>CompletedTask</c>；<c>Task&lt;T&gt;</c> → <c>Task.FromResult</c>；<c>ValueTask</c> / <c>ValueTask&lt;T&gt;</c> 同口径）；
     /// 非任务返回类型原样返回值。与 <see cref="Fold"/>（**拆任务**）构成互补对。

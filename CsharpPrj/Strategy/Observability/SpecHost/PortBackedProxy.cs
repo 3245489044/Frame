@@ -131,29 +131,21 @@ internal class PortBackedProxyDispatch : DispatchProxy
         return separator >= 0 && separator < accessorName.Length - 1 ? accessorName[(separator + 1)..] : accessorName;
     }
 
-    /// <summary>端口应答 → 目标返回类型（<c>void</c> / <c>Task</c> / <c>ValueTask</c> / <c>Task&lt;T&gt;</c> / <c>ValueTask&lt;T&gt;</c> / 同步值）。</summary>
+    /// <summary>
+    /// 端口应答 → 目标返回类型（D14 单源）：载荷经 <see cref="Coerce"/> 归一到内层类型后，交
+    /// <see cref="PortInvocation.Realize"/> 统一包装（<c>void</c> / <c>Task</c> / <c>ValueTask</c> /
+    /// <c>Task&lt;T&gt;</c> / <c>ValueTask&lt;T&gt;</c> / 同步值）—— 与替身应答同一口径。
+    /// </summary>
     private static object? Adapt(object? result, Type returnType, string portKey)
     {
         if (returnType == typeof(void)) return null;
-        if (returnType == typeof(Task)) return Task.CompletedTask;
-        if (returnType == typeof(ValueTask)) return ValueTask.CompletedTask;
 
-        if (returnType.IsGenericType)
-        {
-            var definition = returnType.GetGenericTypeDefinition();
-            var inner = returnType.GetGenericArguments()[0];
+        if (PortInvocation.TryPayloadType(returnType, out var payloadType))
+            return PortInvocation.Realize(Coerce(result, payloadType, portKey), returnType);
 
-            if (definition == typeof(Task<>))
-                return typeof(Task)
-                    .GetMethod(nameof(Task.FromResult))!
-                    .MakeGenericMethod(inner)
-                    .Invoke(null, [Coerce(result, inner, portKey)]);
-
-            if (definition == typeof(ValueTask<>))
-                return Activator.CreateInstance(returnType, Coerce(result, inner, portKey));
-        }
-
-        return Coerce(result, returnType, portKey);
+        return returnType == typeof(Task) || returnType == typeof(ValueTask)
+            ? PortInvocation.Realize(null, returnType)
+            : Coerce(result, returnType, portKey);
     }
 
     /// <summary>

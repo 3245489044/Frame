@@ -338,28 +338,19 @@ public static class PortFake
     private static Exception ForgeThrow(string typeName, string? message, Type contract, MethodInfo method)
         => PortInvocation.ForgeThrow(typeName, message, $"{contract.Name}.{method.Name}");
 
-    /// <summary>应答值适配：<c>Task</c>/<c>Task&lt;T&gt;</c>/<c>ValueTask</c> 包装为已完成任务；其余按返回类型反序列化。</summary>
+    /// <summary>
+    /// 应答值适配（D14 单源）：载荷按内层类型归一（<see cref="Coerce"/>）后，交
+    /// <see cref="PortInvocation.Realize"/> 统一包装为已完成任务 —— 与端口代理 / 委托体同一口径；
+    /// 非任务返回类型原样走 <see cref="Coerce"/>。
+    /// </summary>
     private static object? Adapt(Type returnType, object? value)
     {
-        if (returnType == typeof(Task)) return Task.CompletedTask;
-        if (returnType == typeof(ValueTask)) return ValueTask.CompletedTask;
+        if (PortInvocation.TryPayloadType(returnType, out var payloadType))
+            return PortInvocation.Realize(Coerce(value, payloadType), returnType);
 
-        if (returnType.IsGenericType)
-        {
-            var definition = returnType.GetGenericTypeDefinition();
-            var resultType = returnType.GetGenericArguments()[0];
-
-            if (definition == typeof(Task<>))
-                return typeof(Task)
-                    .GetMethod(nameof(Task.FromResult))!
-                    .MakeGenericMethod(resultType)
-                    .Invoke(null, new[] { Coerce(value, resultType) });
-
-            if (definition == typeof(ValueTask<>))
-                return Activator.CreateInstance(returnType, Coerce(value, resultType));
-        }
-
-        return Coerce(value, returnType);
+        return returnType == typeof(Task) || returnType == typeof(ValueTask)
+            ? PortInvocation.Realize(null, returnType)
+            : Coerce(value, returnType);
     }
 
     /// <summary>值 → 目标类型（<see cref="JsonElement"/> 按原始文本反序列化；其余直传；null 保留）。</summary>

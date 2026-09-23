@@ -373,7 +373,7 @@
       "category": "General"
     },
     "EcsEventBus_Dispatch_output_decision": {
-      "template": "ECS 事件输出决策 — opId={opId}, controlName={controlName}, functionName={functionName}, success={success}, outcome={outcome}, outputTarget={outputTarget}, outputType={outputType}, outputPreview={outputPreview}",
+      "template": "ECS 事件输出决策 — opId={opId}, controlName={controlName}, functionName={functionName}, success={success}, outcome={outcome}, outputTarget={outputTarget}, outputType={outputType}, outputPreview={outputPreview}, foldedRepeats={foldedRepeats}",
       "level": "Info",
       "category": "General"
     },
@@ -414,7 +414,7 @@
       "category": "General"
     },
     "EcsEventBus_Dispatch_function_failed": {
-      "template": "ECS 事件函数执行失败 — controlName={controlName}, eventName={eventName}, functionName={functionName}, error={error}",
+      "template": "ECS 事件函数执行失败 — controlName={controlName}, eventName={eventName}, functionName={functionName}, outcome={outcome}, budgetMs={budgetMs}, error={error}, hint={hint}",
       "level": "Warning",
       "category": "General"
     },
@@ -435,7 +435,7 @@
     },
     "EcsStateAccessor_AppendValue": {
       "template": "ECS 状态追加写（终端语义） — controlName={controlName}, appendedLength={appendedLength}, totalLength={totalLength}, written={written}",
-      "level": "Info",
+      "level": "Debug",
       "category": "General"
     },
     "EcsStateAccessor_SetValue_projection": {

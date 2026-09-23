@@ -75,6 +75,59 @@ function Get-GitRevisionFile {
     return $text
 }
 
+function Find-GitMatch {
+    <#
+    .SYNOPSIS
+        仓储多模式只读检索（git grep 封装）。
+    .DESCRIPTION
+        把递归 grep 收敛为 git grep 调用；多 pattern = OR；支持 pathspec / 只列文件 / 未跟踪文件。
+        与同模块 Get-GitDiff / Test-GitClean / Get-GitRevisionFile 同族：-RepoRoot + --no-pager + 数组返回。
+        无命中返回空数组（不抛异常）。
+    .PARAMETER RepoRoot
+        仓库工作区根（子模块须显式传入各自根）。
+    .PARAMETER Pattern
+        多值 = OR（逐项转 -e）。
+    .PARAMETER PathSpec
+        多值 = 多 pathspec（如 '*.cs','*.json','Plug/Agent/**/*.cs'）。
+    .PARAMETER List
+        只列命中文件（-l）。
+    .PARAMETER Untracked
+        含未跟踪文件（--untracked，新增文件必需）。
+    .PARAMETER IgnoreCase
+        忽略大小写（-i）。
+    .PARAMETER MaxCount
+        每 pattern 上限（-m），默认不限。
+    .PARAMETER FixedStrings
+        按字面量匹配（-F），避免 pattern 内 .\/ 被当正则。
+    .OUTPUTS
+        字符串数组，元素形如 relpath:line:text（-List 时仅 relpath）；无命中 = 空数组。
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string[]]$Pattern,
+        [string[]]$PathSpec = @(),
+        [switch]$List,
+        [switch]$Untracked,
+        [switch]$IgnoreCase,
+        [int]$MaxCount = 0,
+        [switch]$FixedStrings
+    )
+
+    $args = @('-C', $RepoRoot, '--no-pager', 'grep', '-n')
+    if ($List)         { $args += '-l' }
+    if ($IgnoreCase)   { $args += '-i' }
+    if ($Untracked)    { $args += '--untracked' }
+    if ($FixedStrings) { $args += '-F' }
+    if ($MaxCount -gt 0) { $args += @('-m', $MaxCount) }
+    foreach ($p in $Pattern) { $args += @('-e', $p) }
+    if ($PathSpec.Count -gt 0) { $args += @('--') + $PathSpec }
+
+    # git grep 无命中时退出码为 1，不视为错误；静默 stderr
+    $output = @(& git @args 2>$null)
+    return $output
+}
+
 function Resolve-GitRevisionWithPath {
     <#
     .SYNOPSIS
@@ -102,4 +155,4 @@ function Resolve-GitRevisionWithPath {
     return ''
 }
 
-Export-ModuleMember -Function @('Get-GitDiff', 'Test-GitClean', 'Get-GitRevisionFile', 'Resolve-GitRevisionWithPath')
+Export-ModuleMember -Function @('Get-GitDiff', 'Test-GitClean', 'Get-GitRevisionFile', 'Find-GitMatch', 'Resolve-GitRevisionWithPath')

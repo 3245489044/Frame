@@ -16,6 +16,13 @@ public class EventBinding
     /// <summary>输出写语义（见 <see cref="OutputWriteModes"/>）；null/空 = <see cref="OutputWriteModes.Replace"/>。</summary>
     public string? OutputMode { get; set; }
 
+    /// <summary>
+    /// 该绑定命中函数的执行预算（毫秒）。缺省 null = 框架默认值（<c>InteractionDefaults.DefaultFunctionTimeoutMs</c>，30s）。
+    /// 用于分钟级长任务（如 conversation/send agent=cline：多轮 LLM + 工具循环），
+    /// 否则会被框架绝对预算在预算点终止（FrameworkTimedOut）。
+    /// </summary>
+    public int? FunctionTimeoutMs { get; set; }
+
     public Dictionary<string, string>? OutputMapping { get; set; }
 
     public Dictionary<string, WorkflowDefinitionEntry>? Workflows { get; set; }

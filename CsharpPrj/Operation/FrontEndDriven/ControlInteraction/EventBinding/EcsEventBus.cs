@@ -54,6 +54,15 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// <summary>F4.2：本次分发突发中已见的 EntityNotFound 命中计数（首条聚合，后续静默）。</summary>
     private int _entityNotFoundBurst;
 
+    /// <summary>
+    /// 输出决策观测去重（轮询渲染稳态噪音治理）：同「控件×函数」输出指纹未变时不再逐条落行。
+    /// 键空间 = 控件×函数（有界）；恢复落行时带 <c>foldedRepeats</c> 报告期间折叠条数，观测不丢「有没有变」。
+    /// </summary>
+    private readonly ConcurrentDictionary<string, OutputFingerprint> _lastOutputDecision = new(StringComparer.Ordinal);
+
+    /// <summary>输出指纹：类型 + 长度 + FNV-1a 哈希（同一内容稳定可比，跨进程无需加密强度）。</summary>
+    private readonly record struct OutputFingerprint(string Value, int Folded);
+
     /// <summary>按钮事件函数默认执行超时（毫秒）；命令 click-wait 的 timeout 经 Enqueue(functionTimeoutMs) 覆盖。权威常量见 <see cref="InteractionDefaults"/>。</summary>
     public const int DefaultFunctionTimeoutMs = InteractionDefaults.DefaultFunctionTimeoutMs;
 
@@ -209,8 +218,9 @@ public sealed class EcsEventBus : IInteractionEventPort
 
             // 统一经 InvocationKernel 执行（生命周期 + 分类 + 观测），与 GUI/命令同链；
             // 异步分发：结果回写（OutputTarget）与函数执行解耦，异常仅日志不阻断后续事件；
-            // 函数执行预算透传（R·等待/执行对齐）：click-wait 的 timeout 即函数执行超时。
-            _ = DispatchFunctionAsync(binding, parameters, evt, completionOp, evt.FunctionTimeoutMs, opId, cts);
+            // 函数执行预算透传（R·等待/执行对齐）：命令层 click-wait 的 timeout 优先，其次绑定级声明（bindings.functionTimeoutMs），
+            // 皆缺省才回落框架默认（30s）——分钟级长任务（如 conversation/send agent=cline）须显式声明，否则被预算点终止。
+            _ = DispatchFunctionAsync(binding, parameters, evt, completionOp, evt.FunctionTimeoutMs ?? binding.FunctionTimeoutMs, opId, cts);
         }
 
         if (matched == 0)
@@ -241,12 +251,13 @@ public sealed class EcsEventBus : IInteractionEventPort
         Guid opId = default,
         CancellationTokenSource? cts = null)
     {
+        // 预算在 try 前解算：失败/异常路径也要能复述同一预算来源（终态行不再只报「超时」不给因）。
+        var budget = (functionTimeoutMs ?? DefaultFunctionTimeoutMs) > 0
+            ? (functionTimeoutMs ?? DefaultFunctionTimeoutMs)
+            : (int?)null;
         try
         {
             // 直接经内核执行（入口收敛）：结构化结果带归因分类（函数错 vs 框架错）。
-            var budget = (functionTimeoutMs ?? DefaultFunctionTimeoutMs) > 0
-                ? (functionTimeoutMs ?? DefaultFunctionTimeoutMs)
-                : (int?)null;
             var invocation = new InvocationRequest(
                 binding.FunctionName,
                 parameters,
@@ -271,19 +282,38 @@ public sealed class EcsEventBus : IInteractionEventPort
                 : result.Output;
 
             // 输出决策观测（Info 级，见 fde_log_messages.json）：确认「输出值/输出目标/是否落盘」，定位输出联动断点。
-            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_decision",
-                new
+            // 仅成功路径记录（失败路径由 EcsEventBus_Dispatch_function_failed 唯一承载）；
+            // 且同一「控件×函数」输出未变时不重复落行——轮询型渲染（会话页每周期整页重渲染）内容是稳态的，
+            // 逐条落行会把终端刷成同长度同内容。恢复落行时报告 foldedRepeats（期间折叠条数）。
+            if (result.IsSuccess)
+            {
+                var decisionKey = $"{evt.ControlName}|{binding.FunctionName}";
+                var fingerprint = Fingerprint(result.Output);
+                if (_lastOutputDecision.TryGetValue(decisionKey, out var last) && last.Value == fingerprint)
                 {
-                    opId,
-                    controlName = evt.ControlName,
-                    functionName = binding.FunctionName,
-                    success = result.IsSuccess,
-                    outcome = result.Outcome.ToString(),
-                    outputTarget = binding.OutputTarget,
-                    outputMode = binding.OutputMode,
-                    outputType = result.Output?.GetType().Name ?? "(null)",
-                    outputPreview = Preview(result.Output, 160)
-                });
+                    _lastOutputDecision[decisionKey] = last with { Folded = last.Folded + 1 };
+                }
+                else
+                {
+                    // 上次落行以来被折叠的重复条数（每次落行即归零；无历史/指纹未变过 → 0）。
+                    var folded = last.Folded;
+                    _lastOutputDecision[decisionKey] = new OutputFingerprint(fingerprint, 0);
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_decision",
+                        new
+                        {
+                            opId,
+                            controlName = evt.ControlName,
+                            functionName = binding.FunctionName,
+                            success = result.IsSuccess,
+                            outcome = result.Outcome.ToString(),
+                            outputTarget = binding.OutputTarget,
+                            outputMode = binding.OutputMode,
+                            outputType = result.Output?.GetType().Name ?? "(null)",
+                            outputPreview = Preview(result.Output, 160),
+                            foldedRepeats = folded
+                        });
+                }
+            }
 
             if (result.IsSuccess
                 && !string.IsNullOrWhiteSpace(binding.OutputTarget)
@@ -310,7 +340,8 @@ public sealed class EcsEventBus : IInteractionEventPort
                             elapsedMs = result.ElapsedMs
                         });
                 }
-                // 失败显式告警：带 opId + 归因分类（FunctionFault / FrameworkTimedOut / FrameworkIdleHung / Cancelled）。
+                // 失败显式告警：带 opId + 归因分类（FunctionFault / FrameworkTimedOut / FrameworkIdleHung / Cancelled）
+                // + 本次预算与处置提示（终态行自带因与下一步，避免「只报超时不给因」）。
                 FrontEndDrivenLog.Log("EcsEventBus_Dispatch_function_failed",
                     new
                     {
@@ -319,7 +350,9 @@ public sealed class EcsEventBus : IInteractionEventPort
                         eventName = evt.EventName,
                         functionName = binding.FunctionName,
                         outcome = result.Outcome.ToString(),
-                        error = result.Error ?? "未知错误（函数未注册或执行失败）"
+                        budgetMs = budget,
+                        error = result.Error ?? "未知错误（函数未注册或执行失败）",
+                        hint = BudgetHint(result.Outcome)
                     });
                 op?.Complete(new EventFunctionOutcome(false, ToKind(result.Outcome), result.Error));
             }
@@ -365,7 +398,9 @@ public sealed class EcsEventBus : IInteractionEventPort
                     eventName = evt.EventName,
                     functionName = binding.FunctionName,
                     outcome = "FunctionFault",
-                    error = ex.Message
+                    budgetMs = budget,
+                    error = ex.Message,
+                    hint = string.Empty
                 });
             op?.Complete(new EventFunctionOutcome(false, EventFunctionResultKind.FunctionFault, ex.Message));
         }
@@ -424,12 +459,63 @@ public sealed class EcsEventBus : IInteractionEventPort
         }
     }
 
-    /// <summary>输出值预览（截断），用于输出联动诊断日志。</summary>
+    /// <summary>
+    /// 输出指纹（类型 + 长度 + FNV-1a 哈希）：用于「输出决策观测」的稳态去重。
+    /// 全量内容参与哈希（一次 O(n)，每控件每周期一次，代价可忽略），避免只看长度把「等长但内容不同」误判为未变。
+    /// </summary>
+    private static string Fingerprint(object? value)
+    {
+        if (value is null) return "(null)";
+        var s = value.ToString() ?? string.Empty;
+        unchecked
+        {
+            const uint offset = 2166136261;
+            const uint prime = 16777619;
+            var hash = offset;
+            foreach (var ch in s) hash = (hash ^ ch) * prime;
+            return $"{value.GetType().Name}|{s.Length}|{hash:X8}";
+        }
+    }
+
+    /// <summary>预算类失败的处置提示（随失败终态行落一条，避免只报「超时」不给因/不给下一步）。</summary>
+    private static string BudgetHint(InvocationOutcome outcome) => outcome switch
+    {
+        InvocationOutcome.FrameworkTimedOut =>
+            "长任务（LLM/cline 多轮工具循环）请提高该绑定的 functionTimeoutMs，或以脚本 exec 的 timeout 驱动",
+        InvocationOutcome.FrameworkIdleHung =>
+            "函数在预算内无输出心跳；检查下游是否挂起（命令层取消令牌已链接至内核 op）",
+        InvocationOutcome.Cancelled => "调用方取消（外部令牌）",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// 输出值预览（语义摘要）：短文本原样；长文本/HTML 输出改报「长度 + 根标签 + 头部片段」，
+    /// 避免整页 HTML（万级字符）把输出决策行刷成无信息量的标签串。
+    /// </summary>
     private static string? Preview(object? value, int maxLen)
     {
         if (value == null) return null;
         var s = value.ToString() ?? string.Empty;
-        return s.Length <= maxLen ? s : s.Substring(0, maxLen) + "…";
+        if (s.Length <= maxLen) return s;
+
+        var head = s.Length <= 120 ? s : s.Substring(0, 120);
+        head = head.Replace("\r", " ").Replace("\n", " ");
+        var rootTag = s.StartsWith("<", StringComparison.Ordinal) ? RootTagName(s) : string.Empty;
+        return $"len={s.Length}{rootTag} head={head}…";
+    }
+
+    /// <summary>取 HTML 文本的首个元素名（如 <c>&lt;div class=…</c> → <c> root=&lt;div&gt;</c>；非标签/空 → 空串）。</summary>
+    private static string RootTagName(string html)
+    {
+        var i = html.IndexOf('<');
+        while (i >= 0 && i + 1 < html.Length && (html[i + 1] == '/' || html[i + 1] == '!'))
+            i = html.IndexOf('<', i + 1);
+        if (i < 0 || i + 1 >= html.Length) return string.Empty;
+
+        var j = i + 1;
+        while (j < html.Length && (char.IsLetterOrDigit(html[j]) || html[j] == '-' || html[j] == '_')) j++;
+        if (j == i + 1) return string.Empty;
+        return $" root=<{html.Substring(i + 1, j - i - 1)}>";
     }
 
 

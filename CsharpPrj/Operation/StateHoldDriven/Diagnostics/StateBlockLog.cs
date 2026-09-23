@@ -19,6 +19,14 @@ public static class StateBlockLog
     public static void Step(string pool, string step, object? data = null)
         => _log("StateBlock_Step", new { pool, step, data = data is null ? "" : JsonSerializer.Serialize(data) });
 
+    /// <summary>
+    /// 记录一个池运行时细步（Debug 语义）——worker 级预热明细（每 worker 一次发送/一次完成），
+    /// 终端（min level=Info）只保留 <see cref="PoolInit"/>/<see cref="PoolReady"/>/<see cref="WarmupSummary"/> 汇总，
+    /// 失败仍经 <see cref="WarmupFailed"/>/<see cref="WarmupHung"/>/<see cref="Fail"/> 显性告警。
+    /// </summary>
+    public static void StepDebug(string pool, string step, object? data = null)
+        => _log("StateBlock_StepDebug", new { pool, step, data = data is null ? "" : JsonSerializer.Serialize(data) });
+
     /// <summary>记录一个失败/挂起归因（Warning 语义，携带阶段与 stderr 尾部）。</summary>
     public static void Fail(string pool, string step, object? data = null)
         => _log("StateBlock_Fail", new { pool, step, data = data is null ? "" : JsonSerializer.Serialize(data) });
@@ -61,13 +69,13 @@ public static class StateBlockLog
     public static void SendDone(string pool, string requestId, string workerId, string cmd, double elapsedMs)
         => _log("StateBlock_SendDone", new { pool, requestId, workerId, cmd, elapsedMs });
 
-    /// <summary>记录基建故障（挂起/被杀）换 worker 重试（Warning）。</summary>
-    public static void SendRetry(string pool, string requestId, string workerId, string cmd, int attempt, string? error)
-        => _log("StateBlock_SendRetry", new { pool, requestId, workerId, cmd, attempt, error });
+    /// <summary>记录基建故障（挂起/被杀）换 worker 重试（Warning，携带最后阶段与 stderr 尾部，供归因引擎为何不推进）。</summary>
+    public static void SendRetry(string pool, string requestId, string workerId, string cmd, int attempt, string? error, string? lastStage = null, string? stderrTail = null)
+        => _log("StateBlock_SendRetry", new { pool, requestId, workerId, cmd, attempt, error, lastStage, stderrTail });
 
-    /// <summary>记录请求业务失败（Warning，daemon 正常返回业务错误，不重试）。</summary>
-    public static void SendFailed(string pool, string requestId, string workerId, string cmd, string? error)
-        => _log("StateBlock_SendFailed", new { pool, requestId, workerId, cmd, error });
+    /// <summary>记录请求业务失败（Warning，daemon 正常返回业务错误，不重试；携带最后阶段与 stderr 尾部）。</summary>
+    public static void SendFailed(string pool, string requestId, string workerId, string cmd, string? error, string? lastStage = null, string? stderrTail = null)
+        => _log("StateBlock_SendFailed", new { pool, requestId, workerId, cmd, error, lastStage, stderrTail });
 
     /// <summary>记录请求被取消（Warning）。</summary>
     public static void SendCancelled(string pool, string requestId, string workerId, string cmd, string? error)

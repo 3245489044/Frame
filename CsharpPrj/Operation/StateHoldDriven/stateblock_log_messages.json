@@ -7,6 +7,11 @@
       "category": "StateBlock_Daemon",
       "template": "pool={pool} | {step}: {data}"
     },
+    "StateBlock_StepDebug": {
+      "level": "Debug",
+      "category": "StateBlock_Daemon",
+      "template": "pool={pool} | {step}: {data}"
+    },
     "StateBlock_Fail": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
@@ -60,12 +65,12 @@
     "StateBlock_SendRetry": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "基建故障换 worker 重试: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, attempt={attempt}, error={error}"
+      "template": "基建故障换 worker 重试: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, attempt={attempt}, error={error}, lastStage={lastStage}, stderrTail={stderrTail}"
     },
     "StateBlock_SendFailed": {
       "level": "Warning",
       "category": "StateBlock_Daemon",
-      "template": "请求业务失败: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}"
+      "template": "请求业务失败: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, error={error}, lastStage={lastStage}, stderrTail={stderrTail}"
     },
     "StateBlock_SendCancelled": {
       "level": "Warning",

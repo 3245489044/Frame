@@ -163,7 +163,8 @@ public sealed class DaemonPoolState : IDisposable
             if (_hosts.ContainsKey(id)) continue;
             await SpawnWorkerAsync(id, ct).ConfigureAwait(false);
         }
-        StateBlockLog.Step(_poolTag, "Start_Spawned", new { poolSize = _options.PoolSize, workers = GetWorkerIds() });
+        // 池启动明细（spawn/探活/汇总）走 Debug：终端只留 池初始化/池就绪/预热汇总/请求开始完成，失败仍 Warning 显性可见。
+        StateBlockLog.StepDebug(_poolTag, "Start_Spawned", new { poolSize = _options.PoolSize, workers = GetWorkerIds() });
 
         // S1：探活非空超时兜底（_options.ProbeTimeout 缺省可能为 null → 无超时则 StartAsync 无限挂起）。
         var probeTimeout = _options.ProbeTimeout ?? TimingDefaults.ClineProbe;
@@ -183,7 +184,7 @@ public sealed class DaemonPoolState : IDisposable
         if (hung.Count > 0)
             throw new InvalidOperationException($"{hung.Count} 个 worker 心跳探活失败: {string.Join(", ", hung)}");
         _started = true;
-        StateBlockLog.Step(_poolTag, "Start_Done", new { running = GetWorkerIds(), ready = ReadyWorkerCount });
+        StateBlockLog.StepDebug(_poolTag, "Start_Done", new { running = GetWorkerIds(), ready = ReadyWorkerCount });
     }
 
     /// <summary>补位/重启单个 daemon（被 kill/挂起后）。</summary>

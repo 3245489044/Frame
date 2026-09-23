@@ -286,13 +286,15 @@ public class ControlFactory
             {
                 if (hasDictionaryBindings)
                 {
-                    bool hasOutputOrParams = (binding.Parameters != null && binding.Parameters.Count > 0)
-                        || !string.IsNullOrWhiteSpace(binding.OutputTarget ?? binding.Output);
+                    // 绑定级元数据（参数/输出目标/执行预算）是否声明：声明了才覆盖字典事件上的默认值。
+                    bool hasBindingLevelMeta = (binding.Parameters != null && binding.Parameters.Count > 0)
+                        || !string.IsNullOrWhiteSpace(binding.OutputTarget ?? binding.Output)
+                        || binding.FunctionTimeoutMs is not null;
 
                     // 无 FunctionName：参数/输出目标为配置级，应用到所有字典事件
                     if (string.IsNullOrEmpty(binding.FunctionName))
                     {
-                        if (hasOutputOrParams)
+                        if (hasBindingLevelMeta)
                         {
                             for (int i = 0; i < bindings.Count; i++)
                             {
@@ -303,6 +305,7 @@ public class ControlFactory
                                     ?? Array.Empty<TConfig.ParameterBinding>();
                                 updated.OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty;
                                 updated.OutputMode = binding.OutputMode;
+                                updated.FunctionTimeoutMs = binding.FunctionTimeoutMs ?? b.FunctionTimeoutMs;
                                 bindings[i] = updated;
                             }
                         }
@@ -314,7 +317,7 @@ public class ControlFactory
                             var b = bindings[i];
                             if (string.Equals(b.FunctionName, binding.FunctionName, StringComparison.OrdinalIgnoreCase))
                             {
-                                if (hasOutputOrParams)
+                                if (hasBindingLevelMeta)
                                 {
                                     var updated = b;
                                     // D6 收敛：参数 DTO 直通
@@ -322,6 +325,7 @@ public class ControlFactory
                                         ?? Array.Empty<TConfig.ParameterBinding>();
                                     updated.OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty;
                                     updated.OutputMode = binding.OutputMode;
+                                    updated.FunctionTimeoutMs = binding.FunctionTimeoutMs ?? b.FunctionTimeoutMs;
                                     bindings[i] = updated;
                                 }
                                 break;
@@ -339,7 +343,8 @@ public class ControlFactory
                         Parameters = binding.Parameters?.ToArray()
                             ?? Array.Empty<TConfig.ParameterBinding>(),
                         OutputTarget = binding.OutputTarget ?? binding.Output ?? string.Empty,
-                        OutputMode = binding.OutputMode
+                        OutputMode = binding.OutputMode,
+                        FunctionTimeoutMs = binding.FunctionTimeoutMs
                     });
                 }
             }

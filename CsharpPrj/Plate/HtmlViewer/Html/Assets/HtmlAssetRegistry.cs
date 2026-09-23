@@ -119,7 +119,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var cmd=n.getAttribute('data-poll-cmd');if(!cmd){cmd='refresh';}"
         + "var o=new Object();o.cmd=cmd;var ctx=ctxOf(n);"
         + "if(ctx){for(var k in ctx){o[k]=ctx[k];}}pst(o);}"
-        + "var list=document.querySelectorAll('[data-poll-cmd]');"
+        // 定时器选择器排除手动刷新按钮（data-poll-refresh）：按钮只做点击触发，挂同一定时器会造成每周期重复派发/重复渲染。
+        + "var list=document.querySelectorAll('[data-poll-cmd]:not([data-poll-refresh])');"
         + "for(var i=0;i<list.length;i++){(function(n){"
         + "var iv=parseInt(n.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=30000;}"
         + "window.setInterval(function(){fire(n);},iv);"

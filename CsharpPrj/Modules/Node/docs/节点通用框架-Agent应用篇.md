@@ -1,7 +1,7 @@
 # 节点通用框架 · Agent 应用篇（JSON 键连接版）
 
 > **状态**：设计稿（只出文档，未落地代码）
-> **配套**：[节点通用框架设计（与位置无关）](./节点通用框架-与位置无关的设计.md)
+> **配套**：[节点通用框架设计（与位置无关）](./节点通用框架-与位置无关的设计.md) · [提取清单与复用映射](./节点通用框架-提取清单与复用映射.md)（WorkFlowMethod 侧全部节点件的逐项裁决与缺口清单） · [表层语言与 Usharp 接入](./节点通用框架-表层语言与Usharp接入.md)（定义来源端口化：Agent 侧以 `.ushar` 作定义期语言，Node 只留端口）
 > **本文件回答三件事**：① Agent 侧如何**结合 `Operation\WorkFlowMethod`** 实现；② 运行流程如何**全程基于 JSON 显式拼接 + 键连接**；③ **cline 历史回写**与**实时节点转换**怎么落。
 > **依据**：全部结论来自本仓库实测（文件:行）。
 
@@ -34,6 +34,8 @@
 | 内存节点装配 | `LoopFoldMethod.Node`：`NodeItem/NodeSlot/NodeCategory/NodeBuilder/INodeSlotPolicy/NodeComponent/INodeSource/NodeAssemblyEngine/INodeProjector` | ⚠️ 部分（折叠算子用其子集） |
 | 循环状态键空间 | `AxiomContext.Data`（`IDictionary<string,object>`）+ `RoundKeys.*`（`Agent.Axioms\Loops\RoundKeys.cs`） | ✅ 用（AI 侧种子与穿参） |
 | 输出回写策略 | `Output\StrategyResolver`（text/list/selectedItem 读写策略）+ `OutputWriteStage/RollbackStage/SnapshotStage` | ❌ 未用 |
+
+> 本表只列**本次结合点**；WorkFlowMethod 侧**全部**节点件（含未列出的端口提取器 `NodeResultExtractor`、单写门 `NodePersistCoordinator`、端口水化 `NodeParameterHydrator`、链合并去重、改图指令集、连通性校验、引用字段注册、形态编解码策略、基础设施件）的逐项裁决（复用 / 补登记 / 提取 / 迁出 / 留业务侧 / 退役）与 14 项缺口清单见 [提取清单与复用映射](./节点通用框架-提取清单与复用映射.md) §2–§4。
 
 ### 1.3 键空间双轨（当前最核心的结构问题）
 
@@ -374,6 +376,8 @@ persist 帧到达
 | **U4** | 实时物化的合并窗口时长与失败重试策略 | 写放大 vs 实时性 |
 | **U5** | 会话链切 `NodeConfig` 的迁移窗口（`RoundSpec` 是否保留双读） | 迁移期复杂度 |
 | **U6** | 存量 `ur_histories` 行与节点位置的**对齐方式**（是否需要身份对齐表） | 存量化会话能否平滑并轨 |
+
+> 框架侧另增未决项 **U7–U11**（反射兜底端口取舍 / 改图指令载体 / 运行态阶段映射 / 层次化键格式 / 双轨键空间合并时点），见 [提取清单与复用映射](./节点通用框架-提取清单与复用映射.md) §8；其中 U11 即本表 U4 的落地时点。 
 
 
 

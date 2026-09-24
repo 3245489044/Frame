@@ -79,6 +79,7 @@
     "Maintain": "Modules\\Maintain\\Maintain.csproj",
     "MetaCommand": "Modules\\MetaCommand\\MetaCommand.csproj",
     "Modules": "Modules\\Modules.csproj",
+    "Node": "Modules\\Node\\Modules.Node.csproj",
     "Observe": "Modules\\Observe\\Observe.csproj",
     "ParameterResolver": "Modules\\ParameterResolver\\ParameterResolver.csproj",
     "Parsing": "Modules\\Parsing\\Parsing.csproj",

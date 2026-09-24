@@ -3,13 +3,13 @@
     <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>模块层</ModuleRule_Title>
     <ModuleRule_Layer>2</ModuleRule_Layer>
-    <ModuleRule_Description>模块层聚合项目，包含组件数据、图处理、逻辑组合、元命令、解析、管道、注册表等子模块</ModuleRule_Description>
-    <ModuleRule_Keywords>模块,组件,图处理,逻辑,元命令,解析,管道,注册表,线程</ModuleRule_Keywords>
+    <ModuleRule_Description>模块层聚合项目，包含组件数据、图处理、逻辑组合、元命令、节点框架、解析、管道、注册表等子模块</ModuleRule_Description>
+    <ModuleRule_Keywords>模块,组件,图处理,逻辑,元命令,节点,解析,管道,注册表,线程</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
-    <ModuleRule_Rule Include="子项目包括 ComponentData, DeclarativeDataflow, GraphProcessing, LogicComposition, MetaCommand, Parsing, Pipeline, Registry" />
+    <ModuleRule_Rule Include="子项目包括 ComponentData, DeclarativeDataflow, GraphProcessing, LogicComposition, MetaCommand, Node, Parsing, Pipeline, Registry" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Prompts">
@@ -35,6 +35,7 @@
     <ProjectReference Include="$(Proj_GraphProcessing)" />
     <ProjectReference Include="$(Proj_LogicComposition)" />
     <ProjectReference Include="$(Proj_MetaCommand)" />
+    <ProjectReference Include="$(Proj_Node)" />
     <ProjectReference Include="$(Proj_Parsing)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Registry)" />
@@ -55,6 +56,7 @@
     <Compile Remove="GraphProcessing\**\*.cs" />
     <Compile Remove="LogicComposition\**\*.cs" />
     <Compile Remove="MetaCommand\**\*.cs" />
+    <Compile Remove="Node\**\*.cs" />
     <Compile Remove="Parsing\**\*.cs" />
     <Compile Remove="Pipeline\**\*.cs" />
     <Compile Remove="Registry\**\*.cs" />

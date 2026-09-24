@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>节点通用框架（Node）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>与位置无关的节点框架：节点 = ⟨Key(身份), JSON(载荷), Placement*(位置), Form(形态)⟩。身份/位置/物化/读投影/对账为框架件；载体、声明来源、位置反解、序列化与领域语义一律经注入端口提供（零 Frame 依赖、零 Usharp 类型、零进程静态）。</ModuleRule_Description>
+    <ModuleRule_Keywords>节点;键连接;位置无关;Placement;物化;单写门;读投影;JSON;声明驱动;端口</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="身份唯一且位置不改变身份（N1/N2）：键经 IdentitySpec 生成/解析，序数由 ISequenceAuthority 单源分配" />
+    <ModuleRule_Rule Include="载荷恒为 JSON 文档（N11）：框架契约以 JSON 字符串 + BCL 类型为界，DTO 与序列化单源由上层适配器持有（D-1 案 A，禁把 Operation/Share 类型写进本工程公共签名）" />
+    <ModuleRule_Rule Include="框架零 Frame 依赖（仅 BCL）：载体经 INodeCarrier、声明经 ISpecSource、位置反解经 IPlacementResolver 注入；未装配即 Null 实现 + 可见化诊断，不静默兜底（N9）" />
+    <ModuleRule_Rule Include="唯一写入口 NodeMaterializer（单写门 NodeWriteGate，旁路调用点 = 0）；框架只产「待物化载荷 + 位置意图 + 诊断」，不各自落库" />
+    <ModuleRule_Rule Include="禁 Usharp* 类型 / AsyncLocal 可变配置 / 硬编码 loc→carrier 映射（P20/P14/P22）；由 PowerShellScript/Modules/Node/Check-NodeFramework.ps1 门禁" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.Node</RootNamespace>
+    <AssemblyName>Modules.Node</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>节点通用框架 — 与位置无关的键连接节点（Key + JSON 文档 + Placement，零 Frame 依赖）</Description>
+  </PropertyGroup>
+
+  <!-- 依赖面：D-1 案 A —— 位置层不引 Operation/Share 类型（NodeOutput/INodeOutputStore 在 Operation、
+       Chain<TKey,TNode>/UniversalMiddlewareEntry 在 Share）；契约以 JSON/BCL 为界，DTO 与序列化经上层适配器持有。
+       故此处刻意零 ProjectReference（P0 骨架）；P2 如需 BCL 之外的通用件再按层序（同层或向下）显式添加。 -->
+
+</Project>

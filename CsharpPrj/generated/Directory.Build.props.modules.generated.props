@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-18 00:45:54
+  生成时间: 2026-09-24 23:30:50
 -->
 <Project>
 
@@ -57,6 +57,7 @@
     <Mod_Maintain>$(CsharpPrjDir)Modules\Maintain\</Mod_Maintain>
     <Mod_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\</Mod_MetaCommand>
     <Mod_Modules>$(CsharpPrjDir)Modules\</Mod_Modules>
+    <Mod_Node>$(CsharpPrjDir)Modules\Node\</Mod_Node>
     <Mod_Observe>$(CsharpPrjDir)Modules\Observe\</Mod_Observe>
     <Mod_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\</Mod_ParameterResolver>
     <Mod_Parsing>$(CsharpPrjDir)Modules\Parsing\</Mod_Parsing>
@@ -159,6 +160,7 @@
     <Proj_Maintain>$(CsharpPrjDir)Modules\Maintain\Maintain.csproj</Proj_Maintain>
     <Proj_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\MetaCommand.csproj</Proj_MetaCommand>
     <Proj_Modules>$(CsharpPrjDir)Modules\Modules.csproj</Proj_Modules>
+    <Proj_Node>$(CsharpPrjDir)Modules\Node\Modules.Node.csproj</Proj_Node>
     <Proj_Observe>$(CsharpPrjDir)Modules\Observe\Observe.csproj</Proj_Observe>
     <Proj_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
     <Proj_Parsing>$(CsharpPrjDir)Modules\Parsing\Parsing.csproj</Proj_Parsing>

@@ -137,5 +137,10 @@
   <ItemGroup>
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
   </ItemGroup>
+  <!-- ★ P6-A：引用 Modules.Node（节点通用框架，层 2；本模块层 4，属向下引用）——
+       端口键空间/端口提取/单写门改为委托框架唯一实现（G2/P15/P16），位置与键模板仍来自声明。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Node)" />
+  </ItemGroup>
 
 </Project>

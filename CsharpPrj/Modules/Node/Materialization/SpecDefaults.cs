@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Modules.Node.Materialization;
@@ -34,7 +33,7 @@ public sealed class SpecDefaults
     public void Load(string defaultsJson)
     {
         var parsed = ParseObject(defaultsJson);
-        MergeInto(_defaults, parsed);
+        MergeInto(_defaults, parsed, overwrite: true);
     }
 
     public IReadOnlyList<string> FieldNames => _defaults.Select(p => p.Key).ToArray();
@@ -47,57 +46,41 @@ public sealed class SpecDefaults
             return payloadJson;
         }
 
-        var target = ParseObject(payloadJson);
-        var merged = (JsonObject)target.DeepClone();
-        FillMissing(merged, _defaults);
-        return merged.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+        // ParseObject 已产出全新树，无需再深拷贝（原实现多一次全载荷克隆）
+        var merged = ParseObject(payloadJson);
+        MergeInto(merged, _defaults, overwrite: false);
+        return merged.ToJsonString(NodeJson.WriteOptions);
     }
 
     private static JsonObject ParseObject(string json)
     {
-        try
+        if (!NodeJson.TryParse(json, out var node, out var error))
         {
-            var node = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            });
+            throw new SpecDefaultsException($"缺省声明解析失败: {error ?? "空声明"}");
+        }
 
-            return node as JsonObject ?? throw new SpecDefaultsException("缺省声明须为 JSON 对象");
-        }
-        catch (JsonException ex)
-        {
-            throw new SpecDefaultsException($"缺省声明解析失败: {ex.Message}");
-        }
+        return node as JsonObject ?? throw new SpecDefaultsException("缺省声明须为 JSON 对象");
     }
 
-    private static void MergeInto(JsonObject target, JsonObject source)
+    /// <summary>
+    /// 递归合并单源（原 <c>MergeInto</c>/<c>FillMissing</c> 两个同构拷贝收敛为一处）：
+    /// <paramref name="overwrite"/>=<c>true</c> 为声明装载（同键后者胜），<c>false</c> 为载荷补齐（只填缺失键）。
+    /// </summary>
+    private static void MergeInto(JsonObject target, JsonObject source, bool overwrite)
     {
         foreach (var pair in source)
         {
-            if (target[pair.Key] is JsonObject nested && pair.Value is JsonObject incoming)
+            var hasTarget = target.TryGetPropertyValue(pair.Key, out var existing);
+
+            if (hasTarget && existing is JsonObject nested && pair.Value is JsonObject incoming)
             {
-                MergeInto(nested, incoming);
+                MergeInto(nested, incoming, overwrite);
                 continue;
             }
 
-            target[pair.Key] = pair.Value?.DeepClone();
-        }
-    }
-
-    private static void FillMissing(JsonObject target, JsonObject defaults)
-    {
-        foreach (var pair in defaults)
-        {
-            if (!target.ContainsKey(pair.Key))
+            if (overwrite || !hasTarget)
             {
                 target[pair.Key] = pair.Value?.DeepClone();
-                continue;
-            }
-
-            if (target[pair.Key] is JsonObject nested && pair.Value is JsonObject incoming)
-            {
-                FillMissing(nested, incoming);
             }
         }
     }

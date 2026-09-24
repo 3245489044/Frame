@@ -1,7 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Modules.Node.Placement;
 
 namespace Modules.Node.Materialization;
@@ -57,21 +53,13 @@ public sealed class ViewFormStrategy : INodeFormStrategy
             return json;
         }
 
-        try
-        {
-            var node = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            });
-
-            return node is null ? json : node.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
-        }
-        catch (JsonException)
+        if (!NodeJson.TryParse(json, out var node, out _) || node is null)
         {
             // 非 JSON 原文：保持原样（规范失败不伪造结构）
             return json;
         }
+
+        return node.ToJsonString(NodeJson.WriteOptions);
     }
 }
 
@@ -82,11 +70,7 @@ public sealed class DigestFormStrategy : INodeFormStrategy
 
     public bool IsLossless => false;
 
-    public string Encode(string json)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
-        return Convert.ToHexString(bytes);
-    }
+    public string Encode(string json) => NodeJson.Sha256Hex(json);
 
     public string Decode(string payload) => payload;
 }

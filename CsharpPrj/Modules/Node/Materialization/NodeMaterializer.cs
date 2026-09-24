@@ -104,10 +104,40 @@ public sealed class NodeMaterializer
                 results);
         }
 
-        var payloadSource = _defaults.Merge(request.Json);
+        // 缺省补齐只作用于"规范化载荷"：raw 位置按 N11 原样整存调用方原文，故惰性计算（缺省为空 ⇒ 原样）
+        var mergedPayload = (string?)null;
+
+        string PayloadSourceFor(PlacementSpec spec)
+        {
+            if (spec.Form != PlacementForm.Raw)
+            {
+                return mergedPayload ??= _defaults.Merge(request.Json);
+            }
+
+            if (_defaults.FieldCount > 0)
+            {
+                collected.Add(new NodeDiagnostic(
+                    "form.raw-verbatim",
+                    NodeDiagnosticSeverity.Info,
+                    "形态 raw：按外部原文整存，缺省声明不注入（缺省仅作用于规范化载荷）",
+                    spec.PlacementId));
+            }
+
+            return request.Json;
+        }
 
         foreach (var spec in candidates)
         {
+            if (spec.State == PlacementState.Retired)
+            {
+                collected.Add(new NodeDiagnostic(
+                    "placement.retired",
+                    NodeDiagnosticSeverity.Info,
+                    "位置已退役：不再命中（跳过）",
+                    spec.PlacementId));
+                continue;
+            }
+
             if (!_carriers.TryGet(spec.CarrierId, out var carrier))
             {
                 collected.Add(new NodeDiagnostic(
@@ -116,16 +146,6 @@ public sealed class NodeMaterializer
                     $"载体 '{spec.CarrierId}' 未注册：该位置记为 Unbound（不阻断其它位置）",
                     spec.PlacementId));
                 results.Add(new NodePlacementResult(spec.PlacementId, string.Empty, null, "carrier-unbound"));
-                continue;
-            }
-
-            if (spec.State == PlacementState.Retired)
-            {
-                collected.Add(new NodeDiagnostic(
-                    "placement.retired",
-                    NodeDiagnosticSeverity.Info,
-                    "位置已退役：不再命中（跳过）",
-                    spec.PlacementId));
                 continue;
             }
 
@@ -162,7 +182,7 @@ public sealed class NodeMaterializer
                     spec.PlacementId));
             }
 
-            var payload = _codec.Encode(spec.Form, payloadSource);
+            var payload = _codec.Encode(spec.Form, PayloadSourceFor(spec));
             var target = $"{spec.CarrierId}|{placementKey}";
 
             CarrierWriteResult write;

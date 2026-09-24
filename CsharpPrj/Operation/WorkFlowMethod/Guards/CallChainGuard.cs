@@ -6,22 +6,34 @@ namespace WorkFlowMethod.Guards
 {
     public class CallChainGuard
     {
+        /// <summary>声明缺省调用深度上限（实例可经构造参数覆盖；禁止散落字面量）。</summary>
+        public const int DefaultMaxCallDepth = 10;
+
         private static readonly AsyncLocal<int> _callDepth = new();
-        private const int MaxCallDepth = 10;
+        private readonly int _maxCallDepth;
+
+        /// <param name="maxCallDepth">调用深度上限；缺省 = <see cref="DefaultMaxCallDepth"/>（来自声明）。</param>
+        public CallChainGuard(int? maxCallDepth = null)
+        {
+            _maxCallDepth = maxCallDepth ?? DefaultMaxCallDepth;
+        }
+
+        /// <summary>本实例生效的深度上限。</summary>
+        public int MaxCallDepth => _maxCallDepth;
 
         public async Task<T> ProtectAsync<T>(string callPoint, Func<Task<T>> action)
         {
             _callDepth.Value++;
-            if (_callDepth.Value > MaxCallDepth)
+            if (_callDepth.Value > _maxCallDepth)
             {
                 _callDepth.Value--;
                 WorkFlowMethod.Diagnostics.WorkFlowMethodLog.Log("CallChainGuard_DepthExceeded", new
                 {
                     callPoint,
-                    maxDepth = MaxCallDepth,
+                    maxDepth = _maxCallDepth,
                     suggestion = "检测到可能的自递归调用（如 Execute→ExecuteCommand→Execute）"
                 });
-                throw new CallChainExceededException(callPoint, MaxCallDepth);
+                throw new CallChainExceededException(callPoint, _maxCallDepth);
             }
 
             try
@@ -37,10 +49,10 @@ namespace WorkFlowMethod.Guards
         public T Protect<T>(string callPoint, Func<T> action)
         {
             _callDepth.Value++;
-            if (_callDepth.Value > MaxCallDepth)
+            if (_callDepth.Value > _maxCallDepth)
             {
                 _callDepth.Value--;
-                throw new CallChainExceededException(callPoint, MaxCallDepth);
+                throw new CallChainExceededException(callPoint, _maxCallDepth);
             }
 
             try
@@ -55,7 +67,7 @@ namespace WorkFlowMethod.Guards
 
         public int CurrentDepth => _callDepth.Value;
 
-        public static int GetMaxCallDepth() => MaxCallDepth;
+        public static int GetMaxCallDepth() => DefaultMaxCallDepth;
     }
 
     public class CallChainExceededException : InvalidOperationException

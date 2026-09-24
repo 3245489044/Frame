@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Diagnostics;
 
@@ -7,6 +5,12 @@ namespace Modules.Node.Ports;
 
 public sealed record PortBindingResult(
     IReadOnlyDictionary<string, string> Ports,
+    IReadOnlyList<NodeDiagnostic> Diagnostics,
+    bool UsedInference);
+
+/// <summary>宿主原生值形态的端口提取结果（值缝 V1：规则与 JSON 路径同一实现，值不经 JSON 往返）。</summary>
+public sealed record PortValuesResult<TValue>(
+    IReadOnlyDictionary<string, TValue> Ports,
     IReadOnlyList<NodeDiagnostic> Diagnostics,
     bool UsedInference);
 
@@ -19,12 +23,10 @@ public interface INodePortExtractor
 }
 
 /// <summary>
-/// 端口提取（G1 收编，<b>声明优先</b>）：
-/// <list type="number">
-/// <item>声明端口定向命中（<c>ResultKeys</c>）；</item>
-/// <item>未声明 → 顶层属性名兜底，但<b>必须产 <c>port.inferred</c> 诊断</b>（治 P12：禁静默反射猜端口）；</item>
-/// <item>简单值/非对象 → 默认端口 = 节点键整存；</item>
-/// <item>null 值/端口跳过，缺失声明产 <c>port.declared-missing</c> 可见化（治 P15）。</item>
+/// 端口提取（G1 收编，<b>声明优先</b>）：准入规则唯一来源 = <see cref="NodePortRules"/>，本类只负责两条值投影路径——
+/// <list type="bullet">
+/// <item><see cref="Extract"/>：JSON 文本路径（解析 → 规则 → 值投影为 JSON 文本）；</item>
+/// <item><see cref="ExtractValues{TValue}"/>：宿主原生值路径（规则同上；值由调用侧按端口名取出，保对象身份）。</item>
 /// </list>
 /// 不解析键映射、不做类型转换。
 /// </summary>
@@ -68,92 +70,93 @@ public sealed class NodePortBinding
         }
 
         JsonNode? root = null;
-        if (!string.IsNullOrWhiteSpace(resultJson))
+        if (!string.IsNullOrWhiteSpace(resultJson) && !NodeJson.TryParse(resultJson, out root, out _))
         {
-            try
-            {
-                root = JsonNode.Parse(resultJson, documentOptions: new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = true,
-                    CommentHandling = JsonCommentHandling.Skip,
-                });
-            }
-            catch (JsonException)
-            {
-                diagnostics.Add(new NodeDiagnostic(
-                    "port.parse-fallback",
-                    NodeDiagnosticSeverity.Info,
-                    "结果非 JSON：按简单值整存默认端口",
-                    nodeKey));
-            }
-        }
-
-        var ports = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        if (root is JsonObject obj)
-        {
-            if (declared.Count > 0)
-            {
-                foreach (var port in declared)
-                {
-                    if (obj.TryGetPropertyValue(port, out var value) && value is not null)
-                    {
-                        ports[port] = ToPortValue(value);
-                    }
-                    else
-                    {
-                        diagnostics.Add(new NodeDiagnostic(
-                            "port.declared-missing",
-                            NodeDiagnosticSeverity.Info,
-                            $"声明端口 '{port}' 在结果中未命中或为 null（缺口可见化，不静默跳过）",
-                            nodeKey));
-                    }
-                }
-            }
-            else
-            {
-                foreach (var pair in obj)
-                {
-                    if (pair.Value is null)
-                    {
-                        continue;
-                    }
-
-                    ports[pair.Key] = ToPortValue(pair.Value);
-                    diagnostics.Add(new NodeDiagnostic(
-                        "port.inferred",
-                        NodeDiagnosticSeverity.Warning,
-                        $"未声明 ResultKeys：端口 '{pair.Key}' 由结果结构推断（跨模块复用请显式声明）",
-                        nodeKey));
-                }
-            }
-        }
-        else
-        {
-            // 简单值（含非 JSON 原文）：整存默认端口 = 节点键
-            ports[nodeKey] = root is null ? resultJson : ToPortValue(root);
             diagnostics.Add(new NodeDiagnostic(
-                "port.default",
+                "port.parse-fallback",
                 NodeDiagnosticSeverity.Info,
-                "无命名端口：结果整存于默认端口（端口名 = 节点键）",
+                "结果非 JSON：按简单值整存默认端口",
                 nodeKey));
         }
 
-        foreach (var diagnostic in diagnostics)
+        IReadOnlyList<PortMember>? members = root is JsonObject jsonObject ? MembersOf(jsonObject) : null;
+        var ruleResult = NodePortRules.Decide(nodeKey, members, declared, diagnostics);
+        var ports = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var decision in ruleResult.Decisions)
+        {
+            if (decision.Admission == PortAdmission.Default)
+            {
+                // 简单值（含非 JSON 原文）：整存默认端口 = 节点键
+                ports[nodeKey] = root is null ? resultJson : NodeJson.ValueToText(root);
+                continue;
+            }
+
+            if (root is JsonObject source && source.TryGetPropertyValue(decision.Port, out var value) && value is not null)
+            {
+                ports[decision.Port] = NodeJson.ValueToText(value);
+            }
+        }
+
+        foreach (var diagnostic in ruleResult.Diagnostics)
         {
             _diagnostics.Report(diagnostic);
         }
 
-        return new PortBindingResult(ports, diagnostics, UsedInference: declared.Count == 0);
+        return new PortBindingResult(ports, ruleResult.Diagnostics, ruleResult.UsedInference);
     }
 
-    private static string ToPortValue(JsonNode node) =>
-        node is JsonValue value && value.TryGetValue<string>(out var text)
-            ? text
-            : node.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+    /// <summary>
+    /// 宿主原生值路径（值缝 V1）：准入规则与 <see cref="Extract"/> 完全相同（<see cref="NodePortRules.Decide"/>），
+    /// 值由 <paramref name="valueOf"/> 按端口名取出（宿主保原生值/对象身份，禁 JSON 往返）；
+    /// <paramref name="members"/> = <c>null</c> 即非对象结果 → 默认端口整存 <paramref name="defaultValue"/>。
+    /// </summary>
+    public PortValuesResult<TValue> ExtractValues<TValue>(
+        string nodeKey,
+        IReadOnlyList<PortMember>? members,
+        Func<string, TValue> valueOf,
+        TValue defaultValue,
+        IReadOnlyList<string>? declaredPorts = null,
+        StringComparer? memberComparer = null)
+    {
+        var ruleResult = NodePortRules.Decide(
+            nodeKey,
+            members,
+            declaredPorts,
+            prefixDiagnostics: null,
+            memberComparer: memberComparer);
 
-    public static string ToJsonLiteral(string value) =>
-        JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = false });
+        var ports = new Dictionary<string, TValue>(StringComparer.Ordinal);
 
-    public static string ToJsonNumber(long value) => value.ToString(CultureInfo.InvariantCulture);
+        foreach (var decision in ruleResult.Decisions)
+        {
+            if (decision.Admission == PortAdmission.DeclaredMissing)
+            {
+                // 缺口只可见化、不产槽位（对齐 JSON 路径：未命中/null 不入端口）
+                continue;
+            }
+
+            ports[decision.Port] = decision.Admission == PortAdmission.Default
+                ? defaultValue
+                : valueOf(decision.Port);
+        }
+
+        foreach (var diagnostic in ruleResult.Diagnostics)
+        {
+            _diagnostics.Report(diagnostic);
+        }
+
+        return new PortValuesResult<TValue>(ports, ruleResult.Diagnostics, ruleResult.UsedInference);
+    }
+
+    private static IReadOnlyList<PortMember> MembersOf(JsonObject obj)
+    {
+        var members = new List<PortMember>(obj.Count);
+        foreach (var pair in obj)
+        {
+            members.Add(new PortMember(pair.Key, pair.Value is not null));
+        }
+
+        return members;
+    }
 }

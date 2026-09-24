@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -5,11 +6,19 @@ namespace Modules.Node.Identity;
 
 /// <summary>
 /// 键模板求值（唯一实现）：正向求值（值 → 键）与反向解析（键 → 值）。
-/// 位置键 = 键模板(身份键)（N2：位置不改变身份），故读写两侧共用本求值器。
+/// 位置键 = 键模板(身份键)（N2：位置不改变身份），故读写两侧共用本求值器；
+/// 占位符词法亦为本类单源（<see cref="IdentitySpec"/> 复用同一原子）。
 /// </summary>
 public static class KeyTemplateEvaluator
 {
-    private static readonly Regex PlaceholderRegex = new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+    /// <summary>占位符词法单源：<c>{name}</c>（name 为标识符）。</summary>
+    internal static readonly Regex PlaceholderRegex = new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+
+    /// <summary>反解正则缓存（键 → 值逐键调用，禁每次重编译）。</summary>
+    private static readonly ConcurrentDictionary<string, Regex> PatternCache = new(StringComparer.Ordinal);
+
+    /// <summary>单次匹配上限：异常键不得拖死宿主（超时 ⇒ 视为不可反解，不静默当命中）。</summary>
+    private static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(1);
 
     public static IReadOnlyList<string> Placeholders(string template) =>
         PlaceholderRegex.Matches(template).Select(m => m.Groups[1].Value).ToArray();
@@ -44,7 +53,12 @@ public static class KeyTemplateEvaluator
             : throw new InvalidOperationException($"键模板求值缺值: {string.Join(",", missing)}");
 
     /// <summary>把模板转成可反解的锚定正则（字面量转义，占位符非贪婪捕获）。</summary>
-    public static string ToRegexPattern(string template)
+    public static string ToRegexPattern(string template) => BuildPattern(template, named: true);
+
+    /// <summary>模板"形状"正则（占位符一律匿名）：用于同域可区分性判定（组名不参与判定）。</summary>
+    internal static string ToShapePattern(string template) => BuildPattern(template, named: false);
+
+    private static string BuildPattern(string template, bool named)
     {
         var builder = new StringBuilder("^");
         var index = 0;
@@ -52,7 +66,7 @@ public static class KeyTemplateEvaluator
         foreach (Match match in PlaceholderRegex.Matches(template))
         {
             builder.Append(Regex.Escape(template[index..match.Index]));
-            builder.Append("(?<").Append(match.Groups[1].Value).Append(">.+?)");
+            builder.Append(named ? $"(?<{match.Groups[1].Value}>.+?)" : "(.+?)");
             index = match.Index + match.Length;
         }
 
@@ -62,8 +76,21 @@ public static class KeyTemplateEvaluator
 
     public static bool TryParseValues(string template, string key, out IReadOnlyDictionary<string, string> values)
     {
-        var regex = new Regex(ToRegexPattern(template), RegexOptions.Singleline);
-        var match = regex.Match(key);
+        var regex = PatternCache.GetOrAdd(
+            ToRegexPattern(template),
+            pattern => new Regex(pattern, RegexOptions.Singleline, MatchTimeout));
+
+        Match match;
+        try
+        {
+            match = regex.Match(key);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            values = new Dictionary<string, string>(StringComparer.Ordinal);
+            return false;
+        }
+
         if (!match.Success)
         {
             values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -89,7 +116,11 @@ public static class KeyTemplateEvaluator
     public static bool ContainsSequencePlaceholder(string template, IReadOnlyCollection<string> sequenceKeys) =>
         sequenceKeys.Any(key => template.Contains("{" + key + "}", StringComparison.Ordinal));
 
-    /// <summary>同一域内键模板可区分性判定（装配期校验用）。</summary>
+    /// <summary>
+    /// 同一域内键模板可区分性判定（装配期校验用）：按<b>形状</b>（占位符匿名化）比较——
+    /// <c>{a}</c> 与 <c>{b}</c>、<c>{a}.{b}</c> 与 <c>{b}.{a}</c> 键空间等价，必须判为不可区分（原实现按
+    /// 命名正则文本比较，组名不同即误判为"可区分"，该门近乎恒真）。
+    /// </summary>
     public static bool TemplatesDistinguishable(string left, string right) =>
-        !string.Equals(ToRegexPattern(left), ToRegexPattern(right), StringComparison.Ordinal);
+        !string.Equals(ToShapePattern(left), ToShapePattern(right), StringComparison.Ordinal);
 }

@@ -19,11 +19,10 @@ public sealed record IdentitySegment(IdentitySegmentKind Kind, string Name);
 /// <summary>
 /// 键身份规范（N1/N2）：段序列模板的声明式表达式，如 <c>{container}.r{round}</c>。
 /// 只描述身份形状，不碰载体（载体细节归 <c>ICarrier</c> 适配器）。
+/// 占位符词法单源 = <see cref="KeyTemplateEvaluator"/>（读写两侧同一原子）。
 /// </summary>
 public sealed class IdentitySpec
 {
-    private static readonly Regex PlaceholderRegex = new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
-
     private IdentitySpec(string template, IReadOnlyList<IdentitySegment> segments, IReadOnlyList<string> contextKeys, IReadOnlyList<string> sequenceKeys)
     {
         Template = template;
@@ -58,7 +57,7 @@ public sealed class IdentitySpec
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var index = 0;
 
-        foreach (Match match in PlaceholderRegex.Matches(template))
+        foreach (Match match in KeyTemplateEvaluator.PlaceholderRegex.Matches(template))
         {
             if (match.Index > index)
             {

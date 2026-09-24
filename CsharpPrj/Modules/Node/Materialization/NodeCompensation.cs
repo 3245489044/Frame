@@ -76,11 +76,7 @@ public sealed class NodeCompensation
             {
                 // N5 只增不丢：append-only 载体不做回写（补偿只在可覆写载体上生效）
                 restored = false;
-                diagnostics.Add(new NodeDiagnostic(
-                    "compensate.append-only",
-                    NodeDiagnosticSeverity.Warning,
-                    "载体为只增不丢（append-only）：历史写入不可撤销（补偿不适用）",
-                    snapshot.PlacementKey));
+                ReportAppendOnly(diagnostics, snapshot, "补偿不适用");
                 continue;
             }
 
@@ -90,13 +86,9 @@ public sealed class NodeCompensation
                     .ConfigureAwait(false);
                 if (write.Status == CarrierWriteStatus.Conflict)
                 {
-                    // N5 只增不丢：append-only 载体的写入不可撤销（补偿只在可覆写载体上生效）
+                    // 声明为可覆写但写回被判冲突：等价于"不可撤销"（与上面同码，仅因由不同）
                     restored = false;
-                    diagnostics.Add(new NodeDiagnostic(
-                        "compensate.append-only",
-                        NodeDiagnosticSeverity.Warning,
-                        "载体为只增不丢（append-only），历史写入不可撤销",
-                        snapshot.PlacementKey));
+                    ReportAppendOnly(diagnostics, snapshot, "回写被载体判为冲突");
                     continue;
                 }
 
@@ -123,6 +115,17 @@ public sealed class NodeCompensation
 
         return new NodeCompensationResult(restored, diagnostics);
     }
+
+    /// <summary>append-only 不可撤销诊断单源（两条路径同码，仅因由不同）。</summary>
+    private static void ReportAppendOnly(
+        List<NodeDiagnostic> diagnostics,
+        NodeCompensationSnapshot snapshot,
+        string detail) =>
+        diagnostics.Add(new NodeDiagnostic(
+            "compensate.append-only",
+            NodeDiagnosticSeverity.Warning,
+            $"载体为只增不丢（append-only）：历史写入不可撤销（{detail}）",
+            snapshot.PlacementKey));
 
     private INodeCarrier? ResolveCarrier(NodeCompensationSnapshot snapshot, List<NodeDiagnostic> diagnostics)
     {

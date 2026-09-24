@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Diagnostics;
 
@@ -36,20 +35,12 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
         foreach (var document in documents)
         {
             JsonNode? root;
-            try
-            {
-                root = JsonNode.Parse(document.Json, documentOptions: new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = true,
-                    CommentHandling = JsonCommentHandling.Skip,
-                });
-            }
-            catch (JsonException ex)
+            if (!NodeJson.TryParse(document.Json, out root, out var documentError))
             {
                 _diagnostics.Report(new NodeDiagnostic(
                     "reference.parse-error",
                     NodeDiagnosticSeverity.Error,
-                    $"引用索引装载失败: {ex.Message}",
+                    $"引用索引装载失败: {documentError ?? "空文档"}",
                     document.Name));
                 continue;
             }
@@ -59,7 +50,7 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
                 continue;
             }
 
-            Walk(root, "$", document.Name, (path, propertyName, value) =>
+            Walk(root, "$", (path, propertyName, value) =>
             {
                 if (!IsReferenceField(propertyName) || value is not JsonValue jsonValue ||
                     !jsonValue.TryGetValue<string>(out var referenced) || string.IsNullOrEmpty(referenced))
@@ -91,20 +82,12 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
         var affected = new List<string>();
 
         JsonNode? root;
-        try
-        {
-            root = JsonNode.Parse(documentJson, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            });
-        }
-        catch (JsonException ex)
+        if (!NodeJson.TryParse(documentJson, out root, out var parseError))
         {
             _diagnostics.Report(new NodeDiagnostic(
                 "reference.parse-error",
                 NodeDiagnosticSeverity.Error,
-                $"改名级联失败: {ex.Message}",
+                $"改名级联失败: {parseError ?? "空文档"}",
                 oldKey));
             return new ReferenceRenameResult(documentJson, affected);
         }
@@ -114,7 +97,7 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
             return new ReferenceRenameResult(documentJson, affected);
         }
 
-        Walk(root, "$", "doc", (path, propertyName, value) =>
+        Walk(root, "$", (path, propertyName, value) =>
         {
             if (!IsReferenceField(propertyName) || value is not JsonValue jsonValue ||
                 !jsonValue.TryGetValue<string>(out var referenced))
@@ -147,7 +130,7 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
             }
         });
 
-        return new ReferenceRenameResult(root.ToJsonString(new JsonSerializerOptions { WriteIndented = false }), affected);
+        return new ReferenceRenameResult(root.ToJsonString(NodeJson.WriteOptions), affected);
     }
 
     private static string Rewrite(string referenced, string oldKey, string newKey)
@@ -163,7 +146,7 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
             : referenced;
     }
 
-    private static void Walk(JsonNode node, string path, string documentName, Action<string, string, JsonNode?> visit)
+    private static void Walk(JsonNode node, string path, Action<string, string, JsonNode?> visit)
     {
         if (node is not JsonObject obj)
         {
@@ -187,13 +170,13 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
 
                         var itemPath = $"{path}.{pair.Key}[{index}]";
                         visit(itemPath, pair.Key, item);
-                        Walk(item, itemPath, documentName, visit);
+                        Walk(item, itemPath, visit);
                     }
 
                     break;
 
                 case JsonObject nested:
-                    Walk(nested, $"{path}.{pair.Key}", documentName, visit);
+                    Walk(nested, $"{path}.{pair.Key}", visit);
                     break;
             }
         }

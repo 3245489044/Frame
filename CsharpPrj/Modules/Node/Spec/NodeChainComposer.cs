@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Diagnostics;
 
@@ -39,21 +38,12 @@ public sealed class NodeChainComposer
 
         foreach (var document in chains)
         {
-            JsonNode? root;
-            try
-            {
-                root = JsonNode.Parse(document.Json, documentOptions: new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = true,
-                    CommentHandling = JsonCommentHandling.Skip,
-                });
-            }
-            catch (JsonException ex)
+            if (!NodeJson.TryParse(document.Json, out var root, out var parseError))
             {
                 diagnostics.Add(new NodeDiagnostic(
                     "chain.parse-error",
                     NodeDiagnosticSeverity.Error,
-                    $"链声明解析失败: {ex.Message}",
+                    $"链声明解析失败: {parseError ?? "空文档"}",
                     document.Name));
                 continue;
             }
@@ -63,7 +53,7 @@ public sealed class NodeChainComposer
                 continue;
             }
 
-            var chainId = root["ChainId"]?.GetValue<string>() ?? root["Id"]?.GetValue<string>() ?? document.Name;
+            var chainId = ReadString(root["ChainId"]) ?? ReadString(root["Id"]) ?? document.Name;
             chainIds.Add(chainId);
 
             if (root["Nodes"] is not JsonArray nodes)
@@ -88,7 +78,7 @@ public sealed class NodeChainComposer
                     continue;
                 }
 
-                var nodeKey = node["Callkey"]?.GetValue<string>() ?? node["Id"]?.GetValue<string>();
+                var nodeKey = ReadString(node["Callkey"]) ?? ReadString(node["Id"]);
                 if (string.IsNullOrEmpty(nodeKey))
                 {
                     diagnostics.Add(new NodeDiagnostic(
@@ -114,11 +104,21 @@ public sealed class NodeChainComposer
                 }
 
                 var renamed = UniqueKey(merged, nodeKey);
-                var rewritten = _references is null
-                    ? node.ToJsonString(new JsonSerializerOptions { WriteIndented = false })
-                    : _references.RenameKey(nodeKey, renamed, node.ToJsonString(new JsonSerializerOptions { WriteIndented = false })).Json;
+                var payload = node.ToJsonString(NodeJson.WriteOptions);
+                var rewritten = _references is null ? payload : _references.RenameKey(nodeKey, renamed, payload).Json;
 
-                merged[renamed] = JsonNode.Parse(rewritten);
+                if (!NodeJson.TryParse(rewritten, out var reparsed, out _) || reparsed is null)
+                {
+                    // 自产 JSON 不可解析：不可能路径，仍可见化（不静默丢节点）
+                    diagnostics.Add(new NodeDiagnostic(
+                        "chain.rewrite-invalid",
+                        NodeDiagnosticSeverity.Error,
+                        "改名后节点 JSON 不可解析：该节点未合并",
+                        nodeKey));
+                    continue;
+                }
+
+                merged[renamed] = reparsed;
                 order.Add(renamed);
                 actions.Add(new NodeChainMergeAction("conflict-renamed", nodeKey, renamed, chainId));
 
@@ -149,10 +149,13 @@ public sealed class NodeChainComposer
         }
 
         return new ChainComposeResult(
-            result.ToJsonString(new JsonSerializerOptions { WriteIndented = false }),
+            result.ToJsonString(NodeJson.WriteOptions),
             actions,
             diagnostics);
     }
+
+    private static string? ReadString(JsonNode? node) =>
+        NodeJson.TryReadString(node, out var text) ? text : null;
 
     private static string UniqueKey(IReadOnlyDictionary<string, JsonNode> existing, string nodeKey)
     {

@@ -78,7 +78,7 @@ public sealed class NodeFramework
         OrientationAuthority = opt.OrientationAuthority ?? NullOrientationAuthority.Instance;
         ReferenceIndex = opt.ReferenceIndex ?? new NullReferenceIndexPort(Diagnostics);
         DefinitionDiagnostics = opt.DefinitionDiagnostics ?? NullDefinitionDiagnostics.Instance;
-        Selections = opt.Selections ?? new SelectionSet();
+        Selections = opt.Selections ?? new SelectionSet(Diagnostics);
         FormCodec = opt.FormCodec ?? new NodeFormCodec();
         Defaults = opt.Defaults ?? new SpecDefaults();
         PlacementResolver = opt.PlacementResolver ?? new NullPlacementResolver(Diagnostics);
@@ -149,11 +149,18 @@ public sealed class NodeFramework
     /// <summary>全 Null 装配（无语言、无载体、无库）：用于纯内存宿主与"未装配即可见化"验证。</summary>
     public static NodeFramework CreateDefault() => new();
 
-    /// <summary>按声明装配（身份 / 位置 / 选择 / 缺省 / 指令 / 引用字段 / 反解表全部来自声明）。</summary>
+    /// <summary>
+    /// 按声明装配：身份 / 位置 / 选择 / 缺省 / 指令 / 引用字段 / 反解表全部来自声明
+    /// （<see cref="NodeFrameworkSpec.Placements"/> 与 <see cref="NodeFrameworkSpec.LocToPlacement"/> 经
+    /// <see cref="NodeFrameworkSpec.CreateResolver"/>、<see cref="NodeFrameworkSpec.ReferenceFields"/> 经
+    /// <see cref="NodeFrameworkSpec.CreateReferenceIndex"/> 接入；原实现漏接后二者 ⇒ 反解恒 ∅、改名不级联）。
+    /// 身份序数权威仍由宿主注入（<paramref name="sequenceAuthority"/>，未给 ⇒ Null 实现 + 可见化诊断）。
+    /// </summary>
     public static NodeFramework FromSpec(
         NodeFrameworkSpec spec,
         ICarrierRegistry? carriers = null,
-        INodeDiagnosticsSink? diagnostics = null)
+        INodeDiagnosticsSink? diagnostics = null,
+        ISequenceAuthority? sequenceAuthority = null)
     {
         var options = new NodeFrameworkOptions
         {
@@ -164,6 +171,9 @@ public sealed class NodeFramework
             Selections = spec.Selections,
             Defaults = spec.Defaults,
             Diagnostics = diagnostics,
+            PlacementResolver = spec.CreateResolver(diagnostics),
+            ReferenceIndex = spec.CreateReferenceIndex(diagnostics),
+            SequenceAuthority = sequenceAuthority,
         };
 
         var framework = new NodeFramework(options);

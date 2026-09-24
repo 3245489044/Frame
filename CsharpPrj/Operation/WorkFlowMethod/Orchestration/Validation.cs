@@ -7,6 +7,7 @@ using Modules.Transformers;
 using Share.LogicComposition.Abstractions;
 using Share.LogicComposition.DefaultImplementations;
 using Share.LogicComposition.Models;
+using WorkFlowMethod.GraphFramework.Services;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 using ValidationResult = Share.LogicComposition.Models.ValidationResult;
 #endregion
@@ -123,38 +124,19 @@ namespace WorkFlowMethod.Orchestration.Config
             public static void ValidateChainConnectivity(Chain<string, NodeConfig> chain)
             {
                 ValidateNotEmpty(chain.AllNodes, nameof(chain.AllNodes));
-                var nodeMap = chain.AllNodes
-                    .Where(n => n?.basicConfig?.Callkey != null)
-                    .ToDictionary(n => n.basicConfig.Callkey);
-                if (nodeMap.Count == 0)
-                    throw new InvalidOperationException("链中没有有效节点");
 
-                var visited = new HashSet<string>();
-                var cur = chain.StartNode;
-                while (cur != null)
+                // 环/悬空/键重复判据唯一算法 = 框架 NodeSpecValidator.ValidateChains（治 P19）；
+                // 入口/出口存在性不在本方法既有口径内，故不参与判定（requireEntry/Exit=false）。
+                var report = NodeChainDocuments.ChainValidator.ValidateChains(
+                    new[] { NodeChainDocuments.FromChain(chain) },
+                    requireEntry: false,
+                    requireExit: false);
+
+                if (report.Errors.Count > 0)
                 {
-                    if (cur.basicConfig?.Callkey == null)
-                    {
-                        cur = GetNextNode(cur, nodeMap);
-                        continue;
-                    }
-
-                    var key = cur.basicConfig.Callkey;
-                    if (!visited.Add(key))
-                        throw new InvalidOperationException($"检测到循环链接: {key}");
-
-                    var nextKey = cur.nextNodeConfig?.NextNodeKey;
-                    if (!string.IsNullOrEmpty(nextKey) && !nodeMap.ContainsKey(nextKey))
-                        throw new InvalidOperationException($"节点的 NextNodeKey '{nextKey}' 指向不存在的节点");
-
-                    cur = GetNextNode(cur, nodeMap);
+                    throw new InvalidOperationException(
+                        string.Join("; ", report.Errors.Select(violation => violation.Message)));
                 }
-            }
-
-            private static NodeConfig? GetNextNode(NodeConfig cur, Dictionary<string, NodeConfig> nodeMap)
-            {
-                var nextKey = cur.nextNodeConfig?.NextNodeKey;
-                return !string.IsNullOrEmpty(nextKey) && nodeMap.TryGetValue(nextKey, out var next) ? next : null;
             }
         }
 

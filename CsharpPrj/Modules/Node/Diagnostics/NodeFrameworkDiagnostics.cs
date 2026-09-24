@@ -50,13 +50,13 @@ public sealed class NodeFrameworkDiagnostics : INodeDiagnosticsSink
 
     public int Count => _items.Count;
 
-    public bool HasErrors => Items.Any(d => d.Severity == NodeDiagnosticSeverity.Error);
+    public bool HasErrors => _items.Any(d => d.Severity == NodeDiagnosticSeverity.Error);
 
     public IReadOnlyList<NodeDiagnostic> OfCode(string code) =>
-        Items.Where(d => string.Equals(d.Code, code, StringComparison.Ordinal)).ToArray();
+        _items.Where(d => string.Equals(d.Code, code, StringComparison.Ordinal)).ToArray();
 
     public IReadOnlyList<NodeDiagnostic> OfFamily(string family) =>
-        Items.Where(d => string.Equals(d.Family, family, StringComparison.Ordinal)).ToArray();
+        _items.Where(d => string.Equals(d.Family, family, StringComparison.Ordinal)).ToArray();
 
     public void Clear() => _items.Clear();
 }

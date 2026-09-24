@@ -6,7 +6,10 @@ using Modules.Node.Spec;
 
 namespace Modules.Node.Governance;
 
-/// <summary>对账发现（<c>missing</c> 声明缺数据 / <c>orphan</c> 数据缺声明 / <c>drift</c> 键模板漂移 / <c>ambiguous</c> 多解）。</summary>
+/// <summary>
+/// 对账发现：<c>missing</c> 位置声明的载体未注册（声明面缺数据承载）/ <c>orphan</c> 数据缺声明 /
+/// <c>drift</c> 键模板漂移 / <c>ambiguous</c> 多解。
+/// </summary>
 public sealed record ReconciliationFinding(string Kind, string Subject, string Detail);
 
 public sealed record ReconciliationReport(IReadOnlyList<ReconciliationFinding> Findings)
@@ -19,6 +22,8 @@ public sealed record ReconciliationReport(IReadOnlyList<ReconciliationFinding> F
 
 /// <summary>
 /// 对账（S5）：按声明检缺失 / 孤儿 / 键模板漂移；<b>只报不改</b>（不擅自改数据，重建入口幂等）。
+/// 位置面以构造时注入的 <see cref="PlacementRegistry"/> 为准（与装配同源），
+/// <see cref="NodeFrameworkSpec"/> 仅提供身份面（漂移判定用），二者不混用（禁双源快照）。
 /// </summary>
 public sealed class NodeReconciler
 {
@@ -83,6 +88,8 @@ public sealed class NodeReconciler
             }
         }
 
+        CollectDrift(spec, findings);
+
         foreach (var finding in findings)
         {
             _diagnostics.Report(new NodeDiagnostic(
@@ -99,7 +106,13 @@ public sealed class NodeReconciler
     public ReconciliationReport ValidateTemplates(NodeFrameworkSpec spec)
     {
         var findings = new List<ReconciliationFinding>();
+        CollectDrift(spec, findings);
+        return new ReconciliationReport(findings);
+    }
 
+    /// <summary>键模板漂移收集单源（数据面与声明自检共用；位置面 = 注入的注册表）。</summary>
+    private void CollectDrift(NodeFrameworkSpec spec, List<ReconciliationFinding> findings)
+    {
         foreach (var placement in _placements.All)
         {
             foreach (var placeholder in KeyTemplateEvaluator.Placeholders(placement.KeyTemplate))
@@ -113,7 +126,5 @@ public sealed class NodeReconciler
                 }
             }
         }
-
-        return new ReconciliationReport(findings);
     }
 }

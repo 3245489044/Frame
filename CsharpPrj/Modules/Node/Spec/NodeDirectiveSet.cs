@@ -1,10 +1,9 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Diagnostics;
 
 namespace Modules.Node.Spec;
 
-/// <summary>声明式改图指令种类（G9）。</summary>
+/// <summary>声明式改图指令种类（G9；U8 = 独立声明段：指令经本枚举归一，宿主类型投影到此）。</summary>
 public enum DirectiveKind
 {
     AddNode,
@@ -14,6 +13,10 @@ public enum DirectiveKind
     ReplaceNode,
     RenameKey,
     SetParam,
+    MergeNodes,
+    SplitNode,
+    RedirectEdge,
+    Composite,
 }
 
 /// <summary>单条指令（可审计重放：含版本号）。</summary>
@@ -56,21 +59,12 @@ public sealed class NodeDirectiveSet
             return set;
         }
 
-        JsonNode? root;
-        try
-        {
-            root = JsonNode.Parse(directivesJson, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            });
-        }
-        catch (JsonException ex)
+        if (!NodeJson.TryParse(directivesJson, out var root, out var parseError))
         {
             set._diagnostics.Report(new NodeDiagnostic(
                 "directive.parse-error",
                 NodeDiagnosticSeverity.Error,
-                $"指令声明解析失败: {ex.Message}",
+                $"指令声明解析失败: {parseError ?? "空声明"}",
                 "directives"));
             return set;
         }
@@ -99,7 +93,7 @@ public sealed class NodeDirectiveSet
                 continue;
             }
 
-            var kindText = obj["kind"]?.GetValue<string>() ?? string.Empty;
+            var kindText = NodeJson.TryReadString(obj["kind"], out var kindValue) ? kindValue ?? string.Empty : string.Empty;
             if (!Enum.TryParse<DirectiveKind>(kindText, ignoreCase: true, out var kind))
             {
                 set._diagnostics.Report(new NodeDiagnostic(
@@ -110,10 +104,19 @@ public sealed class NodeDirectiveSet
                 continue;
             }
 
-            var version = obj["version"] is { } versionNode ? versionNode.GetValue<int>() : 0;
-            var target = obj["target"]?.GetValue<string>() ?? string.Empty;
-            var match = obj["match"]?.GetValue<string>();
-            var payload = obj["payload"]?.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+            var version = 0;
+            if (obj["version"] is { } versionNode && !NodeJson.TryReadInt(versionNode, out version))
+            {
+                set._diagnostics.Report(new NodeDiagnostic(
+                    "directive.version-invalid",
+                    NodeDiagnosticSeverity.Error,
+                    "指令 version 须为整数：已回退为 0（不静默）",
+                    "directives"));
+            }
+
+            var target = NodeJson.TryReadString(obj["target"], out var targetValue) ? targetValue ?? string.Empty : string.Empty;
+            var match = NodeJson.TryReadString(obj["match"], out var matchValue) ? matchValue : null;
+            var payload = obj["payload"]?.ToJsonString(NodeJson.WriteOptions);
 
             set.Add(new NodeDirective(version, kind, target, match, payload));
         }
@@ -121,6 +124,10 @@ public sealed class NodeDirectiveSet
         return set;
     }
 
+    /// <summary>
+    /// 装载单条指令：<b>数据面</b>版本回退 → 诊断 + 丢弃（不抛，宿主可继续装配）；
+    /// 与 <see cref="Plan"/> 的 fail-fast（查询未来版本属调用方编程错误）口径不同，二者不混用。
+    /// </summary>
     public void Add(NodeDirective directive)
     {
         if (directive.Version < CurrentVersion)
@@ -154,7 +161,10 @@ public sealed class NodeDirectiveSet
     public IReadOnlyList<NodeDirective> Pending(int fromVersion) =>
         _byVersion.Where(pair => pair.Key > fromVersion).SelectMany(pair => pair.Value).ToArray();
 
-    /// <summary>产出执行计划（不直写库；消费方据此调用 NodeMaterializer / 图写入通道）。</summary>
+    /// <summary>
+    /// 产出执行计划（不直写库；消费方据此调用 NodeMaterializer / 图写入通道）。
+    /// <paramref name="fromVersion"/> 超出当前版本水位属调用方编程错误 ⇒ fail-fast 抛出（不静默降级）。
+    /// </summary>
     public DirectivePlan Plan(int fromVersion = 0)
     {
         if (CurrentVersion < fromVersion)

@@ -1,6 +1,7 @@
 #region USINGS
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Ports;
 using WorkflowExecution.Pipeline;
 using WorkFlowMethod.Execution.Session;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
@@ -38,14 +39,25 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             var node = await store.TryGetNodeOutputAsync(executionId, nodeKey, ct).ConfigureAwait(false);
             if (node is null) return;
 
+            // 键空间规则唯一实现 = Modules.Node.Ports.PortKeySpace（与读视图同一实现，E1/G2）：
+            // 既有参数键先回放进同一键空间（裸键登记为已占用），再按规则准入本节点端口——
+            // 裸端口「先到者胜」（未被任一更早节点占用时才写入，避免跨节点互覆盖）、{node}.{port} 恒有。
+            var space = new PortKeySpace<object?>();
+            foreach (var existing in executionStage.GetExecutionParameters(executionId).Keys)
+            {
+                space.Adopt(existing);
+            }
+
             foreach (var (port, value) in node.OutputPorts)
             {
-                if (value is null) continue;
-                // 裸端口 与 {nodeKey}.{port} 皆写入，保证同 workflowId 内可溯源。
-                // 裸端口「先到者胜」（E1）：仅当未被任一更早节点输出占用时才写入，与 ReadView/ResolveInputs
-                // 的裸端口合并规则一致——若先写裸端口，后续节点同名裸端口不覆盖，避免跨节点互覆盖。
-                if (!executionStage.ContainsExecutionParameter(executionId, port))
+                if (value is null) continue; // 空端口不合入（与框架侧同一规则）
+
+                if (space.TryAddBare(nodeKey, port, value))
+                {
                     executionStage.SetExecutionParameter(executionId, port, value);
+                }
+
+                space.TryAdd(nodeKey, port, value);
                 executionStage.SetExecutionParameter(executionId, $"{nodeKey}.{port}", value);
             }
         }

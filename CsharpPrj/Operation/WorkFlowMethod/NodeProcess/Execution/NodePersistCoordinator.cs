@@ -1,38 +1,43 @@
 #region USINGS
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Materialization;
+using WorkFlowMethod.Skeletons.NodeProcess.Diagnostics;
 #endregion
 
 namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 {
     /// <summary>
-    /// 节点输出单写协调器 —— R3 单一确定性写门。
-    /// 语义：
-    ///   ① <b>单写者 fail-fast</b>：同一 target 一旦有写者在写，任一平行写立即抛 <see cref="InvalidOperationException"/>，
-    ///      不排队、不阻塞等待（防两个实现/能力同写一 target 造成竞争）。
-    ///   ② <b>串行 + 有界等待</b>：每次写入经 target 级信号量串行化，等待受 <paramref name="boundedWait"/> 上界约束，
-    ///      超时抛 <see cref="TimeoutException"/>。
+    /// 节点输出单写协调器 —— 单写门唯一实现 = <see cref="NodeWriteGate"/>（G3 收编，治 P16）：
+    ///   ① <b>单写者 fail-fast</b>：同一 target 一旦有写者在写，任一平行写立即抛 <see cref="NodeWriteConflictException"/>
+    ///      （<see cref="InvalidOperationException"/> 派生，兼容既有捕获），不排队、不阻塞等待
+    ///      （防两个实现/能力同写一 target 造成竞争）。
+    ///   ② <b>串行</b>：同 target 写入经门串行化；异 target 并行。
     ///   ③ 目标以「工作流/workflowId」为主要判定键；同步路径与未来 Outbox 后台共用同一实例即保持确定性。
-    /// 线程安全：active/locks 的增删经 <see cref="_gate"/> 串行；body 在信号量内执行。
+    /// 与库级写通道（<c>SqliteWriteChannel</c> / 按库有界写门）关系为「节点级 ⊆ 库级」，二者判据不同（治 P16 门缝）。
     /// </summary>
     public sealed class NodePersistCoordinator
     {
-        private readonly object _gate = new();
-        private readonly Dictionary<string, SemaphoreSlim> _locks = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _active = new(StringComparer.Ordinal);
-        private readonly TimeSpan _defaultTimeout;
+        private const string GateId = "nodepersist";
 
+        private readonly NodeWriteGate _gate;
+
+        /// <param name="boundedWait">
+        /// 历史参数（有界等待上限）：单写门语义为 fail-fast（不排队），该值不再参与等待，仅为兼容既有调用签名保留。
+        /// </param>
         public NodePersistCoordinator(TimeSpan? boundedWait = null)
         {
-            _defaultTimeout = boundedWait ?? TimeSpan.FromSeconds(30);
+            _ = boundedWait;
+            _gate = new NodeWriteGate(GateId, TimeSpan.Zero, NodeFrameworkLogSink.Instance);
         }
 
         public Task RunWriteAsync(string target, Func<CancellationToken, Task> body, CancellationToken ct = default)
-            => RunWriteAsync(target, body, _defaultTimeout, ct);
+            => RunWriteAsync(target, body, TimeSpan.Zero, ct);
 
-        public async Task RunWriteAsync(
+        /// <param name="timeout">历史参数（有界等待上限）：同构造参数说明，不再参与等待。</param>
+        public Task RunWriteAsync(
+
             string target,
             Func<CancellationToken, Task> body,
             TimeSpan timeout,
@@ -42,34 +47,9 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 throw new ArgumentException("写目标不能为空", nameof(target));
             ArgumentNullException.ThrowIfNull(body);
 
-            SemaphoreSlim sem;
-            lock (_gate)
-            {
-                if (_active.Contains(target))
-                    throw new InvalidOperationException(
-                        $"NodePersistCoordinator: 目标 '{target}' 已有写者在写，单写被并行破坏（fail-fast）。");
-
-                _active.Add(target);
-                if (!_locks.TryGetValue(target, out sem))
-                {
-                    sem = new SemaphoreSlim(1, 1);
-                    _locks[target] = sem;
-                }
-            }
-
-            try
-            {
-                if (!await sem.WaitAsync(timeout, ct).ConfigureAwait(false))
-                    throw new TimeoutException(
-                        $"NodePersistCoordinator: 写目标 '{target}' 在等待上界（{timeout}）内未获得写门。");
-
-                try { await body(ct).ConfigureAwait(false); }
-                finally { sem.Release(); }
-            }
-            finally
-            {
-                lock (_gate) _active.Remove(target);
-            }
+            _ = timeout;
+            return _gate.RunAsync(target, () => body(ct), ct);
         }
     }
 }
+

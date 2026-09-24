@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Modules.Node.Projection;
 
 namespace Modules.Node.RunState;
@@ -26,39 +27,55 @@ public sealed record NodeActorRef(string Kind, string Id)
 /// </summary>
 public sealed class NodeRunState
 {
-    private static readonly Dictionary<RunStateStage, RunStateStage[]> TransitionTable = new()
-    {
-        [RunStateStage.Idle] = new[] { RunStateStage.Started, RunStateStage.Running, RunStateStage.Cancelled },
-        [RunStateStage.Started] = new[] { RunStateStage.Running, RunStateStage.Paused, RunStateStage.Failed, RunStateStage.Cancelled },
-        [RunStateStage.Running] = new[] { RunStateStage.Paused, RunStateStage.Completed, RunStateStage.Failed, RunStateStage.Cancelled },
-        [RunStateStage.Paused] = new[] { RunStateStage.Running, RunStateStage.Completed, RunStateStage.Failed, RunStateStage.Cancelled },
-        [RunStateStage.Completed] = Array.Empty<RunStateStage>(),
-        [RunStateStage.Failed] = Array.Empty<RunStateStage>(),
-        [RunStateStage.Cancelled] = Array.Empty<RunStateStage>(),
-    };
+    /// <summary>
+    /// 转移表单源：未在表中声明出边的阶段即终态（<see cref="IsTerminal"/> 由本表派生，禁两处各自列举）。
+    /// 冻结字典（不暴露可变静态，K5）。
+    /// </summary>
+    private static readonly FrozenDictionary<RunStateStage, RunStateStage[]> TransitionTable = BuildTransitionTable();
 
-    private static readonly Dictionary<string, RunStateStage> ExternalStageMap = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, RunStateStage> ExternalStageMap =
+        new Dictionary<string, RunStateStage>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["pending"] = RunStateStage.Idle,
+            ["queued"] = RunStateStage.Idle,
+            ["idle"] = RunStateStage.Idle,
+            ["starting"] = RunStateStage.Started,
+            ["started"] = RunStateStage.Started,
+            ["in_progress"] = RunStateStage.Running,
+            ["inprogress"] = RunStateStage.Running,
+            ["running"] = RunStateStage.Running,
+            ["active"] = RunStateStage.Running,
+            ["paused"] = RunStateStage.Paused,
+            ["suspended"] = RunStateStage.Paused,
+            ["done"] = RunStateStage.Completed,
+            ["completed"] = RunStateStage.Completed,
+            ["succeeded"] = RunStateStage.Completed,
+            ["skipped"] = RunStateStage.Cancelled,
+            ["failed"] = RunStateStage.Failed,
+            ["error"] = RunStateStage.Failed,
+            ["cancelled"] = RunStateStage.Cancelled,
+            ["canceled"] = RunStateStage.Cancelled,
+            ["aborted"] = RunStateStage.Cancelled,
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static FrozenDictionary<RunStateStage, RunStateStage[]> BuildTransitionTable()
     {
-        ["pending"] = RunStateStage.Idle,
-        ["queued"] = RunStateStage.Idle,
-        ["idle"] = RunStateStage.Idle,
-        ["starting"] = RunStateStage.Started,
-        ["started"] = RunStateStage.Started,
-        ["in_progress"] = RunStateStage.Running,
-        ["inprogress"] = RunStateStage.Running,
-        ["running"] = RunStateStage.Running,
-        ["active"] = RunStateStage.Running,
-        ["paused"] = RunStateStage.Paused,
-        ["suspended"] = RunStateStage.Paused,
-        ["done"] = RunStateStage.Completed,
-        ["completed"] = RunStateStage.Completed,
-        ["succeeded"] = RunStateStage.Completed,
-        ["failed"] = RunStateStage.Failed,
-        ["error"] = RunStateStage.Failed,
-        ["cancelled"] = RunStateStage.Cancelled,
-        ["canceled"] = RunStateStage.Cancelled,
-        ["aborted"] = RunStateStage.Cancelled,
-    };
+        var table = new Dictionary<RunStateStage, RunStateStage[]>
+        {
+            [RunStateStage.Idle] = new[] { RunStateStage.Started, RunStateStage.Running, RunStateStage.Cancelled },
+            [RunStateStage.Started] = new[] { RunStateStage.Running, RunStateStage.Paused, RunStateStage.Failed, RunStateStage.Cancelled },
+            [RunStateStage.Running] = new[] { RunStateStage.Paused, RunStateStage.Completed, RunStateStage.Failed, RunStateStage.Cancelled },
+            [RunStateStage.Paused] = new[] { RunStateStage.Running, RunStateStage.Completed, RunStateStage.Failed, RunStateStage.Cancelled },
+        };
+
+        foreach (var stage in Enum.GetValues<RunStateStage>())
+        {
+            // 未声明出边的阶段 = 终态（Completed / Failed / Cancelled 及未来新增阶段自动归位）
+            table.TryAdd(stage, Array.Empty<RunStateStage>());
+        }
+
+        return table.ToFrozenDictionary();
+    }
 
     public NodeRunState(
         RunStateStage stage = RunStateStage.Idle,
@@ -99,7 +116,8 @@ public sealed class NodeRunState
 
     public bool HasActor => Actor is not null;
 
-    public bool IsTerminal => Stage is RunStateStage.Completed or RunStateStage.Failed or RunStateStage.Cancelled;
+    /// <summary>终态派生自转移表（无出边即终态）：单源，禁两处各自列举。</summary>
+    public bool IsTerminal => TransitionTable.TryGetValue(Stage, out var allowed) && allowed.Length == 0;
 
     public static IReadOnlyDictionary<string, RunStateStage> DefaultExternalStageMap => ExternalStageMap;
 

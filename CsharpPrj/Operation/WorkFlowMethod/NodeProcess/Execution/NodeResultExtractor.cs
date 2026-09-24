@@ -4,6 +4,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Modules.Node.Ports;
+using WorkFlowMethod.Skeletons.NodeProcess.Diagnostics;
 using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 #endregion
@@ -12,17 +14,22 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 {
     /// <summary>
     /// 节点结果 → 输出端口提取器（泛化 Agent NodeExecutionService.ExtractProps）。
-    /// 规则：
+    /// 端口准入规则唯一实现 = <see cref="NodePortBinding.ExtractValues{TValue}"/>（规则 = NodePortRules）：
     ///   ① 明确 <paramref name="resultKeys"/> 时，仅取这些端口（多节点同名结果键 → 定向全写不反射错配）；
-    ///   ② 未给 resultKeys 时，按结果类型公共实例属性名反射兜底；
-    ///   ③ null 结果 → 空端口（对齐 InitialStateNullity）；null 端口值跳过、不产生空槽位。
-    /// 结果值提取优先：result 是 <see cref="IDictionary{TKey,TValue}"/> → 按键直查；否则反射公共属性。
+    ///   ② 未给 resultKeys 时，按结果类型成员推断，且必产 <c>port.inferred</c> 诊断（治 P12：禁静默反射猜端口）；
+    ///   ③ null 结果 → 空端口（对齐 InitialStateNullity）；null 端口值不产槽位；
+    ///   ④ 简单值/无可枚举成员 → 默认端口整存由调用方以节点键落（<c>port.default</c> 可见化）。
+    /// 结果值提取优先：result 是 <see cref="IDictionary{TKey,TValue}"/> → 按键直查；否则反射公共属性；
+    /// 值保持宿主原生对象（不经 JSON 往返，保对象身份）。
     /// 特化钩子（E2）：静态注册表 <see cref="RegisterSpecialized"/>，按「结果类型可赋值」命中时使用注册的
     /// 特化提取器（整对象定向全写），否则回落到上述默认规则。消除了框架与 Agent 侧针对强类型执行结果
     /// （AgentExecutorResult）的反射分叉：特化实际类型以命中项为准，不依赖属性名反射。
     /// </summary>
     public static class NodeResultExtractor
     {
+        /// <summary>框架端口准入唯一实现（实例级；诊断经宿主 sink 单向投影到统一日志）。</summary>
+        private static readonly NodePortBinding Binding = new(NodeFrameworkLogSink.Instance);
+
         private sealed class SpecializedExtractor
         {
             public required Type ResultType;
@@ -74,22 +81,28 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 return specialized(result, resultKeys ?? Enumerable.Empty<string>());
             }
 
+            var declared = resultKeys?.Where(key => !string.IsNullOrEmpty(key)).ToArray() ?? Array.Empty<string>();
             var lookup = BuildLookup(result);
-            if (resultKeys is null || !resultKeys.Any())
+
+            // 成员面未知（简单值 / 无可枚举成员）→ null：落默认端口（由调用方以节点键整存），
+            // 与本方法既有语义一致（返回空字典 ⇒ 调用方补默认端口），同时产 port.default 可见化。
+            var members = lookup.Count == 0
+                ? null
+                : lookup.Select(pair => new PortMember(pair.Key, pair.Value is not null)).ToArray();
+
+            var outcome = Binding.ExtractValues(
+                nodeKey: string.Empty,
+                members,
+                valueOf: name => lookup[name],
+                defaultValue: result,
+                declaredPorts: declared,
+                memberComparer: StringComparer.OrdinalIgnoreCase); // 反射/字典键沿用既有宽松匹配
+
+            foreach (var pair in outcome.Ports)
             {
-                // 反射兜底：未指明结果键（或键集为空）→ 全部公共属性，null 值跳过
-                foreach (var kv in lookup)
-                    if (kv.Value != null)
-                        props[kv.Key] = kv.Value;
-                return props;
+                if (pair.Key.Length > 0) props[pair.Key] = pair.Value;
             }
 
-            foreach (var port in resultKeys)
-            {
-                if (string.IsNullOrEmpty(port)) continue;
-                if (lookup.TryGetValue(port, out var v) && v != null)
-                    props[port] = v;                                // 未命中/为 null → 静默跳过
-            }
             return props;
         }
 

@@ -50,8 +50,30 @@ public sealed class NodeSpecValidator
 
         ValidateIdentity(spec, violations);
         ValidatePlacements(spec, violations);
-        ValidateChains(chains ?? Array.Empty<NodeChainDocument>(), violations);
+        ValidateChains(chains ?? Array.Empty<NodeChainDocument>(), violations, requireEntry: true, requireExit: true);
 
+        Report(violations);
+
+        return new NodeSpecValidationReport(violations);
+    }
+
+    /// <summary>
+    /// 链判据<b>唯一算法出处</b>（治 P19：宿主/语言/框架不得各写一套）：无环 / 无悬空 / 键不重复 / 入口出口存在。
+    /// <paramref name="requireEntry"/>=<paramref name="requireExit"/>=<c>false</c> 即只判环与悬空（宿主既有口径，供等价迁移）。
+    /// </summary>
+    public NodeSpecValidationReport ValidateChains(
+        IReadOnlyList<NodeChainDocument> chains,
+        bool requireEntry = true,
+        bool requireExit = true)
+    {
+        var violations = new List<NodeSpecViolation>();
+        ValidateChains(chains, violations, requireEntry, requireExit);
+        Report(violations);
+        return new NodeSpecValidationReport(violations);
+    }
+
+    private void Report(IReadOnlyList<NodeSpecViolation> violations)
+    {
         foreach (var violation in violations)
         {
             _diagnostics.Report(new NodeDiagnostic(
@@ -60,8 +82,6 @@ public sealed class NodeSpecValidator
                 violation.Message,
                 violation.Subject));
         }
-
-        return new NodeSpecValidationReport(violations);
     }
 
     private static void ValidateIdentity(NodeFrameworkSpec spec, List<NodeSpecViolation> violations)
@@ -153,7 +173,11 @@ public sealed class NodeSpecValidator
         }
     }
 
-    private static void ValidateChains(IReadOnlyList<NodeChainDocument> chains, List<NodeSpecViolation> violations)
+    private static void ValidateChains(
+        IReadOnlyList<NodeChainDocument> chains,
+        List<NodeSpecViolation> violations,
+        bool requireEntry,
+        bool requireExit)
     {
         foreach (var chain in chains)
         {
@@ -191,7 +215,7 @@ public sealed class NodeSpecValidator
                 }
             }
 
-            if (!chain.Nodes.Any(n => n.IsEntry))
+            if (requireEntry && !chain.Nodes.Any(n => n.IsEntry))
             {
                 violations.Add(new NodeSpecViolation(
                     "spec.chain-entry-missing",
@@ -200,7 +224,7 @@ public sealed class NodeSpecValidator
                     chain.ChainId));
             }
 
-            if (!chain.Nodes.Any(n => n.IsExit))
+            if (requireExit && !chain.Nodes.Any(n => n.IsExit))
             {
                 violations.Add(new NodeSpecViolation(
                     "spec.chain-exit-missing",

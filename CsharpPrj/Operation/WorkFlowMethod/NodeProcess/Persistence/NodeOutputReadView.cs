@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Ports;
+using Modules.Node.Projection;
 using WorkFlowMethod.Skeletons.NodeProcess.Abstractions;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 #endregion
@@ -12,6 +14,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Persistence
     /// 节点输出读视图 —— 基于 <see cref="INodeOutputStore"/> 构建入参源键空间 + 溯源。
     /// 语义：{node}.{port} 恒有；裸 {port} 仅在某端口尚未被任一更早节点输出占用时并入
     /// （防跨节点裸端口互覆盖，溯源随之归一）。源键集合与溯源键集合恒一致。
+    /// 键空间规则唯一实现 = <see cref="PortKeySpace{TValue}"/>（读写同一实现，G2）：
+    /// 枚举序 = 键序数序（先按 <see cref="NodeKeyOrdinalComparer"/> 排序），"先到者胜"不得随载体枚举序漂移。
     /// </summary>
     public sealed class NodeOutputReadView : INodeOutputReadView
     {
@@ -37,25 +41,23 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Persistence
         {
             var outputs = await _store.EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
 
-            var source = new Dictionary<string, object?>(StringComparer.Ordinal);
-            var provenance = new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal);
+            // 枚举序 = 键序数序（N6）：裸键"先到者胜"按键序数序判定，禁随载体枚举序漂移。
+            var space = new PortKeySpace<object?>();
 
-            foreach (var output in outputs)
+            foreach (var output in outputs.OrderBy(output => output.NodeKey, NodeKeyOrdinalComparer.Instance))
                 foreach (var (port, value) in output.OutputPorts)
                 {
-                    if (value is null) continue; // 空端口不入源
-                    var qualified = output.NodeKey + "." + port;
-                    source[qualified] = value;
-                    provenance[qualified] = (output.NodeKey, port);
-
-                    if (!provenance.ContainsKey(port)) // 裸键：仅未被任一节点输出占用时并入
-                    {
-                        source[port] = value;
-                        provenance[port] = (output.NodeKey, port);
-                    }
+                    space.TryAdd(output.NodeKey, port, value);     // {node}.{port} 恒有
+                    space.TryAddBare(output.NodeKey, port, value); // 裸键：未被任一更早节点占用时并入
                 }
 
-            return (source, provenance);
+            var provenance = new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal);
+            foreach (var entry in space.Entries)
+            {
+                provenance[entry.PortKey] = (entry.NodeKey, entry.Port);
+            }
+
+            return (space.Snapshot(), provenance);
         }
     }
 }

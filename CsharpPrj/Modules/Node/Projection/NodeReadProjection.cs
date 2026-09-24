@@ -1,6 +1,4 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Materialization;
@@ -108,7 +106,7 @@ public sealed class NodeReadProjection
         var filtered = ApplySelection(merged, targets, scope);
 
         var ordered = filtered
-            .OrderBy(item => item.Key, KeyOrdinalComparer.Instance)
+            .OrderBy(item => item.Key, NodeKeyOrdinalComparer.Instance)
             .ThenBy(item => item.PlacementId, StringComparer.Ordinal)
             .ToArray();
 
@@ -198,12 +196,18 @@ public sealed class NodeReadProjection
             var ordered = bucket.OrderBy(item => Array.IndexOf(order, item.Origin)).ToArray();
             var fields = new Dictionary<string, string>(StringComparer.Ordinal);
             string? payload = null;
-            var origin = ordered[0].Origin;
+            var origin = ordered[0].Origin; // 初值仅为确定赋值；循环内必覆盖为最高优先级来源
 
             foreach (var item in ordered)
             {
                 foreach (var pair in item.Fields)
                 {
+                    // 非空覆盖（字段级叠加语义）：高优先级来源的空值不抹掉低优先级非空值
+                    if (string.IsNullOrEmpty(pair.Value) && fields.ContainsKey(pair.Key))
+                    {
+                        continue;
+                    }
+
                     fields[pair.Key] = pair.Value;
                 }
 
@@ -225,87 +229,23 @@ public sealed class NodeReadProjection
     {
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        try
-        {
-            if (JsonNode.Parse(payload) is not JsonObject obj)
-            {
-                return fields;
-            }
-
-            foreach (var pair in obj)
-            {
-                if (pair.Value is JsonValue value && value.TryGetValue<string>(out var text))
-                {
-                    fields[pair.Key] = text ?? string.Empty;
-                }
-                else if (pair.Value is not null)
-                {
-                    fields[pair.Key] = pair.Value.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
-                }
-            }
-        }
-        catch (JsonException)
+        // 解析宽容度单源 = NodeJson（与写侧一致：尾逗号/注释跳过）
+        if (!NodeJson.TryParse(payload, out var node, out _) || node is not JsonObject obj)
         {
             // 非 JSON 载荷：字段面为空（读侧不伪造结构）
+            return fields;
+        }
+
+        foreach (var pair in obj)
+        {
+            if (pair.Value is null)
+            {
+                continue;
+            }
+
+            fields[pair.Key] = NodeJson.ValueToText(pair.Value);
         }
 
         return fields;
-    }
-
-    /// <summary>枚举序 = 键序数序：数字段按数值比较，非数字段按序号字符串比较。</summary>
-    private sealed class KeyOrdinalComparer : IComparer<string>
-    {
-        public static readonly KeyOrdinalComparer Instance = new();
-
-        public int Compare(string? left, string? right)
-        {
-            if (ReferenceEquals(left, right))
-            {
-                return 0;
-            }
-
-            if (left is null)
-            {
-                return -1;
-            }
-
-            if (right is null)
-            {
-                return 1;
-            }
-
-            var leftParts = left.Split('.');
-            var rightParts = right.Split('.');
-            var length = Math.Min(leftParts.Length, rightParts.Length);
-
-            for (var index = 0; index < length; index++)
-            {
-                var comparison = CompareSegment(leftParts[index], rightParts[index]);
-                if (comparison != 0)
-                {
-                    return comparison;
-                }
-            }
-
-            return leftParts.Length.CompareTo(rightParts.Length);
-        }
-
-        private static readonly Regex NumericSuffix = new(@"^(?<prefix>\D*)(?<number>\d+)$", RegexOptions.Compiled);
-
-        private static int CompareSegment(string left, string right)
-        {
-            var leftMatch = NumericSuffix.Match(left);
-            var rightMatch = NumericSuffix.Match(right);
-
-            if (leftMatch.Success && rightMatch.Success &&
-                string.Equals(leftMatch.Groups["prefix"].Value, rightMatch.Groups["prefix"].Value, StringComparison.Ordinal))
-            {
-                var leftValue = long.Parse(leftMatch.Groups["number"].Value, System.Globalization.CultureInfo.InvariantCulture);
-                var rightValue = long.Parse(rightMatch.Groups["number"].Value, System.Globalization.CultureInfo.InvariantCulture);
-                return leftValue.CompareTo(rightValue);
-            }
-
-            return string.CompareOrdinal(left, right);
-        }
     }
 }

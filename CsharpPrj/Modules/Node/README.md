@@ -1,12 +1,13 @@
 # Modules.Node — 节点通用框架（与位置无关 · JSON 键连接版）
 
-> **状态**：`P0 骨架` + `P1 提取融入`（D-1 案 A 口径）+ `P2–P5 框架件与合同测试` **已落地并通过验证**（构建 0 警告 0 错误、合同测试 89 例全绿）；`P6 应用`（Operation 侧委托接线 / Agent 阶段 A–D）与 `P7 语言接入` 待开展。
+> **状态**：`P0 骨架` + `P1 提取融入`（D-1 案 A 口径）+ `P2–P5 框架件与合同测试` **已落地并通过验证**（构建 0 警告 0 错误、合同测试 95 例全绿）；`P6 应用` 中 **A-1（端口键空间/端口提取/节点单写门三件）、A-2 七件（形态/缺省/运行态/合并/校验/引用/指令）、A-3/A-3b（键格式与阈值声明化）、D-3（委托接线门禁）已落地**（Operation 侧接线，见[下一步计划](./docs/下一步计划.md) §1.1）；P6 剩余 A-4（Agent 边写点收敛）、P6-B 阶段 A–D 与 `P7 语言接入` 待开展。
 > **设计权威**（本 README 只做导航，不重复定义）：
 > - [`docs/节点通用框架-与位置无关的设计.md`](./docs/节点通用框架-与位置无关的设计.md) —— 总设计（模型 / 不变式 N1–N12 / 声明面 / 组件清单 / 阶段 S1–S5 / 合同测试 CT）
 > - [`docs/节点通用框架-提取清单与复用映射.md`](./docs/节点通用框架-提取清单与复用映射.md) —— WorkFlowMethod 侧逐项裁决 + 14 项缺口 G1–G14 + 反模式 P12–P24 + 实现前必查的复用映射表
 > - [`docs/节点通用框架-表层语言与Usharp接入.md`](./docs/节点通用框架-表层语言与Usharp接入.md) —— 端口清单 / 校验分工 / loc 位置反转 / 迁移 N0–N3
 > - [`docs/节点通用框架-Agent应用篇.md`](./docs/节点通用框架-Agent应用篇.md) —— Agent 侧应用与分期迁移 A–D
 > - [`docs/P1-P5-实现记录.md`](./docs/P1-P5-实现记录.md) —— 本批**已落地事实**：逐件落点、提取融入口径（D-1 案 A）、测试清单、验证证据、剩余边界
+> - [`docs/下一步计划.md`](./docs/下一步计划.md) —— **未做项清单**：P6（Operation 侧委托逐件清单 + Agent 阶段 A–D）/ P7（loc 反转 → 端口 → 适配 → 退役）/ 载体与治理项，含前置依赖、验收判据、建议顺序、待裁决未决项与风险回退
 
 ## 概述
 
@@ -90,8 +91,8 @@ Modules/Node/
 | **P3 声明面** | S3 `NodeFrameworkSpecLoader` + 装配校验（补 G7/G9/G13/G14/G10/G11） | ✅ 已落地（改声明零代码生效的装载/校验路径 + 用例） |
 | **P4 读投影** | S4 `NodeReadProjection` + selection + Origin（枚举序=键序数序） | ✅ 已落地（CT-4/CT-5/CT-7 用例） |
 | **P5 治理** | S5 `NodeReconciler` + 实例级诊断 + 门禁全绿 | ✅ 已落地（对账/漂移/多解用例 + 门禁 EXIT 0） |
-| **P6 应用** | Operation 侧既有件改为委托（`NodeOutputReadView`/`NodeResultExtractor`/`NodePersistCoordinator`/`StrategyResolver`/`NodeConfigFactory`…）+ Agent 阶段 A–D（键与 JSON 单源 → 实时物化 → 回写合一 → 读侧退役） | 见 Agent 应用篇 §9 |
-| **P7 语言接入** | Usharp 侧 N0（loc 反转）→ N1 端口 → N2 `Usharp.Adapters.Node` → N3 退役 | CT-U1…CT-U5 + CT-L1…CT-L6 |
+| **P6 应用** | Operation 侧既有件改为委托（`NodeOutputReadView`/`NodeResultExtractor`/`NodePersistCoordinator`/`StrategyResolver`/`NodeConfigFactory`…）+ Agent 阶段 A–D（键与 JSON 单源 → 实时物化 → 回写合一 → 读侧退役） | **A-1/A-2/A-3/A-3b/D-3 已落地**（见[下一步计划](./docs/下一步计划.md) §1.1）；A-4 与 Agent 阶段见同文 §2/§3 |
+| **P7 语言接入** | Usharp 侧 N0（loc 反转）→ N1 端口 → N2 `Usharp.Adapters.Node` → N3 退役 | 见[下一步计划](./docs/下一步计划.md) §3.5；CT-U1…CT-U5 + CT-L1…CT-L6 |
 
 ## 验收记录（P0–P5，实测）
 
@@ -101,9 +102,10 @@ Modules/Node/
 | P0.2 | 模块登记 | `PowerShellScript\Share\Solution\Generate-ModulePaths.ps1` | ✅ `Proj_Node` / `Mod_Node` 已生成；"清单与磁盘一致" |
 | P0.3 | 聚合接线 | `dotnet build Frame\CsharpPrj\Modules\Modules.csproj` | ✅ 0 警告 0 错误 |
 | P0.4 | 测试工程 | `Run-CSharpTests.ps1 -Test node` | ✅ 别名 `node` 生效（`TestRunner\TestTargets.psd1`） |
-| P1–P5 | 框架件 + 合同测试 | `dotnet test ...\Modules.Tests\Node.Tests\Modules.Node.Tests.csproj` | ✅ **通过 89 / 失败 0**（含 CT-E1/CT-E2 锚点、CT-1…CT-10 核心用例） |
+| P1–P5 | 框架件 + 合同测试 | `dotnet test ...\Modules.Tests\Node.Tests\Modules.Node.Tests.csproj` | ✅ **通过 95 / 失败 0**（含 CT-E1/CT-E2 锚点、CT-1…CT-10 核心用例；P6-A 值缝 V1 新增 6 例） |
 | P0.5 | 门禁脚本 | `PowerShellScript\Modules\Node\Check-NodeFramework.ps1 -ShowDetail` | ✅ A/B/C/D 通过、告警 0（扫描 26 个源码文件） |
 | — | 层序校验 | `PowerShellScript\Share\Solution\Test-ProjectReferences.ps1` | ✅ Node **零新增项**（本工程零 `ProjectReference`，无向上引用告警）；该脚本当前退出码 1 由既有 `FunctionExecutionFramework` 悬空引用与 3 条未属性化相对路径导致，与 Node 无关 |
+| 整理批 | 重复/冗余/错误逻辑收敛（22 项） | `dotnet test ...\Node.Tests\Modules.Node.Tests.csproj` + `Check-NodeFramework.ps1` | ✅ **通过 100 / 失败 0**；`Operation.Tests` Node 相关 75 例无回归；门禁 A/B/C/D 通过、告警 0；逐项事实与未做项见[实现记录](./docs/P1-P5-实现记录.md) §6 |
 
 > 门禁 A 的判定形态为「限定名/路径」（`Proj_Usharp*` / `Usharp\<...>` / `Usharp.<Token>`），
 > 规则说明中散文式提及"禁 Usharp 类型"不判违规（避免自指误报）。

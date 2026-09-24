@@ -14,7 +14,8 @@
       D. 位置层不引上层契约（D-1 案 A）：*.cs 零 `using Operation.` / `using Share.`
          （`NodeOutput`/`INodeOutputStore`(Operation) 与 `Chain<TKey,TNode>`/`UniversalMiddlewareEntry`(Share)
           由上层适配器持有，本工程契约以 JSON/BCL 为界）；
-      E. （告警，不判失败）静态可变字段（static 且非 readonly/const）：K5 建议一律实例级。
+      E. （告警，不判失败）静态可变字段 / 静态属性（static 且非 readonly/const）：K5 建议一律实例级，
+         静态属性须返回只读/冻结视图（原实现只查字段，静态属性漏检）。
 
     层序（向上引用）由 Share/Solution/Test-ProjectReferences.ps1 统一校验，本脚本不重复实现。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
@@ -109,8 +110,12 @@ if ($usingHits.Count -gt 0)
 }
 elseif ($ShowDetail) { Write-Host "OK(D): 零上层命名空间 using。" -ForegroundColor Green }
 
-# ---------------- E. （告警）静态可变字段（K5） ----------------
+# ---------------- E. （告警）静态可变字段 / 静态暴露面（K5） ----------------
+# E-1：静态字段（非 readonly/const）
 $staticFieldRegex = [regex]'^\s*(?:public|private|internal|protected)\s+static\s+(?!readonly\b|const\b|partial\b|class\b)([A-Za-z_][\w<>\[\],\.\?\s]*?)\s+([A-Za-z_]\w*)\s*(?:=|;|=>)'
+# E-2：静态属性（自动属性 / 表达式体属性）——字段检查之外的另一条静态暴露面（原实现只查字段，静态属性漏检）；
+#      返回只读/冻结类型（IReadOnly*/ReadOnly*/Frozen*/Immutable*）即视为已隔离，不告警。
+$staticPropertyRegex = [regex]'^\s*(?:public|private|internal|protected)\s+static\s+(?!readonly\b|const\b|partial\b|class\b|IReadOnly|ReadOnly|Frozen|Immutable)([A-Za-z_][\w<>\[\],\.\?\s]*?)\s+([A-Za-z_]\w*)\s*(?:\{\s*(?:get|set|init)\b|=>)'
 foreach ($f in $csFiles)
 {
     $lineNo = 0
@@ -118,12 +123,25 @@ foreach ($f in $csFiles)
     {
         $lineNo++
         if ($line -match '\(') { continue }
-        # 表达式体属性（`static X Y => …`）不是字段
+        # 表达式体成员（`static X Y => …`）不是字段，但静态表达式体属性仍属静态暴露面
         $arrowIndex = $line.IndexOf('=>')
-        if ($arrowIndex -gt 0 -and $line[0..($arrowIndex - 1)] -notmatch '=') { continue }
+        if ($arrowIndex -gt 0 -and $line[0..($arrowIndex - 1)] -notmatch '=')
+        {
+            if ($staticPropertyRegex.IsMatch($line))
+            {
+                $warnings.Add("[E2/K5] $($f.FullName):$lineNo 静态属性（静态暴露面，须返回只读/冻结视图）: $($line.Trim())")
+            }
+
+            continue
+        }
+
         if ($staticFieldRegex.IsMatch($line))
         {
             $warnings.Add("[E/K5] $($f.FullName):$lineNo 疑似静态可变字段（应改为实例级）: $($line.Trim())")
+        }
+        elseif ($staticPropertyRegex.IsMatch($line))
+        {
+            $warnings.Add("[E2/K5] $($f.FullName):$lineNo 静态属性（静态暴露面，须返回只读/冻结视图）: $($line.Trim())")
         }
     }
 }

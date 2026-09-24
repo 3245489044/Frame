@@ -1,5 +1,7 @@
 #region USINGS
 using System;
+using System.Collections.Generic;
+using Modules.Node.RunState;
 using Share.StateManagement;
 #endregion
 
@@ -18,9 +20,13 @@ namespace WorkFlowMethod.Execution.Session
     /// 节点级执行状态（Pending→Running→Completed/Failed/Skipped）。
     /// 状态追踪逻辑泛化为 <see cref="TaskExecutionState{TKey,TStatus}"/>（Share.StateManagement，TH-12 单一实现），
     /// 本类型注入节点状态枚举 <see cref="NodeStatus"/> 并保留既有 API（Status/NodeKey/ErrorMessage/StartedAt/CompletedAt/ExecutionCount）。
+    /// 运行态受控词与转移表唯一来源 = <see cref="NodeRunState"/>（宿主阶段词经声明覆盖入口映射，不各写一套词表）。
     /// </summary>
     public class NodeExecutionState : TaskExecutionState<string, NodeStatus>
     {
+        /// <summary>宿主阶段词 → 框架受控词的声明覆盖（默认空：全部命中框架内建映射；无命中 ⇒ null，不伪造 Idle）。</summary>
+        public static readonly IReadOnlyDictionary<string, RunStateStage> StageOverrides = new Dictionary<string, RunStateStage>();
+
         /// <summary>节点标识（兼容既有读取；底层即 <see cref="TaskExecutionState{TKey,TStatus}.Key"/>）。</summary>
         public string NodeKey => Key;
 
@@ -54,6 +60,13 @@ namespace WorkFlowMethod.Execution.Session
                 s => s == NodeStatus.Pending,
                 markCompleted: true,
                 error: reason);
+
+        /// <summary>
+        /// 运行态投影：宿主阶段词（<see cref="NodeStatus"/>）→ 框架受控词（<see cref="RunStateStage"/>）。
+        /// 无命中 ⇒ null（不伪造 Idle）；覆盖经 <see cref="StageOverrides"/> 声明注入。
+        /// </summary>
+        public NodeRunState? ToRunState()
+            => NodeRunState.FromExternalStage(Status.ToString(), StageOverrides);
 
         public override string ToString()
         {

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Diagnostics;
 using Modules.Node.Identity;
@@ -45,18 +44,14 @@ public static class NodeFrameworkSpecLoader
         var sink = diagnostics ?? NullDiagnosticsSink.Instance;
         var collected = new List<NodeDiagnostic>();
 
-        JsonObject root;
-        try
+        if (!NodeJson.TryParse(json, out var parsed, out var parseError))
         {
-            root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            }) as JsonObject ?? throw new NodeFrameworkSpecException("框架声明须为 JSON 对象");
+            throw new NodeFrameworkSpecException($"框架声明解析失败: {parseError ?? "空声明"}");
         }
-        catch (JsonException ex)
+
+        if (parsed is not JsonObject root)
         {
-            throw new NodeFrameworkSpecException($"框架声明解析失败: {ex.Message}");
+            throw new NodeFrameworkSpecException("框架声明须为 JSON 对象");
         }
 
         var domain = ReadString(root, "domain") ?? "default";
@@ -71,16 +66,16 @@ public static class NodeFrameworkSpecLoader
 
         var identityTemplate = ReadString(root, "identity") ??
                                throw new NodeFrameworkSpecException("声明缺少 identity（身份模板）");
-        var sequenceKeys = ReadStringArray(root, "sequence");
-        var contextKeys = ReadStringArray(root, "context");
+        var sequenceKeys = ReadStringArray(root, "sequence", collected);
+        var contextKeys = ReadStringArray(root, "context", collected);
         var identity = IdentitySpec.Create(identityTemplate, sequenceKeys);
 
         var placements = ParsePlacements(root, domain, collected);
-        var selections = ParseSelections(root);
-        var retentions = ParseMap(root, "retentions");
+        var selections = ParseSelections(root, collected);
+        var retentions = ParseMap(root, "retentions", collected);
         var defaults = new SpecDefaults(ReadObjectJson(root, "defaults"));
-        var locToPlacement = ParseLocToPlacement(root);
-        var referenceFields = ReadStringArray(root, "referenceFields");
+        var locToPlacement = ParseLocToPlacement(root, collected);
+        var referenceFields = ReadStringArray(root, "referenceFields", collected);
         var directives = NodeDirectiveSet.Parse(ReadArrayJson(root, "directives"), sink);
 
         foreach (var diagnostic in collected)
@@ -162,7 +157,7 @@ public static class NodeFrameworkSpecLoader
         return registry;
     }
 
-    private static SelectionSet ParseSelections(JsonObject root)
+    private static SelectionSet ParseSelections(JsonObject root, List<NodeDiagnostic> collected)
     {
         var selections = new SelectionSet();
 
@@ -173,13 +168,24 @@ public static class NodeFrameworkSpecLoader
 
         foreach (var pair in declared)
         {
-            selections.Add(new ExpressionSelectionPredicate(pair.Key, pair.Value?.GetValue<string>() ?? "true"));
+            var expression = NodeJson.TryReadString(pair.Value, out var declaredExpression) ? declaredExpression : null;
+            if (string.IsNullOrWhiteSpace(expression))
+            {
+                collected.Add(new NodeDiagnostic(
+                    "spec.selection-value-invalid",
+                    NodeDiagnosticSeverity.Warning,
+                    $"选择 '{pair.Key}' 的表达式须为非空字符串：已按 'true' 处理（不静默）",
+                    pair.Key));
+                expression = "true";
+            }
+
+            selections.Add(new ExpressionSelectionPredicate(pair.Key, expression));
         }
 
         return selections;
     }
 
-    private static IReadOnlyDictionary<string, string> ParseMap(JsonObject root, string propertyName)
+    private static IReadOnlyDictionary<string, string> ParseMap(JsonObject root, string propertyName, List<NodeDiagnostic> collected)
     {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -190,13 +196,30 @@ public static class NodeFrameworkSpecLoader
 
         foreach (var pair in declared)
         {
-            map[pair.Key] = pair.Value?.GetValue<string>() ?? string.Empty;
+            if (pair.Value is null)
+            {
+                map[pair.Key] = string.Empty;
+                continue;
+            }
+
+            if (NodeJson.TryReadString(pair.Value, out var value) && value is not null)
+            {
+                map[pair.Key] = value;
+                continue;
+            }
+
+            map[pair.Key] = string.Empty;
+            collected.Add(new NodeDiagnostic(
+                "spec.map-value-invalid",
+                NodeDiagnosticSeverity.Warning,
+                $"声明 '{propertyName}' 的 '{pair.Key}' 须为字符串：已置空（不静默）",
+                pair.Key));
         }
 
         return map;
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ParseLocToPlacement(JsonObject root)
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ParseLocToPlacement(JsonObject root, List<NodeDiagnostic> collected)
     {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
@@ -209,55 +232,84 @@ public static class NodeFrameworkSpecLoader
         {
             if (pair.Value is JsonArray ids)
             {
-                map[pair.Key] = ids.Select(id => id?.GetValue<string>() ?? string.Empty)
-                    .Where(id => id.Length > 0)
-                    .ToArray();
+                var resolved = new List<string>(ids.Count);
+                foreach (var id in ids)
+                {
+                    if (NodeJson.TryReadString(id, out var text) && !string.IsNullOrEmpty(text))
+                    {
+                        resolved.Add(text);
+                        continue;
+                    }
+
+                    collected.Add(new NodeDiagnostic(
+                        "spec.loc-entry-invalid",
+                        NodeDiagnosticSeverity.Warning,
+                        $"反解表 '{pair.Key}' 含非字符串位置 id：已跳过（不静默）",
+                        pair.Key));
+                }
+
+                map[pair.Key] = resolved;
                 continue;
             }
 
-            var single = pair.Value?.GetValue<string>();
-            if (!string.IsNullOrEmpty(single))
+            if (NodeJson.TryReadString(pair.Value, out var single) && !string.IsNullOrEmpty(single))
             {
                 map[pair.Key] = new[] { single };
+                continue;
+            }
+
+            if (pair.Value is not null)
+            {
+                collected.Add(new NodeDiagnostic(
+                    "spec.loc-entry-invalid",
+                    NodeDiagnosticSeverity.Warning,
+                    $"反解表 '{pair.Key}' 须为字符串或字符串数组：已忽略（不静默）",
+                    pair.Key));
             }
         }
 
         return map;
     }
 
-    private static string? ReadString(JsonObject obj, string propertyName)
-    {
-        try
-        {
-            return obj[propertyName]?.GetValue<string>();
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
+    private static string? ReadString(JsonObject obj, string propertyName) =>
+        NodeJson.TryReadString(obj[propertyName], out var text) ? text : null;
 
-    private static IReadOnlyList<string> ReadStringArray(JsonObject obj, string propertyName)
+    private static IReadOnlyList<string> ReadStringArray(JsonObject obj, string propertyName, List<NodeDiagnostic> collected)
     {
         if (obj[propertyName] is not JsonArray array)
         {
             return Array.Empty<string>();
         }
 
-        return array.Select(item => item?.GetValue<string>() ?? string.Empty)
-            .Where(item => item.Length > 0)
-            .ToArray();
+        var values = new List<string>(array.Count);
+
+        foreach (var item in array)
+        {
+            if (NodeJson.TryReadString(item, out var text))
+            {
+                if (!string.IsNullOrEmpty(text))
+                {
+                    values.Add(text);
+                }
+
+                continue;
+            }
+
+            collected.Add(new NodeDiagnostic(
+                "spec.array-item-invalid",
+                NodeDiagnosticSeverity.Warning,
+                $"声明 '{propertyName}' 含非字符串项：已跳过（不静默）",
+                propertyName));
+        }
+
+        return values;
     }
 
     private static string? ReadObjectJson(JsonObject obj, string propertyName) =>
-        obj[propertyName] is JsonObject nested
-            ? nested.ToJsonString(new JsonSerializerOptions { WriteIndented = false })
-            : null;
+        obj[propertyName] is JsonObject nested ? nested.ToJsonString(NodeJson.WriteOptions) : null;
 
     private static string? ReadArrayJson(JsonObject obj, string propertyName) =>
-        obj[propertyName] is JsonArray array
-            ? array.ToJsonString(new JsonSerializerOptions { WriteIndented = false })
-            : null;
+        obj[propertyName] is JsonArray array ? array.ToJsonString(NodeJson.WriteOptions) : null;
 
     private static TEnum ParseEnum<TEnum>(JsonObject obj, string propertyName, TEnum fallback)
         where TEnum : struct, Enum

@@ -20,29 +20,31 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.ReferenceRegistration
             registry.Register<NodeConfig.GetStrConfig>(ReferenceTarget.Custom, recurse: true);
             registry.Register<NodeConfig.FuncPipelineConfig>(ReferenceTarget.Custom, recurse: true);
 
-            registry.Register<NodeConfig.AddNodeConfig>(
-           new ReferenceDefinition(ReferenceTarget.Custom, true, new JsonContentHandler())
-           {
-               Condition = accessor => (accessor is PropertyAccessor pa && pa.Description.EndsWith("AddConfigAddKey")) ||
-                                       (accessor is FieldAccessor fa && fa.Description.EndsWith("AddConfigAddKey"))
-           });
-
             var jsonHandler = new JsonContentHandler();
-            registry.Register<NodeConfig.NextNodeConfig>(new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
-            {
-                Condition = accessor => accessor is PropertyAccessor pa &&
-                                        pa.Description.EndsWith(".ConnectChainInfoKey")
-            });
-            registry.Register<NodeConfig.FuncPipelineConfig>(new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
-            {
-                Condition = accessor => accessor is PropertyAccessor pa &&
-                                        pa.Description.EndsWith(".ParameterKeys")
-            });
-            registry.Register<NodeConfig.FuncPipelineConfig>(new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
-            {
-                Condition = accessor => accessor is PropertyAccessor pa &&
-                                        pa.Description.EndsWith(".ResultKeys")
-            });
+
+            registry.Register<NodeConfig.AddNodeConfig>(
+                new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
+                {
+                    Condition = NodeReferenceFields.Matches(NodeReferenceFields.Field(NodeReferenceFields.AddConfigAddKey)),
+                });
+
+            registry.Register<NodeConfig.NextNodeConfig>(
+                new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
+                {
+                    Condition = NodeReferenceFields.Matches(NodeReferenceFields.Field(NodeReferenceFields.ConnectChainInfoKey)),
+                });
+
+            registry.Register<NodeConfig.FuncPipelineConfig>(
+                new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
+                {
+                    Condition = NodeReferenceFields.Matches(NodeReferenceFields.Field(NodeReferenceFields.ParameterKeys)),
+                });
+
+            registry.Register<NodeConfig.FuncPipelineConfig>(
+                new ReferenceDefinition(ReferenceTarget.Custom, true, jsonHandler)
+                {
+                    Condition = NodeReferenceFields.Matches(NodeReferenceFields.Field(NodeReferenceFields.ResultKeys)),
+                });
         }
     }
 }

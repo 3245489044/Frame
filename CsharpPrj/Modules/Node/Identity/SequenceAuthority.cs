@@ -70,7 +70,11 @@ public sealed class NodeIdentity
 
     public IReadOnlyDictionary<string, string> Values { get; }
 
-    /// <summary>按规范生成身份；缺序数时经权威单源分配（未装配 → 失败 + 诊断）。</summary>
+    /// <summary>
+    /// 按规范生成身份；缺序数时经权威单源分配（未装配 → 失败 + 诊断）。
+    /// 注：调用方若在 <paramref name="values"/> 里直接给出序数段，即<b>显式接管该段</b>（不再经权威分配）——
+    /// 单源由调用方保证，框架不代管（N6 的例外出口，非静默回退）。
+    /// </summary>
     public static bool TryFor(
         IdentitySpec spec,
         IReadOnlyDictionary<string, string> values,

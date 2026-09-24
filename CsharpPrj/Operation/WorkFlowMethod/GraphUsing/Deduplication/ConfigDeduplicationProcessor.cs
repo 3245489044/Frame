@@ -27,9 +27,7 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
         private readonly IdentifierExtractor _identifierExtractor;
         private readonly ConfigRelationHandler _relationHandler;
 
-        private readonly DefaultChainComposer<NodeConfig> _chainComposer;
-        private readonly DefaultMergeStrategy<NodeConfig> _mergeStrategy;
-        private readonly DefaultCompositionValidator _validator;
+        private readonly IChainComposer<NodeConfig> _chainComposer;
 
         public ConfigDeduplicationProcessor(
             IChainNodeHandler<NodeConfig, Chain<string, NodeConfig>> nodeHandler,
@@ -45,12 +43,7 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
             _identifierExtractor = new IdentifierExtractor();
             _relationHandler = relationHandler ?? new ConfigRelationHandler(nodeHandler);
 
-            _mergeStrategy = new DefaultMergeStrategy<NodeConfig>();
-            _validator = new DefaultCompositionValidator();
-            _chainComposer = new DefaultChainComposer<NodeConfig>(
-                validator: _validator,
-                keyExtractor: n => n.basicConfig?.Callkey,
-                mergeStrategy: _mergeStrategy);
+            _chainComposer = ChainComposerFactory.Create();
         }
 
         public List<Chain<string, NodeConfig>> Deduplicate(List<Chain<string, NodeConfig>> chains)

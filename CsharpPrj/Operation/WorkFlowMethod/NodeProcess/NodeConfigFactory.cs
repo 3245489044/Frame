@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Modules.Node.Materialization;
 using WorkFlowMethod.Infrastructure;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 using Share.LogicComposition.Abstractions;
@@ -138,8 +139,21 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                 }
             };
 
-            return JsonConvert.SerializeObject(nodeDto, ServiceDefaults.SerializerSettings);
+            return ApplyPayloadDefaults(JsonConvert.SerializeObject(nodeDto, ServiceDefaults.SerializerSettings));
         }
+
+        /// <summary>
+        /// 载荷缺省声明（「缺失即补、已有即保留」唯一实现 = 框架 <see cref="SpecDefaults"/>）：
+        /// 只填载荷字段，<b>不参与</b>"写哪/键是什么"的决策（治 P13：与位置解析物理隔离）。
+        /// 缺省空声明 ⇒ 行为不变（零回归）。
+        /// </summary>
+        public static SpecDefaults PayloadDefaults { get; } = new();
+
+        /// <summary>装载载荷缺省声明（深度合并进已有缺省集）。</summary>
+        public static void LoadPayloadDefaults(string defaultsJson) => PayloadDefaults.Load(defaultsJson);
+
+        /// <summary>按载荷缺省补齐 JSON 载荷（框架 SpecDefaults 为唯一实现）。</summary>
+        public static string ApplyPayloadDefaults(string payloadJson) => PayloadDefaults.Merge(payloadJson);
 
         public static void CompleteConfig(NodeConfig config, string configType = ConfigType.Default)
         {

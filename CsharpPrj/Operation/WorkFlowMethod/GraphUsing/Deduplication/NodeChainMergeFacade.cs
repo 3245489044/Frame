@@ -18,11 +18,7 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
     /// </summary>
     public static class NodeChainMergeFacade
     {
-        private static readonly IChainComposer<NodeConfig> Composer =
-            new DefaultChainComposer<NodeConfig>(
-                validator: new DefaultCompositionValidator(),
-                keyExtractor: n => n.basicConfig?.Callkey,
-                mergeStrategy: new DefaultMergeStrategy<NodeConfig>());
+        private static readonly IChainComposer<NodeConfig> Composer = ChainComposerFactory.Create();
 
         /// <summary>链合并 + 去重：多段链 → 一段（返回完整合并结果，含冲突/统计）。</summary>
         public static MergeResult<IEnumerable<NodeConfig>> Merge(

@@ -11,36 +11,18 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.KeyMapping
 {
     public static class KeyProcessor
     {
-        #region 层次化线程静态配置
+        #region 层次化键格式（声明单源，运行期只读）
 
-        private static readonly AsyncLocal<string> _hierarchyNumberFormat = new();
-        private static readonly AsyncLocal<string> _hierarchyPrefix = new();
-        private static readonly AsyncLocal<string> _hierarchySuffix = new();
-        private static readonly AsyncLocal<string> _hierarchySeparator = new();
+        /// <summary>层次化键格式声明（唯一来源；注入 = 传参覆盖，不引入可变进程静态，治 P14）。</summary>
+        public static KeyHierarchyFormat HierarchyFormat { get; } = KeyHierarchyFormat.CompatibleDefault;
 
-        public static string HierarchyNumberFormat
-        {
-            get => _hierarchyNumberFormat.Value ?? "";
-            set => _hierarchyNumberFormat.Value = value;
-        }
+        public static string HierarchyNumberFormat => HierarchyFormat.NumberFormat;
 
-        public static string HierarchyPrefix
-        {
-            get => _hierarchyPrefix.Value ?? "_";
-            set => _hierarchyPrefix.Value = value;
-        }
+        public static string HierarchyPrefix => HierarchyFormat.Prefix;
 
-        public static string HierarchySuffix
-        {
-            get => _hierarchySuffix.Value ?? "_";
-            set => _hierarchySuffix.Value = value;
-        }
+        public static string HierarchySuffix => HierarchyFormat.Suffix;
 
-        public static string HierarchySeparator
-        {
-            get => _hierarchySeparator.Value ?? "";
-            set => _hierarchySeparator.Value = value;
-        }
+        public static string HierarchySeparator => HierarchyFormat.Separator;
 
         #endregion
 
@@ -81,13 +63,14 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.KeyMapping
             }
         }
 
-        public static void ProcessNodeKeys(NodeConfig node, string hierarchy = null)
+        public static void ProcessNodeKeys(NodeConfig node, string hierarchy = null, KeyHierarchyFormat format = null)
         {
             if (node?.funcPipelineConfig == null) return;
-            hierarchy ??= ExtractHierarchyFromNode(node);
+            var effectiveFormat = format ?? HierarchyFormat;
+            hierarchy ??= ExtractHierarchyFromNode(node, effectiveFormat);
             if (string.IsNullOrEmpty(hierarchy)) return;
 
-            var formattedHierarchy = FormatHierarchy(hierarchy);
+            var formattedHierarchy = FormatHierarchy(hierarchy, effectiveFormat);
             node.funcPipelineConfig.ParameterKeys = AddHierarchyToKeysJson(
                 node.funcPipelineConfig.ParameterKeys, formattedHierarchy);
             node.funcPipelineConfig.ResultKeys = AddHierarchyToKeysJson(
@@ -148,7 +131,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.KeyMapping
 
         #region 层次化处理
 
-        public static string ExtractHierarchyFromNode(NodeConfig node)
+        public static string ExtractHierarchyFromNode(NodeConfig node, KeyHierarchyFormat format = null)
         {
             var callkey = node?.basicConfig?.Callkey;
             if (string.IsNullOrEmpty(callkey)) return string.Empty;
@@ -157,32 +140,32 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.KeyMapping
             if (!match.Success) return string.Empty;
 
             int number = int.Parse(match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value);
-            return FormatHierarchyNumber(number + 1);
+            return FormatHierarchyNumber(number + 1, format ?? HierarchyFormat);
         }
 
-        private static string FormatHierarchyNumber(int number)
+        private static string FormatHierarchyNumber(int number, KeyHierarchyFormat format)
         {
-            if (string.IsNullOrEmpty(HierarchyNumberFormat)) return number.ToString();
-            if (HierarchyNumberFormat.StartsWith("D", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(format.NumberFormat)) return number.ToString();
+            if (format.NumberFormat.StartsWith("D", StringComparison.OrdinalIgnoreCase))
             {
-                int padding = HierarchyNumberFormat.Length > 1
-                    && int.TryParse(HierarchyNumberFormat.AsSpan(1), out int specifiedPadding)
+                int padding = format.NumberFormat.Length > 1
+                    && int.TryParse(format.NumberFormat.AsSpan(1), out int specifiedPadding)
                     ? Math.Max(1, specifiedPadding) : 1;
                 return number.ToString($"D{padding}");
             }
-            return number.ToString(HierarchyNumberFormat);
+            return number.ToString(format.NumberFormat);
         }
 
-        private static string FormatHierarchy(string hierarchy)
+        private static string FormatHierarchy(string hierarchy, KeyHierarchyFormat format)
         {
             if (string.IsNullOrEmpty(hierarchy)) return hierarchy;
-            if (!string.IsNullOrEmpty(HierarchySeparator))
+            if (!string.IsNullOrEmpty(format.Separator))
             {
-                var prefix = !string.IsNullOrEmpty(HierarchyPrefix) ? $"{HierarchyPrefix}{HierarchySeparator}" : "";
-                var suffix = !string.IsNullOrEmpty(HierarchySuffix) ? $"{HierarchySeparator}{HierarchySuffix}" : "";
+                var prefix = !string.IsNullOrEmpty(format.Prefix) ? $"{format.Prefix}{format.Separator}" : "";
+                var suffix = !string.IsNullOrEmpty(format.Suffix) ? $"{format.Separator}{format.Suffix}" : "";
                 return $"{prefix}{hierarchy}{suffix}";
             }
-            return $"{HierarchyPrefix}{hierarchy}{HierarchySuffix}";
+            return $"{format.Prefix}{hierarchy}{format.Suffix}";
         }
 
         public static string AddHierarchyToKey(string key, string hierarchy) =>

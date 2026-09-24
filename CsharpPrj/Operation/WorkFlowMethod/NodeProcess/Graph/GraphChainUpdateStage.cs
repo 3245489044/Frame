@@ -60,6 +60,15 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Graph
                         WorkFlowMethodLog.Info("GraphChainUpdate",
                             $"发现 {directives.Count} 个待处理更新指令");
 
+                        // A-2.7：改图指令先经框架 NodeDirectiveSet 产「计划」（版本单调 + 可审计；不直写图）。
+                        var plan = NodeDirectivePlanAdapter.Plan(
+                            snapshot.Version,
+                            directives,
+                            WorkFlowMethod.Skeletons.NodeProcess.Diagnostics.NodeFrameworkLogSink.Instance);
+
+                        WorkFlowMethodLog.Info("GraphChainUpdate",
+                            $"改图计划: v{plan.FromVersion}→v{plan.ToVersion}，动作 {plan.Actions.Count} 项");
+
                         var updatedSnapshot = await UpdateWorkflowChainAsync(input, snapshot, directives);
 
                         if (updatedSnapshot != null)

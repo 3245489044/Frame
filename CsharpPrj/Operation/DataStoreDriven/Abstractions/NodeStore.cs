@@ -84,8 +84,9 @@ public static class NodeTypes
     /// 「新建/刷新/载入历史」均退化为对引用图的操作（写根/查根/投影子图）。</summary>
     public const string Session = "session";
 
-    /// <summary>会话消息节点（NodeKey="session.{name}.msg.{seq}"，NodeType=conversation_message，
-    /// PayloadJson=单条 ConversationMessage JSON；seq 为 round_sequence 时序链序号，历史顺序由引用边决定）。</summary>
+    /// <summary>会话消息节点（NodeKey=<c>session.{name}.r{round}.msg.{seq}</c>（键权威 = SessionMessageKeys），
+    /// NodeType=conversation_message，PayloadJson=单条 ConversationMessage JSON；
+    /// seq 为**轮内**时序序号，历史顺序由键内 <c>(round, seq)</c> 决定 —— 轮次段使跨轮消息各占独立键，不被 upsert 覆盖）。</summary>
     public const string ConversationMessage = "conversation_message";
 
     /// <summary>全部逻辑/记录节点类型（三库收敛后由统一节点库承载的判别集）。</summary>

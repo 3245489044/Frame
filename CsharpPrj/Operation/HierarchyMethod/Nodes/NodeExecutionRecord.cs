@@ -14,6 +14,12 @@ namespace Operation.HierarchyMethod.Nodes
     /// </summary>
     public sealed record NodeExecutionRecord(
         string NodeKey,
+        /// <summary>
+        /// **存储命名空间**（ur_nodes 的 WorkflowId 列 + 图端点 Id 前缀 <c>{workflowId}.{nodeKey}</c>）——
+        /// 必须与落库侧 <see cref="NodeStepExecutionService"/> 的 workflowId 一致（默认 = NodeKeys.DefaultWorkflowId）。
+        /// 禁填工作流**来源名**（spec.Name）：图端点 Id 含该值，填来源名会使同一逻辑节点分裂成两个端点、
+        /// 时序边落到读侧找不到的命名空间。
+        /// </summary>
         string WorkflowId,
         IReadOnlyDictionary<string, object?> OutputPorts,
         IReadOnlyDictionary<string, (string Node, string Port)> Provenance,

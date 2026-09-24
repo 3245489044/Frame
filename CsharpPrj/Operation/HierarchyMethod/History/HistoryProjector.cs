@@ -51,7 +51,8 @@ public sealed class HistoryProjector : IHistoryProjector
         foreach (var rec in round?.Records ?? Array.Empty<NodeExecutionRecord>())
         {
             if (string.IsNullOrWhiteSpace(rec.NodeKey)) continue;
-            var workflowId = string.IsNullOrWhiteSpace(rec.WorkflowId) ? NodeKeys.DefaultWorkflowId : rec.WorkflowId;
+            // 命名空间取**存储命名空间**（与 ProjectMarkedAsync/落库侧同一权威）；不消费 rec.WorkflowId 以免来源名泄漏入图端点。
+            var workflowId = NodeKeys.DefaultWorkflowId;
             if (!string.IsNullOrWhiteSpace(taskKey))
                 await _relations.LinkNodeAsync(taskKey, workflowId, rec.NodeKey, ct).ConfigureAwait(false);
             if (prev is not null)
@@ -90,8 +91,10 @@ public sealed class HistoryProjector : IHistoryProjector
 
     /// <summary>
     /// 入史投影（CP-3 唯一入口）：按 <see cref="HistoryMarkPolicy"/> 过滤 → 标记节点依次投影为
-    /// <c>NodeType=conversation_message</c> 节点（<c>session.{name}.msg.{seq}</c>；seq 升序 = 时序权威）
-    /// + <c>session_owns</c> 挂载边 + <c>round_sequence</c> 相邻时序边。
+    /// <c>NodeType=conversation_message</c> 节点（<c>session.{name}.r{round}.msg.{seq}</c>，键生成唯一权威 =
+    /// <see cref="SessionMessageKeys"/>）+ <c>session_owns</c> 挂载边 + <c>round_sequence</c> 相邻时序边。
+    /// <para>时序权威 = 键内 <c>(round, seq)</c>（读侧排序见 <see cref="SessionMessageKeys.Compare"/>）；
+    /// <c>round_sequence</c> 为轮内相邻边（跨轮时序由键序表达），跨轮续接随「边单写」批收敛。</para>
     /// <para>未装配节点库 → 不写 L-B 节点（仅建边），返回 0；未装配关系管理 → 全跳过。</para>
     /// </summary>
     public async Task<int> ProjectMarkedAsync(
@@ -107,6 +110,8 @@ public sealed class HistoryProjector : IHistoryProjector
         await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
 
         var workflowId = NodeKeys.DefaultWorkflowId;
+        // 轮次归一（键的身份组成，见 SessionMessageKeys）：0/负值会使「跨轮同名覆盖」回归，故下限取 1。
+        var round = artifacts.Round > 0 ? artifacts.Round : 1;
         string? prevMarkedKey = null;
         var seq = 0;
         foreach (var record in (artifacts.Nodes ?? Array.Empty<NodeExecutionRecord>()))
@@ -115,7 +120,7 @@ public sealed class HistoryProjector : IHistoryProjector
             if (mark == NodeHistoryMark.None) continue;
 
             seq++;
-            var messageKey = SessionMessageKeys.Build(taskKey, seq);
+            var messageKey = SessionMessageKeys.Build(taskKey, round, seq);
             if (_nodes is not null)
                 await _nodes.PutAsync(new NodeRecord
                 {

@@ -49,7 +49,9 @@ public static class HistoryMarkPolicy
         return declared ?? NodeHistoryMark.None;
     }
 
-    /// <summary>声明面标记（<see cref="RoundStep.Mark"/>；未声明/不可识别 → null = 走默认规则）。</summary>
+    /// <summary>声明面标记（<see cref="RoundStep.Mark"/>；未声明/不可识别 → null = 走默认规则）。
+    /// 仅接受**具名值**（Numbered/Terminal/None，大小写不敏感）：禁 <c>Enum.TryParse</c> 的数字串静默映射
+    /// （<c>Mark=1</c>→Numbered、<c>Mark=2</c>→Terminal 会越权覆盖终答归因）。</summary>
     private static NodeHistoryMark? ResolveDeclaredMark(RoundSpec? spec, string nodeKey)
     {
         if (spec?.Steps is not { Count: > 0 }) return null;
@@ -57,8 +59,11 @@ public static class HistoryMarkPolicy
         {
             if (step.Mark is not { Length: > 0 } mark) continue;
             if (!string.Equals(step.EffectiveNodeId, nodeKey, StringComparison.Ordinal)) continue;
-            if (Enum.TryParse<NodeHistoryMark>(mark.Trim(), ignoreCase: true, out var parsed))
-                return parsed;
+            var text = mark.Trim();
+            if (text.Equals(nameof(NodeHistoryMark.Numbered), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.Numbered;
+            if (text.Equals(nameof(NodeHistoryMark.Terminal), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.Terminal;
+            if (text.Equals(nameof(NodeHistoryMark.None), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.None;
+            return null;
         }
         return null;
     }

@@ -118,17 +118,17 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>会话子图投影（时序序）：按 <c>session.{name}.msg.{seq}</c> 中 seq 整数升序投影消息节点键
-    /// （历史顺序由引用边决定的投影：seq 即 round_sequence 链序号）。缺失会话/无挂载返回空。</summary>
+    /// <summary>会话子图投影（时序序，**唯一实现**）：按 <see cref="SessionMessageKeys.OrderComparer"/>
+    /// （round → seq → 键名）升序投影消息节点键（<c>Order</c> 保留轮内序号，供只关心轮内位置的消费方）。
+    /// 缺失会话/无挂载返回空。</summary>
     public async Task<IReadOnlyList<NodeProjectionItem>> ProjectSessionNodesAsync(string sessionName, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<NodeProjectionItem>();
         var keys = await GetSessionNodeKeysAsync(sessionName, workflowId, ct).ConfigureAwait(false);
         if (keys.Count == 0) return Array.Empty<NodeProjectionItem>();
         return keys
+            .OrderBy(k => k, SessionMessageKeys.OrderComparer)
             .Select(k => new NodeProjectionItem(k, workflowId, ParseMsgSeq(k)))
-            .OrderBy(p => p.Order)
-            .ThenBy(p => p.NodeKey, StringComparer.Ordinal)
             .ToList();
     }
 
@@ -217,17 +217,11 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>会话 Id 单一权威：session.{name}（对齐 <see cref="NodeTypes.Session"/> NodeKey 约定）。</summary>
-    private static string SessionNodeId(string sessionName) => "session." + (sessionName ?? string.Empty).Trim();
+    /// <summary>会话根 Id（委托 <see cref="SessionMessageKeys.SessionRoot"/>：唯一权威，本层不拼串）。</summary>
+    private static string SessionNodeId(string sessionName) => SessionMessageKeys.SessionRoot(sessionName);
 
-    /// <summary>从消息节点键解析时序序号：<c>session.{name}.msg.{seq}</c> 末尾整数；无 seq 段回退 0（稳定序）。</summary>
-    private static int ParseMsgSeq(string nodeKey)
-    {
-        if (string.IsNullOrWhiteSpace(nodeKey)) return 0;
-        var marker = ".msg.";
-        var idx = nodeKey.LastIndexOf(marker, StringComparison.Ordinal);
-        return idx >= 0 && int.TryParse(nodeKey.Substring(idx + marker.Length), out var seq) ? seq : 0;
-    }
+    /// <summary>轮内时序序号解析（委托 <see cref="SessionMessageKeys.ParseSeq"/>：唯一权威）。</summary>
+    private static int ParseMsgSeq(string? nodeKey) => SessionMessageKeys.ParseSeq(nodeKey);
 
     /// <summary>镜像业务节点内容（upsert 全镜像，对齐「内容跟随」）：资源存在 → 更新 symbol/metadata；不存在 → 新增。
     /// 更新仅改 symbol/metadata、不删引用边（UpdateResourceAsync 语义），避免修改节点内容误删其关系。</summary>
@@ -644,4 +638,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
     Task<IReadOnlyList<string>> IHierarchyReferenceManager.GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct)
         => GetSessionNodeKeysAsync(sessionName, workflowId, ct);
+
+    Task<IReadOnlyList<NodeProjectionItem>> IHierarchyReferenceManager.ProjectSessionNodesAsync(string sessionName, string workflowId, CancellationToken ct)
+        => ProjectSessionNodesAsync(sessionName, workflowId, ct);
 }

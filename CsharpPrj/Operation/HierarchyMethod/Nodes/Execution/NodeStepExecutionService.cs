@@ -294,8 +294,10 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         /// 只持有轮次产出快照 <see cref="NodeExecutionRecord"/> 列表 —— 逐节点写输出端口（ur_nodes，经同一
         /// <see cref="WriteCoordinator"/> 单写门与 <c>persist:{nodeKey}</c> 目标命名）+ 业务节点行 + 引用/归属边。
         /// <para>与 <see cref="PersistAsync"/> 共用同一写门（禁第二写路径）；输出端口写失败单独归类、不吞（由上抛由调用方裁决）。</para>
+        /// <para>端口写循环与步骤路径（<see cref="WriteNodeOutputsAsync"/>）**语义不同故不合并**：步骤路径的输出端口 + KeyMapping
+        /// 并入同一 SQLite 事务（见 <see cref="PersistNodeOutputsAndKeyMappingsAsync"/>，需直写），本路径无事务、逐端口经写门单写。</para>
         /// </summary>
-        /// <param name="records">本轮各步产出快照（NodeKey 空者跳过）。</param>
+        /// <param name="records">本轮各步产出快照（NodeKey 空者跳过；无任何非空产出端口者跳过）。</param>
         /// <param name="taskKey">task→node 归属边键（空 = 不建归属边）。</param>
         /// <param name="ct">取消令牌。</param>
         public async Task PersistRoundAsync(
@@ -306,6 +308,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             {
                 ct.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(record.NodeKey)) continue;
+                // 空端口守卫（E5）：无任何非空产出的记录不落库 —— 不造「无产出空节点」（空结果语义见 InitialStateNullity）。
+                if (record.OutputPorts is not { Count: > 0 } || !record.OutputPorts.Any(kv => kv.Value is not null)) continue;
 
                 foreach (var (port, value) in record.OutputPorts)
                     if (value is not null)

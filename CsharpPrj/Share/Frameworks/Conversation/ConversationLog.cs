@@ -106,14 +106,12 @@ public sealed class ConversationLog
         {
             new(ConversationRole.System, null, null, "[上下文摘要] 已压缩前文上下文，保留关键信息。", 0, DateTimeOffset.UtcNow),
         };
-        var recent = _messages.Where(m => m.Role != ConversationRole.System).TakeLast(Math.Max(1, keep));
-        result.AddRange(recent);
+        result.AddRange(RecentNonSystem(keep));
         return result;
     }
 
     /// <summary>最近窗口 <paramref name="count"/> 条非系统消息（供 LLM 上下文投影；全量仍在 <see cref="Messages"/> 可查询）。</summary>
-    public IReadOnlyList<ConversationMessage> Window(int count)
-        => _messages.Where(m => m.Role != ConversationRole.System).TakeLast(Math.Max(1, count)).ToList();
+    public IReadOnlyList<ConversationMessage> Window(int count) => RecentNonSystem(count).ToList();
 
     /// <summary>默认压缩触发阈值（对齐旧 ShouldCompressContext 的 10）。</summary>
     public const int DefaultCompactionThreshold = 10;
@@ -123,6 +121,10 @@ public sealed class ConversationLog
 
     private int CountNonSystem() => _messages.Count(m => m.Role != ConversationRole.System);
 
+    /// <summary>最近 <paramref name="count"/> 条非 System 消息（窗口语义唯一实现：压缩 / 窗口 / 上下文渲染共用）。</summary>
+    private IEnumerable<ConversationMessage> RecentNonSystem(int count)
+        => _messages.Where(m => m.Role != ConversationRole.System).TakeLast(Math.Max(1, count));
+
     /// <summary>渲染最近 <paramref name="window"/> 条（非 System）为 LLM 上下文；includeSystem 前置系统消息。</summary>
     public string ToPromptText(int window, bool includeSystem = true)
     {
@@ -131,10 +133,7 @@ public sealed class ConversationLog
             foreach (var m in _messages.Where(m => m.Role == ConversationRole.System))
                 sb.AppendLine(m.Text);
 
-        var recent = _messages
-            .Where(m => m.Role != ConversationRole.System)
-            .TakeLast(Math.Max(1, window))
-            .ToList();
+        var recent = RecentNonSystem(window).ToList();
 
         foreach (var m in recent)
             sb.AppendLine($"{RoleLabel(m)}: {m.Text}");
@@ -174,17 +173,12 @@ public sealed class ConversationLog
         NextRound = _messages.Where(m => m.Role == ConversationRole.User).Select(m => m.Round).DefaultIfEmpty(0).Max();
     }
 
-    /// <summary>角色标签（供窗口渲染）。Stage 非空时附步骤名，便于 LLM 理解分层产出。</summary>
+    /// <summary>角色标签（供窗口渲染）。角色名权威 = <see cref="ConversationMessageMappings.RoleName"/>；Stage 非空时附步骤名。</summary>
     private static string RoleLabel(ConversationMessage m)
     {
-        var role = m.Role switch
-        {
-            ConversationRole.User => "user",
-            ConversationRole.Assistant => "assistant",
-            ConversationRole.Tool => string.IsNullOrWhiteSpace(m.Stage) ? "tool" : $"tool({m.Stage})",
-            ConversationRole.Error => "error",
-            _ => "system",
-        };
-        return role;
+        var role = ConversationMessageMappings.RoleName(m.Role);
+        return m.Role == ConversationRole.Tool && !string.IsNullOrWhiteSpace(m.Stage)
+            ? $"{role}({m.Stage})"
+            : role;
     }
 }

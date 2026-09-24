@@ -53,6 +53,8 @@ public sealed class JsonlSessionFactStore : ISessionFactStore
             throw new ArgumentException("数据根目录不得为空", nameof(dataDir));
         if (key.IsRunKey)
             throw new ArgumentException("事实文档按轮落点（run 级键无文档）", nameof(key));
+        if (key.Kind != FactIdKind.Round)
+            throw new ArgumentException("事实文档按轮落点（步骤 / 调用键归属其轮文档，禁独立落点）", nameof(key));
 
         return Path.Combine(dataDir, RootFolderName, key.SessionKey, FactIds.Round(key.SessionKey, key.RoundNo) + ".jsonl");
     }
@@ -99,7 +101,7 @@ public sealed class JsonlSessionFactStore : ISessionFactStore
     /// <inheritdoc />
     public async Task<IReadOnlyList<FactEnvelope>> LoadAsync(FactId key, CancellationToken ct = default)
     {
-        if (key.IsRunKey) return Array.Empty<FactEnvelope>();
+        if (key.IsRunKey || key.Kind != FactIdKind.Round) return Array.Empty<FactEnvelope>();
 
         var path = PathFor(key);
         if (!File.Exists(path)) return Array.Empty<FactEnvelope>();

@@ -19,10 +19,10 @@ public enum BindingRule
     /// <summary>键唯一：AnchorKey 全局唯一，无重复（R4）。</summary>
     R4_KeyUnique,
 
-    /// <summary>锚点可解析：AnchorKey 能被 SplitWfKey/已知前缀解析，无悬空（R5）。</summary>
+    /// <summary>锚点可解析：AnchorKey 能被 NodeKey 解析/已知前缀解析，无悬空（R5）。</summary>
     R5_KeyResolvable,
 
-    /// <summary>零额外：UI 不存在 Feed∉{LlmHistory,LlmSystem} 或未绑定 LLM 输入的消息（R6）。</summary>
+    /// <summary>R6：零额外 —— UI 不存在未绑定 LLM 输入的消息（权威: BindingRule.R6_ZeroExtra）。</summary>
     R6_ZeroExtra,
 }
 
@@ -75,7 +75,7 @@ public static class ContextBindingValidator
         }
     }
 
-    /// <summary>R5：AnchorKey 可解析（非空 + 已知前缀合法 / SplitWfKey 可拆）。</summary>
+    /// <summary>R5：AnchorKey 可解析（非空 + 已知前缀合法 / NodeKey 可拆）。</summary>
     private static void CheckR5(List<BindingViolation> violations, List<ConversationMessage> msgs, string source)
     {
         foreach (var m in msgs)
@@ -86,15 +86,13 @@ public static class ContextBindingValidator
         }
     }
 
-    /// <summary>R6：UI 每条消息都带 Binding 且 Origin ∈ {LlmHistory, LlmSystem}（无 UiOnly / 未绑定）。</summary>
+    /// <summary>R6：UI 每条消息都带 Binding（Origin 值域由 <see cref="MessageOrigin"/> 枚举自身封闭，无 UiOnly 档）。</summary>
     private static void CheckR6(List<BindingViolation> violations, IReadOnlyList<ConversationMessage> ui)
     {
         foreach (var m in ui)
         {
             if (m.Binding is null)
                 violations.Add(new BindingViolation(BindingRule.R6_ZeroExtra, string.Empty, "Ui", "未绑定 LLM 输入的消息"));
-            else if (m.Binding.Origin is not (MessageOrigin.LlmHistory or MessageOrigin.LlmSystem))
-                violations.Add(new BindingViolation(BindingRule.R6_ZeroExtra, m.Binding.Key.Value, "Ui", "Origin 不在 {LlmHistory,LlmSystem}"));
         }
     }
 
@@ -161,7 +159,7 @@ public static class ContextBindingValidator
         return map;
     }
 
-    /// <summary>锚点可解析判定：非空，且要么为已知前缀（history.{seq}/prompt.l*/skill.*），要么为 SplitWfKey 可拆的节点键。</summary>
+    /// <summary>锚点可解析判定：非空，且要么为已知前缀（history.{seq}/prompt.l*/skill.*），要么为 NodeKey 可拆的节点键。</summary>
     private static bool TryResolve(string key, out string detail)
     {
         if (string.IsNullOrEmpty(key))
@@ -182,30 +180,13 @@ public static class ContextBindingValidator
             detail = string.Empty;
             return true;
         }
-        // 节点键：SplitWfKey 拆出 (wf, node)，至少 node 非空（有或没有 wf 前缀均可）
-        SplitWfKey(key, out _, out var node);
-        if (string.IsNullOrEmpty(node))
+        // 节点键：NodeKey 拆出 (wf, node)，至少 node 非空（有或没有 wf 前缀均可）
+        if (string.IsNullOrEmpty(NodeKey.Split(key).Node))
         {
             detail = "节点键无法解析（node 为空）";
             return false;
         }
         detail = string.Empty;
         return true;
-    }
-
-    /// <summary>拆分节点键（与 ConversationScenarioProjector / ConversationViewService 同构）：“wf.nodeKey” → (“wf”,“nodeKey”)；无前缀 → (“”, key)。</summary>
-    private static void SplitWfKey(string key, out string wf, out string node)
-    {
-        var dot = key.IndexOf('.');
-        if (dot > 0)
-        {
-            wf = key.Substring(0, dot);
-            node = key.Substring(dot + 1);
-        }
-        else
-        {
-            wf = string.Empty;
-            node = key;
-        }
     }
 }

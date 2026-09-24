@@ -1,4 +1,5 @@
 using System;
+using Share.Conversation.Rendering;
 
 namespace Share.Conversation.ContextBinding;
 
@@ -16,8 +17,8 @@ public readonly record struct AnchorKey(string Value)
     /// <summary>组合技能块锚点（SkillBlock 经 SkillPromptAssembler 拼为单一文本时的稳定键）。</summary>
     public static AnchorKey SkillCombined => new("skill.block");
 
-    /// <summary>按技能名取头块锚点（对齐 <c>SkillHistoryMapping.KeyForBlock</c> 的 skill.{name}.block 约定）。</summary>
-    public static AnchorKey SkillBlock(string name) => new($"skill.{name}.block");
+    /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
+    public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 
     /// <summary>对话序号锚点 history.{seq}（ur_histories 消息按序编号）。</summary>
     public static AnchorKey History(int seq) => new($"history.{seq}");

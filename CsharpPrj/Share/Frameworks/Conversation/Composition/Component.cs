@@ -13,6 +13,6 @@ public sealed record Component(string Slot, int Order, object? Content) : ICompo
     public static Component Text(string slot, int order, string? text)
         => new(slot, order, text ?? string.Empty);
 
-    /// <summary>内容文本表示（null → 空串），供槽位装配器取值。</summary>
-    public string TextValue => Content?.ToString() ?? string.Empty;
+    /// <summary>内容文本表示（null → 空串），供槽位装配器取值；取值语义权威 = <see cref="KernelJoins.TextOf"/>。</summary>
+    public string TextValue => KernelJoins.TextOf(this);
 }

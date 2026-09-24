@@ -30,7 +30,7 @@ public interface ISessionFactStore
     Task<IReadOnlyList<FactEnvelope>> LoadAsync(FactId key, CancellationToken ct = default);
 
     /// <summary>列出已有文档键（倒序：最近轮在前；供取证与 GUI 列表）。</summary>
-    /// <param name="limit">最多返回条数。</param>
+    /// <param name="limit">最多返回条数（&lt;=0 = 不限）。</param>
     /// <param name="ct">取消令牌。</param>
     Task<IReadOnlyList<FactId>> ListAsync(int limit = 50, CancellationToken ct = default);
 }

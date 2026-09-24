@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Share.Conversation.ContextBinding;
 
 namespace Share.Composition;
@@ -31,11 +32,7 @@ public sealed record CompositionSnapshot(
     /// <summary>文本 SHA256 十六进制摘要（委托写侧快照构建器，保证与 I3 校验同一算法）。</summary>
     public static string Hash(string? text) => PromptSnapshotBuilder.Hash(text);
 
-    /// <summary>取指定锚点的绑定（无则 null）。</summary>
+    /// <summary>取指定锚点的绑定（无则 null；与 <see cref="PromptSnapshot.BindingFor"/> 同一实现）。</summary>
     public MessageBinding? BindingFor(AnchorKey key)
-    {
-        foreach (var b in Bindings)
-            if (b.Key == key) return b;
-        return null;
-    }
+        => Bindings.FirstOrDefault(b => b.Key == key);
 }

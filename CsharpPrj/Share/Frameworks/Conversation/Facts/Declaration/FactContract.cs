@@ -51,7 +51,7 @@ public sealed record FactContract(
         if (string.IsNullOrWhiteSpace(json))
             throw new ArgumentException("契约 JSON 不得为空", nameof(json));
 
-        var suffix = string.IsNullOrWhiteSpace(resourceSuffix) ? DefaultResourceSuffix : resourceSuffix!;
+        var suffix = Suffix(resourceSuffix);
         var dto = JsonSerializer.Deserialize<SchemaDto>(json, JsonOptions)
             ?? throw new InvalidOperationException($"契约 JSON 无法解析（{suffix}）");
 
@@ -83,11 +83,7 @@ public sealed record FactContract(
     /// <summary>嵌入资源是否存在（自带宿主 / 裁剪场景的诊断可见性）。</summary>
     /// <param name="resourceSuffix">资源名后缀（null = 默认线格式契约名）。</param>
     public static bool GeneratedExists(string? resourceSuffix = null)
-    {
-        var suffix = Suffix(resourceSuffix);
-        return typeof(FactContract).Assembly.GetManifestResourceNames()
-            .Any(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
-    }
+        => ResolveResourceName(typeof(FactContract).Assembly, resourceSuffix) is not null;
 
     /// <summary>读取嵌入契约文本（跨语言线格式 + 受控词表的唯一物理载体）。</summary>
     /// <param name="resourceSuffix">资源名后缀（null = 默认线格式契约名）。</param>
@@ -95,14 +91,23 @@ public sealed record FactContract(
     {
         var suffix = Suffix(resourceSuffix);
         var assembly = typeof(FactContract).Assembly;
-        var name = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        var name = ResolveResourceName(assembly, resourceSuffix)
             ?? throw new InvalidOperationException($"程序集缺少嵌入资源 {suffix}（会话事实契约）");
 
         using var stream = assembly.GetManifestResourceStream(name)
             ?? throw new InvalidOperationException($"无法打开嵌入资源 {name}");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    /// <summary>嵌入资源全名解析（唯一实现：存在性判定与读取共用同一扫描）。</summary>
+    /// <param name="assembly">承载契约的程序集。</param>
+    /// <param name="resourceSuffix">资源名后缀（null / 空白 → 默认值）。</param>
+    private static string? ResolveResourceName(System.Reflection.Assembly assembly, string? resourceSuffix)
+    {
+        var suffix = Suffix(resourceSuffix);
+        return assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>资源名后缀归一（null / 空白 → 默认值）。</summary>

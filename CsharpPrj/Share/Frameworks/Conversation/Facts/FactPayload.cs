@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Text.Json;
 
 namespace Share.Conversation.Facts;
@@ -71,24 +70,13 @@ public static class FactPayload
     /// <param name="fallback">缺失时的缺省值。</param>
     /// <param name="keys">候选键名。</param>
     public static bool ReadBool(string? payloadJson, bool fallback, params string[] keys)
-    {
-        var found = false;
-        var value = false;
-        ForEachCandidate(payloadJson, keys, element =>
+        => Find(payloadJson, keys, element => element.ValueKind switch
         {
-            switch (element.ValueKind)
-            {
-                case JsonValueKind.True:
-                    found = true; value = true; break;
-                case JsonValueKind.False:
-                    found = true; value = false; break;
-                case JsonValueKind.String when bool.TryParse(element.GetString(), out var parsed):
-                    found = true; value = parsed; break;
-            }
-            return found;
-        });
-        return found ? value : fallback;
-    }
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String when bool.TryParse(element.GetString(), out var parsed) => parsed,
+            _ => (bool?)null,
+        }) ?? fallback;
 
     /// <summary>读整数字段（缺失 / 非法 → null）。</summary>
     /// <param name="payloadJson">载荷文本。</param>
@@ -111,25 +99,6 @@ public static class FactPayload
             JsonValueKind.String => double.TryParse(element.GetString(), out var parsed) ? parsed : (double?)null,
             _ => null,
         });
-
-    /// <summary>载荷规模（字符数；事实只存摘要 + <c>text_len</c> 的体积判据）。</summary>
-    /// <param name="payloadJson">载荷文本。</param>
-    public static int LengthOf(string? payloadJson) => payloadJson?.Length ?? 0;
-
-    /// <summary>载荷的 UTF-8 字节数（体积 / 成本判据用）。</summary>
-    /// <param name="payloadJson">载荷文本。</param>
-    public static int Utf8ByteCount(string? payloadJson)
-        => string.IsNullOrEmpty(payloadJson) ? 0 : Encoding.UTF8.GetByteCount(payloadJson!);
-
-    /// <summary>诊断预览（截断显示，只供日志可见化；**不用于判据**）。</summary>
-    /// <param name="payloadJson">载荷文本。</param>
-    /// <param name="maxChars">最大字符数。</param>
-    public static string Preview(string? payloadJson, int maxChars = 200)
-    {
-        if (string.IsNullOrWhiteSpace(payloadJson)) return string.Empty;
-        var text = payloadJson!.Replace('\r', ' ').Replace('\n', ' ');
-        return text.Length <= maxChars ? text : text[..maxChars] + "…";
-    }
 
     /// <summary>按候选键序投影首命中值（引用类型与可空值类型通用）。</summary>
     private static T? Find<T>(string? payloadJson, string[] keys, Func<JsonElement, T?> project)

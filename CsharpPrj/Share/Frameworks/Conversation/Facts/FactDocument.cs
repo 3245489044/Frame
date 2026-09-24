@@ -22,7 +22,6 @@ public sealed class FactDocument
         Facts = (facts ?? Array.Empty<FactEnvelope>())
             .OrderBy(f => f.Seq)
             .ToList();
-        NextSeq = Facts.Count == 0 ? 0 : Facts[^1].Seq + 1;
         Completeness = FactCompleteness.Of(Facts);
         FinalAnswer = Facts.LastOrDefault(f => f.Kind == FactKindNames.FinalAnswer);
     }
@@ -32,9 +31,6 @@ public sealed class FactDocument
 
     /// <summary>事实条目（按序号升序；只增不丢）。</summary>
     public IReadOnlyList<FactEnvelope> Facts { get; }
-
-    /// <summary>下一个可用序号（同文档内单调无空洞，F3）。</summary>
-    public long NextSeq { get; }
 
     /// <summary>完备性（可机检的「这一轮是否完整」）。</summary>
     public FactCompleteness Completeness { get; }

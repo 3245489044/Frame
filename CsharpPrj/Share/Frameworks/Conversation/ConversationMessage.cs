@@ -22,8 +22,4 @@ public sealed record ConversationMessage(
     int Round,
     DateTimeOffset AtUtc,
     string? Payload = null,
-    MessageBinding? Binding = null)
-{
-    /// <summary>缺失归档字段的向前/向后兼容默认（旧数据无 Stage/SubAgent 时用于反序列化兜底）。</summary>
-    public static readonly ConversationMessage Empty = new(ConversationRole.System, null, null, string.Empty, 0, default);
-}
+    MessageBinding? Binding = null);

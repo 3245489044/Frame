@@ -6,7 +6,6 @@ using Modules.Node.Materialization;
 using Modules.Node.Placement;
 using Modules.Node.Ports;
 using Modules.Node.Projection;
-using Modules.Node.RunState;
 using Modules.Node.Spec;
 
 namespace Modules.Node;
@@ -188,12 +187,4 @@ public sealed class NodeFramework
 
     /// <summary>端口键空间按运行单元创建（键连接不外溢：只用键与字符串值）。</summary>
     public PortKeySpace CreatePortKeySpace() => new();
-
-    /// <summary>运行态按层级实体创建（Actor = ∅ 即无执行体，为数据缺省）。</summary>
-    public NodeRunState CreateRunState(
-        RunStateStage stage = RunStateStage.Idle,
-        NodeActorRef? actor = null,
-        int? round = null,
-        ProjectionOrigin origin = ProjectionOrigin.Snapshot) =>
-        new(stage, actor, round, origin: origin);
 }

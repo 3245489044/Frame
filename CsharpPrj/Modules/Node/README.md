@@ -47,10 +47,15 @@ Modules/Node/
     ├── Ports/           PortKeySpace / NodePortBinding
     ├── Spec/            NodeFrameworkSpecLoader / NodeSpecValidator / NodeReferenceIndex / NodeDirectiveSet / NodeChainComposer
     ├── Projection/      NodeReadProjection
-    ├── RunState/        NodeRunState
     ├── Governance/      NodeReconciler
     └── Diagnostics/     NodeFrameworkDiagnostics（实例级，禁进程静态）
 ```
+
+> **退役记录（2026-09-25）**：`RunState/`（`NodeRunState` + `RunStateStage` 枚举）已**退役删除** ——
+> 运行态受控词与转移表的唯一来源 = `Operation.HierarchyMethod\Hierarchy\Dataflow\RunState\RunStateStage`
+> （位置层不引上层契约：本工程零 `Frame` 依赖，无法也不应持有第二套运行态模型）；
+> 消费方 `WorkFlowMethod\…\Session\NodeExecutionState.cs` 已同步摘除 `ToRunState` / `StageOverrides`。
+> 判据：`Check-AgentLayerBoundary.ps1 -Check`（INV-L3 定义点只降不升）。
 
 ## 契约边界（D-1 裁决 · 案 A）
 

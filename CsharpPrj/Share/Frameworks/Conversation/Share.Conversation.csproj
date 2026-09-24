@@ -16,4 +16,11 @@
     <Description>对话日志 — 消息模型 + 追加 + 窗口渲染 + 序列化（含 Stage/SubAgent 泛化）</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- 会话事实标准机制层（Facts/：标识 + append-only 事实文档 + 线格式 + 存储端口）：
+         本程序集为平台层（零 Agent 依赖），线格式 schema 作跨语言契约随程序集嵌入分发。
+         真源 = Projects\Plug\Agent\Config\session-facts.ushar（声明面），生成物 = Facts\Schema\session-fact.v1.schema.json。 -->
+    <EmbeddedResource Include="Facts\Schema\session-fact.v1.schema.json" />
+  </ItemGroup>
+
 </Project>

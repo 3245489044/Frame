@@ -73,6 +73,12 @@
         Note   = '默认检查模式；-ShowDetail 显示详情'
     }
 
+    FactStandard = @{
+        Args   = @{}
+        Expect = 0
+        Note   = '会话事实标准 C1–C4 + 声明面闸A；-Strict 为严格模式（C3 旧标识残留判失败），-ShowDetail 显示详情'
+    }
+
     # ===== 入口框架守卫 =====
     InvokeEntrypoints = @{
         Args   = @{ Check = $true }

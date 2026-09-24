@@ -1,0 +1,80 @@
+{
+  "v": "1",
+  "source": "Config/session-facts.ushar",
+  "note": "发射生成物（P2-13 起由 Usharp.Cli 发射）：本文件为跨语言线格式 + 受控词/载荷契约的单一物理载体，禁手写第二份词表。",
+  "envelope": {
+    "fields": ["v", "key", "kind", "seq", "atUtc", "actor", "source", "authority", "payload", "externalRefs"],
+    "required": ["v", "key", "kind", "seq", "atUtc", "source", "authority", "payload"],
+    "note": "payload 为 kind 专属浅层 JSON 对象（键名小写下划线）；externalRefs 为外部代号（禁作关联键）。"
+  },
+  "vocabularies": {
+    "FactSource": ["Csharp", "TsDaemon", "TsSdk", "Legacy", "Synthetic"],
+    "FactAuthority": ["Authoritative", "Session", "Streamed", "Error"],
+    "ExternalRefKind": ["TsSdk", "TsDaemon", "Ecs", "Lease"],
+    "FactIdSegment": ["session", "round", "step", "attempt", "iteration", "call"],
+    "ExternalRefKindNote": ["只作属性，禁参与关联"],
+    "SessionFactKind": [
+      "RoundDispatch", "StepStart", "LlmIteration", "ToolCall", "ToolResult", "StepResult",
+      "FinalAnswer", "RoundTerminate", "ErrorClassified", "CostMeasured", "GovernanceObs"
+    ]
+  },
+  "events": [
+    {
+      "name": "RoundDispatch", "entity": "round_fact",
+      "required": ["trace_key", "mode", "round_no"], "metrics": [],
+      "enum": { "mode": ["act", "plan"] }
+    },
+    {
+      "name": "StepStart", "entity": "step_fact",
+      "required": ["trace_key", "step_name", "executor"], "metrics": [], "enum": {}
+    },
+    {
+      "name": "LlmIteration", "entity": "step_fact",
+      "required": ["trace_key", "iteration"], "metrics": [], "enum": {}
+    },
+    {
+      "name": "ToolCall", "entity": "step_fact",
+      "required": ["trace_key", "tool_name", "tool_call_id"], "metrics": [], "enum": {}
+    },
+    {
+      "name": "ToolResult", "entity": "step_fact",
+      "required": ["trace_key", "ok", "tool_call_id"], "metrics": ["elapsed_ms"], "enum": {}
+    },
+    {
+      "name": "StepResult", "entity": "step_fact",
+      "required": ["trace_key", "ok", "result_source", "result_kind"],
+      "metrics": ["elapsed_ms", "text_len"],
+      "enum": { "result_kind": ["completion_result", "narration", "error"] }
+    },
+    {
+      "name": "FinalAnswer", "entity": "step_fact",
+      "required": ["trace_key", "authority", "result_kind"],
+      "metrics": ["text_len", "iterations", "tool_calls"],
+      "enum": {
+        "authority": ["Authoritative", "Session", "Streamed", "Error"],
+        "result_kind": ["completion_result", "narration", "error"]
+      }
+    },
+    {
+      "name": "RoundTerminate", "entity": "round_fact",
+      "required": ["trace_key", "term_kind", "partial_reason"],
+      "metrics": ["elapsed_ms"],
+      "enum": {
+        "term_kind": ["completed", "step_timeout", "idle_hung", "killed_by_owner", "crashed", "cancelled", "duplicated"],
+        "partial_reason": ["none", "no_final_answer", "streamed_only", "tool_denied", "engine_exited", "auth_failed", "timeout", "ingest_miss"]
+      }
+    },
+    {
+      "name": "ErrorClassified", "entity": "step_fact",
+      "required": ["trace_key", "error_class", "tolerance"], "metrics": [], "enum": {}
+    },
+    {
+      "name": "CostMeasured", "entity": "round_fact",
+      "required": ["trace_key"], "metrics": ["tokens_in", "tokens_out", "elapsed_ms"], "enum": {}
+    },
+    {
+      "name": "GovernanceObs", "entity": "round_fact",
+      "required": ["trace_key", "event"], "metrics": [], "enum": {}
+    }
+  ]
+}

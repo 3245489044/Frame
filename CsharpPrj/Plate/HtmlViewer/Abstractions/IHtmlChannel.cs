@@ -33,6 +33,13 @@ public interface IHtmlChannel
     Task<bool> IsBridgeReadyAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// 宿主 → 页面**反向推送**（页面侧 <c>window.chrome.webview message</c> 事件）：事件驱动的变化刷新用，
+    /// 页面脚本按 <c>data-refresh-throttle</c>（默认 1000ms）做 trailing 节流后经既有消息桥回投刷新请求。
+    /// 返回 false = 未送达（CoreWebView2 未就绪 / 页面脚本未注入 / 推送异常），调用方按诊断计（不得静默当成功）。
+    /// </summary>
+    Task<bool> PostToPageAsync(string json, CancellationToken ct = default);
+
+    /// <summary>
     /// 回流链路自检（P0 探针）：经本通道注入 <c>__loopback__</c> postMessage，并确认 <c>MessageReceived</c>/WebView2 传输侧
     /// 真的收到。直接证明「DOM postMessage → C# 消息桥入口」是否闭环，**不依赖可选诊断 sink**（消除「无日志=未达 C#」伪证）。
     /// 返回 true=回流正常；false=传输断裂（未订阅/实例错配/超时）。

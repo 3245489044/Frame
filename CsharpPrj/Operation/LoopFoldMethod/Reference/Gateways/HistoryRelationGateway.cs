@@ -80,6 +80,10 @@ public sealed class HistoryRelationGateway
     public Task AddSequenceAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default)
         => _maintenance is null ? Task.CompletedTask : _maintenance.AddRoundSequenceEdgeAsync(workflowId, fromNode, toNode, ct);
 
+    /// <summary>会话归属边（session_owns）：把会话消息/产出节点挂到会话根（入史层挂载；幂等加法）。</summary>
+    public Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default)
+        => _maintenance is null ? Task.CompletedTask : _maintenance.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);
+
     /// <summary>返回该历史归拢的任务键集（History class 容器成员）。</summary>
     public async Task<IReadOnlyList<string>> GetTaskKeysAsync(string historyId, CancellationToken ct = default)
     {

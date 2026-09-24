@@ -47,6 +47,9 @@ public interface IHistoryRelationManager
     /// <summary>返回该历史挂载的业务节点键（历史作用域寻址）。**派生**：= 该历史全部任务的节点并集。</summary>
     Task<IReadOnlyList<string>> GetNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
+    /// <summary>会话归属边（session_owns）：会话消息节点 → 会话根（入史层挂载；幂等加法）。</summary>
+    Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
+
     /// <summary>列出全部历史（供 UI 会话下拉 / 历史枚举）。</summary>
     Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default);
 }

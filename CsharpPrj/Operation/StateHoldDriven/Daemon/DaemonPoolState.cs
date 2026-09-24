@@ -246,6 +246,8 @@ public sealed class DaemonPoolState : IDisposable
     private void OnTrace(string workerId, DaemonResponse resp)
     {
         if (string.IsNullOrWhiteSpace(resp.Stage)) return;
+        // 阶段帧宿主投影（只读契约）：与既有诊断日志并列，不改阶段追踪通道语义。
+        DaemonPool.TraceSink?.Invoke(workerId, resp.Stage!);
         if (string.Equals(resp.Type, "csg", StringComparison.Ordinal))
         {
             // CSG 状态帧（type:"csg"）：首帧透传完整 CanonicalForm 契约载荷，供 C# 侧消费/核对 worker 生命周期状态；

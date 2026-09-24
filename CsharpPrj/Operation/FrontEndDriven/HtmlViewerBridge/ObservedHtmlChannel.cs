@@ -44,6 +44,10 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
     public Task<bool> IsBridgeReadyAsync(CancellationToken ct = default)
         => _inner.IsBridgeReadyAsync(ct);
 
+    /// <summary>宿主 → 页面反向推送（透传底层通道；收敛写仅覆盖渲染面）。</summary>
+    public Task<bool> PostToPageAsync(string json, CancellationToken ct = default)
+        => _inner.PostToPageAsync(json, ct);
+
     public Task<bool> LoopbackProbeAsync(CancellationToken ct = default)
         => _inner.LoopbackProbeAsync(ct);
 

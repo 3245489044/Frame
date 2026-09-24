@@ -97,4 +97,30 @@ public sealed class NodeStepPersistCoordinator
             if (props.TryGetValue(key, out var v) && v is not null)
                 vars.Set(key, v);
     }
+
+    /// <summary>
+    /// 轮次产物整批落库（非步骤路径复用，CP-1 配套）：会话/折叠链路一次产出本轮全量节点快照，无步骤暂存可读。
+    /// <para>与 <see cref="OnAfterStepAsync"/> 同一纪律：失败**单独归类 + 归因日志、不翻转业务 ok**（增强路径失败非致命）；
+    /// 取消上抛交由调用方按取消语义处理。</para>
+    /// </summary>
+    /// <param name="records">本轮各步产出快照。</param>
+    /// <param name="taskKey">task→node 归属边键（空 = 不建归属边）。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async Task PersistRoundAsync(
+        System.Collections.Generic.IReadOnlyList<NodeExecutionRecord> records, string? taskKey, CancellationToken ct)
+    {
+        try
+        {
+            await _service.PersistRoundAsync(records, taskKey, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // 取消上抛，交由调用方按取消语义处理，不归为持久化失败
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("ConversationPipeline_roundPersist_failed",
+                new { errorClass = ErrorClassifier.ClassifyError(ex).ToString(), error = ex.Message, count = records?.Count ?? 0 });
+        }
+    }
 }

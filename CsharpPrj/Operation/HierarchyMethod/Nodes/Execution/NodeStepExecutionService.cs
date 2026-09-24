@@ -289,6 +289,43 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private Task WritePortCoreAsync(string nodeKey, string port, object? value, CancellationToken ct)
             => _store!.WriteOutputAsync(_workflowId, nodeKey, port, value, ct);
 
+        /// <summary>
+        /// 轮次产物整批落库（非步骤路径复用，CP-1 配套）：会话/折叠链路无步骤暂存（<see cref="NodeRoundContext"/>），
+        /// 只持有轮次产出快照 <see cref="NodeExecutionRecord"/> 列表 —— 逐节点写输出端口（ur_nodes，经同一
+        /// <see cref="WriteCoordinator"/> 单写门与 <c>persist:{nodeKey}</c> 目标命名）+ 业务节点行 + 引用/归属边。
+        /// <para>与 <see cref="PersistAsync"/> 共用同一写门（禁第二写路径）；输出端口写失败单独归类、不吞（由上抛由调用方裁决）。</para>
+        /// </summary>
+        /// <param name="records">本轮各步产出快照（NodeKey 空者跳过）。</param>
+        /// <param name="taskKey">task→node 归属边键（空 = 不建归属边）。</param>
+        /// <param name="ct">取消令牌。</param>
+        public async Task PersistRoundAsync(
+            IReadOnlyList<NodeExecutionRecord> records, string? taskKey = null, CancellationToken ct = default)
+        {
+            if (records is null) return;
+            foreach (var record in records)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(record.NodeKey)) continue;
+
+                foreach (var (port, value) in record.OutputPorts)
+                    if (value is not null)
+                        await WritePortAsync(record.NodeKey, port, value, ct).ConfigureAwait(false);
+
+                // 业务节点行 + 引用/归属边：以最小 NodeDefinition 复用引用落地实现（不复制建边逻辑）。
+                if (_nodes is null && _relationGateway is null) continue;
+                var node = new NodeDefinition
+                {
+                    NodeKey = record.NodeKey,
+                    WorkflowId = _workflowId,
+                    Symbol = record.NodeKey,
+                    ResultKeys = record.OutputPorts.Keys.ToList(),
+                };
+                var input = new NodeInputSnapshot(
+                    new Dictionary<string, object?>(StringComparer.Ordinal), record.Provenance);
+                await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);
+            }
+        }
+
         private async Task PersistCoreAsync(
             NodeDefinition node, IReadOnlyDictionary<string, object?> props, NodeInputSnapshot input, string? taskKey, CancellationToken ct)
         {

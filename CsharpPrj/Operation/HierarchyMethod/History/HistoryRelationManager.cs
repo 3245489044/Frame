@@ -62,6 +62,10 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     public Task AddSequenceAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default)
         => _gateway.AddSequenceAsync(workflowId, fromNode, toNode, ct);
 
+    /// <summary>会话归属边（session_owns）：把会话消息节点挂到会话根（入史层挂载；写边委托网关）。</summary>
+    public Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default)
+        => _gateway.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);
+
     public Task<IReadOnlyList<string>> GetTaskKeysAsync(string historyId, CancellationToken ct = default)
         => _gateway.GetTaskKeysAsync(historyId, ct);
 

@@ -9,6 +9,16 @@ using TConfig;
 
 namespace UiBackend.Html;
 
+/// <summary>HTML 写回方式（宿主控件声明 <c>writeback</c> 驱动；缺省 Navigate 零回归）。</summary>
+public enum HtmlWriteBackMode
+{
+    /// <summary>整页重载（<c>NavigateToString</c>）：整文档替换，滚动/焦点/展开态随之重置。</summary>
+    Navigate,
+
+    /// <summary>内容补丁（仅替换 body/容器 <c>innerHTML</c> 并保存恢复滚动、展开与焦点态）：不重载文档，UI 位置保持。</summary>
+    Patch,
+}
+
 /// <summary>
 /// HTML 后端运行时——把宿主注入的单一通道 <see cref="IHtmlChannel"/>（由 htmlviewer 实现）+ 声明控件树 +
 /// 函数调用端口组装为事件桥/脚本桥的执行上下文。宿主在创建 htmlviewer 后装配。
@@ -28,6 +38,17 @@ public sealed class HtmlBackendRuntime
 
     // 已装配的宿主 htmlviewer 消息订阅（控件名 → 订阅；幂等，重复 AttachHostMessage 先解除旧订阅）
     private readonly Dictionary<string, IDisposable> _hostSubscriptions = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>最近一次写回内容（控件名 → 内容+是否成功）：内容未变则跳过写回，消除"变化驱动 + 1s 节流"下的空转 DOM 抖动。</summary>
+    private readonly Dictionary<string, WriteRecord> _lastWrite = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>已完成整页渲染（文档壳 + 主题 CSS 就位）的宿主控件：首次写回必须整页渲染（补丁只换 body，头/主题需先落地）。</summary>
+    private readonly HashSet<string> _navigatedHosts = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly record struct WriteRecord(string Html, bool Ok);
+
+    /// <summary>写回方式声明值（ControlConfig.Writeback）→ 补丁模式。</summary>
+    private const string PatchWritebackValue = "patch";
 
     public HtmlBackendRuntime(
         IHtmlChannel channel,
@@ -98,16 +119,41 @@ public sealed class HtmlBackendRuntime
             return $"控件 {hostControlName} 未声明 events.message";
         }
 
-        // output 双通道：宿主内容写回（output=宿主控件名 → RenderHtmlAsync）
-        // S1 统一写回：经注入的 HtmlWritePump（连接层 Observe 收敛实现，保留 Converged/Degraded 语义）投递并等待「可观测」收敛，
+        // output 双通道：宿主内容写回（output=宿主控件名 → 按声明写回方式：整页渲染 或 内容补丁）。
+        // S1 统一写回：Navigate 经注入的 HtmlWritePump（连接层 Observe 收敛实现，保留 Converged/Degraded 语义）投递并等待「可观测」收敛，
         // 取代裸 RenderHtmlAsync fire-and-forget——消除「写回已应用但 DOM 未就绪 → 后续交互命中旧 DOM」窗口（通用状态同步框架 I1–I4）。
+        // Patch（声明 writeback=patch）经 DOM 补丁替换内容：不重载文档，滚动/展开/焦点态保持（刷新不重置 UI 位置），
+        // 补丁失败（桥未就绪/元素缺失）自动回退整页渲染，绝不静默丢刷新。
         // 未注入 pump（无 Observe 消费的宿主）→ 回退纯渲染（channel.RenderHtmlAsync），plate 仍不感知 Observe 类型。
+        var writeMode = ResolveWriteBackMode(hostControlName);
         _eventBridge.RegisterHostWriter(hostControlName, async html =>
         {
+            if (_lastWrite.TryGetValue(hostControlName, out var prev)
+                && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
+            {
+                Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（内容未变；mode={writeMode}）");
+                return;
+            }
             contentSink?.Invoke(html);
+            if (writeMode == HtmlWriteBackMode.Patch && _navigatedHosts.Contains(hostControlName))
+            {
+                var status = HtmlElementNode.UnwrapString(
+                    await channel.ExecuteAsync(DomOps.Patch, null, html).ConfigureAwait(false));
+                if (string.Equals(status, "OK", StringComparison.Ordinal))
+                {
+                    _lastWrite[hostControlName] = new WriteRecord(html, true);
+                    Report("EventBridge_writeback", $"补丁写回 {hostControlName}: OK（不重载文档，UI 位置保持）");
+                    return;
+                }
+                Report("EventBridge_writeback",
+                    $"补丁写回 {hostControlName} 未生效（{status}）→ 回退整页渲染");
+            }
             if (_writePump is not null)
             {
                 var result = await _writePump(html).ConfigureAwait(false);
+                _lastWrite[hostControlName] = new WriteRecord(html, result.Status != HtmlWriteBackStatus.Failed);
+                if (result.Status != HtmlWriteBackStatus.Failed)
+                    _navigatedHosts.Add(hostControlName);
                 Report("EventBridge_writeback",
                     $"收敛写回 {hostControlName}: result={result.Status}" +
                     (result.Detail is not null ? $", ack={result.Detail}" : "") +
@@ -116,6 +162,8 @@ public sealed class HtmlBackendRuntime
             else
             {
                 await channel.RenderHtmlAsync(html).ConfigureAwait(false);
+                _lastWrite[hostControlName] = new WriteRecord(html, true);
+                _navigatedHosts.Add(hostControlName);
                 Report("EventBridge_writeback", $"写回 {hostControlName}（无收敛 pump，走纯渲染）");
             }
         });
@@ -147,6 +195,19 @@ public sealed class HtmlBackendRuntime
         Readiness.HostWriterRegistered = true;
         Readiness.MessageSubscribed = true;
         return null;
+    }
+
+    /// <summary>写回方式解析（声明驱动，单一真源）：宿主控件声明 <c>writeback="patch"</c> → 内容补丁；缺省 navigate（整页重载，零回归）。
+    /// 域隔离同事件桥：先裸名、再 host: 域键。</summary>
+    private HtmlWriteBackMode ResolveWriteBackMode(string hostControlName)
+    {
+        if (_controlsByName.TryGetValue(hostControlName, out var cfg)
+            || _controlsByName.TryGetValue(HtmlDeclarationParser.HostKey(hostControlName), out cfg))
+        {
+            if (string.Equals(cfg.Writeback?.Trim(), PatchWritebackValue, StringComparison.OrdinalIgnoreCase))
+                return HtmlWriteBackMode.Patch;
+        }
+        return HtmlWriteBackMode.Navigate;
     }
 
     private static bool HasMessageEvent(ControlConfig control)

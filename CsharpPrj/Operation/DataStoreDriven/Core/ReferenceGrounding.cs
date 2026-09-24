@@ -641,4 +641,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
     Task<IReadOnlyList<string>> IHierarchyReferenceManager.GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct)
         => GetHistoryNodeKeysAsync(historyId, workflowId, ct);
+
+    Task<IReadOnlyList<string>> IHierarchyReferenceManager.GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct)
+        => GetSessionNodeKeysAsync(sessionName, workflowId, ct);
 }

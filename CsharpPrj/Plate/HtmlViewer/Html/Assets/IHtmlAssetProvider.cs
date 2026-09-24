@@ -8,7 +8,9 @@ public static class HtmlAssetKeys
     // 静态脚本
     public const string BridgeScript = "bridge";
     public const string TabSwapScript = "tabswap";
-    public const string PollBridgeScript = "pollBridge";
+
+    /// <summary>反向刷新桥（宿主推送 + 1s trailing 节流 + 兜底慢轮询 + 手动刷新）。</summary>
+    public const string RefreshBridgeScript = "refreshBridge";
 
     // 参数化模板（含 $PLACEHOLDER，由 HtmlScriptExecutor 统一 JSON 序列化展开）
     public const string DomHandleTemplate = "domHandle";

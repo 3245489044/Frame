@@ -38,6 +38,10 @@ public sealed class DaemonPool : IDisposable
     /// <summary>池诊断钩子（宿主注入日志器；缺省 no-op）。</summary>
     public static Action<string, object?>? Diagnostics { get; set; }
 
+    /// <summary>阶段追踪帧钩子（宿主注入只读投影；缺省 no-op）。trace/csg 帧在池状态层透传诊断时同步回调
+    /// <c>(workerId, stage)</c> —— 供宿主做「最近阶段」读写（进度可见化），不影响阶段追踪既有日志通道。</summary>
+    public static Action<string, string>? TraceSink { get; set; }
+
     public DaemonPool(DaemonPoolOptions options, IDaemonTransport transport)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));

@@ -98,6 +98,12 @@ public class ControlConfig
     [JsonPropertyName("backend")]
     public string? Backend { get; set; }
 
+    /// <summary>写回方式声明（htmlviewer/markdownviewer 宿主控件）：缺省/空 = <c>navigate</c>（整页重载，零回归）；
+    /// <c>patch</c> = 内容补丁（仅替换 body/容器 innerHTML，保存并恢复滚动、&lt;details&gt; 展开与焦点态）——
+    /// 供事件驱动的刷新写回使用，消除 NavigateToString 整文档重载导致的 UI 位置重置。</summary>
+    [JsonPropertyName("writeback")]
+    public string? Writeback { get; set; }
+
     /// <summary>htmlviewer/markdownviewer 内部页面布局声明（JSON 控件树，经 HTML 后端投影；
     /// 缺省 null = 无内部声明，控件仅作富文本宿主）。[HtmlPageDeclaration 元素复用本类，HtmlControlFactory/HtmlLayoutProjector 直接消费]</summary>
     [JsonPropertyName("htmlPage")]

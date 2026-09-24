@@ -45,7 +45,7 @@ public sealed class HtmlScriptHost
     private static readonly string[] DocumentScripts =
     {
         HtmlAssetKeys.BridgeScript,
-        HtmlAssetKeys.PollBridgeScript,
+        HtmlAssetKeys.RefreshBridgeScript,
     };
 
     /// <summary>当前活 document 是否已注入 __domBridge（点击桥随其就位）；临时性失败（document 未就绪/被导航替换）返回 false，不抛。</summary>

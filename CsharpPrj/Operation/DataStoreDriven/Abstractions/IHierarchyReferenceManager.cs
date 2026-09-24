@@ -47,5 +47,10 @@ namespace Operation.DataStoreDriven.Abstractions
 
         /// <summary>该历史的工作流节点键集（**派生**：= 其全部任务的节点并集，不依赖 history_owns_node）。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
+
+        // ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----
+        /// <summary>会话子图节点键集（按 <c>session_owns</c> 出边返回会话挂载的业务节点键）。
+        /// 入史层（L-B）读侧唯一入口：键形 <c>session.{name}.msg.{seq}</c>，seq 为时序权威。</summary>
+        Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default);
     }
 }

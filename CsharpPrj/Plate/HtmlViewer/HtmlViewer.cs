@@ -624,6 +624,33 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
     Task<bool> IHtmlChannel.IsBridgeReadyAsync(CancellationToken ct)
         => RunOnUiThreadAsync(c => new ValueTask<bool>(IsBridgeReadyCoreAsync(c)), ct);
 
+    /// <summary>宿主 → 页面反向推送（事件驱动刷新）：PostWebMessageAsJson 投递到活 document，页面脚本经 message 事件接收。
+    /// 未就绪 / 无 CoreWebView2 / 投递异常 → false + 结构化诊断（不冒充成功）。</summary>
+    Task<bool> IHtmlChannel.PostToPageAsync(string json, CancellationToken ct)
+        => RunOnUiThreadAsync(c => new ValueTask<bool>(PostToPageCoreAsync(json, c)), ct);
+
+    private async Task<bool> PostToPageCoreAsync(string json, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+        await EnsureReadyAsync(ct);
+        if (CoreWebView2 is null)
+        {
+            ReportDiagnostics("HtmlChannel_post_to_page", "推送未送达: CoreWebView2 未就绪（初始化失败/未加载）");
+            return false;
+        }
+        try
+        {
+            CoreWebView2.PostWebMessageAsJson(json);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ReportDiagnostics("HtmlChannel_post_to_page", $"推送未送达: {ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
     /// <summary>原生脚本执行通道（让 L2 执行层 / L3 生命周期层的模板展开与桥注入复用本控件唯一 WebView2 封送点）。
     /// 就绪前 / 无 CoreWebView2 时返回空串；返回页面执行结果原文。后台线程调用自动封送 UI 线程。</summary>
     private async Task<string> ExecuteRootScriptCoreAsync(string javaScript, CancellationToken ct)

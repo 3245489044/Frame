@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Execution;
+using Operation.HierarchyMethod.Nodes.Workflows;
 using Operation.HierarchyMethod.Tasks;
-
+using Share.Conversation;
 namespace Operation.HierarchyMethod.History;
 
 /// <summary>
@@ -17,11 +21,14 @@ namespace Operation.HierarchyMethod.History;
 public sealed class HistoryProjector : IHistoryProjector
 {
     private readonly IHistoryRelationManager? _relations;
+    private readonly INodeStore? _nodes;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则沉淀/回读均跳过）。</param>
-    public HistoryProjector(IHistoryRelationManager? relations = null)
+    /// <param name="nodes">节点库端口（可空；未装配则入史投影（L-B 节点）跳过，仅建关系边）。</param>
+    public HistoryProjector(IHistoryRelationManager? relations = null, INodeStore? nodes = null)
     {
         _relations = relations;
+        _nodes = nodes;
     }
 
     /// <summary>
@@ -80,4 +87,87 @@ public sealed class HistoryProjector : IHistoryProjector
     /// <summary>统一历史容器 Id 解析（单一规则）：显式 historyId 优先，缺省回退 taskKey（historyId == taskKey 约定）。</summary>
     private static string ResolveHistoryId(string? historyId, string taskKey)
         => string.IsNullOrWhiteSpace(historyId) ? taskKey : historyId;
+
+    /// <summary>
+    /// 入史投影（CP-3 唯一入口）：按 <see cref="HistoryMarkPolicy"/> 过滤 → 标记节点依次投影为
+    /// <c>NodeType=conversation_message</c> 节点（<c>session.{name}.msg.{seq}</c>；seq 升序 = 时序权威）
+    /// + <c>session_owns</c> 挂载边 + <c>round_sequence</c> 相邻时序边。
+    /// <para>未装配节点库 → 不写 L-B 节点（仅建边），返回 0；未装配关系管理 → 全跳过。</para>
+    /// </summary>
+    public async Task<int> ProjectMarkedAsync(
+        RoundArtifacts artifacts, RoundSpec? spec, TaskScope scope, CancellationToken ct = default)
+    {
+        if (artifacts is null || scope is null || _relations is null) return 0;
+        var taskKey = scope.TaskKey;
+        if (string.IsNullOrWhiteSpace(taskKey)) return 0;
+
+        // 历史容器 + 任务归拢（历史节点集经 task→node 派生，故容器本身可不出现于 L-B 键域）。
+        var historyId = ResolveHistoryId(scope.HistoryId, taskKey);
+        await _relations.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
+        await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+
+        var workflowId = NodeKeys.DefaultWorkflowId;
+        string? prevMarkedKey = null;
+        var seq = 0;
+        foreach (var record in (artifacts.Nodes ?? Array.Empty<NodeExecutionRecord>()))
+        {
+            var mark = HistoryMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
+            if (mark == NodeHistoryMark.None) continue;
+
+            seq++;
+            var messageKey = SessionMessageKeys.Build(taskKey, seq);
+            if (_nodes is not null)
+                await _nodes.PutAsync(new NodeRecord
+                {
+                    NodeKey = messageKey,
+                    NodeType = NodeTypes.ConversationMessage,
+                    ThreadId = workflowId,
+                    Status = mark.ToString(),
+                    PayloadJson = JsonSerializer.Serialize(ToMessage(artifacts, record, mark), PayloadJsonOptions),
+                }, ct).ConfigureAwait(false);
+
+            // 挂载到会话根 + 相邻标记节点建时序边（历史顺序由引用边决定）。
+            await _relations.AddSessionMessageLinkAsync(taskKey, workflowId, messageKey, ct).ConfigureAwait(false);
+            if (prevMarkedKey is not null)
+                await _relations.AddSequenceAsync(workflowId, prevMarkedKey, messageKey, ct).ConfigureAwait(false);
+            prevMarkedKey = messageKey;
+        }
+
+        return seq;
+    }
+
+    /// <summary>节点载荷 JSON 选项（不转义非 ASCII：载荷供任务面板展示/排障直读，中文明文更具可用性）。</summary>
+    private static readonly JsonSerializerOptions PayloadJsonOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    /// <summary>标记节点 → 单条规范消息（Terminal = assistant 终答；Numbered = tool 分层气泡）。</summary>
+    private static ConversationMessage ToMessage(RoundArtifacts artifacts, NodeExecutionRecord record, NodeHistoryMark mark)
+    {
+        var isTerminal = mark == NodeHistoryMark.Terminal;
+        var text = isTerminal && !string.IsNullOrWhiteSpace(artifacts.TerminalText)
+            ? artifacts.TerminalText!
+            : FirstPortText(record.OutputPorts) ?? string.Empty;
+        return new ConversationMessage(
+            isTerminal ? ConversationRole.Assistant : ConversationRole.Tool,
+            record.NodeKey,
+            isTerminal ? null : record.NodeKey,
+            text,
+            artifacts.Round,
+            record.AtUtc == default ? DateTimeOffset.UtcNow : record.AtUtc);
+    }
+
+    /// <summary>节点产出的首个非空白端口文本（无端口/全空 → null）。</summary>
+    private static string? FirstPortText(IReadOnlyDictionary<string, object?>? ports)
+    {
+        if (ports is null || ports.Count == 0) return null;
+        foreach (var value in ports.Values)
+        {
+            if (value is null) continue;
+            var text = value as string ?? value.ToString();
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+        }
+        return null;
+    }
 }

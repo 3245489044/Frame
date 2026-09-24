@@ -18,7 +18,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     {
         [HtmlAssetKeys.BridgeScript] = BridgeScript,
         [HtmlAssetKeys.TabSwapScript] = TabSwapScript,
-        [HtmlAssetKeys.PollBridgeScript] = PollBridgeScript,
+        [HtmlAssetKeys.RefreshBridgeScript] = RefreshBridgeScript,
     };
 
     private static readonly IReadOnlyDictionary<string, string> Templates = new Dictionary<string, string>
@@ -52,16 +52,49 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "document.__domBridgeInstalled=true;"
         + "window.__domBridge={handle:function(op,name,value){"
         + "var el=name?document.querySelector('[data-name=\"'+name+'\"]'):null;"
-        + "if(!el)return 'NOT_FOUND';"
-        + "var isForm=el.tagName==='SELECT'||el.tagName==='INPUT'||el.tagName==='TEXTAREA';"
+        + "if(!el&&op!=='patch')return 'NOT_FOUND';"
+        + "var isForm=!!el&&(el.tagName==='SELECT'||el.tagName==='INPUT'||el.tagName==='TEXTAREA');"
         + "switch(op){"
         + "case 'set':if(isForm){el.value=value;}else if(el.classList.contains('host')){el.innerHTML=value;}else{el.textContent=value;}return 'OK';"
+        // patch（不重载文档）：目标=name 命中元素，缺省 document.body；替换 innerHTML 前保存 / 后恢复
+        // 滚动位置（含"原贴底则贴底"流式跟随）、<details> 展开态与焦点/选区 —— 消除刷新重置 UI 位置。
+        + "case 'patch':var pt=el||document.body;if(!pt){return 'NOT_FOUND';}__applyPatch(pt,value);return 'OK';"
         + "case 'get':if(isForm){return el.value;}else if(el.classList.contains('list')){var s=el.querySelector('li.selected');return s?s.textContent:'';}else{return el.textContent;}"
         + "case 'click':el.dispatchEvent(new MouseEvent('click',{bubbles:true}));return 'OK';"
         + "case 'bounds':var r=value?JSON.parse(value):null;if(r){el.style.position='absolute';el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';}return 'OK';"
         + "case 'event':el.dispatchEvent(new Event(value,{bubbles:true}));return 'OK';"
         + "default:return 'UNKNOWN_OP';"
         + "}}};"
+        // ── 补丁态保存 / 恢复（__pk 取稳定键：优先 data-*/id，回退子索引路径；__fk 按键回查新内容）──
+        + "function __pk(n,root){"
+        + "var ks=['data-name','data-history','data-session','data-round','data-pane','id'];"
+        + "for(var i=0;i<ks.length;i++){var v=(n.getAttribute?n.getAttribute(ks[i]):null);if(v){return ks[i]+'='+v;}}"
+        + "var path=[];var cur=n;"
+        + "while(cur&&cur!==root&&cur.parentNode){path.unshift(Array.prototype.indexOf.call(cur.parentNode.children,cur));cur=cur.parentNode;}"
+        + "return 'p:'+path.join('.');}"
+        + "function __fk(root,key){"
+        + "if(key.indexOf('p:')===0){var segs=key.substring(2).split('.');var cur=root;"
+        + "for(var i=0;i<segs.length;i++){var j=parseInt(segs[i],10);if(!(j>=0)||!cur.children||!cur.children[j]){return null;}cur=cur.children[j];}return cur;}"
+        + "var eq=key.indexOf('=');var a=key.substring(0,eq);var v=key.substring(eq+1);"
+        + "if(a==='id'){var e=document.getElementById(v);return (e&&root.contains(e))?e:null;}"
+        + "return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
+        + "function __savePatch(root){"
+        + "var st={scroll:[],open:[],focus:null,sel:null};"
+        + "var nodes=root.querySelectorAll('*');var all=[root];"
+        + "for(var i=0;i<nodes.length;i++){all.push(nodes[i]);}"
+        + "for(var j=0;j<all.length;j++){var n=all[j];"
+        + "if(n.scrollTop>0||n.scrollLeft>0){st.scroll.push({k:__pk(n,root),t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}"
+        + "if(n.tagName==='DETAILS'&&n.open){st.open.push(__pk(n,root));}}"
+        + "var ae=document.activeElement;"
+        + "if(ae&&ae!==root&&root.contains(ae)){st.focus=__pk(ae,root);try{st.sel=[ae.selectionStart,ae.selectionEnd];}catch(e){st.sel=null;}}"
+        + "return st;}"
+        + "function __restorePatch(root,st){"
+        + "if(!st){return;}"
+        + "for(var i=0;i<st.open.length;i++){var d=__fk(root,st.open[i]);if(d){d.open=true;}}"
+        + "for(var j=0;j<st.scroll.length;j++){var it=st.scroll[j];var e=__fk(root,it.k);if(!e){continue;}"
+        + "if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}"
+        + "if(st.focus){var f=__fk(root,st.focus);if(f&&f.focus){try{f.focus();if(st.sel&&f.setSelectionRange){f.setSelectionRange(st.sel[0],st.sel[1]);}}catch(e){}}}}"
+        + "function __applyPatch(root,html){var st=__savePatch(root);root.innerHTML=html;__restorePatch(root,st);return 'OK';}"
         + "document.addEventListener('click',function(e){"
         + "var t=(e.target&&e.target.closest)?e.target.closest('[data-cmd]'):null;"
         + "if(!t)return;"
@@ -95,17 +128,21 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "});})();";
 
     /// <summary>
-    /// 通用轮询/手动刷新桥（document 级幂等守卫 <c>__htmlPollInstalled</c>，重渲染即重新挂载，跨刷新不叠加定时器）。
-    /// 纯数据驱动、零业务耦合：页面作者仅需在任意元素上声明——<c>[data-poll-cmd]</c>（要投递的 cmd，如 refresh）+ 可选
-    /// <c>[data-poll-interval]</c>（轮询间隔 ms，默认 30000）+ 可选 <c>[data-poll-ctx]</c>/<c>[data-poll-ctx-attrs]</c>
-    /// （从指定选择器元素复制其 data-* 属性并入消息，用于保持当前选中态）；手动刷新按钮加 <c>[data-poll-refresh]</c>（点击即触发一次）。
-    /// 消息经 <c>window.chrome.webview.postMessage</c> 回宿主，宿主既有 MessageReceived→events.message 路由接管（refreshed 动作由宿主定义）。
+    /// 反向刷新桥（document 级幂等守卫 <c>__htmlRefreshInstalled</c>，重渲染即重新挂载，跨刷新不叠加定时器）。
+    /// 纯数据驱动、零业务耦合，页面作者声明——<c>[data-poll-cmd]</c>（回投的 cmd，如 refresh）+ 可选
+    /// <c>[data-refresh-throttle]</c>（**刷新频率上限**，默认 1000ms，trailing 合并保证最后一次变更必达）+
+    /// 可选 <c>[data-poll-ctx]</c>/<c>[data-poll-ctx-attrs]</c>（从选择器元素复制 data-* 属性并入消息，保持选中态）+ 
+    /// 可选 <c>[data-poll-interval]</c>（**兜底慢轮询**：仅在未收到任何宿主推送前生效，收到推送即停；默认 30000）；
+    /// 手动刷新按钮加 <c>[data-poll-refresh]</c>（点击即触发，不受节流限制）。
+    /// <para><b>方向反转</b>：刷新由宿主经 <see cref="IHtmlChannel.PostToPageAsync"/> 推送 <c>{cmd:'refresh'}</c> 驱动
+    /// （状态变化即刷，最坏延迟 = 节流窗口 1s），页面不再定长拉取；推送通道不可用时回退兜底慢轮询（at-least-once，不静默失刷）。</para>
+    /// 消息经 <c>window.chrome.webview.postMessage</c> 回宿主，宿主既有 MessageReceived→events.message 路由接管。
     /// 注入经 <see cref="HtmlScriptHost.EnsureBridgeLoadedAsync"/> 随点击桥一起在导航后完成（本脚本不经过模板引擎，可含花括号）。
     /// </summary>
-    internal const string PollBridgeScript =
+    internal const string RefreshBridgeScript =
         "(function(){"
-        + "if(document.__htmlPollInstalled){return;}"
-        + "document.__htmlPollInstalled=true;"
+        + "if(document.__htmlRefreshInstalled){return;}"
+        + "document.__htmlRefreshInstalled=true;"
         + "function pst(o){if(window.chrome&&window.chrome.webview){window.chrome.webview.postMessage(o);}}"
         + "function ctxOf(n){"
         + "var sel=n.getAttribute('data-poll-ctx');if(!sel){return null;}"
@@ -119,16 +156,36 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var cmd=n.getAttribute('data-poll-cmd');if(!cmd){cmd='refresh';}"
         + "var o=new Object();o.cmd=cmd;var ctx=ctxOf(n);"
         + "if(ctx){for(var k in ctx){o[k]=ctx[k];}}pst(o);}"
-        // 定时器选择器排除手动刷新按钮（data-poll-refresh）：按钮只做点击触发，挂同一定时器会造成每周期重复派发/重复渲染。
-        + "var list=document.querySelectorAll('[data-poll-cmd]:not([data-poll-refresh])');"
-        + "for(var i=0;i<list.length;i++){(function(n){"
-        + "var iv=parseInt(n.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=30000;}"
-        + "window.setInterval(function(){fire(n);},iv);"
-        + "})(list[i]);}"
+        // ── 1s 刷新限制（反向节流）：空闲即刷；窗口内合并，窗口到期补刷最后一次（trailing 必达）──
+        + "var last=-1e9;var pendNode=null;var pendTimer=null;"
+        + "function nowMs(){return (window.performance&&window.performance.now)?window.performance.now():Date.now();}"
+        + "function throttleOf(n){var v=parseInt(n.getAttribute('data-refresh-throttle'),10);return v>0?v:1000;}"
+        + "function pickNode(){return document.querySelector('[data-poll-cmd=\"refresh\"]:not([data-poll-refresh])')||document.querySelector('[data-poll-cmd]');}"
+        + "function refreshNow(){"
+        + "var n=pickNode();if(!n){return;}"
+        + "var t=nowMs();var wait=last+throttleOf(n)-t;"
+        + "if(wait<=0){last=t;fire(n);return;}"
+        + "pendNode=n;if(pendTimer){return;}"
+        + "pendTimer=window.setTimeout(function(){pendTimer=null;var node=pendNode;pendNode=null;last=nowMs();if(node){fire(node);}},wait);}"
+        + "var pushSeen=false;var fallbackTimer=null;"
+        + "function stopFallback(){if(fallbackTimer){window.clearInterval(fallbackTimer);fallbackTimer=null;}}"
+        // 宿主推送监听（反向刷新入口）：仅响应 {cmd:'refresh'}；收到即停兜底轮询
+        + "if(window.chrome&&window.chrome.webview&&window.chrome.webview.addEventListener){"
+        + "window.chrome.webview.addEventListener('message',function(e){"
+        + "var d=e?e.data:null;if(!d){return;}"
+        + "var cmd=(typeof d==='string')?d:(d.cmd||'');"
+        + "if(cmd!=='refresh'){return;}"
+        + "pushSeen=true;stopFallback();refreshNow();"
+        + "});}"
+        // 手动刷新按钮：点击即刷（不受 1s 节流限制）
         + "var rbs=document.querySelectorAll('[data-poll-refresh]');"
         + "for(var j=0;j<rbs.length;j++){(function(b){"
-        + "b.addEventListener('click',function(e){fire(b);if(e){e.preventDefault();}});"
+        + "b.addEventListener('click',function(e){last=0;fire(b);if(e){e.preventDefault();}});"
         + "})(rbs[j]);}"
+        // 兜底慢轮询：未收到宿主推送前保底（推送通道不可用/未注入时不失刷）
+        + "var fn=pickNode();"
+        + "if(fn){var iv=parseInt(fn.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=30000;}"
+        + "fallbackTimer=window.setInterval(function(){if(pushSeen){stopFallback();return;}var n=pickNode();if(n){fire(n);}},iv);}"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

@@ -17,6 +17,10 @@ public readonly record struct AnchorKey(string Value)
     /// <summary>组合技能块锚点（SkillBlock 经 SkillPromptAssembler 拼为单一文本时的稳定键）。</summary>
     public static AnchorKey SkillCombined => new("skill.block");
 
+    /// <summary>工具面（MCP）契约块锚点 —— 本步可用工具面（工具名 + 描述）的稳定键，
+    /// 与技能块同级作独立头提示层段（stage=prompt:tools），使「装配的 MCP」与基础提示词同层可见。</summary>
+    public static AnchorKey ToolCombined => new("tool.block");
+
     /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
     public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 

@@ -175,7 +175,8 @@ public static class ContextBindingValidator
             return ok;
         }
         if (key.StartsWith("prompt.l", StringComparison.Ordinal)
-            || key.StartsWith("skill.", StringComparison.Ordinal))
+            || key.StartsWith("skill.", StringComparison.Ordinal)
+            || key.StartsWith("tool.", StringComparison.Ordinal))
         {
             detail = string.Empty;
             return true;

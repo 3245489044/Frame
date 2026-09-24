@@ -8,7 +8,8 @@ namespace Share.Conversation.ContextBinding;
 
 /// <summary>PromptSnapshot 的持久化 DTO（仅存储段字段；Bindings/System 为派生，反序列化时经 Builder 重建）。</summary>
 internal sealed record PromptSnapshotData(
-    string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills);
+    string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
+    string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null);
 
 /// <summary>
 /// 写侧快照 —— provide_prompt 装配后捕获的真实 system 值（L0 / 填槽 L1 / L2 / 本轮选中 SkillBlock），
@@ -23,6 +24,12 @@ public sealed class PromptSnapshot
     public string L2 { get; init; } = string.Empty;
     public IReadOnlyList<string> SelectedSkills { get; init; } = Array.Empty<string>();
 
+    /// <summary>工具面（MCP）契约块 —— 本步可用工具（工具名 + 描述）文本；空 = 无工具面段（头提示层跳过）。</summary>
+    public string ToolBlock { get; init; } = string.Empty;
+
+    /// <summary>工具面工具名集（与 <see cref="ToolBlock"/> 同源，供比对/诊断）。</summary>
+    public IReadOnlyList<string> SelectedTools { get; init; } = Array.Empty<string>();
+
     /// <summary>逐段绑定（prompt.l0/l1/l2 / skill.block），供 UI 与 LLM 双向比对。</summary>
     public IReadOnlyList<MessageBinding> Bindings { get; init; } = Array.Empty<MessageBinding>();
 
@@ -34,7 +41,7 @@ public sealed class PromptSnapshot
 
     /// <summary>序列化为 JSON（落 __prompt_snapshot 归档；仅存段字段，Bindings/System 反序列化时重建）。</summary>
     public string ToJson()
-        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills));
+        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools));
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -46,7 +53,8 @@ public sealed class PromptSnapshot
             if (d is null) return null;
             return PromptSnapshotBuilder.Build(
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
-                d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills);
+                d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
+                d.ToolBlock, d.SelectedTools);
         }
         catch (JsonException)
         {

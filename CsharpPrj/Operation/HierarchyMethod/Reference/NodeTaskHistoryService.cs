@@ -97,10 +97,4 @@ public sealed class NodeTaskHistoryService
         await EnsureTaskHistoryBoundAsync(key, ct).ConfigureAwait(false);
         await AttachNodeToTaskAsync(key, workflowId, nodeKey, ct).ConfigureAwait(false);
     }
-
-    /// <summary>消息时序边（round_sequence；历史顺序由引用边决定）。未装配关系守卫 → no-op。</summary>
-    public Task AddSequenceAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default)
-        => _relations is null
-            ? Task.CompletedTask
-            : _relations.AddSequenceAsync(workflowId, fromNode, toNode, ct);
 }

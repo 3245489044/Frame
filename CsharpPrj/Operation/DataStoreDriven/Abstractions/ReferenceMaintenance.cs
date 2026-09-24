@@ -79,9 +79,6 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>会话归属边（session_owns）：把业务节点（消息/工作流产出）挂到会话根（幂等加法）。</summary>
         Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>会话时序边（round_sequence）：消息节点 → 下一消息节点（历史顺序由引用边决定）。</summary>
-        Task AddRoundSequenceEdgeAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default);
-
         /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址）。</summary>
         Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default);
 

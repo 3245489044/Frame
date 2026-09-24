@@ -16,7 +16,7 @@ namespace Operation.HierarchyMethod.History;
 /// 职责边界（SingleImplementation / TH-12）：本实现为**薄转发门面**，编排逻辑已收敛为
 /// <see cref="HistoryRelationGateway"/>（Reference.Gateways 单一 owner），本类型仅做端口契约适配映射
 /// （<see cref="IHistoryRelationManager"/> DTO ↔ Reference 中性字符串），并保持 <see cref="IHistoryRelationManager"/>
-/// 消费方端口形态不变（历史创建/删除、归拢任务、挂节点、时序、查询）。写边原语仍委托
+/// 消费方端口形态不变（历史创建/删除、归拢任务、挂节点、查询）。写边原语仍委托
 /// <see cref="IReferenceMaintenance"/>（唯一守卫 → 图协调器纯写边），不复制任何写边逻辑。
 /// </para>
 /// <para>
@@ -58,9 +58,6 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
 
     public Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
         => _gateway.UnlinkNodeAsync(taskKey, workflowId, nodeKey, ct);
-
-    public Task AddSequenceAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default)
-        => _gateway.AddSequenceAsync(workflowId, fromNode, toNode, ct);
 
     /// <summary>会话归属边（session_owns）：把会话消息节点挂到会话根（入史层挂载；写边委托网关）。</summary>
     public Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default)

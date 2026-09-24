@@ -89,16 +89,6 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await _graph.AddReferenceAsync(sessionId, nodeId, CrossDbReferenceTypes.SessionOwns, 1.0, ct).ConfigureAwait(false);
     }
 
-    /// <summary>会话时序边（round_sequence）：消息节点 → 下一消息节点（历史顺序由引用边决定）。</summary>
-    public Task AddRoundSequenceEdgeAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(fromNode);
-        ArgumentException.ThrowIfNullOrWhiteSpace(toNode);
-        var fromId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, fromNode), Location = workflowId };
-        var toId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, toNode), Location = workflowId };
-        return _graph.AddReferenceAsync(fromId, toId, CrossDbReferenceTypes.RoundSequence, 1.0, ct);
-    }
-
     /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址，根除跨会话污染）。
     /// 端点 Id = <c>wf.session.{name}.msg.{seq}</c>，还原 nodeKey = Id 去掉 <c>wf.</c> 前缀。</summary>
     public async Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)

@@ -45,9 +45,9 @@ public sealed class HistoryProjector : IHistoryProjector
         if (!string.IsNullOrWhiteSpace(taskKey))
             await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
 
-        // 节点即结果：逐条以 task→node M:N 关联挂载（历史节点集派生 = 其任务节点并集，不再直写 history→node 边）
-        // + 相邻节点建 round_sequence 时序边（历史顺序由引用边决定）。
-        string? prev = null;
+        // 节点即结果：逐条以 task→node M:N 关联挂载（历史节点集派生 = 其任务节点并集，不再直写 history→node 边）。
+        // 注：消息时序边 round_sequence 已退役（A4′）——历史顺序改由键内 (round, seq) 承载
+        // （SessionMessageKeys.OrderComparer 读侧排序，见 RefHead.Project），本处不再写时序边。
         foreach (var rec in round?.Records ?? Array.Empty<NodeExecutionRecord>())
         {
             if (string.IsNullOrWhiteSpace(rec.NodeKey)) continue;
@@ -55,9 +55,6 @@ public sealed class HistoryProjector : IHistoryProjector
             var workflowId = NodeKeys.DefaultWorkflowId;
             if (!string.IsNullOrWhiteSpace(taskKey))
                 await _relations.LinkNodeAsync(taskKey, workflowId, rec.NodeKey, ct).ConfigureAwait(false);
-            if (prev is not null)
-                await _relations.AddSequenceAsync(workflowId, prev, rec.NodeKey, ct).ConfigureAwait(false);
-            prev = rec.NodeKey;
         }
     }
 
@@ -112,7 +109,6 @@ public sealed class HistoryProjector : IHistoryProjector
         var workflowId = NodeKeys.DefaultWorkflowId;
         // 轮次归一（键的身份组成，见 SessionMessageKeys）：0/负值会使「跨轮同名覆盖」回归，故下限取 1。
         var round = artifacts.Round > 0 ? artifacts.Round : 1;
-        string? prevMarkedKey = null;
         var seq = 0;
         foreach (var record in (artifacts.Nodes ?? Array.Empty<NodeExecutionRecord>()))
         {
@@ -131,11 +127,8 @@ public sealed class HistoryProjector : IHistoryProjector
                     PayloadJson = JsonSerializer.Serialize(ToMessage(artifacts, record, mark), PayloadJsonOptions),
                 }, ct).ConfigureAwait(false);
 
-            // 挂载到会话根 + 相邻标记节点建时序边（历史顺序由引用边决定）。
+            // 挂载到会话根（session_owns）；轮内时序不再写边（A4′ 退役）—— 顺序由键内 (round, seq) 承载。
             await _relations.AddSessionMessageLinkAsync(taskKey, workflowId, messageKey, ct).ConfigureAwait(false);
-            if (prevMarkedKey is not null)
-                await _relations.AddSequenceAsync(workflowId, prevMarkedKey, messageKey, ct).ConfigureAwait(false);
-            prevMarkedKey = messageKey;
         }
 
         return seq;

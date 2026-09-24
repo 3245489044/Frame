@@ -23,10 +23,6 @@ public static class CrossDbReferenceTypes
     /// （信任反转：不信任层次数据自终止）。写/读见 <c>ReferenceGrounding.LinkSubTaskAsync</c> / <c>GetSubTaskKeysAsync</c>。</summary>
     public const string TaskOwnsTask = "task_owns_task";
 
-    /// <summary>会话时序边（方案 C）：消息节点 → 下一消息节点（round 时序链；会话历史顺序由 LiteDB 引用边决定，
-    /// 每节点 seq = 其在链上的序号）。</summary>
-    public const string RoundSequence = "round_sequence";
-
     /// <summary>历史归拢任务边：history.{historyId} → task（taskKey）。History=Task 更上层的 class 容器，
     /// 一个历史归拢多个任务；成员集由本出边集合推导（图即真源，可 graph.rebuild 幂等重建）。</summary>
     public const string HistoryOwnsTask = "history_owns_task";

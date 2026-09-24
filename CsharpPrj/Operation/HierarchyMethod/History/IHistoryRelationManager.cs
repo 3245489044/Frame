@@ -6,7 +6,7 @@ namespace Operation.HierarchyMethod.History;
 
 /// <summary>
 /// 历史关系管理端口（History = Task 更上层的 class 容器，归拢多 task 多 node）—— 纯抽象，零实现依赖。
-/// 管理 task / nodes / history 之间的逻辑关系：历史创建/删除、历史归拢任务、历史挂载节点、消息时序、图查询。
+/// 管理 task / nodes / history 之间的逻辑关系：历史创建/删除、历史归拢任务、历史挂载节点、图查询。
 /// 实现（Agent.Reference）只编排，写边原语委托 <c>IReferenceMaintenance</c>/图协调器（SingleImplementation/TH-12）。
 /// 装配可空：未装配时消费方跳过，不阻断运行（对齐「未装配返回诊断」模式）。
 /// </summary>
@@ -34,9 +34,6 @@ public interface IHistoryRelationManager
 
     /// <summary>解除 task → node 关联（M:N 撤销边；仅解除本 task 归属，不影响其它 task）。</summary>
     Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
-
-    /// <summary>消息时序边（node → node，round_sequence；历史顺序由引用边决定）。</summary>
-    Task AddSequenceAsync(string workflowId, string fromNode, string toNode, CancellationToken ct = default);
 
     /// <summary>返回该历史归拢的任务键集（History class 容器成员）。</summary>
     Task<IReadOnlyList<string>> GetTaskKeysAsync(string historyId, CancellationToken ct = default);

@@ -8,7 +8,7 @@
 |---|---|---|
 | `Search-Repo.ps1` | `PowerShellScript\Share\Search\Search-Repo.ps1` | 多仓检索（git grep） |
 | `Test-JsonFiles.ps1` | `PowerShellScript\Share\Validate\Test-JsonFiles.ps1` | JSON 批量校验 |
-| `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（14 件） |
+| `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（16 件） |
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 
 ## 用法
@@ -43,13 +43,13 @@
 
 ### 门禁
 ```powershell
-# 全量（14 件）
+# 全量（16 件）
 .\Invoke-GateCheck.ps1 -All
 
 # 指定
 .\Invoke-GateCheck.ps1 -Only AgentBuildPoint,DataContracts
 ```
-14 件门禁清单见 `PowerShellScript\Operation\DSL\GateManifests.psd1`（含 `InvokeEntrypoints` 入口框架守卫）。
+16 件门禁清单见 `PowerShellScript\Operation\DSL\GateManifests.psd1`（含 `InvokeEntrypoints` 入口框架守卫）。
 
 ### 回归
 ```powershell

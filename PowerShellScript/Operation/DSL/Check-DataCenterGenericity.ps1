@@ -3,6 +3,7 @@
 #         DataCenter-Agent运行时数据接入-设计与实施.md §5 K9）
 # 三级检查：
 #   [G1 领域词汇零出现] 扫描 DataCenter.Core + DataCenter.Protocol（契约层）源码/工程元数据 + schemas，断言无 Loop/Decision/Eval/Budget/Token/Flag/Round/Agent/Engine。
+#                       定点豁免 = 同拼写但语义属通用数据维度者（$wordAllowList：词+路径+行模式+理由，逐条登记）。
 #   [G2 设施端口化]     扫描 DataCenter.Core，断言不自主出现引擎/宿主设施类型
 #                       （IStorageCell/StorageCell/BasicMethod.Block/FrameworkAbstractions），并校验 csproj 无设施工程引用。
 #                       白名单 = 契约强制点（Compat 适配目录 / 契约签名暴露处），逐条登记理由。
@@ -50,8 +51,21 @@ if (Test-Path $schemaDir) {
 $wordPattern = ($Words | ForEach-Object { '\b' + [regex]::Escape($_) }) -join '|'
 $whitePattern = if ($Whitelist.Count -gt 0) { ($Whitelist | ForEach-Object { '\b' + [regex]::Escape($_) + '\w*' }) -join '|' } else { $null }
 
+# 定点豁免（词 + 路径 + 行模式 + 理由）——逐条登记，不得放宽为整词白名单（区别于 $Whitelist 的前缀抹除）。
+# 用途：同一拼写但语义属通用数据维度者（非领域回流）在此显式登记，使违规面保持零噪音。
+$wordAllowList = @(
+    [pscustomobject]@{
+        Word        = 'Round'
+        Path        = 'Frame\DataCenter\schemas\'
+        LinePattern = '"scope".*\bRound\b'
+        Reason      = '存储作用域枚举值（Lease/Round/Session/Root）= 通用数据维度，与 Agent「轮次」语义无关；类型侧同源 = Frame\CsharpPrj\Strategy\Observability\HierarchySupport\DataScope（线格式字符串 "Round" 由 BoundaryContractProjection 反解）'
+    }
+)
+
 $hits = [System.Collections.Generic.List[object]]::new()
+$allowedHits = [System.Collections.Generic.List[object]]::new()
 foreach ($file in $files) {
+    $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
     $lines = Get-Content $file.FullName -ErrorAction SilentlyContinue
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $text = $lines[$i]
@@ -59,19 +73,33 @@ foreach ($file in $files) {
         # 先抹掉白名单词（Dynamic/Tokenization/Roundtrip 等误报源），再匹配领域词
         $probe = if ($whitePattern) { [regex]::Replace($text, $whitePattern, '', 'IgnoreCase') } else { $text }
         foreach ($m in [regex]::Matches($probe, $wordPattern, 'IgnoreCase')) {
-            $hits.Add([pscustomobject]@{
-                File = $file.FullName.Substring($Root.Length).TrimStart('\')
+            $entry = [pscustomobject]@{
+                File = $rel
                 Line = $i + 1
                 Word = $m.Value
                 Text = $text.Trim()
-            })
+            }
+            $allow = $wordAllowList | Where-Object {
+                $_.Word -eq $m.Value -and $rel -like ('*' + $_.Path + '*') -and $text -match $_.LinePattern
+            } | Select-Object -First 1
+            if ($allow) {
+                $entry | Add-Member -NotePropertyName Reason -NotePropertyValue $allow.Reason
+                $allowedHits.Add($entry)
+            } else {
+                $hits.Add($entry)
+            }
         }
     }
 }
 
 Write-Host "=== [G1] DataCenter 领域词汇零出现 ==="
-Write-Host ("扫描文件数: {0} | 词表: {1} | 白名单: {2} | 命中: {3}" -f `
-    $files.Count, ($Words -join '/'), ($Whitelist -join '/'), $hits.Count)
+Write-Host ("扫描文件数: {0} | 词表: {1} | 白名单: {2} | 命中: {3} | 定点豁免: {4}" -f `
+    $files.Count, ($Words -join '/'), ($Whitelist -join '/'), $hits.Count, $allowedHits.Count)
+
+if ($allowedHits.Count -gt 0) {
+    Write-Host "--- 定点豁免（逐条登记理由） ---"
+    $allowedHits | ForEach-Object { Write-Host ("  [允许] {0}:{1} [{2}] {3}" -f $_.File, $_.Line, $_.Word, $_.Reason) }
+}
 
 if ($hits.Count -gt 0) {
     Write-Host "--- 命中清单（文件:行 词 片段） ---"

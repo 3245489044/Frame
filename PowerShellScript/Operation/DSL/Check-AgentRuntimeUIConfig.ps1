@@ -14,10 +14,11 @@
     对齐既有 PowerShellScript/DSL/Check-ClinerulesReferences.ps1 模式（独立脚本、无运行时副作用）。
 
 .PARAMETER ConfigPath
-    待校验的 UI 配置 JSON（默认 FileDriven/DrivenConfig/JsonConfig/AgentRuntimeUI.json）。
+    待校验的 UI 配置 JSON（默认 Projects/Information/DrivenConfig/JsonConfig/AgentRuntimeUI.json ——
+    FileDriven 的 DrivenConfig 资源已整体迁入 Information 资源仓，见 Modules\FileDriven\FileDrivenTestUtils.ps1）。
 
 .PARAMETER WorkFlowDir
-    已知注册函数（工作流名）来源目录（默认 FileDriven/DrivenConfig/WorkFlow），
+    已知注册函数（工作流名）来源目录（默认 Projects/Information/DrivenConfig/WorkFlow），
     其下 *.json 的 workflowName 字段视为已注册函数。
 
 .PARAMETER FailOnWarning
@@ -29,8 +30,10 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$ConfigPath = (Join-Path $PSScriptRoot '..\..\FileDriven\DrivenConfig\JsonConfig\AgentRuntimeUI.json'),
-    [string]$WorkFlowDir = (Join-Path $PSScriptRoot '..\..\FileDriven\DrivenConfig\WorkFlow'),
+    # FileDriven 的 DrivenConfig 资源已整体迁入 Information 资源仓（见 Modules\FileDriven\FileDrivenTestUtils.ps1）；
+    # 上溯四级 = 仓库根（本脚本位于 Frame\PowerShellScript\Operation\DSL\）。
+    [string]$ConfigPath = (Join-Path $PSScriptRoot '..\..\..\..\Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'),
+    [string]$WorkFlowDir = (Join-Path $PSScriptRoot '..\..\..\..\Projects\Information\DrivenConfig\WorkFlow'),
     [switch]$FailOnWarning
 )
 
@@ -67,6 +70,9 @@ catch {
 }
 
 # ---- 收集全部控件名（递归） ----
+# 作用域 = **组合后 UI**，不只本文件：绑定的 output/source 按名解析发生在 MainLayout 组合后的控件树上，
+# 跨文件片段绑定是合法契约（实证：MainLayout.json 的 outputTextBox 显式注释「绑定 output=outputTextBox 保持兼容」）。
+# 故判据面 = 本文件 views/templates + **同目录全部 JsonConfig 片段**，否则跨文件绑定被误报为「悬空」。
 $controlNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 function Collect-Names([array]$nodes) {
     foreach ($c in $nodes) {
@@ -76,11 +82,27 @@ function Collect-Names([array]$nodes) {
         if ($children) { Collect-Names $children }
     }
 }
-if ($config.views) {
-    foreach ($view in $config.views) {
-        $vc = Get-Prop $view 'controls'
+function Collect-ConfigNames($cfg) {
+    if ($null -eq $cfg) { return }
+    foreach ($view in @(Get-Prop $cfg 'views')) {
+        $vc = if ($null -ne $view) { Get-Prop $view 'controls' } else { $null }
         if ($vc) { Collect-Names $vc }
     }
+    $tpl = Get-Prop $cfg 'templates'
+    if ($tpl -and $tpl.PSObject) {
+        foreach ($t in $tpl.PSObject.Properties) {
+            $tn = Get-Prop $t.Value 'controls'
+            if ($tn) { Collect-Names $tn }
+        }
+    }
+}
+Collect-ConfigNames $config
+$configDir = Split-Path -Parent $ConfigPath
+$configLeaf = Split-Path -Leaf $ConfigPath
+foreach ($sib in @(Get-ChildItem -LiteralPath $configDir -Filter *.json -File -ErrorAction SilentlyContinue)) {
+    if ($sib.Name -eq $configLeaf) { continue }
+    try { Collect-ConfigNames (Get-Content -Raw -LiteralPath $sib.FullName | ConvertFrom-Json -Depth 64) }
+    catch { Add-Warning "片段解析失败（未纳入控件名集合）: $($sib.Name) — $($_.Exception.Message)" }
 }
 
 # ---- 检查1：布局重叠（兄弟级，排除 TabControl/TabPage 固有堆叠） ----

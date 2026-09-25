@@ -12,7 +12,12 @@
          生产源码的**代码行**不得出现 "#R" / "@" 轮键拼接串（禁新增键拼接点）。
       C2 键形状合法：FactId 文法（唯一正则）须接受新形态样例、拒绝全部旧形态样例（形态回归锁）。
       C3 废除项归零：leaseId= / 事实面 opId / 关联位 conv_ 出现次数 = 0（-Strict 时判失败；P1-6 前为「待迁移」）。
+         口径（2026-09-26 收窄）：只认**字符串字面量内**的旧标识（键拼接形态）；变量/匿名对象字段赋值
+         （如 `leaseId = lease.LeaseId,`、`var leaseId = Arg(...)`）不是废除项，不得计入。
       C4 单写者：事实写入调用点仅 SessionFactWriter（AppendAsync 调用方白名单）。
+         口径（2026-09-26 收窄）：只认**首实参为事实封套**的追加调用（`AppendAsync(fact…`，即
+         ISessionFactStore 契约面）；同名 API 的其它类型（如 HistoryAppendService.AppendAsync(节点载荷)）
+         不是事实写入，不得计入（旧口径把它们误报为旁路）。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（标识 / 事实标准回归）。
 
 .PARAMETER Root
@@ -138,10 +143,11 @@ elseif ((Get-Content -LiteralPath $grammarFile -Raw) -notmatch [regex]::Escape($
 }
 
 # C3. 废除项归零（-Strict 判失败；P1-6 前属「待迁移」）
+# 判据 = 字符串字面量内的旧标识（键拼接形态）；变量/匿名对象字段赋值不计入（见文件头口径说明）。
 $legacyPatterns = @(
-    @{ Name = 'leaseId='; Pattern = 'leaseId\s*=' },
-    @{ Name = 'conv_ 关联位'; Pattern = 'conv_[0-9]' },
-    @{ Name = 'opId 事实面'; Pattern = 'opId' }
+    @{ Name = 'leaseId='; Pattern = '"[^"]*leaseId\s*=' },
+    @{ Name = 'conv_ 关联位'; Pattern = '"[^"]*conv_[0-9]' },
+    @{ Name = 'opId 事实面'; Pattern = '"[^"]*opId' }
 )
 foreach ($item in $legacyPatterns)
 {
@@ -163,16 +169,19 @@ foreach ($item in $legacyPatterns)
     }
 }
 
-# C4. 单写者：AppendAsync 调用方白名单（事实只经 SessionFactWriter 追加）
+# C4. 单写者：会话事实追加调用方白名单（事实只经 SessionFactWriter 追加）
+# 判据收窄：只认首实参为「事实封套」的追加调用（ISessionFactStore.AppendAsync(SessionFactEnvelope fact, …)）；
+# 同名 API 的其它类型（HistoryAppendService.AppendAsync(节点载荷) 等）不是事实写入。
 $c4Allow = @('SessionFactWriter.cs', 'JsonlSessionFactStore.cs')
+$c4FactAppend = '\.AppendAsync\(\s*[A-Za-z_][A-Za-z0-9_]*[Ff]act\b'
 foreach ($f in $csFiles)
 {
     if ($c4Allow -contains $f.Name) { continue }
     foreach ($line in Get-CodeLines $f.FullName)
     {
-        if ($line -match '\.AppendAsync\(')
+        if ($line -match $c4FactAppend)
         {
-            $violations.Add("C4 旁路写事实：$($f.Name) 直接调用 AppendAsync；只允许经 SessionFactWriter（F1 单写者）")
+            $violations.Add("C4 旁路写事实：$($f.Name) 直接调用事实追加（AppendAsync(fact…)）；只允许经 SessionFactWriter（F1 单写者）")
         }
     }
 }

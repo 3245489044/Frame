@@ -328,6 +328,19 @@ A0 Hosting（根由 Frame\DataCenter 持有）──▶ A1 槽清单 + 去静态
 
 > 注（实测）：`AgentRuntimeSlotKeys` 另含 `database`（独立数据库模块，可脱离运行时装配），A1 落地时随槽键注册表一并加入（本表 11 行为 A/C 类对象槽，`database` 属模块产物槽）。
 
+**K10 收口批（2026-09-26）**：`Check-AgentRuntimeSlots.ps1` 实测「违规 13 → 0」（白名单仅剩 `AgentRuntimeRoot` 迁移期承载）。
+13 处「静态可变运行时槽」按上表同款范式迁根分区（`AgentRuntimeSlots.Resolve` + 槽键），`D5 无主数据 12 → 0`：
+
+| # | 槽键（`AgentRuntimeSlotKeys`） | 现位置（原静态槽所在文件） | 承载内容 | 状态 |
+|---|---|---|---|---|
+| 12 | `agent-config-document` | `Agent.Core\Configuration\AgentConfigDocument.cs` | 唯一配置根解析缓存（`Cached`/`CachedKey`） | ✅ |
+| 13 | `agent-node-result-registration` | `Agent.Core\Nodes\AgentNodeResultRegistration.cs` | 特化提取器注册幂等标记 + 锁 | ✅ |
+| 14 | `governance-runtime` | `Agent.Core\Nodes\GovernanceRuntime.cs` | 治理运行期唯一实例（`Install`/`Current`） | ✅ |
+| 15 | `decision-recorder-bridge` | `Agent.Launcher\Composition\DecisionRecorderBridge.cs` | 观测桥挂载态（`Attached` + 锁） | ✅ |
+| 16 | `agent-ui-refresh-publisher` | `Agent.Launcher\Modules\AgentUiRefreshPublisher.cs` | 刷新定时器 / 订阅句柄 / dirty 合并位 / 去抖位 | ✅ |
+| 17 | `conversation-conversion-defaults` | `Agent.Session\Conversion\ConversationConversionDefaults.cs` | 内建转换器装配幂等标记（**已删**：幂等权威 = `ConversationConversionHub.RegisterOnce`，不再自持标记） | ✅ |
+| 18 | `cline-diagnostics-hosting` | `Agent.Modules\Cline\ClineDiagnosticsHosting.cs` | 诊断接线幂等标记 | ✅ |
+
 **E 类（明确不接入）**：`Agent.Core\Nodes\RunContext.cs`、`Agent.Runtime\State\Loops\RunContext.cs`、`AgentRunCancellation`、UI/native/共享栈、进程外资源
 
 ---

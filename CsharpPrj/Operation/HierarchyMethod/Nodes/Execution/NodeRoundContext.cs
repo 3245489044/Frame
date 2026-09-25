@@ -38,7 +38,7 @@ public sealed class NodeRoundContext
     /// <summary>本轮会话作用域（taskKey，供 task→node 归属边与读侧 task 过滤）。由编排器注入。</summary>
     public string? SessionId { get; set; }
 
-    /// <summary>本轮轮序号（1-based；= run/round 观测键 <c>runId+"R"+n</c> 的 n，由轮驱动经编排器注入）。
+    /// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+"R"+n</c> 已废除）。
     /// 本层只当不透明整数承载，不感知类型；0 = 未注入（直跑/非 Agent 路径，埋点方据此跳过观测）。</summary>
     public int RoundNo { get; set; }
 

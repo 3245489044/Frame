@@ -37,24 +37,31 @@ $frozen = [ordered]@{
     'INV-L3' = 16   # 单一来源计数（RunStateStage 定义 1 + NodeRunState 定义 0 + ur_tasks 写入口 6 + 节点写入口 9）
 }
 
-# ── 运行层扫描面 ──
-$runLayerDirs = @(
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Composition'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\RunState')
-)
+# ── 运行层扫描面（单一登记：Projects/Plug/Agent/doc/agent-structure-registry.json） ──
+$registryPath = Join-Path $Root 'Projects\Plug\Agent\doc\agent-structure-registry.json'
+if (-not (Test-Path -LiteralPath $registryPath)) {
+    Write-Error "结构登记表不存在（扫描面单一来源）：$registryPath"
+    exit 2
+}
+$registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+$srcBase = ($registry.srcBase -replace '/', '\')
+$runLayerDirs = @($registry.runLayerDirs | ForEach-Object { Join-Path $Root (Join-Path $srcBase ($_ -replace '/', '\')) })
 
 $runLayerFiles = @()
 foreach ($dir in $runLayerDirs) {
-    if (-not (Test-Path $dir)) { continue }
+    if (-not (Test-Path $dir)) {
+        Write-Error "运行层扫描面登记路径不存在（结构登记表与工作树失配）：$dir"
+        exit 2
+    }
     $runLayerFiles += Get-ChildItem -Path $dir -Recurse -File -Filter *.cs -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
 }
 
 if ($runLayerFiles.Count -eq 0) {
-    Write-Error "未找到运行层扫描面（Agent.Core\Loops|Composition|RunState）：$($runLayerDirs -join ', ')"
+    Write-Error "未找到运行层扫描面（Agent.Core：$($registry.runLayerDirs -join '|')）：$($runLayerDirs -join ', ')"
     exit 2
 }
+Write-Host "运行层扫描面: 登记目录 $($runLayerDirs.Count) 个 / 实际扫描文件 $($runLayerFiles.Count) 件"
 
 # ── INV-L1：运行层不得直引数据实现命名空间 ──
 $dataImplUsings = @(

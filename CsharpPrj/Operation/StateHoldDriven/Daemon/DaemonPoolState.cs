@@ -85,6 +85,51 @@ public sealed class DaemonPoolState : IDisposable
     /// <summary>worker 状态变化（透传池/诊断用）。</summary>
     public event Action<WorkerStateInfo>? WorkerStateChanged;
 
+    /// <summary>
+    /// 池级阶段帧回调（**进程级诊断投影**；缺省 no-op）。
+    /// <para>
+    /// 纪律（C-7 修复后）：本回调**不携带调用归属**（只有 workerId）——多任务并发下把运行态数据挂在它上面必然串味。
+    /// 凡是「某次调用」的运行态事实（过程节点、进度），必须走 <see cref="SetStageListener"/> 的 **per-call** 监听器；
+    /// 本回调仅供「最近阶段」这类进程级只读诊断投影（例：<c>ClineDaemonPool.LastStage</c>）。
+    /// </para>
+    /// </summary>
+    public Action<string, string>? TraceSink { get; set; }
+
+    /// <summary>per-call 阶段帧监听器（按 worker 归属；仅在该 worker 服务本次调用期间有效）。</summary>
+    private readonly ConcurrentDictionary<string, Action<string>> _stageListeners = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 注册「本次调用」的阶段帧监听（worker 级互斥选路保证：该 worker 在此调用期间不服务他人 ⇒ 帧归属唯一）。
+    /// 调用结束（含异常/重试换 worker）须 <see cref="ClearStageListener"/>，否则监听器 dangling。
+    /// </summary>
+    /// <param name="workerId">被选中的 worker。</param>
+    /// <param name="onStage">阶段回调（<c>null</c> ⇒ 注销）。</param>
+    public void SetStageListener(string workerId, Action<string>? onStage)
+    {
+        if (string.IsNullOrWhiteSpace(workerId))
+        {
+            return;
+        }
+
+        if (onStage is null)
+        {
+            _stageListeners.TryRemove(workerId, out _);
+            return;
+        }
+
+        _stageListeners[workerId] = onStage;
+    }
+
+    /// <summary>注销该 worker 的 per-call 阶段帧监听器（调用结束必调）。</summary>
+    /// <param name="workerId">worker。</param>
+    public void ClearStageListener(string workerId)
+    {
+        if (!string.IsNullOrWhiteSpace(workerId))
+        {
+            _stageListeners.TryRemove(workerId, out _);
+        }
+    }
+
     public DaemonPoolState(DaemonPoolOptions options, IDaemonTransport transport, string poolTag)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -246,8 +291,14 @@ public sealed class DaemonPoolState : IDisposable
     private void OnTrace(string workerId, DaemonResponse resp)
     {
         if (string.IsNullOrWhiteSpace(resp.Stage)) return;
-        // 阶段帧宿主投影（只读契约）：与既有诊断日志并列，不改阶段追踪通道语义。
-        DaemonPool.TraceSink?.Invoke(workerId, resp.Stage!);
+        // 阶段帧宿主投影（只读契约）：进程级诊断投影与 per-call 监听器并列，不改阶段追踪通道语义。
+        TraceSink?.Invoke(workerId, resp.Stage!);
+        // per-call 运行态归属：只有「正在服务本次调用」的 worker 才有监听器（C-7：归属由调用方绑定，不靠 workerId 反解）。
+        if (_stageListeners.TryGetValue(workerId, out var listener))
+        {
+            // 观测不得阻断执行链：监听器异常就地吞（阶段帧处理与诊断日志照常）。
+            try { listener(resp.Stage!); } catch { /* 观测异常不阻断追踪通道 */ }
+        }
         if (string.Equals(resp.Type, "csg", StringComparison.Ordinal))
         {
             // CSG 状态帧（type:"csg"）：首帧透传完整 CanonicalForm 契约载荷，供 C# 侧消费/核对 worker 生命周期状态；

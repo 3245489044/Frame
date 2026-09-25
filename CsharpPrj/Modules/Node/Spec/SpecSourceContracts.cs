@@ -72,7 +72,14 @@ public sealed class NullDefinitionDiagnostics : IDefinitionDiagnostics
     }
 }
 
-/// <summary>运行态来源判定端口（N9：无来源 ⇒ ∅，不伪造）。</summary>
+/// <summary>
+/// 运行态来源判定端口（N9：无来源 ⇒ ∅，不伪造）。
+/// <para>
+/// **#pending（B-4）**：框架公开契约，当前零消费方（读投影的 Origin 由调用方经
+/// <c>NodeProjectionItem.Origin</c> 显式给出）。保留为「事件域落地时按 key 反查来源」的预留口，
+/// **不删**（删除属跨层契约收缩，须与事件域方案一并裁定）；启用前不得假定其已生效。
+/// </para>
+/// </summary>
 public interface IOrientationAuthority
 {
     ProjectionOrigin? Resolve(string key, string placementId);

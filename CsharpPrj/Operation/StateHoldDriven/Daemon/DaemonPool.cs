@@ -38,9 +38,14 @@ public sealed class DaemonPool : IDisposable
     /// <summary>池诊断钩子（宿主注入日志器；缺省 no-op）。</summary>
     public static Action<string, object?>? Diagnostics { get; set; }
 
-    /// <summary>阶段追踪帧钩子（宿主注入只读投影；缺省 no-op）。trace/csg 帧在池状态层透传诊断时同步回调
-    /// <c>(workerId, stage)</c> —— 供宿主做「最近阶段」读写（进度可见化），不影响阶段追踪既有日志通道。</summary>
-    public static Action<string, string>? TraceSink { get; set; }
+    /// <summary>
+    /// 池级阶段帧回调（**进程级诊断投影**；缺省 no-op）。
+    /// <para>
+    /// C-7：原为 <c>static</c> 可变属性 ⇒ 进程级单值承载运行期信道（多池/多任务并发串味，且静默槽门禁扫不到 Frame 层）。
+    /// 现下沉为**实例**属性（每个池自己的投影）；「某次调用」的运行态事实改走 <c>SendAsync(onStage)</c> 的 per-call 通道。
+    /// </para>
+    /// </summary>
+    public Action<string, string>? TraceSink { get; set; }
 
     public DaemonPool(DaemonPoolOptions options, IDaemonTransport transport)
     {
@@ -51,6 +56,8 @@ public sealed class DaemonPool : IDisposable
         _infraRetries = Math.Max(0, options.InfraRetryLimit);
         _poolTag = $"{options.PoolName ?? "pool"}#{System.Threading.Interlocked.Increment(ref _poolSeq)}";
         _state = new DaemonPoolState(options, transport, _poolTag);
+        // 实例级投影中转：状态层不持有池实例，故经闭包把状态层回调转到本实例属性（调用期求值 ⇒ 后设亦生效）。
+        _state.TraceSink = (workerId, stage) => TraceSink?.Invoke(workerId, stage);
         _transport = transport;
         _scheduler = new AsyncOperationScheduler(concurrency, _idleTimeout);
         _slotGate = new SemaphoreSlim(concurrency, concurrency);
@@ -337,7 +344,14 @@ public sealed class DaemonPool : IDisposable
     /// 池内完成：预算单一时钟、就绪门闩、worker 级互斥选路、错误分类与基建重试。
     /// 业务失败抛 <see cref="DaemonPoolException"/>；基建/预算耗尽抛明确归因异常。
     /// </summary>
-    public async Task<JsonElement> SendAsync(string cmd, object? payload, TimeSpan? absoluteTimeout, CancellationToken ct = default)
+    /// <param name="cmd">命令名（ask/plan/resume/history）。</param>
+    /// <param name="payload">命令载荷。</param>
+    /// <param name="absoluteTimeout">本次调用的绝对预算（<c>null</c> = 池默认）。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="onStage">**本次调用**的阶段帧回调（可选）：帧归属 = 本次调用选中的 worker（worker 级互斥 ⇒ 归属唯一），
+    /// 由调用方把运行实例身份绑在上面（C-7/F-4a：不读 ambient、不按 workerId 反解）。</param>
+    public async Task<JsonElement> SendAsync(string cmd, object? payload, TimeSpan? absoluteTimeout,
+        CancellationToken ct = default, Action<string>? onStage = null)
     {
         var started = _clock.UtcNow;
         var deadline = DateTimeOffset.UtcNow + (absoluteTimeout ?? _options.AbsoluteTimeout);
@@ -369,6 +383,8 @@ public sealed class DaemonPool : IDisposable
                     continue;
                 }
                 requestId = _state.RequestTracker.Assign(picked);
+                // per-call 阶段帧监听器：注册给本次调用选中的 worker（finally 注销，含重试换 worker）。
+                if (onStage is not null) _state.SetStageListener(picked, onStage);
                 StateBlockLog.SendStart(_poolTag, requestId, picked, cmd, remaining.TotalSeconds);
 
                 var host = _state.GetHost(picked)!;
@@ -447,7 +463,11 @@ public sealed class DaemonPool : IDisposable
             }
             finally
             {
-                if (picked is not null) { lock (_busyLock) _busy.Remove(picked); }
+                if (picked is not null)
+                {
+                    _state.ClearStageListener(picked);
+                    lock (_busyLock) _busy.Remove(picked);
+                }
                 if (requestId != "") _state.RequestTracker.Complete(requestId);
                 _slotGate.Release();
             }

@@ -20,6 +20,12 @@
         Expect = 0
     }
 
+    AgentProcessSurface = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '过程面单源守卫：键文法(ProcessKeys) / 事件类别(ProcessNodeKinds) / 进度接收器(SyncProgress)'
+    }
+
     DataCenterGenericity = @{
         Args   = @{ Check = $true }
         Expect = 0

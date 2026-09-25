@@ -21,7 +21,7 @@ public sealed record NodeRunScope(string DomainKey, string Container, int Round,
 /// <summary>
 /// 运行域供体（宿主注入）：按「域键 + 容器」给出当前运行域；<b>无运行域 ⇒ null</b>（不伪造）。
 /// <para>
-/// 签名带 <paramref name="container"/> 而非仅域键：同一装配实例可能承载多个并发 run
+/// 签名带 <c>container</c> 而非仅域键：同一装配实例可能承载多个并发 run
 /// （per-taskKey 分区），只凭域键无法判定「哪一个 run」——身份必须**显式给出**，
 /// 不得由供体回读 ambient 运行实例（对齐 INV-I3「单一 ambient 通道只降不升」）。
 /// </para>

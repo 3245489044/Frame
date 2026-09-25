@@ -33,24 +33,51 @@ public sealed class AxiomRound
 /// ①Execute → ②Collect → ③Evaluate → ④Decide → ⑤Adjust。
 /// 演化约束单调性由引擎保证（每轮 token/budget 只按单一入口更新）。
 /// 通用任务循环 canonical（SingleImplementation / TH-12），消费方（Agent 等使用层）仅调用，不重复实现。
+/// <para>
+/// 分级复用纪律：每步各有一个 canonical 函数，供脊柱管道按作用点（<c>ActionStageId</c>）分级调用；
+/// <see cref="RunAsync"/> 为五步组合（原子单轮，外部契约不变）。消费方**只调用**本级 canonical 函数，
+/// 不得在宿主持有步内语义副本（分级 ≠ 分叉）。
+/// </para>
 /// </summary>
 public static class RoundLifecycle
 {
-    public static async Task<AxiomRound> RunAsync(
+    /// <summary>① Execute —— 单轮执行体（宿主注入；返回本轮原始产物）。</summary>
+    public static Task<AxiomActionResult> ExecuteAsync(
         ILoopState ctx,
         Func<ILoopState, CancellationToken, Task<AxiomActionResult>> execute,
-        Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate,
         CancellationToken ct = default)
     {
-        // ① Execute
-        var result = await execute(ctx, ct).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(execute);
+        return execute(ctx, ct);
+    }
 
-        // ② Collect：归一错误分类（显式优先，否则按文本分类）
-        var errCls = result.ErrorClass
+    /// <summary>
+    /// ② Collect —— 归一错误分类（<paramref name="explicitErrorClass"/> 优先，其次产物自带，最后按错误文本分类）
+    /// + 上一轮结果文本落状态。
+    /// </summary>
+    public static ErrorClass? Collect(ILoopState ctx, AxiomActionResult result, ErrorClass? explicitErrorClass = null)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(result);
+
+        var errCls = explicitErrorClass
+            ?? result.ErrorClass
             ?? (result.Error is { } e && e.Length > 0 ? ErrorClassifier.ClassifyError(e) : (ErrorClass?)null);
         ctx.LastResultText = result.Text;
+        return errCls;
+    }
 
-        // ③ Evaluate：进度 + 熔断分别走单一入口
+    /// <summary>③ Evaluate —— eval 求值（宿主回调优先，否则按执行结果推断）+ 进度/熔断单一入口更新 + 熔断落地。</summary>
+    public static EvalOutcome Evaluate(
+        ILoopState ctx,
+        AxiomActionResult result,
+        ErrorClass? errCls,
+        Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate = null)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(result);
+
+        // 进度 + 熔断分别走单一入口
         var eval = evaluate != null ? evaluate(result, errCls) : InferEval(result, errCls);
         ProgressUpdater.Apply(ctx, eval);
         BudgetEscalator.Apply(ctx, errCls, eval);
@@ -61,24 +88,43 @@ public static class RoundLifecycle
         if (ctx.Budget.IsTripped)
             ctx.Flag.SetHalt();
 
-        // ④ Decide：终止优先（halt/token 耗尽）；否则成功即 TS，未成功则继续
-        LoopDecision decision;
-        if (TerminationDecider.ShouldTerminate(ctx, out var term))
-        {
-            decision = term;
-        }
-        else if (result.Ok && eval == EvalOutcome.Pass)
-        {
-            decision = LoopDecision.Success; // TS：SUCCESS_CRITERIA(pass ∧ n≥1) 达成
-        }
-        else
-        {
-            decision = LoopDecision.Continue;
-        }
+        return eval;
+    }
 
-        // ⑤ Adjust：推进轮次号，生成下一步提示（默认无提示）
+    /// <summary>④ Decide —— 终止优先（halt/token 耗尽）；否则成功即 TS，未成功则继续。</summary>
+    public static LoopDecision Decide(ILoopState ctx, AxiomActionResult result, EvalOutcome eval)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (TerminationDecider.ShouldTerminate(ctx, out var term))
+            return term;
+
+        // TS：SUCCESS_CRITERIA(pass ∧ n≥1) 达成
+        return result.Ok && eval == EvalOutcome.Pass ? LoopDecision.Success : LoopDecision.Continue;
+    }
+
+    /// <summary>⑤ Adjust —— 推进轮次号，生成下一步提示（成功无提示）。</summary>
+    public static string? Adjust(ILoopState ctx, LoopDecision decision, EvalOutcome eval)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+
         ctx.Round++;
-        var hint = decision == LoopDecision.Success ? null : BuildNextHint(ctx, eval);
+        return decision == LoopDecision.Success ? null : BuildNextHint(ctx, eval);
+    }
+
+    /// <summary>五步组合（原子单轮）：①→⑤ 顺序不变，外部契约与既有实现等价。</summary>
+    public static async Task<AxiomRound> RunAsync(
+        ILoopState ctx,
+        Func<ILoopState, CancellationToken, Task<AxiomActionResult>> execute,
+        Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate,
+        CancellationToken ct = default)
+    {
+        var result = await ExecuteAsync(ctx, execute, ct).ConfigureAwait(false);
+        var errCls = Collect(ctx, result);
+        var eval = Evaluate(ctx, result, errCls, evaluate);
+        var decision = Decide(ctx, result, eval);
+        var hint = Adjust(ctx, decision, eval);
 
         return new AxiomRound
         {

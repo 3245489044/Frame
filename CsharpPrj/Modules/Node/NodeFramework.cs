@@ -15,6 +15,9 @@ public sealed record NodeFrameworkOptions
 {
     public string FrameworkId { get; init; } = "node-framework";
 
+    /// <summary>本框架所属域键（按声明装配时给出）：运行域校验的身份域来源（免调用方在写请求里重复给域）。</summary>
+    public string? Domain { get; init; }
+
     public IdentitySpec? Identity { get; init; }
 
     public PlacementRegistry? Placements { get; init; }
@@ -24,6 +27,12 @@ public sealed record NodeFrameworkOptions
     public IPlacementResolver? PlacementResolver { get; init; }
 
     public ISequenceAuthority? SequenceAuthority { get; init; }
+
+    /// <summary>运行域供体（运行态身份的唯一来源；未提供 ⇒ Null 实现 ⇒ 不校验身份，行为与既有逐字一致）。</summary>
+    public INodeRunScopeSource? RunScope { get; init; }
+
+    /// <summary>是否要求运行域存在（默认 false：缺失不拒写，仅"有则校验"；由运行态面域按需开启）。</summary>
+    public bool RequireRunScope { get; init; }
 
     public ISpecSource? SpecSource { get; init; }
 
@@ -56,6 +65,7 @@ public sealed class NodeFramework
     {
         var opt = options ?? new NodeFrameworkOptions();
         FrameworkId = opt.FrameworkId;
+        Domain = opt.Domain;
 
         _collector = opt.Diagnostics is null ? new NodeFrameworkDiagnostics() : null;
         Diagnostics = opt.Diagnostics ?? _collector!;
@@ -73,6 +83,8 @@ public sealed class NodeFramework
         Placements = opt.Placements ?? new PlacementRegistry();
         Carriers = opt.Carriers ?? new CarrierRegistry();
         SequenceAuthority = opt.SequenceAuthority ?? new NullSequenceAuthority(Diagnostics);
+        RunScope = opt.RunScope ?? NullNodeRunScopeSource.Instance;
+        RequireRunScope = opt.RequireRunScope;
         SpecSource = opt.SpecSource ?? new NullSpecSource(Diagnostics);
         OrientationAuthority = opt.OrientationAuthority ?? NullOrientationAuthority.Instance;
         ReferenceIndex = opt.ReferenceIndex ?? new NullReferenceIndexPort(Diagnostics);
@@ -83,7 +95,9 @@ public sealed class NodeFramework
         PlacementResolver = opt.PlacementResolver ?? new NullPlacementResolver(Diagnostics);
 
         WriteGate = new NodeWriteGate($"{FrameworkId}:gate", opt.WriteGateTimeout ?? TimeSpan.Zero, Diagnostics);
-        Materializer = new NodeMaterializer(Identity, Placements, Carriers, WriteGate, FormCodec, Defaults, Diagnostics);
+        Materializer = new NodeMaterializer(
+            Identity, Placements, Carriers, WriteGate, FormCodec, Defaults, Diagnostics, RunScope, RequireRunScope,
+            Domain);
         Projection = new NodeReadProjection(Placements, Carriers, Selections, FormCodec, Diagnostics);
         Reconciler = new NodeReconciler(Placements, Carriers, Diagnostics);
         Compensation = new NodeCompensation(Carriers, Diagnostics);
@@ -95,6 +109,9 @@ public sealed class NodeFramework
     }
 
     public string FrameworkId { get; }
+
+    /// <summary>本框架所属域键（未按声明装配 ⇒ <c>null</c>；运行域校验退回写请求给定的域）。</summary>
+    public string? Domain { get; }
 
     public INodeDiagnosticsSink Diagnostics { get; }
 
@@ -110,6 +127,12 @@ public sealed class NodeFramework
     public IPlacementResolver PlacementResolver { get; }
 
     public ISequenceAuthority SequenceAuthority { get; }
+
+    /// <summary>运行域供体（未装配 ⇒ <see cref="NullNodeRunScopeSource"/>：身份校验退化为 no-op）。</summary>
+    public INodeRunScopeSource RunScope { get; }
+
+    /// <summary>是否要求运行域存在（由宿主按域开启；默认 false）。</summary>
+    public bool RequireRunScope { get; }
 
     public ISpecSource SpecSource { get; }
 
@@ -154,16 +177,21 @@ public sealed class NodeFramework
     /// <see cref="NodeFrameworkSpec.CreateResolver"/>、<see cref="NodeFrameworkSpec.ReferenceFields"/> 经
     /// <see cref="NodeFrameworkSpec.CreateReferenceIndex"/> 接入；原实现漏接后二者 ⇒ 反解恒 ∅、改名不级联）。
     /// 身份序数权威仍由宿主注入（<paramref name="sequenceAuthority"/>，未给 ⇒ Null 实现 + 可见化诊断）。
+    /// 运行域供体由宿主注入（<paramref name="runScopeSource"/>）：仅运行态面域需要，
+    /// 未给 ⇒ <see cref="NullNodeRunScopeSource"/>（身份校验退化 no-op，行为与既有逐字一致）。
     /// </summary>
     public static NodeFramework FromSpec(
         NodeFrameworkSpec spec,
         ICarrierRegistry? carriers = null,
         INodeDiagnosticsSink? diagnostics = null,
-        ISequenceAuthority? sequenceAuthority = null)
+        ISequenceAuthority? sequenceAuthority = null,
+        INodeRunScopeSource? runScopeSource = null,
+        bool requireRunScope = false)
     {
         var options = new NodeFrameworkOptions
         {
             FrameworkId = $"node-framework:{spec.Domain}",
+            Domain = spec.Domain,
             Identity = spec.Identity,
             Placements = spec.Placements,
             Carriers = carriers,
@@ -173,6 +201,8 @@ public sealed class NodeFramework
             PlacementResolver = spec.CreateResolver(diagnostics),
             ReferenceIndex = spec.CreateReferenceIndex(diagnostics),
             SequenceAuthority = sequenceAuthority,
+            RunScope = runScopeSource,
+            RequireRunScope = requireRunScope,
         };
 
         var framework = new NodeFramework(options);

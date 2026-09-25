@@ -16,6 +16,11 @@
           由上层适配器持有，本工程契约以 JSON/BCL 为界）；
       E. （告警，不判失败）静态可变字段 / 静态属性（static 且非 readonly/const）：K5 建议一律实例级，
          静态属性须返回只读/冻结视图（原实现只查字段，静态属性漏检）。
+      F. 运行态面不得出现在声明/载体注册（FW-1）：节点域声明 placements[].carrier 不得引用运行态
+         内存载体 id（如 mem-process），Agent 载体装配亦不得把内存载体注册进 CarrierRegistry
+         （运行态面**不是位置**；违者踩 spec.template-indistinguishable / spec.writer-duplicate）。
+      G. （告警，不判失败）声明含运行态面（RuntimeBound=true）却无 run 身份承接点
+         （缺框架契约 / 缺 Agent 供体 / 无 BeginRun 调用）⇒ 缺口可见化。
 
     层序（向上引用）由 Share/Solution/Test-ProjectReferences.ps1 统一校验，本脚本不重复实现。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
@@ -26,6 +31,9 @@
 .PARAMETER ShowDetail
     输出全部检查详情（默认仅输出违规/告警摘要）。
 
+.PARAMETER AgentNodesDir
+    Agent 节点声明目录（F/G 段扫描面；缺省 = <Root>\Projects\Plug\Agent\Config\nodes）。
+
 .EXAMPLE
     .\Check-NodeFramework.ps1
     .\Check-NodeFramework.ps1 -ShowDetail
@@ -33,6 +41,7 @@
 [CmdletBinding()]
 param(
     [string]$Root = '',
+    [string]$AgentNodesDir = '',
     [switch]$ShowDetail
 )
 
@@ -41,6 +50,12 @@ if ([string]::IsNullOrWhiteSpace($Root))
 {
     # 脚本位于 Frame\PowerShellScript\Modules\Node\，上溯四级即仓库根（与 Check-SingleWriter.ps1 一致）
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+}
+
+# F/G 段扫描面（Agent 侧声明与装配）；显式给出可覆盖，路径缺失即跳过（Frame-only 检出仍 EXIT 0）。
+if ([string]::IsNullOrWhiteSpace($AgentNodesDir))
+{
+    $AgentNodesDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -146,6 +161,75 @@ foreach ($f in $csFiles)
     }
 }
 
+# ---------------- F. 运行态面不得出现在声明/载体注册（FW-5 · Error） ----------------
+# 判据：运行态内存面（内存过程节点等）**不是位置** —— 其载体 id（如 ProcessRunNodes.MemCarrierId = mem-process）
+#       不得出现在节点域声明的 placements[].carrier，也不得被 Agent 载体装配注册进 CarrierRegistry
+#       （同域多位置会踩 spec.template-indistinguishable / spec.writer-duplicate 两条 Error 判据）。
+$memCarrierId = 'mem-process'
+if (Test-Path $AgentNodesDir)
+{
+    $declFiles = @(Get-ChildItem -Path $AgentNodesDir -Filter *.json -File -ErrorAction SilentlyContinue)
+    foreach ($decl in $declFiles)
+    {
+        try { $doc = Get-Content -Raw -LiteralPath $decl.FullName | ConvertFrom-Json } catch { continue }
+        if ($null -eq $doc.placements) { continue }
+        foreach ($p in @($doc.placements))
+        {
+            if ([string]::IsNullOrWhiteSpace($p.carrier)) { continue }
+            if ($p.carrier -eq $memCarrierId)
+            {
+                $violations.Add("[F/FW-1] $($decl.Name): 位置 '$($p.id)' 声明了运行态内存载体 id '$memCarrierId'（运行态面不得声明为位置）")
+            }
+        }
+    }
+
+    $carrierFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeCarriers\AgentNodeCarriers.cs'
+    if (Test-Path $carrierFile)
+    {
+        $memRegisterHits = @(Select-String -Path $carrierFile -Pattern "Register\(.*$memCarrierId|MemCarrierId" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Line.TrimStart() -notmatch '^(//|/\*|\*)' })
+        foreach ($h in $memRegisterHits)
+        {
+            $violations.Add("[F/FW-1] AgentNodeCarriers.cs:$($h.LineNumber) 运行态内存载体进入载体注册表（只作读侧 overlay 源，禁注册）")
+        }
+    }
+}
+elseif ($ShowDetail)
+{
+    Write-Host "SKIP(F): 未找到 Agent 节点声明目录（$AgentNodesDir）—— 跳过运行态面声明判定。" -ForegroundColor Gray
+}
+
+# ---------------- G. （告警）声明运行态面须有 run 身份承接点（FW-5 · Warning） ----------------
+# 判据：域描述声明 RuntimeBound=true（有运行态内存面）时，须存在运行域承接点：
+#       ① 框架侧 INodeRunScopeSource（Modules.Node/Identity/NodeRunScope.cs）；
+#       ② Agent 侧供体实现（NodeRunScopeSource.cs）；
+#       ③ run 边界绑定调用（BeginRun）。
+#       缺任一 ⇒ 告警（缺口可见化：运行态面的身份无人承接，事件源只能各自找身份）。
+$runtimeBoundDecl = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\NodeDomainCatalog.cs'
+if (Test-Path $runtimeBoundDecl)
+{
+    $runtimeBoundHits = @(Select-String -Path $runtimeBoundDecl -Pattern 'RuntimeBound\s*:\s*true' -ErrorAction SilentlyContinue)
+    if ($runtimeBoundHits.Count -gt 0)
+    {
+        $scopeContract = Join-Path $nodeDir 'Identity\NodeRunScope.cs'
+        $scopeSource = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\NodeRunScopeSource.cs'
+        $beginRunHits = @(Get-ChildItem -Path (Join-Path $Root 'Projects\Plug\Agent\src') -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+            Select-String -Pattern '\.BeginRun\(' -ErrorAction SilentlyContinue)
+        if (-not (Test-Path $scopeContract))
+        {
+            $warnings.Add("[G/FW-1] 声明含运行态面（RuntimeBound=true）但框架缺运行域契约（Modules.Node/Identity/NodeRunScope.cs）")
+        }
+        if (-not (Test-Path $scopeSource))
+        {
+            $warnings.Add("[G/FW-1] 声明含运行态面但 Agent 侧缺运行域供体（NodeRunScopeSource.cs）")
+        }
+        if ($beginRunHits.Count -eq 0)
+        {
+            $warnings.Add("[G/FW-1] 声明含运行态面但无 run 边界绑定调用（BeginRun）——运行态身份无人承接")
+        }
+    }
+}
+
 # ---------------- 汇总 ----------------
 Write-Host ""
 Write-Host "  扫描源码文件: $($csFiles.Count) 个" -ForegroundColor Gray
@@ -166,6 +250,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C/D 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/D/F 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

@@ -89,9 +89,15 @@ public static class NodeTypes
     /// seq 为**轮内**时序序号，历史顺序由键内 <c>(round, seq)</c> 决定 —— 轮次段使跨轮消息各占独立键，不被 upsert 覆盖）。</summary>
     public const string ConversationMessage = "conversation_message";
 
-    /// <summary>全部逻辑/记录节点类型（三库收敛后由统一节点库承载的判别集）。</summary>
+    /// <summary>过程节点（运行域事实：阶段 / 端点心跳 / LLM 调用 / 工具；NodeKey=<c>proc.{container}.r{round}.step{seq}</c>，ThreadId=container）。
+    /// 与业务节点（<see cref="Node"/>）分属不同判别值：过程事实不得触发引用图联动/建边（<c>WriteGuardPort.IsBusinessNode</c>），
+    /// 且面板按本判别值独立成组（不再与 task 业务节点混组）。</summary>
+    public const string Process = "process";
+
+    /// <summary>全部逻辑/记录节点类型（三库收敛后由统一节点库承载的判别集）。
+    /// 本集合是**写路径白名单**（UI/MCP 校验 nodeType 合法性），新增判别值必须同步追加，否则写路径直接拒写。</summary>
     public static readonly IReadOnlyCollection<string> LogicRecordTypes =
-        new[] { Input, Output, Event, Checkpoint, Config, KeyMapping, Resource, Node, Relation, ClineMessages, Session, ConversationMessage };
+        new[] { Input, Output, Event, Checkpoint, Config, KeyMapping, Resource, Node, Relation, ClineMessages, Session, ConversationMessage, Process };
 }
 
 /// <summary>

@@ -93,7 +93,9 @@ public sealed class WriteGuardPort : INodeStore
         return removed;
     }
 
-    /// <summary>写透白名单：仅业务节点（NodeType=node）。内部记录（config/checkpoint/zone/keymapping）不建图资源。
+    /// <summary>写透白名单：仅业务节点（NodeType=node）。内部记录（config/checkpoint/zone/keymapping）与
+    /// 运行域事实（process：过程节点）不建图资源 —— process 判别值是「运行过程事实」，非业务实体，
+    /// 写后既不入引用图、也不被引用重扫（ReferenceGrounding 按 NodeTypes.Node 全扫）纳入扫描面。
     /// 单一真源：判别类型经本守卫直写底层时，镜像与否由此白名单裁决，不依赖外壳。</summary>
     public static bool IsBusinessNode(string nodeType) => nodeType == NodeTypes.Node;
 }

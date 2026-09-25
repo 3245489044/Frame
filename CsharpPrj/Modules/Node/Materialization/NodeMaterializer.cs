@@ -50,6 +50,9 @@ public sealed class NodeMaterializer
     private readonly NodeFormCodec _codec;
     private readonly SpecDefaults _defaults;
     private readonly INodeDiagnosticsSink _diagnostics;
+    private readonly INodeRunScopeSource _runScope;
+    private readonly bool _requireRunScope;
+    private readonly string? _domain;
 
     public NodeMaterializer(
         IdentitySpec identity,
@@ -58,7 +61,10 @@ public sealed class NodeMaterializer
         NodeWriteGate writeGate,
         NodeFormCodec? codec = null,
         SpecDefaults? defaults = null,
-        INodeDiagnosticsSink? diagnostics = null)
+        INodeDiagnosticsSink? diagnostics = null,
+        INodeRunScopeSource? runScopeSource = null,
+        bool requireRunScope = false,
+        string? domain = null)
     {
         _identity = identity;
         _placements = placements;
@@ -67,9 +73,72 @@ public sealed class NodeMaterializer
         _codec = codec ?? new NodeFormCodec();
         _defaults = defaults ?? new SpecDefaults();
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
+        _runScope = runScopeSource ?? NullNodeRunScopeSource.Instance;
+        _requireRunScope = requireRunScope;
+        _domain = domain;
     }
 
     public NodeFormCodec Codec => _codec;
+
+    /// <summary>
+    /// 运行域校验（有供体且域命中才生效）：比对身份键 Context 段与当前 run ——
+    /// ① 容器须与供体按该容器返回的运行域一致（供体实现护栏，防跨 run 串味）；
+    /// ② 轮次**只拒超前**（round &gt; 当前轮）：旧轮积分合法（运行态面跨轮只增不丢，结算按条目自身轮次物化），
+    ///    若逐字比对轮次，跨轮待落库项将永久被拒 ⇒ 静默丢数据。
+    /// 无运行域 ⇒ 仅在 <c>requireRunScope</c> 开启时拒写（默认不拒，行为与既有一致）。
+    /// </summary>
+    private NodeRunScopeViolation? RunScopeViolation(
+        NodeMaterializeRequest request, IReadOnlyDictionary<string, string> values)
+    {
+        // 域来源：框架自身域（按声明装配）优先，退回写请求显式域；两者皆无 ⇒ 不由运行域裁决。
+        var domain = _domain ?? request.Domain;
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return null;
+        }
+
+        values.TryGetValue("container", out var container);
+        var scope = string.IsNullOrWhiteSpace(container) ? null : _runScope.Current(domain!, container!);
+        if (scope is null)
+        {
+            return _requireRunScope
+                ? new NodeRunScopeViolation(
+                    "materialize.run-scope-missing",
+                    $"域 '{domain}' 要求运行域但容器 '{container ?? "<无 container 段>"}' 无当前 run（未 BeginRun）")
+                : null;
+        }
+
+        if (!string.Equals(scope.DomainKey, domain, StringComparison.Ordinal))
+        {
+            return null; // 供体给出的域与请求域不符：非本域运行态，交回既有流程裁决
+        }
+
+        if (!string.Equals(scope.Container, container, StringComparison.Ordinal))
+        {
+            // 供体实现护栏：本域供体须按「取值的容器」返回该容器的运行域（返回他容器 ⇒ 装配缺陷，不静默）。
+            return new NodeRunScopeViolation(
+                "materialize.run-scope-container-mismatch",
+                $"身份键容器 '{container}' 与当前运行域 '{scope.Container}' 不一致（跨 run 串味）");
+        }
+
+        if (values.TryGetValue("round", out var roundText) &&
+            int.TryParse(roundText, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var round) &&
+            round > scope.Round)
+        {
+            // 只拒「不可能的将来轮次」（身份漂移/伪造）；**旧轮积压合法**：
+            // 运行态面跨轮只增不丢（BeginRound 保留未落库条目，结算按条目自身轮次物化），
+            // 故 round < scope.Round 必须放行，否则跨轮待落库项永久被拒 ⇒ 静默丢数据。
+            return new NodeRunScopeViolation(
+                "materialize.run-scope-round-ahead",
+                $"身份键轮次 '{round}' 超前于当前运行域轮次 '{scope.Round}'");
+        }
+
+        return null;
+    }
+
+    /// <summary>运行域违规（代码 + 可见化原因；<c>null</c> = 通过）。</summary>
+    private readonly record struct NodeRunScopeViolation(string Code, string Message);
 
     public async Task<NodeMaterializationResult> MaterializeAsync(
         NodeMaterializeRequest request,
@@ -91,6 +160,13 @@ public sealed class NodeMaterializer
                 $"身份键不符合身份规范 '{_identity.Template}'",
                 collected,
                 results);
+        }
+
+        // 运行域校验（可选）：身份键 Context 段须与框架侧「当前 run」一致 ——
+        // 把「身份靠调用方自觉」升级为「框架可校验」；不一致即 Rejected（不写入任何位置）。
+        if (RunScopeViolation(request, values) is { } violation)
+        {
+            return Reject(request.Key, violation.Code, violation.Message, collected, results);
         }
 
         var candidates = ResolvePlacements(request, collected);

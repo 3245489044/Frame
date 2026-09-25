@@ -13,6 +13,8 @@
       C. 节点写路径单源（A-1.4 / G3 / P16）：`INodeOutputStore.WriteOutputAsync` 的生产调用点
          必须全部落在白名单文件 `NodeOutputPersistStage.cs`（经 NodePersistCoordinator → NodeWriteGate）。
       D. （告警，不判失败）NodeProcess 内 `new PortKeySpace` 之外的疑似裸键容器（HashSet<string>）。
+      H. 运行态面结算单源（FW-1/FW-5）：内存运行态面（过程节点）的结算路径禁直接写存储
+         （`INodeStore.PutAsync` / `DeleteAsync` 等须经唯一写门 NodeMaterializer；路径缺失即跳过）。
 
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
 
@@ -86,6 +88,25 @@ if ($writeHits.Count -gt 0)
     foreach ($h in $writeHits) { $violations.Add("[C/G3] $($h.Path):$($h.LineNumber) 节点输出写绕过单写门（唯一写入口 = NodeOutputPersistStage → NodeWriteGate）") }
 }
 elseif ($ShowDetail) { Write-Host "OK(C): 节点输出写路径唯一（NodeOutputPersistStage）。" -ForegroundColor Green }
+
+# ---------------- H. 运行态面结算必须经唯一写门（FW-5 · Error） ----------------
+# 判据：内存运行态面（过程节点等）的结算路径**禁**直接写存储（<c>INodeStore.PutAsync</c> 等裸写）；
+#       结算必须经唯一写门（NodeMaterializer → NodeWriteGate → 载体）。扫描面 = 内存面定义 + 域端口实现
+#       （Agent 侧；路径缺失即跳过，保持 Frame-only 检出可用）。
+$runtimeSurfaceFiles = @(
+    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Signal\ProcessNodes.cs'),
+    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\NodeDomainPort.cs')
+)
+foreach ($f in $runtimeSurfaceFiles)
+{
+    if (-not (Test-Path $f)) { continue }
+    $bareWriteHits = @(Select-String -Path $f -Pattern '\.(PutAsync|DeleteAsync|DeleteManyAsync)\s*\(' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Line.TrimStart() -notmatch '^(//|/\*|\*)' })
+    foreach ($h in $bareWriteHits)
+    {
+        $violations.Add("[H/FW-1] $(Split-Path $h.Path -Leaf):$($h.LineNumber) 运行态面结算路径直接写存储（须经唯一写门 NodeMaterializer）")
+    }
+}
 
 # ---------------- D. （告警）疑似裸键容器 ----------------
 $bareContainerHits = @($csFiles | Select-String -Pattern 'HashSet<string>\s+\w*[Bb]are' -ErrorAction SilentlyContinue)

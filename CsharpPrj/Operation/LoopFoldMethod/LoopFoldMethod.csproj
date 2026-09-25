@@ -56,6 +56,10 @@
     <!-- 有界守卫归一（A₀）：ActionPoint 单次 HandleAsync 的有界执行上收 Modules.Threading.Bounded（BoundedExecution，
          协作取消 + 自身预算耗尽抛强类型 BoundedTimeoutException；外层取消一律上抛 OCE 不误报超时）。Threading 为叶子模块，无环。 -->
     <ProjectReference Include="$(Proj_Threading)" />
+
+    <!-- 提示词域投影器（Node/Project/PromptNodeProjector）段内拼接委托内核拼接单源 Share.Composition.KernelJoins
+         （不过滤空段的 JoinAll 原义；保真锁定，不自建第二套 join）。Share 为框架层，向下引用无环。 -->
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
   </ItemGroup>
 
 </Project>

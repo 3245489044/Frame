@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp → 节点框架端口适配器</ModuleRule_Title>
+    <ModuleRule_Description>把 .ushar 声明编译为节点框架的定义集：ISpecSource 装配（[Flow] → RoundSpec → RoundSpecChainMapper → 链 JSON）；语言级诊断单向投影到 IDefinitionDiagnostics。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;适配器;节点;ISpecSource;端口;定义期</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="唯一引 Modules.Node 的 Usharp 工程：耦合方向 Usharp.Adapters.Node → Node 端口（禁 Modules.Node → Usharp，见 Node 侧 P20 与 Check-NodePortPurity）" />
+    <ModuleRule_Rule Include="键连接唯一映射点 = RoundSpecChainMapper（禁在适配层复制映射逻辑）" />
+    <ModuleRule_Rule Include="诊断单向投影（UsharpDiagnostic → IDefinitionDiagnostics）；禁反向解析（投影范式见 UsharpDiagnosticProjection）" />
+    <ModuleRule_Rule Include="编译期零写库：本层只产出定义集，物化仍归 NodeMaterializer（唯一写入口）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Adapters.Node</RootNamespace>
+    <AssemblyName>Usharp.Adapters.Node</AssemblyName>
+    <Description>Usharp → 节点框架端口适配器（定义期装配）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Modules\Node\Modules.Node.csproj" />
+  </ItemGroup>
+
+</Project>

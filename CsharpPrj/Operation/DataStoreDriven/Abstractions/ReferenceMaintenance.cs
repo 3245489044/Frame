@@ -70,10 +70,12 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集（History class 容器成员）。</summary>
         Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default);
 
-        /// <summary>历史挂载节点：history.{historyId} → wf.node（history_owns_node 边，幂等加法；历史 class 容器归拢节点产出）。</summary>
+        /// <summary>【**已退役**（W1）】历史挂载节点曾写 <c>history_owns_node</c> 边；该边已降级为**派生视图**
+        /// ⇒ 实现抛 <see cref="System.NotSupportedException"/>（成员保留仅为源兼容；调用即语义错误）。</summary>
         Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>按历史查 history_owns_node 出边，返回该历史挂载的工作流节点键集（历史作用域寻址）。</summary>
+        /// <summary>按历史查工作流节点键集（历史作用域寻址）。**派生视图**（<c>history_owns_node</c> 已退役，
+        /// 不独立存边）：= 该历史全部归拢任务的 task→node 边并集。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
         /// <summary>会话归属边（session_owns）：把业务节点（消息/工作流产出）挂到会话根（幂等加法）。</summary>

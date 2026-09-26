@@ -6,9 +6,10 @@ MinimumVisualStudioVersion = 10.0.40219.1
 # =====================================================================
 #  Usharp.sln  ——  Usharp 语言框架解决方案（聚合视图）· 权威约定注释（不可删除）
 # =====================================================================
-#  · 本解决方案【只引用 13 个聚合单元】：
-#      Usharp 子树 7 工程：Usharp.Syntax · Usharp.Semantics · Usharp.Matrix · Usharp.Emit ·
-#        Usharp.Cli · Usharp.Adapters.UniversalReference · Usharp.Adapters.Observability
+#  · 本解决方案【只引用 14 个聚合单元】：
+#      Usharp 子树 8 工程：Usharp.Syntax · Usharp.Semantics · Usharp.Matrix · Usharp.Emit ·
+#        Usharp.Cli · Usharp.Adapters.UniversalReference · Usharp.Adapters.Observability ·
+#        Usharp.Adapters.Node（唯一引 Modules.Node 的 Usharp 工程）
 #      CsharpPrj 6 伞工程：BasicMethod · Modules · Share · Operation · Plate · Strategy
 #  · 平台各伞工程目录下的子工程经伞 csproj 的 <ProjectReference> 递归纳入；
 #    禁止在本解决方案中直接加入任何平台子工程（叶子工程不得出现在此 .sln）。
@@ -32,6 +33,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Adapters.UniversalReference", "src\Usharp.Adapters.UniversalReference\Usharp.Adapters.UniversalReference.csproj", "{B5088B1E-FF78-482A-854E-667299EF0D86}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Adapters.Observability", "src\Usharp.Adapters.Observability\Usharp.Adapters.Observability.csproj", "{4B2E9A17-6D53-4C81-9F0A-B7C2E3D4A501}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Adapters.Node", "src\Usharp.Adapters.Node\Usharp.Adapters.Node.csproj", "{7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicMethod", "..\CsharpPrj\BasicMethod\BasicMethod.csproj", "{30383259-20CD-4A50-BD5F-70040DF8AEFD}"
 EndProject
@@ -139,6 +142,18 @@ Global
         {4B2E9A17-6D53-4C81-9F0A-B7C2E3D4A501}.Release|x64.Build.0 = Release|Any CPU
         {4B2E9A17-6D53-4C81-9F0A-B7C2E3D4A501}.Release|x86.ActiveCfg = Release|Any CPU
         {4B2E9A17-6D53-4C81-9F0A-B7C2E3D4A501}.Release|x86.Build.0 = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|x64.ActiveCfg = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|x64.Build.0 = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|x86.ActiveCfg = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Debug|x86.Build.0 = Debug|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|Any CPU.Build.0 = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|x64.ActiveCfg = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|x64.Build.0 = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|x86.ActiveCfg = Release|Any CPU
+        {7C3E5A21-9B4D-4E8F-A2C1-3D5E6F7A8B90}.Release|x86.Build.0 = Release|Any CPU
         {30383259-20CD-4A50-BD5F-70040DF8AEFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
         {30383259-20CD-4A50-BD5F-70040DF8AEFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {30383259-20CD-4A50-BD5F-70040DF8AEFD}.Debug|x64.ActiveCfg = Debug|Any CPU

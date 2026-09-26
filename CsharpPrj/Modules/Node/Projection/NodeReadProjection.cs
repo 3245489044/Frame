@@ -27,13 +27,25 @@ public sealed record NodeProjectionItem(
     ProjectionOrigin Origin,
     string? PayloadJson = null);
 
-/// <summary>读投影范围（裁剪只在读侧：N7）。</summary>
+/// <summary>
+/// 读投影范围（裁剪只在读侧：N7）。
+/// <para>
+/// 位置来源（L-6）：<see cref="Loc"/> 给出时经 <see cref="IPlacementResolver"/> 反解 —— 与写侧**同一实现**
+/// （消除"写侧按 A 位置、读侧按 B 位置"的漂移）；<see cref="PlacementIds"/> 保留为兼容/收窄面
+/// （未给 <see cref="Loc"/> 时按现状直取注册表；给出 <see cref="Loc"/> 时作为**交集收窄**）。
+/// </para>
+/// </summary>
+/// <remarks>
+/// <c>Loc</c> = loc 值（位置轴坐标，非身份 L-1）；给出 ⇒ 位置集合 = 反解产物
+/// （未声明/无命中 ⇒ ∅ + 诊断，禁回退默认载体 L-5）。
+/// </remarks>
 public sealed record ReadScope(
     string? Domain = null,
     IReadOnlyList<string>? PlacementIds = null,
     string? SelectionId = null,
     string? KeyPrefix = null,
-    int? Limit = null);
+    int? Limit = null,
+    string? Loc = null);
 
 /// <summary>
 /// 读投影：<c>Scope → placements → 解码 → selection → 排序 → Origin 标注</c>。
@@ -47,19 +59,26 @@ public sealed class NodeReadProjection
     private readonly SelectionSet _selections;
     private readonly NodeFormCodec _codec;
     private readonly INodeDiagnosticsSink _diagnostics;
+    private readonly IPlacementResolver? _placementResolver;
 
+    /// <remarks>
+    /// <c>placementResolver</c> = 位置反解端口（L-6）：<c>ReadScope.Loc</c> 给出时读侧位置集合由此产出
+    /// （与写侧同一实现）。未装配 ⇒ 按 loc 读时为 ∅ + 诊断（不兜底）；<c>null</c> 时 <c>Loc</c> 不可用。
+    /// </remarks>
     public NodeReadProjection(
         PlacementRegistry placements,
         ICarrierRegistry carriers,
         SelectionSet selections,
         NodeFormCodec? codec = null,
-        INodeDiagnosticsSink? diagnostics = null)
+        INodeDiagnosticsSink? diagnostics = null,
+        IPlacementResolver? placementResolver = null)
     {
         _placements = placements;
         _carriers = carriers;
         _selections = selections;
         _codec = codec ?? new NodeFormCodec();
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
+        _placementResolver = placementResolver;
     }
 
     public async Task<IReadOnlyList<NodeProjectionItem>> ProjectAsync(
@@ -120,7 +139,7 @@ public sealed class NodeReadProjection
                 "projection.empty",
                 NodeDiagnosticSeverity.Info,
                 "读投影无来源命中：返回 ∅（不伪造状态）",
-                scope.Domain ?? scope.PlacementIds?.FirstOrDefault() ?? scope.KeyPrefix ?? string.Empty));
+                scope.Loc ?? scope.Domain ?? scope.PlacementIds?.FirstOrDefault() ?? scope.KeyPrefix ?? string.Empty));
         }
 
         return limited;
@@ -128,6 +147,11 @@ public sealed class NodeReadProjection
 
     private IReadOnlyList<PlacementSpec> ResolvePlacements(ReadScope scope)
     {
+        if (scope.Loc is { Length: > 0 } loc)
+        {
+            return ResolveByLoc(scope, loc);
+        }
+
         if (scope.PlacementIds is { Count: > 0 })
         {
             var selected = new List<PlacementSpec>();
@@ -145,6 +169,59 @@ public sealed class NodeReadProjection
         return scope.Domain is { Length: > 0 } domain
             ? _placements.ReadableByDomain(domain)
             : _placements.All.Where(p => p.IsReadable).ToArray();
+    }
+
+    /// <summary>
+    /// loc 反解取位置（L-6 单源）：与写侧共用同一 <see cref="IPlacementResolver"/> 实例。
+    /// 失败即 ∅（诊断由反解端口给出，L-5 禁回退默认载体）；<see cref="ReadScope.Domain"/> /
+    /// <see cref="ReadScope.PlacementIds"/> 仅作**收窄**（不改变位置来源）。
+    /// </summary>
+    private IReadOnlyList<PlacementSpec> ResolveByLoc(ReadScope scope, string loc)
+    {
+        if (_placementResolver is null)
+        {
+            _diagnostics.Report(new NodeDiagnostic(
+                "projection.loc-without-resolver",
+                NodeDiagnosticSeverity.Error,
+                "按 loc 读位置但反解端口未装配：位置集合为空（不兜底）",
+                loc));
+            return Array.Empty<PlacementSpec>();
+        }
+
+        var resolution = _placementResolver.Resolve(loc, scope.KeyPrefix ?? string.Empty);
+        if (!resolution.Resolved)
+        {
+            // L-5：未声明 loc / 反解无命中 ⇒ ∅ + 诊断（反解端口已可见化），禁回退默认载体
+            return Array.Empty<PlacementSpec>();
+        }
+
+        var narrowing = scope.PlacementIds is { Count: > 0 }
+            ? new HashSet<string>(scope.PlacementIds, StringComparer.Ordinal)
+            : null;
+        var domainFilter = scope.Domain is { Length: > 0 } domain ? domain : null;
+
+        var targets = new List<PlacementSpec>(resolution.Placements.Count);
+        foreach (var spec in resolution.Placements)
+        {
+            if (!spec.IsReadable)
+            {
+                continue;
+            }
+
+            if (domainFilter is not null && !string.Equals(spec.Domain, domainFilter, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (narrowing is not null && !narrowing.Contains(spec.PlacementId))
+            {
+                continue;
+            }
+
+            targets.Add(spec);
+        }
+
+        return targets;
     }
 
     private IReadOnlyList<NodeProjectionItem> ApplySelection(

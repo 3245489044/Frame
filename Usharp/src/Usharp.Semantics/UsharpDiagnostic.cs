@@ -64,6 +64,12 @@ public static class UsharpCodes
     /// <summary>链尾重复连接（一条链尾至多接一个后继）：首个连接生效，后续 connects= 被忽略（可见化，不静默覆盖）。</summary>
     public const string ChainTailAlreadyLinked = "US5005";
 
+    /// <summary>位置反解表不可产出（<c>[Matrix] LocToPlacement</c> 缺失 / 行输出不在反解域 / 引用了非 loc 词表项）。</summary>
+    public const string LocPlacementNotProducible = "US5006";
+
+    /// <summary>归属边声明不可产出（无任何带 <c>edge=</c> 的 <c>[Ref]</c> / 坐标未在空间声明）。</summary>
+    public const string RefEdgeNotProducible = "US5007";
+
     /// <summary>
     /// 计划（处理编排）相关诊断码名单 —— 判据侧（<c>ProcessPlanGateRule</c> 产出）与发射侧
     /// （<c>UsharpHierarchyProcessPlanEmitter</c> 投影筛选）**共同引用**，避免名单两处维护（漏改即静默丢诊断）。

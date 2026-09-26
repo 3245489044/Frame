@@ -232,6 +232,8 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 | `US5003` | warn | `[Flow]` 成功准则未知（按 decision 处理） |
 | `US5004` | error | 层次 schema 不可产出（`contains=` 形状非法 / 单根不成立 / 一层多处理器绑定）——产出面域内判据，不复读闸A 码 |
 | `US5005` | warn | 链尾重复连接：首个连接生效，后续 `connects=` 被忽略（可见化，不静默覆盖） |
+| `US5006` | error | 位置反解表不可产出（`[Matrix] LocToPlacement` 缺失 / 行输出不在反解域 / 引用了非 loc 词表项）——产出面域内判据，不复读闸A 码 |
+| `US5007` | error | 归属边声明不可产出（本编译无任何带 `edge=` 的 `[Ref]`）——产出面域内判据，静默兜底禁入（W1） |
 | `US6001` | error | `[Obs]` 事件的 `entity=`/`scope=`（或实体的 `scope=`、作用域的 `parent=`）指向未声明实体/作用域（闸A） |
 | `US6002` | error | `[Flow] step emit=` 引用未声明事件分类（**运行期 `UnregisteredEventException` 前移到编译期**） |
 | `US6003` | error | `[Obs]` 同 `kind` 同名重复声明 |

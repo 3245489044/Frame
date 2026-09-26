@@ -30,6 +30,26 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// 装配期由组合根注入（守卫早于节点库确定时以属性注入）。</summary>
     public INodeStore? NodeStore { get; set; }
 
+    /// <summary>可选准入诊断出口（W1 写边准入的可见化通道）；缺省静默。装配期由组合根注入（同 <see cref="NodeStore"/>）。</summary>
+    public IReferenceEdgeDiagnostics? EdgeDiagnostics { get; set; }
+
+    /// <summary>可选归属边白名单（W1）：未装配 ⇒ **报告模式**（不拒绝任何边，行为与现状逐字一致）；
+    /// 装配 <see cref="DeclaredReferenceEdgeCatalog"/> ⇒ **拒绝模式**（未声明边拒写 + 可见化）。
+    /// 装配期由组合根注入（同 <see cref="NodeStore"/>；默认值 = 零行为变更，回退 = 置回默认）。</summary>
+    public IReferenceEdgeCatalog EdgeCatalog { get; set; } = PermissiveReferenceEdgeCatalog.Instance;
+
+    /// <summary>归属边准入（W1）：未在声明面登记 ⇒ 拒写 + 可见化（禁静默建边；未装配白名单 ⇒ 报告模式放行）。</summary>
+    private bool AdmitEdge(string edgeType, string subject)
+    {
+        if (EdgeCatalog.IsDeclared(edgeType))
+        {
+            return true;
+        }
+
+        (EdgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance).EdgeUndeclared(edgeType, subject);
+        return false;
+    }
+
     public ReferenceGrounding(ReferenceGraphCoordinator graph)
     {
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
@@ -86,6 +106,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureSessionMirrorAsync(sessionName, ct).ConfigureAwait(false);
         var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
+        if (!AdmitEdge(CrossDbReferenceTypes.SessionOwns, $"{sessionName}|{nodeKey}")) return;
         await _graph.AddReferenceAsync(sessionId, nodeId, CrossDbReferenceTypes.SessionOwns, 1.0, ct).ConfigureAwait(false);
     }
 
@@ -147,6 +168,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+        if (!AdmitEdge(CrossDbReferenceTypes.HistoryOwnsTask, $"{historyId}|{taskKey}")) return;
         await _graph.AddReferenceAsync(historyId2, taskId, CrossDbReferenceTypes.HistoryOwnsTask, 1.0, ct).ConfigureAwait(false);
     }
 
@@ -176,23 +198,12 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// <summary>历史 Id 单一权威：history.{historyId}（构造与还原见 <see cref="HierarchyResourceKeys"/>）。</summary>
     private static string HistoryNodeId(string historyId) => HierarchyResourceKeys.History(historyId);
 
-    /// <summary>历史挂载节点：history.{historyId} → wf.node（history_owns_node 边，幂等加法）。
-    /// 历史 class 容器归拢其工作流节点产出（跨多任务，区别于 session_owns 的会话语义）。</summary>
-    public async Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
-        await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
-        await EnsureNodeMirrorAsync(workflowId, nodeKey, symbol: nodeKey, ct).ConfigureAwait(false);
-        var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
-        var nodeId = new ResourceIdentifier
-        {
-            ResourceType = NodeResourceTypes.Node,
-            Id = NodeRelationFactory.NodeId(workflowId, nodeKey),
-            Location = workflowId,
-        };
-        await _graph.AddReferenceAsync(historyId2, nodeId, CrossDbReferenceTypes.HistoryOwnsNode, 1.0, ct).ConfigureAwait(false);
-    }
+    /// <summary>【**已退役**（W1）】<c>history_owns_node</c> 写点已移除：该边降级为**派生视图**
+    /// （历史节点集 = 其全部归拢任务的 task→node 边并集，读侧见 <see cref="GetHistoryNodeKeysAsync"/>）。
+    /// 调用本方法即语义错误 ⇒ **抛**（W-4「缺失即抛」，禁静默 no-op、禁派生视图独立存边回流）。</summary>
+    public Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default)
+        => throw new NotSupportedException(
+            "history_owns_node 已退役（派生视图）：历史节点集须经 GetHistoryNodeKeysAsync 按 task→node 边派生，禁独立存边");
 
     /// <summary>历史的工作流节点键集（历史作用域寻址）。**派生视图**（history_owns_node 已降级，不再独立存边）：
     /// = 该历史全部归拢任务的 task→node（cross_db_link）边并集。数据模型：单 history → 多 task → 多 node（M:N）。</summary>
@@ -268,6 +279,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
+        if (!AdmitEdge(CrossDbReferenceTypes.CrossDbLink, $"{taskKey}|{nodeKey}")) return;
         await _graph.AddReferenceAsync(taskId, nodeId, CrossDbReferenceTypes.CrossDbLink, 1.0, ct).ConfigureAwait(false);
     }
 
@@ -319,6 +331,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(subTaskKey, ct).ConfigureAwait(false);
         var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
         var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
+        if (!AdmitEdge(CrossDbReferenceTypes.TaskOwnsTask, $"{parentTaskKey}|{subTaskKey}")) return;
         await _graph.AddReferenceAsync(parentId, childId, CrossDbReferenceTypes.TaskOwnsTask, 1.0, ct).ConfigureAwait(false);
     }
 

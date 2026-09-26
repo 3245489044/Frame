@@ -330,3 +330,79 @@
 | **U20** | loc 受控词集是否与 UR `ResourceIdentifier.Location` **同源** | 决定是否出现两个 Location 词汇表 | A 同源（推荐，L-7）／B 各自命名空间 + 映射表（弱耦合） |
 | **U21** | `PlacementSpec` 退役后，Node 侧是否保留"位置声明 JSON"作为**无语言环境**的降级路径 | 影响纯 C# 宿主（不接 Usharp）可用性 | A 保留（Null resolver + JSON 声明，推荐）／B 仅语言路径（收缩宿主面） |
 
+---
+
+## §14 表达形态实测（2026-09-26；修正 §13.2 的 `[Matrix]` 写法）
+
+> **结论**：§13.2 画的 `[Matrix] LocToPlacement: over=Loc`（行 = 位置属性 = loc 坐标）**在现有语言面不可表达**；可行形态见 §14.2。本节为**实测修正**，不改 §13 的裁决方向（位置 = loc 反解、不手写声明）。
+
+### 14.1 实测（`Usharp.Cli build`，可复现）
+
+| 形态 | 实测诊断 |
+|---|---|
+| §13.2 原样：`[Space] Loc` + `[Space] Placement: … \| contains=Loc` + `[Matrix] … over=Loc` | ❌ **6 错**：`US1003`×3（行输出不在 `over=` 空间）+ `US1009`×3（子空间坐标不在父空间） |
+| 反解矩阵 `over=` 子空间（读祖先 loc、写自身位置坐标） | ❌ **3 错**：`US1009`×3 |
+| 单一键空间（loc 值 ∪ 位置 id）+ `[Matrix] over=该空间`，行 = `⟨位置 id = loc 值⟩` | ✅ **0 错 0 警告** |
+
+**根因**：`[Matrix]` 行的输出坐标须 ∈ `over=` 空间自身（`US1003`）；`contains=` 子空间的坐标须 ⊆ 父空间（`US1009`）。位置属性（carrier / keyTemplate / form / retention / writer）**不是 Loc 坐标**，故不能作 `over=Loc` 的行输出；反过来把位置另立子空间又触 `US1009`。两条门同时关上，§13.2 的写法无解。
+
+### 14.2 落定形态（零新增语言单元）
+
+```
+[Space] Loc: kind=keys            ← loc 受控词集（单源；闸A 未声明即 error）＝ loc **值**的下划线形
+  agent_round
+
+[Space] LocPlacement: kind=keys    ← loc 值 ∪ 位置 id（同空间的代价见下）
+  agent_round
+  archive_raw
+  …
+
+[Matrix] LocToPlacement: over=LocPlacement
+  archive_raw = agent_round        ← 行 = ⟨位置 id = loc 值⟩
+  …
+```
+
+> 映射键 = **loc 值**（非坐标名）：运行期 `IPlacementResolver.Resolve(loc, …)` 按值查表；现状 loc 单值 =
+> 节点 ThreadId 缺省 `agent-round`（`ReferenceGrounding` 的 `Location = workflowId`；`NodeKeys.DefaultWorkflowId`）。
+
+**两条代价（须登记，不得静默）**：
+
+1. **两词表同居一空间**：`LocPlacement` 同持 loc 值与位置 id ⇒ 需机器判据区分两子集（= `Check-NodeLocPlacement` C2：坐标集恰 = 位置 id ∪ Loc 词表，双向无游离）。这是「零新增语言单元」的代价，替代方案是 `[Matrix]` 行新增属性字段（U18 选项 C，走 README §7.5 语法扩张评审）。
+2. **坐标名禁 `-`**（`UsharpIdentifier`：`[A-Za-z_][A-Za-z0-9_]*`，因 `-` 与线性表达式减号同形）⇒ 位置 id 在声明面用**下划线形**（`archive_raw`），与 kebab 形（`archive-raw`）之归一由 C 侧反解表装配承担（唯一映射点，禁第二处换算）。
+
+### 14.3 消费点与门禁（治 P23：声明不得无消费）
+
+| 项 | 落点 |
+|---|---|
+| 声明面 | `Projects/Plug/Agent/Config/nodes/placement.ushar` |
+| 发射器 | `Frame/Usharp/src/Usharp.Emit/UsharpLocPlacementEmitter.cs`（中立 JSON；两侧 `_`→`-` 归一唯一映射点 = `ToRuntimeId`） |
+| 装配消费 | `Agent.Modules/NodeSpec/NodePlacementDeclaration.cs`（**无降级**：缺失/编译失败/发射失败 ⇒ 抛）→ `NodeFrameworkSpecLoader`（映射**工厂**形态，按域裁剪）→ `DeclaredPlacementResolver` |
+| 禁手写 | JSON 声明面出现 `locToPlacement` ⇒ Error `spec.loc-to-placement-forbidden`（手写即双真源 P22） |
+| 门禁 | `Check-NodeLocPlacement.ps1`（C1 闸A 编译 0 错 / C2 反解域完备 / C3 反解唯一 · 每位置恰一行 / C4 正对照 / C5 负对照锁死 §14.1 不可表达形态）→ `GateManifests.psd1` 的 `NodeLocPlacement` |
+| 用例 | `usharp.emit` 套件 2 例（声明产出逐字段 + 缺反解域不产出 `US5006`）；`Agent.Modules.Tests` 1 例（每域解析器由声明面支撑且按域裁剪） |
+| 待接（U12 L4） | 读/写路径经**同一** `IPlacementResolver` 取位置（L-6）；`PlacementSpec` 手写声明逐项退役（U21=B：不留 JSON 降级路径） |
+
+> 排序增量（I0–I7）见 `Projects\Plug\Agent\doc\节点键关系彻底重构-坐标声明化与框架算键方案.md` §0.5 修订 4；其中 I3 起涉 `Usharp.Emit` 改动，须**重烘焙 Frame 二进制**方可被 Agent 装配面消费。
+
+### 14.4 `[Ref]` 承载「边类型 + loc 挂载」的字段面实测（2026-09-26）
+
+§13.2 写的 `[Ref] … loc=` **不可直接书写**：`[Ref]` 的字段面 = `space` / `key` / `src` / `tgt` / `intent` / `edge` / `scope`
+（`UsharpLanguage.Field*`；另有 `[Edge]` 的 `ur=`），**无 `loc=`**。实测（`Usharp.Cli build`，夹具含三形态）：
+
+| 形态 | 实测 |
+|---|---|
+| `[Ref] RefA: History:history_id \| edge=history_owns_task \| src=task_id \| tgt=history_id \| intent=consume` | ✅ 通过 |
+| `[Ref] RefB: Task:task_id \| edge=cross_db_link \| … \| scope=agent-run \| …`（`agent-run` 已声明为 `[Obs] kind=scope`） | ✅ 通过 |
+| `[Ref] RefC: History:history_id \| loc=agent-round \| intent=consume` | ⚠️ **0 错 0 警告**（字段被**静默忽略**） |
+
+合计输出：`空间 2 / 坐标 3 / 引用 3 / 边 3 / 错误 0 / 警告 0`。
+
+**两条结论**：
+
+1. **`edge=` / `scope=` 可用** ⇒ 归属边与挂载面可由既有 `[Ref]` 承载（零新增语言单元）。
+2. **未知字段静默忽略是判据缺口**：`loc=` 既不报错也不生效 ⇒ 按 U12 §13.2 原样书写会产出
+   **假声明**（"看起来声明了、实际无作用"），与 `ANTI-DEAD-GATE` / 静默丢弃声明同族。
+   ⇒ 任何依赖 `[Ref]` 承载新语义的方案，必须同时提供**字段白名单门禁**（见
+   `节点三转换-应用工作流化-下一步实施规划.md` §4 I9-⑤），否则"声明了"无法与"生效了"区分。
+
+

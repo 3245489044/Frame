@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Identity;
@@ -129,26 +131,60 @@ public sealed class NodeSpecValidator
                 }
             }
 
+            // 同域 writer 复用 = **单写者多落点**（合法，且为段域既有设计：两位置同属一次切分物化，
+            // 写门目标共用 writer-segment —— 见 NodeDomainCatalog.TryResolveSingleWriter 要求「写门目标唯一写者」）。
+            // 故此处只能**可见化**（告警），不得判 Error：真正的不变式（位置 → 写者唯一）由 PlacementRegistry
+            // 的 PlacementId 主键天然保证；把「写者复用」当违规会与生产声明冲突（本判据从未接线，缺陷未暴露）。
             foreach (var group in inDomain.GroupBy(p => p.WriterId, StringComparer.Ordinal).Where(g => g.Count() > 1))
             {
                 violations.Add(new NodeSpecViolation(
-                    "spec.writer-duplicate",
-                    NodeDiagnosticSeverity.Error,
-                    $"同域内 writer '{group.Key}' 被 {group.Count()} 个位置共用（违反 (domain,placement)→writer 一对一）",
+                    "spec.writer-shared",
+                    NodeDiagnosticSeverity.Warning,
+                    $"同域内 writer '{group.Key}' 被 {group.Count()} 个位置共用（单写者多落点：须为同一次物化的多个落点）",
                     domain));
             }
         }
 
         foreach (var placement in spec.Placements.All)
         {
-            foreach (var placeholder in KeyTemplateEvaluator.Placeholders(placement.KeyTemplate))
+            // 位置键字段域 = 身份占位符 ∪ 本位置 local 坐标（N2：位置不改变身份；异坐标空间须显式声明 local）。
+            var allowedFields = new HashSet<string>(spec.Identity.Placeholders, StringComparer.Ordinal);
+            foreach (var local in placement.LocalCoordinatesOrEmpty)
             {
-                if (!spec.Identity.Placeholders.Contains(placeholder, StringComparer.Ordinal))
+                allowedFields.Add(local);
+            }
+
+            var keyFields = KeyTemplateEvaluator.Placeholders(placement.KeyTemplate);
+            foreach (var placeholder in keyFields)
+            {
+                if (!allowedFields.Contains(placeholder))
                 {
                     violations.Add(new NodeSpecViolation(
                         "spec.placement-template-unknown-field",
                         NodeDiagnosticSeverity.Error,
-                        $"位置 '{placement.PlacementId}' 键模板使用未声明字段: {placeholder}",
+                        $"位置 '{placement.PlacementId}' 键模板使用未声明字段: {placeholder}"
+                        + "（须为身份占位符或该位置声明的 local 坐标）",
+                        placement.KeyTemplate));
+                }
+            }
+
+            // local 自洽：与身份占位符重名 ⇒ 同坐标两名（静默漂移温床）；声明却未用 ⇒ 死声明。
+            foreach (var local in placement.LocalCoordinatesOrEmpty)
+            {
+                if (spec.Identity.Placeholders.Contains(local, StringComparer.Ordinal))
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.placement-local-coordinate-shadow",
+                        NodeDiagnosticSeverity.Error,
+                        $"位置 '{placement.PlacementId}' 的 local 坐标 '{local}' 与身份占位符重名（局部坐标不得遮蔽身份坐标）",
+                        placement.PlacementId));
+                }
+                else if (!keyFields.Contains(local, StringComparer.Ordinal))
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.placement-local-coordinate-unused",
+                        NodeDiagnosticSeverity.Warning,
+                        $"位置 '{placement.PlacementId}' 声明的 local 坐标 '{local}' 未出现在键模板（死声明）",
                         placement.KeyTemplate));
                 }
             }

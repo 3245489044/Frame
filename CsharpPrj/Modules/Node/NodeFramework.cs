@@ -98,7 +98,8 @@ public sealed class NodeFramework
         Materializer = new NodeMaterializer(
             Identity, Placements, Carriers, WriteGate, FormCodec, Defaults, Diagnostics, RunScope, RequireRunScope,
             Domain);
-        Projection = new NodeReadProjection(Placements, Carriers, Selections, FormCodec, Diagnostics);
+        Projection = new NodeReadProjection(
+            Placements, Carriers, Selections, FormCodec, Diagnostics, PlacementResolver);
         Reconciler = new NodeReconciler(Placements, Carriers, Diagnostics);
         Compensation = new NodeCompensation(Carriers, Diagnostics);
         Validator = new NodeSpecValidator(Carriers, Diagnostics);
@@ -186,7 +187,10 @@ public sealed class NodeFramework
         INodeDiagnosticsSink? diagnostics = null,
         ISequenceAuthority? sequenceAuthority = null,
         INodeRunScopeSource? runScopeSource = null,
-        bool requireRunScope = false)
+        bool requireRunScope = false,
+        ISpecSource? specSource = null,
+        IOrientationAuthority? orientationAuthority = null,
+        IDefinitionDiagnostics? definitionDiagnostics = null)
     {
         var options = new NodeFrameworkOptions
         {
@@ -203,6 +207,10 @@ public sealed class NodeFramework
             SequenceAuthority = sequenceAuthority,
             RunScope = runScopeSource,
             RequireRunScope = requireRunScope,
+            // 定义来源/诊断端口（N1）：未装配 ⇒ 框架内 Null 实现 + 可见化（不假装通过，对齐 US9001 范式）
+            SpecSource = specSource,
+            OrientationAuthority = orientationAuthority,
+            DefinitionDiagnostics = definitionDiagnostics,
         };
 
         var framework = new NodeFramework(options);

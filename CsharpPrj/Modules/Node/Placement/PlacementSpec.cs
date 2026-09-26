@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Modules.Node.Placement;
 
 /// <summary>载荷形态（N11：载荷恒为 JSON 文档，形态差异由位置声明）。</summary>
@@ -48,8 +50,15 @@ public sealed record PlacementSpec(
     PlacementRetention Retention,
     string SelectionId,
     string WriterId,
-    PlacementState State = PlacementState.Active)
+    PlacementState State = PlacementState.Active,
+    IReadOnlyList<string>? LocalCoordinates = null)
 {
+    /// <summary>
+    /// 本位置**自有坐标**名集（键模板中不属身份占位符的字段，如轮域 <c>task-node</c> 的 <c>storage</c>/<c>node</c>）。
+    /// 判据（<c>Modules.Node.Spec.NodeSpecValidator</c>）：位置键字段须 ⊆ 身份占位符 ∪ 本集；未声明即 Error（禁隐式坐标）。
+    /// </summary>
+    public IReadOnlyList<string> LocalCoordinatesOrEmpty => LocalCoordinates ?? System.Array.Empty<string>();
+
     public bool IsWritable => State == PlacementState.Active;
 
     public bool IsReadable => State != PlacementState.Retired;

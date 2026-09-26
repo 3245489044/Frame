@@ -39,8 +39,39 @@ public sealed record NodeFrameworkSpec(
 /// </summary>
 public static class NodeFrameworkSpecLoader
 {
-    public static NodeFrameworkSpec Load(string json, INodeDiagnosticsSink? diagnostics = null)
+    /// <summary>
+    /// 装载框架声明。位置反解表（<paramref name="locToPlacement"/>）**必填**——唯一来源 = 位置反解声明面
+    /// （U12 L2：<c>[Matrix] LocToPlacement</c>），本装载器不再从 JSON 读它（手写即双真源 P22）。
+    /// </summary>
+    /// <param name="json">框架声明 JSON（域/身份/位置/选择/保留/缺省/引用字段/指令）。</param>
+    /// <param name="locToPlacement">位置反解表（loc → 位置 id 集）；缺失/非法由调用方 fail-fast（不留兜底）。</param>
+    /// <param name="diagnostics">诊断出口。</param>
+    public static NodeFrameworkSpec Load(
+        string json,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> locToPlacement,
+        INodeDiagnosticsSink? diagnostics = null)
+        => LoadCore(json, _ => locToPlacement, diagnostics);
+
+    /// <summary>
+    /// 装载框架声明（映射**工厂**形态）：位置反解表按**已解析的位置注册表**现算 ——
+    /// 声明面是全域并集，而解析器按域实例化，故须按域注册表裁剪（否则跨域条目触发
+    /// <c>placement.reverse-ambiguous</c>）。单次解析，无二遍装载。
+    /// </summary>
+    /// <param name="json">框架声明 JSON。</param>
+    /// <param name="locToPlacementFactory">位置反解表工厂（入参 = 本域位置注册表）。</param>
+    /// <param name="diagnostics">诊断出口。</param>
+    public static NodeFrameworkSpec Load(
+        string json,
+        Func<PlacementRegistry, IReadOnlyDictionary<string, IReadOnlyList<string>>> locToPlacementFactory,
+        INodeDiagnosticsSink? diagnostics = null)
+        => LoadCore(json, locToPlacementFactory, diagnostics);
+
+    private static NodeFrameworkSpec LoadCore(
+        string json,
+        Func<PlacementRegistry, IReadOnlyDictionary<string, IReadOnlyList<string>>> locToPlacementFactory,
+        INodeDiagnosticsSink? diagnostics)
     {
+        ArgumentNullException.ThrowIfNull(locToPlacementFactory);
         var sink = diagnostics ?? NullDiagnosticsSink.Instance;
         var collected = new List<NodeDiagnostic>();
 
@@ -52,6 +83,16 @@ public static class NodeFrameworkSpecLoader
         if (parsed is not JsonObject root)
         {
             throw new NodeFrameworkSpecException("框架声明须为 JSON 对象");
+        }
+
+        // 手写反解表禁入（U21=B 仅语言路径）：声明面若仍携带 locToPlacement ⇒ Error（不静默忽略）
+        if (root["locToPlacement"] is not null)
+        {
+            collected.Add(new NodeDiagnostic(
+                "spec.loc-to-placement-forbidden",
+                NodeDiagnosticSeverity.Error,
+                "声明含 locToPlacement：位置反解表唯一来源 = 位置反解声明面（[Matrix] LocToPlacement；手写即双真源 P22）",
+                "locToPlacement"));
         }
 
         var domain = ReadString(root, "domain") ?? "default";
@@ -71,10 +112,15 @@ public static class NodeFrameworkSpecLoader
         var identity = IdentitySpec.Create(identityTemplate, sequenceKeys);
 
         var placements = ParsePlacements(root, domain, collected);
+
+        // 位置反解表：唯一来源 = 位置反解声明面（U12 L2），按**本域位置注册表**现算（禁静默兜底）
+        var locToPlacement = locToPlacementFactory(placements)
+            ?? throw new NodeFrameworkSpecException(
+                "位置反解表不可为空：唯一来源 = 位置反解声明面（[Matrix] LocToPlacement）");
+
         var selections = ParseSelections(root, collected);
         var retentions = ParseMap(root, "retentions", collected);
         var defaults = new SpecDefaults(ReadObjectJson(root, "defaults"));
-        var locToPlacement = ParseLocToPlacement(root, collected);
         var referenceFields = ReadStringArray(root, "referenceFields", collected);
         var directives = NodeDirectiveSet.Parse(ReadArrayJson(root, "directives"), sink);
 
@@ -97,8 +143,18 @@ public static class NodeFrameworkSpecLoader
             collected);
     }
 
-    public static NodeFrameworkSpec LoadFile(string path, INodeDiagnosticsSink? diagnostics = null) =>
-        Load(File.ReadAllText(path), diagnostics);
+    /// <summary>
+    /// 按文件装载。<paramref name="locToPlacementFactory"/> 语义同 <see cref="Load(string, Func{PlacementRegistry, IReadOnlyDictionary{string, IReadOnlyList{string}}}, INodeDiagnosticsSink?)"/>
+    /// （必填：唯一来源 = 位置反解声明面）。
+    /// </summary>
+    /// <param name="path">声明文件路径。</param>
+    /// <param name="locToPlacementFactory">位置反解表工厂（入参 = 本域位置注册表）。</param>
+    /// <param name="diagnostics">诊断出口。</param>
+    public static NodeFrameworkSpec LoadFile(
+        string path,
+        Func<PlacementRegistry, IReadOnlyDictionary<string, IReadOnlyList<string>>> locToPlacementFactory,
+        INodeDiagnosticsSink? diagnostics = null) =>
+        Load(File.ReadAllText(path), locToPlacementFactory, diagnostics);
 
     private static PlacementRegistry ParsePlacements(JsonObject root, string domain, List<NodeDiagnostic> collected)
     {
@@ -130,6 +186,7 @@ public static class NodeFrameworkSpecLoader
             var carrierId = ReadString(declaration, "carrier") ?? string.Empty;
             var keyTemplate = ReadString(declaration, "key") ?? string.Empty;
             var writerId = ReadString(declaration, "writer") ?? string.Empty;
+            var localCoordinates = ReadLocalCoordinates(declaration, collected);
 
             if (placementId.Length == 0 || carrierId.Length == 0 || keyTemplate.Length == 0 || writerId.Length == 0)
             {
@@ -151,10 +208,43 @@ public static class NodeFrameworkSpecLoader
                 ParseEnum(declaration, "retention", PlacementRetention.Contextual),
                 ReadString(declaration, "selection") ?? ExpressionSelectionPredicate.AllSelectionId,
                 writerId,
-                ParseEnum(declaration, "state", PlacementState.Active)));
+                ParseEnum(declaration, "state", PlacementState.Active),
+                localCoordinates));
         }
 
         return registry;
+    }
+
+    /// <summary>
+    /// 位置**自有坐标**声明（<c>local</c>）：键模板中出现、但不属域身份占位符的坐标名（如轮域 <c>task-node</c> 的
+    /// <c>storage</c>/<c>node</c>）。接受字符串数组或逗号/分号分隔字符串；缺省 ⇒ <c>null</c>（未声明）。
+    /// <para>声明化动机：位置键与身份键可能分属两套坐标空间（轮域归档/会话/兼容位置按 <c>container/round</c> 寻址，
+    /// 而任务面板位置按 <c>storage/node</c> 寻址）。此前该差异只能靠"装配期判据未接线"回避，
+    /// 故位置键一旦偏离身份占位符即静默（<c>spec.placement-template-unknown-field</c> 从未生效）。</para>
+    /// </summary>
+    private static IReadOnlyList<string>? ReadLocalCoordinates(JsonObject declaration, List<NodeDiagnostic> collected)
+    {
+        var declared = declaration["local"];
+        if (declared is null)
+        {
+            return null;
+        }
+
+        if (declared is JsonArray)
+        {
+            var values = ReadStringArray(declaration, "local", collected);
+            return values.Count == 0 ? null : values;
+        }
+
+        var text = ReadString(declaration, "local");
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var parts = text.Split(
+            new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length == 0 ? null : parts;
     }
 
     private static SelectionSet ParseSelections(JsonObject root, List<NodeDiagnostic> collected)
@@ -214,58 +304,6 @@ public static class NodeFrameworkSpecLoader
                 NodeDiagnosticSeverity.Warning,
                 $"声明 '{propertyName}' 的 '{pair.Key}' 须为字符串：已置空（不静默）",
                 pair.Key));
-        }
-
-        return map;
-    }
-
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ParseLocToPlacement(JsonObject root, List<NodeDiagnostic> collected)
-    {
-        var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-
-        if (root["locToPlacement"] is not JsonObject declared)
-        {
-            return map;
-        }
-
-        foreach (var pair in declared)
-        {
-            if (pair.Value is JsonArray ids)
-            {
-                var resolved = new List<string>(ids.Count);
-                foreach (var id in ids)
-                {
-                    if (NodeJson.TryReadString(id, out var text) && !string.IsNullOrEmpty(text))
-                    {
-                        resolved.Add(text);
-                        continue;
-                    }
-
-                    collected.Add(new NodeDiagnostic(
-                        "spec.loc-entry-invalid",
-                        NodeDiagnosticSeverity.Warning,
-                        $"反解表 '{pair.Key}' 含非字符串位置 id：已跳过（不静默）",
-                        pair.Key));
-                }
-
-                map[pair.Key] = resolved;
-                continue;
-            }
-
-            if (NodeJson.TryReadString(pair.Value, out var single) && !string.IsNullOrEmpty(single))
-            {
-                map[pair.Key] = new[] { single };
-                continue;
-            }
-
-            if (pair.Value is not null)
-            {
-                collected.Add(new NodeDiagnostic(
-                    "spec.loc-entry-invalid",
-                    NodeDiagnosticSeverity.Warning,
-                    $"反解表 '{pair.Key}' 须为字符串或字符串数组：已忽略（不静默）",
-                    pair.Key));
-            }
         }
 
         return map;

@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-24 23:30:50
+  生成时间: 2026-09-26 15:50:33
 -->
 <Project>
 
@@ -67,6 +67,7 @@
     <Mod_ValidationFramework>$(CsharpPrjDir)Modules\ValidationFramework\</Mod_ValidationFramework>
     <Mod_BackEndDriven>$(CsharpPrjDir)Operation\BackEndDriven\</Mod_BackEndDriven>
     <Mod_DataStoreDriven>$(CsharpPrjDir)Operation\DataStoreDriven\</Mod_DataStoreDriven>
+    <Mod_DataStoreDriven_Instances>$(CsharpPrjDir)Operation\DataStoreDriven\Instances\</Mod_DataStoreDriven_Instances>
     <Mod_FrontEndDriven>$(CsharpPrjDir)Operation\FrontEndDriven\</Mod_FrontEndDriven>
     <Mod_HierarchyMethod>$(CsharpPrjDir)Operation\HierarchyMethod\</Mod_HierarchyMethod>
     <Mod_LoopFoldMethod>$(CsharpPrjDir)Operation\LoopFoldMethod\</Mod_LoopFoldMethod>
@@ -170,6 +171,7 @@
     <Proj_ValidationFramework>$(CsharpPrjDir)Modules\ValidationFramework\ValidationFramework.csproj</Proj_ValidationFramework>
     <Proj_BackEndDriven>$(CsharpPrjDir)Operation\BackEndDriven\BackEndDriven.csproj</Proj_BackEndDriven>
     <Proj_DataStoreDriven>$(CsharpPrjDir)Operation\DataStoreDriven\DataStoreDriven.csproj</Proj_DataStoreDriven>
+    <Proj_DataStoreDriven_Instances>$(CsharpPrjDir)Operation\DataStoreDriven\Instances\DataStoreDriven.Instances.csproj</Proj_DataStoreDriven_Instances>
     <Proj_FrontEndDriven>$(CsharpPrjDir)Operation\FrontEndDriven\FrontEndDriven.csproj</Proj_FrontEndDriven>
     <Proj_HierarchyMethod>$(CsharpPrjDir)Operation\HierarchyMethod\HierarchyMethod.csproj</Proj_HierarchyMethod>
     <Proj_LoopFoldMethod>$(CsharpPrjDir)Operation\LoopFoldMethod\LoopFoldMethod.csproj</Proj_LoopFoldMethod>

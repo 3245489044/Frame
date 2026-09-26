@@ -21,6 +21,9 @@
          （运行态面**不是位置**；违者踩 spec.template-indistinguishable / spec.writer-duplicate）。
       G. （告警，不判失败）声明含运行态面（RuntimeBound=true）却无 run 身份承接点
          （缺框架契约 / 缺 Agent 供体 / 无 BeginRun 调用）⇒ 缺口可见化。
+      H. 实例分区纯净性（G-1..G-5）：Modules/Node/Instances/*.cs 禁领域词（session/history/agent 标识符
+         及字符串字面量中的小写领域词；Task 与 BCL 同形故不入标识符判据）、禁实现依赖
+         （System.Data / Microsoft.Data / Operation / Share / Usharp / Dapper）；csproj 禁 PackageReference。
 
     层序（向上引用）由 Share/Solution/Test-ProjectReferences.ps1 统一校验，本脚本不重复实现。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
@@ -230,6 +233,56 @@ if (Test-Path $runtimeBoundDecl)
     }
 }
 
+# ---------------- H. 实例分区纯净性（G-1..G-5 通用实例框架） ----------------
+# 判据：Modules/Node/Instances/ 是**通用实例管理**分区 —— ① 不得出现领域词（防止把 session/history/agent
+#       的语义写进通用件）；② 不得引实现依赖（SQLite/上层契约一律在框架之外，K6/§3.5）。
+#       判定形态限定「标识符 / 字符串字面量」，注释与文档说明不判违规（避免自指误报）；
+#       Task 与 BCL 同名故不列入标识符判据（小写 task 仍受字符串字面量判据约束）。
+$instancesDir = Join-Path $nodeDir 'Instances'
+if (Test-Path $instancesDir)
+{
+    $instanceFiles = @(Get-ChildItem -Path $instancesDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
+
+    $domainIdentifierRegex = '(?<![A-Za-z0-9_])(Session|History|Agent)[A-Za-z]*(?![A-Za-z0-9_])'
+    $domainLiteralRegex = '"[^"]*\b(session|history|task|agent)\b[^"]*"'
+    foreach ($f in $instanceFiles)
+    {
+        $lineNo = 0
+        foreach ($line in [System.IO.File]::ReadAllLines($f.FullName))
+        {
+            $lineNo++
+            $trimmed = $line.TrimStart()
+            if ($trimmed.StartsWith('//') -or $trimmed.StartsWith('*') -or $trimmed.StartsWith('/*')) { continue }
+            if ($line -match $domainIdentifierRegex -or $line -match $domainLiteralRegex)
+            {
+                $violations.Add("[H/N-domain] $($f.FullName):$lineNo 通用实例分区出现领域词（Kind 名/领域语义不得进通用件）: $($line.Trim())")
+            }
+        }
+    }
+
+    $implUsingHits = @($instanceFiles | Select-String -Pattern '^\s*using\s+(?:static\s+)?(System\.Data|Microsoft\.Data|Operation|Share|Usharp|Dapper)\b' -ErrorAction SilentlyContinue)
+    foreach ($h in $implUsingHits)
+    {
+        $violations.Add("[H/K6] $($h.Path):$($h.LineNumber) 实例分区出现实现依赖（承载实现属框架之外）")
+    }
+
+    $packageHits = @(Select-String -Path $csproj -Pattern '<PackageReference' -ErrorAction SilentlyContinue)
+    if ($packageHits.Count -gt 0)
+    {
+        foreach ($h in $packageHits) { $violations.Add("[H/K6] Modules.Node.csproj:$($h.LineNumber) 出现 PackageReference（框架仅 BCL，禁包依赖）") }
+    }
+
+    if ($instanceFiles.Count -gt 0 -and $violations.Count -eq 0 -and $ShowDetail)
+    {
+        Write-Host "OK(H): 实例分区（$($instanceFiles.Count) 文件）零领域词 / 零实现依赖。" -ForegroundColor Green
+    }
+}
+elseif ($ShowDetail)
+{
+    Write-Host "SKIP(H): 未找到实例分区（$instancesDir）。" -ForegroundColor Gray
+}
+
 # ---------------- 汇总 ----------------
 Write-Host ""
 Write-Host "  扫描源码文件: $($csFiles.Count) 个" -ForegroundColor Gray
@@ -250,6 +303,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C/D/F 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/D/F/H 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

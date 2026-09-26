@@ -32,6 +32,8 @@
     <ProjectReference Include="$(Proj_WorkFlowMethod)" />
     <ProjectReference Include="$(Proj_StateHoldDriven)" />
     <ProjectReference Include="$(Proj_DataStoreDriven)" />
+    <!-- 子工程：通用实例框架的 SQLite 单文件承载实现（层 4；源码经上方 DataStoreDriven\** 排除规则不再重复编译） -->
+    <ProjectReference Include="$(Proj_DataStoreDriven_Instances)" />
     <ProjectReference Include="$(Proj_StatisticalDriven)" />
     <ProjectReference Include="$(Proj_HierarchyMethod)" />
     <ProjectReference Include="$(Proj_LoopFoldMethod)" />

@@ -169,6 +169,24 @@ if (-not $bypassHits -and $frameworkNodeWriteFiles.Count -gt 0 -and $ShowDetail)
     Write-Host "OK(E): ur_nodes 端口写仅在框架生产写面（$($frameworkNodeWriteFiles.Count) 个已注册写者文件）+ Agent 白名单 $($nodePortWriteWhitelist.Count) 项。"
 }
 
+# G. 单写通道须按库文件键控（粒度 A 前提）：ThreadingSqliteWriteHost 不得退化为全局单门。
+#    判据：条目必须以库路径为键（DbPathOf(connectionString) + _entries.GetOrAdd）——每库独立单写 worker；
+#    退化为全局 lock/单一 actor 即违反「跨文件事务可选、单文件单事务」的粒度模型（§3.5 / I6）。
+$writeHostFile = $csFiles | Where-Object { $_.Name -eq 'ThreadingSqliteWriteHost.cs' } | Select-Object -First 1
+if ($writeHostFile)
+{
+    $keyedByDb = @(Select-String -Path $writeHostFile.FullName -Pattern 'DbPathOf\s*\(\s*connectionString\s*\)' -Encoding UTF8 -ErrorAction SilentlyContinue |
+        Where-Object { $_.Line.TrimStart() -notmatch '^(//|/\*|\*)' })
+    if ($keyedByDb.Count -lt 2)
+    {
+        $violations.Add("ThreadingSqliteWriteHost.cs 未见按库路径键控（DbPathOf(connectionString) 命中 $($keyedByDb.Count) < 2）——单写通道退化为非按库粒度")
+    }
+    elseif ($ShowDetail)
+    {
+        Write-Host "OK(G): 单写通道按库文件键控（每库独立 worker + 事务门）。"
+    }
+}
+
 # F. 会话侧任务快照写（ur_tasks）必须经会话读写收敛点门面（DP-4）：会话流水线不得直调 IConversationStore.UpdatePayloadAsync。
 #    合法写者分工：轮内 = AgentRunner.PersistRuntimeAsync；池状态 = AgentTaskPool.ApplySnapshotStatusAsync；API 归属 = ITaskPoolPersistence 端口。
 $conversationPipelineFiles = @('ConversationPipeline.cs', 'ConversationCentralPipeline.cs')

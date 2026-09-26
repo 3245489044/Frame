@@ -70,5 +70,12 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsConfigurationVersion)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 子工程 Instances（DataStoreDriven.Instances.csproj）自带编译：父工程默认 glob 会重复收编，须显式排除
+         （对齐 LogicComposition → Conversion 的既有做法）。 -->
+    <Compile Remove="Instances\**\*.cs" />
+    <None Include="Instances\**\*" />
+  </ItemGroup>
+
 </Project>
 

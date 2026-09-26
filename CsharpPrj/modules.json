@@ -89,6 +89,7 @@
     "ValidationFramework": "Modules\\ValidationFramework\\ValidationFramework.csproj",
     "BackEndDriven": "Operation\\BackEndDriven\\BackEndDriven.csproj",
     "DataStoreDriven": "Operation\\DataStoreDriven\\DataStoreDriven.csproj",
+    "DataStoreDriven.Instances": "Operation\\DataStoreDriven\\Instances\\DataStoreDriven.Instances.csproj",
     "FrontEndDriven": "Operation\\FrontEndDriven\\FrontEndDriven.csproj",
     "HierarchyMethod": "Operation\\HierarchyMethod\\HierarchyMethod.csproj",
     "LoopFoldMethod": "Operation\\LoopFoldMethod\\LoopFoldMethod.csproj",

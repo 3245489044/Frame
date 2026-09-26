@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>实例承载实现（DataStoreDriven.Instances）</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>通用实例框架（Modules.Node/Instances）的 SQLite 单文件承载实现：把 IInstanceStore 落到单库单写通道（ThreadingSqliteWriteHost 按库键控）+ 单文件事务（SqliteTransaction）。实现留在框架之外（K6/§3.5）：框架本体零依赖，SQLite/建表/连接串细节只在本工程。</ModuleRule_Description>
+    <ModuleRule_Keywords>实例承载;IInstanceStore;单文件;SQLite;单写通道;事务;通用实例框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="实现面只依赖框架端口（Modules.Node.Instances），禁把领域语义（session/history/agent）写进本工程" />
+    <ModuleRule_Rule Include="写一律经单写通道 host（ISqliteWriteHost.GetOrCreate 按库键控，禁自建第二套写门）" />
+    <ModuleRule_Rule Include="事务一律经 SqliteTransaction（禁自建事务协议；单文件内多表提交原子）" />
+    <ModuleRule_Rule Include="一实例一承载句柄：同实例身份不得绑到两个不同文件（同文件多实例按 instance_id 行分区）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Operation.DataStoreDriven.Instances</RootNamespace>
+    <AssemblyName>DataStoreDriven.Instances</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>通用实例框架的 SQLite 单文件承载实现（IInstanceStore）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 框架端口（IInstanceStore / InstanceStage / CarrierWriteResult 等）——层 2，向下引用 -->
+    <ProjectReference Include="$(Proj_Node)" />
+    <!-- 连接工厂单源（SqliteConnectionFactory：连接串与库文件路径策略）——同层 -->
+    <ProjectReference Include="$(Proj_DataStoreDriven)" />
+    <!-- 单写通道 host 与事务原语（ISqliteWriteHost / SqliteTransaction）——层 1 -->
+    <ProjectReference Include="$(Proj_DataManage)" />
+    <!-- 命令执行抽象（IDbCommandExecutor / ITransaction）——层 3 -->
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 落盘后端依赖（版本收敛于 CsharpPrj/versions.json；与 DataStoreDriven 同版本） -->
+    <PackageReference Include="System.Data.SQLite.Core" Version="$(SystemDataSQLiteVersion)" />
+  </ItemGroup>
+
+</Project>

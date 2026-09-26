@@ -86,6 +86,12 @@
         Note   = '会话事实标准 C1–C4 + 声明面闸A；-Strict 为严格模式（C3 旧标识残留判失败），-ShowDetail 显示详情'
     }
 
+    SessionDuplication = @{
+        Args   = @{}
+        Expect = 0
+        Note   = '会话逻辑重复消除（台账 D1–D17）：默认基线模式（拦新增重复点，未达标项可见化为[待消除]）；-Final 为终态模式（按 Target 判，批完成后启用）；-ShowDetail 显示逐条实测'
+    }
+
     # ===== 入口框架守卫 =====
     InvokeEntrypoints = @{
         Args   = @{ Check = $true }

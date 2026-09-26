@@ -35,6 +35,8 @@
     <ProjectReference Include="$(Proj_Pipeline)" />
     <!-- 关系/图与资源模型（IUniversalReferenceManager / Resource / ResourceIdentifier） -->
     <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+    <!-- 键文法内核（Modules\Parsing\Keys，BCL-only 零依赖）：节点/会话/事实键的模板构造·反解·族判据·键序单源 -->
+    <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_DataManage)" />
     <!-- 单写通道 host（ThreadingSqliteWriteHost）的并发原语（SingleWriterActor）：IoC 倒置后 DataManage 只依赖其 ISqliteWriteHost 端口，
          基于 Modules.Threading 的实现由本模块（DataStoreDriven 组合根）提供并注入（DataManage 不再 import Threading）。 -->

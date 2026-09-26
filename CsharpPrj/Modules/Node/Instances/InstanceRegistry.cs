@@ -1,4 +1,5 @@
 using Modules.Node.Diagnostics;
+using Modules.Parsing.Keys;
 
 namespace Modules.Node.Instances;
 
@@ -31,24 +32,35 @@ public readonly record struct InstanceId
         return new InstanceId(kind, key);
     }
 
-    /// <summary>文本形态（唯一拼法）。</summary>
-    public override string ToString() => $"{Kind}:{Key}";
+    /// <summary>
+    /// 文本形态文法（唯一拼法）：<c>{kind}:{key}</c> —— 段序与分隔符单源 = 键文法内核
+    /// （禁本处再写切分/拼接字面量；门禁：Check-KeyGrammar ⑴）。
+    /// </summary>
+    private static readonly KeyGrammar Grammar = KeyGrammar.Create("instance-id", "{kind}:{key}");
+
+    /// <summary>文本形态（唯一拼法）；默认结构 ⇒ <c>":"</c>（与既有拼串逐字一致）。</summary>
+    public override string ToString() => Grammar.BuildLenient(Kind, Key);
 
     /// <summary>反解文本形态（首处 <c>:</c> 之前为 Kind；缺失/空段 ⇒ false，不抛）。</summary>
     public static bool TryParse(string? text, out InstanceId id)
     {
         id = default;
         if (string.IsNullOrWhiteSpace(text))
+        {
             return false;
+        }
 
-        var index = text.IndexOf(':', StringComparison.Ordinal);
-        if (index <= 0 || index == text.Length - 1)
+        if (!Grammar.TryParse(text, out var values))
+        {
             return false;
+        }
 
-        var kind = text[..index];
-        var key = text[(index + 1)..];
+        var kind = values.Text("kind")!;
+        var key = values.Text("key")!;
         if (string.IsNullOrWhiteSpace(kind) || string.IsNullOrWhiteSpace(key))
+        {
             return false;
+        }
 
         id = new InstanceId(kind, key);
         return true;

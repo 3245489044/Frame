@@ -106,6 +106,13 @@
         Note   = '会话逻辑重复消除（台账 D1–D17）：默认基线模式（拦新增重复点，未达标项可见化为[待消除]）；-Final 为终态模式（按 Target 判，批完成后启用）；-ShowDetail 显示逐条实测'
     }
 
+    KeyGrammar = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1'
+        Expect = 0
+        Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；-Check 为校验模式，-ShowDetail 显示逐条实测'
+    }
+
     # ===== 入口框架守卫 =====
     InvokeEntrypoints = @{
         Args   = @{ Check = $true }

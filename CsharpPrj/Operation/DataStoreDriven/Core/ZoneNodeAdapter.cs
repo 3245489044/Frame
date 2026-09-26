@@ -39,7 +39,7 @@ public static class ZoneNodeAdapter
     public static NodeRecord BuildConfig(string key, string value)
         => new()
         {
-            NodeKey = NodeKeyPrefix.Config + key,
+            NodeKey = NodeKeyPrefix.BuildConfig(key),
             NodeType = NodeTypes.Config,
             Key = key,
             PayloadJson = value ?? string.Empty,
@@ -49,7 +49,7 @@ public static class ZoneNodeAdapter
     public static NodeRecord BuildCheckpoint(string threadId, string ns, string checkpointId, string status, string payloadJson)
         => new()
         {
-            NodeKey = NodeKeyPrefix.Checkpoint + threadId + "." + ns + "." + checkpointId,
+            NodeKey = NodeKeyPrefix.BuildCheckpoint(threadId, ns, checkpointId),
             NodeType = NodeTypes.Checkpoint,
             ThreadId = threadId,
             Key = ns + "." + checkpointId,

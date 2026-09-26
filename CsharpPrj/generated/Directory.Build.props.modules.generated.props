@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-26 15:50:33
+  生成时间: 2026-09-26 22:20:20
 -->
 <Project>
 
@@ -61,6 +61,7 @@
     <Mod_Observe>$(CsharpPrjDir)Modules\Observe\</Mod_Observe>
     <Mod_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\</Mod_ParameterResolver>
     <Mod_Parsing>$(CsharpPrjDir)Modules\Parsing\</Mod_Parsing>
+    <Mod_Parsing_Keys>$(CsharpPrjDir)Modules\Parsing\Keys\</Mod_Parsing_Keys>
     <Mod_Pipeline>$(CsharpPrjDir)Modules\Pipeline\</Mod_Pipeline>
     <Mod_Registry>$(CsharpPrjDir)Modules\Registry\</Mod_Registry>
     <Mod_Threading>$(CsharpPrjDir)Modules\Threading\</Mod_Threading>
@@ -165,6 +166,7 @@
     <Proj_Observe>$(CsharpPrjDir)Modules\Observe\Observe.csproj</Proj_Observe>
     <Proj_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
     <Proj_Parsing>$(CsharpPrjDir)Modules\Parsing\Parsing.csproj</Proj_Parsing>
+    <Proj_Parsing_Keys>$(CsharpPrjDir)Modules\Parsing\Keys\Modules.Parsing.Keys.csproj</Proj_Parsing_Keys>
     <Proj_Pipeline>$(CsharpPrjDir)Modules\Pipeline\Pipeline.csproj</Proj_Pipeline>
     <Proj_Registry>$(CsharpPrjDir)Modules\Registry\Registry.csproj</Proj_Registry>
     <Proj_Threading>$(CsharpPrjDir)Modules\Threading\Threading.csproj</Proj_Threading>

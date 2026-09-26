@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using Modules.Parsing.Keys;
 
 namespace Modules.Node.Identity;
 
@@ -55,16 +55,28 @@ public sealed class IdentitySpec
         var sequence = new HashSet<string>(sequenceKeys ?? Array.Empty<string>(), StringComparer.Ordinal);
         var segments = new List<IdentitySegment>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var index = 0;
 
-        foreach (Match match in KeyTemplateEvaluator.PlaceholderRegex.Matches(template))
+        // 拆段单源 = 键文法内核（同一占位符词法 / 同一段序；本工程不再自持正则）
+        IReadOnlyList<KeySegment> parsed;
+        try
         {
-            if (match.Index > index)
+            parsed = KeyTemplates.Segments(template);
+        }
+        catch (KeyGrammarDefinitionException ex)
+        {
+            // 内核定义错误 → 本框架公开契约（ArgumentException）：不外泄内核异常类型（调用方零改动）
+            throw new ArgumentException(ex.Reason, nameof(template));
+        }
+
+        foreach (var segment in parsed)
+        {
+            if (segment.Kind == KeySegmentKind.Literal)
             {
-                segments.Add(new IdentitySegment(IdentitySegmentKind.Literal, template[index..match.Index]));
+                segments.Add(new IdentitySegment(IdentitySegmentKind.Literal, segment.Text));
+                continue;
             }
 
-            var name = match.Groups[1].Value;
+            var name = segment.Text;
             if (!seen.Add(name))
             {
                 throw new ArgumentException($"身份模板占位符重复: {name}", nameof(template));
@@ -73,12 +85,6 @@ public sealed class IdentitySpec
             segments.Add(new IdentitySegment(
                 sequence.Contains(name) ? IdentitySegmentKind.Sequence : IdentitySegmentKind.Context,
                 name));
-            index = match.Index + match.Length;
-        }
-
-        if (index < template.Length)
-        {
-            segments.Add(new IdentitySegment(IdentitySegmentKind.Literal, template[index..]));
         }
 
         if (seen.Count == 0)

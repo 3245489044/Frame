@@ -15,7 +15,7 @@ public static class KeyMappingKeys
     public static string NodeLevelKey(string workflowId, string nodeKey) => $"{workflowId}.{nodeKey}";
 
     /// <summary>节点库存储键（NodeType=keymapping）：keymapping.{category}.{nodeLevelKey}。</summary>
-    public static string StoreNodeKey(KeyMappingCategory category, string nodeLevelKey) => NodeKeyPrefix.KeyMapping + category + "." + nodeLevelKey;
+    public static string StoreNodeKey(KeyMappingCategory category, string nodeLevelKey) => NodeKeyPrefix.BuildKeyMapping(category.ToString(), nodeLevelKey);
 
     /// <summary>节点库 Key 列（分类 + 节点级键）：{category}.{nodeLevelKey}。</summary>
     public static string StoreKey(KeyMappingCategory category, string nodeLevelKey) => $"{category}.{nodeLevelKey}";

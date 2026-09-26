@@ -21,7 +21,7 @@ public sealed class NodeConfigStore : IConfigStore
         _nodes = nodes ?? throw new System.ArgumentNullException(nameof(nodes));
     }
 
-    private static string NodeKeyOf(string key) => NodeKeyPrefix.Config + key;
+    private static string NodeKeyOf(string key) => NodeKeyPrefix.BuildConfig(key);
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 

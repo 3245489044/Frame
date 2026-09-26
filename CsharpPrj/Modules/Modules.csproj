@@ -37,6 +37,8 @@
     <ProjectReference Include="$(Proj_MetaCommand)" />
     <ProjectReference Include="$(Proj_Node)" />
     <ProjectReference Include="$(Proj_Parsing)" />
+    <!-- 键文法内核（Modules\Parsing\Keys，BCL-only）：键空间单源；经本聚合工程纳入构建与烘焙闭包 -->
+    <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Registry)" />
     <ProjectReference Include="$(Proj_Threading)" />

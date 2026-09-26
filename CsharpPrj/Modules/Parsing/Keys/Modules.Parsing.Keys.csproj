@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>键文法内核（Key Grammar）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>键空间通用内核：段模型（字面量/值/序数 + 值形状）→ 声明式模板（正向求值 / 反向反解 / 族判据）→ 键序比较 → 文法注册表。零 ProjectReference（仅 BCL），不含任何具体键名（文法一律由调用方注册）。</ModuleRule_Description>
+    <ModuleRule_Keywords>键文法;键模板;反解;族判据;键序;单一实现</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零依赖（仅 BCL）：不得引用 Frame 任何程序集 —— 以便 Modules.Node（仅 BCL 声明）/ Share / Operation / 产品侧同层引用，实现键文法单源（SingleImplementation）" />
+    <ModuleRule_Rule Include="领域无关：内核零具体键名/前缀/分隔符字面量；具体文法由调用方经 KeyGrammar.Create 注册（K1/K3/K4）" />
+    <ModuleRule_Rule Include="无进程静态可变配置：仅静态只读缓存（反解正则缓存），零 AsyncLocal / 零可变静态字段（K5）" />
+    <ModuleRule_Rule Include="单一实现：键的构造 / 解析 / 族判据 / 排序各恰一份实现，禁各处手拼串与手写切片" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.Parsing.Keys</RootNamespace>
+    <AssemblyName>Modules.Parsing.Keys</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>键文法内核 — 声明式模板 + 单一构造/解析/族判据/键序（BCL-only，零依赖）</Description>
+  </PropertyGroup>
+
+</Project>

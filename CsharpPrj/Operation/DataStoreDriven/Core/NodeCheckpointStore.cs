@@ -28,7 +28,7 @@ public sealed class NodeCheckpointStore : ICheckpointStore
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     private static string NodeKeyOf(string threadId, string ns, string checkpointId)
-        => NodeKeyPrefix.Checkpoint + threadId + "." + ns + "." + checkpointId;
+        => NodeKeyPrefix.BuildCheckpoint(threadId, ns, checkpointId);
 
     public async Task<Checkpoint?> GetAsync(string threadId, string? checkpointNs = null, string? checkpointId = null, CancellationToken ct = default)
     {

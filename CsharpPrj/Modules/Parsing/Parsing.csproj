@@ -23,5 +23,10 @@
     <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
   </ItemGroup>
 
+  <!-- 子目录 Keys\ 为独立子程序集（键文法内核 Modules.Parsing.Keys，BCL-only）：排除其源码，
+       避免与本工程重复编译（子工程经 Modules.csproj 的 $(Proj_Parsing_Keys) 进入构建与烘焙闭包）。 -->
+  <ItemGroup>
+    <Compile Remove="Keys\**\*.cs" />
+  </ItemGroup>
 
 </Project>

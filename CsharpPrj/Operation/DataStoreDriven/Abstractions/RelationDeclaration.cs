@@ -50,6 +50,6 @@ namespace Operation.DataStoreDriven.Abstractions
         public static string RelationId(string workflowId, string relationId) => KeyMappingKeys.NodeLevelKey(workflowId, relationId);
 
         /// <summary>声明节点 NodeKey（ur_nodes 唯一键）：relations.{workflowId}.{relationId}。</summary>
-        public static string NodeKey(string workflowId, string relationId) => NodeKeyPrefix.Relations + RelationId(workflowId, relationId);
+        public static string NodeKey(string workflowId, string relationId) => NodeKeyPrefix.BuildRelation(workflowId, relationId);
     }
 }

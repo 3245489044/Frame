@@ -83,6 +83,7 @@
     "Observe": "Modules\\Observe\\Observe.csproj",
     "ParameterResolver": "Modules\\ParameterResolver\\ParameterResolver.csproj",
     "Parsing": "Modules\\Parsing\\Parsing.csproj",
+    "Parsing.Keys": "Modules\\Parsing\\Keys\\Modules.Parsing.Keys.csproj",
     "Pipeline": "Modules\\Pipeline\\Pipeline.csproj",
     "Registry": "Modules\\Registry\\Registry.csproj",
     "Threading": "Modules\\Threading\\Threading.csproj",

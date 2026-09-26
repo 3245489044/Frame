@@ -31,7 +31,10 @@ public sealed record NodePersistenceAssembly(
     TimeSpan StepTimeout = default,
     // DP-3（W2-0）双写收敛开关：默认关 = 旧路径（执行期扁平 vars 写入保留，行为等价）；
     // 开 = 写侧单写 ur_nodes（权威） + 读侧投影重算（自权威回填），vars 不再作为同一事实的第二写点。
-    bool EnableUnifiedStateWrite = false);
+    bool EnableUnifiedStateWrite = false,
+    // 归属边簿记流入口（R1，可空）：装配后节点执行期的 task→node 归属边经**声明流**写（唯一编排触发点）；
+    // null ⇒ 迁移期沿用 <c>NodeRelationGateway</c> 直调 + 可见化（退役条件：装配切片全量提供本入口后删回退支）。
+    Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? AttributionFlow = null);
 
 /// <summary>
 /// 节点运行时产物 —— 节点持久化/引用域的唯一组合点（单一装配入口组装，Y2 单例意图）。
@@ -70,7 +73,8 @@ public sealed class NodeRoundRuntime
         var execution = new NodeStepExecutionService(
             outputs, wf, assembly.NodeStore, assembly.KeyMappings, assembly.BeginTransaction, assembly.Grounding,
             unifiedStateWrite: assembly.EnableUnifiedStateWrite,
-            log: log);
+            log: log,
+            attributionFlow: assembly.AttributionFlow);
         OutboxWriter<NodePersistWork>? outbox = null;
         if (assembly.EnableOutbox)
         {

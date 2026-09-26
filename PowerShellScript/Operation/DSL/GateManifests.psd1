@@ -87,6 +87,13 @@
         Note   = '节点层级引用声明守卫 E1–E5（W1：归属边事实只在声明面）：闸A 0 错 / 边类型集合双向对账（声明 ⇄ CrossDbReferenceTypes 实测用到集）/ 退役常量写用法债务只减不增（HistoryOwnsNode）/ [Ref] 字段白名单（禁未注册字段：静默忽略 ⇒ 假声明）/ 正对照 + 负对照（`loc=` 必须被字段判据命中，且闸A 对其 0 错）'
     }
 
+    AgentOrchestrationFlow = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1'
+        Expect = 0
+        Note   = 'Agent 编排归流守卫 E1–E9（纲领 O-1…O-6 / R6：编排归流）：R1/R2/R5 声明面闸A 0 错 / 编排真源对账（DeclaredFlowIds ⇄ .ushar 的 [Flow] 流号）/ fn 名单源对账（[Node] fn= ⇄ WorkflowFunctionNames；编排性阶段名豁免）/ 范式登记对账（ExecutorId ↔ [Flow] 一一对应）/ O-2 单步体禁编排关键词 + 原语调用正对照 / O-6 载体分工表与豁免登记锚点 / O-5 静默降级基线只减不增 / 正对照 + 负对照（合成未登记 fn 必须被 E3 判据命中）'
+    }
+
     ClinerulesReferences = @{
         Args   = @{}
         Expect = 0

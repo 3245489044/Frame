@@ -42,6 +42,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private readonly Func<CancellationToken, Task<ITransaction>>? _beginTransaction;
         private readonly ReferenceGrounding? _grounding;
         private readonly NodeRelationGateway? _relationGateway;
+        // 归属边簿记流入口（R1）：task→node（cross_db_link）的唯一编排触发点；null ⇒ 迁移期直调回退（见字段声明处退役条件）。
+        private readonly Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
         private readonly string _workflowId;
         // 阶段二：函数调用端口（解耦 WorkFlowMethod/WorkflowContext 直调；默认 canonical 兜底，行为与旧直调一致）。
         private readonly INodeFunctionInvoker _functionInvoker;
@@ -66,7 +68,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             INodeFunctionInvoker? functionInvoker = null,
             WriteCoordinator? writeCoordinator = null,
             bool unifiedStateWrite = false,
-            Action<string, object?>? log = null)
+            Action<string, object?>? log = null,
+            Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null)
         {
             _store = store;
             // R4 读源收敛：task 作用域单一读源视图（NodeReadView），见 EnumerateInputOutputsAsync——本方法经 ReadView 枚举，
@@ -78,6 +81,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             _grounding = grounding;
             // 引用写（权威边 + task 归属边）直连 Reference 门面 NodeRelationGateway；未装配守卫 → null（引用写 no-op）
             _relationGateway = grounding is null ? null : new NodeRelationGateway(grounding, store: null);
+            _attributionFlow = attributionFlow;
             _workflowId = workflowId;
             _functionInvoker = functionInvoker ?? new WorkflowMethodFunctionInvoker(workflowId); // R2 canonical：Center 唯一实现
             // R3：写门缺省自建单实例（同步路径与 Outbox 后台共享本服务实例 → 同门串行）；组合根可注入共享实例并注册 AssertSingleWriter。
@@ -432,6 +436,18 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             {
                 await _relationGateway.WriteRelationsAsync(
                     _workflowId, node.NodeKey, edges, isWriteThroughStore: _nodes is WriteGuardPort, ct).ConfigureAwait(false);
+            }
+
+            // ③ task 归属边（cross_db_link）：R1 归流 —— 经**归属边簿记流入口**触发（编排真源 =
+            //    Config/workflows/attribution.ushar 的 [Flow] NodeAttribution；本处只是唯一触发点，不持编排）。
+            //    未装配入口（迁移期：既有装配切片未提供）⇒ 沿用直调回退，不静默跳过；
+            //    退役条件 = 全部装配切片提供 INodeAttributionFlow 后删除本回退支。
+            if (_attributionFlow is not null && !string.IsNullOrWhiteSpace(taskKey))
+            {
+                await _attributionFlow.AttachAsync(taskKey!, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
+            }
+            else if (_relationGateway is not null)
+            {
                 await _relationGateway.EnsureTaskNodeLinkAsync(taskKey, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
             }
         }

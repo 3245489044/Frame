@@ -54,23 +54,31 @@ param(
 
 # param 默认值延迟计算: [CmdletBinding()] 脚本中 param 块内 $PSScriptRoot 不可用（PS 5.1 限制）
 if (-not $RulesRoot)  {
-    # 哨兵定位：从 $PSScriptRoot 上溯找 .clinerules 目录（跳过子模块边界）
+    # 哨兵定位：从 $PSScriptRoot 上溯找规则根目录（兼容 .clinerules / clinerules 两种命名，跳过子模块边界）
+    $RULES_DIR_NAMES = @('.clinerules','clinerules')
     $search = $PSScriptRoot
     $found = $null
     while ($search -and $search -ne (Split-Path $search -Parent)) {
-        $candidate = Join-Path $search '.clinerules'
-        if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
+        foreach ($dirName in $RULES_DIR_NAMES) {
+            $candidate = Join-Path $search $dirName
+            if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
+        }
+        if ($found) { break }
         $search = Split-Path $search -Parent
     }
     if ($found) {
         $RulesRoot = $found
     } else {
         # 退路：上溯四级到 Main 根
-        $fallback = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..\.clinerules'))
-        if (Test-Path -LiteralPath $fallback) {
+        $fallback = $null
+        foreach ($dirName in $RULES_DIR_NAMES) {
+            $candidate = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\..\..\$dirName"))
+            if (Test-Path -LiteralPath $candidate) { $fallback = $candidate; break }
+        }
+        if ($fallback) {
             $RulesRoot = $fallback
         } else {
-            Write-Error "找不到 .clinerules 目录（已从 $PSScriptRoot 上溯至仓库根）"
+            Write-Error "找不到规则根目录（.clinerules / clinerules；已从 $PSScriptRoot 上溯至仓库根）"
             exit 2
         }
     }

@@ -22,28 +22,34 @@ public sealed class HistoryProjector : IHistoryProjector
 {
     private readonly IHistoryRelationManager? _relations;
     private readonly INodeStore? _nodes;
+    // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
+    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    private readonly Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则沉淀/回读均跳过）。</param>
     /// <param name="nodes">节点库端口（可空；未装配则入史投影（L-B 节点）跳过，仅建关系边）。</param>
-    public HistoryProjector(IHistoryRelationManager? relations = null, INodeStore? nodes = null)
+    /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
+    public HistoryProjector(
+        IHistoryRelationManager? relations = null,
+        INodeStore? nodes = null,
+        Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null)
     {
         _relations = relations;
         _nodes = nodes;
+        _taskProvisionFlow = taskProvisionFlow;
     }
 
     /// <summary>
     /// 沉淀一轮：幂等建历史容器 → 归拢任务（history_owns_task）→ 挂载节点（session_owns）→ 消息时序边（round_sequence）。
-    /// 历史容器 Id 优先取 <see cref="TaskScope.HistoryId"/>，缺失回退 taskKey（task-key 作用域历史）。
+    /// 历史容器 Id 规则（R3）由 <see cref="Reference.HistoryContainerRules"/> 承载（声明面对账单源）。
     /// </summary>
     public async Task PersistRoundAsync(NodeRoundResult round, TaskScope scope, CancellationToken ct = default)
     {
         if (_relations is null || scope is null) return;
 
-        var historyId = ResolveHistoryId(scope.HistoryId, scope.TaskKey);
+        var historyId = Reference.HistoryContainerRules.Resolve(scope.HistoryId, scope.TaskKey);
         var taskKey = scope.TaskKey;
-        await _relations.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(taskKey))
-            await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+        await ProvisionAsync(historyId, taskKey, ct).ConfigureAwait(false);
 
         // 节点即结果：逐条以 task→node M:N 关联挂载（历史节点集派生 = 其任务节点并集，不再直写 history→node 边）。
         // 注：消息时序边 round_sequence 已退役（A4′）——历史顺序改由键内 (round, seq) 承载
@@ -72,8 +78,8 @@ public sealed class HistoryProjector : IHistoryProjector
         var vars = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (_relations is not null && !string.IsNullOrWhiteSpace(taskKey))
         {
-            // 以容器键（按统一规则 = taskKey）枚举归拢任务键（历史回读的轻量形态）。
-            var historyId = ResolveHistoryId(null, taskKey);
+            // 以容器键（按声明面规则 = taskKey）枚举归拢任务键（历史回读的轻量形态）。
+            var historyId = Reference.HistoryContainerRules.Resolve(null, taskKey);
             var keys = await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);
             if (keys is { Count: > 0 })
                 vars["history_task_keys"] = keys;
@@ -82,9 +88,22 @@ public sealed class HistoryProjector : IHistoryProjector
         return new NodeRoundInput(taskKey, sessionId, 0, vars);
     }
 
-    /// <summary>统一历史容器 Id 解析（单一规则）：显式 historyId 优先，缺省回退 taskKey（historyId == taskKey 约定）。</summary>
-    private static string ResolveHistoryId(string? historyId, string taskKey)
-        => string.IsNullOrWhiteSpace(historyId) ? taskKey : historyId;
+    /// <summary>
+    /// 建历史容器 + 归拢 task（R2）：经**任务供给簿记流入口**触发（编排真源 = task-provision.ushar 的
+    /// [Flow] TaskProvision）；未装配入口（迁移期）⇒ 沿用关系端口直调回退，不静默。
+    /// </summary>
+    private async Task ProvisionAsync(string historyId, string taskKey, CancellationToken ct)
+    {
+        if (_taskProvisionFlow is not null)
+        {
+            await _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct).ConfigureAwait(false);
+            return;
+        }
+
+        await _relations!.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(taskKey))
+            await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 入史投影（CP-3 唯一入口）：按 <see cref="HistoryMarkPolicy"/> 过滤 → 标记节点依次投影为
@@ -101,10 +120,9 @@ public sealed class HistoryProjector : IHistoryProjector
         var taskKey = scope.TaskKey;
         if (string.IsNullOrWhiteSpace(taskKey)) return 0;
 
-        // 历史容器 + 任务归拢（历史节点集经 task→node 派生，故容器本身可不出现于 L-B 键域）。
-        var historyId = ResolveHistoryId(scope.HistoryId, taskKey);
-        await _relations.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
-        await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+        // 历史容器 + 任务归拢（历史节点集经 task→node 派生，故容器本身可不出现于 L-B 键域）。R2 归流见 ProvisionAsync。
+        var historyId = Reference.HistoryContainerRules.Resolve(scope.HistoryId, taskKey);
+        await ProvisionAsync(historyId, taskKey, ct).ConfigureAwait(false);
 
         var workflowId = NodeKeys.DefaultWorkflowId;
         // 轮次归一（键的身份组成，见 SessionMessageKeys）：0/负值会使「跨轮同名覆盖」回归，故下限取 1。

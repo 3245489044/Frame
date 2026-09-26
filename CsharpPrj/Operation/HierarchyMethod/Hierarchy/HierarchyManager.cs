@@ -35,6 +35,9 @@ public sealed class HierarchyManager : IHierarchyManager
     private readonly Func<string, CancellationToken, Task>? _deleteTask;
     private readonly Lazy<HierarchyProcessFacade> _processing;
     private readonly Lazy<HierarchyProcessFacade> _taskTreeProcessing;
+    // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
+    // null ⇒ 迁移期沿用引用端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    private readonly global::Operation.HierarchyMethod.Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
 
     /// <param name="reference">引用管理端口（可空；实现 = DataStoreDriven.ReferenceGrounding）。本门面及三层实例只依赖此接口、零 LiteDB 具体类型。</param>
     /// <param name="nodes">节点输出存储（可空；ur_nodes NodeType=output）。</param>
@@ -61,12 +64,14 @@ public sealed class HierarchyManager : IHierarchyManager
         string? workflowId = null,
         ILevelProcessObserver? observer = null,
         IChildResultAggregator? aggregator = null,
-        IRunStateProvider? runStateProvider = null)
+        IRunStateProvider? runStateProvider = null,
+        global::Operation.HierarchyMethod.Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null)
     {
         _reference = reference;
         _nodes = nodes;
         _saveTask = saveTask;
         _deleteTask = deleteTask;
+        _taskProvisionFlow = taskProvisionFlow;
         // S4：默认启用 AX.ResultComposition（子层 round argmax 取最新终态；数据面缺失回退合取）。
         // 可选参数默认值须为编译时常量，故以 null 占位、此处回退到 ResultCompositionAggregator。
         var effectiveAggregator = aggregator ?? ResultCompositionAggregator.Default;
@@ -117,7 +122,13 @@ public sealed class HierarchyManager : IHierarchyManager
         if (_saveTask is not null)
             await _saveTask(record, ct).ConfigureAwait(false);
 
-        if (_reference is not null && !string.IsNullOrWhiteSpace(historyId))
+        // 归拢到 history（R2）：经**任务供给簿记流入口**触发（编排真源 = task-provision.ushar 的
+        // [Flow] TaskProvision）；未装配入口（迁移期）⇒ 沿用引用端口直调回退，不静默。
+        if (_taskProvisionFlow is not null && !string.IsNullOrWhiteSpace(historyId))
+        {
+            await _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct).ConfigureAwait(false);
+        }
+        else if (_reference is not null && !string.IsNullOrWhiteSpace(historyId))
         {
             // 归拢到 history：建历史根 + 挂 history→task 边（幂等；二者均顺带注册 task/task 端点镜像）。
             await _reference.EnsureHistoryAsync(historyId, ct).ConfigureAwait(false);

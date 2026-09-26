@@ -21,11 +21,18 @@ namespace Operation.HierarchyMethod.Reference;
 public sealed class NodeTaskHistoryService
 {
     private readonly IHistoryRelationManager? _relations;
+    // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
+    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    private readonly Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则各方法 no-op）。</param>
-    public NodeTaskHistoryService(IHistoryRelationManager? relations)
+    /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
+    public NodeTaskHistoryService(
+        IHistoryRelationManager? relations,
+        Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null)
     {
         _relations = relations;
+        _taskProvisionFlow = taskProvisionFlow;
     }
 
     /// <summary>是否已装配关系守卫（供调用方判空诊断）。</summary>
@@ -57,14 +64,24 @@ public sealed class NodeTaskHistoryService
     /// <summary>
     /// 确保历史容器存在并归拢指定 task（history_owns_task 边；幂等）。**统一归拢入口**——
     /// 替代散落在 <c>EnsureHistoryTaskAsync</c> / <c>ConversationAttachTaskAsync</c> 的三处重复
-    /// <c>CreateAsync + AttachTaskAsync</c>。historyId = taskKey（统一 Id 规则）。
-    /// 未装配关系守卫 → no-op。
+    /// <c>CreateAsync + AttachTaskAsync</c>。容器 Id 规则（R3）= <see cref="HistoryContainerRules"/>
+    /// （声明面 Config\workflows\task-provision.ushar 的 `[Space] HistoryContainerRule` 对账单源）。
+    /// 编排（建容器 → 归拢 task 的**顺序**）由声明流 `[Flow] TaskProvision` 承载（R2）；未装配流入口 ⇒ 迁移期回退直调。
     /// </summary>
-    /// <param name="taskKey">任务键（= 会话名 = 历史容器 Id）。</param>
+    /// <param name="taskKey">任务键（= 会话名；按声明面规则作为历史容器 Id 的缺省回退来源）。</param>
     public async Task EnsureTaskHistoryBoundAsync(string taskKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return;
-        var hid = taskKey.Trim();
+        var hid = HistoryContainerRules.Resolve(null, taskKey);
+
+        // R2 归流：编排真源 = task-provision.ushar 的 [Flow] TaskProvision（本处只是唯一触发点，不持顺序）。
+        if (_taskProvisionFlow is not null)
+        {
+            await _taskProvisionFlow.ProvisionAsync(hid, hid, hid, ct).ConfigureAwait(false);
+            return;
+        }
+
+        // 迁移期回退（未装配流入口时零行为变化）；退役条件见字段声明处。
         await EnsureHistoryAsync(hid, name: hid, ct).ConfigureAwait(false);
         await AttachTaskToHistoryAsync(hid, hid, ct).ConfigureAwait(false);
     }

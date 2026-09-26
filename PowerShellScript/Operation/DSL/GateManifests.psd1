@@ -18,6 +18,7 @@
     AgentRuntimeSlots = @{
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '承载面 K10（S1/S2 静态可变槽）+ 取用面 S4–S6（键值唯一 / 键↔宿主 1:1 / 取用面类型化）；-WriteManifest 为写操作，聚合器禁用'
     }
 
     AgentProcessSurface = @{

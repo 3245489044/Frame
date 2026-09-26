@@ -1,19 +1,30 @@
 # Check-AgentRuntimeSlots.ps1
-# Agent 运行时槽门禁（K10，对齐 Frame\DataCenter\Doc\DataCenter-Agent运行时数据接入-设计与实施.md §5 K10、§4 A1）
-# 判据：产品侧（Projects\Plug\Agent\src）不得新增「静态可变运行时槽」——运行时对象必须落在
+# Agent 运行时槽门禁（K10 + S4–S6，对齐 Frame\DataCenter\Doc\DataCenter-Agent运行时数据接入-设计与实施.md §5 K10、§4 A1；
+# 取用面判据对齐 Docs\analysis\2026\9\9.26\Agent_RuntimeSlot源生成-设计与实施卡.md §5.1）
+#
+# 判据分两组（对象不同、互不替代：过 K10 ≠ 过 S4–S6）：
+#   【承载面 K10】产品侧（Projects\Plug\Agent\src）不得新增「静态可变运行时槽」——运行时对象必须落在
 #       运行时槽分区（root.Slots.Partition("agent")）或 AmbientSlot 机制上。
-# 检测：
-#   [S1] 静态可变字段（static 非 readonly 且非 const 的字段声明）
-#   [S2] 静态可变属性（static 且含 set 访问器的自动属性）
-#   [S3] 静态字典/集合持有（static readonly Dictionary/ConcurrentDictionary 等——只读引用但内容可变）
-# 白名单：迁移期载体（AgentRuntimeRoot 的绑定承载/无根回落容器）+ 注册表常量类 + 测试工程（不在扫描面）。
+#     [S1] 静态可变字段（static 非 readonly 且非 const 的字段声明）
+#     [S2] 静态可变属性（static 且含 set 访问器的自动属性）
+#     [S3] 静态字典/集合持有（static readonly Dictionary/ConcurrentDictionary 等——只读引用但内容可变）
+#   【取用面 S4–S6】槽键与取用的声明纪律（B4 类型化键收口后的机器判据）：
+#     [S4] 槽键唯一     —— AgentRuntimeSlotKeys 的键值字面量全库无重复（键值 = 锚点）
+#     [S5] 键↔宿主 1:1  —— 每个键值恰绑定一个宿主类型（同键两类型 = 状态分裂）
+#     [S5b] 键成员存在  —— RuntimeSlotKey<T> 引用的 AgentRuntimeSlotKeys 成员必须存在（悬空键 = 拼造键值）
+#     [S6] 取用面类型化 —— 生产侧不得经 AgentRuntimeSlots.Resolve/TryResolve 直传裸键（键值字面量或 AgentRuntimeSlotKeys.X）
+# 白名单：承载面 = 迁移期载体（AgentRuntimeRoot 的绑定承载/无根回落容器）+ 注册表常量类 + 测试工程（不在扫描面）；
+#         取用面 = AgentRuntimeRoot.cs（E1：P4-8 迁移期取根转发出口，键为变量，退役条件见该文件注释）。
 #   - 报告模式（默认）：列出命中，不设退出码。
 #   - 校验模式（-Check）：非白命中 > 0 → 退出码 1（CI 门禁）。
+#   - 清单模式（-WriteManifest <path>）：源码直读产出槽清单 JSON（确定性：键值 Ordinal 升序、无时间戳/绝对路径），
+#     供文档槽登记台账对拍（对齐设计与实施卡 附B manifest 样例）。
 
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [switch]$Check
+    [switch]$Check,
+    [string]$WriteManifest = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,6 +96,149 @@ foreach ($file in $files) {
     }
 }
 
+# ══════════════════════════════════════════════════════════════════════════
+# 取用面判据 S4–S6（B4 类型化键收口）：源码直读，不依赖构建产物
+# ══════════════════════════════════════════════════════════════════════════
+
+$keysFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Runtime\AgentRuntimeSlotKeys.cs'
+$surfHits = [System.Collections.Generic.List[object]]::new()
+
+# ---- [S4] 槽键唯一：键值字面量去重 ----
+$slotKeys = [System.Collections.Generic.List[object]]::new()
+$instanceScopedMembers = [System.Collections.Generic.List[string]]::new()
+if (Test-Path -LiteralPath $keysFile) {
+    $keyLines = Get-Content -LiteralPath $keysFile
+    for ($i = 0; $i -lt $keyLines.Count; $i++) {
+        if ($keyLines[$i] -match '^\s*public\s+const\s+string\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]+)"\s*;') {
+            $slotKeys.Add([pscustomobject]@{ Member = $matches[1]; Key = $matches[2]; Line = $i + 1 })
+        }
+    }
+
+    # 实例级键集（InstanceScoped 初始化块）：去注释后取标识符行
+    $inSet = $false
+    foreach ($line in $keyLines) {
+        if ($line -match 'InstanceScoped\s*=\s*new\s+HashSet<string>') { $inSet = $true; continue }
+        if ($inSet) {
+            if ($line -match '^\s*\};') { $inSet = $false; continue }
+            $code = ($line -replace '//.*$', '').Trim()
+            if ($code -match '^([A-Za-z_][A-Za-z0-9_]*)\s*,?$') { $instanceScopedMembers.Add($matches[1]) }
+        }
+    }
+
+    $relKeys = $keysFile.Substring($Root.Length).TrimStart('\')
+    foreach ($g in ($slotKeys | Group-Object Key | Where-Object { $_.Count -gt 1 })) {
+        $members = ($g.Group | ForEach-Object { $_.Member }) -join ', '
+        $surfHits.Add([pscustomobject]@{
+            Rule = 'S4 槽键唯一'; File = $relKeys; Line = $g.Group[0].Line; Text = "键值 '$($g.Name)' 重复声明：$members"
+        })
+    }
+} else {
+    $surfHits.Add([pscustomobject]@{ Rule = 'S4 槽键唯一'; File = 'Agent.Contract\Runtime\AgentRuntimeSlotKeys.cs'; Line = 0; Text = '键注册表文件缺失' })
+}
+
+# ---- [S5]/[S5b] 键↔宿主类型 1:1 + 键成员存在（类型化键声明面） ----
+$typedKeyPattern = '(?<kind>RuntimeSlotKey|InstanceRuntimeSlotKey)<\s*(?<host>[A-Za-z_][A-Za-z0-9_.]*)\s*>\s+(?<field>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\(\s*AgentRuntimeSlotKeys\.(?<member>[A-Za-z_][A-Za-z0-9_]*)\s*\)'
+$typedKeys = [System.Collections.Generic.List[object]]::new()
+foreach ($file in $files) {
+    $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
+    $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrEmpty($text)) { continue }
+    foreach ($m in [regex]::Matches($text, $typedKeyPattern)) {
+        $lineNo = ($text.Substring(0, $m.Index) -split "`n").Count
+        $typedKeys.Add([pscustomobject]@{
+            Kind = $m.Groups['kind'].Value
+            Host = $m.Groups['host'].Value
+            Field = $m.Groups['field'].Value
+            Member = $m.Groups['member'].Value
+            File = $rel
+            Line = $lineNo
+        })
+    }
+}
+
+$knownMembers = @{}
+foreach ($k in $slotKeys) { $knownMembers[$k.Member] = $k }
+
+foreach ($tk in $typedKeys) {
+    if (-not $knownMembers.ContainsKey($tk.Member)) {
+        $surfHits.Add([pscustomobject]@{
+            Rule = 'S5b 键成员存在'; File = $tk.File; Line = $tk.Line
+            Text = "类型化键 '$($tk.Field)' 引用未注册键成员 AgentRuntimeSlotKeys.$($tk.Member)"
+        })
+    }
+}
+
+foreach ($g in ($typedKeys | Group-Object Member)) {
+    $hosts = @($g.Group | ForEach-Object { $_.Host } | Sort-Object -Unique)
+    if ($hosts.Count -gt 1) {
+        $surfHits.Add([pscustomobject]@{
+            Rule = 'S5 键↔宿主 1:1'; File = $g.Group[0].File; Line = $g.Group[0].Line
+            Text = "键成员 '$($g.Name)' 绑定多个宿主类型（键↔类型必须 1:1）：$($hosts -join ' / ')"
+        })
+    }
+}
+
+# ---- [S6] 取用面类型化：禁裸键直传 Resolve/TryResolve ----
+$bareKeyPattern = 'AgentRuntimeSlots\s*\.\s*(?:Resolve|TryResolve)\s*(?:<[^>]*>)?\s*\(\s*(?:AgentRuntimeSlotKeys\.[A-Za-z_][A-Za-z0-9_]*|")'
+$surfaceAllowList = @(
+    [pscustomobject]@{ Path = '\Runtime\AgentRuntimeRoot.cs'; Reason = 'E1 迁移期取根转发出口（P4-8 兼容重载，键为变量；退役条件见该文件注释）' }
+)
+$surfaceAllowed = [System.Collections.Generic.List[object]]::new()
+$typedUseCount = 0
+foreach ($file in $files) {
+    $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
+    $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrEmpty($text)) { continue }
+
+    $typedUseCount += ([regex]::Matches($text, '[A-Za-z_][A-Za-z0-9_]*Key\s*\.\s*(?:Get|TryGet)\s*\(')).Count
+
+    foreach ($m in [regex]::Matches($text, $bareKeyPattern)) {
+        $lineNo = ($text.Substring(0, $m.Index) -split "`n").Count
+        $entry = [pscustomobject]@{ Rule = 'S6 取用面类型化'; File = $rel; Line = $lineNo; Text = '经裸键直传 Resolve/TryResolve（应改经 RuntimeSlotKey<T>.Get / InstanceRuntimeSlotKey<T>.Get）' }
+        $white = $surfaceAllowList | Where-Object { $rel -like ('*' + $_.Path + '*') } | Select-Object -First 1
+        if ($white) {
+            $entry | Add-Member -NotePropertyName Reason -NotePropertyValue $white.Reason
+            $surfaceAllowed.Add($entry)
+        } else {
+            $surfHits.Add($entry)
+        }
+    }
+}
+
+# ---- 槽清单 JSON（-WriteManifest；键值 Ordinal 升序，无时间戳/绝对路径 → 重生成幂等） ----
+if ($WriteManifest) {
+    $hostByMember = @{}
+    foreach ($tk in $typedKeys) {
+        if (-not $hostByMember.ContainsKey($tk.Member)) { $hostByMember[$tk.Member] = $tk }
+    }
+
+    $relKeysForManifest = $keysFile.Substring($Root.Length).TrimStart('\')
+    $slots = [ordered]@{}
+    foreach ($k in ($slotKeys | Sort-Object { $_.Key })) {
+        $tk = if ($hostByMember.ContainsKey($k.Member)) { $hostByMember[$k.Member] } else { $null }
+        $slots[$k.Key] = [ordered]@{
+            member     = $k.Member
+            host       = if ($tk) { $tk.Host } else { $null }
+            scope      = if ($instanceScopedMembers -contains $k.Member) { 'Instance' } else { 'Process' }
+            declaredIn = if ($tk) { $tk.File } else { $null }
+            definedIn  = $relKeysForManifest
+        }
+    }
+
+    $manifest = [ordered]@{
+        '$comment'     = '运行时槽清单（源码直读生成，勿手改）。S4/S5 判据取值来源；键值=锚点，Ordinal 升序；无时间戳以保证重生成幂等。'
+        slots          = $slots
+        instanceScoped = @($instanceScopedMembers | Sort-Object)
+        typedKeyCount  = $typedKeys.Count
+        count          = $slotKeys.Count
+    }
+
+    $manifestDir = Split-Path -Parent $WriteManifest
+    if ($manifestDir -and -not (Test-Path -LiteralPath $manifestDir)) { New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null }
+    ($manifest | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $WriteManifest -Encoding UTF8
+    Write-Host ("槽清单已写出: {0}（键 {1} 条 / 类型化绑定 {2} 条）" -f $WriteManifest, $slotKeys.Count, $typedKeys.Count)
+}
+
 Write-Host '=== [K10] Agent 无新增静态可变运行时槽 ==='
 Write-Host ("扫描文件数: {0} | 白名单命中: {1} | 存量基线（待迁移）: {2} | 违规命中: {3}" -f `
     $files.Count, $allowed.Count, $pending.Count, $hits.Count)
@@ -101,8 +255,36 @@ if ($hits.Count -gt 0) {
     $hits | ForEach-Object { Write-Host ("  [违规] {0}:{1} [{2}] {3}" -f $_.File, $_.Line, $_.Pattern, $_.Text) }
 }
 
+Write-Host ''
+Write-Host '=== [S4–S6] Agent 槽键与取用面纪律 ==='
+Write-Host ("键注册表键数: {0} | 类型化键绑定: {1} | 类型化取用点(.Get/.TryGet): {2} | 取用面白名单命中: {3} | 违规命中: {4}" -f `
+    $slotKeys.Count, $typedKeys.Count, $typedUseCount, $surfaceAllowed.Count, $surfHits.Count)
+if ($slotKeys.Count -eq 0) {
+    Write-Host '  [INFO] 键注册表未解析到任何 `public const string` 键——判据退化为未接线（勿视为 PASS）。'
+}
+if ($surfaceAllowed.Count -gt 0) {
+    Write-Host '--- 取用面白名单（迁移期出口） ---'
+    $surfaceAllowed | ForEach-Object { Write-Host ("  [允许] {0}:{1} [{2}] {3}" -f $_.File, $_.Line, $_.Rule, $_.Reason) }
+}
+if ($surfHits.Count -gt 0) {
+    Write-Host '--- 违规清单（槽键/取用面） ---'
+    $surfHits | ForEach-Object { Write-Host ("  [违规] {0}:{1} [{2}] {3}" -f $_.File, $_.Line, $_.Rule, $_.Text) }
+}
+Write-Host '--- 未绑定宿主的键（清单可见；非违规，供逐键处置：未使用 / 非 Resolve 通道） ---'
+$boundMembers = @{}
+foreach ($tk in $typedKeys) { $boundMembers[$tk.Member] = $true }
+$unbound = @($slotKeys | Where-Object { -not $boundMembers.ContainsKey($_.Member) })
+Write-Host ("  未绑定 {0} / 共 {1} 键" -f $unbound.Count, $slotKeys.Count)
+if ($unbound.Count -gt 0) {
+    Write-Host ("     " + (($unbound | ForEach-Object { $_.Key }) -join ', '))
+}
+
 if ($Check -and $hits.Count -gt 0) {
     Write-Host '校验失败：K10 静态可变运行时槽未收敛（应改经运行时槽分区或 AmbientSlot 承载）。'
+    exit 1
+}
+if ($Check -and $surfHits.Count -gt 0) {
+    Write-Host '校验失败：取用面 S4–S6 未收敛（键值须唯一且 1:1 绑定宿主类型；取用须经 RuntimeSlotKey<T>）。'
     exit 1
 }
 exit 0

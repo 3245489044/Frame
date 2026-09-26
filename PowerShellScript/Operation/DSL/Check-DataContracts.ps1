@@ -1,9 +1,12 @@
 # Check-DataContracts.ps1
 # 统一数据传递标准 —— 一致性校验器（PowerShell 版，仿照 DSL/Check-ClinerulesReferences.ps1 的两遍扫描模式）。
-# 职责：扫描 Agent 源码中所有 RoundKeys.<Name> 使用点，断言每个键都已在 DataContractRegistrar.RegisterAll 登记。
-#   - 报告模式（默认）：列出未覆盖键，不设退出码。
-#   - 校验模式（-Check）：存在未覆盖键时以非零退出码失败（CI 门禁，防魔法键/新键静默流通）。
-# 规则定死的是"每个使用键必须登记"；内容不定死（新增键 = 在 RegisterAll 加一条契约，本脚本自动识别）。
+# 判据（M3/T3 派生改造后两条）：
+#   [D1] 扫描 Agent 源码中所有 RoundKeys.<Name> 使用点，断言每个键都已在 DataContractRegistrar.RegisterAll 登记
+#        —— 规则定死「每个使用键必须登记」；内容不定死（新增键 = 在 RegisterAll 加一条契约，本脚本自动识别）。
+#   [D2] 台账 ports.json **不得承载 data 段**：数据标准的唯一作者 = DataContractRegistrar 播种的运行时契约，
+#        声明面由 PortsLedger/DataStandardProjection 运行时派生并入（手写 data 段 = 第二作者回归，必然漂移）。
+#   - 报告模式（默认）：列出违规，不设退出码。
+#   - 校验模式（-Check）：存在违规时以非零退出码失败（CI 门禁）。
 
 param(
     [string]$Root = '',
@@ -53,6 +56,20 @@ foreach ($m in [regex]::Matches((Get-Content $regFile -Raw), $pattern)) {
 
 $uncovered = @($usages.Keys | Where-Object { -not $regNames.ContainsKey($_) } | Sort-Object)
 
+# [D2] 第二作者禁止：台账不得承载 data 段（判据与 DataContractStandardTests [D1] 同源）。
+$ledgerFile = Join-Path $src "Agent.Contract\Observability\ports.json"
+$ledgerViolations = @()
+if (-not (Test-Path $ledgerFile)) {
+    $ledgerViolations += "未找到台账文件: $ledgerFile"
+} else {
+    $ledgerText = Get-Content $ledgerFile -Raw
+    foreach ($m in [regex]::Matches($ledgerText, '(?m)^[ \t]*"data"[ \t]*:')) {
+        $line = ($ledgerText.Substring(0, $m.Index) -split "`n").Count
+        $ledgerViolations += ("ports.json:{0} 出现手写 data 段（数据标准唯一作者 = DataContractRegistrar；派生段由 PortsLedger 并入）" -f $line)
+        break
+    }
+}
+
 Write-Host "=== DataContract 一致性检查 ==="
 Write-Host ("使用中的 RoundKeys 数: {0} | 已登记契约数: {1} | 未覆盖: {2}" -f $usages.Count, $regNames.Count, $uncovered.Count)
 if ($uncovered.Count -gt 0) {
@@ -60,8 +77,16 @@ if ($uncovered.Count -gt 0) {
     $uncovered | ForEach-Object { Write-Host ("  {0}" -f $_) }
 }
 
-if ($Check -and $uncovered.Count -gt 0) {
-    Write-Host "校验失败：存在未登记的数据键，请在 DataContractRegistrar.RegisterAll 补齐契约。"
+Write-Host ("台账 data 段（应缺席）违规: {0}" -f $ledgerViolations.Count)
+foreach ($v in $ledgerViolations) { Write-Host ("  {0}" -f $v) }
+
+if ($Check -and ($uncovered.Count -gt 0 -or $ledgerViolations.Count -gt 0)) {
+    if ($uncovered.Count -gt 0) {
+        Write-Host "校验失败：存在未登记的数据键，请在 DataContractRegistrar.RegisterAll 补齐契约。"
+    }
+    if ($ledgerViolations.Count -gt 0) {
+        Write-Host "校验失败：台账承载了手写 data 段（数据段由运行时契约派生，禁在 ports.json 再写一份）。"
+    }
     exit 1
 }
 exit 0

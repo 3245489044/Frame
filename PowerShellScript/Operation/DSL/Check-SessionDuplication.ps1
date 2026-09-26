@@ -118,6 +118,9 @@ $assertions = @(
     [pscustomobject]@{ Id = 'A3d'; Title = '反解轮标记常量（D4/ArchiveRoundMarker）'; Pattern = 'ArchiveRoundMarker'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A3e'; Title = '键模板字面量·归档前缀（D4/A11）'; Pattern = '"cline.session."'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A3f'; Title = '键模板字面量·轮次中缀（D4/A11）'; Pattern = '".round."'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 0; Batch = 'C-1'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'A3g'; Title = '轮次键存量形态·R 拼接（D3；S1 已收敛 → 0）'; Pattern = '+ "R" +'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'A3h'; Title = '轮次键存量形态·@ 拼接（D3；S1 已收敛 → 0）'; Pattern = '"@" +'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'A3i'; Title = '轮次键字面量·#R（D3；唯一生成器 FactIds.Round）'; Pattern = '"#R"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }
 
     # ---- C-3 会话态迁实例（D14）----
     [pscustomobject]@{ Id = 'A8'; Title = '会话态零视图寄居（D14/_currentSession）'; Pattern = '_currentSession'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-3'; Kind = 'search' }
@@ -128,7 +131,7 @@ $assertions = @(
     [pscustomobject]@{ Id = 'A6b'; Title = '工具面 UI 零定位·快照面（D8/IToolFaceSnapshotStore）'; Pattern = 'IToolFaceSnapshotStore'; PathSpec = $launcherModules; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-4'; Kind = 'search' }
 
     # ---- C-5 装配契约化 + 阶段声明化（D6/D12/D15）----
-    [pscustomobject]@{ Id = 'A4'; Title = '渲染器构造单源（D6/new HtmlStreamRendererOptions）'; Pattern = 'new HtmlStreamRendererOptions'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 1; Batch = 'C-5'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'A4'; Title = '渲染器构造单源（D6；2026-09-26 销账 → 1，单源 = ConversationRendererFactory）'; Pattern = 'new HtmlStreamRendererOptions'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A7'; Title = '阶段键映射不新增第二处清单（D12；口径见头部 D-6①）'; Pattern = 'case "initialize"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-5'; Kind = 'search' }
 
     # ---- C-6 读模型单源（D10/D11）----

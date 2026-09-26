@@ -38,6 +38,20 @@
     }
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
+    NodeFramework = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1'
+        Expect = 0
+        Note   = '节点框架纯净性 A–H 段：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖；-ShowDetail 显示详情'
+    }
+
+    NodeWriteBypass = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1'
+        Expect = 0
+        Note   = 'P6-A 委托接线架构不变式：键格式声明化 / 端口准入单源 / 节点写路径单源 / 运行态面结算单源（B/C 段为 Error）；-ShowDetail 显示详情'
+    }
+
     ClinerulesReferences = @{
         Args   = @{}
         Expect = 0

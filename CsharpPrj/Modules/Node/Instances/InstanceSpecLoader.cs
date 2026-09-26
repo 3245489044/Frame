@@ -15,6 +15,11 @@ namespace Modules.Node.Instances;
 /// 层级 Kind 经 owns/link 边表达，位置由承载 Kind 声明）；<c>cascades</c>（<c>kind</c>+<c>cascade</c>）；
 /// <c>retention</c>（keep / sealAfterClose / archiveAfterSeal，缺省 keep）；<c>runtimeBound</c>（bool，缺省 false）。
 /// </para>
+/// <para>
+/// <c>identityTemplate</c> **仅接受引用式**（<c>{声明文件}#{字段路径}</c>，D8①）：被引用者可为
+/// ① 节点域声明（含 <c>placements</c>，取其 <c>identity</c>）或 ② **仅身份声明**（无 <c>placements</c>，
+/// 仅承载 <c>identity</c>）；内联模板（无 <c>#</c>）在有读取器时**拒**（内联即复制模板文本，破坏单源）。
+/// </para>
 /// </summary>
 public sealed class InstanceFrameworkSpecLoader
 {
@@ -163,8 +168,16 @@ public sealed class InstanceFrameworkSpecLoader
         _diagnostics.Report(new NodeDiagnostic(code, NodeDiagnosticSeverity.Error, message, subject));
 
     /// <summary>
-    /// 校验引用式身份模板（<c>{声明文件}#{字段路径}</c>）可解析：文件可达 + 字段路径存在。
-    /// <para>判据边界：无读取器（测试/纯内存）或模板不含 <c>#</c>（内联模板）⇒ 不判（返回 true）。</para>
+    /// 校验引用式身份模板（<c>{声明文件}#{字段路径}</c>）可解析：文件可达 + 字段路径存在 + 取值为非空字符串。
+    /// <para>
+    /// 两形态均接受（D8①）：① **节点域声明**（含 <c>placements</c>，取其 <c>identity</c>）；
+    /// ② **仅身份声明**（无 <c>placements</c>，仅承载 <c>identity</c>）—— 供各 Kind 自持身份模板
+    /// （如「会话容器 = 落盘单位」，身份不随轮次变化），框架不要求被引用者是位置声明。
+    /// </para>
+    /// <para>
+    /// 判据边界：无读取器（测试/纯内存）⇒ 不判（返回 true）；模板**不含 <c>#</c>（内联）**⇒ 有读取器时**拒**
+    /// （内联即在本层复制模板文本，违反「身份模板单源在声明面」）。
+    /// </para>
     /// <para>字段路径文法：<c>a.b</c> 逐层属性；<c>a[].b</c> 数组投影（要求数组非空且首元素含后续字段）。</para>
     /// </summary>
     private bool TryValidateTemplateReference(string template, out string? reason)
@@ -175,7 +188,10 @@ public sealed class InstanceFrameworkSpecLoader
 
         var hash = template.IndexOf('#');
         if (hash < 0)
-            return true;
+        {
+            reason = $"内联身份模板不允许（须为引用式 {{声明文件}}#{{字段}}；身份模板单源在声明面）：{template}";
+            return false;
+        }
 
         var file = template[..hash].Trim();
         var fieldPath = template[(hash + 1)..].Trim();
@@ -245,6 +261,13 @@ public sealed class InstanceFrameworkSpecLoader
             }
 
             current = element;
+        }
+
+        // 取值须为非空字符串：身份模板是**可求值文本**，空值/对象/数组即无来源（悬空 ⇒ 拒，不静默降级）。
+        if (current is not JsonValue value || !value.TryGetValue<string>(out var text) || string.IsNullOrWhiteSpace(text))
+        {
+            reason = $"引用目标非非空字符串（路径 {fieldPath}）";
+            return false;
         }
 
         return true;

@@ -55,7 +55,13 @@ $failedOutputs = New-Object System.Collections.Generic.List[string]
 
 foreach ($name in $names) {
     $spec = $gates[$name]
-    $scriptPath = Join-Path $PSScriptRoot "Check-$name.ps1"
+    # 脚本定位：清单可选 Path（仓库根相对，供 Modules\* 侧守卫登记）；缺省 = 本目录 Check-<name>.ps1。
+    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+    $scriptPath = if ($spec.ContainsKey('Path') -and -not [string]::IsNullOrWhiteSpace($spec.Path)) {
+        Join-Path $repoRoot $spec.Path
+    } else {
+        Join-Path $PSScriptRoot "Check-$name.ps1"
+    }
 
     if (-not (Test-Path -LiteralPath $scriptPath)) {
         Write-Result "FAIL" "$name — 脚本不存在: $scriptPath"

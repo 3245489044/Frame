@@ -89,6 +89,34 @@ describe("K1 · 声明面装载（W-4 缺失即抛 / ∅+诊断）", () => {
   });
 });
 
+describe("K2 · 事实来源（Origin 词表）", () => {
+  const spec: RecognizerSpec = {
+    vocabulary: "cline-signal@1",
+    kinds: ["probe-live", "probe-snapshot", "probe-derived", "unrecognized"],
+    recognizers: [
+      { match: { source: "s", type: "live" }, kind: "probe-live" },
+      { match: { source: "s", type: "snap" }, kind: "probe-snapshot", origin: "Snapshot" },
+      { match: { source: "s", type: "derived" }, kind: "probe-derived", origin: "Derived" },
+    ],
+  };
+
+  it("缺省 origin ⇒ Live（不伪造来源）", () => {
+    const engine = new RecognizerEngine(spec);
+    expect(engine.apply(frame("s", "live"))[0].origin).toBe("Live");
+  });
+
+  it("声明 origin ⇒ 逐字落到产物（来源数据化，非代码分支）", () => {
+    const engine = new RecognizerEngine(spec);
+    expect(engine.apply(frame("s", "snap"))[0].origin).toBe("Snapshot");
+    expect(engine.apply(frame("s", "derived"))[0].origin).toBe("Derived");
+  });
+
+  it("未识别帧来源恒为 Live（兜底不冒充具体来源）", () => {
+    const engine = new RecognizerEngine(spec);
+    expect(engine.apply(frame("ghost", "x"))[0].origin).toBe("Live");
+  });
+});
+
 describe("K1 · 识别账（D-3 无静默丢）", () => {
   it("K0 实测 20 帧 ⇒ emitted + countedOnly + unrecognized = total，且零未识别", () => {
     const engine = new RecognizerEngine(realSpec());
@@ -145,6 +173,29 @@ describe("K1 · D-1 声明驱动性（新增一类零代码）", () => {
     const a = engine.apply(frame("agent_event", "iteration_end", { iteration: 1 }))[0];
     const b = engine.apply(frame("agent_event", "iteration_end", { iteration: 2 }))[0];
     expect([a.ordinal, b.ordinal]).toEqual([1, 2]);
+  });
+});
+
+describe("K3-A · 去重（D-8：live ∩ snapshot 成节点类别 = ∅）", () => {
+  it("真源声明：两来源的**成节点**类别互不相交（同内容不双写）", () => {
+    const spec = realSpec();
+    const emittedOf = (origin: string) =>
+      spec.recognizers.filter((r) => r.node !== false && (r.origin ?? "Live") === origin).map((r) => r.kind);
+
+    const live = new Set(emittedOf("Live"));
+    const overlap = emittedOf("Snapshot").filter((kind) => live.has(kind));
+
+    expect(emittedOf("Snapshot").length).toBeGreaterThan(0);
+    expect(overlap).toEqual([]);
+  });
+
+  it("快照来源类别恒在词表内（声明面自洽；不新增未登记 kind）", () => {
+    const spec = realSpec();
+    const snapshotKinds = spec.recognizers.filter((r) => r.origin === "Snapshot").map((r) => r.kind);
+    expect(snapshotKinds.length).toBeGreaterThan(0);
+    for (const kind of snapshotKinds) {
+      expect(spec.kinds).toContain(kind);
+    }
   });
 });
 

@@ -15,6 +15,7 @@
 import {
   normalizeKind,
   UNRECOGNIZED_KIND,
+  type RecognizerOrigin,
   type RecognizerRule,
   type RecognizerSpec,
 } from "./vocabulary.js";
@@ -39,8 +40,8 @@ export interface RecognizedNode {
   readonly ordinal: number;
   /** `false` = 识别但不成节点（仅计入账）；调用方据此过滤。 */
   readonly node: boolean;
-  /** 事实来源（复用节点框架 Origin 词表）。 */
-  readonly origin: "Live";
+  /** 事实来源（复用节点框架 Origin 词表）；按规则 `origin` 取值，缺省 `Live`。 */
+  readonly origin: RecognizerOrigin;
   /** 溯源（对账/审计）。 */
   readonly source: { readonly sdk: string; readonly eventType: string };
 }
@@ -154,7 +155,7 @@ export class RecognizerEngine {
         payload: projectPayload(rule, frame),
         ordinal,
         node,
-        origin: "Live",
+        origin: rule.origin ?? "Live",
         source: { sdk: frame.source, eventType: frame.eventType },
       },
     ];

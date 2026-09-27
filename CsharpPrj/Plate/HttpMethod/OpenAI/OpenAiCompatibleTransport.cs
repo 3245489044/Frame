@@ -32,13 +32,18 @@ namespace Plate.HttpMethod.OpenAI
         private readonly string _name;
         private readonly RecursionHopGuard _guard;
 
+        /// <summary>是否允许无凭据（匿名）外发。构造缺省 <c>null</c> = 按端点回环性自动判定（结构判据）；
+        /// <c>true</c> = 显式允许（自建无鉴权网关）；<c>false</c> = 显式要求鉴权（缺 key 即拒发，不触网）。</summary>
+        private readonly bool _allowAnonymous;
+
         public OpenAiCompatibleTransport(
             HttpClient http,
             string endpoint,
             string? apiKey,
             string model,
             string? name = null,
-            RecursionHopGuard? guard = null)
+            RecursionHopGuard? guard = null,
+            bool? allowAnonymous = null)
         {
             _http = http ?? throw new ArgumentNullException(nameof(http));
             _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
@@ -46,6 +51,15 @@ namespace Plate.HttpMethod.OpenAI
             _model = string.IsNullOrWhiteSpace(model) ? "deepseek-chat" : model.Trim();
             _name = string.IsNullOrWhiteSpace(name) ? "openai-compatible" : name.Trim();
             _guard = guard ?? new RecursionHopGuard();
+            _allowAnonymous = allowAnonymous ?? IsLoopbackEndpoint(_endpoint);
+        }
+
+        /// <summary>端点是否回环（匿名外发自动判定；结构事实：host ∈ {localhost, 127.0.0.0/8, ::1}）——判据载体是坐标，非执行者叙述。</summary>
+        public static bool IsLoopbackEndpoint(string? endpoint)
+        {
+            if (string.IsNullOrWhiteSpace(endpoint)) return false;
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)) return false;
+            return uri.IsLoopback || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>客户端名（provider key，用于日志归因；缺省 openai-compatible）。</summary>
@@ -90,6 +104,12 @@ namespace Plate.HttpMethod.OpenAI
             List<OpenAiChatMessage> messages, double? temperature, bool jsonMode,
             List<OpenAiTool> tools, int hop, CancellationToken ct)
         {
+            // 无凭据不外发（结构判据：key 空 ∧ 端点非回环 ∧ 未显式允许匿名）——避免把本地配置缺失伪装成远端鉴权失败。
+            if (string.IsNullOrWhiteSpace(_apiKey) && !_allowAnonymous)
+                return new ParsedResponse(null, null,
+                    $"未发送：{_name} 未提供 API Key（endpoint={_endpoint}）。请检查凭据解析/配置；"
+                    + "已阻止无鉴权外发（免将本地凭据缺失误报为远端鉴权失败）。");
+
             var body = new Dictionary<string, object?>
             {
                 ["model"] = _model,

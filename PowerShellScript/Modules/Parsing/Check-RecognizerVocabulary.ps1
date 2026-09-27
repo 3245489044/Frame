@@ -18,6 +18,9 @@
       R7 正对照（防「声明被删而门禁恒绿」）：kind 数 ≥ 基线 ∧ recognizer 数 ≥ 基线。
       R8 C# 镜像对账：Agent.Contract\NodeDomain\RecognizedKinds.cs 存在时逐 kind 对账；
          缺失 ⇒ 记入 pending（迁移期可见化，K3 收口；不算违规、不假绿）。
+      R9 去重（决策 C / D-8）：**成节点**类别集 `live`（origin 缺省/非 Snapshot）与 `snapshot`（origin=Snapshot）
+         的**交集必须为空** —— 同一内容不得由两个来源各写一遍（否则过程面出现重复行）；
+         附负对照（注入一条 live/snapshot 重复成节点规则必须被捕获）。
 
     模式：默认报告模式（列出命中，不设退出码）；-Check 校验模式（违规 > 0 → 退出码 1）。
 
@@ -54,8 +57,10 @@ $tsDir      = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\src\reco
 $mirrorPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\RecognizedKinds.cs'
 
 # 正对照基线（防「声明被删而门禁恒绿」）；只增不减。
-$kindBaseline = 18
-$ruleBaseline = 15
+# 2026-09-27（K3/A 批）：kind 18 → 24（+ user-message / assistant-message / attachment 及词表同步）；
+#                        rule 15 → 38（快照逐消息规则 +6）。
+$kindBaseline = 24
+$ruleBaseline = 38
 $fallbackKind = 'unrecognized'
 
 Write-Host ""
@@ -112,6 +117,27 @@ function Get-SpecIssues
     }
 
     return $issues
+}
+
+<#
+    判据核心（R9；纯函数 ⇒ 负对照直接复用，判据不可被"恒真"绕过）：
+    返回 live 与 snapshot 的**成节点**类别交集（空 = 通过）。
+#>
+function Get-EmittedKindOverlap
+{
+    param([object[]]$Rules)
+
+    $live = [System.Collections.Generic.HashSet[string]]::new()
+    $snapshot = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($rule in @($Rules))
+    {
+        if ($rule.node -eq $false) { continue }
+        $origin = [string]$rule.origin
+        if ($origin -eq 'Snapshot') { [void]$snapshot.Add([string]$rule.kind) }
+        else { [void]$live.Add([string]$rule.kind) }
+    }
+
+    return @($live | Where-Object { $snapshot.Contains($_) })
 }
 
 # ---------------- R1 声明面存在 + JSON 合法 + 结构齐备 ----------------
@@ -207,6 +233,30 @@ if ($null -ne $spec)
     else
     {
         $pending.Add("[R8] C# 镜像未落地（Agent.Contract\NodeDomain\RecognizedKinds.cs）—— K3 收口项，当前由 TS 侧容错兜底（D-5）")
+    }
+
+    # ---------------- R9 去重（决策 C / D-8：live ∩ snapshot 成节点类别 = ∅） ----------------
+    $overlap = @(Get-EmittedKindOverlap -Rules $rules)
+    if ($overlap.Count -gt 0)
+    {
+        $violations.Add("[R9] 决策 C 违反：live 与 snapshot 的**成节点**类别交集非空：$($overlap -join ', ')（同内容双写 ⇒ 过程面重复行）")
+    }
+
+    $liveKinds = @($rules |
+        Where-Object { $_.node -ne $false -and [string]$_.origin -ne 'Snapshot' } |
+        ForEach-Object { [string]$_.kind })
+    if ($liveKinds.Count -eq 0)
+    {
+        $violations.Add("[R9] 判据无标的：声明面不存在 live 成节点规则（规则被削 ⇒ 去重判据失效）")
+    }
+    else
+    {
+        # 负对照（防假绿）：注入一条 snapshot 成节点规则且 kind = 某 live 成节点 kind ⇒ 同一判据必须捕获
+        $probe = @($rules) + @([pscustomobject]@{ kind = $liveKinds[0]; node = $true; origin = 'Snapshot' })
+        if (@(Get-EmittedKindOverlap -Rules $probe).Count -eq 0)
+        {
+            $violations.Add("[R9] 负对照失效：live/snapshot 成节点重复类别未被判据捕获（判据恒真）")
+        }
     }
 
     if ($ShowDetail)

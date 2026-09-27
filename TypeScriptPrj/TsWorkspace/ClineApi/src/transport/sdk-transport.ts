@@ -26,7 +26,7 @@ import { loadConfig, type ClineApiConfig } from "../config.js";
 import { getProviderCredential, resolveProjectRoot } from "../credentials.js";
 import { RecognizerEngine, type RecognizedNode } from "../recognize/recognizer-engine.js";
 import { loadRecognizerSpec, resolveRecognizerSpecPath } from "../recognize/recognizer-spec-loader.js";
-import { toRecognizerFrame } from "../recognize/event-projection.js";
+import { toRecognizerFrames } from "../recognize/event-projection.js";
 
 /** ClineCore 内部 host（类型声明为 private，运行时存在） */
 type ClineCoreWithHost = import("@cline/sdk").ClineCore & { host: RuntimeHost };
@@ -606,18 +606,17 @@ export class SdkTransport {
       if (!recognizer) {
         return;
       }
-      const frame = toRecognizerFrame(ev);
-      if (!frame) {
-        return;
-      }
-      for (const node of recognizer.apply(frame)) {
-        if (!node.node) {
-          continue; // 识别但不成节点（流式片段等）：已计入 D-3 账，不发射
-        }
-        try {
-          this.onNode?.(node);
-        } catch {
-          /* 观测异常不阻断事件链 */
+      // 一事件可展开为 0..N 帧（A：session_snapshot 逐消息/逐内容块）。
+      for (const frame of toRecognizerFrames(ev)) {
+        for (const node of recognizer.apply(frame)) {
+          if (!node.node) {
+            continue; // 识别但不成节点（流式片段等）：已计入 D-3 账，不发射
+          }
+          try {
+            this.onNode?.(node);
+          } catch {
+            /* 观测异常不阻断事件链 */
+          }
         }
       }
     });

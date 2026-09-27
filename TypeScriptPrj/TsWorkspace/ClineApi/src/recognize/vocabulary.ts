@@ -6,6 +6,12 @@
  * （清单由声明面加载 ⇒ 新增一类 = 只改声明，零代码 = D-1）。
  */
 
+/**
+ * 事实来源（复用节点框架 Origin 词表，不新增概念）：
+ * `Live` = 事件流（逐事件、时序敏感）；`Snapshot` = 终态快照逐消息；`Derived` = 对账/补算。
+ */
+export type RecognizerOrigin = "Live" | "Snapshot" | "Derived";
+
 /** 识别规则（表驱动；内容 = 数据，非逻辑）。 */
 export interface RecognizerRule {
   /** 结构谓词合取（字段=值 / 字段∈集合 / 字段存在性）；禁语义判据。 */
@@ -14,6 +20,8 @@ export interface RecognizerRule {
   readonly kind: string;
   /** `false` = 识别但不成节点（仅计入账；如流式片段）。缺省 `true`。 */
   readonly node?: boolean;
+  /** 事实来源（缺省 `Live`）；使「同一 kind 可由不同来源产出」成为数据而非代码分支。 */
+  readonly origin?: RecognizerOrigin;
   /** 载荷白名单投影（outKey → 帧字段名）；禁整块透传。 */
   readonly payload?: Readonly<Record<string, string>>;
   /** 键策略（K3 消费；本层只承载）。 */

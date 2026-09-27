@@ -12,7 +12,7 @@ namespace Operation.HierarchyMethod.Reference;
 /// </para>
 /// <para>
 /// 本类消费方 = <see cref="NodeTaskHistoryService"/> / <see cref="History.HistoryProjector"/> /
-/// <see cref="History.NodeMaterializerBackedHistoryProjector"/>（原各自私有 <c>ResolveHistoryId</c> 的重复实现收敛于此）。
+/// <c>Agent.Modules.History.RoundMessageSettlement</c>（原各自私有 <c>ResolveHistoryId</c> 的重复实现收敛于此）。
 /// </para>
 /// </summary>
 public static class HistoryContainerRules

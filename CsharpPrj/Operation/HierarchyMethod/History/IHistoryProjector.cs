@@ -1,7 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Nodes.Execution;
-using Operation.HierarchyMethod.Nodes.Workflows;
 using Operation.HierarchyMethod.Tasks;
 
 namespace Operation.HierarchyMethod.History;
@@ -18,14 +17,8 @@ public interface IHistoryProjector
     /// <summary>每个节点/任务执行后调用：沉淀历史记录 + 引用边（history_owns_task / session_owns）。</summary>
     Task PersistRoundAsync(NodeRoundResult round, TaskScope scope, CancellationToken ct);
 
-    /// <summary>
-    /// 入史投影（CP-3，**唯一决定哪些节点进历史**）：按 <see cref="HistoryMarkPolicy"/> 过滤轮次产物，
-    /// 把标记节点投影为 <c>NodeType=conversation_message</c> 节点（<c>session.{name}.msg.{seq}</c>，seq = 时序权威）
-    /// + <c>session_owns</c> 挂载边；历史顺序 = 键内 <c>(round, seq)</c>（<c>round_sequence</c> 边已退役，A4′）。
-    /// <para>未装配节点库/关系管理 → 各写路径跳过（不抛、不阻断）；调用方消费返回值判定是否命中。</para>
-    /// </summary>
-    /// <returns>实际投影的标记节点数（0 = 无标记节点或未装配）。</returns>
-    Task<int> ProjectMarkedAsync(RoundArtifacts artifacts, RoundSpec? spec, TaskScope scope, CancellationToken ct);
+    // 入史投影（原 ProjectMarkedAsync）已退役（DEBT-4 残留收口）：唯一编排触发点 = 声明面
+    // Config/workflows/round-attribution.ushar 的 [Flow] RoundAttribution（入口端口 IRoundAttributionFlow）。
 
     /// <summary>把某 task 累积历史投影为下一轮执行上下文（事务无关的只读重建）。</summary>
     Task<NodeRoundInput> BuildContextAsync(

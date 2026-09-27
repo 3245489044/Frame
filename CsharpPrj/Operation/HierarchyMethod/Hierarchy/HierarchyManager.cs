@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Hierarchy.Dataflow;
 using Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
 using Operation.HierarchyMethod.History;
@@ -37,8 +38,8 @@ public sealed class HierarchyManager : IHierarchyManager
     private readonly Lazy<HierarchyProcessFacade> _taskTreeProcessing;
     // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
     private readonly global::Operation.HierarchyMethod.Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
-    // 诊断日志插槽（缺省 no-op）：装配期由组合根回填；簿记流失败经此可见化（ERR-7，禁静默）。
-    private readonly Action<string, object?>? _log;
+    // 诊断可见化端口（缺省空实现）：装配期由组合根回填；簿记流失败经此可见化（ERR-7，禁静默）。
+    private readonly IDiagnosticsSink? _diagnostics;
 
     /// <param name="reference">引用管理端口（可空；实现 = DataStoreDriven.ReferenceGrounding）。本门面及三层实例只依赖此接口、零 LiteDB 具体类型。</param>
     /// <param name="nodes">节点输出存储（可空；ur_nodes NodeType=output）。</param>
@@ -53,6 +54,8 @@ public sealed class HierarchyManager : IHierarchyManager
     /// <param name="aggregator">子层结论聚合器（可空；缺省 = AX.ResultComposition：按子层 round argmax 取最新终态，
     /// 数据面缺失时回退合取，见 S4）。如需改回全合取，显式传 <see cref="Modules.DeclarativeDataflow.Processing.CollectChildResultAggregator.Default"/>。</param>
     /// <param name="runStateProvider">运行态门面（可空；多来源 live/snapshot/derived 合并的唯一入口，经注入由组合根装配）。</param>
+    /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后 task 归拢经声明流写。</param>
+    /// <param name="diagnostics">诊断可见化端口（可空 = 不记）；簿记流失败经此可见化。</param>
     public HierarchyManager(
         IHierarchyReferenceManager? reference = null,
         INodeOutputStore? nodes = null,
@@ -67,14 +70,14 @@ public sealed class HierarchyManager : IHierarchyManager
         IChildResultAggregator? aggregator = null,
         IRunStateProvider? runStateProvider = null,
         global::Operation.HierarchyMethod.Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null,
-        Action<string, object?>? log = null)
+        IDiagnosticsSink? diagnostics = null)
     {
         _reference = reference;
         _nodes = nodes;
         _saveTask = saveTask;
         _deleteTask = deleteTask;
         _taskProvisionFlow = taskProvisionFlow;
-        _log = log;
+        _diagnostics = diagnostics;
         // S4：默认启用 AX.ResultComposition（子层 round argmax 取最新终态；数据面缺失回退合取）。
         // 可选参数默认值须为编译时常量，故以 null 占位、此处回退到 ResultCompositionAggregator。
         var effectiveAggregator = aggregator ?? ResultCompositionAggregator.Default;
@@ -133,7 +136,7 @@ public sealed class HierarchyManager : IHierarchyManager
         {
             if (!await _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct).ConfigureAwait(false))
             {
-                _log?.Invoke("HierarchyManager_provision_failed", new
+                _diagnostics?.Report("HierarchyManager_provision_failed", new
                 {
                     historyId,
                     taskKey,

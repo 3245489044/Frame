@@ -91,7 +91,14 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1'
         Expect = 0
-        Note   = 'Agent 编排归流守卫 E1–E12（纲领 O-1…O-6 / R6：编排归流）：R1/R2/R5 声明面闸A 0 错 / 编排真源对账（DeclaredFlowIds ⇄ .ushar 的 [Flow] 流号）/ fn 名单源对账（[Node] fn= ⇄ WorkflowFunctionNames；编排性阶段名豁免）/ 范式登记对账（ExecutorId ↔ [Flow] 一一对应）/ O-2 单步体禁编排关键词 + 原语调用正对照 / O-6 载体分工表与豁免登记锚点 / O-5 静默降级基线只减不增 / 簿记入参三方对账（inports ⇄ RoundKeys ⇄ CompatSeedKeys；ERR-6）/ 调用点数基线只减不增（LinkNodeAsync 等 5 组；O-1 触发点）/ task→node 边命名空间取值点基线只减不增（ERR-3）/ 正对照 + 负对照（合成未登记 fn/入参必须被 E3/E10 判据命中）'
+        Note   = 'Agent 编排归流 E1–E12（声明真源/单步体/静默基线/入参三方对账/调用点与命名空间取值点基线）'
+    }
+
+    AgentFrameworkSingleSource = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1'
+        Expect = 0
+        Note   = '四个横切关注点框架单源 D1–D8：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）；基线外置 Baselines\AgentFramework.psd1'
     }
 
     ClinerulesReferences = @{

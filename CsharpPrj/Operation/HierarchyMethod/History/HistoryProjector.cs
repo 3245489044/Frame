@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Execution;
-using Operation.HierarchyMethod.Nodes.Workflows;
 using Operation.HierarchyMethod.Tasks;
 namespace Operation.HierarchyMethod.History;
 
@@ -24,23 +24,28 @@ public sealed class HistoryProjector : IHistoryProjector
     // 归属边簿记流入口（R1）：cross_db_link（task→node）的唯一触发点（编排真源 = Config/workflows/attribution.ushar）。
     // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
     private readonly Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
-    // 诊断日志插槽（缺省 no-op）：装配期由组合根回填；簿记流失败经此可见化（ERR-7，禁静默）。
-    private readonly Action<string, object?>? _log;
+    // 诊断可见化端口（缺省空实现）：装配期由组合根回填；簿记流失败 / 回退经此可见化（ERR-7，禁静默）。
+    private readonly IDiagnosticsSink? _diagnostics;
+    // 迁移期回退姿态（装配期一处选定）：调用点只写正路，回退与否由策略对象裁决（DEBT-1 收敛）。
+    private readonly Nodes.Linkage.FlowPosture _posture;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则沉淀/回读均跳过）。</param>
     /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
     /// <param name="attributionFlow">归属边簿记流入口（R1，可空）：装配后「task→node 归属边」经声明流写。</param>
-    /// <param name="log">诊断日志插槽（可空 = 不记）；簿记流失败经此可见化。</param>
+    /// <param name="diagnostics">诊断可见化端口（可空 = 不记）；簿记流失败 / 回退经此可见化。</param>
+    /// <param name="posture">迁移期回退姿态（可空 = <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/>，零行为变化）。</param>
     public HistoryProjector(
         IHistoryRelationManager? relations = null,
         Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null,
         Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
-        Action<string, object?>? log = null)
+        IDiagnosticsSink? diagnostics = null,
+        Nodes.Linkage.FlowPosture? posture = null)
     {
         _relations = relations;
         _taskProvisionFlow = taskProvisionFlow;
         _attributionFlow = attributionFlow;
-        _log = log;
+        _diagnostics = diagnostics;
+        _posture = posture ?? Nodes.Linkage.FlowPosture.AllowLegacyFallback;
     }
 
     /// <summary>
@@ -52,7 +57,7 @@ public sealed class HistoryProjector : IHistoryProjector
     {
         if (_relations is null || scope is null) return;
 
-        var historyId = Reference.HistoryContainerRules.Resolve(scope.HistoryId, scope.TaskKey);
+        var historyId = Nodes.Keys.KeyAddressing.ContainerId(scope.HistoryId, scope.TaskKey);
         var taskKey = scope.TaskKey;
         // ERR-7：供给流失败 ⇒ 可见化并停止挂边（容器未建，挂边只会散落到无名端点）。
         if (!await ProvisionAsync(historyId, taskKey, ct).ConfigureAwait(false))
@@ -65,25 +70,27 @@ public sealed class HistoryProjector : IHistoryProjector
         {
             if (string.IsNullOrWhiteSpace(rec.NodeKey)) continue;
             if (string.IsNullOrWhiteSpace(taskKey)) continue;
-            // 命名空间取**存储命名空间**（与 ProjectMarkedAsync/落库侧同一权威）；不消费 rec.WorkflowId 以免来源名泄漏入图端点。
-            var workflowId = NodeKeys.DefaultWorkflowId;
+            // 命名空间取**存储命名空间**（与落库侧同一权威）；不消费 rec.WorkflowId 以免来源名泄漏入图端点。
+            // 坐标单源（DUP-8/ERR-3）：经 KeyAddressing（显式命名缺省），不再散写 Normalize(null)/常量。
+            var workflowId = Nodes.Keys.KeyAddressing.DefaultNamespace;
             // R1 归流：归属边经**归属边簿记流入口**触发（编排真源 = attribution.ushar 的 [Flow] NodeAttribution）；
-            // 未装配入口（迁移期）⇒ 沿用关系端口直调回退，不静默（退役条件见字段声明处）。
-            if (_attributionFlow is not null)
-                await _attributionFlow.AttachAsync(taskKey, workflowId, rec.NodeKey, ct).ConfigureAwait(false);
-            else
-                await _relations.LinkNodeAsync(taskKey, workflowId, rec.NodeKey, ct).ConfigureAwait(false);
+            // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调回退 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
+            var node = rec.NodeKey;
+            var outcome = await _posture.RunAsync(
+                flow: _attributionFlow is null
+                    ? null
+                    : () => _attributionFlow.AttachAsync(taskKey, workflowId, node, ct),
+                legacy: () => _relations.LinkNodeAsync(taskKey, workflowId, node, ct),
+                diagnostics: _diagnostics,
+                context: "HistoryProjector_attribution",
+                payload: new { taskKey, workflowId, nodeKey = node }).ConfigureAwait(false);
+            if (!outcome.Ok) break; // 收口姿态下缺入口 ⇒ 停止挂边（禁向无名端点散落）
         }
     }
 
-    /// <summary>
-    /// 入史物化（**不由本默认投影器承担**）：标记节点 → L-B <c>conversation_message</c> 节点须经**唯一写门**，
-    /// 该能力由 Agent 侧 <c>NodeMaterializerBackedHistoryProjector</c> 提供；本默认实现未装配写门，
-    /// 调用即 fail-fast（RED-2：原先直写 <c>INodeStore</c> 的实现已删除，禁绕过唯一写门）。
-    /// </summary>
-    public Task<int> ProjectMarkedAsync(RoundArtifacts artifacts, RoundSpec? spec, TaskScope scope, CancellationToken ct = default)
-        => throw new NotSupportedException(
-            "HistoryProjector 不承担入史物化（无唯一写门）；请注入 NodeMaterializerBackedHistoryProjector。");
+    // 入史物化（原 ProjectMarkedAsync，含 fail-fast 桩）已退役（DEBT-4 残留收口）：标记节点 → L-B
+    // conversation_message 的唯一写路径改经声明流 round-attribution.ushar 的 fn=project_marked
+    // （入史落点 = RoundMessageSettlement），本默认投影器只承担 PersistRoundAsync / BuildContextAsync。
 
     /// <summary>
     /// 从某 task 累积历史重建下一轮执行上下文（事务无关的只读重建）。本默认实现仅回喂已归拢任务键集；
@@ -99,8 +106,8 @@ public sealed class HistoryProjector : IHistoryProjector
         var vars = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (_relations is not null && !string.IsNullOrWhiteSpace(taskKey))
         {
-            // 以容器键（按声明面规则 = taskKey）枚举归拢任务键（历史回读的轻量形态）。
-            var historyId = Reference.HistoryContainerRules.Resolve(null, taskKey);
+            // 以容器键（按声明面规则 = 缺省回退 taskKey）枚举归拢任务键（历史回读的轻量形态）。
+            var historyId = Nodes.Keys.KeyAddressing.ContainerId(null, taskKey);
             var keys = await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);
             if (keys is { Count: > 0 })
                 vars["history_task_keys"] = keys;
@@ -111,27 +118,27 @@ public sealed class HistoryProjector : IHistoryProjector
 
     /// <summary>
     /// 建历史容器 + 归拢 task（R2）：经**任务供给簿记流入口**触发（编排真源 = task-provision.ushar 的
-    /// [Flow] TaskProvision）；未装配入口（迁移期）⇒ 沿用关系端口直调回退，不静默。
+    /// [Flow] TaskProvision）；流入口缺失按**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不写 if/else。
     /// </summary>
     /// <returns>true = 已提交或合法 no-op；false = 供给流未装配执行器 / 流失败（ERR-7：调用方按可见化处理）。</returns>
     private async Task<bool> ProvisionAsync(string historyId, string taskKey, CancellationToken ct)
     {
-        if (_taskProvisionFlow is not null)
-        {
-            if (await _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct).ConfigureAwait(false))
-                return true;
-            _log?.Invoke("HistoryProjector_provision_failed", new
-            {
-                historyId,
-                taskKey,
-                reason = "任务供给簿记流返回 false：容器构建 / 归拢未完成",
-            });
-            return false;
-        }
+        var outcome = await _posture.RunAsync(
+            flow: _taskProvisionFlow is null
+                ? null
+                : () => _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct),
+            legacy: () => ProvisionLegacyAsync(historyId, taskKey, ct),
+            diagnostics: _diagnostics,
+            context: "HistoryProjector_provision",
+            payload: new { historyId, taskKey }).ConfigureAwait(false);
+        return outcome.Ok;
+    }
 
+    /// <summary>迁移期回退直调（仅 <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/> 且流入口缺失时可达）。</summary>
+    private async Task ProvisionLegacyAsync(string historyId, string taskKey, CancellationToken ct)
+    {
         await _relations!.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(taskKey))
             await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
-        return true;
     }
 }

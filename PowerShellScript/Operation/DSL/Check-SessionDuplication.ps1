@@ -135,7 +135,7 @@ $assertions = @(
     [pscustomobject]@{ Id = 'A7'; Title = '阶段键映射不新增第二处清单（D12；口径见头部 D-6①）'; Pattern = 'case "initialize"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-5'; Kind = 'search' }
 
     # ---- C-6 读模型单源（D10/D11）----
-    [pscustomobject]@{ Id = 'A15'; Title = '兼容历史投影器删除（D10/new HistoryProjector(）'; Pattern = 'new HistoryProjector('; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-6'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'A15'; Title = '兼容历史投影器删除（D10/new HistoryProjector(；2026-09-27 销账 → 0，入史唯一入口 = IRoundAttributionFlow）'; Pattern = 'new HistoryProjector('; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-6'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A16'; Title = 'UI 不直读历史真源（D11/GetHistoryAsync）'; Pattern = 'GetHistoryAsync'; PathSpec = $launcherAll; Repo = 'Projects'; Baseline = 4; Target = 0; Batch = 'C-6'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A17'; Title = 'UI 不直读日志真源（D11/GetLogAsync）'; Pattern = 'GetLogAsync'; PathSpec = $launcherAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-6'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A18'; Title = 'UI 不直读任务构建真源（D11/BuildTaskAsync）'; Pattern = 'BuildTaskAsync'; PathSpec = $launcherAll; Repo = 'Projects'; Baseline = 2; Target = 0; Batch = 'C-6'; Kind = 'search' }

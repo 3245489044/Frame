@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Center;
 using Share.TaskStatusPool.Loops;
 
@@ -47,23 +48,23 @@ public sealed class WritePlanCoordinator : INodeWriteCoordinator, IDisposable
     private readonly WriteCoordinator _gate;
     private readonly bool _ownsGate;
     private readonly TimeSpan? _timeout;
-    private readonly Action<string, object?>? _log;
+    private readonly IDiagnosticsSink? _diagnostics;
 
     /// <param name="handlers">介质写端口处理器集合（每个 (介质, 集合) 恰一个 → 重复即 fail-fast）。</param>
     /// <param name="gate">串行写门原语；null = 自建（本类负责释放）。</param>
     /// <param name="timeout">写门有界等待预算；null = 门原语缺省。</param>
-    /// <param name="log">诊断日志插槽（缺省 no-op）。</param>
+    /// <param name="diagnostics">诊断可见化端口（缺省空实现）。</param>
     public WritePlanCoordinator(
         IEnumerable<IWriteMediaHandler> handlers,
         WriteCoordinator? gate = null,
         TimeSpan? timeout = null,
-        Action<string, object?>? log = null)
+        IDiagnosticsSink? diagnostics = null)
     {
         _handlers = BuildHandlerMap(handlers);
         _ownsGate = gate is null;
         _gate = gate ?? new WriteCoordinator();
         _timeout = timeout;
-        _log = log;
+        _diagnostics = diagnostics;
         SingleWriteGuard.AssertSingleWriter(PlanWriteTarget, PlanWriterName);
     }
 
@@ -151,7 +152,7 @@ public sealed class WritePlanCoordinator : INodeWriteCoordinator, IDisposable
             }
             catch (Exception ex)
             {
-                _log?.Invoke("WritePlan_compensate_failed",
+                _diagnostics?.Report("WritePlan_compensate_failed",
                     new { collection = work.Collection, work = work.Id, error = ex.Message });
             }
         }

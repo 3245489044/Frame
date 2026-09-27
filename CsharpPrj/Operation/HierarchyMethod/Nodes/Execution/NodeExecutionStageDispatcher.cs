@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Nodes.Workflows;
 using ParameterResolver.KeyMapping;
 using WorkFlowMethod.Skeletons.NodeProcess.Execution;
@@ -23,17 +24,17 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 public sealed class NodeExecutionStageDispatcher : INodeStepDispatcher
 {
     private readonly INodeExecutor _executor;
-    private readonly Action<string, object?>? _log;
+    private readonly IDiagnosticsSink? _diagnostics;
     private NodeExecutionStage? _stage;
     private string? _executionId;
     private RoundSpec? _spec;
 
     /// <param name="executor">节点执行器（生产 = 节点执行服务/步骤调用器；测试桩亦可）。</param>
-    /// <param name="log">诊断日志插槽（缺省 no-op）。</param>
-    public NodeExecutionStageDispatcher(INodeExecutor executor, Action<string, object?>? log = null)
+    /// <param name="diagnostics">诊断可见化端口（缺省空实现）。</param>
+    public NodeExecutionStageDispatcher(INodeExecutor executor, IDiagnosticsSink? diagnostics = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
-        _log = log;
+        _diagnostics = diagnostics;
     }
 
     /// <summary>本轮执行 id（对齐会话，避免跨轮状态串扰）。</summary>
@@ -49,7 +50,7 @@ public sealed class NodeExecutionStageDispatcher : INodeStepDispatcher
         _executionId = $"{spec.Name}:{ctx.SessionId ?? "anon"}";
         _stage = new NodeExecutionStage();
         _stage.StartExecution(_executionId);
-        _log?.Invoke("NodeExecutionStage_dispatcher_start", new { executionId = _executionId, steps = spec.Steps.Count });
+        _diagnostics?.Report("NodeExecutionStage_dispatcher_start", new { executionId = _executionId, steps = spec.Steps.Count });
     }
 
     /// <inheritdoc />
@@ -81,7 +82,7 @@ public sealed class NodeExecutionStageDispatcher : INodeStepDispatcher
 
         if (result.Error is { } ex)
         {
-            _log?.Invoke("NodeExecutionStage_dispatcher_stepFailed", new { node = step.EffectiveNodeId, error = ex.Message });
+            _diagnostics?.Report("NodeExecutionStage_dispatcher_stepFailed", new { node = step.EffectiveNodeId, error = ex.Message });
             ExceptionDispatchInfo.Capture(ex).Throw();
         }
 

@@ -73,6 +73,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# 公共扫描器/基线库（§8 门禁框架）：取数原语与取值点扫描器单源，门禁脚本只留判据。
+. (Join-Path $PSScriptRoot 'NodeGateCommon.ps1')
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
@@ -90,8 +92,8 @@ $seedCatalogFile= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configurat
 $cliExe         = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj        = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
-# R1/R2/R5/B4 新增声明面（闸A 编译对象）
-$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar')
+# R1/R2/R5/B4/DEBT-4 新增声明面（闸A 编译对象）
+$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar', 'round-attribution.ushar')
 
 # fn 豁免白名单（编排性阶段名：非引擎注册函数，纳入校验语义不成立）
 $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
@@ -100,13 +102,13 @@ $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 $ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
 # 声明面基线（防声明被删而门禁恒绿；变更须同步本表）
-$DeclaredFlowCountBaseline = 12
-$FnConstCountBaseline      = 28
+$DeclaredFlowCountBaseline = 13
+$FnConstCountBaseline      = 30
 # O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 0 处
 # （ERR-5 收口：4 处静默 skip 已改「诊断 + 显式 ∅」，见 ConversationPipeline_spec_missing；新增即违规）
 $SilentSkipBaseline = 0
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
-$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar')
+$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar')
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
@@ -138,38 +140,6 @@ if (-not (Test-Path -LiteralPath $workflowsDir)) {
     exit 0
 }
 
-# ---------------- 取数：C# 常量 ----------------
-function Get-CSharpConstMap {
-    param([string]$Path)
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $Path)) { return $map }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'public const string (?<n>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"(?<v>[^"]+)"')) {
-        $map[$m.Groups['n'].Value] = $m.Groups['v'].Value
-    }
-    return $map
-}
-
-function Get-DeclaredFlowIds {
-    param([string]$Path)
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $Path)) { return $map }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), '\["(?<b>[a-z0-9\-]+)"\]\s*=\s*"(?<f>[A-Za-z0-9]+)"')) {
-        $map[$m.Groups['b'].Value] = $m.Groups['f'].Value
-    }
-    return $map
-}
-
-function Get-WorkflowFiles {
-    param([string]$Path, [hashtable]$SpecConsts)
-    $files = [System.Collections.Generic.List[string]]::new()
-    if (-not (Test-Path -LiteralPath $Path)) { return $files }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'WorkflowSpecFiles\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
-        $name = $m.Groups['n'].Value
-        if ($SpecConsts.ContainsKey($name)) { $files.Add($SpecConsts[$name]) }
-    }
-    return $files
-}
-
 # ---------------- 判据函数（E3；E9 负对照复用） ----------------
 function Test-FnNamesDeclared {
     param([string]$UsharPath, [string[]]$FnConstValues)
@@ -183,67 +153,7 @@ function Test-FnNamesDeclared {
     return $bad
 }
 
-# ---------------- 判据函数（E10 inports 三方对账；负对照复用） ----------------
-function Get-UsharInportTokens {
-    param([string]$Path)
-    $tokens = [System.Collections.Generic.List[string]]::new()
-    if (-not (Test-Path -LiteralPath $Path)) { return $tokens }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'inports\s*=\s*(?<v>[A-Za-z0-9_,]+)')) {
-        foreach ($t in ($m.Groups['v'].Value -split ',')) {
-            $t = $t.Trim()
-            if ($t) { $tokens.Add($t) }
-        }
-    }
-    return $tokens
-}
-
-function Test-InportsRegistered {
-    param([string]$UsharPath, [hashtable]$ValueToName, [System.Collections.Generic.HashSet[string]]$SeedNames)
-    $bad = [System.Collections.Generic.List[string]]::new()
-    foreach ($token in (Get-UsharInportTokens -Path $UsharPath)) {
-        if (-not $ValueToName.ContainsKey($token)) { $bad.Add("$token（RoundKeys 无此键值）"); continue }
-        if (-not $SeedNames.Contains($ValueToName[$token])) { $bad.Add("$token（CompatSeedKeys 未登记 $($ValueToName[$token])）") }
-    }
-    return $bad
-}
-
-# ---------------- 判据函数（E11 调用点数 / E12 命名空间取值点，单遍扫描） ----------------
-function Get-CallSiteCounts {
-    param([string[]]$Dirs, [string[]]$Members)
-    $regexes = @{}
-    $counts = @{}
-    foreach ($m in $Members) { $regexes[$m] = [regex]::new('\.' + [regex]::Escape($m) + '\s*\('); $counts[$m] = 0 }
-    foreach ($dir in $Dirs) {
-        if (-not (Test-Path -LiteralPath $dir)) { continue }
-        $files = Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
-        foreach ($f in $files) {
-            foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
-                if ($line.TrimStart() -match '^(//|/\*|\*)') { continue }
-                foreach ($m in $Members) { if ($regexes[$m].IsMatch($line)) { $counts[$m]++ } }
-            }
-        }
-    }
-    return $counts
-}
-
-function Get-NamespaceValueCounts {
-    param([string]$Dir, [string[]]$FileNames, [string]$Pattern)
-    $counts = @{}
-    foreach ($n in $FileNames) { $counts[$n] = 0 }
-    if (-not (Test-Path -LiteralPath $Dir)) { return $counts }
-    $rx = [regex]::new($Pattern)
-    foreach ($f in (Get-ChildItem -LiteralPath $Dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue)) {
-        $leaf = Split-Path $f.FullName -Leaf
-        if (-not $counts.ContainsKey($leaf)) { continue }
-        foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
-            if ($line.TrimStart() -match '^(//|/\*|\*)') { continue }
-            if ($rx.IsMatch($line)) { $counts[$leaf]++ }
-        }
-    }
-    return $counts
-}
-
+# ---------------- 判据函数（E11 调用点数 / E12 命名空间取值点：扫描器见 NodeGateCommon.ps1） ----------------
 # ---------------- 取数 ----------------
 $specConsts     = Get-CSharpConstMap -Path $specCatalog
 $flowIds        = Get-DeclaredFlowIds -Path $specCatalog
@@ -323,7 +233,11 @@ if (Test-Path -LiteralPath $paradigmsFile) {
 
 # ---------------- E5 O-2 单步体扫描 ----------------
 $fnImplFiles = [System.Collections.Generic.List[string]]::new()
-foreach ($dir in @('Projects\Plug\Agent\src\Agent.Modules\Attribution', 'Projects\Plug\Agent\src\Agent.Modules\Provision')) {
+foreach ($dir in @(
+        'Projects\Plug\Agent\src\Agent.Modules\Attribution',
+        'Projects\Plug\Agent\src\Agent.Modules\Provision',
+        'Projects\Plug\Agent\src\Agent.Modules\History',
+        'Projects\Plug\Agent\src\Agent.Modules\RoundAttribution')) {
     $full = Join-Path $Root $dir
     if (Test-Path -LiteralPath $full) {
         foreach ($f in (Get-ChildItem -LiteralPath $full -Filter '*OpsFunctions.cs' -File)) { $fnImplFiles.Add($f.FullName) }
@@ -338,8 +252,8 @@ foreach ($file in $fnImplFiles) {
             $violations.Add("E5 单步体内出现编排关键词 '$kw'：$(Split-Path $file -Leaf)")
         }
     }
-    # 正对照：须含原语调用（否则「零关键词」可能是空文件 / 未接线）
-    if ($raw -notmatch 'CreateAsync|AttachTaskAsync|EnsureTaskNodeLinkAsync|AddSessionMessageLinkAsync') {
+    # 正对照：须含原语调用（否则「零关键词」可能是空文件 / 未接线）；原语清单随扫描面扩面同步登记。
+    if ($raw -notmatch 'CreateAsync|AttachTaskAsync|EnsureTaskNodeLinkAsync|AddSessionMessageLinkAsync|ComposeAsync|AppendAsync|MaterializeAsync|LinkTaskNodesAsync|SettleAsync') {
         $violations.Add("E5 单步体未见原语调用（正对照失效）：$(Split-Path $file -Leaf)")
     }
 }

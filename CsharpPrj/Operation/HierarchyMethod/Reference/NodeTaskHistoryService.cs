@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.History;
 
 namespace Operation.HierarchyMethod.Reference;
@@ -27,24 +28,29 @@ public sealed class NodeTaskHistoryService
     // 归属边簿记流入口（R1）：cross_db_link（task→node）的唯一触发点（编排真源 = Config/workflows/attribution.ushar）。
     // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
     private readonly Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
-    // 诊断日志插槽（缺省 no-op）：装配期由组合根回填（分层无环——框架不感知 Agent 诊断类型）。
+    // 诊断可见化端口（缺省空实现）：装配期由组合根回填（分层无环——框架不感知 Agent 诊断类型）。
     // 消费方：簿记流未装配 / ProvisionAsync=false 的失败可见化（ERR-7，禁静默）。
-    private readonly Action<string, object?>? _log;
+    private readonly IDiagnosticsSink? _diagnostics;
+    // 迁移期回退姿态（装配期一处选定）：调用点只写正路，回退与否由策略对象裁决（DEBT-1 收敛）。
+    private readonly Nodes.Linkage.FlowPosture _posture;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则各方法 no-op）。</param>
     /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
     /// <param name="attributionFlow">归属边簿记流入口（R1，可空）：装配后「task→node 归属边」经声明流写。</param>
-    /// <param name="log">诊断日志插槽（可空 = 不记）；簿记流失败经此可见化。</param>
+    /// <param name="diagnostics">诊断可见化端口（可空 = 不记）；簿记流失败 / 回退经此可见化。</param>
+    /// <param name="posture">迁移期回退姿态（可空 = <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/>，零行为变化）。</param>
     public NodeTaskHistoryService(
         IHistoryRelationManager? relations,
         Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null,
         Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
-        Action<string, object?>? log = null)
+        IDiagnosticsSink? diagnostics = null,
+        Nodes.Linkage.FlowPosture? posture = null)
     {
         _relations = relations;
         _taskProvisionFlow = taskProvisionFlow;
         _attributionFlow = attributionFlow;
-        _log = log;
+        _diagnostics = diagnostics;
+        _posture = posture ?? Nodes.Linkage.FlowPosture.AllowLegacyFallback;
     }
 
     /// <summary>是否已装配关系守卫（供调用方判空诊断）。</summary>
@@ -58,7 +64,8 @@ public sealed class NodeTaskHistoryService
     {
         if (_relations is null || string.IsNullOrWhiteSpace(historyId)) return;
         var hid = historyId.Trim();
-        await _relations.CreateAsync(hid, name: string.IsNullOrWhiteSpace(name) ? hid : name, ct).ConfigureAwait(false);
+        // 展示名缺省规则单源（ERR-9）：显式 name 优先，缺省 = 容器 Id（禁本层再写三元兜底）。
+        await _relations.CreateAsync(hid, name: Nodes.Keys.KeyAddressing.ContainerName(name, hid), ct).ConfigureAwait(false);
     }
 
     /// <summary>把指定 task 归拢到指定历史（history_owns_task 边；幂等）。historyId/taskKey 空 → no-op。</summary>
@@ -88,28 +95,23 @@ public sealed class NodeTaskHistoryService
     public async Task EnsureTaskHistoryBoundAsync(string? historyId, string taskKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return;
-        var hid = HistoryContainerRules.Resolve(historyId, taskKey);
+        var hid = Nodes.Keys.KeyAddressing.ContainerId(historyId, taskKey);
 
         // R2 归流：编排真源 = task-provision.ushar 的 [Flow] TaskProvision（本处只是唯一触发点，不持顺序）。
-        if (_taskProvisionFlow is not null)
-        {
-            if (!await _taskProvisionFlow.ProvisionAsync(hid, hid, hid, ct).ConfigureAwait(false))
+        // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
+        await _posture.RunAsync(
+            flow: _taskProvisionFlow is null
+                ? null
+                : () => _taskProvisionFlow.ProvisionAsync(hid, hid, hid, ct),
+            legacy: async () =>
             {
-                // ERR-7：流返回 false（未装配执行器 / 流失败）⇒ 可见化（不回退直调，不静默装作已归拢）。
-                _log?.Invoke("NodeTaskHistoryService_provision_failed", new
-                {
-                    historyId = hid,
-                    taskKey,
-                    reason = "任务供给簿记流返回 false：容器构建 / 归拢未完成",
-                });
-            }
-
-            return;
-        }
-
-        // 迁移期回退（未装配流入口时零行为变化）；退役条件见字段声明处。
-        await EnsureHistoryAsync(hid, name: hid, ct).ConfigureAwait(false);
-        await AttachTaskToHistoryAsync(hid, hid, ct).ConfigureAwait(false);
+                // 迁移期回退（零行为变化）；退役条件 = 全部装配点提供流入口 + 姿态翻 RequireFlow。
+                await EnsureHistoryAsync(hid, name: hid, ct).ConfigureAwait(false);
+                await AttachTaskToHistoryAsync(hid, hid, ct).ConfigureAwait(false);
+            },
+            diagnostics: _diagnostics,
+            context: "NodeTaskHistoryService_provision",
+            payload: new { historyId = hid, taskKey }).ConfigureAwait(false);
     }
 
     /// <summary>缺省容器 Id 重载（historyId == taskKey）：等价 <c>EnsureTaskHistoryBoundAsync(null, taskKey, ct)</c>。</summary>
@@ -127,15 +129,18 @@ public sealed class NodeTaskHistoryService
     {
         if (string.IsNullOrWhiteSpace(taskKey) || string.IsNullOrWhiteSpace(nodeKey)) return;
 
-        if (_attributionFlow is not null)
-        {
-            await _attributionFlow.AttachAsync(taskKey.Trim(), workflowId, nodeKey, ct).ConfigureAwait(false);
-            return;
-        }
-
-        // 迁移期回退（未装配流入口时零行为变化）；退役条件见字段声明处。
-        if (_relations is not null)
-            await _relations.LinkNodeAsync(taskKey.Trim(), workflowId, nodeKey, ct).ConfigureAwait(false);
+        // R1 归流：经**归属边簿记流入口**触发（编排真源 = attribution.ushar 的 [Flow] NodeAttribution）；
+        // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
+        await _posture.RunAsync(
+            flow: _attributionFlow is null
+                ? null
+                : () => _attributionFlow.AttachAsync(taskKey.Trim(), workflowId, nodeKey, ct),
+            legacy: _relations is null
+                ? null
+                : () => _relations.LinkNodeAsync(taskKey.Trim(), workflowId, nodeKey, ct),
+            diagnostics: _diagnostics,
+            context: "NodeTaskHistoryService_attribution",
+            payload: new { taskKey, workflowId, nodeKey }).ConfigureAwait(false);
     }
 
     /// <summary>

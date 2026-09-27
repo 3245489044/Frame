@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
+using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Center;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Relations;
@@ -55,8 +56,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private const string PersistWriteTarget = "ur_nodes.persist";
         private const string PersistWriterName = "NodeStepExecutionService.PersistAsync";
 
-        // 诊断日志插槽（缺省 no-op）：由组合根回填具体日志门面（分层无环——框架不感知 Agent 诊断类型）。
-        private readonly Action<string, object?>? _log;
+        // 诊断可见化端口（缺省空实现）：由组合根回填具体实现（分层无环——框架不感知 Agent 诊断类型）。
+        private readonly IDiagnosticsSink? _diagnostics;
 
         public NodeStepExecutionService(
             INodeOutputStore? store,
@@ -68,7 +69,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             INodeFunctionInvoker? functionInvoker = null,
             WriteCoordinator? writeCoordinator = null,
             bool unifiedStateWrite = false,
-            Action<string, object?>? log = null,
+            IDiagnosticsSink? diagnostics = null,
             Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null)
         {
             _store = store;
@@ -87,7 +88,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // R3：写门缺省自建单实例（同步路径与 Outbox 后台共享本服务实例 → 同门串行）；组合根可注入共享实例并注册 AssertSingleWriter。
             _writeCoordinator = writeCoordinator ?? new WriteCoordinator();
             _unifiedStateWrite = unifiedStateWrite;
-            _log = log;
+            _diagnostics = diagnostics;
             // 运行时 AssertSingleWriter（SEP.DeterministicCoreDisjoint）：声明本服务为业务节点持久化的唯一确定性写路径。
             // 固定写者名 → 同目标多实例（直跑/单测）幂等不炸；出现不同写者平行注册同目标才 fail-fast（平行实现违反单一写者）。
             SingleWriteGuard.AssertSingleWriter(PersistWriteTarget, PersistWriterName);
@@ -185,19 +186,19 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         {
             if (_readView is null) return Array.Empty<NodeOutput>(); // 未装配节点输出存储 → 空源
             // 诊断：进入读源边界（若卡死在任一存储读，此条在而后续某条缺失 → 精确定位读锁归属）。
-            _log?.Invoke("NodeStepExecutionService_ResolveInputs_enumerateStart", new { taskKey = taskKey ?? "", workflowId = _workflowId });
+            _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_enumerateStart", new { taskKey = taskKey ?? "", workflowId = _workflowId });
             // 显式解析器（R4 读源经 NodeReadView）：仅在「有 taskKey 且装配引用守卫」时提供，内部在图读后打点
             // （缺此条 = 卡图读 GetTaskNodeKeysAsync）；无 taskKey / 无守卫 → 传 null → ReadView 回退全量（语义与既有兼容）。
             Func<string, string, CancellationToken, Task<IReadOnlyCollection<string>>>? resolver =
                 _grounding is null ? null : async (tk, wf, t) =>
                 {
                     var keys = await _grounding!.GetTaskNodeKeysAsync(tk, wf, t).ConfigureAwait(false);
-                    _log?.Invoke("NodeStepExecutionService_ResolveInputs_graphKeysDone", new { taskKey = tk, keyCount = keys.Count });
+                    _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_graphKeysDone", new { taskKey = tk, keyCount = keys.Count });
                     return keys;
                 };
             var outputs = await _readView.ListTaskOutputsAsync(_workflowId, taskKey, resolver, ct).ConfigureAwait(false);
             // 诊断：SQLite ur_nodes 读（经 ReadView）已返回；此条缺失 = 卡 ur_nodes 读 EnumerateOutputsAsync。
-            _log?.Invoke("NodeStepExecutionService_ResolveInputs_urNodesDone", new { workflowId = _workflowId, count = outputs.Count });
+            _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_urNodesDone", new { workflowId = _workflowId, count = outputs.Count });
             return outputs;
         }
 
@@ -224,7 +225,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                 new[]
                 {
                     // Observability 经日志插槽回填组合根日志门面（框架内核零 Agent 日志依赖；logKey 归一为两次打点前缀）。
-                    StepExecMiddlewares.Observability("NodeStepExecutionService_ExecuteAsync", (key, data) => _log?.Invoke(key, data)),
+                    StepExecMiddlewares.Observability("NodeStepExecutionService_ExecuteAsync", (key, data) => _diagnostics?.Report(key, data)),
                     StepExecMiddlewares.StepTimeout(),
                 }).ConfigureAwait(false);
 
@@ -449,11 +450,12 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                 }
                 else
                 {
-                    _log?.Invoke("NodeStepExecutionService_AttributionFlow_missing", new
+                    _diagnostics?.Report("NodeStepExecutionService_AttributionFlow_missing", new
                     {
                         taskKey,
                         workflowId = _workflowId,
                         nodeKey = node.NodeKey,
+                        code = DiagnosticsCodes.FlowMissing,
                         reason = "INodeAttributionFlow 未装配：task→node 归属边未写（B2 续已删回退直调）",
                     });
                 }

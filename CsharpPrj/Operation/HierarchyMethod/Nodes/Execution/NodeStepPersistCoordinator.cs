@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading.Streaming;
+using Operation.HierarchyMethod.Abstractions;
 using Share.HierarchySupport;
 using Share.TaskStatusPool.Loops;
 
@@ -24,18 +25,18 @@ public sealed class NodeStepPersistCoordinator
     private readonly NodeStepExecutionService _service;
     private readonly OutboxWriter<NodePersistWork>? _outbox;
     private readonly bool _unifiedStateWrite;
-    private readonly Action<string, object?>? _log;
+    private readonly IDiagnosticsSink? _diagnostics;
 
     public NodeStepPersistCoordinator(
         NodeStepExecutionService service,
         OutboxWriter<NodePersistWork>? outbox = null,
         bool unifiedStateWrite = false,
-        Action<string, object?>? log = null)
+        IDiagnosticsSink? diagnostics = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _outbox = outbox;
         _unifiedStateWrite = unifiedStateWrite;
-        _log = log;
+        _diagnostics = diagnostics;
     }
 
     /// <summary>
@@ -84,7 +85,7 @@ public sealed class NodeStepPersistCoordinator
         catch (Exception ex)
         {
             // D2：持久化失败单独归类（errorClass）+ 归因日志，不翻转业务 ok（对齐「增强路径失败非致命」原则）。
-            _log?.Invoke("WorkflowRunner_stepPersist_failed",
+            _diagnostics?.Report("WorkflowRunner_stepPersist_failed",
                 new { function = record.NodeKey, errorClass = ErrorClassifier.ClassifyError(ex).ToString(), error = ex.Message });
         }
     }
@@ -119,7 +120,7 @@ public sealed class NodeStepPersistCoordinator
         }
         catch (Exception ex)
         {
-            _log?.Invoke("ConversationPipeline_roundPersist_failed",
+            _diagnostics?.Report("ConversationPipeline_roundPersist_failed",
                 new { errorClass = ErrorClassifier.ClassifyError(ex).ToString(), error = ex.Message, count = records?.Count ?? 0 });
         }
     }

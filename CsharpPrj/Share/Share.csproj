@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_Share_Adapters)" />
+    <ProjectReference Include="$(Proj_AssemblyFramework)" />
     <ProjectReference Include="$(Proj_CommandFramework)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- ★ HierarchySupport 叶工程已整项目并入 Strategy\Observability（命名空间 Share.HierarchySupport 保留，源文件随迁）；本聚合不再承载该子项 -->

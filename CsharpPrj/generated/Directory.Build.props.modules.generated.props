@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-26 22:20:20
+  生成时间: 2026-09-28 01:28:52
 -->
 <Project>
 
@@ -98,6 +98,7 @@
     <Mod_XmlMethod>$(CsharpPrjDir)Plate\XmlMethod\</Mod_XmlMethod>
     <Mod_CSG_Unified>$(CsharpPrjDir)Protocol\CSG\CSG.Unified\</Mod_CSG_Unified>
     <Mod_RGE_Unified>$(CsharpPrjDir)Protocol\RGE\RGE.Unified\</Mod_RGE_Unified>
+    <Mod_AssemblyFramework>$(CsharpPrjDir)Share\Composition\AssemblyFramework\</Mod_AssemblyFramework>
     <Mod_CommandFramework>$(CsharpPrjDir)Share\Composition\CommandFramework\</Mod_CommandFramework>
     <Mod_ControlLookup>$(CsharpPrjDir)Share\Composition\ControlLookup\</Mod_ControlLookup>
     <Mod_PlaceholderFramework>$(CsharpPrjDir)Share\Composition\PlaceholderFramework\</Mod_PlaceholderFramework>
@@ -203,6 +204,7 @@
     <Proj_XmlMethod>$(CsharpPrjDir)Plate\XmlMethod\XmlMethod.csproj</Proj_XmlMethod>
     <Proj_CSG_Unified>$(CsharpPrjDir)Protocol\CSG\CSG.Unified\CSG.Unified.csproj</Proj_CSG_Unified>
     <Proj_RGE_Unified>$(CsharpPrjDir)Protocol\RGE\RGE.Unified\RGE.Unified.csproj</Proj_RGE_Unified>
+    <Proj_AssemblyFramework>$(CsharpPrjDir)Share\Composition\AssemblyFramework\AssemblyFramework.csproj</Proj_AssemblyFramework>
     <Proj_CommandFramework>$(CsharpPrjDir)Share\Composition\CommandFramework\CommandFramework.csproj</Proj_CommandFramework>
     <Proj_ControlLookup>$(CsharpPrjDir)Share\Composition\ControlLookup\ControlLookup.csproj</Proj_ControlLookup>
     <Proj_PlaceholderFramework>$(CsharpPrjDir)Share\Composition\PlaceholderFramework\PlaceholderFramework.csproj</Proj_PlaceholderFramework>

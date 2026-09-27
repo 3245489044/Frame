@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>装配框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用组合根装配框架（L2 平台层，零领域类型）：① 段机——装配段基类（成功/失败记账 + 取消与异常均重抛，失败即断链）与段薄壳（委托）；② 相位编排——Boot→Bind→Assemble→Publish 相位序 + 内建串行门；③ 装配语义件——产物封存写守卫、多槽位装配视图与必需槽位对账（失败载体）、槽登记三态（缺键注册/同实例幂等/异实例留痕替换）；④ 观测与存储——观测装饰 fail-safe 骨架、键控快照存储（底层复用 Share.HostAssembly.Storage.InMemoryKeyedStore）；⑤ 运行期宿主骨架——分区承载槽（PartitionedSlot/SlotHolder）、惰性单次引导门（OnceGate）、键控分发注册表（KeyedDispatchRegistry）、两级路由注册表（OpActionRegistry）、节流刷新发布（RefreshPublisher）、转发策略表（ForwardPolicyTable）。前四类提取自 Agent.Launcher/Composition 的第三份重复段机实现，第五类提取自 Agent.Launcher/Modules 门面（槽与门 / query target 与 action×op 路由 / 页面刷新节拍 / 总线转发策略表），供跨产品组合根复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>装配;组合根;段机;相位;封存;槽位;对账;观测;快照;通用框架;运行期宿主;承载槽;单次引导门;分发注册表;路由注册表;刷新发布;转发策略表</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.Composition.AssemblyFramework</RootNamespace>
+    <AssemblyName>Share.Composition.AssemblyFramework</AssemblyName>
+    <Description>通用组合根装配框架 — 段机 + 相位编排 + 产物封存 + 槽位视图 + 观测骨架 + 键控快照 + 运行期宿主骨架（槽/门/注册表/刷新发布/策略表）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 段机依赖统一管线机制（IPipelineStage/IPipelineContext/SetStageResult）：与 CommandFramework 同构，已有先例 -->
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <!-- 键控快照存储底层复用内存键值存储（InMemoryKeyedStore，单一实现） -->
+    <ProjectReference Include="$(Proj_HostAssembly)" />
+  </ItemGroup>
+
+</Project>

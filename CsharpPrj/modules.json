@@ -120,6 +120,7 @@
     "XmlMethod": "Plate\\XmlMethod\\XmlMethod.csproj",
     "CSG.Unified": "Protocol\\CSG\\CSG.Unified\\CSG.Unified.csproj",
     "RGE.Unified": "Protocol\\RGE\\RGE.Unified\\RGE.Unified.csproj",
+    "AssemblyFramework": "Share\\Composition\\AssemblyFramework\\AssemblyFramework.csproj",
     "CommandFramework": "Share\\Composition\\CommandFramework\\CommandFramework.csproj",
     "ControlLookup": "Share\\Composition\\ControlLookup\\ControlLookup.csproj",
     "PlaceholderFramework": "Share\\Composition\\PlaceholderFramework\\PlaceholderFramework.csproj",

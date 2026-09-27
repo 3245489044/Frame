@@ -46,6 +46,32 @@ public static class RoundArtifactAssembler
         return LastProducedKey(nodes, null);
     }
 
+    /// <summary>
+    /// 本轮产出节点键集（**唯一入口**，DUP-8）：执行快照的 <c>NodeKey</c> 优先（去空、按 ordinal 去重）；
+    /// 快照为空时回退骨架各步骤 <see cref="RoundStep.EffectiveNodeId"/>（该任务运行的产出节点集合）。
+    /// 消费方：<c>SyncRelationsBlock</c>（归属边逐节点调用点）/ 入史层标记范围。
+    /// </summary>
+    /// <param name="spec">本轮骨架（可为 null = 无骨架声明）。</param>
+    /// <param name="nodes">本轮全量节点产出（可为 null/空 = 回退骨架派生）。</param>
+    public static IReadOnlyList<string> ResolveProducedNodeKeys(RoundSpec? spec, IReadOnlyList<NodeExecutionRecord>? nodes)
+    {
+        if (nodes is { Count: > 0 })
+        {
+            return nodes
+                .Where(n => !string.IsNullOrWhiteSpace(n.NodeKey))
+                .Select(n => n.NodeKey!)
+                .Distinct(System.StringComparer.Ordinal)
+                .ToList();
+        }
+
+        if (spec?.Steps is not { Count: > 0 }) return System.Array.Empty<string>();
+        return spec.Steps
+            .Where(s => !string.IsNullOrWhiteSpace(s.EffectiveNodeId))
+            .Select(s => s.EffectiveNodeId!)
+            .Distinct(System.StringComparer.Ordinal)
+            .ToList();
+    }
+
     private static string? LastProducedKey(IReadOnlyList<NodeExecutionRecord> nodes, string? nodeKey)
     {
         for (var i = nodes.Count - 1; i >= 0; i--)

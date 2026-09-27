@@ -26,4 +26,13 @@ public interface INodeAttributionFlow
     /// <param name="nodeKey">节点键。</param>
     /// <param name="ct">取消令牌。</param>
     Task AttachAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
+
+    /// <summary>把会话消息/产出节点挂到会话根（`session_owns` 边；sessionName/nodeKey 空 ⇒ no-op）。
+    /// 编排真源 = 声明面 `Config/workflows/session-attribution.ushar` 的 `[Flow] SessionNodeAttribution`
+    /// （B4 / DUP-5：收口入史挂载与 UI 运维两条写入路径）。</summary>
+    /// <param name="sessionName">会话名（`session_owns` 边主语）。</param>
+    /// <param name="workflowId">存储命名空间（节点 ThreadId；<b>非</b>工作流名）。</param>
+    /// <param name="nodeKey">会话消息节点键。</param>
+    /// <param name="ct">取消令牌。</param>
+    Task SessionAttachAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 }

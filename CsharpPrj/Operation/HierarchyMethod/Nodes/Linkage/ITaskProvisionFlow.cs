@@ -22,12 +22,13 @@ namespace Operation.HierarchyMethod.Nodes.Linkage;
 public interface ITaskProvisionFlow
 {
     /// <summary>
-    /// 确保历史容器存在并归拢 task（`history_owns_task` 边；historyId/taskKey 空 ⇒ no-op，
-    /// 与写边守卫口径一致）。容器 Id 规则（R3）由声明面承载，调用方只给候选值。
+    /// 确保历史容器存在并归拢 task（`history_owns_task` 边；historyId/taskKey 空 ⇒ 合法 no-op）。
+    /// 容器 Id 规则（R3）由声明面承载，调用方只给候选值。
     /// </summary>
     /// <param name="historyId">历史容器 Id（显式优先；空 ⇒ 按声明面规则回退 taskKey）。</param>
     /// <param name="historyName">历史容器展示名（空 ⇒ 由流内规则取 historyId）。</param>
     /// <param name="taskKey">任务键（会话键）。</param>
     /// <param name="ct">取消令牌。</param>
-    Task ProvisionAsync(string? historyId, string? historyName, string taskKey, CancellationToken ct = default);
+    /// <returns>true = 已提交或合法 no-op；false = **未装配执行器 / 流执行失败**（ERR-7：调用方可据此回退或可见化，禁静默）。</returns>
+    Task<bool> ProvisionAsync(string? historyId, string? historyName, string taskKey, CancellationToken ct = default);
 }

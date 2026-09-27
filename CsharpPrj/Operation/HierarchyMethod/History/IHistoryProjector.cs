@@ -21,7 +21,7 @@ public interface IHistoryProjector
     /// <summary>
     /// 入史投影（CP-3，**唯一决定哪些节点进历史**）：按 <see cref="HistoryMarkPolicy"/> 过滤轮次产物，
     /// 把标记节点投影为 <c>NodeType=conversation_message</c> 节点（<c>session.{name}.msg.{seq}</c>，seq = 时序权威）
-    /// + <c>session_owns</c> 挂载边 + <c>round_sequence</c> 时序边。
+    /// + <c>session_owns</c> 挂载边；历史顺序 = 键内 <c>(round, seq)</c>（<c>round_sequence</c> 边已退役，A4′）。
     /// <para>未装配节点库/关系管理 → 各写路径跳过（不抛、不阻断）；调用方消费返回值判定是否命中。</para>
     /// </summary>
     /// <returns>实际投影的标记节点数（0 = 无标记节点或未装配）。</returns>

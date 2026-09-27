@@ -8,7 +8,7 @@ namespace Operation.LoopFoldMethod.Reference.Projection;
 /// </summary>
 /// <param name="ScopeKey">当前作用域锚。</param>
 /// <param name="NodeKeys">该作用域历史上挂载的节点键集。</param>
-/// <param name="Sequence">沿 round_sequence 折叠出的当前视图序列。</param>
+/// <param name="Sequence">按键内 (round, seq) 折叠出的当前视图序列。</param>
 public sealed record RefView(
     string? ScopeKey,
     IReadOnlyList<string> NodeKeys,

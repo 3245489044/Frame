@@ -20,6 +20,10 @@
       Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision}\*OpsFunctions.cs   （O-2 单步体）
       Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
       Projects\Plug\Agent\doc\Agent编排载体分工表.md                                   （O-6 载体分工 + 豁免登记）
+      Projects\Plug\Agent\src\Agent.Axioms\Loops\RoundKeys.cs                          （E10 键名常量单源）
+      Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\RoundStateKeyCatalog.cs    （E10 种子键登记）
+      Projects\Plug\Agent\Config\workflows\{attribution,task-provision}.ushar           （E10 inports= 对账面）
+      Frame\CsharpPrj + Projects\Plug\Agent\src\**\*.cs                                 （E11/E12 调用点与命名空间取值点基线）
 
     判据：
       E1  闸A 编译：R1/R2/R5 三条新增声明经 Usharp.Cli build ⇒ 错误 0（无悬空引用 / 形状非法）
@@ -35,6 +39,14 @@
       E7  O-5 静默降级基线（只减不增）：`ConversationCentralPipeline.cs` 的 `Spec is null) return;` ≤ 基线
       E8  正对照（防假绿）：声明流数基线与 fn 常量数下限
       E9  负对照（防假绿）：对合成违规样本执行同一判据函数，必须命中
+      E10 簿记入参三方对账（ERR-6）：`Config/workflows/{attribution,task-provision}.ushar` 的 `inports=`
+                         ⊆ RoundKeys 常量值 ∧ 其常量名 ∈ RoundStateKeyCatalog.CompatSeedKeys
+                        （漏登记 ⇒ 步骤 inports 解析为空串 = 功能静默失效）
+      E11 归属边/供给/挂载调用点数基线（只减不增）：`LinkNodeAsync` / `EnsureTaskNodeLinkAsync`
+                        / `EnsureHistoryAsync` / `AttachHistoryTaskAsync` / `AddSessionMessageLinkAsync`
+                        五组成员访问调用点（O-1 触发点的机器判据）
+      E12 task→node 边命名空间取值点基线（只减不增）：边写侧（SyncRelationsBlock / HistoryProjector）
+                        的 `NodeOutputKeys.Normalize(` + `NodeKeys.DefaultWorkflowId` 取值点（ERR-3）
 
     模式：默认报告模式（列命中，不设退出码）；-Check 校验模式（违规或正对照失效 → 退出码 1）。
 
@@ -73,23 +85,43 @@ $paradigmsFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Loop
 $validatorFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs'
 $pipelineFile   = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs'
 $carrierDoc     = Join-Path $Root 'Projects\Plug\Agent\doc\Agent编排载体分工表.md'
+$roundKeysFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Axioms\Loops\RoundKeys.cs'
+$seedCatalogFile= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\RoundStateKeyCatalog.cs'
 $cliExe         = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj        = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
-# R1/R2/R5 新增声明面（闸A 编译对象）
-$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar')
+# R1/R2/R5/B4 新增声明面（闸A 编译对象）
+$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar')
 
 # fn 豁免白名单（编排性阶段名：非引擎注册函数，纳入校验语义不成立）
 $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 # 声明文件豁免清单（不进 `WorkflowFunctionRefValidator.WorkflowFiles`；理由见载体分工表 §3）
-$ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar')
+# RuntimeGovernance.ushar 为「非骨架声明面」（只声明词表/端口契约/矩阵，不产 RoundSpec 骨架；ERR-4B 补登记）
+$ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
 # 声明面基线（防声明被删而门禁恒绿；变更须同步本表）
-$DeclaredFlowCountBaseline = 11
-$FnConstCountBaseline      = 25
-# O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 4 处
-# （登记豁免：会话腿 spec 解析未识别 ⇒ 诊断 runner 承担，见载体分工表 §3 E2；新增即违规）
-$SilentSkipBaseline = 4
+$DeclaredFlowCountBaseline = 12
+$FnConstCountBaseline      = 28
+# O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 0 处
+# （ERR-5 收口：4 处静默 skip 已改「诊断 + 显式 ∅」，见 ConversationPipeline_spec_missing；新增即违规）
+$SilentSkipBaseline = 0
+# E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
+$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar')
+# E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
+#   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
+$CallSiteBaselines = [ordered]@{
+    'LinkNodeAsync'              = 2   # 实测 2（B2 续：SyncRelationsBlock 旧路径删除；余 HistoryProjector/NodeTaskHistoryService 迁移期回退）
+    'EnsureTaskNodeLinkAsync'    = 4   # 实测 4（B2 续：NodeStepExecutionService 回退支删除）；目标 2 待 B9 测试面端口迁移（NodeTaskLinker）
+    'EnsureHistoryAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
+    'AttachHistoryTaskAsync'     = 2   # 实测 2（B2 续：TaskOrchestrator R2 回退支删除）
+    'AddSessionMessageLinkAsync' = 2   # 实测 2（B4/DUP-5 收口：入史挂载 + UI 运维两条直调改经 session-attribution 流；余 HistoryRelationManager 适配 + 流内 fn）
+}
+# E12 task→node 边命名空间取值点基线（只减不增；目标 = 单源 1）
+$NamespaceBaselines = [ordered]@{
+    'SyncRelationsBlock.cs' = 1   # B2 续已减 2（两条回退支删除）；目标 1（已成）
+    'HistoryProjector.cs'   = 1   # RED-2 已减 1（ProjectMarkedAsync 死代码删除）；目标 1（已成）
+}
+$NamespaceValuePattern = 'NodeOutputKeys\s*\.\s*Normalize\s*\(|NodeKeys\s*\.\s*DefaultWorkflowId'
 # O-2 编排关键词黑名单（fn 实现体内禁出现）
 $OrchestrationKeywords = @('retry', 'Task.Delay', 'WhenAll', 'Attempt')
 
@@ -149,6 +181,67 @@ function Test-FnNamesDeclared {
         if ($FnConstValues -notcontains $fn) { $bad.Add("$($m.Groups['id'].Value):$fn") }
     }
     return $bad
+}
+
+# ---------------- 判据函数（E10 inports 三方对账；负对照复用） ----------------
+function Get-UsharInportTokens {
+    param([string]$Path)
+    $tokens = [System.Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $Path)) { return $tokens }
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'inports\s*=\s*(?<v>[A-Za-z0-9_,]+)')) {
+        foreach ($t in ($m.Groups['v'].Value -split ',')) {
+            $t = $t.Trim()
+            if ($t) { $tokens.Add($t) }
+        }
+    }
+    return $tokens
+}
+
+function Test-InportsRegistered {
+    param([string]$UsharPath, [hashtable]$ValueToName, [System.Collections.Generic.HashSet[string]]$SeedNames)
+    $bad = [System.Collections.Generic.List[string]]::new()
+    foreach ($token in (Get-UsharInportTokens -Path $UsharPath)) {
+        if (-not $ValueToName.ContainsKey($token)) { $bad.Add("$token（RoundKeys 无此键值）"); continue }
+        if (-not $SeedNames.Contains($ValueToName[$token])) { $bad.Add("$token（CompatSeedKeys 未登记 $($ValueToName[$token])）") }
+    }
+    return $bad
+}
+
+# ---------------- 判据函数（E11 调用点数 / E12 命名空间取值点，单遍扫描） ----------------
+function Get-CallSiteCounts {
+    param([string[]]$Dirs, [string[]]$Members)
+    $regexes = @{}
+    $counts = @{}
+    foreach ($m in $Members) { $regexes[$m] = [regex]::new('\.' + [regex]::Escape($m) + '\s*\('); $counts[$m] = 0 }
+    foreach ($dir in $Dirs) {
+        if (-not (Test-Path -LiteralPath $dir)) { continue }
+        $files = Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
+        foreach ($f in $files) {
+            foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+                if ($line.TrimStart() -match '^(//|/\*|\*)') { continue }
+                foreach ($m in $Members) { if ($regexes[$m].IsMatch($line)) { $counts[$m]++ } }
+            }
+        }
+    }
+    return $counts
+}
+
+function Get-NamespaceValueCounts {
+    param([string]$Dir, [string[]]$FileNames, [string]$Pattern)
+    $counts = @{}
+    foreach ($n in $FileNames) { $counts[$n] = 0 }
+    if (-not (Test-Path -LiteralPath $Dir)) { return $counts }
+    $rx = [regex]::new($Pattern)
+    foreach ($f in (Get-ChildItem -LiteralPath $Dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue)) {
+        $leaf = Split-Path $f.FullName -Leaf
+        if (-not $counts.ContainsKey($leaf)) { continue }
+        foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+            if ($line.TrimStart() -match '^(//|/\*|\*)') { continue }
+            if ($rx.IsMatch($line)) { $counts[$leaf]++ }
+        }
+    }
+    return $counts
 }
 
 # ---------------- 取数 ----------------
@@ -246,7 +339,7 @@ foreach ($file in $fnImplFiles) {
         }
     }
     # 正对照：须含原语调用（否则「零关键词」可能是空文件 / 未接线）
-    if ($raw -notmatch 'CreateAsync|AttachTaskAsync|EnsureTaskNodeLinkAsync') {
+    if ($raw -notmatch 'CreateAsync|AttachTaskAsync|EnsureTaskNodeLinkAsync|AddSessionMessageLinkAsync') {
         $violations.Add("E5 单步体未见原语调用（正对照失效）：$(Split-Path $file -Leaf)")
     }
 }
@@ -275,12 +368,82 @@ if (Test-Path -LiteralPath $pipelineFile) {
     $violations.Add("E7 扫描面缺失：$pipelineFile")
 }
 
+# ---------------- E10 簿记入参三方对账（ERR-6：inports ⇄ RoundKeys ⇄ CompatSeedKeys） ----------------
+$roundKeyConsts = Get-CSharpConstMap -Path $roundKeysFile
+$keyValueToName = @{}
+foreach ($k in $roundKeyConsts.Keys) { if (-not $keyValueToName.ContainsKey($roundKeyConsts[$k])) { $keyValueToName[$roundKeyConsts[$k]] = $k } }
+$seedNames = [System.Collections.Generic.HashSet[string]]::new()
+if (Test-Path -LiteralPath $seedCatalogFile) {
+    $catalogRaw = Get-Content -LiteralPath $seedCatalogFile -Raw
+    $compatMatch = [regex]::Match($catalogRaw, 'CompatSeedKeys\s*=\s*\{(?<body>.*?)\};', 'Singleline')
+    if ($compatMatch.Success) {
+        foreach ($m in [regex]::Matches($compatMatch.Groups['body'].Value, 'RoundKeys\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
+            [void]$seedNames.Add($m.Groups['n'].Value)
+        }
+    } else {
+        $violations.Add("E10 判据面缺失：RoundStateKeyCatalog 未找到 CompatSeedKeys 声明块")
+    }
+} else {
+    $violations.Add("E10 判据面缺失：$seedCatalogFile")
+}
+$e10Checked = 0
+foreach ($file in $InportAuditFiles) {
+    $path = Join-Path $workflowsDir $file
+    if (-not (Test-Path -LiteralPath $path)) {
+        $violations.Add("E10 对账面缺失：$file")
+        continue
+    }
+    $e10Checked++
+    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames)) {
+        $violations.Add("E10 簿记入参未登记：$file → $bad（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效）")
+    }
+}
+
+# ---------------- E11 调用点数基线（只减不增） ----------------
+$callSiteCounts = @{}
+try {
+    $callSiteCounts = Get-CallSiteCounts -Dirs @(
+        (Join-Path $Root 'Frame\CsharpPrj'),
+        (Join-Path $Root 'Projects\Plug\Agent\src')
+    ) -Members @($CallSiteBaselines.Keys)
+    foreach ($member in $CallSiteBaselines.Keys) {
+        if ($callSiteCounts[$member] -gt $CallSiteBaselines[$member]) {
+            $violations.Add("E11 调用点新增：$member = $($callSiteCounts[$member]) > 基线 $($CallSiteBaselines[$member])（O-1 触发点收口：只减不增）")
+        }
+    }
+} catch {
+    $violations.Add("E11 判据不可判（扫描异常，禁静默通过）：$($_.Exception.Message)")
+}
+
+# ---------------- E12 task→node 边命名空间取值点基线（只减不增） ----------------
+$namespaceCounts = @{}
+try {
+    $namespaceCounts = Get-NamespaceValueCounts -Dir (Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod') `
+        -FileNames @($NamespaceBaselines.Keys) -Pattern $NamespaceValuePattern
+    $nsAgentDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\NodeWrite'
+    $nsAgentCounts = Get-NamespaceValueCounts -Dir $nsAgentDir -FileNames @($NamespaceBaselines.Keys) -Pattern $NamespaceValuePattern
+    foreach ($f in @($NamespaceBaselines.Keys)) {
+        $namespaceCounts[$f] = $namespaceCounts[$f] + $nsAgentCounts[$f]
+    }
+    foreach ($file in $NamespaceBaselines.Keys) {
+        if ($namespaceCounts[$file] -gt $NamespaceBaselines[$file]) {
+            $violations.Add("E12 命名空间取值点新增：$file = $($namespaceCounts[$file]) > 基线 $($NamespaceBaselines[$file])（O-4 事实单源：只减不增）")
+        }
+    }
+} catch {
+    $violations.Add("E12 判据不可判（扫描异常，禁静默通过）：$($_.Exception.Message)")
+}
+
 # ---------------- E8 正对照 ----------------
 if ($flowIds.Count -lt $DeclaredFlowCountBaseline) {
     $violations.Add("E8 正对照失效：声明流 $($flowIds.Count) < 基线 $DeclaredFlowCountBaseline（声明被删？）")
 }
 if ($fnConstValues.Count -lt $FnConstCountBaseline) {
     $violations.Add("E8 正对照失效：fn 常量 $($fnConstValues.Count) < 基线 $FnConstCountBaseline（常量文件被清空？）")
+}
+# E11 正对照：扫描面须真实命中（全 0 = 扫描面失效 / 文件被清空，非「零违规」）
+if (($callSiteCounts.Values | Measure-Object -Sum).Sum -le 0) {
+    $violations.Add("E8 正对照失效：E11 调用点扫描全 0（扫描面或模式失效？）")
 }
 
 # ---------------- E9 负对照（同一判据对合成违规必须命中） ----------------
@@ -290,6 +453,11 @@ try {
     $probeBad = Test-FnNamesDeclared -UsharPath $probePath -FnConstValues $fnConstValues
     if (@($probeBad).Count -eq 0) {
         $violations.Add("E9 负对照失效：E3 判据对合成违规未命中（判据恒真？）")
+    }
+    # E10 负对照：未登记入参必须命中（判据恒真 / 恒假均失效）
+    $probeInports = Test-InportsRegistered -UsharPath $probePath -ValueToName $keyValueToName -SeedNames $seedNames
+    if (@($probeInports).Count -eq 0) {
+        $violations.Add("E9 负对照失效：E10 判据对合成违规未命中（入参 'x' 未登记却放行？）")
     }
 } finally {
     if (Test-Path -LiteralPath $probePath) { Remove-Item -LiteralPath $probePath -Force }
@@ -305,11 +473,15 @@ if ($ShowDetail -or -not $ok) {
     Write-Host ""
     Write-Host ("  E1 编译通过 {0}/{1} · E2 对账 {2} · E3 对账 {3} · E5 单步体 {4} · E6 锚点 {5}/{6} · E7 静默点 {7}" -f `
         $e1Pass, $newDeclarationFiles.Count, $e2Checked, $e3Checked, $e5Checked, $e6Hits, $carrierAnchors.Count, $silentHits) -ForegroundColor Gray
+    Write-Host ("  E10 入参对账 {0} · E11 调用点 {1} · E12 命名空间取值点 {2}" -f `
+        $e10Checked,
+        (($CallSiteBaselines.Keys | ForEach-Object { "$_=$($callSiteCounts[$_])/$($CallSiteBaselines[$_])" }) -join ' '),
+        (($NamespaceBaselines.Keys | ForEach-Object { "$_=$($namespaceCounts[$_])/$($NamespaceBaselines[$_])" }) -join ' ')) -ForegroundColor Gray
 }
 
 if ($ok) {
     Write-Host ""
-    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E9）" -ForegroundColor Green
+    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E12）" -ForegroundColor Green
     Write-Host ""
     exit 0
 }

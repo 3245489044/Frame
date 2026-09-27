@@ -24,10 +24,6 @@ public interface IHistoryRelationManager
     /// <summary>解除历史归拢任务边。</summary>
     Task DetachTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
 
-    /// <summary>历史挂载节点产出（history → node，history_owns_node 边；幂等）。
-    /// **已降级**：历史节点集改为派生视图（经任务归属推导），本写路径仅保留向后兼容；新写请用 <see cref="LinkNodeAsync"/>。</summary>
-    Task AttachNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default);
-
     /// <summary>task → node 关联（cross_db_link，真多对多；幂等加法）。同一节点可被多 task 共享引用，
     /// 历史节点集经此边派生，故本方法是历史挂载节点的**新权威写路径**。</summary>
     Task LinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);

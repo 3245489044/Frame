@@ -14,6 +14,6 @@ public interface IRefView
     /// <summary>该作用域历史上挂载的节点键集（History/Task 归拢的节点）。</summary>
     IReadOnlyList<string> NodeKeys { get; }
 
-    /// <summary>沿 round_sequence 时序链折叠出的当前视图序列（历史顺序由引用边决定）。</summary>
+    /// <summary>按键内 (round, seq) 折叠出的当前视图序列（round_sequence 边已退役，A4′）。</summary>
     IReadOnlyList<string> Sequence { get; }
 }

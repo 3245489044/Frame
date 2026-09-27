@@ -440,16 +440,25 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
             // ③ task 归属边（cross_db_link）：R1 归流 —— 经**归属边簿记流入口**触发（编排真源 =
             //    Config/workflows/attribution.ushar 的 [Flow] NodeAttribution；本处只是唯一触发点，不持编排）。
-            //    未装配入口（迁移期：既有装配切片未提供）⇒ 沿用直调回退，不静默跳过；
-            //    退役条件 = 全部装配切片提供 INodeAttributionFlow 后删除本回退支。
-            if (_attributionFlow is not null && !string.IsNullOrWhiteSpace(taskKey))
+            //    B2 续：迁移期直调回退支已删 ⇒ 未装配入口即丢边，故必须经诊断可见化（禁静默）。
+            if (!string.IsNullOrWhiteSpace(taskKey))
             {
-                await _attributionFlow.AttachAsync(taskKey!, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
+                if (_attributionFlow is not null)
+                {
+                    await _attributionFlow.AttachAsync(taskKey!, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    _log?.Invoke("NodeStepExecutionService_AttributionFlow_missing", new
+                    {
+                        taskKey,
+                        workflowId = _workflowId,
+                        nodeKey = node.NodeKey,
+                        reason = "INodeAttributionFlow 未装配：task→node 归属边未写（B2 续已删回退直调）",
+                    });
+                }
             }
-            else if (_relationGateway is not null)
-            {
-                await _relationGateway.EnsureTaskNodeLinkAsync(taskKey, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
-            }
+            // taskKey 缺失 = 合法 no-op（与写边守卫口径一致），非失败。
         }
 
         /// <summary>提取结果端口：注册了特化的强类型执行结果按 ResultKeys 整对象定向全写；其余按公开属性名反射约定。</summary>

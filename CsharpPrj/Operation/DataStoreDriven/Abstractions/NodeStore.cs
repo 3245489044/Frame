@@ -74,7 +74,7 @@ public static class NodeTypes
     /// 主动声明的关系（预声明组合 / keymapping 逻辑绑定），权威在 SQL，图库由守卫经声明记录推导边（G3 声明式构建）。</summary>
     public const string Relation = "relation";
 
-    /// <summary>子 Cline 会话消息归档节点（并入节点库：NodeType=cline_messages，NodeKey="cline.session.{sessionId}.round.{round}"，
+    /// <summary>子 Cline 会话消息归档节点（并入节点库：NodeType=cline_messages，NodeKey="cline.session.{sessionId}.round.{round}.{kind}.{ordinal}"，
     /// ThreadId=sessionId，PayloadJson=messages.json 全文）。每轮一条 NodeKey（幂等 upsert），
     /// 与主程序 ConversationLog（ur_tasks.__conversation）同库可跨库联查，支撑子 Cline 对话历史节点化落库。</summary>
     public const string ClineMessages = "cline_messages";
@@ -84,12 +84,12 @@ public static class NodeTypes
     /// 「新建/刷新/载入历史」均退化为对引用图的操作（写根/查根/投影子图）。</summary>
     public const string Session = "session";
 
-    /// <summary>会话消息节点（NodeKey=<c>session.{name}.r{round}.msg.{seq}</c>（键权威 = SessionMessageKeys），
+    /// <summary>会话消息节点（NodeKey=<c>session.{name}.r{round}.{kind}.{ordinal}</c>（键权威 = SessionMessageKeys），
     /// NodeType=conversation_message，PayloadJson=单条 ConversationMessage JSON；
-    /// seq 为**轮内**时序序号，历史顺序由键内 <c>(round, seq)</c> 决定 —— 轮次段使跨轮消息各占独立键，不被 upsert 覆盖）。</summary>
+    /// <c>ordinal</c> 为**轮内全局到达序**，历史顺序由键内 <c>(round, ordinal)</c> 决定 —— 轮次段使跨轮消息各占独立键，不被 upsert 覆盖）。</summary>
     public const string ConversationMessage = "conversation_message";
 
-    /// <summary>过程节点（运行域事实：阶段 / 端点心跳 / LLM 调用 / 工具；NodeKey=<c>proc.{container}.r{round}.step{seq}</c>，ThreadId=container）。
+    /// <summary>过程节点（运行域事实：阶段 / 端点心跳 / LLM 调用 / 工具；NodeKey=<c>proc.{container}.r{round}.{kind}.{ordinal}</c>，ThreadId=container）。
     /// 与业务节点（<see cref="Node"/>）分属不同判别值：过程事实不得触发引用图联动/建边（<c>WriteGuardPort.IsBusinessNode</c>），
     /// 且面板按本判别值独立成组（不再与 task 业务节点混组）。</summary>
     public const string Process = "process";

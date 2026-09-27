@@ -16,6 +16,8 @@
       A5 单写者多落点（提示）：同域 writer 复用时可见化（非违规；「位置 → 写者唯一」由 PlacementId 主键保证）
       A6 实例清单一致：Config\instances\nodes.json 的 placements[] 全部落在域声明的位置 id 并集内
       A7 正对照（防假绿）：位置声明数 ≥ 基线（声明被删而门禁恒绿 = 失效）
+      A8 跨域键可区分（**可见化，只报不拦**）：不同域的位置键模板不得逐字同形（同形 ⇒ 同一 NodeKey
+         被两域声明占用 = 后写覆盖 + NodeType 漂移）；当前 ERR-3 三项为已知处置中，列待消除不阻断
 
     模式：默认报告模式（列命中，不设退出码）；-Check 校验模式（违规或正对照失效 → 退出码 1）。
 
@@ -105,6 +107,8 @@ $files = @(Get-ChildItem -LiteralPath $declarationDir -Filter *.json -File | Sor
 $placementCount = 0
 $domainCount = 0
 $declaredPlacementIds = [System.Collections.Generic.HashSet[string]]::new()
+# A8 跨域键形状收集（可见化用；跨域同形 = 同一 NodeKey 被两域声明占用 ⇒ ERR-3）
+$keyShapes = [System.Collections.Generic.List[object]]::new()
 
 foreach ($file in $files) {
     $doc = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
@@ -154,6 +158,14 @@ foreach ($file in $files) {
         $locals = @(Get-LocalCoordinates $placement)
         $keyFields = @(Get-Placeholders $keyTemplate)
 
+        # A8 跨域可区分性取数（形状匿名化后跨域比对；判定在文件循环后）
+        $keyShapes.Add([pscustomobject]@{
+            Domain = $domain
+            Id     = $placementId
+            Key    = $keyTemplate
+            Shape  = (Get-ShapePattern $keyTemplate)
+        })
+
         # A1 位置键字段全域 = 身份占位符 ∪ local
         foreach ($field in $keyFields) {
             if (($identityFields -contains $field) -or ($locals -contains $field)) { continue }
@@ -198,6 +210,21 @@ foreach ($file in $files) {
             $file.Name, $identity, $placements.Count, ($identityFields -join ','), ($contextFields -join ','), ($sequenceFields -join ',')) -ForegroundColor Gray
     }
 }
+# ---------------- A8 跨域键可区分（**可见化，只报不拦**） ----------------
+# 同域可区分由 A4 拦（NodeKey 幂等 ⇒ 同键覆盖）。**跨域**同形（域不同而键模板逐字同形）⇒ 两个域各自写
+# 同一个 NodeKey（后写覆盖 + NodeType 漂移）。当前 = 已知处置中（ERR-3：session-view / session-message /
+# segment-context 三者同形，收敛归 W4 / `session-message` 退役），故只列待消除（$pending）不阻断（$violations）；
+# 一旦**越界新增**跨域同形，本项立即可见（防静默扩散）。
+for ($i = 0; $i -lt $keyShapes.Count; $i++) {
+    for ($j = $i + 1; $j -lt $keyShapes.Count; $j++) {
+        $left  = $keyShapes[$i]
+        $right = $keyShapes[$j]
+        if ($left.Domain -eq $right.Domain) { continue }
+        if ($left.Shape -ne $right.Shape) { continue }
+        $pending.Add("[A8] 跨域键同形：'$($left.Domain)/$($left.Id)' 与 '$($right.Domain)/$($right.Id)' 键模板逐字同形（$($left.Key)）—— 同一 NodeKey 跨域塌缩（ERR-3，归 W4 收敛）")
+    }
+}
+
 # ---------------- A6 实例清单一致 ----------------
 if (Test-Path -LiteralPath $instanceFile) {
     $instances = Get-Content -LiteralPath $instanceFile -Raw | ConvertFrom-Json
@@ -216,7 +243,7 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- A7 正对照（防假绿） ----------------
-$a7Baseline = 8   # 2026-09-26 实测：4 域 8 位置（conversation 4 + segment 2 + message 1 + process 1）
+$a7Baseline = 9   # 2026-09-27 实测：5 域 9 位置（conversation 5（含 archive-raw-legacy 兼容读）/ segment 2 / message 1 / process 1 / task-node 1）
 if ($placementCount -lt $a7Baseline) {
     $violations.Add("[A7] 位置声明数 $placementCount < 基线 $a7Baseline（声明被删或未装载 ⇒ 判据失效，禁假绿）")
 }

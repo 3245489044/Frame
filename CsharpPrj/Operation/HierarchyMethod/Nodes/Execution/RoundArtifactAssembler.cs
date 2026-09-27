@@ -72,6 +72,19 @@ public static class RoundArtifactAssembler
             .ToList();
     }
 
+    /// <summary>
+    /// 轮内**全局到达序**（1 起）的**唯一权威**：序 = 产出枚举序列下标 + 1（含未入史节点的空位），
+    /// 使「键内 <c>ordinal</c>」与「轮内到达序」同义。
+    /// <para>
+    /// 消费方：<see cref="RoundAttributionPlan.Build"/>（标记录点路径）与 Agent 侧产出物化流
+    /// （<c>accept_productions</c>，见 <c>ProductionItem.Ordinal</c>）—— 两路径**同源同序**；
+    /// 禁各自按「本路径计数」另定基准：两个基准会给**同一内容事实**生成两个 identityKey ⇒
+    /// 双写（违「一事实一节点」）或 last-write-wins 丢序数语义（分析 §4 ERR-4）。
+    /// </para>
+    /// </summary>
+    /// <param name="sourceIndex">产出枚举序列下标（0 起）。</param>
+    public static long ArrivalOrdinal(int sourceIndex) => sourceIndex + 1L;
+
     private static string? LastProducedKey(IReadOnlyList<NodeExecutionRecord> nodes, string? nodeKey)
     {
         for (var i = nodes.Count - 1; i >= 0; i--)

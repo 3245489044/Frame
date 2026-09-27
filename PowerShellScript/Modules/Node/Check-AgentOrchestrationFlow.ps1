@@ -17,7 +17,7 @@
       Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs（fn 名单源）
       Projects\Plug\Agent\src\Agent.Core\Nodes\LoopParadigms.cs                        （R5 范式登记）
       Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs   （O-3 清单）
-      Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision}\*OpsFunctions.cs   （O-2 单步体）
+      Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision,History,RoundAttribution,Productions}\*OpsFunctions.cs（O-2 单步体）
       Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
       Projects\Plug\Agent\doc\Agent编排载体分工表.md                                   （O-6 载体分工 + 豁免登记）
       Projects\Plug\Agent\src\Agent.Axioms\Loops\RoundKeys.cs                          （E10 键名常量单源）
@@ -93,7 +93,7 @@ $cliExe         = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe
 $cliProj        = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
 # R1/R2/R5/B4/DEBT-4 新增声明面（闸A 编译对象）
-$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar', 'round-attribution.ushar')
+$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'session-productions.ushar')
 
 # fn 豁免白名单（编排性阶段名：非引擎注册函数，纳入校验语义不成立）
 $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
@@ -102,8 +102,8 @@ $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 $ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
 # 声明面基线（防声明被删而门禁恒绿；变更须同步本表）
-$DeclaredFlowCountBaseline = 13
-$FnConstCountBaseline      = 30
+$DeclaredFlowCountBaseline = 14
+$FnConstCountBaseline      = 32
 # O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 0 处
 # （ERR-5 收口：4 处静默 skip 已改「诊断 + 显式 ∅」，见 ConversationPipeline_spec_missing；新增即违规）
 $SilentSkipBaseline = 0
@@ -237,7 +237,8 @@ foreach ($dir in @(
         'Projects\Plug\Agent\src\Agent.Modules\Attribution',
         'Projects\Plug\Agent\src\Agent.Modules\Provision',
         'Projects\Plug\Agent\src\Agent.Modules\History',
-        'Projects\Plug\Agent\src\Agent.Modules\RoundAttribution')) {
+        'Projects\Plug\Agent\src\Agent.Modules\RoundAttribution',
+        'Projects\Plug\Agent\src\Agent.Modules\Productions')) {
     $full = Join-Path $Root $dir
     if (Test-Path -LiteralPath $full) {
         foreach ($f in (Get-ChildItem -LiteralPath $full -Filter '*OpsFunctions.cs' -File)) { $fnImplFiles.Add($f.FullName) }

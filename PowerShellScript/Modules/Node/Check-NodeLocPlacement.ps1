@@ -158,7 +158,7 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- C4 正对照（防假绿，先判：基线失守则后续判据无意义） ----------------
-$baseline = 8   # 2026-09-26 实测：4 域 8 位置（conversation 4 + segment 2 + message 1 + process 1）
+$baseline = 9   # 2026-09-27 实测：5 域 9 位置（conversation 5（含 archive-raw-legacy 兼容读）/ segment 2 / message 1 / process 1 / task-node 1）
 if ($placementIds.Count -lt $baseline) {
     $violations.Add("[C4] 位置 id 单源计数 $($placementIds.Count) < 基线 $baseline（域声明被删/未装载 ⇒ 判据失效，禁假绿）")
 }

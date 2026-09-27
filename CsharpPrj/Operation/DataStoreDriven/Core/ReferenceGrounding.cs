@@ -111,7 +111,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     }
 
     /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址，根除跨会话污染）。
-    /// 端点 Id = <c>wf.session.{name}.msg.{seq}</c>，还原 nodeKey = Id 去掉 <c>wf.</c> 前缀。</summary>
+    /// 端点 Id = <c>wf.session.{name}.r{round}.{kind}.{ordinal}</c>，还原 nodeKey = Id 去掉 <c>wf.</c> 前缀。</summary>
     public async Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<string>();

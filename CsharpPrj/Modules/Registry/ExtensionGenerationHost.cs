@@ -107,6 +107,32 @@ public sealed class ExtensionGenerationHost
     }
 
     /// <summary>
+    /// 共享边界副本检测：本代数各扩展清单目录内**不得**出现共享边界程序集副本。
+    /// 副本 = 版本偏斜面（<c>AssemblyVersion</c> 恒 1.0.0.0 ⇒ <see cref="ExtensionLoadContext.Load"/> 的
+    /// "默认 ALC 同名优先复用"会选中较旧一方 ⇒ 调用新成员即 MissingMethodException）。
+    /// 仅诊断，不抛异常；运行期硬判在 <see cref="ExtensionLoadContext.Load"/>（fail-fast 带诊断）。
+    /// </summary>
+    public IReadOnlyList<string> FindSharedBoundaryCopies()
+    {
+        var copies = new List<string>();
+        foreach (var manifest in Manifests)
+        {
+            var dir = Path.GetDirectoryName(manifest);
+            if (string.IsNullOrEmpty(dir))
+                continue;
+
+            foreach (var name in SharedBoundaryCatalog.Names)
+            {
+                var candidate = Path.Combine(dir, name + ".dll");
+                if (File.Exists(candidate))
+                    copies.Add(candidate);
+            }
+        }
+
+        return copies;
+    }
+
+    /// <summary>
     /// 部署校验：解析本代数全部扩展 deps.json 的 runtime 资产，报告磁盘缺失项（快速定位缺哪个依赖）。
     /// 仅诊断用，不抛异常。
     /// </summary>
@@ -298,6 +324,12 @@ public static class ExtensionGenerationFactory
 
     /// <summary>部署校验（当前代数；未装载 = 空清单）。</summary>
     public static IReadOnlyList<string> ValidateDeployment() => Current.ValidateDeployment();
+
+    /// <summary>
+    /// 共享边界副本检测（当前代数；未装载 = 空清单）。
+    /// 非空即缺陷：共享边界程序集必须全进程唯一物理副本（详见 <see cref="SharedBoundaryCatalog"/>）。
+    /// </summary>
+    public static IReadOnlyList<string> FindSharedBoundaryCopies() => Current.FindSharedBoundaryCopies();
 }
 
 /// <summary>
@@ -350,6 +382,26 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
         catch (FileLoadException) { /* 交下方自装兜底 */ }
         catch (IOException) { /* 交下方自装兜底 */ }
 
+        // ★ 共享边界程序集（宿主默认 ALC 与扩展 scoped ALC 的共用面）：唯一合法来源 = 宿主默认 ALC
+        //   （权威目录 $(CsharpBuildOutputDir)，经 LauncherBootstrap 的 Default.Resolving 探针就地解析）。
+        //   走到此处 = 默认 ALC 解析失败 ⇒ 宿主未接线/权威目录缺失；**禁止**落入下方 scoped 自装：
+        //   自装既造跨 ALC 类型身份分裂，又（若扩展目录恰带副本）形成版本偏斜面 —— 且故障会以
+        //   MissingMethodException 在深处静默爆出、被上层 catch 折叠成"（会话初始化失败）…"，真因被掩盖。
+        //   装配点缺失即缺陷：此处 fail-fast 并给出可核对的处置命令。
+        if (SharedBoundaryCatalog.Contains(assemblyName.Name))
+        {
+            var localCopy = _resolvers
+                .Select(r => r.ResolveAssemblyToPath(assemblyName))
+                .FirstOrDefault(p => p is not null);
+            var diagnosis = localCopy is null
+                ? "扩展清单未解析到该程序集，且宿主默认 ALC 亦不可解析（宿主未装载共享面/权威烘焙目录缺失）。"
+                : $"扩展输出目录自带副本（{localCopy}）—— 共享边界程序集必须全进程唯一物理副本，该副本即版本偏斜面（应 Private=false 不复制）。";
+            throw new FileLoadException(
+                $"[共享边界] 程序集 '{assemblyName.Name}' 必须由宿主默认 ALC 解析（唯一权威副本 = 权威烘焙目录 Frame\\CsharpPrj\\BuildOutput\\<Config>\\{assemblyName.Name}.dll）。{diagnosis} " +
+                @"处置：确认真实权威副本存在并重建宿主（dotnet build Frame\CsharpPrj\MainProj.sln → dotnet build Projects\FileDriven\FileDriven.sln）。",
+                assemblyName.Name);
+        }
+
         foreach (var resolver in _resolvers)
         {
             var path = resolver.ResolveAssemblyToPath(assemblyName);
@@ -371,4 +423,33 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
 
         return IntPtr.Zero;
     }
+}
+
+/// <summary>
+/// 共享边界程序集目录（唯一定义点）—— 宿主默认 ALC 与扩展 scoped ALC 的**共用面**。
+///
+/// <para>
+/// 不变式：共享边界程序集在进程内**唯一物理副本**，落宿主可解析目录（<c>$(CsharpBuildOutputDir)</c>，
+/// 经 <c>LauncherBootstrap.InitModule</c> 的 <c>Default.Resolving</c> 探针就地解析）；
+/// 扩展侧一律 <c>Private=false</c>，既不自带副本、也不源码重编译。
+/// </para>
+/// <para>
+/// 违反后果（2026-09-27 实测）：两份副本因 <c>AssemblyVersion</c> 恒 1.0.0.0 而无法被 CLR 区分 ⇒
+/// <see cref="ExtensionLoadContext.Load"/> 的"默认 ALC 同名优先复用"选中较旧副本 ⇒
+/// 调用新成员 <c>MissingMethodException</c>（表现为"（会话初始化失败）Method not found: …"）。
+/// </para>
+/// <para>
+/// 名称清单须与 <c>Projects\BuildFramework\SharedBoundaryRefs.props</c> 的 <c>SharedBoundaryAssembly</c>
+/// 一致，由构建门禁 <c>Projects\BuildFramework\Check-BakeFramework.ps1</c> #7–#9 对账。
+/// </para>
+/// </summary>
+internal static class SharedBoundaryCatalog
+{
+    /// <summary>共享边界程序集名清单（唯一人工维护点之一；改动须同步 SharedBoundaryRefs.props）。</summary>
+    public static readonly string[] Names = ["Route"];
+
+    /// <summary>是否为共享边界程序集（大小写不敏感）。</summary>
+    public static bool Contains(string? simpleName) =>
+        !string.IsNullOrEmpty(simpleName)
+        && Array.Exists(Names, n => string.Equals(n, simpleName, StringComparison.OrdinalIgnoreCase));
 }

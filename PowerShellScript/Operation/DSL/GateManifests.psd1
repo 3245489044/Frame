@@ -107,6 +107,13 @@
         Note   = '默认即校验；-UpdateIndex 为写操作，聚合器禁用'
     }
 
+    BakeFramework = @{
+        Args   = @{}
+        Path   = 'Projects\BuildFramework\Check-BakeFramework.ps1'
+        Expect = 0
+        Note   = 'CsharpPrj 权威烘焙框架治理 1–6 + 共享边界程序集 7–10（权威副本在册 / 副本外溢=版本偏斜面 / 不源码重编译 / props⇄C# 清单对账）+ 烘焙新鲜度；-Configuration 切换配置，默认 Debug'
+    }
+
     AgentRuntimeUIConfig = @{
         Args   = @{}
         Expect = 0

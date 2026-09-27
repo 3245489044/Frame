@@ -22,11 +22,13 @@ public sealed record PlannedRoundAttribution(int Round, IReadOnlyList<PlannedRou
 /// 入史条目（节点 → 会话消息的落点描述）。
 /// </summary>
 /// <param name="NodeKey">节点键（会话消息节点身份来源）。</param>
-/// <param name="Seq">轮内序号（1-based；键内 (round, seq) 顺序承载）。</param>
+/// <param name="Ordinal">轮内**全局到达序**（1 起；= 本轮节点产出源索引，**非**入史条目计数）——键身份组成。</param>
+/// <param name="Kind">内容类别（键身份组成；取词表值，由调用方经 <c>kindOfMark</c> 注入，Frame 层不持词表）。</param>
 /// <param name="Text">消息文本（终答节点 = 轮终答文本；其余 = 首个非空白端口文本；可为空串）。</param>
 /// <param name="Mark">入史标记名（<see cref="NodeHistoryMark"/> 具名值）。</param>
 /// <param name="AtUnixMs">产出时刻（Unix 毫秒；0 = 缺失，由消费方取当前时刻）。</param>
-public sealed record PlannedRoundMessage(string NodeKey, int Seq, string Text, string Mark, long AtUnixMs);
+public sealed record PlannedRoundMessage(
+    string NodeKey, long Ordinal, string Kind, string Text, string Mark, long AtUnixMs);
 
 /// <summary>
 /// 轮末入史计划（DEBT-4 单源）—— 把「标记判定 + 文本提取 + 序号编排 + 轮次归一」收敛为一处纯函数：
@@ -36,20 +38,31 @@ public sealed record PlannedRoundMessage(string NodeKey, int Seq, string Text, s
 /// </summary>
 public static class RoundAttributionPlan
 {
-    /// <summary>装配入史计划：按产出顺序编号，仅纳入 <see cref="HistoryMarkPolicy"/> 判定为入史的节点。</summary>
+    /// <summary>
+    /// 装配入史计划：<paramref name="ordinal"/> = **本轮节点产出源索引**（1 起，含未入史节点占位），
+    /// 使键内序数与「轮内全局到达序」同义（W2-A2 裁决）；仅纳入
+    /// <see cref="HistoryMarkPolicy"/> 判定为入史的节点。
+    /// </summary>
     /// <param name="artifacts">轮次产物（含终答归因与文本）。</param>
     /// <param name="spec">本轮骨架（提供声明面标记；null = 仅默认规则）。</param>
-    public static PlannedRoundAttribution Build(RoundArtifacts artifacts, RoundSpec? spec)
+    /// <param name="kindOfMark">
+    /// 标记名 → 内容类别 的映射（**必填**）：类别 ∈ 识别词表，帧侧不得自持词表字面量
+    /// （L0/L1 分层：词表单源在 Agent 侧 <c>RecognizedKinds</c>）。
+    /// </param>
+    public static PlannedRoundAttribution Build(
+        RoundArtifacts artifacts, RoundSpec? spec, Func<string?, string> kindOfMark)
     {
         ArgumentNullException.ThrowIfNull(artifacts);
+        ArgumentNullException.ThrowIfNull(kindOfMark);
+        var nodes = artifacts.Nodes ?? (IReadOnlyList<NodeExecutionRecord>)Array.Empty<NodeExecutionRecord>();
         var messages = new List<PlannedRoundMessage>();
-        var seq = 0;
-        foreach (var record in artifacts.Nodes ?? (IReadOnlyList<NodeExecutionRecord>)Array.Empty<NodeExecutionRecord>())
+
+        for (var index = 0; index < nodes.Count; index++)
         {
+            var record = nodes[index];
             var mark = HistoryMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
             if (mark == NodeHistoryMark.None) continue;
 
-            seq++;
             var isTerminal = mark == NodeHistoryMark.Terminal;
             var text = isTerminal && !string.IsNullOrWhiteSpace(artifacts.TerminalText)
                 ? artifacts.TerminalText!
@@ -57,7 +70,8 @@ public static class RoundAttributionPlan
 
             messages.Add(new PlannedRoundMessage(
                 record.NodeKey,
-                seq,
+                RoundArtifactAssembler.ArrivalOrdinal(index),
+                kindOfMark(mark.ToString()),
                 text,
                 mark.ToString(),
                 record.AtUtc == default ? 0 : record.AtUtc.ToUnixTimeMilliseconds()));
@@ -77,7 +91,8 @@ public static class RoundAttributionPlan
             array.Add(new JsonObject
             {
                 ["node_key"] = item.NodeKey,
-                ["seq"] = item.Seq,
+                ["ordinal"] = item.Ordinal,
+                ["kind"] = item.Kind,
                 ["text"] = item.Text,
                 ["mark"] = item.Mark,
                 ["at_unix_ms"] = item.AtUnixMs,
@@ -115,14 +130,16 @@ public static class RoundAttributionPlan
                     var nodeKey = node?["node_key"]?.ToString();
                     if (string.IsNullOrWhiteSpace(nodeKey)) continue;
 
-                    var seqText = node?["seq"]?.ToString();
-                    var seq = int.TryParse(seqText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedSeq) ? parsedSeq : 0;
+                    // 序数：新形态读 ordinal；存量载荷（seq）只读兼容（同一「轮内到达序」语义，不伪造类别）。
+                    var ordinalText = node?["ordinal"]?.ToString() ?? node?["seq"]?.ToString();
+                    var ordinal = long.TryParse(ordinalText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedOrdinal) ? parsedOrdinal : 0L;
                     var atText = node?["at_unix_ms"]?.ToString();
                     var at = long.TryParse(atText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms) ? ms : 0L;
 
                     messages.Add(new PlannedRoundMessage(
                         nodeKey!,
-                        seq,
+                        ordinal,
+                        node?["kind"]?.ToString() ?? string.Empty,
                         node?["text"]?.ToString() ?? string.Empty,
                         node?["mark"]?.ToString() ?? string.Empty,
                         at));

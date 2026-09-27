@@ -64,7 +64,7 @@ public sealed class HistoryProjector : IHistoryProjector
             return;
 
         // 节点即结果：逐条以 task→node M:N 关联挂载（历史节点集派生 = 其任务节点并集，不再直写 history→node 边）。
-        // 注：消息时序边 round_sequence 已退役（A4′）——历史顺序改由键内 (round, seq) 承载
+        // 注：消息时序边 round_sequence 已退役（A4′）——历史顺序改由键内 (round, ordinal) 承载
         // （SessionMessageKeys.OrderComparer 读侧排序，见 RefHead.Project），本处不再写时序边。
         foreach (var rec in round?.Records ?? Array.Empty<NodeExecutionRecord>())
         {

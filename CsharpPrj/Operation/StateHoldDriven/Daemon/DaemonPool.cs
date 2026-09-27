@@ -350,8 +350,10 @@ public sealed class DaemonPool : IDisposable
     /// <param name="ct">取消令牌。</param>
     /// <param name="onStage">**本次调用**的阶段帧回调（可选）：帧归属 = 本次调用选中的 worker（worker 级互斥 ⇒ 归属唯一），
     /// 由调用方把运行实例身份绑在上面（C-7/F-4a：不读 ambient、不按 workerId 反解）。</param>
+    /// <param name="onFrame">**本次调用**的结构帧回调（可选；如 <c>type:"node"</c> 识别产物帧）。
+    /// 与 <paramref name="onStage"/> 同构：归属由调用方绑定，消费方须按 <c>Type</c> 判别并容错未知类型。</param>
     public async Task<JsonElement> SendAsync(string cmd, object? payload, TimeSpan? absoluteTimeout,
-        CancellationToken ct = default, Action<string>? onStage = null)
+        CancellationToken ct = default, Action<string>? onStage = null, Action<DaemonResponse>? onFrame = null)
     {
         var started = _clock.UtcNow;
         var deadline = DateTimeOffset.UtcNow + (absoluteTimeout ?? _options.AbsoluteTimeout);
@@ -385,6 +387,8 @@ public sealed class DaemonPool : IDisposable
                 requestId = _state.RequestTracker.Assign(picked);
                 // per-call 阶段帧监听器：注册给本次调用选中的 worker（finally 注销，含重试换 worker）。
                 if (onStage is not null) _state.SetStageListener(picked, onStage);
+                // per-call 结构帧监听器（finally 注销，与阶段帧同生命周期）。
+                if (onFrame is not null) _state.SetFrameListener(picked, onFrame);
                 StateBlockLog.SendStart(_poolTag, requestId, picked, cmd, remaining.TotalSeconds);
 
                 var host = _state.GetHost(picked)!;
@@ -466,6 +470,7 @@ public sealed class DaemonPool : IDisposable
                 if (picked is not null)
                 {
                     _state.ClearStageListener(picked);
+                    _state.ClearFrameListener(picked);
                     lock (_busyLock) _busy.Remove(picked);
                 }
                 if (requestId != "") _state.RequestTracker.Complete(requestId);

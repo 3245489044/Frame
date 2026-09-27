@@ -67,6 +67,9 @@ export async function startEngine(opts: EngineMainOptions = {}): Promise<void> {
   // sink 已由入口 preload patch 完成（H1：patch 先于 import("@cline/sdk")）；本层只消费其门面。
   const transport = new SdkTransport({ sink: opts.sink });
   transport.setStageReporter((s, detail) => stage(s, detail));
+  // K2 识别产物帧（type:"node"）：不带 id，由控制面 daemon 按当前请求关联并盖章（与 trace 帧同范式）。
+  // 帧形态 { type:"node", node:{ kind, ordinal, node, origin, source, payload } }。
+  transport.setNodeReporter((node) => send({ type: "node", node }));
 
   let heartbeat: ReturnType<typeof setInterval> | undefined;
   const stopHeartbeat = (): void => {

@@ -145,6 +145,13 @@ class EngineHost {
         continue;
       }
 
+      if (type === "node") {
+        // K2 识别产物帧：中继到 C#（per-call 归属由池按「本次调用选中的 worker」绑定，不按 id 反解）。
+        // 载荷复用 detail 通道（与 persist 帧同形态：C# 侧 DaemonResponse.Detail 承载结构体）。
+        send({ id, type: "node", detail: frame.node ?? undefined });
+        continue;
+      }
+
       // 终帧（engine 带 ok/error）。
       if (frame.ok !== undefined || frame.error !== undefined) {
         const resolve = this.pending.get(id);

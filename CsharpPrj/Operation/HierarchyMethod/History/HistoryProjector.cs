@@ -19,10 +19,10 @@ public sealed class HistoryProjector : IHistoryProjector
 {
     private readonly IHistoryRelationManager? _relations;
     // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
-    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
     private readonly Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
     // 归属边簿记流入口（R1）：cross_db_link（task→node）的唯一触发点（编排真源 = Config/workflows/attribution.ushar）。
-    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
     private readonly Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
     // 诊断可见化端口（缺省空实现）：装配期由组合根回填；簿记流失败 / 回退经此可见化（ERR-7，禁静默）。
     private readonly IDiagnosticsSink? _diagnostics;
@@ -80,7 +80,7 @@ public sealed class HistoryProjector : IHistoryProjector
                 flow: _attributionFlow is null
                     ? null
                     : () => _attributionFlow.AttachAsync(taskKey, workflowId, node, ct),
-                legacy: () => _relations.LinkNodeAsync(taskKey, workflowId, node, ct),
+                legacy: null,
                 diagnostics: _diagnostics,
                 context: "HistoryProjector_attribution",
                 payload: new { taskKey, workflowId, nodeKey = node }).ConfigureAwait(false);
@@ -127,18 +127,10 @@ public sealed class HistoryProjector : IHistoryProjector
             flow: _taskProvisionFlow is null
                 ? null
                 : () => _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct),
-            legacy: () => ProvisionLegacyAsync(historyId, taskKey, ct),
+            legacy: null,
             diagnostics: _diagnostics,
             context: "HistoryProjector_provision",
             payload: new { historyId, taskKey }).ConfigureAwait(false);
         return outcome.Ok;
-    }
-
-    /// <summary>迁移期回退直调（仅 <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/> 且流入口缺失时可达）。</summary>
-    private async Task ProvisionLegacyAsync(string historyId, string taskKey, CancellationToken ct)
-    {
-        await _relations!.CreateAsync(historyId, ct: ct).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(taskKey))
-            await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
     }
 }

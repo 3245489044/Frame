@@ -56,7 +56,7 @@ $FlowBranchPattern  = '_(taskProvisionFlow|attributionFlow)\s+(is\s+null|is\s+no
 $NamespacePattern   = 'NodeOutputKeys\s*\.\s*Normalize\s*\(|NodeKeys\s*\.\s*DefaultWorkflowId'
 $ParamImplPattern   = 'Parameters\.TryGetValue'
 
-Write-GateHeader -Title 'Agent 通用框架单源守卫（诊断 / 回退姿态 / 键寻址 / 簿记流模板）'
+Write-GateHeader -Title 'Agent 通用框架单源守卫（诊断 / 回退姿态 / 键寻址 / 簿记流模板 / 姿态收口台账）'
 
 $totalHits = 0
 
@@ -162,6 +162,35 @@ if (($sliceRefs.Values | Measure-Object -Sum).Sum -le 0) {
 }
 $totalHits += $runnerTotal
 
+# ---------------- D9 姿态收口台账（批次 A：报告口径 + 可翻转判据） ----------------
+# 目的：把「FlowPosture 是否已从迁移期切到收口」从注释变成机器可判的观测事实。
+#   迁移期（PostureRequireFlowRequired=$false）：只报告计数（台账），不判违规；
+#   收口期（$true）：组合根须至少 PostureRequireFlowMin 处显式选定 RequireFlow。
+# 计数面 = 非注释行的 `FlowPosture.RequireFlow` / `FlowPosture.AllowLegacyFallback` 出现次数。
+$requireFlowCount = 0
+$allowFallbackCount = 0
+foreach ($dir in @($hmDir, $agentSrc)) {
+    if (-not (Test-Path -LiteralPath $dir)) { continue }
+    $d9Files = Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' -and $_.FullName -notlike '*\BuildOutput\*' }
+    foreach ($f in $d9Files) {
+        foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+            if ($line.TrimStart() -match '^(//|/\*|\*)') { continue }
+            if ($line -match 'FlowPosture\.RequireFlow') { $requireFlowCount++ }
+            if ($line -match 'FlowPosture\.AllowLegacyFallback') { $allowFallbackCount++ }
+        }
+    }
+}
+# 正对照（D9 自身）：回退命中必须可观测（诊断码载体在位），否则「收口是否生效」无据。
+$fallbackDiagRefs = Get-PatternFileCounts -Dirs @($hmDir) -Pattern 'DiagnosticsCodes\.FlowFallback'
+if (($fallbackDiagRefs.Values | Measure-Object -Sum).Sum -le 0) {
+    $violations.Add('D9 正对照失效：DiagnosticsCodes.FlowFallback 无使用点（回退命中不可观测，收口无据？）')
+}
+if ($baseline.PostureRequireFlowRequired -and $requireFlowCount -lt $baseline.PostureRequireFlowMin) {
+    $violations.Add("D9 姿态未收口：FlowPosture.RequireFlow 装配点 $requireFlowCount < $($baseline.PostureRequireFlowMin)（PostureRequireFlowRequired=$($baseline.PostureRequireFlowRequired)）")
+}
+$totalHits += $requireFlowCount
+
 # ---------------- D6 正对照 ----------------
 if ($totalHits -lt $baseline.ScanSurfaceMinHits) {
     $violations.Add("D6 正对照失效：扫描面命中 $totalHits < $($baseline.ScanSurfaceMinHits)（扫描面或模式失效？）")
@@ -192,9 +221,9 @@ try {
 # ---------------- 输出 ----------------
 if ($ShowDetail -or $violations.Count -gt 0) {
     Write-Host ""
-    Write-Host ("  D1 诊断载体文件 {0} · D2 回退分支 {1} · D3 命名空间取值点 {2} · D4 簿记流行 {3} · D5 取参实现 {4} · D6 扫描面命中 {5} · D8 簿记流执行器构造点 {6}" -f `
+    Write-Host ("  D1 诊断载体文件 {0} · D2 回退分支 {1} · D3 命名空间取值点 {2} · D4 簿记流行 {3} · D5 取参实现 {4} · D6 扫描面命中 {5} · D8 簿记流执行器构造点 {6} · D9 姿态(RequireFlow={7}/AllowLegacy={8})" -f `
         $diagCounts.Count, ($flowCounts.Values | Measure-Object -Sum).Sum, ($nsCounts.Values | Measure-Object -Sum).Sum,
-        $rows.Count, $paramTotal, $totalHits, $runnerTotal) -ForegroundColor Gray
+        $rows.Count, $paramTotal, $totalHits, $runnerTotal, $requireFlowCount, $allowFallbackCount) -ForegroundColor Gray
 }
 
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'AgentFrameworkSingleSource'

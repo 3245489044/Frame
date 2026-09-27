@@ -26,6 +26,11 @@ public interface IWorkerHost : IDisposable
     /// <summary>阶段追踪帧（type:"trace"），池透传诊断。</summary>
     event Action<DaemonResponse>? Trace;
 
+    /// <summary>非终结/非追踪类 Json-Line 帧（如工具私有帧 <c>type:"node"</c>）：池透传为 **per-call** 帧通道。
+    /// 与 <see cref="Trace"/> 并列：Trace 承载阶段枚举，本事件承载任意结构载荷（Detail/Form）。
+    /// 纪律：消费方须按 Type 判别并容错未知类型（禁把未知类型当语义判据）。</summary>
+    event Action<DaemonResponse>? Frame;
+
     /// <summary>spawn 底层进程并接入传输。失败抛异常。</summary>
     Task StartAsync(CancellationToken ct);
 

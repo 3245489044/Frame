@@ -23,10 +23,10 @@ public sealed class NodeTaskHistoryService
 {
     private readonly IHistoryRelationManager? _relations;
     // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
-    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
     private readonly Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
     // 归属边簿记流入口（R1）：cross_db_link（task→node）的唯一触发点（编排真源 = Config/workflows/attribution.ushar）。
-    // null ⇒ 迁移期沿用关系端口直调（退役条件 = 全部装配点提供本入口后删回退支）。
+    // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
     private readonly Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
     // 诊断可见化端口（缺省空实现）：装配期由组合根回填（分层无环——框架不感知 Agent 诊断类型）。
     // 消费方：簿记流未装配 / ProvisionAsync=false 的失败可见化（ERR-7，禁静默）。
@@ -103,12 +103,7 @@ public sealed class NodeTaskHistoryService
             flow: _taskProvisionFlow is null
                 ? null
                 : () => _taskProvisionFlow.ProvisionAsync(hid, hid, hid, ct),
-            legacy: async () =>
-            {
-                // 迁移期回退（零行为变化）；退役条件 = 全部装配点提供流入口 + 姿态翻 RequireFlow。
-                await EnsureHistoryAsync(hid, name: hid, ct).ConfigureAwait(false);
-                await AttachTaskToHistoryAsync(hid, hid, ct).ConfigureAwait(false);
-            },
+            legacy: null,
             diagnostics: _diagnostics,
             context: "NodeTaskHistoryService_provision",
             payload: new { historyId = hid, taskKey }).ConfigureAwait(false);
@@ -135,9 +130,7 @@ public sealed class NodeTaskHistoryService
             flow: _attributionFlow is null
                 ? null
                 : () => _attributionFlow.AttachAsync(taskKey.Trim(), workflowId, nodeKey, ct),
-            legacy: _relations is null
-                ? null
-                : () => _relations.LinkNodeAsync(taskKey.Trim(), workflowId, nodeKey, ct),
+            legacy: null,
             diagnostics: _diagnostics,
             context: "NodeTaskHistoryService_attribution",
             payload: new { taskKey, workflowId, nodeKey }).ConfigureAwait(false);

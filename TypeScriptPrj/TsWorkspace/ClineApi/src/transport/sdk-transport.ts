@@ -24,6 +24,9 @@ import type { CoreSessionEvent, Llms, RuntimeHost } from "@cline/sdk";
 import type { ClineMessage, ClineOutputState, ClineRunOptions, ClineRunResult, ClineRunResultMeta, ClineResultSource } from "../types.js";
 import { loadConfig, type ClineApiConfig } from "../config.js";
 import { getProviderCredential, resolveProjectRoot } from "../credentials.js";
+import { RecognizerEngine, type RecognizedNode } from "../recognize/recognizer-engine.js";
+import { loadRecognizerSpec, resolveRecognizerSpecPath } from "../recognize/recognizer-spec-loader.js";
+import { toRecognizerFrame } from "../recognize/event-projection.js";
 
 /** ClineCore 内部 host（类型声明为 private，运行时存在） */
 type ClineCoreWithHost = import("@cline/sdk").ClineCore & { host: RuntimeHost };
@@ -189,8 +192,49 @@ export class EventCollector {
         break;
 
       default:
+        // K0 实证（临时，只读）：当前被静默丢弃的事件（agent_event / hook / team_progress / pending_prompts…）在此计数取证。
+        this.k0Observe(ev);
         break;
     }
+  }
+
+  // ===== K0 实证探针（临时，只读；收口后整块删除）=====
+  // 目的：证明「类型存在 ≠ 运行时必发」——`agent_event` / `hook` 在 backendMode:"local" 下是否真实到达，
+  // 并给出按「事件源:类型[:子类型]」分桶的到达次数（R5 背压取值输入）。
+  // 语义零影响：不写 messages / 不改 status / 不参与结果 / 不进协议帧体。
+  // 移除方式：删除本块 + `onEvent` 的 default 分支调用 + `run()` 末尾的直方图上报。
+
+  /** 到达计数（桶 → 次数）。 */
+  private readonly k0Arrivals = new Map<string, number>();
+
+  /** 桶键：事件源 + 类型（+ 子类型）；形态缺失降级为 "?"，不猜。 */
+  private static k0Bucket(ev: CoreSessionEvent): string {
+    if (ev.type === "agent_event") {
+      const inner = ev.payload.event as { type?: unknown; contentType?: unknown };
+      const kind = typeof inner?.type === "string" ? inner.type : "?";
+      const contentType = typeof inner?.contentType === "string" ? `:${inner.contentType}` : "";
+      return `agent_event:${kind}${contentType}`;
+    }
+    if (ev.type === "hook") {
+      const name = ev.payload.hookEventName as unknown;
+      return `hook:${typeof name === "string" ? name : "?"}`;
+    }
+    return ev.type;
+  }
+
+  /** 计数 + 每桶只打首条（证明到达即可，防 content_update 高频刷屏）。 */
+  private k0Observe(ev: CoreSessionEvent): void {
+    const bucket = EventCollector.k0Bucket(ev);
+    const seen = this.k0Arrivals.get(bucket) ?? 0;
+    this.k0Arrivals.set(bucket, seen + 1);
+    if (seen === 0) {
+      process.stderr.write(`[cline-k0] arrival ${bucket}\n`);
+    }
+  }
+
+  /** K0 到达直方图（桶 → 次数）；空 Map = 本次会话未收到任何非 trace 事件。 */
+  getK0Arrivals(): ReadonlyMap<string, number> {
+    return this.k0Arrivals;
   }
 
   /** 最终结果文本：最后一个非流式 say 消息（旧事件格式降级链）。 */
@@ -348,6 +392,14 @@ export class SdkTransport {
   /** 注入阶段上报回调（供 daemon 执行面子进程把每阶段进度推给控制面）。 */
   setStageReporter(reporter?: (stage: string, detail?: unknown) => void): void {
     this.onStage = reporter;
+  }
+
+  /** 识别产物上报回调（执行面 engine 注入：把识别产物作为 `type:"node"` 协议帧上报控制面）。 */
+  private onNode?: (node: RecognizedNode) => void;
+
+  /** 注入识别产物上报回调（缺省 = 不启用识别层，零开销）。 */
+  setNodeReporter(reporter?: (node: RecognizedNode) => void): void {
+    this.onNode = reporter;
   }
 
   /** 统一阶段出口：stderr trace（--trace，向后兼容）+ 可选 onStage 回调（协议帧，观测默认开）。 */
@@ -530,7 +582,45 @@ export class SdkTransport {
       collector.messagesFromSink = (sid) => this.sink!.getMessagesSync("cline", sid);
     }
 
-    const unsub = core.host.subscribe((ev: CoreSessionEvent) => collector.onEvent(ev));
+    // K1/K2 识别层接线：声明缺失 ⇒ 识别停用（∅ + 诊断；W-4 禁回退默认词表）；
+    // 声明非法/装载失败 ⇒ 可见化并停用（观测通道不得阻断执行链）。
+    let recognizer: RecognizerEngine | undefined;
+    if (this.onNode) {
+      try {
+        const spec = loadRecognizerSpec(resolveRecognizerSpecPath());
+        if (spec) {
+          recognizer = new RecognizerEngine(spec);
+          this.emitStage(options.trace, "recognizer-ready", { vocabulary: spec.vocabulary, rules: spec.recognizers.length });
+        } else {
+          this.emitStage(options.trace, "recognizer-disabled", { reason: "未配置识别声明路径（recognizerSpecFile / CLINE_RECOGNIZER_SPEC）" });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.emitStage(options.trace, "recognizer-load-failed", { message });
+      }
+    }
+
+    // 事件唯一订阅点：① 权威结果提取（collector）② 识别层（frame → 声明 → 基础节点）。
+    const unsub = core.host.subscribe((ev: CoreSessionEvent) => {
+      collector.onEvent(ev);
+      if (!recognizer) {
+        return;
+      }
+      const frame = toRecognizerFrame(ev);
+      if (!frame) {
+        return;
+      }
+      for (const node of recognizer.apply(frame)) {
+        if (!node.node) {
+          continue; // 识别但不成节点（流式片段等）：已计入 D-3 账，不发射
+        }
+        try {
+          this.onNode?.(node);
+        } catch {
+          /* 观测异常不阻断事件链 */
+        }
+      }
+    });
     this.emitStage(options.trace, "session-subscribe-ok");
 
     let timedOut = false;
@@ -565,6 +655,17 @@ export class SdkTransport {
       }
     } finally {
       unsub();
+    }
+
+    // K0 实证（临时，只读）：本次会话「被静默丢弃事件」的到达直方图上报（stderr + 阶段帧同源，零协议新增）。
+    // 判据取值：直方图非空且含 `agent_event:*` / `hook:*` ⇒ 识别层前提成立；全空 ⇒ 退 chunk(say/ask) 路径（R4）。
+    const k0Arrivals = Object.fromEntries(collector.getK0Arrivals());
+    process.stderr.write(`[cline-k0] histogram ${JSON.stringify(k0Arrivals)}\n`);
+    this.emitStage(options.trace, "k0-event-histogram", k0Arrivals);
+
+    // 识别账（D-3：emitted + countedOnly + unrecognized = 到达帧总数）随阶段帧上报，供端到端对账。
+    if (recognizer) {
+      this.emitStage(options.trace, "recognizer-stats", recognizer.stats());
     }
 
     const failed = collector.status === "failed" || collector.status === "aborted" || !!collector.lastError || timedOut;

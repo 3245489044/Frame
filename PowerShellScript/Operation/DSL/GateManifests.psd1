@@ -98,7 +98,7 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1'
         Expect = 0
-        Note   = '四个横切关注点框架单源 D1–D8：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）；基线外置 Baselines\AgentFramework.psd1'
+        Note   = '四个横切关注点框架单源 D1–D9：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，迁移期报告口径，批次 C 后由 Baselines\AgentFramework.psd1 的 PostureRequireFlowRequired 翻转生效）；基线外置 Baselines\AgentFramework.psd1'
     }
 
     ClinerulesReferences = @{
@@ -160,6 +160,13 @@
         Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1'
         Expect = 0
         Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；-Check 为校验模式，-ShowDetail 显示逐条实测'
+    }
+
+    RecognizerVocabulary = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1'
+        Expect = 0
+        Note   = '识别词表守卫 R1–R8：声明面（Config\recognizers.json）JSON 合法且结构齐备 / kind 唯一且含兜底类 / 规则 kind ∈ 词表 / match 仅结构谓词 / TS 侧零词表副本（W-2）/ 负对照（防假绿）/ 正对照基线 / C# 镜像对账（K3 收口前记 pending）'
     }
 
     # ===== 入口框架守卫 =====

@@ -130,6 +130,49 @@ public sealed class DaemonPoolState : IDisposable
         }
     }
 
+    /// <summary>per-call 结构帧监听器（按 worker 归属；与 <see cref="SetStageListener"/> 同构，语义不同）。</summary>
+    private readonly ConcurrentDictionary<string, Action<DaemonResponse>> _frameListeners = new(StringComparer.Ordinal);
+
+    /// <summary>注册「本次调用」的结构帧监听（如 <c>type:"node"</c>）：帧归属 = 本次调用选中的 worker
+    /// （worker 级互斥 ⇒ 归属唯一，不按 workerId 反解）。调用结束须 <see cref="ClearFrameListener"/>。</summary>
+    /// <param name="workerId">被选中的 worker。</param>
+    /// <param name="onFrame">帧回调（<c>null</c> ⇒ 注销）。</param>
+    public void SetFrameListener(string workerId, Action<DaemonResponse>? onFrame)
+    {
+        if (string.IsNullOrWhiteSpace(workerId))
+        {
+            return;
+        }
+
+        if (onFrame is null)
+        {
+            _frameListeners.TryRemove(workerId, out _);
+            return;
+        }
+
+        _frameListeners[workerId] = onFrame;
+    }
+
+    /// <summary>注销该 worker 的 per-call 结构帧监听器（调用结束必调）。</summary>
+    /// <param name="workerId">worker。</param>
+    public void ClearFrameListener(string workerId)
+    {
+        if (!string.IsNullOrWhiteSpace(workerId))
+        {
+            _frameListeners.TryRemove(workerId, out _);
+        }
+    }
+
+    /// <summary>per-call 结构帧分派：无监听器即丢弃（进程级不累计 —— 该通道只服务「某次调用」）。</summary>
+    private void OnFrame(string workerId, DaemonResponse resp)
+    {
+        if (_frameListeners.TryGetValue(workerId, out var listener))
+        {
+            // 观测不得阻断执行链：监听器异常就地吞。
+            try { listener(resp); } catch { /* 观测异常不阻断帧通道 */ }
+        }
+    }
+
     public DaemonPoolState(DaemonPoolOptions options, IDaemonTransport transport, string poolTag)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -279,6 +322,8 @@ public sealed class DaemonPoolState : IDisposable
         };
         // 阶段追踪（观测默认开）：trace 协议帧 → 透传诊断（lastStage 由宿主自行累计）。
         host.Trace += resp => OnTrace(workerId, resp);
+        // 结构帧（如 type:"node"）：透传 per-call 帧通道（K2：识别产物；无监听器即丢弃）。
+        host.Frame += resp => OnFrame(workerId, resp);
 
         await host.StartAsync(ct).ConfigureAwait(false);
         _hosts[workerId] = host;

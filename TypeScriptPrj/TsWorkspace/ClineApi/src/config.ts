@@ -39,6 +39,11 @@ export interface ClineApiConfig {
   credentialsFile?: string;
   /** 命令权限策略 */
   commandPermissions?: CommandPermissions;
+  /**
+   * 识别声明文件路径（声明**内容**真源 = `Projects\Plug\Agent\Config\recognizers.json`）。
+   * 相对路径 = 相对 ClineApi 项目根（与 `credentialsFile` 同范式）；未配置 ⇒ 识别层停用（∅ + 诊断）。
+   */
+  recognizerSpecFile?: string;
 }
 
 const DEFAULT_CONFIG_FILE = "cline.config.json";

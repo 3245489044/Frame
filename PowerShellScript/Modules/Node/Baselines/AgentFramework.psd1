@@ -32,7 +32,9 @@
     }
 
     # D2 回退姿态：流回退分支（_taskProvisionFlow / _attributionFlow 的 is null / is not null）按文件基线（只减不增）
-    #     实测于四框架落地后；删除回退支 = 核减本表（不再逐文件找 else）
+    #     批次 C 已删两处 legacy 直调委托（HistoryProjector / NodeTaskHistoryService）⇒ 本表所计已退化为
+    #     「流入口是否装配」的**入口判空**（其下游为诊断可见化 / Fail，不再是回退写边）；
+    #     下一次口径重构应改为按 `legacy:` 委托实质计数（届时本表可清零）。
     FlowFallbackBaselines = @{
         'HistoryProjector.cs'                       = 2
         'NodeTaskHistoryService.cs'                 = 2
@@ -51,6 +53,14 @@
     # D8 簿记流执行器构造点单源（§6 Wiring 切片）：`new OneShotFlowRunner(` 构造点上限（唯一 = BookkeepingFlowAssembly）
     #     缩减切片口径（NodeStore/KeyMappings/HistoryProjector/EnableOutbox/AttributionFlow）不得在装配点重复书写
     BookkeepingRunnerConstructionMax = 1
+
+    # D9 姿态收口台账（批次 A 建；批次 C 翻转生效）
+    #     口径：RequireFlow 装配点 = 显式选定收口姿态（组合根）；AllowLegacyFallback 显式装配点 = 显式选定迁移期姿态
+    #           （不含 FlowPosture 自身的常量定义与调用点的 `??` 缺省值）。
+    #     批次 C 已把组合根（AgentOrchestrator 主循环 / ConversationHosting 会话腿）翻到 RequireFlow ⇒
+    #     PostureRequireFlowRequired = $true（RequireFlow 装配点 < PostureRequireFlowMin 即违规）。
+    PostureRequireFlowRequired = $true
+    PostureRequireFlowMin      = 2
 
     # D6 正对照：扫描面最小命中数（全 0 = 扫描面失效，非「零违规」）
     ScanSurfaceMinHits = 1

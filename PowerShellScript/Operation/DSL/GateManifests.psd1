@@ -87,6 +87,13 @@
         Note   = '节点层级引用声明守卫 E1–E5（W1：归属边事实只在声明面）：闸A 0 错 / 边类型集合双向对账（声明 ⇄ CrossDbReferenceTypes 实测用到集）/ 退役常量写用法债务只减不增（HistoryOwnsNode）/ [Ref] 字段白名单（禁未注册字段：静默忽略 ⇒ 假声明）/ 正对照 + 负对照（`loc=` 必须被字段判据命中，且闸A 对其 0 错）'
     }
 
+    NodeCollectPort = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1'
+        Expect = 0
+        Note   = '节点收集式输入端口守卫 C1–C5（inports=nodes.*）：保留 token 白名单 / 单次性 / 出参唯一 / 正对照（收集端口声明数≥基线且 fn∈投影类白名单）/ 负对照（合成 `inports=node.*` 必须报 C1）；运行时 counterpart = WorkflowFunctionRefValidator 的 C1–C3'
+    }
+
     AgentOrchestrationFlow = @{
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1'

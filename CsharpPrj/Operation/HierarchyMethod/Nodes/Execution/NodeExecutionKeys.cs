@@ -1,3 +1,5 @@
+using System;
+
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
 /// <summary>
@@ -8,4 +10,18 @@ public static class NodeExecutionKeys
 {
     /// <summary>决策词键（rule_match 产出，Agent RoundKeys.Decision）。</summary>
     public const string Decision = "decision";
+
+    /// <summary>
+    /// 收集式输入端口保留 token（<c>[Node] inports=</c> 的唯一非具名端口）：声明本端口的步骤把**本作用域全部节点输出源键**
+    /// 作为整包入参接收 —— key 驱动组装的唯一扩展点（落地于 <c>NodeStepExecutionService.ResolveInputsAsync</c>）。
+    /// <para>收集范围 = 有 provenance 的节点输出源键（<c>{node}.{port}</c> 恒有 + 裸 <c>{port}</c> 先到者胜）；
+    /// 数据空间兜底键**不入包**（防 vars 全量键污染包）。整包不是键 ⇒ 不查数据空间、不入 KeyMapping 目标集。</para>
+    /// <para>整包值 = <see cref="CollectedNodePort"/> 序列（携带溯源，禁从键串反解 node/port）；</para>
+    /// <para>整包不产 provenance（无单一来源）⇒ 不参与 NodeToNode 组合边推导。</para>
+    /// </summary>
+    public const string CollectNodePorts = "nodes.*";
+
+    /// <summary>是否为收集式输入端口 token（白名单判定**单一来源**：一切识别/跳过点一律经本方法，禁字面量散落）。</summary>
+    public static bool IsCollectToken(string? key)
+        => string.Equals(key, CollectNodePorts, StringComparison.Ordinal);
 }

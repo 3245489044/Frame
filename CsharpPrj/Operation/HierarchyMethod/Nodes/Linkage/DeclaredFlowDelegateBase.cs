@@ -60,6 +60,38 @@ public abstract class DeclaredFlowDelegateBase
             : FlowOutcome.Failed($"{entry.Label}：声明流 {entry.FlowName} 执行失败（step={result.ErrorStep}）");
     }
 
+    /// <summary>
+    /// 统一驱动（**带产物回收**，S4-a）：读投影类流专用 —— 与 <see cref="RunAsync"/> 同口径
+    /// （未装配 ⇒ <see cref="FlowOutcome.Missing"/> 可见化，禁静默），额外回传本轮节点执行记录，
+    /// 供调用方读取 <c>outports=</c> 产物。簿记流（写侧）继续用 <see cref="RunAsync"/>（产物恒 null，零改动）。
+    /// </summary>
+    /// <param name="entry">簿记流数据行（文件名 / 流号 / 标签）。</param>
+    /// <param name="inports">入参表（键 = 声明面 inports=；null 值不入参，等价「未给」）。</param>
+    /// <param name="ct">取消令牌。</param>
+    protected async Task<(FlowOutcome Outcome, IReadOnlyList<NodeExecutionRecord>? Outputs)> RunWithOutputsAsync(
+        DeclaredFlowEntry entry, IReadOnlyDictionary<string, object?> inports, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(inports);
+
+        if (_runner is null)
+        {
+            _diagnostics.Report("BookkeepingFlow_runner_missing", new
+            {
+                file = entry.FileName,
+                flow = entry.FlowName,
+                label = entry.Label,
+                code = DiagnosticsCodes.FlowMissing,
+            });
+            return (FlowOutcome.Missing($"{entry.Label}：OneShotFlowRunner 未装配（{entry.FileName}）"), null);
+        }
+
+        var result = await _runner.RunAsync(entry.FileName, inports, ct).ConfigureAwait(false);
+        return result.Ok
+            ? (FlowOutcome.Committed(), result.Outputs)
+            : (FlowOutcome.Failed($"{entry.Label}：声明流 {entry.FlowName} 执行失败（step={result.ErrorStep}）"), null);
+    }
+
     /// <summary>组装 inports：null 值不入参（等价「未给」），键序 = 声明面 inports= 书写序。</summary>
     /// <param name="items">(键, 值) 序列。</param>
     protected static Dictionary<string, object?> Inports(params (string Key, string? Value)[] items)

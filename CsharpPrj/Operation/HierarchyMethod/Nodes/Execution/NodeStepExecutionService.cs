@@ -119,6 +119,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         /// <summary>
         /// 解析节点入参：数据空间快照 + 全节点输出端口 → 经 KeyMapping 映射到节点 ParameterKeys。
         /// 返回入参字典 + 溯源（哪些入参来自哪些上游节点输出端口，供图 NodeToNode 组合边持久化）。
+        /// 收集式输入端口（<see cref="NodeExecutionKeys.CollectNodePorts"/>）⇒ 以 token 为键落**整包**
+        /// （本作用域全部节点输出源键；仅 provenance 键，数据空间兜底键不入包），整包不产溯源。
         /// </summary>
         public async Task<NodeInputSnapshot> ResolveInputsAsync(
             NodeDefinition node, IDataSpace vars, string? taskKey = null, KeyMappingConfig? globalMapping = null, CancellationToken ct = default)
@@ -155,16 +157,33 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             var parameters = new Dictionary<string, object?>(StringComparer.Ordinal);
             var provenance = new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal);
             foreach (var key in node.ParameterKeys)
+            {
+                // ③ 收集式输入端口（nodes.*）：本作用域全部节点输出源键 → 以 token 为键落**整包**入参。
+                //    收集范围 = 有 provenance 的源键（数据空间兜底键不入包，防 vars 全量键污染包）；
+                //    整包无单一来源 ⇒ 不产 provenance（不参与 NodeToNode 组合边推导）。
+                if (NodeExecutionKeys.IsCollectToken(key))
+                {
+                    var pack = new List<CollectedNodePort>();
+                    foreach (var sourceKey in sourceNode.Keys)
+                        if (source.TryGetValue(sourceKey, out var pv) && pv != null)
+                            pack.Add(new CollectedNodePort(sourceKey, sourceNode[sourceKey].Node, sourceNode[sourceKey].Port, pv));
+                    parameters[key] = pack;
+                    continue;
+                }
+
                 if (source.TryGetValue(key, out var v) && v != null)
                 {
                     parameters[key] = v!;
                     if (sourceNode.TryGetValue(key, out var pn)) provenance[key] = pn;
                 }
+            }
 
+            // 收集 token 非具名键：不入 KeyMapping 目标集（键映射规则对「整包」无意义）。
+            var mappedTargets = node.ParameterKeys.Where(k => !NodeExecutionKeys.IsCollectToken(k)).ToList();
             var merged = KeyMappingMerge.MergeMappings(node.InputMapping, globalMapping);
-            if (node.ParameterKeys.Count > 0 && merged.Rules.Count > 0 && source.Count > 0)
+            if (mappedTargets.Count > 0 && merged.Rules.Count > 0 && source.Count > 0)
             {
-                var (_, matches) = KeyProcessor.Mapper.MapBatch(source.Keys.ToList(), node.ParameterKeys.ToList(), merged);
+                var (_, matches) = KeyProcessor.Mapper.MapBatch(source.Keys.ToList(), mappedTargets, merged);
                 foreach (var m in matches)
                     if (!parameters.ContainsKey(m.TargetKey) &&
                         source.TryGetValue(m.SourceKey, out var mv) && mv != null)

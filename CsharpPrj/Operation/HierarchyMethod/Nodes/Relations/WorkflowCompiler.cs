@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.ReferenceSchema;
+using Operation.HierarchyMethod.Nodes.Execution;
 using Operation.HierarchyMethod.Nodes.Workflows;
 using UniversalWorkflowFramework.Core;
 
@@ -153,6 +154,8 @@ public static class WorkflowCompiler
             if (step.ParameterKeys is not { Count: > 0 }) continue;
             foreach (var param in step.ParameterKeys)
             {
+                // 收集式输入端口（nodes.*）为整包标记，无类型签名：跳过 N2N 类型校验（不产 Info 噪音）。
+                if (NodeExecutionKeys.IsCollectToken(param)) continue;
                 for (var j = 0; j < i; j++)
                 {
                     var up = spec.Steps[j];

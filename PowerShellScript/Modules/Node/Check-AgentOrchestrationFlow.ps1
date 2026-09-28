@@ -15,7 +15,7 @@
       Projects\Plug\Agent\Config\workflows\*.ushar                （编排真源声明面）
       Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs   （文件名/流号单源）
       Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs（fn 名单源）
-      Projects\Plug\Agent\src\Agent.Core\Nodes\LoopParadigms.cs                        （R5 范式登记）
+      Projects\Plug\Agent\src\Agent.Core\Nodes\Registry\LoopParadigms.cs               （R5 范式登记）
       Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs   （O-3 清单）
       Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision,History,RoundAttribution,Productions}\*OpsFunctions.cs（O-2 单步体）
       Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
@@ -83,7 +83,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 $workflowsDir   = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $specCatalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs'
 $fnNamesFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs'
-$paradigmsFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\LoopParadigms.cs'
+$paradigmsFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Registry\LoopParadigms.cs'
 $validatorFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs'
 $pipelineFile   = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs'
 $carrierDoc     = Join-Path $Root 'Projects\Plug\Agent\doc\Agent编排载体分工表.md'

@@ -57,7 +57,7 @@ $bp3 | ForEach-Object { Write-Host ("  {0}:{1}" -f $_.Path, $_.LineNumber) }
 if ($bp3.Count -gt 2) { $failures += "BP3 AgentRuntimeRoot.Partition 调用点 $($bp3.Count) 处（承载应经 RuntimeSlotScope 冻结，勿新增动态取承载点）" }
 
 Write-Host '--- [BP4] 相位顺序（Bind 先于 StartAsync） ---'
-$composition = Join-Path $scanDir 'Agent.Launcher\Composition\AgentComposition.cs'
+$composition = Join-Path $scanDir 'Agent.Launcher\Composition\Root\AgentComposition.cs'
 $bindLine = (Select-String -Path $composition -Pattern 'AgentRuntimeRoot\.Bind\s*\(' -Encoding UTF8 |
         Where-Object { $_.Line -notmatch '^\s*///' } | Select-Object -First 1).LineNumber
 $assembleLine = (Select-String -Path $composition -Pattern 'await AgentFramework\.StartAsync\s*\(' -Encoding UTF8 |

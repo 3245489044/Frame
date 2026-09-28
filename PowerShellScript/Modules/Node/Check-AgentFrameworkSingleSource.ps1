@@ -47,7 +47,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 
 $hmDir      = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod'
 $agentSrc   = Join-Path $Root 'Projects\Plug\Agent\src'
-$catalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\BookkeepingFlowCatalog.cs'
+$catalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Bookkeeping\BookkeepingFlowCatalog.cs'
 $workflows  = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $specCatalog= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs'
 
@@ -156,7 +156,7 @@ $runnerTotal = ($runnerCounts.Values | Measure-Object -Sum).Sum
 if ($runnerTotal -gt $baseline.BookkeepingRunnerConstructionMax) {
     $violations.Add("D8 簿记流执行器构造点重复：$runnerTotal > 上限 $($baseline.BookkeepingRunnerConstructionMax)（命中：$([string]::Join('、', @($runnerCounts.Keys)))；须经 BookkeepingFlowAssembly）")
 }
-$sliceRefs = Get-PatternFileCounts -Dirs @($agentSrc) -Pattern 'BookkeepingFlowAssembly\.(Reduced|RunnerOf|RunnerFor)'
+$sliceRefs = Get-PatternFileCounts -Dirs @($agentSrc) -Pattern 'BookkeepingFlowAssembly\.(RunnerOf|RunnerFor)'
 if (($sliceRefs.Values | Measure-Object -Sum).Sum -le 0) {
     $violations.Add('D8 正对照失效：BookkeepingFlowAssembly 无任何消费点（切片单源未接线？）')
 }
@@ -205,6 +205,7 @@ try {
         'public sealed class Bogus {',
         '    private readonly Action<string, object?>? _log;',
         '    public string X() => NodeOutputKeys.Normalize(null);',
+        '    public object Y() => new OneShotFlowRunner(null!, null!);',
         '}')
     $probeDiag = Get-PatternFileCounts -Dirs @($probe) -Pattern $DiagCarrierPattern
     if (-not $probeDiag.ContainsKey('Bogus.cs')) {
@@ -213,6 +214,10 @@ try {
     $probeNs = Get-PatternFileCounts -Dirs @($probe) -Pattern $NamespacePattern
     if (-not $probeNs.ContainsKey('Bogus.cs')) {
         $violations.Add('D7 负对照失效：D3 判据对合成违规未命中（判据恒真？）')
+    }
+    $probeRunner = Get-PatternFileCounts -Dirs @($probe) -Pattern 'new OneShotFlowRunner\('
+    if (-not $probeRunner.ContainsKey('Bogus.cs')) {
+        $violations.Add('D7 负对照失效：D8 判据对合成违规未命中（判据恒真？）')
     }
 } finally {
     Remove-Item -LiteralPath $probe -Recurse -Force -ErrorAction SilentlyContinue

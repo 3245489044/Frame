@@ -53,7 +53,7 @@ function Get-UsharInportTokens {
     param([string]$Path)
     $tokens = [System.Collections.Generic.List[string]]::new()
     if (-not (Test-Path -LiteralPath $Path)) { return $tokens }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'inports\s*=\s*(?<v>[A-Za-z0-9_,]+)')) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'inports\s*=\s*(?<v>[A-Za-z0-9_,.*]+)')) {
         foreach ($t in ($m.Groups['v'].Value -split ',')) {
             $t = $t.Trim()
             if ($t) { $tokens.Add($t) }

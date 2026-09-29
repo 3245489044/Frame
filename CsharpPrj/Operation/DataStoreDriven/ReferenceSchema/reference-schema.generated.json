@@ -1,36 +1,572 @@
 {
   "Version": "1.0",
   "Nodes": [
-    { "Name": "workflow", "Display": "\u5DE5\u4F5C\u6D41", "Color": "#4CAF50", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 13 },
-    { "Name": "module", "Display": "\u6A21\u5757", "Color": "#2196F3", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 14 },
-    { "Name": "resource", "Display": "\u8D44\u6E90", "Color": "#9E9E9E", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 15 },
-    { "Name": "checkpoint", "Display": "\u68C0\u67E5\u70B9", "Color": "#FF9800", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 16 },
-    { "Name": "node", "Display": "\u8282\u70B9", "Color": "#795548", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 17 },
-    { "Name": "task", "Display": "\u4EFB\u52A1", "Color": "#3F51B5", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 18 },
-    { "Name": "keymapping", "Display": "\u952E\u6620\u5C04", "Color": "#009688", "Icon": null, "SortWeight": 0, "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 19 }
+    {
+      "Name": "workflow",
+      "Display": "\u5DE5\u4F5C\u6D41",
+      "Color": "#4CAF50",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 13,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "module",
+      "Display": "\u6A21\u5757",
+      "Color": "#2196F3",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 14,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "resource",
+      "Display": "\u8D44\u6E90",
+      "Color": "#9E9E9E",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 15,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "checkpoint",
+      "Display": "\u68C0\u67E5\u70B9",
+      "Color": "#FF9800",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 16,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "node",
+      "Display": "\u8282\u70B9",
+      "Color": "#795548",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 17,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "task",
+      "Display": "\u4EFB\u52A1",
+      "Color": "#3F51B5",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 18,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "keymapping",
+      "Display": "\u952E\u6620\u5C04",
+      "Color": "#009688",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 19,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "session",
+      "Display": "\u4F1A\u8BDD",
+      "Color": "#00BCD4",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 20,
+      "InputPorts": {},
+      "OutputPorts": {}
+    },
+    {
+      "Name": "history",
+      "Display": "\u5386\u53F2",
+      "Color": "#673AB7",
+      "Icon": null,
+      "SortWeight": 0,
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 21,
+      "InputPorts": {},
+      "OutputPorts": {}
+    }
   ],
   "Edges": [
-    { "Name": "Dependency", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u4F9D\u8D56", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 25 },
-    { "Name": "Includes", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u5305\u542B", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 26 },
-    { "Name": "Uses", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u4F7F\u7528", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 27 },
-    { "Name": "Extends", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u6269\u5C55", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 28 },
-    { "Name": "Requires", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u8981\u6C42", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 29 },
-    { "Name": "Other", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u5176\u4ED6", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 30 },
-    { "Name": "node_to_node", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u8282\u70B9\u6570\u636E\u6D41", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 31 },
-    { "Name": "keymapping_to_node", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u952E\u6620\u5C04\u5F52\u5C5E", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 32 },
-    { "Name": "Calls", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u63A7\u5236\u6D41\u8C03\u7528", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 33 },
-    { "Name": "Owns", "Source": "any", "Target": "any", "Strength": 1, "Display": "\u5DE5\u4F5C\u6D41\u5305\u542B", "Version": 1, "Deprecated": false, "ReplacedBy": null, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 34 }
+    {
+      "Name": "Dependency",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u4F9D\u8D56",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 27
+    },
+    {
+      "Name": "Includes",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u5305\u542B",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 28
+    },
+    {
+      "Name": "Uses",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u4F7F\u7528",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 29
+    },
+    {
+      "Name": "Extends",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u6269\u5C55",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 30
+    },
+    {
+      "Name": "Requires",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u8981\u6C42",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 31
+    },
+    {
+      "Name": "Other",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u5176\u4ED6",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 32
+    },
+    {
+      "Name": "node_to_node",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u8282\u70B9\u6570\u636E\u6D41",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 33
+    },
+    {
+      "Name": "keymapping_to_node",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u952E\u6620\u5C04\u5F52\u5C5E",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 34
+    },
+    {
+      "Name": "Calls",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u63A7\u5236\u6D41\u8C03\u7528",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 35
+    },
+    {
+      "Name": "Owns",
+      "Source": "any",
+      "Target": "any",
+      "Strength": 1,
+      "Display": "\u5DE5\u4F5C\u6D41\u5305\u542B",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 36
+    },
+    {
+      "Name": "cross_db_link",
+      "Source": "task",
+      "Target": "node",
+      "Strength": 1,
+      "Display": "\u4EFB\u52A1\u8282\u70B9\u5F52\u5C5E",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 37
+    },
+    {
+      "Name": "session_owns",
+      "Source": "session",
+      "Target": "node",
+      "Strength": 1,
+      "Display": "\u4F1A\u8BDD\u56FE\u6302\u8F7D",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 38
+    },
+    {
+      "Name": "task_owns_task",
+      "Source": "task",
+      "Target": "task",
+      "Strength": 1,
+      "Display": "\u4EFB\u52A1\u6811\u5F52\u5C5E",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 39
+    },
+    {
+      "Name": "history_owns_task",
+      "Source": "history",
+      "Target": "task",
+      "Strength": 1,
+      "Display": "\u5386\u53F2\u5F52\u62E2\u4EFB\u52A1",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 40
+    },
+    {
+      "Name": "history_owns_node",
+      "Source": "history",
+      "Target": "node",
+      "Strength": 1,
+      "Display": "\u5386\u53F2\u6302\u8F7D\u8282\u70B9",
+      "Version": 1,
+      "Deprecated": true,
+      "ReplacedBy": "cross_db_link",
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 41
+    },
+    {
+      "Name": "Exports",
+      "Source": "workflow",
+      "Target": "node",
+      "Strength": 1,
+      "Display": "\u8DE8\u5DE5\u4F5C\u6D41\u5BFC\u51FA",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 42
+    },
+    {
+      "Name": "Inherits",
+      "Source": "workflow",
+      "Target": "workflow",
+      "Strength": 1,
+      "Display": "\u5DE5\u4F5C\u6D41\u6A21\u677F\u7EE7\u627F",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 43
+    },
+    {
+      "Name": "Implements",
+      "Source": "workflow",
+      "Target": "resource",
+      "Strength": 1,
+      "Display": "\u7AEF\u53E3\u5951\u7EA6\u5B9E\u73B0",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 44
+    },
+    {
+      "Name": "DependsOn",
+      "Source": "workflow",
+      "Target": "resource",
+      "Strength": 1,
+      "Display": "\u7F16\u8BD1\u671F\u4F9D\u8D56",
+      "Version": 1,
+      "Deprecated": false,
+      "ReplacedBy": null,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 45
+    }
   ],
   "Constraints": [
-    { "Edge": "Dependency", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 40 },
-    { "Edge": "Includes", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 41 },
-    { "Edge": "Uses", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 42 },
-    { "Edge": "Extends", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 43 },
-    { "Edge": "Requires", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 44 },
-    { "Edge": "Other", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 45 },
-    { "Edge": "node_to_node", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 46 },
-    { "Edge": "keymapping_to_node", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 47 },
-    { "Edge": "Calls", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 48 },
-    { "Edge": "Owns", "SrcType": "any", "TgtTypes": [ "any" ], "MaxCount": null, "Unbounded": true, "SourceFile": "D:\\Project\\Program\\WorkFlowPrj\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md", "LineNumber": 49 }
+    {
+      "Edge": "Dependency",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 51
+    },
+    {
+      "Edge": "Includes",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 52
+    },
+    {
+      "Edge": "Uses",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 53
+    },
+    {
+      "Edge": "Extends",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 54
+    },
+    {
+      "Edge": "Requires",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 55
+    },
+    {
+      "Edge": "Other",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 56
+    },
+    {
+      "Edge": "node_to_node",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 57
+    },
+    {
+      "Edge": "keymapping_to_node",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 58
+    },
+    {
+      "Edge": "Calls",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 59
+    },
+    {
+      "Edge": "Owns",
+      "SrcType": "any",
+      "TgtTypes": [
+        "any"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 60
+    },
+    {
+      "Edge": "cross_db_link",
+      "SrcType": "task",
+      "TgtTypes": [
+        "node"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 61
+    },
+    {
+      "Edge": "session_owns",
+      "SrcType": "session",
+      "TgtTypes": [
+        "node"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 62
+    },
+    {
+      "Edge": "task_owns_task",
+      "SrcType": "task",
+      "TgtTypes": [
+        "task"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 63
+    },
+    {
+      "Edge": "history_owns_task",
+      "SrcType": "history",
+      "TgtTypes": [
+        "task"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 64
+    },
+    {
+      "Edge": "history_owns_node",
+      "SrcType": "history",
+      "TgtTypes": [
+        "node"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 65
+    },
+    {
+      "Edge": "Exports",
+      "SrcType": "workflow",
+      "TgtTypes": [
+        "node"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 66
+    },
+    {
+      "Edge": "Inherits",
+      "SrcType": "workflow",
+      "TgtTypes": [
+        "workflow"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 67
+    },
+    {
+      "Edge": "Implements",
+      "SrcType": "workflow",
+      "TgtTypes": [
+        "resource"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 68
+    },
+    {
+      "Edge": "DependsOn",
+      "SrcType": "workflow",
+      "TgtTypes": [
+        "resource"
+      ],
+      "MaxCount": null,
+      "Unbounded": true,
+      "SourceFile": "D:\\Project\\Main\\Frame\\CsharpPrj\\Operation\\DataStoreDriven\\ReferenceSchema\\reference-schema.dsl.md",
+      "LineNumber": 69
+    }
   ]
 }

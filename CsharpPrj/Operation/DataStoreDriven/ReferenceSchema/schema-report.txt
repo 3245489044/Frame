@@ -1,29 +1,49 @@
-﻿# 引用 Schema 映射报告（纯编译产物，源: D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md
+﻿# 引用 Schema 映射报告（纯编译产物，源: D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md）
 # Version: 1.0
-Node	workflow	工作流	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:13
-Node	module	模块	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:14
-Node	resource	资源	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:15
-Node	checkpoint	检查点	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:16
-Node	node	节点	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:17
-Node	task	任务	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:18
-Node	keymapping	键映射	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:19
-Edge	Dependency	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:25
-Edge	Includes	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:26
-Edge	Uses	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:27
-Edge	Extends	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:28
-Edge	Requires	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:29
-Edge	Other	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:30
-Edge	node_to_node	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:31
-Edge	keymapping_to_node	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:32
-Edge	Calls	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:33
-Edge	Owns	src=any	tgt=any	strength=1	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:34
-Constraint	Dependency	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:40
-Constraint	Includes	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:41
-Constraint	Uses	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:42
-Constraint	Extends	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:43
-Constraint	Requires	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:44
-Constraint	Other	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:45
-Constraint	node_to_node	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:46
-Constraint	keymapping_to_node	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:47
-Constraint	Calls	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:48
-Constraint	Owns	srcType=any	tgtTypes=any	D:\Project\Program\WorkFlowPrj\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:49
+Node	workflow	工作流	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:13
+Node	module	模块	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:14
+Node	resource	资源	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:15
+Node	checkpoint	检查点	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:16
+Node	node	节点	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:17
+Node	task	任务	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:18
+Node	keymapping	键映射	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:19
+Node	session	会话	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:20
+Node	history	历史	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:21
+Edge	Dependency	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:27
+Edge	Includes	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:28
+Edge	Uses	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:29
+Edge	Extends	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:30
+Edge	Requires	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:31
+Edge	Other	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:32
+Edge	node_to_node	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:33
+Edge	keymapping_to_node	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:34
+Edge	Calls	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:35
+Edge	Owns	src=any	tgt=any	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:36
+Edge	cross_db_link	src=task	tgt=node	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:37
+Edge	session_owns	src=session	tgt=node	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:38
+Edge	task_owns_task	src=task	tgt=task	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:39
+Edge	history_owns_task	src=history	tgt=task	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:40
+Edge	history_owns_node	src=history	tgt=node	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:41	dep
+Edge	Exports	src=workflow	tgt=node	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:42
+Edge	Inherits	src=workflow	tgt=workflow	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:43
+Edge	Implements	src=workflow	tgt=resource	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:44
+Edge	DependsOn	src=workflow	tgt=resource	strength=1	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:45
+Constraint	Dependency	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:51
+Constraint	Includes	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:52
+Constraint	Uses	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:53
+Constraint	Extends	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:54
+Constraint	Requires	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:55
+Constraint	Other	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:56
+Constraint	node_to_node	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:57
+Constraint	keymapping_to_node	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:58
+Constraint	Calls	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:59
+Constraint	Owns	srcType=any	tgtTypes=any	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:60
+Constraint	cross_db_link	srcType=task	tgtTypes=node	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:61
+Constraint	session_owns	srcType=session	tgtTypes=node	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:62
+Constraint	task_owns_task	srcType=task	tgtTypes=task	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:63
+Constraint	history_owns_task	srcType=history	tgtTypes=task	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:64
+Constraint	history_owns_node	srcType=history	tgtTypes=node	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:65
+Constraint	Exports	srcType=workflow	tgtTypes=node	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:66
+Constraint	Inherits	srcType=workflow	tgtTypes=workflow	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:67
+Constraint	Implements	srcType=workflow	tgtTypes=resource	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:68
+Constraint	DependsOn	srcType=workflow	tgtTypes=resource	D:\Project\Main\Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md:69

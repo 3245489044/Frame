@@ -24,9 +24,10 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
     {
         private const string DefaultResourceType = "node";
 
-        // 任务 → 关联节点 的归属边类型。注意：与 ReferenceTypes.NodeToNode（节点↔节点端口数据流组合边）语义不同，
-        // 虽字符串同值但用途各异，勿据此与端口流边混用/合并查询（避免图边语义碰撞）。
-        private const string TaskToNodeRefType = "node_to_node";
+        // 任务 → 关联节点 的归属边类型（A1：字面量唯一源 = ReferenceTypes，不再本地写字面量）。
+        // 注意：与 ReferenceTypes.NodeToNode（节点↔节点端口数据流组合边）**语义不同**（虽字符串同值），
+        // 勿据此与端口流边混用/合并查询（避免图边语义碰撞）。
+        private const string TaskToNodeRefType = ReferenceTypes.NodeToNode;
 
         private readonly ITaskGraphTaskStore? _taskPool;
         private readonly IResourceReferenceStore? _resources;
@@ -49,7 +50,8 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
 
         /// <summary>
         /// 创建任务 + 关联节点 + 引用边（复合顺序编排）。顺序：写任务节点 + 关联节点（幂等）→ 建引用边
-        /// （<see cref="IResourceReferenceStore.AddReferenceAsync"/> 端点缺失时由存储侧 fail-fast 抛错）→ 入队任务。
+        /// （<see cref="IResourceReferenceStore.AddReferenceAsync"/> 端点为 SQL 实体，存在性由 SQL 写透时序保证，
+        /// 协调器不 fail-fast 校验端点）→ 入队任务。
         /// 失败语义：节点/引用边失败**不回滚**，仅逐条记入 <see cref="TaskGraphResult.Diagnostics"/>（已完成节点保留）；
         /// 未装配任务端口时入队返回 -1 并记诊断。调用方须据 Diagnostics 判定部分成功，不可假定整体原子。
         /// </summary>
@@ -201,7 +203,8 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             }
             try
             {
-                // fail-fast（StructuralGrounding）：端点节点不存在时抛 InvalidOperationException，由调用方整体回滚。
+                // 端点为 SQL 实体（ur_tasks / ur_nodes），存在性由 SQL 写透时序保证 ⇒ 协调器不校验端点；
+                // 守卫 StructuralGrounding 管的是归属边准入，不是端点存在性。
                 await _resources.AddReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, edge.Strength, ct).ConfigureAwait(false);
             }
             catch (Exception ex)

@@ -63,9 +63,17 @@ function Get-UsharInportTokens {
 }
 
 function Test-InportsRegistered {
-    param([string]$UsharPath, [hashtable]$ValueToName, [System.Collections.Generic.HashSet[string]]$SeedNames)
+    param(
+        [string]$UsharPath,
+        [hashtable]$ValueToName,
+        [System.Collections.Generic.HashSet[string]]$SeedNames,
+        # 收集式输入端口白名单（**逐字** token；缺省空 = 全部须登记）：token 是「收集端口位置」标记而非键值，
+        # 故豁免 RoundKeys / CompatSeedKeys 对账；**仅**对收集端口位置生效（其余 inports 仍须登记）。
+        [string[]]$CollectTokens = @()
+    )
     $bad = [System.Collections.Generic.List[string]]::new()
     foreach ($token in (Get-UsharInportTokens -Path $UsharPath)) {
+        if ($CollectTokens -contains $token) { continue }
         if (-not $ValueToName.ContainsKey($token)) { $bad.Add("$token（RoundKeys 无此键值）"); continue }
         if (-not $SeedNames.Contains($ValueToName[$token])) { $bad.Add("$token（CompatSeedKeys 未登记 $($ValueToName[$token])）") }
     }

@@ -9,12 +9,13 @@
 
     扫描面：
       Projects\Plug\Agent\Config\nodes\hierarchy-refs.ushar      （声明面：边类型集 + 逐条 [Ref]）
-      Frame\CsharpPrj\...\Abstractions\CrossDbReferenceTypes.cs  （边类型常量单源）
+      Frame\CsharpPrj\...\Abstractions\ReferenceTypes.cs            （边类型常量唯一字面量源，A1）
       Frame\CsharpPrj\...\Core\ReferenceGrounding.cs             （写边唯一 owner 实测）
 
     判据：
       E1 闸A 编译：声明面经 Usharp.Cli build ⇒ 错误 0（未声明坐标 / 悬空引用 / 形状非法即拦）
-      E2 边类型集合**双向对账**：声明 `edge=` 集 ⇄ 代码实测用到集（`CrossDbReferenceTypes` 常量值映射）
+      E2 边类型集合**双向对账**：声明 `edge=` 集 ⇄ 代码实测用到集（唯一字面量源 `ReferenceTypes` 常量值映射；
+                           `CrossDbReferenceTypes` 已退化为别名门面，不再承载字面量）
                            E2a 声明 ⊆ 代码（无死声明：声明的边必须有实现）
                            E2b 代码 ⊆ 声明（无未声明边：实现的边必须声明；对齐 W-1 / W-3）
       E2c 退役常量债务基线（只减不增）：`HistoryOwnsNode` 写用法 ≤ 基线（退役 = 清理存留写点后删本行）
@@ -55,7 +56,9 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 # ---------------- 基线（只减不增；变更须给出理由并同步本表） ----------------
 $declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\hierarchy-refs.ushar'
-$constsFile      = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Abstractions\CrossDbReferenceTypes.cs'
+# 边类型常量**唯一字面量源**（A1）：`ReferenceTypes` 承载字面量；`CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
+#   `NodeResourceTypes` / LoopFoldMethod.Reference.Model.ReferenceTypes 均为其别名门面（const 转发，无字面量）。
+$constsFile      = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Abstractions\ReferenceTypes.cs'
 $groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\ReferenceGrounding.cs'
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'

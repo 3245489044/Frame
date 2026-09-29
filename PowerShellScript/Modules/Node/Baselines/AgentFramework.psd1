@@ -64,4 +64,10 @@
 
     # D6 正对照：扫描面最小命中数（全 0 = 扫描面失效，非「零违规」）
     ScanSurfaceMinHits = 1
+
+    # D10 上下文组装组合点基线（只减不增；口径见 Check-AgentFrameworkSingleSource.ps1 D10）：
+    #     Scope A（node/task/history 读组装）内「归属边枚举（GetTaskNodeKeysAsync）+ 节点输出逐键读（TryGetNodeOutputAsync）」
+    #     **组合**的文件数。单一实现 = Agent.Session\Context\ContextProjection.cs（S1 收口；S5 后该组合可整体退役为
+    #     声明流 context-projection，届时下调至 0）。
+    ContextAssemblyComboBaseline = 1
 }

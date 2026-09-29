@@ -84,7 +84,21 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeHierarchyRefs.ps1'
         Expect = 0
-        Note   = '节点层级引用声明守卫 E1–E5（W1：归属边事实只在声明面）：闸A 0 错 / 边类型集合双向对账（声明 ⇄ CrossDbReferenceTypes 实测用到集）/ 退役常量写用法债务只减不增（HistoryOwnsNode）/ [Ref] 字段白名单（禁未注册字段：静默忽略 ⇒ 假声明）/ 正对照 + 负对照（`loc=` 必须被字段判据命中，且闸A 对其 0 错）'
+        Note   = '节点层级引用声明守卫 E1–E5（W1：归属边事实只在声明面）：闸A 0 错 / 边类型集合双向对账（声明 ⇄ 唯一字面量源 ReferenceTypes 实测用到集；CrossDbReferenceTypes 已退化为别名门面）/ 退役常量写用法债务只减不增（HistoryOwnsNode）/ [Ref] 字段白名单（禁未注册字段：静默忽略 ⇒ 假声明）/ 正对照 + 负对照（`loc=` 必须被字段判据命中，且闸A 对其 0 错）'
+    }
+
+    ReferenceVocabulary = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1'
+        Expect = 0
+        Note   = '引用关系词汇守卫 A1（C1–C4）：边类型/端点类型字面量只住唯一源 ReferenceTypes.cs（其余常量类只做别名转发）/ 零依赖层豁免（ScopeFramework·DeclarativeDataflow，只减不增）/ 正对照（单源命中 ≥ 基线）/ 负对照（合成字面量必须被同一判据命中）'
+    }
+
+    ReferenceExclusion = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1'
+        Expect = 0
+        Note   = '引用框架禁引守卫 B5（C1–C3）：UR 只引「词表 DSL + 图算法只读服务 + 资源模型」—— WorkflowExecutor / IWorkflowExecutor / IUniversalReferenceManager（Agent 面）/ Reference.Relationship / BranchManagement 在两扫描面 0 命中；正对照（适配器面须命中 IUniversalReferenceManager）+ 负对照（合成禁引必报）'
     }
 
     NodeCollectPort = @{

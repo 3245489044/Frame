@@ -23,8 +23,8 @@ namespace Operation.DataStoreDriven.Abstractions
 
         public RelationEndpoint Target { get; init; } = new();
 
-        /// <summary>关系类型：node_to_node | keymapping_to_node | 自定义。</summary>
-        public string RefType { get; init; } = "node_to_node";
+        /// <summary>关系类型：node_to_node | keymapping_to_node | 自定义。默认 = <see cref="ReferenceTypes.NodeToNode"/>（A1：唯一字面量源）。</summary>
+        public string RefType { get; init; } = ReferenceTypes.NodeToNode;
 
         /// <summary>关联的 KeyMapping 存储键（keymapping_to_node 时填充；指向节点库承载的分类键）。</summary>
         public string? KeyMappingRef { get; init; }

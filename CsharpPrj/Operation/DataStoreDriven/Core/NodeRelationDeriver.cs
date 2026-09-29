@@ -203,12 +203,12 @@ public static class NodeRelationDeriver
 
     private static NodeRelationType ResolveRelationType(string refType)
     {
-        if (string.Equals(refType, "keymapping_to_node", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(refType, ReferenceTypes.KeyMappingToNode, StringComparison.OrdinalIgnoreCase))
             return NodeRelationType.KeyMappingToNode;
         // 空白类型按默认 NodeToNode（兼容存量声明）；非空未知类型 fail-fast，不再静默降级 NodeToNode（对齐 UniversalReference 注册表校验）。
-        if (string.IsNullOrWhiteSpace(refType) || string.Equals(refType, "node_to_node", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(refType) || string.Equals(refType, ReferenceTypes.NodeToNode, StringComparison.OrdinalIgnoreCase))
             return NodeRelationType.NodeToNode;
-        throw new InvalidOperationException($"未知的引用类型 '{refType}'（声明边仅支持 keymapping_to_node / node_to_node）。");
+        throw new InvalidOperationException($"未知的引用类型 '{refType}'（声明边仅支持 {ReferenceTypes.KeyMappingToNode} / {ReferenceTypes.NodeToNode}）。");
     }
 
 }

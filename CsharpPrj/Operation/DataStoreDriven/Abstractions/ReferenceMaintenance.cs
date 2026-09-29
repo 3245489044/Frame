@@ -18,6 +18,20 @@ namespace Operation.DataStoreDriven.Abstractions
     }
 
     /// <summary>
+    /// 图对账差异报告（A5）—— 维护面 <c>graph.maintain=diff</c> 的判据载荷：
+    /// 差异计数（悬空端点数）+ 本次对账处理节点数。差异计数登记入门禁基线（只减不增）。
+    /// </summary>
+    /// <param name="DanglingNodeResources">图库中无对应业务节点的悬空 node 资源 Id（仅报告，不自动删除，防级联误删）。</param>
+    /// <param name="ReconciledNodes">本次对账处理的业务节点数（携带关系状态并已收敛）。</param>
+    public sealed record GraphMaintenanceDiff(
+        IReadOnlyList<string> DanglingNodeResources,
+        int ReconciledNodes)
+    {
+        /// <summary>差异计数（悬空端点数；0 = 图与 SQL 权威一致）。</summary>
+        public int DanglingCount => DanglingNodeResources.Count;
+    }
+
+    /// <summary>
     /// 引用关系维护守卫（唯一守卫入口，对齐 SingleImplementation / TH-12）。
     /// 业务/执行/UI/声明/存储桥一律经本端口写入引用层；本守卫只负责「何时写 / 推导出哪些边 / 对账编排」，
     /// 写边原语仍在 <c>ReferenceGraphCoordinator</c>（纯执行者，本守卫不复制写边逻辑）。
@@ -104,5 +118,12 @@ namespace Operation.DataStoreDriven.Abstractions
 
         /// <summary>全量重建：清空图库 → 从 SQL 权威重建（业务节点镜像 + task 镜像 + 声明关系边 + 执行推导边），幂等可重复。</summary>
         Task RebuildAllAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// 图对账差异报告（A5，维护面 <c>graph.maintain=diff</c>）：先全量对账收敛（图 ← SQL 权威），
+        /// 再报告「悬空端点」（图有 SQL 无）与本次对账节点数。返回差异计数即「只减不增」判据的载体；
+        /// 未装配节点库 ⇒ <see cref="GraphMaintenanceDiff.ReconciledNodes"/> = 0 且空差异（不越权判定）。
+        /// </summary>
+        Task<GraphMaintenanceDiff> GetDiffAsync(CancellationToken ct = default);
     }
 }

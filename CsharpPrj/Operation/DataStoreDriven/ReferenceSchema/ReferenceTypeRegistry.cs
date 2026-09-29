@@ -34,6 +34,27 @@ public sealed class ReferenceTypeRegistry : IReferenceTypeRegistry
     public static ReferenceTypeRegistry LoadFromJson(string json)
         => new(JsonSerializer.Deserialize<Plate.DslMethod.Schema.ReferenceSchema>(json)!);
 
+    /// <summary>本程序集内嵌的编译产物**资源名后缀**（唯一 ⇒ 免硬编码完整清单名）。</summary>
+    public const string EmbeddedResourceSuffix = "reference-schema.generated.json";
+
+    /// <summary>
+    /// 从**程序集内嵌资源**加载编译产物（B3 词表武装）：生产路径不依赖仓库文件路径 ——
+    /// 产物经 <c>DataStoreDriven.csproj</c> 的 <c>EmbeddedResource</c> 随本程序集烘焙/分发。
+    /// </summary>
+    /// <returns>未内嵌（构建配置缺 EmbeddedResource）⇒ <c>null</c>（调用方按「未装配」可见化，禁静默）。</returns>
+    public static ReferenceTypeRegistry? LoadFromEmbeddedResource()
+    {
+        var assembly = typeof(ReferenceTypeRegistry).Assembly;
+        var name = assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith(EmbeddedResourceSuffix, StringComparison.OrdinalIgnoreCase));
+        if (name is null) return null;
+
+        using var stream = assembly.GetManifestResourceStream(name);
+        if (stream is null) return null;
+        using var reader = new StreamReader(stream);
+        return LoadFromJson(reader.ReadToEnd());
+    }
+
     public bool IsDeclared(string edgeName)
         => _edges.ContainsKey(edgeName);
 

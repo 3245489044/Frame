@@ -8,6 +8,7 @@ using GraphFoundation.Core;
 using LiteDB;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Configuration;
+using Operation.DataStoreDriven.ReferenceSchema;
 
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
@@ -36,6 +37,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private readonly Dictionary<string, Resource> _endpoints;             // 会话内存端点注册表（由 ur_endpoints + 边重建）
     private readonly Dictionary<string, string> _typeById;                // "{type}:{id}" -> key（端点 O(1) 查找；对齐 GetUniqueKey）
     private readonly SemaphoreSlim _gate = new(1, 1);                     // 单写
+    // 词表武装（B3）：写边前校验边类型是否在词表 DSL 声明（未装配 ⇒ 不校验，零回归）。
+    private readonly IReferenceTypeRegistry? _vocabulary;
+    private readonly ReferenceVocabularyGate _vocabularyGate;
+    private readonly IReferenceEdgeDiagnostics _edgeDiagnostics;
     private bool _initialized;
     private int _disposed;
 
@@ -43,7 +48,11 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
     private const string EdgeKeySeparator = "::";
 
-    private ReferenceGraphCoordinator(LiteDatabase db, string edgesCollection, string endpointsCollection)
+    private ReferenceGraphCoordinator(
+        LiteDatabase db, string edgesCollection, string endpointsCollection,
+        IReferenceTypeRegistry? vocabulary = null,
+        ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
+        IReferenceEdgeDiagnostics? edgeDiagnostics = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _edges = _db.GetCollection<BsonDocument>(edgesCollection);
@@ -51,10 +60,23 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _graph = new CoreGraph<string, Resource, ReferenceEdgeData>();
         _endpoints = new Dictionary<string, Resource>(StringComparer.Ordinal);
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
+        _vocabulary = vocabulary;
+        _vocabularyGate = vocabularyGate;
+        _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
     }
 
     /// <summary>组合根工厂：建目录 → 自开自持 LiteDatabase → 载入持久端点 + 边重建内存邻接。失败则释放回滚。</summary>
-    public static ReferenceGraphCoordinator CreateAsync(string databasePath, string tablePrefix = "ur_", CancellationToken ct = default)
+    /// <param name="databasePath">LiteDB 图库路径。</param>
+    /// <param name="tablePrefix">表名前缀。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="vocabulary">词表 DSL 投影（可空 = 未装配 ⇒ 不做词表校验，行为与引入前逐字一致）。</param>
+    /// <param name="vocabularyGate">词表校验姿态（缺省报告模式；切拒绝模式须待 DSL 覆盖 ⊇ 实际边集）。</param>
+    /// <param name="edgeDiagnostics">可见化出口（缺省静默；拒绝模式装配时应同时给出口）。</param>
+    public static ReferenceGraphCoordinator CreateAsync(
+        string databasePath, string tablePrefix = "ur_", CancellationToken ct = default,
+        IReferenceTypeRegistry? vocabulary = null,
+        ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
+        IReferenceEdgeDiagnostics? edgeDiagnostics = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         var prefix = PersistenceHelper.ResolveTablePrefix(tablePrefix);
@@ -68,7 +90,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         };
         var conn = PersistenceHelper.BuildConnectionString(PersistenceProvider.LiteDB, options, null);
         var db = new LiteDatabase(conn);
-        var coordinator = new ReferenceGraphCoordinator(db, prefix + TableNames.References, prefix + TableNames.Endpoints);
+        var coordinator = new ReferenceGraphCoordinator(
+            db, prefix + TableNames.References, prefix + TableNames.Endpoints,
+            vocabulary, vocabularyGate, edgeDiagnostics);
         try
         {
             coordinator.Initialize();
@@ -79,6 +103,35 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             coordinator.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// 把 refType 归一为**词表边名**（B3）：节点关系边形如 <c>node_to_node:{from}&gt;{to}?km=…</c>
+    /// 带端口/km 后缀 ⇒ 词表查名须取前缀；其余（归属边 / 工作流静态边）为裸类型名，原样返回。
+    /// </summary>
+    private static string ResolveEdgeName(string refType)
+    {
+        if (refType.StartsWith(ReferenceTypes.NodeToNode, StringComparison.Ordinal)) return ReferenceTypes.NodeToNode;
+        if (refType.StartsWith(ReferenceTypes.KeyMappingToNode, StringComparison.Ordinal)) return ReferenceTypes.KeyMappingToNode;
+        return refType;
+    }
+
+    /// <summary>词表准入判定（B3）：未装配词表 ⇒ 放行；已废弃 ⇒ 恒拒（禁新增引用）；未声明 ⇒ 按姿态放行/拒写 + 可见化。</summary>
+    /// <returns>true = 放行写边；false = 拒写（归因已经诊断出口可见化）。</returns>
+    private bool AllowByVocabulary(string refType, string subject)
+    {
+        if (_vocabulary is null) return true;
+
+        var edgeName = ResolveEdgeName(refType);
+        if (_vocabulary.IsDeprecated(edgeName))
+        {
+            _edgeDiagnostics.EdgeUndeclared($"{edgeName}(deprecated)", subject);
+            return false; // 废弃边恒拒（两种姿态同判；对齐 UniversalReference 适配器的「废弃类型拒绝」）
+        }
+        if (_vocabulary.IsDeclared(edgeName)) return true;
+
+        _edgeDiagnostics.EdgeUndeclared(edgeName, subject);
+        return _vocabularyGate == ReferenceVocabularyGate.Report;
     }
 
     private void Initialize()
@@ -201,6 +254,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var sourceKey = sourceId.GetUniqueKey();
         var targetKey = targetId.GetUniqueKey();
 
+        // 词表准入（B3）：未声明边类型按姿态处置（报告模式放行 + 可见化 / 拒绝模式拒写）；已废弃恒拒（禁静默建边）。
+        if (!AllowByVocabulary(refType, sourceKey)) return Task.CompletedTask;
+
         // LiteDB 只维护关系（task/node 引用边），端点是 SQL 实体（ur_tasks / ur_nodes），存在性由 SQL 写透时序保证；
         // 故协调器不在此 fail-fast 校验端点，直接接受任意端点键（避免关系推导路径对未显式注册的上游端点抛错）。
         return MutateAsync(ct, () =>
@@ -272,41 +328,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     }
 
 
-    // ---- INodeRelationStore（refType 端口/km 编解码，收拢原 GraphNodeRelationStore 职责）----
-
-    private static class Ref
-    {
-        public const string KeyMappingToNode = "keymapping_to_node";
-        public const string NodeToNode = "node_to_node";
-
-        public static string Encode(NodeRelation r) => r.Type switch
-        {
-            NodeRelationType.NodeToNode =>
-                $"{NodeToNode}:{r.SourcePort ?? string.Empty}>{r.TargetPort ?? string.Empty}" +
-                (r.KeyMappingRef is null ? string.Empty : $"?km={r.KeyMappingRef}"),
-            NodeRelationType.KeyMappingToNode => KeyMappingToNode,
-            _ => throw new ArgumentOutOfRangeException(nameof(r), r.Type, "未知节点关系类别"),
-        };
-
-        public static (string? FromPort, string? ToPort, string? KeyMappingRef) ParseNodeToNode(string refType)
-        {
-            if (!refType.StartsWith(NodeToNode, StringComparison.Ordinal)) return (null, null, null);
-            var body = refType.Substring(NodeToNode.Length).TrimStart(':');
-            string? km = null;
-            var qIdx = body.IndexOf('?');
-            if (qIdx >= 0)
-            {
-                var q = body.Substring(qIdx + 1);
-                body = body.Substring(0, qIdx);
-                if (q.StartsWith("km=", StringComparison.Ordinal)) km = q.Substring(3);
-            }
-            var gIdx = body.IndexOf('>');
-            if (gIdx < 0) return (null, null, km);
-            return (Body(body.Substring(0, gIdx)), Body(body.Substring(gIdx + 1)), km);
-        }
-
-        private static string? Body(string s) => string.IsNullOrEmpty(s) ? null : s;
-    }
+    // ---- INodeRelationStore（refType 端口/km 编解码唯一实现 = NodeRelationRefCodec，A2 上移公开）----
 
     public Task EnsureNodeAsync(string workflowId, string nodeKey, string? symbol = null,
         IReadOnlyDictionary<string, object>? metadata = null, CancellationToken ct = default)
@@ -321,7 +343,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         ArgumentNullException.ThrowIfNull(relation);
         var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = workflowId };
         var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = workflowId };
-        return AddReferenceAsync(src, tgt, Ref.Encode(relation), relation.Strength, ct);
+        return AddReferenceAsync(src, tgt, NodeRelationRefCodec.Encode(relation), relation.Strength, ct);
     }
 
     public Task RemoveRelationAsync(string workflowId, NodeRelation relation, CancellationToken ct = default)
@@ -329,7 +351,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         ArgumentNullException.ThrowIfNull(relation);
         var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = workflowId };
         var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = workflowId };
-        return RemoveReferenceAsync(src, tgt, Ref.Encode(relation), ct);
+        return RemoveReferenceAsync(src, tgt, NodeRelationRefCodec.Encode(relation), ct);
     }
 
 
@@ -353,7 +375,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             if (type is { } t && parsed.Value != t) continue;
             if (parsed == NodeRelationType.NodeToNode)
             {
-                var (fromPort, toPort, km) = Ref.ParseNodeToNode(r.RefType);
+                var (fromPort, toPort, km) = NodeRelationRefCodec.ParseNodeToNode(r.RefType);
                 result.Add(new NodeRelation
                 {
                     Type = parsed.Value,
@@ -437,7 +459,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     internal static string RelationKey(NodeRelation r)
         => $"{r.Type}|{r.SourceResourceType}|{r.SourceId}|{r.SourcePort}|{r.TargetResourceType}|{r.TargetId}|{r.TargetPort}|{r.KeyMappingRef}";
 
-    /// <summary>task 写透：注册 task 端点（内存）+ 与关联节点建 task→node 边（缺省 node_to_node）。幂等。
+    /// <summary>task 写透：注册 task 端点（内存）+ 与关联节点建 task→node 边（缺省 <see cref="ReferenceTypes.NodeToNode"/>）。幂等。
     /// 不整段包外层门锁：内层 AddResource/AddReference 各自经 <see cref="MutateAsync"/> 串行取门锁，避免「持锁内同步重入 SemaphoreSlim」自死锁。</summary>
     public async Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
         string workflowId = "", CancellationToken ct = default)
@@ -450,7 +472,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             if (string.IsNullOrWhiteSpace(nodeKey) || string.Equals(nodeKey, taskKey, StringComparison.Ordinal)) continue;
             var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
             await AddResourceAsync(nodeId, symbol: nodeKey, ct: ct).ConfigureAwait(false);
-            await AddReferenceAsync(taskId, nodeId, "node_to_node", 1.0, ct).ConfigureAwait(false);
+            await AddReferenceAsync(taskId, nodeId, ReferenceTypes.NodeToNode, 1.0, ct).ConfigureAwait(false);
         }
     }
 
@@ -644,12 +666,12 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     private static NodeRelationType? ParseNodeRelationType(string refType)
     {
-        if (refType.StartsWith(Ref.KeyMappingToNode, StringComparison.Ordinal)) return NodeRelationType.KeyMappingToNode;
-        if (refType.StartsWith(Ref.NodeToNode, StringComparison.Ordinal)) return NodeRelationType.NodeToNode;
+        if (refType.StartsWith(ReferenceTypes.KeyMappingToNode, StringComparison.Ordinal)) return NodeRelationType.KeyMappingToNode;
+        if (refType.StartsWith(ReferenceTypes.NodeToNode, StringComparison.Ordinal)) return NodeRelationType.NodeToNode;
         return null;
     }
 
-    private static ResourceIdentifier KeyToIdentifier(string key)
+    internal static ResourceIdentifier KeyToIdentifier(string key)
     {
         var i = key.IndexOf(':');
         return i < 0 ? new ResourceIdentifier { Id = key } : new ResourceIdentifier { ResourceType = key.Substring(0, i), Id = key.Substring(i + 1) };

@@ -45,45 +45,51 @@ namespace Operation.DataStoreDriven.Abstractions
         public double Strength { get; init; } = 1.0;
     }
 
-    /// <summary>节点关系端点资源类型常量（资源在引用图中的 ResourceType）。值对齐 <see cref="NodeTypes"/>，避免常量重复定义。</summary>
+    /// <summary>节点关系端点资源类型常量（**别名门面**，A1）：字面量唯一源 = <see cref="ReferenceTypes"/>。
+    /// 值对齐 <see cref="NodeTypes"/>，避免常量重复定义。</summary>
     public static class NodeResourceTypes
     {
-        public const string Node = NodeTypes.Node;
-        public const string KeyMapping = NodeTypes.KeyMapping;
+        /// <summary>节点资源类型。</summary>
+        public const string Node = ReferenceTypes.Node;
 
-        /// <summary>任务资源类型（task 镜像，补全关联缺口；taskKey 作为图资源 Id，对齐 <see cref="NodeTypes"/> 判别）。</summary>
-        public const string Task = "task";
+        /// <summary>键映射资源类型。</summary>
+        public const string KeyMapping = ReferenceTypes.KeyMapping;
 
-        /// <summary>会话根资源类型（方案 C：会话图子图锚点；Id = "session.{name}"，NodeType=session 的图端点镜像）。</summary>
-        public const string Session = "session";
+        /// <summary>任务资源类型（task 镜像，补全关联缺口；taskKey 作为图资源 Id）。</summary>
+        public const string Task = ReferenceTypes.Task;
 
-        /// <summary>历史 class 容器资源类型（History=Task 更上层的容器，归拢多 task 多 node；Id = "history.{historyId}"）。</summary>
-        public const string History = "history";
+        /// <summary>会话根资源类型（方案 C：会话图子图锚点；Id = "session.{name}"）。</summary>
+        public const string Session = ReferenceTypes.Session;
+
+        /// <summary>历史 class 容器资源类型（History=Task 更上层的容器，Id = "history.{historyId}"）。</summary>
+        public const string History = ReferenceTypes.History;
 
         /// <summary>工作流资源类型（工作流控制流/组合边的源端点；Id = workflowId，对齐 DSL [Node] workflow）。</summary>
-        public const string Workflow = "workflow";
+        public const string Workflow = ReferenceTypes.Workflow;
     }
 
-    /// <summary>工作流静态引用类型常量（对齐 DSL <c>[Edge] Calls</c> / <c>[Edge] Owns</c>）。</summary>
+    /// <summary>工作流静态引用类型常量（**别名门面**，A1）：字面量唯一源 = <see cref="ReferenceTypes"/>；
+    /// 对齐 DSL <c>[Edge] Calls</c> / <c>[Edge] Owns</c>。命名说明：<c>DependsOn</c> 为**工作流静态依赖边**类型，
+    /// 与 <c>WritePlanModel.WriteWork.WriteWork.DependsOn</c>（计划内前序依赖 Id 集合，非边类型）无关联。</summary>
     public static class WorkflowReferenceTypes
     {
         /// <summary>控制流：上一步骤调用下一步骤（node → node，按 RoundSpec 主路径线性序）。</summary>
-        public const string Calls = "Calls";
+        public const string Calls = ReferenceTypes.Calls;
 
         /// <summary>组合：工作流包含步骤（workflow → node）。</summary>
-        public const string Owns = "Owns";
+        public const string Owns = ReferenceTypes.Owns;
 
         /// <summary>跨工作流可见性边界（对齐 public 成员）：导出节点对其它工作流可见（workflow → node）。</summary>
-        public const string Exports = "Exports";
+        public const string Exports = ReferenceTypes.Exports;
 
         /// <summary>工作流模板继承（对齐类继承 is-a）：派生工作流 → 基类工作流（workflow → workflow）。</summary>
-        public const string Inherits = "Inherits";
+        public const string Inherits = ReferenceTypes.Inherits;
 
         /// <summary>接口实现（对齐 C# interface）：工作流声明实现某端口契约（workflow → contract）。</summary>
-        public const string Implements = "Implements";
+        public const string Implements = ReferenceTypes.Implements;
 
         /// <summary>编译期依赖（对齐 using）：显式声明上下文依赖（workflow → resource）。</summary>
-        public const string DependsOn = "DependsOn";
+        public const string DependsOn = ReferenceTypes.DependsOn;
     }
 
     /// <summary>

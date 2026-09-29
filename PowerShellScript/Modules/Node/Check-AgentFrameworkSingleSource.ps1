@@ -223,6 +223,29 @@ try {
     Remove-Item -LiteralPath $probe -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# ---------------- D10 上下文组装组合点基线（只减不增） ----------------
+# 口径（S6-c / 组装归流 S1）：Scope A（node/task/history 读组装）路径内「归属边枚举 + 节点输出逐键读」**组合**的
+# 文件数 ≤ 基线。单一实现 = Agent.Session\Context\ContextProjection.cs（S1 已收口；本组合不得再现第二处实现）。
+$comboFiles = [System.Collections.Generic.List[string]]::new()
+foreach ($f in (Get-ChildItem -LiteralPath $agentSrc -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' })) {
+    $hasEnumeration = $false
+    $hasKeyedRead = $false
+    foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+        $t = $line.Trim()
+        if ($t.StartsWith('//') -or $t.StartsWith('/*') -or $t.StartsWith('*')) { continue }
+        if ($line.Contains('GetTaskNodeKeysAsync')) { $hasEnumeration = $true }
+        if ($line.Contains('TryGetNodeOutputAsync')) { $hasKeyedRead = $true }
+    }
+    if ($hasEnumeration -and $hasKeyedRead) { $comboFiles.Add($f.Name) }
+}
+if ($comboFiles.Count -gt $baseline.ContextAssemblyComboBaseline) {
+    $violations.Add("D10 读组装组合点新增：$($comboFiles -join ', ') = $($comboFiles.Count) > 基线 $($baseline.ContextAssemblyComboBaseline)（O-1 触发点收口：只减不增）")
+}
+if ($comboFiles.Count -le 0) {
+    $violations.Add('D10 正对照失效：读组装组合点扫描全 0（扫描面或模式失效？）')
+}
+
 # ---------------- 输出 ----------------
 if ($ShowDetail -or $violations.Count -gt 0) {
     Write-Host ""

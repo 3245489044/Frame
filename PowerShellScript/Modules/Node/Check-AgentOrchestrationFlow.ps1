@@ -102,13 +102,17 @@ $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 $ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
 # 声明面基线（防声明被删而门禁恒绿；变更须同步本表）
-$DeclaredFlowCountBaseline = 14
-$FnConstCountBaseline      = 32
+$DeclaredFlowCountBaseline = 15
+$FnConstCountBaseline      = 33
 # O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 0 处
 # （ERR-5 收口：4 处静默 skip 已改「诊断 + 显式 ∅」，见 ConversationPipeline_spec_missing；新增即违规）
 $SilentSkipBaseline = 0
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
-$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar')
+$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar')
+# E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，
+#   判据族见 Check-NodeCollectPort C1–C5）：该 token 是「收集端口位置」标记，不是键值 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；
+#   非收集位置的 inports 仍须 ∈ RoundKeys ∧ ∈ CompatSeedKeys（本白名单**仅**对收集端口位置生效）。
+$CollectPortTokens = @('nodes.*')
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
@@ -309,7 +313,7 @@ foreach ($file in $InportAuditFiles) {
         continue
     }
     $e10Checked++
-    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames)) {
+    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $CollectPortTokens)) {
         $violations.Add("E10 簿记入参未登记：$file → $bad（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效）")
     }
 }

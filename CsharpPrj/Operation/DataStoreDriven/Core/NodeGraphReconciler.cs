@@ -35,24 +35,12 @@ public sealed class NodeGraphReconciler
         return _grounding.ReconcileAsync(MaintenanceScope.All, ct: ct);
     }
 
-    /// <summary>列出图库中无对应业务节点的悬空 node 资源 Id（I3 悬空分类；仅报告不删除）。</summary>
-    public async Task<IReadOnlyList<string>> ListDanglingGraphNodeResourcesAsync(CancellationToken ct = default)
+    /// <summary>列出图库中无对应业务节点的悬空 node 资源 Id（I3 悬空分类；仅报告不删除，防级联误删）。
+    /// 判定**单一实现**已下沉至 <see cref="ReferenceGrounding.ListDanglingNodeResourcesAsync"/>（A5：差异判据与对账裁决同源）。</summary>
+    public Task<IReadOnlyList<string>> ListDanglingGraphNodeResourcesAsync(CancellationToken ct = default)
     {
-        var resources = await _grounding.Graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
-        var expected = new HashSet<string>(StringComparer.Ordinal);
-        await NodePaging.ForEachAsync(_nodes, NodeTypes.Node, null, (n, _) =>
-        {
-            expected.Add(NodeRelationFactory.NodeId(WorkflowIds.Resolve(n), n.NodeKey));
-            return Task.CompletedTask;
-        }, ct).ConfigureAwait(false);
-
-        var dangling = new List<string>();
-        foreach (var r in resources)
-            if (r is not null
-                && string.Equals(r.Identifier.ResourceType, NodeResourceTypes.Node, StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(r.Identifier.Id)
-                && !expected.Contains(r.Identifier.Id))
-                dangling.Add(r.Identifier.Id);
-        return dangling;
+        // 与 ReconcileAllAsync 同口径：兜底注入本对账器节点库，保证能读到业务节点面。
+        _grounding.NodeStore ??= _nodes;
+        return _grounding.ListDanglingNodeResourcesAsync(ct);
     }
 }

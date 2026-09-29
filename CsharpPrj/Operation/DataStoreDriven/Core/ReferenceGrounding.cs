@@ -61,6 +61,46 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// <summary>兼容读面：暴露为 <see cref="IResourceReferenceStore"/>（对账器/编排器复用）。</summary>
     public IResourceReferenceStore Graph => _graph;
 
+    /// <summary>
+    /// 列出图库中无对应业务节点的**悬空** node 资源 Id（A5 单一实现；原 <c>NodeGraphReconciler</c> 私有实现下沉至此，
+    /// 使「差异判据」与「对账裁决」同源）。仅报告不删除（防级联误删）。未装配节点库 ⇒ 空集。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    public async Task<IReadOnlyList<string>> ListDanglingNodeResourcesAsync(CancellationToken ct = default)
+    {
+        if (NodeStore is null) return Array.Empty<string>();
+
+        var expected = new HashSet<string>(StringComparer.Ordinal);
+        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Node, null, (node, _) =>
+        {
+            expected.Add(NodeRelationFactory.NodeId(WorkflowIds.Resolve(node), node.NodeKey));
+            return Task.CompletedTask;
+        }, ct).ConfigureAwait(false);
+
+        var resources = await Graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
+        var dangling = new List<string>();
+        foreach (var resource in resources)
+        {
+            if (resource is null) continue;
+            if (!string.Equals(resource.Identifier.ResourceType, NodeResourceTypes.Node, StringComparison.Ordinal)) continue;
+            if (string.IsNullOrWhiteSpace(resource.Identifier.Id)) continue;
+            if (!expected.Contains(resource.Identifier.Id)) dangling.Add(resource.Identifier.Id);
+        }
+        return dangling;
+    }
+
+    /// <summary>
+    /// 图对账差异报告（A5）：全量对账收敛（图 ← SQL 权威）→ 列悬空端点 + 回报对账节点数。
+    /// <para>幂等可重复：连跑两次第二次差异 = 0（对账已收敛的判据；门禁基线「只减不增」的运行时 counterpart）。</para>
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    public async Task<GraphMaintenanceDiff> GetDiffAsync(CancellationToken ct = default)
+    {
+        var reconciled = await ReconcileAsync(MaintenanceScope.All, ct: ct).ConfigureAwait(false);
+        var dangling = await ListDanglingNodeResourcesAsync(ct).ConfigureAwait(false);
+        return new GraphMaintenanceDiff(dangling, reconciled);
+    }
+
     // ---- 节点业务实体镜像（wf.node） ----
 
     public Task EnsureNodeMirrorAsync(string workflowId, string nodeKey, string? symbol = null, CancellationToken ct = default)

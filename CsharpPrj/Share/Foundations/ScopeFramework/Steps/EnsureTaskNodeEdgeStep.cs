@@ -41,6 +41,9 @@ internal sealed class EnsureTaskNodeEdgeStep : IStep
                     SourceId = scope.TaskKey,
                     TargetType = "node",
                     TargetId = id,
+                    // 层内自治常量（零依赖豁免，A1）：Share.ScopeFramework 为零项目引用的纯逻辑框架，
+                    // 物理上无法引用唯一源 Operation.DataStoreDriven.Abstractions.ReferenceTypes ⇒ 本层保留字面量，
+                    // 由门禁 Check-ReferenceVocabulary 白名单登记（见其 §零依赖层豁免）。
                     RefType = "node_to_node",
                 });
             }
@@ -57,6 +60,7 @@ internal sealed class EnsureTaskNodeEdgeStep : IStep
             var declarationPayload = new
             {
                 relationId = rid,
+                // 层内自治常量（零依赖豁免，A1）：同上（Share.ScopeFramework 零项目引用）。
                 refType = "node_to_node",
                 source = new { resourceType = "task", id = scope.TaskKey },
                 target = new { resourceType = "node", id = $"{wf}.{name}" },

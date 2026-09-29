@@ -23,7 +23,9 @@ public static class BuiltinHierarchyLevels
     /// <summary>历史 → 任务 包含边。</summary>
     public const string HistoryOwnsTask = "history_owns_task";
 
-    /// <summary>任务 → 节点 包含边。</summary>
+    /// <summary>任务 → 节点 包含边（层内自治常量 · 零依赖豁免，A1）：Modules.DeclarativeDataflow 为零项目引用的
+    /// 通用框架（Layer 2），物理上无法引用唯一源 Operation.DataStoreDriven.Abstractions.ReferenceTypes
+    /// ⇒ 本层保留字面量，由门禁 Check-ReferenceVocabulary 白名单登记（非第二词表）。</summary>
     public const string CrossDbLink = "cross_db_link";
 
     /// <summary>任务 → 子任务 包含边（自递归层用）。</summary>

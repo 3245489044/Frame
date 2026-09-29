@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.GraphProcessing.Algorithms;
 using Operation.DataStoreDriven.Abstractions;
 using UniversalWorkflowFramework.Core;
 using UniversalWorkflowFramework.Core.Models;
@@ -12,11 +13,16 @@ using RefModels = UniversalWorkflowFramework.Reference.Models;
 namespace Operation.DataStoreDriven.Graph;
 
 /// <summary>
-/// 引用图**只读算法服务**（B1）—— 写边 owner（<see cref="ReferenceGraphCoordinator"/>）之上的只读面：
-/// ① 路径 / 影响域 = **委托 owner 的内存邻接有界遍历**（单一实现，本类不复制遍历）；
-/// ② 环检测 / 图完整性 = 薄转发 UniversalReference 的 <see cref="CircularDependencyDetector"/> /
-/// <see cref="GraphValidator{TNodeId}"/>（这两项原仓无实现，故为其唯一落点）。本类只读、不写边、不编排
-/// （编排恒在应用层 <c>[Flow]</c>）。
+/// 引用图**只读算法服务**（B1）—— 写边 owner 之上的只读面（**不持 owner 实例**）：
+/// ① 路径 / 影响域 = **GraphProcessing 算法内核**（DefaultPathFinder&lt;string&gt;）跑在有界展开的邻接上
+/// （邻接数据经注入端口 <see cref="IResourceReferenceStore"/> 取；禁自写第二套遍历）；
+/// ② 环检测 = 薄转发 UniversalReference <see cref="CircularDependencyDetector"/>（其实现已下沉
+/// <c>Modules.GraphProcessing.Algorithms.DefaultCycleDetector</c> ⇒ 全库环检测单源）、图完整性 = 薄转发
+/// <see cref="GraphValidator{TNodeId}"/>。本类只读、不写边、不编排（编排恒在应用层 <c>[Flow]</c>）。
+/// <para>
+/// 键↔标识映射取同程序集纯静态 <c>ReferenceGraphCoordinator.KeyToIdentifier</c>（与写侧同一口径；
+/// 非 owner 实例依赖，禁另写第二套键映射）。
+/// </para>
 /// <para>
 /// 消费面：维护面 <c>graph.maintain=status/diff</c> 的影响域 / 环报告；调用方**按需触发**（不进热路径，R4）。
 /// </para>
@@ -27,21 +33,21 @@ namespace Operation.DataStoreDriven.Graph;
 /// </summary>
 public sealed class ReferenceGraphQuery
 {
-    private readonly ReferenceGraphCoordinator _owner;
+    private readonly IResourceReferenceStore _store;
     private readonly int _maxDepth;
     private readonly int _maxNodes;
 
-    /// <param name="owner">写边 owner（其内存邻接即唯一遍历实现；本类不写、不复制遍历）。</param>
+    /// <param name="store">只读引用边端口（写边 owner 亦实现该端口 ⇒ 经端口注入而非持 owner 实例；本类不写、不复制写路径）。</param>
     /// <param name="maxDepth">遍历深度上限（缺省 8）。</param>
     /// <param name="maxNodes">遍历规模上限（缺省 2000 节点）。</param>
-    public ReferenceGraphQuery(ReferenceGraphCoordinator owner, int maxDepth = 8, int maxNodes = 2000)
+    public ReferenceGraphQuery(IResourceReferenceStore store, int maxDepth = 8, int maxNodes = 2000)
     {
-        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        _store = store ?? throw new ArgumentNullException(nameof(store));
         _maxDepth = maxDepth > 0 ? maxDepth : 8;
         _maxNodes = maxNodes > 0 ? maxNodes : 2000;
     }
 
-    private IResourceReferenceStore Port => _owner;
+    private IResourceReferenceStore Port => _store;
 
     /// <summary>取邻接键（<paramref name="outgoing"/>=true 取出边目标，false 取入边源）。</summary>
     /// <param name="key">端点唯一键（<c>{type}:{id}</c>）。</param>
@@ -60,15 +66,16 @@ public sealed class ReferenceGraphQuery
             .ToArray();
     }
 
-    /// <summary>路径可达性（单一实现 = owner 的有界 DFS；本方法只是其布尔投影）。</summary>
+    /// <summary>路径可达性（单一实现 = GraphProcessing.DefaultPathFinder 的有界 DFS；本方法只是其布尔投影）。</summary>
     /// <param name="from">起点唯一键。</param>
     /// <param name="to">终点唯一键。</param>
     /// <param name="ct">取消令牌。</param>
     public async Task<bool> HasPathAsync(string from, string to, CancellationToken ct = default)
         => (await FindPathsAsync(from, to, ct).ConfigureAwait(false)).Count > 0;
 
-    /// <summary>全部路径（**单一实现** = <see cref="ReferenceGraphCoordinator.FindPathsAsync"/> 的内存邻接有界 DFS；
-    /// 本方法不复制遍历逻辑，只做签名归一）。</summary>
+    /// <summary>全部路径（**单一实现** = <c>Modules.GraphProcessing.Algorithms.DefaultPathFinder&lt;string&gt;.FindAllPaths</c>）；
+    /// 邻接在起点作用域内**有界**展开（节点 ≤ <see cref="_maxNodes"/>、深度 ≤ <see cref="_maxDepth"/>）后交纯内存算法
+    /// —— 禁「取全量后再过滤」的无界形态。返回路径含首尾端点。</summary>
     /// <param name="from">起点唯一键。</param>
     /// <param name="to">终点唯一键。</param>
     /// <param name="ct">取消令牌。</param>
@@ -76,17 +83,18 @@ public sealed class ReferenceGraphQuery
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(from);
         ArgumentException.ThrowIfNullOrWhiteSpace(to);
-        var paths = await _owner.FindPathsAsync(from, to, _maxDepth, ct).ConfigureAwait(false);
-        return paths.Select(p => (IReadOnlyList<string>)p).ToArray();
+        var adjacency = await LoadOutgoingAsync(new[] { from }, ct).ConfigureAwait(false);
+        return new DefaultPathFinder<string>().FindAllPaths(from, to, k => Neighbors(adjacency, k), _maxDepth);
     }
 
-    /// <summary>影响域（起点可达集；**单一实现** = <see cref="ReferenceGraphCoordinator.GetDependenciesAsync"/>）。</summary>
+    /// <summary>影响域（起点可达集，**含起点自身**；**单一实现** = GraphProcessing.DefaultPathFinder.GetReachableNodes）。</summary>
     /// <param name="key">起点唯一键。</param>
     /// <param name="ct">取消令牌。</param>
     public async Task<IReadOnlyList<string>> GetImpactDomainAsync(string key, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        var reachable = await _owner.GetDependenciesAsync(key, ct).ConfigureAwait(false);
+        var adjacency = await LoadOutgoingAsync(new[] { key }, ct).ConfigureAwait(false);
+        var reachable = new DefaultPathFinder<string>().GetReachableNodes(key, k => Neighbors(adjacency, k));
         return reachable.OrderBy(k => k, StringComparer.Ordinal).ToArray();
     }
 

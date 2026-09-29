@@ -25,8 +25,6 @@ namespace Operation.HierarchyMethod.History;
 /// </summary>
 public sealed class HistoryRelationManager : IHistoryRelationManager
 {
-    private const string HistoryIdPrefix = "history.";
-
     private readonly IReferenceMaintenance? _maintenance;
     private readonly IResourceReferenceStore? _graph;
 
@@ -103,13 +101,17 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     {
         if (_graph is null) return Array.Empty<string>();
         var resources = await _graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
-        return resources
-            .Where(r => string.Equals(r.Identifier.ResourceType, NodeResourceTypes.History, StringComparison.Ordinal))
-            .Select(r => r.Identifier.Id ?? string.Empty)
-            .Where(id => id.StartsWith(HistoryIdPrefix, StringComparison.Ordinal))
-            .Select(id => id.Substring(HistoryIdPrefix.Length))
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .OrderBy(id => id, StringComparer.Ordinal)
-            .ToList();
+        var ids = new List<string>();
+        foreach (var resource in resources)
+        {
+            if (!string.Equals(resource.Identifier.ResourceType, NodeResourceTypes.History, StringComparison.Ordinal)) continue;
+            // 端点 Id → historyId 的唯一反解（单源 = HierarchyResourceKeys → 层 2；禁本地前缀拼接/切片）
+            if (HierarchyResourceKeys.TryParseHistoryId(resource.Identifier.Id, out var historyId)
+                && !string.IsNullOrWhiteSpace(historyId))
+            {
+                ids.Add(historyId);
+            }
+        }
+        return ids.Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 }

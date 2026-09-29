@@ -55,6 +55,12 @@
     <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- 内存邻接图引擎（CoreGraph）：GraphIndexedResourceReferenceStore 的 hot 查询层（GraphFoundation 仅依赖 System.Reactive，无环） -->
     <ProjectReference Include="$(Proj_GraphFoundation)" />
+    <!-- 图算法内核单源（Layer 1-2）：只读图查询的路径查找（DefaultPathFinder）与环检测（DefaultCycleDetector）
+         一律取本内核，禁在存储层自写第二套遍历（R4/方案 §3.2；UR CircularDependencyDetector 亦已薄转发到该内核）。 -->
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
+    <!-- 键文法声明单源上移至层 2（Modules.Node\Identity\NodeStoreKeyGrammars）：config/checkpoint/keymapping/
+         relations/session-message 五族键模板事实归 L2，本层只留别名门面与领域语义（方案 §3.1 表 A / D1-②）。 -->
+    <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -51,7 +51,7 @@ $LocLiteral = 'agent-round'
 # 定义面：单源常量 / 镜像常量 / 契约默认值 / 注释说明（允许出现字面量）
 $DefinitionFiles = @(
     'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\NodeKeys.cs',                       # loc 单源（唯一权威）
-    'Frame\CsharpPrj\Operation\DataStoreDriven\Core\WorkflowIds.cs',                      # 镜像（Agent-无关）
+    'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Domain\WorkflowIds.cs',                      # 镜像（Agent-无关）
     'Frame\CsharpPrj\Operation\HierarchyMethod\Reference\EntityRef.cs',                   # 引用域默认值
     'Frame\CsharpPrj\Share\Foundations\ScopeFramework\Naming\L0ScopeNamingRule.cs',       # L0 兼容默认
     'Frame\CsharpPrj\Operation\WorkFlowMethod\Nodes\Contracts\NodeOutput.cs',             # 契约默认值

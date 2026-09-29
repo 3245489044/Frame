@@ -87,8 +87,11 @@ function Get-CodeLines {
 
 # ---------------- K1 键族字面量单源 ----------------
 # 白名单 = 键文法单源（内核 + 各域文法单源文件）；新增落点即违规
+# 2026-09-29（DS-P1）：五族键模板单源上移层 2 = Modules\Node\Identity\NodeStoreKeyGrammars.cs（D1-② 收编）；
+#   旧件（NodeKeyPrefix / SessionMessageKeys）保留为**无字面量别名门面**，故基线命中数不变（只减不增）。
 $grammarWhitelist = @(
     'Modules\Parsing\Keys\',
+    'Modules\Node\Identity\NodeStoreKeyGrammars.cs',
     'Abstractions\SessionMessageKeys.cs',
     'Abstractions\NodeKeyPrefix.cs',
     'Abstractions\KeyMappingKeys.cs',

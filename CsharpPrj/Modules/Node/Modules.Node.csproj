@@ -13,6 +13,7 @@
     <ModuleRule_Rule Include="框架零 Frame 依赖（仅 BCL + **BCL-only 键文法内核 Modules.Parsing.Keys**）：键文法（模板构造/反解/族判据/键序）统一由该内核提供，本工程禁自建第二套词法或正则；载体经 INodeCarrier、声明经 ISpecSource、位置反解经 IPlacementResolver 注入；未装配即 Null 实现 + 可见化诊断，不静默兜底（N9）" />
     <ModuleRule_Rule Include="唯一写入口 NodeMaterializer（单写门 NodeWriteGate，旁路调用点 = 0）；框架只产「待物化载荷 + 位置意图 + 诊断」，不各自落库" />
     <ModuleRule_Rule Include="禁 Usharp* 类型 / AsyncLocal 可变配置 / 硬编码 loc→carrier 映射（P20/P14/P22）；由 PowerShellScript/Modules/Node/Check-NodeFramework.ps1 门禁" />
+    <ModuleRule_Rule Include="键模板收编（D1-②）：节点库键族的**文法声明单源** = Identity\NodeStoreKeyGrammars.cs（config / checkpoint / keymapping / relations / session-message 五族；含具体键名），**图端点 Id 单源** = Identity\NodeEndpointIds.cs（history.{historyId} / {workflowId}.{nodeKey}；不入 NodeStoreKeyGrammars.Registry）；二者只承载键模板事实、**不含领域语义**（轮内序数重置/旧键容忍/时序比较留上层域类）；词法、正反解、族判据一律取键文法内核 Modules.Parsing.Keys，禁自建第二套正则" />
   </ItemGroup>
 
   <PropertyGroup>

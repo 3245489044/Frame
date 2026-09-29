@@ -151,20 +151,18 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     }
 
     /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址，根除跨会话污染）。
-    /// 端点 Id = <c>wf.session.{name}.r{round}.{kind}.{ordinal}</c>，还原 nodeKey = Id 去掉 <c>wf.</c> 前缀。</summary>
+    /// 端点 Id = <c>{wf}.{nodeKey}</c>；裸键还原的唯一实现 = <see cref="HierarchyResourceKeys.TryParseNodeKey"/>
+    /// （端点 Id 约定单源 = 层 2，禁本地前缀拼接/切片）。</summary>
     public async Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<string>();
         var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
         var refs = await _graph.GetReferencesAsync(sessionId, includeIncoming: false, ct).ConfigureAwait(false);
-        var prefix = string.IsNullOrEmpty(workflowId) ? string.Empty : workflowId + ".";
         var keys = new List<string>();
         foreach (var r in refs)
         {
             if (!string.Equals(r.RefType, CrossDbReferenceTypes.SessionOwns, StringComparison.Ordinal)) continue;
-            var id = r.Target?.Id;
-            if (string.IsNullOrWhiteSpace(id) || !id.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            keys.Add(id.Substring(prefix.Length));
+            if (HierarchyResourceKeys.TryParseNodeKey(r.Target?.Id, workflowId, out var nodeKey)) keys.Add(nodeKey);
         }
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
@@ -337,21 +335,19 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// <summary>
     /// 按 task 查 cross_db_link 出边，返回本 task 归属的节点键集（task 作用域寻址，更高抽象层）：
     /// 读侧「过滤枚举」据此只取本 task 可达节点，根除跨 task 污染。与全量枚举并存——调用方无 taskKey 时回退全量。
-    /// 端点 Id = <c>wf.node</c>（<see cref="NodeRelationFactory.NodeId"/>），还原 nodeKey = Id 去掉 <c>wf.</c> 前缀。
+    /// 端点 Id = <c>{wf}.{nodeKey}</c>；裸键还原的唯一实现 = <see cref="HierarchyResourceKeys.TryParseNodeKey"/>
+    /// （端点 Id 约定单源 = 层 2，禁本地前缀拼接/切片）。
     /// </summary>
     public async Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
         var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: false, ct).ConfigureAwait(false);
-        var prefix = string.IsNullOrEmpty(workflowId) ? string.Empty : workflowId + ".";
         var keys = new List<string>();
         foreach (var r in refs)
         {
             if (!string.Equals(r.RefType, CrossDbReferenceTypes.CrossDbLink, StringComparison.Ordinal)) continue;
-            var id = r.Target?.Id;
-            if (string.IsNullOrWhiteSpace(id) || !id.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            keys.Add(id.Substring(prefix.Length));
+            if (HierarchyResourceKeys.TryParseNodeKey(r.Target?.Id, workflowId, out var nodeKey)) keys.Add(nodeKey);
         }
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }

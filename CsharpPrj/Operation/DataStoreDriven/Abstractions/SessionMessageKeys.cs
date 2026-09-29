@@ -1,4 +1,5 @@
 using System.Globalization;
+using Modules.Node.Identity;
 using Modules.Parsing.Keys;
 
 namespace Operation.DataStoreDriven.Abstractions;
@@ -34,16 +35,8 @@ public static class SessionMessageKeys
     /// 新旧键共用同一 <c>orderKeys</c>，排序口径单一，无第二套序）。
     /// </para>
     /// </remarks>
-    public static readonly KeyGrammar KeyGrammar = KeyGrammar.Create(
-        "session-message",
-        "session.{container}.r{round:number}.{kind}.{ordinal:number}",
-        familyPrefix: "session.",
-        legacyTemplates: new[]
-        {
-            "session.{container}.r{round:number}.msg.{ordinal:number}",
-            "session.{container}.msg.{ordinal:number}",
-        },
-        orderKeys: new[] { "round", "ordinal" });
+    /// <summary>键模板单源 = <see cref="NodeStoreKeyGrammars.SessionMessageGrammar"/>（层 2）；本类只保留域语义。</summary>
+    public static readonly KeyGrammar KeyGrammar = NodeStoreKeyGrammars.SessionMessageGrammar;
 
     /// <summary>会话消息节点键前缀（= 文法族前缀；唯一来源，禁第二处字面量）。</summary>
     public static string Prefix => KeyGrammar.FamilyPrefix;

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GraphFoundation.Abstractions;
 using GraphFoundation.Core;
 using LiteDB;
+using Modules.GraphProcessing.Algorithms;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Configuration;
 using Operation.DataStoreDriven.ReferenceSchema;
@@ -410,7 +411,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     {
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
         var nodeIdKey = nodeId.GetUniqueKey();
-        var nodePrefix = workflowId + ".";
+        // 端点 Id 前缀 = 键文法单源（DS-P1b-2 收口第 5 处：原 `workflowId + "."` 字面量去除，切片口径与旧 Substring 逐字等价）。
+        var nodePrefix = workflowId + Modules.Node.Identity.NodeEndpointIds.Separator;
         return Task.FromResult<IReadOnlyList<string>>(ReadLocked(ct, () =>
         {
             var relations = GetRelationsCore(nodeIdKey, type, includeIncoming: !outgoing);
@@ -422,7 +424,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 var otherType = neighborIsSource ? rel.SourceResourceType : rel.TargetResourceType;
                 if (otherType != NodeResourceTypes.Node) continue;
                 if (string.IsNullOrEmpty(other)) continue;
-                related.Add(other.StartsWith(nodePrefix, StringComparison.Ordinal) ? other.Substring(nodePrefix.Length) : other);
+                related.Add(other.StartsWith(nodePrefix, StringComparison.Ordinal) ? other[nodePrefix.Length..] : other);
             }
             return (IReadOnlyList<string>)related.Distinct(StringComparer.Ordinal).ToList();
         }));
@@ -568,45 +570,59 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     public IReadOnlyList<string> GetNeighbors(string key) => ReadLocked(CancellationToken.None, () => _graph.GetNeighbors(key));
 
+    /// <summary>全部路径（**单一实现** = <c>DefaultPathFinder&lt;string&gt;.FindAllPaths</c>）；邻接 = owner 内存图出边投影，
+    /// 惰性求值 ⇒ 遍历仍在本类读门（<see cref="ReadLocked{T}"/>）内。与委托前私有 DFS 的逐字等价口径：
+    /// ① 路径节点数上界 = <paramref name="maxDepth"/>；② 起点 = 终点时旧实现产出 0 条（内核产出单点解 [起点]，
+    /// 此处按 <c>Count &gt;= 2</c> 滤除）；③ 取消检查粒度 = 每节点展开一次（旧为每邻居；预取消恒抛）。</summary>
     public Task<IReadOnlyList<string[]>> FindPathsAsync(string fromKey, string toKey, int maxDepth = 5, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<string[]>>(ReadLocked(ct, () =>
         {
-            var paths = new List<string[]>();
-            var visited = new HashSet<string>(StringComparer.Ordinal) { fromKey };
-            var current = new List<string> { fromKey };
-            void Dfs(string node)
+            ct.ThrowIfCancellationRequested();
+            IEnumerable<string> Adjacency(string node)
             {
-                if (node == toKey) { if (current.Count >= 2) paths.Add(current.ToArray()); return; }
-                if (current.Count >= maxDepth) return;
-                foreach (var neighbor in _graph.GetOutgoingEdges(node).Select(e => e.Target))
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (!visited.Add(neighbor)) continue;
-                    current.Add(neighbor);
-                    Dfs(neighbor);
-                    current.RemoveAt(current.Count - 1);
-                    visited.Remove(neighbor);
-                }
+                ct.ThrowIfCancellationRequested();
+                return OutgoingTargets(node);
             }
-            Dfs(fromKey);
-            return (IReadOnlyList<string[]>)paths;
+
+            var paths = new DefaultPathFinder<string>().FindAllPaths(fromKey, toKey, Adjacency, maxDepth);
+            return (IReadOnlyList<string[]>)paths.Where(p => p.Count >= 2).Select(p => p.ToArray()).ToList();
         }));
 
+    /// <summary>依赖集（**单一实现** = <c>DefaultPathFinder&lt;string&gt;.GetReachableNodes</c>）；语义 = 「经 ≥1 条边可达」
+    /// （委托前口径：起点仅在环上回达自身时计入）—— 经**哨兵根**起跳保真（内核「含自身」约定落在哨兵上，而非起点）。
+    /// 结果按 Ordinal 排序（对齐 <see cref="ReferenceGraphQuery.GetImpactDomainAsync"/>；委托前为 HashSet 不定序）。</summary>
     public Task<IReadOnlyList<string>> GetDependenciesAsync(string key, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<string>>(ReadLocked(ct, () =>
         {
-            var reachable = new HashSet<string>(StringComparer.Ordinal);
-            var stack = new Stack<string>();
-            stack.Push(key);
-            while (stack.Count > 0)
+            ct.ThrowIfCancellationRequested();
+            var root = SentinelRootNotInGraph();
+            IEnumerable<string> Adjacency(string node)
             {
                 ct.ThrowIfCancellationRequested();
-                var node = stack.Pop();
-                foreach (var e in _graph.GetOutgoingEdges(node))
-                    if (reachable.Add(e.Target)) stack.Push(e.Target);
+                return node == root ? OutgoingTargets(key) : OutgoingTargets(node);
             }
-            return (IReadOnlyList<string>)reachable.ToList();
+
+            var reachable = new DefaultPathFinder<string>().GetReachableNodes(root, Adjacency);
+            return (IReadOnlyList<string>)reachable
+                .Where(k => !string.Equals(k, root, StringComparison.Ordinal))
+                .OrderBy(k => k, StringComparer.Ordinal)
+                .ToList();
         }));
+
+    /// <summary>内核算法消费的出边邻接投影（单一实现；调用方须已持 <see cref="_gate"/>，即仅在 <see cref="ReadLocked{T}"/> 内使用）。</summary>
+    private IEnumerable<string> OutgoingTargets(string node)
+        => _graph.GetOutgoingEdges(node).Select(e => e.Target);
+
+    /// <summary>可达集遍历的虚拟起点（哨兵根）：前缀 NUL 与真实端点键（<c>{type}:{id}</c>）无交集；仍以
+    /// <c>ICoreGraph.ContainsNode</c> 兜住理论碰撞（图有限 ⇒ 循环必终止，故哨兵必与图内节点不同）。</summary>
+    private string SentinelRootNotInGraph()
+    {
+        var root = SentinelRoot;
+        while (_graph.ContainsNode(root)) root += "~";
+        return root;
+    }
+
+    private const string SentinelRoot = "\u0000refgraph-root";
 
 
     // ---- IAsyncDisposable ----

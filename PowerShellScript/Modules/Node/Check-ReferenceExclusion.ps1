@@ -59,7 +59,7 @@ $StoreScope = 'Frame\CsharpPrj\Operation\DataStoreDriven'
 $StoreAllowedPatterns = @('IUniversalReferenceManager')
 
 # ---- C2 正对照：适配器面必须命中 IUniversalReferenceManager ----
-$PositiveControlFile = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\UniversalReferenceResourceReferenceStore.cs'
+$PositiveControlFile = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Carriers\UniversalReferenceResourceReferenceStore.cs'
 
 $violations = [System.Collections.Generic.List[string]]::new()
 

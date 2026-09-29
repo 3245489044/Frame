@@ -37,6 +37,12 @@
         Expect = 0
     }
 
+    OperationLayerIsolation = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'N-1 Operation 同层引用隔离（方案 §2.3 G-1）：棘轮基线 18 条只减不增 + 目标对 WorkFlowMethod<->DataStoreDriven 恒 0；层号真源 modules.json roots.layer；D3/D4 正负对照'
+    }
+
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{
         Args   = @{}

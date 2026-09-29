@@ -59,7 +59,7 @@ $declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\hierarchy-r
 # 边类型常量**唯一字面量源**（A1）：`ReferenceTypes` 承载字面量；`CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
 #   `NodeResourceTypes` / LoopFoldMethod.Reference.Model.ReferenceTypes 均为其别名门面（const 转发，无字面量）。
 $constsFile      = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Abstractions\ReferenceTypes.cs'
-$groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\ReferenceGrounding.cs'
+$groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Domain\ReferenceGrounding.cs'   # 目录分组（DS-P4a-pre）：判据不变，仅路径改指
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 

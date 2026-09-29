@@ -1,3 +1,5 @@
+using Modules.Node.Identity;
+
 namespace Operation.DataStoreDriven.Abstractions;
 
 /// <summary>
@@ -11,8 +13,9 @@ namespace Operation.DataStoreDriven.Abstractions;
 /// </summary>
 public static class KeyMappingKeys
 {
-    /// <summary>节点级 KeyMapping 规范键（权威）：{workflowId}.{nodeKey}。</summary>
-    public static string NodeLevelKey(string workflowId, string nodeKey) => $"{workflowId}.{nodeKey}";
+    /// <summary>节点级 KeyMapping 规范键（权威）：{workflowId}.{nodeKey} —— 与图节点端点 Id **同一键空间**
+    /// （唯一声明 = <see cref="NodeEndpointIds.NodeGrammar"/>，本方法仅转发，禁第二处拼串）。</summary>
+    public static string NodeLevelKey(string workflowId, string nodeKey) => NodeEndpointIds.Node(workflowId, nodeKey);
 
     /// <summary>节点库存储键（NodeType=keymapping）：keymapping.{category}.{nodeLevelKey}。</summary>
     public static string StoreNodeKey(KeyMappingCategory category, string nodeLevelKey) => NodeKeyPrefix.BuildKeyMapping(category.ToString(), nodeLevelKey);

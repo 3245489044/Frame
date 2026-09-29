@@ -18,6 +18,9 @@
       检查5  孤儿候选（注册→无代码引用）：某 msgId 已在 *_log_messages.json 注册，但全库 C# 源码
               无「带引号字面量」引用（经 keyPrefix 感知候选，避免 keyPrefix+msgId 拆分配置误报）。
               （缺省 Warn；-StrictOrphans 时 fail，供 CI 决策冗余清理。）
+      检查6  基线棘轮（F-P0-1e）：检查 3/4/5 三类计数与基线文件（LogMessagesBaseline.json）比对，
+              超出即错误（exit 非零，新增即红）；低于仅提示可收紧（不自动写，防「降基线通过」）。
+              基线缺失/不可解析 ⇒ 仅报告不拦（新库首次建基线用 -UpdateBaseline）。
 
 
 
@@ -34,6 +37,10 @@
     检查 3 的动态 msgId 反模式作为错误（exit 非零）；缺省仅 Warn。
 .PARAMETER StrictOrphans
     检查 5 的孤儿候选（注册但代码无引用）作为错误（exit 非零）；缺省仅 Warn。
+.PARAMETER BaselinePath
+    基线棘轮（检查 6）基线文件路径；缺省 = 本脚本同目录 LogMessagesBaseline.json。
+.PARAMETER UpdateBaseline
+    以本次实测重写基线文件（建/收紧基线；写操作，聚合器禁用）。
 
 
 
@@ -46,7 +53,9 @@ param(
     [string]$Root = '',
     [switch]$Strict,
     [switch]$FailOnDynamic,
-    [switch]$StrictOrphans
+    [switch]$StrictOrphans,
+    [string]$BaselinePath = '',
+    [switch]$UpdateBaseline
 )
 
 $ErrorActionPreference = 'Stop'
@@ -167,11 +176,58 @@ Write-Host ("`n[Check-LogMessages] 定义文件 {0} 个，注册 msgId {1} 个�
     $jsonFiles.Count, $allRegistered.Count, $issues.Count, $dynamicFound.Count, $unregistered.Count, $orphanFound.Count,
     ($issues.Count - $dynamicFound.Count - $unregistered.Count - $orphanFound.Count))
 
-# ---- 退出码：检查 1/2 恒错误；3 依 -FailOnDynamic；4 依 -Strict ----
+# ---- 检查 6：基线棘轮（F-P0-1e）——检查 3/4/5 三类计数只减不增 ----
+# 口径：增量即违规（新引入的动态 msgId / 未注册引用 / 孤儿声明必须当场可见，不得靠「降基线」通过）；
+#       低于基线只提示可收紧，不自动写（防静默放宽）。基线缺失/不可解析 ⇒ 仅报告不拦（不阻断新库首跑）。
+if ([string]::IsNullOrWhiteSpace($BaselinePath)) {
+    $BaselinePath = Join-Path $PSScriptRoot 'LogMessagesBaseline.json'
+}
+$measured = [ordered]@{
+    dynamic      = $dynamicFound.Count
+    unregistered = $unregistered.Count
+    orphans      = $orphanFound.Count
+}
+$ratchetErrors = 0
+if ($UpdateBaseline) {
+    $payload = [ordered]@{ version = '1.0'; updated = (Get-Date -Format 'yyyy-MM-dd'); counts = $measured }
+    $payload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $BaselinePath -Encoding UTF8
+    Write-Host ("[棘轮] 基线已写入: {0}（动态 {1} / 未注册 {2} / 孤儿 {3}）" -f `
+        $BaselinePath, $measured.dynamic, $measured.unregistered, $measured.orphans) -ForegroundColor Cyan
+}
+elseif (Test-Path -LiteralPath $BaselinePath) {
+    $ratchetBase = $null
+    try { $ratchetBase = Get-Content -LiteralPath $BaselinePath -Raw | ConvertFrom-Json } catch { $ratchetBase = $null }
+    if ($null -eq $ratchetBase -or $null -eq $ratchetBase.counts) {
+        Write-Host ("[棘轮] 基线文件不可解析: {0}（仅报告不拦；重建用 -UpdateBaseline）" -f $BaselinePath) -ForegroundColor Yellow
+    }
+    else {
+        foreach ($key in @('dynamic', 'unregistered', 'orphans')) {
+            $baseValue = [int]$ratchetBase.counts.$key
+            $current = [int]$measured[$key]
+            if ($current -gt $baseValue) {
+                $ratchetErrors++
+                Write-Host ("[棘轮] {0} 增量违规: 实测 {1} > 基线 {2}（新增须登记/清理，禁降基线通过）" -f `
+                    $key, $current, $baseValue) -ForegroundColor Red
+            }
+            elseif ($current -lt $baseValue) {
+                Write-Host ("[棘轮] {0} 低于基线: 实测 {1} < 基线 {2}（可 -UpdateBaseline 收紧）" -f `
+                    $key, $current, $baseValue) -ForegroundColor Yellow
+            }
+        }
+        if ($ratchetErrors -eq 0) {
+            Write-Host '[棘轮] 基线棘轮通过（动态/未注册/孤儿 三类均未增量）' -ForegroundColor Green
+        }
+    }
+}
+else {
+    Write-Host ("[棘轮] 基线文件缺失: {0}（仅报告不拦；建基线用 -UpdateBaseline）" -f $BaselinePath) -ForegroundColor Yellow
+}
+
+# ---- 退出码：检查 1/2 恒错误；3 依 -FailOnDynamic；4 依 -Strict；5 依 -StrictOrphans；6 恒错误（增量即红） ----
 $hardErrors = @($issues | Where-Object { [int]$_.Check -le 2 })
 $dynamicErrors = @($issues | Where-Object { [int]$_.Check -eq 3 -and $FailOnDynamic })
 $unregErrors = @($issues | Where-Object { [int]$_.Check -eq 4 -and $Strict })
 $orphanErrors = @($issues | Where-Object { [int]$_.Check -eq 5 -and $StrictOrphans })
-$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $orphanErrors.Count -gt 0) { 1 } else { 0 }
+$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $orphanErrors.Count -gt 0 -or $ratchetErrors -gt 0) { 1 } else { 0 }
 exit $exitCode
 

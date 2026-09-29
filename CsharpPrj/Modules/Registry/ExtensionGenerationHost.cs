@@ -133,46 +133,82 @@ public sealed class ExtensionGenerationHost
     }
 
     /// <summary>
-    /// 部署校验：解析本代数全部扩展 deps.json 的 runtime 资产，报告磁盘缺失项（快速定位缺哪个依赖）。
+    /// 单清单部署校验结果（<c>Manifest</c> = 该清单自身绝对路径；<c>Missing</c> = 其 runtime 资产磁盘缺失项）。
+    /// </summary>
+    public sealed record ManifestValidation(string Manifest, IReadOnlyList<string> Missing)
+    {
+        /// <summary>本清单闭包齐备。</summary>
+        public bool IsComplete => Missing.Count == 0;
+    }
+
+    /// <summary>
+    /// 部署校验报告：逐清单解析其 deps.json 的 runtime 资产，报告**各清单自身目录**下的磁盘缺失项。
+    /// <para>
+    /// 判定基座 = 清单所在目录（= <see cref="ExtensionLoadContext"/> 装载语义的 <c>AssemblyDependencyResolver</c> 基座）——
+    /// 扩展层按「产品权威目录 + 各自 deps.json」就地解析（<c>LauncherBootstrap.EnableExtensions</c>），
+    /// 宿主运行目录**不承载**上游闭包（薄形态）；以 <c>AppContext.BaseDirectory</c> 为基座会把合法薄部署误判为全量缺失。
+    /// 资产在清单目录不命中时回退 BaseDirectory（同目录聚合部署的历史形态）。
+    /// </para>
+    /// 仅诊断用，不抛异常。
+    /// </summary>
+    public IReadOnlyList<ManifestValidation> ValidateDeploymentReport()
+    {
+        var report = new List<ManifestValidation>(Manifests.Count);
+        foreach (var depsPath in Manifests)
+            report.Add(new ManifestValidation(depsPath, FindMissingAssets(depsPath)));
+        return report;
+    }
+
+    /// <summary>
+    /// 部署校验（扁平视图：各清单缺失去重合并；兼容既有诊断口径）。
     /// 仅诊断用，不抛异常。
     /// </summary>
     public IReadOnlyList<string> ValidateDeployment()
     {
         var missing = new List<string>();
-        if (Manifests.Count == 0)
-            return missing;
+        foreach (var entry in ValidateDeploymentReport())
+            foreach (var asset in entry.Missing)
+                if (!missing.Contains(asset, StringComparer.OrdinalIgnoreCase))
+                    missing.Add(asset);
+        return missing;
+    }
 
-        foreach (var depsPath in Manifests)
+    /// <summary>按清单解析 runtime 资产缺失项（基座 = 清单目录，回退 BaseDirectory）。</summary>
+    private static IReadOnlyList<string> FindMissingAssets(string depsPath)
+    {
+        var missing = new List<string>();
+        try
         {
-            try
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(depsPath));
-                var root = doc.RootElement;
-                if (!root.TryGetProperty("libraries", out var libs))
-                    continue;
+            var baseDir = Path.GetDirectoryName(depsPath);
+            using var doc = JsonDocument.Parse(File.ReadAllText(depsPath));
+            if (!doc.RootElement.TryGetProperty("libraries", out var libs))
+                return missing;
 
-                foreach (var lib in libs.EnumerateObject())
+            foreach (var lib in libs.EnumerateObject())
+            {
+                if (!lib.Value.TryGetProperty("runtime", out var runtime))
+                    continue;
+                foreach (var asset in runtime.EnumerateObject())
                 {
-                    if (!lib.Value.TryGetProperty("runtime", out var runtime))
+                    var rel = asset.Name;
+                    if (!rel.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                         continue;
-                    foreach (var asset in runtime.EnumerateObject())
-                    {
-                        var rel = asset.Name;
-                        if (!rel.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        if (!File.Exists(Path.Combine(AppContext.BaseDirectory, rel)))
-                            missing.Add(rel);
-                    }
+                    if (ExistsUnder(baseDir, rel) || ExistsUnder(AppContext.BaseDirectory, rel))
+                        continue;
+                    missing.Add(rel);
                 }
             }
-            catch
-            {
-                // 解析失败仅影响诊断
-            }
+        }
+        catch
+        {
+            // 解析失败仅影响诊断
         }
 
         return missing;
     }
+
+    private static bool ExistsUnder(string? root, string relative)
+        => !string.IsNullOrEmpty(root) && File.Exists(Path.Combine(root, relative));
 
     /// <summary>
     /// 卸载本代数的 scoped ALC（换代调用：Drain 后、确认无跨代引用时调用）。
@@ -324,6 +360,10 @@ public static class ExtensionGenerationFactory
 
     /// <summary>部署校验（当前代数；未装载 = 空清单）。</summary>
     public static IReadOnlyList<string> ValidateDeployment() => Current.ValidateDeployment();
+
+    /// <summary>部署校验报告（当前代数；带清单来源，未装载 = 空报告）。</summary>
+    public static IReadOnlyList<ExtensionGenerationHost.ManifestValidation> ValidateDeploymentReport()
+        => Current.ValidateDeploymentReport();
 
     /// <summary>
     /// 共享边界副本检测（当前代数；未装载 = 空清单）。

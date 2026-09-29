@@ -51,6 +51,13 @@
         Note   = '节点框架纯净性 A–H 段：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖；-ShowDetail 显示详情'
     }
 
+    ObservabilitySurface = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1'
+        Expect = 0
+        Note   = '可见化观测面守卫 C1–C8（F-P0-1c/1d/1i / C-5）：名册在册且已登记 EmbeddedResource / 事件数 ≥ 基线(46) / AgentLog 面关键三键在册（正对照）/ 乱造键不在册（负对照）/ 名册 ∩ 语义台账 = ∅（第二作者）/ 双门面发射面成对（AgentTrace.Visibility + AgentLog 镜像 + ModuleLog 镜像）/ ModuleLog 面（Agent.Modules 10 调用点）关键键在册 / 部署态事件区读面（C8：直读 events.jsonl 断言"存在 ∧ 关键键可检索"；默认报告态，-VerifyDeploy 转违规，-EventStorePath 供正负对照）'
+    }
+
     NodeWriteBypass = @{
         Args   = @{}
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1'
@@ -168,7 +175,7 @@
     LogMessages = @{
         Args   = @{}
         Expect = 0
-        Note   = '默认检查模式；-Strict / -FailOnDynamic / -StrictOrphans 为严格模式'
+        Note   = '默认检查模式 + 基线棘轮（F-P0-1e：检查 3/4/5 三类计数只减不增，增量即红；基线 = 同目录 LogMessagesBaseline.json）；-Strict / -FailOnDynamic / -StrictOrphans 为严格模式；-UpdateBaseline 为写操作，聚合器禁用'
     }
 
     SingleWriter = @{

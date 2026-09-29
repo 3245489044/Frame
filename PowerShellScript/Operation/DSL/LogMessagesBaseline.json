@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "updated": "2026-09-29",
+  "counts": {
+    "dynamic": 0,
+    "unregistered": 63,
+    "orphans": 36
+  },
+  "note": "检查 3/4/5 三类问题的只减不增基线（F-P0-1e）。数值取自施工台账 §1-6 实测（定义文件 24 / 注册 msgId 766 / 问题 99 = 未注册 63 + 孤儿 36 + 动态 0）。增量 ⇒ Check-LogMessages 退出码非零（新增即红）；低于基线仅提示可 -UpdateBaseline 收紧。此文件为基线快照，只能由 -UpdateBaseline 写。"
+}

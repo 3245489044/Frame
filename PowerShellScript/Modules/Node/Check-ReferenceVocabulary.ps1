@@ -83,7 +83,10 @@ $ExemptBaselines = [ordered]@{
 #    + 工作流边 6（Calls/Owns/Exports/Inherits/Implements/DependsOn）+ 节点关系边 2（node_to_node/keymapping_to_node）。
 # 端点类型（node/keymapping 经 NodeTypes 单源；task/session/history/workflow）同为单源定义，但因其名过短易误判，
 # 不入本判据的词表（其唯一性由单源文件本身 + 消费面均为常量引用保证）。
-$SingleSourceLiteralBaseline = 13
+# 基线单源 = Baselines\ReferenceVocabulary.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name ReferenceVocabulary
+$SingleSourceLiteralBaseline = [int]$g.SingleSourceLiteral.Value
 
 $violations = [System.Collections.Generic.List[string]]::new()
 

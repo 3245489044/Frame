@@ -101,12 +101,13 @@ $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 # RuntimeGovernance.ushar 为「非骨架声明面」（只声明词表/端口契约/矩阵，不产 RoundSpec 骨架；ERR-4B 补登记）
 $ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
-# 声明面基线（防声明被删而门禁恒绿；变更须同步本表）
-$DeclaredFlowCountBaseline = 15
-$FnConstCountBaseline      = 33
-# O-5 静默降级基线（只减不增）：ConversationCentralPipeline 的 `ctx.Spec is null) return;` 现存 0 处
-# （ERR-5 收口：4 处静默 skip 已改「诊断 + 显式 ∅」，见 ConversationPipeline_spec_missing；新增即违规）
-$SilentSkipBaseline = 0
+# 基线单源 = Baselines\AgentOrchestrationFlow.psd1（禁内联数值基线；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name AgentOrchestrationFlow
+# 声明面基线（防声明被删而门禁恒绿）；O-5 静默降级基线（只减不增）
+$DeclaredFlowCountBaseline = [int]$g.DeclaredFlowCount.Value
+$FnConstCountBaseline      = [int]$g.FnConstCount.Value
+$SilentSkipBaseline        = [int]$g.SilentSkip.Value
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
 $InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar')
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，

@@ -53,6 +53,21 @@ public static class NodeStoreKeyGrammars
         },
         orderKeys: new[] { "round", "ordinal" });
 
+    /// <summary>
+    /// 过程域节点键文法（<c>proc.{container}.r{round}.{kind}.{ordinal}</c>；legacy <c>…r{round}.step{ordinal}</c> 只读反解）。
+    /// </summary>
+    /// <remarks>
+    /// 与 Agent 契约侧 <c>ProcessKeys</c>（位置键模板的编译视图，绑定 <c>Config\nodes\process.json</c>）**同形**；
+    /// F-P2-1（D7 纳入裁决）把本族纳入统一注册表 ⇒ 读侧归属反解对过程键不再恒 false —— 该缺口正是本次故障域
+    /// （面板「莫名少行」时无法判定过程键归属）。
+    /// </remarks>
+    public static readonly KeyGrammar ProcessGrammar = KeyGrammar.Create(
+        "process-node",
+        "proc.{container}.r{round:number}.{kind}.{ordinal:number}",
+        familyPrefix: "proc.",
+        legacyTemplates: new[] { "proc.{container}.r{round:number}.step{ordinal:number}" },
+        orderKeys: new[] { "round", "ordinal" });
+
     /// <summary>节点库键族文法注册表（读侧归属反解唯一入口；歧义/未命中即诊断可见化）。</summary>
     public static readonly KeyGrammarRegistry Registry = CreateRegistry();
 
@@ -90,6 +105,10 @@ public static class NodeStoreKeyGrammars
         registry.Register(CheckpointGrammar);
         registry.Register(KeyMappingGrammar);
         registry.Register(RelationsGrammar);
+        // F-P2-1（D7 纳入裁决）：`session-message` 文法此前**已建未注册** ⇒ 补注册；`proc` 族新增并注册 ⇒ 4 → 6 族。
+        // 本注册表 = 节点库键族的**读侧归属入口**（经 NodeKeyPrefix.Registry 暴露）⇒ 补后对过程键不再恒 false。
+        registry.Register(SessionMessageGrammar);
+        registry.Register(ProcessGrammar);
         return registry;
     }
 }

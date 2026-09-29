@@ -132,7 +132,7 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1'
         Expect = 0
-        Note   = '四个横切关注点框架单源 D1–D9：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，迁移期报告口径，批次 C 后由 Baselines\AgentFramework.psd1 的 PostureRequireFlowRequired 翻转生效）；基线外置 Baselines\AgentFramework.psd1'
+        Note   = '四个横切关注点框架单源 D1–D10：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）；基线单源 = Baselines\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
     }
 
     ClinerulesReferences = @{
@@ -200,7 +200,21 @@
         Args   = @{}
         Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1'
         Expect = 0
-        Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；-Check 为校验模式，-ShowDetail 显示逐条实测'
+        Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；基线单源 = Baselines\KeyGrammar.psd1（脚本零数值基线）；-Check 为校验模式，-ShowDetail 显示逐条实测'
+    }
+
+    GateBaselines = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '门禁基线守卫 U1–U10：内联数值基线清册（未在册即拦新增）/ 外置基线类型（Origin ∈ Derived|Debt|Verdict；Debt/Verdict 必带 DueWhen）/ 正负对照（防判据空转）/ 接线一致性（U7：psd1 ↔ 同名消费脚本）/ 命名唯一性·禁第二基线根（U8）/ 事实行类型强制（U9）/ 声明面路径存在性（U10）；基线单源 = Frame\PowerShellScript\Baselines\'
+    }
+
+    GeneratedArtifactsDrift = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '生成物漂移守卫 D1–D3：产物存在 / 哨兵在位（手改即失守）/ 复算等价（跑生成器到 temp 逐字比对）；登记表 = Baselines\_generated-artifacts.psd1（含 ContractIndex 与本仓既有 2 个生成物）；新增生成物不登记 = 无人看守产物'
     }
 
     RecognizerVocabulary = @{

@@ -14,7 +14,11 @@
 param(
     [switch]$All,
     [string[]]$Only = @(),
-    [string]$Manifest = ''
+    [string]$Manifest = '',
+
+    # 分层：fast = 只跑「读产物」类轻量件（清单逐件 Tier='fast'）；full = 全量（缺省）
+    [ValidateSet('fast', 'full')]
+    [string]$Tier = 'full'
 )
 
 # 按需加载模块
@@ -38,6 +42,16 @@ if ($Only.Count -gt 0) {
     $names = @($gates.Keys)
 }
 
+# ---- 分层：-Tier fast 只跑「读产物」类轻量件（逐件 Tier='fast'；缺省 full）----
+# 目的：编辑/复核循环里拿秒级反馈（全量 34 件串行 + 31 件扫源码，无超时预算 ⇒ 不可能快）。
+if ($Tier -eq 'fast' -and $Only.Count -eq 0) {
+    $names = @($names | Where-Object { $gates[$_].ContainsKey('Tier') -and $gates[$_].Tier -eq 'fast' })
+    if ($names.Count -eq 0) {
+        Write-Result "FAIL" "fast 层为空（清单无 Tier='fast' 件 ⇒ 判据无标的，禁假绿）"
+        exit 1
+    }
+}
+
 # 验证名称有效性
 $invalid = $names | Where-Object { -not $gates.ContainsKey($_) }
 if ($invalid) {
@@ -46,7 +60,7 @@ if ($invalid) {
     exit 1
 }
 
-Write-Section "门禁检查（共 $($names.Count) 件）"
+Write-Section "门禁检查（共 $($names.Count) 件，层=$Tier）"
 
 # ---- 执行 ----
 $failed = 0

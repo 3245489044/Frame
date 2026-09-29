@@ -58,9 +58,11 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-# 基线（只增不减）：名册最小事件数 + 上游 F-6 判据点名的关键键
-# F-P0-1d 后基线 12 → 46（增补 Agent.Modules 的 ModuleLog 面 10 个调用点 msgId：23 键）
-$EventBaseline = 46
+# 基线单源 = Baselines\ObservabilitySurface.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name ObservabilitySurface
+# 基线（只增不减）：名册最小事件数 + 上游 F-6 判据点名的关键键（F-P0-1d 后 12 → 46）
+$EventBaseline = [int]$g.EventCount.Value
 $KeyVisible = @(
     'NodeDomainPort_ReadTrimmed',
     'ConversationView_TaskNodesPanel_readParity',

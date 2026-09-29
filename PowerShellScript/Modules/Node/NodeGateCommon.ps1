@@ -155,16 +155,11 @@ function Get-PatternCountInFiles {
     return [PSCustomObject]@{ Total = $total; Hits = $hits }
 }
 
-# ---------------- 基线装载（外置纯数据） ----------------
-
-function Import-GateBaseline {
-    param([string]$Name)
-    $path = Join-Path $PSScriptRoot (Join-Path 'Baselines' "$Name.psd1")
-    if (-not (Test-Path -LiteralPath $path)) {
-        throw "门禁基线文件缺失：$path（禁内联基线常量；新增门禁须同步 Baselines\<Gate>.psd1）"
-    }
-    return Import-PowerShellDataFile -LiteralPath $path
-}
+# ---------------- 基线装载专用件已退役（SR-2a） ----------------
+# 原始形态：本件曾有 `Import-NodeGateBaseline`（根 = 本目录 Baselines\，遗留子根专用）。
+#   2026-09-29 SR-2a 已把遗留子根 `Modules\Node\Baselines\AgentFramework.psd1` 并入规范根
+#   `PowerShellScript\Baselines\`，全仓唯一装载入口 = `Baselines\GateBaseline.psm1` 的 `Import-GateBaseline`
+#   （禁第二基线根；命名唯一性由 `Check-GateBaselines.ps1` U8 强制）。
 
 # ---------------- 输出原语 ----------------
 

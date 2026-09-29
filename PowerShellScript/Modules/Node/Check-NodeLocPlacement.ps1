@@ -158,7 +158,10 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- C4 正对照（防假绿，先判：基线失守则后续判据无意义） ----------------
-$baseline = 9   # 2026-09-27 实测：5 域 9 位置（conversation 5（含 archive-raw-legacy 兼容读）/ segment 2 / message 1 / process 1 / task-node 1）
+# 基线单源 = Baselines\NodeLocPlacement.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name NodeLocPlacement
+$baseline = [int]$g.PlacementCount.Value   # 2026-09-27 实测：5 域 9 位置
 if ($placementIds.Count -lt $baseline) {
     $violations.Add("[C4] 位置 id 单源计数 $($placementIds.Count) < 基线 $baseline（域声明被删/未装载 ⇒ 判据失效，禁假绿）")
 }

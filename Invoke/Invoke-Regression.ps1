@@ -8,6 +8,8 @@
     测试矩阵：default / agent / infra，默认 default。
 .PARAMETER Test
     显式指定测试目标（别名表见 CentralTest\TestRunner\TestTargets.psd1）。
+.PARAMETER Project
+    工程名正则（透传到 Run-CSharpTests.ps1 -Project）。自由名 -Test 须与 -Project 同用（FD-14）。
 .PARAMETER Case
     定向声明式用例 caseId（R32 机制）。
 .PARAMETER Parallel
@@ -27,6 +29,8 @@ param(
 
     [string[]]$Test,
 
+    [string[]]$Project,
+
     [string[]]$Case,
 
     [int]$Parallel = 4,
@@ -40,6 +44,7 @@ $target = Join-Path $PSScriptRoot "..\..\Environment\CentralTest\Invoke-AgentReg
 
 $params = @{ Matrix = $Matrix }
 if ($PSBoundParameters.ContainsKey('Test') -and $Test.Count -gt 0) { $params['Test'] = $Test }
+if ($PSBoundParameters.ContainsKey('Project') -and $Project.Count -gt 0) { $params['Project'] = $Project }
 if ($PSBoundParameters.ContainsKey('Case') -and $Case.Count -gt 0) { $params['Case'] = $Case }
 if ($PSBoundParameters.ContainsKey('Parallel'))  { $params['Parallel'] = $Parallel }
 if ($NoKnownRedOk) { $params['NoKnownRedOk'] = $true }

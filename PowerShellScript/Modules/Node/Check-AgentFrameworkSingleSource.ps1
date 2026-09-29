@@ -4,7 +4,7 @@
     Agent 通用框架单源守卫（AgentFrameworkSingleSource）—— 四个横切关注点框架的机器判据。
 
 .DESCRIPTION
-    判据（基线全部外置到 Baselines\AgentFramework.psd1）：
+    判据（基线全部外置到 Baselines\AgentFrameworkSingleSource.psd1；事实行 = @{ Value; Origin; DueWhen }）：
       D1 诊断载体单源：Operation.HierarchyMethod 内 `Action<string, object?>` 只允许出现在
                         Abstractions\IDiagnosticsSink.cs（适配器本体）；其余文件 0。
       D2 回退姿态单点：流回退分支（_taskProvisionFlow/_attributionFlow 的 is null/is not null）
@@ -42,7 +42,20 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
-$baseline = Import-GateBaseline -Name 'AgentFramework'
+# 基线单源 = Baselines\AgentFrameworkSingleSource.psd1（禁内联数值基线；禁第二基线根；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$b = Import-GateBaseline -Name AgentFrameworkSingleSource
+# 事实行解包（U9：每键须为 @{Value;Origin;DueWhen}）⇒ 脚本内零裸基线值
+$DiagnosticsCarrierAllowedFiles   = @($b.DiagnosticsCarrierAllowedFiles.Value)
+$KeyAddressingBaselines           = $b.KeyAddressingBaselines.Value
+$FlowFallbackBaselines            = $b.FlowFallbackBaselines.Value
+$BookkeepingFlowRows              = [int]$b.BookkeepingFlowRows.Value
+$ParamImplementationMax           = [int]$b.ParamImplementationMax.Value
+$BookkeepingRunnerConstructionMax = [int]$b.BookkeepingRunnerConstructionMax.Value
+$PostureRequireFlowRequired       = [bool]$b.PostureRequireFlowRequired.Value
+$PostureRequireFlowMin            = [int]$b.PostureRequireFlowMin.Value
+$ScanSurfaceMinHits               = [int]$b.ScanSurfaceMinHits.Value
+$ContextAssemblyComboBaseline     = [int]$b.ContextAssemblyComboBaseline.Value
 $violations = [System.Collections.Generic.List[string]]::new()
 
 $hmDir      = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod'
@@ -63,15 +76,15 @@ $totalHits = 0
 # ---------------- D1 诊断载体单源 ----------------
 $diagCounts = Get-PatternFileCounts -Dirs @($hmDir) -Pattern $DiagCarrierPattern
 foreach ($f in $diagCounts.Keys) {
-    if ($baseline.DiagnosticsCarrierAllowedFiles -notcontains $f) {
-        $violations.Add("D1 诊断载体散落：$f（只允许 $($baseline.DiagnosticsCarrierAllowedFiles -join ', ')；一律经 IDiagnosticsSink）")
+    if ($DiagnosticsCarrierAllowedFiles -notcontains $f) {
+        $violations.Add("D1 诊断载体散落：$f（只允许 $($DiagnosticsCarrierAllowedFiles -join ', ')；一律经 IDiagnosticsSink）")
     }
 }
 $totalHits += ($diagCounts.Values | Measure-Object -Sum).Sum
 
 # ---------------- D2 回退姿态 ----------------
 $flowCounts = Get-PatternFileCounts -Dirs @($hmDir, $agentSrc) -Pattern $FlowBranchPattern
-foreach ($v in (Test-BaselineNoIncrease -Counts $flowCounts -Baselines $baseline.FlowFallbackBaselines -Label 'D2 回退分支')) {
+foreach ($v in (Test-BaselineNoIncrease -Counts $flowCounts -Baselines $FlowFallbackBaselines -Label 'D2 回退分支')) {
     $violations.Add($v)
 }
 $postureRefs = Get-PatternFileCounts -Dirs @($hmDir) -Pattern '_posture\.RunAsync|FlowPosture\.AllowLegacyFallback|FlowPosture\.RequireFlow'
@@ -82,7 +95,7 @@ $totalHits += ($flowCounts.Values | Measure-Object -Sum).Sum
 
 # ---------------- D3 键寻址收口 ----------------
 $nsCounts = Get-PatternFileCounts -Dirs @($hmDir, $agentSrc) -Pattern $NamespacePattern
-foreach ($v in (Test-BaselineNoIncrease -Counts $nsCounts -Baselines $baseline.KeyAddressingBaselines -Label 'D3 命名空间取值点')) {
+foreach ($v in (Test-BaselineNoIncrease -Counts $nsCounts -Baselines $KeyAddressingBaselines -Label 'D3 命名空间取值点')) {
     $violations.Add($v)
 }
 $keyAddrFile = Join-Path $hmDir 'Nodes\Keys\KeyAddressing.cs'
@@ -108,8 +121,8 @@ if (-not (Test-Path -LiteralPath $catalog)) {
         $rows += [PSCustomObject]@{ Const = $m.Groups['c'].Value; Flow = $m.Groups['f'].Value }
     }
 }
-if ($rows.Count -lt $baseline.BookkeepingFlowRows) {
-    $violations.Add("D4 簿记流行数不足：$($rows.Count) < 基线 $($baseline.BookkeepingFlowRows)（数据表被删？）")
+if ($rows.Count -lt $BookkeepingFlowRows) {
+    $violations.Add("D4 簿记流行数不足：$($rows.Count) < 基线 $BookkeepingFlowRows（数据表被删？）")
 }
 foreach ($row in $rows) {
     if (-not $specConsts.ContainsKey($row.Const)) {
@@ -140,8 +153,8 @@ $paramTotal = 0
 foreach ($k in $paramCounts.Keys) {
     if ($k -like '*OpsFunctions.cs') { $paramTotal += $paramCounts[$k] }
 }
-if ($paramTotal -gt $baseline.ParamImplementationMax) {
-    $violations.Add("D5 取参实现重复：OpsFunctions 命中 $paramTotal > 上限 $($baseline.ParamImplementationMax)（须经 WorkflowContextParams）")
+if ($paramTotal -gt $ParamImplementationMax) {
+    $violations.Add("D5 取参实现重复：OpsFunctions 命中 $paramTotal > 上限 $ParamImplementationMax（须经 WorkflowContextParams）")
 }
 $wcRefs = Get-PatternFileCounts -Dirs @($agentSrc) -Pattern 'WorkflowContextParams\.(Get|GetInt|TryGet)'
 if (($wcRefs.Values | Measure-Object -Sum).Sum -le 0) {
@@ -153,8 +166,8 @@ if (($wcRefs.Values | Measure-Object -Sum).Sum -le 0) {
 # 且切片内 AttributionFlow=null 防递归）不得在各装配点逐字重写。
 $runnerCounts = Get-PatternFileCounts -Dirs @($agentSrc) -Pattern 'new OneShotFlowRunner\('
 $runnerTotal = ($runnerCounts.Values | Measure-Object -Sum).Sum
-if ($runnerTotal -gt $baseline.BookkeepingRunnerConstructionMax) {
-    $violations.Add("D8 簿记流执行器构造点重复：$runnerTotal > 上限 $($baseline.BookkeepingRunnerConstructionMax)（命中：$([string]::Join('、', @($runnerCounts.Keys)))；须经 BookkeepingFlowAssembly）")
+if ($runnerTotal -gt $BookkeepingRunnerConstructionMax) {
+    $violations.Add("D8 簿记流执行器构造点重复：$runnerTotal > 上限 $BookkeepingRunnerConstructionMax（命中：$([string]::Join('、', @($runnerCounts.Keys)))；须经 BookkeepingFlowAssembly）")
 }
 $sliceRefs = Get-PatternFileCounts -Dirs @($agentSrc) -Pattern 'BookkeepingFlowAssembly\.(RunnerOf|RunnerFor)'
 if (($sliceRefs.Values | Measure-Object -Sum).Sum -le 0) {
@@ -186,14 +199,14 @@ $fallbackDiagRefs = Get-PatternFileCounts -Dirs @($hmDir) -Pattern 'DiagnosticsC
 if (($fallbackDiagRefs.Values | Measure-Object -Sum).Sum -le 0) {
     $violations.Add('D9 正对照失效：DiagnosticsCodes.FlowFallback 无使用点（回退命中不可观测，收口无据？）')
 }
-if ($baseline.PostureRequireFlowRequired -and $requireFlowCount -lt $baseline.PostureRequireFlowMin) {
-    $violations.Add("D9 姿态未收口：FlowPosture.RequireFlow 装配点 $requireFlowCount < $($baseline.PostureRequireFlowMin)（PostureRequireFlowRequired=$($baseline.PostureRequireFlowRequired)）")
+if ($PostureRequireFlowRequired -and $requireFlowCount -lt $PostureRequireFlowMin) {
+    $violations.Add("D9 姿态未收口：FlowPosture.RequireFlow 装配点 $requireFlowCount < $PostureRequireFlowMin（PostureRequireFlowRequired=$PostureRequireFlowRequired）")
 }
 $totalHits += $requireFlowCount
 
 # ---------------- D6 正对照 ----------------
-if ($totalHits -lt $baseline.ScanSurfaceMinHits) {
-    $violations.Add("D6 正对照失效：扫描面命中 $totalHits < $($baseline.ScanSurfaceMinHits)（扫描面或模式失效？）")
+if ($totalHits -lt $ScanSurfaceMinHits) {
+    $violations.Add("D6 正对照失效：扫描面命中 $totalHits < $ScanSurfaceMinHits（扫描面或模式失效？）")
 }
 
 # ---------------- D7 负对照 ----------------
@@ -239,8 +252,8 @@ foreach ($f in (Get-ChildItem -LiteralPath $agentSrc -Recurse -File -Filter '*.c
     }
     if ($hasEnumeration -and $hasKeyedRead) { $comboFiles.Add($f.Name) }
 }
-if ($comboFiles.Count -gt $baseline.ContextAssemblyComboBaseline) {
-    $violations.Add("D10 读组装组合点新增：$($comboFiles -join ', ') = $($comboFiles.Count) > 基线 $($baseline.ContextAssemblyComboBaseline)（O-1 触发点收口：只减不增）")
+if ($comboFiles.Count -gt $ContextAssemblyComboBaseline) {
+    $violations.Add("D10 读组装组合点新增：$($comboFiles -join ', ') = $($comboFiles.Count) > 基线 $ContextAssemblyComboBaseline（O-1 触发点收口：只减不增）")
 }
 if ($comboFiles.Count -le 0) {
     $violations.Add('D10 正对照失效：读组装组合点扫描全 0（扫描面或模式失效？）')

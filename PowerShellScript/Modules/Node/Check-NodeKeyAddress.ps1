@@ -243,7 +243,10 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- A7 正对照（防假绿） ----------------
-$a7Baseline = 9   # 2026-09-27 实测：5 域 9 位置（conversation 5（含 archive-raw-legacy 兼容读）/ segment 2 / message 1 / process 1 / task-node 1）
+# 基线单源 = Baselines\NodeKeyAddress.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name NodeKeyAddress
+$a7Baseline = [int]$g.PlacementCount.Value   # 2026-09-27 实测：5 域 9 位置
 if ($placementCount -lt $a7Baseline) {
     $violations.Add("[A7] 位置声明数 $placementCount < 基线 $a7Baseline（声明被删或未装载 ⇒ 判据失效，禁假绿）")
 }

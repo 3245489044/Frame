@@ -47,6 +47,10 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
+# 基线单源 = Baselines\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$baseline = Import-GateBaseline -Name KeyGrammar
+
 $violations = [System.Collections.Generic.List[string]]::new()
 $pending    = [System.Collections.Generic.List[string]]::new()
 
@@ -85,33 +89,12 @@ function Get-CodeLines {
     return , $result
 }
 
-# ---------------- K1 键族字面量单源 ----------------
-# 白名单 = 键文法单源（内核 + 各域文法单源文件）；新增落点即违规
-# 2026-09-29（DS-P1）：五族键模板单源上移层 2 = Modules\Node\Identity\NodeStoreKeyGrammars.cs（D1-② 收编）；
-#   旧件（NodeKeyPrefix / SessionMessageKeys）保留为**无字面量别名门面**，故基线命中数不变（只减不增）。
-$grammarWhitelist = @(
-    'Modules\Parsing\Keys\',
-    'Modules\Node\Identity\NodeStoreKeyGrammars.cs',
-    'Abstractions\SessionMessageKeys.cs',
-    'Abstractions\NodeKeyPrefix.cs',
-    'Abstractions\KeyMappingKeys.cs',
-    'Abstractions\RelationDeclaration.cs',
-    'Ids\FactIdGrammar.cs',
-    'Ids\FactIdMigration.cs',
-    'NodeDomain\ProcessKeys.cs',
-    'Instances\InstanceRegistry.cs'
-)
+# ---------------- K1 键族字面量单源（数据源 = Baselines\KeyGrammar.psd1） ----------------
+# 白名单 = 键文法单源（内核 + 各域文法单源文件）；白名单外命中即违规。
+$grammarWhitelist = @($baseline.GrammarWhitelist.Value)   # 单源白名单（事实行：Value + Origin + DueWhen）
 
-# 基线 = 2026-09-26 实测落点文件数（只减不增）
-$k1Patterns = @(
-    [pscustomobject]@{ Id = 'K1a'; Literal = '"#R"';                Baseline = 1 }
-    [pscustomobject]@{ Id = 'K1b'; Literal = '"proc."';             Baseline = 1 }
-    [pscustomobject]@{ Id = 'K1c'; Literal = '"cline.session."';    Baseline = 0 }
-    [pscustomobject]@{ Id = 'K1d'; Literal = '".round."';           Baseline = 0 }
-    [pscustomobject]@{ Id = 'K1e'; Literal = '"keymapping."';       Baseline = 1 }
-    [pscustomobject]@{ Id = 'K1f'; Literal = '"checkpoint."';       Baseline = 1 }
-    [pscustomobject]@{ Id = 'K1g'; Literal = '"relations."';        Baseline = 1 }
-)
+# 基线 = 实测落点文件数（只减不增）；每条带 Origin/DueWhen（四分事实，见 Baselines\README.md）。
+$k1Patterns = @($baseline.KeyFamilyLiterals)
 
 foreach ($entry in $k1Patterns)
 {
@@ -142,20 +125,20 @@ foreach ($entry in $k1Patterns)
         $violations.Add("[K1] $($entry.Id) 键族字面量 $($entry.Literal) 出现在白名单外：$($hit.Rel):$($hit.Line)")
     }
 
-    if ($fileCount -gt $entry.Baseline)
+    if ($fileCount -gt $entry.Value)
     {
-        $violations.Add("[K1] $($entry.Id) 键族字面量 $($entry.Literal) 落点数 $fileCount > 基线 $($entry.Baseline)（新增落点）")
+        $violations.Add("[K1] $($entry.Id) 键族字面量 $($entry.Literal) 落点数 $fileCount > 基线 $($entry.Value)（新增落点）")
     }
-    elseif ($fileCount -lt $entry.Baseline -and $ShowDetail)
+    elseif ($fileCount -lt $entry.Value -and $ShowDetail)
     {
-        $pending.Add("[K1] $($entry.Id) $($entry.Literal)：$fileCount → 目标 ≤ $($entry.Baseline)（基线可下调）")
+        $pending.Add("[K1] $($entry.Id) $($entry.Literal)：$fileCount → 目标 ≤ $($entry.Value)（基线可下调）")
     }
 
     if ($ShowDetail) { Write-Host ("  {0} {1}：落点 {2} 文件 / 白名单外 {3}" -f $entry.Id, $entry.Literal, $fileCount, $outside.Count) -ForegroundColor Gray }
 }
 
 # ---------------- K2 零手写键切片（键面文件禁 Substring 手写切片） ----------------
-$k2Baseline = 5   # 2026-09-26 实测（键面既有落点，随迁移消除）
+$k2Baseline = [int]$baseline.KeySlice.Value   # 数据源 = Baselines\KeyGrammar.psd1（事实行：Value+Origin+DueWhen）
 $keyFaceFiles = @($files | Where-Object { $_.Name -match 'Key' })
 $k2Hits = @($keyFaceFiles |
     Select-String -Pattern 'Substring\(' -ErrorAction SilentlyContinue |
@@ -178,7 +161,7 @@ if ($ShowDetail)
 }
 
 # ---------------- K3 零就地键序（OrderBy + ParseRound/ParseSeq） ----------------
-$k3Baseline = 0   # 2026-09-26 实测：就地键序已归零（拦存在而非拦新增）
+$k3Baseline = [int]$baseline.InPlaceOrder.Value   # 数据源 = Baselines\KeyGrammar.psd1
 $k3Hits = @($files |
     Select-String -Pattern 'OrderBy\(.*(ParseRound|ParseSeq)' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })
@@ -195,7 +178,7 @@ elseif ($k3Hits.Count -lt $k3Baseline)
 if ($ShowDetail) { Write-Host "  K3 就地键序：$($k3Hits.Count) 处（基线 $k3Baseline）" -ForegroundColor Gray }
 
 # ---------------- K4 零自建比较器（键面禁 Comparer<string>.Create） ----------------
-$k4Baseline = 1   # 2026-09-26 实测
+$k4Baseline = [int]$baseline.OwnComparer.Value   # 数据源 = Baselines\KeyGrammar.psd1
 $k4Hits = @($files |
     Select-String -Pattern 'Comparer<string>\s*\.\s*Create' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })
@@ -213,7 +196,7 @@ elseif ($k4Files.Count -lt $k4Baseline)
 if ($ShowDetail) { Write-Host "  K4 自建比较器：$($k4Files.Count) 文件（基线 $k4Baseline）" -ForegroundColor Gray }
 
 # ---------------- K5 正对照：内核文法定义点数 ≥ 基线（防假绿） ----------------
-$k5Baseline = 6   # 2026-09-26 实测（instance-id / session-message / nodes.* ×4）
+$k5Baseline = [int]$baseline.GrammarDefs.Value   # 数据源 = Baselines\KeyGrammar.psd1
 $k5Hits = @($files |
     Select-String -Pattern 'KeyGrammar\.Create\(' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })
@@ -225,7 +208,7 @@ if ($k5Hits.Count -lt $k5Baseline)
 elseif ($ShowDetail) { Write-Host "  K5 键文法定义点：$($k5Hits.Count) 处（基线 ≥ $k5Baseline）" -ForegroundColor Gray }
 
 # ---------------- K6 正对照：声明绑定用例在位（阶段 4 判据） ----------------
-$bindingTest = Join-Path $Root 'Environment\CentralTest\CSharpTest\Modules.Tests\Parsing.Keys.Tests\Parity\DeclarationBindingTests.cs'
+$bindingTest = Join-Path $Root $baseline.BindingTest.Value
 if (-not (Test-Path -LiteralPath $bindingTest))
 {
     $violations.Add("[K6] 声明绑定用例缺失：...\Parsing.Keys.Tests\Parity\DeclarationBindingTests.cs（声明模板 ↔ 键文法 的绑定点）")

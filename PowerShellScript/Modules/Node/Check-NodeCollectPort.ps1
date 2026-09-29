@@ -60,8 +60,11 @@ $workflowsDir = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $ReservedTokens = @('nodes.*')
 # 收集端口的 fn= 白名单（投影类函数；§3.6 正对照 + §7-R3 缓解：LLM 步不得声明收集端口）
 $ProjectionFunctions = @('context_project')
+# 基线单源 = Baselines\NodeCollectPort.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name NodeCollectPort
 # 正对照基线：声明面收集端口声明数 ≥ 基线（声明被删而门禁恒绿 = 失效）
-$CollectDeclarationBaseline = 1
+$CollectDeclarationBaseline = [int]$g.CollectDeclaration.Value
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $pending    = [System.Collections.Generic.List[string]]::new()

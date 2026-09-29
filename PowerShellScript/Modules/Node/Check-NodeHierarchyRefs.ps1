@@ -63,10 +63,13 @@ $groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Co
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
+# 基线单源 = Baselines\NodeHierarchyRefs.psd1（禁内联数值基线）
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name NodeHierarchyRefs
 # 声明面边类型数下限（W1 实测收敛 = 4；追加须同批更新本基线并给出理由）
-$DeclaredEdgeCountBaseline = 4
+$DeclaredEdgeCountBaseline = [int]$g.DeclaredEdgeCount.Value
 # 边类型常量数下限（防常量文件被清空 ⇒ 对账恒真）
-$ConstQuantityBaseline = 4
+$ConstQuantityBaseline     = [int]$g.ConstQuantity.Value
 # `[Ref]` 字段白名单（= UsharpLanguage 已注册字段；未注册字段被编译器静默忽略，禁写）
 $RefFieldWhitelist = @('space', 'key', 'src', 'tgt', 'intent', 'edge', 'scope')
 # 退役常量的写用法债务基线（只减不增）：常量名 → 允许的写用法计数。

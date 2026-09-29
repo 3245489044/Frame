@@ -82,12 +82,12 @@ $MustBeZeroPairs = @(
     'Operation\DataStoreDriven\DataStoreDriven.csproj -> Operation\WorkFlowMethod\WorkFlowMethod.csproj'
 )
 
-# ---------------- 正对照/债务基线（防解析面失效 ⇒ 棘轮恒真） ----------------
-$OperationProjectBaseline = 11
-$ProjMapBaseline          = 100
-# 悬空同层引用债务基线（只减不增）：4 条 = 孤儿工程 FunctionExecutionFramework.csproj 的 4 条失效相对路径
-# （其源码已被 WorkFlowMethod 默认 glob 收编；仓内 Node 文档已登记该既有噪声）
-$DanglingDebtBaseline     = 4
+# ---------------- 正对照/债务基线（防解析面失效 ⇒ 棘轮恒真；单源 = Baselines\OperationLayerIsolation.psd1） ----------------
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name OperationLayerIsolation
+$OperationProjectBaseline = [int]$g.OperationProject.Value
+$ProjMapBaseline          = [int]$g.ProjMap.Value
+$DanglingDebtBaseline     = [int]$g.DanglingDebt.Value
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $warnings   = [System.Collections.Generic.List[string]]::new()

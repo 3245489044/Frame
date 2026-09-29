@@ -8,7 +8,7 @@
 |---|---|---|
 | `Search-Repo.ps1` | `PowerShellScript\Share\Search\Search-Repo.ps1` | 多仓检索（git grep） |
 | `Test-JsonFiles.ps1` | `PowerShellScript\Share\Validate\Test-JsonFiles.ps1` | JSON 批量校验 |
-| `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（16 件） |
+| `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（件数以 `GateManifests.psd1` 为准） |
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 
 ## 用法
@@ -43,13 +43,21 @@
 
 ### 门禁
 ```powershell
-# 全量（16 件）
+# 全量
 .\Invoke-GateCheck.ps1 -All
+
+# 快层：只跑清单内 Tier='fast' 的「读产物」类轻量件（秒级反馈；全量慢是结构性的：多数件扫源码 + 串行）
+.\Invoke-GateCheck.ps1 -All -Tier fast
 
 # 指定
 .\Invoke-GateCheck.ps1 -Only AgentBuildPoint,DataContracts
 ```
-16 件门禁清单见 `PowerShellScript\Operation\DSL\GateManifests.psd1`（含 `InvokeEntrypoints` 入口框架守卫）。
+门禁清单与**件数**的唯一来源 = `PowerShellScript\Operation\DSL\GateManifests.psd1`（禁在文档/注释里写死件数）。
+每件可带 `Tier='fast'`（读产物类轻量件）与 `Path=`（Modules 侧守卫的仓库相对路径）；`Args` 须哈希表（见下文守卫）。
+
+**基线单源**：门禁基线/清册一律放 `Frame\PowerShellScript\Baselines\`（`<Gate>.psd1`，`_` 前缀 = 清册）。
+脚本内禁内联数值基线（守卫 `GateBaselines`）；生成物禁手改，漂移即红（守卫 `GeneratedArtifactsDrift`，登记表 `Baselines\_generated-artifacts.psd1`）。
+`Derived`/`Debt`/`Verdict` 四分与迁移台账见 `Baselines\README.md`。
 
 ### 回归
 ```powershell
@@ -58,6 +66,9 @@
 
 # 定向声明式用例（R32）
 .\Invoke-Regression.ps1 -Case core.json-rule-engine.unknown-op.callback-logs
+
+# 定向工程复跑（自由名 -Test 须与 -Project 同用，FD-14；别名形态如 keys/node 不需）
+.\Invoke-Regression.ps1 -Test keys,node -Project 'Keys\.Tests|Node\.Tests'
 ```
 矩阵：`default`（6 项）/ `agent`（+3 项）/ `infra`（5 项）。`-Parallel` 需 PowerShell 7+（PS 5.1 自动回退串行）。
 

@@ -373,6 +373,6 @@ A0 Hosting（根由 Frame\DataCenter 持有）──▶ A1 槽清单 + 去静态
 
 **边界纪律**：
 1. 两侧**不得互相冒充**：语义埋点不得写入 `ur_events` 冒充运行事件；运行事件不得写入语义事件区充当语义时间线。
-2. 装配点：语义侧 `AgentFrameworkHosting.TryArmObservabilityAsync`（fail-safe，失败只记 `ObserveArmError`）；运行侧 `DataStoreHosting.RegisterReactive`（`EventSink` 注册进编排器释放链）。
+2. 装配点：语义侧 `AgentFrameworkHosting.TryArmObservabilityAsync`（fail-safe，失败只记 `ObserveArmError`）；运行侧 D 段反应式构建四步（`DataStoreHosting.BuildReactiveZones` / `BuildReactiveSink` / `ArmReactiveFacts` / `BuildReactiveTrigger`，`EventSink` 注册进编排器释放链）。
 3. 唯一化方向（DEC-1①，未实施）：以 `ur_events` 为唯一真源、文件事件区降级为导出/投影；落地前须先冻结两侧查询口径（`ObservabilityQuery` 的投影语义不得被库表 schema 改写）。
 

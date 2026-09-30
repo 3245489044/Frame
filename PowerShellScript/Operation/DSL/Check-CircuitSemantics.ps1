@@ -20,6 +20,9 @@
         （唯一入口 = 框架 CircuitCompiler.TryCompile / Compile(spec)）。
     CS7 Agent.Core 禁桩件体（负对照）：接入面内禁 模拟/stub/NotImplemented/TODO（演示件冒充真实接线）。
     CS8 Agent.Core 缓存键内容指纹（正对照）：RoundFlowCircuitRegistry 须含 Fingerprint（同名不同内容不得复用陈旧电路）。
+    CS9 Agent.Core 编排动作分派配方化（负对照 + 正对照）：TaskOrchestrator 内禁手写 op 分派
+        （switch(operation.Op) = 0 且「执行体无对应分支」漂移兜底 = 0；Kind 解析唯一来源 = 框架 CircuitNodeResolver）；
+        CS9-d 正对照 = 配方驱动在册（CircuitAssemblyRunner.RunAsync ≥ 1 且 new RecipeBuilder( ≥ 1）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -238,10 +241,42 @@ else
     Write-Host "  CS6/CS7/CS8 路径缺失（Agent.Core\Nodes\Circuit 未找到）：跳过" -ForegroundColor DarkGray
 }
 
+# ---------- CS9 编排动作分派配方化（负对照：禁手写 op 分派；正对照：配方驱动在册） ----------
+$orchestratorFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\TaskPool\TaskOrchestrator.cs'
+if (Test-Path $orchestratorFile)
+{
+    # 载体 = 结构事实（代码语句）而非注释散文：先剥 `//` 注释行，
+    # 防「注释里提到 switch 即判红」的假阳性（判据载体须为代码形态，权威：SEP.JudgmentCarrierStructural）。
+    $orchestratorCode = ((Get-Content -LiteralPath $orchestratorFile -Encoding UTF8) |
+        Where-Object { $_ -notmatch '^\s*//' }) -join "`n"
+
+    # 负对照：手写分派（switch(operation.Op)）与「词表已声明但执行体缺分支」的漂移兜底
+    $cs9Dispatch = ([regex]::Matches($orchestratorCode, 'switch\s*\(\s*operation\.Op\s*\)')).Count
+    $cs9Drift = ([regex]::Matches($orchestratorCode, '但执行体无对应分支')).Count
+    Write-Host ("  CS9 编排动作分派配方化（负对照 switch(operation.Op)={0} / 漂移兜底={1}）：须均为 0" -f $cs9Dispatch, $cs9Drift) -ForegroundColor Gray
+    if (($cs9Dispatch + $cs9Drift) -gt 0)
+    {
+        $violations.Add("[CS9] TaskOrchestrator 仍存在手写 op 分派 / 漂移兜底 $($cs9Dispatch + $cs9Drift) 处（编排须经电路配方 + 框架单源 Kind 解析）")
+    }
+
+    # 正对照：配方驱动在册（0 = 扫描面失效，非「零违规」）
+    $cs9Recipe = ([regex]::Matches($orchestratorCode, 'CircuitAssemblyRunner\.RunAsync')).Count
+    $cs9Builder = ([regex]::Matches($orchestratorCode, 'new RecipeBuilder\(')).Count
+    Write-Host ("  CS9-d 配方驱动在册（正对照 RunAsync={0} / RecipeBuilder={1}）：须均 ≥ 1" -f $cs9Recipe, $cs9Builder) -ForegroundColor Gray
+    if ($cs9Recipe -lt 1 -or $cs9Builder -lt 1)
+    {
+        $violations.Add("[CS9-d] TaskOrchestrator 未见配方驱动（CircuitAssemblyRunner.RunAsync / RecipeBuilder）：扫描面失效或编排回退为手写分派")
+    }
+}
+else
+{
+    Write-Host "  CS9 路径缺失（Agent.Core\TaskPool\TaskOrchestrator.cs 未找到）：跳过" -ForegroundColor DarkGray
+}
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化）" -ForegroundColor Green
     exit 0
 }
 

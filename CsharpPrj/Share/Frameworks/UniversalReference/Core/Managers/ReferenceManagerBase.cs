@@ -72,7 +72,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             return Task.FromResult<Resource?>(null);
         }
 
-        public Task<List<Resource>> GetAllResourcesAsync()
+        public virtual Task<List<Resource>> GetAllResourcesAsync()
         {
             lock (_lock)
             {
@@ -137,7 +137,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             );
         }
 
-        public Task<List<(Core.Models.ResourceIdentifier Source, Core.Models.ResourceIdentifier Target, ReferenceType Type, string? Location, string? Description, double Strength, bool IsIncoming)>> GetReferencesAsync(Core.Models.ResourceIdentifier resourceId, bool includeIncoming = true)
+        public virtual Task<List<(Core.Models.ResourceIdentifier Source, Core.Models.ResourceIdentifier Target, ReferenceType Type, string? Location, string? Description, double Strength, bool IsIncoming)>> GetReferencesAsync(Core.Models.ResourceIdentifier resourceId, bool includeIncoming = true)
         {
             lock (_lock)
             {

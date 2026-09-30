@@ -27,6 +27,8 @@
     <ProjectReference Include="$(Proj_Diagnostics)" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <ProjectReference Include="$(Proj_GraphFramework)" />
+    <!-- ★ Declarative Circuit Framework：声明式电路描述/编译层，唯一宿主承载一切引用/调用/依赖关系；复用 Modules.Pipeline 作执行后端 -->
+    <ProjectReference Include="$(Proj_CircuitFramework)" />
     <ProjectReference Include="$(Proj_LayoutAnalysis)" />
     <ProjectReference Include="$(Proj_PlaceholderFramework)" />
     <ProjectReference Include="$(Proj_StateManagement)" />

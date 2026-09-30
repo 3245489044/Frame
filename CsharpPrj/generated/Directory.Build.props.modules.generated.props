@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-28 01:28:52
+  生成时间: 2026-09-30 15:27:56
 -->
 <Project>
 
@@ -109,6 +109,7 @@
     <Mod_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\</Mod_StateManagement>
     <Mod_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\</Mod_TreeTraceFramework>
     <Mod_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\</Mod_AiScheduling>
+    <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
     <Mod_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\</Mod_Diagnostics>
     <Mod_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\</Mod_GraphFramework>
@@ -215,6 +216,7 @@
     <Proj_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\StateManagement.csproj</Proj_StateManagement>
     <Proj_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\TreeTraceFramework.csproj</Proj_TreeTraceFramework>
     <Proj_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\AiScheduling.csproj</Proj_AiScheduling>
+    <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
     <Proj_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\Diagnostics.csproj</Proj_Diagnostics>
     <Proj_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\GraphFramework.csproj</Proj_GraphFramework>

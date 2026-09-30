@@ -217,6 +217,27 @@
         Note   = '生成物漂移守卫 D1–D3：产物存在 / 哨兵在位（手改即失守）/ 复算等价（跑生成器到 temp 逐字比对）；登记表 = Baselines\_generated-artifacts.psd1（含 ContractIndex 与本仓既有 2 个生成物）；新增生成物不登记 = 无人看守产物'
     }
 
+    FrameworkActivation = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '框架激活守卫 FA1：`new ReferenceGraphEngine` 装配点数 ≥ 基线（防图引擎退回死代码/空转）；基线 = Baselines\FrameworkActivation.psd1'
+    }
+
+    SemanticCentralization = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '语义集中守卫 SC1–SC2：收口类定义点 ≥ 基线 / 域内边类型字面量直接赋值（非豁免）≤ 基线（只减不增）；基线 = Baselines\SemanticCentralization.psd1'
+    }
+
+    CircuitSemantics = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '电路语义守卫 CS1–CS3：唯一宿主接线（CircuitFramework 引 UniversalWorkflowFramework）/ 禁 CircuitFramework 内平行引用抽象定义（负对照=0）/ 引用符号五种关系在册（正对照）'
+    }
+
     RecognizerVocabulary = @{
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1'

@@ -131,6 +131,7 @@
     "StateManagement": "Share\\Foundations\\StateManagement\\StateManagement.csproj",
     "TreeTraceFramework": "Share\\Foundations\\TreeTraceFramework\\TreeTraceFramework.csproj",
     "AiScheduling": "Share\\Frameworks\\AiScheduling\\AiScheduling.csproj",
+    "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
     "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
     "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",

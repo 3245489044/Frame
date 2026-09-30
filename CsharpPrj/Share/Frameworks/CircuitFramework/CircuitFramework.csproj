@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>声明式电路框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用、语义无关的声明式电路描述框架：把函数调用/递归/参数传递/条件/并行/循环/引用关系提升为可序列化的图（节点+端口+边+符号），负责编译、静态分析、调度与执行；唯一宿主铁律承载一切引用/调用/依赖关系。</ModuleRule_Description>
+    <ModuleRule_Keywords>电路,图,符号,编译,静态分析,唯一宿主,递归,数据流,控制流,声明式</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.CircuitFramework</RootNamespace>
+    <AssemblyName>Share.CircuitFramework</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 执行后端：编译产物翻译为 Modules.Pipeline 阶段图，复用 PipelineContext + Combinators -->
+    <ProjectReference Include="$(Proj_Pipeline)" />
+    <!-- 引用关系唯一宿主：B5 引用符号(Owns/Calls/Depends/Provides/Consumes)投影以 UniversalWorkflowFramework 为持久化后端 -->
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+  </ItemGroup>
+
+</Project>

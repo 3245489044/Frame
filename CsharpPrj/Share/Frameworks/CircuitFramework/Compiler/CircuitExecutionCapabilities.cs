@@ -27,6 +27,12 @@ public static class CircuitExecutionCapabilities
         CircuitSymbolKind.SubCircuit, // 区域化执行：声明为区域时由 Execution.RegionNodeBase 驱动子计划
         CircuitSymbolKind.Loop,       // 区域有界重复（FixedRepeats）：RegionNodeBase 按声明计次驱动子计划
                                       // （声明由 CircuitRecipeProjector 投影为 Loop 镜像；对拍见 CircuitRegionExecutionTests）
+        CircuitSymbolKind.WhileCond,  // G2 条件迭代（WhileTrue/UntilTrue）：RegionNodeBase 按判定端口驱动子计划
+                                      // （声明由 CircuitRecipeProjector 投影为 WhileCond 镜像；对拍见 CircuitRegionExecutionTests）
+        CircuitSymbolKind.Retry,      // G4 容错：引擎按 Retry 声明重试/退避（机制侧；阈值/熔断归宿主）
+        CircuitSymbolKind.Fallback,   // G4 容错：主路径失败 → 备选节点（机制侧）
+        CircuitSymbolKind.CatchRoute, // G4 容错：失败后路由到补救节点（机制侧）
+        CircuitSymbolKind.TryGuard,   // G4 容错：受保护节点失败 → 吞并继续（机制侧）
     };
 
     /// <summary>已被执行后端消费的符号种类（只读；顺序不承载语义）。</summary>

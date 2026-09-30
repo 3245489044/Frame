@@ -26,6 +26,8 @@ public static class CircuitValidator
         CheckCallTargets(circuit, d);
         CheckExitSymbols(circuit, nodes, d);
         CheckDataflowTargets(circuit, nodes, d);
+        CheckControlEdges(circuit, nodes, d);
+        CheckFailurePolicies(circuit, nodes, d);
         CheckExecutionCoverage(circuit, d);
         return d;
     }
@@ -133,6 +135,104 @@ public static class CircuitValidator
             if (circuit.Nodes.All(n => n.Id != c.CallerNodeId))
                 d.Add(new(DiagnosticSeverity.Error, "CFG-014", $"Call 调用者节点 '{c.CallerNodeId}' 不存在（孤立引用）。", c.CallerNodeId));
         }
+    }
+
+    /// <summary>
+    /// 受控边判定键校验（CFG-025，G3）：判定载体须可解析 —— 节点端口键（NodeId.Port 存在）/ 入口端口（已声明）。
+    /// 使「编译绿 ⇒ 运行期不再有判定载体类错误」，不留静默失效的门控。
+    /// </summary>
+    private static void CheckControlEdges(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        var entries = new HashSet<string>(
+            circuit.Symbols.OfType<EntrySymbol>().Select(e => e.Port), StringComparer.Ordinal);
+
+        foreach (var wire in circuit.Wires)
+        {
+            if (string.IsNullOrWhiteSpace(wire.When)) continue;
+            var when = wire.When!;
+
+            if (when.StartsWith('$'))
+            {
+                var body = when[1..];
+                if (body.StartsWith("entry.", StringComparison.Ordinal))
+                {
+                    if (!entries.Contains(body["entry.".Length..]))
+                        d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                            $"受控边判定键 '{when}' 引用了未声明的入口端口。", wire.To.NodeId));
+                }
+                else
+                {
+                    CheckJudgeNodePort(body, wire, nodes, d);
+                }
+            }
+            else if (when.Contains('.'))
+            {
+                CheckJudgeNodePort(when, wire, nodes, d);
+            }
+            else if (!entries.Contains(when))
+            {
+                d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                    $"受控边判定端口 '{when}' 既非入口端口也非节点端口键（判定载体不可解析）。", wire.To.NodeId));
+            }
+        }
+    }
+
+    private static void CheckJudgeNodePort(
+        string nodePort, CircuitWire wire, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        var parts = nodePort.Split('.', 2);
+        if (parts.Length != 2 || parts[0].Trim().Length == 0 || parts[1].Trim().Length == 0)
+        {
+            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                $"受控边判定键 '{nodePort}' 格式非法（须为 \"NodeId.Port\"）。", wire.To.NodeId));
+            return;
+        }
+
+        var nodeId = parts[0].Trim();
+        var portName = parts[1].Trim();
+        if (!nodes.TryGetValue(nodeId, out var judgeNode))
+        {
+            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                $"受控边判定键 '{nodePort}' 引用不存在的节点 '{nodeId}'。", wire.To.NodeId));
+            return;
+        }
+        if (judgeNode.OutPorts.All(p => p.Name != portName))
+            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                $"受控边判定键 '{nodePort}' 引用的输出端口 '{portName}' 不存在于节点 '{nodeId}'。", wire.To.NodeId));
+    }
+
+    /// <summary>容错策略目标校验（CFG-024，G4）：Retry/Fallback/CatchRoute/TryGuard 指向的节点必须存在（编译期判红）。</summary>
+    private static void CheckFailurePolicies(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        foreach (var retry in circuit.Symbols.OfType<RetrySymbol>())
+            if (!nodes.ContainsKey(retry.NodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-024", $"Retry 承载节点 '{retry.NodeId}' 不存在。", retry.NodeId));
+
+        foreach (var fallback in circuit.Symbols.OfType<FallbackSymbol>())
+        {
+            if (!nodes.ContainsKey(fallback.PrimaryNodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-024",
+                    $"Fallback 主路径节点 '{fallback.PrimaryNodeId}' 不存在。", fallback.PrimaryNodeId));
+            if (!nodes.ContainsKey(fallback.AlternativeNodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-024",
+                    $"Fallback 备选节点 '{fallback.AlternativeNodeId}' 不存在（失败路由无落点）。", fallback.PrimaryNodeId));
+        }
+
+        foreach (var catchRoute in circuit.Symbols.OfType<CatchRouteSymbol>())
+        {
+            if (!nodes.ContainsKey(catchRoute.NodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-024",
+                    $"CatchRoute 承载节点 '{catchRoute.NodeId}' 不存在。", catchRoute.NodeId));
+            if (!nodes.ContainsKey(catchRoute.RemedyNodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-024",
+                    $"CatchRoute 补救节点 '{catchRoute.RemedyNodeId}' 不存在（失败路由无落点）。", catchRoute.NodeId));
+        }
+
+        foreach (var guard in circuit.Symbols.OfType<TryGuardSymbol>())
+            foreach (var protectedId in guard.ProtectedNodeIds)
+                if (!nodes.ContainsKey(protectedId))
+                    d.Add(new(DiagnosticSeverity.Error, "CFG-024",
+                        $"TryGuard 保护节点 '{protectedId}' 不存在。", protectedId));
     }
 
     /// <summary>出口投影校验：格式 / 节点存在性 / 端口存在性（Error）与重复声明（Warning）。</summary>

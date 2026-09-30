@@ -72,6 +72,38 @@ public readonly record struct InputBinding(
 /// <summary>出口引用：声明面端口名（"NodeId.Port"）→ 节点/端口（存在性由编译期校验判红）。</summary>
 public readonly record struct ExitRef(string Port, string NodeId, string PortName);
 
+/// <summary>受控边绑定（G3）：目标节点入端口 <see cref="ToPort"/> 受判定键 <see cref="WhenKey"/> 门控（全部为真才激活）。</summary>
+public readonly record struct RouteBinding(string ToPort, string WhenKey);
+
+/// <summary>
+/// 节点容错策略（G4，机制侧）：重试 / 失败路由 / 受保护。
+/// 框架只做机制（次数 / 退避 / 路由），阈值与熔断归宿主（对齐「框架零领域类型」纪律）。
+/// </summary>
+public sealed record NodeFailurePolicy
+{
+    /// <summary>最大尝试次数（含首次；&lt;= 1 = 不重试）。</summary>
+    public int RetryMaxAttempts { get; init; }
+
+    /// <summary>指数退避基底（毫秒；0 = 不退避）。第 n 次重试退避 = base × 2^(n-1)。</summary>
+    public double RetryBackoffBaseMs { get; init; }
+
+    /// <summary>备选节点 Id（主路径失败 → 备选，机制侧）。</summary>
+    public string? FallbackNodeId { get; init; }
+
+    /// <summary>补救节点 Id（失败后路由，机制侧）。</summary>
+    public string? CatchRouteNodeId { get; init; }
+
+    /// <summary>是否受保护（TryGuard：失败吞并继续，不向执行序上抛）。</summary>
+    public bool Guarded { get; init; }
+
+    /// <summary>无策略（默认）。</summary>
+    public static readonly NodeFailurePolicy None = new();
+
+    /// <summary>是否配置了任一机制（供执行层跳过空策略分支）。</summary>
+    public bool HasAny => RetryMaxAttempts > 1 || RetryBackoffBaseMs > 0
+        || FallbackNodeId is not null || CatchRouteNodeId is not null || Guarded;
+}
+
 /// <summary>
 /// 编译期运行时索引（执行期零重建）：节点查找 + 每节点入边绑定 + 入口端口集 + 出口清单。
 /// 由 <see cref="ExecutionPlan.Index"/> 承载（<see cref="CircuitCompiler"/> 产出）；
@@ -81,17 +113,23 @@ public sealed class CircuitRuntimeIndex
 {
     private readonly Dictionary<string, CircuitNode> _nodesById;
     private readonly Dictionary<string, IReadOnlyList<InputBinding>> _inputsByNode;
+    private readonly Dictionary<string, IReadOnlyList<RouteBinding>> _routesByNode;
+    private readonly Dictionary<string, NodeFailurePolicy> _failureByNode;
     private readonly List<string> _entryPorts;
     private readonly List<ExitRef> _exits;
 
     private CircuitRuntimeIndex(
         Dictionary<string, CircuitNode> nodesById,
         Dictionary<string, IReadOnlyList<InputBinding>> inputsByNode,
+        Dictionary<string, IReadOnlyList<RouteBinding>> routesByNode,
+        Dictionary<string, NodeFailurePolicy> failureByNode,
         List<string> entryPorts,
         List<ExitRef> exits)
     {
         _nodesById = nodesById;
         _inputsByNode = inputsByNode;
+        _routesByNode = routesByNode;
+        _failureByNode = failureByNode;
         _entryPorts = entryPorts;
         _exits = exits;
     }
@@ -108,6 +146,25 @@ public sealed class CircuitRuntimeIndex
     /// <summary>某节点的入端口绑定集（无绑定 = 空集，不返回 null）。</summary>
     public IReadOnlyList<InputBinding> InputsOf(string nodeId)
         => _inputsByNode.TryGetValue(nodeId, out var list) ? list : Array.Empty<InputBinding>();
+
+    /// <summary>某节点的受控边门控集（无门控 = 空集 ⇒ 无条件执行，G3）。</summary>
+    public IReadOnlyList<RouteBinding> RoutesOf(string nodeId)
+        => _routesByNode.TryGetValue(nodeId, out var list) ? list : Array.Empty<RouteBinding>();
+
+    /// <summary>某节点的容错策略（无声明 = <see cref="NodeFailurePolicy.None"/>，G4）。</summary>
+    public NodeFailurePolicy FailurePolicyOf(string nodeId)
+        => _failureByNode.TryGetValue(nodeId, out var policy) ? policy : NodeFailurePolicy.None;
+
+    /// <summary>
+    /// 受控边判定键归一（G3）：以 <c>$</c> 开头 ⇒ 原样；含 <c>.</c> ⇒ 节点端口键 <c>$Node.Port</c>；
+    /// 否则 ⇒ 入口键 <c>$entry.{when}</c>。判定载体须为结构化数据键，不做表达式求值。
+    /// </summary>
+    internal static string ResolveJudgeKey(string when)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(when);
+        if (when.StartsWith('$')) return when;
+        return when.Contains('.') ? "$" + when : "$entry." + when;
+    }
 
     /// <summary>按电路装配索引（O(N+W) 一次）：Wire 绑定 → 入口绑定（后者覆盖前者，与既有供给优先级一致）→ 出口清单。</summary>
     public static CircuitRuntimeIndex Build(Circuit circuit)
@@ -148,6 +205,42 @@ public sealed class CircuitRuntimeIndex
         //    追加在 Wire/Entry 之后 ⇒ 显式声明的数据流符号覆盖同名隐式供给。
         AppendDataflowBindings(circuit, nodesById, bindings);
 
+        // ③.5 受控边（G3）：带 When 的 Wire → 目标节点门控（全部判定为真才执行）
+        var routes = new Dictionary<string, List<RouteBinding>>(StringComparer.Ordinal);
+        foreach (var wire in circuit.Wires)
+        {
+            if (string.IsNullOrWhiteSpace(wire.When)) continue;
+            if (!routes.TryGetValue(wire.To.NodeId, out var gateList))
+                routes[wire.To.NodeId] = gateList = new List<RouteBinding>(2);
+            gateList.Add(new RouteBinding(wire.To.PortName, ResolveJudgeKey(wire.When!)));
+        }
+
+        // ③.6 容错策略（G4，机制侧）：Retry / Fallback / CatchRoute / TryGuard 合并到节点策略
+        var failure = new Dictionary<string, NodeFailurePolicy>(StringComparer.Ordinal);
+        NodeFailurePolicy Current(string nodeId) => failure.TryGetValue(nodeId, out var p) ? p : NodeFailurePolicy.None;
+        foreach (var symbol in circuit.Symbols)
+        {
+            switch (symbol)
+            {
+                case RetrySymbol retry:
+                    failure[retry.NodeId] = Current(retry.NodeId) with
+                    { RetryMaxAttempts = retry.MaxAttempts, RetryBackoffBaseMs = retry.BackoffBaseMs };
+                    break;
+                case FallbackSymbol fallback:
+                    failure[fallback.PrimaryNodeId] = Current(fallback.PrimaryNodeId) with
+                    { FallbackNodeId = fallback.AlternativeNodeId };
+                    break;
+                case CatchRouteSymbol catchRoute:
+                    failure[catchRoute.NodeId] = Current(catchRoute.NodeId) with
+                    { CatchRouteNodeId = catchRoute.RemedyNodeId };
+                    break;
+                case TryGuardSymbol guard:
+                    foreach (var protectedId in guard.ProtectedNodeIds)
+                        failure[protectedId] = Current(protectedId) with { Guarded = true };
+                    break;
+            }
+        }
+
         // ④ 出口清单（格式/存在性由编译期校验 CFG-015/016 判红；此处按 "NodeId.Port" 拆分）
         var exits = new List<ExitRef>();
         foreach (var exit in circuit.Symbols.OfType<ExitSymbol>())
@@ -161,7 +254,10 @@ public sealed class CircuitRuntimeIndex
         var frozen = new Dictionary<string, IReadOnlyList<InputBinding>>(bindings.Count, StringComparer.Ordinal);
         foreach (var pair in bindings) frozen[pair.Key] = pair.Value;
 
-        return new CircuitRuntimeIndex(nodesById, frozen, entryPorts, exits);
+        var frozenRoutes = new Dictionary<string, IReadOnlyList<RouteBinding>>(routes.Count, StringComparer.Ordinal);
+        foreach (var pair in routes) frozenRoutes[pair.Key] = pair.Value;
+
+        return new CircuitRuntimeIndex(nodesById, frozen, frozenRoutes, failure, entryPorts, exits);
     }
 
     /// <summary>

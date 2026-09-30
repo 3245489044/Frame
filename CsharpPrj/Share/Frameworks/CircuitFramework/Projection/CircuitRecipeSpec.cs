@@ -18,7 +18,12 @@ public sealed record CircuitStepSpec(
 /// <summary>产物→依赖 传递边（Wire：FromNode.FromPort → ToNode.ToPort）。</summary>
 public sealed record CircuitFlowSpec(
     string FromNode, string FromPort,
-    string ToNode, string ToPort);
+    string ToNode, string ToPort,
+    /// <summary>
+    /// 受控边判定（G3，可选）：判定键（端口值 / 入口值），非空时本边仅在判定为真时激活（目标节点本次不执行）。
+    /// 载体 = 结构化数据键，不是表达式文本（对齐 SEP.JudgmentCarrierStructural）；缺省 null = 无条件边（源兼容）。
+    /// </summary>
+    string? When = null);
 
 /// <summary>
 /// 出口绑定：执行结束后把 Exit 收集到的最终产物投递回调用方（典型 = 闭包写回装配上下文）。
@@ -82,4 +87,16 @@ public sealed record CircuitRecipeSpec(
     /// 控制边声明（缺省/空 = 无控制边）：两端须已在 <see cref="Steps"/> 中声明；
     /// 投影为 Sequence 镜像（缺省不参与执行 —— 能力表不含 Sequence ⇒ CFG-101 可见化该缺口，不静默）。
     /// </summary>
-    IReadOnlyList<CircuitControlEdgeSpec>? ControlEdges = null);
+    IReadOnlyList<CircuitControlEdgeSpec>? ControlEdges = null,
+    /// <summary>
+    /// 重试声明（G4，缺省/空 = 无重试）：投影为 <see cref="Symbols.RetrySymbol"/>；承载节点存在性由 CFG-024 判红。
+    /// </summary>
+    IReadOnlyList<CircuitRetrySpec>? Retries = null,
+    /// <summary>
+    /// 失败路由声明（G4，缺省/空 = 无改道）：投影为 <see cref="Symbols.FallbackSymbol"/>；两端存在性由 CFG-024 判红。
+    /// </summary>
+    IReadOnlyList<CircuitFallbackSpec>? Fallbacks = null,
+    /// <summary>
+    /// 受保护节点声明（G4，缺省/空 = 无保护）：投影为 <see cref="Symbols.TryGuardSymbol"/>；节点存在性由 CFG-024 判红。
+    /// </summary>
+    IReadOnlyList<CircuitGuardSpec>? Guards = null);

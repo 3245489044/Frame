@@ -95,7 +95,8 @@ public static class CompiledRecipeRegistry
 
         foreach (var f in spec.Flows)
             sb.Append(f.FromNode).Append('.').Append(f.FromPort).Append('>')
-              .Append(f.ToNode).Append('.').Append(f.ToPort).Append(';');
+              .Append(f.ToNode).Append('.').Append(f.ToPort)
+              .Append('?').Append(f.When ?? string.Empty).Append(';');
         sb.Append(Separator);
 
         foreach (var l in spec.Literals ?? Array.Empty<CircuitLiteralSpec>())
@@ -105,6 +106,19 @@ public static class CompiledRecipeRegistry
         // 控制边：投影产 Sequence 镜像 ⇒ 属投影输入，须进指纹（否则同名同内容键复用陈旧电路）
         foreach (var c in spec.ControlEdges ?? Array.Empty<CircuitControlEdgeSpec>())
             sb.Append(c.FromNode).Append('>').Append(c.ToNode).Append(';');
+        sb.Append(Separator);
+
+        // 容错策略（G4）：投影产 Retry/Fallback/TryGuard 符号 ⇒ 属投影输入，须进指纹。
+        foreach (var r in spec.Retries ?? Array.Empty<CircuitRetrySpec>())
+            sb.Append('r').Append(r.NodeId).Append(':').Append(r.MaxAttempts).Append(':').Append(r.BackoffBaseMs).Append(';');
+        foreach (var f in spec.Fallbacks ?? Array.Empty<CircuitFallbackSpec>())
+            sb.Append('f').Append(f.PrimaryNodeId).Append('>').Append(f.AlternativeNodeId).Append(';');
+        foreach (var g in spec.Guards ?? Array.Empty<CircuitGuardSpec>())
+        {
+            sb.Append('g');
+            foreach (var id in g.ProtectedNodeIds) sb.Append(id).Append(',');
+            sb.Append(';');
+        }
         sb.Append(Separator);
 
         // 区域：声明 + 子计划指纹递归（U5/R4：父键须随子图内容变化）

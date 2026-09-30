@@ -30,6 +30,10 @@
         CS10-e 区域镜像单一来源（负对照）：投影产出的 LoopSymbol.Body 只是符号域镜像，
         除投影处（CircuitRecipeProjector.cs）与符号定义处（Symbols\RecursionSymbols.cs）外引用 LoopSymbol = 0
         （被执行面引用即出现第二执行真源，与注册表指纹键分叉）。
+    CS12 轮间链单驱动（负对照）：Agent.Core\Loops 内禁平行路由表 RouteTable<AgentRunState> = 0
+        （run 主路径唯一 = RoundLoopDriver.RunViaRegionAsync 区域电路）。
+    CS13 区域化轮循环在册（正对照）：区域节点（RegionNodeBase.For）/ 条件迭代计划
+        （RegionIterationPlan.WhileTrue）/ 区域入口（RoundLoopDriver.RunViaRegionAsync）须齐备。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -320,10 +324,43 @@ if ($cs10Mirror.Count -gt 0)
 }
 if ($ShowDetail) { foreach ($h in $cs10Mirror) { Write-Host ("    {0}" -f ($h.FullName -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
 
+# ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------
+$agentLoopsDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'
+if (Test-Path $agentLoopsDir)
+{
+    $loopsCs = @(Get-ChildItem -Path $agentLoopsDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue)
+
+    $cs12 = @($loopsCs | Select-String -Pattern 'RouteTable<AgentRunState>' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS12 轮间链单驱动（负对照：Loops 内 RouteTable<AgentRunState> 引用）：{0} 处（须为 0）" -f $cs12.Count) -ForegroundColor Gray
+    if ($cs12.Count -gt 0)
+    {
+        $violations.Add("[CS12] 轮间链出现平行路由表 $($cs12.Count) 处（run 主路径须由区域电路单驱动：RoundLoopDriver.RunViaRegionAsync）")
+    }
+
+    $regionCircuitFile = Join-Path $agentLoopsDir 'Circuit\AgentRunRegionCircuit.cs'
+    $runCircuitFile = Join-Path $agentLoopsDir 'Circuit\AgentRunCircuit.cs'
+    $loopDriverFile = Join-Path $agentLoopsDir 'RoundLoopDriver.cs'
+    $cs13Region = (Test-Path $regionCircuitFile) -and
+        ((Get-Content -LiteralPath $regionCircuitFile -Raw -Encoding UTF8) -match 'RegionNodeBase\.For')
+    $cs13Plan = (Test-Path $runCircuitFile) -and
+        ((Get-Content -LiteralPath $runCircuitFile -Raw -Encoding UTF8) -match 'RegionIterationPlan\.WhileTrue')
+    $cs13Entry = (Test-Path $loopDriverFile) -and
+        ((Get-Content -LiteralPath $loopDriverFile -Raw -Encoding UTF8) -match 'RunViaRegionAsync')
+    Write-Host ("  CS13 区域化轮循环在册（正对照：区域节点={0} / 条件迭代计划={1} / 区域入口={2}）：须均为 True" -f $cs13Region, $cs13Plan, $cs13Entry) -ForegroundColor Gray
+    if (-not ($cs13Region -and $cs13Plan -and $cs13Entry))
+    {
+        $violations.Add('[CS13] 区域化轮循环执行面缺失（区域节点/条件迭代计划/区域入口未在册；轮间链未进电路）')
+    }
+}
+else
+{
+    Write-Host "  CS12/CS13 路径缺失（Agent.Core\Loops 未找到）：跳过" -ForegroundColor DarkGray
+}
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 轮间链单驱动 / 区域化轮循环在册）" -ForegroundColor Green
     exit 0
 }
 

@@ -1,3 +1,4 @@
+using Modules.GraphProcessing.Algorithms;
 using Share.CircuitFramework.Core;
 using Share.CircuitFramework.Symbols;
 
@@ -40,26 +41,22 @@ public sealed class CircuitCallGraph
     /// <summary>
     /// 影响面分析："谁（的电路）依赖了 X"。返回被直接影响命中的电路 Id 集合（含调用 X 的直接调用者与上游传递）。
     /// registry 提供跨电路解析；缺省仅在本电路内判定。
+    /// <para>可达性遍历委托 <c>DefaultPathFinder.GetReachableNodes</c>（Modules.GraphProcessing.Algorithms）。</para>
     /// </summary>
     public ISet<string> GetImpactedBy(
         string canonicalTargetId,
         IReadOnlyDictionary<string, Circuit>? registry = null)
     {
         var byCallerCircuit = BuildReverse(registry);
+        // 反向邻接：被调电路 → 直接上游调用者电路
+        Func<string, IEnumerable<string>> getUpstream = cid =>
+            byCallerCircuit.TryGetValue(cid, out var callers) ? callers : Enumerable.Empty<string>();
+
         var affected = new HashSet<string>();
-        var pending = new Queue<string>();
-        foreach (var c in DirectConsumerCircuits(canonicalTargetId))
-            pending.Enqueue(c);
+        var pathFinder = new DefaultPathFinder<string>();
+        foreach (var start in DirectConsumerCircuits(canonicalTargetId))
+            affected.UnionWith(pathFinder.GetReachableNodes(start, getUpstream));
 
-        while (pending.Count > 0)
-        {
-            var cid = pending.Dequeue();
-            if (!affected.Add(cid)) continue;
-
-            if (byCallerCircuit.TryGetValue(cid, out var callers))
-                foreach (var upstream in callers)
-                    pending.Enqueue(upstream);
-        }
         affected.Remove(canonicalTargetId);
         return affected;
     }

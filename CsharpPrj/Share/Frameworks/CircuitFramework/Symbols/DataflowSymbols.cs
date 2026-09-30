@@ -35,6 +35,9 @@ public sealed class LiteralSymbol : CircuitSymbol
 
     /// <summary>常量的数据类型标识。</summary>
     public string? ValueType { get; init; }
+
+    /// <summary>#6 类型判别：记录 Value 的具体 CLR 类型名，供反序列化还原类型（弥补 object? 经 JSON 丢失类型）。</summary>
+    public string? TypeDiscriminator { get; init; }
 }
 
 /// <summary>Fold：多路输入聚合为一个参数（数组化，供被调方一次收齐）。</summary>

@@ -27,7 +27,6 @@ public static class CircuitEngine
     {
         var ctx = new PipelineContext(cancellationToken);
         var stagePipeline = skeleton ?? new StagePipeline<PipelineContext>(circuit.Id);
-        var solution = new Dictionary<string, object?>();
 
         if (entryInputs is not null)
         {
@@ -51,21 +50,23 @@ public static class CircuitEngine
         // 节点输出写入上下文 SharedData 键 "$NodeId.$Port"
         await stagePipeline.ExecuteAsync(ctx, cancellationToken);
 
-        // 结束后从 SharedData 抽取各节点输出
-        foreach (var nodeId in plan.TopologicalOrder)
-        {
-            foreach (var port in circuit.Nodes.Single(n => n.Id == nodeId).OutPorts)
-            {
-                var key = $"${nodeId}.{port.Name}";
-                if (ctx.SharedData.TryGetValue(key, out var v))
-                    solution[nodeId] = v;
-            }
-        }
-
-        // 出口投影：Exit 端口名 → 输出
+        // 出口投影：Exit 端口名 "NodeId.Port" → 对应节点输出
         var result = new Dictionary<string, object?>();
         foreach (var exit in circuit.Symbols.OfType<ExitSymbol>())
         {
+            string[] parts = exit.Port.Split('.', 2);
+            var nodeId = parts[0].Trim();
+            var portName = parts.Length == 2 ? parts[1].Trim() : string.Empty;
+
+            // #5 Fix：Exit.Port 必须形如 "NodeId.Port" 且节点/端口真实存在，否则显式诊断，杜绝静默无结果。
+            var node = circuit.Nodes.FirstOrDefault(n => n.Id == nodeId);
+            if (node is null)
+                throw new InvalidOperationException(
+                    $"Exit 端口 '{exit.Port}' 引用不存在的节点 '{nodeId}'（Exit 须用 \"NodeId.Port\" 格式）。");
+            if (node.OutPorts.All(p => p.Name != portName))
+                throw new InvalidOperationException(
+                    $"Exit 端口 '{exit.Port}' 引用不存在于节点 '{nodeId}' 的输出端口 '{portName}'。");
+
             if (ctx.SharedData.TryGetValue($"${exit.Port}", out var value))
                 result[exit.Port] = value;
         }

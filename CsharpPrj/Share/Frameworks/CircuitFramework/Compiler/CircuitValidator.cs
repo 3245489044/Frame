@@ -15,11 +15,8 @@ public static class CircuitValidator
         var nodes = circuit.Nodes.ToDictionary(n => n.Id);
 
         CheckUniqueNodeIds(circuit, d);
-        bool hasCycles = CheckCycles(circuit, d);
-        if (!hasCycles) // 环存在时后续排序/端到端分析意义不大，但端口解析仍可进行
-        {
-            CheckPortResolution(circuit, nodes, d);
-        }
+        CheckCycles(circuit, d);
+        CheckPortResolution(circuit, nodes, d); // 环与端口/类型错误并行产出，不因环存在而短路
         CheckFanIn(circuit, d);
         CheckRecursion(circuit, d);
         CheckCallTargets(circuit, d);
@@ -38,14 +35,13 @@ public static class CircuitValidator
         }
     }
 
-    private static bool CheckCycles(Circuit circuit, List<CircuitDiagnostic> d)
+    private static void CheckCycles(Circuit circuit, List<CircuitDiagnostic> d)
     {
         var cycles = CycleDetector.FindCycles(circuit);
         foreach (var cyc in cycles)
             d.Add(new(DiagnosticSeverity.Error, "CFG-002",
                 $"Wire 依赖图存在非法环（环只允许由 Recursion 符号产生，不得以 Wire 成环）：{string.Join(" -> ", cyc)}。",
                 cyc.FirstOrDefault()));
-        return cycles.Count > 0;
     }
 
     private static void CheckPortResolution(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
@@ -85,7 +81,6 @@ public static class CircuitValidator
             switch (s)
             {
                 case FoldSymbol q: covered.Add($"{q.TargetNodeId}:{q.Port}"); break;
-                case MergeSymbol m: foreach (var n in new[] { m.NodeId }) _ = n; break;
             }
         }
         var mergeNodes = new HashSet<string>(

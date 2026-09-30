@@ -18,6 +18,8 @@
   <ItemGroup>
     <!-- 执行后端：编译产物翻译为 Modules.Pipeline 阶段图，复用 PipelineContext + Combinators -->
     <ProjectReference Include="$(Proj_Pipeline)" />
+    <!-- 图算法复用：泛型环检测/路径/拓扑排序（Modules.GraphProcessing + BasicMethod.GraphFoundation） -->
+    <ProjectReference Include="$(Proj_GraphProcessing)" />
     <!-- 引用关系唯一宿主：B5 引用符号(Owns/Calls/Depends/Provides/Consumes)投影以 UniversalWorkflowFramework 为持久化后端 -->
     <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
   </ItemGroup>

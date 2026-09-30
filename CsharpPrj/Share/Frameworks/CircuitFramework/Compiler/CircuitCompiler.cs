@@ -1,5 +1,6 @@
-using Share.CircuitFramework.Compiler;
+using GraphFoundation.Topology;
 using Share.CircuitFramework.Core;
+using Share.CircuitFramework.Projection;
 
 namespace Share.CircuitFramework.Compiler;
 
@@ -44,35 +45,12 @@ public static class CircuitCompiler
         return new ExecutionPlan(circuit.Id, order);
     }
 
-    /// <summary>拓扑排序（Kahn）。依赖边 = Wire 的 From.NodeId → To.NodeId。</summary>
+    /// <summary>拓扑排序（Kahn）。依赖边 = Wire 的 From.NodeId → To.NodeId；委托 GraphFoundation 装配只读图后拓扑排序。</summary>
     private static IReadOnlyList<string>? TopologicalSort(Circuit circuit)
     {
-        var adj = new Dictionary<string, List<string>>();
-        var indeg = new Dictionary<string, int>();
-        foreach (var n in circuit.Nodes)
-        {
-            adj[n.Id] = new List<string>();
-            indeg[n.Id] = 0;
-        }
-        foreach (var w in circuit.Wires)
-        {
-            adj[w.From.NodeId].Add(w.To.NodeId);
-            indeg[w.To.NodeId] = indeg.GetValueOrDefault(w.To.NodeId) + 1;
-        }
-
-        var queue = new Queue<string>(indeg.Where(kv => kv.Value == 0).Select(kv => kv.Key));
-        var order = new List<string>();
-        while (queue.Count > 0)
-        {
-            var u = queue.Dequeue();
-            order.Add(u);
-            foreach (var v in adj[u])
-            {
-                indeg[v]--;
-                if (indeg[v] == 0) queue.Enqueue(v);
-            }
-        }
-
-        return order.Count == circuit.Nodes.Count ? order : null;
+        TopologyResult<string>? result = GraphProcessingAdapter.TopologicalSort(circuit);
+        if (result is null || result.HasCycle)
+            return null;
+        return result.SortedNodes.ToList();
     }
 }

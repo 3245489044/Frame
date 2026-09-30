@@ -41,17 +41,14 @@ public static class CallChainProjector
 
         var circuit = new Circuit(spec.ChainId);
 
-        // 函数 → 电路节点（具名端口）
-        foreach (var callable in spec.Callables)
-        {
-            var node = circuit.AddNode(callable.Id, callable.FunctionKind);
-            foreach (var p in callable.InPorts) node.AddIn(p);
-            foreach (var p in callable.OutPorts) node.AddOut(p);
-        }
-
-        // 参数传递关系 → Wire（OutPort → InPort）
-        foreach (var f in spec.Flows)
-            circuit.Wire(f.FromNode, f.FromPort, f.ToNode, f.ToPort);
+        // 函数 → 电路节点（具名端口）+ 参数传递关系 → Wire：
+        // 复用配方投影器的节点/连线装配（装配只有一份实现，调用链投影不另起一套）。
+        CircuitRecipeProjector.AppendSteps(circuit, spec.Callables
+            .Select(c => new CircuitStepSpec(c.Id, c.FunctionKind, c.InPorts, c.OutPorts))
+            .ToList());
+        CircuitRecipeProjector.AppendFlows(circuit, spec.Flows
+            .Select(f => new CircuitFlowSpec(f.FromNode, f.FromPort, f.ToNode, f.ToPort))
+            .ToList());
 
         // 函数调用关系 → CallSymbol（CallerNodeId → CalleeRef）
         foreach (var c in spec.Calls)

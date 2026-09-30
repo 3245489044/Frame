@@ -197,14 +197,14 @@ public static class CircuitValidator
     }
 
     /// <summary>
-    /// 声明-执行对账（Warning）：Entry/Exit 之外的符号由执行后端（Wire + 入口 + 出口投影）判读，
-    /// 其余语义（分支 / 容错 / 循环递归 / 数据流常量 / 子电路 / 引用）目前仅参与编译校验与静态分析。
-    /// 可见化「图语义 ≠ 执行语义」的缺口，杜绝「图是对的」被误读为「跑的就是图」。
+    /// 声明-执行对账（Warning）：只报**能力表之外**的符号（判据单源 = <see cref="CircuitExecutionCapabilities"/>）。
+    /// 表内 = 执行后端已消费（Entry / Exit / Wire + 数据流符号）；表外语义（分支 / 容错 / 循环递归 / 子电路 / 引用）
+    /// 目前仅参与编译校验与静态分析 —— 可见化「图语义 ≠ 执行语义」的缺口，杜绝「图是对的」被误读为「跑的就是图」。
     /// </summary>
     private static void CheckExecutionCoverage(Circuit circuit, List<CircuitDiagnostic> d)
     {
         var declared = circuit.Symbols
-            .Where(s => s.Kind is not (CircuitSymbolKind.Entry or CircuitSymbolKind.Exit))
+            .Where(s => !CircuitExecutionCapabilities.IsConsumed(s.Kind))
             .GroupBy(s => s.Kind)
             .OrderBy(g => g.Key.ToString(), StringComparer.Ordinal)
             .ToList();

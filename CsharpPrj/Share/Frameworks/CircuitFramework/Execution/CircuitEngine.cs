@@ -82,11 +82,11 @@ public static class CircuitEngine
 
         public async Task ExecuteAsync(PipelineContext context, CancellationToken cancellationToken)
         {
-            // 入参按编译期绑定表装配（零逐节点重扫 Wire / EntrySymbol）
+            // 入参按编译期绑定表装配（零逐节点重扫 Wire / EntrySymbol / 数据流符号）
             var inputs = new Dictionary<string, object?>(_bindings.Count, StringComparer.Ordinal);
             foreach (var binding in _bindings)
             {
-                if (context.SharedData.TryGetValue(binding.SourceKey, out var value))
+                if (DataflowValueResolver.TryResolve(context.SharedData, binding, out var value))
                     inputs[binding.Port] = value;
             }
 

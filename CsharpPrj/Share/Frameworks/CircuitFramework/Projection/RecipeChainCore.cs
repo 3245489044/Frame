@@ -22,6 +22,7 @@ internal sealed class RecipeChainCore
     private readonly List<RecipeStepRecord> _steps = new();
     private readonly List<CircuitFlowSpec> _wires = new();
     private readonly List<string> _exits = new();
+    private readonly List<CircuitLiteralSpec> _literals = new();
     private readonly List<string> _entryPorts;
     private readonly bool _entryOnEachStep;
     private bool _exitsDeclared;
@@ -44,6 +45,26 @@ internal sealed class RecipeChainCore
 
     /// <summary>步骤表（声明序即执行序；派生结果，供解析面按序解析）。</summary>
     internal IReadOnlyList<RecipeStepRecord> Steps => _steps;
+
+    /// <summary>
+    /// 常量注入（B3-1）：把 <paramref name="value"/> 直接绑到已声明步骤的入端口（不查上下文）。
+    /// 节点/端口须已声明（拼错即抛，不静默产出无效声明）。
+    /// </summary>
+    internal void Literal(string nodeId, string port, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(port);
+
+        var step = _steps.FirstOrDefault(s => s.NodeId == nodeId)
+            ?? throw new InvalidOperationException($"常量注入指向未声明节点 '{nodeId}'（配方 '{CircuitId}'）。");
+        if (step.InPorts.All(p => p != port))
+            throw new InvalidOperationException(
+                $"常量注入 '{nodeId}.{port}' 指向的入端口未在节点 '{nodeId}' 声明"
+                + $"（可用：{string.Join(" | ", step.InPorts)}）。");
+
+        _literals.Add(new CircuitLiteralSpec(nodeId, port, value));
+        _spec = null;
+    }
 
     /// <summary>追加一步（顺序即语义）：<paramref name="chainPort"/> 缺省 = <c>p{序号}</c>（唯一产品链端口）。</summary>
     internal void Add(
@@ -137,7 +158,8 @@ internal sealed class RecipeChainCore
             ? _exits.ToArray()
             : new[] { $"{_steps[^1].NodeId}.{_steps[^1].ChainPort}" };
 
-        _spec = new CircuitRecipeSpec(CircuitId, _entryPorts.ToArray(), exits, steps, flows);
+        _spec = new CircuitRecipeSpec(CircuitId, _entryPorts.ToArray(), exits, steps, flows,
+            _literals.Count == 0 ? null : _literals.ToArray());
         return _spec;
     }
 }

@@ -90,6 +90,13 @@ public sealed class OrderedRecipe<TContext> where TContext : class
         return this;
     }
 
+    /// <summary>常量注入（B3-1）：把 <paramref name="value"/> 直接绑到已声明步骤的入端口（不读入口/上游）。</summary>
+    public OrderedRecipe<TContext> Literal(string nodeId, string port, object? value)
+    {
+        _chain.Literal(nodeId, port, value);
+        return this;
+    }
+
     /// <summary>声明面：投影输入（同一实例幂等，重复调用返回同一规格）。</summary>
     public CircuitRecipeSpec Build()
     {

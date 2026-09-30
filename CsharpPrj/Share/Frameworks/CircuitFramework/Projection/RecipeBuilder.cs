@@ -38,6 +38,13 @@ public sealed class RecipeBuilder
         return this;
     }
 
+    /// <summary>常量注入（B3-1）：把 <paramref name="value"/> 直接绑到已声明步骤的入端口（不查上下文）。</summary>
+    public RecipeBuilder Literal(string nodeId, string port, object? value)
+    {
+        _chain.Literal(nodeId, port, value);
+        return this;
+    }
+
     /// <summary>收集出口产物（未声明则缺省 = 末步链端口）。</summary>
     public RecipeBuilder Collect(string nodeId, string port)
     {

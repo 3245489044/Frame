@@ -46,7 +46,14 @@ public sealed record ExitBinding(string ExitPort, Action<object?> Apply)
 }
 
 /// <summary>
-/// 声明式装配配方（装配拓扑的单一真源）：步骤 + 传递边 + 入口（外部绑定产物，如 Config）+ 出口（最终产物集）。
+/// 常量注入声明（B3-1）：把 <see cref="Value"/> 直接绑到步骤 <see cref="NodeId"/> 的入端口 <see cref="Port"/>
+/// （不查上下文；供「逐步骤差异化常量」供给，如逐 op 参数注入）。
+/// </summary>
+public sealed record CircuitLiteralSpec(string NodeId, string Port, object? Value);
+
+/// <summary>
+/// 声明式装配配方（装配拓扑的单一真源）：步骤 + 传递边 + 入口（外部绑定产物，如 Config）+ 出口（最终产物集）
+/// + 常量注入。
 /// 经 <see cref="CircuitRecipeProjector"/> 投影为电路，供编译期校验（拓扑/产物唯一/环）、影响面分析与拓扑驱动执行。
 /// </summary>
 public sealed record CircuitRecipeSpec(
@@ -56,4 +63,6 @@ public sealed record CircuitRecipeSpec(
     /// <summary>最终产物（形如 "NodeId.Port"）；经 ExitSymbol 收集后交 <see cref="ExitBinding"/> 回投。</summary>
     IReadOnlyList<string> ExitPorts,
     IReadOnlyList<CircuitStepSpec> Steps,
-    IReadOnlyList<CircuitFlowSpec> Flows);
+    IReadOnlyList<CircuitFlowSpec> Flows,
+    /// <summary>常量注入（投影为 LiteralSymbol；缺省/空 = 无常量供给）。</summary>
+    IReadOnlyList<CircuitLiteralSpec>? Literals = null);

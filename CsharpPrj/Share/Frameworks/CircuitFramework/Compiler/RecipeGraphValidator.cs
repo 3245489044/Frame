@@ -7,7 +7,7 @@ namespace Share.CircuitFramework.Compiler;
 /// <list type="bullet">
 ///   <item>同一产物被多步骤产出 → Error（产物唯一）；</item>
 ///   <item>Wire 依赖了「无人产出且非入口绑定」的产物 → Error（缺失产物）；</item>
-///   <item>步骤输入端口无人供给（无 Wire 进入、非入口绑定、无人产出）→ Error（缺失产物）。</item>
+///   <item>步骤输入端口无人供给（无 Wire 进入、非入口绑定、非常量注入、无人产出）→ Error（缺失产物）。</item>
 /// </list>
 /// 与 <see cref="CircuitValidator"/> 分工：环 / 端口解析 / fan-in 由电路框架管；
 /// 「产物唯一」与「缺失产物」是配方域 invariant（产物端口名在电路内部是节点局部概念，须在配方语义层收口）。
@@ -37,12 +37,16 @@ public static class RecipeGraphValidator
             errors.Add($"依赖产物 '{f.FromPort}'（{f.FromNode}.{f.FromPort} → {f.ToNode}.{f.ToPort}）无任何产出者且非入口绑定：缺失产物。");
         }
 
-        // ③ 输入未供给：每步 InPort 须被某条 Wire 进入，或由入口同名绑定，或有人产出（同名端口即产物）
+        // ③ 输入未供给：每步 InPort 须被某条 Wire 进入，或由入口同名绑定，或有人产出（同名端口即产物），
+        //    或由常量注入（Literal）直接供给
         var wiredTargets = spec.Flows.Select(f => f.ToNode + "." + f.ToPort).ToHashSet(StringComparer.Ordinal);
+        var literalTargets = (spec.Literals ?? Array.Empty<CircuitLiteralSpec>())
+            .Select(l => l.NodeId + "." + l.Port).ToHashSet(StringComparer.Ordinal);
         foreach (var s in spec.Steps)
             foreach (var p in s.InPorts)
-                if (!wiredTargets.Contains(s.Id + "." + p) && !entry.Contains(p) && !producers.ContainsKey(p))
-                    errors.Add($"步骤 '{s.Id}' 的输入端口 '{p}' 无任何 Wire 进入、非入口绑定、亦无人产出：缺失产物。");
+                if (!wiredTargets.Contains(s.Id + "." + p) && !literalTargets.Contains(s.Id + "." + p)
+                    && !entry.Contains(p) && !producers.ContainsKey(p))
+                    errors.Add($"步骤 '{s.Id}' 的输入端口 '{p}' 无任何 Wire 进入、非入口绑定、非常量注入、亦无人产出：缺失产物。");
 
         return errors;
     }

@@ -29,6 +29,16 @@ public static class CircuitRecipeProjector
         foreach (var ex in spec.ExitPorts)
             circuit.Append(new ExitSymbol { Port = ex });
 
+        // 常量注入（B3-1）→ LiteralSymbol（执行后端直接注入端口值，不经 Wire/Entry）
+        foreach (var literal in spec.Literals ?? Array.Empty<CircuitLiteralSpec>())
+            circuit.Append(new LiteralSymbol
+            {
+                TargetNodeId = literal.NodeId,
+                Port = literal.Port,
+                Value = literal.Value,
+                ValueType = literal.Value?.GetType().Name,
+            });
+
         return circuit;
     }
 

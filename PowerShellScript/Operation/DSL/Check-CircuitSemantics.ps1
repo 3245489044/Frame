@@ -11,6 +11,11 @@
         在 ReferenceSymbol.cs 中齐备。
     CS4 轮骨架唯一接线（正对照）：Agent WorkflowRunner 默认轮后端必须接线 RoundCircuitBackend（函数流执行
         由电路承载）；Nodes\Circuit 内禁定义平行引用抽象（负对照，引用唯一宿主铁律外延）。
+    CS5 装配域唯一接线（编排机制 3→1 / 配方 DSL 3→1 / 段壳样板 → 0 的固化）：
+        CS5-a 禁自建装配管线（Agent.Launcher\Composition 内 CreateStagePipeline = 0；编排唯一 = AssemblyPhaseRunner）；
+        CS5-b 禁手工配方（Agent.Launcher 内 new CircuitStepSpec(/new CircuitFlowSpec( = 0；配方唯一 = OrderedRecipe/RecipeBuilder）；
+        CS5-c 禁直调执行外壳（Agent.Launcher 内 CircuitAssemblyRunner.RunAsync = 0；绑定/驱动唯一 = RecipeAssembly）；
+        CS5-d 正对照（RecipeAssembly< 使用点 ≥ 1；0 = 扫描面失效，非「零违规」）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -38,7 +43,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  电路语义守卫（唯一宿主接线 / 禁平行引用抽象 / 符号在册 / 轮骨架唯一接线）" -ForegroundColor Cyan
+Write-Host "  电路语义守卫（唯一宿主接线 / 禁平行引用抽象 / 符号在册 / 轮骨架唯一接线 / 装配域唯一接线）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
 $cfDir = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\CircuitFramework'
@@ -125,10 +130,63 @@ else
     Write-Host "  CS4 路径缺失（Agent.Core\Nodes\Circuit / WorkflowRunner.cs 未找到）：跳过" -ForegroundColor DarkGray
 }
 
+# ---------- CS5 装配域唯一接线（编排机制 3→1 / 配方 DSL 3→1 / 段壳样板 → 0 的固化） ----------
+$launcherDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher'
+if (-not (Test-Path $launcherDir))
+{
+    Write-Host "  CS5 路径缺失（Agent.Launcher 未找到）：跳过" -ForegroundColor DarkGray
+}
+else
+{
+    $launcherCs = @(Get-ChildItem -Path $launcherDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+    $compositionCs = @($launcherCs | Where-Object { $_.FullName -match '\\Composition\\' })
+
+    # CS5-a 负对照：编排唯一 = AssemblyPhaseRunner（禁再起 Modules.Pipeline 段管线）
+    $cs5a = @($compositionCs | Select-String -Pattern 'CreateStagePipeline' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS5-a 装配编排唯一（Composition 内 CreateStagePipeline）：{0} 处（须为 0）" -f $cs5a.Count) -ForegroundColor Gray
+    if ($cs5a.Count -gt 0)
+    {
+        $violations.Add("[CS5-a] Agent.Launcher\Composition 内出现 Modules.Pipeline 段管线 $($cs5a.Count) 处（装配编排唯一宿主 = AssemblyPhaseRunner）")
+    }
+
+    # CS5-b 负对照：配方声明唯一经框架 DSL（禁手写 CircuitStepSpec/CircuitFlowSpec 数组绕过 RecipeChainCore）
+    $cs5b = @($launcherCs | Select-String -Pattern 'new CircuitStepSpec\(|new CircuitFlowSpec\(' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS5-b 配方声明统一（Launcher 内手工 CircuitStepSpec/CircuitFlowSpec 构点）：{0} 处（须为 0）" -f $cs5b.Count) -ForegroundColor Gray
+    if ($cs5b.Count -gt 0)
+    {
+        $violations.Add("[CS5-b] Agent.Launcher 内手工构造配方步骤/边 $($cs5b.Count) 处（配方须经 OrderedRecipe / RecipeBuilder 声明）")
+    }
+
+    # CS5-c 负对照：执行外壳唯一 = 框架 CircuitAssemblyRunner（禁消费方直调；绑定/驱动经 RecipeAssembly）
+    $cs5c = @($launcherCs | Select-String -Pattern 'CircuitAssemblyRunner\.RunAsync' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS5-c 执行外壳唯一（Launcher 内直调 CircuitAssemblyRunner.RunAsync）：{0} 处（须为 0）" -f $cs5c.Count) -ForegroundColor Gray
+    if ($cs5c.Count -gt 0)
+    {
+        $violations.Add("[CS5-c] Agent.Launcher 内直调执行外壳 $($cs5c.Count) 处（绑定/驱动须经框架装配壳 RecipeAssembly）")
+    }
+
+    # CS5-d 正对照：装配壳在册（0 = 扫描面失效，非「零违规」）
+    $cs5d = @($launcherCs | Select-String -Pattern 'RecipeAssembly<' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS5-d 装配壳在册（正对照 RecipeAssembly< 使用点）：{0} 处（须 ≥ 1）" -f $cs5d.Count) -ForegroundColor Gray
+    if ($cs5d.Count -lt 1)
+    {
+        $violations.Add("[CS5-d] Agent.Launcher 内未发现框架装配壳 RecipeAssembly 使用点（扫描面失效或接线回退）")
+    }
+
+    if ($ShowDetail)
+    {
+        foreach ($h in @($cs5a + $cs5b + $cs5c))
+        {
+            Write-Host ("    {0}:{1}" -f ($h.Path -replace [regex]::Escape($Root + '\'), ''), $h.LineNumber) -ForegroundColor DarkGray
+        }
+    }
+}
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线）" -ForegroundColor Green
     exit 0
 }
 

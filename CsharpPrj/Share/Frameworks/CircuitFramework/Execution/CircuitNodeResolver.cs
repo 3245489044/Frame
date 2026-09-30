@@ -20,6 +20,20 @@ public sealed class CircuitNodeResolver
     /// <summary>注册并登记承载节点 Id（诊断可指名两道步骤）。</summary>
     public CircuitNodeResolver Register(string nodeId, string kind, ICircuitNode node) => Add(nodeId, kind, node);
 
+    /// <summary>注册一个 Kind（节点体直接给出）：Kind 只写一次，消除 <c>new DelegateCircuitNode(kind, …)</c> 的重复与拼写漂移。</summary>
+    public CircuitNodeResolver Register(string kind, DelegateCircuitNode.Body body)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        return Add(null, kind, new DelegateCircuitNode(kind, body));
+    }
+
+    /// <summary>注册并绑定装配上下文（图配方：步骤体签名 <c>(ctx, inputs, ct)</c> 偏应用为节点）。</summary>
+    public CircuitNodeResolver Register<TContext>(
+        string kind,
+        TContext context,
+        Func<TContext, IReadOnlyDictionary<string, object?>, CancellationToken, Task<IReadOnlyDictionary<string, object?>>> body)
+        => Add(null, kind, DelegateCircuitNode.For(kind, context, body));
+
     /// <summary>解析 Kind；未注册 → 显式抛（禁静默返回空实现）。签名可直接作 <c>Func&lt;string, ICircuitNode&gt;</c> 传执行层。</summary>
     public ICircuitNode Resolve(string kind)
     {

@@ -2,10 +2,10 @@
 # Agent 装配聚拢点门禁（P4 扩展）—— 对齐 Projects\Plug\Agent\doc\Agent调用链集中化-装配聚拢点(P4)扩展方案.md
 # 判据：装配入口唯一 + 根引导唯一 + 绑定先于解析（INV-1/INV-3/INV-4）。
 # 检测：
-#   [BP1] 唯一装配入口：不得再出现 AgentComposition.StartAsync 调用（一律经 BuildAsync）
+#   [BP1] 唯一装配入口：不得再出现 AgentComposition.StartAsync 调用（独立装配入口已删，一律经 BuildAsync 四相位）
 #   [BP2] 根引导唯一：AgentRuntimeRootBootstrap.TryBoot 生产调用点 ≤ 1（聚拢点相位 0）
 #   [BP3] 承载冻结：AgentRuntimeRoot.Partition 生产调用点 ≤ 2（门面自身 + E 段登记）
-#   [BP4] 相位顺序：AgentComposition.BuildAsync 内 Bind( 必须先于 AgentFramework.StartAsync(
+#   [BP4] 相位顺序：AgentComposition 内 AssemblyPhase.Bind 相位步骤必须先于 AssemblyPhase.Assemble（且 Bind 步骤含 AgentRuntimeRoot.Bind）
 #   [BP5] 状态真源解析点收敛：ResolveStateCenter( 生产调用点 ≤ 1（C 段共点；编排器/Runner 已改构造注入必填）
 #   [BP6] 取根面直调收敛：AgentRuntimeRoot.Resolve<T>( 生产调用点 = 0（一律经 AgentRuntimeSlots 注册缝）
 # 扫描面：Projects\Plug\Agent\src（测试工程不在扫描面）。
@@ -56,15 +56,18 @@ Write-Host ("命中: {0}" -f $bp3.Count)
 $bp3 | ForEach-Object { Write-Host ("  {0}:{1}" -f $_.Path, $_.LineNumber) }
 if ($bp3.Count -gt 2) { $failures += "BP3 AgentRuntimeRoot.Partition 调用点 $($bp3.Count) 处（承载应经 RuntimeSlotScope 冻结，勿新增动态取承载点）" }
 
-Write-Host '--- [BP4] 相位顺序（Bind 先于 StartAsync） ---'
+Write-Host '--- [BP4] 相位顺序（Bind 相位先于 Assemble 相位） ---'
 $composition = Join-Path $scanDir 'Agent.Launcher\Composition\Root\AgentComposition.cs'
-$bindLine = (Select-String -Path $composition -Pattern 'AgentRuntimeRoot\.Bind\s*\(' -Encoding UTF8 |
+# 载体 = 相位声明序（段管线删除后，绑定先于装配由「Bind 相位步骤先于 Assemble 相位步骤」结构保证）
+$bindLine = (Select-String -Path $composition -Pattern 'AssemblyPhase\.Bind' -Encoding UTF8 |
         Where-Object { $_.Line -notmatch '^\s*///' } | Select-Object -First 1).LineNumber
-$assembleLine = (Select-String -Path $composition -Pattern 'await AgentFramework\.StartAsync\s*\(' -Encoding UTF8 |
+$assembleLine = (Select-String -Path $composition -Pattern 'AssemblyPhase\.Assemble' -Encoding UTF8 |
         Where-Object { $_.Line -notmatch '^\s*///' } | Select-Object -First 1).LineNumber
-Write-Host ("Bind 行: {0} | StartAsync 行: {1}" -f $bindLine, $assembleLine)
-if (-not $bindLine -or -not $assembleLine -or $bindLine -gt $assembleLine) {
-    $failures += 'BP4 相位顺序破坏：BuildAsync 内绑定必须早于装配（INV-1 绑定先于解析）'
+$bindCallOk = @(Select-String -Path $composition -Pattern 'AgentRuntimeRoot\.Bind\s*\(' -Encoding UTF8 |
+        Where-Object { $_.Line -notmatch '^\s*///' }).Count -ge 1
+Write-Host ("Bind 相位行: {0} | Assemble 相位行: {1} | Bind 调用在位: {2}" -f $bindLine, $assembleLine, $bindCallOk)
+if (-not $bindLine -or -not $assembleLine -or $bindLine -gt $assembleLine -or -not $bindCallOk) {
+    $failures += 'BP4 相位顺序破坏：Bind 相位必须先于 Assemble 相位且含 AgentRuntimeRoot.Bind（INV-1 绑定先于解析）'
 }
 
 Write-Host '--- [BP5] 状态真源解析点收敛（ResolveStateCenter 生产调用点 ≤ 1） ---'

@@ -24,7 +24,26 @@ public sealed record CircuitFlowSpec(
 /// 出口绑定：执行结束后把 Exit 收集到的最终产物投递回调用方（典型 = 闭包写回装配上下文）。
 /// 使「出口产物名 ↔ 回投目标」只在一处声明（消除回投代码里再抄一遍出口名）。
 /// </summary>
-public sealed record ExitBinding(string ExitPort, Action<object?> Apply);
+public sealed record ExitBinding(string ExitPort, Action<object?> Apply)
+{
+    /// <summary>由「节点 Id + 输出端口名」组合出口名（<c>"NodeId.Port"</c> 只在此处拼一次，不再逐处手抄字面量）。</summary>
+    public static ExitBinding Of(string nodeId, string port, Action<object?> apply)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(port);
+        ArgumentNullException.ThrowIfNull(apply);
+
+        return new ExitBinding($"{nodeId}.{port}", apply);
+    }
+
+    /// <summary>由「节点 Id + 输出端口名」组合出口名，并收敛类型（消除回投侧逐处 <c>v as T</c>）。</summary>
+    public static ExitBinding Of<T>(string nodeId, string port, Action<T?> apply) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+
+        return Of(nodeId, port, value => apply(value as T));
+    }
+}
 
 /// <summary>
 /// 声明式装配配方（装配拓扑的单一真源）：步骤 + 传递边 + 入口（外部绑定产物，如 Config）+ 出口（最终产物集）。

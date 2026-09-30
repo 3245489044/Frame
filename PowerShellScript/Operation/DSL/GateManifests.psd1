@@ -235,7 +235,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '电路语义守卫 CS1–CS3：唯一宿主接线（CircuitFramework 引 UniversalWorkflowFramework）/ 禁 CircuitFramework 内平行引用抽象定义（负对照=0）/ 引用符号五种关系在册（正对照）'
+        Note   = '电路语义守卫 CS1–CS5：唯一宿主接线 / 禁平行引用抽象定义（负对照=0）/ 引用符号在册 / 轮骨架唯一接线 / 装配域唯一接线（CS5：编排唯一=AssemblyPhaseRunner、配方唯一=框架 DSL、执行外壳唯一，含 RecipeAssembly 正对照）'
     }
 
     RecognizerVocabulary = @{

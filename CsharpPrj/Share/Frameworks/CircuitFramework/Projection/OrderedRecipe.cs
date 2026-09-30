@@ -24,15 +24,14 @@ public sealed record OrderedStep<TContext>(
 /// 消除「配方手写端口 + 解析器手写 Kind 分支」的双源漂移。</para>
 /// <para>通用件：零领域类型（上下文泛型注入；步骤名 / 端口名 / 载荷均由调用方给出）。</para>
 /// </summary>
-public sealed class OrderedRecipe<TContext>
+/// <typeparam name="TContext">执行上下文（跨步骤共享的可变载体 ⇒ 引用类型约束，与组装框架 <c>AssemblyPhaseRunner&lt;TCtx&gt;</c> 同口径）。</typeparam>
+public sealed class OrderedRecipe<TContext> where TContext : class
 {
     /// <summary>缺省入口端口名（外部绑定产物，如 config）。</summary>
-    public const string DefaultEntryPort = "config";
+    public const string DefaultEntryPort = RecipeChainCore.DefaultEntryPort;
 
     private readonly List<OrderedStep<TContext>> _steps = new();
-    private readonly List<string> _entryPorts;
-    private IReadOnlyList<string>? _exitPorts;
-    private CircuitRecipeSpec? _spec;
+    private readonly RecipeChainCore _chain;
 
     /// <param name="circuitId">电路 Id（= 装配 Id）。</param>
     /// <param name="entryPorts">入口端口集（外部绑定产物）；缺省 = <see cref="DefaultEntryPort"/>，每一步都声明该入口。</param>
@@ -42,7 +41,7 @@ public sealed class OrderedRecipe<TContext>
             throw new ArgumentException("电路 Id 不可为空。", nameof(circuitId));
 
         CircuitId = circuitId;
-        _entryPorts = entryPorts is null ? new List<string> { DefaultEntryPort } : new List<string>(entryPorts);
+        _chain = new RecipeChainCore(circuitId, entryPorts, entryOnEachStep: true);
     }
 
     /// <summary>电路 Id（= 装配 Id）。</summary>
@@ -54,9 +53,9 @@ public sealed class OrderedRecipe<TContext>
     /// <summary>第 <paramref name="index"/> 步（0 基）的缺省输出端口名（唯一产品链）。</summary>
     public static string PortOf(int index) => $"p{index + 1}";
 
-    /// <summary>追加一步（顺序即语义）；<paramref name="outPort"/> 缺省 = <see cref="PortOf"/>。</summary>
+    /// <summary>追加一步（顺序即语义）；<paramref name="outPort"/> 缺省 = <see cref="PortOf"/>（= 唯一产品链端口）。</summary>
     public OrderedRecipe<TContext> Then(
-        string nodeId, string stepKind, StepBody<TContext> body, string? outPort = null)
+        string nodeId, string stepKind, StepBody<TContext> body, string? outPort = null, IReadOnlyList<string>? inPorts = null)
     {
         if (string.IsNullOrWhiteSpace(nodeId))
             throw new ArgumentException("步骤节点 Id 不可为空。", nameof(nodeId));
@@ -65,7 +64,7 @@ public sealed class OrderedRecipe<TContext>
         ArgumentNullException.ThrowIfNull(body);
 
         _steps.Add(new OrderedStep<TContext>(nodeId, stepKind, body, outPort));
-        _spec = null;
+        _chain.Add(nodeId, stepKind, inPorts, outPort);
         return this;
     }
 
@@ -73,36 +72,48 @@ public sealed class OrderedRecipe<TContext>
     public OrderedRecipe<TContext> WithExitPorts(params string[] exitPorts)
     {
         ArgumentNullException.ThrowIfNull(exitPorts);
-        _exitPorts = exitPorts;
-        _spec = null;
+        _chain.SetExits(exitPorts);
+        return this;
+    }
+
+    /// <summary>收集出口产物（出口名由「节点 Id + 端口名」组合；与 <see cref="WithExitPorts"/> 二选一）。</summary>
+    public OrderedRecipe<TContext> Collect(string nodeId, string port)
+    {
+        _chain.Collect(nodeId, port);
+        return this;
+    }
+
+    /// <summary>显式附加传递边（跨步真依赖）：顺序链只连相邻步，跨步产物由此成边，装配期即可判红。</summary>
+    public OrderedRecipe<TContext> Wire(string fromNode, string fromPort, string toNode, string toPort)
+    {
+        _chain.Wire(fromNode, fromPort, toNode, toPort);
         return this;
     }
 
     /// <summary>声明面：投影输入（同一实例幂等，重复调用返回同一规格）。</summary>
     public CircuitRecipeSpec Build()
     {
-        if (_spec is not null) return _spec;
         if (_steps.Count == 0)
             throw new InvalidOperationException($"顺序配方 '{CircuitId}' 未声明任何步骤。");
 
-        var steps = new List<CircuitStepSpec>(_steps.Count);
-        var flows = new List<CircuitFlowSpec>(Math.Max(0, _steps.Count - 1));
-        for (var i = 0; i < _steps.Count; i++)
-        {
-            var inPorts = new List<string>(_entryPorts);
-            if (i > 0) inPorts.Add(PortName(i - 1));
-            steps.Add(new CircuitStepSpec(_steps[i].NodeId, _steps[i].StepKind, inPorts, new[] { PortName(i) }));
+        return _chain.Build();
+    }
 
-            if (i > 0)
-            {
-                var prevPort = PortName(i - 1);
-                flows.Add(new CircuitFlowSpec(_steps[i - 1].NodeId, prevPort, _steps[i].NodeId, prevPort));
-            }
-        }
+    /// <summary>
+    /// 执行面（声明面与执行面同源）：同一份步骤表 → 配方 + 入口绑定 → 框架统一驱动；
+    /// 绑定装配经框架 <see cref="RecipeAssembly{TEntry}"/> 单点（消费方不再各写驱动外壳）。
+    /// </summary>
+    public Task<IReadOnlyDictionary<string, object?>> ExecuteAsync(
+        TContext context,
+        IReadOnlyList<EntryBinding<TContext>> entryBindings,
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<ExitBinding>? exitBindings = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(entryBindings);
 
-        var exitPorts = _exitPorts ?? new[] { $"{_steps[^1].NodeId}.{PortName(_steps.Count - 1)}" };
-        _spec = new CircuitRecipeSpec(CircuitId, _entryPorts.ToArray(), exitPorts, steps, flows);
-        return _spec;
+        return new RecipeAssembly<TContext>(Build(), entryBindings)
+            .RunAsync(context, Resolver, cancellationToken, _ => exitBindings);
     }
 
     /// <summary>

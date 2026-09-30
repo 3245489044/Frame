@@ -49,4 +49,20 @@ public sealed class DelegateCircuitNode : ICircuitNode
             return (IReadOnlyDictionary<string, object?>)new Dictionary<string, object?> { [outPort] = value };
         });
     }
+
+    /// <summary>
+    /// 上下文绑定节点（图配方用）：把「上下文 + 具名输入端口 → 具名输出端口」的步骤体偏应用为节点 ——
+    /// 装配步骤体集中为一种签名（<c>(ctx, inputs, ct) → 端口字典</c>），不再逐处手写
+    /// <c>(inputs, ct) =&gt; Body(ctx, inputs, ct)</c> 闭包。
+    /// </summary>
+    public static DelegateCircuitNode For<TContext>(
+        string nodeType,
+        TContext context,
+        Func<TContext, IReadOnlyDictionary<string, object?>, CancellationToken, Task<IReadOnlyDictionary<string, object?>>> body)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (context is null) throw new ArgumentNullException(nameof(context));
+
+        return new DelegateCircuitNode(nodeType, (inputs, ct) => body(context, inputs, ct));
+    }
 }

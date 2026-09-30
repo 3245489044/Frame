@@ -37,18 +37,40 @@ public static class RecipeGraphValidator
             errors.Add($"依赖产物 '{f.FromPort}'（{f.FromNode}.{f.FromPort} → {f.ToNode}.{f.ToPort}）无任何产出者且非入口绑定：缺失产物。");
         }
 
-        // ③ 输入未供给：每步 InPort 须被某条 Wire 进入，或由入口同名绑定，或有人产出（同名端口即产物），
-        //    或由常量注入（Literal）直接供给
-        var wiredTargets = spec.Flows.Select(f => f.ToNode + "." + f.ToPort).ToHashSet(StringComparer.Ordinal);
-        var literalTargets = (spec.Literals ?? Array.Empty<CircuitLiteralSpec>())
-            .Select(l => l.NodeId + "." + l.Port).ToHashSet(StringComparer.Ordinal);
+        // ③ 输入未供给：判据单一来源 = IsSupplied（区域判定端口 CFG-020 复用同一探针，禁第二份实现）
         foreach (var s in spec.Steps)
             foreach (var p in s.InPorts)
-                if (!wiredTargets.Contains(s.Id + "." + p) && !literalTargets.Contains(s.Id + "." + p)
-                    && !entry.Contains(p) && !producers.ContainsKey(p))
+                if (!IsSupplied(spec, s.Id, p))
                     errors.Add($"步骤 '{s.Id}' 的输入端口 '{p}' 无任何 Wire 进入、非入口绑定、非常量注入、亦无人产出：缺失产物。");
 
         return errors;
+    }
+
+    /// <summary>
+    /// 输入端口是否已供给 ——「缺失产物 / 输入未供给」判据的**单一来源**（配方域 ③ 与区域域 CFG-020 共用）：
+    /// Wire 进入 ∨ 入口同名绑定 ∨ 常量注入 ∨ 有人产出（同名端口即产物）。
+    /// </summary>
+    /// <param name="excludeSelfProducer">true = 不计**承载节点自产**（区域条件迭代的判定端口用严格口径：
+    /// 判定值须来自上游/入口/常量；自产即等于把判定值接到自己的输出上、无外部事实来源）。</param>
+    public static bool IsSupplied(CircuitRecipeSpec spec, string nodeId, string port, bool excludeSelfProducer = false)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        if (spec.Flows.Any(f =>
+                string.Equals(f.ToNode, nodeId, StringComparison.Ordinal)
+                && string.Equals(f.ToPort, port, StringComparison.Ordinal)))
+            return true;
+
+        if (spec.EntryPorts.Contains(port, StringComparer.Ordinal)) return true;
+
+        if ((spec.Literals ?? Array.Empty<CircuitLiteralSpec>()).Any(l =>
+                string.Equals(l.NodeId, nodeId, StringComparison.Ordinal)
+                && string.Equals(l.Port, port, StringComparison.Ordinal)))
+            return true;
+
+        return spec.Steps.Any(s =>
+            (!excludeSelfProducer || !string.Equals(s.Id, nodeId, StringComparison.Ordinal))
+            && s.OutPorts.Contains(port, StringComparer.Ordinal));
     }
 
     /// <summary>是否无 Error 级问题。</summary>

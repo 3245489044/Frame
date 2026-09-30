@@ -235,7 +235,8 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '电路语义守卫 CS1–CS9：唯一宿主接线 / 禁平行引用抽象定义（负对照=0）/ 引用符号在册 / 轮骨架唯一接线 / 装配域唯一接线（CS5：编排唯一=AssemblyPhaseRunner、配方唯一=框架 DSL、执行外壳唯一，含 RecipeAssembly 正对照）/ CS6 接入面编译入口唯一（负对照=0）/ CS7 接入面禁桩件体（负对照=0）/ CS8 缓存键内容指纹（正对照）/ CS9 编排动作分派配方化（负对照=0：禁 switch(operation.Op) 与漂移兜底；CS9-d 正对照：配方驱动在册）'
+        Note   = '电路语义守卫 CS1–CS10：唯一宿主接线 / 禁平行引用抽象定义（负对照=0）/ 引用符号在册 / 轮骨架唯一接线 / 装配域唯一接线（CS5：编排唯一=AssemblyPhaseRunner、配方唯一=框架 DSL、执行外壳唯一，含 RecipeAssembly 正对照）/ CS6 接入面编译入口唯一（负对照=0）/ CS7 接入面禁桩件体（负对照=0）/ CS8 缓存键内容指纹（正对照）/ CS9 编排动作分派配方化（负对照=0：禁 switch(operation.Op) 与漂移兜底；CS9-d 正对照：配方驱动在册）/ CS10 区域子计划编译入
+口唯一（负对照=0：CircuitCompiler 之外禁重排配方域+电路域校验；CS10-d 正对照：区域子计划注册表在册）/ CS10-e 区域镜像单一来源（负对照=0：投影/符号定义处之外引用 LoopSymbol）'
     }
 
     RecognizerVocabulary = @{

@@ -52,8 +52,15 @@ public sealed record ExitBinding(string ExitPort, Action<object?> Apply)
 public sealed record CircuitLiteralSpec(string NodeId, string Port, object? Value);
 
 /// <summary>
+/// 控制边声明（无端口对的顺序依赖）：前驱只约束后继的执行先后，**不经数据键**（故无法表达为 Wire）。
+/// 投影为 <see cref="Symbols.SequenceSymbol"/> 镜像，使「谁调谁」在电路层可见（编译校验 / 静态分析 / CFG-101 对账）；
+/// 执行序仍由 Wire + 声明序承担（镜像不参与执行 —— 与区域 Loop 镜像同族口径）。
+/// </summary>
+public sealed record CircuitControlEdgeSpec(string FromNode, string ToNode);
+
+/// <summary>
 /// 声明式装配配方（装配拓扑的单一真源）：步骤 + 传递边 + 入口（外部绑定产物，如 Config）+ 出口（最终产物集）
-/// + 常量注入。
+/// + 常量注入 + 区域（环/子计划封在普通节点内）+ 控制边（无端口对的顺序依赖）。
 /// 经 <see cref="CircuitRecipeProjector"/> 投影为电路，供编译期校验（拓扑/产物唯一/环）、影响面分析与拓扑驱动执行。
 /// </summary>
 public sealed record CircuitRecipeSpec(
@@ -65,4 +72,14 @@ public sealed record CircuitRecipeSpec(
     IReadOnlyList<CircuitStepSpec> Steps,
     IReadOnlyList<CircuitFlowSpec> Flows,
     /// <summary>常量注入（投影为 LiteralSymbol；缺省/空 = 无常量供给）。</summary>
-    IReadOnlyList<CircuitLiteralSpec>? Literals = null);
+    IReadOnlyList<CircuitLiteralSpec>? Literals = null,
+    /// <summary>
+    /// 区域声明（缺省/空 = 无区域）：承载节点须已在 <see cref="Steps"/> 中声明。
+    /// 判据（CFG-019~023）由 <see cref="Compiler.RegionValidator"/> 在编译期给出；父图拓扑不含环。
+    /// </summary>
+    IReadOnlyList<CircuitRegionSpec>? Regions = null,
+    /// <summary>
+    /// 控制边声明（缺省/空 = 无控制边）：两端须已在 <see cref="Steps"/> 中声明；
+    /// 投影为 Sequence 镜像（缺省不参与执行 —— 能力表不含 Sequence ⇒ CFG-101 可见化该缺口，不静默）。
+    /// </summary>
+    IReadOnlyList<CircuitControlEdgeSpec>? ControlEdges = null);

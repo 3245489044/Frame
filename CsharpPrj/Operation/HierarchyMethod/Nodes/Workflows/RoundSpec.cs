@@ -53,6 +53,19 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
     /// </summary>
     public string? Mark { get; init; }
 
+    /// <summary>
+    /// 声明式依赖边（谁调谁由声明面给出）：本步的**前驱步骤键**（<see cref="EffectiveNodeId"/> 域）。
+    /// 非空（任一步骤声明）⇒ 电路投影以**声明**为准：Wire 只在声明的前驱→后继之间按端口交集生成，
+    /// 未声明的真数据依赖（消费键由更早步骤产出）在编译期判红 —— 不再由「前驱产出 → 后继消费」键名猜测。
+    /// 缺省 null（不声明）⇒ 回退既有键名派生，旧模板/内置骨架行为逐字不变（加法式扩展）。
+    /// <para>
+    /// 声明的前驱与后继**无共同数据键**时 = **控制边**（仅约束先后，不经数据键）：
+    /// 投影为 Sequence 镜像（不产 Wire），值面仍走 ctx / KeyMapping / ur_nodes。
+    /// </para>
+    /// <para>**中立原语**：禁止写成框架类型（本工程不得新开 → <c>Share.CircuitFramework</c> 引用边）。</para>
+    /// </summary>
+    public IReadOnlyList<string>? DependsOn { get; init; }
+
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingStep ToBindingStep() => new()
         {

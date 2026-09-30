@@ -39,6 +39,32 @@ public static class CircuitRecipeProjector
                 ValueType = literal.Value?.GetType().Name,
             });
 
+        // 区域声明 → 子电路镜像符号：使 CircuitCallGraph 的跨层影响面（谁调用了子图）在电路层可用；
+        // 执行面 = Execution.RegionNodeBase 在父图普通节点内驱动子计划（父图拓扑不含环）。
+        foreach (var region in spec.Regions ?? Array.Empty<CircuitRegionSpec>())
+        {
+            circuit.Append(new SubCircuitSymbol { NodeId = region.NodeId, Target = region.Target });
+
+            // G1 有界重复 ⇒ Loop 镜像（符号域视图与区域声明同形；能力表 Loop 的「声明 ↔ 执行」对拍面）。
+            // Body = **纯投影镜像**（不经注册表、不参与执行）：执行真源 = CompiledRecipeRegistry 的内容指纹键，
+            // 镜像只供 CFG-101 / CircuitCallGraph / 离线审阅；「镜像不得被执行面消费」由 CS10-e 结构判据锁死。
+            if (region.Plan is { Kind: RegionIterationKind.FixedRepeats } plan && region.Child is not null)
+            {
+                circuit.Append(new LoopSymbol
+                {
+                    NodeId = region.NodeId,
+                    Repeats = plan.Repeats,
+                    Body = Project(region.Child),
+                });
+            }
+        }
+
+        // 控制边声明 → SequenceSymbol 镜像：前驱只约束后继先后、不经数据键（无法表达为 Wire），
+        // 以符号域视图使「谁调谁」在电路层可见（编译校验 / 静态分析 / CFG-101 对账）；
+        // 执行序仍由 Wire + 声明序承担（能力表不含 Sequence ⇒ 该缺口由 CFG-101 可见化，不静默）。
+        foreach (var edge in spec.ControlEdges ?? Array.Empty<CircuitControlEdgeSpec>())
+            circuit.Append(new SequenceSymbol { NodeIds = new[] { edge.FromNode, edge.ToNode } });
+
         return circuit;
     }
 

@@ -97,6 +97,13 @@ public sealed class OrderedRecipe<TContext> where TContext : class
         return this;
     }
 
+    /// <summary>区域声明（G0-0）：把子计划（环 / 复用块）挂到已声明步骤内部（父图仍为 DAG）。</summary>
+    public OrderedRecipe<TContext> Region(CircuitRegionSpec region)
+    {
+        _chain.Region(region);
+        return this;
+    }
+
     /// <summary>声明面：投影输入（同一实例幂等，重复调用返回同一规格）。</summary>
     public CircuitRecipeSpec Build()
     {

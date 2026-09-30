@@ -61,24 +61,34 @@ public static class CircuitCompiler
         if (order is null)
             throw new CircuitCompilationException(new[]
             {
-                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-020",
-                    "存在不可排序的依赖（应为已由环检测拦截）。"),
+                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-002",
+                    "存在不可排序的依赖（环已由 CFG-002 环检测拦截，此路仅在环检测失配时可达）。"),
             });
 
         return new ExecutionPlan(circuit.Id, order, CircuitRuntimeIndex.Build(circuit));
     }
 
     /// <summary>
-    /// 配方编译（**消费方唯一入口**）：配方域产物图校验 → 投影为电路 → 电路编译（环/拓扑）。
+    /// 配方编译（**消费方唯一入口**）：配方域产物图校验 → **区域域校验** → 投影为电路 → 电路编译（环/拓扑）。
     /// 步骤序只此一处（消费方不再各自串联）；失败不抛，由调用方按自身契约决定失败形态（异常类型 / 日志 / 回退）。
     /// </summary>
     /// <param name="spec">声明式装配配方（拓扑单一真源）。</param>
     /// <param name="compiled">成功时的编译产物；失败为 null。</param>
-    /// <param name="diagnostics">失败原因（配方域违例为 <see cref="RecipeDiagnosticCode"/>，电路域为 CFG-0xx）。</param>
+    /// <param name="diagnostics">失败原因（配方域违例为 <see cref="RecipeDiagnosticCode"/>，区域域为 CFG-019~023，电路域为 CFG-0xx）。</param>
     public static bool TryCompile(
         CircuitRecipeSpec spec,
         out CompiledRecipe? compiled,
         out IReadOnlyList<CircuitDiagnostic> diagnostics)
+        => TryCompile(spec, out compiled, out diagnostics, depth: 1);
+
+    /// <summary>
+    /// 配方编译（内部重载）：<paramref name="depth"/> = 区域嵌套层（1 基），供子计划递归编译限深。
+    /// </summary>
+    internal static bool TryCompile(
+        CircuitRecipeSpec spec,
+        out CompiledRecipe? compiled,
+        out IReadOnlyList<CircuitDiagnostic> diagnostics,
+        int depth)
     {
         ArgumentNullException.ThrowIfNull(spec);
         compiled = null;
@@ -89,6 +99,15 @@ public static class CircuitCompiler
             diagnostics = recipeErrors
                 .Select(e => new CircuitDiagnostic(DiagnosticSeverity.Error, RecipeDiagnosticCode, e))
                 .ToList();
+            return false;
+        }
+
+        // 区域域判据（CFG-019~023）：映射两端 / 迭代上限 / 子计划可解析一律编译期判红；
+        // 子计划经同一 TryCompile（R2），不得裸跑，也不得留到运行期才炸。
+        var regionDiagnostics = RegionValidator.Validate(spec, depth);
+        if (regionDiagnostics.Any(x => x.Severity == DiagnosticSeverity.Error))
+        {
+            diagnostics = regionDiagnostics;
             return false;
         }
 
@@ -105,8 +124,8 @@ public static class CircuitCompiler
         {
             diagnostics = new[]
             {
-                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-020",
-                    "存在不可排序的依赖（应为已由环检测拦截）。"),
+                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-002",
+                    "存在不可排序的依赖（环已由 CFG-002 环检测拦截，此路仅在环检测失配时可达）。"),
             };
             return false;
         }

@@ -23,6 +23,13 @@
     CS9 Agent.Core 编排动作分派配方化（负对照 + 正对照）：TaskOrchestrator 内禁手写 op 分派
         （switch(operation.Op) = 0 且「执行体无对应分支」漂移兜底 = 0；Kind 解析唯一来源 = 框架 CircuitNodeResolver）；
         CS9-d 正对照 = 配方驱动在册（CircuitAssemblyRunner.RunAsync ≥ 1 且 new RecipeBuilder( ≥ 1）。
+    CS10 区域子计划编译入口唯一（负对照 + 正对照）：编译器（CircuitCompiler.cs）之外禁重排「配方域校验 → 电路域校验」
+        （RecipeGraphValidator.Validate 与 CircuitValidator.Validate 同文件共存 = 0）；
+        CS10-d 正对照 = 区域执行面在册（CompiledRecipeRegistry 经 CircuitCompiler.TryCompile 编译、
+        RegionNodeBase 经 CompiledRecipeRegistry.GetOrCompile 取子计划）。
+        CS10-e 区域镜像单一来源（负对照）：投影产出的 LoopSymbol.Body 只是符号域镜像，
+        除投影处（CircuitRecipeProjector.cs）与符号定义处（Symbols\RecursionSymbols.cs）外引用 LoopSymbol = 0
+        （被执行面引用即出现第二执行真源，与注册表指纹键分叉）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -273,10 +280,50 @@ else
     Write-Host "  CS9 路径缺失（Agent.Core\TaskPool\TaskOrchestrator.cs 未找到）：跳过" -ForegroundColor DarkGray
 }
 
+# ---------- CS10 区域子计划编译入口唯一（负对照：禁重排编译器步骤；正对照：区域执行面在册） ----------
+$cfCompilerFile = Join-Path $cfDir 'Compiler\CircuitCompiler.cs'
+$cs10Outside = @($allCs | Where-Object { $_.FullName -ne $cfCompilerFile } | ForEach-Object {
+    $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+    if ($text -match 'RecipeGraphValidator\.Validate' -and $text -match 'CircuitValidator\.Validate') { $_ }
+})
+Write-Host ("  CS10 区域子计划编译入口唯一（负对照：编译器外重排配方域/电路域校验的文件数）：{0} 处（须为 0）" -f $cs10Outside.Count) -ForegroundColor Gray
+if ($cs10Outside.Count -gt 0)
+{
+    $violations.Add("[CS10] CircuitCompiler 之外重排「配方域校验 + 电路域校验」$($cs10Outside.Count) 处（子计划须经 CircuitCompiler.TryCompile 唯一入口）")
+}
+
+$registryFile = Join-Path $cfDir 'Execution\CompiledRecipeRegistry.cs'
+$regionNodeFile = Join-Path $cfDir 'Execution\RegionNodeBase.cs'
+$cs10Registry = (Test-Path $registryFile) -and
+    ((Get-Content -LiteralPath $registryFile -Raw -Encoding UTF8) -match 'CircuitCompiler\.TryCompile')
+$cs10Use = (Test-Path $regionNodeFile) -and
+    ((Get-Content -LiteralPath $regionNodeFile -Raw -Encoding UTF8) -match 'CompiledRecipeRegistry\.GetOrCompile')
+Write-Host ("  CS10-d 区域执行面在册（正对照：注册表经唯一入口={0} / 区域节点用注册表={1}）：须均为 True" -f $cs10Registry, $cs10Use) -ForegroundColor Gray
+if (-not $cs10Registry -or -not $cs10Use)
+{
+    $violations.Add('[CS10-d] 区域子计划注册表/区域节点缺失或未走唯一编译入口（扫描面失效或回退为裸跑）')
+}
+
+# ---------- CS10-e 区域镜像单一来源（负对照：LoopSymbol 不得被执行面消费） ----------
+# 区域执行真源 = CompiledRecipeRegistry（内容指纹 → 子计划）；投影产出的 LoopSymbol.Body 只是符号域镜像。
+# 被执行面引用即出现「第二真源」（镜像与注册表可能分叉）⇒ 除投影处与符号定义处外命中须为 0。
+$mirrorOwners = @(
+    (Join-Path $cfDir 'Projection\CircuitRecipeProjector.cs'),
+    (Join-Path $cfDir 'Symbols\RecursionSymbols.cs'))
+$cs10Mirror = @($allCs | Where-Object { $mirrorOwners -notcontains $_.FullName } | ForEach-Object {
+    if ((Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'LoopSymbol') { $_ }
+})
+Write-Host ("  CS10-e 区域镜像单一来源（负对照：投影/符号定义处之外引用 LoopSymbol 的文件数）：{0} 处（须为 0）" -f $cs10Mirror.Count) -ForegroundColor Gray
+if ($cs10Mirror.Count -gt 0)
+{
+    $violations.Add("[CS10-e] 区域 Loop 镜像被执行面引用 $($cs10Mirror.Count) 处（Body 不得成为第二执行真源；执行真源 = CompiledRecipeRegistry）")
+}
+if ($ShowDetail) { foreach ($h in $cs10Mirror) { Write-Host ("    {0}" -f ($h.FullName -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源）" -ForegroundColor Green
     exit 0
 }
 

@@ -23,6 +23,7 @@ internal sealed class RecipeChainCore
     private readonly List<CircuitFlowSpec> _wires = new();
     private readonly List<string> _exits = new();
     private readonly List<CircuitLiteralSpec> _literals = new();
+    private readonly List<CircuitRegionSpec> _regions = new();
     private readonly List<string> _entryPorts;
     private readonly bool _entryOnEachStep;
     private bool _exitsDeclared;
@@ -66,7 +67,47 @@ internal sealed class RecipeChainCore
         _spec = null;
     }
 
-    /// <summary>追加一步（顺序即语义）：<paramref name="chainPort"/> 缺省 = <c>p{序号}</c>（唯一产品链端口）。</summary>
+    /// <summary>
+    /// 区域声明（G0-0）：把子计划（环 / 复用块）挂到**已声明步骤**内部。
+    /// 承载节点与映射两端的**父侧**端口须已声明（拼错即抛，不静默产出无效声明）；
+    /// 子侧端口与迭代上限的判据由编译期 <see cref="Compiler.RegionValidator"/> 统一给出（CFG-019~023）。
+    /// <para>
+    /// Kind 单源：承载步骤的 <c>StepKind</c> 被改写为 <see cref="CircuitRegionSpec.RegionKind"/>
+    /// （区域节点的 Kind 是区域声明的事实，禁在 <c>.Step</c> 与 <c>.Region</c> 两处各写一遍）。
+    /// </para>
+    /// </summary>
+    internal void Region(CircuitRegionSpec region)
+    {
+        ArgumentNullException.ThrowIfNull(region);
+
+        var index = _steps.FindIndex(s => s.NodeId == region.NodeId);
+        if (index < 0)
+            throw new InvalidOperationException($"区域声明指向未声明节点 '{region.NodeId}'（配方 '{CircuitId}'）。");
+        var step = _steps[index];
+
+        foreach (var binding in region.InBindings)
+            if (step.InPorts.All(p => p != binding.ParentPort))
+                throw new InvalidOperationException(
+                    $"区域入端口映射 '{region.NodeId}.{binding.ParentPort}' 的父端口未在节点 '{region.NodeId}' 声明"
+                    + $"（可用：{string.Join(" | ", step.InPorts)}）。");
+
+        foreach (var binding in region.OutBindings)
+            if (step.OutPorts.All(p => p != binding.ParentPort))
+                throw new InvalidOperationException(
+                    $"区域出端口映射 '{region.NodeId}.{binding.ParentPort}' 的父端口未在节点 '{region.NodeId}' 声明"
+                    + $"（可用：{string.Join(" | ", step.OutPorts)}）。");
+
+        if (region.Plan?.JudgePort is { Length: > 0 } judge && step.InPorts.All(p => p != judge))
+            throw new InvalidOperationException(
+                $"区域判定端口 '{region.NodeId}.{judge}' 未在节点 '{region.NodeId}' 入端口声明"
+                + $"（可用：{string.Join(" | ", step.InPorts)}）。");
+
+        // Kind 单源：节点 Kind 由区域声明决定（消除 .Step 与 .Region 双写漂移）
+        _steps[index] = step with { StepKind = region.RegionKind };
+
+        _regions.Add(region);
+        _spec = null;
+    }
     internal void Add(
         string nodeId,
         string stepKind,
@@ -159,7 +200,8 @@ internal sealed class RecipeChainCore
             : new[] { $"{_steps[^1].NodeId}.{_steps[^1].ChainPort}" };
 
         _spec = new CircuitRecipeSpec(CircuitId, _entryPorts.ToArray(), exits, steps, flows,
-            _literals.Count == 0 ? null : _literals.ToArray());
+            _literals.Count == 0 ? null : _literals.ToArray(),
+            _regions.Count == 0 ? null : _regions.ToArray());
         return _spec;
     }
 }

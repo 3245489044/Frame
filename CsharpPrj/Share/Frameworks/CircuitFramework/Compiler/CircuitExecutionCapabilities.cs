@@ -24,6 +24,9 @@ public static class CircuitExecutionCapabilities
         CircuitSymbolKind.Projection, // 字段路径取值
         CircuitSymbolKind.Fold,       // 多路聚合为数组
         CircuitSymbolKind.Unfold,     // 一路扇出多端口
+        CircuitSymbolKind.SubCircuit, // 区域化执行：声明为区域时由 Execution.RegionNodeBase 驱动子计划
+        CircuitSymbolKind.Loop,       // 区域有界重复（FixedRepeats）：RegionNodeBase 按声明计次驱动子计划
+                                      // （声明由 CircuitRecipeProjector 投影为 Loop 镜像；对拍见 CircuitRegionExecutionTests）
     };
 
     /// <summary>已被执行后端消费的符号种类（只读；顺序不承载语义）。</summary>

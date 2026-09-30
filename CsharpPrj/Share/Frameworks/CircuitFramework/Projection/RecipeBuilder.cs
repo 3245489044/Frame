@@ -45,6 +45,13 @@ public sealed class RecipeBuilder
         return this;
     }
 
+    /// <summary>区域声明（G0-0）：把子计划（环 / 复用块）挂到已声明步骤内部（父图仍为 DAG）。</summary>
+    public RecipeBuilder Region(CircuitRegionSpec region)
+    {
+        _chain.Region(region);
+        return this;
+    }
+
     /// <summary>收集出口产物（未声明则缺省 = 末步链端口）。</summary>
     public RecipeBuilder Collect(string nodeId, string port)
     {

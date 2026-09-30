@@ -16,6 +16,10 @@
         CS5-b 禁手工配方（Agent.Launcher 内 new CircuitStepSpec(/new CircuitFlowSpec( = 0；配方唯一 = OrderedRecipe/RecipeBuilder）；
         CS5-c 禁直调执行外壳（Agent.Launcher 内 CircuitAssemblyRunner.RunAsync = 0；绑定/驱动唯一 = RecipeAssembly）；
         CS5-d 正对照（RecipeAssembly< 使用点 ≥ 1；0 = 扫描面失效，非「零违规」）。
+    CS6 Agent.Core 编译入口唯一（负对照）：Nodes\Circuit（含旧 Circuit\）内禁自行重排「配方校验 → 投影 → 编译」
+        （唯一入口 = 框架 CircuitCompiler.TryCompile / Compile(spec)）。
+    CS7 Agent.Core 禁桩件体（负对照）：接入面内禁 模拟/stub/NotImplemented/TODO（演示件冒充真实接线）。
+    CS8 Agent.Core 缓存键内容指纹（正对照）：RoundFlowCircuitRegistry 须含 Fingerprint（同名不同内容不得复用陈旧电路）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -43,7 +47,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  电路语义守卫（唯一宿主接线 / 禁平行引用抽象 / 符号在册 / 轮骨架唯一接线 / 装配域唯一接线）" -ForegroundColor Cyan
+Write-Host "  电路语义守卫（唯一宿主接线 / 禁平行引用抽象 / 符号在册 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
 $cfDir = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\CircuitFramework'
@@ -183,10 +187,61 @@ else
     }
 }
 
+# ---------- CS6/CS7/CS8 Agent.Core 电路接入面（接入收敛 / 禁桩件 / 缓存键正对照） ----------
+$agentCoreCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Circuit'
+$agentCoreLegacyCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Circuit'
+if (Test-Path $agentCoreCircuitDir)
+{
+    $adoptionCs = @(Get-ChildItem -Path $agentCoreCircuitDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+    if (Test-Path $agentCoreLegacyCircuitDir)
+    {
+        $adoptionCs += @(Get-ChildItem -Path $agentCoreLegacyCircuitDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+    }
+
+    # CS6 负对照：禁自行重排「配方校验 → 投影 → 编译」（唯一编译入口 = 框架 CircuitCompiler.TryCompile / Compile(spec)）
+    $cs6 = @($adoptionCs | Select-String -Pattern 'RecipeGraphValidator\.Validate\(|CircuitRecipeProjector\.Project\(' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS6 编译入口唯一（接入面内重排 校验/投影）：{0} 处（须为 0）" -f $cs6.Count) -ForegroundColor Gray
+    if ($cs6.Count -gt 0)
+    {
+        $violations.Add("[CS6] Agent.Core 电路接入面内自行重排配方校验/投影 $($cs6.Count) 处（唯一编译入口 = 框架 CircuitCompiler.TryCompile / Compile(spec)）")
+    }
+
+    # CS7 负对照：禁桩件体（演示/占位实现冒充真实接线）
+    $cs7 = @($adoptionCs | Select-String -Pattern '模拟|自足 stub|NotImplementedException|TODO' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS7 禁桩件体（接入面内 模拟/stub/NotImplemented/TODO）：{0} 处（须为 0）" -f $cs7.Count) -ForegroundColor Gray
+    if ($cs7.Count -gt 0)
+    {
+        $violations.Add("[CS7] Agent.Core 电路接入面内出现桩件/占位实现 $($cs7.Count) 处（电路接入必须接真实执行体）")
+    }
+
+    # CS8 正对照：缓存键须为内容指纹（防陈旧电路复用 + 防扫描面失效假绿）
+    $registryFile = Join-Path $agentCoreCircuitDir 'RoundFlowCircuitRegistry.cs'
+    $cs8Ok = (Test-Path $registryFile) -and ((Get-Content -LiteralPath $registryFile -Raw -Encoding UTF8) -match 'Fingerprint')
+    Write-Host ("  CS8 缓存键内容指纹（正对照 RoundFlowCircuitRegistry.Fingerprint）：{0}" -f $(if ($cs8Ok) { 'OK' } else { '缺失' })) -ForegroundColor Gray
+    if (-not $cs8Ok)
+    {
+        $violations.Add('[CS8] RoundFlowCircuitRegistry 缓存键未见内容指纹（Fingerprint）：同名不同内容会复用陈旧电路')
+    }
+
+    if ($ShowDetail)
+    {
+        foreach ($h in @($cs6 + $cs7))
+        {
+            Write-Host ("    {0}:{1}" -f ($h.Path -replace [regex]::Escape($Root + '\'), ''), $h.LineNumber) -ForegroundColor DarkGray
+        }
+    }
+}
+else
+{
+    Write-Host "  CS6/CS7/CS8 路径缺失（Agent.Core\Nodes\Circuit 未找到）：跳过" -ForegroundColor DarkGray
+}
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一）" -ForegroundColor Green
     exit 0
 }
 

@@ -5,8 +5,8 @@ using Share.CircuitFramework.Projection;
 namespace Share.CircuitFramework.Execution;
 
 /// <summary>
-/// 装配执行器（配方的通用外壳）：配方校验（配方域产物图 + 电路环/端口/拓扑）→ 投影 → 编译 → 拓扑驱动执行
-/// → 出口绑定回投。
+/// 装配执行器（配方的通用外壳）：配方校验 + 投影 + 编译（经 <see cref="CircuitCompiler.TryCompile"/> **单点**）
+/// → 拓扑驱动执行 → 出口绑定回投。
 /// <para>通用件：零领域类型 —— 入口值、节点解析、出口绑定均由调用方注入；失败即异常（不吞、不降级）。</para>
 /// </summary>
 public static class CircuitAssemblyRunner
@@ -27,18 +27,15 @@ public static class CircuitAssemblyRunner
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(resolveNode);
 
-        // ① 配方域产物图校验（产物唯一 / 缺失产物）判红
-        var specErrors = RecipeGraphValidator.Validate(spec);
-        if (specErrors.Count > 0)
+        // ①② 配方域产物图校验 + 投影 + 编译（框架**单一编译入口** CircuitCompiler.TryCompile，步骤序不再逐处重排）
+        if (!CircuitCompiler.TryCompile(spec, out var compiled, out var diagnostics))
             throw new InvalidOperationException(
-                "[CircuitAssembly] 装配产物图校验失败：" + string.Join("；", specErrors));
-
-        // ② 投影 + 编译（环 → CFG-002 / 拓扑不可排序 → CFG-020）
-        var circuit = CircuitRecipeProjector.Project(spec);
-        var plan = CircuitCompiler.Compile(circuit);
+                "[CircuitAssembly] 装配产物图校验失败："
+                + string.Join("；", diagnostics.Select(d => d.Message)));
 
         // ③ 拓扑驱动执行，产物经 Wire 流转、Exit 收集
-        var result = await CircuitEngine.ExecuteAsync(circuit, plan, resolveNode, entry, cancellationToken)
+        var result = await CircuitEngine.ExecuteAsync(
+                compiled!.Circuit, compiled.Plan, resolveNode, entry, cancellationToken)
             .ConfigureAwait(false);
 
         // ④ 出口回投（声明面绑定）

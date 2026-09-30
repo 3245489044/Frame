@@ -1,7 +1,6 @@
 using Modules.Pipeline;
 using Share.CircuitFramework.Compiler;
 using Share.CircuitFramework.Core;
-using Share.CircuitFramework.Symbols;
 
 namespace Share.CircuitFramework.Execution;
 
@@ -10,6 +9,8 @@ namespace Share.CircuitFramework.Execution;
 ///   PipelineContext 传数据（节点输出写入 SharedData，键 "$NodeId.$Port"），
 ///   StagePipeline 做顺序骨架（每节点注册为一个 IPipelineStage<PipelineContext>）。
 /// 不重新发明运行编排——pipeline 是执行后端，电路框架是它的上层描述/编译层。
+/// 执行期只经编译期索引（<see cref="CircuitRuntimeIndex"/>）查表：节点查找 / 入边绑定 / 入口 / 出口一次装配，
+/// 不再逐节点重扫 Wires / EntrySymbol（原 O(N·W) 热点）。
 /// </summary>
 public static class CircuitEngine
 {
@@ -27,46 +28,35 @@ public static class CircuitEngine
     {
         var ctx = new PipelineContext(cancellationToken);
         var stagePipeline = skeleton ?? new StagePipeline<PipelineContext>(circuit.Id);
+        // 编译期索引（节点 / 入边绑定 / 入口 / 出口）：编译产物携带则零重建；手工构造的计划即时构建等价索引。
+        var index = plan.Index ?? CircuitRuntimeIndex.Build(circuit);
 
         if (entryInputs is not null)
         {
-            // 入口投影：Entry 端口名 → 供给对应节点的同名输入端口
-            foreach (var entry in circuit.Symbols.OfType<EntrySymbol>())
+            // 入口投影：入口值入上下文（键 "$entry.{Port}"，与节点入端口绑定同源）
+            foreach (var entry in index.EntryPorts)
             {
-                if (entryInputs.TryGetValue(entry.Port, out var value))
-                {
-                    ctx.SharedData[$"$entry.{entry.Port}"] = value;
-                }
+                if (entryInputs.TryGetValue(entry, out var value))
+                    ctx.SharedData[$"$entry.{entry}"] = value;
             }
         }
 
         foreach (var nodeId in plan.TopologicalOrder)
         {
-            var node = circuit.Nodes.Single(n => n.Id == nodeId);
+            if (!index.NodesById.TryGetValue(nodeId, out var node))
+                throw new InvalidOperationException(
+                    $"执行计划引用不存在的节点 '{nodeId}'（编译产物与电路不一致）。");
             var impl = resolveNode(node.Kind);
-            stagePipeline.Register(new CircuitNodeStage(node, impl, circuit, entryInputs));
+            stagePipeline.Register(new CircuitNodeStage(node, impl, index.InputsOf(nodeId)));
         }
 
         // 节点输出写入上下文 SharedData 键 "$NodeId.$Port"
-        await stagePipeline.ExecuteAsync(ctx, cancellationToken);
+        await stagePipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
-        // 出口投影：Exit 端口名 "NodeId.Port" → 对应节点输出
+        // 出口投影：Exit 端口名 "NodeId.Port" → 对应节点输出（格式/存在性已由编译期 CFG-015/016 判红）
         var result = new Dictionary<string, object?>();
-        foreach (var exit in circuit.Symbols.OfType<ExitSymbol>())
+        foreach (var exit in index.Exits)
         {
-            string[] parts = exit.Port.Split('.', 2);
-            var nodeId = parts[0].Trim();
-            var portName = parts.Length == 2 ? parts[1].Trim() : string.Empty;
-
-            // #5 Fix：Exit.Port 必须形如 "NodeId.Port" 且节点/端口真实存在，否则显式诊断，杜绝静默无结果。
-            var node = circuit.Nodes.FirstOrDefault(n => n.Id == nodeId);
-            if (node is null)
-                throw new InvalidOperationException(
-                    $"Exit 端口 '{exit.Port}' 引用不存在的节点 '{nodeId}'（Exit 须用 \"NodeId.Port\" 格式）。");
-            if (node.OutPorts.All(p => p.Name != portName))
-                throw new InvalidOperationException(
-                    $"Exit 端口 '{exit.Port}' 引用不存在于节点 '{nodeId}' 的输出端口 '{portName}'。");
-
             if (ctx.SharedData.TryGetValue($"${exit.Port}", out var value))
                 result[exit.Port] = value;
         }
@@ -77,41 +67,30 @@ public static class CircuitEngine
     {
         private readonly CircuitNode _node;
         private readonly ICircuitNode _impl;
-        private readonly Circuit _circuit;
-        private readonly IReadOnlyDictionary<string, object?>? _entryInputs;
+        private readonly IReadOnlyList<InputBinding> _bindings;
 
         public string Name => _node.Id;
         public string Description => $"circuit node {_node.Id} ({_node.Kind})";
         public bool CanExecute(PipelineContext context) => !context.IsCancelled;
 
-        public CircuitNodeStage(CircuitNode node, ICircuitNode impl, Circuit circuit, IReadOnlyDictionary<string, object?>? entryInputs)
+        public CircuitNodeStage(CircuitNode node, ICircuitNode impl, IReadOnlyList<InputBinding> bindings)
         {
             _node = node;
             _impl = impl;
-            _circuit = circuit;
-            _entryInputs = entryInputs;
+            _bindings = bindings;
         }
 
         public async Task ExecuteAsync(PipelineContext context, CancellationToken cancellationToken)
         {
-            var inputs = new Dictionary<string, object?>();
-            foreach (var wire in _circuit.Wires)
+            // 入参按编译期绑定表装配（零逐节点重扫 Wire / EntrySymbol）
+            var inputs = new Dictionary<string, object?>(_bindings.Count, StringComparer.Ordinal);
+            foreach (var binding in _bindings)
             {
-                if (wire.To.NodeId != _node.Id) continue;
-                var srcKey = $"${wire.From.NodeId}.{wire.From.PortName}";
-                if (context.SharedData.TryGetValue(srcKey, out var v))
-                    inputs[wire.To.PortName] = v;
-            }
-            // 入口绑定
-            foreach (var entry in _circuit.Symbols.OfType<EntrySymbol>())
-            {
-                if (_node.InPorts.Any(p => p.Name == entry.Port)
-                    && _entryInputs is not null
-                    && _entryInputs.TryGetValue(entry.Port, out var v))
-                    inputs[entry.Port] = v;
+                if (context.SharedData.TryGetValue(binding.SourceKey, out var value))
+                    inputs[binding.Port] = value;
             }
 
-            var outputs = await _impl.ExecuteAsync(inputs, cancellationToken);
+            var outputs = await _impl.ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
             foreach (var kv in outputs)
                 context.SharedData[$"${_node.Id}.{kv.Key}"] = kv.Value;
             context.SetStageResult(_node.Id, true);

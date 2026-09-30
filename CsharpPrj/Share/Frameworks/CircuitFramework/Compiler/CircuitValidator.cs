@@ -6,13 +6,17 @@ namespace Share.CircuitFramework.Compiler;
 /// <summary>
 /// 编译期图校验：环检测 / 类型校验 / 端口解析 / 孤立引用 / BaseCase 强制。
 /// 非法图直接编译失败，不进入执行。
+/// <para>出口投影（CFG-015/016/017）、数据流符号目标端口（CFG-018）与声明-执行对账（CFG-101，Warning）同在编译期判明，
+/// 使「编译绿 ⇒ 运行期不再有投影类错误」（原出口解析在运行期抛）。</para>
 /// </summary>
 public static class CircuitValidator
 {
     public static IReadOnlyList<CircuitDiagnostic> Validate(Circuit circuit)
     {
         var d = new List<CircuitDiagnostic>();
-        var nodes = circuit.Nodes.ToDictionary(n => n.Id);
+        // 重复 Id 由 CheckUniqueNodeIds 判红（CFG-001）：此处不可用 ToDictionary（重复键会先抛，使该判据不可达）。
+        var nodes = new Dictionary<string, CircuitNode>(StringComparer.Ordinal);
+        foreach (var n in circuit.Nodes) nodes[n.Id] = n;
 
         CheckUniqueNodeIds(circuit, d);
         CheckCycles(circuit, d);
@@ -20,6 +24,9 @@ public static class CircuitValidator
         CheckFanIn(circuit, d);
         CheckRecursion(circuit, d);
         CheckCallTargets(circuit, d);
+        CheckExitSymbols(circuit, nodes, d);
+        CheckDataflowTargets(circuit, nodes, d);
+        CheckExecutionCoverage(circuit, d);
         return d;
     }
 
@@ -126,5 +133,85 @@ public static class CircuitValidator
             if (circuit.Nodes.All(n => n.Id != c.CallerNodeId))
                 d.Add(new(DiagnosticSeverity.Error, "CFG-014", $"Call 调用者节点 '{c.CallerNodeId}' 不存在（孤立引用）。", c.CallerNodeId));
         }
+    }
+
+    /// <summary>出口投影校验：格式 / 节点存在性 / 端口存在性（Error）与重复声明（Warning）。</summary>
+    private static void CheckExitSymbols(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var exit in circuit.Symbols.OfType<ExitSymbol>())
+        {
+            if (!seen.Add(exit.Port))
+                d.Add(new(DiagnosticSeverity.Warning, "CFG-017",
+                    $"Exit 端口 '{exit.Port}' 重复声明（收集期去重，只取一次值）。", exit.Port));
+
+            var parts = exit.Port.Split('.', 2);
+            var nodeId = parts[0].Trim();
+            var portName = parts.Length == 2 ? parts[1].Trim() : string.Empty;
+            if (parts.Length != 2 || nodeId.Length == 0 || portName.Length == 0)
+            {
+                d.Add(new(DiagnosticSeverity.Error, "CFG-015",
+                    $"Exit 端口 '{exit.Port}' 格式非法（须为 \"NodeId.Port\"）。", exit.Port));
+                continue;
+            }
+            if (!nodes.TryGetValue(nodeId, out var node))
+            {
+                d.Add(new(DiagnosticSeverity.Error, "CFG-015",
+                    $"Exit 端口 '{exit.Port}' 引用不存在的节点 '{nodeId}'（Exit 须用 \"NodeId.Port\" 格式）。", exit.Port));
+                continue;
+            }
+            if (node.OutPorts.All(p => p.Name != portName))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-016",
+                    $"Exit 端口 '{exit.Port}' 引用不存在于节点 '{nodeId}' 的输出端口 '{portName}'。", nodeId));
+        }
+    }
+
+    /// <summary>数据流符号目标校验：Literal/Param/Fold/Unfold/Projection 的目标节点与入端口必须存在。</summary>
+    private static void CheckDataflowTargets(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        void Check(string nodeId, string port, string kind)
+        {
+            if (!nodes.TryGetValue(nodeId, out var node))
+            {
+                d.Add(new(DiagnosticSeverity.Error, "CFG-018", $"{kind} 符号指向不存在的节点 '{nodeId}'。", nodeId));
+                return;
+            }
+            if (node.InPorts.All(p => p.Name != port))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-018",
+                    $"{kind} 符号指向不存在于节点 '{nodeId}' 的输入端口 '{port}'。", nodeId));
+        }
+
+        foreach (var symbol in circuit.Symbols)
+        {
+            switch (symbol)
+            {
+                case ParamSymbol p: Check(p.TargetNodeId, p.Port, nameof(ParamSymbol)); break;
+                case LiteralSymbol l: Check(l.TargetNodeId, l.Port, nameof(LiteralSymbol)); break;
+                case FoldSymbol f: Check(f.TargetNodeId, f.Port, nameof(FoldSymbol)); break;
+                case ProjectionSymbol pr: Check(pr.TargetNodeId, pr.Port, nameof(ProjectionSymbol)); break;
+                case UnfoldSymbol u:
+                    foreach (var port in u.Ports) Check(u.TargetNodeId, port, nameof(UnfoldSymbol));
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 声明-执行对账（Warning）：Entry/Exit 之外的符号由执行后端（Wire + 入口 + 出口投影）判读，
+    /// 其余语义（分支 / 容错 / 循环递归 / 数据流常量 / 子电路 / 引用）目前仅参与编译校验与静态分析。
+    /// 可见化「图语义 ≠ 执行语义」的缺口，杜绝「图是对的」被误读为「跑的就是图」。
+    /// </summary>
+    private static void CheckExecutionCoverage(Circuit circuit, List<CircuitDiagnostic> d)
+    {
+        var declared = circuit.Symbols
+            .Where(s => s.Kind is not (CircuitSymbolKind.Entry or CircuitSymbolKind.Exit))
+            .GroupBy(s => s.Kind)
+            .OrderBy(g => g.Key.ToString(), StringComparer.Ordinal)
+            .ToList();
+        if (declared.Count == 0) return;
+
+        d.Add(new(DiagnosticSeverity.Warning, "CFG-101",
+            "以下符号已声明但执行后端未消费（仅参与编译校验/静态分析）："
+            + string.Join(" | ", declared.Select(g => $"{g.Key}×{g.Count()}")) + "。"));
     }
 }

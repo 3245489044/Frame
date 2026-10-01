@@ -28,6 +28,7 @@ public static class CircuitValidator
         CheckDataflowTargets(circuit, nodes, d);
         CheckControlEdges(circuit, nodes, d);
         CheckFailurePolicies(circuit, nodes, d);
+        CheckBranches(circuit, nodes, d);
         CheckExecutionCoverage(circuit, d);
         return d;
     }
@@ -234,6 +235,93 @@ public static class CircuitValidator
                     d.Add(new(DiagnosticSeverity.Error, "CFG-024",
                         $"TryGuard 保护节点 '{protectedId}' 不存在。", protectedId));
     }
+
+    /// <summary>
+    /// 分支 / 分派声明校验（CFG-026，R1）：判定键/选择键可解析（复用 CFG-025 口径）+ 目标节点存在 + then/else 互斥。
+    /// 使「编译绿 ⇒ 运行期不再有分支路由类错误」，不留静默失效的路由。
+    /// </summary>
+    private static void CheckBranches(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
+    {
+        var entries = new HashSet<string>(
+            circuit.Symbols.OfType<EntrySymbol>().Select(e => e.Port), StringComparer.Ordinal);
+
+        foreach (var branch in circuit.Symbols.OfType<BranchSymbol>())
+        {
+            if (string.IsNullOrWhiteSpace(branch.JudgeKey))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"Branch 符号（{branch.ConditionNodeId}）缺少判定键（执行面不可门控）。", branch.ConditionNodeId));
+            else
+                CheckJudgeKeyResolvable(branch.JudgeKey!, branch.ConditionNodeId, nodes, entries, d);
+
+            if (!nodes.ContainsKey(branch.ThenNodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"Branch then 目标 '{branch.ThenNodeId}' 不存在。", branch.ThenNodeId));
+
+            if (!string.IsNullOrWhiteSpace(branch.ElseNodeId))
+            {
+                if (!nodes.ContainsKey(branch.ElseNodeId!))
+                    d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                        $"Branch else 目标 '{branch.ElseNodeId}' 不存在。", branch.ElseNodeId));
+                if (string.Equals(branch.ElseNodeId, branch.ThenNodeId, StringComparison.Ordinal))
+                    d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                        $"Branch then/else 目标不可为同一节点 '{branch.ThenNodeId}'（互斥分支）。", branch.ThenNodeId));
+            }
+        }
+
+        foreach (var sw in circuit.Symbols.OfType<SwitchSymbol>())
+        {
+            if (string.IsNullOrWhiteSpace(sw.SelectorKey))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"Switch 符号（{sw.SelectorNodeId}）缺少选择键（执行面不可路由）。", sw.SelectorNodeId));
+            else
+                CheckJudgeKeyResolvable(sw.SelectorKey!, sw.SelectorNodeId, nodes, entries, d);
+
+            if (sw.Routes.Count == 0 && string.IsNullOrWhiteSpace(sw.DefaultNodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"Switch 符号（{sw.SelectorNodeId}）无任何路由（至少一条 route 或 default）。", sw.SelectorNodeId));
+
+            foreach (var kv in sw.Routes)
+                if (!nodes.ContainsKey(kv.Value))
+                    d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                        $"Switch 路由 '{kv.Key}' 目标 '{kv.Value}' 不存在。", kv.Value));
+            if (!string.IsNullOrWhiteSpace(sw.DefaultNodeId) && !nodes.ContainsKey(sw.DefaultNodeId!))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"Switch 默认目标 '{sw.DefaultNodeId}' 不存在。", sw.DefaultNodeId));
+        }
+    }
+
+    /// <summary>判定/选择键可解析（CFG-026，口径同 CFG-025）：$ 前缀原样 / 含点 ⇒ 节点端口键 / 否则 ⇒ 入口端口。</summary>
+    private static void CheckJudgeKeyResolvable(
+        string key, string ownerNodeId, IReadOnlyDictionary<string, CircuitNode> nodes,
+        HashSet<string> entries, List<CircuitDiagnostic> d)
+    {
+        if (key.StartsWith('$')) return; // 原样上下文键（装配侧供给；执行期缺失 ⇒ 不激活）
+
+        if (key.Contains('.'))
+        {
+            var parts = key.Split('.', 2);
+            var nodeId = parts[0].Trim();
+            var portName = parts[1].Trim();
+            if (parts.Length != 2 || nodeId.Length == 0 || portName.Length == 0)
+            {
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"分支判定键 '{key}' 格式非法（须为 \"NodeId.Port\"）。", ownerNodeId));
+                return;
+            }
+            if (!nodes.TryGetValue(nodeId, out var judgeNode))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"分支判定键 '{key}' 引用不存在的节点 '{nodeId}'。", ownerNodeId));
+            else if (judgeNode.OutPorts.All(p => p.Name != portName))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                    $"分支判定键 '{key}' 引用的输出端口 '{portName}' 不存在于节点 '{nodeId}'。", ownerNodeId));
+            return;
+        }
+
+        if (!entries.Contains(key))
+            d.Add(new(DiagnosticSeverity.Error, "CFG-026",
+                $"分支判定键 '{key}' 既非入口端口也非节点端口键（判定载体不可解析）。", ownerNodeId));
+    }
+
 
     /// <summary>出口投影校验：格式 / 节点存在性 / 端口存在性（Error）与重复声明（Warning）。</summary>
     private static void CheckExitSymbols(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)

@@ -23,6 +23,31 @@ public static class UsharpLanguage
     /// <summary>观测声明前缀（第五语言单元：作用域 / 实体 / 事件；子类由 <c>kind=</c> 区分）。</summary>
     public const string ObsPrefix = "[Obs]";
 
+    /// <summary>分支声明前缀（R3 声明式控制流：判定键 → then/else 激活/抑制）。</summary>
+    public const string BranchPrefix = "[Branch]";
+
+    /// <summary>多路分派声明前缀（R3：选择键取值 → 路由目标）。</summary>
+    public const string SwitchPrefix = "[Switch]";
+
+    /// <summary>调用声明前缀（R3：承载节点 → 子流调用）。</summary>
+    public const string CallPrefix = "[Call]";
+
+    /// <summary>控制流声明字段名（R3，<c>[Branch]/[Switch]/[Call]</c> 共用）：所属流 / 承载节点 / 判定键 / 选择键 / 目标。</summary>
+    public const string FieldFlow = "flow";
+    public const string FieldNode = "node";
+    public const string FieldJudge = "judge";
+    public const string FieldSelector = "selector";
+    public const string FieldThen = "then";
+    public const string FieldElse = "else";
+
+    /// <summary>控制流声明字段名（R3）：路由集 / 默认目标 / 被调 Kind / 子流号 / 入映射 / 出映射。</summary>
+    public const string FieldRoutes = "routes";
+    public const string FieldDefault = "default";
+    public const string FieldCallee = "callee";
+    public const string FieldChildFlow = "child";
+    public const string FieldInBindings = "in";
+    public const string FieldOutBindings = "out";
+
     /// <summary>观测声明子类取值：<c>kind=file|scope|entity|event</c>。</summary>
     public const string KindFile = "file";
     public const string KindScope = "scope";

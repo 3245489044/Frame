@@ -33,6 +33,14 @@ public static class CircuitExecutionCapabilities
         CircuitSymbolKind.Fallback,   // G4 容错：主路径失败 → 备选节点（机制侧）
         CircuitSymbolKind.CatchRoute, // G4 容错：失败后路由到补救节点（机制侧）
         CircuitSymbolKind.TryGuard,   // G4 容错：受保护节点失败 → 吞并继续（机制侧）
+        CircuitSymbolKind.Recursion,  // F3 递归执行化：自引用有界区域（RegionNodeBase 按 Recursion 计划驱动子计划；
+                                      // 声明由 CircuitRecipeProjector 投影为 RecursionSymbol 镜像；对拍见 CircuitRegionExecutionTests）
+        CircuitSymbolKind.BaseCase,   // F3：递归基例声明（RecursionSymbol.BaseCase；执行面 = 区域基例端口判定）
+        CircuitSymbolKind.Branch,     // R1 分支执行化：后继激活/抑制（声明 → BranchSymbol；执行面 = CircuitRuntimeIndex 路由表 + 引擎门控；
+                                      // 对拍见 CircuitFramework.Tests\CircuitBranchExecutionTests）
+        CircuitSymbolKind.Switch,     // R1 多路分派：选择键取值路由（同上；对拍见 CircuitBranchExecutionTests）
+        CircuitSymbolKind.Call,       // R2 调用执行化：子电路调用（声明 → CallSymbol；执行面 = Execution.SubCircuitNode；
+                                      // 对拍见 CircuitFramework.Tests\CircuitCallExecutionTests）
     };
 
     /// <summary>已被执行后端消费的符号种类（只读；顺序不承载语义）。</summary>

@@ -99,4 +99,19 @@ public sealed record CircuitRecipeSpec(
     /// <summary>
     /// 受保护节点声明（G4，缺省/空 = 无保护）：投影为 <see cref="Symbols.TryGuardSymbol"/>；节点存在性由 CFG-024 判红。
     /// </summary>
-    IReadOnlyList<CircuitGuardSpec>? Guards = null);
+    IReadOnlyList<CircuitGuardSpec>? Guards = null,
+    /// <summary>
+    /// 分支声明（R1，缺省/空 = 无分支）：投影为 <see cref="Symbols.BranchSymbol"/> + 后继门控；
+    /// 判定键可解析性与目标存在性由 CFG-026 判红。
+    /// </summary>
+    IReadOnlyList<CircuitBranchSpec>? Branches = null,
+    /// <summary>
+    /// 多路分派声明（R1，缺省/空 = 无分派）：投影为 <see cref="Symbols.SwitchSymbol"/> + 后继门控；
+    /// 选择键可解析性与目标存在性由 CFG-026 判红。
+    /// </summary>
+    IReadOnlyList<CircuitSwitchSpec>? Switches = null,
+    /// <summary>
+    /// 调用声明（R2，缺省/空 = 无调用）：投影为 <see cref="Symbols.CallSymbol"/>；执行面 = <see cref="Execution.SubCircuitNode"/>；
+    /// 子计划可解析性与父侧端口映射由 CFG-027 判红。
+    /// </summary>
+    IReadOnlyList<CircuitCallSpec>? Calls = null);

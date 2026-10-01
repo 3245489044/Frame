@@ -12,6 +12,10 @@ namespace Share.CircuitFramework.Projection;
 /// </summary>
 public static class CircuitRecipeProjector
 {
+    /// <summary>递归基例的空终止输出（RecursionSymbol.BaseCase.Emit 的缺省；终止值由执行面给出）。</summary>
+    private static readonly IReadOnlyDictionary<string, string> EmptyEmit =
+        new Dictionary<string, string>(0);
+
     /// <summary>把声明式装配配方投影为电路。</summary>
     public static Ckt Project(CircuitRecipeSpec spec)
     {
@@ -69,6 +73,22 @@ public static class CircuitRecipeProjector
                     PostCondition = cond.Kind == RegionIterationKind.UntilTrue ? cond.JudgePort : null,
                 });
             }
+
+            // F3 递归执行化（M2 降级）⇒ RecursionSymbol + BaseCaseSymbol 镜像：自引用有界递归的符号视图。
+            // 回边/回连 = 同一基例端口（须在承载节点入/出端口双端声明，见 RegionValidator CFG-020）；
+            // 策略 = Iterative（环封在区域节点内，父图仍为 DAG）；执行面 = RegionNodeBase.RunRecursionAsync。
+            if (region.Plan is { Kind: RegionIterationKind.Recursion } recursion
+                && recursion.JudgePort is { Length: > 0 } baseCasePort)
+            {
+                circuit.Append(new RecursionSymbol
+                {
+                    NodeId = region.NodeId,
+                    BackEdge = new PortRef(region.NodeId, baseCasePort),
+                    LoopBack = new PortRef(region.NodeId, baseCasePort),
+                    BaseCase = new BaseCaseSymbol { Predicate = baseCasePort, Emit = EmptyEmit },
+                    Strategy = RecursionStrategy.Iterative,
+                });
+            }
         }
 
         // 控制边声明 → SequenceSymbol 镜像：前驱只约束后继先后、不经数据键（无法表达为 Wire），
@@ -96,6 +116,30 @@ public static class CircuitRecipeProjector
 
         foreach (var guard in spec.Guards ?? Array.Empty<CircuitGuardSpec>())
             circuit.Append(new TryGuardSymbol { ProtectedNodeIds = guard.ProtectedNodeIds });
+
+        // R1 分支/分派声明 → BranchSymbol/SwitchSymbol：判定键随符号落进电路，
+        // 执行面（CircuitRuntimeIndex）据 JudgeKey/SelectorKey 派生后继门控（then 激活 / else 抑制 / route 命中）。
+        foreach (var branch in spec.Branches ?? Array.Empty<CircuitBranchSpec>())
+            circuit.Append(new BranchSymbol
+            {
+                ConditionNodeId = branch.NodeId,
+                JudgeKey = branch.JudgeKey,
+                ThenNodeId = branch.ThenNodeId,
+                ElseNodeId = branch.ElseNodeId,
+            });
+
+        foreach (var sw in spec.Switches ?? Array.Empty<CircuitSwitchSpec>())
+            circuit.Append(new SwitchSymbol
+            {
+                SelectorNodeId = sw.NodeId,
+                SelectorKey = sw.SelectorKey,
+                Routes = sw.Routes,
+                DefaultNodeId = sw.DefaultNodeId,
+            });
+
+        // R2 调用声明 → CallSymbol：调用边在电路层可见；执行面 = Execution.SubCircuitNode（节点 Kind 由声明面的步骤给出）。
+        foreach (var call in spec.Calls ?? Array.Empty<CircuitCallSpec>())
+            circuit.Append(new CallSymbol { CallerNodeId = call.CallerNodeId, Target = call.Target });
 
         return circuit;
     }

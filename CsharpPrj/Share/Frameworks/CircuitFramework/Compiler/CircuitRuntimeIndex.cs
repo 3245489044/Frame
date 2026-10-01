@@ -72,8 +72,34 @@ public readonly record struct InputBinding(
 /// <summary>出口引用：声明面端口名（"NodeId.Port"）→ 节点/端口（存在性由编译期校验判红）。</summary>
 public readonly record struct ExitRef(string Port, string NodeId, string PortName);
 
-/// <summary>受控边绑定（G3）：目标节点入端口 <see cref="ToPort"/> 受判定键 <see cref="WhenKey"/> 门控（全部为真才激活）。</summary>
-public readonly record struct RouteBinding(string ToPort, string WhenKey);
+/// <summary>
+/// 路由匹配语义（R1）：判定键取值的匹配方式 —— Truthy（为真激活，G3 缺省）/ Falsy（为假激活）/
+/// AnyOf（取值 ∈ <see cref="RouteBinding.MatchValues"/>）/ NoneOf（取值 ∉ MatchValues，供 switch 默认兜底）。
+/// </summary>
+public enum RouteMatch
+{
+    /// <summary>判定键为真时激活（G3 缺省；<see cref="RouteBinding.WhenKey"/> 归一规则同 Wire.When）。</summary>
+    Truthy,
+
+    /// <summary>判定键为假时激活（分支 else 侧）。</summary>
+    Falsy,
+
+    /// <summary>判定键取值的字符串形式 ∈ <see cref="RouteBinding.MatchValues"/> 时激活（switch route）。</summary>
+    AnyOf,
+
+    /// <summary>判定键取值的字符串形式 ∉ <see cref="RouteBinding.MatchValues"/> 时激活（switch 默认兜底）。</summary>
+    NoneOf,
+}
+
+/// <summary>
+/// 受控边 / 分支路由绑定（G3+R1）：目标节点入端口 <see cref="ToPort"/> 受判定键 <see cref="WhenKey"/> 门控
+/// （目标节点全部路由条件成立才执行）。
+/// </summary>
+public readonly record struct RouteBinding(
+    string ToPort,
+    string WhenKey,
+    RouteMatch Match = RouteMatch.Truthy,
+    IReadOnlyList<string>? MatchValues = null);
 
 /// <summary>
 /// 节点容错策略（G4，机制侧）：重试 / 失败路由 / 受保护。
@@ -205,14 +231,51 @@ public sealed class CircuitRuntimeIndex
         //    追加在 Wire/Entry 之后 ⇒ 显式声明的数据流符号覆盖同名隐式供给。
         AppendDataflowBindings(circuit, nodesById, bindings);
 
-        // ③.5 受控边（G3）：带 When 的 Wire → 目标节点门控（全部判定为真才执行）
+        // ③.5 受控边（G3）+ 分支/分派（R1）：带 When 的 Wire → Truthy；Branch/Switch → 后继激活/抑制（路由表）
         var routes = new Dictionary<string, List<RouteBinding>>(StringComparer.Ordinal);
+        void AddRoute(string targetNodeId, RouteBinding binding)
+        {
+            if (string.IsNullOrWhiteSpace(targetNodeId)) return;
+            if (!routes.TryGetValue(targetNodeId, out var list))
+                routes[targetNodeId] = list = new List<RouteBinding>(2);
+            list.Add(binding);
+        }
+
         foreach (var wire in circuit.Wires)
         {
             if (string.IsNullOrWhiteSpace(wire.When)) continue;
-            if (!routes.TryGetValue(wire.To.NodeId, out var gateList))
-                routes[wire.To.NodeId] = gateList = new List<RouteBinding>(2);
-            gateList.Add(new RouteBinding(wire.To.PortName, ResolveJudgeKey(wire.When!)));
+            AddRoute(wire.To.NodeId, new RouteBinding(wire.To.PortName, ResolveJudgeKey(wire.When!), RouteMatch.Truthy));
+        }
+
+        foreach (var symbol in circuit.Symbols)
+        {
+            switch (symbol)
+            {
+                // R1 分支：then 真激活 / else 假激活（判定键可为空 ⇒ 仅符号视图，不门控，源兼容）
+                case BranchSymbol branch when !string.IsNullOrWhiteSpace(branch.JudgeKey):
+                    {
+                        var judge = ResolveJudgeKey(branch.JudgeKey!);
+                        AddRoute(branch.ThenNodeId, new RouteBinding(string.Empty, judge, RouteMatch.Truthy));
+                        if (!string.IsNullOrWhiteSpace(branch.ElseNodeId))
+                            AddRoute(branch.ElseNodeId!, new RouteBinding(string.Empty, judge, RouteMatch.Falsy));
+                        break;
+                    }
+
+                // R1 分派：命中 route 激活（AnyOf）/ 未命中则 default（NoneOf）
+                case SwitchSymbol sw when !string.IsNullOrWhiteSpace(sw.SelectorKey):
+                    {
+                        var selector = ResolveJudgeKey(sw.SelectorKey!);
+                        var values = new List<string>(sw.Routes.Count);
+                        foreach (var kv in sw.Routes)
+                        {
+                            values.Add(kv.Key);
+                            AddRoute(kv.Value, new RouteBinding(string.Empty, selector, RouteMatch.AnyOf, new[] { kv.Key }));
+                        }
+                        if (!string.IsNullOrWhiteSpace(sw.DefaultNodeId) && values.Count > 0)
+                            AddRoute(sw.DefaultNodeId!, new RouteBinding(string.Empty, selector, RouteMatch.NoneOf, values));
+                        break;
+                    }
+            }
         }
 
         // ③.6 容错策略（G4，机制侧）：Retry / Fallback / CatchRoute / TryGuard 合并到节点策略

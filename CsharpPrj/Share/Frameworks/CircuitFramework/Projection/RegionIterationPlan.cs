@@ -17,6 +17,13 @@ public enum RegionIterationKind
 
     /// <summary>后判定条件迭代：判定端口为 true 时停止迭代。</summary>
     UntilTrue,
+
+    /// <summary>
+    /// 自引用有界递归（M2 降级）：子计划重复执行直至基例端口为真（do-while 语义），
+    /// 基例载体 = 端口键（<see cref="JudgePort"/>，须在承载节点入/出端口双端声明）；环封在区域节点内，父图仍为 DAG。
+    /// 执行同形于 <see cref="UntilTrue"/>；差异在符号视图（RecursionSymbol + BaseCase）与基例端口的双端声明要求。
+    /// </summary>
+    Recursion,
 }
 
 /// <summary>
@@ -53,4 +60,11 @@ public sealed record RegionIterationPlan(
     /// <summary>后判定条件迭代（判定端口为 true 时停止；<paramref name="maxIterations"/> 须 &gt; 0）。</summary>
     public static RegionIterationPlan UntilTrue(string judgePort, int maxIterations)
         => new(RegionIterationKind.UntilTrue, maxIterations, 0, judgePort);
+
+    /// <summary>
+    /// 自引用有界递归（执行到基例端口为真即停；<paramref name="maxIterations"/> 须 &gt; 0）。
+    /// <paramref name="baseCasePort"/> = 基例端口键（须在承载节点入/出端口双端声明，供回边/回连两端可达）。
+    /// </summary>
+    public static RegionIterationPlan Recursion(string baseCasePort, int maxIterations)
+        => new(RegionIterationKind.Recursion, maxIterations, 0, baseCasePort);
 }

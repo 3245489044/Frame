@@ -52,6 +52,46 @@ public sealed class RecipeBuilder
         return this;
     }
 
+    /// <summary>
+    /// 有界计次重复区域（F3 声明式入口）：等价
+    /// <c>.Region(CircuitRegionSpec.Of(nodeId, child, RegionIterationPlan.Fixed(repeats), …))</c>。
+    /// </summary>
+    public RecipeBuilder Loop(string nodeId, CircuitRecipeSpec child, int repeats,
+        IReadOnlyList<RegionPortBinding>? inBindings = null, IReadOnlyList<RegionPortBinding>? outBindings = null)
+        => Region(CircuitRegionSpec.Of(nodeId, child, RegionIterationPlan.Fixed(repeats), inBindings, outBindings));
+
+    /// <summary>上判定条件迭代区域（判定端口为 true 时继续；<paramref name="maxIterations"/> 须 &gt; 0）。</summary>
+    public RecipeBuilder While(string nodeId, CircuitRecipeSpec child, string judgePort, int maxIterations,
+        IReadOnlyList<RegionPortBinding>? inBindings = null, IReadOnlyList<RegionPortBinding>? outBindings = null)
+        => Region(CircuitRegionSpec.Of(nodeId, child, RegionIterationPlan.WhileTrue(judgePort, maxIterations), inBindings, outBindings));
+
+    /// <summary>后判定条件迭代区域（判定端口为 true 时停止；<paramref name="maxIterations"/> 须 &gt; 0）。</summary>
+    public RecipeBuilder Until(string nodeId, CircuitRecipeSpec child, string judgePort, int maxIterations,
+        IReadOnlyList<RegionPortBinding>? inBindings = null, IReadOnlyList<RegionPortBinding>? outBindings = null)
+        => Region(CircuitRegionSpec.Of(nodeId, child, RegionIterationPlan.UntilTrue(judgePort, maxIterations), inBindings, outBindings));
+
+    /// <summary>
+    /// 自引用有界递归区域（F3）：执行到基例端口为真即停；<paramref name="baseCasePort"/> 须在承载节点入/出端口双端声明。
+    /// </summary>
+    public RecipeBuilder Recurse(string nodeId, CircuitRecipeSpec child, string baseCasePort, int maxIterations,
+        IReadOnlyList<RegionPortBinding>? inBindings = null, IReadOnlyList<RegionPortBinding>? outBindings = null)
+        => Region(CircuitRegionSpec.Of(nodeId, child, RegionIterationPlan.Recursion(baseCasePort, maxIterations), inBindings, outBindings));
+
+    /// <summary>分支声明（R1）：判定键为真 → then 激活 / else 抑制（承载节点与目标须已声明步骤）。</summary>
+    public RecipeBuilder If(string nodeId, string judgeKey, string thenNodeId, string? elseNodeId = null)
+    {
+        _chain.Branch(nodeId, judgeKey, thenNodeId, elseNodeId);
+        return this;
+    }
+
+    /// <summary>多路分派声明（R1）：选择键取值命中 route 激活 / 默认兜底。</summary>
+    public RecipeBuilder Switch(
+        string nodeId, string selectorKey, IReadOnlyDictionary<string, string> routes, string? defaultNodeId = null)
+    {
+        _chain.Switch(nodeId, selectorKey, routes, defaultNodeId);
+        return this;
+    }
+
     /// <summary>收集出口产物（未声明则缺省 = 末步链端口）。</summary>
     public RecipeBuilder Collect(string nodeId, string port)
     {

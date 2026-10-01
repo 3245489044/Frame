@@ -30,10 +30,27 @@
         CS10-e 区域镜像单一来源（负对照）：投影产出的 LoopSymbol.Body 只是符号域镜像，
         除投影处（CircuitRecipeProjector.cs）与符号定义处（Symbols\RecursionSymbols.cs）外引用 LoopSymbol = 0
         （被执行面引用即出现第二执行真源，与注册表指纹键分叉）。
-    CS12 轮间链单驱动（负对照）：Agent.Core\Loops 内禁平行路由表 RouteTable<AgentRunState> = 0
-        （run 主路径唯一 = RoundLoopDriver.RunViaRegionAsync 区域电路）。
+    CS12 轮间链单驱动（负对照）：Agent.Core\Loops 内禁平行路由表 RouteTable<AgentRunState> 与平行脊柱驱动器
+        SpinalPipeline = 0（run 主路径唯一 = RoundLoopDriver.RunViaRegionAsync 区域电路）。
     CS13 区域化轮循环在册（正对照）：区域节点（RegionNodeBase.For）/ 条件迭代计划
         （RegionIterationPlan.WhileTrue）/ 区域入口（RoundLoopDriver.RunViaRegionAsync）须齐备。
+    CS15 run 主干在册（正对照，P1/T2 配方化）：Agent.Core\Loops\Circuit\AgentRunTrunkCircuit.cs 存在且以
+        OrderedRecipe< 声明 agent.run.trunk 顺序链（load_state…finalize_run）；缺失 = 扫描面失效（FAIL，非「零违规」）。
+    CS16 禁命令式主干（负对照）：AgentRunner 内禁内联主干序列（using var ports = BuildRunPorts( = 0）；
+        run 主干须经 AgentRunTrunkCircuit 配方驱动（与 CS12 单驱动同族）。
+    CS17 受控第二点（负对照）：RunSingleRootAsync（兼容入口）的引用文件须 ⊆ 已知集
+        （RoundLoopDriver 定义 + RuleTaskExecutor / StatelessAnswerLoop 两消费方）；新增平行消费方须先过迁移决议。
+    CS18 轮内链声明面在册（正对照）：RoundFlowSpecMapper.EnforceDeclaredEdgeCoverage（未声明真依赖判红）
+        与 RoundSpecLoader.ApplyDeclaredDependencies（[Matrix] 反解）须齐备（R1/R3 不回退）。
+    CS23 递归执行化在册（正对照）：RegionNodeBase 按 RegionIterationKind.Recursion 驱动（do-while 到基例即停）；
+        CircuitExecutionCapabilities 含 Recursion/BaseCase；CircuitRecipeProjector 产出 RecursionSymbol 镜像
+        （缺失 = 「表内有、引擎无」假支持，与 CS10-d/CS13 同族）。
+    CS24 分支/分派执行化在册（正对照，R1）：CircuitExecutionCapabilities 含 Branch/Switch；
+        CircuitRuntimeIndex 具 RouteMatch 路由表；CircuitRecipeProjector 产出 BranchSymbol。
+    CS25 调用执行化在册（正对照，R2）：CircuitExecutionCapabilities 含 Call；Execution\SubCircuitNode 经
+        CircuitEngine.ExecuteAsync 驱动子电路；CFG-002 环检测仍在册（调用边不豁免成环禁入）。
+    CS27 全流程图投影/渲染在册（正对照，R4）：Analysis\ControlFlowGraph 具 FlowEdgeKind 全边；
+        Analysis\CircuitFlowRenderer 具 ToMermaid（DOT/Mermaid/JSON 声明式渲染）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -324,17 +341,83 @@ if ($cs10Mirror.Count -gt 0)
 }
 if ($ShowDetail) { foreach ($h in $cs10Mirror) { Write-Host ("    {0}" -f ($h.FullName -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
 
+# ---------- CS23 递归执行化在册（正对照：Recursion/BaseCase 有执行面） ----------
+# F3：RegionNodeBase 按 RegionIterationKind.Recursion 驱动（do-while 到基例即停）；能力表含 Recursion/BaseCase；
+# 投影产出 RecursionSymbol 镜像。缺失 = 「表内有、引擎无」假支持（与 CS10-d/CS13 同族正对照，非负对照）。
+$cfCapFile = Join-Path $cfDir 'Compiler\CircuitExecutionCapabilities.cs'
+$cfProjectorFile = Join-Path $cfDir 'Projection\CircuitRecipeProjector.cs'
+$cs23Exec = (Test-Path $regionNodeFile) -and
+    ((Get-Content -LiteralPath $regionNodeFile -Raw -Encoding UTF8) -match 'RegionIterationKind\.Recursion')
+$cs23Cap = (Test-Path $cfCapFile) -and
+    ((Get-Content -LiteralPath $cfCapFile -Raw -Encoding UTF8) -match 'CircuitSymbolKind\.Recursion') -and
+    ((Get-Content -LiteralPath $cfCapFile -Raw -Encoding UTF8) -match 'CircuitSymbolKind\.BaseCase')
+$cs23Project = (Test-Path $cfProjectorFile) -and
+    ((Get-Content -LiteralPath $cfProjectorFile -Raw -Encoding UTF8) -match 'RecursionSymbol')
+Write-Host ("  CS23 递归执行化在册（正对照：执行面={0} / 能力表={1} / 投影={2}）：须均为 True" -f $cs23Exec, $cs23Cap, $cs23Project) -ForegroundColor Gray
+if (-not ($cs23Exec -and $cs23Cap -and $cs23Project))
+{
+    $violations.Add('[CS23] 递归执行化在册缺失（RegionNodeBase / CircuitExecutionCapabilities / CircuitRecipeProjector 任一处未接线：能力表与执行面脱节）')
+}
+# ---------- CS24 分支/分派执行化在册（正对照：Branch/Switch 有执行面） ----------
+# R1：声明 → BranchSymbol/SwitchSymbol；执行面 = CircuitRuntimeIndex 路由表（RouteMatch）+ 引擎后继门控。
+# 缺失 = 「表内有、引擎无」假支持（与 CS23 同族正对照）。
+$cs24Cap = (Test-Path $cfCapFile) -and
+    ((Get-Content -LiteralPath $cfCapFile -Raw -Encoding UTF8) -match 'CircuitSymbolKind\.Branch') -and
+    ((Get-Content -LiteralPath $cfCapFile -Raw -Encoding UTF8) -match 'CircuitSymbolKind\.Switch')
+$cfRuntimeFile = Join-Path $cfDir 'Compiler\CircuitRuntimeIndex.cs'
+$cs24Route = (Test-Path $cfRuntimeFile) -and
+    ((Get-Content -LiteralPath $cfRuntimeFile -Raw -Encoding UTF8) -match 'RouteMatch')
+$cs24Project = (Test-Path $cfProjectorFile) -and
+    ((Get-Content -LiteralPath $cfProjectorFile -Raw -Encoding UTF8) -match 'BranchSymbol')
+Write-Host ("  CS24 分支/分派执行化在册（正对照：能力表={0} / 路由表={1} / 投影={2}）：须均为 True" -f $cs24Cap, $cs24Route, $cs24Project) -ForegroundColor Gray
+if (-not ($cs24Cap -and $cs24Route -and $cs24Project))
+{
+    $violations.Add('[CS24] 分支/分派执行面缺失（CircuitExecutionCapabilities / CircuitRuntimeIndex / CircuitRecipeProjector 任一处未接线）')
+}
+
+# ---------- CS25 调用执行化在册（正对照：Call 有执行面 + CFG-002 环检测仍红） ----------
+# R2：声明 → CallSymbol；执行面 = Execution.SubCircuitNode；CFG-002（Wire 成环禁入）不变（调用边不豁免）。
+$cfSubNodeFile = Join-Path $cfDir 'Execution\SubCircuitNode.cs'
+$cfValidatorFile = Join-Path $cfDir 'Compiler\CircuitValidator.cs'
+$cs25Cap = (Test-Path $cfCapFile) -and
+    ((Get-Content -LiteralPath $cfCapFile -Raw -Encoding UTF8) -match 'CircuitSymbolKind\.Call')
+$cs25Node = (Test-Path $cfSubNodeFile) -and
+    ((Get-Content -LiteralPath $cfSubNodeFile -Raw -Encoding UTF8) -match 'CircuitEngine\.ExecuteAsync')
+$cs25Cfg002 = (Test-Path $cfValidatorFile) -and
+    ((Get-Content -LiteralPath $cfValidatorFile -Raw -Encoding UTF8) -match 'CFG-002')
+Write-Host ("  CS25 调用执行化在册（正对照：能力表={0} / 子电路节点={1} / CFG-002 在册={2}）：须均为 True" -f $cs25Cap, $cs25Node, $cs25Cfg002) -ForegroundColor Gray
+if (-not ($cs25Cap -and $cs25Node -and $cs25Cfg002))
+{
+    $violations.Add('[CS25] 调用执行面缺失（CircuitExecutionCapabilities / SubCircuitNode / CFG-002 任一处未接线）')
+}
+
+# ---------- CS27 全流程图投影/渲染在册（正对照：ControlFlowGraph + CircuitFlowRenderer） ----------
+# R4：全流程图（分支/区域/调用全边）+ 声明式渲染（DOT/Mermaid/JSON）。
+$cfFlowGraphFile = Join-Path $cfDir 'Analysis\ControlFlowGraph.cs'
+$cfRendererFile = Join-Path $cfDir 'Analysis\CircuitFlowRenderer.cs'
+$cs27Graph = (Test-Path $cfFlowGraphFile) -and
+    ((Get-Content -LiteralPath $cfFlowGraphFile -Raw -Encoding UTF8) -match 'FlowEdgeKind')
+$cs27Render = (Test-Path $cfRendererFile) -and
+    ((Get-Content -LiteralPath $cfRendererFile -Raw -Encoding UTF8) -match 'ToMermaid')
+Write-Host ("  CS27 全流程图/渲染在册（正对照：ControlFlowGraph={0} / Renderer={1}）：须均为 True" -f $cs27Graph, $cs27Render) -ForegroundColor Gray
+if (-not ($cs27Graph -and $cs27Render))
+{
+    $violations.Add('[CS27] 全流程图投影/渲染缺失（ControlFlowGraph / CircuitFlowRenderer 未在册）')
+}
+
+
+
 # ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------
 $agentLoopsDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'
 if (Test-Path $agentLoopsDir)
 {
     $loopsCs = @(Get-ChildItem -Path $agentLoopsDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue)
 
-    $cs12 = @($loopsCs | Select-String -Pattern 'RouteTable<AgentRunState>' -ErrorAction SilentlyContinue)
-    Write-Host ("  CS12 轮间链单驱动（负对照：Loops 内 RouteTable<AgentRunState> 引用）：{0} 处（须为 0）" -f $cs12.Count) -ForegroundColor Gray
+    $cs12 = @($loopsCs | Select-String -Pattern 'RouteTable<AgentRunState>|new SpinalPipeline<' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS12 轮间链单驱动（负对照：Loops 内 RouteTable<AgentRunState>/SpinalPipeline 引用）：{0} 处（须为 0）" -f $cs12.Count) -ForegroundColor Gray
     if ($cs12.Count -gt 0)
     {
-        $violations.Add("[CS12] 轮间链出现平行路由表 $($cs12.Count) 处（run 主路径须由区域电路单驱动：RoundLoopDriver.RunViaRegionAsync）")
+        $violations.Add("[CS12] 轮间链出现平行装配（路由表/脊柱驱动器）$($cs12.Count) 处（run 主路径须由区域电路单驱动：RoundLoopDriver.RunViaRegionAsync）")
     }
 
     $regionCircuitFile = Join-Path $agentLoopsDir 'Circuit\AgentRunRegionCircuit.cs'
@@ -351,16 +434,116 @@ if (Test-Path $agentLoopsDir)
     {
         $violations.Add('[CS13] 区域化轮循环执行面缺失（区域节点/条件迭代计划/区域入口未在册；轮间链未进电路）')
     }
+
+    # ---------- CS15 run 主干在册（正对照，P1/T2 配方化）+ CS16 禁命令式主干（负对照） ----------
+    $trunkCircuitFile = Join-Path $agentLoopsDir 'Circuit\AgentRunTrunkCircuit.cs'
+    $agentRunnerFile = Join-Path $agentLoopsDir 'AgentRunner.cs'
+
+    # CS15-d 正对照：扫描面非空（文件存在 + OrderedRecipe< 使用 + 主干步骤声明）；缺失 = 扫描面失效（FAIL，非「零违规」）。
+    $trunkExists = Test-Path $trunkCircuitFile
+    $trunkText = if ($trunkExists) { Get-Content -LiteralPath $trunkCircuitFile -Raw -Encoding UTF8 } else { '' }
+    $cs15Recipe = $trunkExists -and ($trunkText -match 'OrderedRecipe<')
+    $cs15Trunk = $cs15Recipe -and ($trunkText -match 'agent\.run\.trunk') -and ($trunkText -match '"finalize_run"')
+    Write-Host ("  CS15 run 主干在册（正对照：主干配方文件={0} / OrderedRecipe<={1} / 主干步骤声明={2}）：须均为 True" -f $trunkExists, $cs15Recipe, $cs15Trunk) -ForegroundColor Gray
+    if (-not ($trunkExists -and $cs15Recipe -and $cs15Trunk))
+    {
+        $violations.Add('[CS15] run 主干未在运行时配方域在册（AgentRunTrunkCircuit.cs 缺失或未声明 agent.run.trunk 顺序链）')
+    }
+
+    # CS16 负对照：AgentRunner 主干禁命令式内联（原 using var ports = BuildRunPorts( 序列已收敛为配方驱动）。
+    $cs16Inline = (Test-Path $agentRunnerFile) -and
+        ((Get-Content -LiteralPath $agentRunnerFile -Raw -Encoding UTF8) -match 'using var ports = BuildRunPorts\(')
+    Write-Host ("  CS16 禁命令式主干（负对照：AgentRunner 内 using var ports = BuildRunPorts( 内联）：{0} 处（须为 0）" -f ([int]$cs16Inline)) -ForegroundColor Gray
+    if ($cs16Inline)
+    {
+        $violations.Add('[CS16] run 主干出现命令式内联序列（应经 AgentRunTrunkCircuit 配方驱动）')
+    }
+
+    # ---------- CS17 受控第二点（负对照：兼容入口消费方封顶） ----------
+    # 已知面 = 定义处（RoundLoopDriver）+ 既有两消费方（RuleTaskExecutor / StatelessAnswerLoop）；
+    # 其余引用 = 平行消费方爬升（受控第二点决议：新增消费方须先过 P4 迁移，非本门禁放行）。
+    $singleRootKnown = @(
+        (Join-Path $agentLoopsDir 'RoundLoopDriver.cs'),
+        (Join-Path $agentLoopsDir 'TaskPool\RuleTaskExecutor.cs'),
+        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Answer\StatelessAnswerLoop.cs'))
+    $singleRootCallers = @()
+    foreach ($scanDir in @($agentLoopsDir, (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules')))
+    {
+        if (-not (Test-Path $scanDir)) { continue }
+        $singleRootCallers += @(Get-ChildItem -Path $scanDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+            Select-String -Pattern 'RunSingleRootAsync\s*\(' -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.Path })
+    }
+    $singleRootCallers = @($singleRootCallers | Sort-Object -Unique)
+    $cs17Stray = @($singleRootCallers | Where-Object { $singleRootKnown -notcontains $_ })
+    Write-Host ("  CS17 受控第二点（负对照：RunSingleRootAsync 已知消费方之外的引用文件数）：{0} 处（须为 0）" -f $cs17Stray.Count) -ForegroundColor Gray
+    if ($cs17Stray.Count -gt 0)
+    {
+        $violations.Add("[CS17] RunSingleRootAsync 出现已知消费方之外的引用 $($cs17Stray.Count) 处（受控第二点：新增消费方须先过 P4 迁移决议）")
+    }
+    if ($ShowDetail) { foreach ($h in $cs17Stray) { Write-Host ("    {0}" -f ($h -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
+
+    # ---------- CS18 轮内链声明面在册（正对照：R1/R3 不回退） ----------
+    $flowMapperFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Circuit\RoundFlowSpecMapper.cs'
+    $specLoaderFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Loading\RoundSpecLoader.cs'
+    $cs18Enforce = (Test-Path $flowMapperFile) -and
+        ((Get-Content -LiteralPath $flowMapperFile -Raw -Encoding UTF8) -match 'EnforceDeclaredEdgeCoverage')
+    $cs18Apply = (Test-Path $specLoaderFile) -and
+        ((Get-Content -LiteralPath $specLoaderFile -Raw -Encoding UTF8) -match 'ApplyDeclaredDependencies')
+    Write-Host ("  CS18 轮内链声明面在册（正对照：声明覆盖判据={0} / 声明反解={1}）：须均为 True" -f $cs18Enforce, $cs18Apply) -ForegroundColor Gray
+    if (-not ($cs18Enforce -and $cs18Apply))
+    {
+        $violations.Add('[CS18] 轮内链声明面缺失（未声明真依赖判红 / [Matrix] 反解未在册）；R1/R3 回退')
+    }
 }
 else
 {
     Write-Host "  CS12/CS13 路径缺失（Agent.Core\Loops 未找到）：跳过" -ForegroundColor DarkGray
 }
 
+# ---------- CS14 会话链单驱动（负对照：SessionWorkflow 禁第二套管线引擎 / 正对照：区域电路在册） ----------
+$convDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow'
+if (Test-Path $convDir)
+{
+    $convCircuitDir = Join-Path $convDir 'Circuit'
+    $convCs = @(Get-ChildItem -Path $convDir -Filter *.cs -File -ErrorAction SilentlyContinue)
+    $convCircuitCs = @(Get-ChildItem -Path $convCircuitDir -Filter *.cs -File -ErrorAction SilentlyContinue)
+    $convAll = @($convCs + $convCircuitCs)
+
+    # 会话**发送链**（逐消息生命周期）文件集：不含 FoldStepPipeline（折叠步进容器，另一关注点，合法消费 Modules.Pipeline 组合子）。
+    $convChainNames = @('ConversationCentralPipeline.cs', 'ConversationPipeline.cs', 'ConversationSessionService.cs')
+    $convChainCs = @($convAll | Where-Object { $convChainNames -contains $_.Name })
+
+    # 负对照：会话链禁引用第二套管线引擎（Modules.CentralPipeline / Modules.Pipeline 槽位）
+    $cs14 = @($convChainCs | Select-String -Pattern 'Modules\.CentralPipeline|Modules\.Pipeline|new PipelineBuilder<' -ErrorAction SilentlyContinue)
+    Write-Host ("  CS14 会话链单驱动（负对照：SessionWorkflow 内 Modules.CentralPipeline/Pipeline 引用）：{0} 处（须为 0）" -f $cs14.Count) -ForegroundColor Gray
+    if ($cs14.Count -gt 0)
+    {
+        $violations.Add("[CS14] 会话链出现第二套管线引擎 $($cs14.Count) 处（逐消息链须由 CircuitEngine 单驱动）")
+    }
+
+    # 正对照：区域电路在册（区域节点 + Once 计划 + 会话链入口）
+    $convRegionFile = Join-Path $convCircuitDir 'ConversationSendRegionCircuit.cs'
+    $cs14Region = (Test-Path $convRegionFile) -and
+        ((Get-Content -LiteralPath $convRegionFile -Raw -Encoding UTF8) -match 'RegionNodeBase\.For')
+    $cs14Once = (Test-Path $convRegionFile) -and
+        ((Get-Content -LiteralPath $convRegionFile -Raw -Encoding UTF8) -match 'RegionIterationPlan\.Once')
+    $cs14Entry = @($convChainCs | Select-String -Pattern 'ExecuteSendRegionAsync' -ErrorAction SilentlyContinue).Count -ge 1
+    Write-Host ("  CS14-d 会话链区域电路在册（正对照：区域节点={0} / Once 计划={1} / send 入口={2}）：须均为 True" -f $cs14Region, $cs14Once, $cs14Entry) -ForegroundColor Gray
+    if (-not ($cs14Region -and $cs14Once -and $cs14Entry))
+    {
+        $violations.Add('[CS14] 会话链区域电路执行面缺失（区域节点/Once 计划/send 入口未在册）')
+    }
+}
+else
+{
+    Write-Host "  CS14 路径缺失（Agent.Orchestration\SessionWorkflow 未找到）：跳过" -ForegroundColor DarkGray
+}
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 轮间链单驱动 / 区域化轮循环在册）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 递归执行化在册 / 分支分派执行化在册 / 调用执行化在册 / 全流程图渲染在册 / 轮间链单驱动 / 区域化轮循环在册 / 会话链单驱动 / run 主干配方化在册 / 受控第二点封顶 / 轮内链声明面在册）" -ForegroundColor Green
     exit 0
 }
 

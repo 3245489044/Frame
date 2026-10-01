@@ -50,6 +50,9 @@ public static class UsharpRoundSpecEmitter
             SuccessCriterion = ParseSuccessCriterion(flow, diagnostics),
         };
 
+        // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）。
+        spec = UsharpControlFlowEmitter.Apply(spec, compilation);
+
         return new UsharpFlowEmitResult(spec, UsharpTransitionTableBuilder.Build(flow), diagnostics);
     }
 

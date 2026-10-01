@@ -138,5 +138,29 @@ public static class CompiledRecipeRegistry
             if (r.Child is not null) Append(sb, r.Child);
             sb.Append('}').Append(';');
         }
+        sb.Append(Separator);
+
+        // R1 分支/分派 + R2 调用：投影产 Branch/Switch/Call 符号 ⇒ 属投影输入，须进指纹（否则同名同内容键复用陈旧电路）。
+        foreach (var b in spec.Branches ?? Array.Empty<CircuitBranchSpec>())
+            sb.Append('b').Append(b.NodeId).Append(':').Append(b.JudgeKey).Append('>')
+              .Append(b.ThenNodeId).Append('|').Append(b.ElseNodeId ?? string.Empty).Append(';');
+        foreach (var s in spec.Switches ?? Array.Empty<CircuitSwitchSpec>())
+        {
+            sb.Append('s').Append(s.NodeId).Append(':').Append(s.SelectorKey).Append('>');
+            foreach (var kv in s.Routes) sb.Append(kv.Key).Append('=').Append(kv.Value).Append(',');
+            sb.Append('|').Append(s.DefaultNodeId ?? string.Empty).Append(';');
+        }
+        foreach (var c in spec.Calls ?? Array.Empty<CircuitCallSpec>())
+        {
+            sb.Append('c').Append(c.CallerNodeId).Append(':').Append(c.CalleeKind).Append(':')
+              .Append(c.Target?.CanonicalId ?? string.Empty).Append(':');
+            foreach (var bi in c.InBindings ?? Array.Empty<RegionPortBinding>())
+                sb.Append('i').Append(bi.ParentPort).Append('=').Append(bi.ChildPort).Append(',');
+            foreach (var bo in c.OutBindings ?? Array.Empty<RegionPortBinding>())
+                sb.Append('o').Append(bo.ParentPort).Append('=').Append(bo.ChildPort).Append(',');
+            sb.Append('{');
+            if (c.Child is not null) Append(sb, c.Child);
+            sb.Append('}').Append(';');
+        }
     }
 }

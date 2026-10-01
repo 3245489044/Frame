@@ -30,6 +30,10 @@ public static class UsharpPrefixes
         new(UsharpLanguage.FlowPrefix,   DslSymbolKind.Flow,   "Flow"),
         new(UsharpLanguage.RefPrefix,    DslSymbolKind.Ref,    "Ref"),
         new(UsharpLanguage.ObsPrefix,    DslSymbolKind.Obs,    "Obs"),
+        // R3 控制流语言单元：分支 / 多路分派 / 调用（声明式控制流）
+        new(UsharpLanguage.BranchPrefix, DslSymbolKind.Branch, "Branch"),
+        new(UsharpLanguage.SwitchPrefix, DslSymbolKind.Switch, "Switch"),
+        new(UsharpLanguage.CallPrefix,   DslSymbolKind.Call,   "Call"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

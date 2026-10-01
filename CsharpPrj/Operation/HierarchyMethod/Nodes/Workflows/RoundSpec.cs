@@ -98,6 +98,18 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// <summary>成功判定准则（缺省 DecisionWord，保持主循环语义；会话/线性链模板声明 RunToEnd）。</summary>
         public RoundSpecSuccessCriterion SuccessCriterion { get; init; } = RoundSpecSuccessCriterion.DecisionWord;
 
+        /// <summary>
+        /// 分支声明（R3 中立原语，加法式；缺省空 = 无分支）：判定键为真 → then 激活 / else 抑制。
+        /// 由 <c>RoundFlowSpecMapper</c> 映射为电路配方分支（框架只承载结构）。
+        /// </summary>
+        public IReadOnlyList<RoundBranch>? Branches { get; init; }
+
+        /// <summary>多路分派声明（R3 中立原语，加法式；缺省空 = 无分派）。</summary>
+        public IReadOnlyList<RoundSwitch>? Switches { get; init; }
+
+        /// <summary>调用声明（R3 中立原语，加法式；缺省空 = 无调用）：承载节点调用子骨架。</summary>
+        public IReadOnlyList<RoundCall>? Calls { get; init; }
+
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingContainer ToBindingContainer() => new()
         {

@@ -24,6 +24,8 @@ internal sealed class RecipeChainCore
     private readonly List<string> _exits = new();
     private readonly List<CircuitLiteralSpec> _literals = new();
     private readonly List<CircuitRegionSpec> _regions = new();
+    private readonly List<CircuitBranchSpec> _branches = new();
+    private readonly List<CircuitSwitchSpec> _switches = new();
     private readonly List<string> _entryPorts;
     private readonly bool _entryOnEachStep;
     private bool _exitsDeclared;
@@ -162,6 +164,43 @@ internal sealed class RecipeChainCore
         _spec = null;
     }
 
+    /// <summary>
+    /// 分支声明（R1）：判定键为真 → then 激活 / else 抑制。承载节点与目标须已声明步骤（拼错即抛，不静默产出无效声明）；
+    /// 判定键可解析性与目标存在性由编译期 CFG-026 判红。
+    /// </summary>
+    internal void Branch(string nodeId, string judgeKey, string thenNodeId, string? elseNodeId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(judgeKey);
+        RequireStep(nodeId, "分支承载");
+        RequireStep(thenNodeId, "分支 then 目标");
+        if (elseNodeId is not null) RequireStep(elseNodeId, "分支 else 目标");
+
+        _branches.Add(new CircuitBranchSpec(nodeId, judgeKey, thenNodeId, elseNodeId));
+        _spec = null;
+    }
+
+    /// <summary>多路分派声明（R1）：选择键取值命中 route 激活 / 默认兜底。两端须已声明步骤。</summary>
+    internal void Switch(
+        string nodeId, string selectorKey, IReadOnlyDictionary<string, string> routes, string? defaultNodeId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectorKey);
+        ArgumentNullException.ThrowIfNull(routes);
+        RequireStep(nodeId, "分派承载");
+        foreach (var kv in routes) RequireStep(kv.Value, $"分派 route '{kv.Key}' 目标");
+        if (defaultNodeId is not null) RequireStep(defaultNodeId, "分派默认目标");
+
+        _switches.Add(new CircuitSwitchSpec(nodeId, selectorKey, routes, defaultNodeId));
+        _spec = null;
+    }
+
+    private void RequireStep(string nodeId, string what)
+    {
+        if (_steps.All(s => s.NodeId != nodeId))
+            throw new InvalidOperationException($"{what}节点 '{nodeId}' 未在配方 '{CircuitId}' 声明。");
+    }
+
     /// <summary>显式指定最终产物集（覆盖缺省与已声明收集项）。</summary>
     internal void SetExits(IEnumerable<string> exitPorts)
     {
@@ -201,7 +240,9 @@ internal sealed class RecipeChainCore
 
         _spec = new CircuitRecipeSpec(CircuitId, _entryPorts.ToArray(), exits, steps, flows,
             _literals.Count == 0 ? null : _literals.ToArray(),
-            _regions.Count == 0 ? null : _regions.ToArray());
+            _regions.Count == 0 ? null : _regions.ToArray(),
+            Branches: _branches.Count == 0 ? null : _branches.ToArray(),
+            Switches: _switches.Count == 0 ? null : _switches.ToArray());
         return _spec;
     }
 }

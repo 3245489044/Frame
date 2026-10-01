@@ -32,7 +32,6 @@ public static class RegionValidator
     {
         ArgumentNullException.ThrowIfNull(spec);
         var d = new List<CircuitDiagnostic>();
-        if (spec.Regions is not { Count: > 0 }) return d;
 
         if (depth > MaxRegionNestingDepth)
         {
@@ -44,10 +43,54 @@ public static class RegionValidator
         var steps = new Dictionary<string, CircuitStepSpec>(StringComparer.Ordinal);
         foreach (var step in spec.Steps) steps[step.Id] = step;
 
-        foreach (var region in spec.Regions)
+        foreach (var region in spec.Regions ?? Array.Empty<CircuitRegionSpec>())
             ValidateRegion(spec, region, steps, depth, d);
 
+        // R2 调用声明（CFG-027）：子计划可解析性 + 父侧端口映射（与区域同款判据）
+        foreach (var call in spec.Calls ?? Array.Empty<CircuitCallSpec>())
+            ValidateCall(spec, call, steps, depth, d);
+
         return d;
+    }
+
+    /// <summary>
+    /// 调用声明校验（CFG-027，R2）：承载节点存在 + 被调 Kind 非空 + 目标电路非空 + 子计划可解析（经唯一编译入口）
+    /// + 父侧端口映射两端存在。与区域判据同款（调用 = 一次子电路调用，Once 区域为其特例）。
+    /// </summary>
+    private static void ValidateCall(
+        CircuitRecipeSpec spec, CircuitCallSpec call,
+        IReadOnlyDictionary<string, CircuitStepSpec> steps, int depth, List<CircuitDiagnostic> d)
+    {
+        var nodeId = call.CallerNodeId ?? string.Empty;
+        if (!steps.TryGetValue(nodeId, out var step))
+            d.Add(Err("CFG-027", $"调用承载节点 '{nodeId}' 未在配方 '{spec.CircuitId}' 的步骤中声明。", nodeId));
+
+        if (string.IsNullOrWhiteSpace(call.CalleeKind))
+            d.Add(Err("CFG-027", $"调用 '{nodeId}' 缺少被调 Kind（执行面不可解析）。", nodeId));
+        if (string.IsNullOrWhiteSpace(call.Target?.CircuitId))
+            d.Add(Err("CFG-027", $"调用 '{nodeId}' 目标电路为空。", nodeId));
+
+        if (call.Child is null)
+        {
+            d.Add(Err("CFG-027", $"调用 '{nodeId}' 未声明子计划（Child 缺失）：调用无体可执行。", nodeId));
+            return;
+        }
+
+        // 子计划须经唯一编译入口（子图也须有编译期判据）；失败 ⇒ CFG-027（不得运行期才炸）。
+        if (!CircuitCompiler.TryCompile(call.Child, out _, out var childDiagnostics, depth + 1))
+            d.Add(Err("CFG-027",
+                $"调用 '{nodeId}' 的子计划 '{call.Child.CircuitId}' 不可解析："
+                + string.Join("；", childDiagnostics.Select(x => x.Code + " " + x.Message)), nodeId));
+
+        if (step is null) return;
+        foreach (var binding in call.InBindings ?? Array.Empty<RegionPortBinding>())
+            if (step.InPorts.All(p => p != binding.ParentPort))
+                d.Add(Err("CFG-027",
+                    $"调用 '{nodeId}' 的入映射父端口 '{binding.ParentPort}' 未在节点 '{nodeId}' 入端口声明（可用：{Join(step.InPorts)}）。", nodeId));
+        foreach (var binding in call.OutBindings ?? Array.Empty<RegionPortBinding>())
+            if (step.OutPorts.All(p => p != binding.ParentPort))
+                d.Add(Err("CFG-027",
+                    $"调用 '{nodeId}' 的出映射父端口 '{binding.ParentPort}' 未在节点 '{nodeId}' 出端口声明（可用：{Join(step.OutPorts)}）。", nodeId));
     }
 
     private static void ValidateRegion(
@@ -112,7 +155,9 @@ public static class RegionValidator
                         $"区域 '{nodeId}' 的迭代上限 {plan.MaxIterations} 小于声明计次 {plan.Repeats}：上限须覆盖计次。", nodeId));
                 break;
 
-            default: // WhileTrue / UntilTrue：判定载体须为端口键（声明文案不参与判定）
+            case RegionIterationKind.WhileTrue:
+            case RegionIterationKind.UntilTrue:
+            case RegionIterationKind.Recursion: // 判定载体须为端口键（声明文案不参与判定）
                 if (string.IsNullOrWhiteSpace(plan.JudgePort))
                 {
                     d.Add(Err("CFG-020",
@@ -140,6 +185,12 @@ public static class RegionValidator
                 if (declared is { Length: > 0 } && !IsBoolType(declared))
                     d.Add(Err("CFG-020",
                         $"区域 '{nodeId}' 的判定端口 '{plan.JudgePort}' 声明类型为 '{declared}'：判定载体须为布尔（bool）。", nodeId));
+
+                // Recursion（F3）：基例端口须双端声明（回边/回连同端口 = 自引用反馈的声明化），
+                // 供符号视图 RecursionSymbol.BackEdge/LoopBack 两端可达（对拍 CFG-011/012）。
+                if (plan.Kind == RegionIterationKind.Recursion && step.OutPorts.All(p => p != plan.JudgePort))
+                    d.Add(Err("CFG-020",
+                        $"区域 '{nodeId}' 的递归基例端口 '{plan.JudgePort}' 未在该节点出端口声明（递归回边须双端声明：入端口 + 出端口）。", nodeId));
                 break;
         }
     }

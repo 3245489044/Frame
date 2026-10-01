@@ -26,6 +26,12 @@ public sealed class BranchSymbol : CircuitSymbol
 
     /// <summary>条件为假时的目标节点（else 分支，可为空）。</summary>
     public string? ElseNodeId { get; init; }
+
+    /// <summary>
+    /// 判定载体（可选，R1 执行化）：结构化数据键（端口值 / 入口值），归一规则同 <c>CircuitWire.When</c>。
+    /// 非空 ⇒ 执行面据此门控其后继（then 真激活 / else 假激活）；null ⇒ 仅符号视图（源兼容）。
+    /// </summary>
+    public string? JudgeKey { get; init; }
 }
 
 /// <summary>Switch：多路分派 → 按值选一路（switch 的外部化）。</summary>
@@ -42,6 +48,12 @@ public sealed class SwitchSymbol : CircuitSymbol
 
     /// <summary>默认目标节点（可选）。</summary>
     public string? DefaultNodeId { get; init; }
+
+    /// <summary>
+    /// 选择载体（可选，R1 执行化）：结构化数据键（端口值 / 入口值），归一规则同 <c>CircuitWire.When</c>。
+    /// 非空 ⇒ 执行面据此路由其后继（命中 route 激活 / 默认兜底）；null ⇒ 仅符号视图（源兼容）。
+    /// </summary>
+    public string? SelectorKey { get; init; }
 }
 
 /// <summary>Merge：多路汇合 → 带数据合并或任取其一的 join 点。</summary>

@@ -101,9 +101,30 @@ public static class CircuitEngine
             _resolveNode = resolveNode;
         }
 
-        /// <summary>受控边门控（G3）：全部判定键为真才执行（无门控 = 无条件）。执行时刻对 SharedData 求判定。</summary>
+        /// <summary>受控边 / 分支 / 分派门控（G3+R1）：全部路由条件成立才执行（无门控 = 无条件）。执行时刻对 SharedData 求判定。</summary>
         public bool CanExecute(PipelineContext context)
-            => !context.IsCancelled && _gates.All(g => JudgeHolds(context.SharedData, g.WhenKey));
+            => !context.IsCancelled && _gates.All(g => GateHolds(context.SharedData, g));
+
+        /// <summary>单条路由条件求值（R1）：Truthy/Falsy 走布尔判定；AnyOf/NoneOf 走取值集合匹配。</summary>
+        private static bool GateHolds(IDictionary<string, object?> data, RouteBinding gate) => gate.Match switch
+        {
+            RouteMatch.Truthy => JudgeHolds(data, gate.WhenKey),
+            RouteMatch.Falsy => !JudgeHolds(data, gate.WhenKey),
+            RouteMatch.AnyOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: true),
+            RouteMatch.NoneOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: false),
+            _ => JudgeHolds(data, gate.WhenKey),
+        };
+
+        /// <summary>取值集合匹配（R1 switch）：判定键取值的字符串形式 ∈（AnyOf）/ ∉（NoneOf）给定集合；缺键 ⇒ 视作未命中。</summary>
+        private static bool ValueInSet(IDictionary<string, object?> data, string key, IReadOnlyList<string>? values, bool wantMatch)
+        {
+            var actual = data.TryGetValue(key, out var value) ? value?.ToString() : null;
+            var hit = false;
+            if (actual is not null && values is not null)
+                foreach (var candidate in values)
+                    if (string.Equals(candidate, actual, StringComparison.Ordinal)) { hit = true; break; }
+            return wantMatch ? hit : !hit;
+        }
 
         public async Task ExecuteAsync(PipelineContext context, CancellationToken cancellationToken)
         {

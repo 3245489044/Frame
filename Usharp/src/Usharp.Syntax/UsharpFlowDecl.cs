@@ -229,4 +229,19 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpObsDecl> Obs(DslDocument doc)
         => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Obs)
             .Select(UsharpObsDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Branch]</c> 分支声明（R3 声明式控制流）。</summary>
+    public static IReadOnlyList<UsharpBranchDecl> Branches(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Branch)
+            .Select(UsharpBranchDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Switch]</c> 多路分派声明（R3）。</summary>
+    public static IReadOnlyList<UsharpSwitchDecl> Switches(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Switch)
+            .Select(UsharpSwitchDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Call]</c> 调用声明（R3）。</summary>
+    public static IReadOnlyList<UsharpCallDecl> Calls(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Call)
+            .Select(UsharpCallDecl.From).Where(s => s is not null).Select(s => s!).ToList();
 }

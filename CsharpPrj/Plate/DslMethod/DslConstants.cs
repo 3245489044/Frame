@@ -14,6 +14,8 @@ public enum DslSymbolKind
     Space, Matrix, Flow, Ref,
     // Ushar 第五语言单元：观测声明（作用域 / 实体 / 事件；见 Ushar README「观测接入」）
     Obs,
+    // Ushar 控制流语言单元（R3）：分支 / 多路分派 / 调用（声明式控制流；见 Usharp README「控制流接入」）
+    Branch, Switch, Call,
     Unknown,
 }
 

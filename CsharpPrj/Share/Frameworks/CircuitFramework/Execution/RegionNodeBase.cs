@@ -90,6 +90,9 @@ public sealed class RegionNodeBase : ICircuitNode
             case RegionIterationKind.UntilTrue:
                 return BuildOutputs(await RunUntilAsync(inputs, cancellationToken).ConfigureAwait(false));
 
+            case RegionIterationKind.Recursion:
+                return BuildOutputs(await RunRecursionAsync(inputs, cancellationToken).ConfigureAwait(false));
+
             default:
                 // 未落地的迭代方式：显式拒绝，不静默退化为单趟（新受控词接入前保持该负对照）。
                 throw new NotSupportedException(
@@ -148,6 +151,15 @@ public sealed class RegionNodeBase : ICircuitNode
         return last;
     }
 
+    /// <summary>
+    /// 自引用有界递归（<c>Recursion</c>，F3）：先执行一次子计划（do-while），基例端口为真即停；
+    /// 迭代间基例由出映射反馈自持（出映射中 <c>ParentPort == 基例端口</c> 的项提供下一轮值）。
+    /// 执行同形于 <see cref="RegionIterationKind.UntilTrue"/>（M2 降级：递归封在区域节点内，父图仍为 DAG）。
+    /// </summary>
+    private Task<IReadOnlyDictionary<string, object?>?> RunRecursionAsync(
+        IReadOnlyDictionary<string, object?> inputs, CancellationToken cancellationToken)
+        => RunUntilAsync(inputs, cancellationToken);
+
     /// <summary>首轮判定：父入端口键（缺失 ⇒ false = 不进入循环，不伪造）。</summary>
     private bool SeedJudge(IReadOnlyDictionary<string, object?> inputs)
         => _plan.JudgePort is { Length: > 0 } port
@@ -184,7 +196,7 @@ public sealed class RegionNodeBase : ICircuitNode
     {
         RegionIterationKind.Once => 1,
         RegionIterationKind.FixedRepeats => _plan.MaxIterations ?? Math.Max(0, _plan.Repeats),
-        RegionIterationKind.WhileTrue or RegionIterationKind.UntilTrue => _plan.MaxIterations ?? 0,
+        RegionIterationKind.WhileTrue or RegionIterationKind.UntilTrue or RegionIterationKind.Recursion => _plan.MaxIterations ?? 0,
         _ => throw new NotSupportedException(
             $"区域节点 '{NodeType}' 的迭代方式 {_plan.Kind} 尚未落地执行面（声明可编译，执行面后续批次接入）。"),
     };

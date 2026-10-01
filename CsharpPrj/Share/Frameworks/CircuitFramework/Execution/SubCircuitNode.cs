@@ -56,31 +56,43 @@ public sealed class SubCircuitNode : ICircuitNode
     /// <inheritdoc />
     public async Task<IReadOnlyDictionary<string, object?>> ExecuteAsync(
         IReadOnlyDictionary<string, object?> inputs, CancellationToken cancellationToken)
-    {
-        var childResult = await CircuitEngine.ExecuteAsync(
-                _child.Circuit, _child.Plan, _resolveChild, BuildEntry(inputs), cancellationToken)
-            .ConfigureAwait(false);
-        return BuildOutputs(childResult);
-    }
+        => BuildOutputs(_outBindings,
+            await RunChildAsync(_child, _resolveChild, _inBindings, inputs, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>
+    /// 单次子计划执行共享内核（R2/D4）：父入端口 → 子 EntryPort 供给，返回**子电路出口字典**（不回投父出端口）。
+    /// <para>与 <see cref="RegionNodeBase"/> 共用同一份绑定/取值/驱动实现（Once 分支与迭代共用），消除整类复制。</para>
+    /// </summary>
+    internal static Task<IReadOnlyDictionary<string, object?>> RunChildAsync(
+        CompiledRecipe child,
+        Func<string, ICircuitNode> resolveChild,
+        IReadOnlyList<RegionPortBinding> inBindings,
+        IReadOnlyDictionary<string, object?> inputs,
+        CancellationToken cancellationToken)
+        => CircuitEngine.ExecuteAsync(
+            child.Circuit, child.Plan, resolveChild, BuildEntry(inBindings, inputs), cancellationToken);
 
     /// <summary>父入端口 → 子 EntryPort（缺失即跳过，与引擎入口供给同口径：不伪造 null）。</summary>
-    private IReadOnlyDictionary<string, object?> BuildEntry(IReadOnlyDictionary<string, object?> inputs)
+    internal static IReadOnlyDictionary<string, object?> BuildEntry(
+        IReadOnlyList<RegionPortBinding> inBindings, IReadOnlyDictionary<string, object?> inputs)
     {
-        if (_inBindings.Count == 0) return Empty;
-        var entry = new Dictionary<string, object?>(_inBindings.Count, StringComparer.Ordinal);
-        foreach (var binding in _inBindings)
+        if (inBindings.Count == 0) return Empty;
+        var entry = new Dictionary<string, object?>(inBindings.Count, StringComparer.Ordinal);
+        foreach (var binding in inBindings)
             if (inputs.TryGetValue(binding.ParentPort, out var value))
                 entry[binding.ChildPort] = value;
         return entry;
     }
 
     /// <summary>子出口 → 父出端口；缺失的子出口按声明给出 null，避免父侧端口静默缺席。</summary>
-    private IReadOnlyDictionary<string, object?> BuildOutputs(IReadOnlyDictionary<string, object?> childResult)
+    internal static IReadOnlyDictionary<string, object?> BuildOutputs(
+        IReadOnlyList<RegionPortBinding> outBindings, IReadOnlyDictionary<string, object?>? childResult)
     {
-        if (_outBindings.Count == 0) return Empty;
-        var outputs = new Dictionary<string, object?>(_outBindings.Count, StringComparer.Ordinal);
-        foreach (var binding in _outBindings)
-            outputs[binding.ParentPort] = childResult.TryGetValue(binding.ChildPort, out var value) ? value : null;
+        if (outBindings.Count == 0) return Empty;
+        var outputs = new Dictionary<string, object?>(outBindings.Count, StringComparer.Ordinal);
+        foreach (var binding in outBindings)
+            outputs[binding.ParentPort] = childResult is not null
+                && childResult.TryGetValue(binding.ChildPort, out var value) ? value : null;
         return outputs;
     }
 

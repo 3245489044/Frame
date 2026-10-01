@@ -163,6 +163,11 @@ public static class CircuitEngine
             PipelineContext context, CancellationToken cancellationToken)
         {
             var inputs = BuildInputs(context);
+
+            // 无任一机制（无重试/退避/失败路由/守卫）⇒ 直接执行，跳过空策略分支（与逐字段判定等价）。
+            if (!_policy.HasAny)
+                return await _impl.ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
+
             var attempts = Math.Max(1, _policy.RetryMaxAttempts);
             Exception? last = null;
 

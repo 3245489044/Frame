@@ -54,20 +54,14 @@ public sealed class CircuitCallGraph
 
         var affected = new HashSet<string>();
         var pathFinder = new DefaultPathFinder<string>();
-        foreach (var start in DirectConsumerCircuits(canonicalTargetId))
-            affected.UnionWith(pathFinder.GetReachableNodes(start, getUpstream));
+        // 影响面起点 = 直接调用目标电路者（本电路 + registry 全量），直接取自反向邻接
+        // （BuildReverse 已含 registry），避免只以本电路为起点而漏算跨电路上游调用者。
+        if (byCallerCircuit.TryGetValue(canonicalTargetId, out var directCallers))
+            foreach (var start in directCallers)
+                affected.UnionWith(pathFinder.GetReachableNodes(start, getUpstream));
 
         affected.Remove(canonicalTargetId);
         return affected;
-    }
-
-    // 直接消费目标电路的电路Id（本电路 + registry 中直接调用目标者）
-    private IEnumerable<string> DirectConsumerCircuits(string canonicalTargetId)
-    {
-        var set = new HashSet<string>();
-        if (_circuit is not null && CallsInto(canonicalTargetId))
-            set.Add(_circuit.Id);
-        return set;
     }
 
     // circuitId -> 直接调用它的上游电路Id集合（registry 解析）

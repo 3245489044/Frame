@@ -49,6 +49,11 @@ public static class CircuitCompiler
     /// <summary>配方域诊断码（产物图违例：产物唯一 / 缺失产物 / 未接线输入）。</summary>
     public const string RecipeDiagnosticCode = "CFG-030";
 
+    /// <summary>不可排序依赖诊断（CFG-002，环检测失配兜底）：两处失败分支共用，防文案双写漂移。</summary>
+    private static CircuitDiagnostic UnsortableDependency() =>
+        new(DiagnosticSeverity.Error, "CFG-002",
+            "存在不可排序的依赖（环已由 CFG-002 环检测拦截，此路仅在环检测失配时可达）。");
+
     /// <summary>电路图编译（校验绿才产出计划）；非法图直接抛，不进入执行。</summary>
     public static ExecutionPlan Compile(Circuit circuit)
     {
@@ -59,11 +64,7 @@ public static class CircuitCompiler
 
         var order = TopologicalSort(circuit);
         if (order is null)
-            throw new CircuitCompilationException(new[]
-            {
-                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-002",
-                    "存在不可排序的依赖（环已由 CFG-002 环检测拦截，此路仅在环检测失配时可达）。"),
-            });
+            throw new CircuitCompilationException(new[] { UnsortableDependency() });
 
         return new ExecutionPlan(circuit.Id, order, CircuitRuntimeIndex.Build(circuit));
     }
@@ -122,11 +123,7 @@ public static class CircuitCompiler
         var order = TopologicalSort(circuit);
         if (order is null)
         {
-            diagnostics = new[]
-            {
-                new CircuitDiagnostic(DiagnosticSeverity.Error, "CFG-002",
-                    "存在不可排序的依赖（环已由 CFG-002 环检测拦截，此路仅在环检测失配时可达）。"),
-            };
+            diagnostics = new[] { UnsortableDependency() };
             return false;
         }
 

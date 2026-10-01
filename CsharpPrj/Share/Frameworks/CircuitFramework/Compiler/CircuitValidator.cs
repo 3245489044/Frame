@@ -154,17 +154,13 @@ public static class CircuitValidator
 
             if (when.StartsWith('$'))
             {
+                // $ 前缀 = 上下文键（执行端 ResolveJudgeKey 原样保留），与分支侧 CheckJudgeKeyResolvable（CFG-026）同口径：
+                // 任意 $键 放行，交执行期「缺失即不激活」；仅 $entry.X 须校验入口已声明。
                 var body = when[1..];
-                if (body.StartsWith("entry.", StringComparison.Ordinal))
-                {
-                    if (!entries.Contains(body["entry.".Length..]))
-                        d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                            $"受控边判定键 '{when}' 引用了未声明的入口端口。", wire.To.NodeId));
-                }
-                else
-                {
-                    CheckJudgeNodePort(body, wire, nodes, d);
-                }
+                if (body.StartsWith("entry.", StringComparison.Ordinal)
+                    && !entries.Contains(body["entry.".Length..]))
+                    d.Add(new(DiagnosticSeverity.Error, "CFG-025",
+                        $"受控边判定键 '{when}' 引用了未声明的入口端口。", wire.To.NodeId));
             }
             else if (when.Contains('.'))
             {

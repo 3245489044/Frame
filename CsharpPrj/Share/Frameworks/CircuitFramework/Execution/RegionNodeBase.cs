@@ -103,8 +103,7 @@ public sealed class RegionNodeBase : ICircuitNode
     /// <summary>单次子计划执行（父入端口 → 子入口；一次独立 <c>CircuitEngine.ExecuteAsync</c> ⇒ 上下文天然隔离）。</summary>
     private Task<IReadOnlyDictionary<string, object?>> RunChildAsync(
         IReadOnlyDictionary<string, object?> inputs, CancellationToken cancellationToken)
-        => CircuitEngine.ExecuteAsync(
-            _child.Circuit, _child.Plan, _resolveChild, BuildEntry(inputs), cancellationToken);
+        => SubCircuitNode.RunChildAsync(_child, _resolveChild, _inBindings, inputs, cancellationToken);
 
     /// <summary>有界计次重复（<c>Repeats</c>；0 = 零次迭代，合法）。</summary>
     private async Task<IReadOnlyDictionary<string, object?>?> RunFixedAsync(
@@ -201,35 +200,11 @@ public sealed class RegionNodeBase : ICircuitNode
             $"区域节点 '{NodeType}' 的迭代方式 {_plan.Kind} 尚未落地执行面（声明可编译，执行面后续批次接入）。"),
     };
 
-    /// <summary>父入端口 → 子 EntryPort（缺失即跳过，与引擎入口供给同口径：不伪造 null）。</summary>
+    /// <summary>父入端口 → 子 EntryPort（共享内核 <see cref="SubCircuitNode.BuildEntry"/>；缺失即跳过，不伪造 null）。</summary>
     private IReadOnlyDictionary<string, object?> BuildEntry(IReadOnlyDictionary<string, object?> inputs)
-    {
-        if (_inBindings.Count == 0) return EmptyEntry;
-        var entry = new Dictionary<string, object?>(_inBindings.Count, StringComparer.Ordinal);
-        foreach (var binding in _inBindings)
-            if (inputs.TryGetValue(binding.ParentPort, out var value))
-                entry[binding.ChildPort] = value;
-        return entry;
-    }
+        => SubCircuitNode.BuildEntry(_inBindings, inputs);
 
-    /// <summary>子出口 → 父出端口；零次迭代（<c>Repeats == 0</c>）时按声明给出 null，避免父侧端口静默缺席。</summary>
+    /// <summary>子出口 → 父出端口（共享内核 <see cref="SubCircuitNode.BuildOutputs"/>；零次迭代时按声明给 null）。</summary>
     private IReadOnlyDictionary<string, object?> BuildOutputs(IReadOnlyDictionary<string, object?>? childResult)
-    {
-        if (_outBindings.Count == 0) return EmptyOutputs;
-        var outputs = new Dictionary<string, object?>(_outBindings.Count, StringComparer.Ordinal);
-        foreach (var binding in _outBindings)
-        {
-            outputs[binding.ParentPort] = childResult is not null
-                && childResult.TryGetValue(binding.ChildPort, out var value)
-                    ? value
-                    : null;
-        }
-        return outputs;
-    }
-
-    private static readonly IReadOnlyDictionary<string, object?> EmptyEntry =
-        new Dictionary<string, object?>(0, StringComparer.Ordinal);
-
-    private static readonly IReadOnlyDictionary<string, object?> EmptyOutputs =
-        new Dictionary<string, object?>(0, StringComparer.Ordinal);
+        => SubCircuitNode.BuildOutputs(_outBindings, childResult);
 }

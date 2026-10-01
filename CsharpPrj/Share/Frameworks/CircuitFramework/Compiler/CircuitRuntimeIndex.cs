@@ -92,8 +92,10 @@ public enum RouteMatch
 }
 
 /// <summary>
-/// 受控边 / 分支路由绑定（G3+R1）：目标节点入端口 <see cref="ToPort"/> 受判定键 <see cref="WhenKey"/> 门控
-/// （目标节点全部路由条件成立才执行）。
+/// 受控边 / 分支路由绑定（G3+R1）：目标节点受判定键 <see cref="WhenKey"/> 按 <see cref="Match"/> 门控
+/// （目标节点全部路由条件成立才执行）。门控只读 <see cref="WhenKey"/>/<see cref="Match"/>/<see cref="MatchValues"/>；
+/// <see cref="ToPort"/> 为声明来源端口，仅供追溯/诊断，不参与激活判定
+/// （受控边填目标端口名、分支/分派为空串）。
 /// </summary>
 public readonly record struct RouteBinding(
     string ToPort,
@@ -271,7 +273,8 @@ public sealed class CircuitRuntimeIndex
                             values.Add(kv.Key);
                             AddRoute(kv.Value, new RouteBinding(string.Empty, selector, RouteMatch.AnyOf, new[] { kv.Key }));
                         }
-                        if (!string.IsNullOrWhiteSpace(sw.DefaultNodeId) && values.Count > 0)
+                        // 默认兜底须在「无 route 命中」时激活：零 route 时 NoneOf 空集 ⇒ 恒激活（仅-default 分派合法，不得静默失效）。
+                        if (!string.IsNullOrWhiteSpace(sw.DefaultNodeId))
                             AddRoute(sw.DefaultNodeId!, new RouteBinding(string.Empty, selector, RouteMatch.NoneOf, values));
                         break;
                     }

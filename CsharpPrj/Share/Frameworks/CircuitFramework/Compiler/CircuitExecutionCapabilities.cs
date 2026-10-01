@@ -3,10 +3,17 @@ using Share.CircuitFramework.Core;
 namespace Share.CircuitFramework.Compiler;
 
 /// <summary>
-/// 执行能力表（单一来源）：已被执行后端（<see cref="Execution.CircuitEngine"/>）真正消费的符号集。
+/// 执行能力表（单一来源）：已被执行面真正消费的符号集（CFG-101 的唯一判据源）。
 /// <para>
-/// <see cref="CircuitValidator"/> 的声明-执行对账（CFG-101）只报**表外**符号 ⇒ 「声明面能写、引擎没做」不可能静默：
-/// 表内符号必有执行面（<see cref="CircuitRuntimeIndex.Build"/> 为其产出绑定或投影），表外符号必然可见化。
+/// 两档消费路径（都算「已消费」，故 CFG-101 均不报；差别只在谁读符号）：
+/// <list type="bullet">
+///   <item><b>引擎/索引逐读</b>：<see cref="CircuitRuntimeIndex.Build"/> 为其产出绑定/路由/策略
+///     —— Entry/Exit/Literal/Param/Projection/Fold/Unfold/Branch/Switch/Retry/Fallback/CatchRoute/TryGuard。</item>
+///   <item><b>宿主节点消费</b>：<see cref="Execution.CircuitEngine"/> 不直接读这些镜像符号，
+///     由调用方注入的黑盒节点消费 —— SubCircuit/Loop/WhileCond/Recursion/BaseCase（<see cref="Execution.RegionNodeBase"/>）、
+///     Call（<see cref="Execution.SubCircuitNode"/>）；镜像本身仅供 <see cref="Analysis.CircuitCallGraph"/> / 离线审阅。</item>
+/// </list>
+/// 表外符号（如 Sequence/Fork）由 <see cref="CircuitValidator"/> 的声明-执行对账（CFG-101）可见化（Warning），「声明面能写、执行面没做」不可能静默。
 /// </para>
 /// <para>
 /// 变更纪律：把一类符号加进本表 = **同一提交内**必须同时给出执行面与「声明 ↔ 执行」对拍用例，

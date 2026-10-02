@@ -17,10 +17,8 @@ public sealed record UsharpBranchDecl(
         return new UsharpBranchDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldJudge).Trim(), d.Field(UsharpLanguage.FieldThen).Trim(),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldElse)), d.SourceFile, d.LineNumber);
+            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldElse)), d.SourceFile, d.LineNumber);
     }
-
-    private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 }
 
 /// <summary>
@@ -38,10 +36,8 @@ public sealed record UsharpSwitchDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldSelector).Trim(),
             UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldRoutes)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldDefault)), d.SourceFile, d.LineNumber);
+            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldDefault)), d.SourceFile, d.LineNumber);
     }
-
-    private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 }
 
 /// <summary>
@@ -57,13 +53,11 @@ public sealed record UsharpCallDecl(
         if (d.Kind != DslSymbolKind.Call || string.IsNullOrWhiteSpace(d.Name)) return null;
         return new UsharpCallDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldCallee)), d.Field(UsharpLanguage.FieldChildFlow).Trim(),
+            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldCallee)), d.Field(UsharpLanguage.FieldChildFlow).Trim(),
             UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldInBindings)),
             UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldOutBindings)),
             d.SourceFile, d.LineNumber);
     }
-
-    private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 }
 
 /// <summary>
@@ -84,7 +78,7 @@ public sealed record UsharpRegionDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldChildFlow).Trim(),
             d.Field(UsharpLanguage.FieldIteration).Trim(),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldJudge)),
+            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldJudge)),
             ParseInt(d.Field(UsharpLanguage.FieldMaxIterations)),
             UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldInBindings)),
             UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldOutBindings)),
@@ -92,8 +86,6 @@ public sealed record UsharpRegionDecl(
     }
 
     private static int? ParseInt(string v) => int.TryParse(v, out var n) ? n : null;
-
-    private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 }
 
 /// <summary>

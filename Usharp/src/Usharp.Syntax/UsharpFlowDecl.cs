@@ -142,16 +142,6 @@ public sealed record UsharpFlowDecl(
             Connects = UsharpConnectDecl.ParseList(d.Field(UsharpLanguage.FieldConnects)),
         };
     }
-
-    /// <summary>预算：<c>&lt;maxNodes&gt;;&lt;maxDepth&gt;</c> 两段正整数（任一段非正整数或段数不为 2 → null）。</summary>
-    private static (int MaxNodes, int MaxDepth)? ParseBudget(string? raw)
-    {
-        var segments = UsharpLanguage.SplitSegments(raw);
-        if (segments.Length != 2) return null;
-        if (!int.TryParse(segments[0], out var maxNodes) || maxNodes <= 0) return null;
-        if (!int.TryParse(segments[1], out var maxDepth) || maxDepth <= 0) return null;
-        return (maxNodes, maxDepth);
-    }
 }
 
 /// <summary>[Ref] Name: &lt;SpaceId&gt;:&lt;Key&gt; 的语法视图（带空间归属的引用 = 引用图的一条边）。</summary>
@@ -210,53 +200,52 @@ public sealed record UsharpRefDecl(
 public static class UsharpSyntaxProjector
 {
     public static IReadOnlyList<UsharpSpaceDecl> Spaces(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Space)
-            .Select(UsharpSpaceDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Space, UsharpSpaceDecl.From);
 
     public static IReadOnlyList<UsharpMatrixDecl> Matrices(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Matrix)
-            .Select(UsharpMatrixDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Matrix, UsharpMatrixDecl.From);
 
     public static IReadOnlyList<UsharpFlowDecl> Flows(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Flow)
-            .Select(UsharpFlowDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Flow, UsharpFlowDecl.From);
 
     public static IReadOnlyList<UsharpRefDecl> Refs(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Ref)
-            .Select(UsharpRefDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Ref, UsharpRefDecl.From);
 
     /// <summary><c>[Obs]</c> 观测声明（作用域 / 实体 / 事件；第五语言单元）。</summary>
     public static IReadOnlyList<UsharpObsDecl> Obs(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Obs)
-            .Select(UsharpObsDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Obs, UsharpObsDecl.From);
 
     /// <summary><c>[Branch]</c> 分支声明（R3 声明式控制流）。</summary>
     public static IReadOnlyList<UsharpBranchDecl> Branches(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Branch)
-            .Select(UsharpBranchDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Branch, UsharpBranchDecl.From);
 
     /// <summary><c>[Switch]</c> 多路分派声明（R3）。</summary>
     public static IReadOnlyList<UsharpSwitchDecl> Switches(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Switch)
-            .Select(UsharpSwitchDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Switch, UsharpSwitchDecl.From);
 
     /// <summary><c>[Call]</c> 调用声明（R3）。</summary>
     public static IReadOnlyList<UsharpCallDecl> Calls(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Call)
-            .Select(UsharpCallDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Call, UsharpCallDecl.From);
 
     /// <summary><c>[Region]</c> 区域声明（R3+：父层单节点 + 子计划迭代）。</summary>
     public static IReadOnlyList<UsharpRegionDecl> Regions(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Region)
-            .Select(UsharpRegionDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Region, UsharpRegionDecl.From);
 
     /// <summary><c>[When]</c> 受控边声明（R3+：judge 判真后边激活）。</summary>
     public static IReadOnlyList<UsharpWhenDecl> Whens(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.When)
-            .Select(UsharpWhenDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.When, UsharpWhenDecl.From);
 
     /// <summary><c>[Guard]</c> 受护作用域声明（R3+：失败吞并继续）。</summary>
     public static IReadOnlyList<UsharpGuardDecl> Guards(DslDocument doc)
-        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Guard)
-            .Select(UsharpGuardDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+        => Project(doc, DslSymbolKind.Guard, UsharpGuardDecl.From);
+
+    /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
+    private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
+        where T : class
+        => doc.Declarations
+            .Where(d => d.Kind == kind)
+            .Select(from)
+            .Where(x => x is not null)
+            .Select(x => x!)
+            .ToList();
 }

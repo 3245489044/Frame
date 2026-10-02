@@ -424,7 +424,13 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 var otherType = neighborIsSource ? rel.SourceResourceType : rel.TargetResourceType;
                 if (otherType != NodeResourceTypes.Node) continue;
                 if (string.IsNullOrEmpty(other)) continue;
-                related.Add(other.StartsWith(nodePrefix, StringComparison.Ordinal) ? other[nodePrefix.Length..] : other);
+                // 返回契约 = 节点键（同工作流前缀裁剪）；非前缀端点（跨工作流脏端点）不透出原文，仅可见化后跳过。
+                if (!other.StartsWith(nodePrefix, StringComparison.Ordinal))
+                {
+                    _edgeDiagnostics.NodeKeyOutOfScope(other, workflowId);
+                    continue;
+                }
+                related.Add(other[nodePrefix.Length..]);
             }
             return (IReadOnlyList<string>)related.Distinct(StringComparer.Ordinal).ToList();
         }));
@@ -680,12 +686,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private static string KeyOfType(ResourceIdentifier id)
         => (id.ResourceType ?? string.Empty) + ResourceIdentifier.UniqueKeySeparator + (id.Id ?? string.Empty);
 
+    /// <summary>refType → 节点关系类别（D3 收口：解析唯一实现下沉 <see cref="NodeRelationRefCodec.ParseType"/>，本处只消费）。</summary>
     private static NodeRelationType? ParseNodeRelationType(string refType)
-    {
-        if (refType.StartsWith(ReferenceTypes.KeyMappingToNode, StringComparison.Ordinal)) return NodeRelationType.KeyMappingToNode;
-        if (refType.StartsWith(ReferenceTypes.NodeToNode, StringComparison.Ordinal)) return NodeRelationType.NodeToNode;
-        return null;
-    }
+        => NodeRelationRefCodec.ParseType(refType);
 
     internal static ResourceIdentifier KeyToIdentifier(string key)
     {

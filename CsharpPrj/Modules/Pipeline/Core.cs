@@ -567,9 +567,7 @@ namespace Modules.Pipeline
 
                     if (document == null)
                     {
-                        errors.Add($"STAGE_{stage.Name.ToUpper()}_FAILED",
-                            $"Stage '{stage.Name}' 处理失败，返回 null",
-                            stage.IsFatal ? ErrorLevel.Fatal : ErrorLevel.Error);
+                        PipelineStageDiagnostics.ReportNullResult(errors, stage.Name, stage.IsFatal);
 
                         if (stage.IsFatal)
                             return;
@@ -659,9 +657,7 @@ namespace Modules.Pipeline
 
                     if (result == null)
                     {
-                        errors.Add($"STAGE_{stage.Name.ToUpper()}_FAILED",
-                            $"Stage '{stage.Name}' 处理失败，返回 null",
-                            stage.IsFatal ? ErrorLevel.Fatal : ErrorLevel.Error);
+                        PipelineStageDiagnostics.ReportNullResult(errors, stage.Name, stage.IsFatal);
 
                         if (stage.IsFatal)
                             return;
@@ -688,6 +684,15 @@ namespace Modules.Pipeline
     }
 
 
+
+    /// <summary>阶段诊断构造复用（D5）：两 <c>ExecuteStages</c> 的「返回 null」失败诊断单一来源。</summary>
+    internal static class PipelineStageDiagnostics
+    {
+        public static void ReportNullResult(ErrorCollector errors, string stageName, bool isFatal)
+            => errors.Add($"STAGE_{stageName.ToUpper()}_FAILED",
+                $"Stage '{stageName}' 处理失败，返回 null",
+                isFatal ? ErrorLevel.Fatal : ErrorLevel.Error);
+    }
 
     public abstract class PipelineStageBase<TContext> : IPipelineStage<TContext>
         where TContext : IPipelineContext

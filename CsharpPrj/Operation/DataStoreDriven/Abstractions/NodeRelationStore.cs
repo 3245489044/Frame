@@ -153,7 +153,7 @@ namespace Operation.DataStoreDriven.Abstractions
         Task<IReadOnlyList<NodeRelation>> GetRelationsAsync(string workflowId, string nodeKey,
             NodeRelationType? type = null, bool includeIncoming = true, CancellationToken ct = default);
 
-        /// <summary>按关系类别取相邻节点（outgoing=true 取下游，false 取上游）。</summary>
+        /// <summary>按关系类别取相邻节点**键**（outgoing=true 取下游，false 取上游）。返回值为节点键（非完整资源 Id）：非本工作流前缀的端点不透出。</summary>
         Task<IReadOnlyList<string>> GetRelatedNodesAsync(string workflowId, string nodeKey,
             NodeRelationType type, bool outgoing = true, CancellationToken ct = default);
     }

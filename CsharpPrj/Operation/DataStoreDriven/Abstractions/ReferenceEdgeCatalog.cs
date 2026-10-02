@@ -15,6 +15,9 @@ public interface IReferenceEdgeDiagnostics
 
     /// <summary>声明面为空 ⇒ 全部边类型拒写（W-4「缺失即抛/可见化」，禁静默放行）。</summary>
     void CatalogEmpty(string sourceSubject);
+
+    /// <summary>相邻节点端点键与当前工作流前缀不符（跨工作流脏端点）：节点键契约下非前缀端点不得原文透出。</summary>
+    void NodeKeyOutOfScope(string endpointKey, string workflowId);
 }
 
 /// <summary>未装配实现：静默（拒绝仍生效，但不可见 ⇒ 拒绝模式装配时应同时给出口）。</summary>
@@ -33,6 +36,11 @@ public sealed class NullReferenceEdgeDiagnostics : IReferenceEdgeDiagnostics
 
     /// <inheritdoc />
     public void CatalogEmpty(string sourceSubject)
+    {
+    }
+
+    /// <inheritdoc />
+    public void NodeKeyOutOfScope(string endpointKey, string workflowId)
     {
     }
 }

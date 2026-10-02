@@ -257,4 +257,8 @@ public static class UsharpLanguage
             ? (segment.Trim(), string.Empty)
             : (segment[..colon].Trim(), segment[(colon + 1)..].Trim());
     }
+
+    /// <summary>空白即 null（否则去空白）—— 声明可空字段的统一切口（D8：消除各声明类逐字复制）。</summary>
+    public static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

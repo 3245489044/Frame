@@ -116,6 +116,9 @@ public static class UsharpCodes
     /// <summary>处理编排字段取值非法（<c>order=</c> 未知值 / <c>budget=</c> 非两段正整数）——按缺省处理。</summary>
     public const string PlanFieldInvalid = "US1018";
 
+    /// <summary>控制流绑定段重复键（<c>in=</c>/<c>out=</c>/<c>routes=</c>）——同键多值静默覆盖须可见化（E4）。</summary>
+    public const string BindingKeyDuplicate = "US1019";
+
     // 跨库引用（复用 DslIndex）
     public const string CrDangling = "US2001";
     public const string DeprecatedReferenced = "US2002";

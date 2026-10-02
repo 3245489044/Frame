@@ -32,6 +32,16 @@ public static class NodeRelationRefCodec
         };
     }
 
+    /// <summary>按 refType 前缀判定节点关系类别（D3 收口：协调器解析唯一入口，非两类 ⇒ null）。</summary>
+    /// <param name="refType">refType 文本。</param>
+    public static NodeRelationType? ParseType(string refType)
+    {
+        if (refType is null) return null;
+        if (refType.StartsWith(ReferenceTypes.KeyMappingToNode, StringComparison.Ordinal)) return NodeRelationType.KeyMappingToNode;
+        if (refType.StartsWith(ReferenceTypes.NodeToNode, StringComparison.Ordinal)) return NodeRelationType.NodeToNode;
+        return null;
+    }
+
     /// <summary>解析 NodeToNode 形式的 refType（非该前缀 ⇒ 三元组全 null）。</summary>
     /// <param name="refType">refType 文本。</param>
     public static (string? FromPort, string? ToPort, string? KeyMappingRef) ParseNodeToNode(string refType)

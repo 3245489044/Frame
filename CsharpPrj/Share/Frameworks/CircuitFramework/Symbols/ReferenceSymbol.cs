@@ -30,7 +30,7 @@ public sealed class ReferenceSymbol : CircuitSymbol
 {
     public override CircuitSymbolCategory Category => CircuitSymbolCategory.Reference;
 
-    /// <summary>本符号的种类（按 ReferenceRelation 映射）。</summary>
+    /// <summary>本符号的种类（按 ReferenceRelation 映射；单一显式转换层，D4：UniversalReference → CircuitFramework → 电路符号的唯一换算点）。</summary>
     public override CircuitSymbolKind Kind => Relation switch
     {
         ReferenceRelation.Owns => CircuitSymbolKind.Owns,

@@ -43,9 +43,21 @@ namespace UniversalWorkflowFramework.Core.Managers
         public override async Task RemoveReferenceAsync(ResourceIdentifier sourceResourceId, ResourceIdentifier targetResourceId, ReferenceType referenceType)
             => await _store.RemoveReferenceAsync(sourceResourceId, targetResourceId, referenceType.ToString()).ConfigureAwait(false);
 
+        /// <summary>清理悬空引用：删除目标资源不存在的出边（端点存在性以存储为准；语义对齐 <c>ReferenceManagerBase</c> 基类实现）。</summary>
         public override async Task CleanupNonExistentResourcesAsync()
         {
-            await Task.CompletedTask;
+            var resources = await _store.GetAllResourcesAsync().ConfigureAwait(false);
+            var existing = new HashSet<string>(
+                resources.Select(static r => r.Identifier.GetUniqueKey()), StringComparer.Ordinal);
+            foreach (var resource in resources)
+            {
+                var outgoing = await _store.GetReferencesAsync(resource.Identifier, includeIncoming: false).ConfigureAwait(false);
+                foreach (var reference in outgoing)
+                {
+                    if (existing.Contains(reference.Target.GetUniqueKey())) continue;
+                    await _store.RemoveReferenceAsync(reference.Source, reference.Target, reference.RefType).ConfigureAwait(false);
+                }
+            }
         }
 
         // 图引擎（ReferenceGraphEngine.BuildGraphAsync）唯一调用的两个查询方法——委托端口读真实数据。

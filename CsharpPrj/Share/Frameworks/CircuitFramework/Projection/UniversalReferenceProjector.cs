@@ -48,6 +48,9 @@ public sealed class UniversalReferenceProjector
     }
 
     /// <summary>把宿主引用类型枚举映射为本框架的引用关系语义。</summary>
+    /// <remarks>历史兼容映射（D1）：宿主 <see cref="RefModels.ReferenceType"/> 为 6 值封闭枚举，
+    /// 语义源 = <c>ReferenceEdgeTypes</c> / <see cref="ReferenceSymbol"/>.<see cref="ReferenceRelation"/>；
+    /// 本映射仅作旧类型 → 框架关系的降级转换，新增引用语义一律走 <c>ReferenceEdgeTypes</c>（禁在此扩表）。</remarks>
     private static bool MapRelation(RefModels.ReferenceType type, out ReferenceRelation relation)
     {
         switch (type)

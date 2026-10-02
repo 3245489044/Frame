@@ -26,6 +26,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>
         new CrossReferenceGateRule(),
         new ObsGateRule(),
         new DecisionGateRule(),
+        new BindingDuplicateGateRule(),
     };
 
     private UsharpDomainPack()

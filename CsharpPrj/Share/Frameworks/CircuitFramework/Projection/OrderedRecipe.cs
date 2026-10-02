@@ -104,6 +104,26 @@ public sealed class OrderedRecipe<TContext> where TContext : class
         return this;
     }
 
+    /// <summary>
+    /// 分支声明（R1）：判定键为真 → <paramref name="thenNodeId"/> 激活 / <paramref name="elseNodeId"/> 抑制
+    /// （承载节点与目标须已声明步骤；判定键 = 结构数据键，"NodeId.Port" / 入口名 / "$…"）。
+    /// 与 <see cref="RecipeBuilder.If"/> 同口径（共用内核 <see cref="RecipeChainCore.Branch"/>）：把「条件门」声明到图上，
+    /// 取代「步骤体内 if + 空传播」——门只门控目标节点，不波及其它步（治门泄漏）。
+    /// </summary>
+    public OrderedRecipe<TContext> If(string nodeId, string judgeKey, string thenNodeId, string? elseNodeId = null)
+    {
+        _chain.Branch(nodeId, judgeKey, thenNodeId, elseNodeId);
+        return this;
+    }
+
+    /// <summary>多路分派声明（R1）：选择键取值命中 route 激活 / 默认兜底（与 <see cref="RecipeBuilder.Switch"/> 同口径）。</summary>
+    public OrderedRecipe<TContext> Switch(
+        string nodeId, string selectorKey, IReadOnlyDictionary<string, string> routes, string? defaultNodeId = null)
+    {
+        _chain.Switch(nodeId, selectorKey, routes, defaultNodeId);
+        return this;
+    }
+
     /// <summary>声明面：投影输入（同一实例幂等，重复调用返回同一规格）。</summary>
     public CircuitRecipeSpec Build()
     {

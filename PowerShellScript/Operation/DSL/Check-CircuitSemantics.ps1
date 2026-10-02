@@ -51,6 +51,14 @@
         CircuitEngine.ExecuteAsync 驱动子电路；CFG-002 环检测仍在册（调用边不豁免成环禁入）。
     CS27 全流程图投影/渲染在册（正对照，R4）：Analysis\ControlFlowGraph 具 FlowEdgeKind 全边；
         Analysis\CircuitFlowRenderer 具 ToMermaid（DOT/Mermaid/JSON 声明式渲染）。
+    CS28 cline 调用链投影/落盘在册（正对照，CL1）：Agent.Modules\Cline 具 ClineCommandCatalog（命令/端点/上下文枚举 +
+        判定载体单一来源）、ClineCallChainProjection（CircuitRecipeProjector 投影为 ControlFlowGraph）、
+        ClineFlowDump（CircuitFlowRenderer 落盘 DOT/Mermaid/JSON）。
+    CS29 cline 命令分派子电路在册（正对照，CL2）：Agent.Modules\Cline\Circuit\ClineCommandChainCircuit（命令 Switch +
+        三路 Call，经 CompiledRecipeRegistry/CircuitEngine）+ ClineExecutorFunction 接线 + NodeExecutionContract.KeyCommand。
+    CS30 cline 端点裁决子电路在册（正对照，CL3）：Agent.Modules\Cline\Circuit\ClineEndpointBranchCircuit（端点 Branch +
+        两路 Call，判定键 = 端口 llm.localOnly，经 CompiledRecipeRegistry/CircuitEngine）+ ClineAgentExecutor 接线；
+        负对照：执行器不再直接调用 EndpointResolver.ResolveCline（防双裁决）。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -405,7 +413,68 @@ if (-not ($cs27Graph -and $cs27Render))
     $violations.Add('[CS27] 全流程图投影/渲染缺失（ControlFlowGraph / CircuitFlowRenderer 未在册）')
 }
 
+# ---------- CS28 cline 调用链投影/落盘在册（正对照，CL1） ----------
+# CL1：cline_execute 内部调用链（命令/端点/上下文）按控制面同一口径符号化 ——
+# ClineCommandCatalog（枚举 + 判定载体单一来源）→ ClineCallChainProjection（CircuitRecipeProjector 投影为 ControlFlowGraph）
+# → ClineFlowDump（CircuitFlowRenderer 落盘 DOT/Mermaid/JSON）。缺失 = 「声明有、投影无」假支持（与 CS23/CS24/CS25/CS27 同族正对照）。
+$clineSrcDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Cline'
+$clineCatalogFile = Join-Path $clineSrcDir 'Workflow\ClineCommandCatalog.cs'
+$clineProjectionFile = Join-Path $clineSrcDir 'Diagnostics\ClineCallChainProjection.cs'
+$clineDumpFile = Join-Path $clineSrcDir 'Diagnostics\ClineFlowDump.cs'
+$cs28Catalog = (Test-Path $clineCatalogFile) -and
+    ((Get-Content -LiteralPath $clineCatalogFile -Raw -Encoding UTF8) -match 'class ClineCommandCatalog') -and
+    ((Get-Content -LiteralPath $clineCatalogFile -Raw -Encoding UTF8) -match 'ModeOf')
+$cs28Projection = (Test-Path $clineProjectionFile) -and
+    ((Get-Content -LiteralPath $clineProjectionFile -Raw -Encoding UTF8) -match 'ControlFlowGraph') -and
+    ((Get-Content -LiteralPath $clineProjectionFile -Raw -Encoding UTF8) -match 'CircuitRecipeProjector')
+$cs28Dump = (Test-Path $clineDumpFile) -and
+    ((Get-Content -LiteralPath $clineDumpFile -Raw -Encoding UTF8) -match 'CircuitFlowRenderer')
+Write-Host ("  CS28 cline 调用链投影/落盘在册（正对照：目录={0} / 投影={1} / 落盘={2}）：须均为 True" -f $cs28Catalog, $cs28Projection, $cs28Dump) -ForegroundColor Gray
+if (-not ($cs28Catalog -and $cs28Projection -and $cs28Dump))
+{
+    $violations.Add('[CS28] cline 调用链投影/落盘缺失（ClineCommandCatalog / ClineCallChainProjection / ClineFlowDump 任一处未在册）')
+}
 
+# ---------- CS29 cline 命令分派子电路在册（正对照，CL2） ----------
+# CL2：cline_execute 拆为命令 Switch + 三路 Call（选择键 = 端口 command）；执行经框架唯一编译入口 + CircuitEngine；
+# 命令经中立契约 KeyCommand 承载（缺省 null = ask，行为等价）。缺失 = 「声明有、执行无」假支持（与 CS23–CS28 同族正对照）。
+$clineCircuitFile = Join-Path $clineSrcDir 'Circuit\ClineCommandChainCircuit.cs'
+$clineExecutorFile = Join-Path $clineSrcDir 'Workflow\ClineExecutorFunction.cs'
+$cfContractFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeExecutionContract.cs'
+$cs29Circuit = (Test-Path $clineCircuitFile) -and
+    ((Get-Content -LiteralPath $clineCircuitFile -Raw -Encoding UTF8) -match 'CircuitSwitchSpec') -and
+    ((Get-Content -LiteralPath $clineCircuitFile -Raw -Encoding UTF8) -match 'CompiledRecipeRegistry')
+$cs29Wired = (Test-Path $clineExecutorFile) -and
+    ((Get-Content -LiteralPath $clineExecutorFile -Raw -Encoding UTF8) -match 'ClineCommandChainCircuit\.RunAsync')
+$cs29CommandPort = (Test-Path $cfContractFile) -and
+    ((Get-Content -LiteralPath $cfContractFile -Raw -Encoding UTF8) -match 'KeyCommand')
+Write-Host ("  CS29 cline 命令分派子电路在册（正对照：子电路={0} / 接线={1} / 命令契约={2}）：须均为 True" -f $cs29Circuit, $cs29Wired, $cs29CommandPort) -ForegroundColor Gray
+if (-not ($cs29Circuit -and $cs29Wired -and $cs29CommandPort))
+{
+    $violations.Add('[CS29] cline 命令分派子电路缺失（ClineCommandChainCircuit / ClineExecutorFunction 接线 / NodeExecutionContract.KeyCommand 任一处未在册）')
+}
+
+# ---------- CS30 cline 端点裁决子电路在册（正对照，CL3） ----------
+# CL3：端点裁决从执行器内联 if（EndpointResolver.ResolveCline）提升为端点 Branch 真分派（判定键 = 端口 llm.localOnly）；
+# 两腿 = call#local / call#real；执行经框架唯一编译入口 + CircuitEngine；判定唯一来源 = EndpointResolver.IsLocalLeg()。
+# 负对照：ClineAgentExecutor 不再直接调用 EndpointResolver.ResolveCline（防双裁决）。
+# 缺失 = 「声明有、执行无」假支持（与 CS23–CS29 同族正对照）。
+$clineEndpointCircuitFile = Join-Path $clineSrcDir 'Circuit\ClineEndpointBranchCircuit.cs'
+$clineExecutorImplFile = Join-Path $clineSrcDir 'Execution\ClineAgentExecutor.cs'
+$cs30Circuit = (Test-Path $clineEndpointCircuitFile) -and
+    ((Get-Content -LiteralPath $clineEndpointCircuitFile -Raw -Encoding UTF8) -match 'CircuitBranchSpec') -and
+    ((Get-Content -LiteralPath $clineEndpointCircuitFile -Raw -Encoding UTF8) -match 'CompiledRecipeRegistry')
+$cs30Wired = (Test-Path $clineExecutorImplFile) -and
+    ((Get-Content -LiteralPath $clineExecutorImplFile -Raw -Encoding UTF8) -match 'ClineEndpointBranchCircuit\.RunAsync')
+$cs30Judge = (Test-Path $clineEndpointCircuitFile) -and
+    ((Get-Content -LiteralPath $clineEndpointCircuitFile -Raw -Encoding UTF8) -match 'LocalOnlyPort')
+$cs30SingleDecision = (Test-Path $clineExecutorImplFile) -and
+    (-not ((Get-Content -LiteralPath $clineExecutorImplFile -Raw -Encoding UTF8) -match 'EndpointResolver\.ResolveCline'))
+Write-Host ("  CS30 cline 端点裁决子电路在册（正对照：子电路={0} / 接线={1} / 判定键={2} / 单裁决={3}）：须均为 True" -f $cs30Circuit, $cs30Wired, $cs30Judge, $cs30SingleDecision) -ForegroundColor Gray
+if (-not ($cs30Circuit -and $cs30Wired -and $cs30Judge -and $cs30SingleDecision))
+{
+    $violations.Add('[CS30] cline 端点裁决子电路缺失或回退（ClineEndpointBranchCircuit / ClineAgentExecutor 接线 / 判定键 / 单裁决 任一不符）')
+}
 
 # ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------
 $agentLoopsDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'

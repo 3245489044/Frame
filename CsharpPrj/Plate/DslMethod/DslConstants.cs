@@ -16,6 +16,10 @@ public enum DslSymbolKind
     Obs,
     // Ushar 控制流语言单元（R3）：分支 / 多路分派 / 调用（声明式控制流；见 Usharp README「控制流接入」）
     Branch, Switch, Call,
+    // Ushar 区域语言单元（R3+）：区域声明（父层单节点 + 子计划迭代；区域 → 电路子电路）
+    Region,
+    // Ushar 容错/门控语言单元（R3+）：受控边（When）/ 受护作用域（Guard）
+    When, Guard,
     Unknown,
 }
 

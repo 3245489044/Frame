@@ -110,6 +110,15 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// <summary>调用声明（R3 中立原语，加法式；缺省空 = 无调用）：承载节点调用子骨架。</summary>
         public IReadOnlyList<RoundCall>? Calls { get; init; }
 
+        /// <summary>区域声明（R3+ 中立原语，加法式；缺省空 = 无区域）：父层单节点 + 子计划迭代计划。</summary>
+        public IReadOnlyList<RoundRegion>? Regions { get; init; }
+
+        /// <summary>受控边声明（R3+ 中立原语，加法式；缺省空 = 无受控边）：判定判真后边激活。</summary>
+        public IReadOnlyList<RoundWhenDecl>? Whens { get; init; }
+
+        /// <summary>受护作用域声明（R3+ 中立原语，加法式；缺省空 = 无受护）：失败吞并继续。</summary>
+        public IReadOnlyList<RoundGuardDecl>? Guards { get; init; }
+
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingContainer ToBindingContainer() => new()
         {

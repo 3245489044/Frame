@@ -34,6 +34,11 @@ public static class UsharpPrefixes
         new(UsharpLanguage.BranchPrefix, DslSymbolKind.Branch, "Branch"),
         new(UsharpLanguage.SwitchPrefix, DslSymbolKind.Switch, "Switch"),
         new(UsharpLanguage.CallPrefix,   DslSymbolKind.Call,   "Call"),
+        // R3+ 区域语言单元：区域声明（父层单节点 + 子计划迭代计划）
+        new(UsharpLanguage.RegionPrefix, DslSymbolKind.Region, "Region"),
+        // R3+ 容错/门控语言单元：受控边（When）/ 受护作用域（Guard）
+        new(UsharpLanguage.WhenPrefix, DslSymbolKind.When, "When"),
+        new(UsharpLanguage.GuardPrefix, DslSymbolKind.Guard, "Guard"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

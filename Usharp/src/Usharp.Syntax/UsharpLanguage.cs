@@ -32,6 +32,15 @@ public static class UsharpLanguage
     /// <summary>调用声明前缀（R3：承载节点 → 子流调用）。</summary>
     public const string CallPrefix = "[Call]";
 
+    /// <summary>区域声明前缀（R3+：父层单节点 + 子计划迭代 → 电路子电路/区域）。</summary>
+    public const string RegionPrefix = "[Region]";
+
+    /// <summary>受控边声明前缀（R3+：<c>judge</c> 判真后 <c>from → to</c> 边才激活）。</summary>
+    public const string WhenPrefix = "[When]";
+
+    /// <summary>受护作用域声明前缀（R3+：作用域内节点失败 → 吞并继续）。</summary>
+    public const string GuardPrefix = "[Guard]";
+
     /// <summary>控制流声明字段名（R3，<c>[Branch]/[Switch]/[Call]</c> 共用）：所属流 / 承载节点 / 判定键 / 选择键 / 目标。</summary>
     public const string FieldFlow = "flow";
     public const string FieldNode = "node";
@@ -47,6 +56,22 @@ public static class UsharpLanguage
     public const string FieldChildFlow = "child";
     public const string FieldInBindings = "in";
     public const string FieldOutBindings = "out";
+
+    /// <summary>区域声明字段名（R3+，<c>[Region]</c>）：子流 / 迭代方式 / 迭代上限（判定端口复用 <see cref="FieldJudge"/>）。</summary>
+    public const string FieldIteration = "iter";
+    public const string FieldMaxIterations = "max";
+
+    /// <summary>受控边字段名（R3+，<c>[When]</c>）：前驱 / 后继 / 判定键（<c>from=</c>/<c>to=</c>/<c>judge=</c>）。</summary>
+    public const string FieldFrom = "from";
+    public const string FieldTo = "to";
+
+    /// <summary>受护作用域字段名（R3+，<c>[Guard]</c>）：受护节点集（<c>nodes=a;b;c</c>）。</summary>
+    public const string FieldNodes = "nodes";
+
+    /// <summary>区域迭代方式取值：<c>iter=once|while_true|until_true</c>（对齐引擎 <c>RegionIterationPlan</c>）。</summary>
+    public const string IterationOnce = "once";
+    public const string IterationWhileTrue = "while_true";
+    public const string IterationUntilTrue = "until_true";
 
     /// <summary>观测声明子类取值：<c>kind=file|scope|entity|event</c>。</summary>
     public const string KindFile = "file";

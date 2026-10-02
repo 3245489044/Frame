@@ -27,9 +27,14 @@ public static class UsharpControlFlowEmitter
         var branches = CollectBranches(compilation, spec.Name);
         var switches = CollectSwitches(compilation, spec.Name);
         var calls = CollectCalls(compilation, spec.Name, depth);
+        var regions = CollectRegions(compilation, spec.Name, depth);
+        var whens = CollectWhens(compilation, spec.Name);
+        var guards = CollectGuards(compilation, spec.Name);
 
-        if (branches.Count == 0 && switches.Count == 0 && calls.Count == 0) return spec;
-        return spec with { Branches = branches, Switches = switches, Calls = calls };
+        if (branches.Count == 0 && switches.Count == 0 && calls.Count == 0
+            && regions.Count == 0 && whens.Count == 0 && guards.Count == 0) return spec;
+        return spec with { Branches = branches, Switches = switches, Calls = calls,
+            Regions = regions, Whens = whens, Guards = guards };
     }
 
     private static List<RoundBranch> CollectBranches(UsharpCompilation compilation, string flowId)
@@ -70,7 +75,9 @@ public static class UsharpControlFlowEmitter
         return list;
     }
 
-    /// <summary>子流就地发射为子骨架（<c>[Node]</c> 键 → 步骤；递归装配其自身控制流）。</summary>
+    /// <summary>
+    /// 子流就地发射为子骨架（<c>[Node]</c> 键 → 步骤；递归装配其自身控制流）。
+    /// </summary>
     private static RoundSpec? BuildChildSpec(UsharpCompilation compilation, string flowId, int depth)
     {
         var flow = compilation.Flows.FirstOrDefault(f => string.Equals(f.FlowId, flowId, StringComparison.Ordinal));
@@ -84,6 +91,63 @@ public static class UsharpControlFlowEmitter
 
         var spec = new RoundSpec(flow.FlowId, steps) { Source = RoundSpecSource.Declared };
         return Apply(spec, compilation, depth);
+    }
+
+    private static List<RoundRegion> CollectRegions(UsharpCompilation compilation, string flowId, int depth)
+    {
+        var list = new List<RoundRegion>();
+        if (depth > MaxCallDepth) return list;
+        foreach (var doc in compilation.Documents)
+            foreach (var r in UsharpSyntaxProjector.Regions(doc))
+            {
+                if (!Matches(r.FlowId, flowId) || r.ParentNode.Length == 0 || r.ChildFlowId.Length == 0) continue;
+                var child = BuildChildSpec(compilation, r.ChildFlowId, depth + 1);
+                if (child is null) continue;
+                list.Add(new RoundRegion(
+                    r.ParentNode,
+                    child,
+                    MapIteration(r.Iteration),
+                    r.MaxIterations,
+                    r.JudgePort,
+                    r.InBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList(),
+                    r.OutBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList()));
+            }
+        return list;
+    }
+
+    private static RoundRegionIteration MapIteration(string iter)
+    {
+        return iter switch
+        {
+            UsharpLanguage.IterationWhileTrue => RoundRegionIteration.WhileTrue,
+            UsharpLanguage.IterationUntilTrue => RoundRegionIteration.UntilTrue,
+            _ => RoundRegionIteration.Once,
+        };
+    }
+
+    private static List<RoundWhenDecl> CollectWhens(UsharpCompilation compilation, string flowId)
+    {
+        var list = new List<RoundWhenDecl>();
+        foreach (var doc in compilation.Documents)
+            foreach (var w in UsharpSyntaxProjector.Whens(doc))
+            {
+                if (!Matches(w.FlowId, flowId) || w.FromNode.Length == 0 || w.To.Length == 0 || w.JudgeKey.Length == 0)
+                    continue;
+                list.Add(new RoundWhenDecl(w.FromNode, w.To, w.JudgeKey));
+            }
+        return list;
+    }
+
+    private static List<RoundGuardDecl> CollectGuards(UsharpCompilation compilation, string flowId)
+    {
+        var list = new List<RoundGuardDecl>();
+        foreach (var doc in compilation.Documents)
+            foreach (var g in UsharpSyntaxProjector.Guards(doc))
+            {
+                if (!Matches(g.FlowId, flowId) || g.NodeIds.Count == 0) continue;
+                list.Add(new RoundGuardDecl(g.NodeIds));
+            }
+        return list;
     }
 
     private static bool Matches(string declaredFlow, string currentFlow)

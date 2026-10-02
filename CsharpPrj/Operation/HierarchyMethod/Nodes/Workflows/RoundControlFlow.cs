@@ -48,4 +48,44 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// <summary>被调 Kind（缺省 = 承载节点 Id，使承载步骤的 Kind 与被调 Kind 一致）。</summary>
         public string EffectiveCalleeKind => string.IsNullOrWhiteSpace(CalleeKind) ? CallerNodeId : CalleeKind;
     }
+
+    /// <summary>
+    /// 区域迭代方式（R3+ 中立原语）：<see cref="Once"/> 单趟 / <see cref="WhileTrue"/> 上判定条件迭代 /
+    /// <see cref="UntilTrue"/> 后判定条件迭代（语义对齐引擎 <c>RegionIterationPlan</c>；由映射器转框架类型）。
+    /// </summary>
+    public enum RoundRegionIteration
+    {
+        /// <summary>单趟：子计划执行一次（区域化复用的最小形态）。</summary>
+        Once,
+        /// <summary>上判定条件迭代：判定端口为真时继续。</summary>
+        WhileTrue,
+        /// <summary>后判定条件迭代：判定端口为真时停止。</summary>
+        UntilTrue,
+    }
+
+    /// <summary>受控边声明（R3+ 中立原语，加法式）：判定键判真后 <c>From → To</c> 边才激活（G3 门控）。</summary>
+    public sealed record RoundWhenDecl(string From, string To, string JudgeKey);
+
+    /// <summary>受护作用域声明（R3+ 中立原语，加法式）：作用域内节点失败 → 吞并继续（G4 容错）。</summary>
+    public sealed record RoundGuardDecl(IReadOnlyList<string> ProtectedNodeIds);
+
+    /// <summary>
+    /// 区域声明（R3+ 中立原语，加法式）：父层单节点 <see cref="NodeId"/> + 子计划 <see cref="Child"/> + 迭代计划。
+    /// 由 <c>RoundFlowSpecMapper</c> 映射为电路配方区域声明（子骨架就地递归映射为子电路配方）。
+    /// </summary>
+    /// <param name="NodeId">承载该区域的父层步骤 Id（其入/出端口即区域端口）。</param>
+    /// <param name="Child">子计划声明（就地映射为子电路配方）。</param>
+    /// <param name="Iteration">迭代方式。</param>
+    /// <param name="MaxIterations">迭代上限（R1 有界量化；条件迭代必填 &gt; 0）。</param>
+    /// <param name="JudgePort">判定端口键（仅条件迭代语义；父区域节点的入端口名）。</param>
+    /// <param name="InBindings">父入端口 ← 子入口 映射。</param>
+    /// <param name="OutBindings">子出口 → 父出端口 映射。</param>
+    public sealed record RoundRegion(
+        string NodeId,
+        RoundSpec Child,
+        RoundRegionIteration Iteration,
+        int? MaxIterations = null,
+        string? JudgePort = null,
+        IReadOnlyList<RoundPortBinding>? InBindings = null,
+        IReadOnlyList<RoundPortBinding>? OutBindings = null);
 }

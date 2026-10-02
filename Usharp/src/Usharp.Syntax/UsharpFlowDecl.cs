@@ -244,4 +244,19 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpCallDecl> Calls(DslDocument doc)
         => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Call)
             .Select(UsharpCallDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Region]</c> 区域声明（R3+：父层单节点 + 子计划迭代）。</summary>
+    public static IReadOnlyList<UsharpRegionDecl> Regions(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Region)
+            .Select(UsharpRegionDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[When]</c> 受控边声明（R3+：judge 判真后边激活）。</summary>
+    public static IReadOnlyList<UsharpWhenDecl> Whens(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.When)
+            .Select(UsharpWhenDecl.From).Where(s => s is not null).Select(s => s!).ToList();
+
+    /// <summary><c>[Guard]</c> 受护作用域声明（R3+：失败吞并继续）。</summary>
+    public static IReadOnlyList<UsharpGuardDecl> Guards(DslDocument doc)
+        => doc.Declarations.Where(d => d.Kind == DslSymbolKind.Guard)
+            .Select(UsharpGuardDecl.From).Where(s => s is not null).Select(s => s!).ToList();
 }

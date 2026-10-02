@@ -66,7 +66,72 @@ public sealed record UsharpCallDecl(
     private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 }
 
-/// <summary>控制流声明的共享字段解析（R3）：<c>k=v;k2=v2</c> → 字典（非法段忽略）。</summary>
+/// <summary>
+/// 区域声明（R3+，<c>[Region]</c>）：<c>flow=</c> 所属流 + <c>node=</c> 父层承载节点 +
+/// <c>child=&lt;子流号&gt;</c> + <c>iter=once|while_true|until_true</c> + 可选 <c>judge=</c>（判定端口）/
+/// <c>max=</c>（迭代上限）+ 可选 <c>in=</c> / <c>out=</c>（区域出入映射）。
+/// </summary>
+public sealed record UsharpRegionDecl(
+    string Name, string FlowId, string ParentNode, string ChildFlowId,
+    string Iteration, string? JudgePort, int? MaxIterations,
+    IReadOnlyDictionary<string, string> InBindings, IReadOnlyDictionary<string, string> OutBindings,
+    string SourceFile, int LineNumber)
+{
+    public static UsharpRegionDecl? From(DslDeclaration d)
+    {
+        if (d.Kind != DslSymbolKind.Region || string.IsNullOrWhiteSpace(d.Name)) return null;
+        return new UsharpRegionDecl(
+            d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
+            d.Field(UsharpLanguage.FieldChildFlow).Trim(),
+            d.Field(UsharpLanguage.FieldIteration).Trim(),
+            NullIfEmpty(d.Field(UsharpLanguage.FieldJudge)),
+            ParseInt(d.Field(UsharpLanguage.FieldMaxIterations)),
+            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldInBindings)),
+            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldOutBindings)),
+            d.SourceFile, d.LineNumber);
+    }
+
+    private static int? ParseInt(string v) => int.TryParse(v, out var n) ? n : null;
+
+    private static string? NullIfEmpty(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+}
+
+/// <summary>
+/// 受控边声明（R3+，<c>[When]</c>）：<c>flow=</c> 所属流 + <c>from=</c> 前驱 + <c>to=</c> 后继 +
+/// <c>judge=</c> 判定键 —— judge 判真后该边才激活（G3 受控边门控）。
+/// </summary>
+public sealed record UsharpWhenDecl(
+    string Name, string FlowId, string FromNode, string To, string JudgeKey,
+    string SourceFile, int LineNumber)
+{
+    public static UsharpWhenDecl? From(DslDeclaration d)
+    {
+        if (d.Kind != DslSymbolKind.When || string.IsNullOrWhiteSpace(d.Name)) return null;
+        return new UsharpWhenDecl(
+            d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldFrom).Trim(),
+            d.Field(UsharpLanguage.FieldTo).Trim(), d.Field(UsharpLanguage.FieldJudge).Trim(),
+            d.SourceFile, d.LineNumber);
+    }
+}
+
+/// <summary>
+/// 受护作用域声明（R3+，<c>[Guard]</c>）：<c>flow=</c> 所属流 + <c>nodes=&lt;n1;n2;…&gt;</c> ——
+/// 作用域内节点失败 → 吞并继续（G4 容错）。
+/// </summary>
+public sealed record UsharpGuardDecl(
+    string Name, string FlowId, IReadOnlyList<string> NodeIds,
+    string SourceFile, int LineNumber)
+{
+    public static UsharpGuardDecl? From(DslDeclaration d)
+    {
+        if (d.Kind != DslSymbolKind.Guard || string.IsNullOrWhiteSpace(d.Name)) return null;
+        return new UsharpGuardDecl(
+            d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(),
+            UsharpLanguage.SplitSegments(d.Field(UsharpLanguage.FieldNodes)).ToList(),
+            d.SourceFile, d.LineNumber);
+    }
+}
+
 internal static class UsharpControlFlowFields
 {
     public static IReadOnlyDictionary<string, string> ParsePairs(string field)

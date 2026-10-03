@@ -138,6 +138,9 @@ Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1
 | ❌ 自建第二套端口键空间 / 单写门 / 读视图 / 键格式全局 | N8 / P14 / P22；P1 为**迁址收编**，非重写 |
 | ❌ 写侧为某消费者裁剪副本 | N7（裁剪只发生在读侧 `selection`） |
 | ❌ 承接执行体/状态根/终止裁决 | 属引擎与领域层（见 9.22 方案 §7） |
+| ❌ 把库级/集合级写计划门搬入本工程（V-1 裁定：不搬） | `WritePlanCoordinator`（Operation，库级/集合级 target=`ur_nodes.plan`）与 `NodeWriteGate`/`NodeCompensation`（位置级 target=`{carrierId}|{placementKey}`）**target 不同层**；合并即造双写门/双补偿（P16）。两级门关系登记见 `Docs\analysis\2026\10\10.3\...通用框架提取与JSON单源-重构方案.md` §10.1 |
+| ❌ 把工作流骨架 `RoundSpec`/`BindingSpec` 塞入本工程（V-4 裁定：冻结） | 绑 `Share.HierarchySupport.PortSpec` + `ParameterResolver.KeyMapping.KeyMappingConfig`，破层2 签名契约（D-1 案 A）；属执行域，未来通用化另起 `Modules.ExecutionFramework` |
+| ⚠️ `NodeJson` 以 BCL `System.Text.Json` 自理 JSON（V-3 裁定 = A：**平台规则显式豁免**） | 保「零 Frame 依赖（仅 BCL + `Modules.Parsing.Keys`）」；载荷经 Operation 适配器落库时一律走 `Plate.JsonMethod`；豁免条目登记于 `Plate\JsonMethod\JsonMethod.csproj` 的 `ModuleRule_Rule` |
 
 ## 测试
 

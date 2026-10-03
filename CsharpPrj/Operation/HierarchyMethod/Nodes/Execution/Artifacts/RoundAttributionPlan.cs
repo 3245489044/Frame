@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Operation.HierarchyMethod.Nodes.Workflows;
+using Plate.JsonMethod.Serialization;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -113,7 +114,8 @@ public static class RoundAttributionPlan
         if (string.IsNullOrWhiteSpace(json)) return new PlannedRoundAttribution(1, Array.Empty<PlannedRoundMessage>());
         try
         {
-            if (JsonNode.Parse(json) is not JsonObject root)
+            // 解析单源 = JsonMethod（JsonNode.Parse → JsonSerializationService.ParseJsonNode）。
+            if (JsonSerializationService.Instance.ParseJsonNode(json) is not JsonObject root)
                 return new PlannedRoundAttribution(1, Array.Empty<PlannedRoundMessage>());
 
             var roundText = root["round"]?.ToString();

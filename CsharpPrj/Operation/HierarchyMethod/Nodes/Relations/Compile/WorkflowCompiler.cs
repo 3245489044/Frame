@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Node.Spec;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.ReferenceSchema;
 using Operation.HierarchyMethod.Nodes.Execution;
@@ -87,16 +88,12 @@ public static class WorkflowCompiler
             .Select(e => (e.SourceId, e.TargetId))
             .ToList();
 
-        // ② 图完整性（未定义/悬空/重复节点、起止节点）—— 对齐 CS0103
-        CheckIntegrity(result, nodeIds, callEdges);
+        // ②③ 链校验（悬空 / 重复 / 环 / 入口出口）—— 唯一算法出处 = 框架 NodeSpecValidator.ValidateChains
+        //      （治 P19：语言级/框架级不得各写一套链判据；SingleImplementation / TH-12）
+        CheckChain(result, spec, nodeIds);
 
-        // ③④ 邻接表一次构建，供环检测与引用诊断共用（避免重复构建同一图）
+        // ④ 邻接表构建 + 引用诊断（孤立/未使用）
         var deps = BuildAdjacency(callEdges);
-
-        // ③ 调用环检测（Calls 边成环 → 死循环风险）
-        CheckCycles(result, nodeIds, deps);
-
-        // ④ 引用诊断（孤立/未使用）
         CheckDiagnostics(result, nodeIds, callEdges, deps);
 
         // ⑤ 端口类型签名（实参端口类型 ≠ 形参端口类型）—— 对齐 CS0029；registry 未装配 → 跳过
@@ -108,28 +105,44 @@ public static class WorkflowCompiler
         return result;
     }
 
-    private static void CheckIntegrity(WorkflowCompileResult result, List<string> nodeIds, List<(string, string)> callEdges)
+    /// <summary>
+    /// 链校验（悬空 / 重复 / 环 / 入口出口）—— 委托框架唯一算法 <see cref="NodeSpecValidator"/>.ValidateChains（治 P19）。
+    /// 既有 <see cref="WorkflowCompileResult"/> 口径保持：环 → 告警（文案逐字）；悬空/重复/缺口 → 错误（对齐 CS0103）。
+    /// </summary>
+    private static void CheckChain(WorkflowCompileResult result, RoundSpec spec, IReadOnlyList<string> nodeIds)
     {
-        if (nodeIds.Count == 0) return;
-        var validator = new GraphValidator<string>();
-        var vr = validator.ValidateIntegrity(
-            nodeIds,
-            callEdges,
-            isStartNode: id => id == nodeIds[0],
-            isEndNode: id => id == nodeIds[^1]);
-        if (!vr.IsValid)
-            result.AddError($"图完整性校验失败: {vr.Message}");
+        var chain = BuildChainDocument(spec, nodeIds);
+        // requireEntry=false 保既有口径（不强制入口）；requireExit=true 对齐既有「链须有终点」图完整性口径。
+        var report = NodeSpecValidator.ValidateChainDocuments(new[] { chain }, requireEntry: false, requireExit: true);
+        foreach (var violation in report.Violations)
+        {
+            if (string.Equals(violation.Code, "spec.chain-cycle", StringComparison.Ordinal))
+                result.AddWarning($"检测到调用环（死循环风险）: {StripPrefix(violation.Message, "链存在环: ")}");
+            else
+                result.AddError($"图完整性校验失败: {violation.Message}");
+        }
     }
 
-    private static void CheckCycles(WorkflowCompileResult result, List<string> nodeIds, Dictionary<string, List<string>> deps)
+    /// <summary>把线性 <see cref="RoundSpec"/> 步骤映射为框架链声明（稳定节点资源 Id 为链键）。</summary>
+    private static NodeChainDocument BuildChainDocument(RoundSpec spec, IReadOnlyList<string> nodeIds)
     {
-        var cr = CircularDependencyDetector.Analyze(
-            nodeIds,
-            id => deps.TryGetValue(id, out var list) ? list : Enumerable.Empty<string>());
-        if (cr.HasCircularDependencies)
-            foreach (var cycle in cr.CircularDependencies)
-                result.AddWarning($"检测到调用环（死循环风险）: {string.Join(" → ", cycle.ResourceChain)}");
+        var nodes = new List<NodeChainNode>(nodeIds.Count);
+        for (var i = 0; i < nodeIds.Count; i++)
+        {
+            var step = spec.Steps[i];
+            nodes.Add(new NodeChainNode(
+                nodeIds[i],
+                i + 1 < nodeIds.Count ? nodeIds[i + 1] : null,
+                step.ParameterKeys,
+                step.ResultKeys,
+                IsEntry: i == 0,
+                IsExit: i == nodeIds.Count - 1));
+        }
+        return new NodeChainDocument(spec.Name, nodes);
     }
+
+    private static string StripPrefix(string message, string prefix)
+        => message.StartsWith(prefix, StringComparison.Ordinal) ? message.Substring(prefix.Length) : message;
 
     private static void CheckDiagnostics(WorkflowCompileResult result, List<string> nodeIds, List<(string, string)> callEdges, Dictionary<string, List<string>> deps)
     {

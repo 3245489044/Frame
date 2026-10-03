@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,11 +15,13 @@ using Operation.HierarchyMethod.Nodes.Workflows;
 using Operation.LoopFoldMethod.Reference.Gateways;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 using ParameterResolver.KeyMapping;
+using Plate.JsonMethod.Serialization;
 using Share.HierarchySupport;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using WorkFlowMethod.Skeletons.NodeProcess.Execution;
 using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
 
+using Modules.Node.Ports;
 using Modules.Pipeline.StepExec;
 
 namespace Operation.HierarchyMethod.Nodes.Execution
@@ -412,10 +413,13 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private async Task SaveKeyMappingsAsync(NodeDefinition node, CancellationToken ct)
         {
             var key = KeyMappingKeys.NodeLevelKey(_workflowId, node.NodeKey);
+            // 序列化动作单源 = Plate.JsonMethod；选项=BCL 默认（保持既有键映射 JSON 形态逐字不变）。
             if (node.InputMapping != null)
-                await _keyMappings!.SaveAsync(KeyMappingCategory.NodeInput, key, JsonSerializer.Serialize(node.InputMapping), ct).ConfigureAwait(false);
+                await _keyMappings!.SaveAsync(KeyMappingCategory.NodeInput, key,
+                    JsonSerializationService.Instance.Serialize(node.InputMapping, JsonSerializerFactory.BclDefault), ct).ConfigureAwait(false);
             if (node.OutputMapping != null)
-                await _keyMappings!.SaveAsync(KeyMappingCategory.NodeOutput, key, JsonSerializer.Serialize(node.OutputMapping), ct).ConfigureAwait(false);
+                await _keyMappings!.SaveAsync(KeyMappingCategory.NodeOutput, key,
+                    JsonSerializationService.Instance.Serialize(node.OutputMapping, JsonSerializerFactory.BclDefault), ct).ConfigureAwait(false);
         }
 
         /// <summary>引用层自动落地：业务节点写透基础节点库（NodeType=node，携带关系状态 RelationsJson）→ 经守卫写入权威边集。
@@ -476,36 +480,29 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // taskKey 缺失 = 合法 no-op（与写边守卫口径一致），非失败。
         }
 
-        /// <summary>提取结果端口：注册了特化的强类型执行结果按 ResultKeys 整对象定向全写；其余按公开属性名反射约定。</summary>
+        /// <summary>
+        /// 提取结果端口：端口准入/值投影**单源 = <see cref="NodeResultExtractor"/>**（声明优先 + 特化整写 + 反射兜底 + 缺口可见化），
+        /// 本方法仅保留「标量单端口」短路（治 <c>string</c> 索引器 <c>Chars</c> 反射必抛的整步失败，见 D1）。
+        /// </summary>
         public static Dictionary<string, object?> ExtractProps(NodeDefinition node, object? result)
         {
             var props = new Dictionary<string, object?>(StringComparer.Ordinal);
-            // 执行器返回 null → 无产出端口（空结果，对齐 InitialStateNullity/RepeatedCallStable 语义；避免 result.GetType() NRE）。
+            // 执行器返回 null → 无产出端口（空结果，对齐 InitialStateNullity/RepeatedCallStable 语义）。
             if (result is null) return props;
-            // 已注册特化（NodeResultExtractor.RegisterSpecialized；如 Agent 组合根注册的强类型执行结果）→
-            // 按 ResultKeys 整对象定向全写，消除「ResultKeys 与返回类型属性名不一致 → 结果键静默丢失」的反射错配。
-            if (NodeResultExtractor.HasSpecialized(result.GetType()))
-                return NodeResultExtractor.ExtractResultKeys(node.ResultKeys, result);
 
-            var type = result.GetType();
             // 标量结果（无「端口形态属性」可枚举）：仅当节点恰声明**一个**出端口时按该端口定名。
-            // 不落到下面的公开属性反射 —— `string` 的公开属性只有 `Length` / `Chars`，而 `Chars` 是索引器，
-            // `GetValue` 必抛 TargetParameterCountException（"Parameter count mismatch."）⇒ 整步失败、端口全丢。
-            if (IsScalarResult(type))
+            // 不落 NodeResultExtractor（其对简单值留默认端口给调用方，而本方法调用方 = 执行编排，无默认端口承接）——
+            // `string` 的公开属性只有 `Length` / `Chars`（索引器），反射 `GetValue` 必抛 TargetParameterCountException
+            // （"Parameter count mismatch."）⇒ 整步失败、端口全丢（P0 修复点，回归锁 = ExtractProps_ScalarStringResult_*）。
+            if (IsScalarResult(result.GetType()))
             {
                 if (node.ResultKeys.Count == 1) props[node.ResultKeys[0]] = result;
                 return props;
             }
 
-            foreach (var p in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            {
-                // 索引器属性（string.Chars / IList<T>.Item / IDictionary<,>.Item 等）没有零参 getter：
-                // 枚举到它必抛（同上一类缺陷），故跳过 —— 端口形态只认可命名的零参属性。
-                if (p.GetIndexParameters().Length > 0) continue;
-                props[p.Name] = p.GetValue(result);
-            }
-
-            return props;
+            // 非标量：唯一单源（消除与 NodeResultExtractor 的反射/特化双实现）：特化注册 → 定向整写；
+            // 声明 ResultKeys → 定向命中；未声明 → 成员推断（均带可见化诊断）。
+            return NodeResultExtractor.ExtractResultKeys(node.ResultKeys, result);
         }
 
         /// <summary>标量/值类型结果判定（端口形态约定之外：无可命名的公开端口属性）。</summary>

@@ -256,7 +256,8 @@ if (Test-Path $agentCoreCircuitDir)
     }
 
     # CS8 正对照：缓存键须为内容指纹（防陈旧电路复用 + 防扫描面失效假绿）
-    $registryFile = Join-Path $agentCoreCircuitDir 'RoundFlowCircuitRegistry.cs'
+    # P1（电路接入面下沉）：RoundFlowCircuitRegistry 已下沉 Operation.HierarchyMethod\Nodes\Circuit（全消费方唯一接入面）
+    $registryFile = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit\RoundFlowCircuitRegistry.cs'
     $cs8Ok = (Test-Path $registryFile) -and ((Get-Content -LiteralPath $registryFile -Raw -Encoding UTF8) -match 'Fingerprint')
     Write-Host ("  CS8 缓存键内容指纹（正对照 RoundFlowCircuitRegistry.Fingerprint）：{0}" -f $(if ($cs8Ok) { 'OK' } else { '缺失' })) -ForegroundColor Gray
     if (-not $cs8Ok)
@@ -592,7 +593,8 @@ if (Test-Path $agentLoopsDir)
     if ($ShowDetail) { foreach ($h in $cs17Stray) { Write-Host ("    {0}" -f ($h -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
 
     # ---------- CS18 轮内链声明面在册（正对照：R1/R3 不回退） ----------
-    $flowMapperFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Circuit\RoundFlowSpecMapper.cs'
+    # P1（电路接入面下沉）：RoundFlowSpecMapper 已下沉 Operation.HierarchyMethod\Nodes\Circuit
+    $flowMapperFile = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit\RoundFlowSpecMapper.cs'
     $specLoaderFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Loading\RoundSpecLoader.cs'
     $cs18Enforce = (Test-Path $flowMapperFile) -and
         ((Get-Content -LiteralPath $flowMapperFile -Raw -Encoding UTF8) -match 'EnforceDeclaredEdgeCoverage')

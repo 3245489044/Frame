@@ -53,6 +53,13 @@ namespace Plate.JsonMethod.Serialization
             };
         }
 
+        /// <summary>
+        /// BCL 默认序列化选项（等价于 <c>JsonSerializer.Serialize(obj)</c> / <c>Deserialize&lt;T&gt;(json)</c> 不传 options）：
+        /// 供「须保持 BCL 默认形态（PascalCase 属性名、不忽略 null、无枚举字符串转换）」的调用方经
+        /// <see cref="JsonSerializationService"/> 统一复用，避免逐处 <c>new JsonSerializerOptions()</c>（选项单源）。
+        /// </summary>
+        public static JsonSerializerOptions BclDefault { get; } = new();
+
         public static JsonSerializerOptions Create(
             JsonContext context = JsonContext.Default,
             Action<JsonSerializerOptions>? configure = null)

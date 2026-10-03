@@ -16,12 +16,13 @@ public static class NodeExecutionKeys
     /// 作为整包入参接收 —— key 驱动组装的唯一扩展点（落地于 <c>NodeStepExecutionService.ResolveInputsAsync</c>）。
     /// <para>收集范围 = 有 provenance 的节点输出源键（<c>{node}.{port}</c> 恒有 + 裸 <c>{port}</c> 先到者胜）；
     /// 数据空间兜底键**不入包**（防 vars 全量键污染包）。整包不是键 ⇒ 不查数据空间、不入 KeyMapping 目标集。</para>
-    /// <para>整包值 = <see cref="CollectedNodePort"/> 序列（携带溯源，禁从键串反解 node/port）；</para>
+    /// <para>整包值 = <see cref="Modules.Node.Ports.CollectedNodePort"/> 序列（携带溯源，禁从键串反解 node/port）；</para>
     /// <para>整包不产 provenance（无单一来源）⇒ 不参与 NodeToNode 组合边推导。</para>
     /// </summary>
-    public const string CollectNodePorts = "nodes.*";
+    // 权威: Modules.Node.Ports.NodeCollectPorts.Token（E2 提取；本处兼容转发，保既有符号名与门禁面）
+    public const string CollectNodePorts = Modules.Node.Ports.NodeCollectPorts.Token;
 
     /// <summary>是否为收集式输入端口 token（白名单判定**单一来源**：一切识别/跳过点一律经本方法，禁字面量散落）。</summary>
     public static bool IsCollectToken(string? key)
-        => string.Equals(key, CollectNodePorts, StringComparison.Ordinal);
+        => Modules.Node.Ports.NodeCollectPorts.IsCollectToken(key);
 }

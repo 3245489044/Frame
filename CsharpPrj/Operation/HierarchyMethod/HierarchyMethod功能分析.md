@@ -244,6 +244,10 @@ HierarchyMethod/
 │   │                                   WorkflowReferenceStaticizer
 │   ├── TaskGraph/                      TaskGraphService / TaskGraphTaskSpec /
 │   │                                   ITaskGraphTaskStore
+│   ├── Circuit/                        电路接入面（P1 下沉，全消费方唯一函数调用链）：
+│   │                                     RoundFlowSpecMapper（RoundSpec → CircuitRecipeSpec 投影）
+│   │                                     RoundFlowCircuitRegistry（内容指纹缓存 + 唯一编译入口）
+│   │                                     RoundStepCircuitNode（步骤语义 → ICircuitNode 黑盒体）
 │   └── Workflows/                      RoundSpec / BindingSpec
 ├── Tasks/
 │   ├── TaskRecord.cs                   纯任务簿记实体
@@ -280,6 +284,7 @@ HierarchyMethod/
 | `Operation/WorkFlowMethod` | 工作流上下文/循环框架（WorkflowContext / LoopFramework 领域内核类型） |
 | `Modules/Parsing` | 通用 JSON 条件判定内核（JsonRuleEngine）：Rules 规则评估引擎委托 |
 | `Modules/DeclarativeDataflow` | 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：`Hierarchy/Dataflow` 的层遍历 / 终止 / 子结论收敛复用，不硬编码层遍历；框架零项目引用 → 单向无环 |
+| `Share/Frameworks/CircuitFramework` | 声明式电路框架（`Hierarchy/Dataflow` 的对偶——「谁调谁」进电路）：`Nodes/Circuit` 把轮骨架 `RoundSpec` 投影为电路配方（`RoundFlowSpecMapper`）、内容指纹缓存（`RoundFlowCircuitRegistry`）、步骤语义封入 `ICircuitNode`（`RoundStepCircuitNode`）；`RoundSpec` 中立原语（DependsOn/Branch/Switch/Call/Region/When/Guard）的唯一消费面，编译经唯一入口 `CircuitCompiler.TryCompile`、执行经 `CircuitEngine` 拓扑驱动 |
 | `DataStoreDriven.HierarchyResourceKeys` | 三层层级引用图端点 Id 约定的唯一权威（构造 + 还原）：`ReferenceGrounding` 与 `Hierarchy/Dataflow` 适配器共用，消除前缀字符串分叉 |
 | `DataStoreDriven.CrossDbReferenceTypes.TaskOwnsTask` | 不定深度任务树的归属边常量（`task_owns_task`）：`ReferenceGrounding.LinkSubTaskAsync` / `GetSubTaskKeysAsync` 读写，`HierarchySchemas.TaskTree` 声明为包含边 |
 

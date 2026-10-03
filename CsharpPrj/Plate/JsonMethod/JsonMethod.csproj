@@ -12,6 +12,7 @@
     <ModuleRule_Rule Include="BasicMethod 的 JSON 处理逻辑已迁移至此，BasicMethod 通过 ProjectReference 引用此模块" />
     <ModuleRule_Rule Include="容错读取 / 元素原语 / 原文层重复键扫描 / schema 子集结构校验为平台单一实现（2026-09-17 自 BasicMethod.Declarative.Ledger 上收）：机制只返回违规不抛，异常身份与域文案留消费方" />
     <ModuleRule_Rule Include="命名空间统一使用 Plate.JsonMethod.*" />
+    <ModuleRule_Rule Include="豁免（V-3 裁定，10.3 方案 §10.1）：Modules.Node（层2 位置层）为保『零 Frame 依赖（仅 BCL + Modules.Parsing.Keys）』，其内部 NodeJson 以 BCL System.Text.Json 自理 JSON；其载荷经上层适配器（Operation）落库时一律走本模块，不另立第二套 JSON 库。" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Prompts">

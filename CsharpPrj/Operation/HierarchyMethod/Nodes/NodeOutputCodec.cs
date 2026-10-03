@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Plate.JsonMethod.Serialization;
 using Operation.WorkFlowMethod.Nodes.Contracts;
@@ -76,12 +77,12 @@ namespace Operation.HierarchyMethod.Nodes {
             JsonContext.Compact,
             o => { o.PropertyNamingPolicy = null; o.DefaultIgnoreCondition = JsonIgnoreCondition.Never; });
 
-        /// <summary>业务节点载荷 JSON → 业务节点载荷（解析失败返回空载荷，容错）。</summary>
+        /// <summary>业务节点载荷 JSON → 业务节点载荷（解析失败返回空载荷，容错）。编码动作单源 = Plate.JsonMethod。</summary>
         public static BusinessNodePayload DecodeBusiness(string json)
         {
             try
             {
-                return JsonSerializer.Deserialize<BusinessNodePayload>(json, DocJsonOptions) ?? new BusinessNodePayload();
+                return JsonSerializationService.Instance.Deserialize<BusinessNodePayload>(json, DocJsonOptions) ?? new BusinessNodePayload();
             }
             catch (JsonException)
             {
@@ -89,13 +90,13 @@ namespace Operation.HierarchyMethod.Nodes {
             }
         }
 
-        /// <summary>业务节点载荷 → JSON。</summary>
+        /// <summary>业务节点载荷 → JSON（编码动作单源 = Plate.JsonMethod）。</summary>
         public static string EncodeBusiness(BusinessNodePayload payload)
-            => JsonSerializer.Serialize(payload ?? new BusinessNodePayload(), DocJsonOptions);
+            => JsonSerializationService.Instance.Serialize(payload ?? new BusinessNodePayload(), DocJsonOptions);
 
         /// <summary>文档 → 载荷 JSON（NodeOutputDoc 独立承载场景，如投影/测试装配）。</summary>
         public static string EncodeDoc(NodeOutputDoc doc)
-            => JsonSerializer.Serialize(doc, DocJsonOptions);
+            => JsonSerializationService.Instance.Serialize(doc, DocJsonOptions);
 
         /// <summary>
         /// 外部载荷 → ur_nodes 记录载荷 JSON（DP-2 单一构造入口）：输出文档形态经本 Codec 统一落库 ——
@@ -109,17 +110,17 @@ namespace Operation.HierarchyMethod.Nodes {
                 return EncodeBusiness(new BusinessNodePayload { Symbol = symbol });
             try
             {
-                using var probe = JsonDocument.Parse(payloadJson);
-                if (probe.RootElement.ValueKind != JsonValueKind.Object) return payloadJson;
-                if (probe.RootElement.TryGetProperty(nameof(BusinessNodePayload.Outputs), out _))
+                // 解析单源 = JsonMethod（原 JsonDocument.Parse 手写探针 → JsonSerializationService.ParseJsonNode）。
+                if (JsonSerializationService.Instance.ParseJsonNode(payloadJson) is not JsonObject root) return payloadJson;
+                if (root.ContainsKey(nameof(BusinessNodePayload.Outputs)))
                 {
                     var business = DecodeBusiness(payloadJson);
                     business.Symbol ??= symbol;
                     return EncodeBusiness(business);
                 }
-                if (probe.RootElement.TryGetProperty(nameof(NodeOutputDoc.Ports), out _))
+                if (root.ContainsKey(nameof(NodeOutputDoc.Ports)))
                 {
-                    var doc = JsonSerializer.Deserialize<NodeOutputDoc>(payloadJson, DocJsonOptions);
+                    var doc = JsonSerializationService.Instance.Deserialize<NodeOutputDoc>(payloadJson, DocJsonOptions);
                     if (doc is not null)
                         return EncodeBusiness(new BusinessNodePayload { Symbol = symbol, Outputs = doc });
                 }
@@ -131,42 +132,15 @@ namespace Operation.HierarchyMethod.Nodes {
             return payloadJson;
         }
 
-        /// <summary>编码单个端口值：非 null 值存「运行时类型 + JSON」；null 值存空位。</summary>
+        /// <summary>编码单个端口值（薄壳）：类型保真编解码单源 = <see cref="TypedJsonValueCodec.Encode"/>。</summary>
         public static NodeOutputPortValue EncodeValue(object? value)
         {
-            if (value is null) return new NodeOutputPortValue { Type = null, Value = null };
-            var type = value.GetType();
-            try
-            {
-                return new NodeOutputPortValue { Type = type.AssemblyQualifiedName, Value = JsonSerializer.SerializeToElement(value, type) };
-            }
-            catch (Exception ex) when (ex is NotSupportedException or JsonException)
-            {
-                // 非可序列化值：降级为字符串表达，仍保留数据（读取侧还原为 string）。
-                return new NodeOutputPortValue
-                {
-                    Type = typeof(string).AssemblyQualifiedName,
-                    Value = JsonSerializer.SerializeToElement(value.ToString() ?? string.Empty),
-                };
-            }
+            var typed = TypedJsonValueCodec.Encode(value);
+            return new NodeOutputPortValue { Type = typed.Type, Value = typed.Value };
         }
 
-        /// <summary>解码单个端口值：按声明类型还原；类型不可解析 / 反序列化失败回退为 JsonElement。</summary>
+        /// <summary>解码单个端口值（薄壳）：类型保真编解码单源 = <see cref="TypedJsonValueCodec.Decode"/>。</summary>
         public static object? DecodeValue(NodeOutputPortValue pv)
-        {
-            if (pv.Value is null) return null;
-            var elem = pv.Value.Value;
-            if (pv.Type is null) return null;
-            var type = Type.GetType(pv.Type);
-            if (type is null) return elem.Clone();
-            try
-            {
-                return elem.Deserialize(type);
-            }
-            catch (JsonException)
-            {
-                return elem.Clone();
-            }
-        }
+            => TypedJsonValueCodec.Decode(new TypedJsonValue { Type = pv.Type, Value = pv.Value });
     }
 }

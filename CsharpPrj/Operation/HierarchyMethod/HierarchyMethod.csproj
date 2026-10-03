@@ -13,6 +13,7 @@
     <ModuleRule_Rule Include="写边原语唯一收敛 DataStoreDriven.ReferenceGraphCoordinator，编排只编排不复制写边（SingleImplementation / TH-12）" />
     <ModuleRule_Rule Include="未装配端口/关系库返回空集/诊断（UnavailableDiagnostics），不消耗 AI 额度、不阻断 DB-only 路径" />
     <ModuleRule_Rule Include="层次结构外置：层数/层名/包含关系由 Modules.DeclarativeDataflow 的 HierarchySchema 声明（Hierarchy/Dataflow/HierarchySchemas），遍历/护栏/子结论收敛复用它，不硬编码层遍历" />
+    <ModuleRule_Rule Include="电路接入面唯一收敛（P1）：RoundSpec 中立原语 → CircuitRecipeSpec 投影/缓存/步骤节点下沉 Nodes\Circuit（RoundFlowSpecMapper / RoundFlowCircuitRegistry / RoundStepCircuitNode），全消费方共享唯一函数调用链（唯一编译入口 = CircuitCompiler.TryCompile）；RoundSpec 字段保持中立（不得写入框架类型），宿主语义胶水（AgentLog 等）留上层" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -53,6 +54,21 @@
          Nodes\Execution\NodeStepExecutionService.cs 使用 `Modules.Pipeline.StepExec`（步骤执行中间件），
          此前该依赖经 WorkFlowMethod 等**传递**获得（隐式依赖）；显式声明后由守卫机器校验。 -->
     <ProjectReference Include="$(Proj_Pipeline)" />
+  </ItemGroup>
+
+  <!-- ★ 2026-10-03 P1（HierarchyMethod → CircuitFramework 电路接入面下沉）：
+       中立投影/缓存/步骤节点（RoundFlowSpecMapper / RoundFlowCircuitRegistry / RoundStepCircuitNode）
+       下沉至 Nodes\Circuit，作为全消费方唯一电路接入面（RoundSpec 中立原语 → CircuitRecipeSpec → 编译 → 引擎）；
+       本模块层 4 → Share.CircuitFramework 层 2，属向下引用（先例：$(Proj_DeclarativeDataflow)）。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_CircuitFramework)" />
+  </ItemGroup>
+
+  <!-- ★ 2026-10-03 E2（HierarchyMethod\Nodes → Modules.Node 通用框架提取）：
+       收集式输入端口 token / 整包条目（CollectedNodePort）改委托框架唯一实现（键空间「整包」扩展）；
+       本模块层 4 → Modules.Node 层 2，属向下引用（先例：WorkFlowMethod.csproj → $(Proj_Node)）。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
 </Project>

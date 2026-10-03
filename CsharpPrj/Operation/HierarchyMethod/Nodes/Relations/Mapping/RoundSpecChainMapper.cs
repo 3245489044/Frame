@@ -2,9 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using GraphFramework.Models;
 using Operation.HierarchyMethod.Nodes.Workflows;
+using Plate.JsonMethod.Serialization;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 
 namespace Operation.HierarchyMethod.Nodes.Relations
@@ -48,23 +48,25 @@ namespace Operation.HierarchyMethod.Nodes.Relations
                 funcPipelineConfig = new NodeConfig.FuncPipelineConfig
                 {
                     FuncName = p.FuncName,
-                    ParameterKeys = JsonSerializer.Serialize(p.ParameterKeys),
-                    ResultKeys = JsonSerializer.Serialize(p.ResultKeys),
+                    // 序列化动作单源 = Plate.JsonMethod；选项=BCL 默认（保持既有链 JSON 形态逐字不变）。
+                    ParameterKeys = JsonSerializationService.Instance.Serialize(p.ParameterKeys, JsonSerializerFactory.BclDefault),
+                    ResultKeys = JsonSerializationService.Instance.Serialize(p.ResultKeys, JsonSerializerFactory.BclDefault),
                 },
                 nextNodeConfig = new NodeConfig.NextNodeConfig
                 {
                     HandleNextNodeRun = true,
                     NextNodeKey = nextNodeKey,
-                    MapKeyConfig = p.InputMapping is null ? string.Empty : JsonSerializer.Serialize(p.InputMapping),
+                    MapKeyConfig = p.InputMapping is null ? string.Empty : JsonSerializationService.Instance.Serialize(p.InputMapping, JsonSerializerFactory.BclDefault),
                 },
                 addNodeConfig = new NodeConfig.AddNodeConfig
                 {
-                    AddParameters = p.OutputMapping is null ? string.Empty : JsonSerializer.Serialize(p.OutputMapping),
+                    AddParameters = p.OutputMapping is null ? string.Empty : JsonSerializationService.Instance.Serialize(p.OutputMapping, JsonSerializerFactory.BclDefault),
                 },
             };
         }
 
         /// <summary>产出一份等价 <see cref="NodeConfig"/> 链的 JSON（交给 NodeChainService.CreateChain 建链的集成点）。</summary>
-        public static string ToJson(RoundSpec spec) => JsonSerializer.Serialize(MapToChain(spec));
+        public static string ToJson(RoundSpec spec)
+            => JsonSerializationService.Instance.Serialize(MapToChain(spec), JsonSerializerFactory.BclDefault);
     }
 }

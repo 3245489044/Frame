@@ -74,6 +74,20 @@ public sealed class NodeSpecValidator
         return new NodeSpecValidationReport(violations);
     }
 
+    /// <summary>
+    /// 链判据（<b>无载体依赖的纯静态入口</b>）：供语言级 / 编译器（宿主）复用同一算法，治 P19「校验双实现」。
+    /// 语义与实例 <c>ValidateChains(chains, requireEntry, requireExit)</c> 一致，但不经载体注册表、不写诊断。
+    /// </summary>
+    public static NodeSpecValidationReport ValidateChainDocuments(
+        IReadOnlyList<NodeChainDocument> chains,
+        bool requireEntry = true,
+        bool requireExit = true)
+    {
+        var violations = new List<NodeSpecViolation>();
+        ValidateChains(chains, violations, requireEntry, requireExit);
+        return new NodeSpecValidationReport(violations);
+    }
+
     private void Report(IReadOnlyList<NodeSpecViolation> violations)
     {
         foreach (var violation in violations)

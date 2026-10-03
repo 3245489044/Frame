@@ -476,6 +476,45 @@ if (-not ($cs30Circuit -and $cs30Wired -and $cs30Judge -and $cs30SingleDecision)
     $violations.Add('[CS30] cline 端点裁决子电路缺失或回退（ClineEndpointBranchCircuit / ClineAgentExecutor 接线 / 判定键 / 单裁决 任一不符）')
 }
 
+# ---------- CS31 cline 上下文粒度子电路在册（正对照，CL5） ----------
+# CL5：上下文粒度（node/task/history）分派从 ClineExecutorFunction 内联 if 提升为粒度 Switch 真分派
+# （选择键 = 端口 contextScope）；三路 = ctx#node / ctx#task / ctx#history；执行经框架唯一编译入口 + CircuitEngine。
+# 负对照：ClineExecutorFunction 不再内联 provider.BuildForScopeAsync(scope.Value, ...)（粒度分派收进电路）。
+# 缺失 = 「声明有、执行无」假支持（与 CS23–CS30 同族正对照）。
+$clineContextCircuitFile = Join-Path $clineSrcDir 'Circuit\ClineContextBranchCircuit.cs'
+$cs31Circuit = (Test-Path $clineContextCircuitFile) -and
+    ((Get-Content -LiteralPath $clineContextCircuitFile -Raw -Encoding UTF8) -match 'CircuitSwitchSpec') -and
+    ((Get-Content -LiteralPath $clineContextCircuitFile -Raw -Encoding UTF8) -match 'CompiledRecipeRegistry')
+$cs31Wired = (Test-Path $clineExecutorFile) -and
+    ((Get-Content -LiteralPath $clineExecutorFile -Raw -Encoding UTF8) -match 'ClineContextBranchCircuit\.RunAsync')
+$cs31Judge = (Test-Path $clineContextCircuitFile) -and
+    ((Get-Content -LiteralPath $clineContextCircuitFile -Raw -Encoding UTF8) -match 'ContextScopePort')
+$cs31SingleDecision = (Test-Path $clineExecutorFile) -and
+    (-not ((Get-Content -LiteralPath $clineExecutorFile -Raw -Encoding UTF8) -match 'BuildForScopeAsync\(scope\.Value'))
+Write-Host ("  CS31 cline 上下文粒度子电路在册（正对照：子电路={0} / 接线={1} / 判定键={2} / 单分派={3}）：须均为 True" -f $cs31Circuit, $cs31Wired, $cs31Judge, $cs31SingleDecision) -ForegroundColor Gray
+if (-not ($cs31Circuit -and $cs31Wired -and $cs31Judge -and $cs31SingleDecision))
+{
+    $violations.Add('[CS31] cline 上下文粒度子电路缺失或回退（ClineContextBranchCircuit / ClineExecutorFunction 接线 / 判定键 / 单分派 任一不符）')
+}
+
+# ---------- CS32 会话三链调用声明在册 + 被消费（正对照，P3/M4 声明-执行同源前置） ----------
+# 三链（写/读/轮内）调用声明面在册（SessionCallChainCatalog 三链 id）；**被消费** = Agent.Launcher.Tests 锁定测试
+# （CountErrors()==0 → 声明为合法电路；ProjectAll 三链齐备）—— 防"死声明"（声明有、无人验 ⇒ 与执行漂移不可见）。
+# 缺失 = 「声明有、校验无」假支持（与 CS23–CS31 同族正对照）。
+$sccFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\SessionCallChainCatalog.cs'
+$sccTestFile = Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\SessionCallChainCatalogTests.cs'
+$cs32Declared = (Test-Path $sccFile) -and
+    ((Get-Content -LiteralPath $sccFile -Raw -Encoding UTF8) -match 'session_send_write_chain') -and
+    ((Get-Content -LiteralPath $sccFile -Raw -Encoding UTF8) -match 'conversation_read_chain') -and
+    ((Get-Content -LiteralPath $sccFile -Raw -Encoding UTF8) -match 'round_execution_chain')
+$cs32Consumed = (Test-Path $sccTestFile) -and
+    ((Get-Content -LiteralPath $sccTestFile -Raw -Encoding UTF8) -match 'CountErrors')
+Write-Host ("  CS32 会话三链调用声明在册+被消费（正对照：三链声明={0} / 锁定测试={1}）：须均为 True" -f $cs32Declared, $cs32Consumed) -ForegroundColor Gray
+if (-not ($cs32Declared -and $cs32Consumed))
+{
+    $violations.Add('[CS32] 会话三链调用声明缺失或未被消费（SessionCallChainCatalog 写/读/轮内三链 / Agent.Launcher.Tests 锁定测试 任一不符）')
+}
+
 # ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------
 $agentLoopsDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'
 if (Test-Path $agentLoopsDir)

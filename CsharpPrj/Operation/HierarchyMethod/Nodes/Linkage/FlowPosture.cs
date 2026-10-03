@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
 
@@ -25,6 +26,13 @@ public sealed class FlowPosture
     /// <summary>迁移期姿态：流入口缺失 ⇒ 允许直调回退（回退计数可见化）；流入口存在时不回退。</summary>
     public static readonly FlowPosture AllowLegacyFallback = new(FlowPostureKind.AllowLegacyFallback);
 
+    /// <summary>
+    /// 缩减切片姿态：端口缺失 = **有意不参与**（合法、预期）⇒ 静默返回 <see cref="FlowOutcome.NotApplicable"/>，
+    /// **不发诊断**。治「缩减切片每步误报 <c>flow_entry_missing</c>」—— 与真缺失（<see cref="AllowLegacyFallback"/> /
+    /// <see cref="RequireFlow"/>）在装配期一处选定区分。
+    /// </summary>
+    public static readonly FlowPosture Reduced = new(FlowPostureKind.Reduced);
+
     /// <param name="kind">姿态种类（装配期一处选定）。</param>
     public FlowPosture(FlowPostureKind kind) => Kind = kind;
 
@@ -33,6 +41,9 @@ public sealed class FlowPosture
 
     /// <summary>是否允许回退直调（仅在流入口缺失时生效）。</summary>
     public bool AllowsFallback => Kind == FlowPostureKind.AllowLegacyFallback;
+
+    /// <summary>是否缩减切片姿态（端口缺失 = 有意不参与，静默不报）。</summary>
+    public bool IsReduced => Kind == FlowPostureKind.Reduced;
 
     /// <summary>
     /// 驱动一次簿记转换：优先流；流入口缺失时按姿态裁决（回退 / 拒绝），结果与归因单一回报。
@@ -54,6 +65,9 @@ public sealed class FlowPosture
             await flow().ConfigureAwait(false);
             return FlowOutcome.Committed();
         }
+
+        if (IsReduced)
+            return FlowOutcome.NotApplicable($"{context}：本切片不参与（姿态={Kind}）");
 
         if (AllowsFallback && legacy is not null)
         {
@@ -91,6 +105,9 @@ public sealed class FlowPosture
             return FlowOutcome.Failed($"{context}：簿记流返回 false（未装配执行器或流失败）");
         }
 
+        if (IsReduced)
+            return FlowOutcome.NotApplicable($"{context}：本切片不参与（姿态={Kind}）");
+
         if (AllowsFallback && legacy is not null)
         {
             diagnostics?.Report(DiagnosticsCodes.FlowFallback, Merge(context, payload));
@@ -101,6 +118,37 @@ public sealed class FlowPosture
         diagnostics?.Report(DiagnosticsCodes.FlowMissing, Merge(context, payload));
         return FlowOutcome.Missing($"{context}：簿记流入口未装配（姿态={Kind}）");
     }
+
+    // ===== 端口感知重载（M2 收拢）：把「flow is null ? null : () => flow.XxxAsync(...)」收进姿态，
+    //      调用点零判空（不再手写 `_xxxFlow is null`），缺失处置口径单源。=====
+
+    /// <summary>驱动一次归属边转换（<see cref="INodeAttributionFlow.AttachAsync"/> 形态）。</summary>
+    public Task<FlowOutcome> RunAsync(
+        INodeAttributionFlow? flow, string taskKey, string workflowId, string nodeKey,
+        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
+        => RunAsync(flow is null ? null : () => flow.AttachAsync(taskKey, workflowId, nodeKey, ct),
+            legacy: null, diagnostics, context, payload);
+
+    /// <summary>驱动一次任务供给转换（<see cref="ITaskProvisionFlow.ProvisionAsync"/> 形态，带结论）。</summary>
+    public Task<FlowOutcome> RunAsync(
+        ITaskProvisionFlow? flow, string? historyId, string? historyName, string taskKey,
+        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
+        => RunAsync(flow is null ? null : () => flow.ProvisionAsync(historyId, historyName, taskKey, ct),
+            legacy: null, diagnostics, context, payload);
+
+    /// <summary>驱动一次轮末沉淀转换（<see cref="IRoundAttributionFlow.SettleRoundAsync"/> 形态）。</summary>
+    public Task<FlowOutcome> RunAsync(
+        IRoundAttributionFlow? flow, RoundAttributionRequest request,
+        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
+        => RunAsync(flow is null ? null : async () => { await flow.SettleRoundAsync(request, ct).ConfigureAwait(false); },
+            legacy: null, diagnostics, context, payload);
+
+    /// <summary>驱动一次产出物化转换（<see cref="IProductionsFlow.AcceptAndMaterializeAsync"/> 形态）。</summary>
+    public Task<FlowOutcome> RunAsync(
+        IProductionsFlow? flow, ProductionsRequest request,
+        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
+        => RunAsync(flow is null ? null : async () => { await flow.AcceptAndMaterializeAsync(request, ct).ConfigureAwait(false); },
+            legacy: null, diagnostics, context, payload);
 
     private static object Merge(string context, object? payload)
         => payload is null ? new { context } : new { context, payload };
@@ -114,4 +162,7 @@ public enum FlowPostureKind
 
     /// <summary>收口后：禁直调回退，流入口缺失即返回 <see cref="FlowOutcome.Missing"/>。</summary>
     RequireFlow = 1,
+
+    /// <summary>缩减切片：端口缺失 = 有意不参与 ⇒ 静默返回 <see cref="FlowOutcome.NotApplicable"/>，不发诊断。</summary>
+    Reduced = 2,
 }

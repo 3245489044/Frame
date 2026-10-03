@@ -53,15 +53,12 @@
     #     下一次口径重构应改为按 `legacy:` 委托实质计数（届时本表可清零）。
     FlowFallbackBaselines = @{
         Value = @{
-            'HistoryProjector.cs'         = 2
-            'NodeTaskHistoryService.cs'   = 2
-            'NodeStepExecutionService.cs' = 1
-            'SyncRelationsBlock.cs'       = 2
-            'HierarchyManager.cs'         = 1
-            'TaskOrchestrator.cs'         = 2
+            # 降级态（轮末沉淀流缺位）逐点归属边回退：本轮仅剩此一处（属「路径选择」而非缺失处置），
+            # 待 A0 严格形态裁决（SyncRelationsBlock 逐点回退退役 ⇒ 轮末沉淀流为唯一归属边 owner）后清零。
+            'SyncRelationsBlock.cs' = 1
         }
         Origin  = 'Debt'
-        DueWhen = '口径重构为按 legacy: 委托实质计数后清零本表'
+        DueWhen = 'A0 严格形态裁决（SyncRelationsBlock 降级态逐点回退退役）后清零本表'
     }
 
     # D4 簿记流模板：数据表行数下限（BookkeepingFlowCatalog 登记行）
@@ -115,5 +112,14 @@
         Value   = 1
         Origin  = 'Debt'
         DueWhen = 'S5 组装归流落地（context-projection 声明流）后 → 0（销账后本行删除）'
+    }
+
+    # D11 运行期本地流 msgId 上限（统一 DiagnosticsCodes + context；目标 0）。
+    #     运行期「缺失 / 失败」可见化一律经 DiagnosticsCodes.FlowMissing/FlowFailed + context 标签；
+    #     装配期可见化（*_unavailable）与模板基类（BookkeepingFlow_runner_missing）不入本判据面。
+    LocalFlowMsgIdMax = @{
+        Value   = 0
+        Origin  = 'Debt'
+        DueWhen = '保持归零（拦存在即可）：禁各调用点自造运行期流诊断 msgId'
     }
 }

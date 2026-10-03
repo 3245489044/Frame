@@ -77,13 +77,9 @@ public sealed class HistoryProjector : IHistoryProjector
             // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调回退 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
             var node = rec.NodeKey;
             var outcome = await _posture.RunAsync(
-                flow: _attributionFlow is null
-                    ? null
-                    : () => _attributionFlow.AttachAsync(taskKey, workflowId, node, ct),
-                legacy: null,
-                diagnostics: _diagnostics,
-                context: "HistoryProjector_attribution",
-                payload: new { taskKey, workflowId, nodeKey = node }).ConfigureAwait(false);
+                _attributionFlow, taskKey, workflowId, node,
+                _diagnostics, "HistoryProjector_attribution",
+                new { taskKey, workflowId, nodeKey = node }, ct).ConfigureAwait(false);
             if (!outcome.Ok) break; // 收口姿态下缺入口 ⇒ 停止挂边（禁向无名端点散落）
         }
     }
@@ -124,13 +120,9 @@ public sealed class HistoryProjector : IHistoryProjector
     private async Task<bool> ProvisionAsync(string historyId, string taskKey, CancellationToken ct)
     {
         var outcome = await _posture.RunAsync(
-            flow: _taskProvisionFlow is null
-                ? null
-                : () => _taskProvisionFlow.ProvisionAsync(historyId, null, taskKey, ct),
-            legacy: null,
-            diagnostics: _diagnostics,
-            context: "HistoryProjector_provision",
-            payload: new { historyId, taskKey }).ConfigureAwait(false);
+            _taskProvisionFlow, historyId, null, taskKey,
+            _diagnostics, "HistoryProjector_provision",
+            new { historyId, taskKey }, ct).ConfigureAwait(false);
         return outcome.Ok;
     }
 }

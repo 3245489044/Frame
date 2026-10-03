@@ -56,6 +56,7 @@ $PostureRequireFlowRequired       = [bool]$b.PostureRequireFlowRequired.Value
 $PostureRequireFlowMin            = [int]$b.PostureRequireFlowMin.Value
 $ScanSurfaceMinHits               = [int]$b.ScanSurfaceMinHits.Value
 $ContextAssemblyComboBaseline     = [int]$b.ContextAssemblyComboBaseline.Value
+$LocalFlowMsgIdMax                = [int]$b.LocalFlowMsgIdMax.Value
 $violations = [System.Collections.Generic.List[string]]::new()
 
 $hmDir      = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod'
@@ -65,7 +66,7 @@ $workflows  = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $specCatalog= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs'
 
 $DiagCarrierPattern = 'Action<string,\s*object\?>'
-$FlowBranchPattern  = '_(taskProvisionFlow|attributionFlow)\s+(is\s+null|is\s+not\s+null)'
+$FlowBranchPattern  = '_(taskProvisionFlow|attributionFlow|roundAttributionFlow|productionsFlow)\s+(is\s+null|is\s+not\s+null)'
 $NamespacePattern   = 'NodeOutputKeys\s*\.\s*Normalize\s*\(|NodeKeys\s*\.\s*DefaultWorkflowId'
 $ParamImplPattern   = 'Parameters\.TryGetValue'
 
@@ -259,12 +260,30 @@ if ($comboFiles.Count -le 0) {
     $violations.Add('D10 正对照失效：读组装组合点扫描全 0（扫描面或模式失效？）')
 }
 
+# ---------------- D11 运行期本地流 msgId 单源（统一 DiagnosticsCodes + context） ----------------
+# 口径：簿记流「缺失 / 失败」的**运行期**可见化一律经 DiagnosticsCodes（flow_entry_missing / flow_run_failed）+
+#   context 标签承载站点，禁各调用点自造本地 msgId（口径漂移 + 检索对账面分裂）。
+#   装配期可见化（Composition_*_unavailable / ConversationHosting_*_unavailable）与模板基类
+#   （BookkeepingFlow_runner_missing）不在本判据面内（各为「装配一次 / 模板单源」）。
+$LocalFlowMsgIdPattern = 'NodeStepExecutionService_AttributionFlow_missing|TaskOrchestrator_(AttributionFlow|TaskProvisionFlow)_(missing|failed)|ConversationPipeline_(roundAttribution|productions)_unavailable|HierarchyManager_provision_failed'
+$localMsgCounts = Get-PatternFileCounts -Dirs @($hmDir, $agentSrc) -Pattern $LocalFlowMsgIdPattern
+$localMsgTotal = ($localMsgCounts.Values | Measure-Object -Sum).Sum
+if ($localMsgTotal -gt $LocalFlowMsgIdMax) {
+    $violations.Add("D11 运行期本地流 msgId 未收口：$localMsgTotal > 上限 $LocalFlowMsgIdMax（命中：$([string]::Join('、', @($localMsgCounts.Keys)))；统一走 DiagnosticsCodes + context）")
+}
+# 正对照：统一编码确实被消费（否则「收口」无承载）。
+$diagCodeRefs = Get-PatternFileCounts -Dirs @($hmDir) -Pattern 'DiagnosticsCodes\.FlowMissing|DiagnosticsCodes\.FlowFailed'
+if (($diagCodeRefs.Values | Measure-Object -Sum).Sum -le 0) {
+    $violations.Add('D11 正对照失效：DiagnosticsCodes.FlowMissing/FlowFailed 无使用点（收口无承载？）')
+}
+$totalHits += $localMsgTotal
+
 # ---------------- 输出 ----------------
 if ($ShowDetail -or $violations.Count -gt 0) {
     Write-Host ""
-    Write-Host ("  D1 诊断载体文件 {0} · D2 回退分支 {1} · D3 命名空间取值点 {2} · D4 簿记流行 {3} · D5 取参实现 {4} · D6 扫描面命中 {5} · D8 簿记流执行器构造点 {6} · D9 姿态(RequireFlow={7}/AllowLegacy={8})" -f `
+    Write-Host ("  D1 诊断载体文件 {0} · D2 回退分支 {1} · D3 命名空间取值点 {2} · D4 簿记流行 {3} · D5 取参实现 {4} · D6 扫描面命中 {5} · D8 簿记流执行器构造点 {6} · D9 姿态(RequireFlow={7}/AllowLegacy={8}) · D11 本地流 msgId {9}" -f `
         $diagCounts.Count, ($flowCounts.Values | Measure-Object -Sum).Sum, ($nsCounts.Values | Measure-Object -Sum).Sum,
-        $rows.Count, $paramTotal, $totalHits, $runnerTotal, $requireFlowCount, $allowFallbackCount) -ForegroundColor Gray
+        $rows.Count, $paramTotal, $totalHits, $runnerTotal, $requireFlowCount, $allowFallbackCount, $localMsgTotal) -ForegroundColor Gray
 }
 
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'AgentFrameworkSingleSource'

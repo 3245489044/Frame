@@ -45,6 +45,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private readonly NodeRelationGateway? _relationGateway;
         // 归属边簿记流入口（R1）：task→node（cross_db_link）的唯一编排触发点；null ⇒ 迁移期直调回退（见字段声明处退役条件）。
         private readonly Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
+        // 缺失处置姿态（装配期一处选定，M2 单一 owner）：端口缺失时按姿态裁决（Reduced 静默 / 其余诊断可见化），调用点零判空。
+        private readonly Operation.HierarchyMethod.Nodes.Linkage.FlowPosture _posture;
         private readonly string _workflowId;
         // 阶段二：函数调用端口（解耦 WorkFlowMethod/WorkflowContext 直调；默认 canonical 兜底，行为与旧直调一致）。
         private readonly INodeFunctionInvoker _functionInvoker;
@@ -70,7 +72,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             WriteCoordinator? writeCoordinator = null,
             bool unifiedStateWrite = false,
             IDiagnosticsSink? diagnostics = null,
-            Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null)
+            Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
+            Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? posture = null)
         {
             _store = store;
             // R4 读源收敛：task 作用域单一读源视图（NodeReadView），见 EnumerateInputOutputsAsync——本方法经 ReadView 枚举，
@@ -83,6 +86,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // 引用写（权威边 + task 归属边）直连 Reference 门面 NodeRelationGateway；未装配守卫 → null（引用写 no-op）
             _relationGateway = grounding is null ? null : new NodeRelationGateway(grounding, store: null);
             _attributionFlow = attributionFlow;
+            _posture = posture ?? Operation.HierarchyMethod.Nodes.Linkage.FlowPosture.AllowLegacyFallback;
             _workflowId = workflowId;
             _functionInvoker = functionInvoker ?? new WorkflowMethodFunctionInvoker(workflowId); // R2 canonical：Center 唯一实现
             // R3：写门缺省自建单实例（同步路径与 Outbox 后台共享本服务实例 → 同门串行）；组合根可注入共享实例并注册 AssertSingleWriter。
@@ -460,24 +464,14 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
             // ③ task 归属边（cross_db_link）：R1 归流 —— 经**归属边簿记流入口**触发（编排真源 =
             //    Config/workflows/attribution.ushar 的 [Flow] NodeAttribution；本处只是唯一触发点，不持编排）。
-            //    B2 续：迁移期直调回退支已删 ⇒ 未装配入口即丢边，故必须经诊断可见化（禁静默）。
+            //    M2 收拢：缺失处置由**姿态**单源裁决（缩减切片 = 有意不参与，静默；真缺失经 FlowMissing 可见化），
+            //    调用点零判空、零本地诊断键（统一 DiagnosticsCodes.FlowMissing + context）。
             if (!string.IsNullOrWhiteSpace(taskKey))
             {
-                if (_attributionFlow is not null)
-                {
-                    await _attributionFlow.AttachAsync(taskKey!, _workflowId, node.NodeKey, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    _diagnostics?.Report("NodeStepExecutionService_AttributionFlow_missing", new
-                    {
-                        taskKey,
-                        workflowId = _workflowId,
-                        nodeKey = node.NodeKey,
-                        code = DiagnosticsCodes.FlowMissing,
-                        reason = "INodeAttributionFlow 未装配：task→node 归属边未写（B2 续已删回退直调）",
-                    });
-                }
+                await _posture.RunAsync(
+                    _attributionFlow, taskKey!, _workflowId, node.NodeKey,
+                    _diagnostics, "NodeStepExecutionService_attribution",
+                    new { taskKey, workflowId = _workflowId, nodeKey = node.NodeKey }).ConfigureAwait(false);
             }
             // taskKey 缺失 = 合法 no-op（与写边守卫口径一致），非失败。
         }
@@ -492,9 +486,32 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // 按 ResultKeys 整对象定向全写，消除「ResultKeys 与返回类型属性名不一致 → 结果键静默丢失」的反射错配。
             if (NodeResultExtractor.HasSpecialized(result.GetType()))
                 return NodeResultExtractor.ExtractResultKeys(node.ResultKeys, result);
-            foreach (var p in result.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+
+            var type = result.GetType();
+            // 标量结果（无「端口形态属性」可枚举）：仅当节点恰声明**一个**出端口时按该端口定名。
+            // 不落到下面的公开属性反射 —— `string` 的公开属性只有 `Length` / `Chars`，而 `Chars` 是索引器，
+            // `GetValue` 必抛 TargetParameterCountException（"Parameter count mismatch."）⇒ 整步失败、端口全丢。
+            if (IsScalarResult(type))
+            {
+                if (node.ResultKeys.Count == 1) props[node.ResultKeys[0]] = result;
+                return props;
+            }
+
+            foreach (var p in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                // 索引器属性（string.Chars / IList<T>.Item / IDictionary<,>.Item 等）没有零参 getter：
+                // 枚举到它必抛（同上一类缺陷），故跳过 —— 端口形态只认可命名的零参属性。
+                if (p.GetIndexParameters().Length > 0) continue;
                 props[p.Name] = p.GetValue(result);
+            }
+
             return props;
         }
+
+        /// <summary>标量/值类型结果判定（端口形态约定之外：无可命名的公开端口属性）。</summary>
+        private static bool IsScalarResult(Type type)
+            => type.IsPrimitive || type.IsEnum
+               || type == typeof(string) || type == typeof(decimal)
+               || type == typeof(DateTime) || type == typeof(DateTimeOffset) || type == typeof(Guid);
     }
 }

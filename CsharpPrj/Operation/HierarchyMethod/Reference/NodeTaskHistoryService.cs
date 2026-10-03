@@ -100,13 +100,9 @@ public sealed class NodeTaskHistoryService
         // R2 归流：编排真源 = task-provision.ushar 的 [Flow] TaskProvision（本处只是唯一触发点，不持顺序）。
         // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
         await _posture.RunAsync(
-            flow: _taskProvisionFlow is null
-                ? null
-                : () => _taskProvisionFlow.ProvisionAsync(hid, hid, hid, ct),
-            legacy: null,
-            diagnostics: _diagnostics,
-            context: "NodeTaskHistoryService_provision",
-            payload: new { historyId = hid, taskKey }).ConfigureAwait(false);
+            _taskProvisionFlow, hid, hid, hid,
+            _diagnostics, "NodeTaskHistoryService_provision",
+            new { historyId = hid, taskKey }, ct).ConfigureAwait(false);
     }
 
     /// <summary>缺省容器 Id 重载（historyId == taskKey）：等价 <c>EnsureTaskHistoryBoundAsync(null, taskKey, ct)</c>。</summary>
@@ -127,13 +123,9 @@ public sealed class NodeTaskHistoryService
         // R1 归流：经**归属边簿记流入口**触发（编排真源 = attribution.ushar 的 [Flow] NodeAttribution）；
         // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
         await _posture.RunAsync(
-            flow: _attributionFlow is null
-                ? null
-                : () => _attributionFlow.AttachAsync(taskKey.Trim(), workflowId, nodeKey, ct),
-            legacy: null,
-            diagnostics: _diagnostics,
-            context: "NodeTaskHistoryService_attribution",
-            payload: new { taskKey, workflowId, nodeKey }).ConfigureAwait(false);
+            _attributionFlow, taskKey.Trim(), workflowId, nodeKey,
+            _diagnostics, "NodeTaskHistoryService_attribution",
+            new { taskKey, workflowId, nodeKey }, ct).ConfigureAwait(false);
     }
 
     /// <summary>

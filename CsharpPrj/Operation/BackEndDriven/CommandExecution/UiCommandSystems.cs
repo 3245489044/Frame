@@ -53,12 +53,20 @@ public class DiscoverSystem : CommandSystemBase
 public class AssertSystem : CommandSystemBase
 {
     private readonly FrameworkAbstractions.WinFormsAbstractions.IControlFinder? _controlFinder;
+    private readonly FrameworkAbstractions.WinFormsAbstractions.IEcsStateAccessor? _stateAccessor;
 
     public AssertSystem(EntityManager entityManager)
         : base(entityManager, "assert")
     {
         _controlFinder = AppServiceProvider.Resolve<FrameworkAbstractions.WinFormsAbstractions.IControlFinder>();
+        // 断言读源与 get 同口径：经状态访问器（ECS 写入值）读取——htmlviewer/markdownviewer 的内容不在 Control.Text（值契约只写 SetHtml/SetMarkdown），
+        // 只读物理 Text 会把 HTML 承载控件断言成静态占位符（假红）。
+        _stateAccessor = AppServiceProvider.Resolve<FrameworkAbstractions.WinFormsAbstractions.IEcsStateAccessor>();
     }
+
+    /// <summary>断言读源：状态值优先（与 get 同口径；HTML 承载控件内容在此）→ 物理 Control.Text 兜底（无状态实体/未渲染控件）。</summary>
+    private string? ReadControlValue(Control ctl, string controlName)
+        => _stateAccessor?.GetValue(controlName) ?? ctl.Text;
 
     public override void Execute(Entity entity, CommandMetaComponent meta)
     {
@@ -187,9 +195,10 @@ public class AssertSystem : CommandSystemBase
             return;
         }
 
-        if (!string.IsNullOrEmpty(ctl.Text))
+        var actual = ReadControlValue(ctl, controlName) ?? string.Empty;
+        if (!string.IsNullOrEmpty(actual))
         {
-            SetFailure(entity, $"assert-text-empty: 控件 '{controlName}' 文本非空 — 实际 '{ctl.Text}'");
+            SetFailure(entity, $"assert-text-empty: 控件 '{controlName}' 文本非空 — 实际 '{actual}'");
             return;
         }
 
@@ -230,7 +239,7 @@ public class AssertSystem : CommandSystemBase
             return;
         }
 
-        var actual = ctl.Text ?? string.Empty;
+        var actual = ReadControlValue(ctl, controlName) ?? string.Empty;
         if (actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) < 0)
         {
             // 控件文本可能达数 KB（会话历史 HTML 含 L0 提示词）：日志/失败消息只带截断副本，判定仍用全文。

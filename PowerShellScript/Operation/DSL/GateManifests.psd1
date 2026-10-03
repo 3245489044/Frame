@@ -132,7 +132,7 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1'
         Expect = 0
-        Note   = '四个横切关注点框架单源 D1–D10：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）；基线单源 = Baselines\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
+        Note   = '四个横切关注点框架单源 D1–D11：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）/ 运行期本地流 msgId 单源（D11：统一 DiagnosticsCodes + context）；基线单源 = Baselines\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
     }
 
     ClinerulesReferences = @{

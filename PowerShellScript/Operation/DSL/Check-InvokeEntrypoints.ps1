@@ -30,6 +30,7 @@ $entryScripts = @(
     'Test-JsonFiles.ps1'
     'Invoke-GateCheck.ps1'
     'Invoke-Regression.ps1'
+    'Locate-Test.ps1'
 )
 foreach ($script in $entryScripts) {
     $path = Join-Path $invokeDir $script

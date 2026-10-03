@@ -4,8 +4,10 @@ using System.Linq;
 using Modules.Node.Spec;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.ReferenceSchema;
+using Operation.HierarchyMethod.Nodes.Circuit;
 using Operation.HierarchyMethod.Nodes.Execution;
 using Operation.HierarchyMethod.Nodes.Workflows;
+using Share.CircuitFramework.Compiler;
 using UniversalWorkflowFramework.Core;
 
 namespace Operation.HierarchyMethod.Nodes.Relations;
@@ -102,7 +104,31 @@ public static class WorkflowCompiler
         else
             CheckPortTypes(result, spec, keys, registry);
 
+        // ⑥ 框架结构权威可见化（P3 收敛）：见 CheckCircuitStructure。
+        CheckCircuitStructure(result, spec);
+
         return result;
+    }
+
+    /// <summary>
+    /// 框架结构权威（P3 收敛）：RoundSpec → 配方（<see cref="RoundFlowSpecMapper"/>）→ 框架唯一编译入口
+    /// <see cref="CircuitCompiler.TryCompile"/>；结构性判红（产物唯一 / 缺失产物 / 环 / 拓扑 / 端口）以**告警**叠加可见化 ——
+    /// 不改本结果**参考域** Error 契约（执行期由框架 <c>RoundFlowCircuitRegistry</c> 以 failFast 强判；本处仅静态对账）。
+    /// 投影/编译异常按告警可见化（best-effort，不抛）。
+    /// </summary>
+    private static void CheckCircuitStructure(WorkflowCompileResult result, RoundSpec spec)
+    {
+        try
+        {
+            var recipe = RoundFlowSpecMapper.MapToRecipe(spec);
+            if (CircuitCompiler.TryCompile(recipe, out _, out var diagnostics)) return;
+            foreach (var d in diagnostics)
+                result.AddWarning($"[电路结构 {d.Code}] {d.Message}");
+        }
+        catch (Exception ex)
+        {
+            result.AddWarning($"电路结构投影未完成（{ex.Message}）。");
+        }
     }
 
     /// <summary>

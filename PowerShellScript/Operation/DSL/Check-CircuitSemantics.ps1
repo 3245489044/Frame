@@ -20,6 +20,8 @@
         （唯一入口 = 框架 CircuitCompiler.TryCompile / Compile(spec)）。
     CS7 Agent.Core 禁桩件体（负对照）：接入面内禁 模拟/stub/NotImplemented/TODO（演示件冒充真实接线）。
     CS8 Agent.Core 缓存键内容指纹（正对照）：RoundFlowCircuitRegistry 须含 Fingerprint（同名不同内容不得复用陈旧电路）。
+    CS33 电路接入面下沉在册（正对照 + 负对照，P1/P2）：Operation.HierarchyMethod\Nodes\Circuit 具投影/缓存/步骤/后端四件
+        ∧ HierarchyMethod.csproj 引用 Proj_CircuitFramework（正对照）；Agent.Core\Nodes\Circuit 内禁残留已下沉件（负对照）。
     CS9 Agent.Core 编排动作分派配方化（负对照 + 正对照）：TaskOrchestrator 内禁手写 op 分派
         （switch(operation.Op) = 0 且「执行体无对应分支」漂移兜底 = 0；Kind 解析唯一来源 = 框架 CircuitNodeResolver）；
         CS9-d 正对照 = 配方驱动在册（CircuitAssemblyRunner.RunAsync ≥ 1 且 new RecipeBuilder( ≥ 1）。
@@ -276,6 +278,26 @@ if (Test-Path $agentCoreCircuitDir)
 else
 {
     Write-Host "  CS6/CS7/CS8 路径缺失（Agent.Core\Nodes\Circuit 未找到）：跳过" -ForegroundColor DarkGray
+}
+
+# ---------- CS33 电路接入面下沉在册（正对照 + 负对照，P1/P2） ----------
+# 正对照：HierarchyMethod\Nodes\Circuit 具投影/缓存/步骤/后端四件 ∧ HierarchyMethod.csproj 引用 Proj_CircuitFramework。
+# 负对照：Agent.Core\Nodes\Circuit 内不得再残留已下沉件（防「下沉后又长回」。Agent 侧仅留宿主语义胶水/契约文档）。
+$hmCircuitDir = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit'
+$hmCsproj = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\HierarchyMethod.csproj'
+$cs33Files = @('RoundFlowSpecMapper.cs', 'RoundFlowCircuitRegistry.cs', 'RoundStepCircuitNode.cs', 'RoundCircuitBackend.cs')
+$cs33Present = @($cs33Files | Where-Object { Test-Path (Join-Path $hmCircuitDir $_) }).Count
+$cs33Ref = (Test-Path $hmCsproj) -and ((Get-Content -LiteralPath $hmCsproj -Raw -Encoding UTF8) -match 'Proj_CircuitFramework')
+$cs33Stray = 0
+if (Test-Path $agentCoreCircuitDir)
+{
+    $cs33Stray = @(Get-ChildItem -Path $agentCoreCircuitDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+        Where-Object { $cs33Files -contains $_.Name }).Count
+}
+Write-Host ("  CS33 电路接入面下沉在册（正对照：Nodes\Circuit 件数={0}/4 ∧ csproj 引用={1}；负对照：Agent.Core 残留={2}）" -f $cs33Present, $cs33Ref, $cs33Stray) -ForegroundColor Gray
+if ($cs33Present -lt 4 -or -not $cs33Ref -or $cs33Stray -gt 0)
+{
+    $violations.Add("[CS33] 电路接入面下沉未在册（Nodes\Circuit 件数 $cs33Present/4 / csproj 引用 $cs33Ref / Agent.Core 残留 $cs33Stray）：RoundSpec→CircuitRecipeSpec 投影/缓存/后端须下沉 Operation.HierarchyMethod\Nodes\Circuit")
 }
 
 # ---------- CS9 编排动作分派配方化（负对照：禁手写 op 分派；正对照：配方驱动在册） ----------

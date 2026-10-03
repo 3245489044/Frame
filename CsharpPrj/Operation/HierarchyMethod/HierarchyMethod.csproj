@@ -13,7 +13,7 @@
     <ModuleRule_Rule Include="写边原语唯一收敛 DataStoreDriven.ReferenceGraphCoordinator，编排只编排不复制写边（SingleImplementation / TH-12）" />
     <ModuleRule_Rule Include="未装配端口/关系库返回空集/诊断（UnavailableDiagnostics），不消耗 AI 额度、不阻断 DB-only 路径" />
     <ModuleRule_Rule Include="层次结构外置：层数/层名/包含关系由 Modules.DeclarativeDataflow 的 HierarchySchema 声明（Hierarchy/Dataflow/HierarchySchemas），遍历/护栏/子结论收敛复用它，不硬编码层遍历" />
-    <ModuleRule_Rule Include="电路接入面唯一收敛（P1）：RoundSpec 中立原语 → CircuitRecipeSpec 投影/缓存/步骤节点下沉 Nodes\Circuit（RoundFlowSpecMapper / RoundFlowCircuitRegistry / RoundStepCircuitNode），全消费方共享唯一函数调用链（唯一编译入口 = CircuitCompiler.TryCompile）；RoundSpec 字段保持中立（不得写入框架类型），宿主语义胶水（AgentLog 等）留上层" />
+    <ModuleRule_Rule Include="电路接入面唯一收敛（P1/P2）：RoundSpec 中立原语 → CircuitRecipeSpec 投影/缓存/步骤节点/电路后端下沉 Nodes\Circuit（RoundFlowSpecMapper / RoundFlowCircuitRegistry / RoundStepCircuitNode / RoundCircuitBackend），全消费方共享唯一函数调用链（唯一编译入口 = CircuitCompiler.TryCompile）；RoundSpec 字段保持中立（不得写入框架类型），宿主语义（日志等）经 IDiagnosticsSink 端口注入（框架零 Agent 依赖）" />
   </ItemGroup>
 
   <PropertyGroup>

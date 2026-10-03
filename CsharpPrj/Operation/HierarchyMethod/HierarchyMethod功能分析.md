@@ -244,10 +244,11 @@ HierarchyMethod/
 │   │                                   WorkflowReferenceStaticizer
 │   ├── TaskGraph/                      TaskGraphService / TaskGraphTaskSpec /
 │   │                                   ITaskGraphTaskStore
-│   ├── Circuit/                        电路接入面（P1 下沉，全消费方唯一函数调用链）：
+│   ├── Circuit/                        电路接入面（P1/P2 下沉，全消费方唯一函数调用链）：
 │   │                                     RoundFlowSpecMapper（RoundSpec → CircuitRecipeSpec 投影）
 │   │                                     RoundFlowCircuitRegistry（内容指纹缓存 + 唯一编译入口）
 │   │                                     RoundStepCircuitNode（步骤语义 → ICircuitNode 黑盒体）
+│   │                                     RoundCircuitBackend（IRoundExecutionBackend 电路后端）
 │   └── Workflows/                      RoundSpec / BindingSpec
 ├── Tasks/
 │   ├── TaskRecord.cs                   纯任务簿记实体

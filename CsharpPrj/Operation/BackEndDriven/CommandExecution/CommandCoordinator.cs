@@ -98,15 +98,30 @@ public class CommandSystemCoordinator
         }
     }
 
-    // 声明内等待豁免：sleep/wait 的 target 即脚本声明的等待毫秒数，等待本身不是卡。
-    // 扣除「声明时长 + 余量」后仍超阈才报慢/卡死——真卡死（远超声明仍未返回）依旧被捕获。
+    // 声明式等待豁免：sleep/wait 的 target = 脚本声明的等待毫秒数；exec 的命令级 timeout = 脚本声明的等待上界
+    // （如 Cline_PoolReady 等待外部服务就绪）。扣除「声明时长 + 余量」后仍超阈才报慢/卡死——
+    // 真卡死（远超声明仍未返回）依旧被捕获。
     private static readonly HashSet<string> DeclaredWaitActions = new(StringComparer.OrdinalIgnoreCase) { "sleep", "wait" };
     private const long DeclaredWaitMarginMs = 5_000;
 
     private static long DeclaredWaitGraceMs(CommandMetaComponent meta)
     {
-        if (meta.Action is null || !DeclaredWaitActions.Contains(meta.Action)) return 0;
-        return long.TryParse(meta.Target, out var ms) && ms > 0 ? ms + DeclaredWaitMarginMs : 0;
+        if (meta.Action is not null && DeclaredWaitActions.Contains(meta.Action)
+            && long.TryParse(meta.Target, out var ms) && ms > 0)
+        {
+            return ms + DeclaredWaitMarginMs;
+        }
+
+        // exec 命令级预算（timeout 元数据）= 脚本声明的等待上界：预算内不报慢/卡死（等待外部就绪语义规范化），
+        // 超出预算仍未返回仍报卡死（真卡死不遗漏）。
+        if (meta.Parameters is { } parameters
+            && parameters.TryGetValue("timeout", out var raw)
+            && long.TryParse(raw?.ToString(), out var budgetMs) && budgetMs > 0)
+        {
+            return budgetMs + DeclaredWaitMarginMs;
+        }
+
+        return 0;
     }
 
     /// <summary>共享监视器主循环：周期扫描仍在执行的命令，越过 SlowReport/HangReport 即即时上报（报告型，不打断执行）。</summary>

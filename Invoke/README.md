@@ -10,6 +10,7 @@
 | `Test-JsonFiles.ps1` | `PowerShellScript\Share\Validate\Test-JsonFiles.ps1` | JSON 批量校验 |
 | `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（件数以 `GateManifests.psd1` 为准） |
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
+| `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 
 ## 用法
 
@@ -71,6 +72,24 @@
 .\Invoke-Regression.ps1 -Test keys,node -Project 'Keys\.Tests|Node\.Tests'
 ```
 矩阵：`default`（6 项）/ `agent`（+3 项）/ `infra`（5 项）。`-Parallel` 需 PowerShell 7+（PS 5.1 自动回退串行）。
+
+### 定位（诊断相位 · 零运行）
+```powershell
+# 失败测试名 → 唯一工程（0 次试跑；诊断相位不产 pass/fail）
+.\Locate-Test.ps1 -Name ConversationPipelineTests
+
+# 声明式 caseId / suiteId 显示名
+.\Locate-Test.ps1 -Name 'signal-workflow-runner.run-round-async-without-spec-leaves-nodes-empty'
+```
+索引源（唯一真源，不试跑）：`.specs` 的 `case <caseId>` 行 + `TestTargets.psd1` 别名表 + 各测试工程源码的 `class/record` 声明。
+未命中判 `undetermined`（≠「不存在」）。禁逐工程试跑定位（R1）。
+
+### 验证自证对齐（源码指纹 = 产物指纹）
+`Invoke-Regression.ps1` 会在验证前打印 `[ALIGN]` 证据行，并前置断言「源码内容指纹 = 产物(dll)内容指纹」：
+- `state=aligned`：产物与源码对齐；
+- `state=unverified`：首次运行（建立基线）；
+- `state=unaligned`：**产品源码已变但未重烘** ⇒ fail-fast 红「未对齐」（**不出「测试失败」**），修法 `dotnet build Frame\CsharpPrj\MainProj.sln`。
+可用 `Run-CSharpTests.ps1 -SkipAlignmentCheck` 跳过（仅在确认对齐由外部保证时）。
 
 ## 门禁清单契约（GateManifests.psd1）
 

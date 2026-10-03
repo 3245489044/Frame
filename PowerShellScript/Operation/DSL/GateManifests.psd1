@@ -247,6 +247,13 @@
     }
 
     # ===== 入口框架守卫 =====
+    AnalysisDocGrounding = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '分析文档根因对账（G5/R5）：opt-in（marker: grounding:tri-state）文档的「根因」章节内容行须三态标注（事实/建议/待核实）+ 反引号仓库相对路径 token 须在磁盘存在'
+    }
+
     InvokeEntrypoints = @{
         Args   = @{ Check = $true }
         Expect = 0

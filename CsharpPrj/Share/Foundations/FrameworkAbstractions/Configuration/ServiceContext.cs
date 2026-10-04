@@ -102,7 +102,7 @@ namespace Share.FrameworkAbstractions.Configuration
 
         public void SetData<T>(T value, string? key = null) where T : class
         {
-            ArgumentNullException.ThrowIfNull(value);
+            PortGuard.Required(value, nameof(value));
 
             var dataKey = key ?? typeof(T).Name;
             var oldValue = _store.TryGetValue(dataKey, out var existing) ? existing : null;
@@ -153,7 +153,7 @@ namespace Share.FrameworkAbstractions.Configuration
 
         public T GetOrAddService<T>(Func<T> factory) where T : class
         {
-            ArgumentNullException.ThrowIfNull(factory);
+            PortGuard.Required(factory, nameof(factory));
             return (T)_services.GetOrAdd(typeof(T), _ => factory()!);
         }
 

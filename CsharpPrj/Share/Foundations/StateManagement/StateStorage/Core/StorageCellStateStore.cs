@@ -24,7 +24,7 @@ namespace Share.StateManagement
         /// </summary>
         public StorageCellStateStore(IStorageCell cell, string? excludedKeyPrefix = null)
         {
-            _cell = cell ?? throw new ArgumentNullException(nameof(cell));
+            _cell = PortGuard.Required(cell, nameof(cell));
             _excludedKeyPrefix = excludedKeyPrefix;
         }
 
@@ -115,7 +115,7 @@ namespace Share.StateManagement
 
         public void SetRange(IEnumerable<KeyValuePair<string, string?>> values)
         {
-            ArgumentNullException.ThrowIfNull(values);
+            PortGuard.Required(values, nameof(values));
 
             foreach (var kvp in values)
             {

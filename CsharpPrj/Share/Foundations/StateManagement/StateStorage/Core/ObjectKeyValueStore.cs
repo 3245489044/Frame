@@ -20,8 +20,8 @@ namespace Share.StateManagement
         /// <param name="keyPrefix">键前缀（对象键 = 前缀 + key）；须与同 cell 的 StorageCellStateStore.excludedKeyPrefix 一致。</param>
         public ObjectKeyValueStore(IStorageCell cell, string keyPrefix)
         {
-            _cell = cell ?? throw new ArgumentNullException(nameof(cell));
-            _keyPrefix = keyPrefix ?? throw new ArgumentNullException(nameof(keyPrefix));
+            _cell = PortGuard.Required(cell, nameof(cell));
+            _keyPrefix = PortGuard.Required(keyPrefix, nameof(keyPrefix));
             if (keyPrefix.Length == 0)
                 throw new ArgumentException("Key prefix cannot be empty", nameof(keyPrefix));
         }

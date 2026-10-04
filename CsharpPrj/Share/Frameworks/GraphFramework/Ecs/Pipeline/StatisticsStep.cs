@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using ECS.Core;
@@ -18,7 +18,7 @@ namespace GraphFramework.Ecs.Pipeline
 
         public StatisticsStep(IReadOnlyGraph<TKey, TNodeData, TEdgeData> graph)
         {
-            _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+            _graph = PortGuard.Required(graph, nameof(graph));
         }
 
         public override void Execute(EcsWorld world)

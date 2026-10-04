@@ -8,7 +8,7 @@ public class TypedAdapterRegistry<TAdapter>
 
     public void Register(Type type, TAdapter adapter)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        PortGuard.Required(type, nameof(type));
         _adapters[type] = adapter;
     }
 

@@ -14,7 +14,7 @@ namespace Share.TaskStatusPool.Morphisms
 
         public ControlReadMorphism(ControlPool.ControlPool controlPool)
         {
-            _controlPool = controlPool ?? throw new ArgumentNullException(nameof(controlPool));
+            _controlPool = PortGuard.Required(controlPool, nameof(controlPool));
         }
 
         public IPoolContext Morph(IPoolContext input)

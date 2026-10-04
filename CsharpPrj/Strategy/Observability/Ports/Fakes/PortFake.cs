@@ -111,7 +111,7 @@ public static class PortFake
     /// <summary>委托载体：按形态构造 <see cref="IPortBinding"/> 替身。</summary>
     public static IPortBinding Create(FakeKind kind, FakeOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        PortGuard.Required(options, nameof(options));
 
         if (options.Calls is { Count: > 0 })
             throw new InvalidOperationException(
@@ -138,8 +138,8 @@ public static class PortFake
     /// <summary>代理载体：按<b>契约接口</b>生成替身（转发 / 计数 / 固定应答 / 序列 / 负向守卫）。</summary>
     public static object CreateProxy(Type contract, FakeKind kind, FakeOptions options)
     {
-        ArgumentNullException.ThrowIfNull(contract);
-        ArgumentNullException.ThrowIfNull(options);
+        PortGuard.Required(contract, nameof(contract));
+        PortGuard.Required(options, nameof(options));
 
         return kind switch
         {
@@ -156,8 +156,8 @@ public static class PortFake
     /// <summary>取替身调用计数（投影 <c>fakeCount</c> 入口）；非计数替身即抛（防静默取 0）。</summary>
     public static int CountOf(object fake, string method, string? key = null)
     {
-        ArgumentNullException.ThrowIfNull(fake);
-        ArgumentNullException.ThrowIfNull(method);
+        PortGuard.Required(fake, nameof(fake));
+        PortGuard.Required(method, nameof(method));
 
         return fake is FakeDispatchProxy { Counter: { } counter }
             ? counter.Count(method, key)
@@ -171,7 +171,7 @@ public static class PortFake
     /// </summary>
     public static IReadOnlyList<object?[]> CapturedOf(object fake, string? member = null)
     {
-        ArgumentNullException.ThrowIfNull(fake);
+        PortGuard.Required(fake, nameof(fake));
 
         return fake is FakeDispatchProxy { Capture: { } capture }
             ? capture.Of(member)
@@ -212,7 +212,7 @@ public static class PortFake
 
         public ValueTask<object?> InvokeAsync(IPortInput input, CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(input);
+            PortGuard.Required(input, nameof(input));
             return ValueTask.FromResult(_invoke(input));
         }
     }
@@ -223,7 +223,7 @@ public static class PortFake
         IReadOnlyList<object?>? fixedValues, bool notExpected, bool reuseLast,
         IReadOnlyList<FakeCall>? calls = null, string? captureMember = null)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         if (!contract.IsInterface)
             throw new InvalidOperationException(
                 $"[port:fake] 契约 '{contract.FullName}' 不是接口（代理替身只支持接口形态）");
@@ -535,7 +535,7 @@ public static class StandardFakes
     /// <summary>记录型替身 + 自定义应答（应答由输入决定）。</summary>
     public static IPortBinding Recording(Func<IPortInput, object?> respond)
     {
-        ArgumentNullException.ThrowIfNull(respond);
+        PortGuard.Required(respond, nameof(respond));
         return PortFake.Create(FakeKind.Recording, new FakeOptions { Respond = respond });
     }
 
@@ -546,21 +546,21 @@ public static class StandardFakes
     /// <summary>固定应答替身（按输入计算固定结构，如多键 seed 表）。</summary>
     public static IPortBinding FixedBy(Func<IPortInput, object?> projector)
     {
-        ArgumentNullException.ThrowIfNull(projector);
+        PortGuard.Required(projector, nameof(projector));
         return PortFake.Create(FakeKind.Fixed, new FakeOptions { Respond = projector });
     }
 
     /// <summary>回显替身：第一个位置实参经投影后即应答（输入决定输出）。</summary>
     public static IPortBinding Echo(Func<object?, object?> projector)
     {
-        ArgumentNullException.ThrowIfNull(projector);
+        PortGuard.Required(projector, nameof(projector));
         return PortFake.Create(FakeKind.Echo, new FakeOptions { Projector = projector });
     }
 
     /// <summary>回显替身（按完整输入投影）。</summary>
     public static IPortBinding EchoBy(Func<IPortInput, object?> projector)
     {
-        ArgumentNullException.ThrowIfNull(projector);
+        PortGuard.Required(projector, nameof(projector));
         return PortFake.Create(FakeKind.Recording, new FakeOptions { Respond = projector });
     }
 
@@ -573,7 +573,7 @@ public static class StandardFakes
     /// <summary>按序应答替身（序列来源可枚举）。</summary>
     public static IPortBinding SequenceOf(IEnumerable<object?> values)
     {
-        ArgumentNullException.ThrowIfNull(values);
+        PortGuard.Required(values, nameof(values));
         return PortFake.Create(FakeKind.Sequence, new FakeOptions { Values = values.ToArray() });
     }
 }

@@ -25,13 +25,13 @@ namespace Share.TaskStatusPool.Core
 
         public MorphismPipeline(string name, string? description = null)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Name = PortGuard.Required(name, nameof(name));
             Description = description ?? string.Empty;
         }
 
         public MorphismPipeline<TContext> Register(IOrderedMorphism<TContext, TContext> item)
         {
-            ArgumentNullException.ThrowIfNull(item);
+            PortGuard.Required(item, nameof(item));
             _rwLock.EnterWriteLock();
             try { _items.Add(item); }
             finally { _rwLock.ExitWriteLock(); }
@@ -40,7 +40,7 @@ namespace Share.TaskStatusPool.Core
 
         public MorphismPipeline<TContext> RegisterRange(IEnumerable<IOrderedMorphism<TContext, TContext>> items)
         {
-            ArgumentNullException.ThrowIfNull(items);
+            PortGuard.Required(items, nameof(items));
             _rwLock.EnterWriteLock();
             try { _items.AddRange(items); }
             finally { _rwLock.ExitWriteLock(); }
@@ -49,8 +49,8 @@ namespace Share.TaskStatusPool.Core
 
         public MorphismPipeline<TContext> InsertBefore(string name, IOrderedMorphism<TContext, TContext> item)
         {
-            ArgumentNullException.ThrowIfNull(name);
-            ArgumentNullException.ThrowIfNull(item);
+            PortGuard.Required(name, nameof(name));
+            PortGuard.Required(item, nameof(item));
 
             _rwLock.EnterWriteLock();
             try
@@ -67,8 +67,8 @@ namespace Share.TaskStatusPool.Core
 
         public MorphismPipeline<TContext> InsertAfter(string name, IOrderedMorphism<TContext, TContext> item)
         {
-            ArgumentNullException.ThrowIfNull(name);
-            ArgumentNullException.ThrowIfNull(item);
+            PortGuard.Required(name, nameof(name));
+            PortGuard.Required(item, nameof(item));
 
             _rwLock.EnterWriteLock();
             try
@@ -85,7 +85,7 @@ namespace Share.TaskStatusPool.Core
 
         public MorphismPipeline<TContext> Remove(string name)
         {
-            ArgumentNullException.ThrowIfNull(name);
+            PortGuard.Required(name, nameof(name));
 
             _rwLock.EnterWriteLock();
             try

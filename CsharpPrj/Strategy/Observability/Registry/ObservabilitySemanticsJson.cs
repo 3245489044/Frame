@@ -26,7 +26,7 @@ public static class ObservabilitySemanticsJson
     /// <summary>加载并编译为契约列表；entity 名称可选。</summary>
     public static IReadOnlyList<EventContract> Load(string json)
     {
-        ArgumentNullException.ThrowIfNull(json);
+        PortGuard.Required(json, nameof(json));
         var file = JsonSerializer.Deserialize<SemanticsFile>(json, Opt)
             ?? throw new InvalidOperationException("无法解析观测语义契约文件");
         var list = new List<EventContract>();

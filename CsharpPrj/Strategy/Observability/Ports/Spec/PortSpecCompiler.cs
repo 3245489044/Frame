@@ -28,7 +28,7 @@ public static class PortSpecCompiler
     /// </summary>
     public static PortSpec Compile(PortStandard standard)
     {
-        ArgumentNullException.ThrowIfNull(standard);
+        PortGuard.Required(standard, nameof(standard));
         var impl = standard.Impl;
 
         var implRef = new PortImplRef(
@@ -183,7 +183,7 @@ public static class PortSpecCompiler
     /// </summary>
     internal static IReadOnlyList<PortInstr> Steps(IReadOnlyList<StepStandard> steps)
     {
-        ArgumentNullException.ThrowIfNull(steps);
+        PortGuard.Required(steps, nameof(steps));
 
         var program = new List<PortInstr>(steps.Count);
         foreach (var step in steps) program.Add(Step(step));

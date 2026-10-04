@@ -18,7 +18,7 @@ public sealed class ActionErrorBoundary
     /// <summary>包装类型化异步动作：成功返回结果；异常分类后包装为 <see cref="BoundaryResult{T}"/>（取消透传）。</summary>
     public async Task<BoundaryResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(action);
+        PortGuard.Required(action, nameof(action));
         try
         {
             return BoundaryResult<T>.Success(await action().ConfigureAwait(false));
@@ -41,7 +41,7 @@ public sealed class ActionErrorBoundary
     /// <summary>包装返回诊断文案的动作（调用方既产出文案又可能抛异常的场景），失败返回统一「[{类别}] 失败：{原因}」文案。</summary>
     public async Task<string> RunMessageAsync(Func<Task<string>> action, string actionName, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(action);
+        PortGuard.Required(action, nameof(action));
         try
         {
             return await action().ConfigureAwait(false);

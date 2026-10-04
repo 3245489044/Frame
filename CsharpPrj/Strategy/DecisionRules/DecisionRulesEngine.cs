@@ -25,9 +25,9 @@ namespace Strategy.DecisionRules
             IDelegateRegistry? delegates = null)
         {
             // 必填端口（T）：策略实现由门面/组合根显式装配；禁 ?? new 默认冒充装配（消除隐藏第二实例）。
-            _match = match ?? throw new ArgumentNullException(nameof(match));
-            _output = output ?? throw new ArgumentNullException(nameof(output));
-            _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+            _match = PortGuard.Required(match, nameof(match));
+            _output = PortGuard.Required(output, nameof(output));
+            _renderer = PortGuard.Required(renderer, nameof(renderer));
             _audit = audit ?? NullAudit.Instance;
             _delegates = delegates;
         }

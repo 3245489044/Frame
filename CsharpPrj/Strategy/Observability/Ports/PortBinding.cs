@@ -83,7 +83,7 @@ public sealed record PortBinding(
     /// 规格不可求值者不在装配期静默建壳 —— <see cref="TryConstruct"/> 按 <see cref="PortSpec.TerminalReason"/> fail-fast。
     /// </summary>
     public static PortBinding FromSpec(string portKey, PortSpec spec, PortInjection? injection = null)
-        => new(portKey, spec ?? throw new ArgumentNullException(nameof(spec)), Injection: injection);
+        => new(portKey, PortGuard.Required(spec, nameof(spec)), Injection: injection);
 
     /// <summary>委派：携带实现工厂（构建即得绑定实例）。</summary>
     public static PortBinding Delegate(string portKey, string? id, Func<IPortBinding> factory)

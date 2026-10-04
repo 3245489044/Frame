@@ -16,8 +16,8 @@ public static class Guard
         Func<TService?> get, TResult notAttached, Func<TService, Task<TResult>> action)
         where TService : class
     {
-        ArgumentNullException.ThrowIfNull(get);
-        ArgumentNullException.ThrowIfNull(action);
+        PortGuard.Required(get, nameof(get));
+        PortGuard.Required(action, nameof(action));
         var svc = get();
         if (svc is null) return Task.FromResult(notAttached);
         return action(svc);
@@ -28,8 +28,8 @@ public static class Guard
         Func<TService?> get, TResult notAttached, Func<TService, TResult> action)
         where TService : class
     {
-        ArgumentNullException.ThrowIfNull(get);
-        ArgumentNullException.ThrowIfNull(action);
+        PortGuard.Required(get, nameof(get));
+        PortGuard.Required(action, nameof(action));
         var svc = get();
         if (svc is null) return notAttached;
         return action(svc);
@@ -41,8 +41,8 @@ public static class Guard
         Func<TService?> get, string notAttached, string label, Func<TService, Task<string>> action)
         where TService : class
     {
-        ArgumentNullException.ThrowIfNull(get);
-        ArgumentNullException.ThrowIfNull(action);
+        PortGuard.Required(get, nameof(get));
+        PortGuard.Required(action, nameof(action));
         var svc = get();
         if (svc is null) return notAttached;
         try

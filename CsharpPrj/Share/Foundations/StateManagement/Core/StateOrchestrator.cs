@@ -10,14 +10,14 @@ namespace Share.StateManagement
 
         public StateOrchestrator(IStateStore store)
         {
-            Store = store ?? throw new ArgumentNullException(nameof(store));
+            Store = PortGuard.Required(store, nameof(store));
         }
 
         public IStateStore Store { get; }
 
         public void RegisterActor(IStateActor actor)
         {
-            ArgumentNullException.ThrowIfNull(actor);
+            PortGuard.Required(actor, nameof(actor));
 
             if (!_actors.TryAdd(actor.Name, actor))
             {
@@ -34,7 +34,7 @@ namespace Share.StateManagement
 
         public async Task<PipelineResult> ExecutePipelineAsync(ExecutionPipeline pipeline)
         {
-            ArgumentNullException.ThrowIfNull(pipeline);
+            PortGuard.Required(pipeline, nameof(pipeline));
 
             var context = new BlockContext();
             context.Data["StateStore"] = Store;

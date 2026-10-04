@@ -7,7 +7,7 @@ namespace Share.StateManagement
     {
         public static bool TryGetValue(this IVirtualStore store, string controlName, out string? value)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             value = store.GetValue(controlName);
             return store.HasControl(controlName);
@@ -15,15 +15,15 @@ namespace Share.StateManagement
 
         public static bool ContainsAll(this IVirtualStore store, IEnumerable<string> controlNames)
         {
-            ArgumentNullException.ThrowIfNull(store);
-            ArgumentNullException.ThrowIfNull(controlNames);
+            PortGuard.Required(store, nameof(store));
+            PortGuard.Required(controlNames, nameof(controlNames));
 
             return controlNames.All(c => store.HasControl(c));
         }
 
         public static Dictionary<string, string?> FindByPrefix(this IVirtualStore store, string prefix)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             if (string.IsNullOrEmpty(prefix))
                 return store.GetAllValues();
@@ -41,7 +41,7 @@ namespace Share.StateManagement
 
         public static IReadOnlyDictionary<string, string?> AsReadOnlyDictionary(this IVirtualStore store)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             if (store is VirtualStore vs)
                 return vs.AsReadOnlyDictionary();

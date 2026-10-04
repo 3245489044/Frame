@@ -22,7 +22,7 @@ public static class PortInputExtensions
     /// <summary>必需位置实参（文本）。缺失 → <see cref="PortInputMissingException"/>。</summary>
     public static string Arg(this IPortInput input, int index)
     {
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(input, nameof(input));
         return index < input.Args.Count && input.Args[index] is { } value
             ? Text(value)
             : throw Missing(input, index);
@@ -31,7 +31,7 @@ public static class PortInputExtensions
     /// <summary>可选位置实参；缺参或字面串 <c>null</c> → <c>null</c>。</summary>
     public static string? ArgOrNull(this IPortInput input, int index)
     {
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(input, nameof(input));
         if (index >= input.Args.Count || input.Args[index] is null) { return null; }
 
         var text = Text(input.Args[index]!);
@@ -59,7 +59,7 @@ public static class PortInputExtensions
     /// <summary>具名实参（<c>with</c>）按目标类型反序列化；缺失即抛 <see cref="PortInputMissingException"/>。</summary>
     public static T With<T>(this IPortInput input, string key)
     {
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(input, nameof(input));
         if (!input.With.TryGetValue(key, out var value) || value is null)
             throw new PortInputMissingException(input.PortKey, $"缺具名实参 '{key}'（with）");
 

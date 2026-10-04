@@ -25,7 +25,7 @@ public sealed class DeferredAction : IDeferredAction
     private readonly Func<object?> _invoke;
 
     public DeferredAction(Func<object?> invoke)
-        => _invoke = invoke ?? throw new ArgumentNullException(nameof(invoke));
+        => _invoke = PortGuard.Required(invoke, nameof(invoke));
 
     public object? Invoke() => _invoke();
 }
@@ -34,7 +34,7 @@ public sealed class DeferredAction : IDeferredAction
 public sealed class PortIssues : IPortIssues
 {
     public PortIssues(IReadOnlyList<string> issues)
-        => Issues = issues ?? throw new ArgumentNullException(nameof(issues));
+        => Issues = PortGuard.Required(issues, nameof(issues));
 
     public IReadOnlyList<string> Issues { get; }
 }

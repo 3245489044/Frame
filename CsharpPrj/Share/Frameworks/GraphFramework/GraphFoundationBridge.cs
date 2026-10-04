@@ -21,8 +21,8 @@ namespace GraphFramework.Bridge
 
         public ChainInfo(IReadOnlyList<TKey> nodeKeys, IReadOnlyList<string> edgeIds)
         {
-            NodeKeys = nodeKeys ?? throw new ArgumentNullException(nameof(nodeKeys));
-            EdgeIds = edgeIds ?? throw new ArgumentNullException(nameof(edgeIds));
+            NodeKeys = PortGuard.Required(nodeKeys, nameof(nodeKeys));
+            EdgeIds = PortGuard.Required(edgeIds, nameof(edgeIds));
         }
     }
 
@@ -37,9 +37,9 @@ namespace GraphFramework.Bridge
             Func<TKey, TNodeData?> nodeDataFactory,
             Func<TKey, TKey, TEdgeData?>? edgeDataFactory = null)
         {
-            if (chain == null) throw new ArgumentNullException(nameof(chain));
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
-            if (nodeDataFactory == null) throw new ArgumentNullException(nameof(nodeDataFactory));
+            chain = PortGuard.Required(chain, nameof(chain));
+            graph = PortGuard.Required(graph, nameof(graph));
+            nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
             foreach (var nodeKey in chain.NodeKeys)
             {
@@ -69,7 +69,7 @@ namespace GraphFramework.Bridge
             int maxPaths = 1000,
             int maxDepth = 50)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (maxPaths <= 0) throw new ArgumentOutOfRangeException(nameof(maxPaths), "最大路径数必须大于0");
             if (maxDepth <= 0) throw new ArgumentOutOfRangeException(nameof(maxDepth), "最大路径深度必须大于0");
 
@@ -106,7 +106,7 @@ namespace GraphFramework.Bridge
         public static List<IReadOnlyList<TKey>> ExtractComponents(
             IReadOnlyGraph<TKey, TNodeData, TEdgeData> graph)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
 
             var components = new List<IReadOnlyList<TKey>>();
             var visited = new HashSet<TKey>();
@@ -147,10 +147,10 @@ namespace GraphFramework.Bridge
             Func<TKey, TNodeData?> nodeDataFactory,
             Func<TKey, TKey, TEdgeData?>? edgeDataFactory = null)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (targetNodeKey == null) throw new ArgumentNullException(nameof(targetNodeKey));
-            if (newNodes == null) throw new ArgumentNullException(nameof(newNodes));
-            if (nodeDataFactory == null) throw new ArgumentNullException(nameof(nodeDataFactory));
+            newNodes = PortGuard.Required(newNodes, nameof(newNodes));
+            nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
             var outgoingEdges = graph.GetOutgoingEdges(targetNodeKey).ToList();
 
@@ -195,10 +195,10 @@ namespace GraphFramework.Bridge
             Func<TKey, TNodeData?> nodeDataFactory,
             Func<TKey, TKey, TEdgeData?>? edgeDataFactory = null)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (targetNodeKey == null) throw new ArgumentNullException(nameof(targetNodeKey));
-            if (newNodes == null) throw new ArgumentNullException(nameof(newNodes));
-            if (nodeDataFactory == null) throw new ArgumentNullException(nameof(nodeDataFactory));
+            newNodes = PortGuard.Required(newNodes, nameof(newNodes));
+            nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
             var incomingEdges = graph.GetIncomingEdges(targetNodeKey).ToList();
 
@@ -251,7 +251,7 @@ namespace GraphFramework.Bridge
             IGraph<TKey, TNodeData, TEdgeData> graph,
             TKey nodeKey)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (nodeKey == null) throw new ArgumentNullException(nameof(nodeKey));
 
             if (!graph.ContainsNode(nodeKey))
@@ -284,10 +284,10 @@ namespace GraphFramework.Bridge
             TKey newNodeKey,
             Func<TKey, TNodeData?> nodeDataFactory)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (oldNodeKey == null) throw new ArgumentNullException(nameof(oldNodeKey));
             if (newNodeKey == null) throw new ArgumentNullException(nameof(newNodeKey));
-            if (nodeDataFactory == null) throw new ArgumentNullException(nameof(nodeDataFactory));
+            nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
             if (!graph.ContainsNode(oldNodeKey))
                 return;
@@ -334,8 +334,8 @@ namespace GraphFramework.Bridge
             string edgeId,
             TKey newTarget)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
-            if (edgeId == null) throw new ArgumentNullException(nameof(edgeId));
+            graph = PortGuard.Required(graph, nameof(graph));
+            edgeId = PortGuard.Required(edgeId, nameof(edgeId));
             if (newTarget == null) throw new ArgumentNullException(nameof(newTarget));
 
             if (!graph.ContainsEdge(edgeId))
@@ -354,7 +354,7 @@ namespace GraphFramework.Bridge
             IReadOnlyGraph<TKey, TNodeData, TEdgeData> graph,
             TKey nodeKey)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (nodeKey == null) throw new ArgumentNullException(nameof(nodeKey));
 
             return graph.GetOutgoingEdges(nodeKey)
@@ -368,7 +368,7 @@ namespace GraphFramework.Bridge
             IReadOnlyGraph<TKey, TNodeData, TEdgeData> graph,
             TKey nodeKey)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             if (nodeKey == null) throw new ArgumentNullException(nameof(nodeKey));
 
             return graph.GetIncomingEdges(nodeKey)

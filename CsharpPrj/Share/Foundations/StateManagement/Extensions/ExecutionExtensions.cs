@@ -113,8 +113,8 @@ namespace Share.StateManagement
             string executionId,
             IDictionary<string, object?> parameters)
         {
-            ArgumentNullException.ThrowIfNull(store);
-            ArgumentNullException.ThrowIfNull(parameters);
+            PortGuard.Required(store, nameof(store));
+            PortGuard.Required(parameters, nameof(parameters));
 
             foreach (var kvp in parameters)
             {
@@ -128,7 +128,7 @@ namespace Share.StateManagement
             string key,
             T? defaultValue = default)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             var value = store.GetParameter(executionId, key);
             if (value == null) return defaultValue;
@@ -148,7 +148,7 @@ namespace Share.StateManagement
             this INodeExecutionCoordinator coordinator,
             string executionId)
         {
-            ArgumentNullException.ThrowIfNull(coordinator);
+            PortGuard.Required(coordinator, nameof(coordinator));
 
             return !coordinator.GetActiveExecutionIds().Contains(executionId);
         }

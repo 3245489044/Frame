@@ -23,7 +23,7 @@ public sealed class ThreadSafeSlot<T> where T : class
     /// <summary>装配（幂等覆盖式）。传入需非 null。</summary>
     public void Attach(T value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        PortGuard.Required(value, nameof(value));
         lock (_gate) _value = value;
     }
 

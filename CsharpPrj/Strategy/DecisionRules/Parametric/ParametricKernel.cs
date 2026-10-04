@@ -72,7 +72,7 @@ namespace Strategy.DecisionRules
 
         public ParametricKernel(ParameterSchema schema, int maxSteps = 64)
         {
-            _schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            _schema = PortGuard.Required(schema, nameof(schema));
             _maxSteps = maxSteps > 0 ? maxSteps : throw new ArgumentOutOfRangeException(nameof(maxSteps));
         }
 
@@ -93,8 +93,8 @@ namespace Strategy.DecisionRules
             ParameterTransfer? policy = null,
             int? maxSteps = null)
         {
-            if (transfer is null) throw new ArgumentNullException(nameof(transfer));
-            if (decoder is null) throw new ArgumentNullException(nameof(decoder));
+            transfer = PortGuard.Required(transfer, nameof(transfer));
+            decoder = PortGuard.Required(decoder, nameof(decoder));
 
             var steps = maxSteps ?? _maxSteps;
             var state = _schema.CreateDefault();

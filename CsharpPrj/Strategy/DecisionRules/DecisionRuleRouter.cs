@@ -25,7 +25,7 @@ namespace Strategy.DecisionRules
 
         public DecisionRuleRouter(DecisionRuleSet ruleSet, DecisionRulesEngine? engine = null)
         {
-            _ruleSet = ruleSet ?? throw new ArgumentNullException(nameof(ruleSet));
+            _ruleSet = PortGuard.Required(ruleSet, nameof(ruleSet));
             _engine = engine ?? new DecisionRulesEngine(
                 new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer());
         }

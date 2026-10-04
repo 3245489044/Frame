@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using ECS.Core;
@@ -63,7 +63,7 @@ namespace GraphFramework.Ecs.Systems
             int nodesPerChain,
             GraphOrchestration.IKeyGenerator<TKey>? keyGenerator = null)
         {
-            _service = service ?? throw new ArgumentNullException(nameof(service));
+            _service = PortGuard.Required(service, nameof(service));
             _template = template;
             _chainCount = chainCount;
             _nodesPerChain = nodesPerChain;

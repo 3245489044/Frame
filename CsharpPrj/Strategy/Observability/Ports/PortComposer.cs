@@ -25,8 +25,8 @@ public sealed class PortComposer
 
     public PortComposer(IPortCatalog catalog, IBoundaryContractRegistry contracts)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _contracts = contracts ?? throw new ArgumentNullException(nameof(contracts));
+        _catalog = PortGuard.Required(catalog, nameof(catalog));
+        _contracts = PortGuard.Required(contracts, nameof(contracts));
     }
 
     /// <summary>绑定失败（fail-safe 记录）端口键 → 原因。</summary>
@@ -45,7 +45,7 @@ public sealed class PortComposer
     /// </summary>
     public int Seed(IEnumerable<BoundaryContract> contracts)
     {
-        ArgumentNullException.ThrowIfNull(contracts);
+        PortGuard.Required(contracts, nameof(contracts));
 
         var added = 0;
         foreach (var contract in contracts)
@@ -57,12 +57,12 @@ public sealed class PortComposer
     /// <summary>逐端口装配（fail-safe）。返回成功绑定数。</summary>
     public int Bind(IEnumerable<PortBinding> bindings)
     {
-        ArgumentNullException.ThrowIfNull(bindings);
+        PortGuard.Required(bindings, nameof(bindings));
 
         var bound = 0;
         foreach (var binding in bindings)
         {
-            ArgumentNullException.ThrowIfNull(binding);
+            PortGuard.Required(binding, nameof(binding));
 
             if (binding.Kind == PortImplVocabulary.KindName.Frozen)
             {

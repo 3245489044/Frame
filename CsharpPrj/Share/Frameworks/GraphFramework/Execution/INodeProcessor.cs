@@ -34,7 +34,7 @@ namespace GraphFramework.Execution
 
         protected NodeProcessorBase(string name)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Name = PortGuard.Required(name, nameof(name));
         }
 
         public abstract bool CanProcess(TKey nodeKey, TNode nodeData, TContext context);
@@ -83,10 +83,9 @@ namespace GraphFramework.Execution
             INodeProcessor<TKey, TNode, TEdge, TContext> nodeProcessor,
             Func<TNode, TKey>? keyExtractor = null)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
-            _nodeProcessor = nodeProcessor ?? throw new ArgumentNullException(nameof(nodeProcessor));
-            _keyExtractor = keyExtractor ?? throw new ArgumentNullException(nameof(keyExtractor),
-                "必须提供键提取器，因为 Chain<TKey,TNode> 不存储节点键");
+            Name = PortGuard.Required(name, nameof(name));
+            _nodeProcessor = PortGuard.Required(nodeProcessor, nameof(nodeProcessor));
+            _keyExtractor = PortGuard.Required(keyExtractor, nameof(keyExtractor), "必须提供键提取器，因为 Chain<TKey,TNode> 不存储节点键");
         }
 
         public Result<Chain<TKey, TNode>> ExecuteChain(

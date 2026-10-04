@@ -25,7 +25,7 @@ namespace Strategy.DecisionRules
 
         /// <summary>绑定到给定参数坐标系构造一个空矩阵。</summary>
         public static ParameterMatrix For(ParameterSchema schema)
-            => new(schema ?? throw new ArgumentNullException(nameof(schema)));
+            => new(PortGuard.Required(schema, nameof(schema)));
 
         /// <summary>已配置的输出行数（便于断言/自检）。</summary>
         public int RowCount => _rows.Count;
@@ -38,8 +38,8 @@ namespace Strategy.DecisionRules
         /// </summary>
         public ParameterMatrix Row(string output, Action<ParameterMatrixRow> configure)
         {
-            if (output is null) throw new ArgumentNullException(nameof(output));
-            if (configure is null) throw new ArgumentNullException(nameof(configure));
+            output = PortGuard.Required(output, nameof(output));
+            configure = PortGuard.Required(configure, nameof(configure));
             var spec = _schema.TryGet(output)
                 ?? throw new ArgumentException($"未定义的输出参数：{output}", nameof(output));
 

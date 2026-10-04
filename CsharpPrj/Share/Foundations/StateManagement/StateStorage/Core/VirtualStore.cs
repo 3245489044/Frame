@@ -55,7 +55,7 @@ namespace Share.StateManagement
 
         public void SetRange(IEnumerable<KeyValuePair<string, string?>> values)
         {
-            ArgumentNullException.ThrowIfNull(values);
+            PortGuard.Required(values, nameof(values));
 
             foreach (var kvp in values)
             {

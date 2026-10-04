@@ -43,7 +43,7 @@ public sealed class PortProbeRouter
     public static PortProbeRouter Of(
         string key, params (string Probe, Func<IPortInput?, object?> Body)[] branches)
     {
-        ArgumentNullException.ThrowIfNull(branches);
+        PortGuard.Required(branches, nameof(branches));
 
         var bodies = new Dictionary<string, Func<IPortInput?, object?>>(StringComparer.Ordinal);
         var probes = new List<string>(branches.Length);
@@ -73,7 +73,7 @@ public sealed class PortProbeRouter
     /// </summary>
     public static PortProbeRouter Declare(string key, params string[] probes)
     {
-        ArgumentNullException.ThrowIfNull(probes);
+        PortGuard.Required(probes, nameof(probes));
 
         foreach (var probe in probes)
             if (string.IsNullOrWhiteSpace(probe))
@@ -110,7 +110,7 @@ public sealed class PortProbeRouter
     /// </summary>
     public static IReadOnlyDictionary<string, PortProbeRouter> Collect(Assembly assembly)
     {
-        ArgumentNullException.ThrowIfNull(assembly);
+        PortGuard.Required(assembly, nameof(assembly));
 
         var collected = new SortedDictionary<string, PortProbeRouter>(StringComparer.Ordinal);
 

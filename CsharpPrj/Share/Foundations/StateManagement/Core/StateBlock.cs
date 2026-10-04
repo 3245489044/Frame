@@ -11,7 +11,7 @@ namespace Share.StateManagement
             string? description = null)
             : base(name, description ?? $"状态块: {name}")
         {
-            Store = store ?? throw new ArgumentNullException(nameof(store));
+            Store = PortGuard.Required(store, nameof(store));
         }
 
         protected IStateStore Store { get; }

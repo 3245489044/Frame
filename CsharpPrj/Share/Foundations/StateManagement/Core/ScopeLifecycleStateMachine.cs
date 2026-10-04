@@ -22,7 +22,7 @@ namespace Share.StateManagement
             Func<string, string, bool, Task<LoadResult>> renderDelegate,
             Action<string>? destroyDelegate = null)
         {
-            _renderDelegate = renderDelegate ?? throw new ArgumentNullException(nameof(renderDelegate));
+            _renderDelegate = PortGuard.Required(renderDelegate, nameof(renderDelegate));
             _destroyDelegate = destroyDelegate;
         }
 

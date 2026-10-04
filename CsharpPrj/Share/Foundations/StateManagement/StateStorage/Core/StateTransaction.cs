@@ -21,8 +21,8 @@ namespace Share.StateManagement
 
         public StateTransaction(IStorageCell cell, IStateSubscriptionHub hub, string? scope = null)
         {
-            _cell = cell ?? throw new ArgumentNullException(nameof(cell));
-            _hub = hub ?? throw new ArgumentNullException(nameof(hub));
+            _cell = PortGuard.Required(cell, nameof(cell));
+            _hub = PortGuard.Required(hub, nameof(hub));
             Scope = scope;
         }
 

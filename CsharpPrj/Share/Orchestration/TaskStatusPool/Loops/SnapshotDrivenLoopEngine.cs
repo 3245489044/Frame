@@ -66,8 +66,8 @@ public sealed class SnapshotDrivenLoopEngine<TState, TResult>
         Func<TState, CancellationToken, Task<bool>>? externalTerminate = null,
         Func<TState, LoopDecision>? budgetTerminate = null)
     {
-        ArgumentNullException.ThrowIfNull(execute);
-        ArgumentNullException.ThrowIfNull(next);
+        PortGuard.Required(execute, nameof(execute));
+        PortGuard.Required(next, nameof(next));
 
         var state = initialState;
         var result = new SnapshotLoopResult<TState, TResult> { FinalState = state };

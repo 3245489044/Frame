@@ -36,7 +36,7 @@ public sealed class ObservedPortDecorator : IPortBinding
     public ObservedPortDecorator(string portKey, IPortBinding inner, Func<bool>? enabled = null)
     {
         _portKey = string.IsNullOrWhiteSpace(portKey) ? throw new ArgumentException("端口键不能为空", nameof(portKey)) : portKey;
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        _inner = PortGuard.Required(inner, nameof(inner));
         _enabled = enabled;
     }
 

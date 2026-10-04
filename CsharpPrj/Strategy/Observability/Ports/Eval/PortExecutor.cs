@@ -53,7 +53,7 @@ internal sealed class PortExecutor
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories = null)
         : this(
             portKey,
-            (impl ?? throw new ArgumentNullException(nameof(impl))).Binds ?? EmptyBinds,
+            PortGuard.Required(impl, nameof(impl)).Binds ?? EmptyBinds,
             impl.Deps ?? Array.Empty<DepStandard>(),
             PortSpecCompiler.Steps(impl.Script ?? Array.Empty<StepStandard>()),
             impl.ScriptProject ?? Array.Empty<FieldExprStandard>(),
@@ -67,7 +67,7 @@ internal sealed class PortExecutor
     /// <summary>按 ② 规格构造（求值引擎入口）：签名面 = ① 记录引用（binds / deps / 投影 / 载体 / 作用域 / 场景）+ 指令序列。</summary>
     internal PortExecutor(PortSpec spec, PortInjection injection)
         : this(
-            (spec ?? throw new ArgumentNullException(nameof(spec))).PortKey,
+            PortGuard.Required(spec, nameof(spec)).PortKey,
             spec.Binds ?? EmptyBinds,
             spec.Deps ?? Array.Empty<DepStandard>(),
             spec.Program,
@@ -136,7 +136,7 @@ internal sealed class PortExecutor
     /// <summary>求值入口（本件唯一执行序；调用方 = 求值引擎 / 兼容 facade）。</summary>
     internal object? Run(IPortInput input)
     {
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(input, nameof(input));
 
         if (_scenarioCases is not null) return Dispatch(input);
 

@@ -27,4 +27,9 @@
     <ProjectReference Include="$(Proj_DiagnosticContext)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- P1：全局 using（零 using 行改动） -->
+    <Using Include="BasicMethod.Initialization.Guards" />
+  </ItemGroup>
+
 </Project>

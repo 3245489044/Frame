@@ -35,8 +35,8 @@ public sealed class ObservabilityBus : IObservabilityBus, IAsyncDisposable
         IObservabilityContractRegistry registry,
         IEnumerable<IObservabilitySink> sinks)
     {
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _sinks = (sinks ?? throw new ArgumentNullException(nameof(sinks))).ToList();
+        _registry = PortGuard.Required(registry, nameof(registry));
+        _sinks = PortGuard.Required(sinks, nameof(sinks)).ToList();
     }
 
     public IReadOnlyList<IObservabilitySink> Sinks => _sinks;

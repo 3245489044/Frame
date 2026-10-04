@@ -32,7 +32,7 @@ public sealed class MetricTotalsProjection
     /// <summary>按事件序聚合全部度量键。</summary>
     public static MetricTotalsProjection Of(IEnumerable<ObservationOutcome> events)
     {
-        ArgumentNullException.ThrowIfNull(events);
+        PortGuard.Required(events, nameof(events));
 
         var sums = new Dictionary<string, double>(StringComparer.Ordinal);
         var count = 0;

@@ -173,7 +173,7 @@ public static class SpecPortInput
     /// </summary>
     public static T? WithOrNull<T>(IPortInput input, string key, JsonSerializerOptions options) where T : class
     {
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(input, nameof(input));
 
         if (!input.With.TryGetValue(key, out var value)
             || value is not JsonElement element

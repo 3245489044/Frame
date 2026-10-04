@@ -17,17 +17,17 @@ namespace Share.StateManagement.Pooling
 
         public PoolInitializer(IWorkerStateStore stateStore)
         {
-            _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _stateStore = PortGuard.Required(stateStore, nameof(stateStore));
         }
 
         public void RegisterPrecondition(Func<Task<bool>> precondition)
-            => _precondition = precondition ?? throw new ArgumentNullException(nameof(precondition));
+            => _precondition = PortGuard.Required(precondition, nameof(precondition));
 
         public void RegisterWorkerFactory(Func<WorkerStartSpec, CancellationToken, Task<WorkerHandle>> spawn)
-            => _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
+            => _spawn = PortGuard.Required(spawn, nameof(spawn));
 
         public void RegisterProbe(Func<WorkerHandle, Task<bool>> probe)
-            => _probe = probe ?? throw new ArgumentNullException(nameof(probe));
+            => _probe = PortGuard.Required(probe, nameof(probe));
 
         public async Task<PoolInitResult> StartAsync(int count, CancellationToken ct = default)
         {

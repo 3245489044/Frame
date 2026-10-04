@@ -14,29 +14,29 @@ public static class PortReflection
     /// <summary>类型是否实现指定接口（按接口简单名匹配，<c>GetInterface</c> 语义）。</summary>
     public static bool Implements(Type type, string interfaceName)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        PortGuard.Required(type, nameof(type));
         return type.GetInterface(interfaceName) is not null;
     }
 
     /// <summary>类型是否公开声明指定名方法（<c>GetMethod</c> 默认绑定标志语义）。</summary>
     public static bool HasMethod(Type type, string methodName)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        PortGuard.Required(type, nameof(type));
         return type.GetMethod(methodName) is not null;
     }
 
     /// <summary>指定方法的返回类型是否为 <c>Task&lt;T&gt;</c>（<paramref name="resultType"/> = T；方法不存在 → false）。</summary>
     public static bool ReturnsTaskOf(Type type, string methodName, Type resultType)
     {
-        ArgumentNullException.ThrowIfNull(type);
-        ArgumentNullException.ThrowIfNull(resultType);
+        PortGuard.Required(type, nameof(type));
+        PortGuard.Required(resultType, nameof(resultType));
         return type.GetMethod(methodName)?.ReturnType == typeof(Task<>).MakeGenericType(resultType);
     }
 
     /// <summary>类型所在程序集直接引用的程序集名清单（不含 null 名；含全部引用，调用方自行过滤）。</summary>
     public static IReadOnlyList<string> ReferencedAssemblyNames(Type type)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        PortGuard.Required(type, nameof(type));
         return type.Assembly.GetReferencedAssemblies()
             .Select(a => a.Name)
             .Where(n => !string.IsNullOrEmpty(n))
@@ -50,7 +50,7 @@ public static class PortReflection
     /// </summary>
     public static IReadOnlyList<Type> TypesOf(Assembly assembly)
     {
-        ArgumentNullException.ThrowIfNull(assembly);
+        PortGuard.Required(assembly, nameof(assembly));
 
         try
         {
@@ -74,7 +74,7 @@ public static class PortReflection
     /// </summary>
     public static T InvokeNonPublicStatic<T>(Type type, string methodName, params object?[] args)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        PortGuard.Required(type, nameof(type));
         ArgumentException.ThrowIfNullOrWhiteSpace(methodName);
         args ??= Array.Empty<object?>();
 

@@ -24,7 +24,7 @@ namespace Strategy.DecisionRules
 
         public DecisionPortal(IDecisionRuleSetProvider provider, DecisionRulesEngine? engine = null)
         {
-            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            _provider = PortGuard.Required(provider, nameof(provider));
             _engine = engine ?? new DecisionRulesEngine(
                 new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer());
         }
@@ -37,7 +37,7 @@ namespace Strategy.DecisionRules
         /// <summary>用注入的审计 sink 构造（命中/兜底审计落到 <see cref="IRuleAuditSink"/>，如 DecisionRecorder 适配）。</summary>
         public DecisionPortal(IDecisionRuleSetProvider provider, IRuleAuditSink audit)
         {
-            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            _provider = PortGuard.Required(provider, nameof(provider));
             _engine = new DecisionRulesEngine(
                 new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer(), audit: audit);
         }

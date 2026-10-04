@@ -40,8 +40,8 @@ public static class SpecPortPlanBuilder
         Func<string, string?>? implementationPointOf = null,
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories = null)
     {
-        ArgumentNullException.ThrowIfNull(standards);
-        ArgumentNullException.ThrowIfNull(resolveImplementation);
+        PortGuard.Required(standards, nameof(standards));
+        PortGuard.Required(resolveImplementation, nameof(resolveImplementation));
 
         var plans = new List<PortBinding>();
 

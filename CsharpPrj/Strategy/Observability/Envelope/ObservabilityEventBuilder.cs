@@ -19,7 +19,7 @@ public sealed class ObservabilityEventBuilder
     public ObservabilityEventBuilder(EntityId entity, string eventKind)
     {
         _entity = entity;
-        _eventKind = eventKind ?? throw new ArgumentNullException(nameof(eventKind));
+        _eventKind = PortGuard.Required(eventKind, nameof(eventKind));
     }
 
     public ObservabilityEventBuilder Phase(string phase) { _phase = phase; return this; }

@@ -41,7 +41,7 @@ public sealed class EventProjection
     /// <summary>按分类从事件序切片。</summary>
     public static EventProjection Of(string kind, IEnumerable<ObservationOutcome> events)
     {
-        ArgumentNullException.ThrowIfNull(events);
+        PortGuard.Required(events, nameof(events));
         return new EventProjection(
             kind,
             events.Where(e => string.Equals(e.Kind, kind, StringComparison.Ordinal)).ToArray());

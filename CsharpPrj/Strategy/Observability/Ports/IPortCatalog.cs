@@ -8,8 +8,8 @@ public sealed class PortHandle
 {
     public PortHandle(BoundaryContract contract, IPortBinding binding)
     {
-        Contract = contract ?? throw new ArgumentNullException(nameof(contract));
-        Binding = binding ?? throw new ArgumentNullException(nameof(binding));
+        Contract = PortGuard.Required(contract, nameof(contract));
+        Binding = PortGuard.Required(binding, nameof(binding));
     }
 
     /// <summary>端口契约。</summary>

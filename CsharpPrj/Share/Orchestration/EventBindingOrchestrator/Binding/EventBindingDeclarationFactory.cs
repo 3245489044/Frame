@@ -50,8 +50,7 @@ public static class EventBindingDeclarationFactory
     public static List<EventBindingDeclaration<IReadOnlyList<ParameterBinding>>> Build(
         UIConfiguration config)
     {
-        if (config == null)
-            throw new ArgumentNullException(nameof(config));
+        config = PortGuard.Required(config, nameof(config));
 
         var declarations = new List<EventBindingDeclaration<IReadOnlyList<ParameterBinding>>>();
 

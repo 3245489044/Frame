@@ -9,7 +9,7 @@ namespace Modules.StateManagement
             where TKey : notnull
             where THandler : class
         {
-            ArgumentNullException.ThrowIfNull(action);
+            PortGuard.Required(action, nameof(action));
 
             foreach (var handler in registry.GetAll())
             {

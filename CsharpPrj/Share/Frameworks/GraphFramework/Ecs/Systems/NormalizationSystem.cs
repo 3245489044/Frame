@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using ECS.Core;
@@ -40,7 +40,7 @@ namespace GraphFramework.Ecs.Systems
             ICoreGraph<TKey, TNodeData, TEdgeData> graph,
             INormalizationConfig? config = null)
         {
-            _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+            _graph = PortGuard.Required(graph, nameof(graph));
             _config = config;
             _transformer = new NormalizationTransformer(config);
         }

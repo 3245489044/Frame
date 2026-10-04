@@ -18,7 +18,7 @@ namespace Share.EventBindingOrchestrator.FunctionHub
             ITrConfigRegistry registry,
             ILogger<FunctionHub>? logger = null)
         {
-            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _registry = PortGuard.Required(registry, nameof(registry));
             _logger = logger ?? NullLogger<FunctionHub>.Instance;
             _workflows = new Dictionary<string, WorkflowDefinitionEntry>(StringComparer.OrdinalIgnoreCase);
         }

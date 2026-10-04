@@ -48,7 +48,7 @@ namespace GraphFramework.Pipeline
 
         public GraphPipeline<TKey, TNodeData, TEdgeData> AddStep(IGraphPipelineStep<TKey, TNodeData, TEdgeData> step)
         {
-            if (step == null) throw new ArgumentNullException(nameof(step));
+            step = PortGuard.Required(step, nameof(step));
             _steps.Add(step);
             return this;
         }
@@ -62,7 +62,7 @@ namespace GraphFramework.Pipeline
 
         public GraphPipeline<TKey, TNodeData, TEdgeData> InsertStep(int index, IGraphPipelineStep<TKey, TNodeData, TEdgeData> step)
         {
-            if (step == null) throw new ArgumentNullException(nameof(step));
+            step = PortGuard.Required(step, nameof(step));
             if (index < 0 || index > _steps.Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
             _steps.Insert(index, step);
@@ -108,7 +108,7 @@ namespace GraphFramework.Pipeline
 
         public IGraph<TKey, TNodeData, TEdgeData> Execute(IGraph<TKey, TNodeData, TEdgeData> input)
         {
-            if (input == null) throw new ArgumentNullException(nameof(input));
+            input = PortGuard.Required(input, nameof(input));
 
             var current = input;
             foreach (var step in _steps)

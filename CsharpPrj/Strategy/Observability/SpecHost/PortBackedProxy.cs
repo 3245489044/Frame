@@ -44,7 +44,7 @@ internal class PortBackedProxyDispatch : DispatchProxy
     /// <summary>生成代理实例（<see cref="PortBackedProxy.Create{T}"/> 的唯一实现点）。</summary>
     internal static T Create<T>(IPortCatalog catalog, string? typeName) where T : class
     {
-        ArgumentNullException.ThrowIfNull(catalog);
+        PortGuard.Required(catalog, nameof(catalog));
         if (!typeof(T).IsInterface)
             throw new PortBindingViolationException(
                 typeof(T).FullName ?? typeof(T).Name, "端口背书代理只支持接口");
@@ -60,7 +60,7 @@ internal class PortBackedProxyDispatch : DispatchProxy
     /// <summary>方法调用分派（<c>object</c> 成员本地应答，不落端口面；其余按端口键解析调用）。</summary>
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
-        ArgumentNullException.ThrowIfNull(targetMethod);
+        PortGuard.Required(targetMethod, nameof(targetMethod));
 
         var catalog = _catalog
             ?? throw new PortBindingViolationException(_typeName, "端口背书代理未绑定端口目录（代理构造异常）");

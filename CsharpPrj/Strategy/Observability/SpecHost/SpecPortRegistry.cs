@@ -19,7 +19,7 @@ public sealed class SpecPortRegistry
     public void Register(string id, Func<IPortInput, object?> invoke)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        ArgumentNullException.ThrowIfNull(invoke);
+        PortGuard.Required(invoke, nameof(invoke));
 
         if (!_implementations.TryAdd(id, invoke))
             throw new InvalidOperationException($"[port:bind] 端口 '{id}' 的实现重复登记（单一实现点被破坏）");

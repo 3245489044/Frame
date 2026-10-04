@@ -15,7 +15,7 @@ namespace Share.TaskStatusPool.Morphisms
 
         public FunctionExecuteMorphism(IEventExecutionService executionService)
         {
-            _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
+            _executionService = PortGuard.Required(executionService, nameof(executionService));
         }
 
         public IPoolContext Morph(IPoolContext input)

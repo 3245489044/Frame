@@ -16,7 +16,7 @@ public sealed class AssemblyStagePipeline<TContext> where TContext : class
 
     public AssemblyStagePipeline(IEnumerable<IAssemblyStage<TContext>> stages)
     {
-        ArgumentNullException.ThrowIfNull(stages);
+        PortGuard.Required(stages, nameof(stages));
         _stages = new List<IAssemblyStage<TContext>>(stages);
     }
 
@@ -27,7 +27,7 @@ public sealed class AssemblyStagePipeline<TContext> where TContext : class
     /// <summary>顺序执行全部门控阶段。</summary>
     public async Task RunAsync(TContext context, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        PortGuard.Required(context, nameof(context));
         foreach (var stage in _stages)
         {
             if (!stage.CanExecute(context)) continue;

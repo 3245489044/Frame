@@ -32,8 +32,8 @@ public sealed class PortCatalog : IPortCatalog
 
     public PortHandle Register(BoundaryContract contract, IPortBinding binding)
     {
-        ArgumentNullException.ThrowIfNull(contract);
-        ArgumentNullException.ThrowIfNull(binding);
+        PortGuard.Required(contract, nameof(contract));
+        PortGuard.Required(binding, nameof(binding));
         EnsurePortKind(contract);
 
         var handle = new PortHandle(contract, Decorate(contract.Key, binding));
@@ -56,8 +56,8 @@ public sealed class PortCatalog : IPortCatalog
 
     public bool TryRegister(BoundaryContract contract, IPortBinding binding)
     {
-        ArgumentNullException.ThrowIfNull(contract);
-        ArgumentNullException.ThrowIfNull(binding);
+        PortGuard.Required(contract, nameof(contract));
+        PortGuard.Required(binding, nameof(binding));
         EnsurePortKind(contract);
 
         if (!_handles.TryAdd(contract.Key, new PortHandle(contract, Decorate(contract.Key, binding)))) return false;
@@ -89,7 +89,7 @@ public sealed class PortCatalog : IPortCatalog
 
     public void Replace(string portKey, IPortBinding binding)
     {
-        ArgumentNullException.ThrowIfNull(binding);
+        PortGuard.Required(binding, nameof(binding));
         if (string.IsNullOrWhiteSpace(portKey)) throw new ArgumentException("端口键不能为空", nameof(portKey));
         if (!_handles.TryGetValue(portKey, out var handle))
             throw new PortNotRegisteredException(portKey, _handles.Keys.OrderBy(k => k, StringComparer.Ordinal));

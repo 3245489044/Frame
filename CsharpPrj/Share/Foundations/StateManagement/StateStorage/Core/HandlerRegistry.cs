@@ -14,14 +14,14 @@ namespace Modules.StateManagement
         public void Register(TKey key, THandler handler)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            handler = PortGuard.Required(handler, nameof(handler));
 
             _handlers[key] = handler;
         }
 
         public void RegisterRange(IEnumerable<KeyValuePair<TKey, THandler>> handlers)
         {
-            ArgumentNullException.ThrowIfNull(handlers);
+            PortGuard.Required(handlers, nameof(handlers));
 
             foreach (var kvp in handlers)
             {
@@ -59,7 +59,7 @@ namespace Modules.StateManagement
 
         public async Task ForEachAsync(Func<THandler, Task> action)
         {
-            ArgumentNullException.ThrowIfNull(action);
+            PortGuard.Required(action, nameof(action));
 
             foreach (var handler in _handlers.Values)
             {

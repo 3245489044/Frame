@@ -24,9 +24,9 @@ public sealed class ScopeCommandTranslator : ITemplateExpander<ScopeCommand, ISt
         Func<string, Task<string>> executePort,
         IScopeCommandPathRegistry registry)
     {
-        _naming = naming ?? throw new ArgumentNullException(nameof(naming));
-        _executePort = executePort ?? throw new ArgumentNullException(nameof(executePort));
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _naming = PortGuard.Required(naming, nameof(naming));
+        _executePort = PortGuard.Required(executePort, nameof(executePort));
+        _registry = PortGuard.Required(registry, nameof(registry));
     }
 
     /// <summary>展开一条高层命令为步骤序列并逐条执行，返回聚合诊断。</summary>

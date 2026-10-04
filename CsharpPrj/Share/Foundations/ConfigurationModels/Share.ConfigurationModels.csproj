@@ -27,4 +27,10 @@
     <!-- ★ 2026-07-15 新增：引用 TConfig 以使用 WorkflowDefinitionEntry 类型 -->
     <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- P1：初始化护栏门面 + 全局 using（零 using 行改动） -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+    <Using Include="BasicMethod.Initialization.Guards" />
+  </ItemGroup>
+
 </Project>

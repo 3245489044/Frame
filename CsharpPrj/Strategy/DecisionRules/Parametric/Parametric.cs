@@ -22,8 +22,8 @@ namespace Strategy.DecisionRules
             ParameterSchema schema,
             IReadOnlyDictionary<string, string> parameterToVariableKey)
         {
-            if (schema is null) throw new ArgumentNullException(nameof(schema));
-            if (parameterToVariableKey is null) throw new ArgumentNullException(nameof(parameterToVariableKey));
+            schema = PortGuard.Required(schema, nameof(schema));
+            parameterToVariableKey = PortGuard.Required(parameterToVariableKey, nameof(parameterToVariableKey));
             return input =>
             {
                 var writes = new List<ParameterWrite>();
@@ -51,7 +51,7 @@ namespace Strategy.DecisionRules
         public static IParametricDecoder<TLabel> DecoderFrom<TLabel>(
             Func<ParameterState, int, ParametricDecision<TLabel>> decode)
         {
-            if (decode is null) throw new ArgumentNullException(nameof(decode));
+            decode = PortGuard.Required(decode, nameof(decode));
             return new FunctionDecoder<TLabel>(decode);
         }
 
@@ -62,7 +62,7 @@ namespace Strategy.DecisionRules
         /// </summary>
         public static ParameterTransfer AsTransfer(ParameterMatrix matrix)
         {
-            if (matrix is null) throw new ArgumentNullException(nameof(matrix));
+            matrix = PortGuard.Required(matrix, nameof(matrix));
             return input => matrix.ApplyTo(input);
         }
 

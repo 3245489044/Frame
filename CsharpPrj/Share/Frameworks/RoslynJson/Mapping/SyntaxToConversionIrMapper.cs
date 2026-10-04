@@ -1,4 +1,6 @@
 
+using BasicMethod.Initialization.Guards;
+
 using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -23,14 +25,14 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
 
     public SyntaxToConversionIrMapper(SyntaxRuleTable rules, SyntaxMappingOptions? options = null)
     {
-        _rules = rules ?? throw new ArgumentNullException(nameof(rules));
+        _rules = PortGuard.Required(rules, nameof(rules));
         _options = options ?? SyntaxMappingOptions.Default;
     }
 
     public ConversionNode Map(SyntaxNode node, ConversionContext context)
     {
-        if (node is null) throw new ArgumentNullException(nameof(node));
-        if (context is null) throw new ArgumentNullException(nameof(context));
+        node = PortGuard.Required(node, nameof(node));
+        context = PortGuard.Required(context, nameof(context));
 
         return MapCore(node, context, 1);
     }

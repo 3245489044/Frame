@@ -75,7 +75,7 @@ public sealed class SpecPortStandards
     /// <summary>按 JSON 文本装载（装载源 = 注入的标准装载器；本件只索引，不解析）。</summary>
     public static SpecPortStandards Parse(string json)
     {
-        ArgumentNullException.ThrowIfNull(json);
+        PortGuard.Required(json, nameof(json));
 
         var map = new Dictionary<string, PortStandard>(StringComparer.Ordinal);
         foreach (var (portKey, standard) in Projection(json))
@@ -90,7 +90,7 @@ public sealed class SpecPortStandards
     /// <summary>种类字符串 → 上层枚举（标准目录已归一；未知即抛，属实现漂移）；未声明 impl → <see cref="SpecPortBindingKind.Delegate"/>（遗留默认）。</summary>
     public static SpecPortBindingKind KindOf(PortStandard standard)
     {
-        ArgumentNullException.ThrowIfNull(standard);
+        PortGuard.Required(standard, nameof(standard));
 
         return standard.Impl is not { } impl
             ? SpecPortBindingKind.Delegate

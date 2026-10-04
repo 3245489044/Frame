@@ -77,8 +77,8 @@ namespace GraphFramework
 
         public CompositeKey(string group, string id)
         {
-            Group = group ?? throw new ArgumentNullException(nameof(group));
-            Id = id ?? throw new ArgumentNullException(nameof(id));
+            Group = PortGuard.Required(group, nameof(group));
+            Id = PortGuard.Required(id, nameof(id));
         }
 
         public bool Equals(CompositeKey other)

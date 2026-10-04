@@ -1,4 +1,6 @@
 
+using BasicMethod.Initialization.Guards;
+
 using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
@@ -29,7 +31,7 @@ public sealed class SyntaxRuleTable
     /// <summary>注册规则（重复即抛）。</summary>
     public SyntaxRuleTable Register(SyntaxKind kind, SyntaxNodeMapper mapper)
     {
-        if (mapper is null) throw new ArgumentNullException(nameof(mapper));
+        mapper = PortGuard.Required(mapper, nameof(mapper));
         if (_rules.ContainsKey(kind))
             throw new InvalidOperationException($"SyntaxKind \"{kind}\" 已注册映射规则（单一注册点）");
 
@@ -41,7 +43,7 @@ public sealed class SyntaxRuleTable
     /// <summary>注册或覆盖规则（派生映射器替换基线时使用）。</summary>
     public SyntaxRuleTable RegisterOrReplace(SyntaxKind kind, SyntaxNodeMapper mapper)
     {
-        if (mapper is null) throw new ArgumentNullException(nameof(mapper));
+        mapper = PortGuard.Required(mapper, nameof(mapper));
 
         if (_rules.ContainsKey(kind))
         {

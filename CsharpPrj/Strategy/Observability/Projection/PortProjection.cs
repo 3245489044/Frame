@@ -13,7 +13,7 @@ public sealed class PortProjection
     public PortProjection(string portKey, IEnumerable<PortCallView> calls)
     {
         PortKey = string.IsNullOrWhiteSpace(portKey) ? throw new ArgumentException("端口键不能为空", nameof(portKey)) : portKey;
-        _calls = (calls ?? throw new ArgumentNullException(nameof(calls))).ToArray();
+        _calls = PortGuard.Required(calls, nameof(calls)).ToArray();
     }
 
     /// <summary>端口键。</summary>
@@ -41,7 +41,7 @@ public sealed class PortProjection
     /// <summary>自定义渲染（域侧只需给投影器，不需重建记录机制）。</summary>
     public IReadOnlyList<string> Render(Func<PortCallView, string> render)
     {
-        ArgumentNullException.ThrowIfNull(render);
+        PortGuard.Required(render, nameof(render));
         return _calls.Select(render).ToArray();
     }
 

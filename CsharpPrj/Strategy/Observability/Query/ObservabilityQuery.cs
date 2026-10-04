@@ -23,7 +23,7 @@ public sealed class ObservabilityQuery : IObservabilityQuery
 
     public ObservabilityQuery(IEventStore store)
     {
-        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _store = PortGuard.Required(store, nameof(store));
     }
 
     public async IAsyncEnumerable<ObservabilityEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
@@ -40,8 +40,8 @@ public sealed class ObservabilityQuery : IObservabilityQuery
 
     public async Task<IReadOnlyList<MetricAggregate>> AggregateAsync(string scopeId, IEnumerable<string> kinds, IEnumerable<string> metricKeys, DateTime? fromUtc = null, CancellationToken ct = default)
     {
-        var kindSet = new HashSet<string>(kinds ?? throw new ArgumentNullException(nameof(kinds)), StringComparer.Ordinal);
-        var keySet = new HashSet<string>(metricKeys ?? throw new ArgumentNullException(nameof(metricKeys)), StringComparer.Ordinal);
+        var kindSet = new HashSet<string>(PortGuard.Required(kinds, nameof(kinds)), StringComparer.Ordinal);
+        var keySet = new HashSet<string>(PortGuard.Required(metricKeys, nameof(metricKeys)), StringComparer.Ordinal);
         var sums = keySet.ToDictionary(k => k, _ => 0.0, StringComparer.Ordinal);
         var counts = keySet.ToDictionary(k => k, _ => 0L, StringComparer.Ordinal);
         var max = keySet.ToDictionary(k => k, _ => double.MinValue, StringComparer.Ordinal);

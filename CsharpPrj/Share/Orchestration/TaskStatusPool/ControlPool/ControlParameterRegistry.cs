@@ -16,10 +16,10 @@ namespace Share.TaskStatusPool.ControlPool
 
         public void RegisterMapping(string controlName, string paramName, string functionName, Type targetType)
         {
-            ArgumentNullException.ThrowIfNull(controlName);
-            ArgumentNullException.ThrowIfNull(paramName);
-            ArgumentNullException.ThrowIfNull(functionName);
-            ArgumentNullException.ThrowIfNull(targetType);
+            PortGuard.Required(controlName, nameof(controlName));
+            PortGuard.Required(paramName, nameof(paramName));
+            PortGuard.Required(functionName, nameof(functionName));
+            PortGuard.Required(targetType, nameof(targetType));
 
             RegisterOrUpdate(controlName, new ParameterMapMorphism(paramName, functionName, targetType));
         }
@@ -31,7 +31,7 @@ namespace Share.TaskStatusPool.ControlPool
 
         public void RegisterMappings(IEnumerable<(string ControlName, string ParamName, string FunctionName, Type TargetType)> mappings)
         {
-            ArgumentNullException.ThrowIfNull(mappings);
+            PortGuard.Required(mappings, nameof(mappings));
 
             foreach (var (controlName, paramName, functionName, targetType) in mappings)
             {

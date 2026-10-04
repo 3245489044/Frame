@@ -21,21 +21,21 @@ namespace Share.TaskStatusPool.Morphisms
             ControlPool.ControlPool controlPool,
             System.Collections.Concurrent.ConcurrentDictionary<string, string[]>? syncMap = null)
         {
-            _controlPool = controlPool ?? throw new ArgumentNullException(nameof(controlPool));
+            _controlPool = PortGuard.Required(controlPool, nameof(controlPool));
             SyncMap = syncMap ?? _defaultSyncMap;
         }
 
         public static void RegisterSync(string sourceControlName, params string[] targetControlNames)
         {
-            ArgumentNullException.ThrowIfNull(sourceControlName);
-            ArgumentNullException.ThrowIfNull(targetControlNames);
+            PortGuard.Required(sourceControlName, nameof(sourceControlName));
+            PortGuard.Required(targetControlNames, nameof(targetControlNames));
 
             _defaultSyncMap[sourceControlName] = targetControlNames;
         }
 
         public static void RegisterSyncs(Dictionary<string, string[]> mappings)
         {
-            ArgumentNullException.ThrowIfNull(mappings);
+            PortGuard.Required(mappings, nameof(mappings));
 
             foreach (var kvp in mappings)
             {

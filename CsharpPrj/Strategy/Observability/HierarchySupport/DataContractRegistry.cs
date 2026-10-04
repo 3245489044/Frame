@@ -16,14 +16,14 @@ namespace Share.HierarchySupport
         /// <summary>注册或覆盖一条契约（覆盖 = 版本演进，键不可变）。</summary>
         public static void Register(DataContract contract)
         {
-            if (contract is null) throw new ArgumentNullException(nameof(contract));
+            contract = PortGuard.Required(contract, nameof(contract));
             _contracts[contract.Key] = contract;
         }
 
         /// <summary>批量注册（播种器入口）。</summary>
         public static void RegisterRange(IEnumerable<DataContract> contracts)
         {
-            if (contracts is null) throw new ArgumentNullException(nameof(contracts));
+            contracts = PortGuard.Required(contracts, nameof(contracts));
             foreach (var c in contracts) Register(c);
         }
 

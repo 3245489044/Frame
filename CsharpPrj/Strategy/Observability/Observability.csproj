@@ -30,6 +30,13 @@
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <!-- B5 内核退场：PortSpecCompiler 入参 PortStandard（DataCenter.Protocol.Standards 纯契约，零依赖，禁 HintPath 分叉） -->
     <ProjectReference Include="..\..\..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj" />
+    <!-- 初始化护栏门面（P1 空值护栏收敛）：PortGuard.Required（T 出口） -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- P1：全局 using（零 using 行改动，见 初始化与错误处理通用框架-应用分析.md §A） -->
+    <Using Include="BasicMethod.Initialization.Guards" />
   </ItemGroup>
 
 </Project>

@@ -22,8 +22,8 @@ public static class OutcomeIssues
     /// <param name="expected">期望异常类型集（空 = 无期望，任何异常均上抛）。</param>
     public static IReadOnlyList<string> Capture(Action body, Func<Exception, string> project, params Type[] expected)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        ArgumentNullException.ThrowIfNull(project);
+        PortGuard.Required(body, nameof(body));
+        PortGuard.Required(project, nameof(project));
         Validate(expected);
 
         try
@@ -44,8 +44,8 @@ public static class OutcomeIssues
     public static async Task<IReadOnlyList<string>> CaptureAsync(
         Func<Task> body, Func<Exception, string> project, params Type[] expected)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        ArgumentNullException.ThrowIfNull(project);
+        PortGuard.Required(body, nameof(body));
+        PortGuard.Required(project, nameof(project));
         Validate(expected);
 
         try
@@ -71,7 +71,7 @@ public static class OutcomeIssues
 
     private static void Validate(Type[] expected)
     {
-        ArgumentNullException.ThrowIfNull(expected);
+        PortGuard.Required(expected, nameof(expected));
 
         foreach (var type in expected)
             if (type is null)

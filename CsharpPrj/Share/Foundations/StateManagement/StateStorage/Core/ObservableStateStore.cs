@@ -9,7 +9,7 @@ namespace Share.StateManagement
 
         public ObservableStateStore(IStateStore innerStore)
         {
-            _innerStore = innerStore ?? throw new ArgumentNullException(nameof(innerStore));
+            _innerStore = PortGuard.Required(innerStore, nameof(innerStore));
         }
 
         public string? Get(string key) => _innerStore.Get(key);
@@ -64,7 +64,7 @@ namespace Share.StateManagement
 
         public void SetRange(IEnumerable<KeyValuePair<string, string?>> values)
         {
-            ArgumentNullException.ThrowIfNull(values);
+            PortGuard.Required(values, nameof(values));
 
             foreach (var kvp in values)
             {

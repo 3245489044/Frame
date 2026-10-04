@@ -22,7 +22,7 @@ public static class BoundaryContractProjection
         IEnumerable<DataStandardItem>? data = null,
         IEnumerable<EventStandard>? events = null)
     {
-        ArgumentNullException.ThrowIfNull(ports);
+        PortGuard.Required(ports, nameof(ports));
 
         var contracts = new List<BoundaryContract>();
         foreach (var port in ports) contracts.Add(Port(port));
@@ -34,7 +34,7 @@ public static class BoundaryContractProjection
     /// <summary>端口标准 → 端口契约（入参字段 + 产物字段 + 依赖端口 + 发射事件）。</summary>
     public static BoundaryContract Port(PortStandard port)
     {
-        ArgumentNullException.ThrowIfNull(port);
+        PortGuard.Required(port, nameof(port));
 
         return BoundaryContract.Port(
             port.Key,
@@ -50,7 +50,7 @@ public static class BoundaryContractProjection
     /// <summary>数据标准 → 数据契约（方向 + 字段 + 作用域；字段序 = 台账声明序）。</summary>
     public static BoundaryContract Data(DataStandardItem item)
     {
-        ArgumentNullException.ThrowIfNull(item);
+        PortGuard.Required(item, nameof(item));
 
         return BoundaryContract.Data(
             item.Key,
@@ -64,7 +64,7 @@ public static class BoundaryContractProjection
     /// <summary>事件标准 → 事件契约（必填载荷字段 + 度量键 + 枚举域 + 可选实体族）。</summary>
     public static BoundaryContract Event(EventStandard evt)
     {
-        ArgumentNullException.ThrowIfNull(evt);
+        PortGuard.Required(evt, nameof(evt));
 
         // required 与 enum 同名 = 同一字段（enum 是字段属性，不是第二个字段）→ 按名并集，禁重复声明。
         var fields = FieldSpec.UnionRequiredAndEnums(evt.Required, evt.Enums);

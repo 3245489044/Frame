@@ -25,7 +25,7 @@ public sealed class ObservabilityContractRegistry : IObservabilityContractRegist
 
     public bool Register(EventContract contract)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         if (string.IsNullOrWhiteSpace(contract.EventKind)) throw new ArgumentException("EventKind 不能为空", nameof(contract));
         return _byKind.TryAdd(contract.EventKind, contract);
     }

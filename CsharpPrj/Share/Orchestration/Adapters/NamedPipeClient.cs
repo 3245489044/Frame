@@ -12,7 +12,7 @@ public class NamedPipeClient : IDisposable
 
     public NamedPipeClient(string pipeName)
     {
-        _pipeName = pipeName ?? throw new ArgumentNullException(nameof(pipeName));
+        _pipeName = PortGuard.Required(pipeName, nameof(pipeName));
     }
 
     public void Connect(int timeoutMs = 15000)

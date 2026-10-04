@@ -53,7 +53,7 @@ public static class SpecPorts
     /// <summary>装配端口宿主（守卫 / 诊断用）；每次调用刷新 <see cref="ActiveCatalog"/>。</summary>
     public static SpecPortHost Assemble(SpecPortOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        PortGuard.Required(options, nameof(options));
 
         var plans = options.Plans ?? throw new InvalidOperationException(
             "[spec:port] 未注入数据半（SpecPortOptions.Plans）：执行面装配入口不识别领域资源位置（标准文件 / 端口目录 / 绑定计划）");

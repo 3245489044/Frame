@@ -16,8 +16,8 @@ namespace Share.TaskStatusPool.Morphisms
 
         public ResultWriteMorphism(ControlPool.ControlPool controlPool, IControlValueAccessor valueAccessor)
         {
-            _controlPool = controlPool ?? throw new ArgumentNullException(nameof(controlPool));
-            _valueAccessor = valueAccessor ?? throw new ArgumentNullException(nameof(valueAccessor));
+            _controlPool = PortGuard.Required(controlPool, nameof(controlPool));
+            _valueAccessor = PortGuard.Required(valueAccessor, nameof(valueAccessor));
         }
 
         public IPoolContext Morph(IPoolContext input)

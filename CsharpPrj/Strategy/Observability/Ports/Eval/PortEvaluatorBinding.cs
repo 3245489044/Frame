@@ -23,7 +23,7 @@ public sealed class PortEvaluatorBinding : IPortBinding
     /// </summary>
     public PortEvaluatorBinding(PortSpec spec, PortEvaluator? evaluator = null, PortInjection? injection = null)
     {
-        _spec = spec ?? throw new ArgumentNullException(nameof(spec));
+        _spec = PortGuard.Required(spec, nameof(spec));
         _evaluator = evaluator ?? PortEvaluator.Shared;
         _injection = injection ?? PortInjection.Empty;
 

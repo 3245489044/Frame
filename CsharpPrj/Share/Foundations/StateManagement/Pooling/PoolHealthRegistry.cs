@@ -12,7 +12,7 @@ namespace Share.StateManagement.Pooling
 
         public PoolHealthRegistry(IWorkerStateStore stateStore)
         {
-            _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _stateStore = PortGuard.Required(stateStore, nameof(stateStore));
             _stateStore.StateChanged += OnWorkerStateChanged;
         }
 

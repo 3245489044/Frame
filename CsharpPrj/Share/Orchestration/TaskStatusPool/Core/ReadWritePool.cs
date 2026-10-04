@@ -73,7 +73,7 @@ namespace Share.TaskStatusPool.Core
 
         public void WriteRange(IEnumerable<KeyValuePair<TKey, TValue?>> items)
         {
-            ArgumentNullException.ThrowIfNull(items);
+            PortGuard.Required(items, nameof(items));
 
             foreach (var kvp in items)
             {

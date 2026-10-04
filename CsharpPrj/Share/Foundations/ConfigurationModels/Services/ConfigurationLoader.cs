@@ -78,8 +78,7 @@ namespace Modules.ConfigurationModels.Services
         {
             if (string.IsNullOrEmpty(configPath))
                 throw new ArgumentNullException(nameof(configPath));
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
+            config = PortGuard.Required(config, nameof(config));
 
             var json = JsonSerializer.Serialize(config, _options);
             await File.WriteAllTextAsync(configPath, json);

@@ -66,7 +66,7 @@ public static class PortArgStandardExtensions
     /// <summary>标准取值声明 → 内核取值声明（位序即语义，字段逐个对应）。</summary>
     public static PortValueOptions Options(this PortArgStandard arg)
     {
-        ArgumentNullException.ThrowIfNull(arg);
+        PortGuard.Required(arg, nameof(arg));
 
         return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
     }
@@ -76,7 +76,7 @@ public static class PortArgStandardExtensions
     /// </summary>
     public static PortValueOptions Options(this ComposedArgStandard arg)
     {
-        ArgumentNullException.ThrowIfNull(arg);
+        PortGuard.Required(arg, nameof(arg));
 
         return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, From: null, arg.Key);
     }
@@ -86,7 +86,7 @@ public static class PortArgStandardExtensions
     /// </summary>
     public static PortValueOptions Options(this ValueSourceStandard arg)
     {
-        ArgumentNullException.ThrowIfNull(arg);
+        PortGuard.Required(arg, nameof(arg));
 
         return new PortValueOptions(arg.Convert, arg.Optional, arg.NullLiteral, arg.Default, arg.From, arg.Key);
     }

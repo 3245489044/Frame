@@ -1,4 +1,6 @@
 
+using BasicMethod.Initialization.Guards;
+
 using System;
 using System.Text;
 using System.Threading.Tasks;
@@ -38,8 +40,7 @@ public sealed class CSharpEmbeddedJsonEmitter : IArtifactEmitter<string>
     {
         if (node is null)
             return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitNull, "待发射节点为 null");
-        if (spec is null)
-            throw new ArgumentNullException(nameof(spec));
+        spec = PortGuard.Required(spec, nameof(spec));
         if (string.IsNullOrWhiteSpace(spec.ClassName))
             return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.EmitClassName, "类名不能为空");
         if (string.IsNullOrWhiteSpace(spec.MemberName))

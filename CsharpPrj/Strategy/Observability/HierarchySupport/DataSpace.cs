@@ -125,7 +125,7 @@ namespace Share.HierarchySupport
 
         void ICollection<KeyValuePair<string, object>>.CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
         {
-            if (array is null) throw new ArgumentNullException(nameof(array));
+            array = PortGuard.Required(array, nameof(array));
             foreach (var kv in _data)
                 array[arrayIndex++] = new KeyValuePair<string, object>(kv.Key, kv.Value!);
         }

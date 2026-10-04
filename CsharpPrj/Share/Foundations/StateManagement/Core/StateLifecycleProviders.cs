@@ -12,17 +12,17 @@ namespace Share.StateManagement
 
         public void RegisterScopeLifecycle(IScopeLifecycle provider)
         {
-            _scopeLifecycle = provider ?? throw new ArgumentNullException(nameof(provider));
+            _scopeLifecycle = PortGuard.Required(provider, nameof(provider));
         }
 
         public void RegisterCompositionLifecycle(ICompositionLifecycle provider)
         {
-            _compositionLifecycle = provider ?? throw new ArgumentNullException(nameof(provider));
+            _compositionLifecycle = PortGuard.Required(provider, nameof(provider));
         }
 
         public void RegisterContainerLifecycle(IContainerLifecycle provider)
         {
-            _containerLifecycle = provider ?? throw new ArgumentNullException(nameof(provider));
+            _containerLifecycle = PortGuard.Required(provider, nameof(provider));
         }
 
         public IScopeLifecycle GetRequiredScopeLifecycle()

@@ -20,7 +20,7 @@ namespace Share.TaskStatusPool.Morphisms
 
         public ParameterMapMorphism(ControlPool.ControlParameterRegistry registry)
         {
-            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _registry = PortGuard.Required(registry, nameof(registry));
             ParamName = string.Empty;
             FunctionName = string.Empty;
             TargetType = typeof(string);
@@ -28,9 +28,9 @@ namespace Share.TaskStatusPool.Morphisms
 
         internal ParameterMapMorphism(string paramName, string functionName, Type targetType)
         {
-            ParamName = paramName ?? throw new ArgumentNullException(nameof(paramName));
-            FunctionName = functionName ?? throw new ArgumentNullException(nameof(functionName));
-            TargetType = targetType ?? throw new ArgumentNullException(nameof(targetType));
+            ParamName = PortGuard.Required(paramName, nameof(paramName));
+            FunctionName = PortGuard.Required(functionName, nameof(functionName));
+            TargetType = PortGuard.Required(targetType, nameof(targetType));
             _registry = null!;
         }
 

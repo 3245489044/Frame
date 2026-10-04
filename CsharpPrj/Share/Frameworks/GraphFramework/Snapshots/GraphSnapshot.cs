@@ -39,11 +39,11 @@ namespace GraphFramework.Snapshots
             IReadOnlyDictionary<TKey, TNode> nodes,
             IReadOnlyList<SnapshotEdge<TKey>> edges)
         {
-            SnapshotId = snapshotId ?? throw new ArgumentNullException(nameof(snapshotId));
-            GraphId = graphId ?? throw new ArgumentNullException(nameof(graphId));
+            SnapshotId = PortGuard.Required(snapshotId, nameof(snapshotId));
+            GraphId = PortGuard.Required(graphId, nameof(graphId));
             Version = version;
-            Nodes = nodes ?? throw new ArgumentNullException(nameof(nodes));
-            Edges = edges ?? throw new ArgumentNullException(nameof(edges));
+            Nodes = PortGuard.Required(nodes, nameof(nodes));
+            Edges = PortGuard.Required(edges, nameof(edges));
             CreatedAt = DateTime.UtcNow;
         }
 
@@ -52,7 +52,7 @@ namespace GraphFramework.Snapshots
             string? graphId = null,
             int version = 1)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
 
             var nodes = new Dictionary<TKey, TNode>();
             foreach (var nodeKey in graph.GetAllNodeKeys())
@@ -212,7 +212,7 @@ namespace GraphFramework.Snapshots
 
         public SnapshotEdge(string edgeId, TKey sourceNodeKey, TKey targetNodeKey, bool isDirected = true)
         {
-            EdgeId = edgeId ?? throw new ArgumentNullException(nameof(edgeId));
+            EdgeId = PortGuard.Required(edgeId, nameof(edgeId));
             SourceNodeKey = sourceNodeKey;
             TargetNodeKey = targetNodeKey;
             IsDirected = isDirected;

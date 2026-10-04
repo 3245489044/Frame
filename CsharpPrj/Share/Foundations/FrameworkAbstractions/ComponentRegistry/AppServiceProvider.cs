@@ -22,7 +22,7 @@ namespace FrameworkAbstractions.ComponentRegistry
 
         public static void Initialize(IServiceProvider serviceProvider)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _serviceProvider = PortGuard.Required(serviceProvider, nameof(serviceProvider));
         }
 
         public static TService? Resolve<TService>()
@@ -44,8 +44,7 @@ namespace FrameworkAbstractions.ComponentRegistry
 
         public static object? Resolve(Type serviceType)
         {
-            if (serviceType == null)
-                throw new ArgumentNullException(nameof(serviceType));
+            serviceType = PortGuard.Required(serviceType, nameof(serviceType));
 
             if (_serviceProvider != null)
             {
@@ -81,10 +80,8 @@ namespace FrameworkAbstractions.ComponentRegistry
 
         public static void Register(Type serviceType, object instance)
         {
-            if (serviceType == null)
-                throw new ArgumentNullException(nameof(serviceType));
-            if (instance == null)
-                throw new ArgumentNullException(nameof(instance));
+            serviceType = PortGuard.Required(serviceType, nameof(serviceType));
+            instance = PortGuard.Required(instance, nameof(instance));
 
             _fallbackRegistrations[serviceType] = instance;
         }

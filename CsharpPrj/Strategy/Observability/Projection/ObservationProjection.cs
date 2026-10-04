@@ -12,7 +12,7 @@ public static class ObservationProjection
     /// <summary>端口根：某端口的调用记录投影。</summary>
     public static PortProjection Port(string portKey, CallLog log)
     {
-        ArgumentNullException.ThrowIfNull(log);
+        PortGuard.Required(log, nameof(log));
         return new PortProjection(portKey, log.For(portKey));
     }
 
@@ -28,7 +28,7 @@ public static class ObservationProjection
     public static ObservationOutcome? Event(string kind, IEnumerable<ObservationOutcome> source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
-        ArgumentNullException.ThrowIfNull(source);
+        PortGuard.Required(source, nameof(source));
         return source.FirstOrDefault(e => string.Equals(e.Kind, kind, StringComparison.Ordinal));
     }
 
@@ -36,7 +36,7 @@ public static class ObservationProjection
     public static IReadOnlyList<ObservationOutcome> Events(string kind, IEnumerable<ObservationOutcome> source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
-        ArgumentNullException.ThrowIfNull(source);
+        PortGuard.Required(source, nameof(source));
         return source.Where(e => string.Equals(e.Kind, kind, StringComparison.Ordinal)).ToArray();
     }
 }

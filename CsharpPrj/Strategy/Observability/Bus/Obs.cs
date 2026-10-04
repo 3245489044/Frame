@@ -18,7 +18,7 @@ public static class Obs
 
     public static void Configure(IObservabilityBus bus)
     {
-        _bus = bus ?? throw new ArgumentNullException(nameof(bus));
+        _bus = PortGuard.Required(bus, nameof(bus));
     }
 
     private static IObservabilityBus Bus => _bus ?? throw new InvalidOperationException("Obs 尚未 Configure（须装配 IObservabilityBus）");
@@ -67,7 +67,7 @@ public sealed class Activity : IDisposable
     {
         _bus = bus;
         _entity = entity;
-        _completionKind = completionKind ?? startKind ?? throw new ArgumentNullException(nameof(startKind));
+        _completionKind = completionKind ?? PortGuard.Required(startKind, nameof(startKind));
     }
 
     /// <summary>终结后回读：业务任务成败（null = 尚未终结）。</summary>

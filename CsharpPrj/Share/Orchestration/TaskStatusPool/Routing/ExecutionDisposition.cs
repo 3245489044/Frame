@@ -36,7 +36,7 @@ public sealed class RuleResolution
 
     public RuleResolution(string action, string? target = null, string? ruleId = null)
     {
-        Action = action ?? throw new ArgumentNullException(nameof(action));
+        Action = PortGuard.Required(action, nameof(action));
         Target = target;
         RuleId = ruleId;
     }

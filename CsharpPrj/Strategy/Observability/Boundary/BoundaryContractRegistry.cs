@@ -42,7 +42,7 @@ public sealed class BoundaryContractRegistry : IBoundaryContractRegistry
 
     public void Register(BoundaryContract contract)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         Validate(contract);
         if (!_byKey.TryAdd(contract.Key, contract))
             throw new DuplicateBoundaryException(contract.Key);
@@ -50,14 +50,14 @@ public sealed class BoundaryContractRegistry : IBoundaryContractRegistry
 
     public bool TryRegister(BoundaryContract contract)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         Validate(contract);
         return _byKey.TryAdd(contract.Key, contract);
     }
 
     public void RegisterRange(IEnumerable<BoundaryContract> contracts)
     {
-        ArgumentNullException.ThrowIfNull(contracts);
+        PortGuard.Required(contracts, nameof(contracts));
         foreach (var contract in contracts) Register(contract);
     }
 

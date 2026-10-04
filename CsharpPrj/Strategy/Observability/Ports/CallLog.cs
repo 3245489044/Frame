@@ -48,7 +48,7 @@ public sealed class CallLog
     /// <summary>追加一条调用记录。</summary>
     public void Record(PortCallView call)
     {
-        ArgumentNullException.ThrowIfNull(call);
+        PortGuard.Required(call, nameof(call));
         lock (_gate) _calls.Add(call);
     }
 

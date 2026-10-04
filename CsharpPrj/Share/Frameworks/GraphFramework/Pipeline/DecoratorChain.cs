@@ -161,8 +161,7 @@ namespace GraphFramework.Pipeline
 
         public DecoratorChain<TContext> Add(IPipelineStepDecorator<TContext> decorator)
         {
-            if (decorator == null)
-                throw new ArgumentNullException(nameof(decorator));
+            decorator = PortGuard.Required(decorator, nameof(decorator));
 
             lock (_lock)
             {
@@ -174,8 +173,7 @@ namespace GraphFramework.Pipeline
 
         public DecoratorChain<TContext> AddRange(IEnumerable<IPipelineStepDecorator<TContext>> decorators)
         {
-            if (decorators == null)
-                throw new ArgumentNullException(nameof(decorators));
+            decorators = PortGuard.Required(decorators, nameof(decorators));
 
             lock (_lock)
             {

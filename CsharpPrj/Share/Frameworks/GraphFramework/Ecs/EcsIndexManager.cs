@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using System.Collections.Concurrent;
@@ -37,7 +37,7 @@ namespace GraphFramework.Ecs
 
         public EcsIndexManager(EntityManager entityManager)
         {
-            _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
+            _entityManager = PortGuard.Required(entityManager, nameof(entityManager));
         }
 
         public void RegisterIndex<TComponent>(

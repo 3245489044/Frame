@@ -50,8 +50,7 @@ namespace Share.StateManagement.Stages
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("名称不能为空", nameof(name));
-            if (collector == null)
-                throw new ArgumentNullException(nameof(collector));
+            collector = PortGuard.Required(collector, nameof(collector));
             _collectorRegistry.Register(name, collector);
         }
 

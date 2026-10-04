@@ -19,7 +19,7 @@ public static class UiDispatchGuard
         Action<string>? onFail = null,
         CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(uiCall);
+        PortGuard.Required(uiCall, nameof(uiCall));
         var effective = timeout > TimeSpan.Zero ? timeout : TimeSpan.FromSeconds(5);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(effective);

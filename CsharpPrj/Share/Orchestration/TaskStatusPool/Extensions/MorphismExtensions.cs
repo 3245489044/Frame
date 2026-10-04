@@ -1,5 +1,6 @@
 
 #nullable enable
+using BasicMethod.Initialization.Guards;
 using Share.TaskStatusPool.Abstractions;
 
 namespace Share.TaskStatusPool.Extensions
@@ -11,8 +12,8 @@ namespace Share.TaskStatusPool.Extensions
             this IMorphism<TIn, TMid> first,
             IMorphism<TMid, TOut> second)
         {
-            ArgumentNullException.ThrowIfNull(first);
-            ArgumentNullException.ThrowIfNull(second);
+            PortGuard.Required(first, nameof(first));
+            PortGuard.Required(second, nameof(second));
 
             return new CompositeMorphism<TIn, TMid, TOut>(first, second);
         }
@@ -21,8 +22,8 @@ namespace Share.TaskStatusPool.Extensions
             this IAsyncMorphism<TIn, TMid> first,
             IAsyncMorphism<TMid, TOut> second)
         {
-            ArgumentNullException.ThrowIfNull(first);
-            ArgumentNullException.ThrowIfNull(second);
+            PortGuard.Required(first, nameof(first));
+            PortGuard.Required(second, nameof(second));
 
             return new AsyncCompositeMorphism<TIn, TMid, TOut>(first, second);
         }
@@ -31,7 +32,7 @@ namespace Share.TaskStatusPool.Extensions
         public static IAsyncMorphism<TIn, TOut> ToAsync<TIn, TOut>(
             this IMorphism<TIn, TOut> morphism)
         {
-            ArgumentNullException.ThrowIfNull(morphism);
+            PortGuard.Required(morphism, nameof(morphism));
             return new AsyncAdapterMorphism<TIn, TOut>(morphism);
         }
 
@@ -39,7 +40,7 @@ namespace Share.TaskStatusPool.Extensions
             this IMorphism<TIn, TOut> morphism,
             int order = 0)
         {
-            ArgumentNullException.ThrowIfNull(morphism);
+            PortGuard.Required(morphism, nameof(morphism));
             return new OrderedMorphismAdapter<TIn, TOut>(morphism, order);
         }
 
@@ -48,8 +49,8 @@ namespace Share.TaskStatusPool.Extensions
             string name,
             Func<TIn, TOut> func)
         {
-            ArgumentNullException.ThrowIfNull(name);
-            ArgumentNullException.ThrowIfNull(func);
+            PortGuard.Required(name, nameof(name));
+            PortGuard.Required(func, nameof(func));
 
             return new FuncMorphism<TIn, TOut>(name, func);
         }
@@ -58,8 +59,8 @@ namespace Share.TaskStatusPool.Extensions
             string name,
             Func<TIn, Task<TOut>> func)
         {
-            ArgumentNullException.ThrowIfNull(name);
-            ArgumentNullException.ThrowIfNull(func);
+            PortGuard.Required(name, nameof(name));
+            PortGuard.Required(func, nameof(func));
 
             return new AsyncFuncMorphism<TIn, TOut>(name, func);
         }

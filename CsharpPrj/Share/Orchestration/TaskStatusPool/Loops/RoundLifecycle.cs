@@ -47,7 +47,7 @@ public static class RoundLifecycle
         Func<ILoopState, CancellationToken, Task<AxiomActionResult>> execute,
         CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(execute);
+        PortGuard.Required(execute, nameof(execute));
         return execute(ctx, ct);
     }
 
@@ -57,8 +57,8 @@ public static class RoundLifecycle
     /// </summary>
     public static ErrorClass? Collect(ILoopState ctx, AxiomActionResult result, ErrorClass? explicitErrorClass = null)
     {
-        ArgumentNullException.ThrowIfNull(ctx);
-        ArgumentNullException.ThrowIfNull(result);
+        PortGuard.Required(ctx, nameof(ctx));
+        PortGuard.Required(result, nameof(result));
 
         var errCls = explicitErrorClass
             ?? result.ErrorClass
@@ -74,8 +74,8 @@ public static class RoundLifecycle
         ErrorClass? errCls,
         Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate = null)
     {
-        ArgumentNullException.ThrowIfNull(ctx);
-        ArgumentNullException.ThrowIfNull(result);
+        PortGuard.Required(ctx, nameof(ctx));
+        PortGuard.Required(result, nameof(result));
 
         // 进度 + 熔断分别走单一入口
         var eval = evaluate != null ? evaluate(result, errCls) : InferEval(result, errCls);
@@ -94,8 +94,8 @@ public static class RoundLifecycle
     /// <summary>④ Decide —— 终止优先（halt/token 耗尽）；否则成功即 TS，未成功则继续。</summary>
     public static LoopDecision Decide(ILoopState ctx, AxiomActionResult result, EvalOutcome eval)
     {
-        ArgumentNullException.ThrowIfNull(ctx);
-        ArgumentNullException.ThrowIfNull(result);
+        PortGuard.Required(ctx, nameof(ctx));
+        PortGuard.Required(result, nameof(result));
 
         if (TerminationDecider.ShouldTerminate(ctx, out var term))
             return term;
@@ -107,7 +107,7 @@ public static class RoundLifecycle
     /// <summary>⑤ Adjust —— 推进轮次号，生成下一步提示（成功无提示）。</summary>
     public static string? Adjust(ILoopState ctx, LoopDecision decision, EvalOutcome eval)
     {
-        ArgumentNullException.ThrowIfNull(ctx);
+        PortGuard.Required(ctx, nameof(ctx));
 
         ctx.Round++;
         return decision == LoopDecision.Success ? null : BuildNextHint(ctx, eval);

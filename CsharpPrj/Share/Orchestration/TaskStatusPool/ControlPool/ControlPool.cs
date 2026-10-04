@@ -14,9 +14,9 @@ namespace Share.TaskStatusPool.ControlPool
 
         public void SyncFromControl(string controlName, object control, IControlValueAccessor accessor)
         {
-            ArgumentNullException.ThrowIfNull(controlName);
-            ArgumentNullException.ThrowIfNull(control);
-            ArgumentNullException.ThrowIfNull(accessor);
+            PortGuard.Required(controlName, nameof(controlName));
+            PortGuard.Required(control, nameof(control));
+            PortGuard.Required(accessor, nameof(accessor));
 
             var value = accessor.GetValue(control);
             Write(controlName, value);
@@ -24,9 +24,9 @@ namespace Share.TaskStatusPool.ControlPool
 
         public void SyncToControl(string controlName, object control, IControlValueAccessor accessor)
         {
-            ArgumentNullException.ThrowIfNull(controlName);
-            ArgumentNullException.ThrowIfNull(control);
-            ArgumentNullException.ThrowIfNull(accessor);
+            PortGuard.Required(controlName, nameof(controlName));
+            PortGuard.Required(control, nameof(control));
+            PortGuard.Required(accessor, nameof(accessor));
 
             var value = Read(controlName);
             if (value != null)
@@ -35,8 +35,8 @@ namespace Share.TaskStatusPool.ControlPool
 
         public void SyncToControls(Dictionary<string, object> controlMap, IControlValueAccessor accessor)
         {
-            ArgumentNullException.ThrowIfNull(controlMap);
-            ArgumentNullException.ThrowIfNull(accessor);
+            PortGuard.Required(controlMap, nameof(controlMap));
+            PortGuard.Required(accessor, nameof(accessor));
 
             foreach (var kvp in controlMap)
             {

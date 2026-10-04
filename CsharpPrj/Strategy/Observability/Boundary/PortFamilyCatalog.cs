@@ -44,7 +44,7 @@ public sealed class PortFamilyCatalog
     public static PortFamilyCatalog From(
         IEnumerable<Assembly> assemblies, string implementationPointTemplate, string familyToken = FamilyToken)
     {
-        ArgumentNullException.ThrowIfNull(assemblies);
+        PortGuard.Required(assemblies, nameof(assemblies));
         ArgumentException.ThrowIfNullOrWhiteSpace(implementationPointTemplate);
 
         var byFamilyId = new Dictionary<string, PortFamilySpec>(StringComparer.Ordinal);

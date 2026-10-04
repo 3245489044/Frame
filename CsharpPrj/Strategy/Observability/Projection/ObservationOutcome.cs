@@ -39,7 +39,7 @@ public sealed class ObservationOutcome
     /// <summary>由事件信封投影（载荷 JSON 展开为字段表）。</summary>
     public static ObservationOutcome FromEvent(ObservabilityEvent evt, string? runId = null, string? roundId = null)
     {
-        ArgumentNullException.ThrowIfNull(evt);
+        PortGuard.Required(evt, nameof(evt));
         return new ObservationOutcome
         {
             Kind = evt.EventKind,

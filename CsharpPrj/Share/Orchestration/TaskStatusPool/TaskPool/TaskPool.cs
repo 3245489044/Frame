@@ -64,8 +64,8 @@ namespace Share.TaskStatusPool.TaskPool
             TaskPoolHandler<TItem, TResult> handler,
             TaskPoolOptions? options = null)
         {
-            _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
-            _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+            _persistence = PortGuard.Required(persistence, nameof(persistence));
+            _handler = PortGuard.Required(handler, nameof(handler));
             options ??= new TaskPoolOptions();
             _maxConcurrency = Math.Max(1, options.MaxConcurrency);
             _batchSize = Math.Max(1, options.BatchSize);

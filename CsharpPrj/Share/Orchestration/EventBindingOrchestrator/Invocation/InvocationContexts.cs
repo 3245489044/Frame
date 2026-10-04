@@ -15,7 +15,7 @@ public sealed class KernelContext : IInvocationContext
 
     public KernelContext(Modules.Threading.AsyncOperation op)
     {
-        _op = op ?? throw new ArgumentNullException(nameof(op));
+        _op = PortGuard.Required(op, nameof(op));
     }
 
     public CancellationToken CancellationToken => _op.Token;

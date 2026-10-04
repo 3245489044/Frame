@@ -25,7 +25,7 @@ public static class InvocationKernel
         InvocationRequest request,
         IInvocationAdapter? adapter = null)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        PortGuard.Required(request, nameof(request));
         if (string.IsNullOrWhiteSpace(request.FunctionName))
             return new FunctionInvocationResult(
                 Guid.NewGuid(), InvocationOutcome.FunctionFault,

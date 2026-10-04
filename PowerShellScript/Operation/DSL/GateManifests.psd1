@@ -273,4 +273,11 @@
         Expect = 0
         Note   = '框架回退登记守卫 F1–F6：?? new 白名单（组合根 + Null* 工厂）/ catch 吞并 / legacy 棘轮 / 回退可见化 / [Obsolete] dep / 灰发开关登记；基线 = 同目录 fallback-baseline.json（只减不增）；-UpdateBaseline 为写操作，聚合器禁用'
     }
+
+    InitGuards = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '初始化护栏门禁（P1）G1–G4：`throw new ArgumentNullException` / `ArgumentNullException.ThrowIfNull` 只减不增 + `PortGuard.Required` 只增不减 + 正/负对照；基线 = Baselines\InitGuards.psd1（单源，禁内联）'
+    }
 }

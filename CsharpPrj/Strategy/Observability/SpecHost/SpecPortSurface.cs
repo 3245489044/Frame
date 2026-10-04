@@ -31,10 +31,10 @@ public sealed class SpecPortSurface : ISpecPortSurface
         Func<string, Func<IPortBinding>?>? bindingFactory,
         IReadOnlyList<string> registeredKeys)
     {
-        _standards = standards ?? throw new ArgumentNullException(nameof(standards));
-        _contracts = contracts ?? throw new ArgumentNullException(nameof(contracts));
+        _standards = PortGuard.Required(standards, nameof(standards));
+        _contracts = PortGuard.Required(contracts, nameof(contracts));
         _bindingFactory = bindingFactory;
-        _registeredKeys = (registeredKeys ?? throw new ArgumentNullException(nameof(registeredKeys)))
+        _registeredKeys = PortGuard.Required(registeredKeys, nameof(registeredKeys))
             .OrderBy(key => key, StringComparer.Ordinal).ToArray();
         _byStepName = BuildStepIndex(standards);
     }

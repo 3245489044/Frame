@@ -16,10 +16,10 @@ namespace Share.TaskStatusPool.ControlPool
             IEventExecutionService executionService,
             IControlValueAccessor valueAccessor)
         {
-            ArgumentNullException.ThrowIfNull(controlPool);
-            ArgumentNullException.ThrowIfNull(registry);
-            ArgumentNullException.ThrowIfNull(executionService);
-            ArgumentNullException.ThrowIfNull(valueAccessor);
+            PortGuard.Required(controlPool, nameof(controlPool));
+            PortGuard.Required(registry, nameof(registry));
+            PortGuard.Required(executionService, nameof(executionService));
+            PortGuard.Required(valueAccessor, nameof(valueAccessor));
 
             var pipeline = new MorphismPipeline<IPoolContext>("ControlPipeline",
                 "控件读写变换管线：读控件→映射参数→执行函数→写回结果→跨模块同步");
@@ -40,10 +40,10 @@ namespace Share.TaskStatusPool.ControlPool
             IEventExecutionService executionService,
             IControlValueAccessor valueAccessor)
         {
-            ArgumentNullException.ThrowIfNull(controlPool);
-            ArgumentNullException.ThrowIfNull(registry);
-            ArgumentNullException.ThrowIfNull(executionService);
-            ArgumentNullException.ThrowIfNull(valueAccessor);
+            PortGuard.Required(controlPool, nameof(controlPool));
+            PortGuard.Required(registry, nameof(registry));
+            PortGuard.Required(executionService, nameof(executionService));
+            PortGuard.Required(valueAccessor, nameof(valueAccessor));
 
             var pipeline = new MorphismPipeline<IPoolContext>("ControlPipeline-Simple",
                 "简化控件读写变换管线：读控件→映射参数→执行函数→写回结果");

@@ -20,9 +20,9 @@ namespace Share.StateManagement.Stages
             : base(name, description ?? "通用节点执行协调 - 支持并发控制、状态管理、参数管理")
         {
             // 必填端口（T）：执行协调/状态/参数端口由装配点显式提供；禁 ?? new 默认冒充装配。
-            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-            _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
-            _parameterStore = parameterStore ?? throw new ArgumentNullException(nameof(parameterStore));
+            _coordinator = PortGuard.Required(coordinator, nameof(coordinator));
+            _stateStore = PortGuard.Required(stateStore, nameof(stateStore));
+            _parameterStore = PortGuard.Required(parameterStore, nameof(parameterStore));
         }
 
         protected override async Task ExecuteCoreAsync(

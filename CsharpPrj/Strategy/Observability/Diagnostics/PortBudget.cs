@@ -37,8 +37,8 @@ public static class PortBudget
     public static PortBudgetReport Measure(
         IEnumerable<string> declaredPortKeys, IEnumerable<string> usedPortKeys, int caseCount)
     {
-        ArgumentNullException.ThrowIfNull(declaredPortKeys);
-        ArgumentNullException.ThrowIfNull(usedPortKeys);
+        PortGuard.Required(declaredPortKeys, nameof(declaredPortKeys));
+        PortGuard.Required(usedPortKeys, nameof(usedPortKeys));
         if (caseCount < 0) throw new ArgumentOutOfRangeException(nameof(caseCount), caseCount, "用例数不得为负");
 
         var declared = new SortedSet<string>(declaredPortKeys.Where(k => !string.IsNullOrWhiteSpace(k)), StringComparer.Ordinal);
@@ -60,7 +60,7 @@ public static class PortBudget
     /// <summary>端口键的类型段（首个 <c>.</c> 之前；无分隔符 → 整体）。</summary>
     public static string TypeOf(string portKey)
     {
-        ArgumentNullException.ThrowIfNull(portKey);
+        PortGuard.Required(portKey, nameof(portKey));
 
         var separator = portKey.IndexOf('.', StringComparison.Ordinal);
         return separator <= 0 ? portKey : portKey[..separator];

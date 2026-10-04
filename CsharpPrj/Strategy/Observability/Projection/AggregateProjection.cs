@@ -42,7 +42,7 @@ public sealed class AggregateProjection
     public static AggregateProjection Over(string metricKey, IEnumerable<ObservationOutcome> source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(metricKey);
-        ArgumentNullException.ThrowIfNull(source);
+        PortGuard.Required(source, nameof(source));
         return Over(metricKey, source.Select(e => e.Metric(metricKey)).Where(v => v.HasValue).Select(v => v!.Value));
     }
 
@@ -50,7 +50,7 @@ public sealed class AggregateProjection
     public static AggregateProjection Over(string metricKey, IEnumerable<double> values)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(metricKey);
-        ArgumentNullException.ThrowIfNull(values);
+        PortGuard.Required(values, nameof(values));
 
         var stats = PortValues.NumericStats.Over(values);
         return new AggregateProjection(metricKey, stats.Count, stats.Sum, stats.Max, stats.Min);

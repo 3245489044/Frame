@@ -55,8 +55,7 @@ public static class EventBindingInputGate
 
     public static EventBindingInputResult EnterFromConfig(UIConfiguration config)
     {
-        if (config == null)
-            throw new ArgumentNullException(nameof(config));
+        config = PortGuard.Required(config, nameof(config));
 
         var declarations = EventBindingDeclarationFactory.Build(config);
         return FinalizeInput(declarations, EventBindingInputSource.UiConfiguration);
@@ -65,8 +64,7 @@ public static class EventBindingInputGate
     public static EventBindingInputResult EnterFromDeclarations(
         IReadOnlyList<EventBindingDeclaration<IReadOnlyList<ParameterBinding>>> declarations)
     {
-        if (declarations == null)
-            throw new ArgumentNullException(nameof(declarations));
+        declarations = PortGuard.Required(declarations, nameof(declarations));
 
         var list = declarations.ToList();
         var invalidCount = ValidateDeclarations(list);

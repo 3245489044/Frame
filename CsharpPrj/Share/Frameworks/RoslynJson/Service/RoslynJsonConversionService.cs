@@ -1,4 +1,6 @@
 
+using BasicMethod.Initialization.Guards;
+
 using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
@@ -38,7 +40,7 @@ public sealed class RoslynJsonConversionService
     /// <summary>源文本 → IR（含语法错误转诊断；管线可选）。</summary>
     public ConversionResult<ConversionNode> ToIr(string sourceText, string filePath, ConversionContext? context = null)
     {
-        if (sourceText is null) throw new ArgumentNullException(nameof(sourceText));
+        sourceText = PortGuard.Required(sourceText, nameof(sourceText));
         if (string.IsNullOrEmpty(filePath)) throw new ArgumentException("源文件路径不能为空", nameof(filePath));
 
         var ctx = context ?? new ConversionContext(ConversionOptions.Default, filePath, sourceText);
@@ -81,7 +83,7 @@ public sealed class RoslynJsonConversionService
         EmbeddedJsonClassSpec spec,
         ConversionOptions? options = null)
     {
-        if (spec is null) throw new ArgumentNullException(nameof(spec));
+        spec = PortGuard.Required(spec, nameof(spec));
 
         var opts = options ?? ConversionOptions.Default;
         var ctx = new ConversionContext(opts, filePath, sourceText);

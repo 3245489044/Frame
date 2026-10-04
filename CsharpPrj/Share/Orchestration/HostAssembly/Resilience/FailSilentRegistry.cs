@@ -21,7 +21,7 @@ public sealed class FailSilentRegistry
         Action<string, Exception>? onDegrade = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(moduleName);
-        ArgumentNullException.ThrowIfNull(register);
+        PortGuard.Required(register, nameof(register));
         lock (_gate) _registrations.Add(new ResilientRegistration(moduleName, register, onDegrade));
         return this;
     }
@@ -30,7 +30,7 @@ public sealed class FailSilentRegistry
     public FailSilentRegistry Register(string moduleName, Action register,
         Action<string, Exception>? onDegrade = null)
     {
-        ArgumentNullException.ThrowIfNull(register);
+        PortGuard.Required(register, nameof(register));
         return Register(moduleName, _ => { register(); return Task.CompletedTask; }, onDegrade);
     }
 

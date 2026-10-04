@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using System.Reflection;
@@ -265,14 +265,13 @@ namespace GraphFramework.Ecs
 
         public EcsTransaction(EcsWorld world, string name = "unnamed")
         {
-            _world = world ?? throw new ArgumentNullException(nameof(world));
+            _world = PortGuard.Required(world, nameof(world));
             Name = name;
         }
 
         public void Enqueue(IEcsCommand command)
         {
-            if (command == null)
-                throw new ArgumentNullException(nameof(command));
+            command = PortGuard.Required(command, nameof(command));
 
             lock (_lock)
             {

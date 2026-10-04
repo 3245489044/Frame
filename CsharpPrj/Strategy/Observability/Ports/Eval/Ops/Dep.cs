@@ -12,7 +12,7 @@ internal static class PortDependency
     /// <summary>指令序列内的依赖声明（<c>Dep</c> 指令操作数，按声明序）。</summary>
     internal static IReadOnlyList<DepStandard> Declare(IReadOnlyList<PortInstr> program)
     {
-        ArgumentNullException.ThrowIfNull(program);
+        PortGuard.Required(program, nameof(program));
 
         var declared = new List<DepStandard>();
         foreach (var instruction in program)

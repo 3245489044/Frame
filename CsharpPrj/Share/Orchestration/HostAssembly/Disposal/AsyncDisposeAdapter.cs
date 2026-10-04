@@ -14,7 +14,7 @@ public sealed class AsyncDisposeAdapter : IDisposable
 
     public AsyncDisposeAdapter(IAsyncDisposable target)
     {
-        _target = target ?? throw new ArgumentNullException(nameof(target));
+        _target = PortGuard.Required(target, nameof(target));
     }
 
     public void Dispose() => SyncAsyncBridge.Wait(_target.DisposeAsync);

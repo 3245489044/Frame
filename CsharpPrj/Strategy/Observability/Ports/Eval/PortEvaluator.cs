@@ -37,10 +37,10 @@ public sealed class PortEvaluator
     public ValueTask<object?> EvaluateAsync(
         PortSpec spec, IPortInput input, EvalContext context, PortInjection injection, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(spec);
-        ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(injection);
+        PortGuard.Required(spec, nameof(spec));
+        PortGuard.Required(input, nameof(input));
+        PortGuard.Required(context, nameof(context));
+        PortGuard.Required(injection, nameof(injection));
 
         ct.ThrowIfCancellationRequested();
 

@@ -19,7 +19,7 @@ public static class PortErrorClass
     /// <summary>异常 → 契约域短名（名称含 <c>Timeout</c> 的派生异常同样归超时族）。</summary>
     public static string Of(Exception exception)
     {
-        ArgumentNullException.ThrowIfNull(exception);
+        PortGuard.Required(exception, nameof(exception));
 
         return exception switch
         {

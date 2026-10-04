@@ -122,8 +122,7 @@ namespace Common.Diagnostics
 
         public static void RegisterProjects(Dictionary<string, string[]> projects)
         {
-            if (projects == null)
-                throw new ArgumentNullException(nameof(projects));
+            projects = PortGuard.Required(projects, nameof(projects));
 
             foreach (var kvp in projects)
             {

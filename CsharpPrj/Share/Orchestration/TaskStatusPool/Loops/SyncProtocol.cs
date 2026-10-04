@@ -12,7 +12,7 @@ public static class SyncProtocol
         Func<Exception, Task> compensate,
         Func<T, Task> observe)
     {
-        if (commit is null) throw new ArgumentNullException(nameof(commit));
+        commit = PortGuard.Required(commit, nameof(commit));
         try
         {
             var value = await commit().ConfigureAwait(false);

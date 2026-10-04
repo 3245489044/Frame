@@ -25,7 +25,7 @@ namespace Share.TaskStatusPool.Core
         public void Register(TKey key, IMorphism<TContext, TContext> morphism)
         {
             ArgumentNullException.ThrowIfNull(key);
-            ArgumentNullException.ThrowIfNull(morphism);
+            PortGuard.Required(morphism, nameof(morphism));
 
             if (!_store.TryAdd(key, morphism))
                 throw new ArgumentException($"键 '{key}' 已注册。如需覆盖请使用 RegisterOrUpdate。", nameof(key));
@@ -34,7 +34,7 @@ namespace Share.TaskStatusPool.Core
         public void RegisterOrUpdate(TKey key, IMorphism<TContext, TContext> morphism)
         {
             ArgumentNullException.ThrowIfNull(key);
-            ArgumentNullException.ThrowIfNull(morphism);
+            PortGuard.Required(morphism, nameof(morphism));
 
             _store[key] = morphism;
         }

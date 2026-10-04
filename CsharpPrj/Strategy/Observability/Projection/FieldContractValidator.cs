@@ -25,7 +25,7 @@ public static class FieldContractValidator
     /// <summary>产出键集超出声明字段集的项（错误面；空集 = 全部有声明；契约无声明 → 不判）。</summary>
     public static IReadOnlyList<string> Validate(BoundaryContract contract, IEnumerable<string> producedKeys)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         var declared = Declared(contract);
 
         return OutFieldContract
@@ -37,7 +37,7 @@ public static class FieldContractValidator
     /// <summary>声明而未见产出的字段（告警面；空集 = 声明全部有产出）。</summary>
     public static IReadOnlyList<string> Missing(BoundaryContract contract, IEnumerable<string> producedKeys)
     {
-        ArgumentNullException.ThrowIfNull(contract);
+        PortGuard.Required(contract, nameof(contract));
         var declared = Declared(contract);
 
         return OutFieldContract
@@ -53,6 +53,6 @@ public static class FieldContractValidator
     /// <summary>产出键集（核归一 + Ordinal 排序：诊断序确定性）。</summary>
     private static IEnumerable<string> Ordered(IEnumerable<string> producedKeys)
         => OutFieldContract
-            .Normalize(producedKeys ?? throw new ArgumentNullException(nameof(producedKeys)))
+            .Normalize(PortGuard.Required(producedKeys, nameof(producedKeys)))
             .OrderBy(key => key, StringComparer.Ordinal);
 }

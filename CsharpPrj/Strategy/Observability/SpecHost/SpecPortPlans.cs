@@ -31,8 +31,8 @@ public sealed class SpecPortPlans : ISpecPortPlans
         IReadOnlyDictionary<string, Func<IReadOnlyList<object?>, object?>>? factories = null,
         string? implementationPoint = null)
     {
-        _assembly = assembly ?? throw new ArgumentNullException(nameof(assembly));
-        _resources = resources ?? throw new ArgumentNullException(nameof(resources));
+        _assembly = PortGuard.Required(assembly, nameof(assembly));
+        _resources = PortGuard.Required(resources, nameof(resources));
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceSuffix);
 
         _factories = factories

@@ -1,4 +1,4 @@
-﻿
+
 #nullable enable
 
 using ECS.Core;
@@ -58,7 +58,7 @@ namespace GraphFramework.Ecs
 
         public EcsRelationManager(EntityManager entityManager)
         {
-            _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
+            _entityManager = PortGuard.Required(entityManager, nameof(entityManager));
         }
 
         public void AddRelation(Entity source, Entity target, RelationDirection type, string? label = null)

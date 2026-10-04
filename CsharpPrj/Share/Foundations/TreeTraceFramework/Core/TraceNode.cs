@@ -50,9 +50,9 @@ namespace Share.TreeTraceFramework.Core
 
         public TraceNode(string name, ITraceTree<TraceNode> owner, string? nodeId = null)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Name = PortGuard.Required(name, nameof(name));
             NodeId = nodeId ?? Guid.NewGuid().ToString("N");
-            _owner = new WeakReference<ITraceTree<TraceNode>>(owner ?? throw new ArgumentNullException(nameof(owner)));
+            _owner = new WeakReference<ITraceTree<TraceNode>>(PortGuard.Required(owner, nameof(owner)));
             CreatedAt = DateTime.UtcNow;
             Depth = 0;
         }

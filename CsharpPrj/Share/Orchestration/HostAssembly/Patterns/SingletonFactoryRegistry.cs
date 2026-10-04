@@ -40,7 +40,7 @@ public sealed class SingletonFactoryRegistry<TKey, TValue>
     /// <summary>取或创建 key 对应的实例（使用本次调用提供的工厂，工厂可捕获调用上下文如配置/取消令牌）。</summary>
     public TValue GetOrCreate(TKey key, Func<TKey, TValue> factory)
     {
-        ArgumentNullException.ThrowIfNull(factory);
+        PortGuard.Required(factory, nameof(factory));
         lock (_gate)
         {
             if (_items.TryGetValue(key, out var existing) && !IsDisposed(existing))

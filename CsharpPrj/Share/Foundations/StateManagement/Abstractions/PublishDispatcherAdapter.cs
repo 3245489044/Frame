@@ -15,12 +15,12 @@ namespace Share.StateManagement
 
         public PublishDispatcherAdapter(IThreadDispatcher inner)
         {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            _inner = PortGuard.Required(inner, nameof(inner));
         }
 
         public void Dispatch(Action delivery)
         {
-            ArgumentNullException.ThrowIfNull(delivery);
+            PortGuard.Required(delivery, nameof(delivery));
             _inner.Post(delivery);
         }
     }

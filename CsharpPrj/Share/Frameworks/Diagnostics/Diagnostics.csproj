@@ -34,4 +34,9 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- P1：全局 using（零 using 行改动，见 初始化与错误处理通用框架-应用分析.md §A） -->
+    <Using Include="BasicMethod.Initialization.Guards" />
+  </ItemGroup>
+
 </Project>

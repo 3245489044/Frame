@@ -32,14 +32,14 @@ namespace Share.HierarchySupport
         /// <summary>追加已构造契约（复用已有契约实例）。</summary>
         public DataContractBuilder Add(DataContract contract)
         {
-            _contracts.Add(contract ?? throw new ArgumentNullException(nameof(contract)));
+            _contracts.Add(PortGuard.Required(contract, nameof(contract)));
             return this;
         }
 
         /// <summary>批量追加（合并其它注册源）。</summary>
         public DataContractBuilder AddRange(IEnumerable<DataContract> contracts)
         {
-            if (contracts is null) throw new ArgumentNullException(nameof(contracts));
+            contracts = PortGuard.Required(contracts, nameof(contracts));
             _contracts.AddRange(contracts);
             return this;
         }

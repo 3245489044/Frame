@@ -71,7 +71,7 @@ public static class FunctionCallFacade
 {
     public static async Task<FunctionCallFacadeResult> ExecuteAsync(FunctionCallRequest request)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        PortGuard.Required(request, nameof(request));
 
         // 阶段2.2：渲染副作用元数据解析（显式声明优先，否则按函数名推断）——随结果携带，供事件/渲染桥消费。
         var affinity = ResolveRenderingAffinity(request);
@@ -96,7 +96,7 @@ public static class FunctionCallFacade
 
     public static FunctionCallFacadeResult ExecuteSyncRequest(FunctionCallRequest request)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        PortGuard.Required(request, nameof(request));
 
         return RunSyncCore(() => ExecuteAsync(request), -1);
     }
@@ -141,8 +141,7 @@ public static class FunctionCallFacade
     /// <summary>同步等待辅助（下沉自 BackEndDriven.Utilities.AsyncHelper——Share 层不依赖 Operation 层）。</summary>
     private static TResult RunSyncCore<TResult>(Func<Task<TResult>> asyncFunc, int timeoutMilliseconds)
     {
-        if (asyncFunc == null)
-            throw new ArgumentNullException(nameof(asyncFunc));
+        asyncFunc = PortGuard.Required(asyncFunc, nameof(asyncFunc));
 
         var task = Task.Run(asyncFunc);
         if (timeoutMilliseconds > 0)

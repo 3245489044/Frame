@@ -30,7 +30,7 @@ namespace Share.StateManagement.Pooling
 
         public WorkerStateStore(IStorageEngine engine)
         {
-            _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+            _engine = PortGuard.Required(engine, nameof(engine));
         }
 
         public IStorageCell GetOrCreate(string workerId)

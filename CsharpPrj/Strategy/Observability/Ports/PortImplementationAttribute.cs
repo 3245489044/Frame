@@ -45,8 +45,8 @@ public static class PortImplementationRegistry
     /// </summary>
     public static int RegisterInto(Assembly assembly, Action<string, Func<IPortInput, object?>> register)
     {
-        ArgumentNullException.ThrowIfNull(assembly);
-        ArgumentNullException.ThrowIfNull(register);
+        PortGuard.Required(assembly, nameof(assembly));
+        PortGuard.Required(register, nameof(register));
 
         var count = 0;
         foreach (var method in AnnotatedMethods(assembly))

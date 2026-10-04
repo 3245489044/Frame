@@ -27,8 +27,7 @@ namespace Share.EventBindingOrchestrator.Parameters
 
         public EventBindingResolver(IDictionary<string, object> loadedConfigs)
         {
-            if (loadedConfigs == null)
-                throw new ArgumentNullException(nameof(loadedConfigs));
+            loadedConfigs = PortGuard.Required(loadedConfigs, nameof(loadedConfigs));
 
             _loadedConfigs = new System.Collections.ObjectModel.ReadOnlyDictionary<string, object>(
                 loadedConfigs);
@@ -57,8 +56,7 @@ namespace Share.EventBindingOrchestrator.Parameters
 
         public static EventBindingResolver FromLoadedConfigs(IDictionary<string, LoadedConfigInfo> loadedConfigs)
         {
-            if (loadedConfigs == null)
-                throw new ArgumentNullException(nameof(loadedConfigs));
+            loadedConfigs = PortGuard.Required(loadedConfigs, nameof(loadedConfigs));
 
             var dict = loadedConfigs.ToDictionary(
                 kvp => kvp.Key,
@@ -131,8 +129,8 @@ namespace Share.EventBindingOrchestrator.Parameters
 
         public IEnumerable<ResolvedEventBinding> Resolve(object control, EventConfig eventConfig)
         {
-            if (control == null) throw new ArgumentNullException(nameof(control));
-            if (eventConfig == null) throw new ArgumentNullException(nameof(eventConfig));
+            control = PortGuard.Required(control, nameof(control));
+            eventConfig = PortGuard.Required(eventConfig, nameof(eventConfig));
 
             var results = new List<ResolvedEventBinding>();
 
@@ -418,7 +416,7 @@ namespace Share.EventBindingOrchestrator.Parameters
 
         public LoadedConfigInfo(UIConfiguration config)
         {
-            Config = config ?? throw new ArgumentNullException(nameof(config));
+            Config = PortGuard.Required(config, nameof(config));
             WindowName = config.Form?.Title;
         }
     }

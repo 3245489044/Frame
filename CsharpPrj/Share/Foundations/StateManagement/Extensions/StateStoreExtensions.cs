@@ -8,7 +8,7 @@ namespace Share.StateManagement
     {
         public static T? Get<T>(this IStateStore store, string key)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             var value = store.Get(key);
             if (value == null)
@@ -31,7 +31,7 @@ namespace Share.StateManagement
 
         public static void Set<T>(this IStateStore store, string key, T value)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             if (value == null)
             {
@@ -51,7 +51,7 @@ namespace Share.StateManagement
 
         public static T GetOrSet<T>(this IStateStore store, string key, T defaultValue)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             if (store.Has(key))
             {
@@ -101,7 +101,7 @@ namespace Share.StateManagement
 
         public static bool TryGet(this IStateStore store, string key, out string? value)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             value = store.Get(key);
             return store.Has(key);
@@ -109,15 +109,15 @@ namespace Share.StateManagement
 
         public static bool ContainsAll(this IStateStore store, IEnumerable<string> keys)
         {
-            ArgumentNullException.ThrowIfNull(store);
-            ArgumentNullException.ThrowIfNull(keys);
+            PortGuard.Required(store, nameof(store));
+            PortGuard.Required(keys, nameof(keys));
 
             return keys.All(k => store.Has(k));
         }
 
         public static Dictionary<string, string?> FindByPrefix(this IStateStore store, string prefix)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
 
             if (string.IsNullOrEmpty(prefix))
                 return store.GetAll();
@@ -135,8 +135,8 @@ namespace Share.StateManagement
 
         public static void CopyTo(this IStateStore source, IStateStore destination, bool overwrite = true)
         {
-            ArgumentNullException.ThrowIfNull(source);
-            ArgumentNullException.ThrowIfNull(destination);
+            PortGuard.Required(source, nameof(source));
+            PortGuard.Required(destination, nameof(destination));
 
             foreach (var key in source.GetAllKeys())
             {
@@ -149,7 +149,7 @@ namespace Share.StateManagement
 
         public static IReadOnlyDictionary<string, string?> AsReadOnlyDictionary(this IStateStore store)
         {
-            ArgumentNullException.ThrowIfNull(store);
+            PortGuard.Required(store, nameof(store));
             return store.GetAll();
         }
 

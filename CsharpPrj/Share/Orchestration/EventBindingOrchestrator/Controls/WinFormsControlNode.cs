@@ -12,7 +12,7 @@ public class WinFormsControlNode : IControlNode
 
     public WinFormsControlNode(object control)
     {
-        _control = control ?? throw new ArgumentNullException(nameof(control));
+        _control = PortGuard.Required(control, nameof(control));
         _children = new Lazy<IReadOnlyList<IControlNode>>(InitializeChildren);
     }
 

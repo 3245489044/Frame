@@ -12,7 +12,7 @@ namespace Share.StateManagement
 
         public void AddBlock(BlockBase block)
         {
-            ArgumentNullException.ThrowIfNull(block);
+            PortGuard.Required(block, nameof(block));
             _blocks.Add(block);
         }
 

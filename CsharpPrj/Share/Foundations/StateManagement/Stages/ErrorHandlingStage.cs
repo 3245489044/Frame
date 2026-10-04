@@ -106,8 +106,7 @@ namespace Share.StateManagement.Stages
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("名称不能为空", nameof(name));
-            if (handler == null)
-                throw new ArgumentNullException(nameof(handler));
+            handler = PortGuard.Required(handler, nameof(handler));
             _handlerRegistry.Register(name, handler);
         }
 
@@ -134,7 +133,7 @@ namespace Share.StateManagement.Stages
 
             public RetryErrorHandler(RetryPolicy policy)
             {
-                _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+                _policy = PortGuard.Required(policy, nameof(policy));
             }
 
             public async Task<bool> HandleErrorAsync(

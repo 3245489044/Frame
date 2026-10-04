@@ -121,8 +121,8 @@ namespace Modules.ConfigurationModels.Services
 
         public static UIConfiguration Merge(UIConfiguration baseConfig, UIConfiguration overrideConfig)
         {
-            if (baseConfig == null) throw new ArgumentNullException(nameof(baseConfig));
-            if (overrideConfig == null) throw new ArgumentNullException(nameof(overrideConfig));
+            baseConfig = PortGuard.Required(baseConfig, nameof(baseConfig));
+            overrideConfig = PortGuard.Required(overrideConfig, nameof(overrideConfig));
 
             var result = new UIConfiguration
             {

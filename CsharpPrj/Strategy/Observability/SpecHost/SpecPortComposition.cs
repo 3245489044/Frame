@@ -18,7 +18,7 @@ public static class SpecPortComposition
     /// </summary>
     public static SpecPortRegistry BuildRegistry(ISpecPortPlans plans)
     {
-        ArgumentNullException.ThrowIfNull(plans);
+        PortGuard.Required(plans, nameof(plans));
 
         var registry = new SpecPortRegistry();
 

@@ -159,8 +159,8 @@ public class LogTryExecuteSkeleton : SkeletonBase<LogPipelineContext, LogPipelin
         ISkeleton<LogPipelineContext, LogPipelineContext> fallback)
         : base("LogTryExecute", "Try main path, fallback to emergency on exception")
     {
-        _main = main ?? throw new ArgumentNullException(nameof(main));
-        _fallback = fallback ?? throw new ArgumentNullException(nameof(fallback));
+        _main = PortGuard.Required(main, nameof(main));
+        _fallback = PortGuard.Required(fallback, nameof(fallback));
     }
 
     private LogPipelineContext HandleException(LogPipelineContext input, SkeletonContext ctx, Exception ex)

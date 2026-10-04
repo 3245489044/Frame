@@ -33,7 +33,7 @@ public static class PortSeamRegistry
     /// <summary>登记 provider（重名即抛：单一实现点被破坏）。</summary>
     public static void Register(IPortSeamProvider provider)
     {
-        ArgumentNullException.ThrowIfNull(provider);
+        PortGuard.Required(provider, nameof(provider));
         if (string.IsNullOrWhiteSpace(provider.Seam))
             throw new ArgumentException("[port:seam] provider 未声明 seam 名", nameof(provider));
 

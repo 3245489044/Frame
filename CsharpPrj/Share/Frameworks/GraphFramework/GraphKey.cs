@@ -293,7 +293,7 @@ namespace Graphkey.Core
         private bool _validateOnBuild = true;
         private readonly INodeHandler _handler;
 
-        public DynamicWorkflowBuilder(INodeHandler handler) => _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        public DynamicWorkflowBuilder(INodeHandler handler) => _handler = PortGuard.Required(handler, nameof(handler));
         internal IReadOnlyCollection<string> InputKeys => _inputKeys;
 
         public DynamicWorkflowBuilder WithValidation(bool validate) { _validateOnBuild = validate; return this; }
@@ -352,8 +352,8 @@ namespace Graphkey.Core
 
         public DynamicChainBuilder(DynamicWorkflowBuilder parent, INodeHandler handler, string chainName)
         {
-            _parent = parent ?? throw new ArgumentNullException(nameof(parent));
-            _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+            _parent = PortGuard.Required(parent, nameof(parent));
+            _handler = PortGuard.Required(handler, nameof(handler));
             _chainName = chainName;
         }
 
@@ -580,7 +580,7 @@ namespace ChainGraph.Core
 
         public void Register(ChainTemplate<TNode> template)
         {
-            if (template == null) throw new ArgumentNullException(nameof(template));
+            template = PortGuard.Required(template, nameof(template));
             if (!template.IsValid(out var error))
                 throw new InvalidOperationException($"Template '{template.Name}' is invalid: {error}");
             _templates[template.Name] = template;
@@ -980,15 +980,15 @@ namespace ChainGraph.Core
             Func<TChain, TChain> cloneChain, IObjectCloner<TNodeData> nodeCloner,
             Func<TChain, int, int, string>? keyGenerator = null)
         {
-            _getNodes = getNodes ?? throw new ArgumentNullException(nameof(getNodes));
-            _setNodes = setNodes ?? throw new ArgumentNullException(nameof(setNodes));
-            _getStartNode = getStartNode ?? throw new ArgumentNullException(nameof(getStartNode));
-            _setStartNode = setStartNode ?? throw new ArgumentNullException(nameof(setStartNode));
-            _getEndNode = getEndNode ?? throw new ArgumentNullException(nameof(getEndNode));
-            _setEndNode = setEndNode ?? throw new ArgumentNullException(nameof(setEndNode));
-            _cloneChain = cloneChain ?? throw new ArgumentNullException(nameof(cloneChain));
+            _getNodes = PortGuard.Required(getNodes, nameof(getNodes));
+            _setNodes = PortGuard.Required(setNodes, nameof(setNodes));
+            _getStartNode = PortGuard.Required(getStartNode, nameof(getStartNode));
+            _setStartNode = PortGuard.Required(setStartNode, nameof(setStartNode));
+            _getEndNode = PortGuard.Required(getEndNode, nameof(getEndNode));
+            _setEndNode = PortGuard.Required(setEndNode, nameof(setEndNode));
+            _cloneChain = PortGuard.Required(cloneChain, nameof(cloneChain));
             // 必填端口（T）：节点克隆器由装配点（ChainTemplateExpander）显式提供；禁 ?? new 默认冒充装配。
-            _nodeCloner = nodeCloner ?? throw new ArgumentNullException(nameof(nodeCloner));
+            _nodeCloner = PortGuard.Required(nodeCloner, nameof(nodeCloner));
             _keyGenerator = keyGenerator ?? ((chain, chainIdx, nodeIdx) => $"chain_{chainIdx}_node_{nodeIdx}");
         }
 
@@ -1170,10 +1170,10 @@ namespace ChainGraph.Core
 
         public ChainTemplateExpander(Expansion.ChainExpanderOptions<TNode> options, ChainTemplateRegistry<TNode> registry)
         {
-            _handler = options.NodeHandler ?? throw new ArgumentNullException(nameof(options.NodeHandler));
-            _nodeConverter = options.NodeConverter ?? throw new ArgumentNullException(nameof(options.NodeConverter));
+            _handler = PortGuard.Required(options.NodeHandler, nameof(options.NodeHandler));
+            _nodeConverter = PortGuard.Required(options.NodeConverter, nameof(options.NodeConverter));
             _normalizationConfig = options.NormalizationConfig ?? new Expansion.NormalizationConfig();
-            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _registry = PortGuard.Required(registry, nameof(registry));
 
             // 组合点：NodeCloner 缺省时用默认 JSON 克隆器（此前隐式落在 LinearChainAdapter 内，现显式在此补齐；适配器端口为必填 T）。
             var cloner = options.NodeCloner;
@@ -1222,7 +1222,7 @@ namespace ChainGraph.Core
 
         public List<object> ExpandToWorkflowNodes(DataFlowGraphWithChains graph)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             var chains = ExpandToChains(graph);
             var (coreGraph, locations) = _adapter.ConvertToGraph(chains);
             var workflow = new List<object>();
@@ -1292,7 +1292,7 @@ namespace GraphBuild.FromGraph
     {
         public static List<object> BuildFromGraph(DataFlowGraph graph)
         {
-            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
 
             var sortedKeys = graph.TopologicalSort();
             var nodeMap = graph.Nodes.ToDictionary(n => n.Key);
@@ -1622,7 +1622,7 @@ namespace GraphBuildingFramework
 
         public GraphBuildContext(SkeletonContext skeletonContext)
         {
-            _skeletonContext = skeletonContext ?? throw new ArgumentNullException(nameof(skeletonContext));
+            _skeletonContext = PortGuard.Required(skeletonContext, nameof(skeletonContext));
 
             if (_skeletonContext.Items.TryGetValue("Nodes", out var nodesObj))
             {
@@ -1670,8 +1670,8 @@ namespace GraphBuildingFramework
 
         public void SetPlaceholders(IEnumerable<string> keys, IEnumerable<Placeholder> placeholders)
         {
-            var keyList = keys?.ToList() ?? throw new ArgumentNullException(nameof(keys));
-            var placeholderList = placeholders?.ToList() ?? throw new ArgumentNullException(nameof(placeholders));
+            var keyList = PortGuard.Required(keys, nameof(keys)).ToList();
+            var placeholderList = PortGuard.Required(placeholders, nameof(placeholders)).ToList();
 
             if (keyList.Count != placeholderList.Count)
                 throw new ArgumentException($"The number of keys ({keyList.Count}) must match the number of placeholders ({placeholderList.Count}).");
@@ -1769,9 +1769,9 @@ namespace GraphBuildingFramework
             string funcName = null,
             Func<GraphBuildContext, string> idGenerator = null)
         {
-            _nodeType = nodeType ?? throw new ArgumentNullException(nameof(nodeType));
+            _nodeType = PortGuard.Required(nodeType, nameof(nodeType));
             _inputPlaceholderKeys = inputPlaceholderKeys ?? Enumerable.Empty<string>();
-            _outputPlaceholderKey = outputPlaceholderKey ?? throw new ArgumentNullException(nameof(outputPlaceholderKey));
+            _outputPlaceholderKey = PortGuard.Required(outputPlaceholderKey, nameof(outputPlaceholderKey));
             _funcName = funcName;
             _idGenerator = idGenerator ?? (ctx => ctx.GenerateGuidId());
         }
@@ -1812,7 +1812,7 @@ namespace GraphBuildingFramework
 
         public SequentialNodeBuilder(params INodeBuilder[] builders)
         {
-            _builders = builders?.ToList() ?? throw new ArgumentNullException(nameof(builders));
+            _builders = PortGuard.Required(builders, nameof(builders)).ToList();
         }
 
         public IReadOnlyDictionary<string, Placeholder> Build(GraphBuildContext context)
@@ -1839,8 +1839,8 @@ namespace GraphBuildingFramework
             INodeBuilder trueBuilder,
             INodeBuilder falseBuilder = null)
         {
-            _condition = condition ?? throw new ArgumentNullException(nameof(condition));
-            _trueBuilder = trueBuilder ?? throw new ArgumentNullException(nameof(trueBuilder));
+            _condition = PortGuard.Required(condition, nameof(condition));
+            _trueBuilder = PortGuard.Required(trueBuilder, nameof(trueBuilder));
             _falseBuilder = falseBuilder;
         }
 
@@ -1881,10 +1881,10 @@ namespace GraphBuildingFramework
             IEnumerable<string> outputKeys,
             INodeBuilder builder)
         {
-            _name = name ?? throw new ArgumentNullException(nameof(name));
+            _name = PortGuard.Required(name, nameof(name));
             _inputKeys = inputKeys?.ToList() ?? new List<string>();
             _outputKeys = outputKeys?.ToList() ?? new List<string>();
-            _builder = builder ?? throw new ArgumentNullException(nameof(builder));
+            _builder = PortGuard.Required(builder, nameof(builder));
         }
 
         public string Name => _name;
@@ -1908,7 +1908,7 @@ namespace GraphBuildingFramework
             IReadOnlyDictionary<string, string> inputMappings = null,
             IReadOnlyDictionary<string, string> outputMappings = null)
         {
-            _name = name ?? throw new ArgumentNullException(nameof(name));
+            _name = PortGuard.Required(name, nameof(name));
             _children = children?.ToList() ?? new List<IGraphComponent>();
             _inputMappings = inputMappings ?? new Dictionary<string, string>();
             _outputMappings = outputMappings ?? new Dictionary<string, string>();
@@ -1972,7 +1972,7 @@ namespace GraphBuildingFramework
         public GraphComponentSkeleton(IGraphComponent component)
             : base($"GraphComponent_{component.Name}")
         {
-            _component = component ?? throw new ArgumentNullException(nameof(component));
+            _component = PortGuard.Required(component, nameof(component));
         }
 
         protected override object ExecuteCore(object input, SkeletonContext ctx)
@@ -2020,8 +2020,8 @@ namespace GraphBuildingFramework.Advanced
             Func<int, string> outputKeyFormatter = null,
             Func<GraphBuildContext, string> idGenerator = null)
         {
-            _nodeType = nodeType ?? throw new ArgumentNullException(nameof(nodeType));
-            _inputKeys = inputKeys ?? throw new ArgumentNullException(nameof(inputKeys));
+            _nodeType = PortGuard.Required(nodeType, nameof(nodeType));
+            _inputKeys = PortGuard.Required(inputKeys, nameof(inputKeys));
             _outputKeyFormatter = outputKeyFormatter ?? (i => $"{nodeType}_Output_{i}");
             _idGenerator = idGenerator ?? (ctx => ctx.GenerateGuidId());
         }
@@ -2066,7 +2066,7 @@ namespace GraphBuildingFramework.Advanced
 
         public ParameterBuilder AddPlaceholder(Placeholder placeholder)
         {
-            _parameters.Add(placeholder ?? throw new ArgumentNullException(nameof(placeholder)));
+            _parameters.Add(PortGuard.Required(placeholder, nameof(placeholder)));
             return this;
         }
 
@@ -2091,8 +2091,8 @@ namespace GraphBuildingFramework.Advanced
             this GraphBuildContext context,
             INodeBuilder builder)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            context = PortGuard.Required(context, nameof(context));
+            builder = PortGuard.Required(builder, nameof(builder));
             return builder.Build(context);
         }
 
@@ -2100,8 +2100,8 @@ namespace GraphBuildingFramework.Advanced
             this GraphBuildContext context,
             IReadOnlyDictionary<string, Placeholder> outputs)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (outputs == null) throw new ArgumentNullException(nameof(outputs));
+            context = PortGuard.Required(context, nameof(context));
+            outputs = PortGuard.Required(outputs, nameof(outputs));
 
             foreach (var kv in outputs)
                 context.SetPlaceholder(kv.Key, kv.Value);
@@ -2133,8 +2133,8 @@ namespace GraphBuildingFramework.Advanced
             Func<GraphBuildContext, string> idGenerator = null,
             Func<GraphBuildContext, object[]> parameterBuilder = null)
         {
-            _nodeType = nodeType ?? throw new ArgumentNullException(nameof(nodeType));
-            _outputPlaceholderKey = outputPlaceholderKey ?? throw new ArgumentNullException(nameof(outputPlaceholderKey));
+            _nodeType = PortGuard.Required(nodeType, nameof(nodeType));
+            _outputPlaceholderKey = PortGuard.Required(outputPlaceholderKey, nameof(outputPlaceholderKey));
             _funcName = funcName;
             _idGenerator = idGenerator ?? (ctx => ctx.GenerateGuidId());
             _parameterBuilder = parameterBuilder ?? (ctx => Array.Empty<object>());

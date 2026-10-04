@@ -13,8 +13,7 @@ namespace FrameworkAbstractions.Configuration
         {
             if (string.IsNullOrEmpty(configPath))
                 throw new ArgumentException("Config path cannot be null or empty", nameof(configPath));
-            if (handler == null)
-                throw new ArgumentNullException(nameof(handler));
+            handler = PortGuard.Required(handler, nameof(handler));
 
             _changeHandlers[configPath] = handler;
         }

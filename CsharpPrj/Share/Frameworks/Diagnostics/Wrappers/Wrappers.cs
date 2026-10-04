@@ -30,7 +30,7 @@ public class LoggingSkeletonWrapper : ISkeleton<LogPipelineContext, LogPipelineC
 
     public LoggingSkeletonWrapper(ISkeleton<LogPipelineContext, LogPipelineContext> inner)
     {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        _inner = PortGuard.Required(inner, nameof(inner));
     }
 
     public LogPipelineContext Execute(LogPipelineContext input, SkeletonContext ctx)

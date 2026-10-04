@@ -19,19 +19,19 @@ namespace Share.TaskStatusPool.Core
 
         public object? Get(string key)
         {
-            ArgumentNullException.ThrowIfNull(key);
+            PortGuard.Required(key, nameof(key));
             return _store.TryGetValue(key, out var value) ? value : null;
         }
 
         public void Set(string key, object? value)
         {
-            ArgumentNullException.ThrowIfNull(key);
+            PortGuard.Required(key, nameof(key));
             _store[key] = value;
         }
 
         public T? Get<T>(string key)
         {
-            ArgumentNullException.ThrowIfNull(key);
+            PortGuard.Required(key, nameof(key));
             if (_store.TryGetValue(key, out var value) && value is T typedValue)
                 return typedValue;
             return default;
@@ -39,7 +39,7 @@ namespace Share.TaskStatusPool.Core
 
         public bool Contains(string key)
         {
-            ArgumentNullException.ThrowIfNull(key);
+            PortGuard.Required(key, nameof(key));
             return _store.ContainsKey(key);
         }
 

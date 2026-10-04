@@ -22,4 +22,10 @@
   </ItemGroup>
 
 
+  <ItemGroup>
+    <!-- P1：初始化护栏门面 + 全局 using（零 using 行改动） -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+    <Using Include="BasicMethod.Initialization.Guards" />
+  </ItemGroup>
+
 </Project>

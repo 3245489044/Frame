@@ -31,8 +31,8 @@ internal static class PortCall
         string portKey, IReadOnlyList<PortArgStandard>? args, MethodInfo method, IPortInput input)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(portKey);
-        ArgumentNullException.ThrowIfNull(method);
-        ArgumentNullException.ThrowIfNull(input);
+        PortGuard.Required(method, nameof(method));
+        PortGuard.Required(input, nameof(input));
 
         var declared = args ?? Array.Empty<PortArgStandard>();
         var parameters = method.GetParameters();

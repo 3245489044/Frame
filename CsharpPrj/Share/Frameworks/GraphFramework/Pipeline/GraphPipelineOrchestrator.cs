@@ -55,7 +55,7 @@ namespace GraphFramework.Pipeline
 
         public PipelineResult Execute(IGraph<TKey, TNodeData, TEdgeData> input)
         {
-            if (input == null) throw new ArgumentNullException(nameof(input));
+            input = PortGuard.Required(input, nameof(input));
             return _pipeline.Execute(input);
         }
 
@@ -81,10 +81,10 @@ namespace GraphFramework.Pipeline
             bool isFatal,
             Func<IGraph<TKey, TNodeData, TEdgeData>, IGraph<TKey, TNodeData, TEdgeData>> handler)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Name = PortGuard.Required(name, nameof(name));
             Order = order;
             IsFatal = isFatal;
-            _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+            _handler = PortGuard.Required(handler, nameof(handler));
         }
 
         public object? Process(object input, ErrorCollector errors, PipelineContext context)
@@ -115,7 +115,7 @@ namespace GraphFramework.Pipeline
             int order,
             bool isFatal)
         {
-            _step = step ?? throw new ArgumentNullException(nameof(step));
+            _step = PortGuard.Required(step, nameof(step));
             Name = step.Name;
             Order = order;
             IsFatal = isFatal;
@@ -149,7 +149,7 @@ namespace GraphFramework.Pipeline
             int order,
             bool isFatal)
         {
-            _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+            _pipeline = PortGuard.Required(pipeline, nameof(pipeline));
             Name = pipeline.Name;
             Order = order;
             IsFatal = isFatal;

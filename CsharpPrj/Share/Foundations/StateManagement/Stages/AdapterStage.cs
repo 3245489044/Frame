@@ -15,7 +15,7 @@ namespace Share.StateManagement.Stages
             : base(name, description ?? "通用适配器执行 - 基于 IHandlerRegistry")
         {
             // 必填端口（T）：适配器注册表由装配点显式提供；禁 ?? new 默认冒充装配。
-            _adapterRegistry = adapterRegistry ?? throw new ArgumentNullException(nameof(adapterRegistry));
+            _adapterRegistry = PortGuard.Required(adapterRegistry, nameof(adapterRegistry));
         }
 
         protected override async Task ExecuteCoreAsync(
@@ -45,15 +45,13 @@ namespace Share.StateManagement.Stages
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("名称不能为空", nameof(name));
-            if (adapter == null)
-                throw new ArgumentNullException(nameof(adapter));
+            adapter = PortGuard.Required(adapter, nameof(adapter));
             _adapterRegistry.Register(name, adapter);
         }
 
         public void RegisterRange(IEnumerable<KeyValuePair<string, IWorkflowAdapter>> adapters)
         {
-            if (adapters == null)
-                throw new ArgumentNullException(nameof(adapters));
+            adapters = PortGuard.Required(adapters, nameof(adapters));
 
             foreach (var kvp in adapters)
             {
@@ -63,8 +61,7 @@ namespace Share.StateManagement.Stages
 
         public void RegisterRange(IDictionary<string, IWorkflowAdapter> adapters)
         {
-            if (adapters == null)
-                throw new ArgumentNullException(nameof(adapters));
+            adapters = PortGuard.Required(adapters, nameof(adapters));
 
             foreach (var kvp in adapters)
             {

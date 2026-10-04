@@ -48,8 +48,8 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
         double minConfidence = 0.0,
         string? arbitrationKey = null)
     {
-        _director = director ?? throw new ArgumentNullException(nameof(director));
-        _guard = guard ?? throw new ArgumentNullException(nameof(guard));
+        _director = PortGuard.Required(director, nameof(director));
+        _guard = PortGuard.Required(guard, nameof(guard));
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _minConfidence = minConfidence;
         _arbitrationKey = arbitrationKey ?? "EngineAxis.L1.control-flow";

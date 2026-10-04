@@ -40,7 +40,7 @@ public sealed class PersistentEventSink : IObservabilitySink
 
     public PersistentEventSink(IEventStore store, int maxBuffered = DefaultMaxBuffered)
     {
-        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _store = PortGuard.Required(store, nameof(store));
         if (maxBuffered <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxBuffered), maxBuffered, "缓冲上限须为正数");
         _maxBuffered = maxBuffered;
@@ -60,7 +60,7 @@ public sealed class PersistentEventSink : IObservabilitySink
 
     public void Push(PersistedEvent evt)
     {
-        ArgumentNullException.ThrowIfNull(evt);
+        PortGuard.Required(evt, nameof(evt));
         lock (_gate)
         {
             _buffer.Add(evt);

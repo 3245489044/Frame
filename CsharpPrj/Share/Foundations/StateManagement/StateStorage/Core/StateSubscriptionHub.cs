@@ -37,7 +37,7 @@ namespace Share.StateManagement
             Action<StateKey, StateSnapshot<object?>> handler)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(stateNamespace);
-            ArgumentNullException.ThrowIfNull(handler);
+            PortGuard.Required(handler, nameof(handler));
             ThrowIfDisposed();
 
             var entry = new SubscriptionEntry(stateNamespace, scope, handler);

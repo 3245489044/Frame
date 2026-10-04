@@ -23,8 +23,8 @@ public class EventTriggerService : IEventTriggerService,
         IParameterBuilder<string>? parameterBuilder = null,
         IValueWriter? valueWriter = null)
     {
-        _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
-        _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+        _resolver = PortGuard.Required(resolver, nameof(resolver));
+        _executor = PortGuard.Required(executor, nameof(executor));
         _parameterBuilder = parameterBuilder;
         _valueWriter = valueWriter;
     }

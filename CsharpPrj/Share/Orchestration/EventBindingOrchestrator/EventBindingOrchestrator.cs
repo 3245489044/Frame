@@ -45,7 +45,7 @@ namespace Share.EventBindingOrchestrator
             EventBindingOptions? options = null,
             IEventBindingDiagnostics? diagnostics = null)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = PortGuard.Required(logger, nameof(logger));
             _functionResolver = functionResolver;
             _parameterBinder = parameterBinder;
             _eventBinder = eventBinder;
@@ -80,8 +80,8 @@ namespace Share.EventBindingOrchestrator
             UIConfiguration config,
             EventBindingOptions? options = null)
         {
-            if (targetObject == null) throw new ArgumentNullException(nameof(targetObject));
-            if (config == null) throw new ArgumentNullException(nameof(config));
+            targetObject = PortGuard.Required(targetObject, nameof(targetObject));
+            config = PortGuard.Required(config, nameof(config));
 
             var effectiveOptions = options ?? _options;
             var context = new EventBindingContext
@@ -120,10 +120,8 @@ namespace Share.EventBindingOrchestrator
             IReadOnlyList<EventBindingDeclaration<IReadOnlyList<ParameterBinding>>> declarations,
             object targetObject)
         {
-            if (declarations == null)
-                throw new ArgumentNullException(nameof(declarations));
-            if (targetObject == null)
-                throw new ArgumentNullException(nameof(targetObject));
+            declarations = PortGuard.Required(declarations, nameof(declarations));
+            targetObject = PortGuard.Required(targetObject, nameof(targetObject));
 
             EventBindingDiagnosticContext.Record(EventNames.OrchestratorLoadAndBindStart, new
             {
@@ -184,10 +182,8 @@ namespace Share.EventBindingOrchestrator
             UIConfiguration config,
             object targetObject)
         {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
-            if (targetObject == null)
-                throw new ArgumentNullException(nameof(targetObject));
+            config = PortGuard.Required(config, nameof(config));
+            targetObject = PortGuard.Required(targetObject, nameof(targetObject));
 
             var declarations = EventBindingDeclarationFactory.Build(config);
             return LoadAndBindDeclarations(declarations, targetObject);
@@ -325,8 +321,8 @@ namespace Share.EventBindingOrchestrator
 
         public Task<BindingResult> BindControlAsync(object control, EventConfig eventConfig)
         {
-            if (control == null) throw new ArgumentNullException(nameof(control));
-            if (eventConfig == null) throw new ArgumentNullException(nameof(eventConfig));
+            control = PortGuard.Required(control, nameof(control));
+            eventConfig = PortGuard.Required(eventConfig, nameof(eventConfig));
 
             var config = new UIConfiguration
             {
@@ -357,8 +353,8 @@ namespace Share.EventBindingOrchestrator
         public async Task<List<BindingResult>> BindControlsAsync(
             IEnumerable<object> controls, IEnumerable<EventConfig> eventConfigs)
         {
-            if (controls == null) throw new ArgumentNullException(nameof(controls));
-            if (eventConfigs == null) throw new ArgumentNullException(nameof(eventConfigs));
+            controls = PortGuard.Required(controls, nameof(controls));
+            eventConfigs = PortGuard.Required(eventConfigs, nameof(eventConfigs));
 
             var results = new List<BindingResult>();
             var controlList = controls.ToList();

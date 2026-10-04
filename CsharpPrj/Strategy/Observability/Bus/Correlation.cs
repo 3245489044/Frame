@@ -54,7 +54,7 @@ public static class ObsScope
     /// <summary>进入作用域；Dispose 恢复先前值（支持嵌套）。</summary>
     public static IDisposable Enter(CorrelationBag bag)
     {
-        ArgumentNullException.ThrowIfNull(bag);
+        PortGuard.Required(bag, nameof(bag));
         return Slot.Enter(bag);
     }
 }

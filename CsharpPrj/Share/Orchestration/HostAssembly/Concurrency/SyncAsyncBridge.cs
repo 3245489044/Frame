@@ -13,14 +13,14 @@ public static class SyncAsyncBridge
     /// <summary>同步执行一个异步动作（无返回），阻塞直至完成。</summary>
     public static void Wait(Func<ValueTask> asyncAction)
     {
-        ArgumentNullException.ThrowIfNull(asyncAction);
+        PortGuard.Required(asyncAction, nameof(asyncAction));
         Task.Run(async () => await asyncAction().ConfigureAwait(false)).GetAwaiter().GetResult();
     }
 
     /// <summary>同步执行一个异步动作（有返回），阻塞直至完成并返回结果。</summary>
     public static T WaitResult<T>(Func<Task<T>> asyncAction)
     {
-        ArgumentNullException.ThrowIfNull(asyncAction);
+        PortGuard.Required(asyncAction, nameof(asyncAction));
         return Task.Run(async () => await asyncAction().ConfigureAwait(false)).GetAwaiter().GetResult();
     }
 }

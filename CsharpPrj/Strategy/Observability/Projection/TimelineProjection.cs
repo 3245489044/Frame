@@ -11,7 +11,7 @@ public sealed class TimelineProjection
     public TimelineProjection(string runId, IEnumerable<ObservationOutcome> events)
     {
         RunId = string.IsNullOrWhiteSpace(runId) ? throw new ArgumentException("运行标识不能为空", nameof(runId)) : runId;
-        _events = (events ?? throw new ArgumentNullException(nameof(events))).ToArray();
+        _events = PortGuard.Required(events, nameof(events)).ToArray();
     }
 
     /// <summary>运行标识。</summary>

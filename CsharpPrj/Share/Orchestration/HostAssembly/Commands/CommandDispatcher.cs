@@ -26,7 +26,7 @@ public sealed class CommandDispatcher<TRequest>
     public CommandDispatcher<TRequest> Register(string action, AsyncCommandHandler<TRequest> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
-        ArgumentNullException.ThrowIfNull(handler);
+        PortGuard.Required(handler, nameof(handler));
         _handlers[action.Trim()] = handler;
         return this;
     }

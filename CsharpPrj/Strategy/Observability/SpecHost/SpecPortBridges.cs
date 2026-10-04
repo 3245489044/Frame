@@ -10,7 +10,7 @@ public static class SpecScopeProviders
 {
     /// <summary>按环境取值函数构造提供者（<c>AgentTrace.AmbientScopeId()</c> 类的一行接线）。</summary>
     public static ISpecScopeProvider Ambient(Func<string?> ambientScopeId)
-        => new DelegateScopeProvider(ambientScopeId ?? throw new ArgumentNullException(nameof(ambientScopeId)));
+        => new DelegateScopeProvider(PortGuard.Required(ambientScopeId, nameof(ambientScopeId)));
 
     private sealed class DelegateScopeProvider(Func<string?> ambientScopeId) : ISpecScopeProvider
     {
@@ -32,7 +32,7 @@ public static class SpecEventSources
     public static ISpecEventSource From(
         Func<string, IReadOnlyList<ObservationOutcome>> read, bool available = true, Action? dispose = null)
         => new DelegateEventSource(
-            read ?? throw new ArgumentNullException(nameof(read)), available, dispose);
+            PortGuard.Required(read, nameof(read)), available, dispose);
 
     private sealed class DelegateEventSource : ISpecEventSource
     {

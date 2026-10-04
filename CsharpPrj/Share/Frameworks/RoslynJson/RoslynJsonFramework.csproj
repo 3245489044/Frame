@@ -31,4 +31,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- P1：初始化护栏门面（PortGuard.Required）—— 本工程 ImplicitUsings=disable，逐文件 using -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+  </ItemGroup>
+
 </Project>

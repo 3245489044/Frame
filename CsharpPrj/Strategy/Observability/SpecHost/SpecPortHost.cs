@@ -49,8 +49,8 @@ public sealed class SpecPortHost : IPortHost, IDisposable
         ISpecScopeProvider? scope = null,
         ISpecEventSource? events = null)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _surface = surface ?? throw new ArgumentNullException(nameof(surface));
+        _catalog = PortGuard.Required(catalog, nameof(catalog));
+        _surface = PortGuard.Required(surface, nameof(surface));
         _composer = composer;
         _scope = scope;
         _events = events;
@@ -105,7 +105,7 @@ public sealed class SpecPortHost : IPortHost, IDisposable
     public void ReplaceBinding(string portKey, IPortBinding binding)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(portKey);
-        ArgumentNullException.ThrowIfNull(binding);
+        PortGuard.Required(binding, nameof(binding));
 
         var canonical = ResolveStep(portKey);   // given ports 可写步骤名（历史 kind 名）→ 归一到实现承载位
         _catalog.Replace(canonical, binding);
@@ -132,7 +132,7 @@ public sealed class SpecPortHost : IPortHost, IDisposable
     /// </summary>
     public object? Invoke(PortInvocationRequest request)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        PortGuard.Required(request, nameof(request));
 
         var portKey = ResolveStep(request.PortKey);
 

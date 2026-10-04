@@ -58,8 +58,7 @@ namespace Share.TreeTraceFramework.Core
 
         public TraceNode? AddNodeFromConfig(string sessionId, AddNodeConfig config)
         {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
+            config = PortGuard.Required(config, nameof(config));
 
             var tree = GetOrCreateTraceTree(sessionId);
 
@@ -100,8 +99,7 @@ namespace Share.TreeTraceFramework.Core
 
         public void StoreTraceTree(ITraceTree<TraceNode> tree)
         {
-            if (tree == null)
-                throw new ArgumentNullException(nameof(tree));
+            tree = PortGuard.Required(tree, nameof(tree));
 
             var existingEntry = _traceTrees.FirstOrDefault(kvp => kvp.Value.TraceId == tree.TraceId);
             if (!existingEntry.Equals(default(KeyValuePair<string, ITraceTree<TraceNode>>)))

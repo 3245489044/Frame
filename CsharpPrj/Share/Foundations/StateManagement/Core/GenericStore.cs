@@ -132,7 +132,7 @@ namespace Share.StateManagement
 
         public void StoreRange(IEnumerable<KeyValuePair<TKey, TValue>> items)
         {
-            ArgumentNullException.ThrowIfNull(items);
+            PortGuard.Required(items, nameof(items));
 
             foreach (var kvp in items)
             {
@@ -143,7 +143,7 @@ namespace Share.StateManagement
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
             ArgumentNullException.ThrowIfNull(key);
-            ArgumentNullException.ThrowIfNull(valueFactory);
+            PortGuard.Required(valueFactory, nameof(valueFactory));
 
             return _store.GetOrAdd(key, k =>
             {

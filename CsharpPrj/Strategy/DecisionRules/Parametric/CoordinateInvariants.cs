@@ -19,7 +19,7 @@ namespace Strategy.DecisionRules
             IEnumerable<string> inputAxes,
             IReadOnlyList<(string Axis, string Term)>? evidence)
         {
-            if (evidence is null) throw new ArgumentNullException(nameof(evidence));
+            evidence = PortGuard.Required(evidence, nameof(evidence));
             var byAxis = evidence.GroupBy(e => e.Axis).ToDictionary(g => g.Key, g => g.ToList());
             foreach (var axis in inputAxes)
             {
@@ -41,7 +41,7 @@ namespace Strategy.DecisionRules
             IEnumerable<string> inputAxes,
             DecisionGraph graph)
         {
-            if (graph is null) throw new ArgumentNullException(nameof(graph));
+            graph = PortGuard.Required(graph, nameof(graph));
             var outSet = outputAxes.ToHashSet(StringComparer.Ordinal);
             foreach (var layer in graph.Layers)
             {

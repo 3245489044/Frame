@@ -199,13 +199,14 @@ function Get-CRReferences {
         if (Test-CodeFenceLine $line) { $inFence = -not $inFence; continue }
         if ($inFence) { continue }
         # 兼容: 处理一行多个 [CR]（含旧形态 [CR axioms.md:X] 无冒号）
-        $pattern = '\[CR[:\s]+\s*([^\]]+?)\s*\]'
+        $pattern = '\[CR[:\s]+\s*([^\]]+?)\s*\]|«([^»]+?)»'
         $ms = [regex]::Matches($line, $pattern)
         foreach ($m in $ms) {
-            $inner = $m.Groups[1].Value.Trim()
+            $isShort = -not $m.Groups[1].Success
+            $inner = $(if ($isShort) { $m.Groups[2].Value } else { $m.Groups[1].Value }).Trim()
             $obj = [PSCustomObject]@{
                 File=$FilePath; Line=$i+1; Raw=$m.Value; Lib=$null; Styp=$null; Name=$null
-                Intent='def'; Legacy=$false; Valid=$true; Error=''
+                Intent=$(if ($isShort) { 'consume' } else { 'def' }); Legacy=$false; Valid=$true; Error=''
             }
             # 尝试严格形态: LIB:STYP.NAME[.SUB...][@INTENT]
             # NAME 允许数字开头（Sec 章节引用如 Sec.4.5）; NAME 允许含点（[Def] 符号如 op.needsSync）
@@ -420,7 +421,6 @@ function Generate-ReferencesDocument {
 | `DependencyCycleDetection` / `ANTI-CYCLIC-AGGREGATION`（formula §6.5） | 检查 4 的循环依赖检测即其形式化实现 |
 | `dep = "replaced-by(X)"` 元数据键 | 编译索引 `#dep` 权威来源 |
 | `src = "[CR: ...]"` 元数据键 | 引用中 `deriv`/`inst`/`consume` 意图的结构化别名 |
-| axioms.md §10 符号速查 | 与其保持一致；§1 为机器校验编译快照 |
 '@
 
     # 模板占位符整批替换（委托 StringTools Invoke-TemplateReplace）

@@ -440,6 +440,12 @@ Describe 'Get-CrReferenceTokens' {
         $t.Count | Should -Be 2  
         $t[0].Inner | Should -Be 'axioms:AX.StateSnapshot'  
     }  
+    It '应支持短形 «…»（缺省 intent=consume）' {  
+        $t = Get-CrReferenceTokens -Line '见 «axioms:AX.StateSnapshot» 与 «dsl:Sec.4.5@see»'  
+        $t.Count | Should -Be 2  
+        $t[0].Inner | Should -Be 'axioms:AX.StateSnapshot@consume'  
+        $t[1].Inner | Should -Be 'dsl:Sec.4.5@see'  
+    }  
 }  
   
 Describe 'ConvertFrom-CrReference' {  

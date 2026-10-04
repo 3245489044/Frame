@@ -11,6 +11,8 @@
 | `Invoke-GateCheck.ps1` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（件数以 `GateManifests.psd1` 为准） |
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 | `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
+| `Locate-Build.ps1` | `Environment\CentralTest\Get-VerifyPlan.ps1` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
+| `Invoke-Verify.ps1` | `Environment\CentralTest\Invoke-Verify.ps1` | P2 唯一验证命令（bake→test→gate 一次完成） |
 
 ## 用法
 
@@ -84,6 +86,27 @@
 索引源（唯一真源，不试跑）：`.specs` 的 `case <caseId>` 行 + `TestTargets.psd1` 别名表 + 各测试工程源码的 `class/record` 声明。
 未命中判 `undetermined`（≠「不存在」）。禁逐工程试跑定位（R1）。
 
+### 定位（构建 / 门禁落点 · 诊断相位 · 零运行）
+```powershell
+# 改动文件 → 需构建工程 / 需跑测试工程 / 需跑门禁（0 试跑）
+.\Locate-Build.ps1 -Changed 'Frame\CsharpPrj\Share\X.cs','Environment\CentralTest\AgentTest\Agent.Core.Tests\A.cs'
+
+# 冻结清单 / JSON（供 Invoke-Verify 消费）
+.\Locate-Build.ps1 -Changed 'Frame\PowerShellScript\Operation\DSL\Check-VerifySingleShot.ps1' -Json
+```
+分类面 = 仓库相对路径前缀（结构事实）；未命中判 `Unmapped`（fail-loud，≠「全部」，禁静默全量）。禁 `dotnet build` 全量烘 / 逐工程试探（G6）。
+
+### 验证（P2 唯一命令）
+```powershell
+# bake→test→gate 一次完成（agent 面 shell 调用计 1）
+.\Invoke-Verify.ps1 -Changed 'Frame\CsharpPrj\Share\X.cs'
+
+# 消费冻结清单
+.\Invoke-Verify.ps1 -Plan 'Environment\CentralTest\BuildOutput\Debug\verify-plan.json'
+```
+`Invoke-Verify.ps1` = `VERIFY_SINGLE_ENTRY`（`.clinerules\project.md` §1.10）；内部串 `Bake-CsharpPrj`→`Run-CSharpTests`/`Invoke-AgentRegression`→`Invoke-GateCheck`，不复制逻辑。
+拆分式 `build`/`test`/`gate` 多条调用、原生 `dotnet` 直呼 ⇒ 违反唯一命令纪律（`VerifySingleShot` 守卫 + `ANTI-MULTI-RUN-VERIFY`）。
+
 ### 验证自证对齐（源码指纹 = 产物指纹）
 `Invoke-Regression.ps1` 会在验证前打印 `[ALIGN]` 证据行，并前置断言「源码内容指纹 = 产物(dll)内容指纹」：
 - `state=aligned`：产物与源码对齐；
@@ -136,4 +159,8 @@ Environment/CentralTest/  ← VE-2（薄转发到 Run-CSharpTests）
 ## 守卫
 
 `InvokeEntrypoints` 门禁（`Operation\DSL\Check-InvokeEntrypoints.ps1`）把下列约束变成机器判据，防同类回归：
-① 4 入口不得出现数组 splatting 传开关；② `GateManifests.psd1` 每件 `Args` 须为哈希表；③ 每入口含 `try` + `catch` + 确定 `exit`；④ 全 DSL 目录 `Check-*.ps1` 不得含硬编码绝对路径。
+① 入口不得出现数组 splatting 传开关；② `GateManifests.psd1` 每件 `Args` 须为哈希表；③ 每入口含 `try` + `catch` + 确定 `exit`；④ 全 DSL 目录 `Check-*.ps1` 不得含硬编码绝对路径。
+
+`VerifySingleShot` 门禁（`Operation\DSL\Check-VerifySingleShot.ps1`）把「回归/验证只经 `Frame\Invoke` 单入口」变成机器判据（G8）：
+① `Frame\Invoke\*.ps1` 禁原生 `dotnet test/build`；② `VERIFY_SINGLE_ENTRY` 接线不漂移（`axioms.md` 声明 ∧ 指向已存在入口 ∧ `project.md` §1.10 登记）；③ 正/负对照防判据空转。
+边界：本守卫只扫**文件面**，拦不住 agent 运行期直呼 `dotnet` —— 运行面由 `project.md` §1.10 相位白名单 + 回复内 `[批次声明]` 自审承担。

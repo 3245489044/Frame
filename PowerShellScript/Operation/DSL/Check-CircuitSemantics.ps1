@@ -642,7 +642,7 @@ if (Test-Path $convDir)
     $convCircuitCs = @(Get-ChildItem -Path $convCircuitDir -Filter *.cs -File -ErrorAction SilentlyContinue)
     $convAll = @($convCs + $convCircuitCs)
 
-    # 会话**发送链**（逐消息生命周期）文件集：不含 FoldStepPipeline（折叠步进容器，另一关注点，合法消费 Modules.Pipeline 组合子）。
+    # 会话**发送链**（逐消息生命周期）文件集：恰三个编排文件（逐消息链须由 CircuitEngine 单驱动，禁 Modules.Pipeline 槽位）。
     $convChainNames = @('ConversationCentralPipeline.cs', 'ConversationPipeline.cs', 'ConversationSessionService.cs')
     $convChainCs = @($convAll | Where-Object { $convChainNames -contains $_.Name })
 

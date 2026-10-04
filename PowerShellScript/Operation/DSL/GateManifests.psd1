@@ -259,4 +259,12 @@
         Expect = 0
         Note   = '入口框架守卫：① 禁数组 splatting 传开关 ② Args 须 hashtable ③ 入口 try/catch/exit ④ 禁硬编码绝对路径'
     }
+
+    # ===== 验证单入口守卫（G8）=====
+    VerifySingleShot = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '验证单入口守卫（G8）：① Frame\Invoke\*.ps1 禁原生 dotnet test/build（薄转发）② 唯一验证命令接线（axioms.md 声明 VERIFY_SINGLE_ENTRY ∧ 指向已存在入口 ∧ project.md §1.10 登记）③ 正/负对照（防判据空转）；P2 唯一命令纪律；运行面由 §1.10 相位白名单 + [批次声明] 自审承担'
+    }
 }

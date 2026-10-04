@@ -1,7 +1,7 @@
 # Check-InvokeEntrypoints.ps1
 # 入口框架守卫 —— 把 S1/S2 设计条款变成机器判据，防同类回归。
 # 判据：
-#   ① 4 入口不得出现数组 splatting 传开关（无 @($…Args…) / 无 += @('-）
+#   ① 入口不得出现数组 splatting 传开关（无 @($…Args…) / 无 += @('-）
 #   ② GateManifests.psd1 每件 Args 须为 hashtable
 #   ③ 每入口含 try + catch + 确定 exit
 #   ④ 全 DSL 目录 Check-*.ps1 不得含硬编码绝对路径（正则 [a-zA-Z]:\\）
@@ -31,6 +31,8 @@ $entryScripts = @(
     'Invoke-GateCheck.ps1'
     'Invoke-Regression.ps1'
     'Locate-Test.ps1'
+    'Locate-Build.ps1'
+    'Invoke-Verify.ps1'
 )
 foreach ($script in $entryScripts) {
     $path = Join-Path $invokeDir $script

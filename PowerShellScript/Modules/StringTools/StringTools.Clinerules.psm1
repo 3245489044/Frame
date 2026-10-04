@@ -154,10 +154,15 @@ function Get-CrReferenceTokens {
         [Parameter(Mandatory = $true, Position = 0)]  
         [AllowEmptyString()][string]$Line  
     )  
-    $ms = [regex]::Matches($Line, '\[CR[:\s]+\s*([^\]]+?)\s*\]')  
+    $ms = [regex]::Matches($Line, '\[CR[:\s]+\s*([^\]]+?)\s*\]|«([^»]+?)»')  
     $tokens = @()  
     foreach ($m in $ms) {  
-        $tokens += [PSCustomObject]@{ Raw = $m.Value; Inner = $m.Groups[1].Value.Trim() }  
+        if ($m.Groups[1].Success) { $inner = $m.Groups[1].Value.Trim() }
+        else {
+            $inner = $m.Groups[2].Value.Trim()
+            if ($inner -notmatch '@(def|deriv|inst|consume|align|see)$') { $inner = "$inner@consume" }
+        }
+        $tokens += [PSCustomObject]@{ Raw = $m.Value; Inner = $inner }  
     }  
     return $tokens  
 }  

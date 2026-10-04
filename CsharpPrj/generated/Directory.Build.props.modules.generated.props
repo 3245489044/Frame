@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-09-30 15:27:56
+  生成时间: 2026-10-04 14:48:04
 -->
 <Project>
 
@@ -26,6 +26,7 @@
     <Mod_ECS>$(CsharpPrjDir)BasicMethod\ECS\</Mod_ECS>
     <Mod_BasicMethod_Framework_Abstractions>$(CsharpPrjDir)BasicMethod\Framework.Abstractions\</Mod_BasicMethod_Framework_Abstractions>
     <Mod_BasicMethod_Framework>$(CsharpPrjDir)BasicMethod\Framework\</Mod_BasicMethod_Framework>
+    <Mod_BasicMethod_Initialization>$(CsharpPrjDir)BasicMethod\Initialization\</Mod_BasicMethod_Initialization>
     <Mod_JsonUIBeautifier>$(CsharpPrjDir)BasicMethod\JsonProcess\JsonUIBeautifier\</Mod_JsonUIBeautifier>
     <Mod_ProcessJsonConfig>$(CsharpPrjDir)BasicMethod\JsonProcess\ProcessJsonConfig\</Mod_ProcessJsonConfig>
     <Mod_BasicMethod_Logging>$(CsharpPrjDir)BasicMethod\Logging\</Mod_BasicMethod_Logging>
@@ -133,6 +134,7 @@
     <Proj_ECS>$(CsharpPrjDir)BasicMethod\ECS\ECS.csproj</Proj_ECS>
     <Proj_BasicMethod_Framework_Abstractions>$(CsharpPrjDir)BasicMethod\Framework.Abstractions\BasicMethod.Framework.Abstractions.csproj</Proj_BasicMethod_Framework_Abstractions>
     <Proj_BasicMethod_Framework>$(CsharpPrjDir)BasicMethod\Framework\BasicMethod.Framework.csproj</Proj_BasicMethod_Framework>
+    <Proj_BasicMethod_Initialization>$(CsharpPrjDir)BasicMethod\Initialization\BasicMethod.Initialization.csproj</Proj_BasicMethod_Initialization>
     <Proj_JsonUIBeautifier>$(CsharpPrjDir)BasicMethod\JsonProcess\JsonUIBeautifier\JsonUIBeautifier.csproj</Proj_JsonUIBeautifier>
     <Proj_ProcessJsonConfig>$(CsharpPrjDir)BasicMethod\JsonProcess\ProcessJsonConfig\ProcessJsonConfig.csproj</Proj_ProcessJsonConfig>
     <Proj_BasicMethod_Logging>$(CsharpPrjDir)BasicMethod\Logging\BasicMethod.Logging.csproj</Proj_BasicMethod_Logging>

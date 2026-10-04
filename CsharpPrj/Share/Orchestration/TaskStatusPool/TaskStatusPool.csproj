@@ -21,6 +21,8 @@
     <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
     <!-- IControlValueAccessor（ControlPool / ResultWriteMorphism 使用） -->
     <ProjectReference Include="$(Proj_TConfig)" />
+    <!-- 失败账本端口 IFailureBudget / ErrorTolerance 宿主（端口倒置批）-->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
   </ItemGroup>
 
 </Project>

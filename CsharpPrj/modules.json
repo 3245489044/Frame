@@ -48,6 +48,7 @@
     "ECS": "BasicMethod\\ECS\\ECS.csproj",
     "BasicMethod.Framework.Abstractions": "BasicMethod\\Framework.Abstractions\\BasicMethod.Framework.Abstractions.csproj",
     "BasicMethod.Framework": "BasicMethod\\Framework\\BasicMethod.Framework.csproj",
+    "BasicMethod.Initialization": "BasicMethod\\Initialization\\BasicMethod.Initialization.csproj",
     "JsonUIBeautifier": "BasicMethod\\JsonProcess\\JsonUIBeautifier\\JsonUIBeautifier.csproj",
     "ProcessJsonConfig": "BasicMethod\\JsonProcess\\ProcessJsonConfig\\ProcessJsonConfig.csproj",
     "BasicMethod.Logging": "BasicMethod\\Logging\\BasicMethod.Logging.csproj",

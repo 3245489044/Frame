@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>初始化与错误处理通用框架</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>声明式端口装配（PortSlot/PortGuard）+ 模块拓扑序装配（ModuleAssembler）+ 统一错误分类与失败账本门面（FailSink）。零外部工程依赖（仅 BCL），所需原语向本层上提。</ModuleRule_Description>
+    <ModuleRule_Keywords>初始化,端口,装配,错误分类,失败账本,生命周期,拓扑序</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要「必填/可选/可降级」端口声明、装配期 fail-fast、执行期失败记账时，优先查看此模块" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BasicMethod.Initialization</RootNamespace>
+    <AssemblyName>BasicMethod.Initialization</AssemblyName>
+    <Description>初始化与错误处理通用框架 - 把数千处手写的 ?? throw / ?? new / catch-log-continue 收口为「一条端口声明 + 一个处置门面 + 一次拓扑编排 + 一个失败账本」，同时保留 T/N/D 三出口语义不变性。零外部工程依赖。</Description>
+  </PropertyGroup>
+
+  <!-- 零对外引用：本工程不引用任何其它 root（Share/Modules/Plate/Protocol）之工程。
+       所需原语（ErrorClass/ErrorTolerance/失败账本端口）以端口倒置方式上提至本层；
+       通用图拓扑排序（GraphFoundation.GraphTopology）因跨工程边界不在此引用，模块初始化排序以局部 Kahn 实现。 -->
+
+</Project>

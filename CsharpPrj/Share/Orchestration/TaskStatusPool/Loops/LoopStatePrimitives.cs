@@ -1,3 +1,6 @@
+using BasicMethod.Initialization.Errors;
+using BasicMethod.Initialization.Ports;
+
 namespace Share.TaskStatusPool.Loops;
 
 /// <summary>
@@ -14,7 +17,7 @@ public enum EvalOutcome
 }
 
 /// <summary>熔断等级 level∈{0..3}。升降级由 <see cref="BudgetEscalator"/> 单一裁决（FailureBudgetEscalation，clinerules axioms §5）。</summary>
-public sealed class FailureBudget
+public sealed class FailureBudget : IFailureBudget
 {
     public const int MinLevel = 0;
     public const int MaxLevel = 3;
@@ -33,6 +36,12 @@ public sealed class FailureBudget
     public bool IsTripped => Level >= MaxLevel;
 
     public void Reset() => Level = MinLevel;
+
+    /// <summary>失败账本端口实现（BasicMethod.Initialization.Ports.IFailureBudget）：fatal 升级 level；tolerated 只记账不升级（当前模型仅 level，tolerated 为记账占位）。</summary>
+    public void Apply(ErrorTolerance tolerance)
+    {
+        if (tolerance == ErrorTolerance.Fatal) Escalate();
+    }
 }
 
 /// <summary>轮次进度 value∈{0..Max}。更新唯一入口 = <see cref="ProgressUpdater"/>（EvaluateDrivenUpdate，formula §4.5）。</summary>

@@ -79,6 +79,8 @@
     <!-- ★ 整合 BasicMethod 子项目（方案B：先整合再精简） -->
     <ProjectReference Include="$(Proj_BasicMethod_Framework_Abstractions)" />
     <ProjectReference Include="$(Proj_BasicMethod_Framework)" />
+    <!-- ★ 初始化与错误处理通用框架（PortSlot/PortGuard/ModuleAssembler/FailSink；零对外引用） -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <ProjectReference Include="$(Proj_ReactiveData)" />
     <ProjectReference Include="$(BasicMethodRoot)StateMachine\StateMachine.csproj" />

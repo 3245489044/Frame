@@ -41,8 +41,13 @@ namespace Modules.GraphProcessing.Diagnostics
     {
         private readonly ICycleDetector<string> _cycleDetector;
 
-        public DefaultReferenceDiagnostics(ICycleDetector<string>? cycleDetector = null)
-            => _cycleDetector = cycleDetector ?? new DefaultCycleDetector<string>();
+        public DefaultReferenceDiagnostics()
+            : this(new DefaultCycleDetector<string>())
+        {
+        }
+
+        public DefaultReferenceDiagnostics(ICycleDetector<string> cycleDetector)
+            => _cycleDetector = cycleDetector ?? throw new ArgumentNullException(nameof(cycleDetector));
 
         /// <summary>对全量引用执行四类诊断（循环/孤立/未用/缺失）。</summary>
         public ReferenceDiagnosticResult RunFullDiagnostics(

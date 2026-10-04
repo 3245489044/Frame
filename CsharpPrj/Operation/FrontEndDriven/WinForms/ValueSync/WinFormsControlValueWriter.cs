@@ -22,9 +22,14 @@ public class WinFormsControlValueWriter : TConfig.Controls.IControlValueAccessor
     /// <summary>
     /// 构造：注入契约服务；无注入时回退默认后端（<see cref="ControlValueBridge"/>）。
     /// </summary>
-    public WinFormsControlValueWriter(TConfig.Controls.IControlService? contractService = null)
+    public WinFormsControlValueWriter()
+        : this(new ControlValueBridge())
     {
-        _contractService = contractService ?? new ControlValueBridge();
+    }
+
+    public WinFormsControlValueWriter(TConfig.Controls.IControlService contractService)
+    {
+        _contractService = contractService ?? throw new ArgumentNullException(nameof(contractService));
     }
 
     public object? GetValue(object control)

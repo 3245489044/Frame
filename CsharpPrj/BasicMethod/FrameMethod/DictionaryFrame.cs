@@ -567,7 +567,7 @@ namespace DictionaryAlgorithm
 
     #endregion
 
-    #region ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ã·?
+    #region ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ï¿½?
 
     public static class DepthValidator
     {
@@ -580,7 +580,7 @@ namespace DictionaryAlgorithm
             if (result == null || result.Nodes.Count == 0)
             {
                 validation.IsValid = false;
-                validation.Message = "±éÀú½á¹ûÎª¿Õ£¨ÎŞ½Úµã£©£¬Ğ£ÑéÊ§°Ü";
+                validation.Message = "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½Õ£ï¿½ï¿½Ş½Úµã£©ï¿½ï¿½Ğ£ï¿½ï¿½Ê§ï¿½ï¿½";
                 return validation;
             }
 
@@ -606,7 +606,7 @@ namespace DictionaryAlgorithm
                 if (unexpectedDepths.Any())
                 {
                     validation.IsValid = false;
-                    validation.Message = $"ï¿½ï¿½ï¿½Ö³ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½{context.TargetDepth}ï¿½Ä½Úµã£ºï¿½ï¿½ï¿?{string.Join(", ", unexpectedDepths)}";
+                    validation.Message = $"ï¿½ï¿½ï¿½Ö³ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½{context.TargetDepth}ï¿½Ä½Úµã£ºï¿½ï¿½ï¿½?{string.Join(", ", unexpectedDepths)}";
                     validation.UnexpectedDepths = unexpectedDepths;
                 }
                 else
@@ -661,7 +661,7 @@ namespace DictionaryAlgorithm
 
     #endregion
 
-    #region ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿?
+    #region ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
 
     public static class DictionaryTraverser
     {
@@ -874,11 +874,11 @@ namespace DictionaryAlgorithm
 
     #endregion
 
-    #region ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿?
+    #region ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
 
     public static class DictionaryClassifier
     {
-        #region ï¿½ï¿½ï¿½ÃºÍ½ï¿½ï¿½ï¿½ï¿?
+        #region ï¿½ï¿½ï¿½ÃºÍ½ï¿½ï¿½ï¿½ï¿½?
 
         public class ClassificationConfig
         {
@@ -1924,7 +1924,7 @@ namespace DictionaryAlgorithm
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Â·¾¶ '{path}' µ±Ç°¶Î¼È·ÇÊôĞÔÃûÒà·ÇË÷Òı");
+                    throw new InvalidOperationException($"Â·ï¿½ï¿½ '{path}' ï¿½ï¿½Ç°ï¿½Î¼È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
                 }
             }
         }
@@ -2472,9 +2472,10 @@ namespace CommonFoundation
 
         public ITreeNode<TValue> Root => _root;
 
-        public TreeContainer(IPathParser pathParser = null, ITreeNodeFactory<TValue> nodeFactory = null, string rootName = "Root")
+        public TreeContainer(IPathParser pathParser, ITreeNodeFactory<TValue> nodeFactory = null, string rootName = "Root")
         {
-            _pathParser = pathParser ?? new DefaultPathParser();
+            // å¿…å¡«ç«¯å£ï¼ˆTï¼‰ï¼šè·¯å¾„è§£æå™¨ç”±è£…é…ç‚¹æ˜¾å¼æä¾›ï¼›ç¦ ?? new é»˜è®¤å†’å……è£…é…ã€‚
+            _pathParser = pathParser ?? throw new ArgumentNullException(nameof(pathParser));
             nodeFactory ??= new DictionaryTreeNodeFactory<TValue>();
             _root = nodeFactory.CreateNode(rootName);
         }
@@ -3435,7 +3436,7 @@ namespace CommonFoundation
 
             public void Register(string key, Func<KeyPair, object> processor, bool overwriteIfExists = true, bool handleHierarchy = true)
             {
-                if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("¼ü²»ÄÜÎª null »ò¿Õ°×", nameof(key));
+                if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îª null ï¿½ï¿½Õ°ï¿½", nameof(key));
                 if (processor == null) throw new ArgumentNullException(nameof(processor));
 
                 _inner.Register(key, processor, overwriteIfExists, handleHierarchy);

@@ -18,15 +18,16 @@ namespace Strategy.DecisionRules
         private readonly IDelegateRegistry? _delegates;
 
         public DecisionRulesEngine(
-            IMatchStrategyRegistry? match = null,
-            IOutputStrategyRegistry? output = null,
-            ITemplateRenderer? renderer = null,
+            IMatchStrategyRegistry match,
+            IOutputStrategyRegistry output,
+            ITemplateRenderer renderer,
             IRuleAuditSink? audit = null,
             IDelegateRegistry? delegates = null)
         {
-            _match = match ?? new DefaultMatchStrategyRegistry();
-            _output = output ?? new DefaultOutputStrategyRegistry();
-            _renderer = renderer ?? new PlaceholderTemplateRenderer();
+            // 必填端口（T）：策略实现由门面/组合根显式装配；禁 ?? new 默认冒充装配（消除隐藏第二实例）。
+            _match = match ?? throw new ArgumentNullException(nameof(match));
+            _output = output ?? throw new ArgumentNullException(nameof(output));
+            _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
             _audit = audit ?? NullAudit.Instance;
             _delegates = delegates;
         }

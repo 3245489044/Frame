@@ -24,12 +24,18 @@ public class OverlapMonitor : IOverlapMonitor
 
     public bool IsAttached => _attachedForm != null;
 
-    public OverlapMonitor(
-        IOverlapCalculator? calculator = null,
-        IOverlapReporter? reporter = null)
+    public OverlapMonitor()
+        : this(new OverlapCalculator(), new ConsoleOverlapReporter())
     {
-        _calculator = calculator ?? new OverlapCalculator();
-        _reporter = reporter ?? new ConsoleOverlapReporter();
+    }
+
+    public OverlapMonitor(
+        IOverlapCalculator calculator,
+        IOverlapReporter reporter)
+    {
+        // 必填端口（T）：计算器/上报器由装配点显式提供（无参构造是组件自装配的唯一入口）；禁 ?? new 默认冒充装配。
+        _calculator = calculator ?? throw new ArgumentNullException(nameof(calculator));
+        _reporter = reporter ?? throw new ArgumentNullException(nameof(reporter));
         _debounceTimer = new System.Threading.Timer(
             OnDebounceTimerElapsed,
             null,

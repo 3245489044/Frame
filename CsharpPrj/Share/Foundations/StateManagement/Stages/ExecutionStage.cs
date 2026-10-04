@@ -12,16 +12,17 @@ namespace Share.StateManagement.Stages
         private static readonly TimeSpan StateRetentionPeriod = TimeSpan.FromMinutes(5);
 
         public ExecutionStage(
-            INodeExecutionCoordinator? coordinator = null,
-            IStateMachineStore<ExecutionStatus>? stateStore = null,
-            IExecutionParameterStore? parameterStore = null,
+            INodeExecutionCoordinator coordinator,
+            IStateMachineStore<ExecutionStatus> stateStore,
+            IExecutionParameterStore parameterStore,
             string name = "Execution",
             string? description = null)
             : base(name, description ?? "通用节点执行协调 - 支持并发控制、状态管理、参数管理")
         {
-            _stateStore = stateStore ?? new StateMachineStore<ExecutionStatus>();
-            _coordinator = coordinator ?? new NodeExecutionCoordinator(10);
-            _parameterStore = parameterStore ?? new ExecutionParameterStore();
+            // 必填端口（T）：执行协调/状态/参数端口由装配点显式提供；禁 ?? new 默认冒充装配。
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _parameterStore = parameterStore ?? throw new ArgumentNullException(nameof(parameterStore));
         }
 
         protected override async Task ExecuteCoreAsync(

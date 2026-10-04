@@ -20,10 +20,16 @@ public class WinFormsEventBus : IEventBus
 
     private readonly StaticPipeline<EventBusContext> _bindPipeline;
 
-    public WinFormsEventBus(IEventNameNormalizer? normalizer = null)
+    public WinFormsEventBus()
+        : this(new DefaultEventNameNormalizer())
+    {
+    }
+
+    public WinFormsEventBus(IEventNameNormalizer normalizer)
     {
         _innerBus = new DefaultEventBus();
-        _normalizer = normalizer ?? new DefaultEventNameNormalizer();
+        // 必填端口（T）：事件名规范化器由装配点显式提供；无参构造是组件自装配的唯一入口。
+        _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
 
         _bindPipeline = new StaticPipeline<EventBusContext>(new[]
         {

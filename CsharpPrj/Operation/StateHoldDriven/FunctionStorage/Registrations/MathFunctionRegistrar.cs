@@ -41,7 +41,7 @@ public static class MathFunctionRegistrar
         //   由 Route 布局 catalog 派生的权威产物根（如 CsharpProjectRoot\BuildOutput\Debug）经
         //   Modules.Registry.AutoRegister.AssemblySourceProvider 注入，Frame 不反向依赖 Route。
         var locator = AssemblySourceLocator.CreateForDirectory(configDir);
-        var engine = new AutoRegisterEngine(resolveAssembly: locator.Resolve);
+        var engine = new AutoRegisterEngine(new AutoRegisterService(), resolveAssembly: locator.Resolve);
         var results = engine.ProcessConfig(configPath, registry);
 
         // ★ 启动期自检：AutoRegister 完成后对照期望函数清单校验，缺失即启动时显式报错

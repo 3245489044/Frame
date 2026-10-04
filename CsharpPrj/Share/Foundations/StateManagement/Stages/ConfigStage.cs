@@ -11,7 +11,8 @@ namespace Share.StateManagement.Stages
             string? description = null)
             : base(name, description ?? "通用配置加载 - 支持版本管理")
         {
-            _configProvider = configProvider ?? new DefaultConfigProvider();
+            // 可选端口：缺省用命名空对象（N），禁匿名 ?? new 默认冒充装配。
+            _configProvider = configProvider ?? NullConfigProvider.Instance;
         }
 
         protected override async Task ExecuteCoreAsync(
@@ -40,13 +41,17 @@ namespace Share.StateManagement.Stages
             }
         }
 
-        private class DefaultConfigProvider : IConfigProvider
-        {
-            public Task<string> GetLatestVersionAsync(CancellationToken cancellationToken)
-                => Task.FromResult("default");
+    }
 
-            public Task<object?> LoadConfigAsync(string version, CancellationToken cancellationToken)
-                => Task.FromResult<object?>(null);
-        }
+    /// <summary>配置供给命名空对象（N）：未注入时无操作（版本恒 default / 配置恒 null）——显式声明"此处允许无操作"。</summary>
+    internal sealed class NullConfigProvider : IConfigProvider
+    {
+        public static readonly NullConfigProvider Instance = new();
+
+        public Task<string> GetLatestVersionAsync(CancellationToken cancellationToken)
+            => Task.FromResult("default");
+
+        public Task<object?> LoadConfigAsync(string version, CancellationToken cancellationToken)
+            => Task.FromResult<object?>(null);
     }
 }

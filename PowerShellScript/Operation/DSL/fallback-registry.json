@@ -1,0 +1,2412 @@
+{
+  "schema": "fallback-registry-v1",
+  "note": "框架回退合法面登记（出口 T=throw / N=命名 Null 对象 / D=显式 Degrade+可见）。whitelistPaths=组合根文件（其内 ?? new 合法）；nullFactories=非 Null* 前缀的显式空对象名；entries=P1 起逐项登记的合法回退。未登记命中的回退计入棘轮（fallback-baseline.json）。",
+  "whitelistPaths": [
+    "AgentComposition.cs",
+    "AgentOrchestrator.cs",
+    "AgentFramework.cs",
+    "AgentFrameworkAssembler.cs",
+    "NodeFrameworkHosting.cs",
+    "FrameworkInitializer.cs",
+    "ConversationHosting.cs",
+    "ClineAgentExecutorFactory.cs"
+  ],
+  "nullFactories": [
+    "FallbackStateCenter"
+  ],
+  "benignTypePatterns": [
+    "List",
+    "Dictionary",
+    "HashSet",
+    "SortedSet",
+    "SortedDictionary",
+    "ConcurrentDictionary",
+    "ConcurrentBag",
+    "ConcurrentQueue",
+    "Queue",
+    "Stack",
+    "ArrayList",
+    "ObservableCollection",
+    "ReadOnlyCollection",
+    "ReadOnlyDictionary",
+    "ICollection",
+    "IDictionary",
+    "IList",
+    "IEnumerable",
+    "IReadOnlyList",
+    "IReadOnlyDictionary",
+    "IReadOnlyCollection"
+  ],
+  "entries": [
+    {
+      "id": "C1-FacadeDataStore-config",
+      "type": "C1",
+      "file": "FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemoryConfigStore",
+      "reason": "非 Sqlite 后端配置内存占位（代码文档化设计）",
+      "owner": "datastore-driven",
+      "expires": null
+    },
+    {
+      "id": "C1-FacadeDataStore-nodes",
+      "type": "C1",
+      "file": "FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemoryNodeStore",
+      "reason": "非 Sqlite 后端节点内存占位（代码文档化设计）",
+      "owner": "datastore-driven",
+      "expires": null
+    },
+    {
+      "id": "C1-FacadeDataStore-snap",
+      "type": "C1",
+      "file": "FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemorySnapshotGraphStore",
+      "reason": "非 Sqlite 后端快照内存占位（代码文档化设计）",
+      "owner": "datastore-driven",
+      "expires": null
+    },
+    {
+      "id": "C1-Mediator-cache",
+      "type": "C1",
+      "file": "UniversalMiddleware/Infrastructure.cs",
+      "exit": "N",
+      "target": "CacheManager",
+      "reason": "Mediator 缺省缓存（可注入覆盖；框架内聚）",
+      "owner": "universal-middleware",
+      "expires": null
+    },
+    {
+      "id": "C1-Mediator-state",
+      "type": "C1",
+      "file": "UniversalMiddleware/Infrastructure.cs",
+      "exit": "N",
+      "target": "StateManager",
+      "reason": "Mediator 缺省状态管理（可注入覆盖；框架内聚）",
+      "owner": "universal-middleware",
+      "expires": null
+    },
+    {
+      "id": "C1-Pipeline-Core-errorcollector",
+      "type": "C1",
+      "file": "Modules/Pipeline/Core.cs",
+      "exit": "N",
+      "target": "ErrorCollector",
+      "reason": "PipelineResult 空错误累积器默认（值对象归一，非隐藏服务）",
+      "owner": "pipeline",
+      "expires": null
+    },
+    {
+      "id": "C1-Pipeline-Core-context",
+      "type": "C1",
+      "file": "Modules/Pipeline/Core.cs",
+      "exit": "N",
+      "target": "PipelineContext",
+      "reason": "PipelineResult 空上下文默认 / SkeletonContext 适配兜底（值对象归一）",
+      "owner": "pipeline",
+      "expires": null
+    },
+    {
+      "id": "C1-GraphKey-normalizationconfig",
+      "type": "C1",
+      "file": "Share/Frameworks/GraphFramework/GraphKey.cs",
+      "exit": "N",
+      "target": "Expansion",
+      "reason": "ChainExpanderOptions.NormalizationConfig 配置优先级缺省（命名空间限定值对象默认）",
+      "owner": "graph-framework",
+      "expires": null
+    },
+    {
+      "id": "C1-CellFrameworkHost-changefilter",
+      "type": "C1",
+      "file": "BasicMethod/CellFrame/CellFrameworkHost.cs",
+      "exit": "N",
+      "target": "ChangeFilter",
+      "reason": "QueryChanges 查询过滤器缺省（值对象默认 = 无过滤条件，非隐藏服务）",
+      "owner": "cell-frame",
+      "expires": null
+    },
+    {
+      "id": "C1-CommandEngine-executioncontext",
+      "type": "C1",
+      "file": "Share/Composition/CommandFramework/Execution/CommandEngine.cs",
+      "exit": "N",
+      "target": "CommandExecutionContext",
+      "reason": "撤销/重做缺省空执行上下文（值对象默认，非隐藏服务）",
+      "owner": "command-framework",
+      "expires": null
+    },
+    {
+      "id": "C1-Extractors-delegatefactory",
+      "type": "C1",
+      "file": "Modules/Registry/AutoRegister/Extractors.cs",
+      "exit": "N",
+      "target": "DelegateFactory",
+      "reason": "提取器缺省委托工厂（无状态工厂，可选默认；调用点众多，登记为合法默认）",
+      "owner": "registry",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-1",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/CellFrame/CellFrameworkHost.cs",
+      "exit": "N",
+      "target": "ChangeFilter",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-2",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Common/Cloning/ObjectCloner.cs",
+      "exit": "N",
+      "target": "System",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-3",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Common/Configuration/SharedInterfaces.cs",
+      "exit": "N",
+      "target": "MethodResolver",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-4",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Common/Configuration/SharedInterfaces.cs",
+      "exit": "N",
+      "target": "DynamicMethodExecutor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-5",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Common/Configuration/SharedTypes.cs",
+      "exit": "N",
+      "target": "DefaultDebugPrint",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-6",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/FrameMethod/SkeletonFlow.cs",
+      "exit": "N",
+      "target": "ContextBase",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-7",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/FrameMethod/SkeletonFlow.cs",
+      "exit": "N",
+      "target": "SkeletonContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-8",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Framework/ConfigBuilder.cs",
+      "exit": "N",
+      "target": "ConfigLoader",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-9",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Framework/ConfigBuilder.cs",
+      "exit": "N",
+      "target": "ConfigMerger",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-10",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Framework/ConfigLoader.cs",
+      "exit": "N",
+      "target": "JsonSerializerOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-11",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/JsonProcess/JsonUIBeautifier/src/Pipeline/JsonBeautifierPipeline.cs",
+      "exit": "N",
+      "target": "BeautifierConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-12",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/JsonProcess/JsonUIBeautifier/src/Stylizer/Applicators/TypographyApplicator.cs",
+      "exit": "N",
+      "target": "JObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-13",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Logging/LogCollapser.cs",
+      "exit": "N",
+      "target": "CollapserConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-14",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Map/GraphFoundation/Graph/CoreGraph.cs",
+      "exit": "N",
+      "target": "InMemoryGraphStorage",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-15",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Map/StateMachine/SequentialStateMachine.cs",
+      "exit": "N",
+      "target": "TContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-16",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/Map/Transformers/GroupReducer.cs",
+      "exit": "N",
+      "target": "KeepFirstReduce",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-17",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/RefectionMethod/DynamicInvocationFramework.cs",
+      "exit": "N",
+      "target": "MethodResolver",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-18",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/RefectionMethod/DynamicInvocationFramework.cs",
+      "exit": "N",
+      "target": "DynamicMethodExecutor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-19",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/RefectionMethod/ReflectionCommon/ReflectionService.cs",
+      "exit": "N",
+      "target": "ReflectionOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-20",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/UniversalLayout/LayoutFramework.cs",
+      "exit": "N",
+      "target": "StackLayoutConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-21",
+      "type": "C1",
+      "file": "CsharpPrj/BasicMethod/UniversalLayout/LayoutFramework.cs",
+      "exit": "N",
+      "target": "SmartLayoutConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-22",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ComponentData/ContextDriven/EcsSkeletonContext.cs",
+      "exit": "N",
+      "target": "ContextBase",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-23",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ComponentData/Enhanced/NotificationCenter.cs",
+      "exit": "N",
+      "target": "ThreadPoolSynchronizationContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-24",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
+      "exit": "N",
+      "target": "DefaultExecutionStrategy",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-25",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ComponentData/Skeleton/SkeletonBase.cs",
+      "exit": "N",
+      "target": "SkeletonContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-26",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ComponentData/Skeleton/SkeletonContext.cs",
+      "exit": "N",
+      "target": "ContextBase",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-27",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/EventFramework/Bus/EventBusFacade.cs",
+      "exit": "N",
+      "target": "DefaultEventBusCore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-28",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/EventFramework/Core/ControlAdapterRegistry.cs",
+      "exit": "N",
+      "target": "ControlAdapterRegistryOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-29",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/EventFramework/Core/DefaultEventMappingRegistry.cs",
+      "exit": "N",
+      "target": "DefaultEventNameNormalizer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-30",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
+      "exit": "N",
+      "target": "IntentSystemRouter",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-31",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
+      "exit": "N",
+      "target": "Rge",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-32",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
+      "exit": "N",
+      "target": "ReferenceResolverBridge",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-33",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
+      "exit": "N",
+      "target": "IntentSystemRouter",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-34",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
+      "exit": "N",
+      "target": "TrConfigRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-35",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
+      "exit": "N",
+      "target": "EXContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-36",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
+      "exit": "N",
+      "target": "TrConfigRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-37",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
+      "exit": "N",
+      "target": "FunctionExecutor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-38",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Diagnostics/DefaultReferenceDiagnostics.cs",
+      "exit": "N",
+      "target": "DefaultCycleDetector",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-39",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Infrastructure/Graph/GraphSystemRunner.cs",
+      "exit": "N",
+      "target": "EcsWorld",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-40",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "exit": "N",
+      "target": "SourceTargetDirectionMatch",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-41",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "exit": "N",
+      "target": "KeepFirstReduce",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-42",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "exit": "N",
+      "target": "NormalizationConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-43",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Utilities/BaseHandlers.cs",
+      "exit": "N",
+      "target": "DefaultChainIdGenerator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-44",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/GraphProcessing/Utilities/BaseHandlers.cs",
+      "exit": "N",
+      "target": "DefaultNameGenerator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-45",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/InternalStorage/Core/StorageEngine.cs",
+      "exit": "N",
+      "target": "SnapshotManager",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-46",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
+      "exit": "N",
+      "target": "ConversionContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-47",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/LogicComposition/Conversion/Models/ConversionContext.cs",
+      "exit": "N",
+      "target": "DiagnosticSink",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-48",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/LogicComposition/Models/MergeResult.cs",
+      "exit": "N",
+      "target": "MergeStatistics",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-49",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Maintain/Workspace/DefaultIdentityResolver.cs",
+      "exit": "N",
+      "target": "IdentifierExtractor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-50",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/MetaCommand/Executors/WinFormsControlService.cs",
+      "exit": "N",
+      "target": "ControlValueBridge",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-51",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "NodeFrameworkOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-52",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "PlacementRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-53",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "CarrierRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-54",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "SelectionSet",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-55",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "NodeFormCodec",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-56",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "exit": "N",
+      "target": "SpecDefaults",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-57",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/Materialization/NodeMaterializer.cs",
+      "exit": "N",
+      "target": "NodeFormCodec",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-58",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/Materialization/NodeMaterializer.cs",
+      "exit": "N",
+      "target": "SpecDefaults",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-59",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Node/Projection/NodeReadProjection.cs",
+      "exit": "N",
+      "target": "NodeFormCodec",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-60",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Pipeline/Core.cs",
+      "exit": "N",
+      "target": "PipelineContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-61",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Pipeline/Core.cs",
+      "exit": "N",
+      "target": "ErrorCollector",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-62",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Pipeline/Initialization/InitializationOrchestrator.cs",
+      "exit": "N",
+      "target": "EmptyStageConfigProvider",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-63",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/06_ConcreteRegistries.cs",
+      "exit": "N",
+      "target": "ConfigurableConflictResolver",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-64",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/09_UnifiedRegistryCenter.cs",
+      "exit": "N",
+      "target": "DefaultConflictResolver",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-65",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterEngine.cs",
+      "exit": "N",
+      "target": "AutoRegisterService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-66",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterService.cs",
+      "exit": "N",
+      "target": "NamingConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-67",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "exit": "N",
+      "target": "DelegateFactory",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-68",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "exit": "N",
+      "target": "AssemblySourceSearchOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-69",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "exit": "N",
+      "target": "InvalidOperationException",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-70",
+      "type": "C1",
+      "file": "CsharpPrj/Modules/Threading/Time/ITimingClock.cs",
+      "exit": "N",
+      "target": "DateTimeOffset",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-71",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/BackEndDriven/CommandExecution/UiCommandSystems.cs",
+      "exit": "N",
+      "target": "WinFormsEventSubscriptionInspector",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-72",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/BackEndDriven/Execution/GlobalExceptionHandler.cs",
+      "exit": "N",
+      "target": "Exception",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-73",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Carriers/FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemoryConfigStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-74",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Carriers/FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemoryNodeStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-75",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Carriers/FacadeDataStore.cs",
+      "exit": "N",
+      "target": "InMemorySnapshotGraphStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-76",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Carriers/InMemorySnapshotGraphStore.cs",
+      "exit": "N",
+      "target": "InMemoryNodeStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-77",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/NodeRelationDeriver.cs",
+      "exit": "N",
+      "target": "RelationEndpoint",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-78",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
+      "exit": "N",
+      "target": "RelationDeclaration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-79",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/DataStoreDriven/Resolvers/DataStoreProviderFactory.cs",
+      "exit": "N",
+      "target": "SqlitePersistenceStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-80",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/Ports.cs",
+      "exit": "N",
+      "target": "FrontEndDriven",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-81",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
+      "exit": "N",
+      "target": "EventDispatchResult",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-82",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
+      "exit": "N",
+      "target": "HtmlHostingLabels",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-83",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/HtmlStreamRenderer.cs",
+      "exit": "N",
+      "target": "HtmlStreamRendererOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-84",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/Initial/RenderPipeline/PipelineCompositionFactory.cs",
+      "exit": "N",
+      "target": "StorageCell",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-85",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/Initial/RenderPipeline/PipelineCompositionFactory.cs",
+      "exit": "N",
+      "target": "CsgFacade",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-86",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/Initial/RenderPipeline/RenderValidationStage.cs",
+      "exit": "N",
+      "target": "ValidationService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-87",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/LoadRender/ConfigLoadRenderService.cs",
+      "exit": "N",
+      "target": "RenderTargetRouter",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-88",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/LoadRender/ConfigLoadRenderService.cs",
+      "exit": "N",
+      "target": "LoadRenderOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-89",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
+      "exit": "N",
+      "target": "SplitterPanelRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-90",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
+      "exit": "N",
+      "target": "AppliedSnapshotRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-91",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/ValueSync/WinFormsControlValueWriter.cs",
+      "exit": "N",
+      "target": "ControlValueBridge",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-92",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Hierarchy/HierarchyManager.cs",
+      "exit": "N",
+      "target": "TaskRecord",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-93",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/History/Runtime/HistoryRuntimeService.cs",
+      "exit": "N",
+      "target": "HistoryTaskRunStatus",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-94",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/NodeOutputCodec.cs",
+      "exit": "N",
+      "target": "BusinessNodePayload",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-95",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
+      "exit": "N",
+      "target": "WorkflowMethodFunctionInvoker",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-96",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
+      "exit": "N",
+      "target": "WriteCoordinator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-97",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/WritePlan/WritePlanCoordinator.cs",
+      "exit": "N",
+      "target": "WriteCoordinator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-98",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/HierarchyMethod/Reference/ExecutionFlagService.cs",
+      "exit": "N",
+      "target": "FlagConductor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-99",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/LoopFoldMethod/LoopFramework/Axioms/AxiomContext.cs",
+      "exit": "N",
+      "target": "FailureBudget",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-100",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/LoopFoldMethod/LoopFramework/Axioms/AxiomContext.cs",
+      "exit": "N",
+      "target": "ProgressToken",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-101",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/LoopFoldMethod/LoopFramework/Axioms/AxiomContext.cs",
+      "exit": "N",
+      "target": "ControlFlag",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-102",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowMethodExecutionService.cs",
+      "exit": "N",
+      "target": "CallChainGuard",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-103",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Context/Runtime/WorkflowRuntimeContext.cs",
+      "exit": "N",
+      "target": "DefaultNodeExecutorFactory",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-104",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Context/Runtime/WorkflowRuntimeContext.cs",
+      "exit": "N",
+      "target": "WorkflowConfiguration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-105",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/GraphUsing/Deduplication/ConfigDeduplicationProcessor.cs",
+      "exit": "N",
+      "target": "ConfigRelationHandler",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-106",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/GraphUsing/Services/NodeChainService.cs",
+      "exit": "N",
+      "target": "WorkflowDeserializer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-107",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/GraphUsing/Services/NodeChainService.cs",
+      "exit": "N",
+      "target": "DefaultNodeIdentityGenerator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-108",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/GraphUsing/Services/NodeChainService.cs",
+      "exit": "N",
+      "target": "WorkflowRuntimeContextAccessor",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-109",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/NodeChainSkeleton.cs",
+      "exit": "N",
+      "target": "NodeChainService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-110",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStage.cs",
+      "exit": "N",
+      "target": "ExecutionStateStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-111",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStage.cs",
+      "exit": "N",
+      "target": "NodeExecutionCoordinator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-112",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStage.cs",
+      "exit": "N",
+      "target": "CommandFramework",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-113",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStage.cs",
+      "exit": "N",
+      "target": "Exception",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-114",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+      "exit": "N",
+      "target": "NodeChainSkeleton",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-115",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Graph/GraphChainUpdateStage.cs",
+      "exit": "N",
+      "target": "DefaultDirectiveApplier",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-116",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Graph/GraphDefinitionStage.cs",
+      "exit": "N",
+      "target": "SessionFactory",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-117",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Orchestration/ModuleCreation/ModuleCreationServices.cs",
+      "exit": "N",
+      "target": "DefaultModuleCreator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-118",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Orchestration/State/Stages/ExecutionStage.cs",
+      "exit": "N",
+      "target": "NodeExecutionCoordinator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-119",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Orchestration/State/Stages/ExecutionStage.cs",
+      "exit": "N",
+      "target": "StateMachineStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-120",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Orchestration/State/Stages/LoopStage.cs",
+      "exit": "N",
+      "target": "NodeChainSkeleton",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-121",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Parameters/ParameterConfigProvider.cs",
+      "exit": "N",
+      "target": "KeyMapperBuilder",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-122",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/Parameters/ParameterKeyMapper.cs",
+      "exit": "N",
+      "target": "KeyMapperBuilder",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-123",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
+      "exit": "N",
+      "target": "DefaultSessionManager",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-124",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Execution/Chain/WorkflowMediator.cs",
+      "exit": "N",
+      "target": "WorkflowDeserializer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-125",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Execution/Chain/WorkflowMediator.cs",
+      "exit": "N",
+      "target": "DefaultChainComposer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-126",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Execution/Chain/WorkflowMediator.cs",
+      "exit": "N",
+      "target": "Chain",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-127",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Execution/Chain/WorkflowMediator.cs",
+      "exit": "N",
+      "target": "CompositionOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-128",
+      "type": "C1",
+      "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/FunctionExecutionFramework/DefaultWorkflowRegistry.cs",
+      "exit": "N",
+      "target": "TrConfigRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-129",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/DataManage/Data/Graph/GraphStorageCache.cs",
+      "exit": "N",
+      "target": "LruEvictionPolicy",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-130",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/DslMethod/CodeGen/AxiomCodeGenerator.cs",
+      "exit": "N",
+      "target": "AxiomCodeGeneratorOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-131",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/DslMethod/Schema/ReferenceSchemaCodeGenerator.cs",
+      "exit": "N",
+      "target": "ReferenceSchemaCodeGeneratorOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-132",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/HtmlViewer/Html/HtmlOverlay.cs",
+      "exit": "N",
+      "target": "HtmlOverlayOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-133",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/HttpMethod/Host/OpenAiCompatibleHost.cs",
+      "exit": "N",
+      "target": "OpenAiCompatibleHostOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-134",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/HttpMethod/OpenAI/OpenAiCompatibleTransport.cs",
+      "exit": "N",
+      "target": "RecursionHopGuard",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-135",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/HttpMethod/Transport/HttpTransportFactory.cs",
+      "exit": "N",
+      "target": "HttpTransportOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-136",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/Mathematics/Clustering/ClusteringAlgorithms.cs",
+      "exit": "N",
+      "target": "ClusteringConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-137",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/RoslynMethod/RoslynMethod.Analysis/Skeletons/OptimizationSkeleton.cs",
+      "exit": "N",
+      "target": "AnalysisConfiguration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-138",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/RoslynMethod/RoslynMethod.Analysis/Skeletons/PromptRecommenderSkeleton.cs",
+      "exit": "N",
+      "target": "AnalysisConfiguration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-139",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/RoslynMethod/RoslynMethod.Clustering/SkeletonFlow.cs",
+      "exit": "N",
+      "target": "AdvancedClusteringConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-140",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/RoslynMethod/RoslynMethod.Generation/Comments/CodeToCommentConverter.cs",
+      "exit": "N",
+      "target": "CommentGenerationOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-141",
+      "type": "C1",
+      "file": "CsharpPrj/Plate/RoslynMethod/RoslynMethod.Refactoring/Skeletons/RefactoringSuggestionSkeleton.cs",
+      "exit": "N",
+      "target": "AnalysisConfiguration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-142",
+      "type": "C1",
+      "file": "CsharpPrj/Protocol/CSG/CSG.Unified/CsgFacade.cs",
+      "exit": "N",
+      "target": "TransformEngine",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-143",
+      "type": "C1",
+      "file": "CsharpPrj/Protocol/CSG/CSG.Unified/CsgFacade.cs",
+      "exit": "N",
+      "target": "AdapterRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-144",
+      "type": "C1",
+      "file": "CsharpPrj/Protocol/CSG/CSG.Unified/DefaultConfiguration.cs",
+      "exit": "N",
+      "target": "CanonicalForm",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-145",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/AssemblyFramework/RefreshPublisher.cs",
+      "exit": "N",
+      "target": "Func",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-146",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/CommandFramework/CommandFrameworkHost.cs",
+      "exit": "N",
+      "target": "ControlValueAccessorBase",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-147",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/CommandFramework/Execution/CommandEngine.cs",
+      "exit": "N",
+      "target": "CommandExecutionContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-148",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/CommandFramework/Execution/Shared/Parameters/ParameterResolver.cs",
+      "exit": "N",
+      "target": "PartitionedStateStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-149",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/CommandFramework/Invoke/PipelineEntry.cs",
+      "exit": "N",
+      "target": "CommandParser",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-150",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/CommandFramework/Parsing/CommandParser.cs",
+      "exit": "N",
+      "target": "NormalizationRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-151",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/PlaceholderFramework/Core/PlaceholderResolverSkeleton.cs",
+      "exit": "N",
+      "target": "MemoryMetadataStore",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-152",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/PlaceholderFramework/TemplateExpansion/Storage/JsonFileTemplateStorage.cs",
+      "exit": "N",
+      "target": "JsonObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-153",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Core.cs",
+      "exit": "N",
+      "target": "JsonPipelineConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-154",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Infrastructure.cs",
+      "exit": "N",
+      "target": "CacheManager",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-155",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Infrastructure.cs",
+      "exit": "N",
+      "target": "StateManager",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-156",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Infrastructure.cs",
+      "exit": "N",
+      "target": "LayoutCalculator",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-157",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Container/EcsContainer.cs",
+      "exit": "N",
+      "target": "JsonToEntityConverter",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-158",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Conversion/JsonToEntityConverter.cs",
+      "exit": "N",
+      "target": "UnifiedJsonSerializer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-159",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Foundations/StateManagement/Core/NodeExecutionCoordinator.cs",
+      "exit": "N",
+      "target": "Exception",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-160",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Foundations/TreeTraceFramework/Core/TraceTree.cs",
+      "exit": "N",
+      "target": "TraceQueryEngine",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-161",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/AiScheduling/AiSchedulerStateMachine.cs",
+      "exit": "N",
+      "target": "SnapshotTelemetry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-162",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/CircuitFramework/Execution/CircuitEngine.cs",
+      "exit": "N",
+      "target": "StagePipeline",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-163",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/Conversation/Facts/SessionFactWriter.cs",
+      "exit": "N",
+      "target": "SessionFactDiagnostics",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-164",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/Diagnostics/ErrorHandling/GlobalExceptionHandler.cs",
+      "exit": "N",
+      "target": "Exception",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-165",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/Diagnostics/Storage/LogStorage.cs",
+      "exit": "N",
+      "target": "Exception",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-166",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/GraphFramework/GraphKey.cs",
+      "exit": "N",
+      "target": "Expansion",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-167",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/GraphFramework/Models/Result.cs",
+      "exit": "N",
+      "target": "InvalidOperationException",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-168",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/LayoutDataCollector.cs",
+      "exit": "N",
+      "target": "LayoutGraphContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-169",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/Formatting/LayoutSvgGenerator.cs",
+      "exit": "N",
+      "target": "LayoutEdgeData",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-170",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/RoslynJson/Service/RoslynJsonConversionService.cs",
+      "exit": "N",
+      "target": "SyntaxToConversionIrMapper",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-171",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/RoslynJson/Service/RoslynJsonConversionService.cs",
+      "exit": "N",
+      "target": "ConversionContext",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-172",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/UniversalReference/Reference/ReferenceManagement.cs",
+      "exit": "N",
+      "target": "FullCollectionTraverser",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-173",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/UniversalReference/Reference/Relationship/RelationshipConfiguration.cs",
+      "exit": "N",
+      "target": "RuleSetConfiguration",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-174",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/UniversalReference/WorkflowExecution/Executors/WorkflowExecutor.cs",
+      "exit": "N",
+      "target": "ValidationResult",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-175",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Frameworks/UniversalReference/WorkflowExecution/Executors/WorkflowExecutor.cs",
+      "exit": "N",
+      "target": "ExecutionResult",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-176",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Orchestration/EventBindingOrchestrator/EventBindingOrchestrator.cs",
+      "exit": "N",
+      "target": "EventBindingOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-177",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Orchestration/EventBindingOrchestrator/Invoke/Pipeline/WinFormsEventBus.cs",
+      "exit": "N",
+      "target": "DefaultEventNameNormalizer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-178",
+      "type": "C1",
+      "file": "CsharpPrj/Share/Orchestration/HostAssembly/Errors/ActionErrorBoundary.cs",
+      "exit": "N",
+      "target": "DefaultErrorClassifier",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-179",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/DecisionPortal.cs",
+      "exit": "N",
+      "target": "DecisionRulesEngine",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-180",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/DecisionPortal.cs",
+      "exit": "N",
+      "target": "JsonObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-181",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/DecisionRuleOutputStrategies.cs",
+      "exit": "N",
+      "target": "JsonObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-182",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/DecisionRuleRouter.cs",
+      "exit": "N",
+      "target": "DecisionRulesEngine",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-183",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/DecisionRulesEngine.cs",
+      "exit": "N",
+      "target": "DecisionRuleSet",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-184",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/DecisionRules/RuleSetDecisionEngine.cs",
+      "exit": "N",
+      "target": "DecisionRulesEngine",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-185",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/Observability/Ports/PortCatalog.cs",
+      "exit": "N",
+      "target": "CallLog",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-186",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/Observability/Ports/Eval/PortExecutor.cs",
+      "exit": "N",
+      "target": "DeliverStandard",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-187",
+      "type": "C1",
+      "file": "CsharpPrj/Strategy/Observability/Ports/Spec/PortSpecCompiler.cs",
+      "exit": "N",
+      "target": "DeliverStandard",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "CsharpPrj",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-188",
+      "type": "C1",
+      "file": "src/Agent.Axioms/Infrastructure/ClineCredentials.cs",
+      "exit": "N",
+      "target": "ClineCredentialsFile",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-189",
+      "type": "C1",
+      "file": "src/Agent.Contract/Llm/LocalLlmClient.cs",
+      "exit": "N",
+      "target": "LocalLlmOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-190",
+      "type": "C1",
+      "file": "src/Agent.Core/Composition/AgentModuleRegistrar.cs",
+      "exit": "N",
+      "target": "AgentLoopConfig",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-191",
+      "type": "C1",
+      "file": "src/Agent.Core/Nodes/WorkflowRunner.cs",
+      "exit": "N",
+      "target": "RoundCircuitBackend",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-192",
+      "type": "C1",
+      "file": "src/Agent.Core/Nodes/Governance/GovernanceSpecWiring.cs",
+      "exit": "N",
+      "target": "GovernanceRuntime",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-193",
+      "type": "C1",
+      "file": "src/Agent.Core/Prompts/ObservedPromptComposer.cs",
+      "exit": "N",
+      "target": "PromptRequestComposer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-194",
+      "type": "C1",
+      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "exit": "N",
+      "target": "ConversationChatKernel",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-195",
+      "type": "C1",
+      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "exit": "N",
+      "target": "SkillInjectionService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-196",
+      "type": "C1",
+      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "exit": "N",
+      "target": "PromptRequestComposer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-197",
+      "type": "C1",
+      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "exit": "N",
+      "target": "ToolFaceInjectionService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-198",
+      "type": "C1",
+      "file": "src/Agent.Core/TaskPool/AgentTaskPool.cs",
+      "exit": "N",
+      "target": "AgentRuleBackend",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-199",
+      "type": "C1",
+      "file": "src/Agent.DataCenter/AgentRuntimeRootBootstrap.cs",
+      "exit": "N",
+      "target": "GenerationPlan",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-200",
+      "type": "C1",
+      "file": "src/Agent.Guardrails/GlobalLlmGateHost.cs",
+      "exit": "N",
+      "target": "GlobalLlmGate",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-201",
+      "type": "C1",
+      "file": "src/Agent.Launcher/Api/Plan/WritePlanner.cs",
+      "exit": "N",
+      "target": "DefaultScopeNamingRule",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-202",
+      "type": "C1",
+      "file": "src/Agent.Launcher/Composition/Observing/ObservedSkillInjection.cs",
+      "exit": "N",
+      "target": "SkillInjectionService",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-203",
+      "type": "C1",
+      "file": "src/Agent.Launcher/Modules/Libraries/ConversationPageRenderer.cs",
+      "exit": "N",
+      "target": "HtmlStreamRenderer",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-204",
+      "type": "C1",
+      "file": "src/Agent.McpRegistryHost/McpFoldToolProvider.cs",
+      "exit": "N",
+      "target": "McpBridgeClient",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-205",
+      "type": "C1",
+      "file": "src/Agent.McpRegistryHost/Configuration/AgentConfig.cs",
+      "exit": "N",
+      "target": "LoopOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-206",
+      "type": "C1",
+      "file": "src/Agent.McpRegistryHost/Configuration/AgentConfig.cs",
+      "exit": "N",
+      "target": "JsonObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-207",
+      "type": "C1",
+      "file": "src/Agent.Modules/Answer/StatelessAnswerExecutor.cs",
+      "exit": "N",
+      "target": "ConversationChatKernel",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-208",
+      "type": "C1",
+      "file": "src/Agent.Modules/Answer/StatelessAnswerTaskExecutor.cs",
+      "exit": "N",
+      "target": "AnswerTaskSpec",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-209",
+      "type": "C1",
+      "file": "src/Agent.Modules/Answer/StatelessAnswerTaskExecutor.cs",
+      "exit": "N",
+      "target": "StatelessAnswerRequest",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-210",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Endpoints/ClineDaemonEndpoint.cs",
+      "exit": "N",
+      "target": "ClineRunOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-211",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Pool/ClineDaemonPool.cs",
+      "exit": "N",
+      "target": "ClineDaemonOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-212",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Transport/ClineClient.cs",
+      "exit": "N",
+      "target": "ClineDaemonOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-213",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Transport/ClineClient.cs",
+      "exit": "N",
+      "target": "ClineRunOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-214",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Transport/ClineClient.cs",
+      "exit": "N",
+      "target": "ClineRunResult",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-215",
+      "type": "C1",
+      "file": "src/Agent.Modules/Cline/Workflow/ClineExecutorFunction.cs",
+      "exit": "N",
+      "target": "AgentExecutorResult",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-216",
+      "type": "C1",
+      "file": "src/Agent.Modules/History/RoundMessagePayload.cs",
+      "exit": "N",
+      "target": "JsonObject",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-217",
+      "type": "C1",
+      "file": "src/Agent.Modules/NodeSpec/NodePlacementDeclaration.cs",
+      "exit": "N",
+      "target": "JsonArray",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-218",
+      "type": "C1",
+      "file": "src/Agent.Operation/Observe/Ports/AgentPortCatalog.cs",
+      "exit": "N",
+      "target": "BoundaryContractRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-219",
+      "type": "C1",
+      "file": "src/Agent.Operation/Tool/LlmToolRegistry.cs",
+      "exit": "N",
+      "target": "ToolRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-220",
+      "type": "C1",
+      "file": "src/Agent.Operation/Tool/ToolFaceHost.cs",
+      "exit": "N",
+      "target": "LlmToolRegistry",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-221",
+      "type": "C1",
+      "file": "src/Agent.Orchestration/SessionWorkflow/ConversationPipeline.cs",
+      "exit": "N",
+      "target": "ConversationNodeMapper",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-222",
+      "type": "C1",
+      "file": "src/Agent.Orchestration/SessionWorkflow/ConversationPipeline.cs",
+      "exit": "N",
+      "target": "ConversationLog",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-223",
+      "type": "C1",
+      "file": "src/Agent.Orchestration/SessionWorkflow/NodeWrite/LoadLogBlock.cs",
+      "exit": "N",
+      "target": "ConversationLog",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-224",
+      "type": "C1",
+      "file": "src/Agent.Orchestration/SessionWorkflow/NodeWrite/NodeWritePipeline.cs",
+      "exit": "N",
+      "target": "ConversationLog",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-225",
+      "type": "C1",
+      "file": "src/Agent.Runtime/Standardization/Compiler/StorageTemplateCodeGenerator.cs",
+      "exit": "N",
+      "target": "StorageTemplateCodeGeneratorOptions",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    },
+    {
+      "id": "C1-P1b-226",
+      "type": "C1",
+      "file": "src/Agent.Session/Context/ContextProjectionPlan.cs",
+      "exit": "N",
+      "target": "ContextProjectionPlan",
+      "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
+      "owner": "src",
+      "expires": null
+    }
+  ]
+}

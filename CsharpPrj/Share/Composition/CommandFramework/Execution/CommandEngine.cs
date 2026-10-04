@@ -21,15 +21,17 @@ public class CommandEngine : ICommandEngine
     private const int MaxCommandRecursionDepth = 5;
 
     public CommandEngine(
-        EngineCommandRegistry? engineCommandRegistry = null,
+        EngineCommandRegistry engineCommandRegistry,
         CommandRegistry? commandRegistry = null)
     {
-        _commands = engineCommandRegistry ?? new EngineCommandRegistry();
+        // 必填端口（T）：命令注册表由装配点显式提供；禁 ?? new 默认冒充装配。
+        _commands = engineCommandRegistry ?? throw new ArgumentNullException(nameof(engineCommandRegistry));
         _commandRegistry = commandRegistry;
     }
 
     public static CommandEngine CreateDefault()
-        => new CommandEngine();
+        // 组合点：默认构造在此显式装配命令注册表（引擎构造端口为必填 T）。
+        => new CommandEngine(new EngineCommandRegistry());
 
     public bool CanUndo => _history.Count > 0;
 

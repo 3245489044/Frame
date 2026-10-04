@@ -14,9 +14,15 @@ public class PipelineBuilder : TConfig.IPipelineBuilder
         set => _pipeline.Name = value ?? "Pipeline";
     }
 
-    public PipelineBuilder(ITrConfigRegistry? registry = null)
+    public PipelineBuilder()
+        : this(new TrConfigRegistry())
     {
-        _registry = registry ?? new TrConfigRegistry();
+    }
+
+    public PipelineBuilder(ITrConfigRegistry registry)
+    {
+        // 必填端口（T）：配置注册表由装配点显式提供；无参构造是组件自装配的唯一入口。
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _pipeline = new TrPipeline();
     }
 

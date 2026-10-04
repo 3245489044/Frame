@@ -117,9 +117,14 @@ namespace WorkFlowMethod.Orchestration.ModuleCreation
         private readonly List<ModuleCreationConfig> _pendingCreations = new();
         private bool _initialized;
 
-        public ModuleCreationManager(IModuleCreator creator = null)
+        public ModuleCreationManager()
+            : this(new DefaultModuleCreator())
         {
-            _creator = creator ?? new DefaultModuleCreator();
+        }
+
+        public ModuleCreationManager(IModuleCreator creator)
+        {
+            _creator = creator ?? throw new ArgumentNullException(nameof(creator));
         }
 
         public void RegisterPendingCreation(ModuleCreationConfig config)

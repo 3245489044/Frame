@@ -11,9 +11,15 @@ namespace WorkFlowMethod.FunctionExecutionFramework.Core
 
         public static DefaultWorkflowRegistry Default { get; } = new DefaultWorkflowRegistry();
 
-        public DefaultWorkflowRegistry(ITrConfigRegistry? innerRegistry = null)
+        public DefaultWorkflowRegistry()
+            : this(new TrConfigRegistry())
         {
-            _innerRegistry = innerRegistry ?? new TrConfigRegistry();
+        }
+
+        public DefaultWorkflowRegistry(ITrConfigRegistry innerRegistry)
+        {
+            // 必填端口（T）：内层配置注册表由装配点显式提供；无参构造是组件自装配的唯一入口。
+            _innerRegistry = innerRegistry ?? throw new ArgumentNullException(nameof(innerRegistry));
         }
 
 

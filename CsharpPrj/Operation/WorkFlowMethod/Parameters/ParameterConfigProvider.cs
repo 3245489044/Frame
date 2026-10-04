@@ -13,9 +13,14 @@ public class ParameterConfigProvider : IParameterConfigProvider
 
     public static readonly ParameterConfigProvider Default = new();
 
-    public ParameterConfigProvider(IKeyMapper? keyMapper = null)
+    public ParameterConfigProvider()
+        : this(new KeyMapperBuilder.StringKeyMapper())
     {
-        _keyMapper = keyMapper ?? new KeyMapperBuilder.StringKeyMapper();
+    }
+
+    public ParameterConfigProvider(IKeyMapper keyMapper)
+    {
+        _keyMapper = keyMapper ?? throw new ArgumentNullException(nameof(keyMapper));
     }
 
     public List<string> GetParameterKeys(NodeConfig node)

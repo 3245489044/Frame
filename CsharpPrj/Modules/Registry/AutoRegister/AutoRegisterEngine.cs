@@ -12,12 +12,18 @@ public class AutoRegisterEngine
     private readonly Func<string, Assembly>? _resolveAssembly;
     private readonly Func<string, string>? _resolveSource;
 
+    public AutoRegisterEngine()
+        : this(new AutoRegisterService())
+    {
+    }
+
     public AutoRegisterEngine(
-        AutoRegisterService? service = null,
+        AutoRegisterService service,
         Func<string, Assembly>? resolveAssembly = null,
         Func<string, string>? resolveSource = null)
     {
-        _service = service ?? new AutoRegisterService();
+        // 必填端口（T）：自动注册服务由装配点显式提供；无参构造是组件自装配的唯一入口。
+        _service = service ?? throw new ArgumentNullException(nameof(service));
         _resolveAssembly = resolveAssembly;
         _resolveSource = resolveSource;
     }

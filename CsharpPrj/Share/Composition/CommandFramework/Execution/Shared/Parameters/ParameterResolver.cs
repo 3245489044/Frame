@@ -11,9 +11,14 @@ namespace CommandFramework.Parameters
     {
         private readonly IPartitionedStateStore _stateStore;
 
-        public ParameterResolver(IPartitionedStateStore? stateStore = null)
+        public ParameterResolver()
+            : this(new PartitionedStateStore())
         {
-            _stateStore = stateStore ?? new PartitionedStateStore();
+        }
+
+        public ParameterResolver(IPartitionedStateStore stateStore)
+        {
+            _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
         }
 
         public void SetParameter(string executionId, string key, object value)

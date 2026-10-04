@@ -27,8 +27,9 @@ namespace WorkFlowMethod.Orchestration.State.Stages
             IStateMachineStore<SMExecutionStatus>? stateStore = null,
             INodeExecutionCoordinator? coordinator = null)
             : base(
-                  coordinator: coordinator,
-                  stateStore: stateStore,
+                  coordinator: coordinator ?? new NodeExecutionCoordinator(10),
+                  stateStore: stateStore ?? new StateMachineStore<SMExecutionStatus>(),
+                  parameterStore: new ExecutionParameterStore(),
                   name: "ExecutionManager",
                   description: "执行状态管理 - 基于 Share.ExecutionStage")
         {

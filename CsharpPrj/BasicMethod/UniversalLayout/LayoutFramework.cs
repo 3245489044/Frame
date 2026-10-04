@@ -402,14 +402,15 @@ namespace UniversalLayoutFramework
 
         internal LayoutEngine(
             IEnumerable<ILayoutStrategy> strategies,
-            ILayoutValidator? validator,
-            PushRepairStrategy? repairStrategy,
+            ILayoutValidator validator,
+            PushRepairStrategy repairStrategy,
             ILayoutLogger? logger)
         {
             foreach (var s in strategies)
                 _strategies[s.LayoutType] = s;
-            _validator = validator ?? new DefaultLayoutValidator();
-            _repairStrategy = repairStrategy ?? new PushRepairStrategy(logger);
+            // 必填端口（T）：校验器/修复策略由装配点（LayoutEngineBuilder）显式提供；禁 ?? new 默认冒充装配。
+            _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+            _repairStrategy = repairStrategy ?? throw new ArgumentNullException(nameof(repairStrategy));
             _logger = logger;
         }
 
@@ -603,7 +604,7 @@ namespace UniversalLayoutFramework
     public class LayoutEngineBuilder
     {
         private readonly List<ILayoutStrategy> _strategies = new();
-        private ILayoutValidator? _validator;
+        private ILayoutValidator _validator = new DefaultLayoutValidator();
         private PushRepairStrategy? _repairStrategy;
         private ILayoutLogger? _logger;
 
@@ -654,7 +655,12 @@ namespace UniversalLayoutFramework
             if (_strategies.Count == 0)
                 _strategies.Add(new ProportionalLayoutStrategy());
 
-            return new LayoutEngine(_strategies, _validator, _repairStrategy, _logger);
+            // 组合根：builder 即 LayoutEngine 的装配点；未显式配置的修复策略在此补默认实现（引擎构造端口为必填 T）。
+            var repairStrategy = _repairStrategy;
+            if (repairStrategy is null)
+                repairStrategy = new PushRepairStrategy(_logger);
+
+            return new LayoutEngine(_strategies, _validator, repairStrategy, _logger);
         }
     }
 

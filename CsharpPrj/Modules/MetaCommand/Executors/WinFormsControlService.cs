@@ -18,9 +18,15 @@ namespace Modules.Common.WinForms
     {
         private readonly TConfig.Controls.IControlService _valueService;
 
-        public WinFormsControlService(TConfig.Controls.IControlService? valueService = null)
+        public WinFormsControlService()
+            : this(new ControlValueBridge())
         {
-            _valueService = valueService ?? new ControlValueBridge();
+        }
+
+        public WinFormsControlService(TConfig.Controls.IControlService valueService)
+        {
+            // 必填端口（T）：控件值服务由装配点显式提供；无参构造是组件自装配的唯一入口。
+            _valueService = valueService ?? throw new ArgumentNullException(nameof(valueService));
 
             // 事件名映射（BindEvent 用）保留原语义；控件值适配器不再在此注册（契约层统一）
             RegisterEventMapping("click", "Click");

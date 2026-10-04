@@ -538,12 +538,13 @@ namespace Modules.ReflectionMethod.Dynamic
         private readonly DynamicMethodExecutor _executor;
         private readonly IDynamicInvoker? _customInvoker;
 
-        public ServiceHost() : this(null, null) { }
+        public ServiceHost() : this(new MethodResolver(), new DynamicMethodExecutor()) { }
 
-        public ServiceHost(MethodResolver? resolver = null, DynamicMethodExecutor? executor = null, IDynamicInvoker? customInvoker = null)
+        public ServiceHost(MethodResolver resolver, DynamicMethodExecutor executor, IDynamicInvoker? customInvoker = null)
         {
-            _resolver = resolver ?? new MethodResolver();
-            _executor = executor ?? new DynamicMethodExecutor();
+            // 必填端口（T）：反射解析器/执行器由装配点显式提供；无参构造是组件自装配的唯一入口。
+            _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+            _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _customInvoker = customInvoker;
         }
 

@@ -12,9 +12,14 @@ public class JsonToEntityConverter
 {
     private readonly IJsonSerializer _serializer;
 
-    public JsonToEntityConverter(IJsonSerializer? serializer = null)
+    public JsonToEntityConverter()
+        : this(new UnifiedJsonSerializer())
     {
-        _serializer = serializer ?? new UnifiedJsonSerializer();
+    }
+
+    public JsonToEntityConverter(IJsonSerializer serializer)
+    {
+        _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
     }
 
     public ContainerComponent ParseContainer(string json)

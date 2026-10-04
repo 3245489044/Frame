@@ -11,9 +11,15 @@ public class DefaultEventMappingRegistry : IEventMappingRegistry
     private readonly IEventNameNormalizer _normalizer;
     private readonly ConcurrentDictionary<string, List<EventMappingEntry>> _mappings = new(StringComparer.OrdinalIgnoreCase);
 
-    public DefaultEventMappingRegistry(IEventNameNormalizer? normalizer = null)
+    public DefaultEventMappingRegistry()
+        : this(new DefaultEventNameNormalizer())
     {
-        _normalizer = normalizer ?? new DefaultEventNameNormalizer();
+    }
+
+    public DefaultEventMappingRegistry(IEventNameNormalizer normalizer)
+    {
+        // 必填端口（T）：事件名规范化器由装配点显式提供；无参构造是组件自装配的唯一入口。
+        _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
     }
 
     public void Register(string eventName, EventAccessor accessor, int priority = 100)

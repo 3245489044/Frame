@@ -19,10 +19,16 @@ namespace WorkFlowMethod.Orchestration.Context.Runtime
 
         public object AICallFrameRoot { get; set; }
 
-        public WorkflowRuntimeContext(INodeExecutorFactory executorFactory = null, WorkflowConfiguration configuration = null)
+        public WorkflowRuntimeContext()
+            : this(new DefaultNodeExecutorFactory(), new WorkflowConfiguration())
         {
-            _executorFactory = executorFactory ?? new DefaultNodeExecutorFactory();
-            _configuration = configuration ?? new WorkflowConfiguration();
+        }
+
+        public WorkflowRuntimeContext(INodeExecutorFactory executorFactory, WorkflowConfiguration configuration)
+        {
+            // 必填端口（T）：节点执行器工厂/工作流配置由装配点显式提供；无参构造是组件自装配的唯一入口。
+            _executorFactory = executorFactory ?? throw new ArgumentNullException(nameof(executorFactory));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         #region 节点管理

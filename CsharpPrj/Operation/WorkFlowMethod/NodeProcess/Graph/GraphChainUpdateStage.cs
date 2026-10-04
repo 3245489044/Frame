@@ -19,10 +19,15 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Graph
     {
         private readonly DefaultDirectiveApplier<string, NodeConfig, object> _updateService;
 
-        public GraphChainUpdateStage(DefaultDirectiveApplier<string, NodeConfig, object> updateService = null)
+        public GraphChainUpdateStage()
+            : this(new DefaultDirectiveApplier<string, NodeConfig, object>())
+        {
+        }
+
+        public GraphChainUpdateStage(DefaultDirectiveApplier<string, NodeConfig, object> updateService)
             : base("GraphChainUpdateStage", "检查并更新工作流链，使用 GraphSnapshot<string, NodeConfig, object> 替代 ChainInfo")
         {
-            _updateService = updateService ?? new DefaultDirectiveApplier<string, NodeConfig, object>();
+            _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
         }
 
         protected override PipelineContext ExecuteCore(PipelineContext input, SkeletonContext context)

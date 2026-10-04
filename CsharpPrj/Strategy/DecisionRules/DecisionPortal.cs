@@ -25,7 +25,8 @@ namespace Strategy.DecisionRules
         public DecisionPortal(IDecisionRuleSetProvider provider, DecisionRulesEngine? engine = null)
         {
             _provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            _engine = engine ?? new DecisionRulesEngine();
+            _engine = engine ?? new DecisionRulesEngine(
+                new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer());
         }
 
         /// <summary>动态规则源门面构造：无 provider（规则集每次经 rule-set 重载显式传入）。
@@ -37,7 +38,8 @@ namespace Strategy.DecisionRules
         public DecisionPortal(IDecisionRuleSetProvider provider, IRuleAuditSink audit)
         {
             _provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            _engine = new DecisionRulesEngine(audit: audit);
+            _engine = new DecisionRulesEngine(
+                new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer(), audit: audit);
         }
 
         /// <summary>装配标准决策输入文档：{ decisionPoint, input, context }（JSON 聚拢点输入契约；根即引擎 Root，field 可用 $.input.* / $.context.*）。</summary>

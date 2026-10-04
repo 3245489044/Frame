@@ -19,23 +19,21 @@ namespace Modules.LayoutAnalysis
         private readonly LayoutValidator _validator;
 
         public UIElementTracker()
+            : this(new ReflectionExtractor(), new LayoutDataCollector(), new LayoutReportGenerator(), new LayoutValidator())
         {
-            _extractor = new ReflectionExtractor();
-            _layoutCollector = new LayoutDataCollector();
-            _reportGenerator = new LayoutReportGenerator();
-            _validator = new LayoutValidator();
         }
 
         public UIElementTracker(
-            ReflectionExtractor? extractor = null,
-            LayoutDataCollector? layoutCollector = null,
-            LayoutReportGenerator? reportGenerator = null,
-            LayoutValidator? validator = null)
+            ReflectionExtractor extractor,
+            LayoutDataCollector layoutCollector,
+            LayoutReportGenerator reportGenerator,
+            LayoutValidator validator)
         {
-            _extractor = extractor ?? new ReflectionExtractor();
-            _layoutCollector = layoutCollector ?? new LayoutDataCollector();
-            _reportGenerator = reportGenerator ?? new LayoutReportGenerator();
-            _validator = validator ?? new LayoutValidator();
+            // 必填端口（T）：协作者由装配点显式提供（无参构造是组件自装配的唯一入口）；禁 ?? new 默认冒充装配。
+            _extractor = extractor ?? throw new ArgumentNullException(nameof(extractor));
+            _layoutCollector = layoutCollector ?? throw new ArgumentNullException(nameof(layoutCollector));
+            _reportGenerator = reportGenerator ?? throw new ArgumentNullException(nameof(reportGenerator));
+            _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
 
 

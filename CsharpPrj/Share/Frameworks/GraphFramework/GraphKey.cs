@@ -977,7 +977,7 @@ namespace ChainGraph.Core
             Func<TChain, IList<TNodeData?>> getNodes, Action<TChain, IList<TNodeData?>> setNodes,
             Func<TChain, TNodeData> getStartNode, Action<TChain, TNodeData> setStartNode,
             Func<TChain, TNodeData> getEndNode, Action<TChain, TNodeData> setEndNode,
-            Func<TChain, TChain> cloneChain, IObjectCloner<TNodeData>? nodeCloner = null,
+            Func<TChain, TChain> cloneChain, IObjectCloner<TNodeData> nodeCloner,
             Func<TChain, int, int, string>? keyGenerator = null)
         {
             _getNodes = getNodes ?? throw new ArgumentNullException(nameof(getNodes));
@@ -987,7 +987,8 @@ namespace ChainGraph.Core
             _getEndNode = getEndNode ?? throw new ArgumentNullException(nameof(getEndNode));
             _setEndNode = setEndNode ?? throw new ArgumentNullException(nameof(setEndNode));
             _cloneChain = cloneChain ?? throw new ArgumentNullException(nameof(cloneChain));
-            _nodeCloner = nodeCloner ?? new JsonCloner<TNodeData>();
+            // 必填端口（T）：节点克隆器由装配点（ChainTemplateExpander）显式提供；禁 ?? new 默认冒充装配。
+            _nodeCloner = nodeCloner ?? throw new ArgumentNullException(nameof(nodeCloner));
             _keyGenerator = keyGenerator ?? ((chain, chainIdx, nodeIdx) => $"chain_{chainIdx}_node_{nodeIdx}");
         }
 
@@ -1174,7 +1175,10 @@ namespace ChainGraph.Core
             _normalizationConfig = options.NormalizationConfig ?? new Expansion.NormalizationConfig();
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
 
+            // 组合点：NodeCloner 缺省时用默认 JSON 克隆器（此前隐式落在 LinearChainAdapter 内，现显式在此补齐；适配器端口为必填 T）。
             var cloner = options.NodeCloner;
+            if (cloner is null)
+                cloner = new JsonCloner<TNode>();
             var keyExtractor = options.KeyExtractor ?? (node => _handler.GetKey(node) ?? string.Empty);
             var keySetter = options.KeySetter ?? ((node, key) => _handler.SetKey(node, key));
             _instantiator = new Expansion.TemplateInstantiator<TNode>(_handler, cloner, keyExtractor, keySetter);

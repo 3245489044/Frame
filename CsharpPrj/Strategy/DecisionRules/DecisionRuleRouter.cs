@@ -26,7 +26,8 @@ namespace Strategy.DecisionRules
         public DecisionRuleRouter(DecisionRuleSet ruleSet, DecisionRulesEngine? engine = null)
         {
             _ruleSet = ruleSet ?? throw new ArgumentNullException(nameof(ruleSet));
-            _engine = engine ?? new DecisionRulesEngine();
+            _engine = engine ?? new DecisionRulesEngine(
+                new DefaultMatchStrategyRegistry(), new DefaultOutputStrategyRegistry(), new PlaceholderTemplateRenderer());
         }
 
         /// <summary>路由输入文本：命中返回匹配规则信息，未命中回退 default。context 供 context.&lt;key&gt; 字段取值。</summary>

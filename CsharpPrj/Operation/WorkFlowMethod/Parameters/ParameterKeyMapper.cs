@@ -12,9 +12,14 @@ public class ParameterKeyMapper : IParameterKeyMapper
 
     public static readonly ParameterKeyMapper Default = new();
 
-    public ParameterKeyMapper(IKeyMapper? keyMapper = null)
+    public ParameterKeyMapper()
+        : this(new KeyMapperBuilder.StringKeyMapper())
     {
-        _keyMapper = keyMapper ?? new KeyMapperBuilder.StringKeyMapper();
+    }
+
+    public ParameterKeyMapper(IKeyMapper keyMapper)
+    {
+        _keyMapper = keyMapper ?? throw new ArgumentNullException(nameof(keyMapper));
     }
 
     public string AddHierarchyToKey(string key, string hierarchy)

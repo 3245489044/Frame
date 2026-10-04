@@ -9,12 +9,13 @@ namespace Share.StateManagement.Stages
         private readonly IHandlerRegistry<string, IWorkflowAdapter> _adapterRegistry;
 
         public AdapterStage(
-            IHandlerRegistry<string, IWorkflowAdapter>? adapterRegistry = null,
+            IHandlerRegistry<string, IWorkflowAdapter> adapterRegistry,
             string name = "Adapter",
             string? description = null)
             : base(name, description ?? "通用适配器执行 - 基于 IHandlerRegistry")
         {
-            _adapterRegistry = adapterRegistry ?? new HandlerRegistry<string, IWorkflowAdapter>();
+            // 必填端口（T）：适配器注册表由装配点显式提供；禁 ?? new 默认冒充装配。
+            _adapterRegistry = adapterRegistry ?? throw new ArgumentNullException(nameof(adapterRegistry));
         }
 
         protected override async Task ExecuteCoreAsync(

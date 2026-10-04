@@ -18,12 +18,18 @@ namespace WorkFlowMethod.Orchestration.Content
         private readonly IChainComposer<NodeConfig> _chainComposer;
         private readonly IWorkflowDeserializer _deserializer;
 
-        public WorkflowMediator(
-            IWorkflowDeserializer deserializer = null,
-            IChainComposer<NodeConfig>? chainComposer = null)
+        public WorkflowMediator()
+            : this(new WorkflowDeserializer(), new DefaultChainComposer<NodeConfig>())
         {
-            _deserializer = deserializer ?? new WorkflowDeserializer();
-            _chainComposer = chainComposer ?? new DefaultChainComposer<NodeConfig>();
+        }
+
+        public WorkflowMediator(
+            IWorkflowDeserializer deserializer,
+            IChainComposer<NodeConfig> chainComposer)
+        {
+            // 必填端口（T）：反序列化器/链组合器由装配点显式提供；无参构造是组件自装配的唯一入口。
+            _deserializer = deserializer ?? throw new ArgumentNullException(nameof(deserializer));
+            _chainComposer = chainComposer ?? throw new ArgumentNullException(nameof(chainComposer));
         }
 
         private static void LinkChainInternal(Chain<string, NodeConfig> chain)

@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "generated": "2026-10-04",
+  "scan": {
+    "frame": "Frame\\CsharpPrj",
+    "agent": "Projects\\Plug\\Agent\\src",
+    "exclude": [
+      "obj",
+      "bin",
+      "_deprecated",
+      "BuildOutput",
+      "backups"
+    ]
+  },
+  "counts": {
+    "falseNew": 0,
+    "collectionNormalize": 154,
+    "registeredLegit": 225,
+    "catchSwallow": 1196,
+    "legacyParam": 50,
+    "silentDegrade": 8,
+    "obsoleteTotal": 53,
+    "obsoleteNoDep": 53,
+    "grayFlags": 30
+  },
+  "note": "C1–C6 回退计数只减不增基线（对齐 Check-LogMessages 棘轮）。首跑由 -UpdateBaseline 冻结；增量即红；禁降基线过关。"
+}

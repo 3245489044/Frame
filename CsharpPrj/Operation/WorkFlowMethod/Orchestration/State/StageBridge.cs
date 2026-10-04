@@ -131,7 +131,7 @@ namespace WorkFlowMethod.Orchestration.State
             string? description = null)
         {
             return new StageBridge<ExecutionStage>(
-                new ExecutionStage(coordinator),
+                new ExecutionStage(coordinator, new Modules.StateMachine.StateMachineStore<Share.StateManagement.ExecutionStatus>(), new ExecutionParameterStore()),
                 name,
                 description ?? "执行状态管理 - 委托给 Share.StateManagement.ExecutionStage",
                 order: 40);
@@ -176,7 +176,7 @@ namespace WorkFlowMethod.Orchestration.State
         {
             return new StageBase[]
             {
-                new AdapterStage(),
+                new AdapterStage(new Modules.StateManagement.HandlerRegistry<string, Share.StateManagement.IWorkflowAdapter>()),
                 new OrchestrationExecutionStage(),
                 new OrchestrationLoopStage(),
                 new OrchestrationErrorHandlingStage()
@@ -190,7 +190,7 @@ namespace WorkFlowMethod.Orchestration.State
                 new InitStage(),
                 new PauseStage(),
                 new ConfigStage(),
-                new AdapterStage(),
+                new AdapterStage(new Modules.StateManagement.HandlerRegistry<string, Share.StateManagement.IWorkflowAdapter>()),
                 new OrchestrationExecutionStage(),
                 new OrchestrationLoopStage(),
                 new RecordStage(),

@@ -14,7 +14,7 @@ import * as fs from "fs";
 import * as path from "path";
 // 仅类型引用（编译期擦除）：sink 由入口 preload 安装后注入，本模块不再自建/patch（唯一入口 = sink-preload）。
 import type { AgentSinkHost } from "fs-sink";
-import { fromClineDir, resolveClineDataRoot } from "../runtime/cline-data-root.js";
+import { resolveClineDataRoot } from "../runtime/cline-data-root.js";
 
 // 仅保留类型导入（编译期擦除，无运行时副作用）。值（ClineCore / getClineDefaultSystemPrompt）
 // 一律经 loadSdk() 惰性加载，避免 cli.ts 顶层 import 触发 SDK 模块加载/本地后端初始化副作用，
@@ -70,9 +70,11 @@ function maskSecret(value?: string): string {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
-/** 惰性加载 @cline/sdk —— 仅真实 LLM 调用路径才触发 SDK 模块加载与本地后端初始化副作用。 */
-async function loadSdk(): Promise<typeof import("@cline/sdk")> {
-  return await import("@cline/sdk");
+/** 惰性加载 @cline/sdk —— 仅真实 LLM 调用路径才触发 SDK 模块加载与本地后端初始化副作用。
+ *  模块级缓存：run() 与 ensureCore() 复用同一 import()（消除二次独立 import，S5）。 */
+let sdkPromise: Promise<typeof import("@cline/sdk")> | undefined;
+function loadSdk(): Promise<typeof import("@cline/sdk")> {
+  return (sdkPromise ??= import("@cline/sdk"));
 }
 
 /** 读取 @cline/sdk 版本 */
@@ -192,49 +194,9 @@ export class EventCollector {
         break;
 
       default:
-        // K0 实证（临时，只读）：当前被静默丢弃的事件（agent_event / hook / team_progress / pending_prompts…）在此计数取证。
-        this.k0Observe(ev);
+        // 其余事件族（agent_event / hook / team_progress / pending_prompts…）当前不参与结果提取，静默忽略。
         break;
     }
-  }
-
-  // ===== K0 实证探针（临时，只读；收口后整块删除）=====
-  // 目的：证明「类型存在 ≠ 运行时必发」——`agent_event` / `hook` 在 backendMode:"local" 下是否真实到达，
-  // 并给出按「事件源:类型[:子类型]」分桶的到达次数（R5 背压取值输入）。
-  // 语义零影响：不写 messages / 不改 status / 不参与结果 / 不进协议帧体。
-  // 移除方式：删除本块 + `onEvent` 的 default 分支调用 + `run()` 末尾的直方图上报。
-
-  /** 到达计数（桶 → 次数）。 */
-  private readonly k0Arrivals = new Map<string, number>();
-
-  /** 桶键：事件源 + 类型（+ 子类型）；形态缺失降级为 "?"，不猜。 */
-  private static k0Bucket(ev: CoreSessionEvent): string {
-    if (ev.type === "agent_event") {
-      const inner = ev.payload.event as { type?: unknown; contentType?: unknown };
-      const kind = typeof inner?.type === "string" ? inner.type : "?";
-      const contentType = typeof inner?.contentType === "string" ? `:${inner.contentType}` : "";
-      return `agent_event:${kind}${contentType}`;
-    }
-    if (ev.type === "hook") {
-      const name = ev.payload.hookEventName as unknown;
-      return `hook:${typeof name === "string" ? name : "?"}`;
-    }
-    return ev.type;
-  }
-
-  /** 计数 + 每桶只打首条（证明到达即可，防 content_update 高频刷屏）。 */
-  private k0Observe(ev: CoreSessionEvent): void {
-    const bucket = EventCollector.k0Bucket(ev);
-    const seen = this.k0Arrivals.get(bucket) ?? 0;
-    this.k0Arrivals.set(bucket, seen + 1);
-    if (seen === 0) {
-      process.stderr.write(`[cline-k0] arrival ${bucket}\n`);
-    }
-  }
-
-  /** K0 到达直方图（桶 → 次数）；空 Map = 本次会话未收到任何非 trace 事件。 */
-  getK0Arrivals(): ReadonlyMap<string, number> {
-    return this.k0Arrivals;
   }
 
   /** 最终结果文本：最后一个非流式 say 消息（旧事件格式降级链）。 */
@@ -301,13 +263,13 @@ export class EventCollector {
 
   /**
    * 落盘消息路径：快照声明优先，否则按权威根 `<sessionsDir>/<id>/<id>.messages.json` 推导。
-   * `clineDir` 为调用方显式覆盖（历史 `--data-dir` 语义：Cline 主目录），缺省用权威解析器
-   * （与 SDK 同一算法/同一环境变量，根不再靠猜）。
+   * 恒用权威解析器（与 SDK 同一算法/同一环境变量，根不再靠猜）——不再接受调用方覆盖，
+   * 避免把「任务数据目录」误当「Cline 主目录」导致磁盘回读恒 miss（E2 收敛）。
    */
-  private resolveMessagesPath(clineDir?: string): string | undefined {
+  private resolveMessagesPath(): string | undefined {
     if (this.snapshotMessagesPath) return this.snapshotMessagesPath;
     if (!this.sessionId) return undefined;
-    const sessionsDir = clineDir ? fromClineDir(clineDir).sessionsDir : resolveClineDataRoot().sessionsDir;
+    const sessionsDir = resolveClineDataRoot().sessionsDir;
     return path.join(sessionsDir, this.sessionId, `${this.sessionId}.messages.json`);
   }
 
@@ -315,13 +277,13 @@ export class EventCollector {
    * 权威结果文本（P0）：优先 SDK 会话快照 → 落盘消息回读 → 事件流聚合（旧 say/ask）。
    * 返回 { text, source }，source 标识取数来源，供 meta.eventSource 可观测。
    */
-  getAuthoritativeResultText(dataDir?: string): { text: string; source: ClineResultSource } {
+  getAuthoritativeResultText(): { text: string; source: ClineResultSource } {
     if (this.snapshotMessages && this.snapshotMessages.length > 0) {
       const t = EventCollector.extractAssistantText(this.snapshotMessages);
       if (t) return { text: t, source: "snapshot" };
     }
 
-    const msgsPath = this.resolveMessagesPath(dataDir);
+    const msgsPath = this.resolveMessagesPath();
     if (msgsPath) {
       // FsSink 已启用：persisted-file 级改从 DB（内存卷→后端）取，不再读磁盘 messages.json。
       if (this.sessionId && this.messagesFromSink) {
@@ -635,14 +597,19 @@ export class SdkTransport {
       });
 
       if (timeoutMs > 0) {
-        const timer = new Promise<never>((_, reject) =>
-          setTimeout(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
             timedOut = true;
             this.emitStage(options.trace, "api-timeout", { timeoutMs });
             reject(new Error(`Cline 任务超时（${Math.round(timeoutMs / 1000)}s）`));
-          }, timeoutMs)
-        );
-        await Promise.race([startPromise, timer]);
+          }, timeoutMs);
+        });
+        try {
+          await Promise.race([startPromise, timeout]);
+        } finally {
+          if (timer !== undefined) clearTimeout(timer);
+        }
       } else {
         await startPromise;
       }
@@ -656,12 +623,6 @@ export class SdkTransport {
       unsub();
     }
 
-    // K0 实证（临时，只读）：本次会话「被静默丢弃事件」的到达直方图上报（stderr + 阶段帧同源，零协议新增）。
-    // 判据取值：直方图非空且含 `agent_event:*` / `hook:*` ⇒ 识别层前提成立；全空 ⇒ 退 chunk(say/ask) 路径（R4）。
-    const k0Arrivals = Object.fromEntries(collector.getK0Arrivals());
-    process.stderr.write(`[cline-k0] histogram ${JSON.stringify(k0Arrivals)}\n`);
-    this.emitStage(options.trace, "k0-event-histogram", k0Arrivals);
-
     // 识别账（D-3：emitted + countedOnly + unrecognized = 到达帧总数）随阶段帧上报，供端到端对账。
     if (recognizer) {
       this.emitStage(options.trace, "recognizer-stats", recognizer.stats());
@@ -670,7 +631,7 @@ export class SdkTransport {
     const failed = collector.status === "failed" || collector.status === "aborted" || !!collector.lastError || timedOut;
     const ok = !failed;
     // P0 结果权威源：会话快照 → 落盘回读 → 事件流聚合（旧 say/ask）。
-    const authoritative = collector.getAuthoritativeResultText(options.dataDir);
+    const authoritative = collector.getAuthoritativeResultText();
     const resultText = authoritative.text;
 
     // 归档数据源（磁盘零残留联动）：FsSink 启用时从内存卷→backend 取全量消息，

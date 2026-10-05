@@ -24,7 +24,11 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const HEARTBEAT_INTERVAL_MS = 10000;
-/** 无显式预算时 daemon 侧每请求兜底（ms）：20 分钟（对齐 C# ClineDaemonOptions 默认）。 */
+/**
+ * 无显式预算时 daemon 侧每请求兜底（ms）：20 分钟（对齐 C# ClineDaemonOptions 默认）。
+ * 仅作**最后兜底**——正常路径（ask/plan/resume/history/warmup）均由 C# 侧显式下发预算载荷
+ * （timeoutSec / warmupTimeoutSec = 框架 deadline − margin），预算单一时钟以 C# 侧为准（R2/S1）。
+ */
 const DEFAULT_BUDGET_MS = 20 * 60 * 1000;
 
 type Cmd = "ask" | "plan" | "resume" | "history" | "warmup" | "ping";

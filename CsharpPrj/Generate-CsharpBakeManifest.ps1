@@ -138,6 +138,53 @@ function Get-OwnerRoot([string]$projectFile) {
     return $best
 }
 
+# ---------- 4a. 兼容工具（PS 5.1） + 工程排除面解析 ----------
+
+# PS 5.1 兼容相对路径：构建目标 _RunCsharpBake 以 `powershell`（5.1 / .NET Framework）调用本脚本，
+# 而 [IO.Path]::GetRelativePath 仅 .NET Core 2.0+ 提供 → 5.1 抛 MethodNotFound，令 manifest 刷新恒失败（MSB3073）。
+function Get-RelativePathCompat([string]$BaseDir, [string]$TargetPath) {
+    $sep = [char]92
+    $base = [IO.Path]::GetFullPath($BaseDir).TrimEnd($sep)
+    $target = [IO.Path]::GetFullPath($TargetPath)
+    $baseParts = $base.Split($sep)
+    $targetParts = $target.Split($sep)
+    $common = 0
+    while ($common -lt $baseParts.Count -and $common -lt $targetParts.Count -and
+           [string]::Equals($baseParts[$common], $targetParts[$common], [StringComparison]::OrdinalIgnoreCase)) { $common++ }
+
+    $parts = [System.Collections.Generic.List[string]]::new()
+    for ($i = $common; $i -lt $baseParts.Count; $i++) { [void]$parts.Add('..') }
+    for ($i = $common; $i -lt $targetParts.Count; $i++) { [void]$parts.Add($targetParts[$i]) }
+    return ($parts -join $sep)
+}
+
+# 工程 <Compile Remove="glob">（相对工程目录）→ 锚定正则：** 跨目录、* 限单层、? 单字符。
+# 作用：把本工程显式摘掉的源排除出「编译输入」扫描。同目录子树里的他被编译源（如
+# HttpMethod.Transport 摘 Host 子树、Host 摘 Transport/OpenAI/Guard）若不排除，会给本工程
+# 伪造永久陈旧信号 → stamp 永不落 → 每轮构建重复补烘（撞上执行期缺陷即整体失败）。
+function ConvertTo-CompileRemoveRegex([string]$Glob) {
+    $sep = [char]92
+    $sepRe = [regex]::Escape([string]$sep)
+    $glob = $Glob.Trim().Replace([char]47, $sep)
+    $sb = [System.Text.StringBuilder]::new()
+    [void]$sb.Append('^')
+    for ($i = 0; $i -lt $glob.Length; $i++) {
+        $ch = $glob[$i]
+        if ($ch -eq '*') {
+            if ($i + 1 -lt $glob.Length -and $glob[$i + 1] -eq '*') {
+                [void]$sb.Append('.*')
+                $i++
+                if ($i + 1 -lt $glob.Length -and $glob[$i + 1] -eq $sep) { $i++ }
+            }
+            else { [void]$sb.Append('[^' + $sepRe + ']*') }
+        }
+        elseif ($ch -eq '?') { [void]$sb.Append('[^' + $sepRe + ']') }
+        else { [void]$sb.Append([regex]::Escape([string]$ch)) }
+    }
+    [void]$sb.Append('$')
+    return $sb.ToString()
+}
+
 # ---------- 4b. 新鲜度判据（D9/E1）：dll 是否 ≥ 其编译输入的最新时间 ----------
 # 判据动机：本脚本此前只做 Test-Path 存在性检查 ⇒「改了源但 dll 未重建」仍报「全部就绪」（假绿），
 # 下游以旧 dll 运行即 MissingMethodException（实测踩坑）。
@@ -155,6 +202,15 @@ function Get-NewestSourceUtc([string]$projectFile) {
     $nested = @($projectDirs | Where-Object {
         $_ -ne $dir -and $_.StartsWith($dirPrefix, [StringComparison]::OrdinalIgnoreCase) })
 
+    # 本工程 <Compile Remove> 排除面（相对工程目录 → 锚定正则）：被摘掉的源不是本工程的编译输入。
+    $compileRemoveRes = @()
+    try {
+        $projDoc = [xml](Get-Content $projectFile -Raw)
+        foreach ($node in @($projDoc.Project.ItemGroup.Compile)) {
+            if ($node -and $node.Remove) { $compileRemoveRes += (ConvertTo-CompileRemoveRegex ([string]$node.Remove)) }
+        }
+    } catch { }
+
     foreach ($file in (Get-ChildItem -Path $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue)) {
         $full = $file.FullName
         $skip = $false
@@ -164,6 +220,12 @@ function Get-NewestSourceUtc([string]$projectFile) {
         if (-not $skip) {
             foreach ($n in $nested) {
                 if ($full.StartsWith($n.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { $skip = $true; break }
+            }
+        }
+        if (-not $skip -and $compileRemoveRes.Count -gt 0) {
+            $relSource = $full.Substring($dirPrefix.Length)
+            foreach ($rx in $compileRemoveRes) {
+                if ($relSource -match $rx) { $skip = $true; break }
             }
         }
         if ($skip) { continue }
@@ -195,7 +257,7 @@ foreach ($f in $seen) {
     $rel = if ($f.StartsWith($owner.dir.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
         $f.Substring($owner.dir.Length).TrimStart('\')
     } else {
-        [IO.Path]::GetRelativePath($owner.dir, $f)
+        Get-RelativePathCompat $owner.dir $f
     }
     $dllPath = Join-Path $owner.outDir $dll
     $exists = Test-Path $dllPath

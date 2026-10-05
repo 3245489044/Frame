@@ -181,10 +181,10 @@ namespace Plate.HttpMethod.OpenAI
             var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             var hasTools = result.ToolCalls is { Count: > 0 };
-            // 工具调用以 OpenAI 标准 message.tool_calls 回写（客户端 transport 解析并执行）；客户端工具循环固定 stream=false，
-            // 工具调用结果不支持流式表达，显式报错而非静默丢工具。
+            // 工具调用以 OpenAI 标准回写（客户端 transport 解析并执行）：非流式 = message.tool_calls；流式 = SSE delta.tool_calls。
+            // 真实客户端传输恒以 stream=true 调用，故流式工具调用是必达路径（工具不得静默丢弃，亦不得拒收）。
             if (stream && hasTools)
-                return JsonError(400, "tool_calls_not_streamable", "工具调用结果不支持流式返回（请用 stream=false）。");
+                return SseToolCalls(res, id, model, created, result.ToolCalls!);
             if (stream)
                 return Sse(res, id, model, created, text);
 
@@ -465,6 +465,63 @@ namespace Plate.HttpMethod.OpenAI
             var line = "data: " + JsonSerializer.Serialize(chunk, JsonOptions) + "\ndata: [DONE]\n\n";
             return Results.Stream(new System.IO.MemoryStream(Encoding.UTF8.GetBytes(line)), "text/event-stream");
         }
+
+        /// <summary>
+        /// SSE 流式工具调用响应（OpenAI 规范）：首片回写 <c>delta.tool_calls</c>（index / id / type / function.name / arguments），
+        /// 尾片给空 delta + <c>finish_reason=tool_calls</c>，以 <c>data: [DONE]</c> 收尾。客户端 transport 据此解析并执行工具
+        /// （对齐真实 OpenAI 兼容后端的流式工具调用语义）。
+        /// </summary>
+        private static IResult SseToolCalls(HttpResponse res, string id, string model, long created, IReadOnlyList<OpenAiToolCall> calls)
+        {
+            res.Headers["Cache-Control"] = "no-cache";
+            var deltas = new List<object>(calls.Count);
+            for (var i = 0; i < calls.Count; i++)
+            {
+                var c = calls[i];
+                deltas.Add(new
+                {
+                    index = i,
+                    id = c.Id ?? "",
+                    type = "function",
+                    function = new { name = c.Name, arguments = c.Arguments ?? "" },
+                });
+            }
+
+            var sb = new StringBuilder();
+            AppendSseChunk(sb, new
+            {
+                id,
+                @object = "chat.completion.chunk",
+                created,
+                model,
+                choices = new[]
+                {
+                    new
+                    {
+                        index = 0,
+                        delta = new { role = "assistant", content = (string?)null, tool_calls = deltas },
+                        finish_reason = (string?)null,
+                    },
+                },
+            });
+            AppendSseChunk(sb, new
+            {
+                id,
+                @object = "chat.completion.chunk",
+                created,
+                model,
+                choices = new[]
+                {
+                    new { index = 0, delta = new Dictionary<string, object>(), finish_reason = "tool_calls" },
+                },
+            });
+            sb.Append("data: [DONE]\n\n");
+            return Results.Stream(new System.IO.MemoryStream(Encoding.UTF8.GetBytes(sb.ToString())), "text/event-stream");
+        }
+
+        /// <summary>追加一个 SSE 数据帧（<c>data: &lt;json&gt;</c> + 空行分隔）。</summary>
+        private static void AppendSseChunk(StringBuilder sb, object chunk)
+            => sb.Append("data: ").Append(JsonSerializer.Serialize(chunk, JsonOptions)).Append('\n').Append('\n');
 
         private static IResult Json(object body) => Results.Json(body, JsonOptions);
 

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Ports;
 using Modules.Threading.Streaming;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
@@ -40,7 +42,10 @@ public sealed record NodePersistenceAssembly(
     // 收口装配置 RequireFlow ⇒ 缺失即诊断可见化。与 OneShotFlowFactory 切片口径同源（M2/M3 单一 owner）。
     Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? Posture = null,
     // 诊断可见化端口（可空）：装配切片一处承载，供节点运行时各消费者取用（勿再各自开 log 形参）。
-    IDiagnosticsSink? Diagnostics = null);
+    IDiagnosticsSink? Diagnostics = null,
+    // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：由 Agent 组合根注入，仅在整包展开时追加
+    // （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。
+    Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? AdditionalCollectSource = null);
 
 /// <summary>
 /// 节点运行时产物 —— 节点持久化/引用域的唯一组合点（单一装配入口组装，Y2 单例意图）。
@@ -83,7 +88,9 @@ public sealed class NodeRoundRuntime
             unifiedStateWrite: assembly.EnableUnifiedStateWrite,
             diagnostics: sink,
             attributionFlow: assembly.AttributionFlow,
-            posture: assembly.Posture);
+            posture: assembly.Posture,
+            // 附加输入源经装配切片透传（P4-2 机制②；默认 null ⇒ 零回归）。
+            additionalCollectSource: assembly.AdditionalCollectSource);
         OutboxWriter<NodePersistWork>? outbox = null;
         if (assembly.EnableOutbox)
         {

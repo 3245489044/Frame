@@ -51,6 +51,13 @@
         Note   = '节点框架纯净性 A–H 段：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖；-ShowDetail 显示详情'
     }
 
+    NodeGather = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1'
+        Expect = 0
+        Note   = '节点聚拢通用框架 G1–G3：声明闭合（node-gather-*.json 的 kind-shaping.family ⊆ families + 有 families 须留 "*" 默认塑形）/ 零领域（Gather 层零上层 using Operation·Share·Agent·Usharp 与零域键字面量 process·task-node·conversation·segment·message）/ 接线唯一（INodeGatherService 注册点恰 1 = NodeGatherHosting.TryAttachAll；框架层不消费 INodeDomainPort）'
+    }
+
     ObservabilitySurface = @{
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1'

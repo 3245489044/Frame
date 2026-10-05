@@ -59,6 +59,11 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private const string PersistWriteTarget = "ur_nodes.persist";
         private const string PersistWriterName = "NodeStepExecutionService.PersistAsync";
 
+        // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：由 Agent 组合根注入，仅在整包展开
+        // （IsCollectToken）时追加非 ur_nodes 事实（P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。
+        // 委托签名只用框架类型（CollectedNodePort）⇒ 框架零 Agent 依赖（分层单向）。
+        private readonly Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? _additionalCollectSource;
+
         // 诊断可见化端口（缺省空实现）：由组合根回填具体实现（分层无环——框架不感知 Agent 诊断类型）。
         private readonly IDiagnosticsSink? _diagnostics;
 
@@ -74,7 +79,9 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             bool unifiedStateWrite = false,
             IDiagnosticsSink? diagnostics = null,
             Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
-            Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? posture = null)
+            Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? posture = null,
+            // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：仅在整包展开时追加（P4-2 机制②）。
+            Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? additionalCollectSource = null)
         {
             _store = store;
             // R4 读源收敛：task 作用域单一读源视图（NodeReadView），见 EnumerateInputOutputsAsync——本方法经 ReadView 枚举，
@@ -88,6 +95,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             _relationGateway = grounding is null ? null : new NodeRelationGateway(grounding, store: null);
             _attributionFlow = attributionFlow;
             _posture = posture ?? Operation.HierarchyMethod.Nodes.Linkage.FlowPosture.AllowLegacyFallback;
+            _additionalCollectSource = additionalCollectSource;
             _workflowId = workflowId;
             _functionInvoker = functionInvoker ?? new WorkflowMethodFunctionInvoker(workflowId); // R2 canonical：Center 唯一实现
             // R3：写门缺省自建单实例（同步路径与 Outbox 后台共享本服务实例 → 同门串行）；组合根可注入共享实例并注册 AssertSingleWriter。
@@ -172,6 +180,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     foreach (var sourceKey in sourceNode.Keys)
                         if (source.TryGetValue(sourceKey, out var pv) && pv != null)
                             pack.Add(new CollectedNodePort(sourceKey, sourceNode[sourceKey].Node, sourceNode[sourceKey].Port, pv));
+                    // 附加输入源（P4-2 机制②）：把非 ur_nodes 事实（过程域）并入整包；失败不阻断（可见化）。
+                    await AppendAdditionalCollectAsync(pack, taskKey, ct).ConfigureAwait(false);
                     parameters[key] = pack;
                     continue;
                 }
@@ -199,6 +209,40 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             }
 
             return new NodeInputSnapshot(parameters, provenance);
+        }
+
+        /// <summary>
+        /// 追加「附加输入源」到整包（P4-2 机制②）：把非 ur_nodes 事实（如过程域 <c>proc.*</c>）并入 <c>nodes.*</c>。
+        /// 可见化优先 —— 附加源失败/空 ⇒ 不阻断整包（保留既有条目）+ 诊断一条；按 <c>Key</c> 去重（既有条目优先）。
+        /// </summary>
+        private async Task AppendAdditionalCollectAsync(
+            List<CollectedNodePort> pack, string? taskKey, CancellationToken ct)
+        {
+            if (_additionalCollectSource is null || string.IsNullOrWhiteSpace(taskKey)) return;
+
+            IReadOnlyList<CollectedNodePort> extra;
+            try
+            {
+                extra = await _additionalCollectSource(taskKey!, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _diagnostics?.Report("NodeStepExecutionService_AdditionalCollectSource_failed",
+                    new { taskKey, errorType = ex.GetType().Name, error = ex.Message });
+                return;
+            }
+
+            if (extra is null || extra.Count == 0) return;
+            var seen = new HashSet<string>(pack.Select(p => p.Key), StringComparer.Ordinal);
+            foreach (var item in extra)
+            {
+                if (item is null || !seen.Add(item.Key)) continue;
+                pack.Add(item);
+            }
         }
 
         /// <summary>

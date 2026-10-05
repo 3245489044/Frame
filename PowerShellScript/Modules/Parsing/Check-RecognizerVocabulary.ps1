@@ -262,9 +262,67 @@ if ($null -ne $spec)
         }
     }
 
+    # ---------------- R10 聚拢声明品类闭合（node-gather-*.json ⊆ 词表） ----------------
+    # 权威：节点聚拢声明（families[].kinds ∪ kind-shaping 键）出现的每个 kind 必在识别词表内；
+    # 通配塑形键 '*' 非具体 kind，不作闭合标的。覆盖「新增一域/一 kind = 改声明 + 词表」的守卫。
+    $gatherDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
+    $gatherFiles = @(Get-ChildItem -LiteralPath $gatherDir -Filter 'node-gather-*.json' -File -ErrorAction SilentlyContinue)
+    if ($gatherFiles.Count -eq 0)
+    {
+        $violations.Add("[R10] 未发现任何聚拢声明（node-gather-*.json）—— 声明被删 ⇒ 门禁失效（禁假绿）")
+    }
+    else
+    {
+        $kindLookup = @{}
+        foreach ($k in $kinds) { $kindLookup[$k] = $true }
+
+        foreach ($gFile in $gatherFiles)
+        {
+            $gSpec = $null
+            try
+            {
+                $gSpec = Get-Content -LiteralPath $gFile.FullName -Raw | ConvertFrom-Json
+            }
+            catch
+            {
+                $violations.Add("[R10] 聚拢声明 JSON 非法：$($gFile.Name) — $($_.Exception.Message)")
+                continue
+            }
+
+            $declaredKinds = [System.Collections.Generic.List[string]]::new()
+            if ($null -ne $gSpec.families)
+            {
+                foreach ($fam in $gSpec.families.PSObject.Properties)
+                {
+                    foreach ($k in @($fam.Value))
+                    {
+                        if (-not [string]::IsNullOrWhiteSpace([string]$k)) { $declaredKinds.Add([string]$k) }
+                    }
+                }
+            }
+            if ($null -ne $gSpec.'kind-shaping')
+            {
+                foreach ($sh in $gSpec.'kind-shaping'.PSObject.Properties)
+                {
+                    if ($sh.Name -eq '*') { continue }   # 通配塑形非具体 kind
+                    $declaredKinds.Add([string]$sh.Name)
+                }
+            }
+
+            foreach ($kind in $declaredKinds)
+            {
+                if (-not $kindLookup.ContainsKey($kind))
+                {
+                    $violations.Add("[R10] 聚拢声明 $($gFile.Name) 的 kind '$kind' ∉ 识别词表（品类闭合：新增类别须先入 recognizers.json kinds[]）")
+                }
+            }
+        }
+    }
+
     if ($ShowDetail)
     {
         Write-Host "  声明面：$specPath" -ForegroundColor Gray
+        Write-Host "  聚拢声明：$(@($gatherFiles).Count) 文件（R10：families/kind-shaping ⊆ 识别词表）" -ForegroundColor Gray
         Write-Host "  vocabulary：$($spec.vocabulary) | kind 数：$($kinds.Count)（基线 ≥ $kindBaseline）| 规则数：$($rules.Count)（基线 ≥ $ruleBaseline）" -ForegroundColor Gray
     }
 }

@@ -89,9 +89,10 @@ public static class NodeTypes
     /// <c>ordinal</c> 为**轮内全局到达序**，历史顺序由键内 <c>(round, ordinal)</c> 决定 —— 轮次段使跨轮消息各占独立键，不被 upsert 覆盖）。</summary>
     public const string ConversationMessage = "conversation_message";
 
-    /// <summary>过程节点（运行域事实：阶段 / 端点心跳 / LLM 调用 / 工具；NodeKey=<c>proc.{container}.r{round}.{kind}.{ordinal}</c>，ThreadId=container）。
-    /// 与业务节点（<see cref="Node"/>）分属不同判别值：过程事实不得触发引用图联动/建边（<c>WriteGuardPort.IsBusinessNode</c>），
-    /// 且面板按本判别值独立成组（不再与 task 业务节点混组）。</summary>
+    /// <summary>过程节点的**读兼容**判别值（历史行）：运行域事实（阶段 / 端点心跳 / LLM 调用 / 工具；
+    /// NodeKey=<c>proc.{container}.r{round}.{kind}.{ordinal}</c>，ThreadId=container）。
+    /// 「基础节点化」后写侧恒产 <see cref="Event"/>（过程逻辑升格为事件类基础节点，可被节点库通用寻址/聚拢）；
+    /// 本判别值仅为既有落库行读兼容，由过程域载体以「兼容判别值」传入枚举（写入不再产出）。</summary>
     public const string Process = "process";
 
     /// <summary>全部逻辑/记录节点类型（三库收敛后由统一节点库承载的判别集）。

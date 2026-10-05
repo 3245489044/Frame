@@ -15,6 +15,10 @@
       D. 双包装不得回归：CanonicalContext 已退役（规范上下文包装唯一 = Agent.Session.StandardContext），
          生产源码不得再出现该类型名；
       E. （告警，不判失败）聚拢点尚无跨工程消费（Conversation/ 目录外无人调用 Hub）→ 框架空转风险。
+      F. CV 图面（静态关系图投影）：形状转换边须为**纯引用**（ReferenceSymbol），投影器不得出现 Wire；
+         形状图容器构造唯一 = ConversionCircuitProjector（其余 Conversion 文件禁 new Circuit(）。
+      G. CV 路由（多跳）：ConversionRouter 在册 ∧ 图源唯一 = ConversionCircuitProjector；路由不得新增注册、
+         不得自建图容器（守 CV-I5 装配期注册 + 图源单源）。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（形态转换散点回归）。
 
 .PARAMETER Root
@@ -125,6 +129,63 @@ foreach ($f in $csFiles)
 if ($hubConsumers.Count -eq 0)
 {
     $warnings.Add("CV 聚拢点暂无 Conversion/ 目录外消费方（框架空转风险）")
+}
+
+# F. CV 图面（静态关系图投影）：边须为**纯引用关系**（ReferenceSymbol），不得落为数据流 Wire；容器构造唯一。
+$conversionDir  = Join-Path $agentSrc 'Agent.Session\Conversion'
+$projectorPath  = Join-Path $conversionDir 'ConversionCircuitProjector.cs'
+if (-not (Test-Path -LiteralPath $projectorPath))
+{
+    $violations.Add('CV 图面：缺少 ConversionCircuitProjector.cs（静态引用图投影器未在册）')
+}
+else
+{
+    $projectorCode = (Get-CodeLines $projectorPath) -join "`n"
+    if ($projectorCode -notmatch 'ReferenceSymbol')
+    {
+        $violations.Add('CV 图面：投影器未使用 ReferenceSymbol（边须为纯引用关系）')
+    }
+    if ($projectorCode -match '\.Wire\(|new\s+CircuitWire\(')
+    {
+        $violations.Add('CV 图面：投影器出现 Wire（边须为与节点无关的静态引用，禁运行时值通道）')
+    }
+    # 负对照：形状图容器构造唯一 = 投影器（其余 Conversion 文件禁 new Circuit(）
+    $conversionOthers = $csFiles | Where-Object {
+        $_.FullName -match '\\Agent\.Session\\Conversion\\' -and $_.Name -ne 'ConversionCircuitProjector.cs'
+    }
+    foreach ($f in $conversionOthers)
+    {
+        foreach ($line in Get-CodeLines $f.FullName)
+        {
+            if ($line -match 'new\s+Circuit\(')
+            {
+                $violations.Add("CV 图面：$($f.Name) 直接构造 Circuit 容器（形状图投影唯一 = ConversionCircuitProjector）")
+            }
+        }
+    }
+}
+
+# G. CV 路由（多跳）：路由件在册 ∧ 图源唯一 = 投影器；路由不得新增注册、不得自建图容器。
+$routerPath = Join-Path $conversionDir 'ConversionRouter.cs'
+if (-not (Test-Path -LiteralPath $routerPath))
+{
+    $violations.Add('CV 路由：缺少 ConversionRouter.cs（多跳路由件未在册）')
+}
+else
+{
+    $routerCode = (Get-CodeLines $routerPath) -join "`n"
+    if ($routerCode -notmatch 'ConversionCircuitProjector')
+    {
+        $violations.Add('CV 路由：路由未引用 ConversionCircuitProjector（形状图来源须唯一 = 投影器）')
+    }
+    if ($routerCode -match 'new\s+Circuit\(')
+    {
+        $violations.Add('CV 路由：路由直接构造 Circuit 容器（形状图投影唯一 = ConversionCircuitProjector）')
+    }
+    if ($routerCode -match 'ConversationConversionHub\.(Register|RegisterOnce)\(')
+    {
+        $violations.Add('CV 路由：路由新增注册（CV-I5 只允许装配期注册；路由须只消费既有边）')
+    }
 }
 
 if ($ShowDetail)

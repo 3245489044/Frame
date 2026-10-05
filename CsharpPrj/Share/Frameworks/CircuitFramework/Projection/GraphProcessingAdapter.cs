@@ -3,6 +3,7 @@ using GraphFoundation.Core;
 using GraphFoundation.Topology;
 using Modules.GraphProcessing.Algorithms;
 using Share.CircuitFramework.Core;
+using Share.CircuitFramework.Symbols;
 
 namespace Share.CircuitFramework.Projection;
 
@@ -61,6 +62,34 @@ public static class GraphProcessingAdapter
     {
         ArgumentNullException.ThrowIfNull(circuit);
         return new DefaultPathFinder<string>().HasPath(source, target, WireAdjacency(circuit));
+    }
+
+    /// <summary>
+    /// 按引用关系把 <see cref="ReferenceSymbol"/> 投影为邻接函数（<c>Source → Target</c> 资源/形态标识集合）。
+    /// <para>与 <see cref="WireAdjacency"/> 同构，但对象域 = 引用符号（形状/资源标识）而非节点 id；
+    /// 供「边 = 与节点无关的静态引用」类图（如形状转换图）做多跳路径规划。</para>
+    /// </summary>
+    public static Func<string, IEnumerable<string>> ReferenceAdjacency(Circuit circuit)
+    {
+        ArgumentNullException.ThrowIfNull(circuit);
+        var adj = new Dictionary<string, List<string>>();
+        foreach (var symbol in circuit.Symbols.OfType<ReferenceSymbol>())
+        {
+            if (!adj.TryGetValue(symbol.Source, out var list))
+                adj[symbol.Source] = list = new List<string>();
+            list.Add(symbol.Target);
+        }
+        return key => adj.TryGetValue(key, out var list) ? list : Enumerable.Empty<string>();
+    }
+
+    /// <summary>
+    /// 引用图上 <paramref name="start"/> → <paramref name="end"/> 的最短路径（BFS，含两端）；
+    /// <c>start==end</c> ⇒ 单元素；不可达 ⇒ 空。委托 <c>DefaultShortestPathFinder&lt;string&gt;</c>。
+    /// </summary>
+    public static IReadOnlyList<string> FindShortestReferencePath(Circuit circuit, string start, string end)
+    {
+        ArgumentNullException.ThrowIfNull(circuit);
+        return new DefaultShortestPathFinder<string>().FindShortestPath(start, end, ReferenceAdjacency(circuit));
     }
 
     /// <summary>把电路装配为只读图（节点=CircuitNode，边=CircuitWire）。</summary>

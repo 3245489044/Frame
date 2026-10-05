@@ -8,9 +8,10 @@
     Gate   = 'BatchScope'
 
     # 授权单路径（仓库相对）——唯一来源，禁在脚本内硬编码；缺即回退 warn（灰度）。
-    # v2（2026-10-05）：本系列「气泡合并与三层聚拢点」改动落在 Projects/** 与 Environment/CentralTest/AgentTest/**，
-    #   被过程层治理授权单的 denySet 覆盖 ⇒ 另立本计划授权单（方案 b：单指针切换，保留原授权单文件内容不变）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.5\2026-10-05-气泡合并与三层聚拢点.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v3（2026-10-05）：本系列「Agent.Session 模块化整理（储存/转换/接口三层分离）」改动落在
+    #   Projects/Plug/Agent/src/**（5 消费方）与 Environment/CentralTest/AgentTest/**，越出「气泡合并」授权面
+    #   ⇒ 另立本计划授权单（方案 b：单指针切换，保留既往授权单文件内容不变）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.5\2026-10-05-Agent.Session三层分离.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

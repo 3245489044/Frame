@@ -13,6 +13,8 @@
       C2 位置层不引上层重量闭包：Modules.Node 不得引用 HierarchyMethod / UniversalReference（K6）。
       C3 桥接唯一：引 Modules.Node 的 Usharp 工程恰为白名单 { Usharp.Adapters.Node }（唯一引 Node 处）。
       C4 正对照（防假绿）：桥接工程存在 ∧ 确实引用 Modules.Node ∧ 含 ISpecSource 实现。
+      C5 读面三态收口（F-4 / F7 防回归）：三态词面（Ok/OkButEmpty/Unavailable）定义在位 ∧
+         读面适配器消费 IsUnavailable（非 bool+集合判定）；附负对照（未消费形态必须被捕获）。
 
     模式：默认报告模式（列命中，不设退出码）；-Check 校验模式（违规或正对照失效 → 退出码 1）。
 
@@ -20,7 +22,7 @@
     仓库根目录（缺省由本脚本位置上溯四级推导）。
 
 .PARAMETER Check
-    校验模式：存在违规（C1–C3）或正对照失效（C4）→ 退出码 1。
+    校验模式：存在违规（C1–C5）或正/负对照失效 → 退出码 1。
 
 .PARAMETER ShowDetail
     输出逐项实测计数（含达标项）。
@@ -134,6 +136,41 @@ else {
 
 if ($bridgeSourceHits -eq 0) {
     $violations.Add("[C4] 正对照失效：桥接工程未实现 ISpecSource（端口装配被删 ⇒ 判据恒绿）")
+}
+
+# ---------------- C5 读面三态收口（F-4 / F7 防回归） ----------------
+# 三态词面（Ok/OkButEmpty/Unavailable）定义在位 + 读面适配器消费 IsUnavailable（非 bool+集合）；
+# 缺任一 ⇒ 「空」与「不可用」不可区分，回退面收口退化（F-4：仅 Unavailable 允许回退/清除）。
+function Test-ConsumesTriState([string]$text) { return $text -match 'IsUnavailable' }
+
+$contractsRel  = 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\NodeDomainPortContracts.cs'
+$adapterRel    = 'Projects\Plug\Agent\src\Agent.Modules\Gather\DomainNodeReadAdapter.cs'
+$contractsPath = Join-Path $Root $contractsRel
+$adapterPath   = Join-Path $Root $adapterRel
+
+if (Test-Path -LiteralPath $contractsPath) {
+    $contractsText = Get-Content -LiteralPath $contractsPath -Raw
+    foreach ($token in @('OkButEmptyStatus', 'UnavailableStatus', 'IsUnavailable')) {
+        if ($contractsText -notmatch [regex]::Escape($token)) {
+            $violations.Add("[C5] 读面三态词面缺 '$token'（NodeReadOutcome）：回退面收口退化（F-4）")
+        }
+    }
+}
+else {
+    $violations.Add("[C5] 读面契约缺失：$contractsRel（三态不可判）")
+}
+
+if (Test-Path -LiteralPath $adapterPath) {
+    if (-not (Test-ConsumesTriState (Get-Content -LiteralPath $adapterPath -Raw))) {
+        $violations.Add("[C5] 读面适配器 DomainNodeReadAdapter 未消费 IsUnavailable（bool+集合 判定成功/失败 ⇒ 回退面收口退化）")
+    }
+    # 负对照（防假绿）：不含 IsUnavailable 的形态必须被判据核心判为「未消费」。
+    if (Test-ConsumesTriState 'var items = read.Items; return new NodeGatherRead(NodeGatherOutcome.Available(items.Count), items);') {
+        $violations.Add("[C5] 负对照失效：未消费三态的形态未被判据捕获（判据恒真）")
+    }
+}
+else {
+    $violations.Add("[C5] 读面适配器缺失：$adapterRel（三态消费面被删 ⇒ 判据恒绿）")
 }
 
 # ---------------- 输出 ----------------

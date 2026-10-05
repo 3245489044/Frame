@@ -66,6 +66,7 @@ $EventBaseline = [int]$g.EventCount.Value
 $KeyVisible = @(
     'NodeDomainPort_ReadTrimmed',
     'ConversationView_TaskNodesPanel_readParity',
+    'ProcessNodeSink_EmptyIdentity',
     'ProcessNodeSink_ContainerMissing'
 )
 

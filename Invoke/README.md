@@ -164,3 +164,15 @@ Environment/CentralTest/  ← VE-2（薄转发到 Run-CSharpTests）
 `VerifySingleShot` 门禁（`Operation\DSL\Check-VerifySingleShot.ps1`）把「回归/验证只经 `Frame\Invoke` 单入口」变成机器判据（G8）：
 ① `Frame\Invoke\*.ps1` 禁原生 `dotnet test/build`；② `VERIFY_SINGLE_ENTRY` 接线不漂移（`axioms.md` 声明 ∧ 指向已存在入口 ∧ `project.md` §1.10 登记）；③ 正/负对照防判据空转。
 边界：本守卫只扫**文件面**，拦不住 agent 运行期直呼 `dotnet` —— 运行面由 `project.md` §1.10 相位白名单 + 回复内 `[批次声明]` 自审承担。
+
+### 过程层治理守卫（修复文档 G/H 批）
+
+把框架自己的「单一生产者 + 单一可判定面 + 判据载体=结构事实」公理，从**代码**扩展到**过程**（批次授权 · 影响面验证）：
+
+| 守卫 | 门禁 | 判据 |
+|---|---|---|
+| `Operation\DSL\Check-BatchScope.ps1` | `BatchScope` | 实际改动文件集（`git status`，含子模块）⊆ 活动批 `allowSet` ∪ 派生 ∪ 既有；`denySet` 面禁改；正/负对照。授权单 = `Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json`（路径单源 = `Baselines\BatchScope.psd1`）；缺件 ⇒ 灰度 warn |
+| `Operation\DSL\Check-VerifyProportionality.ps1` | `VerifyProportionality` | 产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；消费 `Locate-Build`（`Get-VerifyPlan`）的工程影响面映射 |
+
+> 二者把 `[批次声明]` 从「自述」升级为「对结构核验」；基线单源见 `Frame\PowerShellScript\Baselines\`。
+

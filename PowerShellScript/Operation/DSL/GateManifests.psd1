@@ -90,7 +90,7 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1'
         Expect = 0
-        Note   = '节点端口纯净性守卫 C1–C4（CT-U3 / P20 / §2.2）：位置层可执行引用零 Usharp（csproj 引用行 + 源码去注释后）/ 位置层不引 HierarchyMethod·UniversalReference（K6）/ 引 Modules.Node 的 Usharp 工程恰为白名单 {Usharp.Adapters.Node} / 正对照（桥接工程存在 ∧ 引用 Modules.Node ∧ 实现 ISpecSource）'
+        Note   = '节点端口纯净性守卫 C1–C5（CT-U3 / P20 / §2.2）：位置层可执行引用零 Usharp（csproj 引用行 + 源码去注释后）/ 位置层不引 HierarchyMethod·UniversalReference（K6）/ 引 Modules.Node 的 Usharp 工程恰为白名单 {Usharp.Adapters.Node} / 正对照（桥接工程存在 ∧ 引用 Modules.Node ∧ 实现 ISpecSource）/ C5 读面三态收口（F-4：三态词面 OkButEmpty·Unavailable·IsUnavailable 在位 ∧ 读面适配器消费 IsUnavailable；附负对照）'
     }
 
     NodeHierarchyRefs = @{
@@ -243,7 +243,7 @@
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1'
         Expect = 0
-        Note   = '识别词表守卫 R1–R8：声明面（Config\recognizers.json）JSON 合法且结构齐备 / kind 唯一且含兜底类 / 规则 kind ∈ 词表 / match 仅结构谓词 / TS 侧零词表副本（W-2）/ 负对照（防假绿）/ 正对照基线 / C# 镜像对账（K3 收口前记 pending）'
+        Note   = '识别词表守卫 R1–R11：声明面（Config\recognizers.json）JSON 合法且结构齐备 / kind 唯一且含兜底类 / 规则 kind ∈ 词表 / match 仅结构谓词 / TS 侧零词表副本（W-2）/ 负对照（防假绿）/ 正对照基线 / R8 C# 镜像对账（到期：缺失即违规）/ R9 live∩snapshot 成节点类别 = ∅ / R10 聚拢声明品类闭合 / R11 双向对拍（镜像字面量集 ≡ 声明面；编译视图须经 RecognizedKinds.All）'
     }
 
     # ===== 入口框架守卫 =====
@@ -280,4 +280,18 @@
         Expect = 0
         Note   = '初始化护栏门禁（P1）G1–G4：`throw new ArgumentNullException` / `ArgumentNullException.ThrowIfNull` 只减不增 + `PortGuard.Required` 只增不减 + 正/负对照；基线 = Baselines\InitGuards.psd1（单源，禁内联）'
     }
+
+    # ===== 过程层结构治理（修复文档 G/H 批）=====
+    BatchScope = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '批次授权单守卫 B0–B3（过程层 P1/P2/P6）：实际改动集（git status，含子模块）⊆ 活动批 allowSet ∪ derived ∪ preexisting；denySet 面禁改；正/负对照防假绿。授权单路径单源 = Baselines\BatchScope.psd1（Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json）；授权单缺件 ⇒ 灰度 warn'
+    }
+
+    VerifyProportionality = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\VerifyProportionality.psd1'
+    }
+
 }

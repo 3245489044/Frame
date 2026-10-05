@@ -38,7 +38,7 @@
 
 | 面 | 状态 |
 |---|---|
-| `Baselines\` 规范根（12 件 `<Gate>.psd1`） | ✅ `KeyGrammar` · `RecognizerVocabulary` · `NodeKeyAddress` · `NodeLocPlacement` · `NodeLocConsistency` · `NodeHierarchyRefs` · `NodeCollectPort` · `ObservabilitySurface` · `ReferenceVocabulary` · `AgentOrchestrationFlow` · `OperationLayerIsolation` · `AgentFrameworkSingleSource`（SR-2a 并入；文件名 = `GateManifests` 键名，U7 契约） |
+| `Baselines\` 规范根（`<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ `KeyGrammar` · `RecognizerVocabulary` · `NodeKeyAddress` · `NodeLocPlacement` · `NodeLocConsistency` · `NodeHierarchyRefs` · `NodeCollectPort` · `ObservabilitySurface` · `ReferenceVocabulary` · `AgentOrchestrationFlow` · `OperationLayerIsolation` · `AgentFrameworkSingleSource`（SR-2a 并入；文件名 = `GateManifests` 键名，U7 契约） |
 | **遗留子根** `Modules\Node\Baselines\` | ✅ **已并入规范根并删除**（禁第二基线根；U8「退役名再入即红」强制） |
 | 内联数值基线（`$*Baseline* = <n>` 形态） | ✅ **0 处 / 0 件**（起点 15 处 / 9 件；实测命令：`Check-GateBaselines.ps1 -Check -ShowDetail`） |
 | 事实行类型（`@{ Value; Origin; DueWhen }`） | ✅ 全部事实键已改事实行（**U9 强制**；此前裸值可静默通过 U3 ⇒ 外置基线可退化为「另一种散落常量」） |
@@ -90,3 +90,15 @@ $k2 = [int]$b.KeySlice.Value          # 事实行：Value + Origin + DueWhen
 # 生成物漂移守卫
 & Frame\PowerShellScript\Operation\DSL\Check-GeneratedArtifactsDrift.ps1 -Check
 ```
+
+## 过程层治理基线（修复文档 G/H 批）
+
+把框架自己的「单一生产者 + 单一可判定面 + 判据载体=结构事实」公理，从**代码**扩展到**过程**：
+
+| 基线 | 守卫 | 语义 |
+|---|---|---|
+| `BatchScope.psd1` | `Operation\DSL\Check-BatchScope.ps1` | 批次授权单路径（单源）+ 活动批允许面模式数下限；判据载体 = 实际改动文件集（`git status`，含子模块） |
+| `VerifyProportionality.psd1` | `Operation\DSL\Check-VerifyProportionality.ps1` | 验证/改动比上限（≤ 1.5）+ 比例复算样本数下限；消费 `Get-VerifyPlan` 的工程影响面映射 |
+
+> 授权单本体 = `Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json`（机器可读，单一生产者）。
+

@@ -16,8 +16,10 @@
          （唯一允许 = 兜底类 unrecognized；词表清单只能来自声明面）。
       R6 负对照（防假绿）：去掉兜底类 / 注入 rule kind ∉ 词表 ⇒ 同一判据函数必须报错。
       R7 正对照（防「声明被删而门禁恒绿」）：kind 数 ≥ 基线 ∧ recognizer 数 ≥ 基线。
-      R8 C# 镜像对账：Agent.Contract\NodeDomain\RecognizedKinds.cs 存在时逐 kind 对账；
-         缺失 ⇒ 记入 pending（迁移期可见化，K3 收口；不算违规、不假绿）。
+      R8 C# 镜像对账（**到期**）：Agent.Contract\NodeDomain\RecognizedKinds.cs 逐 kind 对账；
+         缺失 ⇒ 违规（K3 收口完成，不再记迁移期 pending）。
+      R11 双向对拍（K3 收口）：C# 镜像字面量集 ≡ 声明面 kinds 集（双向）；编译视图 ProcessNodeKinds.All
+         须经 RecognizedKinds.All（生成视图，禁自持清单）；附负对照（注入未声明类别必须被捕获）。
       R9 去重（决策 C / D-8）：**成节点**类别集 `live`（origin 缺省/非 Snapshot）与 `snapshot`（origin=Snapshot）
          的**交集必须为空** —— 同一内容不得由两个来源各写一遍（否则过程面出现重复行）；
          附负对照（注入一条 live/snapshot 重复成节点规则必须被捕获）。
@@ -235,7 +237,8 @@ if ($null -ne $spec)
     }
     else
     {
-        $pending.Add("[R8] C# 镜像未落地（Agent.Contract\NodeDomain\RecognizedKinds.cs）—— K3 收口项，当前由 TS 侧容错兜底（D-5）")
+        # R8 到期（K3 收口）：镜像必须落地，缺失即违规（不再记迁移期 pending）。
+        $violations.Add("[R8] C# 镜像缺失（Agent.Contract\NodeDomain\RecognizedKinds.cs）—— K3 收口项到期：镜像必须落地")
     }
 
     # ---------------- R9 去重（决策 C / D-8：live ∩ snapshot 成节点类别 = ∅） ----------------
@@ -316,6 +319,50 @@ if ($null -ne $spec)
                     $violations.Add("[R10] 聚拢声明 $($gFile.Name) 的 kind '$kind' ∉ 识别词表（品类闭合：新增类别须先入 recognizers.json kinds[]）")
                 }
             }
+        }
+    }
+
+    # ---------------- R11 双向对拍（K3 收口：C# 视图集 ≡ 声明面） ----------------
+    # 判据：镜像字面量集 ≡ 声明面 kinds 集（双向）；编译视图须经 RecognizedKinds.All（生成视图，禁自持清单）。
+    # 附负对照（防假绿）：注入未声明类别必须被同一判据捕获。
+    function Get-MirrorKindLiterals([string]$text)
+    {
+        # 仅扫代码行（跳过 XML 文档/注释，防 `/// <param name="kind">` 误入）；kind 常量形如 `= "llm-call";`
+        $code = ($text -split "`n" | Where-Object { $_ -notmatch '^\s*(///|//|\*|/\*)' }) -join "`n"
+        return @([regex]::Matches($code, '"([a-z][a-z0-9-]*)"') | ForEach-Object { $_.Groups[1].Value })
+    }
+
+    if (Test-Path -LiteralPath $mirrorPath)
+    {
+        $declaredSet = @($kinds | Sort-Object -Unique)
+        $mirrorKinds = @(Get-MirrorKindLiterals (Get-Content -LiteralPath $mirrorPath -Raw) | Sort-Object -Unique)
+
+        $extra = @($mirrorKinds | Where-Object { $declaredSet -notcontains $_ })
+        if ($extra.Count -gt 0)
+        {
+            $violations.Add("[R11] C# 镜像含未声明类别：$($extra -join ', ')（双向对拍：镜像 ⊄ 声明面 ⇒ 词表第二作者）")
+        }
+
+        # 编译视图（ProcessNodeKinds.All）须为镜像派生，禁自持清单。
+        $compileViewPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\ProcessNodeKinds.cs'
+        if (Test-Path -LiteralPath $compileViewPath)
+        {
+            $cvText = Get-Content -LiteralPath $compileViewPath -Raw
+            if ($cvText -notmatch 'All\s*=\s*RecognizedKinds\.All')
+            {
+                $violations.Add("[R11] 编译视图 ProcessNodeKinds.All 未经 RecognizedKinds.All（编译视图须为生成视图，禁自持清单）")
+            }
+        }
+        else
+        {
+            $violations.Add("[R11] 编译视图缺失：Agent.Contract\NodeDomain\ProcessNodeKinds.cs")
+        }
+
+        # 负对照（防假绿）：注入未声明类别必须被判据捕获。
+        $probe = @($mirrorKinds) + @('ghost-not-declared')
+        if (@($probe | Where-Object { $declaredSet -notcontains $_ }).Count -eq 0)
+        {
+            $violations.Add("[R11] 负对照失效：注入未声明类别未被判据捕获（判据恒真）")
         }
     }
 

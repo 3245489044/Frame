@@ -18,7 +18,7 @@
     仓库根（缺省由本脚本位置上溯四级推导）。
 
 .PARAMETER Write
-    生成模式：仅重写 instances\nodes.json 的 placements[]（按声明并集排序）；placement.ushar 只对账不改写。
+    生成模式：仅重写 instances\nodes.json 的 placements[]（按声明并集排序）；placement.ushar 的 [Space] LocPlacement / [Matrix] LocToPlacement 键行（节头与注释原样保留）；默认对账不改写。
 
 .PARAMETER ShowDetail
     输出全部明细（含通过项与棘轮读数）。
@@ -132,6 +132,24 @@ if (-not (Test-Path -LiteralPath $placementFile)) {
     if ($extraLoc.Count -gt 0) { $violations.Add("D1b placement.ushar LocPlacement 多位置行: [$($extraLoc -join ',')]") }
     if ($missMatrix.Count -gt 0) { $violations.Add("D1b placement.ushar LocToPlacement 缺位置行: [$($missMatrix -join ',')]") }
     if ($extraMatrix.Count -gt 0) { $violations.Add("D1b placement.ushar LocToPlacement 多位置行: [$($extraMatrix -join ',')]") }
+
+    if ($Write -and ($missLoc.Count -gt 0 -or $extraLoc.Count -gt 0 -or $missMatrix.Count -gt 0 -or $extraMatrix.Count -gt 0)) {
+        # 生成 = 声明并集（wire 形）重写节内**键行**：仅替换节头后连续的缩进行，
+        # 节间注释与后续节头原样保留（避免整块替换吞掉注释）。
+        $text = Get-Content -LiteralPath $placementFile -Raw
+        $locBody = ((@('  agent_round') + @($expectedWire | ForEach-Object { '  ' + $_ })) -join "`r`n") + "`r`n"
+        $text = [regex]::Replace(
+            $text,
+            '(?m)^(\[Space\]\s*LocPlacement[^\r\n]*\r?\n)(?:[ \t]+\S[^\r\n]*\r?\n)*',
+            { param($m) $m.Groups[1].Value + $locBody })
+        $mxBody = ((@($expectedWire | ForEach-Object { '  ' + $_ + ' = agent_round' })) -join "`r`n") + "`r`n"
+        $text = [regex]::Replace(
+            $text,
+            '(?m)^(\[Matrix\]\s*LocToPlacement[^\r\n]*\r?\n)(?:[ \t]+\S[^\r\n]*\r?\n)*',
+            { param($m) $m.Groups[1].Value + $mxBody })
+        Set-Content -LiteralPath $placementFile -Value $text -NoNewline -Encoding utf8
+        Write-Host '  [WRITE] placement.ushar LocPlacement/LocToPlacement 键行已按声明并集重写' -ForegroundColor Yellow
+    }
 }
 
 # ── D2: 散弹点棘轮（报告模式） ────────────────────────────────────────────────

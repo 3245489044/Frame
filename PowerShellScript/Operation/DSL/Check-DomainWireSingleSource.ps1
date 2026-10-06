@@ -13,6 +13,9 @@
          - AgentRuntimeSlotKeys.Node<X>Framework / AgentNodeSpec.<X>SubPath / AgentNodeCarriers.Create<X>
          基线在册：Frame\PowerShellScript\Baselines\DomainWireSingleSource.psd1
       D3 正/负对照（FAIL）：域清单可发现（≥ 基线域数）；合成 per-domain 形态必须被判据捕获
+      D4 描述行零 per-domain 常量（FAIL · S5.2）：NodeDomainCatalog 描述行禁直接引用
+         AgentNodeSpec.<X>SubPath / AgentRuntimeSlotKeys.Node<X>Framework（走 SubPathOf/SlotKeyOf 派生）；
+         附正/负对照。
 
 .PARAMETER Root
     仓库根（缺省由本脚本位置上溯四级推导）。
@@ -196,6 +199,35 @@ if (-not [regex]::IsMatch('AgentRuntimeSlotKeys.NodeDummyFramework', 'AgentRunti
 }
 if (-not [regex]::IsMatch('AgentNodeSpec.DummySubPath', 'AgentNodeSpec\.[A-Za-z0-9]+SubPath')) {
     $violations.Add('D3 负对照失效: per-domain 声明路径判据未命中合成形态 (ANTI-FALSE-GREEN)')
+}
+
+# ── D4: 描述行零 per-domain 常量（S5.2 · FAIL） ──────────────────────────────
+# 判据：域描述行（NodeDomainCatalog.All）不得直接引用 per-domain 常量
+#   （AgentNodeSpec.<X>SubPath / AgentRuntimeSlotKeys.Node<X>Framework）—— 一律走派生
+#   （SubPathOf / SlotKeyOf）。唯一真源 = Agent.Modules\NodeSpec\NodeDomainCatalog.cs。
+# 落点说明：本判据与 S5.2 同义；因 Get-VerifyPlan 分类面只登记 Operation\DSL\Check-<G>.ps1
+#   （Modules\Node\ 下改动不可分类），故随本守卫落此（同类先例见施工单 §8.1⑥）。
+$descFile = Join-Path $agentSrcDir 'Agent.Modules\NodeSpec\NodeDomainCatalog.cs'
+if (Test-Path -LiteralPath $descFile) {
+    $descLineNo = 0
+    foreach ($descLine in [System.IO.File]::ReadAllLines($descFile)) {
+        $descLineNo++
+        $t = $descLine.TrimStart()
+        if ($t.StartsWith('//') -or $t.StartsWith('*') -or $t.StartsWith('/*')) { continue }
+        if ($descLine -match 'AgentNodeSpec\.[A-Za-z0-9]+SubPath' -or $descLine -match 'AgentRuntimeSlotKeys\.Node[A-Za-z0-9]*Framework') {
+            $violations.Add("D4 描述行引用 per-domain 常量（应走 SubPathOf/SlotKeyOf 派生）: NodeDomainCatalog.cs:$descLineNo $($descLine.Trim())")
+        }
+    }
+} else {
+    $warnings.Add('D4 NodeDomainCatalog.cs 未找到（描述行判据无标的）')
+}
+
+# D4 负对照：判据必须能捕获合成形态（防假绿）
+if (-not [regex]::IsMatch('AgentNodeSpec.DummySubPath', 'AgentNodeSpec\.[A-Za-z0-9]+SubPath')) {
+    $violations.Add('D4 负对照失效: per-domain 声明路径判据未命中合成形态 (ANTI-FALSE-GREEN)')
+}
+if (-not [regex]::IsMatch('AgentRuntimeSlotKeys.NodeDummyFramework', 'AgentRuntimeSlotKeys\.Node[A-Za-z0-9]*Framework')) {
+    $violations.Add('D4 负对照失效: per-domain 槽键常量判据未命中合成形态 (ANTI-FALSE-GREEN)')
 }
 
 # ── 输出 ─────────────────────────────────────────────────────────────────────

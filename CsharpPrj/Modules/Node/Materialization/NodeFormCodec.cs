@@ -46,7 +46,7 @@ public sealed class ViewFormStrategy : INodeFormStrategy
 
     public string Decode(string payload) => Normalize(payload);
 
-    private static string Normalize(string json)
+    internal static string Normalize(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -75,6 +75,21 @@ public sealed class DigestFormStrategy : INodeFormStrategy
     public string Decode(string payload) => payload;
 }
 
+/// <summary>
+/// stream：聚合流载荷的编解码 —— 载荷仍是 JSON 文档（<c>rounds[].frames[]</c> / <c>frames[]</c>），
+/// 聚合语义由写侧累积器承担（本策略只做 JSON 规范化，与 <see cref="ViewFormStrategy"/> 同口径、无损）。
+/// </summary>
+public sealed class StreamFormStrategy : INodeFormStrategy
+{
+    public PlacementForm Form => PlacementForm.Stream;
+
+    public bool IsLossless => true;
+
+    public string Encode(string json) => ViewFormStrategy.Normalize(json);
+
+    public string Decode(string payload) => ViewFormStrategy.Normalize(payload);
+}
+
 /// <summary>形态编解码唯一实现（读写两侧共用；不认识载体，P22 不适用）。</summary>
 public sealed class NodeFormCodec
 {
@@ -85,6 +100,7 @@ public sealed class NodeFormCodec
         Register(new RawFormStrategy());
         Register(new ViewFormStrategy());
         Register(new DigestFormStrategy());
+        Register(new StreamFormStrategy());
     }
 
     public IReadOnlyCollection<PlacementForm> SupportedForms => _strategies.Keys.ToArray();

@@ -204,7 +204,7 @@ public static class NodeFrameworkSpecLoader
                 ReadString(declaration, "level") ?? string.Empty,
                 carrierId,
                 keyTemplate,
-                ParseEnum(declaration, "form", PlacementForm.Raw),
+                ParsePlacementForm(declaration, collected),
                 ParseEnum(declaration, "retention", PlacementRetention.Contextual),
                 ReadString(declaration, "selection") ?? ExpressionSelectionPredicate.AllSelectionId,
                 writerId,
@@ -222,6 +222,31 @@ public static class NodeFrameworkSpecLoader
     /// 而任务面板位置按 <c>storage/node</c> 寻址）。此前该差异只能靠"装配期判据未接线"回避，
     /// 故位置键一旦偏离身份占位符即静默（<c>spec.placement-template-unknown-field</c> 从未生效）。</para>
     /// </summary>
+    /// <summary>
+    /// 解析位置形态（<c>form</c>）：未声明 ⇒ 缺省 <see cref="PlacementForm.Raw"/>；**声明了但不可识别 ⇒ 可见化**
+    /// （不静默吞成 Raw —— 否则「聚合流」拼写漂移会退化为逐事件形态而无任何归因面）。
+    /// </summary>
+    private static PlacementForm ParsePlacementForm(JsonObject declaration, List<NodeDiagnostic> collected)
+    {
+        var text = ReadString(declaration, "form");
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return PlacementForm.Raw;
+        }
+
+        if (Enum.TryParse<PlacementForm>(text, ignoreCase: true, out var parsed))
+        {
+            return parsed;
+        }
+
+        collected.Add(new NodeDiagnostic(
+            "spec.form-unknown",
+            NodeDiagnosticSeverity.Warning,
+            $"位置形态 'form' 值 '{text}' 不可识别：已按缺省 '{PlacementForm.Raw}' 处理（不静默隐藏）",
+            "form"));
+        return PlacementForm.Raw;
+    }
+
     private static IReadOnlyList<string>? ReadLocalCoordinates(JsonObject declaration, List<NodeDiagnostic> collected)
     {
         var declared = declaration["local"];

@@ -13,6 +13,15 @@ public enum PlacementForm
 
     /// <summary>摘要（内容哈希）。</summary>
     Digest,
+
+    /// <summary>
+    /// 聚合流（同一位置键在时间上**聚合为一条记录**）：载荷 = 有序帧序列
+    /// （轮嵌套 <c>rounds[].frames[]</c> 或扁平 <c>frames[]</c>）。
+    /// <para>与 <see cref="View"/> 的区别：View = 一身份一记录（快照覆盖）；Stream = **多事件聚合为一记录**（累积 + 单次落库）。</para>
+    /// <para>语义约束：<b>身份模板须为单键</b>（无逐事件坐标 round/kind/ordinal/seq），否则每事件一键 ⇒ 退化为多行；
+    /// 由 <c>Modules.Node.Spec.NodeSpecValidator</c> 的 S-1 判据（<c>spec.stream-identity-multi-row</c>）校验。</para>
+    /// </summary>
+    Stream,
 }
 
 /// <summary>保留策略（读侧语义标签，不驱动写侧另存副本 N7）。</summary>

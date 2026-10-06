@@ -3,6 +3,7 @@ using System.Linq;
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Identity;
+using Modules.Node.Placement;
 
 namespace Modules.Node.Spec;
 
@@ -39,6 +40,13 @@ public sealed class NodeSpecValidator
 {
     private readonly ICarrierRegistry _carriers;
     private readonly INodeDiagnosticsSink _diagnostics;
+
+    /// <summary>
+    /// S-1：聚合流形态（<see cref="PlacementForm.Stream"/>）禁用的「逐事件坐标」——
+    /// 出现在身份模板即每事件一键 ⇒ 退化为多行（Stream 语义失效）。
+    /// </summary>
+    private static readonly IReadOnlyList<string> StreamForbiddenCoordinates =
+        new[] { "round", "kind", "ordinal", "seq" };
 
     public NodeSpecValidator(ICarrierRegistry carriers, INodeDiagnosticsSink? diagnostics = null)
     {
@@ -200,6 +208,24 @@ public sealed class NodeSpecValidator
                         NodeDiagnosticSeverity.Warning,
                         $"位置 '{placement.PlacementId}' 声明的 local 坐标 '{local}' 未出现在键模板（死声明）",
                         placement.KeyTemplate));
+                }
+            }
+
+            // S-1（Form=Stream）：聚合流要求在**同一位置键**上把多事件聚为一条记录 ⇒ 身份模板不得含逐事件坐标
+            // （round / kind / ordinal / seq）；含之则每事件一键 ⇒ 退化为多行（Stream 语义失效）。
+            if (placement.Form == PlacementForm.Stream)
+            {
+                var multi = StreamForbiddenCoordinates
+                    .Where(coordinate => spec.Identity.Placeholders.Contains(coordinate, StringComparer.Ordinal))
+                    .ToArray();
+                if (multi.Length > 0)
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.stream-identity-multi-row",
+                        NodeDiagnosticSeverity.Error,
+                        $"位置 '{placement.PlacementId}' 声明 Form=Stream，但身份模板含逐事件坐标 {string.Join(",", multi)}"
+                        + "（Stream 要求单键身份：同一位置键聚合为一条记录）",
+                        spec.Identity.Template));
                 }
             }
 

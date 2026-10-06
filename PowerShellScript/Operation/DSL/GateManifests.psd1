@@ -305,4 +305,12 @@
         Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\VerifyProportionality.psd1'
     }
 
+    # ===== 反模式族守卫（P9 落地）=====
+    AntiPatternFamily = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '反模式族守卫（P9）：clinerules\formula.md §8（族=通用规则单表）C1 族唯一/件数 ≥ 基线 · C2 covered ID 形态合法且全局唯一（每条恰属一族）· C3 crit∈{macro,micro} · C4 通用规则列非空 · C5 通用规则符号可解析（回指已注册定义点）· C6 ID 集合守恒（covered ⊇ 基线，只增不减）· C7 正/负对照；基线 = Baselines\AntiPatternFamily.psd1；-WriteBaseline 为写操作，聚合器禁用'
+    }
+
 }

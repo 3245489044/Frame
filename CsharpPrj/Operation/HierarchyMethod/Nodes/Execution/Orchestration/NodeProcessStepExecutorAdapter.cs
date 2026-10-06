@@ -41,6 +41,17 @@ public sealed class NodeProcessStepExecutorAdapter : Share.StateManagement.INode
         _execute = execute;
     }
 
+    /// <summary>节点执行器直装构造：把 <see cref="INodeExecutor.ExecuteStepAsync"/> 适配为内部执行体（声明式装配免 lambda）。</summary>
+    public NodeProcessStepExecutorAdapter(
+        RoundSpec spec,
+        NodeRoundContext ctx,
+        INodeExecutor executor)
+        : this(spec, ctx, executor is null
+            ? throw new ArgumentNullException(nameof(executor))
+            : (step, c, gm, ct) => executor.ExecuteStepAsync(step, c, gm, ct))
+    {
+    }
+
     public async Task<Share.StateManagement.NodeExecutionResult> ExecuteAsync(
         string nodeKey, IDictionary<string, object> parameters, CancellationToken cancellationToken)
     {

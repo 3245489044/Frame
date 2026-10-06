@@ -74,7 +74,6 @@ internal static class LintCommand
         if (Has(impl, "legacyKind")) sink.Add("legacy-kind-field", "impl.legacyKind");
 
         CheckDeps(sink, impl, "impl.deps");
-        CheckSeam(sink, impl);
         CheckBinds(sink, impl, inKeys);
         CheckScopes(sink, impl);
 
@@ -137,7 +136,7 @@ internal static class LintCommand
     }
 
 
-    // ── 依赖 / seam / 绑定 / 作用域 ──────────────────────────────────────────
+    // ── 依赖 / 绑定 / 作用域 ──────────────────────────────────────────
 
     private static void CheckDeps(Sink sink, JsonElement impl, string path)
     {
@@ -152,14 +151,6 @@ internal static class LintCommand
             if (dep.TryGetProperty("fake", out var fake) && fake.ValueKind == JsonValueKind.Object)
                 sink.Word($"{item}.fake.kind", String(fake, "kind"), PortImplVocabulary.FakeKinds);
         }
-    }
-
-    private static void CheckSeam(Sink sink, JsonElement impl)
-    {
-        if (!impl.TryGetProperty("seam", out var seam) || seam.ValueKind != JsonValueKind.Object) return;
-
-        sink.Keys("impl.seam", seam, PortImplVocabulary.SeamKeys);
-        if (String(seam, "reason") is not { Length: > 0 }) sink.Add("seam-reason-missing", "impl.seam.reason");
     }
 
     /// <summary>输入绑定：键闭包 + 槽位在端口 <c>in</c> 面登记（提示级）+ <c>with</c> 来源键核对。</summary>
@@ -369,8 +360,8 @@ internal static class LintCommand
     /// <summary>无行为登记（对齐 <c>FD-01</c> 棘轮口径；提示级，指向棘轮清单）。</summary>
     private static void CheckBehaviours(Sink sink, JsonElement impl)
     {
-        // 多场景条目走场景面判据（守卫同分叉）；seam 条目由注入面提供实现（守卫同过滤）。
-        if (Has(impl, "scenarios") || Has(impl, "seam")) return;
+        // 多场景条目走场景面判据（守卫同分叉）。
+        if (Has(impl, "scenarios")) return;
 
         var hasScript = impl.TryGetProperty("script", out var script)
                         && script.ValueKind == JsonValueKind.Array && script.GetArrayLength() > 0;

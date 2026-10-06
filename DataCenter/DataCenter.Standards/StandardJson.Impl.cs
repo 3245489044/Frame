@@ -48,40 +48,18 @@ public static partial class StandardJson
             scripted ? ReadScriptProject(portKey, impl) : null,
             scripted ? ReadDeliver(portKey, impl) : null,
             scripted ? ReadScopes(portKey, impl) : null,
-            scripted ? ReadScenarios(portKey, impl) : null,
-            ReadSeam(portKey, impl));
+            scripted ? ReadScenarios(portKey, impl) : null);
     }
 
     /// <summary>
-    /// 实现注入声明读取（<c>impl.seam{seam,args?,reason?}</c>；F2-d 一期）：<c>seam</c> 必填（不透明名，
-    /// 由执行面注册表解析）；<c>reason</c> 缺失留待 <c>C15</c> 判（读取器只判形状，不做额度裁决）。
-    /// </summary>
-    private static PortSeamStandard? ReadSeam(string portKey, JsonElement impl)
-    {
-        if (!impl.TryGetProperty("seam", out var declared) || declared.ValueKind != JsonValueKind.Object)
-            return null;
-
-        EnsureLayerKeys(nameof(PortImplVocabulary.SeamKeys), $"ports.{portKey}.impl.seam", declared);
-
-        var seam = Str(declared, "seam")
-            ?? throw new StandardViolationException(
-                $"[port:standard] 端口 '{portKey}' 的 impl.seam 缺 seam（注入名）");
-
-        return new PortSeamStandard(
-            seam,
-            Elements(declared, "args"),
-            Str(declared, "reason"));
-    }
-
-    /// <summary>
-    /// 种类归一（SK-28：**缺省已取消** —— <c>impl.kind</c> 必填，缺即抛并指路 <c>impl.seam</c>；非法即抛）。
+    /// 种类归一（SK-28：**缺省已取消** —— <c>impl.kind</c> 必填，缺即抛；非法即抛）。
     /// 取值域 = 词表唯一源（<c>Kinds</c>，禁手抄 kind）；<c>delegate</c> 属遗留值（只读兼容，新增禁止）。
     /// </summary>
     private static string NormalizeKind(string portKey, string? text)
         => text is null or ""
             ? throw new StandardViolationException(
                 $"[port:standard] 端口 '{portKey}' 的 impl.kind 必填（缺省已取消：不得再隐式按 delegate 处理；"
-                + $"需注入实现请声明 impl.seam；允许值：{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}，"
+                + $"允许值：{PortImplVocabulary.RenderList(PortImplVocabulary.Kinds)}，"
                 + "其中 delegate 为遗留值（新增禁止））")
             : PortImplVocabulary.IsKnownKind(text)
                 ? text

@@ -12,7 +12,7 @@ namespace DataCenter.Protocol.Standards;
 /// 词表取值域见 <see cref="PortImplVocabulary"/>。
 /// </para>
 /// </summary>
-/// <param name="Kind">绑定方式（**必填**：<c>reflective</c>｜<c>composed</c>｜<c>scripted</c>｜<c>frozen</c>；SK-28 起缺省已取消，遗留值仅 <c>delegate</c> 读兼容，需注入实现声明 <c>impl.seam</c>）。</param>
+/// <param name="Kind">绑定方式（**必填**：<c>reflective</c>｜<c>composed</c>｜<c>scripted</c>｜<c>frozen</c>；SK-28 起缺省已取消，遗留值仅 <c>delegate</c> 读兼容）。</param>
 /// <param name="Id">委派实现的登记 id（仅遗留 <c>kind=delegate</c> 用）。</param>
 /// <param name="Target">目标类型全名（反射族）。</param>
 /// <param name="Method">目标方法名（反射族）。</param>
@@ -29,7 +29,6 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Deliver">载体声明（value / issues / action）。</param>
 /// <param name="Scopes">作用域声明（tempDir / using / restore）。</param>
 /// <param name="Scenarios">多场景探针声明（声明了才非空）。</param>
-/// <param name="Seam">实现注入声明（F2-d 一期；非空 = 本端口由宿主/测试侧 seam provider 提供实现）。</param>
 public sealed record PortImplStandard(
     string Kind,
     string? Id = null,
@@ -47,8 +46,7 @@ public sealed record PortImplStandard(
     IReadOnlyList<FieldExprStandard>? ScriptProject = null,
     DeliverStandard? Deliver = null,
     IReadOnlyList<ScopeStandard>? Scopes = null,
-    ScenarioStandard? Scenarios = null,
-    PortSeamStandard? Seam = null);
+    ScenarioStandard? Scenarios = null);
 
 /// <summary>
 /// 端口实参声明（标准框架通用化重构 §2.2 第 2 项）：**实参声明的唯一单源** ——

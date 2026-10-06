@@ -69,7 +69,7 @@ public static class PortReflection
     /// 方法缺失 / 返回类型不符 → fail-fast（含类型名、方法名、期望与实际）。
     /// <para>
     /// 用途：产品未公开入口的结构探针单源（取代逐处手写 <c>GetMethod</c> + <c>BindingFlags</c> + 强转）。
-    /// 边界声明：只**单源化机制**，不解决私有可见性根因（根治需产品侧开 seam）。
+    /// 边界声明：只**单源化机制**，不解决私有可见性根因。
     /// </para>
     /// </summary>
     public static T InvokeNonPublicStatic<T>(Type type, string methodName, params object?[] args)

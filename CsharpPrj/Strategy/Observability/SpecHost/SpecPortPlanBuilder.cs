@@ -50,13 +50,6 @@ public static class SpecPortPlanBuilder
             var portKey = standard.Key;
             var impl = standard.Impl;
 
-            // F2-d 二期接线：显式实现注入（impl.seam）**优先**——声明面无法表达者才走 seam（额度由守卫棘轮冻结）。
-            if (impl?.Seam is { } seam)
-            {
-                plans.Add(Seam(portKey, seam));
-                continue;
-            }
-
             switch (SpecPortStandards.KindOf(standard))
             {
                 case SpecPortBindingKind.Frozen:
@@ -86,39 +79,6 @@ public static class SpecPortPlanBuilder
         }
 
         return plans;
-    }
-
-    /// <summary>
-    /// seam 声明 → 绑定计划（F2-d 二期）：**装配期**解析 provider 产出可调用边界。
-    /// 未注册 provider 即记 <see cref="PortBinding.Unbound"/>（与 delegate 缺实现同口径 fail-safe，
-    /// 由装配守卫兜住，不静默回落）。
-    /// </summary>
-    private static PortBinding Seam(string portKey, PortSeamStandard seam)
-    {
-        if (!PortSeamRegistry.IsRegistered(seam.Seam))
-            return PortBinding.Unbound(portKey, seam.Seam,
-                $"[port:seam] 端口 '{portKey}' 声明 impl.seam '{seam.Seam}' 但未注册 provider"
-                + $"（已注册：{string.Join(", ", PortSeamRegistry.Seams)}）");
-
-        return PortBinding.Delegate(portKey, seam.Seam, () => ResolveSeam(portKey, seam));
-    }
-
-    /// <summary>
-    /// seam provider 产出必须是**可调用边界**（<see cref="IPortBinding"/>，如 <c>StandardFakes</c> 各形态）；
-    /// 其余类型即抛（防静默错配：seam 不是惰性对象袋）。
-    /// </summary>
-    private static IPortBinding ResolveSeam(string portKey, PortSeamStandard seam)
-    {
-        var args = seam.Args is null
-            ? Array.Empty<object?>()
-            : seam.Args.Cast<object?>().ToArray();
-
-        var resolved = PortSeamRegistry.Resolve(seam.Seam, args);
-
-        return resolved as IPortBinding
-            ?? throw new InvalidOperationException(
-                $"[port:seam] 端口 '{portKey}' 的 seam '{seam.Seam}' 产出 {resolved?.GetType().FullName ?? "null"} 不是 IPortBinding"
-                + "（provider 须产出可调用边界，如 StandardFakes.Recording(...)）");
     }
 
     /// <summary>

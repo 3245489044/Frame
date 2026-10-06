@@ -105,7 +105,7 @@ public sealed class SpecPortStandards
         "scripted" => SpecPortBindingKind.Scripted,
         "frozen" => SpecPortBindingKind.Frozen,
 
-        // SK-28：遗留值（只读兼容）——新增禁止，需注入实现改写 impl.seam。
+        // SK-28：遗留值（只读兼容）——新增禁止。
         "delegate" => SpecPortBindingKind.Delegate,
         _ => throw new InvalidOperationException(
             $"[port:standard] 端口 '{portKey}' 的 impl.kind '{kind}' 非法（标准目录归一后不应出现未知种类；"

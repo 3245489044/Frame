@@ -64,9 +64,9 @@ namespace Modules.DiagnosticContext
                 }
 
                 logMessagesPath ??= System.IO.Path.Combine(
-                    projectRoot, "FileDriven", "filedriven_log_messages.json");
+                    projectRoot, "Projects", "FileDriven", "filedriven_log_messages.json");
                 filterConfigPath ??= System.IO.Path.Combine(
-                    projectRoot, "FileDriven", "LogFilterConfig.json");
+                    projectRoot, "Projects", "FileDriven", "LogFilterConfig.json");
 
                 if (File.Exists(logMessagesPath))
                 {

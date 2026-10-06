@@ -11,7 +11,6 @@ internal sealed record DeclarationKeyFacts(
     bool InLedger,
     string? Kind,
     string? Factory,
-    string? Seam,
     bool HasScript,
     bool InGolden,
     IReadOnlyList<string> Missing);
@@ -111,7 +110,7 @@ internal static class EmitDeclarationCommand
             if (!inGolden) missing.Add(view.Message("emitGapGolden"));
 
             facts.Add(new DeclarationKeyFacts(
-                key, found, entry?.Kind, entry?.Factory, entry?.Seam, entry?.HasScript ?? false, inGolden, missing));
+                key, found, entry?.Kind, entry?.Factory, entry?.HasScript ?? false, inGolden, missing));
         }
 
         var obstructions = ObstructionPatterns
@@ -150,10 +149,6 @@ internal static class EmitDeclarationCommand
                 true,
                 impl.ValueKind == JsonValueKind.Object && impl.TryGetProperty("kind", out var kind) ? kind.GetString() : null,
                 Factory(impl),
-                impl.ValueKind == JsonValueKind.Object && impl.TryGetProperty("seam", out var seam)
-                    && seam.ValueKind == JsonValueKind.Object && seam.TryGetProperty("seam", out var seamName)
-                        ? seamName.GetString()
-                        : null,
                 impl.ValueKind == JsonValueKind.Object && impl.TryGetProperty("script", out _),
                 false,
                 []);
@@ -187,7 +182,7 @@ internal static class EmitDeclarationCommand
         report.AppendLine(view.Message("emitFactsHeader"));
         foreach (var key in facts.Keys)
             report.AppendLine(view.Message("emitFactsRow",
-                key.Key, Flag(view, key.InLedger), key.Kind ?? "-", key.Factory ?? "-", key.Seam ?? "-",
+                key.Key, Flag(view, key.InLedger), key.Kind ?? "-", key.Factory ?? "-",
                 Flag(view, key.HasScript), Flag(view, key.InGolden)));
 
         report.AppendLine(view.Message("emitMissingHeader"));

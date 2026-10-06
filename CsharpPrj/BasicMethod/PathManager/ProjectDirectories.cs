@@ -16,7 +16,8 @@ public static class ProjectDirectories
             if (_csharpProjectRoot != null)
                 return _csharpProjectRoot;
 
-            var buildProps = Path.Combine(ProjectRoot, "CsharpPrj", "Directory.Build.props");
+            // Main 拓扑：CsharpPrj 已拆到平台子模块 Frame 下（<Root>\Frame\CsharpPrj）。
+            var buildProps = Path.Combine(ProjectRoot, "Frame", "CsharpPrj", "Directory.Build.props");
             if (File.Exists(buildProps))
             {
                 try
@@ -51,8 +52,9 @@ public static class ProjectDirectories
     public static string CentralConsole => Combine("CentralConsole");
     public static string DataManage => Combine("DataManage");
     public static string CsharpPrj => Combine(CsharpProjectRoot);
+    // Main 拓扑：FileDriven 是产品子模块（<Root>\Projects\FileDriven）。
     [Obsolete("FileDriven 已分离为独立项目，请使用 FileDriven.PathMananger 获取路径")]
-    public static string FileDriven => Combine(CsharpProjectRoot, "FileDriven");
+    public static string FileDriven => Path.Combine(ProjectRoot, "Projects", "FileDriven");
     public static string FunctionStorage => Combine("FunctionStorage");
     public static string Godot => Combine("Godot");
     public static string JsonProcess => Combine("JsonProcess");

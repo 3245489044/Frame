@@ -16,7 +16,7 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> ImplKeys =
     [
         "kind", "id", "target", "method", "reason", "legacyKind", "productFields",
-        "args", "bind", "deps", "calls", "project", "script", "deliver", "scopes", "scenarios", "seam",
+        "args", "bind", "deps", "calls", "project", "script", "deliver", "scopes", "scenarios",
     ];
 
     /// <summary>实参声明键（<see cref="PortArgStandard"/>；<c>impl.args</c> 反射族）。</summary>
@@ -51,9 +51,6 @@ public static partial class PortImplVocabulary
     /// <summary>替身应答脚本项键（<see cref="FakeCallStandard"/>；<c>deps[].calls[]</c>；G1）。</summary>
     public static readonly IReadOnlyList<string> FakeCallKeys =
         ["member", "position", "value", "throw", "message"];
-
-    /// <summary>实现注入声明键（<see cref="PortSeamStandard"/>；F2-d 一期）。</summary>
-    public static readonly IReadOnlyList<string> SeamKeys = ["seam", "args", "reason"];
 
     /// <summary>组合调用声明键（<see cref="CallStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> CallKeys =

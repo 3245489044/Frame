@@ -16,8 +16,7 @@ public static partial class PortImplVocabulary
 {
     /// <summary>
     /// <c>impl.kind</c>：已知绑定方式（5 = 可声明 4 + 遗留 1）。**可声明**值 = 本表 − 遗留值（SK-28：
-    /// <c>delegate</c> 已降为遗留，仅读兼容；新端口/新声明一律 <c>reflective</c>/<c>composed</c>/<c>scripted</c>，
-    /// 需注入实现声明 <c>impl.seam</c>）。
+    /// <c>delegate</c> 已降为遗留，仅读兼容；新端口/新声明一律 <c>reflective</c>/<c>composed</c>/<c>scripted</c>）。
     /// </summary>
     public static readonly IReadOnlyList<string> Kinds =
         ["delegate", "reflective", "composed", "scripted", "frozen"];
@@ -113,7 +112,7 @@ public static partial class PortImplVocabulary
 
     /// <summary>
     /// <c>kind</c> 是否为**遗留**值（只读兼容；**只减不增**，存量条数由守卫棘轮冻结）——当前唯一 = <c>delegate</c>
-    /// （按 <c>id</c> 查实现字典；需运行期实例，声明面无法表达）。新增禁止：需注入实现声明 <c>impl.seam</c>（SK-28）。
+    /// （按 <c>id</c> 查实现字典；需运行期实例，声明面无法表达）。新增禁止（SK-28）。
     /// </summary>
     public static bool IsLegacyKind(string? kind)
         => string.Equals(kind, KindName.Delegate, StringComparison.Ordinal);

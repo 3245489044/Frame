@@ -43,17 +43,19 @@ public static class FileDrivenPaths
         }
     }
 
+    // 缺省兜底路径一律以 Main 逻辑根（GetProjectRoot 已按目录特征定位 Main）为基，
+    // 段序与 framework.config.json 的 paths（Main 相对）逐字一致，避免两套根约定。
     public static string GetJsonConfigDir()
-        => ResolveAbsolute(LoadOverrides()?.JsonConfig ?? "FileDriven/DrivenConfig/JsonConfig");
+        => ResolveAbsolute(LoadOverrides()?.JsonConfig ?? "Projects/Information/DrivenConfig/JsonConfig");
 
     public static string GetLogMessagesFilePath()
-        => ResolveAbsolute(LoadOverrides()?.LogMessages ?? "FileDriven/filedriven_log_messages.json");
+        => ResolveAbsolute(LoadOverrides()?.LogMessages ?? "Projects/FileDriven/filedriven_log_messages.json");
 
     public static string GetLogFilterConfigPath()
-        => ResolveAbsolute(LoadOverrides()?.LogFilterConfig ?? "FileDriven/LogFilterConfig.json");
+        => ResolveAbsolute(LoadOverrides()?.LogFilterConfig ?? "Projects/FileDriven/LogFilterConfig.json");
 
     public static string GetDiagnosticsConfigDir()
-        => ResolveAbsolute(LoadOverrides()?.DiagnosticsConfig ?? "FileDriven/DiagnosticsConfig");
+        => ResolveAbsolute(LoadOverrides()?.DiagnosticsConfig ?? "Projects/FileDriven/DiagnosticsConfig");
 
     public static string GetDiagnosticsSettingsPath()
         => Path.Combine(GetDiagnosticsConfigDir(), "diagnostics-settings.json");

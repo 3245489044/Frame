@@ -8,10 +8,11 @@
     Gate   = 'BatchScope'
 
     # 授权单路径（仓库相对）——唯一来源，禁在脚本内硬编码；缺即回退 warn（灰度）。
-    # v3（2026-10-05）：本系列「Agent.Session 模块化整理（储存/转换/接口三层分离）」改动落在
-    #   Projects/Plug/Agent/src/**（5 消费方）与 Environment/CentralTest/AgentTest/**，越出「气泡合并」授权面
-    #   ⇒ 另立本计划授权单（方案 b：单指针切换，保留既往授权单文件内容不变）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.5\2026-10-05-Agent.Session三层分离.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v5（2026-10-06）：本系列「观测帧单行化与折叠渲染（D1=C 新建 observability 域 + 双写过渡 / D3=A 档渲染 /
+    #   D4=载荷 seq）」改动落在 Projects/Plug/Agent/**、Projects/Information/DrivenConfig/**、
+    #   Frame/PowerShellScript/** 与 Environment/CentralTest/AgentTest/**，⇒ 单指针切换至本计划授权单
+    #   （保留既往授权单文件内容不变；上一系列 S1/S2 在途改动在本授权单 preexisting 登记）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.6\2026-10-06-观测帧单行化与折叠渲染.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

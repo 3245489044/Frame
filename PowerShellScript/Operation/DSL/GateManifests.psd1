@@ -48,7 +48,7 @@
         Args   = @{}
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1'
         Expect = 0
-        Note   = '节点框架纯净性 A–H 段：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖；-ShowDetail 显示详情'
+        Note   = '节点框架纯净性 A–H 段 + S 段（S-1：Form=Stream ⇒ 身份模板单键）：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖 / Stream 声明面单键身份（与 NodeSpecValidator spec.stream-identity-multi-row 对偶）；-ShowDetail 显示详情'
     }
 
     NodeGather = @{
@@ -69,7 +69,7 @@
         Args   = @{}
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1'
         Expect = 0
-        Note   = 'P6-A 委托接线架构不变式：键格式声明化 / 端口准入单源 / 节点写路径单源 / 运行态面结算单源（B/C 段为 Error）；-ShowDetail 显示详情'
+        Note   = 'P6-A 委托接线架构不变式：键格式声明化 / 端口准入单源 / 节点写路径单源 / 运行态面结算单源 / I 段 Stream 结算恰 1 次写（B/C/I 段为 Error；I 段防退回逐帧写）；-ShowDetail 显示详情'
     }
 
     NodeLocPlacement = @{
@@ -188,7 +188,7 @@
     SingleWriter = @{
         Args   = @{}
         Expect = 0
-        Note   = '默认检查模式；-ShowDetail 显示详情'
+        Note   = '默认检查模式；H 段 Stream 位置键单键（单行不变量：form=stream ⇒ key 模板无逐事件坐标）；-ShowDetail 显示详情'
     }
 
     FactStandard = @{

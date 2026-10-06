@@ -24,6 +24,9 @@
       H. 实例分区纯净性（G-1..G-5）：Modules/Node/Instances/*.cs 禁领域词（session/history/agent 标识符
          及字符串字面量中的小写领域词；Task 与 BCL 同形故不入标识符判据）、禁实现依赖
          （System.Data / Microsoft.Data / Operation / Share / Usharp / Dapper）；csproj 禁 PackageReference。
+      S. Stream 形态 ⇒ 身份模板单键（S-1 · Error）：Agent 节点域声明 placements[].form=stream 的位置，
+         其所属域 identity 模板不得含逐事件坐标（round/kind/ordinal/seq）——含之则每事件一键，退化为多行；
+         与 C# 侧 NodeSpecValidator 的 spec.stream-identity-multi-row 对偶（附正/负对照）。
 
     层序（向上引用）由 Share/Solution/Test-ProjectReferences.ps1 统一校验，本脚本不重复实现。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
@@ -233,6 +236,43 @@ if (Test-Path $runtimeBoundDecl)
     }
 }
 
+# ---------------- S. Stream 形态 ⇒ 身份模板单键（S-1 · Error；与 NodeSpecValidator 对偶） ----------------
+# 判据：Form=Stream 要求「同一位置键把多事件聚为一条记录」⇒ 其所属域 identity 模板不得含**逐事件坐标**
+#       （round/kind/ordinal/seq）；含之则每事件一键 ⇒ 退化为多行（Stream 语义失效）。
+#       C# 侧编译期判据 = NodeSpecValidator 的 spec.stream-identity-multi-row；本段为声明面静态对偶。
+$streamForbiddenCoords = @('round', 'kind', 'ordinal', 'seq')
+function Get-StreamMultiRowCoords {
+    param([string]$Identity)
+    $found = [System.Collections.Generic.List[string]]::new()
+    if ([string]::IsNullOrWhiteSpace($Identity)) { return $found }
+    foreach ($c in $streamForbiddenCoords) {
+        if ($Identity -match ('\{' + [regex]::Escape($c) + '\}')) { $found.Add($c) }
+    }
+    return $found
+}
+# 负/正对照（防判据恒真/恒假）：多段身份必须被捕获，单键身份必须放行。
+$s1Neg = @(Get-StreamMultiRowCoords -Identity '{container}.r{round}.{kind}.{ordinal}')
+$s1Pos = @(Get-StreamMultiRowCoords -Identity '{container}')
+if ($s1Neg.Count -eq 0 -or $s1Pos.Count -ne 0) {
+    $violations.Add("[S/S-1] 对照失效：stream-identity 判据恒真或恒假（负=$($s1Neg.Count) 正=$($s1Pos.Count)）")
+}
+if (Test-Path $AgentNodesDir) {
+    $domainDeclFiles = @(Get-ChildItem -Path $AgentNodesDir -Filter *.json -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notlike 'node-gather-*' })
+    foreach ($decl in $domainDeclFiles) {
+        try { $doc = Get-Content -Raw -LiteralPath $decl.FullName | ConvertFrom-Json } catch { continue }
+        if ($null -eq $doc.placements -or [string]::IsNullOrWhiteSpace($doc.identity)) { continue }
+        foreach ($p in @($doc.placements)) {
+            if ($p.form -ne 'stream') { continue }
+            $coords = @(Get-StreamMultiRowCoords -Identity $doc.identity)
+            if ($coords.Count -gt 0) {
+                $violations.Add("[S/S-1] $($decl.Name): 位置 '$($p.id)' 声明 form=stream，但域 identity='$($doc.identity)' 含逐事件坐标 $([string]::Join(',', $coords))（Stream 要求单键身份）")
+            }
+        }
+    }
+}
+elseif ($ShowDetail) { Write-Host "SKIP(S): 未找到 Agent 节点声明目录（$AgentNodesDir）。" -ForegroundColor Gray }
+
 # ---------------- H. 实例分区纯净性（G-1..G-5 通用实例框架） ----------------
 # 判据：Modules/Node/Instances/ 是**通用实例管理**分区 —— ① 不得出现领域词（防止把 session/history/agent
 #       的语义写进通用件）；② 不得引实现依赖（SQLite/上层契约一律在框架之外，K6/§3.5）。
@@ -303,6 +343,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C/D/F/H 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/D/F/H/S 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

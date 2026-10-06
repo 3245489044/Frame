@@ -15,6 +15,8 @@
       D. （告警，不判失败）NodeProcess 内 `new PortKeySpace` 之外的疑似裸键容器（HashSet<string>）。
       H. 运行态面结算单源（FW-1/FW-5）：内存运行态面（过程节点）的结算路径禁直接写存储
          （`INodeStore.PutAsync` / `DeleteAsync` 等须经唯一写门 NodeMaterializer；路径缺失即跳过）。
+      I. Stream 形态落库恰 1 次写（P5 · Error）：NodeDomainPort.CommitRunAsync 的 Stream 结算须恰 1 次
+         WriteAsync 落库且无循环（防退回逐帧写）；附负对照（循环 + 多次写合成体必须被捕获）。
 
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
 
@@ -108,6 +110,41 @@ foreach ($f in $runtimeSurfaceFiles)
     }
 }
 
+# ---------------- I. Stream 形态落库恰 1 次写（P5 · Error；防退回逐帧写） ----------------
+# 判据：运行态域结算 CommitRunAsync 的 Stream 形态把整任务帧聚合成**一个**载荷 ⇒ 经唯一写门**恰 1 次**
+#       WriteAsync 落库（禁 foreach/for/while 逐帧写）。载体 = NodeDomainPort.cs 的 CommitRunAsync 方法体（结构事实）。
+#       该文件缺失即跳过（Frame-only 检出仍可用）。
+$portFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\NodeDomainPort.cs'
+if (Test-Path $portFile) {
+    $portText = [System.IO.File]::ReadAllText($portFile)
+    $startIdx = $portText.IndexOf('Task<IReadOnlyList<NodeWriteOutcome>> CommitRunAsync')
+    $endIdx   = $portText.IndexOf('private string? StreamPlacementIdOf')
+    if ($startIdx -lt 0 -or $endIdx -le $startIdx) {
+        $violations.Add("[I/P5] NodeDomainPort.cs: 无法定位 CommitRunAsync 方法体（判据不可判）")
+    }
+    else {
+        $bodyText = $portText.Substring($startIdx, $endIdx - $startIdx)
+        $codeLines = @($bodyText -split "`r?`n" | Where-Object { $_.TrimStart() -notmatch '^(//|/\*|\*)' })
+        $code = [string]::Join("`n", $codeLines)
+        $writeCount = ([regex]::Matches($code, '\bWriteAsync\s*\(')).Count
+        $loopCount  = ([regex]::Matches($code, '\b(foreach|for|while)\s*\(')).Count
+        if ($writeCount -ne 1) {
+            $violations.Add("[I/P5] NodeDomainPort.cs: CommitRunAsync（Stream 结算）WriteAsync 调用数=$writeCount（须恰 1：整任务帧聚合成单载荷）")
+        }
+        if ($loopCount -ne 0) {
+            $violations.Add("[I/P5] NodeDomainPort.cs: CommitRunAsync（Stream 结算）出现循环 $loopCount 处（疑似退回逐帧写）")
+        }
+        # 负对照（防假绿）：逐帧写合成体（循环 + 多次写）必须被同一判据捕获。
+        $probe = 'foreach (var f in frames) { await WriteAsync(f, ct); } await WriteAsync(agg, ct);'
+        $probeWrites = ([regex]::Matches($probe, '\bWriteAsync\s*\(')).Count
+        $probeLoops  = ([regex]::Matches($probe, '\b(foreach|for|while)\s*\(')).Count
+        if ($probeWrites -lt 2 -or $probeLoops -lt 1) {
+            $violations.Add("[I/P5] 负对照失效：逐帧写合成体（循环 + 多次 WriteAsync）未被判据捕获")
+        }
+    }
+}
+elseif ($ShowDetail) { Write-Host "SKIP(I): 未找到 NodeDomainPort.cs（Frame-only 检出）。" -ForegroundColor Gray }
+
 # ---------------- D. （告警）疑似裸键容器 ----------------
 $bareContainerHits = @($csFiles | Select-String -Pattern 'HashSet<string>\s+\w*[Bb]are' -ErrorAction SilentlyContinue)
 foreach ($h in $bareContainerHits) { $warnings.Add("[D/G2] $($h.FullName):$($h.LineNumber) 疑似自建裸键容器（应经 PortKeySpace）") }
@@ -132,6 +169,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/I 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

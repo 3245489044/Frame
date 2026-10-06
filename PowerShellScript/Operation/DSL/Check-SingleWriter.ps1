@@ -13,6 +13,8 @@
       B. 读路径必须与进程写门解耦：SqliteRelate.ExecuteQueryCore 应走只读连接 SetReadConnect，而非持写门。
       C. Agent 事务写路径经 SqliteWriteChannel 单写通道（SqliteTransaction.Acquire），同域串行化。
       D. （告警，不判失败）旧残留：lock (Gate) / SqliteWriteGate 用法。
+      H. Stream 形态位置键须单键（Error）：form=stream 的位置 key 模板不得含逐事件坐标
+         （round/kind/ordinal/seq）（否则每事件一键 ⇒ 单行不变量失效）；附正/负对照（防判据恒真/恒假）。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
 
 .PARAMETER Root
@@ -196,6 +198,41 @@ $snapshotBypass = $agentSrcFiles |
 foreach ($h in $snapshotBypass)
 {
     $violations.Add("会话侧任务快照写旁路收敛点门面（DP-4）$($h.Path):$($h.LineNumber)")
+}
+
+# H. Stream 形态位置键须单键（单行不变量 · Error）。
+#    判据：form=stream 的位置须「同 instance_id + key 恰 1 行」（INSERT OR REPLACE 覆盖）⇒ 其 key 模板
+#          不得含逐事件坐标（round/kind/ordinal/seq），否则每事件一键 ⇒ 退化为多行（单行不变量失效）。
+#          与 Check-NodeFramework S 段（身份模板侧）对偶：本条守位置键侧。
+$agentNodesDeclDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
+function Get-KeyMultiRowCoords {
+    param([string]$Key)
+    $found = [System.Collections.Generic.List[string]]::new()
+    if ([string]::IsNullOrWhiteSpace($Key)) { return $found }
+    foreach ($c in @('round', 'kind', 'ordinal', 'seq')) {
+        if ($Key -match ('\{' + [regex]::Escape($c) + '\}')) { $found.Add($c) }
+    }
+    return $found
+}
+# 负/正对照（防判据恒真/恒假）
+$hNeg = @(Get-KeyMultiRowCoords -Key 'proc.{container}.r{round}.{kind}.{ordinal}')
+$hPos = @(Get-KeyMultiRowCoords -Key 'proc.{container}')
+if ($hNeg.Count -eq 0 -or $hPos.Count -ne 0) {
+    $violations.Add("Stream 单行不变量对照失效：key 逐事件坐标判据恒真或恒假（负=$($hNeg.Count) 正=$($hPos.Count)）")
+}
+if (Test-Path $agentNodesDeclDir) {
+    foreach ($decl in @(Get-ChildItem -Path $agentNodesDeclDir -Filter *.json -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notlike 'node-gather-*' })) {
+        try { $doc = Get-Content -Raw -LiteralPath $decl.FullName | ConvertFrom-Json } catch { continue }
+        if ($null -eq $doc.placements) { continue }
+        foreach ($p in @($doc.placements)) {
+            if ($p.form -ne 'stream') { continue }
+            $coords = @(Get-KeyMultiRowCoords -Key $p.key)
+            if ($coords.Count -gt 0) {
+                $violations.Add("Stream 位置键含逐事件坐标（单行不变量失效）：$($decl.Name) 位置 '$($p.id)' key='$($p.key)' 坐标=$([string]::Join(',', $coords))")
+            }
+        }
+    }
 }
 
 foreach ($w in $warnings)

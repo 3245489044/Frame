@@ -24,7 +24,13 @@
     #   落在 Projects/Plug/Agent/src（Gather/Context/Launcher/Modules）· Config/{nodes,instances} ·
     #   Frame/PowerShellScript（门禁+基线）· Environment/CentralTest/AgentTest，均在本单 allowSet 内。
     #   恢复聚拢点系列 = 回填 v7 的 Value（上方注释保留）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.6\2026-10-06-process多节点到单节点存储重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v9（2026-10-06）：单指针切换至「会话域单节点化（session-view / session-message / segment-*）」
+    #   计划授权单。切换理由 = 用户裁决 D-S1=必须单节点化 + 一次改完；该系列改动落在
+    #   Projects/Plug/Agent/src（Contract/NodeDomain·Runtime、Modules/{Signal,Aggregate,Gather,NodeSpec,
+    #   NodeCarriers,History,Productions}、Launcher）· Config/{nodes,instances} · Frame/PowerShellScript/**
+    #   · Environment/CentralTest/AgentTest/**，均在新单 allowSet 内；git 干净（无在途改动）⇒ 切换不误判。
+    #   恢复 = 回填 v8 的 Value（上方注释保留 process 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.6\2026-10-06-会话域单节点化.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

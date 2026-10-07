@@ -1,5 +1,6 @@
 namespace Strategy.Observability.Ports;
 
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
@@ -30,6 +31,9 @@ public enum FakeKind
 
     /// <summary>代理载体的通用转发入口（与 <see cref="Counting"/> 同义；保留双词表以兼容台账 <c>deps.fake</c> 用语）。</summary>
     Proxy,
+
+    /// <summary>有状态替身（仅代理载体）：按 <see cref="FakeOptions.StateWriteMember"/> / <see cref="FakeOptions.StateReadMember"/> 做内存键值「写后读回」。</summary>
+    Stateful,
 }
 
 /// <summary>
@@ -55,6 +59,9 @@ public sealed record FakeCall
 
     /// <summary>抛出异常消息（可空；类型无 (string) 构造时回落无参构造）。</summary>
     public string? Message { get; init; }
+
+    /// <summary>参数化应答（按本次调用实参求值；非空时优先于 <see cref="Value"/> 与 <see cref="ThrowType"/>）。</summary>
+    public Func<object?[], object?>? ValueFactory { get; init; }
 }
 
 /// <summary>
@@ -95,6 +102,15 @@ public sealed record FakeOptions
     /// 供投影取值法 <c>capturedCount</c> / <c>capturedFirst</c> / <c>capturedLast</c> 读取。
     /// </summary>
     public string? CaptureMember { get; init; }
+
+    /// <summary>有状态替身的写成员名（<see cref="FakeKind.Stateful"/> 必填）。</summary>
+    public string? StateWriteMember { get; init; }
+
+    /// <summary>有状态替身的读成员名（空 = 只写不读）。</summary>
+    public string? StateReadMember { get; init; }
+
+    /// <summary>有状态替身的键实参下标（缺省 0）。</summary>
+    public int StateKeyIndex { get; init; }
 }
 
 /// <summary>
@@ -148,8 +164,12 @@ public static class PortFake
             FakeKind.Fixed => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: new[] { options.HasValue ? options.Value : null }, notExpected: false, reuseLast: true, calls: options.Calls, captureMember: options.CaptureMember),
             FakeKind.Sequence => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: Values(options), notExpected: false, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
             FakeKind.NotExpected => Build(contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: true, reuseLast: false, calls: options.Calls, captureMember: options.CaptureMember),
+            FakeKind.Stateful => Build(
+                contract, options.Inner, options.Methods, counters: null, fixedValues: null, notExpected: false, reuseLast: false,
+                calls: options.Calls, captureMember: options.CaptureMember,
+                state: FakeStateTable.Create(options.StateWriteMember, options.StateReadMember, options.StateKeyIndex)),
             _ => throw new InvalidOperationException(
-                $"[port:fake] 代理载体不支持形态 '{kind}'（可用：recording|counting|proxy|fixed|sequence|notExpected）"),
+                $"[port:fake] 代理载体不支持形态 '{kind}'（可用：recording|counting|proxy|fixed|sequence|notExpected|stateful）"),
         };
     }
 
@@ -221,7 +241,7 @@ public static class PortFake
     private static object Build(
         Type contract, object? inner, IReadOnlyList<string>? methods, CallCounter? counters,
         IReadOnlyList<object?>? fixedValues, bool notExpected, bool reuseLast,
-        IReadOnlyList<FakeCall>? calls = null, string? captureMember = null)
+        IReadOnlyList<FakeCall>? calls = null, string? captureMember = null, FakeStateTable? state = null)
     {
         PortGuard.Required(contract, nameof(contract));
         if (!contract.IsInterface)
@@ -247,8 +267,14 @@ public static class PortFake
             if (counters is not null && isWatched)
                 counters.Add(method.Name, KeyOf(args));
 
+            if (state is not null && state.TryHandle(method.Name, args, out var stored))
+                return Adapt(method.ReturnType, stored);
+
             if (script is not null && script.TryResolve(method.Name, out var call))
             {
+                if (call.ValueFactory is { } factory)
+                    return Adapt(method.ReturnType, factory(args));
+
                 if (call.ThrowType is { Length: > 0 } throwType)
                     throw ForgeThrow(throwType, call.Message, contract, method);
 
@@ -463,6 +489,77 @@ internal sealed class FakeCaptureTable
             return _byMember.TryGetValue(member, out var bucket) ? bucket.ToArray() : [];
         }
     }
+}
+
+/// <summary>
+/// 有状态替身表（E2）：内存键值「写后读回」——写成员调用把「键后一实参」按键存入，读成员调用按键回读。
+/// <para>
+/// 键 = 实参 <c>key</c> 位（缺省 0）的字符串形（越界 → 空串）；读命中返回存储值，未命中返回 null
+/// （由 <see cref="PortFake"/> 按返回类型适配为默认值）。并发安全（替身可被并行调用）。
+/// 分工：本件只存取值，零领域词汇（L1 红线）。
+/// </para>
+/// </summary>
+internal sealed class FakeStateTable
+{
+    private readonly string _write;
+    private readonly string? _read;
+    private readonly int _key;
+    private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
+    private readonly object _gate = new();
+
+    private FakeStateTable(string write, string? read, int key)
+    {
+        _write = write;
+        _read = read;
+        _key = key;
+    }
+
+    /// <summary>建表（写成员名必填；键实参下标不得为负，否则即抛）。</summary>
+    internal static FakeStateTable Create(string? write, string? read, int key)
+    {
+        if (write is not { Length: > 0 })
+            throw new InvalidOperationException("[port:fake] stateful 替身缺 state.write（写成员名必填）");
+
+        if (key < 0)
+            throw new InvalidOperationException("[port:fake] stateful 替身的 state.key 为负（键实参下标自 0 起）");
+
+        return new FakeStateTable(write, read, key);
+    }
+
+    /// <summary>处理一次调用（成员为写 / 读成员 ⇒ true；否则 false，回落常规形态）。</summary>
+    internal bool TryHandle(string member, object?[] args, out object? value)
+    {
+        if (string.Equals(member, _write, StringComparison.Ordinal))
+        {
+            var slot = KeyAt(args);
+            var stored = args.Length > _key + 1 ? args[_key + 1]
+                : args.Length > _key ? args[_key]
+                : null;
+
+            lock (_gate) _values[slot] = stored;
+
+            value = null;
+            return true;
+        }
+
+        if (_read is { Length: > 0 } && string.Equals(member, _read, StringComparison.Ordinal))
+        {
+            var slot = KeyAt(args);
+
+            lock (_gate) value = _values.TryGetValue(slot, out var stored) ? stored : null;
+
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    /// <summary>键实参的字符串形（越界 → 空串）。</summary>
+    private string KeyAt(object?[] args)
+        => _key < args.Length && args[_key] is { } key
+            ? Convert.ToString(key, CultureInfo.InvariantCulture) ?? string.Empty
+            : string.Empty;
 }
 
 /// <summary>调用计数表（方法名 + 主键 → 次数）；并发安全（替身可被并行调用）。</summary>

@@ -38,13 +38,27 @@ public sealed record ComposedArgStandard(
 /// <param name="HasValue">应答已给值（<c>value: null</c> 亦为给值）。</param>
 /// <param name="Throw">抛出异常类型全名（与 <see cref="Value"/> 二选一）。</param>
 /// <param name="Message">抛出异常消息（可空）。</param>
+/// <param name="ValueSource">参数化应答（<c>value</c> 为取值来源对象时按**实参**求值；与 <see cref="Value"/>/<see cref="Throw"/> 互斥）。</param>
 public sealed record FakeCallStandard(
     string? Member = null,
     int? Position = null,
     JsonElement? Value = null,
     bool HasValue = false,
     string? Throw = null,
-    string? Message = null);
+    string? Message = null,
+    ValueSourceStandard? ValueSource = null);
+
+/// <summary>
+/// 有状态替身声明（<c>deps[].state</c>）：按 <see cref="Write"/>/<see cref="Read"/> 声明的成员做内存键值「写后读回」。
+/// <para>键 = 调用实参 <see cref="Key"/> 位（缺省 0）的字符串形；写成员取键后一实参为值，读成员按键回读（键缺失 → 返回类型默认值）。</para>
+/// </summary>
+/// <param name="Write">写成员名（必填）。</param>
+/// <param name="Read">读成员名（可空 = 只写）。</param>
+/// <param name="Key">键实参下标（缺省 0）。</param>
+public sealed record FakeStateStandard(
+    string Write,
+    string? Read = null,
+    int? Key = null);
 
 /// <summary>
 /// 替身**调用捕获**声明（<c>deps[].capture</c>；G8）：被测方回调时把实参数组按调用序记录下来，
@@ -69,6 +83,7 @@ public sealed record FakeCaptureStandard(string? Member = null);
 /// <param name="Args">构造 / 工厂实参声明。</param>
 /// <param name="Calls">应答脚本（G1；按成员名 / 调用序给值或抛异常；空 = 不启用）。</param>
 /// <param name="Capture">调用捕获（G8；按调用序记录实参；空 = 不捕获）。</param>
+/// <param name="State">有状态替身（<c>fake: "stateful"</c> 的内存键值「写后读回」；空 = 无状态）。</param>
 public sealed record DepStandard(
     string? New = null,
     string? Factory = null,
@@ -80,7 +95,8 @@ public sealed record DepStandard(
     IReadOnlyList<string>? GenericArgs = null,
     IReadOnlyList<ComposedArgStandard>? Args = null,
     IReadOnlyList<FakeCallStandard>? Calls = null,
-    FakeCaptureStandard? Capture = null);
+    FakeCaptureStandard? Capture = null,
+    FakeStateStandard? State = null);
 
 /// <summary>
 /// 组合族单次调用声明（标准框架通用化重构 §2.2 第 5 项；对应内核 <c>ComposedCallSpec</c>）：

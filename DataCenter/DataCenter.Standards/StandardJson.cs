@@ -130,8 +130,8 @@ public static partial class StandardJson
     }
 
     /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。
-    /// 键闭合**唯一实现**：逐层入口经 <see cref="EnsureLayerKeys"/> 转调。</summary>
-    private static void EnsureKnownKeys(string context, JsonElement obj, IReadOnlyList<string> known)
+    /// 键闭合**唯一实现**：逐层入口（手写 <see cref="EnsureLayerKeys"/> 与描述符引擎 <c>StandardReaderEngine.ReadLayer</c>）均转调本件。</summary>
+    internal static void EnsureKnownKeys(string context, JsonElement obj, IReadOnlyList<string> known)
     {
         var violations = new List<string>();
         CollectUnknownKeys(obj, known, violations, name => UnknownKeyMessage(context, name));

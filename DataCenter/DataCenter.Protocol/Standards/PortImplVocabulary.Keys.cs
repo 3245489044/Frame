@@ -43,7 +43,13 @@ public static partial class PortImplVocabulary
 
     /// <summary>依赖声明键（<see cref="DepStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> DepKeys =
-        ["new", "factory", "fake", "contract", "wrap", "methods", "values", "genericArgs", "args", "calls", "capture"];
+        ["new", "factory", "fake", "contract", "wrap", "methods", "values", "genericArgs", "args", "calls", "capture", "state"];
+
+    /// <summary>
+    /// 有状态替身键（<see cref="FakeStateStandard"/>；<c>deps[].state</c>）：
+    /// <c>write</c>（写成员）/ <c>read</c>（读成员）/ <c>key</c>（键实参下标，缺省 0）。
+    /// </summary>
+    public static readonly IReadOnlyList<string> FakeStateKeys = ["write", "read", "key"];
 
     /// <summary>替身调用捕获键（<see cref="FakeCaptureStandard"/>；<c>deps[].capture</c>；G8）。</summary>
     public static readonly IReadOnlyList<string> FakeCaptureKeys = ["member"];

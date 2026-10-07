@@ -28,6 +28,171 @@ public static partial class StandardJson
         return binds;
     }
 
+    /// <summary>
+    /// 依赖项读取（<c>dep</c> 层；描述符引擎 <c>dep</c> 层钩子 + 场景主体共用）：<c>new</c> / <c>factory</c> / <c>fake</c>
+    /// 三形态之一，其余字段按形态取用；未声明形态即抛（B-3b-3 自 <c>StandardJson.Impl.cs</c> 析出为半规则钩子件）。
+    /// </summary>
+    internal static DepStandard ReadDep(string context, JsonElement item)
+    {
+        EnsureLayerKeys(nameof(PortImplVocabulary.DepKeys), context, item);
+
+        var spec = new DepStandard(
+            Str(item, "new"),
+            Str(item, "factory"),
+            Str(item, "fake"),
+            Str(item, "contract"),
+            Int(item, "wrap"),
+            StrList(item, "methods"),
+            Elements(item, "values"),
+            StrList(item, "genericArgs"),
+            ReadComposedArgs(context, item),
+            ReadFakeCalls(context, item),
+            ReadFakeCapture(context, item),
+            ReadFakeState(context, item));
+
+        if (spec.New is null && spec.Factory is null && spec.Fake is null)
+            throw new StandardViolationException(
+                $"[port:standard] {context} 未声明形态（须给 new / factory / fake）");
+
+        return spec;
+    }
+
+    /// <summary>依赖声明读取（<c>deps[]</c> / 场景主体 <c>deps[]</c>）：逐项委托 <see cref="ReadDep"/>。</summary>
+    internal static IReadOnlyList<DepStandard> ReadDeps(string portKey, JsonElement container)
+    {
+        if (!container.TryGetProperty("deps", out var declared) || declared.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return declared.EnumerateArray()
+            .Select((item, index) => ReadDep($"ports.{portKey}.impl.deps[{index}]", item))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// 组合族实参声明读取（<c>args[]</c>；依赖 / 调用共用同一形态）：
+    /// <c>{ convert, argIndex?, key?, dep?, value?, elementType?, optional?, default?, nullLiteral? }</c>；
+    /// 缺 <c>convert</c> 即抛（防取值口径静默漂移）。
+    /// </summary>
+    private static IReadOnlyList<ComposedArgStandard>? ReadComposedArgs(string context, JsonElement owner)
+    {
+        if (!owner.TryGetProperty("args", out var declared) || declared.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var args = new List<ComposedArgStandard>();
+        var index = -1;
+        foreach (var item in declared.EnumerateArray())
+        {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.ComposedArgKeys), $"{context}.args[{index}]", item);
+
+            var convert = Str(item, "convert")
+                ?? throw new StandardViolationException(
+                    $"[port:standard] {context} 的 args 项缺少 convert");
+
+            args.Add(new ComposedArgStandard(
+                convert,
+                Int(item, "argIndex"),
+                Str(item, "key"),
+                Int(item, "dep"),
+                item.TryGetProperty("value", out var constant) ? constant.Clone() : null,
+                Str(item, "elementType"),
+                Bool(item, "optional") ?? false,
+                item.TryGetProperty("default", out var fallback) ? fallback.Clone() : null,
+                Bool(item, "nullLiteral") ?? false));
+        }
+
+        return args;
+    }
+
+    /// <summary>
+    /// 替身应答脚本读取（<c>deps[].calls[]</c>；G1）：每项 <c>{ member?, position?, value?, throw?, message? }</c>；
+    /// <c>value</c> 与 <c>throw</c> 二选一（皆缺 = 应答 null），两皆给出即抛（防声明歧义静默择一）。
+    /// <para><c>value</c> 为取值来源对象（含 <c>from</c>）⇒ 参数化应答（按调用实参求值，见 <see cref="CallValueSource"/>），非静态载荷。</para>
+    /// </summary>
+    private static IReadOnlyList<FakeCallStandard>? ReadFakeCalls(string context, JsonElement dep)
+    {
+        if (!dep.TryGetProperty("calls", out var declared)) return null;
+
+        if (declared.ValueKind != JsonValueKind.Array)
+            throw new StandardViolationException($"[port:standard] {context}.calls 须为数组");
+
+        var calls = new List<FakeCallStandard>();
+        var index = -1;
+
+        foreach (var item in declared.EnumerateArray())
+        {
+            index++;
+            EnsureLayerKeys(nameof(PortImplVocabulary.FakeCallKeys), $"{context}.calls[{index}]", item);
+
+            var valueSource = CallValueSource(context, item);
+            var value = default(JsonElement);
+            var hasValue = valueSource is null && item.TryGetProperty("value", out value);
+            var throwType = Str(item, "throw");
+
+            if ((hasValue || valueSource is not null) && throwType is not null)
+                throw new StandardViolationException(
+                    $"[port:standard] {context}.calls[{index}] 同时声明 value 与 throw（应答与抛出二选一）");
+
+            calls.Add(new FakeCallStandard(
+                Str(item, "member"),
+                Int(item, "position"),
+                hasValue ? value : null,
+                hasValue,
+                throwType,
+                Str(item, "message"),
+                valueSource));
+        }
+
+        return calls.Count > 0 ? calls : null;
+    }
+
+    /// <summary>
+    /// 参数化应答识别（<c>calls[].value</c> 为取值来源对象）：<c>value</c> 为对象且含 <c>from</c> 键 ⇒ 按调用实参求值
+    /// （取值域 = <see cref="ValueSourceStandard"/> 词表），否则按静态载荷（<see cref="FakeCallStandard.Value"/>）。
+    /// </summary>
+    internal static ValueSourceStandard? CallValueSource(string context, JsonElement call)
+        => call.ValueKind == JsonValueKind.Object
+           && call.TryGetProperty("value", out var value)
+           && value.ValueKind == JsonValueKind.Object
+           && value.TryGetProperty("from", out _)
+            ? ReadArg(context, value, $"{context}.value")
+            : null;
+
+    /// <summary>
+    /// 有状态替身读取（<c>deps[].state</c>；<c>{ write, read?, key? }</c>）：<c>write</c> 缺失即抛（写成员必填）。
+    /// </summary>
+    private static FakeStateStandard? ReadFakeState(string context, JsonElement dep)
+    {
+        if (!dep.TryGetProperty("state", out var declared)) return null;
+
+        if (declared.ValueKind != JsonValueKind.Object)
+            throw new StandardViolationException($"[port:standard] {context}.state 须为对象");
+
+        EnsureLayerKeys(nameof(PortImplVocabulary.FakeStateKeys), $"{context}.state", declared);
+
+        var write = Str(declared, "write");
+        if (write is not { Length: > 0 })
+            throw new StandardViolationException(
+                $"[port:standard] {context}.state 缺 write（有状态替身的写成员名必填）");
+
+        return new FakeStateStandard(write, Str(declared, "read"), Int(declared, "key"));
+    }
+
+    /// <summary>
+    /// 替身调用捕获读取（<c>deps[].capture</c>；G8）：<c>{ member? }</c>；非对象即抛（防声明残缺静默降级）。
+    /// </summary>
+    private static FakeCaptureStandard? ReadFakeCapture(string context, JsonElement dep)
+    {
+        if (!dep.TryGetProperty("capture", out var declared)) return null;
+
+        if (declared.ValueKind != JsonValueKind.Object)
+            throw new StandardViolationException($"[port:standard] {context}.capture 须为对象");
+
+        EnsureLayerKeys(nameof(PortImplVocabulary.FakeCaptureKeys), $"{context}.capture", declared);
+
+        return new FakeCaptureStandard(Str(declared, "member"));
+    }
+
     /// <summary>步骤读取（<c>impl.script[]</c>：new / invoke / foreach，声明序 = 执行序）。</summary>
     internal static IReadOnlyList<StepStandard> ReadScript(string portKey, JsonElement impl)
     {
@@ -260,8 +425,9 @@ public static partial class StandardJson
             ? steps.EnumerateArray().Select(item => ReadStep(portKey, item)).ToArray()
             : null;
 
-    /// <summary>单步读取：形态四选一（new / invoke / foreach / throw）+ 修饰（collect / when）。</summary>
-    private static StepStandard ReadStep(string portKey, JsonElement item)
+    /// <summary>单步读取：形态四选一（new / invoke / foreach / throw）+ 修饰（collect / when）。
+    /// （描述符单源化 B-3b：供 <c>StandardReaderHooks</c> 的 <c>step</c> 层钩子委托；判别序与既有逐字一致。）</summary>
+    internal static StepStandard ReadStep(string portKey, JsonElement item)
     {
         EnsureLayerKeys(nameof(PortImplVocabulary.StepKeys), $"ports.{portKey}.impl.script.step", item);
         var collect = ReadCollects(portKey, item);
@@ -487,7 +653,7 @@ public static partial class StandardJson
     /// 仅在其后无 <c>items</c> 时接受；两者同声明 = 二义 → 拒（不静默取其一）。
     /// </para>
     /// </summary>
-    private static ForeachStandard ReadForeach(string portKey, JsonElement body)
+    internal static ForeachStandard ReadForeach(string portKey, JsonElement body)
     {
         var asName = Str(body, "as")
             ?? throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 script.foreach 缺 as（循环变量名）");

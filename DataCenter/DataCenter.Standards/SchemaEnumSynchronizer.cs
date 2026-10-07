@@ -1,6 +1,9 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using DataCenter.Protocol.Standards.Descriptors;
 using Plate.JsonMethod.Utilities;
 
 namespace DataCenter.Standards;
@@ -20,28 +23,70 @@ public static class SchemaEnumSynchronizer
     /// </summary>
     public sealed record EnumBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Vocabulary);
 
-    /// <summary>词表绑定表（键路径按 <c>/</c> 分隔；表即「哪处 enum 由哪份词表派生」的唯一登记）。</summary>
-    private static readonly EnumBinding[] Bindings =
-    [
-        new("ports.schema.json", "$defs/impl/properties/kind/enum", () => PortImplVocabulary.KindEnum),
-        new("ports.schema.json", "$defs/arg/properties/convert/enum", () => PortImplVocabulary.ConversionEnum),
-        new("ports.schema.json", "$defs/valueSource/properties/convert/enum", () => PortImplVocabulary.ConversionEnum),
-        new("ports.schema.json", "$defs/valueSource/properties/from/enum", () => PortImplVocabulary.FromEnum),
-        new("ports.schema.json", "$defs/valueSource/properties/onBlankFirstKey/enum", () => PortImplVocabulary.OnBlankFirstKeyEnum),
-        new("ports.schema.json", "$defs/valueSource/properties/onDuplicate/enum", () => PortImplVocabulary.OnDuplicateEnum),
-        new("ports.schema.json", "$defs/dep/properties/fake/enum", () => PortImplVocabulary.FakeKindEnum),
-        new("ports.schema.json", "$defs/composedArg/properties/convert/enum", () => PortImplVocabulary.ConversionEnum),
-        new("ports.schema.json", "$defs/composedField/properties/select/enum", () => PortImplVocabulary.SelectEnum),
-        new("ports.schema.json", "$defs/scope/properties/kind/enum", () => PortImplVocabulary.ScopeKindEnum),
-        new("ports.schema.json", "$defs/deliver/properties/kind/enum", () => PortImplVocabulary.DeliverKindEnum),
-        new("ports.schema.json", "$defs/capture/properties/message/enum", () => PortImplVocabulary.MessageModeEnum),
-        new("ports.schema.json", "$defs/expr/properties/aggOp/enum", () => PortImplVocabulary.AggOpEnum),
-        new("ports.schema.json", "$defs/expr/properties/from/enum", () => PortImplVocabulary.FromEnum),
-        new("ports.schema.json", "$defs/expr/properties/convert/enum", () => PortImplVocabulary.ConversionEnum),
-        new("ports.schema.json", "$defs/expr/properties/onBlankFirstKey/enum", () => PortImplVocabulary.OnBlankFirstKeyEnum),
-        new("ports.schema.json", "$defs/expr/properties/onDuplicate/enum", () => PortImplVocabulary.OnDuplicateEnum),
-        new("fakes.schema.json", "properties/fakes/additionalProperties/properties/kind/enum", () => PortImplVocabulary.FakeKindEnum),
-    ];
+    private static readonly ConcurrentDictionary<string, Func<IReadOnlyList<string>>> VocabularyAccessors = new(StringComparer.Ordinal);
+
+    /// <summary>词表绑定表（**由 <see cref="StandardDescriptors"/> 派生**，取代手抄指针表）。</summary>
+    private static readonly EnumBinding[] Bindings = BuildBindings();
+
+    /// <summary>
+    /// 由描述符派生绑定：每条 = 某层**带 <c>Vocabulary</c> 成员**的 <c>JsonKey</c> →
+    /// 其 <c>Vocabulary</c>（<see cref="PortImplVocabulary"/> 的静态字段/属性）。
+    /// <para>指针 = <c>$defs/{Layer}/properties/{JsonKey}/enum</c>（<c>expr</c> 层例外见下）。</para>
+    /// <para><c>expr</c> 层**扁平并入**取值来源键（<c>from</c>/<c>convert</c>/… 与来源侧同形），
+    /// 故其来源侧 enum（<c>from</c>/<c>convert</c>/<c>onBlankFirstKey</c>/<c>onDuplicate</c>）亦列于 <c>expr</c>——
+    /// 与 <c>valueSource</c> 层同词表。</para>
+    /// <para>非层绑定（<c>fakes</c> 台账：<c>properties/fakes/additionalProperties/properties/kind</c>）无独立层描述，
+    /// 显式登记（唯一手写残留）。</para>
+    /// </summary>
+    private static EnumBinding[] BuildBindings()
+    {
+        var bindings = new List<EnumBinding>();
+        foreach (var layer in StandardDescriptors.All) AppendLayer(bindings, layer.Layer, layer);
+
+        // expr：扁平并入 valueSource 的取值来源键 → 来源侧 enum 亦列于 expr。
+        AppendLayer(bindings, "expr", StandardDescriptors.ValueSource);
+
+        bindings.Add(new(
+            "fakes.schema.json",
+            "properties/fakes/additionalProperties/properties/kind/enum",
+            () => PortImplVocabulary.FakeKindEnum));
+
+        return bindings.ToArray();
+    }
+
+    /// <summary>按层追加 enum 绑定（<paramref name="pointerLayer"/> = 指针中的层名；可与 <paramref name="layer"/> 不同，
+    /// 用于 <c>expr</c> 并入来源层的键）。</summary>
+    private static void AppendLayer(List<EnumBinding> bindings, string pointerLayer, LayerDescriptor layer)
+    {
+        foreach (var member in layer.Members)
+        {
+            if (member.Vocabulary is not { } vocabulary || member.JsonKey is not { } key) continue;
+
+            bindings.Add(new(
+                "ports.schema.json",
+                $"$defs/{pointerLayer}/properties/{key}/enum",
+                VocabularyAccessor(vocabulary)));
+        }
+    }
+
+    /// <summary>
+    /// 描述符 <c>Vocabulary</c>（<see cref="PortImplVocabulary"/> 成员名）→ 渲染取数口；
+    /// 成员不存在即抛（层↔词表漂移须当场可见，禁静默缺绑定）。
+    /// </summary>
+    private static Func<IReadOnlyList<string>> VocabularyAccessor(string name)
+        => VocabularyAccessors.GetOrAdd(name, static key =>
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
+
+            if (typeof(PortImplVocabulary).GetField(key, flags) is { } field)
+                return () => (IReadOnlyList<string>)field.GetValue(null)!;
+
+            if (typeof(PortImplVocabulary).GetProperty(key, flags) is { } property)
+                return () => (IReadOnlyList<string>)property.GetValue(null)!;
+
+            throw new StandardViolationException(
+                $"描述符 Vocabulary '{key}' 在 PortImplVocabulary 无对应静态成员（层↔词表漂移）");
+        });
 
     /// <summary>「词表 → 结构门对象键集」绑定：该层 <c>properties</c> 的键集与键序由词表派生。</summary>
     public sealed record PropertiesBinding(string SchemaFile, string Pointer, Func<IReadOnlyList<string>> Keys);

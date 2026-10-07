@@ -72,6 +72,16 @@ internal static class ComposedDeps
         var shaped = ParseKind(kind, index, portKey);
         var calls = CallsOf(index, dep, portKey);
 
+        if (dep.State is not null && shaped != FakeKind.Stateful)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 dep[{index}] 声明了 state 但 fake 种类 '{kind}' 不是 stateful（state 只属有状态替身）");
+
+        if (shaped == FakeKind.Stateful && dep.State is null)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 dep[{index}] 声明 fake='stateful' 但缺 state（须给 write/read/key）");
+
         var wrapped = dep.Wrap is { } wrap ? Dep(deps, wrap, index, portKey) : null;
         if (calls is null && shaped is FakeKind.Recording or FakeKind.Counting)
             wrapped = Wrapped(index, wrapped, kind, portKey);
@@ -87,6 +97,9 @@ internal static class ComposedDeps
             Values = shaped == FakeKind.Sequence
                 ? (dep.Values ?? Array.Empty<JsonElement>()).Cast<object?>().ToArray()
                 : null,
+            StateWriteMember = dep.State?.Write,
+            StateReadMember = dep.State?.Read,
+            StateKeyIndex = dep.State?.Key ?? 0,
         });
     }
 
@@ -132,10 +145,25 @@ internal static class ComposedDeps
                 HasValue = call.HasValue,
                 ThrowType = call.Throw,
                 Message = call.Message,
+                ValueFactory = call.ValueSource is { } source
+                    ? args => CallValueOf(source, args, portKey, index, position)
+                    : null,
             });
         }
 
         return shaped;
+    }
+
+    /// <summary>
+    /// 参数化应答求值（<c>calls[].value</c> 为取值来源）：以**本次调用实参**为位置实参构造输入，复用脚本取值单源
+    /// <see cref="ScriptedValue.Resolve"/>（<c>from:arg</c> 等），禁新增表达式语言。
+    /// </summary>
+    private static object? CallValueOf(
+        ValueSourceStandard source, object?[] args, string portKey, int index, int position)
+    {
+        var scope = new EvalScope(portKey);
+        var input = new PortInput(portKey, args);
+        return ScriptedValue.Resolve(source, scope, input, Array.Empty<object?>(), $"dep[{index}].calls[{position}].value");
     }
 
     /// <summary>包装形态的被装饰对象（recording/counting 必须给出 wrap；否则无法转发）。</summary>

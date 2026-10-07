@@ -161,7 +161,7 @@
       "properties": {
         "new": { "type": "string" },
         "factory": { "type": "string" },
-        "fake": { "type": "string", "enum": ["recording", "counting", "fixed", "sequence", "notExpected"] },
+        "fake": { "type": "string", "enum": ["recording", "counting", "fixed", "sequence", "notExpected", "stateful"] },
         "contract": { "type": "string" },
         "wrap": { "type": "integer" },
         "methods": { "type": "array", "items": { "type": "string" } },
@@ -169,7 +169,8 @@
         "genericArgs": { "type": "array", "items": { "type": "string" } },
         "args": { "type": "array", "items": { "$ref": "#/$defs/composedArg" } },
         "calls": { "type": "array", "items": { "$ref": "#/$defs/fakeCall" } },
-        "capture": { "$ref": "#/$defs/fakeCapture" }
+        "capture": { "$ref": "#/$defs/fakeCapture" },
+        "state": { "$ref": "#/$defs/fakeState" }
       },
       "additionalProperties": false
     },
@@ -188,6 +189,16 @@
         "value": {},
         "throw": { "type": "string" },
         "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "fakeState": {
+      "type": "object",
+      "required": ["write"],
+      "properties": {
+        "write": { "type": "string" },
+        "read": { "type": "string" },
+        "key": { "type": "integer" }
       },
       "additionalProperties": false
     },

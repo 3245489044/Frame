@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using DataCenter.Protocol.Standards.Descriptors;
 using Plate.JsonMethod.Utilities;
 
 namespace DataCenter.Standards;
@@ -233,42 +234,68 @@ public static class StandardCompleteness
         string SchemaFile = PortsSchema);
 
     /// <summary>
-    /// 家族登记表（**唯一登记点**）：词源一律取自词表本身（禁手抄），新增词表 / 新增词在本表可见范围内。
+    /// 家族登记表（**唯一登记点**）：词源 / 结构门指针 / 模型落点 / 结构门文件一律**由 SSD（<see cref="StandardDescriptors"/>）
+    /// 锚点派生**（见 <see cref="VocabularyFamily"/>），本表仅保留**族名与 ③ 探针**；
+    /// 层级特例（无单成员可锚定：<c>expr</c> 成员可承载多键、<c>dep.form</c> 键集非词表）显式保留在表尾（残留 2 条）。
     /// </summary>
     private static readonly Family[] FamilyTable =
     [
-        new("impl.kind", PortImplVocabulary.Kinds, "$defs/impl/properties/kind/enum", null,
-            KindProbe, KindProbe(Sentinel), typeof(PortImplStandard), _ => nameof(PortImplStandard.Kind)),
-        new("convert", PortImplVocabulary.Conversions, "$defs/arg/properties/convert/enum", null,
-            ConvertProbe, ConvertProbe(Sentinel), typeof(PortArgStandard), _ => nameof(PortArgStandard.Convert)),
-        new("from", PortImplVocabulary.ValueSourceFromAll, "$defs/valueSource/properties/from/enum", null,
-            FromProbe, FromProbe(Sentinel), typeof(ValueSourceStandard), _ => nameof(ValueSourceStandard.From)),
-        new("select", PortImplVocabulary.Selects, "$defs/composedField/properties/select/enum", null,
-            SelectProbe, SelectProbe(Sentinel), typeof(ComposedFieldStandard), _ => nameof(ComposedFieldStandard.Select)),
-        new("deliver.kind", PortImplVocabulary.DeliverKinds, "$defs/deliver/properties/kind/enum", null,
-            DeliverProbe, DeliverProbe(Sentinel), typeof(DeliverStandard), _ => nameof(DeliverStandard.Kind)),
-        new("onBlankFirstKey", PortImplVocabulary.OnBlankFirstKey, "$defs/valueSource/properties/onBlankFirstKey/enum",
-            null,
-            word => TableProbe("onBlankFirstKey", word), TableProbe("onBlankFirstKey", Sentinel),
-            typeof(ValueSourceStandard), _ => nameof(ValueSourceStandard.OnBlankFirstKey)),
-        new("onDuplicate", PortImplVocabulary.OnDuplicate, "$defs/valueSource/properties/onDuplicate/enum",
-            null,
-            word => TableProbe("onDuplicate", word), TableProbe("onDuplicate", Sentinel),
-            typeof(ValueSourceStandard), _ => nameof(ValueSourceStandard.OnDuplicate)),
-        new("aggOp", PortImplVocabulary.AggOps, "$defs/expr/properties/aggOp/enum", null,
-            AggOpProbe, AggOpProbe(Sentinel), typeof(ExprStandard), _ => nameof(ExprStandard.AggOp)),
-        // 指针修正（F2-b 收口）：deliver.capture 是 $ref，嵌套指针不可达；消息口径的实节点在 $defs/capture。
-        new("message", PortImplVocabulary.MessageModes, "$defs/capture/properties/message/enum", null,
-            MessageProbe, MessageProbe(Sentinel), typeof(DeliverCaptureStandard), _ => nameof(DeliverCaptureStandard.Message)),
+        VocabularyFamily("impl.kind", StandardDescriptors.Impl, nameof(PortImplStandard.Kind), KindProbe),
+        VocabularyFamily("convert", StandardDescriptors.Arg, nameof(PortArgStandard.Convert), ConvertProbe),
+        VocabularyFamily("from", StandardDescriptors.ValueSource, nameof(ValueSourceStandard.From), FromProbe),
+        VocabularyFamily("select", StandardDescriptors.ComposedField, nameof(ComposedFieldStandard.Select), SelectProbe),
+        VocabularyFamily("deliver.kind", StandardDescriptors.Deliver, nameof(DeliverStandard.Kind), DeliverProbe),
+        VocabularyFamily("onBlankFirstKey", StandardDescriptors.ValueSource, nameof(ValueSourceStandard.OnBlankFirstKey),
+            word => TableProbe("onBlankFirstKey", word)),
+        VocabularyFamily("onDuplicate", StandardDescriptors.ValueSource, nameof(ValueSourceStandard.OnDuplicate),
+            word => TableProbe("onDuplicate", word)),
+        VocabularyFamily("aggOp", StandardDescriptors.Expr, nameof(ExprStandard.AggOp), AggOpProbe),
+        VocabularyFamily("message", StandardDescriptors.Capture, nameof(DeliverCaptureStandard.Message), MessageProbe),
+        VocabularyFamily("scope.kind", StandardDescriptors.Scope, nameof(ScopeStandard.Kind), ScopeProbe),
+        VocabularyFamily("fake", StandardDescriptors.Dep, nameof(DepStandard.Fake), FakeProbe),
+        // ── 层级特例（残留 2 条；显式登记）────────────────────────────────────────────
+        // expr：成员可承载多键（平铺键 + 宿主对象嵌套子键），无单成员锚点；词集 = 全部表达式成员（本非「词」而是成员轴）。
         new("expr", PortImplVocabulary.ExprSlots.Select(slot => slot.Member).ToArray(), "$defs/expr/properties",
             ExprSchemaWords, null, null, typeof(ExprStandard), member => member),
-        new("scope.kind", PortImplVocabulary.ScopeKinds, "$defs/scope/properties/kind/enum", null,
-            ScopeProbe, ScopeProbe(Sentinel), typeof(ScopeStandard), _ => nameof(ScopeStandard.Kind)),
-        new("fake", PortImplVocabulary.FakeKinds, "$defs/dep/properties/fake/enum", null,
-            FakeProbe, FakeProbe(Sentinel), typeof(DepStandard), _ => nameof(DepStandard.Fake)),
+        // dep.form：词集 = DepForms（表单形态键集），非某成员词表；结构门落点 = 层的 properties 键集。
         new("dep.form", PortImplVocabulary.DepForms, "$defs/dep/properties", word => [word],
             DepFormProbe, DepFormSentinel, typeof(DepStandard), DepFormMember),
     ];
+
+    /// <summary>
+    /// 由 SSD 锚点派生「词表成员族」：词集（= 词表）/ 结构门指针（= <c>$defs/{层}/properties/{键}/enum</c>）/
+    /// 模型落点（= 层承载类型 × 成员）/ 结构门文件全部**派生**；仅族名与 ③ 探针手写。
+    /// <para>词集取自 <see cref="SchemaEnumSynchronizer.EnumBindings"/>（结构门绑定唯一源 ⇒ 落点与绑定同源，
+    /// 禁另抄）；指针缺失即抛（层↔落点漂移当场可见）。</para>
+    /// </summary>
+    /// <param name="name">族名（③ 探针 / 关系图 / 差集的登记键）。</param>
+    /// <param name="layer">承载层描述符。</param>
+    /// <param name="member">承载成员名（= 中立模型属性名）。</param>
+    /// <param name="wordProbe">词位探针。</param>
+    /// <param name="formProbe">形态位哨兵探针（null = 取 <paramref name="wordProbe"/>(<see cref="Sentinel"/>)）。</param>
+    private static Family VocabularyFamily(
+        string name, LayerDescriptor layer, string member, Func<string, string> wordProbe, string? formProbe = null)
+    {
+        var descriptor = layer.Members.Single(item => string.Equals(item.Member, member, StringComparison.Ordinal));
+        if (descriptor.Vocabulary is null || descriptor.JsonKey is null)
+            throw new StandardViolationException(
+                $"SSD 锚定失败：{layer.Layer}.{member} 缺 Vocabulary / JsonKey（层↔落点漂移）");
+
+        var pointer = $"$defs/{layer.Layer}/properties/{descriptor.JsonKey}/enum";
+        var vocabulary = SchemaEnumSynchronizer.EnumBindings.Single(binding =>
+            string.Equals(binding.SchemaFile, PortsSchema, StringComparison.Ordinal)
+            && string.Equals(binding.Pointer, pointer, StringComparison.Ordinal)).Vocabulary();
+
+        return new Family(
+            name,
+            vocabulary,
+            pointer,
+            null,
+            wordProbe,
+            formProbe ?? wordProbe(Sentinel),
+            descriptor.ModelOf(layer.Model),
+            _ => descriptor.Member);
+    }
 
     // ── ③ 解析探针：最小可读 impl 信封 + 词位（哨兵 = 未登记值，用于反证「读取器是否分派」） ──
     private static string Envelope(string implBody) =>

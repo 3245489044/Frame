@@ -29,18 +29,21 @@ public enum ExprSlotKind
 }
 
 /// <summary>
-/// 表达式成员子槽：成员名 + 算子组 + 下钻形态 + 承载的 JSON 键。
+/// 表达式成员子槽：成员名 + 算子组 + 下钻形态 + 承载的 JSON 键 + 词表。
 /// <para><paramref name="Member"/> 与 <see cref="ExprStandard"/> 的属性名严格同名（反射可对拍）；
 /// <paramref name="OperatorGroup"/> 非空 = 同组成员共属一个算子（C10「算子组恰一」的取值域），null = 各自独立成组；
 /// <paramref name="Key"/> = 本成员在表达式对象中的平铺键，<paramref name="NestedKeys"/> = 其对象形态内读取的子键
-/// （结构门对该层为浅校验，故子键须在表达式对象层一并登记）。</para>
+/// （结构门对该层为浅校验，故子键须在表达式对象层一并登记）；
+/// <paramref name="Vocabulary"/> 非空 = 本键的值域由 <see cref="PortImplVocabulary"/> 某静态成员渲染
+/// （结构门 <c>enum</c> 由此派生，见 <c>SchemaEnumSynchronizer</c>）。</para>
 /// </summary>
 public readonly record struct ExprSlot(
     string Member,
     string? OperatorGroup,
     ExprSlotKind Kind,
     string? Key = null,
-    IReadOnlyList<string>? NestedKeys = null)
+    IReadOnlyList<string>? NestedKeys = null,
+    string? Vocabulary = null)
 {
     /// <summary>是否为子表达式槽（需下钻）。</summary>
     public bool IsChild => Kind != ExprSlotKind.None;
@@ -104,7 +107,7 @@ public static partial class PortImplVocabulary
         new("FirstWhere", "first", ExprSlotKind.One),
         new("FirstPath", "first", ExprSlotKind.None),
         new("Agg", "aggregate", ExprSlotKind.One, "agg", ["over"]),
-        new("AggOp", "aggregate", ExprSlotKind.None, "aggOp"),
+        new("AggOp", "aggregate", ExprSlotKind.None, "aggOp", Vocabulary: nameof(PortImplVocabulary.AggOps)),
         new("AggPath", "aggregate", ExprSlotKind.None, "aggPath"),
         new("Filter", "filter", ExprSlotKind.One, "filter", ["over"]),
         new("FilterWhere", "filter", ExprSlotKind.One, "filterWhere"),

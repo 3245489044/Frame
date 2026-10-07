@@ -78,9 +78,12 @@ public static partial class PortImplVocabulary
     /// <summary>依赖形态：<c>new</c> / <c>factory</c> / <c>fake</c> 恰一（三选一）。</summary>
     public static readonly IReadOnlyList<string> DepForms = ["new", "factory", "fake"];
 
-    /// <summary>替身 <c>fake</c> 种类（5；= 执行器支持集，禁列未实现词——结构门放行而执行器无分支即假阳性放行）。</summary>
+    /// <summary>
+    /// 替身 <c>fake</c> 种类（6；= 执行器支持集，禁列未实现词——结构门放行而执行器无分支即假阳性放行）。
+    /// <c>stateful</c> 由 <c>deps[].state</c>（<c>write</c>/<c>read</c> 成员 + <c>key</c> 实参下标）声明内存键值「写后读回」。
+    /// </summary>
     public static readonly IReadOnlyList<string> FakeKinds =
-        ["recording", "counting", "fixed", "sequence", "notExpected"];
+        ["recording", "counting", "fixed", "sequence", "notExpected", "stateful"];
 
     /// <summary>表处置 <c>onBlankFirstKey</c>：<c>fail</c>（缺省）/ <c>skip</c>。</summary>
     public static readonly IReadOnlyList<string> OnBlankFirstKey = ["fail", "skip"];

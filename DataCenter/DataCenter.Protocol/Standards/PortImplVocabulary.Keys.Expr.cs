@@ -21,6 +21,7 @@ public static partial class PortImplVocabulary
         nameof(DepKeys) => DepKeys,
         nameof(FakeCallKeys) => FakeCallKeys,
         nameof(FakeCaptureKeys) => FakeCaptureKeys,
+        nameof(FakeStateKeys) => FakeStateKeys,
         nameof(CallKeys) => CallKeys,
         nameof(ComposedFieldKeys) => ComposedFieldKeys,
         nameof(StepKeys) => StepKeys,

@@ -60,6 +60,10 @@ internal static partial class ScriptedExprEvaluator
         if (expr.SameReference is { Count: 2 } same) return SameReference(same, scope, input, deps, field);
         if (expr.Coalesce is { Count: 2 } coalesce) return Coalesce(coalesce, scope, input, deps, field);
 
+        if (expr.Capture is { } capture) return Capture(capture, scope, deps, field);
+        if (expr.CaptureCount is { } captureCount) return CaptureCount(captureCount, scope, deps, field);
+        if (expr.FakeCount is { } fakeCount) return FakeCount(fakeCount, scope, deps, field);
+
         if (expr.Collect is { Length: > 0 } collect) return Collect(expr, collect, scope, input, deps, field);
 
         throw new PortBindingViolationException(

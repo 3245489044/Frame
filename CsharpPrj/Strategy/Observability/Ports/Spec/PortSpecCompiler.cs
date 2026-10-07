@@ -181,7 +181,7 @@ public static class PortSpecCompiler
     /// <c>Loop</c> 不写槽（循环变量由执行期入栈管理，<c>Out</c> 仅为形态保留位）。
     /// </para>
     /// </summary>
-    internal static IReadOnlyList<PortInstr> Steps(IReadOnlyList<StepStandard> steps)
+    public static IReadOnlyList<PortInstr> Steps(IReadOnlyList<StepStandard> steps)
     {
         PortGuard.Required(steps, nameof(steps));
 

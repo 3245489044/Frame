@@ -831,8 +831,35 @@ public static partial class StandardJson
             Fold: foldOver,
             FoldAs: foldAs,
             FoldInit: foldInit,
-            FoldStep: foldStep);
+            FoldStep: foldStep,
+            Capture: ReadCapture(element),
+            CaptureCount: ReadCaptureCount(element),
+            FakeCount: ReadFakeCount(element));
     }
+
+    /// <summary>捕获取值节点读取（收敛 3）：<c>capture:{ dep, member?, at?, index?, path?, orNull? }</c>。</summary>
+    private static CaptureExprStandard? ReadCapture(JsonElement element)
+        => element.TryGetProperty("capture", out var capture) && capture.ValueKind == JsonValueKind.Object
+            ? new CaptureExprStandard(
+                Int(capture, "dep"),
+                Str(capture, "member"),
+                Str(capture, "at") ?? "first",
+                Int(capture, "index"),
+                Str(capture, "path"),
+                Bool(capture, "orNull") ?? false)
+            : null;
+
+    /// <summary>捕获计数节点读取（收敛 3）：<c>captureCount:{ dep, member? }</c>。</summary>
+    private static CaptureCountExprStandard? ReadCaptureCount(JsonElement element)
+        => element.TryGetProperty("captureCount", out var count) && count.ValueKind == JsonValueKind.Object
+            ? new CaptureCountExprStandard(Int(count, "dep"), Str(count, "member"))
+            : null;
+
+    /// <summary>调用计数节点读取（收敛 3）：<c>fakeCount:{ dep, member, key? }</c>。</summary>
+    private static FakeCountExprStandard? ReadFakeCount(JsonElement element)
+        => element.TryGetProperty("fakeCount", out var count) && count.ValueKind == JsonValueKind.Object
+            ? new FakeCountExprStandard(Int(count, "dep"), Str(count, "member"), Str(count, "key"))
+            : null;
 
     /// <summary>
     /// 拼接段读取（W19 文本模板）：<c>concat</c> 项为表达式对象时 = 无条件段；为 <c>{ expr, when }</c> 对象时 =

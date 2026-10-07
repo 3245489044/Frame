@@ -568,7 +568,12 @@
         "step": { "type": "object" },
         "method": { "type": "string" },
         "args": { "type": "array" },
-        "rebind": { "type": "boolean" }
+        "rebind": { "type": "boolean" },
+        "capture": { "type": "object" },
+        "member": { "type": "string" },
+        "at": { "type": "string" },
+        "captureCount": { "type": "object" },
+        "fakeCount": { "type": "object" }
       },
       "additionalProperties": false
     }

@@ -71,6 +71,9 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="FoldAs">折叠累积值槽名。</param>
 /// <param name="FoldInit">折叠初值来源。</param>
 /// <param name="FoldStep">折叠累积调用声明（<c>rebind</c> 缺省 true）。</param>
+/// <param name="Capture">替身捕获取值算子（见 <see cref="CaptureExprStandard"/>）。</param>
+/// <param name="CaptureCount">替身捕获计数算子（见 <see cref="CaptureCountExprStandard"/>）。</param>
+/// <param name="FakeCount">替身调用计数算子（见 <see cref="FakeCountExprStandard"/>）。</param>
 public sealed record ExprStandard(
     ValueSourceStandard? Source = null,
     string? Path = null,
@@ -133,4 +136,38 @@ public sealed record ExprStandard(
     ExprStandard? Fold = null,
     string? FoldAs = null,
     ValueSourceStandard? FoldInit = null,
-    ChainStandard? FoldStep = null);
+    ChainStandard? FoldStep = null,
+    CaptureExprStandard? Capture = null,
+    CaptureCountExprStandard? CaptureCount = null,
+    FakeCountExprStandard? FakeCount = null);
+
+/// <summary>
+/// 替身**捕获取值**算子（收敛 3 代数节点）：从依赖替身的调用捕获记录中取某次调用的实参
+/// （取代组合族逐 select 私有键 <c>capturedFirst</c>/<c>capturedLast</c>/<c>capturedFirstOrNull</c>/
+/// <c>capturedLastOrNull</c>）。
+/// <para><see cref="Index"/> 为**节点参数**（实参下标），非顶层键——取值法扩展不再新增顶层键。</para>
+/// </summary>
+/// <param name="Dep">替身依赖下标。</param>
+/// <param name="Member">被捕获的成员名（空 = 全部成员）。</param>
+/// <param name="At">取首次（<c>first</c>，缺省）或末次（<c>last</c>）调用。</param>
+/// <param name="Index">实参下标（缺省 0 = 首个实参）。</param>
+/// <param name="Path">实参上的属性路径（空 = 实参本身）。</param>
+/// <param name="OrNull">无捕获 / 零参 / 越界时取 null（缺省 = fail-fast）。</param>
+public sealed record CaptureExprStandard(
+    int? Dep = null,
+    string? Member = null,
+    string At = "first",
+    int? Index = null,
+    string? Path = null,
+    bool OrNull = false);
+
+/// <summary>替身**捕获计数**算子（收敛 3 代数节点；取代组合族 <c>capturedCount</c>）。</summary>
+/// <param name="Dep">替身依赖下标。</param>
+/// <param name="Member">被捕获的成员名（空 = 全部成员）。</param>
+public sealed record CaptureCountExprStandard(int? Dep = null, string? Member = null);
+
+/// <summary>替身**调用计数**算子（收敛 3 代数节点；取代组合族 <c>fakeCount</c>）。</summary>
+/// <param name="Dep">替身依赖下标。</param>
+/// <param name="Member">被计数的成员名。</param>
+/// <param name="Key">主键（空 = 不按键聚合）。</param>
+public sealed record FakeCountExprStandard(int? Dep = null, string? Member = null, string? Key = null);

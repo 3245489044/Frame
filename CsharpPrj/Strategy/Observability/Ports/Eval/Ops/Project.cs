@@ -90,11 +90,7 @@ internal static class PortProjection
 
     /// <summary>依赖取替身实例（dep 必填；缺失 / 越界 / 非替身即抛，防静默取空）。</summary>
     private static object Fake(string portKey, ComposedFieldStandard field, object?[] deps)
-        => field.Dep is { } index && index >= 0 && index < deps.Length && deps[index] is { } fake
-            ? fake
-            : throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的 {field.Select} 字段 '{field.Field}' 缺少可解析的依赖（dep={field.Dep}）");
+        => ScriptedExprEvaluator.ResolveFake(portKey, field.Select, field.Field, field.Dep, deps);
 
     /// <summary>捕获序（G8；<c>method</c> 给出时按成员过滤，空 = 全部成员的调用序）。</summary>
     private static IReadOnlyList<object?[]> Captured(

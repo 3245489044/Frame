@@ -128,6 +128,9 @@ public static partial class PortImplVocabulary
         new("FoldAs", "fold", ExprSlotKind.None),
         new("FoldInit", "fold", ExprSlotKind.Source, "init"),
         new("FoldStep", "fold", ExprSlotKind.Chain, "step", ["method", "args", "rebind"]),
+        new("Capture", null, ExprSlotKind.None, "capture", ["dep", "member", "at", "index", "path", "orNull"]),
+        new("CaptureCount", null, ExprSlotKind.None, "captureCount", ["dep", "member"]),
+        new("FakeCount", null, ExprSlotKind.None, "fakeCount", ["dep", "member", "key"]),
     ];
 
     /// <summary>

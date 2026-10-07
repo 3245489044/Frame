@@ -131,7 +131,7 @@
         "construct": { "$ref": "#/$defs/new" },
         "new": { "$ref": "#/$defs/new" },
         "delegate": { "$ref": "#/$defs/delegate" },
-        "json": { "type": "boolean" },
+        "json": { "type": ["boolean", "object"] },
         "content": { "type": "string" }
       },
       "additionalProperties": false
@@ -530,7 +530,7 @@
         "new": { "type": "object" },
         "named": { "type": "string" },
         "delegate": { "type": "object" },
-        "json": { "type": "boolean" },
+        "json": { "type": ["boolean", "object"] },
         "content": { "type": "string" },
         "count": { "type": "object" },
         "notNull": { "type": "object" },

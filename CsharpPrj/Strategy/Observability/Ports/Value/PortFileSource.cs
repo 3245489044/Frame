@@ -73,13 +73,19 @@ internal static class PortFileSource
     /// <summary>仓库相对路径 → 绝对路径（绝对路径 / 越界 / 不存在即抛）。</summary>
     private static string Resolve(string relativePath, string portKey, string context)
     {
-        if (Path.IsPathRooted(relativePath))
+        // C1：资源坐标 `repo://<仓相对路径>` 与裸仓相对路径等价（方案头糖，非新语义）。
+        const string scheme = "repo://";
+        var path = relativePath.StartsWith(scheme, StringComparison.Ordinal)
+            ? relativePath.Substring(scheme.Length)
+            : relativePath;
+
+        if (Path.IsPathRooted(path))
             throw new PortBindingViolationException(
                 portKey,
                 $"端口 '{portKey}' 的 {context} 的 file.path '{relativePath}' 须为仓库相对路径（禁绝对路径）");
 
         var root = Root;
-        var full = Path.GetFullPath(Path.Combine(root, relativePath));
+        var full = Path.GetFullPath(Path.Combine(root, path));
 
         if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new PortBindingViolationException(

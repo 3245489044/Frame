@@ -30,7 +30,14 @@
     #   NodeCarriers,History,Productions}、Launcher）· Config/{nodes,instances} · Frame/PowerShellScript/**
     #   · Environment/CentralTest/AgentTest/**，均在新单 allowSet 内；git 干净（无在途改动）⇒ 切换不误判。
     #   恢复 = 回填 v8 的 Value（上方注释保留 process 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.6\2026-10-06-会话域单节点化.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v10（2026-10-07）：单指针切换至「AgentTest 端口层消除（S2 完成 → E2 框架能力 → S4 删面）」
+    #   计划授权单（active=[E0,CHAIN,E2,MIG,S4]）。切换理由 = 本系列改动落在
+    #   Environment/CentralTest/**（SpecSourceGen / Tools / AgentTest / Get-VerifyPlan）·
+    #   Frame/DataCenter/** · Frame/CsharpPrj/Strategy/Observability/** · Frame/PowerShellScript/**
+    #   · Docs/analysis/2026/10/10.7|10.4/**，均在新单 allowSet 内；git 干净（Frame/Projects 子模块无在途
+    #   改动）⇒ 切换不误判。会话域单节点化 S-0..S-4/K 已收口，其授权单文件内容保留不变。
+    #   恢复 = 回填 v9 的 Value（上方注释保留会话域单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.7\2026-10-07-AgentTest-端口层消除-E2与S4.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

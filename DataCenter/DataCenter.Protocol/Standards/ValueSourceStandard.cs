@@ -34,10 +34,13 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Construct">内嵌构造声明（本实参的值 = 构造结果）。</param>
 /// <param name="Named">命名实参（按形参名绑定而非位置）。</param>
 /// <param name="Delegate">委托工厂声明（<c>from:delegate</c> 时按本声明构造委托）。</param>
-/// <param name="Json">仅 <c>from:file</c> 用：按 JSON 解析文件内容（等价 <c>content:"json"</c>；与 <c>content</c> 矛盾即抛）。</param>
+/// <param name="Json">仅 <c>from:file</c> 用：按 JSON 解析文件内容（等价 <c>content:"json"</c>；与 <c>content</c> 矛盾即抛）；
+/// 对象形（<c>{ text, options }</c>）见 <see cref="JsonText"/> / <see cref="JsonOptions"/>（C3）。</param>
 /// <param name="Content">仅 <c>from:file</c> 用：内容形态（<c>text</c> 缺省 / <c>lines</c> / <c>json</c>）。</param>
 /// <param name="ListItems">列表字面量元素来源（仅 <c>from:list</c>；声明序 = 元素序）。</param>
 /// <param name="Pairs">字典字面量键值对（仅 <c>from:map</c>；声明序 = 写入序）。</param>
+/// <param name="JsonText">仅 <c>json</c> 对象形用：JSON 文本值源（C3；配合 <see cref="JsonOptions"/> 与 <c>type</c> 反序列化）。</param>
+/// <param name="JsonOptions">仅 <c>json</c> 对象形用：<see cref="JsonSerializerOptions"/> 值源（C3；求值结果非该类型即抛）。</param>
 public sealed record ValueSourceStandard(
     string? From = null,
     int? Index = null,
@@ -68,7 +71,9 @@ public sealed record ValueSourceStandard(
     bool? Json = null,
     string? Content = null,
     IReadOnlyList<ValueSourceStandard>? ListItems = null,
-    IReadOnlyList<PairStandard>? Pairs = null);
+    IReadOnlyList<PairStandard>? Pairs = null,
+    ValueSourceStandard? JsonText = null,
+    ValueSourceStandard? JsonOptions = null);
 
 /// <summary>字典字面量键值对（<c>from:map</c> 的 <c>pairs</c> 项；键 / 值各自为取值来源）。</summary>
 /// <param name="Key">键来源（多为字符串字面量）。</param>

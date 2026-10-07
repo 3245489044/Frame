@@ -83,6 +83,9 @@ internal static class ScriptedValue
             case "delegate":
                 return DelegateValue(spec, scope, input, deps, context);
 
+            case null or "" when spec.JsonText is not null:
+                return JsonDecode(spec, scope, input, deps, context);
+
             case null or "" when spec.Construct is not null:
                 return ScriptedConstruction.Build(spec.Construct!, scope, input, deps, context);
 
@@ -195,6 +198,46 @@ internal static class ScriptedValue
         var mode = PortFileSource.ModeOf(spec, scope.PortKey, context);
 
         return PortFileSource.Read(path, mode, scope.PortKey, context);
+    }
+
+    /// <summary>
+    /// JSON 文本反序列化（C3：<c>json:{ text:&lt;值源&gt;, options:&lt;值源&gt; }</c> + <c>type</c>/<c>genericArgs</c>）：
+    /// 取 <c>text</c> 值源的 JSON 文本，按 <c>options</c> 值源给出的 <see cref="JsonSerializerOptions"/> 反序列化为
+    /// <c>type</c> 指定类型；缺 <c>type</c> / 文本为 null / options 类型不符 / 结果为 null / 解析失败一律 fail-fast。
+    /// </summary>
+    private static object? JsonDecode(
+        ValueSourceStandard spec, EvalScope scope, IPortInput input, object?[] deps, string context)
+    {
+        var portKey = scope.PortKey;
+
+        if (spec.Type is not { Length: > 0 } typeName)
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的 json 文本形缺 type（反序列化目标类型全名）");
+
+        var target = ComposedDeps.ResolveType(typeName, spec.GenericArgs);
+
+        var text = PortValues.Text(Resolve(spec.JsonText!, scope, input, deps, $"{context} 的 json 文本"))
+            ?? throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的 json 文本为 null");
+
+        var resolved = Resolve(spec.JsonOptions!, scope, input, deps, $"{context} 的 json options");
+        if (resolved is not JsonSerializerOptions options)
+            throw new PortBindingViolationException(
+                portKey,
+                $"端口 '{portKey}' 的 {context} 的 json options 求值结果不是 JsonSerializerOptions" +
+                $"（实为 {resolved?.GetType().Name ?? "null"}）");
+
+        try
+        {
+            return JsonSerializer.Deserialize(text, target, options)
+                ?? throw new PortBindingViolationException(
+                    portKey, $"端口 '{portKey}' 的 {context} 的 json 文本反序列化为 null");
+        }
+        catch (JsonException ex)
+        {
+            throw new PortBindingViolationException(
+                portKey, $"端口 '{portKey}' 的 {context} 的 json 文本反序列化失败（{target.Name}）：{ex.Message}");
+        }
     }
 
 

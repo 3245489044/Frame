@@ -474,6 +474,9 @@ public static partial class StandardJson
     /// <summary>步骤同层修饰键（值源步骤形态下与值源键并存：collect / when / as）。</summary>
     private static readonly IReadOnlyList<string> StepModifierKeys = ["collect", "when", "as"];
 
+    /// <summary><c>json</c> 对象形内层键（C3：<c>json:{ text, options }</c>——文本值源 + <c>JsonSerializerOptions</c> 值源）。</summary>
+    private static readonly IReadOnlyList<string> JsonFormKeys = ["text", "options"];
+
     /// <summary>
     /// 主动抛出步骤读取（<c>script[].throw</c>；G3）：<c>{ type, message? }</c>；
     /// 缺 <c>type</c> 即抛（防声明残缺静默绑定）。
@@ -785,6 +788,8 @@ public static partial class StandardJson
             value = shortLiteral.Clone();
         }
 
+        var jsonForm = ReadJsonForm(portKey, element, context);
+
         return new ValueSourceStandard(
             from, index, key, dep,
             Str(element, "path"),
@@ -809,7 +814,9 @@ public static partial class StandardJson
             Construct: ReadConstruct(portKey, element),
             Named: Str(element, "named"),
             Delegate: ReadDelegate(portKey, element, context),
-            Json: Bool(element, "json"),
+            Json: jsonForm.Flag,
+            JsonText: jsonForm.Text,
+            JsonOptions: jsonForm.Options,
             Content: Str(element, "content"),
             ListItems: listItems,
             Pairs: pairs);
@@ -836,6 +843,37 @@ public static partial class StandardJson
             StrList(declared, "parameters"),
             Str(declared, "collect"),
             Bool(declared, "await") ?? false);
+    }
+
+    /// <summary>
+    /// <c>json</c> 键三态读取（C3）：布尔（存量形态，缺省 null）｜对象 <c>{ text, options }</c>（文本形——
+    /// <c>text</c> / <c>options</c> 均为值源，缺一即抛；形态非法即抛，不静默取默认选项）。
+    /// </summary>
+    private static (bool? Flag, ValueSourceStandard? Text, ValueSourceStandard? Options) ReadJsonForm(
+        string portKey, JsonElement element, string context)
+    {
+        if (!element.TryGetProperty("json", out var declared)) return (null, null, null);
+
+        if (declared.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            return (declared.GetBoolean(), null, null);
+
+        if (declared.ValueKind != JsonValueKind.Object)
+            throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {context} 的 json 须为布尔或对象（{{ text, options }}）");
+
+        EnsureKnownKeys($"{context}.json", declared, JsonFormKeys);
+
+        var text = declared.TryGetProperty("text", out var textSource) && textSource.ValueKind == JsonValueKind.Object
+            ? ReadArg(portKey, textSource, $"{context}.json.text")
+            : throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {context}.json 缺 text（JSON 文本值源）");
+
+        var options = declared.TryGetProperty("options", out var optionSource) && optionSource.ValueKind == JsonValueKind.Object
+            ? ReadArg(portKey, optionSource, $"{context}.json.options")
+            : throw new StandardViolationException(
+                $"[port:standard] 端口 '{portKey}' 的 {context}.json 缺 options（JsonSerializerOptions 值源）");
+
+        return (null, text, options);
     }
 
     /// <summary>实参内嵌构造读取（W6：<c>construct</c> / <c>new</c> 子对象；缺省 null）。</summary>

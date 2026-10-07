@@ -12,6 +12,11 @@
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 | `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 | `Locate-Build.ps1` | `Environment\CentralTest\Get-VerifyPlan.ps1` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
+| `Get-SpecChain.ps1` | `Environment\CentralTest\Tools\Get-SpecChain.ps1` | 作者面 · 只读（链/引用清单 + 内联载荷去重候选；D4′ 分析前置） |
+| `New-SpecChain.ps1` | `Environment\CentralTest\Tools\New-SpecChain.ps1` | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |
+| `Use-SpecChain.ps1` | `Environment\CentralTest\Tools\Use-SpecChain.ps1` | 作者面 · 切链（匹配用例的内联 → `use <链>`；DryRun 缺省 + 三类自检） |
+| `Set-SpecChain.ps1` | `Environment\CentralTest\Tools\Set-SpecChain.ps1` | 作者面 · 改链载荷（就地更新；幂等 + DryRun 缺省） |
+| `ForEach-SpecCase.ps1` | `Environment\CentralTest\Tools\ForEach-SpecCase.ps1` | 作者面 · 只读遍历（用例选择器 + 调用形态标注） |
 | `Invoke-Verify.ps1` | `Environment\CentralTest\Invoke-Verify.ps1` | P2 唯一验证命令（bake→test→gate 一次完成） |
 
 ## 用法
@@ -95,6 +100,34 @@
 .\Locate-Build.ps1 -Changed 'Frame\PowerShellScript\Operation\DSL\Check-VerifySingleShot.ps1' -Json
 ```
 分类面 = 仓库相对路径前缀（结构事实）；未命中判 `Unmapped`（fail-loud，≠「全部」，禁静默全量）。禁 `dotnet build` 全量烘 / 逐工程试探（G6）。
+
+### 作者面（链清单 · 只读 · 诊断相位）
+```powershell
+# 链/引用清单 + 内联载荷去重候选（供 D4′ 抽链前定标；零写盘）
+.\Get-SpecChain.ps1 -Explain
+
+# 自检（正/负对照，防解析器空转）
+.\Get-SpecChain.ps1 -Check
+
+# 清单 JSON 出口（显式才写盘）
+.\Get-SpecChain.ps1 -Out 'Environment\CentralTest\BuildOutput\Debug\specchain.json'
+```
+只读 / 幂等 / 零写盘；不产 pass/fail，**不作放行依据**。写侧（`New-/Use-/Set-SpecChain`）另批。
+
+```powershell
+# 抽链（内联 invocation → chain + use；DryRun）
+.\New-SpecChain.ps1 -Suite 'Environment\...\x.specs' -Name probe
+
+# 切链（把匹配用例切到既有链）
+.\Use-SpecChain.ps1 -Suite 'Environment\...\x.specs' -Chain probe
+
+# 改链载荷（就地更新）
+.\Set-SpecChain.ps1 -Suite 'Environment\...\x.specs' -Chain probe -From case-a
+
+# 只读遍历（用例选择器 + 形态标注）
+.\ForEach-SpecCase.ps1 -Shape inline
+```
+写侧工具缺省 `-DryRun`（零写盘），`-Write` 落盘；均带「未改写 / 悬空 / 空产物」三类结构自检。
 
 ### 验证（P2 唯一命令）
 ```powershell

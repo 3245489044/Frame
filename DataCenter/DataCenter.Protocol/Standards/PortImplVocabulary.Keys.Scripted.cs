@@ -43,8 +43,9 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> DelegateKeys =
         ["kind", "steps", "result", "parameters", "collect", "await"];
 
-    /// <summary>进入期留存键（<see cref="SaveStandard"/>）。</summary>
-    public static readonly IReadOnlyList<string> SaveKeys = ["slot", "type", "key", "genericArgs"];
+    /// <summary>进入期留存键（<see cref="SaveStandard"/>；<c>set</c>/<c>restore</c> = NG-2 进入期设值 + 退出期自动还原）。</summary>
+    public static readonly IReadOnlyList<string> SaveKeys =
+        ["slot", "type", "key", "genericArgs", "set", "restore"];
 
     /// <summary>收集声明键（<see cref="CollectStandard"/>；裸字符串 = 槽名的简写形态）。</summary>
     public static readonly IReadOnlyList<string> CollectKeys = ["slot", "from"];
@@ -53,8 +54,9 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> ScopeKeys =
         ["kind", "as", "prefix", "files", "invoke", "save", "open", "close"];
 
-    /// <summary>作用域预置文件键（<see cref="FileStandard"/>）。</summary>
-    public static readonly IReadOnlyList<string> FileKeys = ["name", "dir", "from", "content", "when"];
+    /// <summary>作用域预置文件键（<see cref="FileStandard"/>；<c>batch</c>/<c>as</c> = NG-1 按声明生成 N 文件）。</summary>
+    public static readonly IReadOnlyList<string> FileKeys =
+        ["name", "dir", "from", "content", "when", "batch", "as"];
 
     /// <summary>载体声明键（<see cref="DeliverStandard"/>）。</summary>
     public static readonly IReadOnlyList<string> DeliverKeys =

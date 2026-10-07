@@ -363,7 +363,9 @@
         "slot": { "type": "string" },
         "type": { "type": "string" },
         "key": { "type": "string" },
-        "genericArgs": { "type": "array", "items": { "type": "string" } }
+        "genericArgs": { "type": "array", "items": { "type": "string" } },
+        "set": { "$ref": "#/$defs/valueSource" },
+        "restore": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -395,11 +397,18 @@
       "type": "object",
       "required": ["name"],
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/expr" }
+          ]
+        },
         "dir": { "$ref": "#/$defs/expr" },
         "from": { "$ref": "#/$defs/valueSource" },
         "content": { "$ref": "#/$defs/expr" },
-        "when": { "$ref": "#/$defs/expr" }
+        "when": { "$ref": "#/$defs/expr" },
+        "batch": { "$ref": "#/$defs/valueSource" },
+        "as": { "type": "string" }
       },
       "additionalProperties": false
     },

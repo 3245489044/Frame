@@ -18,6 +18,21 @@ public sealed class InMemoryNodeStore : INodeStore
     private readonly object _lock = new();
     private long _seq;
 
+    /// <summary>已落库节点（键 = NodeKey；只读视图，供对账 / 种子；每次读取快照）。</summary>
+    public IReadOnlyDictionary<string, NodeRecord> Nodes
+    {
+        get
+        {
+            lock (_lock) return _nodes.ToDictionary(n => n.NodeKey, n => n, StringComparer.Ordinal);
+        }
+    }
+
+    /// <summary>节点是否已落库。</summary>
+    public bool Contains(string nodeKey)
+    {
+        lock (_lock) return _nodes.Any(n => string.Equals(n.NodeKey, nodeKey, StringComparison.Ordinal));
+    }
+
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     public Task<long> PutAsync(NodeRecord node, CancellationToken ct = default)

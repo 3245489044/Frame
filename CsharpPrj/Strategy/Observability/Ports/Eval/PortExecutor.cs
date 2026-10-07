@@ -366,11 +366,13 @@ internal sealed class PortExecutor
                     _portKey, $"端口 '{_portKey}' 的 using 作用域 '{scope.As}' 缺 invoke（进入期调用）");
 
             if (scope.Kind == "restore"
-                && scope.Open is not { Count: > 0 } && scope.Close is not { Count: > 0 })
+                && scope.Open is not { Count: > 0 } && scope.Close is not { Count: > 0 }
+                && !(scope.Save ?? Array.Empty<SaveStandard>()).Any(save => save.Set is not null || save.Restore))
             {
                 throw new PortBindingViolationException(
                     _portKey,
-                    $"端口 '{_portKey}' 的 restore 作用域 '{scope.As}' 的 open / close 步骤均为空（无还原语义）");
+                    $"端口 '{_portKey}' 的 restore 作用域 '{scope.As}' 的 open / close 步骤均为空" +
+                    "且 save 未声明 set / restore（无还原语义）");
             }
 
             if (scope.Kind != "tempDir" && scope.Files is { Count: > 0 })
@@ -379,11 +381,34 @@ internal sealed class PortExecutor
                     $"端口 '{_portKey}' 的作用域 '{scope.As}'（kind='{scope.Kind}'）不支持 files（预置文件仅 tempDir）");
 
             foreach (var file in scope.Files ?? Array.Empty<FileStandard>())
+            {
+                if (file.Batch is not null)
+                {
+                    if (file.Name is not null || file.NameExpr is null)
+                        throw new PortBindingViolationException(
+                            _portKey,
+                            $"端口 '{_portKey}' 的作用域 '{scope.As}' 的文件批形态非法" +
+                            "（batch 与 name 字面量互斥；批量须声明 name 表达式）");
+
+                    if (file.From is not null)
+                        throw new PortBindingViolationException(
+                            _portKey,
+                            $"端口 '{_portKey}' 的作用域 '{scope.As}' 的文件批不接受 from（逐元素内容用 content 表达式）");
+
+                    continue;
+                }
+
+                if (file.NameExpr is not null)
+                    throw new PortBindingViolationException(
+                        _portKey,
+                        $"端口 '{_portKey}' 的作用域 '{scope.As}' 的文件项声明了 name 表达式但缺 batch（批量形态须给 batch）");
+
                 if (string.IsNullOrWhiteSpace(file.Name) || file.Name.IndexOfAny(['\\', '/', ':']) >= 0)
                     throw new PortBindingViolationException(
                         _portKey,
                         $"端口 '{_portKey}' 的作用域 '{scope.As}' 的文件名 '{file.Name}' 非法" +
                         "（须非空 ∧ 不含路径分隔符；子目录用 dir 表达式声明）");
+            }
         }
     }
 
@@ -450,25 +475,49 @@ internal sealed class PortExecutor
     }
 
     /// <summary>
-    /// 静态槽还原作用域（W27：<c>restore</c>）：留存静态成员当前值 → 执行进入期步骤 → 退出（含异常路径）执行退出期步骤。
+    /// 静态槽还原作用域（W27 / NG-2：<c>restore</c>）：留存静态成员当前值 → （声明 <c>set</c> 时）进入期设值 →
+    /// 执行进入期步骤 → 退出（含异常路径）执行退出期步骤 → （声明 <c>restore</c> 时）自动写回留存值。
     /// <para>作用域步骤**不得引用依赖**（依赖在其后构建），引用即抛；这是刻意的顺序约束（依赖构建可能需作用域内路径）。</para>
     /// </summary>
     private Action EnterRestore(ScopeStandard declared, EvalScope scope, IPortInput input)
     {
+        var saved = new List<(SaveStandard Declared, MemberInfo Member)>();
+
         foreach (var save in declared.Save ?? Array.Empty<SaveStandard>())
         {
             var type = ComposedDeps.ResolveType(save.Type, save.GenericArgs);
             var member = ReflectivePortResolver.ResolveMember(type, _portKey, save.Key, isStatic: true);
 
             scope.Set(save.Slot, ReflectivePortResolver.ReadMember(member, instance: null));
+            saved.Add((save, member));
+
+            if (save.Set is { } declaredValue)
+            {
+                var context = $"作用域 '{declared.As}' 的 save 项 '{save.Slot}'（进入期设值）";
+                ReflectivePortResolver.WriteMember(member, instance: null,
+                    ScriptedValue.ResolveTyped(
+                        declaredValue, ReflectivePortResolver.MemberType(member), scope, input, NoDeps, context));
+            }
         }
 
         Run(declared.Open ?? Array.Empty<StepStandard>(), scope, input, NoDeps);
 
-        return () => Run(declared.Close ?? Array.Empty<StepStandard>(), scope, input, NoDeps);
+        return () =>
+        {
+            Run(declared.Close ?? Array.Empty<StepStandard>(), scope, input, NoDeps);
+
+            foreach (var (save, member) in saved)
+            {
+                if (!save.Restore) continue;
+                ReflectivePortResolver.WriteMember(member, instance: null,
+                    scope.Slot(save.Slot, $"作用域 '{declared.As}' 的 save 项 '{save.Slot}'（退出期还原）"));
+            }
+        };
     }
 
-    /// <summary>建临时目录作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件；释放 = 递归清理目录。</summary>
+    /// <summary>
+    /// 建临时目录作用域（<c>tempDir</c>）：建目录 → 登记路径 → 按序写预置文件（单件 / 批量 NG-1）；释放 = 递归清理目录。
+    /// </summary>
     private Action EnterTempDir(ScopeStandard declared, EvalScope scope, IPortInput input)
     {
         var prefix = declared.Prefix is { Length: > 0 } name ? name : "spec";
@@ -479,33 +528,75 @@ internal sealed class PortExecutor
 
         foreach (var file in declared.Files ?? Array.Empty<FileStandard>())
         {
-            var context = $"作用域 '{declared.As}' 的文件 '{file.Name}'";
-
-            if (file.When is { } gate
-                && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(gate, scope, input, NoDeps, context)))
+            if (file.Batch is { } batch)
             {
+                var frame = file.As is { Length: > 0 } elementName ? elementName : "item";
+                var source = ScriptedValue.Resolve(
+                    batch, scope, input, NoDeps, $"作用域 '{declared.As}' 的文件批（batch 集合来源）");
+
+                var index = 0;
+                foreach (var element in PortValues.Elements(source))
+                {
+                    scope.Push(frame, element, index);
+                    try
+                    {
+                        var context = $"作用域 '{declared.As}' 的文件批 '{frame}[{index}]'";
+                        var batchName = PortValues.Text(
+                            ScriptedExprEvaluator.Evaluate(file.NameExpr!, scope, input, NoDeps, context));
+                        WriteFile(directory, declared.As, batchName ?? string.Empty, file, scope, input, context);
+                    }
+                    finally
+                    {
+                        scope.Pop();
+                    }
+
+                    index++;
+                }
+
                 continue;
             }
 
-            var root = file.Dir is { } relative
-                ? System.IO.Path.Combine(
-                    directory,
-                    PortValues.Text(
-                        ScriptedExprEvaluator.Evaluate(relative, scope, input, NoDeps, context)) ?? string.Empty)
-                : directory;
-
-            System.IO.Directory.CreateDirectory(root);
-
-            var content = file.Content is { } body
-                ? PortValues.Text(ScriptedExprEvaluator.Evaluate(body, scope, input, NoDeps, context))
-                : file.From is { } from
-                    ? PortValues.Text(ScriptedValue.Resolve(from, scope, input, NoDeps, context))
-                    : null;
-
-            System.IO.File.WriteAllText(System.IO.Path.Combine(root, file.Name), content ?? string.Empty);
+            WriteFile(
+                directory, declared.As, file.Name ?? string.Empty, file, scope, input,
+                $"作用域 '{declared.As}' 的文件 '{file.Name}'");
         }
 
         return () => TryDelete(directory);
+    }
+
+    /// <summary>写单个预置文件（门控 → 子目录表达式 → 内容；文件名须非空且不含路径分隔符，fail-fast）。</summary>
+    private void WriteFile(
+        string directory, string asName, string name, FileStandard file,
+        EvalScope scope, IPortInput input, string context)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(['\\', '/', ':']) >= 0)
+            throw new PortBindingViolationException(
+                _portKey,
+                $"端口 '{_portKey}' 的作用域 '{asName}' 的文件名 '{name}' 非法" +
+                "（须非空 ∧ 不含路径分隔符；子目录用 dir 表达式声明）");
+
+        if (file.When is { } gate
+            && !PortValues.Truthy(ScriptedExprEvaluator.Evaluate(gate, scope, input, NoDeps, context)))
+        {
+            return;
+        }
+
+        var root = file.Dir is { } relative
+            ? System.IO.Path.Combine(
+                directory,
+                PortValues.Text(
+                    ScriptedExprEvaluator.Evaluate(relative, scope, input, NoDeps, context)) ?? string.Empty)
+            : directory;
+
+        System.IO.Directory.CreateDirectory(root);
+
+        var content = file.Content is { } body
+            ? PortValues.Text(ScriptedExprEvaluator.Evaluate(body, scope, input, NoDeps, context))
+            : file.From is { } from
+                ? PortValues.Text(ScriptedValue.Resolve(from, scope, input, NoDeps, context))
+                : null;
+
+        System.IO.File.WriteAllText(System.IO.Path.Combine(root, name), content ?? string.Empty);
     }
 
     /// <summary>释放序列（LIFO 逆序；单个释放失败不掩盖其余释放：先跑完全部释放动作，末尾上抛首个异常）。</summary>

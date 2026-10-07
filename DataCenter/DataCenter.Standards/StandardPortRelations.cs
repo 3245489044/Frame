@@ -144,15 +144,21 @@ public static class StandardPortRelations
         foreach (var scope in scopes)
         {
             if (scope.Invoke is { } invoke) CollectInvoke(invoke, symbols);
-            foreach (var save in scope.Save ?? []) Member(symbols, save.Type, save.Key);
+            foreach (var save in scope.Save ?? [])
+            {
+                Member(symbols, save.Type, save.Key);
+                CollectValueSource(save.Set, symbols);
+            }
             CollectSteps(scope.Open, symbols);
             CollectSteps(scope.Close, symbols);
 
             foreach (var file in scope.Files ?? [])
             {
                 CollectValueSource(file.From, symbols);
+                CollectValueSource(file.Batch, symbols);
                 CollectExpr(file.Dir, symbols);
                 CollectExpr(file.Content, symbols);
+                CollectExpr(file.NameExpr, symbols);
                 CollectExpr(file.When, symbols);
             }
         }

@@ -136,7 +136,11 @@ internal static class StandardNodeWalk
                 {
                     if (scopeFile.From is { } fileFrom) yield return StandardNode.Of(fileFrom);
                     if (scopeFile.Content is { } fileContent) yield return StandardNode.Of(fileContent);
+                    if (scopeFile.Batch is { } fileBatch) yield return StandardNode.Of(fileBatch);
+                    if (scopeFile.NameExpr is { } fileName) yield return StandardNode.Of(fileName);
                 }
+                foreach (var scopeSave in scopeScope.Save ?? [])
+                    if (scopeSave.Set is { } saveSet) yield return StandardNode.Of(saveSet);
                 foreach (var openStep in scopeScope.Open ?? []) yield return StandardNode.Of(openStep);
                 foreach (var closeStep in scopeScope.Close ?? []) yield return StandardNode.Of(closeStep);
                 break;

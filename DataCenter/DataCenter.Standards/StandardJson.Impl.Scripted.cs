@@ -104,7 +104,10 @@ public static partial class StandardJson
         return scopes;
     }
 
-    /// <summary>进入期留存项读取（<c>save:[{ slot, type, key, genericArgs? }]</c>，W27）。</summary>
+    /// <summary>
+    /// 进入期留存项读取（<c>save:[{ slot, type, key, genericArgs?, set?, restore? }]</c>，W27 / NG-2）：
+    /// <c>set</c> = 进入期设值来源（缺省只留存）；<c>restore</c> = 退出期自动写回留存值（含异常路径；缺省 false）。
+    /// </summary>
     private static IReadOnlyList<SaveStandard>? ReadSaves(string portKey, JsonElement scope, string asName)
     {
         if (!scope.TryGetProperty("save", out var declared) || declared.ValueKind != JsonValueKind.Array)
@@ -123,13 +126,22 @@ public static partial class StandardJson
                 ?? throw new StandardViolationException(
                     $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的 save 项 '{slot}' 缺 key（成员名）");
 
-            saves.Add(new SaveStandard(slot, type, key, StrList(item, "genericArgs")));
+            var set = item.TryGetProperty("set", out var declaredSet) && declaredSet.ValueKind == JsonValueKind.Object
+                ? ReadArg(portKey, declaredSet, $"作用域 '{asName}' 的 save 项 '{slot}' 的 set")
+                : null;
+
+            saves.Add(new SaveStandard(
+                slot, type, key, StrList(item, "genericArgs"), set, Bool(item, "restore") ?? false));
         }
 
         return saves;
     }
 
-    /// <summary>作用域预置文件读取（<c>files[]</c>：<c>name</c> / <c>dir</c> / <c>from</c> / <c>content</c> / <c>when</c>）。</summary>
+    /// <summary>
+    /// 作用域预置文件读取（<c>files[]</c>：单件 <c>{name,dir?,from?,content?,when?}</c>｜
+    /// 批量 <c>{name(表达式),batch,as?,dir?,from?,content?,when?}</c>，NG-1）。
+    /// 两形态互斥：给 <c>batch</c> ⇒ <c>name</c> 须为表达式（逐元素）；否则 <c>name</c> 须为字面量。
+    /// </summary>
     private static IReadOnlyList<FileStandard>? ReadFiles(string portKey, JsonElement scope, string asName)
     {
         if (!scope.TryGetProperty("files", out var declared) || declared.ValueKind != JsonValueKind.Array)
@@ -138,24 +150,45 @@ public static partial class StandardJson
         var files = new List<FileStandard>();
         foreach (var item in declared.EnumerateArray())
         {
-            var name = Str(item, "name")
-                ?? throw new StandardViolationException(
-                    $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的文件项缺 name（文件名）");
+            var batch = item.TryGetProperty("batch", out var declaredBatch) && declaredBatch.ValueKind == JsonValueKind.Object
+                ? ReadArg(portKey, declaredBatch, $"作用域 '{asName}' 的文件批 batch")
+                : null;
 
+            string? name = null;
+            ExprStandard? nameExpr = null;
+            if (batch is null)
+            {
+                name = Str(item, "name")
+                    ?? throw new StandardViolationException(
+                        $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的文件项缺 name（文件名）");
+            }
+            else
+            {
+                nameExpr = item.TryGetProperty("name", out var perElement) && perElement.ValueKind == JsonValueKind.Object
+                    ? ReadExpr(portKey, perElement, $"作用域 '{asName}' 的文件批 name（逐元素文件名表达式）")
+                    : throw new StandardViolationException(
+                        $"[port:standard] 端口 '{portKey}' 的作用域 '{asName}' 的文件批缺 name" +
+                        "（逐元素文件名表达式；批量形态 name 须为表达式）");
+            }
+
+            var label = name ?? "(batch)";
             var from = item.TryGetProperty("from", out var declaredFrom) && declaredFrom.ValueKind == JsonValueKind.Object
-                ? ReadArg(portKey, declaredFrom, $"作用域 '{asName}' 的文件 '{name}' 的 from")
+                ? ReadArg(portKey, declaredFrom, $"作用域 '{asName}' 的文件 '{label}' 的 from")
                 : null;
 
             files.Add(new FileStandard(
                 name,
-                item.TryGetProperty("dir", out var dir) ? ReadExpr(portKey, dir, $"作用域 '{asName}' 的文件 '{name}' 的 dir") : null,
+                item.TryGetProperty("dir", out var dir) ? ReadExpr(portKey, dir, $"作用域 '{asName}' 的文件 '{label}' 的 dir") : null,
                 from,
                 item.TryGetProperty("content", out var content)
-                    ? ReadExpr(portKey, content, $"作用域 '{asName}' 的文件 '{name}' 的 content")
+                    ? ReadExpr(portKey, content, $"作用域 '{asName}' 的文件 '{label}' 的 content")
                     : null,
                 item.TryGetProperty("when", out var gate)
-                    ? ReadExpr(portKey, gate, $"作用域 '{asName}' 的文件 '{name}' 的 when")
-                    : null));
+                    ? ReadExpr(portKey, gate, $"作用域 '{asName}' 的文件 '{label}' 的 when")
+                    : null,
+                batch,
+                Str(item, "as"),
+                nameExpr));
         }
 
         return files;

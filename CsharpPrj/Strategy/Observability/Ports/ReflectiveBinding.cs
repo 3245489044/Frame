@@ -404,6 +404,35 @@ internal static class ReflectivePortResolver
             $"成员 '{member.DeclaringType?.Name}.{member.Name}' 不是可读属性 / 字段（实际 {member.GetType().Name}）"),
     };
 
+    /// <summary>成员类型（属性 / 字段；与 <see cref="ResolveMember"/> 的产出域一致）。</summary>
+    internal static Type MemberType(MemberInfo member) => member switch
+    {
+        PropertyInfo property => property.PropertyType,
+        FieldInfo field => field.FieldType,
+        _ => throw new InvalidOperationException(
+            $"成员 '{member.DeclaringType?.Name}.{member.Name}' 不是属性 / 字段（实际 {member.GetType().Name}）"),
+    };
+
+    /// <summary>
+    /// 成员写入唯一入口（属性优先、字段；静态成员 <paramref name="instance"/> 传 null）：
+    /// 供 <c>restore</c> 作用域的进入期设值 / 退出期自动还原（NG-2）共用。
+    /// </summary>
+    internal static void WriteMember(MemberInfo member, object? instance, object? value)
+    {
+        switch (member)
+        {
+            case PropertyInfo property:
+                property.SetValue(instance, value);
+                return;
+            case FieldInfo field:
+                field.SetValue(instance, value);
+                return;
+            default:
+                throw new InvalidOperationException(
+                    $"成员 '{member.DeclaringType?.Name}.{member.Name}' 不是可写属性 / 字段（实际 {member.GetType().Name}）");
+        }
+    }
+
     /// <summary>目标形参的默认值（值类型 → 默认实例；<c>CancellationToken</c> → None；引用类型 → null）。</summary>
     internal static object? DefaultFor(Type type)
         => type == typeof(CancellationToken)

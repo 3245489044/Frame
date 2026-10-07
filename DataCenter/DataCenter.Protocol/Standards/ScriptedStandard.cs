@@ -156,11 +156,16 @@ public sealed record DelegateStandard(
 /// <param name="Type">成员所属类型全名。</param>
 /// <param name="Key">成员名（属性优先、回落字段）。</param>
 /// <param name="GenericArgs">类型泛型闭合实参（开放泛型类型用）。</param>
+/// <param name="Set">进入期设值来源（NG-2；缺省 = 只留存不设值，行为同 W27）。</param>
+/// <param name="Restore">退出期自动还原（NG-2；true = 把 <see cref="Slot"/> 留存值写回成员，
+/// 含异常路径；缺省 false = 只留存，由 <see cref="ScopeStandard.Close"/> 步骤显式还原）。</param>
 public sealed record SaveStandard(
     string Slot,
     string Type,
     string Key,
-    IReadOnlyList<string>? GenericArgs = null);
+    IReadOnlyList<string>? GenericArgs = null,
+    ValueSourceStandard? Set = null,
+    bool Restore = false);
 
 /// <summary>
 /// 收集声明（标准框架通用化重构 §2.2 第 15 项；对应内核 <c>ScriptedCollectSpec</c>）：

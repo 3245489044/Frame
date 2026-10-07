@@ -42,6 +42,13 @@ public interface IPortCatalog
     /// <summary>替换已登记端口的绑定（测试侧替身注入；未登记抛 <see cref="PortNotRegisteredException"/>）。</summary>
     void Replace(string portKey, IPortBinding binding);
 
+    /// <summary>
+    /// 装配期记录装饰（**无契约登记点**调用的单一记录入口，如内联 invocation）。
+    /// 默认实现 = 直通（不记账；既有实现零回归），<see cref="PortCatalog"/> 覆写为
+    /// 「记录（最外层）→ 可选观测装饰器 → 实际绑定」的唯一实现（账目单一写入）。
+    /// </summary>
+    IPortBinding Decorate(string portKey, IPortBinding binding) => binding;
+
     /// <summary>已绑定端口的契约（按键 Ordinal 升序）；边界键集全量为 <see cref="IBoundaryContractRegistry.Contracts"/>。</summary>
     IReadOnlyList<BoundaryContract> Contracts { get; }
 

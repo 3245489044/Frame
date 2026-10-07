@@ -134,6 +134,10 @@ public sealed class SpecPortHost : IPortHost, IDisposable
     {
         PortGuard.Required(request, nameof(request));
 
+        // 内联 invocation（S2）：步骤自带标准片段 ⇒ 现场装载 + 编译 + 求值，不经目录（存量按键路径零回归）。
+        if (request.InlineStandardJson is { Length: > 0 } inlineJson)
+            return InvokeInline(inlineJson, request);
+
         var portKey = ResolveStep(request.PortKey);
 
         if (Frozen.TryGetValue(portKey, out var frozenReason))
@@ -153,6 +157,34 @@ public sealed class SpecPortHost : IPortHost, IDisposable
         {
             // 端口自身异常统一带端口键归因（调用记录已按 errorClass 记一条，见 CallLog）。
             throw new PortBindingViolationException(portKey, $"端口调用失败：{ex.GetType().Name}：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 内联 invocation 执行（S2 <c>when invoke</c>）：标准片段的解析与校验唯一归标准装载层
+    /// （<see cref="SpecPortStandards.Projection"/> 注入点），本件只做「已装载标准 → 编译 → 求值」。
+    /// <para>片段须恰含 **1** 个端口条目（多于/少于即抛，防静默取首条）；条目不可求值由
+    /// <see cref="PortBinding.RequireBinding"/> 按既有诊断 fail-fast。</para>
+    /// </summary>
+    private object? InvokeInline(string inlineJson, PortInvocationRequest request)
+    {
+        var loaded = SpecPortStandards.Projection(inlineJson);
+        if (loaded.Count != 1)
+            throw new ObservabilityException(
+                $"[spec:port] 内联 invocation 的标准片段须恰含 1 个端口条目，实得 {loaded.Count}");
+
+        var standard = System.Linq.Enumerable.First(loaded.Values);
+
+        try
+        {
+            var binding = PortBinding.FromSpec(standard.Key, PortSpecCompiler.Compile(standard)).RequireBinding();
+            // 记账单一实现：经目录记录装饰（P8），使内联调用对 Port(<条目键>) 投影可见。
+            var recorded = _catalog.Decorate(standard.Key, binding);
+            return recorded.InvokeAsync(BuildInput(request, standard.Key)).AsTask().GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is not ObservabilityException)
+        {
+            throw new PortBindingViolationException(standard.Key, $"内联端口调用失败：{ex.GetType().Name}：{ex.Message}");
         }
     }
 

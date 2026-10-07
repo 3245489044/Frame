@@ -13,12 +13,18 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="With">具名实参（结构化原始 JSON 直传）。</param>
 /// <param name="Text">内联源文本（供文本解析类端口消费）。</param>
 /// <param name="Src">来源锚（纯诊断用）。</param>
+/// <param name="InlineStandardJson">
+/// 内联 invocation（S2 <c>when invoke</c>）：步骤自带的**端口标准台账 JSON 片段**（<c>{"ports":[&lt;条目&gt;]}</c>）。
+/// 非空 ⇒ 宿主按该片段现场装载并执行，**不经端口键查目录**；装载解析仍归标准装载层（<see cref="PortStandardLoader"/> 注入），
+/// 宿主不自行解析（避免第二份解析口径）。null = 既有按键路径（存量零回归）。
+/// </param>
 public sealed record PortInvocationRequest(
     string PortKey,
     IReadOnlyList<object?> Args,
     IReadOnlyDictionary<string, object?> With,
     string? Text = null,
-    string? Src = null);
+    string? Src = null,
+    string? InlineStandardJson = null);
 
 /// <summary>
 /// 端口宿主驱动契约（声明 → 可调用边界 → 调用）：**框架层唯一驱动面**，

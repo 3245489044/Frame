@@ -90,8 +90,8 @@ public sealed record MemberDescriptor(
         }
     }
 
-    /// <summary>是否为子节点槽（<see cref="MemberKind.Child"/> / <see cref="MemberKind.Children"/>）。</summary>
-    public bool IsChild => Kind is MemberKind.Child or MemberKind.Children;
+    /// <summary>是否为子节点槽（<see cref="MemberKind.Child"/> / <see cref="MemberKind.Children"/> / 承载子对象的 <see cref="MemberKind.KeyedMap"/>）。</summary>
+    public bool IsChild => Kind is MemberKind.Child or MemberKind.Children or MemberKind.KeyedMap;
 }
 
 /// <summary>

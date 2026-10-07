@@ -117,11 +117,22 @@ public sealed class PortCatalog : IPortCatalog
             throw new BoundaryContractViolationException(contract.Key, "端口目录只接受 Port 类边界契约");
     }
 
-    /// <summary>记录（最外层，保证每次调用恰好记一条）→ 可选观测装饰器 → 实际绑定。</summary>
-    private IPortBinding Decorate(string portKey, IPortBinding binding)
+    /// <summary>
+    /// 记录（最外层，保证每次调用恰好记一条）→ 可选观测装饰器 → 实际绑定。
+    /// 同时作为 <see cref="IPortCatalog.Decorate"/> 的实现：**无契约登记点**调用（内联 invocation）
+    /// 经此取得记录装饰，与 <see cref="Register"/> 同源（账目单一写入，禁第二份记录实现）。
+    /// </summary>
+    public IPortBinding Decorate(string portKey, IPortBinding binding)
     {
+        ArgCheck(portKey, nameof(portKey));
+        PortGuard.Required(binding, nameof(binding));
         var observed = _decorator is null ? binding : _decorator(portKey, binding);
         return new RecordingBinding(portKey, observed, Log);
+    }
+
+    private static void ArgCheck(string portKey, string name)
+    {
+        if (string.IsNullOrWhiteSpace(portKey)) throw new ArgumentException("端口键不能为空", name);
     }
 
     /// <summary>记录型装饰：写 <see cref="CallLog"/> 后交内层；异常照记（errorClass 记异常类型名）。</summary>

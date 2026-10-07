@@ -35,6 +35,15 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
         /// <summary>节点实现键：脚本族步骤节点（黑盒体）。</summary>
         public const string ScriptedStepKind = "port.step";
 
+        /// <summary>区域承载节点 Kind 后缀（<c>{NodeId}#region</c>；权威 = <see cref="CircuitRegionSpec.KindSuffix"/>）。</summary>
+        public const string RegionKindSuffix = CircuitRegionSpec.KindSuffix;
+
+        /// <summary>
+        /// foreach 区域的有界迭代上限（R1 有界量化）：集合长度运行期才知，投影只承载**声明上界**
+        /// （执行面按集合长度提前收口，≤ 上限）；达上限即正常收口 —— 框架不承担停机判定。
+        /// </summary>
+        public const int ForeachMaxIterations = 16;
+
         /// <summary>反射族节点 Id（单节点，固定）。</summary>
         private const string ReflectiveNodeId = "call";
 
@@ -156,37 +165,138 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             return new CircuitRecipeSpec(port.Key, entries, exits, steps, flows);
         }
 
-        /// <summary>脚本族：每步骤一节点（写槽名即产物）；脚本投影字段并入末节点出口。</summary>
+        /// <summary>
+        /// 脚本族（S5 区域化 + 容错符号化）：<c>foreach</c> 步骤 → 区域承载节点 + 子计划（环封在节点内，父图仍 DAG）；
+        /// 其余步骤一节点（写槽名即产物）；脚本投影字段并入末节点出口。
+        /// 声明期望异常（<c>expect</c>，失败路径已被声明为可容忍）的步骤 → 受护作用域（TryGuard）。
+        /// </summary>
         private static CircuitRecipeSpec Scripted(PortStandard port, PortImplStandard impl)
         {
             var script = impl.Script ?? Array.Empty<StepStandard>();
             var project = impl.ScriptProject ?? Array.Empty<FieldExprStandard>();
 
-            var steps = new List<CircuitStepSpec>();
-            for (var index = 0; index < script.Count; index++)
-            {
-                var slot = SlotOf(script[index]);
-                var outPorts = slot is null ? Array.Empty<string>() : new[] { slot };
-                steps.Add(new CircuitStepSpec(StepNodeId(index), ScriptedStepKind, Array.Empty<string>(), outPorts));
-            }
-
             var entries = EntryNames(port);
-            AttachEntriesToFirstConsumer(steps, entries, ScriptedStepKind);
+            var build = BuildScript(port.Key, script, entries);
+
+            AttachEntriesToFirstConsumer(build.Steps, entries, ScriptedStepKind);
 
             var exits = new List<string>();
-            if (steps.Count > 0)
+            if (build.Steps.Count > 0)
             {
-                var tailId = steps[^1].Id;
+                var tailId = build.Steps[^1].Id;
                 foreach (var field in project)
                 {
                     if (string.IsNullOrEmpty(field.Field)) continue;
-                    EnsureOutPort(steps, tailId, field.Field);
+                    EnsureOutPort(build.Steps, tailId, field.Field);
                     exits.Add($"{tailId}.{field.Field}");
                 }
             }
 
-            return new CircuitRecipeSpec(port.Key, entries, exits, steps, Array.Empty<CircuitFlowSpec>());
+            // 区域出映射回投父出口（foreach 产物 = 体写槽 / 收集槽，经子计划出口供给）。
+            foreach (var region in build.Regions)
+                foreach (var binding in region.OutBindings)
+                {
+                    var exit = $"{region.NodeId}.{binding.ParentPort}";
+                    if (!exits.Contains(exit, StringComparer.Ordinal)) exits.Add(exit);
+                }
+
+            return new CircuitRecipeSpec(port.Key, entries, exits, build.Steps, Array.Empty<CircuitFlowSpec>(),
+                Regions: build.Regions.Count > 0 ? build.Regions : null,
+                Guards: build.Guards.Count > 0 ? build.Guards : null);
         }
+
+        /// <summary>脚本构建产物（步骤 / 区域 / 受护作用域）。</summary>
+        private sealed record ScriptBuild(
+            List<CircuitStepSpec> Steps, List<CircuitRegionSpec> Regions, List<CircuitGuardSpec> Guards);
+
+        /// <summary>
+        /// 脚本步骤 → 节点 + 区域 + 容错声明（S5）：
+        /// ① <c>foreach</c>（有体）→ 区域承载节点（Kind = <c>"{NodeId}#region"</c>）+ 子计划（体步骤）；
+        /// ② 声明 <c>expect</c>（期望异常 = 已声明为可容忍的失败路径）→ <see cref="CircuitGuardSpec"/>（TryGuard）；
+        /// ③ 其余步骤 → 单节点（写槽名即产物）。<paramref name="entries"/> = 声明输入（子计划入口按裸名映射）。
+        /// </summary>
+        private static ScriptBuild BuildScript(
+            string circuitId, IReadOnlyList<StepStandard> script, IReadOnlyList<string> entries)
+        {
+            var steps = new List<CircuitStepSpec>();
+            var regions = new List<CircuitRegionSpec>();
+            var guards = new List<CircuitGuardSpec>();
+
+            for (var index = 0; index < script.Count; index++)
+            {
+                var step = script[index];
+                var nodeId = StepNodeId(index);
+
+                if (step.Foreach is { Do.Count: > 0 } loop)
+                {
+                    var child = BuildForeachChild(circuitId, nodeId, loop, entries);
+                    var outPorts = new List<string>();
+                    var outBindings = new List<RegionPortBinding>();
+                    foreach (var exit in child.ExitPorts)
+                    {
+                        var port = exit[(exit.LastIndexOf('.') + 1)..];
+                        if (!outPorts.Contains(port, StringComparer.Ordinal)) outPorts.Add(port);
+                        outBindings.Add(new RegionPortBinding(port, exit));
+                    }
+
+                    steps.Add(new CircuitStepSpec(nodeId, nodeId + RegionKindSuffix, child.EntryPorts, outPorts));
+                    regions.Add(CircuitRegionSpec.Of(
+                        nodeId,
+                        child,
+                        RegionIterationPlan.Fixed(ForeachMaxIterations),
+                        inBindings: child.EntryPorts.Select(entry => new RegionPortBinding(entry, entry)).ToList(),
+                        outBindings: outBindings));
+                    continue;
+                }
+
+                var stepOutPorts = StepOutPorts(step);
+                steps.Add(new CircuitStepSpec(nodeId, ScriptedStepKind, Array.Empty<string>(), stepOutPorts));
+
+                if (IsToleratedFailure(step))
+                    guards.Add(new CircuitGuardSpec(new[] { nodeId }));
+            }
+
+            return new ScriptBuild(steps, regions, guards);
+        }
+
+        /// <summary>foreach 子计划：体步骤（可含嵌套区域）+ 声明输入为子入口 + 体写槽 / 收集槽为子出口。</summary>
+        private static CircuitRecipeSpec BuildForeachChild(
+            string parentCircuitId, string nodeId, ForeachStandard loop, IReadOnlyList<string> entries)
+        {
+            var body = loop.Do ?? Array.Empty<StepStandard>();
+            var childId = $"{parentCircuitId}/{nodeId}";
+            var build = BuildScript(childId, body, entries);
+
+            var exits = new List<string>();
+            foreach (var childStep in build.Steps)
+                foreach (var port in childStep.OutPorts)
+                {
+                    var exit = $"{childStep.Id}.{port}";
+                    if (!exits.Contains(exit, StringComparer.Ordinal)) exits.Add(exit);
+                }
+
+            return new CircuitRecipeSpec(childId, entries, exits, build.Steps, Array.Empty<CircuitFlowSpec>(),
+                Regions: build.Regions.Count > 0 ? build.Regions : null,
+                Guards: build.Guards.Count > 0 ? build.Guards : null);
+        }
+
+        /// <summary>非区域步骤的产生产物名（写槽 + 收集槽；<c>throw</c> / 无写槽步骤 = 空）。</summary>
+        private static IReadOnlyList<string> StepOutPorts(StepStandard step)
+        {
+            var ports = new List<string>();
+            var slot = SlotOf(step);
+            if (slot is not null) ports.Add(slot);
+            foreach (var collect in step.Collects ?? Array.Empty<CollectStandard>())
+                if (!string.IsNullOrEmpty(collect.Slot) && !ports.Contains(collect.Slot, StringComparer.Ordinal))
+                    ports.Add(collect.Slot);
+
+            return ports;
+        }
+
+        /// <summary>已声明期望异常（<c>expect</c>）= 该失败路径已被声明为可容忍（ErrorClass: tolerated）⇒ 受护作用域。</summary>
+        private static bool IsToleratedFailure(StepStandard step)
+            => !string.IsNullOrWhiteSpace(step.Invoke?.Expect)
+               || !string.IsNullOrWhiteSpace(step.New?.Expect);
 
         /// <summary>未迁移族（delegate / frozen / 未知）：空配方 —— 由编译期给出诊断（不静默、不伪造节点）。</summary>
         private static CircuitRecipeSpec Empty(PortStandard port)

@@ -44,26 +44,15 @@ public sealed class PortEvaluator
 
         ct.ThrowIfCancellationRequested();
 
-        var scope = new EvalScope(spec.PortKey);    // ② 依赖构建（Dep 指令逐条累加；依赖声明 = 操作数序）
-        var frame = new EvalFrame(
-            spec.PortKey, PortDependency.Declare(spec.Program), injection, context.ReplaceNotes);
-        object? product = null;
-
+        // 执行面单源 = PortEvalSession（电路引擎逐节点驱动同调本件 ⇒ 语义不可能分叉）。
+        var session = new PortEvalSession(spec, input, context, injection);
         for (var index = 0; index < spec.Program.Count; index++)
         {
             ct.ThrowIfCancellationRequested();
-
-            var instruction = spec.Program[index];                  // ③ 指令序列执行（SSA：结果写槽）
-            context.InstructionIndex = index;
-            context.OutSlot = instruction.Out;
-
-            product = Instruct(spec, instruction, index, input, scope, frame);
-            frame.Last = product;
-
-            if (!string.IsNullOrEmpty(instruction.Out)) scope.Set(instruction.Out!, product);
+            session.Run(index);                                     // ③ 指令序列执行（SSA：结果写槽）
         }
 
-        return ValueTask.FromResult(Deliver(frame, product));       // ④⑤ 产物投影 / 载体交付
+        return ValueTask.FromResult(session.Complete());            // ④⑤ 产物投影 / 载体交付
     }
 
     /// <summary>
@@ -73,7 +62,7 @@ public sealed class PortEvaluator
     /// 步骤执行单源 <see cref="ScriptedSteps"/>：与旧绑定类共用同一实现 ⇒ 引擎与旧路径语义不可能分叉。
     /// </para>
     /// </summary>
-    private static object? Instruct(
+    internal static object? Instruct(
         PortSpec spec, PortInstr instruction, int index, IPortInput input, EvalScope scope, EvalFrame frame)
         => instruction.Op switch
         {
@@ -104,7 +93,7 @@ public sealed class PortEvaluator
                 frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
                 scope, input, frame.Deps),
 
-            PortOp.Project => Project(spec, instruction, frame),
+            PortOp.Project => Project(spec, instruction, input, scope, frame),
 
             _ => throw new PortBindingViolationException(
                 spec.PortKey,
@@ -183,7 +172,8 @@ public sealed class PortEvaluator
     /// 投影指令：组合族「产物字段 ← 取值法」（唯一实现点 = <see cref="PortProjection.Field"/>）；
     /// 逐字段累加进投影产物，由 <see cref="Deliver"/> 作为直出。
     /// </summary>
-    private static object? Project(PortSpec spec, PortInstr instruction, EvalFrame frame)
+    private static object? Project(
+        PortSpec spec, PortInstr instruction, IPortInput input, EvalScope scope, EvalFrame frame)
     {
         if (instruction.Operand is not ComposedFieldStandard field)
             throw new PortBindingViolationException(
@@ -191,7 +181,7 @@ public sealed class PortEvaluator
                 $"端口 '{spec.PortKey}' 的指令 'Project' 操作数形态"
                 + $" '{instruction.Operand?.GetType().Name ?? "(空)"}' 未知（投影只认 ComposedFieldStandard）");
 
-        var value = PortProjection.Field(spec.PortKey, field, frame.Deps, frame.Results);
+        var value = PortProjection.Field(spec.PortKey, field, frame.Deps, frame.Results, scope, input);
         frame.RequireProduct()[field.Field] = value;
         return value;
     }
@@ -200,6 +190,48 @@ public sealed class PortEvaluator
     /// ④ 产物投影：出现投影指令（组合族）→ 投影产物字典即产物；否则末条指令产物即产物
     /// （脚本族退场前由 <c>Project</c>/载体路径承接显式投影）。
     /// </summary>
-    private static object? Deliver(EvalFrame frame, object? product)
+    internal static object? Deliver(EvalFrame frame, object? product)
         => frame.Product is { } projected ? projected : product;
+}
+
+/// <summary>
+/// 求值会话（执行面单源）：把 <see cref="PortEvaluator.EvaluateAsync"/> 流水线的**状态**（作用域 / 帧 / 上下文定位）
+/// 抽为可持对象，使「逐指令驱动」（电路引擎节点体）与「整段驱动」（求值引擎）**共用同一实现** ⇒ 语义不可能分叉。
+/// <para>消费方：① <see cref="PortEvaluator.EvaluateAsync"/>（按序 <see cref="Run"/> 全部指令后 <see cref="Complete"/>）；
+/// ② 电路引擎的端口指令节点（每节点恰驱动一条指令；拓扑序 = 声明序，由电路 Wire 保证）。</para>
+/// </summary>
+internal sealed class PortEvalSession
+{
+    private readonly PortSpec _spec;
+    private readonly IPortInput _input;
+    private readonly EvalContext _context;
+    private readonly EvalScope _scope;
+    private readonly EvalFrame _frame;
+    private object? _product;
+
+    internal PortEvalSession(PortSpec spec, IPortInput input, EvalContext context, PortInjection injection)
+    {
+        _spec = spec;
+        _input = input;
+        _context = context;
+        _scope = new EvalScope(spec.PortKey);    // ② 依赖构建（Dep 指令逐条累加；依赖声明 = 操作数序）
+        _frame = new EvalFrame(spec.PortKey, PortDependency.Declare(spec.Program), injection, context.ReplaceNotes);
+    }
+
+    /// <summary>执行第 <paramref name="index"/> 条指令（SSA：结果写槽 + 记末产物）；语义 = 引擎循环体逐字同源。</summary>
+    internal object? Run(int index)
+    {
+        var instruction = _spec.Program[index];
+        _context.InstructionIndex = index;
+        _context.OutSlot = instruction.Out;
+
+        _product = PortEvaluator.Instruct(_spec, instruction, index, _input, _scope, _frame);
+        _frame.Last = _product;
+
+        if (!string.IsNullOrEmpty(instruction.Out)) _scope.Set(instruction.Out!, _product);
+        return _product;
+    }
+
+    /// <summary>④⑤ 产物投影 / 载体交付。</summary>
+    internal object? Complete() => PortEvaluator.Deliver(_frame, _product);
 }

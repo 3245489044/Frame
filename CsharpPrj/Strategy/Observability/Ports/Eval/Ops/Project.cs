@@ -11,10 +11,15 @@ using Strategy.Observability.Diagnostics;
 /// </summary>
 internal static class PortProjection
 {
-    /// <summary>按取值法投影单个产物字段。</summary>
+    /// <summary>按取值法投影单个产物字段（捕获 / 计数族一律经收敛 3 代数节点求值）。</summary>
     internal static object? Field(
-        string portKey, ComposedFieldStandard field, object?[] deps, IReadOnlyDictionary<string, object?> results)
+        string portKey, ComposedFieldStandard field, object?[] deps,
+        IReadOnlyDictionary<string, object?> results, EvalScope scope, IPortInput input)
     {
+        // 收敛 3：旧 select 捕获 / 计数族 → 代数节点（单一转换点 = ToCaptureExpr）；与逐档 switch 并存即漂移面
+        if (field.ToCaptureExpr() is { } captureExpr)
+            return ScriptedExprEvaluator.Evaluate(captureExpr, scope, input, deps, field.Field);
+
         switch (field.Select)
         {
             case "value":
@@ -61,69 +66,12 @@ internal static class PortProjection
 
                 return PortValues.Text(PathOf(Result(portKey, field, results), textPath));
 
-            case "fakeCount":
-                return ProxyFakes.CountOf(
-                    Fake(portKey, field, deps), field.Method ?? throw Missing(portKey, field, "method"), field.Key);
-
-            case "capturedCount":
-                return Captured(portKey, field, deps).Count;
-
-            case "capturedFirst":
-                return CapturedArg(portKey, field, deps, first: true);
-
-            case "capturedLast":
-                return CapturedArg(portKey, field, deps, first: false);
-
-            case "capturedFirstOrNull":
-                return CapturedArg(portKey, field, deps, first: true, orNull: true);
-
-            case "capturedLastOrNull":
-                return CapturedArg(portKey, field, deps, first: false, orNull: true);
-
             default:
                 throw new PortBindingViolationException(
                     portKey,
                     $"端口 '{portKey}' 的投影字段 '{field.Field}' 取值法 '{field.Select}' 未知" +
                     $"（{PortImplVocabulary.RenderList(PortImplVocabulary.SelectEnum)}）");
         }
-    }
-
-    /// <summary>依赖取替身实例（dep 必填；缺失 / 越界 / 非替身即抛，防静默取空）。</summary>
-    private static object Fake(string portKey, ComposedFieldStandard field, object?[] deps)
-        => ScriptedExprEvaluator.ResolveFake(portKey, field.Select, field.Field, field.Dep, deps);
-
-    /// <summary>捕获序（G8；<c>method</c> 给出时按成员过滤，空 = 全部成员的调用序）。</summary>
-    private static IReadOnlyList<object?[]> Captured(
-        string portKey, ComposedFieldStandard field, object?[] deps)
-        => PortFake.CapturedOf(Fake(portKey, field, deps), field.Method);
-
-    /// <summary>
-    /// 捕获实参（G8）：首次 / 末次调用的**首个实参**；<c>path</c> 给出时取该实参的该属性路径。
-    /// 无捕获记录或该调用零实参 → 默认 fail-fast（<paramref name="orNull"/> 形态则记 null，
-    /// 对应「该成员未被调用」的合法空态，与脚本族 <c>firstOrNull</c>/<c>lastOrNull</c> 同惯例）。
-    /// </summary>
-    private static object? CapturedArg(
-        string portKey, ComposedFieldStandard field, object?[] deps, bool first, bool orNull = false)
-    {
-        var captured = Captured(portKey, field, deps);
-
-        if (captured.Count == 0)
-            return orNull
-                ? null
-                : throw new PortBindingViolationException(
-                    portKey,
-                    $"端口 '{portKey}' 的 {field.Select} 字段 '{field.Field}' 无捕获记录（该成员未被调用）");
-
-        var call = captured[first ? 0 : captured.Count - 1];
-
-        if (call.Length == 0)
-            return orNull
-                ? null
-                : throw new PortBindingViolationException(
-                    portKey,
-                    $"端口 '{portKey}' 的 {field.Select} 字段 '{field.Field}' 的捕获调用无实参（零参调用）");
-
-        return field.Path is { Length: > 0 } path ? PathOf(call[0], path) : call[0];
     }
 
     /// <summary>取某次调用结果（引用必须命中已声明调用）。</summary>
@@ -135,9 +83,6 @@ internal static class PortProjection
 
         return value;
     }
-
-    private static PortBindingViolationException Missing(string portKey, ComposedFieldStandard field, string key)
-        => new(portKey, $"端口 '{portKey}' 的字段 '{field.Field}' 取值法 '{field.Select}' 缺少 {key}");
 
     /// <summary>属性路径取值（<c>A.B.C</c>：逐段属性优先、回落字段、忽略大小写；任一段缺失 → null）。</summary>
     private static object? PathOf(object? value, string path) => PortValues.PathOf(value, path);

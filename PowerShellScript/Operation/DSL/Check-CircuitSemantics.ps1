@@ -61,6 +61,12 @@
     CS30 cline 端点裁决子电路在册（正对照，CL3）：Agent.Modules\Cline\Circuit\ClineEndpointBranchCircuit（端点 Branch +
         两路 Call，判定键 = 端口 llm.localOnly，经 CompiledRecipeRegistry/CircuitEngine）+ ClineAgentExecutor 接线；
         负对照：执行器不再直接调用 EndpointResolver.ResolveCline（防双裁决）。
+    CS-P1 编译入口唯一（负对照 + 正对照，CF）：DataCenter 侧 + 接入面（Operation\HierarchyMethod\Nodes\Circuit）内
+        禁自建编译入口（RecipeGraphValidator.Validate / CircuitValidator.Validate = 0）；正对照 = 接入面确经唯一入口
+        CircuitCompiler.TryCompile（= 0 即扫描面失效）。
+    CS-P2 接入面禁平行执行外壳（负对照，CF）：接入面内 new CircuitEngine( / CircuitAssemblyRunner.RunAsync( = 0；正对照 = 接入面源码在册。
+    CS-P3 框架零领域类型（负对照 + 正对照，CF）：CircuitFramework 源码内禁 DataCenter./PortStandard/PortImplStandard/
+        PortInstr/PortImplVocabulary = 0；正对照 = 框架源码在册。
 
     模式：默认报告模式；-Check 校验模式（违归 → 退出码 1）。纯结构读检查，无外部基线依赖。
 
@@ -672,10 +678,47 @@ else
     Write-Host "  CS14 路径缺失（Agent.Orchestration\SessionWorkflow 未找到）：跳过" -ForegroundColor DarkGray
 }
 
+# ---------- CS-P1/P2/P3 通用性纪律（CF 系列：编译入口唯一 / 禁平行执行外壳 / 框架零领域类型） ----------
+# 三项均为**结构事实**扫描（禁凭执行者叙述）；每项带**正对照**（扫描面非空），防「扫描面失效」被误读为「零违规」。
+$accDir = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit'
+$dcDir  = Join-Path $Root 'Frame\DataCenter'
+
+$accCs = @()
+if (Test-Path $accDir) {
+    $accCs = @(Get-ChildItem -Path $accDir -Recurse -File -Filter '*.cs' | Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+}
+$dcCs = @()
+if (Test-Path $dcDir) {
+    $dcCs = @(Get-ChildItem -Path $dcDir -Recurse -File -Filter '*.cs' | Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+}
+$cfCs = @(Get-ChildItem -Path $cfDir -Recurse -File -Filter '*.cs' | Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' })
+
+# CS-P1 编译入口唯一：DataCenter 侧 + 接入面禁自建（重排「配方校验 → 电路校验」）
+$csp1Hits = @(($accCs + $dcCs) | Select-String -Pattern 'RecipeGraphValidator\.Validate\(|CircuitValidator\.Validate\(' -ErrorAction SilentlyContinue).Count
+$csp1Positive = @($accCs | Select-String -Pattern 'CircuitCompiler\.TryCompile\(' -ErrorAction SilentlyContinue).Count -ge 1
+Write-Host ("  CS-P1 编译入口唯一（负对照=自建重排 {0} 处须为 0；正对照=接入面经唯一入口 {1}）" -f $csp1Hits, $csp1Positive) -ForegroundColor Gray
+if ($csp1Hits -gt 0) { $violations.Add("[CS-P1] DataCenter/接入面自建编译入口 $csp1Hits 处（唯一入口 = CircuitCompiler.TryCompile）") }
+if (-not $csp1Positive) { $violations.Add('[CS-P1] 正对照失效：接入面未见 CircuitCompiler.TryCompile（扫描面失效，非「零违规」）') }
+
+# CS-P2 接入面禁平行执行外壳（执行外壳须唯一）
+$csp2Hits = @($accCs | Select-String -Pattern 'new CircuitEngine\(|CircuitAssemblyRunner\.RunAsync\(' -ErrorAction SilentlyContinue).Count
+$csp2Positive = $accCs.Count -ge 1
+Write-Host ("  CS-P2 禁平行执行外壳（负对照 {0} 处须为 0；正对照=接入面源码在册 {1}）" -f $csp2Hits, $csp2Positive) -ForegroundColor Gray
+if ($csp2Hits -gt 0) { $violations.Add("[CS-P2] 接入面出现平行执行外壳 $csp2Hits 处（执行外壳须唯一）") }
+if (-not $csp2Positive) { $violations.Add('[CS-P2] 正对照失效：接入面源码未在册（扫描面失效）') }
+
+# CS-P3 框架零领域类型（框架内禁 DataCenter / 端口域类型）
+$csp3Hits = @($cfCs | Select-String -Pattern 'DataCenter\.|PortStandard|PortImplStandard|PortInstr|PortImplVocabulary' -ErrorAction SilentlyContinue).Count
+$csp3Positive = $cfCs.Count -ge 1
+Write-Host ("  CS-P3 框架零领域类型（负对照 {0} 处须为 0；正对照=框架源码在册 {1}）" -f $csp3Hits, $csp3Positive) -ForegroundColor Gray
+if ($csp3Hits -gt 0) { $violations.Add("[CS-P3] CircuitFramework 内出现领域类型 $csp3Hits 处（框架须零领域类型）") }
+if (-not $csp3Positive) { $violations.Add('[CS-P3] 正对照失效：框架源码未在册（扫描面失效）') }
+
+
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 递归执行化在册 / 分支分派执行化在册 / 调用执行化在册 / 全流程图渲染在册 / 轮间链单驱动 / 区域化轮循环在册 / 会话链单驱动 / run 主干配方化在册 / 受控第二点封顶 / 轮内链声明面在册）" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 递归执行化在册 / 分支分派执行化在册 / 调用执行化在册 / 全流程图渲染在册 / 轮间链单驱动 / 区域化轮循环在册 / 会话链单驱动 / run 主干配方化在册 / 受控第二点封顶 / 轮内链声明面在册 / 编译入口唯一（CS-P1）/ 禁平行执行外壳（CS-P2）/ 框架零领域类型（CS-P3））" -ForegroundColor Green
     exit 0
 }
 

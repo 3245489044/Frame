@@ -124,4 +124,28 @@ public sealed record ComposedFieldStandard(
     string? Path = null,
     int? Dep = null,
     string? Method = null,
-    string? Key = null);
+    string? Key = null)
+{
+    /// <summary>
+    /// 收敛 3（取值代数单轨）：旧 <see cref="Select"/> 捕获 / 计数族 → 代数节点的**单一转换点**。
+    /// <para>
+    /// 六旧值 → 三节点：<c>capturedFirst/Last(OrNull)</c> → <see cref="CaptureExprStandard"/>、
+    /// <c>capturedCount</c> → <see cref="CaptureCountExprStandard"/>、<c>fakeCount</c> → <see cref="FakeCountExprStandard"/>；
+    /// 其余取值法 → null（仍由既有取值法分支承担）。转换后共性求值归 <c>ScriptedExprEvaluator</c>，禁再逐档分派。
+    /// </para>
+    /// </summary>
+    public ExprStandard? ToCaptureExpr() => Select switch
+    {
+        "capturedFirst" => CaptureExpr("first", orNull: false),
+        "capturedLast" => CaptureExpr("last", orNull: false),
+        "capturedFirstOrNull" => CaptureExpr("first", orNull: true),
+        "capturedLastOrNull" => CaptureExpr("last", orNull: true),
+        "capturedCount" => new ExprStandard(CaptureCount: new CaptureCountExprStandard(Dep, Method)),
+        "fakeCount" => new ExprStandard(FakeCount: new FakeCountExprStandard(Dep, Method, Key)),
+        _ => null,
+    };
+
+    private ExprStandard CaptureExpr(string at, bool orNull)
+        => new(Capture: new CaptureExprStandard(Dep, Method, at, Path: Path, OrNull: orNull));
+}
+

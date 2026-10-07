@@ -34,6 +34,14 @@
     <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
   </ItemGroup>
 
+  <!-- ★ 2026-10-07 CF-4（执行面接缝 · L4 落点重排，施工单 §0 备选）：
+       执行引擎（PortCircuitEngine）与内核执行单源（PortEvaluator / PortEvalSession）**同处 L3**，
+       以便节点体直调单源（`internal` 算子）而无需第二份语义；本模块层 3 → Share.CircuitFramework 层 2，
+       属向下引用（先例：HierarchyMethod.csproj → $(Proj_CircuitFramework)）。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_CircuitFramework)" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- P1：全局 using（零 using 行改动，见 初始化与错误处理通用框架-应用分析.md §A） -->
     <Using Include="BasicMethod.Initialization.Guards" />

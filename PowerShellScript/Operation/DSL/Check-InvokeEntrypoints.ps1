@@ -39,6 +39,15 @@ $entryScripts = @(
     'Locate-Build.ps1'
     'Invoke-Verify.ps1'
     'Invoke-SpecGen.ps1'
+    'Get-SpecChain.ps1'
+    'New-SpecChain.ps1'
+    'Use-SpecChain.ps1'
+    'Set-SpecChain.ps1'
+    'ForEach-SpecCase.ps1'
+    'New-SpecChains.ps1'
+    'Remove-SpecChain.ps1'
+    'Test-SpecRefs.ps1'
+    'Get-SpecGenerated.ps1'
 )
 foreach ($script in $entryScripts) {
     $path = Join-Path $invokeDir $script

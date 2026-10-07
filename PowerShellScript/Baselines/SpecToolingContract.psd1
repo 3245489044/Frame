@@ -15,7 +15,6 @@
     # 确定性 exit 豁免（存量债务棘轮）：逐件补 exit 后从本表删除（只减不增）。
     ExitExempt = @{
         Value = @(
-            'New-SpecChains.ps1'
             'Migrate-SpecPortFixtures.ps1'
             'New-AgentSpecSuite.ps1'
             'Get-AgentTestMethodBaseline.ps1'

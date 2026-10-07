@@ -37,6 +37,24 @@
         Expect = 0
     }
 
+    SpecBoundary = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'spec 生成/手写边界（R0 基线冻结）：源码树零生成物 / 清单非空 / 正负对照；基线 Baselines\SpecBoundary.psd1'
+    }
+
+    SpecToolingContract = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '规格工具链契约（R2）：SYNOPSIS / 确定性 exit（Debt 棘轮）/ 无深度计数；基线 Baselines\SpecToolingContract.psd1'
+    }
+
+    SpecGeneratedBoundary = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'spec 生成/手写分离边界（R4 SEP）：源码树零生成物 / obj 零第二生成物（K2）/ 生成码头注释 / 源⇄产物双向 / manifest 一致性（条件判据）；基线 Baselines\SpecGeneratedBoundary.psd1；-Warn 为回退开关'
+    }
+
     OperationLayerIsolation = @{
         Args   = @{ Check = $true }
         Expect = 0

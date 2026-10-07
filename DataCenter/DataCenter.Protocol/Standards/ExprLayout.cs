@@ -134,6 +134,9 @@ public static partial class PortImplVocabulary
         new("Capture", null, ExprSlotKind.None, "capture", ["dep", "member", "at", "index", "path", "orNull"]),
         new("CaptureCount", null, ExprSlotKind.None, "captureCount", ["dep", "member"]),
         new("FakeCount", null, ExprSlotKind.None, "fakeCount", ["dep", "member", "key"]),
+        new("Select", "select", ExprSlotKind.One, "select", ["over"]),
+        new("SelectExpr", "select", ExprSlotKind.One, "selectExpr"),
+        new("SelectWhere", "select", ExprSlotKind.One, "selectWhere"),
     ];
 
     /// <summary>

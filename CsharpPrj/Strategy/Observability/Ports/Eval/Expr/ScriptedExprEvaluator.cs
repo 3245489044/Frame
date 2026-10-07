@@ -52,6 +52,7 @@ internal static partial class ScriptedExprEvaluator
         if (expr.Last is { } last) return Last(expr, last, scope, input, deps, field);
         if (expr.Agg is { } agg) return Aggregate(expr, agg, scope, input, deps, field);
         if (expr.Filter is { } filter) return Filter(expr, filter, scope, input, deps, field);
+        if (expr.Select is { } select) return Select(expr, select, scope, input, deps, field);
         if (expr.Distinct is { } distinct) return Distinct(distinct, scope, input, deps, field);
         if (expr.Fold is { } fold) return Fold(expr, fold, scope, input, deps, field);
         if (expr.Dict is { } dict) return Dict(expr, dict, scope, input, deps, field);

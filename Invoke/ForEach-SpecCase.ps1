@@ -2,7 +2,7 @@
 .SYNOPSIS
     【入口】按选择器批量遍历用例（只读 · 施工卡 2-2）
 .DESCRIPTION
-    Frame\Invoke 统一入口 —— 转发到 Environment\CentralTest\Tools\ForEach-SpecCase.ps1。
+    Frame\Invoke 统一入口 —— 转发到 Environment\CentralTest\Tools\Chain\ForEach-SpecCase.ps1。
     只读 / 幂等 / 零写盘；标注每个用例的调用形态（inline / use / when / none）。
 #>
 param(
@@ -17,7 +17,7 @@ param(
     [string]$Out = ''
 )
 
-$target = Join-Path $PSScriptRoot '..\..\Environment\CentralTest\Tools\ForEach-SpecCase.ps1'
+$target = Join-Path $PSScriptRoot '..\..\Environment\CentralTest\Tools\Chain\ForEach-SpecCase.ps1'
 
 $params = @{}
 if ($PSBoundParameters.ContainsKey('CasesRoot')) { $params['CasesRoot'] = $CasesRoot }

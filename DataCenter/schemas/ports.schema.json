@@ -593,7 +593,10 @@
         "member": { "type": "string" },
         "at": { "type": "string" },
         "captureCount": { "type": "object" },
-        "fakeCount": { "type": "object" }
+        "fakeCount": { "type": "object" },
+        "select": { "type": "object" },
+        "selectExpr": { "type": "object" },
+        "selectWhere": { "type": "object" }
       },
       "additionalProperties": false
     }

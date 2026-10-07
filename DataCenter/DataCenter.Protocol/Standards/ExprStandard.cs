@@ -62,6 +62,9 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Last">末命中来源（<c>last{over,where,path,orNull}</c>；空集 → null，不抛）。</param>
 /// <param name="LastWhere">末命中的保留条件（缺省 = 元素非空）。</param>
 /// <param name="LastPath">末命中项的取值路径（缺省 = 元素本身）。</param>
+/// <param name="Select">逐元素投影来源（<c>select{over,expr,where}</c>；遍历该表达式的元素后成集）。</param>
+/// <param name="SelectExpr">投影表达式（体内 <c>from:row</c> 即当前元素；缺省 = 元素本身）。</param>
+/// <param name="SelectWhere">投影门控（求值为假即跳过该元素；缺省 = 全保留）。</param>
 /// <param name="FirstOrNull">首命中未命中口径（true = 取 null；缺省 = 未命中即抛）。</param>
 /// <param name="LastOrNull">末命中空集口径（true = 取 null）。</param>
 /// <param name="Parts">拼接段（条件段形态；见 <see cref="ConcatPartStandard"/>）。</param>
@@ -139,7 +142,10 @@ public sealed record ExprStandard(
     ChainStandard? FoldStep = null,
     CaptureExprStandard? Capture = null,
     CaptureCountExprStandard? CaptureCount = null,
-    FakeCountExprStandard? FakeCount = null);
+    FakeCountExprStandard? FakeCount = null,
+    ExprStandard? Select = null,
+    ExprStandard? SelectExpr = null,
+    ExprStandard? SelectWhere = null);
 
 /// <summary>
 /// 替身**捕获取值**算子（收敛 3 代数节点）：从依赖替身的调用捕获记录中取某次调用的实参

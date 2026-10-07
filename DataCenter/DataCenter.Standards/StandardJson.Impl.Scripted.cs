@@ -990,6 +990,7 @@ public static partial class StandardJson
         var last = Last(portKey, element, context);
         var agg = Aggregate(portKey, element, context);
         var filter = Filter(portKey, element, context);
+        var select = Select(portKey, element, context);
         var dict = Dict(portKey, element, context);
 
         if (all is not null && any is not null)
@@ -1060,6 +1061,9 @@ public static partial class StandardJson
             Filter: filter.Over,
             FilterWhere: filter.Where,
             FilterPath: filter.Path,
+            Select: select.Over,
+            SelectExpr: select.Expr,
+            SelectWhere: select.Where,
             SameReference: Pair(portKey, element, "sameReference", context),
             Coalesce: Pair(portKey, element, "coalesce", context),
             Parts: parts,
@@ -1239,6 +1243,31 @@ public static partial class StandardJson
             ReadExpr(portKey, filter, $"{context}.filter"),
             Sub(portKey, owner, "filterWhere", context),
             Str(owner, "filterPath"));
+    }
+
+    /// <summary>
+    /// 逐元素投影读取（E2-a）：长形 <c>{ "select": { "over": …, "expr": …, "where": … } }</c>；短形 <c>"select"</c>
+    /// 直给来源时取平铺 <c>selectExpr</c> / <c>selectWhere</c>。缺 <c>expr</c> = 取元素本身；缺 <c>where</c> = 全保留。
+    /// </summary>
+    private static (ExprStandard? Over, ExprStandard? Expr, ExprStandard? Where) Select(
+        string portKey, JsonElement owner, string context)
+    {
+        if (!owner.TryGetProperty("select", out var select)) return (null, null, null);
+
+        if (select.ValueKind == JsonValueKind.Object
+            && !HasSource(select)
+            && select.TryGetProperty("over", out var over))
+        {
+            return (
+                ReadExpr(portKey, over, $"{context}.select.over"),
+                Sub(portKey, select, "expr", $"{context}.select"),
+                Sub(portKey, select, "where", $"{context}.select"));
+        }
+
+        return (
+            ReadExpr(portKey, select, $"{context}.select"),
+            Sub(portKey, owner, "selectExpr", context),
+            Sub(portKey, owner, "selectWhere", context));
     }
 
     /// <summary>子表达式读取（键缺失 → null）。</summary>

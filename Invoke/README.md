@@ -12,12 +12,14 @@
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 | `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 | `Locate-Build.ps1` | `Environment\CentralTest\Get-VerifyPlan.ps1` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
-| `Get-SpecChain.ps1` | `Environment\CentralTest\Tools\Get-SpecChain.ps1` | 作者面 · 只读（链/引用清单 + 内联载荷去重候选；D4′ 分析前置） |
-| `New-SpecChain.ps1` | `Environment\CentralTest\Tools\New-SpecChain.ps1` | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |
-| `Use-SpecChain.ps1` | `Environment\CentralTest\Tools\Use-SpecChain.ps1` | 作者面 · 切链（匹配用例的内联 → `use <链>`；DryRun 缺省 + 三类自检） |
-| `Set-SpecChain.ps1` | `Environment\CentralTest\Tools\Set-SpecChain.ps1` | 作者面 · 改链载荷（就地更新；幂等 + DryRun 缺省） |
-| `ForEach-SpecCase.ps1` | `Environment\CentralTest\Tools\ForEach-SpecCase.ps1` | 作者面 · 只读遍历（用例选择器 + 调用形态标注） |
+| `Get-SpecChain.ps1` | `Environment\CentralTest\Tools\Chain\Get-SpecChain.ps1` | 作者面 · 只读（链/引用清单 + 内联载荷去重候选；D4′ 分析前置） |
+| `New-SpecChain.ps1` | `Environment\CentralTest\Tools\Chain\New-SpecChain.ps1` | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |
+| `Use-SpecChain.ps1` | `Environment\CentralTest\Tools\Chain\Use-SpecChain.ps1` | 作者面 · 切链（匹配用例的内联 → `use <链>`；DryRun 缺省 + 三类自检） |
+| `Set-SpecChain.ps1` | `Environment\CentralTest\Tools\Chain\Set-SpecChain.ps1` | 作者面 · 改链载荷（就地更新；幂等 + DryRun 缺省） |
+| `ForEach-SpecCase.ps1` | `Environment\CentralTest\Tools\Chain\ForEach-SpecCase.ps1` | 作者面 · 只读遍历（用例选择器 + 调用形态标注） |
+| `New-SpecChains.ps1` | `Environment\CentralTest\Tools\Chain\New-SpecChains.ps1` | 作者面 · 批量抽链（同签名内联 ≥2 次的套件一次处理；DryRun 缺省 + `-Write` 落盘） |
 | `Invoke-Verify.ps1` | `Environment\CentralTest\Invoke-Verify.ps1` | P2 唯一验证命令（bake→test→gate 一次完成） |
+| `Invoke-SpecGen.ps1` | `Environment\CentralTest\SpecSourceGen\Cli`（`gen`） | 作者面 · 生成（PS 可调用、产物落生成根、可清点；复用内核同管线，与宿主 A/B 逐字一致） |
 
 ## 用法
 

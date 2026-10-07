@@ -2,7 +2,7 @@
 .SYNOPSIS
     【入口】链单元（chain / use）只读清单（施工卡 2-2 · 读侧 · D10=(a)）
 .DESCRIPTION
-    Frame\Invoke 统一入口 —— 转发到 Environment\CentralTest\Tools\Get-SpecChain.ps1。
+    Frame\Invoke 统一入口 —— 转发到 Environment\CentralTest\Tools\Chain\Get-SpecChain.ps1。
     只读 / 零写盘 / 幂等：列清 D4′ 减体量的**分析前置**（已声明链 · 用例 use 引用 · 内联载荷去重候选）。
     诊断相位用途；不产出 pass/fail 结论，不作放行依据。
 .PARAMETER CasesRoot
@@ -32,7 +32,7 @@ param(
     [switch]$Check
 )
 
-$target = Join-Path $PSScriptRoot '..\..\Environment\CentralTest\Tools\Get-SpecChain.ps1'
+$target = Join-Path $PSScriptRoot '..\..\Environment\CentralTest\Tools\Chain\Get-SpecChain.ps1'
 
 $params = @{}
 if ($PSBoundParameters.ContainsKey('CasesRoot')) { $params['CasesRoot'] = $CasesRoot }

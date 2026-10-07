@@ -176,6 +176,33 @@ message/Message	Implementation	Unregistered	未提供外来证据
 message/Message	Attestation	Unregistered	未提供外来证据
 message/TypeName	Implementation	Unregistered	未提供外来证据
 message/TypeName	Attestation	Unregistered	未提供外来证据
+scope.kind/tempDir	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/tempDir	Implementation	Unregistered	未提供外来证据
+scope.kind/tempDir	Attestation	Unregistered	未提供外来证据
+scope.kind/using	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/using	Implementation	Unregistered	未提供外来证据
+scope.kind/using	Attestation	Unregistered	未提供外来证据
+scope.kind/restore	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+scope.kind/restore	Implementation	Unregistered	未提供外来证据
+scope.kind/restore	Attestation	Unregistered	未提供外来证据
+fake/recording	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/recording	Implementation	Unregistered	未提供外来证据
+fake/recording	Attestation	Unregistered	未提供外来证据
+fake/counting	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/counting	Implementation	Unregistered	未提供外来证据
+fake/counting	Attestation	Unregistered	未提供外来证据
+fake/fixed	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/fixed	Implementation	Unregistered	未提供外来证据
+fake/fixed	Attestation	Unregistered	未提供外来证据
+fake/sequence	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/sequence	Implementation	Unregistered	未提供外来证据
+fake/sequence	Attestation	Unregistered	未提供外来证据
+fake/notExpected	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/notExpected	Implementation	Unregistered	未提供外来证据
+fake/notExpected	Attestation	Unregistered	未提供外来证据
+fake/stateful	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
+fake/stateful	Implementation	Unregistered	未提供外来证据
+fake/stateful	Attestation	Unregistered	未提供外来证据
 expr/Source	Schema	Unregistered	该成员未登记承载键（词表登记待补）
 expr/Source	Parse	Unregistered	未登记探针
 expr/Source	Implementation	Unregistered	未提供外来证据
@@ -367,30 +394,24 @@ expr/FoldInit	Attestation	Unregistered	未提供外来证据
 expr/FoldStep	Parse	Unregistered	未登记探针
 expr/FoldStep	Implementation	Unregistered	未提供外来证据
 expr/FoldStep	Attestation	Unregistered	未提供外来证据
-scope.kind/tempDir	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-scope.kind/tempDir	Implementation	Unregistered	未提供外来证据
-scope.kind/tempDir	Attestation	Unregistered	未提供外来证据
-scope.kind/using	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-scope.kind/using	Implementation	Unregistered	未提供外来证据
-scope.kind/using	Attestation	Unregistered	未提供外来证据
-scope.kind/restore	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-scope.kind/restore	Implementation	Unregistered	未提供外来证据
-scope.kind/restore	Attestation	Unregistered	未提供外来证据
-fake/recording	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-fake/recording	Implementation	Unregistered	未提供外来证据
-fake/recording	Attestation	Unregistered	未提供外来证据
-fake/counting	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-fake/counting	Implementation	Unregistered	未提供外来证据
-fake/counting	Attestation	Unregistered	未提供外来证据
-fake/fixed	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-fake/fixed	Implementation	Unregistered	未提供外来证据
-fake/fixed	Attestation	Unregistered	未提供外来证据
-fake/sequence	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-fake/sequence	Implementation	Unregistered	未提供外来证据
-fake/sequence	Attestation	Unregistered	未提供外来证据
-fake/notExpected	Parse	Missing	无读取器分派（承担方 = 结构门 enum 绑定）
-fake/notExpected	Implementation	Unregistered	未提供外来证据
-fake/notExpected	Attestation	Unregistered	未提供外来证据
+expr/Capture	Parse	Unregistered	未登记探针
+expr/Capture	Implementation	Unregistered	未提供外来证据
+expr/Capture	Attestation	Unregistered	未提供外来证据
+expr/CaptureCount	Parse	Unregistered	未登记探针
+expr/CaptureCount	Implementation	Unregistered	未提供外来证据
+expr/CaptureCount	Attestation	Unregistered	未提供外来证据
+expr/FakeCount	Parse	Unregistered	未登记探针
+expr/FakeCount	Implementation	Unregistered	未提供外来证据
+expr/FakeCount	Attestation	Unregistered	未提供外来证据
+expr/Select	Parse	Unregistered	未登记探针
+expr/Select	Implementation	Unregistered	未提供外来证据
+expr/Select	Attestation	Unregistered	未提供外来证据
+expr/SelectExpr	Parse	Unregistered	未登记探针
+expr/SelectExpr	Implementation	Unregistered	未提供外来证据
+expr/SelectExpr	Attestation	Unregistered	未提供外来证据
+expr/SelectWhere	Parse	Unregistered	未登记探针
+expr/SelectWhere	Implementation	Unregistered	未提供外来证据
+expr/SelectWhere	Attestation	Unregistered	未提供外来证据
 dep.form/new	Implementation	Unregistered	未提供外来证据
 dep.form/new	Attestation	Unregistered	未提供外来证据
 dep.form/factory	Implementation	Unregistered	未提供外来证据

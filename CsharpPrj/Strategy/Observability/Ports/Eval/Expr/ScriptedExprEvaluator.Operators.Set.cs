@@ -227,6 +227,42 @@ internal static partial class ScriptedExprEvaluator
         return kept.ToArray();
     }
 
+    /// <summary>
+    /// 逐元素投影（E2-a · <c>map</c> 语义）：遍历来源元素 → 逐项以行帧 <c>from:row</c> 求
+    /// <see cref="ExprStandard.SelectExpr"/>（缺省 = 元素本身），<see cref="ExprStandard.SelectWhere"/>
+    /// 求值为假即跳过该元素。空集 = 空数组（不抛）。与 <c>filter</c> 同形，差别只在投影位是**表达式**而非路径串。
+    /// </summary>
+    private static object?[] Select(
+        ExprStandard expr, ExprStandard over, EvalScope scope, IPortInput input, object?[] deps, string field)
+    {
+        var items = PortValues.Elements(Sub(over, scope, input, deps, field)).ToArray();
+        var projected = new List<object?>(items.Length);
+        var index = -1;
+
+        foreach (var item in items)
+        {
+            index++;
+            scope.Push(EvalScope.RowFrame, item, index);
+
+            try
+            {
+                if (expr.SelectWhere is { } predicate
+                    && !PortValues.Truthy(Sub(predicate, scope, input, deps, field)))
+                    continue;
+
+                projected.Add(expr.SelectExpr is { } projection
+                    ? Sub(projection, scope, input, deps, field)
+                    : item);
+            }
+            finally
+            {
+                scope.Pop();
+            }
+        }
+
+        return projected.ToArray();
+    }
+
     /// <summary>引用同一性（W5）：<c>ReferenceEquals(左, 右)</c>（值相等但非同一引用 → false）。</summary>
     private static bool SameReference(
         IReadOnlyList<ExprStandard> operands, EvalScope scope, IPortInput input, object?[] deps, string field)

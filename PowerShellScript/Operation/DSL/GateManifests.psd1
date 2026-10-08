@@ -15,6 +15,12 @@
         Expect = 0
     }
 
+    VmKernelReferenceBoundary = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'VM 内核引用面（VM-P6-d）：内核热路径（队列/循环/实例/路由/换代/装载/通用换代服务）零编译依赖——禁 Roslyn（Microsoft.CodeAnalysis）/ CSharpCompilation / VmCompiler；按面分层机器判据'
+    }
+
     AgentRuntimeSlots = @{
         Args   = @{ Check = $true }
         Expect = 0
@@ -345,6 +351,13 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '双载体互斥门（D3）：端口块禁「impl delegate ∧ script」并存（僵尸脚本）；D1 新增即红 · D2 只减不增（可销账可见化）· D3 正/负对照（防假绿）；基线 = Baselines\DualCarrierExclusion.psd1'
+    }
+
+    # ===== VM 换代路线收敛（VM-R1 构建到新目录）=====
+    GenerationLayout = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'VM-R1 代目录布局契约：gen-<n>（n ≥ 1）须含全 Agent.*.dll（计数 ≥ 就地产物面参照）+ Agent.Launcher.deps.json（ALC 解析基座=本目录）+ vm-program.json；代根 = Projects\Plug\Agent\BuildOutput\Generations；落点禁 BuildOutput\<Config>（被运行进程锁定）'
     }
 
 }

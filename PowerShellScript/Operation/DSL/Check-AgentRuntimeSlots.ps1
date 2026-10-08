@@ -220,7 +220,7 @@ $registeredMembers = [System.Collections.Generic.List[string]]::new()
 foreach ($file in $files) {
     $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
     if ([string]::IsNullOrEmpty($text)) { continue }
-    foreach ($m in [regex]::Matches($text, 'Register\s*\(\s*AgentRuntimeSlotKeys\.(?<member>[A-Za-z_][A-Za-z0-9_]*)')) {
+    foreach ($m in [regex]::Matches($text, 'Register\s*\(\s*AgentRuntimeSlotKeys\.(?<member>[A-Za-z_][A-Za-z0-9_]*)\s*,')) {
         $registeredMembers.Add($m.Groups['member'].Value)
     }
 }
@@ -228,10 +228,12 @@ $registeredMembers = @($registeredMembers | Sort-Object -Unique)
 
 # 存量待迁移（声明实例级、实走进程级/域级）：只允许下降；迁移依赖「实例登记时机」裁决（见施工单 §5-1）。
 # 新增即违规（S7），防平行新增第二份分裂。
+# VM-R0 · B2-c：§5-1 裁决 = ②（装配期登记实例）—— E 段已具备「装配期实例键就绪时按 InstanceKeyOf 实例分区注册」路径；
+#   剩余待迁移项 = 待宿主经 AgentBuildRequest.InstanceKey 供给装配实例键（VM-R2b 宿主重装配接线）后逐槽收敛。
 $instanceScopedPending = @(
-    [pscustomobject]@{ Member = 'Boundary'; Reason = '域级装配产物（AgentAssemblySegments E 段 Register）；per-run 拆分待「实例登记时机」裁决（施工单 §5-1）' }
+    [pscustomobject]@{ Member = 'Boundary'; Reason = 'E 段 Register；已具备装配期实例键就绪时按 InstanceKeyOf 实例分区注册路径（VM-R0 §5-1=②），待宿主供给 InstanceKey 后收敛' }
     [pscustomobject]@{ Member = 'PromptFramework'; Reason = '进程级宿主 RuntimeSlotKey<PromptFrameworkHost>（PromptFrameworkFunction）；含进程级装配钩子 OnPromptAssembled，拆分待裁' }
-    [pscustomobject]@{ Member = 'RuntimeState'; Reason = '域级装配产物（AgentAssemblySegments E 段 Register）；per-run broker 拆分待「实例登记时机」裁决（施工单 §5-1）' }
+    [pscustomobject]@{ Member = 'RuntimeState'; Reason = 'E 段 Register；已具备装配期实例键就绪时按 InstanceKeyOf 实例分区注册路径（VM-R0 §5-1=②），待宿主供给 InstanceKey 后收敛' }
 )
 
 foreach ($member in $instanceScopedMembers) {

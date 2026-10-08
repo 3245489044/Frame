@@ -68,6 +68,13 @@
     #   不动 Manifest 指针。切换理由 = 施工单《2026-10-08-Vm框架-热更新贯通-剩余步骤施工单.md》§2 新增批；
     #   各批 allowSet 均落在既有 VM-P4/VM-P6-d 面内（无需扩面），既有批文件内容保留不变。
     #   恢复 = 从 active/batches 移除 VM-P4-面①/面③ 与 VM-P6-e/f、并把 VM-P6-d 状态回退 pending。
+    # v16（2026-10-09）：VM 授权单内登记「换代路线收敛：构建到新目录 → 换 ALC → 重装配 → 数据全在根」
+    #   施工单批次（VM-R-D0 · VM-R0 · VM-R1 · VM-R2 · VM-R2b · VM-R3 · VM-R4 · VM-R5），不动 Manifest 指针。
+    #   切换理由 = 施工单《2026-10-09-Vm框架-换代路线收敛-构建到新目录-换ALC-重装配.md》§7 批次；
+    #   路线 A 核心语义为「代码可换 + 数据不动」（Roslyn 运行期编译线降为可选面）。
+    #   扩面（VM-R2b「重装配桥」）：档 A 需在新 ALC 内经 PrjBridge 重绑 AgentPluginPorts.Plugin + 重跑
+    #   AgentComposition 四相位，落点含 Projects/PrjBridge/** 与 Projects/FileDriven/**（原 §7 allowSet 未覆盖）。
+    #   恢复 = 从 active/batches 移除 VM-R* 条目。
     Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Vm框架-面向数据运行时内核.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。

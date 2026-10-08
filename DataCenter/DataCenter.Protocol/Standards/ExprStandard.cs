@@ -77,6 +77,13 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Capture">替身捕获取值算子（见 <see cref="CaptureExprStandard"/>）。</param>
 /// <param name="CaptureCount">替身捕获计数算子（见 <see cref="CaptureCountExprStandard"/>）。</param>
 /// <param name="FakeCount">替身调用计数算子（见 <see cref="FakeCountExprStandard"/>）。</param>
+/// <param name="Substring">子串来源（<c>substring</c>；配 <see cref="SubstringStart"/> 与可选 <see cref="SubstringLength"/>）。</param>
+/// <param name="SubstringStart">子串起始下标（缺省 0）。</param>
+/// <param name="SubstringLength">子串长度（缺省 = 至末尾）；越界即抛（不静默截断）。</param>
+/// <param name="Replace">文本替换来源（<c>replace</c>；配 <see cref="ReplaceOld"/> 与 <see cref="ReplaceReplacement"/>）。</param>
+/// <param name="ReplaceOld">被替换文本（须非空）。</param>
+/// <param name="ReplaceReplacement">替换为文本（缺省空串）。</param>
+/// <param name="Trim">两侧空白裁剪（<c>trim</c>）。</param>
 public sealed record ExprStandard(
     ValueSourceStandard? Source = null,
     string? Path = null,
@@ -145,7 +152,14 @@ public sealed record ExprStandard(
     FakeCountExprStandard? FakeCount = null,
     ExprStandard? Select = null,
     ExprStandard? SelectExpr = null,
-    ExprStandard? SelectWhere = null);
+    ExprStandard? SelectWhere = null,
+    ExprStandard? Substring = null,
+    ExprStandard? SubstringStart = null,
+    ExprStandard? SubstringLength = null,
+    ExprStandard? Replace = null,
+    ExprStandard? ReplaceOld = null,
+    ExprStandard? ReplaceReplacement = null,
+    ExprStandard? Trim = null);
 
 /// <summary>
 /// 替身**捕获取值**算子（收敛 3 代数节点）：从依赖替身的调用捕获记录中取某次调用的实参

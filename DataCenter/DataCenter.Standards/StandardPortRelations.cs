@@ -75,7 +75,15 @@ public static class StandardPortRelations
         foreach (var dep in deps)
         {
             Type(symbols, dep.New);
-            Type(symbols, dep.Contract);
+
+            // 多契约（E2-b）：`|` 分隔的接口名逐个入边（单契约 = 原样）。
+            if (dep.Contract is { Length: > 0 } contract)
+            {
+                foreach (var name in contract.Split(
+                             '|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    Type(symbols, name);
+            }
+
             CollectComposedArgs(dep.Args, symbols);
         }
     }

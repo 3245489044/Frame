@@ -137,6 +137,13 @@ public static partial class PortImplVocabulary
         new("Select", "select", ExprSlotKind.One, "select", ["over"]),
         new("SelectExpr", "select", ExprSlotKind.One, "selectExpr"),
         new("SelectWhere", "select", ExprSlotKind.One, "selectWhere"),
+        new("Substring", "substring", ExprSlotKind.One, "substring"),
+        new("SubstringStart", "substring", ExprSlotKind.One, "start"),
+        new("SubstringLength", "substring", ExprSlotKind.One, "length"),
+        new("Replace", "replace", ExprSlotKind.One, "replace"),
+        new("ReplaceOld", "replace", ExprSlotKind.One, "old"),
+        new("ReplaceReplacement", "replace", ExprSlotKind.One, "replacement"),
+        new("Trim", null, ExprSlotKind.One, "trim"),
     ];
 
     /// <summary>

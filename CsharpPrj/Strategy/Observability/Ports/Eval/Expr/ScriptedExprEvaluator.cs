@@ -65,6 +65,10 @@ internal static partial class ScriptedExprEvaluator
         if (expr.CaptureCount is { } captureCount) return CaptureCount(captureCount, scope, deps, field);
         if (expr.FakeCount is { } fakeCount) return FakeCount(fakeCount, scope, deps, field);
 
+        if (expr.Substring is { } substring) return Substring(expr, substring, scope, input, deps, field);
+        if (expr.Replace is { } replace) return Replace(expr, replace, scope, input, deps, field);
+        if (expr.Trim is { } trim) return Trim(trim, scope, input, deps, field);
+
         if (expr.Collect is { Length: > 0 } collect) return Collect(expr, collect, scope, input, deps, field);
 
         throw new PortBindingViolationException(

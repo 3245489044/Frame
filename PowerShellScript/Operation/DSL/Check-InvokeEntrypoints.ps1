@@ -37,6 +37,7 @@ $entryScripts = @(
     'Invoke-Regression.ps1'
     'Locate-Test.ps1'
     'Locate-Build.ps1'
+    'Locate-Port.ps1'
     'Invoke-Verify.ps1'
     'Invoke-SpecGen.ps1'
     'Get-SpecChain.ps1'

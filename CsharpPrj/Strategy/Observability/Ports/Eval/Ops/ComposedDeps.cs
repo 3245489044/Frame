@@ -172,13 +172,22 @@ internal static class ComposedDeps
             portKey,
             $"端口 '{portKey}' 的 dep[{index}] 声明 fake='{kind}' 但缺 wrap（该形态需装饰一个已有依赖）");
 
-    /// <summary>替身契约接口（声明必填：不从运行时类型猜接口，避免多接口时静默择一）。</summary>
-    private static Type ContractOf(int index, DepStandard spec, string portKey)
-        => spec.Contract is { Length: > 0 } name
-            ? ReflectivePortResolver.ResolveType(name)
-            : throw new PortBindingViolationException(
+    /// <summary>
+    /// 替身契约接口（声明必填：不从运行时类型猜接口，避免多接口时静默择一）。
+    /// <para>多契约用 <c>|</c> 分隔（E2-b）：合成继承接口后由单代理承载 ⇒ 同一桩可被任一原契约转换。</para>
+    /// </summary>
+    private static IReadOnlyList<Type> ContractOf(int index, DepStandard spec, string portKey)
+    {
+        if (spec.Contract is not { Length: > 0 } name)
+            throw new PortBindingViolationException(
                 portKey,
                 $"端口 '{portKey}' 的 dep[{index}] 声明 fake='{spec.Fake}' 但缺 contract（契约接口全名）");
+
+        return name
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(ReflectivePortResolver.ResolveType)
+            .ToArray();
+    }
 
     /// <summary>依赖引用（下标必须存在且指向更早的依赖）。</summary>
     internal static object? Dep(object?[] deps, int reference, int index, string portKey)

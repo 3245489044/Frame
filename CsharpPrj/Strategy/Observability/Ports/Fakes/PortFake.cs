@@ -1,7 +1,9 @@
 namespace Strategy.Observability.Ports;
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text.Json;
 using Strategy.Observability.Diagnostics;
 
@@ -152,6 +154,22 @@ public static class PortFake
     }
 
     /// <summary>代理载体：按<b>契约接口</b>生成替身（转发 / 计数 / 固定应答 / 序列 / 负向守卫）。</summary>
+    /// <summary>
+    /// 代理载体（多契约 · E2-b）：把 N 个接口合成为一个继承接口后按单契约路径装配 ⇒ 同一实例可被任一原契约转换
+    /// （解 <c>INodeExecutor</c>+<c>INodeExecutorHooks</c> 一类「单桩承多契约」的承载缺）。
+    /// <para>边界：只解接口组合；基类承载不在本路径（<see cref="PortContractCombiner"/> 显式 fail-fast）。</para>
+    /// </summary>
+    public static object CreateProxy(
+        IReadOnlyList<Type> contracts, FakeKind kind, FakeOptions options)
+    {
+        PortGuard.Required(contracts, nameof(contracts));
+        if (contracts.Count == 0)
+            throw new InvalidOperationException("[port:fake] 多契约代理须至少一个契约");
+
+        return CreateProxy(
+            contracts.Count == 1 ? contracts[0] : PortContractCombiner.Combine(contracts), kind, options);
+    }
+
     public static object CreateProxy(Type contract, FakeKind kind, FakeOptions options)
     {
         PortGuard.Required(contract, nameof(contract));
@@ -617,6 +635,66 @@ internal class FakeDispatchProxy : DispatchProxy
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         => (_handler ?? throw new InvalidOperationException("[port:fake] 代理替身未装配行为"))
             (targetMethod!, args ?? Array.Empty<object?>());
+}
+
+/// <summary>
+/// 多契约合成（E2-b）：把 N 个接口合成为一个**只含继承关系的空接口**（不做类 Emit、不写方法体），
+/// 再交 <see cref="DispatchProxy"/> 单接口代理承载 ⇒ 代理实例天然可被任一原契约转换。
+/// <para>
+/// 动机：<see cref="DispatchProxy.Create(Type, Type)"/> 只接受**单个**接口；产品侧存在「一个桩需同时是
+/// <c>INodeExecutor</c> 与 <c>INodeExecutorHooks</c>」的承载需求，此前只能靠逐端口手写实现类。
+/// </para>
+/// <para>
+/// 边界（显式 fail-fast，不静默降级）：只支持**接口组合**；基类承载需要 Emit 类与构造链，不在本件范围。
+/// </para>
+/// </summary>
+internal static class PortContractCombiner
+{
+    private static readonly ModuleBuilder Module = CreateModule();
+    private static readonly ConcurrentDictionary<string, Type> Cache = new(StringComparer.Ordinal);
+    private static int _sequence;
+
+    /// <summary>合成继承接口（N = 1 时直返原契约；同契约集缓存复用，代理类型不重复生成）。</summary>
+    internal static Type Combine(IReadOnlyList<Type> contracts)
+    {
+        if (contracts.Count == 0)
+            throw new InvalidOperationException("[port:fake] 多契约合成须至少一个契约");
+
+        foreach (var contract in contracts)
+        {
+            if (contract.IsInterface) continue;
+
+            throw new InvalidOperationException(
+                $"[port:fake] 契约 '{contract.FullName}' 不是接口" +
+                "（多契约合成只支持接口组合；基类承载需 Emit 类，不支持）");
+        }
+
+        if (contracts.Count == 1) return contracts[0];
+
+        var key = string.Join("|", contracts.Select(contract => contract.AssemblyQualifiedName));
+        return Cache.GetOrAdd(key, _ => Emit(contracts));
+    }
+
+    /// <summary>生成空继承接口（接口 Emit 无构造链与方法体 ⇒ 不涉栈平衡，失败面极小）。</summary>
+    private static Type Emit(IReadOnlyList<Type> contracts)
+    {
+        var builder = Module.DefineType(
+            $"PortCombinedContract_{Interlocked.Increment(ref _sequence)}",
+            TypeAttributes.Public | TypeAttributes.Interface | TypeAttributes.Abstract);
+
+        foreach (var contract in contracts) builder.AddInterfaceImplementation(contract);
+
+        return builder.CreateType()
+               ?? throw new InvalidOperationException("[port:fake] 多契约合成类型生成失败");
+    }
+
+    private static ModuleBuilder CreateModule()
+    {
+        var assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName("PortContractCombiner.Dynamic"), AssemblyBuilderAccess.Run);
+
+        return assembly.DefineDynamicModule("PortContractCombiner.Dynamic");
+    }
 }
 
 /// <summary>

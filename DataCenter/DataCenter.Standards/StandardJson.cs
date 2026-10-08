@@ -120,13 +120,17 @@ public static partial class StandardJson
 
     /// <summary>
     /// 逐层未知键闭合（层适配器）：取值域 = <see cref="PortImplVocabulary.KeysOf"/> 派生的键表；
-    /// **未登记层 → 不判**（防越界误杀）。实现单源 = <see cref="EnsureKnownKeys"/>（本件不另写一遍收集/抛出）。
+    /// **未登记层 → 不判**（防越界误杀）。收集单源 = 通用框架 <c>LedgerKeyClosure.EnsureKnown</c>
+    /// （经 <see cref="PortImplVocabulary.EnsureKnownLayerKeys"/>）；异常身份与文案仍由本层承担。
     /// </summary>
     private static void EnsureLayerKeys(string level, string context, JsonElement obj)
     {
-        if (PortImplVocabulary.KeysOf(level) is not { Count: > 0 } known) return;
+        if (PortImplVocabulary.KeysOf(level) is not { Count: > 0 }) return;
 
-        EnsureKnownKeys(context, obj, known);
+        var violations = new List<string>();
+        PortImplVocabulary.EnsureKnownLayerKeys(
+            level, obj.EnumerateObject().Select(p => p.Name), context, UnknownKeyMessage, violations);
+        if (violations.Count > 0) throw new StandardViolationException(violations[0], violations);
     }
 
     /// <summary>未知键 fail-fast（一次报全：全部未声明键带键路径入明细；首条文案与迁移前逐字一致）。

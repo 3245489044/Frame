@@ -13,6 +13,7 @@
 | `Invoke-Regression.ps1` | `Environment\CentralTest\Invoke-AgentRegression.ps1` | C# 回归一键跑 |
 | `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 | `Locate-Build.ps1` | `Environment\CentralTest\Get-VerifyPlan.ps1` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
+| `Locate-Port.ps1` | `Environment\CentralTest\Get-PortPlan.ps1` | 诊断相位 · 零运行定位（端口键 → 声明/实现/消费用例/工程） |
 | `Get-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-get`） | 作者面 · 只读（链/引用清单 + 内联载荷去重候选） |
 | `New-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-new`） | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |
 | `Use-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-use`） | 作者面 · 切链（匹配用例的内联 → `use <链>`；DryRun 缺省 + 三类自检） |

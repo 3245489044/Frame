@@ -27,11 +27,15 @@
   <ItemGroup Label="CsharpPrjBakedRefs">
     <!-- 语言无关图表示（CanonicalForm）：投影产物的对外形态（R-DC1：只扩不改主 schema） -->
     <Reference Include="CSG.Unified" HintPath="$(CsharpBuildOutputDir)CSG.Unified.dll" Private="false" />
+    <!-- 通用声明式契约台账机制（Frame\CsharpPrj\Plate\DeclarativeLedger）：端口 impl 词表与逐层键闭包的机器可判定承载
+         （词表 = LedgerVocabulary / LedgerTerm；键闭包 = LedgerKeyClosure）。框架自带零 ProjectReference，纯契约层经其不拖入外部依赖链。 -->
+    <Reference Include="BasicMethod.Declarative.Ledger" HintPath="$(CsharpBuildOutputDir)BasicMethod.Declarative.Ledger.dll" Private="false" />
   </ItemGroup>
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：二进制引用无 MSBuild 顺序边，本工程在 MainProj.sln 闭包内。 -->
   <ItemGroup Label="CsharpPrjBuildOrderOnly">
     <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_DeclarativeLedger)" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

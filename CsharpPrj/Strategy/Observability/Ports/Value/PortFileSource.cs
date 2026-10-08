@@ -5,13 +5,14 @@ using DataCenter.Protocol.Standards;
 using Strategy.Observability.Diagnostics;
 
 /// <summary>
-/// 仓库文件取值单源（G4：<c>from:file{path,json,content}</c>）：以**仓库根**为基准只读加载文件；
+/// 仓库文件取值单源（G4：<c>from:file{path,json,content}</c>）：以**仓库根**（或 <c>out://</c> 指示的输出目录）为基准只读加载文件；
 /// 绝对路径 / 越界 / 不存在 / 形态非法一律 fail-fast（**禁静默回落**）。
 /// <para>
 /// 分工：本件只认「相对路径字符串 + 内容形态」（零领域语义）。
 /// 根锚口径 = 含 <c>.gitmodules</c> 与 <c>Frame</c> 的目录（Main 仓库根）——
 /// **不以 <c>.git</c> 为锚**：<c>Frame</c>/<c>Projects</c> 为子模块、自身即含 <c>.git</c>，
 /// 以其为锚会落到子模块根，破坏「各相对路径单一基准」。
+/// 坐标前缀：`repo://`（缺省）= 上述仓库根；`out://` = 宿主输出目录（随附资源域，如测试产出 `Configs/…`）。
 /// </para>
 /// </summary>
 internal static class PortFileSource
@@ -57,7 +58,7 @@ internal static class PortFileSource
                 $"端口 '{portKey}' 的 {context} 的 file.content '{declared}' 未知（text|lines|json）");
     }
 
-    /// <summary>读取仓库相对文件（按形态给出文本 / 行数组 / JSON 根元素）。</summary>
+    /// <summary>读取资源文件（按形态给出文本 / 行数组 / JSON 根元素；坐标前缀见 <see cref="Resolve"/>）。</summary>
     internal static object? Read(string relativePath, string mode, string portKey, string context)
     {
         var full = Resolve(relativePath, portKey, context);
@@ -70,33 +71,53 @@ internal static class PortFileSource
         };
     }
 
-    /// <summary>仓库相对路径 → 绝对路径（绝对路径 / 越界 / 不存在即抛）。</summary>
+    /// <summary>资源相对路径 → 绝对路径（绝对路径 / 越界 / 不存在即抛）。
+    /// 坐标前缀 `repo://`（缺省，仓库根）与 `out://`（宿主输出目录）分别选定基准根（E2-c/C4）。</summary>
     private static string Resolve(string relativePath, string portKey, string context)
     {
         // C1：资源坐标 `repo://<仓相对路径>` 与裸仓相对路径等价（方案头糖，非新语义）。
-        const string scheme = "repo://";
-        var path = relativePath.StartsWith(scheme, StringComparison.Ordinal)
-            ? relativePath.Substring(scheme.Length)
-            : relativePath;
+        const string repoScheme = "repo://";
+
+        // C4：资源坐标 `out://<输出目录相对路径>` 以宿主输出目录为基准（随附资源如 `Configs/…` 落此处，
+        // 与仓库根分属不同资源域；TrimEnding 归一到与 `Root` 同形，防双分隔符破坏越界校验）。
+        const string outScheme = "out://";
+
+        string root;
+        string path;
+
+        if (relativePath.StartsWith(repoScheme, StringComparison.Ordinal))
+        {
+            root = Root;
+            path = relativePath.Substring(repoScheme.Length);
+        }
+        else if (relativePath.StartsWith(outScheme, StringComparison.Ordinal))
+        {
+            root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+            path = relativePath.Substring(outScheme.Length);
+        }
+        else
+        {
+            root = Root;
+            path = relativePath;
+        }
 
         if (Path.IsPathRooted(path))
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的 {context} 的 file.path '{relativePath}' 须为仓库相对路径（禁绝对路径）");
+                $"端口 '{portKey}' 的 {context} 的 file.path '{relativePath}' 须为资源相对路径（禁绝对路径）");
 
-        var root = Root;
         var full = Path.GetFullPath(Path.Combine(root, path));
 
         if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的 {context} 的 file.path '{relativePath}' 越出仓库根（{root}）");
+                $"端口 '{portKey}' 的 {context} 的 file.path '{relativePath}' 越出资源根（{root}）");
 
         return File.Exists(full)
             ? full
             : throw new PortBindingViolationException(
                 portKey,
-                $"端口 '{portKey}' 的 {context} 的 file.path 文件不存在：{full}（仓库相对 '{relativePath}'）");
+                $"端口 '{portKey}' 的 {context} 的 file.path 文件不存在：{full}（资源相对 '{relativePath}'）");
     }
 
     /// <summary>JSON 解析（首个文档的根元素；解析失败即抛，异常含文件定位）。</summary>

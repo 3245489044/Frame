@@ -1075,7 +1075,14 @@ public static partial class StandardJson
             FoldStep: foldStep,
             Capture: ReadCapture(element),
             CaptureCount: ReadCaptureCount(element),
-            FakeCount: ReadFakeCount(element));
+            FakeCount: ReadFakeCount(element),
+            Substring: Sub(portKey, element, "substring", context),
+            SubstringStart: Sub(portKey, element, "start", context),
+            SubstringLength: Sub(portKey, element, "length", context),
+            Replace: Sub(portKey, element, "replace", context),
+            ReplaceOld: Sub(portKey, element, "old", context),
+            ReplaceReplacement: Sub(portKey, element, "replacement", context),
+            Trim: Sub(portKey, element, "trim", context));
     }
 
     /// <summary>捕获取值节点读取（收敛 3）：<c>capture:{ dep, member?, at?, index?, path?, orNull? }</c>。</summary>

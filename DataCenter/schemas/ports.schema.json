@@ -596,7 +596,14 @@
         "fakeCount": { "type": "object" },
         "select": { "type": "object" },
         "selectExpr": { "type": "object" },
-        "selectWhere": { "type": "object" }
+        "selectWhere": { "type": "object" },
+        "substring": { "type": "object" },
+        "start": { "type": "object" },
+        "length": { "type": "object" },
+        "replace": { "type": "object" },
+        "old": { "type": "object" },
+        "replacement": { "type": "object" },
+        "trim": { "type": "object" }
       },
       "additionalProperties": false
     }

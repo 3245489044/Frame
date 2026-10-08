@@ -19,6 +19,16 @@
     <ModuleRule_Prompt Include="当需要「编号 + 跨项 + 一次报全」的契约判据时，实现 ILedgerRule&lt;TCatalog&gt; 并经 LedgerConsistency 求值" />
     <ModuleRule_Prompt Include="当需要声明式 JSON 读取 / 结构校验机制时，使用平台框架 Plate.JsonMethod（本工程不再提供）" />
     <ModuleRule_Prompt Include="当需要产出与既有 PowerShell ConvertTo-Json 产物逐字节一致的台账文本（分片/产物重组、区块改写）时，使用 PsJsonText（勿自写缩进/转义）" />
+    <ModuleRule_Prompt Include="当需要「具名枚举词表」的单一 C# 源（结构门 enum / 执行分支 / 文案词表段一律派生）时，使用 LedgerTerm + LedgerVocabulary" />
+    <ModuleRule_Prompt Include="当需要「分层键闭包 / 未知键 fail-fast」的唯一实现（读取器 / 结构门 / 离线校验共用）时，使用 LedgerKeyClosure" />
+    <ModuleRule_Prompt Include="当需要「按位构造的镜像模型」位序对账（防静默错位）时，使用 LedgerMirrorGuard" />
+    <ModuleRule_Prompt Include="当需要「声明的词必须有实现 / 实现的词必须已登记」（幽灵词判据）时，使用 LedgerVocabularyCoverage" />
+    <ModuleRule_Prompt Include="当需要「词表 → 结构门枚举」的只读对账（集合 + 词序）时，使用 LedgerEnumPlan + LedgerEnumBinding（写回留离线工具）" />
+    <ModuleRule_Prompt Include="当需要「通用运行时映射器」的位序映射表（替代逐模型手写按位构造、免 Roslyn）时，使用 LedgerMirrorPlan" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Rules_Extra">
+    <ModuleRule_Rule Include="词表 / 键闭包 / 镜像对账均为机制半，不含领域词：词表内容与层名全部由消费方注入，框架只承担登记、闭包判定与位序对账" />
   </ItemGroup>
 
   <PropertyGroup>

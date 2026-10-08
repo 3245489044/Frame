@@ -9,7 +9,8 @@
 #   [D5] 每类数据登记归属     → 扫描「疑似数据持有」逐条核对 doc\data-ownership.json（本脚本独有）
 # 疑似数据持有 = K10 的 S1/S2（静态可变槽）∪ K9 的 new StateCenter( / static … IRootProvider；
 #   未在 data-ownership.json 登记 → 无主数据违规（D5 判据）。
-# 基线冻结（Batch 0 实测 2026-09-12；W0 同步实测 20 命中 / 15 文件，AgentUiHost.cs 已收敛出）：K10 命中 20 / 15 文件；K9 待迁移 0；单写者告警 12；G1/G2 违规 0。
+# 基线冻结**单源** = 归属台账 Projects\Plug\Agent\doc\data-ownership.json 的 frozenBaseline
+#   （本脚本随台账装载派生，**禁在本脚本内联数值** —— 曾双源漂移：脚本 K10Hits=20 vs 台账 0）。
 #   「待迁移」只允许下降，回涨即违规（防基线静默漂移）。
 # 模式：报告模式（默认）列出全部清单并 EXIT 0；
 #       -Check 模式在「D1–D4 违规 > 0」或「D5 无主数据 > 0」或「待迁移回涨」时 EXIT 1（CI 门禁）。
@@ -32,17 +33,7 @@ $ledgerPath = Join-Path $Root 'Projects\Plug\Agent\doc\data-ownership.json'
 if (-not (Test-Path $agentSrc)) { Write-Error "未找到 Agent 源码目录: $agentSrc"; exit 2 }
 if (-not (Test-Path $ledgerPath)) { Write-Error "未找到归属台账（D5 核对源）: $ledgerPath"; exit 2 }
 
-# 冻结基线（Batch 0 实测；归零后由 Batch 7 清空）—— 待迁移项只允许下降
-$frozen = [ordered]@{
-    K10Hits     = 20   # K10 存量基线命中（对象槽逐项收敛 → 最终 0）
-    K10Files    = 15   # K10 存量基线涉及文件数
-    K9Pending   = 0    # K9 待迁移（Batch 1b 已归零：产品侧兜底造根移除）
-    K9Violation = 0
-    G1Hits      = 0
-    G2Violation = 0
-    SWViolation = 0
-}
-
+# 冻结基线在下方随归属台账装载派生（单源；见文件头注）—— 待迁移项只允许下降。
 # 关键存储文件存在性（D3 前置：脚本默认 Root 已修为四级上溯）
 if (-not (Test-Path (Join-Path $Root 'Frame\CsharpPrj\Plate\DataManage\Storage\Sqlite\SqliteRelate.cs'))) {
     Write-Error "未找到 Frame\CsharpPrj\Plate\DataManage\Storage\Sqlite\SqliteRelate.cs —— D3 审计面不完整。"; exit 2
@@ -86,6 +77,19 @@ $swWarnings  = if ($sw.Text -match '告警\s*(\d+)\s*条') { [int]$Matches[1] } 
 $ledger = Get-Content $ledgerPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $entries = @($ledger.entries)
 if ($entries.Count -eq 0) { Write-Error "归属台账为空: $ledgerPath"; exit 2 }
+
+# 冻结基线派生（单源 = $ledger.frozenBaseline；字段名对齐台账，SWViolation ← SingleWriterViolations）
+$fb = $ledger.frozenBaseline
+if ($null -eq $fb) { Write-Error "归属台账缺 frozenBaseline（D1–D4 冻结基线单源）: $ledgerPath"; exit 2 }
+$frozen = [ordered]@{
+    K10Hits     = [int]$fb.K10Hits
+    K10Files    = [int]$fb.K10Files
+    K9Pending   = [int]$fb.K9Pending
+    K9Violation = [int]$fb.K9Violation
+    G1Hits      = [int]$fb.G1Hits
+    G2Violation = [int]$fb.G2Violation
+    SWViolation = [int]$fb.SingleWriterViolations
+}
 
 $holdPatterns = [ordered]@{
     'S1 静态可变字段'          = '^\s*(?:public|internal|private|protected)\s+[^;]*\bstatic\b(?![^;]*\b(?:readonly|const)\b)[^;]*;\s*$'

@@ -61,6 +61,14 @@
         Note   = 'N-1 Operation 同层引用隔离（方案 §2.3 G-1）：棘轮基线 18 条只减不增 + 目标对 WorkFlowMethod<->DataStoreDriven 恒 0；层号真源 modules.json roots.layer；D3/D4 正负对照'
     }
 
+    SpecOnly = @{
+        Args   = @{ Root = @('AgentTest', 'UsharpTests'); Baseline = 'Tools\Gate\baselines\SpecOnlyGate.baseline.json' }
+        Path   = 'Environment\CentralTest\Tools\Gate\Test-SpecOnlyGate.ps1'
+        Expect = 0
+        Note   = '测试载体单一化（AT2001 工具期对拍）：已启用范围（UsharpTests 根级 / Agent.Core.Tests 工程级）内未豁免的 [TestMethod] 即 FAIL；棘轮基线只减不增（新增手写测试 / 向已豁免文件追加）'
+    }
+
+
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{
         Args   = @{}

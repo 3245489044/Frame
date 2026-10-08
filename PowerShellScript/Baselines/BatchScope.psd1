@@ -37,7 +37,15 @@
     #   · Docs/analysis/2026/10/10.7|10.4/**，均在新单 allowSet 内；git 干净（Frame/Projects 子模块无在途
     #   改动）⇒ 切换不误判。会话域单节点化 S-0..S-4/K 已收口，其授权单文件内容保留不变。
     #   恢复 = 回填 v9 的 Value（上方注释保留会话域单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.7\2026-10-07-AgentTest-端口层消除-E2与S4.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v11（2026-10-08）：单指针切换至「Agent 动态编译就绪度与聚拢点框架重构（B0–B6 =
+    #   P0 基线固化 → P1 D1 数据入实例 → P2 RF-1/RF-2 相位纯化 → P3 槽口径单源+取根收口 →
+    #   P4 D3/D4 重建 → P5 D6/D7 换代端到端）」计划授权单。切换理由 = 用户转入实施该规划；
+    #   本系列改动落在 Projects/Plug/Agent/** · Frame/DataCenter/** · Frame/PowerShellScript/**
+    #   · Projects/PrjBridge/** · Environment/CentralTest/**，均在新单 allowSet 内。既有在途改动
+    #   （10.6 观测帧/CSS 系列产品+UI+Information 共 4 件）不在任何系列活动面内，按新单 preexisting
+    #   登记；10.7 端口层消除系列的 Agent/CentralTest 在途改动落在新单 B2–B6 allowSet 内，切换不误判。
+    #   恢复 = 回填 v10 的 Value（上方注释保留 10.7 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Agent动态编译就绪度与聚拢点框架重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

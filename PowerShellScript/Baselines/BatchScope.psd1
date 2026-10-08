@@ -54,6 +54,20 @@
     #   在途项按新单 preexisting 登记；P0 已交付物（Vm 工程/ABI/Gate + 使用侧接线）同样经 preexisting
     #   表达（新单 $comment：P0 不单列批）。B 系列 10.8 授权单文件内容保留不变。
     #   恢复 = 回填 v11 的 Value（上方注释保留 Agent B 系列单原值）。
+    # v13（2026-10-08）：VM 授权单内扩面（VM-P3 / VM-P4 增 Frame/CsharpPrj/** 与 Projects/BuildFramework/**），
+    #   不动 Manifest 指针。切换理由 = VM-P4 接线方案 §5 的授权面缺口（共享边界登记 Vm / 根上移的
+    #   SharedBoundaryCatalog 与 SharedBoundaryRefs.props 同步落在 Frame/CsharpPrj 与 Projects/BuildFramework，
+    #   两处均不在原 allowSet 内 ⇒ BatchScope 必红）；本步只扩面不改判据口径，既有批文件内容保留不变。
+    #   恢复 = 从 VM-P3 / VM-P4 的 allowSet 移除该两行。
+    # v14（2026-10-08）：VM 授权单内登记 VM-P6 工作线（运行期编译就绪：VM-P6-0..d），
+    #   不动 Manifest 指针。切换理由 = 用户裁决「以换代为核心语义，在 Vm 内设核心框架」；
+    #   本步只增批次面（allowSet 覆盖 Projects/Vm/** · Projects/Plug/Agent/** · Projects/FileDriven/**
+    #   · Environment/CentralTest/** · Frame/PowerShellScript/** ± Docs/analysis/2026/10/10.8/**），
+    #   既有批文件内容保留不变。恢复 = 从 active/batches 移除 VM-P6-* 条目。
+    # v15（2026-10-08）：VM 授权单内登记「热更新贯通」施工单批次（VM-P4-面①/面③ · VM-P6-d/e/f），
+    #   不动 Manifest 指针。切换理由 = 施工单《2026-10-08-Vm框架-热更新贯通-剩余步骤施工单.md》§2 新增批；
+    #   各批 allowSet 均落在既有 VM-P4/VM-P6-d 面内（无需扩面），既有批文件内容保留不变。
+    #   恢复 = 从 active/batches 移除 VM-P4-面①/面③ 与 VM-P6-e/f、并把 VM-P6-d 状态回退 pending。
     Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Vm框架-面向数据运行时内核.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。

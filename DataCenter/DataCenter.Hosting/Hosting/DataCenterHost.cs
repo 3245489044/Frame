@@ -98,6 +98,13 @@ public sealed class DataCenterHost : IAsyncDisposable
     public bool IsShutdown => Volatile.Read(ref _shutdown) != 0;
 
     /// <summary>
+    /// 新代数装配入口的**每代可重设提供者**（默认 ALC 常驻持有器用）—— 非 null 时优先于
+    /// <see cref="DataCenterHostOptions.RootFactory"/>。供持有器在每次换代前重新登记**当代**的装配入口，
+    /// 避免默认 ALC 侧长期持有旧扩展代数 ALC 的委托（防跨代句柄钉住旧 ALC）。
+    /// </summary>
+    public Func<RootSwapContext, IDataCenterRoot>? RootFactoryProvider { get; set; }
+
+    /// <summary>
     /// 装配并启动单根宿主（进程内唯一入口）。
     /// 失败语义：二次 Boot → 单根守卫 fail-fast（<see cref="InvalidOperationException"/>）；
     /// 装配中途失败 → 回滚已建资源（不残留根、不泄漏槽）。
@@ -363,7 +370,7 @@ public sealed class DataCenterHost : IAsyncDisposable
     /// </summary>
     private IDataCenterRoot BuildRoot(IStateGeneration generation, IStateGeneration previousGeneration)
     {
-        var factory = _rootFactory;
+        var factory = RootFactoryProvider ?? _rootFactory;
         if (factory is null)
             return BuildRoot(generation);
 

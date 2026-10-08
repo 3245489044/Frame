@@ -45,7 +45,16 @@
     #   （10.6 观测帧/CSS 系列产品+UI+Information 共 4 件）不在任何系列活动面内，按新单 preexisting
     #   登记；10.7 端口层消除系列的 Agent/CentralTest 在途改动落在新单 B2–B6 allowSet 内，切换不误判。
     #   恢复 = 回填 v10 的 Value（上方注释保留 10.7 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Agent动态编译就绪度与聚拢点框架重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v12（2026-10-08）：单指针切换至「VM 框架（面向数据运行时内核）后续步骤（VM-D0 → VM-P0b →
+    #   VM-P1…VM-P5）」计划授权单。切换理由 = 用户转入实施该规划（P0 已交付，后续 P0b–P5 待施工）；
+    #   本系列改动落在 Projects/Vm/** · Projects/FileDriven/** · Projects/Plug/Agent/**
+    #   · Frame/PowerShellScript/** · Environment/CentralTest/** · Docs/analysis/2026/10/10.8/**，
+    #   均在新单 allowSet 内。既有在途改动（Agent B 系列 P0/B2-a/B2-b 产品与测试，共 17 项）
+    #   不在任何 VM 批次 allowSet 内者（仅 Projects/Directory.Build.props 一项为硬缺口）连同其余
+    #   在途项按新单 preexisting 登记；P0 已交付物（Vm 工程/ABI/Gate + 使用侧接线）同样经 preexisting
+    #   表达（新单 $comment：P0 不单列批）。B 系列 10.8 授权单文件内容保留不变。
+    #   恢复 = 回填 v11 的 Value（上方注释保留 Agent B 系列单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Vm框架-面向数据运行时内核.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

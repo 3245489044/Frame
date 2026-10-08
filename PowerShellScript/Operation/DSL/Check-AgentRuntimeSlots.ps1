@@ -13,6 +13,8 @@
 #     [S5] 键↔宿主 1:1  —— 每个键值恰绑定一个宿主类型（同键两类型 = 状态分裂）
 #     [S5b] 键成员存在  —— RuntimeSlotKey<T> 引用的 AgentRuntimeSlotKeys 成员必须存在（悬空键 = 拼造键值）
 #     [S6] 取用面类型化 —— 生产侧不得经 AgentRuntimeSlots.Resolve/TryResolve 直传裸键（键值字面量或 AgentRuntimeSlotKeys.X）
+#     [S7] 声明↔形态     —— InstanceScoped 名单 ↔ 实际分区形态集合相等（防「声明实例级、实走进程级/域级 Register」分裂；B2-c）
+#     [S8] 跨代句柄禁令  —— 禁 GCHandle/委托/反射回调/Assembly 装载等钉住旧代数 ALC 的形态（B5-a「重建 + 状态迁移」）
 # 白名单：承载面 = 迁移期载体（AgentRuntimeRoot 的绑定承载/无根回落容器）+ 注册表常量类 + 测试工程（不在扫描面）；
 #         取用面 = AgentRuntimeRoot.cs（E1：P4-8 迁移期取根转发出口，键为变量，退役条件见该文件注释）。
 #   - 报告模式（默认）：列出命中，不设退出码。
@@ -205,6 +207,87 @@ foreach ($file in $files) {
     }
 }
 
+# ---- [S7] 声明↔形态集合相等：InstanceScoped 名单 ↔ 实际分区形态（B2-c） ----
+# 防「声明实例级、实走进程级（或域级 Register）」的静默分裂。两条路径均须覆盖：
+#   ① 类型化键路径（InstanceRuntimeSlotKey<T> / RuntimeSlotKey<T>）
+#   ② 装配注册路径（SlotRegistrar.Register(AgentRuntimeSlotKeys.X, …)）—— S6 扫不到这条写路径
+$instanceScopedAllowed = [System.Collections.Generic.List[object]]::new()
+$instanceBoundMembers = @($typedKeys | Where-Object { $_.Kind -eq 'InstanceRuntimeSlotKey' } |
+    ForEach-Object { $_.Member } | Sort-Object -Unique)
+$processBoundMembers = @($typedKeys | Where-Object { $_.Kind -eq 'RuntimeSlotKey' } |
+    ForEach-Object { $_.Member } | Sort-Object -Unique)
+$registeredMembers = [System.Collections.Generic.List[string]]::new()
+foreach ($file in $files) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrEmpty($text)) { continue }
+    foreach ($m in [regex]::Matches($text, 'Register\s*\(\s*AgentRuntimeSlotKeys\.(?<member>[A-Za-z_][A-Za-z0-9_]*)')) {
+        $registeredMembers.Add($m.Groups['member'].Value)
+    }
+}
+$registeredMembers = @($registeredMembers | Sort-Object -Unique)
+
+# 存量待迁移（声明实例级、实走进程级/域级）：只允许下降；迁移依赖「实例登记时机」裁决（见施工单 §5-1）。
+# 新增即违规（S7），防平行新增第二份分裂。
+$instanceScopedPending = @(
+    [pscustomobject]@{ Member = 'Boundary'; Reason = '域级装配产物（AgentAssemblySegments E 段 Register）；per-run 拆分待「实例登记时机」裁决（施工单 §5-1）' }
+    [pscustomobject]@{ Member = 'PromptFramework'; Reason = '进程级宿主 RuntimeSlotKey<PromptFrameworkHost>（PromptFrameworkFunction）；含进程级装配钩子 OnPromptAssembled，拆分待裁' }
+    [pscustomobject]@{ Member = 'RuntimeState'; Reason = '域级装配产物（AgentAssemblySegments E 段 Register）；per-run broker 拆分待「实例登记时机」裁决（施工单 §5-1）' }
+)
+
+foreach ($member in $instanceScopedMembers) {
+    $byProcess = $processBoundMembers -contains $member
+    $byRegister = $registeredMembers -contains $member
+    if (-not ($byProcess -or $byRegister)) { continue }
+    $how = if ($byProcess) { '进程级 RuntimeSlotKey' } else { '域级 Register 装配' }
+    $entry = [pscustomobject]@{
+        Rule = 'S7 声明↔形态'; File = 'Agent.Contract\Runtime\AgentRuntimeSlotKeys.cs'; Line = 0
+        Text = "实例级槽声明 '$member' 实走$how（声明与实现分裂）"
+    }
+    $pendingEntry = $instanceScopedPending | Where-Object { $_.Member -eq $member } | Select-Object -First 1
+    if ($pendingEntry) {
+        $entry | Add-Member -NotePropertyName Reason -NotePropertyValue $pendingEntry.Reason
+        $instanceScopedAllowed.Add($entry)
+    } else {
+        $surfHits.Add($entry)
+    }
+}
+foreach ($member in $instanceBoundMembers) {
+    if ($instanceScopedMembers -contains $member) { continue }
+    $surfHits.Add([pscustomobject]@{
+        Rule = 'S7 声明↔形态'; File = 'Agent.Contract\Runtime\AgentRuntimeSlotKeys.cs'; Line = 0
+        Text = "槽 '$member' 实走实例级 InstanceRuntimeSlotKey 但未列入 InstanceScoped（声明缺失）"
+    })
+}
+
+# ---- [S8] 跨代句柄禁令（B5-a：禁跨代复用句柄/委托/反射回调 → 旧 ALC 存活） ----
+$handleBanPattern = 'GCHandle\.Alloc\s*\(|Marshal\.GetFunctionPointerForDelegate\s*\(|Delegate\.CreateDelegate\s*\(|Assembly\.LoadFrom\s*\(|Assembly\.Load\s*\('
+# 白名单：启动期一次性反射扫描（返回值为瞬态局部、不入槽/静态字段 ⇒ 不构成跨代复用）；逐条登记，不得泛白。
+$handleBanAllowList = @(
+    [pscustomobject]@{ Path = 'Axioms\Infrastructure\AxiomBindingModule.cs'; Reason = '启动期一次性反射扫描（Assembly.Load 返回值为瞬态局部，不入槽/静态字段），非跨代复用' }
+)
+$handleBanHits = [System.Collections.Generic.List[object]]::new()
+$handleBanAllowed = [System.Collections.Generic.List[object]]::new()
+foreach ($file in $files) {
+    $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
+    $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrEmpty($text)) { continue }
+    foreach ($m in [regex]::Matches($text, $handleBanPattern)) {
+        $lineNo = ($text.Substring(0, $m.Index) -split "`n").Count
+        $entry = [pscustomobject]@{
+            Rule = 'S8 跨代句柄禁令'; File = $rel; Line = $lineNo
+            Text = "跨代句柄/反射装载形态 '$($m.Value.Trim())'（钉住旧代数 ALC，违反「重建 + 状态迁移」）"
+        }
+        $white = $handleBanAllowList | Where-Object { $rel -like ('*' + $_.Path + '*') } | Select-Object -First 1
+        if ($white) {
+            $entry | Add-Member -NotePropertyName Reason -NotePropertyValue $white.Reason
+            $handleBanAllowed.Add($entry)
+        } else {
+            $handleBanHits.Add($entry)
+        }
+    }
+}
+foreach ($h in $handleBanHits) { $surfHits.Add($h) }
+
 # ---- 槽清单 JSON（-WriteManifest；键值 Ordinal 升序，无时间戳/绝对路径 → 重生成幂等） ----
 if ($WriteManifest) {
     $hostByMember = @{}
@@ -270,6 +353,12 @@ if ($surfHits.Count -gt 0) {
     Write-Host '--- 违规清单（槽键/取用面） ---'
     $surfHits | ForEach-Object { Write-Host ("  [违规] {0}:{1} [{2}] {3}" -f $_.File, $_.Line, $_.Rule, $_.Text) }
 }
+Write-Host ("--- [S7] 声明↔形态（InstanceScoped {0} 项 / 实走进程级 {1} / 实走域级 Register {2}） ---" -f `
+    $instanceScopedMembers.Count, $processBoundMembers.Count, $registeredMembers.Count)
+Write-Host ("S7 待迁移（只允许下降）: {0} / 违规: {1}" -f $instanceScopedAllowed.Count, (@($surfHits | Where-Object { $_.Rule -eq 'S7 声明↔形态' }).Count))
+$instanceScopedAllowed | ForEach-Object { Write-Host ("  [S7待对齐] {0} [{1}] {2}" -f $_.Text, $_.Rule, $_.Reason) }
+Write-Host ("--- [S8] 跨代句柄禁令：违规 {0}（须为 0）/ 白名单 {1} ---" -f $handleBanHits.Count, $handleBanAllowed.Count)
+$handleBanAllowed | ForEach-Object { Write-Host ("  [S8允许] {0}:{1} {2}" -f $_.File, $_.Line, $_.Reason) }
 Write-Host '--- 未绑定宿主的键（清单可见；非违规，供逐键处置：未使用 / 非 Resolve 通道） ---'
 $boundMembers = @{}
 foreach ($tk in $typedKeys) { $boundMembers[$tk.Member] = $true }

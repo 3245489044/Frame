@@ -150,8 +150,9 @@ public sealed class SpecPortHost : IPortHost, IDisposable
         {
             var result = _catalog.Resolve(portKey).Binding
                 .InvokeAsync(BuildInput(request, portKey)).AsTask().GetAwaiter().GetResult();
-            InspectProduct(portKey, result);
-            return result;
+            var normalized = PortProductNormalizer.Normalize(result, DeclaredProductFields(portKey));
+            InspectProduct(portKey, normalized);
+            return normalized;
         }
         catch (Exception ex) when (ex is not ObservabilityException)
         {
@@ -180,13 +181,18 @@ public sealed class SpecPortHost : IPortHost, IDisposable
             var binding = PortBinding.FromSpec(standard.Key, PortSpecCompiler.Compile(standard)).RequireBinding();
             // 记账单一实现：经目录记录装饰（P8），使内联调用对 Port(<条目键>) 投影可见。
             var recorded = _catalog.Decorate(standard.Key, binding);
-            return recorded.InvokeAsync(BuildInput(request, standard.Key)).AsTask().GetAwaiter().GetResult();
+            var result = recorded.InvokeAsync(BuildInput(request, standard.Key)).AsTask().GetAwaiter().GetResult();
+            return PortProductNormalizer.Normalize(result, standard.Impl?.ProductFields);
         }
         catch (Exception ex) when (ex is not ObservabilityException)
         {
             throw new PortBindingViolationException(standard.Key, $"内联端口调用失败：{ex.GetType().Name}：{ex.Message}");
         }
     }
+
+    /// <summary>声明的产物字段串（<c>|</c> 分隔；未声明 → null = 弱校验，归一不补位）。</summary>
+    private string? DeclaredProductFields(string portKey)
+        => _surface.TryGetProductFields(portKey, out var fields) ? fields : null;
 
     /// <summary>
     /// 产物字段契约对账（F3）：仅对**具名映射**产物（<c>Product(...)</c> 复合产物）判定

@@ -46,6 +46,24 @@ public sealed class LedgerTerm
     public bool IsKnown(string? word, bool allowEmpty = false)
         => string.IsNullOrEmpty(word) ? allowEmpty : Contains(word);
 
+    /// <summary>词在词表中的**位序**（未登记 → -1）。供「执行分支号从词表派生」（分支顺序 = 词序）。</summary>
+    public int IndexOf(string word)
+    {
+        ArgumentNullException.ThrowIfNull(word);
+
+        for (var index = 0; index < Words.Count; index++)
+            if (string.Equals(Words[index], word, StringComparison.Ordinal)) return index;
+
+        return -1;
+    }
+
+    /// <summary>词 → 位序（未登记 → false）。</summary>
+    public bool TryMatch(string word, out int index)
+    {
+        index = IndexOf(word);
+        return index >= 0;
+    }
+
     /// <summary>渲染为竖线文案（<c>a|b|c</c>）：异常文案词表段的唯一口径。</summary>
     public string Render() => string.Join("|", Words);
 

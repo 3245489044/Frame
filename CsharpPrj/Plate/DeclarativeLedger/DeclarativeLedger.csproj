@@ -9,7 +9,7 @@
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="零 ProjectReference 为硬约束：消费方（如只引纯契约的标准层）不得经本工程拖入任何外部依赖链" />
-    <ModuleRule_Rule Include="本工程不含 JSON 机制：JSON 读取原语 / 原文层重复键扫描 / schema 子集校验唯一实现于 Plate.JsonMethod（由使用端直接复用）" />
+    <ModuleRule_Rule Include="本工程不含 JSON 机制：JSON 读取原语 / 原文层重复键扫描 / schema 子集校验唯一实现于 Plate.JsonMethod（由使用端直接复用）；例外=LedgerTextEditor 的**值 span 定位**（JSON Pointer → 文本区间；只定位不解析语义）属「台账文本编辑」原语，与 PsJsonText 同属文本口径面" />
     <ModuleRule_Rule Include="校验失败即阻断（DeclarationViolationException，不 warn）；异常刻意非 sealed，消费方可派生子类保留既有 catch 面" />
     <ModuleRule_Rule Include="台账文本口径唯一实现 = PsJsonText：写侧（离线工具重组分片/产物）禁用自带缩进与转义逻辑，禁 printf 式拼 JSON，否则字节对拍必红" />
   </ItemGroup>
@@ -21,14 +21,17 @@
     <ModuleRule_Prompt Include="当需要产出与既有 PowerShell ConvertTo-Json 产物逐字节一致的台账文本（分片/产物重组、区块改写）时，使用 PsJsonText（勿自写缩进/转义）" />
     <ModuleRule_Prompt Include="当需要「具名枚举词表」的单一 C# 源（结构门 enum / 执行分支 / 文案词表段一律派生）时，使用 LedgerTerm + LedgerVocabulary" />
     <ModuleRule_Prompt Include="当需要「分层键闭包 / 未知键 fail-fast」的唯一实现（读取器 / 结构门 / 离线校验共用）时，使用 LedgerKeyClosure" />
-    <ModuleRule_Prompt Include="当需要「按位构造的镜像模型」位序对账（防静默错位）时，使用 LedgerMirrorGuard" />
     <ModuleRule_Prompt Include="当需要「声明的词必须有实现 / 实现的词必须已登记」（幽灵词判据）时，使用 LedgerVocabularyCoverage" />
     <ModuleRule_Prompt Include="当需要「词表 → 结构门枚举」的只读对账（集合 + 词序）时，使用 LedgerEnumPlan + LedgerEnumBinding（写回留离线工具）" />
-    <ModuleRule_Prompt Include="当需要「通用运行时映射器」的位序映射表（替代逐模型手写按位构造、免 Roslyn）时，使用 LedgerMirrorPlan" />
+    <ModuleRule_Prompt Include="当需要「JSON Pointer → 值原始文本区间」（原地改写属性对象/enum，其余字节逐字保留；字符串字面量感知）时，使用 LedgerTextEditor.TryLocateValueSpan" />
+    <ModuleRule_Prompt Include="当需要「按指针写回值区间」（逐项重新定位 + 幂等；定位失败 fail-fast）时，使用 LedgerEnumPlan.Apply + LedgerTextEditor.ReplaceValueSpan" />
+    <ModuleRule_Prompt Include="当需要「词 × 轴」完备性矩阵（消费方只注册列轴数据源；框架出差集/计数/阈值棘轮）时，使用 LedgerCoverageMatrix + ILedgerMatrixColumn + LedgerCoverageThreshold" />
+    <ModuleRule_Prompt Include="当需要跨台账引用判据（子集 / 版本单调）或关系图查询（出入边 / 传递闭包 / 悬空）时，使用 LedgerReferenceRule + LedgerRelationGraph" />
+    <ModuleRule_Prompt Include="当需要「词 → 执行分支号」派生（分支顺序 = 词序）时，使用 LedgerTerm.IndexOf / TryMatch" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Rules_Extra">
-    <ModuleRule_Rule Include="词表 / 键闭包 / 镜像对账均为机制半，不含领域词：词表内容与层名全部由消费方注入，框架只承担登记、闭包判定与位序对账" />
+    <ModuleRule_Rule Include="词表 / 键闭包均为机制半，不含领域词：词表内容与层名全部由消费方注入，框架只承担登记与闭包判定" />
   </ItemGroup>
 
   <PropertyGroup>

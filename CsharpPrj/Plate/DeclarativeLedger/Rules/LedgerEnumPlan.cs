@@ -9,6 +9,9 @@ public sealed record LedgerEnumBinding(string KeyPath, LedgerTerm Term);
 /// <summary>枚举变更项（键路径 + 期望词序列 + 实得词序列；<c>Actual=null</c> = 位置缺失）。</summary>
 public sealed record LedgerEnumChange(string KeyPath, IReadOnlyList<string> Expected, IReadOnlyList<string>? Actual);
 
+/// <summary>文本写回项：JSON Pointer → **渲染好的替换文本**（渲染责任留消费方；本框架只做区间定位与替换）。</summary>
+public sealed record LedgerTextReplacement(string Pointer, string Replacement);
+
 /// <summary>
 /// 枚举对账计划：把一组 <see cref="LedgerEnumBinding"/> 与结构门的**实得值**逐项比对，产出差异清单。
 /// <para>
@@ -73,6 +76,32 @@ public static class LedgerEnumPlan
         IEnumerable<LedgerEnumBinding> bindings,
         Func<string, IReadOnlyList<string>?> actualOf)
         => Verify(bindings, actualOf).Count == 0;
+
+    /// <summary>
+    /// 写回应用（**纯函数 · 零 IO**）：逐项按 JSON Pointer 定位值区间并替换，其余字节逐字保留。
+    /// 每次替换后**重新定位**（前项改写致后续区间漂移亦安全）⇒ 调用方须按**依赖序**传入
+    /// （如「先键集后 enum」：键集重排会移动 enum 的位置）。
+    /// <para>
+    /// 定位失败即抛 <see cref="DeclarationViolationException"/>（阻断，防静默漏改）；
+    /// <paramref name="changed"/> = 是否发生实质改写（空项 / 逐字同 → 幂等）。
+    /// </para>
+    /// </summary>
+    public static string Apply(string text, IEnumerable<LedgerTextReplacement> replacements, out bool changed)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(replacements);
+
+        var result = text;
+        changed = false;
+        foreach (var replacement in replacements)
+        {
+            ArgumentNullException.ThrowIfNull(replacement);
+            result = LedgerTextEditor.ReplaceValueSpan(result, replacement.Pointer, replacement.Replacement, out var dirty);
+            changed |= dirty;
+        }
+
+        return result;
+    }
 
     /// <summary>
     /// 期望内容**指纹**（键路径 + 词序的稳定 SHA-256，大写十六进制）：供「生成物指纹断言」用

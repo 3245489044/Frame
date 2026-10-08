@@ -1,3 +1,4 @@
+using BasicMethod.Declarative.Ledger;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
@@ -143,7 +144,7 @@ public static class SchemaEnumSynchronizer
             }
 
             var text = File.ReadAllText(path);
-            if (!TryFindValueSpan(text, binding.Pointer, out var start, out var length))
+            if (!LedgerTextEditor.TryLocateValueSpan(text, binding.Pointer, out var start, out var length))
             {
                 diffs.Add($"{binding.SchemaFile}#{binding.Pointer}: 未找到对象节点");
                 continue;
@@ -183,13 +184,13 @@ public static class SchemaEnumSynchronizer
             }
 
             var text = File.ReadAllText(path);
-            var fileChanges = 0;
+            var replacements = new List<LedgerTextReplacement>();
 
-            // 键集先于 enum：键集重排会移动 enum 的文本位置，故 enum 一律在键集写回后重新定位。
+            // 键集先于 enum：键集重排会移动 enum 的文本位置；应用体逐项重新定位，故按此依赖序入列。
             foreach (var binding in PropertiesBindings.Where(binding => binding.SchemaFile == file))
             {
                 var keys = binding.Keys();
-                if (!TryFindValueSpan(text, binding.Pointer, out var start, out var length))
+                if (!LedgerTextEditor.TryLocateValueSpan(text, binding.Pointer, out var start, out var length))
                 {
                     changes.Add($"{file}#{binding.Pointer}: 未找到对象节点（跳过）");
                     continue;
@@ -209,15 +210,14 @@ public static class SchemaEnumSynchronizer
                 if (string.Equals(current, rendered, StringComparison.Ordinal))
                     continue;   // 键集/序与声明原文均已一致 → 不动原文（保排版，故可重复运行）
 
-                text = string.Concat(text.AsSpan(0, start), rendered, text.AsSpan(start + length));
+                replacements.Add(new LedgerTextReplacement(binding.Pointer, rendered));
                 changes.Add($"{file}#{binding.Pointer}: {DescribeKeySetDiff(declared, keys)}");
-                fileChanges++;
             }
 
             foreach (var binding in Bindings.Where(binding => binding.SchemaFile == file))
             {
                 var rendered = "[" + string.Join(", ", binding.Vocabulary().Select(v => $"\"{v}\"")) + "]";
-                if (!TryFindValueSpan(text, binding.Pointer, out var start, out var length))
+                if (!LedgerTextEditor.TryLocateValueSpan(text, binding.Pointer, out var start, out var length))
                 {
                     changes.Add($"{file}#{binding.Pointer}: 未找到 enum 节点（跳过）");
                     continue;
@@ -227,12 +227,12 @@ public static class SchemaEnumSynchronizer
                 if (ReadArrayValues(current) is { } declared && SameSet(declared, binding.Vocabulary()))
                     continue;   // 值已一致 → 不动原文（保排版，故可重复运行）
 
-                text = string.Concat(text.AsSpan(0, start), rendered, text.AsSpan(start + length));
+                replacements.Add(new LedgerTextReplacement(binding.Pointer, rendered));
                 changes.Add($"{file}#{binding.Pointer}: {current} → {rendered}");
-                fileChanges++;
             }
 
-            if (fileChanges > 0) File.WriteAllText(path, text, new UTF8Encoding(HasBom(path)));
+            if (replacements.Count > 0)
+                File.WriteAllText(path, LedgerEnumPlan.Apply(text, replacements, out _), new UTF8Encoding(HasBom(path)));
         }
 
         return changes;
@@ -275,7 +275,7 @@ public static class SchemaEnumSynchronizer
                     }
                 }
 
-                SetSpan(bytes, nameStart, (int)reader.BytesConsumed - nameStart, out var start, out var length);
+                LedgerTextEditor.Utf8ByteRangeToCharRange(bytes, nameStart, (int)reader.BytesConsumed - nameStart, out var start, out var length);
                 declarations.Add((name, NormalizeDeclaration(objectText.Substring(start, length))));
             }
         }
@@ -399,94 +399,5 @@ public static class SchemaEnumSynchronizer
         return current.ValueKind == JsonValueKind.Array
             ? current.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray()
             : null;
-    }
-
-    /// <summary>定位 <paramref name="pointer"/> 所指值的原始文本范围（字节偏移）。</summary>
-    private static bool TryFindValueSpan(string text, string pointer, out int start, out int length)
-    {
-        start = 0;
-        length = 0;
-
-        var segments = pointer.Split('/');
-        var containers = new Stack<string>();
-        var pending = string.Empty;
-
-        var bytes = Encoding.UTF8.GetBytes(text);
-        var reader = new Utf8JsonReader(bytes);
-        while (reader.Read())
-        {
-            switch (reader.TokenType)
-            {
-                case JsonTokenType.StartObject:
-                case JsonTokenType.StartArray:
-                    containers.Push(pending);      // 该容器的键名（根容器为 ""）
-                    pending = string.Empty;
-                    break;
-
-                case JsonTokenType.EndObject:
-                case JsonTokenType.EndArray:
-                    if (containers.Count > 0) containers.Pop();
-                    break;
-
-                case JsonTokenType.PropertyName:
-                    pending = reader.GetString() ?? string.Empty;
-                    if (!IsTargetPath(containers, pending, segments) || !reader.Read()) break;
-
-                    var byteStart = (int)reader.TokenStartIndex;
-                    if (reader.TokenType is not (JsonTokenType.StartArray or JsonTokenType.StartObject))
-                    {
-                        SetSpan(bytes, byteStart, (int)reader.ValueSpan.Length, out start, out length);
-                        return true;
-                    }
-
-                    // 容器值：按嵌套计数找到配对的收尾 token，范围 = [起始, 收尾末字符)
-                    var nest = 0;
-                    while (reader.Read())
-                    {
-                        if (reader.TokenType is JsonTokenType.StartArray or JsonTokenType.StartObject)
-                        {
-                            nest++;
-                        }
-                        else if (reader.TokenType is JsonTokenType.EndArray or JsonTokenType.EndObject)
-                        {
-                            if (nest == 0)
-                            {
-                                SetSpan(bytes, byteStart, (int)reader.BytesConsumed - byteStart, out start, out length);
-                                return true;
-                            }
-
-                            nest--;
-                        }
-                    }
-
-                    return false;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>字节范围 → 字符范围（非 ASCII 文本前置时两者不等，须显式换算）。</summary>
-    private static void SetSpan(byte[] bytes, int byteStart, int byteLength, out int start, out int length)
-    {
-        start = Encoding.UTF8.GetCharCount(bytes, 0, byteStart);
-        length = Encoding.UTF8.GetCharCount(bytes, 0, byteStart + byteLength) - start;
-    }
-
-    /// <summary>当前容器路径（去根哨兵，自内向外）+ 待定键 == 目标键路径？（不依赖读者深度口径）</summary>
-    private static bool IsTargetPath(Stack<string> containers, string name, string[] segments)
-    {
-        if (containers.Count - 1 != segments.Length - 1) return false;
-        if (!string.Equals(name, segments[^1], StringComparison.Ordinal)) return false;
-
-        var index = segments.Length - 2;
-        foreach (var container in containers)
-        {
-            if (index < 0) break;
-            if (!string.Equals(container, segments[index], StringComparison.Ordinal)) return false;
-            index--;
-        }
-
-        return index == -1;
     }
 }

@@ -87,14 +87,19 @@ public sealed class SpecPortStandards
         return new SpecPortStandards(map, entries, json);
     }
 
-    /// <summary>种类字符串 → 上层枚举（标准目录已归一；未知即抛，属实现漂移）；未声明 impl → <see cref="SpecPortBindingKind.Delegate"/>（遗留默认）。</summary>
+    /// <summary>
+    /// 种类字符串 → 上层枚举（标准目录已归一；未知即抛，属实现漂移）。
+    /// <para>**缺省已取消**：<c>impl</c> 缺失**不**再隐式按 <see cref="SpecPortBindingKind.Delegate"/> 处理
+    /// （装载期 <c>impl.kind</c> 必填，缺即已抛）；此处缺失 ⇒ 上游实现漂移，当场抛出（禁静默放行）。</para>
+    /// </summary>
     public static SpecPortBindingKind KindOf(PortStandard standard)
     {
         PortGuard.Required(standard, nameof(standard));
 
-        return standard.Impl is not { } impl
-            ? SpecPortBindingKind.Delegate
-            : ParseKind(standard.Key, impl.Kind);
+        return standard.Impl is { } impl
+            ? ParseKind(standard.Key, impl.Kind)
+            : throw new InvalidOperationException(
+                $"[port:standard] 端口 '{standard.Key}' 缺 impl（缺省已取消：不得再隐式按 delegate 处理）");
     }
 
     /// <summary>种类字符串 → 上层枚举（标准目录已归一；未知即抛，属实现漂移）。</summary>

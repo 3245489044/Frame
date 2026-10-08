@@ -2,9 +2,13 @@ namespace DataCenter.Protocol.Standards;
 
 /// <summary>
 /// 端口 <c>impl</c> 的**逐层键白名单**（标准框架通用化重构 §2.3「未知键 fail-fast」的机器可判定形态）：
-/// 每一张表 = 某一层声明对象的合法键集合（读取器据此 fail-fast；schema 据此写 <c>additionalProperties:false</c>）。
+/// 每一张表 = 某一层声明对象的合法键集合。**消费点**（唯一）：
+/// ① 框架键闭包 <c>KeyClosure</c>（<c>PortImplVocabulary.Keys.Expr.cs</c>；已登记层 → 装载期读取器
+/// <c>StandardJson.EnsureLayerKeys</c> 据此 fail-fast）；② 守卫 / 完备性对拍（表 ↔ 结构门 / 模型，零运行）；
+/// ③ schema 据此写 <c>additionalProperties:false</c>（生成物，由 <c>SchemaEnumSynchronizer</c> 写回）。
 /// <para>
-/// 开放映射（**不做闭合**）只有两处，因为其键是**不透明名**而非结构键：
+/// 注意 <c>ComposedArgKeys</c> 当前**未登记**进键闭包（读取器不校验该层，键集仅由对拍守护）；
+/// 其余各表均已登记。开放映射（**不做闭合**）只有两处，因为其键是**不透明名**而非结构键：
 /// ① <c>impl.bind</c>（槽名，如 <c>tool</c>/<c>kindArg</c>）；② <c>scenarios.cases</c>（场景名，如 <c>safeOrEmpty</c>）。
 /// 同理，载荷叶节点（<c>value</c>/<c>literal</c>/<c>default</c>/<c>rows</c>/<c>values</c>）内部结构由用例自定义，
 /// 标准层不解释、不闭合。

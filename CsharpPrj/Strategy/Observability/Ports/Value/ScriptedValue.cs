@@ -21,6 +21,14 @@ internal static class ScriptedValue
             throw new PortBindingViolationException(
                 scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 未声明取值来源（from）");
 
+        // 具名实参（批3）：值源带 `named` 且**无位置下标**（from 为 arg / 缺省推断）时按名字取端口具名输入。
+        // 显式判 `Index is null` ⇒ 绝不改变既有 `{from:arg,index:N}` 且 invoke/new 的命名实参
+        // （`{named:X,from:arg,index:N}`）因带下标仍走 Positional，零回归。
+        if (spec.Named is { Length: > 0 } named
+            && spec.Index is null
+            && spec.From is null or "" or "arg")
+            return NamedArgument(spec, named, input, scope.PortKey, context);
+
         switch (spec.From)
         {
             case "arg":
@@ -143,7 +151,7 @@ internal static class ScriptedValue
         => spec.From switch
         {
             "literal" when spec.Value is { } value => $"literal {value.GetRawText()}",
-            "arg" => $"arg[{spec.Index?.ToString() ?? "?"}]",
+            "arg" => spec.Named is { Length: > 0 } named ? $"arg named '{named}'" : $"arg[{spec.Index?.ToString() ?? "?"}]",
             "with" => $"with '{spec.Key}'",
             "var" => $"var '{spec.Key}'",
             "item" or "row" => $"{spec.From} '{spec.Key}'",
@@ -639,6 +647,17 @@ internal static class ScriptedValue
         if (PortValues.IsDirectPositional(spec.Convert, raw)) return raw;
 
         return raw as string ?? raw?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>具名输入取值（批3：<c>{from:arg,named:&lt;名&gt;}</c> 按名取具名输入 <c>IPortInput.With</c>；缺键 → <c>optional</c> 决定 null 或 fail-fast）。</summary>
+    private static object? NamedArgument(
+        ValueSourceStandard spec, string name, IPortInput input, string portKey, string context)
+    {
+        if (input.With.TryGetValue(name, out var value)) return value;
+        if (spec.Optional) return null;
+
+        throw new PortBindingViolationException(
+            portKey, $"端口 '{portKey}' 的 {context} 缺具名实参 '{name}'（named）");
     }
 
     /// <summary>具名实参取值（原始 JSON；缺键 → <c>optional</c> 决定 null 或 fail-fast）。</summary>

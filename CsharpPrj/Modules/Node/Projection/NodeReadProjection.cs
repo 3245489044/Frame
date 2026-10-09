@@ -61,6 +61,9 @@ public sealed class NodeReadProjection
     private readonly INodeDiagnosticsSink _diagnostics;
     private readonly IPlacementResolver? _placementResolver;
 
+    /// <summary>词表端口（U3）：<c>all</c> 选择名由之提供；未装配 ⇒ 既有字面量（零行为变更）。</summary>
+    private readonly ISelectionVocabulary _vocabulary;
+
     /// <remarks>
     /// <c>placementResolver</c> = 位置反解端口（L-6）：<c>ReadScope.Loc</c> 给出时读侧位置集合由此产出
     /// （与写侧同一实现）。未装配 ⇒ 按 loc 读时为 ∅ + 诊断（不兜底）；<c>null</c> 时 <c>Loc</c> 不可用。
@@ -71,7 +74,8 @@ public sealed class NodeReadProjection
         SelectionSet selections,
         NodeFormCodec? codec = null,
         INodeDiagnosticsSink? diagnostics = null,
-        IPlacementResolver? placementResolver = null)
+        IPlacementResolver? placementResolver = null,
+        ISelectionVocabulary? vocabulary = null)
     {
         _placements = placements;
         _carriers = carriers;
@@ -79,6 +83,7 @@ public sealed class NodeReadProjection
         _codec = codec ?? new NodeFormCodec();
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
         _placementResolver = placementResolver;
+        _vocabulary = vocabulary ?? NullSelectionVocabulary.Instance;
     }
 
     public async Task<IReadOnlyList<NodeProjectionItem>> ProjectAsync(
@@ -235,7 +240,7 @@ public sealed class NodeReadProjection
         {
             var selectionId = scope.SelectionId
                               ?? targets.FirstOrDefault(p => string.Equals(p.PlacementId, item.PlacementId, StringComparison.Ordinal))?.SelectionId
-                              ?? ExpressionSelectionPredicate.AllSelectionId;
+                              ?? _vocabulary.AllSelectionId;
 
             if (_selections.Accept(selectionId, item.Fields))
             {

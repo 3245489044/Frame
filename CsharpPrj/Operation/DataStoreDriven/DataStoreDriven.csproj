@@ -71,12 +71,7 @@
     <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- 引用词表编译产物**内嵌**（B3 词表武装）：运行时经 ReferenceTypeRegistry.LoadFromEmbeddedResource() 取，
-         生产路径不依赖仓库文件路径（产物随本程序集烘焙/分发）。
-         源 = ReferenceSchema\reference-schema.dsl.md（唯一事实源）；变更须重生成该 JSON，禁手改。 -->
-    <EmbeddedResource Include="ReferenceSchema\reference-schema.generated.json" />
-  </ItemGroup>
+  <!-- F5.3：内嵌词表产物已退役（唯一真源 = 声明面 Config\nodes\reference.ushar；本处不再嵌入 generated.json）。 -->
 
   <ItemGroup>
     <!-- 配置驱动解析 / 配置绑定（PersistenceProviderFactory / PersistenceConfigBinder） -->

@@ -46,39 +46,12 @@ $agentSrc      = Join-Path $Root 'Projects\Plug\Agent\src'
 
 Write-GateHeader '节点聚拢通用框架门禁（G1–G3：声明闭合 / 零领域 / 接线唯一）'
 
-# ---------------- G1 声明闭合（node-gather-*.json 族闭合） ----------------
-$declFiles = @(Get-ChildItem -Path $agentNodesDir -Filter 'node-gather-*.json' -File -ErrorAction SilentlyContinue)
-foreach ($f in $declFiles)
+# ---------------- G1 声明闭合（U9：真源 = node-gather.ushar；族闭合判据由语言闸A GatherGateRule US7101–US7106 承担） ----------------
+# U9 退役 node-gather-*.json ⇒ 本段仅保留**正对照**（声明真源在册）；闭合/塑形判据不在此重写（复用闸A）。
+$declFiles = @(Get-ChildItem -Path $agentNodesDir -Filter 'node-gather.ushar' -File -ErrorAction SilentlyContinue)
+if ($declFiles.Count -lt 1)
 {
-    $json = $null
-    try { $json = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json }
-    catch { $violations.Add("G1 声明非法 JSON：$($f.Name)：$($_.Exception.Message)"); continue }
-
-    $familyNames = @()
-    if ($json.PSObject.Properties.Name -contains 'families' -and $json.families)
-    {
-        $familyNames = @($json.families.PSObject.Properties.Name)
-    }
-
-    $shaping = $null
-    if ($json.PSObject.Properties.Name -contains 'kind-shaping') { $shaping = $json.'kind-shaping' }
-    if ($null -eq $shaping -or $familyNames.Count -eq 0) { continue }
-
-    $shapingNames = @($shaping.PSObject.Properties.Name)
-    foreach ($p in $shaping.PSObject.Properties)
-    {
-        if ($p.Name -eq '*') { continue }
-        $fam = $p.Value.family
-        if ($fam -and ($familyNames -notcontains $fam))
-        {
-            $violations.Add("G1 族未声明：$($f.Name) kind-shaping['$($p.Name)'].family='$fam' 不在 families（$([string]::Join(',', $familyNames))）")
-        }
-    }
-
-    if ($shapingNames -notcontains '*')
-    {
-        $violations.Add("G1 缺默认塑形：$($f.Name) 有 families 但 kind-shaping 无 '*'（未知 kind 无归宿）")
-    }
+    $violations.Add("G1 正对照失效：未找到 Config\nodes\node-gather.ushar（聚拢声明真源缺失 / 扫描面失效）")
 }
 
 # ---------------- G2 零领域（框架层 Gather 纯净性） ----------------
@@ -123,7 +96,7 @@ foreach ($hit in $adapterImpl)
 
 if ($ShowDetail)
 {
-    Write-Host "  G1 扫描声明：$($declFiles.Count) 个 node-gather-*.json" -ForegroundColor DarkGray
+    Write-Host "  G1 声明真源：$($declFiles.Count) 个 node-gather.ushar（闭合判据归闸A）" -ForegroundColor DarkGray
     Write-Host "  G2 扫描框架：$gatherDir" -ForegroundColor DarkGray
 }
 

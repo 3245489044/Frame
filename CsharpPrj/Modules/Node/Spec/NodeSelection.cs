@@ -21,6 +21,7 @@ public interface ISelectionPredicate
 /// </summary>
 public sealed class ExpressionSelectionPredicate : ISelectionPredicate
 {
+    /// <summary>「全选」选择名缺省字面量（词表未装配时的回退；权威值经 <see cref="ISelectionVocabulary"/> 提供）。</summary>
     public const string AllSelectionId = "all";
 
     private readonly Lazy<(bool Recognized, Func<IReadOnlyDictionary<string, string>, bool> Evaluate)> _compiled;
@@ -39,7 +40,8 @@ public sealed class ExpressionSelectionPredicate : ISelectionPredicate
     /// <summary>表达式是否落入声明允许的形态；<c>false</c> ⇒ 判据不合格（⊥），须可见化。</summary>
     public bool IsRecognized => _compiled.Value.Recognized;
 
-    public static ExpressionSelectionPredicate All() => new(AllSelectionId, "true");
+    public static ExpressionSelectionPredicate All(ISelectionVocabulary? vocabulary = null)
+        => new(vocabulary?.AllSelectionId ?? AllSelectionId, "true");
 
     public bool Accept(IReadOnlyDictionary<string, string> fields) => _compiled.Value.Evaluate(fields);
 
@@ -110,10 +112,14 @@ public sealed class SelectionSet
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
     private readonly INodeDiagnosticsSink _diagnostics;
 
-    public SelectionSet(INodeDiagnosticsSink? diagnostics = null)
+    /// <summary>词表端口（U3）：<c>all</c> 选择名由之提供；未装配 ⇒ 既有字面量（<see cref="NullSelectionVocabulary"/>）。</summary>
+    private readonly ISelectionVocabulary _vocabulary;
+
+    public SelectionSet(INodeDiagnosticsSink? diagnostics = null, ISelectionVocabulary? vocabulary = null)
     {
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
-        Add(ExpressionSelectionPredicate.All());
+        _vocabulary = vocabulary ?? NullSelectionVocabulary.Instance;
+        Add(ExpressionSelectionPredicate.All(_vocabulary));
     }
 
     public IReadOnlyCollection<string> Ids => _selections.Keys.ToArray();

@@ -44,6 +44,9 @@ public sealed record NodeFrameworkOptions
 
     public SelectionSet? Selections { get; init; }
 
+    /// <summary>词表端口（U3）：<c>all</c> 选择名来源；未提供 ⇒ Null（回退既有字面量）。</summary>
+    public ISelectionVocabulary? SelectionVocabulary { get; init; }
+
     public NodeFormCodec? FormCodec { get; init; }
 
     public SpecDefaults? Defaults { get; init; }
@@ -89,7 +92,8 @@ public sealed class NodeFramework
         OrientationAuthority = opt.OrientationAuthority ?? NullOrientationAuthority.Instance;
         ReferenceIndex = opt.ReferenceIndex ?? new NullReferenceIndexPort(Diagnostics);
         DefinitionDiagnostics = opt.DefinitionDiagnostics ?? NullDefinitionDiagnostics.Instance;
-        Selections = opt.Selections ?? new SelectionSet(Diagnostics);
+        Selections = opt.Selections ?? new SelectionSet(Diagnostics, opt.SelectionVocabulary);
+        SelectionVocabulary = opt.SelectionVocabulary ?? NullSelectionVocabulary.Instance;
         FormCodec = opt.FormCodec ?? new NodeFormCodec();
         Defaults = opt.Defaults ?? new SpecDefaults();
         PlacementResolver = opt.PlacementResolver ?? new NullPlacementResolver(Diagnostics);
@@ -99,7 +103,7 @@ public sealed class NodeFramework
             Identity, Placements, Carriers, WriteGate, FormCodec, Defaults, Diagnostics, RunScope, RequireRunScope,
             Domain);
         Projection = new NodeReadProjection(
-            Placements, Carriers, Selections, FormCodec, Diagnostics, PlacementResolver);
+            Placements, Carriers, Selections, FormCodec, Diagnostics, PlacementResolver, SelectionVocabulary);
         Reconciler = new NodeReconciler(Placements, Carriers, Diagnostics);
         Compensation = new NodeCompensation(Carriers, Diagnostics);
         Validator = new NodeSpecValidator(Carriers, Diagnostics);
@@ -144,6 +148,9 @@ public sealed class NodeFramework
     public IDefinitionDiagnostics DefinitionDiagnostics { get; }
 
     public SelectionSet Selections { get; }
+
+    /// <summary>词表端口（U3）：未装配 ⇒ <see cref="NullSelectionVocabulary"/>（回退既有字面量）。</summary>
+    public ISelectionVocabulary SelectionVocabulary { get; }
 
     public NodeFormCodec FormCodec { get; }
 
@@ -190,7 +197,8 @@ public sealed class NodeFramework
         bool requireRunScope = false,
         ISpecSource? specSource = null,
         IOrientationAuthority? orientationAuthority = null,
-        IDefinitionDiagnostics? definitionDiagnostics = null)
+        IDefinitionDiagnostics? definitionDiagnostics = null,
+        ISelectionVocabulary? selectionVocabulary = null)
     {
         var options = new NodeFrameworkOptions
         {
@@ -200,6 +208,7 @@ public sealed class NodeFramework
             Placements = spec.Placements,
             Carriers = carriers,
             Selections = spec.Selections,
+            SelectionVocabulary = selectionVocabulary,
             Defaults = spec.Defaults,
             Diagnostics = diagnostics,
             PlacementResolver = spec.CreateResolver(diagnostics),

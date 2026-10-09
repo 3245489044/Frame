@@ -91,10 +91,10 @@
     }
 
     ToolFaceDeclaration = @{
-        Args   = @{}
+        Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Operation\DSL\Check-ToolFaceDeclaration.ps1'
         Expect = 0
-        Note   = '工具面/MCP 装配声明守卫 D1–D5（P0/P2 建面）：Config\tool-face.json 三段齐备 / 执行端与内部面（cline/answer）不外泄 / face.tracks 非空 / 正对照（faces 数 ≥ 基线）+ 负对照（合成 cline.expose=true 必须被同一判据命中）；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
+        Note   = '工具面/MCP 装配声明守卫 D1–D5（P0/P2 建面）：Config\tool-face.json 三段齐备 / 执行端与内部面（cline/answer）不外泄 / face.tracks 非空 / 正对照（faces 数 ≥ 基线）+ 负对照（合成 cline.expose=true 必须被同一判据命中）；U6 转强制（Args Check = 校验模式，违规 → 退出码 1）'
     }
 
     NodeDeclSingleSource = @{
@@ -109,6 +109,13 @@
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1'
         Expect = 0
         Note   = '节点聚拢通用框架 G1–G3：声明闭合（node-gather-*.json 的 kind-shaping.family ⊆ families + 有 families 须留 "*" 默认塑形）/ 零领域（Gather 层零上层 using Operation·Share·Agent·Usharp 与零域键字面量 process·task-node·conversation·segment·message）/ 接线唯一（INodeGatherService 注册点恰 1 = NodeGatherHosting.TryAttachAll；框架层不消费 INodeDomainPort）'
+    }
+
+    Wiring = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1'
+        Expect = 0
+        Note   = '接线生命周期守卫（Wiring）：声明状态 ⇔ 实现事实（D/F 存在性 + C 读面探针），declared→primary→retired（本项目口径废除 dual-read 运行期双读）；注册表单源 Baselines\Wiring.psd1；正/负对照防假绿；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
     }
 
     ObservabilitySurface = @{

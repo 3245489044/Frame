@@ -48,7 +48,8 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-$declarationDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
+# U9：域声明真源已上移 .ushar（Config\nodes），原 JSON 迁移为**冻结基线**；本门禁对冻结基线执行同一判据。
+$declarationDir = Join-Path $Root 'Environment\CentralTest\UsharpTests\Usharp.Emit.Tests\Fixtures\baselines'
 $instanceFile   = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
 
 $violations = [System.Collections.Generic.List[string]]::new()

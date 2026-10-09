@@ -31,7 +31,7 @@ public sealed class EmptyRuntimeSlot : IRuntimeSlot, IDisposable
 
         public IReadOnlyCollection<string> Keys => Array.Empty<string>();
 
-        public void Register(string key, object value)
+        public bool Register(string key, object value, SlotWritePolicy policy = SlotWritePolicy.Strict)
             => throw new InvalidOperationException(
                 $"运行时槽未装配：无法向分区 '{DomainKey}' 注册 '{key}'（槽由宿主装配层创建并注入，禁止就地自建第二根）。");
 

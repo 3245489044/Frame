@@ -39,6 +39,8 @@ public static class UsharpPrefixes
         // R3+ 容错/门控语言单元：受控边（When）/ 受护作用域（Guard）
         new(UsharpLanguage.WhenPrefix, DslSymbolKind.When, "When"),
         new(UsharpLanguage.GuardPrefix, DslSymbolKind.Guard, "Guard"),
+        // 域定义语言单元：节点域定义面（[Domain]）
+        new(UsharpLanguage.DomainPrefix, DslSymbolKind.Domain, "Domain"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

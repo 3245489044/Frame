@@ -31,8 +31,18 @@ public interface IRuntimeSlotPartition
     /// <summary>已注册的槽键集（诊断用；不含值）。</summary>
     IReadOnlyCollection<string> Keys { get; }
 
-    /// <summary>注册槽对象（装配期单点写入；重复注册不同实例 = fail-fast）。</summary>
-    void Register(string key, object value);
+    /// <summary>
+    /// 注册槽对象（装配期**单一写入口**；跨代语义由 <paramref name="policy"/> 决定）。
+    /// <para>
+    /// 三态（返回 <c>true</c> = 发生覆盖/跨代重建）：① 键缺失 → 登记（<c>false</c>）；② 同实例 → 幂等（<c>false</c>）；
+    /// ③ 同逻辑类型（<see cref="SlotWritePolicy.CrossGeneration"/> 下：同类型或同名类型——程序集简单名 + 类型全名一致、
+    /// Type 身份不同，如换代后新加载上下文重载的同源程序集）→ 覆盖（<c>true</c>）；其余类型不符 →
+    /// <see cref="System.InvalidOperationException"/>（fail-fast，不给静默换类型）。
+    /// </para>
+    /// <para><see cref="SlotWritePolicy.Strict"/>（缺省）= 跨代宽容关闭：同键任一异实例（含同类型）一律 fail-fast（DF8 第二份运行时）。</para>
+    /// </summary>
+    /// <returns>是否发生覆盖（跨代重建）；新增 / 幂等 / no-op 返回 <c>false</c>。</returns>
+    bool Register(string key, object value, SlotWritePolicy policy = SlotWritePolicy.Strict);
 
     /// <summary>
     /// 取或装配槽对象（<b>运行期并发首访路径</b>，F-20/F-04）：已注册 → 返回既有实例；未注册 → 调用 <paramref name="factory"/>
@@ -58,4 +68,16 @@ public interface IRuntimeSlotPartition
 
     /// <summary>解析槽对象（无类型约束版；供非泛型装配诊断路径使用）。</summary>
     object Get(string key);
+}
+
+/// <summary>
+/// 槽写入策略（<see cref="IRuntimeSlotPartition.Register"/> 单入口的跨代语义开关）。
+/// </summary>
+public enum SlotWritePolicy
+{
+    /// <summary>严格（同代）：同键任一异实例（含同类型）fail-fast（DF8 第二份运行时/第二根）。</summary>
+    Strict,
+
+    /// <summary>跨代宽容：同名逻辑类型（跨 ALC 重载的同源程序集）判为旧代陈旧实例 → 重建覆盖；异类型仍 fail-fast。</summary>
+    CrossGeneration,
 }

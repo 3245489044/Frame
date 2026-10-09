@@ -367,7 +367,7 @@ public static class StandardDescriptors
         Reader: "valueSource");
 
     /// <summary>
-    /// 脚本步骤层（<c>impl.script[]</c>）——**扁平多模型**：四形态键（new/invoke/foreach/throw）属 <see cref="StepStandard"/>，
+    /// 脚本步骤层（<c>impl.script[]</c>）——**扁平多模型**：五形态键（new/invoke/foreach/throw/expr）属 <see cref="StepStandard"/>，
     /// <c>items</c>/<c>where</c>/<c>do</c> 属 <see cref="ForeachStandard"/>，值源步骤键（<c>from</c>/<c>pairs</c>/<c>elementType</c>/<c>genericArgs</c>）属 <see cref="ValueSourceStandard"/>。
     /// </summary>
     public static readonly LayerDescriptor Step = new(
@@ -385,6 +385,7 @@ public static class StandardDescriptors
             new("New", "new", MemberKind.Child, ChildLayer: "new"),
             new("Invoke", "invoke", MemberKind.Child, ChildLayer: "invoke"),
             new("Throw", "throw", MemberKind.Child, ChildLayer: "throw"),
+            new("Expr", "expr", MemberKind.Child, ChildLayer: "expr"),
             new("Source", "from", MemberKind.Child, ChildLayer: "valueSource"),
             new("Pairs", "pairs", MemberKind.Children, ChildLayer: "valueSource", Owner: typeof(ValueSourceStandard)),
             new("ElementType", "elementType", MemberKind.Scalar, Owner: typeof(ValueSourceStandard)),

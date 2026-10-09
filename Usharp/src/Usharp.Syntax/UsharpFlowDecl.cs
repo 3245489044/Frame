@@ -239,6 +239,10 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpGuardDecl> Guards(DslDocument doc)
         => Project(doc, DslSymbolKind.Guard, UsharpGuardDecl.From);
 
+    /// <summary><c>[Domain]</c> 域定义声明（节点域定义面：identity / placements / selections / retentions；U1）。</summary>
+    public static IReadOnlyList<UsharpDomainDecl> Domains(DslDocument doc)
+        => Project(doc, DslSymbolKind.Domain, UsharpDomainDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

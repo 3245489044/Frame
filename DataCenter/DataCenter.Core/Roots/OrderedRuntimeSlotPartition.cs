@@ -38,7 +38,7 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
         }
     }
 
-    public void Register(string key, object value)
+    public bool Register(string key, object value, SlotWritePolicy policy = SlotWritePolicy.Strict)
     {
         ThrowIfDisposed();
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -46,17 +46,22 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
 
         lock (_gate)
         {
-            if (_values.TryGetValue(key, out var existing))
+            _values.TryGetValue(key, out var existing);
+            switch (ClassifyWrite(existing, value, policy))
             {
-                // 同键同实例 = 幂等（装配重入）；同键异实例 = 第二份运行时（DF8 禁止）
-                if (ReferenceEquals(existing, value))
-                    return;
-                throw new InvalidOperationException(
-                    $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册不同实例（DF8：禁止第二份运行时/第二根）。");
+                case SlotWriteOutcome.Added:
+                    _values[key] = value;
+                    _order.Add(key);
+                    return false;
+                case SlotWriteOutcome.Idempotent:
+                    return false; // 同实例幂等（装配重入）
+                case SlotWriteOutcome.Replaced:
+                    _values[key] = value; // 跨代重建覆盖（同名逻辑类型）
+                    return true;
+                default:
+                    throw new InvalidOperationException(
+                        $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册不同实例（DF8：禁止第二份运行时/第二根）。");
             }
-
-            _values[key] = value;
-            _order.Add(key);
         }
     }
 
@@ -119,6 +124,33 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
     private static bool IsSameLogicalType(Type left, Type right)
         => string.Equals(left.FullName, right.FullName, StringComparison.Ordinal)
            && string.Equals(left.Assembly.GetName().Name, right.Assembly.GetName().Name, StringComparison.Ordinal);
+
+    /// <summary>写三态（<see cref="Register"/> / <see cref="GetOrAdd{T}"/> 共用的单份判定结果）。</summary>
+    private enum SlotWriteOutcome
+    {
+        Added,
+        Idempotent,
+        Replaced,
+        Conflict,
+    }
+
+    /// <summary>
+    /// 写三态分类（**唯一判定点**）：缺失 → 新增；同实例 → 幂等；同逻辑类型（同类型 / 同名跨 ALC）→
+    /// 跨代策略下重建覆盖、严格策略下冲突（DF8）；异类型 → 冲突。消除「Register / RegisterOrReplaceAcrossGeneration /
+    /// GetOrAdd 重建」三处各写一遍的平行判定。
+    /// </summary>
+    private static SlotWriteOutcome ClassifyWrite(object? existing, object incoming, SlotWritePolicy policy)
+    {
+        if (existing is null)
+            return SlotWriteOutcome.Added;
+        if (ReferenceEquals(existing, incoming))
+            return SlotWriteOutcome.Idempotent;
+
+        if (IsSameLogicalType(existing.GetType(), incoming.GetType()))
+            return policy == SlotWritePolicy.CrossGeneration ? SlotWriteOutcome.Replaced : SlotWriteOutcome.Conflict;
+
+        return SlotWriteOutcome.Conflict;
+    }
 
     public void Replace(string key, object value)
     {

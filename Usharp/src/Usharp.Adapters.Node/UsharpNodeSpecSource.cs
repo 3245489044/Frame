@@ -119,10 +119,26 @@ public sealed class UsharpNodeSpecSource : ISpecSource
             chains.Add(new SpecDocument(SourceId, flow.FlowId, RoundSpecChainMapper.ToJson(emitted.Spec)));
         }
 
+        // 节点域定义面（U1 / E-7）：[Domain] → 中立 JSON → DefinitionSet.Nodes 槽。
+        // 域缺失/形态非法 ⇒ 该域不产出（诊断原样透出，不静默补内容）。
+        var nodes = new List<SpecDocument>(compilation.Domains.Count);
+        foreach (var domain in compilation.Domains)
+        {
+            var emitted = UsharpNodeSpecEmitter.Emit(compilation, domain.DomainId);
+            Project(emitted.Diagnostics);
+
+            if (emitted.Json is null || emitted.HasErrors)
+            {
+                continue;
+            }
+
+            nodes.Add(new SpecDocument(SourceId, domain.DomainId, emitted.Json));
+        }
+
         return Task.FromResult(new DefinitionSet(
             SourceId,
             chains,
-            Array.Empty<SpecDocument>(),
+            nodes,
             Array.Empty<SpecDocument>(),
             Array.Empty<SpecDocument>()));
     }

@@ -83,6 +83,20 @@
         Note   = '节点框架纯净性 A–H 段 + S 段（S-1：Form=Stream ⇒ 身份模板单键）：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖 / Stream 声明面单键身份（与 NodeSpecValidator spec.stream-identity-multi-row 对偶）；-ShowDetail 显示详情'
     }
 
+    ToolFaceDeclaration = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-ToolFaceDeclaration.ps1'
+        Expect = 0
+        Note   = '工具面/MCP 装配声明守卫 D1–D5（P0/P2 建面）：Config\tool-face.json 三段齐备 / 执行端与内部面（cline/answer）不外泄 / face.tracks 非空 / 正对照（faces 数 ≥ 基线）+ 负对照（合成 cline.expose=true 必须被同一判据命中）；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
+    }
+
+    NodeDeclSingleSource = @{
+        Args   = @{}
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1'
+        Expect = 0
+        Note   = '节点域声明单一来源桥接线守卫 C1–C5（X1/W5 建面）：FrameBinaryRefs.props 登记 Usharp.Adapters.Node（否则语言桥不可见）/ UsharpNodeSpecSource 实现 ISpecSource / 域定义面 JSON 存量缺口报告口径（U1 目标清零）/ 正对照（注册行数 ≥ 基线）+ 负对照（合成缺失注册必须被同一判据命中）；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
+    }
+
     NodeGather = @{
         Args   = @{}
         Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1'

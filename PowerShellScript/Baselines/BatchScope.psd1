@@ -76,7 +76,15 @@
     #   AgentComposition 四相位，落点含 Projects/PrjBridge/** 与 Projects/FileDriven/**（原 §7 allowSet 未覆盖）。
     #   恢复 = 从 active/batches 移除 VM-R* 条目。
 
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Vm框架-面向数据运行时内核.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v17（2026-10-09）：单指针切换至「统一节点管理框架 后续实施步骤（U1–U9）」授权单。切换理由 =
+    #   用户转入实施《统一节点管理框架-后续实施步骤-施工单.md》U1（关键路径）；该系列改动落在
+    #   Frame/Usharp/**（语言扩展/闸A/发射器/适配）· Frame/CsharpPrj/Plate/DslMethod/**（枚举 +Domain）
+    #   · Projects/Plug/Agent/Config/nodes/**（10 域 .ushar）· Frame/PowerShellScript/**（门禁 C3）·
+    #   Environment/CentralTest/UsharpTests/**（等价门夹具/用例），均在新单 allowSet 内。
+    #   既有在途改动（VM 系列 Agent/DataCenter/PrjBridge/CentralTest + U0/U5/U6/U7 交付面 + 文档，共 29 项）
+    #   按新单 preexisting 登记（不属本系列活动面）；git 干净度：VM 系列无在途产品改动者已提交。
+    #   恢复 = 回填 v16 的 Value（上方注释保留 VM 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.9\统一节点管理框架-后续实施步骤.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

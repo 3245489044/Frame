@@ -20,7 +20,8 @@ public sealed class UsharpGateModel
         IReadOnlyList<UsharpMatrixDecl> matrices,
         IReadOnlyList<UsharpFlowDecl> flows,
         IReadOnlyList<UsharpRefDecl> refs,
-        ObsRegistry? obs)
+        ObsRegistry? obs,
+        IReadOnlyList<UsharpDomainDecl>? domains = null)
     {
         Documents = documents;
         Declarations = declarations;
@@ -30,6 +31,7 @@ public sealed class UsharpGateModel
         Flows = flows;
         Refs = refs;
         Obs = obs;
+        Domains = domains ?? Array.Empty<UsharpDomainDecl>();
 
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
         FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
@@ -55,6 +57,9 @@ public sealed class UsharpGateModel
 
     /// <summary>观测声明注册中心（可为 null：未启用 <c>[Obs]</c> 闸A 时）。</summary>
     public ObsRegistry? Obs { get; }
+
+    /// <summary><c>[Domain]</c> 域定义声明（U1；空表 = 本编译无域定义面）。</summary>
+    public IReadOnlyList<UsharpDomainDecl> Domains { get; }
 
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }

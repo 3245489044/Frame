@@ -70,6 +70,9 @@ public static class UsharpCodes
     /// <summary>归属边声明不可产出（无任何带 <c>edge=</c> 的 <c>[Ref]</c> / 坐标未在空间声明）。</summary>
     public const string RefEdgeNotProducible = "US5007";
 
+    /// <summary>节点域定义面不可产出（未找到该域 id 的 <c>[Domain]</c> / 形态非法）。</summary>
+    public const string DomainSpecNotProducible = "US5008";
+
     /// <summary>
     /// 计划（处理编排）相关诊断码名单 —— 判据侧（<c>ProcessPlanGateRule</c> 产出）与发射侧
     /// （<c>UsharpHierarchyProcessPlanEmitter</c> 投影筛选）**共同引用**，避免名单两处维护（漏改即静默丢诊断）。
@@ -134,6 +137,23 @@ public static class UsharpCodes
     public const string ObsEventUnconsumed = "US6005";
     public const string ObsFileDuplicate = "US6006";
     public const string ObsKindUnknown = "US6007";
+
+    // 域定义面（[Domain]：节点域定义面；U1）
+    /// <summary>身份缺失，或位置键模板占位符不被身份占位符覆盖（身份占位符 ⊉ 键模板占位符）。</summary>
+    public const string DomainIdentityInvalid = "US7001";
+
+    /// <summary>同域位置 id 重复（位置 id 须唯一）。</summary>
+    public const string DomainPlacementIdDuplicate = "US7002";
+
+    /// <summary><c>selection=</c> 引用未在 <c>selections</c> 词表声明的选择名。</summary>
+    public const string DomainSelectionUndeclared = "US7003";
+
+    /// <summary><c>retention=</c> 引用未在 <c>retentions</c> 词表声明的保留等级。</summary>
+    public const string DomainRetentionUndeclared = "US7004";
+
+    /// <summary>域声明形态非法（空 <c>placements</c> / 续行不可解析 / 缺必填字段）。</summary>
+    public const string DomainShapeInvalid = "US7005";
+
 
     // 判据读法面（[Matrix] over=<kind=terms 空间>；E1/U2b）
     /// <summary>词元行的 <c>zone=</c> 缺失或非法（象限须为 I/E/O 单字母）。</summary>

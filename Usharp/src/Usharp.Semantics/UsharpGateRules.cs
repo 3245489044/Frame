@@ -246,3 +246,97 @@ internal sealed class ObsGateRule : IGateRule<UsharpGateModel>
                     decl.SourceFile, decl.LineNumber));
     }
 }
+
+/// <summary>
+/// 规则 ⑫：<c>[Domain]</c> 域定义面闸A（U1）：身份占位符 ⊇ 位置键模板占位符 / 位置 id 唯一 /
+/// <c>selection=</c> 与 <c>retention=</c> 引用在册 / 形态自洽（空 placements / 不可解析续行 / 缺必填字段）。
+/// </summary>
+internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
+{
+    public string Name => "usharp.domain";
+
+    public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
+    {
+        foreach (var domain in model.Domains)
+        {
+            foreach (var line in domain.UnparsedLines)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                    $"[Domain] {domain.DomainId}: 续行不可解析 '{line}'（须为 identity… / context… / sequence… 或子块内 k=v 项）",
+                    domain.SourceFile, domain.LineNumber));
+            }
+
+            if (string.IsNullOrWhiteSpace(domain.Identity))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainIdentityInvalid,
+                    $"[Domain] {domain.DomainId}: 缺 identity=（身份模板为位置键反解的唯一依据）",
+                    domain.SourceFile, domain.LineNumber));
+            }
+
+            if (domain.Placements.Count == 0)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                    $"[Domain] {domain.DomainId}: placements 为空（域定义面须至少声明一个位置）",
+                    domain.SourceFile, domain.LineNumber));
+            }
+
+            var identityPlaceholders = Placeholders(domain.Identity);
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var placement in domain.Placements)
+            {
+                if (!seenIds.Add(placement.Id))
+                {
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainPlacementIdDuplicate,
+                        $"[Domain] {domain.DomainId}: 位置 id '{placement.Id}' 重复（位置 id 须唯一）",
+                        domain.SourceFile, domain.LineNumber));
+                }
+
+                foreach (var placeholder in Placeholders(placement.Key))
+                {
+                    if (!identityPlaceholders.Contains(placeholder))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainIdentityInvalid,
+                            $"[Domain] {domain.DomainId}: 位置 '{placement.Id}' 键模板占位符 '{{{placeholder}}}' "
+                            + "不被身份占位符覆盖（身份占位符 ⊇ 位置键模板占位符）",
+                            domain.SourceFile, domain.LineNumber));
+                    }
+                }
+
+                if (!domain.Selections.ContainsKey(placement.Selection))
+                {
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainSelectionUndeclared,
+                        $"[Domain] {domain.DomainId}: 位置 '{placement.Id}' 的 selection='{placement.Selection}' 未在 selections 词表声明",
+                        domain.SourceFile, domain.LineNumber));
+                }
+
+                if (!domain.Retentions.ContainsKey(placement.Retention))
+                {
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainRetentionUndeclared,
+                        $"[Domain] {domain.DomainId}: 位置 '{placement.Id}' 的 retention='{placement.Retention}' 未在 retentions 词表声明",
+                        domain.SourceFile, domain.LineNumber));
+                }
+            }
+        }
+    }
+
+    /// <summary>键模板占位符集（<c>{name}</c> → name；无占位符 ⇒ 空集）。</summary>
+    private static HashSet<string> Placeholders(string template)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrEmpty(template)) return set;
+
+        var index = 0;
+        while (index < template.Length)
+        {
+            var open = template.IndexOf('{', index);
+            if (open < 0) break;
+            var close = template.IndexOf('}', open + 1);
+            if (close < 0) break;
+            var name = template[(open + 1)..close].Trim();
+            if (name.Length > 0) set.Add(name);
+            index = close + 1;
+        }
+        return set;
+    }
+}
+

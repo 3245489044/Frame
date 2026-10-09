@@ -20,6 +20,8 @@ public enum DslSymbolKind
     Region,
     // Ushar 容错/门控语言单元（R3+）：受控边（When）/ 受护作用域（Guard）
     When, Guard,
+    // Ushar 域定义语言单元：节点域定义面（identity / placements / selections / retentions；见 Usharp README「域定义」）
+    Domain,
     Unknown,
 }
 

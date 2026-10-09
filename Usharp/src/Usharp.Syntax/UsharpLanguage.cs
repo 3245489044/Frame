@@ -41,6 +41,9 @@ public static class UsharpLanguage
     /// <summary>受护作用域声明前缀（R3+：作用域内节点失败 → 吞并继续）。</summary>
     public const string GuardPrefix = "[Guard]";
 
+    /// <summary>域定义声明前缀（节点域定义面：identity / placements / selections / retentions）。</summary>
+    public const string DomainPrefix = "[Domain]";
+
     /// <summary>控制流声明字段名（R3，<c>[Branch]/[Switch]/[Call]</c> 共用）：所属流 / 承载节点 / 判定键 / 选择键 / 目标。</summary>
     public const string FieldFlow = "flow";
     public const string FieldNode = "node";
@@ -140,6 +143,30 @@ public static class UsharpLanguage
     public const string FieldTgt = "tgt";
     public const string FieldIntent = "intent";
     public const string FieldEdge = "edge";
+
+    /// <summary>
+    /// <c>[Domain]</c> 字段名（节点域定义面）：身份模板 / 上下文坐标 / 序数坐标 / 位置块 / 选择词表 / 保留词表——
+    /// 语言面字段名单源（禁在解析/发射各写一份字面量）。
+    /// </summary>
+    public const string FieldIdentity = "identity";
+    public const string FieldContext = "context";
+    public const string FieldSequence = "sequence";
+    public const string FieldPlacements = "placements";
+    public const string FieldSelections = "selections";
+    public const string FieldRetentions = "retentions";
+
+    /// <summary>
+    /// <c>placement</c> 项字段名（位置块内逐条声明）：id / level / carrier / key / form / retention / selection / writer / state。
+    /// <c>key</c> 复用 <see cref="FieldKey"/>（同一键字段名，禁造别名）。
+    /// </summary>
+    public const string FieldId = "id";
+    public const string FieldLevel = "level";
+    public const string FieldCarrier = "carrier";
+    public const string FieldForm = "form";
+    public const string FieldRetention = "retention";
+    public const string FieldSelection = "selection";
+    public const string FieldWriter = "writer";
+    public const string FieldState = "state";
 
     /// <summary><c>[Edge]</c> 声明的 UR 词汇表显式映射字段（<c>ur=Dependency</c>）——语言面字段名单源。</summary>
     public const string FieldUr = "ur";

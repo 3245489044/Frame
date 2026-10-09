@@ -360,4 +360,10 @@
         Note   = 'VM-R1 代目录布局契约：gen-<n>（n ≥ 1）须含全 Agent.*.dll（计数 ≥ 就地产物面参照）+ Agent.Launcher.deps.json（ALC 解析基座=本目录）+ vm-program.json；代根 = Projects\Plug\Agent\BuildOutput\Generations；落点禁 BuildOutput\<Config>（被运行进程锁定）'
     }
 
+    GenerationRebuildChain = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'VM-R5 换代链结构守卫：构建到新目录（代目录布局单源）→ 换 ALC（重装配桥 + 按代端口注册）→ 重装配（F 段重挂 + 装配契约）→ 触发（源码监视 + 命令触发）之结构锚点 C1–C7 在位'
+    }
+
 }

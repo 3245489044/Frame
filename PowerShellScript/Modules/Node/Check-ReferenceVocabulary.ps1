@@ -62,8 +62,8 @@ $Vocabulary = @(
     'Calls', 'Owns', 'Exports', 'Inherits', 'Implements', 'DependsOn'
 )
 
-# ---- 唯一字面量源 ----
-$singleSource = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Abstractions\ReferenceTypes.cs'
+# ---- 唯一字面量源（B1 收口 2026-09-30：字面量上移至框架 L3 语义层；DataStoreDriven.ReferenceTypes 降为别名门面）----
+$singleSource = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalReference\Reference\Models\ReferenceEdgeTypes.cs'
 
 # ---- 扫描面 ----
 $scanRoots = @(
@@ -153,7 +153,7 @@ foreach ($h in $allHits) {
         }
     }
     if (-not $matched) {
-        $violations.Add("[C1] $rel`:$($h.Line) 出现词汇字面量 ""$($h.Name)"" —— 唯一字面量源 = ReferenceTypes.cs（其余须别名转发）")
+        $violations.Add("[C1] $rel`:$($h.Line) 出现词汇字面量 ""$($h.Name)"" —— 唯一字面量源 = ReferenceEdgeTypes.cs（其余须别名转发）")
     }
 }
 
@@ -211,8 +211,8 @@ if ($violations.Count -eq 0) {
 
 Write-Host "[FAIL] 引用关系词汇守卫命中 $($violations.Count) 处：" -ForegroundColor Yellow
 foreach ($item in $violations) { Write-Host "  - $item" -ForegroundColor Yellow }
-Write-Host '  修复口径：字面量唯一源 = Operation.DataStoreDriven.Abstractions.ReferenceTypes；' -ForegroundColor Gray
-Write-Host '            其余常量类只做别名转发（const X = ReferenceTypes.X）；' -ForegroundColor Gray
+Write-Host '  修复口径：字面量唯一源 = UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes；' -ForegroundColor Gray
+Write-Host '            其余常量类只做别名转发（const X = ReferenceEdgeTypes.X）；' -ForegroundColor Gray
 Write-Host '            零依赖层（ScopeFramework / DeclarativeDataflow）保留字面量并登记豁免。' -ForegroundColor Gray
 
 if ($Check) { exit 1 }

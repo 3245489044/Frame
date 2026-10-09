@@ -56,9 +56,11 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 # ---------------- 基线（只减不增；变更须给出理由并同步本表） ----------------
 $declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\hierarchy-refs.ushar'
-# 边类型常量**唯一字面量源**（A1）：`ReferenceTypes` 承载字面量；`CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
+# 边类型常量**唯一字面量源**（B1 收口 2026-09-30 后字面量上移至框架 L3 语义层）：
+#   `UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes` 承载字面量；
+#   `Operation.DataStoreDriven.Abstractions.ReferenceTypes` / `CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
 #   `NodeResourceTypes` / LoopFoldMethod.Reference.Model.ReferenceTypes 均为其别名门面（const 转发，无字面量）。
-$constsFile      = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Abstractions\ReferenceTypes.cs'
+$constsFile      = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalReference\Reference\Models\ReferenceEdgeTypes.cs'
 $groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Domain\ReferenceGrounding.cs'   # 目录分组（DS-P4a-pre）：判据不变，仅路径改指
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
@@ -194,6 +196,22 @@ foreach ($edge in $codeEdges) {
     }
 }
 
+# ---------------- E2d 归属族常量集 ⊆ 声明集（常量有而声明无 ⇒ 漂移） ----------------
+# 对齐运行时对账 ReferenceEdgeVocabularyCheck.HierarchyEdgeConstants（4 类归属边）；常量集（不止"已用到"）须全部有声明。
+function Get-UndeclaredConstants {
+    param([hashtable]$ConstMap, [string[]]$Names, [System.Collections.Generic.List[string]]$Declared)
+    $out = [System.Collections.Generic.List[string]]::new()
+    foreach ($n in $Names) {
+        if (-not $ConstMap.ContainsKey($n)) { $out.Add("$n=(常量缺)") ; continue }
+        if (-not $Declared.Contains([string]$ConstMap[$n])) { $out.Add("$n=$($ConstMap[$n])") }
+    }
+    return $out
+}
+$HierarchyEdgeConstantNames = @('HistoryOwnsTask', 'CrossDbLink', 'SessionOwns', 'TaskOwnsTask')
+foreach ($undeclared in (Get-UndeclaredConstants -ConstMap $constMap -Names $HierarchyEdgeConstantNames -Declared $declaredEdges)) {
+    $violations.Add("[E2d] 归属族边常量未在声明面登记：$undeclared（常量集 ⊄ 声明集 ⇒ 漂移；禁静默新增边类型）")
+}
+
 # ---------------- E2c 退役常量债务基线（只减不增） ----------------
 foreach ($name in $DeprecatedWriteDebt.Keys) {
     $actual = if ($usedByConst.ContainsKey($name)) { $usedByConst[$name] } else { 0 }
@@ -252,6 +270,12 @@ if ($negativeText -match '错误\s*(?<n>\d+)') {
     }
 } elseif ($negativeText) {
     $violations.Add('[E5] 负对照未取得编译错误计数（禁假绿）')
+}
+
+# ③ E2d 判据必须命中未声明常量（否则 E2d 恒绿）
+$negUndeclared = Get-UndeclaredConstants -ConstMap @{ GhostEdge = 'ghost_edge' } -Names @('GhostEdge') -Declared $declaredEdges
+if (@($negUndeclared).Count -eq 0) {
+    $violations.Add('[E5] 负对照失效：E2d 未命中未声明常量（判据恒绿）')
 }
 Remove-Item -LiteralPath $negativePath -Force -ErrorAction SilentlyContinue
 

@@ -96,7 +96,7 @@ public static class StandardDescriptors
             new("Expect", "expect", MemberKind.Scalar),
             new("Args", "args", MemberKind.Children, ChildLayer: "composedArg"),
         ],
-        Reader: "dep");
+        Reader: "call");
 
     /// <summary>组合族投影声明层（<c>impl.project[]</c>）。</summary>
     public static readonly LayerDescriptor ComposedField = new(

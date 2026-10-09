@@ -28,6 +28,19 @@ public static class DeclaredReferenceVocabulary
         return new ReferenceTypeRegistry(UsharpReferenceSchemaEmitter.Emit(compilation));
     }
 
+    /// <summary>
+    /// 从磁盘 <c>.ushar</c> 词表声明面构建注册中心（F4 词表 USharp 化武装入口）。
+    /// <para>缺件 / 编译错误 ⇒ <c>null</c>（调用方按「声明面优先、内嵌产物回退」装配 ⇒ 零行为变更）。</para>
+    /// </summary>
+    /// <param name="path">声明面绝对路径（<c>Config\nodes\reference.ushar</c>）。</param>
+    public static ReferenceTypeRegistry? TryBuildFromFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path)) return null;
+        var compilation = UsharpCompilation.CompileSources(UsharpSourceLoader.FromPath(path));
+        if (compilation.HasErrors) return null;
+        return Build(compilation);
+    }
+
     /// <summary>Schema 面校验（悬空边端节点 / 悬空约束 / 重复 / dep 目标）——复用既有判据。</summary>
     public static IReadOnlyList<ValidationIssue> Validate(UsharpCompilation compilation)
     {

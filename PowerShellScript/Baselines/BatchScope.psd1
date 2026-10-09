@@ -84,6 +84,19 @@
     #   既有在途改动（VM 系列 Agent/DataCenter/PrjBridge/CentralTest + U0/U5/U6/U7 交付面 + 文档，共 29 项）
     #   按新单 preexisting 登记（不属本系列活动面）；git 干净度：VM 系列无在途产品改动者已提交。
     #   恢复 = 回填 v16 的 Value（上方注释保留 VM 单原值）。
+    # v18（2026-10-09）：单指针切换至「引用关系 USharp 化重构（F0–F5）」授权单。切换理由 =
+    #   用户转入实施《引用关系USharp化重构-已交付与后续实施.md》§3 施工单；本系列 F1 落点含
+    #   Environment/CentralTest/UsharpTests/**（MSB4067 修复）· Frame/DataCenter/**（call/composedField 读取器）
+    #   · Frame/PowerShellScript/**，F4 落点含 Frame/CsharpPrj/Operation/DataStoreDriven/**，均不在上一系列
+    #   （U 系列）活动面 allowSet 内 ⇒ 切换不误判其改动。既有在途改动（10.9 文档 + U 系列单文件）落在
+    #   本单 Docs/analysis/2026/10/10.9/** 覆盖面内。恢复 = 回填 v17 的 Value（上方注释保留 U 单原值）。
+    # v19（2026-10-09）：单指针回切「统一节点管理框架 后续实施步骤（U1–U9）」授权单（回到 v17 的 Value），
+    #   并把该单扩为含 U3–U9 批（active=[U5]，接线收口关键路径）。切换理由 = 用户转入实施
+    #   《统一节点管理框架-U3-U9-接线收口-实施步骤.md》：U5/U3/U6/U7/U8/U9 落点落在
+    #   Projects/Plug/Agent/src/**（Agent.Modules/Agent.Core/Agent.Launcher/Agent.Session）· Config/{nodes,workflows}
+    #   · Frame/{Usharp,PowerShellScript} 与 Frame/CsharpPrj/Modules/Node/**；F 系列在途改动（Frame/DataCenter/**）
+    #   经 preexisting 登记（不在 U 单活动面内）。既有 F1–F3 交付物保留不变。
+    #   恢复 = 回填 v18 的 Value（上方注释保留 F 单原值）。
     Manifest = @{ Value = 'Docs\analysis\2026\10\10.9\统一节点管理框架-后续实施步骤.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。

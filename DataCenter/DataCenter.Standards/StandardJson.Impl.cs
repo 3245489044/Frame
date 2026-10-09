@@ -34,6 +34,31 @@ public static partial class StandardJson
     }
 
     /// <summary>
+    /// 组合族调用声明读取（<c>impl.calls[]</c>；描述符 <c>call</c> 层读取器，键闭包层 = <c>call</c>）：
+    /// <c>{ as, target?, method, property?, dep?, await?, expect?, args? }</c>；<c>as</c>/<c>method</c> 必填，
+    /// <c>args[]</c> 复用组合族实参读取（<c>composedArg</c>）。
+    /// </summary>
+    internal static CallStandard ReadCall(string context, JsonElement item)
+    {
+        EnsureLayerKeys("call", context, item);
+
+        var asName = Str(item, "as")
+            ?? throw new StandardViolationException($"[port:standard] {context} 缺少必填键 'as'");
+        var method = Str(item, "method")
+            ?? throw new StandardViolationException($"[port:standard] {context} 缺少必填键 'method'");
+
+        return new CallStandard(
+            asName,
+            Str(item, "target"),
+            method,
+            Bool(item, "property") ?? false,
+            Int(item, "dep"),
+            Bool(item, "await") ?? false,
+            Str(item, "expect"),
+            ReadComposedArgs(context, item));
+    }
+
+    /// <summary>
     /// 种类归一（SK-28：**缺省已取消** —— <c>impl.kind</c> 必填，缺即抛；非法即抛）。
     /// 取值域 = 词表唯一源（<c>Kinds</c>，禁手抄 kind）；<c>delegate</c> 属遗留值（只读兼容，新增禁止）。
     /// </summary>

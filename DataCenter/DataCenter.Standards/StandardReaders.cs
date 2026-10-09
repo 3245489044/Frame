@@ -30,6 +30,7 @@ internal static class StandardReaders
             ["expr"] = (layer, obj, context) => StandardJson.ReadExpr(context, obj, context),
             ["foreach"] = (layer, obj, context) => StandardJson.ReadForeach(context, obj),
             ["dep"] = (layer, obj, context) => StandardJson.ReadDep(context, obj),
+            ["call"] = (layer, obj, context) => StandardJson.ReadCall(context, obj),
         };
 
     /// <summary>成员读取器表（id → 处理器）；仅 <c>impl</c> 半规则成员与派生位用。</summary>

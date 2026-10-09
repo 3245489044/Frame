@@ -75,6 +75,7 @@
     #   扩面（VM-R2b「重装配桥」）：档 A 需在新 ALC 内经 PrjBridge 重绑 AgentPluginPorts.Plugin + 重跑
     #   AgentComposition 四相位，落点含 Projects/PrjBridge/** 与 Projects/FileDriven/**（原 §7 allowSet 未覆盖）。
     #   恢复 = 从 active/batches 移除 VM-R* 条目。
+
     Manifest = @{ Value = 'Docs\analysis\2026\10\10.8\2026-10-08-Vm框架-面向数据运行时内核.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。

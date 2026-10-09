@@ -93,6 +93,10 @@ public sealed class PortEvaluator
                 frame.Steps, instruction, Operand<ValueSourceStandard>(spec, instruction, index),
                 scope, input, frame.Deps),
 
+            PortOp.Expr => ScriptedSteps.RunExpr(
+                frame.Steps, instruction, Operand<ExprStandard>(spec, instruction, index),
+                scope, input, frame.Deps),
+
             PortOp.Project => Project(spec, instruction, input, scope, frame),
 
             _ => throw new PortBindingViolationException(
@@ -112,10 +116,10 @@ public sealed class PortEvaluator
         if (instruction.Operand is T operand) return operand;
 
         if (instruction.Operand is null
-            && instruction.Op is PortOp.New or PortOp.Call or PortOp.Loop)
+            && instruction.Op is PortOp.New or PortOp.Call or PortOp.Loop or PortOp.Expr)
         {
             throw new PortBindingViolationException(
-                spec.PortKey, $"端口 '{spec.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach）");
+                spec.PortKey, $"端口 '{spec.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|expr）");
         }
 
         throw new PortBindingViolationException(

@@ -12,7 +12,7 @@ public static partial class PortImplVocabulary
     public static readonly IReadOnlyList<string> StepKeys =
         [
             "collect", "when", "foreach", "items", "as", "where", "do", "new", "invoke", "throw",
-            "from", "pairs", "elementType", "genericArgs",
+            "from", "pairs", "elementType", "genericArgs", "expr",
         ];
 
     /// <summary>主动抛出步骤键（<see cref="ThrowStandard"/>；G3）。</summary>

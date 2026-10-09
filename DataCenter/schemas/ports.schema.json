@@ -294,6 +294,7 @@
         "new": { "$ref": "#/$defs/new" },
         "invoke": { "$ref": "#/$defs/invoke" },
         "throw": { "$ref": "#/$defs/throw" },
+        "expr": { "$ref": "#/$defs/expr" },
         "elementType": { "type": "string" },
         "genericArgs": { "type": "array", "items": { "type": "string" } }
       },

@@ -113,6 +113,7 @@ public static class StandardPortRelations
         foreach (var step in steps)
         {
             CollectExpr(step.When, symbols);
+            CollectExpr(step.Expr, symbols);
             if (step.New is { } construct) CollectConstruct(construct, symbols);
             if (step.Invoke is { } invoke) CollectInvoke(invoke, symbols);
 

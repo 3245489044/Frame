@@ -35,10 +35,12 @@ public interface IRuntimeSlotPartition
     void Register(string key, object value);
 
     /// <summary>
-    /// 取或装配槽对象（<b>运行期并发首访路径</b>，F-20/F-04）：已注册 → 返回既有实例（类型不符 = fail-fast）；
-    /// 未注册 → 调用 <paramref name="factory"/> 装配并注册，返回被采纳的实例（并发下工厂至多生效一次，
-    /// 由实现保证原子性）。与 <see cref="Register"/> 分工：本方法不因「并发首访」而抛错，装配期冲突仍由
-    /// <see cref="Register"/> 的 fail-fast 承担。
+    /// 取或装配槽对象（<b>运行期并发首访路径</b>，F-20/F-04）：已注册 → 返回既有实例；未注册 → 调用 <paramref name="factory"/>
+    /// 装配并注册（并发下工厂至多生效一次，由实现保证原子性）。与 <see cref="Register"/> 分工：本方法不因「并发首访」而抛错，
+    /// 装配期冲突仍由 <see cref="Register"/> 的 fail-fast 承担。
+    /// <para>类型语义（单一策略）：① 已登记且类型兼容 → 复用；② 已登记为**同名类型**（程序集简单名 + 类型全名一致、
+    /// Type 身份不同，如换代后新加载上下文重载的同源程序集）→ 判为旧代陈旧实例，以 <paramref name="factory"/> **重建并覆盖**；
+    /// ③ 其余类型不符 → <see cref="InvalidOperationException"/>（fail-fast，不给静默换类型）。</para>
     /// </summary>
     T GetOrAdd<T>(string key, Func<T> factory) where T : class;
 

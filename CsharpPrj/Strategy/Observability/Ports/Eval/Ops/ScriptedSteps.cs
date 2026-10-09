@@ -51,6 +51,8 @@ internal static class ScriptedSteps
                 last = RunNew(host, step, construct, scope, input, deps);
             else if (step.Op == PortOp.Value && step.Operand is ValueSourceStandard source)
                 last = RunValueSource(host, step, source, scope, input, deps);
+            else if (step.Op == PortOp.Expr && step.Operand is ExprStandard expression)
+                last = RunExpr(host, step, expression, scope, input, deps);
             else if (step.Op == PortOp.Call && step.Operand is InvokeStandard invoke)
                 last = RunInvoke(host, step, invoke, scope, input, deps);
             else if (step.Op == PortOp.Loop && step.Operand is ForeachStandard loop)
@@ -59,7 +61,7 @@ internal static class ScriptedSteps
                 last = RunThrow(host, raised);
             else
                 throw new PortBindingViolationException(
-                    host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|throw）");
+                    host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|throw|expr）");
         }
 
         host.Notes(scope.Notes);
@@ -182,6 +184,22 @@ internal static class ScriptedSteps
         Host host, PortInstr step, ValueSourceStandard source, EvalScope scope, IPortInput input, object?[] deps)
     {
         var value = ScriptedValue.Resolve(source, scope, input, deps, $"步骤 {step.Op}");
+        if (!string.IsNullOrWhiteSpace(step.Out)) scope.Set(step.Out!, value);
+
+        Collect(step, value, scope);
+        return value;
+    }
+
+    /// <summary>
+    /// 表达式步骤（<c>script[].expr</c>；通用 <see cref="ExprStandard"/> 算子，如 <c>filter</c>/<c>select</c>/<c>dict</c>）：
+    /// 求值（单源 = <see cref="ScriptedExprEvaluator"/>）→ 写槽（<see cref="PortInstr.Out"/>）→ 收集。
+    /// <para>用于把「表达式结果」落槽，供后续步骤 / 投影引用（如按条件拆分集合）。</para>
+    /// </summary>
+    internal static object? RunExpr(
+        Host host, PortInstr step, ExprStandard expression, EvalScope scope, IPortInput input, object?[] deps)
+    {
+        var context = string.IsNullOrWhiteSpace(step.Out) ? "步骤 expr" : $"步骤 expr '{step.Out}'";
+        var value = ScriptedExprEvaluator.Evaluate(expression, scope, input, deps, context);
         if (!string.IsNullOrWhiteSpace(step.Out)) scope.Set(step.Out!, value);
 
         Collect(step, value, scope);

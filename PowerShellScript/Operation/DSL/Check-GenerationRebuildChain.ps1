@@ -10,6 +10,8 @@
 #   [C5] F 段重挂 + 触发面（AgentVmProgramHost：MountSlot / StartSourceWatch / TryTriggerGenerationSwapAsync / RegisterGenerationSwapTrigger）
 #   [C6] 源码监视模式（VmProgramHotReloadWatcher：sourceRoot）
 #   [C7] 装配契约（AgentAssemblyContract.ColdStartEquivalent）
+#   [C8] 反射单缝（PrjBridgeInvoker：RegisterPorts / RegisterPortsForGeneration 共用）
+#   [C9] 换代唯一触发逻辑（AgentHotSwapPort.TriggerOrRebuildAsync：宿主门面与函数库单源）
 # 说明：本脚本只读校验（不构建/不换代）；报告模式列事实，-Check 违规 > 0 → 退出码 1。
 #
 # 用法：pwsh Frame\PowerShellScript\Operation\DSL\Check-GenerationRebuildChain.ps1 [-Root <repo>] [-Check]
@@ -49,9 +51,11 @@ Test-Anchor 'C4' 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\LauncherBoot
 Test-Anchor 'C5' 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\AgentVmProgramHost.cs' @('MountSlot', 'StartSourceWatch', 'TryTriggerGenerationSwapAsync', 'RegisterGenerationSwapTrigger')
 Test-Anchor 'C6' 'Projects\Vm\Core\VmProgramHotReloadWatcher.cs' @('sourceRoot')
 Test-Anchor 'C7' 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Root\AgentAssemblyContract.cs' @('ColdStartEquivalent')
+Test-Anchor 'C8' 'Projects\FileDriven\FileDriven.Execution\Lifecycle\PrjBridgeInvoker.cs' @('class PrjBridgeInvoker', 'TryInvoke')
+Test-Anchor 'C9' 'Projects\FileDriven\FileDriven.Abstractions\Ports\Agent\AgentHotSwapPort.cs' @('TriggerOrRebuildAsync')
 
 Write-Host '=== [VM-R5] 换代链结构守卫（构建→换 ALC→重装配→数据全在根） ==='
-Write-Host (("锚点检查: C1–C7 | 违规命中: {0}" -f $violations.Count))
+Write-Host (("锚点检查: C1–C9 | 违规命中: {0}" -f $violations.Count))
 if ($violations.Count -gt 0) {
     Write-Host '--- 违规清单 ---'
     $violations | ForEach-Object { Write-Host ("  [违规] {0}" -f $_) }

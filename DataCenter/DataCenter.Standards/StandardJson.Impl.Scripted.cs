@@ -451,9 +451,16 @@ public static partial class StandardJson
         if (item.TryGetProperty("throw", out var raised) && raised.ValueKind == JsonValueKind.Object)
             return new StepStandard(collect, when, Throw: ReadThrow(portKey, raised));
 
+        if (item.TryGetProperty("expr", out var expression) && expression.ValueKind == JsonValueKind.Object)
+            return new StepStandard(
+                collect, when,
+                Expr: ReadExpr(portKey, expression, "步骤 expr"),
+                As: Str(item, "as")
+                    ?? throw new StandardViolationException(
+                        $"[port:standard] 端口 '{portKey}' 的 impl.script 表达式步骤缺 as（写槽名）"));
 
         throw new StandardViolationException(
-            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach|throw|from:list|from:map）");
+            $"[port:standard] 端口 '{portKey}' 的 impl.script 步骤未声明形态（new|invoke|foreach|throw|expr|from:list|from:map）");
     }
 
     /// <summary>

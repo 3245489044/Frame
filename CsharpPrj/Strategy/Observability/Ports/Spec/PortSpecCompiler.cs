@@ -198,6 +198,10 @@ public static class PortSpecCompiler
             return new PortInstr(
                 PortOp.Value, Out: step.As, Operand: source, When: step.When, Collects: step.Collects);
 
+        if (step.Expr is { } expr)
+            return new PortInstr(
+                PortOp.Expr, Out: step.As, Operand: expr, When: step.When, Collects: step.Collects);
+
         if (step.Throw is { } raised)
             return new PortInstr(PortOp.Throw, Operand: raised, When: step.When, Collects: step.Collects);
 

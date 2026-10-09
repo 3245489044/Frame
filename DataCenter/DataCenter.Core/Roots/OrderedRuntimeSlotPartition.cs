@@ -71,7 +71,7 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
         lock (_gate)
         {
             if (_values.TryGetValue(key, out var existingRaw))
-                return ResolveRegistered<T>(key, existingRaw);
+                return ResolveRegisteredOrRebuild<T>(key, existingRaw, factory);
 
             var created = factory();
             ArgumentNullException.ThrowIfNull(created);
@@ -91,6 +91,34 @@ public sealed class OrderedRuntimeSlotPartition : IRuntimeSlotPartition
         => registeredRaw as T
            ?? throw new InvalidOperationException(
                $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册类型不兼容的实例（期望 {typeof(T).Name}，实得 {registeredRaw.GetType().Name}）。");
+
+    /// <summary>
+    /// 已登记实例解析 + **跨加载上下文换代重建**（GetOrAdd 单一策略：同类型复用 / 同名类型重建 / 其余 fail-fast）。
+    /// 同名类型（程序集简单名 + 类型全名一致、Type 身份不同，如换代后新 ALC 重载的同源程序集）视为**旧代陈旧实例**，
+    /// 以 <paramref name="factory"/> 重建并覆盖（对齐装配期处置语义：装配期 Register / 换代重建 / 运行期只读）；
+    /// 其他类型不符仍 fail-fast（不给静默换类型）。
+    /// </summary>
+    private T ResolveRegisteredOrRebuild<T>(string key, object registeredRaw, Func<T> factory) where T : class
+    {
+        if (registeredRaw is T typed)
+            return typed;
+
+        if (IsSameLogicalType(registeredRaw.GetType(), typeof(T)))
+        {
+            var rebuilt = factory();
+            ArgumentNullException.ThrowIfNull(rebuilt);
+            _values[key] = rebuilt;
+            return rebuilt;
+        }
+
+        throw new InvalidOperationException(
+            $"运行时槽分区 '{DomainKey}' 的键 '{key}' 已注册类型不兼容的实例（期望 {typeof(T).Name}，实得 {registeredRaw.GetType().Name}）。");
+    }
+
+    /// <summary>同一逻辑类型判定（跨加载上下文）：程序集简单名 + 类型全名一致（忽略 ALC 身份）。</summary>
+    private static bool IsSameLogicalType(Type left, Type right)
+        => string.Equals(left.FullName, right.FullName, StringComparison.Ordinal)
+           && string.Equals(left.Assembly.GetName().Name, right.Assembly.GetName().Name, StringComparison.Ordinal);
 
     public void Replace(string key, object value)
     {

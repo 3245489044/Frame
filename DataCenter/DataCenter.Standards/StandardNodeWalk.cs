@@ -280,6 +280,7 @@ internal static class StandardNodeWalk
         if (step.When is { } when) yield return StandardNode.Of(when);
         if (step.New is { } newStep) yield return StandardNode.Of(newStep);
         if (step.Invoke is { } invoke) yield return StandardNode.Of(invoke);
+        if (step.Expr is { } exprStep) yield return StandardNode.Of(exprStep);
         if (step.Foreach is { } foreachStep)
         {
             if (foreachStep.Items is { } items) yield return StandardNode.Of(items);

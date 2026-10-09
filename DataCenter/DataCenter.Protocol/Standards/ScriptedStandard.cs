@@ -11,7 +11,8 @@ namespace DataCenter.Protocol.Standards;
 /// <param name="Foreach">遍历步骤（判别式）。</param>
 /// <param name="Throw">主动抛出步骤（判别式；G3）。</param>
 /// <param name="Source">纯值源步骤（判别式；集合字面量 <c>from:list</c> / <c>from:map</c>）：求值结果写入 <see cref="As"/> 槽。</param>
-/// <param name="As">值源步骤的写槽名（仅 <see cref="Source"/> 形态用）。</param>
+/// <param name="Expr">表达式步骤（判别式；通用 <c>ExprStandard</c> 算子，如 <c>filter</c>/<c>select</c>/<c>dict</c>）：求值结果写入 <see cref="As"/> 槽。</param>
+/// <param name="As">值源 / 表达式步骤的写槽名（仅 <see cref="Source"/> / <see cref="Expr"/> 形态用）。</param>
 public sealed record StepStandard(
     IReadOnlyList<CollectStandard>? Collects = null,
     ExprStandard? When = null,
@@ -20,6 +21,7 @@ public sealed record StepStandard(
     ForeachStandard? Foreach = null,
     ThrowStandard? Throw = null,
     ValueSourceStandard? Source = null,
+    ExprStandard? Expr = null,
     string? As = null);
 
 /// <summary>

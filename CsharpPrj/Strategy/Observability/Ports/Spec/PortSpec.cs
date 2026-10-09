@@ -39,6 +39,9 @@ public enum PortOp
     /// <summary>纯值源步骤（集合字面量 <c>from:list</c> / <c>from:map</c> 等；操作数 = <see cref="ValueSourceStandard"/>）。</summary>
     Value,
 
+    /// <summary>表达式步骤（通用 <c>ExprStandard</c> 算子，如 <c>filter</c>/<c>select</c>/<c>dict</c>；操作数 = <see cref="ExprStandard"/>，结果写 <see cref="PortInstr.Out"/> 槽）。</summary>
+    Expr,
+
     /// <summary>收集（R3-3）。</summary>
     Collect,
 }

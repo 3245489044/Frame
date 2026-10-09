@@ -17,50 +17,25 @@ namespace DataCenter.Standards;
 /// </summary>
 internal static class StandardReaderEngine
 {
-    /// <summary>“未处理”哨兵：钩子返回它表示交回引擎按形态默认（区别于“已处理且结果为 null”）。</summary>
-    public static readonly object Unhandled = new();
-
     /// <summary>层的注册表（子层解析用）。</summary>
     private static readonly IReadOnlyDictionary<string, LayerDescriptor> Registry =
         StandardDescriptors.All.ToDictionary(layer => layer.Layer, StringComparer.Ordinal);
 
-    /// <summary>
-    /// 成员钩子：由外部提供某层某成员的读取（可返回任意值，含 null；返回 <see cref="Unhandled"/> = 未处理，引擎按形态默认）。
-    /// <paramref name="found"/> = 该成员是否命中声明键；<paramref name="element"/> = 命中键的值（未命中时为 default）；
-    /// <paramref name="container"/> = 承载对象（供钩子读取兄弟键，如 <c>kind</c>）；
-    /// <paramref name="context"/> = 成员键路径（如 <c>ports.A.B.impl</c>）。
-    /// </summary>
-    public delegate object? MemberHook(
-        string layer, string member, string? jsonKey, bool found, JsonElement element, JsonElement container, string context);
-
-    /// <summary>层钩子：整层接管（如 <c>step</c> 四形态判别）；返回 <see cref="Unhandled"/> = 未处理，引擎按描述符结构读取。
-    /// <paramref name="context"/> = 层键路径（如 <c>ports.A.B.impl.script</c>；供诊断文案与半规则层委托）。</summary>
-    public delegate object? LayerHook(string layer, JsonElement obj, string context);
-
-    private static MemberHook? _memberHook;
-    private static LayerHook? _layerHook;
-
-    /// <summary>装配成员钩子（组合根注入；未装配 = 半规则成员不可读）。</summary>
-    public static void Wire(MemberHook hook) => _memberHook = hook;
-
-    /// <summary>装配层钩子（组合根注入；未装配 = 半规则层不可读）。</summary>
-    public static void WireLayer(LayerHook hook) => _layerHook = hook;
-
-    /// <summary>按层读取一个 JSON 对象为模型实例（可经层钩子整层接管；上下文 = 层名）。</summary>
+    /// <summary>按层读取一个 JSON 对象为模型实例（可经层读取器整层接管；上下文 = 层名）。</summary>
     public static object? ReadLayer(LayerDescriptor layer, JsonElement obj)
         => ReadLayer(layer, obj, layer.Layer);
 
     /// <summary>
     /// 按层读取一个 JSON 对象为模型实例（<paramref name="context"/> = 键路径，供键闭包诊断与半规则层委托）。
-    /// 顺序：层钩子（整层接管）→ 键闭包（未知键 fail-fast，取值域 = 描述符键集）→ 反射构造。
+    /// 顺序：清单声明的层读取器（<see cref="LayerDescriptor.Reader"/>，整层接管）→ 键闭包（未知键 fail-fast，取值域 = 描述符键集）→ 反射构造。
     /// </summary>
     public static object? ReadLayer(LayerDescriptor layer, JsonElement obj, string context)
     {
         if (obj.ValueKind != JsonValueKind.Object)
             throw new StandardViolationException($"层 '{layer.Layer}' 须为对象");
 
-        if (_layerHook is not null && TryHook(_layerHook(layer.Layer, obj, context), out var takeover))
-            return takeover;
+        if (StandardReaders.TryGetLayer(layer.Reader, out var reader))
+            return reader(layer.Layer, obj, context);
 
         // 键闭包：取值域 = 描述符键集（取代手抄 KeysOf）；收集 / 抛出体仍是 StandardJson.EnsureKnownKeys（唯一实现）。
         StandardJson.EnsureKnownKeys(context, obj, layer.Keys);
@@ -85,13 +60,14 @@ internal static class StandardReaderEngine
     private static object? ReadMember(
         LayerDescriptor layer, MemberDescriptor member, ParameterInfo parameter, JsonElement obj, string context)
     {
-        var found = TryKey(member, obj, out var key, out var element);
+        // 门控 / 定制读取先于“键缺失即默认”判定：无键 / 派生位成员（如 HasValue）亦须可接管。
+        if (member.Gate is { } gate && !HasKind(obj, gate))
+            return null;
 
-        // 钩子先于“键缺失即默认”判定：无键 / 派生位成员（如 HasValue）亦须可接管。
-        if (_memberHook is not null
-            && TryHook(_memberHook(layer.Layer, member.Member, found ? key : member.JsonKey, found, element, obj, context),
-                out var handled))
-            return handled;
+        if (StandardReaders.TryGetMember(member.Reader, out var memberReader))
+            return memberReader(context, obj);
+
+        var found = TryKey(member, obj, out var key, out var element);
 
         if (!found)
         {
@@ -116,14 +92,14 @@ internal static class StandardReaderEngine
         };
     }
 
-    /// <summary>钩子结果判定：仅 <see cref="Unhandled"/> 表示未处理；返回 null 视为“已处理且结果为 null”。</summary>
-    private static bool TryHook(object? result, out object? value)
-    {
-        value = result;
-        return !ReferenceEquals(result, Unhandled);
-    }
+    /// <summary>承载对象的 <c>kind</c> 是否等于给定值（缺失 / 非字符串 → false）。</summary>
+    private static bool HasKind(JsonElement container, string kind)
+        => container.ValueKind == JsonValueKind.Object
+           && container.TryGetProperty("kind", out var declared)
+           && declared.ValueKind == JsonValueKind.String
+           && string.Equals(declared.GetString(), kind, StringComparison.Ordinal);
 
-    /// <summary>子节点读取（<see cref="MemberKind.Child"/>）：登记层走结构递归；未登记层（<c>expr</c> / <c>foreach</c>）经层钩子。</summary>
+    /// <summary>子节点读取（<see cref="MemberKind.Child"/>）：登记层走结构递归；未登记子层（<c>foreach</c>）经清单声明的层读取器。</summary>
     private static object? ReadChild(MemberDescriptor member, JsonElement element, string context)
     {
         var name = member.ChildLayer
@@ -132,11 +108,11 @@ internal static class StandardReaderEngine
         if (Registry.TryGetValue(name, out var layer))
             return ReadLayer(layer, element, context);
 
-        if (_layerHook is not null && TryHook(_layerHook(name, element, context), out var handled))
-            return handled;
+        if (StandardReaders.TryGetLayer(name, out var reader))
+            return reader(name, element, context);
 
         throw new StandardViolationException(
-            $"成员 '{member.Member}' 的子层 '{name}' 未登记（半规则层须经钩子）");
+            $"成员 '{member.Member}' 的子层 '{name}' 未登记（半规则层须声明 Reader 或登记层）");
     }
 
     /// <summary>键缺失时按形态归一无（<see cref="MemberDescriptor.EmptyOnAbsent"/>）。</summary>

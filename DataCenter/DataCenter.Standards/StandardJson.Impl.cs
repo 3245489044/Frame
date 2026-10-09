@@ -7,7 +7,7 @@ namespace DataCenter.Standards;
 /// <summary>
 /// <c>impl</c> 段读取入口（描述符单源化 B-3b-3 后）：板块外层（kind / id / target / method / reason /
 /// legacyKind / productFields）+ 反射族实参 + 组合族（deps / calls / project）读取**全部经描述符引擎**
-/// （<see cref="StandardDescriptorReader"/> + <c>StandardReaderHooks</c>）。
+/// （<see cref="StandardDescriptorReader"/> + <c>StandardReaders</c>）。
 /// <para>
 /// 边界（防两处各判一遍）：本件只做「<c>kind</c> 归一（必填 / 合法）+ 读取入口切换」；
 /// **键闭合由引擎按描述符键集承担**（未知键 fail-fast）；**半规则层**（<c>dep</c> 三形态 / <c>step</c> /

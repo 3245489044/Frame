@@ -47,26 +47,43 @@ internal static class ScriptedSteps
                 if (!PortValues.Truthy(gate)) continue;
             }
 
-            if (step.Op == PortOp.New && step.Operand is NewStandard construct)
-                last = RunNew(host, step, construct, scope, input, deps);
-            else if (step.Op == PortOp.Value && step.Operand is ValueSourceStandard source)
-                last = RunValueSource(host, step, source, scope, input, deps);
-            else if (step.Op == PortOp.Expr && step.Operand is ExprStandard expression)
-                last = RunExpr(host, step, expression, scope, input, deps);
-            else if (step.Op == PortOp.Call && step.Operand is InvokeStandard invoke)
-                last = RunInvoke(host, step, invoke, scope, input, deps);
-            else if (step.Op == PortOp.Loop && step.Operand is ForeachStandard loop)
-                last = RunForeach(host, step, loop, scope, input, deps);
-            else if (step.Op == PortOp.Throw && step.Operand is ThrowStandard raised)
-                last = RunThrow(host, raised);
-            else
+            if (!Handlers.TryGetValue(step.Op, out var handler))
                 throw new PortBindingViolationException(
                     host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|throw|expr）");
+
+            last = handler(host, step, scope, input, deps);
         }
 
         host.Notes(scope.Notes);
         return last;
     }
+
+    /// <summary>
+    /// 步骤形态执行注册表（<see cref="PortOp"/> → 执行体）：**取代形态 if 链**（R4）。
+    /// 形态残缺（操作数为空 / 类型不符）经 <see cref="Operand{T}"/> 按既有文案 fail-fast。
+    /// </summary>
+    private static readonly IReadOnlyDictionary<PortOp, Func<Host, PortInstr, EvalScope, IPortInput, object?[], object?>> Handlers =
+        new Dictionary<PortOp, Func<Host, PortInstr, EvalScope, IPortInput, object?[], object?>>
+        {
+            [PortOp.New] = (host, step, scope, input, deps) =>
+                RunNew(host, step, Operand<NewStandard>(host, step), scope, input, deps),
+            [PortOp.Value] = (host, step, scope, input, deps) =>
+                RunValueSource(host, step, Operand<ValueSourceStandard>(host, step), scope, input, deps),
+            [PortOp.Expr] = (host, step, scope, input, deps) =>
+                RunExpr(host, step, Operand<ExprStandard>(host, step), scope, input, deps),
+            [PortOp.Call] = (host, step, scope, input, deps) =>
+                RunInvoke(host, step, Operand<InvokeStandard>(host, step), scope, input, deps),
+            [PortOp.Loop] = (host, step, scope, input, deps) =>
+                RunForeach(host, step, Operand<ForeachStandard>(host, step), scope, input, deps),
+            [PortOp.Throw] = (host, step, scope, input, deps) =>
+                RunThrow(host, Operand<ThrowStandard>(host, step)),
+        };
+
+    /// <summary>取步骤操作数（类型不符 = 形态残缺 → 按既有文案 fail-fast，不静默）。</summary>
+    private static T Operand<T>(Host host, PortInstr step) where T : class
+        => step.Operand as T
+           ?? throw new PortBindingViolationException(
+               host.PortKey, $"端口 '{host.PortKey}' 的脚本步骤未声明形态（new|invoke|foreach|throw|expr）");
 
     /// <summary>构造步骤：反射构造（单源 <see cref="ScriptedConstruction"/>）→ 写槽 → 收集。返回构造对象。</summary>
     internal static object? RunNew(

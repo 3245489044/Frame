@@ -34,7 +34,7 @@ public static partial class StandardJson
     /// </summary>
     internal static DepStandard ReadDep(string context, JsonElement item)
     {
-        EnsureLayerKeys(nameof(PortImplVocabulary.DepKeys), context, item);
+        EnsureLayerKeys("dep", context, item);
 
         var spec = new DepStandard(
             Str(item, "new"),
@@ -83,7 +83,7 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             index++;
-            EnsureLayerKeys(nameof(PortImplVocabulary.ComposedArgKeys), $"{context}.args[{index}]", item);
+            EnsureLayerKeys("composedArg", $"{context}.args[{index}]", item);
 
             var convert = Str(item, "convert")
                 ?? throw new StandardViolationException(
@@ -122,7 +122,7 @@ public static partial class StandardJson
         foreach (var item in declared.EnumerateArray())
         {
             index++;
-            EnsureLayerKeys(nameof(PortImplVocabulary.FakeCallKeys), $"{context}.calls[{index}]", item);
+            EnsureLayerKeys("fakeCall", $"{context}.calls[{index}]", item);
 
             var valueSource = CallValueSource(context, item);
             var value = default(JsonElement);
@@ -168,7 +168,7 @@ public static partial class StandardJson
         if (declared.ValueKind != JsonValueKind.Object)
             throw new StandardViolationException($"[port:standard] {context}.state 须为对象");
 
-        EnsureLayerKeys(nameof(PortImplVocabulary.FakeStateKeys), $"{context}.state", declared);
+        EnsureLayerKeys("fakeState", $"{context}.state", declared);
 
         var write = Str(declared, "write");
         if (write is not { Length: > 0 })
@@ -188,7 +188,7 @@ public static partial class StandardJson
         if (declared.ValueKind != JsonValueKind.Object)
             throw new StandardViolationException($"[port:standard] {context}.capture 须为对象");
 
-        EnsureLayerKeys(nameof(PortImplVocabulary.FakeCaptureKeys), $"{context}.capture", declared);
+        EnsureLayerKeys("fakeCapture", $"{context}.capture", declared);
 
         return new FakeCaptureStandard(Str(declared, "member"));
     }
@@ -243,7 +243,7 @@ public static partial class StandardJson
         var scopes = new List<ScopeStandard>();
         foreach (var item in declared.EnumerateArray())
         {
-            EnsureLayerKeys(nameof(PortImplVocabulary.ScopeKeys), $"ports.{portKey}.impl.scopes", item);
+            EnsureLayerKeys("scope", $"ports.{portKey}.impl.scopes", item);
             var kind = Str(item, "kind") ?? "tempDir";
             var asName = Str(item, "as")
                 ?? throw new StandardViolationException(
@@ -368,7 +368,7 @@ public static partial class StandardJson
         if (!impl.TryGetProperty("deliver", out var declared) || declared.ValueKind != JsonValueKind.Object)
             return null;
 
-        EnsureLayerKeys(nameof(PortImplVocabulary.DeliverKeys), $"ports.{portKey}.impl.deliver", declared);
+        EnsureLayerKeys("deliver", $"ports.{portKey}.impl.deliver", declared);
         var defer = Bool(declared, "defer") ?? false;
         var issues = Bool(declared, "issues") ?? false;
         if (defer && issues)
@@ -426,10 +426,10 @@ public static partial class StandardJson
             : null;
 
     /// <summary>单步读取：形态四选一（new / invoke / foreach / throw）+ 修饰（collect / when）。
-    /// （描述符单源化 B-3b：供 <c>StandardReaderHooks</c> 的 <c>step</c> 层钩子委托；判别序与既有逐字一致。）</summary>
+    /// （描述符单源化 B-3b：供 <c>StandardReaders</c> 的 <c>step</c> 层钩子委托；判别序与既有逐字一致。）</summary>
     internal static StepStandard ReadStep(string portKey, JsonElement item)
     {
-        EnsureLayerKeys(nameof(PortImplVocabulary.StepKeys), $"ports.{portKey}.impl.script.step", item);
+        EnsureLayerKeys("step", $"ports.{portKey}.impl.script.step", item);
         var collect = ReadCollects(portKey, item);
         var when = item.TryGetProperty("when", out var condition)
             ? ReadExpr(portKey, condition, "步骤 when")
@@ -490,7 +490,7 @@ public static partial class StandardJson
     /// </summary>
     private static ThrowStandard ReadThrow(string portKey, JsonElement raised)
     {
-        EnsureLayerKeys(nameof(PortImplVocabulary.ThrowKeys), $"ports.{portKey}.impl.script.throw", raised);
+        EnsureLayerKeys("throw", $"ports.{portKey}.impl.script.throw", raised);
 
         var type = Str(raised, "type");
 
@@ -715,7 +715,7 @@ public static partial class StandardJson
         if (element.ValueKind != JsonValueKind.Object)
             throw new StandardViolationException($"[port:standard] 端口 '{portKey}' 的 {context} 取值来源须为对象");
 
-        if (PortImplVocabulary.KeysOf(nameof(PortImplVocabulary.ValueSourceKeys)) is { Count: > 0 } known)
+        if (PortImplVocabulary.KeysOf("valueSource") is { Count: > 0 } known)
         {
             var allowed = extraKeys is { Count: > 0 }
                 ? known.Concat(extraKeys).Distinct(StringComparer.Ordinal).ToArray()

@@ -25,15 +25,15 @@ public static class StandardDescriptors
             new("LegacyKind", "legacyKind", MemberKind.Scalar),
             new("ProductFields", "productFields", MemberKind.Scalar),
             new("Args", "args", MemberKind.Children, ChildLayer: "arg", EmptyOnAbsent: true),
-            new("Binds", "bind", MemberKind.KeyedMap, ChildLayer: "valueSource", EmptyOnAbsent: true),
+            new("Binds", "bind", MemberKind.KeyedMap, ChildLayer: "valueSource", EmptyOnAbsent: true, Gate: "scripted"),
             new("Deps", "deps", MemberKind.Children, ChildLayer: "dep", EmptyOnAbsent: true),
-            new("Calls", "calls", MemberKind.Children, ChildLayer: "call", EmptyOnAbsent: true),
-            new("Project", "project", MemberKind.Children, ChildLayer: "composedField", EmptyOnAbsent: true),
-            new("Script", "script", MemberKind.Children, ChildLayer: "step", EmptyOnAbsent: true),
-            new("ScriptProject", null, MemberKind.Children, ChildLayer: "fieldExpr"),
-            new("Deliver", "deliver", MemberKind.Child, ChildLayer: "deliver"),
-            new("Scopes", "scopes", MemberKind.Children, ChildLayer: "scope"),
-            new("Scenarios", "scenarios", MemberKind.Child, ChildLayer: "scenario"),
+            new("Calls", "calls", MemberKind.Children, ChildLayer: "call", EmptyOnAbsent: true, Gate: "composed"),
+            new("Project", "project", MemberKind.Children, ChildLayer: "composedField", EmptyOnAbsent: true, Gate: "composed"),
+            new("Script", "script", MemberKind.Children, ChildLayer: "step", EmptyOnAbsent: true, Gate: "scripted"),
+            new("ScriptProject", null, MemberKind.Children, ChildLayer: "fieldExpr", Gate: "scripted", Reader: "scriptProject"),
+            new("Deliver", "deliver", MemberKind.Child, ChildLayer: "deliver", Gate: "scripted", Reader: "deliver"),
+            new("Scopes", "scopes", MemberKind.Children, ChildLayer: "scope", Gate: "scripted", Reader: "scopes"),
+            new("Scenarios", "scenarios", MemberKind.Child, ChildLayer: "scenario", Gate: "scripted", Reader: "scenarios"),
         ]);
 
     /// <summary>反射族位置实参层（<c>impl.args[]</c>）。</summary>
@@ -95,7 +95,8 @@ public static class StandardDescriptors
             new("Await", "await", MemberKind.Scalar),
             new("Expect", "expect", MemberKind.Scalar),
             new("Args", "args", MemberKind.Children, ChildLayer: "composedArg"),
-        ]);
+        ],
+        Reader: "dep");
 
     /// <summary>组合族投影声明层（<c>impl.project[]</c>）。</summary>
     public static readonly LayerDescriptor ComposedField = new(
@@ -139,7 +140,7 @@ public static class StandardDescriptors
             new("Member", "member", MemberKind.Scalar),
             new("Position", "position", MemberKind.Scalar),
             new("Value", "value", MemberKind.Payload),
-            new("HasValue", null, MemberKind.Scalar),
+            new("HasValue", null, MemberKind.Scalar, Reader: "fakeCallHasValue"),
             new("Throw", "throw", MemberKind.Scalar),
             new("Message", "message", MemberKind.Scalar),
         ]);
@@ -362,7 +363,8 @@ public static class StandardDescriptors
             new("Json", "json", MemberKind.Scalar),
             new("Content", "content", MemberKind.Scalar),
         ],
-        Ordered: false);
+        Ordered: false,
+        Reader: "valueSource");
 
     /// <summary>
     /// 脚本步骤层（<c>impl.script[]</c>）——**扁平多模型**：四形态键（new/invoke/foreach/throw）属 <see cref="StepStandard"/>，
@@ -388,7 +390,8 @@ public static class StandardDescriptors
             new("ElementType", "elementType", MemberKind.Scalar, Owner: typeof(ValueSourceStandard)),
             new("GenericArgs", "genericArgs", MemberKind.Scalar, Owner: typeof(ValueSourceStandard)),
         ],
-        Ordered: false);
+        Ordered: false,
+        Reader: "step");
 
     /// <summary>
     /// issue 捕获层（<c>deliver.capture</c>）——**扁平多模型**：<c>call</c>/<c>expect</c>/<c>message</c>/<c>messageField</c>/<c>when</c> 属
@@ -443,10 +446,11 @@ public static class StandardDescriptors
     /// </summary>
     public static readonly LayerDescriptor Expr = new(
         "expr",
-        nameof(PortImplVocabulary.ExprKeys),
+        "ExprKeys",
         typeof(ExprStandard),
         ExprMembers(),
-        Ordered: false);
+        Ordered: false,
+        Reader: "expr");
 
     /// <summary>由 <see cref="PortImplVocabulary.ExprSlots"/> 派生 <c>expr</c> 层成员（成员序 = 槽表序）。</summary>
     private static IReadOnlyList<MemberDescriptor> ExprMembers()
@@ -460,7 +464,7 @@ public static class StandardDescriptors
                 NestedKeys: slot.NestedKeys,
                 OperatorGroup: slot.OperatorGroup,
                 AliasKeys: string.Equals(slot.Member, nameof(ExprStandard.Source), StringComparison.Ordinal)
-                    ? PortImplVocabulary.ValueSourceKeys
+                    ? StandardDescriptors.ValueSource.Keys
                     : null))
             .ToArray();
 

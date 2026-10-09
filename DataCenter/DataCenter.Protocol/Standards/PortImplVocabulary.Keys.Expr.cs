@@ -1,59 +1,36 @@
 using BasicMethod.Declarative.Ledger;
+using DataCenter.Protocol.Standards.Descriptors;
 
 namespace DataCenter.Protocol.Standards;
 
 /// <summary>
-/// 表达式族键白名单与层名索引（<see cref="PortImplVocabulary"/> 的表达式部分）。
+/// 端口逐层键闭包（<see cref="PortImplVocabulary"/> 的键部分）：键声明的**单一真源 = SSD**（<see cref="StandardDescriptors.All"/>）。
 /// </summary>
 public static partial class PortImplVocabulary
 {
-    /// <summary>
-    /// 表达式对象允许出现的键 = 取值来源键 ∪ 算子键（读取器 fail-fast 与结构门 <c>$defs/expr/properties</c> 的共同取值域）。
-    /// <para>去重保序：<c>path</c>/<c>distinct</c> 两键在两侧词表中同形（来源侧与算子侧各一次），交集只计一次。</para>
-    /// </summary>
-    public static IReadOnlyList<string> ExprKeys =>
-        ValueSourceKeys.Concat(ExprOperatorKeys).Distinct(StringComparer.Ordinal).ToArray();
-
     private static LedgerKeyClosure? _keyClosure;
 
     /// <summary>
     /// 分层键闭包（通用框架 <see cref="LedgerKeyClosure"/>）：层名 → 合法键集，
-    /// 「未知键 fail-fast」的**唯一实现**。层名 = 各键表的成员名（与调用点 <c>nameof(...)</c> 一致）。
-    /// <para>惰性装配：键表分散于多个 partial 文件，静态字段初始化序不定，故首次访问时构造（防悬空引用）。</para>
+    /// 「未知键 fail-fast」的**唯一实现**。
+    /// <para>
+    /// **键声明单一真源 = SSD（<see cref="StandardDescriptors.All"/>）**：本表由各层
+    /// <see cref="LayerDescriptor.Layer"/> → <see cref="LayerDescriptor.Keys"/> 派生，不再手抄键表（G1 收口）。
+    /// </para>
+    /// <para>惰性装配：SSD 各层成员含由 <c>ExprSlots</c> 派生的键（静态初始化序不定），故首次访问时构造（防悬空引用）。</para>
+    /// <para>
+    /// 例外（登记，非静默）：<c>composedArg</c> 层当前**不纳入**键闭包（保持现状：读取器不校验该层，
+    /// 键集仅由对拍守护）；是否纳入为独立裁决，不因本次派生而改变行为。
+    /// </para>
     /// </summary>
     private static LedgerKeyClosure KeyClosure => _keyClosure ??= new(
-    [
-        (nameof(ImplKeys), ImplKeys),
-        (nameof(ArgKeys), ArgKeys),
-        (nameof(ValueSourceKeys), ValueSourceKeys),
-        (nameof(DepKeys), DepKeys),
-        (nameof(FakeCallKeys), FakeCallKeys),
-        (nameof(FakeCaptureKeys), FakeCaptureKeys),
-        (nameof(FakeStateKeys), FakeStateKeys),
-        (nameof(CallKeys), CallKeys),
-        (nameof(ComposedFieldKeys), ComposedFieldKeys),
-        (nameof(StepKeys), StepKeys),
-        (nameof(ThrowKeys), ThrowKeys),
-        (nameof(InvokeKeys), InvokeKeys),
-        (nameof(NewKeys), NewKeys),
-        (nameof(InitKeys), InitKeys),
-        (nameof(ChainKeys), ChainKeys),
-        (nameof(DelegateKeys), DelegateKeys),
-        (nameof(SaveKeys), SaveKeys),
-        (nameof(CollectKeys), CollectKeys),
-        (nameof(ScopeKeys), ScopeKeys),
-        (nameof(FileKeys), FileKeys),
-        (nameof(DeliverKeys), DeliverKeys),
-        (nameof(CaptureKeys), CaptureKeys),
-        (nameof(ScenarioKeys), ScenarioKeys),
-        (nameof(ConcatPartKeys), ConcatPartKeys),
-        (nameof(FieldExprKeys), FieldExprKeys),
-        (nameof(ExprKeys), ExprKeys),
-    ]);
+        StandardDescriptors.All
+            .Where(layer => !string.Equals(layer.Layer, "composedArg", StringComparison.Ordinal))
+            .Select(layer => (layer.Layer, layer.Keys)));
 
     /// <summary>给定层的键白名单（未登记层 → null = 该层不做未知键校验）；取值域 = 框架键闭包。</summary>
-    public static IReadOnlyList<string>? KeysOf(string level)
-        => KeyClosure.IsKnownLayer(level) ? KeyClosure.KeysOf(level) : null;
+    public static IReadOnlyList<string>? KeysOf(string layer)
+        => KeyClosure.IsKnownLayer(layer) ? KeyClosure.KeysOf(layer) : null;
 
     /// <summary>
     /// 收集层内**未登记键**（保持出现序、去重；未登记层不判）——**唯一实现** = 框架 <see cref="LedgerKeyClosure.EnsureKnown"/>；

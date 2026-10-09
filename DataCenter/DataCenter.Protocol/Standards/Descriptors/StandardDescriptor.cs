@@ -72,7 +72,9 @@ public sealed record MemberDescriptor(
     Polymorphy? Polymorphy = null,
     IReadOnlyList<string>? AliasKeys = null,
     Type? Owner = null,
-    bool EmptyOnAbsent = false)
+    bool EmptyOnAbsent = false,
+    string? Reader = null,
+    string? Gate = null)
 {
     /// <summary>归属模型（<see cref="Owner"/> 为 null 时回落）；供反射对拍与遍历取值。</summary>
     public Type ModelOf(Type layerModel) => Owner ?? layerModel;
@@ -111,7 +113,8 @@ public sealed record LayerDescriptor(
     Type Model,
     IReadOnlyList<MemberDescriptor> Members,
     bool OpenMap = false,
-    bool Ordered = true)
+    bool Ordered = true,
+    string? Reader = null)
 {
     /// <summary>本层合法键集（平铺键 ∪ 嵌套子键；保序去重）= T1 键白名单与结构门 <c>properties</c> 的取值域。</summary>
     public IReadOnlyList<string> Keys

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DataCenter.Protocol.Standards;
+using DataCenter.Protocol.Standards.Descriptors;
 
 namespace BasicMethod.Declarative.Tools.LedgerForge;
 
@@ -68,7 +69,7 @@ internal static class LintCommand
         var kind = String(impl, "kind") ?? string.Empty;
         sink.DepCount = Elements(impl, "deps").Count;
 
-        sink.Keys("impl", impl, PortImplVocabulary.ImplKeys);
+        sink.Keys("impl", impl, StandardDescriptors.Impl.Keys);
         sink.Word("impl.kind", String(impl, "kind"), PortImplVocabulary.Kinds);
         if (string.Equals(kind, "delegate", StringComparison.Ordinal)) sink.Add("legacy-kind", "impl.kind");
         if (Has(impl, "legacyKind")) sink.Add("legacy-kind-field", "impl.legacyKind");
@@ -107,7 +108,7 @@ internal static class LintCommand
         foreach (var arg in Elements(impl, "args"))
         {
             var path = $"impl.args[{index++}]";
-            sink.Keys(path, arg, PortImplVocabulary.ArgKeys);
+            sink.Keys(path, arg, StandardDescriptors.Arg.Keys);
             sink.Word($"{path}.convert", String(arg, "convert"), PortImplVocabulary.Conversions);
             sink.Word($"{path}.from", String(arg, "from"), PortImplVocabulary.ValueSourceFromAll);
             CheckValueSource(sink, path, arg, valueSource: false);
@@ -121,8 +122,8 @@ internal static class LintCommand
         foreach (var call in Elements(impl, "calls"))
         {
             var path = $"impl.calls[{index++}]";
-            sink.Keys(path, call, PortImplVocabulary.CallKeys);
-            CheckArgArray(sink, $"{path}.args", Elements(call, "args"), PortImplVocabulary.ComposedArgKeys,
+            sink.Keys(path, call, StandardDescriptors.Call.Keys);
+            CheckArgArray(sink, $"{path}.args", Elements(call, "args"), StandardDescriptors.ComposedArg.Keys,
                 valueSource: false);
         }
 
@@ -130,7 +131,7 @@ internal static class LintCommand
         foreach (var field in Elements(impl, "project"))
         {
             var path = $"impl.project[{fieldIndex++}]";
-            sink.Keys(path, field, PortImplVocabulary.ComposedFieldKeys);
+            sink.Keys(path, field, StandardDescriptors.ComposedField.Keys);
             sink.Word($"{path}.select", String(field, "select"), PortImplVocabulary.Selects);
         }
     }
@@ -144,8 +145,8 @@ internal static class LintCommand
         foreach (var dep in Elements(impl, "deps"))
         {
             var item = $"{path}[{index++}]";
-            sink.Keys(item, dep, PortImplVocabulary.DepKeys);
-            CheckArgArray(sink, $"{item}.args", Elements(dep, "args"), PortImplVocabulary.ComposedArgKeys,
+            sink.Keys(item, dep, StandardDescriptors.Dep.Keys);
+            CheckArgArray(sink, $"{item}.args", Elements(dep, "args"), StandardDescriptors.ComposedArg.Keys,
                 valueSource: false);
 
             if (dep.TryGetProperty("fake", out var fake) && fake.ValueKind == JsonValueKind.Object)
@@ -176,14 +177,14 @@ internal static class LintCommand
         foreach (var scope in Elements(impl, "scopes"))
         {
             var path = $"impl.scopes[{index++}]";
-            sink.Keys(path, scope, PortImplVocabulary.ScopeKeys);
+            sink.Keys(path, scope, StandardDescriptors.Scope.Keys);
             sink.Word($"{path}.kind", String(scope, "kind"), PortImplVocabulary.ScopeKinds);
 
             var saveIndex = 0;
             foreach (var item in Elements(scope, "save"))
             {
                 var savePath = $"{path}.save[{saveIndex++}]";
-                sink.Keys(savePath, item, PortImplVocabulary.SaveKeys);
+                sink.Keys(savePath, item, StandardDescriptors.Save.Keys);
                 if (String(item, "slot") is not { Length: > 0 }) sink.Add("save-slot-missing", $"{savePath}.slot");
             }
 
@@ -191,7 +192,7 @@ internal static class LintCommand
             foreach (var file in Elements(scope, "files"))
             {
                 var filePath = $"{path}.files[{fileIndex++}]";
-                sink.Keys(filePath, file, PortImplVocabulary.FileKeys);
+                sink.Keys(filePath, file, StandardDescriptors.File.Keys);
                 if (file.TryGetProperty("from", out var source)) CheckValueSource(sink, $"{filePath}.from", source);
                 if (file.TryGetProperty("when", out var when)) WalkExpr(sink, $"{filePath}.when", when);
             }
@@ -266,7 +267,7 @@ internal static class LintCommand
         if (!impl.TryGetProperty("deliver", out var deliver) || deliver.ValueKind != JsonValueKind.Object) return;
 
         sink.Collects = collects;
-        sink.Keys("impl.deliver", deliver, PortImplVocabulary.DeliverKeys);
+        sink.Keys("impl.deliver", deliver, StandardDescriptors.Deliver.Keys);
         sink.Word("impl.deliver.kind", String(deliver, "kind"), PortImplVocabulary.DeliverKinds);
 
         if (deliver.TryGetProperty("value", out var value))
@@ -285,10 +286,10 @@ internal static class LintCommand
 
         if (!deliver.TryGetProperty("capture", out var capture) || capture.ValueKind != JsonValueKind.Object) return;
 
-        sink.Keys("impl.deliver.capture", capture, PortImplVocabulary.CaptureKeys);
+        sink.Keys("impl.deliver.capture", capture, StandardDescriptors.Capture.Keys);
         sink.Word("impl.deliver.capture.message", String(capture, "message"), PortImplVocabulary.MessageModes);
         CheckArgArray(sink, "impl.deliver.capture.args", Elements(capture, "args"),
-            PortImplVocabulary.ValueSourceKeys, slots, loops, context);
+            StandardDescriptors.ValueSource.Keys, slots, loops, context);
 
         if (capture.TryGetProperty("when", out var when))
             WalkExpr(sink, "impl.deliver.capture.when", when, slots, loops, context);
@@ -303,7 +304,7 @@ internal static class LintCommand
     {
         if (!impl.TryGetProperty("scenarios", out var scenarios) || scenarios.ValueKind != JsonValueKind.Object) return;
 
-        sink.Keys("impl.scenarios", scenarios, PortImplVocabulary.ScenarioKeys);
+        sink.Keys("impl.scenarios", scenarios, StandardDescriptors.Scenario.Keys);
         if (!Has(scenarios, "select"))
             sink.Add("scenario-select-missing", "impl.scenarios.select");
 
@@ -398,7 +399,7 @@ internal static class LintCommand
         foreach (var step in steps.EnumerateArray())
         {
             var item = $"{path}[{index++}]";
-            sink.Keys(item, step, PortImplVocabulary.StepKeys);
+            sink.Keys(item, step, StandardDescriptors.Step.Keys);
 
             if (step.TryGetProperty("when", out var when))
                 WalkExpr(sink, $"{item}.when", when, slots, loops, context);
@@ -413,9 +414,9 @@ internal static class LintCommand
 
             if (step.TryGetProperty("invoke", out var invoke) && invoke.ValueKind == JsonValueKind.Object)
             {
-                sink.Keys($"{item}.invoke", invoke, PortImplVocabulary.InvokeKeys);
+                sink.Keys($"{item}.invoke", invoke, StandardDescriptors.Invoke.Keys);
                 CheckArgArray(sink, $"{item}.invoke.args", Elements(invoke, "args"),
-                    PortImplVocabulary.ValueSourceKeys, slots, loops, context);
+                    StandardDescriptors.ValueSource.Keys, slots, loops, context);
 
                 if (String(invoke, "as") is { Length: > 0 } asName) slots.Add(asName);
                 if (String(invoke, "out") is { Length: > 0 } outName) slots.Add(outName);
@@ -455,7 +456,7 @@ internal static class LintCommand
     private static void CheckConstruct(
         Sink sink, string path, JsonElement construct, HashSet<string>? slots, List<string>? loops, string? context)
     {
-        sink.Keys(path, construct, PortImplVocabulary.NewKeys);
+        sink.Keys(path, construct, StandardDescriptors.New.Keys);
 
         if (construct.TryGetProperty("args", out var args) && args.ValueKind == JsonValueKind.Array)
             CheckArgArray(sink, $"{path}.args", args.EnumerateArray().ToArray(), null, slots, loops, context,
@@ -465,7 +466,7 @@ internal static class LintCommand
         foreach (var link in Elements(construct, "chain"))
         {
             var linkPath = $"{path}.chain[{index++}]";
-            sink.Keys(linkPath, link, PortImplVocabulary.ChainKeys);
+            sink.Keys(linkPath, link, StandardDescriptors.Chain.Keys);
             CheckArgArray(sink, $"{linkPath}.args", Elements(link, "args"), null, slots, loops, context,
                 valueSource: false);
         }
@@ -474,7 +475,7 @@ internal static class LintCommand
         foreach (var member in Elements(construct, "init"))
         {
             var memberPath = $"{path}.init[{initIndex++}]";
-            sink.Keys(memberPath, member, PortImplVocabulary.InitKeys);
+            sink.Keys(memberPath, member, StandardDescriptors.Init.Keys);
             if (member.TryGetProperty("value", out var value))
                 CheckValueSource(sink, $"{memberPath}.value", value, context, slots, loops);
         }
@@ -499,7 +500,7 @@ internal static class LintCommand
         foreach (var collect in collects.EnumerateArray())
         {
             var item = $"{path}.collect[{index++}]";
-            sink.Keys(item, collect, PortImplVocabulary.CollectKeys);
+            sink.Keys(item, collect, StandardDescriptors.Collect.Keys);
 
             if (String(collect, "from") is not { Length: > 0 } source) continue;
             if (slots.Contains(source) || produced.Contains(source) || loops.Contains(source)) continue;
@@ -621,7 +622,7 @@ internal static class LintCommand
         if (invoke.TryGetProperty("on", out var target) && target.ValueKind == JsonValueKind.Object)
             CheckValueSource(sink, $"{path}.on", target, context, slots, loops);
 
-        CheckArgArray(sink, $"{path}.args", Elements(invoke, "args"), PortImplVocabulary.ValueSourceKeys,
+        CheckArgArray(sink, $"{path}.args", Elements(invoke, "args"), StandardDescriptors.ValueSource.Keys,
             slots, loops, context);
     }
 
@@ -705,7 +706,7 @@ internal static class LintCommand
     {
         if (source.ValueKind != JsonValueKind.Object) return;
 
-        if (valueSource) sink.Keys(path, source, PortImplVocabulary.ValueSourceKeys);
+        if (valueSource) sink.Keys(path, source, StandardDescriptors.ValueSource.Keys);
 
         var from = String(source, "from");
         if (valueSource)
@@ -787,7 +788,7 @@ internal static class LintCommand
     private static void CheckDelegate(
         Sink sink, string path, JsonElement handler, HashSet<string>? slots, List<string>? loops, string? context)
     {
-        sink.Keys(path, handler, PortImplVocabulary.DelegateKeys);
+        sink.Keys(path, handler, StandardDescriptors.Delegate.Keys);
 
         if (String(handler, "kind") is not { Length: > 0 }) sink.Add("delegate-kind-missing", path, context: context);
 
@@ -876,7 +877,7 @@ internal static class LintCommand
     {
         var keys = new List<string>(PortImplVocabulary.ExprOperatorKeys);
         var seen = new HashSet<string>(keys, StringComparer.Ordinal);
-        foreach (var key in PortImplVocabulary.ValueSourceKeys)
+        foreach (var key in StandardDescriptors.ValueSource.Keys)
             if (seen.Add(key))
                 keys.Add(key);
 
@@ -885,7 +886,7 @@ internal static class LintCommand
 
     /// <summary>脚本族投影项键域（<c>FieldExprKeys</c> + <c>spread</c> 纯动态键投影；读取器单点支持）。</summary>
     private static IReadOnlyList<string> ProjectFieldItemKeys => _projectFieldItemKeys ??=
-        [.. PortImplVocabulary.FieldExprKeys, "spread"];
+        [.. StandardDescriptors.FieldExpr.Keys, "spread"];
 
     private static IReadOnlyList<string>? _projectFieldItemKeys;
 
@@ -896,9 +897,9 @@ internal static class LintCommand
 
     private static IReadOnlyList<string> DeriveInvokeExprKeys()
     {
-        var keys = new List<string>(PortImplVocabulary.InvokeKeys);
+        var keys = new List<string>(StandardDescriptors.Invoke.Keys);
         var seen = new HashSet<string>(keys, StringComparer.Ordinal);
-        foreach (var key in PortImplVocabulary.ValueSourceKeys)
+        foreach (var key in StandardDescriptors.ValueSource.Keys)
             if (seen.Add(key))
                 keys.Add(key);
 

@@ -191,33 +191,34 @@ public static class PortSpecCompiler
         return program;
     }
 
-    /// <summary>单步映射（声明 → 指令；形态判别式 ↔ 操作码）。</summary>
+    /// <summary>
+    /// 步骤形态编译表（**声明序 = 判别序**，与既有 if 链逐字同序）：命中即映射为指令。
+    /// 形态表取代 if 链（R4）；形态未声明 → 无操作数指令（执行期按既有文案 fail-fast）。
+    /// </summary>
+    private static readonly IReadOnlyList<(Func<StepStandard, bool> Match, Func<StepStandard, PortInstr> Map)> StepForms =
+    [
+        (step => step.Source is not null, step => new PortInstr(
+            PortOp.Value, Out: step.As, Operand: step.Source, When: step.When, Collects: step.Collects)),
+        (step => step.Expr is not null, step => new PortInstr(
+            PortOp.Expr, Out: step.As, Operand: step.Expr, When: step.When, Collects: step.Collects)),
+        (step => step.Throw is not null, step => new PortInstr(
+            PortOp.Throw, Operand: step.Throw, When: step.When, Collects: step.Collects)),
+        (step => step.New is not null, step => new PortInstr(
+            PortOp.New, Out: step.New!.As, Operand: step.New, When: step.When, Collects: step.Collects)),
+        (step => step.Invoke is not null, step => new PortInstr(
+            PortOp.Call, Out: step.Invoke!.As, Target: step.Invoke.Target, Method: step.Invoke.Method,
+            Dep: step.Invoke.Dep, Operand: step.Invoke, When: step.When, Collects: step.Collects)),
+        (step => step.Foreach is not null, step => new PortInstr(
+            PortOp.Loop, Operand: step.Foreach, Body: Steps(step.Foreach!.Do ?? Array.Empty<StepStandard>()),
+            When: step.When, Collects: step.Collects)),
+    ];
+
+    /// <summary>单步映射（声明 → 指令；形态判别式 ↔ 操作码；查表 = <see cref="StepForms"/>）。</summary>
     private static PortInstr Step(StepStandard step)
     {
-        if (step.Source is { } source)
-            return new PortInstr(
-                PortOp.Value, Out: step.As, Operand: source, When: step.When, Collects: step.Collects);
-
-        if (step.Expr is { } expr)
-            return new PortInstr(
-                PortOp.Expr, Out: step.As, Operand: expr, When: step.When, Collects: step.Collects);
-
-        if (step.Throw is { } raised)
-            return new PortInstr(PortOp.Throw, Operand: raised, When: step.When, Collects: step.Collects);
-
-        if (step.New is { } construct)
-            return new PortInstr(
-                PortOp.New, Out: construct.As, Operand: construct, When: step.When, Collects: step.Collects);
-
-        if (step.Invoke is { } invoke)
-            return new PortInstr(
-                PortOp.Call, Out: invoke.As, Target: invoke.Target, Method: invoke.Method,
-                Dep: invoke.Dep, Operand: invoke, When: step.When, Collects: step.Collects);
-
-        if (step.Foreach is { } loop)
-            return new PortInstr(
-                PortOp.Loop, Operand: loop, Body: Steps(loop.Do ?? Array.Empty<StepStandard>()),
-                When: step.When, Collects: step.Collects);
+        foreach (var (match, map) in StepForms)
+            if (match(step))
+                return map(step);
 
         return new PortInstr(PortOp.New, When: step.When, Collects: step.Collects);
     }

@@ -106,7 +106,7 @@ public static class SchemaEnumSynchronizer
     /// </summary>
     private static readonly PropertiesBinding[] PropertiesBindings =
     [
-        new("ports.schema.json", "$defs/expr/properties", () => PortImplVocabulary.ExprKeys),
+        new("ports.schema.json", "$defs/expr/properties", () => StandardDescriptors.Expr.Keys),
     ];
 
     /// <summary>对账（只读）：返回与源不一致的差异明细（空 = 全绿）。</summary>

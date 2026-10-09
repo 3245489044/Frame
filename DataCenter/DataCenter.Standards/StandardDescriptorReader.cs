@@ -7,14 +7,11 @@ namespace DataCenter.Standards;
 /// <summary>
 /// 描述符驱动的通用读取器门面（批 B-3b 两段式：与手写读取器对拍用）。
 /// <para>常规层由引擎结构读取；半规则层（<c>step</c> 四形态 / <c>valueSource</c> 多形态 / <c>expr</c> 子层 / 派生位等）
-/// 经 <see cref="StandardReaderHooks"/> 装配的钩子开放（本类静态构造自动装配）。</para>
+/// 由清单（SSD）声明的 <c>Reader</c> id 经 <c>StandardReaders</c> 注册表接管——**接线单源 = SSD**，无独立钩子件。</para>
 /// </summary>
 public static class StandardDescriptorReader
 {
-    /// <summary>组合根：装配半规则层钩子（<c>StandardReaderHooks</c>），使描述符读取全层可用（幂等）。</summary>
-    static StandardDescriptorReader() => StandardReaderHooks.Install();
-
-    /// <summary>由描述符读取 <c>impl</c> 层 → <see cref="PortImplStandard"/>（常规层）；半规则成员须已装配钩子。</summary>
+    /// <summary>由描述符读取 <c>impl</c> 层 → <see cref="PortImplStandard"/>（常规层）；半规则成员由清单声明的 reader 接管。</summary>
     public static PortImplStandard ReadImpl(JsonElement impl)
         => ReadImpl(impl, "(descriptor)");
 

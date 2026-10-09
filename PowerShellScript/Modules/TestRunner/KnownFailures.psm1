@@ -20,17 +20,19 @@ function Compare-KnownFailures {
         背景：守卫长期红的集合原先只写在文档里（「84/9/1」），新回归会被存量红淹没 —— 真回归不可见。
         本器把「已知红」落为**机检名单**：逐单元比对失败用例名集合。
         - 名单缺失：不阻断，但打印**实测失败明细**（一次性 bootstrap：抄进名单即启用棘轮）；
+          仅 `-StrictMissingManifest` 才 fail-fast（等价锁为空不得伪装成绿）；
         - 明细不可得（有失败但提取为空）：报错（否则名单比对会静默退化为「无失败」）；
         - 目标收敛运行（-Project/-Test）只判定**本次出现**的单元，未出现的单元不判定。
 
     .OUTPUTS
-        $true = 名单一致（或名单缺失时的 bootstrap 模式）；$false = 新红 / 未销账 / 明细不可得。
+        $true = 名单一致（或名单缺失时的 bootstrap 模式）；$false = 新红 / 未销账 / 明细不可得 / `-StrictMissingManifest` 下的名单缺失。
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][object[]]$Results,
         [string]$Path = '',
-        [switch]$PartialRun
+        [switch]$PartialRun,
+        [switch]$StrictMissingManifest
     )
 
     $units = @($Results | Where-Object { $_.Kind -eq 'MsTest' -and $_.Failed -gt 0 })
@@ -52,7 +54,13 @@ function Compare-KnownFailures {
             Write-Host ("    {0}（{1} 条）:" -f $unit.ProjectName, @($unit.FailedNames).Count) -ForegroundColor Yellow
             foreach ($name in @($unit.FailedNames)) { Write-Host ("      {0}" -f $name) -ForegroundColor DarkYellow }
         }
-        Write-Host "    提示：把上述清单登记到名单文件即启用棘轮（新红即红 / 已修复未销账亦红）。" -ForegroundColor DarkGray
+
+        if ($StrictMissingManifest) {
+            Write-Host "    名单缺失 ⇒ 等价锁为空，-StrictMissingManifest 下 fail-fast（不以「无名单」伪装成绿）。" -ForegroundColor Red
+            return $false
+        }
+
+        Write-Host "    提示：把上述清单登记到名单文件即启用棘轮（新红即红 / 已修复未销账亦红）；如须前置拦住，加 -StrictMissingManifest。" -ForegroundColor DarkGray
         return $true
     }
 

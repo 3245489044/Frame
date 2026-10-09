@@ -44,6 +44,27 @@ public static class UsharpLanguage
     /// <summary>域定义声明前缀（节点域定义面：identity / placements / selections / retentions）。</summary>
     public const string DomainPrefix = "[Domain]";
 
+    /// <summary>聚拢声明前缀（收集端口：族 → kind 集 + kind 塑形词表；U2）。</summary>
+    public const string GatherPrefix = "[Gather]";
+
+    /// <summary>聚拢声明续行首词（<c>[Gather]</c>）：判别字段 / 二级分组字段 / 族声明 / 塑形声明。</summary>
+    public const string MarkerKindField = "kind-field";
+    public const string MarkerGroupBy = "group-by";
+    public const string MarkerFamily = "family";
+    public const string MarkerShaping = "shaping";
+
+    /// <summary>塑形字段名（<c>shaping</c> 行内 <c>k=v</c>；与 JSON 键名同形）。</summary>
+    public const string FieldFamily = "family";
+    public const string FieldTitleKey = "titleKey";
+    public const string FieldSummary = "summary";
+    public const string FieldBadge = "badge";
+    public const string FieldTimeKey = "timeKey";
+    public const string FieldShaped = "shaped";
+
+    /// <summary>域定义面取用语义词表子块名（U3）：<c>marks</c>（名→序值）/ <c>origins</c>（受控词集）。</summary>
+    public const string FieldMarks = "marks";
+    public const string FieldOrigins = "origins";
+
     /// <summary>控制流声明字段名（R3，<c>[Branch]/[Switch]/[Call]</c> 共用）：所属流 / 承载节点 / 判定键 / 选择键 / 目标。</summary>
     public const string FieldFlow = "flow";
     public const string FieldNode = "node";

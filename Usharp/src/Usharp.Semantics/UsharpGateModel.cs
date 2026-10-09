@@ -21,7 +21,8 @@ public sealed class UsharpGateModel
         IReadOnlyList<UsharpFlowDecl> flows,
         IReadOnlyList<UsharpRefDecl> refs,
         ObsRegistry? obs,
-        IReadOnlyList<UsharpDomainDecl>? domains = null)
+        IReadOnlyList<UsharpDomainDecl>? domains = null,
+        IReadOnlyList<UsharpGatherDecl>? gathers = null)
     {
         Documents = documents;
         Declarations = declarations;
@@ -32,6 +33,7 @@ public sealed class UsharpGateModel
         Refs = refs;
         Obs = obs;
         Domains = domains ?? Array.Empty<UsharpDomainDecl>();
+        Gathers = gathers ?? Array.Empty<UsharpGatherDecl>();
 
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
         FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
@@ -60,6 +62,9 @@ public sealed class UsharpGateModel
 
     /// <summary><c>[Domain]</c> 域定义声明（U1；空表 = 本编译无域定义面）。</summary>
     public IReadOnlyList<UsharpDomainDecl> Domains { get; }
+
+    /// <summary><c>[Gather]</c> 聚拢声明（U2；空表 = 本编译无收集端口声明）。</summary>
+    public IReadOnlyList<UsharpGatherDecl> Gathers { get; }
 
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }

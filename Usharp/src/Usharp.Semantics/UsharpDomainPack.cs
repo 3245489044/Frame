@@ -28,6 +28,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>
         new DecisionGateRule(),
         new BindingDuplicateGateRule(),
         new DomainGateRule(),
+        new GatherGateRule(),
     };
 
     private UsharpDomainPack()

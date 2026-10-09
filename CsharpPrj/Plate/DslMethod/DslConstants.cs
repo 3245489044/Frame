@@ -22,6 +22,8 @@ public enum DslSymbolKind
     When, Guard,
     // Ushar 域定义语言单元：节点域定义面（identity / placements / selections / retentions；见 Usharp README「域定义」）
     Domain,
+    // Ushar 聚拢声明语言单元：[Gather] 收集端口（族 / 塑形词表；见 U2 落地方案 §1）
+    Gather,
     Unknown,
 }
 

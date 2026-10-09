@@ -41,6 +41,8 @@ public static class UsharpPrefixes
         new(UsharpLanguage.GuardPrefix, DslSymbolKind.Guard, "Guard"),
         // 域定义语言单元：节点域定义面（[Domain]）
         new(UsharpLanguage.DomainPrefix, DslSymbolKind.Domain, "Domain"),
+        // 聚拢声明语言单元：收集端口（[Gather]；U2）
+        new(UsharpLanguage.GatherPrefix, DslSymbolKind.Gather, "Gather"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

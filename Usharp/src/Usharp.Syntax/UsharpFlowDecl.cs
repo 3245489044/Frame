@@ -243,6 +243,10 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpDomainDecl> Domains(DslDocument doc)
         => Project(doc, DslSymbolKind.Domain, UsharpDomainDecl.From);
 
+    /// <summary><c>[Gather]</c> 聚拢声明（收集端口枚举：族 / 塑形词表；U2）。</summary>
+    public static IReadOnlyList<UsharpGatherDecl> Gathers(DslDocument doc)
+        => Project(doc, DslSymbolKind.Gather, UsharpGatherDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

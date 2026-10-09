@@ -36,4 +36,28 @@ public static class UsharpSourceLoader
         ArgumentNullException.ThrowIfNull(files);
         return files.Select(f => new UsharpSourceFile(f.Path, File.ReadAllText(f.Path), f.Lib)).ToList();
     }
+
+    /// <summary>
+    /// 由声明库条目构造源集（**盘/库同形**）：诊断归因路径取 <see cref="DeclarationEntry.SourcePath"/>，
+    /// 缺省回退 <see cref="DeclarationEntry.LogicalName"/>；保声明序（调用方按需排序）。
+    /// </summary>
+    public static IReadOnlyList<UsharpSourceFile> FromEntries(IEnumerable<DeclarationEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        return entries
+            .Select(e => new UsharpSourceFile(e.SourcePath ?? e.LogicalName, e.Text, e.Lib))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 由声明库装载源集（**单一入口**）：文件库（<see cref="FileDeclarationStore"/>）与数据库库经同一路径，
+    /// 装载面不感知来源（对齐「USharp 编排入库」——盘/库是两种实现，不是两条链路）。
+    /// </summary>
+    public static async Task<IReadOnlyList<UsharpSourceFile>> FromStoreAsync(
+        IDeclarationStore store, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        var entries = await store.ListAsync(ct).ConfigureAwait(false);
+        return FromEntries(entries);
+    }
 }

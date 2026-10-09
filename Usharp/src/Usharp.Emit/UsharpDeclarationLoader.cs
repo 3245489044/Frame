@@ -39,16 +39,52 @@ public static class UsharpDeclarationLoader
             return DeclarationLoadResult<T>.NotDeclared(source.Path);
         }
 
+        return LoadSources(UsharpSourceLoader.FromPath(source.Path!), source, emit, log);
+    }
+
+    /// <summary>
+    /// 由**已装载声明条目**编译/发射（声明库入口，**盘/库同形**）：条目来源无关
+    /// （文件库 / 数据库库 / 内存），本方法只负责「源集 → 编译 → 发射 → 诊断归因」。
+    /// <para>空集 ⇒ <see cref="DeclarationLoadStatus.NotDeclared"/>（不假装通过）。</para>
+    /// </summary>
+    public static DeclarationLoadResult<T> LoadFromEntries<T>(
+        IReadOnlyList<DeclarationEntry> entries,
+        DeclarationSource source,
+        Func<UsharpCompilation, string?, DeclarationEmitOutput<T>> emit,
+        IDeclarationLogSink? log = null)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(emit);
+
+        return LoadSources(UsharpSourceLoader.FromEntries(entries), source, emit, log);
+    }
+
+    /// <summary>
+    /// 由**已装载源集**编译/发射（统一尾段：源集 → 编译 → 发射 → 诊断归因）。
+    /// 空集 ⇒ <see cref="DeclarationLoadStatus.NotDeclared"/>；编译/发射失败 ⇒ 对应状态 + 诊断逐条上报。
+    /// </summary>
+    public static DeclarationLoadResult<T> LoadSources<T>(
+        IReadOnlyList<UsharpSourceFile> sources,
+        DeclarationSource source,
+        Func<UsharpCompilation, string?, DeclarationEmitOutput<T>> emit,
+        IDeclarationLogSink? log = null)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(emit);
+
+        if (sources.Count == 0)
+        {
+            // 无可装载源文档：等价「未声明」（不产诊断，交由调用方降级口径）。
+            log?.Report(DeclarationLogEvent.NotDeclared, source.BaseName, source.FlowId, source.Path, null);
+            return DeclarationLoadResult<T>.NotDeclared(source.Path);
+        }
+
         try
         {
-            var sources = UsharpSourceLoader.FromPath(source.Path!);
-            if (sources.Count == 0)
-            {
-                // 路径存在但无可装载源文档：等价「未声明」（不产诊断，交由调用方降级口径）。
-                log?.Report(DeclarationLogEvent.NotDeclared, source.BaseName, source.FlowId, source.Path, null);
-                return DeclarationLoadResult<T>.NotDeclared(source.Path);
-            }
-
             var compilation = UsharpCompilation.CompileSources(sources);
             if (compilation.HasErrors)
             {

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Usharp × 声明库 / 引用词表 适配层</ModuleRule_Title>
+    <ModuleRule_Description>把 USharp 声明接到存储与引用词表：① 声明库的配置存储后端（IDeclarationBackend → IConfigStore，USharp 编排入库）；② 引用类型注册中心由 USharp 编译产物构建（词表单一真源）；③ 边常量 ↔ 声明面双向对账（C# 常量集 ≡ 声明集）。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;声明库;入库;引用词表;ReferenceTypeRegistry;对账;适配</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="唯一桥接 Usharp 核心 ↔ DataStoreDriven 存储面的工程（禁在 Usharp 核心引 UR/DB，禁在 DataStoreDriven 引 Usharp）" />
+    <ModuleRule_Rule Include="词表真源唯一 = USharp 声明（[Node]/[Edge]/[Constraint]）；本层只做投影/对账，不重定义词表" />
+    <ModuleRule_Rule Include="编译期零写库：声明装载不触存储写入；写库由宿主显式触发" />
+    <ModuleRule_Rule Include="边常量唯一权威 = Operation.DataStoreDriven.Abstractions.ReferenceTypes（本层只做常量集 ↔ 声明集对账）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Adapters.Declarations</RootNamespace>
+    <AssemblyName>Usharp.Adapters.Declarations</AssemblyName>
+    <Description>Usharp × 声明库/引用词表 适配层（入库后端 / 词表投影 / 边常量对账）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="..\Usharp.Adapters.UniversalReference\Usharp.Adapters.UniversalReference.csproj" />
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\DataStoreDriven\DataStoreDriven.csproj" />
+  </ItemGroup>
+
+</Project>

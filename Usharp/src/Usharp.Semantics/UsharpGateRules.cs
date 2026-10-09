@@ -340,3 +340,76 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
     }
 }
 
+/// <summary>
+/// 规则 ⑬：<c>[Gather]</c> 聚拢声明形态闸A（US7101–US7106）。
+/// <para>
+/// 判据：<c>kind-field</c> 非空 / 族名唯一 / 塑形行含 <c>family=</c> / <c>summary</c> 声明则非空 /
+/// 通配塑形 <c>*</c> 存在 / 续行可解析。全部为可判定结构事实（不引执行者语义）。
+/// </para>
+/// </summary>
+internal sealed class GatherGateRule : IGateRule<UsharpGateModel>
+{
+    /// <summary>通配塑形键（未显式声明 kind 的默认塑形；单源 = <c>NodeGatherSpec.DefaultShapingKey</c> 同值）。</summary>
+    private const string WildcardKind = "*";
+
+    public string Name => "usharp.gather";
+
+    public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
+    {
+        foreach (var gather in model.Gathers)
+        {
+            foreach (var line in gather.UnparsedLines)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                    $"[Gather] {gather.DomainId}: 续行不可解析 '{line}'"
+                    + "（须为 kind-field… / group-by… / family… / shaping…）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+
+            if (string.IsNullOrWhiteSpace(gather.KindField))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherKindFieldMissing,
+                    $"[Gather] {gather.DomainId}: 缺 kind-field=（判别字段为族/塑形定位的唯一依据）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var duplicate in gather.DuplicateFamilies)
+            {
+                if (!seen.Add(duplicate)) continue;
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherFamilyDuplicate,
+                    $"[Gather] {gather.DomainId}: 族名 '{duplicate}' 重复（族声明序为聚拢组间序的唯一依据）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+
+            var hasWildcard = false;
+            foreach (var shaping in gather.Shapings)
+            {
+                if (string.Equals(shaping.Kind, WildcardKind, StringComparison.Ordinal)) hasWildcard = true;
+
+                if (string.IsNullOrWhiteSpace(shaping.Family))
+                {
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapingFamilyMissing,
+                        $"[Gather] {gather.DomainId}: 塑形 '{shaping.Kind}' 缺 family=（族归属）",
+                        gather.SourceFile, gather.LineNumber));
+                }
+
+                var summaryRaw = shaping.Field(UsharpLanguage.FieldSummary);
+                if (summaryRaw is not null && shaping.SummaryList.Count == 0)
+                {
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapingSummaryEmpty,
+                        $"[Gather] {gather.DomainId}: 塑形 '{shaping.Kind}' 的 summary 为空（须为逗号列表且非空）",
+                        gather.SourceFile, gather.LineNumber));
+                }
+            }
+
+            if (gather.Shapings.Count == 0 || !hasWildcard)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherWildcardShapingMissing,
+                    $"[Gather] {gather.DomainId}: 缺通配塑形 '{WildcardKind}'（治「未声明 kind 被丢行」）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+        }
+    }
+}
+

@@ -50,6 +50,35 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         return false;
     }
 
+    // ---- 通用边算子（C 批：声明驱动重构）----
+    // 目的：消除「每边一手」的准入 + 写边 / 删边 / 读边过滤样板。边类型仍是参数（唯一权威 = 声明面白名单，
+    // 经 AdmitEdge 准入），端点构成由调用方给出（端点类型/Id 形态的声明化归 D-3 后续批次）。
+    // 单一写边 owner 不变：一律经协调器 AddReferenceAsync / RemoveReferenceAsync（TH-12）。
+
+    /// <summary>写归属边（幂等加法）：先准入（声明面白名单），后经协调器单一写边原语落图。</summary>
+    private async Task AttachEdgeAsync(string edgeType, ResourceIdentifier source, ResourceIdentifier target, string subject, CancellationToken ct)
+    {
+        if (!AdmitEdge(edgeType, subject)) return;
+        await _graph.AddReferenceAsync(source, target, edgeType, 1.0, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>删归属边（幂等：不存在则无副作用）——经协调器单一写边原语。</summary>
+    private Task DetachEdgeAsync(string edgeType, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
+        => _graph.RemoveReferenceAsync(source, target, edgeType, ct);
+
+    /// <summary>读某边类型的**出边目标 Id 集**（按边类型过滤、去重保序；裸键解析归调用方，禁本地拼切）。</summary>
+    private async Task<IReadOnlyList<string>> GetOutgoingTargetIdsAsync(string edgeType, ResourceIdentifier source, CancellationToken ct)
+    {
+        var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct).ConfigureAwait(false);
+        return refs
+            .Where(r => string.Equals(r.RefType, edgeType, StringComparison.Ordinal))
+            .Select(r => r.Target?.Id)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
     public ReferenceGrounding(ReferenceGraphCoordinator graph)
     {
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
@@ -146,8 +175,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureSessionMirrorAsync(sessionName, ct).ConfigureAwait(false);
         var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        if (!AdmitEdge(CrossDbReferenceTypes.SessionOwns, $"{sessionName}|{nodeKey}")) return;
-        await _graph.AddReferenceAsync(sessionId, nodeId, CrossDbReferenceTypes.SessionOwns, 1.0, ct).ConfigureAwait(false);
+        await AttachEdgeAsync(CrossDbReferenceTypes.SessionOwns, sessionId, nodeId, $"{sessionName}|{nodeKey}", ct).ConfigureAwait(false);
     }
 
     /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址，根除跨会话污染）。
@@ -157,13 +185,10 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<string>();
         var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
-        var refs = await _graph.GetReferencesAsync(sessionId, includeIncoming: false, ct).ConfigureAwait(false);
+        var targets = await GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.SessionOwns, sessionId, ct).ConfigureAwait(false);
         var keys = new List<string>();
-        foreach (var r in refs)
-        {
-            if (!string.Equals(r.RefType, CrossDbReferenceTypes.SessionOwns, StringComparison.Ordinal)) continue;
-            if (HierarchyResourceKeys.TryParseNodeKey(r.Target?.Id, workflowId, out var nodeKey)) keys.Add(nodeKey);
-        }
+        foreach (var id in targets)
+            if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey)) keys.Add(nodeKey);
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
 
@@ -206,31 +231,22 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        if (!AdmitEdge(CrossDbReferenceTypes.HistoryOwnsTask, $"{historyId}|{taskKey}")) return;
-        await _graph.AddReferenceAsync(historyId2, taskId, CrossDbReferenceTypes.HistoryOwnsTask, 1.0, ct).ConfigureAwait(false);
+        await AttachEdgeAsync(CrossDbReferenceTypes.HistoryOwnsTask, historyId2, taskId, $"{historyId}|{taskKey}", ct).ConfigureAwait(false);
     }
 
     /// <summary>解除历史归拢任务边（历史 → task 的 history_owns_task 出边移除）。</summary>
     public Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _graph.RemoveReferenceAsync(
+        => DetachEdgeAsync(
+            CrossDbReferenceTypes.HistoryOwnsTask,
             new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) },
-            new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey },
-            CrossDbReferenceTypes.HistoryOwnsTask, ct);
+            new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
 
     /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集（History class 容器成员）。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(historyId)) return Array.Empty<string>();
         var historyNodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
-        var refs = await _graph.GetReferencesAsync(historyNodeId, includeIncoming: false, ct).ConfigureAwait(false);
-        var tasks = new List<string>();
-        foreach (var r in refs)
-        {
-            if (!string.Equals(r.RefType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal)) continue;
-            var id = r.Target?.Id;
-            if (!string.IsNullOrWhiteSpace(id)) tasks.Add(id);
-        }
-        return tasks.Distinct(StringComparer.Ordinal).ToList();
+        return await GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.HistoryOwnsTask, historyNodeId, ct).ConfigureAwait(false);
     }
 
     /// <summary>历史 Id 单一权威：history.{historyId}（构造与还原见 <see cref="HierarchyResourceKeys"/>）。</summary>
@@ -317,8 +333,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        if (!AdmitEdge(CrossDbReferenceTypes.CrossDbLink, $"{taskKey}|{nodeKey}")) return;
-        await _graph.AddReferenceAsync(taskId, nodeId, CrossDbReferenceTypes.CrossDbLink, 1.0, ct).ConfigureAwait(false);
+        await AttachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, $"{taskKey}|{nodeKey}", ct).ConfigureAwait(false);
     }
 
     /// <summary>解除 task 与节点的关联边（M:N 撤销）：移除 task→node 的 cross_db_link 出边（幂等：不存在则无副作用）。
@@ -329,7 +344,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        return _graph.RemoveReferenceAsync(taskId, nodeId, CrossDbReferenceTypes.CrossDbLink, ct);
+        return DetachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, ct);
     }
 
     /// <summary>
@@ -342,13 +357,10 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
-        var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: false, ct).ConfigureAwait(false);
+        var targets = await GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.CrossDbLink, taskId, ct).ConfigureAwait(false);
         var keys = new List<string>();
-        foreach (var r in refs)
-        {
-            if (!string.Equals(r.RefType, CrossDbReferenceTypes.CrossDbLink, StringComparison.Ordinal)) continue;
-            if (HierarchyResourceKeys.TryParseNodeKey(r.Target?.Id, workflowId, out var nodeKey)) keys.Add(nodeKey);
-        }
+        foreach (var id in targets)
+            if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey)) keys.Add(nodeKey);
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
 
@@ -367,8 +379,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await EnsureTaskMirrorAsync(subTaskKey, ct).ConfigureAwait(false);
         var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
         var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
-        if (!AdmitEdge(CrossDbReferenceTypes.TaskOwnsTask, $"{parentTaskKey}|{subTaskKey}")) return;
-        await _graph.AddReferenceAsync(parentId, childId, CrossDbReferenceTypes.TaskOwnsTask, 1.0, ct).ConfigureAwait(false);
+        await AttachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, $"{parentTaskKey}|{subTaskKey}", ct).ConfigureAwait(false);
     }
 
     /// <summary>解除 task → sub-task 归属边（幂等：不存在则无副作用）。</summary>
@@ -378,7 +389,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
         var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
         var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
-        return _graph.RemoveReferenceAsync(parentId, childId, CrossDbReferenceTypes.TaskOwnsTask, ct);
+        return DetachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, ct);
     }
 
     /// <summary>按 task 查 task_owns_task 出边，返回其**直属**子任务键集（不定深度树的一层展开；逐层展开由调用方 / 遍历引擎推进）。</summary>
@@ -386,15 +397,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: false, ct).ConfigureAwait(false);
-        var keys = new List<string>();
-        foreach (var r in refs)
-        {
-            if (!string.Equals(r.RefType, CrossDbReferenceTypes.TaskOwnsTask, StringComparison.Ordinal)) continue;
-            var id = r.Target?.Id;
-            if (!string.IsNullOrWhiteSpace(id)) keys.Add(id);
-        }
-        return keys.Distinct(StringComparer.Ordinal).ToList();
+        return await GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.TaskOwnsTask, taskId, ct).ConfigureAwait(false);
     }
 
     /// <summary>

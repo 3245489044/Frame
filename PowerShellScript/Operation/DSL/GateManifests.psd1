@@ -74,6 +74,13 @@
         Note   = '测试载体单一化（AT2001 工具期对拍）：已启用范围（UsharpTests 根级 / Agent.Core.Tests 工程级）内未豁免的 [TestMethod] 即 FAIL；棘轮基线只减不增（新增手写测试 / 向已豁免文件追加）'
     }
 
+    NodeFlowDomainMatch = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeFlowDomainMatch.ps1'
+        Expect = 0
+        Note   = '工作流↔节点域对应守卫（U4）：[Node] uses=/produces= 域 token ∈ Config\nodes\*.ushar 的 [Domain] 集（双向对账）；正/负对照防假绿；基线 Baselines\NodeFlowDomainMatch.psd1'
+    }
+
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{

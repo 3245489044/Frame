@@ -47,6 +47,8 @@ public sealed record UsharpDomainDecl(
     IReadOnlyList<UsharpPlacementDecl> Placements,
     IReadOnlyDictionary<string, string> Selections,
     IReadOnlyDictionary<string, string> Retentions,
+    IReadOnlyDictionary<string, string> Marks,
+    IReadOnlyList<string> Origins,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
     int LineNumber)
@@ -57,6 +59,8 @@ public sealed record UsharpDomainDecl(
         Placements,
         Selections,
         Retentions,
+        Marks,
+        Origins,
     }
 
     /// <summary>投影单条 <c>[Domain]</c> 声明（无名 ⇒ null；无法解析的续行落入 <see cref="UnparsedLines"/>，闸A 报出）。</summary>
@@ -70,6 +74,8 @@ public sealed record UsharpDomainDecl(
         var placements = new List<UsharpPlacementDecl>();
         var selections = new Dictionary<string, string>(StringComparer.Ordinal);
         var retentions = new Dictionary<string, string>(StringComparer.Ordinal);
+        var marks = new Dictionary<string, string>(StringComparer.Ordinal);
+        var origins = new List<string>();
         var unparsed = new List<string>();
         var section = Section.None;
 
@@ -111,6 +117,16 @@ public sealed record UsharpDomainDecl(
                 section = Section.Retentions;
                 continue;
             }
+            if (string.Equals(line, UsharpLanguage.FieldMarks, StringComparison.Ordinal))
+            {
+                section = Section.Marks;
+                continue;
+            }
+            if (string.Equals(line, UsharpLanguage.FieldOrigins, StringComparison.Ordinal))
+            {
+                section = Section.Origins;
+                continue;
+            }
 
             switch (section)
             {
@@ -123,6 +139,12 @@ public sealed record UsharpDomainDecl(
                 case Section.Retentions when TryParsePair(line, out var retentionName, out var description):
                     retentions[retentionName] = description;
                     break;
+                case Section.Marks when TryParsePair(line, out var markName, out var markOrder):
+                    marks[markName] = markOrder;
+                    break;
+                case Section.Origins when TryParsePair(line, out var originName, out _):
+                    origins.Add(originName);
+                    break;
                 default:
                     unparsed.Add(line);
                     break;
@@ -130,7 +152,7 @@ public sealed record UsharpDomainDecl(
         }
 
         return new UsharpDomainDecl(
-            d.Name, identity, context, sequence, placements, selections, retentions,
+            d.Name, identity, context, sequence, placements, selections, retentions, marks, origins,
             unparsed, d.SourceFile, d.LineNumber);
     }
 

@@ -25,9 +25,10 @@ public static class UsharpValidator
         IReadOnlyList<UsharpFlowDecl> flows,
         IReadOnlyList<UsharpRefDecl> refs,
         ObsRegistry? obs = null,
-        IReadOnlyList<UsharpDomainDecl>? domains = null)
+        IReadOnlyList<UsharpDomainDecl>? domains = null,
+        IReadOnlyList<UsharpGatherDecl>? gathers = null)
     {
-        var model = new UsharpGateModel(documents, declarations, index, spaces, matrices, flows, refs, obs, domains);
+        var model = new UsharpGateModel(documents, declarations, index, spaces, matrices, flows, refs, obs, domains, gathers);
         var result = UsharpDomainPack.Instance.CreateEngine().Run(model);
         return result.Diagnostics.Select(UsharpDiagnosticProjection.ToUsharp).ToList();
     }

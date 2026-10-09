@@ -73,6 +73,9 @@ public static class UsharpCodes
     /// <summary>节点域定义面不可产出（未找到该域 id 的 <c>[Domain]</c> / 形态非法）。</summary>
     public const string DomainSpecNotProducible = "US5008";
 
+    /// <summary>节点聚拢声明不可产出（未找到该域 id 的 <c>[Gather]</c> / 形态非法）。</summary>
+    public const string GatherSpecNotProducible = "US5009";
+
     /// <summary>
     /// 计划（处理编排）相关诊断码名单 —— 判据侧（<c>ProcessPlanGateRule</c> 产出）与发射侧
     /// （<c>UsharpHierarchyProcessPlanEmitter</c> 投影筛选）**共同引用**，避免名单两处维护（漏改即静默丢诊断）。
@@ -153,6 +156,25 @@ public static class UsharpCodes
 
     /// <summary>域声明形态非法（空 <c>placements</c> / 续行不可解析 / 缺必填字段）。</summary>
     public const string DomainShapeInvalid = "US7005";
+
+    // 聚拢声明面（[Gather]：收集端口枚举；U2）
+    /// <summary>缺 <c>kind-field</c>（判别字段为族/塑形定位的唯一依据）。</summary>
+    public const string GatherKindFieldMissing = "US7101";
+
+    /// <summary>族名重复（族声明序为聚拢组间序的唯一依据）。</summary>
+    public const string GatherFamilyDuplicate = "US7102";
+
+    /// <summary>塑形行缺 <c>family=</c>（未声明族归属）。</summary>
+    public const string GatherShapingFamilyMissing = "US7103";
+
+    /// <summary><c>summary</c> 字段声明但为空列表（须为逗号列表且非空）。</summary>
+    public const string GatherShapingSummaryEmpty = "US7104";
+
+    /// <summary>缺通配塑形 <c>*</c>（治「未声明 kind 被丢行」）。</summary>
+    public const string GatherWildcardShapingMissing = "US7105";
+
+    /// <summary>聚拢声明形态非法（续行不可解析 / 族声明缺 <c>=</c> / 塑形行缺 kind）。</summary>
+    public const string GatherShapeInvalid = "US7106";
 
 
     // 判据读法面（[Matrix] over=<kind=terms 空间>；E1/U2b）

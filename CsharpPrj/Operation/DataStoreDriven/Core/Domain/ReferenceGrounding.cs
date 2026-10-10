@@ -38,6 +38,26 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// 装配期由组合根注入（同 <see cref="NodeStore"/>；默认值 = 零行为变更，回退 = 置回默认）。</summary>
     public IReferenceEdgeCatalog EdgeCatalog { get; set; } = PermissiveReferenceEdgeCatalog.Instance;
 
+    /// <summary>可选声明引用源（G3/G4）：装配期由 USharp 声明（workflows + reference + placement）投影产出权威边，
+    /// 取代节点内 <c>RelationsJson</c> 推导。缺省 <c>null</c> ⇒ 回退 RelationsJson 兼容读（零行为变更）。
+    /// 装配期由组合根注入（同 <see cref="NodeStore"/>）。</summary>
+    public IDeclaredReferenceSource? DeclarationSource { get; set; }
+
+    /// <summary>取某节点的权威边（G3/G4 单一取值缝）：声明源优先（USharp 声明构建期确定）；
+    /// 声明源无该节点边或未装配 ⇒ 回退节点内 RelationsJson（兼容读，零回归）。</summary>
+    public IReadOnlyList<NodeRelation> AuthoritativeEdgesFor(string workflowId, NodeRecord node)
+    {
+        if (node is null) return Array.Empty<NodeRelation>();
+        if (DeclarationSource is not null)
+        {
+            var declared = DeclarationSource.GetNodeRelations(workflowId, node.NodeKey);
+            if (declared.Count > 0) return declared;
+        }
+        return string.IsNullOrWhiteSpace(node.RelationsJson)
+            ? Array.Empty<NodeRelation>()
+            : NodeRelationDeriver.DeriveEdgesFromRelationsJson(workflowId, node.NodeKey, node.RelationsJson);
+    }
+
     /// <summary>归属边准入（W1）：未在声明面登记 ⇒ 拒写 + 可见化（禁静默建边；未装配白名单 ⇒ 报告模式放行）。</summary>
     private bool AdmitEdge(string edgeType, string subject)
     {
@@ -572,11 +592,9 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         {
             var wf = WorkflowIds.Resolve(node);
             await MirrorNodeAsync(wf, node, ct).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(node.RelationsJson))
-            {
-                var edges = NodeRelationDeriver.DeriveEdgesFromRelationsJson(wf, node.NodeKey, node.RelationsJson);
+            var edges = AuthoritativeEdgesFor(wf, node);
+            if (edges.Count > 0)
                 await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
-            }
         }, ct).ConfigureAwait(false);
 
         // ② 声明关系（NodeType=relation）：从持久化声明记录重推导边（active 声明 → 建边）。
@@ -617,23 +635,24 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             if (NodeStore is null) return 0; // 未装配节点库：无法读取持久化关系状态，不越权
             var node = await NodeStore.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            if (node is null || string.IsNullOrWhiteSpace(node.RelationsJson)) return 0; // 无持久化关系状态 → 不越权对账
+            if (node is null) return 0;
             // workflowId 真源统一为节点自身 ThreadId（WorkflowIds.Resolve），与 All 作用域 / 写透守卫同权威（消除 E 类 id 漂移）。
             // 入参 workflowId 仅保留参数契约校验，不参与图镜像 id 解析。
             var wf = WorkflowIds.Resolve(node);
-            var edges = NodeRelationDeriver.DeriveEdgesFromRelationsJson(wf, node.NodeKey, node.RelationsJson);
+            var edges = AuthoritativeEdgesFor(wf, node);
+            if (edges.Count == 0) return 0; // 无权威边（声明源/兼容读皆空）→ 不越权对账
             await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
             return 1;
         }
 
-        // All：单次扫描枚举全部业务节点（NodeType=node），依持久化关系状态重推导权威边并对账。
+        // All：单次扫描枚举全部业务节点（NodeType=node），依声明源（优先）/持久化关系状态重推导权威边并对账。
         if (NodeStore is null) return 0;
         var processed = 0;
         await NodePaging.ForEachAsync(NodeStore, NodeTypes.Node, null, async (node, _) =>
         {
-            if (string.IsNullOrWhiteSpace(node.RelationsJson)) return; // 不越权：仅收敛携带关系状态的节点
             var wf = WorkflowIds.Resolve(node);
-            var edges = NodeRelationDeriver.DeriveEdgesFromRelationsJson(wf, node.NodeKey, node.RelationsJson);
+            var edges = AuthoritativeEdgesFor(wf, node);
+            if (edges.Count == 0) return; // 无权威边 → 不越权收敛
             await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
             processed++;
         }, ct).ConfigureAwait(false);

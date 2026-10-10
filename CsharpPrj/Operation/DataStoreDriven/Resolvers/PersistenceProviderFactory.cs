@@ -48,7 +48,11 @@ public static class PersistenceProviderFactory
     {
         ArgumentNullException.ThrowIfNull(sp);
         var options = sp.GetRequiredService<IOptions<PersistenceOptions>>().Value;
-        return ResolveCore(sp, options, provider, null, null, null, null, null, null);
+        // 全表 USharp 化：MS-DI 路径经容器可选解析 codec/schemaSource（组合根注册 UsharpDataPorts.Codec/SchemaSource）；
+        // 未注册 ⇒ null ⇒ 回落 JSON/手写 DDL（零行为变更）。
+        var codec = sp.GetService<IDocumentCodec>();
+        var schemaSource = sp.GetService<ITableSchemaSource>();
+        return ResolveCore(sp, options, provider, null, null, null, null, codec, schemaSource);
     }
 
     /// <summary>从配置对象直接构造（供 Agent 编排器等非 ServiceCollection 组合根使用）。

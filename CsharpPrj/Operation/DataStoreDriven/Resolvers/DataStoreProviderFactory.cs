@@ -75,7 +75,7 @@ public static class DataStoreProviderFactory
         // 架构 I2（每库单写通道）：agent 数据驱动基础节点库（ur_nodes，Sqlite 路径即 agent.db）写经 SqliteChannelSession
         // 走 SqliteWriteChannel 单写连接，与 ur_tasks(TaskPoolHosting)/SqliteTransaction(持久化事务) 共用同一 agent.db 写权，
         // 消除 ur_nodes 经 DataUniversal 新连接与节点持久化事务互撞（运行期写锁长持根因）。
-        var nodes = new SqliteNodeStore(new SqliteChannelSession(ThreadingSqliteWriteHost.Shared, factory), prefix + TableNames.Nodes, codec);
+        var nodes = new SqliteNodeStore(new SqliteChannelSession(ThreadingSqliteWriteHost.Shared, factory), prefix + TableNames.Nodes, codec, schemaSource);
         // 装配顺序修正（消除"绕组装漂移"）：注入引用守卫时，先建写透守卫，再以守卫为底层构造
         // Zone/Config/Checkpoint/nodes——守卫覆盖整库写面（R2 结构保证），判别类型镜像与否由守卫白名单裁决。
         INodeStore bottom = grounding is null ? nodes : new WriteGuardPort(nodes, grounding);

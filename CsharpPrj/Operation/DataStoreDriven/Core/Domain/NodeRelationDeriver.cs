@@ -72,6 +72,27 @@ public static class NodeRelationDeriver
         return edges;
     }
 
+    /// <summary>声明接线（G3）：上游节点/端口 → 下游节点/端口（构建期由工作流 <c>inports/outports</c> 声明投影）。</summary>
+    public sealed record DeclaredPortWire(
+        string FromNode, string FromPort, string ToNode, string ToPort, string? KeyMappingRef = null);
+
+    /// <summary>
+    /// G3 声明式数据流边（**构建期**唯一来源）：由工作流 <c>[Node] inports/outports</c> 接线在构建期确定
+    /// <see cref="NodeRelationType.NodeToNode"/> 边，取代运行期从 <c>RelationsJson</c> 推导。
+    /// 声明面就绪后本方法为唯一构建源；<see cref="DeriveNodeToNodeEdges"/> 降为执行期兜底。
+    /// </summary>
+    public static IEnumerable<NodeRelation> DeriveDeclaredDataflowEdges(
+        string workflowId, IEnumerable<DeclaredPortWire> wiring)
+    {
+        if (wiring is null) yield break;
+        foreach (var w in wiring)
+        {
+            if (w is null) continue;
+            if (string.IsNullOrWhiteSpace(w.FromNode) || string.IsNullOrWhiteSpace(w.ToNode)) continue;
+            yield return NodeRelationFactory.NodeToNode(workflowId, w.FromNode, w.FromPort, w.ToNode, w.ToPort, w.KeyMappingRef);
+        }
+    }
+
     /// <summary>把「映射存在性 + 溯源」序列化为节点关系状态 JSON（持久化到 <see cref="NodeRecord.RelationsJson"/>）。</summary>
     public static string SerializeRelations(bool hasMapping,
         IEnumerable<KeyValuePair<string, (string Node, string Port)>>? provenance)

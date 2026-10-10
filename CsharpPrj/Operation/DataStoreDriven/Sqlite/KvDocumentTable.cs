@@ -27,10 +27,12 @@ public static class KvDocumentTable
         "[IndexJson] TEXT",
     };
 
-    public static string CreateSql(string table) => PersistenceHelper.CreateTableSql(table, SchemaColumns);
+    /// <summary>建表 SQL：<paramref name="columns"/> 缺省（null/空）⇒ 回落手写 <see cref="SchemaColumns"/>（零行为变更）。</summary>
+    public static string CreateSql(string table, IReadOnlyList<string>? columns = null)
+        => PersistenceHelper.CreateTableSql(table, columns is { Count: > 0 } ? columns.ToArray() : SchemaColumns);
 
-    public static void EnsureCreated(IDbCommandExecutor executor, string table)
-        => executor.ExecuteNonQuery(CreateSql(table));
+    public static void EnsureCreated(IDbCommandExecutor executor, string table, IReadOnlyList<string>? columns = null)
+        => executor.ExecuteNonQuery(CreateSql(table, columns));
 
     /// <summary>旧纯键值表（<c>[Id]/[NodeKey]/[Json]</c>）就地迁移：加 <c>[Doc]</c>/<c>[IndexJson]</c> 列，Json 折入 Doc。</summary>
     public static void MigrateFromKvJson(IDbCommandExecutor executor, string table)

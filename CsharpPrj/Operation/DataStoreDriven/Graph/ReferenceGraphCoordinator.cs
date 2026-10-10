@@ -41,6 +41,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // 词表武装（B3）：写边前校验边类型是否在词表 DSL 声明（未装配 ⇒ 不校验，零回归）。
     private readonly IReferenceTypeRegistry? _vocabulary;
     private readonly ReferenceVocabularyGate _vocabularyGate;
+    // 文档编解码端口（G1）：边/端点文档 = { _id, Doc }，Doc = USharp [Record] 文本真源（组合根注入 UsharpDocumentCodec）。
+    private readonly IDocumentCodec _codec;
     private readonly IReferenceEdgeDiagnostics _edgeDiagnostics;
     private bool _initialized;
     private int _disposed;
@@ -53,7 +55,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         LiteDatabase db, string edgesCollection, string endpointsCollection,
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
-        IReferenceEdgeDiagnostics? edgeDiagnostics = null)
+        IReferenceEdgeDiagnostics? edgeDiagnostics = null,
+        IDocumentCodec? codec = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _edges = _db.GetCollection<BsonDocument>(edgesCollection);
@@ -63,6 +66,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
+        _codec = codec ?? JsonDocumentCodec.Instance;
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
     }
 
@@ -77,7 +81,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         string databasePath, string tablePrefix = "ur_", CancellationToken ct = default,
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
-        IReferenceEdgeDiagnostics? edgeDiagnostics = null)
+        IReferenceEdgeDiagnostics? edgeDiagnostics = null,
+        IDocumentCodec? codec = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         var prefix = PersistenceHelper.ResolveTablePrefix(tablePrefix);
@@ -93,7 +98,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var db = new LiteDatabase(conn);
         var coordinator = new ReferenceGraphCoordinator(
             db, prefix + TableNames.References, prefix + TableNames.Endpoints,
-            vocabulary, vocabularyGate, edgeDiagnostics);
+            vocabulary, vocabularyGate, edgeDiagnostics, codec);
         try
         {
             coordinator.Initialize();
@@ -145,14 +150,15 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         {
             var key = doc["_id"].IsString ? doc["_id"].AsString : null;
             if (key is null) continue;
-            var resourceType = doc["ResourceType"].IsString ? doc["ResourceType"].AsString : string.Empty;
-            var id = doc["Id"].IsString ? doc["Id"].AsString : string.Empty;
-            var symbol = doc["Symbol"].IsString ? doc["Symbol"].AsString : null;
-            var metadata = ReadMetadata(doc);
+            var e = ReadEndpointDoc(doc);
+            if (e is null) continue;
+            var metadata = new Dictionary<string, object>(StringComparer.Ordinal);
+            if (e.Metadata is { Count: > 0 })
+                foreach (var kv in e.Metadata) metadata[kv.Key] = kv.Value;
             var resource = new Resource
             {
-                Identifier = new ResourceIdentifier { ResourceType = resourceType, Id = id },
-                Symbol = symbol ?? id,
+                Identifier = new ResourceIdentifier { ResourceType = e.ResourceType, Id = e.Id },
+                Symbol = string.IsNullOrEmpty(e.Symbol) ? e.Id : e.Symbol,
                 Metadata = metadata,
             };
             _endpoints[key] = resource;
@@ -161,31 +167,34 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         // ② 由边重建内存邻接（端点优先用持久符号，缺失则 KeyToIdentifier 造裸资源兜底）。
         foreach (var edge in _edges.FindAll())
         {
-            var src = SourceId(edge);
-            var tgt = TargetId(edge);
-            if (src is null || tgt is null) continue;
-            var refType = RefTypeOf(edge);
-            if (string.IsNullOrWhiteSpace(refType)) continue;
-            EnsureNodeInMemory(src);
-            EnsureNodeInMemory(tgt);
-            _graph.AddEdge(BuildEdgeId(src, tgt, refType), src, tgt, isDirected: true,
-                new ReferenceEdgeData(refType, StrengthOf(edge)), StrengthOf(edge));
+            var e = ReadEdgeDoc(edge);
+            if (e is null) continue;
+            if (string.IsNullOrWhiteSpace(e.SourceId) || string.IsNullOrWhiteSpace(e.TargetId)) continue;
+            if (string.IsNullOrWhiteSpace(e.RefType)) continue;
+            EnsureNodeInMemory(e.SourceId);
+            EnsureNodeInMemory(e.TargetId);
+            _graph.AddEdge(BuildEdgeId(e.SourceId, e.TargetId, e.RefType), e.SourceId, e.TargetId, isDirected: true,
+                new ReferenceEdgeData(e.RefType, e.Strength), e.Strength);
         }
         _initialized = true;
     }
 
-    /// <summary>从端点文档读 Metadata（宽松：任意 dict 字段；兼容无 metadata 文档）。</summary>
-    private static Dictionary<string, object> ReadMetadata(BsonDocument doc)
+    /// <summary>读文档 <c>Doc</c> 文本（{ _id, Doc } 形态；无 Doc ⇒ null）。</summary>
+    private static string? DocText(BsonDocument doc)
+        => doc.TryGetValue("Doc", out var v) && v.IsString ? v.AsString : null;
+
+    /// <summary>由边文档还原 <see cref="EdgeDoc"/>（经 codec；失败 ⇒ null）。</summary>
+    private EdgeDoc? ReadEdgeDoc(BsonDocument doc)
     {
-        var metadata = new Dictionary<string, object>();
-        var bson = doc.TryGetValue("Metadata", out var v) ? v : BsonValue.Null;
-        if (bson is not null && !bson.IsNull && bson.IsDocument)
-        {
-            foreach (var kv in bson.AsDocument)
-                if (!kv.Value.IsNull)
-                    metadata[kv.Key] = kv.Value.RawValue ?? kv.Value;
-        }
-        return metadata;
+        var text = DocText(doc);
+        return string.IsNullOrWhiteSpace(text) ? null : _codec.Deserialize<EdgeDoc>(text);
+    }
+
+    /// <summary>由端点文档还原 <see cref="EndpointDoc"/>（经 codec；失败 ⇒ null）。</summary>
+    private EndpointDoc? ReadEndpointDoc(BsonDocument doc)
+    {
+        var text = DocText(doc);
+        return string.IsNullOrWhiteSpace(text) ? null : _codec.Deserialize<EndpointDoc>(text);
     }
 
     // ---- IResourceReferenceStore 资源方法：仅内存端点注册表（SQL 为实体真源，LiteDB 不复制）----
@@ -265,11 +274,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             EnsureNodeInMemory(sourceKey);
             EnsureNodeInMemory(targetKey);
             var edgeId = BuildEdgeId(sourceKey, targetKey, refType);
-            // durable：先删后加（幂等 upsert，避免重复边）
-            _edges.DeleteMany(Query.And(
-                Query.EQ("SourceId", sourceKey),
-                Query.EQ("TargetId", targetKey),
-                Query.EQ("RefType", refType)));
+            // durable：先删后加（幂等 upsert，避免重复边）；{ _id, Doc } 形态下按 _id 定位。
+            _edges.DeleteMany(Query.EQ("_id", edgeId));
             _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength));
             if (!_graph.ContainsEdge(edgeId))
                 _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
@@ -284,11 +290,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var targetKey = targetId.GetUniqueKey();
         return MutateAsync(ct, () =>
         {
-            _edges.DeleteMany(Query.And(
-                Query.EQ("SourceId", sourceKey),
-                Query.EQ("TargetId", targetKey),
-                Query.EQ("RefType", refType)));
             var edgeId = BuildEdgeId(sourceKey, targetKey, refType);
+            _edges.DeleteMany(Query.EQ("_id", edgeId));
             if (_graph.ContainsEdge(edgeId)) _graph.RemoveEdge(edgeId);
             return Task.CompletedTask;
         });
@@ -545,10 +548,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var sb = new System.Text.StringBuilder();
         foreach (var d in docs)
         {
-            var src = SourceId(d) ?? string.Empty;
-            var tgt = TargetId(d) ?? string.Empty;
-            var rt = RefTypeOf(d) ?? string.Empty;
-            sb.AppendLine($"{src} -[{rt}]-> {tgt} (strength={StrengthOf(d)})");
+            var e = ReadEdgeDoc(d);
+            sb.AppendLine(e is null
+                ? "（无效边文档）"
+                : $"{e.SourceId} -[{e.RefType}]-> {e.TargetId} (strength={e.Strength})");
             sb.AppendLine(JsonSerializer.Serialize(d));
             sb.AppendLine("---");
         }
@@ -564,8 +567,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         foreach (var d in docs)
         {
             var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
-            var symbol = d.TryGetValue("Symbol", out var sv) && sv.IsString ? sv.AsString : string.Empty;
-            sb.AppendLine($"{key}  =  {symbol}");
+            var e = ReadEndpointDoc(d);
+            sb.AppendLine($"{key}  =  {e?.Symbol}");
             sb.AppendLine(JsonSerializer.Serialize(d));
             sb.AppendLine("---");
         }
@@ -706,60 +709,45 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             LastModified = DateTime.UtcNow,
         };
 
-    /// <summary>持久化端点符号/metadata 到 ur_endpoints（可重建缓存，权威仍在 SQL）。</summary>
+    /// <summary>持久化端点符号/metadata 到 ur_endpoints（可重建缓存，权威仍在 SQL）；{ _id, Doc } 形态。</summary>
     private void PersistEndpointDoc(string key, Resource resource, ResourceIdentifier id)
     {
+        var metadata = resource.Metadata is { Count: > 0 }
+            ? resource.Metadata.ToDictionary(
+                kv => kv.Key,
+                kv => Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                StringComparer.Ordinal)
+            : null;
         var doc = new BsonDocument
         {
             ["_id"] = key,
-            ["ResourceType"] = id.ResourceType ?? string.Empty,
-            ["Id"] = id.Id ?? string.Empty,
-            ["Symbol"] = resource.Symbol ?? string.Empty,
-            ["UpdatedAt"] = DateTime.UtcNow,
+            ["Doc"] = _codec.Serialize(new EndpointDoc
+            {
+                ResourceType = id.ResourceType ?? string.Empty,
+                Id = id.Id ?? string.Empty,
+                Symbol = resource.Symbol ?? string.Empty,
+                UpdatedAt = DateTime.UtcNow.ToString("O"),
+                Metadata = metadata,
+            }),
         };
-        if (resource.Metadata is { Count: > 0 })
-        {
-            var md = new BsonDocument();
-            foreach (var kv in resource.Metadata)
-                md[kv.Key] = ToBsonValue(kv.Value);
-            doc["Metadata"] = md;
-        }
         _endpointDocs.Upsert(doc);
-    }
-
-    private static BsonValue ToBsonValue(object? value)
-    {
-        if (value is null) return BsonValue.Null;
-        return value switch
-        {
-            bool b => b,
-            int i => i,
-            long l => l,
-            double d => d,
-            decimal m => (double)m,
-            DateTime dt => dt,
-            string s => s,
-            _ => value.ToString() ?? string.Empty,
-        };
     }
 
     // ---- 边文档编解码（ur_references）----
 
-    private static BsonDocument ToEdgeDoc(string sourceKey, ResourceIdentifier src, string targetKey, ResourceIdentifier tgt,
+    private BsonDocument ToEdgeDoc(string sourceKey, ResourceIdentifier src, string targetKey, ResourceIdentifier tgt,
         string refType, double strength) => new()
         {
             ["_id"] = BuildEdgeId(sourceKey, targetKey, refType),
-            ["SourceId"] = sourceKey,
-            ["SourceType"] = src.ResourceType ?? (BsonValue)BsonValue.Null,
-            ["TargetId"] = targetKey,
-            ["TargetType"] = tgt.ResourceType ?? (BsonValue)BsonValue.Null,
-            ["RefType"] = refType,
-            ["Strength"] = strength,
+            ["Doc"] = _codec.Serialize(new EdgeDoc
+            {
+                SourceId = sourceKey,
+                SourceType = src.ResourceType,
+                TargetId = targetKey,
+                TargetType = tgt.ResourceType,
+                RefType = refType,
+                Strength = strength,
+            }),
         };
-
-    private static string? SourceId(BsonDocument d) => d["SourceId"].IsNull ? null : d["SourceId"].AsString;
-    private static string? TargetId(BsonDocument d) => d["TargetId"].IsNull ? null : d["TargetId"].AsString;
-    private static string? RefTypeOf(BsonDocument d) => d["RefType"].IsNull ? null : d["RefType"].AsString;
-    private static double StrengthOf(BsonDocument d) => d["Strength"].IsNumber ? d["Strength"].AsDouble : 1.0;
 }
 

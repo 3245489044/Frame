@@ -38,9 +38,9 @@ public sealed class NodeRecord
     /// <summary>节点载荷（任意 JSON）。</summary>
     public string PayloadJson { get; set; } = "{}";
 
-    /// <summary>节点关系状态 JSON（HasMapping + Provenance，供图边对账重推导；业务节点写入时携带）。
-    /// 载荷语义见 <c>NodeRelationDeriver.NodeRelationState</c>——「映射存在性 + 溯源」是边的权威来源，
-    /// 持久化后即使不重跑执行也能对任意节点修改做边对账收敛（DerivedDataAutoMaintenance）。</summary>
+    /// <summary>[已退役·G4] 节点关系状态 JSON（HasMapping + Provenance）。
+    /// 关系权威已归属引用库（D3/D4）：边由 USharp 声明构建、写经 <c>ReferenceGraphOutbox</c> 补偿，
+    /// 节点不再承载关系逻辑（不可从 nodes 重建）。本字段保留仅为旧数据读兼容，写侧逐步不再产出。</summary>
     public string? RelationsJson { get; set; }
 
     /// <summary>首次写入时间（UTC ISO-8601，随 Json 持久化；幂等覆写保留）。</summary>

@@ -1,5 +1,5 @@
+using System.Collections.Generic;
 using System.Text;
-using System.Text.Json;
 using Operation.DataStoreDriven.Abstractions;
 using Usharp.Syntax;
 
@@ -7,12 +7,12 @@ namespace Usharp.Adapters.Declarations;
 
 /// <summary>
 /// USharp 文档编解码（<see cref="IDocumentCodec"/> 的 USharp 实现）：
-/// <c>对象 ⟷ JsonNode ⟷ UsharpValue ⟷ USharp 文本</c>。
+/// <c>对象 ⟷ UsharpValue ⟷ USharp 文本</c>（**无 JSON 中间层**，路线 B）。
 /// <para>
 /// 落库形态：<c>[Record] &lt;TypeName&gt;</c> + 缩进 <c>field = value</c> 块（规范形 = <see cref="UsharpValue.ToCanonical"/>）。
 /// 兼容读：裸值（<c>{ … }</c> / <c>[ … ]</c>）亦可解析（便于手工/迁移）。
 /// </para>
-/// <para>本实现只承担**文本格式**；对象映射复用 System.Text.Json（<see cref="UsharpJsonBridge"/>），零行为漂移风险。</para>
+/// <para>对象映射 = <see cref="UsharpValueMapper"/>（反射直接映射；不再经 System.Text.Json）。</para>
 /// </summary>
 public sealed class UsharpDocumentCodec : IDocumentCodec
 {
@@ -25,8 +25,7 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
     /// <inheritdoc />
     public string Serialize<T>(T value)
     {
-        var node = JsonSerializer.SerializeToNode(value, JsonDocumentCodec.JsonOptions);
-        var usharp = UsharpJsonBridge.ToValue(node);
+        var usharp = UsharpValueMapper.ToValue(value);
 
         var sb = new StringBuilder();
         sb.Append(UsharpLanguage.RecordPrefix).Append(' ').Append(typeof(T).Name).Append('\n');
@@ -54,12 +53,8 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         var usharp = ParseDocument(text);
         if (usharp is null) return false;
 
-        var node = UsharpJsonBridge.ToJson(usharp);
-        if (node is null) return false;
-
-        try { value = node.Deserialize<T>(JsonDocumentCodec.JsonOptions); return value is not null; }
-        catch (JsonException) { return false; }
-        catch (NotSupportedException) { return false; }
+        value = UsharpValueMapper.ToObject<T>(usharp);
+        return value is not null;
     }
 
     /// <inheritdoc />

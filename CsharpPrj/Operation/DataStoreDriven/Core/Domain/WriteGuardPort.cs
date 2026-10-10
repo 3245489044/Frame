@@ -45,12 +45,10 @@ public sealed class WriteGuardPort : INodeStore
             var wf = WorkflowIds.Resolve(node);
             // ① 镜像内容跟随（upsert）：修改节点载荷/状态 → 图资源 symbol/metadata 同步更新（不再"仅确保存在"）。
             await _grounding.MirrorNodeAsync(wf, node, ct).ConfigureAwait(false);
-            // ② 关系对账：节点携带关系状态（HasMapping + 溯源）→ 重推导权威边 → diff 收敛，保持关系一致。
-            if (!string.IsNullOrWhiteSpace(node.RelationsJson))
-            {
-                var edges = NodeRelationDeriver.DeriveEdgesFromRelationsJson(wf, node.NodeKey, node.RelationsJson);
+            // ② 关系对账：权威边优先取自声明源（USharp 声明构建期确定，G3/G4）；缺省回退节点内关系状态（兼容读）。
+            var edges = _grounding.AuthoritativeEdgesFor(wf, node);
+            if (edges.Count > 0)
                 await _grounding.WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
-            }
         }
         return id;
     }

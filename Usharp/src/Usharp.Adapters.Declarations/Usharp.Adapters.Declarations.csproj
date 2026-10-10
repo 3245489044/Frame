@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
     <ProjectReference Include="..\Usharp.Adapters.UniversalReference\Usharp.Adapters.UniversalReference.csproj" />
     <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\DataStoreDriven\DataStoreDriven.csproj" />
   </ItemGroup>

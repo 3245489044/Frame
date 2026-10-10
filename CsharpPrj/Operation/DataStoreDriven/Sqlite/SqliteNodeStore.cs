@@ -24,14 +24,17 @@ namespace Operation.DataStoreDriven.Sqlite;
 public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
 {
     private readonly IDocumentCodec _codec;
+    private readonly ITableSchemaSource? _schemaSource;
 
     /// <summary>注入命令执行器 + 表名（前缀 + <see cref="TableNames.Nodes"/>）。executor 由基类包装为
     /// <see cref="AmbientTransactionAwareCommandExecutor"/> 以纳入骨干 SQLite 环境事务（单库原子性）。
-    /// 编解码缺省 = JSON（零行为变更）；注入 <c>UsharpDocumentCodec</c> ⇒ 行载荷 USharp 化。</summary>
-    public SqliteNodeStore(IDbCommandExecutor executor, string tableName, IDocumentCodec? codec = null)
+    /// 编解码缺省 = JSON（零行为变更）；注入 <c>UsharpDocumentCodec</c> ⇒ 行载荷 USharp 化。
+    /// <paramref name="schemaSource"/> 缺省 ⇒ 建表回落手写 <see cref="KvDocumentTable.SchemaColumns"/>。</summary>
+    public SqliteNodeStore(IDbCommandExecutor executor, string tableName, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(executor, tableName)
     {
         _codec = codec ?? JsonDocumentCodec.Instance;
+        _schemaSource = schemaSource;
     }
 
     public string TableName => Table;
@@ -43,7 +46,9 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
     {
         ct.ThrowIfCancellationRequested();
         // 数据即声明：真源列 [Doc]（USharp 文本）+ 派生索引列 [IndexJson]；旧 KvJson 表就地迁移。
-        KvDocumentTable.EnsureCreated(Executor, Table);
+        // 表结构声明源（USharp [Table] tables.ushar，container=nodes）优先；缺件回落手写 KvDocumentTable.SchemaColumns（零行为变更）。
+        var declared = _schemaSource?.GetColumns(TableNames.Nodes) ?? _schemaSource?.GetColumns("nodes");
+        KvDocumentTable.EnsureCreated(Executor, Table, declared);
         KvDocumentTable.MigrateFromKvJson(Executor, Table);
         // 旧版表迁移：散列/生成列折入 Json 并清理旧索引与列（仅旧库命中，幂等）。
         MigrateLegacySchema();

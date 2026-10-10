@@ -31,7 +31,7 @@ public sealed class NodeInjectionService
             if (node is null) { result.Dropped.Add($"{key}(missing)"); continue; }
 
             var header = $"### {key} [{node.NodeType}/{node.Status}] {node.UpdatedAt}\n";
-            var payload = node.PayloadJson ?? "{}";
+            var payload = Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(node.Payload);
             var headerTokens = TokenEstimator.Estimate(header.Length);
 
             if (headerTokens >= remaining)

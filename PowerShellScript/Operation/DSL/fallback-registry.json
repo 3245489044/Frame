@@ -911,7 +911,7 @@
     {
       "id": "C1-P1b-77",
       "type": "C1",
-      "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/NodeRelationDeriver.cs",
+      "file": "CsharpPrj/Modules/Node/Relations/NodeRelationDeriver.cs",
       "exit": "N",
       "target": "RelationEndpoint",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",

@@ -55,7 +55,7 @@ namespace Operation.HierarchyMethod.Nodes {
             var wf = NormalizeWf(workflowId);
             var rec = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
             if (rec == null) return null;
-            return BuildOutput(wf, nodeKey, rec.PayloadJson);
+            return BuildOutput(wf, nodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
         }
 
         public async Task<NodeOutput?> TryGetNodeOutputScopedAsync(string workflowId, string nodeKey, string requestingWorkflowId, CancellationToken ct = default)
@@ -71,7 +71,7 @@ namespace Operation.HierarchyMethod.Nodes {
             var result = new List<NodeOutput>();
             foreach (var rec in await ListNodesAsync(wf, ct).ConfigureAwait(false))
             {
-                var output = BuildOutput(wf, rec.NodeKey, rec.PayloadJson);
+                var output = BuildOutput(wf, rec.NodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
                 if (output is not null) result.Add(output);
             }
             return result;
@@ -121,7 +121,7 @@ namespace Operation.HierarchyMethod.Nodes {
             foreach (var rec in await ListNodesAsync(wf, ct).ConfigureAwait(false))
             {
                 ct.ThrowIfCancellationRequested();
-                var payload = NodeOutputCodec.DecodeBusiness(rec.PayloadJson);
+                var payload = NodeOutputCodec.DecodeBusiness(Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
                 var doc = payload.Outputs;
                 if (doc is null) continue;
                 // 精确匹配过滤器（module/nodeType/region）。
@@ -184,7 +184,7 @@ namespace Operation.HierarchyMethod.Nodes {
         private async Task<(NodeRecord? Existing, BusinessNodePayload Payload, NodeOutputDoc Doc)> LoadForWriteAsync(string nodeKey, CancellationToken ct)
         {
             var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            var payload = existing != null ? NodeOutputCodec.DecodeBusiness(existing.PayloadJson) : new BusinessNodePayload();
+            var payload = existing != null ? NodeOutputCodec.DecodeBusiness(Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(existing.Payload)) : new BusinessNodePayload();
             payload.Outputs ??= new NodeOutputDoc();
             return (existing, payload, payload.Outputs);
         }
@@ -197,7 +197,7 @@ namespace Operation.HierarchyMethod.Nodes {
                 NodeType = NodeTypes.Node,
                 ThreadId = NormalizeWf(workflowId),
                 Status = existing?.Status,
-                PayloadJson = NodeOutputCodec.EncodeBusiness(payload),
+                Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(NodeOutputCodec.EncodeBusiness(payload)),
                 Relations = existing?.Relations,   // U-8：直读中立 Relations（替代 RelationsJson JSON 往返）
             }, ct);
 

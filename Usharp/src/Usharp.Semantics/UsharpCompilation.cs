@@ -25,6 +25,8 @@ public sealed class UsharpCompilation
         IReadOnlyList<UsharpGatherDecl> gathers,
         IReadOnlyList<UsharpTableDecl> tables,
         IReadOnlyList<UsharpRecordDecl> records,
+        IReadOnlyList<UsharpConfigDecl> configs,
+        IReadOnlyList<UsharpRuleDecl> rules,
         IReadOnlyList<UsharpDiagnostic> diagnostics)
     {
         Documents = documents;
@@ -40,6 +42,8 @@ public sealed class UsharpCompilation
         Gathers = gathers;
         Tables = tables;
         Records = records;
+        Configs = configs;
+        Rules = rules;
         Diagnostics = diagnostics;
     }
 
@@ -66,6 +70,12 @@ public sealed class UsharpCompilation
 
     /// <summary><c>[Record]</c> 记录载荷声明（数据层：行/文档 USharp 化；声明序）。</summary>
     public IReadOnlyList<UsharpRecordDecl> Records { get; }
+
+    /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
+    public IReadOnlyList<UsharpConfigDecl> Configs { get; }
+
+    /// <summary><c>[Rule]</c> 规则声明（规则面：条件 → 动作；声明序）。</summary>
+    public IReadOnlyList<UsharpRuleDecl> Rules { get; }
 
     /// <summary>观测声明注册中心（<c>[Obs]</c>：作用域 / 实体 / 事件；第五语言单元）。</summary>
     public ObsRegistry Obs { get; }
@@ -120,6 +130,8 @@ public sealed class UsharpCompilation
         var gathers = new List<UsharpGatherDecl>();
         var tables = new List<UsharpTableDecl>();
         var records = new List<UsharpRecordDecl>();
+        var configs = new List<UsharpConfigDecl>();
+        var rules = new List<UsharpRuleDecl>();
 
         // 两遍：先登记全部空间与观测声明（闸A 判据），再投影其余声明。
         foreach (var doc in documents)
@@ -141,12 +153,14 @@ public sealed class UsharpCompilation
             gathers.AddRange(UsharpSyntaxProjector.Gathers(doc));
             tables.AddRange(UsharpSyntaxProjector.Tables(doc));
             records.AddRange(UsharpSyntaxProjector.Records(doc));
+            configs.AddRange(UsharpSyntaxProjector.Configs(doc));
+            rules.AddRange(UsharpSyntaxProjector.Rules(doc));
         }
 
         var edges = UsharpGraphBuilder.Build(documents, matrices, flows, refs);
         diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, spaces, matrices, flows, refs, obs, domains, gathers));
 
-        return new UsharpCompilation(documents, declarations, index, spaces, matrices, flows, refs, edges, obs, domains, gathers, tables, records, diagnostics);
+        return new UsharpCompilation(documents, declarations, index, spaces, matrices, flows, refs, edges, obs, domains, gathers, tables, records, configs, rules, diagnostics);
     }
 
     /// <summary>本编译的规模快照（验收取数：空间坐标数 = 闸A 拦截面）。</summary>

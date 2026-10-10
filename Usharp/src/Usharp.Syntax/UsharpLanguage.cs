@@ -29,6 +29,36 @@ public static class UsharpLanguage
     /// <summary>记录载荷声明前缀（数据层：行/文档的 USharp 化载体；<c>[Record]</c>）。</summary>
     public const string RecordPrefix = "[Record]";
 
+    /// <summary>配置声明前缀（配置面：让配置项由声明派生；<c>[Config]</c>）。</summary>
+    public const string ConfigPrefix = "[Config]";
+
+    /// <summary>规则声明前缀（规则面：条件 → 动作；<c>[Rule]</c>）。</summary>
+    public const string RulePrefix = "[Rule]";
+
+    // ---- 配置/规则语言单元字段名（[Config]/[Rule]）----
+    // 单源：禁在声明类/装载器各写一份字面量。`scope` 复用 <see cref="FieldScope"/>（不造别名）。
+
+    /// <summary>配置叶值字段（<c>value=</c>）。</summary>
+    public const string FieldValue = "value";
+
+    /// <summary>配置节/规则集引用字段（<c>rules=</c>）。</summary>
+    public const string FieldRules = "rules";
+
+    /// <summary>规则名 / 具名键字段（<c>name=</c>）。</summary>
+    public const string FieldName = "name";
+
+    /// <summary>规则条件字段（<c>condition=</c>）。</summary>
+    public const string FieldCondition = "condition";
+
+    /// <summary>规则动作字段（<c>action=</c>）。</summary>
+    public const string FieldAction = "action";
+
+    /// <summary>规则理由字段（<c>reason=</c>）。</summary>
+    public const string FieldReason = "reason";
+
+    /// <summary>规则启用位字段（<c>enabled=</c>）。</summary>
+    public const string FieldEnabled = "enabled";
+
     // ---- 数据层字段名（[Table]/[Record]）----
 
     /// <summary>表/记录所属容器（<c>container=</c>：nodes/tasks/resources/endpoints/events）。</summary>

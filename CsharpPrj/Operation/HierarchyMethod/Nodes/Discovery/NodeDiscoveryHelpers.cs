@@ -25,13 +25,15 @@ public static class NodeSummaryBuilder
 
     public static string Build(NodeRecord? node)
     {
-        if (node is null || string.IsNullOrWhiteSpace(node.PayloadJson)) return string.Empty;
+        if (node is null) return string.Empty;
+        var payloadText = Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(node.Payload);
+        if (string.IsNullOrWhiteSpace(payloadText)) return string.Empty;
         // 业务节点唯一载荷（BusinessNodePayload）：从 Outputs 端口取摘要。
-        var payload = NodeOutputCodec.DecodeBusiness(node.PayloadJson);
+        var payload = NodeOutputCodec.DecodeBusiness(payloadText);
         var doc = payload.Outputs;
         if (doc is null || doc.Ports is not { Count: > 0 })
         {
-            var t = node.PayloadJson.Trim();
+            var t = payloadText.Trim();
             return t.Length <= MaxFallbackChars ? t : t[..MaxFallbackChars] + "…";
         }
         var parts = new List<string>();

@@ -255,6 +255,14 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpRecordDecl> Records(DslDocument doc)
         => Project(doc, DslSymbolKind.Record, UsharpRecordDecl.From);
 
+    /// <summary><c>[Config]</c> 配置声明（配置面：让配置项由声明派生）。</summary>
+    public static IReadOnlyList<UsharpConfigDecl> Configs(DslDocument doc)
+        => Project(doc, DslSymbolKind.Config, UsharpConfigDecl.From);
+
+    /// <summary><c>[Rule]</c> 规则声明（规则面：条件 → 动作）。</summary>
+    public static IReadOnlyList<UsharpRuleDecl> Rules(DslDocument doc)
+        => Project(doc, DslSymbolKind.Rule, UsharpRuleDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

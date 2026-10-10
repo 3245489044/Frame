@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Core;
 
@@ -13,7 +14,7 @@ namespace Operation.DataStoreDriven.Core;
 /// <summary>
 /// checkpoint 的节点库承载（三库收敛：ur_checkpoints 并入 ur_nodes，NodeType=<see cref="NodeTypes.Checkpoint"/>）。
 /// 实现 <see cref="ICheckpointStore"/>：每个 checkpoint 落为一个节点，NodeKey=<c>checkpoint.{threadId}.{ns}.{checkpointId}</c>、
-/// ThreadId=checkpoint.ThreadId、Key=&lt;ns&gt;.&lt;checkpointId&gt;、Status=Step、PayloadJson=checkpoint JSON。
+/// ThreadId=checkpoint.ThreadId、Key=&lt;ns&gt;.&lt;checkpointId&gt;、Status=Step、Payload=checkpoint JSON。
 /// 省去独立 ur_checkpoints 表（checkpoint 经节点库承载）。序列化/安全反序列化统一经 <see cref="PersistenceJson"/>（Plate.JsonMethod）。
 /// </summary>
 public sealed class NodeCheckpointStore : ICheckpointStore
@@ -36,13 +37,13 @@ public sealed class NodeCheckpointStore : ICheckpointStore
         if (!string.IsNullOrWhiteSpace(checkpointId))
         {
             var node = await _nodes.GetAsync(NodeKeyOf(threadId, ns, checkpointId), ct).ConfigureAwait(false);
-            return node is null ? null : Deserialize(node.PayloadJson);
+            return node is null ? null : Deserialize(UsharpValueJson.ToPayloadText(node.Payload));
         }
         // 未指定 checkpointId：单次扫描取该 (threadId, ns) 下 Step 最大的 checkpoint（不再二次读取/全集反序列化）。
         Checkpoint? best = null;
         await NodePaging.ForEachAsync(_nodes, NodeTypes.Checkpoint, threadId, (n, _) =>
         {
-            var cp = Deserialize(n.PayloadJson);
+            var cp = Deserialize(UsharpValueJson.ToPayloadText(n.Payload));
             if (cp is not null && cp.CheckpointNs == ns && (best is null || cp.Step > best.Step)) best = cp;
             return Task.CompletedTask;
         }, ct).ConfigureAwait(false);
@@ -68,7 +69,7 @@ public sealed class NodeCheckpointStore : ICheckpointStore
         var ns = checkpointNs ?? string.Empty;
         var nodes = await _nodes.ListAsync(NodeTypes.Checkpoint, threadId, limit: int.MaxValue, ct: ct).ConfigureAwait(false);
         return nodes
-            .Select(n => Deserialize(n.PayloadJson))
+            .Select(n => Deserialize(UsharpValueJson.ToPayloadText(n.Payload)))
             .Where(c => c is not null && (c!.CheckpointNs ?? string.Empty) == ns)
             .OrderBy(c => c!.Step)
             .Select(c => c!.CheckpointId)

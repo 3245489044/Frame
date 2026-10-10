@@ -68,26 +68,20 @@ public sealed class NodeRecord
     /// 仅旧数据读兼容，写侧逐步不再产出。</summary>
     public UsharpValue? Relations { get => Val(FieldRelations); set => SetVal(FieldRelations, value); }
 
-    /// <summary>[兼容 API·B-3] 节点载荷的 JSON 文本视图（**计算属性**，非存储字段）：
-    /// 字符串标量（配置值等不透明文本）⇒ 原样返回；记录/列表/其余标量 ⇒ JSON 渲染。写入即解析为 <see cref="Payload"/>。
-    /// 退役目标（U-8）：消费方改读 <see cref="Payload"/>。</summary>
+    /// <summary>[已退役·U-8 兼容通道] 节点载荷的 JSON 文本视图：新代码改读中立 <see cref="Payload"/>
+    /// （对外 JSON 文本经 <c>UsharpValueJson.ToPayloadText</c> 渲染）。此属性仅为测试/外部兼容保留。</summary>
     public string PayloadJson
     {
-        get => Payload switch
-        {
-            null => "{}",
-            UsharpScalar { Kind: UsharpScalarKind.String } s => s.Text,
-            _ => UsharpValueJson.ToJson(Payload),
-        };
-        set => Payload = ParseCompat(value);
+        get => UsharpValueJson.ToPayloadText(Payload);
+        set => Payload = string.IsNullOrEmpty(value) ? null : UsharpValueJson.ParseOrString(value);
     }
 
-    /// <summary>[兼容 API·B-3] 节点关系状态的 JSON 文本视图（**计算属性**，非存储字段）。
-    /// 退役目标（U-8）：消费方改读 <see cref="Relations"/>。</summary>
+    /// <summary>[已退役·U-8 兼容通道] 节点关系状态的 JSON 文本视图：新代码改读中立 <see cref="Relations"/>
+    /// （对外 JSON 文本经 <c>UsharpValueJson.ToJson</c> 渲染）。此属性仅为测试/外部兼容保留。</summary>
     public string? RelationsJson
     {
         get => Relations is null ? null : UsharpValueJson.ToJson(Relations);
-        set => Relations = ParseCompat(value);
+        set => Relations = string.IsNullOrEmpty(value) ? null : UsharpValueJson.ParseOrString(value);
     }
 
     /// <summary>首次写入时间（UTC ISO-8601，随记录体持久化；幂等覆写保留）。</summary>
@@ -116,14 +110,6 @@ public sealed class NodeRecord
     {
         if (value is null) _record.Remove(name);
         else _record.Set(name, value);
-    }
-
-    /// <summary>兼容读：JSON 文本 → 中立值；非法 JSON ⇒ 视为不透明字符串标量（原样保留）。</summary>
-    private static UsharpValue? ParseCompat(string? json)
-    {
-        if (string.IsNullOrEmpty(json)) return null;
-        try { return UsharpValueJson.Parse(json); }
-        catch { return UsharpScalar.Str(json); }
     }
 }
 

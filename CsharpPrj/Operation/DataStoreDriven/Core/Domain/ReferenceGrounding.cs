@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Graph;
+using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Core;
@@ -53,9 +55,10 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             var declared = DeclarationSource.GetNodeRelations(workflowId, node.NodeKey);
             if (declared.Count > 0) return declared;
         }
-        return string.IsNullOrWhiteSpace(node.RelationsJson)
+        var relationsJson = node.Relations is null ? null : UsharpValueJson.ToJson(node.Relations); // U-8：直读中立 Relations（替代 RelationsJson）
+        return string.IsNullOrWhiteSpace(relationsJson)
             ? Array.Empty<NodeRelation>()
-            : NodeRelationDeriver.DeriveEdgesFromRelationsJson(workflowId, node.NodeKey, node.RelationsJson);
+            : RelationStateCodec.DeriveEdgesFromRelationsJson(workflowId, node.NodeKey, relationsJson);
     }
 
     /// <summary>归属边准入（W1）：未在声明面登记 ⇒ 拒写 + 可见化（禁静默建边；未装配白名单 ⇒ 报告模式放行）。</summary>
@@ -317,8 +320,9 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             ["threadId"] = workflowId,
             ["updatedAt"] = PersistenceHelper.NowIso(),
         };
-        if (!string.IsNullOrWhiteSpace(node.PayloadJson))
-            metadata["payload"] = node.PayloadJson;
+        var payloadText = Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(node.Payload); // U-8：取代 PayloadJson
+        if (!string.IsNullOrWhiteSpace(payloadText))
+            metadata["payload"] = payloadText;
         // UpdateResourceAsync = update-or-insert（资源存在保留 CreatedAt、仅更 symbol/metadata），即内容跟随的 upsert 镜像。
         return _graph.UpdateResourceAsync(id, metadata, node.NodeKey, ct);
     }
@@ -519,7 +523,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
                 ThreadId = workflowId,
                 Key = entry.RelationId,
                 Status = entry.Declaration?.Status ?? "active",
-                PayloadJson = PersistenceJson.Serialize(entry.Declaration ?? new RelationDeclaration()),
+                Payload = UsharpValueJson.ParseOrString(PersistenceJson.Serialize(entry.Declaration ?? new RelationDeclaration())),
             }, ct).ConfigureAwait(false);
 
             // ② 推导边写入图（active 声明；幂等 AddRelationAsync）。
@@ -543,7 +547,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             if (node is null) continue;
 
             // ① 清边：按原声明推导边移除（撤销 = 图库不再比 SQL 多出该声明关系）。
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(node.PayloadJson);
+            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
             var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(workflowId, declaration ?? new RelationDeclaration());
             if (edge is not null)
                 await _graph.RemoveRelationAsync(workflowId, edge, ct).ConfigureAwait(false);
@@ -551,14 +555,14 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             // ② 更新 Status=revoked（声明即权威：撤销记录保留，图库边已清）。
             node.Status = "revoked";
             if (declaration is not null)
-                node.PayloadJson = PersistenceJson.Serialize(new RelationDeclaration
+                node.Payload = UsharpValueJson.ParseOrString(PersistenceJson.Serialize(new RelationDeclaration
                 {
                     Source = declaration.Source,
                     Target = declaration.Target,
                     RefType = declaration.RefType,
                     KeyMappingRef = declaration.KeyMappingRef,
                     Status = "revoked",
-                });
+                }));
             await NodeStore.PutAsync(node, ct).ConfigureAwait(false);
         }
     }
@@ -572,7 +576,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await NodePaging.ForEachAsync(NodeStore, NodeTypes.Relation, workflowId, (node, _) =>
         {
             var relationId = node.Key ?? ExtractRelationId(node.NodeKey, workflowId ?? string.Empty);
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(node.PayloadJson);
+            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
             if (declaration is null) return Task.CompletedTask;
             result.Add(new RelationDeclarationEntry { RelationId = relationId, Declaration = declaration });
             return Task.CompletedTask;
@@ -608,7 +612,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         await NodePaging.ForEachAsync(NodeStore, NodeTypes.Relation, null, async (node, _) =>
         {
             var wf = WorkflowIds.Resolve(node);
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(node.PayloadJson);
+            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
             var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(wf, declaration ?? new RelationDeclaration());
             if (edge is not null)
                 await _graph.AddRelationAsync(wf, edge, ct).ConfigureAwait(false);

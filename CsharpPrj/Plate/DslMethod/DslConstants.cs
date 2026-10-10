@@ -27,6 +27,8 @@ public enum DslSymbolKind
     // Ushar 数据层语言单元（数据即声明）：[Table] 表结构声明 / [Record] 记录载荷声明
     // （见 Frame\Usharp\README「数据层」；使编译与数据配置同语法）
     Table, Record,
+    // Ushar 配置/规则语言单元（[Config] 配置面 / [Rule] 规则面；见 L5 施工单 §2）
+    Config, Rule,
     Unknown,
 }
 

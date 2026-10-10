@@ -6,6 +6,7 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -54,17 +55,17 @@ public sealed class NodeZoneStore : IZoneStoreReactive
 
     public async Task<IReadOnlyList<InputRecord>> ListInputsAsync(string? threadId = null, long? afterId = null, int limit = 100, CancellationToken ct = default)
         => (await Query(NodeTypes.Input, threadId, afterId, limit, ct).ConfigureAwait(false))
-            .Select(n => new InputRecord { Id = n.Id, ThreadId = n.ThreadId, InputKey = n.Key, PayloadJson = n.PayloadJson, CreatedAt = n.CreatedAt })
+            .Select(n => new InputRecord { Id = n.Id, ThreadId = n.ThreadId, InputKey = n.Key, PayloadJson = UsharpValueJson.ToPayloadText(n.Payload), CreatedAt = n.CreatedAt })
             .ToList();
 
     public async Task<IReadOnlyList<OutputRecord>> ListOutputsAsync(string? threadId = null, long? afterId = null, int limit = 100, CancellationToken ct = default)
         => (await Query(NodeTypes.Output, threadId, afterId, limit, ct).ConfigureAwait(false))
-            .Select(n => new OutputRecord { Id = n.Id, ThreadId = n.ThreadId, InputKey = n.Key, Status = n.Status, PayloadJson = n.PayloadJson, CreatedAt = n.CreatedAt })
+            .Select(n => new OutputRecord { Id = n.Id, ThreadId = n.ThreadId, InputKey = n.Key, Status = n.Status, PayloadJson = UsharpValueJson.ToPayloadText(n.Payload), CreatedAt = n.CreatedAt })
             .ToList();
 
     public async Task<IReadOnlyList<EventRecord>> ListEventsAsync(string? threadId = null, long? afterId = null, int limit = 100, CancellationToken ct = default)
         => (await Query(NodeTypes.Event, threadId, afterId, limit, ct).ConfigureAwait(false))
-            .Select(n => new EventRecord { Id = n.Id, ThreadId = n.ThreadId, EventType = n.Status, EventKey = n.Key, PayloadJson = n.PayloadJson, CreatedAt = n.CreatedAt })
+            .Select(n => new EventRecord { Id = n.Id, ThreadId = n.ThreadId, EventType = n.Status, EventKey = n.Key, PayloadJson = UsharpValueJson.ToPayloadText(n.Payload), CreatedAt = n.CreatedAt })
             .ToList();
 
     private async Task<long> Insert(string nodeType, string? threadId, string? key, string? status, string payloadJson, string? createdAt, CancellationToken ct)

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -28,7 +29,7 @@ public sealed class NodeConfigStore : IConfigStore
     public async Task<string?> GetAsync(string key, CancellationToken ct = default)
     {
         var node = await _nodes.GetAsync(NodeKeyOf(key), ct).ConfigureAwait(false);
-        return node?.PayloadJson;
+        return node is null ? null : UsharpValueJson.ToPayloadText(node.Payload);
     }
 
     public Task SetAsync(string key, string value, CancellationToken ct = default)
@@ -54,7 +55,7 @@ public sealed class NodeConfigStore : IConfigStore
                 else
                     continue;
             }
-            map[configKey] = n.PayloadJson ?? string.Empty;
+            map[configKey] = UsharpValueJson.ToPayloadText(n.Payload);
         }
         return map;
     }

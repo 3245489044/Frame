@@ -26,7 +26,7 @@ public sealed class NodeProjectionService
         {
             if (limit > 0 && result.Candidates.Count >= limit) break;
             var node = await NodeRecordResolver.ResolveAsync(_nodes, workflowId, item.NodeKey, ct).ConfigureAwait(false);
-            var size = node?.PayloadJson?.Length ?? 0;
+            var size = node is null ? 0 : Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(node.Payload).Length;
             result.Candidates.Add(new CandidateItem
             {
                 NodeKey = item.NodeKey,

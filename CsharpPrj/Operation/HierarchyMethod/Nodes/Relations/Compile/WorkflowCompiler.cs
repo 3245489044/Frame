@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Modules.Node.Spec;
-using Operation.DataStoreDriven.Abstractions;
+using Modules.Node.Relations;
 using Operation.DataStoreDriven.ReferenceSchema;
 using Operation.HierarchyMethod.Nodes.Circuit;
 using Operation.HierarchyMethod.Nodes.Execution;

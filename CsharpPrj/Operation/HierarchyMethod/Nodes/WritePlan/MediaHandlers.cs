@@ -52,7 +52,7 @@ public sealed class NodeStoreMediaHandler : WriteMediaHandlerBase
             ThreadId = isObject ? Str(payload, "threadId") : null,
             Key = isObject ? Str(payload, "key") : null,
             Status = (isObject ? Str(payload, "status") : null) ?? "executed",
-            PayloadJson = isObject ? NodeOutputCodec.EncodeExternal(payload.GetRawText(), nodeKey) : "{}",
+            Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(isObject ? NodeOutputCodec.EncodeExternal(payload.GetRawText(), nodeKey) : "{}"),
         };
         await _nodes.PutAsync(record, ct).ConfigureAwait(false);
     }

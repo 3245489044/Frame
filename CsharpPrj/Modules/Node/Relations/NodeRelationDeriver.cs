@@ -1,23 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Operation.DataStoreDriven.Abstractions;
-
-namespace Operation.DataStoreDriven.Core;
+namespace Modules.Node.Relations;
 
 /// <summary>
 /// 节点关系边推导器（唯一边推导器，R1：节点关系边 = project(映射, 溯源)）。
 /// 从「映射存在性 + 溯源（参数键 ← 上游节点输出端口）」推导 <see cref="NodeRelationType.KeyMappingToNode"/>
 /// 与 <see cref="NodeRelationType.NodeToNode"/> 边，复用 <see cref="NodeRelationFactory"/> 构造端点 Id（不新造 Id 语义）。
-/// 业务/执行代码只提供「来源」（映射 / 溯源），不手写边（对齐公理 DerivedDataAutoMaintenance，见 Agent/Axioms）。
-/// 消费方：<c>NodeExecutionService.PersistNodeReferencesAsync</c> 在节点执行后经本推导器产出边，再由引用守卫统一写入；
+/// 业务/执行代码只提供「来源」（映射 / 溯源），不手写边（对齐公理 DerivedDataAutoMaintenance）。
+/// 消费方：上层执行服务在节点执行后经本推导器产出边，再由引用守卫统一写入；
+/// 关系状态 JSON 的序列化/反解依赖宿主序列化设施，由上层伴生编解码类承载（框架不持 JSON 序列化）。
 /// </summary>
 public static class NodeRelationDeriver
 {
     /// <summary>
     /// 节点关系状态（边的权威来源）：「映射存在性 + 溯源」。
-    /// 随业务节点记录持久化（<see cref="NodeRecord.RelationsJson"/>），供对账（<c>ReferenceGrounding.WriteRelationsAsync</c> /
-    /// <c>NodeGraphReconciler.ReconcileAllAsync</c>）在任意修改/全量同步时重推导权威边，无需重跑执行。
+    /// 随业务节点记录持久化（节点记录的 RelationsJson 字段），供对账在任意修改/全量同步时重推导权威边，无需重跑执行。
     /// 溯源用 <see cref="ProvenanceRef"/> DTO 承载（System.Text.Json 可稳定往返，不用 ValueTuple）。
     /// </summary>
     public sealed class NodeRelationState
@@ -45,7 +40,7 @@ public static class NodeRelationDeriver
 
     /// <summary>
     /// 依溯源逐条推导 NodeToNode 数据流组合边（上游节点输出端口 → 下游节点输入端口）。
-    /// <paramref name="provenance"/> 为「参数键 ← (源节点, 源端口)」映射（NodeInputResolution.Provenance 的通用投影）。
+    /// <paramref name="provenance"/> 为「参数键 ← (源节点, 源端口)」映射（执行期溯源的通用投影）。
     /// </summary>
     public static IEnumerable<NodeRelation> DeriveNodeToNodeEdges(
         string workflowId, string toNode,
@@ -93,28 +88,6 @@ public static class NodeRelationDeriver
         }
     }
 
-    /// <summary>把「映射存在性 + 溯源」序列化为节点关系状态 JSON（持久化到 <see cref="NodeRecord.RelationsJson"/>）。</summary>
-    public static string SerializeRelations(bool hasMapping,
-        IEnumerable<KeyValuePair<string, (string Node, string Port)>>? provenance)
-    {
-        var prov = new Dictionary<string, ProvenanceRef>(StringComparer.Ordinal);
-        if (provenance != null)
-            foreach (var kv in provenance)
-                prov[kv.Key] = new ProvenanceRef { Node = kv.Value.Node, Port = kv.Value.Port };
-        return PersistenceJson.Serialize(new NodeRelationState { HasMapping = hasMapping, Provenance = prov });
-    }
-
-    /// <summary>从持久化的节点关系状态 JSON 重推导权威边全集；空/非法 JSON → 空集（对账即收敛为空）。</summary>
-    public static IReadOnlyList<NodeRelation> DeriveEdgesFromRelationsJson(string workflowId, string nodeKey, string? relationsJson)
-    {
-        if (string.IsNullOrWhiteSpace(relationsJson)) return Array.Empty<NodeRelation>();
-        var state = PersistenceJson.TryDeserialize<NodeRelationState>(relationsJson);
-        if (state is null) return Array.Empty<NodeRelation>();
-        var provenance = state.Provenance
-            .Select(kv => new KeyValuePair<string, (string Node, string Port)>(kv.Key, (kv.Value.Node, kv.Value.Port)));
-        return DeriveEdgesForNode(workflowId, nodeKey, state.HasMapping, provenance);
-    }
-
     /// <summary>从一条声明关系推导边（G3 主动声明；声明即权威，图库永不比 SQL 多出未声明关系）。仅 active 声明产生边。
     /// 端点 Id 以声明记录的 ResourceType + Id 为准（预声明可指向尚未执行的节点，不依赖执行溯源）。</summary>
     public static NodeRelation? DeriveEdgeFromDeclaration(string workflowId, RelationDeclaration declaration)
@@ -158,8 +131,8 @@ public static class NodeRelationDeriver
     /// 推导工作流「组合 + 控制流」静态引用边（模板粒度，一次推导即常驻）：
     ///  · <c>Owns</c>：workflow 资源（Id=workflowId）→ 每个步骤节点（组合：工作流包含步骤）
     ///  · <c>Calls</c>：步骤 i → 步骤 i+1（控制流：上一步骤执行后进入下一步骤，依 RoundSpec 主路径线性序）
-    /// 产出 <see cref="StaticReference"/>（原始 (src,tgt,refType) 三元组），供守卫
-    /// <c>ReferenceGrounding.WriteStaticReferencesAsync</c> 幂等写入引用图；端点 Id 复用 <see cref="NodeRelationFactory"/>。
+    /// 产出 <see cref="StaticReference"/>（原始 (src,tgt,refType) 三元组），供上层守卫幂等写入引用图；
+    /// 端点 Id 复用 <see cref="NodeRelationFactory"/>。
     /// 注意：控制流边不落入 <see cref="NodeRelationType"/>（KeyMappingToNode/NodeToNode）两类数据流/归属边，
     /// 与 <see cref="DeriveEdgesForNode"/> 的权威边集互不干扰（走独立的静态引用写路径）。
     /// </summary>

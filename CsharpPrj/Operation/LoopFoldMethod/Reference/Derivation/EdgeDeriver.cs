@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Operation.DataStoreDriven.Abstractions;
+using Modules.Node.Relations;
 using Operation.DataStoreDriven.Core;
 using Operation.LoopFoldMethod.Reference.Model;
 
@@ -44,7 +44,7 @@ public static class EdgeDeriver
     /// <summary>把「映射存在性 + 溯源」序列化为节点关系状态 JSON（委托 <see cref="NodeRelationDeriver"/>）。</summary>
     public static string SerializeRelations(
         bool hasMapping, IEnumerable<KeyValuePair<string, (string Node, string Port)>>? provenance)
-        => NodeRelationDeriver.SerializeRelations(hasMapping, provenance);
+        => RelationStateCodec.SerializeRelations(hasMapping, provenance);
 
     /// <summary>静态引用（DataStoreDriven）→ 中立引用边（Reference）。</summary>
     private static ReferenceEdge ToEdge(StaticReference r) => new(r.RefType, r.SourceId, r.TargetId);

@@ -486,7 +486,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             {
                 var existing = await _nodes.GetAsync(node.NodeKey, ct).ConfigureAwait(false);
                 var payload = existing != null
-                    ? global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.DecodeBusiness(existing.PayloadJson)
+                    ? global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.DecodeBusiness(Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(existing.Payload))
                     : new global::Operation.HierarchyMethod.Nodes.BusinessNodePayload();
                 payload.Symbol = node.Symbol;
                 await _nodes.PutAsync(new NodeRecord
@@ -495,8 +495,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     NodeType = NodeTypes.Node,
                     ThreadId = _workflowId,
                     Status = "executed",
-                    PayloadJson = global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.EncodeBusiness(payload),
-                    RelationsJson = relationsJson,
+                    Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.EncodeBusiness(payload)),
+                    Relations = string.IsNullOrWhiteSpace(relationsJson) ? null : Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(relationsJson),
                 }, ct).ConfigureAwait(false);
             }
 

@@ -1,5 +1,6 @@
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Topology;
+using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Nodes;
 using UniversalWorkflowFramework.Core.Models;

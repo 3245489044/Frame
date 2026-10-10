@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -28,6 +29,6 @@ public sealed class NodeKeyMappingStore : IKeyMappingStore
             NodeKey = KeyMappingKeys.StoreNodeKey(category, key),
             NodeType = NodeTypes.KeyMapping,
             Key = KeyMappingKeys.StoreKey(category, key),
-            PayloadJson = valueJson ?? "{}",
+            Payload = UsharpValueJson.ParseOrString(valueJson ?? "{}"),
         }, ct);
 }

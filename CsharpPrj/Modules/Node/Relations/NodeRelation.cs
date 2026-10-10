@@ -1,0 +1,88 @@
+namespace Modules.Node.Relations;
+
+/// <summary>
+/// 节点关系类别（图数据库存"节点之间的关系"的两类语义）：
+/// <list type="bullet">
+///   <item><see cref="KeyMappingToNode"/>：KeyMapping ↔ 节点（某映射属于某节点 / 映射到某节点端口）</item>
+///   <item><see cref="NodeToNode"/>：节点 ↔ 节点（上游节点输出端口 → 下游节点输入端口的数据流组合边）</item>
+/// </list>
+/// </summary>
+public enum NodeRelationType
+{
+    KeyMappingToNode,
+    NodeToNode,
+}
+
+/// <summary>
+/// 一条节点关系（有向边）。端点为通用资源三元组（资源类型 + Id），
+/// 由 <see cref="NodeRelationFactory"/> 按类别构造（节点/KeyMapping/快照任务池资源）。
+/// </summary>
+public sealed class NodeRelation
+{
+    public NodeRelationType Type { get; init; }
+
+    public string SourceResourceType { get; init; } = NodeResourceTypes.Node;
+
+    public string SourceId { get; init; } = string.Empty;
+
+    public string TargetResourceType { get; init; } = NodeResourceTypes.Node;
+
+    public string TargetId { get; init; } = string.Empty;
+
+    /// <summary>上游/源端输出端口（NodeToNode 数据流边）。</summary>
+    public string? SourcePort { get; init; }
+
+    /// <summary>下游/目标端输入端口（NodeToNode 数据流边）。</summary>
+    public string? TargetPort { get; init; }
+
+    /// <summary>关联的 KeyMapping 存储键（三库收敛后指向节点库承载的分类键，KeyMapping↔节点 关系的载荷）。</summary>
+    public string? KeyMappingRef { get; init; }
+
+    public double Strength { get; init; } = 1.0;
+}
+
+/// <summary>节点关系端点资源类型常量（**别名门面**，A1）：字面量唯一源 = <see cref="ReferenceTypes"/>。</summary>
+public static class NodeResourceTypes
+{
+    /// <summary>节点资源类型。</summary>
+    public const string Node = ReferenceTypes.Node;
+
+    /// <summary>键映射资源类型。</summary>
+    public const string KeyMapping = ReferenceTypes.KeyMapping;
+
+    /// <summary>任务资源类型（task 镜像，补全关联缺口；taskKey 作为图资源 Id）。</summary>
+    public const string Task = ReferenceTypes.Task;
+
+    /// <summary>会话根资源类型（方案 C：会话图子图锚点；Id = "session.{name}"）。</summary>
+    public const string Session = ReferenceTypes.Session;
+
+    /// <summary>历史 class 容器资源类型（History=Task 更上层的容器，Id = "history.{historyId}"）。</summary>
+    public const string History = ReferenceTypes.History;
+
+    /// <summary>工作流资源类型（工作流控制流/组合边的源端点；Id = workflowId，对齐 DSL [Node] workflow）。</summary>
+    public const string Workflow = ReferenceTypes.Workflow;
+}
+
+/// <summary>工作流静态引用类型常量（**别名门面**，A1）：字面量唯一源 = <see cref="ReferenceTypes"/>；
+/// 对齐 DSL <c>[Edge] Calls</c> / <c>[Edge] Owns</c>。命名说明：<c>DependsOn</c> 为**工作流静态依赖边**类型，
+/// 与 <c>WritePlanModel.WriteWork.WriteWork.DependsOn</c>（计划内前序依赖 Id 集合，非边类型）无关联。</summary>
+public static class WorkflowReferenceTypes
+{
+    /// <summary>控制流：上一步骤调用下一步骤（node → node，按 RoundSpec 主路径线性序）。</summary>
+    public const string Calls = ReferenceTypes.Calls;
+
+    /// <summary>组合：工作流包含步骤（workflow → node）。</summary>
+    public const string Owns = ReferenceTypes.Owns;
+
+    /// <summary>跨工作流可见性边界（对齐 public 成员）：导出节点对其它工作流可见（workflow → node）。</summary>
+    public const string Exports = ReferenceTypes.Exports;
+
+    /// <summary>工作流模板继承（对齐类继承 is-a）：派生工作流 → 基类工作流（workflow → workflow）。</summary>
+    public const string Inherits = ReferenceTypes.Inherits;
+
+    /// <summary>接口实现（对齐 C# interface）：工作流声明实现某端口契约（workflow → contract）。</summary>
+    public const string Implements = ReferenceTypes.Implements;
+
+    /// <summary>编译期依赖（对齐 using）：显式声明上下文依赖（workflow → resource）。</summary>
+    public const string DependsOn = ReferenceTypes.DependsOn;
+}

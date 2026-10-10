@@ -14,13 +14,29 @@ namespace Plate.DslMethod.Usharp;
 /// </summary>
 public static class UsharpValueJson
 {
-    /// <summary>JSON 文本 → 中立 USharp 值（空/非法 ⇒ null 标量）。</summary>
+    /// <summary>JSON 文本 → 中立 USharp 值（空/非法 ⇒ <see cref="UsharpScalar.Null"/>；**抛出**非法 JSON）。</summary>
     public static UsharpValue Parse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return UsharpScalar.Null;
         using var doc = JsonDocument.Parse(json);
         return FromElement(doc.RootElement);
     }
+
+    /// <summary>兼容读：JSON 文本 → 中立值；空 ⇒ <see cref="UsharpScalar.Null"/>，非法 ⇒ 原样字符串标量（不透明文本保留）。</summary>
+    public static UsharpValue ParseOrString(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return UsharpScalar.Null;
+        try { return Parse(json); }
+        catch (JsonException) { return UsharpScalar.Str(json); }
+    }
+
+    /// <summary>载荷的 JSON 文本视图（对外兼容读出）：字符串标量 ⇒ 原样文本；记录/列表/其余标量 ⇒ JSON 渲染；null ⇒ <c>"{}"</c>。</summary>
+    public static string ToPayloadText(UsharpValue? value) => value switch
+    {
+        null => "{}",
+        UsharpScalar { Kind: UsharpScalarKind.String } s => s.Text,
+        _ => ToJson(value),
+    };
 
     /// <summary>中立 USharp 值 → JSON 文本（紧凑、无多余空白；键序 = 记录序）。</summary>
     public static string ToJson(UsharpValue? value)

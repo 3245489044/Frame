@@ -46,6 +46,9 @@ public static class UsharpPrefixes
         // 数据层语言单元（数据即声明）：表结构 / 记录载荷
         new(UsharpLanguage.TablePrefix,  DslSymbolKind.Table,  "Table"),
         new(UsharpLanguage.RecordPrefix, DslSymbolKind.Record, "Record"),
+        // 配置/规则语言单元（L5 配置面）：配置项 / 规则（条件→动作）
+        new(UsharpLanguage.ConfigPrefix, DslSymbolKind.Config, "Config"),
+        new(UsharpLanguage.RulePrefix,   DslSymbolKind.Rule,   "Rule"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

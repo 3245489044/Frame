@@ -31,13 +31,13 @@ public static class ZoneNodeAdapter
             ThreadId = threadId,
             Key = key,
             Status = status,
-            PayloadJson = payloadJson ?? "{}",
-            RelationsJson = relJson,
+            Payload = UsharpValueJson.ParseOrString(payloadJson ?? "{}"),
+            Relations = string.IsNullOrWhiteSpace(relJson) ? null : UsharpValueJson.ParseOrString(relJson),
             CreatedAt = createdAt,
         };
 
     /// <summary>配置即数据行节点构造（config.{key}，Key=配置键，Payload=配置值**不透明字符串**标量）。
-    /// 配置值为任意文本（非 JSON）⇒ 以 USharp 字符串标量承载，读回经 <see cref="NodeRecord.PayloadJson"/> 原样还原。</summary>
+    /// 配置值为任意文本（非 JSON）⇒ 以 USharp 字符串标量承载，读回经 <c>UsharpValueJson.ToPayloadText</c> 原样还原。</summary>
     public static NodeRecord BuildConfig(string key, string value)
         => new()
         {
@@ -56,6 +56,6 @@ public static class ZoneNodeAdapter
             ThreadId = threadId,
             Key = ns + "." + checkpointId,
             Status = status,
-            PayloadJson = payloadJson,
+            Payload = UsharpValueJson.ParseOrString(payloadJson),
         };
 }

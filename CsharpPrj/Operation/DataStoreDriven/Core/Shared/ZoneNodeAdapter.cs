@@ -1,5 +1,6 @@
 using System;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -35,14 +36,15 @@ public static class ZoneNodeAdapter
             CreatedAt = createdAt,
         };
 
-    /// <summary>配置即数据行节点构造（config.{key}，Key=配置键，PayloadJson=配置值原样字符串）。</summary>
+    /// <summary>配置即数据行节点构造（config.{key}，Key=配置键，Payload=配置值**不透明字符串**标量）。
+    /// 配置值为任意文本（非 JSON）⇒ 以 USharp 字符串标量承载，读回经 <see cref="NodeRecord.PayloadJson"/> 原样还原。</summary>
     public static NodeRecord BuildConfig(string key, string value)
         => new()
         {
             NodeKey = NodeKeyPrefix.BuildConfig(key),
             NodeType = NodeTypes.Config,
             Key = key,
-            PayloadJson = value ?? string.Empty,
+            Payload = UsharpScalar.Str(value ?? string.Empty),
         };
 
     /// <summary>checkpoint 节点构造（checkpoint.{threadId}.{ns}.{checkpointId}，Key=&lt;ns&gt;.&lt;checkpointId&gt;，Status=Step）。</summary>

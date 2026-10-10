@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Abstractions;
 
@@ -35,13 +36,40 @@ public sealed class NodeRecord
     /// 随节点文档持久化；框架层不解释其语义，仅中立承载，值由 Agent 层在决策信号化时填充。</summary>
     public string? Decision { get; set; }
 
-    /// <summary>节点载荷（任意 JSON）。</summary>
-    public string PayloadJson { get; set; } = "{}";
+    /// <summary>节点载荷（**中立 USharp 值**：记录/列表/标量）。路线 B 数据内核原生表示——存储真源唯一形态。</summary>
+    public UsharpValue? Payload { get; set; }
 
-    /// <summary>[已退役·G4] 节点关系状态 JSON（HasMapping + Provenance）。
-    /// 关系权威已归属引用库（D3/D4）：边由 USharp 声明构建、写经 <c>ReferenceGraphOutbox</c> 补偿，
-    /// 节点不再承载关系逻辑（不可从 nodes 重建）。本字段保留仅为旧数据读兼容，写侧逐步不再产出。</summary>
-    public string? RelationsJson { get; set; }
+    /// <summary>[已退役·G4] 节点关系状态（**中立 USharp 值**）。关系权威已归属引用库（D3/D4）。
+    /// 仅旧数据读兼容，写侧逐步不再产出。</summary>
+    public UsharpValue? Relations { get; set; }
+
+    /// <summary>[兼容 API·B-3] 节点载荷的 JSON 文本视图（**计算属性**，非存储字段）：
+    /// 字符串标量（配置值等不透明文本）⇒ 原样返回；记录/列表/其余标量 ⇒ JSON 渲染。写入即解析为 <see cref="Payload"/>。</summary>
+    public string PayloadJson
+    {
+        get => Payload switch
+        {
+            null => "{}",
+            UsharpScalar { Kind: UsharpScalarKind.String } s => s.Text,
+            _ => UsharpValueJson.ToJson(Payload),
+        };
+        set => Payload = ParseCompat(value);
+    }
+
+    /// <summary>[兼容 API·B-3] 节点关系状态的 JSON 文本视图（**计算属性**，非存储字段）。</summary>
+    public string? RelationsJson
+    {
+        get => Relations is null ? null : UsharpValueJson.ToJson(Relations);
+        set => Relations = ParseCompat(value);
+    }
+
+    /// <summary>兼容读：JSON 文本 → 中立值；非法 JSON ⇒ 视为不透明字符串标量（原样保留）。</summary>
+    private static UsharpValue? ParseCompat(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return UsharpValueJson.Parse(json); }
+        catch { return UsharpScalar.Str(json); }
+    }
 
     /// <summary>首次写入时间（UTC ISO-8601，随 Json 持久化；幂等覆写保留）。</summary>
     public string? CreatedAt { get; set; }

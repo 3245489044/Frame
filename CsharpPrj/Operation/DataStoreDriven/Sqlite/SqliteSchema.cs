@@ -34,14 +34,15 @@ public sealed class SqliteSchema : IDbSchemaInitializer
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // ② 状态集合 ur_tasks：真源列 [Doc]（文本，经 IDocumentCodec；注入 USharp codec ⇒ USharp）+ 派生索引列 [IndexJson]（JSON，供 json_extract）
-        //    ——与 ur_nodes 同构，统一承载快照根 / 任务池条目 / 会话快照（任务 = 状态根）。
-        // ThreadId/SessionId/Status/Priority/MaxRetries/CreatedAt/UpdatedAt 全部随文档持久化（过滤由 json_extract([IndexJson]) 支撑）。
-        // 旧版 ThreadId/SessionId/SnapshotJson 四列 / 旧 KvJson 三列结构由 SqliteTaskPoolStore 初始化时统一迁移收敛（SingleImplementation）。
-        // 表结构声明源（USharp [Table]）优先；缺件回落手写 KvDocumentTable.SchemaColumns（零行为变更）。
+        // ② 状态集合 ur_tasks：**纯 USharp 三列** [Id]/[NodeKey]/[Doc]（与 ur_nodes 同构），
+        //    真源 [Doc] = [Record] 实例规范文本（经 IDocumentCodec；注入 USharp codec ⇒ USharp）。
+        //    ThreadId/SessionId/Status/Priority/MaxRetries/CreatedAt/UpdatedAt 全部随文档持久化；
+        //    过滤/排序/CAS 经 usharp_get([Doc],'$.<field>') 表达式索引在 SQL 侧下推（集中式转换层 §1.6）。
+        // 旧版四列 / 旧 KvJson 三列 / 四列 [IndexJson] 结构由各 Store 初始化时统一收敛（MigrateToPure）。
+        // 表结构声明源（USharp [Table]）优先；缺件回落手写 KvUsharpTable.SchemaColumns（零行为变更）。
         var declared = _schemaSource?.GetColumns(TableNames.Tasks) ?? _schemaSource?.GetColumns("tasks");
         _executor.ExecuteNonQuery(declared is null
-            ? KvDocumentTable.CreateSql(TasksTable)
+            ? KvUsharpTable.CreateSql(TasksTable)
             : PersistenceHelper.CreateTableSql(TasksTable, declared.ToArray()));
         return Task.CompletedTask;
     }

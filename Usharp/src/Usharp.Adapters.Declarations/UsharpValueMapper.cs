@@ -1,9 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
+using Plate.DslMethod.Usharp;
 using Usharp.Syntax;
 
 namespace Usharp.Adapters.Declarations;
@@ -18,6 +21,77 @@ namespace Usharp.Adapters.Declarations;
 /// </summary>
 public static class UsharpValueMapper
 {
+    // ===== 成员计划缓存（每类型编译一次的委托；运行时零逐次反射调用）=====
+
+    private static readonly ConcurrentDictionary<Type, TypePlan> Plans = new();
+
+    private sealed class TypePlan
+    {
+        public ConstructorInfo? Ctor;
+        public ParameterInfo[]? CtorParams;
+        public MemberPlan[] Members = Array.Empty<MemberPlan>();
+        public readonly Dictionary<string, MemberPlan> ByName = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class MemberPlan
+    {
+        public string Name = string.Empty;
+        public Type Type = typeof(object);
+        public Func<object, object?>? Get;
+        public Action<object, object?>? Set;
+    }
+
+    private static TypePlan GetPlan(Type type) => Plans.GetOrAdd(type, BuildPlan);
+
+    /// <summary>构建类型计划：属性 getter/setter 编译为委托（Expression.Lambda.Compile），并缓存。</summary>
+    private static TypePlan BuildPlan(Type type)
+    {
+        var plan = new TypePlan
+        {
+            Ctor = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null),
+        };
+
+        // 位置记录（record 主构造，无参构造）：取参数最多的公共构造，按参数名从记录字段绑定。
+        if (plan.Ctor is null)
+        {
+            var ctor = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .OrderByDescending(c => c.GetParameters().Length)
+                .FirstOrDefault(c => c.GetParameters().Length > 0);
+            if (ctor is not null) { plan.Ctor = ctor; plan.CtorParams = ctor.GetParameters(); }
+        }
+
+        var members = new List<MemberPlan>();
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (prop.GetIndexParameters().Length != 0) continue;
+
+            var mp = new MemberPlan { Name = prop.Name, Type = prop.PropertyType };
+
+            if (prop.GetGetMethod(nonPublic: false) is not null)
+            {
+                var o = Expression.Parameter(typeof(object), "o");
+                var body = Expression.Convert(Expression.Property(Expression.Convert(o, type), prop), typeof(object));
+                mp.Get = Expression.Lambda<Func<object, object?>>(body, o).Compile();
+            }
+
+            if (prop.GetSetMethod(nonPublic: false) is not null)
+            {
+                var o = Expression.Parameter(typeof(object), "o");
+                var v = Expression.Parameter(typeof(object), "v");
+                var assign = Expression.Assign(
+                    Expression.Property(Expression.Convert(o, type), prop),
+                    Expression.Convert(v, prop.PropertyType));
+                mp.Set = Expression.Lambda<Action<object, object?>>(assign, o, v).Compile();
+            }
+
+            members.Add(mp);
+            plan.ByName[prop.Name] = mp;
+        }
+
+        plan.Members = members.ToArray();
+        return plan;
+    }
+
     /// <summary>任意 CLR 对象 → USharp 数据值。</summary>
     public static UsharpValue ToValue(object? value)
     {
@@ -67,13 +141,14 @@ public static class UsharpValueMapper
 
     private static UsharpRecord ObjectToRecord(object value)
     {
-        var fields = new List<KeyValuePair<string, UsharpValue>>();
-        foreach (var p in value.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        var plan = GetPlan(value.GetType());
+        var fields = new List<KeyValuePair<string, UsharpValue>>(plan.Members.Length);
+        foreach (var m in plan.Members)
         {
-            if (!p.CanRead || p.GetIndexParameters().Length != 0) continue;
-            var pv = p.GetValue(value);
+            if (m.Get is null) continue;
+            var pv = m.Get(value);
             if (pv is null) continue; // null 不写出（与旧 WhenWritingNull 口径一致）
-            fields.Add(new(p.Name, ToValue(pv)));
+            fields.Add(new(m.Name, ToValue(pv)));
         }
         return new UsharpRecord(fields);
     }
@@ -84,7 +159,7 @@ public static class UsharpValueMapper
     public static T? ToObject<T>(UsharpValue value)
     {
         var converted = ToObject(value, typeof(T));
-        return converted is null ? default : (T)converted;
+        return converted is T typed ? typed : default;
     }
 
     /// <summary>USharp 数据值 → 指定类型实例（尽力映射；不可映射 ⇒ null）。</summary>
@@ -182,18 +257,35 @@ public static class UsharpValueMapper
         if (target == typeof(object) || target.IsAbstract || target.IsInterface)
             return RecordToDictionary(record);
 
-        var instance = Activator.CreateInstance(target);
-        if (instance is null) return RecordToDictionary(record);
+        var plan = GetPlan(target);
+        if (plan.Ctor is null) return RecordToDictionary(record);
 
-        var props = target.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        foreach (var f in record.Fields)
+        // 无参构造：逐属性注入。
+        if (plan.CtorParams is null or { Length: 0 })
         {
-            var prop = props.FirstOrDefault(p => p.CanWrite &&
-                (string.Equals(p.Name, f.Key, StringComparison.Ordinal) || string.Equals(p.Name, f.Key, StringComparison.OrdinalIgnoreCase)));
-            if (prop is null) continue;
-            prop.SetValue(instance, ToObject(f.Value, prop.PropertyType));
+            var instance = plan.Ctor.Invoke(null);
+            if (instance is null) return RecordToDictionary(record);
+            foreach (var f in record.Fields)
+            {
+                if (!plan.ByName.TryGetValue(f.Key, out var m) || m.Set is null) continue;
+                m.Set(instance, ToObject(f.Value, m.Type));
+            }
+            return instance;
         }
-        return instance;
+
+        // 位置记录：按参数名从记录字段绑定后经构造注入。
+        var ctorArgs = new object?[plan.CtorParams.Length];
+        for (var i = 0; i < plan.CtorParams.Length; i++)
+        {
+            var p = plan.CtorParams[i];
+            foreach (var f in record.Fields)
+            {
+                if (!string.Equals(f.Key, p.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                ctorArgs[i] = ToObject(f.Value, p.ParameterType);
+                break;
+            }
+        }
+        return plan.Ctor.Invoke(ctorArgs) ?? (object)RecordToDictionary(record);
     }
 
     private static Dictionary<string, object?> RecordToDictionary(UsharpRecord record)

@@ -1,6 +1,7 @@
 using System.Text;
+using System.Text.Json.Serialization;
 
-namespace Usharp.Syntax;
+namespace Plate.DslMethod.Usharp;
 
 /// <summary>USharp 数据层标量种类。</summary>
 public enum UsharpScalarKind
@@ -14,8 +15,10 @@ public enum UsharpScalarKind
 
 /// <summary>
 /// USharp 数据层值模型（「声明 + 数据」双用语言的**数据半边**）。
-/// 与声明层（<c>[Space]</c>/<c>[Matrix]</c>/…）正交：本模型只承载 标量/列表/记录，不参与空间/矩阵语义。
+/// <para>路线 B：本模型下沉至中立库（<c>Plate.DslMethod</c>），成为**全局通用数据表示**——
+/// 存储层与节点层可直接承载 USharp 值，删除中立 JSON 边界。</para>
 /// </summary>
+[JsonConverter(typeof(UsharpValueConverter))]
 public abstract record UsharpValue
 {
     /// <summary>规范形文本（写盘 / 对拍 / diff 的**单一来源**）。</summary>

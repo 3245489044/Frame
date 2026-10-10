@@ -49,8 +49,8 @@ public sealed class InMemoryNodeStore : INodeStore
                 existing.ThreadId = node.ThreadId;
                 existing.Key = node.Key;
                 existing.Status = node.Status;
-                existing.PayloadJson = node.PayloadJson ?? "{}";
-                existing.RelationsJson = node.RelationsJson;
+                existing.Payload = node.Payload;
+                existing.Relations = node.Relations;
                 existing.UpdatedAt = PersistenceHelper.NowIso();
                 return Task.FromResult(existing.Id);
             }
@@ -63,8 +63,8 @@ public sealed class InMemoryNodeStore : INodeStore
                 ThreadId = node.ThreadId,
                 Key = node.Key,
                 Status = node.Status,
-                PayloadJson = node.PayloadJson ?? "{}",
-                RelationsJson = node.RelationsJson,
+                Payload = node.Payload,
+                Relations = node.Relations,
                 CreatedAt = PersistenceHelper.NowIso(),
             });
             return Task.FromResult(id);

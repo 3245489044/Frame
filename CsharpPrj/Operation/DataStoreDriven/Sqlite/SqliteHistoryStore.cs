@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Share.Conversation;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Core;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
@@ -15,20 +13,25 @@ namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
 /// SQLite 会话历史容器存储（ur_histories 表）—— 以 <see cref="ConversationLog"/> 为统一存储模型。
-/// 真源列 <c>[Doc]</c>（文本，经 <see cref="IDocumentCodec"/> 编解码，注入 USharp codec ⇒ USharp 文本）
-/// + 派生索引列 <c>[IndexJson]</c>（JSON，供 <c>json_extract</c>）；NodeKey = 会话 ID 全局唯一。
-/// 文档 = 含 ThreadId/SessionId/Conversation 的对象（Conversation = ConversationLog 全量序列化，消息列表 + 累计轮次）。
-/// ThreadId 固定命名空间 "history"（随文档持久化，不再单独成列）。
+/// <para>
+/// 表为**纯 USharp 三列**；真源 <c>[Doc]</c> = <c>[Record] history:&lt;SessionId&gt;: table=Histories | key=&lt;SessionId&gt;</c> 实例规范文本
+/// （ThreadId/SessionId/Conversation 记录字段）；无 <c>[IndexJson]</c>。NodeKey = 会话 ID 全局唯一。
+/// ThreadId 固定命名空间 "history"（随文档持久化）。
+/// </para>
 /// </summary>
 public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
 {
     /// <summary>历史容器状态根的固定 ThreadId 命名空间（随文档持久化；NodeKey = 会话 ID 全局唯一）。</summary>
     public const string HistoryThreadId = "history";
 
+    private const string TableId = "Histories";
+    private const string FieldThreadId = "ThreadId";
+    private const string FieldSessionId = "SessionId";
+    private const string FieldConversation = "Conversation";
+
     private readonly IDocumentCodec _codec;
 
-    /// <summary>注入命令执行器 + 表名（前缀 + <see cref="TableNames.Histories"/>）。
-    /// 编解码缺省 = JSON（零行为变更）；注入 <c>UsharpDocumentCodec</c> ⇒ 文档 USharp 化。</summary>
+    /// <summary>注入命令执行器 + 表名前缀。编解码缺省 = JSON；注入 USharp codec ⇒ 文档 USharp 化。</summary>
     public SqliteHistoryStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null)
         : base(executor, tablePrefix, TableNames.Histories)
     {
@@ -37,57 +40,48 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
 
     public string TableName => Table;
 
-    /// <summary>幂等建表：真源列 <c>[Doc]</c> + 派生索引列 <c>[IndexJson]</c>（与 ur_nodes 同构）。
-    /// 旧版四列 <see cref="MigrateLegacySchema"/> / 旧 KvJson 三列 <see cref="KvDocumentTable.MigrateFromKvJson"/> 自动收敛。</summary>
+    /// <summary>幂等建表：**纯三列** <c>[Id]/[NodeKey]/[Doc]</c>（与 ur_nodes 同构）。
+    /// 旧四列（<c>[IndexJson]</c>）/ 旧 KvJson 三列 / 更老多列按无视删除口径丢弃重建。</summary>
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // 旧版 ThreadId/SessionId/SnapshotJson 四列结构先折入 KvJson 三列（整表重建；仅旧库命中，幂等）。
-        MigrateLegacySchema();
-        // 数据即声明：真源列 [Doc]（USharp 文本）+ 派生索引列 [IndexJson]；旧 KvJson 三列就地迁移。
-        KvDocumentTable.EnsureCreated(Executor, Table);
-        KvDocumentTable.MigrateFromKvJson(Executor, Table);
+        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureCreated(Executor, Table);
         return Task.CompletedTask;
     }
 
-    /// <summary>旧版 ur_histories（ThreadId/SessionId/SnapshotJson 四列，UNIQUE(ThreadId,SessionId)）数据折入 Json 并重建表；仅旧库命中，幂等。
-    /// ThreadId/SessionId 参与旧 UNIQUE 约束不可 DROP COLUMN，故整表重建（NodeKey=SessionId，Json 包为 ThreadId/SessionId/Conversation 对象）。</summary>
-    private void MigrateLegacySchema()
-    {
-        var cols = Query($"PRAGMA table_info([{Table}])");
-        var names = cols.Select(r => SqliteRows.Str(r, "name")).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!names.Contains("ThreadId") && !names.Contains("SnapshotJson"))
-            return; // 已是纯键值表（NodeKey+Json），无需迁移。
-        KvJsonTable.MigrateLegacyToKvJson(Executor, Table,
-            $"SELECT [Id],[SessionId],json_object('ThreadId',[ThreadId],'SessionId',[SessionId],'Conversation',json([SnapshotJson]))");
-    }
-
-    /// <summary>幂等写整条会话日志（会话 ID 维度 upsert）；真源 <c>[Doc]</c> 经 codec，派生 <c>[IndexJson]</c> 为同构 JSON。</summary>
+    /// <summary>幂等写整条会话日志（会话 ID 维度 upsert）；真源 [Doc] = [Record] 实例规范文本。</summary>
     public Task UpsertAsync(string sessionId, ConversationLog log, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(log);
         ct.ThrowIfCancellationRequested();
-        var doc = BuildDoc(sessionId, log.Serialize());
-        var text = _codec.Serialize(doc);
-        // 派生索引列：仅供 json_extract 索引（真源 = [Doc]）。
-        var indexJson = JsonSerializer.Serialize(doc, JsonDocumentCodec.JsonOptions);
-        ExecuteNonQuery(KvDocumentTable.UpsertSql(Table), Params(("k", sessionId), ("d", text), ("ix", indexJson)));
+        var record = new UsharpRecord(new[]
+        {
+            new KeyValuePair<string, UsharpValue>(FieldThreadId, UsharpScalar.Str(HistoryThreadId)),
+            new KeyValuePair<string, UsharpValue>(FieldSessionId, UsharpScalar.Str(sessionId)),
+            new KeyValuePair<string, UsharpValue>(FieldConversation, ParsePayload(log.Serialize())),
+        });
+        var text = _codec.SerializeRecord(RecordId(sessionId), TableId, sessionId, record);
+        ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", sessionId), ("d", text)));
         return Task.CompletedTask;
     }
 
     public Task<ConversationLog?> GetAsync(string sessionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var rows = Query(KvDocumentTable.SelectByKeySql(Table, KvDocumentTable.ColDoc), Params(("k", sessionId)));
+        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", sessionId)));
         if (rows.Count == 0) return Task.FromResult<ConversationLog?>(null);
-        var doc = _codec.Deserialize<HistoryDoc>(SqliteRows.Str(rows[0], "Doc"));
-        return Task.FromResult(doc is null ? null : ConversationLog.Deserialize(doc.Conversation));
+        var doc = SqliteRows.Str(rows[0], "Doc");
+        if (string.IsNullOrWhiteSpace(doc)) return Task.FromResult<ConversationLog?>(null);
+        if (!_codec.TryDeserializeRecord(doc, out _, out _, out _, out var body)) return Task.FromResult<ConversationLog?>(null);
+        if (!body.TryGet(FieldConversation, out var v)) return Task.FromResult<ConversationLog?>(null);
+        return Task.FromResult<ConversationLog?>(ConversationLog.Deserialize(UsharpValueJson.ToJson(v)));
     }
 
     public Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var rows = Query($"SELECT {KvDocumentTable.ColNodeKey} FROM [{Table}] ORDER BY {KvDocumentTable.ColId}");
+        var rows = Query($"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] ORDER BY {KvUsharpTable.ColId}");
         var list = rows
             .Select(r => SqliteRows.Str(r, "NodeKey"))
             .Where(k => !string.IsNullOrWhiteSpace(k))
@@ -98,21 +92,16 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     public Task<bool> DeleteAsync(string sessionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var removed = ExecuteNonQuery(KvDocumentTable.DeleteByKeySql(Table), Params(("k", sessionId)));
+        var removed = ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", sessionId)));
         return Task.FromResult(removed > 0);
     }
 
-    /// <summary>构造历史文档（ThreadId/SessionId/Conversation；Conversation 为消息数组 JSON 文本）。</summary>
-    private static HistoryDoc BuildDoc(string sessionId, string conversationJson)
-        => new() { ThreadId = HistoryThreadId, SessionId = sessionId, Conversation = conversationJson };
+    private static string RecordId(string sessionId) => "history:" + sessionId;
 
-    /// <summary>历史 JSON 文档形态（键名 + 一个 JSON 的载荷部分）。</summary>
-    private sealed class HistoryDoc
+    /// <summary>会话日志 JSON 文本 → 中立值（非法 JSON ⇒ 不透明字符串标量，原样保留）。</summary>
+    private static UsharpValue ParsePayload(string json)
     {
-        public string? ThreadId { get; set; }
-
-        public string? SessionId { get; set; }
-
-        public string? Conversation { get; set; }
+        try { return UsharpValueJson.Parse(json); }
+        catch { return UsharpScalar.Str(json); }
     }
 }

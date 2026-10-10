@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.StorageFramework.Core;
@@ -16,11 +16,13 @@ namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
 /// Sqlite 任务池持久化存储（②状态集合 ur_tasks 单表，实现 <see cref="ITaskPoolPersistence{TItem}"/>）。
-/// 任务 = 状态根：TaskKey 作为 NodeKey（ThreadId 命名空间 "taskpool" 随文档持久化，不再单独成列，与 ur_nodes 同构）。
-/// 真源列 <c>[Doc]</c>（文本，经 <see cref="IDocumentCodec"/> 编解码；注入 USharp codec ⇒ USharp 文本）+ 派生索引列 <c>[IndexJson]</c>（JSON）；
-/// ThreadId/Status/Priority/MaxRetries/__createdAt/__updatedAt 为文档顶层键，过滤由 <c>json_extract([IndexJson])</c> 支撑。
-/// 部分更新（CAS/载荷覆写）走「读改写」（json_* 无法作用于 USharp 文本）。
-/// 任务的相关节点（输入/输出等）经 <see cref="ISnapshotGraphStore"/> 的引用边挂到同一状态根下（任务 = 数据根）。
+/// 任务 = 状态根：TaskKey 作为 NodeKey（ThreadId 命名空间 "taskpool" 随文档持久化）。
+/// <para>
+/// 表为**纯 USharp 三列** <c>[Id]/[NodeKey]/[Doc]</c>；真源 <c>[Doc]</c> =
+/// <c>[Record] task:&lt;TaskKey&gt;: table=Tasks | key=&lt;TaskKey&gt;</c> 实例规范文本（经 <see cref="IDocumentCodec"/>，注入 USharp codec ⇒ USharp）。
+/// ThreadId/Status/__createdAt/__updatedAt 为记录字段（与 TItem 字段扁平同层）；过滤/排序/分页/CAS 经
+/// <c>usharp_get([Doc],'$.&lt;field&gt;')</c> 表达式索引在 SQL 侧下推（集中式转换层，施工单 §1.6）——非内存全表解码。
+/// </para>
 /// </summary>
 public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersistence<TItem>
     where TItem : ITaskPoolItem
@@ -28,46 +30,35 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     /// <summary>任务池状态根的固定 ThreadId 命名空间（随文档持久化；NodeKey=TaskKey 全局唯一）。</summary>
     public const string PoolThreadId = "taskpool";
 
-    private readonly JsonSerializerOptions _jsonOptions;
+    private const string TableId = "Tasks";
+    private const string FieldThreadId = "ThreadId";
+    private const string FieldStatus = "Status";
+    private const string FieldCreatedAt = "__createdAt";
+    private const string FieldUpdatedAt = "__updatedAt";
+
     private readonly IDocumentCodec _codec;
 
+    /// <summary>注入命令执行器 + 表前缀。编解码缺省 = JSON；注入 USharp codec ⇒ 文档 USharp 化。
+    /// <paramref name="jsonOptions"/> 保留以兼容旧装配签名（记录实例路径不再经 System.Text.Json）。</summary>
     public SqliteTaskPoolStore(IDbCommandExecutor executor, string tablePrefix, JsonSerializerOptions? jsonOptions = null, IDocumentCodec? codec = null)
         : base(executor, tablePrefix, TableNames.Tasks)
     {
-        _jsonOptions = jsonOptions ?? PersistenceHelper.JsonOptions;
         _codec = codec ?? JsonDocumentCodec.Instance;
     }
 
     public string TableName => Table;
 
-    /// <summary>幂等建表：真源列 <c>[Doc]</c> + 派生索引列 <c>[IndexJson]</c>（与 ur_nodes 同构）；
-    /// ThreadId/Status/Priority 过滤由 <c>json_extract([IndexJson])</c> 表达式索引支撑。
-    /// 旧版四列 <see cref="MigrateLegacySchema"/> / 旧 KvJson 三列 <see cref="KvDocumentTable.MigrateFromKvJson"/> 自动收敛。</summary>
+    /// <summary>幂等建表：**纯三列** <c>[Id]/[NodeKey]/[Doc]</c>（与 ur_nodes 同构）。
+    /// 旧结构（四列 <c>[IndexJson]</c> / 旧 <c>[Json]</c> / 更老多列）按无视删除口径丢弃重建；
+    /// 过滤/排序键经 <c>usharp_get</c> 表达式索引在 SQL 侧下推。</summary>
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // 旧版 ThreadId/SessionId/SnapshotJson 四列结构先折入 KvJson 三列（整表重建；仅旧库命中，幂等）。
-        MigrateLegacySchema();
-        // 数据即声明：真源列 [Doc]（USharp 文本）+ 派生索引列 [IndexJson]；旧 KvJson 三列就地迁移。
-        KvDocumentTable.EnsureCreated(Executor, Table);
-        KvDocumentTable.MigrateFromKvJson(Executor, Table);
-        // 派生列上的 json_extract 表达式索引（不新增物理列）。
-        KvDocumentTable.EnsureIndexJsonIndex(Executor, Table, "idx_tasks_status", KvJsonTable.Path.Status);
-        KvDocumentTable.EnsureIndexJsonIndex(Executor, Table, "idx_tasks_priority", KvJsonTable.Path.Priority);
+        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureCreated(Executor, Table);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_status", KvJsonTable.Path.Status);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_priority", KvJsonTable.Path.Priority);
         return Task.CompletedTask;
-    }
-
-    /// <summary>旧版 ur_tasks（ThreadId/SessionId/SnapshotJson 四列，UNIQUE(ThreadId,SessionId)）数据折入 Json 并重建表；仅旧库命中，幂等。
-    /// ThreadId/SessionId 参与旧 UNIQUE 约束不可 DROP COLUMN，故整表重建（NodeKey=SessionId，ThreadId/SessionId 折入 Json）。
-    /// 注：迁移后任务池与快照行以 Json 内 ThreadId 键区分（NodeKey 各取自 SessionId，同库共存由 ThreadId 键隔离，查询均按 ThreadId 过滤）。</summary>
-    private void MigrateLegacySchema()
-    {
-        var cols = Query($"PRAGMA table_info([{Table}])");
-        var names = cols.Select(r => SqliteRows.Str(r, "name")).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!names.Contains("ThreadId") && !names.Contains("SnapshotJson"))
-            return; // 已是纯键值表（NodeKey+Json），无需迁移。
-        KvJsonTable.MigrateLegacyToKvJson(Executor, Table,
-            $"SELECT [Id],[SessionId],json_set([SnapshotJson],{KvJsonTable.PathRef(KvJsonTable.Path.ThreadId)},[ThreadId],{KvJsonTable.PathRef(KvJsonTable.Path.SessionId)},[SessionId])");
     }
 
     public Task<long> EnqueueAsync(TItem item, CancellationToken ct = default)
@@ -76,29 +67,27 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ct.ThrowIfCancellationRequested();
         var now = PersistenceHelper.NowIso();
         // 读改写：保留既有 __createdAt（首次写入取 now）；Status 快照驱动取载荷内值，否则状态机初始 NotStarted。
-        var createdAt = ReadDoc(item.TaskKey)?["__createdAt"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(createdAt)) createdAt = now;
+        var existing = ReadEnvelope(item.TaskKey);
+        var createdAt = string.IsNullOrWhiteSpace(existing.CreatedAt) ? now : existing.CreatedAt!;
         var status = item is IStatusAwareTaskPoolItem sa ? sa.Status.ToString() : TaskExecutionStatus.NotStarted.ToString();
-        var doc = BuildDoc(item, createdAt, now, status);
-        var (text, indexJson) = Materialize(doc);
-        var id = InsertReturningId(KvDocumentTable.UpsertSql(Table), Params(("k", item.TaskKey), ("d", text), ("ix", indexJson)));
+        var text = _codec.SerializeRecord(RecordId(item.TaskKey), TableId, item.TaskKey, item, Envelope(status, createdAt, now));
+        var id = InsertReturningId(KvUsharpTable.UpsertSql(Table), Params(("k", item.TaskKey), ("d", text)));
         return Task.FromResult(id);
     }
 
     public Task<IReadOnlyList<TItem>> ListAsync(TaskExecutionStatus status, int limit = 100, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        // 过滤（ThreadId/Status）与优先级排序（CAST 数字）均 SQL 侧下推（usharp_get 表达式）。
         var rows = Query(
-            $"SELECT {KvDocumentTable.ColDoc} FROM [{Table}] WHERE {IndexExtract(KvJsonTable.Path.ThreadId)}=@t AND {IndexExtract(KvJsonTable.Path.Status)}=@s ORDER BY {KvDocumentTable.ColId} ASC",
+            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {Extract(KvJsonTable.Path.ThreadId)}=@t AND {Extract(KvJsonTable.Path.Status)}=@s " +
+            $"ORDER BY CAST({Extract(KvJsonTable.Path.Priority)} AS INTEGER) DESC",
             Params(("t", PoolThreadId), ("s", status.ToString())));
-        // 出队优先级排序经反序列化 item.Priority（文档内同源）；出队语义保持。
         var list = new List<TItem>(rows.Count);
         foreach (var row in rows)
         {
-            var item = Deserialize(row);
-            if (item is not null) list.Add(item);
+            if (TryReadItem(SqliteRows.Str(row, "Doc"), out var item)) list.Add(item!);
         }
-        list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
         return Task.FromResult<IReadOnlyList<TItem>>(list.Take(Math.Max(0, limit)).ToList());
     }
 
@@ -106,30 +95,26 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ct.ThrowIfCancellationRequested();
         var rows = Query(
-            $"SELECT {KvDocumentTable.ColDoc} FROM [{Table}] WHERE {KvDocumentTable.ColNodeKey}=@k AND {IndexExtract(KvJsonTable.Path.ThreadId)}=@t LIMIT 1",
+            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t LIMIT 1",
             Params(("k", taskKey), ("t", PoolThreadId)));
-        return Task.FromResult(rows.Count > 0 ? Deserialize(rows[0]) : default);
+        return Task.FromResult(rows.Count > 0 && TryReadItem(SqliteRows.Str(rows[0], "Doc"), out var item) ? item : default);
     }
 
     public Task<bool> UpdateStatusAsync(string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // 读改写：读真源 [Doc] → 改 Status/__updatedAt → 一次 UPDATE 写回 [Doc]+[IndexJson]；
-        // CAS 原子性由 WHERE 守卫（json_extract([IndexJson],'$.Status')=@from）保证（竞争下不误改）。
-        var doc = ReadDoc(taskKey);
-        if (doc is null) return Task.FromResult(false);
-        doc["Status"] = to.ToString();
-        doc["__updatedAt"] = PersistenceHelper.NowIso();
-        var (text, indexJson) = Materialize(doc);
+        // 读改写：读真源 [Doc] 的对象体与头字段 → 改 Status/__updatedAt → 写回 [Doc]；
+        // CAS 原子性由 WHERE 守卫（usharp_get([Doc],'$.Status')=@from）保证（竞争下不误改，单语句原子）。
+        var text = ReadDocText(taskKey);
+        if (text is null) return Task.FromResult(false);
+        if (!_codec.TryDeserializeRecord<TItem>(text, out var item) || item is null) return Task.FromResult(false);
+        if (!_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return Task.FromResult(false);
+        var createdAt = Str(body, FieldCreatedAt) ?? PersistenceHelper.NowIso();
+        var updated = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(to.ToString(), createdAt, PersistenceHelper.NowIso()));
         var affected = ExecuteNonQuery(
-            $"UPDATE [{Table}] SET {KvDocumentTable.ColDoc}=@d,{KvDocumentTable.ColIndexJson}=@ix " +
-            $"WHERE {KvDocumentTable.ColNodeKey}=@k AND {IndexExtract(KvJsonTable.Path.ThreadId)}=@t AND {IndexExtract(KvJsonTable.Path.Status)}=@from",
-            Params(
-                ("d", text),
-                ("ix", indexJson),
-                ("k", taskKey),
-                ("t", PoolThreadId),
-                ("from", from.ToString())));
+            $"UPDATE [{Table}] SET {KvUsharpTable.ColDoc}=@d " +
+            $"WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t AND {Extract(KvJsonTable.Path.Status)}=@from",
+            Params(("d", updated), ("k", taskKey), ("t", PoolThreadId), ("from", from.ToString())));
         return Task.FromResult(affected > 0);
     }
 
@@ -139,18 +124,13 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ArgumentNullException.ThrowIfNull(item);
         ct.ThrowIfCancellationRequested();
-        // 读改写：读真源 [Doc] 取既有 Status/__createdAt，再以 TItem 序列化覆盖并保留缺省字段。
-        var existing = ReadDoc(taskKey);
-        var status = item is IStatusAwareTaskPoolItem sa
-            ? sa.Status.ToString()
-            : existing?["Status"]?.GetValue<string>() ?? TaskExecutionStatus.NotStarted.ToString();
-        var createdAt = existing?["__createdAt"]?.GetValue<string>() ?? PersistenceHelper.NowIso();
-        var doc = BuildDoc(item, createdAt, PersistenceHelper.NowIso(), status);
-        var (text, indexJson) = Materialize(doc);
+        var existing = ReadEnvelope(taskKey);
+        var status = item is IStatusAwareTaskPoolItem sa ? sa.Status.ToString() : existing.Status ?? TaskExecutionStatus.NotStarted.ToString();
+        var createdAt = existing.CreatedAt ?? PersistenceHelper.NowIso();
+        var text = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(status, createdAt, PersistenceHelper.NowIso()));
         ExecuteNonQuery(
-            $"UPDATE [{Table}] SET {KvDocumentTable.ColDoc}=@d,{KvDocumentTable.ColIndexJson}=@ix " +
-            $"WHERE {KvDocumentTable.ColNodeKey}=@k AND {IndexExtract(KvJsonTable.Path.ThreadId)}=@t",
-            Params(("d", text), ("ix", indexJson), ("k", taskKey), ("t", PoolThreadId)));
+            $"UPDATE [{Table}] SET {KvUsharpTable.ColDoc}=@d WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t",
+            Params(("d", text), ("k", taskKey), ("t", PoolThreadId)));
         return Task.CompletedTask;
     }
 
@@ -159,12 +139,12 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ct.ThrowIfCancellationRequested();
         var affected = ExecuteNonQuery(
-            $"DELETE FROM [{Table}] WHERE {KvDocumentTable.ColNodeKey}=@k AND {IndexExtract(KvJsonTable.Path.ThreadId)}=@t",
+            $"DELETE FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t",
             Params(("k", taskKey), ("t", PoolThreadId)));
         return Task.FromResult(affected > 0);
     }
 
-    /// <summary>分页读取任务（浏览/导出用）：返回一页 <typeparamref name="TItem"/> 与总数（COUNT 单独查询，LIMIT/OFFSET 下推 SQL）。status 非空时按状态过滤。</summary>
+    /// <summary>分页读取任务（浏览/导出用）：返回一页 <typeparamref name="TItem"/> 与总数。status 非空时按状态过滤；排序/过滤/分页 SQL 侧下推。</summary>
     public Task<PagedTaskPool<TItem>> GetPageAsync(int offset, int pageSize, TaskExecutionStatus? status = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -173,29 +153,32 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ps["@lim"] = Math.Max(0, pageSize);
         ps["@off"] = Math.Max(0, offset);
         var rows = Query(
-            $"SELECT {KvDocumentTable.ColDoc} FROM [{Table}] WHERE {where} ORDER BY json_extract({KvDocumentTable.ColIndexJson},{KvJsonTable.PathRef(KvJsonTable.Path.Priority)}) DESC, {KvDocumentTable.ColId} ASC LIMIT @lim OFFSET @off",
+            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {where} " +
+            $"ORDER BY CAST({Extract(KvJsonTable.Path.Priority)} AS INTEGER) DESC, {KvUsharpTable.ColId} ASC LIMIT @lim OFFSET @off",
             ps);
         var items = new List<TItem>(rows.Count);
         foreach (var row in rows)
         {
-            var item = Deserialize(row);
-            if (item is not null) items.Add(item);
+            if (TryReadItem(SqliteRows.Str(row, "Doc"), out var item)) items.Add(item!);
         }
         return Task.FromResult(new PagedTaskPool<TItem>(items, total is null ? 0 : Convert.ToInt32(total, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
-    /// <summary>分页读取原始行视图（浏览 UI / md 渲染用）：含 Id/CreatedAt/UpdatedAt 与原始 Json，展示全字段。
-    /// Priority/MaxRetries/Status/CreatedAt/UpdatedAt 经 json_extract 从 Json 派生（镜像列已收敛）。总数经 COUNT 查询（修复旧版仅返回页内条数）。</summary>
+    /// <summary>分页读取原始行视图（浏览 UI / md 渲染用）：含 Id/CreatedAt/UpdatedAt 与原始文档，展示全字段。
+    /// Priority/MaxRetries/Status/CreatedAt/UpdatedAt 经 usharp_get 从 [Doc] 派生（无镜像列）。总数经 COUNT 查询。</summary>
     public Task<PagedTaskPool<TaskPoolRowView>> GetPageRowsAsync(int offset, int pageSize, TaskExecutionStatus? status = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var (where, ps) = BuildPoolWhere(status);
         var select =
-            $"SELECT {KvDocumentTable.ColId},{KvDocumentTable.ColNodeKey},{KvDocumentTable.ColDoc}, {IndexExtract(KvJsonTable.Path.Priority)} AS [Priority], {IndexExtract(KvJsonTable.Path.MaxRetries)} AS [MaxRetries], {IndexExtract(KvJsonTable.Path.Status)} AS [Status], {IndexExtract(KvJsonTable.Path.EnvelopeCreatedAt)} AS [CreatedAt], {IndexExtract(KvJsonTable.Path.EnvelopeUpdatedAt)} AS [UpdatedAt] FROM [{Table}]";
+            $"SELECT {KvUsharpTable.ColId},{KvUsharpTable.ColNodeKey},{KvUsharpTable.ColDoc}, " +
+            $"{Extract(KvJsonTable.Path.Priority)} AS [Priority], {Extract(KvJsonTable.Path.MaxRetries)} AS [MaxRetries], " +
+            $"{Extract(KvJsonTable.Path.Status)} AS [Status], {Extract(KvJsonTable.Path.EnvelopeCreatedAt)} AS [CreatedAt], " +
+            $"{Extract(KvJsonTable.Path.EnvelopeUpdatedAt)} AS [UpdatedAt] FROM [{Table}]";
         var total = Scalar($"SELECT COUNT(*) FROM [{Table}] WHERE {where}", ps);
         ps["@lim"] = Math.Max(0, pageSize);
         ps["@off"] = Math.Max(0, offset);
-        var rows = Query($"{select} WHERE {where} ORDER BY {KvJsonTable.ColId} ASC LIMIT @lim OFFSET @off", ps);
+        var rows = Query($"{select} WHERE {where} ORDER BY {KvUsharpTable.ColId} ASC LIMIT @lim OFFSET @off", ps);
         var views = new List<TaskPoolRowView>(rows.Count);
         foreach (var row in rows)
         {
@@ -212,47 +195,51 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         return Task.FromResult(new PagedTaskPool<TaskPoolRowView>(views, total is null ? 0 : Convert.ToInt32(total, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
+    // ---- 内部：记录实例读写 + usharp_get 下推 ----
+
+    /// <summary>记录 ID（<c>task:&lt;TaskKey&gt;</c>）。</summary>
+    private static string RecordId(string taskKey) => "task:" + taskKey;
+
+    /// <summary>记录头字段（与 TItem 字段扁平同层，供 usharp_get 过滤/排序）。</summary>
+    private static IReadOnlyList<KeyValuePair<string, UsharpValue>> Envelope(string status, string createdAt, string updatedAt) => new[]
+    {
+        new KeyValuePair<string, UsharpValue>(FieldThreadId, UsharpScalar.Str(PoolThreadId)),
+        new KeyValuePair<string, UsharpValue>(FieldStatus, UsharpScalar.Str(status)),
+        new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(createdAt)),
+        new KeyValuePair<string, UsharpValue>(FieldUpdatedAt, UsharpScalar.Str(updatedAt)),
+    };
+
+    /// <summary>usharp_get 表达式（与表达式索引逐字一致）。</summary>
+    private static string Extract(string path) => KvUsharpTable.UsharpExtract(path);
+
     /// <summary>任务池行过滤的公共 WHERE（固定 ThreadId 命名空间 + 可选 Status）与参数字典。</summary>
     private (string Where, Dictionary<string, object> Ps) BuildPoolWhere(TaskExecutionStatus? status)
     {
-        var where = $"{IndexExtract(KvJsonTable.Path.ThreadId)}=@t";
+        var where = $"{Extract(KvJsonTable.Path.ThreadId)}=@t";
         var ps = Params(("t", PoolThreadId));
-        if (status is not null) { where += $" AND {IndexExtract(KvJsonTable.Path.Status)}=@s"; ps["@s"] = status.Value.ToString(); }
+        if (status is not null) { where += $" AND {Extract(KvJsonTable.Path.Status)}=@s"; ps["@s"] = status.Value.ToString(); }
         return (where, ps);
     }
 
-    /// <summary>派生索引列 [IndexJson] 上的 json_extract 表达式（与建索引时逐字一致）。</summary>
-    private static string IndexExtract(string jsonPath)
-        => $"json_extract({KvDocumentTable.ColIndexJson},'{jsonPath}')";
-
-    /// <summary>构造任务文档对象（TItem 序列化 + ThreadId/Status/__createdAt/__updatedAt 顶层键）；非对象载荷（异常）以空对象兜底。
-    /// 消费方（如 <see cref="AgentTaskItemJsonConverter"/>）的 Read 只读已知键，未知键（__createdAt/__updatedAt，及非快照驱动条目的 Status/ThreadId）自动忽略，反序列化零影响。</summary>
-    private JsonObject BuildDoc(TItem item, string createdAt, string updatedAt, string status)
+    private string? ReadDocText(string taskKey)
     {
-        var obj = JsonSerializer.SerializeToNode(item, _jsonOptions) as JsonObject ?? new JsonObject();
-        obj["ThreadId"] = PoolThreadId;
-        obj["Status"] = status;
-        obj["__createdAt"] = createdAt;
-        obj["__updatedAt"] = updatedAt;
-        return obj;
+        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", taskKey)));
+        return rows.Count == 0 ? null : SqliteRows.Nullable(rows[0], "Doc");
     }
 
-    /// <summary>由文档对象产真源 [Doc]（经 codec）与派生 [IndexJson]（同构 JSON）。</summary>
-    private (string Doc, string Index) Materialize(JsonObject doc)
-        => (_codec.Serialize(doc), doc.ToJsonString(_jsonOptions));
-
-    /// <summary>按 NodeKey 读真源 [Doc] 并还原为文档对象；不存在/解析失败 ⇒ null。</summary>
-    private JsonObject? ReadDoc(string taskKey)
+    private bool TryReadItem(string doc, out TItem? item)
     {
-        var rows = Query(KvDocumentTable.SelectByKeySql(Table, KvDocumentTable.ColDoc), Params(("k", taskKey)));
-        return rows.Count == 0 ? null : _codec.Deserialize<JsonObject>(SqliteRows.Str(rows[0], "Doc"));
+        item = default;
+        return !string.IsNullOrWhiteSpace(doc) && _codec.TryDeserializeRecord<TItem>(doc, out item) && item is not null;
     }
 
-    private TItem? Deserialize(IReadOnlyDictionary<string, object> row)
+    private (string? Status, string? CreatedAt) ReadEnvelope(string taskKey)
     {
-        var doc = SqliteRows.Str(row, "Doc");
-        if (string.IsNullOrWhiteSpace(doc)) return default;
-        // 单行载荷损坏不阻断整批列出（codec 内部容错 ⇒ null），交由任务池失败重试语义兜底。
-        return _codec.Deserialize<TItem>(doc);
+        var text = ReadDocText(taskKey);
+        if (text is null || !_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return (null, null);
+        return (Str(body, FieldStatus), Str(body, FieldCreatedAt));
     }
+
+    private static string? Str(UsharpRecord body, string name)
+        => body.TryGet(name, out var v) && v is UsharpScalar sc && sc.Kind != UsharpScalarKind.Null ? sc.Text : null;
 }

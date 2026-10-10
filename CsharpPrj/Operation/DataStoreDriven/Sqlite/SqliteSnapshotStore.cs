@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.StorageFramework.Core;
@@ -12,11 +11,21 @@ using UniversalWorkflowFramework.StorageFramework.Sqlite;
 
 namespace Operation.DataStoreDriven.Sqlite;
 
-/// <summary>Sqlite 快照存储（ur_tasks 状态集合，与任务池同表双角色）。按 (ThreadId, SessionId) 幂等覆写最新快照。
-/// 真源列 <c>[Doc]</c>（文本，经 <see cref="IDocumentCodec"/> 编解码；注入 USharp codec ⇒ USharp 文本）
-/// + 派生索引列 <c>[IndexJson]</c>（JSON，供 <c>json_extract</c>）；NodeKey = 快照键（sessionId，缺省回落 threadId）。</summary>
+/// <summary>
+/// Sqlite 快照存储（ur_tasks 状态集合，与任务池同表双角色）。按 (ThreadId, SessionId) 幂等覆写最新快照。
+/// <para>
+/// 表为**纯 USharp 三列**；真源 <c>[Doc]</c> = <c>[Record] snapshot:&lt;key&gt;: table=Tasks | key=&lt;key&gt;</c> 实例规范文本
+/// （ThreadId/SessionId/Payload 记录字段）；无 <c>[IndexJson]</c>。NodeKey = 快照键（sessionId，缺省回落 threadId）。
+/// ThreadId 检索经 <c>usharp_get([Doc],'$.ThreadId')</c> 表达式索引在 SQL 侧下推。
+/// </para>
+/// </summary>
 public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
 {
+    private const string TableId = "Tasks";
+    private const string FieldThreadId = "ThreadId";
+    private const string FieldSessionId = "SessionId";
+    private const string FieldPayload = "Payload";
+
     private readonly IDocumentCodec _codec;
 
     public SqliteSnapshotStore(IDbCommandExecutor executor, string table, IDocumentCodec? codec = null)
@@ -25,7 +34,13 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
         _codec = codec ?? JsonDocumentCodec.Instance;
     }
 
-    public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task InitializeAsync(CancellationToken ct = default)
+    {
+        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureCreated(Executor, Table);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_threadid", KvJsonTable.Path.ThreadId);
+        return Task.CompletedTask;
+    }
 
     public Task SaveAsync(string threadId, string? sessionId, string snapshotJson, CancellationToken ct = default)
     {
@@ -36,14 +51,12 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
         // B3 空快照守卫：空/空白原样存空文本（Load 侧按空判 null），不构造文档对象。
         if (string.IsNullOrWhiteSpace(snapshotJson))
         {
-            ExecuteNonQuery(KvDocumentTable.UpsertSql(Table), Params(("k", key), ("d", ""), ("ix", "")));
+            ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", key), ("d", "")));
             return Task.CompletedTask;
         }
-        var doc = BuildDoc(snapshotJson, threadId, sessionId);
-        var text = _codec.Serialize(doc);
-        // 派生索引列：仅供 json_extract 索引（真源 = [Doc]）。
-        var indexJson = doc.ToJsonString(JsonDocumentCodec.JsonOptions);
-        ExecuteNonQuery(KvDocumentTable.UpsertSql(Table), Params(("k", key), ("d", text), ("ix", indexJson)));
+        var record = BuildRecord(threadId, sessionId, snapshotJson);
+        var text = _codec.SerializeRecord(RecordId(key), TableId, key, record);
+        ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", key), ("d", text)));
         return Task.CompletedTask;
     }
 
@@ -54,12 +67,13 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
         Dictionary<string, object> p;
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
-            sql = KvDocumentTable.SelectByKeySql(Table, KvDocumentTable.ColDoc);
+            sql = KvUsharpTable.SelectByKeySql(Table);
             p = Params(("k", sessionId));
         }
         else
         {
-            sql = $"SELECT {KvDocumentTable.ColDoc} FROM [{Table}] WHERE json_extract({KvDocumentTable.ColIndexJson},'{KvJsonTable.Path.ThreadId}')=@t ORDER BY {KvDocumentTable.ColId} DESC LIMIT 1";
+            sql = $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.UsharpExtract(KvJsonTable.Path.ThreadId)}=@t " +
+                  $"ORDER BY {KvUsharpTable.ColId} DESC LIMIT 1";
             p = Params(("t", threadId));
         }
 
@@ -67,20 +81,43 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
         if (rows.Count == 0) return Task.FromResult<string?>(null);
         var doc = SqliteRows.Str(rows[0], "Doc");
         if (string.IsNullOrWhiteSpace(doc))
-            return Task.FromResult<string?>(null); // B3：表内 NULL 或空快照 → null（「无快照」语义），勿返回空串失真
-        // 对外保持 JSON 契约：真源 [Doc] 经 codec 还原为同构 JSON 对象文本（解析失败则原样返回）。
-        var node = _codec.Deserialize<JsonObject>(doc);
-        return Task.FromResult<string?>(node?.ToJsonString() ?? doc);
+            return Task.FromResult<string?>(null); // B3：空快照 → null（「无快照」语义），勿返回空串失真
+        // 对外保持 JSON 契约：对象载荷平铺（含 envelope）⇒ 整记录渲染；非对象载荷 ⇒ Payload 字段。
+        if (!_codec.TryDeserializeRecord(doc, out _, out _, out _, out var body)) return Task.FromResult<string?>(doc);
+        if (body.TryGet(FieldPayload, out var payload)) return Task.FromResult<string?>(UsharpValueJson.ToJson(payload));
+        return Task.FromResult<string?>(UsharpValueJson.ToJson(body));
     }
 
-    /// <summary>把快照载荷规整为文档对象：对象 ⇒ 注入 ThreadId/SessionId（供无 sessionId 时按 ThreadId 检索）；非对象（异常载荷/裸值）⇒ 包为 Snapshot 字段。</summary>
-    private static JsonObject BuildDoc(string snapshotJson, string threadId, string? sessionId)
+    private static string RecordId(string key) => "snapshot:" + key;
+
+    /// <summary>构造快照记录：对象载荷 ⇒ 平铺合并（+ ThreadId/SessionId envelope，供按 ThreadId 检索）；
+    /// 非对象载荷 ⇒ 包为 Payload 字段（保留原值）。</summary>
+    private static UsharpRecord BuildRecord(string threadId, string? sessionId, string snapshotJson)
     {
-        JsonNode? node = null;
-        try { node = JsonNode.Parse(snapshotJson); } catch (JsonException) { node = null; }
-        var obj = node as JsonObject ?? new JsonObject { ["Snapshot"] = node ?? JsonValue.Create(snapshotJson) };
-        obj["ThreadId"] = threadId;
-        obj["SessionId"] = sessionId ?? string.Empty;
-        return obj;
+        var payload = ParsePayload(snapshotJson);
+        if (payload is UsharpRecord obj)
+        {
+            var fields = new List<KeyValuePair<string, UsharpValue>>(obj.Fields.Count + 2);
+            foreach (var f in obj.Fields)
+                if (!string.Equals(f.Key, FieldThreadId, StringComparison.Ordinal) &&
+                    !string.Equals(f.Key, FieldSessionId, StringComparison.Ordinal))
+                    fields.Add(f);
+            fields.Add(new(FieldThreadId, UsharpScalar.Str(threadId)));
+            fields.Add(new(FieldSessionId, UsharpScalar.Str(sessionId ?? string.Empty)));
+            return new UsharpRecord(fields);
+        }
+        return new UsharpRecord(new[]
+        {
+            new KeyValuePair<string, UsharpValue>(FieldThreadId, UsharpScalar.Str(threadId)),
+            new KeyValuePair<string, UsharpValue>(FieldSessionId, UsharpScalar.Str(sessionId ?? string.Empty)),
+            new KeyValuePair<string, UsharpValue>(FieldPayload, payload),
+        });
+    }
+
+    /// <summary>快照载荷文本 → 中立值（非法 JSON ⇒ 不透明字符串标量，原样保留）。</summary>
+    private static UsharpValue ParsePayload(string snapshotJson)
+    {
+        try { return UsharpValueJson.Parse(snapshotJson); }
+        catch { return UsharpScalar.Str(snapshotJson); }
     }
 }

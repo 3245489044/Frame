@@ -141,10 +141,21 @@ public static class DslParser
                 if (rest.Length == 0) continue;
                 var idx = rest[0] == ' ' || rest[0] == '\t' ? 1 : 0;
                 rest = rest[idx..].TrimStart();
-                var colon = rest.IndexOf(':');
                 string name, after;
-                if (colon >= 0) { name = rest[..colon].Trim(); after = rest[(colon + 1)..]; }
-                else { name = rest; after = ""; }
+                // [Record] 头 = "[Record] <recordId>: table=<t> | key=<k>"；recordId 自身可含 ':'（如 node:<key>），
+                // 故记录类头以「首个 ": "（冒号+空白）」为 id/字段分隔；无该形态回落首个 ':'（旧口径）。
+                var sep = pd.Kind == DslSymbolKind.Record ? rest.IndexOf(": ", StringComparison.Ordinal) : -1;
+                if (sep >= 0)
+                {
+                    name = rest[..sep].Trim();
+                    after = rest[(sep + 1)..];
+                }
+                else
+                {
+                    var colon = rest.IndexOf(':');
+                    if (colon >= 0) { name = rest[..colon].Trim(); after = rest[(colon + 1)..]; }
+                    else { name = rest; after = ""; }
+                }
                 if (name.Length == 0) continue;
                 return Build(name, pd, after, line, file, lineNo);
             }

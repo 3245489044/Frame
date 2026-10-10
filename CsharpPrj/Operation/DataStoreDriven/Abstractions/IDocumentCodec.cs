@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using Plate.DslMethod.Usharp;
+
 namespace Operation.DataStoreDriven.Abstractions;
 
 /// <summary>
@@ -27,4 +30,21 @@ public interface IDocumentCodec
     /// 找不到 / 非标量 ⇒ 返回 <c>null</c>。
     /// </summary>
     string? ExtractScalar(string document, string memberName);
+
+    // ---- 记录实例端口（N0）：[Doc] = [Record] <recordId>: table=<t> | key=<k> 实例规范文本 ----
+
+    /// <summary>记录实例 → 规范文本（记录头 + 字段体；规范形单源 = 前端 <c>UsharpRecordDecl.ToCanonical</c>）。</summary>
+    string SerializeRecord(string recordId, string? table, string? key, UsharpRecord body);
+
+    /// <summary>规范文本 → 记录实例（失败返回 false）。</summary>
+    bool TryDeserializeRecord(string text, out string recordId, out string? table, out string? key, out UsharpRecord body);
+
+    /// <summary>
+    /// 对象体记录 → 规范文本（体经实现侧映射为记录字段；<paramref name="extraFields"/> 为附加头字段，
+    /// 如 ThreadId/Status/时间戳 —— 供过滤/排序下推）。
+    /// </summary>
+    string SerializeRecord<T>(string recordId, string? table, string? key, T body, IReadOnlyList<KeyValuePair<string, UsharpValue>>? extraFields = null);
+
+    /// <summary>规范文本 → 对象体（失败返回 false；未知字段（头字段）由映射器忽略）。</summary>
+    bool TryDeserializeRecord<T>(string text, out T? body);
 }

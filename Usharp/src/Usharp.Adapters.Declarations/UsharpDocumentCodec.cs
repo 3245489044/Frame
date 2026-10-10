@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Operation.DataStoreDriven.Abstractions;
+using Plate.DslMethod.Usharp;
 using Usharp.Syntax;
 
 namespace Usharp.Adapters.Declarations;
@@ -18,6 +19,11 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
 {
     /// <summary>共享单例（无状态）。</summary>
     public static readonly UsharpDocumentCodec Instance = new();
+
+    /// <summary>首次使用 USharp codec 即注册 <c>usharp_get</c> 连接级函数（集中式转换层，施工单 §1.6）。
+    /// 使依赖 USharp 存储的过滤/排序/CAS 在所有连接（读/写）上可用。</summary>
+    static UsharpDocumentCodec()
+        => Operation.DataStoreDriven.Sqlite.UsharpSqlFunction.EnsureRegistered();
 
     /// <inheritdoc />
     public string Format => "usharp";
@@ -66,6 +72,77 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         if (usharp is UsharpRecord record && record.TryGet(memberName, out var v) && v is UsharpScalar scalar)
             return scalar.Kind == UsharpScalarKind.String ? scalar.Text : scalar.ToCanonical();
         return null;
+    }
+
+    /// <inheritdoc />
+    public string SerializeRecord(string recordId, string? table, string? key, UsharpRecord body)
+        => new UsharpRecordDecl(recordId, table, key, body, Array.Empty<string>(), string.Empty, 0).ToCanonical();
+
+    /// <inheritdoc />
+    public bool TryDeserializeRecord(string text, out string recordId, out string? table, out string? key, out UsharpRecord body)
+    {
+        recordId = string.Empty;
+        table = null;
+        key = null;
+        body = new UsharpRecord(Array.Empty<KeyValuePair<string, UsharpValue>>());
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var head = lines.Length > 0 ? lines[0].Trim() : string.Empty;
+        if (!head.StartsWith(UsharpLanguage.RecordPrefix, StringComparison.Ordinal)) return false;
+
+        (recordId, table, key) = ParseRecordHeader(head);
+        if (recordId.Length == 0) return false;
+
+        var unparsed = new List<string>();
+        body = UsharpValueParser.ParseRecordBlock(lines.Skip(1), unparsed);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public string SerializeRecord<T>(string recordId, string? table, string? key, T body, IReadOnlyList<KeyValuePair<string, UsharpValue>>? extraFields = null)
+    {
+        var record = UsharpValueMapper.ToValue(body) as UsharpRecord
+                     ?? new UsharpRecord(Array.Empty<KeyValuePair<string, UsharpValue>>());
+        if (extraFields is { Count: > 0 })
+        {
+            var merged = new List<KeyValuePair<string, UsharpValue>>(extraFields.Count + record.Fields.Count);
+            merged.AddRange(extraFields);
+            merged.AddRange(record.Fields);
+            record = new UsharpRecord(merged);
+        }
+        return SerializeRecord(recordId, table, key, record);
+    }
+
+    /// <inheritdoc />
+    public bool TryDeserializeRecord<T>(string text, out T? body)
+    {
+        body = default;
+        if (!TryDeserializeRecord(text, out _, out _, out _, out var record)) return false;
+        body = UsharpValueMapper.ToObject<T>(record);
+        return body is not null;
+    }
+
+    /// <summary>解析记录头（<c>[Record] &lt;id&gt;: table=&lt;t&gt; | key=&lt;k&gt;</c>）：以首个 <c>": "</c> 分隔 id 与头字段。</summary>
+    private static (string Id, string? Table, string? Key) ParseRecordHeader(string head)
+    {
+        var rest = head[UsharpLanguage.RecordPrefix.Length..].TrimStart();
+        var sep = rest.IndexOf(": ", StringComparison.Ordinal);
+        var id = sep >= 0 ? rest[..sep].Trim() : rest.Trim();
+        string? table = null, key = null;
+        if (sep >= 0)
+        {
+            foreach (var part in rest[(sep + 1)..].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var eq = part.IndexOf('=');
+                if (eq <= 0) continue;
+                var name = part[..eq].Trim();
+                var value = UsharpLanguage.NullIfEmpty(part[(eq + 1)..]);
+                if (string.Equals(name, UsharpLanguage.FieldTable, StringComparison.Ordinal)) table = value;
+                else if (string.Equals(name, UsharpLanguage.FieldKey, StringComparison.Ordinal)) key = value;
+            }
+        }
+        return (id, table, key);
     }
 
     /// <summary>解析 USharp 文档：<c>[Record]</c> 头块 或 裸值（解析失败 ⇒ null）。</summary>

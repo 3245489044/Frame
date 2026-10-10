@@ -614,39 +614,93 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// 装配期声明 seed（G5）：把配置声明源（.ushar 工作流声明）的静态边固化进 LiteDB <c>ur_relations</c>，
     /// 使运行时声明权威 = LiteDB（冷启动不再依赖配置源逐次求值）。幂等可重复。
     /// </summary>
-    public async Task SeedDeclarationsFromAsync(IDeclaredReferenceSource source, CancellationToken ct = default)
+    public Task SeedDeclarationsFromAsync(IDeclaredReferenceSource source, CancellationToken ct = default)
+        => SeedDeclarationsFromAsync(source, null, ct);
+
+    /// <summary>
+    /// 装配期声明 seed（G5，含 node 数据流）：静态边 + <c>nodeKeysByWorkflow</c> 指定的节点数据流/归属关系。
+    /// <para><paramref name="nodeKeysByWorkflow"/> 由 Agent 侧自工作流登记端口（<c>IWorkflowRegistrar</c>，USharp 声明投影）
+    /// 枚举后以**纯数据**供入 —— 存储层不引用引擎层（守同层隔离）。缺省 <c>null</c> ⇒ 仅 seed 静态边（零行为变更）。</para>
+    /// 幂等可重复。
+    /// </summary>
+    public async Task SeedDeclarationsFromAsync(
+        IDeclaredReferenceSource source,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? nodeKeysByWorkflow,
+        CancellationToken ct = default)
     {
         if (source is null) return;
         foreach (var workflowId in source.WorkflowIds)
         {
             if (string.IsNullOrWhiteSpace(workflowId)) continue;
-            var statics = source.GetStaticEdges(workflowId);
-            if (statics is null || statics.Count == 0) continue;
-            var index = 0;
-            foreach (var s in statics)
-            {
-                if (s is null || string.IsNullOrWhiteSpace(s.SourceId) || string.IsNullOrWhiteSpace(s.TargetId)) continue;
-                var relationId = $"{s.RefType}-s{index++}";
-                var nodeKey = RelationDeclarationKeys.NodeKey(workflowId, relationId);
-                await _graph.UpsertRelationDeclarationAsync(nodeKey, new RelationDoc
-                {
-                    RelationId = relationId,
-                    WorkflowId = workflowId,
-                    NodeKey = nodeKey,
-                    Source = s.SourceId,
-                    SourceType = s.SourceResourceType,
-                    Target = s.TargetId,
-                    TargetType = s.TargetResourceType,
-                    RefType = s.RefType,
-                    Status = "active",
-                }, ct).ConfigureAwait(false);
 
-                // 原始静态边入图（不经 DeriveEdgeFromDeclaration：静态 refType 不属 NodeRelationType 两类）。
-                var src = new ResourceIdentifier { ResourceType = s.SourceResourceType, Id = s.SourceId, Location = workflowId };
-                var tgt = new ResourceIdentifier { ResourceType = s.TargetResourceType, Id = s.TargetId, Location = workflowId };
-                await _graph.EnsureResourceAsync(src, s.SourceId, null, ct).ConfigureAwait(false);
-                await _graph.EnsureResourceAsync(tgt, s.TargetId, null, ct).ConfigureAwait(false);
-                await _graph.AddReferenceAsync(src, tgt, s.RefType, s.Strength, ct).ConfigureAwait(false);
+            // ① 静态边（组合 Owns / 控制流 Calls / 位置 at·contains 等）。
+            var statics = source.GetStaticEdges(workflowId);
+            if (statics is { Count: > 0 })
+            {
+                var index = 0;
+                foreach (var s in statics)
+                {
+                    if (s is null || string.IsNullOrWhiteSpace(s.SourceId) || string.IsNullOrWhiteSpace(s.TargetId)) continue;
+                    var relationId = $"{s.RefType}-s{index++}";
+                    var nodeKey = RelationDeclarationKeys.NodeKey(workflowId, relationId);
+                    await _graph.UpsertRelationDeclarationAsync(nodeKey, new RelationDoc
+                    {
+                        RelationId = relationId,
+                        WorkflowId = workflowId,
+                        NodeKey = nodeKey,
+                        Source = s.SourceId,
+                        SourceType = s.SourceResourceType,
+                        Target = s.TargetId,
+                        TargetType = s.TargetResourceType,
+                        RefType = s.RefType,
+                        Status = "active",
+                    }, ct).ConfigureAwait(false);
+
+                    // 原始静态边入图（不经 DeriveEdgeFromDeclaration：静态 refType 不属 NodeRelationType 两类）。
+                    var src = new ResourceIdentifier { ResourceType = s.SourceResourceType, Id = s.SourceId, Location = workflowId };
+                    var tgt = new ResourceIdentifier { ResourceType = s.TargetResourceType, Id = s.TargetId, Location = workflowId };
+                    await _graph.EnsureResourceAsync(src, s.SourceId, null, ct).ConfigureAwait(false);
+                    await _graph.EnsureResourceAsync(tgt, s.TargetId, null, ct).ConfigureAwait(false);
+                    await _graph.AddReferenceAsync(src, tgt, s.RefType, s.Strength, ct).ConfigureAwait(false);
+                }
+            }
+
+            // ② node 数据流/归属关系（G5 补：按工作流枚举节点键 → GetNodeRelations → 声明 + 推导边，复用 DeclareRelationsAsync 幂等）。
+            if (nodeKeysByWorkflow is null
+                || !nodeKeysByWorkflow.TryGetValue(workflowId, out var nodeKeys)
+                || nodeKeys is not { Count: > 0 })
+                continue;
+
+            foreach (var nodeKey in nodeKeys)
+            {
+                if (string.IsNullOrWhiteSpace(nodeKey)) continue;
+                var relations = source.GetNodeRelations(workflowId, nodeKey);
+                if (relations is null || relations.Count == 0) continue;
+
+                var entries = new List<RelationDeclarationEntry>(relations.Count);
+                var ordinal = 0;
+                foreach (var r in relations)
+                {
+                    if (r is null || string.IsNullOrWhiteSpace(r.SourceId) || string.IsNullOrWhiteSpace(r.TargetId)) continue;
+                    var refType = r.Type == NodeRelationType.KeyMappingToNode
+                        ? Modules.Node.Relations.ReferenceTypes.KeyMappingToNode
+                        : Modules.Node.Relations.ReferenceTypes.NodeToNode;
+                    entries.Add(new RelationDeclarationEntry
+                    {
+                        RelationId = $"{refType}-n{nodeKey}-{ordinal++}",
+                        Declaration = new RelationDeclaration
+                        {
+                            Source = new RelationEndpoint { ResourceType = r.SourceResourceType, Id = r.SourceId, Port = r.SourcePort },
+                            Target = new RelationEndpoint { ResourceType = r.TargetResourceType, Id = r.TargetId, Port = r.TargetPort },
+                            RefType = refType,
+                            KeyMappingRef = r.KeyMappingRef,
+                            Status = "active",
+                        },
+                    });
+                }
+
+                if (entries.Count > 0)
+                    await DeclareRelationsAsync(workflowId, entries, ct).ConfigureAwait(false);
             }
         }
     }

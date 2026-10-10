@@ -25,6 +25,9 @@
     <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
     <ProjectReference Include="..\Usharp.Adapters.UniversalReference\Usharp.Adapters.UniversalReference.csproj" />
     <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation\DataStoreDriven\DataStoreDriven.csproj" />
+    <!-- 工作流登记端口（IWorkflowRegistrar）投影实现：把 .ushar 声明接入引擎端口（Usharp.Emit 已引用，显式声明防依赖传递脆弱）。 -->
+    <ProjectReference Include="$(UsharpCsharpPrjRoot)Operation/WorkFlowMethod/WorkFlowMethod.csproj" />
+
   </ItemGroup>
 
 </Project>

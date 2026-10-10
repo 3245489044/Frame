@@ -17,7 +17,8 @@ public sealed record UsharpNodeSpec(
     IReadOnlyList<string> InputPorts,
     IReadOnlyList<string> OutputPorts,
     string SourceFile,
-    int LineNumber);
+    int LineNumber,
+    string? Kind = null);
 
 /// <summary>
 /// <c>[Node]</c> 可执行体读取器：端口经既有 <see cref="ResourceNodeType.ParsePorts"/> 解析（单一口径），
@@ -36,13 +37,16 @@ public static class UsharpNodePortReader
             if (string.IsNullOrWhiteSpace(decl.Name)) continue;
 
             var fn = decl.Field("fn");
+            // kind=（T8）：FuncCall 分类声明（internal/external/composition）；未声明 ⇒ null（默认 internal 语义，零回归）。
+            var kind = decl.Field("kind");
             map.TryAdd(decl.Name, new UsharpNodeSpec(
                 decl.Name,
                 string.IsNullOrWhiteSpace(fn) ? decl.Name : fn.Trim(),
                 ResourceNodeType.ParsePorts(decl.Field("inports")).Keys.ToList(),
                 ResourceNodeType.ParsePorts(decl.Field("outports")).Keys.ToList(),
                 decl.SourceFile,
-                decl.LineNumber));
+                decl.LineNumber,
+                string.IsNullOrWhiteSpace(kind) ? null : kind.Trim()));
         }
         return map;
     }

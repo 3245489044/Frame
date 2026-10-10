@@ -17,6 +17,12 @@ namespace WorkFlowMethod.Orchestration.Content
         void RegisterWorkflow(string workflowId, Chain<string, NodeConfig> chain);
         Chain<string, NodeConfig> GetWorkflow(string workflowId);
         bool UnregisterWorkflow(string workflowId);
+
+        /// <summary>已登记工作流 Id 集（声明面投影消费；未知 ⇒ 空集）。</summary>
+        IReadOnlyList<string> GetWorkflowIds();
+
+        /// <summary>某工作流的节点键集（声明序；未知工作流 ⇒ 空集）。</summary>
+        IReadOnlyList<string> GetNodeKeys(string workflowId);
     }
 
     public class WorkflowRegistrar : IWorkflowRegistrar
@@ -71,6 +77,27 @@ namespace WorkFlowMethod.Orchestration.Content
 
         public bool UnregisterWorkflow(string workflowId) =>
             _storageManager.DeleteChainInfo(workflowId);
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> GetWorkflowIds() => _storageManager.GetAllWorkflowIds();
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> GetNodeKeys(string workflowId)
+        {
+            if (string.IsNullOrWhiteSpace(workflowId)) return Array.Empty<string>();
+            var chain = _storageManager.GetChainInfo(workflowId);
+            if (chain?.AllNodes is null) return Array.Empty<string>();
+
+            var keys = new List<string>(chain.AllNodes.Count);
+            foreach (var node in chain.AllNodes)
+            {
+                var key = node?.basicConfig?.Callkey;
+                if (string.IsNullOrWhiteSpace(key)) key = node?.Symbol;
+                if (string.IsNullOrWhiteSpace(key)) key = node?.Id;
+                if (!string.IsNullOrWhiteSpace(key)) keys.Add(key!);
+            }
+            return keys;
+        }
 
         public void RegisterWorkflows(IEnumerable<KeyValuePair<string, Chain<string, NodeConfig>>> workflows)
         {

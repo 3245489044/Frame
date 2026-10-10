@@ -46,6 +46,8 @@ public static class KvDocumentTable
             executor.ExecuteNonQuery($"UPDATE [{table}] SET [Doc]=[Json] WHERE [Doc]='';");
         }
         executor.ExecuteNonQuery($"ALTER TABLE [{table}] ADD COLUMN [IndexJson] TEXT;");
+        // 存量行派生索引回填（旧真源为 JSON ⇒ [IndexJson]=[Doc] 同构；新写入由写门生成，不回填）。
+        executor.ExecuteNonQuery($"UPDATE [{table}] SET [IndexJson]=[Doc] WHERE [IndexJson] IS NULL OR [IndexJson]='';");
     }
 
     /// <summary>按 NodeKey 查询的列投影前缀（含 <c>LIMIT 1</c>）。</summary>

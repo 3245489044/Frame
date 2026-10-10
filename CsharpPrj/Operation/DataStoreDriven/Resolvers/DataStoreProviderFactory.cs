@@ -34,12 +34,14 @@ public static class DataStoreProviderFactory
         ICheckpointStore? placeholderCheckpoints = null,
         ISnapshotStore? placeholderSnapshots = null,
         IReferenceTypeRegistry? referenceTypeRegistry = null,
-        ReferenceGrounding? grounding = null)
+        ReferenceGrounding? grounding = null,
+        IDocumentCodec? codec = null,
+        ITableSchemaSource? schemaSource = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         return options.Provider switch
         {
-            PersistenceProvider.Sqlite => BuildSqliteDataStore(options, sharedBackbone, grounding),
+            PersistenceProvider.Sqlite => BuildSqliteDataStore(options, sharedBackbone, grounding, codec, schemaSource),
             PersistenceProvider.LiteDB or PersistenceProvider.Local or PersistenceProvider.Graph
                 => BuildFacade(options, sharedBackbone, referenceManager, placeholderCheckpoints, placeholderSnapshots, referenceTypeRegistry),
             _ => throw new NotSupportedException($"未注册的持久化后端: {options.Provider}"),
@@ -61,10 +63,10 @@ public static class DataStoreProviderFactory
             disposeBackbone: sharedBackbone is null);
     }
 
-    private static IDataStore BuildSqliteDataStore(PersistenceOptions options, IPersistenceStore? sharedBackbone, ReferenceGrounding? grounding)
+    private static IDataStore BuildSqliteDataStore(PersistenceOptions options, IPersistenceStore? sharedBackbone, ReferenceGrounding? grounding, IDocumentCodec? codec, ITableSchemaSource? schemaSource)
     {
         var factory = new SqliteConnectionFactory(options);
-        var backbone = sharedBackbone ?? new SqlitePersistenceStore(factory, options);
+        var backbone = sharedBackbone ?? new SqlitePersistenceStore(factory, options, codec, schemaSource);
         // 三库收敛：①基础节点库为 SQLite ur_nodes（与 Sqlite 骨干同库同连接），极简「键名 + 一个 JSON + 入库时间」，
         //   config/keymapping/checkpoint/input/output/event 均经节点库承载（NodeType 判别），不再单独建 SQL ur_config 等表；
         //   任务（ur_tasks）落同一 SQL 库文件；引用关系真源为 LiteDB 图库（ReferenceGraphCoordinator，组合根独立装配）。
@@ -73,7 +75,7 @@ public static class DataStoreProviderFactory
         // 架构 I2（每库单写通道）：agent 数据驱动基础节点库（ur_nodes，Sqlite 路径即 agent.db）写经 SqliteChannelSession
         // 走 SqliteWriteChannel 单写连接，与 ur_tasks(TaskPoolHosting)/SqliteTransaction(持久化事务) 共用同一 agent.db 写权，
         // 消除 ur_nodes 经 DataUniversal 新连接与节点持久化事务互撞（运行期写锁长持根因）。
-        var nodes = new SqliteNodeStore(new SqliteChannelSession(ThreadingSqliteWriteHost.Shared, factory), prefix + TableNames.Nodes);
+        var nodes = new SqliteNodeStore(new SqliteChannelSession(ThreadingSqliteWriteHost.Shared, factory), prefix + TableNames.Nodes, codec);
         // 装配顺序修正（消除"绕组装漂移"）：注入引用守卫时，先建写透守卫，再以守卫为底层构造
         // Zone/Config/Checkpoint/nodes——守卫覆盖整库写面（R2 结构保证），判别类型镜像与否由守卫白名单裁决。
         INodeStore bottom = grounding is null ? nodes : new WriteGuardPort(nodes, grounding);

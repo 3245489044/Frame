@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
@@ -15,11 +16,13 @@ public sealed class SqliteSchema : IDbSchemaInitializer
 {
     private readonly IDbCommandExecutor _executor;
     private readonly string _prefix;
+    private readonly ITableSchemaSource? _schemaSource;
 
-    public SqliteSchema(IDbCommandExecutor executor, string tablePrefix)
+    public SqliteSchema(IDbCommandExecutor executor, string tablePrefix, ITableSchemaSource? schemaSource = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _prefix = PersistenceHelper.ResolveTablePrefix(tablePrefix);
+        _schemaSource = schemaSource;
     }
 
     public string SnapshotsTable => _prefix + TableNames.Tasks;
@@ -31,10 +34,15 @@ public sealed class SqliteSchema : IDbSchemaInitializer
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // ② 状态集合 ur_tasks：纯「业务键（NodeKey）+ 一个 Json」——与 ur_nodes 同构，统一承载快照根 / 任务池条目 / 会话快照（任务 = 状态根）。
-        // ThreadId/SessionId/Status/Priority/MaxRetries/CreatedAt/UpdatedAt 全部随 Json 持久化（过滤由 JSON 表达式索引 json_extract 支撑）。
-        // 旧版 ThreadId/SessionId/SnapshotJson 四列结构由 SqliteTaskPoolStore 初始化时统一迁移收敛（SingleImplementation）。
-        _executor.ExecuteNonQuery(KvJsonTable.CreateSql(TasksTable));
+        // ② 状态集合 ur_tasks：真源列 [Doc]（文本，经 IDocumentCodec；注入 USharp codec ⇒ USharp）+ 派生索引列 [IndexJson]（JSON，供 json_extract）
+        //    ——与 ur_nodes 同构，统一承载快照根 / 任务池条目 / 会话快照（任务 = 状态根）。
+        // ThreadId/SessionId/Status/Priority/MaxRetries/CreatedAt/UpdatedAt 全部随文档持久化（过滤由 json_extract([IndexJson]) 支撑）。
+        // 旧版 ThreadId/SessionId/SnapshotJson 四列 / 旧 KvJson 三列结构由 SqliteTaskPoolStore 初始化时统一迁移收敛（SingleImplementation）。
+        // 表结构声明源（USharp [Table]）优先；缺件回落手写 KvDocumentTable.SchemaColumns（零行为变更）。
+        var declared = _schemaSource?.GetColumns(TableNames.Tasks) ?? _schemaSource?.GetColumns("tasks");
+        _executor.ExecuteNonQuery(declared is null
+            ? KvDocumentTable.CreateSql(TasksTable)
+            : PersistenceHelper.CreateTableSql(TasksTable, declared.ToArray()));
         return Task.CompletedTask;
     }
 }

@@ -16,10 +16,10 @@ namespace Operation.DataStoreDriven.Resolvers;
 /// </summary>
 public static class TaskPoolStoreFactory
 {
-    /// <summary>Sqlite 任务池存储（持久化 ur_tasks）。</summary>
-    public static ITaskPoolPersistence<TItem> Create<TItem>(IDbCommandExecutor executor, string tablePrefix, JsonSerializerOptions? jsonOptions = null)
+    /// <summary>Sqlite 任务池存储（持久化 ur_tasks）。codec 缺省 JSON（零行为变更）；注入 USharp codec ⇒ 文档 USharp 化。</summary>
+    public static ITaskPoolPersistence<TItem> Create<TItem>(IDbCommandExecutor executor, string tablePrefix, JsonSerializerOptions? jsonOptions = null, IDocumentCodec? codec = null)
         where TItem : ITaskPoolItem
-        => new SqliteTaskPoolStore<TItem>(executor, tablePrefix, jsonOptions);
+        => new SqliteTaskPoolStore<TItem>(executor, tablePrefix, jsonOptions, codec);
 
     /// <summary>内存任务池存储占位（非 Sqlite 后端 / 测试）。</summary>
     public static ITaskPoolPersistence<TItem> CreateInMemory<TItem>()

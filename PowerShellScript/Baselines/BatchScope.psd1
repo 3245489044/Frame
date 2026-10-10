@@ -97,7 +97,15 @@
     #   · Frame/{Usharp,PowerShellScript} 与 Frame/CsharpPrj/Modules/Node/**；F 系列在途改动（Frame/DataCenter/**）
     #   经 preexisting 登记（不在 U 单活动面内）。既有 F1–F3 交付物保留不变。
     #   恢复 = 回填 v18 的 Value（上方注释保留 F 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.9\统一节点管理框架-后续实施步骤.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v20（2026-10-10）：单指针切换至「USharp 数据化 · 全表 USharp 化（B0/L2/L4/L5/L6/L7）」授权单。
+    #   切换理由 = 用户转入实施《USharp数据化-全表USharp化-已交付与后续施工单.md》；本系列改动落在
+    #   Frame/Usharp/**（数据层语言/适配）· Frame/CsharpPrj/Operation/DataStoreDriven/**（表模板 + 各
+    #   Sqlite Store 迁移 + 组合根装配）· Frame/CsharpPrj/Plate/DslMethod/**（[Table]/[Record] 枚举）
+    #   · Projects/Plug/Agent/src/**（组合根注入 codec）· Projects/Plug/Agent/Config/**（配置 JSON→.ushar）
+    #   · Frame/PowerShellScript/**（门禁/基线）· Environment/CentralTest/**（codec/round-trip 用例），
+    #   均在新单 allowSet 内；在途改动（L0/L1/L3 交付面 + U 系列剩余件）按新单 preexisting 登记。
+    #   恢复 = 回填 v19 的 Value（上方注释保留 U 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.10\USharp数据化-全表USharp化.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

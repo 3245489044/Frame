@@ -21,24 +21,24 @@ public sealed class SqlitePersistenceStore : PersistenceStoreFacade
     private readonly SqliteConnectionFactory _factory;
     private readonly PersistenceOptions _options;
 
-    public SqlitePersistenceStore(IDbConnectionFactory connectionFactory, PersistenceOptions options)
+    public SqlitePersistenceStore(IDbConnectionFactory connectionFactory, PersistenceOptions options, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(new InMemoryCheckpointStore(),
-               BuildSchema(connectionFactory, options),
+               BuildSchema(connectionFactory, options, schemaSource),
                ct => Task.FromResult<ITransaction>(new SqliteTransaction(
                    ThreadingSqliteWriteHost.Shared, connectionFactory.ConnectionString)),
-               BuildSnapshots(connectionFactory, options))
+               BuildSnapshots(connectionFactory, options, codec))
     {
         _factory = connectionFactory as SqliteConnectionFactory
             ?? throw new ArgumentException("SqlitePersistenceStore 需要 SqliteConnectionFactory。", nameof(connectionFactory));
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    /// <summary>面向组合根便捷构造：直接由配置 + 基路径创建。</summary>
-    public static IPersistenceStore Create(PersistenceOptions options, string? basePath = null)
+    /// <summary>面向组合根便捷构造：直接由配置 + 基路径创建（codec 缺省 JSON）。</summary>
+    public static IPersistenceStore Create(PersistenceOptions options, string? basePath = null, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         var factory = new SqliteConnectionFactory(options, basePath);
-        return new SqlitePersistenceStore(factory, options);
+        return new SqlitePersistenceStore(factory, options, codec, schemaSource);
     }
 
     public override async Task InitializeAsync(CancellationToken ct = default)
@@ -54,11 +54,11 @@ public sealed class SqlitePersistenceStore : PersistenceStoreFacade
         }
     }
 
-    private static IDbSchemaInitializer BuildSchema(IDbConnectionFactory factory, PersistenceOptions options)
-        => new SqliteSchema(new SqliteSession(factory), Table(options));
+    private static IDbSchemaInitializer BuildSchema(IDbConnectionFactory factory, PersistenceOptions options, ITableSchemaSource? schemaSource)
+        => new SqliteSchema(new SqliteSession(factory), Table(options), schemaSource);
 
-    private static ISnapshotStore BuildSnapshots(IDbConnectionFactory factory, PersistenceOptions options)
-        => new SqliteSnapshotStore(new SqliteSession(factory), Table(options) + TableNames.Tasks);
+    private static ISnapshotStore BuildSnapshots(IDbConnectionFactory factory, PersistenceOptions options, IDocumentCodec? codec)
+        => new SqliteSnapshotStore(new SqliteSession(factory), Table(options) + TableNames.Tasks, codec);
 
     private static string Table(PersistenceOptions options)
         => PersistenceHelper.ResolveTablePrefix(options.TablePrefix);

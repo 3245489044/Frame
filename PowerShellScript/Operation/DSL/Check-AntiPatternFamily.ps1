@@ -34,8 +34,12 @@ $families = [ordered]@{}
 $allIds = New-Object System.Collections.Generic.HashSet[string]
 
 $idRegex = '^ANTI-[A-Z0-9-]+$'
-$familyBaseline = 19
-$idBaseline = 69
+
+# 基线单源 = Baselines\AntiPatternFamily.psd1（禁内联数值基线；守卫 GateBaselines U2/U7）
+Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name AntiPatternFamily
+$familyBaseline = [int]$g.FamilyCount.Value
+$idBaseline = [int]$g.IdCount.Value
 
 # ---- 判据 C7b：负对照（ID 形态正则对合成非法样本必须命中拒绝；-cmatch 大小写敏感） ----
 if (('NOT-AN-ANTI' -cmatch $idRegex) -or (@('ANTI-', 'ANTI-lower', 'ANTI_MIX') | Where-Object { $_ -cmatch $idRegex }).Count -gt 0) {
@@ -75,6 +79,7 @@ if (-not (Test-Path -LiteralPath $formulaPath)) {
     if ($allIds.Count -lt $idBaseline) { $violations.Add("[C7a] covered 条目数 $($allIds.Count) < 基线 $idBaseline") }
 
     # ---- C5 通用规则符号可解析（回指已注册定义点） ----
+    Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Modules\StringTools\StringTools.Core.psm1') -Force -ErrorAction Stop
     Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Modules\StringTools\StringTools.Clinerules.psm1') -Force -ErrorAction Stop
     $libFiles = @{ 'axioms' = 'axioms.md'; 'formula' = 'formula.md'; 'theorems' = 'theorems.md'; 'logic' = 'logic.md' }
     $defIndex = New-Object System.Collections.Generic.HashSet[string]

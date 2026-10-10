@@ -3,10 +3,9 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'DomainWireSingleSource'
 
-    # D3 正对照下限：声明面（Config\nodes\*.json）位置并集数 ≥ 此值（防声明面被掏空 ⇒ 判据无标的假绿）
-    # 2026-10-06 实测：9 域 14 位置（conversation 4 / segment 2 / message 1 / process 1 / task-node 1 /
-    #   observability 1 / session-view 1 / message-stream 1 / segment-stream 1）
-    DomainCount = @{ Value = 14; Origin = 'Derived'; DueWhen = 'SR-3c：位置行由 loc 词集 + 域归属展开生成后，本值改由生成器产出' }
+    # D3 正对照下限：声明面（Config\nodes\*.ushar 的 [Domain]→placements）位置并集数 ≥ 此值（防声明面被掏空 ⇒ 判据无标的假绿）
+    # 2026-10-10 实测：14 域 15 位置（原 9 域 14 位置 + U5 新增 resource 读入域 ⇒ resource-node）
+    DomainCount = @{ Value = 15; Origin = 'Derived'; DueWhen = 'SR-3c：位置行由 loc 词集 + 域归属展开生成后，本值改由生成器产出' }
 
     # D2 散弹点上限（报告模式起步，只减不增）：per-domain 形态去重计数
     # 2026-10-06 会话域单节点化：新增 session-view / message-stream / segment-stream 三域各一槽键常量引用（8 → 11）。

@@ -29,7 +29,11 @@ $projectPath = Join-Path $__repo '.clinerules\project.md'
 $violations = [System.Collections.Generic.List[string]]::new()
 
 $nativeDotnet = '\bdotnet\s+(test|build)\b'
-$entryBaseline = 5   # 入口数下限（Search-Repo/Test-JsonFiles/Invoke-GateCheck/Invoke-Regression/Locate-Test/...）
+
+# 基线单源 = Baselines\VerifySingleShot.psd1（禁内联数值基线；守卫 GateBaselines U2/U7）
+Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name VerifySingleShot
+$entryBaseline = [int]$g.EntryCount.Value   # 入口数下限（Search-Repo/Test-JsonFiles/Invoke-GateCheck/Invoke-Regression/Locate-Test/...）
 
 # ---- 判据 ③a：正对照（入口目录在位且件数 ≥ 基线） ----
 if (-not (Test-Path -LiteralPath $invokeDir)) {

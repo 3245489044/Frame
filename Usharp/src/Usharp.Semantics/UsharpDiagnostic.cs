@@ -205,4 +205,20 @@ public static class UsharpCodes
     // 能力未装配（Info，非错误）
     public const string GraphBackendUnavailable = "US9001";
     public const string ObsBackendUnavailable = "US9002";
+
+    // 数据层（[Table] / [Record]：数据即声明）
+    /// <summary>表声明形态非法（缺 <c>container=</c>/<c>key=</c>，或列行不可解析）。</summary>
+    public const string TableShapeInvalid = "US7201";
+
+    /// <summary>表列类型/标志不在受控词内。</summary>
+    public const string TableColumnInvalid = "US7202";
+
+    /// <summary>表列名重复（DDL 列序须唯一）。</summary>
+    public const string TableColumnDuplicate = "US7203";
+
+    /// <summary>记录声明形态非法（续行值不可解析，或引用未声明的表）。</summary>
+    public const string RecordShapeInvalid = "US7204";
+
+    /// <summary>记录引用的表未在本编译声明面中定义。</summary>
+    public const string RecordTableUndeclared = "US7205";
 }

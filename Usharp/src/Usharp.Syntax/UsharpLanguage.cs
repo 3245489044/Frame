@@ -23,6 +23,32 @@ public static class UsharpLanguage
     /// <summary>观测声明前缀（第五语言单元：作用域 / 实体 / 事件；子类由 <c>kind=</c> 区分）。</summary>
     public const string ObsPrefix = "[Obs]";
 
+    /// <summary>表结构声明前缀（数据层：让数据库表由声明派生；<c>[Table]</c>）。</summary>
+    public const string TablePrefix = "[Table]";
+
+    /// <summary>记录载荷声明前缀（数据层：行/文档的 USharp 化载体；<c>[Record]</c>）。</summary>
+    public const string RecordPrefix = "[Record]";
+
+    // ---- 数据层字段名（[Table]/[Record]）----
+
+    /// <summary>表/记录所属容器（<c>container=</c>：nodes/tasks/resources/endpoints/events）。</summary>
+    public const string FieldContainer = "container";
+
+    /// <summary>表主键列名（<c>key=</c>；表声明头 / 记录声明头共用）。</summary>
+    public const string FieldTable = "table";
+
+    /// <summary>索引列集（<c>index=(a,b)</c>；表声明头）。</summary>
+    public const string FieldIndex = "index";
+
+    /// <summary>表列类型受控词（数据层值域）。</summary>
+    public static readonly string[] ColumnTypes =
+        { "string", "int", "decimal", "bool", "record", "list", "bytes" };
+
+    /// <summary>表列标志受控词（数据层标声明）。</summary>
+    public static readonly string[] ColumnFlags =
+        { "auto", "unique", "source", "derived", "blob" };
+
+
     /// <summary>分支声明前缀（R3 声明式控制流：判定键 → then/else 激活/抑制）。</summary>
     public const string BranchPrefix = "[Branch]";
 

@@ -83,8 +83,8 @@ public sealed class PermissiveReferenceEdgeCatalog : IReferenceEdgeCatalog
 /// </summary>
 public sealed class DeclaredReferenceEdgeCatalog : IReferenceEdgeCatalog
 {
-    /// <summary>诊断主体标识（声明面文件定位：失败归因可辨）。</summary>
-    public const string SourceSubject = "Config\\nodes\\hierarchy-refs.ushar";
+    /// <summary>诊断主体标识（声明面文件定位：失败归因可辨）。运行时装配源 = F4 全量引用词表声明面。</summary>
+    public const string SourceSubject = "Config\\nodes\\reference.ushar";
 
     private static readonly StringComparer Comparer = StringComparer.Ordinal;
     private readonly HashSet<string> _declared;

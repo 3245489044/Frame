@@ -26,34 +26,16 @@ public sealed class ReferenceTypeRegistry : IReferenceTypeRegistry
     /// <summary>边查表（名 → 边声明，大小写不敏感）。</summary>
     public IReadOnlyDictionary<string, ReferenceEdgeType> Edges => _edges;
 
-    /// <summary>从编译产物 JSON 文件加载。</summary>
+    /// <summary>从编译产物 JSON 文件加载（**测试/工具面**：反序列化工具，生产唯一入口 = 词表单一真源 <c>DeclaredReferenceVocabulary.TryBuildFromFile</c>）。</summary>
     public static ReferenceTypeRegistry LoadFromFile(string jsonPath)
         => new(JsonSerializer.Deserialize<Plate.DslMethod.Schema.ReferenceSchema>(File.ReadAllText(jsonPath))!);
 
-    /// <summary>从编译产物 JSON 字符串加载。</summary>
+    /// <summary>从编译产物 JSON 字符串加载（**测试/工具面**：反序列化工具，生产唯一入口 = <c>DeclaredReferenceVocabulary.Build</c>）。</summary>
     public static ReferenceTypeRegistry LoadFromJson(string json)
         => new(JsonSerializer.Deserialize<Plate.DslMethod.Schema.ReferenceSchema>(json)!);
 
-    /// <summary>本程序集内嵌的编译产物**资源名后缀**（唯一 ⇒ 免硬编码完整清单名）。</summary>
-    public const string EmbeddedResourceSuffix = "reference-schema.generated.json";
-
-    /// <summary>
-    /// 从**程序集内嵌资源**加载编译产物（B3 词表武装）：生产路径不依赖仓库文件路径 ——
-    /// 产物经 <c>DataStoreDriven.csproj</c> 的 <c>EmbeddedResource</c> 随本程序集烘焙/分发。
-    /// </summary>
-    /// <returns>未内嵌（构建配置缺 EmbeddedResource）⇒ <c>null</c>（调用方按「未装配」可见化，禁静默）。</returns>
-    public static ReferenceTypeRegistry? LoadFromEmbeddedResource()
-    {
-        var assembly = typeof(ReferenceTypeRegistry).Assembly;
-        var name = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(EmbeddedResourceSuffix, StringComparison.OrdinalIgnoreCase));
-        if (name is null) return null;
-
-        using var stream = assembly.GetManifestResourceStream(name);
-        if (stream is null) return null;
-        using var reader = new StreamReader(stream);
-        return LoadFromJson(reader.ReadToEnd());
-    }
+    // F5.3：内嵌资源加载已退役（产物从 csproj 移除；LoadFromEmbeddedResource 无调用者）——
+    // 词表唯一入口 = Usharp.Adapters.Declarations.DeclaredReferenceVocabulary（reference.ushar 真源）。
 
     public bool IsDeclared(string edgeName)
         => _edges.ContainsKey(edgeName);

@@ -12,6 +12,6 @@
     ZombiePorts = @{
         Value   = @()
         Origin  = 'Debt'
-        DueWhen = ''
+        DueWhen = '存量已归零（2026-10-07 清理 NodeProcess.specs 死 script 体）；新僵尸端口（impl delegate ∧ script 并存）即红（D1）'
     }
 }

@@ -61,7 +61,7 @@
         @{
             Value = 'U5.HierarchyRefs'; Origin = 'Verdict'; DueWhen = '无常驻回退面（恒 primary）'
             Plane = 'Logical'; Layer = 'L2'; State = 'primary'
-            D = 'Projects\Plug\Agent\Config\nodes\hierarchy-refs.ushar'
+            D = 'Projects\Plug\Agent\Config\nodes\reference.ushar'
             C = 'Operation.DataStoreDriven.ReferenceGraphCoordinator'
             F = ''
             Phi = 'Check-NodeHierarchyRefs'; E = 'Check-BakeFramework'

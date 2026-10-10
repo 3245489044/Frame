@@ -247,6 +247,14 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpGatherDecl> Gathers(DslDocument doc)
         => Project(doc, DslSymbolKind.Gather, UsharpGatherDecl.From);
 
+    /// <summary><c>[Table]</c> 表结构声明（数据层：让数据库表由声明派生）。</summary>
+    public static IReadOnlyList<UsharpTableDecl> Tables(DslDocument doc)
+        => Project(doc, DslSymbolKind.Table, UsharpTableDecl.From);
+
+    /// <summary><c>[Record]</c> 记录载荷声明（数据层：行/文档的 USharp 化载体）。</summary>
+    public static IReadOnlyList<UsharpRecordDecl> Records(DslDocument doc)
+        => Project(doc, DslSymbolKind.Record, UsharpRecordDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

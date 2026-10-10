@@ -23,11 +23,15 @@ namespace Operation.DataStoreDriven.Sqlite;
 /// </summary>
 public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
 {
+    private readonly IDocumentCodec _codec;
+
     /// <summary>注入命令执行器 + 表名（前缀 + <see cref="TableNames.Nodes"/>）。executor 由基类包装为
-    /// <see cref="AmbientTransactionAwareCommandExecutor"/> 以纳入骨干 SQLite 环境事务（单库原子性）。</summary>
-    public SqliteNodeStore(IDbCommandExecutor executor, string tableName)
+    /// <see cref="AmbientTransactionAwareCommandExecutor"/> 以纳入骨干 SQLite 环境事务（单库原子性）。
+    /// 编解码缺省 = JSON（零行为变更）；注入 <c>UsharpDocumentCodec</c> ⇒ 行载荷 USharp 化。</summary>
+    public SqliteNodeStore(IDbCommandExecutor executor, string tableName, IDocumentCodec? codec = null)
         : base(executor, tableName)
     {
+        _codec = codec ?? JsonDocumentCodec.Instance;
     }
 
     public string TableName => Table;
@@ -38,12 +42,14 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        EnsureCreated();
+        // 数据即声明：真源列 [Doc]（USharp 文本）+ 派生索引列 [IndexJson]；旧 KvJson 表就地迁移。
+        KvDocumentTable.EnsureCreated(Executor, Table);
+        KvDocumentTable.MigrateFromKvJson(Executor, Table);
         // 旧版表迁移：散列/生成列折入 Json 并清理旧索引与列（仅旧库命中，幂等）。
         MigrateLegacySchema();
-        // JSON 表达式索引支撑按 NodeType/ThreadId 过滤（SQL 常量经 KvJsonTable.JsonExtract 统一生成，与索引表达式逐字一致）。
-        KvJsonTable.EnsureJsonIndex(Executor, Table, "idx_nodes_type", KvJsonTable.Path.NodeType, KvJsonTable.ColId);
-        KvJsonTable.EnsureJsonIndex(Executor, Table, "idx_nodes_thread", KvJsonTable.Path.ThreadId, KvJsonTable.ColId);
+        // 过滤索引落在**派生索引列** [IndexJson]（真源 [Doc] 为 USharp 文本，不可直接 json_extract）。
+        KvDocumentTable.EnsureIndexJsonIndex(Executor, Table, "idx_nodes_type", KvJsonTable.Path.NodeType, KvDocumentTable.ColId);
+        KvDocumentTable.EnsureIndexJsonIndex(Executor, Table, "idx_nodes_thread", KvJsonTable.Path.ThreadId, KvDocumentTable.ColId);
         return Task.CompletedTask;
     }
 
@@ -72,25 +78,35 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
     /// 时间戳随 Json 持久化：CreatedAt=首次写入（既有行保留），UpdatedAt=本次写入。
     /// 注：SQLite 的 <c>last_insert_rowid()</c> 在 ON CONFLICT DO UPDATE（更新路径）下返回 0，故不能依赖它取被更新行 Id，
     /// 改为 upsert 后按 NodeKey 回查 Id（幂等，新旧路径均返回同一 Id）。</summary>
-    public Task<long> PutAsync(NodeRecord node, CancellationToken ct = default)
+    public async Task<long> PutAsync(NodeRecord node, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(node);
         ct.ThrowIfCancellationRequested();
         var now = PersistenceHelper.NowIso();
-        var createdAt = string.IsNullOrWhiteSpace(node.CreatedAt) ? now : node.CreatedAt;
-        var json = SerializeDoc(node, createdAt, now);
-        var conflictUpdate =
-            $"{KvJsonTable.ColJson}=json_set(excluded.{KvJsonTable.ColJson},{KvJsonTable.PathRef(KvJsonTable.Path.CreatedAt)},COALESCE(json_extract({KvJsonTable.ColJson},{KvJsonTable.PathRef(KvJsonTable.Path.CreatedAt)}),json_extract(excluded.{KvJsonTable.ColJson},{KvJsonTable.PathRef(KvJsonTable.Path.CreatedAt)})))";
-        ExecuteNonQuery(KvJsonTable.UpsertSql(Table, conflictUpdate), Params(("k", node.NodeKey), ("j", json)));
-        var rows = Query(KvJsonTable.SelectByKeySql(Table, KvJsonTable.ColId), Params(("k", node.NodeKey)));
+        var createdAt = node.CreatedAt;
+        if (string.IsNullOrWhiteSpace(createdAt))
+        {
+            var existing = await GetAsync(node.NodeKey, ct).ConfigureAwait(false);
+            createdAt = existing?.CreatedAt;
+        }
+        createdAt = string.IsNullOrWhiteSpace(createdAt) ? now : createdAt;
+
+        var doc = BuildDoc(node, createdAt, now);
+        var text = _codec.Serialize(doc);
+        // 派生索引列：仅供 json_extract 索引（真源 = [Doc]，见 KvDocumentTable 头注）。
+        var indexJson = JsonSerializer.Serialize(doc, JsonDocumentCodec.JsonOptions);
+        ExecuteNonQuery(KvDocumentTable.UpsertSql(Table),
+            Params(("k", node.NodeKey), ("d", text), ("ix", indexJson)));
+
+        var rows = Query(KvDocumentTable.SelectByKeySql(Table, KvDocumentTable.ColId), Params(("k", node.NodeKey)));
         var id = rows.Count > 0 ? SqliteRows.Long(rows[0], "Id") : 0L;
-        return Task.FromResult(id);
+        return id;
     }
 
     public Task<NodeRecord?> GetAsync(string nodeKey, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var rows = Query(KvJsonTable.SelectByKeySql(Table, $"[Id],{KvJsonTable.ColNodeKey},{KvJsonTable.ColJson}"), Params(("k", nodeKey)));
+        var rows = Query(KvDocumentTable.SelectByKeySql(Table, $"[Id],{KvDocumentTable.ColNodeKey},{KvDocumentTable.ColDoc}"), Params(("k", nodeKey)));
         return Task.FromResult(rows.Count > 0 ? FromRow(rows[0]) : null);
     }
 
@@ -101,11 +117,11 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         ct.ThrowIfCancellationRequested();
         var where = new List<string>();
         var ps = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        if (nodeType is not null) { where.Add($"{KvJsonTable.JsonExtract(KvJsonTable.Path.NodeType)}=@nt"); ps["@nt"] = nodeType; }
-        if (threadId is not null) { where.Add($"{KvJsonTable.JsonExtract(KvJsonTable.Path.ThreadId)}=@tid"); ps["@tid"] = threadId; }
+        if (nodeType is not null) { where.Add($"{IndexExtract(KvJsonTable.Path.NodeType)}=@nt"); ps["@nt"] = nodeType; }
+        if (threadId is not null) { where.Add($"{IndexExtract(KvJsonTable.Path.ThreadId)}=@tid"); ps["@tid"] = threadId; }
         if (afterId is not null) { where.Add("[Id]>@aid"); ps["@aid"] = afterId.Value; }
 
-        var sql = $"SELECT [Id],{KvJsonTable.ColNodeKey},{KvJsonTable.ColJson} FROM [{Table}]";
+        var sql = $"SELECT [Id],{KvDocumentTable.ColNodeKey},{KvDocumentTable.ColDoc} FROM [{Table}]";
         if (where.Count > 0) sql += " WHERE " + string.Join(" AND ", where);
         sql += " ORDER BY [Id] LIMIT @lim";
         ps["@lim"] = Math.Max(0, limit);
@@ -117,7 +133,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
     public Task<bool> DeleteAsync(string nodeKey, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var removed = ExecuteNonQuery(KvJsonTable.DeleteByKeySql(Table), Params(("k", nodeKey)));
+        var removed = ExecuteNonQuery(KvDocumentTable.DeleteByKeySql(Table), Params(("k", nodeKey)));
         return Task.FromResult(removed > 0);
     }
 
@@ -135,7 +151,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
             ct.ThrowIfCancellationRequested();
             var slice = keys.Skip(i).Take(chunk).ToList();
             var existingSet = Query(
-                    $"SELECT {KvJsonTable.ColNodeKey} FROM [{Table}] WHERE {KvJsonTable.ColNodeKey} IN ({InParams(slice.Count)})",
+                    $"SELECT {KvDocumentTable.ColNodeKey} FROM [{Table}] WHERE {KvDocumentTable.ColNodeKey} IN ({InParams(slice.Count)})",
                     BuildInParams(slice))
                 .Select(r => SqliteRows.Str(r, "NodeKey")) // 行字典键为 reader.GetName()（不带方括号），与 ColNodeKey(带方括号) 不同，勿误用
                 .Where(nk => !string.IsNullOrWhiteSpace(nk))
@@ -152,6 +168,10 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
 
     private static string InParams(int count) => string.Join(",", Enumerable.Range(0, count).Select(j => $"@k{j}"));
 
+    /// <summary>派生索引列 [IndexJson] 上的 json_extract 表达式（与建索引时逐字一致）。</summary>
+    private static string IndexExtract(string jsonPath)
+        => $"json_extract({KvDocumentTable.ColIndexJson},'{jsonPath}')";
+
     private static Dictionary<string, object> BuildInParams(IReadOnlyList<string> keys)
     {
         var ps = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -159,9 +179,9 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         return ps;
     }
 
-    /// <summary>序列化为节点文档（JSON）：全部元数据（NodeType/ThreadId/Key/Status/PayloadJson/RelationsJson/CreatedAt/UpdatedAt）
-    /// 随 Json 持久化（真单源）；Id 自增列、NodeKey 唯一列不入 JSON。</summary>
-    private static string SerializeDoc(NodeRecord node, string createdAt, string updatedAt) => JsonSerializer.Serialize(new NodeDoc
+    /// <summary>构造节点文档（NodeType/ThreadId/Key/Status/PayloadJson/RelationsJson/CreatedAt/UpdatedAt）；
+    /// 文本序列化由 <see cref="IDocumentCodec"/> 承担（真单源）；Id 自增列、NodeKey 唯一列不入文档。</summary>
+    private static NodeDoc BuildDoc(NodeRecord node, string createdAt, string updatedAt) => new NodeDoc
     {
         NodeType = string.IsNullOrWhiteSpace(node.NodeType) ? NodeTypes.Node : node.NodeType,
         ThreadId = node.ThreadId,
@@ -173,19 +193,14 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         RelationsJson = node.RelationsJson,
         CreatedAt = createdAt,
         UpdatedAt = updatedAt,
-    }, PersistenceHelper.JsonOptions);
+    };
 
-    private static NodeRecord? FromRow(IReadOnlyDictionary<string, object> row)
+    private NodeRecord? FromRow(IReadOnlyDictionary<string, object> row)
     {
         var nodeKey = SqliteRows.Str(row, "NodeKey");
         if (string.IsNullOrWhiteSpace(nodeKey)) return null;
-        var json = SqliteRows.Str(row, "Json");
-        NodeDoc? doc = null;
-        if (!string.IsNullOrWhiteSpace(json))
-        {
-            try { doc = JsonSerializer.Deserialize<NodeDoc>(json, PersistenceHelper.JsonOptions); }
-            catch (JsonException) { doc = null; }
-        }
+
+        var doc = _codec.Deserialize<NodeDoc>(SqliteRows.Str(row, "Doc"));
         return new NodeRecord
         {
             Id = SqliteRows.Long(row, "Id"),

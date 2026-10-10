@@ -4,7 +4,7 @@
     节点域接入「聚拢点」守卫（R4 派生面单一生产者 + R5 散弹点棘轮）。
 
 .DESCRIPTION
-    单一生产者 = `Projects\Plug\Agent\Config\nodes\*.json`（各域 domain/placements[]）。派生面必须与之一致：
+    单一生产者 = `Projects\Plug\Agent\Config\nodes\*.ushar`（各域 [Domain] → placements → id=；U9 JSON 面已退役）。派生面必须与之一致：
 
       D1 派生面对账（FAIL）：
          - instances\nodes.json 的 placements[] ≡ 各域声明 placements[].id 并集（缺/多即红）
@@ -45,6 +45,9 @@ $placementFile = Join-Path $nodesDir 'placement.ushar'
 $baselineFile  = Join-Path $Root 'Frame\PowerShellScript\Baselines\DomainWireSingleSource.psd1'
 $agentSrcDir   = Join-Path $Root 'Projects\Plug\Agent\src'
 
+# 基线单源 = Baselines\DomainWireSingleSource.psd1（禁内联；守卫 GateBaselines U7）
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+
 $violations = [System.Collections.Generic.List[string]]::new()
 $warnings   = [System.Collections.Generic.List[string]]::new()
 
@@ -60,11 +63,24 @@ if (-not (Test-Path -LiteralPath $nodesDir)) {
 }
 
 $union = [System.Collections.Generic.List[string]]::new()
-foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.json' -File | Sort-Object Name)) {
-    $decl = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
-    if (-not ($decl.PSObject.Properties.Name -contains 'placements')) { continue }
-    foreach ($p in @($decl.placements)) {
-        if ($p.id -and -not $union.Contains([string]$p.id)) { $union.Add([string]$p.id) }
+# 声明真源 = Config\nodes\*.ushar 的 [Domain] → placements → id=（U9：JSON 面已退役）
+foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File | Sort-Object Name)) {
+    $inPlacements = $false
+    $placementsIndent = -1
+    foreach ($raw in (Get-Content -LiteralPath $file.FullName)) {
+        $line = ($raw -replace '#.*$', '').TrimEnd()
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $indent = $line.Length - $line.TrimStart().Length
+        $trim = $line.Trim()
+        if ($trim.StartsWith('[')) { $inPlacements = $false; continue }
+        if ($trim -match '^placements$') { $inPlacements = $true; $placementsIndent = $indent; continue }
+        if ($inPlacements -and $indent -le $placementsIndent) { $inPlacements = $false }
+        if (-not $inPlacements) { continue }
+        $m = [regex]::Match($trim, '^id\s*=\s*(?<id>[^\s|]+)')
+        if ($m.Success) {
+            $id = $m.Groups['id'].Value
+            if (-not $union.Contains($id)) { $union.Add($id) }
+        }
     }
 }
 
@@ -73,7 +89,7 @@ if ($union.Count -eq 0) {
     exit 1
 }
 
-Write-Host ("  声明真源: {0} 域位置并集 {1} 项" -f (Get-ChildItem -LiteralPath $nodesDir -Filter '*.json' -File).Count, $union.Count) -ForegroundColor Gray
+Write-Host ("  声明真源: {0} 域 / 位置并集 {1} 项" -f (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File).Count, $union.Count) -ForegroundColor Gray
 
 function ConvertTo-WireId([string]$id) { return ($id -replace '-', '_').ToLowerInvariant() }
 
@@ -174,7 +190,7 @@ if (Test-Path -LiteralPath $agentSrcDir) {
 }
 
 if (Test-Path -LiteralPath $baselineFile) {
-    $baseline = Import-PowerShellDataFile -LiteralPath $baselineFile
+    $baseline = Import-GateBaseline -Name DomainWireSingleSource
     foreach ($key in @($counts.Keys)) {
         if ($baseline.ContainsKey($key)) {
             $cap = [int]$baseline[$key].Value

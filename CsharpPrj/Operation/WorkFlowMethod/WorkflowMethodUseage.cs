@@ -77,13 +77,7 @@ namespace WorkFlowMethod.Usage
 
         #region ---- 第一部分：WorkflowUseage ----
 
-        public static void EnsureInitialized()
-        {
-            var center = UnifiedRegistryCenter.Instance;
-            if (!center.IsInitialized)
-                throw new InvalidOperationException(
-                    "UnifiedRegistryCenter 未初始化。请确保 FrameworkInitializer 已完成初始化。");
-        }
+        public static void EnsureInitialized() => GetInitializedCenter();
 
         private static UnifiedRegistryCenter GetInitializedCenter()
         {
@@ -117,37 +111,8 @@ namespace WorkFlowMethod.Usage
             get
             {
                 var center = GetInitializedCenter();
-                var reg = (BmITrConfigRegistry)center.Functions;
-
-                var registeredCount = reg.GetRegisteredNames().Count();
-                var regHash = RuntimeHelpers.GetHashCode(reg).ToString("X8");
-                var regType = reg.GetType().FullName;
-                WorkFlowMethodLog.Log("WorkflowMethodExecution_BasicRegistry_diag", new
-                {
-                    Hash = regHash,
-                    Type = regType,
-                    Count = registeredCount,
-                    Message = "BasicRegistry getter 访问 UnifiedRegistryCenter.Functions"
-                });
-
-                if (registeredCount == 0)
-                {
-                    WorkFlowMethodLog.Log("WorkflowMethodExecution_Registry_empty", new
-                    {
-                        Message = "UnifiedRegistryCenter.Functions is empty! " +
-                                  "Initialize() may not have been called before first access.",
-                        RegistryHash = regHash
-                    });
-
-                    WorkFlowMethodLog.Log("WorkflowMethodExecution_Registry_diagnostic", new
-                    {
-                        Count = registeredCount,
-                        RegistryHash = regHash,
-                        StackTrace = Environment.StackTrace
-                    });
-                }
-
-                return reg;
+                // R3：getter 去副作用——原计数/三条诊断日志已移除（诊断宜迁独立入口，不置于属性读取路径）。
+                return (BmITrConfigRegistry)center.Functions;
             }
         }
 
@@ -173,37 +138,27 @@ namespace WorkFlowMethod.Usage
         public static void RegisterFunction(string name, Func<WfContext, object> func)
         {
             var registry = GetRequiredWorkflowRegistry();
-            registry.Register(name, (Delegate)((FunctionContext ctx) =>
-            {
-                var wfCtx = new WfContext(
-                    parameters: ctx.Parameters!,
-                    data: ctx.Items,
-                    executionId: ctx.ExecutionId,
-                    nodeKey: null,
-                    workflowId: null
-                );
-                return func(wfCtx);
-            }));
+            registry.Register(name, (Delegate)((FunctionContext ctx) => func(ToWorkflowContext(ctx))));
         }
 
         public static void RegisterAsyncFunction(string name, Func<WfContext, Task<object>> func)
         {
             var registry = GetRequiredWorkflowRegistry();
+            // ConfigureAwait(false)：库注册的 async 回调不应捕获环境 SynchronizationContext，
+            // 否则在带 SyncContext 的线程（如 GUI/调度上下文）被 DynamicInvoke 时，
+            // 续延会编组回被阻塞的上下文造成异步死锁（ClineLibrary 记载的「UI 线程死锁根因」同类）。
             registry.Register(name, (Delegate)(async (FunctionContext ctx) =>
-            {
-                var wfCtx = new WfContext(
-                    parameters: ctx.Parameters!,
-                    data: ctx.Items,
-                    executionId: ctx.ExecutionId,
-                    nodeKey: null,
-                    workflowId: null
-                );
-                // ConfigureAwait(false)：库注册的 async 回调不应捕获环境 SynchronizationContext，
-                // 否则在带 SyncContext 的线程（如 GUI/调度上下文）被 DynamicInvoke 时，
-                // 续延会编组回被阻塞的上下文造成异步死锁（ClineLibrary 记载的「UI 线程死锁根因」同类）。
-                return await func(wfCtx).ConfigureAwait(false);
-            }));
+                await func(ToWorkflowContext(ctx)).ConfigureAwait(false)));
         }
+
+        /// <summary>共享工厂（D5）：<see cref="FunctionContext"/> → <see cref="WfContext"/> 映射单源。</summary>
+        private static WfContext ToWorkflowContext(FunctionContext ctx)
+            => new(
+                parameters: ctx.Parameters!,
+                data: ctx.Items,
+                executionId: ctx.ExecutionId,
+                nodeKey: null,
+                workflowId: null);
 
         public static object CallFunction(string name, WfContext context)
         {

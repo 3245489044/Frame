@@ -69,16 +69,13 @@ namespace WorkflowExecution.Execution
                             "external 工具执行面未装配（组合根须注入 LlmToolRegistry.TryInvoke 适配器）。");
                     return new FuncCallResult(true, call.FuncName, kind, _externalHandler(call, context), null);
 
-                case FuncCallKind.Composition:
-                    return new FuncCallResult(false, call.FuncName, kind, null,
-                        "composition kind 须由管线递归承接（PipelineGroup），不应到达分派器。");
-
                 default:
                     if (_internalRegistry is null)
                         return new FuncCallResult(false, call.FuncName, kind, null, "internal 工作流注册表未装配。");
                     // 未登记 → 保持既有语义（null 值，不抛）；已登记 → 调用（未找到异常原样上抛，由管线收口）。
                     if (!_internalRegistry.HasFunction(call.FuncName))
-                        return new FuncCallResult(true, call.FuncName, kind, null, null);
+                        return new FuncCallResult(false, call.FuncName, kind, null,
+                            $"internal 函数未注册: {call.FuncName}（对齐启动期 WorkflowFunctionRefValidator 的 fail-fast 口径，不静默跳过）。");
                     return new FuncCallResult(true, call.FuncName, kind, _internalRegistry.Call(call.FuncName, context), null);
             }
         }

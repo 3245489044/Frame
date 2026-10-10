@@ -59,6 +59,12 @@ public static class UsharpLanguage
     /// <summary>规则启用位字段（<c>enabled=</c>）。</summary>
     public const string FieldEnabled = "enabled";
 
+    /// <summary>规则子树根词：<c>require</c>（治理谓词树；<c>when</c>/<c>then</c> 复用 <see cref="FieldWhen"/>/<see cref="FieldThen"/>）。</summary>
+    public const string FieldRequire = "require";
+
+    /// <summary>规则续跑提示字段（<c>next_prompt_hint=</c>；循环规则集 <c>RuleSet</c> 用）。</summary>
+    public const string FieldNextPromptHint = "next_prompt_hint";
+
     // ---- 数据层字段名（[Table]/[Record]）----
 
     /// <summary>表/记录所属容器（<c>container=</c>：nodes/tasks/resources/endpoints/events）。</summary>

@@ -25,6 +25,11 @@ public sealed record UsharpConfigDecl(
     /// <summary>是否叶声明（含 <c>value=</c>）。</summary>
     public bool IsLeaf => Value is not null;
 
+    /// <summary>按条目键取续行值（未命中 ⇒ null）。</summary>
+    /// <param name="key">条目键（如 <c>guards.max_steps</c>）。</param>
+    public string? Entry(string key)
+        => Entries.FirstOrDefault(e => string.Equals(e.Key, key, StringComparison.Ordinal))?.Value;
+
     /// <summary>投影单条 <c>[Config]</c>（无名 ⇒ null）。</summary>
     public static UsharpConfigDecl? From(DslDeclaration d)
     {

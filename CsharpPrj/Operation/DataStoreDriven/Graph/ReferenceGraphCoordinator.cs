@@ -10,6 +10,7 @@ using Modules.GraphProcessing.Algorithms;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Configuration;
 using Operation.DataStoreDriven.ReferenceSchema;
+using Plate.DslMethod.Usharp;
 
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
@@ -51,6 +52,11 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
     private const string EdgeKeySeparator = "::";
 
+    /// <summary>图行默认编解码（单源常量）：图行 <c>EdgeDoc</c>/<c>EndpointDoc</c> 为**非 <c>[Record]</c> 记录通道**，
+    /// 缺省走 JSON 文档形态（LiteDB 非 SQL，不适用「无视删除」口径 ⇒ 保持旧行读兼容）。
+    /// 收敛为「图行专用 codec」单源，禁内联 <c>?? JsonDocumentCodec.Instance</c> 字面（U-3 判据：全仓该字面 = 0）。</summary>
+    private static readonly IDocumentCodec GraphRowDefaultCodec = JsonDocumentCodec.Instance;
+
     private ReferenceGraphCoordinator(
         LiteDatabase db, string edgesCollection, string endpointsCollection,
         IReferenceTypeRegistry? vocabulary = null,
@@ -66,7 +72,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
-        _codec = codec ?? JsonDocumentCodec.Instance;
+        _codec = codec ?? GraphRowDefaultCodec;      // 图行专用 codec 单源（去内联 `?? JsonDocumentCodec.Instance` 字面）
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
     }
 
@@ -183,18 +189,91 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private static string? DocText(BsonDocument doc)
         => doc.TryGetValue("Doc", out var v) && v.IsString ? v.AsString : null;
 
-    /// <summary>由边文档还原 <see cref="EdgeDoc"/>（经 codec；失败 ⇒ null）。</summary>
+    /// <summary>由边文档还原 <see cref="EdgeDoc"/>：优先记录实例端口（<c>[Record]</c> 真源），
+    /// 失败回退旧 JSON 行（<c>Serialize&lt;EdgeDoc&gt;</c> 平 JS，LiteDB 非 SQL ⇒ 保留旧行读兼容）。</summary>
     private EdgeDoc? ReadEdgeDoc(BsonDocument doc)
     {
         var text = DocText(doc);
-        return string.IsNullOrWhiteSpace(text) ? null : _codec.Deserialize<EdgeDoc>(text);
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return EdgeFromRecord(body);
+        return JsonDocumentCodec.Instance.Deserialize<EdgeDoc>(text);
     }
 
-    /// <summary>由端点文档还原 <see cref="EndpointDoc"/>（经 codec；失败 ⇒ null）。</summary>
+    /// <summary>由端点文档还原 <see cref="EndpointDoc"/>：记录实例优先 + 旧 JSON 行回退（同 <see cref="ReadEdgeDoc"/>）。</summary>
     private EndpointDoc? ReadEndpointDoc(BsonDocument doc)
     {
         var text = DocText(doc);
-        return string.IsNullOrWhiteSpace(text) ? null : _codec.Deserialize<EndpointDoc>(text);
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return EndpointFromRecord(body);
+        return JsonDocumentCodec.Instance.Deserialize<EndpointDoc>(text);
+    }
+
+    /// <summary>读记录标量文本（缺省/null ⇒ null）。</summary>
+    private static string? S(UsharpRecord body, string name)
+        => body.TryGet(name, out var v) && v is UsharpScalar sc && sc.Kind != UsharpScalarKind.Null ? sc.Text : null;
+
+    private static double D(UsharpRecord body, string name, double fallback)
+        => body.TryGet(name, out var v) && v is UsharpScalar { Kind: UsharpScalarKind.Decimal or UsharpScalarKind.Int } sc
+           && double.TryParse(sc.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d)
+            ? d : fallback;
+
+    /// <summary>EdgeDoc → USharp 记录体（字段名 camelCase；写/读同源）。</summary>
+    private static UsharpRecord EdgeRecord(EdgeDoc e) => new(new[]
+    {
+        new KeyValuePair<string, UsharpValue>("sourceId", UsharpScalar.Str(e.SourceId)),
+        new KeyValuePair<string, UsharpValue>("sourceType", UsharpScalar.Str(e.SourceType ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("targetId", UsharpScalar.Str(e.TargetId)),
+        new KeyValuePair<string, UsharpValue>("targetType", UsharpScalar.Str(e.TargetType ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("refType", UsharpScalar.Str(e.RefType)),
+        new KeyValuePair<string, UsharpValue>("strength", new UsharpScalar(UsharpScalarKind.Decimal, e.Strength.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+    });
+
+    private static EdgeDoc EdgeFromRecord(UsharpRecord body) => new()
+    {
+        SourceId = S(body, "sourceId") ?? string.Empty,
+        SourceType = S(body, "sourceType"),
+        TargetId = S(body, "targetId") ?? string.Empty,
+        TargetType = S(body, "targetType"),
+        RefType = S(body, "refType") ?? string.Empty,
+        Strength = D(body, "strength", 1.0),
+    };
+
+    /// <summary>EndpointDoc → USharp 记录体（metadata 为嵌套记录，键序 = 原字典序）。</summary>
+    private static UsharpRecord EndpointRecord(string key, Resource resource, ResourceIdentifier id)
+    {
+        var fields = new List<KeyValuePair<string, UsharpValue>>(5)
+        {
+            new("resourceType", UsharpScalar.Str(id.ResourceType ?? string.Empty)),
+            new("id", UsharpScalar.Str(id.Id ?? string.Empty)),
+            new("symbol", UsharpScalar.Str(resource.Symbol ?? string.Empty)),
+            new("updatedAt", UsharpScalar.Str(DateTime.UtcNow.ToString("O"))),
+        };
+        if (resource.Metadata is { Count: > 0 })
+        {
+            var mf = new List<KeyValuePair<string, UsharpValue>>(resource.Metadata.Count);
+            foreach (var kv in resource.Metadata)
+                mf.Add(new KeyValuePair<string, UsharpValue>(kv.Key, UsharpScalar.Str(Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)));
+            fields.Add(new KeyValuePair<string, UsharpValue>("metadata", new UsharpRecord(mf)));
+        }
+        return new UsharpRecord(fields);
+    }
+
+    private static EndpointDoc EndpointFromRecord(UsharpRecord body)
+    {
+        Dictionary<string, string>? metadata = null;
+        if (body.TryGet("metadata", out var mv) && mv is UsharpRecord mr && mr.Fields.Count > 0)
+        {
+            metadata = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var kv in mr.Fields) metadata[kv.Key] = (kv.Value as UsharpScalar)?.Text ?? string.Empty;
+        }
+        return new EndpointDoc
+        {
+            ResourceType = S(body, "resourceType") ?? string.Empty,
+            Id = S(body, "id") ?? string.Empty,
+            Symbol = S(body, "symbol"),
+            UpdatedAt = S(body, "updatedAt"),
+            Metadata = metadata,
+        };
     }
 
     // ---- IResourceReferenceStore 资源方法：仅内存端点注册表（SQL 为实体真源，LiteDB 不复制）----
@@ -709,26 +788,13 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             LastModified = DateTime.UtcNow,
         };
 
-    /// <summary>持久化端点符号/metadata 到 ur_endpoints（可重建缓存，权威仍在 SQL）；{ _id, Doc } 形态。</summary>
+    /// <summary>持久化端点符号/metadata 到 ur_endpoints（可重建缓存，权威仍在 SQL）；{ _id, Doc } 形态，Doc = USharp [Record] 实例。</summary>
     private void PersistEndpointDoc(string key, Resource resource, ResourceIdentifier id)
     {
-        var metadata = resource.Metadata is { Count: > 0 }
-            ? resource.Metadata.ToDictionary(
-                kv => kv.Key,
-                kv => Convert.ToString(kv.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
-                StringComparer.Ordinal)
-            : null;
         var doc = new BsonDocument
         {
             ["_id"] = key,
-            ["Doc"] = _codec.Serialize(new EndpointDoc
-            {
-                ResourceType = id.ResourceType ?? string.Empty,
-                Id = id.Id ?? string.Empty,
-                Symbol = resource.Symbol ?? string.Empty,
-                UpdatedAt = DateTime.UtcNow.ToString("O"),
-                Metadata = metadata,
-            }),
+            ["Doc"] = _codec.SerializeRecord("endpoint:" + key, "Endpoints", key, EndpointRecord(key, resource, id)),
         };
         _endpointDocs.Upsert(doc);
     }
@@ -736,10 +802,13 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // ---- 边文档编解码（ur_references）----
 
     private BsonDocument ToEdgeDoc(string sourceKey, ResourceIdentifier src, string targetKey, ResourceIdentifier tgt,
-        string refType, double strength) => new()
+        string refType, double strength)
+    {
+        var id = BuildEdgeId(sourceKey, targetKey, refType);
+        return new BsonDocument
         {
-            ["_id"] = BuildEdgeId(sourceKey, targetKey, refType),
-            ["Doc"] = _codec.Serialize(new EdgeDoc
+            ["_id"] = id,
+            ["Doc"] = _codec.SerializeRecord("edge:" + id, "References", id, EdgeRecord(new EdgeDoc
             {
                 SourceId = sourceKey,
                 SourceType = src.ResourceType,
@@ -747,7 +816,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 TargetType = tgt.ResourceType,
                 RefType = refType,
                 Strength = strength,
-            }),
+            })),
         };
+    }
 }
 

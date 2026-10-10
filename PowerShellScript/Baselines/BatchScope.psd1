@@ -105,6 +105,11 @@
     #   · Frame/PowerShellScript/**（门禁/基线）· Environment/CentralTest/**（codec/round-trip 用例），
     #   均在新单 allowSet 内；在途改动（L0/L1/L3 交付面 + U 系列剩余件）按新单 preexisting 登记。
     #   恢复 = 回填 v19 的 Value（上方注释保留 U 单原值）。
+    # v21（2026-10-10）：沿用同一授权单，新增批 U（USharp 数据化后续收口 U-1…U-11）；active 由 L4a…L7
+    #   收敛为 [U]（宽 allowSet 覆盖 Frame/** · Projects/Plug/Agent/** · Environment/CentralTest/** ·
+    #   Docs/analysis/2026/10/10.10/**）。切换理由 = 用户转入实施《USharp数据化-后续未实施清单.md》；
+    #   已交付批（B0/L2/L4*/L6/L7）登记 done，L5（配置 JSON→.ushar）随 U-1 推进。
+    #   恢复 = 回填 v20 的 active 值与各批 status。
     Manifest = @{ Value = 'Docs\analysis\2026\10\10.10\USharp数据化-全表USharp化.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。

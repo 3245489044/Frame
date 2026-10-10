@@ -31,14 +31,14 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
     public SqliteSnapshotStore(IDbCommandExecutor executor, string table, IDocumentCodec? codec = null)
         : base(executor, table)
     {
-        _codec = codec ?? JsonDocumentCodec.Instance;
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "快照记录型存储须注入 IDocumentCodec（USharp codec）。");
     }
 
     public Task InitializeAsync(CancellationToken ct = default)
     {
         KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
         KvUsharpTable.EnsureCreated(Executor, Table);
-        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_threadid", KvJsonTable.Path.ThreadId);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_threadid", UsharpRecordPaths.ThreadId);
         return Task.CompletedTask;
     }
 
@@ -72,7 +72,7 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
         }
         else
         {
-            sql = $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.UsharpExtract(KvJsonTable.Path.ThreadId)}=@t " +
+            sql = $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.UsharpExtract(UsharpRecordPaths.ThreadId)}=@t " +
                   $"ORDER BY {KvUsharpTable.ColId} DESC LIMIT 1";
             p = Params(("t", threadId));
         }

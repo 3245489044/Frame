@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Sqlite;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Declarations;
@@ -22,8 +23,23 @@ public static class UsharpDataPorts
     /// <summary>表声明文件名（<c>[Table]</c> 真源，位于配置目录 <c>nodes/</c> 下）。</summary>
     public const string TablesDeclarationFileName = "tables.ushar";
 
-    /// <summary>文档编解码端口（USharp 实现，无状态单例）。</summary>
-    public static IDocumentCodec Codec => UsharpDocumentCodec.Instance;
+    /// <summary>文档编解码端口（USharp 实现，无状态单例）。取用时确保 <c>usharp_get</c> 已注册
+    /// （唯一注入入口 ⇒ 组合根解析 codec 即完成注册，早于任何 Store 初始化）。</summary>
+    public static IDocumentCodec Codec
+    {
+        get
+        {
+            EnsureSqlFunctions();
+            return UsharpDocumentCodec.Instance;
+        }
+    }
+
+    /// <summary>
+    /// 显式注册 <c>usharp_get</c> SQL 函数（**唯一注册点**，§2.4）：组合根装配期调用，幂等。
+    /// 存储层的过滤/排序/CAS 经 <c>usharp_get</c> 在 SQL 侧下推，且建 <c>usharp_get</c> 表达式索引前须已注册
+    /// ⇒ 必须早于任何 <c>Store.InitializeAsync</c>。去除了 <see cref="UsharpDocumentCodec"/> 的静态构造副作用。
+    /// </summary>
+    public static void EnsureSqlFunctions() => UsharpSqlFunction.EnsureRegistered();
 
     /// <summary>
     /// 表结构声明源：<c>configDirectory/nodes/tables.ushar</c> → 列 DDL 投影；

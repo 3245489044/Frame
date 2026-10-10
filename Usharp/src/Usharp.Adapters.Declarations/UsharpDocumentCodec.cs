@@ -20,11 +20,6 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
     /// <summary>共享单例（无状态）。</summary>
     public static readonly UsharpDocumentCodec Instance = new();
 
-    /// <summary>首次使用 USharp codec 即注册 <c>usharp_get</c> 连接级函数（集中式转换层，施工单 §1.6）。
-    /// 使依赖 USharp 存储的过滤/排序/CAS 在所有连接（读/写）上可用。</summary>
-    static UsharpDocumentCodec()
-        => Operation.DataStoreDriven.Sqlite.UsharpSqlFunction.EnsureRegistered();
-
     /// <inheritdoc />
     public string Format => "usharp";
 
@@ -61,17 +56,6 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
 
         value = UsharpValueMapper.ToObject<T>(usharp);
         return value is not null;
-    }
-
-    /// <inheritdoc />
-    public string? ExtractScalar(string document, string memberName)
-    {
-        if (string.IsNullOrWhiteSpace(document) || string.IsNullOrWhiteSpace(memberName)) return null;
-
-        var usharp = ParseDocument(document);
-        if (usharp is UsharpRecord record && record.TryGet(memberName, out var v) && v is UsharpScalar scalar)
-            return scalar.Kind == UsharpScalarKind.String ? scalar.Text : scalar.ToCanonical();
-        return null;
     }
 
     /// <inheritdoc />

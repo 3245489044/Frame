@@ -9,7 +9,7 @@ namespace Operation.DataStoreDriven.Sqlite;
 /// <summary>
 /// 纯 USharp 真源表模板：「业务键 NodeKey + USharp 真源文档 Doc」**三列**（<c>[Id]/[NodeKey]/[Doc]</c>）。
 /// <para>
-/// 与旧 <see cref="KvDocumentTable"/> 的区别：**无兼容派生列 <c>[IndexJson]</c>**。真源 <c>[Doc]</c> = USharp 文本；
+/// 与已退役的旧文档表模板的区别：**无兼容派生列 <c>[IndexJson]</c>**。真源 <c>[Doc]</c> = USharp 文本；
 /// 过滤不再下推 SQL <c>json_extract</c>（无法作用于 USharp 文本），改由存储在内存解码 USharp 后完成。
 /// </para>
 /// </summary>

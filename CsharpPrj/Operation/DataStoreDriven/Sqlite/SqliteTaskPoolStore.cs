@@ -43,7 +43,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     public SqliteTaskPoolStore(IDbCommandExecutor executor, string tablePrefix, JsonSerializerOptions? jsonOptions = null, IDocumentCodec? codec = null)
         : base(executor, tablePrefix, TableNames.Tasks)
     {
-        _codec = codec ?? JsonDocumentCodec.Instance;
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "ur_tasks 记录型存储须注入 IDocumentCodec（USharp codec）。");
     }
 
     public string TableName => Table;
@@ -56,8 +56,8 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ct.ThrowIfCancellationRequested();
         KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
         KvUsharpTable.EnsureCreated(Executor, Table);
-        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_status", KvJsonTable.Path.Status);
-        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_priority", KvJsonTable.Path.Priority);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_status", UsharpRecordPaths.Status);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_priority", UsharpRecordPaths.Priority);
         return Task.CompletedTask;
     }
 
@@ -80,8 +80,8 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ct.ThrowIfCancellationRequested();
         // 过滤（ThreadId/Status）与优先级排序（CAST 数字）均 SQL 侧下推（usharp_get 表达式）。
         var rows = Query(
-            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {Extract(KvJsonTable.Path.ThreadId)}=@t AND {Extract(KvJsonTable.Path.Status)}=@s " +
-            $"ORDER BY CAST({Extract(KvJsonTable.Path.Priority)} AS INTEGER) DESC",
+            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {Extract(UsharpRecordPaths.ThreadId)}=@t AND {Extract(UsharpRecordPaths.Status)}=@s " +
+            $"ORDER BY CAST({Extract(UsharpRecordPaths.Priority)} AS INTEGER) DESC",
             Params(("t", PoolThreadId), ("s", status.ToString())));
         var list = new List<TItem>(rows.Count);
         foreach (var row in rows)
@@ -95,7 +95,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ct.ThrowIfCancellationRequested();
         var rows = Query(
-            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t LIMIT 1",
+            $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(UsharpRecordPaths.ThreadId)}=@t LIMIT 1",
             Params(("k", taskKey), ("t", PoolThreadId)));
         return Task.FromResult(rows.Count > 0 && TryReadItem(SqliteRows.Str(rows[0], "Doc"), out var item) ? item : default);
     }
@@ -113,7 +113,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         var updated = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(to.ToString(), createdAt, PersistenceHelper.NowIso()));
         var affected = ExecuteNonQuery(
             $"UPDATE [{Table}] SET {KvUsharpTable.ColDoc}=@d " +
-            $"WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t AND {Extract(KvJsonTable.Path.Status)}=@from",
+            $"WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(UsharpRecordPaths.ThreadId)}=@t AND {Extract(UsharpRecordPaths.Status)}=@from",
             Params(("d", updated), ("k", taskKey), ("t", PoolThreadId), ("from", from.ToString())));
         return Task.FromResult(affected > 0);
     }
@@ -129,7 +129,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         var createdAt = existing.CreatedAt ?? PersistenceHelper.NowIso();
         var text = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(status, createdAt, PersistenceHelper.NowIso()));
         ExecuteNonQuery(
-            $"UPDATE [{Table}] SET {KvUsharpTable.ColDoc}=@d WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t",
+            $"UPDATE [{Table}] SET {KvUsharpTable.ColDoc}=@d WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(UsharpRecordPaths.ThreadId)}=@t",
             Params(("d", text), ("k", taskKey), ("t", PoolThreadId)));
         return Task.CompletedTask;
     }
@@ -139,7 +139,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ct.ThrowIfCancellationRequested();
         var affected = ExecuteNonQuery(
-            $"DELETE FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(KvJsonTable.Path.ThreadId)}=@t",
+            $"DELETE FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey}=@k AND {Extract(UsharpRecordPaths.ThreadId)}=@t",
             Params(("k", taskKey), ("t", PoolThreadId)));
         return Task.FromResult(affected > 0);
     }
@@ -154,7 +154,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ps["@off"] = Math.Max(0, offset);
         var rows = Query(
             $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {where} " +
-            $"ORDER BY CAST({Extract(KvJsonTable.Path.Priority)} AS INTEGER) DESC, {KvUsharpTable.ColId} ASC LIMIT @lim OFFSET @off",
+            $"ORDER BY CAST({Extract(UsharpRecordPaths.Priority)} AS INTEGER) DESC, {KvUsharpTable.ColId} ASC LIMIT @lim OFFSET @off",
             ps);
         var items = new List<TItem>(rows.Count);
         foreach (var row in rows)
@@ -172,9 +172,9 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         var (where, ps) = BuildPoolWhere(status);
         var select =
             $"SELECT {KvUsharpTable.ColId},{KvUsharpTable.ColNodeKey},{KvUsharpTable.ColDoc}, " +
-            $"{Extract(KvJsonTable.Path.Priority)} AS [Priority], {Extract(KvJsonTable.Path.MaxRetries)} AS [MaxRetries], " +
-            $"{Extract(KvJsonTable.Path.Status)} AS [Status], {Extract(KvJsonTable.Path.EnvelopeCreatedAt)} AS [CreatedAt], " +
-            $"{Extract(KvJsonTable.Path.EnvelopeUpdatedAt)} AS [UpdatedAt] FROM [{Table}]";
+            $"{Extract(UsharpRecordPaths.Priority)} AS [Priority], {Extract(UsharpRecordPaths.MaxRetries)} AS [MaxRetries], " +
+            $"{Extract(UsharpRecordPaths.Status)} AS [Status], {Extract(UsharpRecordPaths.EnvelopeCreatedAt)} AS [CreatedAt], " +
+            $"{Extract(UsharpRecordPaths.EnvelopeUpdatedAt)} AS [UpdatedAt] FROM [{Table}]";
         var total = Scalar($"SELECT COUNT(*) FROM [{Table}] WHERE {where}", ps);
         ps["@lim"] = Math.Max(0, pageSize);
         ps["@off"] = Math.Max(0, offset);
@@ -215,9 +215,9 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     /// <summary>任务池行过滤的公共 WHERE（固定 ThreadId 命名空间 + 可选 Status）与参数字典。</summary>
     private (string Where, Dictionary<string, object> Ps) BuildPoolWhere(TaskExecutionStatus? status)
     {
-        var where = $"{Extract(KvJsonTable.Path.ThreadId)}=@t";
+        var where = $"{Extract(UsharpRecordPaths.ThreadId)}=@t";
         var ps = Params(("t", PoolThreadId));
-        if (status is not null) { where += $" AND {Extract(KvJsonTable.Path.Status)}=@s"; ps["@s"] = status.Value.ToString(); }
+        if (status is not null) { where += $" AND {Extract(UsharpRecordPaths.Status)}=@s"; ps["@s"] = status.Value.ToString(); }
         return (where, ps);
     }
 

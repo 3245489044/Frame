@@ -394,4 +394,17 @@
         Note   = 'VM-R5 换代链结构守卫：构建到新目录（代目录布局单源）→ 换 ALC（重装配桥 + 按代端口注册）→ 重装配（F 段重挂 + 装配契约）→ 触发（源码监视 + 命令触发）之结构锚点 C1–C7 在位'
     }
 
+    # ===== USharp 纯化门禁（N4：V1–V6-form）=====
+    UsharpDocForm = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'USharp 记录实例形态（V1/V2/V3-form + V9 依赖方向）：纯三列模板与表声明 / 零兼容残留（IndexJson·KvJsonTable·KvDocumentTable·ExtractScalar）/ 规范形单源 / 存储层零 Usharp.* 依赖；基线 = Baselines\UsharpDocForm.psd1'
+    }
+
+    UsharpGetParity = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'usharp_get 集中式转换层（V4/V5/V6-form）：注册单点（UsharpDataPorts.EnsureSqlFunctions）/ 下推表达式同源（UsharpRecordPaths）/ 表达式索引落点 / 单语句 CAS；基线 = Baselines\UsharpGetParity.psd1'
+    }
+
 }

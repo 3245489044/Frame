@@ -99,31 +99,75 @@ public sealed record UsharpList(IReadOnlyList<UsharpValue> Items) : UsharpValue
     }
 }
 
-/// <summary>记录值（字段序 = 声明序，规范形禁重排）。</summary>
-public sealed record UsharpRecord(IReadOnlyList<KeyValuePair<string, UsharpValue>> Fields) : UsharpValue
+/// <summary>记录值（字段序 = 声明序，规范形禁重排）。<see cref="Fields"/> 容器为**可变后盾**
+/// （<see cref="Set"/>/<see cref="Remove"/>），供运行态薄视图（如 <c>NodeRecord</c>）直读写**同一实例**（非拷贝）。</summary>
+public sealed record UsharpRecord : UsharpValue
 {
+    private readonly List<KeyValuePair<string, UsharpValue>> _fields;
+
+    public UsharpRecord(IReadOnlyList<KeyValuePair<string, UsharpValue>> fields)
+        => _fields = new List<KeyValuePair<string, UsharpValue>>(fields ?? Array.Empty<KeyValuePair<string, UsharpValue>>());
+
+    /// <summary>字段序列（视图；记录序 = 声明序）。</summary>
+    public IReadOnlyList<KeyValuePair<string, UsharpValue>> Fields => _fields;
+
     public bool TryGet(string name, out UsharpValue value)
     {
-        foreach (var f in Fields)
+        foreach (var f in _fields)
             if (string.Equals(f.Key, name, StringComparison.Ordinal)) { value = f.Value; return true; }
         value = UsharpScalar.Null;
         return false;
     }
 
+    /// <summary>视图写入：同名**保位替换** / 新增**追加**（同一实例直写，非拷贝）。</summary>
+    public void Set(string name, UsharpValue value)
+    {
+        for (var i = 0; i < _fields.Count; i++)
+            if (string.Equals(_fields[i].Key, name, StringComparison.Ordinal)) { _fields[i] = new KeyValuePair<string, UsharpValue>(name, value); return; }
+        _fields.Add(new KeyValuePair<string, UsharpValue>(name, value));
+    }
+
+    /// <summary>视图删除（不存在 ⇒ false）。</summary>
+    public bool Remove(string name)
+    {
+        for (var i = 0; i < _fields.Count; i++)
+            if (string.Equals(_fields[i].Key, name, StringComparison.Ordinal)) { _fields.RemoveAt(i); return true; }
+        return false;
+    }
+
     public override string ToCanonical()
-        => "{ " + string.Join(", ", Fields.Select(f => f.Key + " = " + f.Value.ToCanonical())) + " }";
+        => "{ " + string.Join(", ", _fields.Select(f => f.Key + " = " + f.Value.ToCanonical())) + " }";
 
     public override void Write(StringBuilder sb, int indent)
     {
         var pad = new string(' ', indent + 2);
-        if (Fields.Count == 0) { sb.Append("{}"); return; }
+        if (_fields.Count == 0) { sb.Append("{}"); return; }
         sb.Append('{').Append('\n');
-        foreach (var f in Fields)
+        foreach (var f in _fields)
         {
             sb.Append(pad).Append(f.Key).Append(" = ");
             f.Value.Write(sb, indent + 2);
             sb.Append('\n');
         }
         sb.Append(new string(' ', indent)).Append('}');
+    }
+
+    /// <summary>值等价（字段序逐项比较，屏蔽可变后盾对 record 默认引用等价的影响）。</summary>
+    public bool Equals(UsharpRecord? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (_fields.Count != other._fields.Count) return false;
+        for (var i = 0; i < _fields.Count; i++)
+            if (!string.Equals(_fields[i].Key, other._fields[i].Key, StringComparison.Ordinal)
+                || !Equals(_fields[i].Value, other._fields[i].Value)) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        foreach (var f in _fields) { h.Add(f.Key); h.Add(f.Value); }
+        return h.ToHashCode();
     }
 }

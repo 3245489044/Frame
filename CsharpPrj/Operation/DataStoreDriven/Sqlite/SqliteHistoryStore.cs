@@ -30,12 +30,15 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     private const string FieldConversation = "Conversation";
 
     private readonly IDocumentCodec _codec;
+    private readonly ITableSchemaSource? _schemaSource;
 
-    /// <summary>注入命令执行器 + 表名前缀。编解码缺省 = JSON；注入 USharp codec ⇒ 文档 USharp 化。</summary>
-    public SqliteHistoryStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null)
+    /// <summary>注入命令执行器 + 表名前缀。编解码缺省 = JSON；注入 USharp codec ⇒ 文档 USharp 化。
+    /// <paramref name="schemaSource"/> 缺省 ⇒ 建表回落手写 <see cref="KvUsharpTable.SchemaColumns"/>（声明面缺件时零行为变更）。</summary>
+    public SqliteHistoryStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(executor, tablePrefix, TableNames.Histories)
     {
-        _codec = codec ?? JsonDocumentCodec.Instance;
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "ur_histories 记录型存储须注入 IDocumentCodec（USharp codec）。");
+        _schemaSource = schemaSource;
     }
 
     public string TableName => Table;
@@ -45,8 +48,9 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        var declared = _schemaSource?.GetColumns(TableNames.Histories) ?? _schemaSource?.GetColumns("histories");
         KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
-        KvUsharpTable.EnsureCreated(Executor, Table);
+        KvUsharpTable.EnsureCreated(Executor, Table, declared);
         return Task.CompletedTask;
     }
 

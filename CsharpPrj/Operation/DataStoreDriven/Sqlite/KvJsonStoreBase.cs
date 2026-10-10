@@ -37,9 +37,6 @@ public abstract class KvJsonStoreBase
     protected static Dictionary<string, object> Params(params (string Key, object Value)[] pairs)
         => PersistenceHelper.CreateParameters(pairs);
 
-    /// <summary>幂等建表（三列表）。</summary>
-    protected void EnsureCreated() => KvJsonTable.EnsureCreated(Executor, Table);
-
     /// <summary>按 NodeKey 查询（返回原始行集）。</summary>
     protected IReadOnlyList<IReadOnlyDictionary<string, object>> Query(string sql, IDictionary<string, object>? parameters = null)
         => Executor.ExecuteQuery(sql, parameters);

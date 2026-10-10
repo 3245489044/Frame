@@ -38,7 +38,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
     public SqliteNodeStore(IDbCommandExecutor executor, string tableName, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(executor, tableName)
     {
-        _codec = codec ?? JsonDocumentCodec.Instance;
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "ur_nodes 记录型存储须注入 IDocumentCodec（USharp codec）。");
         _schemaSource = schemaSource;
     }
 
@@ -72,9 +72,11 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
             createdAt = existing?.CreatedAt;
         }
         createdAt = string.IsNullOrWhiteSpace(createdAt) ? now : createdAt;
+        // U-7 薄视图：时间戳直写同一 UsharpRecord 实例（CreatedAt 首次保留 / UpdatedAt 本次）。
+        node.CreatedAt = createdAt;
+        node.UpdatedAt = now;
 
-        var doc = BuildBody(node, createdAt, now);
-        var text = _codec.SerializeRecord(RecordId(node.NodeKey), TableId, node.NodeKey, doc);
+        var text = _codec.SerializeRecord(RecordId(node.NodeKey), TableId, node.NodeKey, node.Record);
         ExecuteNonQuery(KvUsharpTable.UpsertSql(Table),
             Params(("k", node.NodeKey), ("d", text)));
 
@@ -149,7 +151,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
             ct.ThrowIfCancellationRequested();
             var slice = keys.Skip(i).Take(chunk).ToList();
             var existingSet = Query(
-                    $"SELECT {KvDocumentTable.ColNodeKey} FROM [{Table}] WHERE {KvDocumentTable.ColNodeKey} IN ({InParams(slice.Count)})",
+                    $"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey} IN ({InParams(slice.Count)})",
                     BuildInParams(slice))
                 .Select(r => SqliteRows.Str(r, "NodeKey")) // 行字典键为 reader.GetName()（不带方括号），与 ColNodeKey(带方括号) 不同，勿误用
                 .Where(nk => !string.IsNullOrWhiteSpace(nk))
@@ -157,7 +159,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
             var toDelete = slice.Where(existingSet.Contains).ToList();
             if (toDelete.Count == 0) continue;
             ExecuteNonQuery(
-                $"DELETE FROM [{Table}] WHERE {KvJsonTable.ColNodeKey} IN ({InParams(toDelete.Count)})",
+                $"DELETE FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey} IN ({InParams(toDelete.Count)})",
                 BuildInParams(toDelete));
             removed.AddRange(toDelete);
         }
@@ -173,53 +175,19 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         return ps;
     }
 
-    /// <summary>构造节点记录体（字段序 = 规范形键序；null/空白字段不写出）。
-    /// Id 自增列、NodeKey 唯一列不入记录体；载荷为**中立 <see cref="UsharpValue"/>**（数据内核原生表示）。</summary>
-    private static UsharpRecord BuildBody(NodeRecord node, string createdAt, string updatedAt)
-    {
-        var fields = new List<KeyValuePair<string, UsharpValue>>(10);
-        void Add(string name, string? value)
-        {
-            if (!string.IsNullOrWhiteSpace(value)) fields.Add(new(name, UsharpScalar.Str(value)));
-        }
-
-        Add("nodeType", string.IsNullOrWhiteSpace(node.NodeType) ? NodeTypes.Node : node.NodeType);
-        Add("threadId", node.ThreadId);
-        Add("key", node.Key);
-        Add("status", node.Status);
-        Add("stepKey", node.StepKey);
-        Add("decision", node.Decision);
-        if (node.Payload is not null) fields.Add(new("payload", node.Payload));
-        if (node.Relations is not null) fields.Add(new("relations", node.Relations));
-        Add("createdAt", createdAt);
-        Add("updatedAt", updatedAt);
-        return new UsharpRecord(fields);
-    }
-
-    /// <summary>行 → 节点记录：读库即解析一次记录实例，字段经投影落到运行态 <see cref="NodeRecord"/>。</summary>
+    /// <summary>行 → 节点记录：读库即解析一次记录实例，运行态 <see cref="NodeRecord"/> 为**薄视图**
+    /// （直接持有 <see cref="UsharpRecord"/>，字段经 <c>TryGet</c>/<c>Set</c> 直读写同一实例，非逐字段拷贝投影）。</summary>
     private NodeRecord? FromRow(IReadOnlyDictionary<string, object> row)
     {
         var nodeKey = SqliteRows.Str(row, "NodeKey");
         if (string.IsNullOrWhiteSpace(nodeKey)) return null;
 
         _codec.TryDeserializeRecord(SqliteRows.Str(row, "Doc"), out _, out _, out _, out var body);
-        string? S(string name) => body.TryGet(name, out var v) && v is UsharpScalar sc && sc.Kind != UsharpScalarKind.Null ? sc.Text : null;
-        UsharpValue? V(string name) => body.TryGet(name, out var v) && v is not UsharpScalar { Kind: UsharpScalarKind.Null } ? v : null;
 
-        return new NodeRecord
+        return new NodeRecord(body)
         {
             Id = SqliteRows.Long(row, "Id"),
             NodeKey = nodeKey,
-            NodeType = S("nodeType") ?? NodeTypes.Node,
-            ThreadId = S("threadId"),
-            Key = S("key"),
-            Status = S("status"),
-            StepKey = S("stepKey"),
-            Decision = S("decision"),
-            Payload = V("payload"),
-            Relations = V("relations"),
-            CreatedAt = S("createdAt"),
-            UpdatedAt = S("updatedAt"),
         };
     }
 }

@@ -198,7 +198,7 @@ namespace Operation.HierarchyMethod.Nodes {
                 ThreadId = NormalizeWf(workflowId),
                 Status = existing?.Status,
                 PayloadJson = NodeOutputCodec.EncodeBusiness(payload),
-                RelationsJson = existing?.RelationsJson,
+                Relations = existing?.Relations,   // U-8：直读中立 Relations（替代 RelationsJson JSON 往返）
             }, ct);
 
         private static NodeOutput? BuildOutput(string workflowId, string nodeKey, string payloadJson)

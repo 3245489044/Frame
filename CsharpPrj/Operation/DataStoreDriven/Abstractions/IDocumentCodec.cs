@@ -29,8 +29,6 @@ public interface IDocumentCodec
     /// 取顶层成员的标量文本（**影子索引列**派生：真源文档 → 可被 SQL 索引的标量）。
     /// 找不到 / 非标量 ⇒ 返回 <c>null</c>。
     /// </summary>
-    string? ExtractScalar(string document, string memberName);
-
     // ---- 记录实例端口（N0）：[Doc] = [Record] <recordId>: table=<t> | key=<k> 实例规范文本 ----
 
     /// <summary>记录实例 → 规范文本（记录头 + 字段体；规范形单源 = 前端 <c>UsharpRecordDecl.ToCanonical</c>）。</summary>

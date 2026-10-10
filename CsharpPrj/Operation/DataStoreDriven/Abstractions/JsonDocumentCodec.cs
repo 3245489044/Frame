@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Plate.DslMethod.Usharp;
 
 namespace Operation.DataStoreDriven.Abstractions;
@@ -31,31 +30,6 @@ public sealed class JsonDocumentCodec : IDocumentCodec
     {
         value = Deserialize<T>(text);
         return value is not null;
-    }
-
-    /// <inheritdoc />
-    public string? ExtractScalar(string document, string memberName)
-    {
-        if (string.IsNullOrWhiteSpace(document) || string.IsNullOrWhiteSpace(memberName)) return null;
-        try
-        {
-            var node = JsonNode.Parse(document);
-            var value = node?[memberName];
-            return ScalarText(value);
-        }
-        catch (JsonException) { return null; }
-    }
-
-    /// <summary>JSON 节点 → 标量文本（对象/数组 ⇒ null）。</summary>
-    internal static string? ScalarText(JsonNode? node)
-    {
-        if (node is null) return null;
-        var value = node.AsValue();
-        if (value.TryGetValue<string>(out var s)) return s;
-        if (value.TryGetValue<bool>(out var b)) return b ? "true" : "false";
-        if (value.TryGetValue<long>(out var l)) return l.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (value.TryGetValue<double>(out var d)) return d.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return null;
     }
 
     // ---- 记录实例端口（N0）：JSON 回退实现（头字段 __id/__table/__key；体为中立值 JSON 渲染）。----

@@ -11,40 +11,66 @@ namespace Operation.DataStoreDriven.Abstractions;
 /// </summary>
 public sealed class NodeRecord
 {
+    private const string FieldNodeType = "nodeType";
+    private const string FieldThreadId = "threadId";
+    private const string FieldKey = "key";
+    private const string FieldStatus = "status";
+    private const string FieldStepKey = "stepKey";
+    private const string FieldDecision = "decision";
+    private const string FieldPayload = "payload";
+    private const string FieldRelations = "relations";
+    private const string FieldCreatedAt = "createdAt";
+    private const string FieldUpdatedAt = "updatedAt";
+
+    private readonly UsharpRecord _record;
+
+    /// <summary>空视图（兼容对象初始化器消费方）。</summary>
+    public NodeRecord() : this(new UsharpRecord(Array.Empty<KeyValuePair<string, UsharpValue>>())) { }
+
+    /// <summary>薄视图构造：直接持有中立体 <see cref="UsharpRecord"/>（**同一实例**读写，非拷贝）。</summary>
+    public NodeRecord(UsharpRecord record)
+        => _record = record ?? throw new ArgumentNullException(nameof(record));
+
+    /// <summary>中立体后盾（视图单源；字段经 <see cref="UsharpRecord.TryGet"/>/<c>Set</c> 直读写同一实例）。</summary>
+    public UsharpRecord Record => _record;
+
     public long Id { get; set; }
 
-    /// <summary>节点唯一键（幂等 upsert 依据）。</summary>
+    /// <summary>节点唯一键（幂等 upsert 依据；非记录体字段，独立承载）。</summary>
     public string NodeKey { get; set; } = string.Empty;
 
     /// <summary>节点类型判别（<see cref="NodeTypes"/>，如 input/output/event/checkpoint/resource）。</summary>
-    public string NodeType { get; set; } = NodeTypes.Node;
+    public string NodeType
+    {
+        get => Str(FieldNodeType) ?? NodeTypes.Node;
+        set => SetStr(FieldNodeType, value);
+    }
 
     /// <summary>所属线程/会话关联键（可选，便于按 thread 过滤）。</summary>
-    public string? ThreadId { get; set; }
+    public string? ThreadId { get => Str(FieldThreadId); set => SetStr(FieldThreadId, value); }
 
     /// <summary>业务键（通用辅助列）：三区收敛后的 InputKey / EventKey 等业务关联键（可选）。</summary>
-    public string? Key { get; set; }
+    public string? Key { get => Str(FieldKey); set => SetStr(FieldKey, value); }
 
     /// <summary>状态/子类型辅助列（可选）：Output 状态 / Event 子类型等。</summary>
-    public string? Status { get; set; }
+    public string? Status { get => Str(FieldStatus); set => SetStr(FieldStatus, value); }
 
-    /// <summary>驱动标识符 D（可选）：本步节点键（重放序列的推进键，对齐 FoldSignal.StepKey）。
-    /// 随节点文档持久化，支撑按标识符序列重放（审计/恢复）。框架 LLM-free，值由 Agent 层在持久化时填充。</summary>
-    public string? StepKey { get; set; }
+    /// <summary>驱动标识符 D（可选）：本步节点键（重放序列的推进键，对齐 FoldSignal.StepKey）。</summary>
+    public string? StepKey { get => Str(FieldStepKey); set => SetStr(FieldStepKey, value); }
 
-    /// <summary>决策标识符 C（可选）：规范化决策词 continue/stop/error（重放序列的决策，对齐 AX.DecisionOutputSet）。
-    /// 随节点文档持久化；框架层不解释其语义，仅中立承载，值由 Agent 层在决策信号化时填充。</summary>
-    public string? Decision { get; set; }
+    /// <summary>决策标识符 C（可选）：规范化决策词 continue/stop/error（对齐 AX.DecisionOutputSet）。</summary>
+    public string? Decision { get => Str(FieldDecision); set => SetStr(FieldDecision, value); }
 
     /// <summary>节点载荷（**中立 USharp 值**：记录/列表/标量）。路线 B 数据内核原生表示——存储真源唯一形态。</summary>
-    public UsharpValue? Payload { get; set; }
+    public UsharpValue? Payload { get => Val(FieldPayload); set => SetVal(FieldPayload, value); }
 
     /// <summary>[已退役·G4] 节点关系状态（**中立 USharp 值**）。关系权威已归属引用库（D3/D4）。
     /// 仅旧数据读兼容，写侧逐步不再产出。</summary>
-    public UsharpValue? Relations { get; set; }
+    public UsharpValue? Relations { get => Val(FieldRelations); set => SetVal(FieldRelations, value); }
 
     /// <summary>[兼容 API·B-3] 节点载荷的 JSON 文本视图（**计算属性**，非存储字段）：
-    /// 字符串标量（配置值等不透明文本）⇒ 原样返回；记录/列表/其余标量 ⇒ JSON 渲染。写入即解析为 <see cref="Payload"/>。</summary>
+    /// 字符串标量（配置值等不透明文本）⇒ 原样返回；记录/列表/其余标量 ⇒ JSON 渲染。写入即解析为 <see cref="Payload"/>。
+    /// 退役目标（U-8）：消费方改读 <see cref="Payload"/>。</summary>
     public string PayloadJson
     {
         get => Payload switch
@@ -56,11 +82,40 @@ public sealed class NodeRecord
         set => Payload = ParseCompat(value);
     }
 
-    /// <summary>[兼容 API·B-3] 节点关系状态的 JSON 文本视图（**计算属性**，非存储字段）。</summary>
+    /// <summary>[兼容 API·B-3] 节点关系状态的 JSON 文本视图（**计算属性**，非存储字段）。
+    /// 退役目标（U-8）：消费方改读 <see cref="Relations"/>。</summary>
     public string? RelationsJson
     {
         get => Relations is null ? null : UsharpValueJson.ToJson(Relations);
         set => Relations = ParseCompat(value);
+    }
+
+    /// <summary>首次写入时间（UTC ISO-8601，随记录体持久化；幂等覆写保留）。</summary>
+    public string? CreatedAt { get => Str(FieldCreatedAt); set => SetStr(FieldCreatedAt, value); }
+
+    /// <summary>最近写入时间（UTC ISO-8601，随记录体持久化）。</summary>
+    public string? UpdatedAt { get => Str(FieldUpdatedAt); set => SetStr(FieldUpdatedAt, value); }
+
+    /// <summary>读标量文本（缺省/null ⇒ null）。</summary>
+    private string? Str(string name)
+        => _record.TryGet(name, out var v) && v is UsharpScalar sc && sc.Kind != UsharpScalarKind.Null ? sc.Text : null;
+
+    /// <summary>写标量文本（空白 ⇒ 删除字段，与「null/空白字段不写出」一致）。</summary>
+    private void SetStr(string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) _record.Remove(name);
+        else _record.Set(name, UsharpScalar.Str(value));
+    }
+
+    /// <summary>读中立值（缺省/null ⇒ null）。</summary>
+    private UsharpValue? Val(string name)
+        => _record.TryGet(name, out var v) && v is not UsharpScalar { Kind: UsharpScalarKind.Null } ? v : null;
+
+    /// <summary>写中立值（null ⇒ 删除字段）。</summary>
+    private void SetVal(string name, UsharpValue? value)
+    {
+        if (value is null) _record.Remove(name);
+        else _record.Set(name, value);
     }
 
     /// <summary>兼容读：JSON 文本 → 中立值；非法 JSON ⇒ 视为不透明字符串标量（原样保留）。</summary>
@@ -70,12 +125,6 @@ public sealed class NodeRecord
         try { return UsharpValueJson.Parse(json); }
         catch { return UsharpScalar.Str(json); }
     }
-
-    /// <summary>首次写入时间（UTC ISO-8601，随 Json 持久化；幂等覆写保留）。</summary>
-    public string? CreatedAt { get; set; }
-
-    /// <summary>最近写入时间（UTC ISO-8601，随 Json 持久化）。</summary>
-    public string? UpdatedAt { get; set; }
 }
 
 /// <summary>

@@ -333,6 +333,8 @@ internal sealed class KeyTemplate
         "id" => KeyValueShape.Id,
         "number" => KeyValueShape.Number,
         "digits" => KeyValueShape.Digits,
+        "enum" => KeyValueShape.Enum,
+        "path" => KeyValueShape.Path,
         _ => throw new KeyGrammarDefinitionException($"未知值形状: {token}", grammarId),
     };
 
@@ -377,6 +379,8 @@ internal sealed class KeyTemplate
         KeyValueShape.Id => @"[A-Za-z0-9_.\-]+?",
         KeyValueShape.Number => "[1-9][0-9]*",
         KeyValueShape.Digits => "[0-9]+",
+        KeyValueShape.Enum => @"[A-Za-z_][A-Za-z0-9_]*",
+        KeyValueShape.Path => @"(?:[^./\\]+|\\.)+?",
         _ => ".+?",
     };
 }

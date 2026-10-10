@@ -105,25 +105,24 @@ namespace Operation.DataStoreDriven.Abstractions
         Task WriteStaticReferencesAsync(string workflowId,
             IReadOnlyCollection<StaticReference> references, CancellationToken ct = default);
 
-        /// <summary>主动声明关系（G3）：批量写 ur_nodes（NodeType=relation）+ 推导边写入图（声明优先，幂等）。</summary>
+        /// <summary>主动声明关系（G1）：批量写 LiteDB ur_relations（USharp [Record]）+ 推导边写入图（声明优先，幂等）。</summary>
         Task DeclareRelationsAsync(string workflowId, IReadOnlyCollection<RelationDeclarationEntry> declarations, CancellationToken ct = default);
 
-        /// <summary>撤销声明：更新 Status=revoked（或删除节点）→ 级联清边。</summary>
+        /// <summary>撤销声明：置 status=revoked（软删，只增）→ 级联清边。</summary>
         Task UndeclareRelationsAsync(string workflowId, IReadOnlyCollection<string> relationIds, CancellationToken ct = default);
 
         /// <summary>列出全部声明（含状态）；workflowId 为空则列全部。</summary>
         Task<IReadOnlyList<RelationDeclarationEntry>> ListRelationsAsync(string? workflowId = null, CancellationToken ct = default);
 
-        /// <summary>对账（单节点 / 全图两级），返回处理节点数（携带关系状态并已收敛的业务节点数）。</summary>
+        /// <summary>对账（单节点 / 全图两级），返回处理节点数（以 LiteDB 声明集合为参照，不读 SQL）。</summary>
         Task<int> ReconcileAsync(MaintenanceScope scope, string? workflowId = null, string? nodeKey = null, CancellationToken ct = default);
 
-        /// <summary>全量重建：清空图库 → 从 SQL 权威重建（业务节点镜像 + task 镜像 + 声明关系边 + 执行推导边），幂等可重复。</summary>
+        /// <summary>全量重建：清空图库 → 从 LiteDB 自身集合重灌（ur_relations 声明边重建），幂等可重复。</summary>
         Task RebuildAllAsync(CancellationToken ct = default);
 
         /// <summary>
-        /// 图对账差异报告（A5，维护面 <c>graph.maintain=diff</c>）：先全量对账收敛（图 ← SQL 权威），
-        /// 再报告「悬空端点」（图有 SQL 无）与本次对账节点数。返回差异计数即「只减不增」判据的载体；
-        /// 未装配节点库 ⇒ <see cref="GraphMaintenanceDiff.ReconciledNodes"/> = 0 且空差异（不越权判定）。
+        /// 图对账差异报告（A5，维护面 <c>graph.maintain=diff</c>）：先全量对账收敛（图 ← LiteDB 声明权威），
+        /// 再报告「悬空端点」（无任何引用边的 node 端点）与本次对账节点数。返回差异计数即「只减不增」判据的载体。
         /// </summary>
         Task<GraphMaintenanceDiff> GetDiffAsync(CancellationToken ct = default);
     }

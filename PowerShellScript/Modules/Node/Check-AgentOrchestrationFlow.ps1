@@ -93,7 +93,7 @@ $cliExe         = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe
 $cliProj        = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
 # R1/R2/R5/B4/DEBT-4 新增声明面（闸A 编译对象）
-$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'session-productions.ushar')
+$newDeclarationFiles = @('attribution.ushar', 'task-provision.ushar', 'stateless-answer.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'session-productions.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar')
 
 # fn 豁免白名单（编排性阶段名：非引擎注册函数，纳入校验语义不成立）
 $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
@@ -109,7 +109,7 @@ $DeclaredFlowCountBaseline = [int]$g.DeclaredFlowCount.Value
 $FnConstCountBaseline      = [int]$g.FnConstCount.Value
 $SilentSkipBaseline        = [int]$g.SilentSkip.Value
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
-$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar')
+$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar')
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，
 #   判据族见 Check-NodeCollectPort C1–C5）：该 token 是「收集端口位置」标记，不是键值 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；
 #   非收集位置的 inports 仍须 ∈ RoundKeys ∧ ∈ CompatSeedKeys（本白名单**仅**对收集端口位置生效）。

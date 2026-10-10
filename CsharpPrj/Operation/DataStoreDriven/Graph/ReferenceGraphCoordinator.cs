@@ -23,20 +23,20 @@ namespace Operation.DataStoreDriven.Graph;
 
 /// <summary>
 /// 引用关系图协调器 —— 唯一读写 LiteDB 引用关系的组件。
-/// 设计原则（对齐「LiteDB 的唯一作用 = 维护 SQL 中 task/node 的关系，且数据与 SQL 完全不同」）：
-///   · SQL 拥有实体（ur_tasks / ur_nodes 存 task/node 本体与载荷），本协调器**不在 LiteDB 复制实体数据**（无 ur_resources）；
-///   · LiteDB 只持久化**引用边**（ur_references 集合，唯一集合）——即 task ↔ node / node ↔ node 的关系，与 SQL 的实体行完全不同；
-///   · 端点（taskKey / wf.node）只是关系端点键，其存在性按 SQL 写透时序保证（SQL 先写、本协调器随后同步边）；
-///   · 会话内内存维护最小端点注册表（供引用完整性 fail-fast 校验与 UI 展示端点符号名），**不落盘**；
-///   · 每次 SQL 变更（task 入队/状态/载荷/删除、node 写/删、引用增删）都经写透面收敛到 LiteDB。
-/// 本类同时实现 <see cref="IResourceReferenceStore"/> 与 <see cref="INodeRelationStore"/> 端口，保持既有消费方（编排器/对账器）编译兼容，
-/// 但资源方法仅操作内存端点注册表（SQL 是实体真源），引用方法操作 LiteDB 持久边 —— 两者数据面完全不同。
+/// 设计原则（LiteDB = 唯一逻辑关系持有库，设计 §2）：
+///   · 三集合：ur_references（引用边）+ ur_endpoints（端点）+ ur_relations（关系声明，G1 起唯一声明权威）；
+///   · SQL 拥有实体（ur_tasks / ur_nodes 存 task/node 本体与载荷），本协调器**不在 LiteDB 复制实体数据**；
+///   · 端点存在性由 LiteDB 自持（D1）；本协调器不 fail-fast 校验端点，直接接受任意端点键；
+///   · 会话内内存维护最小端点注册表（供引用完整性校验与 UI 展示端点符号名），并从 ur_endpoints 重建；
+///   · 关系声明写/读一律经 ur_relations（USharp [Record]，_id = SQL NodeKey 文法），SQL 不再持有声明。
+/// 本类同时实现 <see cref="IResourceReferenceStore"/> 与 <see cref="INodeRelationStore"/> 端口，保持既有消费方（编排器/对账器）编译兼容。
 /// </summary>
 public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRelationStore, IAsyncDisposable
 {
     private readonly LiteDatabase _db;                                    // 唯一持有句柄
     private readonly ILiteCollection<BsonDocument> _edges;                // ur_references（唯一集合，纯边）
-    private readonly ILiteCollection<BsonDocument> _endpointDocs;         // ur_endpoints（端点符号/metadata 落盘缓存；权威在 SQL）
+    private readonly ILiteCollection<BsonDocument> _endpointDocs;         // ur_endpoints（端点符号/metadata 落盘缓存）
+    private readonly ILiteCollection<BsonDocument> _relationDocs;         // ur_relations（关系声明真源；权威=LiteDB，G1）
     private readonly ICoreGraph<string, Resource, ReferenceEdgeData> _graph; // 热邻接（内存，由边重建）
     private readonly Dictionary<string, Resource> _endpoints;             // 会话内存端点注册表（由 ur_endpoints + 边重建）
     private readonly Dictionary<string, string> _typeById;                // "{type}:{id}" -> key（端点 O(1) 查找；对齐 GetUniqueKey）
@@ -56,11 +56,21 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     /// <summary>图行默认编解码（单源常量）：图行 <c>EdgeDoc</c>/<c>EndpointDoc</c> 为**非 <c>[Record]</c> 记录通道**，
     /// 缺省走 JSON 文档形态（LiteDB 非 SQL，不适用「无视删除」口径 ⇒ 保持旧行读兼容）。
-    /// 收敛为「图行专用 codec」单源，禁内联 <c>?? JsonDocumentCodec.Instance</c> 字面（U-3 判据：全仓该字面 = 0）。</summary>
+    /// 收敛为「图行专用 codec」单源，禁内联 <c>?? JsonDocumentCodec.Instance</c> 字面（U-3 判据：全仓该字面 = 0）。
+    /// <para>D6/B 二段式（裁决）：本默认**保持中立**为阶段一；组合根（<c>DatabaseBootstrapper</c>）已显式注入
+    /// <c>UsharpDataPorts.Codec</c>。默认分支命中次数经 <see cref="FallbackCodecUseCount"/> 可观测 —— 待
+    /// 「未注入路径全覆盖（含测试）」后，阶段二把本默认改为<b>必填</b>并物理退役 <see cref="JsonDocumentCodec"/>。</para></summary>
     private static readonly IDocumentCodec GraphRowDefaultCodec = JsonDocumentCodec.Instance;
 
+    private static int _fallbackCodecUses;
+
+    /// <summary>图行默认 codec 回退命中次数（D6/B 二段式阶段一：使「默认兜底分支是否仍有调用」成为可门禁事实；
+    /// 目标 = 0，达成后可撤默认）。进程级累计，供诊断 / 用例断言。</summary>
+    public static int FallbackCodecUseCount => Volatile.Read(ref _fallbackCodecUses);
+
+
     private ReferenceGraphCoordinator(
-        LiteDatabase db, string edgesCollection, string endpointsCollection,
+        LiteDatabase db, string edgesCollection, string endpointsCollection, string relationsCollection,
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
@@ -69,13 +79,21 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _edges = _db.GetCollection<BsonDocument>(edgesCollection);
         _endpointDocs = _db.GetCollection<BsonDocument>(endpointsCollection);
+        _relationDocs = _db.GetCollection<BsonDocument>(relationsCollection);
         _graph = new CoreGraph<string, Resource, ReferenceEdgeData>();
         _endpoints = new Dictionary<string, Resource>(StringComparer.Ordinal);
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
-        _codec = codec ?? GraphRowDefaultCodec;      // 图行专用 codec 单源（去内联 `?? JsonDocumentCodec.Instance` 字面）
+        _codec = codec ?? UseFallbackCodec();      // 图行专用 codec 单源；未注入 ⇒ 回退（计数可见化，阶段二改为必填）
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
+    }
+
+    /// <summary>取默认 codec 并计数（D6/B 二段式阶段一：回退命中可观测）。</summary>
+    private static IDocumentCodec UseFallbackCodec()
+    {
+        Interlocked.Increment(ref _fallbackCodecUses);
+        return GraphRowDefaultCodec;
     }
 
     /// <summary>组合根工厂：建目录 → 自开自持 LiteDatabase → 载入持久端点 + 边重建内存邻接。失败则释放回滚。</summary>
@@ -105,7 +123,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var conn = PersistenceHelper.BuildConnectionString(PersistenceProvider.LiteDB, options, null);
         var db = new LiteDatabase(conn);
         var coordinator = new ReferenceGraphCoordinator(
-            db, prefix + TableNames.References, prefix + TableNames.Endpoints,
+            db, prefix + TableNames.References, prefix + TableNames.Endpoints, prefix + TableNames.Relations,
             vocabulary, vocabularyGate, edgeDiagnostics, codec);
         try
         {
@@ -191,23 +209,20 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private static string? DocText(BsonDocument doc)
         => doc.TryGetValue("Doc", out var v) && v.IsString ? v.AsString : null;
 
-    /// <summary>由边文档还原 <see cref="EdgeDoc"/>：优先记录实例端口（<c>[Record]</c> 真源），
-    /// 失败回退旧 JSON 行（<c>Serialize&lt;EdgeDoc&gt;</c> 平 JS，LiteDB 非 SQL ⇒ 保留旧行读兼容）。</summary>
+    /// <summary>由边文档还原 <see cref="EdgeDoc"/>：记录实例端口（<c>[Record]</c> 真源；G4 去旧 JSON 行回退）。</summary>
     private EdgeDoc? ReadEdgeDoc(BsonDocument doc)
     {
         var text = DocText(doc);
         if (string.IsNullOrWhiteSpace(text)) return null;
-        if (_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return EdgeFromRecord(body);
-        return JsonDocumentCodec.Instance.Deserialize<EdgeDoc>(text);
+        return _codec.TryDeserializeRecord(text, out _, out _, out _, out var body) ? EdgeFromRecord(body) : null;
     }
 
-    /// <summary>由端点文档还原 <see cref="EndpointDoc"/>：记录实例优先 + 旧 JSON 行回退（同 <see cref="ReadEdgeDoc"/>）。</summary>
+    /// <summary>由端点文档还原 <see cref="EndpointDoc"/>：记录实例端口（G4 去旧 JSON 行回退）。</summary>
     private EndpointDoc? ReadEndpointDoc(BsonDocument doc)
     {
         var text = DocText(doc);
         if (string.IsNullOrWhiteSpace(text)) return null;
-        if (_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return EndpointFromRecord(body);
-        return JsonDocumentCodec.Instance.Deserialize<EndpointDoc>(text);
+        return _codec.TryDeserializeRecord(text, out _, out _, out _, out var body) ? EndpointFromRecord(body) : null;
     }
 
     /// <summary>读记录标量文本（缺省/null ⇒ null）。</summary>
@@ -314,6 +329,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     public Task<IReadOnlyList<Resource>> GetAllResourcesAsync(CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<Resource>>(_endpoints.Values.ToList());
 
+    /// <summary>删除资源端点的**派生数据**（端点文档 + 全部边）；**保留**关系声明（声明为源数据 ⇒ 对账 / 重建依赖其存活）。
+    /// <para>对账（reconcile / diff）与图对账路径用之；删**实体**（node / task / history）请用
+    /// <see cref="RemoveResourceCascadeAsync"/>（含声明级联）。</para></summary>
     public Task RemoveResourceAsync(ResourceIdentifier resourceId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(resourceId);
@@ -328,6 +346,29 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         }
         return Task.CompletedTask;
     }
+
+    /// <summary>删除**实体**端点及其全部数据：端点文档 + 全部边 + **其关系声明**。
+    /// <para>G-cascade 级联方向**单向**（裁决）：删实体 ⇒ 清其 <c>ur_relations</c> 声明；
+    /// 删关系（<see cref="RemoveReferenceAsync"/> / <see cref="RemoveRelationAsync"/>）**不**删实体 —— 关系只删关系。</para>
+    /// <para>声明按 (ResourceType, Id) 二元组在 Source / Target 两侧任一命中即清（声明 <c>Doc</c> 为文本 ⇒ 不可按字段查询，按声明集过滤）。</para></summary>
+    public Task RemoveResourceCascadeAsync(ResourceIdentifier resourceId, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceId);
+        return MutateAsync(ct, async () =>
+        {
+            await RemoveResourceAsync(resourceId, ct).ConfigureAwait(false); // 派生数据清空
+            foreach (var d in ReadRelationDocsCore(null))
+                if (ReferencesResource(d, resourceId))
+                    _relationDocs.DeleteMany(Query.EQ("_id", d.NodeKey));    // 声明级联（单向）
+        });
+    }
+
+    /// <summary>声明是否引用给定资源（(ResourceType, Id) 二元组匹配；Source / Target 任一侧命中）。</summary>
+    private static bool ReferencesResource(RelationDoc d, ResourceIdentifier r)
+        => (string.Equals(d.Source, r.Id, StringComparison.Ordinal)
+                && string.Equals(d.SourceType, r.ResourceType, StringComparison.Ordinal))
+           || (string.Equals(d.Target, r.Id, StringComparison.Ordinal)
+                && string.Equals(d.TargetType, r.ResourceType, StringComparison.Ordinal));
 
     /// <summary>幂等确保端点注册（会话内存；SQL 为实体真源）。AddResourceAsync 为 upsert 无重复异常，直接委托。</summary>
     public Task EnsureResourceAsync(ResourceIdentifier resourceId, string? symbol = null,
@@ -568,12 +609,12 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         }
     }
 
-    /// <summary>task 删除写透：级联移除 task 端点及其全部边。</summary>
+    /// <summary>task 删除写透：级联移除 task 端点、其全部边与**其关系声明**（实体删除 ⇒ 声明级联，单向）。</summary>
     public Task RemoveTaskAsync(string taskKey, CancellationToken ct = default)
-        => RemoveResourceAsync(new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
+        => RemoveResourceCascadeAsync(new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
 
-    /// <summary>清空图（全量重建原语）：删除全部边文档 + 清空会话内存端点注册表/邻接。
-    /// 供守卫 RebuildAllAsync 使用：清空后从 SQL 权威重建（幂等可重复）。</summary>
+    /// <summary>清空图（全量重建原语）：删除派生边/端点文档 + 清空会话内存端点注册表/邻接；
+    /// **保留** ur_relations 声明（声明为源数据，非派生 ⇒ RebuildAllAsync 可自其自洽重建）。幂等可重复。</summary>
     public Task ClearAllAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -588,6 +629,132 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             return Task.CompletedTask;
         });
     }
+
+    // ---- 关系声明原语（G1：ur_relations 唯一声明权威；USharp [Record]；_id = SQL NodeKey）----
+
+    /// <summary>写入/覆盖一条关系声明（幂等 upsert：先按 _id 删后插）。<paramref name="nodeKey"/> = _id（键文法单源）。</summary>
+    public Task UpsertRelationDeclarationAsync(string nodeKey, RelationDoc doc, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        ArgumentNullException.ThrowIfNull(doc);
+        return MutateAsync(ct, () =>
+        {
+            _relationDocs.DeleteMany(Query.EQ("_id", nodeKey));
+            _relationDocs.Insert(new BsonDocument
+            {
+                ["_id"] = nodeKey,
+                ["Doc"] = _codec.SerializeRecord("relation:" + nodeKey, "Relations", nodeKey, RelationRecord(doc)),
+            });
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>置声明为撤销（软删，只增；G1/D5）：读取原声明 → status=revoked → upsert。返回是否命中。</summary>
+    public async Task<bool> RevokeRelationDeclarationAsync(string nodeKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        var existing = await GetRelationDeclarationAsync(nodeKey, ct).ConfigureAwait(false);
+        if (existing is null) return false;
+        await UpsertRelationDeclarationAsync(nodeKey, existing with { Status = "revoked" }, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>取单条声明（按 _id）；不存在 ⇒ null。</summary>
+    public Task<RelationDoc?> GetRelationDeclarationAsync(string nodeKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(ReadLocked(ct, () =>
+        {
+            var doc = _relationDocs.FindById(nodeKey);
+            return doc is null ? null : ReadRelationDoc(doc);
+        }));
+    }
+
+    /// <summary>列举声明（<paramref name="workflowId"/> 为空则全部；含 revoked）。</summary>
+    public Task<IReadOnlyList<RelationDoc>> GetRelationDeclarationsAsync(string? workflowId = null, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<RelationDoc>>(ReadLocked(ct, () => ReadRelationDocsCore(workflowId)));
+    }
+
+    /// <summary>由 active 声明投影的权威边集（设计 §5-#2：边来源单源 = LiteDB 声明集合）。</summary>
+    public IReadOnlyList<NodeRelation> GetActiveRelationEdges(string workflowId)
+    {
+        var docs = ReadLocked(CancellationToken.None, () => ReadRelationDocsCore(workflowId));
+        var edges = new List<NodeRelation>();
+        foreach (var d in docs)
+        {
+            if (!d.IsActive) continue;
+            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(d.WorkflowId, ToDeclaration(d));
+            if (edge is not null) edges.Add(edge);
+        }
+        return edges;
+    }
+
+    /// <summary>RelationDoc → 领域声明（供 DeriveEdgeFromDeclaration 消费）。</summary>
+    internal static RelationDeclaration ToDeclaration(RelationDoc d) => new()
+    {
+        Source = new RelationEndpoint { ResourceType = string.IsNullOrWhiteSpace(d.SourceType) ? NodeResourceTypes.Node : d.SourceType, Id = d.Source, Port = d.SourcePort },
+        Target = new RelationEndpoint { ResourceType = string.IsNullOrWhiteSpace(d.TargetType) ? NodeResourceTypes.Node : d.TargetType, Id = d.Target, Port = d.TargetPort },
+        RefType = string.IsNullOrWhiteSpace(d.RefType) ? ReferenceTypes.NodeToNode : d.RefType,
+        KeyMappingRef = d.KeyMappingRef,
+        Status = string.IsNullOrWhiteSpace(d.Status) ? "active" : d.Status,
+    };
+
+    /// <summary>读面核心（调用方须已持 <see cref="_gate"/>）。</summary>
+    private List<RelationDoc> ReadRelationDocsCore(string? workflowId)
+    {
+        var result = new List<RelationDoc>();
+        foreach (var doc in _relationDocs.FindAll())
+        {
+            var r = ReadRelationDoc(doc);
+            if (r is null) continue;
+            if (!string.IsNullOrWhiteSpace(workflowId) && !string.Equals(r.WorkflowId, workflowId, StringComparison.Ordinal)) continue;
+            result.Add(r);
+        }
+        return result;
+    }
+
+    private RelationDoc? ReadRelationDoc(BsonDocument doc)
+    {
+        var text = DocText(doc);
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        return _codec.TryDeserializeRecord(text, out _, out _, out _, out var body) ? RelationFromRecord(body) : null;
+    }
+
+    /// <summary>RelationDoc → USharp 记录体（字段名 camelCase；写/读同源）。</summary>
+    private static UsharpRecord RelationRecord(RelationDoc d) => new(new[]
+    {
+        new KeyValuePair<string, UsharpValue>("relationId", UsharpScalar.Str(d.RelationId)),
+        new KeyValuePair<string, UsharpValue>("workflowId", UsharpScalar.Str(d.WorkflowId)),
+        new KeyValuePair<string, UsharpValue>("nodeKey", UsharpScalar.Str(d.NodeKey)),
+        new KeyValuePair<string, UsharpValue>("source", UsharpScalar.Str(d.Source)),
+        new KeyValuePair<string, UsharpValue>("sourceType", UsharpScalar.Str(d.SourceType ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("sourcePort", UsharpScalar.Str(d.SourcePort ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("target", UsharpScalar.Str(d.Target)),
+        new KeyValuePair<string, UsharpValue>("targetType", UsharpScalar.Str(d.TargetType ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("targetPort", UsharpScalar.Str(d.TargetPort ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("refType", UsharpScalar.Str(d.RefType ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("keyMappingRef", UsharpScalar.Str(d.KeyMappingRef ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("status", UsharpScalar.Str(d.Status ?? "active")),
+    });
+
+    private static RelationDoc RelationFromRecord(UsharpRecord body) => new()
+    {
+        RelationId = S(body, "relationId") ?? string.Empty,
+        WorkflowId = S(body, "workflowId") ?? string.Empty,
+        NodeKey = S(body, "nodeKey") ?? string.Empty,
+        Source = S(body, "source") ?? string.Empty,
+        SourceType = S(body, "sourceType") ?? string.Empty,
+        SourcePort = S(body, "sourcePort"),
+        Target = S(body, "target") ?? string.Empty,
+        TargetType = S(body, "targetType") ?? string.Empty,
+        TargetPort = S(body, "targetPort"),
+        RefType = S(body, "refType") ?? string.Empty,
+        KeyMappingRef = S(body, "keyMappingRef"),
+        Status = S(body, "status") ?? "active",
+    };
 
     // ---- 唯一读面（替代 LiteDatabaseBrowser）----
 
@@ -613,6 +780,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 return ReadEndpointDocs(n);
             if (_edges.Name.Equals(collection, StringComparison.Ordinal))
                 return ReadEdgeDocs(n);
+            if (_relationDocs.Name.Equals(collection, StringComparison.Ordinal))
+                return ReadRelationDocs(n);
             return $"（未知集合：{collection}）";
         }
         catch (Exception ex)
@@ -650,6 +819,22 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
             var e = ReadEndpointDoc(d);
             sb.AppendLine($"{key}  =  {e?.Symbol}");
+            sb.AppendLine(JsonSerializer.Serialize(d));
+            sb.AppendLine("---");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>渲染声明视图：{relationId} = status；+ 原始文档 JSON。</summary>
+    private string ReadRelationDocs(int limit)
+    {
+        var docs = _relationDocs.FindAll().Take(limit).ToList();
+        if (docs.Count == 0) return "（空集合）";
+        var sb = new System.Text.StringBuilder();
+        foreach (var d in docs)
+        {
+            var r = ReadRelationDoc(d);
+            sb.AppendLine(r is null ? "（无效声明文档）" : $"{r.RelationId}  =  {r.Status}  ({r.Source} -[{r.RefType}]-> {r.Target})");
             sb.AppendLine(JsonSerializer.Serialize(d));
             sb.AppendLine("---");
         }
@@ -759,7 +944,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     }
 
     private static string BuildEdgeId(string sourceKey, string targetKey, string refType)
-        => $"{sourceKey}{EdgeKeySeparator}{targetKey}{EdgeKeySeparator}{refType}";
+        => EdgeIdKeys.Build(sourceKey, targetKey, refType);
 
     private void EnsureNodeInMemory(string key)
     {

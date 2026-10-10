@@ -68,22 +68,6 @@ public sealed class NodeRecord
     /// 仅旧数据读兼容，写侧逐步不再产出。</summary>
     public UsharpValue? Relations { get => Val(FieldRelations); set => SetVal(FieldRelations, value); }
 
-    /// <summary>[已退役·U-8 兼容通道] 节点载荷的 JSON 文本视图：新代码改读中立 <see cref="Payload"/>
-    /// （对外 JSON 文本经 <c>UsharpValueJson.ToPayloadText</c> 渲染）。此属性仅为测试/外部兼容保留。</summary>
-    public string PayloadJson
-    {
-        get => UsharpValueJson.ToPayloadText(Payload);
-        set => Payload = string.IsNullOrEmpty(value) ? null : UsharpValueJson.ParseOrString(value);
-    }
-
-    /// <summary>[已退役·U-8 兼容通道] 节点关系状态的 JSON 文本视图：新代码改读中立 <see cref="Relations"/>
-    /// （对外 JSON 文本经 <c>UsharpValueJson.ToJson</c> 渲染）。此属性仅为测试/外部兼容保留。</summary>
-    public string? RelationsJson
-    {
-        get => Relations is null ? null : UsharpValueJson.ToJson(Relations);
-        set => Relations = string.IsNullOrEmpty(value) ? null : UsharpValueJson.ParseOrString(value);
-    }
-
     /// <summary>首次写入时间（UTC ISO-8601，随记录体持久化；幂等覆写保留）。</summary>
     public string? CreatedAt { get => Str(FieldCreatedAt); set => SetStr(FieldCreatedAt, value); }
 

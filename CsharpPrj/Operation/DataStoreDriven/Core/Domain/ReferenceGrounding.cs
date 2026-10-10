@@ -28,11 +28,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 {
     private readonly ReferenceGraphCoordinator _graph;
 
-    /// <summary>可选节点库：全图对账/重建时枚举业务节点（未装配节点库则 All 对账不可用）。
-    /// 装配期由组合根注入（守卫早于节点库确定时以属性注入）。</summary>
-    public INodeStore? NodeStore { get; set; }
-
-    /// <summary>可选准入诊断出口（W1 写边准入的可见化通道）；缺省静默。装配期由组合根注入（同 <see cref="NodeStore"/>）。</summary>
+    /// <summary>可选准入诊断出口（W1 写边准入的可见化通道）；缺省静默。装配期由组合根注入。</summary>
     public IReferenceEdgeDiagnostics? EdgeDiagnostics { get; set; }
 
     /// <summary>可选归属边白名单（W1）：未装配 ⇒ **报告模式**（不拒绝任何边，行为与现状逐字一致）；
@@ -45,20 +41,18 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// 装配期由组合根注入（同 <see cref="NodeStore"/>）。</summary>
     public IDeclaredReferenceSource? DeclarationSource { get; set; }
 
-    /// <summary>取某节点的权威边（G3/G4 单一取值缝）：声明源优先（USharp 声明构建期确定）；
-    /// 声明源无该节点边或未装配 ⇒ 回退节点内 RelationsJson（兼容读，零回归）。</summary>
+    /// <summary>取某节点的权威边（G1/G3 单一取值缝）：配置声明源（seed）+ LiteDB <c>ur_relations</c>（active）投影；
+    /// 节点内 RelationsJson 回退已退役（设计 §5-#2：边来源单源 = LiteDB 声明集合）。</summary>
     public IReadOnlyList<NodeRelation> AuthoritativeEdgesFor(string workflowId, NodeRecord node)
     {
         if (node is null) return Array.Empty<NodeRelation>();
+        var result = new List<NodeRelation>();
         if (DeclarationSource is not null)
-        {
-            var declared = DeclarationSource.GetNodeRelations(workflowId, node.NodeKey);
-            if (declared.Count > 0) return declared;
-        }
-        var relationsJson = node.Relations is null ? null : UsharpValueJson.ToJson(node.Relations); // U-8：直读中立 Relations（替代 RelationsJson）
-        return string.IsNullOrWhiteSpace(relationsJson)
-            ? Array.Empty<NodeRelation>()
-            : RelationStateCodec.DeriveEdgesFromRelationsJson(workflowId, node.NodeKey, relationsJson);
+            result.AddRange(DeclarationSource.GetNodeRelations(workflowId, node.NodeKey));
+        var nodeId = NodeRelationFactory.NodeId(workflowId, node.NodeKey);
+        foreach (var e in _graph.GetActiveRelationEdges(workflowId))
+            if (string.Equals(e.TargetId, nodeId, StringComparison.Ordinal)) result.Add(e);
+        return result;
     }
 
     /// <summary>归属边准入（W1）：未在声明面登记 ⇒ 拒写 + 可见化（禁静默建边；未装配白名单 ⇒ 报告模式放行）。</summary>
@@ -114,21 +108,12 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     public IResourceReferenceStore Graph => _graph;
 
     /// <summary>
-    /// 列出图库中无对应业务节点的**悬空** node 资源 Id（A5 单一实现；原 <c>NodeGraphReconciler</c> 私有实现下沉至此，
-    /// 使「差异判据」与「对账裁决」同源）。仅报告不删除（防级联误删）。未装配节点库 ⇒ 空集。
+    /// 列出图库中无任何引用边的**悬空** node 端点 Id（A5；G3 改 LiteDB 内部自洽判据，不读 SQL）。
+    /// 仅报告不删除（防级联误删）。
     /// </summary>
     /// <param name="ct">取消令牌。</param>
     public async Task<IReadOnlyList<string>> ListDanglingNodeResourcesAsync(CancellationToken ct = default)
     {
-        if (NodeStore is null) return Array.Empty<string>();
-
-        var expected = new HashSet<string>(StringComparer.Ordinal);
-        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Node, null, (node, _) =>
-        {
-            expected.Add(NodeRelationFactory.NodeId(WorkflowIds.Resolve(node), node.NodeKey));
-            return Task.CompletedTask;
-        }, ct).ConfigureAwait(false);
-
         var resources = await Graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
         var dangling = new List<string>();
         foreach (var resource in resources)
@@ -136,7 +121,8 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             if (resource is null) continue;
             if (!string.Equals(resource.Identifier.ResourceType, NodeResourceTypes.Node, StringComparison.Ordinal)) continue;
             if (string.IsNullOrWhiteSpace(resource.Identifier.Id)) continue;
-            if (!expected.Contains(resource.Identifier.Id)) dangling.Add(resource.Identifier.Id);
+            var refs = await Graph.GetReferencesAsync(resource.Identifier, includeIncoming: true, ct).ConfigureAwait(false);
+            if (refs.Count == 0) dangling.Add(resource.Identifier.Id);
         }
         return dangling;
     }
@@ -161,7 +147,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             symbol ?? nodeKey, ct);
 
     public Task RemoveNodeMirrorAsync(string workflowId, string nodeKey, CancellationToken ct = default)
-        => _graph.RemoveResourceAsync(
+        => _graph.RemoveResourceCascadeAsync(
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId }, ct);
 
     // ---- task 镜像（task，Id=taskKey） ----
@@ -171,7 +157,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, taskKey, ct);
 
     public Task RemoveTaskMirrorAsync(string taskKey, CancellationToken ct = default)
-        => _graph.RemoveResourceAsync(
+        => _graph.RemoveResourceCascadeAsync(
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
 
     // ---- 会话图子图（方案 C：会话 = LiteDB 引用关系连接的节点；Id = session.{name}） ----
@@ -186,7 +172,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
     /// <summary>移除会话根端点镜像（级联清边；删除会话即删除其引用图锚点）。</summary>
     public Task RemoveSessionMirrorAsync(string sessionName, CancellationToken ct = default)
-        => _graph.RemoveResourceAsync(
+        => _graph.RemoveResourceCascadeAsync(
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName) }, ct);
 
     /// <summary>会话归属边（session_owns）：把业务节点（消息/工作流产出）挂到会话根（幂等加法）。
@@ -241,7 +227,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
     /// <summary>移除历史根端点镜像（级联清边；删除历史即删除其引用图锚点）。</summary>
     public Task RemoveHistoryMirrorAsync(string historyId, CancellationToken ct = default)
-        => _graph.RemoveResourceAsync(
+        => _graph.RemoveResourceCascadeAsync(
             new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) }, ct);
 
     /// <summary>历史归拢任务：history.{historyId} → task（taskKey）引用边（幂等加法；一个历史归拢多个任务）。
@@ -320,9 +306,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             ["threadId"] = workflowId,
             ["updatedAt"] = PersistenceHelper.NowIso(),
         };
-        var payloadText = Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(node.Payload); // U-8：取代 PayloadJson
-        if (!string.IsNullOrWhiteSpace(payloadText))
-            metadata["payload"] = payloadText;
+        // G2：不再镜像实体 payload 文本（避免实体内容渗入图库、双真源）；边/拓扑是 LiteDB 唯一职责。
         // UpdateResourceAsync = update-or-insert（资源存在保留 CreatedAt、仅更 symbol/metadata），即内容跟随的 upsert 镜像。
         return _graph.UpdateResourceAsync(id, metadata, node.NodeKey, ct);
     }
@@ -425,6 +409,70 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     }
 
     /// <summary>
+    /// task → sub-task 归属边（<c>task_owns_task</c>）的**带环检测**写入口（T 批 Compose）：
+    /// 自指 / 会成环（<paramref name="parentTaskKey"/> 可从 <paramref name="subTaskKey"/> 经本边到达）⇒ 拒绝且不写边
+    /// （对齐 <c>AX.DependencyCycleDetection</c>：「A→B ∧ B→A ⇒ redundant」）。
+    /// <para>环检测复用既有读边 <see cref="GetSubTaskKeysAsync"/>（不定深度树逐层展开，遍历预算收口，信任反转）。</para>
+    /// </summary>
+    /// <returns>true = 已写边；false = 拒绝（自指 / 成环 / 空键）。</returns>
+    public async Task<bool> LinkSubTaskCheckedAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(parentTaskKey) || string.IsNullOrWhiteSpace(subTaskKey)) return false;
+        if (string.Equals(parentTaskKey, subTaskKey, StringComparison.Ordinal)) return false; // 自指无意义
+        if (await IsReachableAsync(subTaskKey, parentTaskKey, ct).ConfigureAwait(false)) return false; // 成环拒绝
+        await LinkSubTaskAsync(parentTaskKey, subTaskKey, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>沿 <c>task_owns_task</c> 出边判定 <paramref name="target"/> 是否自 <paramref name="from"/> 可达（环检测）。
+    /// 遍历预算（<see cref="SubTaskTraversalBudget"/>）收口，信任反转：不信任层次数据自终止。</summary>
+    private async Task<bool> IsReachableAsync(string from, string target, CancellationToken ct)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal) { from };
+        var queue = new Queue<string>();
+        queue.Enqueue(from);
+        var visited = 0;
+        while (queue.Count > 0 && visited++ < SubTaskTraversalBudget)
+        {
+            var current = queue.Dequeue();
+            foreach (var next in await GetSubTaskKeysAsync(current, ct).ConfigureAwait(false))
+            {
+                if (string.Equals(next, target, StringComparison.Ordinal)) return true;
+                if (seen.Add(next)) queue.Enqueue(next);
+            }
+        }
+        return false;
+    }
+
+    /// <summary>子任务树遍历预算（不定深度树的信任反转上界；环检测 / 逐层展开共用）。</summary>
+    private const int SubTaskTraversalBudget = 4096;
+
+    /// <summary>
+    /// 历史容器合并（T 批 Merge）：把 <paramref name="fromHistory"/> 的 <c>history_owns_task</c> 出边
+    /// **先写后撤** 迁至 <paramref name="intoHistory"/>（逐条 Attach(into) → Detach(from)），幂等可重跑。
+    /// <para>先写后撤（对齐设计 §3 风险 3「迁边丢数据」对策）：先保证目标容器已持边，再撤源边 ⇒ 中途失败不丢归属。</para>
+    /// <para>软删（源置 revoked）属 <c>ur_relations</c> 声明层语义（D5），见后续关系声明化批（本步只迁边）。</para>
+    /// </summary>
+    /// <returns>迁边成功数（源容器余边数 = 原边数 - 返回值）。</returns>
+    public async Task<int> MergeHistoriesAsync(string intoHistory, string fromHistory, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(intoHistory) || string.IsNullOrWhiteSpace(fromHistory)) return 0;
+        if (string.Equals(intoHistory, fromHistory, StringComparison.Ordinal)) return 0;
+
+        await EnsureHistoryMirrorAsync(intoHistory, ct).ConfigureAwait(false);
+        var tasks = await GetHistoryTasksAsync(fromHistory, ct).ConfigureAwait(false);
+        var moved = 0;
+        foreach (var taskKey in tasks)
+        {
+            if (string.IsNullOrWhiteSpace(taskKey)) continue;
+            await AttachHistoryTaskAsync(intoHistory, taskKey, ct).ConfigureAwait(false); // 先写
+            await DetachHistoryTaskAsync(fromHistory, taskKey, ct).ConfigureAwait(false); // 后撤
+            moved++;
+        }
+        return moved;
+    }
+
+    /// <summary>
     /// 投影候选清单（projection 层，对齐 MCP「复合节点引用关系」）：给定 task，沿 LiteDB 引用边投影出
     /// 本 task 候选节点**索引**（不携带载荷）——task 作用域寻址（cross_db_link 挂载）+ 顺序由
     /// NodeToNode 组合边推导（Kahn 拓扑，上游先于下游）。体现「节点顺序由 LiteDB 引用边决定」。
@@ -505,161 +553,169 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         }
     }
 
-    /// <summary>主动声明关系（G3）：批量写 ur_nodes（NodeType=relation）+ 推导边写入图（声明优先，幂等）。
-    /// 需装配节点库（NodeStore）；未装配 → no-op（声明权威在 SQL，缺节点库则无法持久化声明）。</summary>
+    /// <summary>主动声明关系（G1）：批量写 LiteDB <c>ur_relations</c>（USharp [Record]，_id=SQL NodeKey）+ 推导边写入图（幂等）。
+    /// 声明权威 = LiteDB（设计 §2），不再依赖节点库/SQL。</summary>
     public async Task DeclareRelationsAsync(string workflowId,
         IReadOnlyCollection<RelationDeclarationEntry> declarations, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(declarations);
-        if (NodeStore is null) return;
         foreach (var entry in declarations)
         {
             if (entry is null || string.IsNullOrWhiteSpace(entry.RelationId)) continue;
-            // ① 声明即权威：写 ur_nodes（NodeType=relation，幂等 upsert）。Key=relationId 便于按 workflow 检索。
-            await NodeStore.PutAsync(new NodeRecord
-            {
-                NodeKey = RelationDeclarationKeys.NodeKey(workflowId, entry.RelationId),
-                NodeType = NodeTypes.Relation,
-                ThreadId = workflowId,
-                Key = entry.RelationId,
-                Status = entry.Declaration?.Status ?? "active",
-                Payload = UsharpValueJson.ParseOrString(PersistenceJson.Serialize(entry.Declaration ?? new RelationDeclaration())),
-            }, ct).ConfigureAwait(false);
+            var decl = entry.Declaration ?? new RelationDeclaration();
+            var nodeKey = RelationDeclarationKeys.NodeKey(workflowId, entry.RelationId);
+            // ① 声明即权威：写 LiteDB ur_relations（_id = SQL NodeKey 文法，幂等 upsert）。
+            await _graph.UpsertRelationDeclarationAsync(nodeKey, ToRelationDoc(workflowId, entry.RelationId, nodeKey, decl), ct).ConfigureAwait(false);
 
-            // ② 推导边写入图（active 声明；幂等 AddRelationAsync）。
-            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(workflowId, entry.Declaration ?? new RelationDeclaration());
-            if (edge is not null)
-                await _graph.AddRelationAsync(workflowId, edge, ct).ConfigureAwait(false);
+            // ② 推导边写入图（active 声明建边；revoked 声明清边；幂等 Add/RemoveRelationAsync）。
+            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(workflowId, decl);
+            if (edge is { } e)
+            {
+                if (decl.IsActive) await _graph.AddRelationAsync(workflowId, e, ct).ConfigureAwait(false);
+                else await _graph.RemoveRelationAsync(workflowId, e, ct).ConfigureAwait(false);
+            }
         }
     }
 
-    /// <summary>撤销声明：清边（移除该声明推导边）→ 更新 Status=revoked。需装配节点库。</summary>
+    /// <summary>撤销声明（G1/D5）：软删置 status=revoked（只增，保留记录）+ 清该声明推导边。声明权威在 LiteDB。</summary>
     public async Task UndeclareRelationsAsync(string workflowId,
         IReadOnlyCollection<string> relationIds, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(relationIds);
-        if (NodeStore is null) return;
         foreach (var relationId in relationIds)
         {
             if (string.IsNullOrWhiteSpace(relationId)) continue;
             var nodeKey = RelationDeclarationKeys.NodeKey(workflowId, relationId);
-            var node = await NodeStore.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            if (node is null) continue;
+            var doc = await _graph.GetRelationDeclarationAsync(nodeKey, ct).ConfigureAwait(false);
+            if (doc is null) continue;
 
-            // ① 清边：按原声明推导边移除（撤销 = 图库不再比 SQL 多出该声明关系）。
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
-            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(workflowId, declaration ?? new RelationDeclaration());
+            // ① 清边：按原声明推导边移除（撤销 = 图库不再多出该声明关系）。
+            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(workflowId, ReferenceGraphCoordinator.ToDeclaration(doc));
             if (edge is not null)
                 await _graph.RemoveRelationAsync(workflowId, edge, ct).ConfigureAwait(false);
 
-            // ② 更新 Status=revoked（声明即权威：撤销记录保留，图库边已清）。
-            node.Status = "revoked";
-            if (declaration is not null)
-                node.Payload = UsharpValueJson.ParseOrString(PersistenceJson.Serialize(new RelationDeclaration
-                {
-                    Source = declaration.Source,
-                    Target = declaration.Target,
-                    RefType = declaration.RefType,
-                    KeyMappingRef = declaration.KeyMappingRef,
-                    Status = "revoked",
-                }));
-            await NodeStore.PutAsync(node, ct).ConfigureAwait(false);
+            // ② 软删：status=revoked（记录保留，对齐 InformationMonotonicity）。
+            await _graph.RevokeRelationDeclarationAsync(nodeKey, ct).ConfigureAwait(false);
         }
     }
 
-    /// <summary>列出全部声明（含状态）；workflowId 为空则列全部（NodeType=relation 翻页）。</summary>
+    /// <summary>列出全部声明（含状态）；workflowId 为空则列全部（LiteDB ur_relations）。</summary>
     public async Task<IReadOnlyList<RelationDeclarationEntry>> ListRelationsAsync(
         string? workflowId = null, CancellationToken ct = default)
     {
-        var result = new List<RelationDeclarationEntry>();
-        if (NodeStore is null) return result;
-        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Relation, workflowId, (node, _) =>
-        {
-            var relationId = node.Key ?? ExtractRelationId(node.NodeKey, workflowId ?? string.Empty);
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
-            if (declaration is null) return Task.CompletedTask;
-            result.Add(new RelationDeclarationEntry { RelationId = relationId, Declaration = declaration });
-            return Task.CompletedTask;
-        }, ct).ConfigureAwait(false);
+        var docs = await _graph.GetRelationDeclarationsAsync(workflowId, ct).ConfigureAwait(false);
+        var result = new List<RelationDeclarationEntry>(docs.Count);
+        foreach (var d in docs)
+            result.Add(new RelationDeclarationEntry { RelationId = d.RelationId, Declaration = ReferenceGraphCoordinator.ToDeclaration(d) });
         return result;
     }
 
-    /// <summary>全量重建：清空图库 → 从 SQL 权威重建（业务节点镜像 + 执行推导边 + 声明关系边 + keymapping 资源端点）。
-    /// 幂等可重复；未装配节点库则仅清空（无权威来源可重建）。</summary>
+    /// <summary>
+    /// 装配期声明 seed（G5）：把配置声明源（.ushar 工作流声明）的静态边固化进 LiteDB <c>ur_relations</c>，
+    /// 使运行时声明权威 = LiteDB（冷启动不再依赖配置源逐次求值）。幂等可重复。
+    /// </summary>
+    public async Task SeedDeclarationsFromAsync(IDeclaredReferenceSource source, CancellationToken ct = default)
+    {
+        if (source is null) return;
+        foreach (var workflowId in source.WorkflowIds)
+        {
+            if (string.IsNullOrWhiteSpace(workflowId)) continue;
+            var statics = source.GetStaticEdges(workflowId);
+            if (statics is null || statics.Count == 0) continue;
+            var index = 0;
+            foreach (var s in statics)
+            {
+                if (s is null || string.IsNullOrWhiteSpace(s.SourceId) || string.IsNullOrWhiteSpace(s.TargetId)) continue;
+                var relationId = $"{s.RefType}-s{index++}";
+                var nodeKey = RelationDeclarationKeys.NodeKey(workflowId, relationId);
+                await _graph.UpsertRelationDeclarationAsync(nodeKey, new RelationDoc
+                {
+                    RelationId = relationId,
+                    WorkflowId = workflowId,
+                    NodeKey = nodeKey,
+                    Source = s.SourceId,
+                    SourceType = s.SourceResourceType,
+                    Target = s.TargetId,
+                    TargetType = s.TargetResourceType,
+                    RefType = s.RefType,
+                    Status = "active",
+                }, ct).ConfigureAwait(false);
+
+                // 原始静态边入图（不经 DeriveEdgeFromDeclaration：静态 refType 不属 NodeRelationType 两类）。
+                var src = new ResourceIdentifier { ResourceType = s.SourceResourceType, Id = s.SourceId, Location = workflowId };
+                var tgt = new ResourceIdentifier { ResourceType = s.TargetResourceType, Id = s.TargetId, Location = workflowId };
+                await _graph.EnsureResourceAsync(src, s.SourceId, null, ct).ConfigureAwait(false);
+                await _graph.EnsureResourceAsync(tgt, s.TargetId, null, ct).ConfigureAwait(false);
+                await _graph.AddReferenceAsync(src, tgt, s.RefType, s.Strength, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>全量重建（G3/D4）：清空图库 → 从 LiteDB 自身集合重灌（声明边自 ur_relations 重建；不读 SQL）。幂等可重复。</summary>
     public async Task RebuildAllAsync(CancellationToken ct = default)
     {
-        if (NodeStore is null) return;
         await _graph.ClearAllAsync(ct).ConfigureAwait(false);
-
-        // ① 业务节点（NodeType=node）：镜像内容 + 依持久化关系状态重推导权威边（含 keymapping 资源端点，经 AddRelationAsync 自动建）。
-        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Node, null, async (node, _) =>
-        {
-            var wf = WorkflowIds.Resolve(node);
-            await MirrorNodeAsync(wf, node, ct).ConfigureAwait(false);
-            var edges = AuthoritativeEdgesFor(wf, node);
-            if (edges.Count > 0)
-                await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
-        }, ct).ConfigureAwait(false);
-
-        // ② 声明关系（NodeType=relation）：从持久化声明记录重推导边（active 声明 → 建边）。
         await RebuildDeclarationsAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>从 SQL 声明节点（NodeType=relation）重建声明关系边（幂等 AddRelationAsync）。</summary>
+    /// <summary>从 LiteDB 声明集合（ur_relations，active）重建声明关系边（幂等 AddRelationAsync；不读 SQL）。</summary>
     private async Task RebuildDeclarationsAsync(CancellationToken ct)
     {
-        if (NodeStore is null) return;
-        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Relation, null, async (node, _) =>
+        var docs = await _graph.GetRelationDeclarationsAsync(null, ct).ConfigureAwait(false);
+        foreach (var d in docs)
         {
-            var wf = WorkflowIds.Resolve(node);
-            var declaration = PersistenceJson.TryDeserialize<RelationDeclaration>(UsharpValueJson.ToPayloadText(node.Payload));
-            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(wf, declaration ?? new RelationDeclaration());
+            if (!d.IsActive) continue;
+            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(d.WorkflowId, ReferenceGraphCoordinator.ToDeclaration(d));
             if (edge is not null)
-                await _graph.AddRelationAsync(wf, edge, ct).ConfigureAwait(false);
-        }, ct).ConfigureAwait(false);
+                await _graph.AddRelationAsync(d.WorkflowId, edge, ct).ConfigureAwait(false);
+        }
     }
 
-    /// <summary>从 NodeKey="relations.{workflowId}.{relationId}" 回退解析 relationId（Key 列缺失时兜底）。</summary>
-    private static string ExtractRelationId(string nodeKey, string workflowId)
+    /// <summary>构造声明文档（G1）：_id=SQL NodeKey 文法；键构造只经 <see cref="RelationDeclarationKeys"/> 单源。</summary>
+    private static RelationDoc ToRelationDoc(string workflowId, string relationId, string nodeKey, RelationDeclaration d) => new()
     {
-        var prefix = NodeKeyPrefix.Relations;
-        if (!nodeKey.StartsWith(prefix, StringComparison.Ordinal)) return nodeKey;
-        var body = nodeKey.Substring(prefix.Length);
-        var wfPrefix = string.IsNullOrWhiteSpace(workflowId) ? string.Empty : workflowId + ".";
-        return body.StartsWith(wfPrefix, StringComparison.Ordinal) ? body.Substring(wfPrefix.Length) : body;
-    }
+        RelationId = relationId,
+        WorkflowId = workflowId,
+        NodeKey = nodeKey,
+        Source = d.Source?.Id ?? string.Empty,
+        SourceType = d.Source?.ResourceType ?? NodeResourceTypes.Node,
+        SourcePort = d.Source?.Port,
+        Target = d.Target?.Id ?? string.Empty,
+        TargetType = d.Target?.ResourceType ?? NodeResourceTypes.Node,
+        TargetPort = d.Target?.Port,
+        RefType = d.RefType ?? Modules.Node.Relations.ReferenceTypes.NodeToNode,
+        KeyMappingRef = d.KeyMappingRef,
+        Status = string.IsNullOrWhiteSpace(d.Status) ? "active" : d.Status,
+    };
 
-    /// <summary>对账（单节点 / 全图两级），返回处理节点数（携带关系状态并已收敛的业务节点数）。
-    /// 单节点按持久化关系状态重推导权威边并收敛；全图单次扫描枚举全部业务节点（需装配节点库），供全量对账器免二次遍历。</summary>
+    /// <summary>对账（单节点 / 全图两级），返回处理数（G3：以 LiteDB 声明集合为参照，不读 SQL）。
+    /// 单节点：按 ur_relations 中目标为该节点的 active 声明重推导并入边；全图：全量 active 声明重推导并幂等写边。</summary>
     public async Task<int> ReconcileAsync(MaintenanceScope scope, string? workflowId = null, string? nodeKey = null, CancellationToken ct = default)
     {
         if (scope == MaintenanceScope.Node)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(workflowId);
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
-            if (NodeStore is null) return 0; // 未装配节点库：无法读取持久化关系状态，不越权
-            var node = await NodeStore.GetAsync(nodeKey, ct).ConfigureAwait(false);
-            if (node is null) return 0;
-            // workflowId 真源统一为节点自身 ThreadId（WorkflowIds.Resolve），与 All 作用域 / 写透守卫同权威（消除 E 类 id 漂移）。
-            // 入参 workflowId 仅保留参数契约校验，不参与图镜像 id 解析。
-            var wf = WorkflowIds.Resolve(node);
-            var edges = AuthoritativeEdgesFor(wf, node);
-            if (edges.Count == 0) return 0; // 无权威边（声明源/兼容读皆空）→ 不越权对账
-            await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
+            var nodeId = NodeRelationFactory.NodeId(workflowId, nodeKey);
+            var edges = _graph.GetActiveRelationEdges(workflowId)
+                .Where(e => string.Equals(e.TargetId, nodeId, StringComparison.Ordinal))
+                .ToList();
+            if (edges.Count == 0) return 0; // 无权威边 → 不越权对账
+            await WriteRelationsAsync(workflowId, nodeKey, edges, ct).ConfigureAwait(false);
             return 1;
         }
 
-        // All：单次扫描枚举全部业务节点（NodeType=node），依声明源（优先）/持久化关系状态重推导权威边并对账。
-        if (NodeStore is null) return 0;
+        // All：从 ur_relations 全量 active 声明重推导边并幂等写入（不读 SQL）。
+        var docs = await _graph.GetRelationDeclarationsAsync(null, ct).ConfigureAwait(false);
         var processed = 0;
-        await NodePaging.ForEachAsync(NodeStore, NodeTypes.Node, null, async (node, _) =>
+        foreach (var d in docs)
         {
-            var wf = WorkflowIds.Resolve(node);
-            var edges = AuthoritativeEdgesFor(wf, node);
-            if (edges.Count == 0) return; // 无权威边 → 不越权收敛
-            await WriteRelationsAsync(wf, node.NodeKey, edges, ct).ConfigureAwait(false);
+            if (!d.IsActive) continue;
+            var edge = NodeRelationDeriver.DeriveEdgeFromDeclaration(d.WorkflowId, ReferenceGraphCoordinator.ToDeclaration(d));
+            if (edge is null) continue;
+            await _graph.AddRelationAsync(d.WorkflowId, edge, ct).ConfigureAwait(false);
             processed++;
-        }, ct).ConfigureAwait(false);
+        }
         return processed;
     }
 

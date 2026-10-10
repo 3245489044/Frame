@@ -138,6 +138,9 @@ public static class TableNames
     /// <summary>④ 端点符号落盘缓存（LiteDB 图库集合 ur_endpoints：端点 Symbol/Metadata 持久化，可重建；权威仍在 SQL）。</summary>
     public const string Endpoints = "endpoints";
 
+    /// <summary>⑥ 关系声明集合（LiteDB 图库集合 ur_relations：关系声明真源，USharp [Record]；_id = SQL NodeKey <c>relations.{workflowId}.{relationId}</c>）。</summary>
+    public const string Relations = "relations";
+
     /// <summary>⑤ 会话历史容器（SQL ur_histories：History = Task 更上一层的 class 容器（多 task 多 nodes），
     /// 表结构镜像 ur_tasks 纯「业务键 + 一个 SnapshotJson」；实体真源在 SQL，LiteDB 只存关系投影）。</summary>
     public const string Histories = "histories";

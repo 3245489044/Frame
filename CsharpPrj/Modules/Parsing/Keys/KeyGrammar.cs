@@ -260,6 +260,8 @@ public sealed class KeyGrammar
         KeyValueShape.Id => value.All(static c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-'),
         KeyValueShape.Number => value.Length > 0 && value[0] != '0' && value.All(char.IsAsciiDigit),
         KeyValueShape.Digits => value.Length > 0 && value.All(char.IsAsciiDigit),
+        KeyValueShape.Enum => value.Length > 0 && (char.IsAsciiLetter(value[0]) || value[0] == '_')
+                              && value.All(static c => char.IsAsciiLetterOrDigit(c) || c == '_'),
         _ => true,
     };
 

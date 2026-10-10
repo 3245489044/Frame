@@ -31,6 +31,12 @@ public enum KeyValueShape
 
     /// <summary>非负整数（允许前导 0；对齐 <c>long.TryParse(NumberStyles.None)</c> 的序号段）。</summary>
     Digits,
+
+    /// <summary>枚举名（v2/K4：标识符子集，供枚举段声明；反解同 Id，语义供声明面校验）。</summary>
+    Enum,
+
+    /// <summary>转义路径（v2/K4：含保留字符的成员值；反解容忍非空文本）。</summary>
+    Path,
 }
 
 /// <summary>

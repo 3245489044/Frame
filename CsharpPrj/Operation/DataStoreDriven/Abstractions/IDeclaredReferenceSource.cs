@@ -4,9 +4,10 @@ using Modules.Node.Relations;
 namespace Operation.DataStoreDriven.Abstractions;
 
 /// <summary>
-/// 声明引用源端口（G3/G4）：装配期由 USharp 声明（workflows + reference + placement + domains）投影出权威边，
-/// 取代运行期从节点内 <c>RelationsJson</c> 推导。权威链 = .ushar 声明 → 引用库 → 框架管理（D3/D4）。
-/// <para>缺省未装配 ⇒ 回退 RelationsJson 兼容读（G4 退役方向；零行为变更）。</para>
+/// 声明引用源端口（G3/G4）：装配期由 USharp 声明（workflows + reference + placement + domains）投影出**静态**权威边。
+/// 权威链 = .ushar 声明（装配期 seed 源）→ LiteDB <c>ur_relations</c>（运行时唯一声明权威）→ 框架管理（D3/D4）。
+/// <para>本端口保留为「配置声明 seed 源」；主动声明的运行时权威已归属 LiteDB <c>ur_relations</c>（设计 G1），
+/// 本端口不再承担运行期回退（旧 <c>RelationsJson</c> 回退已退役）。</para>
 /// </summary>
 public interface IDeclaredReferenceSource
 {

@@ -29,6 +29,8 @@ public static class CircuitValidator
         CheckControlEdges(circuit, nodes, d);
         CheckFailurePolicies(circuit, nodes, d);
         CheckBranches(circuit, nodes, d);
+        CheckCodeRefs(circuit, d);
+        CheckEffects(circuit, d);
         CheckExecutionCoverage(circuit, d);
         return d;
     }
@@ -377,6 +379,54 @@ public static class CircuitValidator
                     foreach (var port in u.Ports) Check(u.TargetNodeId, port, nameof(UnfoldSymbol));
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// 代码实体引用校验（CFG-040，G2/G6）：绑定了 <see cref="Core.CodeRef"/> 的节点，其类型/方法名须非空、
+    /// 端口类型表须指向真实端口；若外部注册了 <see cref="CodeEntityResolver.Current"/>，则校验实体可解析
+    /// （与真实代码对拍，替代手工/自动之分）。
+    /// </summary>
+    private static void CheckCodeRefs(Circuit circuit, List<CircuitDiagnostic> d)
+    {
+        foreach (var node in circuit.Nodes)
+        {
+            if (node.Code is null) continue;
+
+            if (!node.Code.IsResolvable)
+                d.Add(new(DiagnosticSeverity.Error, "CFG-040",
+                    $"节点 '{node.Id}' 的代码实体引用不完整（类型/方法名须非空）：'{node.Code}'。", node.Id));
+
+            if (node.Code.PortTypes is { Count: > 0 } types)
+            {
+                foreach (var key in types.Keys)
+                {
+                    if (node.InPorts.All(p => p.Name != key) && node.OutPorts.All(p => p.Name != key))
+                        d.Add(new(DiagnosticSeverity.Error, "CFG-040",
+                            $"节点 '{node.Id}' 的代码引用端口类型表含未知端口 '{key}'。", node.Id));
+                }
+            }
+
+            if (node.Code.IsResolvable && CodeEntityResolver.Current is { } resolver && !resolver(node.Code))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-040",
+                    $"节点 '{node.Id}' 的代码实体 '{node.Code.DisplayName}' 不可解析（与真实代码对拍失败）。", node.Id));
+        }
+    }
+
+    /// <summary>
+    /// 效果符号校验（CFG-042，G7）：承载节点须存在；通道 / 主题须非空（判据载体 = 结构事实）。
+    /// </summary>
+    private static void CheckEffects(Circuit circuit, List<CircuitDiagnostic> d)
+    {
+        foreach (var e in circuit.Symbols.OfType<EffectSymbol>())
+        {
+            if (circuit.Nodes.All(n => n.Id != e.NodeId))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-042",
+                    $"Effect 符号承载节点 '{e.NodeId}' 不存在。", e.NodeId));
+
+            if (string.IsNullOrWhiteSpace(e.Channel) || string.IsNullOrWhiteSpace(e.Subject))
+                d.Add(new(DiagnosticSeverity.Error, "CFG-042",
+                    $"Effect 符号（{e.NodeId}）的通道 / 主题不可为空（判据载体须为结构事实）。", e.NodeId));
         }
     }
 

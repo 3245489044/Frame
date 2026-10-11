@@ -141,6 +141,17 @@ public static class CircuitRecipeProjector
         foreach (var call in spec.Calls ?? Array.Empty<CircuitCallSpec>())
             circuit.Append(new CallSymbol { CallerNodeId = call.CallerNodeId, Target = call.Target });
 
+        // G7 效果读写声明 → EffectSymbol：值面（共享通道）副作用在图上一等可见；
+        // 执行面 = 编译器把 Read-after-Write 作为顺序依赖参与拓扑（见 GraphProcessingAdapter.OrderingAdjacency）。
+        foreach (var effect in spec.Effects ?? Array.Empty<CircuitEffectSpec>())
+            circuit.Append(new EffectSymbol
+            {
+                NodeId = effect.NodeId,
+                Effect = effect.Effect,
+                Channel = effect.Channel,
+                Subject = effect.Subject,
+            });
+
         return circuit;
     }
 
@@ -153,8 +164,11 @@ public static class CircuitRecipeProjector
         foreach (var s in steps)
         {
             var node = circuit.AddNode(s.Id, s.StepKind);
-            foreach (var inp in s.InPorts) node.AddIn(inp);
-            foreach (var outp in s.OutPorts) node.AddOut(outp);
+            // G2 代码实体绑定：声明面的 CodeRef 落到节点（供代码对拍 / 图导出）。
+            if (s.Code is not null) node.Code = s.Code;
+            var portTypes = s.Code?.PortTypes;
+            foreach (var inp in s.InPorts) node.AddIn(inp, portTypes is null ? null : portTypes.GetValueOrDefault(inp));
+            foreach (var outp in s.OutPorts) node.AddOut(outp, portTypes is null ? null : portTypes.GetValueOrDefault(outp));
         }
     }
 

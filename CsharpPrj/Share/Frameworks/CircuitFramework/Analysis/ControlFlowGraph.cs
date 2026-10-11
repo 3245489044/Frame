@@ -29,6 +29,9 @@ public enum FlowEdgeKind
 
     /// <summary>调用（Call）。</summary>
     Call,
+
+    /// <summary>效果依赖（G7）：写共享通道的节点 → 读同通道同主题的节点（Read-after-Write）。</summary>
+    Effect,
 }
 
 /// <summary>流程图节点（R4）：节点 Id + Kind + 是否为区域/调用承载（后者来自符号声明）。</summary>
@@ -90,6 +93,17 @@ public sealed class ControlFlowGraph
 
         foreach (var r in circuit.Symbols.OfType<SubCircuitSymbol>())
             edges.Add(new FlowEdge(r.NodeId, r.Target.CanonicalId, FlowEdgeKind.Region, r.Target.CanonicalId));
+
+        // G7 效果依赖：写节点 → 读同通道同主题节点（Read-after-Write），使值面副作用在图上一等可见。
+        var effectWrites = circuit.Symbols.OfType<EffectSymbol>()
+            .Where(e => e.Effect == EffectKind.Writes).ToList();
+        var effectReads = circuit.Symbols.OfType<EffectSymbol>()
+            .Where(e => e.Effect == EffectKind.Reads).ToList();
+        foreach (var w in effectWrites)
+            foreach (var r in effectReads)
+                if (string.Equals(r.Channel, w.Channel, StringComparison.Ordinal)
+                    && string.Equals(r.Subject, w.Subject, StringComparison.Ordinal))
+                    edges.Add(new FlowEdge(w.NodeId, r.NodeId, FlowEdgeKind.Effect, $"{w.Channel}:{w.Subject}"));
 
         Edges = edges;
     }

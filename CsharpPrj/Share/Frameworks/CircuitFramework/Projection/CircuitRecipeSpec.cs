@@ -13,7 +13,15 @@ public sealed record CircuitStepSpec(
     string Id,
     string StepKind,
     IReadOnlyList<string> InPorts,
-    IReadOnlyList<string> OutPorts);
+    IReadOnlyList<string> OutPorts)
+{
+    /// <summary>
+    /// 代码实体引用（G2，可选）：绑定的真实类型/方法/签名；null = 未绑定。
+    /// 投影期落到 <see cref="Core.CircuitNode.Code"/>，供代码对拍与端口类型补齐（<see cref="Core.CodeRef.PortTypes"/>）。
+    /// <para>以 init 属性承载（不增主构造器参数）—— 保持 4 参构造器 IL 兼容（禁破坏性改动）。</para>
+    /// </summary>
+    public Core.CodeRef? Code { get; init; }
+}
 
 /// <summary>产物→依赖 传递边（Wire：FromNode.FromPort → ToNode.ToPort）。</summary>
 public sealed record CircuitFlowSpec(
@@ -62,6 +70,16 @@ public sealed record CircuitLiteralSpec(string NodeId, string Port, object? Valu
 /// 执行序仍由 Wire + 声明序承担（镜像不参与执行 —— 与区域 Loop 镜像同族口径）。
 /// </summary>
 public sealed record CircuitControlEdgeSpec(string FromNode, string ToNode);
+
+/// <summary>
+/// 效果读写声明（G7）：节点对共享通道（值面 ctx）的读 / 写 —— 使副作用在图上一等可见，
+/// 并作为 Read-after-Write 顺序依赖参与拓扑（effect ⇒ ordering）。
+/// </summary>
+/// <param name="NodeId">读写承载节点（须已声明步骤）。</param>
+/// <param name="Effect">方向（读 / 写）。</param>
+/// <param name="Channel">共享通道名（如 <c>ctx.state</c>）。</param>
+/// <param name="Subject">主题（通道内读写键）。</param>
+public sealed record CircuitEffectSpec(string NodeId, Symbols.EffectKind Effect, string Channel, string Subject);
 
 /// <summary>
 /// 声明式装配配方（装配拓扑的单一真源）：步骤 + 传递边 + 入口（外部绑定产物，如 Config）+ 出口（最终产物集）
@@ -114,4 +132,12 @@ public sealed record CircuitRecipeSpec(
     /// 调用声明（R2，缺省/空 = 无调用）：投影为 <see cref="Symbols.CallSymbol"/>；执行面 = <see cref="Execution.SubCircuitNode"/>；
     /// 子计划可解析性与父侧端口映射由 CFG-027 判红。
     /// </summary>
-    IReadOnlyList<CircuitCallSpec>? Calls = null);
+    IReadOnlyList<CircuitCallSpec>? Calls = null)
+{
+    /// <summary>
+    /// 效果读写声明（G7，缺省/空 = 无效果）：投影为 <see cref="Symbols.EffectSymbol"/>；
+    /// 节点存在性由 CFG-042 判红；Read-after-Write 作为顺序依赖参与拓扑。
+    /// <para>以 init 属性承载（不增主构造器参数）—— 保持既有构造器 IL 兼容（禁破坏性改动）。</para>
+    /// </summary>
+    public IReadOnlyList<CircuitEffectSpec>? Effects { get; init; }
+}

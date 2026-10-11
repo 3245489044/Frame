@@ -25,9 +25,10 @@ public sealed class RecipeBuilder
         string stepKind,
         IReadOnlyList<string>? inPorts = null,
         IReadOnlyList<string>? outPorts = null,
-        string? chainPort = null)
+        string? chainPort = null,
+        Core.CodeRef? code = null)
     {
-        _chain.Add(nodeId, stepKind, inPorts, chainPort, outPorts);
+        _chain.Add(nodeId, stepKind, inPorts, chainPort, outPorts, code);
         return this;
     }
 
@@ -89,6 +90,13 @@ public sealed class RecipeBuilder
         string nodeId, string selectorKey, IReadOnlyDictionary<string, string> routes, string? defaultNodeId = null)
     {
         _chain.Switch(nodeId, selectorKey, routes, defaultNodeId);
+        return this;
+    }
+
+    /// <summary>效果读写声明（G7）：节点对共享通道（值面 ctx）的读 / 写（须已声明步骤）。</summary>
+    public RecipeBuilder Effect(string nodeId, Symbols.EffectKind kind, string channel, string subject)
+    {
+        _chain.Effect(nodeId, kind, channel, subject);
         return this;
     }
 

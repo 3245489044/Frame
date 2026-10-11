@@ -55,7 +55,8 @@ public sealed class OrderedRecipe<TContext> where TContext : class
 
     /// <summary>追加一步（顺序即语义）；<paramref name="outPort"/> 缺省 = <see cref="PortOf"/>（= 唯一产品链端口）。</summary>
     public OrderedRecipe<TContext> Then(
-        string nodeId, string stepKind, StepBody<TContext> body, string? outPort = null, IReadOnlyList<string>? inPorts = null)
+        string nodeId, string stepKind, StepBody<TContext> body, string? outPort = null, IReadOnlyList<string>? inPorts = null,
+        Core.CodeRef? code = null)
     {
         if (string.IsNullOrWhiteSpace(nodeId))
             throw new ArgumentException("步骤节点 Id 不可为空。", nameof(nodeId));
@@ -64,7 +65,7 @@ public sealed class OrderedRecipe<TContext> where TContext : class
         ArgumentNullException.ThrowIfNull(body);
 
         _steps.Add(new OrderedStep<TContext>(nodeId, stepKind, body, outPort));
-        _chain.Add(nodeId, stepKind, inPorts, outPort);
+        _chain.Add(nodeId, stepKind, inPorts, outPort, code: code);
         return this;
     }
 
@@ -121,6 +122,13 @@ public sealed class OrderedRecipe<TContext> where TContext : class
         string nodeId, string selectorKey, IReadOnlyDictionary<string, string> routes, string? defaultNodeId = null)
     {
         _chain.Switch(nodeId, selectorKey, routes, defaultNodeId);
+        return this;
+    }
+
+    /// <summary>效果读写声明（G7）：节点对共享通道（值面 ctx）的读 / 写（须已声明步骤）。</summary>
+    public OrderedRecipe<TContext> Effect(string nodeId, Symbols.EffectKind kind, string channel, string subject)
+    {
+        _chain.Effect(nodeId, kind, channel, subject);
         return this;
     }
 

@@ -89,6 +89,8 @@ public static class CompiledRecipeRegistry
             foreach (var p in s.InPorts) sb.Append(p).Append(',');
             sb.Append(':');
             foreach (var p in s.OutPorts) sb.Append(p).Append(',');
+            // G2 代码实体绑定属投影输入（CodeRef → 节点 Code / 端口类型）⇒ 须进指纹。
+            if (s.Code is not null) sb.Append('@').Append(s.Code.DisplayName).Append('#').Append(s.Code.SignatureHash ?? string.Empty);
             sb.Append(';');
         }
         sb.Append(Separator);
@@ -162,5 +164,10 @@ public static class CompiledRecipeRegistry
             if (c.Child is not null) Append(sb, c.Child);
             sb.Append('}').Append(';');
         }
+
+        // G7 效果读写：投影产 EffectSymbol ⇒ 属投影输入，须进指纹。
+        foreach (var e in spec.Effects ?? Array.Empty<CircuitEffectSpec>())
+            sb.Append('e').Append(e.NodeId).Append(':').Append(e.Effect.ToString())
+              .Append(':').Append(e.Channel).Append(':').Append(e.Subject).Append(';');
     }
 }

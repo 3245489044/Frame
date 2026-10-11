@@ -39,7 +39,46 @@ public static class GraphProcessingAdapter
     {
         ArgumentNullException.ThrowIfNull(circuit);
         var nodes = circuit.Nodes.Select(n => n.Id).ToList();
-        return new DefaultCycleDetector<string>().FindCycles(nodes, WireAdjacency(circuit));
+        return new DefaultCycleDetector<string>().FindCycles(nodes, DependencyAdjacency(circuit));
+    }
+
+    /// <summary>
+    /// 顺序 / 效果依赖邻接（G1+G7）：<see cref="SequenceSymbol"/>（声明先后）+ <see cref="EffectSymbol"/>
+    /// 的 Read-after-Write（同通道同主题：写节点 → 读节点）。这些是「无数据键」的依赖，经此参与拓扑与环检测。
+    /// </summary>
+    public static Func<string, IEnumerable<string>> OrderingAdjacency(Circuit circuit)
+    {
+        ArgumentNullException.ThrowIfNull(circuit);
+        var adj = new Dictionary<string, List<string>>();
+        void Add(string from, string to)
+        {
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to) || from == to) return;
+            if (!adj.TryGetValue(from, out var list)) adj[from] = list = new List<string>();
+            list.Add(to);
+        }
+
+        foreach (var s in circuit.Symbols.OfType<SequenceSymbol>())
+            for (var i = 0; i + 1 < s.NodeIds.Count; i++)
+                Add(s.NodeIds[i], s.NodeIds[i + 1]);
+
+        var writers = circuit.Symbols.OfType<EffectSymbol>().Where(e => e.Effect == EffectKind.Writes).ToList();
+        var readers = circuit.Symbols.OfType<EffectSymbol>().Where(e => e.Effect == EffectKind.Reads).ToList();
+        foreach (var w in writers)
+            foreach (var r in readers)
+                if (string.Equals(r.Channel, w.Channel, StringComparison.Ordinal)
+                    && string.Equals(r.Subject, w.Subject, StringComparison.Ordinal))
+                    Add(w.NodeId, r.NodeId);
+
+        return key => adj.TryGetValue(key, out var list) ? list : Enumerable.Empty<string>();
+    }
+
+    /// <summary>依赖邻接（Wire ∪ 顺序/效果）：拓扑排序与环检测的统一判据源（G1：顺序/效果已成执行语义）。</summary>
+    public static Func<string, IEnumerable<string>> DependencyAdjacency(Circuit circuit)
+    {
+        ArgumentNullException.ThrowIfNull(circuit);
+        var wire = WireAdjacency(circuit);
+        var ordering = OrderingAdjacency(circuit);
+        return key => wire(key).Concat(ordering(key));
     }
 
     /// <summary>拓扑排序：装配只读图后委托 GraphTopology.TopologicalSort；成环返回 null。</summary>
@@ -49,7 +88,6 @@ public static class GraphProcessingAdapter
         using var graph = BuildReadOnlyGraph(circuit);
         return GraphTopology.TopologicalSort(graph);
     }
-
     /// <summary>从指定节点出发可达的全部节点（含自身），委托 DefaultPathFinder&lt;string&gt;。</summary>
     public static IReadOnlySet<string> GetReachableNodes(Circuit circuit, string start)
     {
@@ -92,7 +130,11 @@ public static class GraphProcessingAdapter
         return new DefaultShortestPathFinder<string>().FindShortestPath(start, end, ReferenceAdjacency(circuit));
     }
 
-    /// <summary>把电路装配为只读图（节点=CircuitNode，边=CircuitWire）。</summary>
+    /// <summary>
+    /// 把电路装配为只读依赖图（节点=CircuitNode；边 = Wire ∪ 顺序/效果依赖）。顺序/效果边以占位
+    /// <see cref="CircuitWire"/> 承载（<c>$seq</c> 端口；仅供拓扑排序，不参与数据传递）—— 使 G1/G7
+    /// 的「无数据键依赖」成为拓扑排序的真实约束。
+    /// </summary>
     public static ICoreGraph<string, CircuitNode, CircuitWire> BuildReadOnlyGraph(Circuit circuit)
     {
         ArgumentNullException.ThrowIfNull(circuit);
@@ -104,6 +146,19 @@ public static class GraphProcessingAdapter
             var w = circuit.Wires[i];
             graph.AddEdge($"{w.From.NodeId}->{w.To.NodeId}#{i}", w.From.NodeId, w.To.NodeId, true, w, 1.0);
         }
+
+        // 顺序/效果依赖（G1+G7）：以邻接派生，注入为拓扑边（占位载荷；纯顺序约束，不传值）。
+        var ordering = OrderingAdjacency(circuit);
+        var seq = 0;
+        foreach (var node in circuit.Nodes)
+        {
+            foreach (var to in ordering(node.Id))
+            {
+                var placeholder = new CircuitWire(node.Id, "$seq", to, "$seq");
+                graph.AddEdge($"seq:{node.Id}->{to}#{seq++}", node.Id, to, true, placeholder, 1.0);
+            }
+        }
+
         return graph;
     }
 }

@@ -15,6 +15,12 @@ public sealed class CircuitNode
     /// <summary>输出端口（OutPort），具名、带类型。</summary>
     public List<CircuitPort> OutPorts { get; } = new();
 
+    /// <summary>
+    /// 代码实体引用（G2）：本节点对应的真实代码实体（类型/方法/签名）；null = 未绑定
+    /// （投影期未提供代码引用）。绑定后「函数流动图」可与真实代码对拍，无需另立抽取世界。
+    /// </summary>
+    public CodeRef? Code { get; set; }
+
     public CircuitNode() { }
 
     public CircuitNode(string id, string kind = "Executable")

@@ -48,6 +48,12 @@ public static class CircuitExecutionCapabilities
         CircuitSymbolKind.Switch,     // R1 多路分派：选择键取值路由（同上；对拍见 CircuitBranchExecutionTests）
         CircuitSymbolKind.Call,       // R2 调用执行化：子电路调用（声明 → CallSymbol；执行面 = Execution.SubCircuitNode；
                                       // 对拍见 CircuitFramework.Tests\CircuitCallExecutionTests）
+        CircuitSymbolKind.Sequence,   // G1 顺序依赖执行化：无数据键的前后约束（声明 → SequenceSymbol 镜像；
+                                      // 执行面 = GraphProcessingAdapter.OrderingAdjacency 注入拓扑边 + CFG-002 环判据；
+                                      // 「声明面能写、执行面没做」不再可见化 —— 顺序即真实执行约束）
+        CircuitSymbolKind.ReadsState, // G7 效果读：共享通道（值面 ctx）读侧（声明 → EffectSymbol；
+                                      // 执行面 = OrderingAdjacency 的 Read-after-Write 顺序约束）
+        CircuitSymbolKind.WritesState,// G7 效果写：共享通道（值面 ctx）写侧（同上）
     };
 
     /// <summary>已被执行后端消费的符号种类（只读；顺序不承载语义）。</summary>

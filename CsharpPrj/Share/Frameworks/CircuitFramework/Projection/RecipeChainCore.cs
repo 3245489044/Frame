@@ -6,7 +6,8 @@ internal sealed record RecipeStepRecord(
     string StepKind,
     string ChainPort,
     IReadOnlyList<string> InPorts,
-    IReadOnlyList<string> OutPorts);
+    IReadOnlyList<string> OutPorts,
+    Core.CodeRef? Code = null);
 
 /// <summary>
 /// 链式配方内核（零领域、上下文无关）：唯一一份「顺序即语义」派生 —— 步骤表 → 唯一产品链
@@ -26,6 +27,7 @@ internal sealed class RecipeChainCore
     private readonly List<CircuitRegionSpec> _regions = new();
     private readonly List<CircuitBranchSpec> _branches = new();
     private readonly List<CircuitSwitchSpec> _switches = new();
+    private readonly List<CircuitEffectSpec> _effects = new();
     private readonly List<string> _entryPorts;
     private readonly bool _entryOnEachStep;
     private bool _exitsDeclared;
@@ -115,7 +117,8 @@ internal sealed class RecipeChainCore
         string stepKind,
         IReadOnlyList<string>? inPorts = null,
         string? chainPort = null,
-        IReadOnlyList<string>? outPorts = null)
+        IReadOnlyList<string>? outPorts = null,
+        Core.CodeRef? code = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
         ArgumentException.ThrowIfNullOrWhiteSpace(stepKind);
@@ -134,7 +137,7 @@ internal sealed class RecipeChainCore
         if (outPorts is not null) outs.AddRange(outPorts);
         outs.Add(port);
 
-        _steps.Add(new RecipeStepRecord(nodeId, stepKind, port, ins, outs));
+        _steps.Add(new RecipeStepRecord(nodeId, stepKind, port, ins, outs, code));
         _spec = null;
     }
 
@@ -201,6 +204,20 @@ internal sealed class RecipeChainCore
             throw new InvalidOperationException($"{what}节点 '{nodeId}' 未在配方 '{CircuitId}' 声明。");
     }
 
+    /// <summary>
+    /// 效果读写声明（G7）：节点对共享通道（值面 ctx）的读 / 写；承载节点须已声明（拼错即抛）。
+    /// 投影为 <see cref="Symbols.EffectSymbol"/>，并作为 Read-after-Write 顺序依赖参与拓扑。
+    /// </summary>
+    internal void Effect(string nodeId, Symbols.EffectKind kind, string channel, string subject)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subject);
+        RequireStep(nodeId, "效果读写承载");
+
+        _effects.Add(new CircuitEffectSpec(nodeId, kind, channel, subject));
+        _spec = null;
+    }
+
     /// <summary>显式指定最终产物集（覆盖缺省与已声明收集项）。</summary>
     internal void SetExits(IEnumerable<string> exitPorts)
     {
@@ -224,7 +241,7 @@ internal sealed class RecipeChainCore
         for (var i = 0; i < _steps.Count; i++)
         {
             var step = _steps[i];
-            steps.Add(new CircuitStepSpec(step.NodeId, step.StepKind, step.InPorts, step.OutPorts));
+            steps.Add(new CircuitStepSpec(step.NodeId, step.StepKind, step.InPorts, step.OutPorts) { Code = step.Code });
 
             if (i > 0)
             {
@@ -242,7 +259,10 @@ internal sealed class RecipeChainCore
             _literals.Count == 0 ? null : _literals.ToArray(),
             _regions.Count == 0 ? null : _regions.ToArray(),
             Branches: _branches.Count == 0 ? null : _branches.ToArray(),
-            Switches: _switches.Count == 0 ? null : _switches.ToArray());
+            Switches: _switches.Count == 0 ? null : _switches.ToArray())
+        {
+            Effects = _effects.Count == 0 ? null : _effects.ToArray(),
+        };
         return _spec;
     }
 }

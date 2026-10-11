@@ -48,6 +48,10 @@ public enum CircuitSymbolKind
     Depends,
     Provides,
     Consumes,
+
+    // 效果符号（G7：共享通道读写可见化）
+    ReadsState,
+    WritesState,
 }
 
 /// <summary>符号的语义大类，用于分组与编译器分派。</summary>
@@ -59,6 +63,7 @@ public enum CircuitSymbolCategory
     FaultTolerance,
     Recursion,
     Reference,
+    Effect,
 }
 
 /// <summary>

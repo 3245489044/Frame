@@ -10,6 +10,12 @@
         Expect = 0
     }
 
+    HistoryAssemblySurface = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'History 装配面：空态预装配(H1) / 档案分档+声明面(H2) / mode 注入(H3) / 视口单一入口(H4) / 端口只读(H5) / 缓存最大化分段+差分(H6)'
+    }
+
     AgentDecisionCoreBoundary = @{
         Args   = @{ Check = $true }
         Expect = 0

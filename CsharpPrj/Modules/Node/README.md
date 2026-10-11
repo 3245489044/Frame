@@ -46,10 +46,14 @@ Modules/Node/
     ├── Carriers/        INodeCarrier / ICarrierRegistry(+Null)
     ├── Materialization/ NodeMaterializer(唯一写入口) / NodeWriteGate / NodeFormCodec / NodeCompensation / SpecDefaults
     ├── Ports/           PortKeySpace / NodePortBinding
-    ├── Spec/            NodeFrameworkSpecLoader / NodeSpecValidator / NodeReferenceIndex / NodeDirectiveSet / NodeChainComposer
-    ├── Projection/      NodeReadProjection
+    ├── Gather/          INodeReadAdapter / NodeGatherEngine / CompositeNodeReadAdapter / DeclaredShaper / **NodeGatherService（泛型聚拢服务）** / NodeGatherSpec
+    ├── Stream/          StreamPayload* / StreamFrameKeys / AggregateRun / **StreamFrameReadAdapter + StreamFrameSelector + StreamFrameProjection（帧级展开/选择/投影）**
+    ├── Spec/            NodeFrameworkSpecLoader / NodeSpecValidator / NodeReferenceIndex / NodeDirectiveSet / NodeChainComposer / **NodeDomainSchema + NodeDomainRegistry（域描述基底 + 域查询机制）**
+    ├── Projection/      NodeReadProjection / **LocResolution（loc 声明派生）** / **NodeIdentityTrim（读侧身份裁剪）**
     ├── Governance/      NodeReconciler
-    └── Diagnostics/     NodeFrameworkDiagnostics（实例级，禁进程静态）
+    ├── **Assembly/       NodeFrameworkAssembly + NodeDomainAssemblyFact（域装配门面唯一实现；端口注入）**
+    ├── **Caching/        ThreeLayerContextCache + IDerivedContextCache（三层派生缓存）**
+    └── Diagnostics/     NodeFrameworkDiagnostics / **INodeFrameworkLog + LoggingDefinitionDiagnostics**
 ```
 
 > **退役记录（2026-09-25）**：`RunState/`（`NodeRunState` + `RunStateStage` 枚举）已**退役删除** ——

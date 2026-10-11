@@ -26,6 +26,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         [HtmlAssetKeys.DomHandleTemplate] = DomHandleTemplate,
         [HtmlAssetKeys.RectQueryTemplate] = RectQueryTemplate,
         [HtmlAssetKeys.BridgeDiagnosisTemplate] = BridgeDiagnosisTemplate,
+        [HtmlAssetKeys.EmptyDivTemplate] = EmptyDivTemplate,
+        [HtmlAssetKeys.EmptyPTemplate] = EmptyPTemplate,
     };
 
     private static readonly IReadOnlyDictionary<string, string> Styles = new Dictionary<string, string>
@@ -221,6 +223,12 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         "JSON.stringify({ready:document.readyState,href:location.href,body:!!document.body,"
         + "installed:!!document.__domBridgeInstalled,chromeWebview:!!(window.chrome&&window.chrome.webview)});";
 
+    /// <summary>块级空态默认模板（引擎语法；供 <see cref="HtmlEmptyState"/> 缺 JSON 模板时回退）。</summary>
+    internal const string EmptyDivTemplate = "<div class=\"empty\">{text}</div>";
+
+    /// <summary>段落空态默认模板（引擎语法；供 <see cref="HtmlEmptyState"/> 缺 JSON 模板时回退）。</summary>
+    internal const string EmptyPTemplate = "<p class=\"empty\">{text}</p>";
+
     /// <summary>默认主题 CSS：气泡式对话布局 + 深浅双主题（跟随系统）+ CJK 排版。见 <see cref="HtmlDocumentRenderer"/>。</summary>
     internal const string DefaultCss =
         """
@@ -295,32 +303,11 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
             background: transparent; color: var(--muted);
             border: 1px dashed var(--border); font-size: 13px;
         }
-        /* ── 交互式会话页（task 侧栏 + 历史）── */
-        .conv-layout { display: flex; gap: 14px; align-items: flex-start; }
-        .session-bar {
-            flex: 0 0 176px; width: 176px;
-            border-right: 1px solid var(--border); padding-right: 10px;
-            display: flex; flex-direction: column; gap: 4px;
-            position: sticky; top: 0; max-height: 88vh; overflow-y: auto;
-        }
-        .bar-title { font-size: 12px; color: var(--muted); letter-spacing: .04em; margin-bottom: 4px; }
-        .task-item {
-            text-align: left; padding: 6px 8px; border-radius: 6px;
-            border: 1px solid var(--border); background: transparent; color: var(--fg);
-            cursor: pointer; font-size: 13px; font-family: inherit;
-        }
-        .task-item:hover { background: var(--agent-bg); }
-        .task-item.active { background: var(--user-bg); color: var(--user-fg); border-color: var(--user-bg); }
-        .conv-main { flex: 1; min-width: 0; }
-        .conv-title { font-size: 13px; color: var(--muted); margin-bottom: 4px; letter-spacing: .03em; }
-        /* ── 历史 → 任务 两级树（History = Task 更上层容器，归拢多 task）── */
-        .history-item { margin: 2px 0; }
-        .history-header {
-            font-size: 12px; color: var(--muted); cursor: pointer; user-select: none;
-            padding: 3px 6px; border-radius: 6px; letter-spacing: .02em;
-        }
-        .history-header:hover { background: var(--agent-bg); color: var(--fg); }
-        .history-tasks { display: flex; flex-direction: column; gap: 3px; padding-left: 6px; margin-top: 2px; }
+        /* ── 域外扩展位 ──
+           交互式会话页（task 侧栏 / history 两级树 / status-dot / composer 等）属应用域样式，
+           不属 plate 纯渲染基础：由应用侧经 JSON templates.theme 以「基础 + 差异」方式叠加
+           （装配点 HtmlBridgeAssembly.AttachTemplatesAndTheme 会把本基础主题与应用主题合并），
+           避免「框架 DefaultCss ↔ 应用 theme」两份逐字复制漂移。 */
         """;
 
     /// <summary>基础组件主题 CSS（HTML 布局投影；不承担布局定位，仅组件默认形态）。见 <see cref="HtmlLayoutProjector"/>。</summary>

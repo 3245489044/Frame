@@ -54,8 +54,7 @@ public static class UiCatalogLibrary
     private static ListData ListCatalog(string? dir)
     {
         var entries = FileCatalogService.Scan(Spec(dir));
-        var ordered = entries.OrderBy(e => e.Category, StringComparer.OrdinalIgnoreCase)
-                             .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        var ordered = FileCatalogService.OrderEntries(entries);
         return ListData.From(ordered.Select(FileCatalogService.FormatItem));
     }
 
@@ -63,8 +62,7 @@ public static class UiCatalogLibrary
     private static string ListCatalogTree(string? dir)
     {
         var entries = FileCatalogService.Scan(Spec(dir));
-        var ordered = entries.OrderBy(e => e.Category, StringComparer.OrdinalIgnoreCase)
-                             .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        var ordered = FileCatalogService.OrderEntries(entries);
         var lines = new List<string>();
         string? lastFolder = null;
         foreach (var e in ordered)

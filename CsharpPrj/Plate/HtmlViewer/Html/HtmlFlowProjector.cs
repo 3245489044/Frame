@@ -36,6 +36,25 @@ public static class HtmlFlowProjector
     public static string AppendOverlay(string contentHtml, string? overlayHtml)
         => contentHtml + (overlayHtml ?? string.Empty);
 
+    /// <summary>
+    /// 渲染「上下分栏」壳（<c>taskPaneShell</c> 模板）：上栏（<c>{nodes|raw}</c>）+ 下栏（<c>{history|raw}</c>）。
+    /// 典型用途：观测面板（节点聚拢）叠于会话流之上；两栏片段由宿主已渲染好，本方法只做模板拼接。
+    /// 缺模板 → 返回空串（调用方据此回退纯内容）。
+    /// </summary>
+    /// <param name="templates">模板集（含 <c>taskPaneShell</c> 键）。</param>
+    /// <param name="primaryHtml">上栏 HTML 片段（如节点面板）。</param>
+    /// <param name="secondaryHtml">下栏 HTML 片段（如会话历史 / 对话流）。</param>
+    public static string RenderPaneSplit(
+        IReadOnlyDictionary<string, string> templates,
+        string primaryHtml,
+        string secondaryHtml)
+        => HtmlTemplateEngine.Render(templates, "taskPaneShell",
+            new Dictionary<string, object?>
+            {
+                ["nodes"] = primaryHtml,
+                ["history"] = secondaryHtml,
+            });
+
     /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content（含 overlay），顶部 selector。</summary>
     public static string RenderShell(
         IReadOnlyDictionary<string, string> templates,

@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using FrameworkAbstractions.ComponentRegistry;
+using FrameworkAbstractions.WinFormsAbstractions;
 using FrontEndDriven.Shared.Catalog;
 using Modules.Registry;
 using Share.EventBindingOrchestrator.Execution;
@@ -78,22 +80,78 @@ public static class UiCommandLibrary
             },
             "命令：选模板 + JSON 输入 + 指定执行器 → 运行（通用命令形态）");
 
+        registry.Register("Ui_CommandFromTemplate",
+            (Func<string, string, string>)((template, paramControl) => BuildCommandLine(template, paramControl)),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "template", Type = typeof(string) },
+                new ParameterDescriptor { Name = "paramControl", Type = typeof(string) },
+            },
+            "生成命令文本：`runJson template=<id> input=@<paramControl>`（供命令条 Execute 以命令路径运行；参数在 paramControl 控件内编辑）");
+
         registry.Register("Ui_CommandManifest",
             (Func<string>)(CommandManifest),
             "命令面清单：列出通用命令库可用命令（命令执行子集的自描述）");
     }
 
-    /// <summary>组装请求体：载入模板对象 → 应用输入覆盖 → 序列化（JSONC 容忍，注释跳过）。</summary>
+    /// <summary>组装请求体：载入模板对象 → 应用输入覆盖 → 序列化（JSONC 容忍，注释跳过）。参数支持 @&lt;Control&gt; 解引用。
+    /// 模板/控件解引用失败时返回具名诊断文本（不再静默产出空请求体）。</summary>
     private static string BuildRequest(string template, string input)
     {
-        var root = LoadTemplateObject(template);
-        ApplyInput(root, input);
-        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        var (root, error) = BuildRequestObject(template, input);
+        return error ?? root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>组装请求体对象（唯一模板/输入解析实现）：任一环节失败返回诊断，成功返回 (对象, null)。</summary>
+    private static (JsonObject Root, string? Error) BuildRequestObject(string template, string input)
+    {
+        var (templateArg, templateResolveError) = ResolveArg(template);
+        if (templateResolveError is not null)
+            return (new JsonObject(), templateResolveError);
+
+        var (root, templateLoadError) = LoadTemplateObject(templateArg);
+        if (templateLoadError is not null)
+            return (new JsonObject(), templateLoadError);
+
+        var (inputArg, inputResolveError) = ResolveArg(input);
+        if (inputResolveError is not null)
+            return (new JsonObject(), inputResolveError);
+
+        ApplyInput(root, inputArg);
+        return (root, null);
+    }
+
+    /// <summary>命令参数解引用：`@&lt;Control&gt;` → 读该控件当前值（命令同源：参数可引用界面控件，运行时取真值）。
+    /// 解引用失败返回诊断而非回退 `@字面量`（E2：不再把控件名当业务输入提交）。</summary>
+    private static (string Value, string? Error) ResolveArg(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value[0] != '@')
+            return (value ?? string.Empty, null);
+
+        var name = value.Substring(1);
+        var accessor = AppServiceProvider.Resolve<IEcsStateAccessor>();
+        var live = accessor?.GetLiveValue(name);
+        if (live is null)
+            return (value, $"（控件解引用失败）未找到控件 '@{name}'，参数未按控件真值解析");
+
+        return (live, null);
+    }
+
+    /// <summary>由模板 id + 参数控件名生成命令文本（编辑器控件内容以 @control 引用，运行时解引用）。</summary>
+    private static string BuildCommandLine(string template, string paramControl)
+    {
+        var id = FileCatalogService.ExtractId(template);
+        var control = string.IsNullOrWhiteSpace(paramControl) ? "paramJsonTextBox" : paramControl.Trim();
+        return $"runJson template={id} input=@{control}";
     }
 
     private static async Task<string> RunCommandAsync(string template, string input, string executor)
     {
-        var request = BuildRequest(template, input);
+        var (root, error) = BuildRequestObject(template, input);
+        if (error is not null)
+            return error; // 显式诊断（E1/E5 模板未命中 · E2 控件解引用失败），不静默把诊断文本当请求体执行
+
+        var request = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         return await RunRequestAsync(request, executor).ConfigureAwait(false);
     }
 
@@ -117,18 +175,24 @@ public static class UiCommandLibrary
             : $"（执行失败）{target} :: {result.ErrorMessage}";
     }
 
-    private static JsonObject LoadTemplateObject(string template)
+    /// <summary>按 id 载入模板对象（唯一模板解析实现）：空模板合法返回空对象；
+    /// 未命中/非 JSON 对象返回诊断（含可用列表），不再静默返回空请求体（E1/E5）。</summary>
+    private static (JsonObject Root, string? Error) LoadTemplateObject(string template)
     {
         var id = FileCatalogService.ExtractId(template);
         if (id.Length == 0 || id == EmptyTemplate)
-            return new JsonObject();
+            return (new JsonObject(), null);
 
         var spec = new FileCatalogSpec { Dir = UiPathManager.GetAgentRunTemplatesRoot() };
         var text = FileCatalogService.LoadText(spec, id);
         if (string.IsNullOrWhiteSpace(text))
-            return new JsonObject();
+            return (new JsonObject(), $"（未找到模板）'{id}'，可用: {FileCatalogService.AvailableIds(spec)}");
 
-        return TryParseObject(text) ?? new JsonObject();
+        var obj = TryParseObject(text);
+        if (obj is null)
+            return (new JsonObject(), $"（模板不是 JSON 对象）'{id}'");
+
+        return (obj, null);
     }
 
     private static void ApplyInput(JsonObject root, string input)
@@ -175,6 +239,8 @@ public static class UiCommandLibrary
             $"  Ui_RunRequest requestJson=<JSON>                          // 请求体 → {DefaultExecutor}",
             "  Ui_RunRequestEx requestJson=<JSON> executor=<函数名>       // 请求体 → 指定执行器",
             "  模板 id = Templates/AgentRun 下 `分类/文件名`；template=- 表示空模板。",
-            "  用法：命令条输入 `runJson template=conversation/send input={\"input\":\"hi\"}` 后点 Execute。",
+            "  参数可引用界面控件：`input=@<Control>`（运行时读取该控件真值，命令同源编辑/运行）。",
+            "  生成命令：Ui_CommandFromTemplate(template, paramControl) → `runJson template=<id> input=@<paramControl>`。",
+            "  用法：命令条输入 `runJson template=conversation/send input=@paramJsonTextBox` 后点 Execute。",
         });
 }

@@ -17,6 +17,10 @@ public static class HtmlAssetKeys
     public const string RectQueryTemplate = "rectQuery";
     public const string BridgeDiagnosisTemplate = "bridgeDiagnosis";
 
+    // 空态模板（引擎语法 {text}；供 HtmlEmptyState 缺 JSON 模板时回退）
+    public const string EmptyDivTemplate = "emptyDiv";
+    public const string EmptyPTemplate = "emptyP";
+
     // 样式
     public const string DefaultCss = "defaultCss";
     public const string BaseCss = "baseCss";

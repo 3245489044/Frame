@@ -120,7 +120,19 @@ public static class HtmlBridgeAssembly
         // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS；后续 JSON 结构化后再拆 token），
         // 经 ConfigThemeProvider + HtmlTheme.AttachProvider 装配（优先于旧 ConfigHtmlTheme 的 IHtmlTheme 路径）。
         if (templates.TryGetValue("theme", out var themeCss) && !string.IsNullOrWhiteSpace(themeCss))
-            HtmlTheme.AttachProvider(new ConfigThemeProvider(componentCss: themeCss));
+        {
+            // P1 主题「基础 + 差异」：框架基础主题（DefaultCss）恒为底，应用 theme 追加/覆盖其上——
+            // 消除「框架 DefaultCss 更新而 JSON theme 逐字副本落后 → 静默漂移」的缺口；
+            // 应用侧 theme 只需声明差异（业务类），无需复制框架基础部分。
+            var baseCss = HtmlAssetRegistry.GetStyle(HtmlAssetKeys.DefaultCss);
+            var mergedCss = string.IsNullOrWhiteSpace(baseCss) ? themeCss : baseCss + "\n" + themeCss;
+            HtmlTheme.AttachProvider(new ConfigThemeProvider(componentCss: mergedCss));
+        }
+
+        // 文档壳模板（P4）：JSON templates.htmlShell 注入全局壳槽（缺省回退内置 DOCTYPE 壳）；
+        // 仅「完整文档壳」（含 <html>+<body>）生效，片段壳自动忽略（HtmlDocumentRenderer.AttachShell 内校验）。
+        if (templates.TryGetValue("htmlShell", out var shell) && !string.IsNullOrWhiteSpace(shell))
+            HtmlDocumentRenderer.AttachShell(shell);
     }
 
     /// <summary>

@@ -9,6 +9,7 @@ using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Eventing;
+using Share.EventBindingOrchestrator.Execution;
 
 namespace FrontEndDriven.Lifecycle;
 
@@ -65,8 +66,9 @@ public static class InitCommandExecutor
 
     private static async Task ExecuteExecAsync(EventPlatform platform, string entry, string scope)
     {
-        var tokens = entry.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (tokens.Length < 2)
+        // 唯一分词实现（D2 收敛）：引号感知分词，与命令条（UIToolbox.ParseCommandLine）共用。
+        var tokens = CommandLineTokenizer.Tokenize(entry);
+        if (tokens.Count < 2)
             return;
 
         var symbol = tokens[1];

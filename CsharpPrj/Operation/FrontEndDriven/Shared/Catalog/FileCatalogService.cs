@@ -119,7 +119,12 @@ public static class FileCatalogService
         return i > 0 ? s.Substring(0, i).Trim() : s;
     }
 
+    /// <summary>目录条目稳定顺序（唯一排序真源 · D3 收敛）：分类升序，再按文件名升序（大小写不敏感）。</summary>
+    public static IEnumerable<FileCatalogEntry> OrderEntries(IEnumerable<FileCatalogEntry> entries)
+        => entries.OrderBy(e => e.Category, StringComparer.OrdinalIgnoreCase)
+                  .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>可用 id 汇总（诊断用）。</summary>
     public static string AvailableIds(FileCatalogSpec? spec)
-        => string.Join(" | ", Scan(spec).Select(e => e.Id).OrderBy(s => s, StringComparer.OrdinalIgnoreCase));
+        => string.Join(" | ", OrderEntries(Scan(spec)).Select(e => e.Id));
 }

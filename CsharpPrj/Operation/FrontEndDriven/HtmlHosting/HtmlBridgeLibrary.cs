@@ -236,6 +236,22 @@ public sealed class HtmlBridgeLibrary
         _ = await HtmlAttachAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// **附加宿主控件接线**（数据库页 R2）：把额外 htmlviewer 控件登记到**同一** runtime 的消息桥
+    /// （hostWriter + <c>events.message</c> 订阅），**不重建 runtime**。
+    /// 返回 <c>null</c>=成功；非空字符串=失败原因（可见化，不抛）。
+    /// </summary>
+    /// <param name="extraHostControl">附加宿主控件名（须为声明内 htmlviewer 控件且声明 events.message）。</param>
+    public string? AttachExtraHost(string extraHostControl)
+    {
+        if (string.IsNullOrWhiteSpace(extraHostControl)) return "extraHostControl 为空";
+        var runtime = _backend.HtmlUi;
+        if (runtime is null) return HtmlUiNotAttached;
+        var viewer = _backend.HtmlViewerResolver?.Invoke(extraHostControl);
+        if (viewer is null) return $"未找到宿主控件 {extraHostControl}（未 sideload 或 resolver 未注入）";
+        return runtime.AttachHostMessage(viewer, extraHostControl, _backend.HtmlContentSink);
+    }
+
     /// <summary>函数参数描述符（注册库注册用）。</summary>
     private static IParamConfig Param(string name, Type type, bool optional = false, object? def = null)
         => new ParameterDescriptor

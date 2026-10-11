@@ -10,17 +10,17 @@ using UniversalWorkflowFramework.StorageFramework.Abstractions;
 namespace Operation.HierarchyMethod.History;
 
 /// <summary>
-/// 历史关系管理实现（唯一 owner）—— 管理 task / nodes / history 之间的逻辑关系，
+/// 历史关系管理实现（唯一 owner）—— 只承载 **history 层关系**（历史容器与 history→task 归拢），
 /// History = Task 更上层的 class 容器（一个历史归拢多个任务）。
 /// <para>
 /// 职责边界（SingleImplementation / TH-12）：本实现**只编排**，写边原语委托 <see cref="IReferenceMaintenance"/>
 /// （唯一守卫 → 图协调器纯写边），读边经 <see cref="IResourceReferenceStore"/>；不复制任何写边逻辑。
-/// 原 <c>Operation.LoopFoldMethod.Reference.Gateways.HistoryRelationGateway</c> 的唯一消费者即本类（一跳空转发），
-/// 已折叠进本类 —— 去一层包装，零消费者改动、零行为变化。
-/// </para>
 /// <para>
+/// 分层口径：task→node 归属（cross_db_link）不在本类（属节点执行层 attribution.ushar / INodeAttributionFlow）；
+/// 历史节点集为**派生读**（= 归拢任务的节点并集），不再直写 history→node 边。
+/// </para>
 /// 实体真源在 SQL（ur_histories / ur_tasks / ur_nodes），引用图（LiteDB graph-log.db）只存关系投影，
-/// 成员集（归拢任务 / 挂载节点）由图边推导，可 graph.rebuild 幂等重建。
+/// 成员集（归拢任务）由图边推导，可 graph.rebuild 幂等重建。
 /// 装配可空：未装配守卫/图则返回空集 / 诊断，不阻断运行（对齐「未装配返回诊断」模式）。
 /// </para>
 /// </summary>
@@ -62,16 +62,8 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     public Task DetachTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
         => _maintenance is null ? Task.CompletedTask : _maintenance.DetachHistoryTaskAsync(historyId, taskKey, ct);
 
-    /// <summary>task → node 关联（cross_db_link，真多对多；幂等加法）。同一节点可被多 task 共享引用。
-    /// 历史节点集经此边派生，故本方法是历史挂载节点的**新权威写路径**。
-    /// 注：原 <c>AttachNodeAsync</c>（history_owns_node 写点）已于 W1 退役（派生视图），
-    /// RED-3 起端口成员一并移除 —— 该写路径已无正当调用者（禁回流）。</summary>
-    public Task LinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _maintenance is null ? Task.CompletedTask : _maintenance.EnsureTaskNodeLinkAsync(taskKey, workflowId, nodeKey, ct);
-
-    /// <summary>解除 task → node 关联（M:N 撤销边；仅解除本 task 归属，不影响其它 task）。</summary>
-    public Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _maintenance is null ? Task.CompletedTask : _maintenance.UnlinkTaskNodeAsync(taskKey, workflowId, nodeKey, ct);
+    // task→node 归属（cross_db_link）已移出本端口（分层收口：属节点执行层 attribution.ushar / INodeAttributionFlow；
+    // 历史节点集经 GetNodeKeysAsync 派生读，不直写 node 边）。写路径唯一 owner = ReferenceGrounding（节点层）。
 
     /// <summary>会话归属边（session_owns）：把会话消息/产出节点挂到会话根（入史层挂载；幂等加法）。</summary>
     public Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default)

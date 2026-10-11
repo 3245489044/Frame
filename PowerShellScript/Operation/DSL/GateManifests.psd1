@@ -81,6 +81,20 @@
         Note   = '工作流↔节点域对应守卫（U4）：[Node] uses=/produces= 域 token ∈ Config\nodes\*.ushar 的 [Domain] 集（双向对账）；正/负对照防假绿；基线 Baselines\NodeFlowDomainMatch.psd1'
     }
 
+    DbPageGatherWiring = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1'
+        Expect = 0
+        Note   = '数据库页读侧统一守卫（R1/R5）：数据库页读路径零存储域（ur_* / SELECT * / CellMaxLength）· NodePanelModel 为唯一读侧 DTO · 入口函数已注册 · 正/负对照'
+    }
+
+    BatchStoreSingleSource = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-BatchStoreSingleSource.ps1'
+        Expect = 0
+        Note   = '存储层批量单源守卫（R0/R5）：批量读/写/删唯一构建点 = StorageFramework\Batch\（IBatchStore）· 存储层批量零领域字面量 · 批写批删无裸连接 · 正/负对照'
+    }
+
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{

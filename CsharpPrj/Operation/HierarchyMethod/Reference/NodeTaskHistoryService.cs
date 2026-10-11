@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.History;
 
@@ -33,24 +34,30 @@ public sealed class NodeTaskHistoryService
     private readonly IDiagnosticsSink? _diagnostics;
     // 迁移期回退姿态（装配期一处选定）：调用点只写正路，回退与否由策略对象裁决（DEBT-1 收敛）。
     private readonly Nodes.Linkage.FlowPosture _posture;
+    // task→node 归属边撤销原语（节点层写守卫；分层收口：node 边不经 history 关系端口）。
+    // null ⇒ 未装配（detach no-op，与「未装配返回诊断」模式一致）。
+    private readonly IReferenceMaintenance? _references;
 
-    /// <param name="relations">历史关系管理端口（可空；未装配则各方法 no-op）。</param>
+    /// <param name="relations">历史关系管理端口（可空；未装配则 history 层各方法 no-op）。</param>
     /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
     /// <param name="attributionFlow">归属边簿记流入口（R1，可空）：装配后「task→node 归属边」经声明流写。</param>
     /// <param name="diagnostics">诊断可见化端口（可空 = 不记）；簿记流失败 / 回退经此可见化。</param>
     /// <param name="posture">迁移期回退姿态（可空 = <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/>，零行为变化）。</param>
+    /// <param name="references">节点边撤销原语（节点层写守卫，可空）：detach 不经 history 关系端口（分层收口）。</param>
     public NodeTaskHistoryService(
         IHistoryRelationManager? relations,
         Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null,
         Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
         IDiagnosticsSink? diagnostics = null,
-        Nodes.Linkage.FlowPosture? posture = null)
+        Nodes.Linkage.FlowPosture? posture = null,
+        IReferenceMaintenance? references = null)
     {
         _relations = relations;
         _taskProvisionFlow = taskProvisionFlow;
         _attributionFlow = attributionFlow;
         _diagnostics = diagnostics;
         _posture = posture ?? Nodes.Linkage.FlowPosture.AllowLegacyFallback;
+        _references = references;
     }
 
     /// <summary>是否已装配关系守卫（供调用方判空诊断）。</summary>
@@ -130,10 +137,11 @@ public sealed class NodeTaskHistoryService
 
     /// <summary>
     /// 解除 task → node 关联（M:N 撤销边；幂等）。仅解除本 task 归属，不影响其它 task 共享引用。
-    /// 与 <see cref="AttachNodeToTaskAsync"/> 成对（Link/Unlink）。未装配关系守卫 → no-op。
+    /// 分层收口：node 边撤销经**节点层写守卫** <see cref="IReferenceMaintenance"/>（不经 history 关系端口）。
+    /// 与 <see cref="AttachNodeToTaskAsync"/> 成对（Link/Unlink）。未装配守卫 → no-op。
     /// </summary>
     public Task DetachNodeFromTaskAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _relations is null || string.IsNullOrWhiteSpace(taskKey) || string.IsNullOrWhiteSpace(nodeKey)
+        => _references is null || string.IsNullOrWhiteSpace(taskKey) || string.IsNullOrWhiteSpace(nodeKey)
             ? Task.CompletedTask
-            : _relations.UnlinkNodeAsync(taskKey.Trim(), workflowId, nodeKey, ct);
+            : _references.UnlinkTaskNodeAsync(taskKey.Trim(), workflowId, nodeKey, ct);
 }

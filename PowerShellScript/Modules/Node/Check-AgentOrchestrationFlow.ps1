@@ -109,11 +109,15 @@ $DeclaredFlowCountBaseline = [int]$g.DeclaredFlowCount.Value
 $FnConstCountBaseline      = [int]$g.FnConstCount.Value
 $SilentSkipBaseline        = [int]$g.SilentSkip.Value
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
-$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar')
+$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar', 'transfer-contribute.ushar', 'transfer-dispatch.ushar')
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，
 #   判据族见 Check-NodeCollectPort C1–C5）：该 token 是「收集端口位置」标记，不是键值 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；
 #   非收集位置的 inports 仍须 ∈ RoundKeys ∧ ∈ CompatSeedKeys（本白名单**仅**对收集端口位置生效）。
 $CollectPortTokens = @('nodes.*')
+# E10 步间连线端口白名单（TransferF）：transfer-*.ushar 的 inports 中由上游步 outports 供给的键
+#   （非外部种子键 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；外部种子键 container_key/edge_type/workflow_id/
+#    window_budget/signal/payload/payload_flag 仍须登记）；**仅**对 transfer-* 声明文件生效（不扩大全局白名单）。
+$TransferStepPortTokens = @('member_keys', 'window_items', 'state_items', 'transfer_items', 'ensured_keys')
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
@@ -314,7 +318,9 @@ foreach ($file in $InportAuditFiles) {
         continue
     }
     $e10Checked++
-    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $CollectPortTokens)) {
+    $tokens = $CollectPortTokens
+    if ($file -like 'transfer-*') { $tokens = $CollectPortTokens + $TransferStepPortTokens }
+    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $tokens)) {
         $violations.Add("E10 簿记入参未登记：$file → $bad（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效）")
     }
 }

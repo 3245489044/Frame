@@ -13,9 +13,10 @@
       G3 正/负对照：合成样本命中（含 `SELECT *`）必被 G1 捕获（防判据空转）。
       G4 交互闭合：ConversationViewService 含工具条 data-cmd（dbSelectAll/dbInvert/dbBatchDelete/
          dbRefresh/dbPrevPage/dbNextPage/dbNodeDetail/dbRecordSave/dbRevert/dbApplyFilter/dbFilterClear/dbSort）
-         + 行 dbToggle；负对照（缺钮必被捕获）。
+         + 行 dbToggle + 行身份 data-type（行来源域）/data-source（真键回写）；负对照（缺钮/缺身份必被捕获）。
       G5 显示增强：AgentRuntimeUI.json 主题含 .db-* 类（.db-table-view/.db-toolbar/.db-btn/.db-row/.db-edit）
          且渲染侧含 class="title"/class="updated"；负对照（缺类必被捕获）。
+      G6 去字符串猜域：Agent.Launcher 无 NormalizeDomain 字符串猜域（应经域清单/端口分派）；负对照（合成样本必被捕获）。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 
@@ -145,19 +146,31 @@ function Get-MissingDbCmds([string]$Text) {
     if ($Text -notmatch [regex]::Escape('dbToggle')) { $missing.Add('dbToggle') }
     return $missing
 }
+# C11：行身份闭合判据（data-type=行来源域 / data-source=真键回写）——命中缺失项返回非空（供正判据 + 负对照）。
+function Get-MissingRowIdentity([string]$Text) {
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($attr in @('data-type', 'data-source')) {
+        if ($Text -notmatch [regex]::Escape($attr)) { $missing.Add($attr) }
+    }
+    return $missing
+}
 if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
     $viewText = Read-ViewServiceText
     foreach ($m in (Get-MissingDbCmds $viewText)) {
         $violations.Add("[G4] 数据库页交互未闭合：缺 data-cmd '$m'（工具条五钮 + 行 dbToggle 缺一不可）")
     }
-    # C11：行身份闭合 —— 行/按钮须含 data-type（行来源域），否则域无法回传（域丢失根因）。
-    if ($viewText -notmatch [regex]::Escape('data-type')) {
-        $violations.Add('[G4] 行/按钮缺 data-type（行来源域无法回传，读身份≠写删身份）')
+    # C11：行须含 data-type（行来源域，否则域无法回传）+ data-source（真键回写；Stream 域=聚合真行）。
+    foreach ($attr in (Get-MissingRowIdentity $viewText)) {
+        $violations.Add("[G4] 行/按钮缺 $attr（行身份未闭合：data-type=行来源域 / data-source=真键回写；读身份≠写删身份）")
     }
     # 负对照：仅含两钮（缺 dbBatchDelete/dbRefresh/分页/详情/保存 + dbToggle）的合成样本必须被捕获（防判据空转）。
     $probeDb = 'data-cmd="dbSelectAll" data-cmd="dbInvert"'
     if ((Get-MissingDbCmds $probeDb).Count -eq 0) {
         $violations.Add('[G4] 负对照失效：缺钮的合成样本未被交互闭合判据捕获')
+    }
+    # 负对照：缺 data-type/data-source 的合成样本必须被行身份判据捕获（防判据空转）。
+    if ((Get-MissingRowIdentity 'data-cmd="dbToggle"').Count -eq 0) {
+        $violations.Add('[G4] 负对照失效：缺 data-type/data-source 的合成样本未被行身份判据捕获')
     }
 }
 
@@ -189,13 +202,14 @@ if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServi
     if ($viewText5 -notmatch 'class=\\"updated\\"') { $violations.Add('[G5] 渲染行缺 Updated 展示（class="updated"）') }
 }
 
-# ---------------- G6 去字符串猜域（C4：Launcher 无 NormalizeDomain 猜域；负对照防判据空转） ----------------
-$libDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries'
+# ---------------- G6 去字符串猜域（C4：Launcher 全域无 NormalizeDomain 猜域；负对照防判据空转） ----------------
+$launcherDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher'
 function Get-DomainGuessHits([string]$Text) {
     return @([regex]::Matches($Text, 'NormalizeDomain'))
 }
-if (Test-Path -LiteralPath $libDirG6) {
-    foreach ($f in (Get-ChildItem -LiteralPath $libDirG6 -Filter '*.cs' -File)) {
+if (Test-Path -LiteralPath $launcherDirG6) {
+    foreach ($f in (Get-ChildItem -LiteralPath $launcherDirG6 -Filter '*.cs' -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\(bin|obj|BuildOutput)\\' })) {
         $t = [System.IO.File]::ReadAllText($f.FullName)
         if ((Get-DomainGuessHits $t).Count -gt 0) {
             $violations.Add("[G6] 字符串猜域残留：$($f.Name) 含 NormalizeDomain（应经域清单/端口分派，禁 Contains 猜域）")
@@ -205,7 +219,7 @@ if (Test-Path -LiteralPath $libDirG6) {
         $violations.Add('[G6] 负对照失效：合成样本（NormalizeDomain）未被猜域判据捕获')
     }
 } else {
-    $violations.Add("[G6] 缺失 Libraries 目录（判据不可判）：$libDirG6")
+    $violations.Add("[G6] 缺失 Agent.Launcher 目录（判据不可判）：$launcherDirG6")
 }
 
 Write-Host ("  扫描读路径方法体: {0} 个" -f $checkedBodies) -ForegroundColor Gray

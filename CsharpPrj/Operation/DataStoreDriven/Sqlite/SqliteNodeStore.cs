@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
+using UniversalWorkflowFramework.StorageFramework.Batch;
 using UniversalWorkflowFramework.StorageFramework.Core;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
 
@@ -137,42 +138,28 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         return Task.FromResult(removed > 0);
     }
 
-    /// <summary>批量删除（去重）：先查命中键再单条 <c>DELETE ... IN</c> 批量执行（分块防参数上限），
-    /// 返回实际删除键（按入参顺序）。修复旧版逐条删除的 N+1 往返与 async-blocking，循环内检查取消令牌。</summary>
+    /// <summary>批量删除（去重）：**薄适配通用批量端口 <see cref="IBatchStore"/>**（C10）——批删唯一实现收敛到
+    /// <see cref="SqliteBatchStore"/>（经同一环境事务感知执行器 = 库级单写通道），本处不再自拼 <c>DELETE ... IN</c>。
+    /// 返回实际删除键（按入参顺序）；不存在键 <see cref="BatchItemStatus.NotFound"/> 不计入，循环内检查取消令牌。</summary>
     public Task<IReadOnlyList<string>> DeleteManyAsync(IEnumerable<string> nodeKeys, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var keys = (nodeKeys ?? Enumerable.Empty<string>()).Where(k => !string.IsNullOrWhiteSpace(k)).Distinct().ToList();
         if (keys.Count == 0) return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
+        // 键列名不加方括号（SqliteBatchStore 内部补 []）；表名走基类解析后的纯净名。
+        var result = new SqliteBatchStore(Executor)
+            .Delete(new BatchDeleteRequest(Table, keys, "NodeKey"));
+
         var removed = new List<string>(keys.Count);
-        const int chunk = 500;
-        for (var i = 0; i < keys.Count; i += chunk)
+        foreach (var item in result.Items)
         {
-            ct.ThrowIfCancellationRequested();
-            var slice = keys.Skip(i).Take(chunk).ToList();
-            var existingSet = Query(
-                    $"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey} IN ({InParams(slice.Count)})",
-                    BuildInParams(slice))
-                .Select(r => SqliteRows.Str(r, "NodeKey")) // 行字典键为 reader.GetName()（不带方括号），与 ColNodeKey(带方括号) 不同，勿误用
-                .Where(nk => !string.IsNullOrWhiteSpace(nk))
-                .ToHashSet(StringComparer.Ordinal);
-            var toDelete = slice.Where(existingSet.Contains).ToList();
-            if (toDelete.Count == 0) continue;
-            ExecuteNonQuery(
-                $"DELETE FROM [{Table}] WHERE {KvUsharpTable.ColNodeKey} IN ({InParams(toDelete.Count)})",
-                BuildInParams(toDelete));
-            removed.AddRange(toDelete);
+            if (item.Status == BatchItemStatus.Ok)
+            {
+                removed.Add(item.Key);
+            }
         }
         return Task.FromResult<IReadOnlyList<string>>(removed);
-    }
-
-    private static string InParams(int count) => string.Join(",", Enumerable.Range(0, count).Select(j => $"@k{j}"));
-
-    private static Dictionary<string, object> BuildInParams(IReadOnlyList<string> keys)
-    {
-        var ps = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        for (var j = 0; j < keys.Count; j++) ps[$"@k{j}"] = keys[j];
-        return ps;
     }
 
     /// <summary>行 → 节点记录：读库即解析一次记录实例，运行态 <see cref="NodeRecord"/> 为**薄视图**

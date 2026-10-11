@@ -145,7 +145,21 @@
     #   均在新单 allowSet 内；上一系列（函数流动图 H/F）已收口，其授权单文件内容保留不变。在途改动（History 运行时
     #   上下文系列）按新单 preexisting 登记（不属本系列活动面）。
     #   恢复 = 回填 v25 的 Value（上方注释保留函数流动图单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-Agent运行时未激活.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v27（2026-10-12）：单指针切换至「数据库页节点读写删重构（DB-RW）」授权单（active=[DB-RW]）。
+    #   切换理由 = 用户转入实施《2026-10-12-数据库页节点读写删重构-剩余未完成逻辑清单.md》：改动落在
+    #   Frame/PowerShellScript/Modules/Node/Check-DbPageGatherWiring.ps1（C11 门禁）·
+    #   Frame/CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteNodeStore.cs（C10 存储批接线）·
+    #   Projects/Plug/Agent/src/Agent.Launcher/**（C8 渲染器端口收口）· Frame/PowerShellScript/Baselines/BatchScope.psd1，
+    #   均在新单 allowSet 内；上一系列（Agent 运行时未激活 B0–B6）已交付，其授权单文件内容保留不变。
+    #   恢复 = 回填 v26 的 Value（上方注释保留运行时未激活单原值）。
+    # v28（2026-10-12）：单指针切换至「会话页读写单一真源缺口（CONV-SS）」授权单（active=[CONV-SS]）。
+    #   切换理由 = 用户转入实施《2026-10-12-会话页读写单一真源缺口-填补与逻辑整理.md》：改动落在
+    #   Projects/Plug/Agent/src/Agent.Launcher/**（读模型端口 IConversationTreeModel + ConversationViewService 去合成 +
+    #   历史/任务删除级联）· Projects/Plug/Agent/src/Agent.Orchestration/SessionWorkflow/ConversationPipeline.cs（会话枚举单源）·
+    #   Frame/PowerShellScript/Operation/DSL/**（新门禁 Check-ConversationReadSingleSource + GateManifests）·
+    #   Frame/PowerShellScript/Modules/Node/**，均在新单 allowSet 内；上一系列（DB-RW 数据库页节点读写删）已交付，
+    #   其授权单文件内容保留不变。恢复 = 回填 v27 的 Value（上方注释保留 DB-RW 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-12-会话页读写单一真源缺口.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

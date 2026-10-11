@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,6 +22,14 @@ public interface IHistoryStore
 
     /// <summary>列出全部会话 ID（供 UI 会话下拉）。</summary>
     Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default);
+
+    /// <summary>有界枚举会话 ID（<paramref name="limit"/> ≤ 0 ⇒ 全量）—— E5：全表无界的**下推出口**。
+    /// 缺省实现 = 全量后 Take（不改既有实现/测试替身）；存储实现宜覆写为下推（SQL LIMIT）。</summary>
+    async Task<IReadOnlyList<string>> ListHistoryIdsAsync(int limit, CancellationToken ct = default)
+    {
+        var all = await ListHistoryIdsAsync(ct).ConfigureAwait(false);
+        return limit > 0 ? all.Take(limit).ToList() : all;
+    }
 
     /// <summary>删除会话（级联清其引用）。返回是否命中删除。</summary>
     Task<bool> DeleteAsync(string sessionId, CancellationToken ct = default);

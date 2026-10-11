@@ -89,8 +89,8 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
         return await _maintenance.GetHistoryNodeKeysAsync(historyId, workflowId, ct).ConfigureAwait(false);
     }
 
-    /// <summary>列出全部历史 Id（枚举图中 ResourceType=history 端点，去 history. 前缀）。</summary>
-    public async Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default)
+    /// <summary>列出全部历史容器 Id（枚举图中 ResourceType=history 端点，去 history. 前缀）。</summary>
+    public async Task<IReadOnlyList<string>> ListHistoryContainersAsync(CancellationToken ct = default)
     {
         if (_graph is null) return Array.Empty<string>();
         var resources = await _graph.GetAllResourcesAsync(ct).ConfigureAwait(false);

@@ -95,6 +95,13 @@
         Note   = '存储层批量单源守卫（R0/R5）：批量读/写/删唯一构建点 = StorageFramework\Batch\（IBatchStore）· 存储层批量零领域字面量 · 批写批删无裸连接 · 正/负对照'
     }
 
+    ConversationReadSingleSource = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-ConversationReadSingleSource.ps1'
+        Expect = 0
+        Note   = '会话页读面单一真源守卫：读面零合成（禁兜底造 default 容器／禁合并映射残留 · 已销账 0）·「列历史」实现点 = 1 · 读面 SessionKeys.Default 载体只减不增 · 正/负对照'
+    }
+
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{

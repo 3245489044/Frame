@@ -118,32 +118,103 @@ public sealed class SqliteBatchStore : IBatchStore
             return BatchResult.Empty;
         }
 
-        var items = new List<BatchItemOutcome>(request.Keys.Count);
-        foreach (var key in request.Keys)
+        // 逐项结果按入参序占位（分块执行不改变返回序）。
+        var outcomes = new BatchItemOutcome?[request.Keys.Count];
+        const int chunk = 500; // 分块防 SQLite 参数上限（对齐既有批删口径）
+        for (var i = 0; i < request.Keys.Count; i += chunk)
         {
-            if (string.IsNullOrWhiteSpace(key))
+            var end = Math.Min(i + chunk, request.Keys.Count);
+            var pending = new List<(int Index, string Key)>(end - i);
+            for (var j = i; j < end; j++)
             {
-                items.Add(BatchItemOutcome.Fail(key ?? string.Empty, BatchItemStatus.Rejected, "空键"));
+                var raw = request.Keys[j];
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    outcomes[j] = BatchItemOutcome.Fail(raw ?? string.Empty, BatchItemStatus.Rejected, "空键");
+                }
+                else
+                {
+                    pending.Add((j, raw));
+                }
+            }
+
+            if (pending.Count == 0)
+            {
                 continue;
             }
 
             try
             {
-                var affected = _executor.ExecuteNonQuery(
-                    $"DELETE FROM [{request.Table}] WHERE [{request.KeyColumn}] = @k",
-                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["@k"] = key });
+                var existing = QueryExistingKeys(request, pending);
+                var toDelete = pending.Where(p => existing.Contains(p.Key)).Select(p => p.Key).ToList();
+                if (toDelete.Count > 0)
+                {
+                    ExecuteDelete(request, toDelete);
+                }
 
-                items.Add(affected > 0
-                    ? BatchItemOutcome.Ok(key)
-                    : BatchItemOutcome.Fail(key, BatchItemStatus.NotFound, null));
+                foreach (var p in pending)
+                {
+                    outcomes[p.Index] = existing.Contains(p.Key)
+                        ? BatchItemOutcome.Ok(p.Key)
+                        : BatchItemOutcome.Fail(p.Key, BatchItemStatus.NotFound, null);
+                }
             }
             catch (Exception ex)
             {
-                items.Add(BatchItemOutcome.Fail(key, BatchItemStatus.Rejected, ex.Message));
+                foreach (var p in pending)
+                {
+                    outcomes[p.Index] ??= BatchItemOutcome.Fail(p.Key, BatchItemStatus.Rejected, ex.Message);
+                }
             }
         }
 
-        return new BatchResult(items);
+        return new BatchResult(outcomes
+            .Select((o, idx) => o ?? BatchItemOutcome.Fail(request.Keys[idx] ?? string.Empty, BatchItemStatus.Rejected, "未执行"))
+            .ToList());
+    }
+
+    /// <summary>查键集在表中真实存在的子集（<c>IN</c> 参数化；行字典键为 reader.GetName() 不带方括号）。</summary>
+    private HashSet<string> QueryExistingKeys(BatchDeleteRequest request, IReadOnlyList<(int Index, string Key)> pending)
+    {
+        var names = pending.Select((_, n) => "@k" + n).ToArray();
+        var parameters = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        for (var n = 0; n < pending.Count; n++)
+        {
+            parameters["@k" + n] = pending[n].Key;
+        }
+
+        var rows = _executor.ExecuteQuery(
+            $"SELECT [{request.KeyColumn}] FROM [{request.Table}] WHERE [{request.KeyColumn}] IN ({string.Join(", ", names)})",
+            parameters);
+
+        var existing = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            if (row.TryGetValue(request.KeyColumn, out var v) && v is not null)
+            {
+                var s = v.ToString();
+                if (!string.IsNullOrWhiteSpace(s))
+                {
+                    existing.Add(s!);
+                }
+            }
+        }
+        return existing;
+    }
+
+    /// <summary>按键集批量删除（<c>IN</c> 参数化，单往返）。</summary>
+    private void ExecuteDelete(BatchDeleteRequest request, IReadOnlyList<string> keys)
+    {
+        var names = keys.Select((_, n) => "@k" + n).ToArray();
+        var parameters = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        for (var n = 0; n < keys.Count; n++)
+        {
+            parameters["@k" + n] = keys[n];
+        }
+
+        _executor.ExecuteNonQuery(
+            $"DELETE FROM [{request.Table}] WHERE [{request.KeyColumn}] IN ({string.Join(", ", names)})",
+            parameters);
     }
 
     /// <summary>用户表白名单判定（防注入）：仅允许 sqlite_master 中真实存在的业务表。</summary>

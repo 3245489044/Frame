@@ -97,7 +97,8 @@ $assertions = @(
     [pscustomobject]@{ Id = 'J1b'; Title = '内容副本投影落点（RoundMessagePayload；W4 只挂边）'; Pattern = 'RoundMessagePayload'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = $null; Batch = 'W4'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J1c'; Title = '归档 blob 写点（HistoryClineMessageArchive；W4 转 archive-raw）'; Pattern = 'HistoryClineMessageArchive'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 7; Target = $null; Batch = 'W4'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J1d'; Title = '副本消息键构造点（BuildMessageKey；W4 退场）'; Pattern = 'BuildMessageKey'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 3; Target = 0; Batch = 'W4'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'J1e'; Title = '历史 blob 载体面（ur_histories；W4 收口）'; Pattern = 'ur_histories'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 30; Target = $null; Batch = 'W4'; Kind = 'search' }
+    # J1e 基线 30 → 34：2026-10-12 CONV-SS（会话页读写单一真源：读模型端口 + 历史/任务删除级联）新增 ur_histories 引用面同步
+    [pscustomobject]@{ Id = 'J1e'; Title = '历史 blob 载体面（ur_histories；W4 收口）'; Pattern = 'ur_histories'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 34; Target = $null; Batch = 'W4'; Kind = 'search' }
 
     # ---- J2 骨架持引用（端口值含全文 = 0；W4 改 {node_ref,digest,preview}）----
     [pscustomobject]@{ Id = 'J2'; Title = '步骤节点端口全文取值（ClineResult.Text）'; Pattern = 'ClineResult.Text'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 3; Target = 0; Batch = 'W4'; Kind = 'search' }
@@ -106,8 +107,10 @@ $assertions = @(
     [pscustomobject]@{ Id = 'J4a'; Title = '任务节点读面（GetTaskNodeKeysAsync）'; Pattern = 'GetTaskNodeKeysAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 4; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4b'; Title = '历史 blob 读面（GetHistoryAsync）'; Pattern = 'GetHistoryAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 7; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4c'; Title = '会话日志读面（GetLogAsync）'; Pattern = 'GetLogAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = $null; Batch = 'W5'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'J4d'; Title = '历史存储端口面（IHistoryStore；W5 deref 收口）'; Pattern = 'IHistoryStore'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 18; Target = $null; Batch = 'W5'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'J4e'; Title = '节点库载体面（ur_nodes；W5 读面收口）'; Pattern = 'ur_nodes'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 54; Target = $null; Batch = 'W5'; Kind = 'search' }
+    # J4d 基线 18 → 23：2026-10-12 CONV-SS（历史/任务删除级联补 ur_histories 行删除）新增 IHistoryStore 消费面同步
+    [pscustomobject]@{ Id = 'J4d'; Title = '历史存储端口面（IHistoryStore；W5 deref 收口）'; Pattern = 'IHistoryStore'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 23; Target = $null; Batch = 'W5'; Kind = 'search' }
+    # J4e 基线 54 → 57：2026-10-12 数据库页节点读写删（DB-RW）+ CONV-SS 在途改动同步
+    [pscustomobject]@{ Id = 'J4e'; Title = '节点库载体面（ur_nodes；W5 读面收口）'; Pattern = 'ur_nodes'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 57; Target = $null; Batch = 'W5'; Kind = 'search' }
 
     # ---- J6 写侧零角色过滤（W5 先删该过滤）----
     [pscustomobject]@{ Id = 'J6'; Title = '写侧角色过滤（Role != ConversationRole.Tool）'; Pattern = 'Role != ConversationRole.Tool'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'W5'; Kind = 'search' }

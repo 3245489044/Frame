@@ -41,6 +41,8 @@ public interface IHistoryRelationManager
     /// <summary>会话归属边（session_owns）：会话消息节点 → 会话根（入史层挂载；幂等加法）。</summary>
     Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 
-    /// <summary>列出全部历史（供 UI 会话下拉 / 历史枚举）。</summary>
-    Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default);
+    /// <summary>列出全部历史**容器**（枚举图中 ResourceType=history 端点）。
+    /// 与 <c>IHistoryStore.ListHistoryIdsAsync</c>（ur_histories **表行**）语义不同——本方法读**图端点**（D2 消歧：
+    /// 会话/历史「存在性」唯一真源 = ur_histories，图只作归属边真源，见 CONV-SS）。</summary>
+    Task<IReadOnlyList<string>> ListHistoryContainersAsync(CancellationToken ct = default);
 }

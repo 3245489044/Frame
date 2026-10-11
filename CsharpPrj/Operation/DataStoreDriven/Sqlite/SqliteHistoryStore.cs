@@ -83,9 +83,14 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     }
 
     public Task<IReadOnlyList<string>> ListHistoryIdsAsync(CancellationToken ct = default)
+        => ListHistoryIdsAsync(0, ct);
+
+    /// <summary>有界枚举（E5）：limit ≤ 0 ⇒ 全量；否则下推 SQL LIMIT（避免全表无界枚举）。</summary>
+    public Task<IReadOnlyList<string>> ListHistoryIdsAsync(int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var rows = Query($"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] ORDER BY {KvUsharpTable.ColId}");
+        var bound = limit > 0 ? $" LIMIT {limit}" : string.Empty;
+        var rows = Query($"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] ORDER BY {KvUsharpTable.ColId}{bound}");
         var list = rows
             .Select(r => SqliteRows.Str(r, "NodeKey"))
             .Where(k => !string.IsNullOrWhiteSpace(k))

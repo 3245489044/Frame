@@ -53,14 +53,20 @@
         CircuitEngine.ExecuteAsync 驱动子电路；CFG-002 环检测仍在册（调用边不豁免成环禁入）。
     CS27 全流程图投影/渲染在册（正对照，R4）：Analysis\ControlFlowGraph 具 FlowEdgeKind 全边；
         Analysis\CircuitFlowRenderer 具 ToMermaid（DOT/Mermaid/JSON 声明式渲染）。
-    CS28 cline 调用链投影/落盘在册（正对照，CL1）：Agent.Modules\Cline 具 ClineCommandCatalog（命令/端点/上下文枚举 +
+    CS28 cline 调用链投影/落盘在册（正对照，CL1）：Agent.Modules\Cline\Cline 具 ClineCommandCatalog（命令/端点/上下文枚举 +
         判定载体单一来源）、ClineCallChainProjection（CircuitRecipeProjector 投影为 ControlFlowGraph）、
         ClineFlowDump（CircuitFlowRenderer 落盘 DOT/Mermaid/JSON）。
-    CS29 cline 命令分派子电路在册（正对照，CL2）：Agent.Modules\Cline\Circuit\ClineCommandChainCircuit（命令 Switch +
+    CS29 cline 命令分派子电路在册（正对照，CL2）：Agent.Modules\Cline\Cline\Circuit\ClineCommandChainCircuit（命令 Switch +
         三路 Call，经 CompiledRecipeRegistry/CircuitEngine）+ ClineExecutorFunction 接线 + NodeExecutionContract.KeyCommand。
-    CS30 cline 端点裁决子电路在册（正对照，CL3）：Agent.Modules\Cline\Circuit\ClineEndpointBranchCircuit（端点 Branch +
+    CS30 cline 端点裁决子电路在册（正对照，CL3）：Agent.Modules\Cline\Cline\Circuit\ClineEndpointBranchCircuit（端点 Branch +
         两路 Call，判定键 = 端口 llm.localOnly，经 CompiledRecipeRegistry/CircuitEngine）+ ClineAgentExecutor 接线；
         负对照：执行器不再直接调用 EndpointResolver.ResolveCline（防双裁决）。
+    CS34 函数流动图谱在册（正对照，H1）：Agent.Launcher\Composition\Circuit\FlowGraphRegistry（汇集各域电路 +
+        CircuitGraphComposer 缝连通根图 + CircuitFlowRenderer 渲染 DOT/Mermaid/JSON）+ 组合器 ValidateResolution +
+        Agent.Launcher.Tests 锁定测试；缺失 = 「声明有、图谱无」假支持（与 CS28/CS32 同族正对照）。
+    CS35 函数流动域目录在册（正对照，H2–H6）：Composition\Hosting 四域目录（Llm/Persistence/Node/ToolFace）+
+        Composition\Circuit 装配段桥接（AssemblyFlowCatalog）/装配入口（FunctionFlowBootstrap）/共用支撑（FlowCatalogSupport）
+        + Agent.Launcher.Tests 锁定测试；缺失 = 「图谱有、域无」假支持（与 CS34 同族正对照）。
     CS-P1 编译入口唯一（负对照 + 正对照，CF）：DataCenter 侧 + 接入面（Operation\HierarchyMethod\Nodes\Circuit）内
         禁自建编译入口（RecipeGraphValidator.Validate / CircuitValidator.Validate = 0）；正对照 = 接入面确经唯一入口
         CircuitCompiler.TryCompile（= 0 即扫描面失效）。
@@ -446,7 +452,7 @@ if (-not ($cs27Graph -and $cs27Render))
 # CL1：cline_execute 内部调用链（命令/端点/上下文）按控制面同一口径符号化 ——
 # ClineCommandCatalog（枚举 + 判定载体单一来源）→ ClineCallChainProjection（CircuitRecipeProjector 投影为 ControlFlowGraph）
 # → ClineFlowDump（CircuitFlowRenderer 落盘 DOT/Mermaid/JSON）。缺失 = 「声明有、投影无」假支持（与 CS23/CS24/CS25/CS27 同族正对照）。
-$clineSrcDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Cline'
+$clineSrcDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Cline\Cline'
 $clineCatalogFile = Join-Path $clineSrcDir 'Workflow\ClineCommandCatalog.cs'
 $clineProjectionFile = Join-Path $clineSrcDir 'Diagnostics\ClineCallChainProjection.cs'
 $clineDumpFile = Join-Path $clineSrcDir 'Diagnostics\ClineFlowDump.cs'
@@ -544,6 +550,52 @@ if (-not ($cs32Declared -and $cs32Consumed))
     $violations.Add('[CS32] 会话三链调用声明缺失或未被消费（SessionCallChainCatalog 写/读/轮内三链 / Agent.Launcher.Tests 锁定测试 任一不符）')
 }
 
+# ---------- CS34 函数流动图谱在册（正对照，H1） ----------
+# H1：各域电路（装配段 / 域 *FlowCatalog / 既有声明面）汇集 → CircuitGraphComposer.Compose（∪ 成连通根图）→
+# ControlFlowGraph → CircuitFlowRenderer 渲染 DOT/Mermaid/JSON —— 图谱工具 FlowGraphRegistry 在册；
+# 缺失 = 「声明有、图谱无」假支持（与 CS28/CS32 同族正对照）。
+$fgRegistryFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\FlowGraphRegistry.cs'
+$fgTestFile = Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\FlowGraphRegistryTests.cs'
+$cs34Registry = (Test-Path $fgRegistryFile) -and
+    ((Get-Content -LiteralPath $fgRegistryFile -Raw -Encoding UTF8) -match 'class FlowGraphRegistry') -and
+    ((Get-Content -LiteralPath $fgRegistryFile -Raw -Encoding UTF8) -match 'CircuitGraphComposer') -and
+    ((Get-Content -LiteralPath $fgRegistryFile -Raw -Encoding UTF8) -match 'CircuitFlowRenderer')
+$cs34Composer = (Test-Path (Join-Path $cfDir 'Analysis\CircuitGraphComposer.cs')) -and
+    ((Get-Content -LiteralPath (Join-Path $cfDir 'Analysis\CircuitGraphComposer.cs') -Raw -Encoding UTF8) -match 'ValidateResolution')
+$cs34Consumed = (Test-Path $fgTestFile) -and
+    ((Get-Content -LiteralPath $fgTestFile -Raw -Encoding UTF8) -match 'CountResolutionErrors')
+Write-Host ("  CS34 函数流动图谱在册（正对照：工具={0} / 组合器={1} / 锁定测试={2}）：须均为 True" -f $cs34Registry, $cs34Composer, $cs34Consumed) -ForegroundColor Gray
+if (-not ($cs34Registry -and $cs34Composer -and $cs34Consumed))
+{
+    $violations.Add('[CS34] 函数流动图谱缺失（FlowGraphRegistry / CircuitGraphComposer.ValidateResolution / FlowGraphRegistryTests 任一未在册）')
+}
+
+# ---------- CS35 函数流动域目录在册（正对照，H2–H6） ----------
+# H2–H6：四域目录（Llm/Persistence/Node/ToolFace）+ 装配段桥接（AssemblyFlowCatalog）+ 装配入口
+# （FunctionFlowBootstrap）+ 共用支撑（FlowCatalogSupport）在册；缺失 = 「图谱有、域无」假支持。
+$flowHostingDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting'
+$flowCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit'
+$cs35Files = @(
+    (Join-Path $flowHostingDir 'LlmFlowCatalog.cs'),
+    (Join-Path $flowHostingDir 'PersistenceFlowCatalog.cs'),
+    (Join-Path $flowHostingDir 'NodeFlowCatalog.cs'),
+    (Join-Path $flowHostingDir 'ToolFaceFlowCatalog.cs'),
+    (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs'),
+    (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs'),
+    (Join-Path $flowCircuitDir 'FlowCatalogSupport.cs'))
+$cs35Present = @($cs35Files | Where-Object { Test-Path $_ }).Count
+$cs35Bootstrap = (Test-Path (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs')) -and
+    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'RegisterAll') -and
+    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'AssemblyFlowCatalog')
+$cs35Stitch = (Test-Path (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs')) -and
+    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs') -Raw -Encoding UTF8) -match 'CircuitCallSpec')
+$cs35Test = Test-Path (Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\FunctionFlowCatalogTests.cs')
+Write-Host ("  CS35 函数流动域目录在册（正对照：目录件数={0}/7 / 入口={1} / 缝合={2} / 锁定测试={3}）：须均满足" -f $cs35Present, $cs35Bootstrap, $cs35Stitch, $cs35Test) -ForegroundColor Gray
+if ($cs35Present -lt 7 -or -not $cs35Bootstrap -or -not $cs35Stitch -or -not $cs35Test)
+{
+    $violations.Add("[CS35] 函数流动域目录缺失（目录件数 $cs35Present/7 / 入口 $cs35Bootstrap / 缝合 $cs35Stitch / 锁定测试 $cs35Test）")
+}
+
 # ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------
 $agentLoopsDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Loops'
 if (Test-Path $agentLoopsDir)
@@ -601,8 +653,8 @@ if (Test-Path $agentLoopsDir)
     # 其余引用 = 平行消费方爬升（受控第二点决议：新增消费方须先过 P4 迁移，非本门禁放行）。
     $singleRootKnown = @(
         (Join-Path $agentLoopsDir 'RoundLoopDriver.cs'),
-        (Join-Path $agentLoopsDir 'TaskPool\RuleTaskExecutor.cs'),
-        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Answer\StatelessAnswerLoop.cs'))
+        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\TaskPool\RuleTaskExecutor.cs'),
+        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Answer\Answer\StatelessAnswerLoop.cs'))
     $singleRootCallers = @()
     foreach ($scanDir in @($agentLoopsDir, (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules')))
     {
@@ -718,7 +770,7 @@ if (-not $csp3Positive) { $violations.Add('[CS-P3] 正对照失效：框架源�
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 递归执行化在册 / 分支分派执行化在册 / 调用执行化在册 / 全流程图渲染在册 / 轮间链单驱动 / 区域化轮循环在册 / 会话链单驱动 / run 主干配方化在册 / 受控第二点封顶 / 轮内链声明面在册 / 编译入口唯一（CS-P1）/ 禁平行执行外壳（CS-P2）/ 框架零领域类型（CS-P3））" -ForegroundColor Green
+    Write-Host "[OK] 电路语义守卫：0 违归（唯一宿主已接线 / 无平行引用抽象 / 引用符号齐备 / 轮骨架唯一接线 / 装配域唯一接线 / 接入面编译入口唯一 / 编排动作分派配方化 / 区域子计划编译入口唯一 / 区域镜像单一来源 / 递归执行化在册 / 分支分派执行化在册 / 调用执行化在册 / 全流程图渲染在册 / 轮间链单驱动 / 区域化轮循环在册 / 会话链单驱动 / run 主干配方化在册 / 受控第二点封顶 / 轮内链声明面在册 / 函数流动图谱在册（CS34）/ 函数流动域目录在册（CS35）/ 编译入口唯一（CS-P1）/ 禁平行执行外壳（CS-P2）/ 框架零领域类型（CS-P3））" -ForegroundColor Green
     exit 0
 }
 

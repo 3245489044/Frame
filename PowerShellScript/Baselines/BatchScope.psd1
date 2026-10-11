@@ -122,7 +122,21 @@
     #   （AgentRuntimeUI.json + Scripts/Agent）· Frame/PowerShellScript（门禁 G5+基线），均在新单 allowSet 内；
     #   上一系列（DB-UI 批量操作闭环）已交付，其授权单文件内容保留不变。
     #   恢复 = 回填 v22 的 Value（上方注释保留 DB-UI 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-数据库页节点显示优化与全库可修改.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v24（2026-10-11）：单指针切换至「函数流动图-编译期接入（H1–H6）」授权单（active=[H1]）。
+    #   切换理由 = 用户转入实施《函数流动图-编译期接入施工单.md》：改动落在 Projects/Plug/Agent/src
+    #   （Agent.Launcher/Composition 图谱工具 FlowGraphRegistry + 各域 *FlowCatalog）· Agent.Core/Nodes/Circuit
+    #   （接入契约）· Frame/PowerShellScript（电路门禁扩项）· Environment/CentralTest/AgentTest/Agent.Launcher.Tests
+    #   （锁定测试）· Docs/analysis/2026/10/10.11（授权单），均在新单 allowSet 内；上一系列（DB-VIEW）交付面保留不变。
+    #   在途改动（CircuitFramework 测试件 5 改 1 新 · events.jsonl）按新单 preexisting 登记（不属本系列活动面）。
+    #   恢复 = 回填 v23 的 Value（上方注释保留 DB-VIEW 单原值）。
+    # v25（2026-10-11）：沿用同一授权单，把 F1–F3（后续修复批：电路门禁路径漂移 / Agent.Core 装配相位归位 /
+    #   Cline payload 测试路径漂移）加入 active（并保留 H2–H6 在途面，避免误判其未跟踪交付物为越界）。
+    #   切换理由 = 用户转入实施《2026-10-11-函数流动图-后续修复清单-施工单.md》；改动落在
+    #   Frame/PowerShellScript/Operation/DSL/Check-CircuitSemantics.ps1 · Projects/Plug/Agent/src/Agent.Core/{Nodes/Loading,Properties}
+    #   · Projects/Plug/Agent/src/Agent.Launcher/Composition/Root/AgentComposition.cs
+    #   · Environment/CentralTest/AgentTest/Agent.Core.Tests/ClinePayloadKeysTests.cs，均在 F1–F3 allowSet 内。
+    #   恢复 = 回填 v24 的 active 值并移除 F1–F3 批条目。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-函数流动图-编译期接入.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

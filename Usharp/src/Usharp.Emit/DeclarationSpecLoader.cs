@@ -1,5 +1,3 @@
-using System;
-
 namespace Usharp.Emit;
 
 /// <summary>

@@ -55,10 +55,8 @@ public sealed record UsharpMatrixBinding(
 /// <summary>一次矩阵装配的批产物（<see cref="UsharpMatrixEmitter"/> 输出；诊断与编译诊断分离，避免重复计入）。</summary>
 public sealed record UsharpMatrixEmitResult(
     IReadOnlyList<UsharpMatrixBinding> Bindings,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics)
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
 {
-    public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
-
     /// <summary>按矩阵号取装配产物。</summary>
     public bool TryGet(string matrixId, out UsharpMatrixBinding binding)
     {
@@ -72,6 +70,9 @@ public sealed record UsharpMatrixEmitResult(
         return false;
     }
 
-    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
-    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no matrix diagnostics)");
+    /// <inheritdoc />
+    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
+
+    /// <inheritdoc />
+    protected override string EmptyReport => "(no matrix diagnostics)";
 }

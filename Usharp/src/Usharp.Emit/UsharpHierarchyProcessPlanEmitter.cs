@@ -13,13 +13,13 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpHierarchyPlanResult(
     HierarchyProcessPlan? Plan,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics)
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
 {
-    /// <summary>发射是否失败（含闸A 投影出的 error；warn 不算失败）。</summary>
-    public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
+    /// <inheritdoc />
+    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
 
-    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
-    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no plan diagnostics)");
+    /// <inheritdoc />
+    protected override string EmptyReport => "(no plan diagnostics)";
 }
 
 /// <summary>

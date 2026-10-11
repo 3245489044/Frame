@@ -5,8 +5,8 @@ namespace Operation.DataStoreDriven.Abstractions;
 
 /// <summary>
 /// 文档编解码端口（存储层与文本格式的**单一接缝**）。
-/// 默认实现 = <see cref="JsonDocumentCodec"/>（零行为变更）；USharp 实现由上层适配层注入，
-/// 使「编译语法 = 数据配置语法」（同一 USharp 承载声明与行载荷）。
+/// 由上层适配层注入实现（默认生产 = USharp <c>UsharpDataPorts.Codec</c>；<see cref="JsonDocumentCodec"/>
+/// 为可选 JSON 实现，供特定通道/旧数据），使「编译语法 = 数据配置语法」（同一 USharp 承载声明与行载荷）。
 /// <para>
 /// 存储层只依赖本端口（零 Format 知识）；USharp 文本的解析/规范形归上层适配层（Usharp 侧）。
 /// </para>

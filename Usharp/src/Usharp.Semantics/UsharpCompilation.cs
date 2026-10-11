@@ -85,13 +85,14 @@ public sealed class UsharpCompilation
 
     public IReadOnlyList<UsharpDiagnostic> Diagnostics { get; }
 
-    public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
+    /// <summary>是否含 error 诊断（判据单源 = <see cref="UsharpDiagnostics"/>）。</summary>
+    public bool HasErrors => UsharpDiagnostics.HasError(Diagnostics);
 
-    public IReadOnlyList<UsharpDiagnostic> Errors
-        => Diagnostics.Where(d => d.Severity == UsharpSeverity.Error).ToList();
+    /// <summary>error 诊断（声明序；判据单源 = <see cref="UsharpDiagnostics"/>）。</summary>
+    public IReadOnlyList<UsharpDiagnostic> Errors => UsharpDiagnostics.Errors(Diagnostics);
 
-    public IReadOnlyList<UsharpDiagnostic> Warnings
-        => Diagnostics.Where(d => d.Severity == UsharpSeverity.Warning).ToList();
+    /// <summary>警告诊断（声明序；判据单源 = <see cref="UsharpDiagnostics"/>）。</summary>
+    public IReadOnlyList<UsharpDiagnostic> Warnings => UsharpDiagnostics.Warnings(Diagnostics);
 
     /// <summary>编译一组内存源（同一 lib；path 仅用于诊断归因）。</summary>
     public static UsharpCompilation Compile(IEnumerable<(string Path, string Text)> sources, string lib = UsharpParser.DefaultLib)

@@ -97,7 +97,7 @@ public static class UsharpDeclarationLoader
             }
 
             var output = emit(compilation, source.FlowId);
-            if (output.Value is null || output.Diagnostics.Any(IsError))
+            if (output.Value is null || UsharpDiagnostics.HasError(output.Diagnostics))
             {
                 log?.Report(DeclarationLogEvent.EmitFailed, source.BaseName, source.FlowId, source.Path, output.Diagnostics.Count);
                 foreach (var diag in output.Diagnostics)
@@ -118,8 +118,8 @@ public static class UsharpDeclarationLoader
         }
     }
 
-    /// <summary>诊断是否为 error（发射失败判据单源）。</summary>
+    /// <summary>诊断是否为 error（判据单源 = <see cref="UsharpDiagnostics"/>；本方法仅作既有调用面转发）。</summary>
     /// <param name="diagnostic">诊断。</param>
     public static bool IsError(UsharpDiagnostic diagnostic)
-        => diagnostic.Severity == UsharpSeverity.Error;
+        => UsharpDiagnostics.IsError(diagnostic);
 }

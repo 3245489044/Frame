@@ -10,12 +10,13 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpGatherSpecResult(
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics)
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
 {
-    public bool HasErrors => Diagnostics.Any(d => d.Severity == UsharpSeverity.Error);
+    /// <inheritdoc />
+    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
 
-    /// <summary>诊断单行报表（渲染单源 = <see cref="UsharpDiagnosticRenderer"/>）。</summary>
-    public string Report() => UsharpDiagnosticRenderer.Render(Diagnostics, "(no gather-spec diagnostics)");
+    /// <inheritdoc />
+    protected override string EmptyReport => "(no gather-spec diagnostics)";
 }
 
 /// <summary>

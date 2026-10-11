@@ -54,19 +54,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
     private const string EdgeKeySeparator = "::";
 
-    /// <summary>图行默认编解码（单源常量）：图行 <c>EdgeDoc</c>/<c>EndpointDoc</c> 为**非 <c>[Record]</c> 记录通道**，
-    /// 缺省走 JSON 文档形态（LiteDB 非 SQL，不适用「无视删除」口径 ⇒ 保持旧行读兼容）。
-    /// 收敛为「图行专用 codec」单源，禁内联 <c>?? JsonDocumentCodec.Instance</c> 字面（U-3 判据：全仓该字面 = 0）。
-    /// <para>D6/B 二段式（裁决）：本默认**保持中立**为阶段一；组合根（<c>DatabaseBootstrapper</c>）已显式注入
-    /// <c>UsharpDataPorts.Codec</c>。默认分支命中次数经 <see cref="FallbackCodecUseCount"/> 可观测 —— 待
-    /// 「未注入路径全覆盖（含测试）」后，阶段二把本默认改为<b>必填</b>并物理退役 <see cref="JsonDocumentCodec"/>。</para></summary>
-    private static readonly IDocumentCodec GraphRowDefaultCodec = JsonDocumentCodec.Instance;
-
-    private static int _fallbackCodecUses;
-
-    /// <summary>图行默认 codec 回退命中次数（D6/B 二段式阶段一：使「默认兜底分支是否仍有调用」成为可门禁事实；
-    /// 目标 = 0，达成后可撤默认）。进程级累计，供诊断 / 用例断言。</summary>
-    public static int FallbackCodecUseCount => Volatile.Read(ref _fallbackCodecUses);
+    // 图行编解码（G-4 阶段二：**必填**，无默认回退）：图行 EdgeDoc/EndpointDoc 为非 [Record] 记录通道，
+    // 由组合根经 UsharpDataPorts.Codec 显式注入；未注入 ⇒ fail-fast（禁静默回退 JSON）。旧行读兼容由注入 codec 承担。
 
 
     private ReferenceGraphCoordinator(
@@ -85,15 +74,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
-        _codec = codec ?? UseFallbackCodec();      // 图行专用 codec 单源；未注入 ⇒ 回退（计数可见化，阶段二改为必填）
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec),
+            "图行编解码为必填（G-4 阶段二）：组合根须注入 UsharpDataPorts.Codec；未注入 ⇒ fail-fast，禁静默回退 JSON。");
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
-    }
-
-    /// <summary>取默认 codec 并计数（D6/B 二段式阶段一：回退命中可观测）。</summary>
-    private static IDocumentCodec UseFallbackCodec()
-    {
-        Interlocked.Increment(ref _fallbackCodecUses);
-        return GraphRowDefaultCodec;
     }
 
     /// <summary>组合根工厂：建目录 → 自开自持 LiteDatabase → 载入持久端点 + 边重建内存邻接。失败则释放回滚。</summary>
@@ -111,6 +94,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         IDocumentCodec? codec = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        if (codec is null)
+            throw new ArgumentNullException(nameof(codec),
+                "图行编解码为必填（G-4 阶段二）：须注入 UsharpDataPorts.Codec。");
         var prefix = PersistenceHelper.ResolveTablePrefix(tablePrefix);
         var path = PersistenceHelper.ResolveDatabasePath(databasePath, null)!;
         PersistenceHelper.EnsureDirectoryFor(path);

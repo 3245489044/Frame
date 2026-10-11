@@ -1,4 +1,3 @@
-using System;
 using Usharp.Semantics;
 
 namespace Usharp.Emit;

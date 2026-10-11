@@ -28,21 +28,7 @@ public static class UsharpRoundSpecEmitter
         }
 
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
-        var steps = new List<RoundStep>(flow.Steps.Count);
-        foreach (var step in flow.Steps)
-        {
-            if (!nodes.TryGetValue(step.Key, out var node))
-            {
-                diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.FlowStepUnmapped,
-                    $"[Flow] {flow.FlowId}: 步骤键 '{step.Key}' 无对应 [Node] 声明（无法解析 FuncName，可执行体未登记）",
-                    flow.SourceFile, flow.LineNumber));
-                continue;
-            }
-            steps.Add(new RoundStep(node.FuncName, node.InputPorts, node.OutputPorts, NodeId: step.Key)
-            {
-                Emits = step.Emits,
-            });
-        }
+        var steps = BuildSteps(flow, nodes, diagnostics);
 
         var spec = new RoundSpec(flow.FlowId, steps)
         {
@@ -50,11 +36,47 @@ public static class UsharpRoundSpecEmitter
             SuccessCriterion = ParseSuccessCriterion(flow, diagnostics),
         };
 
-        // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）。
-        spec = UsharpControlFlowEmitter.Apply(spec, compilation);
+        // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）；复用本处已读的 [Node] 端口表。
+        spec = UsharpControlFlowEmitter.Apply(spec, compilation, nodes);
 
         return new UsharpFlowEmitResult(spec, UsharpTransitionTableBuilder.Build(flow), diagnostics);
     }
+
+    /// <summary>
+    /// <c>[Flow]</c> 步骤声明的可执行体装配（**唯一映射点**）：步骤键 → <c>[Node]</c> → <see cref="RoundStep"/>。
+    /// 消费方：主流发射（<see cref="Emit"/>）与子流内联（<c>UsharpControlFlowEmitter.BuildChildSpec</c>）——禁各处再拼 <see cref="RoundStep"/>。
+    /// </summary>
+    /// <param name="flow">流声明（诊断归因来源）。</param>
+    /// <param name="nodes">本编译的 <c>[Node]</c> 端口表（<see cref="UsharpNodePortReader.Read"/> 的产物）。</param>
+    /// <param name="diagnostics">诊断出口（未映射步骤 ⇒ <c>US5002</c>；null ⇒ 静默跳过，供子流装配不计重复诊断）。</param>
+    internal static List<RoundStep> BuildSteps(
+        UsharpFlowDecl flow, IReadOnlyDictionary<string, UsharpNodeSpec> nodes, ICollection<UsharpDiagnostic>? diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(nodes);
+
+        var steps = new List<RoundStep>(flow.Steps.Count);
+        foreach (var step in flow.Steps)
+        {
+            if (!nodes.TryGetValue(step.Key, out var node))
+            {
+                diagnostics?.Add(UsharpDiagnostic.Error(UsharpCodes.FlowStepUnmapped,
+                    $"[Flow] {flow.FlowId}: 步骤键 '{step.Key}' 无对应 [Node] 声明（无法解析 FuncName，可执行体未登记）",
+                    flow.SourceFile, flow.LineNumber));
+                continue;
+            }
+            steps.Add(CreateStep(step, node));
+        }
+        return steps;
+    }
+
+    /// <summary>单步装配（步骤键 = <c>[Node]</c> 名 = <see cref="RoundStep.NodeId"/>；<c>Emits</c>/<c>Kind</c> 随声明透出）。</summary>
+    private static RoundStep CreateStep(UsharpFlowStep step, UsharpNodeSpec node)
+        => new(node.FuncName, node.InputPorts, node.OutputPorts, NodeId: step.Key)
+        {
+            Emits = step.Emits,
+            Kind = node.Kind,
+        };
 
     /// <summary>解析 <c>success=</c> 字段（<c>run_to_end</c> → RunToEnd；<c>decision</c>/缺省 → DecisionWord；未知值报 US5003 并回退 DecisionWord）。</summary>
     public static RoundSpecSuccessCriterion ParseSuccessCriterion(

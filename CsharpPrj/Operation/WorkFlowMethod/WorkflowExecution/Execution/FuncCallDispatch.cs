@@ -29,6 +29,9 @@ namespace WorkflowExecution.Execution
     /// <para>组合（<see cref="FuncCallKind.Composition"/>）由管线递归承接（见 <see cref="FuncCallRun"/>），不经本端口。</para>
     /// <para>工具执行面单源：external handler **复用** <c>LlmToolRegistry.TryInvoke</c> 的适配器，
     /// 由组合根注入（本层零 Usharp / 零 Agent 依赖，守 StorageUsharpRefs=0）。</para>
+    /// <para><b>E6 死路标注</b>：本端口 / <see cref="FuncCallRun.PipelineRunAsync"/> 目前**无调用方**（非活跃执行面）；
+    /// 活跃 external 执行面 = <c>call_func</c> → <c>mcp_call_tool</c>（见 Agent <c>FuncCallOpsFunctions</c>）。
+    /// 定义按 <c>Check-FuncCallSingleSource</c> D1/D2（kind/分派单源）保留，不删。</para>
     /// </summary>
     public interface IFuncCallDispatcher
     {
@@ -39,6 +42,9 @@ namespace WorkflowExecution.Execution
     /// <summary>
     /// 默认分派实现（Frame / WorkFlowMethod 层）：internal 走 <see cref="IWorkflowRegistry"/>；
     /// external 走**装配期注入**的外部执行委托。未装配 external handler ⇒ 显式失败（不回退静默）。
+    /// <para><b>E6 死路标注</b>：外部执行委托当前**未接入活跃路径**（<see cref="FuncCallRun.PipelineRunAsync"/> 无调用方，
+    /// 活跃 external 执行面 = <c>call_func</c> → <c>mcp_call_tool</c>）。接线（组合根注入 <c>LlmToolRegistry.TryInvoke</c>
+    /// 适配器）须待本分派成为活跃执行面后再做，避免给死码接线。</para>
     /// </summary>
     public sealed class WorkflowFuncCallDispatcher : IFuncCallDispatcher
     {

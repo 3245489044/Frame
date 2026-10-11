@@ -47,6 +47,14 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
     public IReadOnlyList<string> Emits { get; init; } = Array.Empty<string>();
 
     /// <summary>
+    /// 声明式执行体分类（<c>[Node] kind=</c>；G-2）：<c>internal</c>/<c>external</c>/<c>composition</c>；
+    /// 缺省 null = 不注入（零回归）。由 <see cref="UsharpNodeSpec.Kind"/> 经发射器传播，
+    /// 供 <c>call_func</c> 声明驱动分派消费（RoundStepInvoker 在 fn=call_func 时注入入参 kind）。
+    /// 加法式扩展：旧模板/内置骨架零影响。
+    /// </summary>
+    public string? Kind { get; init; }
+
+    /// <summary>
     /// 入史标记声明（CP-4 声明面）：<c>Numbered</c>（显式声明中间节点入史，供分层气泡）/ <c>None</c> / <c>Terminal</c>；
     /// 缺省 null = 由 <c>HistoryMarkPolicy</c> 默认规则裁决（终答默认 Terminal，其余 None）。
     /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。

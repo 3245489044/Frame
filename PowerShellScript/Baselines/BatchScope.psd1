@@ -136,7 +136,16 @@
     #   · Projects/Plug/Agent/src/Agent.Launcher/Composition/Root/AgentComposition.cs
     #   · Environment/CentralTest/AgentTest/Agent.Core.Tests/ClinePayloadKeysTests.cs，均在 F1–F3 allowSet 内。
     #   恢复 = 回填 v24 的 active 值并移除 F1–F3 批条目。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-函数流动图-编译期接入.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v26（2026-10-11）：单指针切换至「Agent 运行时未激活-框架级修复（B0–B6）」授权单（active=[B0..B6]）。
+    #   切换理由 = 用户转入实施《2026-10-11-Agent运行时未激活-框架级修复施工单.md》：改动落在
+    #   Projects/FileDriven/FileDriven.Execution（日志注册/反射单缝/钩子/启动段）· Projects/Plug/Agent/src/Agent.Launcher
+    #   （ConversationViewService/AgentUiHost(Access)/AgentFrameworkHosting/AgentPhaseGate/AgentInstanceHost）·
+    #   Projects/Information/DrivenConfig（AgentRuntimeUI.json）· Frame/CsharpPrj（TConfig UIConfiguration ·
+    #   FrontEndDriven InitCommandGate/Executor/ScopeLifecycleAdapter/fde_log_messages）· Frame/PowerShellScript/Baselines，
+    #   均在新单 allowSet 内；上一系列（函数流动图 H/F）已收口，其授权单文件内容保留不变。在途改动（History 运行时
+    #   上下文系列）按新单 preexisting 登记（不属本系列活动面）。
+    #   恢复 = 回填 v25 的 Value（上方注释保留函数流动图单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-Agent运行时未激活.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

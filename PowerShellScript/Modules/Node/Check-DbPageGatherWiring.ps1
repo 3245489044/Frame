@@ -46,7 +46,17 @@ Write-Host '  数据库页读侧统一守卫（DbPageGatherWiring：零存储域
 Write-Host '============================================================'
 
 $viewService = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs'
+# C7：数据库页渲染已拆为部分类（ConversationViewService.Db.cs）——判据须合并两文件为同一读侧面。
+$viewServiceDb = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\ConversationViewService.Db.cs'
 $convLib     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\AgentUiLibraryConversation.cs'
+
+function Read-ViewServiceText {
+    $parts = [System.Collections.Generic.List[string]]::new()
+    foreach ($f in @($viewService, $viewServiceDb)) {
+        if (Test-Path -LiteralPath $f) { $parts.Add([System.IO.File]::ReadAllText($f)) }
+    }
+    return [string]::Join("`n", $parts)
+}
 
 # ---------------- 工具：抽取一个方法体（从签名字符串到下一个“    /// ”或“    private ”或“    internal ”或“    }”边界） ----------------
 function Get-MethodBody {
@@ -62,8 +72,8 @@ $storageTokens = @('SELECT \*', 'ur_nodes', 'ur_tasks', 'ur_histories', 'CellMax
 
 # ---------------- G1 零存储域（数据库页新读路径方法体） ----------------
 $checkedBodies = 0
-if (Test-Path -LiteralPath $viewService) {
-    $text = [System.IO.File]::ReadAllText($viewService)
+if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
+    $text = Read-ViewServiceText
     $bodies = @(
         (Get-MethodBody -Text $text -Signature 'RenderDbTableHtmlAsync' -EndMarker "`n    /// <summary>聚拢面板模型"),
         (Get-MethodBody -Text $text -Signature 'RenderNodesViewAsync' -EndMarker "`n    /// <summary>数据库页（② 数据库）")
@@ -135,10 +145,14 @@ function Get-MissingDbCmds([string]$Text) {
     if ($Text -notmatch [regex]::Escape('dbToggle')) { $missing.Add('dbToggle') }
     return $missing
 }
-if (Test-Path -LiteralPath $viewService) {
-    $viewText = [System.IO.File]::ReadAllText($viewService)
+if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
+    $viewText = Read-ViewServiceText
     foreach ($m in (Get-MissingDbCmds $viewText)) {
         $violations.Add("[G4] 数据库页交互未闭合：缺 data-cmd '$m'（工具条五钮 + 行 dbToggle 缺一不可）")
+    }
+    # C11：行身份闭合 —— 行/按钮须含 data-type（行来源域），否则域无法回传（域丢失根因）。
+    if ($viewText -notmatch [regex]::Escape('data-type')) {
+        $violations.Add('[G4] 行/按钮缺 data-type（行来源域无法回传，读身份≠写删身份）')
     }
     # 负对照：仅含两钮（缺 dbBatchDelete/dbRefresh/分页/详情/保存 + dbToggle）的合成样本必须被捕获（防判据空转）。
     $probeDb = 'data-cmd="dbSelectAll" data-cmd="dbInvert"'
@@ -169,16 +183,35 @@ if (Test-Path -LiteralPath $runtimeUi) {
 } else {
     $violations.Add("[G5] 缺失 AgentRuntimeUI.json（判据不可判）：$runtimeUi")
 }
-if (Test-Path -LiteralPath $viewService) {
-    $viewText5 = [System.IO.File]::ReadAllText($viewService)
+if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
+    $viewText5 = Read-ViewServiceText
     if ($viewText5 -notmatch 'class=\\"title\\"') { $violations.Add('[G5] 渲染行缺 Title 展示（class="title"）') }
     if ($viewText5 -notmatch 'class=\\"updated\\"') { $violations.Add('[G5] 渲染行缺 Updated 展示（class="updated"）') }
+}
+
+# ---------------- G6 去字符串猜域（C4：Launcher 无 NormalizeDomain 猜域；负对照防判据空转） ----------------
+$libDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries'
+function Get-DomainGuessHits([string]$Text) {
+    return @([regex]::Matches($Text, 'NormalizeDomain'))
+}
+if (Test-Path -LiteralPath $libDirG6) {
+    foreach ($f in (Get-ChildItem -LiteralPath $libDirG6 -Filter '*.cs' -File)) {
+        $t = [System.IO.File]::ReadAllText($f.FullName)
+        if ((Get-DomainGuessHits $t).Count -gt 0) {
+            $violations.Add("[G6] 字符串猜域残留：$($f.Name) 含 NormalizeDomain（应经域清单/端口分派，禁 Contains 猜域）")
+        }
+    }
+    if ((Get-DomainGuessHits 'static string NormalizeDomain(string db) { if (db.Contains("task")) ... }').Count -eq 0) {
+        $violations.Add('[G6] 负对照失效：合成样本（NormalizeDomain）未被猜域判据捕获')
+    }
+} else {
+    $violations.Add("[G6] 缺失 Libraries 目录（判据不可判）：$libDirG6")
 }
 
 Write-Host ("  扫描读路径方法体: {0} 个" -f $checkedBodies) -ForegroundColor Gray
 
 if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2/G3/G4/G5 全部通过（零存储域 + 聚拢点唯一 + 交互闭合 + 显示增强 + 正负对照绿）' -ForegroundColor Green
+    Write-Host '  [成功] G1/G2/G3/G4/G5/G6 全部通过（零存储域 + 聚拢点唯一 + 交互闭合 + 显示增强 + 去猜域 + 正负对照绿）' -ForegroundColor Green
     Write-Host ''
     exit 0
 }

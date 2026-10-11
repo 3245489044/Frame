@@ -42,7 +42,9 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             item.Key,
             Truncate(Field(item, shaping.TitleKey)),
             Truncate(JoinSummary(item, shaping.SummaryKeys)),
-            Field(item, shaping.TimeKey));
+            Field(item, shaping.TimeKey),
+            item.DomainKey,
+            item.SourceKey);
     }
 
     private static string? Field(NodeProjectionItem item, string? name)

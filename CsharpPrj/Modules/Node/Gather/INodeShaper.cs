@@ -39,4 +39,6 @@ public sealed record DeclaredNodeShape(
     string Key,
     string? Title,
     string? Summary,
-    string? Updated);
+    string? Updated,
+    string? DomainKey = null,
+    string? SourceKey = null);

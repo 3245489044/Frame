@@ -221,6 +221,8 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
     /// （裸函数名 / `exec &lt;Func&gt; [k=v...] output=&lt;Control&gt;`）。
     /// </summary>
     private Task ExecuteInitCommandsAsync(UIConfiguration config, string scope)
-        => InitCommandExecutor.ExecuteAllAsync(_platform, config.InitCommands, scope);
+        => config.InitCommandSpecs is { Count: > 0 }
+            ? InitCommandExecutor.ExecuteSpecsAsync(_platform, config.InitCommandSpecs, scope)   // B3：带 requires 相位门 + pending 重放
+            : InitCommandExecutor.ExecuteAllAsync(_platform, config.InitCommands, scope);        // 旧字符串通道（零回归）
 
 }

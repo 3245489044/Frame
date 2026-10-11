@@ -21,6 +21,10 @@ public readonly record struct AnchorKey(string Value)
     /// 与技能块同级作独立头提示层段（stage=prompt:tools），使「装配的 MCP」与基础提示词同层可见。</summary>
     public static AnchorKey ToolCombined => new("tool.block");
 
+    /// <summary>模式声明段锚点 —— 注入提示词装配声明的行为模式（如 <c>reply</c>/<c>task.create</c>）；
+    /// History 状态响应智能体（HSRA）经此段读取 mode（零重算，UI ≡ LLM）。</summary>
+    public static AnchorKey PromptMode => new("prompt.mode");
+
     /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
     public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 

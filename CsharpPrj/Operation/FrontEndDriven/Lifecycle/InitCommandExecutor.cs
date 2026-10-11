@@ -10,6 +10,7 @@ using FrameworkAbstractions.WinFormsAbstractions;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Eventing;
 using Share.EventBindingOrchestrator.Execution;
+using TConfig;
 
 namespace FrontEndDriven.Lifecycle;
 
@@ -38,6 +39,7 @@ public static class InitCommandExecutor
             try
             {
                 await ExecuteAsync(platform, entry, scope).ConfigureAwait(false);
+                FrontEndDrivenLog.Log("InitCommandExecutor_ok", new { scope, command = entry });
             }
             catch (Exception ex)
             {
@@ -45,6 +47,59 @@ public static class InitCommandExecutor
                     new { scope, command = entry, error = ex.Message, exceptionType = ex.GetType().FullName });
             }
         }
+    }
+
+    /// <summary>
+    /// 批量执行结构化命令（B3：带 <c>requires</c> 相位门）。未达前置 ⇒ 登记 pending 待相位跃迁后幂等重放；
+    /// 达前置 ⇒ 立即执行（单条异常不阻断后续）。
+    /// </summary>
+    public static async Task ExecuteSpecsAsync(EventPlatform? platform, IEnumerable<InitCommandSpec>? specs, string scope)
+    {
+        if (platform is null || specs is null)
+            return;
+
+        foreach (var spec in specs)
+        {
+            if (spec is null || string.IsNullOrWhiteSpace(spec.Exec))
+                continue;
+
+            var entry = ComposeEntry(spec);
+
+            if (!InitCommandGate.IsSatisfied(spec.Requires))
+            {
+                var requires = spec.Requires!;
+                InitCommandGate.RegisterPending(requires, () => ExecuteAsync(platform, entry, scope));
+                FrontEndDrivenLog.Log("InitCommandExecutor_pending",
+                    new { scope, command = entry, requires = string.Join(",", requires) });
+                continue;
+            }
+
+            try
+            {
+                await ExecuteAsync(platform, entry, scope).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                FrontEndDrivenLog.Log("InitCommandExecutor_error",
+                    new { scope, command = entry, error = ex.Message, exceptionType = ex.GetType().FullName });
+            }
+        }
+    }
+
+    /// <summary>由结构化声明组装命令串（补 `exec ` 前缀 + 追加 `output=` 目标；已含则原样）。</summary>
+    private static string ComposeEntry(InitCommandSpec spec)
+    {
+        var exec = spec.Exec.Trim();
+        if (!exec.StartsWith("exec ", StringComparison.OrdinalIgnoreCase))
+            exec = "exec " + exec;
+
+        if (!string.IsNullOrWhiteSpace(spec.Output)
+            && exec.IndexOf("output=", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            exec += " output=" + spec.Output;
+        }
+
+        return exec;
     }
 
     /// <summary>执行单条命令：`exec ...` 走 exec 解析；否则按裸函数名执行。</summary>

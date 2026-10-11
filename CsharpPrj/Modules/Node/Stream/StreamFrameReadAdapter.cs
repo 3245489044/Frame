@@ -25,6 +25,7 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
     private readonly StreamPayloadSchema _schema;
     private readonly string? _frameSelectionId;
     private readonly Func<string, StreamFrameRecord, string> _displayKeyOf;
+    private readonly string? _domainKey;
 
     /// <param name="inner">单行读适配器（该 Stream 域，节点级 selection 固定 <c>all</c>）。</param>
     /// <param name="selector">帧级选择应用器（声明面单源）。</param>
@@ -33,6 +34,7 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
     /// <param name="schema">载荷字段面差异参数。</param>
     /// <param name="frameSelectionId">帧级选择名（缺省 = 全量）。</param>
     /// <param name="displayKeyOf">帧级显示键工厂（缺省 = <c>{prefix}{task}.f{seq}</c>）；域可注入既有形状以保读侧消费方/锚点幂等。</param>
+    /// <param name="domainKey">所属域键（用于回写行身份：帧项 <c>DomainKey</c>）；缺省 null（由消费方回退域键）。</param>
     public StreamFrameReadAdapter(
         INodeReadAdapter inner,
         StreamFrameSelector selector,
@@ -40,8 +42,10 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
         string placementId,
         StreamPayloadSchema schema,
         string? frameSelectionId = null,
-        Func<string, StreamFrameRecord, string>? displayKeyOf = null)
+        Func<string, StreamFrameRecord, string>? displayKeyOf = null,
+        string? domainKey = null)
     {
+        _domainKey = string.IsNullOrWhiteSpace(domainKey) ? null : domainKey;
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _displayKeyPrefix = displayKeyPrefix ?? throw new ArgumentNullException(nameof(displayKeyPrefix));
@@ -91,7 +95,10 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
                     _displayKeyOf(task, frame),
                     _placementId,
                     frame.Fields,
-                    row.Origin));
+                    row.Origin,
+                    // 真键 = 被展开聚合行的 Key（删除/写回按聚合真行，非合成显示键）
+                    DomainKey: _domainKey,
+                    SourceKey: row.Key));
             }
         }
 

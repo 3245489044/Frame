@@ -9,7 +9,7 @@ namespace Share.Conversation.ContextBinding;
 /// <summary>PromptSnapshot 的持久化 DTO（仅存储段字段；Bindings/System 为派生，反序列化时经 Builder 重建）。</summary>
 internal sealed record PromptSnapshotData(
     string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
-    string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null);
+    string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null, string? Mode = null);
 
 /// <summary>
 /// 写侧快照 —— provide_prompt 装配后捕获的真实 system 值（L0 / 填槽 L1 / L2 / 本轮选中 SkillBlock），
@@ -30,6 +30,10 @@ public sealed class PromptSnapshot
     /// <summary>工具面工具名集（与 <see cref="ToolBlock"/> 同源，供比对/诊断）。</summary>
     public IReadOnlyList<string> SelectedTools { get; init; } = Array.Empty<string>();
 
+    /// <summary>模式声明段（注入提示词装配声明；如 <c>reply</c>/<c>task.create</c>）——
+    /// History 状态响应智能体（HSRA）读此段决定本轮行为集合（零重算，UI ≡ LLM）；空 = 未声明（→ 缺省模式）。</summary>
+    public string Mode { get; init; } = string.Empty;
+
     /// <summary>逐段绑定（prompt.l0/l1/l2 / skill.block），供 UI 与 LLM 双向比对。</summary>
     public IReadOnlyList<MessageBinding> Bindings { get; init; } = Array.Empty<MessageBinding>();
 
@@ -41,7 +45,7 @@ public sealed class PromptSnapshot
 
     /// <summary>序列化为 JSON（落 __prompt_snapshot 归档；仅存段字段，Bindings/System 反序列化时重建）。</summary>
     public string ToJson()
-        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools));
+        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode));
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -54,7 +58,7 @@ public sealed class PromptSnapshot
             return PromptSnapshotBuilder.Build(
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
                 d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
-                d.ToolBlock, d.SelectedTools);
+                d.ToolBlock, d.SelectedTools, d.Mode);
         }
         catch (JsonException)
         {

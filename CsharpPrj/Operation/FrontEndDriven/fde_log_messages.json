@@ -577,6 +577,16 @@
       "template": "挂载失败：TabPage 未嵌套于 TabControl 宿主 — parent={parent}, child={child}（配置误嵌套：TabPage 直接挂到 {parent} 无 TabControl 宿主将不显示，请将该 tabpage 移入 tabcontrol 的 controls）",
       "level": "Error",
       "category": "General"
+    },
+    "InitCommandExecutor_pending": {
+      "template": "初始化命令未达相位前置，登记 pending 待重放（B3） — scope={scope}, command={command}, requires={requires}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Lifecycle"
+    },
+    "InitCommandExecutor_ok": {
+      "template": "初始化命令执行完成 — scope={scope}, command={command}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Lifecycle"
     }
   }
 }

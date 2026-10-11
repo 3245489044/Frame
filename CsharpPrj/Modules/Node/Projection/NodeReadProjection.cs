@@ -25,7 +25,9 @@ public sealed record NodeProjectionItem(
     string PlacementId,
     IReadOnlyDictionary<string, string> Fields,
     ProjectionOrigin Origin,
-    string? PayloadJson = null);
+    string? PayloadJson = null,
+    string? DomainKey = null,
+    string? SourceKey = null);
 
 /// <summary>
 /// 读投影范围（裁剪只在读侧：N7）。
@@ -301,7 +303,9 @@ public sealed class NodeReadProjection
                 origin = item.Origin;
             }
 
-            merged.Add(new NodeProjectionItem(ordered[0].Key, ordered[0].PlacementId, fields, origin, payload));
+            merged.Add(new NodeProjectionItem(
+                ordered[0].Key, ordered[0].PlacementId, fields, origin, payload,
+                ordered[0].DomainKey, ordered[0].SourceKey));
         }
 
         return merged;

@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-04 14:48:04
+  生成时间: 2026-10-11 16:45:37
 -->
 <Project>
 
@@ -91,6 +91,7 @@
     <Mod_Mathematics>$(CsharpPrjDir)Plate\Mathematics\</Mod_Mathematics>
     <Mod_Plate>$(CsharpPrjDir)Plate\</Mod_Plate>
     <Mod_ClearCSharpComments>$(CsharpPrjDir)Plate\RoslynMethod.Tools\ClearCSharpComments\</Mod_ClearCSharpComments>
+    <Mod_CallChainExtract>$(CsharpPrjDir)Plate\RoslynMethod.Tools\CallChainExtract\</Mod_CallChainExtract>
     <Mod_LedgerForge>$(CsharpPrjDir)Plate\DeclarativeLedger.Tools\LedgerForge\</Mod_LedgerForge>
     <Mod_RoslynMethod_Core>$(CsharpPrjDir)Plate\RoslynMethod\RoslynMethod.Core\</Mod_RoslynMethod_Core>
     <Mod_RoslynMethod>$(CsharpPrjDir)Plate\RoslynMethod\</Mod_RoslynMethod>
@@ -199,6 +200,7 @@
     <Proj_Mathematics>$(CsharpPrjDir)Plate\Mathematics\Mathematics.csproj</Proj_Mathematics>
     <Proj_Plate>$(CsharpPrjDir)Plate\Plate.csproj</Proj_Plate>
     <Proj_ClearCSharpComments>$(CsharpPrjDir)Plate\RoslynMethod.Tools\ClearCSharpComments\ClearCSharpComments.csproj</Proj_ClearCSharpComments>
+    <Proj_CallChainExtract>$(CsharpPrjDir)Plate\RoslynMethod.Tools\CallChainExtract\CallChainExtract.csproj</Proj_CallChainExtract>
     <Proj_LedgerForge>$(CsharpPrjDir)Plate\DeclarativeLedger.Tools\LedgerForge\LedgerForge.csproj</Proj_LedgerForge>
     <Proj_RoslynMethod_Core>$(CsharpPrjDir)Plate\RoslynMethod\RoslynMethod.Core\RoslynMethod.Core.csproj</Proj_RoslynMethod_Core>
     <Proj_RoslynMethod>$(CsharpPrjDir)Plate\RoslynMethod\RoslynMethod.csproj</Proj_RoslynMethod>

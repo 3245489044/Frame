@@ -11,6 +11,11 @@
       G2 唯一读侧 DTO：数据库页路径出现 `NodePanelModel`（域中立 DTO），且两个入口函数
          （AgentUi_DbTableHtml / AgentUi_DbTableMessageDispatch）已注册。
       G3 正/负对照：合成样本命中（含 `SELECT *`）必被 G1 捕获（防判据空转）。
+      G4 交互闭合：ConversationViewService 含工具条 data-cmd（dbSelectAll/dbInvert/dbBatchDelete/
+         dbRefresh/dbPrevPage/dbNextPage/dbNodeDetail/dbRecordSave/dbRevert/dbApplyFilter/dbFilterClear/dbSort）
+         + 行 dbToggle；负对照（缺钮必被捕获）。
+      G5 显示增强：AgentRuntimeUI.json 主题含 .db-* 类（.db-table-view/.db-toolbar/.db-btn/.db-row/.db-edit）
+         且渲染侧含 class="title"/class="updated"；负对照（缺类必被捕获）。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 
@@ -120,10 +125,60 @@ if (-not $probeHit) {
     $violations.Add('[G3] 负对照失效：合成样本（SELECT * FROM ur_nodes）未被存储域判据捕获')
 }
 
+# ---------------- G4 交互闭合（U5：工具条 data-cmd 五钮 + 行 dbToggle；负对照防判据空转） ----------------
+$requiredDbCmds = @('dbSelectAll', 'dbInvert', 'dbBatchDelete', 'dbRefresh', 'dbPrevPage', 'dbNextPage', 'dbFirstPage', 'dbLastPage', 'dbGoPage', 'dbNodeDetail', 'dbRecordSave', 'dbRevert', 'dbApplyFilter', 'dbFilterClear', 'dbSort')
+function Get-MissingDbCmds([string]$Text) {
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($cmd in $requiredDbCmds) {
+        if ($Text -notmatch [regex]::Escape($cmd)) { $missing.Add($cmd) }
+    }
+    if ($Text -notmatch [regex]::Escape('dbToggle')) { $missing.Add('dbToggle') }
+    return $missing
+}
+if (Test-Path -LiteralPath $viewService) {
+    $viewText = [System.IO.File]::ReadAllText($viewService)
+    foreach ($m in (Get-MissingDbCmds $viewText)) {
+        $violations.Add("[G4] 数据库页交互未闭合：缺 data-cmd '$m'（工具条五钮 + 行 dbToggle 缺一不可）")
+    }
+    # 负对照：仅含两钮（缺 dbBatchDelete/dbRefresh/分页/详情/保存 + dbToggle）的合成样本必须被捕获（防判据空转）。
+    $probeDb = 'data-cmd="dbSelectAll" data-cmd="dbInvert"'
+    if ((Get-MissingDbCmds $probeDb).Count -eq 0) {
+        $violations.Add('[G4] 负对照失效：缺钮的合成样本未被交互闭合判据捕获')
+    }
+}
+
+# ---------------- G5 显示增强（主题 .db-* 类 + 行 Title/Updated；负对照防判据空转） ----------------
+$runtimeUi = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
+$requiredDbClasses = @('.db-table-view', '.db-toolbar', '.db-btn', '.db-row', '.db-edit')
+function Get-MissingDbClasses([string]$Text) {
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($c in $requiredDbClasses) {
+        if ($Text -notmatch [regex]::Escape($c)) { $missing.Add($c) }
+    }
+    return $missing
+}
+if (Test-Path -LiteralPath $runtimeUi) {
+    $uiText = [System.IO.File]::ReadAllText($runtimeUi)
+    foreach ($m in (Get-MissingDbClasses $uiText)) {
+        $violations.Add("[G5] 数据库页主题缺 .db-* 样式类 '$m'（显示优化未落地）")
+    }
+    # 负对照：缺类的合成样本必须被捕获。
+    if ((Get-MissingDbClasses '.db-table-view').Count -eq 0) {
+        $violations.Add('[G5] 负对照失效：缺类的合成样本未被显示增强判据捕获')
+    }
+} else {
+    $violations.Add("[G5] 缺失 AgentRuntimeUI.json（判据不可判）：$runtimeUi")
+}
+if (Test-Path -LiteralPath $viewService) {
+    $viewText5 = [System.IO.File]::ReadAllText($viewService)
+    if ($viewText5 -notmatch 'class=\\"title\\"') { $violations.Add('[G5] 渲染行缺 Title 展示（class="title"）') }
+    if ($viewText5 -notmatch 'class=\\"updated\\"') { $violations.Add('[G5] 渲染行缺 Updated 展示（class="updated"）') }
+}
+
 Write-Host ("  扫描读路径方法体: {0} 个" -f $checkedBodies) -ForegroundColor Gray
 
 if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2/G3 全部通过（数据库页零存储域 + 聚拢点唯一 + 正负对照绿）' -ForegroundColor Green
+    Write-Host '  [成功] G1/G2/G3/G4/G5 全部通过（零存储域 + 聚拢点唯一 + 交互闭合 + 显示增强 + 正负对照绿）' -ForegroundColor Green
     Write-Host ''
     exit 0
 }

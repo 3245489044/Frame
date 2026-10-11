@@ -110,7 +110,19 @@
     #   Docs/analysis/2026/10/10.10/**）。切换理由 = 用户转入实施《USharp数据化-后续未实施清单.md》；
     #   已交付批（B0/L2/L4*/L6/L7）登记 done，L5（配置 JSON→.ushar）随 U-1 推进。
     #   恢复 = 回填 v20 的 active 值与各批 status。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.10\USharp数据化-全表USharp化.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v22（2026-10-11）：单指针切换至「数据库页批量操作 UI 闭环（U1–U5）」授权单（active=[DB-UI]）。
+    #   切换理由 = 用户转入实施《2026-10-11-数据库页批量操作UI闭环-施工单.md》：改动落在
+    #   Projects/Plug/Agent/src（Agent.Contract 槽键 · Agent.Launcher 渲染/批量库）· Projects/Information/DrivenConfig
+    #   （AgentRuntimeUI.json + Scripts/Agent）· Frame/PowerShellScript（门禁+基线），均在新单 allowSet 内；
+    #   上一系列（USharp 数据化 U-1…U-11）已交付批内容保留不变（其授权单文件仍在）。
+    #   恢复 = 回填 v21 的 Value（上方注释保留 USharp 单原值）。
+    # v23（2026-10-11）：单指针切换至「数据库页节点显示优化与全库可修改（D1–D5）」授权单（active=[DB-VIEW]）。
+    #   切换理由 = 用户转入实施《2026-10-11-数据库页节点显示优化与全库可修改-方案.md》：改动落在
+    #   Projects/Plug/Agent/src（Launcher 渲染/批量/记录编辑器 · Contract 槽键）· Projects/Information/DrivenConfig
+    #   （AgentRuntimeUI.json + Scripts/Agent）· Frame/PowerShellScript（门禁 G5+基线），均在新单 allowSet 内；
+    #   上一系列（DB-UI 批量操作闭环）已交付，其授权单文件内容保留不变。
+    #   恢复 = 回填 v22 的 Value（上方注释保留 DB-UI 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.11\2026-10-11-数据库页节点显示优化与全库可修改.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

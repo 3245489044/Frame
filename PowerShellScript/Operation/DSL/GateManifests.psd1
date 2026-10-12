@@ -121,6 +121,13 @@
         Note   = '会话页读面单一真源守卫：读面零合成（禁兜底造 default 容器／禁合并映射残留 · 已销账 0）·「列历史」实现点 = 1 · 读面 SessionKeys.Default 载体只减不增 · 正/负对照'
     }
 
+    GateRegistry = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-GateRegistry.ps1'
+        Expect = 0
+        Note   = '门禁注册表对账（P4）：formula.md [Gate] 声明 ⊇ 已登记运行期实现；登记项 Impl 文件在位且含符号（G1 悬空/G2 漂移/G3 未声明登记 → 失败）；G4 已声明无实现（行为门）仅可见化'
+    }
+
 
     # ===== 默认即校验的门禁（无 -Check 开关，默认即输出+退出码） =====
     NodeFramework = @{

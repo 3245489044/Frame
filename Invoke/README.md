@@ -14,13 +14,13 @@
 | `Locate-Test.ps1` | `Environment\CentralTest\Run-CSharpTests.ps1 -Locate` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 | `Locate-Build.ps1` | `Environment\CentralTest\Get-VerifyPlan.ps1` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
 | `Locate-Port.ps1` | `Environment\CentralTest\Get-PortPlan.ps1` | 诊断相位 · 零运行定位（端口键 → 声明/实现/消费用例/工程） |
-| `Get-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-get`） | 作者面 · 只读（链/引用清单 + 内联载荷去重候选） |
-| `New-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-new`） | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |
-| `Use-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-use`） | 作者面 · 切链（匹配用例的内联 → `use <链>`；DryRun 缺省 + 三类自检） |
+| `Get-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-get`） | 作者面 · 只读（链/引用清单 + 内联载荷去重候选；**混装块按 `port` 子块签名**判定，忽略用例数据） |
+| `New-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-new`） | 作者面 · 抽链（内联 invocation → `chain` + `use`；**混装块**把用例数据落 `use … override`；DryRun 缺省 + 三类自检） |
+| `Use-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-use`） | 作者面 · 切链（匹配用例的内联 → `use <链>`；**混装块**数据落 `override`；DryRun 缺省 + 三类自检） |
 | `Set-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-set`） | 作者面 · 改链载荷（就地更新；幂等 + DryRun 缺省） |
 | `Remove-SpecChain.ps1` | `SpecSourceGen\Cli`（`chain-remove`） | 作者面 · 删链（引用守卫：仍有 use/and use 引用即拒绝；DryRun 缺省） |
 | `ForEach-SpecCase.ps1` | `SpecSourceGen\Cli`（`case-list`） | 作者面 · 只读遍历（用例选择器 + 调用形态标注） |
-| `New-SpecChains.ps1` | `SpecSourceGen\Cli`（`chains-new`） | 作者面 · 批量抽链（同签名内联 ≥2 次的套件一次处理；DryRun 缺省 + `-Write` 落盘） |
+| `New-SpecChains.ps1` | `SpecSourceGen\Cli`（`chains-new`） | 作者面 · 批量抽链（同 `port` 签名内联 ≥2 次的套件一次处理；混装块数据落 `override`；DryRun 缺省 + `-Write` 落盘） |
 | `Test-SpecRefs.ps1` | `SpecSourceGen\Cli`（`refs`） | 作者面 · 引用完整性（悬空 use；只读 + `-Check`） |
 | `Get-SpecGenerated.ps1` | `SpecSourceGen\Cli`（`generated-list`） | 生成物清点（只读 `_manifest.json`；`-Verify` 复核 sha256） |
 | `Invoke-Verify.ps1` | `Environment\CentralTest\Invoke-Verify.ps1` | P2 唯一验证命令（bake→test→gate 一次完成） |

@@ -5,7 +5,7 @@
 .DESCRIPTION
     判据（H1–H9，载体=结构事实/源码文本，只读）：
       H1 空态预装配：ConversationViewService 空态分支渲染预装配面（BuildBasePromptSnapshot(profileKey)），非空数组短路。
-      H2 档案分档：存在 PromptProfiles.History 消费 + Config/prompt-profiles.ushar 声明面。
+      H2 档案分档：存在 PromptProfiles.History 消费 + Config/prompt-profiles.ushar 声明面；框架常驻基础段声明化（[Profile] base=on 在册 ∧ FrameworkBaseBands 读声明面 BaseBands）。
       H3 模式注入：History 视图快照注入 mode（HistoryDefaultMode）。
       H4 视口单一入口：TaskRuntimeReportProvider 为 History 侧 task 枚举唯一入口（HistoryTaskRuntimeContext 内无裸调 GetHistoryTaskKeysAsync）。
       H5 端口只读：新增视口实现文件零 ur_* 写命中。
@@ -56,6 +56,11 @@ if (-not (Test-Path -LiteralPath $profiles)) { Add-Violation 'H2' '缺 PromptPro
 if (-not (Test-Path -LiteralPath $profileCfg)) { Add-Violation 'H2' '缺 Config/prompt-profiles.ushar 声明面' }
 if ($vt -notmatch 'PromptProfiles\.History') { Add-Violation 'H2' 'ConversationViewService 未按 History 档案分档' }
 if (-not (Test-Path -LiteralPath $l0History)) { Add-Violation 'H2' '缺 l0-history DSL 承载技能' }
+# H2+ 框架常驻基础段声明化（单源）：base=on 声明面在册，且代码侧不硬编码 band 字面量。
+$profileCfgText = Read-Text $profileCfg
+if ($profileCfgText -notmatch '(?m)^\s*\[Profile\]\s*base\s*:') { Add-Violation 'H2' '缺 [Profile] base 框架常驻基础段声明' }
+$profilesText = Read-Text $profiles
+if ($profilesText -notmatch 'FrameworkBaseBands\s*=>\s*PromptProfileCatalog\.BaseBands') { Add-Violation 'H2' 'FrameworkBaseBands 未读声明面（应 = PromptProfileCatalog.BaseBands）' }
 
 # H3 模式注入
 if ($vt -notmatch 'HistoryDefaultMode') { Add-Violation 'H3' 'History 视图快照未注入 mode（缺 HistoryDefaultMode）' }

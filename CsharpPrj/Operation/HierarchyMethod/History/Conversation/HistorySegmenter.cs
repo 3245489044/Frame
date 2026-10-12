@@ -89,6 +89,7 @@ public static class HistorySegmenter
                 Iteration: iterations[first.Index],
                 ToolCallId: first.ToolCallId,
                 SourceIndex: first.Index,
+                Tags: first.Tags,
                 Parent: parent));
         }
 
@@ -125,7 +126,8 @@ public static class HistorySegmenter
     /// <summary>段语义类型：Message=原消息类型；Role=角色名；Tool=调用/结果；其余=分组语义名。</summary>
     private static string KindOf(SegmentationMode mode, ConversationItem[] group) => mode switch
     {
-        SegmentationMode.Message => group[0].Type,
+        // 标准化节点 Kind（塑形非空时优先；未塑形 ⇒ 回落原类型，零行为变更）。
+        SegmentationMode.Message => string.IsNullOrWhiteSpace(group[0].Kind) ? group[0].Type : group[0].Kind!,
         SegmentationMode.Role => group[0].Role,
         SegmentationMode.Tool => group[0].IsToolResult ? "tool_result" : "tool_call",
         SegmentationMode.Iteration => "iteration",

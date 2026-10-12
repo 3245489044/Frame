@@ -28,9 +28,10 @@ public sealed record ConversationSegment(
     int Iteration,
     string? ToolCallId,
     int SourceIndex,
-    string? Parent)
+    string? Parent,
+    string? Tags = null)
 {
-    /// <summary>段载荷 JSON（字段名固定：<c>kind</c>/<c>role</c>/<c>text</c>/…，供读侧 <c>selection</c> 断言）。</summary>
+    /// <summary>段载荷 JSON（字段名固定：<c>kind</c>/<c>role</c>/<c>text</c>/<c>tags</c>/…，供读侧 <c>selection</c> 断言）。</summary>
     public string ToJson() => JsonSerializer.Serialize(new Dictionary<string, object?>(StringComparer.Ordinal)
     {
         ["seq"] = Seq,
@@ -42,6 +43,7 @@ public sealed record ConversationSegment(
         ["toolCallId"] = ToolCallId,
         ["sourceIndex"] = SourceIndex,
         ["parent"] = Parent,
+        ["tags"] = Tags,
     }, HistoryPayloadJson.Options);
 
     /// <summary>内容摘要（稳定哈希；同输入 ⇒ 同摘要，供幂等对账）。</summary>

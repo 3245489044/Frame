@@ -20,6 +20,9 @@ public sealed class AgentSkillPack : IUsharpDomainPack
     /// <summary>US7002：<c>[Profile] bands=</c> 须 ∈ 已声明技能的 dsl 集。</summary>
     public const string CodeBandUndeclared = "US7002";
 
+    /// <summary>US7005：<c>[Profile] base=on</c> 的框架常驻段声明须 <c>bands</c> 非空。</summary>
+    public const string CodeBaseBandMissing = "US7005";
+
     public AgentSkillPack(
         IReadOnlyCollection<string>? knownTools = null,
         IReadOnlyCollection<string>? knownBands = null)
@@ -34,6 +37,7 @@ public sealed class AgentSkillPack : IUsharpDomainPack
         {
             new SkillBackendGateRule(knownTools ?? Array.Empty<string>()),
             new ProfileBandGateRule(knownBands ?? Array.Empty<string>()),
+            new ProfileBaseGateRule(),
         };
 
         FacetProjectors = new IUsharpFacetProjector[]
@@ -133,6 +137,26 @@ internal sealed class ProfileBandGateRule : IGateRule<UsharpGateModel>
                     sink.Report(ConversionDiagnostic.Error(AgentSkillPack.CodeBandUndeclared,
                         $"[Profile] {p.Key}: band='{band}' 未在已声明技能的 dsl 集内（闸A）",
                         new SourceSpan(p.SourceFile, p.LineNumber, 0)));
+    }
+}
+
+/// <summary>US7005：<c>[Profile] base=on</c> 的框架常驻段声明须 <c>bands</c> 非空。</summary>
+internal sealed class ProfileBaseGateRule : IGateRule<UsharpGateModel>
+{
+    public string Name => "agent.skill.base";
+
+    public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
+    {
+        if (!model.TryGetFacet<IReadOnlyList<UsharpProfileDecl>>(out var profiles)) return;
+
+        foreach (var p in profiles)
+        {
+            if (!p.Base) continue;
+            if (p.Bands.Count > 0) continue;
+            sink.Report(ConversionDiagnostic.Error(AgentSkillPack.CodeBaseBandMissing,
+                $"[Profile] {p.Key}: base=on 但 bands 为空（框架常驻基础段须声明段集）",
+                new SourceSpan(p.SourceFile, p.LineNumber, 0)));
+        }
     }
 }
 

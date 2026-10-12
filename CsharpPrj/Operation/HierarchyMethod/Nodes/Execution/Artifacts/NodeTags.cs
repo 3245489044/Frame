@@ -26,14 +26,16 @@ public static class NodeTags
     /// <summary>task↔history 连接端口节点（可与其他标签共存）。</summary>
     public const string Port = "Port";
 
-    private static readonly (string Name, NodeHistoryMark Bit)[] All =
-    {
-        (Numbered, NodeHistoryMark.Numbered),
-        (Terminal, NodeHistoryMark.Terminal),
-        (Port, NodeHistoryMark.Port),
-    };
-
     private static readonly char[] Separators = { '|', ',', ';' };
+
+    private static INodeTagVocabulary _vocabulary = DefaultNodeTagVocabulary.Instance;
+
+    /// <summary>注入声明面词表（名称↔位值真源）；<c>null</c> ⇒ 回落内置缺省（零行为变更）。</summary>
+    public static void Install(INodeTagVocabulary? vocabulary)
+        => _vocabulary = vocabulary ?? DefaultNodeTagVocabulary.Instance;
+
+    /// <summary>当前词表（取证 / 测试）。</summary>
+    public static INodeTagVocabulary Vocabulary => _vocabulary;
 
     /// <summary>具名 token 集归一（分隔符 <c>|</c>/<c>,</c>/<c>;</c>；空/None ⇒ "None"；含未识别 token ⇒ null = 拒绝）。</summary>
     /// <param name="mark">原始标签（单 token 或 token 集）。</param>
@@ -46,9 +48,9 @@ public static class NodeTags
         var seen = new List<string>();
         foreach (var part in parts)
         {
-            var hit = All.FirstOrDefault(t => t.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
-            if (hit.Name is null) return null;
-            if (!seen.Contains(hit.Name)) seen.Add(hit.Name);
+            var canonical = Canonical(part);
+            if (canonical is null) return null;
+            if (!seen.Contains(canonical, StringComparer.Ordinal)) seen.Add(canonical);
         }
 
         return seen.Count == 0 ? None : string.Join("|", seen);
@@ -73,23 +75,36 @@ public static class NodeTags
         var normalized = Normalize(mark);
         if (normalized is null || normalized == None) return NodeHistoryMark.None;
 
-        var result = NodeHistoryMark.None;
+        var bits = 0;
         foreach (var name in normalized.Split('|'))
         {
-            foreach (var tag in All)
-            {
-                if (tag.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) result |= tag.Bit;
-            }
+            if (_vocabulary.Marks.TryGetValue(name, out var bit)) bits |= bit;
         }
 
-        return result;
+        return (NodeHistoryMark)bits;
     }
 
     /// <summary>位掩码 → 规范具名 token 串（空集 ⇒ "None"）。</summary>
     public static string Serialize(NodeHistoryMark mark)
     {
-        if (mark == NodeHistoryMark.None) return None;
-        var names = All.Where(t => (mark & t.Bit) != 0).Select(t => t.Name).ToList();
+        var bits = (int)mark;
+        if (bits == 0) return None;
+        var names = _vocabulary.Marks
+            .Where(p => p.Value != 0 && (bits & p.Value) != 0)
+            .OrderBy(p => p.Value)
+            .Select(p => p.Key)
+            .ToList();
         return names.Count == 0 ? None : string.Join("|", names);
+    }
+
+    private static string? Canonical(string token)
+    {
+        if (token.Equals(None, StringComparison.OrdinalIgnoreCase)) return None;
+        foreach (var name in _vocabulary.Marks.Keys)
+        {
+            if (name.Equals(token, StringComparison.OrdinalIgnoreCase)) return name;
+        }
+
+        return null;
     }
 }

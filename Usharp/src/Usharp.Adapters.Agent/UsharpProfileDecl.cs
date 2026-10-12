@@ -16,7 +16,8 @@ public sealed record UsharpProfileDecl(
     bool IncludeMode,
     bool IncludeTools,
     string SourceFile,
-    int LineNumber)
+    int LineNumber,
+    bool Base = false)
 {
     /// <summary>由 <c>[Profile]</c> 声明投影（无名 → null）。</summary>
     public static UsharpProfileDecl? From(DslDeclaration d)
@@ -30,7 +31,8 @@ public sealed record UsharpProfileDecl(
             IsOn(d.Field("mode")),
             IsOn(d.Field("tools")),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber,
+            IsOn(d.Field("base")));
     }
 
     private static bool IsOn(string? value)

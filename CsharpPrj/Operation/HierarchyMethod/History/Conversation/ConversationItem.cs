@@ -22,5 +22,7 @@ public readonly record struct ConversationItem(
     string? ToolCallId,
     bool IsToolCall,
     bool IsToolResult,
-    bool IsAssistantOutput);
+    bool IsAssistantOutput,
+    string? Kind = null,
+    string? Tags = null);
 

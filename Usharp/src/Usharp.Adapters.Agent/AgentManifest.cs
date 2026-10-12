@@ -43,7 +43,7 @@ public sealed record AgentManifest(
     {
         var sb = new StringBuilder();
         foreach (var s in skills) sb.Append("S:").Append(s.Name).Append('|').Append(s.Dsl).Append('|').Append(s.Body).Append(';');
-        foreach (var p in profiles) sb.Append("P:").Append(p.Key).Append('|').Append(string.Join(",", p.Bands)).Append(';');
+        foreach (var p in profiles) sb.Append("P:").Append(p.Key).Append('|').Append(string.Join(",", p.Bands)).Append('|').Append(p.Base ? "1" : "0").Append(';');
         foreach (var f in faces) sb.Append("F:").Append(f.Face).Append('|').Append(f.Edge).Append('|').Append(f.Target).Append(';');
 
         using var sha = SHA256.Create();

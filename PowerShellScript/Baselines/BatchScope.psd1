@@ -124,7 +124,7 @@
     #   恢复 = 回填 v22 的 Value（上方注释保留 DB-UI 单原值）。
     # v24（2026-10-11）：单指针切换至「函数流动图-编译期接入（H1–H6）」授权单（active=[H1]）。
     #   切换理由 = 用户转入实施《函数流动图-编译期接入施工单.md》：改动落在 Projects/Plug/Agent/src
-    #   （Agent.Launcher/Composition 图谱工具 FlowGraphRegistry + 各域 *FlowCatalog）· Agent.Core/Nodes/Circuit
+    #   （Agent.Launcher/Composition 图谱工具 FlowGraphRegistry + 各域 *FlowCatalog）· Agent.Core/Engine/Nodes/Circuit
     #   （接入契约）· Frame/PowerShellScript（电路门禁扩项）· Environment/CentralTest/AgentTest/Agent.Launcher.Tests
     #   （锁定测试）· Docs/analysis/2026/10/10.11（授权单），均在新单 allowSet 内；上一系列（DB-VIEW）交付面保留不变。
     #   在途改动（CircuitFramework 测试件 5 改 1 新 · events.jsonl）按新单 preexisting 登记（不属本系列活动面）。

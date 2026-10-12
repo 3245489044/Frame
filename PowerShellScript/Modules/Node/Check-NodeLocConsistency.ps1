@@ -57,12 +57,12 @@ $DefinitionFiles = @(
     'Frame\CsharpPrj\Operation\WorkFlowMethod\Nodes\Contracts\NodeOutput.cs',             # 契约默认值
     'Frame\CsharpPrj\Operation\WorkFlowMethod\Nodes\Contracts\NodeSignal.cs',             # 契约默认值
     'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Workflows\WorkflowSpecLoader.cs',    # 工作流缺省
-    'Projects\Plug\Agent\src\Agent.Core\Nodes\RoundStepInvoker.cs'                        # 注释（单一权威说明）
+    'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\RoundStepInvoker.cs'                        # 注释（单一权威说明）
 )
 
 # 债务基线（inline 回退；只减不增 —— 收敛后须从本表删除）
 $FallbackBaselineFiles = @(
-    'Projects\Plug\Agent\src\Agent.Core\Loops\TaskOrchestrateFunction.cs',
+    'Projects\Plug\Agent\src\Agent.Core\Engine\Loops\TaskOrchestrateFunction.cs',
     'Projects\Plug\Agent\src\Agent.Launcher\Api\Plan\WritePlanner.cs',
     'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\AgentUiLibraryTaskPool.cs',
     'Projects\Plug\Agent\src\Agent.Launcher\Modules\Routing\AgentInvocationRouter.cs'

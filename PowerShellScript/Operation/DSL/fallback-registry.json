@@ -2041,7 +2041,7 @@
     {
       "id": "C1-P1b-190",
       "type": "C1",
-      "file": "src/Agent.Core/Composition/AgentModuleRegistrar.cs",
+      "file": "src/Agent.Core/Host/Composition/AgentModuleRegistrar.cs",
       "exit": "N",
       "target": "AgentLoopConfig",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2051,7 +2051,7 @@
     {
       "id": "C1-P1b-191",
       "type": "C1",
-      "file": "src/Agent.Core/Nodes/WorkflowRunner.cs",
+      "file": "src/Agent.Core/Engine/Nodes/WorkflowRunner.cs",
       "exit": "N",
       "target": "RoundCircuitBackend",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2061,7 +2061,7 @@
     {
       "id": "C1-P1b-192",
       "type": "C1",
-      "file": "src/Agent.Core/Nodes/Governance/GovernanceSpecWiring.cs",
+      "file": "src/Agent.Core/Engine/Nodes/Governance/GovernanceSpecWiring.cs",
       "exit": "N",
       "target": "GovernanceRuntime",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2071,7 +2071,7 @@
     {
       "id": "C1-P1b-193",
       "type": "C1",
-      "file": "src/Agent.Core/Prompts/ObservedPromptComposer.cs",
+      "file": "src/Agent.Core/Engine/Prompts/ObservedPromptComposer.cs",
       "exit": "N",
       "target": "PromptRequestComposer",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2081,7 +2081,7 @@
     {
       "id": "C1-P1b-194",
       "type": "C1",
-      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "file": "src/Agent.Core/Engine/Signal/SkConversationFoldOperator.cs",
       "exit": "N",
       "target": "ConversationChatKernel",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2091,7 +2091,7 @@
     {
       "id": "C1-P1b-195",
       "type": "C1",
-      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "file": "src/Agent.Core/Engine/Signal/SkConversationFoldOperator.cs",
       "exit": "N",
       "target": "SkillInjectionService",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2101,7 +2101,7 @@
     {
       "id": "C1-P1b-196",
       "type": "C1",
-      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "file": "src/Agent.Core/Engine/Signal/SkConversationFoldOperator.cs",
       "exit": "N",
       "target": "PromptRequestComposer",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2111,7 +2111,7 @@
     {
       "id": "C1-P1b-197",
       "type": "C1",
-      "file": "src/Agent.Core/Signal/SkConversationFoldOperator.cs",
+      "file": "src/Agent.Core/Engine/Signal/SkConversationFoldOperator.cs",
       "exit": "N",
       "target": "ToolFaceInjectionService",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2121,7 +2121,7 @@
     {
       "id": "C1-P1b-198",
       "type": "C1",
-      "file": "src/Agent.Core/TaskPool/AgentTaskPool.cs",
+      "file": "src/Agent.Core/Engine/TaskPool/AgentTaskPool.cs",
       "exit": "N",
       "target": "AgentRuleBackend",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",

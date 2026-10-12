@@ -61,7 +61,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 
 $hmDir      = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod'
 $agentSrc   = Join-Path $Root 'Projects\Plug\Agent\src'
-$catalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Bookkeeping\BookkeepingFlowCatalog.cs'
+$catalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Bookkeeping\BookkeepingFlowCatalog.cs'
 $workflows  = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $specCatalog= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs'
 

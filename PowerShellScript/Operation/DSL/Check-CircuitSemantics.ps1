@@ -21,7 +21,7 @@
     CS7 Agent.Core 禁桩件体（负对照）：接入面内禁 模拟/stub/NotImplemented/TODO（演示件冒充真实接线）。
     CS8 Agent.Core 缓存键内容指纹（正对照）：RoundFlowCircuitRegistry 须含 Fingerprint（同名不同内容不得复用陈旧电路）。
     CS33 电路接入面下沉在册（正对照 + 负对照，P1/P2）：Operation.HierarchyMethod\Nodes\Circuit 具投影/缓存/步骤/后端四件
-        ∧ HierarchyMethod.csproj 引用 Proj_CircuitFramework（正对照）；Agent.Core\Nodes\Circuit 内禁残留已下沉件（负对照）。
+        ∧ HierarchyMethod.csproj 引用 Proj_CircuitFramework（正对照）；Agent.Core\Engine\Nodes\Circuit 内禁残留已下沉件（负对照）。
     CS9 Agent.Core 编排动作分派配方化（负对照 + 正对照）：TaskOrchestrator 内禁手写 op 分派
         （switch(operation.Op) = 0 且「执行体无对应分支」漂移兜底 = 0；Kind 解析唯一来源 = 框架 CircuitNodeResolver）；
         CS9-d 正对照 = 配方驱动在册（CircuitAssemblyRunner.RunAsync ≥ 1 且 new RecipeBuilder( ≥ 1）。
@@ -36,7 +36,7 @@
         SpinalPipeline = 0（run 主路径唯一 = RoundLoopDriver.RunViaRegionAsync 区域电路）。
     CS13 区域化轮循环在册（正对照）：区域节点（RegionNodeBase.For）/ 条件迭代计划
         （RegionIterationPlan.WhileTrue）/ 区域入口（RoundLoopDriver.RunViaRegionAsync）须齐备。
-    CS15 run 主干在册（正对照，P1/T2 配方化）：Agent.Core\Loops\Circuit\AgentRunTrunkCircuit.cs 存在且以
+    CS15 run 主干在册（正对照，P1/T2 配方化）：Agent.Core\Engine\Loops\Circuit\AgentRunTrunkCircuit.cs 存在且以
         OrderedRecipe< 声明 agent.run.trunk 顺序链（load_state…finalize_run）；缺失 = 扫描面失效（FAIL，非「零违规」）。
     CS16 禁命令式主干（负对照）：AgentRunner 内禁内联主干序列（using var ports = BuildRunPorts( = 0）；
         run 主干须经 AgentRunTrunkCircuit 配方驱动（与 CS12 单驱动同族）。
@@ -157,8 +157,8 @@ else
 }
 
 # ---------- CS4 轮骨架唯一接线（正对照）+ Nodes\Circuit 禁平行抽象（负对照） ----------
-$agentNodesCircuit = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Circuit'
-$wfRunner = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\WorkflowRunner.cs'
+$agentNodesCircuit = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Circuit'
+$wfRunner = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\WorkflowRunner.cs'
 if ((Test-Path $agentNodesCircuit) -and (Test-Path $wfRunner))
 {
     # 正对照：WorkflowRunner 默认轮后端必须接线 RoundCircuitBackend（电路为唯一执行后端）
@@ -178,13 +178,13 @@ if ((Test-Path $agentNodesCircuit) -and (Test-Path $wfRunner))
     Write-Host ("  CS4-b Nodes\Circuit 平行引用抽象（负对照）：{0} 处（须为 0）" -f $cs4bActual) -ForegroundColor Gray
     if ($cs4bActual -gt 0)
     {
-        $violations.Add("[CS4-b] Agent.Core\Nodes\Circuit 内定义平行引用抽象 $cs4bActual 处（引用关系统一宿主 IUniversalReferenceManager）")
+        $violations.Add("[CS4-b] Agent.Core\Engine\Nodes\Circuit 内定义平行引用抽象 $cs4bActual 处（引用关系统一宿主 IUniversalReferenceManager）")
     }
     if ($ShowDetail) { foreach ($h in $cs4bHits) { Write-Host ("    {0}" -f ($h -replace [regex]::Escape($Root + '\'), '')) -ForegroundColor DarkGray } }
 }
 else
 {
-    Write-Host "  CS4 路径缺失（Agent.Core\Nodes\Circuit / WorkflowRunner.cs 未找到）：跳过" -ForegroundColor DarkGray
+    Write-Host "  CS4 路径缺失（Agent.Core\Engine\Nodes\Circuit / WorkflowRunner.cs 未找到）：跳过" -ForegroundColor DarkGray
 }
 
 # ---------- CS5 装配域唯一接线（编排机制 3→1 / 配方 DSL 3→1 / 段壳样板 → 0 的固化） ----------
@@ -241,7 +241,7 @@ else
 }
 
 # ---------- CS6/CS7/CS8 Agent.Core 电路接入面（接入收敛 / 禁桩件 / 缓存键正对照） ----------
-$agentCoreCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Circuit'
+$agentCoreCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Circuit'
 $agentCoreLegacyCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Circuit'
 if (Test-Path $agentCoreCircuitDir)
 {
@@ -289,12 +289,12 @@ if (Test-Path $agentCoreCircuitDir)
 }
 else
 {
-    Write-Host "  CS6/CS7/CS8 路径缺失（Agent.Core\Nodes\Circuit 未找到）：跳过" -ForegroundColor DarkGray
+    Write-Host "  CS6/CS7/CS8 路径缺失（Agent.Core\Engine\Nodes\Circuit 未找到）：跳过" -ForegroundColor DarkGray
 }
 
 # ---------- CS33 电路接入面下沉在册（正对照 + 负对照，P1/P2） ----------
 # 正对照：HierarchyMethod\Nodes\Circuit 具投影/缓存/步骤/后端四件 ∧ HierarchyMethod.csproj 引用 Proj_CircuitFramework。
-# 负对照：Agent.Core\Nodes\Circuit 内不得再残留已下沉件（防「下沉后又长回」。Agent 侧仅留宿主语义胶水/契约文档）。
+# 负对照：Agent.Core\Engine\Nodes\Circuit 内不得再残留已下沉件（防「下沉后又长回」。Agent 侧仅留宿主语义胶水/契约文档）。
 $hmCircuitDir = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit'
 $hmCsproj = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\HierarchyMethod.csproj'
 $cs33Files = @('RoundFlowSpecMapper.cs', 'RoundFlowCircuitRegistry.cs', 'RoundStepCircuitNode.cs', 'RoundCircuitBackend.cs')
@@ -313,7 +313,7 @@ if ($cs33Present -lt 4 -or -not $cs33Ref -or $cs33Stray -gt 0)
 }
 
 # ---------- CS9 编排动作分派配方化（负对照：禁手写 op 分派；正对照：配方驱动在册） ----------
-$orchestratorFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\TaskPool\TaskOrchestrator.cs'
+$orchestratorFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\TaskPool\TaskOrchestrator.cs'
 if (Test-Path $orchestratorFile)
 {
     # 载体 = 结构事实（代码语句）而非注释散文：先剥 `//` 注释行，
@@ -341,7 +341,7 @@ if (Test-Path $orchestratorFile)
 }
 else
 {
-    Write-Host "  CS9 路径缺失（Agent.Core\TaskPool\TaskOrchestrator.cs 未找到）：跳过" -ForegroundColor DarkGray
+    Write-Host "  CS9 路径缺失（Agent.Core\Engine\TaskPool\TaskOrchestrator.cs 未找到）：跳过" -ForegroundColor DarkGray
 }
 
 # ---------- CS10 区域子计划编译入口唯一（负对照：禁重排编译器步骤；正对照：区域执行面在册） ----------
@@ -653,7 +653,7 @@ if (Test-Path $agentLoopsDir)
     # 其余引用 = 平行消费方爬升（受控第二点决议：新增消费方须先过 P4 迁移，非本门禁放行）。
     $singleRootKnown = @(
         (Join-Path $agentLoopsDir 'RoundLoopDriver.cs'),
-        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\TaskPool\RuleTaskExecutor.cs'),
+        (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\TaskPool\RuleTaskExecutor.cs'),
         (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Answer\Answer\StatelessAnswerLoop.cs'))
     $singleRootCallers = @()
     foreach ($scanDir in @($agentLoopsDir, (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules')))
@@ -675,7 +675,7 @@ if (Test-Path $agentLoopsDir)
     # ---------- CS18 轮内链声明面在册（正对照：R1/R3 不回退） ----------
     # P1（电路接入面下沉）：RoundFlowSpecMapper 已下沉 Operation.HierarchyMethod\Nodes\Circuit
     $flowMapperFile = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Circuit\RoundFlowSpecMapper.cs'
-    $specLoaderFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Loading\RoundSpecLoader.cs'
+    $specLoaderFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Loading\RoundSpecLoader.cs'
     $cs18Enforce = (Test-Path $flowMapperFile) -and
         ((Get-Content -LiteralPath $flowMapperFile -Raw -Encoding UTF8) -match 'EnforceDeclaredEdgeCoverage')
     $cs18Apply = (Test-Path $specLoaderFile) -and

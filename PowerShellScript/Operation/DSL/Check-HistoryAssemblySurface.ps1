@@ -130,7 +130,7 @@ if (-not (Test-Path -LiteralPath $tcPath)) { Add-Violation 'H12' '缺 transfer-c
 if (-not (Test-Path -LiteralPath $tdPath)) { Add-Violation 'H12' '缺 transfer-dispatch.ushar（下行分发编排真源）' }
 if (([regex]::Matches((Read-Text $tcPath), '(?m)^\[Flow\]')).Count -ne 1) { Add-Violation 'H12' 'transfer-contribute.ushar 须恰 1 条 [Flow]（编排单源）' }
 if (([regex]::Matches((Read-Text $tdPath), '(?m)^\[Flow\]')).Count -ne 1) { Add-Violation 'H12' 'transfer-dispatch.ushar 须恰 1 条 [Flow]（编排单源）' }
-$tf = Read-Text (Join-Path $agentRoot 'src\Agent.Core\Nodes\Bookkeeping\TransferFlow.cs')
+$tf = Read-Text (Join-Path $agentRoot 'src\Agent.Core\Engine\Nodes\Bookkeeping\TransferFlow.cs')
 if ($tf -notmatch 'DeclaredFlowDelegateBase') { Add-Violation 'H12' 'TransferFlow 未经模板基类转发（应 DeclaredFlowDelegateBase，不自持编排）' }
 if ($tf -match 'new OneShotFlowRunner\(') { Add-Violation 'H12' 'TransferFlow 自建执行器（编排绕过 BookkeepingFlowAssembly 单源）' }
 

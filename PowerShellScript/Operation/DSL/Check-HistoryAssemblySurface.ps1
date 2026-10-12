@@ -146,6 +146,31 @@ foreach ($space in @('TransferFieldClass', 'TransferVolatility', 'TransferPayloa
 if ($steps -notmatch 'ITransferFlow') { Add-Violation 'H14' '组合根未注入 ITransferFlow（传递框架唯一入口）' }
 if ($steps -notmatch 'TransferOpsServices') { Add-Violation 'H14' '组合根未装配 TransferOpsServices（fn 依赖束）' }
 
+# H15 UI 轨零 Binding（信息状态不得进 wire）：UI 投影器零 Binding；面板经模板渲染（非 ConversationMessage）
+$uiProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeUiProjector.cs'
+if (-not (Test-Path -LiteralPath $uiProj)) { Add-Violation 'H15' '缺 HistoryTaskRuntimeUiProjector.cs（UI 投影器）' }
+elseif ((Read-Text $uiProj) -match '\.Binding\b|ConversationMessage') { Add-Violation 'H15' 'UI 投影器出现 Binding/ConversationMessage（任务池信息状态不得进 LLM wire）' }
+
+# H16 双出口同供数（IHistoryTaskRuntimeSource）：UI/装配两侧均引用同一供数口；UI 侧不再自建 provider
+$srcPath = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeSource.cs'
+if (-not (Test-Path -LiteralPath $srcPath)) { Add-Violation 'H16' '缺 HistoryTaskRuntimeSource.cs（唯一供数口）' }
+if ($steps -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' '组合根未引用 IHistoryTaskRuntimeSource（LLM 轨应经供数口）' }
+$vt2 = Read-Text $view
+if ($vt2 -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' 'UI 侧未引用 IHistoryTaskRuntimeSource（应经供数口）' }
+if ($vt2 -match 'new TaskRuntimeReportProvider\(') { Add-Violation 'H16' 'UI 侧仍自建 TaskRuntimeReportProvider（应经唯一供数口）' }
+
+# H17 空态可见化（空 ≠ 无）：UI 产 taskRuntimeEmpty 模板 ∧ LLM 投影器产 (empty) 标记
+$promptProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimePromptProjector.cs'
+if (-not (Test-Path -LiteralPath $promptProj)) { Add-Violation 'H17' '缺 HistoryTaskRuntimePromptProjector.cs（LLM 投影器）' }
+elseif ((Read-Text $promptProj) -notmatch '\(empty\)') { Add-Violation 'H17' 'LLM 投影器缺空标记 (empty)（空挂载不可静默省略）' }
+$uiCfg = Read-Text (Join-Path $repoRoot 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json')
+if ($uiCfg -notmatch 'taskRuntimeEmpty') { Add-Violation 'H17' 'AgentRuntimeUI.json 缺 taskRuntimeEmpty 模板（UI 空态占位）' }
+
+# H18 任务池状态单源（TaskExecutionStatus）：状态只经 GetStatusAsync 读取，禁自拼状态字面量
+$hostSrc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\HostHistoryTaskRuntimeSource.cs')
+if ($hostSrc -notmatch 'GetStatusAsync') { Add-Violation 'H18' '宿主供数适配器未经 GetStatusAsync 读任务池状态（单源）' }
+if ((Read-Text $srcPath) -notmatch 'poolStatus') { Add-Violation 'H18' '供数口缺 poolStatus 注入（任务池状态应经委托单源）' }
+
 if ($violations.Count -eq 0) {
     Write-Host "[HistoryAssemblySurface] OK（H1–H14 全过）"
     exit 0

@@ -1,37 +1,36 @@
 {
-  "//": "Git 多远程仓库批量推送配置",
-  "//_": "enabled: false 的仓库会被跳过，除非显式指定",
-  "//__": "localBranch: 可选，本地分支名，不填则使用当前所在分支",
-  "//___": "remoteBranch: 可选，远程分支名，不填则使用 defaults.remoteBranch",
-  "//____": "推送格式: git push <remote> <localBranch>:<remoteBranch>",
+  "//": "Git 备份远端批量推送配置（gitee 为主仓，GitHub 为镜像备份）",
+  "//_": "本配置仅登记备份侧(github-*)远端；主仓 gitee 仍用 git push origin 手工推送",
+  "//__": "enabled: false 的仓库会被跳过，除非显式指定",
+  "//___": "remoteBranch: 可选，不填则使用 defaults.remoteBranch",
+  "//____": "用法(在目标仓根目录执行): Invoke-GitMultiPush.ps1 -Auto -Branch master -Remote <name>",
 
   "remotes": [
     {
-      "name": "origin",
-      "url": "https://gitee.com/Ljy_111/ZhiLianStorage.git",
-      "remoteBranch": "Main",
-      "enabled": true,
-      "description": "Gitee - ZhiLianStorage 主仓库"
-    },
-    {
-      "name": "github",
-      "url": "https://github.com/3245489044/ZhiLianStorage.git",
-      "remoteBranch": "Main",
-      "enabled": true,
-      "description": "GitHub - ZhiLianStorage 镜像"
-    },
-    {
-      "name": "workflowprj",
-      "url": "https://gitee.com/Ljy_111/workflowprj.git",
-      "localBranch": "Main",
+      "name": "github-main",
+      "url": "https://github.com/3245489044/Main.git",
       "remoteBranch": "master",
       "enabled": true,
-      "description": "Gitee - WorkFlowPrj 仓库"
+      "description": "GitHub 备份 - 聚合主仓"
+    },
+    {
+      "name": "github-frame",
+      "url": "https://github.com/3245489044/Frame.git",
+      "remoteBranch": "master",
+      "enabled": true,
+      "description": "GitHub 备份 - Frame 子模块"
+    },
+    {
+      "name": "github-projects",
+      "url": "https://github.com/3245489044/Project.git",
+      "remoteBranch": "master",
+      "enabled": true,
+      "description": "GitHub 备份 - Projects 子模块(GitHub 仓名为 Project)"
     }
   ],
 
   "defaults": {
-    "remoteBranch": "Main",
+    "remoteBranch": "master",
     "pushTags": true,
     "force": false,
     "timeoutSeconds": 60

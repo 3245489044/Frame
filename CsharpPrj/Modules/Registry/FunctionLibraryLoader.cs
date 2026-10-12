@@ -7,6 +7,11 @@ namespace Modules.Registry;
 
     public static class FunctionLibraryLoader
     {
+        /// <summary>域函数库清单文件名约定（每域自产，随构建部署于其扩展清单 deps.json 同目录）；
+        /// 宿主按扩展清单目录合并 —— 宿主只认目录+文件名约定，不认域内类型，扩展域内重构不波及宿主。
+        /// 权威: 函数库注册 IoC 解耦（宿主 config 仅留宿主域）。</summary>
+        public const string DomainManifestFileName = "function-libraries.domain.json";
+
         private static readonly HashSet<string> _loadedLibraryTypes = new(StringComparer.Ordinal);
 
         /// <summary>反射调用失败时解包 <see cref="TargetInvocationException"/>，把库内真实异常（含堆栈）抛给调用方，
@@ -34,7 +39,8 @@ namespace Modules.Registry;
         public static IReadOnlyList<LoadEntryResult> Load(
             FunctionRegistry registry,
             string? configPath = null,
-            bool autoDiscover = false)
+            bool autoDiscover = false,
+            IEnumerable<string>? domainManifestPaths = null)
         {
             ArgumentNullException.ThrowIfNull(registry);
 
@@ -47,6 +53,18 @@ namespace Modules.Registry;
                 LoadFromConfig(registry, configPath, nameTracker, results);
             }
 
+            // 域清单合并（方案A IoC）：各扩展域自产清单经宿主发现后按同一装载路径注册；
+            // 缺失（域未部署/未构建）静默跳过，不阻断宿主（灰态降级约定）。
+            if (domainManifestPaths != null)
+            {
+                foreach (var manifestPath in domainManifestPaths)
+                {
+                    if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath))
+                        continue;
+                    LoadFromConfig(registry, manifestPath, nameTracker, results);
+                }
+            }
+
             if (autoDiscover)
             {
                 LoadFromAutoDiscovery(registry, nameTracker, results);
@@ -55,6 +73,43 @@ namespace Modules.Registry;
             nameTracker.AssertNoDuplicates();
 
             return results.AsReadOnly();
+        }
+
+        /// <summary>
+        /// 由扩展层装配清单（各产品 <c>*.deps.json</c>，见 <c>ExtensionGenerationFactory.Current.Manifests</c>）
+        /// 所在目录推导域函数库清单路径（存在者，去重）。宿主不认域内类型，只按目录+文件名约定发现。
+        /// </summary>
+        public static IReadOnlyList<string> DiscoverDomainManifests(IEnumerable<string>? extensionManifestPaths)
+        {
+            var found = new List<string>();
+            if (extensionManifestPaths is null)
+                return found;
+
+            foreach (var manifestPath in extensionManifestPaths)
+            {
+                if (string.IsNullOrWhiteSpace(manifestPath))
+                    continue;
+
+                var dir = Path.GetDirectoryName(manifestPath);
+                if (string.IsNullOrEmpty(dir))
+                    continue;
+
+                var candidate = Path.Combine(dir, DomainManifestFileName);
+                if (File.Exists(candidate) && !found.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+                    found.Add(candidate);
+            }
+
+            return found;
+        }
+
+        /// <summary>在指定目录内发现域函数库清单（存在者返回绝对路径，否则 null）。供无扩展清单上下文的宿主（如 MCP 宿主）按自身输出目录发现。</summary>
+        public static string? FindDomainManifest(string? directory)
+        {
+            if (string.IsNullOrEmpty(directory))
+                return null;
+
+            var candidate = Path.Combine(directory, DomainManifestFileName);
+            return File.Exists(candidate) ? candidate : null;
         }
 
 

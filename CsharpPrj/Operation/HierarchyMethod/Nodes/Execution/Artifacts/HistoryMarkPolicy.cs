@@ -5,21 +5,26 @@ using Operation.HierarchyMethod.Nodes.Workflows;
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
 /// <summary>
-/// 节点入史标记（单一权威，CP-4）。
+/// 节点入史标记（单一权威，CP-4）—— **单字段位掩码/集合**（标签可共存）。
 /// <para><see cref="Terminal"/>：终答节点（链终点产出）—— 默认标记，必须入史（LLM 上下文/主对话流真源）；
 /// <see cref="Numbered"/>：显式声明的中间节点（携带 Round/Seq）—— 入史，供分层气泡；
-/// <see cref="None"/>：仅留全量层（任务面板），不入史、不进 LLM 上下文。</para>
+/// <see cref="Port"/>：task↔history 连接端口节点（默认打在序列最后一个节点，可与其他标签共存）；
+/// <see cref="None"/>：仅留全量层（任务面板），不入史、不进 LLM 上下文（空集）。</para>
 /// </summary>
+[Flags]
 public enum NodeHistoryMark
 {
     /// <summary>不入史（仅任务面板全量层）。</summary>
-    None,
+    None = 0,
 
     /// <summary>编号中间节点（显式声明；入史供分层气泡）。</summary>
-    Numbered,
+    Numbered = 1,
 
     /// <summary>终答节点（默认标记；入史为对话真源）。</summary>
-    Terminal,
+    Terminal = 2,
+
+    /// <summary>task↔history 连接端口节点（可与其他标签共存）。</summary>
+    Port = 4,
 }
 
 /// <summary>
@@ -40,18 +45,18 @@ public static class HistoryMarkPolicy
     {
         ArgumentNullException.ThrowIfNull(record);
         if (string.IsNullOrWhiteSpace(record.NodeKey)) return NodeHistoryMark.None;
-        // 终答优先：链终点产出是对话真源，声明面不得把它降级为普通编号节点。
+        // 终答优先：链终点产出是对话真源（且默认兼作 task↔history 端口节点 = Terminal|Port）。
         if (!string.IsNullOrWhiteSpace(terminalNodeKey)
             && string.Equals(record.NodeKey, terminalNodeKey, StringComparison.Ordinal))
-            return NodeHistoryMark.Terminal;
+            return NodeHistoryMark.Terminal | NodeHistoryMark.Port;
 
         var declared = ResolveDeclaredMark(spec, record.NodeKey);
         return declared ?? NodeHistoryMark.None;
     }
 
     /// <summary>声明面标记（<see cref="RoundStep.Mark"/>；未声明/不可识别 → null = 走默认规则）。
-    /// 仅接受**具名值**（Numbered/Terminal/None，大小写不敏感）：禁 <c>Enum.TryParse</c> 的数字串静默映射
-    /// （<c>Mark=1</c>→Numbered、<c>Mark=2</c>→Terminal 会越权覆盖终答归因）。</summary>
+    /// 仅接受**具名 token 集**（Numbered/Terminal/Port/None，大小写不敏感；分隔符 <c>|</c>/<c>,</c>/<c>;</c>）：
+    /// 禁 <c>Enum.TryParse</c> 的数字串静默映射（<c>Mark=1</c>→Numbered 会越权覆盖终答归因）。</summary>
     private static NodeHistoryMark? ResolveDeclaredMark(RoundSpec? spec, string nodeKey)
     {
         if (spec?.Steps is not { Count: > 0 }) return null;
@@ -59,11 +64,9 @@ public static class HistoryMarkPolicy
         {
             if (step.Mark is not { Length: > 0 } mark) continue;
             if (!string.Equals(step.EffectiveNodeId, nodeKey, StringComparison.Ordinal)) continue;
-            var text = mark.Trim();
-            if (text.Equals(nameof(NodeHistoryMark.Numbered), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.Numbered;
-            if (text.Equals(nameof(NodeHistoryMark.Terminal), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.Terminal;
-            if (text.Equals(nameof(NodeHistoryMark.None), StringComparison.OrdinalIgnoreCase)) return NodeHistoryMark.None;
-            return null;
+            var normalized = NodeTags.Normalize(mark);
+            if (normalized is null) return null;   // 未识别 token ⇒ 走默认规则（不静默降级）
+            return NodeTags.Parse(normalized);
         }
         return null;
     }

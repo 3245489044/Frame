@@ -62,19 +62,20 @@ public static class RoundAttributionPlan
         {
             var record = nodes[index];
             var mark = HistoryMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
-            if (mark == NodeHistoryMark.None) continue;
+            if (mark == NodeHistoryMark.None) continue;   // 空集 = 不入史
 
-            var isTerminal = mark == NodeHistoryMark.Terminal;
+            var isTerminal = (mark & NodeHistoryMark.Terminal) != 0;
             var text = isTerminal && !string.IsNullOrWhiteSpace(artifacts.TerminalText)
                 ? artifacts.TerminalText!
                 : RoundMessageProjection.FirstPortText(record.OutputPorts) ?? string.Empty;
 
+            var markText = NodeTags.Serialize(mark);
             messages.Add(new PlannedRoundMessage(
                 record.NodeKey,
                 RoundArtifactAssembler.ArrivalOrdinal(index),
-                kindOfMark(mark.ToString()),
+                kindOfMark(markText),
                 text,
-                mark.ToString(),
+                markText,
                 record.AtUtc == default ? 0 : record.AtUtc.ToUnixTimeMilliseconds()));
         }
 

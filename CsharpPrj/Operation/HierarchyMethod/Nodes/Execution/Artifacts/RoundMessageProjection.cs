@@ -17,7 +17,7 @@ public static class RoundMessageProjection
     /// <summary>标记 → 消息角色：终答 = <see cref="ConversationRole.Assistant"/>；其余（编号中间节点）= <see cref="ConversationRole.Tool"/>。</summary>
     /// <param name="mark">入史标记名（<see cref="NodeHistoryMark"/> 具名值；不可识别 ⇒ Tool）。</param>
     public static ConversationRole RoleOf(string? mark)
-        => string.Equals(mark, nameof(NodeHistoryMark.Terminal), StringComparison.Ordinal)
+        => NodeTags.Contains(mark, NodeTags.Terminal)
             ? ConversationRole.Assistant
             : ConversationRole.Tool;
 
@@ -44,7 +44,7 @@ public static class RoundMessageProjection
     /// <param name="atUtc">产出时刻（default ⇒ 当前时刻）。</param>
     public static ConversationMessage ToMessage(string? mark, string nodeKey, string text, int round, DateTimeOffset atUtc)
     {
-        var isTerminal = string.Equals(mark, nameof(NodeHistoryMark.Terminal), StringComparison.Ordinal);
+        var isTerminal = NodeTags.Contains(mark, NodeTags.Terminal);
         return new ConversationMessage(
             isTerminal ? ConversationRole.Assistant : ConversationRole.Tool,
             nodeKey,

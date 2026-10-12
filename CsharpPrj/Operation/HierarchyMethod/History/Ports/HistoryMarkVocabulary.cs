@@ -32,8 +32,9 @@ public sealed class HistoryMarkVocabulary
     /// <summary>mark → 内容类别映射（唯一映射点）。</summary>
     public Func<string, string> KindOfMark { get; }
 
-    /// <summary>mark 具名值归一（大小写不敏感；未识别 → null = 拒绝，不静默降级为 None）。</summary>
-    /// <param name="mark">原始标记（空 = None）。</param>
+    /// <summary>mark 具名 token 集归一（大小写不敏感；分隔符 <c>|</c>/<c>,</c>/<c>;</c>；
+    /// 空 = None；含未识别 token → null = 拒绝，不静默降级）。</summary>
+    /// <param name="mark">原始标记（可为 token 集，如 <c>Terminal|Port</c>）。</param>
     public string? Normalize(string? mark)
     {
         var text = (mark ?? string.Empty).Trim();
@@ -42,6 +43,15 @@ public sealed class HistoryMarkVocabulary
             return None;
         }
 
-        return _marks.FirstOrDefault(m => text.Equals(m, StringComparison.OrdinalIgnoreCase));
+        var parts = text.Split(new[] { '|', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var seen = new System.Collections.Generic.List<string>();
+        foreach (var part in parts)
+        {
+            var hit = _marks.FirstOrDefault(m => part.Equals(m, StringComparison.OrdinalIgnoreCase));
+            if (hit is null) return null;
+            if (!seen.Contains(hit)) seen.Add(hit);
+        }
+
+        return seen.Count == 0 ? None : string.Join("|", seen);
     }
 }

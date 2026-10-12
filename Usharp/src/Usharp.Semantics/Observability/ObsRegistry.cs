@@ -10,7 +10,7 @@ namespace Usharp.Semantics;
 /// 声明序原样保留（manifest 产出与书写面同序，禁排序）。
 /// </para>
 /// </summary>
-public sealed class ObsRegistry
+public sealed class ObsRegistry : IUsharpDiagnosticCarrier
 {
     private readonly List<UsharpObsDecl> _declarations = new();
     private readonly Dictionary<string, UsharpObsDecl> _scopes = new(StringComparer.Ordinal);

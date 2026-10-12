@@ -6,7 +6,7 @@ namespace Usharp.Semantics;
 /// 空间注册中心 —— 闸A 的唯一判据来源：<c>SpaceId → 坐标集合</c>。
 /// 一个空间 = 一组已声明坐标 + 每个坐标的类型与值域（键型空间无值域）。
 /// </summary>
-public sealed class SpaceRegistry
+public sealed class SpaceRegistry : IUsharpDiagnosticCarrier
 {
     private readonly Dictionary<string, UsharpSpaceDecl> _spaces = new(StringComparer.Ordinal);
     private readonly List<UsharpDiagnostic> _diagnostics = new();

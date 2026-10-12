@@ -8,42 +8,29 @@ namespace Usharp.Semantics;
 /// <summary>
 /// Usharp 编译门面：文本 → 语法模型 → 空间/引用图 → 闸A 诊断。装载体，不执行任何语义
 /// （矩阵/流的运行语义由既有框架承担：ParameterMatrix / ChainSignalResolver / FoldEngine / ReferenceGraphEngine）。
+/// <para>
+/// <b>去硬编码（H1/H2/H3/H5 消除）</b>：本类只持有**泛型声明事实**（documents / 声明索引 / 符号索引 / 边 / 诊断）
+/// 与 facet 注册表；一切领域视图由可注册的 <see cref="IUsharpFacetProvider"/> 惰性投影，经 <see cref="Facet{T}"/> 读取。
+/// 旧属性保留为**薄访问器**（<c>=&gt; Facet&lt;X&gt;()</c>），签名与语义逐字不变（零回归）。
+/// </para>
 /// </summary>
 public sealed class UsharpCompilation
 {
+    private readonly UsharpFacetRegistry _facets;
+
     private UsharpCompilation(
         IReadOnlyList<DslDocument> documents,
         UsharpDeclarationIndex declarations,
         DslIndex index,
-        SpaceRegistry spaces,
-        IReadOnlyList<UsharpMatrixDecl> matrices,
-        IReadOnlyList<UsharpFlowDecl> flows,
-        IReadOnlyList<UsharpRefDecl> refs,
         IReadOnlyList<UsharpEdge> edges,
-        ObsRegistry obs,
-        IReadOnlyList<UsharpDomainDecl> domains,
-        IReadOnlyList<UsharpGatherDecl> gathers,
-        IReadOnlyList<UsharpTableDecl> tables,
-        IReadOnlyList<UsharpRecordDecl> records,
-        IReadOnlyList<UsharpConfigDecl> configs,
-        IReadOnlyList<UsharpRuleDecl> rules,
+        UsharpFacetRegistry facets,
         IReadOnlyList<UsharpDiagnostic> diagnostics)
     {
         Documents = documents;
         Declarations = declarations;
         Index = index;
-        Spaces = spaces;
-        Matrices = matrices;
-        Flows = flows;
-        Refs = refs;
         Edges = edges;
-        Obs = obs;
-        Domains = domains;
-        Gathers = gathers;
-        Tables = tables;
-        Records = records;
-        Configs = configs;
-        Rules = rules;
+        _facets = facets;
         Diagnostics = diagnostics;
     }
 
@@ -53,32 +40,45 @@ public sealed class UsharpCompilation
     public UsharpDeclarationIndex Declarations { get; }
 
     public DslIndex Index { get; }
-    public SpaceRegistry Spaces { get; }
-    public IReadOnlyList<UsharpMatrixDecl> Matrices { get; }
-    public IReadOnlyList<UsharpFlowDecl> Flows { get; }
-    public IReadOnlyList<UsharpRefDecl> Refs { get; }
+
+    /// <summary>引用即边（<c>[Ref]</c>/<c>[CR]</c> 的统一图观）。</summary>
     public IReadOnlyList<UsharpEdge> Edges { get; }
 
+    // ── 通用 facet 读取（替代逐字段属性）──────────────────────────────────────
+
+    /// <summary>取 facet 视图（未注册 → 抛，不静默给空）。</summary>
+    public T Facet<T>() where T : class => _facets.Facet<T>();
+
+    /// <summary>取 facet 视图（未注册 → false）。</summary>
+    public bool TryGetFacet<T>(out T facet) where T : class => _facets.TryGetFacet(out facet);
+
+    // ── 薄访问器（签名与语义逐字不变：实现改为 Facet&lt;X&gt;()）──────────────
+
+    public SpaceRegistry Spaces => Facet<SpaceRegistry>();
+    public IReadOnlyList<UsharpMatrixDecl> Matrices => Facet<IReadOnlyList<UsharpMatrixDecl>>();
+    public IReadOnlyList<UsharpFlowDecl> Flows => Facet<IReadOnlyList<UsharpFlowDecl>>();
+    public IReadOnlyList<UsharpRefDecl> Refs => Facet<IReadOnlyList<UsharpRefDecl>>();
+
     /// <summary><c>[Domain]</c> 域定义声明（节点域定义面；U1；声明序）。</summary>
-    public IReadOnlyList<UsharpDomainDecl> Domains { get; }
+    public IReadOnlyList<UsharpDomainDecl> Domains => Facet<IReadOnlyList<UsharpDomainDecl>>();
 
     /// <summary><c>[Gather]</c> 聚拢声明（收集端口枚举；U2；声明序）。</summary>
-    public IReadOnlyList<UsharpGatherDecl> Gathers { get; }
+    public IReadOnlyList<UsharpGatherDecl> Gathers => Facet<IReadOnlyList<UsharpGatherDecl>>();
 
     /// <summary><c>[Table]</c> 表结构声明（数据层：数据库表由声明派生；声明序）。</summary>
-    public IReadOnlyList<UsharpTableDecl> Tables { get; }
+    public IReadOnlyList<UsharpTableDecl> Tables => Facet<IReadOnlyList<UsharpTableDecl>>();
 
     /// <summary><c>[Record]</c> 记录载荷声明（数据层：行/文档 USharp 化；声明序）。</summary>
-    public IReadOnlyList<UsharpRecordDecl> Records { get; }
+    public IReadOnlyList<UsharpRecordDecl> Records => Facet<IReadOnlyList<UsharpRecordDecl>>();
 
     /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
-    public IReadOnlyList<UsharpConfigDecl> Configs { get; }
+    public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
 
     /// <summary><c>[Rule]</c> 规则声明（规则面：条件 → 动作；声明序）。</summary>
-    public IReadOnlyList<UsharpRuleDecl> Rules { get; }
+    public IReadOnlyList<UsharpRuleDecl> Rules => Facet<IReadOnlyList<UsharpRuleDecl>>();
 
     /// <summary>观测声明注册中心（<c>[Obs]</c>：作用域 / 实体 / 事件；第五语言单元）。</summary>
-    public ObsRegistry Obs { get; }
+    public ObsRegistry Obs => Facet<ObsRegistry>();
 
     /// <summary><c>[Obs]</c> 声明（声明序；manifest 产出与书写面同序）。</summary>
     public IReadOnlyList<UsharpObsDecl> ObsDecls => Obs.Declarations;
@@ -115,14 +115,20 @@ public sealed class UsharpCompilation
     /// 加载一律经 <see cref="UsharpSourceLoader"/>（路径 → 源集的单一实现）。
     /// </summary>
     public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources)
+        => CompileSources(sources, null);
+
+    /// <summary>
+    /// 编译源集（**去硬编码编译流**）：解析 → 泛型索引 → 符号索引 → facet 投影（packs）→ 引用即边 → 闸A。
+    /// <para><paramref name="packs"/> 为 null/空 ⇒ 默认 <c>new[] { UsharpDomainPack.Instance }</c>（单包零回归）。</para>
+    /// </summary>
+    public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources, IReadOnlyList<IUsharpDomainPack>? packs)
     {
         ArgumentNullException.ThrowIfNull(sources);
         System.Threading.Interlocked.Increment(ref _compileCount);
 
+        // ① 解析 + ③ 符号索引
         var documents = new List<DslDocument>();
         var index = new DslIndex();
-        var diagnostics = new List<UsharpDiagnostic>();
-
         foreach (var source in sources)
         {
             var doc = UsharpParser.Parse(source.Text ?? "", source.Path ?? "(memory)", source.Lib ?? UsharpParser.DefaultLib);
@@ -130,48 +136,38 @@ public sealed class UsharpCompilation
             index.AddDocument(doc);
         }
 
+        // ② 泛型索引（kind 分组）
         var declarations = UsharpDeclarationIndex.Build(documents);
 
-        var spaces = new SpaceRegistry();
-        var obs = new ObsRegistry();
-        var matrices = new List<UsharpMatrixDecl>();
-        var flows = new List<UsharpFlowDecl>();
-        var refs = new List<UsharpRefDecl>();
-        var domains = new List<UsharpDomainDecl>();
-        var gathers = new List<UsharpGatherDecl>();
-        var tables = new List<UsharpTableDecl>();
-        var records = new List<UsharpRecordDecl>();
-        var configs = new List<UsharpConfigDecl>();
-        var rules = new List<UsharpRuleDecl>();
+        var effectivePacks = packs is { Count: > 0 }
+            ? packs
+            : new IUsharpDomainPack[] { UsharpDomainPack.Instance };
 
-        // 两遍：先登记全部空间与观测声明（闸A 判据），再投影其余声明。
-        foreach (var doc in documents)
-            foreach (var s in UsharpSyntaxProjector.Spaces(doc))
-                spaces.Add(s);
-        diagnostics.AddRange(spaces.Diagnostics);
+        // ⑤ facet 投影（序 = 包声明序 × provider 序；诊断按注册序汇集，保既有 spaces → obs 归因序）
+        var ctx = new UsharpFacetContext(documents, declarations, index);
+        var facets = new UsharpFacetRegistry();
+        foreach (var pack in effectivePacks)
+            foreach (var provider in pack.FacetProviders)
+            {
+                var facet = provider.Project(ctx);
+                facets.Register(provider.FacetType, facet);
+                if (facet is IUsharpDiagnosticCarrier carrier)
+                    facets.AddDiagnostics(carrier.Diagnostics);
+            }
 
-        foreach (var doc in documents)
-            foreach (var o in UsharpSyntaxProjector.Obs(doc))
-                obs.Add(o);
-        diagnostics.AddRange(obs.Diagnostics);
+        // ④ 引用即边
+        var edges = UsharpGraphBuilder.Build(
+            documents,
+            facets.Facet<IReadOnlyList<UsharpMatrixDecl>>(),
+            facets.Facet<IReadOnlyList<UsharpFlowDecl>>(),
+            facets.Facet<IReadOnlyList<UsharpRefDecl>>());
 
-        foreach (var doc in documents)
-        {
-            matrices.AddRange(UsharpSyntaxProjector.Matrices(doc));
-            flows.AddRange(UsharpSyntaxProjector.Flows(doc));
-            refs.AddRange(UsharpSyntaxProjector.Refs(doc));
-            domains.AddRange(UsharpSyntaxProjector.Domains(doc));
-            gathers.AddRange(UsharpSyntaxProjector.Gathers(doc));
-            tables.AddRange(UsharpSyntaxProjector.Tables(doc));
-            records.AddRange(UsharpSyntaxProjector.Records(doc));
-            configs.AddRange(UsharpSyntaxProjector.Configs(doc));
-            rules.AddRange(UsharpSyntaxProjector.Rules(doc));
-        }
+        // ⑥ 闸A + ⑦ 诊断投影
+        var diagnostics = new List<UsharpDiagnostic>();
+        diagnostics.AddRange(facets.Diagnostics);
+        diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, facets, effectivePacks));
 
-        var edges = UsharpGraphBuilder.Build(documents, matrices, flows, refs);
-        diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, spaces, matrices, flows, refs, obs, domains, gathers));
-
-        return new UsharpCompilation(documents, declarations, index, spaces, matrices, flows, refs, edges, obs, domains, gathers, tables, records, configs, rules, diagnostics);
+        return new UsharpCompilation(documents, declarations, index, edges, facets, diagnostics);
     }
 
     /// <summary>本编译的规模快照（验收取数：空间坐标数 = 闸A 拦截面）。</summary>

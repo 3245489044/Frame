@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Agent 领域反转包（Usharp IoC）</ModuleRule_Title>
+    <ModuleRule_Description>把 Agent 的 技能/档案/工具面 反转为 Usharp 的领域包（facet provider + 闸规则 + facet 投影器），由内核按其声明的 pack 列表编排；框架侧只读产物，零自写解析。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;Agent;IoC;领域包;facet;闸A;反转</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="只实现 Usharp 通用端口（IUsharpDomainPack），不自写解析 / 不自写发射 / 不各自 Compile" />
+    <ModuleRule_Rule Include="依赖方向 框架 → Usharp 端口（本工程 → Usharp.Semantics），禁 Usharp 反向引用本工程" />
+    <ModuleRule_Rule Include="闸规则判据载体 = 声明名/字段（结构事实），非执行者叙述" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Usharp.Adapters.Agent</RootNamespace>
+    <AssemblyName>Usharp.Adapters.Agent</AssemblyName>
+    <Description>Agent 领域反转包 — Usharp IoC（技能 / 档案 / 工具面 / 行为 / 端口）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+  </ItemGroup>
+
+</Project>

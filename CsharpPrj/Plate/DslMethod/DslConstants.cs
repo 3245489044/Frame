@@ -29,6 +29,8 @@ public enum DslSymbolKind
     Table, Record,
     // Ushar 配置/规则语言单元（[Config] 配置面 / [Rule] 规则面；见 L5 施工单 §2）
     Config, Rule,
+    // Agent 技能语言单元（U-V4 唯一新增）：[Skill] 技能声明（元数据进 .ushar；正文经 body= 引用 SKILL.md，Usharp 管理引用）
+    Skill,
     Unknown,
 }
 
@@ -80,6 +82,9 @@ public static class DslConstants
         new("[Template]",   DslSymbolKind.Template,   "Template"),
         // 结构化 Schema 声明（format.system.md 等；字段/必填/枚举），对齐 clinerules dsl.md §4.5
         new("[Schema]",     DslSymbolKind.Schema,     "Schema"),
+        // Agent 技能语言单元（U-V4 唯一新增）：[Skill] 技能声明。登记进核心表 ⇒ 任何 DSL 解析路径（含 UsharpParser）
+        // 均可解析；其领域消费（facet provider / 闸规则 / 投影器）由 Usharp.Adapters.Agent 领域包承担（I1：核心零领域语义）。
+        new("[Skill]",      DslSymbolKind.Skill,      "Skill"),
         // 注：Usharp 五前缀（[Space]/[Matrix]/[Flow]/[Ref]/[Obs]）不在此核心表 —— 由 Usharp 领域包自持并
         //     注册到 DslPrefixRegistry（见 Frame\Usharp\src\Usharp.Syntax\UsharpPrefixes.cs）。
     };

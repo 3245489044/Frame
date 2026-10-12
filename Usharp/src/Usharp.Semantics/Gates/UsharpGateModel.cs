@@ -9,36 +9,31 @@ namespace Usharp.Semantics;
 /// Usharp 闸A 领域模型：把「已声明集 + 待校验声明 + 共享索引」装配为一次校验的只读输入。
 /// 由 <see cref="UsharpValidator.Validate"/> 构造，喂给内核 <c>GateEngine&lt;UsharpGateModel&gt;</c>；
 /// 规则只读本模型，不产生副作用（对齐「本层只校验不执行」）。
+/// <para>
+/// <b>去硬编码（H4 消除）</b>：构造器只收「泛型声明事实 + facet 注册表」；领域视图经
+/// <see cref="Facet{T}"/> 读取，属性保留为**薄访问器**（签名与语义逐字不变）。
+/// </para>
 /// </summary>
 public sealed class UsharpGateModel
 {
+    private readonly UsharpFacetRegistry _facets;
+
     public UsharpGateModel(
         IReadOnlyList<DslDocument> documents,
         UsharpDeclarationIndex declarations,
         DslIndex index,
-        SpaceRegistry spaces,
-        IReadOnlyList<UsharpMatrixDecl> matrices,
-        IReadOnlyList<UsharpFlowDecl> flows,
-        IReadOnlyList<UsharpRefDecl> refs,
-        ObsRegistry? obs,
-        IReadOnlyList<UsharpDomainDecl>? domains = null,
-        IReadOnlyList<UsharpGatherDecl>? gathers = null)
+        UsharpFacetRegistry facets)
     {
         Documents = documents;
         Declarations = declarations;
         Index = index;
-        Spaces = spaces;
-        Matrices = matrices;
-        Flows = flows;
-        Refs = refs;
-        Obs = obs;
-        Domains = domains ?? Array.Empty<UsharpDomainDecl>();
-        Gathers = gathers ?? Array.Empty<UsharpGatherDecl>();
+        _facets = facets;
 
+        var flows = Flows;
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
         FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
         NodeNames = new HashSet<string>(declarations.NodeNames, StringComparer.Ordinal);
-        WrittenCoordinates = BuildWrittenCoordinates(matrices);
+        WrittenCoordinates = BuildWrittenCoordinates(Matrices);
         UpstreamConnectedLayers = BuildUpstreamConnectedLayers(flows);
     }
 
@@ -49,22 +44,30 @@ public sealed class UsharpGateModel
 
     public DslIndex Index { get; }
 
-    public SpaceRegistry Spaces { get; }
+    /// <summary>取 facet 视图（未注册 → 抛）。</summary>
+    public T Facet<T>() where T : class => _facets.Facet<T>();
 
-    public IReadOnlyList<UsharpMatrixDecl> Matrices { get; }
+    /// <summary>取 facet 视图（未注册 → false）。</summary>
+    public bool TryGetFacet<T>(out T facet) where T : class => _facets.TryGetFacet(out facet);
 
-    public IReadOnlyList<UsharpFlowDecl> Flows { get; }
+    public SpaceRegistry Spaces => _facets.Facet<SpaceRegistry>();
 
-    public IReadOnlyList<UsharpRefDecl> Refs { get; }
+    public IReadOnlyList<UsharpMatrixDecl> Matrices => _facets.Facet<IReadOnlyList<UsharpMatrixDecl>>();
+
+    public IReadOnlyList<UsharpFlowDecl> Flows => _facets.Facet<IReadOnlyList<UsharpFlowDecl>>();
+
+    public IReadOnlyList<UsharpRefDecl> Refs => _facets.Facet<IReadOnlyList<UsharpRefDecl>>();
 
     /// <summary>观测声明注册中心（可为 null：未启用 <c>[Obs]</c> 闸A 时）。</summary>
-    public ObsRegistry? Obs { get; }
+    public ObsRegistry? Obs => _facets.TryGetFacet<ObsRegistry>(out var obs) ? obs : null;
 
     /// <summary><c>[Domain]</c> 域定义声明（U1；空表 = 本编译无域定义面）。</summary>
-    public IReadOnlyList<UsharpDomainDecl> Domains { get; }
+    public IReadOnlyList<UsharpDomainDecl> Domains
+        => _facets.TryGetFacet<IReadOnlyList<UsharpDomainDecl>>(out var d) ? d : Array.Empty<UsharpDomainDecl>();
 
     /// <summary><c>[Gather]</c> 聚拢声明（U2；空表 = 本编译无收集端口声明）。</summary>
-    public IReadOnlyList<UsharpGatherDecl> Gathers { get; }
+    public IReadOnlyList<UsharpGatherDecl> Gathers
+        => _facets.TryGetFacet<IReadOnlyList<UsharpGatherDecl>>(out var g) ? g : Array.Empty<UsharpGatherDecl>();
 
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }

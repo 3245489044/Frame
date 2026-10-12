@@ -145,10 +145,14 @@ public static class DeclaredBundleBuilder
             if (string.IsNullOrWhiteSpace(flow.FlowId)) continue;
 
             var steps = new List<ManifestStep>(flow.Steps.Count);
+            // 同文件节点表（D3）：步骤解析优先取本流所在文件的 [Node]，与 UsharpRoundSpecEmitter 同源口径。
+            var sameFileNodes = UsharpNodePortReader.Read(compilation.Declarations, flow.SourceFile);
             foreach (var step in flow.Steps)
             {
                 if (string.IsNullOrWhiteSpace(step.Key)) continue;
-                nodes.TryGetValue(step.Key, out var spec);
+                var spec = sameFileNodes.TryGetValue(step.Key, out var own)
+                    ? own
+                    : (nodes.TryGetValue(step.Key, out var shared) ? shared : null);
                 steps.Add(new ManifestStep(
                     step.Key,
                     spec?.FuncName ?? step.Key,

@@ -28,6 +28,15 @@ public static class UsharpNodePortReader
 {
     /// <summary>读取全部 <c>[Node]</c> 声明（重复节点号保留首个，与闸A 的「声明即登记」一致）。</summary>
     public static IReadOnlyDictionary<string, UsharpNodeSpec> Read(UsharpDeclarationIndex declarations)
+        => Read(declarations, sourceFile: null);
+
+    /// <summary>
+    /// 读取 <c>[Node]</c> 声明，可限定**来源文件**（<paramref name="sourceFile"/> 为 null ⇒ 全量，等价无参重载）。
+    /// <para>文件作用域用于 <c>[Flow]</c> 步骤解析的**同文件优先**语义：消除「跨文件同名 <c>[Node]</c> 静默首胜」
+    /// 造成的步骤 → 可执行体错配（例如会话阶段名与区域阶段名同名）。</para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, UsharpNodeSpec> Read(
+        UsharpDeclarationIndex declarations, string? sourceFile)
     {
         ArgumentNullException.ThrowIfNull(declarations);
 
@@ -35,6 +44,7 @@ public static class UsharpNodePortReader
         foreach (var decl in declarations.Nodes)
         {
             if (string.IsNullOrWhiteSpace(decl.Name)) continue;
+            if (sourceFile is not null && !string.Equals(decl.SourceFile, sourceFile, StringComparison.Ordinal)) continue;
 
             var fn = decl.Field("fn");
             // kind=（T8）：FuncCall 分类声明（internal/external/composition）；未声明 ⇒ null（默认 internal 语义，零回归）。

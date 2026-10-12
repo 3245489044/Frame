@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-12T04:10:40.7500754Z",
+  "builtAt": "2026-10-12T05:43:31.5584708Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -3534,21 +3534,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Modules/Libraries/ConversationViewService.cs",
-          "line": 221,
+          "line": 228,
           "role": "Code",
           "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Modules/Libraries/ConversationViewService.cs",
-          "line": 243,
+          "line": 250,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Modules/Libraries/ConversationViewService.cs",
-          "line": 244,
+          "line": 251,
           "role": "Code",
           "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
         },
@@ -8373,12 +8373,12 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 36,
+      "total": 38,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 0,
-        "Declaration": 17,
+        "Declaration": 19,
         "Code": 1,
         "Doc": 14,
         "Other": 1
@@ -8635,6 +8635,20 @@
           "line": 57,
           "role": "Doc",
           "text": "| ① | 位置反解表键 | 声明面 `agent_round` → 运行期 `agent-round`（**已有判据**：`Check-NodeLocPlacement` C1–C5） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
+          "line": 3018,
+          "role": "Declaration",
+          "text": "\"agent_round\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
+          "line": 3025,
+          "role": "Declaration",
+          "text": "\"agent_round\","
         }
       ]
     },
@@ -8918,11 +8932,11 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1247.0,
+    "hitCount": 1249.0,
     "byRole": {
       "Gate": 19,
       "Test": 284,
-      "Declaration": 57,
+      "Declaration": 59,
       "Code": 317,
       "Doc": 498,
       "Other": 72
@@ -8937,7 +8951,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 320
+        "lines": 322
       },
       {
         "repo": "Main",

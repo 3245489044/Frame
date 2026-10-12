@@ -28,7 +28,9 @@ public static class UsharpRoundSpecEmitter
         }
 
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
-        var steps = BuildSteps(flow, nodes, diagnostics);
+        // 同文件节点表（D3）：步骤解析优先取本流所在文件的 [Node]，消除跨文件同名静默首胜。
+        var sameFileNodes = UsharpNodePortReader.Read(compilation.Declarations, flow.SourceFile);
+        var steps = BuildSteps(flow, nodes, sameFileNodes, diagnostics);
 
         var spec = new RoundSpec(flow.FlowId, steps)
         {
@@ -50,15 +52,22 @@ public static class UsharpRoundSpecEmitter
     /// <param name="nodes">本编译的 <c>[Node]</c> 端口表（<see cref="UsharpNodePortReader.Read"/> 的产物）。</param>
     /// <param name="diagnostics">诊断出口（未映射步骤 ⇒ <c>US5002</c>；null ⇒ 静默跳过，供子流装配不计重复诊断）。</param>
     internal static List<RoundStep> BuildSteps(
-        UsharpFlowDecl flow, IReadOnlyDictionary<string, UsharpNodeSpec> nodes, ICollection<UsharpDiagnostic>? diagnostics)
+        UsharpFlowDecl flow, IReadOnlyDictionary<string, UsharpNodeSpec> nodes,
+        IReadOnlyDictionary<string, UsharpNodeSpec> sameFileNodes,
+        ICollection<UsharpDiagnostic>? diagnostics)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(sameFileNodes);
 
         var steps = new List<RoundStep>(flow.Steps.Count);
         foreach (var step in flow.Steps)
         {
-            if (!nodes.TryGetValue(step.Key, out var node))
+            // 同文件优先（消除跨文件同名静默首胜）；无同文件声明 ⇒ 回退全量（跨文件引用仍可用）。
+            var node = sameFileNodes.TryGetValue(step.Key, out var own)
+                ? own
+                : (nodes.TryGetValue(step.Key, out var shared) ? shared : null);
+            if (node is null)
             {
                 diagnostics?.Add(UsharpDiagnostic.Error(UsharpCodes.FlowStepUnmapped,
                     $"[Flow] {flow.FlowId}: 步骤键 '{step.Key}' 无对应 [Node] 声明（无法解析 FuncName，可执行体未登记）",

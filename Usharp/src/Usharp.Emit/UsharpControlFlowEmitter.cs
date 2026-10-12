@@ -97,7 +97,8 @@ public static class UsharpControlFlowEmitter
         var flow = compilation.Flows.FirstOrDefault(f => string.Equals(f.FlowId, flowId, StringComparison.Ordinal));
         if (flow is null) return null;
 
-        var steps = UsharpRoundSpecEmitter.BuildSteps(flow, nodes, diagnostics: null);
+        var sameFileNodes = UsharpNodePortReader.Read(compilation.Declarations, flow.SourceFile);
+        var steps = UsharpRoundSpecEmitter.BuildSteps(flow, nodes, sameFileNodes, diagnostics: null);
         var spec = new RoundSpec(flow.FlowId, steps) { Source = RoundSpecSource.Declared };
         return Apply(spec, compilation, nodes, depth);
     }

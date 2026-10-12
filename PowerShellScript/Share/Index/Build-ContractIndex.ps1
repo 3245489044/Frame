@@ -112,6 +112,9 @@ function Invoke-RepoGrep
     foreach ($p in $Patterns) { $gitArgs += @('-e', $p) }
     $gitArgs += @('--')
     $gitArgs += $PathSpecs
+    # 自引用排除（确定性）：产物自身含模式串（pattern/note 字段）且 tracked ⇒ 若被扫到，
+    # 每次 -Update 改写自身内容即改变后续 grep 的行号/命中数 ⇒ 产物永不收敛（-Update 后 -Check 亦失败）。
+    $gitArgs += ':(exclude)**/ContractIndex.json'
 
     # git grep **无命中时退出码为 1**（非错误）⇒ 本地降级 EAP，仅按「fatal:/error: 文本行」判真错。
     $prevEap = $ErrorActionPreference

@@ -67,6 +67,13 @@
         Note   = 'spec 生成/手写分离边界（R4 SEP）：源码树零生成物 / obj 零第二生成物（K2）/ 生成码头注释 / 源⇄产物双向 / manifest 一致性（条件判据）；基线 Baselines\SpecGeneratedBoundary.psd1；-Warn 为回退开关'
     }
 
+    DeclaredBundle = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-DeclaredBundle.ps1'
+        Expect = 0
+        Note   = '冻结声明产物守卫（G5）：门禁判据迁移到编译产物结构事实——manifest 三件在位 / schema 哨兵 / 非空正对照 / 组装器零词表字面量（J7）+ 正负对照'
+    }
+
     OperationLayerIsolation = @{
         Args   = @{ Check = $true }
         Expect = 0

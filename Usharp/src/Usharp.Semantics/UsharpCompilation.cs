@@ -95,6 +95,15 @@ public sealed class UsharpCompilation
     public IReadOnlyList<UsharpDiagnostic> Warnings => UsharpDiagnostics.Warnings(Diagnostics);
 
     /// <summary>编译一组内存源（同一 lib；path 仅用于诊断归因）。</summary>
+    private static int _compileCount;
+
+    /// <summary>进程级编译计数（J1 可观测判据：启动期声明编译总次数；唯一编译点 = DeclaredBundleBuilder）。</summary>
+    public static int CompileCount => System.Threading.Volatile.Read(ref _compileCount);
+
+    /// <summary>清零编译计数（测试 / 验收取数前调用）。</summary>
+    public static void ResetCompileCount() => System.Threading.Volatile.Write(ref _compileCount, 0);
+
+    /// <summary>编译源集（便捷重载；每文件 lib = 指定 lib）。</summary>
     public static UsharpCompilation Compile(IEnumerable<(string Path, string Text)> sources, string lib = UsharpParser.DefaultLib)
     {
         ArgumentNullException.ThrowIfNull(sources);
@@ -108,6 +117,7 @@ public sealed class UsharpCompilation
     public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
+        System.Threading.Interlocked.Increment(ref _compileCount);
 
         var documents = new List<DslDocument>();
         var index = new DslIndex();

@@ -159,7 +159,13 @@
     #   Frame/PowerShellScript/Operation/DSL/**（新门禁 Check-ConversationReadSingleSource + GateManifests）·
     #   Frame/PowerShellScript/Modules/Node/**，均在新单 allowSet 内；上一系列（DB-RW 数据库页节点读写删）已交付，
     #   其授权单文件内容保留不变。恢复 = 回填 v27 的 Value（上方注释保留 DB-RW 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-12-会话页读写单一真源缺口.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v29（2026-10-12）：单指针切换至「框架层缺陷与 Usharp 集成（G1–G6）」授权单（active=[G1]）。
+    #   切换理由 = 用户转入实施《2026-10-12-框架层缺陷与Usharp集成-根因与彻底优化方案.md》：G1 改动落在
+    #   Frame/Usharp/src/Usharp.Adapters.Declarations（DeclaredBundle/BundleBuilder 新增）·
+    #   Frame/Usharp/src/Usharp.Semantics（编译计数）· Frame/PowerShellScript/Baselines，均在新单 allowSet 内；
+    #   上一系列（CONV-SS 会话页读写单一真源缺口）已交付，其授权单文件内容保留不变。
+    #   恢复 = 回填 v28 的 Value（上方注释保留 CONV-SS 单原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.12\2026-10-12-框架层缺陷与Usharp集成.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

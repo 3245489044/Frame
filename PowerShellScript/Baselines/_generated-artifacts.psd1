@@ -43,5 +43,53 @@
             Origin             = 'Derived'
             DueWhen            = ''
         }
+        @{
+            Name               = 'DeclaredManifest'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Core\Declared\declared-manifest.json'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'
+            GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'manifest' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'declared-manifest-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutDir Projects\Plug\Agent\src\Agent.Core\Declared'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'DeclaredRoundSpec'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Core\Declared\round-spec.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'
+            GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'roundspec' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'AgentLoop'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutDir Projects\Plug\Agent\src\Agent.Core\Declared'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'DeclaredReferenceSchema'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Core\Declared\reference-schema.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'
+            GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'schema' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'cross_db_link'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutDir Projects\Plug\Agent\src\Agent.Core\Declared'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'GeneratedDeclaredContracts'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\GeneratedDeclaredContracts.g.cs'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredConstants.ps1'
+            GeneratorArgs      = @{ Manifest = 'Projects\Plug\Agent\src\Agent.Core\Declared\declared-manifest.json'; OutFile = '{TEMP}' }
+            Kind               = 'Text'
+            IgnoreLinePatterns = @()
+            SentinelPattern    = '此文件由 Generate-DeclaredConstants.ps1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredConstants.ps1'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
     )
 }

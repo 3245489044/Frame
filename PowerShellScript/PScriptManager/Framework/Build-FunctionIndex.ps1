@@ -57,7 +57,11 @@ foreach ($root in $ScanRoots) {
     }
 }
 
-# 归序（确定性）
+# 归序（确定性）：文件键 + 属主键均升序（hashtable 枚举序不确定 ⇒ 产物须键升序，
+# 否则生成物漂移门禁对同内容不同键序误判为漂移）。
+$filesSorted = [ordered]@{}
+foreach ($k in ($files.Keys | Sort-Object)) { $filesSorted[$k] = $files[$k] }
+
 $ownersSorted = [ordered]@{}
 foreach ($k in ($owners.Keys | Sort-Object)) {
     $ownersSorted[$k] = @($owners[$k] | Sort-Object)
@@ -71,7 +75,7 @@ $index = [ordered]@{
     fileCount   = $files.Count
     functionCount = $ownersSorted.Count
     ambiguousCount = @($ownersSorted.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }).Count
-    files       = $files
+    files       = $filesSorted
     owners      = $ownersSorted
 }
 ($index | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $IndexOut -Encoding UTF8

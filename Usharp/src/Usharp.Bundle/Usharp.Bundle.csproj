@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>DeclaredBundle 生成工具</ModuleRule_Title>
+    <ModuleRule_Description>声明单点编译工具（G1）：调用 DeclaredBundleBuilder 对 Config 声明面做唯一一次编译，产出 manifest / round-spec / reference-schema 冻结产物。供构建期/门禁复算调用。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;DeclaredBundle;冻结产物;生成器</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="本工具只做 IO 编排：编译/发射一律复用 DeclaredBundleBuilder，不另写第二份生成逻辑" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Usharp.Bundle</RootNamespace>
+    <AssemblyName>Usharp.Bundle</AssemblyName>
+    <Description>DeclaredBundle 生成工具 — Config 声明单点编译 → 冻结产物</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Adapters.Declarations\Usharp.Adapters.Declarations.csproj" />
+  </ItemGroup>
+
+</Project>

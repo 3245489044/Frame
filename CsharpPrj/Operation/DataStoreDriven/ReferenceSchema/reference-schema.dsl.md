@@ -1,5 +1,10 @@
 # UniversalReference 引用 Schema DSL（单一事实源）
 
+> **⚠ 已废弃（DEPRECATED，2026-10-12）**：词表真源已上移至 `Projects\Plug\Agent\Config\nodes\reference.ushar`
+> （`[Node]/[Edge]/[Constraint]` 声明同语言、同真源；消费方 = `Usharp.Adapters.UniversalReference.UsharpReferenceSchemaEmitter`
+> → `DeclaredBundle.ReferenceSchemaJson`）。本文件保留仅为兼容既有 `ReferenceSchemaCodeGenerator` 测试路径，
+> 待 D2 批改写 `ReferenceSchemaDslTests` 读 `.ushar` 后删除。**禁新增内容**，变更一律作用于 `reference.ushar`。
+
 > **层级**：数据定义层 | **用途**：集中声明 `Operation.DataStoreDriven` 经 UniversalReference 使用的**资源节点类型**（`[Node]`）、**引用类型词汇表**（`[Edge]`）与**配对约束**（`[Constraint]`）。运行时消费方：`Operation.DataStoreDriven.ReferenceSchema.ReferenceTypeRegistry`（Agent 无关层自持 DSL/产物，不反向依赖 Agent）。
 > **编译验证**：`Plate.DslMethod.Schema.ReferenceSchemaCodeGenerator` + `ReferenceSchemaRegistry`（校验悬空边端节点 / 悬空约束 / 重复 / dep 目标）。
 > **产物**：本文件为唯一事实源；`reference-schema.generated.json` / `schema-report.txt` 为【纯编译产物】，禁止手改——变更须作用于本文件后重生成。

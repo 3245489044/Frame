@@ -115,7 +115,7 @@ if ($viewSvc -notmatch 'IToolFaceCatalog') {
 }
 
 # H11 自身不持有：history 入站输入标 FeedTarget.State（不驻留本执行体 conversation_context；I2 / 4.6）
-$stages = Read-Text (Join-Path $agentRoot 'src\Agent.Orchestration\SessionWorkflow\Circuit\ConversationStageBodies.cs')
+$stages = Read-Text (Join-Path $agentRoot 'src\Agent.Core\Orchestration\SessionWorkflow\Circuit\ConversationStageBodies.cs')
 if ($stages -notmatch 'IsHistoryAgent') {
     Add-Violation 'H11' 'ConversationStageBodies 缺 history 执行体判定（IsHistoryAgent）'
 }

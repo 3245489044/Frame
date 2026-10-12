@@ -60,16 +60,16 @@ public sealed class BackendDeclarationStore : IDeclarationStore
     {
         if (string.IsNullOrWhiteSpace(logicalName)) return null;
 
-        var key = _prefix + Normalize(logicalName);
+        var key = _prefix + UsharpSourceLoader.NormalizeLogicalName(logicalName);
         var text = await _backend.GetAsync(key, ct).ConfigureAwait(false);
-        return text is null ? null : new DeclarationEntry(Normalize(logicalName), text, _lib, key);
+        return text is null ? null : new DeclarationEntry(UsharpSourceLoader.NormalizeLogicalName(logicalName), text, _lib, key);
     }
 
     /// <inheritdoc />
     public async Task<bool> ExistsAsync(string logicalName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(logicalName)) return false;
-        var text = await _backend.GetAsync(_prefix + Normalize(logicalName), ct).ConfigureAwait(false);
+        var text = await _backend.GetAsync(_prefix + UsharpSourceLoader.NormalizeLogicalName(logicalName), ct).ConfigureAwait(false);
         return text is not null;
     }
 
@@ -79,11 +79,9 @@ public sealed class BackendDeclarationStore : IDeclarationStore
         ArgumentNullException.ThrowIfNull(entry);
         return string.IsNullOrWhiteSpace(entry.LogicalName)
             ? Task.CompletedTask
-            : _backend.PutAsync(_prefix + Normalize(entry.LogicalName), entry.Text ?? string.Empty, ct);
+            : _backend.PutAsync(_prefix + UsharpSourceLoader.NormalizeLogicalName(entry.LogicalName), entry.Text ?? string.Empty, ct);
     }
 
     private string StripPrefix(string key)
         => key.StartsWith(_prefix, StringComparison.Ordinal) ? key[_prefix.Length..] : key;
-
-    private static string Normalize(string logicalName) => logicalName.Trim().Replace('\\', '/');
 }

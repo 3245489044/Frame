@@ -3,8 +3,34 @@ using Usharp.Syntax;
 
 namespace Usharp.Semantics;
 
+/// <summary>划分声明问题类别（<see cref="UsharpHierarchyIssue"/> 的判据；遍历单源内区分报错口径）。</summary>
+public enum UsharpHierarchyDeclProblem
+{
+    /// <summary>缺父空间 / 包含边类型为空（形状非法）。</summary>
+    MissingParentOrEdge,
+
+    /// <summary>父空间未声明（层图悬空）。</summary>
+    UndeclaredParent,
+}
+
 /// <summary>
-/// <c>[Space] contains=</c> 子空间图的**唯一次遍历入口**：包含对 / 层 Id 集 / 根 / 自环层 / 层序。
+/// 划分声明的结构化问题（声明序）：声明原文 + 类别 —— 闸A 据此分口径报错，
+/// 产出面据此汇总「不可产出」。替代早前只存描述串（丢失类别信息）。
+/// </summary>
+public readonly record struct UsharpHierarchyIssue(
+    UsharpSpaceDecl Space,
+    string ParentSpaceId,
+    string EdgeType,
+    UsharpHierarchyDeclProblem Problem)
+{
+    /// <summary>描述串（保留既有「不可产出」报文形态；<c>&lt;父&gt;:&lt;边类型&gt;</c>）。</summary>
+    public override string ToString()
+        => $"[Space] {Space.SpaceId}: {ParentSpaceId}:{EdgeType}";
+}
+
+/// <summary>
+/// <c>[Space] contains=</c> 子空间图的**唯一次遍历入口**：包含对 / 层 Id 集 / 根 / 自环层 / 层序 /
+/// 结构化问题集。闸A（<see cref="UsharpHierarchyGate"/>）与产出面（schema 发射器）共用同一构建。
 /// <para>
 /// 消费方：层次产出面（schema 发射器）与其闸A 投影 —— 层序委托内核
 /// <see cref="HierarchySchema.LevelOrderFromRoot"/>（自环不推进、未声明层跳过），
@@ -20,14 +46,14 @@ public sealed class UsharpHierarchyGraph
         IReadOnlyList<string> levelIds,
         IReadOnlyList<string> roots,
         IReadOnlyList<string> selfRecursiveLayers,
-        IReadOnlyList<string> invalidDeclarations,
+        IReadOnlyList<UsharpHierarchyIssue> issues,
         IReadOnlyList<UsharpSpaceDecl> declaredSpaces)
     {
         _pairs = pairs;
         LevelIds = levelIds;
         Roots = roots;
         SelfRecursiveLayers = selfRecursiveLayers;
-        InvalidDeclarations = invalidDeclarations;
+        Issues = issues;
         DeclaredSpaces = declaredSpaces;
     }
 
@@ -43,8 +69,14 @@ public sealed class UsharpHierarchyGraph
     /// <summary>含自环（<c>contains=自我:edge</c>）的层 Id 集。</summary>
     public IReadOnlyList<string> SelfRecursiveLayers { get; }
 
-    /// <summary>形状非法（缺父 / 边类型为空 / 父未声明）的划分声明原文（空 = 全部合法）。</summary>
-    public IReadOnlyList<string> InvalidDeclarations { get; }
+    /// <summary>形状非法（缺父 / 边类型为空 / 父未声明）的划分声明（声明序；空 = 全部合法）。</summary>
+    public IReadOnlyList<UsharpHierarchyIssue> Issues { get; }
+
+    /// <summary>
+    /// 形状非法的划分声明描述串（**派生自 <see cref="Issues"/>**；既有「不可产出」报文消费方的稳定面）。
+    /// </summary>
+    public IReadOnlyList<string> InvalidDeclarations
+        => Issues.Select(i => i.ToString()).ToList();
 
     /// <summary>含 <c>contains=</c> 的空间声明（声明序；归因用）。</summary>
     public IReadOnlyList<UsharpSpaceDecl> DeclaredSpaces { get; }
@@ -79,26 +111,35 @@ public sealed class UsharpHierarchyGraph
         if (declared.Count == 0) return null;
 
         var pairs = new List<(string Parent, string Child, string Edge)>();
-        var invalid = new List<string>();
+        var issues = new List<UsharpHierarchyIssue>();
         foreach (var space in declared)
             foreach (var containment in space.Contains)
             {
-                if (containment.ParentSpaceId.Length == 0 || containment.EdgeType.Length == 0
-                    || !spaces.TryGet(containment.ParentSpaceId, out _))
+                if (containment.ParentSpaceId.Length == 0 || containment.EdgeType.Length == 0)
                 {
-                    invalid.Add($"[Space] {space.SpaceId}: {containment.ParentSpaceId}:{containment.EdgeType}");
+                    issues.Add(new UsharpHierarchyIssue(space, containment.ParentSpaceId, containment.EdgeType,
+                        UsharpHierarchyDeclProblem.MissingParentOrEdge));
+                    continue;
+                }
+
+                if (!spaces.TryGet(containment.ParentSpaceId, out _))
+                {
+                    issues.Add(new UsharpHierarchyIssue(space, containment.ParentSpaceId, containment.EdgeType,
+                        UsharpHierarchyDeclProblem.UndeclaredParent));
                     continue;
                 }
 
                 pairs.Add((containment.ParentSpaceId, space.SpaceId, containment.EdgeType));
             }
 
+        // 去重保声明序（HashSet 而非 List.Contains 的 O(n²)）；层 Id 集仅含用户层（合成根属闸A 校验投影，不入图）。
         var levelIds = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var childIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (parent, child, _) in pairs)
         {
-            if (!levelIds.Contains(parent, StringComparer.Ordinal)) levelIds.Add(parent);
-            if (!levelIds.Contains(child, StringComparer.Ordinal)) levelIds.Add(child);
+            if (seen.Add(parent)) levelIds.Add(parent);
+            if (seen.Add(child)) levelIds.Add(child);
             if (!string.Equals(parent, child, StringComparison.Ordinal)) childIds.Add(child);
         }
 
@@ -111,7 +152,7 @@ public sealed class UsharpHierarchyGraph
             levelIds,
             levelIds.Where(id => !childIds.Contains(id)).ToList(),
             selfRecursive,
-            invalid,
+            issues,
             declared);
     }
 }

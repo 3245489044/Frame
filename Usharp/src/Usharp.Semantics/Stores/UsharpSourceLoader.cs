@@ -18,6 +18,10 @@ public static class UsharpSourceLoader
     /// <summary>路径是否存在（文件或目录）。</summary>
     public static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
 
+    /// <summary>逻辑名归一（Trim + 反斜杠归一为 <c>/</c>）——声明库各实现的**唯一实现**（禁各 Store 私拷）。</summary>
+    public static string NormalizeLogicalName(string logicalName)
+        => logicalName.Trim().Replace('\\', '/');
+
     /// <summary>加载路径（文件 → 单源；目录 → 递归 <c>*.ushar</c>，按路径排序）。</summary>
     public static IReadOnlyList<UsharpSourceFile> FromPath(string path, string? lib = null)
     {

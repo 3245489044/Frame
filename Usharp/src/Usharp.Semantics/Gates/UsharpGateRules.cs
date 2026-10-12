@@ -78,6 +78,9 @@ internal sealed class MatrixGateRule : IGateRule<UsharpGateModel>
                     $"[Matrix] {m.MatrixId}: 未声明任何输出行（缩进块为空）", m.SourceFile, m.LineNumber));
 
             var readScope = model.Spaces.ReadScope(m.OverSpaceId);
+            // 覆盖流存在性（判据单源 = UsharpGateModel.CoveringFlows）：US1017 需 [Flow] 作声明面；
+            // 无覆盖流时读侧缺陷回退归 US1004（禁止静默吞错）。
+            var hasCoveringFlow = model.CoveringFlows(m.OverSpaceId).Any();
             foreach (var row in m.Rows)
             {
                 // 写侧（设计方案 §3.2）：输出坐标须**严格**属自身层 ⇒ 属祖先层即「越界写」（US1010，比 US1003 更精确的归因）
@@ -102,8 +105,8 @@ internal sealed class MatrixGateRule : IGateRule<UsharpGateModel>
                     if (!model.Spaces.IsReadable(m.OverSpaceId, input, out _))
                     {
                         // 归因分工：由非祖先块写入的坐标归 US1017（跨块写依赖未声明，ConnectGateRule 报，更精确）；
-                        // 其余（本层体系内无处可解析）才归 US1004。
-                        if (model.NonAncestorWriters(m.OverSpaceId, input).Count > 0) continue;
+                        // 但 US1017 须有覆盖 [Flow] 承载 connects= —— 无覆盖流时回退报 US1004，其余才归 US1004。
+                        if (hasCoveringFlow && model.NonAncestorWriters(m.OverSpaceId, input).Count > 0) continue;
 
                         sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.MatrixRowInputUndeclared,
                             $"[Matrix] {m.MatrixId}: 行 '{row.OutputKey}' 引用了未声明坐标 '{input}'"

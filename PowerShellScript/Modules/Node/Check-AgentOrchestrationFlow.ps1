@@ -18,7 +18,7 @@
       Projects\Plug\Agent\src\Agent.Core\Nodes\Registry\LoopParadigms.cs               （R5 范式登记）
       Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs   （O-3 清单）
       Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision,History,RoundAttribution,Productions}\*OpsFunctions.cs（O-2 单步体）
-      Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
+      Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
       Projects\Plug\Agent\doc\Agent编排载体分工表.md                                   （O-6 载体分工 + 豁免登记）
       Projects\Plug\Agent\src\Agent.Axioms\Loops\RoundKeys.cs                          （E10 键名常量单源）
       Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\RoundStateKeyCatalog.cs    （E10 种子键登记）
@@ -85,7 +85,7 @@ $specCatalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configurat
 $fnNamesFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs'
 $paradigmsFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Nodes\Registry\LoopParadigms.cs'
 $validatorFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs'
-$pipelineFile   = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\ConversationCentralPipeline.cs'
+$pipelineFile   = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow\ConversationCentralPipeline.cs'
 $carrierDoc     = Join-Path $Root 'Projects\Plug\Agent\doc\Agent编排载体分工表.md'
 $roundKeysFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Axioms\Loops\RoundKeys.cs'
 $seedCatalogFile= Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\RoundStateKeyCatalog.cs'
@@ -346,7 +346,7 @@ $namespaceCounts = @{}
 try {
     $namespaceCounts = Get-NamespaceValueCounts -Dir (Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod') `
         -FileNames @($NamespaceBaselines.Keys) -Pattern $NamespaceValuePattern
-    $nsAgentDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow\NodeWrite'
+    $nsAgentDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow\NodeWrite'
     $nsAgentCounts = Get-NamespaceValueCounts -Dir $nsAgentDir -FileNames @($NamespaceBaselines.Keys) -Pattern $NamespaceValuePattern
     foreach ($f in @($NamespaceBaselines.Keys)) {
         $namespaceCounts[$f] = $namespaceCounts[$f] + $nsAgentCounts[$f]

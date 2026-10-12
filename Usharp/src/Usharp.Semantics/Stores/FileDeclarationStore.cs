@@ -49,7 +49,7 @@ public sealed class FileDeclarationStore : IDeclarationStore
         var path = ToPhysicalPath(logicalName);
         if (!File.Exists(path)) return Task.FromResult<DeclarationEntry?>(null);
 
-        var entry = new DeclarationEntry(Normalize(logicalName), File.ReadAllText(path), null, path);
+        var entry = new DeclarationEntry(UsharpSourceLoader.NormalizeLogicalName(logicalName), File.ReadAllText(path), null, path);
         return Task.FromResult<DeclarationEntry?>(entry);
     }
 
@@ -84,13 +84,11 @@ public sealed class FileDeclarationStore : IDeclarationStore
     /// <summary>逻辑名 → 物理路径（补 <c>.ushar</c> 扩展名，<c>/</c> → 平台分隔符）。</summary>
     private string ToPhysicalPath(string logicalName)
     {
-        var name = Normalize(logicalName);
+        var name = UsharpSourceLoader.NormalizeLogicalName(logicalName);
         if (!name.EndsWith(UsharpSourceLoader.Extension, StringComparison.OrdinalIgnoreCase))
             name += UsharpSourceLoader.Extension;
         return Path.Combine(_root, name.Replace('/', Path.DirectorySeparatorChar));
     }
-
-    private static string Normalize(string logicalName) => logicalName.Trim().Replace('\\', '/');
 
     private static string StripExtension(string relative)
         => relative.EndsWith(UsharpSourceLoader.Extension, StringComparison.OrdinalIgnoreCase)

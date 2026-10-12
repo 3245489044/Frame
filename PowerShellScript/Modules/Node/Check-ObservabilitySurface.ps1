@@ -88,7 +88,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 $ledgerRel  = 'Projects\Plug\Agent\src\Agent.Contract\Observability\visibility_semantics.json'
 $semRel     = 'Projects\Plug\Agent\src\Agent.Contract\Observability\observability_semantics.json'
 $csprojRel  = 'Projects\Plug\Agent\src\Agent.Contract\Agent.Contract.csproj'
-$traceRel   = 'Projects\Plug\Agent\src\Agent.Operation\Observe\AgentTrace.cs'
+$traceRel   = 'Projects\Plug\Agent\src\Agent.Core\Operation\Observe\AgentTrace.cs'
 $logRel     = 'Projects\Plug\Agent\src\Agent.Axioms\Diagnostics\AgentLog.cs'
 $modLogRel  = 'Projects\Plug\Agent\src\Agent.Modules\Diagnostics\ModuleLog.cs'
 

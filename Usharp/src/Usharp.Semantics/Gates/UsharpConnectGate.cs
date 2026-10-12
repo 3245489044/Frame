@@ -51,10 +51,24 @@ internal sealed class ConnectGateRule : IGateRule<UsharpGateModel>
         {
             if (string.IsNullOrWhiteSpace(matrix.OverSpaceId)) continue;
 
-            var planFlow = model.Flows.FirstOrDefault(f => string.Equals(f.OverSpaceId, matrix.OverSpaceId, StringComparison.Ordinal));
+            // 覆盖流 = over 自身 ∨ 祖先层（判据单源 = UsharpGateModel.CoveringFlows，与 ProcessPlanGateRule 同口径）。
+            var covering = model.CoveringFlows(matrix.OverSpaceId).ToList();
 
-            // E15：本层无 [Flow] ⇒ 连接无处声明（US1017 不可修复）——不报，避免不可修复错误淹没可见化面。
-            if (planFlow is null) continue;
+            // E15：本层无覆盖 [Flow] ⇒ 连接无处声明（US1017 不可修复）——不报；
+            // 该读侧缺陷由 MatrixGateRule 在无覆盖流时回退报 US1004（禁止静默吞错）。
+            if (covering.Count == 0) continue;
+
+            var planFlow = covering[0];
+
+            // 依赖可见性 = 覆盖流们经 connects= 指向的上游流所在层（祖先层覆盖流的 connects 同样生效）。
+            var connectedUpstreams = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var flow in covering)
+                foreach (var connects in flow.Connects)
+                {
+                    var upstream = model.FlowById(connects.UpstreamFlowId);
+                    if (upstream is not null && !string.IsNullOrWhiteSpace(upstream.OverSpaceId))
+                        connectedUpstreams.Add(upstream.OverSpaceId);
+                }
 
             var reported = new HashSet<string>(StringComparer.Ordinal);
             foreach (var row in matrix.Rows)
@@ -64,8 +78,7 @@ internal sealed class ConnectGateRule : IGateRule<UsharpGateModel>
                     if (writers.Count == 0) continue;
 
                     // 已声明的 connects= 覆盖全部非祖先写者层 ⇒ 依赖显式可见，不报。
-                    if (model.UpstreamConnectedLayers.TryGetValue(matrix.OverSpaceId, out var upstream)
-                        && writers.All(upstream.Contains)) continue;
+                    if (connectedUpstreams.Count > 0 && writers.All(connectedUpstreams.Contains)) continue;
 
                     // E12：同一 (层, 被依赖坐标) 只报一次（多行读同一坐标属同因，不逐条重复）。
                     if (!reported.Add(matrix.OverSpaceId + "\u0000" + input)) continue;

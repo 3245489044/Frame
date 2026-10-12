@@ -17,6 +17,7 @@ namespace Usharp.Semantics;
 public sealed class UsharpGateModel
 {
     private readonly UsharpFacetRegistry _facets;
+    private readonly Dictionary<string, UsharpFlowDecl> _flowsById = new(StringComparer.Ordinal);
 
     public UsharpGateModel(
         IReadOnlyList<DslDocument> documents,
@@ -34,7 +35,9 @@ public sealed class UsharpGateModel
         FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
         NodeNames = new HashSet<string>(declarations.NodeNames, StringComparer.Ordinal);
         WrittenCoordinates = BuildWrittenCoordinates(Matrices);
-        UpstreamConnectedLayers = BuildUpstreamConnectedLayers(flows);
+        Hierarchy = UsharpHierarchyGraph.Build(Spaces);
+        foreach (var flow in flows)
+            if (!string.IsNullOrWhiteSpace(flow.FlowId)) _flowsById.TryAdd(flow.FlowId, flow);
     }
 
     public IReadOnlyList<DslDocument> Documents { get; }
@@ -81,10 +84,10 @@ public sealed class UsharpGateModel
     public IReadOnlyDictionary<string, HashSet<string>> WrittenCoordinates { get; }
 
     /// <summary>
-    /// 显式连接的上游层：层 Id → 该层各流经 <c>connects=</c> 指向的上游流所在层
-    /// （`US1017` 的「依赖是否已声明」判据来源；读域仍 = 自身 ∪ 祖先闭包，见设计方案 §10.4 实施修正 ④）。
+    /// 空间划分图（<c>[Space] contains=</c> 遍历**单源**，闸A 与产出面共用同一实现）。
+    /// 本编译无划分声明 → null（无层次面）。
     /// </summary>
-    public IReadOnlyDictionary<string, HashSet<string>> UpstreamConnectedLayers { get; }
+    public UsharpHierarchyGraph? Hierarchy { get; }
 
     /// <summary>
     /// 坐标的**非祖先写者层**（写该坐标、且既非本层亦非祖先层的层；按声明序去重）——
@@ -102,6 +105,23 @@ public sealed class UsharpGateModel
         return writers;
     }
 
+    /// <summary>
+    /// 覆盖某层的流：<c>over=</c> 该层自身 ∨ 该层祖先层（层维度判据的**唯一实现**；
+    /// 闸A 各规则不得自行复写「哪条流覆盖该层」——对齐 <c>Strategy.SingleImplementation</c>）。
+    /// </summary>
+    public IEnumerable<UsharpFlowDecl> CoveringFlows(string layerId)
+    {
+        if (string.IsNullOrWhiteSpace(layerId)) yield break;
+
+        var covering = new HashSet<string>(Spaces.AncestorSpaces(layerId), StringComparer.Ordinal) { layerId };
+        foreach (var flow in Flows)
+            if (flow.OverSpaceId is { } over && covering.Contains(over)) yield return flow;
+    }
+
+    /// <summary>按流号取流声明（未声明 → null；闸A 端点解析单源）。</summary>
+    public UsharpFlowDecl? FlowById(string flowId)
+        => _flowsById.TryGetValue(flowId ?? "", out var flow) ? flow : null;
+
     private static IReadOnlyDictionary<string, HashSet<string>> BuildWrittenCoordinates(
         IReadOnlyList<UsharpMatrixDecl> matrices)
     {
@@ -112,29 +132,6 @@ public sealed class UsharpGateModel
             if (!map.TryGetValue(matrix.OverSpaceId, out var keys))
                 map[matrix.OverSpaceId] = keys = new HashSet<string>(StringComparer.Ordinal);
             foreach (var row in matrix.Rows) keys.Add(row.OutputKey);
-        }
-        return map;
-    }
-
-    private static IReadOnlyDictionary<string, HashSet<string>> BuildUpstreamConnectedLayers(IReadOnlyList<UsharpFlowDecl> flows)
-    {
-        var byId = new Dictionary<string, UsharpFlowDecl>(StringComparer.Ordinal);
-        foreach (var flow in flows)
-            if (!string.IsNullOrWhiteSpace(flow.FlowId)) byId.TryAdd(flow.FlowId, flow);
-
-        var map = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var flow in flows)
-        {
-            if (string.IsNullOrWhiteSpace(flow.OverSpaceId)) continue;
-            foreach (var connects in flow.Connects)
-            {
-                // 端点不可解析（未声明 / 自连）由闸A（US1015）报出，此处不猜。
-                if (!byId.TryGetValue(connects.UpstreamFlowId, out var upstream)) continue;
-                if (string.IsNullOrWhiteSpace(upstream.OverSpaceId)) continue;
-                if (!map.TryGetValue(flow.OverSpaceId, out var layers))
-                    map[flow.OverSpaceId] = layers = new HashSet<string>(StringComparer.Ordinal);
-                layers.Add(upstream.OverSpaceId);
-            }
         }
         return map;
     }

@@ -692,7 +692,7 @@ else
 }
 
 # ---------- CS14 会话链单驱动（负对照：SessionWorkflow 禁第二套管线引擎 / 正对照：区域电路在册） ----------
-$convDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Orchestration\SessionWorkflow'
+$convDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow'
 if (Test-Path $convDir)
 {
     $convCircuitDir = Join-Path $convDir 'Circuit'

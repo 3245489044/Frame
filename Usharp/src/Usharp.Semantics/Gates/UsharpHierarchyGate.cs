@@ -1,7 +1,6 @@
 using Modules.DeclarativeDataflow.Model;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
-using Usharp.Syntax;
 
 namespace Usharp.Semantics;
 
@@ -32,46 +31,43 @@ internal sealed class HierarchyGateRule : IGateRule<UsharpGateModel>
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
-        var declared = model.Spaces.Spaces.Where(space => space.Contains.Count > 0).ToList();
+        // ① 层图遍历单源 = model.Hierarchy（UsharpHierarchyGraph.Build 于模型构造期一次完成）；
+        //    形状 / 父层未声明由结构化 Issues 承载，本规则只按口径报错，不自行收集。
+        var graph = model.Hierarchy;
+        if (graph is null) return;
 
-        // ① 语言面判据：形状 / 父层已声明 / 坐标子集。同时收拢可进层图的包含对。
-        var pairs = new List<(string Parent, string Child, string Edge)>();
-        foreach (var space in declared)
-            foreach (var containment in space.Contains)
-            {
-                if (containment.ParentSpaceId.Length == 0 || containment.EdgeType.Length == 0)
-                {
-                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
-                        $"[Space] {space.SpaceId}: contains 形状非法 '{Describe(containment)}'"
-                        + "（须为 <父空间>:<包含边类型>，多父层以 ';' 分段）",
-                        space.SourceFile, space.LineNumber));
-                    continue;
-                }
+        foreach (var issue in graph.Issues)
+        {
+            var space = issue.Space;
+            if (issue.Problem == UsharpHierarchyDeclProblem.UndeclaredParent)
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
+                    $"[Space] {space.SpaceId}: contains 指向未声明的父空间 '{issue.ParentSpaceId}'（层图悬空）",
+                    space.SourceFile, space.LineNumber));
+            else
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
+                    $"[Space] {space.SpaceId}: contains 形状非法 '{Describe(issue)}'"
+                    + "（须为 <父空间>:<包含边类型>，多父层以 ';' 分段）",
+                    space.SourceFile, space.LineNumber));
+        }
 
-                if (!model.Spaces.TryGet(containment.ParentSpaceId, out var parent))
-                {
-                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
-                        $"[Space] {space.SpaceId}: contains 指向未声明的父空间 '{containment.ParentSpaceId}'（层图悬空）",
-                        space.SourceFile, space.LineNumber));
-                    continue;
-                }
+        // ② 坐标子集判据：子空间坐标须已在其父空间声明（父未声明的 contains 已被 Issues 拦下，不入 Pairs）。
+        foreach (var (parentId, childId, _) in graph.Pairs)
+        {
+            if (!model.Spaces.TryGet(parentId, out var parent) || !model.Spaces.TryGet(childId, out var child)) continue;
+            foreach (var axis in child.Axes)
+                if (!model.Spaces.HasCoordinate(parent.SpaceId, axis.Name, out _))
+                    sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SubSpaceAxisUndeclared,
+                        $"[Space] {child.SpaceId}: 坐标 '{axis.Name}' 未在父空间 '{parent.SpaceId}' 声明"
+                        + "（子集不成立 ⇒ 划分非法）",
+                        child.SourceFile, child.LineNumber));
+        }
 
-                foreach (var axis in space.Axes)
-                    if (!model.Spaces.HasCoordinate(parent.SpaceId, axis.Name, out _))
-                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SubSpaceAxisUndeclared,
-                            $"[Space] {space.SpaceId}: 坐标 '{axis.Name}' 未在父空间 '{parent.SpaceId}' 声明"
-                            + "（子集不成立 ⇒ 划分非法）",
-                            space.SourceFile, space.LineNumber));
+        // ③ 层图结构判据：无划分声明则无事可查（不调用内核、不产生信息型噪声）。
+        if (graph.Pairs.Count == 0) return;
 
-                pairs.Add((parent.SpaceId, space.SpaceId, containment.EdgeType));
-            }
-
-        // ② 层图结构判据：无划分声明则无事可查（不调用内核、不产生信息型噪声）。
-        if (pairs.Count == 0) return;
-
-        foreach (var issue in HierarchySchemaValidator.Validate(BuildForestSchema(pairs)))
+        foreach (var issue in HierarchySchemaValidator.Validate(BuildForestSchema(graph.Pairs)))
             sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
-                $"空间划分层图非法：{issue}", declared[0].SourceFile, declared[0].LineNumber));
+                $"空间划分层图非法：{issue}", graph.DeclaredSpaces[0].SourceFile, graph.DeclaredSpaces[0].LineNumber));
     }
 
     /// <summary>
@@ -114,6 +110,6 @@ internal sealed class HierarchyGateRule : IGateRule<UsharpGateModel>
         return new HierarchySchema(VirtualRootLevelId, levels);
     }
 
-    private static string Describe(UsharpContainmentDecl containment)
-        => containment.EdgeType.Length == 0 ? containment.ParentSpaceId : $"{containment.ParentSpaceId}:{containment.EdgeType}";
+    private static string Describe(UsharpHierarchyIssue issue)
+        => issue.EdgeType.Length == 0 ? issue.ParentSpaceId : $"{issue.ParentSpaceId}:{issue.EdgeType}";
 }

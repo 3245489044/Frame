@@ -165,7 +165,14 @@
     #   Frame/Usharp/src/Usharp.Semantics（编译计数）· Frame/PowerShellScript/Baselines，均在新单 allowSet 内；
     #   上一系列（CONV-SS 会话页读写单一真源缺口）已交付，其授权单文件内容保留不变。
     #   恢复 = 回填 v28 的 Value（上方注释保留 CONV-SS 单原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.12\2026-10-12-框架层缺陷与Usharp集成.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v30（2026-10-13）：单指针切换至「Agent 现存红清单收口（N3 可见性 / N4 漂移门 / N5 技术债）」
+    #   授权单（active=[N3,N4,N5]）。切换理由 = 用户转入实施《Agent 现存红清单与修复建议-修复进展与遗留.md》；
+    #   本系列改动落在 Environment/CentralTest/**（矩阵/别名/AgentTest 用例）· Frame/PowerShellScript/**（门禁/基线）·
+    #   Frame/CsharpPrj/Strategy/Observability/**（SpecPortHost）· Projects/Plug/Agent/**（doc/skills/Config/src），
+    #   均在新单 allowSet 内。上一系列（G1：框架层缺陷与 Usharp 集成）已交付，其授权单文件内容保留不变。
+    #   恢复 = 回填 G1 单原值（见下方注释）。
+    # Manifest(G1) = @{ Value = 'Docs\analysis\2026\10\10.12\2026-10-12-框架层缺陷与Usharp集成.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.13\2026-10-13-Agent红清单收口.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

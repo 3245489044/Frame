@@ -12,7 +12,7 @@
       H0 正对照：样本数 ≥ 基线（判据无标的 ⇒ 假绿）。
       H1 成比例：产品单工程改动的「验证触及工程数 ÷ 改动涉及工程数」≤ RatioMax（对齐 §3.2 ≤ 1.5）。
       H2 映射落点：产品单工程改动须映射到具体测试工程（不得回落全矩阵）。
-      H3 不静默丢面：任一改动须被分类（映射 ∧ 或 ∧ 全矩阵 ∧ 或 ∧ Unmapped），禁「既不映射也不报」。
+      H3 不静默丢面：任一改动须被分类（映射测试工程 ∧ 或 ∧ 全矩阵 ∧ 或 ∧ 命中门禁 ∧ 或 ∧ Unmapped），禁「既不映射也不报」。
       H4 负对照：不可分类改动须判 Unmapped（fail-loud，≠「全部」，禁静默全量）。
       H5 正对照：框架改动仍产出计划（豁免面不空转）。
 
@@ -98,6 +98,7 @@ $samples = @(
     @{ Id = 'B'; Kind = 'not-dropped';  Files = @('Projects\Plug\Agent\src\Agent.Contract\__probe__.cs') }
     @{ Id = 'C'; Kind = 'unmapped';     Files = @('Frame\__scope_probe__\y.txt') }
     @{ Id = 'D'; Kind = 'framework';    Files = @('Frame\PowerShellScript\Operation\DSL\Check-BatchScope.ps1') }
+    @{ Id = 'E'; Kind = 'data-face';   Files = @('Projects\Plug\Agent\skills\l0\__probe__\SKILL.md') }
 )
 
 if ($samples.Count -lt $minSamples) {
@@ -120,9 +121,17 @@ foreach ($s in $samples) {
             if ($m.Ratio -gt $ratioMax) { $violations.Add("[H1] 样本 $($s.Id) 验证/改动比超界（> $ratioMax）") }
         }
         'not-dropped' {
-            if (-not $plan.TestSet -and $tp -lt 1 -and @($plan.Unmapped).Count -lt 1) {
-                $violations.Add("[H3] 样本 $($s.Id) 被静默丢弃（既未映射、也未全矩阵、也非 Unmapped）: $($s.Files -join ', ')")
+            $gateCount = @($plan.Gates).Count
+            if (-not $plan.TestSet -and $tp -lt 1 -and $gateCount -lt 1 -and @($plan.Unmapped).Count -lt 1) {
+                $violations.Add("[H3] 样本 $($s.Id) 被静默丢弃（既未映射测试、也未全矩阵、也非 Unmapped、也无门禁）: $($s.Files -join ', ')")
             }
+        }
+        'data-face' {
+            # 提示词/技能数据面：免重测，但须路由到装配面门禁（不得回落全矩阵，不得无门禁静默丢失）。
+            $gateCount = @($plan.Gates).Count
+            if ($plan.TestSet) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动误触发全矩阵: $($s.Files -join ', ')") }
+            if ($tp -ge 1) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动误排测试工程: $($s.Files -join ', ')") }
+            if ($gateCount -lt 1) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动无门禁（静默丢弃）: $($s.Files -join ', ')") }
         }
         'unmapped' {
             if (@($plan.Unmapped).Count -lt 1) { $violations.Add("[H4] 负对照失效：未分类改动未判 Unmapped（fail-loud 失效）") }

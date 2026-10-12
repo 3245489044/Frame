@@ -178,7 +178,13 @@ public sealed class SpecPortHost : IPortHost, IDisposable
 
         try
         {
-            var binding = PortBinding.FromSpec(standard.Key, PortSpecCompiler.Compile(standard)).RequireBinding();
+            var spec = PortSpecCompiler.Compile(standard);
+            // 内联片段自身不可求值（声明面无法表达的行为体，如 scripted 空壳）⇒ 回落到同键已登记实现
+            // （单一事实源：实现体在实现程序集标注，内联片段只声明键与契约）。
+            var binding = spec.IsEvaluable
+                ? PortBinding.FromSpec(standard.Key, spec).RequireBinding()
+                : _surface.BindingFactory(standard.Key)?.Invoke()
+                  ?? PortBinding.FromSpec(standard.Key, spec).RequireBinding();
             // 记账单一实现：经目录记录装饰（P8），使内联调用对 Port(<条目键>) 投影可见。
             var recorded = _catalog.Decorate(standard.Key, binding);
             var result = recorded.InvokeAsync(BuildInput(request, standard.Key)).AsTask().GetAwaiter().GetResult();

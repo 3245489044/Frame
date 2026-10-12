@@ -18,6 +18,7 @@
       H12 通用传递框架编排单源：transfer-contribute/transfer-dispatch.ushar 各恰 1 条 [Flow]；TransferFlow 经模板基类转发（无自持编排）。
       H13 通用传递框架词表单源：字段/稳定度/载荷标记 ∈ Config/nodes/transfer.ushar。
       H14 通用传递框架入口注册：组合根注入 ITransferFlow + TransferOpsServices。
+      H19 档案段归属（band ownership）：task = 执行体施工段集 ∧ history = 容器/主循环段集；format 恒首段；l0-common 两档案常驻（§task↔history 段归属整理）。
     模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
 .PARAMETER Check
     校验模式：违规 → 退出码 1。
@@ -31,7 +32,7 @@ function Find-RepoRoot {
     $d = $PSScriptRoot
     while ($d -and -not (Test-Path (Join-Path $d 'Projects\Plug\Agent'))) { $d = Split-Path $d -Parent }
     if ($d) { return $d }
-    return 'D:\Project\Main'
+    throw '[HistoryAssemblySurface] 无法定位仓库根（上溯未找到含 Projects\Plug\Agent 的目录）'
 }
 
 $repoRoot = Find-RepoRoot
@@ -176,8 +177,42 @@ $hostSrc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\HostHisto
 if ($hostSrc -notmatch 'GetStatusAsync') { Add-Violation 'H18' '宿主供数适配器未经 GetStatusAsync 读任务池状态（单源）' }
 if ((Read-Text $srcPath) -notmatch 'poolStatus') { Add-Violation 'H18' '供数口缺 poolStatus 注入（任务池状态应经委托单源）' }
 
+# H19 档案段归属（band ownership）：task = 执行体（worker 施工）段集；history = 容器/主循环段集；format 恒首段。
+$taskAllow = @('format', 'l0-common', 'l0-system', 'l0-loop', 'l0-logic', 'l0-node-port')
+$historyAllow = @('format', 'l0-common', 'l0-node-port', 'l0-history', 'l1-region-read', 'l0-orchestration')
+$taskBands = $null
+$historyBands = $null
+foreach ($line in ($profileCfgText -split "`r?`n")) {
+    $t = $line.Trim()
+    if ($t -match '^\[Profile\]\s*task\s*:\s*bands=([^|]+)') {
+        $taskBands = @(($Matches[1].Trim() -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    elseif ($t -match '^\[Profile\]\s*history\s*:\s*bands=([^|]+)') {
+        $historyBands = @(($Matches[1].Trim() -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+}
+if (-not $taskBands) { Add-Violation 'H19' 'task 档案缺 bands 声明' }
+if (-not $historyBands) { Add-Violation 'H19' 'history 档案缺 bands 声明' }
+if ($taskBands -and $taskBands[0] -ne 'format') { Add-Violation 'H19' 'task 首段须为 format（FormatInstructionLocality）' }
+if ($historyBands -and $historyBands[0] -ne 'format') { Add-Violation 'H19' 'history 首段须为 format（FormatInstructionLocality）' }
+foreach ($b in $taskBands) {
+    if ($taskAllow -notcontains $b) { Add-Violation 'H19' "task 越档段：$b（执行体施工段集外）" }
+}
+foreach ($b in $historyBands) {
+    if ($historyAllow -notcontains $b) { Add-Violation 'H19' "history 越档段：$b（容器/主循环段集外）" }
+}
+foreach ($b in @('l0-system', 'l0-loop', 'l0-logic')) {
+    if ($historyBands -contains $b) { Add-Violation 'H19' "history 混入 worker 施工段：$b" }
+}
+foreach ($b in @('l1-region-read', 'l0-orchestration')) {
+    if ($taskBands -contains $b) { Add-Violation 'H19' "task 混入容器/主循环段：$b" }
+}
+if ($taskBands -notcontains 'l0-common' -or $historyBands -notcontains 'l0-common') {
+    Add-Violation 'H19' 'l0-common 须同时常驻 task 与 history（framework-base 通用不变式单源）'
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H14 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H19 全过）"
     exit 0
 }
 

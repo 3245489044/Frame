@@ -67,6 +67,12 @@
         Note   = 'spec 生成/手写分离边界（R4 SEP）：源码树零生成物 / obj 零第二生成物（K2）/ 生成码头注释 / 源⇄产物双向 / manifest 一致性（条件判据）；基线 Baselines\SpecGeneratedBoundary.psd1；-Warn 为回退开关'
     }
 
+    SpecPortLedger = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'spec 端口台账漂移守卫（R3）：用例 given ports 引用键 ⊆ 端口台账（Standards\ports\*.specs 的 port <键>）∧ 内联 chain 端口 impl.productFields ⊇ out.fields ∧ 正/负对照；治簇 A「绑定未登记端口仅运行期可见」'
+    }
+
     DeclaredBundle = @{
         Args   = @{ Check = $true }
         Path   = 'Frame\PowerShellScript\Operation\DSL\Check-DeclaredBundle.ps1'

@@ -14,12 +14,6 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlKeyGuard
 {
-    /// <summary>框架认可的稳定键属性（与 BridgeScript.__pk 读取集同源）。</summary>
-    public static readonly IReadOnlyList<string> StableKeyAttributes = new[]
-    {
-        "data-key", "data-name", "data-history", "data-session", "data-round", "data-pane", "id",
-    };
-
     /// <summary>details 开标签（判据载体）。</summary>
     private static readonly Regex DetailsTag = new(@"<details\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -32,12 +26,12 @@ public static class HtmlKeyGuard
         {
             var tag = m.Value;
             var hasKey = false;
-            foreach (var attr in StableKeyAttributes)
+            foreach (var attr in HtmlKey.Attributes)
             {
                 if (tag.IndexOf(attr + "=", StringComparison.OrdinalIgnoreCase) >= 0) { hasKey = true; break; }
             }
             if (!hasKey)
-                violations.Add(templateName + ": <details> 缺稳定键（需 " + string.Join("/", StableKeyAttributes) + " 之一；禁位置回退）");
+                violations.Add(templateName + ": <details> 缺稳定键（需 " + string.Join("/", HtmlKey.Attributes) + " 之一；禁位置回退）");
         }
         return violations;
     }
@@ -54,11 +48,15 @@ public static class HtmlKeyGuard
 
     /// <summary>强制校验：有违规即 fail-fast 抛 <see cref="InvalidOperationException"/>（含修复引导）。</summary>
     public static void Enforce(IReadOnlyDictionary<string, string>? templates)
+        => Enforce(ValidateAll(templates));
+
+    /// <summary>强制校验（复用已有扫描结果）：非空即抛——供装配期"先取违规明细做诊断、再单次抛出"，
+    /// 消除 `ValidateAll` + `Enforce` 的双重扫描（C1 冗余）。</summary>
+    public static void Enforce(IReadOnlyList<string>? violations)
     {
-        var v = ValidateAll(templates);
-        if (v.Count > 0)
+        if (violations is { Count: > 0 })
             throw new InvalidOperationException(
                 "HTML 模板键守卫失败（缺稳定键的 <details> 在重渲染后展开态无法按 key 恢复）：\n - " +
-                string.Join("\n - ", v));
+                string.Join("\n - ", violations));
     }
 }

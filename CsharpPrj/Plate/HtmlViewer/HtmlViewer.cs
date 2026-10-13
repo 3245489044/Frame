@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using UiBackend.Html;
+using UiBackend.Abstractions;
 
 namespace Plate.HtmlViewer;
 
@@ -23,7 +24,7 @@ namespace Plate.HtmlViewer;
 /// 经 <see cref="CoreWebView2.WebMessageReceived"/> 收取后 <see cref="MessageReceived"/> 上报（已 marshal 回 UI 线程）。
 /// 未订阅事件时仍是纯展示控件，行为向后兼容。
 /// </remarks>
-public sealed class HtmlViewer : WebView2, IHtmlChannel
+public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness
 {
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _ready;
@@ -370,6 +371,20 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
         // 否则 ExecuteScriptAsync 返回误导性 null，掩盖「点击桥注入失败」根因（见日志 click → null 假象）。
         if (!await _bridgeHost.EnsureBridgeLoadedAsync(ct))
             return "BRIDGE_NOT_READY";
+        // 自愈（防部分注入）：patch/reconcile 依赖键控对齐模块 window.__uiReconcile 与桥模块清单；
+        // 若注入在点击桥之后中断，区域写会返回 STATE_NOT_READY → 调用方整页回退（折叠态重置）。
+        // 此处按模块清单探测缺失即补注入全部文档脚本（幂等守卫防重复），使写原语可自愈而非静默降级。
+        if ((op == DomOps.Patch || op == DomOps.Reconcile) && CoreWebView2 is not null)
+        {
+            var modules = BridgeModuleManifest.Parse(
+                await CoreWebView2.ExecuteScriptAsync(BridgeModuleManifest.QueryScript));
+            if (!modules.IsComplete)
+            {
+                ReportDiagnostics("HtmlChannel_inject_bridge",
+                    $"桥模块未全就绪（缺 {modules.Missing}）→ 补注入全部文档脚本自愈（防区域写 STATE_NOT_READY 降级）。");
+                await _bridgeHost.InjectAllAsync(ct);
+            }
+        }
         // L2 执行层统一渲染 __domBridge.handle 占位模板（参数 JSON 序列化，防引号转义漂移）并执行。
         return await _scriptExecutor.ExecuteHandleAsync(op, name, value, ct);
     }
@@ -390,6 +405,22 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
         catch (Exception)
         {
             return false;
+        }
+    }
+
+    /// <summary>文档级行为模块就绪查询（L1 <see cref="IUiBridgeReadiness"/> 的 HTML 落地）——回读 <c>document.__bridgeModules</c> 清单。</summary>
+    private async Task<UiBridgeModuleState> GetBridgeModulesCoreAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (CoreWebView2 is null) return UiBridgeModuleState.None;
+        try
+        {
+            var raw = await CoreWebView2.ExecuteScriptAsync(BridgeModuleManifest.QueryScript);
+            return BridgeModuleManifest.Parse(raw);
+        }
+        catch (Exception)
+        {
+            return UiBridgeModuleState.None;
         }
     }
 
@@ -623,6 +654,9 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel
 
     Task<bool> IHtmlChannel.IsBridgeReadyAsync(CancellationToken ct)
         => RunOnUiThreadAsync(c => new ValueTask<bool>(IsBridgeReadyCoreAsync(c)), ct);
+
+    Task<UiBridgeModuleState> IUiBridgeReadiness.GetBridgeModulesAsync(CancellationToken ct)
+        => RunOnUiThreadAsync(c => new ValueTask<UiBridgeModuleState>(GetBridgeModulesCoreAsync(c)), ct);
 
     /// <summary>宿主 → 页面反向推送（事件驱动刷新）：PostWebMessageAsJson 投递到活 document，页面脚本经 message 事件接收。
     /// 未就绪 / 无 CoreWebView2 / 投递异常 → false + 结构化诊断（不冒充成功）。</summary>

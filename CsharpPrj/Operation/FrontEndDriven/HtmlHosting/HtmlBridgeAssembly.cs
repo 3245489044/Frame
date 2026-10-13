@@ -124,7 +124,8 @@ public static class HtmlBridgeAssembly
             host.DiagnosticsSink?.Invoke("HtmlKeyGuard",
                 $"模板键守卫：{keyViolations.Count} 处 <details> 缺稳定键 → 重渲染后展开态不保持（P0）。首项: {keyViolations[0]}");
             // S3/I2 键确定性：由非阻断诊断升级为装配期 fail-fast（含修复引导；键由渲染层派生，不靠作者手写）。
-            HtmlKeyGuard.Enforce(templates);
+            // 复用已有扫描结果（C1）：单次 ValidateAll → 诊断 → Enforce(违规集)，消除双重扫描。
+            HtmlKeyGuard.Enforce(keyViolations);
         }
         // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS；后续 JSON 结构化后再拆 token），
         // 经 ConfigThemeProvider + HtmlTheme.AttachProvider 装配（优先于旧 ConfigHtmlTheme 的 IHtmlTheme 路径）。

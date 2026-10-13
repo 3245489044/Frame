@@ -1,0 +1,29 @@
+#nullable enable
+
+using System.Collections.Generic;
+
+namespace UiBackend.Abstractions;
+
+/// <summary>写回结果状态（协调器单点裁决产物；类型化，替代裸 bool / 哨兵串）。</summary>
+public enum UiWriteStatus
+{
+    /// <summary>无写回动作（Skip）。</summary>
+    Nothing = 0,
+    /// <summary>全部目标已生效。</summary>
+    Applied,
+    /// <summary>部分目标生效（逐目标独立，不回退整体）。</summary>
+    Partial,
+    /// <summary>全部目标失败。</summary>
+    Failed,
+    /// <summary>按指纹/内容去重跳过。</summary>
+    Skipped,
+}
+
+/// <summary>写回结果（协调器单点裁决；Written/Skipped = 具名目标，Changed = DOM 变更计数，Fallback = 显式回退动作）。</summary>
+public sealed record UiWriteResult(
+    UiWriteStatus Status,
+    IReadOnlyList<string> Written,
+    IReadOnlyList<string> Skipped,
+    int Changed = 0,
+    string? Fallback = null,
+    string? TraceId = null);

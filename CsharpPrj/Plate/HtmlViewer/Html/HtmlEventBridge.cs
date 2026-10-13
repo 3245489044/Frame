@@ -44,10 +44,8 @@ public sealed class HtmlEventBridge
         var (eventName, controlName, eventPayload) = ParsePayload(payload);
         Report("EventBridge_route", $"负载 event={eventName}, name={controlName}");
         // 域隔离解析：data-event 优先 page: 域（页内元素），其次 host: 域（物理控件），回退裸名（兼容裸名索引/测试桩）。
-        if (string.IsNullOrWhiteSpace(controlName)
-            || (!_controlsByName.TryGetValue(controlName, out var control)
-                && !_controlsByName.TryGetValue(HtmlDeclarationParser.PageKey(controlName), out control)
-                && !_controlsByName.TryGetValue(HtmlDeclarationParser.HostKey(controlName), out control)))
+        // 域隔离解析（单一入口）：裸名 → page: → host:（B1 收敛）。
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
             return $"未找到控件: {controlName}";
 
         return await RunBindingLoopAsync(control, eventName, eventPayload, ct).ConfigureAwait(false);
@@ -121,9 +119,9 @@ public sealed class HtmlEventBridge
     public async Task<string> HandleHostMessageAsync(string hostControlName, string messagePayload, CancellationToken ct = default)
     {
         Report("EventBridge_route", $"宿主消息 控件={hostControlName}");
-        // 域隔离解析：宿主控件经 host: 域键定位，回退裸名（兼容裸名索引/测试桩）。
-        if (!_controlsByName.TryGetValue(hostControlName, out var control)
-            && !_controlsByName.TryGetValue(HtmlDeclarationParser.HostKey(hostControlName), out control))
+        // 域隔离解析（单一入口）：宿主控件 = host 域偏好（裸名 → host:，不含 page）。
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, hostControlName,
+                HtmlDeclarationParser.ControlDomain.Host, out var control))
             return $"未找到控件: {hostControlName}";
 
         return await RunBindingLoopAsync(control, "message", messagePayload, ct).ConfigureAwait(false);
@@ -172,10 +170,22 @@ public sealed class HtmlEventBridge
         var output = bindings?.Output;
         if (string.IsNullOrWhiteSpace(output))
             return;
+        // L2 类型化：空结果 = 无内容写回（取代 NoWrite 哨兵串；调用方已按区域直接写回即返回空串）。
+        if (string.IsNullOrEmpty(result))
+        {
+            Report("EventBridge_writeback", $"目标 {output} → 跳过（空结果 = 无写回内容）");
+            return;
+        }
         if (_hostWriters.TryGetValue(output, out var writer))
         {
             Report("EventBridge_writeback", $"目标 {output} → hostWriter");
             await writer(result).ConfigureAwait(false);
+            return;
+        }
+        // D6：页内 DOM set 仅限**已声明控件**（白名单）——output 名漂移（未声明）不落地，避免错误文本写坏页面。
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, output, out _))
+        {
+            Report("EventBridge_writeback", $"目标 {output} → 跳过（未声明控件，DOM set 不兜底）");
             return;
         }
         Report("EventBridge_writeback", $"目标 {output} → DOM set");

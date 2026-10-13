@@ -41,11 +41,10 @@ public sealed class HtmlScriptHost
 
     private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
 
-    /// <summary>文档级行为脚本清单（点击桥 + 补丁态 + 键控对齐引擎 + 通用轮询/刷新桥），各自带 document 级幂等守卫、独立注入互不干扰；导航后随 <see cref="EnsureBridgeLoadedAsync"/> 统一注入。</summary>
+    /// <summary>文档级行为脚本清单（点击桥 + 键控对齐引擎 + 通用轮询/刷新桥），各自带 document 级幂等守卫、独立注入互不干扰；导航后随 <see cref="EnsureBridgeLoadedAsync"/> 统一注入。</summary>
     private static readonly string[] DocumentScripts =
     {
         HtmlAssetKeys.BridgeScript,
-        HtmlAssetKeys.BridgePatchStateScript,
         HtmlAssetKeys.UiReconcileScript,
         HtmlAssetKeys.RefreshBridgeScript,
     };
@@ -87,5 +86,18 @@ public sealed class HtmlScriptHost
         }
         Report("HtmlChannel_inject_bridge", await _executor.GetBridgeDiagnosisAsync(ct).ConfigureAwait(false));
         return false;
+    }
+
+    /// <summary>
+    /// 无条件补注入全部文档脚本（各自 document 级幂等守卫 → 重复执行不叠加）——用于「就绪标志已置但补丁态/刷新桥模块缺失」的**部分注入自愈**：
+    /// 就绪查询只认 <c>document.__domBridgeInstalled</c>（点击桥），若注入在点击桥之后中断，patch 会永久降级（STATE_NOT_READY）。
+    /// </summary>
+    public async Task InjectAllAsync(CancellationToken ct = default)
+    {
+        foreach (var key in DocumentScripts)
+        {
+            ct.ThrowIfCancellationRequested();
+            await _channel.ExecuteScriptAsync(_assets.GetScript(key), ct).ConfigureAwait(false);
+        }
     }
 }

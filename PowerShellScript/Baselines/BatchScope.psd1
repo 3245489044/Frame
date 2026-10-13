@@ -172,7 +172,16 @@
     #   均在新单 allowSet 内。上一系列（G1：框架层缺陷与 Usharp 集成）已交付，其授权单文件内容保留不变。
     #   恢复 = 回填 G1 单原值（见下方注释）。
     # Manifest(G1) = @{ Value = 'Docs\analysis\2026\10\10.12\2026-10-12-框架层缺陷与Usharp集成.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.13\2026-10-13-Agent红清单收口.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v31（2026-10-13）：单指针切换至「刷新/写回调用链结构缺陷与模块化重构（RB）」授权单（active=[RB]）。
+    #   切换理由 = 用户转入实施《2026-10-13-刷新写回调用链-结构缺陷与模块化重构方案.md》：改动落在
+    #   Frame/CsharpPrj/Plate/HtmlViewer/**（DomOps/HtmlBackendRuntime/HtmlKeyGuard/Assets 内嵌 JS）·
+    #   Frame/CsharpPrj/Operation/FrontEndDriven/**（HtmlBridgeAssembly）· Frame/CsharpPrj/Share/Composition/**
+    #   （RefreshPublisher）· Projects/Plug/Agent/src/**（ConversationViewService/AgentUiLibraryConversation）·
+    #   Projects/Information/DrivenConfig/**（AgentRuntimeUI.json）· Environment/CentralTest/**，均在新单 allowSet 内。
+    #   上一系列（N3/N4/N5/GL 红清单收口）在途改动按新单 preexisting 登记，切换不误判。
+    #   恢复 = 回填 v30 的 Value。
+    # Manifest(v30) = @{ Value = 'Docs\analysis\2026\10\10.13\2026-10-13-Agent红清单收口.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-13-刷新写回调用链重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

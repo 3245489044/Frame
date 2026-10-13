@@ -44,6 +44,30 @@ public static class HtmlDeclarationParser
     /// <summary>把控件名提升到 page 域（htmlPage 内元素定位键）。</summary>
     public static string PageKey(string name) => PageDomainPrefix + name;
 
+    /// <summary>域解析偏好（B1/A8 单一入口）：Any=裸名→page→host；Host=裸名→host（不含 page）；Page=裸名→page（不含 host）。</summary>
+    public enum ControlDomain { Any, Host, Page }
+
+    /// <summary>
+    /// 控件定位单一入口（消除 4 处重复的 `TryGetValue(裸名)/HostKey/PageKey` 链）：
+    /// 裸名优先（兼容裸名索引/测试桩），再按 <paramref name="domain"/> 偏好回退域键；命中返回 true。
+    /// </summary>
+    public static bool TryResolveControl(
+        IReadOnlyDictionary<string, ControlConfig>? index, string? name, out ControlConfig? control)
+        => TryResolveControl(index, name, ControlDomain.Any, out control);
+
+    /// <inheritdoc cref="TryResolveControl(IReadOnlyDictionary{string,ControlConfig}?,string?,out ControlConfig?)"/>
+    public static bool TryResolveControl(
+        IReadOnlyDictionary<string, ControlConfig>? index, string? name, ControlDomain domain, out ControlConfig? control)
+    {
+        control = null;
+        if (index is null || string.IsNullOrWhiteSpace(name)) return false;
+        if (index.TryGetValue(name, out control)) return true;
+        if (domain != ControlDomain.Host && index.TryGetValue(PageKey(name), out control)) return true;
+        if (domain != ControlDomain.Page && index.TryGetValue(HostKey(name), out control)) return true;
+        control = null;
+        return false;
+    }
+
     /// <summary>控件树 → name 索引（递归全部 view，大小写不敏感）。[搬运自 HtmlBackendRuntime.BuildControlIndex 前身]</summary>
     /// 仅索引物理控件（view 顶层 + 面板嵌套），不含 htmlPage 内部元素（页内元素经 <see cref="BuildDomainControlIndex"/> 的 page 域索引）。</summary>
     public static IReadOnlyDictionary<string, ControlConfig> BuildControlIndex(UIConfiguration config)

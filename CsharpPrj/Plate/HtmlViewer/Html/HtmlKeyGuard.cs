@@ -17,7 +17,7 @@ public static class HtmlKeyGuard
     /// <summary>框架认可的稳定键属性（与 BridgeScript.__pk 读取集同源）。</summary>
     public static readonly IReadOnlyList<string> StableKeyAttributes = new[]
     {
-        "data-name", "data-history", "data-session", "data-round", "data-pane", "id",
+        "data-key", "data-name", "data-history", "data-session", "data-round", "data-pane", "id",
     };
 
     /// <summary>details 开标签（判据载体）。</summary>

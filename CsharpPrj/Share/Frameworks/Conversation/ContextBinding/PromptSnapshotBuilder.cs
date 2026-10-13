@@ -16,7 +16,8 @@ public static class PromptSnapshotBuilder
     public static PromptSnapshot Build(
         string l0, string skillBlock, string l1, string l2,
         IReadOnlyList<string>? selectedSkills,
-        string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null)
+        string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
+        IReadOnlyList<PromptBand>? l0Bands = null)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -26,9 +27,22 @@ public static class PromptSnapshotBuilder
             .Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
+        // L0 分段：保留技能名 + 正文（去空段）；空 = 未分段（回退单一 prompt.l0）。
+        var bands = (l0Bands ?? Array.Empty<PromptBand>())
+            .Where(b => b is not null && !string.IsNullOrWhiteSpace(b.Text))
+            .ToArray();
 
         var bindings = new List<MessageBinding>(6);
-        Add(bindings, AnchorKey.PromptL0, l0);
+        // L0 段：分段时逐段发射 prompt.l0.<技能名>（UI 一文件一气泡）；未分段回退单一 prompt.l0。
+        if (bands.Length > 0)
+        {
+            foreach (var band in bands)
+                Add(bindings, AnchorKey.PromptL0Band(band.Name), band.Text);
+        }
+        else
+        {
+            Add(bindings, AnchorKey.PromptL0, l0);
+        }
         Add(bindings, AnchorKey.PromptL1, l1);
         Add(bindings, AnchorKey.PromptL2, l2);
         Add(bindings, AnchorKey.SkillCombined, skillBlock);
@@ -44,6 +58,7 @@ public static class PromptSnapshotBuilder
             L1 = l1 ?? string.Empty,
             L2 = l2 ?? string.Empty,
             SelectedSkills = skills,
+            L0Bands = bands,
             ToolBlock = toolBlock ?? string.Empty,
             SelectedTools = tools,
             Mode = mode ?? string.Empty,

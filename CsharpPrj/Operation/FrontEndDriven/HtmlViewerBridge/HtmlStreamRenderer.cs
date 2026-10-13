@@ -67,7 +67,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             {
                 ["round"] = round.ToString(),
                 ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
-                ["messages"] = GroupByNearestAnchor(group).Select(ToAnchorRow).ToList<object?>(),
+                ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
             };
             sb.Append(HtmlTemplateEngine.Render(t, "round", row));
         }
@@ -77,9 +77,10 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     /// <summary>构造单条消息行数据模型（供 message 模板绑定）。C# 只产原始数据（role/round/stage/subagent/text），
     /// 角色类/角标/summary 结构全部由 message 模板的条件绑定承担；文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
     /// <paramref name="isAnchor"/>=true 时置锚点位（模板据此选择"气泡 + 下拉栏附属"分支）。</summary>
-    private Dictionary<string, object?> ToMessageRow(ConversationRenderItem m, bool isAnchor = false)
+    private Dictionary<string, object?> ToMessageRow(ConversationRenderItem m, bool isAnchor = false, string? key = null)
         => new Dictionary<string, object?>
         {
+            ["key"] = key ?? string.Empty,
             ["role"] = m.Role.ToString().ToLowerInvariant(),
             ["round"] = m.Round.ToString(),
             ["stage"] = m.Stage ?? string.Empty,
@@ -134,23 +135,29 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         return result;
     }
 
-    /// <summary>锚点行模型：消息字段 + 下拉栏附属（<c>attachCount</c>/<c>attach</c>）；无附属时不渲染下拉栏。</summary>
+    /// <summary>锚点行模型：消息字段 + 下拉栏附属（<c>attachCount</c>/<c>attach</c>）；无附属时不渲染下拉栏。
+    /// <paramref name="groupIndex"/> 参与派生稳定键（S3/I2：键由渲染层产出，禁作者手写），供 reconciler 按 key 复用节点。</summary>
     private IReadOnlyDictionary<string, object?> ToAnchorRow(
-        (ConversationRenderItem Item, List<ConversationRenderItem> Attach) entry)
+        (ConversationRenderItem Item, List<ConversationRenderItem> Attach) entry, int round, int groupIndex)
     {
-        var row = ToMessageRow(entry.Item, isAnchor: IsAnchor(entry.Item.Role));
+        var key = "m:" + round + ":" + groupIndex;
+        var row = ToMessageRow(entry.Item, isAnchor: IsAnchor(entry.Item.Role), key: key);
         if (entry.Attach.Count > 0)
         {
             row["attachCount"] = entry.Attach.Count.ToString();
-            row["attach"] = entry.Attach.Select(ToAttachRow).ToList<object?>();
+            row["attach"] = entry.Attach
+                .Select((m, ai) => ToAttachRow(m, "a:" + round + ":" + groupIndex + ":" + ai))
+                .ToList<object?>();
         }
         return row;
     }
 
-    /// <summary>附属项行模型（下拉栏子项）：与消息行同源字段，结构与编码由 attachItem 模板承担。</summary>
-    private IReadOnlyDictionary<string, object?> ToAttachRow(ConversationRenderItem m)
+    /// <summary>附属项行模型（下拉栏子项）：与消息行同源字段，结构与编码由 attachItem 模板承担；
+    /// <paramref name="key"/> 为渲染层派生的稳定键（供 reconciler 复用）。</summary>
+    private IReadOnlyDictionary<string, object?> ToAttachRow(ConversationRenderItem m, string key)
         => new Dictionary<string, object?>
         {
+            ["key"] = key,
             ["role"] = m.Role.ToString().ToLowerInvariant(),
             ["round"] = m.Round.ToString(),
             ["stage"] = m.Stage ?? string.Empty,

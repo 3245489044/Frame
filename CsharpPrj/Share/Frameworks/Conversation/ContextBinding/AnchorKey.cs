@@ -28,6 +28,10 @@ public readonly record struct AnchorKey(string Value)
     /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
     public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 
+    /// <summary>L0 分段锚点（按文件/技能拆分）：<c>prompt.l0.&lt;技能名&gt;</c>（如 prompt.l0.l0-format）。
+    /// 命中 R5 白名单前缀 <c>prompt.l</c>；每段唯一（R4）。</summary>
+    public static AnchorKey PromptL0Band(string skillName) => new($"prompt.l0.{skillName}");
+
     /// <summary>对话序号锚点 history.{seq}（ur_histories 消息按序编号）。</summary>
     public static AnchorKey History(int seq) => new($"history.{seq}");
 

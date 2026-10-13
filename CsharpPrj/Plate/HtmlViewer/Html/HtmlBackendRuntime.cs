@@ -225,6 +225,21 @@ public sealed class HtmlBackendRuntime
         return ok;
     }
 
+    /// <summary>按叶子节点定点写回（S5/L3）：经受控 <c>DomOps.Set</c> 仅更新命中的单元素文本（如 elapsed 徽章），
+    /// 不触发区域重渲染；用于心跳刷新只改易变叶子的场景（DOM 变更计数=1）。name 命中失败返回 false。
+    /// <para><see cref="DomOps.Set"/> 语义：表单元素写 value，<c>.host</c> 写 innerHTML，其余写 textContent。</para></summary>
+    public async Task<bool> WriteLeafAsync(string name, string value, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var status = HtmlElementNode.UnwrapString(
+            await _channel.ExecuteAsync(DomOps.Set, name, value, ct).ConfigureAwait(false));
+        var ok = string.Equals(status, "OK", StringComparison.Ordinal);
+        Report("EventBridge_writeback", ok
+            ? $"叶子写回 {name}: OK"
+            : $"叶子写回 {name} 未命中（{status}）");
+        return ok;
+    }
+
     /// <summary>写回方式解析（声明驱动，单一真源）：宿主控件声明 <c>writeback="patch"</c> → 内容补丁；缺省 navigate（整页重载，零回归）。
     /// 域隔离同事件桥：先裸名、再 host: 域键。</summary>
     private HtmlWriteBackMode ResolveWriteBackMode(string hostControlName)

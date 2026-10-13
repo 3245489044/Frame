@@ -108,7 +108,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "document.__domBridgeStateInstalled=true;"
         // P0：无稳定键 → 不保持（禁位置回退 p:；缺失即放弃该节点状态保持）
         + "function __pk(n,root){"
-        + "var ks=['data-name','data-history','data-session','data-round','data-pane','id'];"
+        + "var ks=['data-key','data-name','data-history','data-session','data-round','data-pane','id'];"
         + "for(var i=0;i<ks.length;i++){var v=(n.getAttribute?n.getAttribute(ks[i]):null);if(v){return ks[i]+'='+v;}}"
         + "return '';}"
         + "function __fk(root,key){"
@@ -139,7 +139,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "for(var a=0;a<st.anc.length;a++){var an=st.anc[a];if(an.b){an.n.scrollTop=an.n.scrollHeight;}else{an.n.scrollTop=an.t;an.n.scrollLeft=an.l;}}"
         + "if(st.doc){var se2=document.scrollingElement||document.documentElement;var rs=function(){if(se2){se2.scrollTop=st.doc[0];se2.scrollLeft=st.doc[1];}window.scrollTo(st.doc[3],st.doc[2]);};rs();if(window.requestAnimationFrame){window.requestAnimationFrame(rs);}}"
         + "if(st.focus){var f=__fk(root,st.focus);if(f&&f.focus){try{f.focus();if(st.sel&&f.setSelectionRange){f.setSelectionRange(st.sel[0],st.sel[1]);}}catch(e){}}}"
-        + "function __applyPatch(root,html){var st=__savePatch(root);root.innerHTML=html;__restorePatch(root,st);return 'OK';}"
+        // S4：启用 reconciler 时改走递归键控对齐（展开/焦点/滚动天然保留，免 save/restore）；未启用回退 heuristics（零回归）。
+        + "function __applyPatch(root,html){if(window.__uiReconcile&&window.__uiReconcileEnabled){return window.__uiReconcile.apply(root,html);}var st=__savePatch(root);root.innerHTML=html;__restorePatch(root,st);return 'OK';}"
         + "window.__domBridgeState={pk:__pk,fk:__fk,savePatch:__savePatch,restorePatch:__restorePatch,applyPatch:__applyPatch};"
         + "})();";
 
@@ -219,25 +220,40 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "fallbackTimer=window.setInterval(function(){if(pushSeen){stopFallback();return;}var n=pickNode();if(n){fire(n);}},iv);}"
         + "})();";
 
-    /// <summary>键控对齐引擎（P3 Reconciler；可选组件，默认关）：按 data-key 对齐复用 DOM 节点（保留 &lt;details&gt;.open），
-    /// 未启用则退化为 innerHTML 替换（零回归）。启用经 <c>window.__uiReconcile.enable()</c>。document 级幂等守卫 <c>__uiReconcileInstalled</c>。</summary>
+    /// <summary>键控对齐引擎（P3 Reconciler；可选组件，默认关）：**递归**按 data-key 对齐复用 DOM 节点
+    /// （保留 &lt;details&gt;.open / 焦点 / 滚动，免 __savePatch 启发式）；未启用则退化为 innerHTML 替换（零回归）。
+    /// 启用经 <c>window.__uiReconcile.enable()</c>。document 级幂等守卫 <c>__uiReconcileInstalled</c>。</summary>
     internal const string UiReconcileScript =
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
+        + "function keyOf(n){return (n&&n.getAttribute)?n.getAttribute('data-key'):null;}"
+        + "function syncAttrs(oldN,newN){"
+        + "var na=newN.attributes;for(var i=0;i<na.length;i++){var a=na[i];if(a.name==='open'){continue;}if(oldN.getAttribute(a.name)!==a.value){oldN.setAttribute(a.name,a.value);}}"
+        + "var oa=oldN.attributes;for(var j=oa.length-1;j>=0;j--){var nm=oa[j].name;if(nm==='open'){continue;}if(!newN.hasAttribute(nm)){oldN.removeAttribute(nm);}}}"
+        + "function reconcile(oldN,newN){"
+        + "if(oldN.tagName!==newN.tagName){return newN;}"
+        + "var wasOpen=(oldN.tagName==='DETAILS')?oldN.open:null;"
+        + "syncAttrs(oldN,newN);"
+        + "if(oldN.tagName==='DETAILS'){oldN.open=(wasOpen||newN.hasAttribute('open'))?true:false;}"
+        + "var hasElem=false;for(var c=0;c<newN.childNodes.length;c++){if(newN.childNodes[c].nodeType===1){hasElem=true;break;}}"
+        + "if(!hasElem){if(oldN.textContent!==newN.textContent){oldN.textContent=newN.textContent;}return oldN;}"
+        + "reconcileChildren(oldN,newN);return oldN;}"
+        + "function reconcileChildren(oldParent,newParent){"
+        + "var kids=[];var i;for(i=0;i<oldParent.childNodes.length;i++){kids.push(oldParent.childNodes[i]);}"
+        + "var byKey={};var noKey=[];"
+        + "for(i=0;i<kids.length;i++){var c=kids[i];if(c.nodeType!==1){if(c.parentNode){c.parentNode.removeChild(c);}continue;}var k=keyOf(c);if(k){byKey[k]=c;}else{noKey.push(c);}}"
+        + "for(var j=0;j<newParent.childNodes.length;j++){var nn=newParent.childNodes[j];if(nn.nodeType!==1){continue;}var nk=keyOf(nn);var re=null;"
+        + "if(nk&&byKey[nk]){re=byKey[nk];delete byKey[nk];}else if(!nk&&noKey.length){re=noKey.shift();}"
+        + "if(re){oldParent.appendChild(reconcile(re,nn));}else{oldParent.appendChild(nn);}}"
+        + "for(var k2 in byKey){var e=byKey[k2];if(e.parentNode){e.parentNode.removeChild(e);}}"
+        + "for(var m=0;m<noKey.length;m++){var ee=noKey[m];if(ee.parentNode){ee.parentNode.removeChild(ee);}}}"
         + "function apply(host,html){"
         + "if(!host){return 'NOT_FOUND';}"
         + "if(!window.__uiReconcileEnabled){host.innerHTML=html;return 'OK';}"
         + "var tmp=document.createElement('div');tmp.innerHTML=html;"
-        + "var old=host.children;var byKey={};"
-        + "for(var i=0;i<old.length;i++){var k=old[i].getAttribute?old[i].getAttribute('data-key'):null;if(k){byKey[k]=old[i];}}"
-        + "var out=document.createDocumentFragment();"
-        + "for(var j=0;j<tmp.children.length;j++){"
-        + "var nc=tmp.children[j];var k2=nc.getAttribute?nc.getAttribute('data-key'):null;var re=k2?byKey[k2]:null;"
-        + "if(re){var wasOpen=re.open;if(re.parentNode){re.parentNode.removeChild(re);}if(wasOpen&&nc.tagName==='DETAILS'){nc.open=true;}}"
-        + "out.appendChild(nc);}"
-        + "host.innerHTML='';host.appendChild(out);return 'OK';}"
-        + "window.__uiReconcile={apply:apply,enable:function(){window.__uiReconcileEnabled=true;}};"
+        + "reconcileChildren(host,tmp);return 'OK';}"
+        + "window.__uiReconcile={apply:apply,enable:function(){window.__uiReconcileEnabled=true;},disable:function(){window.__uiReconcileEnabled=false;}};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>
@@ -361,5 +377,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         ".ui-root .tab.active{background:#fff;border-bottom-color:#fff}" +
         ".ui-root .panes{flex:1 1 auto;position:relative;overflow:auto;box-sizing:border-box}" +
         ".ui-root .pane{display:none;position:relative;box-sizing:border-box}" +
-        ".ui-root .pane.active{display:block}";
+        ".ui-root .pane.active{display:block}" +
+        // S2/L1 布局隔离：区域容器限定 layout/style/paint，区域内替换不牵动区域外（收敛 __savePatch 强制布局读的 thrash）。
+        ".region{contain:layout style paint}";
 }

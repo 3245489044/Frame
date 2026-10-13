@@ -65,7 +65,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "switch(op){"
         + "case 'set':if(isForm){el.value=value;}else if(el.classList.contains('host')){el.innerHTML=value;}else{el.textContent=value;}return 'OK';"
         // patch（不重载文档）：目标=name 命中元素，缺省 document.body；委托补丁态模块（见 PatchStateScript），替换 innerHTML 前后恢复滚动/展开/焦点。
-        + "case 'patch':var pt=el||document.body;if(!pt){return 'NOT_FOUND';}if(!window.__domBridgeState){return 'STATE_NOT_READY';}window.__domBridgeState.applyPatch(pt,value);return 'OK';"
+        + "case 'patch':if(name&&!el){return 'NOT_FOUND';}var pt=el||document.body;if(!pt){return 'NOT_FOUND';}if(!window.__domBridgeState){return 'STATE_NOT_READY';}window.__domBridgeState.applyPatch(pt,value);return 'OK';"
         + "case 'get':if(isForm){return el.value;}else if(el.classList.contains('list')){var s=el.querySelector('li.selected');return s?s.textContent:'';}else{return el.textContent;}"
         + "case 'click':el.dispatchEvent(new MouseEvent('click',{bubbles:true}));return 'OK';"
         + "case 'bounds':var r=value?JSON.parse(value):null;if(r){el.style.position='absolute';el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';}return 'OK';"
@@ -227,7 +227,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
-        + "function keyOf(n){return (n&&n.getAttribute)?n.getAttribute('data-key'):null;}"
+        + "var __kk=['data-key','data-name','data-history','data-session','data-round','data-pane','id'];"
+        + "function keyOf(n){if(!n||!n.getAttribute){return null;}for(var i=0;i<__kk.length;i++){var v=n.getAttribute(__kk[i]);if(v){return __kk[i]+'='+v;}}return null;}"
         + "function syncAttrs(oldN,newN){"
         + "var na=newN.attributes;for(var i=0;i<na.length;i++){var a=na[i];if(a.name==='open'){continue;}if(oldN.getAttribute(a.name)!==a.value){oldN.setAttribute(a.name,a.value);}}"
         + "var oa=oldN.attributes;for(var j=oa.length-1;j>=0;j--){var nm=oa[j].name;if(nm==='open'){continue;}if(!newN.hasAttribute(nm)){oldN.removeAttribute(nm);}}}"

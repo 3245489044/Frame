@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 
 namespace Modules.Registry;
@@ -45,6 +46,58 @@ public static class ExtensionGenerationLayout
     /// <summary>代内 program 清单路径：<c>&lt;genRoot&gt;\gen-&lt;n&gt;\vm-program.json</c>。</summary>
     public static string ProgramManifestPath(string genRoot, int generation)
         => Path.Combine(GenerationDir(genRoot, generation), ProgramManifestFileName);
+
+    /// <summary>
+    /// 枚举代号（升序；只认 <c>gen-&lt;n&gt;</c>，n ≥ 1）—— 代目录坐标的**唯一定性来源**（装载面解析 / 保留策略共用）。
+    /// 目录缺失或无代 ⇒ 空表。
+    /// </summary>
+    public static IReadOnlyList<int> EnumerateGenerations(string genRoot)
+    {
+        var result = new List<int>();
+        if (string.IsNullOrWhiteSpace(genRoot) || !Directory.Exists(genRoot))
+            return result;
+
+        foreach (var dir in Directory.GetDirectories(genRoot))
+        {
+            var name = Path.GetFileName(dir);
+            if (name.Length <= GenerationDirPrefix.Length
+                || !name.StartsWith(GenerationDirPrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var digits = name.Substring(GenerationDirPrefix.Length);
+            if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n < 1)
+                continue;
+
+            result.Add(n);
+        }
+
+        result.Sort();
+        return result;
+    }
+
+    /// <summary>
+    /// 解析**最高代**目录及其 Agent 基座清单（装载面 = 代目录；VM-R12/D2 零复制装载）。
+    /// 目录名须匹配 <c>gen-&lt;n&gt;</c>（n ≥ 1）且含 <see cref="AgentManifestFileName"/>；无代 / 缺件 ⇒ false。
+    /// <b>确定性</b>（取最大 n），调用方须只读此处坐标，禁自写裸目录扫描。
+    /// </summary>
+    public static bool TryResolveLatestGenerationManifest(string genRoot, out int generation, out string manifestPath)
+    {
+        generation = 0;
+        manifestPath = string.Empty;
+
+        var generations = EnumerateGenerations(genRoot);
+        if (generations.Count == 0)
+            return false;
+
+        var latest = generations[generations.Count - 1];
+        var candidate = GenerationManifestPath(genRoot, latest);
+        if (!File.Exists(candidate))
+            return false;
+
+        generation = latest;
+        manifestPath = candidate;
+        return true;
+    }
 
     /// <summary>
     /// 组装按代清单：把基清单中的 Agent 基座替换为 <c>gen-&lt;n&gt;</c> 内的清单（其余沿用）。

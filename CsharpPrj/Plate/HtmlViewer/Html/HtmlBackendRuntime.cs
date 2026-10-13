@@ -50,6 +50,10 @@ public sealed class HtmlBackendRuntime
     /// <summary>写回方式声明值（ControlConfig.Writeback）→ 补丁模式。</summary>
     private const string PatchWritebackValue = "patch";
 
+    /// <summary>「不写回」哨兵（P2 区域化写回配套）：调用方已按区域直接 patch 时，事件桥返回值置为本串，
+    /// 写回层识别即跳过整页/整体 patch（避免区域写回后又被整体替换，消除双重写）。</summary>
+    public const string NoWriteSentinel = "\u0000__htmlviewer_no_write__";
+
     public HtmlBackendRuntime(
         IHtmlChannel channel,
         IReadOnlyDictionary<string, ControlConfig> declaration,
@@ -128,6 +132,11 @@ public sealed class HtmlBackendRuntime
         var writeMode = ResolveWriteBackMode(hostControlName);
         _eventBridge.RegisterHostWriter(hostControlName, async html =>
         {
+            if (string.Equals(html, NoWriteSentinel, StringComparison.Ordinal))
+            {
+                Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（调用方已按区域直接写回，NoWrite 哨兵）");
+                return;
+            }
             if (_lastWrite.TryGetValue(hostControlName, out var prev)
                 && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
             {
@@ -195,6 +204,25 @@ public sealed class HtmlBackendRuntime
         Readiness.HostWriterRegistered = true;
         Readiness.MessageSubscribed = true;
         return null;
+    }
+
+    /// <summary>按区域写回（I5 区域化写回，P2）：patch 具名区域容器（<c>DomOps.Patch name=region-*</c>，不重载文档）；
+    /// 内容未变按区域跳过（按区域去重）。返回 false = 未命中/补丁未生效（调用方据结果回退整页渲染）。</summary>
+    public async Task<bool> WriteRegionAsync(string regionName, string html, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(regionName)) return false;
+        if (_lastWrite.TryGetValue(regionName, out var prev)
+            && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
+            return true;
+        var status = HtmlElementNode.UnwrapString(
+            await _channel.ExecuteAsync(DomOps.Patch, regionName, html, ct).ConfigureAwait(false));
+        var ok = string.Equals(status, "OK", StringComparison.Ordinal);
+        if (ok)
+            _lastWrite[regionName] = new WriteRecord(html, true);
+        Report("EventBridge_writeback", ok
+            ? $"区域写回 {regionName}: OK（不重载文档，UI 位置保持）"
+            : $"区域写回 {regionName} 未生效（{status}）");
+        return ok;
     }
 
     /// <summary>写回方式解析（声明驱动，单一真源）：宿主控件声明 <c>writeback="patch"</c> → 内容补丁；缺省 navigate（整页重载，零回归）。

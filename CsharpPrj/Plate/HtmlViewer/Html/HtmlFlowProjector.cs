@@ -55,7 +55,12 @@ public static class HtmlFlowProjector
                 ["history"] = secondaryHtml,
             });
 
-    /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content（含 overlay），顶部 selector。</summary>
+    /// <summary>区域容器属性前缀（服务端注入；与 DomOps.Patch name 对齐，供区域化写回命中）。</summary>
+    public const string RegionNamePrefix = "region-";
+
+    /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content（含 overlay），顶部 selector。
+    /// <para>P2 区域化（I5）：把左侧树 / 右侧内容各包一层具名区域容器（<c>data-name=region-tree|region-main</c>），
+    /// 使写回层可按区域 patch（<c>DomOps.Patch name=region-*</c>）而非整体替换；首挂载后壳稳定（I6），区域容器不随内容重建。</para></summary>
     public static string RenderShell(
         IReadOnlyDictionary<string, string> templates,
         string selectorHtml,
@@ -63,13 +68,17 @@ public static class HtmlFlowProjector
         string subtitle,
         string treeHtml,
         string contentHtml)
-        => HtmlTemplateEngine.Render(templates, "flowShell",
+    {
+        var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "tree\">" + treeHtml + "</div>";
+        var mainRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
+        return HtmlTemplateEngine.Render(templates, "flowShell",
             new Dictionary<string, object?>
             {
                 ["selector"] = selectorHtml,
                 ["title"] = title,
                 ["subtitle"] = subtitle,
-                ["tree"] = treeHtml,
-                ["history"] = contentHtml,
+                ["tree"] = treeRegion,
+                ["history"] = mainRegion,
             });
+    }
 }

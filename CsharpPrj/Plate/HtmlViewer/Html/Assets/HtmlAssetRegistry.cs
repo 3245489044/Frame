@@ -16,7 +16,9 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
 
     private static readonly IReadOnlyDictionary<string, string> Scripts = new Dictionary<string, string>
     {
-        [HtmlAssetKeys.BridgeScript] = BridgeScript,
+        [HtmlAssetKeys.BridgeScript] = ClickBridgeScript,
+        [HtmlAssetKeys.BridgePatchStateScript] = PatchStateScript,
+        [HtmlAssetKeys.UiReconcileScript] = UiReconcileScript,
         [HtmlAssetKeys.TabSwapScript] = TabSwapScript,
         [HtmlAssetKeys.RefreshBridgeScript] = RefreshBridgeScript,
     };
@@ -44,13 +46,17 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     string IHtmlAssetProvider.GetStyle(string key) => GetStyle(key);
     string IHtmlAssetProvider.GetTemplate(string key) => GetTemplate(key);
 
-    /// <summary>桥梁脚本：定义 <c>window.__domBridge</c>（受控 DOM 操作 handle：set/get/click/bounds/event）+ 点击桥（[data-cmd] → postMessage）。
-    /// 幂等守卫用 <c>document.__domBridgeInstalled</c>（**document 级**，非 window 级）：WebView2 经 NavigateToString 重渲染会替换 document 而保留 window，
+    /// <summary>点击桥脚本（P0-pre 分解后的可组合子模块之一，见 <see cref="PatchStateScript"/>）：定义 <c>window.__domBridge</c>
+    /// （受控 DOM 操作 handle：set/get/click/bounds/event）+ 点击桥（<c>[data-cmd]</c> → postMessage）；补丁操作（patch）委托补丁态模块
+    /// <c>window.__domBridgeState</c>（未注入 → <c>STATE_NOT_READY</c>，写回层据此回退整页渲染，绝不静默丢刷新）。
+    /// <para>幂等守卫用 <c>document.__domBridgeClickInstalled</c>（**document 级**，非 window 级）：WebView2 经 NavigateToString 重渲染会替换 document 而保留 window，
     /// 若守卫挂在 window 上会因「window 持久 → 误判已注入」而不再为新 document 重新挂载 document 级点击监听器 → [data-cmd] 点击转 postMessage 失效
-    /// （8.26 实证：回流探针正常但按钮点击无效）。document 级守卫保证每个新 document 都重新注入桥、重新挂载点击监听器。</summary>
-    internal const string BridgeScript =
+    /// （8.26 实证：回流探针正常但按钮点击无效）。document 级守卫保证每个新 document 都重新注入桥、重新挂载点击监听器。</para>
+    /// <para>同时置 <c>document.__domBridgeInstalled</c> 作为就绪查询兼容标志（HtmlViewer.IsBridgeReadyCoreAsync 读取）。</para></summary>
+    internal const string ClickBridgeScript =
         "(function(){"
-        + "if(document.__domBridgeInstalled){return;}"
+        + "if(document.__domBridgeClickInstalled){return;}"
+        + "document.__domBridgeClickInstalled=true;"
         + "document.__domBridgeInstalled=true;"
         + "window.__domBridge={handle:function(op,name,value){"
         + "var el=name?document.querySelector('[data-name=\"'+name+'\"]'):null;"
@@ -58,55 +64,14 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var isForm=!!el&&(el.tagName==='SELECT'||el.tagName==='INPUT'||el.tagName==='TEXTAREA');"
         + "switch(op){"
         + "case 'set':if(isForm){el.value=value;}else if(el.classList.contains('host')){el.innerHTML=value;}else{el.textContent=value;}return 'OK';"
-        // patch（不重载文档）：目标=name 命中元素，缺省 document.body；替换 innerHTML 前保存 / 后恢复
-        // 滚动位置（含"原贴底则贴底"流式跟随）、<details> 展开态与焦点/选区 —— 消除刷新重置 UI 位置。
-        + "case 'patch':var pt=el||document.body;if(!pt){return 'NOT_FOUND';}__applyPatch(pt,value);return 'OK';"
+        // patch（不重载文档）：目标=name 命中元素，缺省 document.body；委托补丁态模块（见 PatchStateScript），替换 innerHTML 前后恢复滚动/展开/焦点。
+        + "case 'patch':var pt=el||document.body;if(!pt){return 'NOT_FOUND';}if(!window.__domBridgeState){return 'STATE_NOT_READY';}window.__domBridgeState.applyPatch(pt,value);return 'OK';"
         + "case 'get':if(isForm){return el.value;}else if(el.classList.contains('list')){var s=el.querySelector('li.selected');return s?s.textContent:'';}else{return el.textContent;}"
         + "case 'click':el.dispatchEvent(new MouseEvent('click',{bubbles:true}));return 'OK';"
         + "case 'bounds':var r=value?JSON.parse(value):null;if(r){el.style.position='absolute';el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';}return 'OK';"
         + "case 'event':el.dispatchEvent(new Event(value,{bubbles:true}));return 'OK';"
         + "default:return 'UNKNOWN_OP';"
         + "}}};"
-        // ── 补丁态保存 / 恢复（__pk 取稳定键：优先 data-*/id，回退子索引路径；__fk 按键回查新内容）──
-        + "function __pk(n,root){"
-        + "var ks=['data-name','data-history','data-session','data-round','data-pane','id'];"
-        + "for(var i=0;i<ks.length;i++){var v=(n.getAttribute?n.getAttribute(ks[i]):null);if(v){return ks[i]+'='+v;}}"
-        + "var path=[];var cur=n;"
-        + "while(cur&&cur!==root&&cur.parentNode){path.unshift(Array.prototype.indexOf.call(cur.parentNode.children,cur));cur=cur.parentNode;}"
-        + "return 'p:'+path.join('.');}"
-        + "function __fk(root,key){"
-        + "if(key.indexOf('p:')===0){var segs=key.substring(2).split('.');var cur=root;"
-        + "for(var i=0;i<segs.length;i++){var j=parseInt(segs[i],10);if(!(j>=0)||!cur.children||!cur.children[j]){return null;}cur=cur.children[j];}return cur;}"
-        + "var eq=key.indexOf('=');var a=key.substring(0,eq);var v=key.substring(eq+1);"
-        + "if(a==='id'){var e=document.getElementById(v);return (e&&root.contains(e))?e:null;}"
-        + "return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
-        + "function __savePatch(root){"
-        + "var st={scroll:[],open:[],focus:null,sel:null,doc:null};"
-        // 文档级滚动容器（body 补丁会重建内容，documentElement.scrollingElement 滚动量会被钳回 0）——须独立保存。
-        + "var se0=document.scrollingElement||document.documentElement;"
-        + "if(se0){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);"
-        + "if(se0.scrollTop>0||se0.scrollLeft>0||ty>0||tx>0){st.doc=[se0.scrollTop,se0.scrollLeft,ty,tx];}}"
-        // 祖先链滚动（补丁根为子树时，其祖先滚动容器的位置同样会因高度变化被钳）——上溯保存。
-        + "st.anc=[];var up=root.parentNode;"
-        + "while(up&&up.nodeType===1){if(up.scrollTop>0||up.scrollLeft>0){st.anc.push({n:up,t:up.scrollTop,l:up.scrollLeft,b:(up.scrollHeight-up.clientHeight-up.scrollTop)<=2});}up=up.parentNode;}"
-        + "var nodes=root.querySelectorAll('*');var all=[root];"
-        + "for(var i=0;i<nodes.length;i++){all.push(nodes[i]);}"
-        + "for(var j=0;j<all.length;j++){var n=all[j];"
-        + "if(n.scrollTop>0||n.scrollLeft>0){st.scroll.push({k:__pk(n,root),t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}"
-        + "if(n.tagName==='DETAILS'&&n.open){st.open.push(__pk(n,root));}}"
-        + "var ae=document.activeElement;"
-        + "if(ae&&ae!==root&&root.contains(ae)){st.focus=__pk(ae,root);try{st.sel=[ae.selectionStart,ae.selectionEnd];}catch(e){st.sel=null;}}"
-        + "return st;}"
-        + "function __restorePatch(root,st){"
-        + "if(!st){return;}"
-        + "for(var i=0;i<st.open.length;i++){var d=__fk(root,st.open[i]);if(d){d.open=true;}}"
-        + "for(var j=0;j<st.scroll.length;j++){var it=st.scroll[j];var e=__fk(root,it.k);if(!e){continue;}"
-        + "if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}"
-        + "for(var a=0;a<st.anc.length;a++){var an=st.anc[a];if(an.b){an.n.scrollTop=an.n.scrollHeight;}else{an.n.scrollTop=an.t;an.n.scrollLeft=an.l;}}"
-        // 文档滚动容器恢复：同步置位 + rAF 复置（innerHTML 重建后同步赋值可能因未布局被钳，rAF 兜底）。
-        + "if(st.doc){var se2=document.scrollingElement||document.documentElement;var rs=function(){if(se2){se2.scrollTop=st.doc[0];se2.scrollLeft=st.doc[1];}window.scrollTo(st.doc[3],st.doc[2]);};rs();if(window.requestAnimationFrame){window.requestAnimationFrame(rs);}}"
-        + "if(st.focus){var f=__fk(root,st.focus);if(f&&f.focus){try{f.focus();if(st.sel&&f.setSelectionRange){f.setSelectionRange(st.sel[0],st.sel[1]);}}catch(e){}}}}"
-        + "function __applyPatch(root,html){var st=__savePatch(root);root.innerHTML=html;__restorePatch(root,st);return 'OK';}"
         + "document.addEventListener('click',function(e){"
         + "var t=(e.target&&e.target.closest)?e.target.closest('[data-cmd]'):null;"
         + "if(!t)return;"
@@ -132,6 +97,51 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "});"
         + "e.preventDefault();"
         + "});})();";
+
+    /// <summary>补丁态保存 / 恢复模块（P0-pre 分解后的可组合子模块之一，见 <see cref="ClickBridgeScript"/>）：<c>__pk</c> 取稳定键
+    /// （优先 data-*/id，否则回退子索引路径）、<c>__fk</c> 按键回查新内容、<c>__savePatch/__restorePatch/__applyPatch</c> 在 innerHTML 替换前后
+    /// 保存/恢复滚动、<c>&lt;details&gt;</c> 展开态与焦点/选区。对外经 <c>window.__domBridgeState</c> 暴露，供点击桥 patch 分支调用；
+    /// document 级幂等守卫 <c>document.__domBridgeStateInstalled</c>（重渲染即重新注入，跨导航不叠加）。</summary>
+    internal const string PatchStateScript =
+        "(function(){"
+        + "if(document.__domBridgeStateInstalled){return;}"
+        + "document.__domBridgeStateInstalled=true;"
+        // P0：无稳定键 → 不保持（禁位置回退 p:；缺失即放弃该节点状态保持）
+        + "function __pk(n,root){"
+        + "var ks=['data-name','data-history','data-session','data-round','data-pane','id'];"
+        + "for(var i=0;i<ks.length;i++){var v=(n.getAttribute?n.getAttribute(ks[i]):null);if(v){return ks[i]+'='+v;}}"
+        + "return '';}"
+        + "function __fk(root,key){"
+        + "if(!key){return null;}"
+        + "var eq=key.indexOf('=');if(eq<=0){return null;}var a=key.substring(0,eq);var v=key.substring(eq+1);"
+        + "if(a==='id'){var e=document.getElementById(v);return (e&&root.contains(e))?e:null;}"
+        + "return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
+        + "function __savePatch(root){"
+        + "var st={scroll:[],open:[],focus:null,sel:null,doc:null};"
+        + "var se0=document.scrollingElement||document.documentElement;"
+        + "if(se0){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);"
+        + "if(se0.scrollTop>0||se0.scrollLeft>0||ty>0||tx>0){st.doc=[se0.scrollTop,se0.scrollLeft,ty,tx];}}"
+        + "st.anc=[];var up=root.parentNode;"
+        + "while(up&&up.nodeType===1){if(up.scrollTop>0||up.scrollLeft>0){st.anc.push({n:up,t:up.scrollTop,l:up.scrollLeft,b:(up.scrollHeight-up.clientHeight-up.scrollTop)<=2});}up=up.parentNode;}"
+        + "var nodes=root.querySelectorAll('*');var all=[root];"
+        + "for(var i=0;i<nodes.length;i++){all.push(nodes[i]);}"
+        + "for(var j=0;j<all.length;j++){var n=all[j];"
+        + "if(n.scrollTop>0||n.scrollLeft>0){var k=__pk(n,root);if(k){st.scroll.push({k:k,t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}}"
+        + "if(n.tagName==='DETAILS'&&n.open){var ok=__pk(n,root);if(ok){st.open.push(ok);}}}"
+        + "var ae=document.activeElement;"
+        + "if(ae&&ae!==root&&root.contains(ae)){var kf=__pk(ae,root);if(kf){st.focus=kf;try{st.sel=[ae.selectionStart,ae.selectionEnd];}catch(e){st.sel=null;}}}}"
+        + "return st;}"
+        + "function __restorePatch(root,st){"
+        + "if(!st){return;}"
+        + "for(var i=0;i<st.open.length;i++){var d=__fk(root,st.open[i]);if(d){d.open=true;}}"
+        + "for(var j=0;j<st.scroll.length;j++){var it=st.scroll[j];var e=__fk(root,it.k);if(!e){continue;}"
+        + "if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}"
+        + "for(var a=0;a<st.anc.length;a++){var an=st.anc[a];if(an.b){an.n.scrollTop=an.n.scrollHeight;}else{an.n.scrollTop=an.t;an.n.scrollLeft=an.l;}}"
+        + "if(st.doc){var se2=document.scrollingElement||document.documentElement;var rs=function(){if(se2){se2.scrollTop=st.doc[0];se2.scrollLeft=st.doc[1];}window.scrollTo(st.doc[3],st.doc[2]);};rs();if(window.requestAnimationFrame){window.requestAnimationFrame(rs);}}"
+        + "if(st.focus){var f=__fk(root,st.focus);if(f&&f.focus){try{f.focus();if(st.sel&&f.setSelectionRange){f.setSelectionRange(st.sel[0],st.sel[1]);}}catch(e){}}}"
+        + "function __applyPatch(root,html){var st=__savePatch(root);root.innerHTML=html;__restorePatch(root,st);return 'OK';}"
+        + "window.__domBridgeState={pk:__pk,fk:__fk,savePatch:__savePatch,restorePatch:__restorePatch,applyPatch:__applyPatch};"
+        + "})();";
 
     /// <summary>tab 切换脚本（事件委托、幂等守卫）：点击 tab → 同容器内切换 pane 显隐。渲染端自产自收，纯客户端展示逻辑。</summary>
     internal const string TabSwapScript =
@@ -168,7 +178,11 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var a=(attrs[i]||'').trim();if(!a){continue;}"
         + "var v=el.getAttribute('data-'+a);if(v!==null){o[a]=v;}"
         + "}return o;}"
+        + "var curScopes=null;"
+        + "function subsOf(n){var s=n.getAttribute('data-poll-subscribe');if(!s){return null;}var a=s.split(',');var o=[];for(var i=0;i<a.length;i++){var t=(a[i]||'').trim();if(t){o.push(t);}}return o.length?o:null;}"
+        + "function scopeMatch(n){if(!curScopes||curScopes.length===0){return true;}var subs=subsOf(n);if(!subs){return true;}for(var i=0;i<subs.length;i++){for(var j=0;j<curScopes.length;j++){if(subs[i]===curScopes[j]){return true;}}}return false;}"
         + "function fire(n){"
+        + "if(!scopeMatch(n)){return;}"
         + "var cmd=n.getAttribute('data-poll-cmd');if(!cmd){cmd='refresh';}"
         + "var o=new Object();o.cmd=cmd;var ctx=ctxOf(n);"
         + "if(ctx){for(var k in ctx){o[k]=ctx[k];}}pst(o);}"
@@ -191,6 +205,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var d=e?e.data:null;if(!d){return;}"
         + "var cmd=(typeof d==='string')?d:(d.cmd||'');"
         + "if(cmd!=='refresh'){return;}"
+        + "curScopes=(d&&d.scope&&d.scope.length)?d.scope:null;"
         + "pushSeen=true;stopFallback();refreshNow();"
         + "});}"
         // 手动刷新按钮：点击即刷（不受 1s 节流限制）
@@ -202,6 +217,27 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var fn=pickNode();"
         + "if(fn){var iv=parseInt(fn.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=30000;}"
         + "fallbackTimer=window.setInterval(function(){if(pushSeen){stopFallback();return;}var n=pickNode();if(n){fire(n);}},iv);}"
+        + "})();";
+
+    /// <summary>键控对齐引擎（P3 Reconciler；可选组件，默认关）：按 data-key 对齐复用 DOM 节点（保留 &lt;details&gt;.open），
+    /// 未启用则退化为 innerHTML 替换（零回归）。启用经 <c>window.__uiReconcile.enable()</c>。document 级幂等守卫 <c>__uiReconcileInstalled</c>。</summary>
+    internal const string UiReconcileScript =
+        "(function(){"
+        + "if(document.__uiReconcileInstalled){return;}"
+        + "document.__uiReconcileInstalled=true;"
+        + "function apply(host,html){"
+        + "if(!host){return 'NOT_FOUND';}"
+        + "if(!window.__uiReconcileEnabled){host.innerHTML=html;return 'OK';}"
+        + "var tmp=document.createElement('div');tmp.innerHTML=html;"
+        + "var old=host.children;var byKey={};"
+        + "for(var i=0;i<old.length;i++){var k=old[i].getAttribute?old[i].getAttribute('data-key'):null;if(k){byKey[k]=old[i];}}"
+        + "var out=document.createDocumentFragment();"
+        + "for(var j=0;j<tmp.children.length;j++){"
+        + "var nc=tmp.children[j];var k2=nc.getAttribute?nc.getAttribute('data-key'):null;var re=k2?byKey[k2]:null;"
+        + "if(re){var wasOpen=re.open;if(re.parentNode){re.parentNode.removeChild(re);}if(wasOpen&&nc.tagName==='DETAILS'){nc.open=true;}}"
+        + "out.appendChild(nc);}"
+        + "host.innerHTML='';host.appendChild(out);return 'OK';}"
+        + "window.__uiReconcile={apply:apply,enable:function(){window.__uiReconcileEnabled=true;}};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

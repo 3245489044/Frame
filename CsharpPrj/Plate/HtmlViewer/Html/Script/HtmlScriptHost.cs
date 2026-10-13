@@ -41,10 +41,12 @@ public sealed class HtmlScriptHost
 
     private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
 
-    /// <summary>文档级行为脚本清单（点击桥 + 通用轮询/刷新桥），各自带 document 级幂等守卫；导航后随 <see cref="EnsureBridgeLoadedAsync"/> 统一注入。</summary>
+    /// <summary>文档级行为脚本清单（点击桥 + 补丁态 + 键控对齐引擎 + 通用轮询/刷新桥），各自带 document 级幂等守卫、独立注入互不干扰；导航后随 <see cref="EnsureBridgeLoadedAsync"/> 统一注入。</summary>
     private static readonly string[] DocumentScripts =
     {
         HtmlAssetKeys.BridgeScript,
+        HtmlAssetKeys.BridgePatchStateScript,
+        HtmlAssetKeys.UiReconcileScript,
         HtmlAssetKeys.RefreshBridgeScript,
     };
 

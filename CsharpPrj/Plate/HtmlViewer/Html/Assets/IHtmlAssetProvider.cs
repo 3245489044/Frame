@@ -7,6 +7,13 @@ public static class HtmlAssetKeys
 {
     // 静态脚本
     public const string BridgeScript = "bridge";
+
+    /// <summary>补丁态保存/恢复模块（P0-pre 分解的可组合子模块；点击桥 patch 分支消费 window.__domBridgeState）。</summary>
+    public const string BridgePatchStateScript = "bridgePatchState";
+
+    /// <summary>键控对齐引擎（P3 Reconciler，可选组件；默认关，window.__uiReconcile.enable() 启用）。</summary>
+    public const string UiReconcileScript = "uiReconcile";
+
     public const string TabSwapScript = "tabswap";
 
     /// <summary>反向刷新桥（宿主推送 + 1s trailing 节流 + 兜底慢轮询 + 手动刷新）。</summary>

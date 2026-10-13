@@ -13,7 +13,7 @@
       H7 通用框架件：StatePromptCatalog / IDecisionSource / IInjectionPort 在册，HistoryModeCatalog 已通用化删除。
       H8 宿主端口注册：组合根注入 IInjectionPort / ICreateTaskPort。
       H9 注入作用域键：session-history 声明 session_id inport。
-      H10 工具面合并：ConversationViewService 两处（空态 + 主路径）合并工具面（WithToolFace + IToolFaceCatalog）。
+      H10 工具面分层（C 方案）：ConversationViewService 不再并入工具面（无 WithToolFace/BuildToolFaceBlock）；工具发现归 tool-catalog 子智能体（ToolCatalogGrouper/ToolCatalogCore 在册）。
       H11 自身不持有：history 入站输入标 FeedTarget.State（不驻留本执行体 conversation_context；I2 / §4.6）。
       H12 通用传递框架编排单源：transfer-contribute/transfer-dispatch.ushar 各恰 1 条 [Flow]；TransferFlow 经模板基类转发（无自持编排）。
       H13 通用传递框架词表单源：字段/稳定度/载荷标记 ∈ Config/nodes/transfer.ushar。
@@ -111,13 +111,23 @@ if ($steps -notmatch 'Register<Agent\.Modules\.Response\.IDecisionSource>') {
 $sh = Read-Text (Join-Path $agentRoot 'Config\workflows\session-history.ushar')
 if ($sh -notmatch 'session_id') { Add-Violation 'H9' 'session-history 未声明 session_id inport（注入作用域键）' }
 
-# H10 工具面合并（History/Task 两视图同源渲染工具面，profile 无关；R3）
+# H10 工具面分层（C 方案）：基础提示词层零工具清单平铺；工具发现归 tool-catalog 子智能体（分类分级 + 按需展开）
 $viewSvc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs')
-if (([regex]::Matches($viewSvc, 'WithToolFace\(')).Count -lt 2) {
-    Add-Violation 'H10' 'ConversationViewService 未在（空态 + 主路径）两处合并工具面（WithToolFace）'
+if ($viewSvc -match 'WithToolFace\s*\(') {
+    Add-Violation 'H10' 'ConversationViewService 仍将工具面并入基础提示词层（WithToolFace 应移除）'
 }
-if ($viewSvc -notmatch 'IToolFaceCatalog') {
-    Add-Violation 'H10' '工具面缺静态装配面直读来源（IToolFaceCatalog）'
+if ($viewSvc -match 'BuildToolFaceBlock\s*\(') {
+    Add-Violation 'H10' 'ConversationViewService 仍平铺工具面块（BuildToolFaceBlock 应移除）'
+}
+$subAgentHosting = Read-Text (Join-Path $agentRoot 'src\Agent.Modules\SubAgent\Runtime\SubAgentHosting.cs')
+if ($subAgentHosting -notmatch 'ToolCatalogSubAgentTools') {
+    Add-Violation 'H10' '缺 tool-catalog 子智能体工具装配（ToolCatalogSubAgentTools 未注册）'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $agentRoot 'src\Agent.Modules\SubAgent\Tools\ToolCatalogGrouper.cs'))) {
+    Add-Violation 'H10' '缺工具分级分组器（ToolCatalogGrouper.cs，分类分级单一实现）'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $agentRoot 'src\Agent.Core\Operation\Tool\ToolCatalogCore.cs'))) {
+    Add-Violation 'H10' '缺工具核心级判定表（ToolCatalogCore.cs，Core 单一真源）'
 }
 
 # H11 自身不持有：history 入站输入标 FeedTarget.State（不驻留本执行体 conversation_context；I2 / 4.6）

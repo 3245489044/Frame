@@ -18,10 +18,13 @@ public sealed record HtmlScriptResult(IReadOnlyList<string> Lines)
 /// </summary>
 public sealed class HtmlScriptBridge
 {
-    private readonly IHtmlChannel _channel;
-    private readonly HtmlEventBridge.HtmlFunctionInvoker _invoker;
+    /// <summary>脚本 exec 的函数调用端口（文本结果；与事件桥的类型化端口区分——脚本仅取文本叙述）。</summary>
+    public delegate Task<string> HtmlScriptInvoker(string functionName, IReadOnlyDictionary<string, object?> parameters);
 
-    public HtmlScriptBridge(IHtmlChannel channel, HtmlEventBridge.HtmlFunctionInvoker invoker)
+    private readonly IHtmlChannel _channel;
+    private readonly HtmlScriptInvoker _invoker;
+
+    public HtmlScriptBridge(IHtmlChannel channel, HtmlScriptInvoker invoker)
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));

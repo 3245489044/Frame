@@ -61,6 +61,10 @@ public sealed record UiWritePlan(
     public static UiWritePlan Leaf(string name, string value)
         => new(UiWriteKind.Leaf, new[] { new UiWriteTarget(name, value) });
 
+    /// <summary>多点叶子定点写计划（替换易变叶子值，不重渲染区域）。</summary>
+    public static UiWritePlan Leaves(IReadOnlyList<UiWriteTarget> leaves, UiInteractionSnapshot? interaction = null, string? traceId = null)
+        => new(UiWriteKind.Leaf, leaves, null, interaction, traceId);
+
     /// <summary>整文档写计划。</summary>
     public static UiWritePlan FullDocument(string html, string? fingerprint = null)
         => new(UiWriteKind.FullDocument, new[] { new UiWriteTarget(null, html) }, fingerprint);

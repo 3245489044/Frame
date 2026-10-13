@@ -186,15 +186,15 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "fallbackTimer=window.setInterval(function(){if(pushSeen){stopFallback();return;}var n=pickNode();if(n){fire(n);}},iv);}"
         + "})();";
 
-    /// <summary>键控对齐引擎（写原语，默认启用）：**递归**按稳定键对齐复用 DOM 节点
+    /// <summary>键控对齐引擎（**唯一写原语**，恒开无回退）：**递归**按稳定键对齐复用 DOM 节点
     /// （保留 &lt;details&gt;.open / 焦点 / 滚动，免 save/restore 启发式）。document 级幂等守卫 <c>__uiReconcileInstalled</c>；
-    /// 提供 <c>apply(host,html)</c>（HTML 片段）与 <c>applyTree(host,json)</c>（键控节点树）两入口。</summary>
+    /// 提供 <c>apply(host,html)</c>（HTML 片段）与 <c>applyTree(host,json)</c>（键控节点树）两入口。
+    /// 红线：不得再引入整块 <c>innerHTML</c> 落地回退（那是「第二条写落地」，与单写者不变量冲突）。</summary>
     internal const string UiReconcileScript =
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
         + "document.__bridgeModules=document.__bridgeModules||{};document.__bridgeModules.reconcile=true;"
-        + "window.__uiReconcileEnabled=true;"
         + "var __kk=" + HtmlKey.JsArrayLiteral + ";"
         + "function keyOf(n){if(!n||!n.getAttribute){return null;}for(var i=0;i<__kk.length;i++){var v=n.getAttribute(__kk[i]);if(v){return __kk[i]+'='+v;}}return null;}"
         + "function syncAttrs(oldN,newN){"
@@ -221,7 +221,6 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "function applyState(host,state){if(!host||!state){return;}if(state.focus){var f=findByKey(host,state.focus);if(f&&f.focus){try{f.focus();}catch(e){}}}if(state.scroll){for(var s=0;s<state.scroll.length;s++){var it=state.scroll[s];var e=findByKey(host,it.k);if(!e){continue;}if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}}}"
         + "function apply(host,html,state){"
         + "if(!host){return 'NOT_FOUND';}"
-        + "if(!window.__uiReconcileEnabled){host.innerHTML=html;return 'OK';}"
         + "var tmp=document.createElement('div');tmp.innerHTML=html;"
         + "reconcileChildren(host,tmp);applyState(host,state);return 'OK';}"
         + "function buildNode(n){if(n==null){return document.createTextNode('');}if(typeof n==='string'){return document.createTextNode(n);}"
@@ -229,12 +228,11 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "if(n.text!=null){el.appendChild(document.createTextNode(''+n.text));}"
         + "if(n.children){for(var i=0;i<n.children.length;i++){el.appendChild(buildNode(n.children[i]));}}return el;}"
         + "function applyTree(host,tree,state){if(!host){return 'NOT_FOUND';}var t=(typeof tree==='string')?JSON.parse(tree):tree;"
-        + "if(!window.__uiReconcileEnabled){host.innerHTML='';appendInto(host,t);applyState(host,state);return 'OK';}"
         + "var tmp=document.createElement('div');appendInto(tmp,t);reconcileChildren(host,tmp);applyState(host,state);return 'OK';}"
         + "function appendInto(container,t){if(t==null){return;}if(t.tag){container.appendChild(buildNode(t));return;}"
         + "if(t.children){for(var i=0;i<t.children.length;i++){var c=t.children[i];if(!c){continue;}if(c.tag){container.appendChild(buildNode(c));}else if(c.text!=null){container.appendChild(document.createTextNode(''+c.text));}}}}"
         + "function capture(){var open=[];var ds=document.querySelectorAll('details');for(var i=0;i<ds.length;i++){if(ds[i].open){var k=keyOf(ds[i]);if(k){open.push(k);}}}var scroll=[];var ae=document.activeElement;var focus=(ae&&ae!==document.body)?keyOf(ae):null;var esc=document.scrollingElement||document.documentElement;if(esc){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);if(ty>0||tx>0){var ek=keyOf(esc);if(ek&&ek!=='id=null'){scroll.push({k:ek,t:esc.scrollTop,l:esc.scrollLeft,b:false});}}}var ns=document.querySelectorAll('[data-key],[data-name],[id]');for(var j=0;j<ns.length;j++){var n=ns[j];if(n.scrollTop>0||n.scrollLeft>0){var nk=keyOf(n);if(nk){scroll.push({k:nk,t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}}}return {open:open,scroll:scroll,focus:focus};}"
-        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture,enable:function(){window.__uiReconcileEnabled=true;},disable:function(){window.__uiReconcileEnabled=false;}};"
+        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

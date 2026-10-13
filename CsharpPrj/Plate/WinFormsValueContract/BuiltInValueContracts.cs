@@ -95,9 +95,9 @@ internal static partial class BuiltInValueContracts
                                 else if (TryParseThemeDirective(text, out var mode))
                                     hv.ThemeMode = mode;
                                 else
-                                    // 纯渲染（fire-and-forget）：写回内容经 SetHtmlAsync 渲染（WebView2 封送收敛在控件内）。
-                                    // Observe 收敛写 WriteAsync 已上移 FrontEndDriven/HtmlViewerBridge，plate 值契约不依赖 Observe。
-                                    _ = hv.SetHtmlAsync(text);
+                                    // D2 单写者：内容落地经控件协调器（HtmlBackendRuntime.WriteHostContentAsync → reconcile / 去重 / 区域，保态）；
+                                    // 未挂接协调器时控件内部回退 SetHtmlAsync。Observe 收敛写上移 FrontEndDriven/HtmlViewerBridge，plate 值契约不依赖 Observe。
+                                    _ = hv.WriteContentAsync(text);
                             }
                             return v?.ToString();
                         }),

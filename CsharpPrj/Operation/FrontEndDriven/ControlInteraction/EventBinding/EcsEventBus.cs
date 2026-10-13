@@ -424,6 +424,10 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// </summary>
     private void WriteOutput(EventBindingComponent binding, string? text, Guid opId, UIInteractionEvent evt)
     {
+        // D4 空输出不写：空 / 空白结果不得写入目标——否则 htmlviewer 值契约会 NavigateToString(空文档) 清空页面。
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
         if (string.Equals(binding.OutputMode, TConfig.OutputWriteModes.Append, StringComparison.OrdinalIgnoreCase))
         {
             var appended = _stateAccessor.AppendValue(binding.OutputTarget, text);

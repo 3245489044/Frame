@@ -67,7 +67,8 @@ public static class HtmlFlowProjector
         string title,
         string subtitle,
         string treeHtml,
-        string contentHtml)
+        string contentHtml,
+        string? pollAttrs = null)
     {
         var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "tree\">" + treeHtml + "</div>";
         var mainRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
@@ -79,6 +80,7 @@ public static class HtmlFlowProjector
                 ["subtitle"] = subtitle,
                 ["tree"] = treeRegion,
                 ["history"] = mainRegion,
+                ["pollAttrs"] = pollAttrs ?? string.Empty,
             });
     }
 }

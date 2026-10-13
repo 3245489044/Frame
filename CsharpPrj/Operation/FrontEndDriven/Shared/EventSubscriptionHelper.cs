@@ -177,7 +177,9 @@ public static class EventSubscriptionHelper
             ["message"] = Branch(context =>
             {
                 // htmlviewer：HTML 侧 [data-cmd] 元素点击 → postMessage → MessageReceived（负载存于 LastMessagePayloadJson，参数绑定经 eventPayload 源读取）。
-                if (context.Control is HtmlViewer htmlViewer)
+                // D3 单入口：当 plate 消息桥（HtmlBackendRuntime.AttachHostMessage）已订阅同一 MessageReceived 时，此处不再重复订阅，
+                // 消除同一 postMessage 被双路调用（plate 桥 + ECS 事件绑定）导致的重复副作用与双写。未挂接 plate 桥的宿主仍走 ECS 绑定。
+                if (context.Control is HtmlViewer htmlViewer && !htmlViewer.MessageBridgeAttached)
                 {
                     htmlViewer.MessageReceived += (_, _) => context.OnRaised();
                     context.Subscribed = true;

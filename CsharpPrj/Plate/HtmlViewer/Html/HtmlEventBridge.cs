@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using TConfig;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
@@ -12,8 +13,9 @@ namespace UiBackend.Html;
 /// </summary>
 public sealed class HtmlEventBridge
 {
-    /// <summary>注册函数调用端口（宿主接线到函数注册表/执行引擎）。参数按形参名绑定。</summary>
-    public delegate Task<string> HtmlFunctionInvoker(string functionName, IReadOnlyDictionary<string, object?> parameters);
+    /// <summary>注册函数调用端口（宿主接线到函数注册表/执行引擎）。参数按形参名绑定；
+    /// 返回类型化 <see cref="RenderOutput"/>（叙述文本或写回计划——P0：领域只产产物，落地由协调器负责）。</summary>
+    public delegate Task<RenderOutput> HtmlFunctionInvoker(string functionName, IReadOnlyDictionary<string, object?> parameters);
 
     private readonly IReadOnlyDictionary<string, ControlConfig> _controlsByName;
     private readonly IHtmlChannel _channel;
@@ -21,6 +23,10 @@ public sealed class HtmlEventBridge
 
     /// <summary>输出写回目标 → 宿主内容写回端口（output 指向 htmlviewer 宿主自身时经此 SetHtmlAsync；未注册回落页内 DOM set）。</summary>
     private readonly Dictionary<string, Func<string, Task>> _hostWriters = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>写回计划执行器（写协调器；由运行时 <see cref="HtmlBackendRuntime"/> 注入）。
+    /// 计划产物（<see cref="RenderOutput.Plan"/>）经此单点落地——领域侧不再触通道（P0）。</summary>
+    public IUiRenderExecutor? RenderExecutor { get; set; }
 
     public HtmlEventBridge(
         IReadOnlyDictionary<string, ControlConfig> controlsByName,
@@ -48,7 +54,7 @@ public sealed class HtmlEventBridge
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
             return $"未找到控件: {controlName}";
 
-        return await RunBindingLoopAsync(control, eventName, eventPayload, ct).ConfigureAwait(false);
+        return (await RunBindingLoopAsync(control, eventName, eventPayload, ct).ConfigureAwait(false)).Text ?? string.Empty;
     }
 
     /// <summary>装配绑定参数：sourceType=control 经桥读 DOM 值；literal 用字面值；eventPayload 用事件负载原文。</summary>
@@ -124,29 +130,32 @@ public sealed class HtmlEventBridge
                 HtmlDeclarationParser.ControlDomain.Host, out var control))
             return $"未找到控件: {hostControlName}";
 
-        return await RunBindingLoopAsync(control, "message", messagePayload, ct).ConfigureAwait(false);
+        return (await RunBindingLoopAsync(control, "message", messagePayload, ct).ConfigureAwait(false)).Text ?? string.Empty;
     }
 
     /// <summary>共用的声明事件绑定执行循环：查 events → 逐函数装配参数 → 调用 → output 写回。HandleAsync / HandleHostMessageAsync 复用。</summary>
-    private async Task<string> RunBindingLoopAsync(
+    private async Task<RenderOutput> RunBindingLoopAsync(
         ControlConfig control, string eventName, string? eventPayload, CancellationToken ct)
     {
         if (control.Events is null
             || !TryGetFunctions(control.Events, eventName, out var functions)
             || functions is not { Count: > 0 })
-            return $"未声明事件绑定: {control.Name}.{eventName}";
+            return RenderOutput.Narrative($"未声明事件绑定: {control.Name}.{eventName}");
 
-        var results = new List<string>();
+        var texts = new List<string>();
+        UiWritePlan? plan = null;
         foreach (var functionName in functions)
         {
             ct.ThrowIfCancellationRequested();
             var parameters = await ResolveParametersAsync(control.Events.Bindings, eventPayload, ct).ConfigureAwait(false);
             Report("EventBridge_invoke", $"函数 {functionName}, 参数键=[{string.Join(",", parameters.Keys)}]");
-            var result = await _invoker(functionName, parameters).ConfigureAwait(false);
-            await WriteOutputAsync(control.Events.Bindings, result, ct).ConfigureAwait(false);
-            results.Add(result);
+            var output = await _invoker(functionName, parameters).ConfigureAwait(false);
+            await WriteOutputAsync(control.Events.Bindings, output, ct).ConfigureAwait(false);
+            if (output.HasPlan && plan is null) plan = output.Plan;
+            else if (!string.IsNullOrEmpty(output.Text)) texts.Add(output.Text!);
         }
-        return string.Join(Environment.NewLine, results);
+        var joined = texts.Count > 0 ? string.Join(Environment.NewLine, texts) : null;
+        return new RenderOutput(joined, plan);
     }
 
     /// <summary>大小写不敏感地从 EventsDictionary 取指定事件名对应的函数列表。</summary>
@@ -164,31 +173,44 @@ public sealed class HtmlEventBridge
         return false;
     }
 
-    /// <summary>输出双通道写回：output 命中已注册宿主写回端口 → SetHtmlAsync；否则 → 页内 DOM set。</summary>
-    private async Task WriteOutputAsync(EventBinding? bindings, string result, CancellationToken ct)
+    /// <summary>输出写回（P0 类型化）：携带写回计划 → 协调器单点执行（领域侧不触通道）；否则叙述文本经宿主/DOM 写回。</summary>
+    private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, CancellationToken ct)
     {
-        var output = bindings?.Output;
-        if (string.IsNullOrWhiteSpace(output))
-            return;
-        // L2 类型化：空结果 = 无内容写回（取代 NoWrite 哨兵串；调用方已按区域直接写回即返回空串）。
-        if (string.IsNullOrEmpty(result))
+        // P0：计划产物自描述（含目标），由写协调器单点落地——不依赖 binding.Output 名。
+        if (output.HasPlan)
         {
-            Report("EventBridge_writeback", $"目标 {output} → 跳过（空结果 = 无写回内容）");
+            var plan = output.Plan!;
+            Report("EventBridge_writeback", $"计划产物 {plan.Kind} → 协调器执行（targets={plan.Targets.Count}）");
+            if (RenderExecutor is not null)
+                await RenderExecutor.ExecuteAsync(plan, plan.TraceId, ct).ConfigureAwait(false);
+            else
+                Report("EventBridge_writeback", $"计划产物 {plan.Kind} → 跳过（未装配协调器）");
             return;
         }
-        if (_hostWriters.TryGetValue(output, out var writer))
+
+        var target = bindings?.Output;
+        if (string.IsNullOrWhiteSpace(target))
+            return;
+        var result = output.Text;
+        // L2 类型化：空产物 = 无内容写回（取代 NoWrite 哨兵串；调用方已产计划即返回空文本）。
+        if (string.IsNullOrEmpty(result))
         {
-            Report("EventBridge_writeback", $"目标 {output} → hostWriter");
+            Report("EventBridge_writeback", $"目标 {target} → 跳过（空产物 = 无写回内容）");
+            return;
+        }
+        if (_hostWriters.TryGetValue(target, out var writer))
+        {
+            Report("EventBridge_writeback", $"目标 {target} → hostWriter");
             await writer(result).ConfigureAwait(false);
             return;
         }
         // D6：页内 DOM set 仅限**已声明控件**（白名单）——output 名漂移（未声明）不落地，避免错误文本写坏页面。
-        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, output, out _))
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, target, out _))
         {
-            Report("EventBridge_writeback", $"目标 {output} → 跳过（未声明控件，DOM set 不兜底）");
+            Report("EventBridge_writeback", $"目标 {target} → 跳过（未声明控件，DOM set 不兜底）");
             return;
         }
-        Report("EventBridge_writeback", $"目标 {output} → DOM set");
-        await _channel.ExecuteAsync(DomOps.Set, output, result).ConfigureAwait(false);
+        Report("EventBridge_writeback", $"目标 {target} → DOM set");
+        await _channel.ExecuteAsync(DomOps.Set, target, result).ConfigureAwait(false);
     }
 }

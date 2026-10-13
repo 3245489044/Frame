@@ -26,7 +26,7 @@ public enum HtmlWriteBackMode
 /// 所有 WinForms→HTML 传递（整页渲染 / 页内 DOM 指令 / 事件回传）都经 <see cref="IHtmlChannel"/> 单一通道，CoreWebView2
 /// 访问与 UI 线程封送收敛在通道实现（HtmlViewer）内。
 /// </summary>
-public sealed class HtmlBackendRuntime
+public sealed class HtmlBackendRuntime : IUiRenderExecutor
 {
     private readonly IHtmlChannel _channel;
     private readonly HtmlEventBridge.HtmlFunctionInvoker _invoker;
@@ -70,13 +70,21 @@ public sealed class HtmlBackendRuntime
         _treeWriter = new HtmlTreeWriter(channel);
         Readiness = new HtmlRuntimeReadinessReport();
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
-        // 脚本桥与事件桥共享同一通道 + Invoker；单一实例，避免每次执行 new 新桥（消息桥单一化）。
-        _scriptBridge = new HtmlScriptBridge(channel, invoker);
+        // P0：事件桥的计划产物（RenderOutput.Plan）经本运行时（写协调器）单点落地——领域侧只产产物、不触通道。
+        _eventBridge.RenderExecutor = this;
+        // 脚本桥与事件桥共享同一通道；exec 端口取文本叙述（计划产物不适用脚本 exec，单一实例避免重复 new）。
+        _scriptBridge = new HtmlScriptBridge(channel,
+            async (name, parameters) => (await invoker(name, parameters).ConfigureAwait(false)).Text ?? string.Empty);
         // 聚合事件桥链路诊断到本运行时统一出口（宿主接线到日志门面）。
         _eventBridge.Diagnostics += Report;
     }
 
     public IHtmlChannel Channel => _channel;
+
+    /// <summary>IUiRenderExecutor：执行写回计划（单一 DOM 写落地入口）。事件桥/业务侧产出的
+    /// <see cref="RenderOutput.Plan"/> 一律经此落地（P0 单写者）。</summary>
+    public Task<UiWriteResult> ExecuteAsync(UiWritePlan plan, string? traceId = null, CancellationToken ct = default)
+        => WriteAsync(plan, traceId, ct);
 
     /// <summary>装配就绪报告：静态项由组合根填充，消息订阅项由 <see cref="AttachHostMessage"/> 更新。</summary>
     public HtmlRuntimeReadinessReport Readiness { get; }
@@ -137,6 +145,9 @@ public sealed class HtmlBackendRuntime
         // C2 单一写回入口：宿主写回闭包仅转发到 WriteHostContentAsync（哨兵/去重/补丁/收敛写/回退集中一处）。
         _eventBridge.RegisterHostWriter(hostControlName,
             html => WriteHostContentAsync(hostControlName, writeMode, contentSink, html));
+        // D2 单写者：值契约（ECS 输出等）的 DOM 落地统一委托本协调器；未挂接时控件回退整页渲染。
+        if (channel is HtmlViewer hostViewer)
+            hostViewer.HostContentWriter = html => WriteHostContentAsync(hostControlName, writeMode, contentSink, html);
 
         var handler = new EventHandler<HtmlMessageReceivedEventArgs>(async (_, e) =>
         {
@@ -161,6 +172,9 @@ public sealed class HtmlBackendRuntime
         });
         channel.MessageReceived += handler;
         _hostSubscriptions[hostControlName] = new Subscription(channel, handler);
+        // D3 单入口：标记 plate 消息桥已订阅；FrontEndDriven 事件绑定据此避免对同一 MessageReceived 重复订阅（消除双路调用）。
+        if (channel is HtmlViewer subscribedViewer)
+            subscribedViewer.MessageBridgeAttached = true;
 
         Readiness.HostWriterRegistered = true;
         Readiness.MessageSubscribed = true;

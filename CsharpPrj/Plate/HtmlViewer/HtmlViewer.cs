@@ -139,6 +139,23 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness
     public Task SetHtmlAsync(string? html, CancellationToken ct = default)
         => RunOnUiThreadAsync(c => new ValueTask(SetHtmlCoreAsync(html, c)), ct);
 
+    /// <summary>宿主内容写回协调器（D2 单写者）：由 <see cref="UiBackend.Html.HtmlBackendRuntime"/> 在装配时挂接。
+    /// 挂接后，所有「输出 → 页面内容」的落地（值契约 / ECS 输出 / 消息桥）统一经协调器（reconcile / 去重 / 区域，保态）。</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<string, Task>? HostContentWriter { get; set; }
+
+    /// <summary>plate 消息桥是否已订阅 <see cref="MessageReceived"/>（D3 单入口标志）：由 <see cref="UiBackend.Html.HtmlBackendRuntime.AttachHostMessage"/>
+    /// 挂接时置 true。置 true 后 FrontEndDriven 的事件绑定不再重复订阅同一事件，消除同一 postMessage 被双路调用。</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool MessageBridgeAttached { get; set; }
+
+    /// <summary>内容写回入口（D2）：有协调器 ⇒ 经协调器落页（不重载文档，保展开 / 滚动 / 焦点）；
+    /// 无协调器 ⇒ 回退 <see cref="SetHtmlAsync"/> 整页渲染（首挂载或未装配协调器的宿主）。</summary>
+    public Task WriteContentAsync(string? html, CancellationToken ct = default)
+        => HostContentWriter is { } writer && !string.IsNullOrEmpty(html)
+            ? writer(html)
+            : SetHtmlAsync(html, ct);
+
     /// <summary>当前生效主题文档：控件级 <see cref="Theme"/>（IHtmlTheme 兼容）优先，未设置经全局 <see cref="HtmlTheme.ResolveProvider"/> 解析（主题单一源，唯一收敛点）。</summary>
     private ThemeDocument ResolveThemeDocument()
         => Theme is not null ? ThemeDocument.FromCss(Theme.Css) : HtmlTheme.ResolveProvider().Resolve(ThemeMode, ThemeScope.Document);

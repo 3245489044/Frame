@@ -38,8 +38,9 @@ public static class DomOps
 
     public const string Set = "set";
 
-    /// <summary>内容补丁（不重载文档）：默认经键控对齐原语（reconcile）对齐活 DOM，保留展开/滚动/焦点/选中态；
-    /// 对齐原语不可用时回退补丁态保存/恢复。name 为空 → 目标为 <c>document.body</c>。具名缺失 ⇒ NOT_FOUND（无隐式整页替换）。</summary>
+    /// <summary>内容补丁（不重载文档）：**恒**经键控对齐原语（reconcile）对齐活 DOM，保留展开/滚动/焦点/选中态
+    /// （无「对齐原语不可用 → 整块 innerHTML 落地」回退链；原语缺失 ⇒ <c>STATE_NOT_READY</c> 由自愈补注入）。
+    /// name 为空 → 目标为 <c>document.body</c>。具名缺失 ⇒ NOT_FOUND（无隐式整页替换）。</summary>
     public const string Patch = "patch";
 
     /// <summary>键控对齐写（Region/节点树共用；语义同 <see cref="Patch"/>，显式区分「按稳定键对齐」意图）。</summary>

@@ -7,7 +7,7 @@
 
     # 正对照下限：声明 `$target = Join-Path $PSScriptRoot '…'` 的转发件数须 ≥ 此值。
     MinForwarders = @{
-        Value = 16
+        Value = 17
         Origin = 'Derived'
         DueWhen = ''
     }

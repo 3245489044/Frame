@@ -2,18 +2,21 @@
 # VM-R1 · 代目录布局守卫 —— 校验 <GenRoot>\gen-<n> 的产物契约（对齐
 # Docs\analysis\2026\10\10.8\2026-10-09-Vm框架-换代路线收敛-构建到新目录-换ALC-重装配.md §4.1/§8-1/§8-2）。
 #
+# 代目录**按需存在**（B′ · 2026-10-14）：无代 = **就地态**（默认/冷启动），属正常，不判失败；
+#   有代则须合规（逐代目录判据如下）。
+#
 # 判据（逐代目录）：
 #   [L1] 目录名格式 gen-<n>（n ≥ 1）
 #   [L2] 含 Agent.*.dll，且计数 ≥ 就地产物面参照计数（覆盖同一集合）
 #   [L3] 含 Agent.Launcher.deps.json（AssemblyDependencyResolver 基座 = 本目录）
 #   [L4] 含 vm-program.json（VM 清单）
-#   [L5] current 指针（存在时）须指向合法 gen-<n> 且该代目录在位（生效代单源；缺指针 = 装载面回落最高代）
+#   [L5] current 指针（存在时）须指向合法 gen-<n> 且该代目录在位（热更新态生效代单源；缺指针 = 该模式回落最高代）
 #   [L6] 含 CsharpPrj 核心域闭包（Share.HostAssembly / Share.Conversation / Plate.HtmlViewer / WorkFlowMethod）——
-#        默认 ALC 共享面运行期来源 = 生效代目录（B · 统一装载面）；缺件 ⇒ 共享面回落构建期目录，与 Agent.* 混载风险
+#        热更新态默认 ALC 共享面运行期来源 = 生效代目录（与 Agent.* 同批）；缺件 ⇒ 共享面回落构建期目录，与 Agent.* 混载风险
 # 说明：落点**禁** BuildOutput\<Config>（被运行进程锁定）；本脚本只读校验，不构建。
 #
 #   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
-#   - 校验模式（-Check）：违规 > 0 → 退出码 1（CI 门禁）。
+#   - 校验模式（-Check）：违规 > 0 → 退出码 1（CI 门禁）。无代（就地态）不违规。
 #
 # 用法：pwsh Frame\PowerShellScript\Operation\DSL\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
 
@@ -51,16 +54,15 @@ Write-Host '=== [VM-R1] 代目录布局契约（gen-<n> 产物面） ==='
 Write-Host ("代根: {0}" -f $GenRoot)
 Write-Host ("就地参照: Agent dll {0} 件（{1}）" -f $referenceCount, $inPlace)
 
+# B′（2026-10-14）：代目录**按需存在** —— 无代 = 就地态（默认/冷启动），属正常，不再判失败。
 if (-not (Test-Path $GenRoot)) {
-    Write-Host '[INFO] 代根不存在（尚无构件代产出）——判据退化为未接线（勿视为 PASS）。'
-    if ($Check) { exit 1 }
+    Write-Host '[INFO] 代根不存在 —— 就地态（默认/冷启动）：非运行期 dotnet build 即生效，无代属正常（PASS）。'
     exit 0
 }
 
 $dirs = @(Get-ChildItem $GenRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
 if ($dirs.Count -eq 0) {
-    Write-Host '[INFO] 代根为空（尚无构件代）。'
-    if ($Check) { exit 1 }
+    Write-Host '[INFO] 代根为空 —— 就地态（默认/冷启动），无代属正常（PASS）。'
     exit 0
 }
 

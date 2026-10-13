@@ -441,6 +441,13 @@
         Note   = 'VM-R5 换代链结构守卫：构建到新目录（代目录布局单源）→ 换 ALC（重装配桥 + 按代端口注册）→ 重装配（F 段重挂 + 装配契约）→ 触发（源码监视 + 命令触发）之结构锚点 C1–C7 在位'
     }
 
+    # ===== 生效面断言（B′ · AI 行为护栏）=====
+    EffectiveFace = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '生效面断言（EffectiveFace）：运行时装载面指纹 == 构建产物指纹（Agent.Launcher.dll + 共享核心件；dev=就地 / locked=current→gen-<n>）· [E3] 正/负对照；基线 = Baselines\EffectiveFace.psd1；机械复算 = Frame\Invoke\Invoke-BuildEffective.ps1 -Assert'
+    }
+
     # ===== USharp 纯化门禁（N4：V1–V6-form）=====
     UsharpDocForm = @{
         Args   = @{ Check = $true }

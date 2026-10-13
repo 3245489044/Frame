@@ -2,7 +2,7 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'AntiPatternFamily'
     FamilyCount = @{ Value = 19; Origin = 'Derived'; DueWhen = '' }
-    IdCount     = @{ Value = 69; Origin = 'Derived'; DueWhen = '' }
+    IdCount     = @{ Value = 72; Origin = 'Derived'; DueWhen = '' }
     Ids = @{ Origin = 'Derived'; DueWhen = ''; Value = @(
         'ANTI-ABSENCE-FROM-SEARCH',
         'ANTI-ATTENTION-DILUTION',
@@ -18,6 +18,7 @@
         'ANTI-COGNITIVE-SPLIT',
         'ANTI-COMPACT-DECISION',
         'ANTI-COMPILE-LEFTOVER',
+        'ANTI-COMPILE-NOT-EFFECTIVE',
         'ANTI-COMPLETENESS-GATE',
         'ANTI-CONTEXT-POLLUTION',
         'ANTI-CYCLIC-AGGREGATION',
@@ -39,6 +40,7 @@
         'ANTI-LOW-COHESION',
         'ANTI-MECHANISM-SPIRAL',
         'ANTI-MULTI-RUN-VERIFY',
+        'ANTI-NARRATIVE-COMPLETION',
         'ANTI-NESTED-POLLUTION',
         'ANTI-NO-TERMINATION',
         'ANTI-OVER-DESIGN',
@@ -63,6 +65,7 @@
         'ANTI-SHELL-LOCATE',
         'ANTI-SHELL-SPAM',
         'ANTI-STALE-ARTIFACT-VERIFY',
+        'ANTI-STALE-LOADFACE',
         'ANTI-STRUCTURE-DRIFT',
         'ANTI-SUGGESTION-AS-ROOTCAUSE',
         'ANTI-SYNTAX-OVERRIDE',

@@ -24,6 +24,7 @@
 | `Test-SpecRefs.ps1` | `SpecSourceGen\Cli`（`refs`） | 作者面 · 引用完整性（悬空 use；只读 + `-Check`） |
 | `Get-SpecGenerated.ps1` | `SpecSourceGen\Cli`（`generated-list`） | 生成物清点（只读 `_manifest.json`；`-Verify` 复核 sha256） |
 | `Invoke-Verify.ps1` | `Environment\CentralTest\Invoke-Verify.ps1` | P2 唯一验证命令（bake→test→gate 一次完成） |
+| `Invoke-BuildEffective.ps1` | `Projects\BuildFramework\Build-Effective.ps1` | 单一生效入口（构建→生效面上效→生效面断言；`-Assert` 复算断言） |
 | `Invoke-SpecGen.ps1` | `Environment\CentralTest\SpecSourceGen\Cli`（`gen`） | 作者面 · 生成（PS 可调用、产物落生成根、可清点；复用内核同管线，与宿主 A/B 逐字一致） |
 
 ## 用法
@@ -153,6 +154,17 @@
 - `state=unverified`：首次运行（建立基线）；
 - `state=unaligned`：**产品源码已变但未重烘** ⇒ fail-fast 红「未对齐」（**不出「测试失败」**），修法 `dotnet build Frame\CsharpPrj\MainProj.sln`。
 可用 `Run-CSharpTests.ps1 -SkipAlignmentCheck` 跳过（仅在确认对齐由外部保证时）。
+
+### 生效（单一生效入口）
+```powershell
+# 构建 → 生效面上效 → 生效面断言（dev 就地即生效；locked 产代 gen-<n> + 切 current）
+.\Invoke-BuildEffective.ps1
+
+# 仅复算断言（不构建；未对齐 ⇒ 退出码 1）—— EffectiveFaceAssertion 的机械复算命令
+.\Invoke-BuildEffective.ps1 -Assert
+```
+`Invoke-BuildEffective.ps1` = `BUILD_EFFECTIVE_SINGLE_ENTRY`（`.clinerules\project.md` §1.10）；转发到 `Projects\BuildFramework\Build-Effective.ps1`，内部串 `Build-Product.ps1 -All`（[locked] `Build-AgentGeneration.ps1`）→ `Check-EffectiveFace.ps1`。
+完成判据 = **生效面已对齐**（结构事实 = 内容指纹），非「我编译了」（「编译成功」≠「生效」，判 `ANTI-COMPILE-NOT-EFFECTIVE`）。
 
 ## 门禁清单契约（GateManifests.psd1）
 

@@ -136,7 +136,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var a=(attrs[i]||'').trim();if(!a){continue;}"
         + "var v=el.getAttribute('data-'+a);if(v!==null){o[a]=v;}"
         + "}return o;}"
-        + "var curScopes=null;"
+        + "var curScopes=null;var curTrace=null;"
         + "function subsOf(n){var s=n.getAttribute('data-poll-subscribe');if(!s){return null;}var a=s.split(',');var o=[];for(var i=0;i<a.length;i++){var t=(a[i]||'').trim();if(t){o.push(t);}}return o.length?o:null;}"
         // D1/D3：curScopes 为空（宿主全量心跳 all:true，或未收到 scope）⇒ 恒真（显式"全量"语义，非隐式）；
         // 订阅键含 '*' ⇒ 恒真（页面显式声明"关心全部实体"，如任务总览页；避免"未声明即全量"的隐式含义）。
@@ -148,6 +148,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "if(ctx){for(var k in ctx){o[k]=ctx[k];}}"
         // I3 范围协议（D5 打通）：回投保留宿主推送的范围集合，服务端据此定向更新（无 scope = 显式全量）。
         + "if(curScopes&&curScopes.length){o.scope=curScopes.slice();}"
+        // L6 追踪：回投携带宿主推送的 refreshTraceId（无推送=兜底/手动刷新 → 生成页面本地号，仍一条轨迹）。
+        + "o.traceId=curTrace||('page-'+((window.__uiTraceSeq=(window.__uiTraceSeq||0)+1)));"
         // L5 态外置：回投受控态（<details> 展开集合，按稳定键），服务端渲染时绑定（f(data,state)）。
         + "if(window.__uiReconcile&&window.__uiReconcile.capture){o.uiState=window.__uiReconcile.capture();}"
         + "pst(o);}"
@@ -170,7 +172,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var d=e?e.data:null;if(!d){return;}"
         + "var cmd=(typeof d==='string')?d:(d.cmd||'');"
         + "if(cmd!=='refresh'&&cmd!=='update'){return;}"
-        + "curScopes=(d&&d.scope&&d.scope.length)?d.scope:null;"
+        + "curScopes=(d&&d.scope&&d.scope.length)?d.scope:null;curTrace=(d&&d.traceId)?d.traceId:null;"
         + "pushSeen=true;stopFallback();refreshNow();"
         + "});}"
         // 手动刷新按钮：点击即刷（不受 1s 节流限制）
@@ -215,8 +217,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "if(re){oldParent.appendChild(reconcile(re,nn));}else{oldParent.appendChild(nn);}}"
         + "for(var k2 in byKey){var e=byKey[k2];if(e.parentNode){e.parentNode.removeChild(e);}}"
         + "for(var m=0;m<noKey.length;m++){var ee=noKey[m];if(ee.parentNode){ee.parentNode.removeChild(ee);}}}"
-        + "function byKey(root,key){if(!key){return null;}var eq=key.indexOf('=');if(eq<=0){return null;}var a=key.substring(0,eq);var v=key.substring(eq+1);if(a==='id'){var e=document.getElementById(v);return (e&&(!root||root.contains(e)||root===e))?e:null;}return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
-        + "function applyState(host,state){if(!host||!state){return;}if(state.focus){var f=byKey(host,state.focus);if(f&&f.focus){try{f.focus();}catch(e){}}}if(state.scroll){for(var s=0;s<state.scroll.length;s++){var it=state.scroll[s];var e=byKey(host,it.k);if(!e){continue;}if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}}}"
+        + "function findByKey(root,key){if(!key){return null;}var eq=key.indexOf('=');if(eq<=0){return null;}var a=key.substring(0,eq);var v=key.substring(eq+1);if(a==='id'){var e=document.getElementById(v);return (e&&(!root||root.contains(e)||root===e))?e:null;}return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
+        + "function applyState(host,state){if(!host||!state){return;}if(state.focus){var f=findByKey(host,state.focus);if(f&&f.focus){try{f.focus();}catch(e){}}}if(state.scroll){for(var s=0;s<state.scroll.length;s++){var it=state.scroll[s];var e=findByKey(host,it.k);if(!e){continue;}if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}}}"
         + "function apply(host,html,state){"
         + "if(!host){return 'NOT_FOUND';}"
         + "if(!window.__uiReconcileEnabled){host.innerHTML=html;return 'OK';}"

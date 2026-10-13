@@ -30,6 +30,84 @@ public static class ExtensionGenerationLayout
     /// <summary>代根目录名（与 Build-AgentGeneration.ps1 默认 GenRoot 一致：<c>BuildOutput\Generations</c>）。</summary>
     public const string GenerationsDirName = "Generations";
 
+    /// <summary>
+    /// 当前生效代指针文件名（生成物；内容 = 代目录名 <c>gen-&lt;n&gt;</c>）——
+    /// 「生效代」的**唯一权威**（消除「最高代目录」启发式：多代并存时最大 n 未必是生效代）。
+    /// </summary>
+    public const string CurrentPointerFileName = "current";
+
+    /// <summary>当前生效代指针路径：<c>&lt;genRoot&gt;\current</c>。</summary>
+    public static string CurrentPointerPath(string genRoot)
+    {
+        if (string.IsNullOrWhiteSpace(genRoot))
+            throw new ArgumentException("genRoot 不可为空。", nameof(genRoot));
+
+        return Path.Combine(genRoot, CurrentPointerFileName);
+    }
+
+    /// <summary>
+    /// 写入「当前生效代」指针（构建成功后由 <c>Build-AgentGeneration.ps1</c> 调用；内容 = 代目录名）。
+    /// 幂等覆盖；写失败返回 false（不抛）。装载/换代只认本指针，构建只写新代目录 + 原子切指针。
+    /// </summary>
+    public static bool TryWriteCurrentPointer(string genRoot, int generation)
+    {
+        if (string.IsNullOrWhiteSpace(genRoot) || generation < 1)
+            return false;
+
+        try
+        {
+            Directory.CreateDirectory(genRoot);
+            File.WriteAllText(
+                CurrentPointerPath(genRoot),
+                GenerationDirPrefix + generation.ToString(CultureInfo.InvariantCulture));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 读取「当前生效代」指针。缺指针 / 内容非法 / 指向的代目录或其基座清单缺件 ⇒ false
+    /// （调用方回落「最高代」枚举，保证首启兼容）。
+    /// </summary>
+    public static bool TryReadCurrentGeneration(string genRoot, out int generation, out string manifestPath)
+    {
+        generation = 0;
+        manifestPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(genRoot))
+            return false;
+
+        try
+        {
+            var pointerPath = CurrentPointerPath(genRoot);
+            if (!File.Exists(pointerPath))
+                return false;
+
+            var name = File.ReadAllText(pointerPath).Trim();
+            if (name.Length <= GenerationDirPrefix.Length
+                || !name.StartsWith(GenerationDirPrefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var digits = name.Substring(GenerationDirPrefix.Length);
+            if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n < 1)
+                return false;
+
+            var candidate = GenerationManifestPath(genRoot, n);
+            if (!File.Exists(candidate))
+                return false;
+
+            generation = n;
+            manifestPath = candidate;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>代目录路径：<c>&lt;genRoot&gt;\gen-&lt;n&gt;</c>。</summary>
     public static string GenerationDir(string genRoot, int generation)
     {
@@ -76,12 +154,17 @@ public static class ExtensionGenerationLayout
     }
 
     /// <summary>
-    /// 解析**最高代**目录及其 Agent 基座清单（装载面 = 代目录；VM-R12/D2 零复制装载）。
+    /// 解析**生效代**目录及其 Agent 基座清单（装载面 = 代目录；VM-R12/D2 零复制装载）。
+    /// <b>生效代单源（V1）</b>：优先读显式 <c>current</c> 指针；缺指针才回落「最高代」枚举（首启兼容）。
     /// 目录名须匹配 <c>gen-&lt;n&gt;</c>（n ≥ 1）且含 <see cref="AgentManifestFileName"/>；无代 / 缺件 ⇒ false。
-    /// <b>确定性</b>（取最大 n），调用方须只读此处坐标，禁自写裸目录扫描。
+    /// 调用方须只读此处坐标，禁自写裸目录扫描。
     /// </summary>
     public static bool TryResolveLatestGenerationManifest(string genRoot, out int generation, out string manifestPath)
     {
+        // 生效代单源：显式指针优先（多代并存时最大 n ≠ 生效代）。
+        if (TryReadCurrentGeneration(genRoot, out generation, out manifestPath))
+            return true;
+
         generation = 0;
         manifestPath = string.Empty;
 

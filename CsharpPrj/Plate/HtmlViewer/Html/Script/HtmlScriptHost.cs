@@ -3,6 +3,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
@@ -63,10 +64,22 @@ public sealed class HtmlScriptHost
         {
             ct.ThrowIfCancellationRequested();
             if (await _channel.IsBridgeReadyAsync(ct).ConfigureAwait(false))
+            {
+                // 点击桥就绪即可执行 DOM 指令；模块清单不全（部分注入）→ **尽力补注入但绝不阻断**
+                // （就绪过严会让上层误判 BRIDGE_NOT_READY，扰动布局收敛）。
+                if (!await ModulesCompleteAsync(ct).ConfigureAwait(false))
+                {
+                    try { await InjectAllAsync(ct).ConfigureAwait(false); }
+                    catch (Exception ex)
+                    {
+                        Report("HtmlChannel_inject_bridge", $"模块补注入失败（不阻断）: {ex.GetType().Name}: {ex.Message}");
+                    }
+                }
                 return true;
+            }
             try
             {
-                // 注入全部文档级行为脚本（点击桥 + 轮询桥），各自带 document 级幂等守卫；脚本独立、互不干扰。
+                // 注入全部文档级行为脚本（点击桥 + 键控对齐 + 轮询桥），各自带 document 级幂等守卫；脚本独立、互不干扰。
                 foreach (var key in DocumentScripts)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -86,6 +99,14 @@ public sealed class HtmlScriptHost
         }
         Report("HtmlChannel_inject_bridge", await _executor.GetBridgeDiagnosisAsync(ct).ConfigureAwait(false));
         return false;
+    }
+
+    /// <summary>桥模块清单是否全就绪（通道未实现清单查询 → 视为就绪，兼容测试替身）。仅用于「尽力补注入」判据，不作为执行门槛。</summary>
+    private async Task<bool> ModulesCompleteAsync(CancellationToken ct)
+    {
+        if (_channel is not IUiBridgeReadiness readiness) return true;
+        var modules = await readiness.GetBridgeModulesAsync(ct).ConfigureAwait(false);
+        return modules.IsComplete;
     }
 
     /// <summary>

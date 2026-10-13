@@ -11,7 +11,8 @@ namespace UiBackend.Abstractions;
 public sealed record UiUpdateEnvelope(
     IReadOnlyList<string> Scopes,
     int Version,
-    string? Fingerprint = null)
+    string? Fingerprint = null,
+    string? TraceId = null)
 {
     /// <summary>是否全量（无范围声明）。</summary>
     public bool IsAll => Scopes is null || Scopes.Count == 0;

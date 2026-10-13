@@ -17,7 +17,7 @@ public static class PromptSnapshotBuilder
         string l0, string skillBlock, string l1, string l2,
         IReadOnlyList<string>? selectedSkills,
         string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
-        IReadOnlyList<PromptBand>? l0Bands = null)
+        IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -50,6 +50,8 @@ public static class PromptSnapshotBuilder
         Add(bindings, AnchorKey.ToolCombined, toolBlock);
         // 模式声明段（HSRA）：注入提示词装配声明 mode；空 → 不发射 binding（零回归）。
         Add(bindings, AnchorKey.PromptMode, mode ?? string.Empty);
+        // 子智能体标签声明段：注入提示词装配声明 sub_agent；空 → 不发射 binding（零回归）。
+        Add(bindings, AnchorKey.PromptSubAgent, subAgent ?? string.Empty);
 
         return new PromptSnapshot
         {
@@ -62,6 +64,7 @@ public static class PromptSnapshotBuilder
             ToolBlock = toolBlock ?? string.Empty,
             SelectedTools = tools,
             Mode = mode ?? string.Empty,
+            SubAgent = subAgent ?? string.Empty,
             Bindings = bindings,
         };
     }

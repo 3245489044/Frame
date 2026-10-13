@@ -180,6 +180,14 @@
     #   Projects/Information/DrivenConfig/**（AgentRuntimeUI.json）· Environment/CentralTest/**，均在新单 allowSet 内。
     #   上一系列（N3/N4/N5/GL 红清单收口）在途改动按新单 preexisting 登记，切换不误判。
     #   恢复 = 回填 v30 的 Value。
+    # v32（2026-10-13）：现行授权单内**增批**（不改 Manifest 指针）—— 新增 GEN-SSOT 批
+    #   （Agent 产物加载面 SSOT 与换代链闭合：V1 生效代指针 / V2 装载面新鲜度可见化 /
+    #   V3 根换代接线 / V4c 桥接根换代）。切换理由 = 用户转入实施《Agent 产物总是加载旧的 —
+    #   框架层彻底修复》：改动落在 Frame/CsharpPrj/Modules/Registry/**（ExtensionGenerationLayout 生效代指针）·
+    #   Frame/PowerShellScript/Operation/DSL/Check-GenerationLayout.ps1（L5 指针判据）·
+    #   Projects/BuildFramework/**（Build-AgentGeneration 写指针）· Projects/FileDriven/**（装载面/桥/端口）·
+    #   Projects/PrjBridge/**（插件根换代入口）· Projects/Plug/Agent/src/**（根引导接线），
+    #   均在 GEN-SSOT allowSet 内；RB 批条目与其 preexisting 保留不变。
     # Manifest(v30) = @{ Value = 'Docs\analysis\2026\10\10.13\2026-10-13-Agent红清单收口.batches.json'; Origin = 'Derived'; DueWhen = '' }
     Manifest = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-13-刷新写回调用链重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
 

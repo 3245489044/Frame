@@ -7,6 +7,7 @@
 #   [L2] 含 Agent.*.dll，且计数 ≥ 就地产物面参照计数（覆盖同一集合）
 #   [L3] 含 Agent.Launcher.deps.json（AssemblyDependencyResolver 基座 = 本目录）
 #   [L4] 含 vm-program.json（VM 清单）
+#   [L5] current 指针（存在时）须指向合法 gen-<n> 且该代目录在位（生效代单源；缺指针 = 装载面回落最高代）
 # 说明：落点**禁** BuildOutput\<Config>（被运行进程锁定）；本脚本只读校验，不构建。
 #
 #   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
@@ -80,6 +81,21 @@ foreach ($dir in $dirs) {
 
 foreach ($g in $gens) {
     Write-Host ("  {0}: Agent dll {1} | deps {2} | manifest {3}" -f $g.Gen, $g.Dlls, $g.Deps, $g.Manifest)
+}
+
+# [L5] 生效代指针（V1 单源）：存在则须指向合法 gen-<n> 且该代目录在位。
+$pointerPath = Join-Path $GenRoot 'current'
+if (Test-Path -LiteralPath $pointerPath) {
+    $pointerName = (Get-Content -LiteralPath $pointerPath -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($pointerName -notmatch '^gen-[1-9]\d*$') {
+        $violations.Add(("[L5] current 指针内容非法：'{0}'（应形如 gen-<n>）" -f $pointerName))
+    } elseif (-not (Test-Path -LiteralPath (Join-Path $GenRoot $pointerName))) {
+        $violations.Add(("[L5] current 指针指向不存在代目录：{0}" -f $pointerName))
+    } else {
+        Write-Host ("  current 指针: {0}" -f $pointerName)
+    }
+} else {
+    Write-Host '  current 指针: (缺 —— 装载面回落「最高代」枚举；建议经 Build-AgentGeneration.ps1 产出以固化生效代)'
 }
 
 Write-Host ("代目录数: {0} | 违规命中: {1}" -f $gens.Count, $violations.Count)

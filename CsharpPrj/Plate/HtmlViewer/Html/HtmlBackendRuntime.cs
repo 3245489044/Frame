@@ -197,8 +197,11 @@ public sealed class HtmlBackendRuntime
                 Report("EventBridge_writeback", $"补丁写回 {hostControlName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）");
                 return;
             }
+            // 断整页回退链：**已挂载**宿主补丁未生效 ⇒ 不整页重载（避免 document 重建丢展开/滚动/焦点），
+            // 仅记诊断并保留现有 DOM；下一拍重试（reconcile 自愈会在后续调用补注入）。整页仅用于首挂载。
             Report("EventBridge_writeback",
-                $"补丁写回 {hostControlName} 未生效（{DomOps.Parse(status)}）→ 回退整页渲染");
+                $"补丁写回 {hostControlName} 未生效（{DomOps.Parse(status)}）→ 保留现状（不整页回退，保护交互态）");
+            return;
         }
         if (_writePump is not null)
         {

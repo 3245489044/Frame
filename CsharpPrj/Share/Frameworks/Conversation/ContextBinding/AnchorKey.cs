@@ -25,6 +25,10 @@ public readonly record struct AnchorKey(string Value)
     /// History 状态响应智能体（HSRA）经此段读取 mode（零重算，UI ≡ LLM）。</summary>
     public static AnchorKey PromptMode => new("prompt.mode");
 
+    /// <summary>子智能体标签声明段锚点 —— 注入提示词装配声明的子智能体标签（如 <c>usharp</c>）；
+    /// 与 mode 同级作独立声明段（UI ≡ LLM 同源可见）。</summary>
+    public static AnchorKey PromptSubAgent => new("prompt.subagent");
+
     /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
     public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 

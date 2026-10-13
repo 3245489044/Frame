@@ -8,6 +8,8 @@
 #   [L3] 含 Agent.Launcher.deps.json（AssemblyDependencyResolver 基座 = 本目录）
 #   [L4] 含 vm-program.json（VM 清单）
 #   [L5] current 指针（存在时）须指向合法 gen-<n> 且该代目录在位（生效代单源；缺指针 = 装载面回落最高代）
+#   [L6] 含 CsharpPrj 核心域闭包（Share.HostAssembly / Share.Conversation / Plate.HtmlViewer / WorkFlowMethod）——
+#        默认 ALC 共享面运行期来源 = 生效代目录（B · 统一装载面）；缺件 ⇒ 共享面回落构建期目录，与 Agent.* 混载风险
 # 说明：落点**禁** BuildOutput\<Config>（被运行进程锁定）；本脚本只读校验，不构建。
 #
 #   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
@@ -39,6 +41,9 @@ if (Test-Path $inPlace) {
     $referenceCount = @(Get-ChildItem $inPlace -Filter 'Agent.*.dll' -File -ErrorAction SilentlyContinue).Count
 }
 
+# [L6] CsharpPrj 核心域闭包关键件（B · 统一装载面：默认 ALC 共享面运行期来源 = 生效代目录）
+$coreProbe = @('Share.HostAssembly.dll', 'Share.Conversation.dll', 'Plate.HtmlViewer.dll', 'WorkFlowMethod.dll')
+
 $violations = [System.Collections.Generic.List[string]]::new()
 $gens = @()
 
@@ -68,8 +73,9 @@ foreach ($dir in $dirs) {
     $dlls = @(Get-ChildItem $dir.FullName -Filter 'Agent.*.dll' -File -ErrorAction SilentlyContinue)
     $hasDeps = Test-Path (Join-Path $dir.FullName 'Agent.Launcher.deps.json')
     $hasManifest = Test-Path (Join-Path $dir.FullName 'vm-program.json')
+    $coreMissing = @($coreProbe | Where-Object { -not (Test-Path (Join-Path $dir.FullName $_)) })
 
-    $gens += [pscustomobject]@{ Gen = $dir.Name; Dlls = $dlls.Count; Deps = $hasDeps; Manifest = $hasManifest }
+    $gens += [pscustomobject]@{ Gen = $dir.Name; Dlls = $dlls.Count; Deps = $hasDeps; Manifest = $hasManifest; CoreMissing = $coreMissing.Count }
 
     if ($dlls.Count -eq 0) { $violations.Add(("[L2] {0}：无 Agent.*.dll" -f $dir.Name)) }
     elseif ($referenceCount -gt 0 -and $dlls.Count -lt $referenceCount) {
@@ -77,10 +83,13 @@ foreach ($dir in $dirs) {
     }
     if (-not $hasDeps)     { $violations.Add(("[L3] {0}：缺 Agent.Launcher.deps.json" -f $dir.Name)) }
     if (-not $hasManifest) { $violations.Add(("[L4] {0}：缺 vm-program.json" -f $dir.Name)) }
+    if ($coreMissing.Count -gt 0) {
+        $violations.Add(("[L6] {0}：缺 CsharpPrj 核心域闭包（{1}）——共享面将回落构建期目录，与 Agent.* 混载风险" -f $dir.Name, ($coreMissing -join ', ')))
+    }
 }
 
 foreach ($g in $gens) {
-    Write-Host ("  {0}: Agent dll {1} | deps {2} | manifest {3}" -f $g.Gen, $g.Dlls, $g.Deps, $g.Manifest)
+    Write-Host ("  {0}: Agent dll {1} | deps {2} | manifest {3} | 核心域缺件 {4}" -f $g.Gen, $g.Dlls, $g.Deps, $g.Manifest, $g.CoreMissing)
 }
 
 # [L5] 生效代指针（V1 单源）：存在则须指向合法 gen-<n> 且该代目录在位。

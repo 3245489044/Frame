@@ -1,30 +1,30 @@
 
 using System;
-using System.Windows.Forms;
 
 namespace Common.Diagnostics
 {
+    /// <summary>
+    /// 兼容垫片：转发到唯一异常出口 ExceptionGateway（不再 Environment.Exit，保命优先）。
+    /// 新代码请直接用 ExceptionGateway.Configure（全库异常订阅点收敛为 1）。
+    /// </summary>
     public static class GlobalExceptionHandler
     {
         public static void Configure(
             Action<Exception>? onThreadException = null,
             Action<Exception>? onAppDomainException = null)
         {
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-
-            Application.ThreadException += (sender, e) =>
+            ExceptionGateway.Configure(onCrash: record =>
             {
-                onThreadException?.Invoke(e.Exception);
-                Environment.Exit(1);
-            };
-
-            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
-            {
-                var ex = e.ExceptionObject as Exception
-                    ?? new Exception(e.ExceptionObject.ToString());
-                onAppDomainException?.Invoke(ex);
-                Environment.Exit(1);
-            };
+                var ex = new Exception(record.Message);
+                if (record.Kind == CrashKind.ThreadException)
+                {
+                    onThreadException?.Invoke(ex);
+                }
+                else
+                {
+                    onAppDomainException?.Invoke(ex);
+                }
+            });
         }
     }
 }

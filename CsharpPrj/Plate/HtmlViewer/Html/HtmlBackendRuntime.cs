@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,6 +96,65 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
 
     private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
 
+    // F1 单飞合并：每站点至多一个在飞写；在飞期间的重入/并发写合并为最新一次（latest-wins），
+    // 使「写回↔消息桥成环」在结构上无法累积深度/并发（F3：单飞即守卫，删除重复的全局深度计数）。
+    private readonly ConcurrentDictionary<string, WriteSlot> _writeSlots = new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed class WriteSlot
+    {
+        private readonly object _gate = new();
+        public bool InFlight;
+        public string? Pending;
+        public bool HasPending;
+
+        /// <summary>尝试进入写（首入者得 first）；在飞则合入待写槽并返回 false（不递归）。</summary>
+        public bool TryBegin(string html, out string first)
+        {
+            lock (_gate)
+            {
+                if (InFlight)
+                {
+                    Pending = html;
+                    HasPending = true;
+                    first = html;
+                    return false;
+                }
+                InFlight = true;
+                first = html;
+                return true;
+            }
+        }
+
+        /// <summary>取下一待写（有则继续 drain）；无则将站点置回空闲并返回 false。</summary>
+        public bool TryDequeue(out string next)
+        {
+            lock (_gate)
+            {
+                if (HasPending && Pending is not null)
+                {
+                    next = Pending;
+                    Pending = null;
+                    HasPending = false;
+                    return true;
+                }
+                InFlight = false;
+                next = string.Empty;
+                return false;
+            }
+        }
+
+        /// <summary>异常/收尾兜底：无条件置回空闲（幂等）。</summary>
+        public void ForceExit()
+        {
+            lock (_gate)
+            {
+                InFlight = false;
+                Pending = null;
+                HasPending = false;
+            }
+        }
+    }
+
     /// <summary>脚本桥命令协议 set/get/click/exec/sleep 落到 HTML 原生元素——运行时唯一实例。</summary>
     public HtmlScriptBridge ScriptBridge => _scriptBridge;
 
@@ -182,18 +242,65 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
     }
 
     /// <summary>
-    /// 宿主内容写回单一入口（C2 收敛）：空结果跳过 → 去重 → 补丁/收敛写/纯渲染 → 记录去重。
-    /// 补丁未生效 → 整页为**显式回退策略**（诊断可见），不再散落于闭包多分支。
+    /// 宿主内容写回入口（F1 单飞合并）：空结果跳过；同站点在飞期间的重入/并发写**合并为最新一次**
+    /// （latest-wins，不递归）——使「写回↔消息桥成环」在结构上无法累积深度/并发。
     /// </summary>
-    private async Task WriteHostContentAsync(
+    private Task WriteHostContentAsync(
         string hostControlName, HtmlWriteBackMode writeMode, Action<string>? contentSink, string html)
     {
         // L2 类型化：空结果 = 无内容写回（取代 NoWrite 哨兵串；调用方已按区域直接写回即返回空串）。
         if (string.IsNullOrEmpty(html))
         {
             Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（空结果 = 无写回内容）");
-            return;
+            return Task.CompletedTask;
         }
+
+        var slot = _writeSlots.GetOrAdd(hostControlName, _ => new WriteSlot());
+        if (!slot.TryBegin(html, out var first))
+        {
+            // F1 单飞合并：在飞期间的重入/并发写 → 合入待写槽（latest-wins），不递归、不触 DOM。
+            Report("EventBridge_writeback", $"写回 {hostControlName} 合并（在飞中，latest-wins）");
+            return Task.CompletedTask;
+        }
+        return DrainHostWriteAsync(hostControlName, writeMode, contentSink, slot, first);
+    }
+
+    /// <summary>F1 单飞 drain：串行执行该站点写；执行期间到达的写请求被合并，末态以最新一并落盘。</summary>
+    private async Task DrainHostWriteAsync(
+        string hostControlName, HtmlWriteBackMode writeMode, Action<string>? contentSink, WriteSlot slot, string firstHtml)
+    {
+        var html = firstHtml;
+        var drained = false;
+        try
+        {
+            while (true)
+            {
+                await WriteHostContentCoreAsync(hostControlName, writeMode, contentSink, slot, html).ConfigureAwait(false);
+                if (!slot.TryDequeue(out var next))
+                {
+                    drained = true;
+                    break;
+                }
+                html = next;
+            }
+        }
+        finally
+        {
+            // 正常 drain 已由 TryDequeue 释放槽位；异常路径兜底释放，避免站点永久占位。
+            if (!drained) slot.ForceExit();
+        }
+    }
+
+    /// <summary>写回核心（单点执行，仅经 drain 串行调用）：去重 → 补丁/收敛写/纯渲染 → 记录去重。</summary>
+    private async Task WriteHostContentCoreAsync(
+        string hostControlName, HtmlWriteBackMode writeMode, Action<string>? contentSink, WriteSlot slot, string html)
+    {
+        // F3 不变量断言（非抛出）：核心只应由 drain 在其站点在飞时调用——单飞即守卫，取代旧的全局深度熔断。
+        if (!slot.InFlight)
+            Report("EventBridge_invariant", $"写回核心被直接调用（slot.InFlight=false, site={hostControlName}）：单飞不变量被破坏");
+        // L2 类型化：空结果 = 无内容写回（drain 已短路，此处兜底）。
+        if (string.IsNullOrEmpty(html))
+            return;
         if (_lastHostWrite.TryGetValue(hostControlName, out var prev)
             && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
         {

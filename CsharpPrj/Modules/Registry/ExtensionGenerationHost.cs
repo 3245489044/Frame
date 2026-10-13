@@ -474,6 +474,12 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
 /// 扩展侧一律 <c>Private=false</c>，既不自带副本、也不源码重编译。
 /// </para>
 /// <para>
+/// <b>两阶段权威（B · 统一装载面，2026-10-14）</b>：CsharpPrj 核心域全族（Share.* / Plate.* / WorkFlowMethod 等）
+/// 事实上亦属本共用面（<see cref="ExtensionLoadContext.Load"/> 对「默认 ALC 可解析」者一律复用默认副本）。
+/// 其**运行期**权威来源 = 生效代目录 <c>gen-&lt;n&gt;</c>（探针优先解析，与 Agent.* 同批构建的自洽闭包）；
+/// **构建期**权威仍为 <c>$(CsharpBuildOutputDir)</c>（探针回落链）。两来源不同批的静默混载由此在结构上消除。
+/// </para>
+/// <para>
 /// 违反后果（2026-09-27 实测）：两份副本因 <c>AssemblyVersion</c> 恒 1.0.0.0 而无法被 CLR 区分 ⇒
 /// <see cref="ExtensionLoadContext.Load"/> 的"默认 ALC 同名优先复用"选中较旧副本 ⇒
 /// 调用新成员 <c>MissingMethodException</c>（表现为"（会话初始化失败）Method not found: …"）。

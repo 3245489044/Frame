@@ -97,7 +97,8 @@ internal static partial class BuiltInValueContracts
                                 else
                                     // D2 单写者：内容落地经控件协调器（HtmlBackendRuntime.WriteHostContentAsync → reconcile / 去重 / 区域，保态）；
                                     // 未挂接协调器时控件内部回退 SetHtmlAsync。Observe 收敛写上移 FrontEndDriven/HtmlViewerBridge，plate 值契约不依赖 Observe。
-                                    _ = hv.WriteContentAsync(text);
+                                    // F2：同步 setter 无法 await，改走受观察的 fire-and-forget（失败经 BridgeDiagnostics 上报，不逃逸为未观察 Task 异常）。
+                                    hv.WriteContentDetached(text);
                             }
                             return v?.ToString();
                         }),

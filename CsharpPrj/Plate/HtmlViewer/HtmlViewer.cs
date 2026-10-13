@@ -156,6 +156,12 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness
             ? writer(html)
             : SetHtmlAsync(html, ct);
 
+    /// <summary>值契约 / 同步出口触发的写回（fire-and-forget）：写回失败经 <see cref="BridgeDiagnostics"/> 上报，
+    /// 不以「未观察 Task 异常」逃逸（F2）；需要 await 语义的调用方仍用 <see cref="WriteContentAsync"/>。</summary>
+    public void WriteContentDetached(string? html)
+        => AsyncObserve.Run(WriteContentAsync(html),
+            ex => ReportDiagnostics("HtmlChannel_writeback_observed_error", $"{ex.GetType().Name}: {ex.Message}"));
+
     /// <summary>当前生效主题文档：控件级 <see cref="Theme"/>（IHtmlTheme 兼容）优先，未设置经全局 <see cref="HtmlTheme.ResolveProvider"/> 解析（主题单一源，唯一收敛点）。</summary>
     private ThemeDocument ResolveThemeDocument()
         => Theme is not null ? ThemeDocument.FromCss(Theme.Css) : HtmlTheme.ResolveProvider().Resolve(ThemeMode, ThemeScope.Document);

@@ -181,6 +181,16 @@ if (-not $Force) {
 }
 
 # ============================================================
+# 仓库级构建门：清理 + 全量编译都触碰共享 BuildOutput ⇒ 与全部构建入口串行
+# （否则「清理」可能压过另一条在跑的构建，或全量编译与并发构建互抢 obj）
+# ============================================================
+
+$repoRoot = Split-Path -Parent $projectRoot
+Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\BuildGate.psm1') -Force -Global
+$gate = Enter-BuildGate -RepoRoot $repoRoot -Purpose 'Invoke-FullRebuild' -Wait -TimeoutMinutes 60
+try {
+
+# ============================================================
 # 步骤 1：集中清理（委托 Invoke-CleanAll.ps1）
 # ============================================================
 
@@ -214,7 +224,7 @@ Invoke-Step -Name "步骤 2/4：全量编译 C# ($Configuration)" -Critical $tru
     Write-Host "  配置: $Configuration" -ForegroundColor Gray
     Write-Host ""
 
-    $buildOutput = & dotnet build $slnFile -c $Configuration --nologo 2>&1
+    $buildOutput = & dotnet build $slnFile -c $Configuration --nologo "-p:BuildGuard_GlobalSession=$($gate.Session)" 2>&1
     $buildSucceeded = Format-BuildOutput -BuildOutput $buildOutput
 
     if (-not $buildSucceeded) {
@@ -284,3 +294,6 @@ Write-Host "  提示:" -ForegroundColor Yellow
 Write-Host "  1. 如需单独编译 C#: dotnet build CsharpPrj/MainProj.sln -c $Configuration" -ForegroundColor Gray
 Write-Host "  2. 如需单独编译 TS: cd TypeScriptPrj && npx tsc --build" -ForegroundColor Gray
 Write-Host ""
+
+}
+finally { Exit-BuildGate -Scope $gate }

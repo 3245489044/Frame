@@ -31,6 +31,9 @@ public enum DslSymbolKind
     Config, Rule,
     // Agent 技能语言单元（U-V4 唯一新增）：[Skill] 技能声明（元数据进 .ushar；正文经 body= 引用 SKILL.md，Usharp 管理引用）
     Skill,
+    // LLM 判定契约语言单元（[LLMDecl]）：把 LLM 判定点的「判定形状与契约」（prompt/输入/输出 schema）外置为声明。
+    // 前置缀由 Usharp 领域包自持（UsharpPrefixes），此仅登记符号类型（核心零领域语义：GateEngine 不分支于它）。
+    LlmDecl,
     Unknown,
 }
 

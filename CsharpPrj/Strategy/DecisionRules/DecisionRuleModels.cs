@@ -144,6 +144,10 @@ namespace Strategy.DecisionRules
 
         /// <summary>llm：要求 LLM 产出 JSON 并经适配层解析（true=走 JSON 生成器；false=纯文本）。缺省 true。</summary>
         public bool LlmParseJson { get; set; } = true;
+
+        /// <summary>llm：判定契约 id（<c>[LLMDecl]</c> Id）——命中本规则时，LLM 输出经**声明契约解析器**回填，
+        /// 取代 C# 手写 Parse/ParseProposal（<c>then=type:llm|contract=&lt;Id&gt;</c>）。null = 走消费方缺省。</summary>
+        public string? Contract { get; set; }
     }
 
     /// <summary>单条规则：when（条件）→ then（输出）。</summary>

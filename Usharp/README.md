@@ -64,6 +64,7 @@
 | `[Flow]` | 链 / 工作流（以链为节点） | `Flow` | `RoundSpec` + `ChainTransitionMatrix` |
 | `[Ref]` | 带空间归属的引用 | `Ref` | `CoordinateRef` + 引用图边 |
 | `[Obs]` | 观测声明（作用域 / 实体 / 事件；`kind=` 分子类） | `Obs` | `BoundaryContract` / `EventContract`（经适配层登记；核心零观测依赖） |
+| `[LLMDecl]` | LLM 判定契约（判定形状与契约外置：`over`/`input`/`output` + `system_body`/`user_body` 提示词正文引用） | `LlmDecl` | 契约投影（`llm.prompt` / `llm.contract`；LLM 推理本身不进声明语言，执行仍由内核 LLM 网关完成） |
 
 既有 `[Node]` / `[Edge]` / `[Constraint]` / `[CR]` / `%` / `#` 等前缀**继续沿用**（同一解析器、同一符号索引）。
 

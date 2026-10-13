@@ -221,4 +221,17 @@ public static class UsharpCodes
 
     /// <summary>记录引用的表未在本编译声明面中定义。</summary>
     public const string RecordTableUndeclared = "US7205";
+
+    // LLM 判定契约面（[LLMDecl]：判定形状与契约外置；L 系闸A —— 输出/输入契约 ↔ 装配对账）
+    /// <summary><c>[LLMDecl] output=</c> 的字段未在 <c>over=</c> 空间的 O 区词元中声明（消手写 Parse 的结构漂移）。</summary>
+    public const string LlmContractOutputUndeclared = "US7301";
+
+    /// <summary><c>[LLMDecl] input=</c> 的字段未在 <c>over=</c> 空间的 I 区词元中声明（消手写 BuildPrompt 的结构漂移）。</summary>
+    public const string LlmContractInputUndeclared = "US7302";
+
+    /// <summary><c>[LLMDecl]</c> 形态非法（缺 <c>system=</c> / <c>output=</c> / 缺 <c>over=</c> 或 <c>over=</c> 非词元空间）。</summary>
+    public const string LlmDeclShapeInvalid = "US7303";
+
+    /// <summary><c>[LLMDecl] over=</c> 引用的空间未在本编译声明面中定义。</summary>
+    public const string LlmDeclSpaceUnknown = "US7304";
 }

@@ -35,6 +35,32 @@ public static class UsharpLanguage
     /// <summary>规则声明前缀（规则面：条件 → 动作；<c>[Rule]</c>）。</summary>
     public const string RulePrefix = "[Rule]";
 
+    // ---- LLM 判定契约语言单元（[LLMDecl]；判定时机/契约/输出→动作解析外置；LLM 推理不进声明语言）----
+
+    /// <summary>LLM 判定契约声明前缀（<c>[LLMDecl]</c>）：描述一个 LLM 判定点的形状与契约。</summary>
+    public const string LlmDeclPrefix = "[LLMDecl]";
+
+    /// <summary>契约归属空间字段（<c>over=</c>：I/O 词元空间 id）。</summary>
+    public const string LlmFieldOver = "over";
+
+    /// <summary>系统提示词正文文件字段（<c>system_body=</c>：相对声明文件的 .md 路径；正文外置，不入声明）。</summary>
+    public const string LlmFieldSystemBody = "system_body";
+
+    /// <summary>用户提示词正文文件字段（<c>user_body=</c>：相对声明文件的 .md 路径；占位符 <c>{字段}</c>）。</summary>
+    public const string LlmFieldUserBody = "user_body";
+
+    /// <summary>输入字段集字段（<c>input=</c>：逗号列表，对应空间 I 区词元）。</summary>
+    public const string LlmFieldInput = "input";
+
+    /// <summary>输出契约字段（<c>output=</c>：<c>&lt;根&gt;|&lt;字段&gt;… -&gt; &lt;类型&gt;</c>，对应空间 O 区词元）。</summary>
+    public const string LlmFieldOutput = "output";
+
+    /// <summary>采样温度字段（<c>temp=</c>）。</summary>
+    public const string LlmFieldTemp = "temp";
+
+    /// <summary>候选上限字段（<c>max_candidates=</c>；防提示词无界）。</summary>
+    public const string LlmFieldMaxCandidates = "max_candidates";
+
     // ---- 配置/规则语言单元字段名（[Config]/[Rule]）----
     // 单源：禁在声明类/装载器各写一份字面量。`scope` 复用 <see cref="FieldScope"/>（不造别名）。
 

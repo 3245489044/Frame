@@ -19,7 +19,8 @@ public sealed record AgentManifest(
     IReadOnlyList<AgentToolFaceEdge> ToolFaces,
     AgentBehaviorTable? Behavior,
     IReadOnlyList<AgentPortNode> Ports,
-    string SourceFingerprint)
+    string SourceFingerprint,
+    IReadOnlyList<UsharpLlmDecl>? LlmDecls = null)
 {
     /// <summary>由一次编译装配清单（缺失的 facet → 空表/ null，不伪造）。</summary>
     public static AgentManifest Build(UsharpCompilation compilation)
@@ -31,8 +32,9 @@ public sealed record AgentManifest(
         var faces = compilation.TryGetFacet<IReadOnlyList<AgentToolFaceEdge>>(out var f) ? f : Array.Empty<AgentToolFaceEdge>();
         var behavior = compilation.TryGetFacet<AgentBehaviorTable>(out var b) ? b : null;
         var ports = compilation.TryGetFacet<IReadOnlyList<AgentPortNode>>(out var n) ? n : Array.Empty<AgentPortNode>();
+        var llmDecls = compilation.TryGetFacet<IReadOnlyList<UsharpLlmDecl>>(out var l) ? l : Array.Empty<UsharpLlmDecl>();
 
-        return new AgentManifest(skills, profiles, faces, behavior, ports, Fingerprint(skills, profiles, faces));
+        return new AgentManifest(skills, profiles, faces, behavior, ports, Fingerprint(skills, profiles, faces), llmDecls);
     }
 
     /// <summary>同源指纹（I5）：代码契约与提示词产物共享一次编译的声明指纹。</summary>
@@ -72,5 +74,6 @@ public static class AgentPacks
             new AgentSkillPack(knownTools, knownBands),
             new AgentToolPack(knownTracks),
             new AgentPromptPack(),
+            new AgentLlmPack(),
         };
 }

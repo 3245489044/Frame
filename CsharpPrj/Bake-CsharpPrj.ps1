@@ -18,9 +18,15 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sln = Join-Path $root 'MainProj.sln'
 if (-not (Test-Path $sln)) { throw "缺少 MainProj.sln：$sln" }
 
+# 仓库级构建门（与全部构建入口共享同一机器级互斥量；嵌套调用复用会话 ⇒ 不自锁死）
+$repoRoot = Split-Path -Parent (Split-Path -Parent $root)
+Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\BuildGate.psm1') -Force -Global
+$gate = Enter-BuildGate -RepoRoot $repoRoot -Purpose 'Bake-CsharpPrj' -Wait -TimeoutMinutes 30
+try {
+
 # 权威烘焙 = 官方入口 MainProj.sln（6 伞递归全部叶子工程），单命令等价旧 6 条逐伞构建
 Write-Host "[Bake-CsharpPrj] dotnet build MainProj.sln（权威烘焙全集）…" -ForegroundColor Cyan
-& dotnet build $sln -c $Configuration -v m --nologo
+& dotnet build $sln -c $Configuration -v m --nologo "-p:BuildGuard_GlobalSession=$($gate.Session)"
 if ($LASTEXITCODE -ne 0) { throw "烘焙失败（exit=$LASTEXITCODE）：$sln" }
 
 # ★ D9/E1：DataCenter 平台库（独立解决方案 Frame\DataCenter\DataCenter.slnx）——
@@ -30,7 +36,7 @@ if ($LASTEXITCODE -ne 0) { throw "烘焙失败（exit=$LASTEXITCODE）：$sln" }
 $dcSln = Join-Path (Split-Path -Parent $root) 'DataCenter\DataCenter.slnx'
 if (Test-Path $dcSln) {
     Write-Host '[Bake-CsharpPrj] dotnet build DataCenter.slnx（平台库：标准层 / 协议层 …）…' -ForegroundColor Cyan
-    & dotnet build $dcSln -c $Configuration -v m --nologo
+    & dotnet build $dcSln -c $Configuration -v m --nologo "-p:BuildGuard_GlobalSession=$($gate.Session)"
     if ($LASTEXITCODE -ne 0) { throw "烘焙失败（exit=$LASTEXITCODE）：$dcSln" }
 } else {
     Write-Host "[Bake-CsharpPrj] 跳过 DataCenter：未找到 $dcSln" -ForegroundColor DarkYellow
@@ -42,3 +48,6 @@ $gen = Join-Path $root 'Generate-CsharpBakeManifest.ps1'
 if ($LASTEXITCODE -ne 0) { throw "manifest 刷新失败（exit=$LASTEXITCODE）：$gen" }
 
 Write-Host '[Bake-CsharpPrj] 完成。权威目录：' (Join-Path $root "BuildOutput\$Configuration") -ForegroundColor Green
+
+}
+finally { Exit-BuildGate -Scope $gate }

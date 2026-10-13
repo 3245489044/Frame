@@ -49,6 +49,8 @@ public static class UsharpPrefixes
         // 配置/规则语言单元（L5 配置面）：配置项 / 规则（条件→动作）
         new(UsharpLanguage.ConfigPrefix, DslSymbolKind.Config, "Config"),
         new(UsharpLanguage.RulePrefix,   DslSymbolKind.Rule,   "Rule"),
+        // LLM 判定契约语言单元（[LLMDecl]）：判定形状与契约外置（判定点 when + prompt/输入/输出 schema）
+        new(UsharpLanguage.LlmDeclPrefix, DslSymbolKind.LlmDecl, "LLMDecl"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

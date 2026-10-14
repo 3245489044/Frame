@@ -13,9 +13,9 @@
       G3 正/负对照：合成样本命中（含 `SELECT *`）必被 G1 捕获（防判据空转）。
       G4 交互闭合：ConversationViewService 含工具条 data-cmd（dbSelectAll/dbInvert/dbBatchDelete/
          dbRefresh/dbPrevPage/dbNextPage/dbNodeDetail/dbRecordSave/dbRevert/dbApplyFilter/dbFilterClear/dbSort）
-         + 行 dbToggle + 行身份 data-type（行来源域）/data-source（真键回写）；负对照（缺钮/缺身份必被捕获）。
+         + 行 dbToggle + 行身份 data-type（行来源域）/data-source（真键回写，字面量在框架 HtmlDataRow.cs）；负对照（缺钮/缺身份必被捕获）。
       G5 显示增强：AgentRuntimeUI.json 主题含 .db-* 类（.db-table-view/.db-toolbar/.db-btn/.db-row/.db-edit）
-         且渲染侧含 class="title"/class="updated"；负对照（缺类必被捕获）。
+         且渲染侧声明 Title/Updated 单元格（HtmlDataCell("title")/("updated")，经 Plate 通用行构建器产出 class="title"/class="updated"）；负对照（缺类必被捕获）。
       G6 去字符串猜域：Agent.Launcher 无 NormalizeDomain 字符串猜域（应经域清单/端口分派）；负对照（合成样本必被捕获）。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
@@ -46,10 +46,12 @@ Write-Host '============================================================'
 Write-Host '  数据库页读侧统一守卫（DbPageGatherWiring：零存储域 / 聚拢点唯一）'
 Write-Host '============================================================'
 
-$viewService = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs'
+$viewService = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Views\ConversationViewService.cs'
 # C7：数据库页渲染已拆为部分类（ConversationViewService.Db.cs）——判据须合并两文件为同一读侧面。
-$viewServiceDb = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\ConversationViewService.Db.cs'
-$convLib     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries\AgentUiLibraryConversation.cs'
+$viewServiceDb = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Views\ConversationViewService.Db.cs'
+$convLib     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Functions\Conversation\AgentUiLibraryConversation.cs'
+# 行标记已下沉 Plate 通用行构建器（HtmlDataRowView）——行身份 data-type/data-source 字面量随之下沉，判据读集须并入。
+$rowComponent = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\HtmlDataRow.cs'
 
 function Read-ViewServiceText {
     $parts = [System.Collections.Generic.List[string]]::new()
@@ -114,10 +116,10 @@ if (Test-Path -LiteralPath $convLib) {
 else {
     $text = ''
 }
-# 入口注册可落在 Libraries 任一库文件（如 AgentUiLibraryBatch.cs）——扫整个 Libraries 目录。
-$libDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Modules\Libraries'
+# 入口注册可落在 Modules 任一库文件（如 Assembly\Registration\AgentUiLibraryBatch.Registration.cs）——扫整个 Modules 目录。
+$libDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules'
 if (Test-Path $libDir) {
-    $libText = [string]::Join("`n", @(Get-ChildItem -Path $libDir -Filter '*.cs' -File -ErrorAction SilentlyContinue | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }))
+    $libText = [string]::Join("`n", @(Get-ChildItem -Path $libDir -Filter '*.cs' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }))
     foreach ($fn in @('AgentUi_DbTableHtml', 'AgentUi_DbTableMessageDispatch')) {
         if ($libText -notmatch [regex]::Escape("`"$fn`"")) {
             $violations.Add("[G2] 数据库页入口函数未注册: $fn")
@@ -160,7 +162,10 @@ if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServi
         $violations.Add("[G4] 数据库页交互未闭合：缺 data-cmd '$m'（工具条五钮 + 行 dbToggle 缺一不可）")
     }
     # C11：行须含 data-type（行来源域，否则域无法回传）+ data-source（真键回写；Stream 域=聚合真行）。
-    foreach ($attr in (Get-MissingRowIdentity $viewText)) {
+    # 行标记现由 Plate 通用行构建器产出（字面量在框架 HtmlDataRow.cs），故行身份判据读集 = 领域渲染面 + 框架行构建器。
+    $identityText = $viewText
+    if (Test-Path -LiteralPath $rowComponent) { $identityText += "`n" + [System.IO.File]::ReadAllText($rowComponent) }
+    foreach ($attr in (Get-MissingRowIdentity $identityText)) {
         $violations.Add("[G4] 行/按钮缺 $attr（行身份未闭合：data-type=行来源域 / data-source=真键回写；读身份≠写删身份）")
     }
     # 负对照：仅含两钮（缺 dbBatchDelete/dbRefresh/分页/详情/保存 + dbToggle）的合成样本必须被捕获（防判据空转）。
@@ -198,12 +203,12 @@ if (Test-Path -LiteralPath $runtimeUi) {
 }
 if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
     $viewText5 = Read-ViewServiceText
-    if ($viewText5 -notmatch 'class=\\"title\\"') { $violations.Add('[G5] 渲染行缺 Title 展示（class="title"）') }
-    if ($viewText5 -notmatch 'class=\\"updated\\"') { $violations.Add('[G5] 渲染行缺 Updated 展示（class="updated"）') }
+    if ($viewText5 -notmatch 'HtmlDataCell\(\s*"title"') { $violations.Add('[G5] 渲染行缺 Title 单元格（HtmlDataCell("title")；行标记经 Plate 通用行构建器产出 class="title"）') }
+    if ($viewText5 -notmatch 'HtmlDataCell\(\s*"updated"') { $violations.Add('[G5] 渲染行缺 Updated 单元格（HtmlDataCell("updated")；行标记经 Plate 通用行构建器产出 class="updated"）') }
 }
 
 # ---------------- G6 去字符串猜域（C4：Launcher 全域无 NormalizeDomain 猜域；负对照防判据空转） ----------------
-$launcherDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher'
+$launcherDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui'
 function Get-DomainGuessHits([string]$Text) {
     return @([regex]::Matches($Text, 'NormalizeDomain'))
 }

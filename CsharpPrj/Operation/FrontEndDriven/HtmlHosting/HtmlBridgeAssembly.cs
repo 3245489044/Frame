@@ -116,16 +116,14 @@ public static class HtmlBridgeAssembly
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(templates);
         host.AttachTemplates(templates);
-        // P0 键守卫（I2）：扫描模板集中缺稳定键的 <details>（重渲染后展开态无法按 key 恢复），经诊断 sink 可见化。
-        // 非阻断（现存 tool-layer/bubble-attach 等 message 级 <details> 无稳定键）；严格拦截可改调 HtmlKeyGuard.Enforce。
-        var keyViolations = HtmlKeyGuard.ValidateAll(templates);
+        // P0 键契约（I2/I4）：全元素 × 同父键唯一性 + 缺稳定键（<details> 无键 → 重渲染后展开态无法按 key 恢复）。
+        // 经诊断 sink 可见化后装配期 fail-fast（含修复引导；键由渲染层派生，不靠作者手写）。
+        var keyViolations = HtmlKeyContract.ValidateAll(templates);
         if (keyViolations.Count > 0)
         {
-            host.DiagnosticsSink?.Invoke("HtmlKeyGuard",
-                $"模板键守卫：{keyViolations.Count} 处 <details> 缺稳定键 → 重渲染后展开态不保持（P0）。首项: {keyViolations[0]}");
-            // S3/I2 键确定性：由非阻断诊断升级为装配期 fail-fast（含修复引导；键由渲染层派生，不靠作者手写）。
-            // 复用已有扫描结果（C1）：单次 ValidateAll → 诊断 → Enforce(违规集)，消除双重扫描。
-            HtmlKeyGuard.Enforce(keyViolations);
+            host.DiagnosticsSink?.Invoke("HtmlKeyContract",
+                $"模板键契约：{keyViolations.Count} 处违规（缺稳定键 / 同父键冲突）→ 展开态不保持或键控对齐失效（P0）。首项: {keyViolations[0]}");
+            HtmlKeyContract.Enforce(keyViolations);
         }
         // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS；后续 JSON 结构化后再拆 token），
         // 经 ConfigThemeProvider + HtmlTheme.AttachProvider 装配（优先于旧 ConfigHtmlTheme 的 IHtmlTheme 路径）。

@@ -38,13 +38,14 @@ public static class DomOps
 
     public const string Set = "set";
 
-    /// <summary>内容补丁（不重载文档）：**恒**经键控对齐原语（reconcile）对齐活 DOM，保留展开/滚动/焦点/选中态
-    /// （无「对齐原语不可用 → 整块 innerHTML 落地」回退链；原语缺失 ⇒ <c>STATE_NOT_READY</c> 由自愈补注入）。
-    /// name 为空 → 目标为 <c>document.body</c>。具名缺失 ⇒ NOT_FOUND（无隐式整页替换）。</summary>
-    public const string Patch = "patch";
-
-    /// <summary>键控对齐写（Region/节点树共用；语义同 <see cref="Patch"/>，显式区分「按稳定键对齐」意图）。</summary>
+    /// <summary>键控对齐写（**唯一写原语**；Region/节点树/首挂载整页共用）：**恒**经键控对齐原语（reconcile）对齐活 DOM，
+    /// 保留展开/滚动/焦点/选中态（无「对齐原语不可用 → 整块 innerHTML 落地」回退链；原语缺失 ⇒ <c>STATE_NOT_READY</c> 由自愈补注入）。
+    /// name 为空 → 目标为 <c>document.body</c>（**仅首挂载整页**）；具名缺失 ⇒ NOT_FOUND（无隐式整页替换）。</summary>
     public const string Reconcile = "reconcile";
+
+    /// <summary>内容补丁（语义等价于 <see cref="Reconcile"/>，收敛为同一原语，避免两条写落地）。
+    /// <c>[dep]</c> 保留为向后兼容别名；新代码一律用 <see cref="Reconcile"/>。</summary>
+    public const string Patch = Reconcile;
 
     public const string Get = "get";
     public const string Click = "click";

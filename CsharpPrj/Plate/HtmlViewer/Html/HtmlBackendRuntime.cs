@@ -420,6 +420,10 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
                     var name = t.Name ?? string.Empty;
                     if (t.Payload is not UiNode tree) { skipped.Add(name); continue; }
                     var r = await _treeWriter.ReconcileAsync(name, tree, plan.Interaction, ct).ConfigureAwait(false);
+                    // 键控对齐异常（重复键等）显式上报（I3：不静默；对齐结果类型化回传）。
+                    if (r.Anomalies is { Count: > 0 })
+                        Report("Reconcile_anomaly",
+                            $"键控对齐异常 target={name} trace={trace}: {string.Join(";", r.Anomalies)}");
                     if (r.Status is UiWriteStatus.Applied or UiWriteStatus.Partial) written.Add(name);
                     else skipped.Add(name);
                 }

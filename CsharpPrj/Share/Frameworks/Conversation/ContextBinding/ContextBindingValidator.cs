@@ -174,7 +174,7 @@ public static class ContextBindingValidator
             detail = ok ? string.Empty : $"history 后缀非数字: '{seq}'";
             return ok;
         }
-        if (key.StartsWith("prompt.l", StringComparison.Ordinal)
+        if (key.StartsWith("prompt.", StringComparison.Ordinal)
             || key.StartsWith("skill.", StringComparison.Ordinal)
             || key.StartsWith("tool.", StringComparison.Ordinal))
         {

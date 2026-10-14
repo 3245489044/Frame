@@ -17,7 +17,8 @@ public static class PromptSnapshotBuilder
         string l0, string skillBlock, string l1, string l2,
         IReadOnlyList<string>? selectedSkills,
         string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
-        IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null)
+        IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null,
+        IReadOnlyCollection<string>? enabledToggles = null)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -32,26 +33,29 @@ public static class PromptSnapshotBuilder
             .Where(b => b is not null && !string.IsNullOrWhiteSpace(b.Text))
             .ToArray();
 
-        var bindings = new List<MessageBinding>(6);
+        var bindings = new List<MessageBinding>(8);
         // L0 段：分段时逐段发射 prompt.l0.<技能名>（UI 一文件一气泡）；未分段回退单一 prompt.l0。
         if (bands.Length > 0)
         {
             foreach (var band in bands)
-                Add(bindings, AnchorKey.PromptL0Band(band.Name), band.Text);
+                Add(bindings, PromptSegmentCatalog.L0BandKey(band.Name), band.Text);
         }
         else
         {
             Add(bindings, AnchorKey.PromptL0, l0);
         }
-        Add(bindings, AnchorKey.PromptL1, l1);
-        Add(bindings, AnchorKey.PromptL2, l2);
-        Add(bindings, AnchorKey.SkillCombined, skillBlock);
-        // 工具面（MCP）段：与 L0/Skill 同级（头提示层 prompt:tools），空 → 不发射 binding（零回归）。
-        Add(bindings, AnchorKey.ToolCombined, toolBlock);
-        // 模式声明段（HSRA）：注入提示词装配声明 mode；空 → 不发射 binding（零回归）。
-        Add(bindings, AnchorKey.PromptMode, mode ?? string.Empty);
-        // 子智能体标签声明段：注入提示词装配声明 sub_agent；空 → 不发射 binding（零回归）。
-        Add(bindings, AnchorKey.PromptSubAgent, subAgent ?? string.Empty);
+
+        // 其余固定段：键 / 顺序 / 档案开关 全部由段目录**单一驱动**（新增段只改目录 ⇒ 不再漏发射/漏投影）。
+        var inputs = new SegmentBuildInputs(
+            l0 ?? string.Empty, skillBlock ?? string.Empty, l1 ?? string.Empty, l2 ?? string.Empty,
+            toolBlock, mode, subAgent);
+        foreach (var spec in PromptSegmentCatalog.Fixed)
+        {
+            if (spec.Key == AnchorKey.PromptL0) continue; // L0 由上方分段族/回退处理
+            if (spec.Toggle is not null && enabledToggles is not null && !enabledToggles.Contains(spec.Toggle))
+                continue;
+            Add(bindings, spec.Key, spec.Produce(inputs));
+        }
 
         return new PromptSnapshot
         {

@@ -14,7 +14,10 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     /// <summary>默认单例（组合根未显式装配时的兜底）。</summary>
     public static IHtmlAssetProvider Default { get; } = new HtmlAssetRegistry();
 
-    private static readonly IReadOnlyDictionary<string, string> Scripts = new Dictionary<string, string>
+    private static IReadOnlyDictionary<string, string>? _scripts;
+
+    /// <summary>脚本资产（延迟初始化：<see cref="UiReconcileScript"/> 为运行时派生串，须待静态字段初始化后构建）。</summary>
+    private static IReadOnlyDictionary<string, string> Scripts => _scripts ??= new Dictionary<string, string>
     {
         [HtmlAssetKeys.BridgeScript] = ClickBridgeScript,
         [HtmlAssetKeys.UiReconcileScript] = UiReconcileScript,
@@ -190,7 +193,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     /// （保留 &lt;details&gt;.open / 焦点 / 滚动，免 save/restore 启发式）。document 级幂等守卫 <c>__uiReconcileInstalled</c>；
     /// 提供 <c>apply(host,html)</c>（HTML 片段）与 <c>applyTree(host,json)</c>（键控节点树）两入口。
     /// 红线：不得再引入整块 <c>innerHTML</c> 落地回退（那是「第二条写落地」，与单写者不变量冲突）。</summary>
-    internal const string UiReconcileScript =
+    internal static readonly string UiReconcileScript =
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
@@ -208,31 +211,42 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var hasElem=false;for(var c=0;c<newN.childNodes.length;c++){if(newN.childNodes[c].nodeType===1){hasElem=true;break;}}"
         + "if(!hasElem){if(oldN.textContent!==newN.textContent){oldN.textContent=newN.textContent;}return oldN;}"
         + "reconcileChildren(oldN,newN);return oldN;}"
+        + "var lastAnomalies=[];"
         + "function reconcileChildren(oldParent,newParent){"
-        + "var kids=[];var i;for(i=0;i<oldParent.childNodes.length;i++){kids.push(oldParent.childNodes[i]);}"
-        + "var byKey={};var noKey=[];"
-        + "for(i=0;i<kids.length;i++){var c=kids[i];if(c.nodeType!==1){if(c.parentNode){c.parentNode.removeChild(c);}continue;}var k=keyOf(c);if(k){byKey[k]=c;}else{noKey.push(c);}}"
+        // Pass1：建 oldIndex（Map<key,Queue<Node>>；同键多节点入队**不覆盖**）+ 无键队列；顺带清除非元素旧节点。
+        + "var oldIndex={};var unkeyed=[];var i;"
+        + "for(i=0;i<oldParent.childNodes.length;i++){var c=oldParent.childNodes[i];if(c.nodeType!==1){if(c.parentNode){c.parentNode.removeChild(c);}continue;}var k=keyOf(c);if(k){if(oldIndex[k]){lastAnomalies.push('duplicate-key-old:'+k);oldIndex[k].push(c);}else{oldIndex[k]=[c];}}else{unkeyed.push(c);}}"
+        // Pass2：按新序消费（同 FDIO 一一对应）；新节点同键 >1 记 anomaly。
+        + "var matched=[];var newSeen={};"
         + "for(var j=0;j<newParent.childNodes.length;j++){var nn=newParent.childNodes[j];if(nn.nodeType!==1){continue;}var nk=keyOf(nn);var re=null;"
-        + "if(nk&&byKey[nk]){re=byKey[nk];delete byKey[nk];}else if(!nk&&noKey.length){re=noKey.shift();}"
-        + "if(re){oldParent.appendChild(reconcile(re,nn));}else{oldParent.appendChild(nn);}}"
-        + "for(var k2 in byKey){var e=byKey[k2];if(e.parentNode){e.parentNode.removeChild(e);}}"
-        + "for(var m=0;m<noKey.length;m++){var ee=noKey[m];if(ee.parentNode){ee.parentNode.removeChild(ee);}}}"
+        + "if(nk){if(newSeen[nk]){lastAnomalies.push('duplicate-key-new:'+nk);}newSeen[nk]=true;"
+        + "if(oldIndex[nk]&&oldIndex[nk].length){re=oldIndex[nk].shift();if(!oldIndex[nk].length){delete oldIndex[nk];}}}"
+        + "else if(unkeyed.length){re=unkeyed.shift();}"
+        + "matched.push([re,nn]);}"
+        // Pass3：递归对齐（tag 相同复用 / 不同则替换）并按新序落位。
+        + "for(var m=0;m<matched.length;m++){var it=matched[m];if(it[0]){oldParent.appendChild(reconcile(it[0],it[1]));}else{oldParent.appendChild(it[1]);}}"
+        // Pass4：回收**所有未被消费的旧节点**（含重复键残留 + 无键残留）⇒ 无孤儿（幂等 I1 / 不丢不增 I2）。
+        + "for(var kk in oldIndex){var q=oldIndex[kk];for(var qq=0;qq<q.length;qq++){if(q[qq].parentNode){q[qq].parentNode.removeChild(q[qq]);}}}"
+        + "for(var u=0;u<unkeyed.length;u++){if(unkeyed[u].parentNode){unkeyed[u].parentNode.removeChild(unkeyed[u]);}}}"
         + "function findByKey(root,key){if(!key){return null;}var eq=key.indexOf('=');if(eq<=0){return null;}var a=key.substring(0,eq);var v=key.substring(eq+1);if(a==='id'){var e=document.getElementById(v);return (e&&(!root||root.contains(e)||root===e))?e:null;}return root.querySelector('['+a+'='+JSON.stringify(v)+']');}"
         + "function applyState(host,state){if(!host||!state){return;}if(state.focus){var f=findByKey(host,state.focus);if(f&&f.focus){try{f.focus();}catch(e){}}}if(state.scroll){for(var s=0;s<state.scroll.length;s++){var it=state.scroll[s];var e=findByKey(host,it.k);if(!e){continue;}if(it.b){e.scrollTop=e.scrollHeight;}else{e.scrollTop=it.t;e.scrollLeft=it.l;}}}}"
         + "function apply(host,html,state){"
         + "if(!host){return 'NOT_FOUND';}"
+        + "lastAnomalies=[];"
         + "var tmp=document.createElement('div');tmp.innerHTML=html;"
-        + "reconcileChildren(host,tmp);applyState(host,state);return 'OK';}"
+        + "reconcileChildren(host,tmp);applyState(host,state);window.__uiReconcile.lastAnomalies=lastAnomalies;return 'OK';}"
         + "function buildNode(n){if(n==null){return document.createTextNode('');}if(typeof n==='string'){return document.createTextNode(n);}"
         + "var el=document.createElement(n.tag);if(n.attributes){for(var k in n.attributes){if(n.attributes[k]!=null){el.setAttribute(k,''+n.attributes[k]);}}}"
         + "if(n.text!=null){el.appendChild(document.createTextNode(''+n.text));}"
         + "if(n.children){for(var i=0;i<n.children.length;i++){el.appendChild(buildNode(n.children[i]));}}return el;}"
         + "function applyTree(host,tree,state){if(!host){return 'NOT_FOUND';}var t=(typeof tree==='string')?JSON.parse(tree):tree;"
-        + "var tmp=document.createElement('div');appendInto(tmp,t);reconcileChildren(host,tmp);applyState(host,state);return 'OK';}"
+        + "lastAnomalies=[];"
+        + "var tmp=document.createElement('div');appendInto(tmp,t);reconcileChildren(host,tmp);applyState(host,state);window.__uiReconcile.lastAnomalies=lastAnomalies;"
+        + "return lastAnomalies.length?('OK:'+lastAnomalies.join(';')):'OK';}"
         + "function appendInto(container,t){if(t==null){return;}if(t.tag){container.appendChild(buildNode(t));return;}"
         + "if(t.children){for(var i=0;i<t.children.length;i++){var c=t.children[i];if(!c){continue;}if(c.tag){container.appendChild(buildNode(c));}else if(c.text!=null){container.appendChild(document.createTextNode(''+c.text));}}}}"
         + "function capture(){var open=[];var ds=document.querySelectorAll('details');for(var i=0;i<ds.length;i++){if(ds[i].open){var k=keyOf(ds[i]);if(k){open.push(k);}}}var scroll=[];var ae=document.activeElement;var focus=(ae&&ae!==document.body)?keyOf(ae):null;var esc=document.scrollingElement||document.documentElement;if(esc){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);if(ty>0||tx>0){var ek=keyOf(esc);if(ek&&ek!=='id=null'){scroll.push({k:ek,t:esc.scrollTop,l:esc.scrollLeft,b:false});}}}var ns=document.querySelectorAll('[data-key],[data-name],[id]');for(var j=0;j<ns.length;j++){var n=ns[j];if(n.scrollTop>0||n.scrollLeft>0){var nk=keyOf(n);if(nk){scroll.push({k:nk,t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}}}return {open:open,scroll:scroll,focus:focus};}"
-        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture};"
+        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture,lastAnomalies:[]};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

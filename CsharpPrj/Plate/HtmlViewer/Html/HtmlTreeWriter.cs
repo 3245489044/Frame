@@ -40,25 +40,28 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             + "if(!(window.__uiReconcile&&window.__uiReconcile.applyTree)){return 'RECONCILE_NOT_READY';}"
             + "return window.__uiReconcile.applyTree(h," + treeJson + "," + stateJson + ");})()";
         var raw = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync(script, ct).ConfigureAwait(false));
-        var (status, changed) = MapStatus(raw);
+        var (status, changed, anomalies) = MapStatus(raw);
         return new UiWriteResult(
             status,
             status == UiWriteStatus.Applied || status == UiWriteStatus.Partial ? new[] { name } : System.Array.Empty<string>(),
             status == UiWriteStatus.Failed ? new[] { name } : System.Array.Empty<string>(),
-            Changed: changed);
+            Changed: changed,
+            Anomalies: anomalies);
     }
 
-    /// <summary>回串映射：OK[:changed] → Applied；NOT_FOUND/RECONCILE_NOT_READY/其它 → Failed。</summary>
-    private static (UiWriteStatus Status, int Changed) MapStatus(string raw)
+    /// <summary>回串映射：OK / OK:&lt;changed&gt; / OK:&lt;anomalies 分号分隔&gt; → Applied（携 anomalies）；
+    /// NOT_FOUND/RECONCILE_NOT_READY/其它 → Failed。anomalies 供上层可见化（不静默）。</summary>
+    private static (UiWriteStatus Status, int Changed, IReadOnlyList<string>? Anomalies) MapStatus(string raw)
     {
-        if (string.IsNullOrEmpty(raw)) return (UiWriteStatus.Failed, 0);
-        if (raw == "OK") return (UiWriteStatus.Applied, 0);
+        if (string.IsNullOrEmpty(raw)) return (UiWriteStatus.Failed, 0, null);
+        if (raw == "OK") return (UiWriteStatus.Applied, 0, null);
         if (raw.StartsWith("OK:"))
         {
-            return int.TryParse(raw.AsSpan(3), out var n)
-                ? (UiWriteStatus.Applied, n)
-                : (UiWriteStatus.Applied, 0);
+            var rest = raw.Substring(3);
+            if (int.TryParse(rest, out var n)) return (UiWriteStatus.Applied, n, null);
+            var anomalies = rest.Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries);
+            return (UiWriteStatus.Applied, 0, anomalies.Length > 0 ? anomalies : null);
         }
-        return (UiWriteStatus.Failed, 0);
+        return (UiWriteStatus.Failed, 0, null);
     }
 }

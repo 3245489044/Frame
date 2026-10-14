@@ -227,6 +227,59 @@ if ($config.initCommands) {
     }
 }
 
+# ---- 检查4：模板同父键冲突（键控对齐身份键须同父唯一；身份键/具名锚=data-key/data-name/id） ----
+$alignAttrs = @('data-key', 'data-name', 'id')
+$voidTags = @('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr')
+$tagRe = [regex]'<(/?)([a-zA-Z][\w:.-]*)((?:"[^"]*"|''[^'']*''|[^>"''])*)>'
+
+function Get-AlignKey([string]$attrs) {
+    foreach ($a in $alignAttrs) {
+        $m = [regex]::Match($attrs, '(?i)(?:^|\s)' + [regex]::Escape($a) + '\s*=\s*(?:"([^"]*)"|''([^'']*)''|([^\s>]+))')
+        if ($m.Success) {
+            $v = if ($m.Groups[1].Success) { $m.Groups[1].Value }
+                 elseif ($m.Groups[2].Success) { $m.Groups[2].Value }
+                 else { $m.Groups[3].Value }
+            if ($v) { return ($a + '=' + $v) }
+        }
+    }
+    return $null
+}
+
+function Check-TemplateKeys([string]$templateName, [string]$html) {
+    if ([string]::IsNullOrEmpty($html)) { return }
+    $stack = [System.Collections.Generic.List[object]]::new()
+    $stack.Add([pscustomobject]@{ Tag = '(root)'; Keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal) })
+    foreach ($m in $tagRe.Matches($html)) {
+        $isClose = ($m.Groups[1].Value -eq '/')
+        $tag = $m.Groups[2].Value.ToLowerInvariant()
+        $attrs = $m.Groups[3].Value
+        if ($isClose) {
+            for ($i = $stack.Count - 1; $i -ge 1; $i--) {
+                if ($stack[$i].Tag -eq $tag) { $stack.RemoveRange($i, $stack.Count - $i); break }
+            }
+            continue
+        }
+        $selfClose = $attrs.TrimEnd().EndsWith('/')
+        $key = Get-AlignKey $attrs
+        if ($key) {
+            $parent = $stack[$stack.Count - 1]
+            if (-not $parent.Keys.Add($key)) {
+                Add-Error "模板同父键冲突: $templateName → $key（父级 <$($parent.Tag)> 下身份键必须唯一）"
+            }
+        }
+        if (-not $selfClose -and -not ($voidTags -contains $tag)) {
+            $stack.Add([pscustomobject]@{ Tag = $tag; Keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal) })
+        }
+    }
+}
+
+$tplObj = Get-Prop $config 'templates'
+if ($tplObj -and $tplObj.PSObject) {
+    foreach ($t in $tplObj.PSObject.Properties) {
+        if ($t.Value -is [string]) { Check-TemplateKeys $t.Name ([string]$t.Value) }
+    }
+}
+
 # ---- 报告 ----
 Write-Host "=== Check-AgentRuntimeUIConfig ===" -ForegroundColor Cyan
 Write-Host ("配置: {0}" -f $ConfigPath)

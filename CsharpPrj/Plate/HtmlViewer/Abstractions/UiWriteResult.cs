@@ -19,11 +19,13 @@ public enum UiWriteStatus
     Skipped,
 }
 
-/// <summary>写回结果（协调器单点裁决；Written/Skipped = 具名目标，Changed = DOM 变更计数，Fallback = 显式回退动作）。</summary>
+/// <summary>写回结果（协调器单点裁决；Written/Skipped = 具名目标，Changed = DOM 变更计数，Fallback = 显式回退动作）。
+/// <paramref name="Anomalies"/> = 键控对齐异常（如 duplicate-key-old/new），全链透传供日志/门禁可见化（不静默）。</summary>
 public sealed record UiWriteResult(
     UiWriteStatus Status,
     IReadOnlyList<string> Written,
     IReadOnlyList<string> Skipped,
     int Changed = 0,
     string? Fallback = null,
-    string? TraceId = null);
+    string? TraceId = null,
+    IReadOnlyList<string>? Anomalies = null);

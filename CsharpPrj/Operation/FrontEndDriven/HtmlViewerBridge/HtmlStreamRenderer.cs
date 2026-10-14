@@ -58,9 +58,25 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             return _options.EmptyTemplate.Replace("{text}", WebUtility.HtmlEncode(_options.EmptyText));
         }
 
+        // 通道分流：气泡流（Dialogue）承载 user/assistant/LLM 过程节点；操作流（Operation）承载
+        // task 创建/管理等操作命令与回执，走顶部操作面板（非气泡）。关闭开关 ⇒ 逐字旧行为（全按气泡）。
+        var dialogue = items;
+        IReadOnlyList<ConversationRenderItem> operations = Array.Empty<ConversationRenderItem>();
+        if (_options.SplitOperationChannel)
+        {
+            var split = items.Where(m => m.Channel != MessageChannel.Dialogue).ToList();
+            if (split.Count > 0)
+            {
+                operations = split;
+                dialogue = items.Where(m => m.Channel == MessageChannel.Dialogue).ToList();
+            }
+        }
+
         var sb = new StringBuilder(items.Count * 128);
+        if (operations.Count > 0)
+            sb.Append(RenderOperations(operations, t));
         // 按轮次分组（Round 升序；Round=0 会话级归入"会话级"组）
-        foreach (var group in items.GroupBy(m => m.Round).OrderBy(g => g.Key))
+        foreach (var group in dialogue.GroupBy(m => m.Round).OrderBy(g => g.Key))
         {
             int round = group.Key;
             var row = new Dictionary<string, object?>
@@ -71,6 +87,42 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             };
             sb.Append(HtmlTemplateEngine.Render(t, "round", row));
         }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 操作流渲染（非气泡）：<see cref="MessageChannel.Operation"/> 消息逐条落入顶部操作面板，
+    /// 与对话气泡物理分离（任务创建/管理等命令与回执不再冒充 user/assistant 气泡）。
+    /// 模板 <c>operationPanel</c> 缺失 ⇒ 自足内联兜底（无 partial 依赖），不崩。
+    /// </summary>
+    private static string RenderOperations(
+        IReadOnlyList<ConversationRenderItem> operations, IReadOnlyDictionary<string, string> t)
+    {
+        var rows = operations
+            .OrderBy(m => m.Round)
+            .Select(m => new Dictionary<string, object?>
+            {
+                ["round"] = m.Round.ToString(),
+                ["title"] = string.IsNullOrWhiteSpace(m.Stage) ? m.Role.ToString().ToLowerInvariant() : m.Stage!,
+                ["text"] = m.Text ?? string.Empty,
+            })
+            .ToList<object?>();
+
+        if (t.TryGetValue("operationPanel", out var panel) && !string.IsNullOrWhiteSpace(panel))
+            return HtmlTemplateEngine.RenderTemplate(panel, t, new Dictionary<string, object?> { ["rows"] = rows });
+
+        var sb = new StringBuilder();
+        sb.Append("<div class=\"op-panel\"><div class=\"op-panel-title\">操作 / 任务</div>");
+        foreach (var m in operations.OrderBy(x => x.Round))
+        {
+            var title = string.IsNullOrWhiteSpace(m.Stage) ? m.Role.ToString().ToLowerInvariant() : m.Stage!;
+            sb.Append("<div class=\"op-row\"><span class=\"op-badge\">")
+              .Append(WebUtility.HtmlEncode(m.Round + " · " + title))
+              .Append("</span><div class=\"op-text\">")
+              .Append(WebUtility.HtmlEncode(m.Text ?? string.Empty))
+              .Append("</div></div>");
+        }
+        sb.Append("</div>");
         return sb.ToString();
     }
 
@@ -180,4 +232,8 @@ public sealed record HtmlStreamRendererOptions
     /// <summary>「头提示层」折叠分支的 stage 前缀（如 Agent 的 "prompt:"）；null = 不启用该分支（消息统一按普通 tool 渲染）。
     /// 领域前缀由宿主注入，通用实现不硬编码。</summary>
     public string? PromptStagePrefix { get; init; }
+
+    /// <summary>操作流 / 气泡流分离开关：true（默认）⇒ <see cref="MessageChannel.Operation"/> 消息渲染为顶部操作面板
+    /// （非气泡），不进对话气泡；false ⇒ 旧行为（全部按角色气泡渲染，用于回退）。</summary>
+    public bool SplitOperationChannel { get; init; } = true;
 }

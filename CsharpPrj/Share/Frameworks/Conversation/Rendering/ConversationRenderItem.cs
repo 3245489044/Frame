@@ -12,4 +12,5 @@ public sealed record ConversationRenderItem(
     string? Stage,
     string? SubAgent,
     string Text,
-    int Round);
+    int Round,
+    MessageChannel Channel = MessageChannel.Dialogue);

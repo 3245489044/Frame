@@ -37,10 +37,12 @@ public sealed class HtmlScriptHost
         _retryDelayMs = Math.Max(0, retryDelayMs);
     }
 
-    /// <summary>桥链路结构化诊断出口（category, message 两元；宿主接线到日志门面，未接线为空操作）。</summary>
-    public event Action<string, string>? Diagnostics;
+    private readonly DiagnosticPort _diagnostics = new();
 
-    private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
+    /// <summary>桥链路结构化诊断出口（category, message 两元；宿主接线到日志门面，未接线为空操作）。</summary>
+    public Action<string, string>? Diagnostics { get => _diagnostics.Sink; set => _diagnostics.Sink = value; }
+
+    private void Report(string category, string message) => _diagnostics.Report(category, message);
 
     /// <summary>文档级行为脚本清单（点击桥 + 键控对齐引擎 + 通用轮询/刷新桥），各自带 document 级幂等守卫、独立注入互不干扰；导航后随 <see cref="EnsureBridgeLoadedAsync"/> 统一注入。</summary>
     private static readonly string[] DocumentScripts =
@@ -69,7 +71,13 @@ public sealed class HtmlScriptHost
                 // （就绪过严会让上层误判 BRIDGE_NOT_READY，扰动布局收敛）。
                 if (!await ModulesCompleteAsync(ct).ConfigureAwait(false))
                 {
-                    try { await InjectAllAsync(ct).ConfigureAwait(false); }
+                    try
+                    {
+                        await InjectAllAsync(ct).ConfigureAwait(false);
+                        // 补注入后复查清单（与下方注入分支同验证口径）：仍不全则可见化，不阻断。
+                        if (!await ModulesCompleteAsync(ct).ConfigureAwait(false))
+                            Report("HtmlChannel_inject_bridge", "模块补注入后清单仍不全（尽力自愈，不阻断）");
+                    }
                     catch (Exception ex)
                     {
                         Report("HtmlChannel_inject_bridge", $"模块补注入失败（不阻断）: {ex.GetType().Name}: {ex.Message}");

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -24,6 +25,9 @@ public static class HtmlTemplateEngine
     private static readonly IReadOnlyDictionary<string, object?> EmptyModel =
         new Dictionary<string, object?>();
 
+    /// <summary>模板整段解析缓存（模板为声明期常量；键 = 模板原文）。消除每次渲染/每次 {&gt;name} 调用的重复解析。</summary>
+    private static readonly ConcurrentDictionary<string, List<Node>> ParseCache = new(StringComparer.Ordinal);
+
     /// <summary>渲染命名模板（模板缺失/空 → fallback）。</summary>
     public static string Render(
         IReadOnlyDictionary<string, string> templates,
@@ -43,12 +47,18 @@ public static class HtmlTemplateEngine
         IReadOnlyDictionary<string, object?>? model)
     {
         if (string.IsNullOrEmpty(template)) return string.Empty;
-        int i = 0;
-        var nodes = ParseNodes(template, ref i, out _);
         var sb = new StringBuilder(template.Length);
-        RenderNodes(nodes, templates, model ?? EmptyModel, sb);
+        RenderNodes(ParseWhole(template), templates, model ?? EmptyModel, sb);
         return sb.ToString();
     }
+
+    /// <summary>整段模板解析（结果缓存，避免反复解析同一模板）。</summary>
+    private static List<Node> ParseWhole(string template)
+        => ParseCache.GetOrAdd(template, static t =>
+        {
+            int i = 0;
+            return ParseNodes(t, ref i, out _);
+        });
 
     // ---- 节点模型 ----
     private abstract record Node;
@@ -149,10 +159,7 @@ public static class HtmlTemplateEngine
                     break;
                 case NamedNode nn:
                     if (templates is not null && templates.TryGetValue(nn.Name, out var childTpl))
-                    {
-                        int j = 0;
-                        RenderNodes(ParseNodes(childTpl, ref j, out _), templates, model, sb);
-                    }
+                        RenderNodes(ParseWhole(childTpl), templates, model, sb);
                     break;
             }
         }
@@ -162,12 +169,17 @@ public static class HtmlTemplateEngine
     /// 否则按既有语义：字段非空即真。</summary>
     private static bool EvalCond(IReadOnlyDictionary<string, object?> model, string cond)
     {
+        // 支持 field!=value / field==value / field=value；否则按既有语义：字段非空即真。
+        int neq = cond.IndexOf("!=", StringComparison.Ordinal);
+        if (neq > 0)
+            return !string.Equals(Get(model, cond[..neq].Trim()), cond[(neq + 2)..].Trim(), StringComparison.OrdinalIgnoreCase);
         int eq = cond.IndexOf('=');
         if (eq > 0)
         {
             var field = cond[..eq].Trim();
-            var expected = cond[(eq + 1)..].Trim();
-            return string.Equals(Get(model, field), expected, StringComparison.OrdinalIgnoreCase);
+            var rest = cond[(eq + 1)..];
+            if (rest.StartsWith("=", StringComparison.Ordinal)) rest = rest[1..];
+            return string.Equals(Get(model, field), rest.Trim(), StringComparison.OrdinalIgnoreCase);
         }
         var v = Get(model, cond);
         return v is not null && v.Length > 0;

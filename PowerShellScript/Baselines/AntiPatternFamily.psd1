@@ -2,13 +2,14 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'AntiPatternFamily'
     FamilyCount = @{ Value = 19; Origin = 'Derived'; DueWhen = '' }
-    IdCount     = @{ Value = 72; Origin = 'Derived'; DueWhen = '' }
+    IdCount     = @{ Value = 73; Origin = 'Derived'; DueWhen = '' }
     Ids = @{ Origin = 'Derived'; DueWhen = ''; Value = @(
         'ANTI-ABSENCE-FROM-SEARCH',
         'ANTI-ATTENTION-DILUTION',
         'ANTI-ATTENTION-SPREAD',
         'ANTI-ATTRIBUTION-DODGE',
         'ANTI-BATCH-AS-ACCEPTANCE',
+        'ANTI-BLAST-TOLERANCE',
         'ANTI-BLIND-READ',
         'ANTI-BLIND-WRITE',
         'ANTI-BLOAT',

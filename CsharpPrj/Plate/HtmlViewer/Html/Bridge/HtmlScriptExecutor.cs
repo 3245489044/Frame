@@ -24,10 +24,12 @@ public sealed class HtmlScriptExecutor
         _assets = assets ?? DefaultAssets;
     }
 
-    /// <summary>桥链路结构化诊断出口（category, message 两元；宿主接线到日志门面，未接线为空操作）。</summary>
-    public System.Action<string, string>? Diagnostics;
+    private readonly DiagnosticPort _diagnostics = new();
 
-    private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
+    /// <summary>桥链路结构化诊断出口（category, message 两元；宿主接线到日志门面，未接线为空操作）。</summary>
+    public System.Action<string, string>? Diagnostics { get => _diagnostics.Sink; set => _diagnostics.Sink = value; }
+
+    private void Report(string category, string message) => _diagnostics.Report(category, message);
 
     /// <summary>渲染 __domBridge.handle 调用脚本（$OP/$NAME/$VALUE 占位 → JSON 序列化展开）。</summary>
     public string RenderHandleScript(string op, string name, string? value)
@@ -55,11 +57,11 @@ public sealed class HtmlScriptExecutor
         try
         {
             var raw = await _channel.ExecuteScriptAsync(RenderBridgeDiagnosis(), ct).ConfigureAwait(false);
-            return $"点击桥注入失败, document 诊断={raw}";
+            return $"document 诊断={raw}";
         }
         catch (System.Exception ex)
         {
-            return $"点击桥注入失败, 诊断查询异常={ex.GetType().Name}: {ex.Message}";
+            return $"诊断查询异常={ex.GetType().Name}: {ex.Message}";
         }
     }
 

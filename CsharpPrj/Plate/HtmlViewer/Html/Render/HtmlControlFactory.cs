@@ -11,7 +11,7 @@ namespace UiBackend.Html;
 /// 差异仅在物理元素形态；缺省回退 div）。所有元素带 data-name（脚本 target / 参数 source 用）；
 /// 文本/属性值一律 <see cref="WebUtility.HtmlEncode"/>（对齐既有可信通道 XSS 防线）。
 /// P5：listview/combobox/treeview/tabcontrol 等 WinForms 化词表为<b>兼容迁移层</b>；新样式优先原生
-/// <c>&lt;label&gt;/&lt;textarea&gt;/&lt;button&gt;</c> + CSS 类（本工厂多数 case 已产原生元素）。
+/// <c>&lt;span&gt;/&lt;textarea&gt;/&lt;button&gt;</c> + CSS 类（label 词表落原生 &lt;span&gt;，本工厂多数 case 已产原生元素）。
 /// </summary>
 public static class HtmlControlFactory
 {

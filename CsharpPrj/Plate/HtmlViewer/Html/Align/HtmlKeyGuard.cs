@@ -2,37 +2,31 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
 /// <summary>
 /// 编译期键守卫（I2 键确定性）——校验模板集中「可保持状态节点」（&lt;details&gt; 等）是否携带框架认可的**稳定键**
-/// （data-name/data-history/data-session/data-round/data-pane/id），缺失即判违规（可 fail-fast 或仅诊断），
+/// （data-key/data-name/id；唯一源见 <see cref="HtmlKey.Attributes"/>），缺失即判违规（可 fail-fast 或仅诊断），
 /// 从机制上杜绝位置路径回退（p:）导致的「重渲染后展开态初始化」。
 /// <para>纯结构扫描（零领域语义、零状态）：对象域 = 模板文本；可作装配期断言或门禁判据。</para>
 /// </summary>
 public static class HtmlKeyGuard
 {
-    /// <summary>details 开标签（判据载体）。</summary>
-    private static readonly Regex DetailsTag = new(@"<details\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    /// <summary>校验单个模板：返回违规描述（空 = 通过）。</summary>
+    /// <summary>校验单个模板：返回违规描述（空 = 通过）。判据载体 = <see cref="HtmlNodeParser"/> 解析后的节点树
+    /// （与 <see cref="HtmlKeyContract"/> 共用同一解析器，消除"正则扫标签"与"节点树"两套解析的漂移）。</summary>
     public static IReadOnlyList<string> ValidateTemplate(string templateName, string? html)
     {
         var violations = new List<string>();
         if (string.IsNullOrEmpty(html)) return violations;
-        foreach (Match m in DetailsTag.Matches(html))
+        UiNodeTrees.Walker.Walk(HtmlNodeParser.Parse(html), (node, _) =>
         {
-            var tag = m.Value;
-            var hasKey = false;
-            foreach (var attr in HtmlKey.Attributes)
-            {
-                if (tag.IndexOf(attr + "=", StringComparison.OrdinalIgnoreCase) >= 0) { hasKey = true; break; }
-            }
-            if (!hasKey)
+            if (node.Tag.Length > 0
+                && string.Equals(node.Tag, "details", StringComparison.OrdinalIgnoreCase)
+                && HtmlKey.NodeKey.Derive(node) is null)
                 violations.Add(templateName + ": <details> 缺稳定键（需 " + string.Join("/", HtmlKey.Attributes) + " 之一；禁位置回退）");
-        }
+        });
         return violations;
     }
 
@@ -50,13 +44,13 @@ public static class HtmlKeyGuard
     public static void Enforce(IReadOnlyDictionary<string, string>? templates)
         => Enforce(ValidateAll(templates));
 
-    /// <summary>强制校验（复用已有扫描结果）：非空即抛——供装配期"先取违规明细做诊断、再单次抛出"，
-    /// 消除 `ValidateAll` + `Enforce` 的双重扫描（C1 冗余）。</summary>
+    /// <summary>强制校验（复用已有扫描结果；**单一抛出点**）：非空即抛——供装配期"先取违规明细做诊断、再单次抛出"。
+    /// 违规文本已自带分类（同父键冲突 / 缺稳定键），故头部为通用前缀。</summary>
     public static void Enforce(IReadOnlyList<string>? violations)
     {
         if (violations is { Count: > 0 })
             throw new InvalidOperationException(
-                "HTML 模板键守卫失败（缺稳定键的 <details> 在重渲染后展开态无法按 key 恢复）：\n - " +
+                "HTML 模板键校验失败（同父键冲突 / 缺稳定键；键由渲染层派生，同父身份键必须唯一）：\n - " +
                 string.Join("\n - ", violations));
     }
 }

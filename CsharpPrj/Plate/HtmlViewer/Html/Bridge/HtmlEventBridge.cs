@@ -38,11 +38,13 @@ public sealed class HtmlEventBridge
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
     }
 
+    private readonly DiagnosticPort _diagnostics = new();
+
     /// <summary>桥链路结构化诊断出口（category, message 两元；宿主接线到日志门面，未接线为空操作）。
     /// 埋点分段：EventBridge_route（负载路由）/ EventBridge_invoke（函数调用）/ EventBridge_writeback（写回目标）。</summary>
-    public Action<string, string>? Diagnostics;
+    public Action<string, string>? Diagnostics { get => _diagnostics.Sink; set => _diagnostics.Sink = value; }
 
-    private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
+    private void Report(string category, string message) => _diagnostics.Report(category, message);
 
     /// <summary>处理页面事件负载；返回函数执行结果拼接（写回 output 元素的副作用已执行）。</summary>
     public async Task<string> HandleAsync(string payload, CancellationToken ct = default)
@@ -142,20 +144,24 @@ public sealed class HtmlEventBridge
             || functions is not { Count: > 0 })
             return RenderOutput.Narrative($"未声明事件绑定: {control.Name}.{eventName}");
 
+        // 绑定参数与函数名无关：只解析一次（消除逐函数重复解析 + 重复 DOM get 往返）。
+        var parameters = await ResolveParametersAsync(control.Events.Bindings, eventPayload, ct).ConfigureAwait(false);
         var texts = new List<string>();
-        UiWritePlan? plan = null;
+        var plans = new List<UiWritePlan>();
         foreach (var functionName in functions)
         {
             ct.ThrowIfCancellationRequested();
-            var parameters = await ResolveParametersAsync(control.Events.Bindings, eventPayload, ct).ConfigureAwait(false);
             Report("EventBridge_invoke", $"函数 {functionName}, 参数键=[{string.Join(",", parameters.Keys)}]");
             var output = await _invoker(functionName, parameters).ConfigureAwait(false);
+            // 每条产物的写回计划已由 WriteOutputAsync 单点落地；此处文本恒保留（不再因首个产物带 plan 而丢文本）。
             await WriteOutputAsync(control.Events.Bindings, output, ct).ConfigureAwait(false);
-            if (output.HasPlan && plan is null) plan = output.Plan;
-            else if (!string.IsNullOrEmpty(output.Text)) texts.Add(output.Text!);
+            if (output.HasPlan) plans.Add(output.Plan!);
+            if (!string.IsNullOrEmpty(output.Text)) texts.Add(output.Text!);
         }
+        if (plans.Count > 1)
+            Report("EventBridge_invoke", $"多函数产出 {plans.Count} 个写回计划（均已落地），返回值仅携首个（{plans[0].Kind}）");
         var joined = texts.Count > 0 ? string.Join(Environment.NewLine, texts) : null;
-        return new RenderOutput(joined, plan);
+        return new RenderOutput(joined, plans.Count > 0 ? plans[0] : null);
     }
 
     /// <summary>大小写不敏感地从 EventsDictionary 取指定事件名对应的函数列表。</summary>

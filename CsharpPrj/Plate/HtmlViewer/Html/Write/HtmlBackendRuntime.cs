@@ -44,11 +44,12 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
     // 已装配的宿主 htmlviewer 消息订阅（控件名 → 订阅；幂等，重复 AttachHostMessage 先解除旧订阅）
     private readonly Dictionary<string, IDisposable> _hostSubscriptions = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>宿主内容写回去重（D7 键空间隔离：host 通道独立字典；内容未变则跳过，消除 1s 节流下的空转 DOM 抖动）。</summary>
-    private readonly Dictionary<string, WriteRecord> _lastHostWrite = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>写回去重账（D7 键空间隔离：host/region 以不同前缀键共用一个字典——共用一份逻辑、命名空间不串）。
+    /// 内容未变则跳过，消除 1s 节流下的空转 DOM 抖动。</summary>
+    private readonly Dictionary<string, WriteRecord> _lastWrite = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>区域写回去重（D7 键空间隔离：region 通道独立字典，与 host 名不共键空间，消除潜在误命中）。</summary>
-    private readonly Dictionary<string, WriteRecord> _lastRegionWrite = new(StringComparer.OrdinalIgnoreCase);
+    private static string HostSlot(string name) => "host:" + name;
+    private static string RegionSlot(string name) => "region:" + name;
 
     /// <summary>已完成整页渲染（文档壳 + 主题 CSS 就位）的宿主控件：首次写回必须整页渲染（补丁只换 body，头/主题需先落地）。</summary>
     private readonly HashSet<string> _navigatedHosts = new(StringComparer.OrdinalIgnoreCase);
@@ -90,11 +91,13 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
     /// <summary>装配就绪报告：静态项由组合根填充，消息订阅项由 <see cref="AttachHostMessage"/> 更新。</summary>
     public HtmlRuntimeReadinessReport Readiness { get; }
 
+    private readonly DiagnosticPort _diagnostics = new();
+
     /// <summary>消息桥链统一诊断出口（category, message；宿主接线到日志门面，未接线为空操作）。
     /// 汇总通道（<see cref="IHtmlChannel"/>）webmessage 埋点 + 事件桥链路（route/invoke/writeback）埋点。</summary>
-    public Action<string, string>? Diagnostics;
+    public Action<string, string>? Diagnostics { get => _diagnostics.Sink; set => _diagnostics.Sink = value; }
 
-    private void Report(string category, string message) => Diagnostics?.Invoke(category, message);
+    private void Report(string category, string message) => _diagnostics.Report(category, message);
 
     // F1 单飞合并：每站点至多一个在飞写；在飞期间的重入/并发写合并为最新一次（latest-wins），
     // 使「写回↔消息桥成环」在结构上无法累积深度/并发（F3：单飞即守卫，删除重复的全局深度计数）。
@@ -301,7 +304,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
         // L2 类型化：空结果 = 无内容写回（drain 已短路，此处兜底）。
         if (string.IsNullOrEmpty(html))
             return;
-        if (_lastHostWrite.TryGetValue(hostControlName, out var prev)
+        if (_lastWrite.TryGetValue(HostSlot(hostControlName), out var prev)
             && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
         {
             Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（内容未变；mode={writeMode}）");
@@ -310,25 +313,24 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
         contentSink?.Invoke(html);
         if (writeMode == HtmlWriteBackMode.Patch && _navigatedHosts.Contains(hostControlName))
         {
-            var status = HtmlElementNode.UnwrapString(
-                await _channel.ExecuteAsync(DomOps.Reconcile, null, html).ConfigureAwait(false));
-            if (DomOps.IsOk(status))
+            var status = await ExecuteDomTypedAsync(DomOps.Reconcile, null, html, CancellationToken.None).ConfigureAwait(false);
+            if (status == DomOpStatus.Ok)
             {
-                _lastHostWrite[hostControlName] = new WriteRecord(html, true);
+                _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, true);
                 Report("EventBridge_writeback", $"补丁写回 {hostControlName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）");
                 return;
             }
             // 断整页回退链：**已挂载**宿主补丁未生效 ⇒ 不整页重载（避免 document 重建丢展开/滚动/焦点），
             // 仅记诊断并保留现有 DOM；下一拍重试（reconcile 自愈会在后续调用补注入）。整页仅用于首挂载。
             Report("EventBridge_writeback",
-                $"补丁写回 {hostControlName} 未生效（{DomOps.Parse(status)}）→ 保留现状（不整页回退，保护交互态）");
+                $"补丁写回 {hostControlName} 未生效（{status}）→ 保留现状（不整页回退，保护交互态）");
             return;
         }
         if (_writePump is not null)
         {
             var result = await _writePump(html).ConfigureAwait(false);
             // D5：仅 Committed 记成功参与去重——Degraded（未收敛）不得被"确认"，否则下次同内容被误跳过。
-            _lastHostWrite[hostControlName] = new WriteRecord(html, result.Status == HtmlWriteBackStatus.Committed);
+            _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, result.Status == HtmlWriteBackStatus.Committed);
             if (result.Status != HtmlWriteBackStatus.Failed)
                 _navigatedHosts.Add(hostControlName);
             Report("EventBridge_writeback",
@@ -339,11 +341,16 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
         else
         {
             await _channel.RenderHtmlAsync(html).ConfigureAwait(false);
-            _lastHostWrite[hostControlName] = new WriteRecord(html, true);
+            _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, true);
             _navigatedHosts.Add(hostControlName);
             Report("EventBridge_writeback", $"写回 {hostControlName}（无收敛 pump，走纯渲染）");
         }
     }
+
+    /// <summary>执行受控 DOM 指令并回串为类型化状态（单点：消除 <c>UnwrapString + Parse</c> 组合的多处重复）。</summary>
+    private async Task<DomOpStatus> ExecuteDomTypedAsync(string op, string? name, string? value, CancellationToken ct)
+        => DomOps.Parse(HtmlElementNode.UnwrapString(
+            await _channel.ExecuteAsync(op, name, value, ct).ConfigureAwait(false)));
 
     /// <summary>按区域写回（I5 区域化写回，P2）：patch 具名区域容器（<c>DomOps.Patch name=region-*</c>，不重载文档）；
     /// 内容未变按区域跳过（按区域去重）。返回 false = 未命中/补丁未生效（调用方据结果回退整页渲染）。</summary>
@@ -354,14 +361,12 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
     public async Task<DomOpStatus> WriteRegionStatusAsync(string regionName, string html, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(regionName)) return DomOpStatus.Unknown;
-        if (_lastRegionWrite.TryGetValue(regionName, out var prev)
+        if (_lastWrite.TryGetValue(RegionSlot(regionName), out var prev)
             && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
             return DomOpStatus.Ok;
-        var status = HtmlElementNode.UnwrapString(
-            await _channel.ExecuteAsync(DomOps.Reconcile, regionName, html, ct).ConfigureAwait(false));
-        var parsed = DomOps.Parse(status);
+        var parsed = await ExecuteDomTypedAsync(DomOps.Reconcile, regionName, html, ct).ConfigureAwait(false);
         if (parsed == DomOpStatus.Ok)
-            _lastRegionWrite[regionName] = new WriteRecord(html, true);
+            _lastWrite[RegionSlot(regionName)] = new WriteRecord(html, true);
         Report("EventBridge_writeback", parsed == DomOpStatus.Ok
             ? $"区域写回 {regionName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）"
             : $"区域写回 {regionName} 未生效（{parsed}）");
@@ -374,12 +379,11 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
     public async Task<bool> WriteLeafAsync(string name, string value, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name)) return false;
-        var status = HtmlElementNode.UnwrapString(
-            await _channel.ExecuteAsync(DomOps.Set, name, value, ct).ConfigureAwait(false));
-        var ok = DomOps.IsOk(status);
+        var status = await ExecuteDomTypedAsync(DomOps.Set, name, value, ct).ConfigureAwait(false);
+        var ok = status == DomOpStatus.Ok;
         Report("EventBridge_writeback", ok
             ? $"叶子写回 {name}: {DomOpStatus.Ok}"
-            : $"叶子写回 {name} 未命中（{DomOps.Parse(status)}）");
+            : $"叶子写回 {name} 未命中（{status}）");
         return ok;
     }
 

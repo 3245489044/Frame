@@ -10,11 +10,11 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlEmptyState
 {
-    /// <summary>块级空态模板名（JSON templates 键）。</summary>
-    public const string DivTemplateName = "emptyDiv";
+    /// <summary>块级空态模板名（JSON templates 键；复用资产键常量，避免双份字面量）。</summary>
+    public const string DivTemplateName = HtmlAssetKeys.EmptyDivTemplate;
 
-    /// <summary>段落空态模板名（JSON templates 键）。</summary>
-    public const string ParagraphTemplateName = "emptyP";
+    /// <summary>段落空态模板名（JSON templates 键；复用资产键常量）。</summary>
+    public const string ParagraphTemplateName = HtmlAssetKeys.EmptyPTemplate;
 
     /// <summary>渲染块级空态（<c>&lt;div class="empty"&gt;</c>）：<paramref name="text"/> 经引擎 HTML 编码入 DOM。</summary>
     public static string Render(IReadOnlyDictionary<string, string> templates, string text)

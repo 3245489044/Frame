@@ -20,32 +20,27 @@ public static class HtmlKeyContract
         var violations = new List<string>();
         if (string.IsNullOrEmpty(html)) return violations;
         var root = HtmlNodeParser.Parse(html);
-        Walk(templateName, root, violations);
-        return violations;
-    }
-
-    /// <summary>逐父级收集身份键 → 同父重复即违规；递归全树。</summary>
-    private static void Walk(string templateName, UiNode node, List<string> violations)
-    {
-        if (node.Children is not { Count: > 0 }) return;
-        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var child in node.Children)
+        UiNodeTrees.Walker.Walk(root, (node, _) =>
         {
-            var key = HtmlKey.NodeKey.Derive(child);
-            if (key is null) continue;
-            if (seen.TryGetValue(key, out var count))
+            if (node.Children is not { Count: > 0 }) return;
+            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var child in node.Children)
             {
-                seen[key] = count + 1;
-                violations.Add(
-                    $"{templateName}: 同父键冲突 [{key}]（同父第 {count + 1} 个）—— 身份键/具名锚在同一父级必须唯一");
+                var key = HtmlKey.NodeKey.Derive(child);
+                if (key is null) continue;
+                if (seen.TryGetValue(key, out var count))
+                {
+                    seen[key] = count + 1;
+                    violations.Add(
+                        $"{templateName}: 同父键冲突 [{key}]（同父第 {count + 1} 个）—— 身份键/具名锚在同一父级必须唯一");
+                }
+                else
+                {
+                    seen[key] = 1;
+                }
             }
-            else
-            {
-                seen[key] = 1;
-            }
-        }
-        foreach (var child in node.Children)
-            Walk(templateName, child, violations);
+        });
+        return violations;
     }
 
     /// <summary>校验整套模板：同父唯一性 + 既有稳定键存在性（<see cref="HtmlKeyGuard"/> 判据保留）。</summary>
@@ -59,16 +54,11 @@ public static class HtmlKeyContract
         return all;
     }
 
-    /// <summary>强制校验：有违规即 fail-fast 抛 <see cref="InvalidOperationException"/>（含修复引导）。</summary>
+    /// <summary>强制校验：有违规即 fail-fast（转调 <see cref="HtmlKeyGuard.Enforce(IReadOnlyList{string})"/> 单一抛出点）。</summary>
     public static void Enforce(IReadOnlyDictionary<string, string>? templates)
-        => Enforce(ValidateAll(templates));
+        => HtmlKeyGuard.Enforce(ValidateAll(templates));
 
-    /// <summary>强制校验（复用已有扫描结果）；非空即抛。</summary>
+    /// <inheritdoc cref="HtmlKeyGuard.Enforce(IReadOnlyList{string})"/>
     public static void Enforce(IReadOnlyList<string>? violations)
-    {
-        if (violations is { Count: > 0 })
-            throw new InvalidOperationException(
-                "HTML 模板键契约失败（同父键冲突 / 缺稳定键；键由渲染层派生，同父身份键必须唯一）：\n - " +
-                string.Join("\n - ", violations));
-    }
+        => HtmlKeyGuard.Enforce(violations);
 }

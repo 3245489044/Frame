@@ -125,7 +125,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     /// 消息经 <c>window.chrome.webview.postMessage</c> 回宿主，宿主既有 MessageReceived→events.message 路由接管。
     /// 注入经 <see cref="HtmlScriptHost.EnsureBridgeLoadedAsync"/> 随点击桥一起在导航后完成（本脚本不经过模板引擎，可含花括号）。
     /// </summary>
-    internal const string RefreshBridgeScript =
+    internal static readonly string RefreshBridgeScript =
         "(function(){"
         + "if(document.__htmlRefreshInstalled){return;}"
         + "document.__htmlRefreshInstalled=true;"
@@ -146,7 +146,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "function scopeMatch(n){if(!curScopes||curScopes.length===0){return true;}var subs=subsOf(n);if(!subs){return true;}for(var s0=0;s0<subs.length;s0++){if(subs[s0]==='*'){return true;}}for(var i=0;i<subs.length;i++){for(var j=0;j<curScopes.length;j++){if(subs[i]===curScopes[j]){return true;}}}return false;}"
         + "function fire(n){"
         + "if(!scopeMatch(n)){return;}"
-        + "var cmd=n.getAttribute('data-poll-cmd');if(!cmd){cmd='refresh';}"
+        + "var cmd=n.getAttribute('data-poll-cmd');if(!cmd){cmd='" + HtmlRefreshProtocol.Command + "';}"
         + "var o=new Object();o.cmd=cmd;var ctx=ctxOf(n);"
         + "if(ctx){for(var k in ctx){o[k]=ctx[k];}}"
         // I3 范围协议（D5 打通）：回投保留宿主推送的范围集合，服务端据此定向更新（无 scope = 显式全量）。
@@ -159,7 +159,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         // ── 1s 刷新限制（反向节流）：空闲即刷；窗口内合并，窗口到期补刷最后一次（trailing 必达）──
         + "var last=-1e9;var pendNode=null;var pendTimer=null;"
         + "function nowMs(){return (window.performance&&window.performance.now)?window.performance.now():Date.now();}"
-        + "function throttleOf(n){var v=parseInt(n.getAttribute('data-refresh-throttle'),10);return v>0?v:1000;}"
+        + "function throttleOf(n){var v=parseInt(n.getAttribute('data-refresh-throttle'),10);return v>0?v:" + HtmlRefreshProtocol.ThrottleMs + ";}"
         + "function pickNode(){return document.querySelector('[data-poll-cmd=\"refresh\"]:not([data-poll-refresh])')||document.querySelector('[data-poll-cmd]');}"
         + "function refreshNow(){"
         + "var n=pickNode();if(!n){return;}"
@@ -174,7 +174,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "window.chrome.webview.addEventListener('message',function(e){"
         + "var d=e?e.data:null;if(!d){return;}"
         + "var cmd=(typeof d==='string')?d:(d.cmd||'');"
-        + "if(cmd!=='refresh'&&cmd!=='update'){return;}"
+        + "if(cmd!=='" + HtmlRefreshProtocol.Command + "'&&cmd!=='update'){return;}"
         + "curScopes=(d&&d.scope&&d.scope.length)?d.scope:null;curTrace=(d&&d.traceId)?d.traceId:null;"
         + "pushSeen=true;stopFallback();refreshNow();"
         + "});}"
@@ -185,7 +185,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "})(rbs[j]);}"
         // 兜底慢轮询：未收到宿主推送前保底（推送通道不可用/未注入时不失刷）
         + "var fn=pickNode();"
-        + "if(fn){var iv=parseInt(fn.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=30000;}"
+        + "if(fn){var iv=parseInt(fn.getAttribute('data-poll-interval'),10);if(!(iv>0)){iv=" + HtmlRefreshProtocol.IntervalMs + ";}"
         + "fallbackTimer=window.setInterval(function(){if(pushSeen){stopFallback();return;}var n=pickNode();if(n){fire(n);}},iv);}"
         + "})();";
 
@@ -197,7 +197,8 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
-        + "document.__bridgeModules=document.__bridgeModules||{};document.__bridgeModules.reconcile=true;"
+        // reconcile 内核即 patch 写原语（DomOps.Patch 已收敛为 reconcile）：同置 patch 位，使模块清单可达全就绪。
+        + "document.__bridgeModules=document.__bridgeModules||{};document.__bridgeModules.reconcile=true;document.__bridgeModules.patch=true;"
         + "var __kk=" + HtmlKey.JsArrayLiteral + ";"
         + "function keyOf(n){if(!n||!n.getAttribute){return null;}for(var i=0;i<__kk.length;i++){var v=n.getAttribute(__kk[i]);if(v){return __kk[i]+'='+v;}}return null;}"
         + "function syncAttrs(oldN,newN){"

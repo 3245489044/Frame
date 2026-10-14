@@ -12,8 +12,9 @@ public sealed record HtmlScriptResult(IReadOnlyList<string> Lines)
 }
 
 /// <summary>
-/// HTML 脚本桥——把 04-json-script 命令协议（exec/set/click/get）落到 HTML 原生元素：
-/// set → DOM 写；get → DOM 读回；click → dispatchEvent 触发事件桥 → C# 函数；exec → 调注册函数并写回 output。
+/// HTML 脚本桥——把 04-json-script 命令协议落到 HTML 原生元素：
+/// set → DOM 写；get → DOM 读回；click → dispatchEvent 触发事件桥 → C# 函数；realclick → 真实鼠标点击（SendInput）；
+/// exec → 调注册函数并写回 output（sleep 由宿主侧处理）。
 /// 白名单安全：仅受控 DOM 操作，命令解析在 C# 侧，值按数据处理，不执行任意 JS。
 /// </summary>
 public sealed class HtmlScriptBridge
@@ -60,7 +61,16 @@ public sealed class HtmlScriptBridge
                 // 消除「元素缺失/桥未通仍显示成功」的假阳性（对齐 realclick 的 OK/NOT_FOUND/NOT_VISIBLE 语义）。
                 var clickRaw = await _channel.ExecuteAsync(DomOps.Click, cmd.Target, null).ConfigureAwait(false);
                 var probe = "n/a";
-                try { probe = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync("JSON.stringify({installed:!!document.__domBridgeInstalled,chrome:!!(window.chrome&&window.chrome.webview),ready:document.readyState})", ct).ConfigureAwait(false)); } catch { }
+                try
+                {
+                    // 复用资产层诊断模板（与 BridgeDiagnosisTemplate 单一来源，消除探针串漂移）。
+                    probe = HtmlElementNode.UnwrapString(
+                        await _channel.ExecuteScriptAsync(HtmlAssetRegistry.GetTemplate(HtmlAssetKeys.BridgeDiagnosisTemplate), ct).ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    probe = $"err:{ex.GetType().Name}";
+                }
                 return $"[click] {cmd.Target} → {HtmlElementNode.UnwrapString(clickRaw)} | probe={probe}";
 
             case DomOps.RealClick:
@@ -82,7 +92,7 @@ public sealed class HtmlScriptBridge
                 return $"[sleep] {ms}ms";
 
             default:
-                return $"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/exec/sleep）";
+                return $"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/realclick/exec/sleep）";
         }
     }
 
@@ -90,7 +100,7 @@ public sealed class HtmlScriptBridge
     /// 兼容两种输入格式：整脚本对象（<c>{description, script, commands:[...]}</c>，自动解包 <c>.commands</c>）或裸命令数组。
     /// 并做 <c>{template}</c> 命令展开（通用层唯一实现，替代旧 Agent 侧私有 ParseScriptCommands）：
     /// <c>echo-section</c> → Action=echo, Value=title；其余模板 → Action=模板名。非法/空 → 空列表。</summary>
-    public static IReadOnlyList<HtmlScriptCommand> ParseCommands(string json)
+    public static IReadOnlyList<HtmlScriptCommand> ParseCommands(string json, Action<string, string>? diagnostics = null)
     {
         var arrJson = UnwrapCommandsArray(json);
         if (arrJson is null) return Array.Empty<HtmlScriptCommand>();
@@ -100,8 +110,10 @@ public sealed class HtmlScriptBridge
             cmds = JsonSerializer.Deserialize<List<HtmlScriptCommand>>(arrJson, JsonSerializerFactory.Contexts.ScriptCommand)
                    ?? new List<HtmlScriptCommand>();
         }
-        catch
+        catch (Exception ex)
         {
+            // 解析失败可见化（不再静默返回空列表）：脚本 JSON 非法 / 结构漂移须可诊断。
+            diagnostics?.Invoke("ScriptBridge_parse", $"命令解析失败[{ex.GetType().Name}]: {ex.Message}");
             return Array.Empty<HtmlScriptCommand>();
         }
         return ExpandTemplates(cmds);

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text.Json;
+using Framework.Tree;
 using Plate.JsonMethod.Utilities;
 using TConfig;
 
@@ -68,15 +69,15 @@ public static class HtmlDeclarationParser
         return false;
     }
 
-    /// <summary>控件树 → name 索引（递归全部 view，大小写不敏感）。[搬运自 HtmlBackendRuntime.BuildControlIndex 前身]</summary>
-    /// 仅索引物理控件（view 顶层 + 面板嵌套），不含 htmlPage 内部元素（页内元素经 <see cref="BuildDomainControlIndex"/> 的 page 域索引）。</summary>
+    /// <summary>控件树 → 裸名索引（仅物理控件，不含 htmlPage 内部元素）——由 <see cref="BuildDomainControlIndex"/> 剥离
+    /// <c>host:</c> 前缀派生（单一递归实现，消除裸名/域名两套索引的漂移）。</summary>
     public static IReadOnlyDictionary<string, ControlConfig> BuildControlIndex(UIConfiguration config)
     {
         var dict = new Dictionary<string, ControlConfig>(StringComparer.OrdinalIgnoreCase);
-        if (config.Views is not null)
+        foreach (var kv in BuildDomainControlIndex(config))
         {
-            foreach (var view in config.Views)
-                IndexControls(view.Controls, dict);
+            if (kv.Key.StartsWith(HostDomainPrefix, StringComparison.OrdinalIgnoreCase))
+                dict[kv.Key[HostDomainPrefix.Length..]] = kv.Value;
         }
         return dict;
     }
@@ -85,37 +86,57 @@ public static class HtmlDeclarationParser
     /// 同名裸控件分属两域互不覆盖，output/脚本 target 以 <see cref="HostKey"/> / <see cref="PageKey"/> 显式定位。</summary>
     public static IReadOnlyDictionary<string, ControlConfig> BuildDomainControlIndex(UIConfiguration config)
     {
-        var dict = new Dictionary<string, ControlConfig>(StringComparer.OrdinalIgnoreCase);
+        var index = new TreeIndex<ControlConfig, string>(StringComparer.OrdinalIgnoreCase);
         if (config.Views is not null)
         {
             foreach (var view in config.Views)
-                IndexControlsDomain(view.Controls, dict, HostDomainPrefix);
+                IndexControlsDomain(view.Controls, index);
         }
+        var dict = new Dictionary<string, ControlConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in index.GetAll())
+            dict[kv.Key] = kv.Value;
         return dict;
     }
 
-    private static void IndexControls(List<ControlConfig>? controls, Dictionary<string, ControlConfig> dict)
+    // 域边界拆为两个 TreeWalker（host 树 ∩ page 树 = ∅）：host 域仅沿 Controls 下钻；
+    // page 域含 HtmlPage.Controls 及其内 Controls（同域），可统一遍历。消除手写递归。
+    private static readonly TreeWalker<ControlConfig> HostWalker = new(HostChildren);
+    private static readonly TreeWalker<ControlConfig> PageWalker = new(PageChildren);
+
+    private static IEnumerable<ControlConfig> HostChildren(ControlConfig c)
     {
-        if (controls is null) return;
-        foreach (var c in controls)
-        {
-            if (!string.IsNullOrWhiteSpace(c.Name))
-                dict[c.Name] = c;
-            IndexControls(c.Controls, dict);
-        }
+        if (c.Controls is { Count: > 0 })
+            foreach (var child in c.Controls) yield return child;
     }
 
-    private static void IndexControlsDomain(List<ControlConfig>? controls, Dictionary<string, ControlConfig> dict, string domain)
+    private static IEnumerable<ControlConfig> PageChildren(ControlConfig c)
+    {
+        if (c.Controls is { Count: > 0 })
+            foreach (var child in c.Controls) yield return child;
+        if (c.HtmlPage?.Controls is { Count: > 0 } pageControls)
+            foreach (var child in pageControls) yield return child;
+    }
+
+    private static void IndexControlsDomain(List<ControlConfig>? controls, TreeIndex<ControlConfig, string> index)
     {
         if (controls is null) return;
-        foreach (var c in controls)
+        foreach (var root in controls)
         {
-            if (!string.IsNullOrWhiteSpace(c.Name))
-                dict[domain + c.Name] = c;
-            // htmlPage 内部控件树归属 page 域（与物理控件 host 域隔离）
-            if (c.HtmlPage?.Controls is { Count: > 0 } pageControls)
-                IndexControlsDomain(pageControls, dict, PageDomainPrefix);
-            IndexControlsDomain(c.Controls, dict, domain);
+            HostWalker.Walk(root, (c, _) =>
+            {
+                if (!string.IsNullOrWhiteSpace(c.Name))
+                    index.RegisterNode(c, HostDomainPrefix + c.Name);
+                // htmlPage 内部控件树归属 page 域（与物理控件 host 域隔离），整棵 page 子树同域。
+                if (c.HtmlPage?.Controls is { Count: > 0 } pageControls)
+                {
+                    foreach (var pageRoot in pageControls)
+                        PageWalker.Walk(pageRoot, (p, _) =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(p.Name))
+                                index.RegisterNode(p, PageDomainPrefix + p.Name);
+                        });
+                }
+            });
         }
     }
 

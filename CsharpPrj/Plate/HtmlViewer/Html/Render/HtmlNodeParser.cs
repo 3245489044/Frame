@@ -122,9 +122,14 @@ public static class HtmlNodeParser
         if (text.Length == 0) return;
         var s = text.ToString();
         text.Clear();
-        if (string.IsNullOrWhiteSpace(s)) return; // 丢弃纯排版空白
+        // 丢弃纯排版空白；但 <pre>/<textarea> 内的空白是内容，须保真。
+        if (string.IsNullOrWhiteSpace(s) && !PreserveWhitespace(stack.Peek().Tag)) return;
         stack.Peek().Children.Add(new Builder(null, null, s));
     }
+
+    private static bool PreserveWhitespace(string? tag)
+        => string.Equals(tag, "pre", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tag, "textarea", StringComparison.OrdinalIgnoreCase);
 
     private static void CloseTag(Stack<Builder> stack, string name)
     {

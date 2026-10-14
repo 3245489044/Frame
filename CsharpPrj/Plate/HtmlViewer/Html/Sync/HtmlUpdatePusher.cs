@@ -65,8 +65,8 @@ public sealed class HtmlUpdatePusher
             sb.Append(']');
         }
         sb.Append(",\"v\":").Append(envelope.Version);
-        if (!string.IsNullOrEmpty(envelope.TraceId)) sb.Append(",\"traceId\":\"").Append(envelope.TraceId).Append('"');
-        if (!string.IsNullOrEmpty(envelope.Fingerprint)) sb.Append(",\"fp\":\"").Append(envelope.Fingerprint).Append('"');
+        if (!string.IsNullOrEmpty(envelope.TraceId)) sb.Append(",\"traceId\":").Append(JsonSerializer.Serialize(envelope.TraceId));
+        if (!string.IsNullOrEmpty(envelope.Fingerprint)) sb.Append(",\"fp\":").Append(JsonSerializer.Serialize(envelope.Fingerprint));
         sb.Append('}');
         return sb.ToString();
     }

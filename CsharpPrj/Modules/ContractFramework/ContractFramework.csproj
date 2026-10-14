@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>契约框架（Contract Framework）</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>通用契约框架 — 以契约为语义：把规则/门禁/校验/断言统一成携带契约身份（不变量族 + 载体 + 层级 + 处置 + 证据）的声明，由框架统一注册/对账/执行/取证。框架不实现任何校验算法，只发契约身份证。</ModuleRule_Description>
+    <ModuleRule_Keywords>契约;身份;载体;三值;门禁;对账;取证</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零依赖（仅 BCL）：不得引用 Frame 任何程序集 —— 以便任意层（Modules/Plate/Share/Strategy/Operation）与产品侧消费（layer=1，见 modules.json roots.layer）" />
+    <ModuleRule_Rule Include="不重造规则引擎：校验逻辑仍由 ValidationFramework / Roslyn 分析器 / PowerShell 门禁 / 运行期探针承担；本框架只发契约身份 + 统一执行 + 对账" />
+    <ModuleRule_Rule Include="载体铁律：判据载体必须为结构事实（工具名/命令/参数/路径/计数/已声明文本/内容指纹）；含语义词（动机/必要性/收益/副作用/风险）⇒ 契约不合格 ⇒ 裁决 ⊥" />
+    <ModuleRule_Rule Include="三处唯一：抛出点唯一（ContractGate.Enforce）/ 执行体注册唯一（ContractRegistry）/ 声明唯一（contracts.json）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>ContractFramework</RootNamespace>
+    <AssemblyName>ContractFramework</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>通用契约框架 — 契约身份/注册/对账/执行/取证内核（BCL-only，layer=1）</Description>
+  </PropertyGroup>
+
+  <!-- 零 ProjectReference：BCL-only；System.Text.Json 经 Directory.Build.props 全局可用 -->
+
+</Project>

@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_ComponentData)" />
+    <!-- 契约框架（Modules\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
+    <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
     <ProjectReference Include="$(Proj_DiagnosticContext)" />
     <ProjectReference Include="$(Proj_EventFramework)" />
@@ -52,6 +54,7 @@
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
     <Compile Remove="ComponentData\**\*.cs" />
+    <Compile Remove="ContractFramework\**\*.cs" />
     <Compile Remove="DeclarativeDataflow\**\*.cs" />
     <Compile Remove="DiagnosticContext\**\*.cs" />
     <Compile Remove="ExecutionFramework\**\*.cs" />

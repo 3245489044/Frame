@@ -50,6 +50,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
 
     private static string HostSlot(string name) => "host:" + name;
     private static string RegionSlot(string name) => "region:" + name;
+    private static string TreeSlot(string name) => "tree:" + name;
 
     /// <summary>已完成整页渲染（文档壳 + 主题 CSS 就位）的宿主控件：首次写回必须整页渲染（补丁只换 body，头/主题需先落地）。</summary>
     private readonly HashSet<string> _navigatedHosts = new(StringComparer.OrdinalIgnoreCase);
@@ -423,6 +424,8 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         var trace = plan.TraceId ?? traceId ?? RefreshTrace.New("write");
         var written = new List<string>();
         var skipped = new List<string>();
+        var anomalies = new List<string>();
+        var anomalySeen = false;
 
         switch (plan.Kind)
         {
@@ -448,16 +451,34 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                         skipped.Add(name);
                         continue;
                     }
+                    // D-1 去重（与 Region 路径语义一致）：同目标 + 同树/同交互指纹 ⇒ 不触 DOM（Nothing，非失败）。
+                    var treeFp = plan.Fingerprint ?? HtmlTreeWriter.Fingerprint(tree, plan.Interaction);
+                    if (_lastWrite.TryGetValue(TreeSlot(name), out var prevTree)
+                        && prevTree.Ok && string.Equals(prevTree.Html, treeFp, StringComparison.Ordinal))
+                    {
+                        Report("EventBridge_writeback", $"键控树写回 {name} 跳过（内容未变）trace={trace}");
+                        skipped.Add(name);
+                        continue;
+                    }
                     var r = await _treeWriter.ReconcileAsync(name, tree, plan.Interaction, ct).ConfigureAwait(false);
                     // 键控对齐异常（重复键等）显式上报（I3：不静默；对齐结果类型化回传）。
                     if (r.Anomalies is { Count: > 0 })
+                    {
+                        anomalySeen = true;
+                        anomalies.AddRange(r.Anomalies);
                         Report("Reconcile_anomaly",
                             $"键控对齐异常 target={name} trace={trace}: {string.Join(";", r.Anomalies)}");
+                    }
                     // E-5：失败原因类型化可见化（区域缺失 vs 内核未就绪）——供上层定向自愈，不静默。
                     if (r.Status is UiWriteStatus.NotFound or UiWriteStatus.NotReady)
                         Report("EventBridge_writeback",
                             $"键控树写回 {name} 未落地（{r.Status}）trace={trace}");
-                    if (r.Status is UiWriteStatus.Applied or UiWriteStatus.Partial) written.Add(name);
+                    // X-5：anomalies 非空 ⇒ Partial 且不计入 written（判据不合格 ⇒ ⊥，不放行）。
+                    if ((r.Status is UiWriteStatus.Applied or UiWriteStatus.Partial) && r.Anomalies is not { Count: > 0 })
+                    {
+                        _lastWrite[TreeSlot(name)] = new WriteRecord(treeFp, true);
+                        written.Add(name);
+                    }
                     else skipped.Add(name);
                 }
                 break;
@@ -481,12 +502,14 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                 break;
         }
 
-        var result = written.Count == 0 && skipped.Count > 0
-            ? UiWriteStatus.Failed
-            : skipped.Count == 0 ? UiWriteStatus.Applied : UiWriteStatus.Partial;
+        // D-1 聚合修正：仅 skipped（内容未变/去重）⇒ Skipped（非 Failed）；anomalySeen ⇒ 至少 Partial（不放行）。
+        var result = written.Count == 0
+            ? (skipped.Count == 0 ? UiWriteStatus.Nothing : UiWriteStatus.Skipped)
+            : (skipped.Count == 0 && !anomalySeen ? UiWriteStatus.Applied : UiWriteStatus.Partial);
         Report("EventBridge_writeback",
-            $"写回协调器 {plan.Kind} trace={trace}: {result}, written=[{string.Join(",", written)}], skipped=[{string.Join(",", skipped)}]");
-        return new UiWriteResult(result, written, skipped, TraceId: trace);
+            $"写回协调器 {plan.Kind} trace={trace}: {result}, written=[{string.Join(",", written)}], skipped=[{string.Join(",", skipped)}]{(anomalySeen ? ", anomalies=1" : string.Empty)}");
+        return new UiWriteResult(result, written, skipped, TraceId: trace,
+            Anomalies: anomalies.Count > 0 ? anomalies : null);
     }
 
     /// <summary>桥模块就绪查询（L1 <see cref="IUiBridgeReadiness"/>；通道未实现 → 返回 None，调用方据显式状态处置）。</summary>

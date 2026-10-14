@@ -60,7 +60,10 @@ public static class HtmlFlowProjector
 
     /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content（含 overlay），顶部 selector。
     /// <para>P2 区域化（I5）：把左侧树 / 右侧内容各包一层具名区域容器（<c>data-name=region-tree|region-main</c>），
-    /// 使写回层可按区域 patch（<c>DomOps.Patch name=region-*</c>）而非整体替换；首挂载后壳稳定（I6），区域容器不随内容重建。</para></summary>
+    /// 使写回层可按区域 patch（<c>DomOps.Patch name=region-*</c>）而非整体替换；首挂载后壳稳定（I6），区域容器不随内容重建。</para>
+    /// <para>E-8 外壳区域化：选区 / 标题 / 副标题亦为独立可写区域（<c>region-selector|region-bartitle|region-convtitle</c>），
+    /// 三者互不嵌套、互不覆盖（均与 region-tree/main 平级或独立），使显式视图切换可回归区域计划（不再依赖整页刷新）；
+    /// 刷新按钮 <c>data-poll-refresh</c> 留在区域外，避免被区域写覆盖丢失。</para></summary>
     public static string RenderShell(
         IReadOnlyDictionary<string, string> templates,
         string selectorHtml,
@@ -72,12 +75,16 @@ public static class HtmlFlowProjector
     {
         var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "tree\">" + treeHtml + "</div>";
         var mainRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
+        // E-8：外壳动态位（选区/标题/副标题）各为独立区域元素（区域元素即 patch 目标，其内容 = 该位 HTML/文本）。
+        var selectorRegion = "<div class=\"view-switch region\" data-name=\"" + RegionNamePrefix + "selector\">" + selectorHtml + "</div>";
+        var titleRegion = "<span data-name=\"" + RegionNamePrefix + "bartitle\">" + title + "</span>";
+        var subtitleRegion = "<span data-name=\"" + RegionNamePrefix + "convtitle\">" + subtitle + "</span>";
         return HtmlTemplateEngine.Render(templates, "flowShell",
             new Dictionary<string, object?>
             {
-                ["selector"] = selectorHtml,
-                ["title"] = title,
-                ["subtitle"] = subtitle,
+                ["selector"] = selectorRegion,
+                ["title"] = titleRegion,
+                ["subtitle"] = subtitleRegion,
                 ["tree"] = treeRegion,
                 ["history"] = mainRegion,
                 ["pollAttrs"] = pollAttrs ?? string.Empty,

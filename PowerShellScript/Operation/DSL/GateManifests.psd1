@@ -469,4 +469,12 @@
         Note   = 'PrjBridge 解耦守卫（INV-PB-1）：桥产物 AssemblyRef 零 Agent.*/GameEditor.*（结构事实=元数据引用表）⇒ Agent/Engine 任意变更不迫使桥重编'
     }
 
+    # ===== 契约框架（ContractFramework：契约身份/注册/对账/执行/取证）=====
+    ContractRegistry = @{
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '契约注册表对账（G0 元契约/G1 悬空/G2 漂移/G3 未声明/G4 可见化 + 正负对照）：声明索引单源 = Frame\CsharpPrj\contracts.index.json + 各 contracts.json（结构事实）；与 C# ContractCatalog 同读一份文件'
+    }
+
 }

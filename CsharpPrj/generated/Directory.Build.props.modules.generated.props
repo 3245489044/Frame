@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-11 16:45:37
+  生成时间: 2026-10-15 00:23:06
 -->
 <Project>
 
@@ -47,6 +47,7 @@
     <Mod_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\</Mod_ReflectionMethod>
     <Mod_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\</Mod_UniversalLayoutMath>
     <Mod_ComponentData>$(CsharpPrjDir)Modules\ComponentData\</Mod_ComponentData>
+    <Mod_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\</Mod_ContractFramework>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\</Mod_DeclarativeDataflow>
     <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\DiagnosticContext\</Mod_DiagnosticContext>
     <Mod_EventFramework>$(CsharpPrjDir)Modules\EventFramework\</Mod_EventFramework>
@@ -156,6 +157,7 @@
     <Proj_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\ReflectionMethod.csproj</Proj_ReflectionMethod>
     <Proj_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\UniversalLayoutMath.csproj</Proj_UniversalLayoutMath>
     <Proj_ComponentData>$(CsharpPrjDir)Modules\ComponentData\ComponentData.csproj</Proj_ComponentData>
+    <Proj_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
     <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
     <Proj_EventFramework>$(CsharpPrjDir)Modules\EventFramework\EventFramework.csproj</Proj_EventFramework>

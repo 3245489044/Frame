@@ -32,4 +32,12 @@
         Impl     = 'Projects/Plug/Agent/src/Agent.Modules/Response/StateGovernance/LoopGovernor.cs'
         Layer    = 'runtime'
     }
+
+    # 契约执行门（ContractFramework 契约框架的单一执行入口 + 单一抛出点；声明白名单 = contracts.json）
+    ContractGate = @{
+        Declared = ''
+        Carrier  = 'contracts.json 五元组（Id/Semantics/Carrier/Tier/Effect）+ Evidence（声明面结构事实）'
+        Impl     = 'Frame/CsharpPrj/Modules/ContractFramework/Gate/ContractGate.cs'
+        Layer    = 'runtime'
+    }
 }

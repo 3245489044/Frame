@@ -225,7 +225,9 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "else if(unkeyed.length){re=unkeyed.shift();}"
         + "matched.push([re,nn]);}"
         // Pass3：递归对齐（tag 相同复用 / 不同则替换）并按新序落位。
-        + "for(var m=0;m<matched.length;m++){var it=matched[m];if(it[0]){oldParent.appendChild(reconcile(it[0],it[1]));}else{oldParent.appendChild(it[1]);}}"
+        // 修复：tag 不同 ⇒ reconcile 返回替换节点（newN），此时须显式移除旧节点 it[0]——
+        // 它已被 Pass2 从 oldIndex/unkeyed 消费，Pass4 回收不到 ⇒ 否则成永久孤儿（旧内容残留 + 新内容追加 = 重复叠加）。
+        + "for(var m=0;m<matched.length;m++){var it=matched[m];if(it[0]){var r=reconcile(it[0],it[1]);if(r!==it[0]&&it[0].parentNode){it[0].parentNode.removeChild(it[0]);}oldParent.appendChild(r);}else{oldParent.appendChild(it[1]);}}"
         // Pass4：回收**所有未被消费的旧节点**（含重复键残留 + 无键残留）⇒ 无孤儿（幂等 I1 / 不丢不增 I2）。
         + "for(var kk in oldIndex){var q=oldIndex[kk];for(var qq=0;qq<q.length;qq++){if(q[qq].parentNode){q[qq].parentNode.removeChild(q[qq]);}}}"
         + "for(var u=0;u<unkeyed.length;u++){if(unkeyed[u].parentNode){unkeyed[u].parentNode.removeChild(unkeyed[u]);}}}"
@@ -234,7 +236,9 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "function apply(host,html,state){"
         + "if(!host){return 'NOT_FOUND';}"
         + "lastAnomalies=[];"
-        + "var tmp=document.createElement('div');tmp.innerHTML=html;"
+        // 整页 HTML 串（含 <html>/<head>/<style>）用于 body 级对齐时，仅取 <body> 内容参与按位对齐，
+        // 避免 head/style/meta 等非内容节点混入 tmp 参与位置匹配（防「同 tag 误替换 / 壳体破坏」）。
+        + "var tmp=document.createElement('div');var mb=/<body[^>]*>([\\s\\S]*)<\\/body>/i.exec(html);tmp.innerHTML=mb?mb[1]:html;"
         + "reconcileChildren(host,tmp);applyState(host,state);window.__uiReconcile.lastAnomalies=lastAnomalies;return 'OK';}"
         // 无 tag（文本/片段节点）须在 buildNode 内先分流——否则 createElement('') 抛 InvalidCharacterError，使整棵键控树写回失败。
         // 根因：HtmlNodeParser 把元素内文本投影为 UiNode{Tag="",Text=...}；整页首挂载走 innerHTML 不经 buildNode 故正常，增量 applyTree 必抛。

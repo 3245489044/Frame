@@ -69,6 +69,7 @@
     "ReflectionMethod": "BasicMethod\\RefectionMethod\\ReflectionMethod.csproj",
     "UniversalLayoutMath": "BasicMethod\\UniversalLayout\\UniversalLayoutMath.csproj",
     "ComponentData": "Modules\\ComponentData\\ComponentData.csproj",
+    "ContractFramework": "Modules\\ContractFramework\\ContractFramework.csproj",
     "DeclarativeDataflow": "Modules\\DeclarativeDataflow\\DeclarativeDataflow.csproj",
     "DiagnosticContext": "Modules\\DiagnosticContext\\DiagnosticContext.csproj",
     "EventFramework": "Modules\\EventFramework\\EventFramework.csproj",

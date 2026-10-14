@@ -1,0 +1,6 @@
+{
+  "$schema": "contracts-index/v1",
+  "comment": "契约声明索引（单一真源入口）。files = 各子系统自带 contracts.json 的仓库根相对路径；scanGlobs = G3「未声明」扫描面（空 = 跳过 G3 并可见化）。框架侧零具体契约：本文件为纯框架态，随 Consumer 接入逐步登记。",
+  "files": [],
+  "scanGlobs": []
+}

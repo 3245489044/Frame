@@ -49,8 +49,11 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             + "return window.__uiReconcile.applyTree(h," + treeJson + "," + stateJson + ");})()";
         var raw = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync(script, ct).ConfigureAwait(false));
         var (status, changed, anomalies) = MapStatus(raw);
-        var applied = status is UiWriteStatus.Applied or UiWriteStatus.Partial;
-        // 写失败可见化（治 E-6 静默）：非 Applied 时透出回串原文（截断），供上层定向自愈而非仅见 Failed。
+        // X-5：对齐异常不构成「成功/放行」依据（判据不合格 ⇒ ⊥，对齐 axioms:AX-FRAME.CriterionWellFormedness）——
+        // anomalies 非空 ⇒ Partial 且**不计入 written**（skipped=[name]），供上层显式自愈而非「静默成功」。
+        var anomaliesPresent = anomalies is { Count: > 0 };
+        var applied = (status is UiWriteStatus.Applied or UiWriteStatus.Partial) && !anomaliesPresent;
+        // 写失败/异常可见化（治 E-6 静默）：非 applied 时透出回串原文（截断），供上层定向自愈。
         if (!applied)
             Report("EventBridge_writeback",
                 $"键控树写回 {name} 未落地 status={status} raw={(string.IsNullOrEmpty(raw) ? "<empty>" : raw.Length > 160 ? raw.Substring(0, 160) : raw)}");
@@ -61,6 +64,13 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             Changed: changed,
             Anomalies: anomalies);
     }
+
+    /// <summary>键控树去重指纹（D-1，单一序列化口径）——与 <see cref="ReconcileAsync"/> 同 <see cref="JsonOptions"/> 序列化，
+    /// 供上层写协调器在「同树同交互连续写」时短路（不触 DOM）。</summary>
+    public static string Fingerprint(UiNode tree, UiInteractionSnapshot? interaction = null)
+        => UiFingerprint.Combine(
+            JsonSerializer.Serialize(tree, JsonOptions),
+            interaction is null || interaction.IsEmpty ? null : JsonSerializer.Serialize(interaction, JsonOptions));
 
     /// <summary>回串映射（类型化；失败原因不被抹平）：OK / OK:&lt;changed&gt; / OK:&lt;anomalies 分号分隔&gt; → Applied（携 anomalies）；
     /// NOT_FOUND → NotFound（区域缺失，可定向自愈）；RECONCILE_NOT_READY → NotReady（对齐内核未就绪，可补注入自愈）；其它 → Failed。
@@ -74,7 +84,10 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             var rest = raw.Substring(3);
             if (int.TryParse(rest, out var n)) return (UiWriteStatus.Applied, n, null);
             var anomalies = rest.Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries);
-            return (UiWriteStatus.Applied, 0, anomalies.Length > 0 ? anomalies : null);
+            // X-5：anomalies 非空 ⇒ Partial（不判成功），并透传 anomalies 供上层可见化。
+            return anomalies.Length > 0
+                ? (UiWriteStatus.Partial, 0, anomalies)
+                : (UiWriteStatus.Applied, 0, null);
         }
         if (raw == "NOT_FOUND") return (UiWriteStatus.NotFound, 0, null);
         if (raw == "RECONCILE_NOT_READY") return (UiWriteStatus.NotReady, 0, null);

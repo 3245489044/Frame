@@ -44,8 +44,16 @@ public sealed class HtmlUiHostSlot
     /// <summary>是否已装配 HTML 后端运行时。</summary>
     public bool HasHtmlUi => _htmlUi.Has;
 
-    /// <summary>装配 HTML 后端运行时（幂等：覆盖式）。传入需非 null。</summary>
-    public void AttachHtmlUi(HtmlBackendRuntime runtime) => _htmlUi.Attach(runtime);
+    /// <summary>装配 HTML 后端运行时（覆盖式 + 幂等释放）：替换前解装配旧运行时，消除旧订阅成孤儿仍触发。
+    /// 传入需非 null。</summary>
+    public void AttachHtmlUi(HtmlBackendRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        var previous = _htmlUi.Value;
+        _htmlUi.Attach(runtime);
+        if (previous is not null && !ReferenceEquals(previous, runtime))
+            previous.Dispose();
+    }
 
     /// <summary>解除 HTML 后端运行时槽位。</summary>
     public void DetachHtmlUi() => _htmlUi.Detach();

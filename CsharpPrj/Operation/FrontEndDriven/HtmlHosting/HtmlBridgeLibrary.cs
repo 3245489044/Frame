@@ -156,6 +156,9 @@ public sealed class HtmlBridgeLibrary
     /// </summary>
     public async Task<string> HtmlAttachAsync()
     {
+        // B1 幂等装配：已装配即跳过——重复 attach 会新建运行时并重复订阅 MessageReceived（双路调用/双写根因）。
+        if (_backend.HasHtmlUi)
+            return $"（HTML 后端已装配，幂等跳过重复装配；hostControl={_hostControl}）";
         try
         {
             var viewer = _backend.HtmlViewerResolver?.Invoke(_hostControl);

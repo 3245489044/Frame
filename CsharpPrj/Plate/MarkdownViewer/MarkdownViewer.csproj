@@ -15,5 +15,10 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
   </ItemGroup>
 
+  <!-- ★ 复用通用控件适配层框架（WebView2 生命周期 / UI 线程封送）：UiBackend.Html 的 IWebViewCore +
+       WebViewLifecycleHost + UiThreadMarshaler，消除与 HtmlViewer 的初始化锁/封送重复实现。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_HtmlViewer)" />
+  </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -25,6 +26,13 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
     public HtmlTreeWriter(IHtmlChannel channel)
         => _channel = channel ?? throw new System.ArgumentNullException(nameof(channel));
 
+    private readonly DiagnosticPort _diagnostics = new();
+
+    /// <summary>桥链路结构化诊断出口（写失败可见化；未接线为空操作）。</summary>
+    public Action<string, string>? Diagnostics { get => _diagnostics.Sink; set => _diagnostics.Sink = value; }
+
+    private void Report(string category, string message) => _diagnostics.Report(category, message);
+
     public async Task<UiWriteResult> ReconcileAsync(string? rootName, UiNode tree, UiInteractionSnapshot? interaction = null, CancellationToken ct = default)
     {
         var name = rootName ?? string.Empty;
@@ -42,6 +50,10 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
         var raw = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync(script, ct).ConfigureAwait(false));
         var (status, changed, anomalies) = MapStatus(raw);
         var applied = status is UiWriteStatus.Applied or UiWriteStatus.Partial;
+        // 写失败可见化（治 E-6 静默）：非 Applied 时透出回串原文（截断），供上层定向自愈而非仅见 Failed。
+        if (!applied)
+            Report("EventBridge_writeback",
+                $"键控树写回 {name} 未落地 status={status} raw={(string.IsNullOrEmpty(raw) ? "<empty>" : raw.Length > 160 ? raw.Substring(0, 160) : raw)}");
         return new UiWriteResult(
             status,
             applied ? new[] { name } : System.Array.Empty<string>(),

@@ -19,6 +19,7 @@ using Plate.HtmlViewer;
 using Share.EventBindingOrchestrator.Invocation;
 using TConfig;
 using TConfig.ECS.Components;
+using UiBackend.Abstractions;
 
 namespace FrontEndDriven.ControlInteraction.EventBinding;
 
@@ -319,7 +320,7 @@ public sealed class EcsEventBus : IInteractionEventPort
                 && !string.IsNullOrWhiteSpace(binding.OutputTarget)
                 && effectiveOutput != null)
             {
-                WriteOutput(binding, effectiveOutput.ToString(), opId, evt);
+                await WriteOutputLandingAsync(binding, effectiveOutput, opId, evt).ConfigureAwait(false);
                 op?.Complete(EventFunctionOutcome.Success());
             }
             else if (!result.IsSuccess)
@@ -437,6 +438,38 @@ public sealed class EcsEventBus : IInteractionEventPort
         }
 
         _stateAccessor.SetValue(binding.OutputTarget, text);
+    }
+
+    /// <summary>输出落地（单写落地 B3）：<see cref="RenderOutput"/> 携带写回计划且目标为 <see cref="HtmlViewer"/> 时，
+    /// 经其计划执行器落地（替代对 ToString 的静默丢弃，空串不写）；否则按 outputMode 文本回写（原有语义）。
+    /// 无法落地/执行异常 → 显式告警（不静默），随后回退文本写（空则跳过）。</summary>
+    private async Task WriteOutputLandingAsync(EventBindingComponent binding, object effectiveOutput, Guid opId, UIInteractionEvent evt)
+    {
+        if (effectiveOutput is RenderOutput { HasPlan: true } ro)
+        {
+            if (_controlPool.GetControl(binding.OutputTarget) is HtmlViewer hv && hv.RenderPlanExecutor is { } executor)
+            {
+                try
+                {
+                    await executor(ro.Plan!).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
+                        new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                              outputTarget = binding.OutputTarget, error = ex.Message });
+                }
+            }
+            else
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                          outputTarget = binding.OutputTarget, error = "目标非 HtmlViewer 或未装配计划执行器" });
+            }
+            return;
+        }
+        WriteOutput(binding, effectiveOutput.ToString(), opId, evt);
     }
 
     private static EventFunctionResultKind ToKind(InvocationOutcome outcome) => outcome switch

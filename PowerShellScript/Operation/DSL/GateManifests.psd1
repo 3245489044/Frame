@@ -461,4 +461,12 @@
         Note   = 'usharp_get 集中式转换层（V4/V5/V6-form）：注册单点（UsharpDataPorts.EnsureSqlFunctions）/ 下推表达式同源（UsharpRecordPaths）/ 表达式索引落点 / 单语句 CAS；基线 = Baselines\UsharpGetParity.psd1'
     }
 
+    # ===== PrjBridge 解耦（冻结 ABI / 只编自身）=====
+    PrjBridgeDecoupling = @{
+        Args   = @{ Check = $true }
+        Path   = 'Frame\PowerShellScript\Operation\DSL\Check-BridgeDecoupling.ps1'
+        Expect = 0
+        Note   = 'PrjBridge 解耦守卫（INV-PB-1）：桥产物 AssemblyRef 零 Agent.*/GameEditor.*（结构事实=元数据引用表）⇒ Agent/Engine 任意变更不迫使桥重编'
+    }
+
 }

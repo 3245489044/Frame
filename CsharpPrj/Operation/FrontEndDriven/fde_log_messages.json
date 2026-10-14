@@ -382,6 +382,11 @@
       "level": "Warning",
       "category": "General"
     },
+    "EcsEventBus_Dispatch_output_plan_unlanded": {
+      "template": "ECS 事件输出计划未落地（目标非 HtmlViewer / 未装配计划执行器 / 执行异常）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
     "EcsEventBus_Dispatch_output_appended": {
       "template": "ECS 事件输出追加写（outputMode=append，终端语义）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, appended={appended}",
       "level": "Info",

@@ -27,7 +27,7 @@ public enum HtmlWriteBackMode
 /// 所有 WinForms→HTML 传递（整页渲染 / 页内 DOM 指令 / 事件回传）都经 <see cref="IHtmlChannel"/> 单一通道，CoreWebView2
 /// 访问与 UI 线程封送收敛在通道实现（HtmlViewer）内。
 /// </summary>
-public sealed class HtmlBackendRuntime : IUiRenderExecutor
+public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
 {
     private readonly IHtmlChannel _channel;
     private readonly HtmlEventBridge.HtmlFunctionInvoker _invoker;
@@ -69,7 +69,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
         _controlsByName = declaration ?? throw new ArgumentNullException(nameof(declaration));
         _writePump = writePump;
-        _treeWriter = new HtmlTreeWriter(channel);
+        _treeWriter = new HtmlTreeWriter(channel) { Diagnostics = Report };
         Readiness = new HtmlRuntimeReadinessReport();
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
         // P0：事件桥的计划产物（RenderOutput.Plan）经本运行时（写协调器）单点落地——领域侧只产产物、不触通道。
@@ -210,7 +210,11 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
             html => WriteHostContentAsync(hostControlName, writeMode, contentSink, html));
         // D2 单写者：值契约（ECS 输出等）的 DOM 落地统一委托本协调器；未挂接时控件回退整页渲染。
         if (channel is HtmlViewer hostViewer)
+        {
             hostViewer.HostContentWriter = html => WriteHostContentAsync(hostControlName, writeMode, contentSink, html);
+            // B3 单写落地：携带写回计划的产物（ECS 等部门）经此计划执行器落地，替代对 ToString 的静默丢弃。
+            hostViewer.RenderPlanExecutor = plan => ExecuteAsync(plan, plan.TraceId);
+        }
 
         var handler = new EventHandler<HtmlMessageReceivedEventArgs>(async (_, e) =>
         {
@@ -233,15 +237,29 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
                 Report("HtmlChannel_webmessage_error", $"消息路由异常: {ex.GetType().Name}: {ex.Message}, 负载={TextUtil.Truncate(e.Json)}");
             }
         });
-        channel.MessageReceived += handler;
-        _hostSubscriptions[hostControlName] = new Subscription(channel, handler);
-        // D3 单入口：标记 plate 消息桥已订阅；FrontEndDriven 事件绑定据此避免对同一 MessageReceived 重复订阅（消除双路调用）。
+        // D3 单入口（仲裁式，可撤销）：抢占 hostControlName 的消息订阅权——撤销他方旧 owner，顺序无关，
+        // 消除「plate 桥 + ECS 事件绑定」对同一 MessageReceived 的双路调用（重复副作用与双写根因）。
         if (channel is HtmlViewer subscribedViewer)
-            subscribedViewer.MessageBridgeAttached = true;
+        {
+            _hostSubscriptions[hostControlName] = subscribedViewer.AcquireMessageChannel(hostControlName, handler);
+        }
+        else
+        {
+            channel.MessageReceived += handler;
+            _hostSubscriptions[hostControlName] = new Subscription(channel, handler);
+        }
 
         Readiness.HostWriterRegistered = true;
         Readiness.MessageSubscribed = true;
         return null;
+    }
+
+    /// <summary>解装配（B1 幂等装配 + 订阅所有权）：解订阅全部宿主消息——旧运行时被覆盖后其 handler 不得成孤儿仍触发。</summary>
+    public void Dispose()
+    {
+        foreach (var kv in _hostSubscriptions)
+            kv.Value.Dispose();
+        _hostSubscriptions.Clear();
     }
 
     /// <summary>
@@ -422,7 +440,14 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
                 foreach (var t in plan.Targets)
                 {
                     var name = t.Name ?? string.Empty;
-                    if (t.Payload is not UiNode tree) { skipped.Add(name); continue; }
+                    if (t.Payload is not UiNode tree)
+                    {
+                        // 载荷类型不符可见化（治 E-6 静默）：本应恒为 UiNode，不符即产/传链漂移，显式上报而非静默 skip。
+                        Report("EventBridge_writeback",
+                            $"键控树写回 {name} 跳过：载荷类型={t.Payload?.GetType().Name ?? "<null>"}（期望 UiNode）trace={trace}");
+                        skipped.Add(name);
+                        continue;
+                    }
                     var r = await _treeWriter.ReconcileAsync(name, tree, plan.Interaction, ct).ConfigureAwait(false);
                     // 键控对齐异常（重复键等）显式上报（I3：不静默；对齐结果类型化回传）。
                     if (r.Anomalies is { Count: > 0 })

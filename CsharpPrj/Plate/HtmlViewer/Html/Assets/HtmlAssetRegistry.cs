@@ -236,7 +236,10 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "lastAnomalies=[];"
         + "var tmp=document.createElement('div');tmp.innerHTML=html;"
         + "reconcileChildren(host,tmp);applyState(host,state);window.__uiReconcile.lastAnomalies=lastAnomalies;return 'OK';}"
+        // 无 tag（文本/片段节点）须在 buildNode 内先分流——否则 createElement('') 抛 InvalidCharacterError，使整棵键控树写回失败。
+        // 根因：HtmlNodeParser 把元素内文本投影为 UiNode{Tag="",Text=...}；整页首挂载走 innerHTML 不经 buildNode 故正常，增量 applyTree 必抛。
         + "function buildNode(n){if(n==null){return document.createTextNode('');}if(typeof n==='string'){return document.createTextNode(n);}"
+        + "if(!n.tag){if(n.text!=null){return document.createTextNode(''+n.text);}var fr=document.createDocumentFragment();if(n.children){for(var i=0;i<n.children.length;i++){fr.appendChild(buildNode(n.children[i]));}}return fr;}"
         + "var el=document.createElement(n.tag);if(n.attributes){for(var k in n.attributes){if(n.attributes[k]!=null){el.setAttribute(k,''+n.attributes[k]);}}}"
         + "if(n.text!=null){el.appendChild(document.createTextNode(''+n.text));}"
         + "if(n.children){for(var i=0;i<n.children.length;i++){el.appendChild(buildNode(n.children[i]));}}return el;}"

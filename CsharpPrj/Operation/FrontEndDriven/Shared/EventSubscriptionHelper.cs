@@ -177,12 +177,24 @@ public static class EventSubscriptionHelper
             ["message"] = Branch(context =>
             {
                 // htmlviewer：HTML 侧 [data-cmd] 元素点击 → postMessage → MessageReceived（负载存于 LastMessagePayloadJson，参数绑定经 eventPayload 源读取）。
-                // D3 单入口：当 plate 消息桥（HtmlBackendRuntime.AttachHostMessage）已订阅同一 MessageReceived 时，此处不再重复订阅，
-                // 消除同一 postMessage 被双路调用（plate 桥 + ECS 事件绑定）导致的重复副作用与双写。未挂接 plate 桥的宿主仍走 ECS 绑定。
-                if (context.Control is HtmlViewer htmlViewer && !htmlViewer.MessageBridgeAttached)
+                // D3 单入口（仲裁式，去时机布尔）：plate 消息桥（HtmlBackendRuntime.AttachHostMessage）为 htmlviewer message 的权威路由；
+                // ECS 仅在无 plate 桥占用该控件时回退订阅——抢占式仲裁使「先订阅/后订阅」等价，消除同一 postMessage 双路调用与双写。
+                if (context.Control is HtmlViewer htmlViewer)
                 {
-                    htmlViewer.MessageReceived += (_, _) => context.OnRaised();
-                    context.Subscribed = true;
+                    if (string.IsNullOrWhiteSpace(htmlViewer.Name))
+                    {
+                        // 未命名控件（测试桩/非常规宿主）：无 plate 桥可占用该控件，回退直接订阅以保能力集契约。
+                        htmlViewer.MessageReceived += (_, _) => context.OnRaised();
+                        context.Subscribed = true;
+                    }
+                    else
+                    {
+                        // 命名控件：抢占式仲裁——plate 桥已占用时不重复订阅（消除双路调用/双写）。
+                        var token = htmlViewer.TryAcquireMessageChannelIfIdle(
+                            htmlViewer.Name, (_, _) => context.OnRaised());
+                        if (token is not null)
+                            context.Subscribed = true;
+                    }
                 }
             }),
         };

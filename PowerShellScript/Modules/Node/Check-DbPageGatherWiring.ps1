@@ -46,10 +46,10 @@ Write-Host '============================================================'
 Write-Host '  数据库页读侧统一守卫（DbPageGatherWiring：零存储域 / 聚拢点唯一）'
 Write-Host '============================================================'
 
-$viewService = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Views\ConversationViewService.cs'
+$viewService = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs'
 # C7：数据库页渲染已拆为部分类（ConversationViewService.Db.cs）——判据须合并两文件为同一读侧面。
-$viewServiceDb = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Views\ConversationViewService.Db.cs'
-$convLib     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules\Libraries\Functions\Conversation\AgentUiLibraryConversation.cs'
+$viewServiceDb = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Db.cs'
+$convLib     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Functions\Conversation\AgentUiLibraryConversation.cs'
 # 行标记已下沉 Plate 通用行构建器（HtmlDataRowView）——行身份 data-type/data-source 字面量随之下沉，判据读集须并入。
 $rowComponent = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\HtmlDataRow.cs'
 
@@ -117,7 +117,7 @@ else {
     $text = ''
 }
 # 入口注册可落在 Modules 任一库文件（如 Assembly\Registration\AgentUiLibraryBatch.Registration.cs）——扫整个 Modules 目录。
-$libDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Modules'
+$libDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core'
 if (Test-Path $libDir) {
     $libText = [string]::Join("`n", @(Get-ChildItem -Path $libDir -Filter '*.cs' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }))
     foreach ($fn in @('AgentUi_DbTableHtml', 'AgentUi_DbTableMessageDispatch')) {

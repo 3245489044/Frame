@@ -15,6 +15,10 @@ public enum UiWriteStatus
     Partial,
     /// <summary>全部目标失败。</summary>
     Failed,
+    /// <summary>具名目标不存在（区域缺失；可定向自愈，区别于通用 Failed）。</summary>
+    NotFound,
+    /// <summary>键控对齐内核未就绪（可补注入自愈，区别于区域缺失）。</summary>
+    NotReady,
     /// <summary>按指纹/内容去重跳过。</summary>
     Skipped,
 }

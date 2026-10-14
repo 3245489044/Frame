@@ -80,11 +80,7 @@ public sealed class HtmlScriptHost
             try
             {
                 // 注入全部文档级行为脚本（点击桥 + 键控对齐 + 轮询桥），各自带 document 级幂等守卫；脚本独立、互不干扰。
-                foreach (var key in DocumentScripts)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    await _channel.ExecuteScriptAsync(_assets.GetScript(key), ct).ConfigureAwait(false);
-                }
+                await InjectAllAsync(ct).ConfigureAwait(false);
                 if (await _channel.IsBridgeReadyAsync(ct).ConfigureAwait(false))
                     return true;
                 Report("HtmlChannel_inject_bridge",

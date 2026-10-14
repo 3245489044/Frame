@@ -311,7 +311,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
         if (writeMode == HtmlWriteBackMode.Patch && _navigatedHosts.Contains(hostControlName))
         {
             var status = HtmlElementNode.UnwrapString(
-                await _channel.ExecuteAsync(DomOps.Patch, null, html).ConfigureAwait(false));
+                await _channel.ExecuteAsync(DomOps.Reconcile, null, html).ConfigureAwait(false));
             if (DomOps.IsOk(status))
             {
                 _lastHostWrite[hostControlName] = new WriteRecord(html, true);
@@ -424,6 +424,10 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor
                     if (r.Anomalies is { Count: > 0 })
                         Report("Reconcile_anomaly",
                             $"键控对齐异常 target={name} trace={trace}: {string.Join(";", r.Anomalies)}");
+                    // E-5：失败原因类型化可见化（区域缺失 vs 内核未就绪）——供上层定向自愈，不静默。
+                    if (r.Status is UiWriteStatus.NotFound or UiWriteStatus.NotReady)
+                        Report("EventBridge_writeback",
+                            $"键控树写回 {name} 未落地（{r.Status}）trace={trace}");
                     if (r.Status is UiWriteStatus.Applied or UiWriteStatus.Partial) written.Add(name);
                     else skipped.Add(name);
                 }

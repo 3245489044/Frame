@@ -41,16 +41,18 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             + "return window.__uiReconcile.applyTree(h," + treeJson + "," + stateJson + ");})()";
         var raw = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync(script, ct).ConfigureAwait(false));
         var (status, changed, anomalies) = MapStatus(raw);
+        var applied = status is UiWriteStatus.Applied or UiWriteStatus.Partial;
         return new UiWriteResult(
             status,
-            status == UiWriteStatus.Applied || status == UiWriteStatus.Partial ? new[] { name } : System.Array.Empty<string>(),
-            status == UiWriteStatus.Failed ? new[] { name } : System.Array.Empty<string>(),
+            applied ? new[] { name } : System.Array.Empty<string>(),
+            applied ? System.Array.Empty<string>() : new[] { name },
             Changed: changed,
             Anomalies: anomalies);
     }
 
-    /// <summary>回串映射：OK / OK:&lt;changed&gt; / OK:&lt;anomalies 分号分隔&gt; → Applied（携 anomalies）；
-    /// NOT_FOUND/RECONCILE_NOT_READY/其它 → Failed。anomalies 供上层可见化（不静默）。</summary>
+    /// <summary>回串映射（类型化；失败原因不被抹平）：OK / OK:&lt;changed&gt; / OK:&lt;anomalies 分号分隔&gt; → Applied（携 anomalies）；
+    /// NOT_FOUND → NotFound（区域缺失，可定向自愈）；RECONCILE_NOT_READY → NotReady（对齐内核未就绪，可补注入自愈）；其它 → Failed。
+    /// anomalies 供上层可见化（不静默）。</summary>
     private static (UiWriteStatus Status, int Changed, IReadOnlyList<string>? Anomalies) MapStatus(string raw)
     {
         if (string.IsNullOrEmpty(raw)) return (UiWriteStatus.Failed, 0, null);
@@ -62,6 +64,8 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
             var anomalies = rest.Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries);
             return (UiWriteStatus.Applied, 0, anomalies.Length > 0 ? anomalies : null);
         }
+        if (raw == "NOT_FOUND") return (UiWriteStatus.NotFound, 0, null);
+        if (raw == "RECONCILE_NOT_READY") return (UiWriteStatus.NotReady, 0, null);
         return (UiWriteStatus.Failed, 0, null);
     }
 }

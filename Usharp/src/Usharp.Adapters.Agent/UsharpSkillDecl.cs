@@ -3,7 +3,11 @@ using Plate.DslMethod.Model;
 namespace Usharp.Adapters.Agent;
 
 /// <summary>
-/// <c>[Skill] Name: module=… | kind=… | dsl=… | body=… | backend=…</c> 的语法视图（U-V4 唯一新增语言单元）。
+/// <c>[Skill] Name: module=… | kind=… | dsl=… | body=… | backend=… | profiles=… | order=…</c> 的语法视图（U-V4 唯一新增语言单元）。
+/// <para>
+/// <c>profiles=</c>（段归属：该 <c>dsl</c> 段属于哪些档案，如 <c>task,history</c>）与 <c>order=</c>（派生补尾权重）
+/// 供 <c>PromptProfileCatalog</c> 由声明派生档案段集（新增 L0 段 = 改本面一行，代码零 band 字面量）。
+/// </para>
 /// <para>
 /// <b>K3 决策</b>：技能正文保留在 <c>SKILL.md</c>，Usharp 只管理 <c>body=</c> 引用与元数据；
 /// 元数据（module/kind/dsl/backend/always/…) 进 <c>.ushar</c>，正文零迁移。
@@ -22,6 +26,8 @@ public sealed record UsharpSkillDecl(
     string? Trigger,
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Bands,
+    IReadOnlyList<string> Profiles,
+    int Order,
     IReadOnlyList<string> Sections,
     IReadOnlyList<string> Refs,
     string? Version,
@@ -48,6 +54,8 @@ public sealed record UsharpSkillDecl(
             NullIfEmpty(d.Field("trigger")),
             SplitList(d.Field("tags")),
             SplitList(d.Field("bands")),
+            SplitList(d.Field("profiles")),
+            ParseOrder(d.Field("order")),
             SplitList(d.Field("sections")),
             SplitList(d.Field("refs")),
             NullIfEmpty(d.Field("version")),
@@ -72,6 +80,10 @@ public sealed record UsharpSkillDecl(
                || string.Equals(v, "1", StringComparison.Ordinal)
                || string.Equals(v, "l0", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>段序权重（<c>order=</c>；未声明/非法 ⇒ -1 = 用声明行序）。</summary>
+    private static int ParseOrder(string? value)
+        => int.TryParse(value?.Trim(), out var n) ? n : -1;
 
     private static IReadOnlyList<string> SplitList(string? value)
         => string.IsNullOrWhiteSpace(value)

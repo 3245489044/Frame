@@ -72,7 +72,7 @@ PowerShellScript/
 │   └── *.Tests.ps1                    # FileDrivenTestUtils / ScriptRunner / SelectScript / FindLauncherDir
 ├── Operation/                         # 运维与校验
 │   ├── Analysis/                      # Analyze-CsprojReferences.ps1
-│   ├── DSL/                           # clinerules 校验与索引编译（Check-*.ps1 / Build-ModuleIndex.ps1 / Add-Axiom.ps1）
+│   ├── DSL/                           # 门禁（Check-*.ps1）+ 分类索引（Build-GateIndex.ps1 / index.generated.md / Check-GateTaxonomy.ps1）+ 模块映射编译（Build-ModuleIndex.ps1）+ Add-Axiom.ps1
 │   ├── TaskPool/                      # Test-AgentTaskPool.ps1
 │   └── vscode-script-ui/              # VS Code 脚本面板扩展
 ├── PScriptManager/                    # 脚本注册与启动菜单框架
@@ -102,6 +102,29 @@ PowerShellScript/
 > 由 `Run-*.ps1` 按需导入。
 > `Modules\Import-Modules.ps1` 是 Frame 侧全量加载器；其函数映射表为**编译产物**（由 `Operation\DSL\Build-ModuleIndex.ps1` 写回并做写回校验），
 > 新增/重命名导出函数后须重编译。
+
+---
+
+## DSL 门禁分类（分类单源）
+
+`Operation\DSL\` 的门禁按「被守卫面」分为 10 域，**分类单源 = `GateManifests.psd1` 每件的 `Domain` 字段**（禁在别处另立分类表）：
+
+| Domain | 被守卫面 | 件数 |
+|---|---|---|
+| `Meta` | 门禁/契约基建（注册表 / 基线 / 契约 / 反模式 / 分类守卫自身） | 11 |
+| `Agent` | Agent 运行面（装配 / 换代 / 电路 / UI 生效面） | 14 |
+| `Node` | 节点通用框架面（节点声明 / 位置 / 聚拢 / 接线） | 19 |
+| `Parsing` | 词法 / 识别词表 | 2 |
+| `Data` | 数据 / DataCenter 面（单写者 / 会话 / 存储批量） | 10 |
+| `Spec` | spec 工具链（生成/手写边界 / 端口台账） | 5 |
+| `Process` | 入口 / 过程层 / 验证（批次 / 验证成比例） | 6 |
+| `Usharp` | Usharp / HTML / 工具面 | 6 |
+| `Declarations` | 声明面 / clinerules / 初始化护栏 | 3 |
+| `Build` | 烘焙 / 构建 | 1 |
+
+- 编译产物 = `Operation\DSL\index.generated.md`（按域分组，标记圈定，**禁手改**），由 `Build-GateIndex.ps1` 生成（改域/增删门后重跑，幂等）。
+- 守卫 = `Operation\DSL\Check-GateTaxonomy.ps1`（门禁 `GateTaxonomy`，`Tier=fast`）：清单 ⇄ 索引 ⇄ 脚本文件三方对账（T1 域合法 / T2 落点在位 / T3 脚本归属可达 / T4 索引复算等价 / T5 正负对照）。
+- 注：域门可就近下沉（如 `Modules\Node\`、`Modules\Parsing\`、`Projects\BuildFramework\`、`Environment\CentralTest\Tools\`）；此时清单登记项以 `Path` 指位，`Domain` 只描述归属轴。
 
 ---
 

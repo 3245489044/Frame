@@ -1,0 +1,250 @@
+#requires -Version 5.1
+<#
+.SYNOPSIS
+    History 装配面守卫（HistoryAssemblySurface）—— 空态预装配 + History 档案分档 + 动态视口单一入口 + 缓存最大化分段。
+.DESCRIPTION
+    判据（H1–H9，载体=结构事实/源码文本，只读）：
+      H1 空态预装配：ConversationViewService 空态分支渲染预装配面（BuildBasePromptSnapshot(profileKey)），非空数组短路。
+      H2 档案分档：存在 PromptProfiles.History 消费 + Config/prompt-profiles.ushar 声明面；框架常驻基础段声明化（[Profile] base=on 在册 ∧ FrameworkBaseBands 读声明面 BaseBands）。
+      H3 模式注入：History 视图快照注入 mode（HistoryDefaultMode）。
+      H4 视口单一入口：TaskRuntimeReportProvider 为 History 侧 task 枚举唯一入口（HistoryTaskRuntimeContext 内无裸调 GetHistoryTaskKeysAsync）。
+      H5 端口只读：新增视口实现文件零 ur_* 写命中。
+      H6 缓存最大化：HistoryViewportAssembler 提供稳定/易变分段（RenderSegments）+ 差分（RenderDelta）。
+      H7 通用框架件：StatePromptCatalog / IDecisionSource / IInjectionPort 在册，HistoryModeCatalog 已通用化删除。
+      H8 宿主端口注册：组合根注入 IInjectionPort / ICreateTaskPort。
+      H9 注入作用域键：session-history 声明 session_id inport。
+      H10 工具面分层（C 方案）：ConversationViewService 不再并入工具面（无 WithToolFace/BuildToolFaceBlock）；工具发现归 tool-catalog 子智能体（ToolCatalogGrouper/ToolCatalogCore 在册）。
+      H11 自身不持有：history 入站输入标 FeedTarget.State（不驻留本执行体 conversation_context；I2 / §4.6）。
+      H12 通用传递框架编排单源：transfer-contribute/transfer-dispatch.ushar 各恰 1 条 [Flow]；TransferFlow 经模板基类转发（无自持编排）。
+      H13 通用传递框架词表单源：字段/稳定度/载荷标记 ∈ Config/nodes/transfer.ushar。
+      H14 通用传递框架入口注册：组合根注入 ITransferFlow + TransferOpsServices。
+      H19 档案段归属（band ownership，声明化）：允许段 = {[Skill].dsl : profiles ∋ 档案}（读 Config/skills.ushar，零白名单）；format 恒首段；l0-common 两档案常驻。
+    模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
+.PARAMETER Check
+    校验模式：违规 → 退出码 1。
+#>
+[CmdletBinding()]
+param([switch]$Check)
+
+$ErrorActionPreference = 'Stop'
+
+function Find-RepoRoot {
+    $d = $PSScriptRoot
+    while ($d -and -not (Test-Path (Join-Path $d 'Projects\Plug\Agent'))) { $d = Split-Path $d -Parent }
+    if ($d) { return $d }
+    throw '[HistoryAssemblySurface] 无法定位仓库根（上溯未找到含 Projects\Plug\Agent 的目录）'
+}
+
+$repoRoot = Find-RepoRoot
+$agentRoot = Join-Path $repoRoot 'Projects\Plug\Agent'
+$violations = New-Object System.Collections.Generic.List[string]
+
+function Add-Violation([string]$Id, [string]$Msg) { $script:violations.Add("$Id $Msg") }
+function Read-Text([string]$Path) { if (Test-Path -LiteralPath $Path) { return (Get-Content -LiteralPath $Path -Raw) } return '' }
+
+# H1 空态预装配
+$view = Join-Path $agentRoot 'src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs'
+$vt = Read-Text $view
+if ($vt -notmatch 'BuildBasePromptSnapshot\(profileKey') {
+    Add-Violation 'H1' 'ConversationViewService 空态未渲染预装配面（缺 BuildBasePromptSnapshot(profileKey)）'
+}
+
+# H2 档案分档 + 声明面
+$profiles = Join-Path $agentRoot 'src\Agent.Axioms\Prompts\PromptProfiles.cs'
+$profileCfg = Join-Path $agentRoot 'Config\prompt-profiles.ushar'
+$l0History = Join-Path $agentRoot 'skills\l0\l0-history\SKILL.md'
+if (-not (Test-Path -LiteralPath $profiles)) { Add-Violation 'H2' '缺 PromptProfiles.cs' }
+if (-not (Test-Path -LiteralPath $profileCfg)) { Add-Violation 'H2' '缺 Config/prompt-profiles.ushar 声明面' }
+if ($vt -notmatch 'PromptProfiles\.History') { Add-Violation 'H2' 'ConversationViewService 未按 History 档案分档' }
+if (-not (Test-Path -LiteralPath $l0History)) { Add-Violation 'H2' '缺 l0-history DSL 承载技能' }
+# H2+ 框架常驻基础段声明化（单源）：base=on 声明面在册，且代码侧不硬编码 band 字面量。
+$profileCfgText = Read-Text $profileCfg
+if ($profileCfgText -notmatch '(?m)^\s*\[Profile\]\s*base\s*:') { Add-Violation 'H2' '缺 [Profile] base 框架常驻基础段声明' }
+$profilesText = Read-Text $profiles
+if ($profilesText -notmatch 'FrameworkBaseBands\s*=>\s*PromptProfileCatalog\.BaseBands') { Add-Violation 'H2' 'FrameworkBaseBands 未读声明面（应 = PromptProfileCatalog.BaseBands）' }
+
+# H3 模式注入
+if ($vt -notmatch 'HistoryDefaultMode') { Add-Violation 'H3' 'History 视图快照未注入 mode（缺 HistoryDefaultMode）' }
+
+# H4 视口单一入口（History 侧 task 枚举唯一 = TaskRuntimeReportProvider）
+$provider = Join-Path $agentRoot 'src\Agent.Session\Projection\TaskRuntimeReportProvider.cs'
+$context = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeContext.cs'
+if (-not (Test-Path -LiteralPath $provider)) { Add-Violation 'H4' '缺 TaskRuntimeReportProvider.cs（通用视口供数口）' }
+$ct = Read-Text $context
+if ($ct -match 'GetHistoryTaskKeysAsync') { Add-Violation 'H4' 'HistoryTaskRuntimeContext 仍裸调 GetHistoryTaskKeysAsync（应收敛到端口）' }
+
+# H5 端口只读（新增视口实现零 ur_* 写）
+foreach ($f in @($provider, (Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryViewportAssembler.cs'))) {
+    $ft = Read-Text $f
+    if ($ft -match '(?i)\b(INSERT|UPDATE|DELETE)\b[\s\S]{0,40}\bur_') {
+        Add-Violation 'H5' "视口实现含写库 SQL：$f"
+    }
+}
+
+# H6 缓存最大化分段/差分
+$asm = Read-Text (Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryViewportAssembler.cs')
+if ($asm -notmatch 'RenderSegments') { Add-Violation 'H6' 'HistoryViewportAssembler 缺 RenderSegments（稳定/易变分段）' }
+if ($asm -notmatch 'RenderDelta') { Add-Violation 'H6' 'HistoryViewportAssembler 缺 RenderDelta（差分渲染）' }
+
+# H7 通用状态提示词框架件（模式表通用化 + 决策/注入端口抽象；R0/R1）
+$respDir = Join-Path $agentRoot 'src\Agent.Modules\Response\Response'
+foreach ($f in @('StatePromptCatalog.cs', 'IDecisionSource.cs', 'IInjectionPort.cs')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $respDir $f))) { Add-Violation 'H7' "缺通用状态提示词框架件：$f" }
+}
+if (Test-Path -LiteralPath (Join-Path $respDir 'HistoryModeCatalog.cs')) {
+    Add-Violation 'H7' 'HistoryModeCatalog.cs 未通用化（应删，改 StatePromptCatalog）'
+}
+
+# H8 宿主端口注册（组合根注入 IInjectionPort / ICreateTaskPort；R2/R3）
+$steps = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Composition\Circuit\ConversationAssemblySteps.cs')
+if ($steps -notmatch 'Register<Agent\.Modules\.Response\.IInjectionPort>') {
+    Add-Violation 'H8' '组合根未注入 IInjectionPort（注入动作端口）'
+}
+if ($steps -notmatch 'Register<Agent\.Modules\.Response\.ICreateTaskPort>') {
+    Add-Violation 'H8' '组合根未注入 ICreateTaskPort（建任务端口）'
+}
+if ($steps -notmatch 'Register<Agent\.Modules\.Response\.IDecisionSource>') {
+    Add-Violation 'H8' '组合根未注入 IDecisionSource（决策端口）'
+}
+
+# H9 注入作用域键 inport（session-history 声明 session_id；R2）
+$sh = Read-Text (Join-Path $agentRoot 'Config\workflows\session-history.ushar')
+if ($sh -notmatch 'session_id') { Add-Violation 'H9' 'session-history 未声明 session_id inport（注入作用域键）' }
+
+# H10 工具面分层（C 方案）：基础提示词层零工具清单平铺；工具发现归 tool-catalog 子智能体（分类分级 + 按需展开）
+$viewSvc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs')
+if ($viewSvc -match 'WithToolFace\s*\(') {
+    Add-Violation 'H10' 'ConversationViewService 仍将工具面并入基础提示词层（WithToolFace 应移除）'
+}
+if ($viewSvc -match 'BuildToolFaceBlock\s*\(') {
+    Add-Violation 'H10' 'ConversationViewService 仍平铺工具面块（BuildToolFaceBlock 应移除）'
+}
+$subAgentHosting = Read-Text (Join-Path $agentRoot 'src\Agent.Modules\SubAgent\Runtime\SubAgentHosting.cs')
+if ($subAgentHosting -notmatch 'ToolCatalogSubAgentTools') {
+    Add-Violation 'H10' '缺 tool-catalog 子智能体工具装配（ToolCatalogSubAgentTools 未注册）'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $agentRoot 'src\Agent.Modules\SubAgent\Tools\ToolCatalogGrouper.cs'))) {
+    Add-Violation 'H10' '缺工具分级分组器（ToolCatalogGrouper.cs，分类分级单一实现）'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $agentRoot 'src\Agent.Core\Operation\Tool\ToolCatalogCore.cs'))) {
+    Add-Violation 'H10' '缺工具核心级判定表（ToolCatalogCore.cs，Core 单一真源）'
+}
+
+# H11 自身不持有：history 入站输入标 FeedTarget.State（不驻留本执行体 conversation_context；I2 / 4.6）
+$stages = Read-Text (Join-Path $agentRoot 'src\Agent.Core\Orchestration\SessionWorkflow\Circuit\ConversationStageBodies.cs')
+if ($stages -notmatch 'IsHistoryAgent') {
+    Add-Violation 'H11' 'ConversationStageBodies 缺 history 执行体判定（IsHistoryAgent）'
+}
+if ($stages -notmatch 'state\.in\.') {
+    Add-Violation 'H11' 'history 入站输入未标 FeedTarget.State（自身不持有输入原文，I2）'
+}
+
+# H12 通用传递框架编排单源（TransferF）：两条声明流各恰 1 条 [Flow]；TransferFlow 经模板基类转发（无自持编排/无自建执行器）
+$tcPath = Join-Path $agentRoot 'Config\workflows\transfer-contribute.ushar'
+$tdPath = Join-Path $agentRoot 'Config\workflows\transfer-dispatch.ushar'
+if (-not (Test-Path -LiteralPath $tcPath)) { Add-Violation 'H12' '缺 transfer-contribute.ushar（上行贡献编排真源）' }
+if (-not (Test-Path -LiteralPath $tdPath)) { Add-Violation 'H12' '缺 transfer-dispatch.ushar（下行分发编排真源）' }
+if (([regex]::Matches((Read-Text $tcPath), '(?m)^\[Flow\]')).Count -ne 1) { Add-Violation 'H12' 'transfer-contribute.ushar 须恰 1 条 [Flow]（编排单源）' }
+if (([regex]::Matches((Read-Text $tdPath), '(?m)^\[Flow\]')).Count -ne 1) { Add-Violation 'H12' 'transfer-dispatch.ushar 须恰 1 条 [Flow]（编排单源）' }
+$tf = Read-Text (Join-Path $agentRoot 'src\Agent.Core\Engine\Nodes\Bookkeeping\TransferFlow.cs')
+if ($tf -notmatch 'DeclaredFlowDelegateBase') { Add-Violation 'H12' 'TransferFlow 未经模板基类转发（应 DeclaredFlowDelegateBase，不自持编排）' }
+if ($tf -match 'new OneShotFlowRunner\(') { Add-Violation 'H12' 'TransferFlow 自建执行器（编排绕过 BookkeepingFlowAssembly 单源）' }
+
+# H13 通用传递框架词表单源（TransferF）：字段/稳定度/载荷标记 ∈ Config/nodes/transfer.ushar
+$tvPath = Join-Path $agentRoot 'Config\nodes\transfer.ushar'
+if (-not (Test-Path -LiteralPath $tvPath)) { Add-Violation 'H13' '缺 Config/nodes/transfer.ushar（字段/稳定度/载荷标记词表真源）' }
+$tv = Read-Text $tvPath
+foreach ($space in @('TransferFieldClass', 'TransferVolatility', 'TransferPayloadFlag')) {
+    if ($tv -notmatch [regex]::Escape($space)) { Add-Violation 'H13' "transfer.ushar 缺词表 $space" }
+}
+
+# H14 通用传递框架入口注册（TransferF）：组合根注入 ITransferFlow + TransferOpsServices
+if ($steps -notmatch 'ITransferFlow') { Add-Violation 'H14' '组合根未注入 ITransferFlow（传递框架唯一入口）' }
+if ($steps -notmatch 'TransferOpsServices') { Add-Violation 'H14' '组合根未装配 TransferOpsServices（fn 依赖束）' }
+
+# H15 UI 轨零 Binding（信息状态不得进 wire）：UI 投影器零 Binding；面板经模板渲染（非 ConversationMessage）
+$uiProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeUiProjector.cs'
+if (-not (Test-Path -LiteralPath $uiProj)) { Add-Violation 'H15' '缺 HistoryTaskRuntimeUiProjector.cs（UI 投影器）' }
+elseif ((Read-Text $uiProj) -match '\.Binding\b|ConversationMessage') { Add-Violation 'H15' 'UI 投影器出现 Binding/ConversationMessage（任务池信息状态不得进 LLM wire）' }
+
+# H16 双出口同供数（IHistoryTaskRuntimeSource）：UI/装配两侧均引用同一供数口；UI 侧不再自建 provider
+$srcPath = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeSource.cs'
+if (-not (Test-Path -LiteralPath $srcPath)) { Add-Violation 'H16' '缺 HistoryTaskRuntimeSource.cs（唯一供数口）' }
+if ($steps -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' '组合根未引用 IHistoryTaskRuntimeSource（LLM 轨应经供数口）' }
+$vt2 = Read-Text $view
+if ($vt2 -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' 'UI 侧未引用 IHistoryTaskRuntimeSource（应经供数口）' }
+if ($vt2 -match 'new TaskRuntimeReportProvider\(') { Add-Violation 'H16' 'UI 侧仍自建 TaskRuntimeReportProvider（应经唯一供数口）' }
+
+# H17 空态可见化（空 ≠ 无）：UI 产 taskRuntimeEmpty 模板 ∧ LLM 投影器产 (empty) 标记
+$promptProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimePromptProjector.cs'
+if (-not (Test-Path -LiteralPath $promptProj)) { Add-Violation 'H17' '缺 HistoryTaskRuntimePromptProjector.cs（LLM 投影器）' }
+elseif ((Read-Text $promptProj) -notmatch '\(empty\)') { Add-Violation 'H17' 'LLM 投影器缺空标记 (empty)（空挂载不可静默省略）' }
+$uiCfg = Read-Text (Join-Path $repoRoot 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json')
+if ($uiCfg -notmatch 'taskRuntimeEmpty') { Add-Violation 'H17' 'AgentRuntimeUI.json 缺 taskRuntimeEmpty 模板（UI 空态占位）' }
+
+# H18 任务池状态单源（TaskExecutionStatus）：状态只经 GetStatusAsync 读取，禁自拼状态字面量
+$hostSrc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\HostHistoryTaskRuntimeSource.cs')
+if ($hostSrc -notmatch 'GetStatusAsync') { Add-Violation 'H18' '宿主供数适配器未经 GetStatusAsync 读任务池状态（单源）' }
+if ((Read-Text $srcPath) -notmatch 'poolStatus') { Add-Violation 'H18' '供数口缺 poolStatus 注入（任务池状态应经委托单源）' }
+
+# H19 档案段归属（band ownership，声明化）：task/history 允许段 = {[Skill].dsl : profiles ∋ 档案}；format 恒首段。
+#  段归属单一聚拢点 = Config/skills.ushar 的 [Skill] profiles= 字段（零 band 白名单硬编码）。
+$skillsCfg = Join-Path $agentRoot 'Config\skills.ushar'
+if (-not (Test-Path -LiteralPath $skillsCfg)) { Add-Violation 'H19' '缺 Config/skills.ushar 段声明面' }
+$skillsCfgText = Read-Text $skillsCfg
+# dsl → profiles 集（段归属派生源）
+$bandProfiles = @{}
+foreach ($line in ($skillsCfgText -split "`r?`n")) {
+    $t = $line.Trim()
+    if ($t -notmatch '^\[Skill\]\s*(\S+)\s*:\s*(.*)$') { continue }
+    $fields = $Matches[2]
+    if ($fields -notmatch '(?:^|\|)\s*dsl=([^|]+)') { continue }
+    $dsl = $Matches[1].Trim()
+    $profiles = @()
+    if ($fields -match '(?:^|\|)\s*profiles=([^|]+)') {
+        $profiles = @(($Matches[1].Trim() -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    $bandProfiles[$dsl] = $profiles
+}
+$taskAllow = @($bandProfiles.Keys | Where-Object { $bandProfiles[$_] -contains 'task' })
+$historyAllow = @($bandProfiles.Keys | Where-Object { $bandProfiles[$_] -contains 'history' })
+$taskBands = $null
+$historyBands = $null
+foreach ($line in ($profileCfgText -split "`r?`n")) {
+    $t = $line.Trim()
+    if ($t -match '^\[Profile\]\s*task\s*:\s*bands=([^|]+)') {
+        $taskBands = @(($Matches[1].Trim() -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    elseif ($t -match '^\[Profile\]\s*history\s*:\s*bands=([^|]+)') {
+        $historyBands = @(($Matches[1].Trim() -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+}
+if (-not $taskBands) { Add-Violation 'H19' 'task 档案缺 bands 声明' }
+if (-not $historyBands) { Add-Violation 'H19' 'history 档案缺 bands 声明' }
+if ($taskBands -and $taskBands[0] -ne 'format') { Add-Violation 'H19' 'task 首段须为 format（FormatInstructionLocality）' }
+if ($historyBands -and $historyBands[0] -ne 'format') { Add-Violation 'H19' 'history 首段须为 format（FormatInstructionLocality）' }
+foreach ($b in $taskBands) {
+    if ($taskAllow -notcontains $b) { Add-Violation 'H19' "task 越档段：$b（不在 profiles∋task 的段声明集内）" }
+}
+foreach ($b in $historyBands) {
+    if ($historyAllow -notcontains $b) { Add-Violation 'H19' "history 越档段：$b（不在 profiles∋history 的段声明集内）" }
+}
+foreach ($b in @('l0-system', 'l0-loop', 'l0-logic')) {
+    if ($historyBands -contains $b) { Add-Violation 'H19' "history 混入 worker 施工段：$b" }
+}
+foreach ($b in @('l1-region-read', 'l0-orchestration')) {
+    if ($taskBands -contains $b) { Add-Violation 'H19' "task 混入容器/主循环段：$b" }
+}
+if ($taskBands -notcontains 'l0-common' -or $historyBands -notcontains 'l0-common') {
+    Add-Violation 'H19' 'l0-common 须同时常驻 task 与 history（framework-base 通用不变式单源）'
+}
+
+if ($violations.Count -eq 0) {
+    Write-Host "[HistoryAssemblySurface] OK（H1–H19 全过）"
+    exit 0
+}
+
+Write-Host "[HistoryAssemblySurface] 违规 $($violations.Count) 项："
+foreach ($v in $violations) { Write-Host "  - $v" }
+if ($Check) { exit 1 }
+exit 0

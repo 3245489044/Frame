@@ -1,0 +1,135 @@
+# 门禁索引（生成产物，禁手改）
+
+> 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` 字段编译生成。
+> 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。
+
+<!-- PROTO_AUTO:gateIndex:BEGIN -->
+
+## Agent（14 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `AgentBuildPoint` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentBuildPoint.ps1` |
+| `AgentDataSeparation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1` |
+| `AgentDecisionCoreBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1` |
+| `AgentProcessSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentProcessSurface.ps1` |
+| `AgentRuntimeSlots` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1` |
+| `AgentRuntimeUIConfig` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeUIConfig.ps1` |
+| `CircuitSemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-CircuitSemantics.ps1` |
+| `EffectiveFace` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveFace.ps1` |
+| `GenerationLayout` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1` |
+| `GenerationRebuildChain` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1` |
+| `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
+| `RefreshFrameworkBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1` |
+| `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
+| `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
+
+## Build（1 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `BakeFramework` | full | 0 | `Projects\BuildFramework\Check-BakeFramework.ps1` |
+
+## Data（10 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `BatchStoreSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-BatchStoreSingleSource.ps1` |
+| `ConversationConversion` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ConversationConversion.ps1` |
+| `ConversationReadSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ConversationReadSingleSource.ps1` |
+| `DataCenterGenericity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1` |
+| `DataContracts` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DataContracts.ps1` |
+| `DualCarrierExclusion` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DualCarrierExclusion.ps1` |
+| `FactStandard` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FactStandard.ps1` |
+| `FrameworkActivation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1` |
+| `SessionDuplication` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SessionDuplication.ps1` |
+| `SingleWriter` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1` |
+
+## Declarations（3 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `ClinerulesReferences` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1` |
+| `InitGuards` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1` |
+| `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
+
+## Meta（11 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `AntiPatternFamily` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1` |
+| `ContractRegistry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ContractRegistry.ps1` |
+| `DeclaredBundle` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1` |
+| `FallbackInventory` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-FallbackInventory.ps1` |
+| `GateBaselines` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1` |
+| `GateRegistry` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateRegistry.ps1` |
+| `GateTaxonomy` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateTaxonomy.ps1` |
+| `GeneratedArtifactsDrift` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1` |
+| `OperationLayerIsolation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
+| `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
+| `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
+
+## Node（19 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `AgentFrameworkSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1` |
+| `AgentOrchestrationFlow` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1` |
+| `DbPageGatherWiring` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1` |
+| `DomainWireSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainWireSingleSource.ps1` |
+| `NodeCollectPort` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1` |
+| `NodeDeclSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1` |
+| `NodeFlowDomainMatch` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeFlowDomainMatch.ps1` |
+| `NodeFramework` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1` |
+| `NodeGather` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1` |
+| `NodeHierarchyRefs` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeHierarchyRefs.ps1` |
+| `NodeKeyAddress` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeKeyAddress.ps1` |
+| `NodeLocConsistency` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeLocConsistency.ps1` |
+| `NodeLocPlacement` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeLocPlacement.ps1` |
+| `NodePortPurity` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1` |
+| `NodeWriteBypass` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1` |
+| `ObservabilitySurface` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1` |
+| `ReferenceExclusion` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1` |
+| `ReferenceVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1` |
+| `Wiring` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1` |
+
+## Parsing（2 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `KeyGrammar` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
+| `RecognizerVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
+
+## Process（6 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `AnalysisDocGrounding` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-AnalysisDocGrounding.ps1` |
+| `BatchLineEndings` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
+| `BatchScope` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
+| `InvokeEntrypoints` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
+| `VerifyProportionality` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifyProportionality.ps1` |
+| `VerifySingleShot` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifySingleShot.ps1` |
+
+## Spec（5 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `SpecBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecBoundary.ps1` |
+| `SpecGeneratedBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecGeneratedBoundary.ps1` |
+| `SpecOnly` | full | 0 | `Environment\CentralTest\Tools\Gate\Test-SpecOnlyGate.ps1` |
+| `SpecPortLedger` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1` |
+| `SpecToolingContract` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1` |
+
+## Usharp（6 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `FsSinkEntry` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1` |
+| `HtmlViewerVocabulary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-HtmlViewerVocabulary.ps1` |
+| `ToolFaceDeclaration` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-ToolFaceDeclaration.ps1` |
+| `UsharpDocForm` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-UsharpDocForm.ps1` |
+| `UsharpGetParity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-UsharpGetParity.ps1` |
+| `UsharpJoint` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-UsharpJoint.ps1` |
+
+<!-- PROTO_AUTO:gateIndex:END -->

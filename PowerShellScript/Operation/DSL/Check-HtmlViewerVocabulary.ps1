@@ -41,7 +41,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 # 单源基线（缺件即抛：禁隐式空基线）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
-$baseline = Import-GateBaseline -Name 'HtmlViewerVocabulary'
+$baseline = Import-GateBaseline -Name HtmlViewerVocabulary
 $allowCount = [int]$baseline.AllowCount.Value
 $allowWords = @()
 if ($baseline.Contains('Allow')) { $allowWords = @($baseline.Allow.Keys) }

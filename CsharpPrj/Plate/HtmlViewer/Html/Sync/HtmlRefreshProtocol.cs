@@ -33,7 +33,8 @@ public static class HtmlRefreshProtocol
         sb.Append("data-poll-cmd=\"").Append(Command).Append('"');
         sb.Append(" data-poll-subscribe=\"").Append(subscribe).Append('"');
         sb.Append(" data-refresh-throttle=\"").Append(ThrottleMs).Append('"');
-        sb.Append(" data-poll-interval=\"").Append(IntervalMs).Append('"');
+        // B6 兜底单源：不再向页面下发 data-poll-interval（页面侧兜底定时器退役，改由宿主
+        // RefreshService.EnableIdlePolling 单一承担）；如确需页面侧自主兜底，可在此按域显式下发。
         if (!string.IsNullOrEmpty(ctxSelector)) sb.Append(" data-poll-ctx=\"").Append(ctxSelector).Append('"');
         if (!string.IsNullOrEmpty(ctxAttrs)) sb.Append(" data-poll-ctx-attrs=\"").Append(ctxAttrs).Append('"');
         return sb.ToString();

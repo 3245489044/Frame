@@ -127,3 +127,9 @@ public interface IRefreshRenderer
 **剩余**：`RefreshArbiter`/`IRefreshSink` 已建未接（写落地仲裁未生效）、DB 未进调度（改判不做）、
 兜底轮询两处并存、`MarkDirty` 零调用方、契约常量双端字面量、验证欠账（INV-4/5/7）。
 **清单与实施批次见** `UI刷新通用框架-剩余未收拢逻辑-后续施工单.md`（含每条证据、§0.1 执行状态与可复算核查命令）。
+>
+> **框架级代码整理优化（2026-10-15，第 1 批已实施）**：新增通用**选择态**契约 `Abstractions/UiSelectionState`（L1）、桥回投 `uiState.select` 解析、JS 声明式选择采集（`[data-select-slot]`）、`RefreshRequest.SelectionKeys/OpenKeys`；域侧以受控字段 `_currentHistory` 承载选中历史并删除 `ResolveHistoryForTask` 的 `default` 伪造回退。
+> 施工单见 `UI刷新通用框架-代码整理优化-框架级施工单.md`（通用逻辑提取 E1–E6 / 重复合并 M1–M7 / 错误修复 X1–X5 / 分批步骤 B1–B7 + 核查命令）；守卫 `Check-UiSelectionExternalization.ps1`。
+>
+> **后续批次已实施（2026-10-15）**：**B2** 声明式选择打标（`DefaultTemplates` 的 `foldItem`/`listItem` 增 `data-select-slot`/`data-select-key`/`data-selected`，`ConversationPageRenderer` 行模型增 `selected` ⇒ `capture()` 可回投 `uiState.select`）；**B4** 会话页 refresh 经框架**单一门**（`RefreshService.RenderAsync`，`ContextJson = HtmlBridgePayload.RawJson`，未装配/异常回退域内实现）；**B5** 写落地端口 `AgentUiRefreshSink`（**Domain L3**）接入 `RefreshService`，使 `RefreshArbiter` 不再是死代码（交付到写协调器；未装配写协调器 ⇒ false 不推进 baseline，零回归）；**B6** 兜底轮询单路（页面侧 `fallbackTimer` 退役、`HtmlRefreshProtocol` 不再下发 `data-poll-interval`，兜底唯一生产者 = 宿主 `EnableIdlePolling`）；**B7** 选择态外置守卫登记进 `GateManifests.psd1`（并补脚本成功路径 `exit 0`）。复核：M2/M3 已由 S3 收敛（`BuildRegionOutputCoreAsync` 单入口 + `RenderRegionsAsync` 复用 `RenderViewAsync`）、M5 指纹单例（`Fnv1aFingerprint.Default`）、P7 常量对拍（`ContractParityTests`）。
+> 验证：`HtmlViewer`/`Refresh` 0 警 0 错、`Agent.Ui` 0 错（既有可空性告警）；`Check-UiSelectionExternalization` 正/负对照 + 聚合器 `-Only UiSelectionExternalization,RefreshFrameworkBoundary` 双绿；`RefreshFramework.Tests` 26/26。

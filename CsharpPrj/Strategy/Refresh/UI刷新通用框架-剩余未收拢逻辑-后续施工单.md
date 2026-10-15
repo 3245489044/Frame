@@ -21,13 +21,13 @@
 | 端口 | 变化源 | `Ports/IRefreshSource` | ✅ 单源 |
 | 端口 | 域渲染 | `Ports/IRefreshRenderer` | ✅ 单源（`conversation` / `db` 已登记） |
 | 机制 | 版本水位 + 指纹去重判定 | `Ports/IRefreshStore` + `Core/InMemoryRefreshStore` | ✅ 单源 |
-| 机制 | 写落地仲裁（latest-wins 单飞） | `Core/RefreshArbiter` | ❌ **已建未接**（G-1） |
+| 机制 | 写落地仲裁（latest-wins 单飞） | `Core/RefreshArbiter` | ✅ **已接（保守）**：域侧 `AgentUiRefreshSink` 注入 `RefreshService`（接管对拍待续） |
 | 机制 | 指纹算法 / 追踪号 | `Core/Fnv1aFingerprint` / `Diagnostics/RefreshTraceId` | ✅ 算法单源（实例三份，G-7） |
 | 契约 | 常量声明（`refresh` / `1000` / `30000`） | `Model/RefreshContract` | ⚠️ 声明单源，页面侧字面量并存（G-14） |
 | 入口 | 会话页 refresh 回投 | — | ❌ **两条并列调用**（G-2） |
 | 入口 | DB 页刷新 | — | ⚖️ 渲染单源；调度纳入**改判不引入**（G-3） |
 | 入口 | 手动刷新按钮 | — | ⚖️ 语义已满足（页面侧 `last=0`）；优先级通道**改判不必要**（G-4） |
-| 入口 | 兜底轮询 | — | ⚠️ **两处并存**（G-5；运行期由 `pushSeen` 保证不双跑） |
+| 入口 | 兜底轮询 | — | ✅ **单路**（G-5）：页面侧 `fallbackTimer` 退役，兜底唯一生产者 = 宿主 `EnableIdlePolling` |
 | 入口 | `MarkDirty` | — | ❌ **零调用方**（G-6） |
 | 框架内 | 未接入类型（`RefreshJson` / `PollingRefreshSource` / `IRefreshClock` / `RefreshTicket` / `RefreshDelivery`） | — | ✅ 已标注`【预留】`+ 预定消费方；`RefreshCell` 已删除（G-8..G-12） |
 
@@ -44,7 +44,9 @@
 | G-8 / G-9 / G-10 / G-12 未接入类型 | ✅ **已标注预留** | 四类均加 `【预留】` XML 注释并写明**预定消费方**（不再视为"无说明的孤儿"） |
 | G-3 DB 未进调度 | ⚖️ **改判：不做** | 见下方「G-3 改判说明」 |
 | G-4 手动刷新未表达优先级 | ⚖️ **改判：不必要** | E3 的实质判据「点击即刷、不受 1s 节流」已由页面侧 `last=0;fire(b)` 满足；引入 `priority` 通道只会增加一次协议往返而无行为差异 |
-| G-1 / G-5 / G-6 | ⏳ 未动 | G-1 触写路径（须写放大对拍）；G-5 运行期由 `pushSeen` 保证不双跑；G-6 待 G-1/G-3 落位后自然收敛 |
+| G-1 | ✅ **已接（保守）** | 新增域侧 `AgentUiRefreshSink` 注入 `RefreshService` ⇒ `RefreshArbiter` 不再是死代码；**CommitAsync 接管写落地 + 写放大对拍仍待续** |
+| G-5 | ✅ **已单路** | 页面侧 `fallbackTimer` 退役 + `HtmlRefreshProtocol` 不再下发 `data-poll-interval`；兜底唯一生产者 = 宿主 `EnableIdlePolling` |
+| G-6 | ⏳ 未动 | `MarkDirty` 零调用方；待 G-3 落位（G-3 已改判不做 ⇒ 自然维持预留） |
 
 #### G-3 改判说明（为什么**不**加 `MarkDirty("db")`）
 

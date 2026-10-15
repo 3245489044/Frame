@@ -227,6 +227,4 @@ public sealed partial class HtmlAssetRegistry
     {
         "tokens", "block", "shell", "tree", "switch", "grouped", "state", "attach", "data",
     };
-
-
 }

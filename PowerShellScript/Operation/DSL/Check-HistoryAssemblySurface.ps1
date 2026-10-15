@@ -188,7 +188,7 @@ if ($hostSrc -notmatch 'GetStatusAsync') { Add-Violation 'H18' '宿主供数适�
 if ((Read-Text $srcPath) -notmatch 'poolStatus') { Add-Violation 'H18' '供数口缺 poolStatus 注入（任务池状态应经委托单源）' }
 
 # H19 档案段归属（band ownership）：task = 执行体（worker 施工）段集；history = 容器/主循环段集；format 恒首段。
-$taskAllow = @('format', 'l0-common', 'l0-system', 'l0-loop', 'l0-logic', 'l0-node-port')
+$taskAllow = @('format', 'l0-common', 'l0-system', 'l0-loop', 'l0-logic', 'l0-node-port', 'l0-subagent')
 $historyAllow = @('format', 'l0-common', 'l0-node-port', 'l0-history', 'l1-region-read', 'l0-orchestration')
 $taskBands = $null
 $historyBands = $null

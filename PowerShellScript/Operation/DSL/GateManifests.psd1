@@ -39,6 +39,12 @@
         Note   = 'UI 刷新通用框架红线（Strategy.Refresh）：框架内零领域串（agent/conversation/db/task/session/history）/ 零上层依赖（Agent./Plate./UiBackend./FrontEndDriven.）；正负对照 -NegativeControl'
     }
 
+    UiSelectionExternalization = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '选择态外置守卫（框架级态外置）：C1 刷新协议禁 DOM 反查（PollAttrs 第三/四参 null）/ C2 采集端（capture 产出 uiState.select + [data-select-slot]）/ C3 消费端（HtmlBridgePayload.SelectionKeys + UiSelectionState）/ C4 历史归属解析禁伪造 default / C5 受控态 _currentHistory；负对照 -NegativeControl'
+    }
+
     AgentProcessSurface = @{
         Args   = @{ Check = $true }
         Expect = 0

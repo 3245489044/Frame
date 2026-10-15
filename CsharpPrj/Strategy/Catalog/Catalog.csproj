@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用分级查询框架（Catalog）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>字典式分级查询通用框架（索引 → 目录 → 明细 → 检索 → 统计）：把「平铺条目集」按「轴 × 分级」重组为可逐级展开的目录面——一级索引（轴值 + 计数）→ 二级目录（按轴取值列出条目摘要）→ 明细（条目详情：字段/执行体轨/契约）→ 检索（关键词命中）→ 统计（分布概览）；条目总集与明细各自经窄端口（ICatalogSource）注入，分组/检索/统计只有一份实现（禁各处再造 GetDomains/GetLibraries/GetChains 变体）。层次化（多级 / 不定深度）场景复用 Modules.DeclarativeDataflow 的 HierarchySchema/HierarchyProcessEngine（预算 + 环守卫），框架不重造层遍历逻辑。机制层零领域字符串，供工具面 / 函数库 / 模板目录 / 产出链 / 节点域 / 资源发现等任意平铺集合复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>目录;分级;索引;检索;统计;字典;查询;发现;按需展开</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="机制与语义分离：本工程不得出现 tool/skill/llm/agent/节点 等具体领域字符串；领域词只经 ICatalogSource 由上层注入" />
+    <ModuleRule_Rule Include="单一实现：分组/检索/统计/分级只有一份（CatalogGrouper），禁各域再造 GetDomains/GetLibraries/GetChains 变体" />
+    <ModuleRule_Rule Include="轴与显示名是数据：轴定义（CatalogAxis）与显示名由 source 提供，框架内禁硬编码映射表" />
+    <ModuleRule_Rule Include="层次遍历/环守卫/预算一律复用 Modules.DeclarativeDataflow（禁再造层遍历逻辑）" />
+    <ModuleRule_Rule Include="有界量化：索引只出轴值 + 计数与常驻条目，明细按需 Resolve，禁把明细塞进索引" />
+    <ModuleRule_Rule Include="JSON 统一经 System.Text.Json（内置，无外部包依赖）；输出形态与既有工具面（status/count/...）对齐" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要「一大票平铺条目要被分级展示/按需展开/检索」时，使用本框架（增一个 ICatalogSource 即可接入，不写分组逻辑）" />
+    <ModuleRule_Prompt Include="当层级数不定（节点树 / 工作流→步骤→函数 / 资源类型发现）时，经 HierarchyCatalogSource 把 HierarchySchema 投影为目录面" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Strategy.Catalog</RootNamespace>
+    <AssemblyName>Strategy.Catalog</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Description>通用分级查询框架（Catalog）— 字典式「索引 → 目录 → 明细 → 检索 → 统计」单源实现</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 层次化（多级 / 不定深度）场景：复用 HierarchySchema / HierarchyProcessEngine（含预算与环守卫） -->
+    <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
+    <!-- 初始化护栏门面（P1 空值护栏收敛）：PortGuard.Required（T 出口） -->
+    <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- P1：全局 using（零 using 行改动） -->
+    <Using Include="BasicMethod.Initialization.Guards" />
+  </ItemGroup>
+
+</Project>

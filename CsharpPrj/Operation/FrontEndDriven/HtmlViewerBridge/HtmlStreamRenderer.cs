@@ -73,9 +73,44 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         }
 
         var sb = new StringBuilder(items.Count * 128);
-        if (operations.Count > 0)
-            sb.Append(RenderOperations(operations, t));
-        // 按轮次分组（Round 升序；Round=0 会话级归入"会话级"组）
+
+        // 头提示层预抽取（与面序无关）：启用缓存稳定序时，把 prompt:* 段从对话流剔除，交 HeadPrompt 面单独编排。
+        // 语义：头提示层顺序 = 快照 Bindings 序 = CacheBand 升序（顺序单一权威在段声明处，渲染层不重排）。
+        IReadOnlyList<ConversationRenderItem> head = Array.Empty<ConversationRenderItem>();
+        if (_options.HeadBandOrdering && _options.PromptStagePrefix is not null)
+        {
+            head = dialogue.Where(IsPromptLayer).ToList();
+            if (head.Count > 0)
+                dialogue = dialogue.Where(m => !IsPromptLayer(m)).ToList();
+        }
+
+        // 渲染面编排（声明式）：面序由 RenderSurfaceCatalog（CacheBand 派生）或宿主覆盖给出；
+        // 渲染器只按序产出各面块 —— 禁在本处硬编码块拼接顺序（编排序单一权威 = 渲染面目录一处）。
+        foreach (var surface in _options.SurfaceOrder ?? RenderSurfaceCatalog.Order)
+        {
+            switch (surface)
+            {
+                case RenderSurface.HeadPrompt:
+                    if (head.Count > 0) sb.Append(RenderHeadBandBlock(head, t));
+                    break; // 未启用/无段 ⇒ 该面空产（prompt:* 段随对话轮渲染，逐字旧行为）
+
+                case RenderSurface.Operation:
+                    if (operations.Count > 0) sb.Append(RenderOperations(operations, t));
+                    break;
+
+                case RenderSurface.Dialogue:
+                    sb.Append(RenderRoundGroups(dialogue, t));
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>对话轮分组块：Round 升序分组（Round=0 归「会话级」组），组内按近邻锚挂靠（R2）。</summary>
+    private string RenderRoundGroups(
+        IReadOnlyList<ConversationRenderItem> dialogue, IReadOnlyDictionary<string, string> t)
+    {
+        var sb = new StringBuilder(dialogue.Count * 128);
         foreach (var group in dialogue.GroupBy(m => m.Round).OrderBy(g => g.Key))
         {
             int round = group.Key;
@@ -125,6 +160,41 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         sb.Append("</div>");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// 头提示层顺序块（CacheBand 升序 = 传入源序）：单组渲染（round=0 / 「会话级」），不参与 Round 分组。
+    /// 仅当 <see cref="HtmlStreamRendererOptions.HeadBandOrdering"/> 开启且存在 prompt:* 段时调用。
+    /// </summary>
+    private static string RenderHeadBandBlock(
+        IReadOnlyList<ConversationRenderItem> head, IReadOnlyDictionary<string, string> t)
+    {
+        var row = new Dictionary<string, object?>
+        {
+            ["round"] = "0",
+            ["roundTitle"] = "会话级",
+            ["messages"] = head
+                .Select((m, i) => (Entry: (Item: m, Attach: new List<ConversationRenderItem>()), Index: i))
+                .Select(x => (object?)HeadRow(x.Entry, x.Index))
+                .ToList(),
+        };
+        return HtmlTemplateEngine.Render(t, "round", row);
+    }
+
+    /// <summary>头提示层单行模型（无锚点语义；round=0）。</summary>
+    private static Dictionary<string, object?> HeadRow(
+        (ConversationRenderItem Item, List<ConversationRenderItem> Attach) entry, int index)
+        => new Dictionary<string, object?>
+        {
+            ["key"] = "h:0:" + index,
+            ["role"] = entry.Item.Role.ToString().ToLowerInvariant(),
+            ["round"] = "0",
+            ["stage"] = entry.Item.Stage ?? string.Empty,
+            ["subagent"] = entry.Item.SubAgent ?? string.Empty,
+            ["tool"] = IsToolLayer(entry.Item) ? "1" : string.Empty,
+            ["prompt"] = "1",
+            ["anchor"] = string.Empty,
+            ["text"] = entry.Item.Text,
+        };
 
     /// <summary>构造单条消息行数据模型（供 message 模板绑定）。C# 只产原始数据（role/round/stage/subagent/text），
     /// 角色类/角标/summary 结构全部由 message 模板的条件绑定承担；文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
@@ -232,6 +302,19 @@ public sealed record HtmlStreamRendererOptions
     /// <summary>「头提示层」折叠分支的 stage 前缀（如 Agent 的 "prompt:"）；null = 不启用该分支（消息统一按普通 tool 渲染）。
     /// 领域前缀由宿主注入，通用实现不硬编码。</summary>
     public string? PromptStagePrefix { get; init; }
+
+    /// <summary>
+    /// 渲染面编排序（声明式覆盖；null ⇒ <see cref="RenderSurfaceCatalog.Order"/>）。
+    /// 面序 = 渲染块顺序的**唯一来源**（渲染器不硬编码拼接顺序）：宿主可注入自有声明（如把操作面板移到底部）。
+    /// </summary>
+    public IReadOnlyList<RenderSurface>? SurfaceOrder { get; init; }
+
+    /// <summary>
+    /// 头提示层按缓存带（CacheBand）顺序渲染开关：
+    /// true ⇒ prompt:* 段整体前置为一个顺序块（传入源序 = CacheBand 升序），脱离 Round 分组一刀切；
+    /// false（默认）⇒ 逐字旧行为（prompt:* 随 Round=0 归入「会话级」组）。权威: 顺序框架设计 §4.2/§9（单开关回退）。
+    /// </summary>
+    public bool HeadBandOrdering { get; init; }
 
     /// <summary>操作流 / 气泡流分离开关：true（默认）⇒ <see cref="MessageChannel.Operation"/> 消息渲染为顶部操作面板
     /// （非气泡），不进对话气泡；false ⇒ 旧行为（全部按角色气泡渲染，用于回退）。</summary>

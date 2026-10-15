@@ -29,19 +29,41 @@ public static class PromptSegmentCatalog
     public const string L0BandPrefix = "prompt.l0.";
 
     /// <summary>
-    /// 固定段（有序；L0 分段族除外）。顺序 = 头提示层展示顺序。
-    /// <para>键 / stage / 写侧取值 / 读侧取值 / 档案开关 均在此单点声明。</para>
+    /// 固定段（有序；L0 分段族除外）。顺序 = 头提示层展示顺序 = **CacheBand 升序**（变更频率升序：稳定在前、易变在后）。
+    /// <para>键 / stage / 写侧取值 / 读侧取值 / 档案开关 / CacheBand / Target 均在此单点声明（顺序单一权威）。</para>
     /// </summary>
     public static readonly IReadOnlyList<SegmentSpec> Fixed = new[]
     {
-        new SegmentSpec(AnchorKey.PromptL0, "prompt:l0", i => i.L0, s => s.L0),
-        new SegmentSpec(AnchorKey.PromptL1, "prompt:l1", i => i.L1, s => s.L1),
-        new SegmentSpec(AnchorKey.PromptL2, "prompt:l2", i => i.L2, s => s.L2),
-        new SegmentSpec(AnchorKey.SkillCombined, "prompt:skill.block", i => i.SkillBlock, s => s.SkillBlock, ToggleSkills),
-        new SegmentSpec(AnchorKey.ToolCombined, "prompt:tools", i => i.ToolBlock, s => s.ToolBlock, ToggleTools),
-        new SegmentSpec(AnchorKey.PromptMode, "prompt:mode", i => i.Mode, s => s.Mode, ToggleMode),
-        new SegmentSpec(AnchorKey.PromptSubAgent, "prompt:subagent", i => i.SubAgent, s => s.SubAgent),
+        new SegmentSpec(AnchorKey.PromptL0, "prompt:l0", i => i.L0, s => s.L0, Band: CacheBand.B0),
+        new SegmentSpec(AnchorKey.SkillCombined, "prompt:skill.block", i => i.SkillBlock, s => s.SkillBlock, ToggleSkills, CacheBand.B1, SegmentTarget.System),
+        new SegmentSpec(AnchorKey.ToolCombined, "prompt:tools", i => i.ToolBlock, s => s.ToolBlock, ToggleTools, CacheBand.B1, SegmentTarget.System),
+        new SegmentSpec(AnchorKey.PromptL1, "prompt:l1", i => i.L1, s => s.L1, Band: CacheBand.B2, Target: SegmentTarget.User),
+        new SegmentSpec(AnchorKey.PromptL2, "prompt:l2", i => i.L2, s => s.L2, Band: CacheBand.B3, Target: SegmentTarget.User),
+        new SegmentSpec(AnchorKey.PromptMode, "prompt:mode", i => i.Mode, s => s.Mode, ToggleMode, CacheBand.B5, SegmentTarget.User),
+        new SegmentSpec(AnchorKey.PromptSubAgent, "prompt:subagent", i => i.SubAgent, s => s.SubAgent, Band: CacheBand.B5, Target: SegmentTarget.User),
     };
+
+    /// <summary>段键 → 缓存带（顺序单一权威；未知键 → B5 兜底，不抛）。L0 分段族 = B0（基底前缀）。</summary>
+    public static CacheBand BandFor(AnchorKey key)
+    {
+        if (IsL0Band(key)) return CacheBand.B0;
+        foreach (var spec in Fixed)
+        {
+            if (spec.Key == key) return spec.Band;
+        }
+        return CacheBand.B5;
+    }
+
+    /// <summary>段键 → 投喂目标（未知键 → User 兜底）。L0 分段族 = System（基底前缀）。</summary>
+    public static SegmentTarget TargetFor(AnchorKey key)
+    {
+        if (IsL0Band(key)) return SegmentTarget.System;
+        foreach (var spec in Fixed)
+        {
+            if (spec.Key == key) return spec.Target;
+        }
+        return SegmentTarget.User;
+    }
 
     /// <summary>是否 L0 分段键（<c>prompt.l0.&lt;技能名&gt;</c>）。</summary>
     public static bool IsL0Band(AnchorKey key) => key.Value.StartsWith(L0BandPrefix, StringComparison.Ordinal);
@@ -94,15 +116,19 @@ public static class PromptSegmentCatalog
         return set;
     }
 
-    /// <summary>段完备性判据（可机械复算）：每固定段须同时具备 UiStage/Produce/Text；缺一即违规。</summary>
+    /// <summary>段完备性判据（可机械复算）：每固定段须同时具备 UiStage/Produce/Text，且 CacheBand 序列**非降**（顺序单一权威）。</summary>
     public static IReadOnlyList<string> Validate()
     {
         var violations = new List<string>();
+        CacheBand? prev = null;
         foreach (var spec in Fixed)
         {
             if (string.IsNullOrWhiteSpace(spec.UiStage)) violations.Add($"段 {spec.Key.Value} 缺 UiStage");
             if (spec.Produce is null) violations.Add($"段 {spec.Key.Value} 缺 Produce（写侧取值）");
             if (spec.Text is null) violations.Add($"段 {spec.Key.Value} 缺 Text（读侧取值）");
+            if (prev.HasValue && spec.Band < prev.Value)
+                violations.Add($"段 {spec.Key.Value} 的 CacheBand({spec.Band}) 低于前段({prev.Value})：顺序须按 Band 升序");
+            prev = spec.Band;
         }
         return violations;
     }

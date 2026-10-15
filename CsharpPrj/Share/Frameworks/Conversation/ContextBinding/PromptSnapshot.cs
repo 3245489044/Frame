@@ -49,6 +49,15 @@ public sealed class PromptSnapshot
     /// <summary>system 槽位全文 = L0 + SkillBlock（与 <c>PromptText.Assemble(L0, SkillBlock)</c> 逐字一致）。</summary>
     public string System => TextComposer.JoinNonEmpty(new[] { L0, SkillBlock });
 
+    /// <summary>
+    /// 缓存纪元前缀指纹（PrefixFingerprint）= Hash(B0 段哈希 ∥ B1 段哈希)（逐段 SHA256 聚合，段内保序）。
+    /// 同一 epoch 内 B0+B1 字节稳定 ⇒ 前缀缓存可复用（判据 J2/J4；权威: 顺序框架设计 §5.1）。
+    /// </summary>
+    public string PrefixFingerprint => PromptSnapshotBuilder.Hash(string.Join("|",
+        Bindings
+            .Where(b => CacheBandRules.IsPrefix(PromptSegmentCatalog.BandFor(b.Key)))
+            .Select(b => b.TextHash)));
+
     public MessageBinding? BindingFor(AnchorKey key)
         => Bindings.FirstOrDefault(b => b.Key == key);
 

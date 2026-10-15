@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-15 00:23:06
+  生成时间: 2026-10-15 08:06:52
 -->
 <Project>
 
@@ -124,6 +124,7 @@
     <Mod_HostAssembly>$(CsharpPrjDir)Share\Orchestration\HostAssembly\</Mod_HostAssembly>
     <Mod_TaskStatusPool>$(CsharpPrjDir)Share\Orchestration\TaskStatusPool\</Mod_TaskStatusPool>
     <Mod_Share>$(CsharpPrjDir)Share\</Mod_Share>
+    <Mod_Catalog>$(CsharpPrjDir)Strategy\Catalog\</Mod_Catalog>
     <Mod_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\</Mod_DecisionRules>
     <Mod_Observability>$(CsharpPrjDir)Strategy\Observability\</Mod_Observability>
     <Mod_Strategy>$(CsharpPrjDir)Strategy\</Mod_Strategy>
@@ -234,6 +235,7 @@
     <Proj_HostAssembly>$(CsharpPrjDir)Share\Orchestration\HostAssembly\HostAssembly.csproj</Proj_HostAssembly>
     <Proj_TaskStatusPool>$(CsharpPrjDir)Share\Orchestration\TaskStatusPool\TaskStatusPool.csproj</Proj_TaskStatusPool>
     <Proj_Share>$(CsharpPrjDir)Share\Share.csproj</Proj_Share>
+    <Proj_Catalog>$(CsharpPrjDir)Strategy\Catalog\Catalog.csproj</Proj_Catalog>
     <Proj_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\DecisionRules.csproj</Proj_DecisionRules>
     <Proj_Observability>$(CsharpPrjDir)Strategy\Observability\Observability.csproj</Proj_Observability>
     <Proj_Strategy>$(CsharpPrjDir)Strategy\Strategy.csproj</Proj_Strategy>

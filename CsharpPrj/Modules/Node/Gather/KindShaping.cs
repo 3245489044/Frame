@@ -17,6 +17,7 @@ namespace Modules.Node.Gather;
 /// <param name="Badge">徽标文本（可空）。</param>
 /// <param name="TimeKey">时间取值字段（可空）。</param>
 /// <param name="Shaped">是否塑形（<c>false</c> = 该 kind 的行不呈现）。</param>
+/// <param name="PortKeys">端口取值字段集（声明 <c>ports=</c>；空 = 该 kind 不呈现端口）。</param>
 public sealed record KindShaping(
     string Kind,
     string Family,
@@ -24,4 +25,9 @@ public sealed record KindShaping(
     IReadOnlyList<string> SummaryKeys,
     string? Badge,
     string? TimeKey,
-    bool Shaped);
+    bool Shaped,
+    IReadOnlyList<string>? PortKeys = null)
+{
+    /// <summary>端口取值字段集（非空视图；未声明 ⇒ 空）。</summary>
+    public IReadOnlyList<string> EffectivePortKeys => PortKeys ?? System.Array.Empty<string>();
+}

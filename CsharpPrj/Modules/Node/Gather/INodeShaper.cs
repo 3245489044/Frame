@@ -33,6 +33,9 @@ public interface INodeShaper<TShape>
 /// <param name="Title">标题（取 <c>titleKey</c> 字段；可空）。</param>
 /// <param name="Summary">摘要（按 <c>summary[]</c> 字段拼接；可空）。</param>
 /// <param name="Updated">时间（取 <c>timeKey</c> 字段；可空）。</param>
+/// <param name="DomainKey">行来源域键（可空 = 回退模型域键）。</param>
+/// <param name="SourceKey">行真键（可空 = 回退 <c>Key</c>）。</param>
+/// <param name="Ports">端口（取声明 <c>ports=</c> 字段值拆分；可空 = 不呈现端口）。</param>
 public sealed record DeclaredNodeShape(
     string Kind,
     string? Badge,
@@ -41,4 +44,5 @@ public sealed record DeclaredNodeShape(
     string? Summary,
     string? Updated,
     string? DomainKey = null,
-    string? SourceKey = null);
+    string? SourceKey = null,
+    IReadOnlyList<string>? Ports = null);

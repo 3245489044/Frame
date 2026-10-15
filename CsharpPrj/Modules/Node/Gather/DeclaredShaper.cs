@@ -44,7 +44,41 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             Truncate(JoinSummary(item, shaping.SummaryKeys)),
             Field(item, shaping.TimeKey),
             item.DomainKey,
-            item.SourceKey);
+            item.SourceKey,
+            PortsOf(item, shaping.EffectivePortKeys));
+    }
+
+    /// <summary>端口取值：按声明 <c>ports=</c> 字段集读值并拆分（容 JSON 数组形 / 逗号分隔），保序去重；无值 ⇒ null。</summary>
+    private static IReadOnlyList<string>? PortsOf(NodeProjectionItem item, IReadOnlyList<string> keys)
+    {
+        if (keys.Count == 0)
+        {
+            return null;
+        }
+
+        var ports = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in keys)
+        {
+            var value = Field(item, key);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            foreach (var token in value!.Split(
+                         new[] { ',', ';', ' ', '\r', '\n', '[', ']', '"', '\'' },
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                var port = token.Trim();
+                if (port.Length > 0 && seen.Add(port))
+                {
+                    ports.Add(port);
+                }
+            }
+        }
+
+        return ports.Count == 0 ? null : ports;
     }
 
     private static string? Field(NodeProjectionItem item, string? name)

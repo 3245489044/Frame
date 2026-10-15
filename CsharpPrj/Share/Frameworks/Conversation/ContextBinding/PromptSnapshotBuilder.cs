@@ -69,7 +69,9 @@ public static class PromptSnapshotBuilder
             SelectedTools = tools,
             Mode = mode ?? string.Empty,
             SubAgent = subAgent ?? string.Empty,
-            Bindings = bindings,
+            // 顺序单一权威：按 CacheBand 升序稳定排序（B0 分段族 → B1 能力 → B2/B3 → B5 本轮）；
+            // OrderBy 稳定 ⇒ Band 内保持原声明序（L0 分段族保文件序）。
+            Bindings = bindings.OrderBy(b => PromptSegmentCatalog.BandFor(b.Key)).ToList(),
         };
     }
 

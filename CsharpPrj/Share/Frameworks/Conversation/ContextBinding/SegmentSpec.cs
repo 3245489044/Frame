@@ -29,9 +29,13 @@ public sealed record SegmentBuildInputs(
 /// <param name="Produce">写侧取值（装配输入 → 段文本；空/ null = 不发射 binding）。</param>
 /// <param name="Text">读侧取值（快照 → 段文本；投影唯一依据）。</param>
 /// <param name="Toggle">档案开关名（可选；null = 恒启用）。</param>
+/// <param name="Band">缓存带（顺序单一权威；默认 B5 = 本轮易变，禁入前缀）。</param>
+/// <param name="Target">投喂目标槽位（System 前缀 / User 有序列表）。</param>
 public sealed record SegmentSpec(
     AnchorKey Key,
     string UiStage,
     Func<SegmentBuildInputs, string?> Produce,
     Func<PromptSnapshot, string> Text,
-    string? Toggle = null);
+    string? Toggle = null,
+    CacheBand Band = CacheBand.B5,
+    SegmentTarget Target = SegmentTarget.System);

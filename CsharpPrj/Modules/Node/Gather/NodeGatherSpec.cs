@@ -222,7 +222,8 @@ public sealed record NodeGatherSpec(
                 ReadTextArray(entry["summary"]),
                 ReadText(entry["badge"]),
                 ReadText(entry["timeKey"]),
-                shaped);
+                shaped,
+                ReadTextList(entry["ports"]));
         }
 
         return shapings;
@@ -245,6 +246,34 @@ public sealed record NodeGatherSpec(
             if (!string.IsNullOrWhiteSpace(text))
             {
                 result.Add(text!);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>读文本列表（容两形）：JSON 数组 ⇒ 逐项；标量字符串 ⇒ 按 <c>,</c>/<c>;</c>/空格拆分（发射器对未特例化字段原样透传为字符串）。</summary>
+    private static IReadOnlyList<string> ReadTextList(JsonNode? node)
+    {
+        if (node is JsonArray)
+        {
+            return ReadTextArray(node);
+        }
+
+        var text = ReadText(node);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return Array.Empty<string>();
+        }
+
+        var parts = text!.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<string>(parts.Length);
+        foreach (var part in parts)
+        {
+            var token = part.Trim();
+            if (token.Length > 0)
+            {
+                result.Add(token);
             }
         }
 

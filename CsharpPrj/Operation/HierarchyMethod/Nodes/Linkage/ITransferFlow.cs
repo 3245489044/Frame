@@ -40,6 +40,18 @@ public sealed record TransferItem(string Owner, string Kind, string Class, strin
 public interface ITransferFlow
 {
     /// <summary>
+    /// 成员枚举（**仅枚举，只读**）：按 <paramref name="edgeType"/> 返回容器成员键集（容器自身不入成员集）。
+    /// <para>载体 = 声明流 <c>[Flow] TransferContribute</c> 的 <c>enumerate_members</c> 步（<c>fn=transfer_enumerate</c>），
+    /// 使「history→task / task→node / task→task」的归属枚举**单一化**到 USharp 声明面（禁第二套边名硬编码）。</para>
+    /// </summary>
+    /// <param name="containerKey">容器键（history 侧 = historyId）。</param>
+    /// <param name="edgeType">成员归属边类型（<c>history_owns_task</c> / <c>cross_db_link</c> / <c>task_owns_task</c>）。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>成员键集（只读派生；无事实 ⇒ 空集，不伪造）。</returns>
+    Task<IReadOnlyList<string>> EnumerateAsync(
+        string containerKey, string edgeType, CancellationToken ct = default);
+
+    /// <summary>
     /// 上行贡献（成员 → 容器）：一次运行完成「枚举成员 → 取窗口 → 取状态 → 合并」。
     /// </summary>
     /// <param name="containerKey">容器键（history 侧 = historyId）。</param>

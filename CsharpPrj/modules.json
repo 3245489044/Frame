@@ -146,6 +146,7 @@
     "HostAssembly": "Share\\Orchestration\\HostAssembly\\HostAssembly.csproj",
     "TaskStatusPool": "Share\\Orchestration\\TaskStatusPool\\TaskStatusPool.csproj",
     "Share": "Share\\Share.csproj",
+    "Catalog": "Strategy\\Catalog\\Catalog.csproj",
     "DecisionRules": "Strategy\\DecisionRules\\DecisionRules.csproj",
     "Observability": "Strategy\\Observability\\Observability.csproj",
     "Strategy": "Strategy\\Strategy.csproj"

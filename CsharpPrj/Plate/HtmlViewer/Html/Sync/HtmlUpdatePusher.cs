@@ -18,11 +18,17 @@ namespace UiBackend.Html;
 public sealed class HtmlUpdatePusher
 {
     private readonly Func<IHtmlChannel?> _channelResolver;
+    private readonly Func<string, string> _traceFactory;
     private int _version;
 
     /// <param name="channelResolver">通道解析（返回 null = 页面未挂载 → 静默零推送）。</param>
-    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver)
-        => _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
+    /// <param name="traceFactory">追踪号工厂（缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
+    /// <c>Share.RefreshFramework.RefreshTraceId.New</c> 统一一次刷新一条轨迹）。</param>
+    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string>? traceFactory = null)
+    {
+        _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
+        _traceFactory = traceFactory ?? RefreshTrace.New;
+    }
 
     /// <summary>推送一次更新（scope=null/空 = 显式全量）；false = 未送达（未挂载 / 通道异常）。</summary>
     public async Task<bool> PushAsync(IReadOnlyCollection<string>? scopes, CancellationToken ct = default)
@@ -32,7 +38,7 @@ public sealed class HtmlUpdatePusher
         var envelope = new UiUpdateEnvelope(
             scopes is null ? Array.Empty<string>() : new List<string>(scopes),
             Interlocked.Increment(ref _version),
-            TraceId: RefreshTrace.New("push"));
+            TraceId: _traceFactory("push"));
         try
         {
             return await channel.PostToPageAsync(BuildPayload(envelope), ct).ConfigureAwait(false);

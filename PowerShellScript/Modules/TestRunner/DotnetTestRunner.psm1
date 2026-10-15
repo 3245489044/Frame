@@ -39,6 +39,12 @@ function New-DotnetTestArgs {
     if ($ResultsDir) { $testArgs += @('--results-directory', $ResultsDir) }
     if ($Filters.Count -gt 0) { $testArgs += @('--filter', ($Filters -join '&')) }
     if ($ExtraArgs.Count -gt 0) { $testArgs += $ExtraArgs }
+    # 仓库级构建门会话透传（BG001 全局哨兵，单源 = 与会话同持者 BuildGate.psm1）：
+    #   `dotnet test` 内含 restore+build，若测试工程需重编，未带会话号会被 BuildGuard 判「受支持入口
+    #   正在构建本仓库」而拒绝（自冲突）。透传口径与 Run-CSharpTests.ps1 显式构建步同范式。
+    if (-not [string]::IsNullOrWhiteSpace($env:BUILD_GATE_SESSION)) {
+        $testArgs += "-p:BuildGuard_GlobalSession=$env:BUILD_GATE_SESSION"
+    }
     return , $testArgs
 }
 

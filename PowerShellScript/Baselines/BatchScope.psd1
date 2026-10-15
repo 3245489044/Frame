@@ -197,7 +197,48 @@
     #   M3 落在 Frame/PowerShellScript/{Operation/DSL,Baselines}，均在新单 allowSet 内。
     #   RB/GEN-SSOT/UI-SPLIT/IC 等在途系列的非目标改动按新单 preexisting 登记，切换不误判。
     #   恢复 = 回填 RB 单原值（上方 v31..v32 行）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Usharp交汇面聚拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v34（2026-10-15）：单指针切换至「Share 通用刷新管理框架 —— 收拢与实施」授权单（active=[P0,TOOL]）。
+    #   切换理由 = 用户转入实施《2026-10-15-Share通用刷新管理框架-收拢与实施施工单.md》：P0 改动落在
+    #   Frame/CsharpPrj/Share/Composition/AssemblyFramework/UiRefresh/** 与
+    #   Environment/CentralTest/CSharpTest/Share.Tsets/AssemblyFramework.Tests/**；工具链批（Gap 2）改动落在
+    #   Frame/PowerShellScript/Modules/TestRunner/**（New-DotnetTestArgs 透传 BuildGuard_GlobalSession，
+    #   使 invoke-verify 内的 dotnet test 不自冲突 BG001）与 Frame/PowerShellScript/Baselines/**（本指针），
+    #   均在新单 allowSet 内。Usharp 交汇面聚拢单（v33）已收口，其授权单文件内容保留不变。
+    #   恢复 = 回填 v33 的 Value（下方注释行）。
+    # v35（2026-10-15）：单指针不变（v34），现行授权单内**增批**（FRAME）——「通用刷新框架立项」：
+    #   把 Share/Composition/AssemblyFramework/UiRefresh/** 迁入新工程 Share/Frameworks/RefreshFramework/**，
+    #   UI 原语通用化（去 Ui 前缀），登记 Frame/CsharpPrj/modules.json（新增工程）+ Share.csproj 伞引用，
+    #   测试从 Share.Tsets/AssemblyFramework.Tests 迁入 Share.Tsets/RefreshFramework.Tests。切换理由 = 用户转入
+    #   实施《Share通用刷新管理框架-收拢与实施施工单》并显式要求新建工程（推翻原 §2.2"不新建项目"）。
+    #   derived 追加 Frame/CsharpPrj/generated/**（Generate-ModulePaths 重生成派生面）。P0/TOOL 批条目不变。
+    # v36（2026-10-15）：单指针不变（v34），现行授权单内**激活 P1 批**（调度收编）——「刷新框架接入 Agent」：
+    #   框架侧新增 Share/Frameworks/RefreshFramework/RefreshScheduler.cs（吸收 AssemblyFramework.RefreshPublisher）
+    #   + IRefreshSource.cs（统一刷新源登记）；Agent 侧 Agent.Ui/Ui/Hosting/AgentUiRefreshPublisher.cs 改为
+    #   RefreshScheduler 纯装配 + RegisterSource（UI 只声明变化源，节拍/去重/重试由框架统一管理）；退役
+    #   Frame/CsharpPrj/Share/Composition/AssemblyFramework/RefreshPublisher.cs。改动面 = Frame/CsharpPrj/Share/**（P1 allowSet）
+    #   + Projects/Plug/Agent/src/**（P1 allowSet）+ Environment/CentralTest/CSharpTest/Share.Tsets/**（P1 allowSet）。
+    #   切换理由 = 用户转入实施「把通用刷新框架接入 Agent，刷新逻辑由框架统一管理（不再每 UI 单独注册维护）」。
+    # Manifest(v35)... P0/TOOL/FRAME 批条目不变。
+    # v37（2026-10-15）：单指针不变（v34），现行授权单内**激活 P2 批**（写仲裁接入）——「写落地决策上移」：
+    #   Plate 新增写仲裁端口 UiBackend.Abstractions.IWriteArbiter/WriteVerdict（DIP：plate 只依赖抽象）；
+    #   HtmlBackendRuntime 增可选 IWriteArbiter，region/host/tree 三路经 TryAdmit（Stale/Skip 不触 DOM）；
+    #   宿主侧 FrontEndDriven.HtmlHosting.RefreshWriteArbiter 适配 Share.RefreshFramework.IRefreshStore，
+    #   在 HtmlBridgeAssembly.Attach 注入（单一状态源 InMemoryRefreshStore）。改动面 = Frame/CsharpPrj/Plate/HtmlViewer/** ·
+    #   Frame/CsharpPrj/Operation/FrontEndDriven/** · Environment/CentralTest/CSharpTest/Operation.Tests/**（均 P2 allowSet）。
+    #   切换理由 = 用户转入实施 P2（把刷新框架写仲裁接入宿主 DOM 写落地）。
+    # Manifest(v36)... P0/TOOL/FRAME/P1 批条目不变。
+    # v38（2026-10-15）：单指针不变（v34），现行授权单内**激活 P3+P4 批**（单状态源+兜底收编 / 收尾观测）：
+    #   P3 —— RefreshFramework 增 RefreshPriority + RefreshScheduler 双车道（Low 不抢占 High）+ EnableIdlePolling +
+    #   PollingRefreshSource；IRefreshSource 增 Priority；HtmlBackendRuntime 增指纹注入（Func<string,string> fingerprint）；
+    #   领域 ConversationViewService.Hash 与写落地共用框架 IFingerprint（Fnv1aFingerprint 单源）；Agent 兜底轮询收编为低优先级源。
+    #   P4 —— HtmlUpdatePusher/HtmlBackendRuntime 增 traceFactory 注入（RefreshTraceId 单源）；Agent push 注 RefreshTraceId.New；
+    #   agent_log_messages.json 补 ConversationView_RefreshTrace 定义（消除未定义 WARN 刷屏）。
+    #   改动面 = Frame/CsharpPrj/Share/** · Frame/CsharpPrj/Plate/HtmlViewer/** · Frame/CsharpPrj/Operation/FrontEndDriven/** ·
+    #   Projects/Plug/Agent/src/** · Environment/CentralTest/CSharpTest/Share.Tsets/**（均 P3/P4 allowSet）。
+    #   切换理由 = 用户转入实施 P3+P4（单状态源/兜底收编 + 追踪与日志收尾）。
+    # Manifest(v37)... P0/TOOL/FRAME/P1/P2 批条目不变。
+    # Manifest(v33) = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Usharp交汇面聚拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Share通用刷新管理框架-收拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

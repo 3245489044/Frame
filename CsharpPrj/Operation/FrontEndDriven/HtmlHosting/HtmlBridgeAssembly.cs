@@ -8,6 +8,7 @@ using FrontEndDriven.HtmlViewerBridge;
 using Plate.HtmlViewer;
 using Plate.JsonMethod.Serialization;
 using Plate.JsonMethod.Utilities;
+using Share.RefreshFramework;
 using TConfig;
 using UiBackend.Html;
 
@@ -54,7 +55,12 @@ public static class HtmlBridgeAssembly
         // 注：observed 不在此 dispose——其生命周期须与 HtmlBackendRuntime 一致（写回经 ToWritePump 持续调用；
         // 与原 plate 内 ObserveSessionManager 随控件 GC 收尾语义一致，仅后台确认任务至多存活 _convergeTimeout）。
         var observed = new ObservedHtmlChannel(channel);
-        var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump());
+        // 写仲裁（P2 决策上移）：每 slot 单调版本 + baseline 过期即丢 + 指纹去重——由通用刷新框架单一状态源
+        // （InMemoryRefreshStore）承载；两生产者交替写同 slot 时旧版本判 Stale、不触 DOM（治 region/tree ping-pong）。
+        var writeArbiter = new RefreshWriteArbiter(new InMemoryRefreshStore());
+        // P3 指纹单源 + P4 追踪单源：写落地与领域共用框架侧实现（plate 只经注入使用，不反向依赖）。
+        var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
+            new Fnv1aFingerprint().Of, RefreshTraceId.New);
         PopulateStaticReadiness(runtime.Readiness, index, registry);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;

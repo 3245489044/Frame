@@ -34,9 +34,21 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     private readonly HtmlEventBridge _eventBridge;
     private readonly HtmlScriptBridge _scriptBridge;
     private readonly IReadOnlyDictionary<string, ControlConfig> _controlsByName;
-    // 宿主内容写回端口（DIP 剥离后的 Observe 收敛写抽象）：由连接层 FrontEndDriven 注入实现
+    /// <summary>宿主内容写回端口（DIP 剥离后的 Observe 收敛写抽象）：由连接层 FrontEndDriven 注入实现
     // （ObservedHtmlChannel 内部经 ObserveSessionManager + WebView2Transport）；null → 走纯渲染（无收敛语义）。
     private readonly HtmlWritePump? _writePump;
+
+    /// <summary>写仲裁端口（L0，宿主注入；DIP：plate 只依赖抽象）：每 slot 单调版本 + baseline 过期即丢 + 指纹去重。
+    /// null → 回退旧 <see cref="_lastWrite"/> 内容比对（零回归）。</summary>
+    private readonly IWriteArbiter? _writeArbiter;
+
+    /// <summary>内容指纹单源（P3）：缺省 plate 内置 <see cref="UiFingerprint.Of"/>；宿主可注入框架指纹
+    /// （<c>Share.RefreshFramework.IFingerprint</c>）使领域与写落地共用同一口径。</summary>
+    private readonly Func<string, string> _fingerprint;
+
+    /// <summary>刷新追踪号工厂（P4）：缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
+    /// <c>Share.RefreshFramework.RefreshTraceId.New</c>，使一次刷新贯穿 push→page→dispatch→sink 用同一来源。</summary>
+    private readonly Func<string, string> _traceFactory;
 
     /// <summary>键控树写端口（L2 HTML 实现；经通道执行 <c>__uiReconcile.applyTree</c>）。</summary>
     private readonly HtmlTreeWriter _treeWriter;
@@ -64,12 +76,18 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         IHtmlChannel channel,
         IReadOnlyDictionary<string, ControlConfig> declaration,
         HtmlEventBridge.HtmlFunctionInvoker invoker,
-        HtmlWritePump? writePump = null)
+        HtmlWritePump? writePump = null,
+        IWriteArbiter? writeArbiter = null,
+        Func<string, string>? fingerprint = null,
+        Func<string, string>? traceFactory = null)
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
         _controlsByName = declaration ?? throw new ArgumentNullException(nameof(declaration));
         _writePump = writePump;
+        _writeArbiter = writeArbiter;
+        _fingerprint = fingerprint ?? UiFingerprint.Of;
+        _traceFactory = traceFactory ?? RefreshTrace.New;
         _treeWriter = new HtmlTreeWriter(channel) { Diagnostics = Report };
         Readiness = new HtmlRuntimeReadinessReport();
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
@@ -323,10 +341,11 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         // L2 类型化：空结果 = 无内容写回（drain 已短路，此处兜底）。
         if (string.IsNullOrEmpty(html))
             return;
-        if (_lastWrite.TryGetValue(HostSlot(hostControlName), out var prev)
-            && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
+        var slotKey = HostSlot(hostControlName);
+        var dedupKey = _fingerprint(html);
+        if (!TryAdmit(slotKey, dedupKey, out var version))
         {
-            Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（内容未变；mode={writeMode}）");
+            Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（仲裁：未变/过期；mode={writeMode}）");
             return;
         }
         contentSink?.Invoke(html);
@@ -335,7 +354,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
             var status = await ExecuteDomTypedAsync(DomOps.Reconcile, null, html, CancellationToken.None).ConfigureAwait(false);
             if (status == DomOpStatus.Ok)
             {
-                _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, true);
+                RecordWrite(slotKey, version, dedupKey, true);
                 Report("EventBridge_writeback", $"补丁写回 {hostControlName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）");
                 return;
             }
@@ -349,7 +368,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         {
             var result = await _writePump(html).ConfigureAwait(false);
             // D5：仅 Committed 记成功参与去重——Degraded（未收敛）不得被"确认"，否则下次同内容被误跳过。
-            _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, result.Status == HtmlWriteBackStatus.Committed);
+            RecordWrite(slotKey, version, dedupKey, result.Status == HtmlWriteBackStatus.Committed);
             if (result.Status != HtmlWriteBackStatus.Failed)
                 _navigatedHosts.Add(hostControlName);
             Report("EventBridge_writeback",
@@ -360,7 +379,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         else
         {
             await _channel.RenderHtmlAsync(html).ConfigureAwait(false);
-            _lastWrite[HostSlot(hostControlName)] = new WriteRecord(html, true);
+            RecordWrite(slotKey, version, dedupKey, true);
             _navigatedHosts.Add(hostControlName);
             Report("EventBridge_writeback", $"写回 {hostControlName}（无收敛 pump，走纯渲染）");
         }
@@ -376,16 +395,41 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     public async Task<bool> WriteRegionAsync(string regionName, string html, CancellationToken ct = default)
         => await WriteRegionStatusAsync(regionName, html, ct).ConfigureAwait(false) == DomOpStatus.Ok;
 
+    /// <summary>写准入（单一入口）：有仲裁器 → NextVersion + Decide（Stale/Skip 即拒，不触 DOM）；
+    /// 无仲裁器 → 回退旧 <see cref="_lastWrite"/> 内容比对（零回归）。</summary>
+    private bool TryAdmit(string slotKey, string dedupKey, out long version)
+    {
+        version = 0;
+        if (_writeArbiter is not null)
+        {
+            version = _writeArbiter.NextVersion(slotKey);
+            return _writeArbiter.Decide(slotKey, version, dedupKey) == WriteVerdict.Apply;
+        }
+        return !(_lastWrite.TryGetValue(slotKey, out var prev)
+                 && prev.Ok && string.Equals(prev.Html, dedupKey, StringComparison.Ordinal));
+    }
+
+    /// <summary>写记账（单一入口）：仅落地成功（<paramref name="ok"/>）才推进仲裁 baseline。</summary>
+    private void RecordWrite(string slotKey, long version, string dedupKey, bool ok)
+    {
+        _lastWrite[slotKey] = new WriteRecord(dedupKey, ok);
+        if (ok) _writeArbiter?.Commit(slotKey, version, dedupKey);
+    }
+
     /// <summary>按区域写回并返回**类型化状态**（供调用方定位失败分支：NotFound=区域容器缺失 / StateNotReady=补丁态模块未就绪）。</summary>
     public async Task<DomOpStatus> WriteRegionStatusAsync(string regionName, string html, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(regionName)) return DomOpStatus.Unknown;
-        if (_lastWrite.TryGetValue(RegionSlot(regionName), out var prev)
-            && prev.Ok && string.Equals(prev.Html, html, StringComparison.Ordinal))
+        var slotKey = RegionSlot(regionName);
+        var dedupKey = _fingerprint(html);
+        if (!TryAdmit(slotKey, dedupKey, out var version))
+        {
+            Report("EventBridge_writeback", $"区域写回 {regionName} 跳过（仲裁：未变/过期，不触 DOM）");
             return DomOpStatus.Ok;
+        }
         var parsed = await ExecuteDomTypedAsync(DomOps.Reconcile, regionName, html, ct).ConfigureAwait(false);
         if (parsed == DomOpStatus.Ok)
-            _lastWrite[RegionSlot(regionName)] = new WriteRecord(html, true);
+            RecordWrite(slotKey, version, dedupKey, true);
         Report("EventBridge_writeback", parsed == DomOpStatus.Ok
             ? $"区域写回 {regionName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）"
             : $"区域写回 {regionName} 未生效（{parsed}）");
@@ -421,7 +465,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         if (plan is null || plan.Kind == UiWriteKind.Skip)
             return new UiWriteResult(UiWriteStatus.Nothing, Array.Empty<string>(), Array.Empty<string>());
 
-        var trace = plan.TraceId ?? traceId ?? RefreshTrace.New("write");
+        var trace = plan.TraceId ?? traceId ?? _traceFactory("write");
         var written = new List<string>();
         var skipped = new List<string>();
         var anomalies = new List<string>();
@@ -453,10 +497,10 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                     }
                     // D-1 去重（与 Region 路径语义一致）：同目标 + 同树/同交互指纹 ⇒ 不触 DOM（Nothing，非失败）。
                     var treeFp = plan.Fingerprint ?? HtmlTreeWriter.Fingerprint(tree, plan.Interaction);
-                    if (_lastWrite.TryGetValue(TreeSlot(name), out var prevTree)
-                        && prevTree.Ok && string.Equals(prevTree.Html, treeFp, StringComparison.Ordinal))
+                    var treeSlotKey = TreeSlot(name);
+                    if (!TryAdmit(treeSlotKey, treeFp, out var treeVersion))
                     {
-                        Report("EventBridge_writeback", $"键控树写回 {name} 跳过（内容未变）trace={trace}");
+                        Report("EventBridge_writeback", $"键控树写回 {name} 跳过（仲裁：未变/过期）trace={trace}");
                         skipped.Add(name);
                         continue;
                     }
@@ -476,7 +520,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                     // X-5：anomalies 非空 ⇒ Partial 且不计入 written（判据不合格 ⇒ ⊥，不放行）。
                     if ((r.Status is UiWriteStatus.Applied or UiWriteStatus.Partial) && r.Anomalies is not { Count: > 0 })
                     {
-                        _lastWrite[TreeSlot(name)] = new WriteRecord(treeFp, true);
+                        RecordWrite(treeSlotKey, treeVersion, treeFp, true);
                         written.Add(name);
                     }
                     else skipped.Add(name);

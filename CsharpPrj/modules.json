@@ -139,6 +139,7 @@
     "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
     "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",
     "LayoutAnalysis": "Share\\Frameworks\\LayoutAnalysis\\LayoutAnalysis.csproj",
+    "RefreshFramework": "Share\\Frameworks\\RefreshFramework\\RefreshFramework.csproj",
     "RoslynJsonFramework": "Share\\Frameworks\\RoslynJson\\RoslynJsonFramework.csproj",
     "UniversalWorkflowFramework": "Share\\Frameworks\\UniversalReference\\UniversalWorkflowFramework.csproj",
     "Share.Adapters": "Share\\Orchestration\\Adapters\\Share.Adapters.csproj",

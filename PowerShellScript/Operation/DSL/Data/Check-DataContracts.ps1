@@ -1,5 +1,5 @@
 # Check-DataContracts.ps1
-# 统一数据传递标准 —— 一致性校验器（PowerShell 版，仿照 DSL/Check-ClinerulesReferences.ps1 的两遍扫描模式）。
+# 统一数据传递标准 —— 一致性校验器（PowerShell 版，仿照 DSL/Declarations/Check-ClinerulesReferences.ps1 的两遍扫描模式）。
 # 判据（M3/T3 派生改造后两条）：
 #   [D1] 扫描 Agent 源码中所有 RoundKeys.<Name> 使用点，断言每个键都已在 DataContractRegistrar.RegisterAll 登记
 #        —— 规则定死「每个使用键必须登记」；内容不定死（新增键 = 在 RegisterAll 加一条契约，本脚本自动识别）。

@@ -4,7 +4,7 @@
     #   消费方 = Environment\CentralTest\Internal\Invoke-Verify.ps1（P2 唯一验证命令）
     #          ∧ Environment\CentralTest\Internal\Invoke-AgentRegression.ps1（矩阵执行体）
     #   裁决原语单源 = Baselines\VerifyScope.psm1（禁各消费方手写解析）
-    #   守卫 = Operation\DSL\Check-VerifySingleShot.ps1 判据 ④（接线：注册表 ∧ 两执行体裁决标记）
+    #   守卫 = Operation\DSL\Process\Check-VerifySingleShot.ps1 判据 ④（接线：注册表 ∧ 两执行体裁决标记）
     Schema = 'verify-scope-v1'
 
     # 默认禁止全量：true = 未持授权时全量面 fail-closed（禁静默放大为全面测试）

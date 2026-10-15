@@ -1,5 +1,5 @@
 @{
-    # ===== ToolFaceDeclaration 门禁基线（单源；守卫 = Operation\DSL\Check-ToolFaceDeclaration.ps1）=====
+    # ===== ToolFaceDeclaration 门禁基线（单源；守卫 = Operation\DSL\Usharp\Check-ToolFaceDeclaration.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'ToolFaceDeclaration'
 

@@ -1,5 +1,5 @@
 @{
-    # ===== VerifySingleShot 门禁基线（单源；守卫 = Operation\DSL\Check-VerifySingleShot.ps1）=====
+    # ===== VerifySingleShot 门禁基线（单源；守卫 = Operation\DSL\Process\Check-VerifySingleShot.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'VerifySingleShot'
 

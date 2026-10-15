@@ -162,8 +162,8 @@ foreach ($p in @('Agent.Core.Tests','Agent.Axioms.Tests','Agent.Launcher.Tests',
 cd 'D:\Project\Main\Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Tests'; dotnet test -v q --nologo
 
 # ── 门禁 ──
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1'   # 期望 K9 违规 0 / 待迁移 0
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-SingleWriter.ps1'           # 期望 OK
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1'   # 期望 K9 违规 0 / 待迁移 0
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1'           # 期望 OK
 
 # ── 取证（只读，不计入判据）──
 $all = (Get-ChildItem 'D:\Project\Main\Projects' -Recurse -File -Include *.cs,*.ps1,*.md |

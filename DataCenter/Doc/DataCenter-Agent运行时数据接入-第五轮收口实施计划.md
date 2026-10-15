@@ -213,18 +213,18 @@ foreach ($p in @('Agent.Core.Tests','Agent.Axioms.Tests','Agent.Launcher.Tests',
 cd 'D:\Project\Main\Environment\CentralTest\CSharpTest\Operation.Tests\DataCenter.Tests'; dotnet test -v q --nologo
 
 # ── 门禁（五道；W0 后应全 EXIT 0）──
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1'
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-SingleWriter.ps1'
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1' -Check
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentDecisionCoreBoundary.ps1' -Check
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentDataSeparation.ps1' -Check
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1'
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1'
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1' -Check
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1' -Check
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1' -Check
 
 # ── 取证（只读，用于 W1/W2 改动前定位）──
 $all = (Get-ChildItem 'D:\Project\Main\Projects' -Recurse -File -Include *.cs,*.ps1,*.md |
         Where-Object { $_.FullName -notmatch '\\(obj|bin|BuildOutput)\\' }).FullName
 Select-String -Path $all -Pattern 'vars\.Set|PersistAsync|Harvest|state\.Data\['           # W2 收敛点
 Select-String -Path $all -Pattern 'NodeTypes\.Output|AgentRuntimeSlotKeys\.'               # 形态与槽键面
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1'       # W1 基线逐序核对
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1'       # W1 基线逐序核对
 ```
 
 ---

@@ -1,5 +1,5 @@
 @{
-    # ===== DeclarationEditSingleSource 门禁基线（单源；守卫 = Operation\DSL\Check-DeclarationEditSingleSource.ps1）=====
+    # ===== DeclarationEditSingleSource 门禁基线（单源；守卫 = Operation\DSL\Declarations\Check-DeclarationEditSingleSource.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'DeclarationEditSingleSource'
 

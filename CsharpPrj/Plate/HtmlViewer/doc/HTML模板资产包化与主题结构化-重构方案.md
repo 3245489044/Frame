@@ -355,7 +355,7 @@ Projects/Information/DrivenConfig/
 
 | 文件 | 改动 |
 |---|---|
-| `Frame/PowerShellScript/Operation/DSL/Check-AgentRuntimeUIConfig.ps1` | 增"包解析"步骤：读 `templatePacks` + `<configDir>/../Assets/<pack>/*.html`，与 JSON `templates` 按 §2.2 优先级合成后，再跑 `Check-TemplateKeys`（`:248` 与 `:276-281`） |
+| `Frame/PowerShellScript/Operation/DSL/Agent/Check-AgentRuntimeUIConfig.ps1` | 增"包解析"步骤：读 `templatePacks` + `<configDir>/../Assets/<pack>/*.html`，与 JSON `templates` 按 §2.2 优先级合成后，再跑 `Check-TemplateKeys`（`:248` 与 `:276-281`） |
 | `Frame/PowerShellScript/Share/Validate/Test-JsonFiles.ps1` | 增对 `DrivenConfig/Assets/**` 的资源清单校验（存在性 / 编码 / 空文件） |
 | `Plate.Tests/.../HtmlPackageResolutionGateTests.cs`（建议） | 断言"解析后模板集 = 门禁所见集"，防两套解析漂移（I1） |
 
@@ -374,7 +374,7 @@ dotnet build d:\Project\Main\Frame\CsharpPrj\MainProj.sln -c Debug
 dotnet test d:\Project\Main\Environment\CentralTest\CSharpTest\Plate.Tests\HtmlViewer\HtmlViewer.csproj -c Debug
 
 # ③ 配置门禁（键契约 / 布局重叠 / 绑定悬空）
-& d:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeUIConfig.ps1
+& d:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeUIConfig.ps1
 
 # ④ JSON 文件门禁
 & d:\Project\Main\Frame\PowerShellScript\Share\Validate\Test-JsonFiles.ps1

@@ -43,7 +43,7 @@ Contract ≜ ⟨Id, Semantics, Carrier, Tier, Effect⟩ ⊗ Evidence
 1. `Frame/CsharpPrj/modules.json` 的 `projects` 增 `"ContractFramework": "Modules\\ContractFramework\\ContractFramework.csproj"`；
 2. 运行 `Frame/PowerShellScript/Share/Solution/Generate-ModulePaths.ps1`（生成 `Proj_ContractFramework` / `Mod_ContractFramework`）；
 3. `Frame/CsharpPrj/Modules/Modules.csproj` 增 `ProjectReference` + `Compile Remove="ContractFramework\\**\\*.cs"`；
-4. 声明：`Frame/CsharpPrj/contracts.index.json` 登记各 `contracts.json`；门禁 `Frame/PowerShellScript/Operation/DSL/Check-ContractRegistry.ps1`（G0–G4 + 对照）。
+4. 声明：`Frame/CsharpPrj/contracts.index.json` 登记各 `contracts.json`；门禁 `Frame/PowerShellScript/Operation/DSL/Meta/Check-ContractRegistry.ps1`（G0–G4 + 对照）。
 
 > `MainProj.sln` 无需改动（只引聚合工程 `Modules\\Modules.csproj`，子模块经 ProjectReference 传递）。
 

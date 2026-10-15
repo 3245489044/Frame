@@ -50,7 +50,7 @@ PowerShellScript/
 │   ├── Storage/                       # StorageNode
 │   └── Tooling/                       # Diagnostic / ToolBridge
 ├── Modules/                           # 模块目录
-│   ├── Import-Modules.ps1             # 模块加载器（函数映射表由 Operation\DSL\Build-ModuleIndex.ps1 编译）
+│   ├── Import-Modules.ps1             # 模块加载器（函数映射表由 Operation\DSL\Tooling\Build-ModuleIndex.ps1 编译）
 │   ├── BuildOutputCleaner.psm1         # 构建输出清理引擎
 │   ├── Core/                           # OutputHelpers / ProjectPaths / ProjectConfig / InteractiveHelpers / FileSystemHelpers / XmlHelpers / BatToolConfig / BuildHelpers / ReadProjectConfig.ps1
 │   ├── Csproj/                         # CsprojFixEngine / CsprojDetection / CsprojFixActions / CsprojNewProjectInit（+ 维护脚本）
@@ -100,7 +100,7 @@ PowerShellScript/
 
 > 工具链**专属面**（工程发现 / 目标解析 / 别名表 / suite 语义 / WdUI 启动）留在 CentralTest `TestRunner\TestRunner.psm1`（导出 8 个），
 > 由 `Run-*.ps1` 按需导入。
-> `Modules\Import-Modules.ps1` 是 Frame 侧全量加载器；其函数映射表为**编译产物**（由 `Operation\DSL\Build-ModuleIndex.ps1` 写回并做写回校验），
+> `Modules\Import-Modules.ps1` 是 Frame 侧全量加载器；其函数映射表为**编译产物**（由 `Operation\DSL\Tooling\Build-ModuleIndex.ps1` 写回并做写回校验），
 > 新增/重命名导出函数后须重编译。
 
 ---
@@ -122,8 +122,8 @@ PowerShellScript/
 | `Declarations` | 声明面 / clinerules / 初始化护栏 | 3 |
 | `Build` | 烘焙 / 构建 | 1 |
 
-- 编译产物 = `Operation\DSL\index.generated.md`（按域分组，标记圈定，**禁手改**），由 `Build-GateIndex.ps1` 生成（改域/增删门后重跑，幂等）。
-- 守卫 = `Operation\DSL\Check-GateTaxonomy.ps1`（门禁 `GateTaxonomy`，`Tier=fast`）：清单 ⇄ 索引 ⇄ 脚本文件三方对账（T1 域合法 / T2 落点在位 / T3 脚本归属可达 / T4 索引复算等价 / T5 正负对照）。
+- 编译产物 = `Operation\DSL\Registry\index.generated.md`（按域分组，标记圈定，**禁手改**），由 `Build-GateIndex.ps1` 生成（改域/增删门后重跑，幂等）。
+- 守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`（门禁 `GateTaxonomy`，`Tier=fast`）：清单 ⇄ 索引 ⇄ 脚本文件三方对账（T1 域合法 / T2 落点在位 / T3 脚本归属可达 / T4 索引复算等价 / T5 正负对照）。
 - 注：域门可就近下沉（如 `Modules\Node\`、`Modules\Parsing\`、`Projects\BuildFramework\`、`Environment\CentralTest\Tools\`）；此时清单登记项以 `Path` 指位，`Domain` 只描述归属轴。
 
 ---
@@ -295,13 +295,13 @@ PowerShellScript/
 **加载机制：**
 
 1. **按需加载（模式 A，新）**：脚本头部以 `# @requires Get-OutputEncoding, Write-Header` 声明所需函数，
-   加载器按 `$functionModuleMap`（函数 → 模块，**编译产物**，由 `Operation\DSL\Build-ModuleIndex.ps1` 扫描写回）
+   加载器按 `$functionModuleMap`（函数 → 模块，**编译产物**，由 `Operation\DSL\Tooling\Build-ModuleIndex.ps1` 扫描写回）
    只导入用到的模块；
 2. **全量加载（模式 B，旧）**：无 `@requires` 时回退到 `$moduleOrder` 全量顺序导入（兼容旧脚本）；
 3. 缺失模块/函数即报错，不静默降级。
 
 > ⚠️ 函数映射表是编译产物 ⇒ 新增 / 重命名 / 删除导出函数后**必须重编译**：
-> `pwsh .\Operation\DSL\Build-ModuleIndex.ps1 -ImportModulesPath <本文件> -PowerShellRoot .\`（写回并做校验）。
+> `pwsh .\Operation\DSL\Tooling\Build-ModuleIndex.ps1 -ImportModulesPath <本文件> -PowerShellRoot .\`（写回并做校验）。
 
 **用法：**
 

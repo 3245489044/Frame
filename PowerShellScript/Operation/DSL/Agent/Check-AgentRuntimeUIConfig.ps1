@@ -11,7 +11,7 @@
 
     用途：把「手写归一化坐标漂移 → 静默重叠」「绑定源/输出改名 → 静默断链」这两类
     AgentRuntimeUI.json 历史缺陷，转化为编写期可观测报告，防止回归。
-    对齐既有 PowerShellScript/DSL/Check-ClinerulesReferences.ps1 模式（独立脚本、无运行时副作用）。
+    对齐既有 PowerShellScript/DSL/Declarations/Check-ClinerulesReferences.ps1 模式（独立脚本、无运行时副作用）。
 
 .PARAMETER ConfigPath
     待校验的 UI 配置 JSON（默认 Projects/Information/DrivenConfig/JsonConfig/AgentRuntimeUI.json ——

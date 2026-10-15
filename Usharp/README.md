@@ -459,7 +459,7 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 |---|---|---|---|
 | `Config\workflows\agent-loop.json`（`on_success` 主路径） | `samples\agent-loop.ushar` + `UsharpRoundSpecEmitter`（`RoundSpec` 逐字段等价） | ✓ 等价已验证（U3，8 例） | Agent 侧改为消费 Usharp 产出后退役（含 `RoundSpecLoader` 回退路径保留期） |
 | `Operation\DataStoreDriven\ReferenceSchema\reference-schema.dsl.md` | Usharp 侧 `[Node]/[Edge]/[Constraint]` 声明 + `UsharpReferenceSchemaEmitter` 产出同名 JSON | ◐ 能力具备（U5），声明未迁（**U5b**） | CentralTest `ReferenceSchemaDslTests` 三处直读取值改到产出路径 + 重烘焙通过 |
-| `.clinerules` 四检（`PowerShellScript\Operation\DSL\Check-ClinerulesReferences.ps1`） | `Usharp.Cli lint`（悬空 / 废弃 / 循环 / 反向，四检单一实现） | ◐ 语言侧四检可跑（U4），clinerules 侧未迁（**U4b**） | PS 脚本改为委托 `Usharp.Cli lint`（含 `references.md` 生成通道迁移）后退役 |
+| `.clinerules` 四检（`PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1`） | `Usharp.Cli lint`（悬空 / 废弃 / 循环 / 反向，四检单一实现） | ◐ 语言侧四检可跑（U4），clinerules 侧未迁（**U4b**） | PS 脚本改为委托 `Usharp.Cli lint`（含 `references.md` 生成通道迁移）后退役 |
 | `[Matrix]` 判据读法（`DecisionGraph`） | Usharp 侧 `[Space] kind=terms` + `[Matrix]` 判据续行（`layer`/`rule`/`cross`）→ `UsharpDecisionMatrixEmitter` | ✓ 已落地（**E1/U2b**；`usharp.decision` 9 例 + 6 码闸A 反例） | 治理判据表由 `.ushar` 单源承载（JSON 规则表退役）后销账 |
 | `[Matrix]` 治理读法（`ModuleAxisMatrix`） | 待 `kind=modules` 空间词法与绑定声明面 | 暂缓（无真实消费方） | 出现真实消费方且语法面通过闸A 设计评审 |
 

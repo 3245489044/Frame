@@ -196,10 +196,10 @@ dotnet test Environment\CentralTest\AgentTest\Agent.Runtime.Tests\Agent.Runtime.
 dotnet test Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Agent.Launcher.Tests.csproj
 
 # ── 门禁 ──
-pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → EXIT 0（S4-4a 后「待迁移」= 0）
-pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10      → EXIT 0
-pwsh Frame\PowerShellScript\Operation\DSL\Check-SingleWriter.ps1                  # 单写者   → EXIT 0（告警 12 不计失败）
-pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentDataSeparation.ps1 -Check    # D1–D5 聚合 → EXIT 0（Batch 0 交付）
+pwsh Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9 → EXIT 0（S4-4a 后「待迁移」= 0）
+pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1 -Check      # K10      → EXIT 0
+pwsh Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1                  # 单写者   → EXIT 0（告警 12 不计失败）
+pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1 -Check    # D1–D5 聚合 → EXIT 0（Batch 0 交付）
 ```
 
 > 实测提示：本仓 shell 集成偶发吞输出 → 长命令统一用 `> $env:TEMP\x.log 2>&1; Get-Content $env:TEMP\x.log -Tail N` 取结果；

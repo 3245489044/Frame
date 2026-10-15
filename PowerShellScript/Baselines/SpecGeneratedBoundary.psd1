@@ -1,5 +1,5 @@
 @{
-    # ===== SpecGeneratedBoundary 门禁基线（单源；守卫 = Operation\DSL\Check-SpecGeneratedBoundary.ps1）=====
+    # ===== SpecGeneratedBoundary 门禁基线（单源；守卫 = Operation\DSL\Spec\Check-SpecGeneratedBoundary.ps1）=====
     # 语义：spec **生成面 / 手写面**分离的**结构事实**（R4 SEP）——源码树零生成物、生成物必落生成根、
     #   生成物头注释在册、源 ⇄ 产物双向、manifest 一致性（条件判据）、obj 面无第二生成物（K2 二选一）。
     # 与 SpecBoundary（R0 冻结）分工：R0 记「边界两份清单」；本件落「目录契约 + 重生成一致性」。

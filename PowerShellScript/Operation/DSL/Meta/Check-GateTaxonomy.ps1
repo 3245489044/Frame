@@ -4,8 +4,8 @@
     门禁分类守卫（GateTaxonomy）—— 把「门禁怎么分类」由文档纪律变为机器判据（清单 ⇄ 索引 ⇄ 脚本文件 三方对账）。
 
 .DESCRIPTION
-    分类轴（Domain）唯一真源 = Operation\DSL\GateManifests.psd1 每件的 Domain 字段。
-    编译产物 = Operation\DSL\index.generated.md（Build-GateIndex.ps1 生成，禁手改）。
+    分类轴（Domain）唯一真源 = Operation\DSL\Registry\GateManifests.psd1 每件的 Domain 字段。
+    编译产物 = Operation\DSL\Registry\index.generated.md（Build-GateIndex.ps1 生成，禁手改）。
 
     判据：
       T1 Domain 合法：每件登记项 Domain 非空且 ∈ 枚举（Meta/Agent/Node/Parsing/Data/Spec/Process/Usharp/Declarations/Build）。

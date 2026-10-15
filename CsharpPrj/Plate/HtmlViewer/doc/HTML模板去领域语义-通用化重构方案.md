@@ -159,7 +159,7 @@ L3 领域（Agent/Produce 侧）     ← 数据模型与投影器；**不得**�
 
 ### 3.3 命名守卫（新增门禁，见 §5）
 
-`Frame/PowerShellScript/Operation/DSL/Check-HtmlViewerVocabulary.ps1`
+`Frame/PowerShellScript/Operation/DSL/Usharp/Check-HtmlViewerVocabulary.ps1`
 
 - **输入**：`Frame/CsharpPrj/Plate/HtmlViewer/Html/**`（模板值、样式、投影器字符串常量）。
 - **判据**：负词表（§2.2）以词边界匹配出现即 **Error**；region 锚额外要求 ∈ 正词表。

@@ -1,4 +1,4 @@
-﻿# Import-Modules.ps1 - IoC 模块加载器
+# Import-Modules.ps1 - IoC 模块加载器
 # 支持两种模式：
 #   模式 A（新）：按需加载 — 脚本头部声明 @requires，加载器按需提供
 #   模式 B（旧）：全量加载 — 无 @requires 时回退到原有的全量加载逻辑
@@ -16,23 +16,23 @@
 #   . (Join-Path $PSScriptRoot "..\Modules\Import-Modules.ps1")
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
-# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
-# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
-# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
-# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # ============================================================
 # 函数→模块映射表（IoC 核心）— 编译产物
-# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # <!-- PROTO_AUTO:functionModuleMap:BEGIN -->
 # ============================================================

@@ -389,7 +389,7 @@ function Generate-ReferencesDocument {
 
 ## §2 校验器约定
 
-校验器（`PowerShellScript/DSL/Check-ClinerulesReferences.ps1`）两遍扫描：
+校验器（`PowerShellScript/DSL/Declarations/Check-ClinerulesReferences.ps1`）两遍扫描：
 
 1. **索引编译**：扫描参与库全部定义点 → 编译符号索引（权威源，即本文件 §1 快照）；
 2. **引用解析**：解析全部 `[CR]` 引用 → 对照索引执行：

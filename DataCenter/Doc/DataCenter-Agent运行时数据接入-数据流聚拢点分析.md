@@ -232,11 +232,11 @@
 
 ```powershell
 # ── 既有门禁（DP-0.x 回归；应全 EXIT 0）──
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-SingleWriter.ps1'                 # DP-0.1 / DP-0.2
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentDataSeparation.ps1' -Check   # DP-0.8
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1' -Check  # DP-0.5 / DP-0.6
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1' -Check     # DP-0.7
-& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentDecisionCoreBoundary.ps1' -Check
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1'                 # DP-0.1 / DP-0.2
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1' -Check   # DP-0.8
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1' -Check  # DP-0.5 / DP-0.6
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1' -Check     # DP-0.7
+& 'D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1' -Check
 
 # ── 散点计数（改动前基线 / 改动后回归；计数只允许下降）──
 $all = (Get-ChildItem 'D:\Project\Main\Projects\Plug\Agent\src' -Recurse -File -Filter *.cs |

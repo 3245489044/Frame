@@ -1,5 +1,5 @@
 @{
-    # ===== UsharpDocForm 门禁基线（单源；守卫 = Operation\DSL\Check-UsharpDocForm.ps1）=====
+    # ===== UsharpDocForm 门禁基线（单源；守卫 = Operation\DSL\Usharp\Check-UsharpDocForm.ps1）=====
     # 语义（V1/V2/V3-form + V9）：记录实例形态与纯三列由声明面结构事实锁定。
     Schema = 'gate-baseline-v1'
     Gate   = 'UsharpDocForm'

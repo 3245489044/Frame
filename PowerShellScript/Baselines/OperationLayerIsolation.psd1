@@ -1,5 +1,5 @@
 @{
-    # ===== OperationLayerIsolation 门禁基线（单源；守卫 = Operation\DSL\Check-OperationLayerIsolation.ps1）=====
+    # ===== OperationLayerIsolation 门禁基线（单源；守卫 = Operation\DSL\Meta\Check-OperationLayerIsolation.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'OperationLayerIsolation'
 

@@ -1,6 +1,6 @@
 # Baselines\ —— 门禁基线（纯数据）
 
-> 本目录 = 门禁的**基线/清册单源**；脚本内禁内联数值基线（守卫：`Operation\DSL\Check-GateBaselines.ps1`）。
+> 本目录 = 门禁的**基线/清册单源**；脚本内禁内联数值基线（守卫：`Operation\DSL\Meta\Check-GateBaselines.ps1`）。
 
 ## 命名与类型
 
@@ -24,7 +24,7 @@
 ## 生成物哨兵与漂移判据
 
 同目录 `_generated-artifacts.psd1` 登记「生成物 ↔ 生成器 ↔ 易变字段」。守卫
-`Operation\DSL\Check-GeneratedArtifactsDrift.ps1`：① 产物存在 ② 哨兵在位 ③ 复算到 temp 逐字比对 ⇒ 漂移即红。
+`Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1`：① 产物存在 ② 哨兵在位 ③ 复算到 temp 逐字比对 ⇒ 漂移即红。
 
 | 产物 | 生成器 | 易变字段 |
 |---|---|---|
@@ -84,11 +84,11 @@ $b = Import-GateBaseline -Name KeyGrammar
 $k2 = [int]$b.KeySlice.Value          # 事实行：Value + Origin + DueWhen
 
 # 内联基线守卫（报告模式 / 严格模式；U1–U10）
-& Frame\PowerShellScript\Operation\DSL\Check-GateBaselines.ps1
-& Frame\PowerShellScript\Operation\DSL\Check-GateBaselines.ps1 -Check -ShowDetail
+& Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1
+& Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1 -Check -ShowDetail
 
 # 生成物漂移守卫
-& Frame\PowerShellScript\Operation\DSL\Check-GeneratedArtifactsDrift.ps1 -Check
+& Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1 -Check
 ```
 
 ## 过程层治理基线（修复文档 G/H 批）
@@ -97,8 +97,8 @@ $k2 = [int]$b.KeySlice.Value          # 事实行：Value + Origin + DueWhen
 
 | 基线 | 守卫 | 语义 |
 |---|---|---|
-| `BatchScope.psd1` | `Operation\DSL\Check-BatchScope.ps1` | 批次授权单路径（单源）+ 活动批允许面模式数下限；判据载体 = 实际改动文件集（`git status`，含子模块） |
-| `VerifyProportionality.psd1` | `Operation\DSL\Check-VerifyProportionality.ps1` | 验证/改动比上限（≤ 1.5）+ 比例复算样本数下限；消费 `Get-VerifyPlan` 的工程影响面映射 |
+| `BatchScope.psd1` | `Operation\DSL\Process\Check-BatchScope.ps1` | 批次授权单路径（单源）+ 活动批允许面模式数下限；判据载体 = 实际改动文件集（`git status`，含子模块） |
+| `VerifyProportionality.psd1` | `Operation\DSL\Process\Check-VerifyProportionality.ps1` | 验证/改动比上限（≤ 1.5）+ 比例复算样本数下限；消费 `Get-VerifyPlan` 的工程影响面映射 |
 
 > 授权单本体 = `Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json`（机器可读，单一生产者）。
 

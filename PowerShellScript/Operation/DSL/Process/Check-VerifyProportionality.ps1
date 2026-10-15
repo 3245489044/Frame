@@ -97,7 +97,7 @@ $samples = @(
     @{ Id = 'A'; Kind = 'proportional'; Files = @('Projects\Plug\Agent\src\Agent.Modules\Signal\__probe__.cs') }
     @{ Id = 'B'; Kind = 'not-dropped';  Files = @('Projects\Plug\Agent\src\Agent.Contract\__probe__.cs') }
     @{ Id = 'C'; Kind = 'unmapped';     Files = @('Frame\__scope_probe__\y.txt') }
-    @{ Id = 'D'; Kind = 'framework';    Files = @('Frame\PowerShellScript\Operation\DSL\Check-BatchScope.ps1') }
+    @{ Id = 'D'; Kind = 'framework';    Files = @('Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1') }
     @{ Id = 'E'; Kind = 'data-face';   Files = @('Projects\Plug\Agent\skills\l0\__probe__\SKILL.md') }
 )
 

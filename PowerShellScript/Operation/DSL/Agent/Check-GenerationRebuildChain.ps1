@@ -14,7 +14,7 @@
 #   [C9] 换代唯一触发逻辑（AgentHotSwapPort.TriggerOrRebuildAsync：宿主门面与函数库单源）
 # 说明：本脚本只读校验（不构建/不换代）；报告模式列事实，-Check 违规 > 0 → 退出码 1。
 #
-# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Check-GenerationRebuildChain.ps1 [-Root <repo>] [-Check]
+# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1 [-Root <repo>] [-Check]
 
 [CmdletBinding()]
 param(

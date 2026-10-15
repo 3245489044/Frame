@@ -1,5 +1,5 @@
 @{
-    # ===== FuncCallSingleSource 门禁基线（单源；守卫 = Operation\DSL\Check-FuncCallSingleSource.ps1）=====
+    # ===== FuncCallSingleSource 门禁基线（单源；守卫 = Operation\DSL\Declarations\Check-FuncCallSingleSource.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'FuncCallSingleSource'
 

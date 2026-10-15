@@ -9,7 +9,7 @@
 
 ## 1. P0 基线冻结（实测，2026-09-27）
 
-### 1.1 门禁（`Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only <名>`）
+### 1.1 门禁（`Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only <名>`）
 
 | 门禁 | 结果 | 实测明细 |
 |---|---|---|
@@ -182,13 +182,13 @@ dotnet test Environment\CentralTest\AgentTest\Agent.Modules.Tests\Agent.Modules.
 dotnet test Environment\CentralTest\UsharpTests\Usharp.Emit.Tests\Usharp.Emit.Tests.csproj         # 28/28（W1 后）
 dotnet test Environment\CentralTest\UsharpTests\Usharp.Adapters.Tests\Usharp.Adapters.Tests.csproj # 27/27（W1 后）
 dotnet test Environment\CentralTest\CSharpTest\Operation.Tests\HierarchyMethod.Tests\HierarchyMethod.Tests.csproj # 146/146（W1 后）
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodeLocPlacement   # 0 违规
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodeFramework      # 0 违规
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodeKeyAddress     # 0 违规
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only AgentBuildPoint    # 0 违规
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodeLocConsistency # 0 违规（负对照 1 违规 / exit 1）
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodePortPurity     # 0 违规（负对照 1 违规 / exit 1）
-Frame\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1 -Only NodeHierarchyRefs  # 0 违规（W1 新增）
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeLocPlacement   # 0 违规
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeFramework      # 0 违规
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeKeyAddress     # 0 违规
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only AgentBuildPoint    # 0 违规
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeLocConsistency # 0 违规（负对照 1 违规 / exit 1）
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodePortPurity     # 0 违规（负对照 1 违规 / exit 1）
+Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeHierarchyRefs  # 0 违规（W1 新增）
 ```
 
 ---

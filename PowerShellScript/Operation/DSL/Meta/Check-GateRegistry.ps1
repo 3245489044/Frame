@@ -2,7 +2,7 @@
 # 门禁注册表对账（P4 · 声明门 ⇔ 已登记运行期实现）
 #
 # 声明面权威 = .clinerules/formula.md 的 [Gate] 符号集 D（解析 '^[Gate] NAME:'）。
-# 注册表 = Operation\DSL\GateRegistry.psd1 键集 R（已实现的运行期门）。
+# 注册表 = Operation\DSL\Registry\GateRegistry.psd1 键集 R（已实现的运行期门）。
 # 判据：
 #   G1 悬空实现：R 项 Impl 文件不在位 → 失败。
 #   G2 实现漂移：R 项 Impl 文件不含其符号名 → 失败。

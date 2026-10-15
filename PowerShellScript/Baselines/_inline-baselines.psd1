@@ -1,5 +1,5 @@
 @{
-    # ===== 内联数值基线清册（F-Debt/F-Derived 待迁移面；守卫 = Operation\DSL\Check-GateBaselines.ps1）=====
+    # ===== 内联数值基线清册（F-Debt/F-Derived 待迁移面；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）=====
     # 语义：**清册外**出现内联数值基线 ⇒ 违规（拦新增）；在册者按 Origin 分类逐件迁移（只减不增）。
     # 口径：Get-InlineBaselineRegex（GateBaseline.psm1 唯一定义）——匹配「名字含 Baseline 的变量 = 十进制字面量」。
     # 首次实测 = 2026-09-29（SR-1 批）。

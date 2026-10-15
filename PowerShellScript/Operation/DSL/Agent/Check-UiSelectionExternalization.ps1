@@ -15,7 +15,7 @@
 .PARAMETER NegativeControl
     负对照：向临时样本注入一处违规，断言守卫能捕获（自检用）。
 .EXAMPLE
-    pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-UiSelectionExternalization.ps1 -Check
+    pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1 -Check
 #>
 [CmdletBinding()]
 param(

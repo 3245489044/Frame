@@ -1,5 +1,5 @@
 @{
-    # ===== UsharpJoint 门禁基线（单源；守卫 = Operation\DSL\Check-UsharpJoint.ps1）=====
+    # ===== UsharpJoint 门禁基线（单源；守卫 = Operation\DSL\Usharp\Check-UsharpJoint.ps1）=====
     # 语义（J1–J4）：Usharp ↔ C# 交汇面聚拢 —— 消费侧经唯一门面 UsharpDataPorts / 唯一 JSON 出口 UsharpValueJson / 门面四语义覆盖。
     Schema = 'gate-baseline-v1'
     Gate   = 'UsharpJoint'

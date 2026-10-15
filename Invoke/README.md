@@ -14,7 +14,7 @@
 |---|---|---|
 | `search-repo` | `PowerShellScript\Share\Search\Search-Repo.ps1` | 多仓检索（git grep） |
 | `test-jsonfiles` | `PowerShellScript\Share\Validate\Test-JsonFiles.ps1` | JSON 批量校验 |
-| `invoke-gatecheck` | `PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1` | 门禁聚合（件数以 `GateManifests.psd1` 为准） |
+| `invoke-gatecheck` | `PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1` | 门禁聚合（件数以 `GateManifests.psd1` 为准） |
 | `invoke-regression` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action regression` | C# 回归一键跑 |
 | `locate-test` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action locate-test` | 诊断相位 · 零运行定位（失败测试名/caseId → 唯一工程） |
 | `locate-build` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action locate-build` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
@@ -75,7 +75,7 @@
 # 指定
 .\Invoke-GateCheck.ps1 -Only AgentBuildPoint,DataContracts
 ```
-门禁清单与**件数**的唯一来源 = `PowerShellScript\Operation\DSL\GateManifests.psd1`（禁在文档/注释里写死件数）。
+门禁清单与**件数**的唯一来源 = `PowerShellScript\Operation\DSL\Registry\GateManifests.psd1`（禁在文档/注释里写死件数）。
 每件可带 `Tier='fast'`（读产物类轻量件）与 `Path=`（Modules 侧守卫的仓库相对路径）；`Args` 须哈希表（见下文守卫）。
 
 **基线单源**：门禁基线/清册一律放 `Frame\PowerShellScript\Baselines\`（`<Gate>.psd1`，`_` 前缀 = 清册）。
@@ -114,7 +114,7 @@
 .\Invoke-Frame.ps1 -Action locate-build -Changed 'Frame\CsharpPrj\Share\X.cs','Environment\CentralTest\AgentTest\Agent.Core.Tests\A.cs'
 
 # 冻结清单 / JSON（供 Invoke-Verify 消费）
-.\Invoke-Frame.ps1 -Action locate-build -Changed 'Frame\PowerShellScript\Operation\DSL\Check-VerifySingleShot.ps1' -Json
+.\Invoke-Frame.ps1 -Action locate-build -Changed 'Frame\PowerShellScript\Operation\DSL\Process\Check-VerifySingleShot.ps1' -Json
 ```
 分类面 = 仓库相对路径前缀（结构事实）；未命中判 `Unmapped`（fail-loud，≠「全部」，禁静默全量）。禁 `dotnet build` 全量烘 / 逐工程试探（G6）。
 
@@ -155,7 +155,7 @@
 .\Invoke-Frame.ps1 -Action invoke-verify -Plan 'Environment\CentralTest\BuildOutput\Debug\verify-plan.json'
 
 # 全量面（测试矩阵 / 全部门禁 -All）⇒ 默认禁止，须持授权
-.\Invoke-Frame.ps1 -Action invoke-verify -Changed 'Frame\PowerShellScript\Operation\DSL\GateManifests.psd1' -GrantFile 'BuildOutput\Debug\verify-grant.json'
+.\Invoke-Frame.ps1 -Action invoke-verify -Changed 'Frame\PowerShellScript\Operation\DSL\Registry\GateManifests.psd1' -GrantFile 'BuildOutput\Debug\verify-grant.json'
 ```
 `Invoke-Frame.ps1 -Action invoke-verify` = `VERIFY_SINGLE_ENTRY`（`.clinerules\project.md` §1.10）；内部串 `Bake-CsharpPrj`→`Run-CSharpTests`/`Invoke-AgentRegression`→`Invoke-GateCheck`，不复制逻辑。
 拆分式 `build`/`test`/`gate` 多条调用、原生 `dotnet` 直呼 ⇒ 违反唯一命令纪律（`VerifySingleShot` 守卫 + `ANTI-MULTI-RUN-VERIFY`）。
@@ -231,10 +231,10 @@ Environment/CentralTest/  ← VE-2（薄转发到 Run-CSharpTests）
 
 ## 守卫
 
-`InvokeEntrypoints` 门禁（`Operation\DSL\Check-InvokeEntrypoints.ps1`）把下列约束变成机器判据，防同类回归：
+`InvokeEntrypoints` 门禁（`Operation\DSL\Process\Check-InvokeEntrypoints.ps1`）把下列约束变成机器判据，防同类回归：
 ① 入口不得出现数组 splatting 传开关；② `GateManifests.psd1` 每件 `Args` 须为哈希表；③ 每入口含 `try` + `catch` + 确定 `exit`；④ 全 DSL 目录 `Check-*.ps1` 不得含硬编码绝对路径；⑤ `entries.psd1` 中 `Kind='Ps'` 的分发目标存在（正/负对照防假绿）。
 
-`VerifySingleShot` 门禁（`Operation\DSL\Check-VerifySingleShot.ps1`）把「回归/验证只经 `Frame\Invoke` 单入口」变成机器判据（G8）：
+`VerifySingleShot` 门禁（`Operation\DSL\Process\Check-VerifySingleShot.ps1`）把「回归/验证只经 `Frame\Invoke` 单入口」变成机器判据（G8）：
 ① `Frame\Invoke\*.ps1` 禁原生 `dotnet test/build`；② `VERIFY_SINGLE_ENTRY` 接线不漂移（`axioms.md` 声明 ∧ 指向已存在入口 ∧ `project.md` §1.10 登记）；③ 正/负对照防判据空转。
 边界：本守卫只扫**文件面**，拦不住 agent 运行期直呼 `dotnet` —— 运行面由 `project.md` §1.10 相位白名单 + 回复内 `[批次声明]` 自审承担。
 
@@ -244,8 +244,8 @@ Environment/CentralTest/  ← VE-2（薄转发到 Run-CSharpTests）
 
 | 守卫 | 门禁 | 判据 |
 |---|---|---|
-| `Operation\DSL\Check-BatchScope.ps1` | `BatchScope` | 实际改动文件集（`git status`，含子模块）⊆ 活动批 `allowSet` ∪ 派生 ∪ 既有；`denySet` 面禁改；正/负对照。授权单 = `Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json`（路径单源 = `Baselines\BatchScope.psd1`）；缺件 ⇒ 灰度 warn |
-| `Operation\DSL\Check-VerifyProportionality.ps1` | `VerifyProportionality` | 产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；消费 `Locate-Build`（`Get-VerifyPlan`）的工程影响面映射 |
+| `Operation\DSL\Process\Check-BatchScope.ps1` | `BatchScope` | 实际改动文件集（`git status`，含子模块）⊆ 活动批 `allowSet` ∪ 派生 ∪ 既有；`denySet` 面禁改；正/负对照。授权单 = `Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json`（路径单源 = `Baselines\BatchScope.psd1`）；缺件 ⇒ 灰度 warn |
+| `Operation\DSL\Process\Check-VerifyProportionality.ps1` | `VerifyProportionality` | 产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；消费 `Locate-Build`（`Get-VerifyPlan`）的工程影响面映射 |
 
 > 二者把 `[批次声明]` 从「自述」升级为「对结构核验」；基线单源见 `Frame\PowerShellScript\Baselines\`。
 

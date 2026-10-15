@@ -18,7 +18,7 @@
 #   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
 #   - 校验模式（-Check）：违规 > 0 → 退出码 1（CI 门禁）。无代（就地态）不违规。
 #
-# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
+# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
 
 [CmdletBinding()]
 param(

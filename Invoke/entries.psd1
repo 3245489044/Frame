@@ -33,7 +33,7 @@
         # ---------- 门禁 ----------
         'invoke-gatecheck' = @{
             Kind = 'Ps'
-            Target = '..\PowerShellScript\Operation\DSL\Invoke-GateCheck.ps1'
+            Target = '..\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1'
             Map = @{ All = 'All'; Only = 'Only'; Manifest = 'Manifest'; Tier = 'Tier' }
         }
 

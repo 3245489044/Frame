@@ -292,7 +292,7 @@ public sealed class DecisionCenter(IStateCenter center) { void Record(...); Deci
 
 | 步骤 | 落地 | 证据 |
 |---|---|---|
-| B0.1 | 新增门禁 `Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1`（`-Check` 非零退出；`-Words`/`-Whitelist` 可配；扫描面 = Core 源码 + Core csproj + schemas） | 改造前 145 命中 → 改造后 **0** |
+| B0.1 | 新增门禁 `Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1`（`-Check` 非零退出；`-Words`/`-Whitelist` 可配；扫描面 = Core 源码 + Core csproj + schemas） | 改造前 145 命中 → 改造后 **0** |
 | B0.2 | 基线证据：`DataCenter.slnx` 0 错；`StateHoldDriven.Tests` 73/73 | 改造前实测 |
 | G1.1 | 新建 `Frame\DataCenter\DataCenter.Extensions.LoopDecision\`（ModuleRule Layer 3；引 Core + TaskStatusPool），`Decision\*` 4 文件整体外移（命名空间 `Operation.StateBlock.Decision` 保留 → 消费方源码零改动）；注册进 `DataCenter.slnx` + 聚合 `DataCenter.csproj` | 编译 0 错；`DataCenter.Core.dll` 30720→19968 字节且**不再含** `LoopStateStore` 符号（findstr 证）；扩展 dll 含之 |
 | G1.1a | **消费方二进制接线（两处，勘误补步）**：① `Environment\CentralTest\CSharpTest\Operation.Tests\StateHoldDriven.Tests\StateHoldDriven.Tests.csproj` 增 `DataCenter.Core`/`DataCenter.Extensions.LoopDecision` 两条 `<Reference HintPath>`（CentralTest 通配清单只扫 CsharpPrj 烘焙目录，Frame 平台库产物需显式接线）；② `Projects\Plug\Agent\Directory.Build.props` 的 `DataCenterBinaryRefs` 清单增扩展 dll | 测试输出目录含两 dll；`Agent.sln`/`PrjBridge` 恢复绿 |

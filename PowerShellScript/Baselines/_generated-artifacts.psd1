@@ -1,5 +1,5 @@
 @{
-    # ===== 生成物 → 生成器 登记表（守卫 = Operation\DSL\Check-GeneratedArtifactsDrift.ps1）=====
+    # ===== 生成物 → 生成器 登记表（守卫 = Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1）=====
     # 语义：产物唯一手写源 = 生成器的输入；产物本体禁止手工编辑。
     #   守卫三段：① 产物存在 ② 哨兵在位（手改即失守） ③ 复算到 temp 逐字比对 ⇒ 漂移即红。
     # 未登记者不检；新增生成物必须在此登记（否则为无人看守产物）。

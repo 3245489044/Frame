@@ -39,7 +39,7 @@ Write-Host "============================================================" -Foreg
 Write-Host "  框架激活守卫（图引擎装配点 ≥ 基线）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-# 基线单源 = Baselines\FrameworkActivation.psd1（禁内联数值基线；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\FrameworkActivation.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name FrameworkActivation
 $expected = [int]$baseline.GraphEngineAssemblies.Value

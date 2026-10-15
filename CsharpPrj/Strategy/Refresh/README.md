@@ -75,7 +75,7 @@ public interface IRefreshRenderer
 4. 框架内**零 HTML / 零 Plate 类型**（不得 `using Plate.*` / `UiBackend.*`）。
 5. 空闲**零推送**；未送达**必置回重试**（at-least-once，不静默失刷）。
 
-守卫：`Frame\PowerShellScript\Operation\DSL\Check-RefreshFrameworkBoundary.ps1`（正/负对照）。
+守卫：`Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1`（正/负对照）。
 
 ---
 

@@ -82,7 +82,7 @@ try {
 finally { Pop-Location }
 
 # ---------- 3) 重编译 references 索引 ----------
-$validator = Join-Path $Root 'PowerShellScript/DSL/Check-ClinerulesReferences.ps1'
+$validator = Join-Path $Root 'PowerShellScript/DSL/Declarations/Check-ClinerulesReferences.ps1'
 if (Test-Path $validator) {
     Write-Host "[3/3] 重编译 references 索引 ..." -ForegroundColor Cyan
     & $validator -RulesRoot (Join-Path $Root '.clinerules') -UpdateIndex

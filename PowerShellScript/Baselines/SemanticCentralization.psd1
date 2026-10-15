@@ -1,10 +1,10 @@
 @{
-    # ===== 语义集中门禁基线（纯数据单源；守卫 = Operation\DSL\Check-SemanticCentralization.ps1）=====
+    # ===== 语义集中门禁基线（纯数据单源；守卫 = Operation\DSL\Meta\Check-SemanticCentralization.ps1）=====
     # 防止边类型词汇退回各域自实现（B1 收口后唯一字面量源 = 框架 ReferenceEdgeTypes）。
     # 2026-09-30 B1 收口：DataStoreDriven ReferenceTypes 降为别名门面。
     Schema = 'gate-baseline-v1'
     Gate   = 'SemanticCentralization'
-    Source = 'Frame\PowerShellScript\Operation\DSL\Check-SemanticCentralization.ps1'
+    Source = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1'
 
     # 零依赖层豁免白名单（零项目引用纯逻辑框架，本地字面量按层内自治常量保留；
     #   与 Check-ReferenceVocabulary 豁免口径一致）。

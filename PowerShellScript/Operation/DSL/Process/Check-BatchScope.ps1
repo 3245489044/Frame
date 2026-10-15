@@ -201,7 +201,7 @@ foreach ($f in $denied)     { $violations.Add("[B2] 禁改面改动（denySet）
 
 # ---------------- 5) 正/负对照（防假绿：匹配器自证 + 授权面下限） ----------------
 $posGlob = 'Frame/PowerShellScript/**'
-$posPath = 'Frame/PowerShellScript/Operation/DSL/Check-BatchScope.ps1'
+$posPath = 'Frame/PowerShellScript/Operation/DSL/Process/Check-BatchScope.ps1'
 if (-not (Test-GlobMatch -Path $posPath -Globs @($posGlob))) {
     $violations.Add('[B3] 正对照失效：匹配器未把入面样本判为命中（glob 被改坏）')
 }

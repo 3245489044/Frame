@@ -1,5 +1,5 @@
 @{
-    # ===== 初始化护栏门禁基线（纯数据单源；守卫 = Operation\DSL\Check-InitGuards.ps1）=====
+    # ===== 初始化护栏门禁基线（纯数据单源；守卫 = Operation\DSL\Declarations\Check-InitGuards.ps1）=====
     # 语义：把散落的空值护栏（`throw new ArgumentNullException` / `ArgumentNullException.ThrowIfNull`）
     #   收敛为统一门面 `PortGuard.Required`（T 出口）。两条旧形只减不增，门面用量只增不减。
     # 首测 = 2026-10-04（P1 试点批：Share.TaskStatusPool.Extensions.MorphismExtensions 10 处收编）。
@@ -14,7 +14,7 @@
     # 2026-10-04 P1-a Share-3（Foundations：StateManagement/FrameworkAbstractions/TreeTraceFramework/ConfigurationModels/ScopeFramework 81 处收编；19 处泛型值类型/?.形式保留）：G1 1737→1692、G2 824→788、G3 383→464。
     Schema  = 'gate-baseline-v1'
     Gate    = 'InitGuards'
-    Source  = 'Frame\PowerShellScript\Operation\DSL\Check-InitGuards.ps1'
+    Source  = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1'
 
     # `throw new ArgumentNullException(...)` 计数上限（只减不增）。
     ArgumentNullExceptionThrow = @{

@@ -1,5 +1,5 @@
 @{
-    # ===== SpecBoundary 门禁基线（单源；守卫 = Operation\DSL\Check-SpecBoundary.ps1）=====
+    # ===== SpecBoundary 门禁基线（单源；守卫 = Operation\DSL\Spec\Check-SpecBoundary.ps1）=====
     # 语义：spec 生成面 / 手写面的**边界结构事实**（R0 边界冻结）。
     #   手写真源（*.specs / projects.specs / 端口声明）落源码树；机器产物（.spec.json / 壳类 / 常量表）
     #   落生成根（BuildOutput\<Cfg>\SpecGen\，被 .gitignore 的 BuildOutput/ 覆盖）。

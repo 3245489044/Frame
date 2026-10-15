@@ -239,7 +239,7 @@
 
 ```powershell
 # ① 框架内零领域 / 零上层依赖（正负对照）
-pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-RefreshFrameworkBoundary.ps1 -Check -NegativeControl
+pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1 -Check -NegativeControl
 
 # ② 门禁聚合器单跑（注册于 GateManifests.psd1）
 pwsh D:\Project\Main\Frame\Invoke\Invoke-Frame.ps1 -Action invoke-gatecheck -Only RefreshFrameworkBoundary
@@ -260,7 +260,7 @@ cd D:\Project\Main\Projects; git --no-pager grep -n 'new Fnv1aFingerprint' -- ':
 
 # ⑦ INV-4/INV-5/INV-7 基线（R0 前置；唯一入口 = Invoke-Frame.ps1 分发器，-Matrix 为必填）
 pwsh D:\Project\Main\Frame\Invoke\Invoke-Frame.ps1 -Action invoke-regression -Matrix default -Project 'Agent\.Ui\.Tests\.csproj$'
-pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check
+pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1 -Check
 
 # ⑧ P2 唯一验证入口（build+test+gate 一次）
 pwsh D:\Project\Main\Frame\Invoke\Invoke-Frame.ps1 -Action invoke-verify -Changed <files>

@@ -170,7 +170,7 @@
 | 8 | `Agent.Ui/Ui/Views/ConversationRefreshRenderer.cs` | 刷新拍选择态优先置位 |
 | 9 | `Agent.Ui/Ui/Views/ConversationPageRenderer.cs` | `PollAttributes("*", null, null)`（退役 ctx 反查） |
 | 10 | `Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs` | 6 处 handler 选中即置受控历史 |
-| 11 | `Frame/PowerShellScript/Operation/DSL/Check-UiSelectionExternalization.ps1` **（新）** | 门禁 C1–C5 + 负对照 |
+| 11 | `Frame/PowerShellScript/Operation/DSL/Agent/Check-UiSelectionExternalization.ps1` **（新）** | 门禁 C1–C5 + 负对照 |
 
 ### 7.2 验证证据
 
@@ -179,7 +179,7 @@
 | 契约层编译 | `dotnet build Frame/CsharpPrj/Plate/HtmlViewer/HtmlViewer.csproj -c Debug` | **0 警 0 错** |
 | 框架层编译 | `dotnet build Frame/CsharpPrj/Strategy/Refresh/Refresh.csproj -c Debug` | **0 警 0 错** |
 | 领域层编译 | `dotnet build Projects/Plug/Agent/src/Agent.Ui/Agent.Ui.csproj -c Debug` | **0 错**（7 既有 nullability 警告） |
-| 门禁（正） | `pwsh Frame/PowerShellScript/Operation/DSL/Check-UiSelectionExternalization.ps1 -Check` | C1–C5 **全 PASS** |
+| 门禁（正） | `pwsh Frame/PowerShellScript/Operation/DSL/Agent/Check-UiSelectionExternalization.ps1 -Check` | C1–C5 **全 PASS** |
 | 门禁（负） | 同上 `-NegativeControl` | **PASS**（判据可区分正/负样本） |
 
 ---
@@ -216,8 +216,8 @@
 
 ```powershell
 # ① 选择态外置守卫（正/负对照）
-pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-UiSelectionExternalization.ps1 -Check
-pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-UiSelectionExternalization.ps1 -NegativeControl
+pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1 -Check
+pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1 -NegativeControl
 
 # ② 契约/框架/领域 三层编译
 dotnet build D:\Project\Main\Frame\CsharpPrj\Plate\HtmlViewer\HtmlViewer.csproj -c Debug
@@ -229,7 +229,7 @@ cd D:\Project\Main; git --no-pager grep -n 'data-poll-ctx' -- 'Projects/Plug/Age
 cd D:\Project\Main; git --no-pager grep -n 'PollAttributes(' -- 'Projects/Plug/Agent/src' ':!*BuildOutput*'
 
 # ④ 刷新框架红线（框架内零领域）
-pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Check-RefreshFrameworkBoundary.ps1 -Check -NegativeControl
+pwsh D:\Project\Main\Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1 -Check -NegativeControl
 
 # ⑤ 契约漂移对拍
 dotnet test D:\Project\Main\Environment\CentralTest\CSharpTest\Share.Tsets\RefreshFramework.Tests\RefreshFramework.Tests.csproj

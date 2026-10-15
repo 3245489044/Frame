@@ -31,9 +31,9 @@
     仅预览生成结果，不写盘
 
 .EXAMPLE
-    .\DSL\Build-ModuleIndex.ps1
+    .\DSL\Tooling\Build-ModuleIndex.ps1
 .EXAMPLE
-    .\DSL\Build-ModuleIndex.ps1 -WhatIf
+    .\DSL\Tooling\Build-ModuleIndex.ps1 -WhatIf
 #>
 [CmdletBinding()]
 param(
@@ -249,7 +249,7 @@ foreach ($fn2 in ($buildMap.Keys | Sort-Object)) {
 $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("# ============================================================")
 [void]$sb.AppendLine("# 函数→模块映射表（IoC 核心）— 编译产物")
-[void]$sb.AppendLine("# 由 DSL\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改")
+[void]$sb.AppendLine("# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改")
 [void]$sb.AppendLine("# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1")
 [void]$sb.AppendLine("# <!-- PROTO_AUTO:functionModuleMap:BEGIN -->")
 [void]$sb.AppendLine("# ============================================================")

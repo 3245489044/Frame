@@ -1,5 +1,5 @@
 @{
-    # ===== SpecToolingContract 门禁基线（单源；守卫 = Operation\DSL\Check-SpecToolingContract.ps1）=====
+    # ===== SpecToolingContract 门禁基线（单源；守卫 = Operation\DSL\Spec\Check-SpecToolingContract.ps1）=====
     # 语义：AgentTest 规格工具链（Tools\**\*.ps1）的**结构事实下限**（可发现性 + 确定性退出 + 无深度计数）。
     # 每条事实必带 Origin/DueWhen（四分事实见 Baselines\README.md）。
     Schema = 'gate-baseline-v1'

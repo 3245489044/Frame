@@ -47,7 +47,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name KeyGrammar
 

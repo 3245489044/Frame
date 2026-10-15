@@ -1,5 +1,5 @@
 @{
-    # ===== UsharpGetParity 门禁基线（单源；守卫 = Operation\DSL\Check-UsharpGetParity.ps1）=====
+    # ===== UsharpGetParity 门禁基线（单源；守卫 = Operation\DSL\Usharp\Check-UsharpGetParity.ps1）=====
     # 语义（V4/V5/V6-form）：usharp_get 注册单点 + 下推表达式同源 + 单语句 CAS。
     Schema = 'gate-baseline-v1'
     Gate   = 'UsharpGetParity'

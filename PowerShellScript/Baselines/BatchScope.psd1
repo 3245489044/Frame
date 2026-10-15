@@ -1,5 +1,5 @@
 @{
-    # ===== BatchScope 门禁基线（单源；守卫 = Operation\DSL\Check-BatchScope.ps1）=====
+    # ===== BatchScope 门禁基线（单源；守卫 = Operation\DSL\Process\Check-BatchScope.ps1）=====
     # 语义（过程层缺陷 P1/P2/P6）：批次授权单是「本批允许改哪些文件」的唯一生产者；
     #   过程判据载体 = 实际改动文件集（git status，含子模块 Frame/Projects），与代码门禁同一公理
     #   （SEP.JudgmentCarrierStructural：判据载体 = 结构事实，非执行者叙述）。
@@ -132,7 +132,7 @@
     # v25（2026-10-11）：沿用同一授权单，把 F1–F3（后续修复批：电路门禁路径漂移 / Agent.Core 装配相位归位 /
     #   Cline payload 测试路径漂移）加入 active（并保留 H2–H6 在途面，避免误判其未跟踪交付物为越界）。
     #   切换理由 = 用户转入实施《2026-10-11-函数流动图-后续修复清单-施工单.md》；改动落在
-    #   Frame/PowerShellScript/Operation/DSL/Check-CircuitSemantics.ps1 · Projects/Plug/Agent/src/Agent.Core/{Nodes/Loading,Properties}
+    #   Frame/PowerShellScript/Operation/DSL/Agent/Check-CircuitSemantics.ps1 · Projects/Plug/Agent/src/Agent.Core/{Nodes/Loading,Properties}
     #   · Projects/Plug/Agent/src/Agent.Launcher/Composition/Root/AgentComposition.cs
     #   · Environment/CentralTest/AgentTest/Agent.Core.Tests/ClinePayloadKeysTests.cs，均在 F1–F3 allowSet 内。
     #   恢复 = 回填 v24 的 active 值并移除 F1–F3 批条目。
@@ -184,7 +184,7 @@
     #   （Agent 产物加载面 SSOT 与换代链闭合：V1 生效代指针 / V2 装载面新鲜度可见化 /
     #   V3 根换代接线 / V4c 桥接根换代）。切换理由 = 用户转入实施《Agent 产物总是加载旧的 —
     #   框架层彻底修复》：改动落在 Frame/CsharpPrj/Modules/Registry/**（ExtensionGenerationLayout 生效代指针）·
-    #   Frame/PowerShellScript/Operation/DSL/Check-GenerationLayout.ps1（L5 指针判据）·
+    #   Frame/PowerShellScript/Operation/DSL/Agent/Check-GenerationLayout.ps1（L5 指针判据）·
     #   Projects/BuildFramework/**（Build-AgentGeneration 写指针）· Projects/FileDriven/**（装载面/桥/端口）·
     #   Projects/PrjBridge/**（插件根换代入口）· Projects/Plug/Agent/src/**（根引导接线），
     #   均在 GEN-SSOT allowSet 内；RB 批条目与其 preexisting 保留不变。

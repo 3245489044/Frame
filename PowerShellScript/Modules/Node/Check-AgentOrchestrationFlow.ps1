@@ -101,7 +101,7 @@ $FnExemptNames = @('initialize', 'load', 'process', 'save', 'complete')
 # RuntimeGovernance.ushar 为「非骨架声明面」（只声明词表/端口契约/矩阵，不产 RoundSpec 骨架；ERR-4B 补登记）
 $ValidatorExemptFiles = @('session-lifecycle.ushar', 'stateless-answer.ushar', 'RuntimeGovernance.ushar')
 
-# 基线单源 = Baselines\AgentOrchestrationFlow.psd1（禁内联数值基线；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\AgentOrchestrationFlow.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name AgentOrchestrationFlow
 # 声明面基线（防声明被删而门禁恒绿）；O-5 静默降级基线（只减不增）

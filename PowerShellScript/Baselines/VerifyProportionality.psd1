@@ -1,5 +1,5 @@
 @{
-    # ===== VerifyProportionality 门禁基线（单源；守卫 = Operation\DSL\Check-VerifyProportionality.ps1）=====
+    # ===== VerifyProportionality 门禁基线（单源；守卫 = Operation\DSL\Process\Check-VerifyProportionality.ps1）=====
     # 语义（过程层缺陷 P4）：验证面须 = 受影响工程/符号面（成比例），非「改 1 工程跑全矩阵」。
     #   度量 = 验证触及工程数 ÷ 改动涉及工程数（对齐修复文档 §3.2 「验证/改动比 ≤ 1.5」）。
     # 每条事实必带 Origin/DueWhen（四分事实见 Baselines\README.md）。

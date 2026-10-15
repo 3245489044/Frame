@@ -42,7 +42,7 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
-# 基线单源 = Baselines\AgentFrameworkSingleSource.psd1（禁内联数值基线；禁第二基线根；守卫 = Operation\DSL\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\AgentFrameworkSingleSource.psd1（禁内联数值基线；禁第二基线根；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $b = Import-GateBaseline -Name AgentFrameworkSingleSource
 # 事实行解包（U9：每键须为 @{Value;Origin;DueWhen}）⇒ 脚本内零裸基线值

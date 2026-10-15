@@ -139,8 +139,8 @@ dotnet test Environment\CentralTest\AgentTest\Agent.Core.Tests\Agent.Core.Tests.
 dotnet test Environment\CentralTest\AgentTest\Agent.Axioms.Tests\Agent.Axioms.Tests.csproj
 dotnet test Environment\CentralTest\AgentTest\Agent.Runtime.Tests\Agent.Runtime.Tests.csproj
 dotnet test Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Agent.Launcher.Tests.csproj
-pwsh Frame\PowerShellScript\Operation\DSL\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9
-pwsh Frame\PowerShellScript\Operation\DSL\Check-AgentRuntimeSlots.ps1 -Check      # K10
+pwsh Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1 -Check   # G1/G2/K9
+pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1 -Check      # K10
 ```
 
 

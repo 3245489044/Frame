@@ -10,6 +10,10 @@ namespace Strategy.Refresh.Core
     /// </summary>
     public sealed class Fnv1aFingerprint : IFingerprint
     {
+        /// <summary>指纹单源实例（无状态、进程内可安全共享）——全库**唯一** `new` 处；
+        /// 领域与写落地一律引用本实例，消除多处独立实现/实例。</summary>
+        public static readonly IFingerprint Default = new Fnv1aFingerprint();
+
         private const ulong OffsetBasis = 14695981039346656037UL;
         private const ulong Prime = 1099511628211UL;
 

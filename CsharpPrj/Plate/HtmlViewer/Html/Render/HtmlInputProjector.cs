@@ -14,7 +14,7 @@ namespace UiBackend.Html;
 /// </para>
 /// 纯模板投影、零领域类型依赖（不感知视图枚举 / 业务模型）。
 /// </summary>
-public static class HtmlComposerProjector
+public static class HtmlInputProjector
 {
     /// <summary>composer 模板名（JSON templates 键）。</summary>
     public const string TemplateName = "composer";

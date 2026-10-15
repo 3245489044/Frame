@@ -9,6 +9,8 @@ namespace Strategy.Refresh.Ports
     /// 兜底轮询刷新源（L1 通用实现，**低优先级生产者**）——按固定周期上报"全量变化"，
     /// 使页面侧原有的自主兜底轮询收编为**受调度器管辖**的低优先级源（不得抢占事件驱动的高优先级推送）。
     /// <para>零领域类型；定时器工厂可注入（测试/宿主替身）。</para>
+    /// <para><b>【预留】</b>预定消费方：兜底轮询单路收敛（后续施工单 G-5）时替代
+    /// <c>RefreshScheduler.EnableIdlePolling</c>，使兜底生产者以端口形态登记。</para>
     /// </summary>
     public sealed class PollingRefreshSource : IRefreshSource, IDisposable
     {

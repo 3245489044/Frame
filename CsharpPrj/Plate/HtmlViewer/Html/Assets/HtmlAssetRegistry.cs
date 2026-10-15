@@ -1,6 +1,9 @@
 #nullable enable
 
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace UiBackend.Html;
 
@@ -9,7 +12,7 @@ namespace UiBackend.Html;
 /// 静态方法供静态渲染器（HtmlDocumentRenderer / HtmlLayoutProjector / HtmlControlFactory）直接取用；
 /// 实例实现 <see cref="IHtmlAssetProvider"/> 供执行层 / 生命周期层注入（IoC 可替换为外部源）。
 /// </summary>
-public sealed class HtmlAssetRegistry : IHtmlAssetProvider
+public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
 {
     /// <summary>默认单例（组合根未显式装配时的兜底）。</summary>
     public static IHtmlAssetProvider Default { get; } = new HtmlAssetRegistry();
@@ -48,6 +51,29 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
     string IHtmlAssetProvider.GetStyle(string key) => GetStyle(key);
     string IHtmlAssetProvider.GetTemplate(string key) => GetTemplate(key);
 
+    /// <summary>外部注册的样式模块覆盖（域可注入/覆盖同名通用模块，无需新建配置文件）。</summary>
+    private static readonly ConcurrentDictionary<string, string> StyleModuleOverrides =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>注册/覆盖样式模块（幂等：覆盖式）。<paramref name="name"/> 取通用模块名（tokens/block/shell/tree/switch/grouped/state/attach/data）。</summary>
+    public static void RegisterStyleModule(string name, string css)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        StyleModuleOverrides[name] = css ?? string.Empty;
+    }
+
+    /// <summary>取样式模块：外部覆盖优先，否则内置默认；未知名返回空串。</summary>
+    public static string GetStyleModule(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        if (StyleModuleOverrides.TryGetValue(name, out var overridden)) return overridden;
+        return CssModules.TryGetValue(name, out var builtin) ? builtin : string.Empty;
+    }
+
+    /// <summary>通用组件生效样式 = 通用模块按固定序拼接（顺序固定 ⇒ 级联稳定；模块可被域覆盖）。</summary>
+    internal static string FrameworkComponentCss =>
+        string.Join("\n", FrameworkComponentCssOrder.Select(GetStyleModule));
+
     /// <summary>点击桥脚本（写原语=键控对齐；reconcile 不可用 → STATE_NOT_READY）：定义 <c>window.__domBridge</c>
     /// （受控 DOM 操作 handle：set/get/click/bounds/event/reconcile/patch）+ 点击桥（<c>[data-cmd]</c> → postMessage）；
     /// patch/reconcile 委托键控对齐引擎 <c>window.__uiReconcile</c>（未注入 → <c>STATE_NOT_READY</c>，可见化不静默）。
@@ -83,7 +109,7 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "var cmd=t.getAttribute('data-cmd');"
         + "if(!cmd)return;"
         + "if(cmd==='selectHistory'){"
-        + "var r=t.closest('.round')||t.closest('[data-round]');"
+        + "var r=t.closest('.section')||t.closest('[data-round]');"
         + "if(r){r.scrollIntoView({behavior:'smooth',block:'start'});}"
         + "e.preventDefault();return;}"
         + "if(cmd.indexOf('event:')===0){"
@@ -317,49 +343,49 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
             color: var(--fg); background: var(--bg);
             word-wrap: break-word;
         }
-        /* ── 气泡式对话 ── */
-        .msg { display: flex; flex-direction: column; margin: 10px 0; }
-        .msg.user { align-items: flex-end; }
-        .msg.agent { align-items: flex-start; }
-        .badge {
+        /* ── 块式对话 ── */
+        .block { display: flex; flex-direction: column; margin: 10px 0; }
+        .block.user { align-items: flex-end; }
+        .block.assistant { align-items: flex-start; }
+        .block-badge {
             font-size: 12px; color: var(--muted);
             margin: 0 6px 3px; letter-spacing: .02em;
         }
-        .bubble {
+        .block-body {
             max-width: 86%; padding: 8px 12px;
             border-radius: 10px;
             white-space: pre-wrap; word-break: break-word;
         }
-        .msg.user .bubble {
+        .block.user .block-body {
             background: var(--user-bg); color: var(--user-fg);
             border-top-right-radius: 2px;
         }
-        .msg.agent .bubble {
+        .block.assistant .block-body {
             background: var(--agent-bg); color: var(--agent-fg);
             border-top-left-radius: 2px;
         }
         .empty { color: var(--muted); text-align: center; margin-top: 24px; }
         /* ── 层次化对话 ── */
-        .round { margin: 4px 0 14px; }
-        .round-header {
+        .section { margin: 4px 0 14px; }
+        .section-header {
             font-size: 12px; color: var(--muted);
             margin: 8px 0 4px; padding-bottom: 3px;
             letter-spacing: .04em; cursor: pointer; user-select: none;
             border-bottom: 1px solid var(--border);
         }
-        .round-header:hover { color: var(--fg); }
-        .msg.tool .tool-layer { margin: 0 6px; }
-        .tool-summary { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
-        .tool-summary::before { content: "▸ "; }
-        details.tool-layer[open] > .tool-summary::before { content: "▾ "; }
-        .msg.error .bubble { background: #fbe3e3; color: #7a1f1f; }
-        .msg.system { align-items: center; }
-        .msg.system .bubble {
+        .section-header:hover { color: var(--fg); }
+        .block.nested .fold-layer { margin: 0 6px; }
+        .fold-summary { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+        .fold-summary::before { content: "▸ "; }
+        details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
+        .block.error .block-body { background: #fbe3e3; color: #7a1f1f; }
+        .block.system { align-items: center; }
+        .block.system .block-body {
             background: transparent; color: var(--muted);
             border: 1px dashed var(--border); font-size: 13px;
         }
         /* ── 域外扩展位 ──
-           交互式会话页（task 侧栏 / history 两级树 / status-dot / composer 等）属应用域样式，
+           交互式会话页（task 侧栏 / history 两级树 / dot / composer 等）属应用域样式，
            不属 plate 纯渲染基础：由应用侧经 JSON templates.theme 以「基础 + 差异」方式叠加
            （装配点 HtmlBridgeAssembly.AttachTemplatesAndTheme 会把本基础主题与应用主题合并），
            避免「框架 DefaultCss ↔ 应用 theme」两份逐字复制漂移。 */

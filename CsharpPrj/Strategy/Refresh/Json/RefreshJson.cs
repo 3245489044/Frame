@@ -7,6 +7,8 @@ namespace Strategy.Refresh.Json
     /// <summary>
     /// 刷新 JSON 门面（L1）：把注册面 / 运行态投影为**稳定 JSON**（工具面 / 诊断消费）。
     /// <para>错误一律收敛为 <c>{"status":"error","message":...,"sources":[...]}</c> 信封，不抛出到调用方。</para>
+    /// <para><b>【预留】</b>预定消费方：工具面 / 诊断查询（经 <c>Invoke-Frame</c> 类入口传入 <c>RefreshService</c>）。
+    /// 当前尚无调用方；启用前不得视为「已接入」。</para>
     /// </summary>
     public static class RefreshJson
     {

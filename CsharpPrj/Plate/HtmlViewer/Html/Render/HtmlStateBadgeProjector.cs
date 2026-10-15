@@ -10,13 +10,13 @@ namespace UiBackend.Html;
 /// 装填为列表项模板的行模型字段（<c>available/stage/statusClass/status/actor/isActive/round/elapsed/origin</c>），
 /// 供 <c>taskItem</c> 之类模板绑定状态徽章。
 /// <para>
-/// <b>零领域类型依赖</b>：输入是中性 <see cref="RunStateFields"/>（任何层级实体均可映射），
+/// <b>零领域类型依赖</b>：输入是中性 <see cref="StateFields"/>（任何层级实体均可映射），
 /// 阶段→样式类映射表可按受控词表注入（缺省用 <see cref="DefaultStageClasses"/>）；
-/// 领域侧只做「领域模型 → 中性字段」的薄适配（如 <c>LevelRunState → RunStateFields</c>）。
+/// 领域侧只做「领域模型 → 中性字段」的薄适配（如 <c>LevelRunState → StateFields</c>）。
 /// </para>
 /// 无阶段 / 阶段为空 → 全清空（模板判空 <c>{?available}</c> 隐藏徽章，零回归）。
 /// </summary>
-public static class HtmlRunStateBadgeProjector
+public static class HtmlStateBadgeProjector
 {
     /// <summary>中性运行态字段（与领域模型解耦）。</summary>
     /// <param name="Stage">受控阶段（空 = 无运行态）。</param>
@@ -26,7 +26,7 @@ public static class HtmlRunStateBadgeProjector
     /// <param name="Round">当前轮次（null/≤0 = 无轮次徽章）。</param>
     /// <param name="ElapsedMs">已运行毫秒（null/≤0 = 无时长徽章）。</param>
     /// <param name="Origin">事实来源显示文本（如派生 / 快照 / 实时）。</param>
-    public sealed record RunStateFields(
+    public sealed record StateFields(
         string? Stage,
         string? StatusText = null,
         string? ActorLabel = null,
@@ -55,7 +55,7 @@ public static class HtmlRunStateBadgeProjector
     /// <param name="stageClasses">阶段→样式类映射表；null = 用 <see cref="DefaultStageClasses"/>。</param>
     public static void Apply(
         IDictionary<string, object?> row,
-        RunStateFields? state,
+        StateFields? state,
         IReadOnlyDictionary<string, string>? stageClasses = null)
     {
         if (state is not null && !string.IsNullOrWhiteSpace(state.Stage))

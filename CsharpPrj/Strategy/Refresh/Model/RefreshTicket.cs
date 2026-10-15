@@ -6,6 +6,8 @@ namespace Strategy.Refresh.Model
     /// 单调版本凭证（L0 契约）：一次写作请求携带的 slot 目标 + 版本 + 追踪号。
     /// <para><see cref="Version"/> 由单一状态源 <see cref="IRefreshStore.NextVersion"/> 单调分配；
     /// <see cref="TraceId"/> 可为 null（如页面兜底轮询无 trace），但版本必须单调，否则无法判过期。</para>
+    /// <para><b>【预留】</b>预定消费方：<c>Core/RefreshArbiter</c>（写落地仲裁）——待 <c>IRefreshSink</c>
+    /// 接入后经 <c>RefreshService.CommitAsync</c> 激活。</para>
     /// </summary>
     public readonly record struct RefreshTicket(string SlotKey, long Version, string? TraceId);
 }

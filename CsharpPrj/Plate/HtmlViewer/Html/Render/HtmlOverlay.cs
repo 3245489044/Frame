@@ -59,7 +59,7 @@ public static class HtmlOverlay
     private static string CloseButtonHtml(HtmlOverlayOptions o)
     {
         if (string.IsNullOrWhiteSpace(o.CloseCmd)) return string.Empty;
-        var sb = new System.Text.StringBuilder("<button type=\"button\" class=\"ctrl-btn\" data-cmd=\"")
+        var sb = new System.Text.StringBuilder("<button type=\"button\" class=\"btn-icon\" data-cmd=\"")
             .Append(o.CloseCmd).Append('"');
         if (o.CloseData is not null)
             foreach (var (k, v) in o.CloseData)

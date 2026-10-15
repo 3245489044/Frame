@@ -14,6 +14,7 @@ public sealed class DefaultThemeProvider : IThemeProvider
         ThemeScope.Component => ThemeDocument.FromCss(
             UiBackend.Html.HtmlAssetRegistry.GetStyle(UiBackend.Html.HtmlAssetKeys.BaseCss)),
         _ => ThemeDocument.FromCss(
-            UiBackend.Html.HtmlAssetRegistry.GetStyle(UiBackend.Html.HtmlAssetKeys.DefaultCss)),
+            UiBackend.Html.HtmlAssetRegistry.GetStyle(UiBackend.Html.HtmlAssetKeys.DefaultCss)
+            + "\n" + UiBackend.Html.HtmlAssetRegistry.FrameworkComponentCss),
     };
 }

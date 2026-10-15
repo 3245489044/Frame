@@ -33,13 +33,13 @@ public sealed record HtmlRowCheckbox(
 
 /// <summary>可折叠数据行模型（复选 + 单元格 [+ 可折叠摘要/详情]）。</summary>
 /// <param name="Cells">行内单元格。</param>
-/// <param name="RowClass">行容器类（如 <c>db-row</c>）。</param>
+/// <param name="RowClass">行容器类（如 <c>data-row</c>）。</param>
 /// <param name="Check">行首复选框；null ⇒ 无。</param>
 /// <param name="Expandable">true ⇒ 单元格包进 <c>&lt;details&gt;&lt;summary&gt;</c>（交互行）；false ⇒ 单元格直接入行（只读行）。</param>
 /// <param name="Open">可折叠时初始展开。</param>
 /// <param name="SummaryAttrs">摘要点击属性（<c>data-cmd</c> 等）；null ⇒ 无。</param>
-/// <param name="DetailsClass">details 类（如 <c>db-node</c>）。</param>
-/// <param name="SummaryClass">summary 类（如 <c>db-node-sum</c>）。</param>
+/// <param name="DetailsClass">details 类（如 <c>data-item</c>）。</param>
+/// <param name="SummaryClass">summary 类（如 <c>data-summary</c>）。</param>
 /// <param name="DetailHtml">展开详情片段（已渲染）；null/空 ⇒ 无。</param>
 public sealed record HtmlDataRow(
     IReadOnlyList<HtmlDataCell> Cells,
@@ -48,8 +48,8 @@ public sealed record HtmlDataRow(
     bool Expandable = false,
     bool Open = false,
     HtmlInteractiveAttrs? SummaryAttrs = null,
-    string DetailsClass = "node",
-    string SummaryClass = "node-sum",
+    string DetailsClass = "detail",
+    string SummaryClass = "detail-summary",
     string? DetailHtml = null);
 
 /// <summary>

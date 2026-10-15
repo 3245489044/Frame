@@ -80,7 +80,8 @@ public static class HtmlDocumentRenderer
 
     /// <summary>默认主题 CSS：气泡式对话布局（user 右蓝 / agent 左灰）+ 浅/深双主题（跟随系统 prefers-color-scheme）+ CJK 排版。
     /// 内容唯一真源在 L1 资产层 <see cref="UiBackend.Html.HtmlAssetRegistry"/>（按 <see cref="UiBackend.Html.HtmlAssetKeys.DefaultCss"/> 具名引用）。</summary>
-    public static string DefaultCss => UiBackend.Html.HtmlAssetRegistry.GetStyle(UiBackend.Html.HtmlAssetKeys.DefaultCss);
+    public static string DefaultCss => UiBackend.Html.HtmlAssetRegistry.GetStyle(UiBackend.Html.HtmlAssetKeys.DefaultCss)
+        + "\n" + UiBackend.Html.HtmlAssetRegistry.FrameworkComponentCss;
 
     private static string? _shellTemplate;
 

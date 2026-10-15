@@ -387,6 +387,16 @@ dotnet build D:\Project\Main\Projects\Plug\Agent\Agent.sln
 | DV-3 | W7 删领域侧 `_lastRegionHtml` / `_lastVolatileFingerprint` | **已完成**（三处领域去重缓存全删，改经 `IRefreshStore.Decide/Commit` 单源） | — |
 | DV-4 | 回收 `Share.RefreshFramework` 排在最后 | **已执行**：源码/工程/`Share.csproj` 聚合引用/`modules.json`/props 具名条目/陈旧 DLL 全部移除 | 消费方已切净，回收无残留引用 |
 
+---
+
+## §9 接续单
+
+前单完成后，经全量 `git grep` 复核发现：**机制层已单源，但入口层尚未全部经由框架单一门进出**
+（`RefreshArbiter`/`IRefreshSink` 已建未接、会话页 refresh 未转调、DB 未进调度、手动刷新未表达优先级、
+兜底轮询双份、`MarkDirty` 零调用方、框架内 6 类未接入类型、契约常量双端字面量、验证欠账等），共 **16 项**。
+
+**→ 接续施工单**：`UI刷新通用框架-剩余未收拢逻辑-后续施工单.md`（G-1..G-16，含每条证据与 R0–R7 实施批次）。
+
 
 
 

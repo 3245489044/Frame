@@ -1,0 +1,36 @@
+#nullable enable
+
+using System.Collections.Generic;
+
+namespace UiBackend.Html;
+
+/// <summary>框架内嵌默认模板集（通用 HTML 生成）——配置缺省即用框架版，配置可按同名键覆盖。</summary>
+public sealed partial class HtmlAssetRegistry
+{
+    /// <summary>框架内嵌默认模板集（通用 HTML 生成）；配置可按同名键覆盖。</summary>
+    public static readonly IReadOnlyDictionary<string, string> DefaultTemplates =
+        new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            ["htmlShell"] = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="{colorScheme}" /><style>{css|raw}</style></head><body>{body|raw}</body></html>""",
+            ["layoutShell"] = """<div class="shell">{selector|raw}<div class="shell-body"><div class="shell-aside" {pollAttrs|raw}><div class="panel-title">{title|raw}<button type="button" class="btn-icon" data-poll-refresh {pollAttrs|raw} title="手动刷新任务运行状态">⟳</button></div>{tree|raw}</div><div class="shell-main"><div class="shell-title">{subtitle|raw}</div>{?runtime}{runtime|raw}{/}{history|raw}</div></div>{overlay|raw}</div>""",
+            ["listItem"] = """<button type="button" class="item{?active} active{/}" data-name="task-item-{session}" data-cmd="selectTask" data-session="{session}"{?history} data-history="{history}"{/}><span class="item-title">{session}</span>{?actor}<span class="chip" title="执行体">{actor}</span>{/}{?poolStatus}<span class="state-tag {poolClass}" title="任务池状态：{poolStatus}">{poolStatus}</span>{/}{?available}<span class="dot {statusClass}{?isActive} live{/}" title="{status}{?actor} · 执行体 {actor}{/}{?round} · {round}{/}{?elapsed} · 已运行 {elapsed}{/}{?origin} · 来源 {origin}{/}"></span><span class="status {statusClass}">{stage}</span>{?round}<span class="item-meta">{round}</span>{/}{?elapsed}<span class="item-meta" data-name="task-elapsed-{session}">{elapsed}</span>{/}{/}</button>""",
+            ["foldItem"] = """<details class="fold" data-key="history-{id}" data-history="{id}"{?open} open{/}><summary class="fold-header"><span class="fold-name" data-cmd="selectHistoryContainer" data-history="{id}" data-session="{id}" title="选中该历史，右侧显示其主循环对话">{id}</span>{?taskCount}<span class="fold-count" title="归拢实体数（容器事实；执行体状态见各实体）">{taskCount}</span>{/}</summary><div class="fold-body">{?hasTasks}{#each tasks}{>listItem}{/each}{:else}<div class="empty">（无任务，发送即创建）</div>{/}</div></details>""",
+            ["segGroup"] = """{#each items}{>segItem}{/each}""",
+            ["segItem"] = """<button type="button" class="seg-item{?active} active{/}" data-name="viewType-{type}" data-cmd="selectType" data-type="{type}">{label}</button>""",
+            ["emptyDiv"] = """<div class="empty">{text}</div>""",
+            ["emptyP"] = """<p class="empty">{text}</p>""",
+            ["sectionHeader"] = """<section class="section" data-round="{round}"><header class="section-header" data-cmd="selectHistory" title="点击定位本轮历史">{roundTitle}</header>{#each messages}{>blockItem}{/each}</section>""",
+            ["blockItem"] = """<div class="block{?role=user} user{/}{?role=assistant} assistant{/}{?role=tool} assistant{/}{?role=error} error{/}{?role=system} system{/}{?tool} nested{/}" data-key="{key}"><span class="block-badge">{round} {role}{?stage}:{stage}{/}</span>{?anchor}{?prompt}<details class="fold-layer note-layer" data-key="{key}-prompt"><summary class="fold-summary">{stage}{?subagent} · {subagent}{/}</summary><div class="block-body">{text}</div></details>{:else}<div class="block-body">{text}</div>{/}{?attachCount}<details class="attach" data-key="{key}-attach"><summary class="attach-toggle">过程 · {attachCount}</summary>{#each attach}{>attachItem}{/each}</details>{/}{:else}{?prompt}<details class="fold-layer note-layer" data-key="{key}-prompt2"><summary class="fold-summary">{stage}{?subagent} · {subagent}{/}</summary><div class="block-body">{text}</div></details>{:else}{?tool}<details class="fold-layer" open data-key="{key}-tool"><summary class="fold-summary">{stage}{?subagent} · {subagent}{/}</summary><div class="block-body">{text}</div></details>{:else}<div class="block-body">{text}</div>{/}{/}{/}</div>""",
+            ["attachItem"] = """<div class="attach-item{?prompt} note-layer{/}" data-key="{key}"><span class="attach-head">{stage}{?subagent} · {subagent}{/}</span><div class="attach-text">{text}</div></div>""",
+            ["splitShell"] = """<div class="panel">{nodes|raw}</div><div class="pane-secondary">{history|raw}</div>""",
+            ["actionPanel"] = """<div class='op-panel' style='border:1px solid var(--border);border-radius:8px;margin:6px 0 10px;padding:8px 10px;background:var(--agent-bg);'><div class='op-panel-title' style='font-size:12px;color:var(--muted);letter-spacing:.04em;margin-bottom:6px;'>操作 / 任务</div>{#each rows}<div class='op-row' style='padding:4px 0;border-top:1px dashed var(--border);'><span class='op-badge' style='font-size:12px;color:var(--muted);'>{round} · {title}</span><div class='op-text' style='white-space:pre-wrap;word-break:break-word;font-size:14px;'>{text}</div></div>{/each}</div>""",
+            ["groupedPanel"] = """<div class="panel"><div class="panel-head">分组（{task}）</div>{?note}<div class="panel-note">{note}</div>{/}{?hasGroups}{#each groups}{>groupBlock}{/each}{:else}<div class="empty">（暂无分组）</div>{/}</div>""",
+            ["groupBlock"] = """<details class="group" data-name="node-type-{label}"><summary class="group-head"><span class="group-badge">{label}</span><span class="group-count">{count}</span></summary><div class="group-body">{#each nodes}{>detailRow}{/each}</div></details>""",
+            ["detailRow"] = """<div class="row"><code class="row-key">{key}</code>{?badge}<span class="row-status">{badge}</span>{/}{?ports}<span class="tag">{ports}</span>{/}{?title}<span class="row-title">{title}</span>{/}{?updated}<span class="row-updated">{updated}</span>{/}{?summary}<div class="row-summary">{summary}</div>{/}</div>""",
+            ["statePanel"] = """<div class="state-panel"><div class="panel-head">挂载运行状态</div>{rows|raw}{empty|raw}</div>""",
+            ["stateRow"] = """<div class="state-row"><span class="item-title">{task}</span>{?poolStatus}<span class="state-tag {statusClass}" title="任务池状态：{poolStatus}">{poolStatus}</span>{/}{?active}<span class="state-tag">ACTIVE</span>{/}<span class="state-meta">stage={stage} actor={actor} round={round} elapsed={elapsed} origin={origin}</span>{?note}<span class="state-note">{note}</span>{/}</div>""",
+            ["composer"] = """<div class="composer"><textarea class="input-lg" data-name="composerInput" rows="2" placeholder="{placeholder}"></textarea><button type="button" class="btn-primary" data-cmd="composerSend" data-session="{session}" data-history="{history}" data-input="composerInput" title="{sendTitle}">{sendLabel}</button><button type="button" class="btn-primary" data-cmd="showAiPayload" data-session="{session}" data-history="{history}" title="{payloadTitle}">{payloadLabel}</button></div>""",
+
+
+        };
+}

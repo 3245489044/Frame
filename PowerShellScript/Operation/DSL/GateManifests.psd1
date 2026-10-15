@@ -278,6 +278,12 @@
         Note   = '默认校验模式；-FailOnWarning 为严格模式（默认关闭）'
     }
 
+    HtmlViewerVocabulary = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'HTML 模板键 / 类名 / region 锚零领域语义：框架只描述结构（壳/分栏/面板/列表/项/行/分组/折叠/分段/状态），语义只出现在配置键值 + Agent 数据模型 + 域样式注入；扫描面 = 框架资产 + 模板键消费点（HtmlStreamRenderer/ConversationPageRenderer）；正负对照 -NegativeControl；基线 = Baselines\HtmlViewerVocabulary.psd1'
+    }
+
     BatchLineEndings = @{
         Args   = @{}
         Expect = 0

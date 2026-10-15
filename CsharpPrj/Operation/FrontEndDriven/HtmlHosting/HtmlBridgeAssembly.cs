@@ -61,7 +61,7 @@ public static class HtmlBridgeAssembly
         var writeArbiter = new RefreshWriteArbiter(new InMemoryRefreshStore());
         // P3 指纹单源 + P4 追踪单源：写落地与领域共用框架侧实现（plate 只经注入使用，不反向依赖）。
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
-            new Fnv1aFingerprint().Of, RefreshTraceId.New);
+            Fnv1aFingerprint.Default.Of, RefreshTraceId.New);
         PopulateStaticReadiness(runtime.Readiness, index, registry);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;
@@ -79,8 +79,7 @@ public static class HtmlBridgeAssembly
 
         host.AttachHtmlUi(runtime);
         host.AttachPageDeclaration(ExtractPage(uiConfig, hostControl, pageName));
-        if (uiConfig.Templates is { Count: > 0 } templates)
-            AttachTemplatesAndTheme(host, templates);
+        AttachTemplatesAndTheme(host, uiConfig.Templates ?? new Dictionary<string, string>());
         return runtime.Readiness;
     }
 
@@ -117,15 +116,22 @@ public static class HtmlBridgeAssembly
             report.AddProblem($"output 目标未命中索引: {o}");
     }
 
-    /// <summary>注入页面模板集与 JSON 主题（只需模板集，不依赖 htmlviewer 实例/注册库；宿主可在创建控件前调用，使 JSON 主题在生产生效）。</summary>
+    /// <summary>注入页面模板集与 JSON 主题（只需模板集，不依赖 htmlviewer 实例/注册库；宿主可在创建控件前调用，使 JSON 主题在生产生效）。
+    /// 通用 HTML 由框架内嵌默认模板承担（<see cref="HtmlAssetRegistry.DefaultTemplates"/>），配置可按同名键覆盖。</summary>
     public static void AttachTemplatesAndTheme(HtmlUiHostSlot host, IReadOnlyDictionary<string, string> templates)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(templates);
-        host.AttachTemplates(templates);
+
+        // 框架默认模板为底，配置显式模板覆盖其上（配置只声明差异/覆盖，通用 HTML 由框架单点维护）。
+        var resolved = new Dictionary<string, string>(HtmlAssetRegistry.DefaultTemplates, System.StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in templates)
+            resolved[kv.Key] = kv.Value;
+
+        host.AttachTemplates(resolved);
         // P0 键契约（I2/I4）：全元素 × 同父键唯一性 + 缺稳定键（<details> 无键 → 重渲染后展开态无法按 key 恢复）。
         // 经诊断 sink 可见化后装配期 fail-fast（含修复引导；键由渲染层派生，不靠作者手写）。
-        var keyViolations = HtmlKeyContract.ValidateAll(templates);
+        var keyViolations = HtmlKeyContract.ValidateAll(resolved);
         if (keyViolations.Count > 0)
         {
             host.DiagnosticsSink?.Invoke("HtmlKeyContract",
@@ -134,19 +140,19 @@ public static class HtmlBridgeAssembly
         }
         // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS；后续 JSON 结构化后再拆 token），
         // 经 ConfigThemeProvider + HtmlTheme.AttachProvider 装配（优先于旧 ConfigHtmlTheme 的 IHtmlTheme 路径）。
-        if (templates.TryGetValue("theme", out var themeCss) && !string.IsNullOrWhiteSpace(themeCss))
+        if (resolved.TryGetValue("theme", out var themeCss) && !string.IsNullOrWhiteSpace(themeCss))
         {
             // P1 主题「基础 + 差异」：框架基础主题（DefaultCss）恒为底，应用 theme 追加/覆盖其上——
             // 消除「框架 DefaultCss 更新而 JSON theme 逐字副本落后 → 静默漂移」的缺口；
             // 应用侧 theme 只需声明差异（业务类），无需复制框架基础部分。
-            var baseCss = HtmlAssetRegistry.GetStyle(HtmlAssetKeys.DefaultCss);
+            var baseCss = HtmlDocumentRenderer.DefaultCss;
             var mergedCss = string.IsNullOrWhiteSpace(baseCss) ? themeCss : baseCss + "\n" + themeCss;
             HtmlTheme.AttachProvider(new ConfigThemeProvider(componentCss: mergedCss));
         }
 
-        // 文档壳模板（P4）：JSON templates.htmlShell 注入全局壳槽（缺省回退内置 DOCTYPE 壳）；
+        // 文档壳模板（P4）：合成集 htmlShell 注入全局壳槽（缺省回退内置 DOCTYPE 壳）；
         // 仅「完整文档壳」（含 <html>+<body>）生效，片段壳自动忽略（HtmlDocumentRenderer.AttachShell 内校验）。
-        if (templates.TryGetValue("htmlShell", out var shell) && !string.IsNullOrWhiteSpace(shell))
+        if (resolved.TryGetValue("htmlShell", out var shell) && !string.IsNullOrWhiteSpace(shell))
             HtmlDocumentRenderer.AttachShell(shell);
     }
 
@@ -160,9 +166,8 @@ public static class HtmlBridgeAssembly
         ArgumentNullException.ThrowIfNull(host);
         if (string.IsNullOrWhiteSpace(configPath) || !System.IO.File.Exists(configPath))
             return false;
-        var templates = await LoadTemplatesAsync(configPath).ConfigureAwait(false);
-        if (templates is not { Count: > 0 })
-            return false;
+        var templates = await LoadTemplatesAsync(configPath).ConfigureAwait(false)
+            ?? new Dictionary<string, string>();
         AttachTemplatesAndTheme(host, templates);
         return true;
     }

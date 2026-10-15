@@ -44,7 +44,7 @@ namespace Strategy.Refresh.Core
             IRefreshClock? clock = null)
         {
             ArgumentNullException.ThrowIfNull(push);
-            _fingerprint = fingerprint ?? new Fnv1aFingerprint();
+            _fingerprint = fingerprint ?? Fnv1aFingerprint.Default;
             _store = store ?? new InMemoryRefreshStore();
             _arbiter = sink is null ? null : new RefreshArbiter(_store, sink);
             var factory = ToTimerFactory(clock);

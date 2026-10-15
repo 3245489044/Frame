@@ -11,7 +11,7 @@
 | 编号 | 职责 | 位置 | 关键类型 |
 |---|---|---|---|
 | R1 | 数据模型（契约零领域） | `Model/` | `RefreshScope`（范围键）/ `RefreshTicket`（版本凭证）/ `RefreshDelivery`（交付信封）/ `RefreshPriority` / `AcceptDecision` / **`RefreshContract`**（契约常量） |
-| R2 | 领域描述（登记用） | `Model/` | `RefreshDescriptor`（SourceId/Name/TickMs/SubscribeKey/Priority）/ `RefreshCell`（SlotKey + 渲染产物） |
+| R2 | 领域描述（登记用） | `Model/` | `RefreshDescriptor`（SourceId/Name/TickMs/SubscribeKey/Priority） |
 | R3 | 扩展端口（唯一接入点） | `Ports/` | `IRefreshSource`（变化源）/ **`IRefreshRenderer`**（域渲染，`Task<object> RenderAsync(RefreshRequest, ct)`）/ `IRefreshSink`（写落地）/ `IRefreshStore`（状态真源）/ `IFingerprint` / `IRefreshClock`（定时器工厂） |
 | R4 | 调度引擎（单一实现） | `Core/` | `RefreshScheduler`（双车道 dirty 合并 + 节拍 + 单拍互斥 + 失败置回 + 空闲零推送 + 兜底轮询收编） |
 | R5 | 写仲裁（单一实现） | `Core/` | `RefreshArbiter`（latest-wins 单飞 drain）/ `InMemoryRefreshStore`（Baseline + LastFingerprint） |
@@ -121,3 +121,9 @@ public interface IRefreshRenderer
 | 红线守卫入口 | ✅ `Check-RefreshFrameworkBoundary.ps1`，已注册进门禁聚合器（`GateManifests.psd1` → `invoke-gatecheck -Only RefreshFrameworkBoundary`） |
 
 > 遗留：`RefreshFramework.Tests` 工程目录名沿用旧名（其被验证对象已为 `Strategy.Refresh`），改名须同步 CentralTest 索引，暂缓。
+
+**⚠️ 尚未收拢的接入面**：本框架机制层已单源，但**入口层尚未全部经由框架单一门进出**。
+已收口：会话页 refresh 渲染单源、指纹单例（`Fnv1aFingerprint.Default`）、未接入类型均已标注`【预留】`。
+**剩余**：`RefreshArbiter`/`IRefreshSink` 已建未接（写落地仲裁未生效）、DB 未进调度（改判不做）、
+兜底轮询两处并存、`MarkDirty` 零调用方、契约常量双端字面量、验证欠账（INV-4/5/7）。
+**清单与实施批次见** `UI刷新通用框架-剩余未收拢逻辑-后续施工单.md`（含每条证据、§0.1 执行状态与可复算核查命令）。

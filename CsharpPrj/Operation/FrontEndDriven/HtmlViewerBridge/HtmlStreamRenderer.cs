@@ -15,7 +15,7 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// 通用会话消息流 HTML 渲染器 —— <see cref="IConversationRenderer"/> 的通用实现：
 /// 会话历史 → 气泡式对话 body HTML 片段（供 htmlviewer 可信通道渲染）。
 /// 纯函数式渲染：按角色布局（user 右蓝 / 其余左灰），附 轮次/角色/阶段 角标。
-/// HTML 片段由 round/message 模板经 <see cref="HtmlTemplateEngine"/>（plate）渲染，C# 只构造行数据模型；
+/// HTML 片段由 sectionHeader/blockItem 模板经 <see cref="HtmlTemplateEngine"/>（plate）渲染，C# 只构造行数据模型；
 /// 所有文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
 /// 模板源经构造注入延迟 <see cref="Func{TResult}"/> 解析（宿主可在运行时动态装配，如 Agent 读 AgentRuntimeUI.json 注入）；
 /// 未注入/缺模板时输出内嵌空态兜底，不崩。
@@ -41,10 +41,10 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 
     /// <summary>
     /// 渲染整段会话历史为 body HTML 片段；空历史输出空态文案。
-    /// 层次化：按轮次（Round）分组输出 .round 区段（轮头 .round-header，含 data-round，供点击桥 selectHistory 客户端滚动聚焦）；
-    /// 工作流中层（Tool 且带 Stage/SubAgent）以 &lt;details&gt; 折叠展示（.tool-layer，summary 显 Stage·SubAgent）；
+    /// 层次化：按轮次（Round）分组输出 .section 区段（轮头 .section-header，含 data-round，供点击桥 selectHistory 客户端滚动聚焦）；
+    /// 工作流中层（Tool 且带 Stage/SubAgent）以 &lt;details&gt; 折叠展示（.fold-layer，summary 显 Stage·SubAgent）；
     /// 角色差异化样式（user 右蓝 / agent 左灰 / error 红 / system 居中弱化）。
-    /// 结构由 round/message 模板经引擎渲染，文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
+    /// 结构由 sectionHeader/blockItem 模板经引擎渲染，文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
     /// </summary>
     public string Render(IReadOnlyList<ConversationRenderItem> items)
     {
@@ -120,7 +120,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
                 ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
                 ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
             };
-            sb.Append(HtmlTemplateEngine.Render(t, "round", row));
+            sb.Append(HtmlTemplateEngine.Render(t, "sectionHeader", row));
         }
         return sb.ToString();
     }
@@ -143,7 +143,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             })
             .ToList<object?>();
 
-        if (t.TryGetValue("operationPanel", out var panel) && !string.IsNullOrWhiteSpace(panel))
+        if (t.TryGetValue("actionPanel", out var panel) && !string.IsNullOrWhiteSpace(panel))
             return HtmlTemplateEngine.RenderTemplate(panel, t, new Dictionary<string, object?> { ["rows"] = rows });
 
         var sb = new StringBuilder();
@@ -177,7 +177,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
                 .Select(x => (object?)HeadRow(x.Entry, x.Index))
                 .ToList(),
         };
-        return HtmlTemplateEngine.Render(t, "round", row);
+        return HtmlTemplateEngine.Render(t, "sectionHeader", row);
     }
 
     /// <summary>头提示层单行模型（无锚点语义；round=0）。</summary>

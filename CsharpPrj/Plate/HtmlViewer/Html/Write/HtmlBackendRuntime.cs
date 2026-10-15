@@ -453,7 +453,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// <summary>
     /// 单一写回协调器入口（L2 / R3）：接收 <see cref="UiWritePlan"/> 独占执行区域/键控树/叶子/整文档写回，
     /// 逐目标独立判成败、产出 <see cref="UiWriteResult"/>（类型化显式策略，不再靠哨兵）。
-    /// <para>Region/Leaf 目标名 = 最终 DOM 名（如 <c>region-tree</c>）；Region 默认经键控对齐原语落地。
+    /// <para>Region/Leaf 目标名 = 最终 DOM 名（如 <c>region-aside</c>）；Region 默认经键控对齐原语落地。
     /// FullDocument 经 <see cref="HtmlWritePump"/> 收敛写或纯渲染（无宿主端口 = 显式 Failed，不静默吞）。</para>
     /// </summary>
     public Task<UiWriteResult> WriteAsync(UiWritePlan plan, CancellationToken ct = default)

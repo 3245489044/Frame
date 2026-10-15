@@ -827,6 +827,70 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 结构化只读行（与 <see cref="ReadDocuments"/> 文本面同源、不同出口）：按集合名分派为结构化行数组，
+    /// 供 UI/聚拢域建模（<c>IGraphReferenceReadPort</c> 的数据源；禁另开库）。
+    /// </summary>
+    /// <param name="collection">集合名（<c>ur_references</c>/<c>ur_endpoints</c>/<c>ur_relations</c>）。</param>
+    /// <param name="limit">行数上限（1..1000）。</param>
+    public IReadOnlyList<GraphRow> ReadRows(string collection, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(collection)) return Array.Empty<GraphRow>();
+        var n = Math.Max(1, Math.Min(limit, 1000));
+        try
+        {
+            if (_endpointDocs.Name.Equals(collection, StringComparison.Ordinal)) return ReadEndpointRows(n);
+            if (_edges.Name.Equals(collection, StringComparison.Ordinal)) return ReadEdgeRows(n);
+            if (_relationDocs.Name.Equals(collection, StringComparison.Ordinal)) return ReadRelationRows(n);
+            return Array.Empty<GraphRow>();
+        }
+        catch
+        {
+            return Array.Empty<GraphRow>();
+        }
+    }
+
+    private IReadOnlyList<GraphRow> ReadEndpointRows(int limit)
+    {
+        var rows = new List<GraphRow>();
+        foreach (var d in _endpointDocs.FindAll().Take(limit))
+        {
+            var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
+            var e = ReadEndpointDoc(d);
+            rows.Add(new GraphRow(key, e?.Symbol ?? string.Empty, e?.UpdatedAt ?? string.Empty, JsonSerializer.Serialize(d)));
+        }
+        return rows;
+    }
+
+    private IReadOnlyList<GraphRow> ReadEdgeRows(int limit)
+    {
+        var rows = new List<GraphRow>();
+        foreach (var d in _edges.FindAll().Take(limit))
+        {
+            var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
+            var e = ReadEdgeDoc(d);
+            rows.Add(new GraphRow(key,
+                e is null ? string.Empty : $"{e.SourceId} -[{e.RefType}]-> {e.TargetId}",
+                string.Empty, JsonSerializer.Serialize(d)));
+        }
+        return rows;
+    }
+
+    private IReadOnlyList<GraphRow> ReadRelationRows(int limit)
+    {
+        var rows = new List<GraphRow>();
+        foreach (var d in _relationDocs.FindAll().Take(limit))
+        {
+            var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
+            var r = ReadRelationDoc(d);
+            rows.Add(new GraphRow(
+                string.IsNullOrEmpty(r?.RelationId) ? key : r!.RelationId,
+                r is null ? string.Empty : $"{r.Source} -[{r.RefType}]-> {r.Target} ({r.Status})",
+                string.Empty, JsonSerializer.Serialize(d)));
+        }
+        return rows;
+    }
+
     // ---- 图算法（邻接/路径/依赖，供诊断与影响链查询）----
 
     public IReadOnlyList<string> GetNeighbors(string key) => ReadLocked(CancellationToken.None, () => _graph.GetNeighbors(key));

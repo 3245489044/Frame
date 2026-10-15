@@ -19,7 +19,7 @@ param(
     [string]$Body = "",
     [ValidateSet('L0','L0.5','L1','L2','L3')][string]$Level,
     [string]$Axis,
-    [string]$Prompt = 'Agent/skills/l0/l0-logic/SKILL.md',
+    [string]$Prompt = 'Agent/skills/l0/base/l0-logic/SKILL.md',
     [string]$Section = '## B5 L2 领域公理（可版本化）',
     [string]$GeneratorProject = 'Agent/Axioms.Generator',
     [string]$GeneratorOut = 'Agent/Axioms'
@@ -64,10 +64,10 @@ Write-Host "      $line"
 Write-Host "[2/3] 定向生成 $Name ..." -ForegroundColor Cyan
 # 契约源统一为 DSL 承载技能（SKILL.md，生成器自动剥离 front-matter）
 $CarrierFiles = @(
-    (Join-Path $Root 'Agent/skills/l0/l0-system/SKILL.md'),
-    (Join-Path $Root 'Agent/skills/l0/l0-loop/SKILL.md'),
-    (Join-Path $Root 'Agent/skills/l0/l0-logic/SKILL.md'),
-    (Join-Path $Root 'Agent/skills/l0/l0-format/SKILL.md'),
+    (Join-Path $Root 'Agent/skills/l0/base/l0-system/SKILL.md'),
+    (Join-Path $Root 'Agent/skills/l0/framework/l0-loop/SKILL.md'),
+    (Join-Path $Root 'Agent/skills/l0/base/l0-logic/SKILL.md'),
+    (Join-Path $Root 'Agent/skills/l0/base/l0-format/SKILL.md'),
     (Join-Path $Root 'Agent/skills/internal/l1l2/SKILL.md'),
     (Join-Path $Root 'Agent/skills/rare/boundaries/SKILL.md')
 )

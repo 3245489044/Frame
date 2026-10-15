@@ -52,7 +52,7 @@ if ($vt -notmatch 'BuildBasePromptSnapshot\(profileKey') {
 # H2 档案分档 + 声明面
 $profiles = Join-Path $agentRoot 'src\Agent.Axioms\Prompts\PromptProfiles.cs'
 $profileCfg = Join-Path $agentRoot 'Config\prompt-profiles.ushar'
-$l0History = Join-Path $agentRoot 'skills\l0\l0-history\SKILL.md'
+$l0History = Join-Path $agentRoot 'skills\l0\storage\l0-history\SKILL.md'
 if (-not (Test-Path -LiteralPath $profiles)) { Add-Violation 'H2' '缺 PromptProfiles.cs' }
 if (-not (Test-Path -LiteralPath $profileCfg)) { Add-Violation 'H2' '缺 Config/prompt-profiles.ushar 声明面' }
 if ($vt -notmatch 'PromptProfiles\.History') { Add-Violation 'H2' 'ConversationViewService 未按 History 档案分档' }

@@ -234,4 +234,14 @@ public static class UsharpCodes
 
     /// <summary><c>[LLMDecl] over=</c> 引用的空间未在本编译声明面中定义。</summary>
     public const string LlmDeclSpaceUnknown = "US7304";
+
+    // 端口执行体归属面（[Node] fn=/skill=/llm= 三选一；消「声明被校验却无人执行」）
+    /// <summary><c>[Node] skill=</c> 引用的技能未落在已声明 <c>[Skill]</c> 空间（引用即边：未声明即编译报错）。</summary>
+    public const string PortSkillUndeclared = "US7801";
+
+    /// <summary><c>[Node]</c> 的执行体归属非「恰一」（<c>fn=</c>/<c>skill=</c>/<c>llm=</c> 互斥完备：0 个或 ≥2 个）。</summary>
+    public const string PortExecutorNotExclusive = "US7802";
+
+    /// <summary><c>[Node] kind=</c> 取值不在已声明执行体类别空间内（越界即编译报错）。</summary>
+    public const string PortKindUnknown = "US7803";
 }

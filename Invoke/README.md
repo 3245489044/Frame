@@ -77,16 +77,18 @@
 
 ### 回归
 ```powershell
-# 默认矩阵（串行；PowerShell 5.1 下 -Parallel 自动回退串行）
-.\Invoke-Regression.ps1 -Matrix default
-
-# 定向声明式用例（R32）
+# 局部测试（免授权）：定向声明式用例（R32）
 .\Invoke-Regression.ps1 -Case core.json-rule-engine.unknown-op.callback-logs
 
-# 定向工程复跑（自由名 -Test 须与 -Project 同用，FD-14；别名形态如 keys/node 不需）
+# 局部测试（免授权）：定向工程复跑（自由名 -Test 须与 -Project 同用，FD-14；别名形态如 keys/node 不需）
 .\Invoke-Regression.ps1 -Test keys,node -Project 'Keys\.Tests|Node\.Tests'
+
+# 全面测试（矩阵）⇒ 默认禁止，须持授权（权威 .clinerules\axioms.md §9 % VERIFY_FULL_RUN_AUTH_REQUIRED）
+.\Invoke-Regression.ps1 -Matrix default -GrantFile 'BuildOutput\Debug\verify-grant.json'
 ```
 矩阵：`default`（6 项）/ `agent`（+3 项）/ `infra`（5 项）。`-Parallel` 需 PowerShell 7+（PS 5.1 自动回退串行）。
+**验证面纪律**：局部面（`-Test`/`-Project`/`-Case`）免授权；矩阵属**全量面**，默认禁止，须持授权
+（优先级 `-GrantFile` 授权单 > 批次授权单 `verify` 字段 > 宿主令牌 `WF_VERIFY_FULL_GRANT`；未授权 fail-closed）。
 
 ### 定位（诊断相位 · 零运行）
 ```powershell
@@ -139,14 +141,20 @@
 
 ### 验证（P2 唯一命令）
 ```powershell
-# bake→test→gate 一次完成（agent 面 shell 调用计 1）
+# bake→test→gate 一次完成（agent 面 shell 调用计 1；默认只跑局部面）
 .\Invoke-Verify.ps1 -Changed 'Frame\CsharpPrj\Share\X.cs'
 
 # 消费冻结清单
 .\Invoke-Verify.ps1 -Plan 'Environment\CentralTest\BuildOutput\Debug\verify-plan.json'
+
+# 全量面（测试矩阵 / 全部门禁 -All）⇒ 默认禁止，须持授权
+.\Invoke-Verify.ps1 -Changed 'Frame\PowerShellScript\Operation\DSL\GateManifests.psd1' -GrantFile 'BuildOutput\Debug\verify-grant.json'
 ```
 `Invoke-Verify.ps1` = `VERIFY_SINGLE_ENTRY`（`.clinerules\project.md` §1.10）；内部串 `Bake-CsharpPrj`→`Run-CSharpTests`/`Invoke-AgentRegression`→`Invoke-GateCheck`，不复制逻辑。
 拆分式 `build`/`test`/`gate` 多条调用、原生 `dotnet` 直呼 ⇒ 违反唯一命令纪律（`VerifySingleShot` 守卫 + `ANTI-MULTI-RUN-VERIFY`）。
+**验证面裁决（[VERIFY-SCOPE-GATE]，权威 `% VERIFY_FULL_RUN_AUTH_REQUIRED`）**：局部面（映射出的定向测试工程 / 映射门禁）免授权直跑；
+全量面（`-TestSet` 显式请求 / 计划回落全矩阵 / `GatesAll`⇒`-All`）**默认禁止**——显式请求未授权即阻断，
+计划隐式回落先**局部优先**（有局部面则抑制矩阵），无局部面则阻断；`GatesAll` 未授权降级为自检件并 `[REPORT]` 未覆盖面。
 
 ### 验证自证对齐（源码指纹 = 产物指纹）
 `Invoke-Regression.ps1` 会在验证前打印 `[ALIGN]` 证据行，并前置断言「源码内容指纹 = 产物(dll)内容指纹」：

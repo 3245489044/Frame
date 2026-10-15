@@ -13,7 +13,10 @@
 .PARAMETER Configuration
     构建配置（默认 Debug）。
 .PARAMETER TestSet
-    产品改动时须运行的测试矩阵（default/agent/infra；默认 default）。
+    测试矩阵（default/agent/infra）。空 = 用计划（局部优先，免授权）；显式给值 = 全量面请求（默认禁止，须授权）。
+.PARAMETER GrantFile
+    全量面授权单（JSON；machine-readable）。全面测试（矩阵/全部门禁 -All）默认禁止，须持授权
+    （授权来源优先级：-GrantFile > 批次授权单 verify 字段 > 宿主令牌；权威 .clinerules\axioms.md §9）。
 .EXAMPLE
     .\Invoke-Verify.ps1 -Changed 'Frame\CsharpPrj\Share\X.cs'
 .EXAMPLE
@@ -26,9 +29,17 @@ param(
 
     [string]$Configuration = 'Debug',
 
-    [ValidateSet('default', 'agent', 'infra')]
-    [string]$TestSet = 'default'
+    # 空 = 用计划产出的测试面（局部优先）；显式给值 = 全量面请求（默认禁止，须授权）
+    [string]$TestSet = '',
+
+    # 全量面授权单（JSON，machine-readable；授权来源优先级最高）
+    [string]$GrantFile = ''
 )
+
+if ($TestSet -and $TestSet -notin @('default', 'agent', 'infra')) {
+    Write-Error "TestSet 取值非法：'$TestSet'（合法：default / agent / infra，或留空用计划）"
+    exit 2
+}
 
 $target = Join-Path $PSScriptRoot "..\..\Environment\CentralTest\Invoke-Verify.ps1"
 
@@ -36,7 +47,8 @@ $params = @{}
 if ($PSBoundParameters.ContainsKey('Changed') -and $Changed.Count -gt 0) { $params['Changed'] = $Changed }
 if ($PSBoundParameters.ContainsKey('Plan') -and $Plan) { $params['Plan'] = $Plan }
 if ($PSBoundParameters.ContainsKey('Configuration')) { $params['Configuration'] = $Configuration }
-if ($PSBoundParameters.ContainsKey('TestSet'))       { $params['TestSet'] = $TestSet }
+if ($PSBoundParameters.ContainsKey('TestSet') -and $TestSet)       { $params['TestSet'] = $TestSet }
+if ($PSBoundParameters.ContainsKey('GrantFile') -and $GrantFile)   { $params['GrantFile'] = $GrantFile }
 
 $rc = 0
 try {

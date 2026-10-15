@@ -5,6 +5,9 @@
 #   ② 唯一验证命令的接线不漂移：axioms.md 声明 `% VERIFY_SINGLE_ENTRY=string:<入口>` ∧ 该入口存在于 Frame\Invoke
 #      ∧ project.md §1.10 登记 `VERIFY_SINGLE_ENTRY`
 #   ③ 正/负对照（防判据空转）：入口目录存在且件数 ≥ 基线；原生 dotnet 检测正则对合成样本必须命中
+#   ④ 默认禁全量接线：axioms.md 声明 `% VERIFY_FULL_RUN_AUTH_REQUIRED` ∧ 注册表 _verify-scope.psd1
+#      （FullRunRequired=$true）∧ 裁决原语 VerifyScope.psm1（Resolve-FullRunGrant）∧ 两执行体
+#      （Invoke-Verify / Invoke-AgentRegression）带 [VERIFY-SCOPE-GATE] 裁决且走同一原语；负对照防判据空转
 # 边界声明：本件只扫**文件面**（脚本/规则），拦不住 agent 运行期直呼 dotnet —— 运行面由 project.md §1.10
 #   相位白名单 + 回复内 [批次声明] 自审承担（= 规则义务，非门禁能力）。
 # 模式：-Check 违规 exit 1；默认报告模式（不设退出码）。
@@ -91,9 +94,58 @@ if (Test-Path -LiteralPath $projectPath) {
     $violations.Add("[接线] 缺 .clinerules\project.md（§1.10 相位/预算处）")
 }
 
+# ---- 判据 ④：默认禁全量接线（局部免授权 / 全量须授权） ----
+# 权威 % VERIFY_FULL_RUN_AUTH_REQUIRED（.clinerules\axioms.md §9）；注册表单源 = Baselines\_verify-scope.psd1
+#   裁决原语单源 = Baselines\VerifyScope.psm1（消费方禁各自手写解析 ⇒ 对齐 Strategy.SingleImplementation）
+$scopeMarker = 'VERIFY-SCOPE-GATE'
+$scopeRegPath = Join-Path $__repo 'Frame\PowerShellScript\Baselines\_verify-scope.psd1'
+$scopeModulePath = Join-Path $__repo 'Frame\PowerShellScript\Baselines\VerifyScope.psm1'
+
+# 判据 ④a 负对照（防判据空转）：标记匹配器对合成样本必须命中
+if ('# [VERIFY-SCOPE-GATE] 合成样本' -notmatch [regex]::Escape($scopeMarker)) {
+    $violations.Add('[负对照] 默认禁全量标记匹配器失效（合成样本未命中）')
+}
+
+# 判据 ④b 权威声明
+if (Test-Path -LiteralPath $axiomsPath) {
+    if ((Get-Content -LiteralPath $axiomsPath -Raw) -notmatch 'VERIFY_FULL_RUN_AUTH_REQUIRED') {
+        $violations.Add('[接线] axioms.md §9 未声明 % VERIFY_FULL_RUN_AUTH_REQUIRED')
+    }
+}
+
+# 判据 ④c 注册表（FullRunRequired 须为 $true ⇒ 默认禁止全量）
+if (-not (Test-Path -LiteralPath $scopeRegPath)) {
+    $violations.Add('[接线] 缺验证面注册表：Frame\PowerShellScript\Baselines\_verify-scope.psd1')
+} elseif ((Get-Content -LiteralPath $scopeRegPath -Raw) -notmatch 'FullRunRequired\s*=\s*@\{\s*Value\s*=\s*\$true') {
+    $violations.Add('[接线] _verify-scope.psd1 未声明 FullRunRequired.Value=$true（默认禁全量失效）')
+}
+
+# 判据 ④d 裁决原语（授权来源解析单源）
+if (-not (Test-Path -LiteralPath $scopeModulePath)) {
+    $violations.Add('[接线] 缺授权裁决原语：Frame\PowerShellScript\Baselines\VerifyScope.psm1')
+} elseif ((Get-Content -LiteralPath $scopeModulePath -Raw) -notmatch 'function\s+Resolve-FullRunGrant') {
+    $violations.Add('[接线] VerifyScope.psm1 缺 Resolve-FullRunGrant（授权来源解析）')
+}
+
+# 判据 ④e 执行体接线（两处裁决标记 + 同一原语）
+foreach ($consumerRel in @('..\..\Environment\CentralTest\Invoke-Verify.ps1', '..\..\Environment\CentralTest\Invoke-AgentRegression.ps1')) {
+    $consumerPath = Join-Path $invokeDir $consumerRel
+    if (-not (Test-Path -LiteralPath $consumerPath)) {
+        $violations.Add("[接线] 默认禁全量消费方缺件：$consumerRel")
+        continue
+    }
+    $consumerText = Get-Content -LiteralPath $consumerPath -Raw
+    if ($consumerText -notmatch [regex]::Escape($scopeMarker)) {
+        $violations.Add("[接线] $(Split-Path -Leaf $consumerPath) 缺 [$scopeMarker] 裁决标记（默认禁全量未接线）")
+    }
+    if ($consumerText -notmatch 'Resolve-FullRunGrant') {
+        $violations.Add("[接线] $(Split-Path -Leaf $consumerPath) 未走授权裁决原语 Resolve-FullRunGrant")
+    }
+}
+
 # ---- 报告 ----
 Write-Host '=== 验证单入口守卫（VerifySingleShot） ==='
-Write-Host '检查项: ① 入口禁原生 dotnet  ② VERIFY_SINGLE_ENTRY 接线  ③ 正/负对照'
+Write-Host '检查项: ① 入口禁原生 dotnet  ② VERIFY_SINGLE_ENTRY 接线  ③ 正/负对照  ④ 默认禁全量接线'
 Write-Host ("入口件数: {0} | 唯一验证命令: {1}" -f $entryFiles.Count, $(if ($singleEntry) { $singleEntry } else { '(未声明)' }))
 Write-Host ("违规数: {0}" -f $violations.Count)
 

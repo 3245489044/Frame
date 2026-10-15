@@ -55,6 +55,28 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
     public string? Kind { get; init; }
 
     /// <summary>
+    /// 声明式执行体归属（<c>[Node] fn=</c> 的**显式声明值**；未声明 ⇒ null）。
+    /// <para>与 <see cref="FuncName"/> 的区别：<see cref="FuncName"/> 在未声明时缺省回退节点名（保证旧模板可用），
+    /// 本属性只承载「声明面真的写了 fn=」这一事实 —— 消费方（表驱动分派）据此判定执行体归属，禁以缺省值推断。</para>
+    /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。
+    /// </summary>
+    public string? Fn { get; init; }
+
+    /// <summary>
+    /// 声明式执行体归属（<c>[Node] skill=</c>）：引用 <c>[Skill]</c> 名（会话步经 skill 装配 + 执行端分派）。
+    /// 与 <see cref="Fn"/> / <see cref="Llm"/>（<c>llm=</c>）互斥完备（闸A US7802）。
+    /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。
+    /// </summary>
+    public string? Skill { get; init; }
+
+    /// <summary>
+    /// 声明式执行体归属（<c>[Node] llm=</c>）：引用 <c>[LLMDecl]</c> 名（对话步契约）。
+    /// 与 <see cref="FuncName"/> / <see cref="Skill"/> 互斥完备（闸A US7802）。
+    /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。
+    /// </summary>
+    public string? Llm { get; init; }
+
+    /// <summary>
     /// 入史标记声明（CP-4 声明面）：<c>Numbered</c>（显式声明中间节点入史，供分层气泡）/ <c>None</c> / <c>Terminal</c>；
     /// 缺省 null = 由 <c>HistoryMarkPolicy</c> 默认规则裁决（终答默认 Terminal，其余 None）。
     /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。

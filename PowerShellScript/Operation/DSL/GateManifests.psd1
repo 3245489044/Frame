@@ -383,7 +383,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '验证单入口守卫（G8）：① Frame\Invoke\*.ps1 禁原生 dotnet test/build（薄转发）② 唯一验证命令接线（axioms.md 声明 VERIFY_SINGLE_ENTRY ∧ 指向已存在入口 ∧ project.md §1.10 登记）③ 正/负对照（防判据空转）；P2 唯一命令纪律；运行面由 §1.10 相位白名单 + [批次声明] 自审承担'
+        Note   = '验证单入口守卫（G8）：① Frame\Invoke\*.ps1 禁原生 dotnet test/build（薄转发）② 唯一验证命令接线（axioms.md 声明 VERIFY_SINGLE_ENTRY ∧ 指向已存在入口 ∧ project.md §1.10 登记）③ 正/负对照（防判据空转）④ 默认禁全量接线（Baselines\_verify-scope.psd1 FullRunRequired ∧ VerifyScope.psm1 Resolve-FullRunGrant ∧ 两执行体 [VERIFY-SCOPE-GATE] 裁决 + 负对照）；P2 唯一命令纪律；运行面由 §1.10 相位白名单 + [批次声明] 自审承担'
     }
 
     FallbackInventory = @{

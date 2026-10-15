@@ -79,12 +79,15 @@ public static class UsharpRoundSpecEmitter
         return steps;
     }
 
-    /// <summary>单步装配（步骤键 = <c>[Node]</c> 名 = <see cref="RoundStep.NodeId"/>；<c>Emits</c>/<c>Kind</c> 随声明透出）。</summary>
+    /// <summary>单步装配（步骤键 = <c>[Node]</c> 名 = <see cref="RoundStep.NodeId"/>；<c>Emits</c>/<c>Kind</c>/执行体归属随声明透出）。</summary>
     private static RoundStep CreateStep(UsharpFlowStep step, UsharpNodeSpec node)
         => new(node.FuncName, node.InputPorts, node.OutputPorts, NodeId: step.Key)
         {
             Emits = step.Emits,
             Kind = node.Kind,
+            Fn = node.DeclaredFn,
+            Skill = node.Skill,
+            Llm = node.Llm,
         };
 
     /// <summary>解析 <c>success=</c> 字段（<c>run_to_end</c> → RunToEnd；<c>decision</c>/缺省 → DecisionWord；未知值报 US5003 并回退 DecisionWord）。</summary>

@@ -36,6 +36,19 @@ public sealed class HtmlBridgePayload
     /// <summary>刷新链路追踪号（框架协议 <c>traceId</c>）；无 → null。</summary>
     public string? TraceId => Text("traceId");
 
+    /// <summary>浮层受控态（框架态外置协议 <c>uiState.overlay{key,open}</c>，P-A）；无 → null。</summary>
+    public UiOverlayState? Overlay
+    {
+        get
+        {
+            if (Section("uiState") is not { } st) return null;
+            if (st.Section("overlay") is not { } ov) return null;
+            var key = JsonTolerantReader.Text(ov._root, "key");
+            var open = JsonTolerantReader.Bool(ov._root, "open") ?? !string.IsNullOrWhiteSpace(key);
+            return key is null && !open ? null : new UiOverlayState(key, open);
+        }
+    }
+
     /// <summary>交互态（框架态外置协议 <c>uiState{focus,scroll:[{k,t,l,b}]}</c>）；无 → null。</summary>
     public UiInteractionSnapshot? Interaction
     {

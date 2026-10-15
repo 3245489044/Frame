@@ -32,10 +32,6 @@ public static class HtmlFlowProjector
             new Dictionary<string, object?> { ["items"] = rows });
     }
 
-    /// <summary>把浮层（overlay）片段追加到主内容 HTML（position:fixed 悬浮于其上）；无浮层原样返回。</summary>
-    public static string AppendOverlay(string contentHtml, string? overlayHtml)
-        => contentHtml + (overlayHtml ?? string.Empty);
-
     /// <summary>
     /// 渲染「上下分栏」壳（<c>taskPaneShell</c> 模板）：上栏（<c>{nodes|raw}</c>）+ 下栏（<c>{history|raw}</c>）。
     /// 典型用途：观测面板（节点聚拢）叠于会话流之上；两栏片段由宿主已渲染好，本方法只做模板拼接。
@@ -58,12 +54,14 @@ public static class HtmlFlowProjector
     /// <summary>区域容器属性前缀（服务端注入；与 DomOps.Patch name 对齐，供区域化写回命中）。</summary>
     public const string RegionNamePrefix = "region-";
 
-    /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content（含 overlay），顶部 selector。
+    /// <summary>渲染布局壳（flowShell 模板）：左 tree + 右 content + 独立浮层区 overlay，顶部 selector。
     /// <para>P2 区域化（I5）：把左侧树 / 右侧内容各包一层具名区域容器（<c>data-name=region-tree|region-main</c>），
     /// 使写回层可按区域 patch（<c>DomOps.Patch name=region-*</c>）而非整体替换；首挂载后壳稳定（I6），区域容器不随内容重建。</para>
     /// <para>E-8 外壳区域化：选区 / 标题 / 副标题亦为独立可写区域（<c>region-selector|region-bartitle|region-convtitle</c>），
     /// 三者互不嵌套、互不覆盖（均与 region-tree/main 平级或独立），使显式视图切换可回归区域计划（不再依赖整页刷新）；
-    /// 刷新按钮 <c>data-poll-refresh</c> 留在区域外，避免被区域写覆盖丢失。</para></summary>
+    /// 刷新按钮 <c>data-poll-refresh</c> 留在区域外，避免被区域写覆盖丢失。</para>
+    /// <para>P-A 浮层建模（I1/I6）：浮层为**独立可写区域** <c>region-overlay</c>（固定位置、与 region-main 平级），
+    /// 使对话区重渲染不再回收浮层节点；插槽恒在（空内容即收起），壳稳定。</para></summary>
     public static string RenderShell(
         IReadOnlyDictionary<string, string> templates,
         string selectorHtml,
@@ -71,7 +69,8 @@ public static class HtmlFlowProjector
         string subtitle,
         string treeHtml,
         string contentHtml,
-        string? pollAttrs = null)
+        string? pollAttrs = null,
+        string? overlayHtml = null)
     {
         var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "tree\">" + treeHtml + "</div>";
         var mainRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
@@ -79,6 +78,8 @@ public static class HtmlFlowProjector
         var selectorRegion = "<div class=\"view-switch region\" data-name=\"" + RegionNamePrefix + "selector\">" + selectorHtml + "</div>";
         var titleRegion = "<span data-name=\"" + RegionNamePrefix + "bartitle\">" + title + "</span>";
         var subtitleRegion = "<span data-name=\"" + RegionNamePrefix + "convtitle\">" + subtitle + "</span>";
+        // P-A：浮层独立区域（恒在；空内容 = 收起）。与 region-main 平级 ⇒ 对话区对齐不回收浮层。
+        var overlayRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "overlay\">" + (overlayHtml ?? string.Empty) + "</div>";
         return HtmlTemplateEngine.Render(templates, "flowShell",
             new Dictionary<string, object?>
             {
@@ -87,6 +88,7 @@ public static class HtmlFlowProjector
                 ["subtitle"] = subtitleRegion,
                 ["tree"] = treeRegion,
                 ["history"] = mainRegion,
+                ["overlay"] = overlayRegion,
                 ["pollAttrs"] = pollAttrs ?? string.Empty,
             });
     }

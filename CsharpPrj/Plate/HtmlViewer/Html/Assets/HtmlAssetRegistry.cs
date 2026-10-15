@@ -208,7 +208,9 @@ public sealed class HtmlAssetRegistry : IHtmlAssetProvider
         + "if(oldN.tagName!==newN.tagName){return newN;}"
         + "var wasOpen=(oldN.tagName==='DETAILS')?oldN.open:null;"
         + "syncAttrs(oldN,newN);"
-        + "if(oldN.tagName==='DETAILS'){oldN.open=(wasOpen||newN.hasAttribute('open'))?true:false;}"
+        // P-D 模型驱动展开态：键控 <details> 由产物带 data-open-state（"1"/"0"，UiStateBinder 绑定）⇒ 内核**可增可减**跟随模型；
+        // 无受控标记（未键控/未绑定）⇒ 保留 DOM 现值（wasOpen||new.open），不回退旧行为（宿主推送不带 uiState 时不误折叠）。
+        + "if(oldN.tagName==='DETAILS'){var ctl=newN.hasAttribute('data-open-state');oldN.open=ctl?(newN.getAttribute('data-open-state')==='1'):(wasOpen||newN.hasAttribute('open'));}"
         + "var hasElem=false;for(var c=0;c<newN.childNodes.length;c++){if(newN.childNodes[c].nodeType===1){hasElem=true;break;}}"
         + "if(!hasElem){if(oldN.textContent!==newN.textContent){oldN.textContent=newN.textContent;}return oldN;}"
         + "reconcileChildren(oldN,newN);return oldN;}"

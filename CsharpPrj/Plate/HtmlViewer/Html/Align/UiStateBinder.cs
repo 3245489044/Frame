@@ -12,11 +12,16 @@ namespace UiBackend.Html;
 /// </summary>
 public static class UiStateBinder
 {
-    /// <summary>把展开集合（稳定键集合，格式 <c>attr=value</c>）绑定到树（缺失/空 → 原样返回）。</summary>
+    /// <summary>受控标记属性名（P-D）：键控 &lt;details&gt; 由模型决定开闭时，产物带本属性（"1"=开 / "0"=关），
+    /// 使对齐内核可**可增可减**地跟随模型；无本属性（未键控/未受控）⇒ 内核保留 DOM 现值（wasOpen）不回退。</summary>
+    public const string OpenStateAttribute = "data-open-state";
+
+    /// <summary>把展开集合（稳定键集合，格式 <c>attr=value</c>）绑定到树：键控 &lt;details&gt; 一律写入受控标记
+    /// （"1"/"0"），命中集合者补 <c>open</c>。无键节点不受影响（内核保留其 DOM 现值）。</summary>
     public static UiNode Bind(UiNode root, IReadOnlyCollection<string>? openKeys)
     {
-        if (openKeys is null || openKeys.Count == 0 || root is null) return root;
-        var set = openKeys as ISet<string> ?? new HashSet<string>(openKeys);
+        if (root is null) return root;
+        var set = openKeys as ISet<string> ?? new HashSet<string>(openKeys ?? System.Array.Empty<string>());
         return BindNode(root, set);
     }
 
@@ -41,15 +46,15 @@ public static class UiStateBinder
 
         if (node.Tag.Length > 0
             && string.Equals(node.Tag, "details", System.StringComparison.OrdinalIgnoreCase)
-            && node.Key is not null
-            && openKeys.Contains(node.Key)
-            && (node.Attributes is null || !node.Attributes.ContainsKey("open")))
+            && node.Key is not null)
         {
+            var open = openKeys.Contains(node.Key);
             var attrs = node.Attributes is null
                 ? new Dictionary<string, string>()
                 : new Dictionary<string, string>(node.Attributes);
-            attrs["open"] = string.Empty;
-            node = node with { Attributes = attrs, Controlled = new UiControlState(Open: true) };
+            attrs[OpenStateAttribute] = open ? "1" : "0";
+            if (open) attrs["open"] = string.Empty;
+            node = node with { Attributes = attrs, Controlled = new UiControlState(Open: open) };
         }
         return node;
     }

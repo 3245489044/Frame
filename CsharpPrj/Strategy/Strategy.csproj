@@ -29,6 +29,7 @@
     <ProjectReference Include="$(Proj_DecisionRules)" />
     <ProjectReference Include="$(Proj_Observability)" />
     <ProjectReference Include="$(Proj_Catalog)" />
+    <ProjectReference Include="$(Proj_Refresh)" />
 
   </ItemGroup>
 
@@ -38,6 +39,7 @@
 
     <Compile Remove="DecisionRules\**\*.cs" />
     <Compile Remove="Observability\**\*.cs" />
+    <Compile Remove="Refresh\**\*.cs" />
   </ItemGroup>
 
 </Project>

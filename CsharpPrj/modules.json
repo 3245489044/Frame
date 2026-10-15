@@ -150,6 +150,7 @@
     "Catalog": "Strategy\\Catalog\\Catalog.csproj",
     "DecisionRules": "Strategy\\DecisionRules\\DecisionRules.csproj",
     "Observability": "Strategy\\Observability\\Observability.csproj",
+    "Refresh": "Strategy\\Refresh\\Refresh.csproj",
     "Strategy": "Strategy\\Strategy.csproj"
   }
 }

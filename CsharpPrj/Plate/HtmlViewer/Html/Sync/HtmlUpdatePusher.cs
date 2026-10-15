@@ -23,7 +23,7 @@ public sealed class HtmlUpdatePusher
 
     /// <param name="channelResolver">通道解析（返回 null = 页面未挂载 → 静默零推送）。</param>
     /// <param name="traceFactory">追踪号工厂（缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
-    /// <c>Share.RefreshFramework.RefreshTraceId.New</c> 统一一次刷新一条轨迹）。</param>
+    /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c> 统一一次刷新一条轨迹）。</param>
     public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string>? traceFactory = null)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
@@ -77,3 +77,4 @@ public sealed class HtmlUpdatePusher
         return sb.ToString();
     }
 }
+

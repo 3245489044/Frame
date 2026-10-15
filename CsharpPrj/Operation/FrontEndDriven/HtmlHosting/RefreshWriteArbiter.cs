@@ -1,7 +1,8 @@
 #nullable enable
 
 using System;
-using Share.RefreshFramework;
+using Strategy.Refresh.Model;
+using Strategy.Refresh.Ports;
 using UiBackend.Abstractions;
 
 namespace FrontEndDriven.HtmlHosting;

@@ -101,9 +101,10 @@
     <ProjectReference Include="$(Proj_HostAssembly)" />
     <ProjectReference Include="$(Proj_JsonMethod)" />
 
-    <!-- ★ 2026-10-15 通用刷新框架（Share.RefreshFramework）：写仲裁适配器 RefreshWriteArbiter 的单一状态源
-         （IRefreshStore/InMemoryRefreshStore）——刷新语义唯一 owner，写落地决策上移框架。 -->
-    <ProjectReference Include="$(Proj_RefreshFramework)" />
+    <!-- ★ 2026-10-15 通用刷新框架（Strategy.Refresh）：写仲裁适配器 RefreshWriteArbiter 的单一状态源
+         （IRefreshStore/InMemoryRefreshStore）——刷新语义唯一 owner，写落地决策上移框架。
+         （上迁说明：原 Share.RefreshFramework 通用原语已迁入 Strategy.Refresh，Share 侧为过渡壳。） -->
+    <ProjectReference Include="$(Proj_Refresh)" />
 
     <!-- ★ 2026-10-15 通用分级查询框架（Strategy.Catalog，L3 向下引用合规）：模板目录（templates source）接入 -->
     <ProjectReference Include="$(Proj_Catalog)" />

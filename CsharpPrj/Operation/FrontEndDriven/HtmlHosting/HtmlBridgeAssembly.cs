@@ -8,7 +8,8 @@ using FrontEndDriven.HtmlViewerBridge;
 using Plate.HtmlViewer;
 using Plate.JsonMethod.Serialization;
 using Plate.JsonMethod.Utilities;
-using Share.RefreshFramework;
+using Strategy.Refresh.Core;
+using Strategy.Refresh.Diagnostics;
 using TConfig;
 using UiBackend.Html;
 

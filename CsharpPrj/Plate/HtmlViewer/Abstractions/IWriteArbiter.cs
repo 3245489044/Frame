@@ -20,7 +20,7 @@ public enum WriteVerdict
 /// <summary>
 /// 写仲裁端口（L0 契约，宿主注入）——每 slot 单调版本 + baseline 过期即丢 + 指纹去重。
 /// <para>依赖倒置：plate 只依赖本抽象；实现由宿主（组合根）用通用刷新框架
-/// <c>Share.RefreshFramework.IRefreshStore</c> 适配注入（plate 零上行依赖）。</para>
+/// <c>Strategy.Refresh.Ports.IRefreshStore</c> 适配注入（plate 零上行依赖）。</para>
 /// <para>语义（不可协商）：<c>version &lt; baseline</c> ⇒ <see cref="WriteVerdict.Stale"/>；
 /// <c>fingerprint == last</c> ⇒ <see cref="WriteVerdict.Skip"/>；其余 ⇒ <see cref="WriteVerdict.Apply"/>。
 /// 仅当实际落地成功后才 <see cref="Commit"/> 推进 baseline。</para>
@@ -36,3 +36,4 @@ public interface IWriteArbiter
     /// <summary>落地成功后推进 baseline 与 last 指纹（仅此一路写状态）。</summary>
     void Commit(string slotKey, long version, string fingerprint);
 }
+

@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-15 18:04:20
+  生成时间: 2026-10-15 19:17:54
 -->
 <Project>
 
@@ -128,6 +128,7 @@
     <Mod_Catalog>$(CsharpPrjDir)Strategy\Catalog\</Mod_Catalog>
     <Mod_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\</Mod_DecisionRules>
     <Mod_Observability>$(CsharpPrjDir)Strategy\Observability\</Mod_Observability>
+    <Mod_Refresh>$(CsharpPrjDir)Strategy\Refresh\</Mod_Refresh>
     <Mod_Strategy>$(CsharpPrjDir)Strategy\</Mod_Strategy>
   </PropertyGroup>
 
@@ -240,6 +241,7 @@
     <Proj_Catalog>$(CsharpPrjDir)Strategy\Catalog\Catalog.csproj</Proj_Catalog>
     <Proj_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\DecisionRules.csproj</Proj_DecisionRules>
     <Proj_Observability>$(CsharpPrjDir)Strategy\Observability\Observability.csproj</Proj_Observability>
+    <Proj_Refresh>$(CsharpPrjDir)Strategy\Refresh\Refresh.csproj</Proj_Refresh>
     <Proj_Strategy>$(CsharpPrjDir)Strategy\Strategy.csproj</Proj_Strategy>
   </PropertyGroup>
 

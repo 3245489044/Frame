@@ -43,11 +43,11 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     private readonly IWriteArbiter? _writeArbiter;
 
     /// <summary>内容指纹单源（P3）：缺省 plate 内置 <see cref="UiFingerprint.Of"/>；宿主可注入框架指纹
-    /// （<c>Share.RefreshFramework.IFingerprint</c>）使领域与写落地共用同一口径。</summary>
+    /// （<c>Strategy.Refresh.Ports.IFingerprint</c>）使领域与写落地共用同一口径。</summary>
     private readonly Func<string, string> _fingerprint;
 
     /// <summary>刷新追踪号工厂（P4）：缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
-    /// <c>Share.RefreshFramework.RefreshTraceId.New</c>，使一次刷新贯穿 push→page→dispatch→sink 用同一来源。</summary>
+    /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c>，使一次刷新贯穿 push→page→dispatch→sink 用同一来源。</summary>
     private readonly Func<string, string> _traceFactory;
 
     /// <summary>键控树写端口（L2 HTML 实现；经通道执行 <c>__uiReconcile.applyTree</c>）。</summary>
@@ -611,3 +611,4 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         public void Dispose() => _channel.MessageReceived -= _handler;
     }
 }
+

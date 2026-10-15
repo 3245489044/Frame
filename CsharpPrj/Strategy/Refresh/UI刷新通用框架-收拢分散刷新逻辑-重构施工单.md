@@ -375,6 +375,17 @@ dotnet build D:\Project\Main\Projects\Plug\Agent\Agent.sln
 | 日期 | 内容 |
 |---|---|
 | 2026-10-15 | 初版：以 `Strategy.Catalog` 为范式，定 `Strategy.Refresh` 通用框架（Model/Ports/Core/Json/Diagnostics）；S0 前置接线（modules.json + 烘焙清单 + manifest）；A1–E3 全量分散点清点与收拢映射；W1–W9 工作项 + INV-1..8 对拍 + 回滚；明确「上迁单一化」处理 `Share.RefreshFramework`。 |
+| 2026-10-15 | **实施落地（批次 0/1/2/3/4/5/6/8/9）**：S0 接线全通；`Strategy.Refresh` 工程落地（15 原语上迁 + 9 新增类型）；`RefreshContract` 单源；`RefreshRegistry`/`RefreshService`/`RefreshJson`；会话页/DB 页 `IRefreshRenderer`；`AgentUiRefreshPublisher` 转调 `RefreshService`（旧签名不变）；`FrontEndDriven` 写仲裁改引 `Strategy.Refresh`。构建：`Refresh.csproj`/`Strategy.csproj`/`FrontEndDriven.csproj`/`Agent.sln` 全绿；`RefreshFramework.Tests` 26/26 通过；层守卫硬违规 0；红线守卫正/负对照通过。 |
+| 2026-10-15 | **收尾批次（W6/W7/W9/回收）**：① W6 — `AgentUiLibraryBatch` 的 DB 页渲染改经框架渲染端口（`DbRefreshRenderer`，唯一实现）；② W7 — 删三处领域去重缓存（`_lastRegionHtml`/`_lastVolatileFingerprint`/`_lastRegionFingerprint`），改经 `IRefreshStore.Decide/Commit` 单源（`AgentUiRefreshPublisher` 暴露 `Store`/`Fingerprint`）；③ W9 — 红线守卫注册进门禁聚合器（`GateManifests.psd1`），`Agent模块门面框架化-施工单.md` §7.5 标注已承接；④ 回收 — `Share.RefreshFramework` 源码/工程/`Share.csproj`/`modules.json`/`CsharpBakeRefs.props`/陈旧 DLL 全删。验证：`MainProj.sln`（全闭包）0 错 0 警；`Agent.sln` 0 错（9 既有警）；manifest 108 件全新鲜；`RefreshFramework.Tests` 26/26；门禁 `RefreshFrameworkBoundary` PASS。 |
+
+### 8.3 实施中的两条偏离（与初版方案的差异，均因仓库硬规约）
+
+| # | 初版方案 | 实际采取 | 原因 |
+|---|---|---|---|
+| DV-1 | `Share.RefreshFramework` 退化为 `TypeForwardedTo` 转发壳 | **A2：接口冻结**——`Share.RefreshFramework` 原样保留（只读过渡壳），消费方逐个切到 `Strategy.Refresh`，切净后删除 | `LayerBoundary.targets` 把「Share 工程 → Strategy 工程」判为**硬违规 LB0001**；类型转发需编译期引用 ⇒ 被挡 |
+| DV-2 | `Plate.HtmlViewer` 引用 `Strategy.Refresh` 以消双写（B1） | **B2′：字面量 + 漂移对拍**——plate 保留字面量，`RefreshFramework.Tests/ContractParityTests` 断言与 `RefreshContract` 相等 | 层守卫按**传递闭包**判定：Plate 引入 Strategy 会经 `Plate.csproj` 毒化全部 Share 消费方（实测 5 个 Share 工程 LB0001 红） |
+| DV-3 | W7 删领域侧 `_lastRegionHtml` / `_lastVolatileFingerprint` | **已完成**（三处领域去重缓存全删，改经 `IRefreshStore.Decide/Commit` 单源） | — |
+| DV-4 | 回收 `Share.RefreshFramework` 排在最后 | **已执行**：源码/工程/`Share.csproj` 聚合引用/`modules.json`/props 具名条目/陈旧 DLL 全部移除 | 消费方已切净，回收无残留引用 |
 
 
 

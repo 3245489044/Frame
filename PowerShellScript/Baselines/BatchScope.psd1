@@ -222,7 +222,7 @@
     # v37（2026-10-15）：单指针不变（v34），现行授权单内**激活 P2 批**（写仲裁接入）——「写落地决策上移」：
     #   Plate 新增写仲裁端口 UiBackend.Abstractions.IWriteArbiter/WriteVerdict（DIP：plate 只依赖抽象）；
     #   HtmlBackendRuntime 增可选 IWriteArbiter，region/host/tree 三路经 TryAdmit（Stale/Skip 不触 DOM）；
-    #   宿主侧 FrontEndDriven.HtmlHosting.RefreshWriteArbiter 适配 Share.RefreshFramework.IRefreshStore，
+    #   宿主侧 FrontEndDriven.HtmlHosting.RefreshWriteArbiter 适配 Strategy.Refresh.Ports.IRefreshStore，
     #   在 HtmlBridgeAssembly.Attach 注入（单一状态源 InMemoryRefreshStore）。改动面 = Frame/CsharpPrj/Plate/HtmlViewer/** ·
     #   Frame/CsharpPrj/Operation/FrontEndDriven/** · Environment/CentralTest/CSharpTest/Operation.Tests/**（均 P2 allowSet）。
     #   切换理由 = 用户转入实施 P2（把刷新框架写仲裁接入宿主 DOM 写落地）。
@@ -243,3 +243,4 @@
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }
 }
+

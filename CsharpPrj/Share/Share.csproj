@@ -30,8 +30,6 @@
     <!-- ★ Declarative Circuit Framework：声明式电路描述/编译层，唯一宿主承载一切引用/调用/依赖关系；复用 Modules.Pipeline 作执行后端 -->
     <ProjectReference Include="$(Proj_CircuitFramework)" />
     <ProjectReference Include="$(Proj_LayoutAnalysis)" />
-    <!-- ★ 通用刷新框架：刷新语义唯一 owner（版本/指纹/在飞合并），零上层依赖，写落地经 IRefreshSink 反向注入 -->
-    <ProjectReference Include="$(Proj_RefreshFramework)" />
     <ProjectReference Include="$(Proj_PlaceholderFramework)" />
     <ProjectReference Include="$(Proj_StateManagement)" />
     <ProjectReference Include="$(Proj_TreeTraceFramework)" />

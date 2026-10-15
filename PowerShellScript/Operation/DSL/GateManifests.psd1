@@ -33,6 +33,12 @@
         Note   = '承载面 K10（S1/S2 静态可变槽）+ 取用面 S4–S8（键值唯一 / 键↔宿主 1:1 / 取用面类型化 / 声明↔形态集合相等〔B2-c〕 / 跨代句柄禁令〔B5-a〕）；-WriteManifest 为写操作，聚合器禁用'
     }
 
+    RefreshFrameworkBoundary = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'UI 刷新通用框架红线（Strategy.Refresh）：框架内零领域串（agent/conversation/db/task/session/history）/ 零上层依赖（Agent./Plate./UiBackend./FrontEndDriven.）；正负对照 -NegativeControl'
+    }
+
     AgentProcessSurface = @{
         Args   = @{ Check = $true }
         Expect = 0

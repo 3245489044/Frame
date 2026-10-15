@@ -3,7 +3,7 @@ using Plate.DslMethod.Model;
 namespace Usharp.Adapters.Agent;
 
 /// <summary>
-/// <c>[Profile] key: bands=a,b | skills=on | mode=off | tools=on</c> 的语法视图。
+/// <c>[Profile] key: bands=a,b | skills=on | mode=off | tools=on | resources=on</c> 的语法视图。
 /// <para>
 /// <c>[Profile]</c> 已是框架核心前缀（<c>DslSymbolKind.Profile</c>）：本类把 Agent 侧原本的
 /// <c>PromptProfileCatalog.TryParse</c> 自写行解析替换为「读 <c>UsharpCompilation</c> facet」。
@@ -17,7 +17,8 @@ public sealed record UsharpProfileDecl(
     bool IncludeTools,
     string SourceFile,
     int LineNumber,
-    bool Base = false)
+    bool Base = false,
+    bool IncludeResources = false)
 {
     /// <summary>由 <c>[Profile]</c> 声明投影（无名 → null）。</summary>
     public static UsharpProfileDecl? From(DslDeclaration d)
@@ -32,7 +33,8 @@ public sealed record UsharpProfileDecl(
             IsOn(d.Field("tools")),
             d.SourceFile,
             d.LineNumber,
-            IsOn(d.Field("base")));
+            IsOn(d.Field("base")),
+            IsOn(d.Field("resources")));
     }
 
     private static bool IsOn(string? value)

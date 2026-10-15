@@ -128,7 +128,7 @@ if (-not (Test-Path -LiteralPath $scopeModulePath)) {
 }
 
 # 判据 ④e 执行体接线（两处裁决标记 + 同一原语）
-foreach ($consumerRel in @('..\..\Environment\CentralTest\Invoke-Verify.ps1', '..\..\Environment\CentralTest\Invoke-AgentRegression.ps1')) {
+foreach ($consumerRel in @('..\..\Environment\CentralTest\Internal\Invoke-Verify.ps1', '..\..\Environment\CentralTest\Internal\Invoke-AgentRegression.ps1')) {
     $consumerPath = Join-Path $invokeDir $consumerRel
     if (-not (Test-Path -LiteralPath $consumerPath)) {
         $violations.Add("[接线] 默认禁全量消费方缺件：$consumerRel")

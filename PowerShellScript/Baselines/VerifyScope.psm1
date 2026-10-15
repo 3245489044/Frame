@@ -5,7 +5,7 @@ VerifyScope.psm1 —— 验证面授权裁决原语（注册表装载 + 授权�
 设计：
   · 注册表单源 = Baselines\_verify-scope.psd1（纯数据；`_` 前缀 ⇒ 不进入 GateBaselines 单件判据）；
   · 授权来源优先级 = -GrantFile（显式授权单）> 批次授权单 verify 字段 > 宿主令牌（结构事实，可审计）；
-  · 消费方 = Environment\CentralTest\Invoke-Verify.ps1 ∧ Invoke-AgentRegression.ps1
+  · 消费方 = Environment\CentralTest\Internal\Invoke-Verify.ps1 ∧ Invoke-AgentRegression.ps1
     （唯一实现；禁消费方各自手写一套解析 ⇒ 对齐 Strategy.SingleImplementation）。
 
 用法（消费方）：

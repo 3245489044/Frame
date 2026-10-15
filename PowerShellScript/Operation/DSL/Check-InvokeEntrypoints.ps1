@@ -30,26 +30,9 @@ Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateBaseline.
 $baseline = Import-GateBaseline -Name InvokeEntrypoints
 
 # ---- 判据 ①：入口不得用数组 splatting 传开关 ----
+# M5 收敛：原 19 个逐件薄转发脚本 → 单一入口 Invoke-Frame.ps1（+ entries.psd1 分发表）。
 $entryScripts = @(
-    'Search-Repo.ps1'
-    'Test-JsonFiles.ps1'
-    'Invoke-GateCheck.ps1'
-    'Invoke-Regression.ps1'
-    'Locate-Test.ps1'
-    'Locate-Build.ps1'
-    'Locate-Port.ps1'
-    'Invoke-Verify.ps1'
-    'Invoke-BuildEffective.ps1'
-    'Invoke-SpecGen.ps1'
-    'Get-SpecChain.ps1'
-    'New-SpecChain.ps1'
-    'Use-SpecChain.ps1'
-    'Set-SpecChain.ps1'
-    'ForEach-SpecCase.ps1'
-    'New-SpecChains.ps1'
-    'Remove-SpecChain.ps1'
-    'Test-SpecRefs.ps1'
-    'Get-SpecGenerated.ps1'
+    'Invoke-Frame.ps1'
 )
 foreach ($script in $entryScripts) {
     $path = Join-Path $invokeDir $script
@@ -122,41 +105,37 @@ foreach ($f in $checkScripts) {
     }
 }
 
-# ---- 判据 ⑤：转发件目标存在（防「转发件指向已搬移/删除的实现」静默失败） ----
-# 载体 = 结构事实（`$target = Join-Path $PSScriptRoot '<rel>'` 解析后的文件存在性）。
-$forwarderRx = '\$target\s*=\s*Join-Path\s+\$PSScriptRoot\s+(?<q>[''"])(?<rel>.+?)\k<q>'
+# ---- 判据 ⑤：分发目标存在（防「分发表指向已搬移/删除的实现」静默失败） ----
+# 载体 = 结构事实（entries.psd1 中 Kind='Ps' 的 Target 解析后的文件存在性）。
+$dispatchTablePath = Join-Path $invokeDir 'entries.psd1'
 $forwarders = 0
-foreach ($file in @(Get-ChildItem -LiteralPath $invokeDir -Filter '*.ps1' -File -ErrorAction SilentlyContinue)) {
-    $content = Get-Content -LiteralPath $file.FullName -Raw
-    foreach ($m in [regex]::Matches($content, $forwarderRx)) {
+if (Test-Path -LiteralPath $dispatchTablePath) {
+    $dispatchTable = Import-PowerShellDataFile -LiteralPath $dispatchTablePath
+    foreach ($name in @($dispatchTable.Entries.Keys)) {
+        $e = $dispatchTable.Entries[$name]
+        if ([string]$e.Kind -ne 'Ps') { continue }
         $forwarders++
-        $rel = $m.Groups['rel'].Value
+        $rel = [string]$e.Target
         $resolved = Join-Path $invokeDir $rel
         if (-not (Test-Path -LiteralPath $resolved)) {
-            $violations.Add("[$($file.Name)] 转发目标不存在：$rel（解析为 $resolved）")
+            $violations.Add("[entries:$name] 分发目标不存在：$rel（解析为 $resolved）")
         }
     }
+} else {
+    $violations.Add("[entries] 分发表不存在：$dispatchTablePath")
 }
 
-# 正/负对照（判据自证：提取器能识别标准形态且存在性判定正确）
-$posContent = '$target = Join-Path $PSScriptRoot ''..\..\Environment\CentralTest\Invoke-Verify.ps1'''
-$negContent = '$target = Join-Path $PSScriptRoot ''..\..\Environment\CentralTest\__missing__.ps1'''
-$posRel = [regex]::Match($posContent, $forwarderRx).Groups['rel'].Value
-$negRel = [regex]::Match($negContent, $forwarderRx).Groups['rel'].Value
-if ([string]::IsNullOrEmpty($posRel)) {
-    $violations.Add('[⑤-U] 正对照失败：提取器未识别标准转发形态')
-} elseif (-not (Test-Path -LiteralPath (Join-Path $invokeDir $posRel))) {
+# 正/负对照（判据自证：存在性判定正确）
+if (-not (Test-Path -LiteralPath (Join-Path $invokeDir '..\PowerShellScript\Share\Search\Search-Repo.ps1'))) {
     $violations.Add('[⑤-U] 正对照失败：已存在目标被判不存在')
 }
-if ([string]::IsNullOrEmpty($negRel)) {
-    $violations.Add('[⑤-U] 负对照失败：提取器未识别测例形态')
-} elseif (Test-Path -LiteralPath (Join-Path $invokeDir $negRel)) {
+if (Test-Path -LiteralPath (Join-Path $invokeDir '..\PowerShellScript\Share\Search\__missing__.ps1')) {
     $violations.Add('[⑤-U] 负对照失败：不存在目标被判存在')
 }
 
 $minForwarders = [int]$baseline.MinForwarders.Value
 if ($forwarders -lt $minForwarders) {
-    $violations.Add("[⑤] 转发件目标数 $forwarders < 下限 $minForwarders（判据无标的假绿）")
+    $violations.Add("[⑤] 分发目标数 $forwarders < 下限 $minForwarders（判据无标的假绿）")
 }
 
 # ---- 报告 ----

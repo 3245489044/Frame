@@ -48,7 +48,7 @@ $ratioMax   = [double]$baseline.RatioMax.Value
 $minSamples = [int]$baseline.MinSamples.Value
 
 $violations = [System.Collections.Generic.List[string]]::new()
-$planScript = Join-Path $repoRoot 'Environment\CentralTest\Get-VerifyPlan.ps1'
+$planScript = Join-Path $repoRoot 'Environment\CentralTest\Internal\Get-VerifyPlan.ps1'
 
 # ---------------- 工具：验证计划（诊断相位；调用 Get-VerifyPlan，零运行） ----------------
 function Get-VerifyPlanData {

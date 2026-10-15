@@ -200,7 +200,7 @@ foreach ($m in $genManifests) {
     }
 }
 if ($genManifests.Count -eq 0) {
-    $pending.Add('[G5][⊥] 生成根无 _manifest.json —— 清单 / 手改侧不可判定（经 Frame\Invoke\Invoke-SpecGen.ps1 -Manifest 生成后再判）')
+    $pending.Add('[G5][⊥] 生成根无 _manifest.json —— 清单 / 手改侧不可判定（经 Frame\Invoke\Invoke-Frame.ps1 -Action invoke-specgen -EmitManifest 生成后再判）')
 }
 
 # ---- 判据空转防护 ----

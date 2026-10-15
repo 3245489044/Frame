@@ -8,7 +8,7 @@
     判据形态（对齐 Check-SessionDuplication.ps1 口径）：
       ① 计数 = 命中**文件数**（Search-Repo -List 语义）；
       ② 每条断言只用一个字面量 pattern + 单个仓；
-      ③ 检索一律经 Frame\Invoke\Search-Repo.ps1（唯一检索设施）。
+      ③ 检索一律经 Frame\Invoke\Invoke-Frame.ps1 -Action search-repo（唯一检索设施）。
 
     两种模式：
       默认（基线模式）—— 阈值 = Baseline：**只拦新增**（回归）；未达 Target 以 [待消除] 可见化，不判失败。
@@ -35,10 +35,10 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-$searchRepo = Join-Path $Root 'Frame\Invoke\Search-Repo.ps1'
-if (-not (Test-Path -LiteralPath $searchRepo)) {
+$searchEntry = Join-Path $Root 'Frame\Invoke\Invoke-Frame.ps1'
+if (-not (Test-Path -LiteralPath $searchEntry)) {
     Write-Host '[CRSS] 违规 1 项：'
-    Write-Host "  - 检索设施缺失：$searchRepo（全部判据不可判，禁静默通过）"
+    Write-Host "  - 检索设施缺失：$searchEntry（全部判据不可判，禁静默通过）"
     exit 2
 }
 
@@ -55,7 +55,7 @@ function Get-SearchFileCount {
         [Parameter(Mandatory = $true)][string]$Repo
     )
 
-    $cliArgs = @('-NoProfile', '-File', $searchRepo, '-Pattern', $Pattern, '-PathSpec', $PathSpec, '-Repo', $Repo, '-List')
+    $cliArgs = @('-NoProfile', '-File', $searchEntry, '-Action', 'search-repo', '-Pattern', $Pattern, '-PathSpec', $PathSpec, '-Repo', $Repo, '-List')
     $raw = @(& $shellExe @cliArgs 2>&1 | ForEach-Object { "$_" })
     if ($LASTEXITCODE -ne 0) { return -1 }
 

@@ -1,8 +1,8 @@
 @{
     # ===== VerifyScope 注册表（非单件门禁基线；`_` 前缀 ⇒ 不进入 GateBaselines 单件判据）=====
     # 语义：验证「局部面」免授权直跑；「全量面」默认禁止，须持授权（用户裁决 2026-10-15）。
-    #   消费方 = Environment\CentralTest\Invoke-Verify.ps1（P2 唯一验证命令）
-    #          ∧ Environment\CentralTest\Invoke-AgentRegression.ps1（矩阵执行体）
+    #   消费方 = Environment\CentralTest\Internal\Invoke-Verify.ps1（P2 唯一验证命令）
+    #          ∧ Environment\CentralTest\Internal\Invoke-AgentRegression.ps1（矩阵执行体）
     #   裁决原语单源 = Baselines\VerifyScope.psm1（禁各消费方手写解析）
     #   守卫 = Operation\DSL\Check-VerifySingleShot.ps1 判据 ④（接线：注册表 ∧ 两执行体裁决标记）
     Schema = 'verify-scope-v1'

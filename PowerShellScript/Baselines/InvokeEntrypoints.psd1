@@ -5,10 +5,10 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'InvokeEntrypoints'
 
-    # 正对照下限：声明 `$target = Join-Path $PSScriptRoot '…'` 的转发件数须 ≥ 此值。
+    # 正对照下限：entries.psd1 中 Kind='Ps' 的分发目标数须 ≥ 此值（M5 收敛：19 转发件 → 9 个 Ps 目标）。
     MinForwarders = @{
-        Value = 17
+        Value = 9
         Origin = 'Derived'
-        DueWhen = ''
+        DueWhen = '可由 Frame\Invoke\entries.psd1 中 Kind=Ps 条数复算 ⇒ 后续改由生成器产出'
     }
 }

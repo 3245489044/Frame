@@ -27,6 +27,10 @@ namespace Usharp.Adapters.Node;
 /// <para>
 /// 耦合方向：本工程 = **唯一引 <c>Modules.Node</c> 的 Usharp 工程**；桥接类型只许出现在此处。
 /// </para>
+/// <para>
+/// 唯一引点（D）：本文件 = Node 子域**唯一引点**；领域件引 Usharp 一律经本子域适配件，
+/// 禁跨子域直引（与 <c>Observability</c> 的「唯一引观测处」同模板）。
+/// </para>
 /// </summary>
 public sealed class UsharpNodeSpecSource : ISpecSource
 {

@@ -100,6 +100,9 @@
          ThreadSafeSlot（唯一实现，勿复制锁槽样板）；HtmlBridgeAssembly 的配置模板加载复用 Plate.JsonMethod 节点读取。 -->
     <ProjectReference Include="$(Proj_HostAssembly)" />
     <ProjectReference Include="$(Proj_JsonMethod)" />
+
+    <!-- ★ 2026-10-15 通用分级查询框架（Strategy.Catalog，L3 向下引用合规）：模板目录（templates source）接入 -->
+    <ProjectReference Include="$(Proj_Catalog)" />
   </ItemGroup>
 
 </Project>

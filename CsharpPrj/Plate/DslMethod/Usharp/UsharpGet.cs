@@ -14,6 +14,11 @@ namespace Plate.DslMethod.Usharp;
 /// 本类位于中立库（存储层可引用，不引 <c>Usharp.*</c>），仅覆盖**规范形**（字段行
 /// <c>name = &lt;单行规范值&gt;</c>）所需的极小读取；完整值文法解析器仍在 <c>Usharp.Syntax</c>，此处不复制其全量逻辑。
 /// </para>
+/// <para>
+/// 裁定（C3）：规范形解析**维持双实现**（本极小读 + <c>Usharp.Syntax.UsharpValueParser</c> 完整文法）——
+/// 选①单源会引入 <c>Plate → Usharp.Syntax</c> 反向引用，违反 <c>Frame\Usharp\README.md</c> §10 依赖方向。
+/// 语义门 = <c>Check-UsharpGetParity.ps1</c> G4（禁新增独立文法解析分支）。
+/// </para>
 /// </summary>
 public static class UsharpGet
 {

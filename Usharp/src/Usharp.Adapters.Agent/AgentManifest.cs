@@ -12,6 +12,10 @@ namespace Usharp.Adapters.Agent;
 /// 运行期各框架只读本清单，**零自解析**（取代 <c>SkillCatalog.ParseFrontMatter</c> /
 /// <c>PromptProfileCatalog.TryParse</c> / <c>ToolFaceAssembler.TrackFactories</c> 手写链路）。
 /// </para>
+/// <para>
+/// 唯一引点（D）：本文件 = Agent 子域**唯一引点**；领域件引 Usharp 一律经本子域适配件，
+/// 禁跨子域直引（与 <c>Observability</c> 的「唯一引观测处」同模板）。
+/// </para>
 /// </summary>
 public sealed record AgentManifest(
     IReadOnlyList<UsharpSkillDecl> Skills,

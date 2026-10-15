@@ -188,6 +188,24 @@ if ([bool]$baseline.JsonExitEnforce.Value -and $u7 -gt 0) {
     $violations.Add("U7 存储层 JSON 直接使用（白名单外）$u7 处（U-9/U-11：JSON 仅存在于外部兼容读出/调试渲染）")
 }
 
+# ---------------- U8 值↔对象映射双实现收敛（C1/C2） ----------------
+# 纪律：UsharpValueConverter 仅作「缺省 JSON codec 回退」的 STJ 适配壳，不得在存储层/适配层被直接引用
+#      （值⟷JSON 唯一出口 = UsharpValueJson；值⟷对象唯一映射 = UsharpValueMapper）。
+$converterRx     = 'UsharpValueConverter'
+$converterRoots  = @((Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven'),
+                     (Join-Path $Root 'Frame\Usharp\src'))
+$u8 = 0
+foreach ($dir in $converterRoots) {
+    foreach ($f in (Get-SourceFiles $dir '*.cs')) {
+        if ($f.Name -eq 'UsharpValueConverter.cs') { continue }
+        $u8 += ([regex]::Matches([System.IO.File]::ReadAllText($f.FullName), $converterRx)).Count
+    }
+}
+if ($u8 -gt [int]$baseline.ValueConverterRefs.Value) {
+    $violations.Add("U8 存储/适配层直引 UsharpValueConverter $u8 处 > 基线 $([int]$baseline.ValueConverterRefs.Value)（唯一映射实现 = UsharpValueMapper）")
+}
+
+
 # ---------------- U6 正/负对照（防假绿） ----------------
 if ($dsdFiles.Count -lt 10) { $violations.Add("U6 正对照失效：扫描面仅 $($dsdFiles.Count) 件 .cs（判据无标的）") }
 if (-not ('"[IndexJson] TEXT"' -match $legacyRx)) { $violations.Add('U6 负对照失效：兼容面判据未命中合成样本 (ANTI-FALSE-GREEN)') }

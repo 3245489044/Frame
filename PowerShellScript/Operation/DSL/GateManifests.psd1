@@ -460,6 +460,13 @@
         Expect = 0
         Note   = 'usharp_get 集中式转换层（V4/V5/V6-form）：注册单点（UsharpDataPorts.EnsureSqlFunctions）/ 下推表达式同源（UsharpRecordPaths）/ 表达式索引落点 / 单语句 CAS；基线 = Baselines\UsharpGetParity.psd1'
     }
+    UsharpJoint = @{
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'USharp ↔ C# 交汇面聚拢：消费侧经唯一门面 UsharpDataPorts / 唯一 JSON 出口 UsharpValueJson（全限定散点=0）/ 零值模型内联构造（new Usharp* 棘轮只减不增）/ 门面四语义覆盖；扫描面 = 生产面 Projects\**\src\**（E-4 排除测试面）；基线 = Baselines\UsharpJoint.psd1'
+    }
+
+
 
     # ===== PrjBridge 解耦（冻结 ABI / 只编自身）=====
     PrjBridgeDecoupling = @{

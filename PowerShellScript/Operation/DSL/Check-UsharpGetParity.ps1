@@ -131,6 +131,22 @@ if ($casSites -ne [int]$baseline.CasSingleStatementSites.Value) {
     $violations.Add("G4 单语句 CAS 落点 $casSites != 基线 $([int]$baseline.CasSingleStatementSites.Value)（SET [Doc]=@d ... usharp_get(Status)=@from）")
 }
 
+# ---------------- G6 规范形极小读分支上限（C3：维持双实现 + 语义门） ----------------
+# 纪律：UsharpGet 只做规范形极小读（字段行定位），完整值文法解析归 Usharp.Syntax.UsharpValueParser；
+#      禁在 UsharpGet 内新增独立文法解析分支（private helper 数 ≤ 基线）。
+$getFile        = Join-Path $Root 'Frame\CsharpPrj\Plate\DslMethod\Usharp\UsharpGet.cs'
+$grammarHelpers = 0
+if (Test-Path -LiteralPath $getFile) {
+    foreach ($line in [System.IO.File]::ReadAllLines($getFile)) {
+        if ($line.TrimStart().StartsWith('//')) { continue }
+        $grammarHelpers += ([regex]::Matches($line, '\bprivate\s+static\b')).Count
+    }
+}
+if ($grammarHelpers -gt [int]$baseline.UsharpGetGrammarHelpers.Value) {
+    $violations.Add("G6 UsharpGet 独立解析 helper 数 $grammarHelpers > 基线 $([int]$baseline.UsharpGetGrammarHelpers.Value)（完整文法归 UsharpValueParser）")
+}
+
+
 # ---------------- G5 正/负对照（防假绿） ----------------
 if (-not (Test-Path -LiteralPath $taskPool)) { $violations.Add('G5 正对照失效：SqliteTaskPoolStore.cs 缺失（判据无标的）') }
 if (-not ('UsharpSqlFunction.EnsureRegistered();' -match $regCallRx)) { $violations.Add('G5 负对照失效：注册点判据未命中合成样本 (ANTI-FALSE-GREEN)') }

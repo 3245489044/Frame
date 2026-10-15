@@ -12,4 +12,6 @@
     UsharpIndexSites = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }
     # G4 单语句 CAS（SET [Doc]=@d ... usharp_get(Status)=@from）
     CasSingleStatementSites = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
+    # G6 UsharpGet 独立解析 helper 数上限（C3：维持双实现 + 语义门；完整文法归 Usharp.Syntax.UsharpValueParser）
+    UsharpGetGrammarHelpers = @{ Value = 7; Origin = 'Derived'; DueWhen = '' }
 }

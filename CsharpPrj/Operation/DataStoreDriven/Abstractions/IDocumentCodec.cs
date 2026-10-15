@@ -16,13 +16,16 @@ public interface IDocumentCodec
     /// <summary>格式标识（诊断/落库标签：<c>json</c> / <c>usharp</c>）。</summary>
     string Format { get; }
 
-    /// <summary>对象 → 文档文本。</summary>
+    // ---- 非记录通道（C4）：仅 EdgeDoc / EndpointDoc 等「非记录图行」使用，不得承载记录实例 ----
+    //      记录实例一律走下方记录实例口（SerializeRecord / TryDeserializeRecord*）。
+
+    /// <summary>对象 → 文档文本（**非记录通道**：仅 <c>EdgeDoc</c> / <c>EndpointDoc</c>）。</summary>
     string Serialize<T>(T value);
 
-    /// <summary>文档文本 → 对象（失败返回 <c>null</c>）。</summary>
+    /// <summary>文档文本 → 对象（**非记录通道**：仅 <c>EdgeDoc</c> / <c>EndpointDoc</c>；失败返回 <c>null</c>）。</summary>
     T? Deserialize<T>(string text);
 
-    /// <summary>文档文本 → 对象（容错读：失败置 null 并返回 false）。</summary>
+    /// <summary>文档文本 → 对象（**非记录通道**：仅 <c>EdgeDoc</c> / <c>EndpointDoc</c>；容错读：失败置 null 并返回 false）。</summary>
     bool TryDeserialize<T>(string text, out T? value);
 
     /// <summary>

@@ -8,9 +8,11 @@ using CommandFramework.Abstractions;
 using ECS.Bridge;
 using ECS.Core;
 using FrameworkAbstractions.ComponentRegistry;
+using FrontEndDriven.Catalog;
 using FrontEndDriven.ControlLookup;
 using FrontEndDriven.Shared.Catalog;
 using Modules.Registry;
+using Strategy.Catalog.Core;
 using TConfig;
 using UiPathManager = FrontEndDriven.Shared.Utils.PathManager;
 
@@ -24,6 +26,9 @@ public static class UiCatalogLibrary
 {
     public static void RegisterAll(ITrConfigRegistry registry)
     {
+        // 装配模板目录源（幂等）：发现面（列表/树/明细）统一走 Strategy.Catalog。
+        EnsureTemplatesSource();
+
         registry.Register("Ui_ListCatalog",
             (Func<ListData>)(() => ListCatalog(null)),
             "列出模板目录文件（目录发现，框架模板根，按文件夹分类；含全部文件类型）");
@@ -51,21 +56,28 @@ public static class UiCatalogLibrary
     private static FileCatalogSpec Spec(string? dir)
         => new FileCatalogSpec { Dir = string.IsNullOrWhiteSpace(dir) ? UiPathManager.GetAgentRunTemplatesRoot() : dir };
 
-    private static ListData ListCatalog(string? dir)
+    /// <summary>幂等装配模板目录源（同 Id 已存在则复用，避免热加载重复注册抛重复源）。</summary>
+    private static void EnsureTemplatesSource()
     {
-        var entries = FileCatalogService.Scan(Spec(dir));
-        var ordered = FileCatalogService.OrderEntries(entries);
-        return ListData.From(ordered.Select(FileCatalogService.FormatItem));
+        if (!CatalogRegistry.Default.Contains(TemplateCatalogSource.Id))
+            CatalogRegistry.Default.Register(TemplateCatalogSource.Instance);
     }
+
+    /// <summary>目录条目（扫描 + 稳定排序）：默认根走 TemplateCatalogSource（统一目录面）；显式 dir 保留旧扫描路径。</summary>
+    private static IReadOnlyList<FileCatalogEntry> OrderedEntries(string? dir)
+        => string.IsNullOrWhiteSpace(dir)
+            ? TemplateCatalogSource.Entries()
+            : FileCatalogService.OrderEntries(FileCatalogService.Scan(Spec(dir))).ToList();
+
+    private static ListData ListCatalog(string? dir)
+        => ListData.From(OrderedEntries(dir).Select(FileCatalogService.FormatItem));
 
     /// <summary>目录树文本：每个文件夹先输出一行 folder，再输出该文件夹下每文件一行 folder/file（供 TreeView 先文件夹后文件）。</summary>
     private static string ListCatalogTree(string? dir)
     {
-        var entries = FileCatalogService.Scan(Spec(dir));
-        var ordered = FileCatalogService.OrderEntries(entries);
         var lines = new List<string>();
         string? lastFolder = null;
-        foreach (var e in ordered)
+        foreach (var e in OrderedEntries(dir))
         {
             if (!string.Equals(e.Category, lastFolder, StringComparison.OrdinalIgnoreCase))
             {

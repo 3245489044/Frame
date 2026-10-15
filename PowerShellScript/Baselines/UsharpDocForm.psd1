@@ -16,4 +16,6 @@
     RecordHeaderRenders = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
     # U5 存储层引 Usharp.* 的文件数（依赖方向：仅中立 Plate.DslMethod）
     StorageUsharpRefs = @{ Value = 0; Origin = 'Derived'; DueWhen = '' }
+    # U8 存储/适配层直引 UsharpValueConverter 的计数（C1/C2：唯一映射实现 = UsharpValueMapper；本转换器仅缺省 codec 回退壳）
+    ValueConverterRefs = @{ Value = 0; Origin = 'Derived'; DueWhen = '' }
 }

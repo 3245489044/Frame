@@ -189,7 +189,15 @@
     #   Projects/PrjBridge/**（插件根换代入口）· Projects/Plug/Agent/src/**（根引导接线），
     #   均在 GEN-SSOT allowSet 内；RB 批条目与其 preexisting 保留不变。
     # Manifest(v30) = @{ Value = 'Docs\analysis\2026\10\10.13\2026-10-13-Agent红清单收口.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-13-刷新写回调用链重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # Manifest(v31..v32) = @{ Value = 'Docs\analysis\Agent\refactor\2026-10-13-刷新写回调用链重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v33（2026-10-15）：单指针切换至「Usharp ↔ C# 交汇面聚拢」授权单（active=[M1,M2,M3]）。
+    #   切换理由 = 用户转入实施《2026-10-15-Usharp交汇面聚拢-施工单.md》：M1 改动落在
+    #   Frame/Usharp/src（UsharpDataPorts 门面升格 + 适配层纪律）· Frame/CsharpPrj/Plate/DslMethod/Usharp（裁定注释）·
+    #   Frame/CsharpPrj/Operation/DataStoreDriven/Abstractions（IDocumentCodec 注释）；M2 落在 Projects/Plug/Agent/src（15 处散点改写）；
+    #   M3 落在 Frame/PowerShellScript/{Operation/DSL,Baselines}，均在新单 allowSet 内。
+    #   RB/GEN-SSOT/UI-SPLIT/IC 等在途系列的非目标改动按新单 preexisting 登记，切换不误判。
+    #   恢复 = 回填 RB 单原值（上方 v31..v32 行）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Usharp交汇面聚拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

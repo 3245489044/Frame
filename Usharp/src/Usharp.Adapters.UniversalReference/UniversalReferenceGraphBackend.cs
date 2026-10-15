@@ -8,6 +8,10 @@ namespace Usharp.Adapters.UniversalReference;
 /// 环检测转发 <see cref="CircularDependencyDetector"/>，可达 / 路径 / 完整性转发 <see cref="GraphValidator{TNodeId}"/>。
 /// <para>本类只做转发与类型投影，不重写图算法（单一实现）；诊断的 文件:行 归因由门面
 /// <see cref="UsharpGraphService"/> 统一填写，故此处仅给判据结果。</para>
+/// <para>
+/// 唯一引点（D）：本文件 = UniversalReference 子域**唯一引点**；领域件引 Usharp 一律经本子域适配件，
+/// 禁跨子域直引（与 <c>Observability</c> 的「唯一引观测处」同模板）。
+/// </para>
 /// </summary>
 public sealed class UniversalReferenceGraphBackend : IUsharpGraphBackend
 {

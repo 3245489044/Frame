@@ -7,11 +7,15 @@ using System.Text.Json.Serialization;
 namespace Plate.DslMethod.Usharp;
 
 /// <summary>
-/// <see cref="UsharpValue"/> 的 System.Text.Json 转换器（**回退编解码自包含**）：
+/// <see cref="UsharpValue"/> 的 System.Text.Json 转换器（**缺省 JSON codec 回退专用**，自包含）：
 /// 把 USharp 值以结构化 JSON 往返（记录 → 字段数组，列表 → 元素数组，标量 → kind+text）。
 /// <para>
 /// 用途：当存储层使用**缺省 JSON codec**（非 USharp 适配层注入）时仍能承载中立值模型；
 /// USharp 适配层的 <c>UsharpDocumentCodec</c> 不依赖 System.Text.Json，二者互不影响。
+/// </para>
+/// <para>
+/// 裁定（C1/C2）：值⟷JSON **唯一对外出口 = <see cref="UsharpValueJson"/>**；值⟷对象**唯一映射实现 = 适配层 <c>UsharpValueMapper</c>**。
+/// 本转换器**不承载语义映射**，仅作缺省 codec 回退的 STJ 适配壳（随 G-4 退役）。
 /// </para>
 /// </summary>
 public sealed class UsharpValueConverter : JsonConverter<UsharpValue>

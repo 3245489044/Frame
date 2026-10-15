@@ -12,6 +12,10 @@ namespace Usharp.Adapters.Observability;
 /// </para>
 /// <para>编译期不写库（H3）：本实现不持总线、不发事件 —— 端口面不再提供编译期自观测（无消费方），
 /// 落库一律由宿主显式 <c>IObservabilityBus.FlushAsync</c>。</para>
+/// <para>
+/// 唯一引点（D）：本文件 = Observability 子域**唯一引点**（唯一引观测处，README §9.5）；
+/// 领域件引 Usharp 一律经本子域适配件，禁跨子域直引。
+/// </para>
 /// </summary>
 public sealed class UsharpObservabilityBackend : IUsharpObservabilityBackend
 {

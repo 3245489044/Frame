@@ -1,18 +1,26 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Sqlite;
+using Plate.DslMethod.Usharp;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Declarations;
 
 /// <summary>
-/// USharp 数据层端口组合门面（唯一注入入口 / SingleImplementation）：
-/// 把三端口（<see cref="IDocumentCodec"/> / <see cref="ITableSchemaSource"/> / <see cref="IDeclarationStore"/>）
-/// 的 USharp 实现构建收敛于此一处，组合根只调本门面，**禁在各装配点内联** <c>Usharp*</c> 构造字面
-/// （消除「改一处漏另一侧」的双路径不一致）。
+/// USharp **全域唯一交汇门面**（唯一注入入口 / SingleImplementation）：
+/// 把 C# ↔ USharp 的四类交汇语义各收一个入口，并合于此一门面 ——
+/// ① 值 ↔ CLR 对象（<see cref="ToValue"/> / <see cref="ToObject{T}"/>，唯一映射实现 = <see cref="UsharpValueMapper"/>）；
+/// ② 值 ↔ 文本（<see cref="FromJson(string)"/> / <see cref="ToPayloadText"/> / <see cref="ToJson"/>，唯一 JSON 出口 = <see cref="UsharpValueJson"/>；文档编解码 <see cref="Codec"/>）；
+/// ③ 值 ↔ SQL 下推（<see cref="EnsureSqlFunctions"/> / <see cref="SchemaSource"/>）；
+/// ④ 声明文本 → 既有 C# 类型（<see cref="DeclarationStoreAsync"/>）。
+/// <para>
+/// 组合根与消费侧只调本门面，**禁在各装配点内联** <c>new Usharp*</c> 构造字面，
+/// **禁**绕过门面直引 <c>Usharp.Adapters.*</c> / <c>Usharp.Semantics.*</c> 类型（消除「改一处漏另一侧」的双路径不一致）。
+/// </para>
 /// <para>
 /// 依赖方向：本类落在唯一桥接层 <c>Usharp.Adapters.Declarations</c>（可同时见 Usharp 与 DataStoreDriven）；
 /// 存储层与 <c>Usharp.Semantics</c> 仍不引 USharp 实现，实现一律经组合根注入。
@@ -22,6 +30,28 @@ public static class UsharpDataPorts
 {
     /// <summary>表声明文件名（<c>[Table]</c> 真源，位于配置目录 <c>nodes/</c> 下）。</summary>
     public const string TablesDeclarationFileName = "tables.ushar";
+
+    // ===== ① 值 ↔ CLR 对象（唯一映射实现 = UsharpValueMapper）=====
+
+    /// <summary>任意 CLR 对象 → 中立 USharp 值（转调 <see cref="UsharpValueMapper.ToValue"/>）。</summary>
+    public static UsharpValue ToValue(object? value) => UsharpValueMapper.ToValue(value);
+
+    /// <summary>中立 USharp 值 → 目标对象（转调 <see cref="UsharpValueMapper.ToObject{T}"/>；失败 ⇒ default）。</summary>
+    public static T? ToObject<T>(UsharpValue value) => UsharpValueMapper.ToObject<T>(value);
+
+    // ===== ② 值 ↔ 文本（唯一 JSON 出口 = UsharpValueJson；兼容读出/迁移）=====
+
+    /// <summary>载荷 JSON 文本 → 中立值（兼容读：空 ⇒ <c>Null</c>，非法 ⇒ 原样字符串标量；转调 <see cref="UsharpValueJson.ParseOrString"/>）。</summary>
+    public static UsharpValue FromJson(string? json) => UsharpValueJson.ParseOrString(json);
+
+    /// <summary>载荷 JSON 元素 → 中立值（转调 <see cref="UsharpValueJson.ParseOrString"/>）。</summary>
+    public static UsharpValue FromJson(JsonElement element) => UsharpValueJson.ParseOrString(element.GetRawText());
+
+    /// <summary>中立值 → 载荷文本视图（字符串标量 ⇒ 原样文本；其余 ⇒ JSON；转调 <see cref="UsharpValueJson.ToPayloadText"/>）。</summary>
+    public static string ToPayloadText(UsharpValue? value) => UsharpValueJson.ToPayloadText(value);
+
+    /// <summary>中立值 → JSON 文本（转调 <see cref="UsharpValueJson.ToJson"/>）。</summary>
+    public static string ToJson(UsharpValue? value) => UsharpValueJson.ToJson(value);
 
     /// <summary>文档编解码端口（USharp 实现，无状态单例）。取用时确保 <c>usharp_get</c> 已注册
     /// （唯一注入入口 ⇒ 组合根解析 codec 即完成注册，早于任何 Store 初始化）。</summary>

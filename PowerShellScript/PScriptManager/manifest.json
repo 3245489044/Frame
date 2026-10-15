@@ -8,6 +8,7 @@
     "PowerShellScript",
     "CentralTest"
   ],
+  "directoryMapFile": "Framework/directory-map.json",
   "scanExcludePatterns": [
     "**/backups/**",
     "**/Temp/**",

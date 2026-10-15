@@ -41,11 +41,14 @@ if (-not (Test-Path (Join-Path $Root 'Frame\CsharpPrj\Plate\DataManage\Storage\S
 
 # ── 委托执行（捕获退出码 + 输出文本；既有脚本保持唯一权威，本脚本只读其结论） ──
 # 注：既有门禁脚本经 Write-Host 输出（PowerShell 信息流 = 流 6），须 6>&1 才能纳入捕获。
+# 委托目标按名在 DSL\ 全域递归发现（与 Invoke-GateCheck 同口径；分类到 <Domain>\ 子目录后仍可达）。
 function Invoke-DelegateGate {
     param([string]$Script, [hashtable]$Parameters)
-    $path = Join-Path $dslDir $Script
-    if (-not (Test-Path $path)) { throw "门禁脚本缺失: $path" }
-    $lines = & $path @Parameters 6>&1 2>&1 | Out-String
+    $dslRoot = Split-Path $PSScriptRoot -Parent
+    $hit = Get-ChildItem -LiteralPath $dslRoot -Recurse -Filter $Script -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $hit) { throw "门禁脚本缺失: $Script（在 $dslRoot 递归未找到）" }
+    $lines = & $hit.FullName @Parameters 6>&1 2>&1 | Out-String
     $code  = $LASTEXITCODE
     return [pscustomobject]@{ Exit = $code; Text = $lines }
 }

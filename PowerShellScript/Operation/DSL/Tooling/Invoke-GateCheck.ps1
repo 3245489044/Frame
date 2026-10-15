@@ -24,6 +24,9 @@ param(
 # 按需加载模块（Tooling\ → DSL\ → Operation\ → PowerShellScript\Modules）
 . (Join-Path $PSScriptRoot "..\..\..\Modules\Import-Modules.ps1")
 
+# 门禁运行时（根定位 + 落点派生**单源**，委托 PScriptManager\Framework\DirectoryMap）
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 # ---- 加载清单（Registry\）----
 if (-not $Manifest) {
     $Manifest = Join-Path $PSScriptRoot '..\Registry\GateManifests.psd1'
@@ -69,17 +72,14 @@ $failedOutputs = New-Object System.Collections.Generic.List[string]
 
 foreach ($name in $names) {
     $spec = $gates[$name]
-    # 脚本定位：清单可选 Path（仓库根相对，供 Modules\* 侧守卫登记）；缺省 = DSL\ 下按名递归发现 Check-<name>.ps1
-    #   （分类后 Check-*.ps1 落在 DSL\<Domain>\，与目录布局解耦：移动脚本无需改本聚合器）。
-    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-    $scriptPath = $null
-    if ($spec.ContainsKey('Path') -and -not [string]::IsNullOrWhiteSpace($spec.Path)) {
-        $scriptPath = Join-Path $repoRoot $spec.Path
-    } else {
-        $dslRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-        $hit = Get-ChildItem -LiteralPath $dslRoot -Recurse -Filter "Check-$name.ps1" -File -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-        $scriptPath = if ($hit) { $hit.FullName } else { Join-Path $PSScriptRoot "Check-$name.ps1" }
+    # 脚本定位单源 = 门禁运行时（委托目录映射框架）：Domain → 候选目录（+ 名称例外）派生；
+    #   DSL\ 全域兜底 ⇒ 与目录布局解耦（移动/分类脚本无需改本聚合器）。
+    $scriptPath = ''
+    try {
+        $scriptPath = Find-GateScript -Name $name -Domain ([string]$spec.Domain) -AllowFallback
+    }
+    catch {
+        $scriptPath = ''
     }
 
     if (-not (Test-Path -LiteralPath $scriptPath)) {

@@ -34,24 +34,11 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
     exit 2
 }
 
-$gates = Import-PowerShellDataFile -LiteralPath $manifestPath
+# 落点口径单源 = 门禁运行时（委托 PScriptManager\Framework\DirectoryMap）：
+#   Domain → 候选目录（+ 名称例外）派生；与目录布局解耦；歧义即抛。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-# 落点口径（与 Check-GateTaxonomy.ps1 一致，布局无关）：
-#   清单登记项有 Path ⇒ 用 Path（仓库根相对，'\' 分隔）；否则 = DSL\ 下按名递归发现 Check-<Name>.ps1。
-function Get-GateScriptCell {
-    param([string]$Name, $Spec)
-    if ($Spec.ContainsKey('Path') -and -not [string]::IsNullOrWhiteSpace([string]$Spec.Path)) {
-        return ([string]$Spec.Path) -replace '/', '\'
-    }
-    $dslRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-    $hit = Get-ChildItem -LiteralPath $dslRoot -Recurse -Filter "Check-$Name.ps1" -File -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($hit) {
-        $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-        return ($hit.FullName.Substring($repoRoot.Length + 1) -replace '/', '\')
-    }
-    return "Frame\PowerShellScript\Operation\DSL\Check-$Name.ps1"
-}
+$gates = Import-PowerShellDataFile -LiteralPath $manifestPath
 
 $rows = foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec   = $gates[$name]
@@ -62,7 +49,7 @@ $rows = foreach ($name in ($gates.Keys | Sort-Object)) {
         Gate   = [string]$name
         Tier   = $tier
         Expect = [int]$spec.Expect
-        Script = (Get-GateScriptCell -Name $name -Spec $spec)
+        Script = (Get-GateScriptCell -Gate $name -Domain $domain -AllowFallback)
     }
 }
 

@@ -33,6 +33,7 @@ Write-Host ""
 
 # 直接 dot-source 所有核心模块（确保函数在当前作用域可用）
 $coreModules = @(
+    'Framework\DirectoryMap.ps1'
     'Core\ScriptScanner.ps1'
     'Core\ConfigGenerator.ps1'
     'Core\ManifestManager.ps1'

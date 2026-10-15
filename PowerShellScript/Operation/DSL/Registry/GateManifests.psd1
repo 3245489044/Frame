@@ -60,6 +60,13 @@
         Note   = '过程面单源守卫：键文法(ProcessKeys) / 事件类别(ProcessNodeKinds) / 进度接收器(SyncProgress)'
     }
 
+    EntrySingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '入口单源守卫（写库即实现 · Agent.Core.Entry）：E-1 AgentApiPort 定义恰 1 · E-1b AgentEntryCallableTrack 恰 1 · E-2 AgentIntentMapping 恰 1 · E-3 AgentDispatcher 恰 1 · E-4 通用轨经 AgentEntryPort 转发 · P-1 正对照（intent 常量 ≥ 基线）· P-2 负对照'
+    }
+
     DataCenterGenericity = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
@@ -103,7 +110,6 @@
     DeclaredBundle = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1'
         Expect = 0
         Note   = '冻结声明产物守卫（G5）：门禁判据迁移到编译产物结构事实——manifest 三件在位 / schema 哨兵 / 非空正对照 / 组装器零词表字面量（J7）+ 正负对照'
     }
@@ -118,7 +124,6 @@
     SpecOnly = @{
         Domain = 'Spec'
         Args   = @{ Root = @('AgentTest', 'UsharpTests'); Baseline = 'Tools\Gate\baselines\SpecOnlyGate.baseline.json' }
-        Path   = 'Environment\CentralTest\Tools\Gate\Test-SpecOnlyGate.ps1'
         Expect = 0
         Note   = '测试载体单一化（AT2001 工具期对拍）：已启用范围（UsharpTests 根级 / Agent.Core.Tests 工程级）内未豁免的 [TestMethod] 即 FAIL；棘轮基线只减不增（新增手写测试 / 向已豁免文件追加）'
     }
@@ -126,7 +131,6 @@
     NodeFlowDomainMatch = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeFlowDomainMatch.ps1'
         Expect = 0
         Note   = '工作流↔节点域对应守卫（U4）：[Node] uses=/produces= 域 token ∈ Config\nodes\*.ushar 的 [Domain] 集（双向对账）；正/负对照防假绿；基线 Baselines\NodeFlowDomainMatch.psd1'
     }
@@ -134,7 +138,6 @@
     DbPageGatherWiring = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1'
         Expect = 0
         Note   = '数据库页读侧统一守卫（R1/R5）：数据库页读路径零存储域（ur_* / SELECT * / CellMaxLength）· NodePanelModel 为唯一读侧 DTO · 入口函数已注册 · 正/负对照'
     }
@@ -142,7 +145,6 @@
     BatchStoreSingleSource = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Data\Check-BatchStoreSingleSource.ps1'
         Expect = 0
         Note   = '存储层批量单源守卫（R0/R5）：批量读/写/删唯一构建点 = StorageFramework\Batch\（IBatchStore）· 存储层批量零领域字面量 · 批写批删无裸连接 · 正/负对照'
     }
@@ -150,7 +152,6 @@
     ConversationReadSingleSource = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Data\Check-ConversationReadSingleSource.ps1'
         Expect = 0
         Note   = '会话页读面单一真源守卫：读面零合成（禁兜底造 default 容器／禁合并映射残留 · 已销账 0）·「列历史」实现点 = 1 · 读面 SessionKeys.Default 载体只减不增 · 正/负对照'
     }
@@ -158,7 +159,6 @@
     GateRegistry = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateRegistry.ps1'
         Expect = 0
         Note   = '门禁注册表对账（P4）：formula.md [Gate] 声明 ⊇ 已登记运行期实现；登记项 Impl 文件在位且含符号（G1 悬空/G2 漂移/G3 未声明登记 → 失败）；G4 已声明无实现（行为门）仅可见化'
     }
@@ -168,7 +168,6 @@
     NodeFramework = @{
         Domain = 'Node'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1'
         Expect = 0
         Note   = '节点框架纯净性 A–H 段 + S 段（S-1：Form=Stream ⇒ 身份模板单键）：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖 / Stream 声明面单键身份（与 NodeSpecValidator spec.stream-identity-multi-row 对偶）；-ShowDetail 显示详情'
     }
@@ -176,7 +175,6 @@
     ToolFaceDeclaration = @{
         Domain = 'Usharp'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Usharp\Check-ToolFaceDeclaration.ps1'
         Expect = 0
         Note   = '工具面/MCP 装配声明守卫 D1–D5（P0/P2 建面）：Config\tool-face.json 三段齐备 / 执行端与内部面（cline/answer）不外泄 / face.tracks 非空 / 正对照（faces 数 ≥ 基线）+ 负对照（合成 cline.expose=true 必须被同一判据命中）；U6 转强制（Args Check = 校验模式，违规 → 退出码 1）'
     }
@@ -184,7 +182,6 @@
     NodeDeclSingleSource = @{
         Domain = 'Node'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1'
         Expect = 0
         Note   = '节点域声明单一来源桥接线守卫 C1–C5（X1/W5 建面）：FrameBinaryRefs.props 登记 Usharp.Adapters.Node（否则语言桥不可见）/ UsharpNodeSpecSource 实现 ISpecSource / 域定义面 JSON 存量缺口报告口径（U1 目标清零）/ 正对照（注册行数 ≥ 基线）+ 负对照（合成缺失注册必须被同一判据命中）；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
     }
@@ -192,7 +189,6 @@
     NodeGather = @{
         Domain = 'Node'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1'
         Expect = 0
         Note   = '节点聚拢通用框架 G1–G3：声明闭合（node-gather-*.json 的 kind-shaping.family ⊆ families + 有 families 须留 "*" 默认塑形）/ 零领域（Gather 层零上层 using Operation·Share·Agent·Usharp 与零域键字面量 process·task-node·conversation·segment·message）/ 接线唯一（INodeGatherService 注册点恰 1 = NodeGatherHosting.TryAttachAll；框架层不消费 INodeDomainPort）'
     }
@@ -200,7 +196,6 @@
     Wiring = @{
         Domain = 'Node'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1'
         Expect = 0
         Note   = '接线生命周期守卫（Wiring）：声明状态 ⇔ 实现事实（D/F 存在性 + C 读面探针），declared→primary→retired（本项目口径废除 dual-read 运行期双读）；注册表单源 Baselines\Wiring.psd1；正/负对照防假绿；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
     }
@@ -208,7 +203,6 @@
     ObservabilitySurface = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1'
         Expect = 0
         Note   = '可见化观测面守卫 C1–C8（F-P0-1c/1d/1i / C-5）：名册在册且已登记 EmbeddedResource / 事件数 ≥ 基线(46) / AgentLog 面关键三键在册（正对照）/ 乱造键不在册（负对照）/ 名册 ∩ 语义台账 = ∅（第二作者）/ 双门面发射面成对（AgentTrace.Visibility + AgentLog 镜像 + ModuleLog 镜像）/ ModuleLog 面（Agent.Modules 10 调用点）关键键在册 / 部署态事件区读面（C8：直读 events.jsonl 断言"存在 ∧ 关键键可检索"；默认报告态，-VerifyDeploy 转违规，-EventStorePath 供正负对照）'
     }
@@ -216,7 +210,6 @@
     NodeWriteBypass = @{
         Domain = 'Node'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1'
         Expect = 0
         Note   = 'P6-A 委托接线架构不变式：键格式声明化 / 端口准入单源 / 节点写路径单源 / 运行态面结算单源 / I 段 Stream 结算恰 1 次写（B/C/I 段为 Error；I 段防退回逐帧写）；-ShowDetail 显示详情'
     }
@@ -229,7 +222,6 @@
     NodeLocPlacement = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeLocPlacement.ps1'
         Expect = 0
         Note   = '节点位置反解声明守卫 C1–C5（U12：位置 = loc 反解，不手写声明）：闸A 编译 0 错 / 反解域完备（位置 id ∪ Loc 词表，双向无游离）/ 反解唯一（每位置恰一行）/ 正对照（位置数 ≥ 基线）/ 负对照（U12 §13.2 原样形态必须报 US1003 ∧ US1009）'
     }
@@ -237,7 +229,6 @@
     NodeKeyAddress = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeKeyAddress.ps1'
         Expect = 0
         Note   = '节点键地址守卫 A1–A7（批次 1）：位置键字段 ⊆ 身份坐标 ∪ 位置 local / local 自洽 / 身份坐标声明齐备 / 同域键模板可区分 / 单写者多落点提示 / 实例位置 id 一致 / 正对照（位置数 ≥ 8 基线）'
     }
@@ -245,7 +236,6 @@
     NodeLocConsistency = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeLocConsistency.ps1'
         Expect = 0
         Note   = '节点 loc 单源一致性守卫 C1–C4（HV-1 / U12 L-7 / L-6）：loc 字面量只允许出现在定义清单（新增即违规）/ 回退债务清单只减不增（列示现存 4 件）/ ReadScope 构造点须带 Loc（读侧位置来源 = 反解，禁绕过）/ 正对照（单源定义 + 声明面 [Space] Loc + ReadScope 构造点数 ≥ 基线）'
     }
@@ -253,7 +243,6 @@
     NodePortPurity = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1'
         Expect = 0
         Note   = '节点端口纯净性守卫 C1–C5（CT-U3 / P20 / §2.2）：位置层可执行引用零 Usharp（csproj 引用行 + 源码去注释后）/ 位置层不引 HierarchyMethod·UniversalReference（K6）/ 引 Modules.Node 的 Usharp 工程恰为白名单 {Usharp.Adapters.Node} / 正对照（桥接工程存在 ∧ 引用 Modules.Node ∧ 实现 ISpecSource）/ C5 读面三态收口（F-4：三态词面 OkButEmpty·Unavailable·IsUnavailable 在位 ∧ 读面适配器消费 IsUnavailable；附负对照）'
     }
@@ -261,7 +250,6 @@
     NodeHierarchyRefs = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeHierarchyRefs.ps1'
         Expect = 0
         Note   = '节点层级引用声明守卫 E1–E5（W1：归属边事实只在声明面）：闸A 0 错 / 边类型集合双向对账（声明 ⇄ 唯一字面量源 ReferenceTypes 实测用到集；CrossDbReferenceTypes 已退化为别名门面）/ 退役常量写用法债务只减不增（HistoryOwnsNode）/ [Ref] 字段白名单（禁未注册字段：静默忽略 ⇒ 假声明）/ 正对照 + 负对照（`loc=` 必须被字段判据命中，且闸A 对其 0 错）'
     }
@@ -269,7 +257,6 @@
     ReferenceVocabulary = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1'
         Expect = 0
         Note   = '引用关系词汇守卫 A1（C1–C4）：边类型/端点类型字面量只住唯一源 ReferenceTypes.cs（其余常量类只做别名转发）/ 零依赖层豁免（ScopeFramework·DeclarativeDataflow，只减不增）/ 正对照（单源命中 ≥ 基线）/ 负对照（合成字面量必须被同一判据命中）'
     }
@@ -277,7 +264,6 @@
     ReferenceExclusion = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1'
         Expect = 0
         Note   = '引用框架禁引守卫 B5（C1–C3）：UR 只引「词表 DSL + 图算法只读服务 + 资源模型」—— WorkflowExecutor / IWorkflowExecutor / IUniversalReferenceManager（Agent 面）/ Reference.Relationship / BranchManagement 在两扫描面 0 命中；正对照（适配器面须命中 IUniversalReferenceManager）+ 负对照（合成禁引必报）'
     }
@@ -285,7 +271,6 @@
     NodeCollectPort = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1'
         Expect = 0
         Note   = '节点收集式输入端口守卫 C1–C5（inports=nodes.*）：保留 token 白名单 / 单次性 / 出参唯一 / 正对照（收集端口声明数≥基线且 fn∈投影类白名单）/ 负对照（合成 `inports=node.*` 必须报 C1）；运行时 counterpart = WorkflowFunctionRefValidator 的 C1–C3'
     }
@@ -293,7 +278,6 @@
     AgentOrchestrationFlow = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1'
         Expect = 0
         Note   = 'Agent 编排归流 E1–E12（声明真源/单步体/静默基线/入参三方对账/调用点与命名空间取值点基线）'
     }
@@ -301,7 +285,6 @@
     AgentFrameworkSingleSource = @{
         Domain = 'Node'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1'
         Expect = 0
         Note   = '四个横切关注点框架单源 D1–D11：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）/ 运行期本地流 msgId 单源（D11：统一 DiagnosticsCodes + context）；基线单源 = Baselines\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
     }
@@ -316,7 +299,6 @@
     BakeFramework = @{
         Domain = 'Build'
         Args   = @{}
-        Path   = 'Projects\BuildFramework\Check-BakeFramework.ps1'
         Expect = 0
         Note   = 'CsharpPrj 权威烘焙框架治理 1–6 + 共享边界程序集 7–10（权威副本在册 / 副本外溢=版本偏斜面 / 不源码重编译 / props⇄C# 清单对账）+ 烘焙新鲜度；-Configuration 切换配置，默认 Debug'
     }
@@ -387,7 +369,6 @@
     KeyGrammar = @{
         Domain = 'Parsing'
         Args   = @{}
-        Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1'
         Expect = 0
         Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；基线单源 = Baselines\KeyGrammar.psd1（脚本零数值基线）；-Check 为校验模式，-ShowDetail 显示逐条实测'
     }
@@ -436,7 +417,6 @@
     RecognizerVocabulary = @{
         Domain = 'Parsing'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1'
         Expect = 0
         Note   = '识别词表守卫 R1–R11：声明面（Config\recognizers.json）JSON 合法且结构齐备 / kind 唯一且含兜底类 / 规则 kind ∈ 词表 / match 仅结构谓词 / TS 侧零词表副本（W-2）/ 负对照（防假绿）/ 正对照基线 / R8 C# 镜像对账（到期：缺失即违规）/ R9 live∩snapshot 成节点类别 = ∅ / R10 聚拢声明品类闭合 / R11 双向对拍（镜像字面量集 ≡ 声明面；编译视图须经 RecognizedKinds.All）'
     }
@@ -564,7 +544,6 @@
     PrjBridgeDecoupling = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }
-        Path   = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1'
         Expect = 0
         Note   = 'PrjBridge 解耦守卫（INV-PB-1）：桥产物 AssemblyRef 零 Agent.*/GameEditor.*（结构事实=元数据引用表）⇒ Agent/Engine 任意变更不迫使桥重编'
     }

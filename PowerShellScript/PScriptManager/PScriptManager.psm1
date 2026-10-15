@@ -35,6 +35,7 @@ $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # 按依赖顺序加载核心模块
 $coreModules = @(
+    'Framework\DirectoryMap.ps1'
     'Core\ScriptScanner.psm1'
     'Core\ConfigGenerator.psm1'
     'Core\ManifestManager.psm1'

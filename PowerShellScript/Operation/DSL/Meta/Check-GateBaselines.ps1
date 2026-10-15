@@ -45,6 +45,8 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+# 门禁运行时（落点/扫描面派生单源，委托 PScriptManager\Framework\DirectoryMap）
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $pending    = [System.Collections.Generic.List[string]]::new()
@@ -54,23 +56,19 @@ Write-Host "============================================================" -Foreg
 Write-Host "  门禁基线守卫（内联基线清册 U1–U11）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-# 扫描面 = 「目录规约（Frame\PowerShellScript 全域）」 ∪ 「GateManifests 登记的 Path 所在目录」
+# 扫描面 = 「目录规约（Frame\PowerShellScript 全域）」 ∪ 「门禁 Domain 候选目录（目录映射框架单源）」
 #   动机（G2 实测）：此前扫描面硬编码为 Frame\PowerShellScript ⇒ 登记在 Modules/Projects 侧（或未来落在别处）的
 #   Check-*.ps1 不在守卫面内 ⇒ 新增内联基线无人拦（与「判据载体率」同族的覆盖漏洞）。
+#   落点来源 = DirectoryMap 的 gateDomains（清单**已去 Path** ⇒ 禁再由 Path 推导扫描面）。
 $scanRoots = [System.Collections.Generic.List[string]]::new()
 $scanRoots.Add((Join-Path $Root 'Frame\PowerShellScript'))
+# 声明面对账源（U10 使用；与扫描面推导解耦，此处仅作路径常量）
 $manifestsPath = Join-Path $Root 'Frame\PowerShellScript\Operation\DSL\Registry\GateManifests.psd1'
-if (Test-Path -LiteralPath $manifestsPath)
+foreach ($dom in (Get-GateDomains))
 {
-    $gateSpecs = Import-PowerShellDataFile -LiteralPath $manifestsPath
-    foreach ($gateName in $gateSpecs.Keys)
+    foreach ($d in (Get-DomainPaths -Domain $dom))
     {
-        $spec = $gateSpecs[$gateName]
-        if ($spec -isnot [System.Collections.IDictionary] -or -not $spec.Contains('Path')) { continue }
-        $specPath = [string]$spec.Path
-        if ([string]::IsNullOrWhiteSpace($specPath)) { continue }
-        $specDir = Split-Path -Parent (Join-Path $Root $specPath)
-        if ((Test-Path -LiteralPath $specDir) -and -not $scanRoots.Contains($specDir)) { $scanRoots.Add($specDir) }
+        if ((Test-Path -LiteralPath $d) -and -not $scanRoots.Contains($d)) { $scanRoots.Add($d) }
     }
 }
 

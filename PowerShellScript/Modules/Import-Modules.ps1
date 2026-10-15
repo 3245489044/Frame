@@ -34,9 +34,26 @@
 # 函数→模块映射表（IoC 核心）— 编译产物
 # 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
+# ============================================================
+# 函数→模块映射表（IoC 核心）— 编译产物
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # <!-- PROTO_AUTO:functionModuleMap:BEGIN -->
 # ============================================================
 $functionModuleMap = @{
+
+    # ===== Baselines =====
+    'Get-BaselineFiles'           = 'Baselines/GateBaseline.psm1'
+    'Get-BaselinesRoot'           = 'Baselines/GateBaseline.psm1'
+    'Get-InlineBaselineRegex'     = 'Baselines/GateBaseline.psm1'
+    'Import-GateBaseline'         = 'Baselines/GateBaseline.psm1'
+    'Test-BaselineEntryTyped'     = 'Baselines/GateBaseline.psm1'
+
+    # ===== Baselines =====
+    'Get-FullRunTokenEnvVar'      = 'Baselines/VerifyScope.psm1'
+    'Get-VerifyScopeRegistry'     = 'Baselines/VerifyScope.psm1'
+    'Resolve-FullRunGrant'        = 'Baselines/VerifyScope.psm1'
+    'Test-FullRunRequired'        = 'Baselines/VerifyScope.psm1'
 
     # ===== BasicMethod\Core =====
     'Get-FileEncoding'     = 'BasicMethod/Core/FileUtils.psm1'
@@ -265,6 +282,14 @@ $functionModuleMap = @{
     # ===== Modules\Csproj =====
     'Initialize-NewProject'     = 'Modules/Csproj/CsprojFixEngine.psm1'
     'Invoke-CsprojRepair'       = 'Modules/Csproj/CsprojFixEngine.psm1'
+
+    # ===== Modules\Dispatcher =====
+    'Get-DispatchEntry'          = 'Modules/Dispatcher/Dispatcher.psm1'
+    'Get-NormalizedExitCode'     = 'Modules/Dispatcher/Dispatcher.psm1'
+    'Import-DispatchTable'       = 'Modules/Dispatcher/Dispatcher.psm1'
+    'New-DispatchParams'         = 'Modules/Dispatcher/Dispatcher.psm1'
+    'New-SpecCliArgs'            = 'Modules/Dispatcher/Dispatcher.psm1'
+    'Resolve-DispatchTarget'     = 'Modules/Dispatcher/Dispatcher.psm1'
 
     # ===== Modules\Docker =====
     'Ensure-DockerImage'         = 'Modules/Docker/DockerBuild.psm1'
@@ -545,6 +570,19 @@ $functionModuleMap = @{
     'Parse-BlockComment'        = 'PScriptManager/Core/ScriptScanner.psm1'
     'Resolve-ScriptPath'        = 'PScriptManager/Core/ScriptScanner.psm1'
     'Show-ScriptScanResult'     = 'PScriptManager/Core/ScriptScanner.psm1'
+
+    # ===== PScriptManager\Framework =====
+    'Get-DirectoryMap'           = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-DomainPath'             = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-DomainPaths'            = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-FrameRoot'              = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-GateScriptCell'         = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-GateScriptLeafName'     = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-GateScriptOverride'     = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-MappedPath'             = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-RepositoryRoot'         = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Get-SuperRoot'              = 'PScriptManager/Framework/DirectoryMap.psm1'
+    'Resolve-GateScript'         = 'PScriptManager/Framework/DirectoryMap.psm1'
 
     # ===== PScriptManager\Framework =====
     'Get-FrameworkOwners'          = 'PScriptManager/Framework/FrameworkInvoke.psm1'

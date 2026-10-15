@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "description": "仓库目录映射单源 —— 逻辑键 -> 物理路径 / 门禁 Domain -> 候选目录 / 门名 -> 脚本名例外。禁在其他脚本内联硬编码这些落点。",
+  "rootAnchor": {
+    "superRootMarkers": ["Frame", "Projects"],
+    "frameDir": "Frame",
+    "note": "Frame/Projects 均为 git 子模块（各带 .git）⇒ 超根不可用 .git 哨兵上溯（会命中子模块根），恒以「同时含 Frame\\ 与 Projects\\」的 marker 判定。"
+  },
+  "paths": {
+    "Frame": "Frame",
+    "PowerShellScript": "Frame/PowerShellScript",
+    "Modules": "Frame/PowerShellScript/Modules",
+    "Baselines": "Frame/PowerShellScript/Baselines",
+    "PScriptManager": "Frame/PowerShellScript/PScriptManager",
+    "DSL": "Frame/PowerShellScript/Operation/DSL",
+    "GateRegistry": "Frame/PowerShellScript/Operation/DSL/Registry",
+    "Projects": "Projects",
+    "BuildFramework": "Projects/BuildFramework",
+    "CentralTestGate": "Environment/CentralTest/Tools/Gate"
+  },
+  "gateDomains": {
+    "Meta": ["Frame/PowerShellScript/Operation/DSL/Meta"],
+    "Agent": ["Frame/PowerShellScript/Operation/DSL/Agent"],
+    "Data": ["Frame/PowerShellScript/Operation/DSL/Data"],
+    "Spec": ["Frame/PowerShellScript/Operation/DSL/Spec", "Environment/CentralTest/Tools/Gate"],
+    "Process": ["Frame/PowerShellScript/Operation/DSL/Process"],
+    "Usharp": ["Frame/PowerShellScript/Operation/DSL/Usharp"],
+    "Declarations": ["Frame/PowerShellScript/Operation/DSL/Declarations"],
+    "Node": ["Frame/PowerShellScript/Modules/Node", "Frame/PowerShellScript/Operation/DSL/Node"],
+    "Parsing": ["Frame/PowerShellScript/Modules/Parsing"],
+    "Build": ["Projects/BuildFramework"]
+  },
+  "scriptNameOverrides": {
+    "PrjBridgeDecoupling": "Check-BridgeDecoupling.ps1",
+    "SpecOnly": "Test-SpecOnlyGate.ps1"
+  }
+}

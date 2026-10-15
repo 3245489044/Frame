@@ -231,6 +231,43 @@ graph TB
 
 ---
 
+### 5. DirectoryMap — 目录映射基础框架（`Framework/`）
+
+把「仓库根解析 / 约定目录 / 门禁 Domain→目录 / 按名发现脚本」收敛为**唯一单源**
+= `Framework/directory-map.json`（禁在消费脚本内联硬编码落点）。门禁运行时
+`Baselines\GateRuntime.psm1` 委托本框架完成根定位与落点派生。
+
+**关键点：**
+
+| 项 | 说明 |
+|---|---|
+| 仓库**超根** | `Frame\` 与 `Projects\` 均为 git 子模块（各带 `.git`）⇒ **不可**用 `.git` 哨兵上溯（会命中子模块根）；恒以「同时含 `Frame\` 与 `Projects\`」的 marker 判定（与深度无关） |
+| Frame 子模块根 | 另供 `Get-FrameRoot`（PScriptManager / Baselines 等 Frame 侧锚点） |
+| Domain → 目录 | **一对多候选**：`Node`→`Modules\Node` ∪ `DSL\Node`；`Spec`→`DSL\Spec` ∪ `CentralTest\Tools\Gate` |
+| 名称例外 | `scriptNameOverrides`（如 `PrjBridgeDecoupling`→`Check-BridgeDecoupling.ps1`、`SpecOnly`→`Test-SpecOnlyGate.ps1`） |
+| 歧义即红 | `Resolve-GateScript` 命中 > 1 即抛（防重名静默取首个） |
+
+**双形态**（与 `FrameworkInvoke.psm1` / `FrameworkRequires.ps1` 同范式）：
+
+| 文件 | 形态 | 用法 |
+|---|---|---|
+| `Framework\DirectoryMap.ps1` | dot-source 入口 | `. (Join-Path $PSM 'Framework\DirectoryMap.ps1')` |
+| `Framework\DirectoryMap.psm1` | 模块版（点源 .ps1 后导出） | `Import-Module (Join-Path $PSM 'Framework\DirectoryMap.psm1') -Force` |
+| `Framework\directory-map.json` | 纯数据单源 | 逻辑键 → 物理路径 / `gateDomains` / `scriptNameOverrides` |
+
+**关键函数：** `Get-SuperRoot` · `Get-RepositoryRoot`（超根别名）· `Get-FrameRoot` · `Get-MappedPath`
+· `Get-DomainPaths` / `Get-DomainPath` · `Get-GateDomains` · `Get-GateScriptLeafName` / `Get-GateScriptOverride`
+· `Resolve-GateScript` · `Get-GateScriptCell` · `Get-DirectoryMap`
+
+```powershell
+. (Join-Path $PSScriptRoot '..\PScriptManager\Framework\DirectoryMap.ps1')
+$root = Get-RepositoryRoot                 # 超根（与深度无关）
+$dir  = Get-MappedPath -Key 'Baselines'    # 约定目录
+$cell = Get-GateScriptCell -Gate 'Wiring' -Domain 'Node' -AllowFallback
+```
+
+---
+
 ## 命令入口
 
 ### 一键初始化
@@ -386,6 +423,14 @@ PScriptManager/
 │   ├── ManifestManager.ps1    # 清单管理器（dot-source 版）
 │   ├── ManifestManager.psm1   # 清单管理器（模块版）
 │   └── ScriptRegistry.ps1     # 函数注册中心
+│
+├── Framework/                 # 框架基础层
+│   ├── directory-map.json     # 目录映射单源（逻辑键→路径 / gateDomains / 名称例外）
+│   ├── DirectoryMap.ps1       # 目录映射（dot-source 入口）
+│   ├── DirectoryMap.psm1      # 目录映射（模块版）
+│   ├── FrameworkInvoke.psm1   # owner-aware 逻辑调用层
+│   ├── FrameworkRequires.ps1  # @requires 点源入口
+│   └── Build-FunctionIndex.ps1# 函数属主索引编译器（→ ps-function-index.json）
 │
 ├── Commands/                  # 用户命令入口
 │   ├── Scan-Scripts.ps1       # 扫描脚本

@@ -35,13 +35,17 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（委托 PScriptManager\Framework\DirectoryMap）：根定位 + 落点派生**单源**。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 脚本位于 Frame\PowerShellScript\Operation\DSL\<Domain>\，上溯五级即仓库超根
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    # 仓库超根（与目录深度无关；由目录映射框架 marker 上溯解析）
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 # DSL 根（Check-*.ps1 的分类根；按名递归发现用，与具体 <Domain> 子目录布局解耦）
-$DslRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$DslRoot = Get-MappedPath -Key 'DSL'
 
 $manifestPath = Join-Path $PSScriptRoot '..\Registry\GateManifests.psd1'
 $indexPath    = Join-Path $PSScriptRoot '..\Registry\index.generated.md'
@@ -64,54 +68,60 @@ $violations = [System.Collections.Generic.List[string]]::new()
 if (-not (Test-Path -LiteralPath $manifestPath)) { Write-Error "门禁清单不存在：$manifestPath"; exit 2 }
 $gates = Import-PowerShellDataFile -LiteralPath $manifestPath
 
-# ── 落点口径（与 Build-GateIndex.ps1 一致，布局无关）──
-#   有 Path ⇒ 用 Path（仓库根相对，'\' 分隔）；否则 = DSL\ 下按名递归发现 Check-<Name>.ps1。
-function Get-GateScriptCell {
+# ── 落点口径单源 = 门禁运行时（委托目录映射框架；Domain → 候选目录 + 名称例外）──
+#   本件禁再写落点解析（防与 Build-GateIndex.ps1 分叉）。
+function Resolve-GateCell {
     param([string]$Name, $Spec)
-    if ($Spec.ContainsKey('Path') -and -not [string]::IsNullOrWhiteSpace([string]$Spec.Path)) {
-        return ([string]$Spec.Path) -replace '/', '\'
+    $domain = if ($Spec.ContainsKey('Domain')) { [string]$Spec.Domain } else { '' }
+    try {
+        return [pscustomobject]@{ Cell = (Get-GateScriptCell -Gate $Name -Domain $domain -AllowFallback); Error = '' }
     }
-    $hit = Get-ChildItem -LiteralPath $script:DslRoot -Recurse -Filter "Check-$Name.ps1" -File -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($hit) {
-        return ($hit.FullName.Substring($Root.Length + 1) -replace '/', '\')
+    catch {
+        return [pscustomobject]@{ Cell = ''; Error = $_.Exception.Message }
     }
-    return "Frame\PowerShellScript\Operation\DSL\Check-$Name.ps1"
+}
+
+# Domain 合法性谓词（唯一定义点；T1 判定与 T5 正/负对照**共用** ⇒ 防两套口径）
+function Test-DomainValid {
+    param([string]$Domain)
+    return (-not [string]::IsNullOrWhiteSpace($Domain)) -and ($domainEnum -contains $Domain)
 }
 
 # ── T1：Domain 合法 ──
 foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec = $gates[$name]
     $domain = if ($spec.ContainsKey('Domain')) { [string]$spec.Domain } else { '' }
-    if ([string]::IsNullOrWhiteSpace($domain)) {
-        $violations.Add("[T1] $name — 缺 Domain（分类未定，禁挂空域）")
-    } elseif ($domainEnum -notcontains $domain) {
-        $violations.Add("[T1] $name — Domain '$domain' 不在枚举 [$($domainEnum -join '/')]")
+    if (-not (Test-DomainValid -Domain $domain)) {
+        if ([string]::IsNullOrWhiteSpace($domain)) {
+            $violations.Add("[T1] $name — 缺 Domain（分类未定，禁挂空域）")
+        } else {
+            $violations.Add("[T1] $name — Domain '$domain' 不在枚举 [$($domainEnum -join '/')]")
+        }
     }
 }
 
 # ── T2：登记脚本落点在位 ──
 foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec = $gates[$name]
-    $cell = Get-GateScriptCell -Name $name -Spec $spec
-    $resolved = Join-Path $Root $cell
+    $r = Resolve-GateCell -Name $name -Spec $spec
+    if ($r.Error) { $violations.Add("[T2] $name — 落点解析失败：$($r.Error)"); continue }
+    $resolved = Join-Path $Root $r.Cell
     if (-not (Test-Path -LiteralPath $resolved)) {
-        $violations.Add("[T2] $name — 登记脚本不存在：$cell")
+        $violations.Add("[T2] $name — 登记脚本不存在：$($r.Cell)")
     }
 }
 
-# ── T3：DSL Check-*.ps1 归属可达 ──
-# 可达集 = { 默认名命中的 DSL 件 } ∪ { Path 指向的 DSL 件 } ∪ 白名单
+# ── T3：DSL Check-*.ps1 归属可达（+ 门落点重名/歧义即红）──
+# 可达集 = { 按 Domain 派生命中的落点 } ∪ 白名单
 $reached = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($name in $gates.Keys) {
     $spec = $gates[$name]
-    if ($spec.ContainsKey('Path') -and -not [string]::IsNullOrWhiteSpace([string]$spec.Path)) {
-        $resolved = [System.IO.Path]::GetFullPath((Join-Path $Root ([string]$spec.Path)))
-    } else {
-        $cell = Get-GateScriptCell -Name $name -Spec $spec
-        $resolved = [System.IO.Path]::GetFullPath((Join-Path $Root $cell))
+    $r = Resolve-GateCell -Name $name -Spec $spec
+    if ($r.Error) { continue }
+    $abs = [System.IO.Path]::GetFullPath((Join-Path $Root $r.Cell))
+    if (-not $reached.Add($abs)) {
+        $violations.Add("[T3] $name — 落点与其他门重复（同名/歧义）：$($r.Cell)")
     }
-    [void]$reached.Add($resolved)
 }
 
 # 递归枚举 DSL\ 全域 Check-*.ps1（分类到 <Domain>\ 子目录后仍全覆盖）
@@ -133,7 +143,7 @@ foreach ($name in $gates.Keys) {
     $spec = $gates[$name]
     [void]$expectedDomains.Add([string]$spec.Domain)
     $tier = if ($spec.ContainsKey('Tier')) { [string]$spec.Tier } else { 'full' }
-    $cell = Get-GateScriptCell -Name $name -Spec $spec
+    $cell = (Resolve-GateCell -Name $name -Spec $spec).Cell
     [void]$expectedRows.Add("| ``$name`` | $tier | $([int]$spec.Expect) | ``$cell`` |")
 }
 
@@ -154,9 +164,17 @@ if (-not (Test-Path -LiteralPath $indexPath)) {
     }
 }
 
-# ── T5：正/负对照（判据自证）──
+# ── T5：正/负对照（判据自证：T1 的 Domain 合法性谓词 Test-DomainValid）──
 if ($expectedRows.Count -eq 0) { $violations.Add('[T5] 正对照失败：复算行集为空（判据无标的假绿）') }
-if ($domainEnum -contains '__NONEXISTENT__') { $violations.Add('[T5] 负对照失败：枚举容器误纳合成非法域（判据恒真）') }
+# 负对照：合成非法域**必须**被判非法（谓词恒真/恒假都将被此处捕获 —— 原实现 `-contains '__NONEXISTENT__'` 恒假 ⇒ 该对照永不触发）
+if (Test-DomainValid -Domain '__NONEXISTENT__') {
+    $violations.Add('[T5] 负对照失败：合成非法域被 T1 谓词误判为合法（判据恒真）')
+}
+# 正对照：枚举内实存域**必须**被判合法（谓词被改坏为恒假即红）
+$posDomain = @($domainEnum)[0]
+if (-not (Test-DomainValid -Domain $posDomain)) {
+    $violations.Add("[T5] 正对照失败：枚举内合法域 '$posDomain' 被判非法（谓词被改坏）")
+}
 
 # ── 报告 ──
 Write-Host '=== 门禁分类守卫（GateTaxonomy：清单 ⇄ 索引 ⇄ 脚本 三方对账）===' -ForegroundColor White

@@ -25,6 +25,9 @@ public static class PromptSegmentCatalog
     /// <summary>档案开关名：工具面段。</summary>
     public const string ToggleTools = "tools";
 
+    /// <summary>档案开关名：运行时资源段（分级索引档；关闭 ⇒ 回退旧整块/不注入资源段）。</summary>
+    public const string ToggleResources = "resources";
+
     /// <summary>L0 分段键前缀（<c>prompt.l0.&lt;技能名&gt;</c>）。</summary>
     public const string L0BandPrefix = "prompt.l0.";
 
@@ -37,6 +40,7 @@ public static class PromptSegmentCatalog
         new SegmentSpec(AnchorKey.PromptL0, "prompt:l0", i => i.L0, s => s.L0, Band: CacheBand.B0),
         new SegmentSpec(AnchorKey.SkillCombined, "prompt:skill.block", i => i.SkillBlock, s => s.SkillBlock, ToggleSkills, CacheBand.B1, SegmentTarget.System),
         new SegmentSpec(AnchorKey.ToolCombined, "prompt:tools", i => i.ToolBlock, s => s.ToolBlock, ToggleTools, CacheBand.B1, SegmentTarget.System),
+        new SegmentSpec(AnchorKey.PromptResources, "prompt:resources", i => i.ResourceBlock, s => s.ResourceBlock, ToggleResources, CacheBand.B2, SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptL1, "prompt:l1", i => i.L1, s => s.L1, Band: CacheBand.B2, Target: SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptL2, "prompt:l2", i => i.L2, s => s.L2, Band: CacheBand.B3, Target: SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptMode, "prompt:mode", i => i.Mode, s => s.Mode, ToggleMode, CacheBand.B5, SegmentTarget.User),
@@ -106,13 +110,14 @@ public static class PromptSegmentCatalog
         return false;
     }
 
-    /// <summary>档案开关集（按 profile 的 IncludeSkills/IncludeMode/IncludeTools 归一出启用开关名）。</summary>
-    public static IReadOnlyCollection<string> Toggles(bool includeSkills, bool includeMode, bool includeTools)
+    /// <summary>档案开关集（按 profile 的 IncludeSkills/IncludeResources/IncludeMode/IncludeTools 归一出启用开关名）。</summary>
+    public static IReadOnlyCollection<string> Toggles(bool includeSkills, bool includeMode, bool includeTools, bool includeResources = false)
     {
-        var set = new List<string>(3);
+        var set = new List<string>(4);
         if (includeSkills) set.Add(ToggleSkills);
         if (includeMode) set.Add(ToggleMode);
         if (includeTools) set.Add(ToggleTools);
+        if (includeResources) set.Add(ToggleResources);
         return set;
     }
 

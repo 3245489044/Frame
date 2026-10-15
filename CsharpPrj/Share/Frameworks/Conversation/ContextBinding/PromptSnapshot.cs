@@ -10,7 +10,7 @@ namespace Share.Conversation.ContextBinding;
 internal sealed record PromptSnapshotData(
     string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
     string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null, string? Mode = null,
-    IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null);
+    IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null, string? ResourceBlock = null);
 
 /// <summary>
 /// 写侧快照 —— provide_prompt 装配后捕获的真实 system 值（L0 / 填槽 L1 / L2 / 本轮选中 SkillBlock），
@@ -43,6 +43,10 @@ public sealed class PromptSnapshot
     /// 种子来源走会话声明面（<c>SessionDeclaration</c>），本段非种子依据。空 = 未声明。</summary>
     public string SubAgent { get; init; } = string.Empty;
 
+    /// <summary>运行时资源段（自动发现 · 按需加载块；索引档文本）—— 消费方 = 运行时资源发现链。
+    /// 空 = 无资源段（头提示层跳过，零回归）。</summary>
+    public string ResourceBlock { get; init; } = string.Empty;
+
     /// <summary>逐段绑定（prompt.l0/l1/l2 / skill.block），供 UI 与 LLM 双向比对。</summary>
     public IReadOnlyList<MessageBinding> Bindings { get; init; } = Array.Empty<MessageBinding>();
 
@@ -63,7 +67,7 @@ public sealed class PromptSnapshot
 
     /// <summary>序列化为 JSON（落 __prompt_snapshot 归档；仅存段字段，Bindings/System 反序列化时重建）。</summary>
     public string ToJson()
-        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent));
+        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent, ResourceBlock));
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -76,7 +80,7 @@ public sealed class PromptSnapshot
             return PromptSnapshotBuilder.Build(
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
                 d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
-                d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent);
+                d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent, resourceBlock: d.ResourceBlock);
         }
         catch (JsonException)
         {

@@ -18,7 +18,7 @@ public static class PromptSnapshotBuilder
         IReadOnlyList<string>? selectedSkills,
         string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
         IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null,
-        IReadOnlyCollection<string>? enabledToggles = null)
+        IReadOnlyCollection<string>? enabledToggles = null, string? resourceBlock = null)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -48,7 +48,7 @@ public static class PromptSnapshotBuilder
         // 其余固定段：键 / 顺序 / 档案开关 全部由段目录**单一驱动**（新增段只改目录 ⇒ 不再漏发射/漏投影）。
         var inputs = new SegmentBuildInputs(
             l0 ?? string.Empty, skillBlock ?? string.Empty, l1 ?? string.Empty, l2 ?? string.Empty,
-            toolBlock, mode, subAgent);
+            toolBlock, mode, subAgent, resourceBlock);
         foreach (var spec in PromptSegmentCatalog.Fixed)
         {
             if (spec.Key == AnchorKey.PromptL0) continue; // L0 由上方分段族/回退处理
@@ -69,6 +69,7 @@ public static class PromptSnapshotBuilder
             SelectedTools = tools,
             Mode = mode ?? string.Empty,
             SubAgent = subAgent ?? string.Empty,
+            ResourceBlock = resourceBlock ?? string.Empty,
             // 顺序单一权威：按 CacheBand 升序稳定排序（B0 分段族 → B1 能力 → B2/B3 → B5 本轮）；
             // OrderBy 稳定 ⇒ Band 内保持原声明序（L0 分段族保文件序）。
             Bindings = bindings.OrderBy(b => PromptSegmentCatalog.BandFor(b.Key)).ToList(),

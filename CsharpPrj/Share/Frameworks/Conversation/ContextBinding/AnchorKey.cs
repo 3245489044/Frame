@@ -29,6 +29,14 @@ public readonly record struct AnchorKey(string Value)
     /// 与 mode 同级作独立声明段（UI ≡ LLM 同源可见）。</summary>
     public static AnchorKey PromptSubAgent => new("prompt.subagent");
 
+    /// <summary>运行时资源段锚点 —— 运行时资源发现链按「索引档」产出的资源块（&lt;runtime_resource&gt; 或索引行），
+    /// 作独立头提示层段（消除「野段」：复用 Band 排序 / I3 哈希 / UI 投影 / 档案开关）。</summary>
+    public static AnchorKey PromptResources => new("prompt.resources");
+
+    /// <summary>按目录源取资源分级段锚点：<c>prompt.resources.&lt;sourceId&gt;</c>（供分级组逐源展开）。
+    /// 命中 R5 白名单前缀 <c>prompt.</c>，无需改校验器。</summary>
+    public static AnchorKey PromptResource(string sourceId) => new($"prompt.resources.{sourceId}");
+
     /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
     public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
 

@@ -382,7 +382,7 @@
         Domain = 'Node'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'Agent 编排归流 E1–E12（声明真源/单步体/静默基线/入参三方对账/调用点与命名空间取值点基线）'
+        Note   = 'Agent 编排归流 E1–E13（声明真源/单步体/静默基线/入参三方对账/调用点与命名空间取值点基线/fn 常量双源对账）'
     }
 
     AgentFrameworkSingleSource = @{
@@ -692,6 +692,78 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '门禁分类守卫 T1–T5（清单 ⇄ 索引 ⇄ 脚本 三方对账）：Domain 合法/落点在位/DSL Check-*.ps1 归属可达（含伴随白名单）/index.generated.md 复算等价/正负对照；分类单源 = GateManifests.psd1 的 Domain 字段；索引 = index.generated.md（Build-GateIndex.ps1 生成）'
+    }
+    # ===== 框架层设计缺陷彻底优化（B2/B3/B4：读=写同物 / 渲染纯化 / 单谓词 / 单入口）=====
+    StoreReadPayloadRecordForm = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '读端口记录体形态（B2/ERR-06）：载荷 = 记录体 JSON（IDocumentCodec 解码投影），禁列字典序列化；正/负对照'
+    }
+
+    GatherFieldMapping = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢字段映射单源（B2/SCT-03）：存储行字段键名收敛 StoreRowField，适配器零字面量；正/负对照'
+    }
+
+    DomainRosterSingleSource = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '域族分离（B4/SCT-09）：存储域集合单源 = DbStoreKeys.All + 节点域表显式声明域族分离；正/负对照'
+    }
+
+    WriteCapabilitySinglePredicate = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '域写能力单谓词（B3/SCT-01）：AgentWriteSources.Capability 定义 = 1，旧三处判定引用 = 0；正/负对照'
+    }
+
+    SaveDispatchNoDomainSwitch = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '记录保存薄分派（B3/SCT-06）：SaveRecordAsync 体内域分支 = 0，域知识下沉 IRowSaveHandler 表；正/负对照'
+    }
+
+    DbRenderPurity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '渲染纯化（B3/ERR-07+SCT-04）：数据库页渲染路径零写交互态（写入只在命令期）；正/负对照'
+    }
+
+    DomainResolveSingleEntry = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '域解析单入口（B3/DUP-04）：裸标签别名表定义 = 1（DomainRoute），旧入口在编排类归零；正/负对照'
+    }
+
+    RowIdentityBareKey = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '行身份裸键回退单处（B3/SCT-10）：RowSelection.Decode 仅允许出现在 DomainRoute（唯一分派点）；正/负对照'
+    }
+
+    IntentSupportsProjected = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '能力位注册表投影（B3/DUP-11）：Supports 内逐 intent case = 0，能力位由探针表投影；正/负对照'
     }
 
 }

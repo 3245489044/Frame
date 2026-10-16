@@ -7,7 +7,7 @@
     判据（B4/DUP-10）：
       G1 零 wire 字面量：AgentIntentMapping 的 `_fnToIntent` 内键不得为字符串字面量
          （`["db_*"] =` / `["create_node_reference"] =` / `["call_func"] =`）= 0。
-      G2 常量引用：映射表引用 `WorkflowFunctionNames.`。
+      G2 常量引用：映射表引用常量类（`WorkflowFunctionNames.` fn= 名 / `ToolFaceNames.` 工具面 wire 名）。
       G3 正/负对照：合成样本（wire 字面量键）必被捕获。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
@@ -44,8 +44,8 @@ if (-not (Test-Path -LiteralPath $mappingPath)) {
 } else {
     $t = [System.IO.File]::ReadAllText($mappingPath)
     $wireLit = Get-Count $t '\[\s*"(db_|create_node_reference|call_func)[^"]*"\s*\]\s*='
-    if ($wireLit -ne 0) { $violations.Add("[G1] 映射表 wire 字面量键命中 $wireLit 处（应 0，改引用 WorkflowFunctionNames.*）") }
-    if ($t -notmatch 'WorkflowFunctionNames\.') { $violations.Add('[G2] 映射表未引用 WorkflowFunctionNames 常量') }
+    if ($wireLit -ne 0) { $violations.Add("[G1] 映射表 wire 字面量键命中 $wireLit 处（应 0，改引用 WorkflowFunctionNames.* / ToolFaceNames.*）") }
+    if ($t -notmatch '(WorkflowFunctionNames|ToolFaceNames)\.') { $violations.Add('[G2] 映射表未引用常量（WorkflowFunctionNames / ToolFaceNames）') }
 }
 
 # 正/负对照

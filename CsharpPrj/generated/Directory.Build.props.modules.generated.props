@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-15 19:40:27
+  生成时间: 2026-10-16 22:27:15
 -->
 <Project>
 
@@ -77,6 +77,7 @@
     <Mod_Operation>$(CsharpPrjDir)Operation\</Mod_Operation>
     <Mod_StateHoldDriven>$(CsharpPrjDir)Operation\StateHoldDriven\</Mod_StateHoldDriven>
     <Mod_StatisticalDriven>$(CsharpPrjDir)Operation\StatisticalDriven\</Mod_StatisticalDriven>
+    <Mod_ReconcileDriven>$(CsharpPrjDir)Operation\ReconcileDriven\</Mod_ReconcileDriven>
     <Mod_FunctionExecutionFramework>$(CsharpPrjDir)Operation\WorkFlowMethod\WorkflowExecution\FunctionExecutionFramework\</Mod_FunctionExecutionFramework>
     <Mod_WorkFlowMethod>$(CsharpPrjDir)Operation\WorkFlowMethod\</Mod_WorkFlowMethod>
     <Mod_DataManage>$(CsharpPrjDir)Plate\DataManage\</Mod_DataManage>
@@ -189,6 +190,7 @@
     <Proj_Operation>$(CsharpPrjDir)Operation\Operation.csproj</Proj_Operation>
     <Proj_StateHoldDriven>$(CsharpPrjDir)Operation\StateHoldDriven\StateHoldDriven.csproj</Proj_StateHoldDriven>
     <Proj_StatisticalDriven>$(CsharpPrjDir)Operation\StatisticalDriven\StatisticalDriven.csproj</Proj_StatisticalDriven>
+    <Proj_ReconcileDriven>$(CsharpPrjDir)Operation\ReconcileDriven\ReconcileDriven.csproj</Proj_ReconcileDriven>
     <Proj_FunctionExecutionFramework>$(CsharpPrjDir)Operation\WorkFlowMethod\WorkflowExecution\FunctionExecutionFramework\FunctionExecutionFramework.csproj</Proj_FunctionExecutionFramework>
     <Proj_WorkFlowMethod>$(CsharpPrjDir)Operation\WorkFlowMethod\WorkFlowMethod.csproj</Proj_WorkFlowMethod>
     <Proj_DataManage>$(CsharpPrjDir)Plate\DataManage\DataManage.csproj</Proj_DataManage>

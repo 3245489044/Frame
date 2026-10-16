@@ -35,6 +35,7 @@
     <!-- 子工程：通用实例框架的 SQLite 单文件承载实现（层 4；源码经上方 DataStoreDriven\** 排除规则不再重复编译） -->
     <ProjectReference Include="$(Proj_DataStoreDriven_Instances)" />
     <ProjectReference Include="$(Proj_StatisticalDriven)" />
+    <ProjectReference Include="$(Proj_ReconcileDriven)" />
     <ProjectReference Include="$(Proj_HierarchyMethod)" />
     <ProjectReference Include="$(Proj_LoopFoldMethod)" />
   </ItemGroup>
@@ -53,6 +54,8 @@
     <Compile Remove="DataStoreDriven\**\*.cs" />
     <!-- ★ StatisticalDriven 亦为独立子项目（Operation.StatisticalDriven），同上排除避免重复编译。 -->
     <Compile Remove="StatisticalDriven\**\*.cs" />
+    <!-- ★ ReconcileDriven 亦为独立子项目（Operation.ReconcileDriven），同上排除避免重复编译。 -->
+    <Compile Remove="ReconcileDriven\**\*.cs" />
   </ItemGroup>
 
 </Project>

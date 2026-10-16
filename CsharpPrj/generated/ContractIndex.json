@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-15T23:11:01.6304277Z",
+  "builtAt": "2026-10-16T14:24:09.3959510Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -250,7 +250,7 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 119,
+      "total": 121,
       "truncated": false,
       "byRole": {
         "Gate": 7,
@@ -258,7 +258,7 @@
         "Declaration": 0,
         "Code": 21,
         "Doc": 52,
-        "Other": 1
+        "Other": 3
       },
       "hits": [
         {
@@ -505,6 +505,20 @@
           "line": 69,
           "role": "Other",
           "text": "@{ Id = 'key.factid';      Kind = 'KeyFamily'; Pattern = '#R';           Note = '事实 id 前缀' }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Observe/Watch-AgentObserve.ps1",
+          "line": 31,
+          "role": "Other",
+          "text": "作用域过滤（Run=runId / Round=roundId，如 `task_x#R1`）；给定时仅收该作用域事件。"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Observe/Watch-AgentObserve.ps1",
+          "line": 64,
+          "role": "Other",
+          "text": "Invoke-Frame.ps1 -Action watch-observe -ScopeId 'task_state_8679e047#R1' -Query -Json"
         },
         {
           "repo": "Main",
@@ -3128,7 +3142,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/process.json",
-          "line": 10,
+          "line": 12,
           "role": "Test",
           "text": "\"key\": \"proc.{container}\","
         },
@@ -3604,21 +3618,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 312,
+          "line": 318,
           "role": "Code",
           "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 334,
+          "line": 340,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 335,
+          "line": 341,
           "role": "Code",
           "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
         }
@@ -4413,7 +4427,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Api/RunActionMap.cs",
-          "line": 170,
+          "line": 171,
           "role": "Code",
           "text": "new[] { \"declare\", \"undeclare\", \"list\" }, \"relations.list = data-store 读投影（无单意图）；declare/undeclare 已按 op 对齐\","
         },
@@ -4426,22 +4440,22 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentUiLibraryBatch.cs",
-          "line": 478,
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
+          "line": 227,
           "role": "Code",
-          "text": "await relations.DeleteAsync(historyId, CancellationToken.None).ConfigureAwait(false);"
+          "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 469,
+          "line": 471,
           "role": "Code",
           "text": "await relations.EnsureTaskHistoryBoundAsync(name, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 470,
+          "line": 472,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
@@ -5684,16 +5698,9 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Plate/DataManage/StorageFramework/Sqlite/SqliteTableReader.cs",
-          "line": 24,
+          "line": 30,
           "role": "Code",
-          "text": "=> session.ExecuteQuery(\"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\")"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Plate/DataManage/StorageFramework/Sqlite/SqliteTableReader.cs",
-          "line": 45,
-          "role": "Code",
-          "text": "return session.ExecuteQuery($\"SELECT * FROM [{table}] LIMIT {cap}\");"
+          "text": "return session.ExecuteQuery($\"SELECT * FROM [{table}] LIMIT {SqliteTablePolicy.ClampLimit(limit)}\");"
         },
         {
           "repo": "Frame",
@@ -5932,6 +5939,13 @@
           "line": 55,
           "role": "Code",
           "text": "return ValueTask.FromResult(session.Complete());            // ④⑤ 产物投影 / 载体交付"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs",
+          "line": 135,
+          "role": "Code",
+          "text": "_ = session.RunAsync().ContinueWith("
         },
         {
           "repo": "Frame",
@@ -8054,14 +8068,14 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/observability.json",
-          "line": 20,
+          "line": 22,
           "role": "Test",
           "text": "\"tools\": \"kind in (tool;tool-call;tool-progress;tool-result)\","
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/process.json",
-          "line": 20,
+          "line": 22,
           "role": "Test",
           "text": "\"tools\": \"kind in (tool;tool-call;tool-progress;tool-result)\","
         },
@@ -8674,14 +8688,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3019,
+          "line": 3022,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3026,
+          "line": 3029,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -8825,7 +8839,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/process.json",
-          "line": 7,
+          "line": 9,
           "role": "Test",
           "text": "\"id\": \"process-node\","
         },
@@ -8958,7 +8972,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/NodeDomainCatalog.cs",
-          "line": 162,
+          "line": 169,
           "role": "Code",
           "text": "new[] { new NodeWriteTarget(\"process-node\", HistoryMaterializeService.ProcessWriter) },"
         }
@@ -8967,14 +8981,14 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1254.0,
+    "hitCount": 1256.0,
     "byRole": {
       "Gate": 19,
       "Test": 285,
       "Declaration": 59,
       "Code": 320,
       "Doc": 499,
-      "Other": 72
+      "Other": 74
     },
     "truncatedFacts": [
       "key.session"
@@ -8982,7 +8996,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 402
+        "lines": 404
       },
       {
         "repo": "Projects",

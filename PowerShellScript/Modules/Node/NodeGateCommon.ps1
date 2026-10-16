@@ -19,11 +19,14 @@ function Get-GateRepoRoot {
 # ---------------- 取数：C# 常量 ----------------
 
 function Get-CSharpConstMap {
-    param([string]$Path)
+    param([string[]]$Path)
     $map = @{}
-    if (-not (Test-Path -LiteralPath $Path)) { return $map }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'public const string (?<n>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"(?<v>[^"]+)"')) {
-        $map[$m.Groups['n'].Value] = $m.Groups['v'].Value
+    foreach ($p in @($Path)) {
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        if (-not (Test-Path -LiteralPath $p)) { continue }
+        foreach ($m in [regex]::Matches((Get-Content -LiteralPath $p -Raw), 'public const string (?<n>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"(?<v>[^"]+)"')) {
+            $map[$m.Groups['n'].Value] = $m.Groups['v'].Value
+        }
     }
     return $map
 }
@@ -38,11 +41,15 @@ function Get-DeclaredFlowIds {
     return $map
 }
 
-function Get-WorkflowFiles {
+# 启动期校验清单取数（单源 = `WorkflowRegistrationCatalog.All` 的 `Validate=true` 条目）。
+#   背景（P2 修正）：校验器已改为经 `WorkflowRegistrationCatalog.ValidatedFiles` 派生，
+#   原「解析校验器内 `WorkflowSpecFiles.X` 引用」的取数面失效 ⇒ E3 空转（假绿）。本原语改读登记表。
+function Get-ValidatedWorkflowFiles {
     param([string]$Path, [hashtable]$SpecConsts)
     $files = [System.Collections.Generic.List[string]]::new()
     if (-not (Test-Path -LiteralPath $Path)) { return $files }
-    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'WorkflowSpecFiles\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'new\s+Entry\s*\(\s*WorkflowSpecFiles\.(?<n>[A-Za-z_][A-Za-z0-9_]*)\s*,[^;]*?(?<v>true|false)\s*\)')) {
+        if ($m.Groups['v'].Value -ne 'true') { continue }
         $name = $m.Groups['n'].Value
         if ($SpecConsts.ContainsKey($name)) { $files.Add($SpecConsts[$name]) }
     }

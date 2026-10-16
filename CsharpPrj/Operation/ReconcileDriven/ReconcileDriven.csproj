@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>对账驱动框架 (ReconcileDriven)</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>UI 触发信号对账框架：把「声明信号契约 vs 实际信号流」的四判（完整性/顺序/终止/归属）做成通用能力。复用 Strategy.Observability 语义观测内核作读源（同步、因果有序），复用 Plate.TConfig 的 EventBinding.Reconcile 作契约声明面。以复用作根，不新造观测框架，也不新造值层断言。</ModuleRule_Description>
+    <ModuleRule_Keywords>对账;信号;观测;触发;正确性;回归;Reconcile</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="对账读源唯一 = Strategy.Observability 语义观测（同步/因果有序）；禁取 EventSink（异步批写，实时对账会假红/假绿）" />
+    <ModuleRule_Rule Include="信号匹配逻辑只有一份（EventReconciler）；值层 payload 断言为可选降级，不由 AssertSystem 反向复用（各域职责分离）" />
+    <ModuleRule_Rule Include="对账实现经 Share 的 IEventReconcileHook 依赖倒置接入触发链；本体不引用任何具体宿主/Agent 类型" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要确认 UI 触发是否完整执行了声明式信号回环（缺/乱/未终止/串台）时，优先查看此模块" />
+    <ModuleRule_Prompt Include="此模块的 Trace/ 包含触发域信号账；Reconcile/ 包含四判对账器；Gates/ 包含装载期判据 C1/C2/C6" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Operation.ReconcileDriven</RootNamespace>
+    <AssemblyName>Operation.ReconcileDriven</AssemblyName>
+    <Description>UI 触发信号对账框架：声明信号契约 vs 实际信号流 的四判对账（复用 Strategy.Observability 观测内核）。</Description>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 复用观测内核（Strategy.Observability，Layer 3）：读写信号账的唯一来源 -->
+    <ProjectReference Include="$(Proj_Observability)" />
+    <!-- 契约声明面（Plate.TConfig，Layer 1）：EventBinding.Reconcile -->
+    <ProjectReference Include="$(Proj_TConfig)" />
+    <!-- 依赖倒置抽象（Share，Layer 2）：IEventReconcileHook / InvocationKernel 包裹点 -->
+    <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 对账语义契约实例（应用侧资源，不属于内核；加载器 ObservabilitySemanticsJson.Load） -->
+    <EmbeddedResource Include="Semantics\reconcile_semantics.json" />
+  </ItemGroup>
+
+</Project>

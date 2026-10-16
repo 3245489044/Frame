@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading;
+using Share.EventBindingOrchestrator.Reconcile;
 
 namespace Share.EventBindingOrchestrator.Invocation;
 
@@ -20,6 +21,12 @@ public static class InvocationKernel
 
     /// <summary>诊断钩子（宿主注入日志器）：函数以框架态终止（超时/空闲/信号丢失）时发出真实警告。</summary>
     public static Action<string, object?>? Trace { get; set; }
+
+    /// <summary>
+    /// 触发对账钩子（依赖倒置：实现在 Operation 层，组合根注入）。null = 不对账（零开销、零回归）。
+    /// 包裹点 = 所有函数调用的唯一入口 <see cref="ExecuteAsync"/>。
+    /// </summary>
+    public static IEventReconcileHook? ReconcileHook { get; set; }
 
     public static async Task<FunctionInvocationResult> ExecuteAsync(
         InvocationRequest request,
@@ -52,7 +59,10 @@ public static class InvocationKernel
                     lock (stageLock) stages.Add(new("Dispatch", sw.ElapsedMilliseconds));
                     var ctx = new KernelContext(op);
                     lock (stageLock) stages.Add(new("FunctionStart", sw.ElapsedMilliseconds));
-                    value = await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
+                    var reconcileHook = ReconcileHook;
+                    value = reconcileHook is { Enabled: true }
+                        ? await reconcileHook.InvokeAsync(request.FunctionName, request.Parameters, () => invoker.InvokeAsync(request, ctx)).ConfigureAwait(false)
+                        : await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
                     lock (stageLock) stages.Add(new("FunctionEnd", sw.ElapsedMilliseconds));
                     return (object?)value;
                 },
@@ -104,7 +114,10 @@ public static class InvocationKernel
         try
         {
             stages.Add(new("FunctionStart", sw.ElapsedMilliseconds));
-            var output = await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
+            var reconcileHook = ReconcileHook;
+            var output = reconcileHook is { Enabled: true }
+                ? await reconcileHook.InvokeAsync(request.FunctionName, request.Parameters, () => invoker.InvokeAsync(request, ctx)).ConfigureAwait(false)
+                : await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
             stages.Add(new("FunctionEnd", sw.ElapsedMilliseconds));
             sw.Stop();
             return new FunctionInvocationResult(opId, InvocationOutcome.Completed,

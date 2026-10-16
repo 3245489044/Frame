@@ -99,6 +99,7 @@
     "Operation": "Operation\\Operation.csproj",
     "StateHoldDriven": "Operation\\StateHoldDriven\\StateHoldDriven.csproj",
     "StatisticalDriven": "Operation\\StatisticalDriven\\StatisticalDriven.csproj",
+    "ReconcileDriven": "Operation\\ReconcileDriven\\ReconcileDriven.csproj",
     "FunctionExecutionFramework": "Operation\\WorkFlowMethod\\WorkflowExecution\\FunctionExecutionFramework\\FunctionExecutionFramework.csproj",
     "WorkFlowMethod": "Operation\\WorkFlowMethod\\WorkFlowMethod.csproj",
     "DataManage": "Plate\\DataManage\\DataManage.csproj",

@@ -26,6 +26,12 @@ public class EventBinding
     public Dictionary<string, string>? OutputMapping { get; set; }
 
     public Dictionary<string, WorkflowDefinitionEntry>? Workflows { get; set; }
+
+    /// <summary>
+    /// 触发后置对账契约（信号回环核对）：声明该绑定「应发」的 EventKind 签名集。
+    /// 缺省 null = 不对账（零回归）。见 <see cref="ReconcileConfig"/>。
+    /// </summary>
+    public ReconcileConfig? Reconcile { get; set; }
 }
 
 /// <summary>

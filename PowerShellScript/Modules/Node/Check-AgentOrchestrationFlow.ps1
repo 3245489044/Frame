@@ -16,7 +16,8 @@
       Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs   （文件名/流号单源）
       Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs（fn 名单源）
       Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Registry\LoopParadigms.cs               （R5 范式登记）
-      Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs   （O-3 清单）
+      Projects\Plug\Agent\src\Agent.Ui\Core\Loading\WorkflowFunctionRefValidator.cs   （O-3 清单消费面：经 WorkflowRegistrationCatalog.ValidatedFiles 派生）
+      Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs   （O-3 清单单源：WorkflowRegistrationCatalog.Validate=true）
       Projects\Plug\Agent\src\Agent.Modules\{Attribution,Provision,History,RoundAttribution,Productions}\*OpsFunctions.cs（O-2 单步体）
       Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow\ConversationCentralPipeline.cs（O-5 静默基线）
       Projects\Plug\Agent\doc\Agent编排载体分工表.md                                   （O-6 载体分工 + 豁免登记）
@@ -47,6 +48,9 @@
                         五组成员访问调用点（O-1 触发点的机器判据）
       E12 task→node 边命名空间取值点基线（只减不增）：边写侧（SyncRelationsBlock / HistoryProjector）
                         的 `NodeOutputKeys.Normalize(` + `NodeKeys.DefaultWorkflowId` 取值点（ERR-3）
+      E13 fn 常量双源对账（P2）：`WorkflowFunctionNames`（Names\*.cs 目录聚合）常量值
+                        ⊆ declared-manifest.functions ∪ 豁免白名单（引擎附加腿/编排阶段名/执行单元）；
+                        附正对照（manifest 非空 + 工具面 wire 常量 ≥ 基线）与负对照（合成未登记常量须命中）
 
     模式：默认报告模式（列命中，不设退出码）；-Check 校验模式（违规或正对照失效 → 退出码 1）。
 
@@ -82,7 +86,10 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 # ---------------- 基线（只减不增；变更须给出理由并同步本表 + 载体分工表 §3） ----------------
 $workflowsDir   = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $specCatalog    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Configuration\Specs\WorkflowSpecCatalog.cs'
-$fnNamesFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction\WorkflowFunctionNames.cs'
+# fn 名单源（P1 分域拆分：单文件 → 目录聚合 = WorkflowFunctionNames.cs + Names\*.cs；P5 工具面 wire 名已迁 ToolFaceNames.cs）
+$fnNamesDir     = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\WorkflowFunction'
+$toolFaceNamesFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\ToolFace\ToolFaceNames.cs'
+$declaredManifestFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Declared\declared-manifest.json'
 $paradigmsFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Registry\LoopParadigms.cs'
 $validatorFile  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Loading\WorkflowFunctionRefValidator.cs'
 $pipelineFile   = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Orchestration\SessionWorkflow\ConversationCentralPipeline.cs'
@@ -107,7 +114,11 @@ $g = Import-GateBaseline -Name AgentOrchestrationFlow
 # 声明面基线（防声明被删而门禁恒绿）；O-5 静默降级基线（只减不增）
 $DeclaredFlowCountBaseline = [int]$g.DeclaredFlowCount.Value
 $FnConstCountBaseline      = [int]$g.FnConstCount.Value
+$ToolFaceWireConstCountBaseline = [int]$g.ToolFaceWireConstCount.Value
 $SilentSkipBaseline        = [int]$g.SilentSkip.Value
+# E13 fn 常量豁免白名单（**非**声明面 fn= 的合法常量：引擎附加腿 / 编排阶段名 / 统一执行单元）。
+#   新增即违规（须先改声明面或显式登记于此 + 载体分工表 §3）。
+$FnConstExemptValues = @('guard_output', 'task_orchestrate', 'signal_flush', 'signal_eval_condition', 'call_func')
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
 $InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar', 'transfer-contribute.ushar', 'transfer-dispatch.ushar')
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，
@@ -124,7 +135,7 @@ $CallSiteBaselines = [ordered]@{
     'LinkNodeAsync'              = 2   # 实测 2（B2 续：SyncRelationsBlock 旧路径删除；余 HistoryProjector/NodeTaskHistoryService 迁移期回退）
     'EnsureTaskNodeLinkAsync'    = 4   # 实测 4（B2 续：NodeStepExecutionService 回退支删除）；目标 2 待 B9 测试面端口迁移（NodeTaskLinker）
     'EnsureHistoryAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
-    'AttachHistoryTaskAsync'     = 2   # 实测 2（B2 续：TaskOrchestrator R2 回退支删除）
+    'AttachHistoryTaskAsync'     = 3   # 实测 3（P0 基线复核：+1 来自已提交的 ResponsePorts.cs 直调，非本批 P1–P5 引入；目标 2）
     'AddSessionMessageLinkAsync' = 2   # 实测 2（B4/DUP-5 收口：入史挂载 + UI 运维两条直调改经 session-attribution 流；余 HistoryRelationManager 适配 + 流内 fn）
 }
 # E12 task→node 边命名空间取值点基线（只减不增；目标 = 单源 1）
@@ -166,8 +177,15 @@ function Test-FnNamesDeclared {
 # ---------------- 取数 ----------------
 $specConsts     = Get-CSharpConstMap -Path $specCatalog
 $flowIds        = Get-DeclaredFlowIds -Path $specCatalog
-$fnConstValues  = @(Get-CSharpConstMap -Path $fnNamesFile).Values
-$validatorFiles = @(Get-WorkflowFiles -Path $validatorFile -SpecConsts $specConsts)
+# fn 常量取数（P1 分域拆分）：目录聚合 = 根 partial（无 const）+ Names\*.cs（13 域文件）；
+#   生成物 GeneratedDeclaredContracts.g.cs 排除（其 SourceFingerprint 非 fn 名）。
+$fnConstMap = @{}
+foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $fnNamesDir 'Names') -Filter '*.cs' -File -ErrorAction SilentlyContinue)) {
+    foreach ($k in (Get-CSharpConstMap -Path $f.FullName).Keys) { $fnConstMap[$k] = (Get-CSharpConstMap -Path $f.FullName)[$k] }
+}
+$fnConstValues  = @($fnConstMap.Values)
+$toolFaceConstValues = @((Get-CSharpConstMap -Path $toolFaceNamesFile).Values)
+$validatorFiles = @(Get-ValidatedWorkflowFiles -Path $specCatalog -SpecConsts $specConsts)
 
 # ---------------- E1 闸A 编译 ----------------
 function Invoke-UsharpBuild {
@@ -209,6 +227,10 @@ foreach ($base in $flowIds.Keys) {
 
 # ---------------- E3 fn 名单源对账 ----------------
 $e3Checked = 0
+# 正对照（防空转假绿）：校验清单必须非空（取数面漂移曾是 E3 静默失效的根因）
+if ($validatorFiles.Count -eq 0) {
+    $violations.Add('E3 判据面失效：启动期校验清单为空（WorkflowRegistrationCatalog.Validate=true 取数为 0 ⇒ E3 空转）')
+}
 foreach ($file in $validatorFiles) {
     $path = Join-Path $workflowsDir $file
     if (-not (Test-Path -LiteralPath $path)) {
@@ -360,6 +382,42 @@ try {
     $violations.Add("E12 判据不可判（扫描异常，禁静默通过）：$($_.Exception.Message)")
 }
 
+# ---------------- E13 fn 常量双源对账（P2：WorkflowFunctionNames ⇄ declared-manifest） ----------------
+# 判据：本表常量值须 ∈ manifest.functions ∪ 显式豁免白名单（豁免清单见 $FnConstExemptValues）；
+#       manifest 中无常量的 fn 仅可见化（生成视图 GeneratedDeclaredContracts.Functions 已全量覆盖）。
+# 附正对照（manifest 非空 + 工具面 wire 常量 ≥ 基线）与负对照（合成未登记常量必被同一判据命中）。
+function Test-ConstDeclaredInManifest {
+    param([string[]]$ConstValues, [string[]]$ManifestFns, [string[]]$Exempt)
+    $bad = [System.Collections.Generic.List[string]]::new()
+    foreach ($v in @($ConstValues)) {
+        if ($ManifestFns -contains $v) { continue }
+        if ($Exempt -contains $v) { continue }
+        $bad.Add($v)
+    }
+    return $bad
+}
+$e13Checked = 0
+if (-not (Test-Path -LiteralPath $declaredManifestFile)) {
+    $violations.Add("E13 判据面缺失：$declaredManifestFile")
+} else {
+    $manifestFns = @((Get-Content -LiteralPath $declaredManifestFile -Raw | ConvertFrom-Json).functions)
+    if ($manifestFns.Count -eq 0) { $violations.Add('E13 正对照失效：manifest.functions 为空（判据无标的）') }
+    foreach ($bad in (Test-ConstDeclaredInManifest -ConstValues $fnConstValues -ManifestFns $manifestFns -Exempt $FnConstExemptValues)) {
+        $violations.Add("E13 fn 常量未登记：'$bad' 既不在 manifest.functions，也不在豁免白名单（新增常量须先改声明面或显式登记豁免）")
+    }
+    $e13Checked = $manifestFns.Count
+    $onlyInManifest = @($manifestFns | Where-Object { $fnConstValues -notcontains $_ })
+    if ($onlyInManifest.Count -gt 0) {
+        Write-Host ("  [E13] manifest 侧无常量 fn {0} 个（生成视图覆盖，仅可见化不计违规）：{1}" -f $onlyInManifest.Count, ($onlyInManifest -join ', ')) -ForegroundColor DarkGray
+    }
+    if ($toolFaceConstValues.Count -lt $ToolFaceWireConstCountBaseline) {
+        $violations.Add("E13 正对照失效：工具面 wire 常量 $($toolFaceConstValues.Count) < 基线 $ToolFaceWireConstCountBaseline（ToolFaceNames 被清空？）")
+    }
+    if (@(Test-ConstDeclaredInManifest -ConstValues @('__no_such_fn__') -ManifestFns $manifestFns -Exempt $FnConstExemptValues).Count -eq 0) {
+        $violations.Add('E13 负对照失效：合成未登记常量未被捕获（判据恒真？）')
+    }
+}
+
 # ---------------- E8 正对照 ----------------
 if ($flowIds.Count -lt $DeclaredFlowCountBaseline) {
     $violations.Add("E8 正对照失效：声明流 $($flowIds.Count) < 基线 $DeclaredFlowCountBaseline（声明被删？）")
@@ -392,22 +450,23 @@ try {
 # ---------------- 输出 ----------------
 $ok = $violations.Count -eq 0
 Write-Host ""
-Write-Host ("  编排真源流号 {0} · 校验清单文件 {1} · fn 常量 {2} · 范式命中 {3}" -f `
-    $flowIds.Count, $validatorFiles.Count, $fnConstValues.Count, $paradigmHits) -ForegroundColor Gray
+Write-Host ("  编排真源流号 {0} · 校验清单文件 {1} · fn 常量 {2} · 工具面 wire 常量 {3} · 范式命中 {4}" -f `
+    $flowIds.Count, $validatorFiles.Count, $fnConstValues.Count, $toolFaceConstValues.Count, $paradigmHits) -ForegroundColor Gray
 
 if ($ShowDetail -or -not $ok) {
     Write-Host ""
     Write-Host ("  E1 编译通过 {0}/{1} · E2 对账 {2} · E3 对账 {3} · E5 单步体 {4} · E6 锚点 {5}/{6} · E7 静默点 {7}" -f `
         $e1Pass, $newDeclarationFiles.Count, $e2Checked, $e3Checked, $e5Checked, $e6Hits, $carrierAnchors.Count, $silentHits) -ForegroundColor Gray
-    Write-Host ("  E10 入参对账 {0} · E11 调用点 {1} · E12 命名空间取值点 {2}" -f `
+    Write-Host ("  E10 入参对账 {0} · E11 调用点 {1} · E12 命名空间取值点 {2} · E13 双源对账 {3}" -f `
         $e10Checked,
         (($CallSiteBaselines.Keys | ForEach-Object { "$_=$($callSiteCounts[$_])/$($CallSiteBaselines[$_])" }) -join ' '),
-        (($NamespaceBaselines.Keys | ForEach-Object { "$_=$($namespaceCounts[$_])/$($NamespaceBaselines[$_])" }) -join ' ')) -ForegroundColor Gray
+        (($NamespaceBaselines.Keys | ForEach-Object { "$_=$($namespaceCounts[$_])/$($NamespaceBaselines[$_])" }) -join ' '),
+        $e13Checked) -ForegroundColor Gray
 }
 
 if ($ok) {
     Write-Host ""
-    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E12）" -ForegroundColor Green
+    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E13）" -ForegroundColor Green
     Write-Host ""
     exit 0
 }

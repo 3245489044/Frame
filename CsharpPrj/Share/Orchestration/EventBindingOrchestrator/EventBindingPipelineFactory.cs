@@ -14,6 +14,7 @@ using Modules.Pipeline.StaticPipeline;
 using Modules.Transformers;
 using Framework.Tree;
 using Share.EventBindingOrchestrator.Diagnostics;
+using Share.EventBindingOrchestrator.Invocation;
 using Share.EventBindingOrchestrator.Parameters;
 using Share.EventBindingOrchestrator.Utils;
 
@@ -283,6 +284,23 @@ public static class EventBindingPipelineFactory
         if (config.Events?.Bindings?.Parameters is { Count: > 0 })
         {
             input.CurrentParameterBindings = config.Events.Bindings.Parameters;
+        }
+
+        // 对账契约（bindings.reconcile）：绑定期按函数名登记，供触发期（InvocationKernel）解析。
+        // 钩子未注入 / 契约缺省 ⇒ 直通（零回归），对齐 ReconcileConfig 缺省语义。
+        var reconcile = config.Events?.Bindings?.Reconcile;
+        var reconcileHook = InvocationKernel.ReconcileHook;
+        var eventsDictionary = config.Events?.EventsDictionary;
+        if (reconcile != null && reconcileHook != null && eventsDictionary != null)
+        {
+            foreach (var functions in eventsDictionary.Values)
+            {
+                foreach (var functionName in functions)
+                {
+                    if (!string.IsNullOrWhiteSpace(functionName))
+                        reconcileHook.RegisterContract(functionName, reconcile);
+                }
+            }
         }
     }
 

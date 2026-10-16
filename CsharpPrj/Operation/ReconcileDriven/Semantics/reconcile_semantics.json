@@ -1,0 +1,9 @@
+{
+  "$comment": "对账语义契约（ReconcileDriven）：把「对账裁决」本身登记为可检索的语义事件，使通过/失败可被观测出口检索（复用 Strategy.Observability 契约注册表）。EventKind 取 ReconcilePassed / ReconcileFailed。载荷 required 字段以结构性事实为准（trigger=触发标识、code=判据号），执行者叙述不参与。",
+  "version": "1.0",
+  "entities": ["Reconcile"],
+  "events": {
+    "ReconcilePassed": { "entity": "Reconcile", "required": ["trigger"], "metrics": ["signalCount", "elapsed_ms"] },
+    "ReconcileFailed": { "entity": "Reconcile", "required": ["trigger", "code"], "metrics": ["signalCount", "elapsed_ms"] }
+  }
+}

@@ -18,7 +18,11 @@ public sealed record NodeFrameworkSpec(
     IReadOnlyDictionary<string, IReadOnlyList<string>> LocToPlacement,
     IReadOnlyList<string> ReferenceFields,
     NodeDirectiveSet Directives,
-    IReadOnlyList<NodeDiagnostic> Diagnostics)
+    IReadOnlyList<NodeDiagnostic> Diagnostics,
+    IReadOnlyDictionary<string, string>? Marks = null,
+    IReadOnlyList<string>? Origins = null,
+    IReadOnlyDictionary<string, string>? Tags = null,
+    IReadOnlyDictionary<string, string>? Behaviors = null)
 {
     public bool HasErrors => Diagnostics.Any(d => d.Severity == NodeDiagnosticSeverity.Error);
 
@@ -120,6 +124,10 @@ public static class NodeFrameworkSpecLoader
 
         var selections = ParseSelections(root, collected);
         var retentions = ParseMap(root, "retentions", collected);
+        var marks = ParseMap(root, "marks", collected);
+        var tags = ParseMap(root, "tags", collected);
+        var behaviors = ParseMap(root, "behaviors", collected);
+        var origins = ReadStringArray(root, "origins", collected);
         var defaults = new SpecDefaults(ReadObjectJson(root, "defaults"));
         var referenceFields = ReadStringArray(root, "referenceFields", collected);
         var directives = NodeDirectiveSet.Parse(ReadArrayJson(root, "directives"), sink);
@@ -140,7 +148,11 @@ public static class NodeFrameworkSpecLoader
             locToPlacement,
             referenceFields,
             directives,
-            collected);
+            collected,
+            marks,
+            origins,
+            tags,
+            behaviors);
     }
 
     /// <summary>

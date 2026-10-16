@@ -31,6 +31,9 @@ public static class NodeTags
 
     private static readonly char[] Separators = { '|', ',', ';' };
 
+    /// <summary>token 分隔符（只读；全库唯一切分口径，其余调用点一律引用本属性）。</summary>
+    public static char[] TokenSeparators => Separators;
+
     private static readonly TagVocabularyRegistry _registry = new();
 
     static NodeTags() => _registry.Register(HistoryAxis, DefaultNodeTagVocabulary.Instance);
@@ -102,12 +105,45 @@ public static class NodeTags
     public static bool Contains(string? mark, string axis, string token)
         => Contains(mark, Format(axis, token));
 
+    /// <summary>是否含任一给定 token（集合语义，大小写不敏感；bare/qualified 互为兼容；空候选 ⇒ false）。</summary>
+    public static bool ContainsAny(string? mark, IReadOnlyList<string> tags)
+    {
+        if (tags is null || tags.Count == 0) return false;
+        foreach (var part in (mark ?? string.Empty)
+                     .Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var (_, local) = SplitAxisToken(part);
+            foreach (var tag in tags)
+            {
+                if (part.Equals(tag, StringComparison.OrdinalIgnoreCase)
+                    || local.Equals(tag, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>是否含全部给定 token（合取语义；空候选 ⇒ true，空/无 token 的单侧不做判定，由调用方先行短路）。</summary>
+    public static bool ContainsAll(string? mark, IReadOnlyList<string> tags)
+    {
+        if (tags is null || tags.Count == 0) return true;
+        foreach (var tag in tags)
+        {
+            if (!Contains(mark, tag)) return false;
+        }
+
+        return true;
+    }
+
     /// <summary>是否空集（空串/None）。</summary>
     public static bool IsEmpty(string? mark)
         => string.IsNullOrWhiteSpace(mark) || string.Equals(mark.Trim(), None, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>是否含 Port 标签（task↔history 连接端口节点；集合语义）。</summary>
     public static bool IsPort(string? mark) => Contains(mark, Port);
+
+    /// <summary>是否终答标签（**唯一终端谓词**；role/kind 派生等消费方一律经此，禁各自 <c>Contains(..., Terminal)</c>）。</summary>
+    public static bool IsTerminal(string? mark) => Contains(mark, Terminal);
 
     /// <summary>具名 token 集 → 位掩码（仅 history 轴参与；None/未识别 ⇒ <see cref="NodeHistoryMark.None"/>）。</summary>
     public static NodeHistoryMark Parse(string? mark)
@@ -154,11 +190,14 @@ public static class NodeTags
     private static string Format(string axis, string canonical)
         => axis.Equals(HistoryAxis, StringComparison.OrdinalIgnoreCase) ? canonical : axis + "." + canonical;
 
-    private static (string Axis, string Local) SplitToken(string part)
+    /// <summary>轴内 token 切分：<c>axis.token</c> ⇒ (axis, token)；无点 ⇒ (history, token)（**唯一切分实现**）。</summary>
+    public static (string Axis, string Local) SplitAxisToken(string part)
     {
         var dot = part.IndexOf('.');
         return dot > 0 && dot < part.Length - 1
             ? (part[..dot], part[(dot + 1)..])
             : (HistoryAxis, part);
     }
+
+    private static (string Axis, string Local) SplitToken(string part) => SplitAxisToken(part);
 }

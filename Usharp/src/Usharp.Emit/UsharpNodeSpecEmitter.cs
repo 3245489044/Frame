@@ -95,6 +95,25 @@ public static class UsharpNodeSpecEmitter
         root["placements"] = placements;
         root["selections"] = Map(domain.Selections);
         root["retentions"] = Map(domain.Retentions);
+        if (domain.Marks.Count > 0)
+        {
+            root["marks"] = Map(domain.Marks);
+        }
+
+        if (domain.Tags.Count > 0)
+        {
+            root["tags"] = Map(domain.Tags);
+        }
+
+        if (domain.Behaviors.Count > 0)
+        {
+            root["behaviors"] = Map(domain.Behaviors);
+        }
+
+        if (domain.Origins.Count > 0)
+        {
+            root["origins"] = StringArray(domain.Origins);
+        }
 
         return root.ToJsonString();
     }

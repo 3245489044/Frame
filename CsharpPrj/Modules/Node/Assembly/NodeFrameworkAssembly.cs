@@ -41,8 +41,8 @@ public sealed class NodeFrameworkAssemblyPorts
     /// <summary>运行域供体（仅 <see cref="NodeDomainSchema.RuntimeBound"/> 域接入；一个供体多域共用）。</summary>
     public INodeRunScopeSource? RunScopeSource { get; init; }
 
-    /// <summary>取用词表端口工厂（缺件即抛；缺省不注入）。</summary>
-    public Func<ISelectionVocabulary?>? SelectionVocabulary { get; init; }
+    /// <summary>取用词表端口工厂（入参 = 已装载框架声明；缺件即抛；缺省不注入）。</summary>
+    public Func<NodeFrameworkSpec, ISelectionVocabulary?>? SelectionVocabulary { get; init; }
 
     /// <summary>定义期诊断端口（缺省不注入）。</summary>
     public IDefinitionDiagnostics? DefinitionDiagnostics { get; init; }
@@ -92,7 +92,7 @@ public static class NodeFrameworkAssembly
         var runScope = descriptor.RuntimeBound ? ports.RunScopeSource : null;
         // requireRunScope：运行态面域启用 ⇒ 运行域缺失（未经 BeginRun）的写入被框架拒写，而非静默接受。
         var requireRunScope = descriptor.RuntimeBound;
-        var vocabulary = ports.SelectionVocabulary?.Invoke();
+        var vocabulary = ports.SelectionVocabulary?.Invoke(spec);
 
         var framework = NodeFramework.FromSpec(
             spec,

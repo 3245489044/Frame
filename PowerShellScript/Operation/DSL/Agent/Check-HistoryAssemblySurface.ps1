@@ -330,6 +330,31 @@ if (Test-Path -LiteralPath $nodesDir) {
     }
 }
 
+# H23b 声明面 marks 闭合（D5/D7）：marks 段 token 须为内置历史轴缺省 ∨ 已在同域 tags 段声明。
+$builtinMarks = @('None', 'Numbered', 'Terminal', 'Port')
+if (Test-Path -LiteralPath $nodesDir) {
+    foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar')) {
+        $text = Read-Text $file.FullName
+        $marks = @()
+        $tags = @()
+        $inMarks = $false
+        $inTags = $false
+        foreach ($line in ($text -split "`r?`n")) {
+            $t = $line.Trim()
+            if ($t -eq 'marks') { $inMarks = $true; $inTags = $false; continue }
+            if ($t -eq 'tags') { $inTags = $true; $inMarks = $false; continue }
+            if ($sectionHeaders -contains $t) { $inMarks = $false; $inTags = $false; continue }
+            if ($inMarks -and ($t -match '^([A-Za-z0-9_.-]+)\s*=')) { $marks += $Matches[1] }
+            if ($inTags -and ($t -match '^([A-Za-z0-9_.-]+)\s*=')) { $tags += $Matches[1] }
+        }
+        foreach ($m in $marks) {
+            if ($builtinMarks -contains $m) { continue }
+            if ($tags -contains $m) { continue }
+            Add-Violation 'H23' "$($file.Name) marks token '$m' 既非内置缺省也未在 tags 声明（词表真源不闭合）"
+        }
+    }
+}
+
 if ($violations.Count -eq 0) {
     Write-Host "[HistoryAssemblySurface] OK（H1–H23 全过）"
     exit 0

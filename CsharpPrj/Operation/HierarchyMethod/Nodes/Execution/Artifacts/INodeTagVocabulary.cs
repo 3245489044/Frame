@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
@@ -20,14 +21,23 @@ public sealed class DefaultNodeTagVocabulary : INodeTagVocabulary
 
     private DefaultNodeTagVocabulary()
     {
-        Marks = new Dictionary<string, int>(System.StringComparer.Ordinal)
-        {
-            [NodeTags.Numbered] = (int)NodeHistoryMark.Numbered,
-            [NodeTags.Terminal] = (int)NodeHistoryMark.Terminal,
-            [NodeTags.Port] = (int)NodeHistoryMark.Port,
-        };
+        Marks = BuildFromEnum();
     }
 
     /// <inheritdoc />
     public IReadOnlyDictionary<string, int> Marks { get; }
+
+    /// <summary>由 <see cref="NodeHistoryMark"/> 具名值**反射派生**（位值单源；<c>None=0</c> 不入映射 = 空集以 0 表示）。</summary>
+    private static IReadOnlyDictionary<string, int> BuildFromEnum()
+    {
+        var map = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var name in Enum.GetNames(typeof(NodeHistoryMark)))
+        {
+            var value = Convert.ToInt64(Enum.Parse(typeof(NodeHistoryMark), name, ignoreCase: false));
+            if (value == 0) continue;
+            map[name] = (int)value;
+        }
+
+        return map;
+    }
 }

@@ -19,6 +19,7 @@
       H13 通用传递框架词表单源：字段/稳定度/载荷标记 ∈ Config/nodes/transfer.ushar。
       H14 通用传递框架入口注册：组合根注入 ITransferFlow + TransferOpsServices。
       H19 档案段归属（band ownership，声明化）：允许段 = {[Skill].dsl : profiles ∋ 档案}（读 Config/skills.ushar，零白名单）；format 恒首段；l0-common 两档案常驻。
+      H20 发送入口单一（S1/S2 聚拢）：会话发送恒经 ISessionSend + SessionSendRequest（Agent 必填）；调用点无裸多实参旧形态。
     模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
 .PARAMETER Check
     校验模式：违规 → 退出码 1。
@@ -239,8 +240,34 @@ if ($taskBands -notcontains 'l0-common' -or $historyBands -notcontains 'l0-commo
     Add-Violation 'H19' 'l0-common 须同时常驻 task 与 history（framework-base 通用不变式单源）'
 }
 
+# H20 发送入口单一（S1/S2）：唯一原语 ISessionSend（Agent 必填）；会话调用点不得残留裸多实参旧形态。
+$sendContract = Join-Path $agentRoot 'src\Agent.Session\Contracts\ISessionSend.cs'
+$sendContractText = Read-Text $sendContract
+if (-not (Test-Path -LiteralPath $sendContract)) {
+    Add-Violation 'H20' '缺 ISessionSend 唯一发送原语契约（Agent.Session/Contracts/ISessionSend.cs）'
+}
+else {
+    if ($sendContractText -notmatch 'interface\s+ISessionSend') { Add-Violation 'H20' 'ISessionSend 契约缺接口声明' }
+    if ($sendContractText -notmatch 'string\s+Agent') { Add-Violation 'H20' 'ISessionSend 契约缺非空 Agent 字段（发送原语未契约闭合）' }
+}
+$sessionSvc = Join-Path $agentRoot 'src\Agent.Core\Orchestration\SessionWorkflow\ConversationSessionService.cs'
+if ((Read-Text $sessionSvc) -notmatch 'ISessionSend') {
+    Add-Violation 'H20' 'ConversationSessionService 未实现 ISessionSend（未收敛为唯一实现）'
+}
+$sendCallSites = @(
+    'src\Agent.Ui\Core\Functions\Conversation\AgentUiLibraryConversation.cs',
+    'src\Agent.Ui\Core\Host\AgentHistoryRuntimePort.cs',
+    'src\Agent.Ui\Core\Governance\AgentRoundBodyRunner.cs',
+    'src\Agent.Launcher\Composition\Hosting\ResponsePorts.cs',
+    'src\Agent.Launcher\Composition\Circuit\ConversationAssemblySteps.cs')
+foreach ($rel in $sendCallSites) {
+    if ((Read-Text (Join-Path $agentRoot $rel)) -match 'SendAsync\(\s*[A-Za-z_]\w*\s*,\s*[A-Za-z_]\w*\s*,\s*[A-Za-z_]\w*\s*\)') {
+        Add-Violation 'H20' "$rel 仍存在裸多实参会话发送（未经 SessionSendRequest）"
+    }
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H19 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H20 全过）"
     exit 0
 }
 

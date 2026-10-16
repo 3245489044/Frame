@@ -10,7 +10,8 @@ using Usharp.Syntax;
 namespace Usharp.Adapters.Agent;
 
 /// <summary>端口节点（<c>[Node] Name: fn=… | skill=… | llm=… | kind=… | inports=… | outports=…</c>）。
-/// <para>执行体归属三态（<see cref="Fn"/>/<see cref="Skill"/>/<see cref="Llm"/>）互斥完备，由闸A <c>US7802</c> 保证。</para></summary>
+/// <para><c>fn=</c> 为可执行体绑定（必填）；<c>skill=</c>/<c>llm=</c> 为可选执行体归属且二者互斥，
+/// 由闸A <c>US7802</c> 保证。</para></summary>
 public sealed record AgentPortNode(
     string Name, string? Fn, IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, string SourceFile, int LineNumber,
     string? Skill = null, string? Llm = null, string? Kind = null);
@@ -18,7 +19,7 @@ public sealed record AgentPortNode(
 /// <summary>
 /// 端口面领域反转包（P5）：<c>[Node]</c> 端口节点反转为 facet；
 /// 闸A 对账 <c>fn ∈ 函数注册表</c>（US7003）· <c>skill ∈ [Skill]</c>（US7801）·
-/// <c>fn/skill/llm 恰一</c>（US7802）· <c>kind ∈ 已声明类别空间</c>（US7803）。
+/// <c>fn= 必填 + skill=/llm= 可选互斥</c>（US7802）· <c>kind ∈ 已声明类别空间</c>（US7803）。
 /// </summary>
 public sealed class AgentPortPack : IUsharpDomainPack
 {
@@ -28,7 +29,7 @@ public sealed class AgentPortPack : IUsharpDomainPack
     /// <summary>US7801：<c>[Node] skill=</c> 须 ∈ 已声明 <c>[Skill]</c> 空间。</summary>
     public const string CodeSkillUnknown = UsharpCodes.PortSkillUndeclared;
 
-    /// <summary>US7802：<c>[Node]</c> 的 <c>fn</c>/<c>skill</c>/<c>llm</c> 恰一（互斥完备）。</summary>
+    /// <summary>US7802：会话步 <c>[Node]</c> 的 <c>fn</c> 必填（<c>skill</c>/<c>llm</c> 可选互斥，可与之并存）。</summary>
     public const string CodeExecutorNotExclusive = UsharpCodes.PortExecutorNotExclusive;
 
     /// <summary>US7803：<c>[Node] kind=</c> 须 ∈ 已声明执行体类别空间。</summary>
@@ -137,7 +138,11 @@ internal sealed class PortSkillGateRule : IGateRule<UsharpGateModel>
 }
 
 /// <summary>
-/// US7802：会话步 <c>[Node]</c> 的执行体归属须「恰一」（<c>fn</c>/<c>skill</c>/<c>llm</c> 互斥完备）。
+/// US7802：会话步 <c>[Node]</c> 的执行体绑定须完备 —— <c>fn=</c> 必填（运行时按 <c>fn</c> 直调），
+/// <c>skill=</c>/<c>llm=</c> 为可选执行体归属且二者互斥（可与 <c>fn=</c> 并存）。
+/// <para>放宽理由（消除「节点名兜底」隐式耦合）：旧 JSON 的 <c>NodeId</c> 与 <c>FuncName</c> 本为两个字段，
+/// 「恰一」约束迫使会话步用 <c>skill=</c> 表达归属时放弃 <c>fn=</c>，只能回退节点名 ⇒ 迁移信息丢失。
+/// 允许 <c>fn=</c> 与 <c>skill=</c> 并存后，声明面可无损表达「节点身份 ≠ 可执行体」。</para>
 /// <para>作用域 = 被 <c>session*</c> 流步骤引用的节点（逐 spec 迁移，不一次打红其余工作流）；
 /// 无法确定会话流（本编译无 <c>[Flow]</c>）⇒ 不判定。</para>
 /// </summary>
@@ -155,11 +160,23 @@ internal sealed class PortExecutorExclusivityGateRule : IGateRule<UsharpGateMode
         foreach (var n in nodes)
         {
             if (!sessionSteps.Contains(n.Name)) continue;
-            var count = Count(n.Fn) + Count(n.Skill) + Count(n.Llm);
-            if (count == 1) continue;
-            sink.Report(ConversionDiagnostic.Error(AgentPortPack.CodeExecutorNotExclusive,
-                $"[Node] {n.Name}: 执行体归属须 fn=/skill=/llm= 恰一（实际 {count} 个：{(count == 0 ? "全缺" : "多声明")}）",
-                new SourceSpan(n.SourceFile, n.LineNumber, 0)));
+
+            // fn= 必填：运行时按 fn 直调注册函数；缺失即无法解析可执行体（禁节点名兜底）。
+            if (Count(n.Fn) == 0)
+            {
+                sink.Report(ConversionDiagnostic.Error(AgentPortPack.CodeExecutorNotExclusive,
+                    $"[Node] {n.Name}: 会话步须显式声明 fn=（运行时按 fn 直调注册函数；禁以节点名兜底）",
+                    new SourceSpan(n.SourceFile, n.LineNumber, 0)));
+                continue;
+            }
+
+            // skill= / llm= 为可选归属，二者互斥（且可与 fn= 并存）。
+            if (Count(n.Skill) + Count(n.Llm) > 1)
+            {
+                sink.Report(ConversionDiagnostic.Error(AgentPortPack.CodeExecutorNotExclusive,
+                    $"[Node] {n.Name}: skill=/llm= 互斥（实际 {Count(n.Skill) + Count(n.Llm)} 个）",
+                    new SourceSpan(n.SourceFile, n.LineNumber, 0)));
+            }
         }
     }
 

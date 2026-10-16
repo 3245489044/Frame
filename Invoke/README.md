@@ -31,6 +31,7 @@
 | `new-specchains` | `SpecSourceGen\Cli`（`chains-new`） | 作者面 · 批量抽链（DryRun 缺省 + `-Write` 落盘） |
 | `test-specrefs` | `SpecSourceGen\Cli`（`refs`） | 作者面 · 引用完整性（悬空 use；只读 + `-Check`） |
 | `get-specgenerated` | `SpecSourceGen\Cli`（`generated-list`） | 生成物清点（只读 `_manifest.json`；`-Verify` 复核 sha256） |
+| `read-agentdb` | `PowerShellScript\Share\Data\Read-AgentDb.ps1` | 诊断面 · 只读检视 Agent 数据库（SQLite `agent.db` / LiteDB `graph.db`） |
 
 > 迁移映射：旧 `.\<X>.ps1 -P v` ⇔ 新 `.\Invoke-Frame.ps1 -Action <x> -P v`（`<x>` = 旧文件名小写连字符，如 `Locate-Port` → `locate-port`）。
 
@@ -201,7 +202,7 @@ MyNewGate = @{
 ```
 Frame/Invoke/             ← 入口（本目录，仅转发）
   ├─ Invoke-Frame.ps1     ← 单一入口（-Action 分发）
-  ├─ entries.psd1         ← 分发表（19 动作：Kind/Target/Verb/Map/Always/Fixed/Options）
+  ├─ entries.psd1         ← 分发表（20 动作：Kind/Target/Verb/Map/Always/Fixed/Options）
   └─ README.md
 Frame/PowerShellScript/   ← 主体实现
   ├─ Modules/             ← .psm1 可复用模块
@@ -209,6 +210,7 @@ Frame/PowerShellScript/   ← 主体实现
   ├─ PScriptManager/Framework/ ← owner 索引加载器（ps-function-index.json 编译表）
   ├─ Share/Search/        ← SR-2
   ├─ Share/Validate/      ← VE-1
+  ├─ Share/Data/          ← Read-AgentDb（诊断面只读检视 agent.db / graph.db）
   └─ Operation/DSL/       ← VE-3 + Check-*.ps1 + GateManifests.psd1
 Environment/CentralTest/  ← VE-2（薄转发到 Run-CSharpTests）
   ├─ Invoke-CentralTest.ps1 ← A 层单一实现入口（-Action 分发）

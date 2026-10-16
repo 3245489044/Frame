@@ -37,7 +37,8 @@ param(
         'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port',
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
-        'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated'
+        'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
+        'read-agentdb'
     )]
     [string]$Action,
 
@@ -92,6 +93,15 @@ param(
     [string]$SuitePattern = '',
     [string]$CasePattern = '',
 
+    [ValidateSet('agent', 'graph', 'all')]
+    [string]$Store = 'all',
+    [string]$Table = '',
+    [string]$Collection = '',
+    [string]$Where = '',
+    [int]$Limit = 50,
+    [string]$StateRoot = '',
+    [string]$DllDir = '',
+
     [switch]$All,
     [switch]$Write,
     [switch]$Verify,
@@ -115,8 +125,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\PowerShellScript\Modules\Dispatcher\_init.ps1')
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
-$table = Import-DispatchTable -Path (Join-Path $PSScriptRoot 'entries.psd1')
-$entry = Get-DispatchEntry -Table $table -Action $Action
+$dispatchTable = Import-DispatchTable -Path (Join-Path $PSScriptRoot 'entries.psd1')
+$entry = Get-DispatchEntry -Table $dispatchTable -Action $Action
 $bound = $PSBoundParameters
 
 # SpecCli 缺省注入（等价于原 SpecChain 系列 `$PSBoundParameters.ContainsKey('CasesRoot')` 缺省 = AgentTest）

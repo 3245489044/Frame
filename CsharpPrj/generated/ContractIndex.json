@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-15T15:35:51.0471468Z",
+  "builtAt": "2026-10-15T23:11:01.6304277Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -529,6 +529,20 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/2026-09-25-Agent.Core-框架层修复方案.md",
+          "line": 17,
+          "role": "Doc",
+          "text": "| **F-15 注释对拍** | 3 处：轮键形态（`runId+\"R\"+n` 已废除 → 会话键#R&lt;n&gt;）、暂停门注入路径（→ 实例作用域单通道）、stale 引擎名（`SnapshotDrivenLoopEngine` → `RoundLoopDriver`） | `Frame\\...\\Nodes\\Execution\\NodeRoundContext.cs`、`AgentRun"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/2026-09-25-Agent.Core-框架层修复方案.md",
+          "line": 126,
+          "role": "Doc",
+          "text": "| `Frame\\...\\Nodes\\Execution\\NodeRoundContext.cs` | 轮序号注释：`runId+\"R\"+n` → `会话键#R<n>`（标识单源 `FactIds.Round`） |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.26/数据库中心化→节点中心化-存储模块化分离与彻底重构方案.md",
           "line": 63,
           "role": "Doc",
@@ -582,20 +596,6 @@
           "line": 118,
           "role": "Doc",
           "text": "- `会话键#R{n}`：`AgentInstance.cs:37` / `AgentScope.cs:35`（`FactIds.Round`）/ `ClineDaemonEndpoint.cs:279`；"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/refactor/2026-09-25-Agent.Core-框架层修复方案.md",
-          "line": 17,
-          "role": "Doc",
-          "text": "| **F-15 注释对拍** | 3 处：轮键形态（`runId+\"R\"+n` 已废除 → 会话键#R&lt;n&gt;）、暂停门注入路径（→ 实例作用域单通道）、stale 引擎名（`SnapshotDrivenLoopEngine` → `RoundLoopDriver`） | `Frame\\...\\Nodes\\Execution\\NodeRoundContext.cs`、`AgentRun"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/refactor/2026-09-25-Agent.Core-框架层修复方案.md",
-          "line": 126,
-          "role": "Doc",
-          "text": "| `Frame\\...\\Nodes\\Execution\\NodeRoundContext.cs` | 轮序号注释：`runId+\"R\"+n` → `会话键#R<n>`（标识单源 `FactIds.Round`） |"
         },
         {
           "repo": "Main",
@@ -3629,14 +3629,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 137,
+      "total": 138,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 6,
         "Declaration": 7,
         "Code": 72,
-        "Doc": 50,
+        "Doc": 51,
         "Other": 1
       },
       "hits": [
@@ -4041,6 +4041,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/2026-09-25-Agent.Core-框架层修复方案.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "| 落点写权矩阵 | 见 `Doc\\通用节点修改与写入框架-设计与整理方案.md` §2.4 | 模板退化为纯声明 → 唯一裁决点展开**写计划（WritePlan）** | 写侧 `NodeWriteCoordinator` 落地；`node.delete` / `relations.*` / `graph.*` / `taskcenter/*` 的 Deferred intent 补齐 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.26/数据库中心化→节点中心化-存储模块化分离与彻底重构方案.md",
           "line": 59,
           "role": "Doc",
@@ -4216,13 +4223,6 @@
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/Agent/refactor/2026-09-25-Agent.Core-框架层修复方案.md",
-          "line": 84,
-          "role": "Doc",
-          "text": "| 落点写权矩阵 | 见 `Doc\\通用节点修改与写入框架-设计与整理方案.md` §2.4 | 模板退化为纯声明 → 唯一裁决点展开**写计划（WritePlan）** | 写侧 `NodeWriteCoordinator` 落地；`node.delete` / `relations.*` / `graph.*` / `taskcenter/*` 的 Deferred intent 补齐 |"
-        },
-        {
-          "repo": "Main",
           "file": "Docs/design/DataStoreDriven-分层提取-实施台账与批次计划.md",
           "line": 110,
           "role": "Doc",
@@ -4374,6 +4374,13 @@
           "line": 88,
           "role": "Doc",
           "text": "| **关系边**（`cross_db_link` / `round_sequence` / `history_owns_task`） | SQL 边表（`ReferenceGrounding` / `ReferenceGraphCoordinator`） | `NodeTypes.Relation` 已存在（`relations.{workflowId}.{relationId}`） | 边是\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/统一入口迁移至Agent.Core-写库即实现-下一步施工单.md",
+          "line": 56,
+          "role": "Doc",
+          "text": "- **阻塞与所需裁决**：退役白名单会使 `history.create/delete/link`、`node.write/delete`、`relations.declare`、`graph.rebuild`、`scenario.apply` 等**新增转发** ⇒ 属运行期行为变更。**须裁决**：是否授权在**未跑全量金标矩阵**前提下切换？若否则先「逐 intent 开白名单（每项一提交"
         },
         {
           "repo": "Projects",
@@ -8667,14 +8674,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3020,
+          "line": 3019,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3027,
+          "line": 3026,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -8960,13 +8967,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1253.0,
+    "hitCount": 1254.0,
     "byRole": {
       "Gate": 19,
       "Test": 285,
       "Declaration": 59,
       "Code": 320,
-      "Doc": 498,
+      "Doc": 499,
       "Other": 72
     },
     "truncatedFacts": [
@@ -8979,7 +8986,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 325
+        "lines": 326
       },
       {
         "repo": "Main",

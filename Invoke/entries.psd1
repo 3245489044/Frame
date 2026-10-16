@@ -1,7 +1,8 @@
 @{
     # ===== Frame\Invoke 单一入口分发表（纯数据，单源）=====
     # 消费方 = Frame\Invoke\Invoke-Frame.ps1（经 Modules\Dispatcher 的 Import-DispatchTable/Get-DispatchEntry）。
-    # 收敛前 19 个 *.ps1 薄转发件 → 本表 19 行（结构事实；守卫 Check-InvokeEntrypoints 判据⑤ 校验 Target 存在性）。
+    # 收敛前 19 个 *.ps1 薄转发件 → 本表 19 行；另新增诊断面 read-agentdb（共 20 行）
+    # （结构事实；守卫 Check-InvokeEntrypoints 判据⑤ 校验 Target 存在性）。
     #
     # 表项字段：
     #   Kind    : Ps（转发到 PowerShell 脚本） | SpecCli（转发到 SpecSourceGen.Cli）
@@ -28,6 +29,13 @@
             Target = '..\PowerShellScript\Share\Validate\Test-JsonFiles.ps1'
             Map = @{ Path = 'Path'; Filter = 'Filter'; Exclude = 'Exclude'; Schema = 'Schema'; Quiet = 'Quiet'; IncludeDeprecated = 'IncludeDeprecated' }
             Always = @('Path')
+        }
+
+        # ---------- 诊断 / 数据检视 ----------
+        'read-agentdb' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Read-AgentDb.ps1'
+            Map = @{ Store = 'Store'; Table = 'Table'; Collection = 'Collection'; Where = 'Where'; Limit = 'Limit'; StateRoot = 'StateRoot'; DllDir = 'DllDir'; List = 'List'; Json = 'Json' }
         }
 
         # ---------- 门禁 ----------

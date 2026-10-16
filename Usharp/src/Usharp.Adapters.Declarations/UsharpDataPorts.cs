@@ -81,6 +81,16 @@ public static class UsharpDataPorts
                 ? Array.Empty<string>()
                 : new[] { Path.Combine(configDirectory, "nodes", TablesDeclarationFileName) });
 
+    /// <summary>
+    /// 表写面声明源：<c>configDirectory/nodes/tables.ushar</c> → <see cref="TableWriteSpec"/> 投影；
+    /// 配置目录缺省 / 声明缺件 ⇒ 空源（调用方按 fail-closed 视作不可写）。
+    /// </summary>
+    public static ITableWriteSpecSource WriteSpecSource(string? configDirectory)
+        => UsharpTableWriteSpecSource.FromFiles(
+            string.IsNullOrWhiteSpace(configDirectory)
+                ? Array.Empty<string>()
+                : new[] { Path.Combine(configDirectory, "nodes", TablesDeclarationFileName) });
+
     /// <summary>声明入库闭环：磁盘 <c>.ushar</c> 导入配置库并返回运行期唯一声明源（库优先、磁盘回退）。</summary>
     public static Task<IDeclarationStore> DeclarationStoreAsync(
         IConfigStore configStore, string? diskRoot, CancellationToken ct = default)

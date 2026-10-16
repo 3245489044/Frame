@@ -137,6 +137,6 @@ public static class HtmlDataRowView
         }
     }
 
-    private static string Safe(string? cssClass, string fallback)
-        => string.IsNullOrWhiteSpace(cssClass) ? fallback : cssClass!;
+    // DUP-03：CSS 类名兜底单源 = TextUtil.CssClass。
+    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

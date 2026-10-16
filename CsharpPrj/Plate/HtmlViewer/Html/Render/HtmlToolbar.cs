@@ -101,6 +101,6 @@ public static class HtmlToolbar
         sb.Append("/>");
     }
 
-    private static string Safe(string? cssClass, string fallback)
-        => string.IsNullOrWhiteSpace(cssClass) ? fallback : cssClass!;
+    // DUP-03：CSS 类名兜底单源 = TextUtil.CssClass（本处仅为可读别名，不再自写口径）。
+    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

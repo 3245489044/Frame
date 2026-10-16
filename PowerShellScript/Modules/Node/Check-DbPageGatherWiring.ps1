@@ -226,21 +226,28 @@ if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServi
     if ($viewText5 -notmatch 'HtmlDataCell\(\s*"updated"') { $violations.Add('[G5] 渲染行缺 Updated 单元格（HtmlDataCell("updated")；行标记经 Plate 通用行构建器产出 class="updated"）') }
 }
 
-# ---------------- G6 去字符串猜域（C4：Launcher 全域无 NormalizeDomain 猜域；负对照防判据空转） ----------------
+# ---------------- G6 去字符串猜域（C4/ERR-02：Launcher 全域无「归一函数内 Contains 子串猜域」；负对照防判据空转） ----------------
 $launcherDirG6 = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui'
 function Get-DomainGuessHits([string]$Text) {
-    return @([regex]::Matches($Text, 'NormalizeDomain'))
+    $hits = [System.Collections.Generic.List[string]]::new()
+    if ($Text -match 'NormalizeDomain') { $hits.Add('NormalizeDomain') }
+    # 结构式判据（ERR-02 补强）：Normalize* 归一函数体窗口内出现 .Contains( ⇒ 子串猜域（如 db.Contains("ur_nodes")）。
+    foreach ($m in [regex]::Matches($Text, 'string\?\s+Normalize\w*\s*\([^)]*\)\s*\{')) {
+        $window = $Text.Substring($m.Index, [Math]::Min(2000, $Text.Length - $m.Index))
+        if ($window -match '\.Contains\(') { $hits.Add('Normalize*.Contains'); break }
+    }
+    return $hits
 }
 if (Test-Path -LiteralPath $launcherDirG6) {
     foreach ($f in (Get-ChildItem -LiteralPath $launcherDirG6 -Filter '*.cs' -File -Recurse -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '\\(bin|obj|BuildOutput)\\' })) {
         $t = [System.IO.File]::ReadAllText($f.FullName)
         if ((Get-DomainGuessHits $t).Count -gt 0) {
-            $violations.Add("[G6] 字符串猜域残留：$($f.Name) 含 NormalizeDomain（应经域清单/端口分派，禁 Contains 猜域）")
+            $violations.Add("[G6] 字符串猜域残留：$($f.Name)（应经域清单/端口分派，禁 Contains 子串猜域）")
         }
     }
-    if ((Get-DomainGuessHits 'static string NormalizeDomain(string db) { if (db.Contains("task")) ... }').Count -eq 0) {
-        $violations.Add('[G6] 负对照失效：合成样本（NormalizeDomain）未被猜域判据捕获')
+    if ((Get-DomainGuessHits 'static string NormalizeDomain(string db) { if (db.Contains("task")) return "x"; return null; }').Count -eq 0) {
+        $violations.Add('[G6] 负对照失效：合成样本（Normalize*+Contains）未被猜域判据捕获')
     }
 } else {
     $violations.Add("[G6] 缺失 Agent.Launcher 目录（判据不可判）：$launcherDirG6")

@@ -24,6 +24,8 @@
       H22 决策声明面在册：LLM 判定契约 + 分发决策规则集（含 then.type=llm 与 then.contract）各恰一处。
       H23 标签框架四方对账（缺一即红）：声明面 tags 段 token ⇔ 读/行为消费面（selections has/hasany 或 behaviors 表达式）；
           behaviors 引用的 axis.token 须 ∈ 本域 tags/marks 声明集（未声明 token ⇒ 死代码/漂移）。
+      H24 建容器单入口（P1/K1）：IHistoryProvision 实现点 = 1 ∧ 建容器原语直呼点 = 1。
+      H25 派生任务键声明化（P2/K4）：task_state_ 字面量单点（仅 DerivedTaskKeyRules.cs；散落即红）。
     模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
 .PARAMETER Check
     校验模式：违规 → 退出码 1。
@@ -355,8 +357,28 @@ if (Test-Path -LiteralPath $nodesDir) {
     }
 }
 
+# H24 建容器单入口（P1/K1）：IHistoryProvision 实现点 = 1 ∧ 建容器原语直呼点 = 1。
+$agentSrc = Join-Path $agentRoot 'src'
+$agentCs = @(Get-ChildItem -LiteralPath $agentSrc -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
+$provisionImpls = @($agentCs | Select-String -Pattern ':\s*IHistoryProvision\b' -List)
+if ($provisionImpls.Count -ne 1) {
+    Add-Violation 'H24' "IHistoryProvision 实现点=$($provisionImpls.Count)（应为 1；建容器须收敛为单一所有者）"
+}
+$ensureDirect = @($agentCs | Select-String -Pattern '\.EnsureHistoryAsync\(' -List)
+if ($ensureDirect.Count -ne 1) {
+    Add-Violation 'H24' "建容器原语（.EnsureHistoryAsync）直呼点=$($ensureDirect.Count)（应为 1；5 处入口须经 IHistoryProvision）"
+}
+
+# H25 派生任务键声明化（P2/K4）：task_state_ 字面量仅允许出现在声明对账单源 DerivedTaskKeyRules.cs（单点），
+#     散落（>1 文件 / 非该文件）即红。
+$derivedFiles = @($agentCs | Select-String -Pattern 'task_state_' | ForEach-Object { $_.Path } | Sort-Object -Unique)
+if ($derivedFiles.Count -ne 1 -or ($derivedFiles[0] -notmatch 'DerivedTaskKeyRules\.cs$')) {
+    Add-Violation 'H25' "task_state_ 字面量分布于 $($derivedFiles.Count) 个文件（应为 1 且为 DerivedTaskKeyRules.cs 声明对账单源）"
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H23 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H25 全过）"
     exit 0
 }
 

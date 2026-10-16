@@ -156,6 +156,14 @@
         Note   = '存储层批量单源守卫（R0/R5）：批量读/写/删唯一构建点 = StorageFramework\Batch\（IBatchStore）· 存储层批量零领域字面量 · 批写批删无裸连接 · 正/负对照'
     }
 
+    TableWriteDeclaration = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '表写声明完备性（行写通用化 S5/S7）：每个 [Table] 须含 write: 段（fail-closed）；不可写须附 reason=；行端口注册表单源（TryGetRecord + 四存储键）；正/负对照'
+    }
+
+
     AgentRuntimeUIConfigFreshness = @{
         Domain = 'Node'
         Args   = @{ Check = $true }

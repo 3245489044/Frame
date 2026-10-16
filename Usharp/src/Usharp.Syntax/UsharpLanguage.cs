@@ -378,6 +378,36 @@ public static class UsharpLanguage
         return false;
     }
 
+    /// <summary><c>[Table] write:</c> 续行首词（写面声明；与列行同处于续行，须先行分流）。</summary>
+    public const string WriteRowMarker = "write";
+
+    /// <summary><c>write:</c> 段字段名（写面声明受控词，单源；禁在声明类/适配层各写一份）。</summary>
+    public const string WriteFieldEditable = "editable";
+    public const string WriteFieldEditor = "editor";
+    public const string WriteFieldKeyImmutable = "keyImmutable";
+    public const string WriteFieldFields = "fields";
+    public const string WriteFieldAllowTypes = "allowTypes";
+    public const string WriteFieldAfterWrite = "afterWrite";
+    public const string WriteFieldReason = "reason";
+
+    /// <summary>
+    /// 续行首词判据（<c>write</c>）：首词后须跟 <c>:</c> 或空白（防裸键 <c>write_count</c> 误判为写面行）。
+    /// </summary>
+    /// <param name="text">续行原文（调用方已 Trim）。</param>
+    /// <param name="rest">out：<c>write:</c> 后的字段正文（未命中 = 空串）。</param>
+    public static bool TryReadWriteMarker(string text, out string rest)
+    {
+        rest = string.Empty;
+        if (string.IsNullOrEmpty(text)) return false;
+        var marker = WriteRowMarker;
+        if (!text.StartsWith(marker, StringComparison.Ordinal)) return false;
+        if (text.Length == marker.Length) return true;
+        var next = text[marker.Length];
+        if (next == ':') { rest = text[(marker.Length + 1)..].Trim(); return true; }
+        if (char.IsWhiteSpace(next)) { rest = text[marker.Length..].TrimStart(' ', ':').Trim(); return true; }
+        return false;
+    }
+
     /// <summary>
     /// 多段字段切分（`;` 分段、去空段、逐段去空白）—— `enum=` / `contains=` / `connects=` / `budget=`
     /// 共用同一分段口径（`|` 与 `,` 已被字段/列表占用）。

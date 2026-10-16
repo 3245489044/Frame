@@ -40,7 +40,7 @@ public static class HtmlDetailCard
         int editorRows = 8,
         string buttonClass = "btn")
     {
-        var cls = string.IsNullOrWhiteSpace(cssClass) ? "detail" : cssClass;
+        var cls = TextUtil.CssClass(cssClass, "detail");
         var sb = new StringBuilder();
         sb.Append("<div class=\"").Append(cls).Append("-body\">");
         sb.Append("<div class=\"").Append(cls).Append("-grid\">");
@@ -54,14 +54,14 @@ public static class HtmlDetailCard
               .Append(WebUtility.HtmlEncode(sectionNote)).Append("</span></div>");
         if (!string.IsNullOrEmpty(editorDataName))
         {
-            sb.Append("<textarea class=\"").Append(string.IsNullOrWhiteSpace(editorClass) ? "edit mono" : editorClass)
+            sb.Append("<textarea class=\"").Append(TextUtil.CssClass(editorClass, "edit mono"))
               .Append("\" rows=\"").Append(editorRows).Append("\" data-name=\"")
               .Append(WebUtility.HtmlEncode(editorDataName!)).Append("\">")
               .Append(WebUtility.HtmlEncode(editorValue ?? string.Empty)).Append("</textarea>");
         }
         if (commands is not null)
             foreach (var cmd in commands)
-                HtmlToolbar.AppendButton(sb, cmd, string.IsNullOrWhiteSpace(buttonClass) ? "btn" : buttonClass);
+                HtmlToolbar.AppendButton(sb, cmd, TextUtil.CssClass(buttonClass, "btn"));
         sb.Append("</div>");
         return sb.ToString();
     }

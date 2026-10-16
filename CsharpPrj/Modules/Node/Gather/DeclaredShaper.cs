@@ -1,4 +1,5 @@
 using Modules.Node.Projection;
+using Modules.Node.Text;
 
 namespace Modules.Node.Gather;
 
@@ -9,8 +10,8 @@ namespace Modules.Node.Gather;
 /// </summary>
 public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
 {
-    /// <summary>摘要拼接上限（防大块载荷灌入面板；HTML 编码由模板承担）。</summary>
-    public const int SummaryMaxChars = 200;
+    /// <summary>摘要拼接上限（截断策略单源：<see cref="TextClipPolicy.SummaryMaxChars"/>；HTML 编码由模板承担）。</summary>
+    public const int SummaryMaxChars = TextClipPolicy.SummaryMaxChars;
 
     private const string SummarySeparator = " · ";
 
@@ -40,8 +41,8 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             kind,
             shaping.Badge,
             item.Key,
-            Truncate(Field(item, shaping.TitleKey)),
-            Truncate(JoinSummary(item, shaping.SummaryKeys)),
+            TextClipPolicy.Summary(Field(item, shaping.TitleKey)),
+            TextClipPolicy.Summary(JoinSummary(item, shaping.SummaryKeys)),
             Field(item, shaping.TimeKey),
             item.DomainKey,
             item.SourceKey,
@@ -112,14 +113,4 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
         return parts.Count == 0 ? null : string.Join(SummarySeparator, parts);
     }
 
-    private static string? Truncate(string? text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return text;
-        }
-
-        var flat = text!.Replace('\r', ' ').Replace('\n', ' ');
-        return flat.Length > SummaryMaxChars ? flat[..SummaryMaxChars] + "…" : flat;
-    }
 }

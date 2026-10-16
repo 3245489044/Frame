@@ -49,7 +49,7 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     {
         ct.ThrowIfCancellationRequested();
         var declared = _schemaSource?.GetColumns(TableNames.Histories) ?? _schemaSource?.GetColumns("histories");
-        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureConverged(Executor, Table, TableConvergencePolicy.ResetDropData);
         KvUsharpTable.EnsureCreated(Executor, Table, declared);
         return Task.CompletedTask;
     }

@@ -74,6 +74,46 @@
         Note   = '入口单源守卫（写库即实现 · Agent.Core.Entry）：E-1 AgentApiPort 定义恰 1 · E-1b AgentEntryCallableTrack 恰 1 · E-2 AgentIntentMapping 恰 1 · E-3 AgentDispatcher 恰 1 · E-4 通用轨经 AgentEntryPort 转发 · P-1 正对照（intent 常量 ≥ 基线）· P-2 负对照'
     }
 
+    IntentMappingNoLiteral = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'intent 映射字面量（B4/DUP-10）：AgentIntentMapping 的 _fnToIntent 键零 wire 字面量（改引用 WorkflowFunctionNames.*）；正/负对照'
+    }
+
+    DbToolbarDictAlloc = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '数据库页工具条字典分配（B3/RED-13）：渲染路径零逐命令 `new Dictionary{type=db}`（改走 DbCmdAttrs.For 缓存基座）；正/负对照'
+    }
+
+    RecordSingleTextForm = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '记录单一文本形态（B3/RED-06）：DetailPayloadJson 引用 = 0（载荷视图由记录态派生）· DetailRecordJson 在位；正/负对照'
+    }
+
+    GatherDiagnosticsSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢诊断单源（B2/RED-09）：NodeGatherService 内 Diagnostics 自拼 = 0 · 渲染侧由模型字段投影（BuildGatherNote）；正/负对照'
+    }
+
+    HostAccessNoRestate = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '宿主访问面零重抄（B5/RED-02）：实现类内具名端口成员 = 0（成员为接口默认实现）· Read(HostPort) 恰 1 · 接线单源 = UiHostAccessCircuit 电路配方 · HostPort 端口表 + IHostAccess；正/负对照'
+    }
+
     DataCenterGenericity = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
@@ -163,6 +203,22 @@
         Note   = '表写声明完备性（行写通用化 S5/S7）：每个 [Table] 须含 write: 段（fail-closed）；不可写须附 reason=；行端口注册表单源（TryGetRecord + 四存储键）；正/负对照'
     }
 
+    SqliteTablePolicySingleSource = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'Sqlite 白名单/封顶单源（B1/DUP-01）：`DefaultLimit=200`/`MaxLimit=1000` 字面量各恰 1 · `IsUserTable` 定义恰 1（SqliteTablePolicy）；正/负对照'
+    }
+
+    TableConvergenceSingleEntry = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '表结构收敛单入口（B1/DUP-08）：MigrateToPure/ResetToPureIfNeeded 降级 internal · 外部调用点 = 0（经 EnsureConverged）；正/负对照'
+    }
+
 
     AgentRuntimeUIConfigFreshness = @{
         Domain = 'Node'
@@ -242,6 +298,30 @@
         Expect = 0
         Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红，-Write 可生成）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
     }
+    TextClipSingleSource = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '文本截断单源（B1/DUP-02）：Modules/Node 截断字面量恰 1（TextClipPolicy）· DeclaredShaper 经 TextClipPolicy 取值 · StorageFramework 截断 ≤1；正/负对照'
+    }
+
+    FreshnessFamilySingleSource = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '产物新鲜度判据族单源（B6/SCT-08）：包含口径/指纹口径实现仅 Baselines\ArtifactFreshness.psm1 · 配置守卫经族函数委托；正/负对照'
+    }
+
+    StoreReadPortSingleTable = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '存储读端口单表（B1/RED-10）：IStoreTableReadPort 无 ListTables · ReadRows(int limit) 为唯一读方法 · ListTables 调用点 = 0 · StoreTableRow.Collection 在位；正/负对照'
+    }
+
     NodeLocPlacement = @{
         Domain = 'Node'
         Args   = @{ Check = $true }

@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（16 件）
+## Agent（21 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -16,12 +16,17 @@
 | `AgentRuntimeSlots` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1` |
 | `AgentRuntimeUIConfig` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeUIConfig.ps1` |
 | `CircuitSemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-CircuitSemantics.ps1` |
+| `DbToolbarDictAlloc` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbToolbarDictAlloc.ps1` |
 | `EffectiveFace` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveFace.ps1` |
 | `EntrySingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EntrySingleSource.ps1` |
+| `GatherDiagnosticsSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GatherDiagnosticsSingleSource.ps1` |
 | `GenerationLayout` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1` |
 | `GenerationRebuildChain` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1` |
 | `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
+| `HostAccessNoRestate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HostAccessNoRestate.ps1` |
+| `IntentMappingNoLiteral` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentMappingNoLiteral.ps1` |
 | `LlmRoutingSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-LlmRoutingSurface.ps1` |
+| `RecordSingleTextForm` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordSingleTextForm.ps1` |
 | `RefreshFrameworkBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
@@ -32,7 +37,7 @@
 |---|---|---|---|
 | `BakeFramework` | full | 0 | `Projects\BuildFramework\Check-BakeFramework.ps1` |
 
-## Data（10 件）
+## Data（13 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -46,6 +51,9 @@
 | `FrameworkActivation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1` |
 | `SessionDuplication` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SessionDuplication.ps1` |
 | `SingleWriter` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1` |
+| `SqliteTablePolicySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SqliteTablePolicySingleSource.ps1` |
+| `TableConvergenceSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableConvergenceSingleEntry.ps1` |
+| `TableWriteDeclaration` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableWriteDeclaration.ps1` |
 
 ## Declarations（3 件）
 
@@ -71,14 +79,16 @@
 | `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
 | `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
 
-## Node（19 件）
+## Node（23 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `AgentFrameworkSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1` |
 | `AgentOrchestrationFlow` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1` |
+| `AgentRuntimeUIConfigFreshness` | fast | 0 | `Frame\PowerShellScript\Modules\Node\Check-AgentRuntimeUIConfigFreshness.ps1` |
 | `DbPageGatherWiring` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1` |
 | `DomainWireSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainWireSingleSource.ps1` |
+| `FreshnessFamilySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-FreshnessFamilySingleSource.ps1` |
 | `NodeCollectPort` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1` |
 | `NodeDeclSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1` |
 | `NodeFlowDomainMatch` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeFlowDomainMatch.ps1` |
@@ -93,6 +103,8 @@
 | `ObservabilitySurface` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1` |
 | `ReferenceExclusion` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1` |
 | `ReferenceVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1` |
+| `StoreReadPortSingleTable` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-StoreReadPortSingleTable.ps1` |
+| `TextClipSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-TextClipSingleSource.ps1` |
 | `Wiring` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1` |
 
 ## Parsing（2 件）

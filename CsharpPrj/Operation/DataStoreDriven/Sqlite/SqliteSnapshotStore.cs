@@ -36,7 +36,7 @@ public sealed class SqliteSnapshotStore : KvJsonStoreBase, ISnapshotStore
 
     public Task InitializeAsync(CancellationToken ct = default)
     {
-        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureConverged(Executor, Table, TableConvergencePolicy.ResetDropData);
         KvUsharpTable.EnsureCreated(Executor, Table);
         KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_threadid", UsharpRecordPaths.ThreadId);
         return Task.CompletedTask;

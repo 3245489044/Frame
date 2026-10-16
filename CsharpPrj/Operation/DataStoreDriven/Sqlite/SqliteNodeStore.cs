@@ -53,7 +53,7 @@ public sealed class SqliteNodeStore : KvJsonStoreBase, INodeStore
         ct.ThrowIfCancellationRequested();
         var declared = _schemaSource?.GetColumns(TableNames.Nodes) ?? _schemaSource?.GetColumns("nodes");
         KvUsharpTable.EnsureCreated(Executor, Table, declared);
-        KvUsharpTable.MigrateToPure(Executor, Table);
+        KvUsharpTable.EnsureConverged(Executor, Table, TableConvergencePolicy.MigrateKeepData);
         return Task.CompletedTask;
     }
 

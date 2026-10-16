@@ -12,25 +12,11 @@ namespace UniversalWorkflowFramework.StorageFramework.Sqlite;
 /// </summary>
 public static class SqliteTableReader
 {
-    /// <summary>行数上限（缺省 200，最高 1000；防无界读库）。</summary>
-    public static readonly int DefaultLimit = 200;
-    private static readonly int MaxLimit = 1000;
+    /// <summary>行数上限（缺省/硬上限单源：<see cref="SqliteTablePolicy"/>）。</summary>
+    public static int DefaultLimit => SqliteTablePolicy.DefaultLimit;
 
     /// <summary>单元格文本最大长度（超出截断，避免撑爆 Markdown 表格）。</summary>
-    public static readonly int CellMaxLength = 160;
-
-    /// <summary>表名白名单判定（防注入）：仅允许 sqlite_master 中真实存在的业务表（排除 sqlite_* 系统表）。</summary>
-    public static IReadOnlyList<string> ListUserTables(SqliteSession session)
-        => session.ExecuteQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-            .Select(r => r.TryGetValue("name", out var v) ? v?.ToString() : null)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Select(n => n!)
-            .ToList();
-
-    /// <summary>表是否存在于用户表白名单。</summary>
-    public static bool IsUserTable(SqliteSession session, string? table)
-        => !string.IsNullOrWhiteSpace(table)
-            && ListUserTables(session).Contains(table!, StringComparer.OrdinalIgnoreCase);
+    public const int CellMaxLength = 160;
 
     /// <summary>只读查询单表（表名白名单校验 + LIMIT 封顶）；表不存在/非法抛 <see cref="InvalidOperationException"/>。</summary>
     public static IReadOnlyList<IReadOnlyDictionary<string, object>> ReadRows(
@@ -39,10 +25,9 @@ public static class SqliteTableReader
         ArgumentNullException.ThrowIfNull(session);
         if (string.IsNullOrWhiteSpace(table))
             throw new InvalidOperationException("（空表名）");
-        if (!IsUserTable(session, table))
+        if (!SqliteTablePolicy.IsUserTable(session, table))
             throw new InvalidOperationException("（表不存在或非法）");
-        var cap = Math.Max(1, Math.Min(limit ?? DefaultLimit, MaxLimit));
-        return session.ExecuteQuery($"SELECT * FROM [{table}] LIMIT {cap}");
+        return session.ExecuteQuery($"SELECT * FROM [{table}] LIMIT {SqliteTablePolicy.ClampLimit(limit)}");
     }
 
     /// <summary>渲染行集为 Markdown 表格（空集 → （空表））；表不存在/非法返回错误信息字符串。</summary>

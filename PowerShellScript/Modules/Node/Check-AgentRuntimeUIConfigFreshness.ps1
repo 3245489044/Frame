@@ -52,18 +52,8 @@ Write-Host '============================================================'
 Write-Host '  AgentRuntimeUI 配置新鲜度守卫（源 → 产物：结构包含判据）'
 Write-Host '============================================================'
 
-# ---- 判据函数（可对任意源/产物文本对判定；供正/负对照复用） ----
-function Get-FreshnessMisses([string]$SourceText, [string]$ProductText) {
-    $misses = [System.Collections.Generic.List[string]]::new()
-    foreach ($m in [regex]::Matches($SourceText, '"(\w+)"\s*:\s*"AgentUi_[^"]*"')) {
-        if ($ProductText -notmatch [regex]::Escape($m.Value)) { $misses.Add("事件/函数引用缺失：" + $m.Value) }
-    }
-    foreach ($m in [regex]::Matches($SourceText, '"(?:source|target|output)"\s*:\s*"([^"]+)"')) {
-        $value = $m.Groups[1].Value
-        if ($ProductText -notmatch ('"' + [regex]::Escape($value) + '"')) { $misses.Add("绑定引用缺失：$value") }
-    }
-    return $misses
-}
+# ---- 判据函数（单源 = 产物新鲜度判据族 ArtifactFreshness.psm1 的「结构包含」口径；SCT-08） ----
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\ArtifactFreshness.psm1') -Force -DisableNameChecking
 
 if (-not (Test-Path -LiteralPath $ConfigPath)) {
     $violations.Add("[F1] 缺源配置：$ConfigPath")
@@ -79,12 +69,12 @@ if (-not (Test-Path -LiteralPath $ConfigPath)) {
         catch { $violations.Add("[F4] $($pair[0]) 配置 JSON 解析失败（半截产物/语法错误）：$($_.Exception.Message)") }
     }
 
-    foreach ($m in (Get-FreshnessMisses $srcText $prodText)) {
+    foreach ($m in (Get-ArtifactContainmentMisses -SourceText $srcText -ProductText $prodText)) {
         $violations.Add("[F2/F3] 产物落后于源：$m（请重新烘焙：构建 FileDriven.Launcher）")
     }
 
     # F5 负对照：人工构造「源有、产物无」必被捕获。
-    if ((Get-FreshnessMisses '"cmd":"AgentUi_Probe"' '"cmd":"AgentUi_Other"').Count -eq 0) {
+    if ((Get-ArtifactContainmentMisses -SourceText '"cmd":"AgentUi_Probe"' -ProductText '"cmd":"AgentUi_Other"').Count -eq 0) {
         $violations.Add('[F5] 负对照失效：滞后样本未被新鲜度判据捕获')
     }
 }

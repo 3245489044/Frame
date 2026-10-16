@@ -54,7 +54,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     public Task InitializeAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        KvUsharpTable.ResetToPureIfNeeded(Executor, Table);
+        KvUsharpTable.EnsureConverged(Executor, Table, TableConvergencePolicy.ResetDropData);
         KvUsharpTable.EnsureCreated(Executor, Table);
         KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_status", UsharpRecordPaths.Status);
         KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_tasks_priority", UsharpRecordPaths.Priority);

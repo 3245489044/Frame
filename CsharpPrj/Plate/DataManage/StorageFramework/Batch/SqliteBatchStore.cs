@@ -16,9 +16,6 @@ namespace UniversalWorkflowFramework.StorageFramework.Batch;
 /// </summary>
 public sealed class SqliteBatchStore : IBatchStore
 {
-    private const int DefaultLimit = 200;
-    private const int MaxLimit = 1000;
-
     private readonly IDbCommandExecutor _executor;
 
     /// <param name="executor">命令执行器（SqliteSession / SqliteChannelSession / 事务会话）。</param>
@@ -34,12 +31,12 @@ public sealed class SqliteBatchStore : IBatchStore
             return new BatchReadResult(Array.Empty<IReadOnlyDictionary<string, object>>(), "（空表名）");
         }
 
-        if (!IsUserTable(request.Table, out var tableError))
+        if (!Sqlite.SqliteTablePolicy.IsUserTable(_executor, request.Table))
         {
-            return new BatchReadResult(Array.Empty<IReadOnlyDictionary<string, object>>(), tableError);
+            return new BatchReadResult(Array.Empty<IReadOnlyDictionary<string, object>>(), $"（表不存在或非法：{request.Table}）");
         }
 
-        var cap = Math.Max(1, Math.Min(request.Limit <= 0 ? DefaultLimit : request.Limit, MaxLimit));
+        var cap = Sqlite.SqliteTablePolicy.ClampLimit(request.Limit);
         string sql;
         IDictionary<string, object>? parameters = null;
         if (request.Keys is { Count: > 0 })
@@ -217,27 +214,4 @@ public sealed class SqliteBatchStore : IBatchStore
             parameters);
     }
 
-    /// <summary>用户表白名单判定（防注入）：仅允许 sqlite_master 中真实存在的业务表。</summary>
-    private bool IsUserTable(string table, out string error)
-    {
-        try
-        {
-            var rows = _executor.ExecuteQuery(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-            if (rows.Any(r => r.TryGetValue("name", out var v)
-                    && string.Equals(v?.ToString(), table, StringComparison.OrdinalIgnoreCase)))
-            {
-                error = string.Empty;
-                return true;
-            }
-
-            error = $"（表不存在或非法：{table}）";
-            return false;
-        }
-        catch (Exception ex)
-        {
-            error = $"（表校验失败）{ex.Message}";
-            return false;
-        }
-    }
 }

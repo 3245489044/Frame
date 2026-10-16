@@ -7,6 +7,19 @@ using UniversalWorkflowFramework.StorageFramework.Core;
 namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
+/// 表结构收敛策略（**显式声明**，消除「同表两套处置」的隐式分叉）：<see cref="MigrateKeepData"/> 保数据迁移；
+/// <see cref="ResetDropData"/> 丢弃重建（无视旧行）。
+/// </summary>
+public enum TableConvergencePolicy
+{
+    /// <summary>保数据迁移为纯三列（旧 Doc/Json 列值尽力保留）。</summary>
+    MigrateKeepData,
+
+    /// <summary>丢弃重建（不迁移旧行）。</summary>
+    ResetDropData,
+}
+
+/// <summary>
 /// 纯 USharp 真源表模板：「业务键 NodeKey + USharp 真源文档 Doc」**三列**（<c>[Id]/[NodeKey]/[Doc]</c>）。
 /// <para>
 /// 与已退役的旧文档表模板的区别：**无兼容派生列 <c>[IndexJson]</c>**。真源 <c>[Doc]</c> = USharp 文本；
@@ -35,10 +48,28 @@ public static class KvUsharpTable
         => executor.ExecuteNonQuery(CreateSql(table, columns));
 
     /// <summary>
+    /// 表结构收敛**单入口**：按 <see cref="TableConvergencePolicy"/> 分派（保数据迁移 / 丢弃重建）。
+    /// 调用点禁直接调 <see cref="MigrateToPure"/> / <see cref="ResetToPureIfNeeded"/>（旁路 = 0，门禁 TableConvergenceSingleEntry）。
+    /// 返回是否发生「丢弃重建」（迁移策略恒返回 false）。
+    /// </summary>
+    public static bool EnsureConverged(IDbCommandExecutor executor, string table, TableConvergencePolicy policy)
+        => policy switch
+        {
+            TableConvergencePolicy.ResetDropData => ResetToPureIfNeeded(executor, table),
+            _ => MigrateThenFalse(executor, table),
+        };
+
+    private static bool MigrateThenFalse(IDbCommandExecutor executor, string table)
+    {
+        MigrateToPure(executor, table);
+        return false;
+    }
+
+    /// <summary>
     /// 收敛为纯三列（退役兼容派生列 <c>[IndexJson]</c> 与旧 <c>[Json]</c>）：整表重建为
     /// <c>[Id]/[NodeKey]/[Doc]</c>，Doc 取既有 <c>[Doc]</c>（优先）或旧 <c>[Json]</c>。表结构已是纯三列 ⇒ 跳过（幂等）。
     /// </summary>
-    public static void MigrateToPure(IDbCommandExecutor executor, string table)
+    internal static void MigrateToPure(IDbCommandExecutor executor, string table)
     {
         var cols = executor.ExecuteQuery($"PRAGMA table_info([{table}])")
             .Select(r => (r.TryGetValue("name", out var v) ? v?.ToString() : null) ?? string.Empty)
@@ -66,7 +97,7 @@ public static class KvUsharpTable
     /// 若表已存在且**非**纯三列 ⇒ 丢弃重建（数据口径 = 无视删除：不迁移旧行）。返回是否发生重置。
     /// 供任务池/快照/历史在初始化时收敛表结构（旧四列 [IndexJson] / 旧 KvJson [Json] / 更老多列一律作废）。
     /// </summary>
-    public static bool ResetToPureIfNeeded(IDbCommandExecutor executor, string table)
+    internal static bool ResetToPureIfNeeded(IDbCommandExecutor executor, string table)
     {
         var cols = executor.ExecuteQuery($"PRAGMA table_info([{table}])")
             .Select(r => (r.TryGetValue("name", out var v) ? v?.ToString() : null) ?? string.Empty)

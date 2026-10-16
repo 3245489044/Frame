@@ -16,9 +16,9 @@
       C5 分离性：名册键 ∩ 语义台账键 = ∅（同一 EventKind 第二作者 ⇒ 组合根 RegisterVisibilityContracts 抛）
       C6 发射面在位：AgentTrace.Visibility 定义 + AgentLog 出口镜像 + ModuleLog 出口镜像（防「声明在而没人发」）
       C7 正对照：ModuleLog 面（Agent.Modules 10 个调用点）关键键在册（F-P0-1d：该门面不经 AgentLog）
-      C8 部署态读面（F-P0-1i / D13b①）：直读事件区（events.jsonl），断言"存在 ∧ 关键键可检索"。
-        默认报告态（未跑产品会话的环境不得恒红）；-VerifyDeploy 转违规（动态面取证）。
-        -EventStorePath 可指向临时事件区（正/负对照用，不依赖部署态）。
+      C8 运行期读面（零落盘修订）：连**实时出口**（命名管道 `agent-observe-<pid>`）采样，断言"可连 ∧ 关键键可检索"。
+        Agent 未运行 ⇒ ⊥（不可判定），默认报告态不违规（CI 无 Agent 不得恒红）；-VerifyDeploy 转违规（动态面取证）。
+        -PipeName 指定实例（缺省按前缀枚举）；-WindowSec / -Backlog 控制采样窗口。
 
     模式：默认报告模式（列出实测，不设退出码）；-Check 校验模式（存在违规 → 退出码 1）。
 
@@ -34,8 +34,17 @@
 .PARAMETER VerifyDeploy
     部署态动态面取证：事件区缺失或关键键不可检索 ⇒ 违规（默认仅报告，不拦）。
 
-.PARAMETER EventStorePath
-    事件区路径覆盖（正/负对照用）；缺省 = 部署态 data\observability\events.jsonl。
+.PARAMETER PipeName
+    实时出口管道名（缺省 = 按 `agent-observe` 前缀枚举；多实例须显式指定）。
+
+.PARAMETER WindowSec
+    实时采样窗口秒数（缺省 3；C8 在此期间收集事件键）。
+
+.PARAMETER PipeTimeoutMs
+    连接实时出口的超时毫秒（缺省 1500）。
+
+.PARAMETER Backlog
+    连接时先回放的最近条数（缺省 50；供窗口内补足关键键）。
 
 .EXAMPLE
     .\Check-ObservabilitySurface.ps1 -ShowDetail
@@ -49,7 +58,10 @@ param(
     [switch]$Check,
     [switch]$ShowDetail,
     [switch]$VerifyDeploy,
-    [string]$EventStorePath = ''
+    [string]$PipeName = '',
+    [int]$WindowSec = 3,
+    [int]$PipeTimeoutMs = 1500,
+    [int]$Backlog = 50
 )
 
 $ErrorActionPreference = 'Stop'
@@ -209,43 +221,49 @@ foreach ($key in $KeyModuleLogFace)
     }
 }
 
-# ---------------- C8 部署态读面：事件区可检索（F-P0-1i / D13b①） ----------------
-# 「可读观测面 ≥ 1」的判据载体：门禁**直读**事件区（PowerShell，零 C# 读者）——断言"存在 ∧ 关键键可检索"。
-# 默认报告态（未跑产品会话的环境不得恒红）；-VerifyDeploy 转违规（部署态动态面收尾取证）。
-if ([string]::IsNullOrWhiteSpace($EventStorePath))
+# ---------------- C8 运行期读面：实时出口可连且关键键可检索（零落盘修订） ----------------
+# 「可读观测面 ≥ 1」的判据载体 = 门禁连**实时出口**（命名管道，零 C# 读者）采样：断言"可连 ∧ 关键键可检索"。
+# 零落盘后不再有静态事件区可直读；Agent 未运行 ⇒ ⊥（不可判定），默认报告态不违规（CI 无 Agent 不得恒红）。
+$probeScript = Join-Path $Root 'Frame\PowerShellScript\Share\Observe\Watch-AgentObserve.ps1'
+$probe = $null
+$probeError = ''
+if (Test-Path -LiteralPath $probeScript)
 {
-    $EventStorePath = Join-Path $Root 'Projects\Information\State\data\observability\events.jsonl'
+    try
+    {
+        $probe = & $probeScript -Probe -PipeName $PipeName -WindowSec $WindowSec -TimeoutMs $PipeTimeoutMs -Backlog $Backlog
+    }
+    catch { $probeError = $_.Exception.Message }
 }
-$storeExists = Test-Path -LiteralPath $EventStorePath
+else { $probeError = "实时读面脚本缺失：$probeScript" }
+
+$pipeUp = ($null -ne $probe) -and $probe.Connected
 $deployHits = @()
-if ($storeExists)
-{
-    $deployHits = @($KeyVisible | Where-Object {
-        @(Select-String -LiteralPath $EventStorePath -Pattern $_ -SimpleMatch -ErrorAction SilentlyContinue).Count -gt 0
-    })
-}
+if ($pipeUp) { $deployHits = @($KeyVisible | Where-Object { @($probe.Kinds) -contains $_ }) }
+
 if ($VerifyDeploy)
 {
-    if (-not $storeExists)
+    if (-not $pipeUp)
     {
-        $violations.Add("[C8] 部署态事件区缺失：$EventStorePath（无 flush 驱动 ∨ 未跑产品会话 ⇒ 可读观测面 = 0）")
+        $reason = if ($probe -and $probe.Reason) { $probe.Reason } else { $probeError }
+        $violations.Add("[C8] 观测实时出口不可连：$reason（无实时读面 ⇒ 关键可见化键部署态不可检索）")
     }
     else
     {
         $deployMissing = @($KeyVisible | Where-Object { $deployHits -notcontains $_ })
         if ($deployMissing.Count -gt 0)
         {
-            $violations.Add("[C8] 部署态事件区不可检索关键键：$($deployMissing -join ', ')（事件区在而键缺 ⇒ 读面不成立）")
+            $violations.Add("[C8] 实时出口窗口内未检索到关键键：$($deployMissing -join ', ')（出口在而键缺 ⇒ 读面不成立）")
         }
     }
 }
 
 # ---------------- 汇总 ----------------
-Write-Host ("  实测：名册事件 {0}（基线 {1}）· AgentLog 面关键键 {2}/{3} · ModuleLog 面关键键 {4}/{5} · 语义台账分离 {6} · 部署态事件区 {7}（关键键命中 {8}/{9}）" -f `
+Write-Host ("  实测：名册事件 {0}（基线 {1}）· AgentLog 面关键键 {2}/{3} · ModuleLog 面关键键 {4}/{5} · 语义台账分离 {6} · 实时出口 {7}（关键键命中 {8}/{9}）" -f `
     $keys.Count, $EventBaseline, (@($KeyVisible | Where-Object { $keys -contains $_ }).Count), $KeyVisible.Count, `
     (@($KeyModuleLogFace | Where-Object { $keys -contains $_ }).Count), $KeyModuleLogFace.Count, `
     $(if ($violations -match 'C5') { '违例' } else { '是' }), `
-    $(if ($storeExists) { '有' } else { '无' }), $deployHits.Count, $KeyVisible.Count)
+    $(if ($pipeUp) { '已连' } elseif ($probe -or $probeError) { '未连' } else { '不可判定' }), $deployHits.Count, $KeyVisible.Count)
 
 if ($ShowDetail)
 {

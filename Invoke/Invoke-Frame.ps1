@@ -38,7 +38,7 @@ param(
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
-        'read-agentdb'
+        'read-agentdb', 'watch-observe'
     )]
     [string]$Action,
 
@@ -101,6 +101,17 @@ param(
     [int]$Limit = 50,
     [string]$StateRoot = '',
     [string]$DllDir = '',
+
+    [string]$PipeName = '',
+    [string]$PipePrefix = 'agent-observe',
+    [switch]$Probe,
+    [string]$ScopeId = '',
+    [string]$Kind = '',
+    [int]$Backlog = 0,
+    [switch]$Query,
+    [int]$TimeoutMs = 1500,
+    [int]$WindowSec = 0,
+    [int]$MaxEvents = 0,
 
     [switch]$All,
     [switch]$Write,

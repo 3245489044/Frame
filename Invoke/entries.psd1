@@ -37,6 +37,11 @@
             Target = '..\PowerShellScript\Share\Data\Read-AgentDb.ps1'
             Map = @{ Store = 'Store'; Table = 'Table'; Collection = 'Collection'; Where = 'Where'; Limit = 'Limit'; StateRoot = 'StateRoot'; DllDir = 'DllDir'; List = 'List'; Json = 'Json' }
         }
+        'watch-observe' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Observe\Watch-AgentObserve.ps1'
+            Map = @{ PipeName = 'PipeName'; PipePrefix = 'PipePrefix'; List = 'List'; Probe = 'Probe'; ScopeId = 'ScopeId'; Kind = 'Kind'; Backlog = 'Backlog'; Query = 'Query'; Limit = 'Limit'; TimeoutMs = 'TimeoutMs'; WindowSec = 'WindowSec'; MaxEvents = 'MaxEvents'; Json = 'Json'; Quiet = 'Quiet' }
+        }
 
         # ---------- 门禁 ----------
         'invoke-gatecheck' = @{

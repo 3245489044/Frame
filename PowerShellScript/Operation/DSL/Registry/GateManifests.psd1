@@ -204,7 +204,7 @@
         Domain = 'Node'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '可见化观测面守卫 C1–C8（F-P0-1c/1d/1i / C-5）：名册在册且已登记 EmbeddedResource / 事件数 ≥ 基线(46) / AgentLog 面关键三键在册（正对照）/ 乱造键不在册（负对照）/ 名册 ∩ 语义台账 = ∅（第二作者）/ 双门面发射面成对（AgentTrace.Visibility + AgentLog 镜像 + ModuleLog 镜像）/ ModuleLog 面（Agent.Modules 10 调用点）关键键在册 / 部署态事件区读面（C8：直读 events.jsonl 断言"存在 ∧ 关键键可检索"；默认报告态，-VerifyDeploy 转违规，-EventStorePath 供正负对照）'
+        Note   = '可见化观测面守卫 C1–C8（F-P0-1c/1d/1i / C-5）：名册在册且已登记 EmbeddedResource / 事件数 ≥ 基线(46) / AgentLog 面关键三键在册（正对照）/ 乱造键不在册（负对照）/ 名册 ∩ 语义台账 = ∅（第二作者）/ 双门面发射面成对（AgentTrace.Visibility + AgentLog 镜像 + ModuleLog 镜像）/ ModuleLog 面（Agent.Modules 10 调用点）关键键在册 / 运行期读面（C8 零落盘修订：连实时出口 agent-observe-<pid> 采样，断言"可连 ∧ 关键键可检索"；Agent 未运行 ⇒ ⊥ 报告态不违规，-VerifyDeploy 转违规，-PipeName/-WindowSec/-Backlog 控窗口）'
     }
 
     NodeWriteBypass = @{

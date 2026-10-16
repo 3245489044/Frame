@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（27 件）
+## Agent（36 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -18,8 +18,10 @@
 | `CircuitSemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-CircuitSemantics.ps1` |
 | `DbRenderPurity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbRenderPurity.ps1` |
 | `DbToolbarDictAlloc` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbToolbarDictAlloc.ps1` |
+| `DetailReadWriteSamePort` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DetailReadWriteSamePort.ps1` |
 | `DomainResolveSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DomainResolveSingleEntry.ps1` |
 | `EffectiveFace` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveFace.ps1` |
+| `EffectiveModeSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveModeSingleSource.ps1` |
 | `EntrySingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EntrySingleSource.ps1` |
 | `GatherDiagnosticsSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GatherDiagnosticsSingleSource.ps1` |
 | `GenerationLayout` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1` |
@@ -29,11 +31,18 @@
 | `IntentMappingNoLiteral` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentMappingNoLiteral.ps1` |
 | `IntentSupportsProjected` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentSupportsProjected.ps1` |
 | `LlmRoutingSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-LlmRoutingSurface.ps1` |
+| `OperationRowCarriesActor` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-OperationRowCarriesActor.ps1` |
+| `ReadinessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ReadinessSingleEntry.ps1` |
+| `RecordDraftSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordDraftSingleSource.ps1` |
 | `RecordSingleTextForm` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordSingleTextForm.ps1` |
 | `RefreshFrameworkBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1` |
+| `RenderNoDomainBranch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RenderNoDomainBranch.ps1` |
 | `RowIdentityBareKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RowIdentityBareKey.ps1` |
 | `SaveDispatchNoDomainSwitch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SaveDispatchNoDomainSwitch.ps1` |
+| `SendDeclarationCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SendDeclarationCoverage.ps1` |
+| `TemplateAccessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TemplateAccessSingleEntry.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
+| `UnknownVisible` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UnknownVisible.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
 | `WriteCapabilitySinglePredicate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-WriteCapabilitySinglePredicate.ps1` |
 

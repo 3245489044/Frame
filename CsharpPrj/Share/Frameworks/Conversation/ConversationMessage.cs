@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Share.Conversation.ContextBinding;
 
 namespace Share.Conversation;
@@ -16,6 +17,8 @@ namespace Share.Conversation;
 /// <param name="Binding">上下文绑定（可选；锚点键/来源域/投喂目标/文本哈希，供 UI≡LLM 一致性校验；默认 null）。尾参，不影响既有位置构造调用。</param>
 /// <param name="Channel">呈现通道（默认 <see cref="MessageChannel.Dialogue"/> = 对话气泡；<see cref="MessageChannel.Operation"/> = 操作流）。
 /// 与 <see cref="Binding"/> 的 FeedTarget（投喂目标）正交；尾参，不影响既有位置构造调用。</param>
+/// <param name="Targets">本轮分发/注入的**目标集**（dispatch 执行体产出的事实；F3）。null/空 = 无分发（reply/status）。
+/// 尾参，不影响既有位置构造调用。</param>
 public sealed record ConversationMessage(
     ConversationRole Role,
     string? Stage,
@@ -25,4 +28,5 @@ public sealed record ConversationMessage(
     DateTimeOffset AtUtc,
     string? Payload = null,
     MessageBinding? Binding = null,
-    MessageChannel Channel = MessageChannel.Dialogue);
+    MessageChannel Channel = MessageChannel.Dialogue,
+    IReadOnlyList<string>? Targets = null);

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Share.Conversation;
 
 namespace Share.Conversation.Rendering;
@@ -13,4 +14,5 @@ public sealed record ConversationRenderItem(
     string? SubAgent,
     string Text,
     int Round,
-    MessageChannel Channel = MessageChannel.Dialogue);
+    MessageChannel Channel = MessageChannel.Dialogue,
+    IReadOnlyList<string>? Targets = null);

@@ -31,7 +31,9 @@ public class UIConfiguration
     public string? InitCommandMode { get; set; }
 
     /// <summary>命名 HTML 模板集（供 HTML 后端模板引擎渲染数据片段；键=模板名，值=模板字符串）。
-    /// 缺省 null = 无模板，消费方回退内嵌默认。把 HTML 外置进 JSON、C# 只产数据。</summary>
+    /// 缺省 null = 无模板，消费方回退内嵌默认。把 HTML 外置进 JSON、C# 只产数据。
+    /// <para>域样式（交互式会话页 / 数据库页）经本段 <c>theme</c> 键以「框架基础 + 应用差异」叠加，
+    /// 单源且被 <c>HtmlBridgeAssembly.AttachTemplatesAndTheme</c> 消费（禁构建产物副本）。</para></summary>
     [JsonPropertyName("templates")]
     public Dictionary<string, string>? Templates { get; set; }
 }

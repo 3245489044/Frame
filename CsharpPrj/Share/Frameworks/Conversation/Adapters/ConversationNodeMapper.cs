@@ -27,7 +27,7 @@ public sealed class ConversationNodeMapper : IConversationNodeMapper
             {
                 if (c is null || string.IsNullOrWhiteSpace(c.Text)) continue;
                 var r = c.Round > 0 ? c.Round : round;
-                list.Add(new ConversationMessage(ConversationRole.Tool, c.Stage, c.SubAgent, c.Text, r, DateTimeOffset.UtcNow));
+                list.Add(new ConversationMessage(ConversationRole.Tool, c.Stage, c.SubAgent, c.Text, r, DateTimeOffset.UtcNow, Targets: c.Targets));
             }
 
         if (!string.IsNullOrWhiteSpace(assistantAnswer))
@@ -43,7 +43,7 @@ public sealed class ConversationNodeMapper : IConversationNodeMapper
         var list = new List<ConversationNodeContribution>();
         foreach (var m in messages)
             if (m.Role == ConversationRole.Tool && !string.IsNullOrWhiteSpace(m.Text))
-                list.Add(new ConversationNodeContribution(m.Stage ?? "node", m.SubAgent ?? "tool", m.Text, m.Round));
+                list.Add(new ConversationNodeContribution(m.Stage ?? "node", m.SubAgent ?? "tool", m.Text, m.Round, m.Targets));
         return list;
     }
 }

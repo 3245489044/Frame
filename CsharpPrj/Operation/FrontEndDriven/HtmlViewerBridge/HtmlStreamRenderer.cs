@@ -128,38 +128,65 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     /// <summary>
     /// 操作流渲染（非气泡）：<see cref="MessageChannel.Operation"/> 消息逐条落入顶部操作面板，
     /// 与对话气泡物理分离（任务创建/管理等命令与回执不再冒充 user/assistant 气泡）。
-    /// 模板 <c>operationPanel</c> 缺失 ⇒ 自足内联兜底（无 partial 依赖），不崩。
+    /// <para>行承载（G5）：<c>{round,title,text,subagent}</c> —— 「分发到哪个子智能体」是**结构事实**（写侧单源），
+    /// 呈现侧不得由 Role 二次猜测（<see cref="MessageChannel"/> 契约）。模板 <c>actionPanel</c> 缺失 ⇒
+    /// 自足内联兜底（与模板路径**共享同一行模型**，禁双份构造）。</para>
     /// </summary>
     private static string RenderOperations(
         IReadOnlyList<ConversationRenderItem> operations, IReadOnlyDictionary<string, string> t)
     {
         var rows = operations
             .OrderBy(m => m.Round)
-            .Select(m => new Dictionary<string, object?>
-            {
-                ["round"] = m.Round.ToString(),
-                ["title"] = string.IsNullOrWhiteSpace(m.Stage) ? m.Role.ToString().ToLowerInvariant() : m.Stage!,
-                ["text"] = m.Text ?? string.Empty,
-            })
+            .Select(ToOperationRow)
             .ToList<object?>();
 
         if (t.TryGetValue("actionPanel", out var panel) && !string.IsNullOrWhiteSpace(panel))
             return HtmlTemplateEngine.RenderTemplate(panel, t, new Dictionary<string, object?> { ["rows"] = rows });
 
+        // 内联兜底 = 薄转发同一行模型（无 partial 依赖），字段集与模板路径恒等。
         var sb = new StringBuilder();
         sb.Append("<div class=\"op-panel\"><div class=\"op-panel-title\">操作 / 任务</div>");
-        foreach (var m in operations.OrderBy(x => x.Round))
+        foreach (var row in rows)
         {
-            var title = string.IsNullOrWhiteSpace(m.Stage) ? m.Role.ToString().ToLowerInvariant() : m.Stage!;
+            var r = (IReadOnlyDictionary<string, object?>)row!;
+            var badge = r["round"] + " · " + r["title"];
+            var sub = r["subagent"] as string;
             sb.Append("<div class=\"op-row\"><span class=\"op-badge\">")
-              .Append(WebUtility.HtmlEncode(m.Round + " · " + title))
-              .Append("</span><div class=\"op-text\">")
-              .Append(WebUtility.HtmlEncode(m.Text ?? string.Empty))
+              .Append(WebUtility.HtmlEncode(badge));
+            if (!string.IsNullOrWhiteSpace(sub))
+            {
+                sb.Append(" · ").Append(WebUtility.HtmlEncode(sub));
+            }
+            // F3 分发目标集（与模板路径字段集恒等）：空串 ⇒ 不产该段（负对照）
+            var targets = r["targets"] as string;
+            if (!string.IsNullOrWhiteSpace(targets))
+            {
+                sb.Append(" → ").Append(WebUtility.HtmlEncode(targets));
+            }
+            sb.Append("</span><div class=\"op-text\">")
+              .Append(WebUtility.HtmlEncode(r["text"] as string ?? string.Empty))
               .Append("</div></div>");
         }
         sb.Append("</div>");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// 操作行模型（**唯一构造点**，S3/I2 稳定键由渲染层派生）：<c>{round,title,text,subagent}</c>。
+    /// <c>title</c> 只读 <see cref="ConversationRenderItem.Stage"/>（承载字段单源），缺省空串——
+    /// 禁以 <see cref="ConversationRenderItem.Role"/> 兜底（SSOT：读侧/渲染侧只读本字段，禁按 Role 二次猜测）。
+    /// </summary>
+    private static IReadOnlyDictionary<string, object?> ToOperationRow(ConversationRenderItem m)
+        => new Dictionary<string, object?>
+        {
+            ["round"] = m.Round.ToString(),
+            ["title"] = m.Stage ?? string.Empty,
+            ["subagent"] = m.SubAgent ?? string.Empty,
+            // F3 分发目标集（单源事实）：空 ⇒ 空串（模板 {?targets} 判空不渲染该段）。
+            ["targets"] = m.Targets is { Count: > 0 } ? string.Join(" ", m.Targets) : string.Empty,
+            ["text"] = m.Text ?? string.Empty,
+        };
+
 
     /// <summary>
     /// 头提示层顺序块（CacheBand 升序 = 传入源序）：单组渲染（round=0 / 「会话级」），不参与 Round 分组。

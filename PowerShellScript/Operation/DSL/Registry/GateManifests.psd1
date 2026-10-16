@@ -766,4 +766,79 @@
         Note   = '能力位注册表投影（B3/DUP-11）：Supports 内逐 intent case = 0，能力位由探针表投影；正/负对照'
     }
 
+
+    EffectiveModeSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '生效 mode 单源（G1 呈现裁决聚拢点）：declaredMode ?? snapshot.Mode 求值点 = 1（ConversationStageBodies.EffectiveMode）；呈现裁决单入口 = SessionPresentation（OperationModeCatalog.IsOperation 越点消费 = 0）；呈现侧内联回退 declaredMode = 0；正/负对照'
+    }
+
+    DetailReadWriteSamePort = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '详情读=写同端口（G3 行身份聚拢点）：LoadNodeDetailAsync 体内读经 AgentWriteSources.TryGetRecord（全域行端口），域单点查询 TryGetNodeAsync = 0；正/负对照'
+    }
+
+    RenderNoDomainBranch = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '详情呈现零域分支（G4 呈现投影聚拢点）：RenderNodeDetail 消费 state.DetailNote、零硬编码节注、编辑器受可编辑门约束（禁假可用）；正/负对照'
+    }
+
+    OperationRowCarriesActor = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '操作行承载执行体（G5 操作流承载模型 + F3 分发目标集）：RenderOperations 行模型含 subagent/targets 键 ∧ 框架 actionPanel 模板含 {subagent}/{?targets}{targets} ∧ 零 Role 兜底（承载单源 ToOperationRow）；正/负对照'
+    }
+
+    # ===== 呈现链聚拢点 · 剩余未完成项 通用框架化（F2–F6）=====
+    SendDeclarationCoverage = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '发送面声明覆盖（F2）：发送入口零裸 null,null（经 SessionSendDeclaration 显式派生）∧ Agent.Ui 内 "dispatch" 字面量 = 0；正/负对照'
+    }
+
+    ReadinessSingleEntry = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '就绪/诊断单点（F4）：ReadinessFace.Of 定义 = 1 ∧ 旧 RenderReadinessHtml = 0 ∧ 恒假常量 IncludeGatherDiagnostics = 0（声明驱动 GatherDiagnosticsSwitch）；正/负对照'
+    }
+
+    UnknownVisible = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '未知可见化守卫（禁静默出口 U）：unknown_tokens.json 载体在册（unknown/dash tokens + EmbeddedResource + UnknownTokens 门面）∧ G2 身份维度判空隐藏报告态 ∧ G3 正/负对照；权威 = Docs\analysis\2026\10\10.17 设计单'
+    }
+
+    RecordDraftSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '记录草稿单源（F5）：旧同值字段 DetailSnapshot 引用 = 0 ∧ 基线字段 DetailBaselineJson 在位（装载写一次/保存后更新/恢复读基线）；正/负对照'
+    }
+
+    TemplateAccessSingleEntry = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '模板访问单入口（F6）：除 ConversationTemplates 自身外直取 HtmlUiHost.Templates = 0 ∧ ConversationTemplates.Resolve 在位；正/负对照'
+    }
+
 }
+

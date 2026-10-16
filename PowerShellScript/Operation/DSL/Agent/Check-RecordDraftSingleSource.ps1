@@ -1,0 +1,76 @@
+#requires -Version 5.1
+<#
+.SYNOPSIS
+    记录草稿单源守卫（RecordDraftSingleSource）—— F5 记录草稿单源框架。
+
+.DESCRIPTION
+    判据：
+      G1 同值双字段清零：旧字段 `DetailSnapshot` 引用 = 0（唯一记录态 = DetailRecordJson）。
+      G2 基线语义显式：`DetailBaselineJson` 在位；基线写入点 ≥ 1；`RestoreRecord` 读 `DetailBaselineJson`。
+      G3 正/负对照：合成样本（含 DetailSnapshot）必被 G1 捕获。
+
+    模式：默认报告；-Check 时违规 → 退出码 1。
+#>
+[CmdletBinding()]
+param(
+    [string]$Root = '',
+    [switch]$Check
+)
+
+$ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Root)) {
+    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+}
+
+$violations = [System.Collections.Generic.List[string]]::new()
+
+Write-Host ''
+Write-Host '============================================================'
+Write-Host '  记录草稿单源守卫（RecordDraftSingleSource：F5）'
+Write-Host '============================================================'
+
+function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
+
+$batchFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Functions\Batch\AgentUiLibraryBatch.cs'
+$stateFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Interaction\AgentUiDbPageState.cs'
+
+$refs = 0
+foreach ($p in @($batchFile, $stateFile)) {
+    if (Test-Path -LiteralPath $p) { $refs += (Get-Count ([System.IO.File]::ReadAllText($p)) '\bDetailSnapshot\b') }
+}
+if ($refs -gt 0) { $violations.Add("[G1] 旧同值字段 DetailSnapshot 引用 = $refs（应 0；唯一记录态 = DetailRecordJson）") }
+
+if (-not (Test-Path -LiteralPath $stateFile)) {
+    $violations.Add("[G2] 缺件（判据不可判）：$stateFile")
+} elseif ([System.IO.File]::ReadAllText($stateFile) -notmatch 'DetailBaselineJson') {
+    $violations.Add('[G2] 基线字段 DetailBaselineJson 缺失（基线语义未显式）')
+}
+
+if (Test-Path -LiteralPath $batchFile) {
+    $bt = [System.IO.File]::ReadAllText($batchFile)
+    if ((Get-Count $bt 'DetailBaselineJson\s*=') -lt 1) { $violations.Add('[G2] 基线写入点 = 0（应 ≥1：装载写一次、保存后更新）') }
+    if ($bt -notmatch 'state\.DetailRecordJson\s*=\s*state\.DetailBaselineJson') {
+        $violations.Add('[G2] 恢复路径未读 DetailBaselineJson（dbRevert 读点须指向 Baseline）')
+    }
+    if ($bt -notmatch 'DetailBaselineJson\s*=\s*state\.DetailRecordJson') {
+        $violations.Add('[G2] 保存成功后未更新基线（DetailBaselineJson = DetailRecordJson）')
+    }
+}
+
+# 正/负对照
+if ((Get-Count 'state.DetailSnapshot = docText;' '\bDetailSnapshot\b') -eq 0) {
+    $violations.Add('[G3] 负对照失效：旧字段合成样本未被判据捕获')
+}
+
+if ($violations.Count -eq 0) {
+    Write-Host '  [成功] G1/G2 记录草稿单源通过（旧字段清零 + 基线语义显式）' -ForegroundColor Green
+    Write-Host ''
+    exit 0
+}
+
+Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
+foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
+Write-Host '  结果: 失败' -ForegroundColor Red
+Write-Host ''
+if ($Check) { exit 1 }
+exit 0

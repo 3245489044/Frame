@@ -1,6 +1,11 @@
 {
   "schema": "fallback-registry-v1",
-  "note": "框架回退合法面登记（出口 T=throw / N=命名 Null 对象 / D=显式 Degrade+可见）。whitelistPaths=组合根文件（其内 ?? new 合法）；nullFactories=非 Null* 前缀的显式空对象名；entries=P1 起逐项登记的合法回退。未登记命中的回退计入棘轮（fallback-baseline.json）。",
+  "note": "框架回退合法面登记（出口 T=throw / N=命名 Null 对象 / D=显式 Degrade+可见 / U=Unknown 显式占位）。whitelistPaths=组合根文件（其内 ?? new 合法）；nullFactories=非 Null* 前缀的显式空对象名；entries=P1 起逐项登记的合法回退；valueVisibility=「缺值可见化（U 出口）」维度登记（与 Check-UnknownVisible 对账）。未登记命中的回退计入棘轮（fallback-baseline.json）。",
+  "valueVisibility": [
+    { "dimension": "actor", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Render/HtmlStateBadgeProjector.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 接线：身份字段缺 ⇒ 填 UnknownTokens.Unknown（现 else 分支清空）" },
+    { "dimension": "subagent", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 接线：模板去 {?subagent} 包裹 + 供数侧占位" },
+    { "dimension": "targets", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 接线：模板去 {?targets} 包裹 + 供数侧占位" }
+  ],
   "whitelistPaths": [
     "AgentComposition.cs",
     "AgentOrchestrator.cs",

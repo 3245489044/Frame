@@ -8,7 +8,7 @@
     时经 `CopyConfigsAndScripts`（AfterTargets=Build）物化到 `$(OutDir)\Configs`。历史缺陷：产物落后于源
     （源有 `events.selectedIndexChanged`、产物无）⇒ 「改了配置但运行不生效」静默。
 
-    判据（**结构包含**，容忍产物独有的派生键，如 `themeSpec` / `templatePacks`）：
+    判据（**结构包含**，容忍产物独有的派生键，如构建期派生的相位键）：
       F1 产物在位（缺失 ⇒ 违反：未烘焙）。
       F2 源的**事件键**（`"selectedIndexChanged"` 等 events 段键名）在产物中存在。
       F3 源的**绑定引用**（所有 `"source"` / `"target"` / `"output"` 值）在产物中存在。

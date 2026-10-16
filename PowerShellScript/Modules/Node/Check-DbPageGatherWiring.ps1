@@ -182,43 +182,39 @@ if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServi
     }
 }
 
-# ---------------- G5 显示增强（主题资产包 .db-* 类 + 行 Title/Updated；负对照防判据空转） ----------------
-# 判据面修正（A1-c）：主题已**资产包化**（AgentRuntimeUI.json 不再内联 theme CSS；源声明 themeSpec.componentPack + templatePacks），
-#   `.db-*` 类随资产包物化到 `Assets\<pack>\<pack>.css`；故判据面 = 源声明（结构事实）+ 资产包产物（存在性 + 类命中）。
+# ---------------- G5 显示增强（样式真源归一 + 行 Title/Updated；负对照防判据空转） ----------------
+# 判据面（G2 真源归一的**终态**）：样式真源 = **框架 CSS 资产**（`HtmlAssetRegistry.DefaultCss` /
+#   `FrameworkComponentCss`），经 `HtmlDocumentRenderer` 合成入文档 —— 单源、仓内、零副本。
+#   应用域**不得**再引入：① 无消费者的死声明（themeSpec / templatePacks）；② 渲染零命中的死样式
+#   （`.db-*` 类：渲染侧实际用通用类 toolbar/row/code-input mono）；③ 构建产物里的资产副本。
 $runtimeUi = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
-$requiredDbClasses = @('.db-table-view', '.db-toolbar', '.db-btn', '.db-row', '.db-edit')
-function Get-MissingDbClasses([string]$Text) {
-    $missing = [System.Collections.Generic.List[string]]::new()
-    foreach ($c in $requiredDbClasses) {
-        if ($Text -notmatch [regex]::Escape($c)) { $missing.Add($c) }
-    }
-    return $missing
+$assetRegistry = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Assets\HtmlAssetRegistry.cs'
+$docRenderer = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\HtmlDocumentRenderer.cs'
+function Get-DeadWeightHits([string]$Text) {
+    $hits = [System.Collections.Generic.List[string]]::new()
+    if ($Text -match '"themeSpec"') { $hits.Add('themeSpec（无消费者的死声明）') }
+    if ($Text -match '"templatePacks"') { $hits.Add('templatePacks（无消费者的死声明）') }
+    if ($Text -match '\.db-(table-view|toolbar|btn|row|edit)\b') { $hits.Add('.db-* 死样式（渲染零命中：实际用 toolbar/row/code-input mono）') }
+    return $hits
 }
-if (Test-Path -LiteralPath $runtimeUi) {
-    $uiText = [System.IO.File]::ReadAllText($runtimeUi)
-    # G5a：主题资产包**声明**在位（componentPack + templatePacks）。
-    if ($uiText -notmatch '"themeSpec"') { $violations.Add('[G5] 源 AgentRuntimeUI.json 缺 themeSpec（主题结构化声明丢失）') }
-    if ($uiText -notmatch '"templatePacks"') { $violations.Add('[G5] 源 AgentRuntimeUI.json 缺 templatePacks（模板/主题资产包清单丢失）') }
-    # G5b：资产包产物在位且含 .db-* 类（判据面 = 实际加载的主题文件；产物缺失 ⇒ 显示增强未落地）。
-    $assetDir = Join-Path $Root 'Projects\FileDriven\BuildOutput\Debug\Assets'
-    $cssFiles = @()
-    if (Test-Path -LiteralPath $assetDir) {
-        $cssFiles = @(Get-ChildItem -LiteralPath $assetDir -Filter '*.css' -File -Recurse -ErrorAction SilentlyContinue)
-    }
-    if ($cssFiles.Count -eq 0) {
-        $violations.Add("[G5] 主题资产包产物缺失（$assetDir 下无 *.css）：显示增强未物化，判据不可判（先烘焙资产包）")
-    } else {
-        $cssText = [string]::Join("`n", ($cssFiles | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }))
-        foreach ($m in (Get-MissingDbClasses $cssText)) {
-            $violations.Add("[G5] 主题资产包缺 .db-* 样式类 '$m'（显示优化未落地）")
-        }
-    }
-    # 负对照：缺类的合成样本必须被捕获。
-    if ((Get-MissingDbClasses '.db-table-view').Count -eq 0) {
-        $violations.Add('[G5] 负对照失效：缺类的合成样本未被显示增强判据捕获')
-    }
-} else {
+if (-not (Test-Path -LiteralPath $runtimeUi)) {
     $violations.Add("[G5] 缺失 AgentRuntimeUI.json（判据不可判）：$runtimeUi")
+} else {
+    foreach ($h in (Get-DeadWeightHits ([System.IO.File]::ReadAllText($runtimeUi)))) {
+        $violations.Add("[G5] 冗余残留：$h")
+    }
+    # 负对照：合成样本（含死声明 + 死样式）必须被捕获（防判据空转）。
+    if ((Get-DeadWeightHits '{"themeSpec":{},"templatePacks":[]} /* .db-row{} */').Count -eq 0) {
+        $violations.Add('[G5] 负对照失效：冗余残留的合成样本未被判据捕获')
+    }
+    # 样式真源在位（框架资产），且确被合成入文档（单源生效面）。
+    if (-not (Test-Path -LiteralPath $assetRegistry)) {
+        $violations.Add('[G5] 框架样式真源缺失：HtmlAssetRegistry.cs')
+    }
+    if ((Test-Path -LiteralPath $docRenderer) -and
+        ([System.IO.File]::ReadAllText($docRenderer) -notmatch 'FrameworkComponentCss')) {
+        $violations.Add('[G5] 框架组件样式未合成入文档（HtmlDocumentRenderer 未见 FrameworkComponentCss）')
+    }
 }
 if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) {
     $viewText5 = Read-ViewServiceText

@@ -476,6 +476,31 @@
         Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\VerifyProportionality.psd1'
     }
 
+    # ===== 运行/验证前置守卫（框架级缺陷：收敛 / 前置开销 / 替身漂移）=====
+    RunConvergence = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Tier   = 'full'
+        Expect = 0
+        Note   = '运行收敛守卫 C0–C3（过程层 P6）：-Class 精确类名须收敛为恰 1 单元 / 未命中 fail-fast（禁静默全工程扫描白跑）/ 同工程多目标归并为 1 单元；正负对照防假绿'
+    }
+
+    PreflightCost = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Tier   = 'full'
+        Expect = 0
+        Note   = '前置开销守卫 P0–P4（因4）：事实索引单源（*.specs 独立扫描 ≤ 1 ∧ 消费 Get-TestInventory）/ 对齐指纹增量（Get-ContentFingerprint -CachePath 接线）/ bake 新鲜度短路（Test-CsharpBakeFresh）/ 锁分层（Test-BuildGateBusy 探针 + Invoke-Verify 构建相位后释放门）'
+    }
+
+    TestDoubleParity = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Tier   = 'full'
+        Expect = 0
+        Note   = '测试替身一致性守卫 D0–D3（因6）：测试侧 `new <Type>{ Member=… }` 引用的成员须 ∈ 产品类型成员面（含 record 主构造）；含继承子句的类型跳过（禁猜测，防假红）；标的 < 基线下限即红'
+    }
+
     # ===== 反模式族守卫（P9 落地）=====
     AntiPatternFamily = @{
         Domain = 'Meta'

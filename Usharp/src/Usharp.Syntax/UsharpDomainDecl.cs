@@ -49,6 +49,8 @@ public sealed record UsharpDomainDecl(
     IReadOnlyDictionary<string, string> Retentions,
     IReadOnlyDictionary<string, string> Marks,
     IReadOnlyList<string> Origins,
+    IReadOnlyDictionary<string, string> Tags,
+    IReadOnlyDictionary<string, string> Behaviors,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
     int LineNumber)
@@ -61,6 +63,8 @@ public sealed record UsharpDomainDecl(
         Retentions,
         Marks,
         Origins,
+        Tags,
+        Behaviors,
     }
 
     /// <summary>投影单条 <c>[Domain]</c> 声明（无名 ⇒ null；无法解析的续行落入 <see cref="UnparsedLines"/>，闸A 报出）。</summary>
@@ -76,6 +80,8 @@ public sealed record UsharpDomainDecl(
         var retentions = new Dictionary<string, string>(StringComparer.Ordinal);
         var marks = new Dictionary<string, string>(StringComparer.Ordinal);
         var origins = new List<string>();
+        var tags = new Dictionary<string, string>(StringComparer.Ordinal);
+        var behaviors = new Dictionary<string, string>(StringComparer.Ordinal);
         var unparsed = new List<string>();
         var section = Section.None;
 
@@ -127,6 +133,16 @@ public sealed record UsharpDomainDecl(
                 section = Section.Origins;
                 continue;
             }
+            if (string.Equals(line, UsharpLanguage.FieldTags, StringComparison.Ordinal))
+            {
+                section = Section.Tags;
+                continue;
+            }
+            if (string.Equals(line, UsharpLanguage.FieldBehaviors, StringComparison.Ordinal))
+            {
+                section = Section.Behaviors;
+                continue;
+            }
 
             switch (section)
             {
@@ -145,6 +161,12 @@ public sealed record UsharpDomainDecl(
                 case Section.Origins when TryParsePair(line, out var originName, out _):
                     origins.Add(originName);
                     break;
+                case Section.Tags when TryParsePair(line, out var tagName, out var tagOrder):
+                    tags[tagName] = tagOrder;
+                    break;
+                case Section.Behaviors when TryParsePair(line, out var behaviorName, out var behaviorExpr):
+                    behaviors[behaviorName] = behaviorExpr;
+                    break;
                 default:
                     unparsed.Add(line);
                     break;
@@ -153,7 +175,7 @@ public sealed record UsharpDomainDecl(
 
         return new UsharpDomainDecl(
             d.Name, identity, context, sequence, placements, selections, retentions, marks, origins,
-            unparsed, d.SourceFile, d.LineNumber);
+            tags, behaviors, unparsed, d.SourceFile, d.LineNumber);
     }
 
     /// <summary>首词标记剥离（标记后须跟空白，或整行即标记；防裸键误剥，同 <c>HasStepMarker</c> 口径）。</summary>

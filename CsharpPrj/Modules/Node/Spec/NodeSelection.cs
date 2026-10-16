@@ -57,6 +57,39 @@ public sealed class ExpressionSelectionPredicate : ISelectionPredicate
             return (true, _ => false);
         }
 
+        if (expression.Contains(" hasany (", StringComparison.OrdinalIgnoreCase))
+        {
+            var marker = " hasany (";
+            var index = expression.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            var field = expression[..index].Trim();
+            var close = expression.LastIndexOf(')');
+            var open = index + marker.Length - 1;
+            if (close < open)
+            {
+                return Unrecognized;
+            }
+
+            var candidates = expression[(open + 1)..close]
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return (true, fields =>
+                fields.TryGetValue(field, out var current) && ContainsAny(current, candidates));
+        }
+
+        if (expression.Contains(" has ", StringComparison.OrdinalIgnoreCase))
+        {
+            var marker = " has ";
+            var index = expression.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            var field = expression[..index].Trim();
+            var token = expression[(index + marker.Length)..].Trim();
+            if (field.Length == 0 || token.Length == 0)
+            {
+                return Unrecognized;
+            }
+
+            return (true, fields =>
+                fields.TryGetValue(field, out var current) && ContainsToken(current, token));
+        }
+
         if (expression.Contains(" in (", StringComparison.OrdinalIgnoreCase))
         {
             var open = expression.IndexOf('(', StringComparison.Ordinal);
@@ -97,6 +130,20 @@ public sealed class ExpressionSelectionPredicate : ISelectionPredicate
         // 未识别表达式：不静默放行（门不合格 ⇒ ⊥ 语义），识别标记供上层可见化
         return Unrecognized;
     }
+
+    private static readonly char[] TokenSeparators = { '|', ',', ';' };
+
+    /// <summary>集合包含判定：字段文本按 <c>|</c>/<c>,</c>/<c>;</c> 切分后是否含该 token（大小写不敏感；只读字段文本，不做嵌套展开）。</summary>
+    private static bool ContainsToken(string? field, string token)
+        => (field ?? string.Empty)
+            .Split(TokenSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(t => t.Equals(token, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>集合包含任一：字段 token 集与候选集有交集（大小写不敏感）。</summary>
+    private static bool ContainsAny(string? field, IReadOnlyList<string> candidates)
+        => (field ?? string.Empty)
+            .Split(TokenSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(t => candidates.Any(c => t.Equals(c, StringComparison.OrdinalIgnoreCase)));
 
     private static (bool Recognized, Func<IReadOnlyDictionary<string, string>, bool> Evaluate) Unrecognized =>
         (false, _ => false);

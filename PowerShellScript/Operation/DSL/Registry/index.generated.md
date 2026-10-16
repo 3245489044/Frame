@@ -101,7 +101,7 @@
 | `KeyGrammar` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（6 件）
+## Process（9 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -109,6 +109,9 @@
 | `BatchLineEndings` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
 | `InvokeEntrypoints` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
+| `PreflightCost` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-PreflightCost.ps1` |
+| `RunConvergence` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-RunConvergence.ps1` |
+| `TestDoubleParity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-TestDoubleParity.ps1` |
 | `VerifyProportionality` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifyProportionality.ps1` |
 | `VerifySingleShot` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifySingleShot.ps1` |
 

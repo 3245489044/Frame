@@ -20,6 +20,10 @@
       H14 通用传递框架入口注册：组合根注入 ITransferFlow + TransferOpsServices。
       H19 档案段归属（band ownership，声明化）：允许段 = {[Skill].dsl : profiles ∋ 档案}（读 Config/skills.ushar，零白名单）；format 恒首段；l0-common 两档案常驻。
       H20 发送入口单一（S1/S2 聚拢）：会话发送恒经 ISessionSend + SessionSendRequest（Agent 必填）；调用点无裸多实参旧形态。
+      H21 决策分层择一（L-D/L-G/L-F）：组合根按网关装配择一注册决策端口；多层决策源在册 ∧ 无自造第二套决策机制。
+      H22 决策声明面在册：LLM 判定契约 + 分发决策规则集（含 then.type=llm 与 then.contract）各恰一处。
+      H23 标签框架四方对账（缺一即红）：声明面 tags 段 token ⇔ 读/行为消费面（selections has/hasany 或 behaviors 表达式）；
+          behaviors 引用的 axis.token 须 ∈ 本域 tags/marks 声明集（未声明 token ⇒ 死代码/漂移）。
     模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
 .PARAMETER Check
     校验模式：违规 → 退出码 1。
@@ -240,6 +244,34 @@ if ($taskBands -notcontains 'l0-common' -or $historyBands -notcontains 'l0-commo
     Add-Violation 'H19' 'l0-common 须同时常驻 task 与 history（framework-base 通用不变式单源）'
 }
 
+# H21 决策分层择一（L-D/L-G/L-F）：组合根按「宿主 LLM 网关已装配」择一注册决策端口；
+#     多层决策源在册（规则集 + LLM 提议执行）∧ 无自造第二套决策机制（v1.1 IDispatchDecisionJudge 已废弃）。
+$conv = $steps
+if ($conv -notmatch 'HostDispatchProposalExecutor') {
+    Add-Violation 'H21' '组合根未分层择一注册决策端口（缺 HostDispatchProposalExecutor 择一）'
+}
+if ($conv -notmatch 'StrategyDecisionSource') {
+    Add-Violation 'H21' '组合根未装配多层决策源 StrategyDecisionSource（L-D/L-G/L-F）'
+}
+if ($conv -match 'IDispatchDecisionJudge') {
+    Add-Violation 'H21' '组合根仍引用自造决策裁决件 IDispatchDecisionJudge（应复用 Strategy.DecisionRules）'
+}
+# H22 决策声明面在册（合同 / 规则集 / 提示词正文）：契约与规则集各恰一处声明，正文外置。
+$dpContract = Join-Path $agentRoot 'Config\llm\history-dispatch.ushar'
+$dpRules = Join-Path $agentRoot 'Config\rules\history-dispatch.rules.ushar'
+if (-not (Test-Path -LiteralPath $dpContract)) {
+    Add-Violation 'H22' '缺 LLM 判定契约声明面 Config/llm/history-dispatch.ushar'
+}
+if (-not (Test-Path -LiteralPath $dpRules)) {
+    Add-Violation 'H22' '缺分发决策规则集声明面 Config/rules/history-dispatch.rules.ushar'
+}
+if ((Read-Text $dpRules) -notmatch 'then\.type\s*=\s*llm') {
+    Add-Violation 'H22' '规则集未声明 LLM 决策规则（then.type = llm）'
+}
+if ((Read-Text $dpRules) -notmatch 'then\.contract\s*=\s*HistoryDispatch') {
+    Add-Violation 'H22' '规则集未挂判定契约（then.contract = HistoryDispatch）'
+}
+
 # H20 发送入口单一（S1/S2）：唯一原语 ISessionSend（Agent 必填）；会话调用点不得残留裸多实参旧形态。
 $sendContract = Join-Path $agentRoot 'src\Agent.Session\Contracts\ISessionSend.cs'
 $sendContractText = Read-Text $sendContract
@@ -266,8 +298,40 @@ foreach ($rel in $sendCallSites) {
     }
 }
 
+# H23 标签框架四方对账：声明 tags token ⇔ 读/行为消费 ⇔ 声明集闭环。
+$nodesDir = Join-Path $agentRoot 'Config\nodes'
+if (Test-Path -LiteralPath $nodesDir) {
+    $sectionHeaders = @('marks', 'selections', 'behaviors', 'origins', 'retentions', 'placements', 'identity', 'context', 'sequence', 'tags')
+    foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar')) {
+        $text = Read-Text $file.FullName
+        if ($text -notmatch '(?m)^\s*tags\s*$') { continue }
+
+        $inTags = $false
+        $tokens = @()
+        $readerLines = @()
+        foreach ($line in ($text -split "`r?`n")) {
+            $t = $line.Trim()
+            if ($t -eq 'tags') { $inTags = $true; continue }
+            if ($inTags -and ($sectionHeaders -contains $t) -and $t -ne 'tags') { $inTags = $false }
+            if ($inTags) {
+                if ($t -match '^([A-Za-z0-9_.-]+)\s*=') { $tokens += $Matches[1] }
+                continue
+            }
+            $readerLines += $line
+        }
+        if ($tokens.Count -eq 0) { continue }
+        # 读/行为消费面 = 去掉 tags 声明段后的正文（selection 表达式 / behaviors 表达式均在其内）。
+        $readerText = ($readerLines -join "`n")
+
+        foreach ($tok in $tokens) {
+            if ($readerText -match [regex]::Escape($tok)) { continue }
+            Add-Violation 'H23' "$($file.Name) 声明的 tag token '$tok' 无读/行为消费（selection 'has'/'hasany' 或 behavior 表达式均未引用）"
+        }
+    }
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H20 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H23 全过）"
     exit 0
 }
 

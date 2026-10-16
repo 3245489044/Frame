@@ -329,9 +329,22 @@ public sealed class NodeReadProjection
                 continue;
             }
 
-            fields[pair.Key] = NodeJson.ValueToText(pair.Value);
+            fields[pair.Key] = FlattenValue(pair.Value);
         }
 
         return fields;
     }
+
+    /// <summary>
+    /// 值 → 扁平文本（读侧字段面单源）：数组展开为 <c>|</c> 连接串（<b>集合谓词 <c>has</c>/<c>hasany</c> 的载体口径</b>），
+    /// 其余复用 <see cref="NodeJson.ValueToText"/>（端口值语义不受影响——本归一仅作用于读投影字段面）。
+    /// </summary>
+    private static string FlattenValue(JsonNode? node) => node switch
+    {
+        null => string.Empty,
+        JsonArray array => string.Join(
+            "|",
+            array.Where(element => element is not null).Select(element => FlattenValue(element))),
+        _ => NodeJson.ValueToText(node),
+    };
 }

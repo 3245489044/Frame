@@ -153,6 +153,10 @@ public static class UsharpLanguage
     public const string FieldMarks = "marks";
     public const string FieldOrigins = "origins";
 
+    /// <summary>域定义面通用标签框架子块名：<c>tags</c>（轴级词表：<c>axis.token = 位值</c>）/ <c>behaviors</c>（行为名 → 触发表达式）。</summary>
+    public const string FieldTags = "tags";
+    public const string FieldBehaviors = "behaviors";
+
     /// <summary>控制流声明字段名（R3，<c>[Branch]/[Switch]/[Call]</c> 共用）：所属流 / 承载节点 / 判定键 / 选择键 / 目标。</summary>
     public const string FieldFlow = "flow";
     public const string FieldNode = "node";

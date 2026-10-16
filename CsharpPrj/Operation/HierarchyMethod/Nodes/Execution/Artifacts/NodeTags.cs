@@ -26,18 +26,30 @@ public static class NodeTags
     /// <summary>task↔history 连接端口节点（可与其他标签共存）。</summary>
     public const string Port = "Port";
 
+    /// <summary>内置轴名（历史轴）：无前缀 token 视作本轴（存量零回归）。</summary>
+    public const string HistoryAxis = "history";
+
     private static readonly char[] Separators = { '|', ',', ';' };
 
-    private static INodeTagVocabulary _vocabulary = DefaultNodeTagVocabulary.Instance;
+    private static readonly TagVocabularyRegistry _registry = new();
 
-    /// <summary>注入声明面词表（名称↔位值真源）；<c>null</c> ⇒ 回落内置缺省（零行为变更）。</summary>
+    static NodeTags() => _registry.Register(HistoryAxis, DefaultNodeTagVocabulary.Instance);
+
+    /// <summary>轴注册表（宿主/领域装配面按轴注册词表；轴级单源）。</summary>
+    public static ITagVocabularyRegistry VocabularyRegistry => _registry;
+
+    /// <summary>注入声明面词表（名称↔位值真源，注册到 <see cref="HistoryAxis"/> 轴）；<c>null</c> ⇒ 回落内置缺省（零行为变更）。
+    /// <para>兼容壳：等价 <c>VocabularyRegistry.Register("history", …)</c>（标记待退役）。</para></summary>
     public static void Install(INodeTagVocabulary? vocabulary)
-        => _vocabulary = vocabulary ?? DefaultNodeTagVocabulary.Instance;
+        => _registry.Register(HistoryAxis, vocabulary ?? DefaultNodeTagVocabulary.Instance);
 
-    /// <summary>当前词表（取证 / 测试）。</summary>
-    public static INodeTagVocabulary Vocabulary => _vocabulary;
+    /// <summary>当前 history 轴词表（取证 / 测试）。</summary>
+    public static INodeTagVocabulary Vocabulary
+        => _registry.TryGet(HistoryAxis, out var vocabulary) ? vocabulary : DefaultNodeTagVocabulary.Instance;
 
-    /// <summary>具名 token 集归一（分隔符 <c>|</c>/<c>,</c>/<c>;</c>；空/None ⇒ "None"；含未识别 token ⇒ null = 拒绝）。</summary>
+    /// <summary>具名 token 集归一（分隔符 <c>|</c>/<c>,</c>/<c>;</c>；空/None ⇒ "None"；含未识别 token ⇒ null = 拒绝）。
+    /// <para>token 形态：<c>axis.token</c> 全限定，或无前缀 = <c>history.</c>（存量兼容）；
+    /// 输出保持 history 轴 token 无前缀（存量规范串逐字不变）。</para></summary>
     /// <param name="mark">原始标签（单 token 或 token 集）。</param>
     public static string? Normalize(string? mark)
     {
@@ -48,19 +60,47 @@ public static class NodeTags
         var seen = new List<string>();
         foreach (var part in parts)
         {
-            var canonical = Canonical(part);
+            var (axis, local) = SplitToken(part);
+            if (local.Equals(None, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!seen.Contains(None, StringComparer.Ordinal)) seen.Add(None);
+                continue;
+            }
+
+            var canonical = Canonical(axis, local);
             if (canonical is null) return null;
-            if (!seen.Contains(canonical, StringComparer.Ordinal)) seen.Add(canonical);
+
+            var formatted = Format(axis, canonical);
+            if (!seen.Contains(formatted, StringComparer.Ordinal)) seen.Add(formatted);
         }
 
         return seen.Count == 0 ? None : string.Join("|", seen);
     }
 
-    /// <summary>是否含某标签（集合语义，大小写不敏感）。</summary>
+    /// <summary>单 token 归一（指定轴；未识别 ⇒ null）。history 轴输出无前缀，其余轴输出 <c>axis.token</c>。</summary>
+    /// <param name="axis">轴名（如 <c>history</c>/<c>role</c>/<c>visibility</c>）。</param>
+    /// <param name="token">轴内 token 名（不含轴前缀）。</param>
+    public static string? Normalize(string axis, string token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(axis);
+        var canonical = Canonical(axis, token);
+        return canonical is null ? null : Format(axis, canonical);
+    }
+
+    /// <summary>是否含某标签（集合语义，大小写不敏感；bare/qualified 互为兼容）。</summary>
     public static bool Contains(string? mark, string tag)
         => (mark ?? string.Empty)
             .Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
+            .Any(t =>
+            {
+                if (t.Equals(tag, StringComparison.OrdinalIgnoreCase)) return true;
+                var (_, local) = SplitToken(t);
+                return local.Equals(tag, StringComparison.OrdinalIgnoreCase);
+            });
+
+    /// <summary>是否含某轴内某 token（集合语义；等价 <see cref="Contains(string?, string)"/> 的具名轴口径）。</summary>
+    public static bool Contains(string? mark, string axis, string token)
+        => Contains(mark, Format(axis, token));
 
     /// <summary>是否空集（空串/None）。</summary>
     public static bool IsEmpty(string? mark)
@@ -69,7 +109,7 @@ public static class NodeTags
     /// <summary>是否含 Port 标签（task↔history 连接端口节点；集合语义）。</summary>
     public static bool IsPort(string? mark) => Contains(mark, Port);
 
-    /// <summary>具名 token 集 → 位掩码（None/未识别 ⇒ <see cref="NodeHistoryMark.None"/>）。</summary>
+    /// <summary>具名 token 集 → 位掩码（仅 history 轴参与；None/未识别 ⇒ <see cref="NodeHistoryMark.None"/>）。</summary>
     public static NodeHistoryMark Parse(string? mark)
     {
         var normalized = Normalize(mark);
@@ -78,18 +118,20 @@ public static class NodeTags
         var bits = 0;
         foreach (var name in normalized.Split('|'))
         {
-            if (_vocabulary.Marks.TryGetValue(name, out var bit)) bits |= bit;
+            var (axis, local) = SplitToken(name);
+            if (!axis.Equals(HistoryAxis, StringComparison.OrdinalIgnoreCase)) continue;
+            if (_registry.TryResolve(HistoryAxis, local, out var bit)) bits |= bit;
         }
 
         return (NodeHistoryMark)bits;
     }
 
-    /// <summary>位掩码 → 规范具名 token 串（空集 ⇒ "None"）。</summary>
+    /// <summary>位掩码 → 规范具名 token 串（空集 ⇒ "None"；history 轴无前缀）。</summary>
     public static string Serialize(NodeHistoryMark mark)
     {
         var bits = (int)mark;
         if (bits == 0) return None;
-        var names = _vocabulary.Marks
+        var names = Vocabulary.Marks
             .Where(p => p.Value != 0 && (bits & p.Value) != 0)
             .OrderBy(p => p.Value)
             .Select(p => p.Key)
@@ -97,14 +139,26 @@ public static class NodeTags
         return names.Count == 0 ? None : string.Join("|", names);
     }
 
-    private static string? Canonical(string token)
+    private static string? Canonical(string axis, string token)
     {
         if (token.Equals(None, StringComparison.OrdinalIgnoreCase)) return None;
-        foreach (var name in _vocabulary.Marks.Keys)
+        if (!_registry.TryGet(axis, out var vocabulary)) return null;
+        foreach (var name in vocabulary.Marks.Keys)
         {
             if (name.Equals(token, StringComparison.OrdinalIgnoreCase)) return name;
         }
 
         return null;
+    }
+
+    private static string Format(string axis, string canonical)
+        => axis.Equals(HistoryAxis, StringComparison.OrdinalIgnoreCase) ? canonical : axis + "." + canonical;
+
+    private static (string Axis, string Local) SplitToken(string part)
+    {
+        var dot = part.IndexOf('.');
+        return dot > 0 && dot < part.Length - 1
+            ? (part[..dot], part[(dot + 1)..])
+            : (HistoryAxis, part);
     }
 }

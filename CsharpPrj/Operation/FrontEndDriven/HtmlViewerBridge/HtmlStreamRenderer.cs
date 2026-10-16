@@ -182,8 +182,10 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["round"] = m.Round.ToString(),
             ["title"] = m.Stage ?? string.Empty,
             ["subagent"] = m.SubAgent ?? string.Empty,
-            // F3 分发目标集（单源事实）：空 ⇒ 空串（模板 {?targets} 判空不渲染该段）。
+            ["showSubagent"] = string.IsNullOrWhiteSpace(m.SubAgent) ? string.Empty : "1",
+            // F3 分发目标集（单源事实）：空 ⇒ 空串（模板 {?showTargets} 判空不渲染该段；可见位由供数侧声明）。
             ["targets"] = m.Targets is { Count: > 0 } ? string.Join(" ", m.Targets) : string.Empty,
+            ["showTargets"] = m.Targets is { Count: > 0 } ? "1" : string.Empty,
             ["text"] = m.Text ?? string.Empty,
         };
 
@@ -217,6 +219,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["round"] = "0",
             ["stage"] = entry.Item.Stage ?? string.Empty,
             ["subagent"] = entry.Item.SubAgent ?? string.Empty,
+            ["showSubagent"] = string.IsNullOrWhiteSpace(entry.Item.SubAgent) ? string.Empty : "1",
             ["tool"] = IsToolLayer(entry.Item) ? "1" : string.Empty,
             ["prompt"] = "1",
             ["anchor"] = string.Empty,
@@ -234,6 +237,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["round"] = m.Round.ToString(),
             ["stage"] = m.Stage ?? string.Empty,
             ["subagent"] = m.SubAgent ?? string.Empty,
+            ["showSubagent"] = string.IsNullOrWhiteSpace(m.SubAgent) ? string.Empty : "1",
             ["tool"] = IsToolLayer(m) ? "1" : string.Empty,
             ["prompt"] = IsPromptLayer(m) ? "1" : string.Empty,
             ["anchor"] = isAnchor ? "1" : string.Empty,
@@ -311,6 +315,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["round"] = m.Round.ToString(),
             ["stage"] = m.Stage ?? string.Empty,
             ["subagent"] = m.SubAgent ?? string.Empty,
+            ["showSubagent"] = string.IsNullOrWhiteSpace(m.SubAgent) ? string.Empty : "1",
             ["tool"] = IsToolLayer(m) ? "1" : string.Empty,
             ["prompt"] = IsPromptLayer(m) ? "1" : string.Empty,
             ["text"] = m.Text,

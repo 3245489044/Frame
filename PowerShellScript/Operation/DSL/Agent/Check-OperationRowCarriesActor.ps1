@@ -79,8 +79,8 @@ if (-not (Test-Path -LiteralPath $templates)) {
     } elseif ($line -notmatch '\{subagent\}') {
         $violations.Add('[G2] actionPanel 模板缺 {subagent} 键（行模型键 ⇄ 模板键不同名）')
     }
-    if ($line -notmatch '\{\?targets\}') {
-        $violations.Add('[G2b] actionPanel 模板缺 {?targets} 判空守卫（空 targets 会产空 span）')
+    if ($line -notmatch '\{\?showTargets\}') {
+        $violations.Add('[G2b] actionPanel 模板缺 {?showTargets} 判空守卫（空 targets 会产空 span）')
     }
     if ($line -notmatch '\{targets\}') {
         $violations.Add('[G2b] actionPanel 模板缺 {targets} 键（行模型键 ⇄ 模板键不同名）')

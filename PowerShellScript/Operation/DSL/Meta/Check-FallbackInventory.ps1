@@ -80,6 +80,31 @@ if (Test-Path -LiteralPath $RegistryPath) {
     Write-Host ("[登记表] 缺失: {0}（白名单为空，全部 ?? new 计入棘轮）" -f $RegistryPath) -ForegroundColor Yellow
 }
 
+# ---- catch 出口分类内核（单一实现，与 Invoke-CatchTriage / Invoke-CatchOutletPatch 共用；TH-12）----
+$catchModule = Join-Path $PSScriptRoot 'CatchOutlet.psm1'
+$catchKernel = $false
+if (Test-Path -LiteralPath $catchModule) {
+    Import-Module $catchModule -Force -DisableNameChecking
+    $catchKernel = $true
+} else {
+    Write-Host ("[内核] 缺失: {0}（catch 面判定不可用）" -f $catchModule) -ForegroundColor Yellow
+}
+
+# catch 出口登记匹配：entries type=C2，file 后缀（可带 :line）命中即「已登记合法出口」。
+function Test-CatchRegistered([string]$Rel, [int]$Line) {
+    $relNorm = $Rel -replace '\\', '/'
+    foreach ($e in $entries) {
+        if ($null -eq $e -or [string]::IsNullOrWhiteSpace($e.file)) { continue }
+        if ("$($e.type)" -ne 'C2') { continue }
+        $parts = ($e.file -replace '\\', '/') -split ':'
+        $f = $parts[0]
+        $ln = $null
+        if ($parts.Count -gt 1 -and $parts[1] -match '^\d+$') { $ln = [int]$parts[1] }
+        if ($relNorm -like "*$f" -and ($null -eq $ln -or $ln -eq $Line)) { return $true }
+    }
+    return $false
+}
+
 function Get-RelPath([string]$Full) {
     if ($Full.StartsWith($superRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         return $Full.Substring($superRoot.Length).TrimStart('\')
@@ -117,36 +142,24 @@ $selfTestFail = 0
 if (-not $rxF1.IsMatch('var x = y ?? new Foo();')) { $selfTestFail++ }
 if ($rxF1.IsMatch('var x = y ?? null;')) { $selfTestFail++ }
 if ($rxF1.Match('a ?? new NullThing()').Groups['t'].Value -ne 'NullThing') { $selfTestFail++ }
+# F2 catch 内核正/负对照（判据自证；内核缺失 ⇒ 判据不可用，计失败可见）
+if ($catchKernel) { if ((Test-CatchOutletClassifier) -gt 0) { $selfTestFail++ } } else { $selfTestFail++ }
 if ($selfTestFail -gt 0) { Write-Host '[自检] 正/负对照失败（判据可能被改坏）' -ForegroundColor Red }
 
-# ---- F2：catch 吞并（块体无 throw/handle/FailureBudget/Degrade）----
-function Measure-CatchSwallow([string[]]$Lines) {
-    $count = 0; $i = 0
-    while ($i -lt $Lines.Count) {
-        $line = $Lines[$i]
-        if ($rxComment.IsMatch($line) -or ($line -notmatch '\bcatch\b')) { $i++; continue }
-        $depth = 0; $started = $false
-        $sb = New-Object System.Text.StringBuilder
-        $j = $i
-        while ($j -lt $Lines.Count) {
-            $code = ($Lines[$j] -replace '//.*$', '')
-            [void]$sb.Append($code).Append(' ')
-            foreach ($ch in $code.ToCharArray()) {
-                if ($ch -eq '{') { $depth++; $started = $true } elseif ($ch -eq '}') { $depth-- }
-            }
-            if ($started -and $depth -le 0) { break }
-            $j++
-            if (($j - $i) -gt 300) { break }
+# ---- F2：catch 吞并（块体无 throw/handle/FailureBudget/Degrade ⇒ 候选；登记表 type=C2 者免计）----
+# 判定委托内核 CatchOutlet.psm1（单一实现）；本件只做「候选行号 → 登记表过滤」归属。
+function Get-CatchCandidateLines([string[]]$Lines) {
+    $hits = New-Object System.Collections.Generic.List[int]
+    if ($catchKernel) {
+        foreach ($b in (Get-CatchBlocks -Lines $Lines)) {
+            if ($b.Class -like 'candidate-*') { $hits.Add([int]$b.StartLine) }
         }
-        $body = $sb.ToString()
-        if ($body -notmatch '\bthrow\b' -and $body -notmatch 'handle\s*\(' -and $body -notmatch 'FailureBudget' -and $body -notmatch '\bDegrade\b') { $count++ }
-        $i = $j + 1
     }
-    return $count
+    return $hits
 }
 
 # ---- 扫描 ----
-$falseNew = 0; $collectionNormalize = 0; $registeredLegit = 0; $catchSwallow = 0; $legacyParam = 0; $silentDegrade = 0
+$falseNew = 0; $collectionNormalize = 0; $registeredLegit = 0; $catchSwallow = 0; $catchRegistered = 0; $legacyParam = 0; $silentDegrade = 0
 $obsoleteTotal = 0; $obsoleteNoDep = 0; $grayFlags = 0
 
 foreach ($scanRoot in $scanRoots) {
@@ -186,7 +199,9 @@ foreach ($scanRoot in $scanRoots) {
             # F6
             if ($rxGray.IsMatch($ln) -or $rxConst.IsMatch($ln)) { $grayFlags++ }
         }
-        $catchSwallow += Measure-CatchSwallow $lines
+        foreach ($cl in (Get-CatchCandidateLines $lines)) {
+            if (Test-CatchRegistered -Rel $rel -Line $cl) { $catchRegistered++ } else { $catchSwallow++ }
+        }
     }
 }
 
@@ -205,6 +220,8 @@ $measured = [ordered]@{
 Write-Host ''
 Write-Host (('[FallbackInventory] ?? new真源={0} / 集合归一={1} / 已登记={2} / catch吞并={3} / legacy={4} / 静默降级={5} / Obsolete={6}(缺dep={7}) / 灰发开关={8}' ) -f `
     $measured.falseNew, $measured.collectionNormalize, $measured.registeredLegit, $measured.catchSwallow, $measured.legacyParam, $measured.silentDegrade, $measured.obsoleteTotal, $measured.obsoleteNoDep, $measured.grayFlags) -ForegroundColor Cyan
+
+Write-Host (('[FallbackInventory] catch 候选={0}（已登记免计={1}）' ) -f $measured.catchSwallow, $catchRegistered) -ForegroundColor Cyan
 
 # ---- 棘轮（只减不增；照抄 Check-LogMessages 检查6 口径）----
 if ($UpdateBaseline) {

@@ -21,11 +21,13 @@ public static class HtmlStateBadgeProjector
     /// <summary>中性运行态字段（与领域模型解耦）。</summary>
     /// <param name="Stage">受控阶段（空 = 无运行态）。</param>
     /// <param name="StatusText">原始状态文本（保真；空则回落 <paramref name="Stage"/>）。</param>
-    /// <param name="ActorLabel">执行体显示标签（空 = 无执行体，模板隐藏角标）。</param>
+    /// <param name="ActorLabel">执行体显示标签（已解析文本：有值 = 执行体；空 = 无执行体，是否可见由 <paramref name="ActorApplicable"/> 声明）。</param>
     /// <param name="IsActive">是否进行中（模板 <c>.live</c> 呼吸点）。</param>
     /// <param name="Round">当前轮次（null/≤0 = 无轮次徽章）。</param>
     /// <param name="ElapsedMs">已运行毫秒（null/≤0 = 无时长徽章）。</param>
     /// <param name="Origin">事实来源显示文本（如派生 / 快照 / 实时）。</param>
+    /// <param name="ActorApplicable">执行体维度对该实体是否适用（供数侧声明，非渲染侧由空值推断；<c>true</c> ∧ 标签空 ⇒ 产占位）。</param>
+    /// <param name="ActorPlaceholder">占位文本（供数侧注入，如「未知」）；plate 层零领域依赖，不自造占位词。</param>
     public sealed record StateFields(
         string? Stage,
         string? StatusText = null,
@@ -33,7 +35,9 @@ public static class HtmlStateBadgeProjector
         bool IsActive = false,
         int? Round = null,
         long? ElapsedMs = null,
-        string? Origin = null);
+        string? Origin = null,
+        bool ActorApplicable = false,
+        string? ActorPlaceholder = null);
 
     /// <summary>默认阶段→样式类映射（受控阶段词 → CSS 类；未知回落 <c>idle</c>）。词表可经参数覆盖。</summary>
     public static readonly IReadOnlyDictionary<string, string> DefaultStageClasses =
@@ -64,7 +68,20 @@ public static class HtmlStateBadgeProjector
             row["stage"] = state.Stage;
             row["statusClass"] = StageClass(state.Stage, stageClasses);
             row["status"] = string.IsNullOrWhiteSpace(state.StatusText) ? state.Stage : state.StatusText!;
-            row["actor"] = state.ActorLabel ?? string.Empty;
+            // 身份维度（actor）：渲染侧不判空 —— 供数侧声明「适用性」（ActorApplicable）+ 占位文本（ActorPlaceholder）。
+            // 适用但缺值 → 显式占位（Unknown 出口 U，标记 actorUnknown）；不适用 → 不可见（⊥，零回归）。
+            var actorLabel = state.ActorLabel ?? string.Empty;
+            if (actorLabel.Length == 0 && state.ActorApplicable)
+            {
+                actorLabel = state.ActorPlaceholder ?? string.Empty;
+                row["actorUnknown"] = "1";
+            }
+            else
+            {
+                row["actorUnknown"] = string.Empty;
+            }
+            row["actor"] = actorLabel;
+            row["showActor"] = actorLabel.Length > 0 ? "1" : string.Empty;
             row["isActive"] = state.IsActive ? "1" : string.Empty;
             row["round"] = state.Round is > 0
                 ? "R" + state.Round.Value.ToString(CultureInfo.InvariantCulture)
@@ -78,7 +95,9 @@ public static class HtmlStateBadgeProjector
             row["stage"] = string.Empty;
             row["statusClass"] = string.Empty;
             row["status"] = string.Empty;
-            row["actor"] = string.Empty;
+            // 身份字段不清空（供数侧事实保留）；仅关闭可见位 —— 判空隐藏权归供数侧（禁渲染侧判空，M1）。
+            row["showActor"] = string.Empty;
+            row["actorUnknown"] = string.Empty;
             row["isActive"] = string.Empty;
             row["round"] = string.Empty;
             row["elapsed"] = string.Empty;

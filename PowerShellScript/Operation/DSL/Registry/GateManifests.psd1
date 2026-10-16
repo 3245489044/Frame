@@ -821,7 +821,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '未知可见化守卫（禁静默出口 U）：unknown_tokens.json 载体在册（unknown/dash tokens + EmbeddedResource + UnknownTokens 门面）∧ G2 身份维度判空隐藏报告态 ∧ G3 正/负对照；权威 = Docs\analysis\2026\10\10.17 设计单'
+        Note   = '未知可见化守卫（禁静默出口 U）：unknown_tokens.json 载体在册（unknown/dash tokens + EmbeddedResource + UnknownTokens 门面）∧ G2 身份维度判空隐藏（M1 后已归零）∧ G3 正/负对照；权威 = Docs\analysis\2026\10\10.17 设计单'
     }
 
     RecordDraftSingleSource = @{

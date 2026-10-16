@@ -14,9 +14,12 @@
       G4 交互闭合：ConversationViewService 含工具条 data-cmd（dbSelectAll/dbInvert/dbBatchDelete/
          dbRefresh/dbPrevPage/dbNextPage/dbNodeDetail/dbRecordSave/dbRevert/dbApplyFilter/dbFilterClear/dbSort）
          + 行 dbToggle + 行身份 data-type（行来源域）/data-source（真键回写，字面量在框架 HtmlDataRow.cs）；负对照（缺钮/缺身份必被捕获）。
-      G5 显示增强：AgentRuntimeUI.json 主题含 .db-* 类（.db-table-view/.db-toolbar/.db-btn/.db-row/.db-edit）
-         且渲染侧声明 Title/Updated 单元格（HtmlDataCell("title")/("updated")，经 Plate 通用行构建器产出 class="title"/class="updated"）；负对照（缺类必被捕获）。
+      G5 显示增强：主题**资产包化**后判据面 = 源声明（themeSpec.componentPack + templatePacks）∧ 资产包产物
+         `Assets\**\*.css` 含 .db-* 类（.db-table-view/.db-toolbar/.db-btn/.db-row/.db-edit）；
+         渲染侧声明 Title/Updated 单元格（HtmlDataCell("title")/("updated")，经 Plate 通用行构建器产出 class="title"/class="updated"）；负对照（缺类必被捕获）。
       G6 去字符串猜域：Agent.Launcher 无 NormalizeDomain 字符串猜域（应经域清单/端口分派）；负对照（合成样本必被捕获）。
+      G7 写身份闭合：渲染侧以写身份落桥（row.WriteDomain → data-type；row.SourceKey → data-session）∧ 展开判定用真键
+         （ExpandedKey == sourceKey）∧ 写端口注册表 AgentWriteSources 四存储键齐全 ∧ 单键删除先查注册表；正/负对照。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 
@@ -179,7 +182,9 @@ if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServi
     }
 }
 
-# ---------------- G5 显示增强（主题 .db-* 类 + 行 Title/Updated；负对照防判据空转） ----------------
+# ---------------- G5 显示增强（主题资产包 .db-* 类 + 行 Title/Updated；负对照防判据空转） ----------------
+# 判据面修正（A1-c）：主题已**资产包化**（AgentRuntimeUI.json 不再内联 theme CSS；源声明 themeSpec.componentPack + templatePacks），
+#   `.db-*` 类随资产包物化到 `Assets\<pack>\<pack>.css`；故判据面 = 源声明（结构事实）+ 资产包产物（存在性 + 类命中）。
 $runtimeUi = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
 $requiredDbClasses = @('.db-table-view', '.db-toolbar', '.db-btn', '.db-row', '.db-edit')
 function Get-MissingDbClasses([string]$Text) {
@@ -191,8 +196,22 @@ function Get-MissingDbClasses([string]$Text) {
 }
 if (Test-Path -LiteralPath $runtimeUi) {
     $uiText = [System.IO.File]::ReadAllText($runtimeUi)
-    foreach ($m in (Get-MissingDbClasses $uiText)) {
-        $violations.Add("[G5] 数据库页主题缺 .db-* 样式类 '$m'（显示优化未落地）")
+    # G5a：主题资产包**声明**在位（componentPack + templatePacks）。
+    if ($uiText -notmatch '"themeSpec"') { $violations.Add('[G5] 源 AgentRuntimeUI.json 缺 themeSpec（主题结构化声明丢失）') }
+    if ($uiText -notmatch '"templatePacks"') { $violations.Add('[G5] 源 AgentRuntimeUI.json 缺 templatePacks（模板/主题资产包清单丢失）') }
+    # G5b：资产包产物在位且含 .db-* 类（判据面 = 实际加载的主题文件；产物缺失 ⇒ 显示增强未落地）。
+    $assetDir = Join-Path $Root 'Projects\FileDriven\BuildOutput\Debug\Assets'
+    $cssFiles = @()
+    if (Test-Path -LiteralPath $assetDir) {
+        $cssFiles = @(Get-ChildItem -LiteralPath $assetDir -Filter '*.css' -File -Recurse -ErrorAction SilentlyContinue)
+    }
+    if ($cssFiles.Count -eq 0) {
+        $violations.Add("[G5] 主题资产包产物缺失（$assetDir 下无 *.css）：显示增强未物化，判据不可判（先烘焙资产包）")
+    } else {
+        $cssText = [string]::Join("`n", ($cssFiles | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }))
+        foreach ($m in (Get-MissingDbClasses $cssText)) {
+            $violations.Add("[G5] 主题资产包缺 .db-* 样式类 '$m'（显示优化未落地）")
+        }
     }
     # 负对照：缺类的合成样本必须被捕获。
     if ((Get-MissingDbClasses '.db-table-view').Count -eq 0) {
@@ -227,10 +246,48 @@ if (Test-Path -LiteralPath $launcherDirG6) {
     $violations.Add("[G6] 缺失 Agent.Launcher 目录（判据不可判）：$launcherDirG6")
 }
 
+# ---------------- G7 写身份闭合（读身份 ≠ 写/删身份；正/负对照防判据空转） ----------------
+# 判据（收口不变量）：① 渲染侧以写身份落桥（row.WriteDomain → data-type；row.SourceKey → data-session）；
+#   ② 展开判定用真键（ExpandedKey 与 row.SourceKey 比较，而非 row.Key 显示键）；
+#   ③ 写域 → 写端口注册表在位（AgentWriteSources，四存储键齐全）；
+#   ④ 单键删除先查写端口注册表（禁 switch 猜域兜底）。
+$writeSources = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Functions\Batch\AgentWriteSources.cs'
+$batchFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Functions\Batch\AgentUiLibraryBatch.cs'
+function Get-WriteIdentityMisses([string]$ViewText, [string]$BatchText, [string]$SourcesText) {
+    $misses = [System.Collections.Generic.List[string]]::new()
+    if ($ViewText -notmatch 'row\.WriteDomain') { $misses.Add('渲染行未声明写域（row.WriteDomain）') }
+    if ($ViewText -notmatch 'Session:\s*sourceKey') { $misses.Add('桥命令键未用真键（Session: sourceKey）') }
+    if ($ViewText -notmatch 'summary\)\s*=\s*sourceKey' -and $ViewText -notmatch '\["session"\]\s*=\s*sourceKey') { $misses.Add('摘要点击未用真键（data-session=sourceKey）') }
+    if ($ViewText -notmatch 'state\.ExpandedKey,\s*sourceKey') { $misses.Add('展开判定未用真键（ExpandedKey == sourceKey）') }
+    if ($SourcesText -notmatch 'DbStoreKeys\.Nodes' -or $SourcesText -notmatch 'DbStoreKeys\.Tasks' -or
+        $SourcesText -notmatch 'DbStoreKeys\.Histories' -or $SourcesText -notmatch 'DbStoreKeys\.Graph') {
+        $misses.Add('写端口注册表缺存储键（Nodes/Tasks/Histories/Graph 四行）')
+    }
+    if ($BatchText -notmatch 'AgentWriteSources\.TryGet') { $misses.Add('单键删除未先查写端口注册表（DeleteOneAsync）') }
+    return $misses
+}
+$viewText7 = ''
+if ((Test-Path -LiteralPath $viewService) -or (Test-Path -LiteralPath $viewServiceDb)) { $viewText7 = Read-ViewServiceText }
+$batchText7 = if (Test-Path -LiteralPath $batchFile) { [System.IO.File]::ReadAllText($batchFile) } else { '' }
+$sourcesText7 = if (Test-Path -LiteralPath $writeSources) { [System.IO.File]::ReadAllText($writeSources) } else { '' }
+if (-not (Test-Path -LiteralPath $writeSources)) {
+    $violations.Add("[G7] 缺件：写端口注册表（$writeSources）")
+}
+if ($viewText7 -and $batchText7 -and $sourcesText7) {
+    foreach ($m in (Get-WriteIdentityMisses $viewText7 $batchText7 $sourcesText7)) {
+        $violations.Add("[G7] 写身份未闭合：$m")
+    }
+    # 负对照：把写身份摘掉的合成样本必须被捕获（防判据空转）。
+    $probeMisses = Get-WriteIdentityMisses 'Session: row.Key' 'switch (domain)' ''
+    if ($probeMisses.Count -eq 0) {
+        $violations.Add('[G7] 负对照失效：写身份缺失的合成样本未被判据捕获')
+    }
+}
+
 Write-Host ("  扫描读路径方法体: {0} 个" -f $checkedBodies) -ForegroundColor Gray
 
 if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2/G3/G4/G5/G6 全部通过（零存储域 + 聚拢点唯一 + 交互闭合 + 显示增强 + 去猜域 + 正负对照绿）' -ForegroundColor Green
+    Write-Host '  [成功] G1/G2/G3/G4/G5/G6/G7 全部通过（零存储域 + 聚拢点唯一 + 交互闭合 + 显示增强（资产包面）+ 去猜域 + 写身份闭合 + 正负对照绿）' -ForegroundColor Green
     Write-Host ''
     exit 0
 }

@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（15 件）
+## Agent（16 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -21,6 +21,7 @@
 | `GenerationLayout` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1` |
 | `GenerationRebuildChain` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1` |
 | `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
+| `LlmRoutingSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-LlmRoutingSurface.ps1` |
 | `RefreshFrameworkBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |

@@ -14,6 +14,8 @@
       D3 轨闭合：每个 face 的 tracks 非空（装配器按声明建轨，空轨 = 空面）
       D4 正对照（防假绿）：faces 数 ≥ 基线
       D5 负对照（防假绿）：合成「cline.expose=true」必须被**同一判据函数**命中 D2
+      D6 模型面名合法性：模型面工具名单源（ModelFaceProjection + ToolCatalogCore）全部匹配 ^[a-zA-Z0-9_-]+$（明细含 . 名不得进模型面）
+      D7 负对照（防假绿）：合成非法名「taint.dotted」必须被 D6 判据命中
 
     判据载体 = 声明面结构事实（键齐备 / 布尔值 / 计数），不引入执行者叙述（SEP.JudgmentCarrierStructural）。
 
@@ -135,8 +137,52 @@ if (@($probeSink | Where-Object { $_ -like '*[D2]*' }).Count -eq 0) {
     $violations.Add('[D5] 负对照失效：合成 cline.expose=true 未被 D2 判据命中（判据恒真/恒假？）')
 }
 
+# ---------------- D6 模型面工具名合法性（模型面单源；结构事实） ----------------
+function Get-ConstToolNames {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return @() }
+    $text = Get-Content -LiteralPath $Path -Raw
+    return [regex]::Matches($text, 'public\s+const\s+string\s+\w+\s*=\s*"([^"\r\n]+)"') |
+        ForEach-Object { $_.Groups[1].Value }
+}
+
+function Get-CoreToolNames {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return @() }
+    $names = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        $m = [regex]::Match($line, '^\s*"([^"\r\n]+)",\s*$')
+        if ($m.Success) { $names.Add($m.Groups[1].Value) }
+    }
+    return $names
+}
+
+function Test-ToolNameLegal {
+    param([string]$Name)
+    return ($Name -match '^[a-zA-Z0-9_-]+$')
+}
+
+$projectionPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Operation\Tool\ModelFaceProjection.cs'
+$corePath       = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Operation\Tool\ToolCatalogCore.cs'
+$modelNames = @(@(Get-ConstToolNames -Path $projectionPath) + @(Get-CoreToolNames -Path $corePath)) | Sort-Object -Unique
+$illegalModel = @($modelNames | Where-Object { -not (Test-ToolNameLegal -Name $_) })
+foreach ($n in $illegalModel) {
+    $violations.Add("[D6] 模型面工具名非法（须匹配 ^[a-zA-Z0-9_-]+$）：'$n'")
+}
+if ($modelNames.Count -eq 0) {
+    $violations.Add('[D6] 模型面工具名单源未命中（ModelFaceProjection/ToolCatalogCore 无工具名声明）= 门禁失效')
+}
+if ($ShowDetail) {
+    Write-Host ("  模型面名单源 {0} 名（合法 {1} / 非法 {2}）" -f $modelNames.Count, ($modelNames.Count - $illegalModel.Count), $illegalModel.Count) -ForegroundColor DarkGray
+}
+
+# ---------------- D7 负对照（同一判据对合成非法名必须命中） ----------------
+if (Test-ToolNameLegal -Name 'taint.dotted') {
+    $violations.Add('[D7] 负对照失效：合成非法名 "taint.dotted" 未被 D6 判据命中（判据恒真？）')
+}
+
 # ---------------- 汇总 ----------------
-Write-Host ("  实测：声明 faces {0} 个 / 不外泄工具 {1} 个" -f $faceCount, (@($g.NotExposed.Value).Count)) -ForegroundColor Gray
+Write-Host ("  实测：声明 faces {0} 个 / 不外泄工具 {1} 个 / 模型面名 {2} 个" -f $faceCount, (@($g.NotExposed.Value).Count), $modelNames.Count) -ForegroundColor Gray
 
 if ($ShowDetail -and $pending.Count -gt 0) {
     Write-Host '[NLP] --- 待办 ---' -ForegroundColor DarkGray
@@ -144,7 +190,7 @@ if ($ShowDetail -and $pending.Count -gt 0) {
 }
 
 if ($violations.Count -eq 0) {
-    Write-Host '[OK] 工具面装配声明守卫：0 违规（D1/D3 声明在册；D2 不外泄；D4/D5 对照命中）' -ForegroundColor Green
+    Write-Host '[OK] 工具面装配声明守卫：0 违规（D1/D3 声明在册；D2 不外泄；D4/D5/D7 对照命中；D6 模型面名合法）' -ForegroundColor Green
     exit 0
 }
 

@@ -20,6 +20,18 @@ public enum ProjectionOrigin
     Derived,
 }
 
+/// <summary>
+/// 读投影项（**行身份三分离**：<c>Key</c> = 显示/定位键；<c>DomainKey</c> = 读域；
+/// <c>(<see cref="WriteDomain"/>, <see cref="SourceKey"/>)</c> = 写/删/详读身份）。
+/// </summary>
+/// <param name="Key">显示键（呈现/定位用；可为合成键，如 <c>{表名}:{真键}</c>）。</param>
+/// <param name="PlacementId">位置键。</param>
+/// <param name="Fields">展平字段。</param>
+/// <param name="Origin">来源优先级。</param>
+/// <param name="PayloadJson">载荷 JSON（可空）。</param>
+/// <param name="DomainKey">读域（行来源域；可空 = 回退模型域键）。</param>
+/// <param name="SourceKey">真键（写/删/详读身份；可空 = 回退 <see cref="Key"/>）。</param>
+/// <param name="WriteDomain">写域（路由用；null ⇒ 回退 <see cref="DomainKey"/>，即「节点域自写」）。</param>
 public sealed record NodeProjectionItem(
     string Key,
     string PlacementId,
@@ -27,7 +39,8 @@ public sealed record NodeProjectionItem(
     ProjectionOrigin Origin,
     string? PayloadJson = null,
     string? DomainKey = null,
-    string? SourceKey = null);
+    string? SourceKey = null,
+    string? WriteDomain = null);
 
 /// <summary>
 /// 读投影范围（裁剪只在读侧：N7）。
@@ -305,7 +318,7 @@ public sealed class NodeReadProjection
 
             merged.Add(new NodeProjectionItem(
                 ordered[0].Key, ordered[0].PlacementId, fields, origin, payload,
-                ordered[0].DomainKey, ordered[0].SourceKey));
+                ordered[0].DomainKey, ordered[0].SourceKey, ordered[0].WriteDomain));
         }
 
         return merged;

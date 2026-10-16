@@ -19,6 +19,13 @@
         Note   = 'History 装配面：空态预装配(H1) / 档案分档+声明面(H2) / mode 注入(H3) / 视口单一入口(H4) / 端口只读(H5) / 缓存最大化分段+差分(H6) / UI 轨零 Binding(H15) / 双出口同供数(H16) / 空态可见化(H17) / 任务池状态单源(H18)'
     }
 
+    LlmRoutingSurface = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'LLM 路由生效面：L1 禁静默降级(catch→local) / L2 缺省声明面(禁硬编码 local 兜底) / L3 生产兜底非 local / L4 自举不覆写配置真实 provider / L5 来源可审计(RouteOrigin origin)'
+    }
+
     AgentDecisionCoreBoundary = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }
@@ -147,6 +154,14 @@
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '存储层批量单源守卫（R0/R5）：批量读/写/删唯一构建点 = StorageFramework\Batch\（IBatchStore）· 存储层批量零领域字面量 · 批写批删无裸连接 · 正/负对照'
+    }
+
+    AgentRuntimeUIConfigFreshness = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'AgentRuntimeUI 配置新鲜度（A1-b）：源（Information 资源仓 JsonConfig）→ 产物（FileDriven 宿主 Configs）**结构包含**判据（事件键 + 绑定引用；容忍产物独有派生键 themeSpec/templatePacks）+ JSON 形态可解析 + 正/负对照；治「改了配置但产物滞后 ⇒ 运行不生效」静默'
     }
 
     ConversationReadSingleSource = @{

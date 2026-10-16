@@ -18,7 +18,8 @@ public sealed record HtmlInteractiveAttrs(
 /// <summary>
 /// 行首复选框：<c>&lt;input type="checkbox" data-key="{Key}"[ checked]/&gt;</c>；
 /// 带 <paramref name="Cmd"/> 时包一层带交互属性的 <c>&lt;label class="{LabelClass}"&gt;</c>（交互行），否则裸 input（只读行）。
-/// <paramref name="Domain"/>/<paramref name="SourceKey"/> 分别落 <c>data-type</c>（行来源域）/ <c>data-source</c>（真键回写）。
+/// <paramref name="Session"/> = 桥命令键（**写身份第二段 = 真键**）；<paramref name="Domain"/> 落 <c>data-type</c>（**写身份第一段 = 写域**）；
+/// <paramref name="SourceKey"/> 落 <c>data-source</c>，**非桥身份**（仅供脚本读取的诊断属性，点击桥不回投 source）。
 /// </summary>
 public sealed record HtmlRowCheckbox(
     string Key,

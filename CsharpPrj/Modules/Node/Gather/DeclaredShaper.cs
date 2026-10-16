@@ -45,7 +45,8 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             Field(item, shaping.TimeKey),
             item.DomainKey,
             item.SourceKey,
-            PortsOf(item, shaping.EffectivePortKeys));
+            PortsOf(item, shaping.EffectivePortKeys),
+            item.WriteDomain);
     }
 
     /// <summary>端口取值：按声明 <c>ports=</c> 字段集读值并拆分（容 JSON 数组形 / 逗号分隔），保序去重；无值 ⇒ null。</summary>

@@ -58,6 +58,10 @@ public sealed class ReconcileStage
             throw;
         }
 
+        // 终止等待窗（异步长任务）：分钟级触发（如 composerSend）的执行体返回后，终止信号可能仍在途；
+        // 窗口内轮询补齐，超窗即交由四判判 R3（未终止），不静默放行。
+        await WaitForTerminalAsync(contract, scope, _options.TerminalWaitBudgetMs).ConfigureAwait(false);
+
         var trace = scope.Close();
         sw.Stop();
 
@@ -68,6 +72,29 @@ public sealed class ReconcileStage
             throw new EventReconcileException(trigger, verdict, trace);
 
         return output;
+    }
+
+    /// <summary>
+    /// 终止等待窗：窗口 &gt;0 且契约声明了终止信号时，轮询等待终止信号出现或窗口耗尽。
+    /// 窗口 ≤0 / 无终止声明 ⇒ 立即返回（同步假设，零开销）。
+    /// </summary>
+    private static async Task WaitForTerminalAsync(ReconcileContract contract, TriggerScope scope, int budgetMs)
+    {
+        if (budgetMs <= 0) return;
+
+        var terminals = contract.Signals
+            .Where(s => s.Terminal && !string.IsNullOrWhiteSpace(s.Signal))
+            .Select(s => s.Signal!)
+            .ToList();
+        if (terminals.Count == 0) return;
+
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < budgetMs)
+        {
+            if (scope.Peek().Any(r => terminals.Contains(r.EventKind, StringComparer.Ordinal)))
+                return;
+            await Task.Delay(25).ConfigureAwait(false);
+        }
     }
 
     /// <summary>落账裁决（ReconcilePassed/ReconcileFailed）；契约未注册时静默降级，不阻断主路径。</summary>

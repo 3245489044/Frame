@@ -287,21 +287,50 @@ public static class EventBindingPipelineFactory
         }
 
         // 对账契约（bindings.reconcile）：绑定期按函数名登记，供触发期（InvocationKernel）解析。
-        // 钩子未注入 / 契约缺省 ⇒ 直通（零回归），对齐 ReconcileConfig 缺省语义。
+        // 多路复用：reconcile.cases[] 逐 cmd 展开为独立契约（registry 按「函数名+when」并存）。
+        // 时序无关：钩子未就绪 ⇒ 内核缓冲，装配后重放（不因绑定早于装配而静默丢弃）。
         var reconcile = config.Events?.Bindings?.Reconcile;
-        var reconcileHook = InvocationKernel.ReconcileHook;
         var eventsDictionary = config.Events?.EventsDictionary;
-        if (reconcile != null && reconcileHook != null && eventsDictionary != null)
+        if (reconcile != null && eventsDictionary != null)
         {
+            var contracts = ExpandReconcileCases(reconcile);
             foreach (var functions in eventsDictionary.Values)
             {
                 foreach (var functionName in functions)
                 {
-                    if (!string.IsNullOrWhiteSpace(functionName))
-                        reconcileHook.RegisterContract(functionName, reconcile);
+                    if (string.IsNullOrWhiteSpace(functionName)) continue;
+                    foreach (var contract in contracts)
+                        InvocationKernel.RegisterReconcileContract(functionName, contract);
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 把 <c>bindings.reconcile</c> 展开为一组「按 cmd 选择」的契约：
+    /// <c>cases</c> 非空 ⇒ 每 case 一份（继承外层 mode/order）；否则整体作单一契约（含可选 <c>when</c>）。
+    /// </summary>
+    private static IReadOnlyList<ReconcileConfig> ExpandReconcileCases(ReconcileConfig reconcile)
+    {
+        if (reconcile.Cases is not { Count: > 0 })
+            return new[] { reconcile };
+
+        var list = new List<ReconcileConfig>(reconcile.Cases.Count);
+        foreach (var c in reconcile.Cases)
+        {
+            if (c is null) continue;
+            if (c.Signals is not { Count: > 0 }) continue;   // 空 case 跳过（C2 由 gate 对有效契约判）
+
+            list.Add(new ReconcileConfig
+            {
+                Mode = reconcile.Mode,
+                Order = string.IsNullOrWhiteSpace(c.Order) ? reconcile.Order : c.Order,
+                When = c.When,
+                Signals = c.Signals
+            });
+        }
+
+        return list.Count > 0 ? list : new[] { reconcile };
     }
 
     private static void EventBinderStep(EventBindingContext ctx, IFunctionResolver? functionResolver, IParameterBinder? parameterBinder, IEventBinder? eventBinder, Action<string, string, object?>? onEventResult, ErrorCollector errors,

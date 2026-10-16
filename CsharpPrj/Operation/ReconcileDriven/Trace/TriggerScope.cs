@@ -28,6 +28,12 @@ public sealed class TriggerScope : IDisposable
         }
     }
 
+    /// <summary>当前已收记录的只读快照（不关闭窗口；供终止等待窗轮询）。</summary>
+    public IReadOnlyList<SignalRecord> Peek()
+    {
+        lock (_gate) return _records.ToList();
+    }
+
     /// <summary>关闭窗口并产出信号账（幂等：重复 Close 返回同一快照）。</summary>
     public SignalTrace Close()
     {

@@ -1,4 +1,5 @@
-﻿using Operation.ReconcileDriven.Reconcile;
+﻿using Operation.ReconcileDriven.Gates;
+using Operation.ReconcileDriven.Reconcile;
 using Operation.ReconcileDriven.Trace;
 using Share.EventBindingOrchestrator.Invocation;
 using Share.EventBindingOrchestrator.Reconcile;
@@ -26,10 +27,12 @@ public static class ReconcileBootstrap
     /// <param name="bus">观测总线（须已含 collector 作为 Sink，否则信号账永远为空）。</param>
     /// <param name="collector">触发域信号收集器（与 Bus Sink 中为同一实例）。</param>
     /// <param name="options">运行时选项（总开关/终止等待窗）。</param>
+    /// <param name="vocabulary">装载期判据（C1）词表；非空时绑定期拒载未登记 signal。null ⇒ 仅跳过 C1。</param>
     public static IEventReconcileHook Install(
         IObservabilityBus bus,
         TriggerScopedSignalCollector collector,
-        ReconcileOptions? options = null)
+        ReconcileOptions? options = null,
+        ReconcileVocabulary? vocabulary = null)
     {
         ArgumentNullException.ThrowIfNull(bus);
         ArgumentNullException.ThrowIfNull(collector);
@@ -37,7 +40,8 @@ public static class ReconcileBootstrap
         var effective = options ?? new ReconcileOptions();
         var registry = new ReconcileContractRegistry();
         var stage = new ReconcileStage(bus, collector, new EventReconciler(), effective);
-        var hook = new ReconcileHook(registry, stage, effective);
+        var gate = vocabulary is null || vocabulary.IsEmpty ? null : new ReconcileContractGate(vocabulary);
+        var hook = new ReconcileHook(registry, stage, effective, gate);
         InvocationKernel.ReconcileHook = hook;
         return hook;
     }

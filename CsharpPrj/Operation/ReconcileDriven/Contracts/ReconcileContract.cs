@@ -6,8 +6,14 @@ namespace Operation.ReconcileDriven.Contracts;
 /// 规范化后的对账契约（<see cref="ReconcileConfig"/> 的运行时视图）：补齐缺省、剔空项。
 /// <para>缺省口径：<c>mode</c> 缺省 <see cref="ReconcileModes.Off"/>（不对账，零回归）；<c>order</c> 缺省 <see cref="ReconcileOrders.Strict"/>。</para>
 /// </summary>
-public sealed record ReconcileContract(string Mode, string Order, IReadOnlyList<SignalExpectation> Signals)
+public sealed record ReconcileContract(string Mode, string Order, IReadOnlyList<SignalExpectation> Signals, string? When = null)
 {
+    /// <summary>命令选择器（payload.cmd）；null/空 = 默认契约（匹配未命中 <c>when</c> 的任意 cmd）。</summary>
+    public string? When { get; init; } = When;
+
+    /// <summary>是否为命令级契约（声明了 <c>when</c>）。</summary>
+    public bool IsCommandScoped => !string.IsNullOrWhiteSpace(When);
+
     /// <summary>是否显式退出对账。</summary>
     public bool IsOff => string.Equals(Mode, ReconcileModes.Off, StringComparison.OrdinalIgnoreCase);
 
@@ -31,6 +37,7 @@ public sealed record ReconcileContract(string Mode, string Order, IReadOnlyList<
             .Where(s => s is not null && !string.IsNullOrWhiteSpace(s.Signal))
             .ToList() ?? new List<SignalExpectation>();
 
-        return new ReconcileContract(mode, order, signals);
+        var when = string.IsNullOrWhiteSpace(cfg.When) ? null : cfg.When!.Trim();
+        return new ReconcileContract(mode, order, signals, when);
     }
 }

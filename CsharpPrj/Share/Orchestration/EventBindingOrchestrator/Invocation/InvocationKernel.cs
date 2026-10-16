@@ -25,8 +25,52 @@ public static class InvocationKernel
     /// <summary>
     /// 触发对账钩子（依赖倒置：实现在 Operation 层，组合根注入）。null = 不对账（零开销、零回归）。
     /// 包裹点 = 所有函数调用的唯一入口 <see cref="ExecuteAsync"/>。
+    /// <para>装配时自动重放「装配前已登记」的契约（消除「配置绑定早于宿主装配」的时序缺口）。</para>
     /// </summary>
-    public static IEventReconcileHook? ReconcileHook { get; set; }
+    public static IEventReconcileHook? ReconcileHook
+    {
+        get => _reconcileHook;
+        set
+        {
+            _reconcileHook = value;
+            if (value is null) return;
+            lock (PendingReconcileContracts)
+            {
+                foreach (var (fn, contract) in PendingReconcileContracts)
+                    value.RegisterContract(fn, contract);
+                PendingReconcileContracts.Clear();
+            }
+        }
+    }
+
+    private static IEventReconcileHook? _reconcileHook;
+    private static readonly List<(string FunctionName, TConfig.ReconcileConfig Contract)> PendingReconcileContracts = new();
+
+    /// <summary>
+    /// 登记对账契约（唯一入口）：钩子已装配 ⇒ 立即登记；未装配 ⇒ 缓冲待重放
+    /// （避免「配置绑定早于宿主装配」时静默丢弃契约）。
+    /// </summary>
+    public static void RegisterReconcileContract(string functionName, TConfig.ReconcileConfig contract)
+    {
+        if (string.IsNullOrWhiteSpace(functionName) || contract is null) return;
+
+        var hook = _reconcileHook;
+        if (hook is not null)
+        {
+            hook.RegisterContract(functionName, contract);
+            return;
+        }
+
+        lock (PendingReconcileContracts)
+        {
+            if (_reconcileHook is not null)
+            {
+                _reconcileHook.RegisterContract(functionName, contract);
+                return;
+            }
+            PendingReconcileContracts.Add((functionName, contract));
+        }
+    }
 
     public static async Task<FunctionInvocationResult> ExecuteAsync(
         InvocationRequest request,

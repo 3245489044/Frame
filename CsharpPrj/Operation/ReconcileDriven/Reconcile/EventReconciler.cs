@@ -1,5 +1,7 @@
-﻿using Operation.ReconcileDriven.Contracts;
+﻿using System.Text.Json;
+using Operation.ReconcileDriven.Contracts;
 using Operation.ReconcileDriven.Trace;
+using TConfig;
 
 namespace Operation.ReconcileDriven.Reconcile;
 
@@ -40,7 +42,7 @@ public sealed class EventReconciler : IEventReconciler
             else
             {
                 hit = trace.Records.FirstOrDefault(r =>
-                    string.Equals(r.EventKind, kind, StringComparison.Ordinal) && ScopeMatches(r, exp.Scope!));
+                    string.Equals(r.EventKind, kind, StringComparison.Ordinal) && ScopeMatches(r, exp));
 
                 // 信号已观测到但归属别处 ⇒ 只判归属串台（R4），不重复计为缺失（R1）。
                 if (hit is null && trace.Contains(kind))
@@ -82,9 +84,35 @@ public sealed class EventReconciler : IEventReconciler
         return -1;
     }
 
-    /// <summary>归属匹配：ScopeId 精确匹配 <b>或</b> 载荷内出现 scope 键（TaskKey 等）。</summary>
-    private static bool ScopeMatches(SignalRecord r, string scope)
-        => string.Equals(r.ScopeId, scope, StringComparison.OrdinalIgnoreCase)
-           || (!string.IsNullOrEmpty(r.PayloadJson)
-               && r.PayloadJson!.Contains(scope, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// 归属匹配（G-3 键名映射）：
+    /// ① ScopeId 精确匹配；② 声明了 <see cref="SignalExpectation.ScopeKey"/> 时，只比对载荷中该字段的值；
+    /// ③ 未声明键名时退化为载荷子串包含（兼容既有声明）。
+    /// </summary>
+    private static bool ScopeMatches(SignalRecord r, SignalExpectation exp)
+    {
+        var scope = exp.Scope!;
+        if (string.Equals(r.ScopeId, scope, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.IsNullOrEmpty(r.PayloadJson))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(exp.ScopeKey))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(r.PayloadJson!);
+                return doc.RootElement.ValueKind == JsonValueKind.Object
+                       && doc.RootElement.TryGetProperty(exp.ScopeKey!, out var v)
+                       && v.ValueKind == JsonValueKind.String
+                       && string.Equals(v.GetString(), scope, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        return r.PayloadJson!.Contains(scope, StringComparison.OrdinalIgnoreCase);
+    }
 }

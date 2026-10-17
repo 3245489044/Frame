@@ -69,8 +69,9 @@ public interface ITransferFlow
     /// <param name="edgeType">成员归属边类型。</param>
     /// <param name="payload">载荷（容器自身不持有；标 <c>FeedTarget.State</c>）。</param>
     /// <param name="workspaceSign">建成员信号（无成员时用于建成员；可空）。</param>
+    /// <param name="members">已解析成员集（R6/D2 直用：调用方决策期已枚举 ⇒ 跳过流内重复枚举；空/缺省 ⇒ 流内照常枚举）。</param>
     /// <param name="ct">取消令牌。</param>
     Task DispatchAsync(
         string containerKey, string edgeType, TransferPayload payload,
-        string? workspaceSign = null, CancellationToken ct = default);
+        string? workspaceSign = null, IReadOnlyList<string>? members = null, CancellationToken ct = default);
 }

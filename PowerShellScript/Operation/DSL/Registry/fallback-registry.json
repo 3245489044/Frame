@@ -2,9 +2,30 @@
   "schema": "fallback-registry-v1",
   "note": "框架回退合法面登记（出口 T=throw / N=命名 Null 对象 / D=显式 Degrade+可见 / U=Unknown 显式占位）。whitelistPaths=组合根文件（其内 ?? new 合法）；nullFactories=非 Null* 前缀的显式空对象名；entries=P1 起逐项登记的合法回退；valueVisibility=「缺值可见化（U 出口）」维度登记（与 Check-UnknownVisible 对账）。未登记命中的回退计入棘轮（fallback-baseline.json）。entries 中 type=C2 项 = catch 出口登记（file 可带 :line，由 Invoke-CatchOutletPatch -Register 产出；命中即免计 catchSwallow）。",
   "valueVisibility": [
-    { "dimension": "actor", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Render/HtmlStateBadgeProjector.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 已接线：供数侧声明 ActorApplicable + ActorPlaceholder；缺值 ⇒ 占位（UnknownTokens）" },
-    { "dimension": "subagent", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 已接线：模板去 {?subagent} 包裹，改供数侧可见位 {?showSubagent}" },
-    { "dimension": "targets", "token": "unknown", "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs", "exit": "U", "owner": "plate-htmlviewer", "note": "M1 已接线：模板去 {?targets} 包裹，改供数侧可见位 {?showTargets}" }
+    {
+      "dimension": "actor",
+      "token": "unknown",
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Render/HtmlStateBadgeProjector.cs",
+      "exit": "U",
+      "owner": "plate-htmlviewer",
+      "note": "M1 已接线：供数侧声明 ActorApplicable + ActorPlaceholder；缺值 ⇒ 占位（UnknownTokens）"
+    },
+    {
+      "dimension": "subagent",
+      "token": "unknown",
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs",
+      "exit": "U",
+      "owner": "plate-htmlviewer",
+      "note": "M1 已接线：模板去 {?subagent} 包裹，改供数侧可见位 {?showSubagent}"
+    },
+    {
+      "dimension": "targets",
+      "token": "unknown",
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs",
+      "exit": "U",
+      "owner": "plate-htmlviewer",
+      "note": "M1 已接线：模板去 {?targets} 包裹，改供数侧可见位 {?showTargets}"
+    }
   ],
   "whitelistPaths": [
     "AgentComposition.cs",
@@ -2431,6 +2452,426 @@
       "target": "catch",
       "reason": "工具级诊断：单文件解析失败 ⇒ 计数 + stderr 可见化，不中断整批盘点（有界降级）",
       "owner": "roslynmethod-tools",
+      "expires": null
+    },
+    {
+      "id": "C2-ef9f5c92",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:108",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-7a251c2b",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:109",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-e6f2ad42",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:124",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-92fd1ce8",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:125",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-a807ffdc",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:126",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-c853e80a",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:146",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-01c2c9e7",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:206",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-35559190",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:229",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-7d05db8d",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:230",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-33bcabf7",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:231",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-95047e70",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:236",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-635a725d",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:278",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-24c01365",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Strategy/Observability/Publish/LiveEventPipe.cs:288",
+      "exit": "N",
+      "target": "catch",
+      "reason": "生命周期/停机/客户端断开/探针路径的有界降级（显式控制流 return false/return/continue/Dispose），非静默吞并",
+      "owner": "Frame/Strategy/Observability",
+      "expires": null
+    },
+    {
+      "id": "C2-fa4f83ca",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:62",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-6e88238c",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:146",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-fdac8dad",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:159",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-a22dd0f9",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:179",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-3201c0fb",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:201",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-c0e5cfb0",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:219",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-b13780bc",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:232",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-85f7f791",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:311",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-3013b49d",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:324",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-739849e5",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:339",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-be63b949",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:360",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-f2d4ba35",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:380",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-f1fe2003",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs:393",
+      "exit": "N",
+      "target": "catch",
+      "reason": "已有日志 + 显式失败结果（false/empty/失败对象）的有界可见降级；GetByIdAsync 的 null 语义待 M4 三态收敛；ValidatePath 以异常作控制流返回判定",
+      "owner": "Frame/Plate/DataManage",
+      "expires": null
+    },
+    {
+      "id": "C2-12b43fa7",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:173",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-73dea140",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:399",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-8cefc690",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:431",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-96bbfe69",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:438",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-bab3aef8",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:452",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-09367ca5",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:484",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-2c945bf6",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:591",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-9a5b94d2",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:610",
+      "exit": "N",
+      "target": "catch",
+      "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-0b2c7485",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:87",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-ddc2c80d",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:103",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-6cd1c6ec",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:202",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-61bfcc38",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:252",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-66f879ad",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:418",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-42665496",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:419",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-9c91fcbb",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:422",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
+      "expires": null
+    },
+    {
+      "id": "C2-6ad48888",
+      "type": "C2",
+      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:423",
+      "exit": "N",
+      "target": "catch",
+      "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
+      "owner": "Frame/Modules/Registry",
       "expires": null
     }
   ]

@@ -92,7 +92,8 @@ $KeyModuleLogFace = @(
     'ClineDiagnostics_Event',
     'ClinePersist_Frame',
     'ClineExecutorFunction_ExecuteClineAsync_failed',
-    'ClineExecutorFunction_BuildStandardContext_failed'
+    'ClineExecutorFunction_BuildStandardContext_failed',
+    'ClineExecutorFunction_prompt_missing'
 )
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -102,7 +103,7 @@ $semRel     = 'Projects\Plug\Agent\src\Agent.Contract\Observability\observabilit
 $csprojRel  = 'Projects\Plug\Agent\src\Agent.Contract\Agent.Contract.csproj'
 $traceRel   = 'Projects\Plug\Agent\src\Agent.Core\Operation\Observe\AgentTrace.cs'
 $logRel     = 'Projects\Plug\Agent\src\Agent.Axioms\Diagnostics\AgentLog.cs'
-$modLogRel  = 'Projects\Plug\Agent\src\Agent.Modules\Diagnostics\ModuleLog.cs'
+$modLogRel  = 'Projects\Plug\Agent\src\Agent.Modules\Framework\Diagnostics\ModuleLog.cs'
 
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan

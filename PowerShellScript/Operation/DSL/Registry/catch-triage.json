@@ -17,13 +17,13 @@
   },
   "totals": {
     "catchTotal": 1644,
-    "candidate": 1383,
+    "candidate": 1381,
     "registered": 3
   },
   "byClass": [
     {
       "class": "candidate-empty",
-      "count": 1201
+      "count": 1199
     },
     {
       "class": "candidate-logonly",
@@ -35,7 +35,7 @@
     },
     {
       "class": "rethrow",
-      "count": 248
+      "count": 250
     }
   ],
   "items": [
@@ -7364,10 +7364,10 @@
       "line": 102,
       "endLine": 105,
       "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "fe116a5107627230ac1bd6e330946f20a7e9b5a10baf4c6e5b7db3d4c27e2864",
+      "class": "rethrow",
+      "bodyHash": "4ef5cfedb47b80f3618418820d0e0b292a934b33c7c8fae0d1070ba235b34626",
       "registered": false,
-      "candidate": true
+      "candidate": false
     },
     {
       "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs",
@@ -7493,11 +7493,11 @@
       "file": "Frame/CsharpPrj/Plate/DataManage/StorageManagers.cs",
       "line": 421,
       "endLine": 424,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "d9439afcd046fde2364024c74e2835f359f6a959147d301afd56a208d6dbd37f",
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "b154ed1975ac3cc6a12418a1d56b4185e2c300bf05086a6397ec6cd84afe0079",
       "registered": false,
-      "candidate": true
+      "candidate": false
     },
     {
       "file": "Frame/CsharpPrj/Plate/DataManage/Data/Graph/GraphStorage.cs",

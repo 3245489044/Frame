@@ -50,8 +50,11 @@ public sealed record LevelRunState(
     /// <summary>是否携带有效执行体（<c>false</c> = 该实体无执行体）。</summary>
     public bool HasActor => Actor is { IsEmpty: false };
 
-    /// <summary>执行体显示标签（无执行体 → 空串，模板可直接判空隐藏）。</summary>
-    public string ActorLabel => Actor is { IsEmpty: false } a ? a.Label : string.Empty;
+    /// <summary>执行体显示标签（无执行体 → 空串，模板可直接判空隐藏）。判据单源 = <see cref="HasActor"/>。</summary>
+    public string ActorLabel => HasActor ? Actor!.Value.Label : string.Empty;
+
+    /// <summary>执行体标签（无执行体 → <c>null</c>）—— 供可空承载面直接取用，消除调用方二次判空。</summary>
+    public string? ActorLabelOrNull => HasActor ? Actor!.Value.Label : null;
 
     /// <summary>质量/进度度量（无遥测为空字典，避免调用方判空）。</summary>
     public IReadOnlyDictionary<string, double> MetricsOrEmpty => Metrics ?? EmptyMetrics;

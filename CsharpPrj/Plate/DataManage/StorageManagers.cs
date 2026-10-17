@@ -101,7 +101,7 @@ namespace FrameManage.DataStorage
             }
             catch
             {
-                return default;
+                throw;
             }
         }
 
@@ -418,9 +418,9 @@ namespace FrameManage.DataStorage
                 string json = JsonSerializer.Serialize(data);
                 return System.Text.Encoding.UTF8.GetByteCount(json);
             }
-            catch
+            catch (Exception ex)
             {
-                return 0;
+                throw new JsonException($"无法测量数据大小（type={data.GetType().Name}）", ex);
             }
         }
     }

@@ -54,14 +54,10 @@ public sealed class HistoryPortRunStateSource : IRunStateSource
     {
         ArgumentNullException.ThrowIfNull(status);
 
-        // 阶段：以任务池状态文本为主；其为未运行占位而执行器状态有值时，取执行器状态（更具体的执行阶段）。
-        var stageText = status.Status;
-        if (RunStateStage.FromStatusText(stageText) == RunStateStage.Idle
-            && !string.IsNullOrWhiteSpace(status.ExecutorStatus))
-            stageText = status.ExecutorStatus;
-
+        // E7 修复（对称）：阶段文本口径与 AgentHistoryRuntimePort 侧一致 —— 直接取任务池状态，
+        // 不再对本来源单独施加「Idle 时改取 ExecutorStatus」的不对称启发式（消除「同一事实两路得不同 Stage」）。
         var actor = ActorRef.OrNull(actorKind, status.ExecutorId);
-        var state = LevelRunState.Snapshot(reference, stageText, status.Round, actor, status.Decision);
-        return state with { Actor = actor ?? state.Actor };
+        // R1 修复：Snapshot 已放入 actor，原紧随的 `with { Actor = actor ?? state.Actor }` 为恒等赋值，删除。
+        return LevelRunState.Snapshot(reference, status.Status, status.Round, actor, status.Decision);
     }
 }

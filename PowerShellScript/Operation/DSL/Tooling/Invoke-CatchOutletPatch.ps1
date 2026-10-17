@@ -37,6 +37,9 @@ param(
     [string]$Transform = 'rethrow',
     [switch]$Register,
     [string]$Owner = 'unassigned',
+    [string]$Reason = '',
+    [int[]]$Lines = @(),
+    [int[]]$SkipLines = @(),
     [int]$Limit = 20,
     [switch]$Apply,
     [string]$BackupDir = ''
@@ -54,7 +57,9 @@ if ([string]::IsNullOrWhiteSpace($BackupDir)) { $BackupDir = Join-Path $PSScript
 $triage = Get-Content -LiteralPath $TriageFile -Raw | ConvertFrom-Json
 $selected = @($triage.items | Where-Object {
         $_.candidate -and ($Class -contains $_.class) -and
-        ([string]::IsNullOrWhiteSpace($PathFilter) -or $_.file -like $PathFilter)
+        ([string]::IsNullOrWhiteSpace($PathFilter) -or $_.file -like $PathFilter) -and
+        ($Lines.Count -eq 0 -or $Lines -contains [int]$_.line) -and
+        ($SkipLines.Count -eq 0 -or $SkipLines -notcontains [int]$_.line)
     } | Select-Object -First $Limit)
 
 Write-Host ''
@@ -77,7 +82,7 @@ if ($Register) {
         $existing += [pscustomobject]@{
             id = "C2-$([guid]::NewGuid().ToString('N').Substring(0, 8))"
             type = 'C2'; file = "$($it.file):$($it.line)"; exit = 'N'
-            target = 'catch'; reason = "catch 出口登记（class=$($it.class)）"; owner = $Owner; expires = $null
+            target = 'catch'; reason = $(if ([string]::IsNullOrWhiteSpace($Reason)) { "catch 出口登记（class=$($it.class)）" } else { $Reason }); owner = $Owner; expires = $null
         }
         $added++
         Write-Host ("    [登记] {0}:{1} [{2}]" -f $it.file, $it.line, $it.class) -ForegroundColor Yellow
@@ -120,6 +125,13 @@ foreach ($g in ($selected | Group-Object file)) {
 
     foreach ($e in ($edits | Sort-Object Start -Descending)) {
         if ($Transform -eq 'rethrow') {
+            # 语义守卫：块体若已无条件转移控制（return/continue/break/goto），末尾插入 throw; 为不可达死代码
+            # ⇒ 计数会降而行为不变（假绿）。此类须手工把吞并语句改为 throw;，本件跳过并可见化。
+            $codeLines = @($lines[$e.Start..$e.End] | Where-Object { $_ -notmatch '^\s*(//|/\*|\*)' })
+            if (@($codeLines | Where-Object { $_ -match '\b(return|continue|break|goto)\b' }).Count -gt 0) {
+                Write-Host ("    !! 不可达（块体已含 return/continue/break/goto ⇒ 须手工改 throw;，跳过）{0}:{1}" -f $e.Item.file, $e.Item.line) -ForegroundColor Yellow
+                $skipped++; continue
+            }
             if ($e.Start -eq $e.End) {
                 $ln = $lines[$e.Start]; $idx = $ln.LastIndexOf('}')
                 if ($idx -lt 0) { $skipped++; continue }

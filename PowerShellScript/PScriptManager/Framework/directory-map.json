@@ -28,6 +28,7 @@
     "Declarations": ["Frame/PowerShellScript/Operation/DSL/Declarations"],
     "Node": ["Frame/PowerShellScript/Modules/Node", "Frame/PowerShellScript/Operation/DSL/Node"],
     "Parsing": ["Frame/PowerShellScript/Modules/Parsing"],
+    "KeySpace": ["Frame/PowerShellScript/Operation/DSL/KeySpace"],
     "Build": ["Projects/BuildFramework"]
   },
   "scriptNameOverrides": {

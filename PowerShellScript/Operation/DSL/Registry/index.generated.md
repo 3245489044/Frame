@@ -5,10 +5,11 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（36 件）
+## Agent（40 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
+| `ActionCatalogSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ActionCatalogSingleSource.ps1` |
 | `AgentBuildPoint` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentBuildPoint.ps1` |
 | `AgentDataSeparation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1` |
 | `AgentDecisionCoreBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1` |
@@ -20,6 +21,7 @@
 | `DbToolbarDictAlloc` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbToolbarDictAlloc.ps1` |
 | `DetailReadWriteSamePort` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DetailReadWriteSamePort.ps1` |
 | `DomainResolveSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DomainResolveSingleEntry.ps1` |
+| `EchoConstants` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EchoConstants.ps1` |
 | `EffectiveFace` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveFace.ps1` |
 | `EffectiveModeSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EffectiveModeSingleSource.ps1` |
 | `EntrySingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EntrySingleSource.ps1` |
@@ -29,6 +31,7 @@
 | `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
 | `HostAccessNoRestate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HostAccessNoRestate.ps1` |
 | `IntentMappingNoLiteral` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentMappingNoLiteral.ps1` |
+| `IntentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentParity.ps1` |
 | `IntentSupportsProjected` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentSupportsProjected.ps1` |
 | `LlmRoutingSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-LlmRoutingSurface.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-OperationRowCarriesActor.ps1` |
@@ -39,6 +42,7 @@
 | `RenderNoDomainBranch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RenderNoDomainBranch.ps1` |
 | `RowIdentityBareKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RowIdentityBareKey.ps1` |
 | `SaveDispatchNoDomainSwitch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SaveDispatchNoDomainSwitch.ps1` |
+| `ScriptNoFixedSleep` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ScriptNoFixedSleep.ps1` |
 | `SendDeclarationCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SendDeclarationCoverage.ps1` |
 | `TemplateAccessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TemplateAccessSingleEntry.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
@@ -77,6 +81,12 @@
 | `ClinerulesReferences` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1` |
 | `InitGuards` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1` |
 | `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
+
+## KeySpace（1 件）
+
+| Gate | Tier | Expect | 脚本 |
+|---|---|---|---|
+| `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
 ## Meta（11 件）
 

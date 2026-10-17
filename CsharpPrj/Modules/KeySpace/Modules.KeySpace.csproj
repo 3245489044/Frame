@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>键空间语义框架（KeySpace）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>键空间语义内核：键族/实体身份/三态值/集合规划与空集策略/端口契约/读写同源。建立在 Modules.Parsing.Keys（词法/文法）之上；领域无关、只依赖 BCL + Modules.Parsing.Keys 的语义层。</ModuleRule_Description>
+    <ModuleRule_Keywords>键空间;身份;三态;空集策略;端口契约;读写同源;单一实现</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="只允许引用 Modules.Parsing.Keys（BCL-only）；禁止引用 Operation/Share/Projects 任何程序集（D1/D2）" />
+    <ModuleRule_Rule Include="域词零字面量：框架源码不出现 history/task/session/resource 等具体键名（I10）" />
+    <ModuleRule_Rule Include="词法唯一：模板构造/反解/族判据/键序一律委托 Modules.Parsing.Keys，禁自建正则或 Split（I9）" />
+    <ModuleRule_Rule Include="空集必须显式策略：EmptySetPolicy 为必填参数，禁止静默 []（K4/I3）" />
+    <ModuleRule_Rule Include="三态禁止坍缩：键读取返回 KeyValue（Known/Unknown/NotApplicable），禁 default/空串冒充（K2/I1）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.KeySpace</RootNamespace>
+    <AssemblyName>Modules.KeySpace</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>键空间语义框架 — 身份/三态/集合策略/端口契约/读写同源（仅依赖 Modules.Parsing.Keys）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Parsing_Keys)" />
+  </ItemGroup>
+
+</Project>

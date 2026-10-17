@@ -47,6 +47,8 @@
     <ProjectReference Include="$(Proj_ParameterResolver)" />
     <ProjectReference Include="$(Proj_WinFormsValueContract)" />
     <ProjectReference Include="$(Proj_InternalStorage)" />
+    <!-- 键空间语义框架（Modules\KeySpace，仅依赖 Parsing.Keys）：键族/身份/三态/集合策略/端口契约 -->
+    <ProjectReference Include="$(Proj_KeySpace)" />
     <ProjectReference Include="$(Proj_ValidationFramework)" />
     <ProjectReference Include="$(Proj_Observe)" />
   </ItemGroup>
@@ -68,6 +70,7 @@
     <Compile Remove="Threading\**\*.cs" />
     <Compile Remove="ParameterResolver\**\*.cs" />
     <Compile Remove="InternalStorage\**\*.cs" />
+    <Compile Remove="KeySpace\**\*.cs" />
     <Compile Remove="ValidationFramework\**\*.cs" />
     <Compile Remove="EventFramework\**\*.cs" />
     <Compile Remove="Observe\**\*.cs" />

@@ -800,6 +800,14 @@
     }
 
     # ===== 呈现链聚拢点 · 剩余未完成项 通用框架化（F2–F6）=====
+    KeySpaceCoverage = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '键空间框架（Modules.KeySpace）：KS2 三态禁坍缩 / KS4 词法唯一 / KS5 域词隔离 / KS6 诊断码登记 / KS7 族注册唯一 / KS8 负对照'
+    }
+
     SendDeclarationCoverage = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

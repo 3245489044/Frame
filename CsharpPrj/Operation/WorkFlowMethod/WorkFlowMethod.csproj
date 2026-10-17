@@ -43,6 +43,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_BasicMethod)" />
+    <!-- 键空间语义框架（层 4 → 层 2 向下引用，合法）：三态读/身份判等/集合策略/端口契约 -->
+    <ProjectReference Include="$(Proj_KeySpace)" />
     <!-- FunctionExecution、GraphFoundation 已整合到 BasicMethod.csproj -->
 
     <ProjectReference Include="$(Proj_GraphProcessing)" />

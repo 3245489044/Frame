@@ -1,0 +1,79 @@
+using Modules.KeySpace.Abstractions;
+using Modules.KeySpace.Model;
+using Modules.Parsing.Keys;
+
+namespace Modules.KeySpace.Rules;
+
+/// <summary>
+/// 实体判等（唯一实现）：先按反解后的结构字段比较（同名占位符 + 同值 ⇒ 同一实体），
+/// 再回落到原值 Ordinal 相等。禁止 StartsWith / 前缀猜（I6）。
+/// </summary>
+public sealed class KeyEquivalence : IKeyEquivalence
+{
+    private readonly KeyGrammarRegistry _registry;
+
+    public KeyEquivalence(IKeySpaceDeclaration declaration, IKeyGrammarDiagnostics? diagnostics = null)
+    {
+        ArgumentNullException.ThrowIfNull(declaration);
+        _registry = KeyFamilyRules.BuildRegistry(declaration, diagnostics);
+    }
+
+    public bool SameEntity(KeyRef left, KeyRef right)
+    {
+        if (left.IsEmpty || right.IsEmpty)
+        {
+            return false;
+        }
+
+        if (string.Equals(left.Value, right.Value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // 结构判等：同一占位名 + 同一值（如 a:{id} 与 b:{id}）。
+        if (!_registry.TryParse(left.Value, out _, out var leftValues, out _))
+        {
+            return false;
+        }
+
+        if (!_registry.TryParse(right.Value, out _, out var rightValues, out _))
+        {
+            return false;
+        }
+
+        var leftPresent = leftValues.Present();
+        foreach (var pair in leftPresent)
+        {
+            if (rightValues.Present().TryGetValue(pair.Key, out var rightValue) &&
+                string.Equals(pair.Value, rightValue, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsSelf(KeyRef key, KeyEntity self)
+    {
+        if (self is null || key.IsEmpty)
+        {
+            return false;
+        }
+
+        if (string.Equals(key.Value, self.Id, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        foreach (var alias in self.Aliases)
+        {
+            if (SameEntity(key, alias))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

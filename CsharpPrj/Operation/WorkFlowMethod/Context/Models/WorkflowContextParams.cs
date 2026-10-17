@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Globalization;
+using Modules.KeySpace.Diagnostics;
+using Modules.KeySpace.Model;
 using WfContext = WorkFlowMethod.Orchestration.Context.Models.WorkflowContext;
 
 namespace WorkFlowMethod.Orchestration.Context.Models;
@@ -27,6 +29,24 @@ public static class WorkflowContextParams
            && value is not null
             ? value.ToString() ?? string.Empty
             : string.Empty;
+
+    /// <summary>
+    /// 三态读取（键空间 I1）：缺键 / null ⇒ <see cref="KeyValueState.Unknown"/>，不再以空串冒充「存在且为空」。
+    /// 旧 <see cref="Get"/> 保留用于兼容调用点（P1 影子，行为不变）。
+    /// </summary>
+    public static KeyValue<string> TryRead(WfContext? context, string name)
+    {
+        var key = KeyRef.Of("workflow.parameter", name);
+        if (context is not null
+            && context.Parameters.TryGetValue(name, out var value)
+            && value is not null)
+        {
+            return KeyValue<string>.Known(value.ToString() ?? string.Empty);
+        }
+
+        return KeyValue<string>.Unknown(
+            KeyReasonCodes.DeclaredMissing, $"工作流入参未命中: {name}", key);
+    }
 
     /// <summary>取整型入参（不可解析 ⇒ <paramref name="fallback"/>）。</summary>
     /// <param name="context">工作流上下文（可空）。</param>

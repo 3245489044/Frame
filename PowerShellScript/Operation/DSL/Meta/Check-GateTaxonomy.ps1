@@ -51,7 +51,7 @@ $manifestPath = Join-Path $PSScriptRoot '..\Registry\GateManifests.psd1'
 $indexPath    = Join-Path $PSScriptRoot '..\Registry\index.generated.md'
 
 # 分类轴枚举（唯一定义点；与 Build-GateIndex.ps1 的 Domain 值域一致）
-$domainEnum = @('Meta', 'Agent', 'Node', 'Parsing', 'Data', 'Spec', 'Process', 'Usharp', 'Declarations', 'Build')
+$domainEnum = @('Meta', 'Agent', 'Node', 'Parsing', 'Data', 'Spec', 'Process', 'Usharp', 'Declarations', 'Build', 'KeySpace')
 
 # 伴随件白名单：DSL 目录内存在但未登记为独立门的 Check-*.ps1（fail-loud：新增未登记件须显式登记或入白名单）
 $companionAllowlist = @{

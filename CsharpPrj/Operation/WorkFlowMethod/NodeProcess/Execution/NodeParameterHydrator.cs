@@ -1,7 +1,12 @@
 #region USINGS
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GraphFramework.Snapshots;
+using Modules.KeySpace.Model;
+using Modules.KeySpace.Runtime;
 using Modules.Node.Ports;
+using WorkFlowMethod.Diagnostics;
 using WorkflowExecution.Pipeline;
 using WorkFlowMethod.Execution.Session;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
@@ -20,9 +25,17 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
     /// </summary>
     public static class NodeParameterHydrator
     {
+        public static Task HydrateCurrentNodeAsync(
+            WfPipelineContext context,
+            INodeOutputStore store,
+            CancellationToken ct = default)
+            => HydrateCurrentNodeAsync(context, store, contracts: null, ct: ct);
+
+        /// <summary>契约驱动水化：Required 输出缺失 ⇒ 诊断并中止本节点水化（不写半套参数）。</summary>
         public static async Task HydrateCurrentNodeAsync(
             WfPipelineContext context,
             INodeOutputStore store,
+            IReadOnlyList<PortContract>? contracts,
             CancellationToken ct = default)
         {
             var nodeKey = context.CurrentNodeKey;
@@ -38,6 +51,21 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 
             var node = await store.TryGetNodeOutputAsync(executionId, nodeKey, ct).ConfigureAwait(false);
             if (node is null) return;
+
+            // 未显式传契约 ⇒ 从图快照的当前 NodeConfig 投影（声明面单源）。
+            var snapshot = context.GetGraphSnapshot<GraphSnapshot<string, NodeConfig, object>>();
+            var effectiveContracts = contracts ?? NodePortContractRegistry.ForNode(snapshot?.GetNodeData(nodeKey));
+            if (effectiveContracts is { Count: > 0 })
+            {
+                var binding = new KeyBinder().BindOut(effectiveContracts, node.OutputPorts);
+                if (binding.RequiredMissing)
+                {
+                    WorkFlowMethodLog.Warn(
+                        "NodePortHydrator",
+                        $"port.required-missing: 节点 '{nodeKey}' 的 Required 输出缺失，中止入参水化", nodeKey);
+                    return;
+                }
+            }
 
             // 键空间规则唯一实现 = Modules.Node.Ports.PortKeySpace（与读视图同一实现，E1/G2）：
             // 既有参数键先回放进同一键空间（裸键登记为已占用），再按规则准入本节点端口——

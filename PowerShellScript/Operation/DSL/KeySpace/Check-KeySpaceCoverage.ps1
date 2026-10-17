@@ -74,8 +74,9 @@ foreach ($file in $sources) {
     }
 }
 
-# KS1：端口契约（声明族命中 + .ushar [Node] 端口名可解析）
+# KS1：端口契约（声明族命中 + .ushar [Node] 端口名可解析 + 端口全集覆盖）
 $workflowDir = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
+$portKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 if (Test-Path -LiteralPath $declarationPath) {
     $declaration = Get-Content -LiteralPath $declarationPath -Raw | ConvertFrom-Json
     $familyIds = @($declaration.families | ForEach-Object { [string]$_.id })
@@ -86,6 +87,8 @@ if (Test-Path -LiteralPath $declarationPath) {
         if (-not $familySet.Contains([string]$port.familyId)) {
             $violations.Add("KS1 端口 '$($port.name)' 指向未声明族 '$($port.familyId)'")
         }
+
+        [void]$portKeys.Add("$([string]$port.direction)|$([string]$port.name)")
     }
 }
 
@@ -100,11 +103,18 @@ if (Test-Path -LiteralPath $workflowDir) {
             if ($trimmed -notmatch 'fn=') {
                 $violations.Add("KS1 [Node] 缺 fn=（$($file.Name):$lineNo）")
             }
-            foreach ($m in [regex]::Matches($trimmed, '(?:inports|outports)=([^|]+)')) {
-                foreach ($token in ($m.Groups[1].Value -split ',')) {
+            foreach ($m in [regex]::Matches($trimmed, '(inports|outports)=([^|]+)')) {
+                $direction = if ($m.Groups[1].Value -eq 'inports') { 'In' } else { 'Out' }
+                foreach ($token in ($m.Groups[2].Value -split ',')) {
                     $name = $token.Trim()
-                    if ($name.Length -gt 0 -and $name -notmatch $portPattern) {
+                    if ($name.Length -eq 0) { continue }
+                    if ($name -notmatch $portPattern) {
                         $violations.Add("KS1 端口名非法 '$name'（$($file.Name):$lineNo）")
+                    }
+
+                    # KS1b：每个声明端口都必须有显式契约（方向 + 名称）。
+                    if (-not $portKeys.Contains("$direction|$name")) {
+                        $violations.Add("KS1b 端口契约缺失 [$direction] '$name'（$($file.Name):$lineNo）")
                     }
                 }
             }
@@ -145,6 +155,11 @@ if ($NegativeControl) {
     $hitKs5 = $sample -match '(?i)\b(history|task|session|resource)\b'
     if (-not ($hitKs2 -and $hitKs5)) {
         $violations.Add('KS8 负对照未捕获（判据空转）：KS2/KS5 未命中合成样本')
+    }
+
+    # KS1b 负对照：契约集合必须非空，且合成缺失项必须判为「不在集合内」。
+    if ($portKeys.Count -eq 0 -or $portKeys.Contains('In|__ks1b_missing__')) {
+        $violations.Add('KS8 负对照未捕获（判据空转）：KS1b 契约集合为空或合成样本误命中')
     }
 }
 

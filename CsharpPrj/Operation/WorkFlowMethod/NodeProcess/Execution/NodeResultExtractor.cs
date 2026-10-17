@@ -4,6 +4,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Modules.KeySpace.Model;
+using Modules.KeySpace.Runtime;
 using Modules.Node.Ports;
 using WorkFlowMethod.Skeletons.NodeProcess.Diagnostics;
 using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
@@ -106,9 +108,54 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             return props;
         }
 
+        /// <summary>
+        /// 契约驱动的输出提取（通用实现 = <see cref="KeyBinder.BindOut"/>）：Required 缺失可见，
+        /// Optional 缺失不产槽位；契约未覆盖时由调用方回落旧推断路径。
+        /// </summary>
+        public static Dictionary<string, object?> ExtractResultKeys(
+            IEnumerable<string>? resultKeys,
+            object? result,
+            IReadOnlyList<PortContract> contracts)
+        {
+            if (contracts.Count == 0)
+            {
+                return ExtractResultKeys(resultKeys, result);
+            }
+
+            var props = new Dictionary<string, object?>(StringComparer.Ordinal);
+            if (result is null)
+            {
+                return props;
+            }
+
+            var lookup = BuildLookup(result);
+            var binding = new KeyBinder().BindOut(contracts, lookup);
+            if (binding.RequiredMissing)
+            {
+                WorkFlowMethod.Diagnostics.WorkFlowMethodLog.Warn(
+                    "NodePort", "port.required-missing: 契约声明的 Required 输出端口未产出", null);
+            }
+
+            foreach (var pair in binding.Values)
+            {
+                if (pair.Value.State == KeyValueState.Known && pair.Value.Value is not null)
+                {
+                    props[pair.Key] = pair.Value.Value;
+                }
+            }
+
+            return props;
+        }
+
         /// <summary>按 <see cref="NodeConfig"/> 结果键配置提取（ResultKeys 为字符串，做宽松归一化解析；config 可空）。</summary>
         public static Dictionary<string, object?> ExtractResultKeys(NodeConfig? config, object? result)
-            => ExtractResultKeys(NormalizeResultKeys(config?.funcPipelineConfig?.ResultKeys), result);
+        {
+            var keys = NormalizeResultKeys(config?.funcPipelineConfig?.ResultKeys);
+            var contracts = NodePortContractRegistry.ForNode(config);
+            return contracts.Count > 0
+                ? ExtractResultKeys(keys, result, contracts)
+                : ExtractResultKeys(keys, result);
+        }
 
         /// <summary>宽松归一化：剥离 JSON 引号/外部括号后按逗号切分，过滤空白。兼容 "\"r1\"" 与 "a,b"。</summary>
         internal static IEnumerable<string> NormalizeResultKeys(string? raw)

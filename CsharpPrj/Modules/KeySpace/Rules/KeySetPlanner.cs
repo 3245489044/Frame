@@ -82,6 +82,7 @@ public sealed class KeySetPlanner : IKeySetPlanner
 
         var reason = BuildReason(targets.Count, blank, self, duplicate, cap, unparsable, input);
         return new KeySetPlan(targets, reason, input.EmptyPolicy, blank, self, duplicate, cap, unparsable);
+        // 说明：targets 为 KeyRef（族 = 声明 id；值 = 原字符串），调用方按需取 Value。
     }
 
     private static string BuildReason(

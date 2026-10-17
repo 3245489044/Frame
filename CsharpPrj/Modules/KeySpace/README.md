@@ -36,6 +36,19 @@ var plan = facade.PlanSet(new KeySetPlanInput(
     Declaration: declaration));
 ```
 
+## 已接入消费方（单源清单）
+
+| 消费方 | 用法 |
+|---|---|
+| `Agent.Session.Keys.AgentKeySpaceDeclaration` | 声明单源：`Config/keyspaces/agent.keyspace.json` → `KeySpaceDeclaration`（缺失/非法回退内置并暴露诊断） |
+| `Agent.Session.Keys.AgentKeySpacePolicy` | 空集策略解析（委托声明，无第二份策略字典） |
+| `Agent.Session.Keys.NodePortContractCatalog` / `Modules.KeySpace.Rules.PortContractRules` | 节点声明键 → `PortContract`（端口契约唯一投影） |
+| `Agent.Session.Dispatch.TargetSetPlanner` | 目标集规划委托 `KeySetPlanner`（实体判等/保序去重/上限/空集策略） |
+| `Agent.Session.Contracts.KeySet` / `Projection.HistoryMemberSetReader` | 去自身与自身判定统一走 `KeyEquivalence` |
+| `WorkFlowMethod.NodeProcess.Execution.NodeResultExtractor` / `NodeParameterHydrator` | 契约驱动 `KeyBinder`（Required 缺失可见） |
+| `WorkFlowMethod.NodeProcess.Execution.NodePortContractRegistry` | 运行期契约宿主（声明源 = `KeySpaceHost`） |
+| `Agent.Modules.NodeSpec.NodeScopeGuard` | 域归属优先经 `IKeyClassifier`，不可判时回退声明面前缀 |
+
 ## 纪律（门禁 `KeySpaceCoverage`）
 
 - KS1 端口契约族命中 / `.ushar` 端口名可解析

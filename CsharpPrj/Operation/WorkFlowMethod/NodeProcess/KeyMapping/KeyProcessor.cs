@@ -13,7 +13,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.KeyMapping
     {
         #region 层次化键格式（声明单源，运行期只读）
 
-        /// <summary>层次化键格式声明（唯一来源；注入 = 传参覆盖，不引入可变进程静态，治 P14）。</summary>
+        /// <summary>层次化键格式声明（唯一来源；显式参数注入，不引入可变进程静态，治 P14）。</summary>
         public static KeyHierarchyFormat HierarchyFormat { get; } = KeyHierarchyFormat.CompatibleDefault;
 
         public static string HierarchyNumberFormat => HierarchyFormat.NumberFormat;

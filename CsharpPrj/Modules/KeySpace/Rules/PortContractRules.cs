@@ -1,3 +1,4 @@
+using Modules.KeySpace.Abstractions;
 using Modules.KeySpace.Model;
 
 namespace Modules.KeySpace.Rules;
@@ -8,6 +9,52 @@ namespace Modules.KeySpace.Rules;
 /// </summary>
 public static class PortContractRules
 {
+    /// <summary>
+    /// 按节点声明的入/出键集合投影契约：声明面已有条目优先，未登记键回退为 Optional（族 = 端口族）。
+    /// <para>找不到端口族时回退到首个已声明族；声明为空 ⇒ 空契约（调用方走旧推断路径）。</para>
+    /// </summary>
+    public static IReadOnlyList<PortContract> ForKeys(
+        IKeySpaceDeclaration declaration,
+        IEnumerable<string>? parameterKeys,
+        IEnumerable<string>? resultKeys)
+    {
+        ArgumentNullException.ThrowIfNull(declaration);
+        var contracts = new List<PortContract>();
+        var seen = new HashSet<(PortDirection, string)>();
+
+        Append(parameterKeys, PortDirection.In);
+        Append(resultKeys, PortDirection.Out);
+        return contracts;
+
+        void Append(IEnumerable<string>? keys, PortDirection direction)
+        {
+            foreach (var raw in keys ?? Array.Empty<string>())
+            {
+                var name = raw?.Trim();
+                if (string.IsNullOrEmpty(name) || !seen.Add((direction, name)))
+                {
+                    continue;
+                }
+
+                var declared = declaration.Ports.FirstOrDefault(
+                    port => port.Direction == direction && string.Equals(port.Name, name, StringComparison.Ordinal));
+                contracts.Add(declared ?? new PortContract(
+                    name,
+                    direction,
+                    PortFamilyOf(declaration),
+                    Required: false,
+                    DefaultValue: null,
+                    KeyCardinality.One));
+            }
+        }
+    }
+
+    private static string PortFamilyOf(IKeySpaceDeclaration declaration)
+        => declaration.Families.FirstOrDefault(
+               family => string.Equals(family.Template, "{port}", StringComparison.Ordinal))?.Id
+           ?? declaration.Families.FirstOrDefault()?.Id
+           ?? "port";
+
     public static IReadOnlyList<PortContract> OfDirection(
         IEnumerable<PortContract> ports, PortDirection direction)
         => (ports ?? Array.Empty<PortContract>())

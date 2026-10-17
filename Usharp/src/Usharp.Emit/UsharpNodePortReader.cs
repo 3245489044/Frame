@@ -21,7 +21,8 @@ public sealed record UsharpNodeSpec(
     string? Kind = null,
     string? Skill = null,
     string? Llm = null,
-    string? DeclaredFn = null);
+    string? DeclaredFn = null,
+    string? Executor = null);
 
 /// <summary>
 /// <c>[Node]</c> 可执行体读取器：端口经既有 <see cref="ResourceNodeType.ParsePorts"/> 解析（单一口径），
@@ -55,6 +56,8 @@ public static class UsharpNodePortReader
             // skill=/llm=（执行体归属三态）：引用 [Skill] / [LLMDecl] 名；与 fn= 互斥完备（闸A US7802）。
             var skill = decl.Field("skill");
             var llm = decl.Field("llm");
+            // executor=（执行单元）：折叠引擎执行端名；与 fn=（注册函数名）分属两套命名空间。
+            var executor = decl.Field("executor");
             map.TryAdd(decl.Name, new UsharpNodeSpec(
                 decl.Name,
                 string.IsNullOrWhiteSpace(fn) ? decl.Name : fn.Trim(),
@@ -66,7 +69,8 @@ public static class UsharpNodePortReader
                 string.IsNullOrWhiteSpace(skill) ? null : skill.Trim(),
                 string.IsNullOrWhiteSpace(llm) ? null : llm.Trim(),
                 // 显式 fn=（**未声明 ⇒ null**）——「缺省 FuncName=节点名」不是声明，禁据此判为执行体归属。
-                string.IsNullOrWhiteSpace(fn) ? null : fn.Trim()));
+                string.IsNullOrWhiteSpace(fn) ? null : fn.Trim(),
+                string.IsNullOrWhiteSpace(executor) ? null : executor.Trim()));
         }
         return map;
     }

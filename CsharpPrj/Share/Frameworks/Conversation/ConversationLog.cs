@@ -123,7 +123,7 @@ public sealed class ConversationLog
 
     /// <summary>最近 <paramref name="count"/> 条非 System 消息（窗口语义唯一实现：压缩 / 窗口 / 上下文渲染共用）。</summary>
     private IEnumerable<ConversationMessage> RecentNonSystem(int count)
-        => _messages.Where(m => m.Role != ConversationRole.System).TakeLast(Math.Max(1, count));
+        => WindowSlice.TakeLast(_messages.Where(m => m.Role != ConversationRole.System), count);
 
     /// <summary>渲染最近 <paramref name="window"/> 条（非 System）为 LLM 上下文；includeSystem 前置系统消息。</summary>
     public string ToPromptText(int window, bool includeSystem = true)

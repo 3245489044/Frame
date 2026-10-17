@@ -77,6 +77,14 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
     public string? Llm { get; init; }
 
     /// <summary>
+    /// 声明式执行单元（<c>[Node] executor=</c>）：进程内折叠执行端名（<c>IFoldInProcessExecutor.Name</c>）。
+    /// <para>与 <see cref="Fn"/> 分离：<see cref="Fn"/> = 注册工作流函数名（RoundStepInvoker 轴），
+    /// 本属性 = 折叠引擎执行端名（SkConversationFoldOperator 轴）。缺省 null ⇒ 解析侧回退 <see cref="Fn"/>。</para>
+    /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。
+    /// </summary>
+    public string? Executor { get; init; }
+
+    /// <summary>
     /// 入史标记声明（CP-4 声明面）：<c>Numbered</c>（显式声明中间节点入史，供分层气泡）/ <c>None</c> / <c>Terminal</c>；
     /// 缺省 null = 由 <c>HistoryMarkPolicy</c> 默认规则裁决（终答默认 Terminal，其余 None）。
     /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。

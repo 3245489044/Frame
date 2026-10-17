@@ -88,6 +88,7 @@ public static class UsharpRoundSpecEmitter
             Fn = node.DeclaredFn,
             Skill = node.Skill,
             Llm = node.Llm,
+            Executor = node.Executor,
         };
 
     /// <summary>解析 <c>success=</c> 字段（<c>run_to_end</c> → RunToEnd；<c>decision</c>/缺省 → DecisionWord；未知值报 US5003 并回退 DecisionWord）。</summary>

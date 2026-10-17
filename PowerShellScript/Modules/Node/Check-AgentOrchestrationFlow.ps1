@@ -321,13 +321,17 @@ foreach ($k in $roundKeyConsts.Keys) { if (-not $keyValueToName.ContainsKey($rou
 $seedNames = [System.Collections.Generic.HashSet[string]]::new()
 if (Test-Path -LiteralPath $seedCatalogFile) {
     $catalogRaw = Get-Content -LiteralPath $seedCatalogFile -Raw
-    $compatMatch = [regex]::Match($catalogRaw, 'CompatSeedKeys\s*=\s*\{(?<body>.*?)\};', 'Singleline')
-    if ($compatMatch.Success) {
-        foreach ($m in [regex]::Matches($compatMatch.Groups['body'].Value, 'RoundKeys\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
+    $seedBlocks = 0
+    foreach ($block in @('StandardSeedKeys', 'CompatSeedKeys')) {
+        $blockMatch = [regex]::Match($catalogRaw, "$block\s*=\s*\{(?<body>.*?)\};", 'Singleline')
+        if (-not $blockMatch.Success) { continue }
+        $seedBlocks++
+        foreach ($m in [regex]::Matches($blockMatch.Groups['body'].Value, 'RoundKeys\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
             [void]$seedNames.Add($m.Groups['n'].Value)
         }
-    } else {
-        $violations.Add("E10 判据面缺失：RoundStateKeyCatalog 未找到 CompatSeedKeys 声明块")
+    }
+    if ($seedBlocks -eq 0) {
+        $violations.Add("E10 判据面缺失：RoundStateKeyCatalog 未找到 StandardSeedKeys / CompatSeedKeys 声明块")
     }
 } else {
     $violations.Add("E10 判据面缺失：$seedCatalogFile")
@@ -418,6 +422,31 @@ if (-not (Test-Path -LiteralPath $declaredManifestFile)) {
     }
 }
 
+# ---------------- E14 执行单元声明（executor=：外部步骤必填且可解析） ----------------
+# 判据：session-*.ushar 中 kind=external 的 [Node] 必须声明 executor=，且该名 ∈ 进程内执行端名集合
+#      （集合来源 = Agent.Modules/**/*FoldExecutor.cs 的 Name => "..." 字面量；未登记 ⇒ 装配期即红）。
+$e14Checked = 0
+$executorNames = @()
+foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules') -Recurse -Filter '*FoldExecutor.cs' -File -ErrorAction SilentlyContinue)) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $f.FullName -Raw), 'Name\s*=>\s*"([A-Za-z_][A-Za-z0-9_]*)"')) {
+        $executorNames += $m.Groups[1].Value
+    }
+}
+foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\Config\workflows') -Filter 'session-*.ushar' -File -ErrorAction SilentlyContinue)) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $file.FullName -Raw), '\[Node\]\s*(?<id>[A-Za-z_][A-Za-z0-9_]*)\s*:(?<attrs>[^\r\n]*)')) {
+        $attrs = $m.Groups['attrs'].Value
+        if ($attrs -notmatch 'kind=external') { continue }
+        $e14Checked++
+        $exMatch = [regex]::Match($attrs, 'executor=(?<ex>[A-Za-z_][A-Za-z0-9_]*)')
+        if (-not $exMatch.Success) {
+            $violations.Add("E14 external 步骤未声明 executor=：$($file.Name) → $($m.Groups['id'].Value)")
+        } elseif ($executorNames -notcontains $exMatch.Groups['ex'].Value) {
+            $violations.Add("E14 executor 未登记：$($file.Name) → $($m.Groups['id'].Value) → $($exMatch.Groups['ex'].Value)")
+        }
+    }
+}
+if ($e14Checked -eq 0) { $violations.Add('E14 正对照失效：未扫描到 kind=external 步骤（声明面被删？）') }
+
 # ---------------- E8 正对照 ----------------
 if ($flowIds.Count -lt $DeclaredFlowCountBaseline) {
     $violations.Add("E8 正对照失效：声明流 $($flowIds.Count) < 基线 $DeclaredFlowCountBaseline（声明被删？）")
@@ -457,16 +486,16 @@ if ($ShowDetail -or -not $ok) {
     Write-Host ""
     Write-Host ("  E1 编译通过 {0}/{1} · E2 对账 {2} · E3 对账 {3} · E5 单步体 {4} · E6 锚点 {5}/{6} · E7 静默点 {7}" -f `
         $e1Pass, $newDeclarationFiles.Count, $e2Checked, $e3Checked, $e5Checked, $e6Hits, $carrierAnchors.Count, $silentHits) -ForegroundColor Gray
-    Write-Host ("  E10 入参对账 {0} · E11 调用点 {1} · E12 命名空间取值点 {2} · E13 双源对账 {3}" -f `
+    Write-Host ("  E10 入参对账 {0} · E11 调用点 {1} · E12 命名空间取值点 {2} · E13 双源对账 {3} · E14 执行单元 {4}" -f `
         $e10Checked,
         (($CallSiteBaselines.Keys | ForEach-Object { "$_=$($callSiteCounts[$_])/$($CallSiteBaselines[$_])" }) -join ' '),
         (($NamespaceBaselines.Keys | ForEach-Object { "$_=$($namespaceCounts[$_])/$($NamespaceBaselines[$_])" }) -join ' '),
-        $e13Checked) -ForegroundColor Gray
+        $e13Checked, $e14Checked) -ForegroundColor Gray
 }
 
 if ($ok) {
     Write-Host ""
-    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E13）" -ForegroundColor Green
+    Write-Host "  [PASS] 编排归流守卫：0 违规（E1–E14）" -ForegroundColor Green
     Write-Host ""
     exit 0
 }

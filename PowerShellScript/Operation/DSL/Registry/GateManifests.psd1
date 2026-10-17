@@ -840,5 +840,37 @@
         Note   = '模板访问单入口（F6）：除 ConversationTemplates 自身外直取 HtmlUiHost.Templates = 0 ∧ ConversationTemplates.Resolve 在位；正/负对照'
     }
 
+    IntentParity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'IEF 写读同源对账：history.link 写面 = graph:history_owns_task（读面绑定同一写面）∧ 后端调用注入写原语 ∧ 禁 no-op 成功 ∧ 探针单源(backend.Supports) ∧ 注册表键集=已实现 handler 集 ∧ 正/负对照'
+    }
+
+    ActionCatalogSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '动作目录单源：运行期 CommandSystemCoordinator.RegisteredActions → 加载期 CommandLineValidator.SetRegisteredCommands 投影（FileDrivenPipelineRunner 恒注入）∧ wait-until 能力在位 ∧ 正/负对照'
+    }
+
+    EchoConstants = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '回显投影单源：写面回显禁叙事常量（Task.FromResult("已…")）∧ 必须经 OutcomeEchoProjector 输出 decision/wrote ∧ 正对照保留会话渲染映射'
+    }
+
+    ScriptNoFixedSleep = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '脚本禁固定等待：action=sleep 且 target ≥ 1000ms = 0（失败须落在强判据，禁「未跑完」）∧ wait-until 有界轮询能力在位（WaitUntilSystem 注册）∧ 正/负对照'
+    }
+
 }
 

@@ -157,7 +157,8 @@ public static class DeclaredBundleBuilder
                     step.Key,
                     spec?.FuncName ?? step.Key,
                     spec?.InputPorts ?? Array.Empty<string>(),
-                    spec?.OutputPorts ?? Array.Empty<string>()));
+                    spec?.OutputPorts ?? Array.Empty<string>(),
+                    spec?.Executor));
             }
 
             flows.Add(new ManifestFlow(
@@ -248,7 +249,7 @@ public static class DeclaredBundleBuilder
         string File, string FlowId, string? Over, string? Success, IReadOnlyList<ManifestStep> Steps);
 
     private sealed record ManifestStep(
-        string Key, string Fn, IReadOnlyList<string> Inports, IReadOnlyList<string> Outports);
+        string Key, string Fn, IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, string? Executor = null);
 
     private sealed record ManifestNode(
         string File, string Name, string Fn, string? Kind,

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using ECS.Core;
 using FrameworkAbstractions.ComponentRegistry;
 using BackEndDriven.Diagnostics;
@@ -43,6 +44,7 @@ public class CommandSystemCoordinator
         RegisterSystem(new ListSystem(_entityManager));
         RegisterSystem(new LoadSystem(_entityManager));
         RegisterSystem(new ExecSystem(_entityManager));
+        RegisterSystem(new WaitUntilSystem(_entityManager));
         RegisterSystem(new ExitSystem(_entityManager));
         RegisterSystem(new ShowSystem(_entityManager));
         RegisterSystem(new LookSystem(_entityManager));
@@ -63,6 +65,12 @@ public class CommandSystemCoordinator
             _systems[action] = system;
         }
     }
+
+    /// <summary>
+    /// 已注册动作集（运行期真实注册表 = 单一权威）：加载期校验器经此投影，
+    /// 禁再维护第二张手写动作白名单（新增 action = 只改 RegisterSystem 一行）。
+    /// </summary>
+    public IReadOnlyCollection<string> RegisteredActions => _systems.Keys.ToArray();
 
     /// <summary>挂接运行期实时错误/慢-卡死遥测（null 关闭；由装配方按驱动需要启用）。</summary>
     public void AttachTelemetry(ICommandTelemetry? telemetry)

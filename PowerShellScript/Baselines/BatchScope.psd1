@@ -238,7 +238,7 @@
     #   切换理由 = 用户转入实施 P3+P4（单状态源/兜底收编 + 追踪与日志收尾）。
     # Manifest(v37)... P0/TOOL/FRAME/P1/P2 批条目不变。
     # Manifest(v33) = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Usharp交汇面聚拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Share通用刷新管理框架-收拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-IEF通用框架与wait-until解锁.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

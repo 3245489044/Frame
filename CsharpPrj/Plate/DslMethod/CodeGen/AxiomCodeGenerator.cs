@@ -73,7 +73,8 @@ public sealed class AxiomCodeGenerator
                 : (list.FirstOrDefault(c => c.Level == canonical).Decl ?? list.MinBy(c => c.Level).Decl);
 
             var axis = AxisOf(chosen, name, opts);
-            var content = Render(chosen, canonical, axis);
+            // 生成产物须跨平台逐字节一致：契约参考产物按 LF 提交，StringBuilder.AppendLine 的平台换行归一为 LF。
+            var content = Render(chosen, canonical, axis).Replace("\r\n", "\n", StringComparison.Ordinal);
 
             var dir = Path.Combine(outDir, canonical.ToFolder());
             Directory.CreateDirectory(dir);

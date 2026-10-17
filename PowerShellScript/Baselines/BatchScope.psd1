@@ -238,7 +238,14 @@
     #   切换理由 = 用户转入实施 P3+P4（单状态源/兜底收编 + 追踪与日志收尾）。
     # Manifest(v37)... P0/TOOL/FRAME/P1/P2 批条目不变。
     # Manifest(v33) = @{ Value = 'Docs\analysis\2026\10\10.15\2026-10-15-Usharp交汇面聚拢.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-IEF通用框架与wait-until解锁.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v39（2026-10-17）：单指针切换至「未知智能体与 Modules 分层——剩余未完项」计划授权单（active=[A1..A5,V1]）。
+    #   切换理由 = 用户转入实施该规划；本系列改动落在 Projects/Plug/Agent/src（U02/U03/U05/U06/U07/U11–U13）·
+    #   Projects/Vm（U01）· Projects/FileDriven（U01）· Frame/PowerShellScript（U08/U09 门禁与基线）·
+    #   Environment/CentralTest（回归/验收），均在新单 allowSet 内。当前子模块在途改动（F1/E8–E12 已完成面 +
+    #   nodes.json + agent 数据目录）按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 IEF 系列 = 回填下一行 v38 的 Value（上方注释保留 IEF 单原值）。
+    # Manifest(v38) = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-IEF通用框架与wait-until解锁.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-未知智能体剩余项.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

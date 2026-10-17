@@ -92,7 +92,7 @@ public static class NodeRelationDeriver
     /// 端点 Id 以声明记录的 ResourceType + Id 为准（预声明可指向尚未执行的节点，不依赖执行溯源）。</summary>
     public static NodeRelation? DeriveEdgeFromDeclaration(string workflowId, RelationDeclaration declaration)
     {
-        if (declaration is null || !declaration.IsActive) return null;
+        if (declaration is null) return null;
         var source = declaration.Source ?? new RelationEndpoint();
         var target = declaration.Target ?? new RelationEndpoint();
         if (string.IsNullOrWhiteSpace(source.Id) || string.IsNullOrWhiteSpace(target.Id)) return null;

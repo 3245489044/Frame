@@ -24,4 +24,7 @@ public sealed record EdgeDoc
 
     /// <summary>边强度。</summary>
     public double Strength { get; init; } = 1.0;
+
+    /// <summary>边来源：<see cref="EdgeOrigin.Declared"/>（声明派生）| <see cref="EdgeOrigin.Runtime"/>（运行时写边）。</summary>
+    public string Origin { get; init; } = EdgeOrigin.Runtime;
 }

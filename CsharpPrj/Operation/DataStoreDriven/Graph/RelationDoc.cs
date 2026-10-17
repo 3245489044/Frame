@@ -4,7 +4,8 @@ namespace Operation.DataStoreDriven.Graph;
 /// 关系声明文档载荷（G1 / 设计 §4）：<c>ur_relations</c> 文档 = <c>{ _id, Doc }</c>，<c>Doc</c> 为 USharp <c>[Record]</c> 文本真源，
 /// 本记录为编解码目标（经 <c>IDocumentCodec</c>）。<c>_id</c> = SQL NodeKey 文法（<c>relations.{workflowId}.{relationId}</c>），
 /// 不新造键空间（键构造只经 <c>RelationDeclarationKeys.NodeKey</c> / <c>NodeKeyPrefix.BuildRelation</c> 单源）。
-/// 关系声明权威归属 = LiteDB（设计 §2：LiteDB 为唯一逻辑关系持有库）。撤销 = 置 <c>status=revoked</c>（软删，只增）。
+/// 关系声明权威归属 = LiteDB（设计 §2：LiteDB 为唯一逻辑关系持有库）。
+/// <para>存在即生效：删除 = 先写 tombstone 再物理删除（无 revoked 软删态，无 Status 字段）。</para>
 /// </summary>
 public sealed record RelationDoc
 {
@@ -40,10 +41,4 @@ public sealed record RelationDoc
 
     /// <summary>关联 KeyMapping 存储键（可空）。</summary>
     public string? KeyMappingRef { get; init; }
-
-    /// <summary>声明状态：active（生效）| revoked（撤销，软删）。</summary>
-    public string Status { get; init; } = "active";
-
-    /// <summary>是否生效声明。</summary>
-    public bool IsActive => string.Equals(Status, "active", System.StringComparison.OrdinalIgnoreCase);
 }

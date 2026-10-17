@@ -16,4 +16,21 @@ public static class EdgeIdKeys
     /// <summary>构造边键（<c>{sourceId}::{targetId}::{refType}</c>）。</summary>
     public static string Build(string sourceId, string targetId, string refType)
         => EdgeGrammar.BuildLenient(sourceId, targetId, refType);
+
+    /// <summary>反解边键（段数不符 / 空段 ⇒ false）。</summary>
+    public static bool TryParse(string? edgeId, out string sourceId, out string targetId, out string refType)
+    {
+        sourceId = string.Empty;
+        targetId = string.Empty;
+        refType = string.Empty;
+        if (string.IsNullOrWhiteSpace(edgeId)) return false;
+        var parts = edgeId.Split("::", System.StringSplitOptions.None);
+        if (parts.Length != 3) return false;
+        if (string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]) || string.IsNullOrWhiteSpace(parts[2]))
+            return false;
+        sourceId = parts[0];
+        targetId = parts[1];
+        refType = parts[2];
+        return true;
+    }
 }

@@ -26,9 +26,4 @@ public sealed class RelationDeclaration
 
     /// <summary>关联的 KeyMapping 存储键（keymapping_to_node 时填充；指向节点库承载的分类键）。</summary>
     public string? KeyMappingRef { get; init; }
-
-    /// <summary>状态：active（生效）| revoked（撤销，级联清边）。</summary>
-    public string Status { get; init; } = "active";
-
-    public bool IsActive => string.Equals(Status, "active", StringComparison.OrdinalIgnoreCase);
 }

@@ -99,13 +99,11 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址）。</summary>
         Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default);
 
-        /// <summary>工作流静态引用（组合 + 控制流）幂等写入：建端点 → 删同端点同 refType 旧边 → 新增。
-        /// 供「把声明式工作流控制流静态化为可维护引用关系」（Owns：工作流包含步骤；Calls：上一步骤调用下一步骤）消费；
-        /// 与 <see cref="WriteRelationsAsync"/>（节点关系权威边集，NodeToNode/KeyMappingToNode）互补互不干扰。</summary>
+        /// <summary>工作流静态引用（组合 + 控制流）seed 写入：tombstone-aware create-only（不覆盖用户删除）。</summary>
         Task WriteStaticReferencesAsync(string workflowId,
             IReadOnlyCollection<StaticReference> references, CancellationToken ct = default);
 
-        /// <summary>主动声明关系（G1）：批量写 LiteDB ur_relations（USharp [Record]）+ 推导边写入图（声明优先，幂等）。</summary>
+        /// <summary>主动声明关系（G1）：显式写 LiteDB ur_relations（USharp [Record]）+ 声明派生边（声明优先，幂等）。</summary>
         Task DeclareRelationsAsync(string workflowId, IReadOnlyCollection<RelationDeclarationEntry> declarations, CancellationToken ct = default);
 
         /// <summary>撤销声明：置 status=revoked（软删，只增）→ 级联清边。</summary>

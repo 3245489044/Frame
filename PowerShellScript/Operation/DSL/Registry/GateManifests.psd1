@@ -6,6 +6,14 @@
         Expect = 0
     }
 
+    ToolCallConvergence = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '工具调用聚拢（A1–A7）：Launcher 不再装配 / 注册单点 / 客户端单实例 / 声明面单一 / 无回环回退支 / 内核纯净 / 无依赖倒置'
+    }
+
     AgentDataSeparation = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

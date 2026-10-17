@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>CallCenter 通用成本内核</ModuleRule_Title>
+    <ModuleRule_Layer>5</ModuleRule_Layer>
+    <ModuleRule_Description>供应商/语言/Agent 无关的成本模型、token 归一、缓存语义、价格表、成本公式与 PS 进程计量。只做纯计算与计量，不发 LLM 请求、不引用 Agent/Storage。</ModuleRule_Description>
+    <ModuleRule_Keywords>CallCenter;成本;计量;计价;token;JobObject;工具调用</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零 Agent / 零 Storage / 零 LLM 调用：本层只做纯计算与计量" />
+    <ModuleRule_Rule Include="未知一律 Unknown，不写 0（对齐 AX.NoSilentOutlet）" />
+    <ModuleRule_Rule Include="金额 decimal 计算，落库按最小货币单位整数" />
+    <ModuleRule_Rule Include="工具调用统一 ToolInvocation 模型，PS 脚本 Medium=PowerShell" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CallCenter.Cost</RootNamespace>
+    <AssemblyName>CallCenter.Cost</AssemblyName>
+    <Description>CallCenter 通用成本内核 — 模型/归一/缓存/价格/计价/进程计量/工具检测</Description>
+    <!-- 本工程只依赖 BCL；排除 CallCenter 共享的 CSG/TConfig global using -->
+    <CallCenterNoExternalUsings>true</CallCenterNoExternalUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+</Project>

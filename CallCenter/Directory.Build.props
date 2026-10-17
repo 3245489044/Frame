@@ -41,9 +41,12 @@
     <CsharpBuildOutputDir>$([MSBuild]::NormalizeDirectory('$(CsharpProjectRoot)'))BuildOutput\$(Configuration)\</CsharpBuildOutputDir>
   </PropertyGroup>
 
-  <!-- 全局 GlobalUsings：CallCenter 全部项目共享跨程序集公共命名空间 -->
+  <!-- 全局 GlobalUsings：CallCenter 全部项目共享跨程序集公共命名空间。
+       CallCenterNoExternalUsings=true 的纯 BCL 子工程（如 CallCenter.Cost）跳过 External 面，
+       避免无谓依赖 CSG.Unified/TConfig 烘焙程序集。 -->
   <ItemGroup Label="GlobalUsings">
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.System.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings\Usings.External.cs"
+             Condition="'$(CallCenterNoExternalUsings)' != 'true'" />
   </ItemGroup>
 </Project>

@@ -33,6 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="CallCenter.Cost\CallCenter.Cost.csproj" />
     <ProjectReference Include="CallCenter.Core\CallCenter.Core.csproj" />
     <ProjectReference Include="CallCenter.Adapters\CallCenter.Adapters.csproj" />
     <ProjectReference Include="CallCenter.Mcp\CallCenter.Mcp.csproj" />

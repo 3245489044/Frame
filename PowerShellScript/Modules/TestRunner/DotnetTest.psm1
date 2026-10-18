@@ -53,6 +53,59 @@ function Find-RunSettings {
     return ''
 }
 
+function Invoke-CapturedProcess {
+    <#
+    .SYNOPSIS
+        带硬超时的子进程执行（stdout/stderr 全量捕获；超时杀进程树）。
+
+    .DESCRIPTION
+        设计缺陷（T2）：原实现 `& dotnet test` 无上限，慢/挂起的 testhost 会把「测试」拖成分钟级。
+        本算子给执行面一个可判定上限：超时 ⇒ 退出码 124 + 显式 [TIMEOUT] 标记（杀整棵进程树，不留 testhost）。
+
+    .OUTPUTS
+        pscustomobject { Output; ExitCode; TimedOut }
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$FileName,
+        [string[]]$Arguments = @(),
+        [int]$TimeoutSeconds = 0
+    )
+
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $FileName
+    foreach ($a in @($Arguments)) { if ($null -ne $a) { $psi.ArgumentList.Add([string]$a) } }
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    $p = [System.Diagnostics.Process]::new()
+    $p.StartInfo = $psi
+    [void]$p.Start()
+
+    # 先挂异步读，避免缓冲区写满导致 Waits 死锁。
+    $stdout = $p.StandardOutput.ReadToEndAsync()
+    $stderr = $p.StandardError.ReadToEndAsync()
+
+    $timedOut = $false
+    if ($TimeoutSeconds -gt 0) {
+        if (-not $p.WaitForExit($TimeoutSeconds * 1000)) {
+            $timedOut = $true
+            try { $p.Kill($true) } catch { <# 已退出 #> }
+            try { [void]$p.WaitForExit(5000) } catch { <# 已退出 #> }
+        }
+    }
+    else {
+        $p.WaitForExit()
+    }
+
+    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+    $code = if ($timedOut) { 124 } else { $p.ExitCode }
+    $p.Dispose()
+
+    return [pscustomobject]@{ Output = $output; ExitCode = $code; TimedOut = $timedOut }
+}
+
 function Invoke-TestUnit {
     <#
     .SYNOPSIS
@@ -68,6 +121,7 @@ function Invoke-TestUnit {
         [string]$Root = '',
         [string]$Configuration = 'Debug',
         [switch]$NoBuild,
+        [int]$TimeoutSeconds = 10,
         [string]$ResultsDir = '',
         [string[]]$Logger = @('console;verbosity=minimal')
     )
@@ -85,12 +139,16 @@ function Invoke-TestUnit {
             }
         }
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        $consoleOutput = (& $exe.FullName 2>&1 | Out-String)
+        $run = Invoke-CapturedProcess -FileName $exe.FullName -TimeoutSeconds $TimeoutSeconds
+        $consoleOutput = $run.Output
         $sw.Stop()
-        $allPass = ($consoleOutput -match 'ALL PASS')
+        if ($run.TimedOut) {
+            $consoleOutput += "`n[TIMEOUT] $($Unit.ProjectName) 超过 ${TimeoutSeconds}s，已终止（ConsoleCheck）"
+        }
+        $allPass = (-not $run.TimedOut) -and ($consoleOutput -match 'ALL PASS')
         return [pscustomobject]@{
             Kind = 'ConsoleCheck'; ProjectName = $Unit.ProjectName
-            ExitCode = $(if ($allPass) { 0 } else { 1 })
+            ExitCode = $(if ($allPass) { 0 } else { $run.ExitCode })
             Passed = $(if ($allPass) { 1 } else { 0 }); Failed = $(if ($allPass) { 0 } else { 1 })
             Skipped = 0; Total = 1; Parsed = $true; NoTestsMatched = $false
             FailedNames = @()
@@ -105,8 +163,12 @@ function Invoke-TestUnit {
         -ResultsDir $ResultsDir -Logger $Logger
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    $output = (& dotnet @testArgs 2>&1 | Out-String)
-    $code = $LASTEXITCODE
+    $run = Invoke-CapturedProcess -FileName 'dotnet' -Arguments $testArgs -TimeoutSeconds $TimeoutSeconds
+    $code = $run.ExitCode
+    $output = $run.Output
+    if ($run.TimedOut) {
+        $output += "`n[TIMEOUT] $($Unit.ProjectName) 超过 ${TimeoutSeconds}s，已终止（dotnet test）"
+    }
     $sw.Stop()
     $counts = Get-TestResultCounts -Output $output
 

@@ -18,9 +18,11 @@ public sealed class InMemoryToolInvocationObserver : IToolInvocationObserver
     {
         ArgumentNullException.ThrowIfNull(request);
         var sequence = Interlocked.Increment(ref _sequence);
-        var toolCallId = string.IsNullOrWhiteSpace(request.TraceId)
-            ? $"{request.ToolName}:{sequence}"
-            : $"{request.TraceId}:{sequence}";
+        var toolCallId = !string.IsNullOrWhiteSpace(request.ToolCallId)
+            ? request.ToolCallId!
+            : string.IsNullOrWhiteSpace(request.TraceId)
+                ? $"{request.ToolName}:{sequence}"
+                : $"{request.TraceId}:{sequence}";
         var logicalCallId = string.IsNullOrWhiteSpace(request.LogicalCallId)
             ? toolCallId
             : request.LogicalCallId!;
@@ -102,8 +104,6 @@ public sealed class InMemoryToolInvocationObserver : IToolInvocationObserver
 
             var next = Math.Max(attempt, scope.Attempt + 1);
             scope.Attempt = next;
-            state.PhysicalCount++;
-            state.RetryCount++;
         }
     }
 
@@ -149,13 +149,26 @@ public sealed class InMemoryToolInvocationObserver : IToolInvocationObserver
         }
     }
 
+    /// <summary>按逻辑调用取聚合计数（明细复算唯一来源；未知 ⇒ null）。</summary>
+    public ToolCallUsage? GetUsage(string logicalCallId)
+    {
+        if (string.IsNullOrWhiteSpace(logicalCallId))
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return _logical.TryGetValue(logicalCallId, out var state) ? state.ToUsage() : null;
+        }
+    }
+
     private sealed class LogicalState
     {
         public LogicalState(string logicalCallId) => LogicalCallId = logicalCallId;
 
         public string LogicalCallId { get; }
         public int PhysicalCount { get; set; }
-        public int RetryCount { get; set; }
         public int SuccessCount { get; private set; }
         public int FailureCount { get; private set; }
         public int TimeoutCount { get; private set; }
@@ -177,7 +190,7 @@ public sealed class InMemoryToolInvocationObserver : IToolInvocationObserver
         public ToolCallUsage ToUsage() => new(
             PhysicalCount,
             1,
-            RetryCount,
+            RetryCount: Math.Max(0, PhysicalCount - 1),
             SuccessCount,
             FailureCount,
             TimeoutCount,

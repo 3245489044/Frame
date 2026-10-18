@@ -47,7 +47,8 @@ public sealed record ToolInvocationRequest(
     string? TraceId = null,
     string? LogicalCallId = null,
     string? ParentSpanId = null,
-    IReadOnlyDictionary<string, string>? Attributes = null);
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    string? ToolCallId = null);
 
 /// <summary>
 /// 工具调用计数（唯一口径）：

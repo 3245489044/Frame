@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PluginHostContract</AssemblyName>
+    <RootNamespace>PluginHostContract</RootNamespace>
+    <Description>插件宿主中性 ABI（append-only，零 FileDriven/产品依赖）：IPlugin / IPluginContext / IPluginHost / PluginManifest / PluginStatus。</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

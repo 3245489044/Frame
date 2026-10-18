@@ -148,6 +148,15 @@ public static class TableNames
     /// 表结构镜像 ur_tasks 纯「业务键 + 一个 SnapshotJson」；实体真源在 SQL，LiteDB 只存关系投影）。</summary>
     public const string Histories = "histories";
 
+    /// <summary>⑧ 会话实例（SQL ur_sessions：session → owner（history/task）归属 + 角色）。</summary>
+    public const string Sessions = "sessions";
+
+    /// <summary>⑨ 会话日志投影（SQL ur_session_logs：append-only ConversationLog + watermark）。</summary>
+    public const string SessionLogs = "session_logs";
+
+    /// <summary>⑩ 会话事实（预留；当前默认 JSONL 落盘，SQLite 复合装配后续补齐）。</summary>
+    public const string SessionFacts = "session_facts";
+
     // ===== 已并入三库的旧后缀（仅供迁移/兼容，勿新建消费者；逐步收敛到 nodes/tasks/resources） =====
     // 语义去向: KeyMappings→ur_nodes(keymapping) · References→ur_resources · Checkpoints→ur_nodes(checkpoint)
     //          Snapshots→ur_tasks(任务=状态根) · Config→ur_nodes(config)

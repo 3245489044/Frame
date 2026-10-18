@@ -59,6 +59,17 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
     {
         ArgumentNullException.ThrowIfNull(log);
         ct.ThrowIfCancellationRequested();
+        // 根行保护（D1/D4）：ur_histories 的新语义是历史根注册表；旧日志面不得覆盖根行。
+        // 过渡期同一主键可能同时是根与会话键，这里显式拒绝并把写入责任交给 ur_session_logs。
+        var existing = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", sessionId)));
+        if (existing.Count > 0)
+        {
+            var doc = SqliteRows.Str(existing[0], "Doc");
+            if (!string.IsNullOrWhiteSpace(doc) && doc.Contains("history_root:", StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"ur_histories 键 '{sessionId}' 已是历史根行，禁止用会话日志覆盖；请写入 ur_session_logs。");
+        }
+
         var record = new UsharpRecord(new[]
         {
             new KeyValuePair<string, UsharpValue>(FieldThreadId, UsharpScalar.Str(HistoryThreadId)),

@@ -31,6 +31,14 @@ public static class FileDrivenPaths
         {
             if (_cachedProjectRoot != null) return _cachedProjectRoot;
 
+            // Published 模式：Runtime 根即逻辑根（禁止回退源码仓）。
+            var publishedRoot = RuntimeLayout.TryGetPublishedRoot();
+            if (publishedRoot != null)
+            {
+                _cachedProjectRoot = publishedRoot;
+                return _cachedProjectRoot;
+            }
+
             var overrides = LoadOverrides();
             if (!string.IsNullOrEmpty(overrides?.ProjectRoot) && Directory.Exists(overrides.ProjectRoot))
             {
@@ -46,16 +54,19 @@ public static class FileDrivenPaths
     // 缺省兜底路径一律以 Main 逻辑根（GetProjectRoot 已按目录特征定位 Main）为基，
     // 段序与 framework.config.json 的 paths（Main 相对）逐字一致，避免两套根约定。
     public static string GetJsonConfigDir()
-        => ResolveAbsolute(LoadOverrides()?.JsonConfig ?? "Projects/Information/DrivenConfig/JsonConfig");
+        => ResolveAbsolute(LoadOverrides()?.JsonConfig ?? DefaultPath("Projects/Information/DrivenConfig/JsonConfig", "Config/DrivenConfig/JsonConfig"));
 
     public static string GetLogMessagesFilePath()
-        => ResolveAbsolute(LoadOverrides()?.LogMessages ?? "Projects/FileDriven/filedriven_log_messages.json");
+        => ResolveAbsolute(LoadOverrides()?.LogMessages ?? DefaultPath("Projects/FileDriven/filedriven_log_messages.json", "Config/LogMessages/filedriven_log_messages.json"));
 
     public static string GetLogFilterConfigPath()
-        => ResolveAbsolute(LoadOverrides()?.LogFilterConfig ?? "Projects/FileDriven/LogFilterConfig.json");
+        => ResolveAbsolute(LoadOverrides()?.LogFilterConfig ?? DefaultPath("Projects/FileDriven/LogFilterConfig.json", "Config/LogFilterConfig.json"));
 
     public static string GetDiagnosticsConfigDir()
-        => ResolveAbsolute(LoadOverrides()?.DiagnosticsConfig ?? "Projects/FileDriven/DiagnosticsConfig");
+        => ResolveAbsolute(LoadOverrides()?.DiagnosticsConfig ?? DefaultPath("Projects/FileDriven/DiagnosticsConfig", "Config/DiagnosticsConfig"));
+
+    private static string DefaultPath(string devRelative, string publishedRelative)
+        => RuntimeLayout.IsPublished ? publishedRelative : devRelative;
 
     public static string GetDiagnosticsSettingsPath()
         => Path.Combine(GetDiagnosticsConfigDir(), "diagnostics-settings.json");
@@ -71,10 +82,11 @@ public static class FileDrivenPaths
 
     private static string ResolveAbsolute(string relativePath)
     {
-        if (Path.IsPathRooted(relativePath))
-            return relativePath;
+        var resolved = RuntimeLayout.ResolveToken(relativePath);
+        if (Path.IsPathRooted(resolved))
+            return resolved;
 
-        return Path.GetFullPath(Path.Combine(GetProjectRoot(), relativePath));
+        return Path.GetFullPath(Path.Combine(GetProjectRoot(), resolved.Replace('/', Path.DirectorySeparatorChar)));
     }
 
     private static PathOverrides? LoadOverrides()
@@ -89,8 +101,10 @@ public static class FileDrivenPaths
 
             try
             {
-                var configPath = FindFileUpward("framework.config.json");
-                if (configPath == null || !File.Exists(configPath))
+                var configPath = RuntimeLayout.IsPublished
+                    ? RuntimeLayout.FrameworkConfigPath
+                    : FindFileUpward("framework.config.json");
+                if (string.IsNullOrEmpty(configPath) || !File.Exists(configPath))
                     return null;
 
                 var json = File.ReadAllText(configPath);
@@ -101,7 +115,7 @@ public static class FileDrivenPaths
 
                 var overrides = new PathOverrides();
                 if (pathsElement.TryGetProperty("projectRoot", out var pr) && pr.ValueKind == JsonValueKind.String)
-                    overrides.ProjectRoot = pr.GetString();
+                    overrides.ProjectRoot = RuntimeLayout.ResolveToken(pr.GetString() ?? string.Empty);
                 if (pathsElement.TryGetProperty("jsonConfig", out var jc) && jc.ValueKind == JsonValueKind.String)
                     overrides.JsonConfig = jc.GetString();
                 if (pathsElement.TryGetProperty("logMessages", out var lm) && lm.ValueKind == JsonValueKind.String)

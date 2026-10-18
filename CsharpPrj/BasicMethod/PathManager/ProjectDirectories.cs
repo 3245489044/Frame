@@ -70,7 +70,9 @@ public static class ProjectDirectories
 
 
     public static string FileDriven_DrivenConfig =>
-        Path.Combine(FileDriven, "DrivenConfig");
+        RuntimeLayout.IsPublished
+            ? Path.Combine(RuntimeLayout.ConfigDir, "DrivenConfig")
+            : Path.Combine(FileDriven, "DrivenConfig");
 
     public static string FileDriven_JsonConfig =>
         Path.Combine(FileDriven_DrivenConfig, "JsonConfig");
@@ -91,7 +93,9 @@ public static class ProjectDirectories
         Path.Combine(FileDriven_DrivenConfig, "Usings");
 
     public static string FileDriven_Launcher =>
-        Path.Combine(FileDriven, "FileDriven.Launcher");
+        RuntimeLayout.IsPublished
+            ? RuntimeLayout.AppDir
+            : Path.Combine(FileDriven, "FileDriven.Launcher");
 
     public static string FileDriven_UI =>
         Path.Combine(FileDriven, "FileDriven.UI");
@@ -100,7 +104,9 @@ public static class ProjectDirectories
         Path.Combine(FileDriven, "FileDrivenFramework.Core");
 
 
-    public static string BuildOutput => Path.Combine(ProjectRoot, "BuildOutput");
+    public static string BuildOutput => RuntimeLayout.IsPublished
+        ? RuntimeLayout.AppDir
+        : Path.Combine(ProjectRoot, "BuildOutput");
 
     public static string GetProjectBuildOutput(string projectDir, string configuration = "Debug", string targetFramework = "net10.0-windows")
     {
@@ -118,6 +124,9 @@ public static class ProjectDirectories
     {
         get
         {
+            if (RuntimeLayout.IsPublished)
+                return RuntimeLayout.AppDir;
+
             var release = GetProjectBuildOutputByName("FileDriven.Launcher", "Release");
             var debug = GetProjectBuildOutputByName("FileDriven.Launcher", "Debug");
 

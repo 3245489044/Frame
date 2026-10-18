@@ -99,6 +99,7 @@ public sealed class NodeTaskHistoryService
     /// </summary>
     /// <param name="historyId">显式历史容器 Id（可空；空 ⇒ 按声明面规则回退 <paramref name="taskKey"/>）。</param>
     /// <param name="taskKey">任务键（= 会话名；容器 Id 的缺省回退来源）。</param>
+    [Obsolete("历史根/任务归拢已收口到 IHistoryCommandPort（HistoryCommandService）；本方法仅迁移期兼容。")]
     public async Task EnsureTaskHistoryBoundAsync(string? historyId, string taskKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return;

@@ -1,6 +1,7 @@
 
 using System.Reflection;
 using System.Text.Json;
+using PluginHostContract;
 using TConfig;
 
 namespace Modules.Registry;
@@ -71,6 +72,77 @@ namespace Modules.Registry;
             }
 
             nameTracker.AssertNoDuplicates();
+
+            return results.AsReadOnly();
+        }
+
+        /// <summary>
+        /// P2：把域函数库清单装载到**插件级函数表**（不触碰全局 FunctionRegistry，不按类型名排斥换代重注册）。
+        /// 每代由 PluginHost 传入独立 table；旧 table 随旧 ALC 弃引用。
+        /// </summary>
+        public static IReadOnlyList<LoadEntryResult> LoadInto(
+            PluginFunctionTable table,
+            string configPath,
+            Func<string, Type?>? resolveType = null)
+        {
+            ArgumentNullException.ThrowIfNull(table);
+            if (!File.Exists(configPath))
+                throw new FileNotFoundException($"函数库配置文件不存在: {configPath}", configPath);
+
+            var results = new List<LoadEntryResult>();
+            var registry = new FunctionRegistry();
+            var nameTracker = new DuplicateNameTracker();
+            var generationGuard = new HashSet<string>(StringComparer.Ordinal);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+            if (!doc.RootElement.TryGetProperty("libraries", out var libraries))
+                return results;
+
+            foreach (var lib in libraries.EnumerateArray())
+            {
+                var name = lib.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var typeStr = lib.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+                var enabled = lib.TryGetProperty("enabled", out var e) ? e.GetBoolean() : true;
+                var methodName = lib.TryGetProperty("method", out var m) ? m.GetString() : null;
+
+                if (!enabled || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(typeStr))
+                    continue;
+
+                try
+                {
+                    var type = (resolveType ?? ResolveTypeFromQualifiedName)(typeStr);
+                    if (type == null)
+                    {
+                        results.Add(new LoadEntryResult
+                        {
+                            Name = name,
+                            Success = false,
+                            Error = $"无法加载类型 '{typeStr}'"
+                        });
+                        continue;
+                    }
+
+                    RegisterType(registry, type, methodName, nameTracker, generationGuard);
+                    results.Add(new LoadEntryResult { Name = name, Success = true });
+                }
+                catch (Exception ex) when (ex is not InvalidOperationException)
+                {
+                    results.Add(new LoadEntryResult
+                    {
+                        Name = name,
+                        Success = false,
+                        Error = DescribeInvocationError(ex)
+                    });
+                }
+            }
+
+            nameTracker.AssertNoDuplicates();
+
+            foreach (var name in registry.GetRegisteredNames())
+            {
+                if (registry.TryGetDelegate(name, out var handler) && handler is not null)
+                    table.Set(name, handler);
+            }
 
             return results.AsReadOnly();
         }
@@ -246,12 +318,14 @@ namespace Modules.Registry;
         FunctionRegistry registry,
         Type type,
         string? methodName,
-        DuplicateNameTracker nameTracker)
+        DuplicateNameTracker nameTracker,
+        HashSet<string>? generationGuard = null)
     {
         var typeKey = type.FullName ?? type.Name;
-        lock (_loadedLibraryTypes)
+        var guard = generationGuard ?? _loadedLibraryTypes;
+        lock (guard)
         {
-            if (!_loadedLibraryTypes.Add(typeKey))
+            if (!guard.Add(typeKey))
             {
                 throw new InvalidOperationException(
                     $"函数库类型 '{typeKey}' 已被注册一次。每个函数库只允许通过 FunctionLibraryLoader 注册一次，" +

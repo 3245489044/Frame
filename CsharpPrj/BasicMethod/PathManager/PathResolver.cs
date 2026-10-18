@@ -58,6 +58,7 @@ public static class PathResolver
             return null;
 
         EnsureDefaultAliases();
+        configPath = RuntimeLayout.ResolveToken(configPath);
 
         if (Path.IsPathRooted(configPath))
         {
@@ -81,7 +82,7 @@ public static class PathResolver
 
         try
         {
-            var projectRoot = ProjectPathManager.FindProjectRoot();
+            var projectRoot = RuntimeLayout.TryGetPublishedRoot() ?? ProjectPathManager.FindProjectRoot();
             var projectRelativePath = Path.GetFullPath(Path.Combine(projectRoot, configPath));
             if (File.Exists(projectRelativePath))
                 return projectRelativePath;
@@ -209,6 +210,7 @@ public static class PathResolver
             return null;
 
         EnsureDefaultAliases();
+        directoryPath = RuntimeLayout.ResolveToken(directoryPath);
 
         if (Path.IsPathRooted(directoryPath))
             return directoryPath;
@@ -223,7 +225,7 @@ public static class PathResolver
 
         try
         {
-            var projectRoot = ProjectPathManager.FindProjectRoot();
+            var projectRoot = RuntimeLayout.TryGetPublishedRoot() ?? ProjectPathManager.FindProjectRoot();
             var resolvedPath = Path.GetFullPath(Path.Combine(projectRoot, directoryPath));
             if (Directory.Exists(resolvedPath))
                 return resolvedPath;

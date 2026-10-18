@@ -43,6 +43,9 @@
     <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Registry)" />
+    <!-- P2 插件宿主：中性契约 + 通用宿主（P1 RuntimeLayout 之上）。 -->
+    <ProjectReference Include="PluginHostContract\PluginHostContract.csproj" />
+    <ProjectReference Include="PluginHost\PluginHost.csproj" />
     <ProjectReference Include="$(Proj_Threading)" />
     <ProjectReference Include="$(Proj_ParameterResolver)" />
     <ProjectReference Include="$(Proj_WinFormsValueContract)" />
@@ -67,6 +70,8 @@
     <Compile Remove="Parsing\**\*.cs" />
     <Compile Remove="Pipeline\**\*.cs" />
     <Compile Remove="Registry\**\*.cs" />
+    <Compile Remove="PluginHostContract\**\*.cs" />
+    <Compile Remove="PluginHost\**\*.cs" />
     <Compile Remove="Threading\**\*.cs" />
     <Compile Remove="ParameterResolver\**\*.cs" />
     <Compile Remove="InternalStorage\**\*.cs" />

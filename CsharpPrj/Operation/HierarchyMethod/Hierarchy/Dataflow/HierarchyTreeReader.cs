@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
@@ -8,6 +9,7 @@ using Operation.HierarchyMethod.History;
 using Operation.HierarchyMethod.Nodes.Linkage;
 using Share.Conversation;
 using Share.Conversation.Ids;
+using Share.Conversation.Ports;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 {
@@ -36,34 +38,57 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     public sealed class HierarchyTreeReader
     {
         private readonly IHistoryStore? _historyStore;
+        private readonly IHistoryRootStore? _rootStore;
         private readonly IHistoryRelationManager? _relations;
         private readonly ReferenceGrounding? _grounding;
         private readonly ITransferFlow? _transfer;
 
-        /// <param name="historyStore">历史存储（会话/历史存在性唯一真源，ur_histories）；null = 空表。</param>
-        /// <param name="relations">历史关系管理端口（history→task 归拢边）；null = 无 task 行（不猜测）。</param>
-        /// <param name="grounding">引用自动落地守卫（task→node 归属边）；null = 无 node 映射。</param>
-        /// <param name="transfer">归属枚举 USharp 流（唯一成员枚举口）；null = 回退图端口（迁移期双读）。</param>
+        /// <summary>迁移期兼容构造：历史存在性来自旧 ur_histories 表行。</summary>
         public HierarchyTreeReader(
             IHistoryStore? historyStore,
             IHistoryRelationManager? relations = null,
             ReferenceGrounding? grounding = null,
             ITransferFlow? transfer = null)
+            : this(historyStore, null, relations, grounding, transfer)
+        {
+        }
+
+        /// <summary>目标构造：历史根只来自 root store；旧 store 仅迁移期回退。</summary>
+        public HierarchyTreeReader(
+            IHistoryStore? historyStore,
+            IHistoryRootStore? rootStore,
+            IHistoryRelationManager? relations = null,
+            ReferenceGrounding? grounding = null,
+            ITransferFlow? transfer = null)
         {
             _historyStore = historyStore;
+            _rootStore = rootStore;
             _relations = relations;
             _grounding = grounding;
             _transfer = transfer;
         }
 
+
         /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。</summary>
         public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(CancellationToken ct = default)
         {
             var nodes = new List<HierarchyTree>();
-            // 历史存储未装配 ⇒ 空（未就绪可见化由渲染面承担，不回退到任何「猜测式」读法）。
-            if (_historyStore is null) return nodes;
+            // 目标读面：历史根只来自 root store；旧 IHistoryStore 仅迁移期回退。
+            IReadOnlyList<string> ids;
+            if (_rootStore is not null)
+            {
+                var roots = await _rootStore.ListRootsAsync(ct).ConfigureAwait(false);
+                ids = roots.Select(r => r.Key.Value).ToList();
+            }
+            else if (_historyStore is not null)
+            {
+                ids = await _historyStore.ListHistoryIdsAsync(ct).ConfigureAwait(false);
+            }
+            else
+            {
+                return nodes;
+            }
 
-            var ids = await _historyStore.ListHistoryIdsAsync(ct).ConfigureAwait(false);
             foreach (var hid in ids)
             {
                 if (string.IsNullOrWhiteSpace(hid)) continue;

@@ -22,6 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- P2：插件级函数表（中性契约，零产品依赖）。 -->
+    <ProjectReference Include="..\PluginHostContract\PluginHostContract.csproj" />
     <ProjectReference Include="$(Proj_BasicMethod)" />
     <ProjectReference Include="$(Proj_TConfig)" />
     <ProjectReference Include="$(Proj_RoslynMethod_Core)" />

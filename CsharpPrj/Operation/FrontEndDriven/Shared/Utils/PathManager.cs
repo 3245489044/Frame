@@ -58,6 +58,13 @@ public static class PathManager
             if (_cachedProjectRoot != null)
                 return _cachedProjectRoot;
 
+            // Published 模式：Runtime 根即逻辑根，禁止向上命中源码仓（D3）。
+            if (global::PathManager.RuntimeLayout.IsPublished)
+            {
+                _cachedProjectRoot = global::PathManager.RuntimeLayout.Root;
+                return _cachedProjectRoot;
+            }
+
             var config = LoadPathConfigInternal();
             if (!string.IsNullOrEmpty(config?.ProjectRoot) && Directory.Exists(config.ProjectRoot))
             {
@@ -272,6 +279,10 @@ public static class PathManager
 
     public static string GetFrontEndDrivenLogMessagesPath()
     {
+        if (global::PathManager.RuntimeLayout.IsPublished)
+            return Path.Combine(global::PathManager.RuntimeLayout.SharedDir,
+                "CsharpPrj", "Operation", "FrontEndDriven", "fde_log_messages.json");
+
         return Path.Combine(GetProjectRoot(), "CsharpPrj", "Operation", "FrontEndDriven", "fde_log_messages.json");
     }
 
@@ -342,6 +353,9 @@ public static class PathManager
 
     private static string? FindFrameworkConfigPath()
     {
+        if (global::PathManager.RuntimeLayout.IsPublished)
+            return global::PathManager.RuntimeLayout.FrameworkConfigPath;
+
         var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         if (assemblyDir != null)
         {
@@ -367,10 +381,11 @@ public static class PathManager
 
     private static string ResolveAbsolute(string relativePath)
     {
-        if (Path.IsPathRooted(relativePath))
-            return relativePath;
+        var resolved = global::PathManager.RuntimeLayout.ResolveToken(relativePath);
+        if (Path.IsPathRooted(resolved))
+            return resolved;
 
-        return Path.GetFullPath(Path.Combine(GetProjectRoot(), relativePath));
+        return Path.GetFullPath(Path.Combine(GetProjectRoot(), resolved.Replace('/', Path.DirectorySeparatorChar)));
     }
 
     private static string? FindFileUpward(string startPath, string fileName)

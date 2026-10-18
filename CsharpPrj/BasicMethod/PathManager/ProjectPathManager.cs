@@ -29,6 +29,14 @@ public static class ProjectPathManager
             if (_cachedRoot != null)
                 return _cachedRoot;
 
+            // Published 模式：Runtime 根即逻辑根，禁止再向上命中源码仓（D3）。
+            var publishedRoot = RuntimeLayout.TryGetPublishedRoot();
+            if (publishedRoot != null)
+            {
+                _cachedRoot = publishedRoot;
+                return _cachedRoot;
+            }
+
             var start = startPath ?? AppDomain.CurrentDomain.BaseDirectory;
 
             // 1) 目录特征判定 Main：消除"就近 .git"在子模块拓扑下的歧义

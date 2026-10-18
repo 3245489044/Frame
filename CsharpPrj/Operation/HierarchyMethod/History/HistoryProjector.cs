@@ -54,14 +54,12 @@ public sealed class HistoryProjector : IHistoryProjector
     /// </para>
     /// 历史容器 Id 规则（R3）由 <see cref="Reference.HistoryContainerRules"/> 承载（声明面对账单源）。
     /// </summary>
-    public async Task PersistRoundAsync(NodeRoundResult round, TaskScope scope, CancellationToken ct = default)
+    [Obsolete("历史投影器不再承担容器构建/归拢；历史边只经 IHistoryCommandPort。")]
+    public Task PersistRoundAsync(NodeRoundResult round, TaskScope scope, CancellationToken ct = default)
     {
-        if (_relations is null || scope is null) return;
-
-        var historyId = Nodes.Keys.KeyAddressing.ContainerId(scope.HistoryId, scope.TaskKey);
-        var taskKey = scope.TaskKey;
-        // ERR-7：供给流失败 ⇒ 可见化（容器未建；节点归属由节点执行层经 attribution 流自持，不在本层处理）。
-        await ProvisionAsync(historyId, taskKey, ct).ConfigureAwait(false);
+        // W5 收口：历史投影器不再承担容器构建/归拢。history_owns_task 只在显式 CreateTask/AttachTask 命令中写；
+        // 本轮产出归属由节点执行层（attribution / round-attribution）自持，本方法保留为兼容空投影。
+        return Task.CompletedTask;
     }
 
     // 入史物化（原 ProjectMarkedAsync，含 fail-fast 桩）已退役（DEBT-4 残留收口）：标记节点 → L-B

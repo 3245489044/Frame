@@ -1,0 +1,82 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Share.Conversation.Aggregates;
+using Share.Conversation.Commands;
+using Share.Conversation.Ids;
+
+namespace Share.Conversation.Ports;
+
+/// <summary>历史根注册表只读/写端口（真源 = ur_histories，只存根，不存日志）。</summary>
+public interface IHistoryRootStore
+{
+    Task InitializeAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<HistoryRoot>> ListRootsAsync(CancellationToken ct = default);
+    Task<bool> ExistsAsync(HistoryKey key, CancellationToken ct = default);
+    Task<HistoryRoot?> GetAsync(HistoryKey key, CancellationToken ct = default);
+    Task CreateAsync(HistoryRoot root, CancellationToken ct = default);
+    Task<bool> DeleteAsync(HistoryKey key, CancellationToken ct = default);
+}
+
+/// <summary>会话实例注册端口（真源 = ur_sessions）。</summary>
+public interface ISessionStore
+{
+    Task InitializeAsync(CancellationToken ct = default);
+    Task<SessionRecord?> GetAsync(SessionKey key, CancellationToken ct = default);
+    Task<IReadOnlyList<SessionRecord>> ListByOwnerAsync(SessionOwner owner, CancellationToken ct = default);
+    Task CreateAsync(SessionRecord session, CancellationToken ct = default);
+    Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default);
+}
+
+/// <summary>会话日志端口（真源 = ur_session_logs；append-only 投影 + watermark）。</summary>
+public interface ISessionTranscriptStore
+{
+    Task InitializeAsync(CancellationToken ct = default);
+    Task<ConversationLog?> GetAsync(SessionKey key, CancellationToken ct = default);
+    Task AppendProjectionAsync(SessionKey key, ConversationLog log, long watermark, CancellationToken ct = default);
+    Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default);
+}
+
+/// <summary>历史命令端口（唯一创建/归拢入口）。</summary>
+public interface IHistoryCommandPort
+{
+    Task<HistoryRoot> CreateAsync(CreateHistoryCommand cmd, CancellationToken ct = default);
+    Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default);
+    Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default);
+}
+
+/// <summary>任务命令端口（Agent 侧实现；Frame 只定义契约）。</summary>
+public interface ITaskCommandPort
+{
+    Task<TaskKey> CreateAsync(CreateTaskCommand cmd, CancellationToken ct = default);
+}
+
+/// <summary>消息命令端口（只消费既有实体）。</summary>
+public interface IMessageCommandPort
+{
+    Task SendAsync(SendMessageCommand cmd, CancellationToken ct = default);
+}
+
+/// <summary>创建授权端口（最终判据；提示词只作提议）。</summary>
+public interface ICreationGate
+{
+    CreationDecision AuthorizeHistory(CreationIntent intent, string actor);
+    CreationDecision AuthorizeTask(
+        CreationIntent intent,
+        IReadOnlyList<HistoryKey> parents,
+        SessionRole role,
+        string? subAgentTag,
+        string? executorId,
+        string? agent);
+}
+
+/// <summary>任务查询端口（M:N 成员/反向归属/成员复用）。</summary>
+public interface ITaskQuery
+{
+    Task<bool> ExistsAsync(TaskKey key, CancellationToken ct = default);
+    Task<IReadOnlyList<TaskKey>> GetMembersAsync(HistoryKey history, CancellationToken ct = default);
+    Task<IReadOnlyList<HistoryKey>> GetHistoriesAsync(TaskKey task, CancellationToken ct = default);
+    Task<TaskKey?> FindMemberAsync(HistoryKey history, string? subAgentTag, string? executorId, CancellationToken ct = default);
+    Task<IReadOnlyList<TaskKey>> ListAsync(bool includeMembers, bool includeStandalone, CancellationToken ct = default);
+}

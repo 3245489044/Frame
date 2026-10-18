@@ -236,6 +236,9 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        // I3：history_owns_task 禁止自环（source != target）；写边守卫在唯一原语处兜底。
+        if (string.Equals(historyId, taskKey, StringComparison.Ordinal))
+            throw new InvalidOperationException($"history_owns_task 禁止自环：history={historyId}, task={taskKey}");
         await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };

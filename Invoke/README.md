@@ -182,6 +182,17 @@
 `Invoke-Frame.ps1 -Action invoke-buildeffective` = `BUILD_EFFECTIVE_SINGLE_ENTRY`（`.clinerules\project.md` §1.10）；转发到 `Projects\BuildFramework\Build-Effective.ps1`，内部串 `Build-Product.ps1 -All`（[locked] `Build-AgentGeneration.ps1`）→ `Check-EffectiveFace.ps1`。
 完成判据 = **生效面已对齐**（结构事实 = 内容指纹），非「我编译了」（「编译成功」≠「生效」，判 `ANTI-COMPILE-NOT-EFFECTIVE`）。
 
+## 分发增量计划（Build-Distribution）
+
+分发构建不在 `Invoke-Frame` 动作表内，根入口是仓库根的 `Build-Distribution.bat`；其只读计划入口为：
+
+```bat
+Build-Distribution.bat plan -ChangedFromGit -Json
+Build-Distribution.bat plan -Changed "Projects\Plug\Agent\src\Agent.Core\X.cs" -Json
+```
+
+计划零运行、零写盘，输出 `buildTargetIds / stages / plugins / unmapped`；`unmapped` 非空时退出码 1（fail-loud，禁静默全量）。
+
 ## 门禁清单契约（GateManifests.psd1）
 
 纯数据文件，登记每件只读验收开关与期望退出码。扩展点 = 新增一件门禁：

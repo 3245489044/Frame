@@ -181,21 +181,41 @@ public sealed class ExtensionGenerationHost
         {
             var baseDir = Path.GetDirectoryName(depsPath);
             using var doc = JsonDocument.Parse(File.ReadAllText(depsPath));
-            if (!doc.RootElement.TryGetProperty("libraries", out var libs))
+            if (!doc.RootElement.TryGetProperty("targets", out var targets))
                 return missing;
 
-            foreach (var lib in libs.EnumerateObject())
+            // 发布侧：插件目录已剪除共享面副本，资产由 Runtime\Shared 提供；校验须把这些落地根一并纳入，
+            // 否则会把“合法剪枝”误判为缺件（导致 PrjBridge 钩子 fail）。
+            var appDir = AppContext.BaseDirectory;
+            var sharedRoot = Path.GetFullPath(Path.Combine(appDir, "..", "Shared"));
+            var probeRoots = new[]
             {
-                if (!lib.Value.TryGetProperty("runtime", out var runtime))
+                baseDir,
+                appDir,
+                Path.Combine(sharedRoot, "CsharpPrj"),
+                Path.Combine(sharedRoot, "DataCenter"),
+            };
+
+            foreach (var target in targets.EnumerateObject())
+            {
+                if (target.Value.ValueKind != JsonValueKind.Object)
                     continue;
-                foreach (var asset in runtime.EnumerateObject())
+
+                foreach (var lib in target.Value.EnumerateObject())
                 {
-                    var rel = asset.Name;
-                    if (!rel.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    if (!lib.Value.TryGetProperty("runtime", out var runtime)
+                        || runtime.ValueKind != JsonValueKind.Object)
                         continue;
-                    if (ExistsUnder(baseDir, rel) || ExistsUnder(AppContext.BaseDirectory, rel))
-                        continue;
-                    missing.Add(rel);
+
+                    foreach (var asset in runtime.EnumerateObject())
+                    {
+                        var rel = asset.Name;
+                        if (!rel.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        if (probeRoots.Any(root => ExistsUnder(root, rel)))
+                            continue;
+                        missing.Add(rel);
+                    }
                 }
             }
         }

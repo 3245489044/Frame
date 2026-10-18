@@ -71,8 +71,21 @@ function Import-Assembly {
 
 # ── 2) 状态根解析（对齐 AgentStateLocator / RouteStateLocation：环境变量 → 仓库级默认）──
 if ([string]::IsNullOrWhiteSpace($StateRoot)) {
-    if (-not [string]::IsNullOrWhiteSpace($env:ROUTE_STATE_ROOT)) { $StateRoot = $env:ROUTE_STATE_ROOT }
-    else { $StateRoot = Join-Path $repoRoot 'Projects\Information\State' }
+    if (-not [string]::IsNullOrWhiteSpace($env:WF_DATA_ROOT)) { $StateRoot = $env:WF_DATA_ROOT }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:FILEDRIVEN_DATA_ROOT)) { $StateRoot = $env:FILEDRIVEN_DATA_ROOT }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:ROUTE_STATE_ROOT)) { $StateRoot = $env:ROUTE_STATE_ROOT }
+    else {
+        $runtimeJson = Join-Path $repoRoot 'runtime.json'
+        if (Test-Path -LiteralPath $runtimeJson) {
+            try {
+                $declared = [string](Get-Content -LiteralPath $runtimeJson -Raw -Encoding UTF8 | ConvertFrom-Json).data
+                if (-not [string]::IsNullOrWhiteSpace($declared)) {
+                    $StateRoot = if ([IO.Path]::IsPathRooted($declared)) { $declared } else { Join-Path $repoRoot $declared }
+                }
+            } catch { }
+        }
+        if ([string]::IsNullOrWhiteSpace($StateRoot)) { $StateRoot = Join-Path $repoRoot 'Data' }
+    }
 }
 if (-not (Test-Path -LiteralPath $StateRoot)) { Write-Fail "状态根不存在：$StateRoot"; exit 1 }
 $StateRoot = (Resolve-Path -LiteralPath $StateRoot).Path

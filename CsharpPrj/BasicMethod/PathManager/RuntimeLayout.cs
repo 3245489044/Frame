@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading;
 
 namespace PathManager;
@@ -20,6 +21,8 @@ namespace PathManager;
 public static class RuntimeLayout
 {
     public const string RuntimeRootEnvironmentVariable = "FILEDRIVEN_RUNTIME_ROOT";
+    public const string DataRootEnvironmentVariable = "WF_DATA_ROOT";
+    public const string LegacyDataRootEnvironmentVariable = "FILEDRIVEN_DATA_ROOT";
     public const string RuntimeMarkerFileName = "runtime.json";
     public const string AppDirectoryName = "App";
     public const string SharedDirectoryName = "Shared";
@@ -32,6 +35,8 @@ public static class RuntimeLayout
 
     private static readonly object SyncRoot = new();
     private static string? _publishedRoot;
+    private static string? _dataRoot;
+    private static string? _logsDir;
     private static bool _resolved;
 
     /// <summary>是否运行于分发包（Runtime 根已确认）。</summary>
@@ -82,8 +87,16 @@ public static class RuntimeLayout
     public static string SharedDir => Path.Combine(Root, SharedDirectoryName);
     public static string PluginsDir => Path.Combine(Root, PluginsDirectoryName);
     public static string ConfigDir => Path.Combine(Root, ConfigDirectoryName);
-    public static string DataDir => Path.Combine(Root, DataDirectoryName);
-    public static string LogsDir => Path.Combine(Root, LogsRelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    /// <summary>可写数据根：WF_DATA_ROOT / FILEDRIVEN_DATA_ROOT → runtime.json.data → Runtime\Data。</summary>
+    public static string DataRoot => _dataRoot ??= ResolveDataRoot(Root);
+
+    /// <summary>兼容旧名：等价于 <see cref="DataRoot"/>。</summary>
+    public static string DataDir => DataRoot;
+
+    /// <summary>日志目录：runtime.json.logs → DataRoot\Logs。</summary>
+    public static string LogsDir => _logsDir ??= ResolveLogsDir(Root);
+
     public static string FrameworkConfigPath => Path.Combine(ConfigDir, "framework.config.json");
 
     /// <summary>解析路径 token；非 token 相对路径在 Published 下按 Runtime 根解析。</summary>
@@ -103,8 +116,8 @@ public static class RuntimeLayout
             if (value.Equals("@shared", StringComparison.OrdinalIgnoreCase)) return Path.Combine(published, SharedDirectoryName);
             if (value.Equals("@plugins", StringComparison.OrdinalIgnoreCase)) return Path.Combine(published, PluginsDirectoryName);
             if (value.Equals("@config", StringComparison.OrdinalIgnoreCase)) return Path.Combine(published, ConfigDirectoryName);
-            if (value.Equals("@data", StringComparison.OrdinalIgnoreCase)) return Path.Combine(published, DataDirectoryName);
-            if (value.Equals("@logs", StringComparison.OrdinalIgnoreCase)) return Path.Combine(published, LogsRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (value.Equals("@data", StringComparison.OrdinalIgnoreCase)) return DataRoot;
+            if (value.Equals("@logs", StringComparison.OrdinalIgnoreCase)) return LogsDir;
 
             if (value.StartsWith("@config/", StringComparison.OrdinalIgnoreCase))
                 return Path.Combine(published, ConfigDirectoryName,
@@ -174,6 +187,8 @@ public static class RuntimeLayout
         {
             _resolved = false;
             _publishedRoot = null;
+            _dataRoot = null;
+            _logsDir = null;
         }
     }
 
@@ -223,6 +238,67 @@ public static class RuntimeLayout
         if (string.IsNullOrWhiteSpace(candidate))
             return null;
         return IsRuntimeRoot(candidate) ? Path.GetFullPath(candidate) : null;
+    }
+
+    private static string ResolveDataRoot(string runtimeRoot)
+    {
+        foreach (var name in new[] { DataRootEnvironmentVariable, LegacyDataRootEnvironmentVariable })
+        {
+            var value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrWhiteSpace(value))
+                return ResolveAgainst(runtimeRoot, value!);
+        }
+
+        var descriptorData = ReadDescriptorValue(runtimeRoot, "data");
+        if (!string.IsNullOrWhiteSpace(descriptorData))
+            return ResolveAgainst(runtimeRoot, descriptorData!);
+
+        return Path.Combine(runtimeRoot, DataDirectoryName);
+    }
+
+    private static string ResolveLogsDir(string runtimeRoot)
+    {
+        var descriptorLogs = ReadDescriptorValue(runtimeRoot, "logs");
+        if (!string.IsNullOrWhiteSpace(descriptorLogs))
+            return ResolveAgainst(runtimeRoot, descriptorLogs!);
+
+        return Path.Combine(DataRoot, "Logs");
+    }
+
+    private static string ResolveAgainst(string runtimeRoot, string candidate)
+    {
+        var value = candidate.Trim();
+        return Path.IsPathRooted(value)
+            ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(value))
+            : Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(Path.Combine(runtimeRoot, value.Replace('/', Path.DirectorySeparatorChar))));
+    }
+
+    private static string? ReadDescriptorValue(string runtimeRoot, string name)
+    {
+        var descriptorPath = Path.Combine(runtimeRoot, RuntimeMarkerFileName);
+        if (!File.Exists(descriptorPath))
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(descriptorPath));
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)
+                    && property.Value.ValueKind == JsonValueKind.String)
+                {
+                    return property.Value.GetString();
+                }
+            }
+        }
+        catch
+        {
+            // 描述符损坏 ⇒ 由后续默认值兜底（不伪造数据根）
+        }
+        return null;
     }
 
     /// <summary>双标记判据：避免 Runtime 位于源码仓内时把 Main 误判为发布根。</summary>

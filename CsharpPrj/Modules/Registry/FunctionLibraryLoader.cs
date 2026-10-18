@@ -35,13 +35,24 @@ namespace Modules.Registry;
             public int FunctionCount { get; init; }
 
             public string? Error { get; init; }
+
+            public bool Required { get; init; }
+
+            public string? ManifestPath { get; init; }
+
+            public string? ConfigPath { get; init; }
+
+            public string? AssemblyPath { get; init; }
+
+            public IReadOnlyList<string> SearchedCandidates { get; init; } = Array.Empty<string>();
         }
 
         public static IReadOnlyList<LoadEntryResult> Load(
             FunctionRegistry registry,
             string? configPath = null,
             bool autoDiscover = false,
-            IEnumerable<string>? domainManifestPaths = null)
+            IEnumerable<string>? domainManifestPaths = null,
+            FunctionLibraryEnvironment? environment = null)
         {
             ArgumentNullException.ThrowIfNull(registry);
 
@@ -51,7 +62,7 @@ namespace Modules.Registry;
 
             if (configPath != null)
             {
-                LoadFromConfig(registry, configPath, nameTracker, results);
+                LoadFromConfig(registry, configPath, nameTracker, results, environment, defaultRequired: true);
             }
 
             // 域清单合并（方案A IoC）：各扩展域自产清单经宿主发现后按同一装载路径注册；
@@ -62,7 +73,7 @@ namespace Modules.Registry;
                 {
                     if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath))
                         continue;
-                    LoadFromConfig(registry, manifestPath, nameTracker, results);
+                    LoadFromConfig(registry, manifestPath, nameTracker, results, environment, defaultRequired: false);
                 }
             }
 
@@ -83,12 +94,14 @@ namespace Modules.Registry;
         public static IReadOnlyList<LoadEntryResult> LoadInto(
             PluginFunctionTable table,
             string configPath,
-            Func<string, Type?>? resolveType = null)
+            Func<string, Type?>? resolveType = null,
+            FunctionLibraryEnvironment? environment = null)
         {
             ArgumentNullException.ThrowIfNull(table);
             if (!File.Exists(configPath))
                 throw new FileNotFoundException($"函数库配置文件不存在: {configPath}", configPath);
 
+            var manifestPath = Path.GetFullPath(configPath);
             var results = new List<LoadEntryResult>();
             var registry = new FunctionRegistry();
             var nameTracker = new DuplicateNameTracker();
@@ -100,37 +113,50 @@ namespace Modules.Registry;
 
             foreach (var lib in libraries.EnumerateArray())
             {
-                var name = lib.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                var typeStr = lib.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
-                var enabled = lib.TryGetProperty("enabled", out var e) ? e.GetBoolean() : true;
-                var methodName = lib.TryGetProperty("method", out var m) ? m.GetString() : null;
-
-                if (!enabled || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(typeStr))
+                var descriptor = ParseDescriptor(lib, defaultRequired: false);
+                if (!descriptor.Enabled || string.IsNullOrWhiteSpace(descriptor.Name) || string.IsNullOrWhiteSpace(descriptor.TypeName))
                     continue;
+
+                IFunctionLibraryContext? context = null;
+                if (environment != null)
+                    context = environment.CreateContext(descriptor, manifestPath);
 
                 try
                 {
-                    var type = (resolveType ?? ResolveTypeFromQualifiedName)(typeStr);
+                    var type = (resolveType ?? ResolveTypeFromQualifiedName)(descriptor.TypeName);
                     if (type == null)
                     {
                         results.Add(new LoadEntryResult
                         {
-                            Name = name,
+                            Name = descriptor.Name,
                             Success = false,
-                            Error = $"无法加载类型 '{typeStr}'"
+                            Required = descriptor.Required,
+                            ManifestPath = manifestPath,
+                            ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath),
+                            Error = $"无法加载类型 '{descriptor.TypeName}'"
                         });
                         continue;
                     }
 
-                    RegisterType(registry, type, methodName, nameTracker, generationGuard);
-                    results.Add(new LoadEntryResult { Name = name, Success = true });
+                    RegisterType(registry, type, descriptor.MethodName, nameTracker, generationGuard, context);
+                    results.Add(new LoadEntryResult
+                    {
+                        Name = descriptor.Name,
+                        Success = true,
+                        Required = descriptor.Required,
+                        ManifestPath = manifestPath,
+                        ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath)
+                    });
                 }
                 catch (Exception ex) when (ex is not InvalidOperationException)
                 {
                     results.Add(new LoadEntryResult
                     {
-                        Name = name,
+                        Name = descriptor.Name,
                         Success = false,
+                        Required = descriptor.Required,
+                        ManifestPath = manifestPath,
+                        ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath),
                         Error = DescribeInvocationError(ex)
                     });
                 }
@@ -189,11 +215,14 @@ namespace Modules.Registry;
         FunctionRegistry registry,
         string configPath,
         DuplicateNameTracker nameTracker,
-        List<LoadEntryResult> results)
+        List<LoadEntryResult> results,
+        FunctionLibraryEnvironment? environment,
+        bool defaultRequired)
     {
         if (!File.Exists(configPath))
             throw new FileNotFoundException($"函数库配置文件不存在: {configPath}", configPath);
 
+        var manifestPath = Path.GetFullPath(configPath);
         var json = File.ReadAllText(configPath);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -203,46 +232,95 @@ namespace Modules.Registry;
 
         foreach (var lib in libraries.EnumerateArray())
         {
-            var name = lib.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-            var typeStr = lib.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
-            var enabled = lib.TryGetProperty("enabled", out var e) ? e.GetBoolean() : true;
-            var methodName = lib.TryGetProperty("method", out var m) ? m.GetString() : null;
-
-            if (!enabled || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(typeStr))
+            var descriptor = ParseDescriptor(lib, defaultRequired);
+            if (!descriptor.Enabled || string.IsNullOrWhiteSpace(descriptor.Name) || string.IsNullOrWhiteSpace(descriptor.TypeName))
                 continue;
+
+            IFunctionLibraryContext? context = null;
+            if (environment != null)
+                context = environment.CreateContext(descriptor, manifestPath);
 
             try
             {
-                var type = ResolveTypeFromQualifiedName(typeStr);
+                var type = ResolveTypeFromQualifiedName(descriptor.TypeName);
                 if (type == null)
                 {
                     results.Add(new LoadEntryResult
                     {
-                        Name = name,
+                        Name = descriptor.Name,
                         Success = false,
-                        Error = $"无法加载类型 '{typeStr}'"
+                        Required = descriptor.Required,
+                        ManifestPath = manifestPath,
+                        ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath),
+                        Error = $"无法加载类型 '{descriptor.TypeName}'"
                     });
                     continue;
                 }
 
-                RegisterType(registry, type, methodName, nameTracker);
+                RegisterType(registry, type, descriptor.MethodName, nameTracker, context: context);
                 results.Add(new LoadEntryResult
                 {
-                    Name = name,
+                    Name = descriptor.Name,
                     Success = true,
-                    FunctionCount = 0
+                    FunctionCount = 0,
+                    Required = descriptor.Required,
+                    ManifestPath = manifestPath,
+                    ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath)
                 });
             }
             catch (Exception ex) when (ex is not InvalidOperationException)
             {
                 results.Add(new LoadEntryResult
                 {
-                    Name = name,
+                    Name = descriptor.Name,
                     Success = false,
+                    Required = descriptor.Required,
+                    ManifestPath = manifestPath,
+                    ConfigPath = context?.ResolveOptionalResource(descriptor.ConfigPath),
                     Error = DescribeInvocationError(ex)
                 });
             }
         }
+    }
+
+    private static FunctionLibraryDescriptor ParseDescriptor(JsonElement lib, bool defaultRequired)
+    {
+        static string? ReadString(JsonElement node, string name)
+            => node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        static bool ReadBool(JsonElement node, string name, bool fallback)
+            => node.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? value.GetBoolean()
+                : fallback;
+
+        static IReadOnlyList<string> ReadStringArray(JsonElement node, string name)
+        {
+            if (!node.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+                return Array.Empty<string>();
+
+            return value.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Cast<string>()
+                .ToList();
+        }
+
+        return new FunctionLibraryDescriptor
+        {
+            Name = ReadString(lib, "name") ?? string.Empty,
+            TypeName = ReadString(lib, "type") ?? string.Empty,
+            MethodName = ReadString(lib, "method"),
+            Enabled = ReadBool(lib, "enabled", true),
+            Required = ReadBool(lib, "required", defaultRequired),
+            ResourceRoot = ReadString(lib, "resourceRoot"),
+            ConfigPath = ReadString(lib, "config"),
+            ExpectedPath = ReadString(lib, "expected"),
+            Assemblies = ReadStringArray(lib, "assemblies"),
+            AssemblySearchRoots = ReadStringArray(lib, "assemblySearchRoots")
+        };
     }
 
     /// <summary>
@@ -319,7 +397,8 @@ namespace Modules.Registry;
         Type type,
         string? methodName,
         DuplicateNameTracker nameTracker,
-        HashSet<string>? generationGuard = null)
+        HashSet<string>? generationGuard = null,
+        IFunctionLibraryContext? context = null)
     {
         var typeKey = type.FullName ?? type.Name;
         var guard = generationGuard ?? _loadedLibraryTypes;
@@ -343,6 +422,12 @@ namespace Modules.Registry;
         if (method == null)
         {
             method = type.GetMethod("RegisterAll", BindingFlags.Public | BindingFlags.Static,
+                new[] { typeof(ITrConfigRegistry), typeof(IFunctionLibraryContext) });
+        }
+
+        if (method == null)
+        {
+            method = type.GetMethod("RegisterAll", BindingFlags.Public | BindingFlags.Static,
                 new[] { typeof(ITrConfigRegistry) });
         }
 
@@ -354,11 +439,25 @@ namespace Modules.Registry;
         if (method == null)
         {
             throw new InvalidOperationException(
-                $"类型 '{type.FullName}' 没有可用的注册方法。需要 RegisterAll(ITrConfigRegistry) 或 Register()。");
+                $"类型 '{type.FullName}' 没有可用的注册方法。需要 RegisterAll(ITrConfigRegistry, IFunctionLibraryContext)、" +
+                "RegisterAll(ITrConfigRegistry) 或 Register()。");
         }
 
         var parameters = method.GetParameters();
-        if (parameters.Length == 1 && typeof(ITrConfigRegistry).IsAssignableFrom(parameters[0].ParameterType))
+        if (parameters.Length == 2
+            && typeof(ITrConfigRegistry).IsAssignableFrom(parameters[0].ParameterType)
+            && typeof(IFunctionLibraryContext).IsAssignableFrom(parameters[1].ParameterType))
+        {
+            if (context == null)
+            {
+                throw new InvalidOperationException(
+                    $"'{type.FullName}.{method.Name}' 需要 IFunctionLibraryContext，但当前调用未提供 FunctionLibraryEnvironment。");
+            }
+
+            var wrappingRegistry = new ConflictDetectingRegistry(registry, nameTracker);
+            method.Invoke(null, new object[] { wrappingRegistry, context });
+        }
+        else if (parameters.Length == 1 && typeof(ITrConfigRegistry).IsAssignableFrom(parameters[0].ParameterType))
         {
             var wrappingRegistry = new ConflictDetectingRegistry(registry, nameTracker);
             method.Invoke(null, new object[] { wrappingRegistry });
@@ -370,7 +469,8 @@ namespace Modules.Registry;
         else
         {
             throw new InvalidOperationException(
-                $"'{type.FullName}.{method.Name}' 的签名不兼容。支持 RegisterAll(ITrConfigRegistry) 或 Register()。");
+                $"'{type.FullName}.{method.Name}' 的签名不兼容。支持 RegisterAll(ITrConfigRegistry, IFunctionLibraryContext)、" +
+                "RegisterAll(ITrConfigRegistry) 或 Register()。");
         }
     }
 

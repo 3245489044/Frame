@@ -418,14 +418,14 @@
         Domain = 'Build'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '共享映射自洽：Schema / 目标与插件工程存在 / Profile 引用可解析 / 规则 Id+Match+引用合法 / Frame·Projects 工程覆盖（规则或 Excluded）/ 正负对照'
+        Note   = '共享映射自洽：Schema / psd1 规则 + props 构建图（目标/插件/profile/分发源存在与引用可解析）/ 工程覆盖 / 正负对照'
     }
 
     DistributionIncrement = @{
         Domain = 'Build'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '分发增量守卫：禁用 mtime 判据 / -SkipBuild 必须走 build stamp / Unmapped fail-loud / 数据根保留与 clean 保护 / 缺件 fail-loud / 正负对照'
+        Note   = '分发单次性守卫：一次 dotnet msbuild / 无嵌套 build·publish / manifest 增量计数 / Unmapped fail-loud / 数据根保留 / 正负对照'
     }
 
     AgentRuntimeUIConfig = @{

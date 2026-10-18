@@ -252,7 +252,7 @@
     #   当前子模块在途改动（agent 数据目录残留）按新单 preexisting 登记。
     #   恢复 10.17 未知智能体系列 = 回填下一行 v39 的 Value（上方注释保留）。
     # Manifest(v39) = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-未知智能体剩余项.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.18\2026-10-18-分发增量构建-剩余批次.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-分发构建单次化.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

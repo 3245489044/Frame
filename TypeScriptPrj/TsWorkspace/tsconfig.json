@@ -20,6 +20,8 @@
     { "path": "MCPBridge" },
     { "path": "MCPFramework" },
     { "path": "ClineApi" },
+    { "path": "FsSink" },
+    { "path": "AgentStorage" },
     { "path": "Protocol/CSG" }
   ],
   "files": []

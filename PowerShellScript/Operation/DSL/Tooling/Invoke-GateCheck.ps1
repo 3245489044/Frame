@@ -18,7 +18,10 @@ param(
 
     # 分层：fast = 只跑「读产物」类轻量件（清单逐件 Tier='fast'）；full = 全量（缺省）
     [ValidateSet('fast', 'full')]
-    [string]$Tier = 'full'
+    [string]$Tier = 'full',
+
+    # 并发门禁进程数（0/1 = 串行；>1 = 每门禁独立 pwsh 进程，按上限并发）
+    [int]$Parallel = 0
 )
 
 # 按需加载模块（Tooling\ → DSL\ → Operation\ → PowerShellScript\Modules）
@@ -63,12 +66,102 @@ if ($invalid) {
     exit 1
 }
 
-Write-Section "门禁检查（共 $($names.Count) 件，层=$Tier）"
+Write-Section "门禁检查（共 $($names.Count) 件，层=$Tier，并发=$Parallel）"
+
+# ---- 并发执行器（门禁均为只读件；每件独立 pwsh 进程，避免 runspace 的 exit 语义歧义）----
+function ConvertTo-GateArgString {
+    param([hashtable]$SpecArgs)
+    $parts = @()
+    if ($null -eq $SpecArgs) { return '' }
+    foreach ($k in $SpecArgs.Keys) {
+        $v = $SpecArgs[$k]
+        if ($v -is [bool]) { if ($v) { $parts += "-$k" } }
+        elseif ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $parts += "-$k" } }
+        elseif ($null -ne $v) { $parts += ("-$k `"$v`"") }
+    }
+    return ($parts -join ' ')
+}
+
+function Invoke-GatesParallel {
+    param(
+        [string[]]$Names,
+        [hashtable]$Gates,
+        [int]$MaxParallel
+    )
+    $pwsh = Join-Path $PSHOME 'pwsh.exe'
+    if (-not (Test-Path -LiteralPath $pwsh)) { $pwsh = 'powershell.exe' }
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("gatecheck-" + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+    $queue = [System.Collections.Generic.Queue[string]]::new()
+    foreach ($n in $Names) { $queue.Enqueue($n) }
+    $running = @{}
+    $collected = @{}
+
+    while ($queue.Count -gt 0 -or $running.Count -gt 0) {
+        while ($running.Count -lt $MaxParallel -and $queue.Count -gt 0) {
+            $name = $queue.Dequeue()
+            $spec = $Gates[$name]
+            try { $scriptPath = Find-GateScript -Name $name -Domain ([string]$spec.Domain) -AllowFallback } catch { $scriptPath = '' }
+            if (-not (Test-Path -LiteralPath $scriptPath)) {
+                $collected[$name] = [PSCustomObject]@{ Name = $name; Status = 'FAIL'; Ms = 0; Rc = 2; Output = @("脚本不存在: $scriptPath") }
+                continue
+            }
+            $outFile = Join-Path $tmp "$name.out.txt"
+            $errFile = Join-Path $tmp "$name.err.txt"
+            $argString = "-NoProfile -File `"$scriptPath`" $(ConvertTo-GateArgString -SpecArgs $spec.Args)"
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            $proc = Start-Process -FilePath $pwsh -ArgumentList $argString -NoNewWindow -PassThru `
+                -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+            $running[$proc.Id] = [PSCustomObject]@{ Name = $name; Proc = $proc; Out = $outFile; Err = $errFile; Sw = $sw; Spec = $spec }
+        }
+
+        Start-Sleep -Milliseconds 100
+        foreach ($id in @($running.Keys)) {
+            $r = $running[$id]
+            if (-not $r.Proc.HasExited) { continue }
+            $r.Sw.Stop()
+            $text = @()
+            if (Test-Path -LiteralPath $r.Out) { $text += Get-Content -LiteralPath $r.Out -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $r.Err) { $text += Get-Content -LiteralPath $r.Err -ErrorAction SilentlyContinue }
+            $rc = $r.Proc.ExitCode
+            $status = if ($rc -eq $r.Spec.Expect) { 'PASS' } else { 'FAIL' }
+            $collected[$r.Name] = [PSCustomObject]@{
+                Name = $r.Name; Status = $status; Ms = [int]$r.Sw.Elapsed.TotalMilliseconds; Rc = $rc; Output = $text
+            }
+            Remove-Item -LiteralPath $r.Out, $r.Err -Force -ErrorAction SilentlyContinue
+            $running.Remove($id)
+        }
+    }
+
+    Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    return @($Names | ForEach-Object { $collected[$_] } | Where-Object { $null -ne $_ })
+}
 
 # ---- 执行 ----
 $failed = 0
 $results = New-Object System.Collections.Generic.List[PSCustomObject]
 $failedOutputs = New-Object System.Collections.Generic.List[string]
+
+if ($Parallel -gt 1 -and $names.Count -gt 1) {
+    $parallelResults = @(Invoke-GatesParallel -Names $names -Gates $gates -MaxParallel $Parallel)
+    foreach ($r in $parallelResults) {
+        if ($r.Status -eq 'PASS') {
+            Write-Result "OK" "$($r.Name) (ms=$($r.Ms))"
+            $results.Add([PSCustomObject]@{ Name = $r.Name; Status = 'PASS'; Ms = $r.Ms; Message = '' })
+        } else {
+            Write-Result "FAIL" "$($r.Name) (ms=$($r.Ms), exit=$($r.Rc), expect=$($gates[$r.Name].Expect))"
+            $failed++
+            $results.Add([PSCustomObject]@{ Name = $r.Name; Status = 'FAIL'; Ms = $r.Ms; Message = "exit=$($r.Rc)" })
+            $tail = @($r.Output | Select-Object -Last 20 | ForEach-Object { $_.ToString() })
+            if ($tail.Count -gt 0) {
+                $failedOutputs.Add("--- $($r.Name) 尾部输出 ---")
+                $tail | ForEach-Object { $failedOutputs.Add("  $_") }
+            }
+        }
+    }
+}
+else {
 
 foreach ($name in $names) {
     $spec = $gates[$name]
@@ -121,6 +214,7 @@ foreach ($name in $names) {
             $tail | ForEach-Object { $failedOutputs.Add("  $_") }
         }
     }
+}
 }
 
 # ---- 失败摘要 ----

@@ -109,12 +109,15 @@ export type {
 } from "./extract/artifact-extractor.js";
 export { ClineRouteProvider, extractClineSessionId } from "./cline/cline-route-provider.js";
 export type { ClineRouteProviderOptions } from "./cline/cline-route-provider.js";
+export { clineExtractors } from "./cline/cline-extractor.js";
+
 export { clineRoutes } from "./cline/cline-route.js";
 export type { ClineRoutesOptions } from "./cline/cline-route.js";
 export { ClineDbProvider } from "./cline/cline-db-provider.js";
 export type { ClineDbProviderOptions } from "./cline/cline-db-provider.js";
 export { DbSink } from "./db/db-sink.js";
 export type { DbOpenedRecord, DbSinkDeps, DbSinkObserveFrame } from "./db/db-sink.js";
-export { DB_SINK_ENV, DB_SINK_MODES, parseDbSinkMode, routeDbPath } from "./db/db-route-provider.js";
-export type { DbRouteDecision, DbRouteProvider, DbSinkMode } from "./db/db-route-provider.js";
+export { DB_SINK_ENV, DB_SINK_MODES, BUILTIN_DB_DRIVERS, NODE_SQLITE_DRIVER, parseDbSinkMode, routeDbPath } from "./db/db-route-provider.js";
+export type { DbDriverAdapter, DbRouteDecision, DbRouteProvider, DbSinkMode } from "./db/db-route-provider.js";
+
 

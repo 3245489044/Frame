@@ -245,7 +245,14 @@
     #   nodes.json + agent 数据目录）按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 IEF 系列 = 回填下一行 v38 的 Value（上方注释保留 IEF 单原值）。
     # Manifest(v38) = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-IEF通用框架与wait-until解锁.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-未知智能体剩余项.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v40（2026-10-17）：单指针切换至「Agent SDK 升级与零 SQLite 通用存储适配」计划授权单（active=[B0..B5]）。
+    #   切换理由 = 用户转入实施该规划；本系列改动落在 Frame/TypeScriptPrj（AgentStorage/FsSink/ClineApi）·
+    #   Frame/PowerShellScript（隔离门禁/基线）· Projects/Plug/Agent/src（ClineDaemonHost）·
+    #   Environment/CentralTest（回归/验收）· Docs/analysis/2026/10/10.17（授权单/施工单），均在新单 allowSet 内。
+    #   当前子模块在途改动（agent 数据目录残留）按新单 preexisting 登记。
+    #   恢复 10.17 未知智能体系列 = 回填下一行 v39 的 Value（上方注释保留）。
+    # Manifest(v39) = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-未知智能体剩余项.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-Agent-SDK升级与零SQLite通用存储适配.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

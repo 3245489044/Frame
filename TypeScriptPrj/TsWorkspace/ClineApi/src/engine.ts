@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
   const installed = await installSink({ persistBridge });
 
   const { startEngine } = await import("./engine-main.js");
-  await startEngine({ sink: installed.sink });
+  await startEngine({ sink: installed.sink, sessionBackend: installed.sessionBackend, host: installed.host });
 }
 
 bootstrap().catch((err) => {

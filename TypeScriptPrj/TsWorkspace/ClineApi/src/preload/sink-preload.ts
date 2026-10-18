@@ -19,91 +19,86 @@ import {
   AgentSinkHost,
   BridgeToCSharpDbBackend,
   DaemonIpcPersistenceTransport,
-  ClineRouteProvider,
-  ClineDbProvider,
   DbSink,
   type DbSinkObserveFrame,
   type SinkObserveFrame,
 } from "fs-sink";
-import { resolveClineDataRoot, resolveDefaultClineDataRoot } from "../runtime/cline-data-root.js";
+import {
+  AgentStorageHost,
+  STORAGE_PROFILE_ENV,
+  type AgentStorageObserveFrame,
+  type StorageProfile,
+} from "agent-storage";
+import { ClineStorageProvider } from "../storage/cline-storage-provider.js";
 
 export interface SinkInstallOptions {
   /** 写侧实时推 persist 帧到 C#（engine 路径由 CLINE_FS_SINK_PERSIST_BRIDGE 开关决定；cli 路径恒 false）。 */
   persistBridge?: boolean;
   /** 数据根覆盖（缺省 = `resolveClineDataRoot().dataDir`，即 SDK 实际写盘根）。 */
   dataDir?: string;
+  /** 显式档位（缺省 = AGENT_STORAGE_PROFILE / CLINE_DB_SINK / zeroDisk）。 */
+  profile?: StorageProfile;
 }
 
 export interface InstalledSink {
+  /** 通用存储宿主（策略/观测/清理面权威）。 */
+  host: AgentStorageHost;
   /** 已 patch 的统一门面（注入 SdkTransport 用）。 */
   sink: AgentSinkHost;
-  /** 模块层 sqlite shim（缺省 off；`CLINE_DB_SINK=observe|relocate|memory` 时生效）。 */
+  /** 模块层 DB 拦截器（兼容旧导出；等价 host.dbSink）。 */
   dbSink: DbSink;
   /** 生效的数据根（供诊断回带）。 */
   dataDir: string;
   /** 绑定自检结果（空 = 通过；非空已 fail-fast 抛错，不会返回）。 */
   bindings: string[];
+  /** 生效档位。 */
+  profile: StorageProfile;
+  /** 严格零 SQLite 后端（仅 strictNoSqlite 时有值）。 */
+  sessionBackend?: unknown;
 }
 
 let installed: InstalledSink | undefined;
 
 /**
- * 安装 FsSink（幂等）：解析数据根 → 构造宿主 → patch → 绑定自检。
+ * 安装 AgentStorage（幂等）：解析上下文 → 构造宿主 → patch fs/db → 绑定自检。
  * 绑定自检非空即抛错终止（把「facade 早于 patch 建立」的静默失效升级为启动期显性失败）。
  */
 export async function installSink(opts: SinkInstallOptions = {}): Promise<InstalledSink> {
   if (installed) return installed;
-
-  const root = resolveClineDataRoot();
-  const dataDir = opts.dataDir ?? root.dataDir;
-  // 泄漏观测面（仅观测，不路由）：忽略 CLINE_* 后的同算法 sessions/db 目录 = SDK 默认根；
-  // 若 SDK 无视注入变量写到那里，路径命中该前缀却未命中路由 → 计 miss，定位「又走了默认盘」。
-  const defaults = resolveDefaultClineDataRoot();
-  const defaultSessionDir = defaults.sessionsDir;
-  const defaultDbDir = defaults.dbDir;
 
   // persistBridge：把 DbBackend 换成桥接 C# 持久化的实现（写侧单向推送，失败不阻断内存闭环）。
   const db = opts.persistBridge
     ? new BridgeToCSharpDbBackend(new DaemonIpcPersistenceTransport())
     : undefined;
 
-  const sink = new AgentSinkHost(
-    [
-      new ClineRouteProvider({
-        dataDir,
-        missWatchRoots: [`${dataDir}/sessions`, defaultSessionDir],
-        // db 根观测面（仅观测）：索引库原生 SQLite 不经 fs，拦截不可达 → 单列 dbMisses 计数。
-        dbWatchRoots: [`${dataDir}/db`, defaultDbDir],
-      }),
-    ],
-    db
-  );
+  const provider = new ClineStorageProvider({ dataDir: opts.dataDir });
+  const host = await AgentStorageHost.install({
+    provider,
+    profile: opts.profile,
+    persistBridge: opts.persistBridge,
+    dbBackend: db,
+  });
 
-  // DbSink（模块层 sqlite 拦截）：`CLINE_DB_SINK` 缺省 off ⇒ 不 patch（零行为变更）。
-  // 构造须早于 fs patch（捕获原始 fs 引用用于 relocate 建目录）；安装与 fs patch 同一窗口。
-  const dbSink = new DbSink([
-    new ClineDbProvider({ dataDir, defaultDbDir, dbNames: ["sessions.db"] }),
-  ]);
-
-  sink.patchAll();
-  dbSink.patchAll();
-
-  const bindings = await sink.verifyBindings();
-  if (bindings.length > 0) {
-    throw new Error(
-      `FsSink 绑定自检失败：patch 对 ESM 命名导入不可见（未对齐方法: ${bindings.join(", ")}）。` +
-        `原因：本进程在 patch 之前已有模块静态 import 了 node:fs，导致 facade 快照冻结为原函数。` +
-        `修复：入口必须 bootstrap（先 installSink 再动态 import 主体），且 preload 静态闭包不得含 node:fs 消费者。`
-    );
-  }
-
-  installed = { sink, dbSink, dataDir, bindings };
+  installed = {
+    host,
+    sink: host.sink,
+    dbSink: host.dbSink,
+    dataDir: host.context.dataDir,
+    bindings: host.bindings,
+    profile: host.policy.profile,
+    sessionBackend: host.sessionBackend,
+  };
   return installed;
 }
 
 /** 已安装的门面（未安装返回 undefined；供 SdkTransport 注入）。 */
 export function getInstalledSink(): AgentSinkHost | undefined {
   return installed?.sink;
+}
+
+/** 已安装的通用宿主（供 SdkTransport 注入 sessionBackend/观测）。 */
+export function getInstalledHost(): AgentStorageHost | undefined {
+  return installed?.host;
 }
 
 /** 观测帧（perRoute / perSdk hits·misses / archives / bindings）；未安装返回 undefined。 */
@@ -116,16 +111,29 @@ export function dbObserve(): DbSinkObserveFrame | undefined {
   return installed?.dbSink.observe();
 }
 
+/** 通用存储观测帧（policy/context/fs/db/sessionBackend）；未安装返回 undefined。 */
+export function observeStorage(): AgentStorageObserveFrame | undefined {
+  return installed?.host.observe();
+}
+
+/** 当前档位（诊断/阶段帧回带）。 */
+export function currentStorageProfile(): StorageProfile | undefined {
+  return installed?.profile;
+}
+
+/** 环境变量名（供 C# / 文档引用，避免各处手写）。 */
+export const AGENT_STORAGE_PROFILE_ENV = STORAGE_PROFILE_ENV;
+
 /** 终态落库 + 卸载 patch（进程退出/dispose 时调用；可重复调用）。 */
 export async function disposeSink(): Promise<void> {
   const current = installed;
   if (!current) return;
   installed = undefined;
   try {
-    await current.sink.flushAll();
+    await current.host.flushAll();
   } catch {
     /* 终态落库失败不阻断卸载 */
   }
-  current.dbSink.unpatchAll();
-  current.sink.unpatchAll();
+  current.host.dispose();
 }
+

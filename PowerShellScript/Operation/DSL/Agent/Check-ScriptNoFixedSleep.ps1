@@ -45,6 +45,12 @@ $coordinator = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandE
 $violations = [System.Collections.Generic.List[string]]::new()
 $notes = [System.Collections.Generic.List[string]]::new()
 
+function Get-BaselineValue {
+    param($Entry)
+    if ($Entry -is [System.Collections.IDictionary]) { return [int]$Entry['Value'] }
+    return [int]$Entry
+}
+
 function Get-SleepHits {
     param($Node, [string]$File, [string]$Path)
     if ($null -eq $Node -or $Node -is [string] -or $Node -is [int] -or $Node -is [long] -or $Node -is [bool]) { return }
@@ -103,7 +109,7 @@ if ($WriteBaseline) {
     $lines.Add('# 固定等待基线（棘轮只降不升）：由 Check-ScriptNoFixedSleep.ps1 -WriteBaseline 生成')
     $lines.Add('@{')
     foreach ($kv in ($counts.GetEnumerator() | Sort-Object Name)) {
-        $lines.Add("    '$($kv.Name)' = $($kv.Value)")
+        $lines.Add("    '$($kv.Name)' = @{ Value = $($kv.Value); Origin = 'Derived'; DueWhen = '' }")
     }
     $lines.Add('}')
     Set-Content -LiteralPath $baselinePath -Value $lines -Encoding UTF8
@@ -118,7 +124,7 @@ if (-not (Test-Path -LiteralPath $baselinePath)) {
 else {
     $baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
     foreach ($file in $counts.Keys) {
-        $allowed = if ($baseline.ContainsKey($file)) { [int]$baseline[$file] } else { 0 }
+        $allowed = if ($baseline.ContainsKey($file)) { Get-BaselineValue $baseline[$file] } else { 0 }
         if ($counts[$file] -gt $allowed) {
             $violations.Add("[S4] 固定等待新增落点：$file 实测 $($counts[$file]) / 基线 $allowed")
         }
@@ -127,8 +133,8 @@ else {
         }
     }
     foreach ($file in $baseline.Keys) {
-        if (-not $counts.ContainsKey($file) -and [int]$baseline[$file] -gt 0) {
-            $notes.Add("待下调基线：$file 实测 0 / 基线 $($baseline[$file])")
+        if (-not $counts.ContainsKey($file) -and (Get-BaselineValue $baseline[$file]) -gt 0) {
+            $notes.Add("待下调基线：$file 实测 0 / 基线 $(Get-BaselineValue $baseline[$file])")
         }
     }
 }

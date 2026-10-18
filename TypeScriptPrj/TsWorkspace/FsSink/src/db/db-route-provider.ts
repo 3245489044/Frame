@@ -11,6 +11,7 @@
  * 消费方：`DbSink`（db-sink.ts）。文献：`Docs/analysis/2026/9/9.13/2026-09-13-FsSink数据库截获-DbSink-分析与实施方案.md`（§5.2/§5.3）。
  */
 
+import { createRequire } from "node:module";
 import { normalizeFsPath } from "../core/route.js";
 
 /** DbSink 形态（能力递增）：off=不 patch；observe=只观测；relocate=改写落点；memory=`/`+行镜像前的真不落盘`。 */
@@ -18,6 +19,36 @@ export type DbSinkMode = "off" | "observe" | "relocate" | "memory";
 
 /** 全部合法形态（供 env 解析与守卫断言）。 */
 export const DB_SINK_MODES: readonly DbSinkMode[] = ["off", "observe", "relocate", "memory"];
+
+/**
+ * DB 驱动适配契约 — 把「模块名 + 导出名 + 加载方式」变成可插拔声明。
+ * 当前内置 node:sqlite；未来 better-sqlite3 / bun:sqlite 由调用方注册即可。
+ */
+export interface DbDriverAdapter {
+  readonly id: string;
+  /** 会被 require/import 的模块名（如 node:sqlite）。 */
+  readonly moduleIds: readonly string[];
+  /** 模块中承载数据库构造器的导出名（如 DatabaseSync）。 */
+  readonly exportName: string;
+  /** 加载模块（返回导出对象）。 */
+  load(): Record<string, unknown>;
+}
+
+/** 内置 node:sqlite 适配器（保持 DbSink 现有行为）。 */
+export const NODE_SQLITE_DRIVER: DbDriverAdapter = {
+  id: "node:sqlite",
+  moduleIds: ["node:sqlite", "sqlite"],
+  exportName: "DatabaseSync",
+  load: () => {
+    const req = createRequire(import.meta.url);
+    return req("node:sqlite") as Record<string, unknown>;
+  },
+};
+
+/** 全部内置驱动（供观测/诊断；新增驱动 = 追加条目）。 */
+export const BUILTIN_DB_DRIVERS: readonly DbDriverAdapter[] = [NODE_SQLITE_DRIVER];
+
+
 
 /** 开关环境变量名（缺省 off = 今日行为；一键回退 = 删除/置 off）。 */
 export const DB_SINK_ENV = "CLINE_DB_SINK";

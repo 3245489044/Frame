@@ -48,15 +48,31 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 $violations = [System.Collections.Generic.List[string]]::new()
 
-# 扫描面：TS/C# 源文件（排除产物与第三方）
-$tsFiles = Get-ChildItem -Path $Root -Recurse -Filter *.ts -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(node_modules|build|dist|obj|_deprecated)\\' }
-$csFiles = Get-ChildItem -Path $Root -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin|BuildOutput|_deprecated)\\' }
+# 扫描面：TS/C# 源文件（优先 git 索引，避免递归下钻 node_modules/BuildOutput；缺失 git 时回退）
+function Get-RepoSourceFiles {
+    param([string]$Extension, [string]$ExcludePattern)
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $tracked = @(& git -C $Root ls-files --cached --others --exclude-standard -- "*.$Extension" 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            return @($tracked | Where-Object { $_ } | ForEach-Object {
+        $full = [IO.Path]::GetFullPath((Join-Path $Root $_)).Replace('/', '\')
+                $full
+            } | Where-Object { (Test-Path -LiteralPath $_) -and ($_ -notmatch $ExcludePattern) })
+        }
+    }
+    return @(Get-ChildItem -Path $Root -Recurse -Filter "*.$Extension" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch $ExcludePattern } |
+        Select-Object -ExpandProperty FullName)
+}
+
+$tsFiles = @(Get-RepoSourceFiles -Extension 'ts' -ExcludePattern '\\(node_modules|build|dist|obj|_deprecated)\\')
+$csFiles = @(Get-RepoSourceFiles -Extension 'cs' -ExcludePattern '\\(obj|bin|BuildOutput|_deprecated)\\')
 
 $clineApiSrc = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\src'
 $fsSinkSrc = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\FsSink\src'
+$agentStorageSrc = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\AgentStorage\src'
 $preloadFile = Join-Path $clineApiSrc 'preload\sink-preload.ts'
+$agentStorageHost = Join-Path $agentStorageSrc 'host.ts'
 $bootstrapFiles = @(
     (Join-Path $clineApiSrc 'engine.ts'),
     (Join-Path $clineApiSrc 'cli.ts')
@@ -65,10 +81,17 @@ $bootstrapFiles = @(
 # ── A. preload 静态图洁净（I1） ──
 # DbSink（模块层 sqlite shim）与其声明式 provider 同属 preload 静态闭包，一并纳管（I1 扩展）。
 $cleanScope = @($preloadFile) + $bootstrapFiles + @(Join-Path $clineApiSrc 'runtime\cline-data-root.ts') + @(
+    (Join-Path $clineApiSrc 'storage\cline-storage-provider.ts'),
     (Join-Path $fsSinkSrc 'db\db-sink.ts'),
     (Join-Path $fsSinkSrc 'db\db-route-provider.ts'),
-    (Join-Path $fsSinkSrc 'cline\cline-db-provider.ts')
+    (Join-Path $fsSinkSrc 'cline\cline-db-provider.ts'),
+    (Join-Path $agentStorageSrc 'contract.ts'),
+    (Join-Path $agentStorageSrc 'policy.ts'),
+    (Join-Path $agentStorageSrc 'host.ts'),
+    (Join-Path $agentStorageSrc 'session-backend.ts'),
+    (Join-Path $agentStorageSrc 'driver.ts')
 )
+
 $staticFsPattern = '^\s*import\s+[^;]*from\s+["''](node:)?fs(/promises)?["'']'
 foreach ($f in $cleanScope)
 {
@@ -84,7 +107,11 @@ if ($ShowDetail) { Write-Host "A: 已检 preload 洁净面 $($cleanScope.Count) 
 # ── B. 绑定自检在位（I2 载体） ──
 if (Test-Path -LiteralPath $preloadFile)
 {
-    if (-not (Select-String -Path $preloadFile -Pattern 'verifyBindings\s*\(' -ErrorAction SilentlyContinue))
+    $preloadBinding = Select-String -Path $preloadFile -Pattern 'verifyBindings\s*\(|AgentStorageHost\.install\s*\(' -ErrorAction SilentlyContinue
+    $hostBinding = if (Test-Path -LiteralPath $agentStorageHost) {
+        Select-String -Path $agentStorageHost -Pattern 'verifyBindings\s*\(' -ErrorAction SilentlyContinue
+    }
+    if (-not $preloadBinding -and -not $hostBinding)
     {
         $violations.Add("sink-preload.ts 未调用 verifyBindings（绑定自检缺失，A 类失效将静默）")
     }
@@ -123,9 +150,9 @@ $ctorHits = $tsFiles | Select-String -Pattern 'new\s+AgentSinkHost\s*\(|new\s+Db
     Where-Object { $_.Path -notmatch '\\FsSink\\(src|test)\\' }
 foreach ($h in $ctorHits)
 {
-    if ($h.Path -ne $preloadFile)
+    if ($h.Path -ne $preloadFile -and $h.Path -ne $agentStorageHost)
     {
-        $violations.Add("AgentSinkHost/DbSink 越权构造（入口非单点）$($h.Path):$($h.LineNumber) —— 生产入口唯一 = sink-preload")
+        $violations.Add("AgentSinkHost/DbSink 越权构造（入口非单点）$($h.Path):$($h.LineNumber) —— 生产入口唯一 = sink-preload / AgentStorageHost")
     }
 }
 
@@ -162,14 +189,17 @@ if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE))
 }
 if ($ShowDetail) { Write-Host "E: db 落盘面已检（仓库树残留 $($dbResidue.Count) 处；严格模式=$StrictDbResidue）。" }
 
-# E3：DbSink.memory 形态即「零落盘」硬承诺 —— 仓库树残留直接违规（无需 -StrictDbResidue）。
+# E3：zeroDisk/strictNoSqlite 形态即「零落盘」硬承诺 —— 仓库树残留直接违规（无需 -StrictDbResidue）。
 $dbSinkMode = ''
 if (-not [string]::IsNullOrWhiteSpace($env:CLINE_DB_SINK)) { $dbSinkMode = $env:CLINE_DB_SINK.Trim().ToLower() }
-if (-not $StrictDbResidue -and $dbSinkMode -eq 'memory')
+$storageProfile = ''
+if (-not [string]::IsNullOrWhiteSpace($env:AGENT_STORAGE_PROFILE)) { $storageProfile = $env:AGENT_STORAGE_PROFILE.Trim().ToLower() }
+$zeroDisk = $dbSinkMode -eq 'memory' -or $storageProfile -in @('zerodisk', 'strictnosqlite')
+if (-not $StrictDbResidue -and $zeroDisk)
 {
     foreach ($f in $dbResidue)
     {
-        $violations.Add("CLINE_DB_SINK=memory 下仓库树仍有 db 残留（零落盘承诺）: $($f.FullName)")
+        $violations.Add("zeroDisk 下仓库树仍有 db 残留（零落盘承诺）: $($f.FullName)")
     }
 }
 

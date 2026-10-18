@@ -27,6 +27,7 @@
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { existsSync, readdirSync } from 'fs'
+import { execSync } from 'child_process'
 import { parseSln } from './parser/slnParser.js'
 import { parseCsproj } from './parser/csprojParser.js'
 import { buildAll, buildProject, cleanAll, rebuildAll, rebuildProject } from './tasks/index.js'
@@ -119,11 +120,21 @@ function findProjectOrExit(projects: TsProject[], name: string): TsProject {
  */
 function isAlreadyBuiltByTsc(slnDir: string): boolean {
   const tsWorkspaceBuild = resolve(slnDir, 'TsWorkspace', 'build')
-  if (existsSync(tsWorkspaceBuild)) {
-    const buildInfoFiles = readdirSync(tsWorkspaceBuild).filter(f => f.endsWith('.tsbuildinfo'))
-    return buildInfoFiles.length > 0
+  if (!existsSync(tsWorkspaceBuild)) return false
+  const buildInfoFiles = readdirSync(tsWorkspaceBuild).filter(f => f.endsWith('.tsbuildinfo'))
+  if (buildInfoFiles.length === 0) return false
+  // 新鲜度前提：工作区无未提交的 TS 变更；有变更 ⇒ 必须让 tsc --build 增量重算（防「tsbuildinfo 存在即跳过」掩盖源码改动）。
+  try {
+    const changes = execSync('git status --porcelain -- TsWorkspace', {
+      cwd: slnDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    if (changes.trim().length > 0) return false
+  } catch {
+    return false
   }
-  return false
+  return true
 }
 
 async function main(): Promise<void> {

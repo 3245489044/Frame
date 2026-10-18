@@ -449,6 +449,13 @@
         Note   = '默认检查模式；-ShowDetail / -StrictDbResidue'
     }
 
+    AgentStorageIsolation = @{
+        Domain = 'Usharp'
+        Args   = @{}
+        Expect = 0
+        Note   = 'AgentStorage 零落盘/零 SQLite 门禁（worker 根无 *.db*；strict 模式需 -ProbeReport）'
+    }
+
     LogMessages = @{
         Domain = 'Declarations'
         Args   = @{}

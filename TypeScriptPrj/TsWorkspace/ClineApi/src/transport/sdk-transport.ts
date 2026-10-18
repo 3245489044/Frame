@@ -339,13 +339,17 @@ export class SdkTransport {
   private readonly sessionRuns = new Map<string, number>();
   /** 已 patch 的 FsSink 门面（由入口 preload 安装后注入；未注入 = 不拦截）。 */
   private readonly sink?: AgentSinkHost;
+  /** 严格零 SQLite 会话后端（仅 strictNoSqlite 注入；缺省 undefined）。 */
+  private readonly sessionBackend?: unknown;
 
   /**
    * @param opts.sink 入口 preload（`installSink`）安装的 FsSink 门面；仅 engine/cli 子进程注入（H3 隔离）。
    *        patch 时机唯一归口 preload（须先于 loadSdk/import("@cline/sdk")，H1），本类不再自行 patch/unpatch。
+   * @param opts.sessionBackend 通用存储宿主解析出的内存会话后端（strictNoSqlite 灰度）。
    */
-  constructor(opts?: { sink?: AgentSinkHost }) {
+  constructor(opts?: { sink?: AgentSinkHost; sessionBackend?: unknown }) {
     this.sink = opts?.sink;
+    this.sessionBackend = opts?.sessionBackend;
   }
 
   /** 阶段追踪回调（执行面 engine 注入：把 loadSdk/create/core.start 等阶段作为协议帧上报控制面）。 */
@@ -385,10 +389,15 @@ export class SdkTransport {
       this.corePromise = loadSdk()
         .then((sdk) => {
           this.emitStage(traceEnabled, "load-sdk-ok");
-          return sdk.ClineCore.create({
+          const options: Record<string, unknown> = {
             clientName: "cline-api",
             backendMode: "local",
-          }) as Promise<ClineCoreWithHost>;
+          };
+          // 严格零 SQLite（灰度）：sessionService 在 0.0.95 为 @internal，按结构注入。
+          if (this.sessionBackend !== undefined) {
+            options.sessionService = this.sessionBackend;
+          }
+          return sdk.ClineCore.create(options as never) as Promise<ClineCoreWithHost>;
         })
         .then((core) => {
           this.emitStage(traceEnabled, "ensure-core-ok");

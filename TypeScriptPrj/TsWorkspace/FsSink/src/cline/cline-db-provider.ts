@@ -1,15 +1,18 @@
 /**
- * cline-db-provider — Cline 专属声明式库路由（受控根 / 白名单 / 形态）。
+ * ClineDbProvider — Cline 专属声明式库路由（受控根 / 白名单 / 形态）。
  *
- * 受控根 = `<dataDir>/db`（权威数据根派生，与 SDK `resolveDbDataDir()` 同算法；权威解析器 =
- * `ClineApi/src/runtime/cline-data-root.ts`），额外接管根 = SDK 默认 db 根（`~/.cline/data/db`），
- * 使宿主忘记注入 `CLINE_DIR`/`CLINE_DB_DATA_DIR`（兜底落仓库树的场景）在 relocate/memory 下也不落仓库树。
- * 只声明单根，不猜两边；白名单限域到 `sessions.db`（`cron.db`/`connectors.db` 等原样放行）。
+ * 白名单 = Cline 已知四类库（sessions/tasks/cron/connectors）；未列出的库仍 fail-open 放行。
+ * 缺省形态由 AGENT_STORAGE_PROFILE / CLINE_DB_SINK 共同决定（见 agent-storage 策略）。
  */
+
 
 import * as path from "node:path";
 import type { DbRouteProvider, DbSinkMode } from "../db/db-route-provider.js";
 import { DB_SINK_ENV, parseDbSinkMode } from "../db/db-route-provider.js";
+
+/** 新档位开关（与 agent-storage 同名单源；此处仅读取，不重复定义策略）。 */
+const STORAGE_PROFILE_ENV = "AGENT_STORAGE_PROFILE";
+
 
 export interface ClineDbProviderOptions {
   /** 权威 Cline 数据根（= `resolveClineDataRoot().dataDir`）。 */
@@ -38,13 +41,18 @@ export class ClineDbProvider implements DbRouteProvider {
   constructor(opts: ClineDbProviderOptions) {
     this.roots = [path.join(opts.dataDir, "db")];
     this.claimRoots = opts.defaultDbDir ? [opts.defaultDbDir] : [];
-    this.dbNames = opts.dbNames ?? ["sessions.db"];
+    this.dbNames = opts.dbNames ?? ["sessions.db", "tasks.db", "cron.db", "connectors.db"];
     this.relocateRoot = this.roots[0];
     this.env = opts.env ?? process.env;
   }
 
-  /** 形态来自 env（缺省 off；非法值亦退 off，一键回退 = 删除变量）。 */
+  /** 形态来源：AGENT_STORAGE_PROFILE 优先；否则旧 CLINE_DB_SINK；缺省 off（单元/旧路径零行为变更）。 */
   mode(): DbSinkMode {
+    const profile = this.env[STORAGE_PROFILE_ENV]?.trim().toLowerCase();
+    if (profile === "zerodisk") return "memory";
+    if (profile === "strictnosqlite") return "memory";
+    if (profile === "relocated") return "relocate";
+    if (profile === "off") return "off";
     return parseDbSinkMode(this.env[DB_SINK_ENV]);
   }
 }

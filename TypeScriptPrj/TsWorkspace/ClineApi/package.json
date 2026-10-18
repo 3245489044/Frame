@@ -28,7 +28,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@cline/sdk": "0.0.70",
+    "@cline/sdk": "0.0.95",
+    "agent-storage": "workspace:*",
     "csg-protocol": "workspace:*",
     "fs-sink": "workspace:*"
   },

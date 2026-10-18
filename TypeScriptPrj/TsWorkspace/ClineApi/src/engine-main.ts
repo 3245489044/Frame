@@ -18,6 +18,7 @@
 
 import * as readline from "readline";
 import type { AgentSinkHost } from "fs-sink";
+import type { AgentStorageHost } from "agent-storage";
 import { SdkTransport } from "./transport/sdk-transport.js";
 import type { ClineMode, ClineRunOptions } from "./types.js";
 import { clineLifecycleToJson } from "./csg/state-machine.js";
@@ -26,6 +27,10 @@ import { clineLifecycleToJson } from "./csg/state-machine.js";
 export interface EngineMainOptions {
   /** FsSink 门面：注入 SdkTransport（拦截已由 preload 完成，本层只消费）。 */
   sink?: AgentSinkHost;
+  /** 严格零 SQLite 会话后端（仅 strictNoSqlite）。 */
+  sessionBackend?: unknown;
+  /** 通用存储宿主：观测帧/清理面（可选）。 */
+  host?: AgentStorageHost;
 }
 
 const HEARTBEAT_INTERVAL_MS = 10000;
@@ -65,7 +70,7 @@ function sendCsg(state: "spawned" | "loading" | "ready" | "api"): void {
 /** 主体入口：装配 transport（sink 由 preload 注入）并进入 JSON-Line 请求循环。 */
 export async function startEngine(opts: EngineMainOptions = {}): Promise<void> {
   // sink 已由入口 preload patch 完成（H1：patch 先于 import("@cline/sdk")）；本层只消费其门面。
-  const transport = new SdkTransport({ sink: opts.sink });
+  const transport = new SdkTransport({ sink: opts.sink, sessionBackend: opts.sessionBackend });
   transport.setStageReporter((s, detail) => stage(s, detail));
   // K2 识别产物帧（type:"node"）：不带 id，由控制面 daemon 按当前请求关联并盖章（与 trace 帧同范式）。
   // 帧形态 { type:"node", node:{ kind, ordinal, node, origin, source, payload } }。
@@ -154,6 +159,8 @@ export async function startEngine(opts: EngineMainOptions = {}): Promise<void> {
       // 判据：hits>0 ∧ misses==0 ∧ bindings==[]。
       const frame = opts.sink?.observe();
       if (frame) stage("fs-sink-observe", frame);
+      const storage = opts.host?.observe();
+      if (storage) stage("agent-storage-observe", storage);
     }
   };
 

@@ -37,8 +37,19 @@ agent 引擎以 `@cline/sdk` 本地依赖方式嵌入（非 spawn CLI 进程）�
 pnpm install
 ```
 
-> 说明：`@cline/sdk@0.0.70` 由 `@cline/core` 提供完整 runtime（local 模式进程内自包含，
+> 说明：`@cline/sdk@0.0.95` 由 `@cline/core` 提供完整 runtime（local 模式进程内自包含，
 > 不依赖 VS Code / hub）。不再需要安装全局 `cline` CLI。
+
+### 1.1 零落盘（默认）
+
+Agent 运行时默认 `zeroDisk`：
+- 会话产物（sessions/messages/manifest）走进程内内存卷；
+- SDK 索引库（`sessions.db` / `tasks.db` / `cron.db` / `connectors.db`）走 `:memory:`；
+- 磁盘仅在 worker 隔离根下保留诊断日志，不产生 `*.db*`。
+
+回退：设置 `AGENT_STORAGE_PROFILE=off`（或旧 `CLINE_DB_SINK=off`）即恢复真实落盘。
+灰度严格零 SQLite：`AGENT_STORAGE_PROFILE=strictNoSqlite`（需 Provider 注入内存 sessionService）。
+
 
 ### 2. 配置集中凭据
 

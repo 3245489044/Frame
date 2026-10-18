@@ -87,7 +87,7 @@ describe("db-route-provider — 形态解析与纯判定", () => {
     const off = new ClineDbProvider({ dataDir, env: {} });
     expect(off.mode()).toBe("off");
     expect(off.roots).toEqual([path.join(dataDir, "db")]);
-    expect(off.dbNames).toEqual(["sessions.db"]);
+    expect(off.dbNames).toEqual(["sessions.db", "tasks.db", "cron.db", "connectors.db"]);
     const on = new ClineDbProvider({ dataDir, env: { CLINE_DB_SINK: "relocate" } });
     expect(on.mode()).toBe("relocate");
   });

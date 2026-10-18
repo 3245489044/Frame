@@ -18,7 +18,15 @@ import { createRequire } from "node:module";
 import Module from "node:module";
 import * as path from "node:path";
 import { normalizeFsPath } from "../core/route.js";
-import { routeDbPath, type DbRouteDecision, type DbRouteProvider, type DbSinkMode } from "./db-route-provider.js";
+import {
+  NODE_SQLITE_DRIVER,
+  routeDbPath,
+  type DbDriverAdapter,
+  type DbRouteDecision,
+  type DbRouteProvider,
+  type DbSinkMode,
+} from "./db-route-provider.js";
+
 
 const require = createRequire(import.meta.url);
 
@@ -45,6 +53,8 @@ export interface DbOpenedRecord {
 export interface DbSinkObserveFrame {
   /** 生效形态（多 provider 时取首个非 off）。 */
   mode: DbSinkMode;
+  /** 驱动标识（如 node:sqlite）。 */
+  driver: string;
   /** 每 provider 形态（诊断用）。 */
   providers: Record<string, DbSinkMode>;
   /** 是否已安装 shim。 */
@@ -67,9 +77,12 @@ export interface DbSinkObserveFrame {
 export interface DbSinkDeps {
   /** 加载 sqlite 模块（缺省 `createRequire("node:sqlite")`）。 */
   loadSqlite?: () => Record<string, unknown>;
+  /** DB 驱动适配器（缺省 node:sqlite）。 */
+  driver?: DbDriverAdapter;
   /** 是否安装 `Module._load` 兜底钩子（缺省 true）。 */
   installLoadHook?: boolean;
 }
+
 
 function defaultLoadSqlite(): Record<string, unknown> {
   return require("node:sqlite") as Record<string, unknown>;
@@ -83,6 +96,7 @@ function defaultLoadSqlite(): Record<string, unknown> {
 export class DbSink {
   private readonly providers: readonly DbRouteProvider[];
   private readonly deps: DbSinkDeps;
+  private readonly driver: DbDriverAdapter;
   /** 原始 fs（构造时捕获；仅用于 relocate 建目录，避免静态 import node:fs）。 */
   private readonly rawFs: { mkdirSync?: (p: string, o?: unknown) => unknown };
   private readonly opened: DbOpenedRecord[] = [];
@@ -100,6 +114,7 @@ export class DbSink {
   constructor(providers: readonly DbRouteProvider[], deps: DbSinkDeps = {}) {
     this.providers = providers;
     this.deps = deps;
+    this.driver = deps.driver ?? NODE_SQLITE_DRIVER;
     // createRequire 取 CJS 引用（非静态 import，不建 ESM facade）；构造早于 fs patch 时即原始函数。
     this.rawFs = require("node:fs") as { mkdirSync?: (p: string, o?: unknown) => unknown };
   }
@@ -123,10 +138,11 @@ export class DbSink {
     if (this.mode === "off") return false; // 缺省路径：零行为变更
 
     try {
-      const sqlite = (this.deps.loadSqlite ?? defaultLoadSqlite)();
-      const real = sqlite?.["DatabaseSync"];
+      const sqlite = this.deps.loadSqlite ? this.deps.loadSqlite() : this.driver.load();
+      const exportName = this.driver.exportName;
+      const real = sqlite?.[exportName];
       if (typeof real !== "function") {
-        throw new Error("node:sqlite 无 DatabaseSync 导出");
+        throw new Error(`${this.driver.id} 无 ${exportName} 导出`);
       }
       this.sqliteModule = sqlite;
       this.realDatabaseSync = real as DatabaseSyncCtor;
@@ -135,8 +151,8 @@ export class DbSink {
       // A：直接替换 builtin 导出（探针实测 writable/configurable=true）。
       let trackA = false;
       try {
-        sqlite["DatabaseSync"] = this.shim;
-        trackA = sqlite["DatabaseSync"] === this.shim;
+        sqlite[exportName] = this.shim;
+        trackA = sqlite[exportName] === this.shim;
       } catch {
         trackA = false;
       }
@@ -165,6 +181,7 @@ export class DbSink {
     for (const p of this.providers) providers[p.name] = p.mode();
     return {
       mode: this.mode,
+      driver: this.driver.id,
       providers,
       installed: this.patched,
       opened: [...this.opened],
@@ -178,9 +195,13 @@ export class DbSink {
 
   /** 还原导出与加载钩子（幂等；仅当导出仍为本 shim 时才还原，避免覆盖他人后装值）。 */
   private rollback(): void {
-    if (this.sqliteModule && this.shim !== undefined && this.sqliteModule["DatabaseSync"] === this.shim) {
+    if (
+      this.sqliteModule &&
+      this.shim !== undefined &&
+      this.sqliteModule[this.driver.exportName] === this.shim
+    ) {
       try {
-        this.sqliteModule["DatabaseSync"] = this.realDatabaseSync;
+        this.sqliteModule[this.driver.exportName] = this.realDatabaseSync;
       } catch {
         /* 导出已不可写：保持现状（不阻断卸载） */
       }
@@ -272,6 +293,8 @@ export class DbSink {
     const original = moduleLoader._load;
     if (typeof original !== "function") return false;
     const shim = this.shim;
+    const exportName = this.driver.exportName;
+    const moduleIds = this.driver.moduleIds;
     try {
       moduleLoader._load = function patchedLoad(
         this: unknown,
@@ -279,10 +302,10 @@ export class DbSink {
         parent: unknown,
         isMain?: boolean
       ): unknown {
-        if (request === "node:sqlite" || request === "sqlite") {
+        if (moduleIds.includes(request)) {
           const exports = original.call(this, request, parent, isMain) as Record<string, unknown>;
           if (exports && typeof exports === "object") {
-            return { ...exports, DatabaseSync: shim };
+            return { ...exports, [exportName]: shim };
           }
           return exports;
         }

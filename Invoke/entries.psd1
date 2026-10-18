@@ -47,7 +47,7 @@
         'invoke-gatecheck' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1'
-            Map = @{ All = 'All'; Only = 'Only'; Manifest = 'Manifest'; Tier = 'Tier' }
+            Map = @{ All = 'All'; Only = 'Only'; Manifest = 'Manifest'; Tier = 'Tier'; Parallel = 'Parallel' }
         }
 
         # ---------- 验证 / 回归 / 定位（转发到 CentralTest 单一实现入口）----------

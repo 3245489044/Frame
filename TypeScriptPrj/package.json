@@ -9,6 +9,8 @@
     "TsWorkspace/MCPBridge",
     "TsWorkspace/CsprojContext",
     "TsWorkspace/ClineApi",
+    "TsWorkspace/FsSink",
+    "TsWorkspace/AgentStorage",
     "TsWorkspace/Protocol/CSG",
     "TsWorkspace/WorkflowGraph",
     "TsSln"

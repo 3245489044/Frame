@@ -37,6 +37,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 $baseline = Import-GateBaseline -Name UsharpDocForm
 
 $dsdDir     = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven'
@@ -57,8 +58,9 @@ Write-Host '============================================================' -Foreg
 
 function Get-SourceFiles([string]$Dir, [string]$Filter) {
     if (-not (Test-Path -LiteralPath $Dir)) { return @() }
-    return @(Get-ChildItem -LiteralPath $Dir -Recurse -Filter $Filter -File |
-        Where-Object { $_.FullName -notmatch $excludeRx })
+    $ext = $Filter.TrimStart('*').TrimStart('.')
+    return @(Get-GateFiles -Root $Dir -Extension $ext -Exclude $excludeRx |
+        ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
 $dsdFiles = Get-SourceFiles $dsdDir '*.cs'

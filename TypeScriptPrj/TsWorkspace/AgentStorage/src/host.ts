@@ -52,6 +52,10 @@ export interface AgentStorageObserveFrame {
   fs: SinkObserveFrame;
   db: DbSinkObserveFrame;
   sessionBackend: boolean;
+  /** 注入后端的方法调用总数（strictNoSqlite 实证：0 = SDK 未消费）。 */
+  sessionBackendCalls: number;
+  /** 显式允许落盘的残留清单（Provider 声明）。 */
+  residuals: string[];
   scratchRoots: string[];
 }
 
@@ -160,6 +164,9 @@ export class AgentStorageHost {
 
   /** 统一观测帧（fs + db + policy/context）。 */
   observe(): AgentStorageObserveFrame {
+    const backend = this.sessionBackend as { stats?: () => { total?: number } } | undefined;
+    const sessionBackendCalls =
+      backend && typeof backend.stats === "function" ? Number(backend.stats().total ?? 0) : 0;
     return {
       provider: this.provider.name,
       policy: this.policy,
@@ -172,6 +179,8 @@ export class AgentStorageHost {
       fs: this.sink.observe(),
       db: this.dbSink.observe(),
       sessionBackend: this.sessionBackend !== undefined,
+      sessionBackendCalls,
+      residuals: this.provider.residualPaths?.(this.context) ?? [],
       scratchRoots: [...this.scratchRoots],
     };
   }

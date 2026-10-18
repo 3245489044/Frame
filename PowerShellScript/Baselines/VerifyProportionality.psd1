@@ -10,5 +10,5 @@
     RatioMax = @{ Value = 1.5; Origin = 'Verdict'; DueWhen = 'H 批稳定后按实测重裁（收紧或放宽）；超界样例恒须报' }
 
     # 正对照下限：比例复算样本数须 ≥ 此值（防判据无标的假绿）。
-    MinSamples = @{ Value = 2; Origin = 'Derived'; DueWhen = '' }
+    MinSamples = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }
 }

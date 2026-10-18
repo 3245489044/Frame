@@ -89,7 +89,7 @@
 |---|---|---|---|
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（11 件）
+## Meta（12 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -98,6 +98,7 @@
 | `DeclaredBundle` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1` |
 | `FallbackInventory` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-FallbackInventory.ps1` |
 | `GateBaselines` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1` |
+| `GateFileIndex` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateFileIndex.ps1` |
 | `GateRegistry` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateRegistry.ps1` |
 | `GateTaxonomy` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateTaxonomy.ps1` |
 | `GeneratedArtifactsDrift` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1` |
@@ -167,10 +168,11 @@
 | `SpecPortLedger` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1` |
 | `SpecToolingContract` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1` |
 
-## Usharp（6 件）
+## Usharp（7 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
+| `AgentStorageIsolation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentStorageIsolation.ps1` |
 | `FsSinkEntry` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1` |
 | `HtmlViewerVocabulary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-HtmlViewerVocabulary.ps1` |
 | `ToolFaceDeclaration` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-ToolFaceDeclaration.ps1` |

@@ -70,6 +70,11 @@ export interface AgentStorageProvider extends AgentRouteProvider {
   scratchRoots?(context: AgentStorageContext): string[];
   /** 严格零 SQLite 后端（可选；仅 strictNoSqlite 时注入 SDK）。 */
   sessionBackend?(context: AgentStorageContext): unknown;
+  /**
+   * 显式允许落盘的残留（相对/绝对路径前缀）。zeroDisk 下仅这些残留可接受；
+   * 门禁据此把「已声明残留」与「未声明泄漏」区分开（禁静默丢事实）。
+   */
+  residualPaths?(context: AgentStorageContext): string[];
 }
 
 /** Provider 路由工厂辅助（新 Agent 直接复用 MemoryVolume + Route）。 */

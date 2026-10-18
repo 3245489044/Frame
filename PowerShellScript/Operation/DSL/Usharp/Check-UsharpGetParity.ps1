@@ -36,6 +36,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 $baseline = Import-GateBaseline -Name UsharpGetParity
 
 $storesDir  = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Sqlite'
@@ -55,8 +56,8 @@ Write-Host '============================================================' -Foreg
 
 function Get-CsFiles([string]$Dir) {
     if (-not (Test-Path -LiteralPath $Dir)) { return @() }
-    return @(Get-ChildItem -LiteralPath $Dir -Recurse -Filter '*.cs' -File |
-        Where-Object { $_.FullName -notmatch $excludeRx })
+    return @(Get-GateFiles -Root $Dir -Extension cs -Exclude $excludeRx |
+        ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
 # ---------------- G1 注册单点 ----------------

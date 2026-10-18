@@ -48,7 +48,28 @@ Agent 运行时默认 `zeroDisk`：
 - 磁盘仅在 worker 隔离根下保留诊断日志，不产生 `*.db*`。
 
 回退：设置 `AGENT_STORAGE_PROFILE=off`（或旧 `CLINE_DB_SINK=off`）即恢复真实落盘。
-灰度严格零 SQLite：`AGENT_STORAGE_PROFILE=strictNoSqlite`（需 Provider 注入内存 sessionService）。
+
+**可接受残留（显式声明）**：`<dataDir>/logs/hooks.jsonl` 是 C# `ClineHooksFactIngestor`
+的事实摄取源（仅日志，不含会话正文），zeroDisk 下保留；由 `ClineStorageProvider.residualPaths()`
+声明，门禁只记录不判红。若将其内存化，会直接断掉 `LlmIteration/ToolCall/FinalAnswer` 摄取链。
+
+**2026-10-17 真实会话实测**（`deepseek-v4-flash`，含 `read_files` 工具调用）：
+
+| 判据 | 结果 |
+|---|---|
+| worker 根 `*.db*` | 0 |
+| `meta.storage.fs.misses` | 0 |
+| `meta.storage.fs.bindings` | `[]` |
+| `meta.storage.db.opened[].db` | `:memory:` |
+| `meta.storage.db.memoryHits` | 1 |
+| `meta.storage.db.fallbacks` | 0 |
+| `meta.storage.residuals` | `logs/hooks.jsonl` |
+| 归档 | `archiveMeta.source=sink`，4 条消息完整 |
+
+灰度严格零 SQLite：`AGENT_STORAGE_PROFILE=strictNoSqlite`（Provider 注入内存 sessionService）。
+**状态：实验性**。实测 SDK 确实消费注入后端（sentinel 抛错 + `listSessions` 调用 1 次），
+`DatabaseSync` 构造 0 次，但 SDK 仍加载 `node:sqlite` 模块（`nodeSqliteLoaded=1`）。
+因此当前只承诺「不构造 DB + 零文件」，不承诺「不加载模块」；正式目标仍是 `zeroDisk`。
 
 
 ### 2. 配置集中凭据

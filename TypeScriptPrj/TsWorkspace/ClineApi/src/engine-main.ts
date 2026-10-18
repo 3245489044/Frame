@@ -70,7 +70,7 @@ function sendCsg(state: "spawned" | "loading" | "ready" | "api"): void {
 /** 主体入口：装配 transport（sink 由 preload 注入）并进入 JSON-Line 请求循环。 */
 export async function startEngine(opts: EngineMainOptions = {}): Promise<void> {
   // sink 已由入口 preload patch 完成（H1：patch 先于 import("@cline/sdk")）；本层只消费其门面。
-  const transport = new SdkTransport({ sink: opts.sink, sessionBackend: opts.sessionBackend });
+  const transport = new SdkTransport({ sink: opts.sink, sessionBackend: opts.sessionBackend, host: opts.host });
   transport.setStageReporter((s, detail) => stage(s, detail));
   // K2 识别产物帧（type:"node"）：不带 id，由控制面 daemon 按当前请求关联并盖章（与 trace 帧同范式）。
   // 帧形态 { type:"node", node:{ kind, ordinal, node, origin, source, payload } }。

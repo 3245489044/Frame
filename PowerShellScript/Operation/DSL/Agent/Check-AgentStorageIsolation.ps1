@@ -89,6 +89,16 @@ if ($strict) {
         if ($loaded.Count -eq 0 -and $null -eq $probe.nodeSqliteLoaded) {
             $violations.Add('探针报告缺少 nodeSqliteLoaded/databaseSyncConstructions 字段')
         }
+        # 消费实证（R2）：仅有代码路径不够 —— 必须证明 SDK 真的调用了注入后端。
+        if ($null -eq $probe.sessionServiceCalls) {
+            $violations.Add('strictNoSqlite 实证不足：探针报告缺少 sessionServiceCalls（请用 storage-probe-harness.mjs）')
+        } elseif ([int]$probe.sessionServiceCalls -le 0) {
+            $violations.Add("strictNoSqlite 违约：SDK 未消费注入 sessionService（调用 $($probe.sessionServiceCalls) 次）")
+        }
+        if ($ShowDetail) {
+            Write-Host ('B-consume: sessionBackendInjected={0} sessionServiceCalls={1} sentinelThrown={2}' -f `
+                $probe.sessionBackendInjected, $probe.sessionServiceCalls, $probe.sentinelThrown)
+        }
     }
     if ($ShowDetail) { Write-Host ('B: 严格零 SQLite 已检（报告={0}）' -f $ProbeReport) }
 }
@@ -100,13 +110,17 @@ if (-not [string]::IsNullOrWhiteSpace($ObserveReport)) {
     } else {
         $obs = Get-Content -LiteralPath $ObserveReport -Raw | ConvertFrom-Json
         $misses = 0
+        $dbMisses = 0
         if ($null -ne $obs.fs.perSdk) {
             foreach ($p in $obs.fs.perSdk.PSObject.Properties) {
                 $misses += [int]$p.Value.misses
-                $misses += [int]$p.Value.dbMisses
+                # dbMisses = 索引库根被触碰的 fs 路径数（原生 SQLite 不经 fs）；真值由 db.memoryHits/fallbacks 判，
+                # 不并入 misses==0 判据（否则 zeroDisk 下正常的内存改写会被误报）。
+                $dbMisses += [int]$p.Value.dbMisses
             }
         }
-        if ($misses -gt 0) { $violations.Add("观测面违约：fs/db misses=$misses（应为 0）") }
+        if ($misses -gt 0) { $violations.Add("观测面违约：fs misses=$misses（应为 0）") }
+        if ($ShowDetail) { Write-Host ("C-fs: misses={0} dbMisses={1}（dbMisses 仅观测，不参与判据）" -f $misses, $dbMisses) }
         if ($null -ne $obs.fs.bindings -and @($obs.fs.bindings).Count -gt 0) {
             $violations.Add("观测面违约：bindings 非空（$(@($obs.fs.bindings) -join ', ')）")
         }
@@ -115,6 +129,9 @@ if (-not [string]::IsNullOrWhiteSpace($ObserveReport)) {
         }
         if (-not [string]::IsNullOrWhiteSpace([string]$obs.db.installError)) {
             $violations.Add("观测面违约：db.installError=$($obs.db.installError)")
+        }
+        if ($ShowDetail -and $null -ne $obs.residuals) {
+            Write-Host ("C-residual: {0}" -f (@($obs.residuals) -join '; '))
         }
     }
 }

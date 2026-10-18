@@ -44,6 +44,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 
 # ---- 禁引清单（5 模式；Agent 面全禁）----
 $ForbiddenPatterns = @(
@@ -74,8 +75,8 @@ function Get-ForbiddenHits {
 
     $hits = [System.Collections.Generic.List[object]]::new()
     if (-not (Test-Path -LiteralPath $Dir)) { return $hits }
-    foreach ($f in (Get-ChildItem -LiteralPath $Dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' })) {
+    foreach ($f in (Get-GateFiles -Root $Dir -Extension cs -Exclude '\\(obj|bin|_deprecated)\\' |
+            ForEach-Object { Get-Item -LiteralPath $_ })) {
         $index = 0
         foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
             $index++

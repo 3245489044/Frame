@@ -452,8 +452,17 @@
     AgentStorageIsolation = @{
         Domain = 'Usharp'
         Args   = @{}
+        Tier   = 'fast'
         Expect = 0
-        Note   = 'AgentStorage 零落盘/零 SQLite 门禁（worker 根无 *.db*；strict 模式需 -ProbeReport）'
+        Note   = 'AgentStorage 零落盘/零 SQLite 门禁（worker 根无 *.db*；strict 模式需 -ProbeReport + sessionServiceCalls>0）'
+    }
+
+    GateFileIndex = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '门禁源文件索引棘轮（R1）：递归 Get-ChildItem 只允许在册债务；源文件枚举统一走 Baselines\GateFileIndex.psm1；正/负对照'
     }
 
     LogMessages = @{

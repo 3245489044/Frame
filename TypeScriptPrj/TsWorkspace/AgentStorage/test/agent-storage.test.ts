@@ -6,8 +6,10 @@ import { createRequire } from "node:module";
 import { MemoryVolume, type Route } from "fs-sink";
 import {
   AgentStorageHost,
+  ClaudeStorageProvider,
   FileAgentProvider,
   SESSION_BACKEND_METHODS,
+  extractClaudeSessionId,
   parseStorageProfile,
   policyForProfile,
   type AgentStorageContext,
@@ -151,5 +153,30 @@ describe("FileAgentProvider（Claude 等文件型 Agent 骨架）", () => {
     expect(routes.length).toBeGreaterThan(0);
     expect(routes[0].spec.name).toBe("claude-sessions");
     expect(provider.extractSessionId(`${dir}\\sessions\\s-1\\x.messages.json`)).toBe("s-1");
+  });
+});
+
+describe("ClaudeStorageProvider（真实文件型布局）", () => {
+  it("声明 projects/*.jsonl 路由、DB 面为空、残留显式", () => {
+    const dir = tempDir("claude-real");
+    const provider = new ClaudeStorageProvider({ dataDir: dir });
+    const ctx = provider.context({});
+    expect(ctx.sessionsDir).toBe(`${dir}\\projects`);
+    expect(ctx.dbDir).toBe(`${dir}\\db`);
+    expect(provider.dbClaims()).toEqual([]);
+
+    const routes = provider.buildRoutes();
+    expect(routes.map((r) => r.spec.name)).toEqual([
+      "claude-projects",
+      "claude-transcripts",
+      "claude-manifest",
+    ]);
+    expect(provider.residualPaths(ctx).length).toBe(2);
+  });
+
+  it("sessionId 从 projects/<cwd>/<id>.jsonl 解析", () => {
+    expect(extractClaudeSessionId("C:\\Users\\u\\.claude\\projects\\D--Proj-Main\\abc-123.jsonl")).toBe("abc-123");
+    expect(extractClaudeSessionId("/home/u/.claude/projects/-repo/def.jsonl")).toBe("def");
+    expect(extractClaudeSessionId("/home/u/.claude/history.jsonl")).toBeUndefined();
   });
 });

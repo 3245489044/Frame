@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as path from "path";
 // 仅类型引用（编译期擦除）：sink 由入口 preload 安装后注入，本模块不再自建/patch（唯一入口 = sink-preload）。
 import type { AgentSinkHost } from "fs-sink";
+import type { AgentStorageHost } from "agent-storage";
 import { resolveClineDataRoot } from "../runtime/cline-data-root.js";
 
 // 仅保留类型导入（编译期擦除，无运行时副作用）。值（ClineCore / getClineDefaultSystemPrompt）
@@ -341,15 +342,18 @@ export class SdkTransport {
   private readonly sink?: AgentSinkHost;
   /** 严格零 SQLite 会话后端（仅 strictNoSqlite 注入；缺省 undefined）。 */
   private readonly sessionBackend?: unknown;
+  /** 通用存储宿主（观测面；可选）。 */
+  private readonly host?: AgentStorageHost;
 
   /**
    * @param opts.sink 入口 preload（`installSink`）安装的 FsSink 门面；仅 engine/cli 子进程注入（H3 隔离）。
    *        patch 时机唯一归口 preload（须先于 loadSdk/import("@cline/sdk")，H1），本类不再自行 patch/unpatch。
    * @param opts.sessionBackend 通用存储宿主解析出的内存会话后端（strictNoSqlite 灰度）。
    */
-  constructor(opts?: { sink?: AgentSinkHost; sessionBackend?: unknown }) {
+  constructor(opts?: { sink?: AgentSinkHost; sessionBackend?: unknown; host?: AgentStorageHost }) {
     this.sink = opts?.sink;
     this.sessionBackend = opts?.sessionBackend;
+    this.host = opts?.host;
   }
 
   /** 阶段追踪回调（执行面 engine 注入：把 loadSdk/create/core.start 等阶段作为协议帧上报控制面）。 */
@@ -694,6 +698,7 @@ export class SdkTransport {
             bindings: sinkObs.bindings,
           }
         : undefined,
+      storage: this.host?.observe(),
     };
 
     // 引擎回带真实轮次（进程内按 session 计数，供观测；归档权威轮次 = C# ur_nodes 已归档最大 + 1，跨 worker 一致）。

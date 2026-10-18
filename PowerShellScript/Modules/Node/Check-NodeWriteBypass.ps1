@@ -58,8 +58,10 @@ if (-not (Test-Path $wfmDir))
     exit 1
 }
 
-$csFiles = @(Get-ChildItem -Path $wfmDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' })
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
+
+$csFiles = @(Get-GateFiles -Root $wfmDir -Extension cs -Exclude '\\(obj|bin|_deprecated)\\' |
+    ForEach-Object { Get-Item -LiteralPath $_ })
 
 # ---------------- A. 键格式声明化（A-3 / P14） ----------------
 $keyMappingDir = Join-Path $wfmDir 'NodeProcess\KeyMapping'

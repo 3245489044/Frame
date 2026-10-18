@@ -49,6 +49,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 # 基线单源 = Baselines\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 $baseline = Import-GateBaseline -Name KeyGrammar
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -69,8 +70,8 @@ $files = @()
 foreach ($scanRoot in $scanRoots)
 {
     if (-not (Test-Path $scanRoot)) { continue }
-    $files += @(Get-ChildItem -Path $scanRoot -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' })
+    $files += @(Get-GateFiles -Root $scanRoot -Extension cs -Exclude '\\(obj|bin|_deprecated)\\' |
+        ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
 # 代码行提取（跳过注释 / XML 文档行）

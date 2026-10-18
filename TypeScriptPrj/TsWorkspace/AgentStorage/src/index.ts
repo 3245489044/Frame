@@ -26,4 +26,6 @@ export { NODE_SQLITE_DRIVER } from "./driver.js";
 export type { DbDriverAdapter } from "./driver.js";
 export { FileAgentProvider } from "./providers/file-agent-provider.js";
 export type { FileAgentProviderOptions } from "./providers/file-agent-provider.js";
+export { ClaudeStorageProvider, extractClaudeSessionId, resolveClaudeDataDir } from "./providers/claude-provider.js";
+export type { ClaudeProviderOptions } from "./providers/claude-provider.js";
 

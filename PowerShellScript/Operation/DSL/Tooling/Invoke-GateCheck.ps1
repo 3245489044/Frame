@@ -21,7 +21,16 @@ param(
     [string]$Tier = 'full',
 
     # 并发门禁进程数（0/1 = 串行；>1 = 每门禁独立 pwsh 进程，按上限并发）
-    [int]$Parallel = 0
+    [int]$Parallel = 0,
+
+    # 共享文件索引（R1）：父进程预生成一次，子门禁进程复用；-NoFileIndex 关闭
+    [switch]$NoFileIndex,
+
+    # 慢件预算（R5）：-NoTimingGate 诊断期关闭；比例相对 _gate-timing.psd1
+    [switch]$NoTimingGate,
+    [string]$TimingReport = '',
+    [double]$TimingWarnRatio = 1.5,
+    [double]$TimingFailRatio = 2.0
 )
 
 # 按需加载模块（Tooling\ → DSL\ → Operation\ → PowerShellScript\Modules）
@@ -29,6 +38,42 @@ param(
 
 # 门禁运行时（根定位 + 落点派生**单源**，委托 PScriptManager\Framework\DirectoryMap）
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateFileIndex.psm1') -Force
+
+$repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
+
+# ---- 共享文件索引（R1）：父进程一次 git 索引，子门禁进程经 GATE_FILE_INDEX_CACHE 复用 ----
+$script:IndexCacheFile = $null
+function Initialize-GateFileIndexCache {
+    if ($NoFileIndex) { return }
+    $worktrees = [System.Collections.Generic.List[string]]::new()
+    $worktrees.Add($repoRoot)
+    $gitmodules = Join-Path $repoRoot '.gitmodules'
+    if (Test-Path -LiteralPath $gitmodules) {
+        foreach ($line in [IO.File]::ReadAllLines($gitmodules)) {
+            $m = [regex]::Match($line, '^\s*path\s*=\s*(?<p>.+?)\s*$')
+            if ($m.Success) {
+                $p = Join-Path $repoRoot ($m.Groups['p'].Value -replace '/', '\')
+                if (Test-Path -LiteralPath $p) { $worktrees.Add($p) }
+            }
+        }
+    }
+    $path = Join-Path ([IO.Path]::GetTempPath()) ("gate-index-" + [guid]::NewGuid().ToString('N') + ".json")
+    try {
+        Export-GateFileIndexCache -Worktree @($worktrees) -Path $path
+        $script:IndexCacheFile = $path
+        $env:GATE_FILE_INDEX_CACHE = $path
+    } catch {
+        Write-Warn "[R1] 共享文件索引生成失败（各门禁回退自身索引）：$($_.Exception.Message)"
+    }
+}
+function Remove-GateIndexCacheFile {
+    Remove-Item Env:GATE_FILE_INDEX_CACHE -ErrorAction SilentlyContinue
+    if ($script:IndexCacheFile -and (Test-Path -LiteralPath $script:IndexCacheFile)) {
+        Remove-Item -LiteralPath $script:IndexCacheFile -Force -ErrorAction SilentlyContinue
+    }
+}
+Initialize-GateFileIndexCache
 
 # ---- 加载清单（Registry\）----
 if (-not $Manifest) {
@@ -217,6 +262,72 @@ foreach ($name in $names) {
 }
 }
 
+# ---- 慢件预算（R5）：逐件 ms 对比 _gate-timing.psd1；WARN 不拦，FAIL 计入失败 ----
+$timingProfile = if ($Parallel -gt 1) { "parallel$Parallel" } else { 'serial' }
+$timingPath = Join-Path $PSScriptRoot '..\..\..\Baselines\_gate-timing.psd1'
+$timingEntries = @{}
+if (Test-Path -LiteralPath $timingPath) {
+    try {
+        $timingData = Import-PowerShellDataFile -LiteralPath $timingPath
+        if ($timingData.Tiers -and $timingData.Tiers.ContainsKey($timingProfile)) {
+            $timingEntries = $timingData.Tiers[$timingProfile]
+        }
+    } catch {
+        Write-Warn "[R5] 耗时基线不可读：$($_.Exception.Message)"
+    }
+}
+$timingRows = [System.Collections.Generic.List[object]]::new()
+$timingFailed = 0
+foreach ($r in $results) {
+    $base = 0
+    if ($timingEntries -and $timingEntries.ContainsKey($r.Name)) {
+        $base = [int]$timingEntries[$r.Name].Value
+    }
+    $ratio = $null
+    $status = 'OK'
+    $message = ''
+    if ($base -gt 0) {
+        $ratio = [math]::Round(([double]$r.Ms / [double]$base), 2)
+        if ($ratio -ge $TimingFailRatio) {
+            $status = 'FAIL'
+            $message = "$($r.Name) ms=$($r.Ms) > $TimingFailRatio×基线 $base（ratio=$ratio）"
+        } elseif ($ratio -ge $TimingWarnRatio) {
+            $status = 'WARN'
+            $message = "$($r.Name) ms=$($r.Ms) > $TimingWarnRatio×基线 $base（ratio=$ratio）"
+        }
+    } else {
+        $status = 'NO-BASELINE'
+    }
+    $timingRows.Add([pscustomobject]@{
+        Name = $r.Name; Ms = $r.Ms; Baseline = $base; Ratio = $ratio; Status = $status; Message = $message
+    })
+    if (-not $NoTimingGate) {
+        if ($status -eq 'FAIL') {
+            Write-Result "FAIL" "[TIMING] $message"
+            $failed++
+            $timingFailed++
+            $failedOutputs.Add("[TIMING] $message")
+        } elseif ($status -eq 'WARN') {
+            Write-Warn "[TIMING] $message"
+        }
+    }
+}
+
+if ($TimingReport) {
+    $reportDir = Split-Path -Parent $TimingReport
+    if ($reportDir -and -not (Test-Path -LiteralPath $reportDir)) {
+        New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+    }
+    [pscustomobject]@{
+        schema   = 'gate-timing-report-v1'
+        profile  = $timingProfile
+        parallel = $Parallel
+        totalMs  = [int](($results | Measure-Object -Property Ms -Sum).Sum)
+        gates    = @($timingRows)
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $TimingReport -Encoding UTF8
+    Write-Result "INFO" "耗时报告：$TimingReport"
+}
+
 # ---- 失败摘要 ----
 if ($failed -gt 0 -and $failedOutputs.Count -gt 0) {
     Write-Section "失败摘要"
@@ -224,8 +335,11 @@ if ($failed -gt 0 -and $failedOutputs.Count -gt 0) {
 }
 
 # ---- 汇总 ----
-$passed = $names.Count - $failed
-Write-Result "INFO" "门禁 $($names.Count) 件 / 通过 $passed / 失败 $failed"
+$gateFailed = @($results | Where-Object { $_.Status -eq 'FAIL' }).Count
+$passed = $names.Count - $gateFailed
+Write-Result "INFO" "门禁 $($names.Count) 件 / 通过 $passed / 失败 $gateFailed / 计时失败 $timingFailed"
 
+Remove-GateIndexCacheFile
 if ($failed -gt 0) { exit 1 }
 exit 0
+

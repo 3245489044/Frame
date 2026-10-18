@@ -120,4 +120,13 @@ export class ClineStorageProvider implements AgentStorageProvider {
   sessionBackend(): unknown {
     return createInMemorySessionService();
   }
+
+  /**
+   * 显式可接受残留：hooks.jsonl 是 C# 事实摄取源（ClineHooksFactIngestor），
+   * 不能在 zeroDisk 下内存化（否则 LlmIteration/ToolCall/FinalAnswer 断链）。
+   * 仅日志，不含会话正文；门禁据此只告警不判红。
+   */
+  residualPaths(context: AgentStorageContext): string[] {
+    return [path.join(context.dataDir, "logs", "hooks.jsonl")];
+  }
 }

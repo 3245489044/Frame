@@ -33,28 +33,6 @@
     "csg-protocol": "workspace:*",
     "fs-sink": "workspace:*"
   },
-  "overrides": {
-    "@ai-sdk/openai": "4.0.31",
-    "@ai-sdk/google": "4.0.35",
-    "@ai-sdk/anthropic": "4.0.33",
-    "@ai-sdk/mistral": "4.0.25",
-    "@ai-sdk/google-vertex": "5.0.44",
-    "@ai-sdk/amazon-bedrock": "5.0.46",
-    "@ai-sdk/openai-compatible": "3.0.25",
-    "@ai-sdk/provider": "4.0.6"
-  },
-  "pnpm": {
-    "overrides": {
-      "@ai-sdk/openai": "4.0.31",
-      "@ai-sdk/google": "4.0.35",
-      "@ai-sdk/anthropic": "4.0.33",
-      "@ai-sdk/mistral": "4.0.25",
-      "@ai-sdk/google-vertex": "5.0.44",
-      "@ai-sdk/amazon-bedrock": "5.0.46",
-      "@ai-sdk/openai-compatible": "3.0.25",
-      "@ai-sdk/provider": "4.0.6"
-    }
-  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

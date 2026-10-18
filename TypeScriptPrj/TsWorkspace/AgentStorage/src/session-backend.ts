@@ -31,9 +31,16 @@ export const SESSION_BACKEND_METHODS = [
 export class InMemorySessionService {
   private readonly sessions = new Map<string, SessionRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
+  private readonly calls = new Map<string, number>();
   private seq = 0;
 
+  /** 记录一次方法调用（strictNoSqlite 实证：SDK 是否真的消费注入后端）。 */
+  private record(method: string): void {
+    this.calls.set(method, (this.calls.get(method) ?? 0) + 1);
+  }
+
   async createSession(input?: Record<string, unknown>): Promise<SessionRecord> {
+    this.record("createSession");
     this.seq += 1;
     const id = String(input?.sessionId ?? input?.id ?? `session-${this.seq}`);
     const record: SessionRecord = { ...(input ?? {}), id, sessionId: id };
@@ -43,15 +50,18 @@ export class InMemorySessionService {
   }
 
   async getSession(id: string): Promise<SessionRecord | undefined> {
+    this.record("getSession");
     return this.sessions.get(id);
   }
 
   async listSessions(limit?: number): Promise<SessionRecord[]> {
+    this.record("listSessions");
     const all = Array.from(this.sessions.values());
     return typeof limit === "number" && limit > 0 ? all.slice(0, limit) : all;
   }
 
   async updateSession(id: string, patch?: Record<string, unknown>): Promise<SessionRecord | undefined> {
+    this.record("updateSession");
     const current = this.sessions.get(id);
     if (!current) return undefined;
     const next = { ...current, ...(patch ?? {}), id, sessionId: id };
@@ -60,17 +70,20 @@ export class InMemorySessionService {
   }
 
   async deleteSession(id: string): Promise<boolean> {
+    this.record("deleteSession");
     this.messages.delete(id);
     return this.sessions.delete(id);
   }
 
   async appendMessage(id: string, message: MessageRecord): Promise<void> {
+    this.record("appendMessage");
     const list = this.messages.get(id) ?? [];
     list.push(message);
     this.messages.set(id, list);
   }
 
   async getMessages(id: string): Promise<MessageRecord[]> {
+    this.record("getMessages");
     return [...(this.messages.get(id) ?? [])];
   }
 
@@ -79,6 +92,7 @@ export class InMemorySessionService {
     input?: Record<string, unknown>,
     artifacts?: unknown
   ): Promise<{ session: SessionRecord; artifacts: unknown }> {
+    this.record("createRootSessionWithArtifacts");
     const session = await this.createSession(input);
     return { session, artifacts };
   }
@@ -86,6 +100,13 @@ export class InMemorySessionService {
   /** 观测：当前会话数（诊断用）。 */
   size(): number {
     return this.sessions.size;
+  }
+
+  /** 观测：方法调用计数（strictNoSqlite 实证：0 = SDK 未消费注入后端）。 */
+  stats(): { total: number; calls: Record<string, number> } {
+    const calls = Object.fromEntries(this.calls.entries());
+    const total = [...this.calls.values()].reduce((sum, n) => sum + n, 0);
+    return { total, calls };
   }
 
   /** 未列名方法的兜底：返回 undefined 而非抛错（fail-open，保证 SDK 启动不被未知 API 阻断）。 */

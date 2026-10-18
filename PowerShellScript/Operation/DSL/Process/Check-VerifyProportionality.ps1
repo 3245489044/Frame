@@ -63,6 +63,8 @@ function Get-EngineeringDomain {
     if ($Rel -match '^Projects\\Plug\\Agent\\src\\(?<d>Agent\.[A-Za-z0-9\.]+)\\') { return $Matches['d'] }
     if ($Rel -match '^Frame\\CsharpPrj\\')       { return 'CsharpPrj' }
     if ($Rel -match '^Frame\\Usharp\\')          { return 'Usharp' }
+    if ($Rel -match '^Frame\\TypeScriptPrj\\TsWorkspace\\(?<p>[^\\]+)\\') { return $Matches['p'] }
+    if ($Rel -match '^Frame\\TypeScriptPrj\\TsSln\\') { return 'tssln' }
     if ($Rel -match '^Frame\\TypeScriptPrj\\')   { return 'TypeScriptPrj' }
     if ($Rel -match '^Frame\\PowerShellScript\\'){ return 'PowerShellScript' }
     if ($Rel -match '^Frame\\Invoke\\')          { return 'Invoke' }
@@ -76,7 +78,7 @@ function Get-EngineeringDomain {
 function Get-PlanMetrics {
     param([Parameter(Mandatory = $true)]$Plan, [Parameter(Mandatory = $true)][string[]]$Files)
     $domains = @($Files | ForEach-Object { Get-EngineeringDomain -Rel ([string]$_ -replace '/', '\') } | Sort-Object -Unique)
-    $verifyCount = if ($Plan.TestSet) { [double]::PositiveInfinity } else { [double]@($Plan.TestProjects).Count }
+    $verifyCount = if ($Plan.TestSet) { [double]::PositiveInfinity } else { [double](@($Plan.TestProjects).Count + @($Plan.TsPackages).Count) }
     $ratio = if ($domains.Count -eq 0) { [double]::PositiveInfinity } else { $verifyCount / $domains.Count }
     return @{ Domains = $domains; VerifyCount = $verifyCount; Ratio = $ratio }
 }
@@ -99,6 +101,7 @@ $samples = @(
     @{ Id = 'C'; Kind = 'unmapped';     Files = @('Frame\__scope_probe__\y.txt') }
     @{ Id = 'D'; Kind = 'framework';    Files = @('Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1') }
     @{ Id = 'E'; Kind = 'data-face';   Files = @('Projects\Plug\Agent\skills\l0\__probe__\SKILL.md') }
+    @{ Id = 'F'; Kind = 'ts-proportional'; Files = @('Frame\TypeScriptPrj\TsWorkspace\AgentStorage\src\host.ts') }
 )
 
 if ($samples.Count -lt $minSamples) {
@@ -132,6 +135,15 @@ foreach ($s in $samples) {
             if ($plan.TestSet) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动误触发全矩阵: $($s.Files -join ', ')") }
             if ($tp -ge 1) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动误排测试工程: $($s.Files -join ', ')") }
             if ($gateCount -lt 1) { $violations.Add("[H3] 样本 $($s.Id) 数据面改动无门禁（静默丢弃）: $($s.Files -join ', ')") }
+        }
+        'ts-proportional' {
+            # TS 包级改动：须映射到具体包（不回落 TypeScript.sln 全量 / 全矩阵）。
+            $tsCount = @($plan.TsPackages).Count
+            if ($plan.TestSet) { $violations.Add("[H3] 样本 $($s.Id) TS 包改动误触发全矩阵: $($s.Files -join ', ')") }
+            if ($tsCount -lt 1) { $violations.Add("[H2] 样本 $($s.Id) TS 包改动未映射到具体包（回落 sln/全量）: $($s.Files -join ', ')") }
+            if (@($plan.BakeSolutions | Where-Object { $_.Kind -eq 'sln' -and $_.Path -match 'TypeScript\.sln$' }).Count -gt 0) {
+                $violations.Add("[H2] 样本 $($s.Id) TS 包改动仍触发 TypeScript.sln 全量构建")
+            }
         }
         'unmapped' {
             if (@($plan.Unmapped).Count -lt 1) { $violations.Add("[H4] 负对照失效：未分类改动未判 Unmapped（fail-loud 失效）") }

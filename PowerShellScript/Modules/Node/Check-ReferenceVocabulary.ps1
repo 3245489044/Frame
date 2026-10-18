@@ -85,6 +85,7 @@ $ExemptBaselines = [ordered]@{
 # 不入本判据的词表（其唯一性由单源文件本身 + 消费面均为常量引用保证）。
 # 基线单源 = Baselines\ReferenceVocabulary.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateFileIndex.psm1') -Force
 $g = Import-GateBaseline -Name ReferenceVocabulary
 $SingleSourceLiteralBaseline = [int]$g.SingleSourceLiteral.Value
 
@@ -128,9 +129,8 @@ function Get-VocabularyHits {
 $files = [System.Collections.Generic.List[string]]::new()
 foreach ($r in $scanRoots) {
     if (-not (Test-Path -LiteralPath $r)) { continue }
-    foreach ($f in (Get-ChildItem -LiteralPath $r -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue)) {
-        if ($f.FullName -match '\\obj\\' -or $f.FullName -match '\\bin\\') { continue }
-        $files.Add($f.FullName)
+    foreach ($f in (Get-GateFiles -Root $r -Extension cs -Exclude '\\(obj|bin)\\|\\_deprecated\\')) {
+        $files.Add($f)
     }
 }
 

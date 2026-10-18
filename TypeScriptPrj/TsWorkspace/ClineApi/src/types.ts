@@ -130,6 +130,8 @@ export interface ClineRunResultMeta {
    *  - bindings：ESM 绑定自检未对齐方法名（空 = 通过；非空 = facade 早于 patch 建立）。
    */
   sink?: { hits: number; perRoute: Record<string, number>; misses: number; dbMisses: number; bindings: string[] };
+  /** 通用存储宿主观测（fs + db + policy/context + sessionBackend 消费计数）。 */
+  storage?: import("agent-storage").AgentStorageObserveFrame;
 }
 
 /** 单次运行结果 */

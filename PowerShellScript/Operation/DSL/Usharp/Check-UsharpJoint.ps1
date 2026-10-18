@@ -38,6 +38,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 $baseline = Import-GateBaseline -Name UsharpJoint
 
 $projectsDir = Join-Path $Root 'Projects'
@@ -57,8 +58,9 @@ Write-Host '============================================================' -Foreg
 # 扫描面：Projects 下任意 **\src\** 目录的生产 .cs（E-4：不含测试面）
 function Get-ConsumerFiles {
     if (-not (Test-Path -LiteralPath $projectsDir)) { return @() }
-    return @(Get-ChildItem -LiteralPath $projectsDir -Recurse -Filter '*.cs' -File |
-        Where-Object { $_.FullName -notmatch $excludeRx -and $_.FullName -match '\\src\\' })
+    return @(Get-GateFiles -Root $projectsDir -Extension cs -Exclude $excludeRx |
+        ForEach-Object { Get-Item -LiteralPath $_ } |
+        Where-Object { $_.FullName -match '\\src\\' })
 }
 
 $consumerFiles = Get-ConsumerFiles

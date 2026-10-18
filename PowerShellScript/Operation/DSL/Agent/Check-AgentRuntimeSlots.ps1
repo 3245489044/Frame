@@ -66,8 +66,10 @@ $allowList = @(
 # 本表空 = 任何静态可变运行时槽均判违规（唯一例外见上 $allowList：A1 取根通道迁移期载体）。
 $baseline = @()
 
-$files = Get-ChildItem -Path $scanDir -Recurse -File -Include *.cs -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
+
+$files = @(Get-GateFiles -Root $scanDir -Extension cs -Exclude '\\(obj|bin|_deprecated)\\' |
+    ForEach-Object { Get-Item -LiteralPath $_ })
 
 $hits = [System.Collections.Generic.List[object]]::new()
 $allowed = [System.Collections.Generic.List[object]]::new()

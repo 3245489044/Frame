@@ -27,8 +27,9 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 $scanDir = Join-Path $Root 'Projects\Plug\Agent\src'
 if (-not (Test-Path $scanDir)) { Write-Error "未找到 Agent 源码目录: $scanDir"; exit 2 }
 
-$files = Get-ChildItem -Path $scanDir -Recurse -Include *.cs |
-    Where-Object { $_.FullName -notmatch '\\(?:obj|bin)\\' }
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
+
+$files = @(Get-GateFiles -Root $scanDir -Extension cs -Exclude '\\(?:obj|bin)\\')
 
 function Get-Hits {
     param([string]$Pattern)

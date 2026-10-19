@@ -572,7 +572,7 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
 internal static class SharedBoundaryCatalog
 {
     /// <summary>共享边界程序集名清单（唯一人工维护点之一；改动须同步 SharedBoundaryRefs.props）。</summary>
-    public static readonly string[] Names = ["Route", "PluginHostContract"];
+    public static readonly string[] Names = ["Route", "PluginHost"];
 
     /// <summary>是否为共享边界程序集（大小写不敏感）。</summary>
     public static bool Contains(string? simpleName) =>

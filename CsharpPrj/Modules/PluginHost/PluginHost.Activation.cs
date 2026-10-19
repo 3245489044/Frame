@@ -60,7 +60,7 @@ public sealed partial class PluginHost
                 if (File.Exists(libraryManifest))
                 {
                     Modules.Registry.FunctionLibraryLoader.LoadInto(
-                        context.Functions,
+                        context.Functions.Set,
                         libraryManifest,
                         typeStr => ResolveType(loadContext, typeStr));
                 }

@@ -1,7 +1,6 @@
 
 using System.Reflection;
 using System.Text.Json;
-using PluginHostContract;
 using TConfig;
 
 namespace Modules.Registry;
@@ -90,14 +89,15 @@ namespace Modules.Registry;
         /// <summary>
         /// P2：把域函数库清单装载到**插件级函数表**（不触碰全局 FunctionRegistry，不按类型名排斥换代重注册）。
         /// 每代由 PluginHost 传入独立 table；旧 table 随旧 ALC 弃引用。
+        /// 以委托注入写入器而非直接依赖插件契约类型，避免 Registry 反向依赖 PluginHost。
         /// </summary>
         public static IReadOnlyList<LoadEntryResult> LoadInto(
-            PluginFunctionTable table,
+            Action<string, Delegate> registerFunction,
             string configPath,
             Func<string, Type?>? resolveType = null,
             FunctionLibraryEnvironment? environment = null)
         {
-            ArgumentNullException.ThrowIfNull(table);
+            ArgumentNullException.ThrowIfNull(registerFunction);
             if (!File.Exists(configPath))
                 throw new FileNotFoundException($"函数库配置文件不存在: {configPath}", configPath);
 
@@ -167,7 +167,7 @@ namespace Modules.Registry;
             foreach (var name in registry.GetRegisteredNames())
             {
                 if (registry.TryGetDelegate(name, out var handler) && handler is not null)
-                    table.Set(name, handler);
+                    registerFunction(name, handler);
             }
 
             return results.AsReadOnly();

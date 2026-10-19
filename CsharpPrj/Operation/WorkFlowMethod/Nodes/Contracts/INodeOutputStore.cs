@@ -31,6 +31,13 @@ namespace Operation.WorkFlowMethod.Nodes.Contracts
         /// <summary>枚举工作流下全部节点输出（供 KeyMapping 组合源键空间）。</summary>
         Task<IReadOnlyList<NodeOutput>> EnumerateOutputsAsync(string workflowId, CancellationToken ct = default);
 
+        /// <summary>
+        /// 有界枚举（R-09）：<paramref name="limit"/> 为存储层下推的条目上限（≤0 = 不限，等价旧重载）。
+        /// <para>默认实现回落全量枚举以保持实现兼容；<c>NodeOutputStore</c> 覆写为分页早停（扫描 ≤ limit + 页大小）。</para>
+        /// </summary>
+        Task<IReadOnlyList<NodeOutput>> EnumerateOutputsAsync(string workflowId, int limit, CancellationToken ct = default)
+            => EnumerateOutputsAsync(workflowId, ct);
+
         /// <summary>枚举工作流下节点输出，并按请求工作流作用域过滤（跨工作流仅 Exported 可见）。</summary>
         Task<IReadOnlyList<NodeOutput>> EnumerateOutputsScopedAsync(string workflowId, string requestingWorkflowId, CancellationToken ct = default);
 

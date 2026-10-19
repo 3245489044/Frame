@@ -43,8 +43,7 @@
     <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Registry)" />
-    <!-- P2 插件宿主：中性契约 + 通用宿主（P1 RuntimeLayout 之上）。 -->
-    <ProjectReference Include="PluginHostContract\PluginHostContract.csproj" />
+    <!-- P2 插件宿主：宿主与中性契约同处 PluginHost 程序集（P1 RuntimeLayout 之上）。 -->
     <ProjectReference Include="PluginHost\PluginHost.csproj" />
     <ProjectReference Include="$(Proj_Threading)" />
     <ProjectReference Include="$(Proj_ParameterResolver)" />
@@ -70,7 +69,6 @@
     <Compile Remove="Parsing\**\*.cs" />
     <Compile Remove="Pipeline\**\*.cs" />
     <Compile Remove="Registry\**\*.cs" />
-    <Compile Remove="PluginHostContract\**\*.cs" />
     <Compile Remove="PluginHost\**\*.cs" />
     <Compile Remove="Threading\**\*.cs" />
     <Compile Remove="ParameterResolver\**\*.cs" />

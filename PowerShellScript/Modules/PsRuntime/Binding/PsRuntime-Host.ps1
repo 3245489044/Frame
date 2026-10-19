@@ -52,6 +52,9 @@ while ($true) {
     $line = $line.TrimStart([char]0xFEFF)
     if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
+    # 每次调用前重置 CWD（E30）：长驻进程共享，避免上一任务的 Set-Location 污染下一任务。
+    if ($ProjectRoot) { try { Set-Location -LiteralPath $ProjectRoot } catch { } }
+
     $request = $null
     try { $request = $line | ConvertFrom-Json } catch {
         Write-Line ([ordered]@{ id = ''; status = 'failure'; message = 'request parse error'; errors = @($_.Exception.Message) })
@@ -64,12 +67,28 @@ while ($true) {
         if ([string]$request.action -eq 'write.file' -and $null -ne $request.params) {
             $wp = $request.params
             $isAppend = [bool]$wp.Append
-            if (-not $isAppend -and $null -ne $wp.Content -and -not [string]::IsNullOrWhiteSpace([string]$wp.Path)) {
+            # Backup/Verify 显式请求时不得走 no-op（否则备份/校验约定失效）。
+            $allowNoop = -not ([bool]$wp.Backup) -and -not ([bool]$wp.Verify)
+            if ($allowNoop -and -not $isAppend -and $null -ne $wp.Content -and -not [string]::IsNullOrWhiteSpace([string]$wp.Path)) {
                 try {
                     $targetPath = [string]$wp.Path
                     if (Test-Path -LiteralPath $targetPath) {
-                        $existingText = [System.IO.File]::ReadAllText($targetPath)
-                        if ([string]::Equals($existingText, [string]$wp.Content, [System.StringComparison]::Ordinal)) {
+                        $encodingName = if ($wp.PSObject.Properties.Name -contains 'Encoding') { [string]$wp.Encoding } else { '' }
+                        $encoding = switch ($encodingName.ToUpperInvariant()) {
+                            'UTF8-BOM' { New-Object System.Text.UTF8Encoding($true) }
+                            'ASCII' { [System.Text.Encoding]::ASCII }
+                            'UNICODE' { [System.Text.Encoding]::Unicode }
+                            'UTF16' { [System.Text.Encoding]::Unicode }
+                            default { New-Object System.Text.UTF8Encoding($false) }
+                        }
+                        # 按请求编码比较字节（含 BOM），不同编码的"同文"不得判为 no-op。
+                        $body = $encoding.GetBytes([string]$wp.Content)
+                        $preamble = $encoding.GetPreamble()
+                        $newBytes = [byte[]]($preamble + $body)
+                        $newHash = [System.Convert]::ToHexString(
+                            [System.Security.Cryptography.SHA256]::HashData($newBytes))
+                        $existingHash = (Get-FileHash -LiteralPath $targetPath -Algorithm SHA256).Hash
+                        if ([string]::Equals($existingHash, $newHash, [System.StringComparison]::OrdinalIgnoreCase)) {
                             Write-Line ([ordered]@{
                                 id = $id
                                 status = 'success'

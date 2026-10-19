@@ -42,6 +42,30 @@
         Note   = '键址传递框架 KTF：键文法/方向-kind-status 词表/6 个 transfer_key_* 单步/agent.transfer 族/ps_runtime+transfer_key 轨/powershell tool_face=full/仓库+数据根双写'
     }
 
+    KeyspaceMirror = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '键空间镜像（E26）：仓库 agent.keyspace.json vs Data 运行时声明的 family 模板 + port 集合等价；Data 缺失 = 干净 checkout，跳过并提示'
+    }
+
+    AgentDefaultDispatch = @{
+        Domain = 'Agent'
+        Args   = @{}
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '默认路由（P5-A/B）：结构化意图 → 标签 → 执行腿成对；file 标签/执行腿经声明键驱动（R-07 迁移至 Frame DSL\Agent，唯一实现）'
+    }
+
+    PsSkillToolMap = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'SKILL↔ActionToTool 对账（R-05）：contracts action 集 == ActionToTool.Keys，ActionToTool.Values == SKILL.md 契约轨工具名集；正/负对照'
+    }
+
     LlmRoutingSurface = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

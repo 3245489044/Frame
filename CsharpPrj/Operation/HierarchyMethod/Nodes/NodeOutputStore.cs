@@ -77,6 +77,39 @@ namespace Operation.HierarchyMethod.Nodes {
             return result;
         }
 
+        /// <summary>
+        /// 有界枚举（R-09 覆写）：按 afterId 分页早停，扫描条目 ≤ limit + 单页大小（200）。
+        /// <para>limit ≤ 0 退化为全量（与旧重载等价）。</para>
+        /// </summary>
+        public async Task<IReadOnlyList<NodeOutput>> EnumerateOutputsAsync(string workflowId, int limit, CancellationToken ct = default)
+        {
+            if (limit <= 0) return await EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
+
+            var wf = NormalizeWf(workflowId);
+            const int pageSize = 200;
+            const int maxPages = 10_000;
+            var result = new List<NodeOutput>(Math.Min(limit, pageSize));
+            long? afterId = null;
+            var pages = 0;
+            while (result.Count < limit)
+            {
+                var page = await _nodes.ListAsync(NodeTypes.Node, wf, afterId, pageSize, ct).ConfigureAwait(false);
+                foreach (var rec in page)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var output = BuildOutput(wf, rec.NodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
+                    if (output is not null) result.Add(output);
+                    if (result.Count >= limit) break;
+                }
+                if (page.Count < pageSize) break;
+                afterId = page[^1].Id;
+                if (++pages >= maxPages)
+                    throw new InvalidOperationException(
+                        $"分页拉取超过 {maxPages} 页上限（nodeType={NodeTypes.Node}, threadId={wf}），疑似 afterId 游标未严格推进。");
+            }
+            return result;
+        }
+
         public async Task<IReadOnlyList<NodeOutput>> EnumerateOutputsScopedAsync(string workflowId, string requestingWorkflowId, CancellationToken ct = default)
         {
             var result = new List<NodeOutput>();

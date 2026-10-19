@@ -6,12 +6,11 @@
     <Nullable>enable</Nullable>
     <AssemblyName>PluginHost</AssemblyName>
     <RootNamespace>PluginHost</RootNamespace>
-    <Description>通用插件宿主：plugin.json 发现 / 每插件 collectible ALC / 代目录 / 激活 / 换代 / 回滚 / 健康检查。</Description>
+    <Description>通用插件宿主：plugin.json 发现 / 每插件 collectible ALC / 代目录 / 激活 / 换代 / 回滚 / 健康检查；内含 PluginHostContract 命名空间的中性插件 ABI（IPlugin / IPluginContext / IPluginHost 等）。</Description>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PluginHostContract\PluginHostContract.csproj" />
     <ProjectReference Include="..\Registry\Registry.csproj" />
     <ProjectReference Include="..\..\BasicMethod\PathManager\PathManager.csproj" />
   </ItemGroup>

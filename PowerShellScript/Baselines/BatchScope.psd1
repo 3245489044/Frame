@@ -266,7 +266,13 @@
     #   均在新单 allowSet 内；F1–F7 已完成面按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 History 分发系列 = 回填下一行 v41 的 Value（上方注释保留）。
     # Manifest(v41) = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-History分发运行失败-实施步骤.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-框架重构-后续未完成项.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v43（2026-10-19）：单指针切换至「信号声明式框架（Usharp 唯一声明面 + 薄执行）」授权单（active=[B1..B7]）。
+    #   切换理由 = 用户转入实施《2026-10-19-信号声明式框架-实施步骤.md》；本系列改动落在
+    #   Projects/Plug/Agent/{Config,src}/** · Frame/PowerShellScript/** · Environment/CentralTest/** ·
+    #   Docs/analysis/2026/10/10.19/**，均在新单 allowSet 内。上一系列（框架重构后续未完成项）授权单内容保留不变。
+    #   恢复 = 回填下一行 v42 的 Value（上方注释保留 框架重构后续未完成项 单原值）。
+    # Manifest(v42) = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-框架重构-后续未完成项.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-信号声明式框架.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

@@ -892,6 +892,22 @@
         Note   = '键空间框架（Modules.KeySpace）：KS1 族命中 / KS1b 端口契约全集覆盖 / KS2 三态禁坍缩 / KS4 词法唯一 / KS5 域词隔离 / KS6 诊断码登记 / KS7 族注册唯一 / KS8 负对照'
     }
 
+    DispatchTraceSchema = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '分发目标闭合（DTC）：DispatchTraceSchema 六阶段封闭 ∧ 分发/休眠遥测 msgId 已登记（未登记即静默 ⇒ 红）'
+    }
+
+    IdentityTemplatePrefix = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '身份模板声明（DTC-6）：identityTemplate 引用可解析 ∧ 花括号配对 ∧ 前缀可判定（单占位或字面量起始）'
+    }
+
     SendDeclarationCoverage = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

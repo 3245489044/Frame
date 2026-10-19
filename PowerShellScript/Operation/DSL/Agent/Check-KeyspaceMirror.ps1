@@ -28,12 +28,19 @@ if (-not (Test-Path -LiteralPath $dataPath)) {
     exit 0
 }
 
+$violations = New-Object System.Collections.Generic.List[string]
+
+
 function Read-Keyspace([string]$Path) {
     $json = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     $families = @{}
     foreach ($f in @($json.families)) {
         if ($null -ne $f -and -not [string]::IsNullOrWhiteSpace([string]$f.id)) {
-            $families[[string]$f.id] = [string]$f.template
+            $families[[string]$f.id] = [PSCustomObject]@{
+                Template = [string]$f.template
+                Business = [string]$f.businessKeyTemplate
+                Derived  = (@($f.derivedPrefixes) -join ',')
+            }
         }
     }
     $ports = @{}
@@ -45,27 +52,54 @@ function Read-Keyspace([string]$Path) {
     return [PSCustomObject]@{ Families = $families; Ports = $ports }
 }
 
-$repoDoc = Read-Keyspace $repoPath
-$dataDoc = Read-Keyspace $dataPath
-$violations = New-Object System.Collections.Generic.List[string]
+function Compare-Declarations([string]$Label, [string]$Path, $RepoDoc) {
+    $doc = Read-Keyspace $Path
+    foreach ($id in $RepoDoc.Families.Keys) {
+        if (-not $doc.Families.ContainsKey($id)) {
+            $violations.Add("${Label} 缺 family：$id")
+            continue
+        }
+        $repo = $RepoDoc.Families[$id]
+        $other = $doc.Families[$id]
+        if ($other.Template -ne $repo.Template) {
+            $violations.Add("${Label} family 模板漂移：$id（repo=$($repo.Template); $Label=$($other.Template)）")
+        }
+        if ($other.Business -ne $repo.Business) {
+            $violations.Add("${Label} family 业务键模板漂移：$id（repo=$($repo.Business); $Label=$($other.Business)）")
+        }
+        if ($other.Derived -ne $repo.Derived) {
+            $violations.Add("${Label} family 派生前缀漂移：$id（repo=$($repo.Derived); $Label=$($other.Derived)）")
+        }
+    }
+    foreach ($id in $doc.Families.Keys) {
+        if (-not $RepoDoc.Families.ContainsKey($id)) {
+            $violations.Add("${Label} 多出 family（仓库未声明）：$id")
+        }
+    }
+    foreach ($name in $RepoDoc.Ports.Keys) {
+        if (-not $doc.Ports.ContainsKey($name)) { $violations.Add("${Label} 缺 port：$name") }
+    }
+    foreach ($name in $doc.Ports.Keys) {
+        if (-not $RepoDoc.Ports.ContainsKey($name)) { $violations.Add("${Label} 多出 port（仓库未声明）：$name") }
+    }
+}
 
-foreach ($id in $repoDoc.Families.Keys) {
-    if (-not $dataDoc.Families.ContainsKey($id)) {
-        $violations.Add("Data 缺 family：$id")
-    } elseif ($dataDoc.Families[$id] -ne $repoDoc.Families[$id]) {
-        $violations.Add("family 模板漂移：$id（repo=$($repoDoc.Families[$id]); data=$($dataDoc.Families[$id])）")
+$repoDoc = Read-Keyspace $repoPath
+Compare-Declarations -Label 'Data' -Path $dataPath -RepoDoc $repoDoc
+
+# 代目录镜像（部署态）：current 指针存在则必须同步（否则「单测绿 / 运行红」的声明分叉不可见）。
+$currentPtr = Join-Path $Root 'Runtime\Plugins\Agent\current'
+if (Test-Path -LiteralPath $currentPtr) {
+    $generation = (Get-Content -LiteralPath $currentPtr -Raw).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($generation)) {
+        $genPath = Join-Path $Root "Runtime\Plugins\Agent\Generations\$generation\assets\Config\keyspaces\agent.keyspace.json"
+        if (Test-Path -LiteralPath $genPath) {
+            Compare-Declarations -Label "Gen($generation)" -Path $genPath -RepoDoc $repoDoc
+        }
+        else {
+            $violations.Add("Gen($generation) 缺 keyspace 声明：$genPath")
+        }
     }
-}
-foreach ($id in $dataDoc.Families.Keys) {
-    if (-not $repoDoc.Families.ContainsKey($id)) {
-        $violations.Add("Data 多出 family（仓库未声明）：$id")
-    }
-}
-foreach ($name in $repoDoc.Ports.Keys) {
-    if (-not $dataDoc.Ports.ContainsKey($name)) { $violations.Add("Data 缺 port：$name") }
-}
-foreach ($name in $dataDoc.Ports.Keys) {
-    if (-not $repoDoc.Ports.ContainsKey($name)) { $violations.Add("Data 多出 port（仓库未声明）：$name") }
 }
 
 if ($violations.Count -gt 0) {

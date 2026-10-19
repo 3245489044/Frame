@@ -16,7 +16,9 @@ public sealed record KeyFamily(
     KeyRelation Relation,
     KeyCardinality Cardinality,
     IReadOnlyList<string> Aliases,
-    IReadOnlyList<string>? OrderKeys = null);
+    IReadOnlyList<string>? OrderKeys = null,
+    string? BusinessKeyTemplate = null,
+    IReadOnlyList<string>? DerivedPrefixes = null);
 
 /// <summary>
 /// 实体：同一逻辑对象的所有称呼（别名）。判等由 IKeyEquivalence 消费本集合完成，实体本身不持有规则。

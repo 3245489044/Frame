@@ -58,7 +58,8 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
         var roots = new List<HistoryRoot>();
         foreach (var row in rows)
         {
-            var key = SqliteRows.Str(row, KvUsharpTable.ColNodeKey);
+            // 结果集字典键 = 无引号列名（ColNodeKey 带方括号，仅用于 SQL 文本）。
+            var key = SqliteRows.Str(row, KvUsharpTable.NodeKeyName);
             if (string.IsNullOrWhiteSpace(key)) continue;
             var root = TryReadRoot(key, SqliteRows.Str(row, "Doc"));
             if (root is not null) roots.Add(root);

@@ -29,7 +29,9 @@ public enum TableConvergencePolicy
 public static class KvUsharpTable
 {
     public const string ColId = "[Id]";
-    public const string ColNodeKey = "[NodeKey]";
+    /// <summary>NodeKey 的**无引号**列名（结果集字典键 = 列名本体，ETL/行读取必须用它）。</summary>
+    public const string NodeKeyName = "NodeKey";
+    public const string ColNodeKey = "[" + NodeKeyName + "]";
     public const string ColDoc = "[Doc]";
 
     /// <summary>纯三列结构（真源 Doc；无任何 JSON 影子/派生列）。</summary>

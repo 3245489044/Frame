@@ -37,9 +37,13 @@ public static class UsharpValueMapper
     {
         public string Name = string.Empty;
         public Type Type = typeof(object);
+        public PropertyInfo? Property;
         public Func<object, object?>? Get;
         public Action<object, object?>? Set;
     }
+
+    /// <summary>只读对象递归回填的最大深度（防异常模型引入环）。</summary>
+    private const int MaxPopulateDepth = 8;
 
     private static TypePlan GetPlan(Type type) => Plans.GetOrAdd(type, BuildPlan);
 
@@ -65,7 +69,7 @@ public static class UsharpValueMapper
         {
             if (prop.GetIndexParameters().Length != 0) continue;
 
-            var mp = new MemberPlan { Name = prop.Name, Type = prop.PropertyType };
+            var mp = new MemberPlan { Name = prop.Name, Type = prop.PropertyType, Property = prop };
 
             if (prop.GetGetMethod(nonPublic: false) is not null)
             {
@@ -165,7 +169,9 @@ public static class UsharpValueMapper
     /// <summary>USharp 数据值 → 指定类型实例（尽力映射；不可映射 ⇒ null）。</summary>
     public static object? ToObject(UsharpValue value, Type target)
     {
-        if (target.IsInstanceOfType(value)) return value;
+        // object 目标必须「拆包」为 CLR 值；UsharpScalar/UsharpRecord 本身也是 object，
+        // 不能走 IsInstanceOfType 短路（否则 Data / 字典 object 值会残留 Usharp 节点）。
+        if (target != typeof(object) && target.IsInstanceOfType(value)) return value;
         return value switch
         {
             UsharpScalar scalar => ScalarToTarget(scalar, target),
@@ -267,8 +273,8 @@ public static class UsharpValueMapper
             if (instance is null) return RecordToDictionary(record);
             foreach (var f in record.Fields)
             {
-                if (!plan.ByName.TryGetValue(f.Key, out var m) || m.Set is null) continue;
-                m.Set(instance, ToObject(f.Value, m.Type));
+                if (!plan.ByName.TryGetValue(f.Key, out var m)) continue;
+                ApplyMember(instance, m, f.Value, depth: 0);
             }
             return instance;
         }
@@ -286,6 +292,113 @@ public static class UsharpValueMapper
             }
         }
         return plan.Ctor.Invoke(ctorArgs) ?? (object)RecordToDictionary(record);
+    }
+
+    /// <summary>
+    /// 把一条记录字段写入目标成员。**写回优先级**：
+    /// ① 公共 setter → 直接赋值；
+    /// ② 非公共 setter（private set / init，如 FailureBudget.Level、ProgressToken.Value、ControlFlag.Halt）
+    ///    → 反射恢复（持久化回读语义，必须把落盘值还原）；
+    /// ③ 只读属性（无任何 setter，如 AgentStatus / Data / AvailableStrategyIds / RecentTransitions
+    ///    以及 Record / LoopState 这类只读组合对象）→ 对**现有实例**就地回填。
+    /// <para>旧实现只做 ①，导致「只读集合/组合对象」在 USharp round-trip 后丢失（UI 显示执行体 Unknown 的根因）。</para>
+    /// </summary>
+    private static void ApplyMember(object instance, MemberPlan member, UsharpValue value, int depth)
+    {
+        if (member.Set is not null)
+        {
+            member.Set(instance, ToObject(value, member.Type));
+            return;
+        }
+
+        if (member.Property?.SetMethod is { } setter)
+        {
+            try
+            {
+                setter.Invoke(instance, new[] { ToObject(value, member.Type) });
+                return;
+            }
+            catch
+            {
+                // init-only / 集合初始化器等不可在现有实例上写回 ⇒ 退回就地回填。
+            }
+        }
+
+        if (member.Get is null) return;
+        var current = member.Get(instance);
+        if (current is null) return;
+        PopulateInto(current, value, member.Type, depth + 1);
+    }
+
+    /// <summary>
+    /// 把 USharp 值就地回填到只读成员（字典 / 列表 / 只读组合对象）。
+    /// 只处理「容器或可递归对象」；标量只读属性（计算属性）无写入语义，保持原状。
+    /// </summary>
+    private static void PopulateInto(object target, UsharpValue value, Type declaredType, int depth)
+    {
+        if (depth > MaxPopulateDepth) return;
+
+        switch (value)
+        {
+            case UsharpRecord record:
+                // ① 通用字典视图（含 DataSpace 的显式 IDictionary<string,object> 实现）。
+                if (target is IDictionary<string, object> objectMap)
+                {
+                    foreach (var f in record.Fields)
+                        objectMap[f.Key] = ToObject(f.Value, typeof(object))!;
+                    return;
+                }
+
+                // ② 非泛型字典（Dictionary<string,string> 等）。
+                if (target is IDictionary map)
+                {
+                    var valueType = GetDictionaryValueType(declaredType);
+                    foreach (var f in record.Fields)
+                        map[f.Key] = ToObject(f.Value, valueType);
+                    return;
+                }
+
+                // ③ 只读组合对象：递归回填其成员（Record / LoopState / Budget / Token / Flag…）。
+                var plan = GetPlan(target.GetType());
+                if (plan.Ctor is null) return;
+                foreach (var f in record.Fields)
+                {
+                    if (!plan.ByName.TryGetValue(f.Key, out var member)) continue;
+                    ApplyMember(target, member, f.Value, depth + 1);
+                }
+                return;
+
+            case UsharpList list:
+                if (target is IList listTarget)
+                {
+                    var itemType = GetEnumerableElementType(declaredType) ?? typeof(object);
+                    listTarget.Clear();
+                    foreach (var item in list.Items)
+                        listTarget.Add(ToObject(item, itemType));
+                }
+                return;
+        }
+    }
+
+    /// <summary>字典值类型（Dictionary&lt;K,V&gt; / IDictionary&lt;K,V&gt; / IReadOnlyDictionary&lt;K,V&gt;）；不可判定 ⇒ object。</summary>
+    private static Type GetDictionaryValueType(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var def = type.GetGenericTypeDefinition();
+            if (def == typeof(Dictionary<,>) || def == typeof(IDictionary<,>) || def == typeof(IReadOnlyDictionary<,>))
+                return type.GetGenericArguments()[1];
+        }
+
+        foreach (var i in type.GetInterfaces())
+        {
+            if (!i.IsGenericType) continue;
+            var def = i.GetGenericTypeDefinition();
+            if (def == typeof(IDictionary<,>) || def == typeof(IReadOnlyDictionary<,>))
+                return i.GetGenericArguments()[1];
+        }
+
+        return typeof(object);
     }
 
     private static Dictionary<string, object?> RecordToDictionary(UsharpRecord record)

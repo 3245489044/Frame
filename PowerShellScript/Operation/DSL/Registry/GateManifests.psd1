@@ -1,4 +1,11 @@
 @{
+    NodePromptBinding = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '节点提示词绑定：模板槽 ⊆ PromptSlot 词表 / node:// domain 已声明 / 禁 SQL 旁路 / 禁新增 ContextNodeKind 用法；正负对照'
+    }
+
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
     AgentBuildPoint = @{
         Domain = 'Agent'

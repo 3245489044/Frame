@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-17T04:48:01.6318690Z",
+  "builtAt": "2026-10-19T10:36:31.8636266Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1406,15 +1406,15 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 317,
+      "total": 330,
       "truncated": false,
       "byRole": {
         "Gate": 4,
-        "Test": 68,
+        "Test": 71,
         "Declaration": 5,
         "Code": 41,
-        "Doc": 136,
-        "Other": 63
+        "Doc": 145,
+        "Other": 64
       },
       "hits": [
         {
@@ -1490,7 +1490,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundRuntime.cs",
-          "line": 47,
+          "line": 46,
           "role": "Code",
           "text": "// （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。"
         },
@@ -2007,6 +2007,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Tooling/Invoke-GateCheck.ps1",
+          "line": 161,
+          "role": "Other",
+          "text": "$running[$proc.Id] = [PSCustomObject]@{ Name = $name; Proc = $proc; Out = $outFile; Err = $errFile; Sw = $sw; Spec = $spec }"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Share/Build/Test-MCPServices.ps1",
           "line": 790,
           "role": "Other",
@@ -2039,6 +2046,34 @@
           "line": 137,
           "role": "Doc",
           "text": "Range    ::= Key \"..\" Key        // 闭区间（按 orderKeys 规范序，如 proc.{c}.r1..r3）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/2026-10-18-CallCenter成本框架-实施记录.md",
+          "line": 68,
+          "role": "Doc",
+          "text": "1. **落库形态**：采用 process 流帧 `kind=cost`（`proc.{container}` 一行聚合），不新建 cost 域；脚本无 run 身份时只进内存账本、不伪造容器。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/2026-10-18-CallCenter成本框架-未完成逻辑清单.md",
+          "line": 111,
+          "role": "Doc",
+          "text": "- `ProcessCostFrameSink` 调 `ProcessNodeSink.Append`，成本帧进入 `proc.{container}` 单行载荷。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/2026-10-18-CallCenter成本框架-未完成逻辑清单.md",
+          "line": 161,
+          "role": "Doc",
+          "text": "- 无容器不产生伪造 `proc.` 行。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/2026-10-18-CallCenter成本框架-未完成逻辑清单.md",
+          "line": 673,
+          "role": "Doc",
+          "text": "- 当前采用 process 流帧 `kind=cost`（`proc.{container}` 单行聚合）。"
         },
         {
           "repo": "Main",
@@ -2791,6 +2826,27 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "line": 28,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"obs.task_a\", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "line": 37,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"proc.task_a.r1\", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "line": 46,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"   \", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
           "line": 43,
           "role": "Test",
@@ -3173,6 +3229,41 @@
           "line": 8,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-剩余项施工单.md",
+          "line": 156,
+          "role": "Doc",
+          "text": "| 前置裁决 | **键族前缀来源**：声明面模板多为 `{container}`（无前缀）⇒ 需先定“按容器键族（`proc.` / `obs.` 的实际生成点）”还是“按 `PlacementIds` 过滤”。裁决前不得写死前缀清单（禁 C# 手列） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "| 2 | `15:53:07.492 / 07.563 / 07.677` 等 6 条 `读侧裁剪 … key-unparsable=2` | process 域拿到 `obs.*`，observability 域拿到 `proc.*` | `NodeDomainPort.cs:178-204`（先投影后裁剪） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 126,
+          "role": "Doc",
+          "text": "| 节点键前缀 | `proc.*` / `obs.*` | 位置键模板 | `NodeIdentityTrim` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 308,
+          "role": "Doc",
+          "text": "// 键族前缀由声明面派生（proc./obs./seg.…），禁止本类硬编码清单。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 318,
+          "role": "Doc",
+          "text": "1. `ReadScope` 构造补 `KeyPrefix = NodeKeyFamily.PrefixOf(domainKey)`（框架支持前缀时直接收窄）。`NodeKeyFamily` 为**新增单一实现**：前缀表从 `Config/nodes/*.ushar` 的声明键模板派生，禁止在 C# 里手列 `proc./obs.` 清单。"
         },
         {
           "repo": "Projects",
@@ -3643,14 +3734,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 138,
+      "total": 145,
       "truncated": false,
       "byRole": {
         "Gate": 1,
-        "Test": 6,
+        "Test": 8,
         "Declaration": 7,
-        "Code": 72,
-        "Doc": 51,
+        "Code": 74,
+        "Doc": 54,
         "Other": 1
       },
       "hits": [
@@ -3748,23 +3839,30 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 678,
+          "line": 703,
           "role": "Code",
           "text": "if (relations is null || relations.Count == 0) continue;"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 680,
-          "role": "Code",
-          "text": "var entries = new List<RelationDeclarationEntry>(relations.Count);"
+          "file": "CsharpPrj/Operation/DataStoreDriven/docs/引用图库-物理删除与墓碑治理-通用框架重构方案.md",
+          "line": 72,
+          "role": "Doc",
+          "text": "| `ur_relations.status` | 217 active / 0 revoked | 删除结果未持久化（或被 seed 覆盖） |"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphBuilder.cs",
-          "line": 41,
-          "role": "Code",
-          "text": "if (relations is null || relations.Count == 0) return;"
+          "file": "CsharpPrj/Operation/DataStoreDriven/docs/引用图库-物理删除与墓碑治理-通用框架重构方案.md",
+          "line": 184,
+          "role": "Doc",
+          "text": "| `ur_relations` | `{ _id, Doc }` | `relations.{workflowId}.{relationId}` | `_id`；**新增** `RelationId/WorkflowId/Status` 顶层字段后建索引 |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/docs/引用图库-物理删除与墓碑治理-通用框架重构方案.md",
+          "line": 519,
+          "role": "Doc",
+          "text": "| 声明 | `_id`（`relations.{wf}.{rid}`） | `_id` |"
         },
         {
           "repo": "Frame",
@@ -3797,16 +3895,37 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Hierarchy/Dataflow/HierarchyTreeReader.cs",
-          "line": 76,
+          "line": 97,
           "role": "Code",
           "text": ": await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/HistoryProjector.cs",
-          "line": 87,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 62,
           "role": "Code",
-          "text": "var keys = await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);"
+          "text": "await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 107,
+          "role": "Code",
+          "text": "await _relations.AttachTaskAsync(cmd.History.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 113,
+          "role": "Code",
+          "text": "return _relations.DetachTaskAsync(cmd.History.Value, cmd.Task.Value, ct);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 130,
+          "role": "Code",
+          "text": "await _relations.DeleteAsync(cmd.Key.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -3825,21 +3944,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 75,
+          "line": 69,
           "role": "Code",
           "text": "await _relations.CreateAsync(hid, name: Nodes.Keys.KeyAddressing.ContainerName(name, hid), ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 82,
+          "line": 76,
           "role": "Code",
           "text": ": _relations.AttachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 88,
+          "line": 82,
           "role": "Code",
           "text": ": _relations.DetachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
         },
@@ -4251,6 +4370,13 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/GraphRowWritePortTests.cs",
+          "line": 23,
+          "role": "Test",
+          "text": "private const string RelationNodeKey = \"relations.wf.rel1\";"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
           "line": 214,
           "role": "Test",
@@ -4273,9 +4399,23 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
-          "line": 360,
+          "line": 363,
           "role": "Test",
           "text": "=> _relations.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/AggregateStoreSeparationTests.cs",
+          "line": 133,
+          "role": "Test",
+          "text": "Assert.IsTrue(relations.Deleted);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/GraphTombstoneTests.cs",
+          "line": 147,
+          "role": "Test",
+          "text": "Assert.IsTrue(page.Items[0].Key.StartsWith(\"relations.\", StringComparison.Ordinal), \"行身份 = _id（NodeKey）\");"
         },
         {
           "repo": "Main",
@@ -4283,13 +4423,6 @@
           "line": 80,
           "role": "Test",
           "text": "Assert.AreEqual(\"relations.wf1.rel1\", NodeStoreKeyGrammars.BuildRelation(\"wf1\", \"rel1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/History/HistoryProjectorTests.cs",
-          "line": 57,
-          "role": "Test",
-          "text": "relations.TaskKeys.Add(\"h-1\", new List<string> { \"t-1\", \"t-2\" });"
         },
         {
           "repo": "Projects",
@@ -4427,7 +4560,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Api/RunActionMap.cs",
-          "line": 171,
+          "line": 174,
           "role": "Code",
           "text": "new[] { \"declare\", \"undeclare\", \"list\" }, \"relations.list = data-store 读投影（无单意图）；declare/undeclare 已按 op 对齐\","
         },
@@ -4440,52 +4573,59 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
+          "line": 36,
+          "role": "Code",
+          "text": "var keys = await _relations.GetTaskKeysAsync(history.Value, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
+          "line": 45,
+          "role": "Code",
+          "text": "var keys = await _relations.GetHistoryKeysAsync(task.Value, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/NodeWrite/SyncRelationsBlock.cs",
+          "line": 66,
+          "role": "Code",
+          "text": "var members = await _relations.GetTaskKeysAsync(key, cancellationToken).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
-          "line": 227,
+          "line": 234,
           "role": "Code",
           "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 477,
-          "role": "Code",
-          "text": "await relations.EnsureTaskHistoryBoundAsync(name, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 478,
+          "line": 525,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 206,
+          "line": 226,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 235,
+          "line": 247,
+          "role": "Code",
+          "text": ": relations.GetTaskKeysAsync(hid, CancellationToken.None).GetAwaiter().GetResult();"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
+          "line": 297,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 239,
-          "role": "Code",
-          "text": "await relations.DeleteAsync(hid, CancellationToken.None).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 307,
-          "role": "Code",
-          "text": "await relations.DeleteAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
@@ -4520,7 +4660,7 @@
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
           "line": 364,
           "role": "Code",
-          "text": "/// <summary>撤销声明（relations.undeclare）：清边 + Status=revoked。</summary>"
+          "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
@@ -4631,9 +4771,9 @@
       "truncated": true,
       "byRole": {
         "Gate": 2,
-        "Test": 103,
+        "Test": 93,
         "Declaration": 0,
-        "Code": 145,
+        "Code": 155,
         "Doc": 149,
         "Other": 1
       },
@@ -5277,17 +5417,87 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Core/AggregateMemoryStores.cs",
+          "line": 60,
+          "role": "Code",
+          "text": "_sessions[session.Key.Value] = session;"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 163,
+          "line": 164,
           "role": "Code",
           "text": "// ---- 会话图子图（方案 C：会话 = LiteDB 引用关系连接的节点；Id = session.{name}） ----"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 167,
+          "line": 168,
           "role": "Code",
           "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像（会话图子图锚点；缺省=无会话时的图条目展示锚）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 75,
+          "role": "Code",
+          "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKind, UsharpScalar.Str(session.Owner.Kind.ToString())),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 76,
+          "role": "Code",
+          "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKey, UsharpScalar.Str(session.Owner.Key)),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 77,
+          "role": "Code",
+          "text": "new KeyValuePair<string, UsharpValue>(FieldRole, UsharpScalar.Str(session.Role.ToString())),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 78,
+          "role": "Code",
+          "text": "new KeyValuePair<string, UsharpValue>(FieldAgent, UsharpScalar.Str(session.Agent)),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 79,
+          "role": "Code",
+          "text": "new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(session.CreatedAt.ToString(\"O\"))),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 81,
+          "role": "Code",
+          "text": "var text = _codec.SerializeRecord(\"session:\" + session.Key.Value, TableId, session.Key.Value, record);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
+          "line": 82,
+          "role": "Code",
+          "text": "ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params((\"k\", session.Key.Value), (\"d\", text)));"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 139,
+          "role": "Code",
+          "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 140,
+          "role": "Code",
+          "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -6433,7 +6643,7 @@
         {
           "repo": "Main",
           "file": "Docs/analysis/2026/9/9.13/2026-09-13-FsSink数据库截获-DbSink-分析与实施方案.md",
-          "line": 214,
+          "line": 216,
           "role": "Doc",
           "text": "| C# 落点 | `ClineDaemonPool.PersistSink`（`ClineDaemonPool.cs:22,42-45`，由 `ClineDaemonHost.cs:70` 转发） | 落 `ur_nodes`（节点类型 `cline.session.<id>`），与现有 `messages` 归档同域 |"
         },
@@ -7367,76 +7577,6 @@
           "line": 307,
           "role": "Test",
           "text": "Assert.AreEqual(1, session.ItemCount);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 313,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 314,
-          "role": "Test",
-          "text": "session.Set(\"key2\", \"value2\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 316,
-          "role": "Test",
-          "text": "var keys = session.GetKeys().ToList();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 47,
-          "role": "Test",
-          "text": "StringAssert.Contains(session.Name, \"session-1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 57,
-          "role": "Test",
-          "text": "Assert.AreSame(engine.RootCell, session.Parent);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 107,
-          "role": "Test",
-          "text": "session.Set(\"cfg\", \"config-value\", StorageLayer.Config);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 108,
-          "role": "Test",
-          "text": "session.Set(\"ses\", \"session-value\", StorageLayer.Session);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 109,
-          "role": "Test",
-          "text": "session.Set(\"trn\", \"transient-value\", StorageLayer.Transient);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 113,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Contains(\"cfg\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/InternalStorage.Tests/Core/StorageEngineTests.cs",
-          "line": 114,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Contains(\"ses\"));"
         }
       ]
     },
@@ -7445,14 +7585,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 136,
+      "total": 196,
       "truncated": false,
       "byRole": {
-        "Gate": 0,
-        "Test": 49,
-        "Declaration": 25,
-        "Code": 5,
-        "Doc": 56,
+        "Gate": 2,
+        "Test": 51,
+        "Declaration": 32,
+        "Code": 14,
+        "Doc": 96,
         "Other": 1
       },
       "hits": [
@@ -7735,6 +7875,20 @@
           "line": 19,
           "role": "Doc",
           "text": "一个被广泛持有的隐含假设是：提示词分级是一种适用于任何场景的\"写作技巧精进\"。本文的第一个主张是反驳这一假设——**分级并非普遍最佳实践，而是由两个前提条件共同触发的结构性必然**：**循环**（multi-turn iterative execution，多轮迭代执行）与 **Agent**（autonomous, tool-calling, goal-directed operation，自主"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgenticWorkflowSupportTests.cs",
+          "line": 54,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", tool!.SubAgentTag);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgenticWorkflowSupportTests.cs",
+          "line": 55,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent-tool-call\", tool.ExecutorId);"
         },
         {
           "repo": "Main",
@@ -8180,56 +8334,56 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 54,
+          "line": 56,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 71,
+          "line": 73,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 78,
+          "line": 82,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 98,
+          "line": 102,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 110,
+          "line": 114,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 122,
+          "line": 126,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 144,
+          "line": 148,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 154,
+          "line": 158,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
@@ -8249,29 +8403,43 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/task-node.ushar",
+          "line": 24,
+          "role": "Declaration",
+          "text": "role.tool-call = 6"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/task-node.ushar",
+          "line": 31,
+          "role": "Declaration",
+          "text": "owns-tool = \"role.tool-call\""
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 11,
+          "line": 12,
           "role": "Declaration",
           "text": "\"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 74,
+          "line": 75,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 135,
+          "line": 136,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 271,
+          "line": 272,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
@@ -8288,6 +8456,41 @@
           "line": 19,
           "role": "Declaration",
           "text": "[Rule] r-cline-tool-call-final"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/skills.ushar",
+          "line": 28,
+          "role": "Declaration",
+          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/subagents.ushar",
+          "line": 31,
+          "role": "Declaration",
+          "text": "[SubAgent] tool-call:"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/subagents.ushar",
+          "line": 32,
+          "role": "Declaration",
+          "text": "agent = tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/subagents.ushar",
+          "line": 34,
+          "role": "Declaration",
+          "text": "skills = tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/subagents.ushar",
+          "line": 36,
+          "role": "Declaration",
+          "text": "executor = subagent-tool-call"
         },
         {
           "repo": "Projects",
@@ -8330,6 +8533,265 @@
           "line": 34,
           "role": "Doc",
           "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 13,
+          "role": "Doc",
+          "text": "> **一句话**：在 `Agent.Modules.SubAgent` 下新增标签 `workflow`（执行腿 `subagent-workflow`），以「**声明模板 + 运行期计划图 + 执行轨迹**」承载通用智能体工作流：模板静态可验证，计划受约束可校验，轨迹可记录、可追踪、可诊断；并补 §13 的默认运行逻辑改造（工具调用 → `tool-call`、节点归位、`base` 基础智能"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 28,
+          "role": "Doc",
+          "text": "| **C-8** | history 默认运行逻辑增加**结构化意图分类**：工具意图 → `tool-call` 子 Agent；工作流意图 → `workflow` 子 Agent；基础意图 → `base` 子 Agent；非结构化输入保持既有 L-D 决策（零回归）。 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 588,
+          "role": "Doc",
+          "text": "| 单工具结构化调用 | `tool-call` 子 Agent（确定性直调优先） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 611,
+          "role": "Doc",
+          "text": "| `src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs` | 工具调用执行腿 `subagent-tool-call` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 645,
+          "role": "Doc",
+          "text": "| `skills/internal/tool-call/SKILL.md` | 工具调用 Agent 提示词面 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 653,
+          "role": "Doc",
+          "text": "| `Config/subagents.ushar` | 增加 `workflow` / `tool-call` / `base` 标签 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 654,
+          "role": "Doc",
+          "text": "| `Config/skills.ushar` | 增加 `agent-workflow` / `tool-call` / `base-agent` 技能登记 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 685,
+          "role": "Doc",
+          "text": "| `src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs` | 注册 `subagent-tool-call` / `subagent-base` 执行器 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 791,
+          "role": "Doc",
+          "text": "- 标签→执行器解析修复（tool-call / workflow / base）；"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 800,
+          "role": "Doc",
+          "text": "- 结构化工具意图默认走 `tool-call`，执行器不再被 cline 覆盖；"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 801,
+          "role": "Doc",
+          "text": "- workflow/tool-call/base 节点归属正确，无 `history_owns_node` 写入；"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 860,
+          "role": "Doc",
+          "text": "| D6 | 工具调用 Agent 是否独立标签 | **独立 `tool-call`**，与目录发现 `tool-catalog` 分离 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 873,
+          "role": "Doc",
+          "text": "| 2026-10-18 | 增补 §13：history 默认运行逻辑改造（结构化意图分类 → tool-call / workflow / base）、标签执行器解析修复、history/task/workflow 节点归位、基础智能体经 history 窗口提交与结果槽预言式预分配（P5 / A13–A22 / D6–D10） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 901,
+          "role": "Doc",
+          "text": "1. **执行腿错配**：标签 `tool-call` / `workflow` 建出的成员仍走 cline，不会走专用执行腿。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 902,
+          "role": "Doc",
+          "text": "2. **路由无默认语义**：没有“结构化工具意图 → tool-call Agent”的确定性默认；LLM 决策可选项有限且路径不稳定。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 913,
+          "role": "Doc",
+          "text": "├─ 结构化 ToolCallSubmission   → 默认 sub_agent = tool-call  → executor = subagent-tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 923,
+          "role": "Doc",
+          "text": "| 输入含 `submission_id` + `intent=tool_call` + `tool.name` | 建/复用 `tool-call` 成员，执行器 `subagent-tool-call` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 965,
+          "role": "Doc",
+          "text": "### 13.3 工具调用 Agent（标签 `tool-call`）"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 972,
+          "role": "Doc",
+          "text": "[SubAgent] tool-call:"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 973,
+          "role": "Doc",
+          "text": "agent = tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 975,
+          "role": "Doc",
+          "text": "skills = tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 977,
+          "role": "Doc",
+          "text": "executor = subagent-tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 983,
+          "role": "Doc",
+          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 986,
+          "role": "Doc",
+          "text": "`skills/internal/tool-call/SKILL.md` 约束："
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1001,
+          "role": "Doc",
+          "text": "public const string ExecutorId = \"subagent-tool-call\";"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1082,
+          "role": "Doc",
+          "text": "| tool 调用 / 工具结果 | `cross_db_link` | tool-call 任务 | 不写回 history 任务节点 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1103,
+          "role": "Doc",
+          "text": "**默认取 `flat`**：workflow 根任务、tool-call 子任务、base 提交任务都直接归拢到 history；`task_owns_task` 只补充结构，不改变可见性。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1121,
+          "role": "Doc",
+          "text": "// tool-call / tool-result                    → ToolCallTask"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1132,
+          "role": "Doc",
+          "text": "workflow/tool-call 节点载荷至少包含："
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1155,
+          "role": "Doc",
+          "text": "- tool-call 任务的窗口包含工具结果；history 的 `dispatch_context` 能看见摘要，但不会把原始工具输出灌进 history 上下文（避免上下文污染）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1416,
+          "role": "Doc",
+          "text": "| **P5-A 路由契约** | `TaskDispatchParams` 扩展；`IHistorySubmissionClassifier`；`history-loop.ushar` 默认键；`history-modes.ushar` 增加 `tool.call` | 结构化工具意图 → `subAgentTag=tool-call`；非结构化输入零回归 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1417,
+          "role": "Doc",
+          "text": "| **P5-B 执行腿修复** | `MemberProvisionRequest` + 标签→`SubAgentDefinition.Executor` 解析；注册 `subagent-tool-call` / `subagent-base` | 入队/成员创建后 `ExecutorId` 正确；未登记标签 fail-fast |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1418,
+          "role": "Doc",
+          "text": "| **P5-C 工具调用 Agent** | `ToolCallSubAgentTools` + `ToolCallSubAgentTaskExecutor` + `IToolInvoker` | 工具名/参数校验；幂等；结果节点归属 tool-call 任务 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1419,
+          "role": "Doc",
+          "text": "| **P5-D 节点归位** | `WorkflowNodeOwnership` 策略；`RoundAttribution` 接入；任务层级 flat | workflow/tool-call/base 节点归属正确；负对照拒绝错归属 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1429,
+          "role": "Doc",
+          "text": "| A13 | 结构化工具意图默认走 tool-call | 入队 `intent=tool_call`，读 `SubAgentTag=tool-call`、`ExecutorId=subagent-tool-call` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1430,
+          "role": "Doc",
+          "text": "| A14 | 标签执行腿不被 cline 覆盖 | 三个标签（tool-call/workflow/base）分别断言 `ExecutorId` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1457,
+          "role": "Doc",
+          "text": "| D6 | 工具调用 Agent 是否独立标签，还是复用 `tool-catalog` | **独立 `tool-call`**；目录发现与执行分离 |"
         },
         {
           "repo": "Projects",
@@ -8396,6 +8858,41 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/PowerShellScript/Check-AgentDefaultDispatch.ps1",
+          "line": 18,
+          "role": "Gate",
+          "text": "@{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/PowerShellScript/Check-AgenticWorkflow.ps1",
+          "line": 37,
+          "role": "Gate",
+          "text": "@{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
+          "line": 2,
+          "role": "Doc",
+          "text": "name: tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
+          "line": 7,
+          "role": "Doc",
+          "text": "trigger: tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
+          "line": 9,
+          "role": "Doc",
+          "text": "# tool-call — 工具调用子智能体"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilitySelections.cs",
           "line": 20,
           "role": "Code",
@@ -8404,9 +8901,72 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/RecognizedKinds.cs",
-          "line": 35,
+          "line": 38,
           "role": "Code",
           "text": "public const string ToolCall = \"tool-call\";"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
+          "line": 46,
+          "role": "Code",
+          "text": "WindowSubmissionIntent.ToolCall => \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
+          "line": 52,
+          "role": "Code",
+          "text": "WindowSubmissionIntent.ToolCall => \"subagent-tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
+          "line": 19,
+          "role": "Code",
+          "text": "public const string AgentTagName = \"tool-call\";"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
+          "line": 30,
+          "role": "Code",
+          "text": "args => InvokeAsync(args, ct), Source: \"subagent-tool-call\"),"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/Context/ContextGraphExtractor.cs",
+          "line": 126,
+          "role": "Code",
+          "text": "ContextNodeKind.ToolCall => \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/WorkflowNodeOwnership.cs",
+          "line": 29,
+          "role": "Code",
+          "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
+          "line": 18,
+          "role": "Code",
+          "text": "/// 工具调用子智能体执行腿（<c>subagent-tool-call</c>）——"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
+          "line": 23,
+          "role": "Code",
+          "text": "public const string ExecutorId = \"subagent-tool-call\";"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
+          "line": 61,
+          "role": "Code",
+          "text": "var system = catalog is not null && catalog.TryGet(\"tool-call\", out var def)"
         }
       ]
     },
@@ -8415,14 +8975,14 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 39,
+      "total": 43,
       "truncated": false,
       "byRole": {
         "Gate": 3,
-        "Test": 1,
+        "Test": 2,
         "Declaration": 19,
         "Code": 1,
-        "Doc": 14,
+        "Doc": 17,
         "Other": 1
       },
       "hits": [
@@ -8523,6 +9083,13 @@
           "line": 110,
           "role": "Doc",
           "text": "3. **语义级重复**（`agent-round` vs `agent_round`，见 `placement.ushar` 注释的「唯一映射点」）不可编译期判 ⇒ 只能「值对象 + 归一单点」收窄。"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "line": 13,
+          "role": "Test",
+          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
@@ -8652,6 +9219,27 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 148,
+          "role": "Doc",
+          "text": "而 `Config/nodes/placement.ushar` 把**15 个位置 id 全部反解到同一个 loc 坐标 `agent_round`**（`[Matrix] LocToPlacement` 每行 = `agent_round`），`ReadScope.Loc` 由 `DeriveLoc` 推出（`NodeDomainPort.cs:524-526`）。⇒ 按 loc 投影时，pr"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 323,
+          "role": "Doc",
+          "text": "**根因备注（结构事实）**：`Config/nodes/placement.ushar` 的 `[Matrix] LocToPlacement` 把 15 个位置全部反解到同一 loc 坐标 `agent_round`；`DeriveLoc` 只推出 loc（`NodeDomainPort.cs:524-526`）。若框架按 loc 投影而不按 `PlacementIds` 过滤，则 proce"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 531,
+          "role": "Doc",
+          "text": "| **E3** | `key-unparsable` 每容器每次出现（日志自述属缺陷） | 按 loc 投影 + 15 位置共用 `agent_round` | F3 读前域限定 | `key-unparsable=0` |"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
           "line": 60,
           "role": "Doc",
@@ -8688,14 +9276,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3138,
+          "line": 3467,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3145,
+          "line": 3474,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -8706,11 +9294,11 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 37,
+      "total": 38,
       "truncated": false,
       "byRole": {
         "Gate": 0,
-        "Test": 9,
+        "Test": 10,
         "Declaration": 2,
         "Code": 6,
         "Doc": 19,
@@ -8800,6 +9388,13 @@
           "line": 52,
           "role": "Test",
           "text": "Assert.IsTrue(spec.Placements.TryGet(\"process-node\", out var placement), \"应声明落库位置 process-node\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "line": 13,
+          "role": "Test",
+          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
@@ -8981,14 +9576,14 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1256.0,
+    "hitCount": 1341.0,
     "byRole": {
-      "Gate": 19,
-      "Test": 285,
-      "Declaration": 59,
-      "Code": 320,
-      "Doc": 499,
-      "Other": 74
+      "Gate": 21,
+      "Test": 284,
+      "Declaration": 66,
+      "Code": 341,
+      "Doc": 554,
+      "Other": 75
     },
     "truncatedFacts": [
       "key.session"
@@ -8996,15 +9591,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 404
+        "lines": 419
       },
       {
         "repo": "Projects",
-        "lines": 326
+        "lines": 395
       },
       {
         "repo": "Main",
-        "lines": 698
+        "lines": 713
       }
     ]
   }

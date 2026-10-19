@@ -57,7 +57,8 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
         var list = new List<SessionRecord>();
         foreach (var row in rows)
         {
-            var key = SqliteRows.Str(row, KvUsharpTable.ColNodeKey);
+            // 结果集字典键 = 无引号列名（ColNodeKey 带方括号，仅用于 SQL 文本）。
+            var key = SqliteRows.Str(row, KvUsharpTable.NodeKeyName);
             var record = string.IsNullOrWhiteSpace(key) ? null : Read(key, SqliteRows.Str(row, "Doc"));
             if (record is null) continue;
             if (record.Owner.Kind == owner.Kind && string.Equals(record.Owner.Key, owner.Key, StringComparison.Ordinal))

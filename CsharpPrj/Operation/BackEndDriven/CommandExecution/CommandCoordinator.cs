@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Linq;
 using ECS.Core;
@@ -7,6 +8,7 @@ using BackEndDriven.CommandExecution.Context;
 using Modules.Parsing.Parsing;
 using CommandFramework.Utilities;
 using CommandFramework.Execution;
+using TConfig;
 
 namespace BackEndDriven.CommandExecution;
 
@@ -75,6 +77,33 @@ public class CommandSystemCoordinator
     /// <summary>挂接运行期实时错误/慢-卡死遥测（null 关闭；由装配方按驱动需要启用）。</summary>
     public void AttachTelemetry(ICommandTelemetry? telemetry)
         => _telemetry = telemetry;
+
+    /// <summary>
+    /// IEF+ C1：结果集增量单写——命令协调器为**唯一写者**：每完成一条命令即追加一条结果，使
+    /// 「任何时刻 CommandResults.Count == 已执行数」（关窗时可读回真实已执行数，禁 totalCommands=0 丢尾）。
+    /// 由执行入口（FileDrivenPipelineRunner）挂接为运行期上下文的 CommandResults 列表；未挂接 = 旧批量语义不变。
+    /// </summary>
+    public List<CommandLineResult>? ResultSink { get; set; }
+
+    /// <summary>把已结算命令实体追加进结果集（未挂接 sink / 状态仍 Executing ⇒ 跳过；不重复记录）。</summary>
+    private void RecordSink(Entity entity, CommandMetaComponent meta)
+    {
+        var sink = ResultSink;
+        if (sink is null) return;
+        if (!_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var status)) return;
+        if (status.State == CommandState.Executing) return; // 尚未结算（由后续 MarkFailed 分支补记）
+
+        var success = status.State == CommandState.Success;
+        var errorMessage = status.ErrorMessage ?? (success ? null : $"Command failed: {status.State}");
+        sink.Add(new CommandLineResult
+        {
+            LineNumber = meta.Index,
+            CommandText = meta.RawCommand,
+            Success = success,
+            Message = errorMessage ?? (meta.Target ?? meta.Action),
+            Duration = TimeSpan.FromMilliseconds(status.DurationMs)
+        });
+    }
 
     /// <summary>慢/卡死报告是否已启用（遥测存在且任一阈值 &gt; 0）。</summary>
     private static bool TelemetryMonitorEnabled(ICommandTelemetry? telemetry)
@@ -312,12 +341,14 @@ public class CommandSystemCoordinator
         finally
         {
             if (active is not null) UnregisterActive(active);
+            RecordSink(entity, meta); // IEF+ C1：命令完成即增量记录（单写者 = 协调器；任何时刻 Count == 已执行数）
         }
 
         if (_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var status)
             && status.State == CommandState.Executing)
         {
             MarkFailed(entity, $"Command '{meta.Action}' 执行后未设置最终状态", sw);
+            RecordSink(entity, meta); // 结算后再记（finally 中因仍 Executing 被跳过）
             return;
         }
 
@@ -378,12 +409,14 @@ public class CommandSystemCoordinator
         finally
         {
             if (active is not null) UnregisterActive(active);
+            RecordSink(entity, meta); // IEF+ C1：命令完成即增量记录（单写者 = 协调器；任何时刻 Count == 已执行数）
         }
 
         if (_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var status)
             && status.State == CommandState.Executing)
         {
             MarkFailed(entity, $"Command '{meta.Action}' 执行后未设置最终状态", sw);
+            RecordSink(entity, meta); // 结算后再记（finally 中因仍 Executing 被跳过）
             return;
         }
 

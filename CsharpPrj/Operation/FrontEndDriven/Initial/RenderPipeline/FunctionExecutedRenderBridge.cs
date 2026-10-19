@@ -87,7 +87,8 @@ public sealed class FunctionExecutedRenderBridge : IDisposable
         // 事件 scope 非空时仅重渲染该作用域（配合 S3 收集器作用域过滤），
         // 空 scope 保持全量语义（向后兼容，如无作用域上下文的通用函数执行）。
         var scope = evt.Scope;
-        _dispatcher.Post(() =>
+        // IEF+ C3：改用栅栏投递（hostAlive ∧ 控件存活才封送）——关窗后丢弃而非抛 BeginInvoke 异常。
+        var posted = _dispatcher.TryPost(() =>
         {
             try
             {
@@ -112,6 +113,9 @@ public sealed class FunctionExecutedRenderBridge : IDisposable
                 Interlocked.Exchange(ref _pendingRerenders, 0);
             }
         });
+
+        // 宿主已关闭 ⇒ 投递被丢弃：复位 pending，避免后续事件被静默卡死（不再重复触发）。
+        if (!posted) Interlocked.Exchange(ref _pendingRerenders, 0);
 
         return Task.CompletedTask;
     }

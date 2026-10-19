@@ -909,6 +909,14 @@
         Note   = '动作目录单源：运行期 CommandSystemCoordinator.RegisteredActions → 加载期 CommandLineValidator.SetRegisteredCommands 投影（FileDrivenPipelineRunner 恒注入）∧ wait-until 能力在位 ∧ 正/负对照'
     }
 
+    IntentContract = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'IEF+ 执行契约守卫 C1–C6：每行 ResultKind / 写入行 ReadBack / Writes⊆Reads / PreconditionKind 有实现 / parity CaseId 不悬空 / 正负对照；基线 = Baselines\IntentContract.psd1'
+    }
+
     EchoConstants = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

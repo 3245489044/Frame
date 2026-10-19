@@ -1,11 +1,11 @@
-# 门禁索引（生成产物，禁手改）
+﻿# 门禁索引（生成产物，禁手改）
 
 > 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` 字段编译生成。
 > 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（41 件）
+## Agent（42 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -30,6 +30,7 @@
 | `GenerationRebuildChain` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1` |
 | `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
 | `HostAccessNoRestate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HostAccessNoRestate.ps1` |
+| `IntentContract` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentContract.ps1` |
 | `IntentMappingNoLiteral` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentMappingNoLiteral.ps1` |
 | `IntentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentParity.ps1` |
 | `IntentSupportsProjected` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentSupportsProjected.ps1` |

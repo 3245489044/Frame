@@ -11,29 +11,59 @@ namespace FrontEndDriven.Services;
 public sealed class WinFormsUIDispatcher : IUIDispatcher
 {
     private readonly Control _pumpControl;
+    private readonly Func<bool> _hostAlive;
+    private int _droppedAfterHostClosed;
 
-    public WinFormsUIDispatcher()
+    public WinFormsUIDispatcher(Control? pumpControl = null, Func<bool>? hostAlive = null)
     {
-        _pumpControl = new Control();
-        _pumpControl.CreateControl();
+        if (pumpControl is null)
+        {
+            _pumpControl = new Control();
+            _pumpControl.CreateControl();
+        }
+        else
+        {
+            _pumpControl = pumpControl;
+        }
+        _hostAlive = hostAlive ?? static () => true;
     }
 
     public bool IsUIThread =>
         SynchronizationContext.Current is WindowsFormsSynchronizationContext;
+
+    /// <summary>IEF+ C3：宿主已关闭/控件已释放导致被丢弃的投递计数（可见化；关窗后 0 异常）。</summary>
+    public int DroppedAfterHostClosed => System.Threading.Volatile.Read(ref _droppedAfterHostClosed);
+
+    /// <summary>
+    /// IEF+ C3：栅栏投递——仅当 <c>HostAlive ∧ IsHandleCreated ∧ !IsDisposed</c> 才封送；不可达 ⇒
+    /// 计数 + 丢弃（不抛 <c>BeginInvoke</c> 异常），关窗后事件投递不再制造 ObjectDisposedException。
+    /// </summary>
+    public bool TryPost(Action action)
+    {
+        if (action == null) return false;
+
+        if (!_hostAlive() || _pumpControl.IsDisposed || !_pumpControl.IsHandleCreated)
+        {
+            System.Threading.Interlocked.Increment(ref _droppedAfterHostClosed);
+            return false;
+        }
+
+        if (IsUIThread)
+        {
+            action();
+            return true;
+        }
+
+        _pumpControl.BeginInvoke(action);
+        return true;
+    }
 
     public void Post(Action action)
     {
         if (action == null)
             throw new ArgumentNullException(nameof(action));
 
-        if (IsUIThread)
-        {
-            action();
-        }
-        else
-        {
-            _pumpControl.BeginInvoke(action);
-        }
+        TryPost(action); // 兼容入口：内部走栅栏（关窗后静默丢弃，不再抛 BeginInvoke 异常）
     }
 
     public void Send(Action action)

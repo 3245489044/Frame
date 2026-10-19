@@ -1,6 +1,9 @@
 
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using ECS.Components;
 using ECS.Core;
 using BackEndDriven.Diagnostics;
@@ -280,7 +283,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
 
     public override void Execute(Entity entity, CommandMetaComponent meta)
     {
-        if (!TryParseExec(meta, out var target, out var parameters, out var commandTimeoutMs, out var outputTarget, out var expectedContains))
+        if (!TryParseExec(meta, out var target, out var parameters, out var commandTimeoutMs, out var outputTarget, out var expectedContains, out var expectedJson))
         {
             SetFailure(entity, "exec: 缺少目标函数名");
             return;
@@ -292,7 +295,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         {
             // 同步路径（保留）：兼容调用 Execute 的旧调用方。
             var invocation = EventPlatformExecutor.Invoke(target, parameters, commandTimeoutMs);
-            HandleInvocation(entity, target, invocation, outputTarget, expectedContains);
+            HandleInvocation(entity, target, invocation, outputTarget, expectedContains, expectedJson);
         }
         catch (Exception ex)
         {
@@ -304,7 +307,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
     /// <summary>异步路径：await 而非同步阻塞，供长时间异步函数（如 Cline_PoolReady）不钉死命令线程。</summary>
     public async Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
     {
-        if (!TryParseExec(meta, out var target, out var parameters, out var commandTimeoutMs, out var outputTarget, out var expectedContains))
+        if (!TryParseExec(meta, out var target, out var parameters, out var commandTimeoutMs, out var outputTarget, out var expectedContains, out var expectedJson))
         {
             SetFailure(entity, "exec: 缺少目标函数名");
             return;
@@ -316,7 +319,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         {
             var invocation = await EventPlatformExecutor.InvokeAsync(target, parameters, commandTimeoutMs)
                 .ConfigureAwait(false);
-            HandleInvocation(entity, target, invocation, outputTarget, expectedContains);
+            HandleInvocation(entity, target, invocation, outputTarget, expectedContains, expectedJson);
         }
         catch (Exception ex)
         {
@@ -332,13 +335,15 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         out Dictionary<string, object?> parameters,
         out int? commandTimeoutMs,
         out string? outputTarget,
-        out string? expectedContains)
+        out string? expectedContains,
+        out string? expectedJson)
     {
         target = meta.Target;
         parameters = new Dictionary<string, object?>();
         commandTimeoutMs = null;
         outputTarget = null;
         expectedContains = null;
+        expectedJson = null;
         if (string.IsNullOrWhiteSpace(target))
             return false;
 
@@ -377,6 +382,15 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
             parameters.Remove("expectedContains");
         }
 
+        // IEF+ D1：命令级结果断言 expect-json（极小文法：field=value / field!=value / field in (a,b)）——
+        // 对函数返回的 JSON 文本做字段断言（强判据，替代「文本 + sleep」）；非法文法即 fail-fast。
+        if ((parameters.TryGetValue("expect-json", out var ejRaw) || parameters.TryGetValue("expectJson", out ejRaw)) && ejRaw != null)
+        {
+            expectedJson = ejRaw.ToString();
+            parameters.Remove("expect-json");
+            parameters.Remove("expectJson");
+        }
+
         return true;
     }
 
@@ -385,7 +399,8 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         string target,
         EventPlatformInvocation invocation,
         string? outputTarget,
-        string? expectedContains)
+        string? expectedContains,
+        string? expectedJson)
     {
         if (!invocation.PlatformAvailable)
         {
@@ -432,6 +447,20 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                     new { function = target, expectedContains });
             }
 
+            // IEF+ D1：结果级 JSON 字段断言（expect-json 极小文法，可选）：失配/非法文法 → fail-fast。
+            if (expectedJson != null)
+            {
+                if (!TryEvaluateExpectJson(expectedJson, actualOutput, out var jsonError))
+                {
+                    BackEndLog.Log("Command_Exec_ExpectJson_Mismatch",
+                        new { function = target, expectJson = expectedJson, error = jsonError, actual = LogTextTruncation.TruncateForLog(actualOutput) });
+                    SetFailure(entity, $"exec '{target}' 结果断言失败 (expect-json): {jsonError}");
+                    return;
+                }
+                BackEndLog.Log("Command_Exec_ExpectJson_Match",
+                    new { function = target, expectJson = expectedJson });
+            }
+
             BackEndLog.Log("Command_Exec_Success",
                 new { function = target, result = LogTextTruncation.TruncateForLog(result.Output) });
             SetSuccess(entity, result.Output);
@@ -442,6 +471,82 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 new { function = target, error = result.ErrorMessage });
             SetFailure(entity, $"exec '{target}' 失败: {result.ErrorMessage}");
         }
+    }
+
+    /// <summary>
+    /// IEF+ D1：expect-json 极小文法求值——仅允许 <c>field=value</c> / <c>field!=value</c> / <c>field in (a,b)</c>；
+    /// 非法文法 / 非 JSON / 字段缺失 / 失配 ⇒ false + error（禁演化成通用表达式引擎，风险 R5）。
+    /// </summary>
+    private static bool TryEvaluateExpectJson(string grammar, string actualJson, out string error)
+    {
+        error = string.Empty;
+        var text = grammar?.Trim() ?? string.Empty;
+        if (text.Length == 0) { error = "空期望恒真，拒绝静默通过"; return false; }
+
+        var m = Regex.Match(text, @"^(?<field>[A-Za-z0-9_.]+)\s*(?<op>!=|=|in)\s*(?<rhs>.+)$");
+        if (!m.Success)
+        {
+            error = $"非法 expect-json 文法 '{text}'（仅允许 field=value / field!=value / field in (a,b)）";
+            return false;
+        }
+
+        var field = m.Groups["field"].Value;
+        var op = m.Groups["op"].Value;
+        var rhs = m.Groups["rhs"].Value.Trim();
+
+        string actual;
+        try
+        {
+            using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(actualJson) ? "{}" : actualJson);
+            if (!TryReadJsonPath(doc.RootElement, field, out var value))
+            {
+                error = $"结果 JSON 不含字段 '{field}'";
+                return false;
+            }
+            actual = value ?? string.Empty;
+        }
+        catch (JsonException ex)
+        {
+            error = $"结果非 JSON: {ex.Message}";
+            return false;
+        }
+
+        if (op == "in")
+        {
+            if (rhs.Length < 2 || rhs[0] != '(' || rhs[rhs.Length - 1] != ')')
+            {
+                error = $"非法 in 文法 '{rhs}'（须为 (a,b)）";
+                return false;
+            }
+            var items = rhs.Substring(1, rhs.Length - 2)
+                .Split(',').Select(s => s.Trim().Trim('"')).Where(s => s.Length > 0).ToArray();
+            if (!items.Contains(actual, StringComparer.OrdinalIgnoreCase))
+            {
+                error = $"字段 '{field}'='{actual}' 不在集合 ({string.Join(",", items)})";
+                return false;
+            }
+            return true;
+        }
+
+        var expected = rhs.Trim('"');
+        var equals = string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        if (op == "=" && !equals) { error = $"字段 '{field}'='{actual}' != '{expected}'"; return false; }
+        if (op == "!=" && equals) { error = $"字段 '{field}' 不应等于 '{expected}'（实际 '{actual}'）"; return false; }
+        return true;
+    }
+
+    /// <summary>按点分路径读取 JSON 字段（仅对象层；缺失 ⇒ false）。</summary>
+    private static bool TryReadJsonPath(JsonElement root, string path, out string? value)
+    {
+        value = null;
+        var current = root;
+        foreach (var seg in path.Split('.'))
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(seg, out current))
+                return false;
+        }
+        value = current.ValueKind == JsonValueKind.String ? current.GetString() : current.ToString();
+        return true;
     }
 }
 

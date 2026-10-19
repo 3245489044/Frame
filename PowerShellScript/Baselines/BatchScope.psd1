@@ -252,7 +252,15 @@
     #   当前子模块在途改动（agent 数据目录残留）按新单 preexisting 登记。
     #   恢复 10.17 未知智能体系列 = 回填下一行 v39 的 Value（上方注释保留）。
     # Manifest(v39) = @{ Value = 'Docs\analysis\2026\10\10.17\2026-10-17-未知智能体剩余项.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-分发构建单次化.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v41（2026-10-19）：单指针切换至「History 分发运行失败实施步骤（A1/B1/C1/D1）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-19-History分发运行失败-实施步骤.md》，一次改完全部四批；本系列改动落在
+    #   Projects/Plug/Agent/src（契约表/注册表/handler/UI 转发/装配）· Projects/FileDriven（执行结果契约/校验器）·
+    #   Frame/PowerShellScript（IntentContract 门禁+基线）· Frame/CsharpPrj（FrontEndDriven 栅栏 / BackEndDriven 命令面 /
+    #   TConfig 调度抽象）· Projects/Information/DrivenConfig/Scripts/Agent（脚本迁移）· Environment/CentralTest（用例），
+    #   均在本单四批 allowSet 并集内。上一系列（分发构建单次化 D1）已交付，其授权单文件内容保留不变。
+    #   恢复 = 回填 v40 的 Value（下一行注释保留 分发构建单次化 单原值）。
+    # Manifest(v40) = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-分发构建单次化.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-History分发运行失败-实施步骤.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

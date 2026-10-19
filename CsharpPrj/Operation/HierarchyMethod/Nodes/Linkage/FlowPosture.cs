@@ -81,7 +81,7 @@ public sealed class FlowPosture
     }
 
     /// <summary>
-    /// 驱动一次**带结论**的簿记转换（<c>ITaskProvisionFlow.ProvisionAsync</c> 形态）：
+    /// 驱动一次**带结论**的簿记转换（返回 bool 的流形态）：
     /// 流返回 <c>false</c> ⇒ 结论 = <see cref="FlowOutcome.Failed"/>（调用方据此可见化 / 上报，禁静默）。
     /// </summary>
     /// <param name="flow">流入口调用（null = 未装配入口）。</param>

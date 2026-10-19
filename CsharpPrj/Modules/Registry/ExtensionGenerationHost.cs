@@ -28,18 +28,26 @@ public sealed class ExtensionGenerationHost
     private const string IndexFileName = "ExtensionLoaderConfig.json";
 
     private readonly ExtensionLoadContext? _context;
+    private readonly ExtensionTopology _topology;
+    private readonly Lazy<DeploymentReport> _deployment;
 
     /// <summary>创建一代扩展宿主（装配清单解析：显式路径 → 索引文件 → 默认回退；全缺 = 降级空 ALC）。</summary>
     /// <param name="generation">代数号（进程级单调序列；0 = 首个代数）。</param>
     /// <param name="depsJsonPaths">显式 deps.json 清单（按名可相对运行目录）；空 = 按索引文件/默认回退解析。</param>
-    public ExtensionGenerationHost(int generation, IEnumerable<string> depsJsonPaths)
+    /// <param name="topology">部署拓扑（共享面/宿主根）；null = 空拓扑（仅 resolver + AppContext.BaseDirectory）。</param>
+    public ExtensionGenerationHost(int generation, IEnumerable<string> depsJsonPaths, ExtensionTopology? topology = null)
     {
         ArgumentNullException.ThrowIfNull(depsJsonPaths);
 
         Generation = generation;
         Manifests = ResolveManifests(depsJsonPaths.ToArray());
+        _topology = topology ?? ExtensionTopology.Empty;
         // 未部署 → 降级（无 scoped ALC；消费方带 null 护栏）
-        _context = Manifests.Count > 0 ? new ExtensionLoadContext(Manifests, $"ExtensionContext#{generation}") : null;
+        _context = Manifests.Count > 0
+            ? new ExtensionLoadContext(Manifests, $"ExtensionContext#{generation}", _topology.AllProbeDirs())
+            : null;
+        _deployment = new Lazy<DeploymentReport>(
+            () => DeploymentContractBuilder.Build(Generation, Manifests, _topology, _context));
     }
 
     /// <summary>代数号（进程级单调序列）。</summary>
@@ -142,93 +150,34 @@ public sealed class ExtensionGenerationHost
     }
 
     /// <summary>
-    /// 部署校验报告：逐清单解析其 deps.json 的 runtime 资产，报告**各清单自身目录**下的磁盘缺失项。
-    /// <para>
-    /// 判定基座 = 清单所在目录（= <see cref="ExtensionLoadContext"/> 装载语义的 <c>AssemblyDependencyResolver</c> 基座）——
-    /// 扩展层按「产品权威目录 + 各自 deps.json」就地解析（<c>LauncherBootstrap.EnableExtensions</c>），
-    /// 宿主运行目录**不承载**上游闭包（薄形态）；以 <c>AppContext.BaseDirectory</c> 为基座会把合法薄部署误判为全量缺失。
-    /// 资产在清单目录不命中时回退 BaseDirectory（同目录聚合部署的历史形态）。
-    /// </para>
-    /// 仅诊断用，不抛异常。
+    /// 部署报告（本代唯一快照）—— <b>唯一</b>部署事实来源；按简单名跨清单去重，
+    /// 解析语义 = <see cref="ExtensionLoadContext"/> resolver 联合投影。
+    /// </summary>
+    public DeploymentReport GetDeploymentReport() => _deployment.Value;
+
+    /// <summary>
+    /// 兼容视图：逐清单归因（同一缺失资产只在该清单声明项中出现；全局解析成功则不计缺失）。
+    /// 新代码请直接用 <see cref="GetDeploymentReport"/>。
     /// </summary>
     public IReadOnlyList<ManifestValidation> ValidateDeploymentReport()
     {
-        var report = new List<ManifestValidation>(Manifests.Count);
+        var report = GetDeploymentReport();
+        var result = new List<ManifestValidation>(Manifests.Count);
         foreach (var depsPath in Manifests)
-            report.Add(new ManifestValidation(depsPath, FindMissingAssets(depsPath)));
-        return report;
+        {
+            var missing = report.Assets
+                .Where(a => !a.Resolved
+                    && a.DeclaredByManifests.Contains(depsPath, StringComparer.OrdinalIgnoreCase))
+                .Select(a => a.Name)
+                .ToArray();
+            result.Add(new ManifestValidation(depsPath, missing));
+        }
+        return result;
     }
 
-    /// <summary>
-    /// 部署校验（扁平视图：各清单缺失去重合并；兼容既有诊断口径）。
-    /// 仅诊断用，不抛异常。
-    /// </summary>
+    /// <summary>兼容视图：唯一缺失资产简单名（跨清单去重）。</summary>
     public IReadOnlyList<string> ValidateDeployment()
-    {
-        var missing = new List<string>();
-        foreach (var entry in ValidateDeploymentReport())
-            foreach (var asset in entry.Missing)
-                if (!missing.Contains(asset, StringComparer.OrdinalIgnoreCase))
-                    missing.Add(asset);
-        return missing;
-    }
-
-    /// <summary>按清单解析 runtime 资产缺失项（基座 = 清单目录，回退 BaseDirectory）。</summary>
-    private static IReadOnlyList<string> FindMissingAssets(string depsPath)
-    {
-        var missing = new List<string>();
-        try
-        {
-            var baseDir = Path.GetDirectoryName(depsPath);
-            using var doc = JsonDocument.Parse(File.ReadAllText(depsPath));
-            if (!doc.RootElement.TryGetProperty("targets", out var targets))
-                return missing;
-
-            // 发布侧：插件目录已剪除共享面副本，资产由 Runtime\Shared 提供；校验须把这些落地根一并纳入，
-            // 否则会把“合法剪枝”误判为缺件（导致 PrjBridge 钩子 fail）。
-            var appDir = AppContext.BaseDirectory;
-            var sharedRoot = Path.GetFullPath(Path.Combine(appDir, "..", "Shared"));
-            var probeRoots = new[]
-            {
-                baseDir,
-                appDir,
-                Path.Combine(sharedRoot, "CsharpPrj"),
-                Path.Combine(sharedRoot, "DataCenter"),
-            };
-
-            foreach (var target in targets.EnumerateObject())
-            {
-                if (target.Value.ValueKind != JsonValueKind.Object)
-                    continue;
-
-                foreach (var lib in target.Value.EnumerateObject())
-                {
-                    if (!lib.Value.TryGetProperty("runtime", out var runtime)
-                        || runtime.ValueKind != JsonValueKind.Object)
-                        continue;
-
-                    foreach (var asset in runtime.EnumerateObject())
-                    {
-                        var rel = asset.Name;
-                        if (!rel.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        if (probeRoots.Any(root => ExistsUnder(root, rel)))
-                            continue;
-                        missing.Add(rel);
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // 解析失败仅影响诊断
-        }
-
-        return missing;
-    }
-
-    private static bool ExistsUnder(string? root, string relative)
-        => !string.IsNullOrEmpty(root) && File.Exists(Path.Combine(root, relative));
+        => GetDeploymentReport().MissingAssets.Select(a => a.Name).ToArray();
 
     /// <summary>
     /// 卸载本代数的 scoped ALC（换代调用：Drain 后、确认无跨代引用时调用）。
@@ -302,6 +251,7 @@ public static class ExtensionGenerationFactory
     private static ExtensionGenerationHost? _current;
     private static int _generation;
     private static bool _initialized;
+    private static ExtensionTopology _topology = ExtensionTopology.Empty;
 
     /// <summary>当前代数（未初始化 → 惰性按默认清单来源创建首个代数；线程安全）。</summary>
     public static ExtensionGenerationHost Current
@@ -312,7 +262,7 @@ public static class ExtensionGenerationFactory
             {
                 if (!_initialized)
                 {
-                    _current = new ExtensionGenerationHost(_generation, Array.Empty<string>());
+                    _current = new ExtensionGenerationHost(_generation, Array.Empty<string>(), _topology);
                     _initialized = true;
                 }
                 return _current!;
@@ -335,7 +285,25 @@ public static class ExtensionGenerationFactory
         {
             if (!_initialized)
             {
-                _current = new ExtensionGenerationHost(_generation, depsJsonPaths);
+                _current = new ExtensionGenerationHost(_generation, depsJsonPaths, _topology);
+                _initialized = true;
+            }
+            return _current!;
+        }
+    }
+
+    /// <summary>启动期创建首个代数（显式部署拓扑；拓扑只影响部署校验，不改变 ALC 清单顺序）。</summary>
+    public static ExtensionGenerationHost Initialize(ExtensionTopology topology, params string[] depsJsonPaths)
+    {
+        ArgumentNullException.ThrowIfNull(topology);
+        ArgumentNullException.ThrowIfNull(depsJsonPaths);
+
+        lock (Gate)
+        {
+            _topology = topology;
+            if (!_initialized)
+            {
+                _current = new ExtensionGenerationHost(_generation, depsJsonPaths, topology);
                 _initialized = true;
             }
             return _current!;
@@ -352,7 +320,25 @@ public static class ExtensionGenerationFactory
 
         lock (Gate)
         {
-            var next = new ExtensionGenerationHost(_generation + 1, depsJsonPaths);
+            var next = new ExtensionGenerationHost(_generation + 1, depsJsonPaths, _topology);
+            var previous = _current;
+            _current = next;
+            _generation = next.Generation;
+            _initialized = true;
+            return previous;
+        }
+    }
+
+    /// <summary>换代（显式部署拓扑；热更新态把 gen 目录/共享根一并注入）。</summary>
+    public static ExtensionGenerationHost? Swap(ExtensionTopology topology, params string[] depsJsonPaths)
+    {
+        ArgumentNullException.ThrowIfNull(topology);
+        ArgumentNullException.ThrowIfNull(depsJsonPaths);
+
+        lock (Gate)
+        {
+            _topology = topology;
+            var next = new ExtensionGenerationHost(_generation + 1, depsJsonPaths, topology);
             var previous = _current;
             _current = next;
             _generation = next.Generation;
@@ -369,6 +355,7 @@ public static class ExtensionGenerationFactory
             _current = null;
             _generation = 0;
             _initialized = false;
+            _topology = ExtensionTopology.Empty;
         }
     }
 
@@ -377,6 +364,9 @@ public static class ExtensionGenerationFactory
 
     /// <summary>按程序集简单名在当前代数加载（未部署 → null）。</summary>
     public static Assembly? Load(string simpleName) => Current.Load(simpleName);
+
+    /// <summary>部署报告（当前代数唯一快照；未装载 = 空报告）。</summary>
+    public static DeploymentReport GetDeploymentReport() => Current.GetDeploymentReport();
 
     /// <summary>部署校验（当前代数；未装载 = 空清单）。</summary>
     public static IReadOnlyList<string> ValidateDeployment() => Current.ValidateDeployment();
@@ -400,16 +390,86 @@ public static class ExtensionGenerationFactory
 public sealed class ExtensionLoadContext : AssemblyLoadContext
 {
     private readonly List<AssemblyDependencyResolver> _resolvers;
+    private readonly List<string> _probeDirs;
 
     /// <param name="depsJsonPaths">扩展 deps.json 清单集合。</param>
     /// <param name="name">ALC 名称（诊断用；默认 "ExtensionContext"，代数宿主按代数号命名）。</param>
-    public ExtensionLoadContext(IEnumerable<string> depsJsonPaths, string name = "ExtensionContext")
+    /// <param name="probeDirs">额外探测根（共享面/宿主根；部署校验用，不改变 Load 的 resolver 顺序）。</param>
+    public ExtensionLoadContext(
+        IEnumerable<string> depsJsonPaths,
+        string name = "ExtensionContext",
+        IEnumerable<string>? probeDirs = null)
         : base(name, isCollectible: true)
     {
         _resolvers = depsJsonPaths
             .Where(File.Exists)
             .Select(p => new AssemblyDependencyResolver(p))
             .ToList();
+        _probeDirs = (probeDirs ?? Enumerable.Empty<string>())
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 部署校验专用：按 <see cref="Load"/> 的同源顺序解析资产路径，但**不触发装载**。
+    /// 解析顺序 = 默认 ALC 已装载 → resolver[] → 拓扑根 → App 根。
+    /// </summary>
+    public bool TryResolveAsset(string simpleName, out string? path, out string? via)
+    {
+        path = null;
+        via = null;
+        if (string.IsNullOrWhiteSpace(simpleName))
+            return false;
+
+        foreach (var loaded in AssemblyLoadContext.Default.Assemblies)
+        {
+            if (string.Equals(loaded.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase))
+            {
+                path = string.IsNullOrEmpty(loaded.Location) ? simpleName : loaded.Location;
+                via = "default-alc";
+                return true;
+            }
+        }
+
+        foreach (var resolver in _resolvers)
+        {
+            try
+            {
+                var resolved = resolver.ResolveAssemblyToPath(new AssemblyName(simpleName));
+                if (resolved is not null && File.Exists(resolved))
+                {
+                    path = resolved;
+                    via = "resolver";
+                    return true;
+                }
+            }
+            catch
+            {
+                // 单个 resolver 异常不影响其他 resolver（与 Load 的容错语义一致）
+            }
+        }
+
+        foreach (var dir in _probeDirs)
+        {
+            var candidate = Path.Combine(dir, simpleName + ".dll");
+            if (File.Exists(candidate))
+            {
+                path = candidate;
+                via = "topology";
+                return true;
+            }
+        }
+
+        var appCandidate = Path.Combine(AppContext.BaseDirectory, simpleName + ".dll");
+        if (File.Exists(appCandidate))
+        {
+            path = appCandidate;
+            via = "app";
+            return true;
+        }
+
+        return false;
     }
 
     protected override Assembly? Load(AssemblyName assemblyName)

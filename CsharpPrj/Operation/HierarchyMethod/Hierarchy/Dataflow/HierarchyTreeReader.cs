@@ -39,6 +39,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     {
         private readonly IHistoryStore? _historyStore;
         private readonly IHistoryRootStore? _rootStore;
+        private readonly IHistoryRootCatalog? _catalog;
         private readonly IHistoryRelationManager? _relations;
         private readonly ReferenceGrounding? _grounding;
         private readonly ITransferFlow? _transfer;
@@ -59,10 +60,12 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             IHistoryRootStore? rootStore,
             IHistoryRelationManager? relations = null,
             ReferenceGrounding? grounding = null,
-            ITransferFlow? transfer = null)
+            ITransferFlow? transfer = null,
+            IHistoryRootCatalog? catalog = null)
         {
             _historyStore = historyStore;
             _rootStore = rootStore;
+            _catalog = catalog;
             _relations = relations;
             _grounding = grounding;
             _transfer = transfer;
@@ -73,21 +76,14 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
         public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(CancellationToken ct = default)
         {
             var nodes = new List<HierarchyTree>();
-            // 目标读面：历史根只来自 root store；旧 IHistoryStore 仅迁移期回退。
-            IReadOnlyList<string> ids;
-            if (_rootStore is not null)
-            {
-                var roots = await _rootStore.ListRootsAsync(ct).ConfigureAwait(false);
-                ids = roots.Select(r => r.Key.Value).ToList();
-            }
-            else if (_historyStore is not null)
-            {
-                ids = await _historyStore.ListHistoryIdsAsync(ct).ConfigureAwait(false);
-            }
-            else
-            {
-                return nodes;
-            }
+            // DUP-1：唯一根枚举入口（root store 优先 + 迁移期旧表回退在 catalog 内部）。
+            var catalog = _catalog
+                ?? (_rootStore is not null || _historyStore is not null
+                    ? new Operation.HierarchyMethod.History.HistoryRootCatalog(_rootStore, _historyStore)
+                    : null);
+            if (catalog is null) return nodes;
+            var roots = await catalog.ListAsync(ct).ConfigureAwait(false);
+            var ids = roots.Select(r => r.Key.Value).ToList();
 
             foreach (var hid in ids)
             {

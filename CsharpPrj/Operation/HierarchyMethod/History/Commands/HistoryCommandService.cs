@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Conversation;
 using Share.Conversation.Aggregates;
 using Share.Conversation.Commands;
 using Share.Conversation.Ids;
@@ -74,6 +75,13 @@ public sealed class HistoryCommandService : IHistoryCommandPort
                 await _sessions.CreateAsync(
                     SessionRecord.Create(sessionKey, SessionOwner.OfHistory(root.Key), SessionRole.HistoryRoot, "history"),
                     ct).ConfigureAwait(false);
+            }
+
+            // 聚合一致性：root 会话必须有一条（可为空的）日志，history.get/context.get 才能“存在即命中”。
+            if (_transcripts is not null
+                && await _transcripts.GetAsync(sessionKey, ct).ConfigureAwait(false) is null)
+            {
+                await _transcripts.AppendProjectionAsync(sessionKey, new ConversationLog(), 0, ct).ConfigureAwait(false);
             }
         }
 

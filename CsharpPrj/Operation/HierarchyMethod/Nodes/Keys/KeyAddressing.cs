@@ -33,7 +33,7 @@ public static class KeyAddressing
     /// <param name="explicitId">调用方显式给出的容器 Id（可空）。</param>
     /// <param name="fallback">缺省回退来源（通常 = taskKey）。</param>
     public static string ContainerId(string? explicitId, string? fallback)
-        => Reference.HistoryContainerRules.Resolve(explicitId, fallback);
+        => Reference.HistoryContainerRules.Resolve(explicitId, fallback); // fallback 保留签名兼容，不参与解析
 
     /// <summary>
     /// 历史容器展示名缺省解析：显式名优先，缺省 = 容器 Id

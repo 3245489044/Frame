@@ -17,7 +17,6 @@ public static class OneShotFlowFactory
         {
             NodeStore = null,
             KeyMappings = null,
-            HistoryProjector = null,
             EnableOutbox = false,
             AttributionFlow = global::Operation.HierarchyMethod.Nodes.Linkage.NoOpNodeAttributionFlow.Instance,
             // 有意不参与归属边（防递归）：注入 NoOp 空实现 ⇒ 端口恒非空、零判空且静默（非「未装配」误报）。
@@ -40,7 +39,6 @@ public static class OneShotFlowFactory
         return assembly with
         {
             KeyMappings = null,
-            HistoryProjector = null,
             EnableOutbox = false,
             AttributionFlow = global::Operation.HierarchyMethod.Nodes.Linkage.NoOpNodeAttributionFlow.Instance,
             // 读投影不反写历史与归属边：注入 NoOp 空实现 ⇒ 恒非空且静默（有意不参与，非误报）。

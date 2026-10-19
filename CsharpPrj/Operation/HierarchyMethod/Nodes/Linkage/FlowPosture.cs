@@ -129,13 +129,6 @@ public sealed class FlowPosture
         => RunAsync(flow is null ? null : () => flow.AttachAsync(taskKey, workflowId, nodeKey, ct),
             legacy: null, diagnostics, context, payload);
 
-    /// <summary>驱动一次任务供给转换（<see cref="ITaskProvisionFlow.ProvisionAsync"/> 形态，带结论）。</summary>
-    public Task<FlowOutcome> RunAsync(
-        ITaskProvisionFlow? flow, string? historyId, string? historyName, string taskKey,
-        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
-        => RunAsync(flow is null ? null : () => flow.ProvisionAsync(historyId, historyName, taskKey, ct),
-            legacy: null, diagnostics, context, payload);
-
     /// <summary>驱动一次轮末沉淀转换（<see cref="IRoundAttributionFlow.SettleRoundAsync"/> 形态）。</summary>
     public Task<FlowOutcome> RunAsync(
         IRoundAttributionFlow? flow, RoundAttributionRequest request,

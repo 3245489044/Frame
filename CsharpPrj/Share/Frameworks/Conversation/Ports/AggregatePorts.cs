@@ -6,6 +6,8 @@ using Share.Conversation.Aggregates;
 using Share.Conversation.Commands;
 using Share.Conversation.Ids;
 
+// 说明：本文件是聚合端口唯一声明面（root/session/transcript/history/task/message/gate/query）。
+
 namespace Share.Conversation.Ports;
 
 /// <summary>历史根注册表只读/写端口（真源 = ur_histories，只存根，不存日志）。</summary>
@@ -38,12 +40,23 @@ public interface ISessionTranscriptStore
     Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default);
 }
 
-/// <summary>历史命令端口（唯一创建/归拢入口）。</summary>
+/// <summary>历史命令端口（唯一创建/归拢/删除入口）。</summary>
 public interface IHistoryCommandPort
 {
     Task<HistoryRoot> CreateAsync(CreateHistoryCommand cmd, CancellationToken ct = default);
     Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default);
     Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default);
+    Task<bool> DeleteAsync(DeleteHistoryCommand cmd, CancellationToken ct = default);
+}
+
+/// <summary>
+/// 历史根目录查询（唯一枚举入口）—— root store 优先，旧 ur_histories 行仅在迁移期回退；
+/// 过滤/去重/排序全部在本实现内完成，消费方不得再写第二份根枚举逻辑。
+/// </summary>
+public interface IHistoryRootCatalog
+{
+    Task<IReadOnlyList<HistoryRoot>> ListAsync(CancellationToken ct = default);
+    Task<bool> ExistsAsync(HistoryKey key, CancellationToken ct = default);
 }
 
 /// <summary>任务命令端口（Agent 侧实现；Frame 只定义契约）。</summary>

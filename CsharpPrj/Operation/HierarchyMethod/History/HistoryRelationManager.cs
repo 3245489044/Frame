@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
+using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
 namespace Operation.HierarchyMethod.History;
@@ -74,6 +75,26 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     {
         if (_maintenance is null) return Array.Empty<string>();
         return await _maintenance.GetHistoryTasksAsync(historyId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>反向成员查询（M:N）：读 task 的 history_owns_task 入边并反解历史 Id。</summary>
+    public async Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default)
+    {
+        if (_graph is null || string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+        var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: true, ct).ConfigureAwait(false);
+        var ids = new List<string>();
+        foreach (var r in refs)
+        {
+            if (!string.Equals(r.RefType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal)) continue;
+            if (!string.Equals(r.Source?.ResourceType, NodeResourceTypes.History, StringComparison.Ordinal)) continue;
+            if (HierarchyResourceKeys.TryParseHistoryId(r.Source!.Id, out var historyId)
+                && !string.IsNullOrWhiteSpace(historyId))
+            {
+                ids.Add(historyId);
+            }
+        }
+        return ids.Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 
     public async Task<IReadOnlyList<HistoryTaskLink>> GetTasksAsync(string historyId, CancellationToken ct = default)

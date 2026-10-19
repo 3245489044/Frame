@@ -15,7 +15,7 @@ namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
 /// 会话日志表（ur_session_logs）—— 对话内容投影；只按 sessionKey 读写，不再触碰 ur_histories。
-/// 过渡期双读：新表未命中时回退旧 <see cref="IHistoryStore"/>（旧 ur_histories 日志）。
+/// 迁移期旧表回退由 <see cref="LegacyFallbackSessionTranscriptStore"/> 装饰器**单点**承担。
 /// </summary>
 public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTranscriptStore
 {
@@ -25,15 +25,13 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
 
     private readonly IDocumentCodec _codec;
     private readonly ITableSchemaSource? _schemaSource;
-    private readonly IHistoryStore? _legacy;
 
     public SqliteSessionTranscriptStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec codec,
-        ITableSchemaSource? schemaSource = null, IHistoryStore? legacy = null)
+        ITableSchemaSource? schemaSource = null)
         : base(executor, tablePrefix, TableNames.SessionLogs)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
         _schemaSource = schemaSource;
-        _legacy = legacy;
     }
 
     public Task InitializeAsync(CancellationToken ct = default)
@@ -60,7 +58,7 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
             }
         }
 
-        return _legacy is null ? null : await _legacy.GetAsync(key.Value, ct).ConfigureAwait(false);
+        return null;
     }
 
     public async Task AppendProjectionAsync(SessionKey key, ConversationLog log, long watermark, CancellationToken ct = default)

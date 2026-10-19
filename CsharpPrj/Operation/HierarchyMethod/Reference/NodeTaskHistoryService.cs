@@ -23,9 +23,6 @@ namespace Operation.HierarchyMethod.Reference;
 public sealed class NodeTaskHistoryService
 {
     private readonly IHistoryRelationManager? _relations;
-    // 任务供给簿记流入口（R2）：history→task 归拢的唯一触发点（编排真源 = Config/workflows/task-provision.ushar）。
-    // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
-    private readonly Nodes.Linkage.ITaskProvisionFlow? _taskProvisionFlow;
     // 归属边簿记流入口（R1）：cross_db_link（task→node）的唯一触发点（编排真源 = Config/workflows/attribution.ushar）。
     // null ⇒ 诊断可见化（迁移期直调回退支已退役，批次 C）。
     private readonly Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
@@ -39,21 +36,18 @@ public sealed class NodeTaskHistoryService
     private readonly IReferenceMaintenance? _references;
 
     /// <param name="relations">历史关系管理端口（可空；未装配则 history 层各方法 no-op）。</param>
-    /// <param name="taskProvisionFlow">任务供给簿记流入口（R2，可空）：装配后「建容器 + 归拢 task」经声明流写。</param>
     /// <param name="attributionFlow">归属边簿记流入口（R1，可空）：装配后「task→node 归属边」经声明流写。</param>
     /// <param name="diagnostics">诊断可见化端口（可空 = 不记）；簿记流失败 / 回退经此可见化。</param>
     /// <param name="posture">迁移期回退姿态（可空 = <see cref="Nodes.Linkage.FlowPosture.AllowLegacyFallback"/>，零行为变化）。</param>
     /// <param name="references">节点边撤销原语（节点层写守卫，可空）：detach 不经 history 关系端口（分层收口）。</param>
     public NodeTaskHistoryService(
         IHistoryRelationManager? relations,
-        Nodes.Linkage.ITaskProvisionFlow? taskProvisionFlow = null,
         Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
         IDiagnosticsSink? diagnostics = null,
         Nodes.Linkage.FlowPosture? posture = null,
         IReferenceMaintenance? references = null)
     {
         _relations = relations;
-        _taskProvisionFlow = taskProvisionFlow;
         _attributionFlow = attributionFlow;
         _diagnostics = diagnostics;
         _posture = posture ?? Nodes.Linkage.FlowPosture.AllowLegacyFallback;
@@ -86,37 +80,6 @@ public sealed class NodeTaskHistoryService
         => _relations is null || string.IsNullOrWhiteSpace(historyId) || string.IsNullOrWhiteSpace(taskKey)
             ? Task.CompletedTask
             : _relations.DetachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);
-
-    /// <summary>
-    /// 确保历史容器存在并归拢指定 task（history_owns_task 边；幂等）。
-    /// 容器 Id 规则（R3）= <see cref="HistoryContainerRules"/>：**显式 historyId 优先，缺省回退 taskKey**
-    /// （声明面 Config\workflows\task-provision.ushar 的 `[Space] HistoryContainerRule` 对账单源）。
-    /// 编排（建容器 → 归拢 task 的**顺序**）由声明流 `[Flow] TaskProvision` 承载（R2）；未装配流入口 ⇒ 迁移期回退直调。
-    /// <para>
-    /// ERR-1 收口：本重载接受**显式容器 Id**，与任务池/公开动作面（`task_orchestrate create` 的 history_id）同口径 ——
-    /// 同一 task 不得被两条路径分别归拢到 `historyId` 与 `taskKey` 两个容器（「同 task 不可双容器」不变式）。
-    /// </para>
-    /// </summary>
-    /// <param name="historyId">显式历史容器 Id（可空；空 ⇒ 按声明面规则回退 <paramref name="taskKey"/>）。</param>
-    /// <param name="taskKey">任务键（= 会话名；容器 Id 的缺省回退来源）。</param>
-    [Obsolete("历史根/任务归拢已收口到 IHistoryCommandPort（HistoryCommandService）；本方法仅迁移期兼容。")]
-    public async Task EnsureTaskHistoryBoundAsync(string? historyId, string taskKey, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(taskKey)) return;
-        var hid = Nodes.Keys.KeyAddressing.ContainerId(historyId, taskKey);
-
-        // R2 归流：编排真源 = task-provision.ushar 的 [Flow] TaskProvision（本处只是唯一触发点，不持顺序）。
-        // 流入口缺失 / 失败由**回退姿态**裁决（迁移期直调 / 收口期拒绝），本处不再写 if/else（DEBT-1）。
-        await _posture.RunAsync(
-            _taskProvisionFlow, hid, hid, hid,
-            _diagnostics, "NodeTaskHistoryService_provision",
-            new { historyId = hid, taskKey }, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>缺省容器 Id 重载（historyId == taskKey）：等价 <c>EnsureTaskHistoryBoundAsync(null, taskKey, ct)</c>。</summary>
-    /// <param name="taskKey">任务键（= 会话名）。</param>
-    public Task EnsureTaskHistoryBoundAsync(string taskKey, CancellationToken ct = default)
-        => EnsureTaskHistoryBoundAsync(null, taskKey, ct);
 
     /// <summary>
     /// task → node 关联（cross_db_link，真多对多；幂等）。历史节点集经此边派生（= 该历史全部任务节点并集）。

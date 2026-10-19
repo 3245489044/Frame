@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
+using Share.Conversation.Aggregates;
 using Operation.DataStoreDriven.Graph;
 using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.Core.Models;
@@ -237,8 +238,9 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         // I3：history_owns_task 禁止自环（source != target）；写边守卫在唯一原语处兜底。
+        // DUP-4：唯一错误源（类型化异常），命令层不再重复判断/重复文案。
         if (string.Equals(historyId, taskKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"history_owns_task 禁止自环：history={historyId}, task={taskKey}");
+            throw new HistorySelfLoopException(historyId, taskKey);
         await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
@@ -252,6 +254,26 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
             CrossDbReferenceTypes.HistoryOwnsTask,
             new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) },
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
+
+    /// <summary>反向成员查询：task 被哪些历史根归拢（M:N；读 history_owns_task 入边）。</summary>
+    public async Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+        var refs = await _graph.GetReferencesAsync(taskId, includeIncoming: true, ct).ConfigureAwait(false);
+        var result = new List<string>();
+        foreach (var r in refs)
+        {
+            if (!string.Equals(r.RefType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal)) continue;
+            if (!string.Equals(r.Source?.ResourceType, NodeResourceTypes.History, StringComparison.Ordinal)) continue;
+            if (HierarchyResourceKeys.TryParseHistoryId(r.Source!.Id, out var historyId)
+                && !string.IsNullOrWhiteSpace(historyId))
+            {
+                result.Add(historyId);
+            }
+        }
+        return result.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToList();
+    }
 
     /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集（History class 容器成员）。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default)

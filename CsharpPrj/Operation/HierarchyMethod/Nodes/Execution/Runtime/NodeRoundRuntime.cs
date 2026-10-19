@@ -26,7 +26,6 @@ public sealed record NodePersistenceAssembly(
     IKeyMappingStore? KeyMappings = null,
     ReferenceGrounding? Grounding = null,
     IReferenceTypeRegistry? ReferenceRegistry = null,
-    IHistoryProjector? HistoryProjector = null,
     // 元素类型对齐共享端口 IPersistenceStore.BeginTransactionAsync 的非空返回真值（§2.3 收敛，非 ITransaction?）。
     Func<CancellationToken, Task<ITransaction>>? BeginTransaction = null,
     bool EnableOutbox = false,

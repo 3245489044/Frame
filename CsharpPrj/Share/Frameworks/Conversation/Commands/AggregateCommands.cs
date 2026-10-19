@@ -30,6 +30,13 @@ public sealed record DetachTaskCommand(
     CreationIntent Intent,
     string Actor);
 
+/// <summary>删除历史根（聚合自身：图根/边 + 根会话 + 会话日志；不顺带删 task）。</summary>
+public sealed record DeleteHistoryCommand(
+    HistoryKey Key,
+    CreationIntent Intent,
+    string Actor,
+    bool DeleteSessions = true);
+
 /// <summary>显式创建任务；ParentHistories 为空 = 孤立 task（合法）。</summary>
 public sealed record CreateTaskCommand(
     TaskKey Key,

@@ -428,6 +428,13 @@
         Note   = '分发单次性守卫：一次 dotnet msbuild / 无嵌套 build·publish / manifest 增量计数 / Unmapped fail-loud / 数据根保留 / 正负对照'
     }
 
+    BuildFrameworkModules = @{
+        Domain = 'Build'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = '模块归属/依赖方向/单一实现/体量守卫（C1–C8）：文件归属唯一 · .psm1 落点 · M5 禁反向依赖 Entry · M4 禁依赖 M5 · Entry 禁 dotnet publish · 同名函数恰一处 · 正/负对照'
+    }
+
     AgentRuntimeUIConfig = @{
         Domain = 'Agent'
         Args   = @{}

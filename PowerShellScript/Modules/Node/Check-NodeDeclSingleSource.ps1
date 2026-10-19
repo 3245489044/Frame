@@ -46,15 +46,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.psm1') -Force
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+    $Root = Get-RepositoryRoot
 }
 
 # 基线单源 = Baselines\NodeDeclSingleSource.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name NodeDeclSingleSource
 
-$propsPath     = Join-Path $Root 'Projects\BuildFramework\FrameBinaryRefs.props'
+$propsPath     = Join-Path (Get-MappedPath -Key 'BuildFrameworkGraphProps') 'FrameBinaryRefs.props'
 $adapterSource = Join-Path $Root 'Frame\Usharp\src\Usharp.Adapters.Node\UsharpNodeSpecSource.cs'
 $nodesDir      = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 

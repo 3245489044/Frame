@@ -16,6 +16,18 @@
     "GateRegistry": "Frame/PowerShellScript/Operation/DSL/Registry",
     "Projects": "Projects",
     "BuildFramework": "Projects/BuildFramework",
+    "BuildFrameworkFoundation": "Projects/BuildFramework/Foundation",
+    "BuildFrameworkEntry": "Projects/BuildFramework/Entry",
+    "BuildFrameworkGraph": "Projects/BuildFramework/Graph",
+    "BuildFrameworkGraphProps": "Projects/BuildFramework/Graph/props",
+    "BuildFrameworkMapping": "Projects/BuildFramework/Mapping",
+    "BuildFrameworkDistribution": "Projects/BuildFramework/Distribution",
+    "BuildFrameworkDistributionModules": "Projects/BuildFramework/Distribution/Modules",
+    "BuildFrameworkDistributionSteps": "Projects/BuildFramework/Distribution/Steps",
+    "BuildFrameworkSafety": "Projects/BuildFramework/Safety",
+    "BuildFrameworkBake": "Projects/BuildFramework/Bake",
+    "BuildFrameworkDataRoot": "Projects/BuildFramework/DataRoot",
+    "BuildFrameworkGates": "Projects/BuildFramework/Gates",
     "CentralTestGate": "Environment/CentralTest/Tools/Gate"
   },
   "gateDomains": {

@@ -1,5 +1,11 @@
 <Project>
 
+  <PropertyGroup>
+    <BuildFrameworkRoot Condition="'$(BuildFrameworkRoot)' == ''">$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework</BuildFrameworkRoot>
+  </PropertyGroup>
+  <Import Project="$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props"
+          Condition="'$(BuildFrameworkPathsImported)' != 'true' And Exists('$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props')" />
+
   <!-- ============================================================
        ★ 烘焙轨薄输出（方案 B，2026-09-12）
        CallCenter 对 CsharpPrj 全面转「权威烘焙二进制引用」（<Reference HintPath Private=false>），
@@ -14,8 +20,8 @@
     <ThinOutputWhitelistSubstr></ThinOutputWhitelistSubstr>
   </PropertyGroup>
 
-  <Import Project="..\..\Projects\BuildFramework\ThinOutput.targets"
-          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\ThinOutput.targets')" />
+  <Import Project="$(BuildFrameworkGraph)\ThinOutput.targets"
+          Condition="Exists('$(BuildFrameworkGraph)\ThinOutput.targets')" />
 
   <!-- 烘焙轨兜底：权威目录未就绪（干净机首次 / 被误清）时按 MainProj.sln 补烘一次。
        CallCenter 不在 MainProj.sln 闭包内（CsharpPrj 无对本区的源码引用），故补烘无重入风险。 -->
@@ -23,7 +29,7 @@
     <RequireCsharpPrjBaked>true</RequireCsharpPrjBaked>
   </PropertyGroup>
 
-  <Import Project="..\..\Projects\BuildFramework\CsharpBakeDeploy.targets"
-          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\CsharpBakeDeploy.targets')" />
+  <Import Project="$(BuildFrameworkGraph)\CsharpBakeDeploy.targets"
+          Condition="Exists('$(BuildFrameworkGraph)\CsharpBakeDeploy.targets')" />
 
 </Project>

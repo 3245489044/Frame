@@ -1,5 +1,11 @@
 <Project>
 
+  <PropertyGroup>
+    <BuildFrameworkRoot Condition="'$(BuildFrameworkRoot)' == ''">$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework</BuildFrameworkRoot>
+  </PropertyGroup>
+  <Import Project="$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props"
+          Condition="'$(BuildFrameworkPathsImported)' != 'true' And Exists('$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props')" />
+
   <!-- ============================================================
        ★ 烘焙轨薄输出（方案 B，2026-09-12）
        DataCenter 对 CsharpPrj 全面转「权威烘焙二进制引用」（<Reference HintPath Private=false>），
@@ -12,8 +18,8 @@
     <ThinOutputWhitelistSubstr></ThinOutputWhitelistSubstr>
   </PropertyGroup>
 
-  <Import Project="..\..\Projects\BuildFramework\ThinOutput.targets"
-          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework\ThinOutput.targets')" />
+  <Import Project="$(BuildFrameworkGraph)\ThinOutput.targets"
+          Condition="Exists('$(BuildFrameworkGraph)\ThinOutput.targets')" />
 
   <!-- 注（与 CallCenter 的差异，勿照抄）：本区 DataCenter.Core/Adapters/Protocol 处于 MainProj.sln 烘焙闭包内
        （CsharpPrj\Operation\StateHoldDriven 源码引用本区），故**不置** RequireCsharpPrjBaked ——

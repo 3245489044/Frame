@@ -88,7 +88,7 @@
         # ---------- 生效 ----------
         'invoke-buildeffective' = @{
             Kind = 'Ps'
-            Target = '..\..\Projects\BuildFramework\Build-Effective.ps1'
+            Target = '..\..\Projects\BuildFramework\Entry\Build-Effective.ps1'
             Map = @{ Configuration = 'Configuration'; Mode = 'Mode'; Assert = 'Assert' }
         }
 

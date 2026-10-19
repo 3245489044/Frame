@@ -51,13 +51,14 @@
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
 | `WriteCapabilitySinglePredicate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-WriteCapabilitySinglePredicate.ps1` |
 
-## Build（3 件）
+## Build（4 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
-| `BakeFramework` | full | 0 | `Projects\BuildFramework\Check-BakeFramework.ps1` |
-| `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Check-BuildTargetMap.ps1` |
-| `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Check-DistributionIncrement.ps1` |
+| `BakeFramework` | full | 0 | `Projects\BuildFramework\Bake\Check-BakeFramework.ps1` |
+| `BuildFrameworkModules` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildFrameworkModules.ps1` |
+| `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
+| `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
 ## Data（13 件）
 

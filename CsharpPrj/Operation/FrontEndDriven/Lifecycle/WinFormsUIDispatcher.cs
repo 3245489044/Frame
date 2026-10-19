@@ -25,7 +25,7 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
         {
             _pumpControl = pumpControl;
         }
-        _hostAlive = hostAlive ?? static () => true;
+        _hostAlive = hostAlive ?? (static () => true);
     }
 
     public bool IsUIThread =>

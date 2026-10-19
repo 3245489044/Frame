@@ -5,16 +5,22 @@ using System.Linq;
 
 namespace Share.TaskStatusPool.TaskPool;
 
+/// <summary>镜像条目快照（键 + 状态 + 语义类别 + 激活 + 租约 + 时间）。</summary>
+public sealed record TaskPoolEntryState(
+    string TaskKey,
+    string Status,
+    TaskPoolItemKind Kind,
+    bool Active,
+    string? LeaseId,
+    DateTime Timestamp);
+
 /// <summary>
-/// 任务状态镜像（可观测视图，通用任务池 canonical，SingleImplementation / TH-12）：
-/// 订阅 <see cref="ITaskPoolStateSource.TaskStateChanged"/> 累积 TaskKey → Status 字符串映射，供 UI / 监控消费。
-/// 直读直写（<see cref="Set"/> / <see cref="Remove"/>）与事件订阅共用单点写入，消除散落赋值。
-/// 按源实例订阅：<see cref="EnsureSubscribed"/> 换源即重订、<see cref="Detach"/> 解绑退订，
-/// 避免「静态布尔永不重置」的委托残留泄漏。
+/// 任务状态镜像（可观测视图，通用任务池 canonical）：订阅 <see cref="ITaskPoolStateSource.TaskStateChanged"/>
+/// 累积 TaskKey → 条目快照，供 UI / 监控消费。直读直写与事件订阅共用单点写入。
 /// </summary>
 public sealed class TaskPoolStateMirror
 {
-    private readonly ConcurrentDictionary<string, string> _states = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, TaskPoolEntryState> _states = new(StringComparer.Ordinal);
     private readonly object _gate = new();
     private readonly EventHandler<TaskPoolStateChangedEventArgs> _handler;
     private ITaskPoolStateSource? _subscribedTo;
@@ -22,30 +28,34 @@ public sealed class TaskPoolStateMirror
     public TaskPoolStateMirror()
         => _handler = OnStateChanged;
 
-    /// <summary>已观测任务数。</summary>
     public int Count => _states.Count;
 
-    /// <summary>已观测任务键集合（键序排序快照，供列表展示）。</summary>
     public IReadOnlyCollection<string> TaskKeys
         => _states.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
 
-    /// <summary>直写（供事件订阅与直读直写共用，消除散落赋值）。</summary>
-    public void Set(string taskKey, string status)
-        => _states[taskKey] = status;
+    /// <summary>直写（状态 + 语义；供事件订阅与直读直写共用）。</summary>
+    public void Set(string taskKey, string status,
+        TaskPoolItemKind kind = TaskPoolItemKind.Executable,
+        bool active = true,
+        string? leaseId = null)
+        => _states[taskKey] = new TaskPoolEntryState(
+            taskKey, status, kind, active, leaseId, DateTime.UtcNow);
 
-    /// <summary>直写移除（删除任务后同步清理）。返回是否命中（不存在返回 false）。</summary>
     public bool Remove(string taskKey)
         => _states.TryRemove(taskKey, out _);
 
-    /// <summary>读取（key → status；未观测返回 null）。</summary>
+    /// <summary>读取状态串（未观测返回 null）。</summary>
     public string? TryGet(string taskKey)
+        => _states.TryGetValue(taskKey, out var s) ? s.Status : null;
+
+    /// <summary>读取完整条目快照（未观测返回 null）。</summary>
+    public TaskPoolEntryState? TryGetEntry(string taskKey)
         => _states.TryGetValue(taskKey, out var s) ? s : null;
 
-    /// <summary>枚举镜像快照（键序排序，供列表/概览展示）。</summary>
-    public IReadOnlyList<KeyValuePair<string, string>> Entries()
-        => _states.OrderBy(kv => kv.Key, StringComparer.Ordinal).ToArray();
+    /// <summary>枚举镜像快照（键序排序）。</summary>
+    public IReadOnlyList<TaskPoolEntryState> Entries()
+        => _states.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Value).ToArray();
 
-    /// <summary>确保对当前事件源订阅（按源实例订阅：换源即重订、未装配不订；幂等）。</summary>
     public void EnsureSubscribed(ITaskPoolStateSource? source)
     {
         if (source is null) return;
@@ -58,7 +68,6 @@ public sealed class TaskPoolStateMirror
         }
     }
 
-    /// <summary>当前源解绑时退订（清空订阅引用，避免旧源委托残留形成内存泄漏）。</summary>
     public void Detach(ITaskPoolStateSource? source)
     {
         lock (_gate)
@@ -79,5 +88,6 @@ public sealed class TaskPoolStateMirror
     }
 
     private void OnStateChanged(object? sender, TaskPoolStateChangedEventArgs e)
-        => Set(e.TaskKey, e.ToState.ToString());
+        => Set(e.TaskKey, e.ToState.ToString(), e.Kind, e.Active, e.LeaseId);
 }
+

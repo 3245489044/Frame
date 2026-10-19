@@ -11,9 +11,8 @@ namespace Strategy.Refresh.Ports
     /// </summary>
     public interface IRefreshSink
     {
-        /// <summary>落地一次交付。</summary>
-        /// <returns>true = 已落地；false = 未送达（调用方置回重试，at-least-once）。</returns>
-        Task<bool> DeliverAsync(RefreshDelivery delivery, CancellationToken ct = default);
+        /// <summary>落地一次交付，返回「是否送达 + 内容是否变化」两个事实。</summary>
+        Task<DeliveryResult> DeliverAsync(RefreshDelivery delivery, CancellationToken ct = default);
     }
 }
 

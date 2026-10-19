@@ -48,8 +48,25 @@ namespace Strategy.Refresh.Json
                     {
                         ["running"] = service.IsRunning,
                         ["pushCount"] = service.PushCount,
-                        ["pushFailureCount"] = service.PushFailureCount,
+                        ["unchangedDeliveries"] = service.UnchangedDeliveries,
+                        ["suppressedHeartbeats"] = service.SuppressedHeartbeats,
                     };
+                    envelope["slotStates"] = targets.Select(slot =>
+                    {
+                        var state = service.Store.GetState(slot);
+                        return (object)new Dictionary<string, object?>(StringComparer.Ordinal)
+                        {
+                            ["slot"] = slot,
+                            ["outcome"] = state.LastOutcome.ToString(),
+                            ["lastVersion"] = state.LastDeliveredVersion,
+                            ["lastFingerprint"] = state.LastFingerprint,
+                            ["consecutiveNoChange"] = state.ConsecutiveNoChange,
+                            ["deliveryFailures"] = state.ConsecutiveDeliveryFailures,
+                            ["nextDelayMs"] = (long)state.NextDelay.TotalMilliseconds,
+                            ["progressToken"] = state.LastProgressToken,
+                            ["noProgressSince"] = state.NoProgressSince,
+                        };
+                    }).ToArray();
                 }
                 return JsonSerializer.Serialize(envelope, Options);
             }
@@ -73,6 +90,9 @@ namespace Strategy.Refresh.Json
                 ["tickMs"] = Model.RefreshContract.TickMs,
                 ["throttleMs"] = Model.RefreshContract.ThrottleMs,
                 ["fallbackPollMs"] = Model.RefreshContract.FallbackPollMs,
+                ["maxHeartbeatMs"] = Model.RefreshContract.MaxHeartbeatMs,
+                ["stallAfterNoChange"] = Model.RefreshContract.StallAfterNoChange,
+                ["stallWindowMs"] = Model.RefreshContract.StallWindowMs,
             }, Options);
 
         private static object[] SourceList(RefreshService service)

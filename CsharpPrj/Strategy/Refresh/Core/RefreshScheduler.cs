@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,188 +10,246 @@ using Strategy.Refresh.Ports;
 namespace Strategy.Refresh.Core
 {
     /// <summary>
-    /// 刷新调度引擎（L1，通用）：dirty 范围合并（**分 High/Low 双车道**）+ 节拍裁决 + 单拍互斥 +
-    /// 送达失败置回重试 + 空闲零推送 + 兜底轮询收编，并**集中登记刷新源**（<see cref="IRefreshSource"/>）。
-    /// <para>UI 只声明变化源（<see cref="RegisterSource"/>），节拍 / 去重 / 重试 / 优先级由本类统一承担。</para>
-    /// <para><b>优先级语义</b>：低优先级（兜底轮询）**不得抢占**高优先级（事件驱动）——同拍内高优先先出，
-    /// 低优先仅在无高优先变更时出。</para>
-    /// <para>零领域类型：推送动作、在途判定与结果翻转回调由宿主以委托注入；节拍由宿主给定。</para>
+    /// 刷新调度引擎（L1，唯一实现）：Change / Heartbeat / Fallback 三车道 + 单拍互斥 +
+    /// 无进展退避 + 停滞熔断 + 失败置回重试 + 空闲零推送。
+    /// <para>Change 立即出；Heartbeat 只由可执行租约驱动并按 <see cref="SlotRefreshState.NextDelay"/> 退避；
+    /// Fallback 仅在无 Change / Heartbeat 时出。零领域：推送 / 租约 / 停滞处置均由端口注入。</para>
     /// </summary>
     public sealed class RefreshScheduler : IDisposable
     {
-        /// <summary>单次推送（scope 集合=本拍变更范围，null=全量；false = 未送达 → 置回下一拍重试，at-least-once）。</summary>
+        /// <summary>单次推送（scope 集合=本拍变更范围，null=全量；false = 未送达 → 置回下一拍重试）。</summary>
         public delegate Task<bool> PushOnce(IReadOnlyCollection<string>? scopes, CancellationToken ct);
 
-        private readonly int _tickMs;
+        private readonly RefreshSchedulerOptions _options;
         private readonly PushOnce _pushOnce;
-        private readonly Func<bool> _hasInFlight;
-        private readonly Action<bool>? _onResultChanged;
+        private readonly IInFlightSource? _inFlightSource;
+        private readonly IRefreshStore? _store;
+        private readonly IStallPolicy _stallPolicy;
+        private readonly Action<RefreshSlotDiagnostics>? _onDiagnostics;
         private readonly Func<TimeSpan, TimerCallback, IDisposable> _timerFactory;
         private readonly object _gate = new();
-        private readonly HashSet<string> _dirtyKeys = new(StringComparer.Ordinal);   // High 车道
-        private readonly HashSet<string> _lowKeys = new(StringComparer.Ordinal);     // Low 车道（兜底轮询）
+        private readonly HashSet<string> _dirtyKeys = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _lowKeys = new(StringComparer.Ordinal);
         private readonly Dictionary<IRefreshSource, Action<string?>> _handlers = new();
+        private readonly Dictionary<string, DateTimeOffset> _nextDue = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string?> _progressTokens = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _heartbeatNoChange = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _stalled = new(StringComparer.Ordinal);
         private IDisposable? _timer;
         private IDisposable? _pollTimer;
         private int _ticking;
         private bool _dirtyAll;
         private bool _lowAll;
         private bool? _lastResult;
+        private long _pushes;
+        private long _suppressedHeartbeats;
 
-        /// <param name="tickMs">节拍（ms；契约值由宿主持有）。</param>
-        /// <param name="pushOnce">单次推送（scope 集合=本拍变更范围，null=全量；false = 未送达）。</param>
-        /// <param name="hasInFlight">是否存在在途实体（在途期间以节拍心跳保底推进度）。</param>
-        /// <param name="onResultChanged">结果翻转回调（成功↔失败；接诊断，避免节拍刷屏）。</param>
-        /// <param name="timerFactory">定时器工厂（缺省真实定时器；宿主/测试可注入替身）。</param>
-        public RefreshScheduler(int tickMs, PushOnce pushOnce, Func<bool> hasInFlight,
-            Action<bool>? onResultChanged = null,
+        public RefreshScheduler(
+            RefreshSchedulerOptions options,
+            PushOnce pushOnce,
+            IInFlightSource? inFlightSource = null,
+            IRefreshStore? store = null,
+            IStallPolicy? stallPolicy = null,
+            Action<RefreshSlotDiagnostics>? onDiagnostics = null,
             Func<TimeSpan, TimerCallback, IDisposable>? timerFactory = null)
         {
-            if (tickMs <= 0) throw new ArgumentOutOfRangeException(nameof(tickMs));
-            _tickMs = tickMs;
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (_options.TickMs <= 0) throw new ArgumentOutOfRangeException(nameof(options));
             _pushOnce = pushOnce ?? throw new ArgumentNullException(nameof(pushOnce));
-            _hasInFlight = hasInFlight ?? throw new ArgumentNullException(nameof(hasInFlight));
-            _onResultChanged = onResultChanged;
+            _inFlightSource = inFlightSource;
+            _store = store;
+            _stallPolicy = stallPolicy ?? new LoggingStallPolicy();
+            _onDiagnostics = onDiagnostics;
             _timerFactory = timerFactory
                 ?? new Func<TimeSpan, TimerCallback, IDisposable>(
                     (interval, callback) => new Timer(callback, null, interval, interval));
         }
 
-        /// <summary>节拍是否在役（定时器已建且未停）。</summary>
         public bool IsRunning { get { lock (_gate) return _timer is not null; } }
 
-        /// <summary>起表（幂等：已在役不重建，保持原节拍相位）。</summary>
+        public long PushCount => Interlocked.Read(ref _pushes);
+
+        public long SuppressedHeartbeats => Interlocked.Read(ref _suppressedHeartbeats);
+
+        /// <summary>起表（幂等）。</summary>
         public void Start()
         {
             lock (_gate)
-                _timer ??= _timerFactory(TimeSpan.FromMilliseconds(_tickMs), OnTick);
+                _timer ??= _timerFactory(TimeSpan.FromMilliseconds(_options.TickMs), OnTick);
         }
 
-        /// <summary>停表（幂等；dirty 状态保留，重启后仍可补推，不静默失刷）。</summary>
+        /// <summary>停表（幂等；dirty / 租约状态保留，重启后可补推）。</summary>
         public void Stop()
         {
             lock (_gate) { _timer?.Dispose(); _timer = null; }
         }
 
-        /// <summary>启用兜底轮询（**低优先级生产者**，受调度器管辖）：每 <paramref name="intervalMs"/> 标记一次低优先级变化；
-        /// 低优先级不得抢占事件驱动的高优先级变更。幂等。</summary>
-        public void EnableIdlePolling(int intervalMs, string? scopeKey = null)
+        /// <summary>启用兜底轮询（Fallback 车道；低优先级，不抢占 Change / Heartbeat）。幂等。</summary>
+        public void EnableIdlePolling(int intervalMs = RefreshContract.FallbackPollMs, string? scopeKey = null)
         {
             if (intervalMs <= 0) throw new ArgumentOutOfRangeException(nameof(intervalMs));
             lock (_gate)
-                _pollTimer ??= _timerFactory(TimeSpan.FromMilliseconds(intervalMs),
-                    _ => MarkDirty(scopeKey, RefreshPriority.Low));
+            {
+                if (_pollTimer is not null) return;
+                var key = string.IsNullOrWhiteSpace(scopeKey) ? null : scopeKey;
+                _pollTimer = _timerFactory(TimeSpan.FromMilliseconds(intervalMs), _ => MarkDirty(key, RefreshPriority.Low));
+            }
         }
 
-        /// <summary>停用兜底轮询（幂等）。</summary>
+        /// <summary>停兜底轮询（幂等）。</summary>
         public void DisableIdlePolling()
         {
             lock (_gate) { _pollTimer?.Dispose(); _pollTimer = null; }
         }
 
-        /// <summary>登记一个刷新源：订阅其 <see cref="IRefreshSource.Changed"/> → 按源优先级合并 dirty；并启动该源（幂等）。</summary>
-        public void RegisterSource(IRefreshSource source)
+        /// <summary>登记刷新源（幂等；换实例即替换并停旧源）。返回 true = 实际登记。</summary>
+        public bool RegisterSource(IRefreshSource source)
         {
-            if (source is null) throw new ArgumentNullException(nameof(source));
-            var priority = source.Priority;
-            Action<string?> handler = k => MarkDirty(k, priority);
+            ArgumentNullException.ThrowIfNull(source);
+            Action<string?> handler = scope => MarkDirty(scope, source.Priority);
             lock (_gate)
             {
-                if (_handlers.ContainsKey(source)) return;
+                if (_handlers.ContainsKey(source)) return false;
                 _handlers[source] = handler;
-                source.Changed += handler;
             }
+            source.Changed += handler;
             source.Start();
+            return true;
         }
 
-        /// <summary>注销刷新源（退订 + 停源）。</summary>
-        public void UnregisterSource(IRefreshSource source)
+        /// <summary>注销刷新源（按实例；幂等）。返回 true = 实际移除。</summary>
+        public bool UnregisterSource(IRefreshSource source)
         {
-            if (source is null) return;
+            if (source is null) return false;
             Action<string?>? handler;
             lock (_gate)
             {
-                if (!_handlers.TryGetValue(source, out handler)) return;
+                if (!_handlers.TryGetValue(source, out handler)) return false;
                 _handlers.Remove(source);
             }
             source.Changed -= handler;
             source.Stop();
+            return true;
         }
 
-        /// <summary>标记「全量有变化待刷新」（高优先级）。</summary>
-        public void MarkDirty() => MarkDirty(null, RefreshPriority.High);
+        /// <summary>标记「全量有变化待刷新」（Change 车道）。</summary>
+        public void MarkDirty()
+        {
+            lock (_gate)
+            {
+                _dirtyAll = true;
+                ResetHeartbeatSlotsLocked(_options.UtcNow());
+            }
+        }
 
-        /// <summary>标记「某范围有变化待刷新」（高优先级）；空/空白键等价于全量。</summary>
-        public void MarkDirty(string? scopeKey) => MarkDirty(scopeKey, RefreshPriority.High);
+        /// <summary>标记「某范围有变化待刷新」（空/空白键等价于全量）。</summary>
+        public void MarkDirty(string? scopeKey)
+            => MarkDirty(scopeKey, RefreshPriority.High);
 
-        /// <summary>按优先级标记变化：<see cref="RefreshPriority.Low"/>（兜底轮询）不得抢占 High。</summary>
+        /// <summary>按优先级标记变化（Low 不抢占 Change / Heartbeat）。</summary>
         public void MarkDirty(string? scopeKey, RefreshPriority priority)
         {
+            if (string.IsNullOrWhiteSpace(scopeKey))
+            {
+                lock (_gate)
+                {
+                    if (priority == RefreshPriority.Low) _lowAll = true;
+                    else
+                    {
+                        _dirtyAll = true;
+                        ResetHeartbeatSlotsLocked(_options.UtcNow());
+                    }
+                }
+                return;
+            }
+
+            var key = scopeKey!;
             lock (_gate)
             {
                 if (priority == RefreshPriority.Low)
                 {
-                    if (string.IsNullOrWhiteSpace(scopeKey)) _lowAll = true;
-                    else _lowKeys.Add(scopeKey!);
+                    _lowKeys.Add(key);
+                    return;
                 }
-                else
-                {
-                    if (string.IsNullOrWhiteSpace(scopeKey)) _dirtyAll = true;
-                    else _dirtyKeys.Add(scopeKey!);
-                }
+                _dirtyKeys.Add(key);
+                _nextDue[key] = _options.UtcNow();
+                _stalled.Remove(key);
+                _heartbeatNoChange[key] = 0;
+                ResetHeartbeatSlotsLocked(_options.UtcNow());
             }
         }
 
-        /// <summary>推送一次刷新请求（全量；返回 false = 未送达）。</summary>
-        public Task<bool> PushOnceAsync(CancellationToken ct = default) => _pushOnce(null, ct);
+        private void ResetHeartbeatSlotsLocked(DateTimeOffset now)
+        {
+            foreach (var slot in _nextDue.Keys.ToArray())
+            {
+                _nextDue[slot] = now;
+                _stalled.Remove(slot);
+                _heartbeatNoChange[slot] = 0;
+            }
+            if (_store is null) return;
+            foreach (var slot in _nextDue.Keys.ToArray())
+                _store.ResetProgress(slot, now);
+        }
 
-        /// <summary>驱动一拍：高优先车道优先出（低优先不抢占）；无任何 dirty 且无在途 ⇒ 零推送。</summary>
+        /// <summary>驱动一拍：Change → Heartbeat → Fallback 依次裁决；全空 ⇒ 零推送。</summary>
         public async Task TickAsync()
         {
             try
             {
-                bool dirty;
-                bool low;
+                var now = _options.UtcNow();
+                RefreshTrigger trigger;
                 IReadOnlyCollection<string>? scopes;
+                bool low;
                 lock (_gate)
                 {
                     if (_dirtyAll || _dirtyKeys.Count > 0)
                     {
-                        dirty = true;
                         low = false;
+                        trigger = RefreshTrigger.Change;
                         scopes = _dirtyAll ? null : new List<string>(_dirtyKeys);
                         _dirtyAll = false;
                         _dirtyKeys.Clear();
                     }
                     else if (_lowAll || _lowKeys.Count > 0)
                     {
-                        dirty = true;
                         low = true;
+                        trigger = RefreshTrigger.Fallback;
                         scopes = _lowAll ? null : new List<string>(_lowKeys);
                         _lowAll = false;
                         _lowKeys.Clear();
                     }
                     else
                     {
-                        dirty = false;
                         low = false;
+                        trigger = RefreshTrigger.Heartbeat;
                         scopes = null;
                     }
                 }
-                if (!dirty && !_hasInFlight())
-                    return; // 空闲：零推送（事件驱动 + 在途心跳，不做常驻拉取）
 
+                if (trigger == RefreshTrigger.Heartbeat)
+                {
+                    var due = await PickDueHeartbeatsAsync(now).ConfigureAwait(false);
+                    if (due.Count == 0) return;
+                    scopes = due;
+                }
+
+                Interlocked.Increment(ref _pushes);
                 var ok = await _pushOnce(scopes, CancellationToken.None).ConfigureAwait(false);
                 ReportIfChanged(ok);
+
                 if (!ok)
                 {
                     lock (_gate)
                     {
-                        // 未送达：按原车道置回（at-least-once，不静默失刷）
                         if (low)
                         {
                             if (scopes is null) _lowAll = true;
                             else foreach (var s in scopes) _lowKeys.Add(s);
+                        }
+                        else if (trigger == RefreshTrigger.Heartbeat)
+                        {
+                            if (scopes is not null) foreach (var s in scopes) _nextDue[s] = now;
                         }
                         else
                         {
@@ -198,7 +257,13 @@ namespace Strategy.Refresh.Core
                             else foreach (var s in scopes) _dirtyKeys.Add(s);
                         }
                     }
+                    return;
                 }
+
+                if (trigger == RefreshTrigger.Heartbeat && scopes is not null)
+                    ScheduleNext(now, scopes);
+
+                ReportDiagnostics(trigger, scopes);
             }
             finally
             {
@@ -206,14 +271,177 @@ namespace Strategy.Refresh.Core
             }
         }
 
+        private async Task<IReadOnlyCollection<string>> PickDueHeartbeatsAsync(DateTimeOffset now)
+        {
+            var leases = await SnapshotAsync().ConfigureAwait(false);
+            var present = new HashSet<string>(StringComparer.Ordinal);
+            var due = new List<string>();
+            foreach (var lease in leases)
+            {
+                if (!IsExecutable(lease, now)) continue;
+                present.Add(lease.Key);
+
+                bool hasToken;
+                string? lastToken;
+                lock (_gate) hasToken = _progressTokens.TryGetValue(lease.Key, out lastToken);
+                if (!hasToken)
+                {
+                    lock (_gate)
+                    {
+                        _progressTokens[lease.Key] = lease.ProgressToken;
+                        _nextDue[lease.Key] = now;
+                        _heartbeatNoChange[lease.Key] = 0;
+                    }
+                }
+                else if (!string.Equals(lastToken, lease.ProgressToken, StringComparison.Ordinal))
+                {
+                    lock (_gate)
+                    {
+                        _progressTokens[lease.Key] = lease.ProgressToken;
+                        _nextDue[lease.Key] = now;
+                        _stalled.Remove(lease.Key);
+                        _heartbeatNoChange[lease.Key] = 0;
+                    }
+                    _store?.ResetProgress(lease.Key, now);
+                }
+
+                DateTimeOffset next;
+                bool stalled;
+                lock (_gate)
+                {
+                    if (!_nextDue.TryGetValue(lease.Key, out next))
+                    {
+                        next = now;
+                        _nextDue[lease.Key] = next;
+                    }
+                    stalled = _stalled.Contains(lease.Key);
+                }
+                if (now < next) continue;
+
+                var state = _store?.GetState(lease.Key) ?? SlotRefreshState.Empty;
+                if (state.LastOutcome == RefreshOutcome.Changed)
+                {
+                    lock (_gate)
+                    {
+                        _stalled.Remove(lease.Key);
+                        _heartbeatNoChange[lease.Key] = 0;
+                    }
+                    stalled = false;
+                }
+                if (stalled) continue;
+
+                int noChange;
+                lock (_gate) _heartbeatNoChange.TryGetValue(lease.Key, out noChange);
+                if (ShouldStall(lease, state, noChange, now))
+                {
+                    if (MarkStalled(lease.Key))
+                    {
+                        Interlocked.Increment(ref _suppressedHeartbeats);
+                        _ = _stallPolicy.OnStalledAsync(lease.Key, leases, state, CancellationToken.None);
+                    }
+                    continue;
+                }
+
+                due.Add(lease.Key);
+            }
+
+            lock (_gate)
+            {
+                foreach (var key in _nextDue.Keys.Where(k => !present.Contains(k)).ToArray())
+                {
+                    _nextDue.Remove(key);
+                    _progressTokens.Remove(key);
+                    _heartbeatNoChange.Remove(key);
+                    _stalled.Remove(key);
+                }
+            }
+            return due;
+        }
+
+        private static bool IsExecutable(InFlightLease lease, DateTimeOffset now)
+        {
+            if (!lease.Active) return false;
+            if (!string.Equals(lease.Kind, InFlightLease.ExecutableKind, StringComparison.OrdinalIgnoreCase)) return false;
+            if (lease.Deadline is { } deadline && deadline <= now) return false;
+            return true;
+        }
+
+        private bool ShouldStall(InFlightLease lease, SlotRefreshState state, int heartbeatNoChange, DateTimeOffset now)
+        {
+            if (lease.Deadline is { } deadline && deadline <= now) return true;
+            if (now - lease.LastHeartbeatAt > TimeSpan.FromMilliseconds(_options.StallWindowMs)) return true;
+            return Math.Max(state.ConsecutiveNoChange, heartbeatNoChange) >= _options.StallAfterNoChange;
+        }
+
+        private bool MarkStalled(string key)
+        {
+            lock (_gate) return _stalled.Add(key);
+        }
+
+        private void ScheduleNext(DateTimeOffset now, IReadOnlyCollection<string> keys)
+        {
+            lock (_gate)
+            {
+                foreach (var key in keys)
+                {
+                    _heartbeatNoChange.TryGetValue(key, out var pushed);
+                    pushed += 1;
+                    _heartbeatNoChange[key] = pushed;
+
+                    var state = _store?.GetState(key) ?? SlotRefreshState.Empty;
+                    var exponent = Math.Min(Math.Max(state.ConsecutiveNoChange, pushed),
+                        RefreshContract.ProgressBackoffMaxExponent);
+                    var delayMs = (long)_options.TickMs * (1L << exponent);
+                    if (delayMs > _options.MaxHeartbeatMs) delayMs = _options.MaxHeartbeatMs;
+                    _nextDue[key] = now + TimeSpan.FromMilliseconds(delayMs);
+                }
+            }
+        }
+
+        private async Task<IReadOnlyList<InFlightLease>> SnapshotAsync()
+        {
+            if (_inFlightSource is null) return Array.Empty<InFlightLease>();
+            try
+            {
+                return await _inFlightSource.SnapshotAsync(CancellationToken.None).ConfigureAwait(false)
+                       ?? Array.Empty<InFlightLease>();
+            }
+            catch
+            {
+                return Array.Empty<InFlightLease>();
+            }
+        }
+
+        /// <summary>直接推送一次刷新请求（不经过车道裁决；返回 false = 未送达）。</summary>
+        public async Task<bool> PushOnceAsync(CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref _pushes);
+            var ok = await _pushOnce(null, ct).ConfigureAwait(false);
+            ReportIfChanged(ok);
+            if (!ok) MarkDirty();
+            return ok;
+        }
+
+        private void ReportDiagnostics(RefreshTrigger trigger, IReadOnlyCollection<string>? scopes)
+        {
+            if (_onDiagnostics is null || scopes is null) return;
+            foreach (var slot in scopes)
+            {
+                var state = _store?.GetState(slot) ?? SlotRefreshState.Empty;
+                _onDiagnostics(new RefreshSlotDiagnostics(
+                    slot, trigger, state.LastOutcome, state.LastDeliveredVersion, state.LastProgressToken,
+                    state.ConsecutiveNoChange, state.ConsecutiveDeliveryFailures, state.NextDelay,
+                    0, state.LastChangedAt, state.NoProgressSince,
+                    PushCount, 0, SuppressedHeartbeats));
+            }
+        }
+
         private void OnTick(object? state)
         {
-            // 单拍互斥：推送耗时超过节拍时跳拍，不叠加并发刷新。
             if (Interlocked.Exchange(ref _ticking, 1) == 1) return;
             _ = TickAsync();
         }
 
-        /// <summary>诊断去抖：仅在推送结果翻转（成功↔失败）时回调，避免节拍刷屏。</summary>
         private void ReportIfChanged(bool ok)
         {
             lock (_gate)
@@ -221,10 +449,9 @@ namespace Strategy.Refresh.Core
                 if (_lastResult == ok) return;
                 _lastResult = ok;
             }
-            _onResultChanged?.Invoke(ok);
         }
 
-        /// <summary>停表 + 停兜底轮询 + 注销全部刷新源（宿主解体时调用）。</summary>
+        /// <summary>停表 + 停兜底轮询 + 注销全部刷新源。</summary>
         public void Dispose()
         {
             IRefreshSource[] sources;
@@ -245,4 +472,5 @@ namespace Strategy.Refresh.Core
         }
     }
 }
+
 

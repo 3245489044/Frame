@@ -5,7 +5,7 @@ namespace Strategy.Refresh.Ports
     /// <summary>
     /// 定时器工厂端口（L1，通用）：把「真实定时器」与「测试替身」统一为一个可注入面，
     /// 使宿主 / 单测可在不依赖真实时钟的前提下驱动节拍。
-    /// <para><b>【预留】</b>预定消费方：单测替身（<c>RefreshServiceTests.NoopClock</c>，已在用）与宿主自定义定时器注入。</para>
+    /// <para>消费方：单测替身与宿主自定义定时器注入。</para>
     /// </summary>
     public interface IRefreshClock
     {

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-19T10:36:31.8636266Z",
+  "builtAt": "2026-10-19T12:39:53.5289134Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -5439,49 +5439,49 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 75,
+          "line": 76,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKind, UsharpScalar.Str(session.Owner.Kind.ToString())),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 76,
+          "line": 77,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKey, UsharpScalar.Str(session.Owner.Key)),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 77,
+          "line": 78,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldRole, UsharpScalar.Str(session.Role.ToString())),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 78,
+          "line": 79,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldAgent, UsharpScalar.Str(session.Agent)),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 79,
+          "line": 80,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(session.CreatedAt.ToString(\"O\"))),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 81,
+          "line": 82,
           "role": "Code",
           "text": "var text = _codec.SerializeRecord(\"session:\" + session.Key.Value, TableId, session.Key.Value, record);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 82,
+          "line": 83,
           "role": "Code",
           "text": "ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params((\"k\", session.Key.Value), (\"d\", text)));"
         },
@@ -7585,14 +7585,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 196,
+      "total": 199,
       "truncated": false,
       "byRole": {
         "Gate": 2,
         "Test": 51,
-        "Declaration": 32,
+        "Declaration": 33,
         "Code": 14,
-        "Doc": 96,
+        "Doc": 98,
         "Other": 1
       },
       "hits": [
@@ -8305,6 +8305,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/history-loop.ushar",
+          "line": 36,
+          "role": "Declaration",
+          "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
           "line": 10,
           "role": "Declaration",
@@ -8467,28 +8474,28 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 31,
+          "line": 32,
           "role": "Declaration",
           "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 32,
+          "line": 33,
           "role": "Declaration",
           "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 34,
+          "line": 35,
           "role": "Declaration",
           "text": "skills = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 36,
+          "line": 37,
           "role": "Declaration",
           "text": "executor = subagent-tool-call"
         },
@@ -8533,6 +8540,20 @@
           "line": 34,
           "role": "Doc",
           "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/工作流节点参数化与提示词模板组装-后续批次施工单.md",
+          "line": 220,
+          "role": "Doc",
+          "text": "role.tool-call = 5"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/工作流节点参数化与提示词模板组装-后续批次施工单.md",
+          "line": 227,
+          "role": "Doc",
+          "text": "owns-tool = \"role.tool-call\""
         },
         {
           "repo": "Projects",
@@ -8908,14 +8929,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
-          "line": 46,
+          "line": 17,
           "role": "Code",
-          "text": "WindowSubmissionIntent.ToolCall => \"tool-call\","
+          "text": "HistoryLoopCatalog.ReadDefaultTag(HistoryLoopCatalog.DefaultToolSubAgentKey, \"tool-call\");"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
-          "line": 52,
+          "line": 62,
           "role": "Code",
           "text": "WindowSubmissionIntent.ToolCall => \"subagent-tool-call\","
         },
@@ -8935,15 +8956,15 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/Context/ContextGraphExtractor.cs",
-          "line": 126,
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/Context/LegacyContextKinds.cs",
+          "line": 13,
           "role": "Code",
-          "text": "ContextNodeKind.ToolCall => \"tool-call\","
+          "text": "public const string ToolCall = \"tool-call\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/WorkflowNodeOwnership.cs",
-          "line": 29,
+          "line": 30,
           "role": "Code",
           "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
         },
@@ -9276,14 +9297,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3467,
+          "line": 3595,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3474,
+          "line": 3602,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -9576,13 +9597,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1341.0,
+    "hitCount": 1344.0,
     "byRole": {
       "Gate": 21,
       "Test": 284,
-      "Declaration": 66,
+      "Declaration": 67,
       "Code": 341,
-      "Doc": 554,
+      "Doc": 556,
       "Other": 75
     },
     "truncatedFacts": [
@@ -9595,7 +9616,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 395
+        "lines": 398
       },
       {
         "repo": "Main",

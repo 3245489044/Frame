@@ -15,4 +15,7 @@ public interface ITaskPoolItem
 
     /// <summary>失败最大重试次数。</summary>
     int MaxRetries { get; }
+
+    /// <summary>条目语义类别（缺省 = 可执行；信号 / 簿记条目必须覆盖）。</summary>
+    TaskPoolItemKind Kind => TaskPoolItemKind.Executable;
 }

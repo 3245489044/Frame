@@ -3,7 +3,7 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>通用刷新框架（Refresh）</ModuleRule_Title>
     <ModuleRule_Layer>3</ModuleRule_Layer>
-    <ModuleRule_Description>UI 刷新通用框架（零领域 / 零 HTML / 零 Plate）：把「何时刷 / 是否刷 / 怎么落地」收拢为单一实现——L0 契约（RefreshScope 范围键 / RefreshTicket 单调版本凭证 / RefreshDelivery 交付信封 / IFingerprint 指纹单源 / IRefreshStore 单一状态源 / IRefreshSink 写落地端口 / RefreshTraceId 追踪号 / RefreshContract 常量单源）+ L1 调度引擎（RefreshScheduler：dirty 双车道合并 + 节拍裁决 + 单拍互斥 + 失败置回重试 + 空闲零推送 + 兜底轮询收编）+ L2 写仲裁（RefreshArbiter：每 slot 单调版本 + baseline 过期即丢 + 在飞 latest-wins 合并 + 未变 Skip）+ 编排面（RefreshRegistry 登记 + RefreshService 唯一入口 + RefreshJson 门面）。领域只实现 IRefreshRenderer / IRefreshSource 端口接入，节拍 / 合并 / 去重 / 重试 / 优先级 / 仲裁全在框架侧单源。</ModuleRule_Description>
+    <ModuleRule_Description>UI 刷新通用框架（零领域 / 零 HTML / 零 Plate）：把「何时刷 / 是否刷 / 怎么落地 / 是否有进展」收拢为单一实现——L0 契约（RefreshRequest / RefreshArtifact 产物结论 / RefreshOutcome / DeliveryResult 送达与内容变化分离 / InFlightLease 在途租约 / SlotRefreshState 反馈状态 / RefreshTrigger / RefreshContract 常量单源）+ L1 调度引擎（RefreshScheduler：Change/Heartbeat/Fallback 三车道 + 单拍互斥 + 无进展退避 + 停滞熔断 + 失败置回 + 空闲零推送）+ L2 写仲裁（RefreshArbiter：每 slot 单调版本 + baseline 过期即丢 + 在飞 latest-wins + 未变化不推进 baseline）+ 编排面（RefreshRegistry 登记 + RefreshService.ExecuteAsync 唯一入口 + RefreshJson 门面）。领域只实现 IRefreshRenderer / IRefreshSource / IInFlightSource / IRefreshSink 端口接入，节拍 / 合并 / 去重 / 退避 / 熔断 / 仲裁全在框架侧单源。</ModuleRule_Description>
     <ModuleRule_Keywords>刷新;节拍;节流;去重;指纹;单飞;合并;写仲裁;调度;dirty;轮询;通用框架</ModuleRule_Keywords>
   </PropertyGroup>
 
@@ -13,6 +13,9 @@
     <ModuleRule_Rule Include="契约常量（refresh / 1000 / 30000）只有一处声明（RefreshContract），宿主与页面两端同源" />
     <ModuleRule_Rule Include="框架内零 HTML / 零 Plate 类型（不得 using Plate.* / UiBackend.*）；通道解析由域侧委托注入" />
     <ModuleRule_Rule Include="空闲零推送；未送达必置回重试（at-least-once，不静默失刷）；索引/明细不得双份真源" />
+    <ModuleRule_Rule Include="在途只认 InFlightLease（Kind=Executable ∧ Active ∧ Deadline 未过）；禁止 bool 在途判定；渲染只认 RefreshArtifact，禁止不透明 object 产物" />
+    <ModuleRule_Rule Include="只有 DeliveryResult.Delivered ∧ ContentChanged 才推进 baseline；Unchanged/Skipped 记为 NoChange，不是错误" />
+    <ModuleRule_Rule Include="无进展心跳按 1s→2s→4s→8s→16s→30s 退避；达到阈值 / 超截止 / 心跳窗口过期 ⇒ 每槽一次 RefreshStalled + StallPolicy" />
   </ItemGroup>
 
   <ItemGroup Label="ModuleRule_Prompts">

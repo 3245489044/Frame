@@ -17,5 +17,17 @@ namespace Strategy.Refresh.Model
 
         /// <summary>兜底轮询周期（ms）：页面 / 宿主在无推送时的兜底刷新周期（对齐 <c>data-poll-interval</c>）。</summary>
         public const int FallbackPollMs = 30000;
+
+        /// <summary>心跳退避上限（ms）：1s→2s→4s→8s→16s→30s 的封顶值。</summary>
+        public const int MaxHeartbeatMs = FallbackPollMs;
+
+        /// <summary>连续无进展达到该次数即触发一次停滞处置。</summary>
+        public const int StallAfterNoChange = 6;
+
+        /// <summary>租约心跳窗口（ms）：超过该窗口未刷新即视为停滞。</summary>
+        public const int StallWindowMs = 30000;
+
+        /// <summary>退避指数上限（1s × 2^5 = 32s，再由 <see cref="MaxHeartbeatMs"/> 封顶）。</summary>
+        public const int ProgressBackoffMaxExponent = 5;
     }
 }

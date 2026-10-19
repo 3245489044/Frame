@@ -37,6 +37,8 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly TaskStateStore _states = new();
         private readonly ConcurrentDictionary<string, TaskPauseHandle> _pauses = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, int> _retries = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, TaskPoolItemKind> _kinds = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, bool> _activeFlags = new(StringComparer.Ordinal);
         private readonly HashSet<string> _inFlight = new(StringComparer.Ordinal);
         private readonly TaskPauseManager _pauseManager = new();
         private readonly SemaphoreSlim _gate;
@@ -127,6 +129,7 @@ namespace Share.TaskStatusPool.TaskPool
             var item = await _persistence.GetAsync(taskKey, ct).ConfigureAwait(false);
             if (item is not IActivatableTaskPoolItem activatable) return false;
             activatable.Active = active;
+            _activeFlags[taskKey] = active;
             await _persistence.UpdatePayloadAsync(taskKey, item, ct).ConfigureAwait(false);
             if (active) await _signal.Writer.WriteAsync(true, ct).ConfigureAwait(false);
             return true;
@@ -139,6 +142,8 @@ namespace Share.TaskStatusPool.TaskPool
                 throw new ArgumentException("TaskKey cannot be empty", nameof(item));
 
             var id = await _persistence.EnqueueAsync(item, ct).ConfigureAwait(false);
+            _kinds[item.TaskKey] = item.Kind;
+            _activeFlags[item.TaskKey] = item is IActivatableTaskPoolItem activatable ? activatable.Active : true;
             // 可重跑语义：重新入队时，仅当内存态为终态/幽灵态（Completed/Faulted/Cancelled）才重置为 NotStarted；
             // 否则 GetOrCreate 返回旧终态会导致任务不再出队（清理后重跑同 taskKey 失效）。在途（Running/Paused）由上层守卫拦截，不在此重置。
             var state = _states.GetOrCreate(item.TaskKey);
@@ -407,6 +412,8 @@ namespace Share.TaskStatusPool.TaskPool
             if (item is null) return (usable.Count, null, skipped, skippedRows); // 全部候选不可启动：不再自旋（交由下一信号/兜底重试）
 
             var key = item.TaskKey;
+            _kinds[key] = item.Kind;
+            _activeFlags[key] = item is IActivatableTaskPoolItem activatable ? activatable.Active : true;
 
             await DrainAsync(t => _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, t), ct).ConfigureAwait(false);
             lock (_lock) _inFlight.Add(key);
@@ -539,6 +546,9 @@ namespace Share.TaskStatusPool.TaskPool
         }
 
         private void Emit(string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, string? reason)
-            => TaskStateChanged?.Invoke(this, new TaskPoolStateChangedEventArgs(taskKey, from, to, reason));
+            => TaskStateChanged?.Invoke(this, new TaskPoolStateChangedEventArgs(
+                taskKey, from, to, reason,
+                kind: _kinds.TryGetValue(taskKey, out var kind) ? kind : TaskPoolItemKind.Executable,
+                active: !_activeFlags.TryGetValue(taskKey, out var active) || active));
     }
 }

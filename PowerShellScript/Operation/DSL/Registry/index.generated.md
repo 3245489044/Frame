@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（43 件）
+## Agent（44 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -48,6 +48,7 @@
 | `SendDeclarationCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SendDeclarationCoverage.ps1` |
 | `TemplateAccessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TemplateAccessSingleEntry.ps1` |
 | `ToolCallConvergence` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ToolCallConvergence.ps1` |
+| `TransferKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TransferKey.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
 | `UnknownVisible` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UnknownVisible.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |

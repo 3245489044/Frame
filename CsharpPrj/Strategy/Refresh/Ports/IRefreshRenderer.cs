@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Strategy.Refresh.Model;
+
 namespace Strategy.Refresh.Ports
 {
     /// <summary>
@@ -23,14 +25,15 @@ namespace Strategy.Refresh.Ports
 
     /// <summary>
     /// 领域渲染端口（L1 **唯一接入点**）：从「做什么」到「长什么样」的生产者。
-    /// <para>框架只负责「何时刷 / 是否刷 / 怎么落地」，不解释渲染产物类型（object 出口）。</para>
+    /// <para>必须返回带 <see cref="RefreshOutcome"/> / <see cref="RefreshArtifact.Fingerprint"/> / 进度令牌的
+    /// <see cref="RefreshArtifact"/>；框架不再接受不透明 object 产物。</para>
     /// </summary>
     public interface IRefreshRenderer
     {
         /// <summary>槽键（框架内唯一；重复注册须替换或报错）。</summary>
         string SlotKey { get; }
 
-        /// <summary>产出一次渲染（产物类型由域定义，框架透传）。</summary>
-        Task<object> RenderAsync(RefreshRequest request, CancellationToken ct = default);
+        /// <summary>产出一次带结论的渲染产物。</summary>
+        Task<RefreshArtifact> RenderAsync(RefreshRequest request, CancellationToken ct = default);
     }
 }

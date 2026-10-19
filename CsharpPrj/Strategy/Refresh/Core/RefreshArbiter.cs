@@ -8,16 +8,16 @@ using Strategy.Refresh.Ports;
 
 namespace Strategy.Refresh.Core
 {
+    /// <summary>一次仲裁结果：决策 + 交付事实 + 是否被在飞合并。</summary>
+    public sealed record RefreshArbitrationResult(
+        AcceptDecision Decision,
+        DeliveryResult Delivery,
+        bool Merged);
+
     /// <summary>
-    /// 写仲裁引擎（L2，根因治理核心）：每 slot 单调版本 + baseline 过期即丢 + 在飞 latest-wins 合并。
-    /// <para>语义（不可协商）：</para>
-    /// <list type="bullet">
-    /// <item>先 <see cref="IRefreshStore.Decide"/>；<see cref="AcceptDecision.Skip"/>/<see cref="AcceptDecision.Stale"/> 不触 DOM，直接返回。</item>
-    /// <item><see cref="AcceptDecision.Apply"/>：每 slot 单飞 + 在飞期到达的更新请求合并为"最新一次"；
-    /// 旧的在飞完成后不得覆盖更新的（有更新待交付时，旧版本不推进 baseline）。</item>
-    /// <item>落地成功（sink 返回 true）才 <see cref="IRefreshStore.Commit"/> 推进 baseline；返回 false 则不推进（可重试）。</item>
-    /// </list>
-    /// <para>单飞 drain 语义参考下沉执行器的 WriteSlot（仅参考语义，不引用其类型）。</para>
+    /// 写仲裁引擎（L2）：每 slot 单调版本 + baseline 过期即丢 + 在飞 latest-wins 合并。
+    /// <para>只有 <see cref="DeliveryResult.Delivered"/> 且 <see cref="DeliveryResult.ContentChanged"/> 才推进 baseline。</para>
+    /// <para>在飞期间到达的更新只保留最新版本；旧版本完成时不推进 baseline（不覆盖更新的）。</para>
     /// </summary>
     public sealed class RefreshArbiter
     {
@@ -42,14 +42,14 @@ namespace Strategy.Refresh.Core
             internal bool InFlight;
             internal long CurrentVersion; // 当前正在交付的版本（防旧版本回写）
             internal Request? Pending;     // 在飞期合并的"最新一次"（按版本取更高者）
-            internal TaskCompletionSource<bool> Done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            internal TaskCompletionSource<RefreshArbitrationResult> Done =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>
-        /// 提交一次写作请求：先判定（Skip/Stale 不触 DOM），Apply 则经单飞+latest-wins 合并落地。
+        /// 提交一次写作请求：先判定（Skip/Stale 不触写落地），Apply 则经单飞 + latest-wins 合并落地。
         /// </summary>
-        /// <returns>本次请求的决策（Skip/Stale/Apply）。</returns>
-        public Task<AcceptDecision> CommitAsync(
+        public async Task<RefreshArbitrationResult> CommitAsync(
             RefreshTicket ticket,
             string fingerprint,
             Func<object> build,
@@ -60,13 +60,13 @@ namespace Strategy.Refresh.Core
             var decision = _store.Decide(ticket.SlotKey, ticket.Version, fingerprint);
             if (decision != AcceptDecision.Apply)
             {
-                _report?.Invoke($"[Refresh] {ticket.SlotKey} v{ticket.Version} => {decision}（不触 DOM） trace={ticket.TraceId ?? "-"}");
-                return Task.FromResult(decision);
+                _report?.Invoke($"[Refresh] {ticket.SlotKey} v{ticket.Version} => {decision}（不触写落地） trace={ticket.TraceId ?? "-"}");
+                return new RefreshArbitrationResult(decision, DeliveryResult.NotDelivered(), false);
             }
 
             var flight = _flights.GetOrAdd(ticket.SlotKey, _ => new Flight());
             var request = new Request(ticket, fingerprint, build);
-            TaskCompletionSource<bool> done;
+            TaskCompletionSource<RefreshArbitrationResult> done;
             bool becomeDrainer;
             lock (flight.Gate)
             {
@@ -81,7 +81,7 @@ namespace Strategy.Refresh.Core
                 else
                 {
                     flight.InFlight = true;
-                    flight.Done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    flight.Done = new TaskCompletionSource<RefreshArbitrationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
                     done = flight.Done;
                     becomeDrainer = true;
                 }
@@ -90,19 +90,18 @@ namespace Strategy.Refresh.Core
             if (becomeDrainer)
                 _ = DrainAsync(flight, request, done, ct);
 
-            return AwaitDecisionAsync(done);
-        }
-
-        private static async Task<AcceptDecision> AwaitDecisionAsync(TaskCompletionSource<bool> done)
-        {
-            await done.Task.ConfigureAwait(false);
-            return AcceptDecision.Apply;
+            return await done.Task.ConfigureAwait(false);
         }
 
         /// <summary>单飞 drain：串行执行该 slot 的写；执行期间到达的更新被合并，末态以最新一并落地。</summary>
-        private async Task DrainAsync(Flight flight, Request first, TaskCompletionSource<bool> done, CancellationToken ct)
+        private async Task DrainAsync(
+            Flight flight,
+            Request first,
+            TaskCompletionSource<RefreshArbitrationResult> done,
+            CancellationToken ct)
         {
             var current = first;
+            var merged = false;
             try
             {
                 while (true)
@@ -113,7 +112,16 @@ namespace Strategy.Refresh.Core
 
                     var delivery = new RefreshDelivery(
                         current.Ticket.SlotKey, payload, current.Ticket.Version, current.Fingerprint, current.Ticket.TraceId);
-                    var ok = await _sink.DeliverAsync(delivery, ct).ConfigureAwait(false);
+
+                    DeliveryResult result;
+                    try
+                    {
+                        result = await _sink.DeliverAsync(delivery, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        result = DeliveryResult.NotDelivered(ex);
+                    }
 
                     Request? next;
                     lock (flight.Gate)
@@ -126,18 +134,22 @@ namespace Strategy.Refresh.Core
 
                     if (next is null)
                     {
-                        // 落地成功才推进 baseline（未送达则不推进，供重试）；无更新时才是末次。
-                        if (ok)
+                        // 只有「送达且内容变化」才推进 baseline（未送达 / 未变化不推进）。
+                        if (result.Delivered && result.ContentChanged)
                             _store.Commit(current.Ticket.SlotKey, current.Ticket.Version, current.Fingerprint);
-                        _report?.Invoke($"[Refresh] {current.Ticket.SlotKey} v{current.Ticket.Version} drained ok={ok} trace={current.Ticket.TraceId ?? "-"}");
-                        break;
+                        _report?.Invoke(
+                            $"[Refresh] {current.Ticket.SlotKey} v{current.Ticket.Version} drained " +
+                            $"delivered={result.Delivered} changed={result.ContentChanged} trace={current.Ticket.TraceId ?? "-"}");
+                        done.TrySetResult(new RefreshArbitrationResult(AcceptDecision.Apply, result, merged));
+                        return;
                     }
 
                     // 有待交付的更新：旧版本不推进 baseline（旧的在飞完成后不得覆盖更新的）
-                    _report?.Invoke($"[Refresh] {current.Ticket.SlotKey} v{current.Ticket.Version} 在飞合并（latest-wins）→ v{next.Ticket.Version}");
+                    merged = true;
+                    _report?.Invoke(
+                        $"[Refresh] {current.Ticket.SlotKey} v{current.Ticket.Version} 在飞合并（latest-wins）→ v{next.Ticket.Version}");
                     current = next;
                 }
-                done.TrySetResult(true);
             }
             catch (Exception ex)
             {
@@ -147,9 +159,13 @@ namespace Strategy.Refresh.Core
                     flight.Pending = null;
                 }
                 _report?.Invoke($"[Refresh] {current.Ticket.SlotKey} drain 异常: {ex.GetType().Name}: {ex.Message}");
-                done.TrySetException(ex);
+                done.TrySetResult(new RefreshArbitrationResult(
+                    AcceptDecision.Apply,
+                    DeliveryResult.NotDelivered(ex),
+                    merged));
             }
         }
     }
 }
+
 

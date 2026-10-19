@@ -2,29 +2,69 @@
 # 职责：配置加载 + 契约扫描 + 能力库依赖预加载（FileUtils/FileDiff），不包含业务逻辑
 
 $bindingPath = $MyInvocation.MyCommand.Path
-$psrtRoot = Split-Path -Parent (Split-Path -Parent $bindingPath)   # PowerShellScript/PsRuntime
-$repoRoot = Split-Path -Parent (Split-Path -Parent $psrtRoot)      # WorkFlowPrj
-$agentRoot = Join-Path $repoRoot "Agent"
+$psrtRoot = Split-Path -Parent (Split-Path -Parent $bindingPath)   # PowerShellScript/Modules/PsRuntime
 . (Join-Path $psrtRoot "_init.ps1")
+
+# 根基准显式化（禁止依赖旧布局推断）：ProjectRoot = 仓库根；AgentRoot = Projects\Plug\Agent；ConfigRoot 缺省 = AgentRoot\Config。
+function Resolve-AgentRoots {
+    param([string]$ProjectRoot, [string]$AgentRoot, [string]$ConfigRoot)
+    $repo = $ProjectRoot
+    if ([string]::IsNullOrWhiteSpace($repo)) {
+        $probe = $psrtRoot
+        while (-not [string]::IsNullOrWhiteSpace($probe)) {
+            $candidateAgent = Join-Path $probe "Projects\Plug\Agent"
+            $candidateFrame = Join-Path $probe "Frame\PowerShellScript"
+            if ((Test-Path $candidateAgent) -and (Test-Path $candidateFrame)) { $repo = $probe; break }
+            $parent = Split-Path -Parent $probe
+            if ($parent -eq $probe) { break }
+            $probe = $parent
+        }
+        if ([string]::IsNullOrWhiteSpace($repo)) {
+            $frameRoot = Split-Path -Parent (Split-Path -Parent $psrtRoot)
+            $repo = Split-Path -Parent $frameRoot
+        }
+    }
+    $agent = if ($AgentRoot) { $AgentRoot } else { Join-Path $repo "Projects\Plug\Agent" }
+    $cfg = if ($ConfigRoot) { $ConfigRoot } else { Join-Path $agent "Config" }
+    return [PSCustomObject]@{ RepoRoot = $repo; AgentRoot = $agent; ConfigRoot = $cfg }
+}
+
+function Resolve-ConfigPath {
+    param([string]$Root, [string]$AgentRoot, [string]$RelativePath)
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return $null }
+    if ([System.IO.Path]::IsPathRooted($RelativePath)) { return $RelativePath }
+    $candidate = Join-Path $Root $RelativePath
+    if (Test-Path $candidate) { return $candidate }
+    return (Join-Path $AgentRoot $RelativePath)
+}
 
 function Invoke-AgentStep {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Action,
         [Parameter(Mandatory)][AllowNull()][hashtable]$Params,
-        [hashtable]$ExtensionSpec
+        [hashtable]$ExtensionSpec,
+        [string]$ProjectRoot = '',
+        [string]$AgentRoot = '',
+        [string]$ConfigRoot = ''
     )
     try {
-        $cfgPath = Join-Path $agentRoot "Config\ps1-runtime.json"
-        if (-not (Test-Path $cfgPath)) { return New-PsResult -Status failure -Message "config missing" -Errors @("config_missing") }
+        $roots = Resolve-AgentRoots -ProjectRoot $ProjectRoot -AgentRoot $AgentRoot -ConfigRoot $ConfigRoot
+        $repoRoot = $roots.RepoRoot
+        $agentRoot = $roots.AgentRoot
+        $configRoot = $roots.ConfigRoot
+
+        $cfgPath = Join-Path $configRoot "ps1-runtime.json"
+        if (-not (Test-Path $cfgPath)) { return New-PsResult -Status failure -Message "config missing: $cfgPath" -Errors @("config_missing") }
         $cfg = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-        $root = Join-Path $agentRoot $cfg.projectRoot
+        $root = if ([System.IO.Path]::IsPathRooted([string]$cfg.projectRoot)) { [string]$cfg.projectRoot }
+                else { Join-Path $repoRoot ([string]$cfg.projectRoot) }
 
         # 预加载能力库依赖（read.file/write.file 依赖 FileUtils/FileDiff）
         if ($cfg.basemethodDeps) {
             foreach ($dep in $cfg.basemethodDeps) {
-                $depPath = Join-Path $root $dep
-                if (Test-Path $depPath) { Import-Module $depPath -Force -ErrorAction SilentlyContinue }
+                $depPath = Resolve-ConfigPath -Root $root -AgentRoot $agentRoot -RelativePath ([string]$dep)
+                if ($depPath -and (Test-Path $depPath)) { Import-Module $depPath -Force -ErrorAction SilentlyContinue }
             }
         }
 
@@ -34,13 +74,13 @@ function Invoke-AgentStep {
         $cs = $scan.data.contracts
 
         # 拓展协议路径
-        $outDir = Join-Path $agentRoot "Config\generated"
-        $regPath = Join-Path $root $cfg.registry.psmRegistry
-        $usagePath = Join-Path $agentRoot $cfg.usage.store
+        $outDir = Join-Path $configRoot "generated"
+        $regPath = Resolve-ConfigPath -Root $root -AgentRoot $agentRoot -RelativePath ([string]$cfg.registry.psmRegistry)
+        $usagePath = Resolve-ConfigPath -Root $root -AgentRoot $agentRoot -RelativePath ([string]$cfg.usage.store)
 
         # 单一配置入口：store.resource 由绑定注入解析后的存储桥配置（StorageNode 不自寻路径）
         if ($Action -match 'store\.resource$') {
-            $Params["Storage"] = Resolve-StorageBridge -Cfg $cfg -Root $root
+            $Params["Storage"] = Resolve-StorageBridge -Cfg $cfg -Root $root -AgentRoot $agentRoot
         }
 
         $result = Invoke-PsAction -Action $Action -Params $Params -Contracts $cs -ExtensionSpec $ExtensionSpec `
@@ -59,7 +99,7 @@ function Invoke-AgentStep {
                         Id = $node.Id
                         Symbol = $node.Symbol
                         Metadata = $node.Metadata
-                        Storage = (Resolve-StorageBridge -Cfg $cfg -Root $root)
+                        Storage = (Resolve-StorageBridge -Cfg $cfg -Root $root -AgentRoot $agentRoot)
                     } -Contracts $cs -OutDir $outDir -RegistryPath $regPath -UsagePath $usagePath `
                         -PromotionThreshold $cfg.usage.promotionThreshold -PromotionWindowDays $cfg.usage.promotionWindowDays
                     $result.data["_persistStored"] = @{ status = $store.status; errors = $store.errors }
@@ -74,14 +114,25 @@ function Invoke-AgentStep {
 
 # 存储桥解析：配置 host 相对项目根 → 绝对路径；未找到则在 Agent\BuildOutput 搜索（兼容 Debug/Release）
 function Resolve-StorageBridge {
-    param([object]$Cfg, [string]$Root)
+    param([object]$Cfg, [string]$Root, [string]$AgentRoot = '')
     try {
         if ($null -eq $Cfg.storage) { return $null }
         $hostPath = [string]$Cfg.storage.host
         if (-not [string]::IsNullOrWhiteSpace($hostPath)) {
-            if (-not [System.IO.Path]::IsPathRooted($hostPath)) { $hostPath = Join-Path $Root $hostPath }
+            if (-not [System.IO.Path]::IsPathRooted($hostPath)) {
+                $absolute = Join-Path $Root $hostPath
+                if (Test-Path $absolute) {
+                    $hostPath = $absolute
+                } elseif ($AgentRoot) {
+                    $agentCandidate = Join-Path $AgentRoot $hostPath
+                    if (Test-Path $agentCandidate) { $hostPath = $agentCandidate }
+                } else {
+                    $hostPath = $absolute
+                }
+            }
             if (-not (Test-Path $hostPath)) {
-                $found = Get-ChildItem -Path (Join-Path $Root "Agent\BuildOutput") -Recurse -Filter "Agent.StorageBridge.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+                $searchRoot = if ($AgentRoot) { Join-Path $AgentRoot "BuildOutput" } else { Join-Path $Root "Agent\BuildOutput" }
+                $found = Get-ChildItem -Path $searchRoot -Recurse -Filter "Agent.StorageBridge.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($found) { $hostPath = $found.FullName }
             }
         }

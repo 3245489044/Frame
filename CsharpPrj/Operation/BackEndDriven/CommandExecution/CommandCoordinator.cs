@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using Modules.Threading;
 using ECS.Core;
 using FrameworkAbstractions.ComponentRegistry;
 using BackEndDriven.Diagnostics;
@@ -22,6 +23,21 @@ public class CommandSystemCoordinator
 
     // —— 共享慢/卡死监视器（批级共享，替代逐命令 CTS/双定时器/Task.Run；空闲自停）——
     private static readonly TimeSpan WatchPoll = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// 失败是否立即停脚本（fail-fast，默认 true）：命令失败 → 终止作用域 + 后续命令恰在命令边界被短路。
+    /// 环境变量 FILEDRIVEN_HALT_ON_FAILURE=off/false/0 可回滚为「仅标记失败、继续后续命令」。
+    /// </summary>
+    private static readonly bool HaltOnFailure = ResolveHaltOnFailure();
+
+    private static bool ResolveHaltOnFailure()
+    {
+        var raw = Environment.GetEnvironmentVariable("FILEDRIVEN_HALT_ON_FAILURE");
+        if (string.IsNullOrWhiteSpace(raw)) return true;
+        return !(string.Equals(raw, "off", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(raw, "false", StringComparison.OrdinalIgnoreCase)
+                 || raw == "0");
+    }
     private readonly object _watchSync = new();
     private readonly List<ActiveCommand> _activeCommands = new();
     private Task? _watchLoop;
@@ -244,7 +260,8 @@ public class CommandSystemCoordinator
         var context = new CommandPipelineContext
         {
             Entities = pendingEntities,
-            StopRequested = false
+            StopRequested = false,
+            Termination = TerminationScope.Current
         };
 
         var pipeline = CommandPipelineFactory.Create(
@@ -264,14 +281,35 @@ public class CommandSystemCoordinator
         var context = new CommandPipelineContext
         {
             Entities = pendingEntities,
-            StopRequested = false
+            StopRequested = false,
+            Termination = TerminationScope.Current
         };
 
         foreach (var entity in pendingEntities)
         {
-            if (context.StopRequested) break; // halt 语义在命令边界短路
+            if (TryIdleTerminate(context, entity)) break;
+            if (context.StopRequested || context.Termination?.IsTerminated == true) break; // halt / 强制退出在命令边界短路
             await ProcessEntityAsync(entity, context).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// 命令空闲窗口执法（Budget.Idle 的唯一消费者）：命令边界发现「无真实推进超过 idle」→
+    /// 终止作用域并以结构化失败收口（不再依赖用户关窗）。
+    /// </summary>
+    private bool TryIdleTerminate(CommandPipelineContext context, Entity entity)
+    {
+        var scope = context.Termination ?? TerminationScope.Current;
+        if (scope is not { IsIdleExpired: true }) return false;
+
+        scope.Terminate(TerminationReason.IdleHung, $"命令空闲超过 {scope.IdleWindow}");
+        context.StopRequested = true;
+        _entityManager.SetComponent(entity, new CommandStatusComponent
+        {
+            State = CommandState.Failed,
+            ErrorMessage = $"命令空闲超过 {scope.IdleWindow}，强制退出（后续命令不再执行）"
+        });
+        return true;
     }
 
     /// <summary>异步单命令更新（对应同步 <see cref="Update(Entity)"/>，供异步调用方使用）。</summary>
@@ -303,6 +341,8 @@ public class CommandSystemCoordinator
     {
         if (!_entityManager.TryGetComponent<CommandMetaComponent>(entity, out var meta))
             return;
+
+        if (TryIdleTerminateBeforeRun(entity, ctx)) return;
 
         _entityManager.SetComponent(entity, new CommandStatusComponent
         {
@@ -369,6 +409,8 @@ public class CommandSystemCoordinator
         if (!_entityManager.TryGetComponent<CommandMetaComponent>(entity, out var meta))
             return;
 
+        if (TryIdleTerminateBeforeRun(entity, ctx)) return;
+
         _entityManager.SetComponent(entity, new CommandStatusComponent
         {
             State = CommandState.Executing,
@@ -391,9 +433,32 @@ public class CommandSystemCoordinator
             if (hasSystem)
             {
                 if (system is IAsyncCommandSystem asyncSystem)
-                    await asyncSystem.ExecuteAsync(entity, meta).ConfigureAwait(false);
+                {
+                    // 命令级硬 deadline（脚本显式 timeout 才启用）：预算内正常等待，超时即强制退出该命令
+                    // （不等待被取消方返回），由失败熔断停脚本；无 timeout 时保持原 await 语义（零回归）。
+                    var timeoutMs = ResolveCommandBudgetMs(meta);
+                    if (timeoutMs is { } budgetMs)
+                    {
+                        var outer = (ctx?.Termination ?? TerminationScope.Current)?.Token ?? CancellationToken.None;
+                        var run = await BoundedRun.RunAsync(
+                            _ => asyncSystem.ExecuteAsync(entity, meta),
+                            TimeSpan.FromMilliseconds(budgetMs),
+                            outer).ConfigureAwait(false);
+                        if (run.Kind == BoundedRunOutcomeKind.TimedOut)
+                        {
+                            MarkFailed(entity, $"Command '{meta.Action}' 超时（{budgetMs}ms，强制退出）", sw);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        await asyncSystem.ExecuteAsync(entity, meta).ConfigureAwait(false);
+                    }
+                }
                 else
+                {
                     system.Execute(entity, meta);
+                }
             }
             else
             {
@@ -420,6 +485,13 @@ public class CommandSystemCoordinator
             return;
         }
 
+        // 真实推进心跳：命令成功 = 有进度（失败不续命，防假活）。
+        if (_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var finalStatus)
+            && finalStatus.State == CommandState.Success)
+        {
+            (ctx?.Termination ?? TerminationScope.Current)?.Beat($"cmd:{meta.Index}");
+        }
+
         // halt 语义：exit/close 请求 → 停止后续命令（对应同步 ProcessEntity）
         if (ctx != null
             && (_entityManager.HasComponent<ExitRequestComponent>(entity)
@@ -427,6 +499,22 @@ public class CommandSystemCoordinator
         {
             ctx.StopRequested = true;
         }
+    }
+
+    /// <summary>命令启动前的空闲熔断（单命令路径与管线路径共用；idle 超窗即强制退出，不执行该命令）。</summary>
+    private bool TryIdleTerminateBeforeRun(Entity entity, CommandPipelineContext? ctx)
+    {
+        var scope = ctx?.Termination ?? TerminationScope.Current;
+        if (scope is not { IsIdleExpired: true }) return false;
+
+        scope.Terminate(TerminationReason.IdleHung, $"命令空闲超过 {scope.IdleWindow}");
+        if (ctx is not null) ctx.StopRequested = true;
+        _entityManager.SetComponent(entity, new CommandStatusComponent
+        {
+            State = CommandState.Failed,
+            ErrorMessage = $"命令空闲超过 {scope.IdleWindow}，强制退出"
+        });
+        return true;
     }
 
     private void MarkFailed(Entity entity, string errorMessage, Stopwatch sw, Exception? exception = null)
@@ -447,5 +535,22 @@ public class CommandSystemCoordinator
                 meta.Index, meta.RawCommand, meta.Action, meta.Target,
                 errorMessage, sw.ElapsedMilliseconds, exception);
         }
+
+        // 失败熔断（fail-fast）：终止作用域 = 单写者；后续命令经 CanExecute/循环条件立即短路。
+        if (HaltOnFailure)
+            TerminationScope.Current?.Terminate(TerminationReason.Failed, errorMessage);
+    }
+
+    /// <summary>命令级预算（仅脚本显式声明 timeout 时启用；返回 null = 无命令级硬 deadline）。</summary>
+    private static long? ResolveCommandBudgetMs(CommandMetaComponent meta)
+    {
+        if (meta.Parameters is { } parameters
+            && parameters.TryGetValue("timeout", out var raw)
+            && long.TryParse(raw?.ToString(), out var budgetMs)
+            && budgetMs > 0)
+        {
+            return budgetMs;
+        }
+        return null;
     }
 }

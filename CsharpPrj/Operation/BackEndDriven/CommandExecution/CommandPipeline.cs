@@ -43,7 +43,8 @@ public static class CommandPipelineFactory
                 },
                 IsFatal: false,
                 CanExecute: ctx => !ctx.StopRequested
-                    && !ctx.IsCancelled));
+                    && !ctx.IsCancelled
+                    && ctx.Termination?.IsTerminated != true));
         }
 
         return new StaticPipeline<CommandPipelineContext>(steps);

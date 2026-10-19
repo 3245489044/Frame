@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Threading;
 using Operation.LoopFoldMethod.Contracts;
 using Operation.LoopFoldMethod.Routing;
 using Share.TaskStatusPool.Loops;
@@ -22,6 +23,7 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
     private readonly IReadOnlyList<ActionPoint<TState>> _points;
     private readonly Func<TState, LoopDecision> _budgetTerminate;
     private readonly Func<TState, LoopDecision, int, TResult> _converge;
+    private readonly TerminationScope? _scope;
 
     /// <summary>
     /// 构造固定脊柱。
@@ -30,11 +32,13 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
     /// <param name="budgetTerminate">预算终止谓词（引擎内，可判定；返回终态则 break）。默认 null = 不内置预算终止。</param>
     /// <param name="converge">收敛器：由最终状态 + 终态决策 + 已执行轮数产出 <typeparamref name="TResult"/>。</param>
     /// <param name="stageTimeout">单级作用点有界守卫超时（可选；0 = 仅协作取消）。</param>
+    /// <param name="scope">可选终止作用域（令牌贯穿各级与底层循环；强制退出可立即短路）。</param>
     public SpinalPipeline(
         IReadOnlyDictionary<ActionStageId, IActionRouter<TState>> routers,
         Func<TState, LoopDecision>? budgetTerminate = null,
         Func<TState, LoopDecision, int, TResult>? converge = null,
-        TimeSpan? stageTimeout = null)
+        TimeSpan? stageTimeout = null,
+        TerminationScope? scope = null)
     {
         ArgumentNullException.ThrowIfNull(routers);
         _converge = converge
@@ -46,14 +50,22 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
         foreach (var stage in SpinalStageOrder.Fixed)
         {
             if (routers.TryGetValue(stage, out var router))
-                points.Add(new ActionPoint<TState>(stage, router, stageTimeout));
+                points.Add(new ActionPoint<TState>(stage, router, stageTimeout, scope));
         }
         _points = points;
+        _scope = scope;
     }
 
     /// <inheritdoc />
     public async Task<TResult> RunAsync(TState initialState, CancellationToken ct = default)
     {
+        // 终止作用域存在时其令牌并入循环取消面（强制退出贯穿到底层 while）。
+        var scopeToken = _scope?.Token ?? default;
+        using var linked = scopeToken.CanBeCanceled && ct.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(ct, scopeToken)
+            : null;
+        var token = linked?.Token ?? (scopeToken.CanBeCanceled ? scopeToken : ct);
+
         // 轮内某级 handler 收敛出的终态（TS/TO/TM）；None = 尚未收敛。
         var ended = LoopDecision.None;
 
@@ -79,7 +91,7 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
                 return state;
             },
             next: (_, roundState, _) => Task.FromResult(roundState),
-            ct: ct,
+            ct: token,
             budgetTerminate: s => ended != LoopDecision.None ? ended : _budgetTerminate(s)).ConfigureAwait(false);
 
         // 收敛：轮内终态优先；否则引擎承载的预算终止值（非 None）；探索/取消与无终态则按 Continue 交收敛器定夺。

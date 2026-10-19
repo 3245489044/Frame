@@ -988,5 +988,21 @@
         Note   = '脚本禁固定等待：action=sleep 且 target ≥ 1000ms = 0（失败须落在强判据，禁「未跑完」）∧ wait-until 有界轮询能力在位（WaitUntilSystem 注册）∧ 正/负对照'
     }
 
+    SignalDeclaration = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '信号声明面（S1–S6）：状态词表↔枚举 / 生命周期可达终态且终态无出边 / 三张判定表总函数形态 / 六段流闭合 / Obs required+enum / fn 常量登记'
+    }
+
+    SignalTraceSchema = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '信号 Trace（T1–T4）：六相位闭集 / Signal 运行期日志键全登记 / 关键可见化键在册 / 六段 fn 描述符正对照'
+    }
+
 }
 

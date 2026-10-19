@@ -12,7 +12,8 @@
     <ModuleRule_Rule Include="Fold/ 为公开折叠面（unfold 宿主 + 折叠头 + 截断执法），唯一控制循环推进处；Operator/ 的 IFoldOperator 是唯一外部驱动面（LLM/规则/人审皆实现），LLM 只是算子实现之一，框架不强制 LLM" />
     <ModuleRule_Rule Include="信任反转：预算/截断/收敛/空值守卫是折叠器对不可信外部算子的强制执法层，不信任算子自停（ICutoffPolicy + FoldEngine 空值守卫）" />
     <ModuleRule_Rule Include="决策域权威（LoopDecision/EvalOutcome/SnapshotDrivenLoopEngine）保留在 Share.TaskStatusPool，本模块仅引用不重复定义（Share→Operation 分层约束；FoldEngine 复用 SnapshotDrivenLoopEngine 不做第二套 while）" />
-    <ModuleRule_Rule Include="本模块不承载导演/租约/循环兼容层（Agent 调度导演与租约派生/收割是 Agent 侧关注点，迁至 Agent.Core 消费方）" />
+    <ModuleRule_Rule Include="本模块不承载导演/租约/循环兼容层（Agent 调度导演与租约派生/收割是 Agent 侧关注点，迁至 Agent.Core 消费方）；LoopFramework/ 为历史兼容命名空间（WorkFlowMethod.LoopFramework.*，Agent 侧仍在使用），新代码一律不得落入该目录，迁移完成后整体删除" />
+    <ModuleRule_Rule Include="Termination/ 为循环终止与强制退出的唯一裁决面（Agent 无关、LLM-free）：TerminationPolicyChain（预算/空闲/失败/空转/同指纹/宿主关闭）+ LoopRunner（复用 SnapshotDrivenLoopEngine，不另写 while）+ TerminationCutoffPolicy（FoldEngine 适配）+ TerminationReasonMapping（↔ LoopDecision/FoldCut 单源映射）。机制层 TerminationScope/TerminationBudget/TerminationReason 下沉 Modules.Threading（叶子层，零领域依赖），本模块只承语义与裁决；消费方禁止再自写超时/心跳/终止词表" />
     <ModuleRule_Rule Include="Reference/ 为与 Fold 平行的第二抽象（空间/结构），语义正交不包含：只做抽象 + 编排 + 纯推演，写边原语唯一 owner 留 DataStoreDriven 图协调器（IReferenceMaintenance 单一守卫），不复制任何写边逻辑（TH-12）；防「顺手把图逻辑塞进算子」的隐性耦合是第一纪律" />
     <ModuleRule_Rule Include="Reference 纯推演（ScopeResolver/TreeHeadProjector/EdgeDeriver）保持静态纯函数，可在零 AI 额度纯 CI 测试；Reference 不反向依赖 HierarchyMethod（防环：HierarchyMethod 经 Reference.Gateways 转发）" />
     <ModuleRule_Rule Include="Node/ 为与 Fold/Reference 平行的第三抽象（动态节点装配）：只做收集/编排/投影（Model/Source/Assemble/Project），不含任何提示词/LLM/Agent 语义；提示词注入等消费域作为其应用（语义源 + 槽位策略 + 投影器在 Agent 侧实现），不塞进框架；Node 纯编排（NodeBuilder/CacheStableSlotPolicy）保持静态纯函数，可在零 AI 额度纯 CI 测试" />
@@ -31,6 +32,7 @@
     <ModuleRule_Prompt Include="此模块的 Node/ 包含 NodeItem/NodeCategory/NodeSlot（Model）、INodeSource/AggregateNodeSource（Source）、INodeSlotPolicy/CacheStableSlotPolicy/NodeBuilder/NodeAssembly（Assemble）、INodeProjector（Project）；要动态装配一组通用节点（稳定前缀/多变后缀排布，非提示词强相关）优先查看" />
     <ModuleRule_Prompt Include="此模块的 Node/Session 包含 INodeAssemblyEngine/NodeAssemblyEngine（唯一装配入口）、AssemblyScope/AssemblyRequest/AssemblyOutcome；Node/Component 包含 NodeComponent/INodeComponentRegistry/NodeComponentRegistry/ComponentToolSpec/ComponentToolFace；需要「一次声明 → 一致的提示词面+机器工具面+执行端绑定」的通用装配框架（子智能体/task/history 复用）优先查看" />
     <ModuleRule_Prompt Include="此模块的 Contracts/Core/Routing 包含通用脊柱管道：Contracts/（ActionStageId 八作用点 + SpinalStageOrder.Fixed + ActionCall/HandlerOutcome）、Routing/（IActionRouter/IActionHandler/RouteTable）、Core/（ISpinalPipeline/SpinalPipeline/ActionPoint/SpinalDecisions）；需要「固定顺序脊柱 按 每级路由分发」的通用有界推进框架优先查看" />
+    <ModuleRule_Prompt Include="此模块的 Termination/ 包含 TerminationPolicyChain/LoopRunner/TerminationCutoffPolicy/TerminationReasonMapping 与六个策略（Budget/Idle/Stagnation/Fingerprint/FailureHalt/HostClosed）；需要「任何循环必须有界、无进展必可判定、到边界强制退出并产出结构化终态」时优先查看" />
   </ItemGroup>
 
   <PropertyGroup>

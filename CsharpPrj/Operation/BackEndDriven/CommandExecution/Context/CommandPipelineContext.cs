@@ -1,6 +1,7 @@
 ﻿﻿
 using System.Windows.Forms;
 using ECS.Core;
+using Modules.Threading;
 using BackEndDriven.Abstractions;
 using BackEndDriven.Models;
 using BasicMethod.ContextFrame.Core;
@@ -30,6 +31,12 @@ public class CommandPipelineContext : CommandContext, IBackEndPipelineContext
 
     /// <summary>是否请求停止后续命令（halt/forcehalt 语义 → 各命令 Step 经 CanExecute 短路跳过）。</summary>
     public bool StopRequested { get; set; }
+
+    /// <summary>
+    /// 终止作用域（有界 + 强制退出载体）。存在时：失败即熔断停脚本、命令级剩余预算由其剩余量约束；
+    /// 关窗/超时经同一作用域产出结构化终态。null = 旧行为（仅 exit/close 短路）。
+    /// </summary>
+    public TerminationScope? Termination { get; set; }
     // CurrentIndex 继承自 CommandContext（当前命令索引）。
 
 

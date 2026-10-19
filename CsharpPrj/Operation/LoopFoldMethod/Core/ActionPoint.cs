@@ -25,12 +25,16 @@ public sealed class ActionPoint<TState>
     /// <summary>有界守卫超时（&gt;0 且非 Infinite 时对单次 HandleAsync 施以 bounded grace）；默认零 = 仅协作取消。</summary>
     public TimeSpan Timeout { get; }
 
-    public ActionPoint(ActionStageId stageId, IActionRouter<TState> router, TimeSpan? timeout = null)
+    /// <summary>可选终止作用域（存在时其令牌并入有界守卫的外部取消面）。</summary>
+    public TerminationScope? Scope { get; }
+
+    public ActionPoint(ActionStageId stageId, IActionRouter<TState> router, TimeSpan? timeout = null, TerminationScope? scope = null)
     {
         ArgumentNullException.ThrowIfNull(router);
         StageId = stageId;
         Router = router;
         Timeout = timeout ?? TimeSpan.Zero;
+        Scope = scope;
     }
 
     /// <summary>
@@ -47,13 +51,15 @@ public sealed class ActionPoint<TState>
 
         // 有界守卫归一（A₀）：单次 HandleAsync 的有界执行上收 Modules.Threading.Bounded（BoundedExecution——
         // 协作取消 + 自身预算耗尽抛强类型 BoundedTimeoutException，外层取消一律上抛 OCE 不误报超时）。
+        // 终止作用域存在时其令牌并入外部取消面（父预算/强制退出可贯穿到本级）。
+        var external = MergeCancellation(ct, Scope?.Token ?? default);
         HandlerOutcome<TState> outcome;
         LoopDecision? yield;
         if (Timeout > TimeSpan.Zero && Timeout != System.Threading.Timeout.InfiniteTimeSpan)
         {
             try
             {
-                using var scope = BoundedExecution.CreateRoot($"action:{StageId}", external: ct);
+                using var scope = BoundedExecution.CreateRoot($"action:{StageId}", external: external);
                 outcome = await scope.RunStepAsync("handle", t => handler.HandleAsync(call, t), Timeout).ConfigureAwait(false);
                 // 咨询收敛：handler 就此收敛则给出终态决策（TS/TO/TM）。
                 yield = handler.MayYield(out var decision) ? decision : null;
@@ -68,9 +74,16 @@ public sealed class ActionPoint<TState>
         else
         {
             // 未设预算：仅协作取消（响应外层 ct），不引入额外超时、零误杀。
-            outcome = await handler.HandleAsync(call, ct).ConfigureAwait(false);
+            outcome = await handler.HandleAsync(call, external).ConfigureAwait(false);
             yield = handler.MayYield(out var decision) ? decision : null;
         }
         return (outcome, yield);
+    }
+
+    private static CancellationToken MergeCancellation(CancellationToken primary, CancellationToken secondary)
+    {
+        if (!secondary.CanBeCanceled) return primary;
+        if (!primary.CanBeCanceled) return secondary;
+        return CancellationTokenSource.CreateLinkedTokenSource(primary, secondary).Token;
     }
 }

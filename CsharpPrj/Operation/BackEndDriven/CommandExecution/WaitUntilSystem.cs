@@ -2,6 +2,7 @@
 
 using ECS.Components;
 using ECS.Core;
+using Modules.Threading;
 using BackEndDriven.Diagnostics;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
@@ -53,15 +54,41 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             return;
         }
 
+        var scope = TerminationScope.Current;
         var deadline = timeoutMs > 0 ? Environment.TickCount64 + timeoutMs : long.MaxValue;
+        var token = scope?.Token ?? CancellationToken.None;
         string? lastText = null;
         var matched = false;
 
         while (true)
         {
+            // 强制退出/外部取消：立即停止轮询（不等待探测返回）。
+            if (token.IsCancellationRequested) break;
+
+            var remainingMs = deadline == long.MaxValue
+                ? (long?)null
+                : Math.Max(0, deadline - Environment.TickCount64);
+            if (remainingMs is 0) break;
+
             try
             {
-                var invocation = await EventPlatformExecutor.InvokeAsync(probe, parameters, null).ConfigureAwait(false);
+                // 探测本身必须有界：原语不接 ct，故以剩余 deadline 为窗口竞速；到点即放弃（不拖死命令）。
+                var window = remainingMs is { } remain
+                    ? TimeSpan.FromMilliseconds(remain)
+                    : System.Threading.Timeout.InfiniteTimeSpan;
+                var run = await BoundedRun.RunAsync(
+                    _ => EventPlatformExecutor.InvokeAsync(probe, parameters, null),
+                    window,
+                    token).ConfigureAwait(false);
+
+                if (run.Kind == BoundedRunOutcomeKind.TimedOut)
+                {
+                    lastText = $"探测 '{probe}' 超出等待窗口仍未返回";
+                    break;
+                }
+                if (run.Kind == BoundedRunOutcomeKind.OuterCanceled) break;
+
+                var invocation = run.Value!;
                 if (!invocation.PlatformAvailable || invocation.Result is null)
                 {
                     lastText = invocation.Error;
@@ -82,7 +109,23 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             }
 
             if (matched || Environment.TickCount64 >= deadline) break;
-            await Task.Delay(intervalMs).ConfigureAwait(false);
+
+            var delay = intervalMs;
+            if (deadline != long.MaxValue)
+            {
+                var left = deadline - Environment.TickCount64;
+                delay = (int)Math.Max(0, Math.Min(delay, left));
+            }
+            if (delay <= 0) break;
+
+            try
+            {
+                await Task.Delay(delay, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
 
         if (matched)
@@ -95,6 +138,9 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         }
 
         var detail = string.IsNullOrWhiteSpace(lastText) ? "(空)" : LogTextTruncation.TruncateForLog(lastText);
+        // 超时 = 无进展终止：先请求强制退出（作用域存在时后续命令不再执行），再显式失败（不吞成普通失败）。
+        scope?.Terminate(TerminationReason.IdleHung,
+            $"wait-until '{probe}' 未在 {timeoutMs}ms 内命中 '{expectedContains}'");
         SetFailure(entity,
             $"wait-until '{probe}' 超时（{timeoutMs}ms）: 结果不含 '{expectedContains}' — 最后一次 '{detail}'");
     }

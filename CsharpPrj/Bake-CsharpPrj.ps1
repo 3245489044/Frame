@@ -20,7 +20,7 @@ if (-not (Test-Path $sln)) { throw "缺少 MainProj.sln：$sln" }
 
 # 仓库级构建门（与全部构建入口共享同一机器级互斥量；嵌套调用复用会话 ⇒ 不自锁死）
 $repoRoot = Split-Path -Parent (Split-Path -Parent $root)
-Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\BuildGate.psm1') -Force -Global
+Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\Safety\BuildGate.psm1') -Force -Global
 $gate = Enter-BuildGate -RepoRoot $repoRoot -Purpose 'Bake-CsharpPrj' -Wait -TimeoutMinutes 30
 try {
 

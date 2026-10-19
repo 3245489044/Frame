@@ -110,5 +110,16 @@ public sealed class DeclaredReferenceEdgeCatalog : IReferenceEdgeCatalog
 
     /// <inheritdoc />
     public bool IsDeclared(string edgeType) =>
-        !string.IsNullOrWhiteSpace(edgeType) && _declared.Contains(edgeType);
+        !string.IsNullOrWhiteSpace(edgeType) && _declared.Contains(BaseTypeOf(edgeType));
+
+    /// <summary>
+    /// 编码形态 → 基础边类型：refType 允许带端口/键映射后缀
+    /// （<c>node_to_node:{from}&gt;{to}[?km=…]</c>，见 <c>NodeRelationRefCodec.Encode</c>）；
+    /// 声明白名单登记的是**基础类型**，故判定前剥离后缀（同一文本的两种形态不构成第二词表）。
+    /// </summary>
+    private static string BaseTypeOf(string edgeType)
+    {
+        var colon = edgeType.IndexOf(':', StringComparison.Ordinal);
+        return colon <= 0 ? edgeType : edgeType[..colon];
+    }
 }

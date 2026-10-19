@@ -186,7 +186,7 @@ if (-not $Force) {
 # ============================================================
 
 $repoRoot = Split-Path -Parent $projectRoot
-Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\BuildGate.psm1') -Force -Global
+Import-Module (Join-Path $repoRoot 'Projects\BuildFramework\Safety\BuildGate.psm1') -Force -Global
 $gate = Enter-BuildGate -RepoRoot $repoRoot -Purpose 'Invoke-FullRebuild' -Wait -TimeoutMinutes 60
 try {
 

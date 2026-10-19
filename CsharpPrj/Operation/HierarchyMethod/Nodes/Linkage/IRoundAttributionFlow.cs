@@ -17,6 +17,8 @@ namespace Operation.HierarchyMethod.Nodes.Linkage;
 /// <param name="Nodes">本轮全量节点产出（null/空 ⇒ 归属边回退骨架派生）。</param>
 /// <param name="TerminalText">终答文本（null = 无终答）。</param>
 /// <param name="HistoryId">显式历史容器 Id（null ⇒ 按声明面规则回退 <paramref name="TaskKey"/>）。</param>
+/// <param name="SessionKey">会话实例键（null ⇒ 由实现方按 <c>SessionKeySpace</c> 台阶回退；
+/// 入史边主语取派生后的会话实例键，与读侧同源 —— 键空间单源）。</param>
 public sealed record RoundAttributionRequest(
     string TaskKey,
     int Round,
@@ -24,7 +26,8 @@ public sealed record RoundAttributionRequest(
     RoundSpec? Spec,
     IReadOnlyList<NodeExecutionRecord>? Nodes,
     string? TerminalText = null,
-    string? HistoryId = null);
+    string? HistoryId = null,
+    string? SessionKey = null);
 
 /// <summary>
 /// 轮末沉淀流入口（DEBT-4 / 纲领 §6.3）—— 回答「本轮产物如何进历史」的**唯一编排触发点**。

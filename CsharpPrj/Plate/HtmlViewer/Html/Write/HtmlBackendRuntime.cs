@@ -296,6 +296,15 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         }
 
         var slot = _writeSlots.GetOrAdd(hostControlName, _ => new WriteSlot());
+        var slotKey = HostSlot(hostControlName);
+        var dedupKey = _fingerprint(html);
+        // 未变早判（单层）：同内容重复推送在入口直接返回，不再进入「合并 → drain → 跳过」三连。
+        if (!slot.InFlight && IsUnchanged(slotKey, dedupKey))
+        {
+            Report("EventBridge_writeback", $"写回 {hostControlName} 跳过（未变，入口去重）");
+            return Task.CompletedTask;
+        }
+
         if (!slot.TryBegin(html, out var first))
         {
             // F1 单飞合并：在飞期间的重入/并发写 → 合入待写槽（latest-wins），不递归、不触 DOM。
@@ -394,6 +403,12 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// 内容未变按区域跳过（按区域去重）。返回 false = 未命中/补丁未生效（调用方据结果回退整页渲染）。</summary>
     public async Task<bool> WriteRegionAsync(string regionName, string html, CancellationToken ct = default)
         => await WriteRegionStatusAsync(regionName, html, ct).ConfigureAwait(false) == DomOpStatus.Ok;
+
+    /// <summary>入口未变判定（单一入口）：仅当上次落地成功且内容指纹一致。</summary>
+    private bool IsUnchanged(string slotKey, string dedupKey)
+        => _lastWrite.TryGetValue(slotKey, out var prev)
+           && prev.Ok
+           && string.Equals(prev.Html, dedupKey, StringComparison.Ordinal);
 
     /// <summary>写准入（单一入口）：有仲裁器 → NextVersion + Decide（Stale/Skip 即拒，不触 DOM）；
     /// 无仲裁器 → 回退旧 <see cref="_lastWrite"/> 内容比对（零回归）。</summary>

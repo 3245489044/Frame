@@ -148,14 +148,19 @@ public sealed class HtmlEventBridge
         var parameters = await ResolveParametersAsync(control.Events.Bindings, eventPayload, ct).ConfigureAwait(false);
         var texts = new List<string>();
         var plans = new List<UiWritePlan>();
+        var planEmitted = false;
         foreach (var functionName in functions)
         {
             ct.ThrowIfCancellationRequested();
             Report("EventBridge_invoke", $"函数 {functionName}, 参数键=[{string.Join(",", parameters.Keys)}]");
             var output = await _invoker(functionName, parameters).ConfigureAwait(false);
             // 每条产物的写回计划已由 WriteOutputAsync 单点落地；此处文本恒保留（不再因首个产物带 plan 而丢文本）。
-            await WriteOutputAsync(control.Events.Bindings, output, ct).ConfigureAwait(false);
-            if (output.HasPlan) plans.Add(output.Plan!);
+            await WriteOutputAsync(control.Events.Bindings, output, planEmitted, ct).ConfigureAwait(false);
+            if (output.HasPlan)
+            {
+                plans.Add(output.Plan!);
+                planEmitted = true;
+            }
             if (!string.IsNullOrEmpty(output.Text)) texts.Add(output.Text!);
         }
         if (plans.Count > 1)
@@ -180,7 +185,7 @@ public sealed class HtmlEventBridge
     }
 
     /// <summary>输出写回（P0 类型化）：携带写回计划 → 协调器单点执行（领域侧不触通道）；否则叙述文本经宿主/DOM 写回。</summary>
-    private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, CancellationToken ct)
+    private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, bool planEmitted, CancellationToken ct)
     {
         // P0：计划产物自描述（含目标），由写协调器单点落地——不依赖 binding.Output 名。
         if (output.HasPlan)
@@ -201,7 +206,9 @@ public sealed class HtmlEventBridge
         // L2 类型化：空产物 = 无内容写回（取代 NoWrite 哨兵串；调用方已产计划即返回空文本）。
         if (string.IsNullOrEmpty(result))
         {
-            Report("EventBridge_writeback", $"目标 {target} → 跳过（空产物 = 无写回内容）");
+            // 同一绑定循环已产出写回计划 ⇒ 空文本是预期伴随产物，不再打“跳过（空产物）”噪声。
+            if (!planEmitted)
+                Report("EventBridge_writeback", $"目标 {target} → 跳过（空产物 = 无写回内容）");
             return;
         }
         if (_hostWriters.TryGetValue(target, out var writer))

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
+using Modules.Node.Identity;
 using Modules.Node.Materialization;
 using Modules.Node.Placement;
 using Modules.Node.Spec;
@@ -60,7 +61,9 @@ public sealed record ReadScope(
     string? SelectionId = null,
     string? KeyPrefix = null,
     int? Limit = null,
-    string? Loc = null);
+    string? Loc = null,
+    string? Container = null,
+    int? Round = null);
 
 /// <summary>
 /// 读投影：<c>Scope → placements → 解码 → selection → 排序 → Origin 标注</c>。
@@ -121,11 +124,15 @@ public sealed class NodeReadProjection
                 continue;
             }
 
-            var keys = await carrier.EnumerateKeysAsync(scope.KeyPrefix, cancellationToken).ConfigureAwait(false);
+            // 读前缀**逐位置**派生（位置键模板；显式 scope.KeyPrefix 优先）：
+            // 单键身份模板（{container}）不能当前缀来源，否则载体全量枚举且跨域混读。
+            var prefix = scope.KeyPrefix ?? PlacementKeyPrefix.LiteralPrefixOf(
+                placement.KeyTemplate, scope.Container, scope.Round);
+            var keys = await carrier.EnumerateKeysAsync(prefix, cancellationToken).ConfigureAwait(false);
 
             foreach (var key in keys)
             {
-                if (scope.KeyPrefix is { Length: > 0 } prefix && !key.StartsWith(prefix, StringComparison.Ordinal))
+                if (prefix is { Length: > 0 } && !key.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     continue;
                 }

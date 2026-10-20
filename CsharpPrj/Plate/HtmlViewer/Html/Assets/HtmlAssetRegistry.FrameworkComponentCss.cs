@@ -154,6 +154,37 @@ public sealed partial class HtmlAssetRegistry
                 
         """;
 
+    /// <summary>通用样式模块：CssBoard（任务窗口板 + 分发流水；一任务一窗口，窗口行非气泡）</summary>
+    internal const string CssBoard =
+        """
+        /* ── 任务窗口板 ── */
+                .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin: 8px 0 12px; align-items: stretch; }
+                .card { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+                .card.active { border-color: var(--user-bg); box-shadow: 0 0 0 1px var(--user-bg) inset; }
+                .card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; }
+                .card-head:hover { background: var(--agent-bg); }
+                .card-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 13px; }
+                .card-meta { font-size: 11px; color: var(--muted); flex: 0 0 auto; }
+                .card-note { padding: 6px 10px 0; font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-word; }
+                .card-body { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; flex: 1 1 auto; }
+                .card-empty { font-size: 12px; color: var(--muted); }
+                .card-foot { display: flex; gap: 6px; padding: 0 10px 8px; }
+                .wl { padding-left: 8px; border-left: 2px solid var(--border); font-size: 12px; line-height: 1.5; }
+                .wl.user { border-left-color: var(--user-bg); }
+                .wl.assistant { border-left-color: var(--agent-bg); }
+                .wl.proc, .wl.system, .wl.error { border-left-style: dashed; }
+                .wl-head { display: block; font-size: 11px; color: var(--muted); }
+                .wl-text { white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow: auto; }
+                /* ── 分发流水（操作流）── */
+                .feed { margin: 6px 0 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--agent-bg); }
+                .feed-summary { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; letter-spacing: .03em; }
+                .feed-row { padding: 4px 0; border-top: 1px dashed var(--border); }
+                .feed-badge { font-size: 12px; color: var(--muted); }
+                .feed-subject, .feed-targets { font-size: 12px; color: var(--muted); margin-left: 4px; }
+                .feed-text { font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 120px; overflow: auto; }
+                
+        """;
+
     /// <summary>通用样式模块：CssData</summary>
     internal const string CssData =
         """
@@ -218,6 +249,7 @@ public sealed partial class HtmlAssetRegistry
             ["switch"] = CssSwitch,
             ["grouped"] = CssGrouped,
             ["state"] = CssState,
+            ["board"] = CssBoard,
             ["attach"] = CssAttach,
             ["data"] = CssData,
         };
@@ -225,6 +257,6 @@ public sealed partial class HtmlAssetRegistry
     /// <summary>通用组件样式组合顺序（模块名有序；顺序固定 = 级联稳定）。</summary>
     internal static readonly IReadOnlyList<string> FrameworkComponentCssOrder = new[]
     {
-        "tokens", "block", "shell", "tree", "switch", "grouped", "state", "attach", "data",
+        "tokens", "block", "shell", "tree", "switch", "grouped", "state", "board", "attach", "data",
     };
 }

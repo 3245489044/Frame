@@ -133,6 +133,7 @@
     "UniversalMiddleware": "Share\\Composition\\UniversalMiddleware\\UniversalMiddleware.csproj",
     "Share.ConfigurationModels": "Share\\Foundations\\ConfigurationModels\\Share.ConfigurationModels.csproj",
     "FrameworkAbstractions": "Share\\Foundations\\FrameworkAbstractions\\FrameworkAbstractions.csproj",
+    "Share.JsonPayload": "Share\\Foundations\\JsonPayload\\JsonPayload.csproj",
     "ScopeFramework": "Share\\Foundations\\ScopeFramework\\ScopeFramework.csproj",
     "StateManagement": "Share\\Foundations\\StateManagement\\StateManagement.csproj",
     "TreeTraceFramework": "Share\\Foundations\\TreeTraceFramework\\TreeTraceFramework.csproj",

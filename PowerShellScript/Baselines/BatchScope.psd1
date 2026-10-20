@@ -335,7 +335,14 @@
     #   R0–R8 已完成面与其它系列在途改动按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v48 的 Value。
     # Manifest(v48) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-设计闭环-R.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-LLM创建任务与子智能体路由.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v50（2026-10-20）：单指针切换至「通用框架提取 · 调用链收敛（U1–U4）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-20-通用框架提取-调用链收敛分析.md》；本系列改动落在
+    #   Frame/CsharpPrj/Share（JsonPayload / TaskStatusPool / AssemblyFramework）· Projects/BuildFramework/Graph/props ·
+    #   Projects/Plug/Agent/src（Contract/Core/Ui/Launcher）· Environment/CentralTest（单测）· Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
+    #   上一系列（LLM 创建任务/子智能体路由）在途改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v49 的 Value。
+    # Manifest(v49) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-LLM创建任务与子智能体路由.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-通用框架提取-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

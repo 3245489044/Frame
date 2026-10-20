@@ -28,6 +28,7 @@ namespace Share.TaskStatusPool.TaskPool
     {
         private readonly ITaskPoolPersistence<TItem> _persistence;
         private readonly TaskPoolHandler<TItem, TResult> _handler;
+        private readonly ITaskPoolItemInitializer<TItem>? _initializer;
         private readonly int _maxConcurrency;
         private readonly int _batchSize;
         private readonly int _heartbeatIntervalMs;
@@ -64,10 +65,12 @@ namespace Share.TaskStatusPool.TaskPool
         public TaskPool(
             ITaskPoolPersistence<TItem> persistence,
             TaskPoolHandler<TItem, TResult> handler,
-            TaskPoolOptions? options = null)
+            TaskPoolOptions? options = null,
+            ITaskPoolItemInitializer<TItem>? initializer = null)
         {
             _persistence = PortGuard.Required(persistence, nameof(persistence));
             _handler = PortGuard.Required(handler, nameof(handler));
+            _initializer = initializer;
             options ??= new TaskPoolOptions();
             _maxConcurrency = Math.Max(1, options.MaxConcurrency);
             _batchSize = Math.Max(1, options.BatchSize);
@@ -140,6 +143,9 @@ namespace Share.TaskStatusPool.TaskPool
             ArgumentNullException.ThrowIfNull(item);
             if (string.IsNullOrWhiteSpace(item.TaskKey))
                 throw new ArgumentException("TaskKey cannot be empty", nameof(item));
+
+            // U3：唯一入队初始化点（播种/视图镜像等宿主语义）；异常即 fail-fast，不落库。
+            _initializer?.Initialize(item);
 
             var id = await _persistence.EnqueueAsync(item, ct).ConfigureAwait(false);
             _kinds[item.TaskKey] = item.Kind;

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>JSON 载荷访问器</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用 JSON 载荷取值守卫：JsonElement/JsonElement? + 属性名 → 带类型守卫的 Str/Bool/Int/Element/Text/Strings。零 ProjectReference（仅 BCL），供 API / 总线 / UI 入口共用单一实现。</ModuleRule_Description>
+    <ModuleRule_Keywords>JSON;载荷;取值;守卫;通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.JsonPayload</RootNamespace>
+    <AssemblyName>Share.JsonPayload</AssemblyName>
+    <Description>通用 JSON 载荷取值守卫（零领域语义、零外部依赖）</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

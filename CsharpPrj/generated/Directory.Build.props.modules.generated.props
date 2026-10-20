@@ -111,6 +111,7 @@
     <Mod_UniversalMiddleware>$(CsharpPrjDir)Share\Composition\UniversalMiddleware\</Mod_UniversalMiddleware>
     <Mod_Share_ConfigurationModels>$(CsharpPrjDir)Share\Foundations\ConfigurationModels\</Mod_Share_ConfigurationModels>
     <Mod_FrameworkAbstractions>$(CsharpPrjDir)Share\Foundations\FrameworkAbstractions\</Mod_FrameworkAbstractions>
+    <Mod_Share_JsonPayload>$(CsharpPrjDir)Share\Foundations\JsonPayload\</Mod_Share_JsonPayload>
     <Mod_ScopeFramework>$(CsharpPrjDir)Share\Foundations\ScopeFramework\</Mod_ScopeFramework>
     <Mod_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\</Mod_StateManagement>
     <Mod_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\</Mod_TreeTraceFramework>
@@ -228,6 +229,7 @@
     <Proj_UniversalMiddleware>$(CsharpPrjDir)Share\Composition\UniversalMiddleware\UniversalMiddleware.csproj</Proj_UniversalMiddleware>
     <Proj_Share_ConfigurationModels>$(CsharpPrjDir)Share\Foundations\ConfigurationModels\Share.ConfigurationModels.csproj</Proj_Share_ConfigurationModels>
     <Proj_FrameworkAbstractions>$(CsharpPrjDir)Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj</Proj_FrameworkAbstractions>
+    <Proj_Share_JsonPayload>$(CsharpPrjDir)Share\Foundations\JsonPayload\JsonPayload.csproj</Proj_Share_JsonPayload>
     <Proj_ScopeFramework>$(CsharpPrjDir)Share\Foundations\ScopeFramework\ScopeFramework.csproj</Proj_ScopeFramework>
     <Proj_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\StateManagement.csproj</Proj_StateManagement>
     <Proj_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\TreeTraceFramework.csproj</Proj_TreeTraceFramework>

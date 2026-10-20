@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 运行态合并门面（<see cref="IRunStateProvider"/> 的默认实现）—— 按来源优先级做**字段级叠加**

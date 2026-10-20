@@ -8,7 +8,7 @@ using Modules.DeclarativeDataflow.Processing;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Hierarchy.Dataflow;
-using Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+using Modules.DeclarativeDataflow.RunState;
 using Operation.HierarchyMethod.History;
 using Operation.HierarchyMethod.History.Runtime;
 using Operation.HierarchyMethod.Nodes;

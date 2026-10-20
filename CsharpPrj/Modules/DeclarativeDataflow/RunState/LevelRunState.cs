@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Modules.DeclarativeDataflow.Model;
 
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 层级实体的运行态（**通用模型，挂任意 <see cref="LevelRef"/>**）—— 把"谁在执行 / 处于什么阶段 / 进度多少"

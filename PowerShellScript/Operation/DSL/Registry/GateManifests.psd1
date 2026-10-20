@@ -7,6 +7,14 @@
         Note   = '通用信息传递内核边界（Share.Messaging）：C1 领域零泄漏 / C2 零 ProjectReference / C3 禁时钟与网络 / C4 唯一状态枚举 / C5 直连禁令（Share 树禁 ITransferKeyStore·ISessionSend·SignalIntake）/ C6 三处登记齐备 / C7 正负对照 / C8 适配器面'
     }
 
+    ContextGeometryBoundary = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '上下文几何内核边界（Share.ContextGeometry）：C1 领域零泄漏 / C2 零 ProjectReference / C3 禁时钟·网络·文件 IO / C4 段序纪律（禁按 Key 排序） / C5 三处登记齐备 / C6 正负对照'
+    }
+
     NodePromptBinding = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

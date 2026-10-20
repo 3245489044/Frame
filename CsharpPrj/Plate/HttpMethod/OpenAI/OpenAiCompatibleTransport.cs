@@ -96,7 +96,7 @@ namespace Plate.HttpMethod.OpenAI
                 return OpenAiChatResult.Fail(parsed.Error);
             if (string.IsNullOrWhiteSpace(parsed.Content) && (parsed.ToolCalls is null || parsed.ToolCalls.Count == 0))
                 return OpenAiChatResult.Fail($"{_name} 返回空响应（无文本内容，可能后端失败或未生成文本）");
-            return OpenAiChatResult.Ok(parsed.Content, parsed.ToolCalls);
+            return OpenAiChatResult.Ok(parsed.Content, parsed.ToolCalls, parsed.Usage);
         }
 
         /// <summary>执行一次 HTTP POST 并解析响应（网络/状态/解析错误 → ParsedResponse.Error）。</summary>
@@ -106,7 +106,7 @@ namespace Plate.HttpMethod.OpenAI
         {
             // 无凭据不外发（结构判据：key 空 ∧ 端点非回环 ∧ 未显式允许匿名）——避免把本地配置缺失伪装成远端鉴权失败。
             if (string.IsNullOrWhiteSpace(_apiKey) && !_allowAnonymous)
-                return new ParsedResponse(null, null,
+                return new ParsedResponse(null, null, null,
                     $"未发送：{_name} 未提供 API Key（endpoint={_endpoint}）。请检查凭据解析/配置；"
                     + "已阻止无鉴权外发（免将本地凭据缺失误报为远端鉴权失败）。");
 
@@ -135,12 +135,12 @@ namespace Plate.HttpMethod.OpenAI
                 using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 responseBody = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode)
-                    return new ParsedResponse(null, null,
+                    return new ParsedResponse(null, null, null,
                         $"OpenAI 兼容端点返回 {(int)resp.StatusCode}（{_name}）: {Truncate(responseBody)}");
             }
             catch (Exception ex)
             {
-                return new ParsedResponse(null, null, $"OpenAI 兼容端点请求失败（{_name}）: {ex.Message}");
+                return new ParsedResponse(null, null, null, $"OpenAI 兼容端点请求失败（{_name}）: {ex.Message}");
             }
 
             return ParseResponse(responseBody, _name);
@@ -154,9 +154,10 @@ namespace Plate.HttpMethod.OpenAI
             {
                 using var doc = JsonDocument.Parse(responseBody);
                 var root = doc.RootElement;
+                var usage = ReadUsage(root);
                 if (!root.TryGetProperty("choices", out var choices)
                     || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
-                    return new ParsedResponse(null, null, $"OpenAI 兼容端点响应缺 choices（{name}）: {Truncate(responseBody)}");
+                    return new ParsedResponse(null, null, usage, $"OpenAI 兼容端点响应缺 choices（{name}）: {Truncate(responseBody)}");
 
                 var msg = choices[0].GetProperty("message");
                 string? content = msg.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String
@@ -179,15 +180,61 @@ namespace Plate.HttpMethod.OpenAI
                         }
                         calls.Add(new OpenAiToolCall(id, fnName, fnArgs));
                     }
-                    return new ParsedResponse(content, calls, null);
+                    return new ParsedResponse(content, calls, usage, null);
                 }
 
-                return new ParsedResponse(content, null, null);
+                return new ParsedResponse(content, null, usage, null);
             }
             catch (Exception ex)
             {
-                return new ParsedResponse(null, null, $"OpenAI 兼容端点响应解析失败（{name}）: {ex.Message}");
+                return new ParsedResponse(null, null, null, $"OpenAI 兼容端点响应解析失败（{name}）: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 解析 provider 用量（全 nullable；缺键/类型不符 ⇒ null，禁按 0 计）。
+        /// <para>缓存字段三厂口径见 <see cref="OpenAiUsage"/>；嵌套字段用 <see cref="ReadNestedInt"/>。</para>
+        /// </summary>
+        private static OpenAiUsage? ReadUsage(JsonElement root)
+        {
+            var usage = FindProperty(root, "usage");
+            if (usage is null || usage.Value.ValueKind != JsonValueKind.Object) return null;
+
+            var element = usage.Value;
+            var prompt = ReadInt(element, "prompt_tokens") ?? ReadInt(element, "input_tokens");
+            var completion = ReadInt(element, "completion_tokens") ?? ReadInt(element, "output_tokens");
+            var cacheRead = ReadNestedInt(element, "prompt_tokens_details", "cached_tokens")
+                            ?? ReadInt(element, "prompt_cache_hit_tokens")
+                            ?? ReadInt(element, "cache_read_input_tokens");
+            var cacheWrite = ReadInt(element, "cache_creation_input_tokens");
+
+            if (prompt is null && completion is null && cacheRead is null && cacheWrite is null)
+                return null;
+
+            return new OpenAiUsage(prompt, completion, cacheRead, cacheWrite);
+        }
+
+        private static JsonElement? FindProperty(JsonElement obj, string name)
+        {
+            if (obj.ValueKind != JsonValueKind.Object) return null;
+            foreach (var property in obj.EnumerateObject())
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return property.Value;
+            return null;
+        }
+
+        private static int? ReadInt(JsonElement obj, string name)
+        {
+            var value = FindProperty(obj, name);
+            if (value is null || value.Value.ValueKind != JsonValueKind.Number) return null;
+            return value.Value.TryGetInt32(out var parsed) ? parsed : null;
+        }
+
+        private static int? ReadNestedInt(JsonElement obj, string parent, string child)
+        {
+            var nested = FindProperty(obj, parent);
+            if (nested is null || nested.Value.ValueKind != JsonValueKind.Object) return null;
+            return ReadInt(nested.Value, child);
         }
 
         // ---- 消息/工具序列化 ----
@@ -245,7 +292,7 @@ namespace Plate.HttpMethod.OpenAI
             => string.IsNullOrEmpty(s) ? "" : (s.Length <= max ? s : s.Substring(0, max) + "…");
 
         /// <summary>单次响应解析结果。</summary>
-        private sealed record ParsedResponse(string? Content, List<OpenAiToolCall>? ToolCalls, string? Error);
+        private sealed record ParsedResponse(string? Content, List<OpenAiToolCall>? ToolCalls, OpenAiUsage? Usage, string? Error);
 
 
 

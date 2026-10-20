@@ -25,6 +25,8 @@
     <ProjectReference Include="$(Proj_Share_Conversation)" />
     <!-- ★ 通用信息传递内核（Share.Messaging）：信封/地址/状态机/路由/流控/闭包，零 ProjectReference（仅 BCL） -->
     <ProjectReference Include="$(Proj_Share_Messaging)" />
+    <!-- ★ 上下文几何内核（Share.ContextGeometry）：缓存带/前缀段/快照/组合/命中核算/策略判据，零 ProjectReference（仅 BCL） -->
+    <ProjectReference Include="$(Proj_Share_ContextGeometry)" />
     <!-- ★ HierarchySupport 叶工程已整项目并入 Strategy\Observability（命名空间 Share.HierarchySupport 保留，源文件随迁）；本聚合不再承载该子项 -->
     <ProjectReference Include="$(Proj_Diagnostics)" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />

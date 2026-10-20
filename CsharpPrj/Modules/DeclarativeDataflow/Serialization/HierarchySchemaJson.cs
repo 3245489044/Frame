@@ -64,6 +64,37 @@ public static class HierarchySchemaJson
         return JsonSerializer.Serialize(ToDto(schema), Options);
     }
 
+    /// <summary>
+    /// 配置优先装载：<paramref name="json"/> 为空 → <paramref name="fallback"/>（无诊断）；
+    /// 非空但非法 → 回退 <paramref name="fallback"/> 并给出诊断。
+    /// <para>回退而非抛出，保证配置问题不阻断确定性路径（对齐「未装配返回诊断」模式）。</para>
+    /// </summary>
+    /// <param name="json">配置 JSON（可空 / 空白 = 未配置）。</param>
+    /// <param name="fallback">内置默认 schema（不可为空）。</param>
+    /// <param name="diagnostic">配置非法时的诊断文本；无诊断 = null。</param>
+    public static HierarchySchema LoadOrDefault(string? json, HierarchySchema fallback, out string? diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(fallback);
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            diagnostic = null;
+            return fallback;
+        }
+
+        try
+        {
+            var schema = Parse(json, validate: true);
+            diagnostic = null;
+            return schema;
+        }
+        catch (Exception ex)
+        {
+            diagnostic = ex.Message;
+            return fallback;
+        }
+    }
+
     private static HierarchySchema ToSchema(SchemaDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.RootLevelId))

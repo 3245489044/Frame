@@ -64,18 +64,13 @@ public sealed class RelationalHierarchyTopology
         if (_reader is null || parent.IsEmpty) return Array.Empty<LevelRef>();
 
         var results = new List<LevelRef>();
-        var seen = new HashSet<LevelRef>();
         foreach (var containment in RawSchema.Containments(parent.LevelId))
         {
             var children = await _reader.ChildrenOfAsync(parent, containment, ct).ConfigureAwait(false);
             if (children is null) continue;
-            foreach (var child in children)
-            {
-                if (child.IsEmpty) continue;
-                if (seen.Add(child)) results.Add(child);
-            }
+            results.AddRange(children);
         }
-        return results;
+        return LevelRefSet.Normalize(results);
     }
 
     /// <summary>取父节点（指向该子层的全部父侧包含声明逐一尝试；无父 / 未装配返回 null）。</summary>

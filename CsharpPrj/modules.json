@@ -140,6 +140,7 @@
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
     "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
+    "Share.ContextGeometry": "Share\\Frameworks\\ContextGeometry\\Share.ContextGeometry.csproj",
 
     "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
     "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",

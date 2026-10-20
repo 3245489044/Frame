@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 运行态来源端口 —— 运行态的**一类事实来源**（在途登记 / 持久快照 / 派生聚合…），

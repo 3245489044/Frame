@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Modules.DeclarativeDataflow.Model;
 
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 运行态的层结论载荷投影（**唯一投影点**）—— 把 <see cref="LevelRunState"/> 展平为
@@ -73,7 +74,7 @@ public static class RunStatePayload
     }
 
     /// <summary>从载荷读回运行态（缺 stage/available=false → null；供消费方 / 断言使用）。</summary>
-    public static LevelRunState? Read(IReadOnlyDictionary<string, object?>? payload, Modules.DeclarativeDataflow.Model.LevelRef reference)
+    public static LevelRunState? Read(IReadOnlyDictionary<string, object?>? payload, LevelRef reference)
     {
         if (payload is null || !payload.TryGetValue(AvailableKey, out var available) || available is not true) return null;
         var stage = payload.TryGetValue(StageKey, out var s) ? s as string : null;

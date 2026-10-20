@@ -135,26 +135,8 @@ public static class HierarchySchemas
 
     /// <summary>
     /// 配置优先装载：<paramref name="json"/> 为空 → 内置三层默认（无诊断）；非空但非法 → 回退内置默认并给出诊断。
-    /// <para>回退而非抛出，保证配置问题不阻断确定性路径（对齐「未装配返回诊断」模式）。</para>
+    /// <para>策略本体在内核 <see cref="HierarchySchemaJson.LoadOrDefault"/>；本方法只固定领域默认值。</para>
     /// </summary>
     public static HierarchySchema LoadOrDefault(string? json, out string? diagnostic)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            diagnostic = null;
-            return HistoryTaskNode;
-        }
-
-        try
-        {
-            var schema = HierarchySchemaJson.Parse(json, validate: true);
-            diagnostic = null;
-            return schema;
-        }
-        catch (Exception ex)
-        {
-            diagnostic = ex.Message;
-            return HistoryTaskNode;
-        }
-    }
+        => HierarchySchemaJson.LoadOrDefault(json, HistoryTaskNode, out diagnostic);
 }

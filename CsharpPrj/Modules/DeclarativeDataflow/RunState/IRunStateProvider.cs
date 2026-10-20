@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 运行态读取门面（**消费方唯一入口**，SingleImplementation）—— 把"多来源（在途 / 快照 / 派生）合成一条

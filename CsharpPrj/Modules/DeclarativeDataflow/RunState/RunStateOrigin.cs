@@ -1,4 +1,4 @@
-namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+namespace Modules.DeclarativeDataflow.RunState;
 
 /// <summary>
 /// 运行态来源（**优先级即合并序**）—— 表达"这条运行态事实从哪来"，使"在途 / 已落库 / 派生聚合"三态

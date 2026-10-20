@@ -272,7 +272,26 @@
     #   Docs/analysis/2026/10/10.19/**，均在新单 allowSet 内。上一系列（框架重构后续未完成项）授权单内容保留不变。
     #   恢复 = 回填下一行 v42 的 Value（上方注释保留 框架重构后续未完成项 单原值）。
     # Manifest(v42) = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-框架重构-后续未完成项.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-信号声明式框架.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v44（2026-10-20）：单指针切换至「多智能体缓存几何 · 生效面缺口（F0–F7）」授权单。
+    #   切换理由 = 用户转入实施该施工单（framework-first：内核 → 适配 → 生效面）；本系列改动落在
+    #   Frame/CsharpPrj/Share/Frameworks/ContextGeometry（新内核）· Frame/CsharpPrj/{modules.json, Share/Share.csproj}
+    #   · Frame/CsharpPrj/Plate/HttpMethod（出站 usage 解析）· Projects/BuildFramework（烘焙清单）
+    #   · Projects/Plug/Agent/{src,Config}（适配/装配/契约）· Data/Agent/Config（声明镜像）
+    #   · Frame/PowerShellScript（门禁+基线）· Environment/CentralTest（内核单测）
+    #   · Docs/analysis/2026/10/10.20（授权单/施工单），均在新单 allowSet 内。
+    #   上一系列（信号声明式框架）授权单内容保留不变。
+    #   恢复 = 回填下方注释 v43 的 Value。
+    # Manifest(v43) = @{ Value = 'Docs\analysis\2026\10\10.19\2026-10-19-信号声明式框架.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v45（2026-10-20）：单指针切换至「多智能体缓存几何 · 剩余缺口（H0–H7，framework-first）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-20-多智能体缓存几何-剩余缺口-通用框架施工单.md》；本系列改动落在
+    #   Frame/CsharpPrj/Share/Frameworks/ContextGeometry（内核扩展）· Projects/Plug/Agent/src
+    #   （契约几何端口 / 适配器 / 主循环工具面 / 委托入口 / 遥测 / 投影）· Projects/Plug/Agent/Config 与
+    #   Data/Agent/Config（context-geometry.ushar 双写）· Environment/CentralTest（内核单测）·
+    #   Docs/analysis/2026/10/10.20（授权单/施工单），均在新单 allowSet 内。
+    #   F 系列在途改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v44 的 Value。
+    # Manifest(v44) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-生效面缺口.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余缺口-H.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

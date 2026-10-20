@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>上下文几何内核</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>领域无关的前缀几何内核：缓存带/段/快照/组合/内容寻址/命中核算/策略判据/经济性；零 IO、零时钟、零 ProjectReference（仅 BCL）。</ModuleRule_Description>
+    <ModuleRule_Keywords>缓存几何;前缀;快照;内容寻址;命中率;keepalive</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Modules.* / Operation.*" />
+    <ModuleRule_Rule Include="内核禁时钟/网络/存储：时间一律由参数传入（禁 DateTime.UtcNow / DateTimeOffset.UtcNow / HttpClient）" />
+    <ModuleRule_Rule Include="段序即语义：组合只做稳定排序（Band→声明序），禁按字典序归一" />
+    <ModuleRule_Rule Include="未知用量禁按 0 计：缺字段 = Observed=false（Unknown 与 0 严格区分）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.ContextGeometry</RootNamespace>
+    <AssemblyName>Share.ContextGeometry</AssemblyName>
+    <Description>上下文几何内核 — 缓存带/前缀段/快照/组合/内容寻址/命中核算/策略判据（纯逻辑）</Description>
+  </PropertyGroup>
+
+</Project>

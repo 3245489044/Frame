@@ -7,7 +7,7 @@ using Operation.HierarchyMethod.History.Runtime;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-using Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
+using Modules.DeclarativeDataflow.RunState;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow;
 

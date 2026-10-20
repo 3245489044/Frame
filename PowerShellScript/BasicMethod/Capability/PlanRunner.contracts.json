@@ -1,0 +1,32 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "run.plan",
+        "verb": "run",
+        "object": "plan",
+        "purpose": "按 steps[] 顺序执行已登记能力（一次调用完成全部编排步骤），返回逐步结果与产物清单",
+        "function": "Invoke-CapabilityPlan",
+        "path": "PowerShellScript\\BasicMethod\\Capability\\PlanRunner.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Steps", "type": "array", "required": true, "constraint": "步骤数组：{id,action,params}；action 必须已登记（未命中即 no_capability）" },
+        { "name": "Contracts", "type": "array", "required": false, "constraint": "由 Invoke-PsAction 注入（已扫描契约集）" },
+        { "name": "Mode", "type": "string", "required": false, "default": "write", "constraint": "readonly=拒绝写动作 | write=允许" },
+        { "name": "FailFast", "type": "switch", "required": false, "default": true, "constraint": "首错即停（默认 true，禁用隐式继续）" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "status": "string", "steps": "array", "artifacts": "array", "errors": "array" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

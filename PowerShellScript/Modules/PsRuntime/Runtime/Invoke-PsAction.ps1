@@ -28,6 +28,11 @@ function Invoke-PsAction {
     # Contracts 为 null 时 Resolve-PsCapability 返回 null，不抛异常
     $contract = Resolve-PsCapability -Contracts $Contracts -Action $normalized
     if ($contract) {
+        if ($null -eq $Params) { $Params = @{} }
+        # 组合动作需在同一 scope 读已扫描契约集（能力体不自行重扫，避免第二真源）
+        if ($normalized -in @('run.plan', 'list.capability') -and -not $Params.ContainsKey('Contracts')) {
+            $Params['Contracts'] = $Contracts
+        }
         # 2.CanHandler 门控 → 命中执行
         $gate = Test-PsCanHandle -Contract $contract -Arguments $Params
         if ($gate.CanHandle) {

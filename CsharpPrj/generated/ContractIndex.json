@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-20T12:47:40.4970254Z",
+  "builtAt": "2026-10-20T13:30:01.5190876Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -7606,14 +7606,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 247,
+      "total": 249,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 66,
         "Declaration": 36,
-        "Code": 10,
-        "Doc": 131,
+        "Code": 11,
+        "Doc": 132,
         "Other": 1
       },
       "hits": [
@@ -8866,23 +8866,30 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 41,
+          "line": 53,
           "role": "Declaration",
           "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 42,
+          "line": 54,
           "role": "Declaration",
           "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 44,
+          "line": 56,
           "role": "Declaration",
           "text": "skills = tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-20-SubAgent模块-重复冗余与错误逻辑分析.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "2. 同一工具调用 JSON 在单步壳与 `tool-call` 工具面得到相同解析结果与相同幂等判定；"
         },
         {
           "repo": "Projects",
@@ -9313,6 +9320,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
+          "line": 203,
+          "role": "Code",
+          "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
           "line": 18,
           "role": "Code",
@@ -9661,14 +9675,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3793,
+          "line": 4016,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3800,
+          "line": 4023,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -9961,13 +9975,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1396.0,
+    "hitCount": 1398.0,
     "byRole": {
       "Gate": 22,
       "Test": 299,
       "Declaration": 70,
-      "Code": 340,
-      "Doc": 590,
+      "Code": 341,
+      "Doc": 591,
       "Other": 75
     },
     "truncatedFacts": [
@@ -9980,7 +9994,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 409
+        "lines": 411
       },
       {
         "repo": "Main",

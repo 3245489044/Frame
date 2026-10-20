@@ -1,0 +1,30 @@
+{
+  "contracts": [
+    {
+      "identity": {
+        "action": "list.capability",
+        "verb": "list",
+        "object": "capability",
+        "purpose": "列出已扫描能力契约（action/purpose/params/sourceFile）——LLM 的唯一能力发现入口",
+        "function": "Get-CapabilityCatalog",
+        "path": "PowerShellScript\\BasicMethod\\Capability\\Catalog.psm1",
+        "version": "1.0"
+      },
+      "params": [
+        { "name": "Contracts", "type": "array", "required": false, "constraint": "由 Invoke-PsAction 注入（已扫描契约集）；外部调用可省略" },
+        { "name": "Filter", "type": "string", "required": false, "default": "", "constraint": "action 正则过滤；空=全量" }
+      ],
+      "output_schema": {
+        "status": "success|failure",
+        "message": "string",
+        "data": { "count": "int", "contracts": "array" },
+        "errors": "array"
+      },
+      "env_tags": {
+        "ps_version": "5.1+",
+        "os": "windows",
+        "modules": []
+      }
+    }
+  ]
+}

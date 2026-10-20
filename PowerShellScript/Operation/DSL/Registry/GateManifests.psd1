@@ -608,6 +608,14 @@
         Note   = '生成物漂移守卫 D1–D3：产物存在 / 哨兵在位（手改即失守）/ 复算等价（跑生成器到 temp 逐字比对）；登记表 = Baselines\_generated-artifacts.psd1（含 ContractIndex 与本仓既有 2 个生成物）；新增生成物不登记 = 无人看守产物'
     }
 
+    PsCapabilityFileOnly = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '能力库文件化守卫：BasicMethod\Capability 下 .psm1/.ps1 必须同名 .contracts.json / 能力体禁内联执行（Invoke-Expression/scriptblock::Create/iex）/ 契约 function 必须出现在实现文件 / action 须 verb.object / 正负对照'
+    }
+
     FrameworkActivation = @{
         Domain = 'Data'
         Args   = @{ Check = $true }

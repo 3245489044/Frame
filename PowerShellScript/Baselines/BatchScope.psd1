@@ -317,7 +317,25 @@
     #   并发在途（Data 数据根逻辑副本消除系列）按本单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v45 的 Value。
     # Manifest(v45) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余缺口-H.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余逻辑-K.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v48（2026-10-20）：单指针切换至「多智能体缓存几何 · 设计闭环剩余步骤（R0–R8）」授权单。
+    #   切换理由 = 用户转入实施该施工单（大步快改：R0–R8 代码一次落地）；本系列改动落在
+    #   Projects/Plug/Agent/src（内核/契约/子智能体/委托/适配/装配）· Projects/Plug/Agent/Config
+    #   · Frame/CsharpPrj/Share/Frameworks/ContextGeometry · Frame/PowerShellScript · Environment/CentralTest
+    #   · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。v47 实况：注释已写但指针未切换（Data 系列在途），
+    #   其改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v47/v46 的 Value。
+    # Manifest(v47) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-Data数据根逻辑副本消除.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # Manifest(v46) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余逻辑-K.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v49（2026-10-20）：单指针切换至「LLM 创建任务 → 子智能体路由（T0–T5）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md》；本系列改动落在
+    #   Frame/CsharpPrj/Operation/HierarchyMethod/Nodes/TaskGraph（路由端口/写图契约）· Projects/Plug/Agent/src
+    #   （Agent.Core 路由实现/适配器/执行器解析 · Agent.Modules.Response 决策载荷 · Agent.Launcher 组合根 ·
+    #   Agent.McpRegistryHost 工具面 · Agent.Ui 入队派生）· Projects/Plug/Agent/{Config,skills} ·
+    #   Environment/CentralTest（单测）· Docs/analysis/2026/10/10.20（授权单/方案），均在新单 allowSet 内。
+    #   R0–R8 已完成面与其它系列在途改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v48 的 Value。
+    # Manifest(v48) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-设计闭环-R.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-LLM创建任务与子智能体路由.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

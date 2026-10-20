@@ -31,13 +31,23 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
 
         private readonly ITaskGraphTaskStore? _taskPool;
         private readonly IResourceReferenceStore? _resources;
+        private readonly ITaskRouteResolver? _routeResolver;
+        private readonly IHierarchyReferenceManager? _hierarchy;
 
         /// <param name="taskPool">任务入队端口（可选；提供 task 入队/状态/删除，由 Agent.Core 适配）。</param>
         /// <param name="resources">资源/引用关系存储（可选；提供节点与引用边读写，LiteDB 关系投影）。</param>
-        public TaskGraphService(ITaskGraphTaskStore? taskPool = null, IResourceReferenceStore? resources = null)
+        /// <param name="routeResolver">路由解析端口（可选；标签/执行腿 → 执行腿，唯一实现 = Agent.Core.SubAgentRouteResolver）。</param>
+        /// <param name="hierarchy">层级引用管理端口（可选；history 归属唯一写原语 = AttachHistoryTaskAsync）。</param>
+        public TaskGraphService(
+            ITaskGraphTaskStore? taskPool = null,
+            IResourceReferenceStore? resources = null,
+            ITaskRouteResolver? routeResolver = null,
+            IHierarchyReferenceManager? hierarchy = null)
         {
             _taskPool = taskPool;
             _resources = resources;
+            _routeResolver = routeResolver;
+            _hierarchy = hierarchy;
         }
 
         /// <summary>入队任务并激活消费（写 ur_tasks 即激活 AI 循环）。任务端口未装配返回 -1 供调用方诊断。</summary>
@@ -63,6 +73,15 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             var diagnostics = new List<string>();
             var createdNodes = new List<string>();
 
+            // 0) 路由前置校验（未知标签/冲突声明 ⇒ 不写图、不入队，禁半成品）
+            var route = ResolveRoute(request, diagnostics);
+            if (!route.Ok)
+            {
+                diagnostics.Add(route.Code!);
+                diagnostics.Add("route_rejected");
+                return new TaskGraphResult(request.TaskKey, -1L, Array.Empty<string>(), Array.Empty<ReferenceEdge>(), diagnostics);
+            }
+
             // 1) 任务节点 + 关联节点（幂等：已存在跳过）
             var taskResourceType = NonBlank(request.ResourceType) ?? DefaultResourceType;
             await EnsureResourceAsync(new NodeSpec(taskResourceType, request.TaskKey, request.TaskKey), createdNodes, diagnostics, ct).ConfigureAwait(false);
@@ -75,19 +94,49 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             foreach (var edge in edges)
                 await EnsureReferenceAsync(edge, diagnostics, ct).ConfigureAwait(false);
 
-            // 3) 入队任务（激活消费）
+            // 3) history 归属（成员可见性）：唯一写原语 = IHierarchyReferenceManager.AttachHistoryTaskAsync
+            //    （不在此处手写 history_owns_task 边，守 Check-SingleWriter 的 INV-2 单写通道）。
+            var historyId = NonBlank(request.HistoryId);
+            if (historyId is not null)
+            {
+                if (_hierarchy is null)
+                {
+                    diagnostics.Add("history_linker_unattached");
+                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, edges, diagnostics);
+                }
+                try
+                {
+                    await _hierarchy.AttachHistoryTaskAsync(historyId, request.TaskKey, ct).ConfigureAwait(false);
+                    var historyNodeId = HierarchyResourceKeys.History(historyId);
+                    edges.Add(new ReferenceEdge(
+                        ReferenceTypes.History, historyNodeId,
+                        ReferenceTypes.Task, request.TaskKey,
+                        ReferenceTypes.HistoryOwnsTask));
+                    if (!createdNodes.Contains(historyNodeId)) createdNodes.Add(historyNodeId);
+                }
+                catch (Exception ex)
+                {
+                    diagnostics.Add($"history_attach_failed:{ex.Message}");
+                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, edges, diagnostics);
+                }
+            }
+
+            // 4) 入队任务（激活消费）
             long enqueued = -1;
             if (_taskPool is not null)
             {
                 var spec = new TaskGraphTaskSpec(
-                    request.TaskKey,
-                    request.UserInput,
-                    request.ThreadId,
-                    request.InputKey,
-                    request.Priority,
-                    request.MaxRetries,
-                    request.SchedulingMode ?? SchedulingMode.Hybrid,
-                    request.SchedulerRulesKey);
+                    TaskKey: request.TaskKey,
+                    UserInput: request.UserInput,
+                    ThreadId: request.ThreadId,
+                    InputKey: request.InputKey,
+                    Priority: request.Priority,
+                    MaxRetries: request.MaxRetries,
+                    SchedulingMode: request.SchedulingMode ?? SchedulingMode.Hybrid,
+                    SchedulerRulesKey: request.SchedulerRulesKey,
+                    SubAgentTag: NonBlank(request.SubAgentTag),
+                    ExecutorId: route.ExecutorId,
+                    HistoryId: historyId);
                 enqueued = await _taskPool.EnqueueAsync(spec, ct).ConfigureAwait(false);
             }
             else
@@ -173,6 +222,20 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
 
         // ---- 内部确定性助手 ----
 
+        /// <summary>路由解析（tag/executor 全空 ⇒ 旧行为；端口未装配 ⇒ 保留旧语义并留痕）。</summary>
+        private TaskRoute ResolveRoute(CreateTaskGraphRequest request, List<string> diagnostics)
+        {
+            var tag = NonBlank(request.SubAgentTag);
+            var executor = NonBlank(request.ExecutorId);
+            if (tag is null && executor is null) return TaskRoute.Allow(null);
+            if (_routeResolver is null)
+            {
+                diagnostics.Add("route_resolver_unattached");
+                return TaskRoute.Allow(executor);
+            }
+            return _routeResolver.Resolve(tag, executor);
+        }
+
         private async Task EnsureResourceAsync(NodeSpec node, List<string> created, List<string> diagnostics, CancellationToken ct)
         {
             if (_resources is null)
@@ -236,7 +299,10 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         string? ThreadId = null,
         string? InputKey = null,
         IReadOnlyList<NodeSpec>? RelatedNodes = null,
-        IReadOnlyList<ReferenceEdge>? Edges = null);
+        IReadOnlyList<ReferenceEdge>? Edges = null,
+        string? SubAgentTag = null,
+        string? ExecutorId = null,
+        string? HistoryId = null);
 
     /// <summary>一个资源节点（资源类型 + Id + 可选符号名）。</summary>
     public sealed record NodeSpec(string ResourceType, string Id, string? Name = null);

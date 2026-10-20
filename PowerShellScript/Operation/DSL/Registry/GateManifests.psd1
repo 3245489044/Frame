@@ -15,6 +15,14 @@
         Note   = '上下文几何内核边界（Share.ContextGeometry）：C1 领域零泄漏 / C2 零 ProjectReference / C3 禁时钟·网络·文件 IO / C4 段序纪律（禁按 Key 排序） / C5 三处登记齐备 / C6 正负对照'
     }
 
+    ContextGeometryPrefixPurity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '前缀纯度（R3）：前缀正文/规范字节/段禁含信封字段（MessageId/Timestamp/TraceId/CreatedAt）；正负对照防恒真'
+    }
+
     NodePromptBinding = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

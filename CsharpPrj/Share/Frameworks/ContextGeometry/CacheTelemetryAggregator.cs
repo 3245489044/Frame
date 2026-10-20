@@ -66,6 +66,50 @@ public static class CacheTelemetryAggregator
             result.Add(new CacheTelemetryDimension(key, Aggregate(groups[key])));
         return result;
     }
+
+    /// <summary>
+    /// 按四键组合聚合（R7：租户 / K 组 / 角色 / 委托批次）：未声明维不进标签、不进分母。
+    /// </summary>
+    public static IReadOnlyList<CacheTelemetryDimension> AggregateByKeys(
+        IEnumerable<CacheKeyedSample>? samples)
+    {
+        var groups = new Dictionary<string, List<CacheUsageSample>>(StringComparer.Ordinal);
+        foreach (var item in samples ?? Enumerable.Empty<CacheKeyedSample>())
+        {
+            var key = item.Label();
+            if (!groups.TryGetValue(key, out var list))
+            {
+                list = new List<CacheUsageSample>();
+                groups[key] = list;
+            }
+            list.Add(item.Sample);
+        }
+
+        var result = new List<CacheTelemetryDimension>(groups.Count);
+        foreach (var key in groups.Keys.OrderBy(k => k, StringComparer.Ordinal))
+            result.Add(new CacheTelemetryDimension(key, Aggregate(groups[key])));
+        return result;
+    }
+}
+
+/// <summary>四键样本（R7；键全部来自声明，禁从内容推断）。</summary>
+public readonly record struct CacheKeyedSample(
+    CacheUsageSample Sample,
+    string? Tenant = null,
+    string? KGroup = null,
+    string? Role = null,
+    string? DelegationBatch = null)
+{
+    /// <summary>组合标签（缺失维不出现；全空 ⇒ "unknown"）。</summary>
+    public string Label()
+    {
+        var parts = new List<string>(4);
+        if (!string.IsNullOrWhiteSpace(Tenant)) parts.Add("tenant=" + Tenant);
+        if (!string.IsNullOrWhiteSpace(KGroup)) parts.Add("kGroup=" + KGroup);
+        if (!string.IsNullOrWhiteSpace(Role)) parts.Add("role=" + Role);
+        if (!string.IsNullOrWhiteSpace(DelegationBatch)) parts.Add("batch=" + DelegationBatch);
+        return parts.Count == 0 ? "unknown" : string.Join("|", parts);
+    }
 }
 
 /// <summary>带维度的样本（K7；维度键由宿主声明，不从内容推断）。</summary>

@@ -15,4 +15,7 @@ public sealed record TaskGraphTaskSpec(
     int Priority = 0,
     int MaxRetries = 0,
     SchedulingMode? SchedulingMode = null,
-    string? SchedulerRulesKey = null);
+    string? SchedulerRulesKey = null,
+    string? SubAgentTag = null,
+    string? ExecutorId = null,
+    string? HistoryId = null);

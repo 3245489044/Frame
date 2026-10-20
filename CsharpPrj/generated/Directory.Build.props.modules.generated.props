@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-17 17:59:32
+  生成时间: 2026-10-20 11:40:33
 -->
 <Project>
 
@@ -117,6 +117,7 @@
     <Mod_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\</Mod_AiScheduling>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
+    <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\</Mod_Diagnostics>
     <Mod_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\</Mod_GraphFramework>
     <Mod_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\</Mod_LayoutAnalysis>
@@ -232,6 +233,7 @@
     <Proj_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\AiScheduling.csproj</Proj_AiScheduling>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
+    <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\Diagnostics.csproj</Proj_Diagnostics>
     <Proj_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\GraphFramework.csproj</Proj_GraphFramework>
     <Proj_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\LayoutAnalysis.csproj</Proj_LayoutAnalysis>

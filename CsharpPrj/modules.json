@@ -139,6 +139,8 @@
     "AiScheduling": "Share\\Frameworks\\AiScheduling\\AiScheduling.csproj",
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
+    "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
+
     "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
     "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",
     "LayoutAnalysis": "Share\\Frameworks\\LayoutAnalysis\\LayoutAnalysis.csproj",

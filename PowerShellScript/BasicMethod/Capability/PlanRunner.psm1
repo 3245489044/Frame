@@ -18,9 +18,20 @@ function ConvertTo-PsParamTable {
 }
 
 function Test-PsWriteAction {
-    param([string]$Action)
+    param([string]$Action, [AllowNull()][array]$Contracts)
     if ([string]::IsNullOrWhiteSpace($Action)) { return $false }
-    return ($Action -match '^(write|replace|store|delete)\.')
+
+    # DUP-06：写属性唯一判据 = 契约 identity.verb（与 C# VerbSemantics 同源）；未命中契约才回退前缀规则。
+    foreach ($c in @($Contracts)) {
+        if ($null -eq $c -or $null -eq $c.identity) { continue }
+        if ([string]$c.identity.action -ieq $Action) {
+            $verb = [string]$c.identity.verb
+            return ($verb -in @('write', 'replace', 'store', 'delete', 'patch'))
+        }
+    }
+
+    $prefix = ($Action -split '\.')[0]
+    return ($prefix -in @('write', 'replace', 'store', 'delete', 'patch'))
 }
 
 function Get-PsResultPath {
@@ -74,7 +85,7 @@ function Invoke-CapabilityPlan {
             continue
         }
 
-        if ($Mode -eq 'readonly' -and (Test-PsWriteAction $action)) {
+        if ($Mode -eq 'readonly' -and (Test-PsWriteAction $action $Contracts)) {
             $errors += "readonly 拒绝写动作: $action"
             $results.Add([PSCustomObject]@{ id = $id; action = $action; ok = $false; status = 'failure'; message = 'readonly_denied'; elapsedMs = 0 })
             if ($FailFast) { break }
@@ -117,11 +128,11 @@ function Invoke-CapabilityPlan {
         }
     }
 
-    $dataStatus = if ($timedOut) { 'partial' } elseif ($errors.Count -eq 0) { 'success' } else { 'failure' }
-    $status = if ($errors.Count -eq 0 -and -not $timedOut) { 'success' } else { 'failure' }
+    # ERR-03：顶层 status 三态 —— partial 是「部分完成」的一等值，不得压平为 failure。
+    $status = if ($timedOut) { 'partial' } elseif ($errors.Count -eq 0) { 'success' } else { 'failure' }
     $suffix = if ($timedOut) { ' timeout' } else { '' }
     return New-PsResult -Status $status -Message "plan steps=$($results.Count)/$($stepList.Count)$suffix" -Data @{
-        status    = $dataStatus
+        status    = $status
         steps     = @($results.ToArray())
         artifacts = @($artifacts)
         errors    = @($errors)

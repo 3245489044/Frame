@@ -356,7 +356,14 @@
     #   · Projects/Plug/Agent/{src,Config} · Environment/CentralTest · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
     #   上一系列（子智能体工作流派发）改动按新单 allowSet 覆盖，不误判为越界。
     #   恢复 = 回填下方注释 v51 的 Value。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-遗留收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # Manifest(v52) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-遗留收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v53（2026-10-20）：单指针切换至「子智能体工作流派发 · 调用链重复/冗余/错误收敛（X1–X4）」授权单。
+    #   切换理由 = 用户要求大步快改、一次改完盘点项（正确性/单源/结构/契约）；本系列改动落在
+    #   Projects/Plug/Agent/{src,Config} · Frame/PowerShellScript/{BasicMethod,Modules/PsRuntime,Baselines}
+    #   · Environment/CentralTest/AgentTest · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
+    #   上一系列在途改动（TaskAwaitAdapter 回写诚实性、两个未跟踪测试文件）按新单 preexisting 登记，不误判为越界。
+    #   恢复 = 回填下方注释 v52 的 Value。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

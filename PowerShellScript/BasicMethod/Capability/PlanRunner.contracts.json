@@ -18,7 +18,7 @@
         { "name": "TimeoutSeconds", "type": "int", "required": false, "default": 45, "constraint": "计划级软预算（0=不限，上限 600）；超预算返回 status=partial + 已完成 steps + remaining（宿主单次调用 60s 硬超时为兜底）" }
       ],
       "output_schema": {
-        "status": "success|failure",
+        "status": "success|partial|failure",
         "message": "string",
         "data": { "status": "success|partial|failure", "steps": "array", "artifacts": "array", "errors": "array", "usage": "object", "timedOut": "bool", "remaining": "array" },
         "errors": "array"

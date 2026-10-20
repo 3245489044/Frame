@@ -22,8 +22,9 @@ function Write-Line([object]$Payload) {
     [Console]::Out.Flush()
 }
 
-# 启动自检：契约数 > 0，否则显式失败（不静默“无能力”）。
+# 启动自检：契约数 > 0，否则显式失败（不静默“无能力”）。DUP-04：一次扫描，清单随 ready 回传（PS 为契约真源）。
 $contractCount = 0
+$allContracts = @()
 try {
     $scanRoot = if ($ProjectRoot) { $ProjectRoot } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path }
     $cfgPath = if ($ConfigRoot) { Join-Path $ConfigRoot 'ps1-runtime.json' } else { Join-Path $AgentRoot 'Config\ps1-runtime.json' }
@@ -32,17 +33,38 @@ try {
         $psRoot = if ([System.IO.Path]::IsPathRooted([string]$cfg.projectRoot)) { [string]$cfg.projectRoot }
                   else { Join-Path $scanRoot ([string]$cfg.projectRoot) }
         $dirs = @($cfg.contractDirs)
-        foreach ($d in $dirs) {
-            $abs = if ([System.IO.Path]::IsPathRooted($d)) { $d } else { Join-Path $psRoot $d }
-            if (Test-Path $abs) {
-                $scan = Register-PsContracts -ProjectRoot $psRoot -ContractDirs @($d)
-                if ($scan.status -eq 'success') { $contractCount += [int]$scan.data.count }
-            }
+        $scan = Register-PsContracts -ProjectRoot $psRoot -ContractDirs $dirs
+        if ($scan.status -eq 'success') {
+            $allContracts = @($scan.data.contracts)
+            $contractCount = [int]$scan.data.count
         }
     }
 } catch { }
 
-Write-Line ([ordered]@{ id = '0'; status = if ($contractCount -gt 0) { 'ready' } else { 'failure' }; contractCount = $contractCount })
+$contractList = @()
+foreach ($c in @($allContracts)) {
+    if ($null -eq $c -or $null -eq $c.identity) { continue }
+    $action = [string]$c.identity.action
+    if ([string]::IsNullOrWhiteSpace($action)) { continue }
+    $params = @()
+    foreach ($p in @($c.params)) {
+        if ($null -eq $p) { continue }
+        $params += [ordered]@{
+            name     = [string]$p.name
+            type     = [string]$p.type
+            required = [bool]$p.required
+        }
+    }
+    $contractList += [ordered]@{
+        action              = $action
+        purpose             = [string]$c.identity.purpose
+        verb                = [string]$c.identity.verb
+        requiresIdempotency = [bool]$c.requires_idempotency
+        params              = @($params)
+    }
+}
+
+Write-Line ([ordered]@{ id = '0'; status = if ($contractCount -gt 0) { 'ready' } else { 'failure' }; contractCount = $contractCount; contracts = @($contractList) })
 
 if ($contractCount -le 0) { exit 2 }
 

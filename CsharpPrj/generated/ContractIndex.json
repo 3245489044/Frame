@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-20T14:47:53.8412876Z",
+  "builtAt": "2026-10-20T15:33:22.6473003Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -9076,21 +9076,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 53,
+          "line": 54,
           "role": "Declaration",
           "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 54,
+          "line": 55,
           "role": "Declaration",
           "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 56,
+          "line": 57,
           "role": "Declaration",
           "text": "skills = tool-call"
         },
@@ -9531,7 +9531,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 203,
+          "line": 204,
           "role": "Code",
           "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
         },

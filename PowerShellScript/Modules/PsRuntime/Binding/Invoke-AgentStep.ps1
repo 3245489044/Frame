@@ -110,6 +110,18 @@ function Invoke-AgentStep {
             $Params["Storage"] = Resolve-StorageBridge -Cfg $cfg -Root $root -AgentRoot $agentRoot
         }
 
+        # ERR-11：run.plan 计划级软预算单源（ps1-runtime.json → timeouts.planSeconds）；显式参数优先。
+        if ($Action -match '^run\.plan$' -and -not $Params.ContainsKey('TimeoutSeconds')) {
+            $planSeconds = 45
+            if ($cfg.PSObject.Properties.Name -contains 'timeouts' -and $null -ne $cfg.timeouts) {
+                $t = $cfg.timeouts
+                if ($t.PSObject.Properties.Name -contains 'planSeconds' -and $null -ne $t.planSeconds) {
+                    $planSeconds = [int]$t.planSeconds
+                }
+            }
+            $Params['TimeoutSeconds'] = $planSeconds
+        }
+
         $result = Invoke-PsAction -Action $Action -Params $Params -Contracts $cs -ExtensionSpec $ExtensionSpec `
             -OutDir $outDir -RegistryPath $regPath -UsagePath $usagePath `
             -PromotionThreshold $cfg.usage.promotionThreshold -PromotionWindowDays $cfg.usage.promotionWindowDays

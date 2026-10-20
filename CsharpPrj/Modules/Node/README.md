@@ -57,7 +57,7 @@ Modules/Node/
 ```
 
 > **退役记录（2026-09-25）**：`RunState/`（`NodeRunState` + `RunStateStage` 枚举）已**退役删除** ——
-> 运行态受控词与转移表的唯一来源 = `Operation.HierarchyMethod\Hierarchy\Dataflow\RunState\RunStateStage`
+> 运行态受控词与转移表的唯一来源 = `Modules.DeclarativeDataflow\RunState\RunStateStage`
 > （位置层不引上层契约：本工程零 `Frame` 依赖，无法也不应持有第二套运行态模型）；
 > 消费方 `WorkFlowMethod\…\Session\NodeExecutionState.cs` 已同步摘除 `ToRunState` / `StageOverrides`。
 > 判据：`Check-AgentLayerBoundary.ps1 -Check`（INV-L3 定义点只降不升）。

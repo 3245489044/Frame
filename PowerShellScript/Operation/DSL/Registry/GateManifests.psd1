@@ -1028,5 +1028,13 @@
         Note   = '信号 Trace（T1–T4）：六相位闭集 / Signal 运行期日志键全登记 / 关键可见化键在册 / 六段 fn 描述符正对照'
     }
 
+    ContextGeometryConvergence = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '上下文几何聚拢点（K0.5/C1–C6）：白名单外零内层端口解析 / 裁剪单入口 / 命中口径单源 / Host 方法≤12 行≤400 / 正负对照'
+    }
+
 }
 

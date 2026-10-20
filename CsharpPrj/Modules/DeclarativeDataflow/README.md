@@ -16,6 +16,7 @@
 Modules/DeclarativeDataflow/
 ├── Model/                       层次元模型（层次外置的唯一外置点）
 │   ├── LevelRef.cs              任意层实体定位 + 运行时唯一键（环守卫用）
+│   ├── LevelRefSet.cs           LevelRef 集合归一化（保序去重 + 滤空，唯一实现）
 │   ├── LevelPath.cs             根→当前路径（深度 / 环判定）
 │   ├── HierarchyLevelSpec.cs    层声明 + 包含声明（含自环 = 不定深度）
 │   ├── HierarchySchema.cs       层次 schema（层集合 + 根）
@@ -23,6 +24,17 @@ Modules/DeclarativeDataflow/
 ├── Topology/                    层结构 + 实例关系（只读）
 │   ├── SchemaTopology.cs        纯 schema 拓扑（层序 / 父层 / 子层 / 边类型）
 │   ├── RelationalHierarchyTopology.cs  实例级 父/子/祖先/后代（经窄读端口）
+│   ├── DelegateHierarchyRelationReader.cs  宿主注入式读取器（父子事实由纯函数注入）
+│   └── CompositeHierarchyRelationReader.cs 读取器组合器（主源优先，空则回退备源）
+├── RunState/                    第二轴：运行态（与层次轴正交，零域依赖）
+│   ├── LevelRunState.cs         实体运行态记录 + 字段级优先级合并（唯一实现）
+│   ├── RunStateStage.cs         阶段受控词表（idle/started/running/paused/completed/failed/cancelled）
+│   ├── RunStateOrigin.cs        事实来源（Derived < Snapshot < Live = 合并序）
+│   ├── ActorRef.cs              执行体引用 + 开放类别词表（agent/tool/engine）
+│   ├── IRunStateSource.cs       来源端口（只读取单实体事实）
+│   ├── IRunStateProvider.cs     合并门面端口（IsAttached / GetAsync / GetManyAsync）
+│   ├── MergeRunStateProvider.cs 合并门面默认实现（装配期排序、运行期只读）
+│   └── RunStatePayload.cs       LevelRunState ↔ 层结论载荷点分键的唯一投影点
 ├── Budget/
 │   └── ProcessBudget.cs         不定深度的强制执法：节点数 + 深度（信任反转）
 ├── Processing/                  多层处理
@@ -52,6 +64,9 @@ Modules/DeclarativeDataflow/
 | `ILevelProcessor` | "该层怎么处理"；框架本体不含实现（LLM/规则均为其实现） |
 | `ProcessBudget` | 不定深度的执法层：`MaxNodes` + `MaxDepth`，绝无无界展开 |
 | `LevelProcessResult` | 单节点结论；`Kind` 区分 处理/跳过/截断，`Error` 仅承载失败原因、`SkipReason` 仅承载跳过原因 |
+| `LevelRunState` | 运行态（第二轴，与层次正交）：实体定位 × 受控阶段 × 执行体；`Merge` 是字段级优先级合并唯一实现 |
+| `IRunStateProvider` | 运行态读取门面：多来源（Derived/Snapshot/Live）合并为一条权威事实；未装配 → `IsAttached=false` 且查询 null |
+| `RunStatePayload` | `LevelRunState` → `LevelProcessResult.Payload` 的 `runState.*` 点分键唯一投影点 |
 | `HierarchyProcessEngine` | 递归引擎：遍历 + 借出处理权 + 执法（三重护栏） |
 
 ## 三重护栏（不定深度必配）
@@ -129,6 +144,16 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 
 任何新层次消费方若需遍历，**必须**实现 `IHierarchyRelationReader` 接入本内核；**禁止**自建平行层次遍历。另两处形似抽象（`Operation.LoopFoldMethod.Reference.IHierarchyContainer<T>`、`Share.TreeTraceFramework`）已被裁决为"未接线端口 / 复活复用对象"，不得当作独立引擎（见文末"遍历/环守卫归属裁决表"）。
 
+## 运行态轴（第二轴 · 与层次正交）
+
+本内核除 containment 层次轴外，还承载**运行态轴**（`RunState/`）：回答"某层实体当下由谁执行、处于什么阶段、事实从哪来"。
+
+- **正交**：`LevelRef` 答"在哪一层哪个实体"，`RunStateStage` 答"处于什么阶段"，`ActorRef` 答"谁在执行"；三者互不替代。
+- **只读、零域依赖**：阶段/执行体均为受控文本，具体取值由注入来源提供；未装配来源 → `IsAttached=false` 且查询返回 null（不伪造状态）。
+- **合并单点**：多来源（`Derived < Snapshot < Live`）经 `MergeRunStateProvider` 字段级叠加；容器层"无执行体"是数据缺省而非层级规则。
+- **投影单点**：`RunStatePayload` 是 `LevelRunState` → `runState.*` 载荷键的唯一投影点，禁止各处手写字符串。
+- **边界**：跨程序集词表映射（如运行快照发布 stage）由依赖方桥接，内核不引用上层程序集。
+
 ## 接线方式（框架零依赖）
 
 | 端口 | 方向 | 未装配行为 |
@@ -143,6 +168,7 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 | 模块 | 回答的问题 |
 |------|-----------|
 | `Modules.DeclarativeDataflow`（本模块） | **层次**：有多少层、逐层怎么处理、子结论怎么向上收敛（LLM-free） |
+| `Modules.DeclarativeDataflow/RunState`（本模块第二轴） | **运行态**：某层实体当下由谁执行、处于何阶段、事实从哪来（与层次正交，非 containment） |
 | `Operation.LoopFoldMethod/Fold` | **时间**：单个状态点如何逐步推进（线性折叠） |
 | `Operation.LoopFoldMethod/Reference` | **空间**：实体之间的引用关系 |
 | `Operation.HierarchyMethod` | **容器语义**：数据/关系/历史存哪、怎么归（本框架的一个消费方） |
@@ -154,6 +180,8 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 |--------|----------|----------|
 | `Operation.HierarchyMethod`（`Hierarchy/Dataflow`） | 全部四项（schema / 拓扑 / 引擎 / 护栏） | `HierarchySchemas` 声明层次（支持 JSON 外置）、`ReferenceHierarchyRelationReader` 对接引用图、三个 `ILevelProcessor` 按层投影；经 `HierarchyProcessFacade` 组合，由 `IHierarchyManager` 门面暴露 |
 | `Modules.Tests/DeclarativeDataflow.Tests` | 全部四项 | 直接以 `FakeHierarchyRelationReader` + 记录型处理器做零 IO 验证 |
+| `Operation.HierarchyMethod`（运行态接线） | 运行态轴（模型 / 合并门面 / 载荷投影） | 层处理器经 `IRunStateProvider` 合并来源并写 `runState.*`；跨程序集阶段映射经域侧 `RunStateStageBridge` |
+| `Agent`（循环 / 会话投影 / UI） | 运行态轴（`LevelRunState` / `ActorRef` / `IRunStateProvider`） | 直接以中性运行态字段驱动徽章与列表投影，不另造状态模型 |
 
 ## 边界（不得越界）
 
@@ -161,7 +189,8 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 |------|------|
 | ❌ 替换控制流 / 顺序执行编排（如 `NodeGraphOrchestrator`、`RoundSpec.Steps`） | 那是**执行序**（控制流），不是**包含层次**（part-of） |
 | ❌ 合并时间折叠预算（`LoopFoldMethod.Fold.FoldBudget`）与层次展开预算（`ProcessBudget`） | 二者语义正交（时间 vs 空间），只统一"护栏模式"不统一"预算语义" |
-| ❌ 承接一般图算法（最短路径 / 任意边路径枚举，见 `Modules.GraphProcessing`） | 本内核只表达 containment，保持零依赖与单一职责 |
+| ❌ 承接一般图算法（最短路径 / 任意边路径枚举，见 `Modules.GraphProcessing`） | 本内核的**层次轴**只表达 containment；运行态轴与层次正交（但仍零依赖只读），二者均不得承接一般图算法 |
+| ❌ 在核内引用运行快照发布词表（`Share.HierarchySupport.RuntimeStage` 等） | 会破坏零项目引用；跨程序集阶段映射归依赖方桥接（如 `RunStateStageBridge`，非兼容 shim） |
 | ❌ 承接写边 / 持久化 | TH-12：写边唯一 owner = `DataStoreDriven.ReferenceGraphCoordinator` |
 
 ## 遍历 / 环守卫归属裁决表（R2 决策记录）

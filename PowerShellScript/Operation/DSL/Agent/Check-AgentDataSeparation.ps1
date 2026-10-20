@@ -18,7 +18,8 @@
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [switch]$Check
+    [switch]$Check,
+    [switch]$AllowDataRootLogic
 )
 
 $ErrorActionPreference = 'Stop'
@@ -158,6 +159,70 @@ foreach ($file in $files) {
 foreach ($e in $entries) { if ($e.status -eq 'pending') { $pendingEntries.Add($e) } }
 
 
+# ── [D6] 逻辑面不落数据根（框架层判据：声明单源 / 解析单实现 / 数据根零逻辑树 / 开发面隔离） ──
+$d6Violations = [System.Collections.Generic.List[string]]::new()
+$dataRoot = if (-not [string]::IsNullOrWhiteSpace($env:WF_DATA_ROOT)) { $env:WF_DATA_ROOT } else { Join-Path $Root 'Data' }
+
+# D6a 解析单实现：数据根逻辑目录只允许经层适配器（ConfigPathCandidates/AgentDataRootLayout）访问
+$d6aAllowedFiles = @('AgentDataRootLayout.cs', 'ConfigPathCandidates.cs', 'ConfigSourceResolver.cs', 'AgentAssetDeclaration.cs')
+foreach ($file in $files) {
+    if ($d6aAllowedFiles -contains $file.Name) { continue }
+    $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
+    $lines = Get-Content $file.FullName -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match 'AgentDataRootLayout\.(ConfigDir|SkillsDir)') {
+            $d6Violations.Add(("[D6a] 数据根逻辑目录被旁路访问: {0}:{1}" -f $rel, ($i + 1)))
+        }
+    }
+}
+
+# D6b 数据根零逻辑树（迁移完成后硬判据；迁移期可用 -AllowDataRootLogic 显式降级）
+foreach ($logic in @('Config', 'skills')) {
+    $logicPath = Join-Path $dataRoot (Join-Path 'Agent' $logic)
+    if ((Test-Path -LiteralPath $logicPath) -and -not $AllowDataRootLogic) {
+        $d6Violations.Add(("[D6b] 数据根承载逻辑树（真源应为源码仓/发布资产）: {0}" -f $logicPath))
+    }
+}
+
+# D6c 资产声明一致：plugin.json assets 每项在源码树存在，且覆盖 Config / skills
+$manifestPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\plugin.json'
+$declaredAssets = @()
+if (Test-Path -LiteralPath $manifestPath) {
+    try {
+        $manifestJson = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $declaredAssets = @($manifestJson.assets)
+    } catch {
+        $d6Violations.Add("[D6c] plugin.json 无法解析（资产声明不可判）: $manifestPath")
+    }
+    if ($declaredAssets.Count -eq 0) {
+        $d6Violations.Add("[D6c] plugin.json 未声明 assets（发布态无资产可读）")
+    }
+    foreach ($asset in $declaredAssets) {
+        $name = Split-Path -Leaf ([string]$asset).TrimEnd('/', '\')
+        if ([string]::IsNullOrWhiteSpace($name)) { continue }
+        $sourceDir = Join-Path $Root (Join-Path 'Projects\Plug\Agent' $name)
+        if (-not (Test-Path -LiteralPath $sourceDir)) {
+            $d6Violations.Add(("[D6c] 声明资产在源码树缺失: {0}（{1}）" -f $asset, $sourceDir))
+        }
+    }
+    foreach ($required in @('Config', 'skills')) {
+        $hit = @($declaredAssets | Where-Object { (Split-Path -Leaf ([string]$_).TrimEnd('/', '\')) -eq $required })
+        if ($hit.Count -eq 0) { $d6Violations.Add(("[D6c] plugin.json assets 缺逻辑资产声明: {0}" -f $required)) }
+    }
+} else {
+    $d6Violations.Add("[D6c] 未找到插件清单: $manifestPath")
+}
+
+# D6d 开发面隔离：BuildOutput 不得携带 assets（否则开发态读陈旧资产、遮蔽源码仓真源）
+$buildOutput = Join-Path $Root 'Projects\Plug\Agent\BuildOutput'
+if (Test-Path -LiteralPath $buildOutput) {
+    $shadow = @(Get-ChildItem -LiteralPath $buildOutput -Directory -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq 'assets' })
+    foreach ($s in $shadow) {
+        $d6Violations.Add(("[D6d] 开发产物面携带 assets（会遮蔽源码仓真源）: {0}" -f $s.FullName))
+    }
+}
+
 # ── 报告 ──
 Write-Host '=== [DataSeparation] Agent 数据与代码分离聚合门禁（D1–D5） ==='
 Write-Host ("根目录: {0} | 台账: {1} 条 | 疑似数据持有: {2}" -f $Root, $entries.Count, $holders.Count)
@@ -193,6 +258,14 @@ if ($unowned.Count -gt 0) {
     $unowned | ForEach-Object { Write-Host ("  [无主] {0}:{1} [{2}]" -f $_.File, $_.Line, $_.Kind) }
     $fail.Add("D5 无主数据 $($unowned.Count) 处（须在 data-ownership.json 登记归属）")
 }
+# D6
+Write-Host '--- [D6] 逻辑面不落数据根（声明单源 / 解析单实现 / 数据根零逻辑树 / 开发面隔离） ---'
+Write-Host ("数据根: {0} | 声明资产: {1} | 违规: {2}" -f $dataRoot, ($declaredAssets -join ', '), $d6Violations.Count)
+if ($d6Violations.Count -gt 0) {
+    $d6Violations | ForEach-Object { Write-Host ("  {0}" -f $_) }
+    $fail.Add("D6 逻辑面违规 $($d6Violations.Count) 处（数据根不得承载逻辑；发布资产须与 plugin.json 声明一致）")
+}
+
 if ($Check) {
     Write-Host ''
     Write-Host '--- 台账待迁移条目（status=pending；随批次收敛） ---'

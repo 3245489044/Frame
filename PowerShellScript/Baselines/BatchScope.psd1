@@ -291,7 +291,33 @@
     #   F 系列在途改动按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v44 的 Value。
     # Manifest(v44) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-生效面缺口.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余缺口-H.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v46（2026-10-20）：单指针切换至「多智能体缓存几何 · 剩余逻辑收敛（K0/K0.5/K1–K7）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-20-多智能体缓存几何-剩余逻辑-收敛施工单.md》；全序列一次登记、active 逐批推进。
+    #   本系列改动落在 Frame/CsharpPrj/Share/Frameworks/ContextGeometry（内核扩展）·
+    #   Projects/Plug/Agent/src（Host 聚拢点 / 契约端口 / 委托投递 / 子智能体前缀 / 遥测 / 投影）·
+    #   Projects/Plug/Agent/{Config,PowerShellScript} · Data/Agent/Config（声明双写）·
+    #   Frame/PowerShellScript（边界/聚拢点门禁 + 基线）· Environment/CentralTest（用例），均在新单 allowSet 内。
+    #   H0–H7 已完成面与其它系列在途改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v45 的 Value。
+    # Manifest(v45) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余缺口-H.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v47（2026-10-20）：单指针切换至「Data 数据根逻辑副本消除（D1/D2/D3/D5）」授权单。
+    #   切换理由 = 用户转入实施《2026-10-20-Data数据根不应承载逻辑副本-设计与消除方案.md》；本系列改动落在
+    #   Projects/Plug/Agent/src/Agent.Axioms/Infrastructure（候选链/解析器）· Agent.Ui/.../Configuration（回写落点）·
+    #   Projects/BuildFramework/DataRoot（停播种）· Agent.Core/Diagnostics（可见化键）· Environment/CentralTest（单测）·
+    #   Frame/PowerShellScript/Baselines（本指针）· Docs/**，均在新单 allowSet 内。
+    #   K 系列与 HierarchyMethod 系列在途改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v46 的 Value。
+    # Manifest(v46) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余逻辑-K.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v46（2026-10-20）：单指针切换至「多智能体缓存几何 · 剩余逻辑收敛（K0/K0.5/K1–K7）」授权单。
+    #   切换理由 = 用户转入实施该施工单；全序列一次登记、一次性施工。
+    #   本系列改动落在 Frame/CsharpPrj/Share/Frameworks/ContextGeometry（内核扩展）·
+    #   Projects/Plug/Agent/src（Host 聚拢点 / 契约端口 / 委托投递 / 子智能体前缀 / 遥测 / 投影）·
+    #   Projects/Plug/Agent/{Config,PowerShellScript} · Data/Agent/Config（声明双写）·
+    #   Frame/PowerShellScript（边界/聚拢点门禁 + 基线）· Environment/CentralTest（用例）。
+    #   并发在途（Data 数据根逻辑副本消除系列）按本单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v45 的 Value。
+    # Manifest(v45) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余缺口-H.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-多智能体缓存几何-剩余逻辑-K.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

@@ -10,7 +10,7 @@ namespace Modules.DeclarativeDataflow.Topology;
 /// 层次关系读取器**组合器**（主源优先，空则回退备源）—— 把"多来源读取策略"从各适配器收敛为单一实现。
 /// <para>
 /// 唯一合并规则：<see cref="ChildrenOfAsync"/> 主源归一化后非空即返回，否则问备源；
-/// 两个 <see cref="ParentOfAsync"/> 重载同规则（主源无父则问备源，父层 Id 原样透传以保留消歧）。
+/// 两个 <c>ParentOfAsync</c> 重载同规则（主源无父则问备源，父层 Id 原样透传以保留消歧）。
 /// </para>
 /// <para>
 /// 边界：本类只是**读取器组合**，不新增遍历 / 图算法，不写边；两个操作数均须是既有

@@ -44,4 +44,32 @@ public static class CacheTelemetryAggregator
         var ratio = CacheEconomics.HitRatio(list);
         return new CacheTelemetry(list.Length, observed, unknown, read, prompt, ratio);
     }
+
+    /// <summary>按维度聚合（K7：K 组 / 角色 / 租户；维度 = 声明键，禁从内容猜）。</summary>
+    public static IReadOnlyList<CacheTelemetryDimension> AggregateByDimension(
+        IEnumerable<CacheDimensionSample>? samples)
+    {
+        var groups = new Dictionary<string, List<CacheUsageSample>>(StringComparer.Ordinal);
+        foreach (var item in samples ?? Enumerable.Empty<CacheDimensionSample>())
+        {
+            var key = string.IsNullOrWhiteSpace(item.Dimension) ? "unknown" : item.Dimension!;
+            if (!groups.TryGetValue(key, out var list))
+            {
+                list = new List<CacheUsageSample>();
+                groups[key] = list;
+            }
+            list.Add(item.Sample);
+        }
+
+        var result = new List<CacheTelemetryDimension>(groups.Count);
+        foreach (var key in groups.Keys.OrderBy(k => k, StringComparer.Ordinal))
+            result.Add(new CacheTelemetryDimension(key, Aggregate(groups[key])));
+        return result;
+    }
 }
+
+/// <summary>带维度的样本（K7；维度键由宿主声明，不从内容推断）。</summary>
+public readonly record struct CacheDimensionSample(CacheUsageSample Sample, string Dimension);
+
+/// <summary>单维度聚合视图。</summary>
+public sealed record CacheTelemetryDimension(string Dimension, CacheTelemetry Telemetry);

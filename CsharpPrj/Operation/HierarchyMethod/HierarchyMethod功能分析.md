@@ -190,8 +190,9 @@
 |------|------|
 | `HierarchySchemas` | 层次 schema 唯一声明点：标准三层（history → task → node）与任务自递归 `TaskTree(CrossDbReferenceTypes.TaskOwnsTask)`（不定深度 sub-task）；包含边类型直接引用 `CrossDbReferenceTypes` 常量。**层次外置**：同一 schema 提供 JSON 形态（`HistoryTaskNodeJson` / `TaskTreeJson` / `SerializeDefault`）与配置装载（`FromJson` / `LoadOrDefault`，非法配置回退内置默认并给诊断），改层次 = 改数据 |
 | `HierarchyLevelRefs` | 三层实体 ↔ `LevelRef` 的唯一转换点（作用域承载 node 层的 workflowId 命名空间，与 ur_nodes 寻址同源） |
-| `ReferenceHierarchyRelationReader` | `IHierarchyRelationReader` 适配器：正向读取**领域端口优先**（`history_owns_task` → `GetHistoryTaskKeysAsync`、`cross_db_link` → `GetTaskNodeKeysAsync`），未覆盖 / 为空时**回退引用图出边**并按包含声明的子层投影端点（故任意已声明包含边、含自递归 `task_owns_task` 同构可跑）；反向（子 → 父）经引用图入边实现；全部**只读**、未装配即返回空集 / null |
+| `ReferenceHierarchyRelationReader` | `IHierarchyRelationReader` 适配器：由内核 `CompositeHierarchyRelationReader` 组合「领域端口读取器」（`history_owns_task` → `GetHistoryTaskKeysAsync`、`cross_db_link` → `GetTaskNodeKeysAsync`）与「引用图读取器」（出边读子 / 入边读父，按包含声明的子层投影端点），故任意已声明包含边（含自递归 `task_owns_task`）同构可跑；全部**只读**、未装配即返回空集 / null |
 | `LevelProcessors/` | 层处理器（`ILevelProcessor`）：`HistoryOverviewLevelProcessor`（历史运行态概览）/ `TaskStatusLevelProcessor`（任务状态投影）/ `NodeOutputLevelProcessor`（节点输出端口投影），全部只读投影既有端口、零 LLM |
+| `RunState/`（域侧仅 3 项） | `GovernanceRoundRegistry`（轮次租约/治理判据）/ `HistoryPortRunStateSource`（端口 DTO → 通用运行态的唯一映射）/ `RunStateStageBridge`（内核阶段词表 ↔ 运行快照 stage 的跨程序集桥）。通用模型 `LevelRunState` / 合并门面 / 载荷投影已下沉 `Modules.DeclarativeDataflow.RunState` |
 | `HierarchyProcessFacade` | 组合根（LLM-free）：装配 schema + 读适配器 + 三层处理器为一台引擎，暴露 `ProcessHistoryAsync` / `ProcessTaskAsync` / `ProcessAsync`，以及层次查询 `AncestorsAsync`（node → task → history，需 `referenceStore`）/ `DescendantsAsync`（按 schema 展开、按实体去重） |
 
 **边界与语义**：
@@ -264,8 +265,13 @@ HierarchyMethod/
 │   └── Dataflow/                          层次处理（复用 Modules.DeclarativeDataflow 引擎）
 │       ├── HierarchySchemas.cs            层次 schema 外置唯一声明点（三层 / 任务自递归）
 │       ├── HierarchyLevelRefs.cs          三层实体 ↔ LevelRef 唯一转换点
-│       ├── ReferenceHierarchyRelationReader.cs  引用图 → 父/子事实的只读适配器
+│       ├── ReferenceHierarchyRelationReader.cs  引用图/领域端口的组合适配器（公开面）
+│       ├── Readers/                       组合子读取器（领域端口 / 引用图 / 端点投影）
 │       ├── HierarchyProcessFacade.cs      组合根（schema + 读适配器 + 处理器 → 引擎）
+│       ├── RunState/                      域侧运行态接线（General 模型已下沉内核）
+│       │   ├── GovernanceRoundRegistry.cs 轮次租约 / 治理判据
+│       │   ├── HistoryPortRunStateSource.cs 端口 DTO → LevelRunState 唯一映射
+│       │   └── RunStateStageBridge.cs     内核阶段词表 ↔ 运行快照 stage 跨程序集桥
 │       └── LevelProcessors/               history / task / node 层处理器（只读投影，零 LLM）
 └── Rules/
     └── RuleEngine.cs                   确定性规则评估引擎
@@ -285,6 +291,7 @@ HierarchyMethod/
 | `Operation/WorkFlowMethod` | 工作流上下文/循环框架（WorkflowContext / LoopFramework 领域内核类型） |
 | `Modules/Parsing` | 通用 JSON 条件判定内核（JsonRuleEngine）：Rules 规则评估引擎委托 |
 | `Modules/DeclarativeDataflow` | 声明式多层处理框架（层次外置 schema + 递归引擎 + 三重护栏）：`Hierarchy/Dataflow` 的层遍历 / 终止 / 子结论收敛复用，不硬编码层遍历；框架零项目引用 → 单向无环 |
+| `Modules/DeclarativeDataflow/RunState` | 运行态轴（通用模型 / 多来源合并门面 / `runState.*` 载荷投影）：本模块只留来源适配（`HistoryPortRunStateSource`）、治理登记面（`GovernanceRoundRegistry`）与阶段桥（`RunStateStageBridge`） |
 | `Share/Frameworks/CircuitFramework` | 声明式电路框架（`Hierarchy/Dataflow` 的对偶——「谁调谁」进电路）：`Nodes/Circuit` 把轮骨架 `RoundSpec` 投影为电路配方（`RoundFlowSpecMapper`）、内容指纹缓存（`RoundFlowCircuitRegistry`）、步骤语义封入 `ICircuitNode`（`RoundStepCircuitNode`）；`RoundSpec` 中立原语（DependsOn/Branch/Switch/Call/Region/When/Guard）的唯一消费面，编译经唯一入口 `CircuitCompiler.TryCompile`、执行经 `CircuitEngine` 拓扑驱动 |
 | `DataStoreDriven.HierarchyResourceKeys` | 三层层级引用图端点 Id 约定的唯一权威（构造 + 还原）：`ReferenceGrounding` 与 `Hierarchy/Dataflow` 适配器共用，消除前缀字符串分叉 |
 | `DataStoreDriven.CrossDbReferenceTypes.TaskOwnsTask` | 不定深度任务树的归属边常量（`task_owns_task`）：`ReferenceGrounding.LinkSubTaskAsync` / `GetSubTaskKeysAsync` 读写，`HierarchySchemas.TaskTree` 声明为包含边 |

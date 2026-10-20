@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Share.HierarchySupport;
 
 namespace Operation.HierarchyMethod.Nodes.TaskGraph;
@@ -18,4 +19,6 @@ public sealed record TaskGraphTaskSpec(
     string? SchedulerRulesKey = null,
     string? SubAgentTag = null,
     string? ExecutorId = null,
-    string? HistoryId = null);
+    string? HistoryId = null,
+    IReadOnlyList<string>? RelatedNodes = null,
+    bool? Active = null);

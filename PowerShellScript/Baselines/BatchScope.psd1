@@ -342,7 +342,7 @@
     #   上一系列（LLM 创建任务/子智能体路由）在途改动按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v49 的 Value。
     # Manifest(v49) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-LLM创建任务与子智能体路由.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-通用框架提取-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体单步调用通用框架.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

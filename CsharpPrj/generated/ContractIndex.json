@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-19T12:39:53.5289134Z",
+  "builtAt": "2026-10-20T12:47:40.4970254Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -3646,7 +3646,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/Context/ContextOpsFunctions.cs",
-          "line": 57,
+          "line": 58,
           "role": "Code",
           "text": "// 跳过非过程（ur_nodes）产出分支 —— 过程流作为工具唯一来源；ur_nodes 键（wf.*）与过程键（proc.*）"
         },
@@ -3734,13 +3734,13 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 145,
+      "total": 148,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
-        "Code": 74,
+        "Code": 77,
         "Doc": 54,
         "Other": 1
       },
@@ -4574,14 +4574,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
-          "line": 36,
+          "line": 39,
           "role": "Code",
           "text": "var keys = await _relations.GetTaskKeysAsync(history.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
-          "line": 45,
+          "line": 48,
           "role": "Code",
           "text": "var keys = await _relations.GetHistoryKeysAsync(task.Value, ct).ConfigureAwait(false);"
         },
@@ -4594,6 +4594,27 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Response/Collaboration/Kernel/CollaborationObserver.cs",
+          "line": 22,
+          "role": "Code",
+          "text": "if (correlations is null || correlations.Count == 0)"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Response/Collaboration/Kernel/CollaborationObserver.cs",
+          "line": 27,
+          "role": "Code",
+          "text": "var list = new List<AgentObservation>(Math.Min(correlations.Count, limit));"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Assembly/Dispatch/ForwardIntentRegistry.cs",
+          "line": 47,
+          "role": "Code",
+          "text": "[\"relations\"] = (\"M4\", \"relations.list 读面收口批\"),"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
           "line": 234,
           "role": "Code",
@@ -4602,7 +4623,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 525,
+          "line": 546,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
@@ -7585,17 +7606,31 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 199,
+      "total": 247,
       "truncated": false,
       "byRole": {
-        "Gate": 2,
-        "Test": 51,
-        "Declaration": 33,
-        "Code": 14,
-        "Doc": 98,
+        "Gate": 3,
+        "Test": 66,
+        "Declaration": 36,
+        "Code": 10,
+        "Doc": 131,
         "Other": 1
       },
       "hits": [
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentDefaultDispatch.ps1",
+          "line": 23,
+          "role": "Gate",
+          "text": "@{ Tag = 'tool-call'; Kind = 'tool-invoke' },"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentDefaultDispatch.ps1",
+          "line": 76,
+          "role": "Gate",
+          "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
+        },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Share/Index/Build-ContractIndex.ps1",
@@ -7626,6 +7661,41 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
+          "line": 354,
+          "role": "Doc",
+          "text": "- `intent=tool_call` 保持 `tool-call`（单工具结构化调用）；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
+          "line": 366,
+          "role": "Doc",
+          "text": "| 单工具调用（有 `tool.name + arguments`） | `tool-call` | `subagent-tool-call` | model + `tool_call_invoke` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
+          "line": 594,
+          "role": "Doc",
+          "text": "1. `HistorySubmissionClassifier`：新增 `intent=file/filesystem/tool_exec` → tag `powershell` / executor `subagent-ps` / mode `dispatch`；保留 `tool_call → tool-call`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
+          "line": 655,
+          "role": "Doc",
+          "text": "| **D7** | 默认工具子智能体 | **`intent=file` 显式 → `powershell`**；`tool_call` 保持 → `tool-call`；`default_*` 值改用 `[Ref] edge=defaults`（`[Space] kind=keys` 无值语法） | 直接写 `default_tool_sub_agent = powershell` 不可解析（"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
+          "line": 755,
+          "role": "Doc",
+          "text": "- **D7**：`intent=file` → `powershell`；`tool_call` → `tool-call`；默认值用 `[Ref]` 表达。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.2/2026-10-02-读投影流缺陷-P0验证与遗留修复-实施步骤.md",
           "line": 80,
           "role": "Doc",
@@ -7637,6 +7707,181 @@
           "line": 134,
           "role": "Doc",
           "text": "| E5 | 决策链 + LocalLlm `r-cline-tool-call` | 使发出的 tool_call 携带工具声明（或规则改判据） | `ToolCallMissing(Error)` 归零 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 27,
+          "role": "Doc",
+          "text": "因此：**能建任务、能写节点/引用边、能激活消费；但“路由到 `subagent-tool-call`”这一步在契约层就丢失了。**"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 47,
+          "role": "Doc",
+          "text": "| F9 | 工具调用子智能体执行腿已装配，精确匹配 `subagent-tool-call` | `Agent.Launcher\\Composition\\Hosting\\DataStoreHosting.cs:194`；`ToolCallSubAgentTaskExecutor.cs:29-31` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 49,
+          "role": "Doc",
+          "text": "| F11 | 结构化提交路径可建 `tool-call` 任务（零 LLM） | `HistorySubmissionClassifier.cs:47-87`；`StateResponseFunction.cs:228-232/303-307` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 90,
+          "role": "Doc",
+          "text": "| **E1** | 结构化提交：signal 含 `submission_id` + `intent:\"tool_call\"` | ✅ **完整闭环、零 LLM**：`HistorySubmissionClassifier` → `SubAgentTag=tool-call` / `ExecutorId=subagent-tool-call` → `StateResponseFunction` "
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 91,
+          "role": "Doc",
+          "text": "| **E2** | L-D 决策选子智能体标签 | ✅ 可建任务：候选集 = `DispatchChoiceCatalog.ReadSubAgents()`（含 `tool-call`）；空集策略 `HistoryDispatchEmpty = CreateMember`；`decision.SubAgentTag` 经 `StateResponseFunction` 进入 provision "
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 105,
+          "role": "Doc",
+          "text": "4. 判据：L-D 选 `tool-call` + `PayloadJson={tool:{name,arguments}}` ⇒ 执行腿走**确定性直调**，不发 LLM 辅助。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 145,
+          "role": "Doc",
+          "text": "string? SubAgentTag = null,     // 声明键（subagents.ushar）；工具调用场景 = \"tool-call\""
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 237,
+          "role": "Doc",
+          "text": "### 6.6 工具意图契约（tool-call 子智能体）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 239,
+          "role": "Doc",
+          "text": "路由只解决“谁执行”，不解决“执行什么”。`subagent-tool-call` 有两级行为："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 244,
+          "role": "Doc",
+          "text": "| 自然语言 | LLM 辅助（tool-call skill 提示词） | 只给目标，由子智能体自行决定 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 247,
+          "role": "Doc",
+          "text": "- `create_node_reference` 的工具描述与 skill 正文明确：`SubAgentTag=\"tool-call\"` 时，`UserInput` 必须是上述结构化 JSON；自然语言仅用于“按目标探索”。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 248,
+          "role": "Doc",
+          "text": "- 若 `SubAgentTag=\"tool-call\"` 且 `UserInput` 非结构化：写图核心只记诊断 `subagent_tool_call_input_unstructured`（不拒绝，保留灵活路径），由执行腿决定是否 LLM 辅助。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 255,
+          "role": "Doc",
+          "text": "- 规则样例（`Config/rules/local-llm.rules.ushar`）新增一条 `USHARP_TOOLCALL_TASK`：演示 `SubAgentTag:\"tool-call\"` + 结构化 `UserInput`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 256,
+          "role": "Doc",
+          "text": "- `skills/internal/tool-call/SKILL.md` 补充“确定性直调 vs LLM 辅助”的输入契约。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 263,
+          "role": "Doc",
+          "text": "LLM tool_call(create_node_reference, {TaskKey, UserInput, SubAgentTag:\"tool-call\", HistoryId})"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 273,
+          "role": "Doc",
+          "text": "→ AgentTaskPool.Resolve：ByName(\"subagent-tool-call\") ⇒ ToolCallSubAgentTaskExecutor"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 299,
+          "role": "Doc",
+          "text": "| M1 | LLM 一次 `create_node_reference` 可产出\"可路由任务\"：`ur_tasks.SubAgentTag=tool-call` ∧ `ExecutorId=subagent-tool-call` | 单测直调 `GraphTaskTools.CreateAsync`（假 catalog）后读 `AgentTaskItem` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 324,
+          "role": "Doc",
+          "text": "| **E1** | 同一 signal 重复两次 ⇒ 任务幂等；`SubAgentTag=tool-call` ∧ `ExecutorId=subagent-tool-call`；结构化 `tool` 触发一次直调；任务出现在 `IHistoryTaskSource(historyId)` | `StructuredSubmissionRouteTests`（固定 JSON 输入） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 362,
+          "role": "Doc",
+          "text": "3. `Config\\skills\\internal\\tool-call\\SKILL.md`（输入契约说明）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 406,
+          "role": "Doc",
+          "text": "| 结构化提交（`submission_id`） | 已可建 tool-call 任务 | ✅ 不受影响（仍零 LLM） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 408,
+          "role": "Doc",
+          "text": "| LLM 决策选 tag（L-D） | 可建任务；输入是自然语言 ⇒ tool-call 执行腿走 LLM 辅助 | ⚠️ 仍非确定性直调；需编排把结构化 `tool` 载荷作为信号 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 437,
+          "role": "Doc",
+          "text": "| 声明 | `Config\\rules\\local-llm.rules.ushar` | 新增结构化 tool-call 样例 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 438,
+          "role": "Doc",
+          "text": "| 文档 | `skills\\internal\\tool-call\\SKILL.md` | 输入契约说明 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-设计补齐方案.md",
+          "line": 460,
+          "role": "Doc",
+          "text": "| **D-T5** | tool-call 输入 | 结构化直调 / 自然语言 LLM 辅助 | **两者都留**；结构化优先并诊断非结构化 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-LLM创建任务与子智能体路由-实施记录.md",
+          "line": 45,
+          "role": "Doc",
+          "text": "| E | skill 路径 `Config\\skills\\...` | `Projects\\Plug\\Agent\\skills\\internal\\tool-call\\SKILL.md` | 实际路径 |"
         },
         {
           "repo": "Main",
@@ -7878,6 +8123,62 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 17,
+          "role": "Test",
+          "text": "new SubAgentDefinition { Agent = \"tool-call\", Executor = \"subagent-tool-call\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 42,
+          "role": "Test",
+          "text": "var route = Resolver(catalog: null, useDefaultCatalog: false).Resolve(\"tool-call\", null);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 66,
+          "role": "Test",
+          "text": "var route = Resolver().Resolve(\"tool-call\", null);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 68,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent-tool-call\", route.ExecutorId);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 74,
+          "role": "Test",
+          "text": "var route = Resolver().Resolve(\"tool-call\", \"SUBAGENT-TOOL-CALL\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 76,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent-tool-call\", route.ExecutorId);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 82,
+          "role": "Test",
+          "text": "var route = Resolver().Resolve(\"tool-call\", \"llm-loop\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
+          "line": 84,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent_executor_conflict:tool-call\", route.Code);"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgenticWorkflowSupportTests.cs",
           "line": 54,
           "role": "Test",
@@ -7885,17 +8186,24 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgenticWorkflowSupportTests.cs",
-          "line": 55,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"subagent-tool-call\", tool.ExecutorId);"
-        },
-        {
-          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
           "line": 162,
           "role": "Test",
           "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryTransferRoutingTests.cs",
+          "line": 14,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryTransferRoutingTests.cs",
+          "line": 42,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", classified!.SubAgentTag);"
         },
         {
           "repo": "Main",
@@ -8221,6 +8529,48 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
+          "line": 21,
+          "role": "Test",
+          "text": "var service = new TaskGraphService(store, resources: null, new FixedResolver(TaskRoute.Allow(\"subagent-tool-call\")));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
+          "line": 25,
+          "role": "Test",
+          "text": "SubAgentTag: \"tool-call\")).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
+          "line": 29,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", spec.SubAgentTag);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
+          "line": 30,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent-tool-call\", spec.ExecutorId);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/ContextGeometry.Tests/PolicyTests.cs",
+          "line": 47,
+          "role": "Test",
+          "text": "Assert.IsTrue(DelegationPolicy.ShouldDelegate(\"tool-call\", 100, new[] { \"ps_run\" }));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/ContextGeometry.Tests/PolicyTests.cs",
+          "line": 48,
+          "role": "Test",
+          "text": "Assert.IsTrue(DelegationPolicy.ShouldDelegate(\"tool-call\", 100, null));"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/observability.json",
           "line": 22,
           "role": "Test",
@@ -8260,6 +8610,34 @@
           "line": 69,
           "role": "Declaration",
           "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox proc.cv_toolcall_node.r1.tool-call\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_subagent_route_test.json",
+          "line": 27,
+          "role": "Declaration",
+          "text": "{ \"template\": \"echo-section\", \"title\": \"[B] 带标签入队（action=task op=enqueue subAgentTag=tool-call；input = 结构化 tool 载荷 {\\\"tool\\\":{\\\"name\\\",\\\"arguments\\\"}}；active=true 写即激活）。即时指令 body 经总线投影（补 op/subAgentTa"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_subagent_route_test.json",
+          "line": 28,
+          "role": "Declaration",
+          "text": "{ \"action\": \"exec\", \"target\": \"AgentUi_RunJson\", \"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"ag_grp_tc\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"input\\\":\\\"{\\\\\\\"tool\\\\\\\":{\\\\\\\"na"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/README.md",
+          "line": 22,
+          "role": "Doc",
+          "text": "{\"action\":\"task\",\"op\":\"enqueue\",\"taskKey\":\"ag_grp_tc\",\"subAgentTag\":\"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/README.md",
+          "line": 33,
+          "role": "Doc",
+          "text": "AgentUi_RunJson action=task op=enqueue subAgentTag=tool-call"
         },
         {
           "repo": "Projects",
@@ -8305,8 +8683,15 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/collaboration.ushar",
+          "line": 24,
+          "role": "Declaration",
+          "text": "Route.tool-call = tools_on"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/history-loop.ushar",
-          "line": 36,
+          "line": 34,
           "role": "Declaration",
           "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
         },
@@ -8466,6 +8851,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
+          "line": 67,
+          "role": "Declaration",
+          "text": "comment = 命中「USHARP_TOOLCALL_TASK」→ create_node_reference（SubAgentTag=tool-call + 结构化 UserInput，确定性直调）"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/skills.ushar",
           "line": 28,
           "role": "Declaration",
@@ -8474,30 +8866,23 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 32,
+          "line": 41,
           "role": "Declaration",
           "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 33,
+          "line": 42,
           "role": "Declaration",
           "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 35,
+          "line": 44,
           "role": "Declaration",
           "text": "skills = tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 37,
-          "role": "Declaration",
-          "text": "executor = subagent-tool-call"
         },
         {
           "repo": "Projects",
@@ -8879,13 +9264,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/PowerShellScript/Check-AgentDefaultDispatch.ps1",
-          "line": 18,
-          "role": "Gate",
-          "text": "@{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/PowerShellScript/Check-AgenticWorkflow.ps1",
           "line": 37,
           "role": "Gate",
@@ -8914,6 +9292,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
+          "line": 38,
+          "role": "Doc",
+          "text": "- 层级任务经 `create_node_reference` 建任务时：`SubAgentTag=\"tool-call\"` ⇒ `UserInput` 必须是上表结构化 JSON；只给目标时省略 `tool` 键，由执行腿走 LLM 辅助。"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilitySelections.cs",
           "line": 20,
           "role": "Code",
@@ -8929,16 +9314,9 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
-          "line": 17,
+          "line": 18,
           "role": "Code",
-          "text": "HistoryLoopCatalog.ReadDefaultTag(HistoryLoopCatalog.DefaultToolSubAgentKey, \"tool-call\");"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
-          "line": 62,
-          "role": "Code",
-          "text": "WindowSubmissionIntent.ToolCall => \"subagent-tool-call\","
+          "text": "HistoryLoopCatalog.ReadDefaultTagCached(HistoryLoopCatalog.DefaultToolSubAgentKey, \"tool-call\");"
         },
         {
           "repo": "Projects",
@@ -8967,27 +9345,6 @@
           "line": 30,
           "role": "Code",
           "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "/// 工具调用子智能体执行腿（<c>subagent-tool-call</c>）——"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
-          "line": 23,
-          "role": "Code",
-          "text": "public const string ExecutorId = \"subagent-tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs",
-          "line": 61,
-          "role": "Code",
-          "text": "var system = catalog is not null && catalog.TryGet(\"tool-call\", out var def)"
         }
       ]
     },
@@ -8996,14 +9353,14 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 43,
+      "total": 44,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 2,
         "Declaration": 19,
         "Code": 1,
-        "Doc": 17,
+        "Doc": 18,
         "Other": 1
       },
       "hits": [
@@ -9240,6 +9597,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-20-调用链重复冗余错误-已修与后续施工单.md",
+          "line": 175,
+          "role": "Doc",
+          "text": "- 根因：`Config/nodes/placement.ushar` 的 15 个位置全部反解到同一 loc `agent_round`；身份模板以 `{container}` 起始 ⇒ **无字面前缀**。"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
           "line": 148,
           "role": "Doc",
@@ -9297,14 +9661,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3595,
+          "line": 3793,
           "role": "Declaration",
           "text": "\"agent_round\""
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 3602,
+          "line": 3800,
           "role": "Declaration",
           "text": "\"agent_round\","
         }
@@ -9597,13 +9961,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1344.0,
+    "hitCount": 1396.0,
     "byRole": {
-      "Gate": 21,
-      "Test": 284,
-      "Declaration": 67,
-      "Code": 341,
-      "Doc": 556,
+      "Gate": 22,
+      "Test": 299,
+      "Declaration": 70,
+      "Code": 340,
+      "Doc": 590,
       "Other": 75
     },
     "truncatedFacts": [
@@ -9612,15 +9976,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 419
+        "lines": 421
       },
       {
         "repo": "Projects",
-        "lines": 398
+        "lines": 409
       },
       {
         "repo": "Main",
-        "lines": 713
+        "lines": 760
       }
     ]
   }

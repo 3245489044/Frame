@@ -20,17 +20,29 @@ $modes = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\history-modes.us
 $loop = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\history-loop.ushar') -Raw -Encoding UTF8
 
 $pairs = @(
-    @{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },
-    @{ Tag = 'workflow'; Executor = 'subagent-workflow' },
-    @{ Tag = 'base'; Executor = 'subagent-base' },
-    @{ Tag = 'powershell'; Executor = 'subagent-ps' }
+    @{ Tag = 'tool-call'; Kind = 'tool-invoke' },
+    @{ Tag = 'workflow'; Kind = 'workflow' },
+    @{ Tag = 'base'; Kind = 'state-response' },
+    @{ Tag = 'powershell'; Kind = 'llm' },
+    @{ Tag = 'usharp'; Kind = 'llm' },
+    @{ Tag = 'tool-catalog'; Kind = 'tool-catalog' }
 )
 foreach ($p in $pairs) {
-    if ($subagents -notmatch ("\[SubAgent\]\s+" + [regex]::Escape($p.Tag) + ":")) {
+    $block = [regex]::Match($subagents, ('(?ms)^\[SubAgent\]\s+' + [regex]::Escape($p.Tag) + ':\s*(.*?)(?=^\[SubAgent\]|\z)'))
+    if (-not $block.Success) {
         $violations.Add("缺标签 $($p.Tag)")
+        continue
     }
-    if ($subagents -notmatch ("executor\s*=\s*" + [regex]::Escape($p.Executor))) {
-        $violations.Add("缺执行腿 $($p.Executor)")
+    $body = $block.Groups[1].Value
+    if ($body -notmatch 'step_mode\s*=\s*single') {
+        $violations.Add("$($p.Tag) 区块缺 step_mode=single（单步框架唯一入口）")
+    }
+    if ($body -notmatch ('step_kind\s*=\s*' + [regex]::Escape($p.Kind))) {
+        $violations.Add("$($p.Tag) 区块缺 step_kind=$($p.Kind)")
+    }
+    $declaredLeg = [regex]::Match($body, 'executor\s*=\s*(?<leg>\S+)')
+    if ($declaredLeg.Success -and $declaredLeg.Groups['leg'].Value -ne 'subagent-single-step') {
+        $violations.Add("$($p.Tag) 执行腿漂移：$($declaredLeg.Groups['leg'].Value)（唯一单步腿 = subagent-single-step）")
     }
 }
 # powershell 区块（E18）：按 [SubAgent] 区块解析，禁止全文匹配被其他子智能体掩盖。
@@ -38,8 +50,8 @@ $psBlock = [regex]::Match($subagents, '(?ms)^\[SubAgent\]\s+powershell:\s*(.*?)(
 if (-not $psBlock.Success) {
     $violations.Add('缺 [SubAgent] powershell 区块')
 } else {
-    if ($psBlock.Groups[1].Value -notmatch 'executor\s*=\s*subagent-ps') {
-        $violations.Add('powershell 区块缺执行腿 subagent-ps')
+    if ($psBlock.Groups[1].Value -notmatch 'step_next\s*=\s*tool-invoke') {
+        $violations.Add('powershell 区块缺 step_next=tool-invoke（工具意图交 tool-invoke）')
     }
     if ($psBlock.Groups[1].Value -notmatch 'tool_face\s*=\s*full') {
         $violations.Add('powershell 区块缺 tool_face=full（执行面全量）')
@@ -51,16 +63,22 @@ if (-not (Test-Path -LiteralPath $classifier)) {
     $violations.Add('缺结构化意图分类器 HistorySubmissionClassifier.cs')
 } else {
     $text = Get-Content -LiteralPath $classifier -Raw -Encoding UTF8
-    # 行为判据（E18）：file 意图必须经声明键读取，禁止在分类器内硬编码标签/执行腿。
+    # 行为判据（E18/D6）：file 标签经声明键读取；执行腿经目录解析（唯一来源），禁分类器内硬编码。
     if ($text -notmatch 'DefaultFileSubAgentKey') {
         $violations.Add('分类器未使用声明键 DefaultFileSubAgentKey（file 标签必须声明驱动）')
     }
-    if ($text -notmatch 'DefaultFileExecutorKey') {
-        $violations.Add('分类器未使用声明键 DefaultFileExecutorKey（file 执行腿必须声明驱动）')
+    if ($text -notmatch 'ISubAgentCatalog') {
+        $violations.Add('分类器未使用 ISubAgentCatalog（执行腿须按声明解析）')
+    }
+    if ($text -notmatch 'SubAgentExecutorIds\.SingleStep') {
+        $violations.Add('分类器缺唯一单步腿回退（SubAgentExecutorIds.SingleStep）')
+    }
+    if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {
+        $violations.Add('分类器残留旧执行腿硬编码（禁 per-intent 映射）')
     }
 }
 if ($modes -notmatch 'tool\.call') { $violations.Add('history-modes.ushar 缺 tool.call') }
-foreach ($key in @('default_tool_sub_agent','default_workflow_sub_agent','default_base_sub_agent','default_file_sub_agent','default_file_executor','structured_submission_creates_member')) {
+foreach ($key in @('default_tool_sub_agent','default_workflow_sub_agent','default_base_sub_agent','default_file_sub_agent','default_file_executor','structured_submission_creates_member','include_new_members','include_member_nodes')) {
     if ($loop -notmatch [regex]::Escape($key)) { $violations.Add("history-loop.ushar 缺 $key") }
 }
 

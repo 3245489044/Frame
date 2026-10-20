@@ -88,36 +88,36 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             foreach (var node in request.RelatedNodes ?? Array.Empty<NodeSpec>())
                 await EnsureResourceAsync(node, createdNodes, diagnostics, ct).ConfigureAwait(false);
 
-            // 2) 引用边：优先显式 Edges；否则默认 task → 各关联节点
-            var edges = (request.Edges is { Count: > 0 } ? request.Edges : DefaultEdges(taskResourceType, request.TaskKey, request.RelatedNodes))
+            // 2) 引用边：优先显式 Edges；否则默认 task → 各关联节点。只收集「真实写入成功」的边。
+            var candidates = (request.Edges is { Count: > 0 } ? request.Edges : DefaultEdges(taskResourceType, request.TaskKey, request.RelatedNodes))
                 .ToList();
-            foreach (var edge in edges)
-                await EnsureReferenceAsync(edge, diagnostics, ct).ConfigureAwait(false);
+            var writtenEdges = new List<ReferenceEdge>();
+            foreach (var edge in candidates)
+            {
+                if (await EnsureReferenceAsync(edge, diagnostics, ct).ConfigureAwait(false))
+                    writtenEdges.Add(edge);
+            }
 
             // 3) history 归属（成员可见性）：唯一写原语 = IHierarchyReferenceManager.AttachHistoryTaskAsync
-            //    （不在此处手写 history_owns_task 边，守 Check-SingleWriter 的 INV-2 单写通道）。
+            //    （写边由 Attach 承担；本服务不再把该边混入 Edges 结果集，避免消费方重复计数）。
             var historyId = NonBlank(request.HistoryId);
+            var historyAttached = false;
             if (historyId is not null)
             {
                 if (_hierarchy is null)
                 {
                     diagnostics.Add("history_linker_unattached");
-                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, edges, diagnostics);
+                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, writtenEdges, diagnostics);
                 }
                 try
                 {
                     await _hierarchy.AttachHistoryTaskAsync(historyId, request.TaskKey, ct).ConfigureAwait(false);
-                    var historyNodeId = HierarchyResourceKeys.History(historyId);
-                    edges.Add(new ReferenceEdge(
-                        ReferenceTypes.History, historyNodeId,
-                        ReferenceTypes.Task, request.TaskKey,
-                        ReferenceTypes.HistoryOwnsTask));
-                    if (!createdNodes.Contains(historyNodeId)) createdNodes.Add(historyNodeId);
+                    historyAttached = true;
                 }
                 catch (Exception ex)
                 {
                     diagnostics.Add($"history_attach_failed:{ex.Message}");
-                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, edges, diagnostics);
+                    return new TaskGraphResult(request.TaskKey, -1L, createdNodes, writtenEdges, diagnostics);
                 }
             }
 
@@ -136,15 +136,22 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
                     SchedulerRulesKey: request.SchedulerRulesKey,
                     SubAgentTag: NonBlank(request.SubAgentTag),
                     ExecutorId: route.ExecutorId,
-                    HistoryId: historyId);
+                    HistoryId: historyId,
+                    RelatedNodes: request.RelatedNodes?.Select(n => n.Id).ToArray(),
+                    Active: true);
                 enqueued = await _taskPool.EnqueueAsync(spec, ct).ConfigureAwait(false);
             }
             else
             {
-                diagnostics.Add($"任务端口未装配：跳过 task 入队（仅写入引用图），taskKey={request.TaskKey}");
+                // 结构诊断码（供上层判定，不靠自然语言）：
+                diagnostics.Add("task_port_unattached");
             }
 
-            return new TaskGraphResult(request.TaskKey, enqueued, createdNodes, edges, diagnostics);
+            // 未真正入队（未装配端口 / 入队失败）⇒ 明确标记，调用方据此判失败，禁把半边图当成功。
+            if (enqueued < 0)
+                diagnostics.Add("task_enqueue_failed");
+
+            return new TaskGraphResult(request.TaskKey, enqueued, createdNodes, writtenEdges, diagnostics, historyAttached);
         }
         /// <summary>维护引用边（remove=false 增 / true 删）。关系库未装配返回诊断而非抛错。</summary>
         public async Task<IReadOnlyList<string>> MaintainReferencesAsync(
@@ -222,7 +229,7 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
 
         // ---- 内部确定性助手 ----
 
-        /// <summary>路由解析（tag/executor 全空 ⇒ 旧行为；端口未装配 ⇒ 保留旧语义并留痕）。</summary>
+        /// <summary>路由解析（tag/executor 全空 ⇒ 旧行为；端口未装配且有路由诉求 ⇒ fail-closed）。</summary>
         private TaskRoute ResolveRoute(CreateTaskGraphRequest request, List<string> diagnostics)
         {
             var tag = NonBlank(request.SubAgentTag);
@@ -230,8 +237,9 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             if (tag is null && executor is null) return TaskRoute.Allow(null);
             if (_routeResolver is null)
             {
+                // 无 resolver 就允许 ⇒ 可能入队「无执行腿」任务并静默回落（ANTI-SILENT-FALLBACK）。
                 diagnostics.Add("route_resolver_unattached");
-                return TaskRoute.Allow(executor);
+                return TaskRoute.Reject("route_resolver_unattached");
             }
             return _routeResolver.Resolve(tag, executor);
         }
@@ -257,22 +265,24 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             }
         }
 
-        private async Task EnsureReferenceAsync(ReferenceEdge edge, List<string> diagnostics, CancellationToken ct)
+        private async Task<bool> EnsureReferenceAsync(ReferenceEdge edge, List<string> diagnostics, CancellationToken ct)
         {
             if (_resources is null)
             {
                 diagnostics.Add($"引用关系库未装配：跳过引用边 {edge.SourceId} -> {edge.TargetId}");
-                return;
+                return false;
             }
             try
             {
                 // 端点为 SQL 实体（ur_tasks / ur_nodes），存在性由 SQL 写透时序保证 ⇒ 协调器不校验端点；
                 // 守卫 StructuralGrounding 管的是归属边准入，不是端点存在性。
                 await _resources.AddReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, edge.Strength, ct).ConfigureAwait(false);
+                return true;
             }
             catch (Exception ex)
             {
                 diagnostics.Add($"引用边 {edge.SourceId} -[{edge.RefType}]-> {edge.TargetId} 失败: {ex.Message}");
+                return false;
             }
         }
 
@@ -319,7 +329,8 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         long Enqueued,
         IReadOnlyList<string>? CreatedNodes = null,
         IReadOnlyList<ReferenceEdge>? Edges = null,
-        IReadOnlyList<string>? Diagnostics = null);
+        IReadOnlyList<string>? Diagnostics = null,
+        bool HistoryAttached = false);
 
     /// <summary>任务图查询快照（任务状态 + 节点 + 引用边）。</summary>
     public sealed record TaskGraphSnapshot(

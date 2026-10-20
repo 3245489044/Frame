@@ -10,6 +10,7 @@
         "path": "PowerShellScript\\BasicMethod\\Storage\\StorageNode.psm1",
         "version": "1.0"
       },
+      "requires_idempotency": true,
       "params": [
         { "name": "ResourceType", "type": "string", "required": false, "constraint": "资源类型（分析结论=analysis；文件=file；一般=node，缺省 node）" },
         { "name": "Id", "type": "string", "required": true, "constraint": "资源唯一 id" },

@@ -118,7 +118,7 @@ $ToolFaceWireConstCountBaseline = [int]$g.ToolFaceWireConstCount.Value
 $SilentSkipBaseline        = [int]$g.SilentSkip.Value
 # E13 fn 常量豁免白名单（**非**声明面 fn= 的合法常量：引擎附加腿 / 编排阶段名 / 统一执行单元）。
 #   新增即违规（须先改声明面或显式登记于此 + 载体分工表 §3）。
-$FnConstExemptValues = @('guard_output', 'task_orchestrate', 'signal_flush', 'signal_eval_condition', 'call_func')
+$FnConstExemptValues = @('guard_output', 'task_orchestrate', 'signal_flush', 'signal_eval_condition', 'call_func', 'signal_intake')
 # E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
 $InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar', 'transfer-contribute.ushar', 'transfer-dispatch.ushar')
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，

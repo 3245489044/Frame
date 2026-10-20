@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Text.Json;
 
 namespace Usharp.Adapters.Declarations;
 
 /// <summary>
-/// <b>冻结声明产物读取器</b>（G1）：从**嵌入资源**读 <see cref="DeclaredBundleBuilder"/> 产出的三份 JSON
-/// （manifest / round-spec / reference-schema），提供运行期零磁盘、零编译、零目录枚举的声明事实源。
+/// <b>冻结声明产物读取器</b>（G1）：从**嵌入资源**读 <see cref="DeclaredBundleBuilder"/> 产出的 JSON
+/// （manifest 为运行期唯一消费面；round-spec / reference-schema 落盘供门禁与漂移比对，按需可再嵌入），
+/// 提供运行期零磁盘、零编译、零目录枚举的声明事实源。
 /// <para>
-/// 消费方（<c>RoundSpecLoader</c> / <c>UsharpNodeSpecSource</c> / <c>UsharpWorkflowRegistrar</c> /
-/// <c>DeclaredReferenceVocabulary</c> / <c>WorkflowFunctionRefValidator</c>）一律经本类读产物，
+/// 消费方（<c>WorkflowFunctionRefValidator</c> / <c>DeclaredVocabulary</c>）一律经本类读产物，
 /// 不再各自 <c>UsharpCompilation.Compile</c>（收敛见方案 §4.1）。
 /// </para>
 /// <para>缺件语义：未装载（<see cref="IsLoaded"/>=false）而非抛 —— 失败姿态统一由 <c>IDeclarationGate</c>（G3）裁决，
@@ -190,10 +191,25 @@ public sealed class DeclaredBundle
         {
             using var stream = assembly.GetManifestResourceStream(resourceName);
             if (stream is null) return null;
-            using var reader = new StreamReader(stream);
+
+            // 嵌入资源原样存储：manifest 以 gzip 落库（见 DeclaredBundleBuilder.ManifestCompressedFileName），
+            // 兼容旧明文资源（按魔数判定，不依赖资源名后缀）。
+            using var gzip = IsGzip(stream) ? new GZipStream(stream, CompressionMode.Decompress) : null;
+            using var reader = new StreamReader(gzip ?? stream);
             return reader.ReadToEnd();
         }
         catch (Exception) { return null; }
+    }
+
+    private static bool IsGzip(Stream stream)
+    {
+        if (!stream.CanSeek) return false;
+
+        var position = stream.Position;
+        Span<byte> header = stackalloc byte[2];
+        var read = stream.Read(header);
+        stream.Position = position;
+        return read == 2 && header[0] == 0x1F && header[1] == 0x8B;
     }
 
     private static string? ReadFileIfExists(string path)

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-20T13:30:01.5190876Z",
+  "builtAt": "2026-10-20T14:47:53.8412876Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -7606,14 +7606,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 249,
+      "total": 280,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 66,
-        "Declaration": 36,
-        "Code": 11,
-        "Doc": 132,
+        "Declaration": 38,
+        "Code": 12,
+        "Doc": 160,
         "Other": 1
       },
       "hits": [
@@ -7707,6 +7707,146 @@
           "line": 134,
           "role": "Doc",
           "text": "| E5 | 决策链 + LocalLlm `r-cline-tool-call` | 使发出的 tool_call 携带工具声明（或规则改判据） | `ToolCallMissing(Error)` 归零 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 18,
+          "role": "Doc",
+          "text": "| Q3 | 子智能体能否把工具调用「传给常驻工具调用智能体」？ | **否**：当前没有「同步委派 + 等待结果」原语；`tool-call` 是**每任务一次**的单步执行器，不是常驻信箱 | §1.5、G4 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 65,
+          "role": "Doc",
+          "text": "| `tool-call` | task | `subagent-tool-call` | — | 默认 model |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 87,
+          "role": "Doc",
+          "text": "| `ToolCallSubAgentTaskExecutor` | `subagent-tool-call` | — |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 110,
+          "role": "Doc",
+          "text": "1. `tool-call` 的执行模型是「**一个任务 = 一次工具调用**」：`ToolCallSubAgentTaskExecutor.ExecuteAsync` 执行一次即完成（任务池随后置 Completed）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 111,
+          "role": "Doc",
+          "text": "2. 子智能体没有「把工具意图交给 tool-call 并同步等待」的端口："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 112,
+          "role": "Doc",
+          "text": "- `ToolCallSubAgentTools` 是**自己**直接调 `IToolInvoker`（进程内），不经过 tool-call 智能体；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 252,
+          "role": "Doc",
+          "text": "[SubAgent] tool-call:"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 253,
+          "role": "Doc",
+          "text": "agent = tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 255,
+          "role": "Doc",
+          "text": "skills = tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 305,
+          "role": "Doc",
+          "text": "### 4.1 `tool-call`（确定性直调）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 308,
+          "role": "Doc",
+          "text": "[SubAgent] tool-call:"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 414,
+          "role": "Doc",
+          "text": "- 常驻一个 `tool-call` 任务（`active=true` 且永不完成），子智能体把 `ToolCallRequest` 发布到请求键，等待 `result` 键。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 452,
+          "role": "Doc",
+          "text": "### S1 · 迁移 `tool-call`（单步确定性）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-分析与设计.md",
+          "line": 455,
+          "role": "Doc",
+          "text": "- 声明 `tool-call.executor=subagent-single-step` + `step_kind=tool-invoke`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-施工单.md",
+          "line": 4,
+          "role": "Doc",
+          "text": "> 批次：S0 骨架 → S1 tool-call → S2 base/workflow → S3 llm+委派 → S4 tool-catalog+腿归一 → S5 收口"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-施工单.md",
+          "line": 24,
+          "role": "Doc",
+          "text": "| S1 | `Handlers/ToolInvokeStepHandler`、声明 `tool-call`、删 `ToolCallSubAgentTaskExecutor` | 同输入同输出；`ToolCallSubAgent_invoked` 可见 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架-实施记录.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "2. **在途任务旧腿缺失**（已补）：新增 `SingleStepLegAliasExecutor`，在组合根为 `subagent-tool-call/base/workflow/ps/usharp` 注册别名 → 单步壳（旧任务须带 `SubAgentTag`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架.batches.json",
+          "line": 2,
+          "role": "Declaration",
+          "text": "\"$comment\": \"子智能体单步调用通用框架（S0 骨架 → S1 tool-call → S2 base/workflow → S3 llm+委派 → S4 tool-catalog+执行腿归一 → S5 收口）—— 批次授权单。判据载体 = 实际改动文件集（git status，含子模块）。守卫 = Frame\\\\PowerShellScript\\\\Operation\\\\DSL\\\\Pro"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体单步调用通用框架.batches.json",
+          "line": 46,
+          "role": "Declaration",
+          "text": "\"title\": \"tool-call 迁入 ToolInvokeStepHandler（单步确定性）\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-子智能体工作流派发-遗留与链路缺陷清单.md",
+          "line": 48,
+          "role": "Doc",
+          "text": "[工具调用] func_call / tool-call / ps_action / run.plan …"
         },
         {
           "repo": "Main",
@@ -7882,6 +8022,76 @@
           "line": 45,
           "role": "Doc",
           "text": "| E | skill 路径 `Config\\skills\\...` | `Projects\\Plug\\Agent\\skills\\internal\\tool-call\\SKILL.md` | 实际路径 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 17,
+          "role": "Doc",
+          "text": "| 子智能体标签 → 执行腿 | `Config/subagents.ushar` | `[SubAgent] tool-call: executor=subagent-tool-call`（L32-37） | ✅ 已声明 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 18,
+          "role": "Doc",
+          "text": "| 分发默认标签 | `Config/history-loop.ushar` | `[Ref] DefaultToolSubAgent … tgt=tool-call`（L38） | ✅ 已声明 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 71,
+          "role": "Doc",
+          "text": "> 现有 `[Ref] DefaultToolSubAgent … tgt=tool-call`（L38）已把默认值声明为 `tool-call`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 74,
+          "role": "Doc",
+          "text": "**`Config/subagents.ushar`**：无需改（`tool-call.executor=subagent-tool-call` 已在）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 82,
+          "role": "Doc",
+          "text": "then.arguments = {..., \"SubAgentTag\":\"tool-call\", \"HistoryId\":\"hist_usharp_toolcall\", ...}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 87,
+          "role": "Doc",
+          "text": "- `conversation op=overview` 行出现 `[subagent-tool-call]`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 98,
+          "role": "Doc",
+          "text": "| `[SubAgent] tool-call.executor=subagent-tool-call` | 决定任务池选哪个执行器 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 99,
+          "role": "Doc",
+          "text": "| `[SubAgent] tool-call.skills=tool-call` | 决定提示词/技能面 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 100,
+          "role": "Doc",
+          "text": "| `[SubAgent] tool-call.runtime=tool-face` | 决定工具面装配源 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
+          "line": 106,
+          "role": "Doc",
+          "text": "CanExecute(item) => item.ExecutorId == \"subagent-tool-call\";"
         },
         {
           "repo": "Main",
@@ -9335,14 +9545,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 19,
+          "line": 18,
           "role": "Code",
           "text": "public const string AgentTagName = \"tool-call\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 30,
+          "line": 29,
           "role": "Code",
           "text": "args => InvokeAsync(args, ct), Source: \"subagent-tool-call\"),"
         },
@@ -9359,6 +9569,13 @@
           "line": 30,
           "role": "Code",
           "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/SubAgent/SingleStep/SingleStepLegAliasExecutor.cs",
+          "line": 11,
+          "role": "Code",
+          "text": "/// 迁移期执行腿别名（计划 §8 双注册）：把旧腿 Id（<c>subagent-tool-call</c> / <c>subagent-base</c> /"
         }
       ]
     },
@@ -9367,12 +9584,12 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 44,
+      "total": 42,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 2,
-        "Declaration": 19,
+        "Declaration": 17,
         "Code": 1,
         "Doc": 18,
         "Other": 1
@@ -9671,20 +9888,6 @@
           "line": 57,
           "role": "Doc",
           "text": "| ① | 位置反解表键 | 声明面 `agent_round` → 运行期 `agent-round`（**已有判据**：`Check-NodeLocPlacement` C1–C5） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 4016,
-          "role": "Declaration",
-          "text": "\"agent_round\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Core/Declared/declared-manifest.json",
-          "line": 4023,
-          "role": "Declaration",
-          "text": "\"agent_round\","
         }
       ]
     },
@@ -9975,13 +10178,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1398.0,
+    "hitCount": 1427.0,
     "byRole": {
       "Gate": 22,
       "Test": 299,
       "Declaration": 70,
-      "Code": 341,
-      "Doc": 591,
+      "Code": 342,
+      "Doc": 619,
       "Other": 75
     },
     "truncatedFacts": [
@@ -9998,7 +10201,7 @@
       },
       {
         "repo": "Main",
-        "lines": 760
+        "lines": 790
       }
     ]
   }

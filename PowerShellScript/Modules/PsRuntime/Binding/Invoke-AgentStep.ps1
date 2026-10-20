@@ -60,16 +60,43 @@ function Invoke-AgentStep {
         $root = if ([System.IO.Path]::IsPathRooted([string]$cfg.projectRoot)) { [string]$cfg.projectRoot }
                 else { Join-Path $repoRoot ([string]$cfg.projectRoot) }
 
-        # 预加载能力库依赖（read.file/write.file 依赖 FileUtils/FileDiff）
+        # 预加载能力库依赖（read.file/write.file 依赖 FileUtils/FileDiff；C1：按路径缓存，禁每次 -Force 重载）
+        if (-not $script:PsRuntimeCaches) { $script:PsRuntimeCaches = @{ Modules = @{}; Contracts = @{} } }
         if ($cfg.basemethodDeps) {
             foreach ($dep in $cfg.basemethodDeps) {
                 $depPath = Resolve-ConfigPath -Root $root -AgentRoot $agentRoot -RelativePath ([string]$dep)
-                if ($depPath -and (Test-Path $depPath)) { Import-Module $depPath -Force -ErrorAction SilentlyContinue }
+                if ($depPath -and (Test-Path $depPath) -and -not $script:PsRuntimeCaches.Modules.ContainsKey($depPath)) {
+                    Import-Module $depPath -Force -ErrorAction SilentlyContinue
+                    $script:PsRuntimeCaches.Modules[$depPath] = $true
+                }
             }
         }
 
-        # 扫描契约集
-        $scan = Register-PsContracts -ProjectRoot $root -ContractDirs $cfg.contractDirs
+        # 扫描契约集（C2：按目录指纹缓存；契约文件变化才重扫，禁每步重扫解析）
+        $contractDirs = @($cfg.contractDirs)
+        $stampParts = @()
+        foreach ($d in $contractDirs) {
+            $abs = if ([System.IO.Path]::IsPathRooted($d)) { $d } else { Join-Path $root $d }
+            if (Test-Path $abs) {
+                $files = @(Get-ChildItem -LiteralPath $abs -Filter '*.contracts.json' -Recurse -File -ErrorAction SilentlyContinue)
+                if ($files.Count -gt 0) {
+                    $sum = ($files | Measure-Object -Property Length -Sum).Sum
+                    $max = ($files | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
+                    $stampParts += "$abs#$($files.Count)#$sum#$($max.Ticks)"
+                }
+            }
+        }
+        $scanStamp = ($contractDirs -join '|') + '::' + ($stampParts -join ';')
+        $cached = $script:PsRuntimeCaches.Contracts[$root]
+        if ($cached -and $cached.Stamp -eq $scanStamp) {
+            $scan = $cached.Scan
+        }
+        else {
+            $scan = Register-PsContracts -ProjectRoot $root -ContractDirs $contractDirs
+            if ($scan.status -eq 'success') {
+                $script:PsRuntimeCaches.Contracts[$root] = @{ Stamp = $scanStamp; Scan = $scan }
+            }
+        }
         if ($scan.status -ne "success") { return $scan }
         $cs = $scan.data.contracts
 

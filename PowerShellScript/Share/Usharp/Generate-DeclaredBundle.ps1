@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    DeclaredBundle 冻结产物生成器（G1）—— 声明面单点编译 → 三份冻结产物。
+    DeclaredBundle 冻结产物生成器（G1）—— 声明面单点编译 → 三份 JSON（+ manifest gzip 嵌入副本）。
 
 .DESCRIPTION
     唯一编译点 = Usharp.Adapters.Declarations.DeclaredBundleBuilder（经 Usharp.Bundle 工具调用）。
     两种用法：
-      · -OutDir <dir>                      ：三份产物写入该目录（重生成提交产物用）。
-      · -OutFile <file> -Kind <k>          ：只导出指定一份（供 Check-GeneratedArtifactsDrift 复算比对）。
+      · -OutDir <dir>                      ：三份 JSON + declared-manifest.json.gz 写入该目录（重生成提交产物用）。
+      · -OutFile <file> -Kind <k>          ：只导出指定一份 JSON（供 Check-GeneratedArtifactsDrift 复算比对）。
     Kind：manifest（declared-manifest.json）/ roundspec（round-spec.generated.json）/ schema（reference-schema.generated.json）。
 
 .PARAMETER ConfigRoot

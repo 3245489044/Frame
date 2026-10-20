@@ -39,6 +39,7 @@
         "path": "PowerShellScript\\BasicMethod\\FileOps\\FileAccess.psm1",
         "version": "1.0"
       },
+      "requires_idempotency": true,
       "params": [
         { "name": "Path", "type": "string", "required": true, "constraint": "非空，相对项目根或绝对路径" },
         { "name": "Content", "type": "string", "required": true, "constraint": "写入内容（允许空字符串）" },

@@ -6,8 +6,9 @@
 .DESCRIPTION
     载体 = 冻结产物 declared-manifest.json（G1 单点编译产出，嵌 Agent.Core 程序集），
     而非源码正则 / 硬编码清单。判据（结构事实，禁执行者叙述）：
-      D1 产物存在：manifest / round-spec / reference-schema 三件在位。
+      D1 产物存在：manifest / manifest-gz / round-spec / reference-schema 四件在位。
       D2 schema 哨兵：manifest.schema == 'declared-manifest-v1'（手改/覆盖即失守）。
+      D3 嵌入副本：manifest.json.gz 解压后与 manifest.json 等价（防嵌入陈旧副本）。
       C1 非空正对照：flows > 0 ∧ functions > 0 ∧ vocabulary > 0（防产物被掏空 ⇒ 判据无标的假绿）。
       V1 词表单源（J7）：组装器 HistoryViewportAssembler.cs 内词表字面量命中 = 0
          （词表取值唯一经 DeclaredVocabulary；唯一允许的回退字面量在 DeclaredVocabulary.cs）。
@@ -40,6 +41,7 @@ $violations = [System.Collections.Generic.List[string]]::new()
 
 $declaredDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Declared'
 $manifestPath = Join-Path $declaredDir 'declared-manifest.json'
+$manifestGzPath = Join-Path $declaredDir 'declared-manifest.json.gz'
 $roundSpecPath = Join-Path $declaredDir 'round-spec.generated.json'
 $schemaPath = Join-Path $declaredDir 'reference-schema.generated.json'
 $assemblerPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryViewportAssembler.cs'
@@ -50,7 +52,7 @@ Write-Host '  冻结声明产物守卫（DeclaredBundle：产物结构事实）'
 Write-Host '============================================================' -ForegroundColor Cyan
 
 # ---- D1 产物存在 ----
-foreach ($pair in @(@{N = 'manifest'; P = $manifestPath }, @{N = 'round-spec'; P = $roundSpecPath }, @{N = 'reference-schema'; P = $schemaPath })) {
+foreach ($pair in @(@{N = 'manifest'; P = $manifestPath }, @{N = 'manifest-gz'; P = $manifestGzPath }, @{N = 'round-spec'; P = $roundSpecPath }, @{N = 'reference-schema'; P = $schemaPath })) {
     if (-not (Test-Path -LiteralPath $pair.P)) {
         $violations.Add("[D1] 产物缺失：$($pair.N)（$($pair.P)）（修复：pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutDir Projects\Plug\Agent\src\Agent.Core\Declared）")
     }
@@ -73,6 +75,26 @@ if ($null -ne $manifest) {
     if ($fnCount -le 0) { $violations.Add('[C1] 正对照失效：manifest.functions 为空（产物被掏空？）') }
     if ($vocabCount -le 0) { $violations.Add('[C1] 正对照失效：manifest.vocabulary 为空（词表真源缺失？）') }
     if ($ShowDetail) { Write-Host ("  flows={0} functions={1} vocabulary={2}" -f $flowCount, $fnCount, $vocabCount) -ForegroundColor Gray }
+}
+
+# ---- D3 嵌入副本一致：declared-manifest.json.gz 解压后须与 declared-manifest.json 等价 ----
+if ((Test-Path -LiteralPath $manifestPath) -and (Test-Path -LiteralPath $manifestGzPath)) {
+    try {
+        $fs = [System.IO.File]::OpenRead($manifestGzPath)
+        $gz = [System.IO.Compression.GZipStream]::new($fs, [System.IO.Compression.CompressionMode]::Decompress)
+        $reader = [System.IO.StreamReader]::new($gz, [System.Text.Encoding]::UTF8)
+        $gzText = $reader.ReadToEnd()
+        $reader.Dispose(); $gz.Dispose(); $fs.Dispose()
+
+        $plainNorm = (Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json | ConvertTo-Json -Depth 100 -Compress)
+        $gzNorm = ($gzText | ConvertFrom-Json | ConvertTo-Json -Depth 100 -Compress)
+        if ($plainNorm -ne $gzNorm) {
+            $violations.Add('[D3] manifest 嵌入副本与 JSON 不一致（修复：重跑 Generate-DeclaredBundle.ps1 -OutDir ...）')
+        }
+    }
+    catch {
+        $violations.Add("[D3] manifest 嵌入副本不可解压/非法 JSON：$($_.Exception.Message)")
+    }
 }
 
 # ---- V1 词表单源（J7）：组装器内词表字面量 = 0 ----

@@ -342,7 +342,21 @@
     #   上一系列（LLM 创建任务/子智能体路由）在途改动按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v49 的 Value。
     # Manifest(v49) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-LLM创建任务与子智能体路由.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体单步调用通用框架.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v51（2026-10-20）：单指针切换至「子智能体工作流派发 · 遗留与链路缺陷（P0-1/P0-2/P1/P2）」授权单。
+    #   切换理由 = 用户转入实施该缺陷清单（大步快改：P0 静默清零 + 委派闭环 + 双真源/校验 + 清理一次落地）；
+    #   本系列改动落在 Projects/Plug/Agent/{src,Config} · Frame/PowerShellScript/{BasicMethod,Modules/PsRuntime}
+    #   · Environment/CentralTest/AgentTest · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
+    #   Usharp DeclaredBundle 在途改动（Frame 4 件）按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v50 的 Value。
+    # Manifest(v50) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-通用框架提取-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # Manifest(v51) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v52（2026-10-20）：单指针切换至「子智能体工作流派发 · 遗留收敛（R1–R6）」授权单。
+    #   切换理由 = 用户要求「大步快改，一次改完」遗留项（E13 清零 / D10 / D13 / A8 / A11 / T1·T3·T4·T7）；
+    #   本系列改动落在 Frame/Usharp/src · Frame/PowerShellScript（Agent 门禁 + BasicMethod + Baselines）
+    #   · Projects/Plug/Agent/{src,Config} · Environment/CentralTest · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
+    #   上一系列（子智能体工作流派发）改动按新单 allowSet 覆盖，不误判为越界。
+    #   恢复 = 回填下方注释 v51 的 Value。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-遗留收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

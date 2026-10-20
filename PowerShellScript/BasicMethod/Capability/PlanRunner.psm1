@@ -39,16 +39,31 @@ function Invoke-CapabilityPlan {
         [Parameter(Mandatory)][AllowNull()]$Steps,
         [AllowNull()][array]$Contracts,
         [string]$Mode = 'write',
-        [switch]$FailFast
+        [switch]$FailFast,
+        # A8：计划级软预算（秒）。0=不限；上限 600。宿主单次调用仍有 60s 硬超时兜底，
+        # 软预算在每步边界自检 ⇒ 超时也能带回已完成步骤（不再「整体 timeout 零进度」）。
+        [int]$TimeoutSeconds = 45
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
     $errors = @()
     $artifacts = @()
+    $usage = @{}
+    $remaining = @()
+    $timedOut = $false
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    $budgetMs = if ($TimeoutSeconds -gt 0) { [int]([Math]::Min($TimeoutSeconds, 600) * 1000) } else { 0 }
+    $stepList = @($Steps | Where-Object { $null -ne $_ })
     $index = 0
 
-    foreach ($step in @($Steps)) {
-        if ($null -eq $step) { continue }
+    for ($i = 0; $i -lt $stepList.Count; $i++) {
+        if ($budgetMs -gt 0 -and $clock.ElapsedMilliseconds -ge $budgetMs) {
+            $timedOut = $true
+            for ($j = $i; $j -lt $stepList.Count; $j++) { $remaining += [string]$stepList[$j].action }
+            break
+        }
+
+        $step = $stepList[$i]
         $index++
         $id = if ($step.id) { [string]$step.id } else { "step$index" }
         $action = [string]$step.action
@@ -73,6 +88,7 @@ function Invoke-CapabilityPlan {
             $r = New-PsResult -Status failure -Message $_.Exception.Message -Errors @($_.Exception.Message)
         }
         $sw.Stop()
+        $usage[$action] = 1 + [int]$usage[$action]
 
         $ok = ([string]$r.status -eq 'success')
         $results.Add([PSCustomObject]@{
@@ -93,14 +109,25 @@ function Invoke-CapabilityPlan {
             $errors += "$action : $($r.message)"
             if ($FailFast) { break }
         }
+
+        if ($budgetMs -gt 0 -and $clock.ElapsedMilliseconds -ge $budgetMs -and ($i + 1) -lt $stepList.Count) {
+            $timedOut = $true
+            for ($j = $i + 1; $j -lt $stepList.Count; $j++) { $remaining += [string]$stepList[$j].action }
+            break
+        }
     }
 
-    $status = if ($errors.Count -eq 0) { 'success' } else { 'failure' }
-    return New-PsResult -Status $status -Message "plan steps=$($results.Count)" -Data @{
-        status    = $status
+    $dataStatus = if ($timedOut) { 'partial' } elseif ($errors.Count -eq 0) { 'success' } else { 'failure' }
+    $status = if ($errors.Count -eq 0 -and -not $timedOut) { 'success' } else { 'failure' }
+    $suffix = if ($timedOut) { ' timeout' } else { '' }
+    return New-PsResult -Status $status -Message "plan steps=$($results.Count)/$($stepList.Count)$suffix" -Data @{
+        status    = $dataStatus
         steps     = @($results.ToArray())
         artifacts = @($artifacts)
         errors    = @($errors)
+        usage     = $usage
+        timedOut  = $timedOut
+        remaining = @($remaining)
     } -Errors @($errors)
 }
 

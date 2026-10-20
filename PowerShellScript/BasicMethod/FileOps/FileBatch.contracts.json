@@ -10,6 +10,7 @@
         "path": "PowerShellScript\\BasicMethod\\FileOps\\FileBatch.psm1",
         "version": "1.0"
       },
+      "requires_idempotency": true,
       "params": [
         { "name": "Paths", "type": "array", "required": true, "constraint": "文件路径数组，支持通配符" },
         { "name": "Blocks", "type": "array", "required": false, "default": [], "constraint": "SEARCH/REPLACE 块数组：@(@{Search=\"\";Replace=\"\"}, ...)" },

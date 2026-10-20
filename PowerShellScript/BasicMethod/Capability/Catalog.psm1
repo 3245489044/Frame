@@ -31,6 +31,7 @@ function Get-CapabilityCatalog {
             purpose    = [string]$c.identity.purpose
             function   = [string]$c.identity.function
             sourceFile = [string]$c.identity.path
+            requiresIdempotency = [bool]$c.requires_idempotency
             params     = $params
         }
     }

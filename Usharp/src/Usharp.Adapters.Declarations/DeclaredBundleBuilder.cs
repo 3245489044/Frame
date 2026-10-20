@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
-using Operation.HierarchyMethod.Nodes.Relations;
+using System.Text.Json.Serialization;
+using Plate.DslMethod.Schema;
 using Usharp.Adapters.UniversalReference;
 using Usharp.Emit;
 using Usharp.Semantics;
@@ -14,7 +17,7 @@ namespace Usharp.Adapters.Declarations;
 
 /// <summary>
 /// 冻结声明产物（DeclaredBundle）的**构建结果**：manifest / round-spec / reference-schema 三份 JSON
-/// 文本 + 源指纹 + 编译错误计数。纯数据，不承载读取/写入策略。
+/// 文本（manifest 另出 gzip 嵌入副本）+ 源指纹 + 编译错误计数。纯数据，不承载读取/写入策略。
 /// </summary>
 /// <param name="ManifestJson">顶层清单 JSON（flows/nodes/functions/ports/fingerprint）。</param>
 /// <param name="RoundSpecJson">逐 <c>[Flow]</c> 的骨架链 JSON（flowId → chain）。</param>
@@ -57,13 +60,26 @@ public static class DeclaredBundleBuilder
     /// <summary>reference-schema 产物文件名。</summary>
     public const string ReferenceSchemaFileName = "reference-schema.generated.json";
 
+    /// <summary>manifest 嵌入副本文件名（gzip；嵌入资源原样存储，故压缩后再进程序集）。</summary>
+    public const string ManifestCompressedFileName = "declared-manifest.json.gz";
+
     /// <summary>manifest 顶层 schema 标识（哨兵，防手改/漂移）。</summary>
     public const string ManifestSchema = "declared-manifest-v1";
 
+    // 机器产物：不缩进、省略 null、中文不转 \uXXXX（体积优先；门禁按 JSON 结构比对，不依赖缩进）。
     private static readonly JsonSerializerOptions ManifestOptions = new()
     {
-        WriteIndented = true,
+        WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private static readonly JsonSerializerOptions ReferenceSchemaOptions = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>从配置根构建（<c>Config\nodes</c> + <c>Config\workflows</c>；二目录缺失即空集，不兜底内容）。</summary>
@@ -71,7 +87,7 @@ public static class DeclaredBundleBuilder
     public static DeclaredBundleArtifacts Build(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        return Build(LoadConfigDocuments(configRoot));
+        return Build(LoadConfigDocuments(configRoot), configRoot);
     }
 
     /// <summary>装载配置根下声明文档（<c>nodes</c> 目录全部 + <c>workflows</c> 目录全部，路径序）。</summary>
@@ -88,15 +104,19 @@ public static class DeclaredBundleBuilder
     /// <summary>由给定声明文档构建（<b>唯一一次</b>编译；调用方负责文档集，编译序 = 传入序）。</summary>
     /// <param name="documents">声明文档（路径 + 文本）。</param>
     public static DeclaredBundleArtifacts Build(IReadOnlyList<(string Path, string Text)> documents)
+        => Build(documents, null);
+
+    private static DeclaredBundleArtifacts Build(
+        IReadOnlyList<(string Path, string Text)> documents, string? configRoot)
     {
         ArgumentNullException.ThrowIfNull(documents);
 
         var compilation = UsharpCompilation.Compile(documents);
-        var fingerprint = Fingerprint(documents);
+        var fingerprint = Fingerprint(documents, configRoot);
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
         var manifest = BuildManifest(compilation, nodes, fingerprint);
         var roundSpec = BuildRoundSpec(compilation);
-        var referenceSchema = UsharpReferenceSchemaEmitter.ToJson(UsharpReferenceSchemaEmitter.Emit(compilation));
+        var referenceSchema = SerializeReferenceSchema(UsharpReferenceSchemaEmitter.Emit(compilation));
 
         return new DeclaredBundleArtifacts(
             JsonSerializer.Serialize(manifest, ManifestOptions),
@@ -119,21 +139,57 @@ public static class DeclaredBundleBuilder
         File.WriteAllText(Path.Combine(outputDir, ManifestFileName), artifacts.ManifestJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, RoundSpecFileName), artifacts.RoundSpecJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, ReferenceSchemaFileName), artifacts.ReferenceSchemaJson, Encoding.UTF8);
+        WriteGzip(Path.Combine(outputDir, ManifestCompressedFileName), artifacts.ManifestJson);
     }
 
-    /// <summary>源指纹：全部文档（路径 + 文本）按路径序拼接后的 SHA256（十六进制小写）。</summary>
+    /// <summary>源指纹：全部文档（相对路径 + 文本）按路径序拼接后的 SHA256（十六进制小写）。</summary>
     /// <param name="documents">声明文档。</param>
     public static string Fingerprint(IEnumerable<(string Path, string Text)> documents)
+        => Fingerprint(documents, null);
+
+    private static string Fingerprint(
+        IEnumerable<(string Path, string Text)> documents, string? configRoot)
     {
         ArgumentNullException.ThrowIfNull(documents);
 
         var buffer = new StringBuilder();
         foreach (var d in documents.OrderBy(d => d.Path, StringComparer.Ordinal))
         {
-            buffer.Append(d.Path).Append('|').Append(d.Text ?? string.Empty).Append('\n');
+            buffer.Append(NormalizePath(d.Path, configRoot)).Append('|')
+                  .Append(d.Text ?? string.Empty).Append('\n');
         }
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(buffer.ToString()));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string NormalizePath(string path, string? configRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        var normalized = string.IsNullOrWhiteSpace(configRoot)
+            ? Path.GetFileName(path)
+            : Path.GetRelativePath(configRoot!, path);
+        return normalized.Replace('\\', '/');
+    }
+
+    private static void WriteGzip(string path, string content)
+    {
+        using var file = File.Create(path);
+        using var gzip = new GZipStream(file, CompressionLevel.Optimal, leaveOpen: false);
+        using var writer = new StreamWriter(gzip, new UTF8Encoding(false));
+        writer.Write(content);
+    }
+
+    /// <summary>引用词表 Schema → 紧凑 JSON；SourceFile 归一为文件名（去机器相关绝对路径）。</summary>
+    private static string SerializeReferenceSchema(ReferenceSchema schema)
+    {
+        schema.Nodes = schema.Nodes
+            .Select(n => n with { SourceFile = Path.GetFileName(n.SourceFile) }).ToList();
+        schema.Edges = schema.Edges
+            .Select(e => e with { SourceFile = Path.GetFileName(e.SourceFile) }).ToList();
+        schema.Constraints = schema.Constraints
+            .Select(c => c with { SourceFile = Path.GetFileName(c.SourceFile) }).ToList();
+
+        return JsonSerializer.Serialize(schema, ReferenceSchemaOptions);
     }
 
     private static ManifestDocument BuildManifest(
@@ -165,26 +221,22 @@ public static class DeclaredBundleBuilder
                 FileName(flow.SourceFile), flow.FlowId, flow.OverSpaceId, flow.SuccessCriterion, steps));
         }
 
-        var nodeManifests = new List<ManifestNode>(nodes.Count);
-        foreach (var spec in nodes.Values)
-        {
-            nodeManifests.Add(new ManifestNode(
-                FileName(spec.SourceFile), spec.Name, spec.FuncName, spec.Kind,
-                spec.InputPorts, spec.OutputPorts, spec.LineNumber));
-        }
-
+        // functions = 声明面全部 fn（nodes 目录 + workflow 内联 [Node] fn=）单源：
+        // 只取 nodes.Values 会漏掉 flows 内联声明的 fn（capability_* / signal_observe 等），
+        // 使 E13「fn 常量 ⇄ manifest.functions」对账产生假红。
         var functions = nodes.Values
             .Select(n => n.FuncName)
+            .Concat(flows.SelectMany(f => f.Steps).Select(s => s.Fn))
             .Where(f => !string.IsNullOrWhiteSpace(f))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(f => f, StringComparer.Ordinal)
             .ToList();
 
+        // nodes 不落盘：steps 已承载 fn/inports/outports（消费方只读 flows.functions.vocabulary/ports）。
         return new ManifestDocument(
             ManifestSchema,
             fingerprint,
             flows,
-            nodeManifests,
             functions,
             new ManifestPorts(
                 Distinct(nodes.Values.SelectMany(n => n.InputPorts)),
@@ -207,15 +259,32 @@ public static class DeclaredBundleBuilder
         return vocabulary;
     }
 
-    private static IReadOnlyDictionary<string, string> BuildRoundSpec(UsharpCompilation compilation)
+    /// <summary>round-spec 紧凑视图：flowId → 步骤表（键/执行体/入出端口/后继），不落 NodeConfig 样板。</summary>
+    private static IReadOnlyDictionary<string, IReadOnlyList<ManifestRoundStep>> BuildRoundSpec(
+        UsharpCompilation compilation)
     {
-        var spec = new Dictionary<string, string>(StringComparer.Ordinal);
+        var spec = new Dictionary<string, IReadOnlyList<ManifestRoundStep>>(StringComparer.Ordinal);
         foreach (var flow in compilation.Flows)
         {
             if (string.IsNullOrWhiteSpace(flow.FlowId)) continue;
             var emitted = UsharpRoundSpecEmitter.Emit(compilation, flow.FlowId);
             if (emitted.Spec is null || emitted.HasErrors || emitted.Spec.Steps.Count == 0) continue;
-            spec[flow.FlowId] = RoundSpecChainMapper.ToJson(emitted.Spec);
+
+            var steps = new List<ManifestRoundStep>(emitted.Spec.Steps.Count);
+            for (var i = 0; i < emitted.Spec.Steps.Count; i++)
+            {
+                var step = emitted.Spec.Steps[i];
+                var next = i + 1 < emitted.Spec.Steps.Count
+                    ? emitted.Spec.Steps[i + 1].EffectiveNodeId
+                    : null;
+                steps.Add(new ManifestRoundStep(
+                    step.EffectiveNodeId,
+                    step.FuncName,
+                    step.ParameterKeys,
+                    step.ResultKeys,
+                    next));
+            }
+            spec[flow.FlowId] = steps;
         }
         return spec;
     }
@@ -240,7 +309,7 @@ public static class DeclaredBundleBuilder
     // ---- manifest 结构（camelCase 序列化；键名与方案 §4.1 一致）----
     private sealed record ManifestDocument(
         string Schema, string Fingerprint, IReadOnlyList<ManifestFlow> Flows,
-        IReadOnlyList<ManifestNode> Nodes, IReadOnlyList<string> Functions, ManifestPorts Ports,
+        IReadOnlyList<string> Functions, ManifestPorts Ports,
         IReadOnlyList<ManifestVocabulary> Vocabulary);
 
     private sealed record ManifestVocabulary(string Space, string Kind, IReadOnlyList<string> Keys);
@@ -251,9 +320,9 @@ public static class DeclaredBundleBuilder
     private sealed record ManifestStep(
         string Key, string Fn, IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, string? Executor = null);
 
-    private sealed record ManifestNode(
-        string File, string Name, string Fn, string? Kind,
-        IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, int Line);
-
     private sealed record ManifestPorts(IReadOnlyList<string> Inports, IReadOnlyList<string> Outports);
+
+    // ---- round-spec 紧凑结构（flowId → 步骤表；不落 NodeConfig 样板）----
+    private sealed record ManifestRoundStep(
+        string Key, string Fn, IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, string? Next);
 }

@@ -1052,5 +1052,22 @@
         Note   = '上下文几何聚拢点（K0.5/C1–C6）：白名单外零内层端口解析 / 裁剪单入口 / 命中口径单源 / Host 方法≤12 行≤400 / 正负对照'
     }
 
+    DelegateEntry = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '委派入口（D1–D5）：tool-face 声明轨/面→轨/模型暴露 / TrackFactories 恰 1 处 / ToolCatalogCore 可见 / ITaskAwaitPort 同步等待 / 正负对照'
+    }
+
+    WorkflowRegistration = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '工作流登记（W1–W6）：WorkflowSpecFiles ≡ DeclaredFlowIds.Map ≡ WorkflowRegistrationCatalog.All / 流号一致 / 声明文件与 [Flow] 在位 / 未登记声明面须显式豁免 / 正负对照'
+    }
+
+
 }
 

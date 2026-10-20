@@ -15,7 +15,7 @@ public readonly record struct MessageFlowVerdict(bool Ok, string Code, string De
 
 /// <summary>
 /// 流控判据（纯算术/纯字符串）：hop / fanout / TTL / queue / scope。
-/// <para>时钟由参数传入（内核禁 <c>DateTime.UtcNow</c>）。</para>
+/// <para>时钟一律由参数传入（内核不取系统时钟）。</para>
 /// </summary>
 public static class MessageFlowGuard
 {

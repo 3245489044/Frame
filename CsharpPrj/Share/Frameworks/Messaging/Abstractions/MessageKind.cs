@@ -17,4 +17,7 @@ public enum MessageKind
 
     /// <summary>控制（pause/resume/cancel/ack）：单调，同 scope 有序。</summary>
     Control,
+
+    /// <summary>未知种类（入站解析失败）：一律死信，禁静默归类为其它种类。</summary>
+    Unknown,
 }

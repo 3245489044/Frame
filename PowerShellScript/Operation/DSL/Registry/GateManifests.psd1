@@ -1,9 +1,25 @@
 @{
+    ShareMessagingBoundary = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '通用信息传递内核边界（Share.Messaging）：C1 领域零泄漏 / C2 零 ProjectReference / C3 禁时钟与网络 / C4 唯一状态枚举 / C5 直连禁令（Share 树禁 ITransferKeyStore·ISessionSend·SignalIntake）/ C6 三处登记齐备 / C7 正负对照 / C8 适配器面'
+    }
+
     NodePromptBinding = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '节点提示词绑定：模板槽 ⊆ PromptSlot 词表 / node:// domain 已声明 / 禁 SQL 旁路 / 禁新增 ContextNodeKind 用法；正负对照'
+    }
+
+    AgentModulesFrameworkLayout = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'Agent.Modules.Framework 归属唯一 / 契约不内联 / 依赖方向 / 零 Agent 件可见化；C5 正负对照（内存合成，零侧写）'
     }
 
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====

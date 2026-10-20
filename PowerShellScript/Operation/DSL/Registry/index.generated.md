@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（44 件）
+## Agent（52 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -13,6 +13,8 @@
 | `AgentBuildPoint` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentBuildPoint.ps1` |
 | `AgentDataSeparation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1` |
 | `AgentDecisionCoreBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1` |
+| `AgentDefaultDispatch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDefaultDispatch.ps1` |
+| `AgentModulesFrameworkLayout` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentModulesFrameworkLayout.ps1` |
 | `AgentProcessSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentProcessSurface.ps1` |
 | `AgentRuntimeSlots` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1` |
 | `AgentRuntimeUIConfig` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeUIConfig.ps1` |
@@ -30,13 +32,16 @@
 | `GenerationRebuildChain` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1` |
 | `HistoryAssemblySurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HistoryAssemblySurface.ps1` |
 | `HostAccessNoRestate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-HostAccessNoRestate.ps1` |
+| `IdentityTemplatePrefix` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IdentityTemplatePrefix.ps1` |
 | `IntentContract` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentContract.ps1` |
 | `IntentMappingNoLiteral` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentMappingNoLiteral.ps1` |
 | `IntentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentParity.ps1` |
 | `IntentSupportsProjected` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentSupportsProjected.ps1` |
+| `KeyspaceMirror` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-KeyspaceMirror.ps1` |
 | `LlmRoutingSurface` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-LlmRoutingSurface.ps1` |
 | `NodePromptBinding` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-NodePromptBinding.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-OperationRowCarriesActor.ps1` |
+| `PsSkillToolMap` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-PsSkillToolMap.ps1` |
 | `ReadinessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ReadinessSingleEntry.ps1` |
 | `RecordDraftSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordDraftSingleSource.ps1` |
 | `RecordSingleTextForm` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordSingleTextForm.ps1` |
@@ -46,6 +51,9 @@
 | `SaveDispatchNoDomainSwitch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SaveDispatchNoDomainSwitch.ps1` |
 | `ScriptNoFixedSleep` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ScriptNoFixedSleep.ps1` |
 | `SendDeclarationCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SendDeclarationCoverage.ps1` |
+| `ShareMessagingBoundary` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ShareMessagingBoundary.ps1` |
+| `SignalDeclaration` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SignalDeclaration.ps1` |
+| `SignalTraceSchema` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-SignalTraceSchema.ps1` |
 | `TemplateAccessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TemplateAccessSingleEntry.ps1` |
 | `ToolCallConvergence` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ToolCallConvergence.ps1` |
 | `TransferKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TransferKey.ps1` |
@@ -89,10 +97,11 @@
 | `InitGuards` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1` |
 | `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
 
-## KeySpace（1 件）
+## KeySpace（2 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
+| `DispatchTraceSchema` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DispatchTraceSchema.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
 ## Meta（12 件）

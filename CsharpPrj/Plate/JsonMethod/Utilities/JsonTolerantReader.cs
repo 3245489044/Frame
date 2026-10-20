@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 
 namespace Plate.JsonMethod.Utilities
@@ -149,5 +150,69 @@ namespace Plate.JsonMethod.Utilities
                     _ => null,
                 }
                 : null;
+
+        /// <summary>
+        /// 解析根元素；空文本 / 非法 JSON ⇒ null（不抛）。根元素已 Clone，脱离文档生命周期。
+        /// <para>与 <see cref="ParseRoot{T}"/> 的差别：把「不可解析」当可判定的空值（容错读），
+        /// 适用于「单条数据不可解析不得阻断整批」的场景；契约面 fail-fast 读不得使用本方法。</para>
+        /// </summary>
+        public static JsonElement? TryRootOrNull(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            var text = UnwrapJsonString(json);
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(text, Tolerant);
+                return document.RootElement.Clone();
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>字符串若本身是 JSON 对象/数组文本 ⇒ 去引号；否则原样（去首尾空白）。</summary>
+        public static string? UnwrapJsonString(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+            var trimmed = text.Trim();
+            if (!(trimmed.StartsWith("\"", StringComparison.Ordinal) && trimmed.EndsWith("\"", StringComparison.Ordinal)))
+            {
+                return trimmed;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(trimmed, Tolerant);
+                if (document.RootElement.ValueKind != JsonValueKind.String) return trimmed;
+                var inner = document.RootElement.GetString();
+                if (string.IsNullOrWhiteSpace(inner)) return inner;
+                var innerTrimmed = inner.Trim();
+                return innerTrimmed.StartsWith("{", StringComparison.Ordinal)
+                       || innerTrimmed.StartsWith("[", StringComparison.Ordinal)
+                    ? innerTrimmed
+                    : trimmed;
+            }
+            catch (JsonException)
+            {
+                return trimmed;
+            }
+        }
+
+        /// <summary>属性原始文本（字符串包裹的 JSON 去引号；非 JSON 字符串返回带引号原文，交解析方显式报错）。</summary>
+        public static string? Raw(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object
+                || !element.TryGetProperty(name, out var value))
+            {
+                return null;
+            }
+
+            return value.ValueKind == JsonValueKind.String
+                ? UnwrapJsonString(value.GetString())
+                : value.GetRawText();
+        }
     }
 }

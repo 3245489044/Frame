@@ -28,6 +28,7 @@ import { getProviderCredential, resolveProjectRoot } from "../credentials.js";
 import { RecognizerEngine, type RecognizedNode } from "../recognize/recognizer-engine.js";
 import { loadRecognizerSpec, resolveRecognizerSpecPath } from "../recognize/recognizer-spec-loader.js";
 import { toRecognizerFrames } from "../recognize/event-projection.js";
+import { createAgentTools, type AgentToolCallResult } from "./agent-tools.js";
 
 /** ClineCore 内部 host（类型声明为 private，运行时存在） */
 type ClineCoreWithHost = import("@cline/sdk").ClineCore & { host: RuntimeHost };
@@ -50,6 +51,18 @@ function resolveMaxIterations(options: Pick<ClineRunOptions, "maxIterations">): 
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
     : DEFAULT_MAX_ITERATIONS;
+}
+
+/**
+ * system 角色合成（唯一实现）：我们的 L0 底座在前，SDK 默认提示在后（保留 SDK 要求的完整默认上下文）。
+ * 空我们的 → 仅默认（零回归）；空默认 → 仅我们的。
+ */
+export function composeSystemPrompt(
+  sdkDefault: string,
+  ours: string | undefined
+): string {
+  const l0 = typeof ours === "string" ? ours.trim() : "";
+  return l0 ? `${l0}\n\n${sdkDefault}` : sdkDefault;
 }
 
 /**
@@ -372,6 +385,49 @@ export class SdkTransport {
     this.onNode = reporter;
   }
 
+  // ---- agent 工具回桥（P1）：tool-call 帧 → C# ToolFaceHost → tool-result 帧 ----
+
+  /** 挂起的工具调用（toolCallId → resolver）。 */
+  private readonly agentToolPending = new Map<string, (result: AgentToolCallResult) => void>();
+
+  /** 处理 C# 回填的 tool-result 帧（engine 入口调用）。 */
+  handleAgentToolResult(frame: Record<string, unknown>): void {
+    const id = typeof frame.toolCallId === "string" ? frame.toolCallId : "";
+    const waiter = this.agentToolPending.get(id);
+    if (!waiter) {
+      return;
+    }
+    this.agentToolPending.delete(id);
+    const ok = frame.ok === true;
+    const raw = frame.output;
+    const output = typeof raw === "string" ? raw : raw === undefined || raw === null ? "" : JSON.stringify(raw);
+    waiter({
+      ok,
+      output,
+      error: typeof frame.error === "string" ? frame.error : undefined,
+    });
+  }
+
+  /** 发一次 agent 工具调用（daemon 反向帧）并等待回执。 */
+  requestAgentTool(name: string, args: unknown, timeoutMs = 120_000): Promise<AgentToolCallResult> {
+    const toolCallId = `tc_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const pending = new Promise<AgentToolCallResult>((resolve) => {
+      this.agentToolPending.set(toolCallId, resolve);
+    });
+    process.stdout.write(
+      `${JSON.stringify({ type: "tool-call", toolCallId, name, arguments: args ?? {} })}\n`
+    );
+    const timeout = new Promise<AgentToolCallResult>((resolve) => {
+      setTimeout(
+        () => resolve({ ok: false, output: "", error: `工具调用超时（${Math.round(timeoutMs / 1000)}s）` }),
+        timeoutMs
+      );
+    });
+    return Promise.race([pending, timeout]).finally(() => {
+      this.agentToolPending.delete(toolCallId);
+    });
+  }
+
   /** 统一阶段出口：stderr trace（--trace，向后兼容）+ 可选 onStage 回调（协议帧，观测默认开）。 */
   private emitStage(enabled: boolean | undefined, stage: string, detail?: unknown): void {
     // daemon/engine 路径经 onStage 结构化帧上报同一阶段；`--trace` 的 stderr 标记与其内容重复，
@@ -506,6 +562,16 @@ export class SdkTransport {
     const sdk = await loadSdk();
     this.emitStage(options.trace, "load-sdk-ok");
 
+    // system 角色：我们的 L0 + SDK 默认（拼接而非替换）。此前仅用 SDK 默认 ⇒ system=40，L0 实际在 user prompt。
+    const defaultSystemPrompt = sdk.getClineDefaultSystemPrompt({
+      rootPath: cwd ?? process.cwd(),
+      providerId: provider,
+      planModeSwitchTool: false,
+    });
+    const systemPrompt = composeSystemPrompt(defaultSystemPrompt, options.systemPrompt);
+    // cline 工具面注入（声明驱动）：仅当 cline 面声明了 delegate_subagent 时构造。
+    const agentTools = createAgentTools(this, options.agentTools ?? [], options.subAgentTags ?? []);
+
     // 构造会话配置
     const sessionConfig: StartSessionConfigShape = {
       providerId: provider,
@@ -521,13 +587,15 @@ export class SdkTransport {
       cwd: cwd ?? undefined,
       mode,
       maxIterations: resolveMaxIterations(options),
-      systemPrompt: sdk.getClineDefaultSystemPrompt({
-        rootPath: cwd ?? process.cwd(),
-        providerId: provider,
-        planModeSwitchTool: false,
-      }),
+      systemPrompt,
       ...(options.sessionId ? { sessionId: options.sessionId } : {}),
     };
+    this.emitStage(options.trace, "system-prompt", {
+      chars: systemPrompt.length,
+      oursChars: typeof options.systemPrompt === "string" ? options.systemPrompt.trim().length : 0,
+      hasL0Subagent: systemPrompt.includes("l0-subagent"),
+      extraTools: agentTools.map((t) => t.name),
+    });
 
     // 预算竞速起点最前移：定时器必须在进入任何 await SDK 之前就绪（根因 §3.1）。
     const timeoutMs = (options.timeoutSec ?? config.timeoutSec ?? 0) * 1000;
@@ -607,6 +675,8 @@ export class SdkTransport {
         prompt: options.prompt,
         source: "cline-api",
         mode,
+        // 注入侧（P1）：localRuntime 为宿主本地专属装配面；未声明工具 ⇒ 不传（零回归）。
+        ...(agentTools.length > 0 ? { localRuntime: { extraTools: agentTools } } : {}),
       });
 
       if (timeoutMs > 0) {

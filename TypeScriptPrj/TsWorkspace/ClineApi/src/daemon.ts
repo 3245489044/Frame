@@ -156,6 +156,18 @@ class EngineHost {
         continue;
       }
 
+      if (type === "tool-call") {
+        // P1 反向帧：engine 的工具调用请求 → 中继到 C#（C# 执行工具面后以 tool-result 回填）。
+        send({
+          id,
+          type: "tool-call",
+          toolCallId: frame.toolCallId,
+          name: frame.name,
+          arguments: frame.arguments,
+        });
+        continue;
+      }
+
       // 终帧（engine 带 ok/error）。
       if (frame.ok !== undefined || frame.error !== undefined) {
         const resolve = this.pending.get(id);
@@ -167,6 +179,12 @@ class EngineHost {
         }
       }
     }
+  }
+
+  /** 反向帧透传（P1）：C# 回填的 tool-result 直接写入 engine stdin（不占请求/终帧槽）。 */
+  writeLine(line: string): void {
+    this.ensureChild();
+    this.child!.stdin.write(`${line}\n`, "utf8");
   }
 
   /** 终止 engine 进程树（配合 stdio inherit 仅传 stdin/stdout，stderr 透传至 daemon）。 */
@@ -252,6 +270,12 @@ function main(): void {
 
     const id = req.id ?? "";
     const cmd = (req.cmd ?? "") as Cmd;
+
+    if ((req as unknown as Record<string, unknown>).type === "tool-result") {
+      // P1 反向帧：C# 回填的工具结果 → engine（不进入串行 dispatch 队列）。
+      host.writeLine(trimmed);
+      return;
+    }
 
     if (cmd === "ping") {
       send({ id, type: "pong" });

@@ -385,7 +385,14 @@
     #   均在新单 allowSet 内。上一系列（框架层设计缺陷治理）在途改动按新单 preexisting 登记。
     #   恢复 = 回填下方注释 v55 的 Value（当前行）。
     # Manifest(v55) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-框架层设计缺陷-治理.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-子智能体工作流UI不可见.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v57（2026-10-22）：单指针切换至「执行结果判定与任务终态 · Outcome Spine（B0–B8）」授权单。
+    #   切换理由 = 用户要求大步快改、一次改完：结果契约/分类器/投影/池终态/判据/终止策略/可执行解析/去重/脚本。
+    #   本系列改动落在 Frame/CsharpPrj/Share/Orchestration/TaskStatusPool · Projects/Plug/Agent/{Contract,Modules,Core,Launcher,Ui}
+    #   · Projects/Information/DrivenConfig/Scripts/Agent/agent_history · Environment/CentralTest/{AgentTest/Agent.Core.Tests,CSharpTest/Share.Tsets/StateManagement.Tests}
+    #   · Docs/analysis/2026/10/10.21，均在新单 allowSet 内。上一系列（子智能体工作流 UI 不可见）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填下方注释 v56 的 Value（当前行）。
+    # Manifest(v56) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-子智能体工作流UI不可见.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行结果判定与任务终态.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

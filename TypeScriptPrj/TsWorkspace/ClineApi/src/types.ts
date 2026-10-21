@@ -69,8 +69,12 @@ export interface ClineRunOptions {
    * （配置键 Agents.<name>.MaxIterations / Llm.MaxIterations，见 ClinePayloadKeys.MaxIterations）。
    */
   maxIterations?: number;
-  /** 自定义系统提示词 */
+  /** 自定义系统提示词（L0 底座；与 SDK 默认系统提示拼接） */
   systemPrompt?: string;
+  /** 注入 cline 工具面的工具名集（声明面 tool-face.ushar 的 cline 面） */
+  agentTools?: string[];
+  /** 可委派子智能体标签（声明面 subagents.ushar 的 delegate_hint） */
+  subAgentTags?: { tag: string; description?: string }[];
   /** 连续错误最大重试次数 */
   retries?: number;
   /** warmup 命令的初始化硬超时（秒）；仅 daemon warmup 命令使用，覆盖 ClineCore 冷启动（由 C# 池预算推导）。 */

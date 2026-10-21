@@ -7,6 +7,7 @@
     判据（D1–D5）：
       D1 声明面：Config/tool-face.ushar 的 [Space] ToolTrack 含 delegate_subagent，且 registry/loopback
                  各有一条 [Ref] 指向该轨（面→轨事实），ToolName 空间暴露给 model。
+      D6 cline 面：ToolFace:cline 存在且只挂 delegate_subagent（禁挂 ps_runtime）。
       D2 装配面：ToolFaceAssembler.TrackFactories 恰 1 处 `["delegate_subagent"] =`，且构造 DelegateSubAgentCallableTrack。
       D3 模型面：ToolCatalogCore 的 Names 含 delegate_subagent（外部 AI 可发现）。
       D4 执行面：DelegateSubAgentCallableTrack 引用 ITaskAwaitPort（同步等待端口，禁 fire-and-forget 假委派）。
@@ -62,7 +63,14 @@ if (-not (Test-Path -LiteralPath $facePath)) {
     }
     $checks++
 
-    # D5 负对照：剥离委派行后同一判据必须为假
+    # D6 cline 面（P1）：只挂委派轨，禁挂 PS 执行轨（cline 面声明 ↔ SDK 工具注入清单）。
+    if ($face -notmatch '(?m)^\[Ref\].*\bToolFace:cline\b.*edge=hosts.*tgt=delegate_subagent') {
+        $violations.Add('D6 tool-face.ushar 缺 cline 面 → delegate_subagent 的 hosts 边（cline 内委派不可注入）')
+    }
+    if ($face -match '(?m)^\[Ref\].*\bToolFace:cline\b.*tgt=ps_runtime') {
+        $violations.Add('D6 cline 面不得挂 ps_runtime（禁 PS 直执行）')
+    }
+    $checks++
     $stripped = ($face -replace '(?m)^\s*delegate_subagent\s*\r?\n?', '')
     if (Test-DelegateTrackDeclared -Text $stripped) {
         $violations.Add('D5 负对照失效：剥离 delegate_subagent 行后判据仍为真（判据恒真）')

@@ -29,6 +29,7 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly ITaskPoolPersistence<TItem> _persistence;
         private readonly TaskPoolHandler<TItem, TResult> _handler;
         private readonly ITaskPoolItemInitializer<TItem>? _initializer;
+        private readonly ITaskOutcomePolicy<TResult>? _outcomePolicy;
         private readonly int _maxConcurrency;
         private readonly int _batchSize;
         private readonly int _heartbeatIntervalMs;
@@ -66,11 +67,13 @@ namespace Share.TaskStatusPool.TaskPool
             ITaskPoolPersistence<TItem> persistence,
             TaskPoolHandler<TItem, TResult> handler,
             TaskPoolOptions? options = null,
-            ITaskPoolItemInitializer<TItem>? initializer = null)
+            ITaskPoolItemInitializer<TItem>? initializer = null,
+            ITaskOutcomePolicy<TResult>? outcomePolicy = null)
         {
             _persistence = PortGuard.Required(persistence, nameof(persistence));
             _handler = PortGuard.Required(handler, nameof(handler));
             _initializer = initializer;
+            _outcomePolicy = outcomePolicy;
             options ??= new TaskPoolOptions();
             _maxConcurrency = Math.Max(1, options.MaxConcurrency);
             _batchSize = Math.Max(1, options.BatchSize);
@@ -431,12 +434,26 @@ namespace Share.TaskStatusPool.TaskPool
             var heartbeat = HeartbeatLoopAsync(key, hbCts.Token);
             try
             {
-                await _handler(item, key, ct).ConfigureAwait(false);
+                var result = await _handler(item, key, ct).ConfigureAwait(false);
                 var st = _states.Get(key);
-                if (st is not null && st.CurrentState == TaskExecutionStatus.Running && st.TryComplete())
+                var target = (_outcomePolicy ?? AlwaysCompletePolicy<TResult>.Instance).ToStatus(result);
+                if (target == TaskExecutionStatus.Completed
+                    && st is { CurrentState: TaskExecutionStatus.Running }
+                    && st.TryComplete())
                 {
                     await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, "completed");
+                }
+                else if (target == TaskExecutionStatus.Faulted
+                    && st is not null && st.TryFault())
+                {
+                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
+                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted_by_outcome");
+                }
+                else if (target is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted))
+                {
+                    throw new ArgumentOutOfRangeException("outcomePolicy", target,
+                        "任务终态策略只允许 Completed / Faulted。");
                 }
             }
             catch (OperationCanceledException)

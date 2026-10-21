@@ -178,6 +178,11 @@ export async function startEngine(opts: EngineMainOptions = {}): Promise<void> {
       respondError("", "无效 JSON-Line");
       return;
     }
+    // 反向帧（P1）：C# 回填的工具结果 → 交给 transport 结算挂起调用，不进入请求队列。
+    if ((req as unknown as Record<string, unknown>).type === "tool-result") {
+      transport.handleAgentToolResult(req as unknown as Record<string, unknown>);
+      return;
+    }
     pending = pending.then(() => handle(req));
   });
 

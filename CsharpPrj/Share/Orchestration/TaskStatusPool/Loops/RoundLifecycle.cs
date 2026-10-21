@@ -13,6 +13,7 @@ public sealed class AxiomActionResult
     public bool Ok { get; init; }
     public string? Error { get; init; }
     public ErrorClass? ErrorClass { get; init; }
+    public bool Terminal { get; init; }
     public string Text { get; init; } = "";
     public Dictionary<string, object> Outputs { get; init; } = new();
 }
@@ -81,6 +82,10 @@ public static class RoundLifecycle
         var eval = evaluate != null ? evaluate(result, errCls) : InferEval(result, errCls);
         ProgressUpdater.Apply(ctx, eval);
         BudgetEscalator.Apply(ctx, errCls, eval);
+
+        // 确定性失败（Terminal 且未成功）⇒ 本轮即终止，禁烧第二轮重跑同一必败计划。
+        if (!result.Ok && result.Terminal)
+            ctx.Flag.SetHalt();
 
         // 熔断落地（FailureBudgetEscalation level=3 → halt）：budget 达上限即置 halt，
         // 使 TerminationDecider 提前终止，避免在 MaxProgress > 3 时继续烧空 token 才停。

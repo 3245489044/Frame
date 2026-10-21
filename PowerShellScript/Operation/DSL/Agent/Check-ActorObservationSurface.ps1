@@ -34,11 +34,16 @@ $agent = Join-Path $Root 'Projects\Plug\Agent\src'
 $views = Join-Path $agent 'Agent.Ui\Ui\Views'
 $required = @(
     'Agent.Session\Projection\ActorObservationContracts.cs',
+    'Agent.Session\Projection\ActorObservationRules.cs',
     'Agent.Session\Projection\ActorInvocationProjector.cs',
     'Agent.Session\Projection\ActorInvocationLedger.cs',
+    'Agent.Session\Projection\ResultObservationLedger.cs',
     'Agent.Session\Projection\ActorObservationProjector.cs',
     'Agent.Session\Projection\ActorObservationHub.cs',
-    'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs'
+    'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs',
+    'Agent.Ui\Ui\Views\PromptSnapshotResolver.cs',
+    'Agent.Ui\Core\Host\ActorFactObservationSource.cs',
+    'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs'
 )
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateFileIndex.psm1') -Force
 
@@ -123,21 +128,87 @@ if (Test-Path -LiteralPath $renderer) {
 
 $contracts = Join-Path $agent 'Agent.Session\Projection\ActorObservationContracts.cs'
 $projector = Join-Path $agent 'Agent.Session\Projection\ActorObservationProjector.cs'
+
+function Get-DeclarationRowViolations([string]$Text) {
+    $hits = [System.Collections.Generic.List[string]]::new()
+    if ($Text -notmatch 'Merge\(\s*IReadOnlyList<ActorInvocation>') { $hits.Add('合并器未以调用实例为输入（声明先行未消除）') }
+    if ($Text -match 'rows\[key\]\s*=\s*new\s+ActorObservationRow\s*\(') { $hits.Add('合并器仍按声明键直接建行（ANTI-DECLARATION-AS-ACTOR）') }
+    # S7b：调用实例先行 —— 空调用早退必须发生在声明字典构建之前。
+    $early = $Text.IndexOf('return Array.Empty<ActorObservationRow>')
+    $decl = $Text.IndexOf('var declarationsById')
+    if ($early -lt 0 -or $decl -lt 0 -or $early -gt $decl) { $hits.Add('合并顺序不成立：声明字典先于调用实例判断（声明先行）') }
+    return $hits
+}
+
 if ((Test-Path -LiteralPath $contracts) -and (Test-Path -LiteralPath $projector)) {
     $contractText = [System.IO.File]::ReadAllText($contracts)
-    $projectorText = [System.IO.File]::ReadAllText($projector)
     if ($contractText -notmatch 'ActorInvocationKey') { $violations.Add('[S7] 合同缺 ActorInvocationKey（调用身份未建模）') }
-    if ($projectorText -notmatch 'IReadOnlyList<ActorInvocation>') { $violations.Add('[S7] 合并器未以调用实例为输入（声明先行未消除）') }
-    if ($projectorText -match 'rows\[key\]\s*=\s*new\s+ActorObservationRow\s*\(') { $violations.Add('[S7] 合并器仍按声明键直接建行（ANTI-DECLARATION-AS-ACTOR）') }
+    foreach ($m in (Get-DeclarationRowViolations ([System.IO.File]::ReadAllText($projector)))) {
+        $violations.Add("[S7] $m")
+    }
 }
 
 $probeDeclaration = 'foreach (var declaration in declarations) { rows[key] = new ActorObservationRow(Id, Kind, true, Stage, Origin); }'
-if ($probeDeclaration -notmatch 'rows\[key\]\s*=\s*new\s+ActorObservationRow\s*\(') {
+if ((Get-DeclarationRowViolations $probeDeclaration).Count -eq 0) {
     $violations.Add('[S10] 负对照失效：声明先行合成样本未被 S7 捕获')
 }
 
+# S11 提示词快照读取单点（E-2/D-5）：视图服务不得直读，唯一读点 = PromptSnapshotResolver。
+if (Test-Path -LiteralPath $viewService) {
+    $text = [System.IO.File]::ReadAllText($viewService)
+    if ($text -match 'IPromptSnapshotStore') {
+        $violations.Add('[S11] 视图服务仍直读 IPromptSnapshotStore（须经 PromptSnapshotResolver 单点）')
+    }
+}
+$resolver = Join-Path $views 'PromptSnapshotResolver.cs'
+if (Test-Path -LiteralPath $resolver) {
+    if ([System.IO.File]::ReadAllText($resolver) -notmatch '\.Read\(') {
+        $violations.Add('[S11] PromptSnapshotResolver 未承载读点')
+    }
+} else {
+    $violations.Add('[S11] 缺件（判据不可判）：PromptSnapshotResolver.cs')
+}
+
+# S12 阶段受控词对拍（D-1）：观测镜像表必须与框架唯一词表集合相等。
+function Get-StageTokens([string]$Text) {
+    $set = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($m in [regex]::Matches($Text, 'public const string \w+\s*=\s*"([a-z]+)"')) {
+        [void]$set.Add($m.Groups[1].Value)
+    }
+    # 禁管道枚举：把 HashSet 作为单个对象返回（否则退化为字符串数组，SetEquals 不可用）。
+    return ,$set
+}
+$frameworkStage = Join-Path $Root 'Frame\CsharpPrj\Modules\DeclarativeDataflow\RunState\RunStateStage.cs'
+if ((Test-Path -LiteralPath $frameworkStage) -and (Test-Path -LiteralPath $contracts)) {
+    $frameworkText = [System.IO.File]::ReadAllText($frameworkStage)
+    $contractText = [System.IO.File]::ReadAllText($contracts)
+    $block = [regex]::Match($contractText, 'class ActorObservationStages(?s:.*?)\r?\n    \}').Value
+    if ([string]::IsNullOrWhiteSpace($block)) {
+        $violations.Add('[S12] 合同缺 ActorObservationStages 词表（不可判）')
+    } else {
+        $frameworkSet = Get-StageTokens $frameworkText
+        $mirrorSet = Get-StageTokens $block
+        # unknown = 观测层「无运行事实」占位（框架词表不含），对拍前剔除。
+        [void]$mirrorSet.Remove('unknown')
+        if (-not $frameworkSet.SetEquals($mirrorSet)) {
+            $violations.Add("[S12] 阶段词表漂移：框架={$($frameworkSet -join ',')} 观测={$($mirrorSet -join ',')}")
+        }
+
+        # E-13：Normalize 同义词映射也必须可对拍（不再只看 All 常量集）。
+        $mapBlock = [regex]::Match($contractText, 'Map\s*\{.*?\};', 'Singleline').Value
+        $expectedMap = @{ 'done' = 'Completed'; 'faulted' = 'Failed'; 'error' = 'Failed'; 'canceled' = 'Cancelled' }
+        foreach ($key in $expectedMap.Keys) {
+            if ($mapBlock -notmatch "\[`"$key`"\]\s*=\s*$($expectedMap[$key])") {
+                $violations.Add("[S12] 阶段同义词映射缺失/漂移：$key ⇒ $($expectedMap[$key])")
+            }
+        }
+    }
+} else {
+    $violations.Add('[S12] 缺件（判据不可判）：RunStateStage.cs / ActorObservationContracts.cs')
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host '  [成功] S1–S10 通过（调用实例驱动 + 层级过滤 + 身份纯度 + 零控制面）' -ForegroundColor Green
+    Write-Host '  [成功] S1–S12 通过（调用实例驱动 + 层级过滤 + 身份纯度 + 零控制面 + 词表对拍）' -ForegroundColor Green
     Write-Host ''
     exit 0
 }

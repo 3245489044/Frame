@@ -10,8 +10,9 @@
       E3 未登记调用显式标记：ActorObservationProjector 含 `unregistered-invocation`。
       E4 面板空态承载：HistoryBoardModel 含 `ActorsEmpty` ∧ ConversationPageRenderer 含 `RenderActorObservationPanel`。
       E5 结果通道缺失显式：ActorFactObservationSource 含 `result-not-published`（不默认静默 None）。
-      E6 目录区独立成段：视图投影含 DirectoryEmptyText，渲染器含 `actor-dir`。
-      E7 结果账唯一写点：SubAgentResultPublisher 含 ResultObservationLedger.Record（Node/Ktf/None 三出口）。
+      E6 基础提示词分段在位：HistoryBoardModel 含 `BasePromptSegment` ∧ 视图服务按 `prompt:l0` 分段 ∧ 渲染器用统一渲染项。
+      E7 能力目录退役：渲染器/视图投影不得再出现 `actor-dir` / `ActorDirectory` / `ProjectDirectory`。
+      E8 结果账唯一写点：SubAgentResultPublisher 含 ResultObservationLedger.Record（Node/Ktf/None 三出口）。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 #>
@@ -44,24 +45,43 @@ function Test-Contains([string]$Relative, [string]$Pattern, [string]$Code, [stri
     if ($text -notmatch $Pattern) { $script:violations.Add("[$Code] $Message") }
 }
 
+function Test-NotContains([string]$Relative, [string]$Pattern, [string]$Code, [string]$Message) {
+    $path = Join-Path $agent $Relative
+    if (-not (Test-Path -LiteralPath $path)) {
+        $script:violations.Add("[$Code] 缺件：$Relative")
+        return
+    }
+    $text = [System.IO.File]::ReadAllText($path)
+    if ($text -match $Pattern) { $script:violations.Add("[$Code] $Message") }
+}
+
 Test-Contains 'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs' 'EmptyText' 'E1' '缺 EmptyText（空声明显式占位）'
 Test-Contains 'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs' 'NotAttachedText' 'E1' '缺 NotAttachedText（未装配显式占位）'
-Test-Contains 'Agent.Session\Projection\ActorObservationHub.cs' 'declaration-source-not-attached' 'E2' '缺声明源未装配归因'
-Test-Contains 'Agent.Session\Projection\ActorObservationHub.cs' 'task-runtime-source-not-attached' 'E2' '缺任务源未装配归因'
-Test-Contains 'Agent.Session\Projection\ActorObservationHub.cs' 'history-scope-not-enumerated' 'E2' '缺全局 scope 未枚举归因'
-Test-Contains 'Agent.Session\Projection\ActorObservationHub.cs' 'no-invocation' 'E2' '缺「无调用」归因（声明不产行）'
-Test-Contains 'Agent.Session\Projection\ActorObservationProjector.cs' 'unregistered-invocation' 'E3' '缺未登记调用可见标记'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"declaration-source-not-attached"' 'E2' '缺声明源未装配归因（常量单源）'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"task-runtime-source-not-attached"' 'E2' '缺任务源未装配归因（常量单源）'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"history-scope-not-enumerated"' 'E2' '缺全局 scope 未枚举归因（常量单源）'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"no-invocation"' 'E2' '缺「无调用」归因（声明不产行）'
+Test-Contains 'Agent.Session\Projection\ActorObservationHub.cs' 'ActorResultReasons\.' 'E2' 'Hub 未消费归因常量（裸字面量回归）'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"unregistered-invocation"' 'E3' '缺未登记调用结构码'
+Test-Contains 'Agent.Session\Projection\ActorObservationProjector.cs' 'ActorResultReasons\.UnregisteredInvocation' 'E3' '投影器未消费未登记结构码'
 Test-Contains 'Agent.Ui\Ui\Views\HistoryBoardModel.cs' 'ActorsEmpty' 'E4' '看板模型缺执行体空态字段'
 Test-Contains 'Agent.Ui\Ui\Views\ConversationPageRenderer.cs' 'RenderActorObservationPanel' 'E4' '渲染器缺执行体面板（空态无处承载）'
-Test-Contains 'Agent.Ui\Core\Host\ActorFactObservationSource.cs' 'result-not-published' 'E5' '结果事实缺显式不可达原因（默认 None 静默）'
-Test-Contains 'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs' 'DirectoryEmptyText' 'E6' '目录区缺空态文案'
-Test-Contains 'Agent.Ui\Ui\Views\ConversationPageRenderer.cs' 'actor-dir' 'E6' '渲染器缺目录区（声明应独立成段）'
-Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ResultObservationLedger\.Record' 'E7' '结果账缺唯一写点（结果通道不可读）'
-Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ActorResultChannel\.Ktf' 'E7' '结果账缺 KTF 通道事实'
-Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ActorResultChannel\.Node' 'E7' '结果账缺节点通道事实'
+Test-Contains 'Agent.Session\Projection\ActorObservationRules.cs' '"result-not-published"' 'E5' '结果事实缺显式不可达原因常量（默认 None 静默）'
+Test-Contains 'Agent.Ui\Core\Host\ActorFactObservationSource.cs' 'ActorResultReasons\.ResultNotPublished' 'E5' '结果事实未消费不可达原因常量'
+Test-Contains 'Agent.Session\Projection\ResultObservationLedger.cs' 'public static bool Record' 'E9' '结果账 Record 必须返回 bool（拒绝而非抛）'
+Test-NotContains 'Agent.Session\Projection\ResultObservationLedger.cs' 'throw new InvalidOperationException' 'E9' '结果账不得抛异常（观测不阻断业务）'
+Test-Contains 'Agent.Ui\Core\Host\ActorFactObservationSource.cs' 'ActorResultReasons\.ResultReasonMissing' 'E9' '事实源缺 None+空原因兜底'
+Test-Contains 'Agent.Ui\Ui\Views\HistoryBoardModel.cs' 'BasePromptSegment' 'E6' '看板模型缺基础提示词分段（L0 分文件）'
+Test-Contains 'Agent.Ui\Ui\Views\PromptSurfaceResolver.cs' 'prompt:l0' 'E6' '基础提示词未按 prompt:l0 分段投影（Task 同模式）'
+Test-Contains 'Agent.Ui\Ui\Views\ConversationPageRenderer.cs' 'ConversationRenderItem' 'E6' '基础提示词未以统一渲染项承载（折叠模式不一致）'
+Test-NotContains 'Agent.Ui\Ui\Views\ConversationPageRenderer.cs' 'actor-dir|ActorDirectory' 'E7' '能力目录仍在渲染（历史对话不应展示能力目录）'
+Test-NotContains 'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs' 'ActorObservationDirectoryRow|ProjectDirectory' 'E7' '视图投影仍产能力目录（应退役）'
+Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ResultObservationLedger\.Record' 'E8' '结果账缺唯一写点（结果通道不可读）'
+Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ActorResultChannel\.Ktf' 'E8' '结果账缺 KTF 通道事实'
+Test-Contains 'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs' 'ActorResultChannel\.Node' 'E8' '结果账缺节点通道事实'
 
 if ($violations.Count -eq 0) {
-    Write-Host '  [成功] E1–E7 通过（空/未知/未装配/结果通道均显式可见）' -ForegroundColor Green
+    Write-Host '  [成功] E1–E9 通过（空/未知/未装配/基础提示词/结果通道均显式可见，能力目录已退役）' -ForegroundColor Green
     Write-Host ''
     exit 0
 }

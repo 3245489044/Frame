@@ -1082,7 +1082,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '执行体观测面（P5′-P7）：合同/调用投影/合并/Hub/视图投影/调用台账在位 · UI 视图层零直读 · 单一入口 · 全局 scope · 层级适用性（ActorApplicability.For）被消费 · 身份列只取 Id · 执行体面零控制；正/负对照'
+        Note   = '执行体观测面（P5′-P7）：合同/调用投影/合并/Hub/视图投影/调用台账/结果账/事实源在位 · UI 视图层零直读 · 单一入口 · 全局 scope · 层级适用性（ActorApplicability.For）被消费 · 身份列只取 Id · 执行体面零控制 · 声明不产行顺序判据（S7b）· 提示词快照读取单点（S11）· 阶段词表 + Normalize 同义词映射对拍（S12）；正/负对照经真实分类函数'
     }
 
     ActorObservationEmptyReason = @{
@@ -1090,7 +1090,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '执行体观测空态/结果可见（NoSilentOutlet）：EmptyText/NotAttachedText/目录空态 · 声明/任务/全局 scope/无调用归因键 · 未登记调用显式标记 · 结果通道（Node/Ktf/None+原因）唯一写点在位 · 目录独立成段'
+        Note   = '执行体观测空态/结果可见（NoSilentOutlet）：EmptyText/NotAttachedText · 声明/任务/全局 scope/无调用归因键（单一常量源 ActorResultReasons）· 未登记调用结构码 · 基础提示词折叠区（PromptSurface/actor-base-prompt）· 能力目录已退役（无 actor-dir/ActorDirectory）· 结果通道（Node/Ktf/None+原因）唯一写点在位 · 结果账非法输入拒绝不抛（E9）'
     }
 
     ActorInvocationSingleSource = @{
@@ -1098,7 +1098,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '调用登记单源（P5′/P8′）：ActorInvocationLedger.Record 生产写点恰 1（TaskAwaitAdapter）· ResultObservationLedger.Record 写点恰 1（SubAgentResultPublisher）· 行必含 InvocationId · 同 TaskKey 幂等（TryAdd）；正/负对照'
+        Note   = '调用登记单源（P5′/P8′）：ActorInvocationLedger.Record 生产写点恰 1（AgentTaskPool 活入队单点）· ResultObservationLedger.Record 写点恰 1（SubAgentResultPublisher）· 行必含 InvocationId · 同 TaskKey 幂等（TryAdd）；正/负对照经真实扫描函数'
     }
 
 

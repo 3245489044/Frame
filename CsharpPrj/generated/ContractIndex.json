@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-20T15:33:22.6473003Z",
+  "builtAt": "2026-10-21T05:52:03.3479811Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1406,14 +1406,14 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 330,
+      "total": 356,
       "truncated": false,
       "byRole": {
         "Gate": 4,
-        "Test": 71,
+        "Test": 74,
         "Declaration": 5,
-        "Code": 41,
-        "Doc": 145,
+        "Code": 43,
+        "Doc": 166,
         "Other": 64
       },
       "hits": [
@@ -1472,6 +1472,13 @@
           "line": 68,
           "role": "Code",
           "text": "legacyTemplates: new[] { \"proc.{container}.r{round:number}.step{ordinal:number}\" },"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/PlacementKeyPrefix.cs",
+          "line": 12,
+          "role": "Code",
+          "text": "/// ⇒ 载体全量枚举 + 跨域混读。前缀必须由**位置键模板**派生（<c>proc.{container}</c> ⇒ <c>proc.</c>）。"
         },
         {
           "repo": "Frame",
@@ -2074,6 +2081,41 @@
           "line": 673,
           "role": "Doc",
           "text": "- 当前采用 process 流帧 `kind=cost`（`proc.{container}` 单行聚合）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体观察面ActorObservation-通用框架与聚拢点设计.md",
+          "line": 532,
+          "role": "Doc",
+          "text": "| **F-34** | 读链前缀由**位置键模板**派生（`proc.{container}` → `proc.` / `proc.<task>`），域限定与身份裁剪合并为单趟；`NodeScopeGuard` 前缀优先 | Frame `PlacementKeyPrefix.cs`、`NodeReadProjection.cs`；Agent `NodeDomainPort.cs`、`NodeS"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体观察面ActorObservation-通用框架与聚拢点设计.md",
+          "line": 693,
+          "role": "Doc",
+          "text": "4. **过程**：池任务 `proc.<taskKey>` 存在；`ProcessNodeSink_EmptyIdentity` / `ContainerMissing` = 0。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体观察面ActorObservation-通用框架与聚拢点设计.md",
+          "line": 694,
+          "role": "Doc",
+          "text": "5. **读链**：process 读只含 `proc.*`（有 container 时只含本任务）；`prefix-undefined` = 0；每项仅一次 `Admit`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体即单次调用Actor-as-Invocation-节点化设计与施工单.md",
+          "line": 70,
+          "role": "Doc",
+          "text": "| F-4 | 池任务 run 边界以 `TaskKey` 建立（`proc.<taskKey>`） | `Agent.Modules/SubAgent/Runtime/SubAgentRunBoundary.cs` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体即单次调用Actor-as-Invocation-节点化设计与施工单.md",
+          "line": 122,
+          "role": "Doc",
+          "text": "proc.<taskKey>                          // 现有过程 run 容器（可复用，不另建真源）"
         },
         {
           "repo": "Main",
@@ -2686,6 +2728,41 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 148,
+          "role": "Doc",
+          "text": "| 运行时调用链高亮 | **能** | `ur_nodes` 的 `proc.* / obs.*` 帧（`seq / atUtc / kind`）+ `ur_tasks.Status` | 成立（有延迟） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 252,
+          "role": "Doc",
+          "text": "| `ActivityPulse` | `ur_nodes` 中 `proc.{container}` / `obs.{container}` 的 `rounds[].frames[]`；`TaskKey = container` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 260,
+          "role": "Doc",
+          "text": "[Record] node:proc.xxx: table=Nodes | key=proc.xxx"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 324,
+          "role": "Doc",
+          "text": "| 活跃脉冲 | `obs.* / proc.*` 帧 | 节点亮度脉冲 + 外环扩散（半衰期 2 s） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 925,
+          "role": "Doc",
+          "text": "| 脉冲 | `obs.* / proc.*` 帧在时间轴上的活动点 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/superpowers/plans/2026-10-07-tool-round-attribution.md",
           "line": 7,
           "role": "Doc",
@@ -2721,346 +2798,367 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 235,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"proc.task-a.r1.stage.1\", \"{\\\"kind\\\":\\\"stage\\\"}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 244,
-          "role": "Test",
-          "text": "NodeKey = \"proc.task-a.r1.tool.2\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 250,
-          "role": "Test",
-          "text": "var keys = await carrier.EnumerateKeysAsync(\"proc.task-a.r1.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 252,
-          "role": "Test",
-          "text": "new[] { \"proc.task-a.r1.stage.1\", \"proc.task-a.r1.tool.2\" }, keys.ToArray(),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 20,
-          "role": "Test",
-          "text": "/// <item>位置键模板**只用身份可反解的值**（container/round/kind/ordinal），且键族 <c>proc.*</c> 与其它域分离；</item>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 54,
-          "role": "Test",
-          "text": "\"proc.{container}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 56,
-          "role": "Test",
-          "text": "\"过程键族须为 proc.* 且单键（Stream：每任务恰一行；与对话/段/消息键族分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 162,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 163,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 166,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ContextProjectSyncStackDedupTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ContextProjectSyncStackDedupTests.cs",
           "line": 15,
           "role": "Test",
           "text": "/// context_project「工具单源去重」（P4-2 机制②）：整包含任一过程键条目（proc.*）⇒ 只吐过程条目（真实 Round +"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ContextProjectSyncStackDedupTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ContextProjectSyncStackDedupTests.cs",
           "line": 57,
           "role": "Test",
           "text": "Assert.IsTrue(ProcessKeys.IsProcessKey(msg.Node), $\"第 {i} 条须为过程条目（proc.*），实为 '{msg.Node}'\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeDomainPortTests.cs",
-          "line": 23,
-          "role": "Test",
-          "text": "/// <item>写请求只给**身份键**：位置键由声明渲染（<c>proc.{c}.r{r}.step{s}</c>），反解不符 ⇒ Rejected + 可见化；</item>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeDomainPortTests.cs",
-          "line": 87,
-          "role": "Test",
-          "text": "Assert.AreEqual($\"proc.{taskKey}\", store.Nodes.Values.ToList()[0].NodeKey, \"位置键由身份模板渲染（单键 Stream；非调用方给）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeDomainPortTests.cs",
-          "line": 137,
-          "role": "Test",
-          "text": "Assert.AreEqual($\"proc.{taskKey}\", live[0].Key, \"overlay 取**位置键**（单键 Stream；与 Snapshot 同桶）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
-          "line": 28,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"obs.task_a\", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
-          "line": 37,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"proc.task_a.r1\", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
-          "line": 46,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"   \", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 43,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.\", ProcessKeys.FamilyPrefix);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 45,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}\", ProcessKeys.PositionKeyTemplate, \"写侧位置键恒单键\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 48,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}.r{round}.{kind}.{ordinal}\", ProcessKeys.MultiRowPositionKeyTemplate);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 59,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 74,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 88,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 95,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.r1.step1\", out var dotted, out _, out _, out _));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 98,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _), \"legacy 序数缺失\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 99,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.step1\", out _, out _, out _, out _), \"legacy 轮次非数字（不猜）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 105,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.c.r12.generic.9\", out var container, out var round, out var kind, out var ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 113,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.noroundstep\", out var singleKey, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 116,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task-a.r1.\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 118,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 120,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 121,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 122,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.notakind.1\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 124,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.tool-call.x\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 126,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc..r1.tool-call.1\", out _, out _, out _, out _), \"容器为空\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 144,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 145,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 147,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"a.b\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.a.b.r1.generic.1\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 150,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 30,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r2.tool-result.1\", \"结果\", null, \"输出\", null),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 31,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 48,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value, \"锚点键 = 过程位置键（键幂等）\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 89,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 100,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value);"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeSinkTests.cs",
-          "line": 46,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 235,
           "role": "Test",
-          "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(taskKey), aggregate.PositionKey, \"位置键 = proc.{container}（单键 Stream）\");"
+          "text": "await carrier.UpsertAsync(\"proc.task-a.r1.stage.1\", \"{\\\"kind\\\":\\\"stage\\\"}\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/StreamRuntimeRegistryTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 244,
+          "role": "Test",
+          "text": "NodeKey = \"proc.task-a.r1.tool.2\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 250,
+          "role": "Test",
+          "text": "var keys = await carrier.EnumerateKeysAsync(\"proc.task-a.r1.\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 252,
+          "role": "Test",
+          "text": "new[] { \"proc.task-a.r1.stage.1\", \"proc.task-a.r1.tool.2\" }, keys.ToArray(),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 43,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.\", ProcessKeys.FamilyPrefix);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 45,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.{container}\", ProcessKeys.PositionKeyTemplate, \"写侧位置键恒单键\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 48,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.{container}.r{round}.{kind}.{ordinal}\", ProcessKeys.MultiRowPositionKeyTemplate);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 59,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 74,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 88,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 95,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.r1.step1\", out var dotted, out _, out _, out _));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 98,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _), \"legacy 序数缺失\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 99,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.step1\", out _, out _, out _, out _), \"legacy 轮次非数字（不猜）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 105,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.c.r12.generic.9\", out var container, out var round, out var kind, out var ordinal),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 113,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.noroundstep\", out var singleKey, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 116,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task-a.r1.\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 118,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 120,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 121,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 122,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.notakind.1\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 124,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.tool-call.x\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 126,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc..r1.tool-call.1\", out _, out _, out _, out _), \"容器为空\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 144,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 145,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 147,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"a.b\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.a.b.r1.generic.1\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 150,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 20,
+          "role": "Test",
+          "text": "/// <item>位置键模板**只用身份可反解的值**（container/round/kind/ordinal），且键族 <c>proc.*</c> 与其它域分离；</item>"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 54,
+          "role": "Test",
+          "text": "\"proc.{container}\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 56,
+          "role": "Test",
+          "text": "\"过程键族须为 proc.* 且单键（Stream：每任务恰一行；与对话/段/消息键族分离）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 162,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 163,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 166,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 24,
+          "role": "Test",
+          "text": "/// <item>写请求只给**身份键**：位置键由声明渲染（<c>proc.{c}.r{r}.step{s}</c>），反解不符 ⇒ Rejected + 可见化；</item>"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 88,
+          "role": "Test",
+          "text": "Assert.AreEqual($\"proc.{taskKey}\", store.Nodes.Values.ToList()[0].NodeKey, \"位置键由身份模板渲染（单键 Stream；非调用方给）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 138,
+          "role": "Test",
+          "text": "Assert.AreEqual($\"proc.{taskKey}\", live[0].Key, \"overlay 取**位置键**（单键 Stream；与 Snapshot 同桶）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 242,
+          "role": "Test",
+          "text": "/// <summary>池任务 run 边界：Begin → 过程帧 → Commit 后，<c>proc.&lt;taskKey&gt;</c> 单行存在且含工具帧。</summary>"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 252,
+          "role": "Test",
+          "text": "var row = store.Nodes.Values.SingleOrDefault(n => n.NodeKey == $\"proc.{taskKey}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
+          "line": 253,
+          "role": "Test",
+          "text": "Assert.IsNotNull(row, \"池任务结算后存在 proc.<taskKey> 单行（工具过程事件不再丢失）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
+          "line": 28,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"obs.task_a\", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
+          "line": 37,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"proc.task_a.r1\", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
+          "line": 46,
+          "role": "Test",
+          "text": "var admitted = NodeScopeGuard.Admit(\"   \", Scope(\"proc.\"), out var reason);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
           "line": 17,
           "role": "Test",
           "text": "/// <item>过程域 Stream 容器可取到（为 P1 声明切换就绪），位置键 = <c>proc.{container}</c>；</item>"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/StreamRuntimeRegistryTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
           "line": 35,
           "role": "Test",
           "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(task), aggregate.PositionKey, \"过程流位置键 = proc.{container}\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/StreamRuntimeRegistryTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
           "line": 81,
           "role": "Test",
           "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(task), procAggregate!.PositionKey, \"过程位置键 = proc.{task}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Signal/ProcessNodeSinkTests.cs",
+          "line": 46,
+          "role": "Test",
+          "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(taskKey), aggregate.PositionKey, \"位置键 = proc.{container}（单键 Stream）\");"
         },
         {
           "repo": "Main",
@@ -3229,6 +3327,83 @@
           "line": 8,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-实施记录.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "- `NodeDomainPortTests.SubAgentRunBoundary_Commit_PersistsProcessRow`（池任务 run 边界 → `proc.<taskKey>` 落库）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "samples 恒为同一批 `obs.task_member_*` / `proc.task_member_*`。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 78,
+          "role": "Doc",
+          "text": "- `process` 与 `observability` 共用 `NodeTypes.Event`（`Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs:57-71`），因此 process 读必然看到 `obs.*`，observability 读必然看到 `proc.*`。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "- 真正带字面前缀的是**位置键模板**：`proc.{container}`、`obs.{container}`（`Config/nodes/process.ushar:8`、`Config/nodes/observability.ushar:8`）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 90,
+          "role": "Doc",
+          "text": "- `obs.*` 在 process 域无法按 `proc.{container}` 反解 ⇒ `key-unparsable` ⇒ 归入 `placement-unresolved`（`NodeDomainPort.cs:572-574`），日志 action 还写着“属缺陷”。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 102,
+          "role": "Doc",
+          "text": "1. `ReadScope.KeyPrefix` 改由**位置键模板**派生（`proc.` / `obs.`），并确认它真的被 `EnumerateKeysAsync` 消费；不要用 `Identity.Template`。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "- process 读 `projected` 只含 `proc.*`；observability 读只含 `obs.*`。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 158,
+          "role": "Doc",
+          "text": "- 结算时两个域各 `CommitRunAsync` 一次（`ConversationStageBodies.cs:516-533`），同一批帧落成 `proc.*` 与 `obs.*` 两行。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 164,
+          "role": "Doc",
+          "text": "- 工具事件落地后，`proc.<taskKey>` 行存在且帧含 `tool/db_read`。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 452,
+          "role": "Doc",
+          "text": "| **P0** | §2 工具身份双断线（补 `TaskKey` + 池任务 `BeginRun`） | 过程事件全部丢失，面板无数据 | `EmptyIdentity`/`ContainerMissing` = 0；`proc.<taskKey>` 行存在 |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 454,
+          "role": "Doc",
+          "text": "| **P0** | §1 读前缀由位置模板派生 + 单趟分类 | 面板少行、跨域误判、读放大 | process 读只含 `proc.*`；`prefix-undefined` = 0 |"
         },
         {
           "repo": "Projects",
@@ -3694,6 +3869,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/NodeScopeGuard.cs",
+          "line": 55,
+          "role": "Code",
+          "text": "// 读作用域给出键族前缀时，**前缀匹配为权威判据**（节点族分类器把 proc./obs. 等"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/Signal/ProcessStreamNodes.cs",
           "line": 10,
           "role": "Code",
@@ -3709,21 +3891,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 318,
+          "line": 227,
           "role": "Code",
           "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 340,
+          "line": 403,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 341,
+          "line": 404,
           "role": "Code",
           "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
         }
@@ -3734,14 +3916,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 148,
+      "total": 151,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
         "Code": 77,
-        "Doc": 54,
+        "Doc": 57,
         "Other": 1
       },
       "hits": [
@@ -4356,6 +4538,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 147,
+          "role": "Doc",
+          "text": "| 「连线」作为数据流 | **能** | `ur_relations.sourcePort → targetPort`；`ur_references` 物化边 | 成立 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 250,
+          "role": "Doc",
+          "text": "| `GraphNode.ClusterId` | `ur_relations.WorkflowId`；无声明时取 `Key` 首段（`agent-round` / `AgenticWorkflow`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 319,
+          "role": "Doc",
+          "text": "| 星系盘 / 簇 | `ur_endpoints(ResourceType=workflow)` + `ur_relations.WorkflowId` | 一个 workflow = 一个星系，中心按簇哈希分布在一条「银河带」上 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/design/DataStoreDriven-分层提取-实施台账与批次计划.md",
           "line": 110,
           "role": "Doc",
@@ -4377,28 +4580,28 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 214,
           "role": "Test",
           "text": "Assert.AreEqual(1, relations.SessionLinks.Count, \"单节点化：一个会话的入史边恰 1 条（指向 smsg.{container} 单节点）\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 216,
           "role": "Test",
           "text": "relations.SessionLinks[0], MessageStreamKeys.StreamPositionKey(\"task.1\"),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 236,
           "role": "Test",
           "text": "Assert.AreEqual(0, relations.SessionLinks.Count, \"类别缺失 ⇒ 不建悬空边\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 363,
           "role": "Test",
           "text": "=> _relations.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);"
@@ -7006,262 +7209,262 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 29,
-          "role": "Test",
-          "text": "private const string ArchiveKey = \"cline.session.work.round.1.stage.1\";"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 98,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.1.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 99,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.2.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 100,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.3.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 101,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.other.round.1.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 103,
-          "role": "Test",
-          "text": "var keys = await carrier.EnumerateKeysAsync(\"cline.session.work.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 108,
-          "role": "Test",
-          "text": "\"cline.session.work.round.1.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 109,
-          "role": "Test",
-          "text": "\"cline.session.work.round.2.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 110,
-          "role": "Test",
-          "text": "\"cline.session.work.round.3.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 183,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"work\", archive(\"cline.session.work.round.2.stage.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 185,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"a\", archive(\"cline.session.a.round.b.round.2.stage.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 186,
-          "role": "Test",
-          "text": "Assert.IsNull(archive(\"session.work.r1\"), \"非本键族 ⇒ 合法不命中\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 188,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"work\", session(\"session.work.r1.tool.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 189,
-          "role": "Test",
-          "text": "Assert.IsNull(session(\"cline.session.work.round.1.stage.1\"), \"非本键族 ⇒ 合法不命中\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 200,
-          "role": "Test",
-          "text": "Assert.IsNull(parser(\"cline.session.work.round.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 215,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"session.s1.r1.tool.1\", \"{\\\"mark\\\":\\\"Terminal\\\"}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 222,
-          "role": "Test",
-          "text": "var keys = await carrier.EnumerateKeysAsync(\"session.s1.r1.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeCarriersTests.cs",
-          "line": 223,
-          "role": "Test",
-          "text": "CollectionAssert.AreEqual(new[] { \"session.s1.r1.tool.1\" }, keys.ToArray());"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 165,
-          "role": "Test",
-          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 83,
-          "role": "Test",
-          "text": "\"展示面键族 = seg.*（与轮域 cline.session.* 分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 85,
-          "role": "Test",
-          "text": "Assert.IsTrue(context.KeyTemplate.StartsWith(\"session.\", System.StringComparison.Ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 86,
-          "role": "Test",
-          "text": "\"上下文面键族 = session.*.seg*（与轮域 session.*.r*.msg* 分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 161,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ContentWriteSingleSourceTests.cs",
-          "line": 94,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryOpsServicesTests.cs",
-          "line": 59,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
+          "line": 60,
           "role": "Test",
           "text": "// 轮键族（cline.session.*.round.*）与段身份不同形：若放行会被反解出垃圾值 → 位置键漂移。"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryOpsServicesTests.cs",
-          "line": 60,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
+          "line": 61,
           "role": "Test",
           "text": "var outcome = await writer.MaterializeAsync(\"cline.session.s1.round.1\", \"{}\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryOpsServicesTests.cs",
-          "line": 79,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
+          "line": 80,
           "role": "Test",
           "text": "KeyPrefix: \"session.s1\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryOpsServicesTests.cs",
-          "line": 104,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
+          "line": 105,
           "role": "Test",
           "text": "KeyPrefix: \"session.s1\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryOpsServicesTests.cs",
-          "line": 252,
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
+          "line": 253,
           "role": "Test",
           "text": "\"session.{container}.r{round}.{kind}.{ordinal}\", PlacementForm.View, PlacementRetention.Contextual,"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 36,
           "role": "Test",
           "text": "/// <c>cline.session.{c}.round.{n}.{kind}.{ordinal}</c>（NodeKey / NodeType / ThreadId / Payload 逐字对拍）；"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 135,
           "role": "Test",
           "text": "NodeKey = \"cline.session.s1.round.1.stage.1\","
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 142,
           "role": "Test",
           "text": "NodeKey = \"cline.session.s1.round.2.stage.1\","
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryWriteGateParityTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 290,
           "role": "Test",
           "text": "\"session.{container}.r{round}.{kind}.{ordinal}\", PlacementForm.View, PlacementRetention.Contextual,"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 112,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"session.a.r1\", out _, out _, out _, out _), \"非过程键族\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 149,
-          "role": "Test",
-          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/RoundSourcePolicyTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/RoundSourcePolicyTests.cs",
           "line": 51,
           "role": "Test",
           "text": "// L-B（会话消息）：session.{c}.r{r}.{kind}.{ordinal} —— 轮次段可反解回同一轮"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/RoundSourcePolicyTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/RoundSourcePolicyTests.cs",
           "line": 53,
           "role": "Test",
           "text": "Assert.AreEqual(\"session.work.r7.tool.1\", messageKey);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 29,
+          "role": "Test",
+          "text": "private const string ArchiveKey = \"cline.session.work.round.1.stage.1\";"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 98,
+          "role": "Test",
+          "text": "await carrier.UpsertAsync(\"cline.session.work.round.1.stage.1\", \"{}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 99,
+          "role": "Test",
+          "text": "await carrier.UpsertAsync(\"cline.session.work.round.2.stage.1\", \"{}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 100,
+          "role": "Test",
+          "text": "await carrier.UpsertAsync(\"cline.session.work.round.3.stage.1\", \"{}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 101,
+          "role": "Test",
+          "text": "await carrier.UpsertAsync(\"cline.session.other.round.1.stage.1\", \"{}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 103,
+          "role": "Test",
+          "text": "var keys = await carrier.EnumerateKeysAsync(\"cline.session.work.\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 108,
+          "role": "Test",
+          "text": "\"cline.session.work.round.1.stage.1\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 109,
+          "role": "Test",
+          "text": "\"cline.session.work.round.2.stage.1\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 110,
+          "role": "Test",
+          "text": "\"cline.session.work.round.3.stage.1\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 183,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"work\", archive(\"cline.session.work.round.2.stage.1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 185,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"a\", archive(\"cline.session.a.round.b.round.2.stage.1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 186,
+          "role": "Test",
+          "text": "Assert.IsNull(archive(\"session.work.r1\"), \"非本键族 ⇒ 合法不命中\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 188,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"work\", session(\"session.work.r1.tool.1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 189,
+          "role": "Test",
+          "text": "Assert.IsNull(session(\"cline.session.work.round.1.stage.1\"), \"非本键族 ⇒ 合法不命中\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 200,
+          "role": "Test",
+          "text": "Assert.IsNull(parser(\"cline.session.work.round.1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 215,
+          "role": "Test",
+          "text": "await carrier.UpsertAsync(\"session.s1.r1.tool.1\", \"{\\\"mark\\\":\\\"Terminal\\\"}\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 222,
+          "role": "Test",
+          "text": "var keys = await carrier.EnumerateKeysAsync(\"session.s1.r1.\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
+          "line": 223,
+          "role": "Test",
+          "text": "CollectionAssert.AreEqual(new[] { \"session.s1.r1.tool.1\" }, keys.ToArray());"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 112,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"session.a.r1\", out _, out _, out _, out _), \"非过程键族\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 149,
+          "role": "Test",
+          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 165,
+          "role": "Test",
+          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
+          "line": 83,
+          "role": "Test",
+          "text": "\"展示面键族 = seg.*（与轮域 cline.session.* 分离）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
+          "line": 85,
+          "role": "Test",
+          "text": "Assert.IsTrue(context.KeyTemplate.StartsWith(\"session.\", System.StringComparison.Ordinal),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
+          "line": 86,
+          "role": "Test",
+          "text": "\"上下文面键族 = session.*.seg*（与轮域 session.*.r*.msg* 分离）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
+          "line": 161,
+          "role": "Test",
+          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Productions/ContentWriteSingleSourceTests.cs",
+          "line": 94,
+          "role": "Test",
+          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
         },
         {
           "repo": "Main",
@@ -7606,14 +7809,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 280,
+      "total": 286,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 66,
-        "Declaration": 38,
+        "Declaration": 41,
         "Code": 12,
-        "Doc": 160,
+        "Doc": 163,
         "Other": 1
       },
       "hits": [
@@ -8095,6 +8298,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-执行体观察面ActorObservation-通用框架与聚拢点设计.md",
+          "line": 63,
+          "role": "Doc",
+          "text": "| **F-1** | 子智能体声明条目共 7 个 `[SubAgent]`、7 个标签（`powershell` / `powershell-forge` / `usharp` / `tool-catalog` / `tool-call` / `base` / `workflow`） | `Projects/Plug/Agent/Config/subagents.ushar` |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.4/2026-10-04-运行日志分析-函数调用链-工具调用上屏测试.md",
           "line": 115,
           "role": "Doc",
@@ -8326,6 +8536,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
+          "line": 113,
+          "role": "Doc",
+          "text": "| 子智能体角色 | `powershell / powershell-forge / usharp / tool-catalog / tool-call / base / workflow` | `Config\\subagents.ushar` |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/KnowLedge/提示词分级：规则与生成结合的层次化提示工程.md",
           "line": 19,
           "role": "Doc",
@@ -8389,178 +8606,178 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgenticWorkflowSupportTests.cs",
-          "line": 54,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"tool-call\", tool!.SubAgentTag);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 162,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryTransferRoutingTests.cs",
-          "line": 14,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"tool-call\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/HistoryTransferRoutingTests.cs",
-          "line": 42,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"tool-call\", classified!.SubAgentTag);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeGatherDeclarationTests.cs",
-          "line": 64,
-          "role": "Test",
-          "text": "new[] { \"tool\", \"tool-call\", \"tool-progress\", \"tool-result\" },"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeGatherDeclarationTests.cs",
-          "line": 66,
-          "role": "Test",
-          "text": "\"tools 族须与 process.json.selections.tools 谓词一致（kind in (tool;tool-call;tool-progress;tool-result)）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ObservabilityMessageSourceTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
           "line": 29,
           "role": "Test",
           "text": "{ \"seq\": 1, \"kind\": \"tool-call\", \"atUtc\": \"t1\", \"tool\": \"read_files\" },"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ObservabilityMessageSourceTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
           "line": 49,
           "role": "Test",
           "text": "new[] { \"tool-call\", \"stage\", \"done\" },"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 56,
-          "role": "Test",
-          "text": "var position = ProcessKeys.PositionKey(\"task-1\", 2, \"tool-call\", 37);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 57,
-          "role": "Test",
-          "text": "var identity = ProcessKeys.IdentityKey(\"task-1\", 2, \"tool-call\", 37);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 59,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 60,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-1.r2.tool-call.37\", identity);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 66,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"tool-call\", kind, \"类别段须经词表反解（键反解须词表闭合）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 120,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 121,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 124,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.tool-call.x\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 126,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc..r1.tool-call.1\", out _, out _, out _, out _), \"容器为空\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 134,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.IsKindSegment(\"tool-call\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 144,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
-          "line": 178,
-          "role": "Test",
-          "text": "(\"task-1\", 2, \"tool-call\", 37L),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 31,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 42,
           "role": "Test",
           "text": "Assert.AreEqual(\"tool-call\", messages[0].Stage);"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 48,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value, \"锚点键 = 过程位置键（键幂等）\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 89,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessNodeProjectionTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
           "line": 100,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/NodeGatherDeclarationTests.cs",
+          "line": 64,
+          "role": "Test",
+          "text": "new[] { \"tool\", \"tool-call\", \"tool-progress\", \"tool-result\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/NodeGatherDeclarationTests.cs",
+          "line": 66,
+          "role": "Test",
+          "text": "\"tools 族须与 process.json.selections.tools 谓词一致（kind in (tool;tool-call;tool-progress;tool-result)）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 56,
+          "role": "Test",
+          "text": "var position = ProcessKeys.PositionKey(\"task-1\", 2, \"tool-call\", 37);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 57,
+          "role": "Test",
+          "text": "var identity = ProcessKeys.IdentityKey(\"task-1\", 2, \"tool-call\", 37);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 59,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 60,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-1.r2.tool-call.37\", identity);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 66,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", kind, \"类别段须经词表反解（键反解须词表闭合）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 120,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 121,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 124,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.tool-call.x\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 126,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc..r1.tool-call.1\", out _, out _, out _, out _), \"容器为空\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 134,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.IsKindSegment(\"tool-call\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 144,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 178,
+          "role": "Test",
+          "text": "(\"task-1\", 2, \"tool-call\", 37L),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 162,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Response/HistoryTransferRoutingTests.cs",
+          "line": 14,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Response/HistoryTransferRoutingTests.cs",
+          "line": 42,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", classified!.SubAgentTag);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/SubAgent/AgenticWorkflowSupportTests.cs",
+          "line": 54,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", tool!.SubAgentTag);"
         },
         {
           "repo": "Main",
@@ -8823,6 +9040,27 @@
         },
         {
           "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_multi_subagent_test.json",
+          "line": 2,
+          "role": "Declaration",
+          "text": "\"description\": \"多子智能体分组路由（task 侧）· 本地优先（LocalLlm，零真实 API）：在同一 history 容器内建 3 个不同标签的 task（tool-call / workflow / powershell-forge），经即时指令（Raw-Body）入队 → 断言「标签→执行腿」派生对每类标签均生效（运行态总览可见各 taskKey + ExecutorId"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_multi_subagent_test.json",
+          "line": 31,
+          "role": "Declaration",
+          "text": "{ \"template\": \"echo-section\", \"title\": \"[B] 成员 1：tool-call（单工具结构化调用；input = {tool:{name,arguments}}）\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_multi_subagent_test.json",
+          "line": 32,
+          "role": "Declaration",
+          "text": "{ \"action\": \"exec\", \"target\": \"AgentUi_RunJson\", \"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"ag_grp_m_tc\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"input\\\":\\\"{\\\\\\\"tool\\\\\\\":{\\\\\\\""
+        },
+        {
+          "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_subagent_route_test.json",
           "line": 27,
           "role": "Declaration",
@@ -8838,14 +9076,21 @@
         {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/README.md",
-          "line": 22,
+          "line": 16,
+          "role": "Doc",
+          "text": "| `agent_group_multi_subagent_test` | **task 侧 raw body ×3**（`subAgentTag=tool-call / workflow / powershell-forge`） | 多成员分组路由 + 未登记标签负对照 | 同一 history 内三类标签入队 → `overview` 断言成员集与 `ExecutorId=subagent-s"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/README.md",
+          "line": 23,
           "role": "Doc",
           "text": "{\"action\":\"task\",\"op\":\"enqueue\",\"taskKey\":\"ag_grp_tc\",\"subAgentTag\":\"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/README.md",
-          "line": 33,
+          "line": 34,
           "role": "Doc",
           "text": "AgentUi_RunJson action=task op=enqueue subAgentTag=tool-call"
         },
@@ -9531,7 +9776,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 204,
+          "line": 205,
           "role": "Code",
           "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
         },
@@ -9695,14 +9940,14 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
           "line": 13,
           "role": "Test",
           "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/SubAgentTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/SubAgent/SubAgentTests.cs",
           "line": 59,
           "role": "Test",
           "text": "TaskKey = \"tp_subagent_roundtrip\","
@@ -9979,38 +10224,38 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 18,
-          "role": "Test",
-          "text": "/// <item>**只声明一个位置**（落库面 <c>process-node</c>）：运行中的内存过程节点是读侧 overlay 源，"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 52,
-          "role": "Test",
-          "text": "Assert.IsTrue(spec.Placements.TryGet(\"process-node\", out var placement), \"应声明落库位置 process-node\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeScopeGuardTests.cs",
-          "line": 13,
-          "role": "Test",
-          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 35,
           "role": "Test",
           "text": "\"位置键模板单源：常量 ≡ 声明 placements[process-node].key\");"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/ProcessKeysContractTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 49,
           "role": "Test",
           "text": "Assert.AreEqual(\"process-node\", ProcessKeys.PlacementId);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 18,
+          "role": "Test",
+          "text": "/// <item>**只声明一个位置**（落库面 <c>process-node</c>）：运行中的内存过程节点是读侧 overlay 源，"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
+          "line": 52,
+          "role": "Test",
+          "text": "Assert.IsTrue(spec.Placements.TryGet(\"process-node\", out var placement), \"应声明落库位置 process-node\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
+          "line": 13,
+          "role": "Test",
+          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
@@ -10178,13 +10423,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1427.0,
+    "hitCount": 1462.0,
     "byRole": {
       "Gate": 22,
-      "Test": 299,
-      "Declaration": 70,
-      "Code": 342,
-      "Doc": 619,
+      "Test": 302,
+      "Declaration": 73,
+      "Code": 344,
+      "Doc": 646,
       "Other": 75
     },
     "truncatedFacts": [
@@ -10193,15 +10438,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 421
+        "lines": 422
       },
       {
         "repo": "Projects",
-        "lines": 411
+        "lines": 427
       },
       {
         "repo": "Main",
-        "lines": 790
+        "lines": 808
       }
     ]
   }

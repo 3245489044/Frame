@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     判据：
-      I1 调用台账写点 = 1（`ActorInvocationLedger.Record` 的生产调用点仅 TaskAwaitAdapter）。
+      I1 调用台账写点 = 1（`ActorInvocationLedger.Record` 的生产调用点仅 AgentTaskPool 活入队单点）。
       I2 行必含 InvocationId（合同 ActorObservationRow 定义 ∧ 合并器赋值）。
       I3 同 TaskKey 幂等（台账含 TryAdd 守卫，不重复登记）。
       I4 结果账写点 = 1（仅 SubAgentResultPublisher）。
@@ -33,8 +33,13 @@ Write-Host '============================================================'
 Write-Host '  调用登记单源守卫（ActorInvocationSingleSource：P5′/P8′）'
 Write-Host '============================================================'
 
-function Get-RecordCallers([string]$Pattern) {
+function Get-RecordCallers([string]$Pattern, [string]$Text = '') {
     $hits = [System.Collections.Generic.List[string]]::new()
+    # 正/负对照入口：把合成文本喂给**同一**分类器（E-5：禁常量对常量自检）。
+    if ($PSBoundParameters.ContainsKey('Text')) {
+        if ($Text -match $Pattern) { $hits.Add('<probe>') }
+        return $hits
+    }
     if (-not (Test-Path -LiteralPath $src)) { return $hits }
     foreach ($file in (Get-GateFiles -Root $src -Extension cs -Exclude '\\(obj|bin|BuildOutput)\\')) {
         $name = [System.IO.Path]::GetFileName($file)
@@ -47,9 +52,9 @@ function Get-RecordCallers([string]$Pattern) {
 
 $invocationWriters = @(Get-RecordCallers 'ActorInvocationLedger\.Record\s*\(')
 if ($invocationWriters.Count -ne 1) {
-    $violations.Add("[I1] 调用登记写点=$($invocationWriters.Count)（须恰 1：TaskAwaitAdapter）")
-} elseif ($invocationWriters[0] -ne 'TaskAwaitAdapter.cs') {
-    $violations.Add("[I1] 调用登记写点=$($invocationWriters[0])（须 TaskAwaitAdapter.cs）")
+    $violations.Add("[I1] 调用登记写点=$($invocationWriters.Count)（须恰 1：AgentTaskPool）")
+} elseif ($invocationWriters[0] -ne 'AgentTaskPool.cs') {
+    $violations.Add("[I1] 调用登记写点=$($invocationWriters[0])（须 AgentTaskPool.cs：活入队单点）")
 }
 
 $resultWriters = @(Get-RecordCallers 'ResultObservationLedger\.Record\s*\(')
@@ -84,10 +89,10 @@ if (Test-Path -LiteralPath $ledger) {
 
 $probeWriter = 'ActorInvocationLedger.Record(taskKey, tag);'
 $probeReader = 'ActorInvocationLedger.Get(taskKey);'
-if ($probeWriter -notmatch 'ActorInvocationLedger\.Record\s*\(') {
+if (-not (Get-RecordCallers 'ActorInvocationLedger\.Record\s*\(' -Text $probeWriter)) {
     $violations.Add('[I5] 负对照失效：写点合成样本未被扫描器识别')
 }
-if ($probeReader -match 'ActorInvocationLedger\.Record\s*\(') {
+if (Get-RecordCallers 'ActorInvocationLedger\.Record\s*\(' -Text $probeReader) {
     $violations.Add('[I5] 正对照失效：读点被误判为写点')
 }
 

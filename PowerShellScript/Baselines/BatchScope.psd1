@@ -370,7 +370,14 @@
     #   均在新单 allowSet 内。上一系列（X1–X5）在途 K-1~K-4 改动按新单 preexisting 登记，不误判为本系列新增。
     #   恢复 = 回填下方注释 v53 的 Value。
     # Manifest(v53) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行体即单次调用.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v55（2026-10-21）：单指针切换至「执行体观测 · 分散/重复/冗余/错误逻辑收敛（B1–B6）」授权单。
+    #   切换理由 = 用户要求大步快改、一次改完分析文档全部项（登记单点 / 提示词键 / 门禁真实性 /
+    #   调用与结果语义 / 账本与冗余）；本系列改动落在 Projects/Plug/Agent/src（Session/Engine/Modules/Ui）
+    #   · Frame/PowerShellScript/Operation/DSL/Agent · Environment/CentralTest/AgentTest/Agent.Session.Tests
+    #   · Docs/analysis/2026/10/10.21，均在新单 allowSet 内。上一系列（执行体即单次调用）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填下方注释 v54 的 Value。
+    # Manifest(v54) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行体即单次调用.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-框架层设计缺陷-治理.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

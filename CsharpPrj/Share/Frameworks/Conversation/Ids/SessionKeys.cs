@@ -22,8 +22,8 @@ public static class SessionKeys
     public static string Normalize(string? sessionName)
         => (sessionName ?? string.Empty).Trim();
 
-    /// <summary>会话键归一 + 空白回退默认值（<see cref="Default"/>）。</summary>
+    /// <summary>会话键归一（trim）+ 空白回退默认值（<see cref="Default"/>）—— 与文档承诺一致，键比较前一律经此。</summary>
     /// <param name="sessionKey">原始会话键 / 会话名（可为 null 或空白）。</param>
     public static string Resolve(string? sessionKey)
-        => string.IsNullOrWhiteSpace(sessionKey) ? Default : sessionKey!;
+        => string.IsNullOrWhiteSpace(sessionKey) ? Default : sessionKey!.Trim();
 }

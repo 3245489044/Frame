@@ -35,6 +35,34 @@ public static class Guard
         return action(svc);
     }
 
+    /// <summary>读取失败诊断（键 + 消息 + 调用方上下文；由消费方决定日志出口）。</summary>
+    public readonly record struct ReadDiagnostic(string Key, string Message, object? Context);
+
+    /// <summary>
+    /// 统一「可选读取 → 失败记诊断 → 显式空态原因」骨架：成功返回 (值, null)；失败返回 (null, 空态文案)。
+    /// <para>收拢各视图服务手写的 <c>try { read } catch { log; empty = "（…失败）" }</c> 同构块；
+    /// 框架只产诊断事实与空态原因，日志出口由消费方注入（保持零日志依赖）。</para>
+    /// </summary>
+    public static async Task<(T? Value, string? EmptyReason)> TryReadAsync<T>(
+        string diagnosticKey,
+        object? context,
+        string emptyReason,
+        Func<Task<T>> read,
+        Action<ReadDiagnostic>? onFailure = null)
+        where T : class
+    {
+        PortGuard.Required(read, nameof(read));
+        try
+        {
+            return (await read().ConfigureAwait(false), null);
+        }
+        catch (Exception ex)
+        {
+            onFailure?.Invoke(new ReadDiagnostic(diagnosticKey, ex.Message, context));
+            return (null, emptyReason);
+        }
+    }
+
     /// <summary>统一「服务未装配诊断 + 异步动作异常分类」骨架：get 取服务，null → notAttached；
     /// 否则 try 包 action，catch 经 <see cref="ErrorClassifier.ClassifyError"/> 归类后输出「&lt;label&gt;失败[cls]: msg」。</summary>
     public static async Task<string> ClassifiedAsync<TService>(

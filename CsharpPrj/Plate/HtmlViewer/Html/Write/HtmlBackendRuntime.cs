@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Plate.HtmlViewer;
@@ -542,6 +543,25 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                 }
                 break;
 
+            case UiWriteKind.TreeAndLeaf:
+                // 同拍两通道：先树（区域重建），后叶子（定点值更新，命中重建后的 DOM 元素）。
+                var treeResult = await WriteAsync(UiWritePlan.TreesTraced(
+                        FilterTargets(plan.Targets, static t => t.Payload is UiNode), plan.Interaction, trace),
+                    trace, ct).ConfigureAwait(false);
+                var leafResult = await WriteAsync(UiWritePlan.Leaves(
+                        FilterTargets(plan.Targets, static t => t.Payload is string), plan.Interaction, trace),
+                    trace, ct).ConfigureAwait(false);
+                written.AddRange(treeResult.Written);
+                written.AddRange(leafResult.Written);
+                skipped.AddRange(treeResult.Skipped);
+                skipped.AddRange(leafResult.Skipped);
+                if (treeResult.Anomalies is { Count: > 0 })
+                {
+                    anomalySeen = true;
+                    anomalies.AddRange(treeResult.Anomalies);
+                }
+                break;
+
             case UiWriteKind.Leaf:
                 foreach (var t in plan.Targets)
                 {
@@ -576,6 +596,19 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         => _channel is IUiBridgeReadiness r
             ? await r.GetBridgeModulesAsync(ct).ConfigureAwait(false)
             : UiBridgeModuleState.None;
+
+    /// <summary>合并计划的目标分组（按载荷形态区分树/叶子；保持原序）。</summary>
+    private static IReadOnlyList<UiWriteTarget> FilterTargets(
+        IReadOnlyList<UiWriteTarget> targets, Func<UiWriteTarget, bool> predicate)
+    {
+        var list = new List<UiWriteTarget>(targets.Count);
+        foreach (var target in targets)
+        {
+            if (predicate(target)) list.Add(target);
+        }
+
+        return list;
+    }
 
     /// <summary>整页写（显式策略）：有收敛 pump → 收敛写（Committed/Degraded=成功，Failed=失败）；否则纯渲染。</summary>
     private async Task<HtmlWriteBackStatus> WriteFullPageAsync(string html, CancellationToken ct)

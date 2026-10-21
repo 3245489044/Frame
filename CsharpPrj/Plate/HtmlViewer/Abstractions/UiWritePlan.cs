@@ -18,6 +18,9 @@ public enum UiWriteKind
     Leaf,
     /// <summary>整文档写（首挂载/显式策略，非隐式回退）。</summary>
     FullDocument,
+
+    /// <summary>键控树 + 易变叶子合并写（同拍：区域树先落地，叶子后定点更新；payload 按 <see cref="UiNode"/>/string 区分）。</summary>
+    TreeAndLeaf,
 }
 
 /// <summary>单条写回目标（Region/Tree/Leaf 用具名 Name；FullDocument 用 null）。Payload 形态随 Kind：Region=string / Tree=UiNode / Leaf=string / FullDocument=string。</summary>
@@ -56,6 +59,17 @@ public sealed record UiWritePlan(
     /// <summary>带追踪号的键控节点树计划（多区域）。</summary>
     public static UiWritePlan TreesTraced(IReadOnlyList<UiWriteTarget> trees, UiInteractionSnapshot? interaction, string? traceId)
         => new(UiWriteKind.Tree, trees, null, interaction, traceId);
+
+    /// <summary>键控节点树 + 易变叶子合并计划（同拍两通道：树先落地、叶子后定点；叶子不触发区域重渲染）。</summary>
+    public static UiWritePlan TreesAndLeaves(
+        IReadOnlyList<UiWriteTarget> trees, IReadOnlyList<UiWriteTarget> leaves,
+        UiInteractionSnapshot? interaction = null, string? traceId = null)
+    {
+        var targets = new List<UiWriteTarget>(trees.Count + leaves.Count);
+        targets.AddRange(trees);
+        targets.AddRange(leaves);
+        return new(UiWriteKind.TreeAndLeaf, targets, null, interaction, traceId);
+    }
 
     /// <summary>叶子定点写计划。</summary>
     public static UiWritePlan Leaf(string name, string value)

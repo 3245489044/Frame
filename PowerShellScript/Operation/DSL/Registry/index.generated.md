@@ -5,11 +5,14 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（52 件）
+## Agent（60 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `ActionCatalogSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ActionCatalogSingleSource.ps1` |
+| `ActorBindingSingleWriter` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ActorBindingSingleWriter.ps1` |
+| `ActorObservationEmptyReason` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ActorObservationEmptyReason.ps1` |
+| `ActorObservationSurface` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ActorObservationSurface.ps1` |
 | `AgentBuildPoint` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentBuildPoint.ps1` |
 | `AgentDataSeparation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDataSeparation.ps1` |
 | `AgentDecisionCoreBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentDecisionCoreBoundary.ps1` |
@@ -19,8 +22,12 @@
 | `AgentRuntimeSlots` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeSlots.ps1` |
 | `AgentRuntimeUIConfig` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-AgentRuntimeUIConfig.ps1` |
 | `CircuitSemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-CircuitSemantics.ps1` |
+| `ContextGeometryBoundary` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ContextGeometryBoundary.ps1` |
+| `ContextGeometryConvergence` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ContextGeometryConvergence.ps1` |
+| `ContextGeometryPrefixPurity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ContextGeometryPrefixPurity.ps1` |
 | `DbRenderPurity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbRenderPurity.ps1` |
 | `DbToolbarDictAlloc` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DbToolbarDictAlloc.ps1` |
+| `DelegateEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DelegateEntry.ps1` |
 | `DetailReadWriteSamePort` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DetailReadWriteSamePort.ps1` |
 | `DomainResolveSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DomainResolveSingleEntry.ps1` |
 | `EchoConstants` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-EchoConstants.ps1` |
@@ -60,6 +67,7 @@
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
 | `UnknownVisible` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UnknownVisible.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
+| `WorkflowRegistration` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-WorkflowRegistration.ps1` |
 | `WriteCapabilitySinglePredicate` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-WriteCapabilitySinglePredicate.ps1` |
 
 ## Build（4 件）
@@ -104,7 +112,7 @@
 | `DispatchTraceSchema` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DispatchTraceSchema.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（12 件）
+## Meta（13 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -119,6 +127,7 @@
 | `GeneratedArtifactsDrift` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1` |
 | `OperationLayerIsolation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
 | `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
+| `PsCapabilityFileOnly` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1` |
 | `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
 
 ## Node（26 件）

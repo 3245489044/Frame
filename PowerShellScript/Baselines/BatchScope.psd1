@@ -363,7 +363,14 @@
     #   · Environment/CentralTest/AgentTest · Docs/analysis/2026/10/10.20，均在新单 allowSet 内。
     #   上一系列在途改动（TaskAwaitAdapter 回写诚实性、两个未跟踪测试文件）按新单 preexisting 登记，不误判为越界。
     #   恢复 = 回填下方注释 v52 的 Value。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v54（2026-10-21）：单指针切换至「执行体即单次调用（Actor-as-Invocation）· 节点化施工（A0–A5）」授权单。
+    #   切换理由 = 用户要求大步快改一次改完（调用实例驱动 / 行=调用 / 声明只作目录 / 结果通道事实 / 执行体面零控制）；
+    #   本系列改动落在 Projects/Plug/Agent/src（Agent.Session/Agent.Ui/Agent.Modules/Agent.Launcher）
+    #   · Frame/PowerShellScript/Operation/DSL/{Agent,Registry} · Environment/CentralTest/AgentTest · Docs/analysis/2026/10/10.21，
+    #   均在新单 allowSet 内。上一系列（X1–X5）在途 K-1~K-4 改动按新单 preexisting 登记，不误判为本系列新增。
+    #   恢复 = 回填下方注释 v53 的 Value。
+    # Manifest(v53) = @{ Value = 'Docs\analysis\2026\10\10.20\2026-10-20-子智能体工作流派发-调用链收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行体即单次调用.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

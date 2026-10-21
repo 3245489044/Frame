@@ -149,7 +149,12 @@ public sealed partial class HtmlAssetRegistry
                 details.attach[open] > .attach-toggle::before { content: "▾ "; }
                 .attach-item { border-left: 2px solid var(--border); margin: 6px 0 0 4px; padding-left: 8px; }
                 .attach-head { font-size: 12px; color: var(--muted); }
+                .attach-badge { display: inline-block; font-size: 10px; line-height: 1.6; color: var(--fg); background: var(--border); border-radius: 4px; padding: 0 5px; margin-right: 6px; }
                 .attach-text { font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+                .attach-group { margin: 8px 0 0; }
+                .attach-group-head { display: flex; align-items: center; gap: 6px; padding: 2px 0; border-bottom: 1px dashed var(--border); }
+                .attach-group-label { font-size: 11px; font-weight: 600; color: var(--fg); }
+                .attach-group-count { font-size: 10px; color: var(--muted); background: var(--border); border-radius: 8px; padding: 0 6px; }
                 
                 
         """;

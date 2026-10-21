@@ -255,10 +255,8 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             && m.Stage is not null
             && m.Stage.StartsWith(_options.PromptStagePrefix!, StringComparison.Ordinal);
 
-    /// <summary>锚点判定（通用，不读领域 stage 语义）：user/assistant/error/system 为气泡锚点，其余（Tool 等过程项）可挂靠。</summary>
-    private static bool IsAnchor(ConversationRole role)
-        => role is ConversationRole.User or ConversationRole.Assistant
-                 or ConversationRole.Error or ConversationRole.System;
+    /// <summary>锚点判定（通用，不读领域 stage 语义）：委托 <see cref="ConversationAnchors.IsAnchor"/>（单源）。</summary>
+    private static bool IsAnchor(ConversationRole role) => ConversationAnchors.IsAnchor(role);
 
     /// <summary>
     /// 近邻锚分组（R2，仅展示层）：轮内按**源序**扫描，过程项挂入其前方最近的锚点气泡的下拉栏；
@@ -298,19 +296,101 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         if (entry.Attach.Count > 0)
         {
             row["attachCount"] = entry.Attach.Count.ToString();
-            row["attach"] = entry.Attach
-                .Select((m, ai) => ToAttachRow(m, "a:" + round + ":" + groupIndex + ":" + ai))
-                .ToList<object?>();
+            var classification = _options.AttachClassification;
+            if (classification is { Groups.Count: > 0 })
+            {
+                var groups = BuildAttachGroups(entry.Attach, classification, round, groupIndex);
+                row["attachGroups"] = groups;
+                row["attachGroupCount"] = groups.Count.ToString();
+                row["attachSummary"] = BuildAttachSummary(entry.Attach.Count, groups);
+            }
+            else
+            {
+                row["attachSummary"] = "过程 · " + entry.Attach.Count;
+                row["attach"] = entry.Attach
+                    .Select((m, ai) => ToAttachRow(m, "a:" + round + ":" + groupIndex + ":" + ai, string.Empty, null))
+                    .ToList<object?>();
+            }
         }
         return row;
     }
 
+    /// <summary>
+    /// 分类分组（声明驱动）：kind → 族（<see cref="AttachClassification.Kinds"/>），组序取宿主注入的
+    /// <see cref="AttachGroupSpec.Order"/>（未命中 ⇒ 「其他」且回显 kind）。组内保持源序（seq），零丢失。
+    /// </summary>
+    private List<Dictionary<string, object?>> BuildAttachGroups(
+        List<ConversationRenderItem> attach, AttachClassification classification, int round, int groupIndex)
+    {
+        var buckets = new Dictionary<string, List<ConversationRenderItem>>(StringComparer.Ordinal);
+        foreach (var item in attach)
+        {
+            var kind = item.Stage ?? string.Empty;
+            var groupKey = classification.Kinds.TryGetValue(kind, out var spec) && !string.IsNullOrWhiteSpace(spec.GroupKey)
+                ? spec.GroupKey
+                : classification.OtherGroupKey;
+            if (!buckets.TryGetValue(groupKey, out var list))
+            {
+                list = new List<ConversationRenderItem>();
+                buckets[groupKey] = list;
+            }
+            list.Add(item);
+        }
+
+        var groupOrder = classification.Groups.ToDictionary(g => g.Key, g => g, StringComparer.Ordinal);
+        var ordered = buckets
+            .OrderBy(pair => pair.Key == classification.OtherGroupKey
+                ? int.MaxValue
+                : groupOrder.TryGetValue(pair.Key, out var spec) ? spec.Order : int.MaxValue - 1)
+            .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+            .ToList();
+
+        var result = new List<Dictionary<string, object?>>(ordered.Count);
+        for (var gi = 0; gi < ordered.Count; gi++)
+        {
+            var pair = ordered[gi];
+            var groupSpec = groupOrder.TryGetValue(pair.Key, out var declared)
+                ? declared
+                : string.Equals(pair.Key, classification.OtherGroupKey, StringComparison.Ordinal)
+                    ? new AttachGroupSpec(classification.OtherGroupKey, classification.OtherLabel, int.MaxValue)
+                    : new AttachGroupSpec(pair.Key, pair.Key, int.MaxValue - 1);
+            var rows = new List<object?>(pair.Value.Count);
+            for (var i = 0; i < pair.Value.Count; i++)
+            {
+                var message = pair.Value[i];
+                var kind = message.Stage ?? string.Empty;
+                var badge = classification.Kinds.TryGetValue(kind, out var kindSpec) ? kindSpec.Badge : null;
+                rows.Add(ToAttachRow(
+                    message, "a:" + round + ":" + groupIndex + ":" + gi + ":" + i, pair.Key, badge));
+            }
+            result.Add(new Dictionary<string, object?>
+            {
+                ["key"] = "g:" + round + ":" + groupIndex + ":" + gi,
+                ["group"] = pair.Key,
+                ["label"] = groupSpec.Label,
+                ["count"] = pair.Value.Count.ToString(),
+                ["items"] = rows,
+            });
+        }
+        return result;
+    }
+
+    /// <summary>下拉栏摘要（分类概览，单源构造）：<c>过程 · N 项（工具 6 / LLM 2 / 阶段 3）</c>。</summary>
+    private static string BuildAttachSummary(int total, IReadOnlyList<Dictionary<string, object?>> groups)
+        => "过程 · " + total + " 项（"
+           + string.Join(" / ", groups.Select(g => g["label"] + " " + g["count"]))
+           + "）";
+
     /// <summary>附属项行模型（下拉栏子项）：与消息行同源字段，结构与编码由 attachItem 模板承担；
-    /// <paramref name="key"/> 为渲染层派生的稳定键（供 reconciler 复用）。</summary>
-    private IReadOnlyDictionary<string, object?> ToAttachRow(ConversationRenderItem m, string key)
+    /// <paramref name="key"/> 为渲染层派生的稳定键（供 reconciler 复用）；<paramref name="group"/>/
+    /// <paramref name="badge"/> 为分类呈现字段（徽标空 ⇒ 模板回退显示 stage）。</summary>
+    private IReadOnlyDictionary<string, object?> ToAttachRow(
+        ConversationRenderItem m, string key, string group, string? badge)
         => new Dictionary<string, object?>
         {
             ["key"] = key,
+            ["group"] = group,
+            ["badge"] = badge ?? string.Empty,
             ["role"] = m.Role.ToString().ToLowerInvariant(),
             ["round"] = m.Round.ToString(),
             ["stage"] = m.Stage ?? string.Empty,
@@ -351,4 +431,27 @@ public sealed record HtmlStreamRendererOptions
     /// <summary>操作流 / 气泡流分离开关：true（默认）⇒ <see cref="MessageChannel.Operation"/> 消息渲染为顶部操作面板
     /// （非气泡），不进对话气泡；false ⇒ 旧行为（全部按角色气泡渲染，用于回退）。</summary>
     public bool SplitOperationChannel { get; init; } = true;
+
+    /// <summary>
+    /// 附属项分类表（宿主注入；null/空 ⇒ **逐字旧行为**：下拉栏为扁平列表）。
+    /// 分类事实来自节点聚拢声明（kind → 族/徽标），本类型只承载呈现所需映射；通用渲染器不硬编码领域词表。
+    /// </summary>
+    public AttachClassification? AttachClassification { get; init; }
 }
+
+/// <summary>附属项分组（呈现）：<paramref name="Key"/> = 族键；<paramref name="Order"/> = 组序（升序）。</summary>
+public sealed record AttachGroupSpec(string Key, string Label, int Order);
+
+/// <summary>附属项类别（分类事实）：<paramref name="Kind"/> = 帧类别；<paramref name="GroupKey"/> = 所属族；
+/// <paramref name="Badge"/> = 条目徽标（可空 ⇒ 模板回退显示 kind）。</summary>
+public sealed record AttachKindSpec(string Kind, string GroupKey, string? Badge);
+
+/// <summary>
+/// 附属项分类表：<see cref="Groups"/>（组序/组名）+ <see cref="Kinds"/>（kind → 族/徽标）。
+/// 未命中 <see cref="Kinds"/> 的 kind 归入 <see cref="OtherGroupKey"/>（可见、不丢弃）。
+/// </summary>
+public sealed record AttachClassification(
+    IReadOnlyList<AttachGroupSpec> Groups,
+    IReadOnlyDictionary<string, AttachKindSpec> Kinds,
+    string OtherGroupKey = "other",
+    string OtherLabel = "其他");

@@ -68,12 +68,12 @@ $traceEmitters = @()
 $faultedAssign = @()
 foreach ($file in (Get-ChildItem -Path $agent -Recurse -Filter *.cs -File | Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })) {
     $text = [System.IO.File]::ReadAllText($file.FullName)
-    if ($text -match '\.Failure\s*=\s*') { $failureWriters += $file.FullName }
+    if ($text -match 'TaskFailureEnvelope\.Create') { $failureWriters += $file.FullName }
     if ($text -match '"Round_trace"') { $traceEmitters += $file.FullName }
     if ($text -match 'Status\s*=\s*TaskExecutionStatus\.Faulted') { $faultedAssign += $file.FullName }
 }
 if ($failureWriters.Count -ne 1) {
-    $violations.Add("[R3] Failure 写入点应唯一，实际 $($failureWriters.Count)：$($failureWriters -join '; ')")
+    $violations.Add("[R3] 失败信封决策点（TaskFailureEnvelope.Create）应唯一，实际 $($failureWriters.Count)：$($failureWriters -join '; ')")
 }
 if ($traceEmitters.Count -ne 1) {
     $violations.Add("[R4] Round_trace 发射点应唯一，实际 $($traceEmitters.Count)：$($traceEmitters -join '; ')")

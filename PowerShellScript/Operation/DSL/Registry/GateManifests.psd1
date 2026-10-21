@@ -39,6 +39,14 @@
     }
 
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
+    NodeEdgeIntegrity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '归属边跟随落库事实（I2）：C1 node_refs 声明 / C2 旧产出枚举生产调用点=0 / C3 实例键禁截断 / C4 实例键→裸键兼容读 / C5 PersistResult 单源 / C6 边写节点存在断言 / N1-N2 负对照 / D1 可选 DB 幻影边审计'
+    }
+
     AgentBuildPoint = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }
@@ -569,6 +577,14 @@
         Args   = @{}
         Expect = 0
         Note   = '默认检查模式；H 段 Stream 位置键单键（单行不变量：form=stream ⇒ key 模板无逐事件坐标）；-ShowDetail 显示详情'
+    }
+
+    RoundFailureEnvelope = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '失败信封与单轮 trace（R1/R3/R7）：R1 契约 / R2 载荷+序列化 / R3 Failure 单写点 / R4 Round_trace 单发点+登记 / R5 Faulted 写入白名单 / P1 正对照 + N1 负对照'
     }
 
     FactStandard = @{

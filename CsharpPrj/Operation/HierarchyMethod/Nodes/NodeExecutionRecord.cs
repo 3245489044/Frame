@@ -28,7 +28,12 @@ namespace Operation.HierarchyMethod.Nodes
         string Backend = "",
         long LatencyMs = 0,
         DateTimeOffset AtUtc = default,
-        bool IsFinal = false)
+        bool IsFinal = false,
+        // 节点实例键（F1）：缺省 = 任务键；同任务并发/重放时 = {taskKey}:{round}:{attempt}。
+        // 与 NodeKey 合成存储主键（NodeInstanceRef.ToStorageKey）；null = 旧路径（裸键），仅迁移期兼容。
+        string? InstanceKey = null,
+        // 实例容器键（通常 = 任务键；与 InstanceKey 分离，供图端点/归属边定位）。
+        string? ContainerKey = null)
     {
         /// <summary>节点级成败（单一判定点：无 Error 即成功；ErrorClass 为强类型归因）。</summary>
         public bool Ok => Error == null;

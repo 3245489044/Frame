@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 
 namespace UiBackend.Html;
 
@@ -66,41 +65,11 @@ public class DataPageState
 }
 
 /// <summary>
-/// 通用数据页查询/分页运算 —— 过滤、排序、页码夹取与页码文案的单源实现。
+/// 通用数据页查询/分页运算 —— 页码夹取、切片与页码文案的单源实现；过滤/排序/分组见 <see cref="DataPagePlan"/>。
 /// 领域只提供取值选择器与匹配谓词；本类零领域类型。
 /// </summary>
 public static class DataPageQuery
 {
-    /// <summary>过滤 + 排序（过滤谓词由调用方给出；排序键/方向未命中 ⇒ 保持原序）。</summary>
-    public static List<T> FilterSort<T>(
-        IEnumerable<T> rows,
-        string? filter,
-        Func<T, string, bool> matches,
-        string? sortKey,
-        string sortOrder,
-        Func<T, string?> keyOf,
-        Func<T, string?> updatedOf)
-    {
-        var query = rows;
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            var keyword = filter!.Trim();
-            query = query.Where(row => matches(row, keyword));
-        }
-
-        var desc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-        query = sortKey switch
-        {
-            "key" => desc
-                ? query.OrderByDescending(row => keyOf(row) ?? string.Empty, StringComparer.Ordinal)
-                : query.OrderBy(row => keyOf(row) ?? string.Empty, StringComparer.Ordinal),
-            "updated" => desc
-                ? query.OrderByDescending(row => updatedOf(row) ?? string.Empty, StringComparer.Ordinal)
-                : query.OrderBy(row => updatedOf(row) ?? string.Empty, StringComparer.Ordinal),
-            _ => query,
-        };
-        return query.ToList();
-    }
 
     /// <summary>页码夹取（渲染期纯投影；越界不回写交互态）。</summary>
     public static (int Page, int PageCount) ClampPage(int page, int totalRows, int pageSize)

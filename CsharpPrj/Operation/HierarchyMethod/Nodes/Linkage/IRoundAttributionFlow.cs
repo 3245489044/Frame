@@ -27,7 +27,12 @@ public sealed record RoundAttributionRequest(
     IReadOnlyList<NodeExecutionRecord>? Nodes,
     string? TerminalText = null,
     string? HistoryId = null,
-    string? SessionKey = null);
+    string? SessionKey = null,
+    /// <summary>
+    /// 本轮落库结果（I2）：非空 ⇒ 归属边只由 <see cref="RoundPersistResult.Persisted"/> 派生（含实例键）；
+    /// null ⇒ 迁移期回退（按记录合成存储键）。
+    /// </summary>
+    Operation.HierarchyMethod.Nodes.Instances.RoundPersistResult? PersistResult = null);
 
 /// <summary>
 /// 轮末沉淀流入口（DEBT-4 / 纲领 §6.3）—— 回答「本轮产物如何进历史」的**唯一编排触发点**。

@@ -18,4 +18,6 @@ public sealed record HistoryTaskRunStatus(
     /// <summary>激活标志（Active=true 才进入消费循环）。</summary>
     bool Active = false,
     /// <summary>最近一次循环决策（decision 文本，可选）。</summary>
-    string? Decision = null);
+    string? Decision = null,
+    /// <summary>子智能体标签（身份；与执行腿独立，二者不得互相冒充）。</summary>
+    string? ActorTag = null);

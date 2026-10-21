@@ -42,6 +42,13 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     /// 装配期由组合根注入（同 <see cref="NodeStore"/>）。</summary>
     public IDeclaredReferenceSource? DeclarationSource { get; set; }
 
+    /// <summary>
+    /// 可选节点库探针（P0-4）：装配后，<c>cross_db_link</c> 写边前**断言节点行存在**；
+    /// 未装配 ⇒ 报告模式（行为与现状逐字一致，不拒绝任何边）。节点不存在的边一律不写并可见化，
+    /// 从源头消除「指向从未落库节点的幻影边」。
+    /// </summary>
+    public global::Operation.DataStoreDriven.Abstractions.INodeStore? NodeStore { get; set; }
+
     /// <summary>取某节点的权威边（G1/G3 单一取值缝）：配置声明源（seed 输入）+ LiteDB <c>ur_relations</c> 声明投影。</summary>
     public IReadOnlyList<NodeRelation> AuthoritativeEdgesFor(string workflowId, NodeRecord node)
     {
@@ -386,6 +393,17 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        // 边跟随落库事实（I2）：节点行不存在 ⇒ 不写边（Skip + Diagnostic），不得静默造幻影边。
+        if (NodeStore is not null)
+        {
+            var record = await NodeStore.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            if (record is null)
+            {
+                (EdgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance)
+                    .EdgeUndeclared("cross_db_link:node-missing", $"{taskKey}|{nodeKey}");
+                return;
+            }
+        }
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.HierarchyMethod.Nodes.Instances;
 
 namespace Operation.HierarchyMethod.Nodes.Linkage;
 
@@ -62,9 +63,11 @@ public sealed class NodeTaskLinker : INodeTaskLinker
         return keys.Count;
     }
 
-    /// <summary>节点键归一化为裸 nodeKey：剥离 <c>nodes.</c> 与 <c>{wf}.</c> 前缀。</summary>
+    /// <summary>节点键归一化为裸 nodeKey：实例键**原样返回**（实例后缀是身份组成部分，禁截断）。</summary>
     private static string Bare(string nodeKey)
     {
+        // 实例键（{node}@{instance}）不得按点截断：截断会把实例身份抹掉，边落回全局旧节点。
+        if (NodeInstanceRef.IsInstanceStorageKey(nodeKey)) return nodeKey;
         if (nodeKey.StartsWith("nodes.", StringComparison.Ordinal))
             nodeKey = nodeKey.Substring("nodes.".Length);
         var dot = nodeKey.IndexOf('.');

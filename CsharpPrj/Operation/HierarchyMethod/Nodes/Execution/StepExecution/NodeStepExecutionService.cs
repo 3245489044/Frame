@@ -10,6 +10,8 @@ using Operation.DataStoreDriven.Core;
 using Operation.HierarchyMethod.Abstractions;
 using Operation.HierarchyMethod.Center;
 using Operation.HierarchyMethod.Nodes;
+using Operation.HierarchyMethod.Nodes.Instances;
+using Share.TaskStatusPool.Loops;
 using Operation.HierarchyMethod.Nodes.Relations;
 using Operation.HierarchyMethod.Nodes.Workflows;
 using Operation.LoopFoldMethod.Reference.Gateways;
@@ -373,34 +375,81 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         /// <param name="records">本轮各步产出快照（NodeKey 空者跳过；无任何非空产出端口者跳过）。</param>
         /// <param name="taskKey">task→node 归属边键（空 = 不建归属边）。</param>
         /// <param name="ct">取消令牌。</param>
-        public async Task PersistRoundAsync(
+        public async Task<RoundPersistResult> PersistRoundAsync(
             IReadOnlyList<NodeExecutionRecord> records, string? taskKey = null, CancellationToken ct = default)
         {
-            if (records is null) return;
+            if (records is null) return RoundPersistResult.Empty;
+
+            var persisted = new List<PersistedNodeRef>();
+            var skipped = new List<NodePersistSkip>();
             foreach (var record in records)
             {
                 ct.ThrowIfCancellationRequested();
-                if (string.IsNullOrWhiteSpace(record.NodeKey)) continue;
-                // 空端口守卫（E5）：无任何非空产出的记录不落库 —— 不造「无产出空节点」（空结果语义见 InitialStateNullity）。
-                if (record.OutputPorts is not { Count: > 0 } || !record.OutputPorts.Any(kv => kv.Value is not null)) continue;
-
-                foreach (var (port, value) in record.OutputPorts)
-                    if (value is not null)
-                        await WritePortAsync(record.NodeKey, port, value, ct).ConfigureAwait(false);
-
-                // 业务节点行 + 引用/归属边：以最小 NodeDefinition 复用引用落地实现（不复制建边逻辑）。
-                if (_nodes is null && _relationGateway is null) continue;
-                var node = new NodeDefinition
+                // 空键守卫：不造无主键节点（脏记录可见化）。
+                if (string.IsNullOrWhiteSpace(record.NodeKey))
                 {
-                    NodeKey = record.NodeKey,
-                    WorkflowId = _workflowId,
-                    Symbol = record.NodeKey,
-                    ResultKeys = record.OutputPorts.Keys.ToList(),
-                };
-                var input = new NodeInputSnapshot(
-                    new Dictionary<string, object?>(StringComparer.Ordinal), record.Provenance);
-                await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);
+                    skipped.Add(new NodePersistSkip(record.NodeKey ?? string.Empty, record.InstanceKey, NodePersistSkipReasons.EmptyNodeKey));
+                    continue;
+                }
+                // 空端口守卫（E5）：无任何非空产出的记录不落库 —— 不造「无产出空节点」（空结果语义见 InitialStateNullity）。
+                if (record.OutputPorts is not { Count: > 0 } || !record.OutputPorts.Any(kv => kv.Value is not null))
+                {
+                    skipped.Add(new NodePersistSkip(record.NodeKey, record.InstanceKey, NodePersistSkipReasons.EmptyPorts));
+                    continue;
+                }
+
+                // 实例身份（F1）：记录未带实例键（旧 runner）⇒ 按任务键补齐；合成存储主键（唯一构造点）。
+                var instanceKey = string.IsNullOrWhiteSpace(record.InstanceKey) ? taskKey : record.InstanceKey;
+                var storageKey = NodeInstanceRef.StorageKeyOf(record.NodeKey, instanceKey);
+                try
+                {
+                    foreach (var (port, value) in record.OutputPorts)
+                        if (value is not null)
+                            await WritePortCoreAsync(storageKey, port, value, ct).ConfigureAwait(false);
+
+                    // 业务节点行 + 引用/归属边：以最小 NodeDefinition 复用引用落地实现（不复制建边逻辑）。
+                    var nodeType = "output";
+                    if (_nodes is not null || _relationGateway is not null)
+                    {
+                        var node = new NodeDefinition
+                        {
+                            NodeKey = storageKey,
+                            WorkflowId = _workflowId,
+                            Symbol = record.NodeKey,
+                            ResultKeys = record.OutputPorts.Keys.ToList(),
+                        };
+                        var input = new NodeInputSnapshot(
+                            new Dictionary<string, object?>(StringComparer.Ordinal), record.Provenance);
+                        await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);
+                        nodeType = NodeTypes.Node;
+                    }
+
+                    // 只有真正写入的记录进入归属集合（I2：attributed ≡ persisted）。
+                    persisted.Add(new PersistedNodeRef(
+                        NodeInstanceRef.Create(record.ContainerKey ?? taskKey, _workflowId, record.NodeKey, instanceKey),
+                        nodeType,
+                        storageKey));
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // 单条隔离：失败可见化 + 记 skipped，不污染其它节点（归属边据此排除该节点）。
+                    skipped.Add(new NodePersistSkip(record.NodeKey, instanceKey, NodePersistSkipReasons.WriteFailed));
+                    _diagnostics?.Report("NodeStepExecutionService_roundPersist_failed", new
+                    {
+                        nodeKey = record.NodeKey,
+                        instanceKey,
+                        storageKey,
+                        errorClass = ErrorClassifier.ClassifyError(ex).ToString(),
+                        error = ex.Message,
+                    });
+                }
             }
+
+            return new RoundPersistResult(persisted, skipped);
         }
 
         private async Task PersistCoreAsync(

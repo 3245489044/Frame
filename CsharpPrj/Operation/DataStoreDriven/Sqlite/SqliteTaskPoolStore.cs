@@ -125,7 +125,19 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         ArgumentNullException.ThrowIfNull(item);
         ct.ThrowIfCancellationRequested();
         var existing = ReadEnvelope(taskKey);
-        var status = item is IStatusAwareTaskPoolItem sa ? sa.Status.ToString() : existing.Status ?? TaskExecutionStatus.NotStarted.ToString();
+        // 状态单写（防回写降级）：轮内快照的 item.Status 常为初始 NotStarted，
+        // 不得把已迁移的 Running/Paused/Completed/Faulted/Cancelled 覆盖回 NotStarted；
+        // 状态迁移唯一入口 = UpdateStatusAsync（CAS）。
+        var proposed = item is IStatusAwareTaskPoolItem sa ? sa.Status.ToString() : null;
+        var status = proposed switch
+        {
+            null => existing.Status ?? TaskExecutionStatus.NotStarted.ToString(),
+            _ when existing.Status is not null
+                   && !string.Equals(existing.Status, TaskExecutionStatus.NotStarted.ToString(), StringComparison.Ordinal)
+                   && string.Equals(proposed, TaskExecutionStatus.NotStarted.ToString(), StringComparison.Ordinal)
+                => existing.Status!,
+            _ => proposed,
+        };
         var createdAt = existing.CreatedAt ?? PersistenceHelper.NowIso();
         var text = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(status, createdAt, PersistenceHelper.NowIso()));
         ExecuteNonQuery(

@@ -377,7 +377,15 @@
     #   · Docs/analysis/2026/10/10.21，均在新单 allowSet 内。上一系列（执行体即单次调用）在途改动按新单 preexisting 登记。
     #   恢复 = 回填下方注释 v54 的 Value。
     # Manifest(v54) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行体即单次调用.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-框架层设计缺陷-治理.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v56（2026-10-21）：单指针切换至「子智能体工作流 UI 不可见 · 节点实例身份与轮次结果单一来源（U1）」授权单。
+    #   切换理由 = 用户要求大步快改、一次改完（实例键进存储主键 + 裸键兼容读 / 归属边跟随落库事实 /
+    #   提示词前置 / 多源读面 / 门禁）；本系列改动落在 Frame/CsharpPrj/Operation/{HierarchyMethod,DataStoreDriven}
+    #   · Frame/PowerShellScript/Operation/DSL/Node · Projects/Plug/Agent/{Config,src(Agent.Axioms/Contract/Core/Modules/Session)}
+    #   · Environment/CentralTest/{CSharpTest/Operation.Tests/HierarchyMethod.Tests,TestRunner} · Docs/analysis/2026/10/10.21，
+    #   均在新单 allowSet 内。上一系列（框架层设计缺陷治理）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填下方注释 v55 的 Value（当前行）。
+    # Manifest(v55) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-框架层设计缺陷-治理.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-子智能体工作流UI不可见.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

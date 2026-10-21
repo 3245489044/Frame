@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading.Streaming;
 using Operation.HierarchyMethod.Abstractions;
+using Operation.HierarchyMethod.Nodes.Instances;
 using Share.HierarchySupport;
 using Share.TaskStatusPool.Loops;
 
@@ -107,12 +108,12 @@ public sealed class NodeStepPersistCoordinator
     /// <param name="records">本轮各步产出快照。</param>
     /// <param name="taskKey">task→node 归属边键（空 = 不建归属边）。</param>
     /// <param name="ct">取消令牌。</param>
-    public async Task PersistRoundAsync(
+    public async Task<RoundPersistResult> PersistRoundAsync(
         System.Collections.Generic.IReadOnlyList<NodeExecutionRecord> records, string? taskKey, CancellationToken ct)
     {
         try
         {
-            await _service.PersistRoundAsync(records, taskKey, ct).ConfigureAwait(false);
+            return await _service.PersistRoundAsync(records, taskKey, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -122,6 +123,11 @@ public sealed class NodeStepPersistCoordinator
         {
             _diagnostics?.Report("ConversationPipeline_roundPersist_failed",
                 new { errorClass = ErrorClassifier.ClassifyError(ex).ToString(), error = ex.Message, count = records?.Count ?? 0 });
+            // 整体失败也要给调用方**可判**的结果（禁静默）：全部记录记 write-failed，归属边据此为空。
+            var skipped = (records ?? System.Array.Empty<NodeExecutionRecord>())
+                .Select(r => new NodePersistSkip(r.NodeKey, r.InstanceKey, NodePersistSkipReasons.WriteFailed))
+                .ToList();
+            return new RoundPersistResult(System.Array.Empty<PersistedNodeRef>(), skipped);
         }
     }
 }

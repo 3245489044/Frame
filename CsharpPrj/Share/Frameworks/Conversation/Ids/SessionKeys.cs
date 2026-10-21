@@ -26,4 +26,18 @@ public static class SessionKeys
     /// <param name="sessionKey">原始会话键 / 会话名（可为 null 或空白）。</param>
     public static string Resolve(string? sessionKey)
         => string.IsNullOrWhiteSpace(sessionKey) ? Default : sessionKey!.Trim();
+
+    /// <summary>
+    /// DUP-13：history/task 键对解析（**唯一实现**）—— <c>historyId</c> 显式给出时才存在成员键；
+    /// 仅给 <c>taskKey</c>（模板形态）⇒ 会话名即历史键、成员 = null（作用于该历史全部）。
+    /// 禁止调用点再用同一字符串互充两角。
+    /// </summary>
+    /// <param name="historyId">历史容器键（可选；空 ⇒ 回退 taskKey 的同键约定）。</param>
+    /// <param name="taskKey">成员任务键（可选；无显式 historyId 时不作成员）。</param>
+    public static (string HistoryId, string? TaskKey) ResolveHistoryPair(string? historyId, string? taskKey)
+    {
+        if (string.IsNullOrWhiteSpace(historyId))
+            return (Resolve(taskKey), null);
+        return (historyId!.Trim(), string.IsNullOrWhiteSpace(taskKey) ? null : taskKey!.Trim());
+    }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ParameterResolver.KeyMapping;
 using Share.HierarchySupport;
@@ -164,5 +165,12 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             OutputPorts = OutputPorts,
             GlobalKeyMapping = GlobalKeyMapping,
         };
+
+        /// <summary>
+        /// 提示词前置声明（I4）：本轮**必填**的提示词端口（如 <c>system</c> / <c>l1</c> / <c>l2</c> / <c>session_input</c>）。
+        /// <para>缺省空 ⇒ 前置关闭（零回归）；非空 ⇒ 任何执行体（含 daemon）启动前须经
+        /// <see cref="Execution.PromptPreflight.Resolve"/> 判定，缺失即 <c>prompt_missing</c> 并禁止侧通道执行。</para>
+        /// </summary>
+        public IReadOnlyList<string> RequiredPromptPorts { get; init; } = Array.Empty<string>();
     }
 }

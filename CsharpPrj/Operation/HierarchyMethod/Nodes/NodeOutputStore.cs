@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.HierarchyMethod.Nodes.Instances;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Nodes {
@@ -54,8 +55,19 @@ namespace Operation.HierarchyMethod.Nodes {
         {
             var wf = NormalizeWf(workflowId);
             var rec = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            // 实例键优先、裸键兼容读（R1 存量）：实例键未命中 ⇒ 剥离实例后缀重试，
+            // 使旧全局行（如 cline / cline_execute，createdAt 早于当前任务）仍可读，来源由读面标注 legacy。
+            if (rec == null && NodeInstanceRef.IsInstanceStorageKey(nodeKey))
+                rec = await _nodes.GetAsync(NodeInstanceRef.StripInstance(nodeKey), ct).ConfigureAwait(false);
             if (rec == null) return null;
             return BuildOutput(wf, nodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
+        }
+
+        /// <summary>按节点实例身份读取（存储键 = <see cref="NodeInstanceRef.ToStorageKey"/>；回退语义同上）。</summary>
+        public Task<NodeOutput?> TryGetByRefAsync(NodeInstanceRef reference, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(reference);
+            return TryGetNodeOutputAsync(reference.WorkflowId, reference.ToStorageKey(), ct);
         }
 
         public async Task<NodeOutput?> TryGetNodeOutputScopedAsync(string workflowId, string nodeKey, string requestingWorkflowId, CancellationToken ct = default)

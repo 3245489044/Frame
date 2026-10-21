@@ -33,8 +33,11 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             string workflowId,
             IReadOnlyDictionary<string, object?> outputPorts,
             IReadOnlyDictionary<string, (string Node, string Port)> provenance,
-            DateTimeOffset atUtc)
-            => new(nodeKey, workflowId, outputPorts, provenance, AtUtc: atUtc);
+            DateTimeOffset atUtc,
+            string? instanceKey = null,
+            string? containerKey = null)
+            => new(nodeKey, workflowId, outputPorts, provenance, AtUtc: atUtc,
+                InstanceKey: instanceKey, ContainerKey: containerKey);
 
         /// <summary>
         /// 执行侧构造（<c>RoundStepInvoker</c> 语义）：节点已执行完，端口/入参溯源来自执行产物。
@@ -45,11 +48,13 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             string workflowId,
             IReadOnlyDictionary<string, object?> outputPorts,
             IReadOnlyDictionary<string, (string Node, string Port)> provenance,
-            DateTimeOffset atUtc)
+            DateTimeOffset atUtc,
+            string? instanceKey = null,
+            string? containerKey = null)
         {
             ArgumentNullException.ThrowIfNull(outputPorts);
             ArgumentNullException.ThrowIfNull(provenance);
-            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc);
+            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc, instanceKey, containerKey);
         }
 
         /// <summary>
@@ -60,7 +65,9 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             RoundStep step,
             string portKey,
             object? value,
-            DateTimeOffset atUtc = default)
+            DateTimeOffset atUtc = default,
+            string? instanceKey = null,
+            string? containerKey = null)
         {
             ArgumentNullException.ThrowIfNull(step);
             return Create(
@@ -68,7 +75,9 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
                 NodeKeys.DefaultWorkflowId,
                 new Dictionary<string, object?> { [portKey] = value },
                 EmptyProvenance,
-                atUtc);
+                atUtc,
+                instanceKey,
+                containerKey);
         }
 
         /// <summary>
@@ -83,7 +92,9 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         public static IReadOnlyList<NodeExecutionRecord> FromStepPorts(
             RoundSpec spec,
             Func<RoundStep, object?> portValueOf,
-            DateTimeOffset atUtc = default)
+            DateTimeOffset atUtc = default,
+            string? instanceKey = null,
+            string? containerKey = null)
         {
             ArgumentNullException.ThrowIfNull(spec);
             ArgumentNullException.ThrowIfNull(portValueOf);
@@ -98,7 +109,7 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
                 if (value is null) continue;
                 if (value is string text && string.IsNullOrWhiteSpace(text)) continue;
 
-                records.Add(FromStepPort(step, step.ResultKeys[0], value, atUtc));
+                records.Add(FromStepPort(step, step.ResultKeys[0], value, atUtc, instanceKey, containerKey));
             }
 
             return records;

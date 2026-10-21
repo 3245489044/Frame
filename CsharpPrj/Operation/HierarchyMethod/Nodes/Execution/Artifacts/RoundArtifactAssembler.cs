@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Operation.HierarchyMethod.Nodes.Instances;
 using Operation.HierarchyMethod.Nodes.Workflows;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
@@ -47,12 +48,21 @@ public static class RoundArtifactAssembler
     }
 
     /// <summary>
+    /// 由**落库事实**装配产出集（P0-3，I2）：归属边只允许由 <see cref="RoundPersistResult.Persisted"/> 派生，
+    /// 取代从执行记录「猜键」（会产生指向未落库节点的幻影边）。
+    /// </summary>
+    /// <param name="result">轮次落库结果（null ⇒ 空集）。</param>
+    public static IReadOnlyList<PersistedNodeRef> FromPersisted(RoundPersistResult? result)
+        => result?.Persisted ?? Array.Empty<PersistedNodeRef>();
+
+    /// <summary>
     /// 本轮产出节点键集（**唯一入口**，DUP-8）：执行快照的 <c>NodeKey</c> 优先（去空、按 ordinal 去重）；
     /// 快照为空时回退骨架各步骤 <see cref="RoundStep.EffectiveNodeId"/>（该任务运行的产出节点集合）。
     /// 消费方：<c>SyncRelationsBlock</c>（归属边逐节点调用点）/ 入史层标记范围。
     /// </summary>
     /// <param name="spec">本轮骨架（可为 null = 无骨架声明）。</param>
     /// <param name="nodes">本轮全量节点产出（可为 null/空 = 回退骨架派生）。</param>
+    [System.Obsolete("dep: 归属边/结果裁决改用 FromPersisted(RoundPersistResult)（attributed ≡ persisted）；本方法仅测试与旧读兼容。")]
     public static IReadOnlyList<string> ResolveProducedNodeKeys(RoundSpec? spec, IReadOnlyList<NodeExecutionRecord>? nodes)
     {
         if (nodes is { Count: > 0 })

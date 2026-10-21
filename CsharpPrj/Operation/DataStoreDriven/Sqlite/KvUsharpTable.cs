@@ -32,7 +32,9 @@ public static class KvUsharpTable
     /// <summary>NodeKey 的**无引号**列名（结果集字典键 = 列名本体，ETL/行读取必须用它）。</summary>
     public const string NodeKeyName = "NodeKey";
     public const string ColNodeKey = "[" + NodeKeyName + "]";
-    public const string ColDoc = "[Doc]";
+    /// <summary>Doc 的**无引号**列名（DUP-11：UI 侧构造行端口时引用本常量，禁手写 "Doc"）。</summary>
+    public const string DocName = "Doc";
+    public const string ColDoc = "[" + DocName + "]";
 
     /// <summary>纯三列结构（真源 Doc；无任何 JSON 影子/派生列）。</summary>
     public static readonly string[] SchemaColumns =

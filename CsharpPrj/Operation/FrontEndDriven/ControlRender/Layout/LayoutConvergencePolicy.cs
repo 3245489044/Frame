@@ -48,14 +48,14 @@ public static class LayoutConvergencePolicy
     /// <summary>单次 drain 内同一 scope 连续重排风暴阈值（原 LayoutScheduler.ReflowStormThreshold=16）。</summary>
     public const int ReflowStormThreshold = 16;
 
-    /// <summary>Retrying 最大退避重试次数（取代原 LayoutScheduler.MaxBudgetReschedules=3 的"无条件重排"语义）。</summary>
-    public const int RetryBudget = 3;
+    /// <summary>重排退避预算（收敛机对象 = 宿主未就绪次数；与调度 drain 预算分离）。</summary>
+    public const int ReflowRetryBudget = 3;
 
-    /// <summary>递增退避序列（次）：1/2/4，超出预算返回 null（→ 转 Abandoned）。</summary>
+    /// <summary>调度排空预算（LayoutScheduler 对象 = drain 后仍滞留次数；与重排退避分离）。</summary>
+    public const int DrainBudget = 3;
+
+    /// <summary>递增退避序列（次）：1/2/4；延时提供方，不承担终止判定。</summary>
     public static readonly int[] RetryBackoff = { 1, 2, 4 };
-
-    /// <summary>连续无进展放弃阈值（超过 → Abandoned）。</summary>
-    public const int AbandonThreshold = 3;
 
     /// <summary>兜底扫描间隔（毫秒，Step2）：主回路（Resize/Move）之外的周期性值差扫描频率。</summary>
     public const int GeometrySweepIntervalMs = 1000;
@@ -64,31 +64,10 @@ public static class LayoutConvergencePolicy
     public static int? NextBackoff(int attempt)
         => attempt >= 0 && attempt < RetryBackoff.Length ? RetryBackoff[attempt] : null;
 
-    /// <summary>是否应放弃（连续无进展 ≥ AbandonThreshold）。</summary>
-    public static bool ShouldAbandon(int consecutiveNoProgress)
-        => consecutiveNoProgress >= AbandonThreshold;
-
     /// <summary>
-    /// 宿主就绪分类（纯函数，无副作用）：决定 scope 进入 Blocked / Retrying / Ready。
-    /// Step2：Form 与容器宿主一视同仁——窗体宿主也能随缩放/移动/DPI 触发反应式重排，
-    /// 不再因「保持配置基准」被永久 Blocked（否则 Form 直挂 scope 永不自动刷新）。
+    /// 唯一放弃判据（attempt = 已消耗退避次数）：达到 <see cref="ReflowRetryBudget"/> ⇒ 放弃。
+    /// <see cref="NextBackoff"/> 仅提供延时，不再兼任终止判定（消除双阈值）。
     /// </summary>
-    public static LayoutHostReadiness ClassifyHost(
-        bool hostResolved,
-        bool clientReady,
-        bool parentClientReady,
-        bool rootFound)
-    {
-        // 宿主未挂载（未解析/未注册）→ Blocked：等待挂载信号，不重试、不空转。
-        if (!hostResolved)
-            return LayoutHostReadiness.Blocked;
-
-        // 宿主已挂载但基准/root 瞬态未就绪 → Retrying：有限递增退避重试。
-        if (!clientReady && !parentClientReady)
-            return LayoutHostReadiness.Retrying;
-        if (!rootFound)
-            return LayoutHostReadiness.Retrying;
-
-        return LayoutHostReadiness.Ready;
-    }
+    public static bool ShouldAbandon(int attempt)
+        => attempt >= ReflowRetryBudget;
 }

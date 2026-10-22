@@ -119,6 +119,20 @@ public sealed class HostBasisSystem
         return (0, 0, "none");
     }
 
+    /// <summary>
+    /// 宿主就绪分类唯一实现（消费方 = LayoutSubsystem 门控）：
+    /// 未挂载 → Blocked；宿主/父面板均 0×0 → Retrying；基准可达 → Ready。
+    /// 尺寸规则只在本类出现，判定层不再复制（F-07 单源）。
+    /// </summary>
+    public static LayoutHostReadiness ClassifyHost(Control? host)
+    {
+        if (host is null || host.IsDisposed || host.Disposing)
+            return LayoutHostReadiness.Blocked;
+
+        var (width, height, _) = ResolveTargetSize(host);
+        return width > 0 && height > 0 ? LayoutHostReadiness.Ready : LayoutHostReadiness.Retrying;
+    }
+
     private Entity FindRootEntity(string scope)
     {
         // D1 收敛：按名查实体统一经 EntityQueryService（FindRoot = FindByName($"root:{scope}")），删除手写遍历副本

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用限制与治理内核</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>资源计量与限制裁决唯一内核：资源坐标 + 作用域链 + 两相预留（Reserve/Commit/Abort）+ 五种裁决（Allow/Throttle/Degrade/Deny/Terminate）+ 快照。零领域依赖（BCL only），宿主经端口反转接入观测与终止。</ModuleRule_Description>
+    <ModuleRule_Keywords>Governance;限制;预算;配额;两相预留;作用域链;裁决;快照</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核只依赖 BCL；不得 using Agent.* / Strategy.* / Operation.*（宿主能力一律端口反转）" />
+    <ModuleRule_Rule Include="每个 scope+resource 只有一个计量写者；外部只经 Begin/Commit/Abort/Record" />
+    <ModuleRule_Rule Include="配置单源 limits.json（JSON 即配置，不新增 DSL 关键字）；代码只保留默认文档兜底" />
+    <ModuleRule_Rule Include="Unknown ≠ 0：缺用量记 Unknown，估算只进预留，提交以真实值为准" />
+  </ItemGroup>
+
+  <ItemGroup Label="ModuleRule_Prompts">
+    <ModuleRule_Prompt Include="当需要统一资源预算/限流/并发闸/配额裁决时，优先使用 LimitKernelHost" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Modules.Governance</AssemblyName>
+    <RootNamespace>Modules.Governance</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>通用限制与治理内核 — 资源计量 / 作用域链 / 两相预留 / 统一裁决 / 快照</Description>
+  </PropertyGroup>
+
+</Project>

@@ -392,7 +392,15 @@
     #   · Docs/analysis/2026/10/10.21，均在新单 allowSet 内。上一系列（子智能体工作流 UI 不可见）在途改动按新单 preexisting 登记。
     #   恢复 = 回填下方注释 v56 的 Value（当前行）。
     # Manifest(v56) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-子智能体工作流UI不可见.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行结果判定与任务终态.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v58（2026-10-22）：单指针切换至「框架层缺陷 · 重复/冗余/错误逻辑（B1–B7：F-01~F-14）」授权单。
+    #   切换理由 = 用户要求一次改完：日志可见性 / 根与布局单源 / Attach 原子化与能力态 / 确定性终态 /
+    #   用例能力门 / 布局收敛单源 / 镜像哈希门禁；改动落在 Frame/CsharpPrj/Operation/FrontEndDriven、
+    #   Frame/PowerShellScript/{Operation/DSL,Baselines}、Projects/Plug/Agent/{src,Config}、
+    #   Projects/Information/DrivenConfig/Scripts/Agent、Projects/BuildFramework/Distribution、
+    #   Environment/CentralTest + Docs/analysis/2026/10/10.22，均在新单 allowSet 内。
+    #   恢复 = 回填下方注释 v57 的 Value（上一系列已收口，无在途改动）。
+    # Manifest(v57) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行结果判定与任务终态.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-框架层缺陷-重复逻辑冗余逻辑与错误逻辑.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

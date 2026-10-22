@@ -171,6 +171,7 @@
     <Proj_EventFramework>$(CsharpPrjDir)Modules\EventFramework\EventFramework.csproj</Proj_EventFramework>
     <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
+    <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
     <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>

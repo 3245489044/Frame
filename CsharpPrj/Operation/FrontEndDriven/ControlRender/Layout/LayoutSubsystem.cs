@@ -24,6 +24,16 @@ namespace FrontEndDriven.ControlRender.Layout;
 public sealed class LayoutSubsystem : IDisposable
 {
     private readonly Func<HostMountService?> _hostMountResolver;
+
+    // 测试态宿主解析缝：非空时优先于 HostMountService（单测无法构造完整容器注册表）。
+    private readonly Func<string, Control?>? _hostResolver;
+
+    // 测试态就绪判定缝：非空时替代真实宿主尺寸分类（WinForms 无法稳定构造 0×0 客户区）。
+    private readonly Func<string, LayoutHostReadiness>? _readinessResolver;
+
+    // 退避时间源（可注入：单测用可控时钟验证真实退避窗口，避免真实 sleep）。
+    private readonly Func<long> _clock;
+
     private LayoutScheduler? _scheduler;
 
     // 重流依赖：生产路径由 Create 注入；测试态（仅验证订阅/调度接线）可为空，重流方法短路返回。
@@ -51,8 +61,8 @@ public sealed class LayoutSubsystem : IDisposable
     // 仅生产路径（hostBasisSystem 注入）使用；测试态（无重流依赖）回退「提醒即调度」保接线原义。
     private readonly ConcurrentDictionary<string, GeometrySnapshot> _lastGeometry = new(StringComparer.OrdinalIgnoreCase);
 
-    // 确定性收敛状态机：每 scope 的收敛状态与退避次数（UI 单消费者，无锁访问）。
-    private sealed record ConvergenceTrack(LayoutConvergenceState State, int RetryAttempt);
+    // 确定性收敛状态机：每 scope 的收敛状态、退避次数与下一次允许重试时间（UI 单消费者，无锁访问）。
+    private sealed record ConvergenceTrack(LayoutConvergenceState State, int RetryAttempt, long NextRetryAtMs);
 
     private readonly ConcurrentDictionary<string, ConvergenceTrack> _convergence = new(StringComparer.OrdinalIgnoreCase);
 
@@ -88,9 +98,25 @@ public sealed class LayoutSubsystem : IDisposable
 
     /// <summary>测试态构造（仅订阅/调度接线；重流依赖为空 → 重流方法短路）。</summary>
     internal LayoutSubsystem(LayoutScheduler scheduler, Func<HostMountService?> hostMountResolver)
+        : this(scheduler, hostMountResolver, null, null, null)
+    {
+    }
+
+    /// <summary>
+    /// 测试态构造（可注入宿主解析 / 时钟 / 就绪判定）：验证退避时间窗、预算复位与 Abandoned 自愈。
+    /// </summary>
+    internal LayoutSubsystem(
+        LayoutScheduler scheduler,
+        Func<HostMountService?> hostMountResolver,
+        Func<string, Control?>? hostResolver,
+        Func<long>? clock,
+        Func<string, LayoutHostReadiness>? readinessResolver = null)
     {
         _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         _hostMountResolver = hostMountResolver ?? throw new ArgumentNullException(nameof(hostMountResolver));
+        _hostResolver = hostResolver;
+        _readinessResolver = readinessResolver;
+        _clock = clock ?? (() => Environment.TickCount64);
         _hostBasisSystem = null;
         _layoutSystem = null;
         _projector = null;
@@ -103,6 +129,9 @@ public sealed class LayoutSubsystem : IDisposable
         LayoutProjector projector)
     {
         _hostMountResolver = hostMountResolver ?? throw new ArgumentNullException(nameof(hostMountResolver));
+        _hostResolver = null;
+        _readinessResolver = null;
+        _clock = () => Environment.TickCount64;
         _hostBasisSystem = hostBasisSystem;
         _layoutSystem = layoutSystem;
         _projector = projector;
@@ -220,35 +249,42 @@ public sealed class LayoutSubsystem : IDisposable
             return;
         }
 
-        // 终态隔离（Quarantine）：scope 已被判定 Abandoned → 不再调度，等待挂载信号 RegisterScope 恢复。
-        if (IsAbandoned(scope))
-            return;
+        // 终态隔离的 scope 不再因「未就绪」信号空转；但有效几何变化必须能自愈（见下方 ReviveFromAbandoned）。
+        bool abandoned = IsAbandoned(scope);
 
         // 防反馈：投影执行中（布局/内容投影 SetBounds 可能触发宿主几何事件），不再入队，避免自触发循环。
         if (_projecting != 0)
             return;
 
         // Step1/2·值差门控：几何信号（Resize/Move/兜底扫描）只作「提醒」，「几何真变」才调度重排。
-        // 依据：LayoutSubsystem.Reflow 内 ResolveBasis 幂等（基准没变短路）、Project 仅差异投影，
-        // 故「宿主几何未变 → 重排必零写入」——用快照之差提前短路，避免无谓调度。
-        // 测试态（hostBasisSystem=null）或宿主未就绪（快照 null）→ 回退「提醒即调度」保旧语义。
+        // 未就绪（快照无效）→ 不调度、不消耗退避预算：1Hz 兜底扫描不再把预算烧穿，
+        // 等宿主真正就绪后的首个有效几何信号再重排。
+        // 测试态（hostBasisSystem=null）→ 以宿主/父面板客户区可读作为有效信号。
         if (_hostBasisSystem != null)
         {
             var snapshot = HostBasisSystem.TryBuildGeometrySnapshot(host);
-            if (snapshot is { } current)
+            if (snapshot is not { IsValid: true } current)
+                return;
+
+            var last = _lastGeometry.TryGetValue(scope, out var prev) ? prev : default;
+            _lastGeometry[scope] = current; // 刷新缓存，供下次差集判定
+            if (!current.Changed(in last))
             {
-                var last = _lastGeometry.TryGetValue(scope, out var prev) ? prev : default;
-                _lastGeometry[scope] = current; // 刷新缓存，供下次差集判定
-                if (!current.Changed(in last))
-                {
-                    // 主回路（非 quiet）记录未变化；兜底扫描（quiet）静默返回，避免 1Hz 空转日志刷屏。
-                    if (!quiet)
-                        FrontEndDrivenLog.Log("LayoutSubsystem_geometry_unchanged",
-                            new { scope, geometry = current.ToString() });
-                    return; // 几何未变 → 不调度
-                }
+                // 主回路（非 quiet）记录未变化；兜底扫描（quiet）静默返回，避免 1Hz 空转日志刷屏。
+                if (!quiet)
+                    FrontEndDrivenLog.Log("LayoutSubsystem_geometry_unchanged",
+                        new { scope, geometry = current.ToString() });
+                return; // 几何未变 → 不调度
             }
-            // snapshot == null（宿主未就绪）→ 落到下方照常调度（与旧行为一致，由 Reflow 门控接管）
+
+            if (abandoned)
+                ReviveFromAbandoned(scope, "host-geometry-changed");
+        }
+        else if (abandoned)
+        {
+            if (ClassifyReadiness(scope) != LayoutHostReadiness.Ready)
+                return;
+            ReviveFromAbandoned(scope, "host-geometry-changed");
         }
 
         _scheduler?.Schedule(scope);
@@ -263,7 +299,7 @@ public sealed class LayoutSubsystem : IDisposable
     {
         if (_disposed) return;
         if (string.IsNullOrWhiteSpace(scope)) return;
-        if (IsAbandoned(scope)) return; // 终态隔离：不再入队
+        if (IsAbandoned(scope) && !TryReviveIfHostReady(scope, "request-reflow")) return;
 
         _scheduler?.Schedule(scope);
     }
@@ -279,7 +315,7 @@ public sealed class LayoutSubsystem : IDisposable
     {
         if (_disposed) return;
         if (string.IsNullOrWhiteSpace(scope)) return;
-        if (IsAbandoned(scope)) return; // 终态隔离：不再重排，等待挂载信号
+        if (IsAbandoned(scope) && !TryReviveIfHostReady(scope, "reflow-now")) return;
 
         Reflow(scope);
     }
@@ -295,7 +331,7 @@ public sealed class LayoutSubsystem : IDisposable
     {
         if (_disposed) return;
         if (string.IsNullOrWhiteSpace(scope)) return;
-        if (IsAbandoned(scope)) return; // 终态隔离：不再重算
+        if (IsAbandoned(scope) && !TryReviveIfHostReady(scope, "recalculate-composition")) return;
         if (_hostBasisSystem == null || _layoutSystem == null) return; // 测试态短路
 
         if (_hostBasisSystem.ResolveBasis(scope))
@@ -309,8 +345,8 @@ public sealed class LayoutSubsystem : IDisposable
     /// 由 ProjectScope 的物理基线差异保证「无变化即零写入」（重算成本 scope 局部、可接受）。
     /// 确定性收敛状态机门控（治「未就绪反复空转」）：
     ///   Blocked（宿主未挂载/Form）→ 不重排、不入队、不空转，等待挂载信号；
-    ///   Retrying（宿主已挂载但基准瞬态 0x0）→ 有限递增退避（1/2/4），超预算 → Abandoned；
-    ///   Abandoned（退避预算耗尽）→ 明确放弃并告警，不再 ScheduleDrain。
+    ///   Retrying（宿主已挂载但基准瞬态 0x0）→ 真实时间窗退避（1s/2s/4s），窗口内 Deferred 不耗预算；
+    ///   Abandoned（退避预算耗尽）→ 明确放弃并告警；有效几何变化/重新挂载/有效重排请求可自愈。
     /// </summary>
     private void Reflow(string scope)
     {
@@ -319,7 +355,8 @@ public sealed class LayoutSubsystem : IDisposable
         if (IsAbandoned(scope)) return; // 终态隔离兜底：即便被直接调用也不重排
 
         // ① 宿主就绪门控（不依赖重流依赖，测试态也执行，短路后无更多动作）
-        switch (ClassifyReadiness(scope))
+        var readiness = ClassifyReadiness(scope);
+        switch (readiness)
         {
             case LayoutHostReadiness.Blocked:
                 SetConvergenceState(scope, LayoutConvergenceState.Blocked);
@@ -327,22 +364,33 @@ public sealed class LayoutSubsystem : IDisposable
                     new { scope, note = "宿主未挂载/Form，等待挂载信号，不重排不空转" });
                 return;
             case LayoutHostReadiness.Retrying:
-                if (!TryAdvanceRetry(scope))
+                switch (TryAdvanceRetry(scope))
                 {
-                    // 退避预算耗尽 → 明确放弃（不再空转；由后续新挂载/Resize 重新尝试）
-                    SetConvergenceState(scope, LayoutConvergenceState.Abandoned);
-                    FrontEndDrivenLog.Log("LayoutSubsystem_convergence_abandoned",
-                        new { scope, note = "宿主/基准连续未就绪，退避预算耗尽，明确放弃" });
-                    return;
+                    case RetryAdvance.Deferred:
+                        return; // 退避窗口内：静默等待，不重排、不消耗预算
+                    case RetryAdvance.Exhausted:
+                        // 退避预算耗尽 → 统一 Abandon 入口（budgetKind=reflow；不误退订宿主）
+                        Abandon(scope, "宿主/基准连续未就绪，退避预算耗尽，明确放弃（有效几何或重新挂载可自愈）",
+                            budgetKind: "reflow", detach: false);
+                        return;
+                    default:
+                        SetConvergenceState(scope, LayoutConvergenceState.Retrying);
+                        FrontEndDrivenLog.Log("LayoutSubsystem_convergence_retrying",
+                            new { scope, attempt = RetryAttemptOf(scope) });
+                        break;
                 }
-                SetConvergenceState(scope, LayoutConvergenceState.Retrying);
-                FrontEndDrivenLog.Log("LayoutSubsystem_convergence_retrying",
-                    new { scope, attempt = RetryAttemptOf(scope) });
+
                 break;
         }
 
         if (_hostBasisSystem == null || _layoutSystem == null || _projector == null)
-            return; // 测试态：无重流依赖（门控已跑，就绪路径无更多动作）
+        {
+            // 测试态/未注入重流依赖：仅「已就绪」可视为收敛（复位退避预算）；
+            // Retrying 已在上方推进退避，不得被覆写为 Converged。
+            if (readiness == LayoutHostReadiness.Ready)
+                SetConvergenceState(scope, LayoutConvergenceState.Converged);
+            return;
+        }
 
         _hostBasisSystem.ResolveBasis(scope); // 更新基准（若宿主变化则同步，幂等）
 
@@ -369,7 +417,7 @@ public sealed class LayoutSubsystem : IDisposable
     /// <summary>Pillar B：把 scope 宿主几何快照缓存刷新到当前（投影后）值，供尾随自写回事件判"未变化"。</summary>
     private void RefreshPostReflowGeometry(string scope)
     {
-        var host = _hostMountResolver()?.ResolveHost(scope);
+        var host = ResolveHostControl(scope);
         if (host == null || host.IsDisposed || host.Disposing)
             return;
 
@@ -381,46 +429,118 @@ public sealed class LayoutSubsystem : IDisposable
     /// <summary>宿主就绪分类（门控输入，LayoutConvergencePolicy.ClassifyHost 纯函数接线）。</summary>
     private LayoutHostReadiness ClassifyReadiness(string scope)
     {
-        var host = _hostMountResolver()?.ResolveHost(scope);
-        if (host == null || host.IsDisposed || host.Disposing)
-            return LayoutHostReadiness.Blocked; // 宿主未挂载/已销毁 → 等待挂载信号
+        if (_readinessResolver != null)
+            return _readinessResolver(scope);
 
-        // Step2：不再对 Form 一票否决——Form 宿主按与容器宿主相同的客户区/root 就绪判定，
-        // 允许其随缩放/移动/DPI 触发反应式重排（Form 的 Parent 恒为 null → parentClientReady=false，
-        // 仅依赖其自身 ClientSize，故须已显示才有刻度）。
-
-        bool clientReady = host.ClientSize.Width > 0 && host.ClientSize.Height > 0;
-        bool parentReady = host.Parent is { ClientSize.Width: > 0, ClientSize.Height: > 0 };
-
-        // root 可达性不在此预判（与 HostBasisSystem.ResolveBasis 的 root_not_found 日志收敛路径一致）；
-        // root 缺失表现为 RecalculateScope 无实体 + Project changed=0 → 落 Converged，不空转。
-        return LayoutConvergencePolicy.ClassifyHost(
-            hostResolved: true,
-            clientReady: clientReady, parentClientReady: parentReady,
-            rootFound: true);
+        // 就绪判定单一实现（F-07）：尺寸/父面板回退规则只在 HostBasisSystem，本层不再复制。
+        return HostBasisSystem.ClassifyHost(ResolveHostControl(scope));
     }
 
-    /// <summary>置 scope 收敛状态（幂等：同状态不重复写）。</summary>
+    /// <summary>
+    /// 置 scope 收敛状态（幂等）。Converged/Blocked 视作「本轮事件结束」——复位退避计数，
+    /// 使下一次独立未就绪事件拥有完整预算（避免历史失败污染后续瞬态）。
+    /// </summary>
     private void SetConvergenceState(string scope, LayoutConvergenceState state)
     {
-        var track = _convergence.GetOrAdd(scope, _ => new ConvergenceTrack(state, 0));
-        if (track.State == state) return;
-        _convergence[scope] = track with { State = state };
+        var track = _convergence.GetOrAdd(scope, _ => new ConvergenceTrack(state, 0, 0));
+        bool resetBudget = state is LayoutConvergenceState.Converged or LayoutConvergenceState.Blocked;
+        if (track.State == state && (!resetBudget || track.RetryAttempt == 0))
+            return;
+        _convergence[scope] = track with
+        {
+            State = state,
+            RetryAttempt = resetBudget ? 0 : track.RetryAttempt,
+            NextRetryAtMs = resetBudget ? 0 : track.NextRetryAtMs
+        };
     }
 
-    /// <summary>推进 Retrying 退避一次；退避预算耗尽返回 false（→ 转 Abandoned）。</summary>
-    private bool TryAdvanceRetry(string scope)
+    /// <summary>退避推进结果：已推进 / 退避窗口内等待 / 预算耗尽。</summary>
+    private enum RetryAdvance
     {
-        var track = _convergence.GetOrAdd(scope, _ => new ConvergenceTrack(LayoutConvergenceState.Retrying, 0));
-        var backoff = LayoutConvergencePolicy.NextBackoff(track.RetryAttempt);
-        if (backoff == null)
-            return false; // 退避预算耗尽 → 转 Abandoned
-        _convergence[scope] = track with { RetryAttempt = track.RetryAttempt + 1 };
-        return true;
+        Advanced,
+        Deferred,
+        Exhausted
+    }
+
+    /// <summary>
+    /// 推进 Retrying 退避一次：按 <see cref="LayoutConvergencePolicy.NextBackoff"/> 的真实时间窗推进，
+    /// 窗口内重复调用一律 Deferred（不重排、不耗预算）；超出序列长度 → Exhausted（→ Abandoned）。
+    /// </summary>
+    private RetryAdvance TryAdvanceRetry(string scope)
+    {
+        var track = _convergence.GetOrAdd(scope, _ => new ConvergenceTrack(LayoutConvergenceState.Retrying, 0, 0));
+        long now = _clock();
+        if (now < track.NextRetryAtMs)
+            return RetryAdvance.Deferred;
+
+        // 唯一终止判据（F-12）：ShouldAbandon；NextBackoff 仅提供延时窗口。
+        if (LayoutConvergencePolicy.ShouldAbandon(track.RetryAttempt))
+            return RetryAdvance.Exhausted;
+
+        var backoffSeconds = LayoutConvergencePolicy.NextBackoff(track.RetryAttempt);
+        if (backoffSeconds == null)
+            return RetryAdvance.Exhausted;
+
+        _convergence[scope] = track with
+        {
+            State = LayoutConvergenceState.Retrying,
+            RetryAttempt = track.RetryAttempt + 1,
+            NextRetryAtMs = now + backoffSeconds.Value * 1000L
+        };
+        return RetryAdvance.Advanced;
     }
 
     private int RetryAttemptOf(string scope)
         => _convergence.TryGetValue(scope, out var t) ? t.RetryAttempt : 0;
+
+    /// <summary>解析 scope 宿主控件（生产：HostMountService；测试：注入解析器优先）。</summary>
+    private Control? ResolveHostControl(string scope)
+        => _hostResolver?.Invoke(scope) ?? _hostMountResolver()?.ResolveHost(scope);
+
+    /// <summary>
+    /// 已放弃 scope 的自愈判定：宿主已解析且客户区/父面板可读 → 解除 Abandoned 隔离并允许重新入队。
+    /// 生产路径额外要求几何快照有效，杜绝 0×0 期间再次空转；
+    /// 若 scope 已被 Quarantine 退订，则重新 RegisterScope 恢复订阅。
+    /// </summary>
+    private bool TryReviveIfHostReady(string scope, string reason)
+    {
+        var host = ResolveHostControl(scope);
+        if (host == null) return false;
+
+        bool ready = _hostBasisSystem != null
+            ? HostBasisSystem.TryBuildGeometrySnapshot(host) is { IsValid: true }
+            : ClassifyReadiness(scope) == LayoutHostReadiness.Ready;
+        if (!ready) return false;
+
+        if (!_tracked.ContainsKey(scope))
+            RegisterScope(scope, host); // 恢复几何订阅（Quarantine 曾退订）
+        ReviveFromAbandoned(scope, reason);
+        return true;
+    }
+
+    /// <summary>解除 Abandoned 隔离（复位为未跟踪=Converged 默认），并留可见证据。</summary>
+    private void ReviveFromAbandoned(string scope, string reason)
+    {
+        _convergence.TryRemove(scope, out _);
+        FrontEndDrivenLog.Log("LayoutSubsystem_convergence_revived", new { scope, reason });
+    }
+
+    /// <summary>放弃诊断：把「为什么判定未就绪」变成结构事实（宿主/客户区/父客户区/attempt）。</summary>
+    private object BuildAbandonDiagnostics(string scope, string note, string budgetKind)
+    {
+        var host = ResolveHostControl(scope);
+        var parent = host?.Parent;
+        return new
+        {
+            scope,
+            note,
+            budgetKind,
+            attempt = RetryAttemptOf(scope),
+            host = host?.Name ?? "<null>",
+            hostClient = host == null ? "<null>" : $"{host.ClientSize.Width}x{host.ClientSize.Height}",
+            parentClient = parent == null ? "<null>" : $"{parent.ClientSize.Width}x{parent.ClientSize.Height}"
+        };
+    }
 
     /// <summary>
     /// 仅 Bounds 差异投影（重入守卫包裹），返回变更实体数。
@@ -436,7 +556,7 @@ public sealed class LayoutSubsystem : IDisposable
         if (_projector == null)
             return 0;
 
-        var host = _hostMountResolver()?.ResolveHost(scope);
+        var host = ResolveHostControl(scope);
         bool suspended = host != null && !host.IsDisposed && !host.Disposing;
 
         Interlocked.Increment(ref _projecting);
@@ -480,19 +600,31 @@ public sealed class LayoutSubsystem : IDisposable
     /// 使后续 <see cref="OnHostGeometryChange"/> / <see cref="RequestReflow"/> / <see cref="ReflowNow"/> /
     /// <see cref="RecalculateComposition"/> / <see cref="Reflow"/> 全部短路（不再入队/重排），
     /// 从触发源上掐断「无法物理收敛 scope」跨 drain 反复重新入队的空转；
-    /// 保留 Abandoned 标记（区别于 <see cref="RemoveScope"/> 的清缓存），等待下次挂载信号 <see cref="RegisterScope"/>
-    /// 复位后恢复。
+    /// 保留 Abandoned 标记（区别于 <see cref="RemoveScope"/> 的清缓存），等待重新挂载
+    /// （<see cref="RegisterScope"/>）或有效重排请求（<see cref="RequestReflow"/>/<see cref="ReflowNow"/>）自愈。
     /// </summary>
     private void Quarantine(string scope)
+        => Abandon(scope, "调度器预算耗尽（连续重排未物理收敛），终态隔离，等待挂载/有效重排请求自愈",
+            budgetKind: "drain", detach: true);
+
+    /// <summary>
+    /// 统一放弃入口（F-08）：两类预算只在 <paramref name="budgetKind"/> 上区分，
+    /// 是否退订宿主由 <paramref name="detach"/> 显式声明（drain 隔离退订，reflow 耗尽不退订）。
+    /// </summary>
+    private void Abandon(string scope, string reason, string budgetKind, bool detach)
     {
         if (_disposed || string.IsNullOrWhiteSpace(scope)) return;
+        if (IsAbandoned(scope)) return; // 幂等：同一 scope 只落一次放弃
 
-        if (_tracked.TryRemove(scope, out var tracked))
-            tracked.Unsubscribe();
-        AppServiceProvider.Resolve<TabContentReflowSystem>()?.Detach(scope);
+        if (detach)
+        {
+            if (_tracked.TryRemove(scope, out var tracked))
+                tracked.Unsubscribe();
+            AppServiceProvider.Resolve<TabContentReflowSystem>()?.Detach(scope);
+        }
 
         SetConvergenceState(scope, LayoutConvergenceState.Abandoned);
         FrontEndDrivenLog.Log("LayoutSubsystem_convergence_abandoned",
-            new { scope, note = "调度器预算耗尽（连续重排未物理收敛），终态隔离，等待挂载信号" });
+            BuildAbandonDiagnostics(scope, reason, budgetKind));
     }
 }

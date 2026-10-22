@@ -52,6 +52,7 @@
 param(
     [string]$Root = '',
     [switch]$Strict,
+    [switch]$StrictChanged,
     [switch]$FailOnDynamic,
     [switch]$StrictOrphans,
     [string]$BaselinePath = '',
@@ -81,8 +82,97 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 if (-not (Test-Path $Root)) { throw "Root 不存在: $Root" }
 Write-Host "[Check-LogMessages] 仓库根: $Root" -ForegroundColor Cyan
 
+# ---- 增量红线（-StrictChanged）：仅对**本批授权面内**的改动文件判红；存量/他批在途改动不阻塞 ----
+function Convert-ScopeGlobToRegex([string]$Glob) {
+    $g = ($Glob -replace '\\', '/')
+    $sb = [System.Text.StringBuilder]::new('^')
+    $i = 0
+    while ($i -lt $g.Length) {
+        $c = $g[$i]
+        if ($c -eq '*') {
+            if (($i + 1) -lt $g.Length -and $g[$i + 1] -eq '*') {
+                if (($i + 2) -lt $g.Length -and $g[$i + 2] -eq '/') { [void]$sb.Append('(?:[^/]+/)*'); $i += 3 }
+                else { [void]$sb.Append('.*'); $i += 2 }
+            }
+            else { [void]$sb.Append('[^/]*'); $i += 1 }
+        }
+        else { [void]$sb.Append([regex]::Escape([string]$c)); $i += 1 }
+    }
+    [void]$sb.Append('$')
+    return $sb.ToString()
+}
+
+function Test-ScopeMatch([string]$Path, [string[]]$Globs) {
+    $p = ($Path -replace '\\', '/')
+    foreach ($glob in $Globs) {
+        if ([string]::IsNullOrWhiteSpace($glob)) { continue }
+        if ([regex]::IsMatch($p, (Convert-ScopeGlobToRegex $glob), 'IgnoreCase')) { return $true }
+    }
+    return $false
+}
+
+$changedSet = $null
+if ($StrictChanged) {
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if ($git) {
+        $repos = @($Root)
+        foreach ($sub in @('Frame', 'Projects')) {
+            $subRoot = Join-Path $Root $sub
+            if (Test-Path -LiteralPath (Join-Path $subRoot '.git')) { $repos += $subRoot }
+        }
+        $paths = [System.Collections.Generic.List[string]]::new()
+        foreach ($repo in $repos) {
+            $lines = & git -C $repo status --porcelain 2>$null
+            if ($LASTEXITCODE -ne 0) { continue }
+            foreach ($line in @($lines)) {
+                if ($line.Length -lt 4) { continue }
+                $rel = $line.Substring(3).Trim()
+                if ($rel -match ' -> ') { $rel = ($rel -split ' -> ')[-1] }
+                $rel = $rel.Trim('"')
+                $full = [IO.Path]::GetFullPath((Join-Path $repo $rel))
+                if ($full -match '\\BuildOutput\\|\\obj\\') { continue }
+                $paths.Add($full)
+            }
+        }
+        # 只保留本批授权面（batches.json active.allowSet）内的改动；授权单缺件 ⇒ 不过滤（灰度）。
+        $scopeGlobs = @()
+        $batchBaseline = Join-Path $Root 'Frame\PowerShellScript\Baselines\BatchScope.psd1'
+        if (Test-Path -LiteralPath $batchBaseline) {
+            try {
+                $batchCfg = Import-PowerShellDataFile -Path $batchBaseline
+                $manifestRel = [string]$batchCfg.Manifest.Value
+                $manifestPath = Join-Path $Root $manifestRel
+                if ($manifestRel -and (Test-Path -LiteralPath $manifestPath)) {
+                    $batchDoc = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                    foreach ($batch in @($batchDoc.batches)) {
+                        if ($batch.status -eq 'active') { $scopeGlobs += @($batch.allowSet) }
+                    }
+                }
+            }
+            catch { $scopeGlobs = @() }
+        }
+        if ($scopeGlobs.Count -gt 0) {
+            $inScopePaths = [System.Collections.Generic.List[string]]::new()
+            foreach ($p in $paths) {
+                $rel = $p
+                if ($p.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase)) {
+                    $rel = $p.Substring($Root.Length).TrimStart('\')
+                }
+                if (Test-ScopeMatch -Path $rel -Globs $scopeGlobs) { $inScopePaths.Add($p) }
+            }
+            $paths = $inScopePaths
+        }
+
+        $changedSet = [System.Collections.Generic.HashSet[string]]::new($paths, [StringComparer]::OrdinalIgnoreCase)
+        Write-Host ("[Check-LogMessages] 增量红线：本批授权面内改动文件 {0} 个" -f $changedSet.Count) -ForegroundColor Cyan
+    }
+    else {
+        Write-Host '[Check-LogMessages] 未找到 git ⇒ -StrictChanged 退化为全量报告（只告警不阻断）' -ForegroundColor Yellow
+    }
+}
+
 # 统一排除目录（单一来源，覆盖生成/构建/备份产物）
-$excludeDirs = @('node_modules', 'obj', 'bin', '_deprecated', 'backups', 'BuildOutput', '.vs', '.git')
+$excludeDirs = @('node_modules', 'obj', 'bin', '_deprecated', 'backups', 'BuildOutput', '.vs', '.git', 'Runtime')
 $issues = [System.Collections.Generic.List[object]]::new()
 $jsonFiles = @(Get-FileList -Path $Root -Include @('*_log_messages.json') -ExcludeDir $excludeDirs)
 
@@ -129,6 +219,7 @@ foreach ($f in (Get-FileList -Path $Root -Include @('*.cs') -ExcludeDir $exclude
     $text = (Get-Content -LiteralPath $f.FullName -Raw -ErrorAction SilentlyContinue); if ($null -eq $text) { $text = '' }
     foreach ($lit in (Get-MsgIdLiteralCallMatches -Text $text -File $f.FullName)) {
         if (-not $allRegistered.ContainsKey($lit.Id)) {
+            if ($null -ne $changedSet -and -not $changedSet.Contains([IO.Path]::GetFullPath($lit.File))) { continue }
             $unregistered += [pscustomobject]@{ File = $lit.File; Id = $lit.Id; Line = $lit.Line; Column = $lit.Column }
         }
     }
@@ -164,7 +255,7 @@ foreach ($o in $orphanFound) {
 # ---- 报告 ----
 $byCheck = $issues | Group-Object Check
 foreach ($g in ($byCheck | Sort-Object { [int]$_.Name })) {
-    $sev = switch ([int]$g.Name) { 1 { '错误' } 2 { '错误' } 3 { $(if ($FailOnDynamic) { '错误' } else { '警告' }) } 4 { $(if ($Strict) { '错误' } else { '警告' }) } 5 { $(if ($StrictOrphans) { '错误' } else { '警告' }) } default { '警告' } }
+    $sev = switch ([int]$g.Name) { 1 { '错误' } 2 { '错误' } 3 { $(if ($FailOnDynamic) { '错误' } else { '警告' }) } 4 { $(if ($Strict -or $StrictChanged) { '错误' } else { '警告' }) } 5 { $(if ($StrictOrphans) { '错误' } else { '警告' }) } default { '警告' } }
     Write-Host ("`n--- 检查{0}：{1} 项（{2}） ---" -f $g.Name, $g.Count, $sev) -ForegroundColor $(if ($sev -eq '错误') { 'Red' } else { 'Yellow' })
     foreach ($i in $g.Group | Select-Object -First 40) {
         Write-Host ("  [{0}] {1}  {2}" -f $i.Id, $i.File, $i.Detail)
@@ -188,7 +279,12 @@ $measured = [ordered]@{
     orphans      = $orphanFound.Count
 }
 $ratchetErrors = 0
-if ($UpdateBaseline) {
+if ($StrictChanged -and -not $Strict -and -not $StrictOrphans -and -not $UpdateBaseline) {
+    # 增量模式：只对本次改动文件判红；存量债务（全量基线棘轮）不阻塞本批。
+    # 全量口径仍可经 -Strict / -StrictOrphans / 无 -StrictChanged 运行。
+    Write-Host '[棘轮] 增量模式（-StrictChanged）：跳过全量基线棘轮；存量债务不阻塞，新增未注册引用仍判红' -ForegroundColor Cyan
+}
+elseif ($UpdateBaseline) {
     $payload = [ordered]@{ version = '1.0'; updated = (Get-Date -Format 'yyyy-MM-dd'); counts = $measured }
     $payload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $BaselinePath -Encoding UTF8
     Write-Host ("[棘轮] 基线已写入: {0}（动态 {1} / 未注册 {2} / 孤儿 {3}）" -f `
@@ -227,7 +323,8 @@ else {
 $hardErrors = @($issues | Where-Object { [int]$_.Check -le 2 })
 $dynamicErrors = @($issues | Where-Object { [int]$_.Check -eq 3 -and $FailOnDynamic })
 $unregErrors = @($issues | Where-Object { [int]$_.Check -eq 4 -and $Strict })
+$changedErrors = @($issues | Where-Object { [int]$_.Check -eq 4 -and $StrictChanged })
 $orphanErrors = @($issues | Where-Object { [int]$_.Check -eq 5 -and $StrictOrphans })
-$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $orphanErrors.Count -gt 0 -or $ratchetErrors -gt 0) { 1 } else { 0 }
+$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $changedErrors.Count -gt 0 -or $orphanErrors.Count -gt 0 -or $ratchetErrors -gt 0) { 1 } else { 0 }
 exit $exitCode
 

@@ -567,9 +567,17 @@
 
     LogMessages = @{
         Domain = 'Declarations'
-        Args   = @{}
+        Args   = @{ StrictChanged = $true; FailOnDynamic = $true }
         Expect = 0
-        Note   = '默认检查模式 + 基线棘轮（F-P0-1e：检查 3/4/5 三类计数只减不增，增量即红；基线 = 同目录 LogMessagesBaseline.json）；-Strict / -FailOnDynamic / -StrictOrphans 为严格模式；-UpdateBaseline 为写操作，聚合器禁用'
+        Note   = '基线棘轮（检查 3/4/5 计数只减不增）+ 增量红线（-StrictChanged：仅对 git 改动文件的未注册引用判红）；-Strict/-StrictOrphans 仍为全量严格模式；-UpdateBaseline 为写操作，聚合器禁用'
+    }
+
+    RuntimeMirror = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '运行期镜像一致性（F-09）：源 *_log_messages.json（FileDriven/Frame.CsharpPrj/Plug.Agent）与 DrivenConfig 树 → Runtime/Config 副本 SHA256 相等；未构建 Runtime ⇒ 不适用 PASS；哈希判据正/负对照'
     }
 
     SingleWriter = @{

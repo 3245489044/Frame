@@ -43,8 +43,13 @@
       "category": "FrontEndDriven.Layout"
     },
     "LayoutSubsystem_convergence_abandoned": {
-      "template": "布局收敛状态机：宿主/基准连续未就绪，退避预算耗尽，明确放弃（不再 ScheduleDrain） — scope={scope}, note={note}",
+      "template": "布局收敛状态机：宿主/基准连续未就绪，退避预算耗尽，明确放弃（有效几何或重新挂载可自愈） — scope={scope}, note={note}, attempt={attempt}, host={host}, hostClient={hostClient}, parentClient={parentClient}",
       "level": "Warning",
+      "category": "FrontEndDriven.Layout"
+    },
+    "LayoutSubsystem_convergence_revived": {
+      "template": "布局收敛状态机：Abandoned 隔离已解除（有效几何/有效重排请求到达） — scope={scope}, reason={reason}",
+      "level": "Debug",
       "category": "FrontEndDriven.Layout"
     },
     "LayoutScheduler_work_failed": {

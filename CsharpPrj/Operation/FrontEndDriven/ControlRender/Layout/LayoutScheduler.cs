@@ -29,7 +29,7 @@ public sealed class LayoutScheduler
     // 从触发源上掐断「无法物理收敛 scope」跨 drain 反复重新入队的空转。
     private readonly Action<string>? _onBudgetExhausted;
 
-    // 收敛阈值单源：MaxDrainPasses / ReflowStormThreshold / RetryBudget 定义见
+    // 收敛阈值单源：MaxDrainPasses / ReflowStormThreshold / DrainBudget 定义见
     // LayoutConvergencePolicy（确定性收敛状态机的阈值单一权威），本处不再散落硬编码。
 
     // 风暴跟踪状态（LayoutScheduler 为 UI 线程单消费者，仅 DrainAsync 内访问，无需加锁）。
@@ -89,7 +89,7 @@ public sealed class LayoutScheduler
     /// drain 循环骨架（重入守卫 / 快照 / 版本去重 / 预算 / try/finally / while 吞执行期新请求）收敛到
     /// <see cref="VersionedKeyedQueue{TKey,TEntry}.DrainAllAsync"/>；本方法仅提供最新版本执行的 work 委托，
     /// 并在其中做「重排风暴护栏」（同一 scope 连续重排超阈值 → 记告警并返回 false = break，与原实现逐行一致的终止语义）。
-    /// 预算用尽仍有剩余 → 按 scope 独立计费，仍在退避预算内（<see cref="LayoutConvergencePolicy.RetryBudget"/>）的可重试
+    /// 预算用尽仍有剩余 → 按 scope 独立计费，仍在排空预算内（<see cref="LayoutConvergencePolicy.DrainBudget"/>）的可重试
     /// scope 有限次重新调度消化剩余；超限或无可重试的 scope 终态隔离（移出待重算 + 通知收敛机 Abandoned）。
     /// </summary>
     private async Task DrainAsync()
@@ -154,12 +154,12 @@ public sealed class LayoutScheduler
         }
 
         FrontEndDrivenLog.Log("LayoutScheduler_drain_budget_exhausted",
-            new { pendingCount = _pending.Count });
+            new { budgetKind = "drain", pendingCount = _pending.Count });
 
         // 四态化隔离（per-scope）：预算耗尽计费按 scope 计——单条坏 scope 不再毒化全局重排。
         // 对每个「执行 _work 后仍被重新入队、未物理收敛」的 scope：
         //   ① 递增其独立预算耗尽计数；
-        //   ② 超过 RetryBudget → 终态隔离：通知收敛机（_onBudgetExhausted → Abandoned + 退订宿主几何，
+        //   ② 超过 DrainBudget → 终态隔离：通知收敛机（_onBudgetExhausted → Abandon(drain) + 退订宿主几何，
         //      掐断后续重新入队），并移出待重算，不再重排（杜绝不可收敛 scope 无限自激）；
         //   ③ 未超限但状态为 Blocked/Converged/Abandoned（无可重试）→ 移出待重算，不静默滞留。
         // 预算计数仅队列整体清空时复位（见下方 final），健康 scope 收敛即复位，不积累误判。
@@ -170,7 +170,7 @@ public sealed class LayoutScheduler
             int count = _budgetExhaustions.TryGetValue(key, out var prev) ? prev + 1 : 1;
             bool retryable = _shouldRetry?.Invoke(key) ?? true;
 
-            if (!retryable || count > LayoutConvergencePolicy.RetryBudget)
+            if (!retryable || count > LayoutConvergencePolicy.DrainBudget)
             {
                 // 终态：从待重算移除（scope 不应长期滞留）；超限且可重试 → 通知收敛机隔离。
                 _pending.TryRemove(key);
@@ -183,6 +183,7 @@ public sealed class LayoutScheduler
                         scope = key,
                         pendingCount = _pending.Count,
                         consecutive = count,
+                        budgetKind = "drain",
                         note = retryable ? "连续预算耗尽超上限，已终态隔离" : "剩余 scope 无可重试（Blocked/Converged/Abandoned）"
                     });
                 continue;

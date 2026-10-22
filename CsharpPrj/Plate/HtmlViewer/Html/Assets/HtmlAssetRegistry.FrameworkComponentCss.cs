@@ -243,6 +243,45 @@ public sealed partial class HtmlAssetRegistry
                 
         """;
 
+    /// <summary>通用样式模块：CssDataPageChrome（分组工具条 / 筛选条 / 选择条 / 页脚分页）</summary>
+    internal const string CssDataPageChrome =
+        """
+        /* ── 数据页区域（分组工具条 / 筛选 / 选择 / 页脚） ── */
+        .toolbar-leading { color: var(--muted); font-size: 12px; }
+        .toolbar-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .toolbar-group-label { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+        .toolbar-sep { display: inline-block; width: 1px; height: 16px; background: var(--border); margin: 0 2px; align-self: center; }
+        .toolbar-sep-strong { background: var(--danger); opacity: .45; }
+        .toolbar-more { position: relative; display: inline-flex; }
+        .toolbar-more-summary { list-style: none; cursor: pointer; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--agent-bg); color: var(--fg); font-size: 12px; }
+        .toolbar-more-summary::-webkit-details-marker { display: none; }
+        .toolbar-more-summary::after { content: " ▾"; color: var(--muted); }
+        .toolbar-more[open] > .toolbar-more-panel { display: flex; flex-direction: column; gap: 6px; position: absolute; right: 0; top: calc(100% + 4px); z-index: 8; min-width: 168px; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+        .toolbar-more-panel { display: none; }
+        .toolbar-more-panel .toolbar-sep { display: none; }
+        .btn-ghost { background: transparent; color: var(--muted); }
+        .btn-ghost:hover { color: var(--fg); }
+        .btn-action-primary { background: var(--user-bg); color: var(--user-fg); border-color: var(--user-bg); }
+        .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+        .btn-danger:hover { background: var(--error-bg); }
+        .btn[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--fg); }
+        .btn[data-pending="1"] { outline: 2px solid var(--warn); outline-offset: 1px; }
+        .btn:disabled { opacity: .55; cursor: not-allowed; }
+        .filter-bar, .selection-bar, .pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px; border-bottom: 1px dashed var(--border); }
+        .filter-bar { background: var(--agent-bg); border-radius: 6px; }
+        .filter-label, .selection-summary, .pager-info { font-size: 12px; color: var(--muted); }
+        .pager { justify-content: flex-end; border-bottom: 0; border-top: 1px solid var(--border); }
+        .pager-group, .pager-goto { display: inline-flex; align-items: center; gap: 6px; }
+        .pager-info { padding: 0 4px; }
+        .filter-bar .input, .pager .input { font: inherit; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
+        @media (max-width: 720px) {
+            .toolbar-group-label { display: none; }
+            .toolbar-leading { font-size: 11px; }
+            .filter-bar .btn, .selection-bar .btn, .pager .btn { padding: 2px 6px; }
+        }
+
+        """;
+
     /// <summary>模块名 → 模块 CSS（内置默认；可经 RegisterStyleModule 覆盖）。</summary>
     internal static readonly IReadOnlyDictionary<string, string> CssModules =
         new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
@@ -257,11 +296,12 @@ public sealed partial class HtmlAssetRegistry
             ["board"] = CssBoard,
             ["attach"] = CssAttach,
             ["data"] = CssData,
+            ["datachrome"] = CssDataPageChrome,
         };
 
     /// <summary>通用组件样式组合顺序（模块名有序；顺序固定 = 级联稳定）。</summary>
     internal static readonly IReadOnlyList<string> FrameworkComponentCssOrder = new[]
     {
-        "tokens", "block", "shell", "tree", "switch", "grouped", "state", "board", "attach", "data",
+        "tokens", "block", "shell", "tree", "switch", "grouped", "state", "board", "attach", "data", "datachrome",
     };
 }

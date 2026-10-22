@@ -412,7 +412,14 @@
     #   Agent PsRuntime、Agent.Modules.Tests、Frame 门禁与 Docs/analysis/2026/10/10.22。
     #   恢复 = 回填下方注释 v59 的 Value。
     # Manifest(v59) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-通用框架提取.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-框架层重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v61（2026-10-22）：单指针切换至「会话发送与轮次装配（G1–G6，F-15~F-23）」授权单（B1–B4）。
+    #   切换理由 = 用户要求大步快改、一次施工：发送计划单源 / 轮次种子前置 / 提示词归因 / 轮次成败单源 /
+    #   run 身份 / 日志契约；改动落在 Projects/Plug/Agent/{Contract,Core,Modules,Ui,Launcher} · Config/workflows
+    #   · Frame/PowerShellScript/{Operation/DSL,Baselines} · Environment/CentralTest/AgentTest/** · Docs/analysis/2026/10/10.22，
+    #   均在新单 allowSet 内。上一系列（PowerShellHost 框架层重构）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填下方注释 v60 的 Value（当前行）。
+    # Manifest(v60) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-框架层重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-会话发送与轮次装配.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

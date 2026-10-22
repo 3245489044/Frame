@@ -6,7 +6,7 @@
 .DESCRIPTION
       [S1] 脚本声明面不得**新增** action=sleep 且 target ≥ 阈值（默认 1000ms）的落点：
            固定等待使失败落在「未跑完」而非强判据（实测 90000ms 定格 → 窗口关闭 → totalCommands=0）。
-           存量按 `Baselines\\_fixed-sleep.psd1` 冻结（每文件计数），只降不升。
+           存量按 `Baselines\_fixed-sleep.psd1` 冻结（每文件计数），只降不升。
       [S2] 正/负对照：合成样本（sleep 90000）必被捕获，合成样本（sleep 300）不得误报。
       [S3] 轮询能力在位：WaitUntilSystem 存在且已在 CommandCoordinator 注册。
       [S4] 收录口径：新增脚本落点超出基线 → 违规；低于基线 → 提示下调（不失败）。
@@ -38,7 +38,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $scriptRoot = Join-Path $Root 'Projects\Information\DrivenConfig\Scripts'
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\\_fixed-sleep.psd1'
+$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\_fixed-sleep.psd1'
 $waitUntil = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\WaitUntilSystem.cs'
 $coordinator = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\CommandCoordinator.cs'
 

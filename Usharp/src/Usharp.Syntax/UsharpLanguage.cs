@@ -287,6 +287,9 @@ public static class UsharpLanguage
     /// <summary>[Flow] 成功准则字段（<c>success=decision|run_to_end</c>；缺省 decision，对齐既有骨架契约口径）。</summary>
     public const string FieldSuccess = "success";
 
+    /// <summary>[Flow] 必填提示词端口（<c>required_prompt_ports=system,l1,l2</c>；缺省 = 不覆盖执行体底线）。</summary>
+    public const string FieldRequiredPromptPorts = "required_prompt_ports";
+
     /// <summary>流步骤行的行首标记（<c>step &lt;key&gt;</c> / <c>step: &lt;key&gt;</c> / <c>step=&lt;key&gt;</c>）。</summary>
     public const string StepMarker = "step";
 

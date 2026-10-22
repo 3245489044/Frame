@@ -36,6 +36,7 @@ public static class UsharpRoundSpecEmitter
         {
             Source = RoundSpecSource.Declared,
             SuccessCriterion = ParseSuccessCriterion(flow, diagnostics),
+            RequiredPromptPorts = flow.RequiredPromptPorts,
         };
 
         // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）；复用本处已读的 [Node] 端口表。

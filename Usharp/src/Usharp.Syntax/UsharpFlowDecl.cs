@@ -106,6 +106,12 @@ public sealed record UsharpFlowDecl(
     /// </summary>
     public IReadOnlyList<UsharpConnectDecl> Connects { get; init; } = Array.Empty<UsharpConnectDecl>();
 
+    /// <summary>
+    /// 必填提示词端口（<c>required_prompt_ports=system,l1,l2</c>；**加法式 init 属性**）——
+    /// 声明面唯一来源；缺省空 ⇒ 执行体底线生效（不关闭前置）。
+    /// </summary>
+    public IReadOnlyList<string> RequiredPromptPorts { get; init; } = Array.Empty<string>();
+
     public static UsharpFlowDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
@@ -140,6 +146,10 @@ public sealed record UsharpFlowDecl(
             StopSpaceId = string.IsNullOrWhiteSpace(stop) ? null : stop,
             BudgetRaw = string.IsNullOrWhiteSpace(budgetRaw) ? null : budgetRaw,
             Connects = UsharpConnectDecl.ParseList(d.Field(UsharpLanguage.FieldConnects)),
+            RequiredPromptPorts = d.HasField(UsharpLanguage.FieldRequiredPromptPorts)
+                ? d.Field(UsharpLanguage.FieldRequiredPromptPorts)
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                : Array.Empty<string>(),
         };
     }
 }

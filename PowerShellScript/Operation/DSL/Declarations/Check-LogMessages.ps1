@@ -56,7 +56,9 @@ param(
     [switch]$FailOnDynamic,
     [switch]$StrictOrphans,
     [string]$BaselinePath = '',
-    [switch]$UpdateBaseline
+    [switch]$UpdateBaseline,
+    [switch]$StrictFields,
+    [switch]$StrictMirror
 )
 
 $ErrorActionPreference = 'Stop'
@@ -250,12 +252,61 @@ foreach ($o in $orphanFound) {
     $issues.Add([pscustomobject]@{ Check = 5; File = $o.File; Id = $o.Id; Detail = '注册但无代码字面量引用（孤儿候选）' })
 }
 
+# ---- 检查 7：模板占位符 ⊇ 调用字段集（字段静默吞并 = 日志丢事实；默认 Warn，-StrictFields 判红）----
+$placeholderById = @{}
+foreach ($f7 in $jsonFiles) {
+    try { $j7 = Get-Content -LiteralPath $f7.FullName -Raw | ConvertFrom-Json } catch { continue }
+    if ($null -eq $j7.messages) { continue }
+    foreach ($p7 in $j7.messages.PSObject.Properties) {
+        $tpl7 = [string]$p7.Value.template
+        $placeholderById[$p7.Name] = @(
+            [regex]::Matches($tpl7, '\{([A-Za-z_][A-Za-z0-9_]*)\}') |
+                ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    }
+}
+$fieldIssues = @()
+$logCallRegex = [regex]'\.Log\(\s*"([A-Za-z0-9_\-]+)"\s*,\s*new\s*\{?\s*(?<fields>[^{}]*)\}'
+foreach ($f7 in (Get-FileList -Path $Root -Include @('*.cs') -ExcludeDir $excludeDirs)) {
+    $text7 = Get-Content -LiteralPath $f7.FullName -Raw -ErrorAction SilentlyContinue
+    if ($null -eq $text7) { continue }
+    foreach ($m7 in $logCallRegex.Matches($text7)) {
+        $id7 = $m7.Groups[1].Value
+        if (-not $placeholderById.ContainsKey($id7)) { continue }
+        $fields7 = @([regex]::Matches($m7.Groups['fields'].Value, '(?:^|,)\s*([A-Za-z_][A-Za-z0-9_]*)') |
+            ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ })
+        $extra7 = @($fields7 | Where-Object { $placeholderById[$id7] -notcontains $_ })
+        if ($extra7.Count -gt 0) {
+            $fieldIssues += [pscustomobject]@{ Check = 7; File = $f7.FullName; Id = $id7; Detail = ('调用字段未在模板占位符中: ' + ($extra7 -join ',')) }
+        }
+    }
+}
+foreach ($i7 in $fieldIssues) { $issues.Add($i7) }
+
+# ---- 检查 8：msgId 单源（跨文件唯一）+ Runtime 镜像一致（默认 Warn；-StrictMirror 判红）----
+foreach ($id8 in @($allRegistered.Keys | Sort-Object)) {
+    if ($allRegistered[$id8].Count -le 1) { continue }
+    $issues.Add([pscustomobject]@{ Check = 8; File = (($allRegistered[$id8]) -join '; '); Id = $id8; Detail = 'msgId 跨文件重复定义（单源违约）' })
+}
+$mirrorRoot = Join-Path $Root 'Runtime\Config\LogMessages'
+if ($StrictMirror -and (Test-Path -LiteralPath $mirrorRoot)) {
+    foreach ($f8 in $jsonFiles) {
+        $mirror8 = Join-Path $mirrorRoot $f8.Name
+        if (-not (Test-Path -LiteralPath $mirror8)) {
+            $issues.Add([pscustomobject]@{ Check = 8; File = $f8.FullName; Id = $f8.Name; Detail = 'Runtime 镜像缺失' })
+            continue
+        }
+        $h1 = (Get-FileHash -LiteralPath $f8.FullName -Algorithm SHA256).Hash
+        $h2 = (Get-FileHash -LiteralPath $mirror8 -Algorithm SHA256).Hash
+        if ($h1 -ne $h2) {
+            $issues.Add([pscustomobject]@{ Check = 8; File = $f8.FullName; Id = $f8.Name; Detail = 'Runtime 镜像哈希不一致（源=唯一真源）' })
+        }
+    }
+}
 
 
-# ---- 报告 ----
 $byCheck = $issues | Group-Object Check
 foreach ($g in ($byCheck | Sort-Object { [int]$_.Name })) {
-    $sev = switch ([int]$g.Name) { 1 { '错误' } 2 { '错误' } 3 { $(if ($FailOnDynamic) { '错误' } else { '警告' }) } 4 { $(if ($Strict -or $StrictChanged) { '错误' } else { '警告' }) } 5 { $(if ($StrictOrphans) { '错误' } else { '警告' }) } default { '警告' } }
+    $sev = switch ([int]$g.Name) { 1 { '错误' } 2 { '错误' } 3 { $(if ($FailOnDynamic) { '错误' } else { '警告' }) } 4 { $(if ($Strict -or $StrictChanged) { '错误' } else { '警告' }) } 5 { $(if ($StrictOrphans) { '错误' } else { '警告' }) } 7 { $(if ($StrictFields) { '错误' } else { '警告' }) } 8 { $(if ($StrictMirror) { '错误' } else { '警告' }) } default { '警告' } }
     Write-Host ("`n--- 检查{0}：{1} 项（{2}） ---" -f $g.Name, $g.Count, $sev) -ForegroundColor $(if ($sev -eq '错误') { 'Red' } else { 'Yellow' })
     foreach ($i in $g.Group | Select-Object -First 40) {
         Write-Host ("  [{0}] {1}  {2}" -f $i.Id, $i.File, $i.Detail)
@@ -325,6 +376,8 @@ $dynamicErrors = @($issues | Where-Object { [int]$_.Check -eq 3 -and $FailOnDyna
 $unregErrors = @($issues | Where-Object { [int]$_.Check -eq 4 -and $Strict })
 $changedErrors = @($issues | Where-Object { [int]$_.Check -eq 4 -and $StrictChanged })
 $orphanErrors = @($issues | Where-Object { [int]$_.Check -eq 5 -and $StrictOrphans })
-$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $changedErrors.Count -gt 0 -or $orphanErrors.Count -gt 0 -or $ratchetErrors -gt 0) { 1 } else { 0 }
+$fieldErrors = @($issues | Where-Object { [int]$_.Check -eq 7 -and $StrictFields })
+$mirrorErrors = @($issues | Where-Object { [int]$_.Check -eq 8 -and $StrictMirror })
+$exitCode = if ($hardErrors.Count -gt 0 -or $dynamicErrors.Count -gt 0 -or $unregErrors.Count -gt 0 -or $changedErrors.Count -gt 0 -or $orphanErrors.Count -gt 0 -or $fieldErrors.Count -gt 0 -or $mirrorErrors.Count -gt 0 -or $ratchetErrors -gt 0) { 1 } else { 0 }
 exit $exitCode
 

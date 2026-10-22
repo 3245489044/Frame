@@ -6,9 +6,12 @@
 .DESCRIPTION
     [A1] 单源件存在且含 Store 包族发现 + 结构可用性判据（TryResolveUsable）；
     [A2] Agent ExecutableResolver 已委托（含 PowerShellHostLocator.Locate），无本地 KnownCandidates/别名特判；
-    [A3] FileDriven GenerationBuildRunner 已委托，且不再手写 PATH 枚举 pwsh.exe；
+    [A3] FileDriven GenerationBuildRunner 已委托（RunFileAsync），且不再手写 PATH 枚举 pwsh.exe / ProcessStartInfo；
     [A4] 全仓恰好一处 class PowerShellHostLocator（旧位置不得残留）；
-    [A5] 负对照：合成重复类名不得被误认为单源。
+    [A5] 负对照：合成重复类名不得被误认为单源；
+    [A6] 非单源面（Agent/FileDriven）不得出现 PS ProcessStartInfo；
+    [A7] "-File" 字面量仅允许出现在 Plate\PowerShellHost 的 Runner/Session/Probe；
+    [A8] 正/负对照：合成重复启动代码必须被拦截，合法框架调用不得被误判。
     只读源码；-Check 时违规 > 0 退出码 1。
 #>
 [CmdletBinding()]
@@ -23,22 +26,27 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $locator = Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHostLocator.cs'
+$resolver = Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHostResolver.cs'
 $agent = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invoke\PsRuntime\ExecutableResolver.cs'
+$hosting = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invoke\PsRuntime\PsRuntimeHosting.cs'
 $fileDriven = Join-Path $Root 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\GenerationBuildRunner.cs'
 
 $violations = [System.Collections.Generic.List[string]]::new()
-foreach ($file in @($locator, $agent, $fileDriven)) {
+foreach ($file in @($locator, $resolver, $agent, $hosting, $fileDriven)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少单源面文件: $file") }
 }
 
 if ($violations.Count -eq 0) {
     $locatorText = Get-Content -LiteralPath $locator -Raw
+    $resolverText = Get-Content -LiteralPath $resolver -Raw
     $agentText = Get-Content -LiteralPath $agent -Raw
+    $hostingText = Get-Content -LiteralPath $hosting -Raw
     $fdText = Get-Content -LiteralPath $fileDriven -Raw
 
-    # [A1] 单源实现面
-    if ($locatorText -notmatch 'Microsoft\.PowerShell_' -or $locatorText -notmatch 'TryResolveUsable') {
-        $violations.Add('[A1] PowerShellHostLocator 未同时具备 Store 包族发现与结构可用性判据')
+    # [A1] 单源实现面（B10：发现/物化在 Resolver，Locator 保留兼容门面）
+    $singleSourceText = $locatorText + "`n" + $resolverText
+    if ($singleSourceText -notmatch 'Microsoft\.PowerShell_' -or $locatorText -notmatch 'TryResolveUsable') {
+        $violations.Add('[A1] PowerShellHost 未同时具备 Store 包族发现/物化与结构可用性判据')
     }
 
     # [A2] Agent 只委托
@@ -49,12 +57,16 @@ if ($violations.Count -eq 0) {
         $violations.Add('[A2] ExecutableResolver 仍保留本地候选/别名特判（第二套解析）')
     }
 
-    # [A3] FileDriven 只委托
-    if ($fdText -notmatch 'PowerShellHostLocator\.Locate\s*\(') {
-        $violations.Add('[A3] GenerationBuildRunner 未委托 PowerShellHostLocator.Locate')
+    # [A3] FileDriven 只委托（B9：一次性脚本执行统一经 PowerShellScriptRunner）
+    if ($fdText -notmatch 'PowerShellScriptRunner\.RunFileAsync\s*\(' -and
+        $fdText -notmatch 'PowerShellHostLocator\.Locate\s*\(') {
+        $violations.Add('[A3] GenerationBuildRunner 未委托 Plate.PowerShellHost（RunFileAsync/Locate）')
     }
     if ($fdText -match 'foreach[\s\S]{0,200}pwsh\.exe') {
         $violations.Add('[A3] GenerationBuildRunner 仍在手写 PATH 枚举 pwsh.exe')
+    }
+    if ($fdText -match 'new\s+ProcessStartInfo') {
+        $violations.Add('[A3] GenerationBuildRunner 仍内联 ProcessStartInfo（应经 PowerShellScriptRunner）')
     }
 
     # [A4] 全仓单一定义（排除构建产物）
@@ -68,6 +80,68 @@ if ($violations.Count -eq 0) {
     # [A5] 负对照：旧命名空间不得残留
     if ($locatorText -match 'namespace\s+Modules\.Common\.Utilities') {
         $violations.Add('[A5] 负对照失败：定位器仍位于工具层命名空间（应为独立 Plate 工程）')
+    }
+
+    # [A9] reparse/AppExecLink 语义只允许在 Plate\PowerShellHost（WindowsAppExecLink 单源）
+    if ($locatorText -notmatch 'PowerShellHostMaterializer\.TryMaterialize') {
+        $violations.Add('[A9] 定位器未经物化器（0 字节 alias 可能被当作可用路径）')
+    }
+
+    # [A10] 能力失败必须保留框架稳定码（禁按异常类型折叠为 attach_failed）
+    if ($hostingText -notmatch 'is\s+PowerShellHostException') {
+        $violations.Add('[A10] PsRuntimeHosting.ClassifyFailure 未优先消费 PowerShellHostException.Code')
+    }
+
+    # [A6]/[A7] 进程启动面单源（B9）：PS ProcessStartInfo 与 -File 字面量只允许出现在 Plate\PowerShellHost
+    $allowedLiteralFiles = @(
+        'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellScriptRunner.cs',
+        'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellStdioSession.cs',
+        'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHostProbe.cs'
+    )
+    $scanRoots = @(
+        (Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost'),
+        (Join-Path $Root 'Projects\Plug\Agent\src'),
+        (Join-Path $Root 'Projects\FileDriven')
+    ) | Where-Object { Test-Path -LiteralPath $_ }
+
+    $processStartPattern = 'new\s+ProcessStartInfo'
+    $fileLiteralPattern = '"-File"'
+
+    foreach ($scanRoot in $scanRoots) {
+        $codeFiles = Get-ChildItem -Path $scanRoot -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\BuildOutput\\|\\obj\\|_deprecated' }
+        foreach ($file in $codeFiles) {
+            $rel = [System.IO.Path]::GetRelativePath($Root, $file.FullName)
+            $inPlate = $rel -like 'Frame\CsharpPrj\Plate\PowerShellHost\*'
+            $text = Get-Content -LiteralPath $file.FullName -Raw
+
+            if (-not $inPlate -and $text -match $processStartPattern -and $text -match '(?i)\bpwsh\b|powershell') {
+                $violations.Add("[A6] 非单源面出现 PS ProcessStartInfo：$rel")
+            }
+            if ($text -match $fileLiteralPattern -and ($allowedLiteralFiles -notcontains $rel)) {
+                $violations.Add("[A7] `"-File`" 字面量出现在非单源面：$rel")
+            }
+
+            # [A11] reparse/WindowsApps 目录语义只允许在 Plate\PowerShellHost（发现机制单源）
+            if (-not $inPlate -and $text -match '0x8000001B|FSCTL_GET_REPARSE_POINT|IO_REPARSE_TAG_APPEXECLINK|AppExecLink') {
+                $violations.Add("[A11] reparse/AppExecLink 语义出现在非单源面：$rel")
+            }
+            if ($text -match 'Directory\.(GetDirectories|EnumerateDirectories)' -and
+                $text -match 'WindowsApps' -and
+                $rel -notlike '*PowerShellHostResolver.cs') {
+                $violations.Add("[A11] WindowsApps 目录枚举出现在非解析器：$rel")
+            }
+        }
+    }
+
+    # [A8] 正/负对照：合成样本必须被拦截，合法调用不得被误判
+    $syntheticDuplicate = 'var psi = new ProcessStartInfo { FileName = "pwsh" }; psi.ArgumentList.Add("-File");'
+    if ($syntheticDuplicate -notmatch $processStartPattern -or $syntheticDuplicate -notmatch $fileLiteralPattern) {
+        $violations.Add('[A8] 负对照失败：合成重复启动代码未被 [A6]/[A7] 规则命中')
+    }
+    $syntheticClean = 'var result = await PowerShellScriptRunner.RunFileAsync(script, args, options);'
+    if ($syntheticClean -match $processStartPattern -or $syntheticClean -match $fileLiteralPattern) {
+        $violations.Add('[A8] 正对照失败：合法框架调用被误判为重复实现')
     }
 }
 

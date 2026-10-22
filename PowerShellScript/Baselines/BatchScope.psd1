@@ -400,7 +400,19 @@
     #   Environment/CentralTest + Docs/analysis/2026/10/10.22，均在新单 allowSet 内。
     #   恢复 = 回填下方注释 v57 的 Value（上一系列已收口，无在途改动）。
     # Manifest(v57) = @{ Value = 'Docs\analysis\2026\10\10.21\2026-10-21-执行结果判定与任务终态.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-框架层缺陷-重复逻辑冗余逻辑与错误逻辑.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v59（2026-10-22）：单指针切换至「PowerShell 宿主通用框架提取（B9-A~B9-D）」授权单。
+    #   切换理由 = 用户要求大步快改、一次改完：探测/一次性脚本/长驻 JSON Lines 会话/通用配置/门禁收口；
+    #   改动落在 Frame/CsharpPrj/Plate/PowerShellHost、Frame/PowerShellScript/Operation/DSL/{Agent,Registry}、
+    #   Projects/Plug/Agent/src/Agent.Modules/Framework/Invoke/PsRuntime、Projects/FileDriven/FileDriven.Launcher/Bootstrap、
+    #   Environment/CentralTest/AgentTest/Agent.Modules.Tests + Docs/analysis/2026/10/10.22，均在新单 allowSet 内。
+    #   恢复 = 回填下方注释 v58 的 Value。
+    # Manifest(v58) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-框架层缺陷-重复逻辑冗余逻辑与错误逻辑.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v60（2026-10-22）：单指针切换至「PowerShell 宿主框架层重构（B10-A~B10-E）」授权单。
+    #   切换理由 = alias 物化 / 解析验证分离 / 能力单源 / 稳定码透传；改动落在 Plate\PowerShellHost、
+    #   Agent PsRuntime、Agent.Modules.Tests、Frame 门禁与 Docs/analysis/2026/10/10.22。
+    #   恢复 = 回填下方注释 v59 的 Value。
+    # Manifest(v59) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-通用框架提取.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-框架层重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

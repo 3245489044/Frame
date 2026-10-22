@@ -1041,7 +1041,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = 'PowerShell 宿主定位单源：Plate\PowerShellHost 唯一实现（Store 包族发现 + 结构可用性判据）∧ Agent/FileDriven 均委托 ∧ 全仓恰一处定义 ∧ 负对照（旧工具层命名空间不得残留）'
+        Note   = 'PowerShell 宿主单源（B10）：Plate\PowerShellHost 唯一实现（物化解析/探测/一次性脚本/长驻会话/通用配置）∧ 0 字节 alias 必须物化为真实目标 ∧ Agent/FileDriven 只调用（RunFileAsync/Locate）∧ 非单源面无 PS ProcessStartInfo ∧ "-File" 字面量仅限 Runner/Session/Probe ∧ reparse/WindowsApps 语义仅限解析器 ∧ 能力失败保留稳定码 ∧ 正负对照（A6–A11）'
     }
 
     IntentContract = @{

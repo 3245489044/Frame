@@ -1,16 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Label="ModuleRule">
-    <ModuleRule_Title>PowerShell 宿主定位</ModuleRule_Title>
+    <ModuleRule_Title>PowerShell 宿主门面</ModuleRule_Title>
     <ModuleRule_Layer>1</ModuleRule_Layer>
-    <ModuleRule_Description>PowerShell 宿主可执行定位的唯一实现（零依赖，仅 BCL）：显式配置 → 环境变量 → Store 包族 → 常规安装位 → PATH；可用性判据 = 存在 ∧ 非空目标重解析点 ∧ 长度 &gt; 0。供 Agent（PsRuntime）与 FileDriven（产代构建）共用，消除两套解析实现。</ModuleRule_Description>
-    <ModuleRule_Keywords>PowerShell;pwsh;可执行解析;Store;别名;单一实现</ModuleRule_Keywords>
+    <ModuleRule_Description>PowerShell 宿主进程的唯一 C# 门面（零依赖，仅 BCL）：可执行定位（配置 → 环境变量 → Store 包族 → 常规安装位 → PATH）+ --version 有界探测 + 一次性脚本执行（-File / 双流排空 / 超时杀进程树）+ 长驻 JSON Lines 会话（单飞 / id 关联 / 超时重启 / stderr 有界尾部）+ 通用配置子集（executable/hostScript/projectRoot/timeouts）。供 Agent（PsRuntime）与 FileDriven（产代构建）共用，业务语义（契约/动作映射/路由）不进入本工程。</ModuleRule_Description>
+    <ModuleRule_Keywords>PowerShell;pwsh;可执行解析;探测;脚本执行;JSON Lines;会话;单一实现</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="零 ProjectReference 为硬约束：仅 BCL，宿主与扩展侧均可直接消费" />
     <ModuleRule_Rule Include="WindowsApps 语义仅在本工程判定；调用方禁再写别名/包族特判" />
-    <ModuleRule_Rule Include="失败只抛 PowerShellHostNotFoundException（稳定码 + 短消息），全量候选走 detail 出口" />
+    <ModuleRule_Rule Include="流程启动面单源：ProcessStartInfo / &quot;-File&quot; 只允许出现在本工程（门禁 PowerShellHostSingleSource A6/A7）" />
+    <ModuleRule_Rule Include="长驻会话只保证「一行请求 → 一行同 id 响应」；ready/contracts 与 action/params/data 由调用方解析" />
+    <ModuleRule_Rule Include="失败只抛 PowerShellHostException 族（稳定码 + 短消息），全量 stderr 走 StderrTail 诊断出口" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -19,7 +21,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Plate.PowerShellHost</RootNamespace>
     <AssemblyName>Plate.PowerShellHost</AssemblyName>
-    <Description>PowerShell 宿主定位 —— 单一实现（配置/环境变量/Store 包族/安装位/PATH）</Description>
+    <Description>PowerShell 宿主门面 —— 定位/探测/一次性脚本/长驻 JSON Lines 会话/通用配置（单一实现）</Description>
   </PropertyGroup>
 
 </Project>

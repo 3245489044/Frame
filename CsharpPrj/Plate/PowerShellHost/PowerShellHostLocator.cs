@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Plate.PowerShellHost;
 
@@ -29,10 +28,6 @@ public static class PowerShellHostLocator
     /// <summary>单个 Store 根的有界枚举上限（禁无界目录扫描）。</summary>
     public const int MaxCandidatesPerRoot = 8;
 
-    private static readonly Regex PackageVersionPattern = new(
-        @"^Microsoft\.PowerShell_(\d+(?:\.\d+){1,3})_",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     /// <summary>解析 pwsh 绝对路径；未命中抛 <see cref="PowerShellHostNotFoundException"/>。</summary>
     /// <param name="configuredPath">显式配置（ps1-runtime.json / 调用方）；空则跳过。</param>
     /// <param name="allowWindowsPowerShell51">是否允许显式回落到 Windows PowerShell 5.1（默认禁用）。</param>
@@ -42,121 +37,65 @@ public static class PowerShellHostLocator
         bool allowWindowsPowerShell51 = false,
         Action<string>? detailSink = null)
     {
+        var resolution = ResolveDetailed(configuredPath, allowWindowsPowerShell51, detailSink);
+        if (resolution.IsUsable && !string.IsNullOrWhiteSpace(resolution.ExecutablePath))
+            return resolution.ExecutablePath;
+
         var candidates = BuildCandidates(configuredPath, allowWindowsPowerShell51);
-
-        // 第一轮：真实文件（长度 > 0 / 可解链到真实文件）优先。
-        foreach (var candidate in candidates)
-        {
-            if (TryResolveUsable(candidate, out var resolved))
-                return resolved;
-        }
-
-        // 第二轮：Store App Execution Alias 兜底（0 字节 reparse，但 Process.Start 可启动；
-        // 实测本机包族别名可正常起 pwsh）。真实文件不存在时才接受。
-        foreach (var candidate in candidates)
-        {
-            if (TryResolveAppExecutionAlias(candidate, out var alias))
-                return alias;
-        }
-
         var distinct = candidates
             .Where(static c => !string.IsNullOrWhiteSpace(c))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         detailSink?.Invoke("PowerShellHostLocator 未命中；候选清单：" + string.Join(" | ", distinct));
-        throw new PowerShellHostNotFoundException(distinct);
+        throw new PowerShellHostNotFoundException(distinct, resolution.Failure);
     }
+
+    /// <summary>完整解析（物化 + 可选探测）；失败返回结构化 Failure，不抛。</summary>
+    public static PowerShellHostResolution ResolveDetailed(
+        string? configuredPath = null,
+        bool allowWindowsPowerShell51 = false,
+        Action<string>? detailSink = null,
+        PowerShellHostResolutionPolicy policy = PowerShellHostResolutionPolicy.TrustRealFiles)
+    {
+        var diagnostics = new CollectingPowerShellHostDiagnostics();
+        var context = PowerShellHostContext.From(configuredPath, allowWindowsPowerShell51: allowWindowsPowerShell51);
+        var resolution = PowerShellHostResolver.CreateDefault(diagnostics).Resolve(context, policy);
+
+        if (detailSink is not null)
+        {
+            foreach (var line in diagnostics.Lines)
+                detailSink(line);
+        }
+
+        return resolution;
+    }
+
+    /// <summary>读取 AppExecLink 真实目标（诊断/测试入口）。</summary>
+    public static bool TryReadAppExecLinkTarget(string path, out string target)
+        => WindowsAppExecLink.TryReadTarget(path, out target);
 
     /// <summary>候选序列（纯函数；顺序即优先级，供单测与诊断复算）。</summary>
     public static IReadOnlyList<string> BuildCandidates(
         string? configuredPath = null,
         bool allowWindowsPowerShell51 = false)
     {
-        var candidates = new List<string>();
-        AddIfPresent(candidates, configuredPath);
-        AddIfPresent(candidates, Environment.GetEnvironmentVariable("PSRUNTIME_PWSH"));
-
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-
-        // 别名根（0 字节 reparse point；保留为候选，由 TryResolveUsable 结构判据拒绝）。
-        if (!string.IsNullOrWhiteSpace(localAppData))
-        {
-            AddIfPresent(candidates, Path.Combine(localAppData, "Microsoft", "WindowsApps", "pwsh.exe"));
-            AddStorePackageCandidates(candidates, Path.Combine(localAppData, "Microsoft", "WindowsApps"));
-        }
-        if (!string.IsNullOrWhiteSpace(programFiles))
-            AddStorePackageCandidates(candidates, Path.Combine(programFiles, "WindowsApps"));
-
-        if (!string.IsNullOrWhiteSpace(programFiles))
-            AddIfPresent(candidates, Path.Combine(programFiles, "PowerShell", "7", "pwsh.exe"));
-        if (!string.IsNullOrWhiteSpace(programFilesX86))
-            AddIfPresent(candidates, Path.Combine(programFilesX86, "PowerShell", "7", "pwsh.exe"));
-
-        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var dir = directory.Trim().Trim('"');
-            if (dir.Length == 0) continue;
-
-            // 仅探 .exe：Windows 下裸名在 Process.Start(UseShellExecute=false) 语境不构成可执行候选。
-            AddIfPresent(candidates, Path.Combine(dir, "pwsh.exe"));
-        }
-
-        if (allowWindowsPowerShell51)
-        {
-            foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var dir = directory.Trim().Trim('"');
-                if (dir.Length == 0) continue;
-                AddIfPresent(candidates, Path.Combine(dir, "powershell.exe"));
-            }
-
-            var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            if (!string.IsNullOrWhiteSpace(system32))
-                AddIfPresent(candidates, Path.Combine(system32, "WindowsPowerShell", "v1.0", "powershell.exe"));
-        }
-
-        return candidates;
+        var context = PowerShellHostContext.From(configuredPath, allowWindowsPowerShell51: allowWindowsPowerShell51);
+        return PowerShellHostResolver.CreateDefault()
+            .BuildCandidates(context)
+            .Select(static c => c.Path)
+            .ToArray();
     }
 
     /// <summary>
-    /// 候选可用性（结构判据唯一实现）：存在 → 解链（reparse）→ 长度 &gt; 0。
+    /// 候选可用性（结构判据唯一实现）：存在 → 解链（symlink / AppExecLink）→ 真实文件长度 &gt; 0。
+    /// <para>0 字节 App Execution Alias 不会被当作可用路径；其 reparse 目标才是返回值。</para>
     /// </summary>
     public static bool TryResolveUsable(string? candidate, out string resolved)
-    {
-        resolved = string.Empty;
-        if (string.IsNullOrWhiteSpace(candidate)) return false;
-
-        try
-        {
-            if (!File.Exists(candidate)) return false;
-
-            var full = Path.GetFullPath(candidate);
-            var info = new FileInfo(full);
-            if (info.Attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                var target = File.ResolveLinkTarget(full, returnFinalTarget: true);
-                if (target is null || !target.Exists) return false;
-                full = target.FullName;
-                info = new FileInfo(full);
-            }
-
-            if (info.Length <= 0) return false;
-
-            resolved = full;
-            return true;
-        }
-        catch (IOException) { return false; }
-        catch (UnauthorizedAccessException) { return false; }
-        catch (ArgumentException) { return false; }
-        catch (NotSupportedException) { return false; }
-    }
+        => PowerShellHostMaterializer.TryMaterialize(candidate, out resolved, out _);
 
     /// <summary>
-    /// Store App Execution Alias 判定（WindowsApps 语义唯一处）：0 字节 reparse 且位于
-    /// <c>%LOCALAPPDATA%\Microsoft\WindowsApps</c> 之下。仅作真实文件缺失时的兜底候选。
+    /// App Execution Alias 判定：仅接受 <c>%LOCALAPPDATA%\Microsoft\WindowsApps</c> 下、
+    /// 且能物化为真实文件的 alias（返回真实目标，绝不返回 0 字节 alias 本身）。
     /// </summary>
     public static bool TryResolveAppExecutionAlias(string? candidate, out string resolved)
     {
@@ -165,13 +104,7 @@ public static class PowerShellHostLocator
 
         try
         {
-            if (!File.Exists(candidate)) return false;
-
             var full = Path.GetFullPath(candidate);
-            var info = new FileInfo(full);
-            if (!info.Attributes.HasFlag(FileAttributes.ReparsePoint) || info.Length > 0)
-                return false;
-
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData)) return false;
 
@@ -180,67 +113,42 @@ public static class PowerShellHostLocator
             if (!full.StartsWith(aliasRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            resolved = full;
-            return true;
+            return PowerShellHostMaterializer.TryMaterialize(full, out resolved, out _);
         }
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
         catch (ArgumentException) { return false; }
         catch (NotSupportedException) { return false; }
     }
-
-    private static void AddStorePackageCandidates(List<string> candidates, string storeRoot)
-    {
-        if (string.IsNullOrWhiteSpace(storeRoot) || !Directory.Exists(storeRoot)) return;
-
-        string[] packages;
-        try
-        {
-            packages = Directory.GetDirectories(storeRoot, "Microsoft.PowerShell_*", SearchOption.TopDirectoryOnly);
-        }
-        catch (IOException) { return; }
-        catch (UnauthorizedAccessException) { return; }
-        catch (ArgumentException) { return; }
-
-        foreach (var package in packages
-                     .OrderByDescending(PackageVersion)
-                     .ThenBy(static p => p, StringComparer.OrdinalIgnoreCase)
-                     .Take(MaxCandidatesPerRoot))
-        {
-            AddIfPresent(candidates, Path.Combine(package, "pwsh.exe"));
-        }
-    }
-
-    private static Version PackageVersion(string directory)
-    {
-        var match = PackageVersionPattern.Match(Path.GetFileName(directory));
-        return match.Success && Version.TryParse(match.Groups[1].Value, out var version)
-            ? version
-            : new Version(0, 0);
-    }
-
-    private static void AddIfPresent(List<string> candidates, string? candidate)
-    {
-        if (!string.IsNullOrWhiteSpace(candidate))
-            candidates.Add(candidate);
-    }
 }
 
 /// <summary>pwsh 定位失败（稳定码 + 短消息 + 全量候选仅内存/诊断面）。</summary>
 public sealed class PowerShellHostNotFoundException : InvalidOperationException
 {
-    public PowerShellHostNotFoundException(IReadOnlyList<string> candidates)
-        : base(BuildMessage(candidates))
+    public PowerShellHostNotFoundException(
+        IReadOnlyList<string> candidates,
+        PowerShellHostFailure? failure = null)
+        : base(BuildMessage(candidates, failure))
     {
         Candidates = candidates ?? Array.Empty<string>();
+        Failure = failure;
     }
 
-    public string Code => PowerShellHostLocator.ExecutableNotFoundCode;
+    public string Code => Failure?.Code ?? PowerShellHostLocator.ExecutableNotFoundCode;
 
     public IReadOnlyList<string> Candidates { get; }
 
-    private static string BuildMessage(IReadOnlyList<string> candidates)
+    public PowerShellHostFailure? Failure { get; }
+
+    private static string BuildMessage(IReadOnlyList<string> candidates, PowerShellHostFailure? failure)
     {
+        if (failure is not null && !string.IsNullOrWhiteSpace(failure.ShortReason))
+        {
+            return failure.ShortReason.Length <= PowerShellHostLocator.ShortMessageLimit
+                ? failure.ShortReason
+                : failure.ShortReason[..PowerShellHostLocator.ShortMessageLimit] + "…";
+        }
+
         var count = candidates?.Count ?? 0;
         var samples = (candidates ?? Array.Empty<string>())
             .Take(3)

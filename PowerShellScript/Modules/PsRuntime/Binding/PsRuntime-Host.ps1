@@ -16,8 +16,51 @@ try {
 
 . (Join-Path $PSScriptRoot 'Invoke-AgentStep.ps1')
 
+function ConvertTo-PlainData {
+    param(
+        [object]$Value,
+        [int]$Depth = 0
+    )
+
+    if ($null -eq $Value) { return $null }
+    if ($Depth -ge 10) { return [string]$Value }
+    if ($Value -is [string] -or $Value -is [ValueType]) { return $Value }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $map = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $map[[string]$key] = ConvertTo-PlainData -Value $Value[$key] -Depth ($Depth + 1)
+        }
+        return $map
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $items = @()
+        foreach ($item in $Value) {
+            $items += ,(ConvertTo-PlainData -Value $item -Depth ($Depth + 1))
+        }
+        return ,$items
+    }
+
+    # 剥掉 PowerShell 提供程序元数据（PSDrive/PSProvider 含环，5.1 深序列化会 OOM/挂起）。
+    $properties = @($Value.PSObject.Properties | Where-Object {
+        $_.MemberType -in @('NoteProperty', 'Property') -and
+        $_.Name -notmatch '^PS(Path|ParentPath|ChildName|Drive|Provider|IsContainer)$'
+    })
+    if ($properties.Count -gt 0) {
+        $map = [ordered]@{}
+        foreach ($property in $properties) {
+            $map[$property.Name] = ConvertTo-PlainData -Value $property.Value -Depth ($Depth + 1)
+        }
+        return $map
+    }
+
+    return [string]$Value
+}
+
 function Write-Line([object]$Payload) {
-    $json = $Payload | ConvertTo-Json -Depth 32 -Compress
+    $plain = ConvertTo-PlainData -Value $Payload -Depth 0
+    $json = $plain | ConvertTo-Json -Depth 16 -Compress
     [Console]::Out.WriteLine($json)
     [Console]::Out.Flush()
 }

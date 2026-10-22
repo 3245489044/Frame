@@ -4,7 +4,7 @@
     语义集中守卫（SemanticCentralization）—— 防止边类型词汇退回各域自实现。
 
 .DESCRIPTION
-    基线 = Baselines\SemanticCentralization.psd1。
+    基线 = Baselines\Meta\SemanticCentralization.psd1。
     SC1 收口类下限：`class ReferenceEdgeTypes` 定义点 ≥ 基线（防单源被删而门禁恒绿）。
     SC2 域内字面量直接赋值上限：非豁免域、非唯一源内，边类型字面量直接赋值的文件数 ≤ 基线（只减不增）。
 
@@ -32,7 +32,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\SemanticCentralization.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Meta\SemanticCentralization.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name SemanticCentralization
 

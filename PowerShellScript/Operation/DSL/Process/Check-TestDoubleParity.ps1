@@ -208,7 +208,7 @@ if ($targetTypes.Count -gt 0) {
 }
 
 # ── 3) 判定（仅可判类型：定位到声明 ∧ 无继承子句 ∧ 同名唯一）──
-# 基线棘轮：Baselines\TestDoubleParity.psd1 的 Known 为「已知/已报告」集合 ⇒ 在表不算新违规（仍打印）；
+# 基线棘轮：Baselines\Process\TestDoubleParity.psd1 的 Known 为「已知/已报告」集合 ⇒ 在表不算新违规（仍打印）；
 # 表外即红（新增漂移）。基线缺失 ⇒ fail-closed 报错（禁隐式空基线：判据不得空转）。
 $knownIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 Import-Module (Join-Path $repoRoot 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
@@ -217,7 +217,7 @@ foreach ($e in @($baseline.Known)) {
     if ($e -is [System.Collections.IDictionary] -and $e.Contains('Value')) { [void]$knownIds.Add([string]$e.Value) }
 }
 if ($knownIds.Count -eq 0) {
-    $violations.Add('[D2] 基线为空（Baselines\TestDoubleParity.psd1 无 Known 条目）——棘轮不得空转')
+    $violations.Add('[D2] 基线为空（Baselines\Process\TestDoubleParity.psd1 无 Known 条目）——棘轮不得空转')
 }
 
 $judgedCount = 0

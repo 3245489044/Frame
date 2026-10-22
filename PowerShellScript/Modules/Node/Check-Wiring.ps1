@@ -7,7 +7,7 @@
     《统一节点框架-接线本质与彻底重构-方案》§4：接线单元 W = ⟨D,C,F,φ,r⟩（声明面/消费点/回退面/φ/r）；
     生命周期 = declared → primary → retired（本项目口径：**不做 dual-read 运行期双读**，φ 由既有等价门离线承担）。
     判据载体 = 结构事实（D/F 存在性 + C 读面探针），不引执行者叙述（SEP.JudgmentCarrierStructural）。
-    注册表单源 = Baselines\Wiring.psd1（禁散落；本脚本**不重写** φ/E 判据，只做状态一致性核对）。
+    注册表单源 = Baselines\Node\Wiring.psd1（禁散落；本脚本**不重写** φ/E 判据，只做状态一致性核对）。
 
     判据：
       declared：D 存在 ∧（若给 CProbe）C 未读 D（Expect=notRead）
@@ -44,7 +44,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-# 注册表单源 = Baselines\Wiring.psd1（禁内联；U7 接线一致性由 Check-GateBaselines 强制）
+# 注册表单源 = Baselines\Node\Wiring.psd1（禁内联；U7 接线一致性由 Check-GateBaselines 强制）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $w = Import-GateBaseline -Name Wiring
 $unitFloor = [int]$w.UnitFloor.Value
@@ -122,7 +122,7 @@ if ($units.Count -lt $unitFloor) {
 }
 
 # 负对照：合成 primary∧E缺 / retired∧F仍在 必须被同一判据函数命中（存在路径用注册表自身）
-$selfPath = 'Frame\PowerShellScript\Baselines\Wiring.psd1'
+$selfPath = 'Frame\PowerShellScript\Baselines\Node\Wiring.psd1'
 $neg1 = Test-WiringUnit -RepoRoot $Root -Unit @{ Value = '__neg_primary_no_e__'; State = 'primary'; D = $selfPath; F = $selfPath; E = '' }
 if (@($neg1 | Where-Object { $_ -match '假转正' }).Count -eq 0) {
     $violations.Add('负对照失效：合成 primary∧E缺 未被命中（判据恒真？）')

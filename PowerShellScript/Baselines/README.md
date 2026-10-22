@@ -54,7 +54,7 @@
 
 | 面 | 状态 |
 |---|---|
-| `Baselines\` 规范根（`<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ `KeyGrammar` · `RecognizerVocabulary` · `NodeKeyAddress` · `NodeLocPlacement` · `NodeLocConsistency` · `NodeHierarchyRefs` · `NodeCollectPort` · `ObservabilitySurface` · `ReferenceVocabulary` · `AgentOrchestrationFlow` · `OperationLayerIsolation` · `AgentFrameworkSingleSource`（SR-2a 并入；文件名 = `GateManifests` 键名，U7 契约） |
+| `Baselines\` 规范根（`<Domain>\<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ 45 件单件基线按域落位（10 个域目录；`OrchestrationKernel` 死数据已删、`FixedSleepBaseline` 转登记册 `_fixed-sleep.psd1`）· 分类索引 `_catalog.psd1`（U12 双射）· 装载按名字索引解析（消费方零路径耦合） |
 | **遗留子根** `Modules\Node\Baselines\` | ✅ **已并入规范根并删除**（禁第二基线根；U8「退役名再入即红」强制） |
 | 内联数值基线（`$*Baseline* = <n>` 形态） | ✅ **0 处 / 0 件**（起点 15 处 / 9 件；实测命令：`Check-GateBaselines.ps1 -Check -ShowDetail`） |
 | 事实行类型（`@{ Value; Origin; DueWhen }`） | ✅ 全部事实键已改事实行（**U9 强制**；此前裸值可静默通过 U3 ⇒ 外置基线可退化为「另一种散落常量」） |

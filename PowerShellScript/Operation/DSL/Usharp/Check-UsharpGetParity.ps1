@@ -11,7 +11,7 @@
       G4 CAS 单语句（FAIL）：SqliteTaskPoolStore 存在单语句 UPDATE SET [Doc]=@d ... usharp_get(...Status...)=@from
       G5 正/负对照（FAIL）：扫描面非空 + 判据正则能捕获合成样本（防假绿）
 
-    基线：Frame\PowerShellScript\Baselines\UsharpGetParity.psd1（单源，禁内联）
+    基线：Frame\PowerShellScript\Baselines\Usharp\UsharpGetParity.psd1（单源，禁内联）
     模式：默认报告模式；-Check 校验模式（违规 → 退出码 1）。
 
 .PARAMETER Root

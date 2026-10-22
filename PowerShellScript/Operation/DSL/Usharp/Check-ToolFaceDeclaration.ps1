@@ -48,7 +48,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\ToolFaceDeclaration.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Usharp\ToolFaceDeclaration.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name ToolFaceDeclaration
 

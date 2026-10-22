@@ -144,7 +144,7 @@ if ($baselineFiles.Count -lt 1)
 $keyGrammarBaseline = [string](Get-BaselineIndex)['KeyGrammar']
 if ([string]::IsNullOrWhiteSpace($keyGrammarBaseline) -or -not (Test-Path -LiteralPath $keyGrammarBaseline))
 {
-    $violations.Add('[U4] Baselines\KeyGrammar.psd1 缺失（K1–K6 基线单源被删 ⇒ 判据失效）')
+    $violations.Add('[U4] Baselines\Parsing\KeyGrammar.psd1 缺失（K1–K6 基线单源被删 ⇒ 判据失效）')
 }
 else
 {
@@ -369,9 +369,20 @@ else
 {
     $catalog = Import-PowerShellDataFile -LiteralPath $catalogPath
     $catalogRoot = Join-Path $Root 'Frame\PowerShellScript\Baselines'
-    $actual = @(Get-ChildItem -LiteralPath $catalogRoot -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Extension -in @('.psd1', '.psm1') } |
-        ForEach-Object { $_.FullName.Substring($catalogRoot.Length).TrimStart('\') })
+    # 有界两级枚举（根 + 一级域目录）：刻意不用 -Recurse（GateFileIndex 棘轮 F3，MaxHits=2）
+    $actual = [System.Collections.Generic.List[string]]::new()
+    $scanDirs = @($catalogRoot)
+    foreach ($d in @(Get-ChildItem -LiteralPath $catalogRoot -Directory -ErrorAction SilentlyContinue))
+    {
+        $scanDirs += $d.FullName
+    }
+    foreach ($d in $scanDirs)
+    {
+        foreach ($f in @(Get-ChildItem -LiteralPath $d -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.psd1', '.psm1') }))
+        {
+            $actual.Add($f.FullName.Substring($catalogRoot.Length).TrimStart('\'))
+        }
+    }
     $declared = @{}
     $roleSet = @('Data', 'Register', 'Lib')
     foreach ($e in @($catalog.Entries))
@@ -422,7 +433,8 @@ else
         {
             $violations.Add("[U12] $file 的 Domain='$($e.Domain)' ≠ GateManifests.$gate.Domain='$expectedDomain'（域表漂移）")
         }
-        if ($file -ne "$gate.psd1")
+        $leaf = [IO.Path]::GetFileName($file)
+        if ($leaf -ne "$gate.psd1")
         {
             if (-not $e.ContainsKey('NameDeviation') -or [string]::IsNullOrWhiteSpace([string]$e.NameDeviation))
             {

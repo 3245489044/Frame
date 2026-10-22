@@ -61,7 +61,7 @@ $mirrorPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain
 # 正对照基线（防「声明被删而门禁恒绿」）；只增不减。
 # 2026-09-27（K3/A 批）：kind 18 → 24（+ user-message / assistant-message / attachment 及词表同步）；
 #                        rule 15 → 38（快照逐消息规则 +6）。
-# 基线单源 = Baselines\RecognizerVocabulary.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Parsing\RecognizerVocabulary.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name RecognizerVocabulary
 $kindBaseline = [int]$g.KindCount.Value

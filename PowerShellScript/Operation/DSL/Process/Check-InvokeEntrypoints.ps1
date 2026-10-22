@@ -25,7 +25,7 @@ $invokeDir = Join-Path $__repo 'Frame\Invoke'
 $manifestPath = Join-Path $PSScriptRoot '..\Registry\GateManifests.psd1'
 $violations = [System.Collections.Generic.List[string]]::new()
 
-# 基线（正对照下限；单源 = Baselines\InvokeEntrypoints.psd1）
+# 基线（正对照下限；单源 = Baselines\Process\InvokeEntrypoints.psd1）
 Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name InvokeEntrypoints
 

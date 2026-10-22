@@ -11,7 +11,7 @@
          - Config\nodes\placement.ushar 的 [Space] LocPlacement 位置行 与 [Matrix] LocToPlacement 行 ≡ 并集（下划线形）
       D2 散弹点棘轮（WARN，报告模式起步；方案 §8 回退口径）：per-domain 形态计数只减不增
          - AgentRuntimeSlotKeys.Node<X>Framework / AgentNodeSpec.<X>SubPath / AgentNodeCarriers.Create<X>
-         基线在册：Frame\PowerShellScript\Baselines\DomainWireSingleSource.psd1
+         基线在册：Frame\PowerShellScript\Baselines\Node\DomainWireSingleSource.psd1
       D3 正/负对照（FAIL）：域清单可发现（≥ 基线域数）；合成 per-domain 形态必须被判据捕获
       D4 描述行零 per-domain 常量（FAIL · S5.2）：NodeDomainCatalog 描述行禁直接引用
          AgentNodeSpec.<X>SubPath / AgentRuntimeSlotKeys.Node<X>Framework（走 SubPathOf/SlotKeyOf 派生）；
@@ -42,10 +42,10 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 $nodesDir      = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $instancesFile = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
 $placementFile = Join-Path $nodesDir 'placement.ushar'
-$baselineFile  = Join-Path $Root 'Frame\PowerShellScript\Baselines\DomainWireSingleSource.psd1'
+$baselineFile  = Join-Path $Root 'Frame\PowerShellScript\Baselines\Node\DomainWireSingleSource.psd1'
 $agentSrcDir   = Join-Path $Root 'Projects\Plug\Agent\src'
 
-# 基线单源 = Baselines\DomainWireSingleSource.psd1（禁内联；守卫 GateBaselines U7）
+# 基线单源 = Baselines\Node\DomainWireSingleSource.psd1（禁内联；守卫 GateBaselines U7）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -206,7 +206,7 @@ if (Test-Path -LiteralPath $baselineFile) {
         }
     }
 } else {
-    $warnings.Add('D2 棘轮基线缺失: Baselines\DomainWireSingleSource.psd1（报告模式：未启用棘轮）')
+    $warnings.Add('D2 棘轮基线缺失: Baselines\Node\DomainWireSingleSource.psd1（报告模式：未启用棘轮）')
 }
 
 # ── D3: 负对照（判据必须能捕获合成形态） ──────────────────────────────────────

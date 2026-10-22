@@ -12,7 +12,7 @@
       U5 存储层零 Usharp.* 依赖（V9 · FAIL）：Operation\DataStoreDriven\**\*.cs 无 'using Usharp.'
       U6 正/负对照（FAIL）：扫描面非空 + 各判据正则能捕获合成样本（防假绿）
 
-    基线：Frame\PowerShellScript\Baselines\UsharpDocForm.psd1（单源，禁内联）
+    基线：Frame\PowerShellScript\Baselines\Usharp\UsharpDocForm.psd1（单源，禁内联）
     模式：默认报告模式；-Check 校验模式（违规 → 退出码 1）。
 
 .PARAMETER Root

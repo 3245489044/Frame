@@ -4,7 +4,7 @@
     Agent 通用框架单源守卫（AgentFrameworkSingleSource）—— 四个横切关注点框架的机器判据。
 
 .DESCRIPTION
-    判据（基线全部外置到 Baselines\AgentFrameworkSingleSource.psd1；事实行 = @{ Value; Origin; DueWhen }）：
+    判据（基线全部外置到 Baselines\Node\AgentFrameworkSingleSource.psd1；事实行 = @{ Value; Origin; DueWhen }）：
       D1 诊断载体单源：Operation.HierarchyMethod 内 `Action<string, object?>` 只允许出现在
                         Abstractions\IDiagnosticsSink.cs（适配器本体）；其余文件 0。
       D2 回退姿态单点：流回退分支（_taskProvisionFlow/_attributionFlow 的 is null/is not null）
@@ -42,7 +42,7 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
-# 基线单源 = Baselines\AgentFrameworkSingleSource.psd1（禁内联数值基线；禁第二基线根；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Node\AgentFrameworkSingleSource.psd1（禁内联数值基线；禁第二基线根；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $b = Import-GateBaseline -Name AgentFrameworkSingleSource
 # 事实行解包（U9：每键须为 @{Value;Origin;DueWhen}）⇒ 脚本内零裸基线值

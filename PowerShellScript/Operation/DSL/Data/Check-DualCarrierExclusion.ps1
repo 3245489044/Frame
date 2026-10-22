@@ -14,7 +14,7 @@
       D3 正/负对照（防假绿）：合成样本自证「delegate ∧ script 命中 / 仅其一不命中 / scripted ∧ script 不命中」。
 
     载体（结构事实）：`Environment\CentralTest\AgentTest\Agent.TestShared\Standards\ports\*.specs` 的 `port` 块。
-    基线 = Baselines\DualCarrierExclusion.psd1（现存 5 处为存量债务，Origin=Debt，销账条件见 DueWhen）。
+    基线 = Baselines\Data\DualCarrierExclusion.psd1（现存 5 处为存量债务，Origin=Debt，销账条件见 DueWhen）。
 
     模式：默认报告模式（不设退出码）；-Check 校验模式（违规 → 退出码 1）。
     依赖方向（硬约束）：本件只读仓库；零侧写。
@@ -44,7 +44,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     }
 }
 
-# 基线单源 = Baselines\DualCarrierExclusion.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Data\DualCarrierExclusion.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name DualCarrierExclusion
 

@@ -82,7 +82,7 @@ $MustBeZeroPairs = @(
     'Operation\DataStoreDriven\DataStoreDriven.csproj -> Operation\WorkFlowMethod\WorkFlowMethod.csproj'
 )
 
-# ---------------- 正对照/债务基线（防解析面失效 ⇒ 棘轮恒真；单源 = Baselines\OperationLayerIsolation.psd1） ----------------
+# ---------------- 正对照/债务基线（防解析面失效 ⇒ 棘轮恒真；单源 = Baselines\Meta\OperationLayerIsolation.psd1） ----------------
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name OperationLayerIsolation
 $OperationProjectBaseline = [int]$g.OperationProject.Value

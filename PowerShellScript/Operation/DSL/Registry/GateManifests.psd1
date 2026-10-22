@@ -1,6 +1,6 @@
 @{
     OrchestrationKernel = @{
-        Domain = 'Frame'
+        Domain = 'Process'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -225,21 +225,21 @@
         Domain = 'Spec'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'spec 生成/手写边界（R0 基线冻结）：源码树零生成物 / 清单非空 / 正负对照；基线 Baselines\SpecBoundary.psd1'
+        Note   = 'spec 生成/手写边界（R0 基线冻结）：源码树零生成物 / 清单非空 / 正负对照；基线 Baselines\Spec\SpecBoundary.psd1'
     }
 
     SpecToolingContract = @{
         Domain = 'Spec'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '规格工具链契约（R2）：SYNOPSIS / 确定性 exit（Debt 棘轮）/ 无深度计数；基线 Baselines\SpecToolingContract.psd1'
+        Note   = '规格工具链契约（R2）：SYNOPSIS / 确定性 exit（Debt 棘轮）/ 无深度计数；基线 Baselines\Spec\SpecToolingContract.psd1'
     }
 
     SpecGeneratedBoundary = @{
         Domain = 'Spec'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'spec 生成/手写分离边界（R4 SEP）：源码树零生成物 / obj 零第二生成物（K2）/ 生成码头注释 / 源⇄产物双向 / manifest 一致性（条件判据）；基线 Baselines\SpecGeneratedBoundary.psd1；-Warn 为回退开关'
+        Note   = 'spec 生成/手写分离边界（R4 SEP）：源码树零生成物 / obj 零第二生成物（K2）/ 生成码头注释 / 源⇄产物双向 / manifest 一致性（条件判据）；基线 Baselines\Spec\SpecGeneratedBoundary.psd1；-Warn 为回退开关'
     }
 
     SpecPortLedger = @{
@@ -274,7 +274,7 @@
         Domain = 'Node'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '工作流↔节点域对应守卫（U4）：[Node] uses=/produces= 域 token ∈ Config\nodes\*.ushar 的 [Domain] 集（双向对账）；正/负对照防假绿；基线 Baselines\NodeFlowDomainMatch.psd1'
+        Note   = '工作流↔节点域对应守卫（U4）：[Node] uses=/produces= 域 token ∈ Config\nodes\*.ushar 的 [Domain] 集（双向对账）；正/负对照防假绿；基线 Baselines\Node\NodeFlowDomainMatch.psd1'
     }
 
     DbPageGatherWiring = @{
@@ -371,7 +371,7 @@
         Domain = 'Node'
         Args   = @{}
         Expect = 0
-        Note   = '接线生命周期守卫（Wiring）：声明状态 ⇔ 实现事实（D/F 存在性 + C 读面探针），declared→primary→retired（本项目口径废除 dual-read 运行期双读）；注册表单源 Baselines\Wiring.psd1；正/负对照防假绿；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
+        Note   = '接线生命周期守卫（Wiring）：声明状态 ⇔ 实现事实（D/F 存在性 + C 读面探针），declared→primary→retired（本项目口径废除 dual-read 运行期双读）；注册表单源 Baselines\Node\Wiring.psd1；正/负对照防假绿；报告模式起步（Args 空 = 不设强制；-Check 转强制）'
     }
 
     ObservabilitySurface = @{
@@ -391,7 +391,7 @@
     DomainWireSingleSource = @{
         Domain = 'Node'
         Expect = 0
-        Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红，-Write 可生成）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
+        Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红，-Write 可生成）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\Node\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
     }
     TextClipSingleSource = @{
         Domain = 'Node'
@@ -484,7 +484,7 @@
         Domain = 'Node'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '四个横切关注点框架单源 D1–D11：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）/ 运行期本地流 msgId 单源（D11：统一 DiagnosticsCodes + context）；基线单源 = Baselines\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
+        Note   = '四个横切关注点框架单源 D1–D11：诊断载体（IDiagnosticsSink）/ 回退姿态（FlowPosture）/ 键寻址（KeyAddressing）/ 簿记流模板（BookkeepingFlowCatalog）/ 取参单源（WorkflowContextParams）/ 簿记流执行器构造点（BookkeepingFlowAssembly）/ 姿态收口台账（D9：RequireFlow 装配点，批次 C 后由 Baselines\Node\AgentFrameworkSingleSource.psd1 的 PostureRequireFlowRequired 翻转生效）/ 读组装组合点（D10）/ 运行期本地流 msgId 单源（D11：统一 DiagnosticsCodes + context）；基线单源 = Baselines\Node\AgentFrameworkSingleSource.psd1（SR-2a 已由遗留子根并入规范根）'
     }
 
     ClinerulesReferences = @{
@@ -533,7 +533,7 @@
         Domain = 'Usharp'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'HTML 模板键 / 类名 / region 锚零领域语义：框架只描述结构（壳/分栏/面板/列表/项/行/分组/折叠/分段/状态），语义只出现在配置键值 + Agent 数据模型 + 域样式注入；扫描面 = 框架资产 + 模板键消费点（HtmlStreamRenderer/ConversationPageRenderer）；正负对照 -NegativeControl；基线 = Baselines\HtmlViewerVocabulary.psd1'
+        Note   = 'HTML 模板键 / 类名 / region 锚零领域语义：框架只描述结构（壳/分栏/面板/列表/项/行/分组/折叠/分段/状态），语义只出现在配置键值 + Agent 数据模型 + 域样式注入；扫描面 = 框架资产 + 模板键消费点（HtmlStreamRenderer/ConversationPageRenderer）；正负对照 -NegativeControl；基线 = Baselines\Usharp\HtmlViewerVocabulary.psd1'
     }
 
     BatchLineEndings = @{
@@ -621,7 +621,7 @@
         Domain = 'Parsing'
         Args   = @{}
         Expect = 0
-        Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；基线单源 = Baselines\KeyGrammar.psd1（脚本零数值基线）；-Check 为校验模式，-ShowDetail 显示逐条实测'
+        Note   = '键文法单源守卫 K1–K6：键族字面量单源（白名单）/ 零手写键切片 / 零就地键序 / 零自建比较器 + 正对照（文法定义点数 ≥ 基线、声明绑定用例在位）；基线单源 = Baselines\Parsing\KeyGrammar.psd1（脚本零数值基线）；-Check 为校验模式，-ShowDetail 显示逐条实测'
     }
 
     GateBaselines = @{
@@ -653,7 +653,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '框架激活守卫 FA1：`new ReferenceGraphEngine` 装配点数 ≥ 基线（防图引擎退回死代码/空转）；基线 = Baselines\FrameworkActivation.psd1'
+        Note   = '框架激活守卫 FA1：`new ReferenceGraphEngine` 装配点数 ≥ 基线（防图引擎退回死代码/空转）；基线 = Baselines\Data\FrameworkActivation.psd1'
     }
 
     SemanticCentralization = @{
@@ -661,7 +661,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '语义集中守卫 SC1–SC2：收口类定义点 ≥ 基线 / 域内边类型字面量直接赋值（非豁免）≤ 基线（只减不增）；基线 = Baselines\SemanticCentralization.psd1'
+        Note   = '语义集中守卫 SC1–SC2：收口类定义点 ≥ 基线 / 域内边类型字面量直接赋值（非豁免）≤ 基线（只减不增）；基线 = Baselines\Meta\SemanticCentralization.psd1'
     }
 
     CircuitSemantics = @{
@@ -717,7 +717,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '初始化护栏门禁（P1）G1–G4：`throw new ArgumentNullException` / `ArgumentNullException.ThrowIfNull` 只减不增 + `PortGuard.Required` 只增不减 + 正/负对照；基线 = Baselines\InitGuards.psd1（单源，禁内联）'
+        Note   = '初始化护栏门禁（P1）G1–G4：`throw new ArgumentNullException` / `ArgumentNullException.ThrowIfNull` 只减不增 + `PortGuard.Required` 只增不减 + 正/负对照；基线 = Baselines\Declarations\InitGuards.psd1（单源，禁内联）'
     }
 
     # ===== 过程层结构治理（修复文档 G/H 批）=====
@@ -725,14 +725,14 @@
         Domain = 'Process'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '批次授权单守卫 B0–B3（过程层 P1/P2/P6）：实际改动集（git status，含子模块）⊆ 活动批 allowSet ∪ derived ∪ preexisting；denySet 面禁改；正/负对照防假绿。授权单路径单源 = Baselines\BatchScope.psd1（Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json）；授权单缺件 ⇒ 灰度 warn'
+        Note   = '批次授权单守卫 B0–B3（过程层 P1/P2/P6）：实际改动集（git status，含子模块）⊆ 活动批 allowSet ∪ derived ∪ preexisting；denySet 面禁改；正/负对照防假绿。授权单路径单源 = Baselines\Process\BatchScope.psd1（Docs\analysis\2026\10\10.5\2026-10-05-过程层缺陷结构治理.batches.json）；授权单缺件 ⇒ 灰度 warn'
     }
 
     VerifyProportionality = @{
         Domain = 'Process'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\VerifyProportionality.psd1'
+        Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\Process\VerifyProportionality.psd1'
     }
 
     # ===== 运行/验证前置守卫（框架级缺陷：收敛 / 前置开销 / 替身漂移）=====
@@ -766,7 +766,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '反模式族守卫（P9）：clinerules\formula.md §8（族=通用规则单表）C1 族唯一/件数 ≥ 基线 · C2 covered ID 形态合法且全局唯一（每条恰属一族）· C3 crit∈{macro,micro} · C4 通用规则列非空 · C5 通用规则符号可解析（回指已注册定义点）· C6 ID 集合守恒（covered ⊇ 基线，只增不减）· C7 正/负对照；基线 = Baselines\AntiPatternFamily.psd1；-WriteBaseline 为写操作，聚合器禁用'
+        Note   = '反模式族守卫（P9）：clinerules\formula.md §8（族=通用规则单表）C1 族唯一/件数 ≥ 基线 · C2 covered ID 形态合法且全局唯一（每条恰属一族）· C3 crit∈{macro,micro} · C4 通用规则列非空 · C5 通用规则符号可解析（回指已注册定义点）· C6 ID 集合守恒（covered ⊇ 基线，只增不减）· C7 正/负对照；基线 = Baselines\Meta\AntiPatternFamily.psd1；-WriteBaseline 为写操作，聚合器禁用'
     }
 
     # ===== 端口层消除（D3 僵尸脚本）=====
@@ -775,7 +775,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '双载体互斥门（D3）：端口块禁「impl delegate ∧ script」并存（僵尸脚本）；D1 新增即红 · D2 只减不增（可销账可见化）· D3 正/负对照（防假绿）；基线 = Baselines\DualCarrierExclusion.psd1'
+        Note   = '双载体互斥门（D3）：端口块禁「impl delegate ∧ script」并存（僵尸脚本）；D1 新增即红 · D2 只减不增（可销账可见化）· D3 正/负对照（防假绿）；基线 = Baselines\Data\DualCarrierExclusion.psd1'
     }
 
     # ===== VM 换代路线收敛（VM-R1 构建到新目录）=====
@@ -798,7 +798,7 @@
         Domain = 'Agent'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '生效面断言（EffectiveFace）：运行时装载面指纹 == 构建产物指纹（Agent.Launcher.dll + 共享核心件；dev=就地 / locked=current→gen-<n>）· [E3] 正/负对照；基线 = Baselines\EffectiveFace.psd1；机械复算 = Frame\Invoke\Invoke-BuildEffective.ps1 -Assert'
+        Note   = '生效面断言（EffectiveFace）：运行时装载面指纹 == 构建产物指纹（Agent.Launcher.dll + 共享核心件；dev=就地 / locked=current→gen-<n>）· [E3] 正/负对照；基线 = Baselines\Agent\EffectiveFace.psd1；机械复算 = Frame\Invoke\Invoke-BuildEffective.ps1 -Assert'
     }
 
     # ===== USharp 纯化门禁（N4：V1–V6-form）=====
@@ -806,20 +806,20 @@
         Domain = 'Usharp'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'USharp 记录实例形态（V1/V2/V3-form + V9 依赖方向）：纯三列模板与表声明 / 零兼容残留（IndexJson·KvJsonTable·KvDocumentTable·ExtractScalar）/ 规范形单源 / 存储层零 Usharp.* 依赖；基线 = Baselines\UsharpDocForm.psd1'
+        Note   = 'USharp 记录实例形态（V1/V2/V3-form + V9 依赖方向）：纯三列模板与表声明 / 零兼容残留（IndexJson·KvJsonTable·KvDocumentTable·ExtractScalar）/ 规范形单源 / 存储层零 Usharp.* 依赖；基线 = Baselines\Usharp\UsharpDocForm.psd1'
     }
 
     UsharpGetParity = @{
         Domain = 'Usharp'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'usharp_get 集中式转换层（V4/V5/V6-form）：注册单点（UsharpDataPorts.EnsureSqlFunctions）/ 下推表达式同源（UsharpRecordPaths）/ 表达式索引落点 / 单语句 CAS；基线 = Baselines\UsharpGetParity.psd1'
+        Note   = 'usharp_get 集中式转换层（V4/V5/V6-form）：注册单点（UsharpDataPorts.EnsureSqlFunctions）/ 下推表达式同源（UsharpRecordPaths）/ 表达式索引落点 / 单语句 CAS；基线 = Baselines\Usharp\UsharpGetParity.psd1'
     }
     UsharpJoint = @{
         Domain = 'Usharp'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = 'USharp ↔ C# 交汇面聚拢：消费侧经唯一门面 UsharpDataPorts / 唯一 JSON 出口 UsharpValueJson（全限定散点=0）/ 零值模型内联构造（new Usharp* 棘轮只减不增）/ 门面四语义覆盖；扫描面 = 生产面 Projects\**\src\**（E-4 排除测试面）；基线 = Baselines\UsharpJoint.psd1'
+        Note   = 'USharp ↔ C# 交汇面聚拢：消费侧经唯一门面 UsharpDataPorts / 唯一 JSON 出口 UsharpValueJson（全限定散点=0）/ 零值模型内联构造（new Usharp* 棘轮只减不增）/ 门面四语义覆盖；扫描面 = 生产面 Projects\**\src\**（E-4 排除测试面）；基线 = Baselines\Usharp\UsharpJoint.psd1'
     }
 
 
@@ -1049,7 +1049,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = 'IEF+ 执行契约守卫 C1–C6：每行 ResultKind / 写入行 ReadBack / Writes⊆Reads / PreconditionKind 有实现 / parity CaseId 不悬空 / 正负对照；基线 = Baselines\IntentContract.psd1'
+        Note   = 'IEF+ 执行契约守卫 C1–C6：每行 ResultKind / 写入行 ReadBack / Writes⊆Reads / PreconditionKind 有实现 / parity CaseId 不悬空 / 正负对照；基线 = Baselines\Agent\IntentContract.psd1'
     }
 
     EchoConstants = @{

@@ -47,7 +47,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Parsing\KeyGrammar.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 $baseline = Import-GateBaseline -Name KeyGrammar
@@ -90,7 +90,7 @@ function Get-CodeLines {
     return , $result
 }
 
-# ---------------- K1 键族字面量单源（数据源 = Baselines\KeyGrammar.psd1） ----------------
+# ---------------- K1 键族字面量单源（数据源 = Baselines\Parsing\KeyGrammar.psd1） ----------------
 # 白名单 = 键文法单源（内核 + 各域文法单源文件）；白名单外命中即违规。
 $grammarWhitelist = @($baseline.GrammarWhitelist.Value)   # 单源白名单（事实行：Value + Origin + DueWhen）
 
@@ -139,7 +139,7 @@ foreach ($entry in $k1Patterns)
 }
 
 # ---------------- K2 零手写键切片（键面文件禁 Substring 手写切片） ----------------
-$k2Baseline = [int]$baseline.KeySlice.Value   # 数据源 = Baselines\KeyGrammar.psd1（事实行：Value+Origin+DueWhen）
+$k2Baseline = [int]$baseline.KeySlice.Value   # 数据源 = Baselines\Parsing\KeyGrammar.psd1（事实行：Value+Origin+DueWhen）
 $keyFaceFiles = @($files | Where-Object { $_.Name -match 'Key' })
 $k2Hits = @($keyFaceFiles |
     Select-String -Pattern 'Substring\(' -ErrorAction SilentlyContinue |
@@ -162,7 +162,7 @@ if ($ShowDetail)
 }
 
 # ---------------- K3 零就地键序（OrderBy + ParseRound/ParseSeq） ----------------
-$k3Baseline = [int]$baseline.InPlaceOrder.Value   # 数据源 = Baselines\KeyGrammar.psd1
+$k3Baseline = [int]$baseline.InPlaceOrder.Value   # 数据源 = Baselines\Parsing\KeyGrammar.psd1
 $k3Hits = @($files |
     Select-String -Pattern 'OrderBy\(.*(ParseRound|ParseSeq)' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })
@@ -179,7 +179,7 @@ elseif ($k3Hits.Count -lt $k3Baseline)
 if ($ShowDetail) { Write-Host "  K3 就地键序：$($k3Hits.Count) 处（基线 $k3Baseline）" -ForegroundColor Gray }
 
 # ---------------- K4 零自建比较器（键面禁 Comparer<string>.Create） ----------------
-$k4Baseline = [int]$baseline.OwnComparer.Value   # 数据源 = Baselines\KeyGrammar.psd1
+$k4Baseline = [int]$baseline.OwnComparer.Value   # 数据源 = Baselines\Parsing\KeyGrammar.psd1
 $k4Hits = @($files |
     Select-String -Pattern 'Comparer<string>\s*\.\s*Create' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })
@@ -197,7 +197,7 @@ elseif ($k4Files.Count -lt $k4Baseline)
 if ($ShowDetail) { Write-Host "  K4 自建比较器：$($k4Files.Count) 文件（基线 $k4Baseline）" -ForegroundColor Gray }
 
 # ---------------- K5 正对照：内核文法定义点数 ≥ 基线（防假绿） ----------------
-$k5Baseline = [int]$baseline.GrammarDefs.Value   # 数据源 = Baselines\KeyGrammar.psd1
+$k5Baseline = [int]$baseline.GrammarDefs.Value   # 数据源 = Baselines\Parsing\KeyGrammar.psd1
 $k5Hits = @($files |
     Select-String -Pattern 'KeyGrammar\.Create\(' -ErrorAction SilentlyContinue |
     Where-Object { $t = $_.Line.Trim(); -not ($t.StartsWith('//') -or $t.StartsWith('*')) })

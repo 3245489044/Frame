@@ -31,7 +31,7 @@ $binding  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Response\Inte
 $gateImpl = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Entry\IntentPreconditionGate.cs'
 $contract = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Api\IntentPreconditionContract.cs'
 $testRoot = Join-Path $Root 'Environment\CentralTest'
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\IntentContract.psd1'
+$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Agent\IntentContract.psd1'
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $notes      = [System.Collections.Generic.List[string]]::new()

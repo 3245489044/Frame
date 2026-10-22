@@ -22,7 +22,7 @@
     依赖方向（硬约束）：本件只读仓库（含只读 git）；零侧写。
 
 .PARAMETER Manifest
-    授权单路径（仓库相对或绝对）；缺省取 Baselines\BatchScope.psd1 的 Manifest 事实。
+    授权单路径（仓库相对或绝对）；缺省取 Baselines\Process\BatchScope.psd1 的 Manifest 事实。
 .PARAMETER Batch
     被核验批（batchId，可多值）；缺省取授权单 active 列表（并集）。
 .PARAMETER Changed

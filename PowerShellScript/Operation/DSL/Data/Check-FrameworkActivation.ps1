@@ -4,7 +4,7 @@
     框架激活守卫（FrameworkActivation）—— 防止 ReferenceGraphEngine 退回死代码（零装配点 ⇒ 图引擎空转）。
 
 .DESCRIPTION
-    基线 = Baselines\FrameworkActivation.psd1（GraphEngineAssemblies.Value = 装配点下限）。
+    基线 = Baselines\Data\FrameworkActivation.psd1（GraphEngineAssemblies.Value = 装配点下限）。
     FA1 扫描 `new ReferenceGraphEngine` 命中数（全仓 .cs，排除 obj/bin/BuildOutput）；
     命中 < 基线 ⇒ 图引擎空转（违归：退回死代码）。
 
@@ -39,7 +39,7 @@ Write-Host "============================================================" -Foreg
 Write-Host "  框架激活守卫（图引擎装配点 ≥ 基线）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-# 基线单源 = Baselines\FrameworkActivation.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Data\FrameworkActivation.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name FrameworkActivation
 $expected = [int]$baseline.GraphEngineAssemblies.Value

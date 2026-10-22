@@ -33,7 +33,7 @@ $workflowsDir = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 # U4 域对应声明面（[Node] uses=/produces=）
 $domainMatchFiles = @('history-segment.ushar', 'history-compose.ushar', 'history-append.ushar', 'conversation-send-region.ushar')
 
-# 基线单源 = Baselines\NodeFlowDomainMatch.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Node\NodeFlowDomainMatch.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $b = Import-GateBaseline -Name NodeFlowDomainMatch
 $domainTokenFloor = [int]$b.DomainTokenFloor.Value

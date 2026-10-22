@@ -68,7 +68,7 @@ $FallbackBaselineFiles = @(
     'Projects\Plug\Agent\src\Agent.Launcher\Modules\Routing\AgentInvocationRouter.cs'
 )
 
-# 基线单源 = Baselines\NodeLocConsistency.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Node\NodeLocConsistency.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name NodeLocConsistency
 $ReadScopeBaseline = [int]$g.ReadScope.Value

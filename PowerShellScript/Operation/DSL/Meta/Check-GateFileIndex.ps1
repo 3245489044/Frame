@@ -8,7 +8,7 @@
     否则会在 node_modules/BuildOutput 上重复遍历。本件把「递归枚举」变成可见的清册：
 
       F1 清点：扫描面内 Check-*.ps1 的 `Get-ChildItem ... -Recurse` 落点。
-      F2 在册：命中文件必须在 Baselines\GateFileIndex.psd1 的 Allowlist 中；
+      F2 在册：命中文件必须在 Baselines\Meta\GateFileIndex.psd1 的 Allowlist 中；
               每条带 Origin ∈ {Derived,Debt,Verdict} + DueWhen（Debt 必带）。
       F3 上限：单件命中数不得超过 DueWhen 中 `MaxHits=<n>`（缺省 1）。
       F4 正/负对照：合成递归样本必命中；非递归样本不得命中（防判据空转）。

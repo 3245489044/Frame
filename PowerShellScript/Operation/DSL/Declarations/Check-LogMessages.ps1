@@ -136,7 +136,7 @@ if ($StrictChanged) {
         }
         # 只保留本批授权面（batches.json active.allowSet）内的改动；授权单缺件 ⇒ 不过滤（灰度）。
         $scopeGlobs = @()
-        $batchBaseline = Join-Path $Root 'Frame\PowerShellScript\Baselines\BatchScope.psd1'
+        $batchBaseline = Join-Path $Root 'Frame\PowerShellScript\Baselines\Process\BatchScope.psd1'
         if (Test-Path -LiteralPath $batchBaseline) {
             try {
                 $batchCfg = Import-PowerShellDataFile -Path $batchBaseline

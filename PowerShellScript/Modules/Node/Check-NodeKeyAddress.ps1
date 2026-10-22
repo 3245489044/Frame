@@ -244,7 +244,7 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- A7 正对照（防假绿） ----------------
-# 基线单源 = Baselines\NodeKeyAddress.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Node\NodeKeyAddress.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name NodeKeyAddress
 $a7Baseline = [int]$g.PlacementCount.Value   # 2026-09-27 实测：5 域 9 位置

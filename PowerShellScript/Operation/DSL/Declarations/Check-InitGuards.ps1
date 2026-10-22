@@ -3,7 +3,7 @@
 .SYNOPSIS
     初始化护栏门禁（InitGuards）—— 「空值护栏收敛到 PortGuard.Required」由纪律变为机器判据（P1）。
 .DESCRIPTION
-    基线 = Baselines\InitGuards.psd1（单源；禁内联数值基线）。
+    基线 = Baselines\Declarations\InitGuards.psd1（单源；禁内联数值基线）。
     G1 `throw new ArgumentNullException`：实测 ≤ 上限（只减不增）。
     G2 `ArgumentNullException.ThrowIfNull`：实测 ≤ 上限（只减不增）。
     G3 `PortGuard.Required`：实测 ≥ 下限（只增不减；防门面被删/回退）。
@@ -29,7 +29,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\InitGuards.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
+# 基线单源 = Baselines\Declarations\InitGuards.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name InitGuards
 

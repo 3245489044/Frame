@@ -22,7 +22,7 @@
       locked（热更新态）：生效面 = <GenRoot>\current → gen-<n>（Agent.* 与共享核心件同批）。
 
     模式：默认报告；-Check 违规 → 退出码 1。只读仓库；零侧写。
-    基线 = Baselines\EffectiveFace.psd1（代表件清单 / 下限）。
+    基线 = Baselines\Agent\EffectiveFace.psd1（代表件清单 / 下限）。
 
 .PARAMETER Root
     仓库根（默认由本脚本位置上溯四级推导）。

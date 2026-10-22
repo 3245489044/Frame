@@ -11,7 +11,7 @@
 #   C6 ID 集合守恒：covered ID ⊇ 基线 ID（只增不减）
 #   C7 正/负对照（防判据空转）：族件数/ID 数下限；合成非法 ID 必被拒
 # 模式：-Check 违规 exit 1；默认报告模式（不设退出码）。-WriteBaseline 为写操作（聚合器禁用）。
-# 依赖方向（硬约束）：本件只读仓库；-WriteBaseline 例外（仅写 Baselines\AntiPatternFamily.psd1）。
+# 依赖方向（硬约束）：本件只读仓库；-WriteBaseline 例外（仅写 Baselines\Meta\AntiPatternFamily.psd1）。
 
 param(
     [switch]$Check,
@@ -28,14 +28,14 @@ while ($__repo -and $__repo -ne (Split-Path $__repo -Parent)) {
 }
 $rulesDir = if (Test-Path (Join-Path $__repo 'clinerules')) { Join-Path $__repo 'clinerules' } else { Join-Path $__repo '.clinerules' }
 $formulaPath = Join-Path $rulesDir 'formula.md'
-$baselinePath = Join-Path $__repo 'Frame\PowerShellScript\Baselines\AntiPatternFamily.psd1'
+$baselinePath = Join-Path $__repo 'Frame\PowerShellScript\Baselines\Meta\AntiPatternFamily.psd1'
 $violations = [System.Collections.Generic.List[string]]::new()
 $families = [ordered]@{}
 $allIds = New-Object System.Collections.Generic.HashSet[string]
 
 $idRegex = '^ANTI-[A-Z0-9-]+$'
 
-# 基线单源 = Baselines\AntiPatternFamily.psd1（禁内联数值基线；守卫 GateBaselines U2/U7）
+# 基线单源 = Baselines\Meta\AntiPatternFamily.psd1（禁内联数值基线；守卫 GateBaselines U2/U7）
 Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name AntiPatternFamily
 $familyBaseline = [int]$g.FamilyCount.Value

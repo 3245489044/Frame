@@ -22,7 +22,7 @@
       C3 region 锚后缀须 ∈ 正词表 {aside,main,seg,head,subhead,overlay}。
       C4 负对照（-NegativeControl）：合成违规样本必须被同一判据命中。
 
-    基线：Baselines\HtmlViewerVocabulary.psd1（AllowCount=0 ⇒ 零豁免；Allow 表为后续显式登记出口）。
+    基线：Baselines\Usharp\HtmlViewerVocabulary.psd1（AllowCount=0 ⇒ 零豁免；Allow 表为后续显式登记出口）。
     模式：默认报告；-Check 有违规 → 退出码 1。只读仓库，零侧写。
 #>
 [CmdletBinding()]

@@ -70,7 +70,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-# 基线单源 = Baselines\ObservabilitySurface.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Node\ObservabilitySurface.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name ObservabilitySurface
 # 基线（只增不减）：名册最小事件数 + 上游 F-6 判据点名的关键键（F-P0-1d 后 12 → 46）

@@ -13,7 +13,7 @@
 
     扫描面 E-4 裁定：只对生产面 Projects\**\src\** 强制（Environment\CentralTest\** 测试面直引中立模型不在此判据内）。
 
-    基线：Frame\PowerShellScript\Baselines\UsharpJoint.psd1（单源，禁内联）
+    基线：Frame\PowerShellScript\Baselines\Usharp\UsharpJoint.psd1（单源，禁内联）
     模式：默认报告模式；-Check 校验模式（违规 → 退出码 1）。
 
 .PARAMETER Root

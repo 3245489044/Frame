@@ -57,10 +57,10 @@ $domainEnum = @('Meta', 'Agent', 'Node', 'Parsing', 'Data', 'Spec', 'Process', '
 $companionAllowlist = @{
     'AgentCarrierSurface'         = '伴随件：载体面分项判据（未登记为独立门）'
     'AgentLayerBoundary'          = '伴随件：层边界分项判据（未登记为独立门）'
-    'DeclarationEditSingleSource' = '未登记独立门（含基线 Baselines\DeclarationEditSingleSource.psd1）——待登记或销账'
+    'DeclarationEditSingleSource' = '未登记独立门（含基线 Baselines\Declarations\DeclarationEditSingleSource.psd1）——待登记或销账'
     'DeclarationReloadRegistry'   = '未登记独立门——待登记或销账'
     'ExceptionGateway'            = '未登记独立门——待登记或销账'
-    'FuncCallSingleSource'        = '未登记独立门（含基线 Baselines\FuncCallSingleSource.psd1）——待登记或销账'
+    'FuncCallSingleSource'        = '未登记独立门（含基线 Baselines\Declarations\FuncCallSingleSource.psd1）——待登记或销账'
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()

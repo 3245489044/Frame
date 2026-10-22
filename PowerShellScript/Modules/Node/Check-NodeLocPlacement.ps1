@@ -158,7 +158,7 @@ if (Test-Path -LiteralPath $instanceFile) {
 }
 
 # ---------------- C4 正对照（防假绿，先判：基线失守则后续判据无意义） ----------------
-# 基线单源 = Baselines\NodeLocPlacement.psd1（禁内联数值基线）
+# 基线单源 = Baselines\Node\NodeLocPlacement.psd1（禁内联数值基线）
 Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -Force
 $g = Import-GateBaseline -Name NodeLocPlacement
 $baseline = [int]$g.PlacementCount.Value   # 2026-09-27 实测：5 域 9 位置

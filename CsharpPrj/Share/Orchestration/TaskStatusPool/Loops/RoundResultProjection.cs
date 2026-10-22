@@ -27,4 +27,30 @@ public static class RoundResultProjection
             Outputs = outputs,
         };
     }
+
+    /// <summary>
+    /// 二值投影：<paramref name="empty"/> 或未产出 ⇒ <see cref="StepOutcome.Fail"/>（EMPTY_OUTPUT）。
+    /// Partial 产物挂 Facts，不制造第三态。
+    /// </summary>
+    public static StepOutcome ToStepOutcome(
+        bool produced,
+        bool empty,
+        string? error,
+        string? text,
+        ErrorClass? errorClass,
+        IReadOnlyDictionary<string, object?> outputs)
+    {
+        ArgumentNullException.ThrowIfNull(outputs);
+
+        if (!produced)
+        {
+            var cls = errorClass ?? ErrorClass.ExecutionFailure;
+            return new StepOutcome.Fail(RoundLifecycle.ToFailure(cls, error));
+        }
+
+        if (empty || string.IsNullOrWhiteSpace(text))
+            return new StepOutcome.Fail(RoundLifecycle.ToFailure(ErrorClass.EmptyResult, error));
+
+        return new StepOutcome.Ok(outputs);
+    }
 }

@@ -10,7 +10,8 @@ namespace Share.TaskStatusPool.Loops;
 /// </summary>
 public sealed class AxiomLoopResult
 {
-    public LoopDecision FinalDecision { get; set; }
+    /// <summary>最终决策（二值：Complete/Abort；默认 Abort = 未赋值即失败，禁默认成功）。</summary>
+    public LoopDecision FinalDecision { get; set; } = LoopDecision.Abort;
 
     public ILoopState? FinalContext { get; init; }
 

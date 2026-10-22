@@ -13,14 +13,26 @@ public static class DecisionTerminals
     /// Continue / None / SwitchStrategy 均非终态（继续推进侧）。
     /// </summary>
     public static bool IsTerminal(LoopDecision decision)
-        => decision is LoopDecision.Success or LoopDecision.Timeout or LoopDecision.TripTerminated;
+        => decision is LoopDecision.Complete or LoopDecision.Abort
+            or LoopDecision.Success or LoopDecision.Timeout or LoopDecision.TripTerminated;
 
     /// <summary>
-    /// 收敛最终决策：引擎承载的预算终止值（TS/TO/TM）优先，lastDecision（Success/Continue）兜底；
-    /// 双空（None）兜 Continue。
+    /// 收敛最终决策：二值终态（Complete/Abort）优先；旧终止值映射为二值（Success→Complete，Timeout/TripTerminated→Abort）；
+    /// 其余取末轮决策（同样二值化）；双空保持 None（由调用方 fail-fast，禁兜底成"继续"）。
     /// </summary>
     public static LoopDecision ConvergeFinal(LoopDecision snapshotFinal, LoopDecision lastDecision)
-        => snapshotFinal != LoopDecision.None && snapshotFinal != LoopDecision.Continue
-            ? snapshotFinal
-            : (lastDecision != LoopDecision.None ? lastDecision : LoopDecision.Continue);
+        => snapshotFinal switch
+        {
+            LoopDecision.Complete => LoopDecision.Complete,
+            LoopDecision.Abort => LoopDecision.Abort,
+            LoopDecision.Success => LoopDecision.Complete,
+            LoopDecision.Timeout or LoopDecision.TripTerminated => LoopDecision.Abort,
+            _ => lastDecision switch
+            {
+                LoopDecision.Success => LoopDecision.Complete,
+                LoopDecision.Timeout or LoopDecision.TripTerminated => LoopDecision.Abort,
+                LoopDecision.Complete or LoopDecision.Abort => lastDecision,
+                _ => LoopDecision.None,
+            },
+        };
 }

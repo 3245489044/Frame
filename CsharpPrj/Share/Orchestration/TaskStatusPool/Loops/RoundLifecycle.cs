@@ -78,67 +78,131 @@ public static class RoundLifecycle
         PortGuard.Required(ctx, nameof(ctx));
         PortGuard.Required(result, nameof(result));
 
-        // 进度 + 熔断分别走单一入口
+        // 进度 + 熔断记账（遥测：只进日志/指标，不参与终止裁决）。
         var eval = evaluate != null ? evaluate(result, errCls) : InferEval(result, errCls);
         ProgressUpdater.Apply(ctx, eval);
         BudgetEscalator.Apply(ctx, errCls, eval);
 
-        // 确定性失败（Terminal 且未成功）⇒ 本轮即终止，禁烧第二轮重跑同一必败计划。
-        if (!result.Ok && result.Terminal)
-            ctx.Flag.SetHalt();
-
-        // 熔断落地（FailureBudgetEscalation level=3 → halt）：budget 达上限即置 halt，
-        // 使 TerminationDecider 提前终止，避免在 MaxProgress > 3 时继续烧空 token 才停。
-        // 默认 MaxProgress=3 时 token 与 budget 同步耗尽，本分支行为不变（幂等，irrecoverable 已由 BudgetEscalator 置位）。
-        if (ctx.Budget.IsTripped)
-            ctx.Flag.SetHalt();
-
+        // 二值终止：终止只由 StepOutcome.Fail 直接决定（Decide），此处不再置 halt。
         return eval;
     }
 
-    /// <summary>④ Decide —— 终止优先（halt/token 耗尽）；否则成功即 TS，未成功则继续。</summary>
-    public static LoopDecision Decide(ILoopState ctx, AxiomActionResult result, EvalOutcome eval)
+    /// <summary>
+    /// 二值执行单元（AX-ZR NoInternalRetry）：恰一次执行，禁 for/while/递归/失败重跑。
+    /// 异常一律转 <see cref="StepOutcome.Fail"/>，向后传播的只有取消。
+    /// </summary>
+    public static async Task<StepOutcome> ExecuteOnceAsync(
+        ILoopState ctx,
+        Func<ILoopState, CancellationToken, Task<AxiomActionResult>> execute,
+        Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate,
+        CancellationToken ct = default)
     {
         PortGuard.Required(ctx, nameof(ctx));
+        PortGuard.Required(execute, nameof(execute));
+
+        AxiomActionResult result;
+        try
+        {
+            result = await execute(ctx, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new StepOutcome.Fail(ToFailure(ErrorClassifier.ClassifyError(ex), ex.Message));
+        }
+
+        var errCls = Collect(ctx, result);
+        var eval = Evaluate(ctx, result, errCls, evaluate);
+        return Project(result, eval, errCls);
+    }
+
+    /// <summary>
+    /// 二值投影（唯一判定点）：成功 = Ok ∧ pass ∧ 产物非空；其余一律 Fail（Partial→Fail，产物入 Facts）。
+    /// </summary>
+    public static StepOutcome Project(AxiomActionResult result, EvalOutcome eval, ErrorClass? errCls)
+    {
         PortGuard.Required(result, nameof(result));
 
-        if (TerminationDecider.ShouldTerminate(ctx, out var term))
-            return term;
+        if (result.Ok && eval == EvalOutcome.Pass && !string.IsNullOrWhiteSpace(result.Text))
+        {
+            var outputs = new Dictionary<string, object?>();
+            foreach (var kv in result.Outputs) outputs[kv.Key] = kv.Value;
+            return new StepOutcome.Ok(outputs);
+        }
 
-        // TS：SUCCESS_CRITERIA(pass ∧ n≥1) 达成
-        return result.Ok && eval == EvalOutcome.Pass ? LoopDecision.Success : LoopDecision.Continue;
+        if (result.Ok && string.IsNullOrWhiteSpace(result.Text))
+            return new StepOutcome.Fail(Failure.Domain(FailureCodes.EmptyOutput, "产物为空（EMPTY_OUTPUT）。"));
+
+        return new StepOutcome.Fail(ToFailure(errCls ?? ErrorClass.ExecutionFailure, result.Error));
     }
 
-    /// <summary>⑤ Adjust —— 推进轮次号，生成下一步提示（成功无提示）。</summary>
-    public static string? Adjust(ILoopState ctx, LoopDecision decision, EvalOutcome eval)
+    /// <summary>错误分类 → 失败事实（诊断标签只进 Code/Class，不进控制流分支）。</summary>
+    public static Failure ToFailure(ErrorClass cls, string? message)
+        => cls switch
+        {
+            ErrorClass.ParseError => Failure.Contract(FailureCodes.ParseError, message ?? "解析错误。"),
+            ErrorClass.CompilationError => Failure.Contract(FailureCodes.CompilationError, message ?? "编译错误。"),
+            ErrorClass.EmptyResult => Failure.Domain(FailureCodes.EmptyOutput, message ?? "空结果。"),
+            ErrorClass.PartialOutput => Failure.Domain(FailureCodes.PartialOutput, message ?? "部分产出。"),
+            ErrorClass.Timeout => Failure.Environment(FailureCodes.Timeout, message ?? "超时。"),
+            ErrorClass.ResourceExhausted => Failure.Environment(FailureCodes.ExecutionFailure, message ?? "资源耗尽。"),
+            _ => Failure.Domain(FailureCodes.ExecutionFailure, message ?? "执行失败。"),
+        };
+
+    /// <summary>④ Decide —— 二值终止：Ok → Complete；Fail → Abort。预算/空转计数器不再参与终止。</summary>
+    public static LoopDecision Decide(StepOutcome outcome)
     {
-        PortGuard.Required(ctx, nameof(ctx));
-
-        ctx.Round++;
-        return decision == LoopDecision.Success ? null : BuildNextHint(ctx, eval);
+        PortGuard.Required(outcome, nameof(outcome));
+        return outcome is StepOutcome.Ok ? LoopDecision.Complete : LoopDecision.Abort;
     }
 
-    /// <summary>五步组合（原子单轮）：①→⑤ 顺序不变，外部契约与既有实现等价。</summary>
+    /// <summary>
+    /// 二值单轮（①→④，无 Adjust）：轮号推进由 <see cref="AttemptLedger"/> 单点负责，本方法不写轮号。
+    /// </summary>
     public static async Task<AxiomRound> RunAsync(
         ILoopState ctx,
         Func<ILoopState, CancellationToken, Task<AxiomActionResult>> execute,
         Func<AxiomActionResult, ErrorClass?, EvalOutcome>? evaluate,
         CancellationToken ct = default)
     {
-        var result = await ExecuteAsync(ctx, execute, ct).ConfigureAwait(false);
-        var errCls = Collect(ctx, result);
-        var eval = Evaluate(ctx, result, errCls, evaluate);
-        var decision = Decide(ctx, result, eval);
-        var hint = Adjust(ctx, decision, eval);
+        var outcome = await ExecuteOnceAsync(ctx, execute, evaluate, ct).ConfigureAwait(false);
+        var decision = Decide(outcome);
+
+        AxiomActionResult result;
+        if (outcome is StepOutcome.Ok ok)
+        {
+            var outputs = new Dictionary<string, object>();
+            foreach (var kv in ok.Outputs)
+                if (kv.Value is not null) outputs[kv.Key] = kv.Value;
+
+            result = new AxiomActionResult
+            {
+                Ok = true,
+                Text = ctx.LastResultText ?? string.Empty,
+                Outputs = outputs,
+            };
+        }
+        else
+        {
+            var failure = ((StepOutcome.Fail)outcome).Failure;
+            result = new AxiomActionResult
+            {
+                Ok = false,
+                Error = failure.Message,
+                ErrorClass = ctx.LastEval == EvalOutcome.ParseError ? ErrorClass.ParseError : ErrorClass.ExecutionFailure,
+            };
+        }
 
         return new AxiomRound
         {
             Round = ctx.Round,
             Result = result,
-            Eval = eval,
-            ErrorClass = errCls,
+            Eval = ctx.LastEval,
             Decision = decision,
-            NextHint = hint,
+            NextHint = null,
         };
     }
 
@@ -146,14 +210,6 @@ public static class RoundLifecycle
     {
         if (!result.Ok)
             return errCls == ErrorClass.ParseError ? EvalOutcome.ParseError : EvalOutcome.Fail;
-        return string.IsNullOrWhiteSpace(result.Text) ? EvalOutcome.Partial : EvalOutcome.Pass;
+        return string.IsNullOrWhiteSpace(result.Text) ? EvalOutcome.Fail : EvalOutcome.Pass;
     }
-
-    private static string? BuildNextHint(ILoopState ctx, EvalOutcome eval)
-        => eval switch
-        {
-            EvalOutcome.Pass => "上一步成功，继续下一步",
-            EvalOutcome.Partial => "部分可用：基于上一步产出继续",
-            _ => $"上一步未成功（预算 level={ctx.Budget.Level}, token={ctx.Token.Value}/{ctx.Token.Max}），修正后重试",
-        };
 }

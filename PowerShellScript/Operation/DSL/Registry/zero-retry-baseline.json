@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "generated": "2026-10-22",
+  "scan": {
+    "frame": "Frame\\CsharpPrj",
+    "agent": "Projects\\Plug\\Agent\\src",
+    "exclude": [
+      "obj",
+      "bin",
+      "BuildOutput",
+      "_deprecated",
+      "backups"
+    ]
+  },
+  "counts": {
+    "retrySymbolsInEngine": 108,
+    "retrySymbolsInFrame": 375,
+    "whileTrue": 34,
+    "attemptWrites": 21,
+    "continueSymbols": 39,
+    "failedPathReenqueue": 18,
+    "fireAndForgetTaskRun": 97,
+    "thirdStateReturns": 111
+  },
+  "warn": {
+    "catchSwallow": 1088,
+    "nullLiteralCoalesce": 1200
+  },
+  "note": "零重试轴计数基线（只减不增）。-UpdateBaseline 冻结；禁降基线过关。"
+}

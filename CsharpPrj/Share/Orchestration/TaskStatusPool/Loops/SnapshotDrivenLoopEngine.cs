@@ -29,8 +29,8 @@ public sealed class SnapshotLoopResult<TState, TResult>
     /// <summary>是否由预算终止（<c>budgetTerminate</c> 决策）触发结束。权威: AX.TerminationBipartition.Budgetary。</summary>
     public bool TerminatedByBudget { get; set; }
 
-    /// <summary>预算终止决策值（引擎内裁决，TS/TO/TM）。非预算终止（探索/取消）时保持 Continue。权威: AX.DecisionOutputSet。</summary>
-    public LoopDecision FinalDecision { get; set; } = LoopDecision.Continue;
+    /// <summary>预算/二值终止决策值（引擎内裁决：Complete/Abort）。未赋值默认 Abort。</summary>
+    public LoopDecision FinalDecision { get; set; } = LoopDecision.Abort;
 
     public TimeSpan TotalDuration { get; set; }
 }

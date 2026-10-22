@@ -113,6 +113,12 @@ public enum LoopDecision
 {
     None,
 
+    /// <summary>二值终止：成功完成（Ok）。</summary>
+    Complete,
+
+    /// <summary>二值终止：失败即终止（Fail；原因见 Failure / Facts）。</summary>
+    Abort,
+
     /// <summary>continue —— 循环级继续决策，不受 Scope 约束。</summary>
     Continue,
 

@@ -17,11 +17,11 @@ public sealed class DefaultLoopOutcomePolicy : ITaskOutcomePolicy<AxiomLoopResul
         ArgumentNullException.ThrowIfNull(result);
         return result.FinalDecision switch
         {
-            LoopDecision.Success => TaskExecutionStatus.Completed,
-            LoopDecision.Timeout or LoopDecision.TripTerminated => TaskExecutionStatus.Faulted,
-            LoopDecision.Continue or LoopDecision.None or LoopDecision.SwitchStrategy => TaskExecutionStatus.Faulted,
+            LoopDecision.Complete or LoopDecision.Success => TaskExecutionStatus.Completed,
+            LoopDecision.Abort or LoopDecision.Timeout or LoopDecision.TripTerminated => TaskExecutionStatus.Faulted,
+            // Continue/None/SwitchStrategy：二值终止下不可表达（未赋值/第三态）⇒ fail-fast，禁默认成功。
             _ => throw new ArgumentOutOfRangeException(
-                nameof(result), result.FinalDecision, "未知决策，禁默认成功。"),
+                nameof(result), result.FinalDecision, "决策未赋值或为第三态，禁默认成功。"),
         };
     }
 }

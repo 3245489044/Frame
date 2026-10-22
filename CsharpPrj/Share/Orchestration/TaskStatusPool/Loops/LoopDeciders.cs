@@ -37,8 +37,8 @@ public static class BudgetEscalator
     {
         if (error == ErrorClass.Irrecoverable)
         {
+            // 遥测：不可恢复失败打满记账，终止由 StepOutcome.Fail 直接决定（不再置 ControlFlag）。
             ctx.Budget.Trip();
-            ctx.Flag.SetHalt();
             return;
         }
 
@@ -67,28 +67,17 @@ public static class BudgetEscalator
 }
 
 /// <summary>
-/// 终止裁决（clinerules AX.TerminationPriority）。
-/// 终止判定仅两条：ProgressToken.value≥MAX_PROGRESS → TO/TM；ControlFlag.halt=1 → TM。
-/// 废除旧 CF≥MAX_FAIL&gt;QDC&gt;CP&gt;IC 优先级链与 MaxIterations 计数。
+/// 终止判定（二值）：预算/空转计数器已降为遥测，不再产生终止。
+/// <see cref="LoopDecision.Complete"/> / <see cref="LoopDecision.Abort"/> 由 <see cref="RoundLifecycle.Decide"/> 直接产出。
+/// 保留本类仅为兼容旧调用点的"是否终态"查询，恒返回 false（不终止）。
 /// </summary>
 public static class TerminationDecider
 {
-    /// <summary>判定是否终止并给出决策。短路口：halt=1 → TM 优先于 token 耗尽。</summary>
+    /// <summary>恒 false：终止只能由 Fail 直接决定（AX-ZR C2 失败即终止，无预算长跑）。</summary>
+    [System.Obsolete("二值终止：终止由 RoundLifecycle.Decide/StepOutcome.Fail 直接决定；本判定恒 false，S7 删除。")]
     public static bool ShouldTerminate(ILoopState ctx, out LoopDecision decision)
     {
-        if (ctx.Flag.Halt)
-        {
-            decision = LoopDecision.TripTerminated;
-            return true;
-        }
-
-        if (ctx.Token.IsExhausted)
-        {
-            decision = LoopDecision.Timeout;
-            return true;
-        }
-
-        decision = LoopDecision.Continue;
+        decision = LoopDecision.Abort;
         return false;
     }
 }

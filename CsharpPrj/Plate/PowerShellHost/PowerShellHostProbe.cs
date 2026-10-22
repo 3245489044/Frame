@@ -114,11 +114,12 @@ public static class PowerShellHostProbe
             var diag = TryDiagnosticStart(effectiveWorkingDirectory);
             throw new PowerShellHostProbeException(
                 PowerShellHostCodes.ProbeFailed,
-                $"可执行文件启动失败（{ex.GetType().Name}{suffix} diag={diag}）：{path}（cwd={effectiveWorkingDirectory}）{ex.Message}",
+                $"可执行文件启动失败（{ex.GetType().Name}{suffix}）：{path}（cwd={effectiveWorkingDirectory}）{ex.Message}",
                 path,
                 inner: ex,
                 nativeErrorCode: nativeError,
-                workingDirectory: effectiveWorkingDirectory);
+                workingDirectory: effectiveWorkingDirectory,
+                detail: "diag=" + diag);
         }
 
         // 先起排空（并发读双流），再等待退出：输出量大时不会与子进程互等。

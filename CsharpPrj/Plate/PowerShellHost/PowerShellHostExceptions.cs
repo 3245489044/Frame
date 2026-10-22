@@ -19,7 +19,8 @@ public class PowerShellHostException : InvalidOperationException
         IReadOnlyList<string>? stderrTail = null,
         Exception? inner = null,
         int? nativeErrorCode = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        string? detail = null)
         : base(Shorten(message), inner)
     {
         Code = code;
@@ -27,6 +28,7 @@ public class PowerShellHostException : InvalidOperationException
         StderrTail = stderrTail ?? Array.Empty<string>();
         NativeErrorCode = nativeErrorCode;
         WorkingDirectory = workingDirectory;
+        Detail = detail;
     }
 
     /// <summary>稳定失败码（跨层分类器消费）。</summary>
@@ -43,6 +45,9 @@ public class PowerShellHostException : InvalidOperationException
 
     /// <summary>失败时的工作目录（结构事实；用于区分“alias 不可启动”与“工作目录无效”）。</summary>
     public string? WorkingDirectory { get; }
+
+    /// <summary>诊断详情（全量结构事实；只进 detailRef/日志，禁进短消息与事件载荷）。</summary>
+    public string? Detail { get; }
 
     /// <summary>短消息上限与定位器同源（人读；全量走 StderrTail）。</summary>
     protected static string Shorten(string message)
@@ -65,8 +70,9 @@ public sealed class PowerShellHostProbeException : PowerShellHostException
         IReadOnlyList<string>? stderrTail = null,
         Exception? inner = null,
         int? nativeErrorCode = null,
-        string? workingDirectory = null)
-        : base(code, message, path, stderrTail, inner, nativeErrorCode, workingDirectory)
+        string? workingDirectory = null,
+        string? detail = null)
+        : base(code, message, path, stderrTail, inner, nativeErrorCode, workingDirectory, detail)
     {
         ExitCode = exitCode;
     }

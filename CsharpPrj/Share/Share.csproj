@@ -44,6 +44,11 @@
     <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <ProjectReference Include="$(Proj_AiScheduling)" />
+    <!-- ★ 通用引擎提取（2026-10-22）：信号账本 / 目标边界 / 工具多轮循环 -->
+    <ProjectReference Include="$(Proj_Share_Signal)" />
+    <ProjectReference Include="$(Proj_Share_ObjectiveBoundary)" />
+    <ProjectReference Include="$(Proj_Share_AgentLoop)" />
+
     <ProjectReference Include="$(Proj_RoslynJsonFramework)" />
     <ProjectReference Include="$(Proj_ControlLookup)" />
     <ProjectReference Include="$(Proj_ScopeFramework)" />

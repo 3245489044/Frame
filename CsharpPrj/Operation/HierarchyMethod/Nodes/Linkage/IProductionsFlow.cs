@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Nodes.Workflows;
 
 namespace Operation.HierarchyMethod.Nodes.Linkage;

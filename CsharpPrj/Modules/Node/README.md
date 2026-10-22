@@ -1,6 +1,7 @@
 # Modules.Node — 节点通用框架（与位置无关 · JSON 键连接版）
 
 > **状态**：`P0 骨架` + `P1 提取融入`（D-1 案 A 口径）+ `P2–P5 框架件与合同测试` **已落地并通过验证**（构建 0 警告 0 错误、合同测试 95 例全绿）；`P6 应用` 中 **A-1（端口键空间/端口提取/节点单写门三件）、A-2 七件（形态/缺省/运行态/合并/校验/引用/指令）、A-3/A-3b（键格式与阈值声明化）、D-3（委托接线门禁）已落地**（Operation 侧接线，见[下一步计划](./docs/下一步计划.md) §1.1）；P6 剩余 A-4（Agent 边写点收敛）、P6-B 阶段 A–D 与 `P7 语言接入` 待开展；**P8 候选（本框架泛化为通用实例管理框架）待裁决**，见导航末条。
+> **2026-10-22 增量（三源语义融合 · 框架件 P-A…P-F 已落地，宿主 H1–H6 待接线）**：地址轴（`Identity/NodeAddress` + 存储键/端点文法）、关系轴（`Relations/NodeEdge*` + 溯源推导 + 可达闭包）、记录完整化（`NodeProjectionItem` 追加 `Address/Tags/Signal` + `NodeRecordValidator`）、读侧选择/排名/预算（`Spec/NodeSelectionSpec` + `Projection/NodeSelectionService` + `BudgetedRender`）、写计划（`Materialization/WritePlan/*`）、容器/产物（`Instances/NodeContainerSpec`、`NodeArtifact*`、`Stream/StreamArtifactAdapter`）、执行声明与沿边继承（`Spec/NodeExecutionBinding`、`AttributeInheritance`）、轴化词表（`Spec/TagVocabulary*`）。逐项证据见[`docs/三源语义融合-实施记录.md`](./docs/三源语义融合-实施记录.md)。
 > **设计权威**（本 README 只做导航，不重复定义）：
 > - [`docs/节点通用框架-与位置无关的设计.md`](./docs/节点通用框架-与位置无关的设计.md) —— 总设计（模型 / 不变式 N1–N12 / 声明面 / 组件清单 / 阶段 S1–S5 / 合同测试 CT）
 > - [`docs/节点通用框架-提取清单与复用映射.md`](./docs/节点通用框架-提取清单与复用映射.md) —— WorkFlowMethod 侧逐项裁决 + 14 项缺口 G1–G14 + 反模式 P12–P24 + 实现前必查的复用映射表
@@ -142,7 +143,7 @@ Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1
 | ❌ 自建第二套端口键空间 / 单写门 / 读视图 / 键格式全局 | N8 / P14 / P22；P1 为**迁址收编**，非重写 |
 | ❌ 写侧为某消费者裁剪副本 | N7（裁剪只发生在读侧 `selection`） |
 | ❌ 承接执行体/状态根/终止裁决 | 属引擎与领域层（见 9.22 方案 §7） |
-| ❌ 把库级/集合级写计划门搬入本工程（V-1 裁定：不搬） | `WritePlanCoordinator`（Operation，库级/集合级 target=`ur_nodes.plan`）与 `NodeWriteGate`/`NodeCompensation`（位置级 target=`{carrierId}|{placementKey}`）**target 不同层**；合并即造双写门/双补偿（P16）。两级门关系登记见 `Docs\analysis\2026\10\10.3\...通用框架提取与JSON单源-重构方案.md` §10.1 |
+| ⚠️ 写计划：**只搬计划模型 + 介质端口 + 编排**；介质实现与库级门留宿主（V-1′ 修订） | `Materialization/WritePlan/*` 只含 `NodeWritePlan`/`IWriteMediumHandler`/`NodeWritePlanExecutor`，target = 位置级 `medium|collection|key`（复用 `NodeWriteGate`）；`WritePlanCoordinator` 的库级门（target=`ur_nodes.plan`，`SingleWriteGuard`）仍在 Operation。两级 target 不同层；合并即造双写门/双补偿（P16）。两级门关系登记见 `Docs\analysis\2026\10\10.3\...通用框架提取与JSON单源-重构方案.md` §10.1 |
 | ❌ 把工作流骨架 `RoundSpec`/`BindingSpec` 塞入本工程（V-4 裁定：冻结） | 绑 `Share.HierarchySupport.PortSpec` + `ParameterResolver.KeyMapping.KeyMappingConfig`，破层2 签名契约（D-1 案 A）；属执行域，未来通用化另起 `Modules.ExecutionFramework` |
 | ⚠️ `NodeJson` 以 BCL `System.Text.Json` 自理 JSON（V-3 裁定 = A：**平台规则显式豁免**） | 保「零 Frame 依赖（仅 BCL + `Modules.Parsing.Keys`）」；载荷经 Operation 适配器落库时一律走 `Plate.JsonMethod`；豁免条目登记于 `Plate\JsonMethod\JsonMethod.csproj` 的 `ModuleRule_Rule` |
 

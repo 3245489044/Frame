@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Share.Conversation;
 using Share.Conversation.Aggregates;
 using Share.Conversation.Commands;

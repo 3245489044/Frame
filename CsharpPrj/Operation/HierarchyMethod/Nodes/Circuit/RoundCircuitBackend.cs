@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Circuit;
 using Operation.HierarchyMethod.Nodes.Execution;

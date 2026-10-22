@@ -23,6 +23,8 @@
     <ProjectReference Include="$(Proj_TConfig)" />
     <!-- 失败账本端口 IFailureBudget / ErrorTolerance 宿主（端口倒置批）-->
     <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
+    <!-- 休眠激活扫描（DormantActivationSweep）消费 ActivationCondition -->
+    <ProjectReference Include="$(Proj_KeySpace)" />
   </ItemGroup>
 
   <ItemGroup>

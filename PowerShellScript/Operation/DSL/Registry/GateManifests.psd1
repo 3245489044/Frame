@@ -1041,7 +1041,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = 'PowerShell 宿主单源（B10）：Plate\PowerShellHost 唯一实现（物化解析/探测/一次性脚本/长驻会话/通用配置）∧ 0 字节 alias 必须物化为真实目标 ∧ Agent/FileDriven 只调用（RunFileAsync/Locate）∧ 非单源面无 PS ProcessStartInfo ∧ "-File" 字面量仅限 Runner/Session/Probe ∧ reparse/WindowsApps 语义仅限解析器 ∧ 能力失败保留稳定码 ∧ 正负对照（A6–A11）'
+        Note   = 'PowerShell 宿主单源（B10）：Plate\PowerShellHost 唯一实现（物化解析/探测/一次性脚本/长驻会话/通用配置）∧ 0 字节 alias 必须物化为真实目标 ∧ Agent/FileDriven 只调用（RunFileAsync/Locate）∧ 非单源面无 PS ProcessStartInfo ∧ "-File" 字面量仅限 Runner/Session/Probe ∧ reparse/WindowsApps 语义仅限解析器 ∧ 能力失败保留稳定码 ∧ PsRuntime-Host 必须经 plain payload 且 ConvertTo-Json 深度 ≤8（A6–A12）'
     }
 
     IntentContract = @{

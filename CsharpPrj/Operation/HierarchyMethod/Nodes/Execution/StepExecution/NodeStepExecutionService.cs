@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Center;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Instances;

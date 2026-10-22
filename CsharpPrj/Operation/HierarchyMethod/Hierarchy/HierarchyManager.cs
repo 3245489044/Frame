@@ -7,6 +7,7 @@ using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Hierarchy.Dataflow;
 using Modules.DeclarativeDataflow.RunState;
 using Operation.HierarchyMethod.History;

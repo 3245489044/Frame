@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 
 namespace Operation.HierarchyMethod.Nodes.Linkage;
 

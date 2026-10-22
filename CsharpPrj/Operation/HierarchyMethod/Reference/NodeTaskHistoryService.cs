@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.History;
 
 namespace Operation.HierarchyMethod.Reference;

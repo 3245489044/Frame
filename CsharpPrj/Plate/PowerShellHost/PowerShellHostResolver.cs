@@ -444,7 +444,7 @@ public sealed class PowerShellHostResolver
                     candidate.Source,
                     ex.NativeErrorCode,
                     ex.Message,
-                    ex.ToString());
+                    ex.Detail ?? ex.ToString());
                 _diagnostics.CandidateRejected(candidate, "probe-failed:" + ex.Code, ex);
 
                 // 物化目标不可启动（如 WindowsApps 实文件在当前宿主被拒绝）时，回退到 alias 启动路径。
@@ -476,7 +476,7 @@ public sealed class PowerShellHostResolver
                             candidate.Source,
                             aliasEx.NativeErrorCode,
                             aliasEx.Message,
-                            aliasEx.ToString());
+                            aliasEx.Detail ?? aliasEx.ToString());
                     }
                 }
             }

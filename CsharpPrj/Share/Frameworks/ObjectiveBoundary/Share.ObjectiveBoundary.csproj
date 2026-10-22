@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用目标边界框架（Share.ObjectiveBoundary）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用边界评估框架：确定性压力评估 + 迟滞 + 反应式/主动式双通道 + 仲裁合并 + 空间边界。零 Agent 依赖，宿主视图与预算升级经泛型/回调注入。</ModuleRule_Description>
+    <ModuleRule_Keywords>边界;压力;迟滞;仲裁;空间边界;通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Share.ObjectiveBoundary</RootNamespace>
+    <AssemblyName>Share.ObjectiveBoundary</AssemblyName>
+    <Description>通用目标边界评估框架（零 Agent 依赖）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_AiScheduling)" />
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
+  </ItemGroup>
+
+</Project>

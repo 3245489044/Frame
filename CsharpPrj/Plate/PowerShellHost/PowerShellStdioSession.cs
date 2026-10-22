@@ -52,6 +52,15 @@ public sealed record PowerShellSessionOptions
 
     public bool AllowWindowsPowerShell51 { get; init; }
 
+    /// <summary>正式诊断开关（默认关闭）：只输出请求/响应摘要（id/字节数/截断预览），禁止默认打印全文。</summary>
+    public bool EnableTrace { get; init; }
+
+    /// <summary>诊断输出出口（null = 控制台；供宿主写入 detail/日志面）。</summary>
+    public Action<string>? TraceSink { get; init; }
+
+    /// <summary>诊断预览上限（字符；仅摘要，不承担协议载荷）。</summary>
+    public int TracePreviewChars { get; init; } = 200;
+
     /// <summary>显式配置的可执行路径（空 ⇒ 经 <see cref="PowerShellHostLocator"/> 定位）。</summary>
     public string? ConfiguredExecutable { get; init; }
 
@@ -89,6 +98,30 @@ public sealed partial class PowerShellStdioSession : IAsyncDisposable
     private string? _resolvedExecutableOverride;
     private long _sequence;
     private readonly Queue<string> _stderrTail = new();
+
+    /// <summary>最近一次请求/响应的 UTF-8 字节数（诊断面；供 payload 膨胀定位）。</summary>
+    public long LastRequestBytes { get; private set; }
+
+    /// <summary>最近一次响应的 UTF-8 字节数（诊断面）。</summary>
+    public long LastResponseBytes { get; private set; }
+
+    private bool TraceEnabled
+        => _options.EnableTrace
+           || string.Equals(Environment.GetEnvironmentVariable("PS_SESSION_TRACE"), "1", StringComparison.Ordinal);
+
+    private void Trace(string message)
+    {
+        if (!TraceEnabled) return;
+        var sink = _options.TraceSink;
+        if (sink is not null) sink(message);
+        else Console.WriteLine(message);
+    }
+
+    private string Preview(string text)
+    {
+        var limit = _options.TracePreviewChars <= 0 ? 200 : _options.TracePreviewChars;
+        return text.Length <= limit ? text : text[..limit] + "…";
+    }
 
     public PowerShellStdioSession(PowerShellSessionOptions options)
     {
@@ -323,8 +356,8 @@ public sealed partial class PowerShellStdioSession : IAsyncDisposable
 
             try
             {
-                if (Environment.GetEnvironmentVariable("PS_SESSION_TRACE") == "1")
-                    Console.WriteLine("PS_SESSION_REQ=" + requestJson);
+                LastRequestBytes = Encoding.UTF8.GetByteCount(requestJson);
+                Trace($"PS_SESSION_REQ id={id} bytes={LastRequestBytes} preview={Preview(requestJson)}");
                 await stdin.WriteLineAsync(requestJson.AsMemory(), ct).ConfigureAwait(false);
                 await stdin.FlushAsync(ct).ConfigureAwait(false);
             }
@@ -369,8 +402,8 @@ public sealed partial class PowerShellStdioSession : IAsyncDisposable
                         tail);
                 }
 
-                if (Environment.GetEnvironmentVariable("PS_SESSION_TRACE") == "1")
-                    Console.WriteLine("PS_SESSION_LINE=" + (line.Length <= 200 ? line : line[..200]));
+                LastResponseBytes = Encoding.UTF8.GetByteCount(line);
+                Trace($"PS_SESSION_RSP id={id} bytes={LastResponseBytes} preview={Preview(line)}");
 
                 if (!TryParseResponse(line, out var response)) continue;
                 if (response.IsStartupPhaseFailure) return response;

@@ -324,12 +324,22 @@ function List-Directory {
 
     $items = Get-ChildItem @getParams -Filter $Pattern -File
 
-    return [PSCustomObject]@{
-        Path = $resolvedPath
-        Recursive = $Recursive.IsPresent
-        Pattern = $Pattern
-        TotalFiles = ($items | Measure-Object).Count
-        Files = $items | Select-Object FullName, Length, LastWriteTime
+    # 协议载荷只放结构字段（DateTime 转 ISO 字符串）：禁把 FileInfo 对象图/PS* 元数据带进 JSON。
+    $files = @()
+    foreach ($item in @($items)) {
+        $files += [ordered]@{
+            FullName      = [string]$item.FullName
+            Length        = [long]$item.Length
+            LastWriteTime = $item.LastWriteTime.ToString('o')
+        }
+    }
+
+    return [ordered]@{
+        Path       = $resolvedPath
+        Recursive  = $Recursive.IsPresent
+        Pattern    = $Pattern
+        TotalFiles = @($files).Count
+        Files      = @($files)
     }
 }
 

@@ -23,6 +23,10 @@ public static class StreamArtifactAdapter
         string? terminalText = null)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
+        ArgumentNullException.ThrowIfNull(children);
+
+        // 缺省终答归因 = 逆到达序最后一个（与 NodeArtifactAssembler.LastProduced 同口径）。
+        terminal ??= children.LastOrDefault();
         return new NodeArtifact(aggregate.IdentityKey, roundKey, children, terminal, terminalText);
     }
 }

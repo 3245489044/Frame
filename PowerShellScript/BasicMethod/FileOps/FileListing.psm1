@@ -36,13 +36,13 @@ function List-Dir {
         $getParams = @{ LiteralPath = $resolvedPath; ErrorAction = "SilentlyContinue" }
         if ($Recurse) { $getParams["Recurse"] = $true }
 
-        # 子目录（不参与 Pattern 过滤）
+        # 子目录（不参与 Pattern 过滤；proto 只放结构字段）
         $dirItems = @(
             Get-ChildItem @getParams -Directory -ErrorAction SilentlyContinue |
                 ForEach-Object {
-                    [PSCustomObject]@{
-                        FullName = $_.FullName
-                        Name = $_.Name
+                    [ordered]@{
+                        FullName = [string]$_.FullName
+                        Name     = [string]$_.Name
                     }
                 }
         )
@@ -51,24 +51,24 @@ function List-Dir {
         $allFiles = @(Get-ChildItem @getParams -File -ErrorAction SilentlyContinue)
         $fileItems = @(
             $allFiles | Where-Object { $_.Name -like $Pattern } | ForEach-Object {
-                [PSCustomObject]@{
-                    FullName = $_.FullName
-                    Name = $_.Name
-                    Length = $_.Length
-                    LastWriteTime = $_.LastWriteTime
-                    RelativePath = _GetRelativePath -Path $_.FullName
+                [ordered]@{
+                    FullName      = [string]$_.FullName
+                    Name          = [string]$_.Name
+                    Length        = [long]$_.Length
+                    LastWriteTime = $_.LastWriteTime.ToString('o')
+                    RelativePath  = [string](_GetRelativePath -Path $_.FullName)
                 }
             }
         )
 
-        return @{
-            Path = $resolvedPath
-            Recurse = $Recurse.IsPresent
-            Pattern = $Pattern
-            Files = $fileItems
-            Dirs = $dirItems
+        return [ordered]@{
+            Path       = $resolvedPath
+            Recurse    = $Recurse.IsPresent
+            Pattern    = $Pattern
+            Files      = @($fileItems)
+            Dirs       = @($dirItems)
             TotalFiles = $fileItems.Count
-            TotalDirs = $dirItems.Count
+            TotalDirs  = $dirItems.Count
         }
     } catch {
         return New-PsResult -Status failure -Message "list.dir error" -Errors @("execution_error", $_.Exception.Message)

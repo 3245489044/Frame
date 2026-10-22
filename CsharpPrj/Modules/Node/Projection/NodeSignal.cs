@@ -9,10 +9,6 @@ namespace Modules.Node.Projection;
 /// <param name="Values">信号字段袋（字段名 → 文本值）。</param>
 public sealed record NodeSignal(IReadOnlyDictionary<string, string> Values)
 {
-    /// <summary>空信号（无任何字段）。</summary>
-    public static NodeSignal Empty { get; } =
-        new(new Dictionary<string, string>(StringComparer.Ordinal));
-
     /// <summary>取字段值（缺席 ⇒ null）。</summary>
     public string? Get(string field)
         => Values.TryGetValue(field, out var value) ? value : null;

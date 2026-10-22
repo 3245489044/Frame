@@ -15,12 +15,32 @@ try {
 } catch { }
 
 . (Join-Path $PSScriptRoot 'Invoke-AgentStep.ps1')
+. (Join-Path $PSScriptRoot 'PlainPayload.ps1')
+
+# 协议载荷上限（字节）：超过即结构化失败，禁静默截断后仍报 success。
+$script:MaxPayloadBytes = 1048576
 
 function Write-Line([object]$Payload) {
-    # 深度 6 足够协议载荷；5.1 下 PowerShell 提供程序元数据（PSDrive/PSProvider）含环，
-    # 使用深度 32 会深递归（实测 Depth=8 OOM / 250s，Depth=6 约 0.6s）。
-    # TODO(B10-E)：改为显式 plain payload（剥 PS* 元数据），消除 2MB 级响应膨胀。
-    $json = $Payload | ConvertTo-Json -Depth 6 -Compress
+    # plain payload 单通道：先剥 PS* 元数据（无环），再按深度 8 序列化。
+    $plain = ConvertTo-PlainPayload -Value $Payload -MaxDepth 8
+    $json = $plain | ConvertTo-Json -Depth 8 -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetByteCount($json)
+    if ($bytes -gt $script:MaxPayloadBytes) {
+        $id = ''
+        if ($Payload -is [System.Collections.IDictionary] -and $Payload.Contains('id')) {
+            $id = [string]$Payload['id']
+        }
+        elseif ($null -ne $Payload -and $null -ne $Payload.PSObject.Properties['id']) {
+            $id = [string]$Payload.id
+        }
+        $json = [ordered]@{
+            id      = $id
+            status  = 'failure'
+            message = 'payload_too_large'
+            data    = [ordered]@{ bytes = $bytes; maxBytes = $script:MaxPayloadBytes }
+            errors  = @('payload_too_large')
+        } | ConvertTo-Json -Depth 4 -Compress
+    }
     [Console]::Out.WriteLine($json)
     [Console]::Out.Flush()
 }

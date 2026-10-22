@@ -30,9 +30,10 @@ $resolver = Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHost
 $agent = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invoke\PsRuntime\ExecutableResolver.cs'
 $hosting = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invoke\PsRuntime\PsRuntimeHosting.cs'
 $fileDriven = Join-Path $Root 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\GenerationBuildRunner.cs'
+$hostScript = Join-Path $Root 'Frame\PowerShellScript\Modules\PsRuntime\Binding\PsRuntime-Host.ps1'
 
 $violations = [System.Collections.Generic.List[string]]::new()
-foreach ($file in @($locator, $resolver, $agent, $hosting, $fileDriven)) {
+foreach ($file in @($locator, $resolver, $agent, $hosting, $fileDriven, $hostScript)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少单源面文件: $file") }
 }
 
@@ -42,6 +43,7 @@ if ($violations.Count -eq 0) {
     $agentText = Get-Content -LiteralPath $agent -Raw
     $hostingText = Get-Content -LiteralPath $hosting -Raw
     $fdText = Get-Content -LiteralPath $fileDriven -Raw
+    $hostText = Get-Content -LiteralPath $hostScript -Raw
 
     # [A1] 单源实现面（B10：发现/物化在 Resolver，Locator 保留兼容门面）
     $singleSourceText = $locatorText + "`n" + $resolverText
@@ -132,6 +134,25 @@ if ($violations.Count -eq 0) {
                 $violations.Add("[A11] WindowsApps 目录枚举出现在非解析器：$rel")
             }
         }
+    }
+
+    # [A12] 协议载荷单通道：必须经 plain payload；禁止深递归 ConvertTo-Json（>8）回归挂起。
+    if ($hostText -notmatch 'ConvertTo-PlainPayload') {
+        $violations.Add('[A12] PsRuntime-Host.ps1 未使用 plain payload（PS* 元数据可能进入协议）')
+    }
+    foreach ($depthMatch in [regex]::Matches($hostText, 'ConvertTo-Json\s+-Depth\s+(\d+)')) {
+        $depth = [int]$depthMatch.Groups[1].Value
+        if ($depth -gt 8) {
+            $violations.Add("[A12] ConvertTo-Json -Depth $depth 超上限 8（plain payload 已消除环，超限即回归风险）")
+        }
+    }
+    if ('ConvertTo-Json -Depth 32 -Compress' -notmatch 'ConvertTo-Json\s+-Depth\s+(\d+)' -or
+        [int]([regex]::Match('ConvertTo-Json -Depth 32 -Compress', 'ConvertTo-Json\s+-Depth\s+(\d+)').Groups[1].Value) -le 8) {
+        $violations.Add('[A12] 负对照失败：合成超深 ConvertTo-Json 未被规则命中')
+    }
+    if ('ConvertTo-Json -Depth 8 -Compress' -match 'ConvertTo-Json\s+-Depth\s+(\d+)' -and
+        [int]([regex]::Match('ConvertTo-Json -Depth 8 -Compress', 'ConvertTo-Json\s+-Depth\s+(\d+)').Groups[1].Value) -gt 8) {
+        $violations.Add('[A12] 正对照失败：合法深度 8 被误判')
     }
 
     # [A8] 正/负对照：合成样本必须被拦截，合法调用不得被误判

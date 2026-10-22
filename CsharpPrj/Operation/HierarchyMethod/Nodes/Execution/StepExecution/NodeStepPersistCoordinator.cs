@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading.Streaming;
 using Operation.HierarchyMethod.Abstractions;
+using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Nodes.Instances;
 using Share.HierarchySupport;
 using Share.TaskStatusPool.Loops;

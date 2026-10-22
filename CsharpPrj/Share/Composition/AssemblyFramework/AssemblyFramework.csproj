@@ -21,6 +21,8 @@
     <ProjectReference Include="$(Proj_Pipeline)" />
     <!-- 键控快照存储底层复用内存键值存储（InMemoryKeyedStore，单一实现） -->
     <ProjectReference Include="$(Proj_HostAssembly)" />
+    <!-- 诊断可见化端口（IDiagnosticsSink）：声明热装载注册表注入 -->
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
   </ItemGroup>
 
 </Project>

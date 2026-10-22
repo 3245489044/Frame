@@ -34,5 +34,5 @@ public sealed record NodeSelectionSpec(
     NodeBudgetSpec? Budget = null)
 {
     /// <summary>空声明（全部维度未声明）。</summary>
-    public static NodeSelectionSpec Empty { get; } = new();
+    public static readonly NodeSelectionSpec Empty = new();
 }

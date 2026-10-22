@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用信号框架（Share.Signal）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用信号账本内核：信号契约、边集状态机、幂等接纳、租约/TTL 扫掠、终态观测、攒批触发。零 Agent 依赖，载体经 ITaskPoolPersistence&lt;TRecord&gt; + 编解码端口注入。</ModuleRule_Description>
+    <ModuleRule_Keywords>信号;账本;状态机;幂等;租约;TTL;攒批;通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Share.Signal</RootNamespace>
+    <AssemblyName>Share.Signal</AssemblyName>
+    <Description>通用信号账本 + 批触发框架（零 Agent 依赖）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
+    <ProjectReference Include="$(Proj_BasicMethod_Declarative)" />
+  </ItemGroup>
+
+</Project>

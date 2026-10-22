@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-22 13:07:30
+  生成时间: 2026-10-22 18:30:02
 -->
 <Project>
 
@@ -117,6 +117,9 @@
     <Mod_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\</Mod_StateManagement>
     <Mod_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\</Mod_TreeTraceFramework>
     <Mod_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\</Mod_AiScheduling>
+    <Mod_Share_Signal>$(CsharpPrjDir)Share\Frameworks\Signal\</Mod_Share_Signal>
+    <Mod_Share_ObjectiveBoundary>$(CsharpPrjDir)Share\Frameworks\ObjectiveBoundary\</Mod_Share_ObjectiveBoundary>
+    <Mod_Share_AgentLoop>$(CsharpPrjDir)Share\Frameworks\AgentLoop\</Mod_Share_AgentLoop>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
@@ -236,6 +239,9 @@
     <Proj_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\StateManagement.csproj</Proj_StateManagement>
     <Proj_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\TreeTraceFramework.csproj</Proj_TreeTraceFramework>
     <Proj_AiScheduling>$(CsharpPrjDir)Share\Frameworks\AiScheduling\AiScheduling.csproj</Proj_AiScheduling>
+    <Proj_Share_Signal>$(CsharpPrjDir)Share\Frameworks\Signal\Share.Signal.csproj</Proj_Share_Signal>
+    <Proj_Share_ObjectiveBoundary>$(CsharpPrjDir)Share\Frameworks\ObjectiveBoundary\Share.ObjectiveBoundary.csproj</Proj_Share_ObjectiveBoundary>
+    <Proj_Share_AgentLoop>$(CsharpPrjDir)Share\Frameworks\AgentLoop\Share.AgentLoop.csproj</Proj_Share_AgentLoop>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>

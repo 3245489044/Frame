@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using BasicMethod.Block;
 using Modules.Pipeline;
 using Share.CircuitFramework.Compiler;
 using Share.CircuitFramework.Core;
@@ -5,12 +11,9 @@ using Share.CircuitFramework.Core;
 namespace Share.CircuitFramework.Execution;
 
 /// <summary>
-/// 执行层：按拓扑推进节点。复用 Modules.Pipeline：
-///   PipelineContext 传数据（节点输出写入 SharedData，键 "$NodeId.$Port"），
-///   StagePipeline 做顺序骨架（每节点注册为一个 IPipelineStage<PipelineContext>）。
-/// 不重新发明运行编排——pipeline 是执行后端，电路框架是它的上层描述/编译层。
-/// 执行期只经编译期索引（<see cref="CircuitRuntimeIndex"/>）查表：节点查找 / 入边绑定 / 入口 / 出口一次装配，
-/// 不再逐节点重扫 Wires / EntrySymbol（原 O(N·W) 热点）。
+/// 执行层：按拓扑推进节点。执行体唯一走 <see cref="BlockPipeline"/>/<see cref="BlockRunner"/>：
+///   节点 = 一个 <see cref="IBlock"/>，失败策略（重试/退避/兜底/Guard）编译期产出 <see cref="BlockPolicy"/>，
+///   运行期唯一消费方 = BlockRunner。Circuit 只保留描述/编译职责。
 /// </summary>
 public static class CircuitEngine
 {
@@ -18,6 +21,7 @@ public static class CircuitEngine
     /// 执行已编译电路。外部输入按 Entry 端口名提供，返回按 Exit 端口名收集的结果。
     /// </summary>
     /// <param name="resolveNode">按节点 Kind 解析黑盒实现。</param>
+    /// <param name="skeleton">兼容参数（旧 StagePipeline 注入点）；执行体已统一到 BlockPipeline，本参数不再参与执行。</param>
     public static async Task<IReadOnlyDictionary<string, object?>> ExecuteAsync(
         Circuit circuit,
         ExecutionPlan plan,
@@ -26,51 +30,72 @@ public static class CircuitEngine
         CancellationToken cancellationToken = default,
         StagePipeline<PipelineContext>? skeleton = null)
     {
-        var ctx = new PipelineContext(cancellationToken);
-        var stagePipeline = skeleton ?? new StagePipeline<PipelineContext>(circuit.Id);
-        // 编译期索引（节点 / 入边绑定 / 入口 / 出口）：编译产物携带则零重建；手工构造的计划即时构建等价索引。
         var index = plan.Index ?? CircuitRuntimeIndex.Build(circuit);
+        var context = new BlockContext(cancellationToken);
 
         if (entryInputs is not null)
         {
-            // 入口投影：入口值入上下文（键 "$entry.{Port}"，与节点入端口绑定同源）
             foreach (var entry in index.EntryPorts)
             {
                 if (entryInputs.TryGetValue(entry, out var value))
-                    ctx.SharedData[$"$entry.{entry}"] = value;
+                    context.Data[$"$entry.{entry}"] = value;
             }
         }
+
+        var pipeline = new BlockPipeline(circuit.Id);
 
         foreach (var nodeId in plan.TopologicalOrder)
         {
             if (!index.NodesById.TryGetValue(nodeId, out var node))
+            {
                 throw new InvalidOperationException(
                     $"执行计划引用不存在的节点 '{nodeId}'（编译产物与电路不一致）。");
+            }
+
             var impl = resolveNode(node.Kind);
-            // G3 受控边门控 / G4 容错策略：编译期索引一次查表（缺失 = 无条件 / 无策略）
             var policy = index.FailurePolicyOf(nodeId);
             var altNodeId = policy.FallbackNodeId ?? policy.CatchRouteNodeId;
-            var altKind = altNodeId is not null && index.NodesById.TryGetValue(altNodeId, out var altNode)
+            var altKind = altNodeId is not null
+                          && index.NodesById.TryGetValue(altNodeId, out var altNode)
                 ? altNode.Kind
                 : null;
-            stagePipeline.Register(new CircuitNodeStage(
-                node, impl, index.InputsOf(nodeId), index.RoutesOf(nodeId), policy, altKind, resolveNode));
+
+            pipeline.Add(new CircuitNodeBlock(
+                node, impl, index.InputsOf(nodeId), index.RoutesOf(nodeId),
+                policy, altKind, resolveNode));
         }
 
-        // 节点输出写入上下文 SharedData 键 "$NodeId.$Port"
-        await stagePipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
+        var run = await pipeline.RunAsync(context, cancellationToken).ConfigureAwait(false);
 
-        // 出口投影：Exit 端口名 "NodeId.Port" → 对应节点输出（格式/存在性已由编译期 CFG-015/016 判红）
+        if (run.Outcome == BlockRunOutcome.Aborted)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new OperationCanceledException($"电路 '{circuit.Id}' 执行被取消。");
+        }
+
+        if (run.Outcome == BlockRunOutcome.Failed)
+        {
+            var fatal = run.Diagnostics.FirstOrDefault(
+                d => d.Outcome == BlockOutcome.Failed
+                     && d.Fatal
+                     && !d.Converged
+                     && d.Exception is not null);
+
+            if (fatal?.Exception is not null)
+                throw fatal.Exception;
+        }
+
         var result = new Dictionary<string, object?>();
         foreach (var exit in index.Exits)
         {
-            if (ctx.SharedData.TryGetValue($"${exit.Port}", out var value))
+            if (context.Data.TryGetValue($"${exit.Port}", out var value))
                 result[exit.Port] = value;
         }
+
         return result;
     }
 
-    private sealed class CircuitNodeStage : IPipelineStage<PipelineContext>
+    private sealed class CircuitNodeBlock : IBlock
     {
         private readonly CircuitNode _node;
         private readonly ICircuitNode _impl;
@@ -80,10 +105,7 @@ public static class CircuitEngine
         private readonly string? _altKind;
         private readonly Func<string, ICircuitNode> _resolveNode;
 
-        public string Name => _node.Id;
-        public string Description => $"circuit node {_node.Id} ({_node.Kind})";
-
-        public CircuitNodeStage(
+        public CircuitNodeBlock(
             CircuitNode node,
             ICircuitNode impl,
             IReadOnlyList<InputBinding> bindings,
@@ -99,110 +121,127 @@ public static class CircuitEngine
             _policy = policy;
             _altKind = altKind;
             _resolveNode = resolveNode;
+            Policy = BuildPolicy();
         }
 
-        /// <summary>受控边 / 分支 / 分派门控（G3+R1）：全部路由条件成立才执行（无门控 = 无条件）。执行时刻对 SharedData 求判定。</summary>
-        public bool CanExecute(PipelineContext context)
-            => !context.IsCancelled && _gates.All(g => GateHolds(context.SharedData, g));
+        public string Name => _node.Id;
 
-        /// <summary>单条路由条件求值（R1）：Truthy/Falsy 走布尔判定；AnyOf/NoneOf 走取值集合匹配。</summary>
-        private static bool GateHolds(IDictionary<string, object?> data, RouteBinding gate) => gate.Match switch
+        public string Description => $"circuit node {_node.Id} ({_node.Kind})";
+
+        public BlockPolicy Policy { get; }
+
+        private BlockPolicy BuildPolicy() => new()
         {
-            RouteMatch.Truthy => JudgeHolds(data, gate.WhenKey),
-            RouteMatch.Falsy => !JudgeHolds(data, gate.WhenKey),
-            RouteMatch.AnyOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: true),
-            RouteMatch.NoneOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: false),
-            _ => JudgeHolds(data, gate.WhenKey),
+            IsFatal = true,
+            CanExecute = context => !context.IsAborted
+                                    && _gates.All(gate => GateHolds(context.Data, gate)),
+            MaxRetries = Math.Max(0, _policy.RetryMaxAttempts - 1),
+            RetryDelay = TimeSpan.FromMilliseconds(Math.Max(0, _policy.RetryBackoffBaseMs)),
+            RetryBackoff = BlockRetryBackoff.Exponential,
+            MaxRetryDelay = TimeSpan.FromHours(1),
+            Guarded = _policy.Guarded,
+            FallbackAsync = _altKind is null ? null : RunFallbackAsync
         };
 
-        /// <summary>取值集合匹配（R1 switch）：判定键取值的字符串形式 ∈（AnyOf）/ ∉（NoneOf）给定集合；缺键 ⇒ 视作未命中。</summary>
-        private static bool ValueInSet(IDictionary<string, object?> data, string key, IReadOnlyList<string>? values, bool wantMatch)
+        public async Task<BlockResult> ExecuteAsync(
+            BlockContext context,
+            CancellationToken cancellationToken = default)
         {
-            var actual = data.TryGetValue(key, out var value) ? value?.ToString() : null;
-            var hit = false;
-            if (actual is not null && values is not null)
-                foreach (var candidate in values)
-                    if (string.Equals(candidate, actual, StringComparison.Ordinal)) { hit = true; break; }
-            return wantMatch ? hit : !hit;
-        }
+            var inputs = BuildInputs(context);
 
-        public async Task ExecuteAsync(PipelineContext context, CancellationToken cancellationToken)
-        {
             try
             {
-                var outputs = await RunWithPolicyAsync(context, cancellationToken).ConfigureAwait(false);
-                if (outputs is not null)
-                {
-                    foreach (var kv in outputs)
-                        context.SharedData[$"${_node.Id}.{kv.Key}"] = kv.Value;
-                }
-                context.SetStageResult(_node.Id, true);
+                var outputs = await _impl.ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
+                WriteOutputs(context, outputs);
+                return BlockResult.Ok();
             }
-            catch (Exception ex) when (_policy.Guarded && ex is not OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // TryGuard（G4）：受保护节点失败 → 吞并继续（不产输出）。
-                // 置成功位：StagePipeline 对「非成功」阶段 fail-fast 短路，故受保护失败须显式标记为「已收敛」以续行。
-                context.SetStageResult(_node.Id, true);
+                return BlockResult.Abort($"节点 '{_node.Id}' 执行被取消。");
+            }
+            catch (Exception ex)
+            {
+                return BlockResult.Fail(ex.Message, ex);
             }
         }
 
-        /// <summary>入参按编译期绑定表装配（零逐节点重扫 Wire / EntrySymbol / 数据流符号）。</summary>
-        private Dictionary<string, object?> BuildInputs(PipelineContext context)
+        private async Task<BlockResult> RunFallbackAsync(
+            BlockContext context,
+            BlockResult last,
+            CancellationToken cancellationToken)
+        {
+            if (_altKind is null)
+                return last;
+
+            var inputs = BuildInputs(context);
+            var outputs = await _resolveNode(_altKind)
+                .ExecuteAsync(inputs, cancellationToken)
+                .ConfigureAwait(false);
+
+            WriteOutputs(context, outputs);
+            return BlockResult.Ok($"失败兜底已执行（{last.Message}）");
+        }
+
+        private Dictionary<string, object?> BuildInputs(BlockContext context)
         {
             var inputs = new Dictionary<string, object?>(_bindings.Count, StringComparer.Ordinal);
             foreach (var binding in _bindings)
             {
-                if (DataflowValueResolver.TryResolve(context.SharedData, binding, out var value))
+                if (DataflowValueResolver.TryResolve(context.Data, binding, out var value))
                     inputs[binding.Port] = value;
             }
             return inputs;
         }
 
-        /// <summary>重试（G4 机制，指数退避）+ 失败路由（Fallback/CatchRoute）后执行节点体。</summary>
-        private async Task<IReadOnlyDictionary<string, object?>?> RunWithPolicyAsync(
-            PipelineContext context, CancellationToken cancellationToken)
+        private void WriteOutputs(
+            BlockContext context,
+            IReadOnlyDictionary<string, object?>? outputs)
         {
-            var inputs = BuildInputs(context);
+            if (outputs is null)
+                return;
 
-            // 无任一机制（无重试/退避/失败路由/守卫）⇒ 直接执行，跳过空策略分支（与逐字段判定等价）。
-            if (!_policy.HasAny)
-                return await _impl.ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
-
-            var attempts = Math.Max(1, _policy.RetryMaxAttempts);
-            Exception? last = null;
-
-            for (var attempt = 1; attempt <= attempts; attempt++)
-            {
-                try
-                {
-                    return await _impl.ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw; // 取消原样上抛，不归为失败、不重试
-                }
-                catch (Exception ex)
-                {
-                    last = ex;
-                    if (attempt < attempts && _policy.RetryBackoffBaseMs > 0)
-                        await Task.Delay(
-                                TimeSpan.FromMilliseconds(_policy.RetryBackoffBaseMs * Math.Pow(2, attempt - 1)),
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                }
-            }
-
-            // 失败路由：主路径用尽 → 备选/补救节点（同入参），产物仍以本节点 Id 写入上下文（下游无感）。
-            if (_altKind is not null)
-                return await _resolveNode(_altKind).ExecuteAsync(inputs, cancellationToken).ConfigureAwait(false);
-
-            throw last!;
+            foreach (var kv in outputs)
+                context.Data[$"${_node.Id}.{kv.Key}"] = kv.Value;
         }
 
-        /// <summary>判定键取值（结构化布尔事实；缺键/假 ⇒ 不激活）。</summary>
+        /// <summary>单条路由条件求值：Truthy/Falsy 布尔判定；AnyOf/NoneOf 集合匹配。</summary>
+        private static bool GateHolds(IDictionary<string, object?> data, RouteBinding gate)
+            => gate.Match switch
+            {
+                RouteMatch.Truthy => JudgeHolds(data, gate.WhenKey),
+                RouteMatch.Falsy => !JudgeHolds(data, gate.WhenKey),
+                RouteMatch.AnyOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: true),
+                RouteMatch.NoneOf => ValueInSet(data, gate.WhenKey, gate.MatchValues, wantMatch: false),
+                _ => JudgeHolds(data, gate.WhenKey),
+            };
+
+        private static bool ValueInSet(
+            IDictionary<string, object?> data,
+            string key,
+            IReadOnlyList<string>? values,
+            bool wantMatch)
+        {
+            var actual = data.TryGetValue(key, out var value) ? value?.ToString() : null;
+            var hit = false;
+            if (actual is not null && values is not null)
+            {
+                foreach (var candidate in values)
+                {
+                    if (string.Equals(candidate, actual, StringComparison.Ordinal))
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+            return wantMatch ? hit : !hit;
+        }
+
         private static bool JudgeHolds(IDictionary<string, object?> data, string key)
         {
-            if (!data.TryGetValue(key, out var value)) return false;
+            if (!data.TryGetValue(key, out var value))
+                return false;
+
             return value switch
             {
                 null => false,
@@ -213,3 +252,4 @@ public static class CircuitEngine
         }
     }
 }
+

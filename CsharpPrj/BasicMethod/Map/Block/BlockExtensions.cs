@@ -86,5 +86,37 @@ namespace BasicMethod.Block
 
         public static BlockDiagnostic[] GetSkippedBlocks(this PipelineResult result)
             => result.Diagnostics.Where(d => d.Status == BlockStatus.Skipped).ToArray();
+
+        public static string ToDiagnosticString(this BlockRunResult result)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══ 管线执行报告（BlockRunResult）═══");
+            sb.AppendLine($"║ 整体状态: {result.Outcome}（OverallSuccess={result.OverallSuccess}）");
+            sb.AppendLine($"║ 总耗时: {result.TotalDuration.TotalMilliseconds:F1}ms");
+            sb.AppendLine($"║ 成功: {result.SuccessCount} | 失败: {result.FailedCount} | 跳过: {result.SkippedCount} | 中止: {result.AbortedCount}");
+            sb.AppendLine("╠═══ 块诊断详情 ═══");
+
+            foreach (var diag in result.Diagnostics)
+            {
+                sb.AppendLine($"║ [{diag.Outcome}] {diag.BlockName}（尝试 {diag.Attempts} 次）");
+                sb.AppendLine($"║   耗时: {diag.Duration.TotalMilliseconds:F1}ms");
+                if (diag.Message != null)
+                    sb.AppendLine($"║   消息: {diag.Message}");
+                if (diag.Exception != null)
+                    sb.AppendLine($"║   异常: {diag.Exception.Message}");
+            }
+
+            sb.AppendLine("╚═══ 报告结束 ═══");
+            return sb.ToString();
+        }
+
+        public static BlockDiagnostic[] GetFailedBlocks(this BlockRunResult result)
+            => result.Diagnostics.Where(d => d.Outcome == BlockOutcome.Failed).ToArray();
+
+        public static BlockDiagnostic[] GetSuccessfulBlocks(this BlockRunResult result)
+            => result.Diagnostics.Where(d => d.Outcome == BlockOutcome.Success).ToArray();
+
+        public static BlockDiagnostic[] GetSkippedBlocks(this BlockRunResult result)
+            => result.Diagnostics.Where(d => d.Outcome == BlockOutcome.Skipped).ToArray();
     }
 }

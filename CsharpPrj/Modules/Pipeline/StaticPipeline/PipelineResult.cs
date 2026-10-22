@@ -13,7 +13,9 @@ namespace Modules.Pipeline.StaticPipeline
 
         PartialSuccess,
 
-        Failed
+        Failed,
+
+        Aborted
     }
 
 
@@ -94,6 +96,11 @@ namespace Modules.Pipeline.StaticPipeline
             IReadOnlyList<StepTiming>? timings = null)
             => new(PipelineResultStatus.Failed, errors, timings);
 
+        public static PipelineResult Aborted(
+            List<StepError>? errors = null,
+            IReadOnlyList<StepTiming>? timings = null)
+            => new(PipelineResultStatus.Aborted, errors, timings);
+
         public StepError? FirstFatalError
             => Errors.FirstOrDefault(e => e.IsFatal);
 
@@ -116,6 +123,8 @@ namespace Modules.Pipeline.StaticPipeline
                     => $"PartialSuccess{timingInfo} ({Errors.Count} non-fatal errors)",
                 PipelineResultStatus.Failed
                     => $"Failed{timingInfo} ({Errors.Count} errors, {Errors.Count(e => e.IsFatal)} fatal)",
+                PipelineResultStatus.Aborted
+                    => $"Aborted{timingInfo} ({Errors.Count} errors)",
                 _ => Status.ToString()
             };
         }

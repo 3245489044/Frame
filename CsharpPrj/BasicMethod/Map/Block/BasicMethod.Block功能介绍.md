@@ -31,39 +31,65 @@ public interface IBlock
 {
     string Name { get; }
     string Description { get; }
+    BlockPolicy Policy => BlockPolicy.Default;   // 条件/重试/超时/收敛/兜底
     Task<BlockResult> ExecuteAsync(BlockContext context, CancellationToken ct = default);
 }
 ```
 
-### BlockContext — 块上下文
+### BlockPolicy — 唯一策略面
+
+```csharp
+new BlockPolicy
+{
+    IsFatal = true,                       // 失败是否短路
+    CanExecute = ctx => ...,              // 条件（异常 → Failed 诊断）
+    MaxRetries = 2,                       // 总尝试 = MaxRetries + 1
+    RetryDelay = TimeSpan.FromMilliseconds(100),
+    RetryBackoff = BlockRetryBackoff.Exponential,
+    Timeout = TimeSpan.FromSeconds(5),    // 超时 → Failed(fatal)
+    Guarded = true,                       // 失败收敛（原 Circuit Guard）
+    FallbackAsync = (ctx, last, ct) => ... // 重试耗尽后的兜底
+};
+```
+
+### BlockContext — 唯一阶段账本
 
 ```csharp
 public class BlockContext
 {
-    public Dictionary<string, object?> Data { get; }      // 块间数据传递
-    public List<BlockDiagnostic> Diagnostics { get; }     // 诊断记录
+    public IDictionary<string, object?> Data { get; }              // 块间数据
+    public ConcurrentDictionary<string, BlockDiagnostic> StageResults { get; } // 唯一账本
+    public IReadOnlyList<BlockDiagnostic> Diagnostics { get; }
     public CancellationToken CancellationToken { get; set; }
-    
-    public T? Get<T>(string key);                         // 获取数据
-    public void Set<T>(string key, T value);              // 设置数据
-    public bool TryGet<T>(string key, out T? value);      // 尝试获取
+
+    public T? Get<T>(string key);
+    public void Set<T>(string key, T value);
+    public bool IsSuccess(string block);
+    public BlockContext CreateChild();                             // 批处理：独立账本
+    public void Cancel(string? reason = null);                     // 幂等
 }
 ```
 
-### ExecutionPipeline — 执行管线
+### BlockPipeline — 装配 + 执行
 
 ```csharp
-public class ExecutionPipeline : IBlockPipeline
+var pipeline = new BlockPipeline("MyPipeline")
+    .Add(new DelegateBlock("Step1", _ => BlockResult.Ok()))
+    .Add(new DelegateBlock("Step2", _ => BlockResult.Ok()));
+
+BlockRunResult result = await pipeline.RunAsync();
+```
+
+### ExecutionPipeline — 旧签名兼容壳
+
+```csharp
+[Obsolete] public class ExecutionPipeline : IBlockPipeline
 {
-    public ExecutionPipeline AddBlock(IBlock block);      // 注册块
-    public ExecutionPipeline AddBlock<T>() where T : IBlock, new();
-    public ExecutionPipeline InsertBefore(string name, IBlock block);
-    public ExecutionPipeline InsertAfter(string name, IBlock block);
-    public ExecutionPipeline Remove(string name);
-    
-    public Task<PipelineResult> RunAsync(BlockContext? context = null, CancellationToken ct = default);
+    public bool FailFast { get; set; }    // false = 非致命失败继续（旧默认）
+    Task<PipelineResult> RunAsync(...);   // 内部委托 BlockRunner
 }
 ```
+
 
 ## 使用示例
 
@@ -75,14 +101,14 @@ var pipeline = new ExecutionPipeline("MyPipeline");
 pipeline.AddBlock(new DelegateBlock("Step1", ctx =>
 {
     Console.WriteLine("Step 1");
-    return BlockResult.Success();
+    return BlockResult.Ok();
 }));
 
 pipeline.AddBlock(new DelegateBlock("Step2", ctx =>
 {
     var data = ctx.Get<string>("key");
     Console.WriteLine($"Step 2: {data}");
-    return BlockResult.Success();
+    return BlockResult.Ok();
 }));
 
 var result = await pipeline.RunAsync();
@@ -100,7 +126,7 @@ public class MyBlock : BlockBase
     {
         // 业务逻辑
         ctx.Set("result", 42);
-        return BlockResult.Success("执行完成");
+        return BlockResult.Ok("执行完成");
     }
 }
 ```
@@ -118,7 +144,7 @@ public class ConditionalMyBlock : ConditionalBlockBase
     public override async Task<BlockResult> ExecuteAsync(BlockContext ctx, CancellationToken ct)
     {
         // 条件满足时执行的逻辑
-        return BlockResult.Success();
+        return BlockResult.Ok();
     }
 }
 ```
@@ -138,7 +164,7 @@ public class DiagnosticMyBlock : DiagnosticBlockBase
     
     public override async Task<BlockResult> ExecuteAsync(BlockContext ctx, CancellationToken ct)
     {
-        return BlockResult.Success();
+        return BlockResult.Ok();
     }
     
     public override void PostDiagnostic(BlockContext ctx, BlockResult result)
@@ -157,8 +183,8 @@ pipeline.AddBlock(new DiagnosticBlock("CheckData", ctx => ctx.Get<int>("count") 
 // 条件分支
 pipeline.AddBlock(new ConditionalBlock("Branch", 
     ctx => ctx.Get<bool>("flag"),
-    new DelegateBlock("TrueBranch", ctx => BlockResult.Success()),
-    new DelegateBlock("FalseBranch", ctx => BlockResult.Success())));
+    new DelegateBlock("TrueBranch", ctx => BlockResult.Ok()),
+    new DelegateBlock("FalseBranch", ctx => BlockResult.Ok())));
 
 // 超时控制
 pipeline.AddBlock(new TimeoutBlock("TimedOp", innerBlock, TimeSpan.FromSeconds(5)));
@@ -199,10 +225,17 @@ Console.WriteLine(result.ToDiagnosticString());
 
 | 文件 | 职责 |
 |------|------|
-| `Interfaces.cs` | 核心接口（IBlock、IBlockPipeline、IBlockDiagnosticProvider、IBlockCondition、IBlockRetry） |
-| `BlockContext.cs` | 块上下文与结果类型（BlockContext、BlockResult、BlockDiagnostic、PipelineResult、BlockStatus） |
+| `Interfaces.cs` | 核心接口（IBlock、IBlockPipeline、IBlockDiagnosticProvider、IBlockCondition、IBlockRetry）；`IBlock.Policy` 默认实现 |
+| `BlockOutcome.cs` | 四态结论（Success/Skipped/Failed/Aborted）与整条管线结论 |
+| `BlockResult.cs` | 单块结果（含 Attempts/Converged） |
+| `BlockDiagnostic.cs` | 阶段账本条目（兼容旧构造 + 新字段） |
+| `BlockPolicy.cs` | 唯一策略面（条件/致命性/重试/退避/超时/收敛/兜底） |
+| `BlockContext.cs` | 唯一阶段账本（Data/StageResults/Diagnostics/Cancel/CreateChild） |
+| `BlockRunner.cs` | **全仓唯一执行循环**（条件/重试/超时/兜底/记账） |
+| `BlockPipeline.cs` | 新内核管线（装配 fail-fast + RunAsync → BlockRunResult） |
+| `BlockRunResult.cs` | 唯一结果类型 + `PipelineResult` 兼容壳 |
+| `ExecutionPipeline.cs` | 旧签名兼容壳（内部委托 BlockRunner，保留 FailFast 语义） |
 | `BlockBase.cs` | 抽象基类（BlockBase、DelegateBlock、ConditionalBlockBase、RetryBlockBase、DiagnosticBlockBase） |
-| `ExecutionPipeline.cs` | 执行管线实现 |
 | `BuiltInBlocks.cs` | 内置块（DiagnosticBlock、ConditionalBlock、TimeoutBlock、LogBlock、SequenceBlock、DelayBlock） |
-| `BlockExtensions.cs` | 扩展方法 |
+| `BlockExtensions.cs` | 扩展方法（旧/新结果诊断输出） |
 | `BasicMethod.Block功能介绍.md` | 功能介绍文档 |

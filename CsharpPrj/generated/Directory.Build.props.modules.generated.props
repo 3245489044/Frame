@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-20 12:33:51
+  生成时间: 2026-10-22 13:07:30
 -->
 <Project>
 
@@ -90,6 +90,7 @@
     <Mod_HttpMethod_Transport>$(CsharpPrjDir)Plate\HttpMethod\</Mod_HttpMethod_Transport>
     <Mod_JsonMethod>$(CsharpPrjDir)Plate\JsonMethod\</Mod_JsonMethod>
     <Mod_Logic>$(CsharpPrjDir)Plate\Logic\</Mod_Logic>
+    <Mod_PowerShellHost>$(CsharpPrjDir)Plate\PowerShellHost\</Mod_PowerShellHost>
     <Mod_MarkdownViewer>$(CsharpPrjDir)Plate\MarkdownViewer\</Mod_MarkdownViewer>
     <Mod_Mathematics>$(CsharpPrjDir)Plate\Mathematics\</Mod_Mathematics>
     <Mod_Plate>$(CsharpPrjDir)Plate\</Mod_Plate>
@@ -171,7 +172,6 @@
     <Proj_EventFramework>$(CsharpPrjDir)Modules\EventFramework\EventFramework.csproj</Proj_EventFramework>
     <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
-    <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
     <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>
@@ -209,6 +209,7 @@
     <Proj_HttpMethod_Transport>$(CsharpPrjDir)Plate\HttpMethod\HttpMethod.Transport.csproj</Proj_HttpMethod_Transport>
     <Proj_JsonMethod>$(CsharpPrjDir)Plate\JsonMethod\JsonMethod.csproj</Proj_JsonMethod>
     <Proj_Logic>$(CsharpPrjDir)Plate\Logic\Logic.csproj</Proj_Logic>
+    <Proj_PowerShellHost>$(CsharpPrjDir)Plate\PowerShellHost\PowerShellHost.csproj</Proj_PowerShellHost>
     <Proj_MarkdownViewer>$(CsharpPrjDir)Plate\MarkdownViewer\MarkdownViewer.csproj</Proj_MarkdownViewer>
     <Proj_Mathematics>$(CsharpPrjDir)Plate\Mathematics\Mathematics.csproj</Proj_Mathematics>
     <Proj_Plate>$(CsharpPrjDir)Plate\Plate.csproj</Proj_Plate>

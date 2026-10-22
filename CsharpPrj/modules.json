@@ -112,6 +112,7 @@
     "HttpMethod.Transport": "Plate\\HttpMethod\\HttpMethod.Transport.csproj",
     "JsonMethod": "Plate\\JsonMethod\\JsonMethod.csproj",
     "Logic": "Plate\\Logic\\Logic.csproj",
+    "PowerShellHost": "Plate\\PowerShellHost\\PowerShellHost.csproj",
     "MarkdownViewer": "Plate\\MarkdownViewer\\MarkdownViewer.csproj",
     "Mathematics": "Plate\\Mathematics\\Mathematics.csproj",
     "Plate": "Plate\\Plate.csproj",

@@ -13,7 +13,7 @@ namespace Share.StateManagement
         public void AddBlock(BlockBase block)
         {
             PortGuard.Required(block, nameof(block));
-            _blocks.Add(block);
+            base.AddBlock(block);
         }
 
         public async Task<PipelineResult> RunAsync(BlockContext context)

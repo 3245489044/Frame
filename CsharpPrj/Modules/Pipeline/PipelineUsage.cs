@@ -328,12 +328,6 @@ namespace Modules.Pipeline
             return new Pipeline();
         }
 
-        public static Pipeline<TIn, TOut> CreatePipeline<TIn, TOut>()
-            where TOut : class
-        {
-            return new Pipeline<TIn, TOut>();
-        }
-
         public static IStagePipeline<TContext> CreateStagePipeline<TContext>(
             string name,
             string? description = null)

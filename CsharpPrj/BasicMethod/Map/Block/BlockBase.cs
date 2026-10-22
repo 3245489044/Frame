@@ -13,6 +13,8 @@ namespace BasicMethod.Block
 
         public string Description { get; }
 
+        public virtual BlockPolicy Policy => BlockPolicy.Default;
+
         protected BlockBase(string name, string? description = null)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));

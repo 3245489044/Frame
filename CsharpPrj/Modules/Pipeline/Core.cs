@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BasicMethod.Block;
+using Modules.Pipeline.Kernel;
 using SkeletonFlow;
 using TConfig;
 
@@ -104,13 +106,17 @@ namespace Modules.Pipeline
         public void Cancel(string? reason = null)
         {
             CancelReason = reason;
-            if (_cancelCts != null && !_cancelCts.IsCancellationRequested)
+
+            if (_cancelCts != null)
             {
-                _cancelCts.Cancel();
-                CancellationToken = _cancelCts.Token;
-                return;
+                if (!_cancelCts.IsCancellationRequested)
+                    _cancelCts.Cancel();
+                return; // 幂等：token 身份保持稳定（E13）
             }
-            _cancelCts?.Dispose();
+
+            if (CancellationToken.IsCancellationRequested)
+                return;
+
             _cancelCts = new CancellationTokenSource();
             _cancelCts.Cancel();
             CancellationToken = _cancelCts.Token;
@@ -221,6 +227,11 @@ namespace Modules.Pipeline
         {
             if (_syncWithCtx != null)
                 return _syncWithCtx(input, ctx);
+
+            if (_asyncWithCtx != null)
+                throw new InvalidOperationException(
+                    "DelegatePipeline with async context delegate must be executed via ExecuteAsync(input, context).");
+
             return _inner.Execute(input);
         }
 
@@ -228,6 +239,11 @@ namespace Modules.Pipeline
         {
             if (_asyncWithCtx != null)
                 return _asyncWithCtx(input, ctx);
+
+            if (_syncWithCtx != null)
+                throw new InvalidOperationException(
+                    "DelegatePipeline with sync context delegate must be executed via Execute(input, context).");
+
             return _inner.ExecuteAsync(input);
         }
     }
@@ -413,6 +429,7 @@ namespace Modules.Pipeline
 
 
 
+    [Obsolete("旧链式阶段；新代码使用 IBlock / BlockPolicy。")]
     public interface IPipelineStage<TInput, TOutput>
     {
         string Name { get; }
@@ -424,6 +441,7 @@ namespace Modules.Pipeline
         TOutput? Process(TInput input, ErrorCollector errors, PipelineContext context);
     }
 
+    [Obsolete("旧阶段集合管线（非泛型）；新代码使用 BlockPipeline / IBlock。")]
     public interface IPipelineStage
     {
         string Name { get; }
@@ -489,6 +507,7 @@ namespace Modules.Pipeline
 
 
 
+    [Obsolete("旧阶段集合管线；新代码使用 BlockPipeline / IBlock。")]
     public class Pipeline : StageCollection<IPipelineStage>
     {
         protected readonly ErrorCollector _globalErrors = new();
@@ -596,95 +615,6 @@ namespace Modules.Pipeline
     }
 
 
-    public class Pipeline<TInput, TOutput> : StageCollection<IPipelineStage<TInput, TOutput>>
-        where TOutput : class
-    {
-        protected readonly ErrorCollector _globalErrors = new();
-
-        public Pipeline<TInput, TOutput> RegisterStage(IPipelineStage<TInput, TOutput> stage)
-        {
-            AddAndSort(stage, s => s.Order);
-            return this;
-        }
-
-        public Pipeline<TInput, TOutput> RegisterStages(IEnumerable<IPipelineStage<TInput, TOutput>> stages)
-        {
-            AddRangeAndSort(stages, s => s.Order);
-            return this;
-        }
-
-        public PipelineResult<TOutput> Execute(TInput input, string? sourceFile = null)
-        {
-            var context = new PipelineContext { SourceFile = sourceFile };
-            var errors = new ErrorCollector();
-            TOutput? result = default;
-            bool hasNonFatalErrors = false;
-
-            ExecuteStages(_stages, input, ref result, errors, context, ref hasNonFatalErrors);
-
-            errors.Merge(_globalErrors);
-
-            if (errors.HasFatalErrors)
-                return PipelineResult<TOutput>.Aborted(errors);
-            if (errors.HasRealErrors || hasNonFatalErrors)
-                return PipelineResult<TOutput>.Failed(errors);
-
-            if (result == null)
-            {
-                errors.Add("ALL_STAGES_FAILED", "所有 Stage 均返回 null，无法生成有效结果", ErrorLevel.Error);
-                return PipelineResult<TOutput>.Failed(errors);
-            }
-
-            if (errors.HasWarnings || errors.HasInfos)
-                return PipelineResult<TOutput>.CompletedWithWarnings(result, result, errors);
-
-            return PipelineResult<TOutput>.Successful(result, result);
-        }
-
-        protected static void ExecuteStages(
-            IReadOnlyList<IPipelineStage<TInput, TOutput>> stages,
-            TInput input,
-            ref TOutput? result,
-            ErrorCollector errors,
-            PipelineContext context,
-            ref bool hasNonFatalErrors)
-        {
-            foreach (var stage in stages)
-            {
-                try
-                {
-                    result = stage.Process(input, errors, context);
-
-                    if (result == null)
-                    {
-                        PipelineStageDiagnostics.ReportNullResult(errors, stage.Name, stage.IsFatal);
-
-                        if (stage.IsFatal)
-                            return;
-
-                        hasNonFatalErrors = true;
-                        result = default;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"STAGE_{stage.Name.ToUpper()}_EXCEPTION",
-                        $"Stage '{stage.Name}' 抛出异常：{ex.Message}",
-                        stage.IsFatal ? ErrorLevel.Fatal : ErrorLevel.Error,
-                        ex);
-
-                    if (stage.IsFatal)
-                        return;
-
-                    hasNonFatalErrors = true;
-                    result = default;
-                }
-            }
-        }
-    }
-
-
-
     /// <summary>阶段诊断构造复用（D5）：两 <c>ExecuteStages</c> 的「返回 null」失败诊断单一来源。</summary>
     internal static class PipelineStageDiagnostics
     {
@@ -736,6 +666,7 @@ namespace Modules.Pipeline
     }
 
 
+    [Obsolete("兼容适配层：内部已委托 BlockRunner；新代码使用 BlockPipeline。")]
     public class StagePipeline<TContext> : StageCollection<IPipelineStage<TContext>>, IStagePipeline<TContext>
         where TContext : IPipelineContext
     {
@@ -791,22 +722,33 @@ namespace Modules.Pipeline
 
         public async Task ExecuteAsync(TContext context, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(context);
+
+            var blocks = new List<IBlock>(_stages.Count);
             foreach (var stage in _stages)
+                blocks.Add(new StageBlockAdapter<TContext>(stage, context));
+
+            var blockContext = BlockContextBridge.Create(context, cancellationToken);
+            var result = await BlockRunner.Shared
+                .RunAsync(blocks, blockContext, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result.Outcome == BlockRunOutcome.Aborted)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                throw new OperationCanceledException("Pipeline aborted.");
+            }
 
-                if (!stage.CanExecute(context))
-                {
-                    context.SetStageResult(stage.Name, true);
-                    continue;
-                }
+            if (result.Outcome == BlockRunOutcome.Failed)
+            {
+                var fatal = result.Diagnostics.FirstOrDefault(
+                    d => d.Outcome == BlockOutcome.Failed
+                         && d.Fatal
+                         && !d.Converged
+                         && d.Exception is not null);
 
-                await stage.ExecuteAsync(context, cancellationToken);
-
-                if (!context.GetStageSuccess(stage.Name))
-                {
-                    break;
-                }
+                if (fatal?.Exception is not null)
+                    throw fatal.Exception;
             }
         }
 

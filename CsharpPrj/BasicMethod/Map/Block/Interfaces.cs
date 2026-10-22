@@ -14,6 +14,12 @@ namespace BasicMethod.Block
 
         string Description { get; }
 
+        /// <summary>
+        /// 块策略（条件 / 致命性 / 重试 / 超时 / 收敛 / 兜底）。
+        /// 默认实现返回 <see cref="BlockPolicy.Default"/>，既有实现方无需修改。
+        /// </summary>
+        BlockPolicy Policy => BlockPolicy.Default;
+
         Task<BlockResult> ExecuteAsync(BlockContext context, CancellationToken cancellationToken = default);
     }
 

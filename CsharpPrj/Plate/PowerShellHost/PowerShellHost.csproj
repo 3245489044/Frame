@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>PowerShell 宿主定位</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>PowerShell 宿主可执行定位的唯一实现（零依赖，仅 BCL）：显式配置 → 环境变量 → Store 包族 → 常规安装位 → PATH；可用性判据 = 存在 ∧ 非空目标重解析点 ∧ 长度 &gt; 0。供 Agent（PsRuntime）与 FileDriven（产代构建）共用，消除两套解析实现。</ModuleRule_Description>
+    <ModuleRule_Keywords>PowerShell;pwsh;可执行解析;Store;别名;单一实现</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零 ProjectReference 为硬约束：仅 BCL，宿主与扩展侧均可直接消费" />
+    <ModuleRule_Rule Include="WindowsApps 语义仅在本工程判定；调用方禁再写别名/包族特判" />
+    <ModuleRule_Rule Include="失败只抛 PowerShellHostNotFoundException（稳定码 + 短消息），全量候选走 detail 出口" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Plate.PowerShellHost</RootNamespace>
+    <AssemblyName>Plate.PowerShellHost</AssemblyName>
+    <Description>PowerShell 宿主定位 —— 单一实现（配置/环境变量/Store 包族/安装位/PATH）</Description>
+  </PropertyGroup>
+
+</Project>

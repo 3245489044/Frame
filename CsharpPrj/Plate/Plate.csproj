@@ -43,6 +43,8 @@
     <Compile Remove="WinFormsValueContract\**\*.cs" />
     <!-- ★ Logic：独立子项目（纯函数逻辑算子库），聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
     <Compile Remove="Logic\**\*.cs" />
+    <!-- ★ PowerShellHost：独立子项目（可执行定位单源），聚合项目经 ProjectReference 引用，须排除源码避免重复编译 -->
+    <Compile Remove="PowerShellHost\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,6 +68,7 @@
     <ProjectReference Include="$(Proj_RoslynMethod_Core)" />
     <!-- ★ Logic 独立子项目（纯函数逻辑算子库） -->
     <ProjectReference Include="$(Proj_Logic)" />
+    <ProjectReference Include="$(Proj_PowerShellHost)" />
 
 
   </ItemGroup>

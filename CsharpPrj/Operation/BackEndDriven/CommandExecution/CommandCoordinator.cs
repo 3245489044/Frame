@@ -392,6 +392,10 @@ public class CommandSystemCoordinator
             return;
         }
 
+        // 失败熔断（统一口径）：命令自行标记 Failed（assert/exec 断言等）同样必须停脚本，
+        // 不能因绕过 MarkFailed 而让前置门失效。受 FILEDRIVEN_HALT_ON_FAILURE 控制。
+        ApplyFailureHalt(entity, meta, ctx);
+
         // halt 语义：exit/close 请求 → 停止后续命令（原 StopRequested 死代码修复）
         if (ctx != null
             && (_entityManager.HasComponent<ExitRequestComponent>(entity)
@@ -485,6 +489,9 @@ public class CommandSystemCoordinator
             return;
         }
 
+        // 失败熔断（统一口径）：命令自行标记 Failed 也必须停脚本（assert/exec 断言等）。
+        ApplyFailureHalt(entity, meta, ctx);
+
         // 真实推进心跳：命令成功 = 有进度（失败不续命，防假活）。
         if (_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var finalStatus)
             && finalStatus.State == CommandState.Success)
@@ -499,6 +506,23 @@ public class CommandSystemCoordinator
         {
             ctx.StopRequested = true;
         }
+    }
+
+    /// <summary>
+    /// 命令级失败熔断（单写者：终止作用域）。命令体可经 <c>SetFailure</c> 自行标记失败而不经
+    /// <see cref="MarkFailed"/>，此处统一补齐终止语义；<c>FILEDRIVEN_HALT_ON_FAILURE=off</c> 可回滚。
+    /// </summary>
+    private void ApplyFailureHalt(Entity entity, CommandMetaComponent meta, CommandPipelineContext? ctx)
+    {
+        if (!HaltOnFailure) return;
+        if (!_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var status)
+            || status.State != CommandState.Failed)
+            return;
+
+        var scope = ctx?.Termination ?? TerminationScope.Current;
+        scope?.Terminate(TerminationReason.Failed,
+            status.ErrorMessage ?? $"cmd:{meta.Index} failed");
+        if (ctx is not null) ctx.StopRequested = true;
     }
 
     /// <summary>命令启动前的空闲熔断（单命令路径与管线路径共用；idle 超窗即强制退出，不执行该命令）。</summary>

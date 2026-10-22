@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Linq;
 using ECS.Components;
 using ECS.Core;
 using Modules.Threading;
@@ -48,7 +49,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             return;
         }
 
-        if (!TryParse(meta, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget))
+        if (!TryParse(meta, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget, out var failTokens))
         {
             SetFailure(entity, "wait-until: 缺少 expectedContains（空期望恒真，拒绝静默通过）");
             return;
@@ -59,6 +60,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         var token = scope?.Token ?? CancellationToken.None;
         string? lastText = null;
         var matched = false;
+        var failedByTerminal = false;
 
         while (true)
         {
@@ -108,6 +110,13 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
                 lastText = ex.Message;
             }
 
+            // 终态短路：任务已进入失败终态（Faulted/Cancelled/Failed/Error）⇒ 立即失败，不白等到 timeout。
+            if (!matched && MatchesFailure(lastText, failTokens))
+            {
+                failedByTerminal = true;
+                break;
+            }
+
             if (matched || Environment.TickCount64 >= deadline) break;
 
             var delay = intervalMs;
@@ -138,12 +147,28 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         }
 
         var detail = string.IsNullOrWhiteSpace(lastText) ? "(空)" : LogTextTruncation.TruncateForLog(lastText);
+
+        if (failedByTerminal)
+        {
+            scope?.Terminate(TerminationReason.Failed,
+                $"wait-until '{probe}' 命中终态失败（failWhen）");
+            SetFailure(entity,
+                $"wait-until '{probe}' 终态失败（命中 failWhen）: '{detail}'");
+            return;
+        }
+
         // 超时 = 无进展终止：先请求强制退出（作用域存在时后续命令不再执行），再显式失败（不吞成普通失败）。
         scope?.Terminate(TerminationReason.IdleHung,
             $"wait-until '{probe}' 未在 {timeoutMs}ms 内命中 '{expectedContains}'");
         SetFailure(entity,
             $"wait-until '{probe}' 超时（{timeoutMs}ms）: 结果不含 '{expectedContains}' — 最后一次 '{detail}'");
     }
+
+    /// <summary>终态失败判据（纯函数）：探测文本命中任一失败词即真（空词表/空文本恒假）。</summary>
+    public static bool MatchesFailure(string? text, IReadOnlyList<string> failTokens)
+        => !string.IsNullOrWhiteSpace(text)
+           && failTokens is { Count: > 0 }
+           && failTokens.Any(token => text.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>解析命令面：expectedContains/contains（条件）、timeout/interval/output（命令级），其余为探测函数参数。</summary>
     private static bool TryParse(
@@ -152,13 +177,15 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         out string expectedContains,
         out int timeoutMs,
         out int intervalMs,
-        out string? outputTarget)
+        out string? outputTarget,
+        out IReadOnlyList<string> failTokens)
     {
         parameters = new Dictionary<string, object?>();
         expectedContains = string.Empty;
         timeoutMs = DefaultTimeoutMs;
         intervalMs = DefaultIntervalMs;
         outputTarget = null;
+        failTokens = Array.Empty<string>();
 
         if (meta.Parameters != null)
         {
@@ -195,6 +222,20 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         {
             outputTarget = o.ToString();
             parameters.Remove("output");
+        }
+
+        // failWhen/failContains：终态失败词表（逗号或竖线分隔）；命中即短路失败，不等到 timeout。
+        if (parameters.TryGetValue("failWhen", out var fw) && fw != null)
+            parameters.Remove("failWhen");
+        else if (parameters.TryGetValue("failContains", out fw) && fw != null)
+            parameters.Remove("failContains");
+
+        if (fw != null)
+        {
+            failTokens = fw.ToString()?
+                .Split(new[] { ',', '|', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray() ?? Array.Empty<string>();
         }
 
         return true;

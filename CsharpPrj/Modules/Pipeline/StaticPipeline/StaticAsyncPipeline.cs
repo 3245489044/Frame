@@ -69,6 +69,13 @@ namespace Modules.Pipeline.StaticPipeline
                 var fatal = result.FirstFatalError!;
                 throw new StepExecutionException(fatal.StepName, fatal.Exception);
             }
+
+            // E4：非致命错误也必须可观测（“OrThrow”契约覆盖 PartialSuccess）。
+            var first = result.FirstError;
+            if (first is not null)
+                throw new StepExecutionException(first.StepName, first.Exception);
+
+            throw new StepExecutionException("Pipeline", new InvalidOperationException("管线未成功完成。"));
         }
     }
 }

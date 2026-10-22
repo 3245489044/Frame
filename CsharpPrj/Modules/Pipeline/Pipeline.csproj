@@ -14,6 +14,8 @@
   <ItemGroup>
     <!-- Common 已整合到 BasicMethod.csproj -->
     <ProjectReference Include="$(Proj_BasicMethod)" />
+    <!-- 执行内核：Pipeline 退化为公共 API 适配层，内部委托 BasicMethod.Block -->
+    <ProjectReference Include="$(Proj_Block)" />
   </ItemGroup>
 
   <ItemGroup>

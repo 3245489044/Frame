@@ -1,4 +1,12 @@
 @{
+    OrchestrationKernel = @{
+        Domain = 'Frame'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '编排内核单一性（Block 单内核 / Pipeline 适配 / Circuit 描述）：C1 Block 零引用 / C2 BasicMethod 禁反向依赖 / C3 执行循环与重试唯一 / C4 结果类型唯一 / C5 Pipeline 委托内核 / C6 Circuit 走 BlockPipeline / C7 正负对照'
+    }
+
     ShareMessagingBoundary = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }
@@ -1026,6 +1034,14 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '动作目录单源：运行期 CommandSystemCoordinator.RegisteredActions → 加载期 CommandLineValidator.SetRegisteredCommands 投影（FileDrivenPipelineRunner 恒注入）∧ wait-until 能力在位 ∧ 正/负对照'
+    }
+
+    PowerShellHostSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'PowerShell 宿主定位单源：Plate\PowerShellHost 唯一实现（Store 包族发现 + 结构可用性判据）∧ Agent/FileDriven 均委托 ∧ 全仓恰一处定义 ∧ 负对照（旧工具层命名空间不得残留）'
     }
 
     IntentContract = @{

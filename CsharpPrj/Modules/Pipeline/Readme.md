@@ -1,5 +1,11 @@
 # Share.Pipeline 使用指南
 
+> **v3.0（2026-10-22）执行内核收敛**：编排能力已下沉到 `BasicMethod.Block`（`BlockRunner` 为全仓唯一执行循环，
+> `BlockPolicy` 统一条件/重试/超时/收敛/兜底，`BlockRunResult` 为唯一结果）。本库退化为**公共 API 适配层**：
+> `StaticPipeline` / `StagePipeline` 保留原签名，内部委托 `BlockRunner`；新代码优先使用 `BlockPipeline`。
+> 旧类型（`Pipeline` / `Pipeline<TIn,TOut>` / `IPipelineStage`）保留一个版本周期并标记 `[Obsolete]`。
+
+
 ## 目录
 
 1. [项目概述](#1-项目概述)
@@ -945,6 +951,6 @@ guard.TryExecute(() => { /* 临界区 */ });
 ---
 
 > **相关文档**：`docs\管线化重构-下一步实施计划.md` —— 全仓「基于 Pipeline 重构」的边界与路线（该用/不该用、依赖红线矩阵、候选清单 Q0–Q4）  
-> **文档版本**：v2.0  
-> **最后更新**：2026-07-17  
+> **文档版本**：v3.0（执行内核收敛：Block 单内核 + Pipeline 适配）  
+> **最后更新**：2026-10-22  
 > **维护者**：WorkFlowPrj Team

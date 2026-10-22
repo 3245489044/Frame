@@ -79,6 +79,7 @@ namespace Modules.Pipeline
     }
 
 
+    [Obsolete("兼容适配层：新代码使用 IBlock / BlockPipeline。")]
     public interface IPipelineStage<TContext>
     {
         string Name { get; }
@@ -107,6 +108,9 @@ namespace Modules.Pipeline
 
         string? GetStageError(string stageName);
 
+        /// <summary>是否显式写账本（默认视为未记账：以执行结果判定，避免 E7 静默断链）。</summary>
+        bool IsStageExplicitlySet(string stageName) => false;
+
         bool HasError { get; }
 
         string? FirstError { get; }
@@ -115,6 +119,7 @@ namespace Modules.Pipeline
     }
 
 
+    [Obsolete("兼容适配层：新代码使用 BlockPipeline。")]
     public interface IStagePipeline<TContext> where TContext : IPipelineContext
     {
         string Name { get; }

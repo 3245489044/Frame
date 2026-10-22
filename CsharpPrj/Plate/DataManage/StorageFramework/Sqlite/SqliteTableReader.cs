@@ -30,6 +30,20 @@ public static class SqliteTableReader
         return session.ExecuteQuery($"SELECT * FROM [{table}] LIMIT {SqliteTablePolicy.ClampLimit(limit)}");
     }
 
+    /// <summary>只读分页查询单表（offset 从 0 起；LIMIT/OFFSET 下推）；表不存在/非法抛 <see cref="InvalidOperationException"/>。</summary>
+    public static IReadOnlyList<IReadOnlyDictionary<string, object>> ReadRows(
+        SqliteSession session, string table, int offset, int limit)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (string.IsNullOrWhiteSpace(table))
+            throw new InvalidOperationException("（空表名）");
+        if (!SqliteTablePolicy.IsUserTable(session, table))
+            throw new InvalidOperationException("（表不存在或非法）");
+        var off = Math.Max(0, offset);
+        var take = SqliteTablePolicy.ClampLimit(limit);
+        return session.ExecuteQuery($"SELECT * FROM [{table}] LIMIT {take} OFFSET {off}");
+    }
+
     /// <summary>渲染行集为 Markdown 表格（空集 → （空表））；表不存在/非法返回错误信息字符串。</summary>
     public static string ReadRowsMarkdown(SqliteSession session, string table, int? limit = null)
     {

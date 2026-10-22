@@ -22,6 +22,7 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
     private const string TableId = "SessionLogs";
     private const string FieldConversation = "Conversation";
     private const string FieldWatermark = "Watermark";
+    private const string FieldMessageCount = "MessageCount";
 
     private readonly IDocumentCodec _codec;
     private readonly ITableSchemaSource? _schemaSource;
@@ -73,10 +74,36 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
         {
             new KeyValuePair<string, UsharpValue>(FieldConversation, ParsePayload(merged.Serialize())),
             new KeyValuePair<string, UsharpValue>(FieldWatermark, UsharpScalar.Str(watermark.ToString())),
+            new KeyValuePair<string, UsharpValue>(FieldMessageCount, UsharpScalar.Str(merged.Messages.Count.ToString())),
         });
         var text = _codec.SerializeRecord("session_log:" + key.Value, TableId, key.Value, record);
         ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", key.Value), ("d", text)));
     }
+
+    /// <summary>消息数（优先读落库 MessageCount；旧行回退解码 Conversation，不改变空判据）。</summary>
+    public Task<int> CountMessagesAsync(SessionKey key, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (key.IsEmpty) return Task.FromResult(0);
+        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", key.Value)));
+        if (rows.Count == 0) return Task.FromResult(0);
+        var doc = SqliteRows.Str(rows[0], "Doc");
+        if (string.IsNullOrWhiteSpace(doc)) return Task.FromResult(0);
+        if (_codec.TryDeserializeRecord(doc, out _, out _, out _, out var body))
+        {
+            var raw = SqliteHistoryRootStore.ReadString(body, FieldMessageCount);
+            if (int.TryParse(raw, out var count) && count >= 0) return Task.FromResult(count);
+            if (body.TryGet(FieldConversation, out var value))
+            {
+                var log = ConversationLog.Deserialize(UsharpValueJson.ToJson(value));
+                return Task.FromResult(log.Messages.Count);
+            }
+        }
+        return Task.FromResult(0);
+    }
+
+    public async Task<bool> IsEmptyAsync(SessionKey key, CancellationToken ct = default)
+        => await CountMessagesAsync(key, ct).ConfigureAwait(false) == 0;
 
     public Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default)
     {

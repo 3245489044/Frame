@@ -19,8 +19,9 @@
       U9 事实行类型强制：单件基线的每个事实键须为含 Origin 的事实行（裸值/无 Origin 行即红）。
       U10 声明面路径存在性：声明面引用的 `…\Baselines\<X>.psd1` 必须存在（防声明面腐化）。
       U11 行形态唯一：事实行须为 `@{ Value; Origin; DueWhen }`（禁 `Baseline`/`RelativePath` 等第二形态）。
+      U12 分类索引双射：`_catalog.psd1` ↔ 文件系统双射；Role 受控；Data 的 Domain 与 GateManifests 同源、文件名 = <Gate>.psd1。
 
-    模式：默认报告模式；-Check 校验模式（U1..U5/U7..U11 违规 → 退出码 1；U6 永不拦）。
+    模式：默认报告模式；-Check 校验模式（U1..U5/U7..U12 违规 → 退出码 1；U6 永不拦）。
 
 .PARAMETER Root
     仓库根目录（默认由本脚本位置上溯四级推导）。
@@ -140,8 +141,8 @@ if ($baselineFiles.Count -lt 1)
 {
     $violations.Add('[U4] 单件基线文件数 0（判据无标的 ⇒ 假绿）')
 }
-$keyGrammarBaseline = Join-Path $Root 'Frame\PowerShellScript\Baselines\KeyGrammar.psd1'
-if (-not (Test-Path -LiteralPath $keyGrammarBaseline))
+$keyGrammarBaseline = [string](Get-BaselineIndex)['KeyGrammar']
+if ([string]::IsNullOrWhiteSpace($keyGrammarBaseline) -or -not (Test-Path -LiteralPath $keyGrammarBaseline))
 {
     $violations.Add('[U4] Baselines\KeyGrammar.psd1 缺失（K1–K6 基线单源被删 ⇒ 判据失效）')
 }
@@ -301,7 +302,7 @@ foreach ($s in $scripts) { $declSurfaces.Add($s.FullName) }
 $baselinesReadme = Join-Path $Root 'Frame\PowerShellScript\Baselines\README.md'
 if (Test-Path -LiteralPath $baselinesReadme) { $declSurfaces.Add($baselinesReadme) }
 
-$rxBaselineRef = '(?<full>[A-Za-z0-9_\-\.]+(?:\\[A-Za-z0-9_\-\.]+)*\\[Bb]aselines\\[A-Za-z0-9_\-]+\.psd1)'
+$rxBaselineRef = '(?<full>[A-Za-z0-9_\-\.]+(?:\\[A-Za-z0-9_\-\.]+)*\\[Bb]aselines\\(?:[A-Za-z0-9_\-]+\\)?[A-Za-z0-9_\-]+\.psd1)'
 foreach ($surface in $declSurfaces)
 {
     if (-not (Test-Path -LiteralPath $surface)) { continue }
@@ -354,6 +355,83 @@ foreach ($bf in $baselineFiles)
     }
 }
 
+# ---------------- U12 分类索引双射（文件系统 ↔ _catalog.psd1） ----------------
+# 动机：目录分域后「文件在哪」与「它属于哪个角色/域」会各自漂移；索引把分类变成单一可判定面。
+# 判据：① 数据面文件集（*.psd1 + *.psm1）与索引条目**双射**；② Role 受控；
+#       ③ Role=Data ⇒ Gate ∈ GateManifests 且 Domain 与其 Domain 一致（域表单源）；
+#       ④ Role=Data ⇒ 文件名 = <Gate>.psd1（遗留不符须显式 NameDeviation + DueWhen）。
+$catalogPath = Join-Path $Root 'Frame\PowerShellScript\Baselines\_catalog.psd1'
+if (-not (Test-Path -LiteralPath $catalogPath))
+{
+    $violations.Add('[U12] 缺分类索引：Frame\PowerShellScript\Baselines\_catalog.psd1（分类不得只存在于 README）')
+}
+else
+{
+    $catalog = Import-PowerShellDataFile -LiteralPath $catalogPath
+    $catalogRoot = Join-Path $Root 'Frame\PowerShellScript\Baselines'
+    $actual = @(Get-ChildItem -LiteralPath $catalogRoot -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -in @('.psd1', '.psm1') } |
+        ForEach-Object { $_.FullName.Substring($catalogRoot.Length).TrimStart('\') })
+    $declared = @{}
+    $roleSet = @('Data', 'Register', 'Lib')
+    foreach ($e in @($catalog.Entries))
+    {
+        $file = [string]$e.File
+        if ([string]::IsNullOrWhiteSpace($file))
+        {
+            $violations.Add('[U12] 索引含空 File 条目')
+            continue
+        }
+        if ($declared.ContainsKey($file))
+        {
+            $violations.Add("[U12] 索引重复登记：$file")
+            continue
+        }
+        $declared[$file] = $e
+        if ([string]$e.Role -notin $roleSet)
+        {
+            $violations.Add("[U12] $file 的 Role='$($e.Role)' 非法（须 ∈ {Data,Register,Lib}）")
+        }
+    }
+    foreach ($f in $actual)
+    {
+        if (-not $declared.ContainsKey($f)) { $violations.Add("[U12] 未登记文件：$f（分类索引缺项 ⇒ 分类不可判定）") }
+    }
+    foreach ($f in $declared.Keys)
+    {
+        if ($f -notin $actual) { $violations.Add("[U12] 索引指向不存在文件：$f") }
+    }
+
+    $manifestData = Import-PowerShellDataFile -LiteralPath $manifestsPath
+    foreach ($file in @($declared.Keys | Sort-Object))
+    {
+        $e = $declared[$file]
+        if ([string]$e.Role -ne 'Data') { continue }
+        $gate = [string]$e.Gate
+        if ([string]::IsNullOrWhiteSpace($gate) -or -not $manifestData.ContainsKey($gate))
+        {
+            # 非注册门（脚本存在但未进 GateManifests）⇒ 须显式 UnregisteredGate + DueWhen（可见化债务，非静默例外）
+            if (-not $e.ContainsKey('UnregisteredGate') -or [string]::IsNullOrWhiteSpace([string]$e.UnregisteredGate))
+            {
+                $violations.Add("[U12] $file 的 Gate='$gate' 不在 GateManifests.psd1（域归属无权威源；非注册门须显式 UnregisteredGate + DueWhen）")
+            }
+            continue
+        }
+        $expectedDomain = [string]$manifestData[$gate].Domain
+        if ([string]$e.Domain -ne $expectedDomain)
+        {
+            $violations.Add("[U12] $file 的 Domain='$($e.Domain)' ≠ GateManifests.$gate.Domain='$expectedDomain'（域表漂移）")
+        }
+        if ($file -ne "$gate.psd1")
+        {
+            if (-not $e.ContainsKey('NameDeviation') -or [string]::IsNullOrWhiteSpace([string]$e.NameDeviation))
+            {
+                $violations.Add("[U12] $file 与 Gate 名不符（应命名 $gate.psd1）；遗留须显式 NameDeviation + DueWhen")
+            }
+        }
+    }
+}
+
 # ---------------- 汇总 ----------------
 Write-Host ""
 Write-Host "  扫描面：$($scanRoots.Count) 个根 / $($scripts.Count) 件 Check-*.ps1；内联基线命中 $($inlineHits.Count) 处 / $($hitFiles.Count) 件" -ForegroundColor Gray
@@ -369,7 +447,7 @@ if ($ShowDetail -and $pending.Count -gt 0)
 if ($violations.Count -eq 0)
 {
     Write-Host ""
-    Write-Host "[OK] 门禁基线守卫：0 违规（U1–U11 全绿：内联基线在册 / 事实行类型与形态唯一 / 接线与命名唯一 / 声明面路径存在）" -ForegroundColor Green
+    Write-Host "[OK] 门禁基线守卫：0 违规（U1–U12 全绿：内联基线在册 / 事实行类型与形态唯一 / 接线与命名唯一 / 声明面路径存在 / 分类索引双射）" -ForegroundColor Green
     exit 0
 }
 

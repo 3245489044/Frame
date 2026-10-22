@@ -13,10 +13,63 @@ GateBaseline.psm1 —— 门禁基线装载与规范校验（纯原语，无判�
 #>
 
 $script:BaselinesRoot = $PSScriptRoot
+$script:Index = $null
 
 function Get-BaselinesRoot
 {
     return $script:BaselinesRoot
+}
+
+<#
+.SYNOPSIS
+    判定件是否属于「非单件」面（文件名或任一路径段以 `_` 前缀）。
+.DESCRIPTION
+    约定（Baselines\README.md）：`_` 前缀 = 清册/登记表，不进入单件门禁基线判据。
+    目录段同样生效 ⇒ `_registers\` / `_legacy\` 等子目录不会污染单件面（目录轴可扩展）。
+#>
+function Test-NonSingleBaseline
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $root = $script:BaselinesRoot.TrimEnd('\')
+    $rel = $Path
+    if ($rel.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase))
+    {
+        $rel = $rel.Substring($root.Length)
+    }
+    foreach ($seg in @($rel -split '\\'))
+    {
+        if ($seg -and $seg.StartsWith('_')) { return $true }
+    }
+    return $false
+}
+
+<#
+.SYNOPSIS
+    单件门禁基线名字索引（文件名主干 → 绝对路径；递归；重名即抛）。
+.DESCRIPTION
+    支持目录分域落点 `Baselines\<Domain>\<Gate>.psd1`（域与 directory-map.json 的 gateDomains 同源）。
+    重名 = 消费端绑定不确定 ⇒ fail-closed 抛错，禁静默取先命中项。
+#>
+function Get-BaselineIndex
+{
+    param([switch]$Refresh)
+
+    if (-not $Refresh -and $null -ne $script:Index) { return $script:Index }
+
+    $map = @{}
+    foreach ($f in @(Get-ChildItem -LiteralPath $script:BaselinesRoot -Recurse -Filter '*.psd1' -File -ErrorAction SilentlyContinue))
+    {
+        if (Test-NonSingleBaseline -Path $f.FullName) { continue }
+        $name = [IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($map.ContainsKey($name))
+        {
+            throw "门禁基线重名：$name.psd1（$($map[$name]) / $($f.FullName)）⇒ 消费端绑定不确定；约定见 Baselines\README.md"
+        }
+        $map[$name] = $f.FullName
+    }
+    $script:Index = $map
+    return $map
 }
 
 <#
@@ -29,12 +82,12 @@ function Import-GateBaseline
         [Parameter(Mandatory = $true)][string]$Name
     )
 
-    $path = Join-Path $script:BaselinesRoot "$Name.psd1"
-    if (-not (Test-Path -LiteralPath $path))
+    $index = Get-BaselineIndex
+    if (-not $index.ContainsKey($Name))
     {
-        throw "门禁基线文件缺失：$path（禁内联基线常量；约定见 Baselines\README.md）"
+        throw "门禁基线文件缺失：$Name.psd1（根 = $($script:BaselinesRoot)；禁内联基线常量；约定见 Baselines\README.md）"
     }
-    return Import-PowerShellDataFile -LiteralPath $path
+    return Import-PowerShellDataFile -LiteralPath $index[$Name]
 }
 
 <#
@@ -47,7 +100,7 @@ function Get-BaselineFiles
     $files = [System.Collections.Generic.List[object]]::new()
     foreach ($f in @(Get-ChildItem -LiteralPath $script:BaselinesRoot -Recurse -Filter '*.psd1' -File -ErrorAction SilentlyContinue))
     {
-        if ($f.Name.StartsWith('_')) { continue }
+        if (Test-NonSingleBaseline -Path $f.FullName) { continue }
         $files.Add($f)
     }
     return $files.ToArray()

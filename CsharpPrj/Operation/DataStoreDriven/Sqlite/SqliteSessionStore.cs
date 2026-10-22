@@ -39,6 +39,9 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
         ct.ThrowIfCancellationRequested();
         var declared = _schemaSource?.GetColumns(TableNames.Sessions) ?? _schemaSource?.GetColumns("sessions");
         KvUsharpTable.EnsureCreated(Executor, Table, declared);
+        // owner 查询下推索引：空实体探测/历史删除均按 (OwnerKind, OwnerKey) 过滤，避免全表解码。
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_sessions_owner_kind", UsharpRecordPaths.OwnerKind);
+        KvUsharpTable.EnsureUsharpIndex(Executor, Table, "idx_sessions_owner_key", UsharpRecordPaths.OwnerKey);
         return Task.CompletedTask;
     }
 
@@ -53,7 +56,12 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
     public Task<IReadOnlyList<SessionRecord>> ListByOwnerAsync(SessionOwner owner, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var rows = Query($"SELECT {KvUsharpTable.ColNodeKey}, Doc FROM [{Table}]");
+        // owner 查询下推（idx_sessions_owner_kind/key）：避免全表解码；仍按 NodeKey 稳定序返回。
+        var where = $"{KvUsharpTable.UsharpExtract(UsharpRecordPaths.OwnerKind)}=@kind AND " +
+                    $"{KvUsharpTable.UsharpExtract(UsharpRecordPaths.OwnerKey)}=@owner";
+        var rows = Query(
+            $"SELECT {KvUsharpTable.ColNodeKey}, Doc FROM [{Table}] WHERE {where} ORDER BY {KvUsharpTable.ColId}",
+            Params(("kind", owner.Kind.ToString()), ("owner", owner.Key)));
         var list = new List<SessionRecord>();
         foreach (var row in rows)
         {
@@ -61,8 +69,7 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
             var key = SqliteRows.Str(row, KvUsharpTable.NodeKeyName);
             var record = string.IsNullOrWhiteSpace(key) ? null : Read(key, SqliteRows.Str(row, "Doc"));
             if (record is null) continue;
-            if (record.Owner.Kind == owner.Kind && string.Equals(record.Owner.Key, owner.Key, StringComparison.Ordinal))
-                list.Add(record);
+            list.Add(record);
         }
         return Task.FromResult<IReadOnlyList<SessionRecord>>(list);
     }

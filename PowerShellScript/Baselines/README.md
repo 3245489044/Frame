@@ -7,9 +7,25 @@
 | 项 | 约定 |
 |---|---|
 | 文件名 | `<Gate>.psd1`（与 `GateManifests.psd1` 的键同名；`Check-<Gate>.ps1` 用 `Import-GateBaseline -Name <Gate>` 装载） |
-| 前缀 `_` | 非单件门禁基线（清册/登记表），如 `_inline-baselines.psd1` / `_generated-artifacts.psd1` |
+| 落点 | 根层（单域/未分域）或 `<Domain>\<Gate>.psd1`（`Domain` 取自 `GateManifests.psd1`，与 `directory-map.json` 的 `gateDomains` 同源）；装载按**名字索引**解析，消费方无需知路径 |
+| 前缀 `_` | 非单件门禁基线（清册/登记表），如 `_inline-baselines.psd1` / `_generated-artifacts.psd1` / `_catalog.psd1`；**文件或任一路径段**以 `_` 开头即生效 |
 | 格式 | `Import-PowerShellDataFile` 可读的纯数据（仅字面量/数组/哈希表；禁表达式、禁变量） |
 | 每条基线 | **必带 `Origin`**，取值 `Derived` / `Debt` / `Verdict`（见下） |
+
+## 分类模型（A1–A4；索引 = `_catalog.psd1`，守卫 = U12）
+
+> 判据轴可以多，**目录轴必须少**：目录每多一维，落点推导与搬迁成本都倍增（«axioms:AX.BlastRadiusNonExemption» 只免权重、不免成本核算）。
+
+| 轴 | 取值 | 是否进目录 | 判定载体（结构事实） |
+|---|---|---|---|
+| **A1 角色** | `Data`（单件基线）/ `Register`（清册/登记表）/ `Lib`（原语代码） | ✅（扩展名 + `_` 前缀，零迁移） | 扩展名 `.psd1`/`.psm1` + 文件名/路径段 `_` 前缀 |
+| **A2 域** | `Agent` `Data` `Declarations` `Frame` `Meta` `Node` `Parsing` `Process` `Spec` `Usharp` `Build` | ✅（子目录 `<Domain>\`） | `GateManifests.psd1` 的 `Domain` 字段（单一生产者） |
+| **A3 来源** | `Derived` / `Debt` / `Verdict` | ❌ 只登记（同一文件可混含多 Origin 行） | 事实行 `Origin` / `DueWhen` |
+| **A4 形态** | `FactRow`（标量键）/ `Grid`（矩阵清单）/ `Table`（键→计数）/ `Registry`（异构登记表）/ `Flat`（未规整，债务）/ `Code` | ❌ 只登记（形态是校验策略，不是定位维度） | 文件内行键名与嵌套结构 |
+
+**目录轴只落 A1/A2**：`Baselines\<Domain>\<Gate>.psd1`（数据）+ 根层 `*.psm1`（代码）+ 根层 `_*.psd1`（登记册）。A3/A4 不落目录——按 `Origin` 或形态分目录会让同一文件分裂、且销账即触发无意义 `git mv`。
+
+**为什么 `.psm1` 不按域搬**：`GateBaseline.psm1` / `GateFileIndex.psm1` / `GateRuntime.psm1` / `ArtifactFreshness.psm1` / `VerifyScope.psm1` 的引用点合计 91 处（含 `Runtime\manifest.json` 与 `ps-function-index.json` 再生成），收益为目录纯净度、成本为全仓路径改写 ⇒ 判定为机制螺旋。
 
 ## 事实四分（Origin 的语义，禁混用）
 
@@ -60,6 +76,7 @@
 | U9 | 事实行类型强制 | 事实键是裸值 / 行元素缺 `Origin`（否则 U3 静默跳过） |
 | U10 | 声明面路径存在性 | 声明面（`GateManifests` / `Baselines\*.psd1` / 本 README / 门禁脚本头注）引用的 `…\Baselines\<X>.psd1` 不存在 |
 | U11 | 行形态唯一 | 事实行出现第二形态（非 `Value`，如 `Baseline`/`RelativePath`）⇒ 消费端读法分裂 |
+| U12 | 分类索引双射 | `_catalog.psd1` 与文件系统（`*.psd1`+`*.psm1`）不双射；`Role` 非法；`Data` 的 `Domain` 与 `GateManifests` 不一致；文件名 ≠ `<Gate>.psd1` 且无 `NameDeviation`；Gate 未注册且无 `UnregisteredGate` |
 
 > 扫描面 = 「`Frame\PowerShellScript` 目录规约」 ∪ 「`GateManifests` 登记的 `Path` 所在目录」—— 后者覆盖 `Modules`/`Projects` 侧门禁（此前硬编码单根 ⇒ 覆盖漏洞）。
 

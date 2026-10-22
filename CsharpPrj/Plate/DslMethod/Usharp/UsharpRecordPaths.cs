@@ -18,6 +18,8 @@ public static class UsharpRecordPaths
     public const string MaxRetries = "$.MaxRetries";
     public const string CreatedAt = "$.CreatedAt";
     public const string UpdatedAt = "$.UpdatedAt";
+    public const string OwnerKind = "$.OwnerKind";
+    public const string OwnerKey = "$.OwnerKey";
     public const string EnvelopeCreatedAt = "$.__createdAt";
     public const string EnvelopeUpdatedAt = "$.__updatedAt";
 }

@@ -209,6 +209,22 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
 
     // ---- 内部：记录实例读写 + usharp_get 下推 ----
 
+    /// <summary>轻量键枚举（清理/诊断）：只读 NodeKey 列，不反序列化任务载荷。</summary>
+    public Task<IReadOnlyList<string>> ListKeysAsync(int limit, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (where, ps) = BuildPoolWhere(status: null);
+        ps["@lim"] = Math.Clamp(limit <= 0 ? 500 : limit, 1, 5000);
+        var rows = Query(
+            $"SELECT {KvUsharpTable.ColNodeKey} FROM [{Table}] WHERE {where} ORDER BY {KvUsharpTable.ColId} LIMIT @lim",
+            ps);
+        var keys = rows
+            .Select(r => SqliteRows.Str(r, KvUsharpTable.NodeKeyName))
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .ToList();
+        return Task.FromResult<IReadOnlyList<string>>(keys);
+    }
+
     /// <summary>记录 ID（<c>task:&lt;TaskKey&gt;</c>）。</summary>
     private static string RecordId(string taskKey) => "task:" + taskKey;
 

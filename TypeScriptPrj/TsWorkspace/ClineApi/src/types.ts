@@ -73,6 +73,8 @@ export interface ClineRunOptions {
   systemPrompt?: string;
   /** 注入 cline 工具面的工具名集（声明面 tool-face.ushar 的 cline 面） */
   agentTools?: string[];
+  /** 工具禁用清单（车道能力门 I3；映射为 SDK toolRoutingRules.disableTools） */
+  toolDeny?: string[];
   /** 可委派子智能体标签（声明面 subagents.ushar 的 delegate_hint） */
   subAgentTags?: { tag: string; description?: string }[];
   /** 连续错误最大重试次数 */

@@ -338,6 +338,8 @@ interface StartSessionConfigShape {
   maxIterations: number;
   systemPrompt: string;
   sessionId?: string;
+  /** 工具路由规则（@cline/core CoreSessionConfig.toolRoutingRules；disableTools 为 SDK DefaultToolName[]）。 */
+  toolRoutingRules?: Array<{ name?: string; disableTools?: string[] }>;
 }
 
 /**
@@ -588,12 +590,17 @@ export class SdkTransport {
       mode,
       maxIterations: resolveMaxIterations(options),
       systemPrompt,
+      // 能力门（I3）：车道下发的禁用清单 → SDK 原生工具路由（default-deny 的具象面）。
+      ...(options.toolDeny && options.toolDeny.length > 0
+        ? { toolRoutingRules: [{ name: "lane-policy", disableTools: options.toolDeny }] }
+        : {}),
       ...(options.sessionId ? { sessionId: options.sessionId } : {}),
     };
     this.emitStage(options.trace, "system-prompt", {
       chars: systemPrompt.length,
       oursChars: typeof options.systemPrompt === "string" ? options.systemPrompt.trim().length : 0,
       hasL0Subagent: systemPrompt.includes("l0-subagent"),
+      deny: options.toolDeny ?? [],
       extraTools: agentTools.map((t) => t.name),
     });
 

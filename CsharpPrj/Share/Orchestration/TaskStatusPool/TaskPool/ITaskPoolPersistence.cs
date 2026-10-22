@@ -1,5 +1,6 @@
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,4 +35,11 @@ public interface ITaskPoolPersistence<TItem>
 
     /// <summary>分页读取任务（浏览/导出用）。offset 从 0 起；status 非空时按状态过滤；返回本页条目与总数。</summary>
     Task<PagedTaskPool<TItem>> GetPageAsync(int offset, int pageSize, TaskExecutionStatus? status = null, CancellationToken ct = default);
+
+    /// <summary>轻量键枚举（清理/诊断用）；缺省实现走 <see cref="GetPageAsync"/>，存储实现宜覆写为键列下推。</summary>
+    async Task<IReadOnlyList<string>> ListKeysAsync(int limit, CancellationToken ct = default)
+    {
+        var page = await GetPageAsync(0, limit <= 0 ? 500 : limit, null, ct).ConfigureAwait(false);
+        return page.Items.Select(i => i.TaskKey).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
+    }
 }

@@ -44,4 +44,14 @@ public sealed class LegacyFallbackSessionTranscriptStore : ISessionTranscriptSto
         var legacyRemoved = await _legacy.DeleteAsync(key.Value, ct).ConfigureAwait(false);
         return removed || legacyRemoved;
     }
+
+    /// <summary>消息数：与 <see cref="GetAsync"/> 同源（新表优先，未命中回退旧表）。</summary>
+    public async Task<int> CountMessagesAsync(SessionKey key, CancellationToken ct = default)
+    {
+        var log = await GetAsync(key, ct).ConfigureAwait(false);
+        return log?.Messages.Count ?? 0;
+    }
+
+    public async Task<bool> IsEmptyAsync(SessionKey key, CancellationToken ct = default)
+        => await CountMessagesAsync(key, ct).ConfigureAwait(false) == 0;
 }

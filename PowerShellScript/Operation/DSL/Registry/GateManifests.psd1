@@ -1092,6 +1092,30 @@
         Note   = '上下文几何聚拢点（K0.5/C1–C6）：白名单外零内层端口解析 / 裁剪单入口 / 命中口径单源 / Host 方法≤12 行≤400 / 正负对照'
     }
 
+    LaneCatalog = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '车道目录（L1–L6）：声明非空 / executor 必填 / fallback 可达 / workflow 存在且拒绝运行期 plan / 降级车道须 allow_tools 且不被意图命中 / PS 域 workflow+plan=false / 正负对照'
+    }
+
+    ExecutionLaneGate = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '执行车道门（N1–N4）：workflow 与单步 llm 互斥 / 声明流拒绝运行期 plan / default 车道 deny run_commands / 负对照'
+    }
+
+    PromptSegments = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '提示词段装配（P1–P4）：会话链不以短常量作 L0 / 种子 System 与 L0 段集同源 / 执行体步 system 可达 / 负对照'
+    }
+
     DelegateEntry = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

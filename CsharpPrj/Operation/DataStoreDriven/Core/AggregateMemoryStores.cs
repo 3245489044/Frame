@@ -84,4 +84,10 @@ public sealed class InMemorySessionTranscriptStore : ISessionTranscriptStore
 
     public Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default)
         => Task.FromResult(!key.IsEmpty && _logs.Remove(key.Value));
+
+    public Task<int> CountMessagesAsync(SessionKey key, CancellationToken ct = default)
+        => Task.FromResult(!key.IsEmpty && _logs.TryGetValue(key.Value, out var log) ? log.Messages.Count : 0);
+
+    public async Task<bool> IsEmptyAsync(SessionKey key, CancellationToken ct = default)
+        => await CountMessagesAsync(key, ct).ConfigureAwait(false) == 0;
 }

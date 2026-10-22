@@ -38,6 +38,17 @@ public interface ISessionTranscriptStore
     Task<ConversationLog?> GetAsync(SessionKey key, CancellationToken ct = default);
     Task AppendProjectionAsync(SessionKey key, ConversationLog log, long watermark, CancellationToken ct = default);
     Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default);
+
+    /// <summary>消息数（空实体判定/统计用）；缺省实现反序列化整条日志，存储实现宜覆写为下推。</summary>
+    async Task<int> CountMessagesAsync(SessionKey key, CancellationToken ct = default)
+    {
+        var log = await GetAsync(key, ct).ConfigureAwait(false);
+        return log?.Messages.Count ?? 0;
+    }
+
+    /// <summary>日志是否为空（无消息）；缺省实现经 <see cref="CountMessagesAsync"/>。</summary>
+    async Task<bool> IsEmptyAsync(SessionKey key, CancellationToken ct = default)
+        => await CountMessagesAsync(key, ct).ConfigureAwait(false) == 0;
 }
 
 /// <summary>历史命令端口（唯一创建/归拢/删除入口）。</summary>

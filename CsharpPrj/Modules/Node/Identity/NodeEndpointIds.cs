@@ -30,6 +30,20 @@ public static class NodeEndpointIds
     public static readonly KeyGrammar NodeGrammar =
         KeyGrammar.Create("endpoint-node", "{workflowId}.{nodeKey}");
 
+    /// <summary>
+    /// 节点存储键文法（<c>{nodeKey}[@{instanceKey}]</c>；实例后缀可缺席 = legacy 裸键）。
+    /// 实例分隔符 <c>@</c> 由本模板声明一次，禁第二处字面量。
+    /// </summary>
+    public static readonly KeyGrammar NodeStorageGrammar =
+        KeyGrammar.Create("node-address", "{nodeKey}[@{instanceKey}]");
+
+    /// <summary>带实例的节点端点 Id 文法（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>）。</summary>
+    public static readonly KeyGrammar InstanceEndpointGrammar =
+        KeyGrammar.Create("endpoint-node-instance", "{workflowId}.{nodeKey}[@{instanceKey}]");
+
+    /// <summary>实例分隔符（<c>@</c>；取自存储键文法内字面段）。</summary>
+    public static readonly string InstanceSeparator = NodeStorageGrammar.LiteralBefore("instanceKey");
+
     /// <summary>历史端点 Id 前缀（<c>history.</c>；取自文法族前缀）。</summary>
     public static readonly string HistoryPrefix = HistoryGrammar.FamilyPrefix;
 
@@ -55,6 +69,47 @@ public static class NodeEndpointIds
 
         historyId = values.Text("historyId") ?? string.Empty;
         return historyId.Length > 0;
+    }
+
+    /// <summary>节点存储键（<c>{nodeKey}[@{instanceKey}]</c>；实例空 ⇒ 裸键）。</summary>
+    public static string Storage(string? nodeKey, string? instanceKey)
+        => NodeStorageGrammar.BuildLenient(nodeKey, instanceKey);
+
+    /// <summary>带实例的节点端点 Id（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>）。</summary>
+    public static string Endpoint(string? workflowId, string? nodeKey, string? instanceKey)
+        => InstanceEndpointGrammar.BuildLenient(workflowId, nodeKey, instanceKey);
+
+    /// <summary>反解存储键（实例缺席 ⇒ 空串，不返回 null 冒充「存在且为空」）。</summary>
+    public static bool TryParseStorage(string? storageKey, out string nodeKey, out string instanceKey)
+    {
+        nodeKey = string.Empty;
+        instanceKey = string.Empty;
+        if (!NodeStorageGrammar.TryParse(storageKey, out var values))
+        {
+            return false;
+        }
+
+        nodeKey = values.Text("nodeKey") ?? string.Empty;
+        instanceKey = values.Text("instanceKey") ?? string.Empty;
+        return nodeKey.Length > 0;
+    }
+
+    /// <summary>反解带实例的端点 Id（三段全出；失败 ⇒ false，不猜）。</summary>
+    public static bool TryParseEndpoint(
+        string? endpointId, out string workflowId, out string nodeKey, out string instanceKey)
+    {
+        workflowId = string.Empty;
+        nodeKey = string.Empty;
+        instanceKey = string.Empty;
+        if (!InstanceEndpointGrammar.TryParse(endpointId, out var values))
+        {
+            return false;
+        }
+
+        workflowId = values.Text("workflowId") ?? string.Empty;
+        nodeKey = values.Text("nodeKey") ?? string.Empty;
+        instanceKey = values.Text("instanceKey") ?? string.Empty;
+        return nodeKey.Length > 0;
     }
 
     /// <summary>

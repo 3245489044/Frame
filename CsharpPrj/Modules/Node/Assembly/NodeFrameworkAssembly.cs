@@ -1,6 +1,9 @@
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Identity;
+using Modules.Node.Instances;
+using Modules.Node.Materialization.WritePlan;
+using Modules.Node.Projection;
 using Modules.Node.Spec;
 
 namespace Modules.Node;
@@ -49,6 +52,21 @@ public sealed class NodeFrameworkAssemblyPorts
 
     /// <summary>宿主日志端口（缺省不落日志）。</summary>
     public INodeFrameworkLog? Log { get; init; }
+
+    /// <summary>token 估算端口（缺省不装配 ⇒ 预算只执行条数上限）。</summary>
+    public ITokenEstimator? TokenEstimator { get; init; }
+
+    /// <summary>写介质处理器集（缺省不装配 ⇒ 无写计划执行器）。</summary>
+    public IEnumerable<IWriteMediumHandler>? WriteMedia { get; init; }
+
+    /// <summary>容器声明集（缺省空注册表）。</summary>
+    public IEnumerable<NodeContainerSpec>? Containers { get; init; }
+
+    /// <summary>执行声明集（只声明不执行）。</summary>
+    public IEnumerable<NodeExecutionBinding>? ExecutionBindings { get; init; }
+
+    /// <summary>标签词表注册表（缺省空实例注册表）。</summary>
+    public ITagVocabularyRegistry? TagVocabularies { get; init; }
 
     /// <summary>声明装载成功取证事件名。</summary>
     public string LoadedEvent { get; init; } = "node-framework:declaration-loaded";
@@ -103,7 +121,12 @@ public static class NodeFrameworkAssembly
             requireRunScope,
             specSource: null,
             definitionDiagnostics: ports.DefinitionDiagnostics,
-            selectionVocabulary: vocabulary);
+            selectionVocabulary: vocabulary,
+            tokenEstimator: ports.TokenEstimator,
+            writeMedia: ports.WriteMedia,
+            containers: ports.Containers,
+            executionBindings: ports.ExecutionBindings,
+            tagVocabularies: ports.TagVocabularies);
 
         // 声明判据**装配期**生效（fail-fast）：静默装配会让位置键在运行期按未声明字段渲染出漂移键。
         var validation = framework.Validator.Validate(spec);

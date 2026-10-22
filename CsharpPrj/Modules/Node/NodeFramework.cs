@@ -2,7 +2,9 @@ using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Governance;
 using Modules.Node.Identity;
+using Modules.Node.Instances;
 using Modules.Node.Materialization;
+using Modules.Node.Materialization.WritePlan;
 using Modules.Node.Placement;
 using Modules.Node.Ports;
 using Modules.Node.Projection;
@@ -54,6 +56,24 @@ public sealed record NodeFrameworkOptions
     public TimeSpan? WriteGateTimeout { get; init; }
 
     public INodeDiagnosticsSink? Diagnostics { get; init; }
+
+    /// <summary>读侧选择/预算声明（缺省 = 声明面 <see cref="NodeFrameworkSpec.Selection"/>）。</summary>
+    public NodeSelectionSpec? Selection { get; init; }
+
+    /// <summary>token 估算端口（未提供 ⇒ 预算只执行条数上限 + 可见化）。</summary>
+    public ITokenEstimator? TokenEstimator { get; init; }
+
+    /// <summary>写介质处理器集（未提供 ⇒ <see cref="NodeFramework.WritePlans"/> 为 null）。</summary>
+    public IEnumerable<IWriteMediumHandler>? WriteMedia { get; init; }
+
+    /// <summary>容器声明集（缺省 = 空注册表）。</summary>
+    public IEnumerable<NodeContainerSpec>? Containers { get; init; }
+
+    /// <summary>执行声明集（只声明不执行）。</summary>
+    public IEnumerable<NodeExecutionBinding>? ExecutionBindings { get; init; }
+
+    /// <summary>标签词表注册表（未提供 ⇒ 空实例注册表）。</summary>
+    public ITagVocabularyRegistry? TagVocabularies { get; init; }
 }
 
 /// <summary>
@@ -111,6 +131,18 @@ public sealed class NodeFramework
         ChainComposer = new NodeChainComposer(ReferenceIndexImpl, Diagnostics);
         Directives = new NodeDirectiveSet(Diagnostics);
         PortBinding = new NodePortBinding(Diagnostics);
+
+        SelectionSpec = opt.Selection;
+        TokenEstimator = opt.TokenEstimator;
+        Selection = new NodeSelectionService(Projection, opt.Selection, opt.TokenEstimator, Diagnostics);
+        WritePlans = opt.WriteMedia is null
+            ? null
+            : new NodeWritePlanExecutor(opt.WriteMedia, WriteGate, diagnostics: Diagnostics);
+        Containers = new NodeContainerRegistry(opt.Containers, Diagnostics);
+        Artifacts = new NodeArtifactAssembler(diagnostics: Diagnostics);
+        ExecutionBindings = (opt.ExecutionBindings ?? Array.Empty<NodeExecutionBinding>()).ToArray();
+        AttributeInheritance = new AttributeInheritance(Diagnostics);
+        TagVocabularies = opt.TagVocabularies ?? new TagVocabularyRegistry();
     }
 
     public string FrameworkId { get; }
@@ -176,6 +208,33 @@ public sealed class NodeFramework
 
     public NodePortBinding PortBinding { get; }
 
+    /// <summary>读侧选择/预算声明（null = 声明未给出）。</summary>
+    public NodeSelectionSpec? SelectionSpec { get; }
+
+    /// <summary>token 估算端口（null = 未装配）。</summary>
+    public ITokenEstimator? TokenEstimator { get; }
+
+    /// <summary>读侧选择服务（唯一编排：selection → signal → limit → budget）。</summary>
+    public NodeSelectionService Selection { get; }
+
+    /// <summary>写计划执行器（介质端口未装配 ⇒ null；显式可空，不伪造成功路径）。</summary>
+    public NodeWritePlanExecutor? WritePlans { get; }
+
+    /// <summary>容器声明注册表（缺省空注册表）。</summary>
+    public NodeContainerRegistry Containers { get; }
+
+    /// <summary>轮产物装配器（终答按到达序归因）。</summary>
+    public NodeArtifactAssembler Artifacts { get; }
+
+    /// <summary>执行声明集（只声明，不执行）。</summary>
+    public IReadOnlyList<NodeExecutionBinding> ExecutionBindings { get; }
+
+    /// <summary>执行声明沿边继承解析器。</summary>
+    public AttributeInheritance AttributeInheritance { get; }
+
+    /// <summary>轴化标签词表注册表（实例注入）。</summary>
+    public ITagVocabularyRegistry TagVocabularies { get; }
+
     /// <summary>全 Null 装配（无语言、无载体、无库）：用于纯内存宿主与"未装配即可见化"验证。</summary>
     public static NodeFramework CreateDefault() => new();
 
@@ -198,7 +257,13 @@ public sealed class NodeFramework
         ISpecSource? specSource = null,
         IOrientationAuthority? orientationAuthority = null,
         IDefinitionDiagnostics? definitionDiagnostics = null,
-        ISelectionVocabulary? selectionVocabulary = null)
+        ISelectionVocabulary? selectionVocabulary = null,
+        NodeSelectionSpec? selection = null,
+        ITokenEstimator? tokenEstimator = null,
+        IEnumerable<IWriteMediumHandler>? writeMedia = null,
+        IEnumerable<NodeContainerSpec>? containers = null,
+        IEnumerable<NodeExecutionBinding>? executionBindings = null,
+        ITagVocabularyRegistry? tagVocabularies = null)
     {
         var options = new NodeFrameworkOptions
         {
@@ -220,6 +285,12 @@ public sealed class NodeFramework
             SpecSource = specSource,
             OrientationAuthority = orientationAuthority,
             DefinitionDiagnostics = definitionDiagnostics,
+            Selection = selection ?? spec.Selection,
+            TokenEstimator = tokenEstimator,
+            WriteMedia = writeMedia,
+            Containers = containers,
+            ExecutionBindings = executionBindings,
+            TagVocabularies = tagVocabularies,
         };
 
         var framework = new NodeFramework(options);

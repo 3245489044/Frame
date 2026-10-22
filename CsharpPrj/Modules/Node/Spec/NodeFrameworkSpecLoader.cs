@@ -22,7 +22,8 @@ public sealed record NodeFrameworkSpec(
     IReadOnlyDictionary<string, string>? Marks = null,
     IReadOnlyList<string>? Origins = null,
     IReadOnlyDictionary<string, string>? Tags = null,
-    IReadOnlyDictionary<string, string>? Behaviors = null)
+    IReadOnlyDictionary<string, string>? Behaviors = null,
+    NodeSelectionSpec? Selection = null)
 {
     public bool HasErrors => Diagnostics.Any(d => d.Severity == NodeDiagnosticSeverity.Error);
 
@@ -131,6 +132,7 @@ public static class NodeFrameworkSpecLoader
         var defaults = new SpecDefaults(ReadObjectJson(root, "defaults"));
         var referenceFields = ReadStringArray(root, "referenceFields", collected);
         var directives = NodeDirectiveSet.Parse(ReadArrayJson(root, "directives"), sink);
+        var selectionSpec = ParseSelectionSpec(root, collected);
 
         foreach (var diagnostic in collected)
         {
@@ -152,7 +154,124 @@ public static class NodeFrameworkSpecLoader
             marks,
             origins,
             tags,
-            behaviors);
+            behaviors,
+            selectionSpec);
+    }
+
+    /// <summary>
+    /// 解析读侧选择声明（<c>signalOrder</c> / <c>signalFilter</c> / <c>budget</c>）：
+    /// 非法项 ⇒ 诊断 + 按未声明处理（不静默采用代码缺省）。
+    /// </summary>
+    private static NodeSelectionSpec? ParseSelectionSpec(JsonObject root, List<NodeDiagnostic> collected)
+    {
+        var signalOrder = ParseSignalOrder(root, collected);
+        var signalFilter = ParseSignalFilter(root, collected);
+        var budget = ParseBudget(root, collected);
+
+        return signalOrder is null && signalFilter is null && budget is null
+            ? null
+            : new NodeSelectionSpec(signalOrder, signalFilter, budget);
+    }
+
+    private static IReadOnlyList<SignalOrderKey>? ParseSignalOrder(
+        JsonObject root, List<NodeDiagnostic> collected)
+    {
+        if (root["signalOrder"] is not JsonArray array)
+        {
+            return null;
+        }
+
+        var keys = new List<SignalOrderKey>(array.Count);
+        foreach (var item in array)
+        {
+            if (NodeJson.TryReadString(item, out var field) && !string.IsNullOrWhiteSpace(field))
+            {
+                keys.Add(new SignalOrderKey(field));
+                continue;
+            }
+
+            if (item is JsonObject declaration)
+            {
+                var declaredField = ReadString(declaration, "field");
+                if (!string.IsNullOrWhiteSpace(declaredField))
+                {
+                    var descending = !string.Equals(
+                        ReadString(declaration, "direction"), "asc", StringComparison.OrdinalIgnoreCase);
+                    keys.Add(new SignalOrderKey(declaredField, descending));
+                    continue;
+                }
+            }
+
+            collected.Add(new NodeDiagnostic(
+                "spec.selection-value-invalid",
+                NodeDiagnosticSeverity.Warning,
+                "signalOrder 含不可识别项（须为字段名或 {field,direction}）：已跳过（不静默）",
+                "signalOrder"));
+        }
+
+        return keys.Count == 0 ? null : keys;
+    }
+
+    private static SignalFilter? ParseSignalFilter(JsonObject root, List<NodeDiagnostic> collected)
+    {
+        if (root["signalFilter"] is not JsonObject declaration)
+        {
+            return null;
+        }
+
+        var fields = ReadStringArray(declaration, "fields", collected);
+        if (fields.Count == 0)
+        {
+            collected.Add(new NodeDiagnostic(
+                "spec.selection-value-invalid",
+                NodeDiagnosticSeverity.Warning,
+                "signalFilter 未声明 fields：过滤声明按未声明处理（不静默）",
+                "signalFilter"));
+            return null;
+        }
+
+        var values = declaration["values"] is JsonObject map
+            ? ParseMap(declaration, "values", collected)
+            : null;
+        return new SignalFilter(fields, values);
+    }
+
+    private static NodeBudgetSpec? ParseBudget(JsonObject root, List<NodeDiagnostic> collected)
+    {
+        if (root["budget"] is not JsonObject declaration)
+        {
+            return null;
+        }
+
+        var tokens = ReadPositiveInt(declaration, "tokens", collected);
+        var limit = ReadPositiveInt(declaration, "limit", collected);
+        var perBand = ReadPositiveInt(declaration, "perBand", collected);
+        var charsPerToken = ReadPositiveInt(declaration, "charsPerToken", collected);
+
+        return tokens is null && limit is null && perBand is null && charsPerToken is null
+            ? null
+            : new NodeBudgetSpec(tokens, limit, perBand, charsPerToken);
+    }
+
+    private static int? ReadPositiveInt(JsonObject obj, string propertyName, List<NodeDiagnostic> collected)
+    {
+        var node = obj[propertyName];
+        if (node is null)
+        {
+            return null;
+        }
+
+        if (NodeJson.TryReadInt(node, out var value) && value > 0)
+        {
+            return value;
+        }
+
+        collected.Add(new NodeDiagnostic(
+            "spec.budget-value-invalid",
+            NodeDiagnosticSeverity.Warning,
+            $"budget.{propertyName} 须为正整数：按未声明处理（不静默）",
+            propertyName));
+        return null;
     }
 
     /// <summary>

@@ -33,6 +33,9 @@ public enum ProjectionOrigin
 /// <param name="DomainKey">读域（行来源域；可空 = 回退模型域键）。</param>
 /// <param name="SourceKey">真键（写/删/详读身份；可空 = 回退 <see cref="Key"/>）。</param>
 /// <param name="WriteDomain">写域（路由用；null ⇒ 回退 <see cref="DomainKey"/>，即「节点域自写」）。</param>
+/// <param name="Address">节点地址（Snapshot 完整化：逻辑键 + 实例轴；Live 可空 = 身份不完整）。</param>
+/// <param name="Tags">标签集（<c>|</c> 规范串；null = 无标签）。</param>
+/// <param name="Signal">信号元数据（排序/过滤/预算用；null = 未提供）。</param>
 public sealed record NodeProjectionItem(
     string Key,
     string PlacementId,
@@ -41,7 +44,10 @@ public sealed record NodeProjectionItem(
     string? PayloadJson = null,
     string? DomainKey = null,
     string? SourceKey = null,
-    string? WriteDomain = null);
+    string? WriteDomain = null,
+    NodeAddress? Address = null,
+    string? Tags = null,
+    NodeSignal? Signal = null);
 
 /// <summary>
 /// 读投影范围（裁剪只在读侧：N7）。
@@ -63,7 +69,8 @@ public sealed record ReadScope(
     int? Limit = null,
     string? Loc = null,
     string? Container = null,
-    int? Round = null);
+    int? Round = null,
+    NodeSelectionSpec? Selection = null);
 
 /// <summary>
 /// 读投影：<c>Scope → placements → 解码 → selection → 排序 → Origin 标注</c>。
@@ -144,7 +151,11 @@ public sealed class NodeReadProjection
                 }
 
                 var payload = _codec.Decode(placement.Form, record.Json);
-                items.Add(new NodeProjectionItem(key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload));
+                // Snapshot 完整化：地址由存储键反解（实例轴随键保留；容器/域取读侧作用域）。
+                NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
+                items.Add(new NodeProjectionItem(
+                    key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
+                    DomainKey: placement.Domain, Address: address));
             }
         }
 
@@ -300,6 +311,9 @@ public sealed class NodeReadProjection
             var ordered = bucket.OrderBy(item => Array.IndexOf(order, item.Origin)).ToArray();
             var fields = new Dictionary<string, string>(StringComparer.Ordinal);
             string? payload = null;
+            NodeAddress? address = null;
+            NodeSignal? signal = null;
+            var tags = new List<string>();
             var origin = ordered[0].Origin; // 初值仅为确定赋值；循环内必覆盖为最高优先级来源
 
             foreach (var item in ordered)
@@ -320,12 +334,37 @@ public sealed class NodeReadProjection
                     payload = item.PayloadJson;
                 }
 
+                // 结构化维度按「最高优先级非空者胜」叠加（与字段面同序：Derived → Snapshot → Live）
+                if (item.Address is not null)
+                {
+                    address = item.Address;
+                }
+
+                if (item.Signal is not null)
+                {
+                    signal = item.Signal;
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.Tags))
+                {
+                    foreach (var tag in item.Tags.Split(
+                                 new[] { '|', ',', ';' },
+                                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        if (!tags.Contains(tag, StringComparer.Ordinal))
+                        {
+                            tags.Add(tag);
+                        }
+                    }
+                }
+
                 origin = item.Origin;
             }
 
             merged.Add(new NodeProjectionItem(
                 ordered[0].Key, ordered[0].PlacementId, fields, origin, payload,
-                ordered[0].DomainKey, ordered[0].SourceKey, ordered[0].WriteDomain));
+                ordered[0].DomainKey, ordered[0].SourceKey, ordered[0].WriteDomain,
+                address, tags.Count == 0 ? null : string.Join("|", tags), signal));
         }
 
         return merged;

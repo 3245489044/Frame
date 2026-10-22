@@ -16,51 +16,11 @@ try {
 
 . (Join-Path $PSScriptRoot 'Invoke-AgentStep.ps1')
 
-function ConvertTo-PlainData {
-    param(
-        [object]$Value,
-        [int]$Depth = 0
-    )
-
-    if ($null -eq $Value) { return $null }
-    if ($Depth -ge 10) { return [string]$Value }
-    if ($Value -is [string] -or $Value -is [ValueType]) { return $Value }
-
-    if ($Value -is [System.Collections.IDictionary]) {
-        $map = [ordered]@{}
-        foreach ($key in $Value.Keys) {
-            $map[[string]$key] = ConvertTo-PlainData -Value $Value[$key] -Depth ($Depth + 1)
-        }
-        return $map
-    }
-
-    if ($Value -is [System.Collections.IEnumerable]) {
-        $items = @()
-        foreach ($item in $Value) {
-            $items += ,(ConvertTo-PlainData -Value $item -Depth ($Depth + 1))
-        }
-        return ,$items
-    }
-
-    # 剥掉 PowerShell 提供程序元数据（PSDrive/PSProvider 含环，5.1 深序列化会 OOM/挂起）。
-    $properties = @($Value.PSObject.Properties | Where-Object {
-        $_.MemberType -in @('NoteProperty', 'Property') -and
-        $_.Name -notmatch '^PS(Path|ParentPath|ChildName|Drive|Provider|IsContainer)$'
-    })
-    if ($properties.Count -gt 0) {
-        $map = [ordered]@{}
-        foreach ($property in $properties) {
-            $map[$property.Name] = ConvertTo-PlainData -Value $property.Value -Depth ($Depth + 1)
-        }
-        return $map
-    }
-
-    return [string]$Value
-}
-
 function Write-Line([object]$Payload) {
-    $plain = ConvertTo-PlainData -Value $Payload -Depth 0
-    $json = $plain | ConvertTo-Json -Depth 16 -Compress
+    # 深度 6 足够协议载荷；5.1 下 PowerShell 提供程序元数据（PSDrive/PSProvider）含环，
+    # 使用深度 32 会深递归（实测 Depth=8 OOM / 250s，Depth=6 约 0.6s）。
+    # TODO(B10-E)：改为显式 plain payload（剥 PS* 元数据），消除 2MB 级响应膨胀。
+    $json = $Payload | ConvertTo-Json -Depth 6 -Compress
     [Console]::Out.WriteLine($json)
     [Console]::Out.Flush()
 }

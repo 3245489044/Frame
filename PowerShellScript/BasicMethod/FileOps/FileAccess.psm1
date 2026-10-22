@@ -55,10 +55,11 @@ function Read-File {
     $content = _ReadFileContent -Path $resolvedPath
 
     if ($Raw) {
-        return $content
+        # 强制纯字符串：避免把 PowerShell 提供程序元数据（PSPath/PSDrive/PSProvider）带进协议载荷。
+        return [string]$content
     }
 
-    $lines = _SplitLines -Content $content
+    $lines = @(_SplitLines -Content $content | ForEach-Object { [string]$_ })
     $totalLines = $lines.Count
 
     if ($StartLine -gt 0 -or $EndLine -gt 0) {

@@ -20,7 +20,6 @@ public sealed class DaemonPool : IDisposable
     private readonly SemaphoreSlim _slotGate;
     private readonly TimeSpan _idleTimeout;
     private readonly TimeSpan _warmupBudget;
-    private readonly int _infraRetries;
     private readonly ITimingClock _clock = SystemClock.Instance;
     private readonly object _readyLock = new();
     private readonly CancellationTokenSource _poolCts = new();
@@ -53,7 +52,6 @@ public sealed class DaemonPool : IDisposable
         var concurrency = Math.Max(1, options.PoolSize);
         _idleTimeout = options.IdleTimeout;
         _warmupBudget = options.WarmupTimeout;
-        _infraRetries = Math.Max(0, options.InfraRetryLimit);
         _poolTag = $"{options.PoolName ?? "pool"}#{System.Threading.Interlocked.Increment(ref _poolSeq)}";
         _state = new DaemonPoolState(options, transport, _poolTag);
         // 实例级投影中转：状态层不持有池实例，故经闭包把状态层回调转到本实例属性（调用期求值 ⇒ 后设亦生效）。
@@ -61,7 +59,8 @@ public sealed class DaemonPool : IDisposable
         _transport = transport;
         _scheduler = new AsyncOperationScheduler(concurrency, _idleTimeout);
         _slotGate = new SemaphoreSlim(concurrency, concurrency);
-        StateBlockLog.PoolInit(_poolTag, _options.PoolSize, _idleTimeout.TotalSeconds, _warmupBudget.TotalSeconds, _infraRetries);
+        // 重试配额恒 0（AX-ZR NoInternalRetry）：日志字段保留为 0，供既有看板模板兼容。
+        StateBlockLog.PoolInit(_poolTag, _options.PoolSize, _idleTimeout.TotalSeconds, _warmupBudget.TotalSeconds, 0);
     }
 
     /// <summary>worker 状态变化（透传 WorkerPool 事件，诊断用）。</summary>
@@ -363,8 +362,9 @@ public sealed class DaemonPool : IDisposable
         if (readyBudget > TimeSpan.Zero)
             await EnsureReadyAsync(readyBudget, ct).ConfigureAwait(false);
 
-        var attempt = 0;
-        while (true)
+        // 资源获取（选路）允许有界重选；这不是执行重试：一次请求 = 一个 ExecutionUnit，只发一次。
+        const int maxWorkerPicks = 3;
+        for (var attempt = 0; attempt < maxWorkerPicks; attempt++)
         {
             ct.ThrowIfCancellationRequested();
             var remaining = Remaining(deadline);
@@ -376,10 +376,10 @@ public sealed class DaemonPool : IDisposable
             var requestId = "";
             try
             {
-                picked = await PickIdleWorkerCoreAsync(ct).ConfigureAwait(false);
+                picked = await PickIdleWorkerCoreAsync(deadline, ct).ConfigureAwait(false);
                 if (_state.GetHost(picked) is null || !_state.MarkBusy(picked))
                 {
-                    // 选路后瞬间失效（死亡/驱逐）→ 移除占用标记，重新选路
+                    // 选路后瞬间失效（死亡/驱逐）→ 移除占用标记，重新选路（有界；资源获取域）。
                     lock (_busyLock) _busy.Remove(picked);
                     picked = null;
                     continue;
@@ -429,35 +429,15 @@ public sealed class DaemonPool : IDisposable
                 }
                 if (IsHangPhase(result.EndPhase))
                 {
-                    // 基建故障（挂起/被杀）→ 补位；**是否重发由宿主策略裁决**（施工单 §13：无证据整轮重发 = 报错）。
+                    // 基建故障（挂起/被杀）→ 补位后直接失败：禁止无证据整轮重发（AX-ZR NoInternalRetry）。
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
-                    var infraAttempt = ++attempt;
-                    StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, infraAttempt, result.Error,
+                    StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, attempt + 1, result.Error,
                         _state.GetLastStage(picked), _state.GetStderrTail(picked));
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false);
 
-                    var decision = _options.InfraRetryPolicy?.Invoke(new DaemonInfraRetryContext(
-                            cmd, payload, infraAttempt, _infraRetries, result.Error,
-                            _state.GetLastStage(picked), _state.GetStderrTail(picked)))
-                        ?? DaemonInfraRetryDecision.Reject(
-                            "未注入重发策略（缺省禁止无证据整轮重放）");
-
-                    if (!decision.Allowed)
-                        throw new DaemonPoolException(cmd,
-                            $"基建故障（{result.EndPhase}）且不允许重发——{decision.Reason}；"
-                            + $"已尝试 {infraAttempt} 次, stderrTail={_state.GetStderrTail(picked)}");
-
-                    Diagnostics?.Invoke("DaemonPool_infra_retry_allowed", new
-                    {
-                        pool = _poolTag,
-                        requestId,
-                        workerId = picked,
-                        cmd,
-                        attempt = infraAttempt,
-                        resume = decision.IsResume,
-                        reason = decision.Reason,
-                    });
-                    continue;
+                    throw new DaemonPoolException(cmd,
+                        $"基建故障（{result.EndPhase}）且禁止重发（无续跑证据）；"
+                        + $"已尝试选路 {attempt + 1} 次, stderrTail={_state.GetStderrTail(picked)}");
                 }
                 // Failed：daemon 正常返回业务错误（含内层任务超时）→ 不重试，映射为业务结果
                 _state.MarkFree(picked); // 归还占用
@@ -477,6 +457,8 @@ public sealed class DaemonPool : IDisposable
                 _slotGate.Release();
             }
         }
+
+        throw new DaemonPoolException(cmd, "ENV_NO_WORKER: 选路多次失败（worker 全忙/死亡），禁止无界重选。");
     }
 
     private static TimeSpan Remaining(DateTimeOffset deadline) => deadline - DateTimeOffset.UtcNow;
@@ -485,8 +467,8 @@ public sealed class DaemonPool : IDisposable
     private static bool IsHangPhase(AsyncOpPhase phase)
         => phase is AsyncOpPhase.TimedOut or AsyncOpPhase.IdleHung;
 
-    /// <summary>选一个 Running∧Ready∧!Busy 的 worker（原子选路+标记占用）；全忙则背压等待，预算由外层统一计时。</summary>
-    private async Task<string> PickIdleWorkerCoreAsync(CancellationToken ct)
+    /// <summary>选一个 Running∧Ready∧!Busy 的 worker（原子选路+标记占用）；全忙则背压等待，**受本次请求 deadline 约束**（有界）。</summary>
+    private async Task<string> PickIdleWorkerCoreAsync(DateTimeOffset deadline, CancellationToken ct)
     {
         var waited = false; // 背压等待去重：仅进入等待时打一次日志，避免 100ms 轮询刷屏
         while (true)
@@ -509,6 +491,8 @@ public sealed class DaemonPool : IDisposable
 
             if (_state.ReadyWorkerCount == 0)
                 throw new InvalidOperationException("daemon 池无可用已就绪 worker（预热失败或全部补位中）。");
+            if (Remaining(deadline) <= TimeSpan.Zero)
+                throw new TimeoutException("daemon 池选路预算耗尽（无空闲 worker）。");
             if (!waited)
             {
                 StateBlockLog.BackpressureWait(_poolTag, _state.ReadyWorkerCount);

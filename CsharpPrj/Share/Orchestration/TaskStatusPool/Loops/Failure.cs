@@ -70,6 +70,10 @@ public static class FailureCodes
     public const string InvalidRetry = "INVALID_RETRY";
     public const string AttemptDoubleWrite = "ATTEMPT_DOUBLE_WRITE";
     public const string PostFailSideEffect = "POST_FAIL_SIDE_EFFECT";
+    public const string Unhandled = "UNHANDLED";
+    public const string JudgeMissing = "JUDGE_MISSING";
+    public const string Unresolved = "UNRESOLVED";
+    public const string Cancelled = "CANCELLED";
 
     // 业务/执行失败
     public const string EmptyOutput = "EMPTY_OUTPUT";

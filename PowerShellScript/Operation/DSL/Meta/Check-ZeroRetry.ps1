@@ -98,6 +98,17 @@ $counts['failedPathReenqueue']  = Get-HitCount -Set $files -Pattern '\bMarkDirty
 $counts['fireAndForgetTaskRun'] = Get-HitCount -Set $files -Pattern '\bTask\.Run\s*\('
 $counts['thirdStateReturns']    = Get-HitCount -Set $files -Pattern '(RenderOutput\.Skip|\bIsSkip\b|\bUnchanged\b)'
 
+# 循环/重试通用框架判据（F 波；首版报告，C7/F7 转阻断）
+$kernelFiles = @($files | Where-Object { $_.Name -eq 'LoopKernel.cs' })
+$counts['kernelLoopBody']           = Get-HitCount -Set $kernelFiles -Pattern '(\bfor\s*\(|\bwhile\s*\(|LoopKernel\.ExecuteOnceAsync)'
+$counts['agentConditionalRegion']   = Get-HitCount -Set $agentFiles -Pattern 'RegionIterationKind\.(WhileTrue|UntilTrue|Recursion)'
+$counts['judgeFallbackTrue']        = Get-HitCount -Set $files -Pattern 'FeedbackJudge[\s\S]{0,400}return\s+current\s*;'
+$counts['unboundedLoopCtor']        = Get-HitCount -Set $files -Pattern 'new\s+(SnapshotDrivenLoopEngine|SpinalPipeline)<'
+$counts['rawWhileLoop']             = Get-HitCount -Set @($files | Where-Object { $_.FullName -match '\\(StateHoldDriven|Refresh)\\' }) -Pattern '(while\s*\(\s*true\s*\)|for\s*\(\s*;\s*;\s*\))'
+$counts['foreignAttemptWrite']      = Get-HitCount -Set $files -Pattern '(\battempt\s*\+\+|\bround\s*\+\+|\bRound\s*\+\+)'
+$counts['failedPathRetry']          = Get-HitCount -Set $files -Pattern '(InfraRetry|MarkDirty)'
+$counts['directorNull']             = Get-HitCount -Set @($files | Where-Object { $_.Name -eq 'LlmStateDirector.cs' }) -Pattern 'return\s+null\s*;'
+
 $warn = [ordered]@{}
 $warn['catchSwallow']        = Get-HitCount -Set $files -Pattern '(catch\s*\{|catch\s*\(\s*Exception)'
 $warn['nullLiteralCoalesce'] = Get-HitCount -Set $files -Pattern '(\?\?\s*string\.Empty|\?\?\s*null)'

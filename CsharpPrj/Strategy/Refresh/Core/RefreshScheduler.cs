@@ -200,12 +200,10 @@ namespace Strategy.Refresh.Core
                 var now = _options.UtcNow();
                 RefreshTrigger trigger;
                 IReadOnlyCollection<string>? scopes;
-                bool low;
                 lock (_gate)
                 {
                     if (_dirtyAll || _dirtyKeys.Count > 0)
                     {
-                        low = false;
                         trigger = RefreshTrigger.Change;
                         scopes = _dirtyAll ? null : new List<string>(_dirtyKeys);
                         _dirtyAll = false;
@@ -213,7 +211,6 @@ namespace Strategy.Refresh.Core
                     }
                     else if (_lowAll || _lowKeys.Count > 0)
                     {
-                        low = true;
                         trigger = RefreshTrigger.Fallback;
                         scopes = _lowAll ? null : new List<string>(_lowKeys);
                         _lowAll = false;
@@ -221,7 +218,6 @@ namespace Strategy.Refresh.Core
                     }
                     else
                     {
-                        low = false;
                         trigger = RefreshTrigger.Heartbeat;
                         scopes = null;
                     }
@@ -240,23 +236,8 @@ namespace Strategy.Refresh.Core
 
                 if (!ok)
                 {
-                    lock (_gate)
-                    {
-                        if (low)
-                        {
-                            if (scopes is null) _lowAll = true;
-                            else foreach (var s in scopes) _lowKeys.Add(s);
-                        }
-                        else if (trigger == RefreshTrigger.Heartbeat)
-                        {
-                            if (scopes is not null) foreach (var s in scopes) _nextDue[s] = now;
-                        }
-                        else
-                        {
-                            if (scopes is null) _dirtyAll = true;
-                            else foreach (var s in scopes) _dirtyKeys.Add(s);
-                        }
-                    }
+                    // 失败不置回：仅记录（下一 tick 由定时器/事件自然触发；失败驱动 ≠ 时间驱动）。
+                    ReportDiagnostics(trigger, scopes);
                     return;
                 }
 

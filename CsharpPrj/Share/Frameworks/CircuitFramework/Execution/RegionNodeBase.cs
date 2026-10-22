@@ -165,20 +165,21 @@ public sealed class RegionNodeBase : ICircuitNode
             ? Judge(inputs.TryGetValue(port, out var value) ? value : null, port)
             : false;
 
-    /// <summary>迭代间反馈：出映射中 <c>ParentPort == JudgePort</c> 的项提供下一轮判定（无则保持当前值）。</summary>
+    /// <summary>迭代间反馈：出映射中 <c>ParentPort == JudgePort</c> 的项提供下一轮判定；
+    /// 缺失判定端口 / 无反馈映射 / 反馈缺该端口 ⇒ <b>false（fail-closed：判定端口缺失即停）</b>。</summary>
     private bool FeedbackJudge(IReadOnlyDictionary<string, object?>? childResult, bool current)
     {
         if (childResult is null || _plan.JudgePort is not { Length: > 0 } judge)
-            return current;
+            return false;
 
         foreach (var binding in _outBindings)
         {
             if (!string.Equals(binding.ParentPort, judge, StringComparison.Ordinal)) continue;
-            if (childResult.TryGetValue(binding.ChildPort, out var value))
-                return Judge(value, judge);
-            break;
+            return childResult.TryGetValue(binding.ChildPort, out var value) && Judge(value, judge);
         }
-        return current;
+
+        // 判定端口无反馈供给 ⇒ 停止（禁保持上一轮 true：E1 结构性止血）。
+        return false;
     }
 
     /// <summary>判定值归一（载体须为结构化布尔事实；非布尔即抛，不静默误判）。</summary>

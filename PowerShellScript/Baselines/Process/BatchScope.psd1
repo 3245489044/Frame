@@ -419,7 +419,16 @@
     #   均在新单 allowSet 内。上一系列（PowerShellHost 框架层重构）在途改动按新单 preexisting 登记。
     #   恢复 = 回填下方注释 v60 的 Value（当前行）。
     # Manifest(v60) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-PowerShellHost-框架层重构.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-会话发送与轮次装配.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v62（2026-10-22）：单指针切换至「循环与重试通用框架 —— LoopKernel（F0–F7）」授权单。
+    #   切换理由 = 用户要求优先提取通用框架、大步一次改完：LoopKernel / LoopVerdict / 实例账本 / 驱动壳 /
+    #   fail-closed 原语 / Agent run once / Daemon 去内部重试 / Refresh 失败不置回 / TaskPool 去 Retry 自动重派 /
+    #   DirectorDecision。改动落在 Frame/CsharpPrj/Share/Orchestration/TaskStatusPool · Operation/LoopFoldMethod ·
+    #   Operation/StateHoldDriven · Strategy/Refresh · Share/Frameworks/{CircuitFramework,AiScheduling} ·
+    #   Projects/Plug/Agent/{src,Config/workflows} · Environment/CentralTest · Frame/PowerShellScript · Docs/analysis/2026/10/10.22，
+    #   均在新单 allowSet 内。上一系列（会话发送与轮次装配）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填下方注释 v61 的 Value（当前行）。
+    # Manifest(v61) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-会话发送与轮次装配.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-循环与重试框架-LoopKernel.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

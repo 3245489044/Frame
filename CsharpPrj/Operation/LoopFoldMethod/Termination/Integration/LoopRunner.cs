@@ -41,7 +41,6 @@ public sealed class LoopRunner<TState, TResult>
         var rounds = new List<TResult>();
         var verdict = TerminationVerdict.Continue;
 
-        var round = 0;
         var noGain = 0;
         var sameFingerprint = 0;
         string? previousFingerprint = null;
@@ -56,7 +55,7 @@ public sealed class LoopRunner<TState, TResult>
             => new(
                 ScopeId: scope.ScopeId,
                 Owner: scope.Owner,
-                Round: round,
+                Round: rounds.Count,
                 Elapsed: scope.Elapsed,
                 Idle: scope.IdleFor,
                 IdleWindow: scope.IdleWindow ?? TimeSpan.Zero,
@@ -102,9 +101,9 @@ public sealed class LoopRunner<TState, TResult>
                 previousFingerprint = currentFingerprintValue;
                 currentFingerprint = currentFingerprintValue;
 
-                round++;
                 return nextState;
             },
+            maxRounds: opt.MaxRounds > 0 ? opt.MaxRounds : 1,
             ct: token,
             externalTerminate: (state, _) =>
             {
@@ -118,7 +117,7 @@ public sealed class LoopRunner<TState, TResult>
             {
                 if (verdict.IsTerminal) return verdict.Decision;
 
-                if (opt.MaxRounds > 0 && round >= opt.MaxRounds)
+                if (opt.MaxRounds > 0 && rounds.Count >= opt.MaxRounds)
                 {
                     verdict = TerminationVerdict.Terminal(
                         LoopDecision.Timeout, TerminationReason.BudgetExhausted,
@@ -171,18 +170,19 @@ public sealed class LoopRunner<TState, TResult>
             decision = snapshot.FinalDecision;
             reason = decision switch
             {
-                LoopDecision.Success => TerminationReason.Completed,
+                LoopDecision.Success or LoopDecision.Complete => TerminationReason.Completed,
                 LoopDecision.Timeout => TerminationReason.BudgetExhausted,
-                LoopDecision.TripTerminated => TerminationReason.Failed,
+                LoopDecision.TripTerminated or LoopDecision.Abort => TerminationReason.Failed,
                 _ => TerminationReason.None,
             };
             evidence = null;
         }
         else
         {
-            reason = TerminationReason.Completed;
-            decision = LoopDecision.Success;
-            evidence = null;
+            // 未判定终态：失败即终止（禁兜底为 Success——E7 假绿）。
+            reason = TerminationReason.Failed;
+            decision = LoopDecision.Abort;
+            evidence = FailureCodes.Unresolved;
         }
 
         // 强制退出语义：宿主关闭/失败/超时/空闲/空转 → 立即触发 scope 中止回调（不等被取消方返回）。

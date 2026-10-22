@@ -14,17 +14,25 @@
   },
   "counts": {
     "retrySymbolsInEngine": 108,
-    "retrySymbolsInFrame": 375,
-    "whileTrue": 34,
+    "retrySymbolsInFrame": 384,
+    "whileTrue": 32,
     "attemptWrites": 21,
-    "continueSymbols": 39,
+    "continueSymbols": 30,
     "failedPathReenqueue": 18,
     "fireAndForgetTaskRun": 97,
-    "thirdStateReturns": 111
+    "thirdStateReturns": 111,
+    "kernelLoopBody": 0,
+    "agentConditionalRegion": 0,
+    "judgeFallbackTrue": 0,
+    "unboundedLoopCtor": 3,
+    "rawWhileLoop": 5,
+    "foreignAttemptWrite": 21,
+    "failedPathRetry": 33,
+    "directorNull": 0
   },
   "warn": {
-    "catchSwallow": 1088,
-    "nullLiteralCoalesce": 1200
+    "catchSwallow": 1089,
+    "nullLiteralCoalesce": 1201
   },
   "note": "零重试轴计数基线（只减不增）。-UpdateBaseline 冻结；禁降基线过关。"
 }

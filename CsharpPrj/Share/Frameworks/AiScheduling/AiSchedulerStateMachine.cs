@@ -83,9 +83,12 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
             historyContext);
     }
 
+    /// <summary>最近一次导演停止事实（失败可见化；null = 无失败）。</summary>
+    public DirectorDecision.Stop? LastDirectorStop { get; private set; }
+
     /// <summary>
     /// 推进一次整体状态：导演提议 → 计算守卫校验 → 原子施加（Held/Changed/Reject）。
-    /// 导演失败 / 置信度不足 / 非法提案 → fail-safe 回退确定性默认动作（stay/continue），不中断调用方。
+    /// 导演停止（Stop）→ fail-safe 回退确定性默认动作（stay），并记入 <see cref="LastDirectorStop"/>（不静默）。
     /// </summary>
     public async Task<SchedulerDecision> AdvanceAsync(
         SchedulerDirectorContext? context = null,
@@ -93,23 +96,32 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
     {
         var ctx = context ?? BuildContext();
 
-        StateTransitionProposal? proposal;
+        DirectorDecision decision;
         try
         {
-            proposal = await _director.DecideAsync(ctx, cancellationToken).ConfigureAwait(false);
+            decision = await _director.DecideOutcomeAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // fail-safe：导演异常 → stay（不中断调用方）。
+            // fail-safe：导演异常 → stay，但失败可见（不中断调用方）。
+            LastDirectorStop = new DirectorDecision.Stop(DirectorStops.NoProposal, ex.Message);
             return Stay(ctx, null, SchedulerAction.Continue);
         }
 
-        if (proposal is null || proposal.Confidence < _minConfidence)
-            return Stay(ctx, proposal, proposal?.Action ?? SchedulerAction.Continue);
+        if (decision is DirectorDecision.Stop stop)
+        {
+            LastDirectorStop = stop;
+            return Stay(ctx, null, SchedulerAction.Continue);
+        }
+
+        LastDirectorStop = null;
+        var proposal = ((DirectorDecision.Proposal)decision).Value;
+        if (proposal.Confidence < _minConfidence)
+            return Stay(ctx, proposal, proposal.Action);
 
         var verdict = _guard.Verify(proposal, ctx);
         if (verdict == TransitionVerdict.Reject)

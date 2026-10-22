@@ -29,8 +29,14 @@ public sealed class SnapshotLoopResult<TState, TResult>
     /// <summary>是否由预算终止（<c>budgetTerminate</c> 决策）触发结束。权威: AX.TerminationBipartition.Budgetary。</summary>
     public bool TerminatedByBudget { get; set; }
 
-    /// <summary>预算/二值终止决策值（引擎内裁决：Complete/Abort）。未赋值默认 Abort。</summary>
+    /// <summary>预算/二值终止决策值（旧投影，仅遥测/适配器读取；控制流请用 <see cref="FinalVerdict"/>）。</summary>
     public LoopDecision FinalDecision { get; set; } = LoopDecision.Abort;
+
+    /// <summary>唯一终态（唯一控制流判据）。未赋值默认 <see cref="LoopVerdict.Abort"/>。</summary>
+    public LoopVerdict FinalVerdict { get; set; } = LoopVerdict.Abort;
+
+    /// <summary>终止失败事实（Abort 时非空；外部取消 / 轮次上限 / 无效终态）。</summary>
+    public Failure? Failure { get; set; }
 
     public TimeSpan TotalDuration { get; set; }
 }
@@ -54,20 +60,23 @@ public sealed class SnapshotDrivenLoopEngine<TState, TResult>
     /// <param name="execute">单轮执行体：由当前快照执行一轮动作并返回产物。</param>
     /// <param name="next">状态转移函数（混合机制核心）：读当前快照 + 本轮产物 + 数据 → 计算/决策 → 返回下一整体快照。</param>
     /// <param name="ct">取消令牌（探索终止信号之一）。</param>
+    /// <param name="maxRounds">轮次硬上限（必填，&lt;=0 抛）：引擎内可判定预算终止，到达即停。</param>
     /// <param name="externalTerminate">探索终止谓词（宿主级 watchdog/观察者；默认 null = 仅取消令牌可停）。</param>
-    /// <param name="budgetTerminate">预算终止决策谓词（引擎内，可判定；默认 null = 不内置预算终止）。
-    /// 返回 LoopDecision 终止值（Success/Timeout/TripTerminated）→ 引擎在循环头 break，阈值到达即触发，不外置；
-    /// 返回 Continue/None/SwitchStrategy → 继续；决策值由引擎承载到 <see cref="SnapshotLoopResult{TState,TResult}.FinalDecision"/>。</param>
+    /// <param name="budgetTerminate">预算终止决策谓词（引擎内，可判定；默认 null = 仅 <paramref name="maxRounds"/> 兜底）。
+    /// 返回 LoopDecision 终止值 → 引擎在循环头停；决策值承载到 <see cref="SnapshotLoopResult{TState,TResult}.FinalDecision"/>。</param>
     public async Task<SnapshotLoopResult<TState, TResult>> RunAsync(
         TState initialState,
         Func<TState, CancellationToken, Task<TResult>> execute,
         Func<TState, TResult, CancellationToken, Task<TState>> next,
+        int maxRounds,
         CancellationToken ct = default,
         Func<TState, CancellationToken, Task<bool>>? externalTerminate = null,
         Func<TState, LoopDecision>? budgetTerminate = null)
     {
         PortGuard.Required(execute, nameof(execute));
         PortGuard.Required(next, nameof(next));
+        if (maxRounds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxRounds), "轮次上限须为正（无界循环禁入）。");
 
         var state = initialState;
         var result = new SnapshotLoopResult<TState, TResult> { FinalState = state };
@@ -75,21 +84,19 @@ public sealed class SnapshotDrivenLoopEngine<TState, TResult>
 
         try
         {
-            var index = 0;
-            while (true)
+            for (var index = 0; index < maxRounds; index++)
             {
                 // 探索终止（外置，不可判定）：取消令牌 / 宿主 watchdog 谓词。
                 if (ct.IsCancellationRequested || (externalTerminate != null && await externalTerminate(state, ct).ConfigureAwait(false)))
                 {
                     result.TerminatedByExternal = true;
+                    result.FinalVerdict = LoopVerdict.Abort;
+                    result.Failure = Failure.Environment(FailureCodes.Cancelled, "探索终止（取消/宿主 watchdog）。");
                     result.FinalState = state;
                     break;
                 }
-                // 注：取消已在上述分支短路处理（break + TerminatedByExternal），此处不再重复 ThrowIfCancellationRequested（R2），
-                // 消除冗余双检查（原 break/throw 两语义等价且重复）。
 
-                // 预算终止（引擎内，可判定，阈值到达即触发）：决策谓词返回终止值（TS/TO/TM）→ break，不外置（AX.TerminationBipartition.Budgetary）。
-                // 决策值由引擎承载到 FinalDecision（决策域与引擎同库回归，无需消费方闭包记录）。
+                // 预算终止（引擎内，可判定，阈值到达即触发）：决策谓词返回终止值 → 停，不外置（AX.TerminationBipartition.Budgetary）。
                 if (budgetTerminate != null)
                 {
                     var decision = budgetTerminate(state);
@@ -97,23 +104,51 @@ public sealed class SnapshotDrivenLoopEngine<TState, TResult>
                     {
                         result.TerminatedByBudget = true;
                         result.FinalDecision = decision;
+                        result.FinalVerdict = LoopVerdicts.FromLegacy(decision);
+                        if (result.FinalVerdict == LoopVerdict.Abort)
+                            result.Failure = Failure.Domain(FailureCodes.Unresolved, $"终止决策 {decision}。");
                         result.FinalState = state;
                         break;
                     }
                 }
 
                 var roundResult = await execute(state, ct).ConfigureAwait(false);
-                index++;
-                result.Rounds.Add(new SnapshotLoopRound<TResult> { Index = index, Result = roundResult });
+                result.Rounds.Add(new SnapshotLoopRound<TResult> { Index = index + 1, Result = roundResult });
 
                 // 混合机制核心：读快照 + 本轮产物 → LLM 提议 + 计算校验 → 变更整体状态 → 下一快照。
                 state = await next(state, roundResult, ct).ConfigureAwait(false);
                 result.FinalState = state;
+
+                // 轮末预算检查：阈值到达即触发（否则 maxRounds 会先于预算谓词裁决，退化为 UNRESOLVED）。
+                if (budgetTerminate != null)
+                {
+                    var tailDecision = budgetTerminate(state);
+                    if (DecisionTerminals.IsTerminal(tailDecision))
+                    {
+                        result.TerminatedByBudget = true;
+                        result.FinalDecision = tailDecision;
+                        result.FinalVerdict = LoopVerdicts.FromLegacy(tailDecision);
+                        if (result.FinalVerdict == LoopVerdict.Abort)
+                            result.Failure = Failure.Domain(FailureCodes.Unresolved, $"终止决策 {tailDecision}。");
+                        break;
+                    }
+                }
+            }
+
+            // 轮次上限到达且无任何显式终态 ⇒ 未解决（禁兜底成功）。
+            if (!result.TerminatedByExternal && !result.TerminatedByBudget)
+            {
+                result.TerminatedByBudget = true;
+                result.FinalVerdict = LoopVerdict.Abort;
+                result.FinalDecision = LoopDecision.Abort;
+                result.Failure = Failure.Domain(FailureCodes.Unresolved, $"达到轮次上限 {maxRounds} 仍未产生终态。");
             }
         }
         catch (OperationCanceledException)
         {
             result.TerminatedByExternal = true;
+            result.FinalVerdict = LoopVerdict.Abort;
+            result.Failure = Failure.Environment(FailureCodes.Cancelled, "执行体取消。");
             result.FinalState = state;
         }
         finally

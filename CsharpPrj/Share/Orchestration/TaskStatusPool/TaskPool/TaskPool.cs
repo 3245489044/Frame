@@ -38,7 +38,6 @@ namespace Share.TaskStatusPool.TaskPool
 
         private readonly TaskStateStore _states = new();
         private readonly ConcurrentDictionary<string, TaskPauseHandle> _pauses = new(StringComparer.Ordinal);
-        private readonly ConcurrentDictionary<string, int> _retries = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, TaskPoolItemKind> _kinds = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, bool> _activeFlags = new(StringComparer.Ordinal);
         private readonly HashSet<string> _inFlight = new(StringComparer.Ordinal);
@@ -160,7 +159,6 @@ namespace Share.TaskStatusPool.TaskPool
             if (cur is TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted or TaskExecutionStatus.Cancelled)
             {
                 state.TryTransitionTo(TaskExecutionStatus.NotStarted, _ => true);
-                _retries.TryRemove(item.TaskKey, out _);
             }
             await _signal.Writer.WriteAsync(true, ct).ConfigureAwait(false);
             // 状态迁移真值：from 取复位前真实内存态（消除恒 NotStarted→NotStarted 的日志失真——取消/完成后重跑可见 Cancelled/Completed→NotStarted）。
@@ -467,15 +465,9 @@ namespace Share.TaskStatusPool.TaskPool
             }
             catch (Exception)
             {
+                // 失败即终态（AX-ZR）：不进 Retry/NotStarted，不自动重派（重试只能由外部 RetryPlan 提案）。
                 var st = _states.Get(key);
-                int retry = _retries.AddOrUpdate(key, 1, (_, v) => v + 1);
-                if (st is not null && retry <= item.MaxRetries)
-                {
-                    st.TryTransitionTo(TaskExecutionStatus.NotStarted, s => s == TaskExecutionStatus.Running);
-                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.NotStarted, ct).ConfigureAwait(false);
-                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.NotStarted, "retry");
-                }
-                else if (st is not null && st.TryFault())
+                if (st is not null && st.TryFault())
                 {
                     await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted");

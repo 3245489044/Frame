@@ -92,6 +92,7 @@ public sealed class FoldEngine<TState, TVertex>
                 observer?.OnStateAdvanced(nextState);
                 return nextState;
             },
+            maxRounds: Math.Max(1, budget.MaxCoordinate),
             ct: ct,
             budgetTerminate: s =>
             {

@@ -100,23 +100,17 @@ public static class RoundLifecycle
         PortGuard.Required(ctx, nameof(ctx));
         PortGuard.Required(execute, nameof(execute));
 
-        AxiomActionResult result;
-        try
-        {
-            result = await execute(ctx, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            return new StepOutcome.Fail(ToFailure(ErrorClassifier.ClassifyError(ex), ex.Message));
-        }
-
-        var errCls = Collect(ctx, result);
-        var eval = Evaluate(ctx, result, errCls, evaluate);
-        return Project(result, eval, errCls);
+        // 唯一执行体 = LoopKernel（本方法只做「执行体 + 五步投影」的适配，不再自持 try/catch 循环语义）。
+        return await LoopKernel.ExecuteOnceAsync(
+            ctx,
+            async (state, token) =>
+            {
+                var result = await execute(state, token).ConfigureAwait(false);
+                var errCls = Collect(state, result);
+                var eval = Evaluate(state, result, errCls, evaluate);
+                return Project(result, eval, errCls);
+            },
+            ct).ConfigureAwait(false);
     }
 
     /// <summary>

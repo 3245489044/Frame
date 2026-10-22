@@ -21,9 +21,10 @@ namespace Operation.LoopFoldMethod.Core;
 public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TResult>
 {
     private readonly IReadOnlyList<ActionPoint<TState>> _points;
-    private readonly Func<TState, LoopDecision> _budgetTerminate;
+    private readonly Func<TState, LoopDecision>? _budgetTerminate;
     private readonly Func<TState, LoopDecision, int, TResult> _converge;
     private readonly TerminationScope? _scope;
+    private readonly int _maxRounds;
 
     /// <summary>
     /// 构造固定脊柱。
@@ -33,17 +34,22 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
     /// <param name="converge">收敛器：由最终状态 + 终态决策 + 已执行轮数产出 <typeparamref name="TResult"/>。</param>
     /// <param name="stageTimeout">单级作用点有界守卫超时（可选；0 = 仅协作取消）。</param>
     /// <param name="scope">可选终止作用域（令牌贯穿各级与底层循环；强制退出可立即短路）。</param>
+    /// <param name="maxRounds">轮次硬上限（默认 1 = 单次执行；&lt;=0 抛）。</param>
     public SpinalPipeline(
         IReadOnlyDictionary<ActionStageId, IActionRouter<TState>> routers,
         Func<TState, LoopDecision>? budgetTerminate = null,
         Func<TState, LoopDecision, int, TResult>? converge = null,
         TimeSpan? stageTimeout = null,
-        TerminationScope? scope = null)
+        TerminationScope? scope = null,
+        int maxRounds = 1)
     {
         ArgumentNullException.ThrowIfNull(routers);
+        if (maxRounds <= 0) throw new ArgumentOutOfRangeException(nameof(maxRounds), "轮次上限须为正（无界循环禁入）。");
         _converge = converge
             ?? throw new ArgumentNullException(nameof(converge), "固定脊柱需宿主提供收敛器（converge）以产出 TResult。");
-        _budgetTerminate = budgetTerminate ?? (_ => LoopDecision.Continue);
+        // 无默认 Continue：未注入谓词时由引擎轮次上限兜底（无界循环不可表达）。
+        _budgetTerminate = budgetTerminate;
+        _maxRounds = maxRounds;
 
         // 按固定顺序把「已注册路由的作用点」排成推进序列（顺序不可改）。
         var points = new List<ActionPoint<TState>>();
@@ -91,12 +97,14 @@ public sealed class SpinalPipeline<TState, TResult> : ISpinalPipeline<TState, TR
                 return state;
             },
             next: (_, roundState, _) => Task.FromResult(roundState),
+            maxRounds: _maxRounds,
             ct: token,
-            budgetTerminate: s => ended != LoopDecision.None ? ended : _budgetTerminate(s)).ConfigureAwait(false);
+            budgetTerminate: s => ended != LoopDecision.None ? ended
+                : (_budgetTerminate is null ? LoopDecision.Continue : _budgetTerminate(s))).ConfigureAwait(false);
 
-        // 收敛：轮内终态优先；否则引擎承载的预算终止值（非 None）；探索/取消与无终态则按 Continue 交收敛器定夺。
+        // 收敛：轮内终态优先；否则引擎唯一终态（Complete/Abort，禁默认继续）。
         var final = ended != LoopDecision.None ? ended
-            : (snapshot.FinalDecision != LoopDecision.None ? snapshot.FinalDecision : LoopDecision.Continue);
+            : (snapshot.FinalVerdict == LoopVerdict.Complete ? LoopDecision.Complete : LoopDecision.Abort);
         return _converge(snapshot.FinalState, final, snapshot.Rounds.Count);
     }
 }

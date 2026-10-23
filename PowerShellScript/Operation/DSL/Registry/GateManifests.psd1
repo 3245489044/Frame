@@ -1196,6 +1196,28 @@
         Note   = '调用登记单源（P5′/P8′）：ActorInvocationLedger.Record 生产写点恰 1（AgentTaskPool 活入队单点）· ResultObservationLedger.Record 写点恰 1（SubAgentResultPublisher）· 行必含 InvocationId · 同 TaskKey 幂等（TryAdd）；正/负对照经真实扫描函数'
     }
 
+    JudgmentPoints = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '判定点单源（K1–K9）：Judgment/ 内核在位 · Rules 文件 >= 5 · MissingPorts 定义点 = 1（薄转发）· RoundFailureException 抛点 = 2（执行失败 + Apply）；负对照防恒真'
+    }
 
+    JudgmentParity = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '判定口径对拍（K2/K4/K6）：RoundContractJudge 转发 JudgmentEngine.Judge 且无 Except 判定体 · PromptPreflight 接 AliasCoverageRule 且无本地 IsNullOrWhiteSpace · 对拍测试在位；负对照防恒真'
+    }
+
+    DeclarationCapability = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明能力闭合（K5/K7）：nullable=/conditional= 端口必须 ⊆ outports；负对照：未知能力端口必须判违规'
+    }
 }
 

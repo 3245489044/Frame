@@ -8,8 +8,11 @@ public enum PortAdmission
     /// <summary>声明端口命中且有值。</summary>
     DeclaredHit,
 
-    /// <summary>声明端口未命中或值为 null（缺口可见化，不静默跳过）。</summary>
+    /// <summary>声明端口未命中（键不存在；缺口可见化，不静默跳过）。</summary>
     DeclaredMissing,
+
+    /// <summary>声明端口命中但值为显式 null（与“键不存在”可分；口径由判据裁决）。</summary>
+    DeclaredNull,
 
     /// <summary>未声明 ResultKeys → 由结果结构推断（必产 <c>port.inferred</c> 诊断）。</summary>
     Inferred,
@@ -18,11 +21,28 @@ public enum PortAdmission
     Default,
 }
 
+/// <summary>端口存在性三态（事实层词汇）：值 / 显式空 / 完全缺席。</summary>
+public enum PortPresence
+{
+    /// <summary>键不存在（完全没给出）。</summary>
+    Absent,
+
+    /// <summary>键存在且值为 null（显式空）。</summary>
+    ExplicitNull,
+
+    /// <summary>键存在且有值。</summary>
+    Value,
+}
+
 /// <summary>结果成员面（值形态无关：JSON 对象属性 / CLR 公共属性 / 字典键）。</summary>
-public sealed record PortMember(string Name, bool HasValue);
+public sealed record PortMember(string Name, bool HasValue)
+{
+    /// <summary>存在性三态；旧构造器以 HasValue 派生（null 需由调用方显式置 ExplicitNull）。</summary>
+    public PortPresence Presence { get; init; } = HasValue ? PortPresence.Value : PortPresence.Absent;
+}
 
 /// <summary>单个端口准入判定（声明命中/缺失携带声明名，推断携带成员名）。</summary>
-public sealed record PortDecision(string Port, PortAdmission Admission);
+public sealed record PortDecision(string Port, PortAdmission Admission, PortPresence Presence = PortPresence.Value);
 
 public sealed record PortRuleResult(
     IReadOnlyList<PortDecision> Decisions,
@@ -82,18 +102,32 @@ public static class NodePortRules
 
             foreach (var port in declared)
             {
-                if (HasValue(members, port, comparer))
+                var member = Find(members, port, comparer);
+                var presence = member?.Presence ?? PortPresence.Absent;
+                switch (presence)
                 {
-                    decisions.Add(new PortDecision(port, PortAdmission.DeclaredHit));
-                    continue;
-                }
+                    case PortPresence.Value:
+                        decisions.Add(new PortDecision(port, PortAdmission.DeclaredHit, presence));
+                        continue;
 
-                decisions.Add(new PortDecision(port, PortAdmission.DeclaredMissing));
-                diagnostics.Add(new NodeDiagnostic(
-                    "port.declared-missing",
-                    NodeDiagnosticSeverity.Info,
-                    $"声明端口 '{port}' 在结果中未命中或为 null（缺口可见化，不静默跳过）",
-                    nodeKey));
+                    case PortPresence.ExplicitNull:
+                        decisions.Add(new PortDecision(port, PortAdmission.DeclaredNull, presence));
+                        diagnostics.Add(new NodeDiagnostic(
+                            "port.declared-null",
+                            NodeDiagnosticSeverity.Info,
+                            $"声明端口 '{port}' 值为显式 null（与“键不存在”可分，口径由判据裁决）",
+                            nodeKey));
+                        continue;
+
+                    default:
+                        decisions.Add(new PortDecision(port, PortAdmission.DeclaredMissing, presence));
+                        diagnostics.Add(new NodeDiagnostic(
+                            "port.declared-missing",
+                            NodeDiagnosticSeverity.Info,
+                            $"声明端口 '{port}' 在结果中未命中（缺口可见化，不静默跳过）",
+                            nodeKey));
+                        continue;
+                }
             }
 
             return new PortRuleResult(decisions, UsedInference: false, diagnostics);
@@ -101,12 +135,12 @@ public static class NodePortRules
 
         foreach (var member in members)
         {
-            if (!member.HasValue)
+            if (member.Presence != PortPresence.Value)
             {
                 continue;
             }
 
-            decisions.Add(new PortDecision(member.Name, PortAdmission.Inferred));
+            decisions.Add(new PortDecision(member.Name, PortAdmission.Inferred, member.Presence));
             diagnostics.Add(new NodeDiagnostic(
                 "port.inferred",
                 NodeDiagnosticSeverity.Warning,
@@ -117,16 +151,16 @@ public static class NodePortRules
         return new PortRuleResult(decisions, UsedInference: true, diagnostics);
     }
 
-    private static bool HasValue(IReadOnlyList<PortMember> members, string name, StringComparer comparer)
+    private static PortMember? Find(IReadOnlyList<PortMember> members, string name, StringComparer comparer)
     {
         foreach (var member in members)
         {
             if (comparer.Equals(member.Name, name))
             {
-                return member.HasValue;
+                return member;
             }
         }
 
-        return false;
+        return null;
     }
 }

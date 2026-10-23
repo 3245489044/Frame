@@ -22,7 +22,14 @@ public sealed record UsharpNodeSpec(
     string? Skill = null,
     string? Llm = null,
     string? DeclaredFn = null,
-    string? Executor = null);
+    string? Executor = null)
+{
+    /// <summary>显式可空端口（<c>nullable=</c>）：允许显式 null，不改变 outports 语法。</summary>
+    public IReadOnlyList<string> NullablePorts { get; init; } = Array.Empty<string>();
+
+    /// <summary>条件产出端口（<c>conditional=</c>）：允许缺席（未触发 = 合法）。</summary>
+    public IReadOnlyList<string> ConditionalPorts { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>
 /// <c>[Node]</c> 可执行体读取器：端口经既有 <see cref="ResourceNodeType.ParsePorts"/> 解析（单一口径），
@@ -58,11 +65,12 @@ public static class UsharpNodePortReader
             var llm = decl.Field("llm");
             // executor=（执行单元）：折叠引擎执行端名；与 fn=（注册函数名）分属两套命名空间。
             var executor = decl.Field("executor");
-            map.TryAdd(decl.Name, new UsharpNodeSpec(
+            var outports = ResourceNodeType.ParsePorts(decl.Field("outports")).Keys.ToList();
+            var spec = new UsharpNodeSpec(
                 decl.Name,
                 string.IsNullOrWhiteSpace(fn) ? decl.Name : fn.Trim(),
                 ResourceNodeType.ParsePorts(decl.Field("inports")).Keys.ToList(),
-                ResourceNodeType.ParsePorts(decl.Field("outports")).Keys.ToList(),
+                outports,
                 decl.SourceFile,
                 decl.LineNumber,
                 string.IsNullOrWhiteSpace(kind) ? null : kind.Trim(),
@@ -70,8 +78,21 @@ public static class UsharpNodePortReader
                 string.IsNullOrWhiteSpace(llm) ? null : llm.Trim(),
                 // 显式 fn=（**未声明 ⇒ null**）——「缺省 FuncName=节点名」不是声明，禁据此判为执行体归属。
                 string.IsNullOrWhiteSpace(fn) ? null : fn.Trim(),
-                string.IsNullOrWhiteSpace(executor) ? null : executor.Trim()));
+                string.IsNullOrWhiteSpace(executor) ? null : executor.Trim())
+            {
+                NullablePorts = ParsePortNames(decl.Field("nullable")),
+                ConditionalPorts = ParsePortNames(decl.Field("conditional")),
+            };
+            map.TryAdd(decl.Name, spec);
         }
         return map;
     }
+
+    /// <summary>解析能力端口列表（逗号分隔；不去重写 outports，能力字段独立）。</summary>
+    private static IReadOnlyList<string> ParsePortNames(string? field)
+        => string.IsNullOrWhiteSpace(field)
+            ? Array.Empty<string>()
+            : field.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(static p => p.Length > 0)
+                .ToArray();
 }

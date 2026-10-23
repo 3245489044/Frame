@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Operation.HierarchyMethod.Judgment;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Workflows;
 
@@ -12,6 +13,12 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 /// </summary>
 public static class RoundContractJudge
 {
+    private static readonly IJudgmentRule PortRule = new PortPresenceRule();
+    private static readonly IJudgmentRule StepRule = new StepClosureRule();
+    private static readonly IJudgmentRule UndeclaredInRule =
+        new UndeclaredKeysRule(RoundFailureCodes.ExecUndeclaredInport, inports: true);
+    private static readonly IJudgmentRule UndeclaredOutRule =
+        new UndeclaredKeysRule(RoundFailureCodes.ExecUndeclaredOutport, inports: false);
     /// <summary>声明外键 = 实际键 − 声明键 − 豁免键（内部键）。空 = 闭合。</summary>
     public static IReadOnlyList<string> Undeclared(
         IEnumerable<string>? declared,
@@ -20,22 +27,16 @@ public static class RoundContractJudge
     {
         if (declared is null) return Array.Empty<string>();
 
-        var allowed = new HashSet<string>(
-            declared.Where(static k => !string.IsNullOrWhiteSpace(k)), StringComparer.Ordinal);
-        if (exempt is not null)
+        var input = new JudgmentInput(JudgmentScope.Static)
         {
-            foreach (var key in exempt)
-            {
-                if (!string.IsNullOrWhiteSpace(key)) allowed.Add(key);
-            }
-        }
+            DeclaredPorts = declared.Where(static k => !string.IsNullOrWhiteSpace(k)).ToArray(),
+            ActualOutportKeys = actual.Where(static k => !string.IsNullOrWhiteSpace(k)).ToArray(),
+            ExemptKeys = exempt ?? Array.Empty<string>(),
+        };
 
-        return actual
-            .Where(static k => !string.IsNullOrWhiteSpace(k))
-            .Where(k => !allowed.Contains(k))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static k => k, StringComparer.Ordinal)
-            .ToArray();
+        return JudgmentEngine
+            .Judge(input, new IJudgmentRule[] { UndeclaredOutRule })
+            .SubjectsOf(RoundFailureCodes.ExecUndeclaredOutport);
     }
 
     /// <summary>E1：声明步骤中既未执行、也未「合法跳过」的步骤（升序；空 = 闭合）。</summary>
@@ -44,21 +45,16 @@ public static class RoundContractJudge
         IEnumerable<string> executed,
         IEnumerable<string>? skipped = null)
     {
-        var covered = new HashSet<string>(executed ?? Array.Empty<string>(), StringComparer.Ordinal);
-        if (skipped is not null)
+        var input = new JudgmentInput(JudgmentScope.Round)
         {
-            foreach (var step in skipped)
-            {
-                if (!string.IsNullOrWhiteSpace(step)) covered.Add(step);
-            }
-        }
+            DeclaredSteps = declaredSteps.Where(static s => !string.IsNullOrWhiteSpace(s)).ToArray(),
+            ExecutedSteps = executed?.ToArray() ?? Array.Empty<string>(),
+            SkippedSteps = skipped?.ToArray() ?? Array.Empty<string>(),
+        };
 
-        return declaredSteps
-            .Where(static s => !string.IsNullOrWhiteSpace(s))
-            .Where(s => !covered.Contains(s))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static s => s, StringComparer.Ordinal)
-            .ToArray();
+        return JudgmentEngine
+            .Judge(input, new IJudgmentRule[] { StepRule })
+            .SubjectsOf(RoundFailureCodes.ExecStepMissing);
     }
 
     /// <summary>E4：声明 outport 中未实际产出的端口（空 = 闭合）。</summary>
@@ -72,17 +68,17 @@ public static class RoundContractJudge
         ArgumentNullException.ThrowIfNull(produced);
         if (declaredPorts is null) return Array.Empty<string>();
 
-        HashSet<string>? nullable = nullablePorts is { Count: > 0 }
-            ? new HashSet<string>(nullablePorts.Where(static p => !string.IsNullOrWhiteSpace(p)), StringComparer.Ordinal)
-            : null;
+        var input = new JudgmentInput(JudgmentScope.Step)
+        {
+            DeclaredPorts = declaredPorts.Where(static p => !string.IsNullOrWhiteSpace(p)).ToArray(),
+            Fact = new JudgmentFact(produced),
+            Capability = new DeclarationCapability(
+                NullablePorts: DeclarationCapability.Set(nullablePorts)),
+        };
 
-        return declaredPorts
-            .Where(static p => !string.IsNullOrWhiteSpace(p))
-            .Where(p => !produced.TryGetValue(p, out var v)
-                        || (v is null && (nullable is null || !nullable.Contains(p))))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static p => p, StringComparer.Ordinal)
-            .ToArray();
+        return JudgmentEngine
+            .Judge(input, new IJudgmentRule[] { PortRule })
+            .SubjectsOf(RoundFailureCodes.ExecPortMissing);
     }
 
     /// <summary>
@@ -112,21 +108,46 @@ public static class RoundContractJudge
         var missingPorts = new List<string>();
         var undeclaredIn = new List<string>();
         var undeclaredOut = new List<string>();
+        var exempt = opts.InternalKeys ?? Array.Empty<string>();
 
         foreach (var record in records)
         {
             if (!byId.TryGetValue(record.NodeKey, out var step)) continue;
 
-            foreach (var key in MissingPorts(step.ResultKeys, record.OutputPorts))
+            var portInput = new JudgmentInput(JudgmentScope.Step)
+            {
+                DeclaredPorts = step.ResultKeys,
+                Fact = new JudgmentFact(record.OutputPorts),
+                Capability = CapabilityOf(step),
+            };
+
+            foreach (var key in JudgmentEngine.Judge(portInput, new IJudgmentRule[] { PortRule })
+                         .SubjectsOf(RoundFailureCodes.ExecPortMissing))
                 missingPorts.Add($"{step.EffectiveNodeId}:[{key}]");
 
             if (record.InjectedKeys is { } injected)
             {
-                foreach (var key in Undeclared(step.ParameterKeys, injected, opts.InternalKeys))
+                var inInput = new JudgmentInput(JudgmentScope.Step)
+                {
+                    DeclaredInports = step.ParameterKeys,
+                    ActualInportKeys = injected.ToArray(),
+                    ExemptKeys = exempt,
+                };
+
+                foreach (var key in JudgmentEngine.Judge(inInput, new IJudgmentRule[] { UndeclaredInRule })
+                             .SubjectsOf(RoundFailureCodes.ExecUndeclaredInport))
                     undeclaredIn.Add($"{step.EffectiveNodeId}:[{key}]");
             }
 
-            foreach (var key in Undeclared(step.ResultKeys, record.OutputPorts.Keys, opts.InternalKeys))
+            var outInput = new JudgmentInput(JudgmentScope.Step)
+            {
+                DeclaredPorts = step.ResultKeys,
+                ActualOutportKeys = record.OutputPorts.Keys.ToArray(),
+                ExemptKeys = exempt,
+            };
+
+            foreach (var key in JudgmentEngine.Judge(outInput, new IJudgmentRule[] { UndeclaredOutRule })
+                         .SubjectsOf(RoundFailureCodes.ExecUndeclaredOutport))
                 undeclaredOut.Add($"{step.EffectiveNodeId}:[{key}]");
         }
 
@@ -135,4 +156,33 @@ public static class RoundContractJudge
             undeclaredIn.Distinct(StringComparer.Ordinal).OrderBy(static x => x, StringComparer.Ordinal).ToArray(),
             undeclaredOut.Distinct(StringComparer.Ordinal).OrderBy(static x => x, StringComparer.Ordinal).ToArray());
     }
+
+    /// <summary>步骤级契约判定（执行边界上报 Verdict 事实；动作由轮级 Apply 统一裁决）。</summary>
+    public static RoundContractVerdict JudgeStep(
+        NodeDefinition node, IReadOnlyDictionary<string, object?> produced)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(produced);
+
+        var input = new JudgmentInput(JudgmentScope.Step)
+        {
+            DeclaredPorts = node.ResultKeys,
+            Fact = new JudgmentFact(produced),
+            Capability = new DeclarationCapability(
+                NullablePorts: DeclarationCapability.Set(node.NullablePorts),
+                ConditionalPorts: DeclarationCapability.Set(node.ConditionalPorts)),
+        };
+
+        var verdict = JudgmentEngine.Judge(input, new IJudgmentRule[] { PortRule });
+        return new RoundContractVerdict(
+            Array.Empty<string>(),
+            verdict.SubjectsOf(RoundFailureCodes.ExecPortMissing),
+            Array.Empty<string>(),
+            Array.Empty<string>());
+    }
+
+    private static DeclarationCapability CapabilityOf(RoundStep step)
+        => new(
+            NullablePorts: DeclarationCapability.Set(step.EffectiveNullablePorts),
+            ConditionalPorts: DeclarationCapability.Set(step.EffectiveConditionalPorts));
 }

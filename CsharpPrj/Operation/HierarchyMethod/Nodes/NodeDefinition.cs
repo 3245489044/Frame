@@ -44,5 +44,8 @@ namespace Operation.HierarchyMethod.Nodes
 
         /// <summary>端口级可空集（E7）：集合内端口允许显式 null 而不算缺失；键不存在仍算缺失。缺省空。</summary>
         public IReadOnlyCollection<string> NullablePorts { get; init; } = Array.Empty<string>();
+
+        /// <summary>条件产出集：集合内端口允许缺席（未触发 = 合法）。缺省空。</summary>
+        public IReadOnlyCollection<string> ConditionalPorts { get; init; } = Array.Empty<string>();
     }
 }

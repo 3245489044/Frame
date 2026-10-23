@@ -90,7 +90,10 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             // 与本方法既有语义一致（返回空字典 ⇒ 调用方补默认端口），同时产 port.default 可见化。
             var members = lookup.Count == 0
                 ? null
-                : lookup.Select(pair => new PortMember(pair.Key, pair.Value is not null)).ToArray();
+                : lookup.Select(pair => new PortMember(pair.Key, pair.Value is not null)
+                {
+                    Presence = pair.Value is null ? PortPresence.ExplicitNull : PortPresence.Value,
+                }).ToArray();
 
             var outcome = Binding.ExtractValues(
                 nodeKey: string.Empty,
@@ -103,6 +106,16 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             foreach (var pair in outcome.Ports)
             {
                 if (pair.Key.Length > 0) props[pair.Key] = pair.Value;
+            }
+
+            // 事实保真：显式 null 的声明端口必须留痕（键存在、值 null），否则可空声明永久失效。
+            foreach (var pair in outcome.Presence)
+            {
+                if (pair.Value == PortPresence.ExplicitNull
+                    && declared.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    props[pair.Key] = null;
+                }
             }
 
             return props;
@@ -138,8 +151,9 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 
             foreach (var pair in binding.Values)
             {
-                if (pair.Value.State == KeyValueState.Known && pair.Value.Value is not null)
+                if (pair.Value.State == KeyValueState.Known)
                 {
+                    // Known + null 亦是事实（显式空），不得静默丢弃。
                     props[pair.Key] = pair.Value.Value;
                 }
             }

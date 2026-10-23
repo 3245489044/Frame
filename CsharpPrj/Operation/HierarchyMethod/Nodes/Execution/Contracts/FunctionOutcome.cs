@@ -17,6 +17,9 @@ public sealed record FunctionOutcome(
     IReadOnlyDictionary<string, object?> Ports,
     RoundFailure? Failure = null)
 {
+    /// <summary>步骤级契约结论（事实上报；动作由轮级 Apply 统一裁决，本层不 throw）。</summary>
+    public RoundContractVerdict? ContractVerdict { get; init; }
+
     public static FunctionOutcome Of(IReadOnlyDictionary<string, object?> ports)
         => new(FunctionOutcomeKind.Produced, ports);
 

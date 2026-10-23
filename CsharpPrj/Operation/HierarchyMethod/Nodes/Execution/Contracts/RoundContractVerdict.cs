@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using Operation.HierarchyMethod.Judgment;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -29,4 +31,20 @@ public sealed record RoundContractVerdict(
         foreach (var k in UndeclaredOutports) list.Add($"{RoundFailureCodes.ExecUndeclaredOutport}:{k}");
         return list;
     }
+
+    /// <summary>投影为判定内核结论（动作出口消费；不产生第二套判定）。</summary>
+    public JudgmentVerdict ToJudgmentVerdict()
+    {
+        var findings = new List<JudgmentFinding>(MissingSteps.Count + MissingPorts.Count + UndeclaredInports.Count + UndeclaredOutports.Count);
+        findings.AddRange(MissingSteps.Select(static s => new JudgmentFinding(
+            "round-contract", RoundFailureCodes.ExecStepMissing, Verdict3.False, new[] { s })));
+        findings.AddRange(MissingPorts.Select(static p => new JudgmentFinding(
+            "round-contract", RoundFailureCodes.ExecPortMissing, Verdict3.False, new[] { p })));
+        findings.AddRange(UndeclaredInports.Select(static k => new JudgmentFinding(
+            "round-contract", RoundFailureCodes.ExecUndeclaredInport, Verdict3.False, new[] { k })));
+        findings.AddRange(UndeclaredOutports.Select(static k => new JudgmentFinding(
+            "round-contract", RoundFailureCodes.ExecUndeclaredOutport, Verdict3.False, new[] { k })));
+        return JudgmentVerdict.From(findings);
+    }
 }
+

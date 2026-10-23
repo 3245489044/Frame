@@ -6,13 +6,29 @@ namespace Modules.Node.Ports;
 public sealed record PortBindingResult(
     IReadOnlyDictionary<string, string> Ports,
     IReadOnlyList<NodeDiagnostic> Diagnostics,
-    bool UsedInference);
+    bool UsedInference)
+{
+    /// <summary>端口存在性三态（值路径/JSON 路径同口径）。</summary>
+    public IReadOnlyDictionary<string, PortPresence> Presence { get; init; } =
+        new Dictionary<string, PortPresence>(StringComparer.Ordinal);
+
+    /// <summary>声明过但实现完全没给出的端口（与显式 null 可分）。</summary>
+    public IReadOnlyCollection<string> MissingDeclared { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>宿主原生值形态的端口提取结果（值缝 V1：规则与 JSON 路径同一实现，值不经 JSON 往返）。</summary>
 public sealed record PortValuesResult<TValue>(
     IReadOnlyDictionary<string, TValue> Ports,
     IReadOnlyList<NodeDiagnostic> Diagnostics,
-    bool UsedInference);
+    bool UsedInference)
+{
+    /// <summary>端口存在性三态（显式 null 留痕）。</summary>
+    public IReadOnlyDictionary<string, PortPresence> Presence { get; init; } =
+        new Dictionary<string, PortPresence>(StringComparer.Ordinal);
+
+    /// <summary>声明过但实现完全没给出的端口（与显式 null 可分）。</summary>
+    public IReadOnlyCollection<string> MissingDeclared { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>特化提取器扩展点（按结果类型名命中；对齐既有"特化提取器注册表"语义）。</summary>
 public interface INodePortExtractor
@@ -82,19 +98,37 @@ public sealed class NodePortBinding
         IReadOnlyList<PortMember>? members = root is JsonObject jsonObject ? MembersOf(jsonObject) : null;
         var ruleResult = NodePortRules.Decide(nodeKey, members, declared, diagnostics);
         var ports = new Dictionary<string, string>(StringComparer.Ordinal);
+        var presence = new Dictionary<string, PortPresence>(StringComparer.Ordinal);
+        var missingDeclared = new List<string>();
 
         foreach (var decision in ruleResult.Decisions)
         {
+            presence[decision.Port] = decision.Presence;
+
             if (decision.Admission == PortAdmission.Default)
             {
                 // 简单值（含非 JSON 原文）：整存默认端口 = 节点键
                 ports[nodeKey] = root is null ? resultJson : NodeJson.ValueToText(root);
+                presence[nodeKey] = PortPresence.Value;
+                continue;
+            }
+
+            if (decision.Admission == PortAdmission.DeclaredMissing)
+            {
+                missingDeclared.Add(decision.Port);
+                continue;
+            }
+
+            if (decision.Admission == PortAdmission.DeclaredNull)
+            {
+                // 显式 null 留痕：不产文本槽位，但 presence 可判（JSON 路径不静默压平）。
                 continue;
             }
 
             if (root is JsonObject source && source.TryGetPropertyValue(decision.Port, out var value) && value is not null)
             {
                 ports[decision.Port] = NodeJson.ValueToText(value);
+                presence[decision.Port] = PortPresence.Value;
             }
         }
 
@@ -103,7 +137,11 @@ public sealed class NodePortBinding
             _diagnostics.Report(diagnostic);
         }
 
-        return new PortBindingResult(ports, ruleResult.Diagnostics, ruleResult.UsedInference);
+        return new PortBindingResult(ports, ruleResult.Diagnostics, ruleResult.UsedInference)
+        {
+            Presence = presence,
+            MissingDeclared = missingDeclared,
+        };
     }
 
     /// <summary>
@@ -127,12 +165,23 @@ public sealed class NodePortBinding
             memberComparer: memberComparer);
 
         var ports = new Dictionary<string, TValue>(StringComparer.Ordinal);
+        var presence = new Dictionary<string, PortPresence>(StringComparer.Ordinal);
+        var missingDeclared = new List<string>();
 
         foreach (var decision in ruleResult.Decisions)
         {
+            presence[decision.Port] = decision.Presence;
+
             if (decision.Admission == PortAdmission.DeclaredMissing)
             {
-                // 缺口只可见化、不产槽位（对齐 JSON 路径：未命中/null 不入端口）
+                // 缺席：不产槽位，但记入 MissingDeclared（与显式 null 可分）。
+                missingDeclared.Add(decision.Port);
+                continue;
+            }
+
+            if (decision.Admission == PortAdmission.DeclaredNull)
+            {
+                // 显式 null：值槽位由调用侧按 presence 投影（泛型 TValue 不保证可空）。
                 continue;
             }
 
@@ -146,7 +195,11 @@ public sealed class NodePortBinding
             _diagnostics.Report(diagnostic);
         }
 
-        return new PortValuesResult<TValue>(ports, ruleResult.Diagnostics, ruleResult.UsedInference);
+        return new PortValuesResult<TValue>(ports, ruleResult.Diagnostics, ruleResult.UsedInference)
+        {
+            Presence = presence,
+            MissingDeclared = missingDeclared,
+        };
     }
 
     private static IReadOnlyList<PortMember> MembersOf(JsonObject obj)
@@ -154,7 +207,10 @@ public sealed class NodePortBinding
         var members = new List<PortMember>(obj.Count);
         foreach (var pair in obj)
         {
-            members.Add(new PortMember(pair.Key, pair.Value is not null));
+            members.Add(new PortMember(pair.Key, pair.Value is not null)
+            {
+                Presence = pair.Value is null ? PortPresence.ExplicitNull : PortPresence.Value,
+            });
         }
 
         return members;

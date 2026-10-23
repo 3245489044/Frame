@@ -66,6 +66,7 @@
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1'; Origin = 'Debt'; DueWhen = 'K9：改用 GateFileIndex 共享索引（MaxHits=2）；到期：K9 收尾时清零或转 Derived' }
     )
 }
 

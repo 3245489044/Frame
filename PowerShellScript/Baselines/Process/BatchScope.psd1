@@ -452,7 +452,13 @@
     #   均在新单 allowSet 内。上一系列（F4/F1/F2/F3/F5/B1）在途改动按新单 preexisting 登记。
     #   恢复 = 回填 v64 的 Value（上方注释保留原值）。
     # Manifest(v64) = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架修复.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架能力收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v66（2026-10-24）：单指针切换至「判断逻辑聚拢点（K0–K9：Judgment 内核 + 三域接入 + 事实保真 + 动作归口）」授权单。
+    #   切换理由 = 用户要求优先构建通用判定框架；改动落在 Frame/CsharpPrj/{Modules/Node,Operation/HierarchyMethod,Operation/WorkFlowMethod}
+    #   · Frame/Usharp · Projects/Plug/Agent/{src,Config/workflows} · Environment/CentralTest · Frame/PowerShellScript，均在新单 allowSet 内。
+    #   上一系列（剩余项-通用框架能力收敛）已收口且工作树干净。
+    #   恢复 = 回填 v65 的 Value（当前行）。
+    # Manifest(v65) = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架能力收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.24\2026-10-24-判断逻辑聚拢点.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

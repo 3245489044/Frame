@@ -142,6 +142,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                 OutputMapping = p.OutputMapping,
                 AllowNullResult = p.AllowNullResult,
                 NullablePorts = p.NullablePorts,
+                ConditionalPorts = step.EffectiveConditionalPorts,
             };
         }
 
@@ -352,19 +353,14 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
             var props = outcome.Ports;
 
-            // E4 运行期契约（D2/F3：判据单源 + 抛点单源）：声明 outport 必须实际产出。
-            // 判据实现唯一来源 = RoundContractJudge.MissingPorts；CompletedSteps 由执行边界 catch 以
-            // ctx.ExecutedSteps 回填（本层不伪造空集载荷）。
+            // E4 运行期契约（M5：判据上报 + 动作归口）：声明 outport 必须实际产出。
+            // 判据唯一实现 = RoundContractJudge.JudgeStep（Judgment 内核）；本层只上报 Verdict 事实，不 throw。
             if (outcome.Kind == FunctionOutcomeKind.Produced && node.ResultKeys.Count > 0)
             {
-                var missing = RoundContractJudge.MissingPorts(node.ResultKeys, props, node.NullablePorts);
-                if (missing.Count > 0)
+                var verdict = RoundContractJudge.JudgeStep(node, props);
+                if (verdict.HasViolations)
                 {
-                    throw new RoundFailureException(RoundFailure.PortMissing(
-                        node.NodeKey,
-                        RoundFailure.None,
-                        props.Keys.OrderBy(static k => k, StringComparer.Ordinal).ToArray(),
-                        $"声明端口未产出: [{string.Join(",", missing)}]"));
+                    outcome = outcome with { ContractVerdict = verdict };
                 }
             }
 
@@ -373,7 +369,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             if (!_unifiedStateWrite && outcome.Kind == FunctionOutcomeKind.Produced)
             {
                 foreach (var key in node.ResultKeys)
-                    if (props.TryGetValue(key, out var v))
+                    if (props.TryGetValue(key, out var v) && v is not null)
                         vars.Set(key, v);
             }
 

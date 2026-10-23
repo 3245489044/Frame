@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.HierarchyMethod.Judgment;
 using Operation.HierarchyMethod.Nodes.Workflows;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
@@ -60,12 +61,10 @@ public sealed class RoundLifecycleBackend : IRoundExecutionBackend
             .ToArray();
         var verdict = RoundContractJudge.Judge(spec, result.Records, executed, result.SkippedSteps, options, judgeSteps);
 
-        // Throw 档：契约缺陷即抛（不收割，避免把已判定为非法的现场当成果落库）。
+        // Throw 档：契约缺陷即抛（动作唯一出口 = JudgmentEngine.Apply；不收割，避免把已判定为非法的现场当成果落库）。
         if (options.Strictness == RoundContractStrictness.Throw && verdict.HasViolations)
         {
-            throw new InvalidOperationException(
-                $"{verdict.ToViolations()[0]}: 端口/步次契约未闭合（completed=[{string.Join(",", executed)}], " +
-                $"violations=[{string.Join(";", verdict.ToViolations())}]）");
+            JudgmentEngine.Apply(verdict.ToJudgmentVerdict(), options.Strictness);
         }
 
         var terminal = RoundTerminalPolicy.Evaluate(

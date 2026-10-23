@@ -50,9 +50,11 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             DateTimeOffset atUtc,
             string? instanceKey = null,
             string? containerKey = null,
-            IReadOnlyCollection<string>? injectedKeys = null)
+            IReadOnlyCollection<string>? injectedKeys = null,
+            RoundContractVerdict? contractVerdict = null)
             => new(nodeKey, workflowId, outputPorts, provenance, AtUtc: atUtc,
-                InstanceKey: instanceKey, ContainerKey: containerKey, InjectedKeys: injectedKeys);
+                InstanceKey: instanceKey, ContainerKey: containerKey, InjectedKeys: injectedKeys,
+                ContractVerdict: contractVerdict);
 
         /// <summary>
         /// 执行侧构造（<c>RoundStepInvoker</c> 语义）：节点已执行完，端口/入参溯源来自执行产物。
@@ -67,11 +69,12 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             DateTimeOffset atUtc,
             string? instanceKey = null,
             string? containerKey = null,
-            IReadOnlyCollection<string>? injectedKeys = null)
+            IReadOnlyCollection<string>? injectedKeys = null,
+            RoundContractVerdict? contractVerdict = null)
         {
             ArgumentNullException.ThrowIfNull(outputPorts);
             ArgumentNullException.ThrowIfNull(provenance);
-            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc, instanceKey, containerKey, injectedKeys);
+            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc, instanceKey, containerKey, injectedKeys, contractVerdict);
         }
 
         /// <summary>

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Operation.HierarchyMethod.Judgment;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -35,8 +37,8 @@ public sealed record PromptPreflightResult(
 /// </summary>
 public static class PromptPreflight
 {
-    /// <summary>派生别名：声明端口 → 可替代来源（顺序即优先级）。</summary>
-    private static readonly IReadOnlyDictionary<string, string[]> Derivations =
+    /// <summary>派生别名（声明口径单源）：声明端口 → 可替代来源（顺序即优先级）。</summary>
+    private static readonly IReadOnlyDictionary<string, string[]> Aliases =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["l1"] = new[] { "session_input" },
@@ -45,8 +47,13 @@ public static class PromptPreflight
             ["session_window"] = new[] { "l2" },
         };
 
+    private static readonly IReadOnlyList<IJudgmentRule> Rules = new IJudgmentRule[]
+    {
+        new AliasCoverageRule(),
+    };
+
     /// <summary>
-    /// 解析前置条件。
+    /// 解析前置条件（判据唯一实现 = <see cref="AliasCoverageRule"/>）。
     /// </summary>
     /// <param name="ports">工作流参数空间（可空）。</param>
     /// <param name="required">声明面必填端口（空/未声明 ⇒ 直接 Resolved(<c>declaration-off</c>)）。</param>
@@ -55,35 +62,24 @@ public static class PromptPreflight
         if (required is not { Count: > 0 })
             return PromptPreflightResult.Resolved(Array.Empty<string>(), "declaration-off");
 
-        var missing = new List<string>();
-        var derived = false;
-        foreach (var port in required)
+        var input = new JudgmentInput(JudgmentScope.Preflight)
         {
-            if (string.IsNullOrWhiteSpace(port)) continue;
-            if (Present(ports, port)) continue;
-            if (Derivations.TryGetValue(port, out var aliases))
-            {
-                var hit = false;
-                foreach (var alias in aliases)
-                {
-                    if (!Present(ports, alias)) continue;
-                    hit = true;
-                    derived = true;
-                    break;
-                }
-                if (hit) continue;
-            }
-            missing.Add(port);
-        }
+            DeclaredPorts = required.Where(static p => !string.IsNullOrWhiteSpace(p)).ToArray(),
+            Fact = new JudgmentFact(ports ?? new Dictionary<string, object?>(StringComparer.Ordinal)),
+            Capability = new DeclarationCapability(Aliases: Aliases),
+            Semantics = PresenceSemantics.PromptPreflight,
+        };
 
-        return missing.Count == 0
+        var verdict = JudgmentEngine.Judge(input, Rules);
+        var missing = verdict.Violations.SelectMany(static f => f.Subjects)
+            .Where(static p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static p => p, StringComparer.Ordinal)
+            .ToArray();
+        var derived = verdict.Findings.Any(static f => f.Code == AliasCoverageRule.DerivedCode);
+
+        return missing.Length == 0
             ? PromptPreflightResult.Resolved(required, derived ? "derived" : "declared")
             : PromptPreflightResult.MissingPortsOf(required, missing, "缺少必填提示词端口：" + string.Join("/", missing));
     }
-
-    private static bool Present(IReadOnlyDictionary<string, object?>? ports, string key)
-        => ports is not null
-           && ports.TryGetValue(key, out var value)
-           && value is not null
-           && !string.IsNullOrWhiteSpace(value.ToString());
 }

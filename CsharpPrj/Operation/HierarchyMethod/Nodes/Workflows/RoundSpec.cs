@@ -117,9 +117,19 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// </summary>
         public IReadOnlyCollection<string>? NullablePorts { get; init; }
 
+        /// <summary>
+        /// 条件产出声明：集合内端口允许**缺席**（未触发 = 合法），与 <see cref="NullablePorts"/>（显式 null）区分。
+        /// <para>缺省空（零回归，加法式扩展）。</para>
+        /// </summary>
+        public IReadOnlyCollection<string>? ConditionalPorts { get; init; }
+
         /// <summary>有效可空端口集（判据唯一来源）：显式端口声明优先，否则按 <see cref="AllowNullResult"/> 取全部结果端口。</summary>
         public IReadOnlyCollection<string> EffectiveNullablePorts
             => NullablePorts ?? (AllowNullResult ? ResultKeys : Array.Empty<string>());
+
+        /// <summary>有效条件产出端口集（判据唯一来源；缺省空）。</summary>
+        public IReadOnlyCollection<string> EffectiveConditionalPorts
+            => ConditionalPorts ?? Array.Empty<string>();
 
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingStep ToBindingStep() => new()

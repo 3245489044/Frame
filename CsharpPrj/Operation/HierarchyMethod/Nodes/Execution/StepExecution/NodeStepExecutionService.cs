@@ -70,6 +70,9 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         // 诊断可见化端口（缺省空实现）：由组合根回填具体实现（分层无环——框架不感知 Agent 诊断类型）。
         private readonly IDiagnosticsSink? _diagnostics;
 
+        // 函数结果三态解码端口（可空）：Agent 侧提供错误信封识别；未命中回退现有反射提取（零回归）。
+        private readonly IFunctionOutcomeDecoder? _outcomeDecoder;
+
         public NodeStepExecutionService(
             INodeOutputStore? store,
             string workflowId = NodeKeys.DefaultWorkflowId,
@@ -84,9 +87,11 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
             Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? posture = null,
             // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：仅在整包展开时追加（P4-2 机制②）。
-            Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? additionalCollectSource = null)
+            Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? additionalCollectSource = null,
+            IFunctionOutcomeDecoder? outcomeDecoder = null)
         {
             _store = store;
+            _outcomeDecoder = outcomeDecoder;
             // R4 读源收敛：task 作用域单一读源视图（NodeReadView），见 EnumerateInputOutputsAsync——本方法经 ReadView 枚举，
             // 取代「ur_nodes 全量 + 引用图解析」跨库拼读直写；诊断边界（图读 vs ur_nodes 读）经显式解析器重载保留。
             _readView = store != null ? new NodeReadView(store) : null;
@@ -135,6 +140,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                 ResultKeys = p.ResultKeys,
                 InputMapping = p.InputMapping,
                 OutputMapping = p.OutputMapping,
+                AllowNullResult = p.AllowNullResult,
+                NullablePorts = p.NullablePorts,
             };
         }
 
@@ -304,6 +311,15 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         /// </summary>
         public async Task<Dictionary<string, object?>> ExecuteAsync(
             NodeDefinition node, IDataSpace vars, NodeInputSnapshot input, CancellationToken ct)
+            => (await ExecuteWithOutcomeAsync(node, vars, input, ct).ConfigureAwait(false)).Ports
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+
+        /// <summary>
+        /// 执行节点并返回**三态结果**（Produced/Failed/Skipped）：解码器先于反射提取运行；
+        /// Failed 直接抛 <see cref="RoundFailureException"/>（错误码说真话），Skipped 交执行器登记为合法跳过。
+        /// </summary>
+        public async Task<FunctionOutcome> ExecuteWithOutcomeAsync(
+            NodeDefinition node, IDataSpace vars, NodeInputSnapshot input, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -325,18 +341,63 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     StepExecMiddlewares.StepTimeout(),
                 }).ConfigureAwait(false);
 
-            var props = ExtractProps(node, result);
+            var outcome = DecodeOutcome(node, result);
+            if (outcome.Kind == FunctionOutcomeKind.Failed)
+            {
+                var failure = outcome.Failure!;
+                if (string.IsNullOrWhiteSpace(failure.FailedStep) || failure.FailedStep == "<step>")
+                    failure = failure with { FailedStep = node.NodeKey };
+                throw new RoundFailureException(failure);
+            }
+
+            var props = outcome.Ports;
+
+            // E4 运行期契约（D2/F3：判据单源 + 抛点单源）：声明 outport 必须实际产出。
+            // 判据实现唯一来源 = RoundContractJudge.MissingPorts；CompletedSteps 由执行边界 catch 以
+            // ctx.ExecutedSteps 回填（本层不伪造空集载荷）。
+            if (outcome.Kind == FunctionOutcomeKind.Produced && node.ResultKeys.Count > 0)
+            {
+                var missing = RoundContractJudge.MissingPorts(node.ResultKeys, props, node.NullablePorts);
+                if (missing.Count > 0)
+                {
+                    throw new RoundFailureException(RoundFailure.PortMissing(
+                        node.NodeKey,
+                        RoundFailure.None,
+                        props.Keys.OrderBy(static k => k, StringComparer.Ordinal).ToArray(),
+                        $"声明端口未产出: [{string.Join(",", missing)}]"));
+                }
+            }
 
             // 扁平兼容写入数据空间（供后续步骤直接读原键；P3 拷贝语义）。
             // DP-3（开关开）：停写 —— 同一事实单写 ur_nodes（权威），读侧由 ProjectOutputsAsync 自权威回填。
-            if (!_unifiedStateWrite)
+            if (!_unifiedStateWrite && outcome.Kind == FunctionOutcomeKind.Produced)
             {
                 foreach (var key in node.ResultKeys)
                     if (props.TryGetValue(key, out var v))
                         vars.Set(key, v);
             }
 
-            return props;
+            return outcome;
+        }
+
+        /// <summary>三态解码：解码器先命中；未命中回退反射提取（null + 声明 outport ⇒ function-missing，禁静默）。</summary>
+        private FunctionOutcome DecodeOutcome(NodeDefinition node, object? raw)
+        {
+            if (_outcomeDecoder is not null
+                && _outcomeDecoder.TryDecode(raw, out var decoded)
+                && decoded is not null)
+            {
+                return decoded;
+            }
+
+            if (raw is null && node.ResultKeys.Count > 0 && !node.AllowNullResult)
+            {
+                return FunctionOutcome.Failed(RoundFailure.FunctionMissing(
+                    node.NodeKey, Array.Empty<string>(),
+                    $"函数无返回值且无三态声明（node={node.NodeKey}）"));
+            }
+
+            return FunctionOutcome.Of(ExtractProps(node, raw));
         }
 
         /// <summary>

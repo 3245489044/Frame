@@ -60,7 +60,8 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             ArgumentNullException.ThrowIfNull(spec);
             ArgumentNullException.ThrowIfNull(ctx);
 
-            // 编译阶段（配方构建 + 产物图校验 + 投影 + 编译）：违归在 LogOnly 下回退既有编排器（fallback 自行 seed）
+            // 编译阶段（配方构建 + 产物图校验 + 投影 + 编译）：违归在 LogOnly 下回退既有编排器
+            // （seed/harvest 已上移 RoundContractBackend，fallback 只执行）。
             RoundFlowCircuitRegistry.BuiltCircuit built;
             try
             {
@@ -74,6 +75,7 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             }
 
             var records = new List<NodeExecutionRecord>();
+            var skippedSteps = new List<string>();
             try
             {
                 var stepsById = spec.Steps.ToDictionary(s => s.EffectiveNodeId, StringComparer.Ordinal);
@@ -84,6 +86,12 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
                 ct.ThrowIfCancellationRequested();
                 // D16：收集执行器原始记录（不重建），记录逐字段保真。
                 records = ctx.RecordsInDeclarationOrder(spec).ToList();
+                // 执行器返回 null = CanExecute 合法跳过（禁与「缺步」混同）；E1 判据据此不误报。
+                var executedKeys = new HashSet<string>(records.Select(static r => r.NodeKey), StringComparer.Ordinal);
+                skippedSteps = spec.Steps
+                    .Select(static s => s.EffectiveNodeId)
+                    .Where(id => !executedKeys.Contains(id))
+                    .ToList();
             }
             catch (OperationCanceledException)
             {
@@ -93,6 +101,14 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             {
                 // 步骤错误已由节点体强类型归因（ctx.Error 非空）→ 与编排器一致：归集后继续裁决/harvest；
                 // 基础设施错误（如 Exit 投影）→ 编排器同款兜底归因（Error 取消息、ErrorStep 取最后成功步骤）。
+                if (ex is RoundFailureException failure)
+                {
+                    var f = failure.Failure.CompletedSteps.Count > 0
+                        ? failure.Failure
+                        : failure.Failure with { CompletedSteps = ctx.ExecutedSteps.ToArray() };
+                    ctx.Failure ??= f;
+                    ctx.FailedStep ??= f.FailedStep;
+                }
                 if (ctx.Error is null)
                 {
                     ctx.Error = ex.Message;
@@ -115,7 +131,7 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
 
             // 终答文本由轮驱动（WorkflowRunner / IFinalAnswerPolicy）单点归集，本后端不重复计算（消除每轮二次求解）。
             // 契约判据与 seed/harvest 由 RoundContractBackend 装饰器统一裁决（本后端只负责执行）。
-            return new NodeRoundResult(records, decision, ok, ctx.Error);
+            return new NodeRoundResult(records, decision, ok, ctx.Error, skippedSteps);
         }
 
         private sealed class RoundCircuitNodeResolver

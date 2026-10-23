@@ -12,31 +12,17 @@ namespace Operation.HierarchyMethod.Nodes;
 /// </summary>
 public static class LeaseContextFactory
 {
-    /// <summary>种子键（与 Agent 侧 <c>RoundKeys.Input</c> 同字面；框架不持有域词，仅为数据键名）。</summary>
-    private const string InputKey = "input";
-
-    /// <summary>兼容读别名（旧键；只读不写，迁移期兼容）。</summary>
-    private const string LegacyUserInputKey = "user_input";
-
     public static AxiomContext Create(IAgentLoopState state)
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        // S5：种子投影 —— 数据空间缺 input ⇒ 用状态根播种；两者皆空 ⇒ 显式失败（禁空串进骨架）。
-        var effective = state.UserInput;
-        if (!state.Data.TryGet<string>(InputKey, out var dataValue) || string.IsNullOrWhiteSpace(dataValue))
-        {
-            if (string.IsNullOrWhiteSpace(effective))
-                state.Data.TryGet<string>(LegacyUserInputKey, out effective);
-            if (string.IsNullOrWhiteSpace(effective))
-                throw new InvalidOperationException("seed.user-input-missing: input");
+        // S5：种子投影 —— 唯一解析实现（SeedInput：input → UserInput → 兼容键 user_input）；
+        // 三者皆空 ⇒ 显式失败（禁空串进骨架）。续跑轮（无新输入）由此读到跨轮既有输入。
+        var effective = SeedInput.Require(state.Data, state.UserInput);
 
-            state.Data.Set(InputKey, effective!);
-        }
-        else
-        {
-            effective = dataValue;
-        }
+        // 种子物化：input 缺失时补写（派生侧只认该键，不再重复推断优先级）。
+        if (!state.Data.TryGet<string>(SeedInputKeys.Input, out var seeded) || string.IsNullOrWhiteSpace(seeded))
+            state.Data.Set(SeedInputKeys.Input, effective);
 
         return new(state.Data, state.Budget, state.Token, state.Flag)
         {

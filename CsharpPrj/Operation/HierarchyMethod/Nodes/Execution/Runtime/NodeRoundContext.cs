@@ -66,6 +66,12 @@ public sealed class NodeRoundContext
     /// <summary>首个出错步骤名（错误归因；无异常为 null）。</summary>
     public string? ErrorStep { get; set; }
 
+    /// <summary>失败一等表示（单源；与 <see cref="Error"/> 并存一迭代）。</summary>
+    public RoundFailure? Failure { get; set; }
+
+    /// <summary>强类型失败步骤（与 <see cref="Failure"/> 同源；无强类型失败为 null）。</summary>
+    public string? FailedStep { get; set; }
+
     // ---- 步骤产物暂存（供 onAfterStep 横切持久化读取；步骤体只做函数执行 + 内存写，落库横切后置） ----
     // 键 = 稳定节点 ID（RoundStep.EffectiveNodeId / NodeDefinition.NodeKey），M1 收敛：同名函数多次出现不再覆盖。
     private readonly Dictionary<string, NodeDefinition> _stepNodes = new(StringComparer.Ordinal);

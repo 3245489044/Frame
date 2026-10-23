@@ -70,6 +70,12 @@
   </ItemGroup>
 
 
+  <!-- ★ 2026-10-24 F1/D8（失败码单源）：RoundFailureCodes 只做 KeyReasonCodes 的类型化别名，
+       本模块层 4 → Modules.KeySpace 层 2，属向下引用（先例：WorkFlowMethod.csproj → $(Proj_KeySpace)）。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_KeySpace)" />
+  </ItemGroup>
+
   <!-- ★ 2026-10-03 E2（HierarchyMethod\Nodes → Modules.Node 通用框架提取）：
        收集式输入端口 token / 整包条目（CollectedNodePort）改委托框架唯一实现（键空间「整包」扩展）；
        本模块层 4 → Modules.Node 层 2，属向下引用（先例：WorkFlowMethod.csproj → $(Proj_Node)）。 -->

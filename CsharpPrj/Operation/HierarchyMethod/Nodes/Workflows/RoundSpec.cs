@@ -105,6 +105,22 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
     /// </summary>
     public IReadOnlyList<string>? DependsOn { get; init; }
 
+        /// <summary>
+        /// 空返回合法性声明（E1）：<c>true</c> = 该步允许返回 null 而不判 <c>exec.function-missing</c>（合法空结果）。
+        /// <para>缺省 false = 声明 outport 却返回 null 判缺失（零回归，加法式扩展）。</para>
+        /// </summary>
+        public bool AllowNullResult { get; init; }
+
+        /// <summary>
+        /// 端口级可空声明（E7）：集合内端口允许「显式 null」而不算缺失（键不存在仍算缺失）。
+        /// <para>缺省空；<see cref="AllowNullResult"/>=true 时等价于全部结果端口可空（同一开关的两个粒度）。</para>
+        /// </summary>
+        public IReadOnlyCollection<string>? NullablePorts { get; init; }
+
+        /// <summary>有效可空端口集（判据唯一来源）：显式端口声明优先，否则按 <see cref="AllowNullResult"/> 取全部结果端口。</summary>
+        public IReadOnlyCollection<string> EffectiveNullablePorts
+            => NullablePorts ?? (AllowNullResult ? ResultKeys : Array.Empty<string>());
+
         /// <summary>转换为共享绑定契约（供 DataContainerBinder 消费）。</summary>
         public BindingStep ToBindingStep() => new()
         {
@@ -113,6 +129,19 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             InputMapping = InputMapping,
             OutputMapping = OutputMapping,
         };
+    }
+
+    /// <summary>
+    /// 轮收割姿态（E10）：<c>Container</c> = 轮边界收割到容器（默认，行为不变）；
+    /// <c>None</c> = 无容器的一次性声明流，不触发收割（消除每轮 harvestActive=false 告警）。
+    /// </summary>
+    public enum RoundHarvestPolicy
+    {
+        /// <summary>收割到容器（默认；与原行为逐字等价）。</summary>
+        Container,
+
+        /// <summary>不收割（一次性流：无轮级容器可写）。</summary>
+        None,
     }
 
     /// <summary>
@@ -172,5 +201,11 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         /// <see cref="Execution.PromptPreflight.Resolve"/> 判定，缺失即 <c>prompt_missing</c> 并禁止侧通道执行。</para>
         /// </summary>
         public IReadOnlyList<string> RequiredPromptPorts { get; init; } = Array.Empty<string>();
+
+        /// <summary>
+        /// 轮收割姿态（E10）：声明驱动，取代运行期探测（有无容器）。
+        /// <para>缺省 <see cref="RoundHarvestPolicy.Container"/>（零回归）；一次性声明流置 <see cref="RoundHarvestPolicy.None"/>。</para>
+        /// </summary>
+        public RoundHarvestPolicy HarvestPolicy { get; init; } = RoundHarvestPolicy.Container;
     }
 }

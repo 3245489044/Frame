@@ -28,24 +28,22 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
     private readonly INodeExecutor _executor;
     private readonly INodeExecutorHooks? _hooks;
     private readonly IWorkflowDecisionPolicy? _decisions;
-    private readonly IFinalAnswerPolicy? _finalAnswer;
     private readonly IRoundStatePort? _statePort;
     private readonly INodeStepDispatcher? _dispatcher;
 
     /// <param name="executor">节点执行器（必需；Agent 侧 NodeExecutionService/RoundStepInvoker 适配器）。</param>
     /// <param name="hooks">横切钩子（onAfterStep / onStepError；可空，未装配 no-op）。</param>
     /// <param name="decisions">决策词判定策略（可空）。</param>
-    /// <param name="finalAnswer">终答归集策略（可空）。</param>
     /// <param name="statePort">轮状态端口（seed/harvest；可空，纯内存路径 no-op）。</param>
-    /// <param name="requireAllPorts">装配期端口契约严格校验（R10 fail-fast）：缺任一钩子/决策/终答/状态端口即抛错，不再静默 no-op。
+    /// <param name="requireAllPorts">装配期端口契约严格校验（R10 fail-fast）：缺任一钩子/决策/状态端口即抛错，不再静默 no-op。
     /// 默认 false 保留既有可空装配行为（直跑/单测零回归）；完整装配的组合根（Agent 生产路径已全装配）可开启以消除同链分叉。</param>
     /// <param name="dispatcher">单步派发端口（可空 = 直接委托 <paramref name="executor"/>）：NodeProcess 执行状态机语义经此注入，
     /// 使本编排器成为**唯一轮骨架**（原独立 NodeProcess 后端已弃用，S4 合一）。</param>
+    /// <remarks>R1：终答端口（<c>IFinalAnswerPolicy</c>）已由轮驱动在 Succeeded 时单点调用，本编排器不再持有该端口（形参已删）。</remarks>
     public NodeGraphOrchestrator(
         INodeExecutor executor,
         INodeExecutorHooks? hooks = null,
         IWorkflowDecisionPolicy? decisions = null,
-        IFinalAnswerPolicy? finalAnswer = null,
         IRoundStatePort? statePort = null,
         bool requireAllPorts = false,
         INodeStepDispatcher? dispatcher = null)
@@ -53,7 +51,6 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _hooks = hooks;
         _decisions = decisions;
-        _finalAnswer = finalAnswer;
         _statePort = statePort;
         _dispatcher = dispatcher;
         if (requireAllPorts)
@@ -61,7 +58,6 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
             {
                 PortContractGuard.Port(nameof(hooks), _hooks),
                 PortContractGuard.Port(nameof(decisions), _decisions),
-                PortContractGuard.Port(nameof(finalAnswer), _finalAnswer),
                 PortContractGuard.Port(nameof(statePort), _statePort),
             });
     }
@@ -82,9 +78,6 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
 
         // Center 可取消执行边界根：以外部取消(ct)为基底、无预算（未给预算 = 直跑仅响应取消，零误杀）。
         using var scope = ExecutionScope.CreateRoot("round", external: ct);
-
-        if (_statePort != null)
-            await _statePort.SeedAsync(spec, ctx, ct).ConfigureAwait(false);
 
         // 单步派发端口轮级登记（NodeProcess 执行状态机 StartExecution；直接委托实现为 no-op）。
         _dispatcher?.BeginRound(spec, ctx);
@@ -127,6 +120,14 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
         catch (Exception ex)
         {
             // 错误强类型归因（onStepError，对应 StaticAsyncPipeline.onStepError）：错误在编排数据空间强类型归集。
+            if (ex is RoundFailureException failure)
+            {
+                var f = failure.Failure.CompletedSteps.Count > 0
+                    ? failure.Failure
+                    : failure.Failure with { CompletedSteps = ctx.ExecutedSteps.ToArray() };
+                ctx.Failure ??= f;
+                ctx.FailedStep ??= f.FailedStep;
+            }
             if (ctx.Error is null) ctx.Error = ex.Message;
             if (_hooks != null)
                 await _hooks.OnStepErrorAsync(ctx, last ?? NodeExecutionRecordFactory.Empty, ex, ct).ConfigureAwait(false);
@@ -142,10 +143,8 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
                  (_decisions?.Map(decision) ?? LoopDecision.Continue) is LoopDecision.Success or LoopDecision.Continue,
         };
 
-        var vars = ctx.Vars.Snapshot();
-        var text = _finalAnswer?.ResolveFinalAnswer(spec, records, vars) ?? "";
-
-        // 契约判据（E1/E2/E3）与 seed/harvest 由 RoundContractBackend 装饰器统一裁决（本编排器只负责执行）。
+        // 契约判据（E1/E2/E3/E4）、终态与 seed/harvest 由 RoundLifecycleBackend 装饰器统一裁决（本编排器只负责执行）。
+        // 终答归集由轮驱动在终态 Succeeded 时单点调用（IFinalAnswerPolicy），本编排器不重复求解（消除每轮二次求解）。
         return new NodeRoundResult(records, decision, ok, ctx.Error, skipped);
     }
 

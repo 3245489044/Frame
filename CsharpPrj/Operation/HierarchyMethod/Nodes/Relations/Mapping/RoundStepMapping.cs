@@ -15,12 +15,13 @@ namespace Operation.HierarchyMethod.Nodes.Relations
     public static class RoundStepMapping
     {
         public static (string NodeKey, string FuncName, IReadOnlyList<string> ParameterKeys,
-            IReadOnlyList<string> ResultKeys, KeyMappingConfig? InputMapping, KeyMappingConfig? OutputMapping)
+            IReadOnlyList<string> ResultKeys, KeyMappingConfig? InputMapping, KeyMappingConfig? OutputMapping,
+            bool AllowNullResult, IReadOnlyCollection<string> NullablePorts)
             Project(RoundStep step)
         {
             ArgumentNullException.ThrowIfNull(step);
             return (step.EffectiveNodeId, step.FuncName, step.ParameterKeys, step.ResultKeys,
-                step.InputMapping, step.OutputMapping);
+                step.InputMapping, step.OutputMapping, step.AllowNullResult, step.EffectiveNullablePorts);
         }
     }
 }

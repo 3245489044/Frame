@@ -45,7 +45,9 @@ public sealed record NodePersistenceAssembly(
     IDiagnosticsSink? Diagnostics = null,
     // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：由 Agent 组合根注入，仅在整包展开时追加
     // （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。
-    Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? AdditionalCollectSource = null);
+    Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? AdditionalCollectSource = null,
+    // 函数结果三态解码端口（可空）：Agent 侧实现错误信封识别；未命中回退既有反射提取（零回归）。
+    IFunctionOutcomeDecoder? OutcomeDecoder = null);
 
 /// <summary>
 /// 节点运行时产物 —— 节点持久化/引用域的唯一组合点（单一装配入口组装，Y2 单例意图）。
@@ -90,7 +92,9 @@ public sealed class NodeRoundRuntime
             attributionFlow: assembly.AttributionFlow,
             posture: assembly.Posture,
             // 附加输入源经装配切片透传（P4-2 机制②；默认 null ⇒ 零回归）。
-            additionalCollectSource: assembly.AdditionalCollectSource);
+            additionalCollectSource: assembly.AdditionalCollectSource,
+            // 三态解码端口经装配切片透传（B2；默认 null ⇒ 旧反射提取零回归）。
+            outcomeDecoder: assembly.OutcomeDecoder);
         OutboxWriter<NodePersistWork>? outbox = null;
         if (assembly.EnableOutbox)
         {

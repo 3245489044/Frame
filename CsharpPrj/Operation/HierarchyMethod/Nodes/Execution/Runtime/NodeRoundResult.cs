@@ -13,4 +13,5 @@ public sealed record NodeRoundResult(
     bool Success = false,
     string? Error = null,
     IReadOnlyList<string>? SkippedSteps = null,
-    IReadOnlyList<string>? ContractViolations = null);
+    IReadOnlyList<string>? ContractViolations = null,
+    RoundTerminal? Terminal = null);

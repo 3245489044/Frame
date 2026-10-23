@@ -38,5 +38,11 @@ namespace Operation.HierarchyMethod.Nodes
 
         /// <summary>节点级出参键映射（KeyMapping 组合逻辑/下游端口）。</summary>
         public KeyMappingConfig? OutputMapping { get; init; }
+
+        /// <summary>空返回合法性（E1）：true = 该步允许返回 null 而不判 <c>exec.function-missing</c>。缺省 false（零回归）。</summary>
+        public bool AllowNullResult { get; init; }
+
+        /// <summary>端口级可空集（E7）：集合内端口允许显式 null 而不算缺失；键不存在仍算缺失。缺省空。</summary>
+        public IReadOnlyCollection<string> NullablePorts { get; init; } = Array.Empty<string>();
     }
 }

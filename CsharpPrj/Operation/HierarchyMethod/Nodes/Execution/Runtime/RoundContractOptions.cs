@@ -29,9 +29,8 @@ public sealed record RoundContractOptions(
 }
 
 /// <summary>
-/// 声明契约判据（E1 步次闭合 / E2 入参越界 / E3 出参越界）**单点实现**：纯函数、无领域词。
-/// <para>框架侧（<see cref="NodeGraphOrchestrator"/>）与 Agent 侧（执行器）共用本实现，禁各自再写一份
-/// （SingleImplementation）。判据载体 = 键集合（结构事实），不含执行者叙述。</para>
+/// 声明契约判据（E1/E2/E3/E4）**单点实现**的兼容入口：实现已迁至 <see cref="RoundContractJudge"/>，
+/// 本类仅保留旧名转发一迭代（dep: replaced-by(RoundContractJudge)）。
 /// </summary>
 public static class DeclaredContractEnforcer
 {
@@ -40,50 +39,12 @@ public static class DeclaredContractEnforcer
         IEnumerable<string>? declared,
         IEnumerable<string> actual,
         IReadOnlyCollection<string>? exempt = null)
-    {
-        if (declared is null) return Array.Empty<string>();
+        => RoundContractJudge.Undeclared(declared, actual, exempt);
 
-        var allowed = new HashSet<string>(
-            declared.Where(static k => !string.IsNullOrWhiteSpace(k)), StringComparer.Ordinal);
-        if (exempt is not null)
-        {
-            foreach (var key in exempt)
-            {
-                if (!string.IsNullOrWhiteSpace(key)) allowed.Add(key);
-            }
-        }
-
-        return actual
-            .Where(static k => !string.IsNullOrWhiteSpace(k))
-            .Where(k => !allowed.Contains(k))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static k => k, StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    /// <summary>
-    /// E1：声明步骤中既未执行、也未「合法跳过」的步骤（升序；空 = 闭合）。
-    /// 合法跳过 = 编排器登记的 <paramref name="skipped"/>（条件门控未执行），不误报。
-    /// </summary>
+    /// <summary>E1：声明步骤中既未执行、也未「合法跳过」的步骤（升序；空 = 闭合）。</summary>
     public static IReadOnlyList<string> MissingSteps(
         IEnumerable<string> declaredSteps,
         IEnumerable<string> executed,
         IEnumerable<string>? skipped = null)
-    {
-        var covered = new HashSet<string>(executed ?? Array.Empty<string>(), StringComparer.Ordinal);
-        if (skipped is not null)
-        {
-            foreach (var step in skipped)
-            {
-                if (!string.IsNullOrWhiteSpace(step)) covered.Add(step);
-            }
-        }
-
-        return declaredSteps
-            .Where(static s => !string.IsNullOrWhiteSpace(s))
-            .Where(s => !covered.Contains(s))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static s => s, StringComparer.Ordinal)
-            .ToArray();
-    }
+        => RoundContractJudge.MissingSteps(declaredSteps, executed, skipped);
 }

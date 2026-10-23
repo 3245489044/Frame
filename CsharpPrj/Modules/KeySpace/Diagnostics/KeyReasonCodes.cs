@@ -35,6 +35,14 @@ public static class KeyReasonCodes
     public const string ExecUndeclaredInport = "exec.undeclared-inport";
     public const string ExecUndeclaredOutport = "exec.undeclared-outport";
     public const string ExecDriverConflict = "exec.driver-conflict";
+    // ---- 运行期执行契约补齐（F1/D8：失败码全表单源）----
+    public const string ExecBindFailed = "exec.bind-failed";
+    public const string ExecFunctionMissing = "exec.function-missing";
+    public const string ExecExecutionFailure = "exec.execution-failure";
+    public const string RoundCriterionUnmet = "round.criterion-unmet";
+    public const string SeedCarrierMissing = "seed.carrier-missing";
+    public const string SeedPortUncovered = "seed.port-uncovered";
+    public const string GuardEmptyInput = "guard.empty-input";
 
     // ---- 种子单源（S1–S5）----
     public const string SeedEmptyInput = "seed.empty-input";
@@ -48,6 +56,8 @@ public static class KeyReasonCodes
         WriteConflict, ProvisionUnattached, ProvisionFailed,
         DeclStoreMissing, DeclFingerprintMismatch, DeclUnbound, DeclUnboundPort, DeclOrphanImpl,
         ExecStepMissing, ExecPortMissing, ExecUndeclaredInport, ExecUndeclaredOutport, ExecDriverConflict,
+        ExecBindFailed, ExecFunctionMissing, ExecExecutionFailure,
+        RoundCriterionUnmet, SeedCarrierMissing, SeedPortUncovered, GuardEmptyInput,
         SeedEmptyInput, SeedSourceMissing, StateRootSplit,
     };
 

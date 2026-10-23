@@ -27,6 +27,20 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
         private static readonly IReadOnlyDictionary<string, (string Node, string Port)> EmptyProvenance =
             new Dictionary<string, (string Node, string Port)>();
 
+        /// <summary>空记录常量（无任何步骤产物时的归因兜底；禁各后端各自构造）。</summary>
+        public static NodeExecutionRecord Empty { get; } = new(
+            string.Empty, string.Empty,
+            new Dictionary<string, object?>(StringComparer.Ordinal),
+            EmptyProvenance);
+
+        /// <summary>失败合成记录（执行器抛错、无产物时的归因载体；Error 必须非空以表达 Ok=false）。</summary>
+        public static NodeExecutionRecord Synthetic(string nodeKey, string error, string? errorClass = null)
+            => new(nodeKey, NodeKeys.DefaultWorkflowId,
+                new Dictionary<string, object?>(StringComparer.Ordinal),
+                EmptyProvenance,
+                Error: error,
+                ErrorClass: errorClass);
+
         /// <summary>生产侧唯一构造点（其余方法一律经此；禁在别处 <c>new NodeExecutionRecord</c>）。</summary>
         private static NodeExecutionRecord Create(
             string nodeKey,
@@ -35,13 +49,15 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             IReadOnlyDictionary<string, (string Node, string Port)> provenance,
             DateTimeOffset atUtc,
             string? instanceKey = null,
-            string? containerKey = null)
+            string? containerKey = null,
+            IReadOnlyCollection<string>? injectedKeys = null)
             => new(nodeKey, workflowId, outputPorts, provenance, AtUtc: atUtc,
-                InstanceKey: instanceKey, ContainerKey: containerKey);
+                InstanceKey: instanceKey, ContainerKey: containerKey, InjectedKeys: injectedKeys);
 
         /// <summary>
         /// 执行侧构造（<c>RoundStepInvoker</c> 语义）：节点已执行完，端口/入参溯源来自执行产物。
         /// <paramref name="atUtc"/> 由调用方给（执行完成时刻），工厂不读时钟（保持纯函数、对拍可比）。
+        /// <paramref name="injectedKeys"/> = 实际注入键（E2 观测面）；null = 未上报（判据跳过）。
         /// </summary>
         public static NodeExecutionRecord FromExecution(
             string nodeKey,
@@ -50,11 +66,12 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
             IReadOnlyDictionary<string, (string Node, string Port)> provenance,
             DateTimeOffset atUtc,
             string? instanceKey = null,
-            string? containerKey = null)
+            string? containerKey = null,
+            IReadOnlyCollection<string>? injectedKeys = null)
         {
             ArgumentNullException.ThrowIfNull(outputPorts);
             ArgumentNullException.ThrowIfNull(provenance);
-            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc, instanceKey, containerKey);
+            return Create(nodeKey, workflowId, outputPorts, provenance, atUtc, instanceKey, containerKey, injectedKeys);
         }
 
         /// <summary>

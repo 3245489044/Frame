@@ -444,8 +444,15 @@
     #   Frame/PowerShellScript · Frame/CsharpPrj/Modules/KeySpace · Projects/Plug/Agent/src ·
     #   Environment/CentralTest · Docs/analysis/2026/10/10.23，均在新单 allowSet 内。
     #   恢复 = 回填 v63 的 Value（上方注释保留原值）。
-    # Manifest(v63) = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-键框架与执行域分离-剩余批次.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架修复.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v65（2026-10-23）：单指针切换至「剩余项 → 通用框架能力收敛（G1–G5）」授权单。切换理由 = 用户要求
+    #   一次改完通用框架：清单闭合原语（GateClosure）+ 覆盖度闸 / 键派生单点（KeyEntityFactory） /
+    #   状态根审计（StateRootAudit） / 执行契约观测面（record.InjectedKeys）；改动落在
+    #   Frame/PowerShellScript/{Baselines,Operation/DSL,Share/Data,Invoke} · Frame/CsharpPrj/{Modules/KeySpace,Share/Foundations,Operation/HierarchyMethod}
+    #   · Projects/Plug/Agent/src/{Agent.Session,Agent.Core/Engine/Nodes} · Environment/CentralTest/** · Docs/analysis/2026/10/10.23，
+    #   均在新单 allowSet 内。上一系列（F4/F1/F2/F3/F5/B1）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填 v64 的 Value（上方注释保留原值）。
+    # Manifest(v64) = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架修复.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架能力收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

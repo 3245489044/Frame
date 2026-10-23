@@ -23,6 +23,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateFileIndex.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateClosure.psm1') -Force
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
@@ -107,47 +108,8 @@ if (Test-Path -LiteralPath $outputKeysFile) {
     }
 }
 
-# ---- DC1/DC2：声明面逐节点 ----
-$unregistered = [System.Collections.Generic.List[string]]::new()
-if (Test-Path -LiteralPath $workflowDir) {
-    foreach ($file in (Get-ChildItem -LiteralPath $workflowDir -Filter *.ushar -File)) {
-        if ($validatedFiles.Count -gt 0 -and -not $validatedFiles.Contains($file.Name)) { continue }
-        foreach ($line in [IO.File]::ReadAllLines($file.FullName)) {
-            $m = [regex]::Match($line, '^\[Node\]\s+(?<node>[A-Za-z0-9_.]+):\s*fn=(?<fn>[A-Za-z0-9_.]+)[^\r\n]*outports=(?<ports>[^\r\n|]*)')
-            if (-not $m.Success) { continue }
-            $node = $m.Groups['node'].Value
-            $fn = $m.Groups['fn'].Value
-            if (-not $registered.Contains($fn)) {
-                $violations.Add("DC1 未注册函数：$($file.Name):node=$node, fn=$fn")
-                continue
-            }
-            if (-not $produced.ContainsKey($fn)) {
-                # 未登记 ⇒ 默认档跳过（灰度 + 缺口可见化）；-Strict 档 = 违规（R3-C）。
-                $entry = "$($file.Name):node=$node, fn=$fn"
-                $unregistered.Add($entry)
-                if ($Strict) { $violations.Add("DC2s 未登记实现产出键：$entry") }
-                continue
-            }
-            $declared = @($m.Groups['ports'].Value.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-            $missing = @($declared | Where-Object { $produced[$fn] -notcontains $_ })
-            if ($missing.Count -gt 0) {
-                $violations.Add("DC2 端口未闭合：$($file.Name):node=$node, fn=$fn, missing=[$($missing -join ',')]")
-            }
-        }
-    }
-} else {
-    $violations.Add('DC0 声明目录缺失：Projects\Plug\Agent\Config\workflows')
-}
-
-# ---- DC3：冻结产物 ----
-if (-not (Test-Path -LiteralPath $manifestFile)) {
-    $violations.Add('DC3 冻结产物缺失：declared-manifest.json')
-} else {
-    $json = Get-Content -LiteralPath $manifestFile -Raw
-    if ($json -notmatch '"fingerprint"') { $violations.Add('DC3 冻结产物缺指纹字段：declared-manifest.json') }
-}
-
-# ---- DC5：孤儿豁免册（F3；单源 = JSON，运行期共读）----
+# ---- 豁免册（F3）：单次读取，DC5 校验与 DC2 豁免共用同一份数据（禁两读/两份表）----
+$exemptImpl = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 $exemptRegister = Join-Path $Root 'Frame\PowerShellScript\Baselines\_DeclarationClosureExemptions.psd1'
 $exemptData = Join-Path $Root 'Frame\PowerShellScript\Baselines\Declarations\declaration-exemptions.json'
 if (-not (Test-Path -LiteralPath $exemptRegister)) {
@@ -175,12 +137,75 @@ if (-not (Test-Path -LiteralPath $exemptData)) {
                     $violations.Add("DC5 豁免条目缺字段：$key（implId=$($item.implId)）")
                 }
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.implId)) {
+                [void]$exemptImpl.Add(([string]$item.implId).Trim())
+            }
         }
     }
     catch {
         $violations.Add("DC5 豁免册解析失败：$($_.Exception.Message)")
     }
 }
+
+# ---- DC1/DC2：声明面逐节点（闭合判定 = GateClosure 单点；覆盖度 = 全量声明端口）----
+$unregistered = [System.Collections.Generic.List[string]]::new()
+$totalDeclared = 0
+$totalMatched = 0
+if (Test-Path -LiteralPath $workflowDir) {
+    foreach ($file in (Get-ChildItem -LiteralPath $workflowDir -Filter *.ushar -File)) {
+        if ($validatedFiles.Count -gt 0 -and -not $validatedFiles.Contains($file.Name)) { continue }
+        foreach ($line in [IO.File]::ReadAllLines($file.FullName)) {
+            $m = [regex]::Match($line, '^\[Node\]\s+(?<node>[A-Za-z0-9_.]+):\s*fn=(?<fn>[A-Za-z0-9_.]+)[^\r\n]*outports=(?<ports>[^\r\n|]*)')
+            if (-not $m.Success) { continue }
+            $node = $m.Groups['node'].Value
+            $fn = $m.Groups['fn'].Value
+            $declared = @($m.Groups['ports'].Value.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            if (-not $registered.Contains($fn)) {
+                $violations.Add("DC1 未注册函数：$($file.Name):node=$node, fn=$fn")
+                continue
+            }
+            # 豁免 = 该实现整函数退出闭合（不入分母）：避免「豁免即闭合」的假进度。
+            if ($exemptImpl.Contains($fn)) { continue }
+            $totalDeclared += $declared.Count
+            if (-not $produced.ContainsKey($fn)) {
+                # 未登记 ⇒ 默认档跳过判红（灰度 + 缺口可见化）；-Strict 档 = 违规（R3-C）。
+                $entry = "$($file.Name):node=$node, fn=$fn"
+                $unregistered.Add($entry)
+                if ($Strict) { $violations.Add("DC2s 未登记实现产出键：$entry") }
+                continue
+            }
+            $closure = Test-ClosureSet -Declared $declared -Implemented @($produced[$fn]) -Label "DC2:$fn"
+            $totalMatched += $closure.MatchedCount
+            if ($closure.Verdict -eq 'fail') {
+                $violations.Add("DC2 端口未闭合：$($file.Name):node=$node, fn=$fn, missing=[$($closure.Missing -join ',')]")
+            }
+        }
+    }
+    if ($totalDeclared -eq 0) {
+        $violations.Add('DC2 覆盖度不可判定：参与闭合的声明端口为空（空集不得判 pass）')
+    }
+} else {
+    $violations.Add('DC0 声明目录缺失：Projects\Plug\Agent\Config\workflows')
+}
+
+$coverage = if ($totalDeclared -gt 0) { [math]::Round(($totalMatched / [double]$totalDeclared), 4) } else { $null }
+Write-Host ("coverage={0} matched={1} declared={2} gaps={3}" -f `
+    ($(if ($null -eq $coverage) { '⊥' } else { $coverage })), $totalMatched, $totalDeclared, $unregistered.Count)
+
+# ---- DC2s：Strict 准入由 Coverage 决定（Strict 越档 = 结构事实判红，不由人决定）----
+if ($Strict -and ($null -eq $coverage -or $coverage -lt 1.0)) {
+    $violations.Add("DC2s Strict 越档：coverage=$(if ($null -eq $coverage) { '⊥' } else { $coverage })（Strict 要求 Coverage=1.0 ∧ Missing=0）")
+}
+
+# ---- DC3：冻结产物 ----
+if (-not (Test-Path -LiteralPath $manifestFile)) {
+    $violations.Add('DC3 冻结产物缺失：declared-manifest.json')
+} else {
+    $json = Get-Content -LiteralPath $manifestFile -Raw
+    if ($json -notmatch '"fingerprint"') { $violations.Add('DC3 冻结产物缺指纹字段：declared-manifest.json') }
+}
+
+# ---- DC5：豁免册校验已在闭合段前单次完成（与 DC2 豁免同源）----
 
 if (-not $Strict -and $unregistered.Count -gt 0) {
     Write-Host ("DC2 缺口（未登记实现产出键，共 {0} 项；-Strict 时判红）：" -f $unregistered.Count)
@@ -194,6 +219,21 @@ if ($NegativeControl) {
         $probe = @($samplePorts + 'not_declared_port')
         $hit = @($probe | Where-Object { $produced[$sampleFn] -notcontains $_ })
         if ($hit.Count -eq 0) { $violations.Add('DC4 负对照失败：未声明端口样本未命中') }
+    }
+
+    # A-4 负对照：空声明 = 不可判定（⊥），不得判 pass（CriterionWellFormedness）。
+    $emptyProbe = Test-ClosureSet -Declared @() -Implemented @('anything') -Label 'DC4-empty'
+    if ($emptyProbe.WellFormed -or $emptyProbe.Verdict -ne 'undetermined') {
+        $violations.Add('DC4 负对照失败：空声明被判 pass（不可判定 ≠ 通过）')
+    }
+    # A-2/A-5 负对照：删实现须命中 Missing；豁免须移出 Missing。
+    $missingProbe = Test-ClosureSet -Declared @('a', 'b') -Implemented @('a') -Label 'DC4-missing'
+    if ($missingProbe.Missing.Count -ne 1 -or $missingProbe.Missing[0] -ne 'b') {
+        $violations.Add('DC4 负对照失败：缺实现样本未命中 Missing')
+    }
+    $exemptProbe = Test-ClosureSet -Declared @('a', 'b') -Implemented @('a') -Exempt @('b') -Label 'DC4-exempt'
+    if ($exemptProbe.Verdict -ne 'pass' -or $exemptProbe.Missing.Count -ne 0) {
+        $violations.Add('DC4 负对照失败：豁免未从 Missing 移出')
     }
 }
 

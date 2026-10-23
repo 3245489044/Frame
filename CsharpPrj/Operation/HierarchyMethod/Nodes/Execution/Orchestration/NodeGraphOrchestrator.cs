@@ -129,7 +129,7 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
             // 错误强类型归因（onStepError，对应 StaticAsyncPipeline.onStepError）：错误在编排数据空间强类型归集。
             if (ctx.Error is null) ctx.Error = ex.Message;
             if (_hooks != null)
-                await _hooks.OnStepErrorAsync(ctx, last ?? RecordsFallback, ex, ct).ConfigureAwait(false);
+                await _hooks.OnStepErrorAsync(ctx, last ?? NodeExecutionRecordFactory.Empty, ex, ct).ConfigureAwait(false);
         }
 
         var decision = ReadDecision(ctx);
@@ -142,44 +142,13 @@ public sealed class NodeGraphOrchestrator : IRoundExecutionBackend
                  (_decisions?.Map(decision) ?? LoopDecision.Continue) is LoopDecision.Success or LoopDecision.Continue,
         };
 
-        // F5（E1 下沉）：步次闭合判据在**框架步骤边界**执行（唯一落点）。
-        // 覆盖集 = 执行器已登记步骤 ∪ 编排结果记录（Agent 与直跑两条路径同源）；合法跳过不误报。
-        var executedSteps = ctx.ExecutedSteps
-            .Concat(records.Select(static r => r.NodeKey))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        var declaredSteps = spec.Steps.Select(static s => s.EffectiveNodeId).ToArray();
-        IReadOnlyList<string> contractViolations = ok
-            ? DeclaredContractEnforcer.MissingSteps(declaredSteps, executedSteps, skipped)
-            : Array.Empty<string>();
-
-        if (contractViolations.Count > 0)
-        {
-            const string code = "exec.step-missing";
-            ctx.Error ??= $"{code}: [{string.Join(",", contractViolations)}]";
-            ok = false;
-            if ((ctx.ContractOptions ?? RoundContractOptions.Default).Strictness == RoundContractStrictness.Throw)
-            {
-                throw new InvalidOperationException(
-                    $"{code}: 声明步骤未执行却判定成功（completed=[{string.Join(",", executedSteps)}], "
-                    + $"skipped=[{string.Join(",", skipped)}], missing=[{string.Join(",", contractViolations)}]）");
-            }
-        }
-
-        if (_statePort != null)
-            await _statePort.HarvestAsync(spec, ctx, ct).ConfigureAwait(false);
-
         var vars = ctx.Vars.Snapshot();
         var text = _finalAnswer?.ResolveFinalAnswer(spec, records, vars) ?? "";
 
-        return new NodeRoundResult(records, decision, ok, ctx.Error, skipped, contractViolations);
+        // 契约判据（E1/E2/E3）与 seed/harvest 由 RoundContractBackend 装饰器统一裁决（本编排器只负责执行）。
+        return new NodeRoundResult(records, decision, ok, ctx.Error, skipped);
     }
 
     private static string? ReadDecision(NodeRoundContext ctx)
         => ctx.Vars.TryGet<object?>(NodeExecutionKeys.Decision, out var d) ? d?.ToString() : null;
-
-    private static readonly NodeExecutionRecord RecordsFallback = new(
-        string.Empty, string.Empty,
-        new Dictionary<string, object?>(StringComparer.Ordinal),
-        new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal));
 }

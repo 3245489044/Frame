@@ -112,6 +112,12 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
         public string WorkflowId => _workflowId;
 
+        /// <summary>轮内滚动键（同名冲突豁免：这些键每步都会刷新，冲突属正常推进而非来源歧义）。</summary>
+        private static readonly HashSet<string> RollingKeys = new(StringComparer.Ordinal)
+        {
+            "exec_result", "next_prompt_hint", "decision", "step_count", "reason", "rule", "safe_output", "prompt",
+        };
+
         /// <summary>把声明式 <see cref="RoundStep"/> 构建为 <see cref="NodeDefinition"/>（节点即存储+执行单元）。
         /// 节点主键 = 稳定 NodeId（<see cref="RoundStep.EffectiveNodeId"/>），而非 FuncName —— 同名函数多次出现
         /// （如 collect-analyze-act 的 cline_execute×2）时不再同名覆盖；FuncName 仍保留供按名调用注册函数。</summary>
@@ -165,10 +171,29 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     }
             }
 
-            // ② 数据空间兜底：仅填充未被节点输出占用的键（节点输出优先于数据空间，消除裸端口与数据空间键冲突导致的溯源缺失）。
+            // ② 数据空间兜底：仅填充未被节点输出占用的键（节点输出优先于数据空间）。
+            //    D07：同名冲突不再静默遮蔽 —— 裸端口与数据空间值不同即发 port.source-conflict（取值方=node，保持既有语义）。
             foreach (var kv in vars.Snapshot())
-                if (kv.Value != null && !source.ContainsKey(kv.Key))
-                    source[kv.Key] = kv.Value;
+            {
+                if (kv.Value is null) continue;
+
+                if (source.TryGetValue(kv.Key, out var nodeValue) && sourceNode.TryGetValue(kv.Key, out var origin))
+                {
+                    if (!object.Equals(nodeValue, kv.Value) && !RollingKeys.Contains(kv.Key))
+                    {
+                        _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_sourceConflict", new
+                        {
+                            key = kv.Key,
+                            node = origin.Node,
+                            port = origin.Port,
+                            chosen = "node-port",
+                        });
+                    }
+                    continue;
+                }
+
+                source[kv.Key] = kv.Value;
+            }
 
             var parameters = new Dictionary<string, object?>(StringComparer.Ordinal);
             var provenance = new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal);

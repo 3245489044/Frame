@@ -12,7 +12,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '声明→绑定闭合（K-02）：DC1 声明 fn 必须已注册 / DC2 声明 outports ⊆ 实现产出键 / DC3 冻结产物含指纹 / DC4 负对照'
+        Note   = '声明→绑定闭合（K-02）：DC1 声明 fn 必须已注册 / DC2 声明 outports ⊆ 实现产出键（集合闭合 = GateClosure；输出 coverage=）/ DC2s Strict 越档（Coverage<1.0 判红）/ DC3 冻结产物含指纹 / DC4 负对照（含空声明⊥）/ DC5 豁免册单源'
     }
 
     ExecutionOwnership = @{
@@ -992,7 +992,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '键空间框架（Modules.KeySpace）：KS1 族命中 / KS1b 端口契约全集覆盖 / KS2 三态禁坍缩 / KS4 词法唯一 / KS5 域词隔离 / KS6 诊断码登记 / KS7 族注册唯一 / KS8 负对照'
+        Note   = '键空间框架（Modules.KeySpace）：KS1 族命中 / KS1b 端口契约全集覆盖（集合闭合 = GateClosure；输出 coverage=）/ KS2 三态禁坍缩 / KS4 词法唯一 / KS5 域词隔离 / KS6 诊断码登记 / KS7 族注册唯一 / KS8 负对照'
     }
 
     DispatchTraceSchema = @{

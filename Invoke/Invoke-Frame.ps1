@@ -38,7 +38,7 @@ param(
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
-        'read-agentdb', 'watch-observe'
+        'read-agentdb', 'watch-observe', 'state-root-audit'
     )]
     [string]$Action,
 

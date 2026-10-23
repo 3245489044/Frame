@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Operation.HierarchyMethod.Nodes;
+using Operation.HierarchyMethod.Nodes.Workflows;
 using Share.HierarchySupport;
 using Share.TaskStatusPool.Loops;
 
@@ -70,26 +71,35 @@ public sealed class NodeRoundContext
     private readonly Dictionary<string, NodeDefinition> _stepNodes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, object?>> _stepProps = new(StringComparer.Ordinal);
     private readonly Dictionary<string, NodeInputSnapshot> _stepInputs = new(StringComparer.Ordinal);
+    // 执行器返回记录（D16 记录保真）：电路后端按声明序收集，禁止按 step 三元组重建（重建会丢 InjectedKeys/时间/错误字段）。
+    private readonly Dictionary<string, NodeExecutionRecord> _stepRecords = new(StringComparer.Ordinal);
 
     // ---- 已持久化节点端口登记（供终态信封补漏判定：横切已写则不再补写，消除 R1 双写） ----
     private readonly HashSet<string> _persistedPorts = new(StringComparer.Ordinal);
 
+    /// <summary>重复登记计数（R1 双写结构事实；替代 Debug.Assert —— 发布态同样可观测，禁静默）。</summary>
+    public int DuplicatePersistRegistrations { get; private set; }
+
     /// <summary>登记某节点端口已由步骤横切持久化（Persist 成功后调用；终态信封据此跳过重复写）。
-    /// R1 收敛：同一轮内同一节点端口至多登记一次 —— 重复登记即「横切 + 终态信封」双写告警（Debug.Assert 开发期拦截）。</summary>
+    /// R1 收敛：同一轮内同一节点端口至多登记一次 —— 重复登记计入 <see cref="DuplicatePersistRegistrations"/> 供调用方可见化。</summary>
     public void MarkPersistedPort(string nodeKey, string port)
-        => Debug.Assert(_persistedPorts.Add($"{nodeKey}.{port}"),
-            $"[R1] 节点端口 {nodeKey}.{port} 在本轮被重复登记已持久化（双写告警）");
+    {
+        if (!_persistedPorts.Add($"{nodeKey}.{port}"))
+            DuplicatePersistRegistrations++;
+    }
 
     /// <summary>查询某节点端口是否已由步骤横切持久化（false = 需终态信封补写兜底，如 guard_output 被 CanExecute 跳过）。</summary>
     public bool IsPortPersisted(string nodeKey, string port)
         => _persistedPorts.Contains($"{nodeKey}.{port}");
 
     /// <summary>记录当前步骤执行产物 + 入参溯源（步骤体调用；供 onAfterStep 持久化横切消费，消除溯源在落库后置时的丢失）。</summary>
-    public void RecordStep(string stepName, NodeDefinition node, Dictionary<string, object?> props, NodeInputSnapshot input)
+    public void RecordStep(string stepName, NodeDefinition node, Dictionary<string, object?> props, NodeInputSnapshot input,
+        NodeExecutionRecord? record = null)
     {
         _stepNodes[stepName] = node;
         _stepProps[stepName] = props;
         _stepInputs[stepName] = input;
+        if (record is not null) _stepRecords[stepName] = record;
     }
 
     /// <summary>本轮已执行步骤键（只读；E1 步次闭合 / E2·E3 失败载荷的判据载体）。</summary>
@@ -117,4 +127,19 @@ public sealed class NodeRoundContext
         }
         return list;
     }
+    /// <summary>
+    /// 按 <see cref="RoundSpec.Steps"/> 声明序返回执行器原始记录（D16）：记录逐字段保真
+    /// （InjectedKeys / 时间 / 错误字段不重建）；未执行步骤不产记录。
+    /// </summary>
+    public IReadOnlyList<NodeExecutionRecord> RecordsInDeclarationOrder(RoundSpec spec)
+    {
+        var list = new List<NodeExecutionRecord>(_stepRecords.Count);
+        foreach (var step in spec.Steps)
+        {
+            if (_stepRecords.TryGetValue(step.EffectiveNodeId, out var record))
+                list.Add(record);
+        }
+        return list;
+    }
+
 }

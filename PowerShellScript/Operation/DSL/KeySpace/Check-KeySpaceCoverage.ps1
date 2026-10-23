@@ -22,6 +22,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateClosure.psm1') -Force
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
@@ -92,6 +93,9 @@ if (Test-Path -LiteralPath $declarationPath) {
     }
 }
 
+# 声明侧端口集合（方向|名）：闭合判定 = GateClosure 单点（KS1b），不再逐端口内联比对。
+$declaredPorts = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$declaredPortOrigin = @{}
 if (Test-Path -LiteralPath $workflowDir) {
     $portPattern = '^[A-Za-z_][A-Za-z0-9_.*]*$'
     foreach ($file in @(Get-ChildItem -LiteralPath $workflowDir -Filter *.ushar -File)) {
@@ -112,13 +116,26 @@ if (Test-Path -LiteralPath $workflowDir) {
                         $violations.Add("KS1 端口名非法 '$name'（$($file.Name):$lineNo）")
                     }
 
-                    # KS1b：每个声明端口都必须有显式契约（方向 + 名称）。
-                    if (-not $portKeys.Contains("$direction|$name")) {
-                        $violations.Add("KS1b 端口契约缺失 [$direction] '$name'（$($file.Name):$lineNo）")
+                    $portKey = "$direction|$name"
+                    [void]$declaredPorts.Add($portKey)
+                    if (-not $declaredPortOrigin.ContainsKey($portKey)) {
+                        $declaredPortOrigin[$portKey] = "$($file.Name):$lineNo"
                     }
                 }
             }
         }
+    }
+
+    # KS1b：每个声明端口都必须有显式契约（方向 + 名称）——集合闭合，一次算清。
+    $ks1b = Test-ClosureSet -Declared @($declaredPorts) -Implemented @($portKeys) -Label 'KS1b'
+    foreach ($missingPort in $ks1b.Missing) {
+        $origin = if ($declaredPortOrigin.ContainsKey($missingPort)) { "（$($declaredPortOrigin[$missingPort])）" } else { '' }
+        $violations.Add("KS1b 端口契约缺失 $(($missingPort -split '\|')[0]) '$(($missingPort -split '\|')[1])'$origin")
+    }
+    $coverageText = if ($null -eq $ks1b.Coverage) { '⊥' } else { $ks1b.Coverage }
+    Write-Host ("KS1b coverage={0} matched={1} declared={2}" -f $coverageText, $ks1b.MatchedCount, $ks1b.DeclaredCount)
+    if (-not $ks1b.WellFormed) {
+        $violations.Add('KS1b 覆盖度不可判定：声明端口集合为空（空集不得判 pass）')
     }
 }
 

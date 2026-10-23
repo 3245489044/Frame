@@ -7,6 +7,9 @@
 #   KD2 域标识派生：`new KeyDomainId(` 只允许出现在 Modules\KeySpace 内（域标识必须经 Of/注册表）。
 #   KD3 注册表接线：声明驱动注册表（KeyDomainRegistry）必须在产品侧被引用（防「有类型无消费」）。
 #   KD4 负对照：合成样本必须命中 KD1（判据非空转）。
+#   KD5 2 参 KeyRef.Of 产品侧计数 ≤ 基线（R7-C 棘轮）。
+#   KD6 键/实体派生单点：Agent.Session 内 `KeyRef.Of(` / `new KeyEntity(` 调用点 = 0
+#       （产品侧键策略单源文件 AgentKeySpaceDeclaration.cs 除外；实体构造唯一宿主 = KeyEntityFactory）。
 #   （域词隔离由 KS5 单源承担：Check-KeySpaceCoverage.ps1 —— 本门禁不重复实现。）
 #
 # 模式：默认报告；-Check 违规 → 退出码 1。只读仓库，零侧写。
@@ -81,6 +84,26 @@ if ($twoArgBudget -ge 0) {
     }
 }
 
+# ---- KD6（键派生单点）：Agent.Session 内键/实体构造只经具名工厂 ----
+# 豁免面 = 产品侧键策略单源文件（族/域词唯一出处）；其余调用点一律经
+# KeyEntityFactory（实体）或 AgentKeySpaceDeclaration.TaskRef/MemberRef（键）。
+$sessionRoot = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Session'
+$kd6Budget0 = 'Projects/Plug/Agent/src/Agent.Session/Keys/AgentKeySpaceDeclaration.cs'
+$kd6Count = 0
+if (Test-Path -LiteralPath $sessionRoot) {
+    foreach ($file in @($files | Where-Object {
+                $_.StartsWith($sessionRoot, [System.StringComparison]::OrdinalIgnoreCase) })) {
+        $rel6 = $file.Substring($Root.Length + 1).Replace('\', '/')
+        if ($rel6 -eq $kd6Budget0) { continue }
+        $text6 = Get-Content -LiteralPath $file -Raw
+        $kd6Count += ([regex]::Matches($text6, 'KeyRef\.Of\(')).Count
+        $kd6Count += ([regex]::Matches($text6, 'new\s+KeyEntity\s*\(')).Count
+    }
+}
+if ($kd6Count -gt 0) {
+    $violations.Add("KD6 键/实体派生越界：Agent.Session 内 KeyRef.Of/new KeyEntity 调用点=$kd6Count（应经 KeyEntityFactory / 具名工厂）")
+}
+
 if ($NegativeControl) {
     $probeA = 'var k = new KeyRef("f", "v", KeyPath.Empty);'
     if ($probeA -notmatch 'new\s+KeyRef\s*\(') { $violations.Add('KD4 负对照失败：KeyRef 构造样本未命中') }
@@ -88,6 +111,14 @@ if ($NegativeControl) {
     $probeB = 'var k = KeyRef.Of("task", key);'
     if ($probeB -notmatch 'KeyRef\.Of\(\s*[^,()]+,\s*[^,()]+\)') {
         $violations.Add('KD4 负对照失败：2 参 KeyRef.Of 样本未命中（KD5 判据空转）')
+    }
+
+    $probeC = 'var e = new KeyEntity("id", Array.Empty<KeyRef>());'
+    if ($probeC -notmatch 'new\s+KeyEntity\s*\(') {
+        $violations.Add('KD4 负对照失败：new KeyEntity 样本未命中（KD6 判据空转）')
+    }
+    if ('var k = AgentKeySpaceDeclaration.TaskRef(v);' -match 'KeyRef\.Of\(') {
+        $violations.Add('KD4 负对照失效：具名工厂样本被 KD6 误命中')
     }
 }
 

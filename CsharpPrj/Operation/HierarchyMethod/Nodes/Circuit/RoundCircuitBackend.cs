@@ -30,7 +30,6 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
         private readonly INodeExecutor _executor;
         private readonly INodeExecutorHooks? _hooks;
         private readonly IWorkflowDecisionPolicy? _decisions;
-        private readonly IRoundStatePort? _statePort;
         private readonly bool _failFast;
         private readonly NodeGraphOrchestrator? _fallback;
         // 诊断可见化端口（缺省空实现 = 不记）：分层无环——框架只依赖 IDiagnosticsSink，宿主日志门面经组合根绑定。
@@ -48,7 +47,8 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             _hooks = hooks;
             _decisions = decisions;
-            _statePort = statePort;
+            // statePort 保留形参仅为装配兼容：seed/harvest 已上移 RoundContractBackend（单一裁决点）。
+            _ = statePort;
             _failFast = failFast;
             _fallback = fallback;
             _diagnostics = diagnostics;
@@ -73,9 +73,6 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
                 return await _fallback.RunRoundAsync(spec, ctx, ct).ConfigureAwait(false);
             }
 
-            if (_statePort is not null)
-                await _statePort.SeedAsync(spec, ctx, ct).ConfigureAwait(false);
-
             var records = new List<NodeExecutionRecord>();
             try
             {
@@ -85,7 +82,8 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
                     .ConfigureAwait(false);
                 // 对齐编排器取消语义：取消不在电路内部判错（跳过/短路），返回后仍强归一为 OCE 上抛。
                 ct.ThrowIfCancellationRequested();
-                records = CollectRecords(spec, ctx);
+                // D16：收集执行器原始记录（不重建），记录逐字段保真。
+                records = ctx.RecordsInDeclarationOrder(spec).ToList();
             }
             catch (OperationCanceledException)
             {
@@ -98,11 +96,11 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
                 if (ctx.Error is null)
                 {
                     ctx.Error = ex.Message;
-                    var last = records.Count > 0 ? records[^1] : RecordsFallback;
+                    var last = records.Count > 0 ? records[^1] : NodeExecutionRecordFactory.Empty;
                     if (_hooks is not null)
                         await _hooks.OnStepErrorAsync(ctx, last, ex, ct).ConfigureAwait(false);
                 }
-                records = CollectRecords(spec, ctx);
+                records = ctx.RecordsInDeclarationOrder(spec).ToList();
             }
 
             var decision = ReadDecision(ctx);
@@ -115,10 +113,8 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
                      (_decisions?.Map(decision) ?? LoopDecision.Continue) is LoopDecision.Success or LoopDecision.Continue,
             };
 
-            if (_statePort is not null)
-                await _statePort.HarvestAsync(spec, ctx, ct).ConfigureAwait(false);
-
             // 终答文本由轮驱动（WorkflowRunner / IFinalAnswerPolicy）单点归集，本后端不重复计算（消除每轮二次求解）。
+            // 契约判据与 seed/harvest 由 RoundContractBackend 装饰器统一裁决（本后端只负责执行）。
             return new NodeRoundResult(records, decision, ok, ctx.Error);
         }
 
@@ -150,37 +146,7 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             }
         }
 
-        /// <summary>
-        /// 收集本轮执行记录（记录序 = **声明序**）：电路执行序由依赖调度决定，可能与声明序不一致
-        /// （派生模式下相邻步无数据键则不产序列边，如 ensure_history→attach_task）⇒ 此处按
-        /// <see cref="RoundSpec.Steps"/> 声明序重排，使记录下标与声明步骤对齐（终答链尾推导 / 报告的契约：
-        /// <c>records[i] ↔ spec.Steps[i]</c>；<c>WorkflowResultDeriver</c> 的链尾下标对齐与
-        /// <c>resolve-final-answer-index-mismatch-null</c> 均以本契约为前提）。未执行的步骤（CanExecute 跳过）不进入记录。
-        /// </summary>
-        private static List<NodeExecutionRecord> CollectRecords(RoundSpec spec, NodeRoundContext ctx)
-        {
-            var steps = ctx.EnumerateSteps();
-            var list = new List<NodeExecutionRecord>(steps.Count);
-            foreach (var specStep in spec.Steps)
-            {
-                var id = specStep.EffectiveNodeId;
-                for (var i = 0; i < steps.Count; i++)
-                {
-                    if (!string.Equals(steps[i].StepName, id, StringComparison.Ordinal)) continue;
-                    list.Add(new NodeExecutionRecord(
-                        steps[i].StepName, steps[i].Node.WorkflowId, steps[i].Props, steps[i].Input.Provenance));
-                    break;
-                }
-            }
-            return list;
-        }
-
         private static string? ReadDecision(NodeRoundContext ctx)
             => ctx.Vars.TryGet<object?>(NodeExecutionKeys.Decision, out var d) ? d?.ToString() : null;
-
-        private static readonly NodeExecutionRecord RecordsFallback = new(
-            string.Empty, string.Empty,
-            new Dictionary<string, object?>(StringComparer.Ordinal),
-            new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal));
     }
 }

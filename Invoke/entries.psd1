@@ -37,6 +37,11 @@
             Target = '..\PowerShellScript\Share\Data\Read-AgentDb.ps1'
             Map = @{ Store = 'Store'; Table = 'Table'; Collection = 'Collection'; Where = 'Where'; Limit = 'Limit'; StateRoot = 'StateRoot'; DllDir = 'DllDir'; List = 'List'; Json = 'Json' }
         }
+        'state-root-audit' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Get-StateRootAudit.ps1'
+            Map = @{ StateRoot = 'StateRoot'; Json = 'Json' }
+        }
         'watch-observe' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Observe\Watch-AgentObserve.ps1'

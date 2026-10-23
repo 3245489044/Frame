@@ -61,9 +61,7 @@ namespace Operation.HierarchyMethod.Nodes.Circuit
             }
             catch (Exception ex)
             {
-                var synthetic = new NodeExecutionRecord(_step.EffectiveNodeId, "",
-                    new Dictionary<string, object?>(StringComparer.Ordinal),
-                    new Dictionary<string, (string Node, string Port)>(StringComparer.Ordinal));
+                var synthetic = NodeExecutionRecordFactory.Synthetic(_step.EffectiveNodeId, ex.Message, ex.GetType().Name);
                 await _hooks.OnStepErrorAsync(_ctx, synthetic, ex, cancellationToken).ConfigureAwait(false);
                 throw;
             }

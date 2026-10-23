@@ -33,7 +33,10 @@ namespace Operation.HierarchyMethod.Nodes
         // 与 NodeKey 合成存储主键（NodeInstanceRef.ToStorageKey）；null = 旧路径（裸键），仅迁移期兼容。
         string? InstanceKey = null,
         // 实例容器键（通常 = 任务键；与 InstanceKey 分离，供图端点/归属边定位）。
-        string? ContainerKey = null)
+        string? ContainerKey = null,
+        // 实际注入键（E2 观测面）：执行器在入参解析/映射完成后上报，供框架在步骤边界完成契约判据。
+        // null = 未上报 ⇒ 判据跳过（零回归：任何 INodeExecutor 实现不上报也不会失去既有保护）。
+        IReadOnlyCollection<string>? InjectedKeys = null)
     {
         /// <summary>节点级成败（单一判定点：无 Error 即成功；ErrorClass 为强类型归因）。</summary>
         public bool Ok => Error == null;

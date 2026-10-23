@@ -12,20 +12,30 @@ namespace Operation.HierarchyMethod.Nodes;
 /// </summary>
 public static class LeaseContextFactory
 {
-    /// <summary>种子键（与 Agent 侧 <c>TaskSeed.UserInputKey</c> 同字面；框架不持有域词，仅为数据键名）。</summary>
-    private const string UserInputKey = "user_input";
+    /// <summary>种子键（与 Agent 侧 <c>RoundKeys.Input</c> 同字面；框架不持有域词，仅为数据键名）。</summary>
+    private const string InputKey = "input";
+
+    /// <summary>兼容读别名（旧键；只读不写，迁移期兼容）。</summary>
+    private const string LegacyUserInputKey = "user_input";
 
     public static AxiomContext Create(IAgentLoopState state)
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        // S5：种子投影 —— 数据空间缺 user_input ⇒ 用状态根播种；两者皆空 ⇒ 显式失败（禁空串进骨架）。
-        if (!state.Data.TryGet<string>(UserInputKey, out var dataValue) || string.IsNullOrWhiteSpace(dataValue))
+        // S5：种子投影 —— 数据空间缺 input ⇒ 用状态根播种；两者皆空 ⇒ 显式失败（禁空串进骨架）。
+        var effective = state.UserInput;
+        if (!state.Data.TryGet<string>(InputKey, out var dataValue) || string.IsNullOrWhiteSpace(dataValue))
         {
-            if (string.IsNullOrWhiteSpace(state.UserInput))
-                throw new InvalidOperationException("seed.source-missing: user_input");
+            if (string.IsNullOrWhiteSpace(effective))
+                state.Data.TryGet<string>(LegacyUserInputKey, out effective);
+            if (string.IsNullOrWhiteSpace(effective))
+                throw new InvalidOperationException("seed.user-input-missing: input");
 
-            state.Data.Set(UserInputKey, state.UserInput);
+            state.Data.Set(InputKey, effective!);
+        }
+        else
+        {
+            effective = dataValue;
         }
 
         return new(state.Data, state.Budget, state.Token, state.Flag)
@@ -33,6 +43,8 @@ public static class LeaseContextFactory
             Round = state.Round,
             LastEval = state.LastEval,
             Scope = state.Scope,
+            // D08：框架工厂补齐 UserInput（旧实现从不写 ⇒ LeaseDeriver 的 root.UserInput 回退是死分支）。
+            UserInput = effective,
         };
     }
 }

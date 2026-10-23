@@ -21,6 +21,11 @@
         @{ File = 'Declarations\DeclarationEditSingleSource.psd1'; Role = 'Data'; Domain = 'Declarations'; Gate = 'DeclarationEditSingleSource'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-DeclarationEditSingleSource.ps1'; UnregisteredGate = '未在 GateManifests 登记（脚本存在、未被聚合器调度）'; DueWhen = '登记进 GateManifests 或退役时' }
         @{ File = 'Declarations\FuncCallSingleSource.psd1'; Role = 'Data'; Domain = 'Declarations'; Gate = 'FuncCallSingleSource'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-FuncCallSingleSource.ps1'; UnregisteredGate = '未在 GateManifests 登记（脚本存在、未被聚合器调度）'; DueWhen = '登记进 GateManifests 或退役时' }
         @{ File = 'Declarations\InitGuards.psd1'; Role = 'Data'; Domain = 'Declarations'; Gate = 'InitGuards'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1' }
+        @{ File = 'KeySpace\KeyDomainStrict.psd1'; Role = 'Data'; Domain = 'KeySpace'; Gate = 'KeyDomainStrict'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1' }
+        @{ File = 'Process\_SpecExemptions.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1' }
+
+
+
         @{ File = 'Meta\AntiPatternFamily.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'AntiPatternFamily'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1' }
         @{ File = 'Meta\GateFileIndex.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'GateFileIndex'; Shape = 'Grid'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateFileIndex.ps1' }
         @{ File = 'Meta\OperationLayerIsolation.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'OperationLayerIsolation'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1' }
@@ -60,6 +65,7 @@
         @{ File = '_generated-artifacts.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1' }
         @{ File = '_inline-baselines.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1' }
         @{ File = '_verify-scope.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived', 'Verdict'); Consumer = 'Environment\CentralTest\Internal\Invoke-Verify.ps1' }
+        @{ File = '_DeclarationClosureExemptions.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-DeclarationClosure.ps1' }
         # ---- Role=Lib（原语代码；改动面大，固定留根，禁按域搬迁）----
         @{ File = 'GateBaseline.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateFileIndex.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }

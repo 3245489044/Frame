@@ -64,7 +64,7 @@ $violations = New-Object System.Collections.Generic.List[string]
 $count = 0
 
 # 存量豁免登记册（D-06）：未 inline 声明 owner/expires 的既有豁免必须在册；在册同样须未到期。
-$baselinePath = Join-Path $root 'Frame\PowerShellScript\Baselines\Process\SpecExemptions.psd1'
+$baselinePath = Join-Path $root 'Frame\PowerShellScript\Baselines\Process\_SpecExemptions.psd1'
 $registry = @{}
 if (Test-Path -LiteralPath $baselinePath) {
     $data = Import-PowerShellDataFile -LiteralPath $baselinePath
@@ -88,7 +88,7 @@ if (Test-Path -LiteralPath $scanRoot) {
             if ($reason -eq 'missing-owner') {
                 $entry = $registry[$rel]
                 if ($null -eq $entry) {
-                    $violations.Add("${rel}:${lineNo} => unregistered（须 inline owner/expires 或登记 Baselines\\Process\\SpecExemptions.psd1）")
+                    $violations.Add("${rel}:${lineNo} => unregistered（须 inline owner/expires 或登记 Baselines\\Process\\_SpecExemptions.psd1）")
                     continue
                 }
                 $expires = [string]$entry.Expires

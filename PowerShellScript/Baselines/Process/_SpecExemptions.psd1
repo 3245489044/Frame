@@ -14,6 +14,8 @@
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\AgentStateCenterInjectionTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\AgentTaskOutcomePolicyTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\AgentTaskPoolTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }
+        'Environment\CentralTest\AgentTest\Agent.Core.Tests\SeedingAndOwnershipTests.cs' = @{ Owner = 'r2-seeding'; Expires = '2026-12-31' }
+
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\AgentUiTaskPoolSubscriptionTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\AttemptPolicyTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }
         'Environment\CentralTest\AgentTest\Agent.Core.Tests\BoundedExecutionTests.cs' = @{ Owner = 'legacy-migration'; Expires = '2026-11-30' }

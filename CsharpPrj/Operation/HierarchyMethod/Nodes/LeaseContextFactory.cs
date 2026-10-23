@@ -12,11 +12,27 @@ namespace Operation.HierarchyMethod.Nodes;
 /// </summary>
 public static class LeaseContextFactory
 {
+    /// <summary>种子键（与 Agent 侧 <c>TaskSeed.UserInputKey</c> 同字面；框架不持有域词，仅为数据键名）。</summary>
+    private const string UserInputKey = "user_input";
+
     public static AxiomContext Create(IAgentLoopState state)
-        => new(state.Data, state.Budget, state.Token, state.Flag)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        // S5：种子投影 —— 数据空间缺 user_input ⇒ 用状态根播种；两者皆空 ⇒ 显式失败（禁空串进骨架）。
+        if (!state.Data.TryGet<string>(UserInputKey, out var dataValue) || string.IsNullOrWhiteSpace(dataValue))
+        {
+            if (string.IsNullOrWhiteSpace(state.UserInput))
+                throw new InvalidOperationException("seed.source-missing: user_input");
+
+            state.Data.Set(UserInputKey, state.UserInput);
+        }
+
+        return new(state.Data, state.Budget, state.Token, state.Flag)
         {
             Round = state.Round,
             LastEval = state.LastEval,
             Scope = state.Scope,
         };
+    }
 }

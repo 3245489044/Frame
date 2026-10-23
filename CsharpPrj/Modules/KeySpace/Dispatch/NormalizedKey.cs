@@ -9,7 +9,7 @@ public enum NormalizeOutcome
     /// <summary>命中族身份模板（原文即业务键形态）。</summary>
     Resolved,
 
-    /// <summary>命中族别名模板（session:/scope: 等称呼）。</summary>
+    /// <summary>命中族别名模板（称呼还原）。</summary>
     AliasRestored,
 
     /// <summary>经业务键投影还原（实例键/派生前缀 → 业务键）。</summary>

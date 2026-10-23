@@ -1,0 +1,5 @@
+{
+  "schema": "declaration-exemptions-v1",
+  "note": "声明闭合孤儿豁免册（F3）。每条 = implId + Reason + DueWhen；implId 为已注册实现名（结构事实）。门禁与运行期共读本文件（单源，禁两份）。收敛期到点即移除条目。",
+  "items": []
+}

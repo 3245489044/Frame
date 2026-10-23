@@ -232,6 +232,15 @@ public static class DeclaredBundleBuilder
             .OrderBy(f => f, StringComparer.Ordinal)
             .ToList();
 
+        // 绑定清单（R5）：声明 ↔ 实现面的冻结视图（flowId/stepKey/fn/ports/executor + 源指纹）；
+        // 域标识由 Agent 侧按声明域注册表绑定，框架层不持有域词。
+        var bindings = flows
+            .SelectMany(flow => flow.Steps.Select(step => new ManifestBinding(
+                flow.FlowId, step.Key, step.Fn, step.Inports, step.Outports, step.Executor)))
+            .OrderBy(b => b.FlowId, StringComparer.Ordinal)
+            .ThenBy(b => b.StepKey, StringComparer.Ordinal)
+            .ToList();
+
         // nodes 不落盘：steps 已承载 fn/inports/outports（消费方只读 flows.functions.vocabulary/ports）。
         return new ManifestDocument(
             ManifestSchema,
@@ -241,6 +250,7 @@ public static class DeclaredBundleBuilder
             new ManifestPorts(
                 Distinct(nodes.Values.SelectMany(n => n.InputPorts)),
                 Distinct(nodes.Values.SelectMany(n => n.OutputPorts))),
+            bindings,
             BuildVocabulary(compilation));
     }
 
@@ -310,7 +320,13 @@ public static class DeclaredBundleBuilder
     private sealed record ManifestDocument(
         string Schema, string Fingerprint, IReadOnlyList<ManifestFlow> Flows,
         IReadOnlyList<string> Functions, ManifestPorts Ports,
+        IReadOnlyList<ManifestBinding> Bindings,
         IReadOnlyList<ManifestVocabulary> Vocabulary);
+
+    /// <summary>绑定条目（冻结产物）：声明侧标识 + 实现面函数名 + 端口契约（结构事实）。</summary>
+    private sealed record ManifestBinding(
+        string FlowId, string StepKey, string Fn,
+        IReadOnlyList<string> Inports, IReadOnlyList<string> Outports, string? Executor);
 
     private sealed record ManifestVocabulary(string Space, string Kind, IReadOnlyList<string> Keys);
 

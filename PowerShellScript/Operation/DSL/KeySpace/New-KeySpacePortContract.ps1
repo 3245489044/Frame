@@ -81,13 +81,12 @@ if (-not $Write) {
 $merged = @($ports) + @($generated)
 $merged = @($merged | Sort-Object @{ Expression = { [string]$_.direction } }, @{ Expression = { [string]$_.name } })
 
-# 保序输出：id → families → ports → policies（与既有文件结构一致）。
-$result = [ordered]@{
-    id       = [string]$json.id
-    families = $families
-    ports    = $merged
-    policies = $json.policies
+# 保序输出：仅替换 ports，其余顶层键（id/domains/families/policies 及未来扩展）原样保留。
+$result = [ordered]@{}
+foreach ($property in $json.PSObject.Properties) {
+    $result[$property.Name] = $property.Value
 }
+$result['ports'] = $merged
 
 $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $declarationPath -Encoding utf8
 Write-Host ("已写回：{0}" -f $declarationPath)

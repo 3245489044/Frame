@@ -433,7 +433,19 @@
     #   · Projects/Plug/Agent/src（Core/Axioms/Guardrails/Modules）· Environment/CentralTest/AgentTest/Agent.Guardrails.Tests
     #   · Docs/analysis/2026/10/10.23，均在新单 allowSet 内；上一系列（LoopKernel/会话装配）在途改动按新单 preexisting 登记。
     #   恢复 = 回填 v61 的 Value（上方注释保留原值）。
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-重复冗余错误逻辑收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v63（2026-10-23）：单指针切换至「键框架与执行域分离 · 剩余批次（R0–R9）」授权单。切换理由 = 本系列改动落在
+    #   Frame/CsharpPrj/Modules/KeySpace · Frame/CsharpPrj/Operation/{HierarchyMethod,WorkFlowMethod}
+    #   · Frame/Usharp/src/Usharp.Adapters.Declarations · Frame/PowerShellScript/{Operation/DSL,Baselines}
+    #   · Projects/Plug/Agent/{src,Config/keyspaces}，均在新单 allowSet 内；上一系列（B10–B13）已收口且工作树干净。
+    #   恢复 = 回填 v62 的 Value（上方注释保留原值）。
+    # v64（2026-10-23）：单指针切换至「剩余项治理 · 通用框架修复（F4/F1/F2/F3/F5/B1）」授权单。
+    #   切换理由 = 用户要求一次改完：烘焙区覆盖与产物新鲜度断言 / 实现产出键单源 / 注册面分区与装配冻结 /
+    #   声明严格度配置化与孤儿豁免册 / 执行契约下沉 / 旧件清退；改动落在 Projects/BuildFramework ·
+    #   Frame/PowerShellScript · Frame/CsharpPrj/Modules/KeySpace · Projects/Plug/Agent/src ·
+    #   Environment/CentralTest · Docs/analysis/2026/10/10.23，均在新单 allowSet 内。
+    #   恢复 = 回填 v63 的 Value（上方注释保留原值）。
+    # Manifest(v63) = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-键框架与执行域分离-剩余批次.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-剩余项-通用框架修复.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

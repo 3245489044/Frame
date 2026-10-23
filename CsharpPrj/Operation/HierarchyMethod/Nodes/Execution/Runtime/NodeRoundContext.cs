@@ -43,6 +43,12 @@ public sealed class NodeRoundContext
     public int RoundNo { get; set; }
 
     /// <summary>
+    /// 执行契约选项（F5）：编排器在步骤边界据此判 E1（步次闭合），执行器据此判 E2/E3 严格度。
+    /// null = 默认 <see cref="RoundContractOptions.Default"/>（Report，零回归）。
+    /// </summary>
+    public RoundContractOptions? ContractOptions { get; set; }
+
+    /// <summary>
     /// 透明 run 作用域槽（跨层中性透传）：由宿主（Agent 运行持有方）每轮填充当前 run 作用域对象，
     /// 供本节点编排期间到达深层函数/过滤器的显式承载——AsyncLocal 去除后的替代通道。
     /// 本层（Operation.HierarchyMethod，CsharpPrj）只当不透明 object 承载，不感知类型、不触发反依赖；
@@ -85,6 +91,9 @@ public sealed class NodeRoundContext
         _stepProps[stepName] = props;
         _stepInputs[stepName] = input;
     }
+
+    /// <summary>本轮已执行步骤键（只读；E1 步次闭合 / E2·E3 失败载荷的判据载体）。</summary>
+    public IReadOnlyCollection<string> ExecutedSteps => _stepProps.Keys;
 
     /// <summary>取步骤产物 + 入参溯源；步骤未执行/已无记录返回 false。</summary>
     public bool TryGetStep(string stepName, out NodeDefinition? node, out IReadOnlyDictionary<string, object?> props, out NodeInputSnapshot? input)

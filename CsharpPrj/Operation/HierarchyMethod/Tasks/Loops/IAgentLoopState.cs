@@ -36,8 +36,11 @@ namespace Operation.HierarchyMethod.Tasks.Loops
         /// <summary>近期转移历史（只增；压缩由宿主 CompactProcedure 负责）。</summary>
         List<string> RecentTransitions { get; }
 
-        /// <summary>类型化数据空间（统一数据容器，单一数据持有方）。遮蔽 <see cref="ILoopState.Data"/> 的字典视图。</summary>
+        /// <summary>统一数据空间（统一数据容器，单一数据持有方）。遮蔽 <see cref="ILoopState.Data"/> 的字典视图。</summary>
         new DataSpace Data { get; }
+
+        /// <summary>用户输入（种子单源：与数据空间 <c>user_input</c> 同值；驱动前由租约工厂投影）。</summary>
+        string? UserInput { get; set; }
 
         /// <summary>把本权威根投影为只读运行时快照（<see cref="AgentRuntimeSnapshot"/>，供 RuntimeStateBroker 发布 / 外部订阅 / UI 查询）。</summary>
         AgentRuntimeSnapshot ToRuntimeSnapshot(string stage);

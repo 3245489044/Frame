@@ -20,6 +20,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateFileIndex.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -Force
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
@@ -58,9 +59,36 @@ if ($registryConsumers.Count -eq 0) {
     $violations.Add('KD3 域注册表无产品侧消费方（KeyDomainRegistry 未被引用）')
 }
 
+# ---- KD5（R7-C 棘轮）：产品侧 2 参 KeyRef.Of 计数 ≤ 基线（框架 4 处按设计保留，不入本判据）----
+$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\KeySpace\KeyDomainStrict.psd1'
+$twoArgBudget = -1
+if (Test-Path -LiteralPath $baselinePath) {
+    $baseline = Import-GateBaseline -Name KeyDomainStrict
+    $twoArgBudget = [int]$baseline.KD5TwoArgKeyRefOf.Value
+} else {
+    $violations.Add('KD5 基线缺失：Baselines\KeySpace\KeyDomainStrict.psd1')
+}
+
+if ($twoArgBudget -ge 0) {
+    $twoArgPattern = 'KeyRef\.Of\(\s*[^,()]+,\s*[^,()]+\)'
+    $twoArgCount = 0
+    foreach ($file in @($files | Where-Object { $_.Substring($Root.Length + 1) -like 'Projects\Plug\Agent\src\*' })) {
+        $twoArgCount += ([regex]::Matches((Get-Content -LiteralPath $file -Raw), $twoArgPattern)).Count
+    }
+
+    if ($twoArgCount -gt $twoArgBudget) {
+        $violations.Add("KD5 产品侧 2 参 KeyRef.Of 超基线：actual=$twoArgCount, budget=$twoArgBudget（须改具名域工厂）")
+    }
+}
+
 if ($NegativeControl) {
     $probeA = 'var k = new KeyRef("f", "v", KeyPath.Empty);'
     if ($probeA -notmatch 'new\s+KeyRef\s*\(') { $violations.Add('KD4 负对照失败：KeyRef 构造样本未命中') }
+
+    $probeB = 'var k = KeyRef.Of("task", key);'
+    if ($probeB -notmatch 'KeyRef\.Of\(\s*[^,()]+,\s*[^,()]+\)') {
+        $violations.Add('KD4 负对照失败：2 参 KeyRef.Of 样本未命中（KD5 判据空转）')
+    }
 }
 
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyDomainStrict'

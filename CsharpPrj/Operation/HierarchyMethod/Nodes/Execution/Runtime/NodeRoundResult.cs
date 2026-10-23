@@ -11,4 +11,6 @@ public sealed record NodeRoundResult(
     IReadOnlyList<NodeExecutionRecord> Records,
     string? Decision = null,
     bool Success = false,
-    string? Error = null);
+    string? Error = null,
+    IReadOnlyList<string>? SkippedSteps = null,
+    IReadOnlyList<string>? ContractViolations = null);

@@ -55,6 +55,42 @@ if (-not (Test-Path -LiteralPath $ownershipFile)) {
     }
 }
 
+# ---- EO5：注册面分区 + 装配冻结（F2；判据载体 = 调用点/定义结构事实）----
+$gateFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Runtime\State\Orchestration\RegistrationGate.cs'
+$registrarFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Common\FunctionRegistrar.cs'
+$assemblyFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\AgentWorkflowFunctionRegistrar.cs'
+
+if (-not (Test-Path -LiteralPath $gateFile)) {
+    $violations.Add('EO5 注册面内核缺失：RegistrationGate.cs')
+} else {
+    $gateText = Get-Content -LiteralPath $gateFile -Raw
+    foreach ($token in @('RegistrationScope', 'Freeze(', 'IsFrozen(')) {
+        if ($gateText -notmatch [regex]::Escape($token)) {
+            $violations.Add("EO5 注册面内核缺要素：$token")
+        }
+    }
+}
+
+if (-not (Test-Path -LiteralPath $registrarFile)) {
+    $violations.Add('EO5 注册器缺失：FunctionRegistrar.cs')
+} elseif ((Get-Content -LiteralPath $registrarFile -Raw) -notmatch 'FreezeDeclared') {
+    $violations.Add('EO5 注册器缺冻结入口：FunctionRegistrar.FreezeDeclared')
+}
+
+if (-not (Test-Path -LiteralPath $assemblyFile)) {
+    $violations.Add('EO5 装配点缺失：AgentWorkflowFunctionRegistrar.cs')
+} elseif ((Get-Content -LiteralPath $assemblyFile -Raw) -notmatch 'FreezeDeclared\s*\(\s*\)') {
+    $violations.Add('EO5 装配点未冻结声明面：ValidateRegisteredFunctions 缺 FreezeDeclared() 调用')
+}
+
+if ($NegativeControl) {
+    # EO4/EO5 负对照：合成样本必须命中各自断言模式（判据非空转）
+    $freezeSample = 'FunctionRegistrar.FreezeDeclared();'
+    if ($freezeSample -notmatch 'FreezeDeclared\s*\(\s*\)') {
+        $violations.Add('EO5 负对照失败：装配冻结样本未命中')
+    }
+}
+
 if ($NegativeControl) {
     $sample = 'public async Task CreateMember() { await ActivateTaskAsync(key); }'
     if ($sample -match 'await\s+ActivateTaskAsync\s*\(') {

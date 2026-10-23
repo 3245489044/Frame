@@ -457,13 +457,19 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// <para><see cref="DomOps.Set"/> 语义：表单元素写 value，<c>.host</c> 写 innerHTML，其余写 textContent。</para></summary>
     public async Task<bool> WriteLeafAsync(string name, string value, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(name)) return false;
-        var status = await ExecuteDomTypedAsync(DomOps.Set, name, value, ct).ConfigureAwait(false);
+        var status = await WriteLeafCoreStatusAsync(name, value, ct).ConfigureAwait(false);
         var ok = status == DomOpStatus.Ok;
         Report("EventBridge_writeback", ok
             ? $"叶子写回 {name}: {DomOpStatus.Ok}"
             : $"叶子写回 {name} 未命中（{status}）");
         return ok;
+    }
+
+    /// <summary>叶子写入唯一实现（不发射轨迹）：供公开壳与协调器共用，叶子日志单点发射（L-02）。</summary>
+    private async Task<DomOpStatus> WriteLeafCoreStatusAsync(string name, string value, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return DomOpStatus.Unknown;
+        return await ExecuteDomTypedAsync(DomOps.Set, name, value, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -478,10 +484,20 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// <summary>单一写回协调器入口（带刷新追踪号：一次刷新一条轨迹，<paramref name="traceId"/> 由刷新链路传入）。</summary>
     public async Task<UiWriteResult> WriteAsync(UiWritePlan plan, string? traceId, CancellationToken ct = default)
     {
+        var trace = plan?.TraceId ?? traceId ?? _traceFactory("write");
+        var result = await WriteCoreAsync(plan, trace, ct).ConfigureAwait(false);
+        // L-01/L-02：一次写回只产一条轨迹——Tree/Leaf/TreeAndLeaf 子写只回结构，汇总在本层唯一发射。
+        Report("EventBridge_writeback",
+            $"写回协调器 {plan?.Kind} trace={trace}: {result.Status}, written=[{string.Join(",", result.Written)}], " +
+            $"skipped=[{string.Join(",", result.Skipped)}]{(result.Anomalies is { Count: > 0 } ? ", anomalies=1" : string.Empty)}");
+        return result;
+    }
+
+    /// <summary>写回核心（唯一结构实现）：子写递归本方法且不发射汇总；轨迹由公开 <see cref="WriteAsync(UiWritePlan, string?, CancellationToken)"/> 单点发射。</summary>
+    private async Task<UiWriteResult> WriteCoreAsync(UiWritePlan? plan, string trace, CancellationToken ct)
+    {
         if (plan is null || plan.Kind == UiWriteKind.Skip)
             return new UiWriteResult(UiWriteStatus.Nothing, Array.Empty<string>(), Array.Empty<string>());
-
-        var trace = plan.TraceId ?? traceId ?? _traceFactory("write");
         var written = new List<string>();
         var skipped = new List<string>();
         var anomalies = new List<string>();
@@ -545,10 +561,10 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
 
             case UiWriteKind.TreeAndLeaf:
                 // 同拍两通道：先树（区域重建），后叶子（定点值更新，命中重建后的 DOM 元素）。
-                var treeResult = await WriteAsync(UiWritePlan.TreesTraced(
+                var treeResult = await WriteCoreAsync(UiWritePlan.TreesTraced(
                         FilterTargets(plan.Targets, static t => t.Payload is UiNode), plan.Interaction, trace),
                     trace, ct).ConfigureAwait(false);
-                var leafResult = await WriteAsync(UiWritePlan.Leaves(
+                var leafResult = await WriteCoreAsync(UiWritePlan.Leaves(
                         FilterTargets(plan.Targets, static t => t.Payload is string), plan.Interaction, trace),
                     trace, ct).ConfigureAwait(false);
                 written.AddRange(treeResult.Written);
@@ -567,7 +583,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                 {
                     var name = t.Name ?? string.Empty;
                     var value = t.Payload as string ?? string.Empty;
-                    if (await WriteLeafAsync(name, value, ct).ConfigureAwait(false)) written.Add(name);
+                    if (await WriteLeafCoreStatusAsync(name, value, ct).ConfigureAwait(false) == DomOpStatus.Ok) written.Add(name);
                     else skipped.Add(name);
                 }
                 break;
@@ -585,8 +601,6 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         var result = written.Count == 0
             ? (skipped.Count == 0 ? UiWriteStatus.Nothing : UiWriteStatus.Skipped)
             : (skipped.Count == 0 && !anomalySeen ? UiWriteStatus.Applied : UiWriteStatus.Partial);
-        Report("EventBridge_writeback",
-            $"写回协调器 {plan.Kind} trace={trace}: {result}, written=[{string.Join(",", written)}], skipped=[{string.Join(",", skipped)}]{(anomalySeen ? ", anomalies=1" : string.Empty)}");
         return new UiWriteResult(result, written, skipped, TraceId: trace,
             Anomalies: anomalies.Count > 0 ? anomalies : null);
     }

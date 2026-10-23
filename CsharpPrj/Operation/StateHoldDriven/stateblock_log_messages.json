@@ -60,7 +60,12 @@
     "StateBlock_SendDone": {
       "level": "Info",
       "category": "StateBlock_Daemon",
-      "template": "请求完成: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, elapsedMs={elapsedMs}"
+      "template": "请求完成: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, elapsedMs={elapsedMs}, waitMs={waitMs}"
+    },
+    "StateBlock_SendAborted": {
+      "level": "Warning",
+      "category": "StateBlock_Daemon",
+      "template": "请求中止（无终态退出）: pool={pool}, requestId={requestId}, worker={workerId}, cmd={cmd}, elapsedMs={elapsedMs}, lastStage={lastStage}, stderrTail={stderrTail}"
     },
     "StateBlock_SendRetry": {
       "level": "Warning",

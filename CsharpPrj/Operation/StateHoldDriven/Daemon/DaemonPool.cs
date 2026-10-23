@@ -354,7 +354,10 @@ public sealed class DaemonPool : IDisposable
     public async Task<JsonElement> SendAsync(string cmd, object? payload, TimeSpan? absoluteTimeout,
         CancellationToken ct = default, Action<string>? onStage = null, Action<DaemonResponse>? onFrame = null)
     {
-        var started = _clock.UtcNow;
+        // L-19：两个起点分离——requestEntered（进入本方法）与 dispatchStarted（真正派发给 worker）。
+        var requestEntered = _clock.UtcNow;
+        var terminalLogged = false;
+        var dispatchStarted = requestEntered;
         var deadline = DateTimeOffset.UtcNow + (absoluteTimeout ?? _options.AbsoluteTimeout);
 
         // 预算单一时钟：就绪等待计入预算，不再吞掉整个请求预算后冷启动叠加
@@ -389,6 +392,7 @@ public sealed class DaemonPool : IDisposable
                 if (onStage is not null) _state.SetStageListener(picked, onStage);
                 // per-call 结构帧监听器（finally 注销，与阶段帧同生命周期）。
                 if (onFrame is not null) _state.SetFrameListener(picked, onFrame);
+                dispatchStarted = _clock.UtcNow;
                 StateBlockLog.SendStart(_poolTag, requestId, picked, cmd, remaining.TotalSeconds);
 
                 var host = _state.GetHost(picked)!;
@@ -415,7 +419,11 @@ public sealed class DaemonPool : IDisposable
                     if (string.IsNullOrEmpty(result.Output))
                         throw new DaemonPoolException(cmd, "daemon 返回结果在传输层丢失（Output 为空）");
                     _state.MarkFree(picked); // InFlight → Ready，归还占用
-                    StateBlockLog.SendDone(_poolTag, requestId, picked, cmd, (_clock.UtcNow - started).TotalMilliseconds);
+                    var doneAt = _clock.UtcNow;
+                    StateBlockLog.SendDone(_poolTag, requestId, picked, cmd,
+                        (doneAt - dispatchStarted).TotalMilliseconds,
+                        (dispatchStarted - requestEntered).TotalMilliseconds);
+                    terminalLogged = true;
                     return JsonSerializer.Deserialize<JsonElement>(result.Output);
                 }
 
@@ -423,6 +431,7 @@ public sealed class DaemonPool : IDisposable
                 if (result.EndPhase == AsyncOpPhase.Cancelled)
                 {
                     StateBlockLog.SendCancelled(_poolTag, requestId, picked, cmd, result.Error);
+                    terminalLogged = true;
                     _state.MarkFree(picked);             // 归还占用
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false); // 被 kill → 驱逐补位，避免选中死 worker
                     throw new OperationCanceledException(result.Error ?? "操作被取消");
@@ -433,6 +442,7 @@ public sealed class DaemonPool : IDisposable
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
                     StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, attempt + 1, result.Error,
                         _state.GetLastStage(picked), _state.GetStderrTail(picked));
+                    terminalLogged = true;
                     await EvictWorkerAsync(picked, ct).ConfigureAwait(false);
 
                     throw new DaemonPoolException(cmd,
@@ -443,6 +453,7 @@ public sealed class DaemonPool : IDisposable
                 _state.MarkFree(picked); // 归还占用
                 StateBlockLog.SendFailed(_poolTag, requestId, picked, cmd, result.Error,
                     _state.GetLastStage(picked), _state.GetStderrTail(picked));
+                terminalLogged = true;
                 throw new DaemonPoolException(cmd, result.Error);
             }
             finally
@@ -453,7 +464,16 @@ public sealed class DaemonPool : IDisposable
                     _state.ClearFrameListener(picked);
                     lock (_busyLock) _busy.Remove(picked);
                 }
-                if (requestId != "") _state.RequestTracker.Complete(requestId);
+                if (requestId != "")
+                {
+                    _state.RequestTracker.Complete(requestId);
+                    // L-27：每个 requestId 必落一条终态（成功/失败/取消/中止），禁止静默消失。
+                    if (!terminalLogged)
+                        StateBlockLog.SendAborted(_poolTag, requestId, picked ?? "?", cmd,
+                            (_clock.UtcNow - requestEntered).TotalMilliseconds,
+                            picked is null ? null : _state.GetLastStage(picked),
+                            picked is null ? null : _state.GetStderrTail(picked));
+                }
                 _slotGate.Release();
             }
         }

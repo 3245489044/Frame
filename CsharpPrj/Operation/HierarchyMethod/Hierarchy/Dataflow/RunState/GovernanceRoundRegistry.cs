@@ -51,7 +51,10 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState
             long TokensOut,
             DateTimeOffset Dispatched,
             string? ActorKind = null,
-            string? ActorId = null)
+            string? ActorId = null,
+            long ProgressSeq = 0,
+            string? LastProgressKind = null,
+            DateTimeOffset? LastProgressAt = null)
         {
             /// <summary>是否已进入派发登记（未登记 = 只取到租约、尚未派发）。</summary>
             public bool IsDispatched => !string.IsNullOrEmpty(InputDigest);
@@ -212,6 +215,29 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState
                 _byLease.Remove(lease.LeaseId);
                 _byTask.Remove(lease.TaskKey);
                 _roundToLease.Remove(lease.RoundId);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// 登记一次执行端推进（D-03 唯一入口）：<see cref="RoundLease.ProgressSeq"/> 单调递增。
+        /// 刷新层以「进度令牌变化」而非「在途/时间推进」判推进，使长任务与空转可区分。
+        /// </summary>
+        /// <param name="leaseId">租约键。</param>
+        /// <param name="kind">推进种类（如已完成步骤键 / 工具名）。</param>
+        /// <returns>租约不存在 ⇒ false（不新增租约）。</returns>
+        public bool NoteProgress(string? leaseId, string? kind)
+        {
+            if (string.IsNullOrWhiteSpace(leaseId)) return false;
+            lock (_gate)
+            {
+                if (!_byLease.TryGetValue(leaseId!, out var lease)) return false;
+                _byLease[leaseId!] = lease with
+                {
+                    ProgressSeq = lease.ProgressSeq + 1,
+                    LastProgressKind = kind,
+                    LastProgressAt = DateTimeOffset.UtcNow,
+                };
                 return true;
             }
         }

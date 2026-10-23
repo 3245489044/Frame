@@ -735,6 +735,13 @@
         Note   = '验证成比例守卫 H0–H5（过程层 P4）：产品单工程改动成比例（验证/改动比 ≤ 1.5）∧ 映射落点 ∧ 不静默丢面 ∧ 未分类改动 fail-loud；基线 = Baselines\Process\VerifyProportionality.psd1'
     }
 
+    SpecExempt = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'spec-exempt 登记与到期闭合（D-06）：每条豁免须 owner=<归属> + expires=<yyyy-MM-dd>；到期未收敛 FAIL；内置正/负对照防判据空转'
+    }
+
     # ===== 运行/验证前置守卫（框架级缺陷：收敛 / 前置开销 / 替身漂移）=====
     RunConvergence = @{
         Domain = 'Process'

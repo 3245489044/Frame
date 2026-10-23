@@ -65,9 +65,14 @@ public static class StateBlockLog
     public static void SendStart(string pool, string requestId, string workerId, string cmd, double remainingSec)
         => _log("StateBlock_SendStart", new { pool, requestId, workerId, cmd, remainingSec });
 
-    /// <summary>记录请求成功完成（Info，携带耗时）。</summary>
-    public static void SendDone(string pool, string requestId, string workerId, string cmd, double elapsedMs)
-        => _log("StateBlock_SendDone", new { pool, requestId, workerId, cmd, elapsedMs });
+    /// <summary>记录请求成功完成（Info，携带耗时）。<paramref name="elapsedMs"/> = 派发→完成；
+    /// <paramref name="waitMs"/> = 请求进入→派发（就绪/选路等待），两段分离（L-19：起点不得混用池初始化）。</summary>
+    public static void SendDone(string pool, string requestId, string workerId, string cmd, double elapsedMs, double waitMs = 0)
+        => _log("StateBlock_SendDone", new { pool, requestId, workerId, cmd, elapsedMs, waitMs });
+
+    /// <summary>记录请求中止（无终态即退出：进程关闭/异常穿透）——保证每个 requestId 至少一条终态记录（L-27）。</summary>
+    public static void SendAborted(string pool, string requestId, string workerId, string cmd, double elapsedMs, string? lastStage = null, string? stderrTail = null)
+        => _log("StateBlock_SendAborted", new { pool, requestId, workerId, cmd, elapsedMs, lastStage, stderrTail });
 
     /// <summary>记录基建故障（挂起/被杀）换 worker 重试（Warning，携带最后阶段与 stderr 尾部，供归因引擎为何不推进）。</summary>
     public static void SendRetry(string pool, string requestId, string workerId, string cmd, int attempt, string? error, string? lastStage = null, string? stderrTail = null)

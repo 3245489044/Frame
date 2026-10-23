@@ -117,10 +117,24 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
     {
         if (existing is null || existing.Messages.Count == 0) return incoming;
         if (incoming.Messages.Count >= existing.Messages.Count) return incoming;
+
+        // 增量写（少于库内条数）≠ 回退：保留库内全量，再把未见过的新消息追加进去（禁丢弃 incoming）。
         var merged = new ConversationLog();
-        foreach (var message in existing.Messages) merged.AppendRaw(message);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var message in existing.Messages)
+        {
+            merged.AppendRaw(message);
+            seen.Add(Signature(message));
+        }
+        foreach (var message in incoming.Messages)
+            if (seen.Add(Signature(message)))
+                merged.AppendRaw(message);
         return merged;
     }
+
+    /// <summary>消息去重签名（轮次 + 角色 + 文本；用于增量投影合并）。</summary>
+    private static string Signature(ConversationMessage message)
+        => $"{message.Round}|{message.Role}|{message.Text}";
 
     private static UsharpValue ParsePayload(string json)
     {

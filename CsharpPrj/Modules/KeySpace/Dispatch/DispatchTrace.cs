@@ -13,7 +13,17 @@ public sealed record DispatchTrace(
     IReadOnlyList<string> Targets,
     IReadOnlyDictionary<string, int> Dropped,
     PlanFingerprint? Fingerprint,
-    string Verdict);
+    string Verdict)
+{
+    /// <summary>推进判据结论：<c>progressed = inFlight || completedDelta &gt; 0</c>（与 Verdict 同源，供日志机械复算）。</summary>
+    public bool Progressed { get; init; }
+
+    /// <summary>判据输入：是否存在在途租约。</summary>
+    public bool InFlight { get; init; }
+
+    /// <summary>判据输入：本轮完成增量。</summary>
+    public int CompletedDelta { get; init; }
+}
 
 /// <summary>阶段/schema 单源：phase 词表封闭，未知 phase 不得发射。</summary>
 public static class DispatchTraceSchema

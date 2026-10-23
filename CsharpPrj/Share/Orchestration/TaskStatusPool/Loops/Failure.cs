@@ -66,6 +66,8 @@ public static class FailureCodes
     public const string ContractUnassigned = "CONTRACT_UNASSIGNED";
     public const string ContractExecutorMissing = "CONTRACT_EXECUTOR_MISSING";
     public const string TailUnresolved = "TAIL_UNRESOLVED";
+    /// <summary>骨架提前终止（失败的一等表示）：执行步数 &lt; 声明步数，禁再以索引越界/计数错位表达。</summary>
+    public const string EarlyFault = "EARLY_FAULT";
     public const string UnjustifiedRetry = "UNJUSTIFIED_RETRY";
     public const string InvalidRetry = "INVALID_RETRY";
     public const string AttemptDoubleWrite = "ATTEMPT_DOUBLE_WRITE";

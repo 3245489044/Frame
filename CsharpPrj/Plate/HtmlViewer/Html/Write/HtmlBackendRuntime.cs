@@ -47,8 +47,8 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// （<c>Strategy.Refresh.Ports.IFingerprint</c>）使领域与写落地共用同一口径。</summary>
     private readonly Func<string, string> _fingerprint;
 
-    /// <summary>刷新追踪号工厂（P4）：缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
-    /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c>，使一次刷新贯穿 push→page→dispatch→sink 用同一来源。</summary>
+    /// <summary>刷新追踪号工厂（必填）：唯一实现由上层注入 <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c>，
+    /// 使一次刷新贯穿 push→page→dispatch→sink 用同一来源（Plate 不持有第二个序号空间）。</summary>
     private readonly Func<string, string> _traceFactory;
 
     /// <summary>键控树写端口（L2 HTML 实现；经通道执行 <c>__uiReconcile.applyTree</c>）。</summary>
@@ -88,7 +88,7 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         _writePump = writePump;
         _writeArbiter = writeArbiter;
         _fingerprint = fingerprint ?? UiFingerprint.Of;
-        _traceFactory = traceFactory ?? RefreshTrace.New;
+        _traceFactory = traceFactory ?? throw new ArgumentNullException(nameof(traceFactory));
         _treeWriter = new HtmlTreeWriter(channel) { Diagnostics = Report };
         Readiness = new HtmlRuntimeReadinessReport();
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
@@ -432,20 +432,31 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         if (ok) _writeArbiter?.Commit(slotKey, version, dedupKey);
     }
 
-    /// <summary>按区域写回并返回**类型化状态**（供调用方定位失败分支：NotFound=区域容器缺失 / StateNotReady=补丁态模块未就绪）。</summary>
-    public async Task<DomOpStatus> WriteRegionStatusAsync(string regionName, string html, CancellationToken ct = default)
+    /// <summary>按区域写回的**不发射**实现（供公开壳/协调器共用；日志由调用壳单点发射）。</summary>
+    private async Task<(DomOpStatus Status, bool Admitted)> WriteRegionCoreStatusAsync(
+        string regionName, string html, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(regionName)) return DomOpStatus.Unknown;
+        if (string.IsNullOrWhiteSpace(regionName)) return (DomOpStatus.Unknown, false);
         var slotKey = RegionSlot(regionName);
         var dedupKey = _fingerprint(html);
         if (!TryAdmit(slotKey, dedupKey, out var version))
-        {
-            Report("EventBridge_writeback", $"区域写回 {regionName} 跳过（仲裁：未变/过期，不触 DOM）");
-            return DomOpStatus.Ok;
-        }
+            return (DomOpStatus.Ok, false);
+
         var parsed = await ExecuteDomTypedAsync(DomOps.Reconcile, regionName, html, ct).ConfigureAwait(false);
         if (parsed == DomOpStatus.Ok)
             RecordWrite(slotKey, version, dedupKey, true);
+        return (parsed, true);
+    }
+
+    /// <summary>按区域写回并返回**类型化状态**（供调用方定位失败分支：NotFound=区域容器缺失 / StateNotReady=补丁态模块未就绪）。</summary>
+    public async Task<DomOpStatus> WriteRegionStatusAsync(string regionName, string html, CancellationToken ct = default)
+    {
+        var (parsed, admitted) = await WriteRegionCoreStatusAsync(regionName, html, ct).ConfigureAwait(false);
+        if (!admitted)
+        {
+            Report("EventBridge_writeback", $"区域写回 {regionName} 跳过（仲裁：未变/过期，不触 DOM）");
+            return parsed;
+        }
         Report("EventBridge_writeback", parsed == DomOpStatus.Ok
             ? $"区域写回 {regionName}: {DomOpStatus.Ok}（不重载文档，UI 位置保持）"
             : $"区域写回 {regionName} 未生效（{parsed}）");
@@ -484,11 +495,18 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// <summary>单一写回协调器入口（带刷新追踪号：一次刷新一条轨迹，<paramref name="traceId"/> 由刷新链路传入）。</summary>
     public async Task<UiWriteResult> WriteAsync(UiWritePlan plan, string? traceId, CancellationToken ct = default)
     {
-        var trace = plan?.TraceId ?? traceId ?? _traceFactory("write");
-        var result = await WriteCoreAsync(plan, trace, ct).ConfigureAwait(false);
+        var traceFromPlan = !string.IsNullOrWhiteSpace(plan?.TraceId);
+        var trace = plan?.TraceId;
+        if (string.IsNullOrWhiteSpace(trace))
+            trace = string.IsNullOrWhiteSpace(traceId) ? _traceFactory("write") : traceId;
+        var traceSource = traceFromPlan ? "plan" : string.IsNullOrWhiteSpace(traceId) ? "factory" : "caller";
+        if (traceSource == "factory")
+            Report("EventBridge_writeback",
+                $"写回追踪号自造 trace={trace} kind={plan?.Kind}（调用链未传 traceId；刷新驱动写应在上层携带）");
+        var result = await WriteCoreAsync(plan, trace!, ct).ConfigureAwait(false);
         // L-01/L-02：一次写回只产一条轨迹——Tree/Leaf/TreeAndLeaf 子写只回结构，汇总在本层唯一发射。
         Report("EventBridge_writeback",
-            $"写回协调器 {plan?.Kind} trace={trace}: {result.Status}, written=[{string.Join(",", result.Written)}], " +
+            $"写回协调器 {plan?.Kind} trace={trace} source={traceSource}: {result.Status}, written=[{string.Join(",", result.Written)}], " +
             $"skipped=[{string.Join(",", result.Skipped)}]{(result.Anomalies is { Count: > 0 } ? ", anomalies=1" : string.Empty)}");
         return result;
     }
@@ -510,7 +528,8 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                 {
                     var name = t.Name ?? string.Empty;
                     var regionHtml = t.Payload as string ?? string.Empty;
-                    if (await WriteRegionAsync(name, regionHtml, ct).ConfigureAwait(false)) written.Add(name);
+                    var (regionStatus, _) = await WriteRegionCoreStatusAsync(name, regionHtml, ct).ConfigureAwait(false);
+                    if (regionStatus == DomOpStatus.Ok) written.Add(name);
                     else skipped.Add(name);
                 }
                 break;

@@ -22,12 +22,12 @@ public sealed class HtmlUpdatePusher
     private int _version;
 
     /// <param name="channelResolver">通道解析（返回 null = 页面未挂载 → 静默零推送）。</param>
-    /// <param name="traceFactory">追踪号工厂（缺省 plate 本地序 <see cref="RefreshTrace.New"/>；宿主可注入框架
-    /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c> 统一一次刷新一条轨迹）。</param>
-    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string>? traceFactory = null)
+    /// <param name="traceFactory">追踪号工厂（必填；唯一实现由上层注入
+    /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c>，Plate 不持有第二个序号空间）。</param>
+    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string> traceFactory)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
-        _traceFactory = traceFactory ?? RefreshTrace.New;
+        _traceFactory = traceFactory ?? throw new ArgumentNullException(nameof(traceFactory));
     }
 
     /// <summary>推送一次更新（scope=null/空 = 显式全量）；false = 未送达（未挂载 / 通道异常）。</summary>

@@ -1,4 +1,28 @@
 @{
+    KeyDomainStrict = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '键域严格化（K-01）：KD1 构造收口（KeyRef/KeyDomainId 只允许在 KeySpace 内 new） / KD2 域词隔离 / KD3 域注册表有产品侧消费方 / KD4 负对照'
+    }
+
+    DeclarationClosure = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明→绑定闭合（K-02）：DC1 声明 fn 必须已注册 / DC2 声明 outports ⊆ 实现产出键 / DC3 冻结产物含指纹 / DC4 负对照'
+    }
+
+    ExecutionOwnership = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '执行归属（K-03）：EO1 建成员不驱动 / EO2 驱动必须 TryAcquire / EO3 归属内核在位且要素齐备 / EO4 负对照'
+    }
+
     OrchestrationKernel = @{
         Domain = 'Process'
         Args   = @{ Check = $true }

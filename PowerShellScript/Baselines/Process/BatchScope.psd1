@@ -428,7 +428,12 @@
     #   均在新单 allowSet 内。上一系列（会话发送与轮次装配）在途改动按新单 preexisting 登记。
     #   恢复 = 回填下方注释 v61 的 Value（当前行）。
     # Manifest(v61) = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-会话发送与轮次装配.batches.json'; Origin = 'Derived'; DueWhen = '' }
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.22\2026-10-22-循环与重试框架-LoopKernel.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    # v62（2026-10-23）：单指针切换至「重复/冗余/错误逻辑收敛（B10–B13）」授权单。切换理由 = 本系列改动落在
+    #   Frame/CsharpPrj/{Plate/HtmlViewer, Operation/FrontEndDriven, Strategy/Observability} · Frame/PowerShellScript/Baselines/Process
+    #   · Projects/Plug/Agent/src（Core/Axioms/Guardrails/Modules）· Environment/CentralTest/AgentTest/Agent.Guardrails.Tests
+    #   · Docs/analysis/2026/10/10.23，均在新单 allowSet 内；上一系列（LoopKernel/会话装配）在途改动按新单 preexisting 登记。
+    #   恢复 = 回填 v61 的 Value（上方注释保留原值）。
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.23\2026-10-23-重复冗余错误逻辑收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

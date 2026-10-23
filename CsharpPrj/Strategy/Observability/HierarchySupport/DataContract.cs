@@ -15,7 +15,8 @@ namespace Share.HierarchySupport
         string? Producer = null,
         string? Consumer = null,
         DataScope Scope = DataScope.Round,
-        bool Persist = true)
+        bool Persist = true,
+        string? RebindFrom = null)
     {
         /// <summary>值是否可接受（null 或类型可赋值）。</summary>
         public bool Accepts(object? value)

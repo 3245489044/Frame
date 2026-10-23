@@ -44,12 +44,28 @@ public sealed class KeyPath : IEquatable<KeyPath>
 /// </summary>
 public readonly record struct KeyRef(string Family, string Value, KeyPath Path)
 {
+    /// <summary>
+    /// 域标识（K-01 修复点）：默认 = 未声明域，保持既有构造点零改动；
+    /// 域绑定调用点经具名工厂/<see cref="Of(string,string,KeyDomainId)"/> 升级。
+    /// </summary>
+    public KeyDomainId Domain { get; init; }
+
     /// <summary>空引用（族/值/路径全空）。</summary>
     public bool IsEmpty
         => string.IsNullOrEmpty(Family) && string.IsNullOrEmpty(Value) && (Path is null || Path.IsEmpty);
 
     public static KeyRef Of(string family, string value)
         => new(family, value, KeyPath.Empty);
+
+    /// <summary>带域构造（跨域边界唯一推荐入口）。</summary>
+    public static KeyRef Of(string family, string value, KeyDomainId domain)
+        => new(family, value, KeyPath.Empty) { Domain = domain };
+
+    /// <summary>补域（迁移期：既有无域引用补上声明域，不改变族/值/路径）。</summary>
+    public KeyRef WithDomain(KeyDomainId domain) => this with { Domain = domain };
+
+    /// <summary>带域文本（持久化/诊断口径，R-K5）：已声明域带 <c>domain:</c> 前缀，未声明域保持原文本。</summary>
+    public string ToScopedString() => Domain.IsDeclared ? $"{Domain.Id}:{Family}:{Value}" : ToString();
 
     public override string ToString() => IsEmpty ? "(empty)" : $"{Family}:{Value}";
 }

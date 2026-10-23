@@ -4,14 +4,18 @@ using Modules.KeySpace.Model;
 namespace Modules.KeySpace.Rules;
 
 /// <summary>
-/// 键空间声明（数据，不是代码）：族 + 端口 + 策略。构造期完成结构校验（重复族/空策略键即抛）。
+/// 键空间声明（数据，不是代码）：族 + 端口 + 策略 + 域词。构造期完成结构校验（重复族/空策略键/重复域词即抛）。
 /// </summary>
 public sealed record KeySpaceDeclaration(
     string Id,
     IReadOnlyList<KeyFamily> Families,
     IReadOnlyList<PortContract> Ports,
-    IReadOnlyDictionary<string, EmptySetPolicy> Policies) : IKeySpaceDeclaration
+    IReadOnlyDictionary<string, EmptySetPolicy> Policies,
+    IReadOnlyList<string>? Domains = null) : IKeySpaceDeclaration
 {
+    /// <summary>已声明域词（声明驱动；空 = 未声明域段，框架不内置域词）。</summary>
+    public IReadOnlyList<string> DomainIds => Domains ?? Array.Empty<string>();
+
     /// <summary>结构校验（幂等；返回自身便于链式构造）。</summary>
     public KeySpaceDeclaration Validate()
     {
@@ -44,6 +48,15 @@ public sealed record KeySpaceDeclaration(
             }
         }
 
+        var duplicateDomain = DomainIds
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .GroupBy(static id => id, StringComparer.Ordinal)
+            .FirstOrDefault(static group => group.Count() > 1);
+        if (duplicateDomain is not null)
+        {
+            throw new InvalidOperationException($"域词重复声明: {duplicateDomain.Key}");
+        }
+
         return this;
     }
 
@@ -59,5 +72,6 @@ public sealed record KeySpaceDeclaration(
 
     public static KeySpaceDeclaration Empty(string id)
         => new(id, Array.Empty<KeyFamily>(), Array.Empty<PortContract>(),
-            new Dictionary<string, EmptySetPolicy>(StringComparer.Ordinal));
+            new Dictionary<string, EmptySetPolicy>(StringComparer.Ordinal),
+            Array.Empty<string>());
 }

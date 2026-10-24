@@ -75,10 +75,14 @@ public static class HtmlBridgeAssembly
             BulkRatioThreshold = 0.5,
             BulkReplaceEnabled = true,
             StreamDroppable = true,
+            // F5：首挂载/刷新按 壳→结构→内容→装饰 落地；预算压力先丢装饰（可见化）。
+            ProgressiveSurface = true,
         };
         var writeMetrics = new UiWriteMetrics();
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
             Fnv1aFingerprint.Default.Of, RefreshTraceId.New, writeOptions, writeMetrics);
+        // F1：消息边界只投递（O(1)），取数/渲染在单 worker 串行；DOM 落地仍经 IHtmlChannel 单点封送。
+        runtime.MessageScheduler = new HostMessageCommandScheduler();
         PopulateStaticReadiness(runtime.Readiness, index, registry);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;

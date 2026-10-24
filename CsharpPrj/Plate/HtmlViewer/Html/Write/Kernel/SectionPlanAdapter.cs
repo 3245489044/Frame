@@ -61,7 +61,8 @@ public static class SectionPlanAdapter
                         Html: document,
                         Nodes: CountHtmlNodes(document),
                         Bytes: document.Length,
-                        FullDocument: true));
+                        FullDocument: true,
+                        Stage: SurfaceStage.Shell));
                     break;
                 default:
                     list.Add(UnknownSection(name));
@@ -96,7 +97,8 @@ public static class SectionPlanAdapter
             Nodes: CountHtmlNodes(html),
             Bytes: html.Length,
             Variance: SectionVariance.Stable,
-            Interaction: interaction);
+            Interaction: interaction,
+            Stage: StageOf(name));
 
     private static SectionPlan TreeSection(string name, UiNode tree, UiInteractionSnapshot? interaction)
         => new(
@@ -106,10 +108,12 @@ public static class SectionPlanAdapter
             Nodes: CountNodes(tree),
             Bytes: EstimateTreeBytes(tree),
             Variance: SectionVariance.Stable,
-            Interaction: interaction);
+            Interaction: interaction,
+            Stage: StageOf(name));
 
     private static SectionPlan LeafSection(string name, string value)
-        => new(new SectionId("leaf", name), SectionWriteMode.Patch, LeafValue: value, Nodes: 1, Bytes: value.Length);
+        => new(new SectionId("leaf", name), SectionWriteMode.Patch, LeafValue: value, Nodes: 1, Bytes: value.Length,
+            Stage: SurfaceStage.Decorations);
 
     private static SectionPlan StreamSection(string name, UiStreamAppend append)
     {
@@ -121,14 +125,30 @@ public static class SectionPlanAdapter
             Stream: append,
             Nodes: append.Items.Count,
             Bytes: bytes,
-            Variance: SectionVariance.Volatile);
+            Variance: SectionVariance.Volatile,
+            Stage: SurfaceStage.Content);
     }
 
     private static SectionPlan TrimSection(string name, UiStreamTrim trim)
-        => new(new SectionId("stream", name), SectionWriteMode.Patch, Trim: trim, Bytes: 16, Variance: SectionVariance.Volatile);
+        => new(new SectionId("stream", name), SectionWriteMode.Patch, Trim: trim, Bytes: 16, Variance: SectionVariance.Volatile,
+            Stage: SurfaceStage.Content);
 
     private static SectionPlan UnknownSection(string name)
-        => new(new SectionId("unknown", name), SectionWriteMode.Patch, Variance: SectionVariance.Volatile);
+        => new(new SectionId("unknown", name), SectionWriteMode.Patch, Variance: SectionVariance.Volatile,
+            Stage: SurfaceStage.Decorations);
+
+    /// <summary>节名 → 阶段（结构壳/左树/标题属 Structure；主内容/流属 Content；叶子属 Decorations）。</summary>
+    private static SurfaceStage StageOf(string name)
+    {
+        var n = name ?? string.Empty;
+        if (n.Contains("aside", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("selector", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("tree", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("title", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("subtitle", StringComparison.OrdinalIgnoreCase))
+            return SurfaceStage.Structure;
+        return SurfaceStage.Content;
+    }
 
     /// <summary>节点数（含文本/片段节点；O(n) 一次遍历）。</summary>
     public static int CountNodes(UiNode? node)

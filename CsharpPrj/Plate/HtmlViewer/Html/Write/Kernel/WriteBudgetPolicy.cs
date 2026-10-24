@@ -21,7 +21,8 @@ public readonly record struct BudgetDecision(
 /// </summary>
 public static class WriteBudgetPolicy
 {
-    public static BudgetDecision Decide(WriteBudget budget, IReadOnlyList<SectionPlan> sections, UiWriteSource source)
+    public static BudgetDecision Decide(
+        WriteBudget budget, IReadOnlyList<SectionPlan> sections, UiWriteSource source, bool progressive = true)
     {
         if (sections is null || sections.Count == 0)
             return new BudgetDecision(Array.Empty<SectionPlan>(), Array.Empty<SectionPlan>(), 0, 0, null, false);
@@ -49,18 +50,54 @@ public static class WriteBudgetPolicy
         var keptBytes = 0;
         var reason = overNodes ? "nodes-over-budget" : "bytes-over-budget";
 
-        // 1) 先丢 volatile（tick/stream）。
-        foreach (var s in sections)
+        // F5 渐进表面：预算压力下先丢「装饰」阶段（徽标/成本/易变叶子），壳/结构/内容保留。
+        if (progressive)
         {
-            if (s.Variance == SectionVariance.Volatile)
+            foreach (var s in sections)
             {
-                dropped.Add(s);
-                continue;
+                if (s.Stage == SurfaceStage.Decorations)
+                {
+                    dropped.Add(s);
+                    continue;
+                }
+                kept.Add(s);
+                keptNodes += Math.Max(0, s.Nodes);
+                keptBytes += Math.Max(0, s.Bytes);
             }
+            if (dropped.Count > 0) reason = "decorations-over-budget";
+            overNodes = budget.MaxNodes > 0 && keptNodes > budget.MaxNodes;
+            overBytes = budget.MaxBytes > 0 && keptBytes > budget.MaxBytes;
+            if (!overNodes && !overBytes)
+                return new BudgetDecision(kept, dropped, keptNodes, keptBytes, reason, false);
+        }
+        else
+        {
+            kept.AddRange(sections);
+            keptNodes = nodes;
+            keptBytes = bytes;
+        }
 
-            kept.Add(s);
-            keptNodes += Math.Max(0, s.Nodes);
-            keptBytes += Math.Max(0, s.Bytes);
+        // 1) 再丢 volatile（tick/stream）。
+        if (!progressive || overNodes || overBytes)
+        {
+            var stable = new List<SectionPlan>(kept.Count);
+            foreach (var s in kept)
+            {
+                if (s.Variance == SectionVariance.Volatile)
+                {
+                    dropped.Add(s);
+                    continue;
+                }
+                stable.Add(s);
+            }
+            kept = stable;
+            keptNodes = 0;
+            keptBytes = 0;
+            foreach (var s in kept)
+            {
+                keptNodes += Math.Max(0, s.Nodes);
+                keptBytes += Math.Max(0, s.Bytes);
+            }
         }
 
         // 2) 仍超 ⇒ 按体量从大到小裁 stable（至少留一节，禁整批丢光）。

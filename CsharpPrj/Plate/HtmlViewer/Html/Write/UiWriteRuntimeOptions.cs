@@ -49,6 +49,9 @@ public sealed record UiWriteRuntimeOptions
     /// <summary>stream 车道可丢（压力下降级丢弃并计数可见）。</summary>
     public bool StreamDroppable { get; init; } = true;
 
+    /// <summary>F5 渐进表面：按 壳→结构→内容→装饰 排序，预算压力下先丢装饰（关 ⇒ 旧行为）。</summary>
+    public bool ProgressiveSurface { get; init; } = true;
+
     /// <summary>单次刷新的落地耗时上限（毫秒；超限 ⇒ 记账并降级）。</summary>
     public int MaxMsPerFlush { get; init; } = 50;
 

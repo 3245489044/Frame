@@ -51,6 +51,13 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private readonly IReferenceEdgeDiagnostics _edgeDiagnostics;
     private bool _initialized;
     private int _disposed;
+    private long _version;
+
+    /// <summary>
+    /// 图变更版本（单调递增）：任意写边/端点/声明成功后 +1。
+    /// 供快照缓存做「读前=读后」一致性校验与版本失效（F2），不参与写仲裁。
+    /// </summary>
+    public long Version => Interlocked.Read(ref _version);
 
     /// <summary>边文档主键（_id）分隔符（单一权威）。端点键已用 <see cref="ResourceIdentifier.UniqueKeySeparator"/>（":"），
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
@@ -415,6 +422,33 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         ArgumentNullException.ThrowIfNull(resourceId);
         var key = resourceId.GetUniqueKey();
         return Task.FromResult<IReadOnlyList<ResourceReference>>(ReadLocked(ct, () => GetReferencesCore(key, includeIncoming)));
+    }
+
+    /// <summary>
+    /// 批量读引用（F3）：一次持锁遍历多个端点的邻接，键 = 端点 <see cref="ResourceIdentifier.GetUniqueKey"/>。
+    /// 缺失端点 ⇒ 空列表（不伪造）；单次锁内完成，避免 N 次门等待。
+    /// </summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<ResourceReference>>> GetReferencesManyAsync(
+        IReadOnlyCollection<ResourceIdentifier> resourceIds,
+        bool includeIncoming = false,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        var ids = resourceIds
+            .Where(static id => id is not null)
+            .Select(static id => id.GetUniqueKey())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var result = new Dictionary<string, IReadOnlyList<ResourceReference>>(ids.Count, StringComparer.Ordinal);
+        if (ids.Count == 0) return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<ResourceReference>>>(result);
+
+        return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<ResourceReference>>>(
+            ReadLocked(ct, () =>
+            {
+                foreach (var key in ids)
+                    result[key] = GetReferencesCore(key, includeIncoming);
+                return result;
+            }));
     }
 
     /// <summary>未加锁读面核心：枚举内存图邻接为引用列表。调用方须已持 <see cref="_gate"/>（经 <see cref="ReadLocked{T}"/>）。</summary>
@@ -1085,7 +1119,11 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
-        try { await body().ConfigureAwait(false); }
+        try
+        {
+            await body().ConfigureAwait(false);
+            Interlocked.Increment(ref _version);
+        }
         finally { _gate.Release(); }
     }
 
@@ -1093,7 +1131,12 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
-        try { return await body().ConfigureAwait(false); }
+        try
+        {
+            var result = await body().ConfigureAwait(false);
+            Interlocked.Increment(ref _version);
+            return result;
+        }
         finally { _gate.Release(); }
     }
 

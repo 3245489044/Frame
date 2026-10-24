@@ -93,6 +93,54 @@ public abstract class DeclaredFlowDelegateBase
             : (FlowOutcome.Failed($"{entry.Label}：声明流 {entry.FlowName} 执行失败（step={result.ErrorStep}）"), null);
     }
 
+    /// <summary>
+    /// 按需投影执行（F4）：只跑达成 <paramref name="requiredOutputs"/> 所需的最小步骤集。
+    /// 执行器未实现 <see cref="IProjectedFlowRunner"/> ⇒ 回退全量运行并诊断（零回归）。
+    /// </summary>
+    /// <returns>结论 + 节点产物 + 实际执行步骤集（全量回退时步骤集为 null）。</returns>
+    protected async Task<(FlowOutcome Outcome, IReadOnlyList<NodeExecutionRecord>? Outputs, IReadOnlyList<string>? ExecutedSteps)>
+        RunProjectionAsync(
+            DeclaredFlowEntry entry,
+            IReadOnlyCollection<string> requiredOutputs,
+            IReadOnlyDictionary<string, object?> inports,
+            CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(requiredOutputs);
+        ArgumentNullException.ThrowIfNull(inports);
+
+        if (_runner is null)
+        {
+            _diagnostics.Report("BookkeepingFlow_runner_missing", new
+            {
+                file = entry.FileName,
+                flow = entry.FlowName,
+                label = entry.Label,
+                code = DiagnosticsCodes.FlowMissing,
+            });
+            return (FlowOutcome.Missing($"{entry.Label}：OneShotFlowRunner 未装配（{entry.FileName}）"), null, null);
+        }
+
+        if (_runner is not IProjectedFlowRunner projected)
+        {
+            _diagnostics.Report("BookkeepingFlow_projection_unavailable", new
+            {
+                file = entry.FileName,
+                flow = entry.FlowName,
+                outputs = string.Join(",", requiredOutputs),
+            });
+            var full = await _runner.RunAsync(entry.FileName, inports, ct).ConfigureAwait(false);
+            return full.Ok
+                ? (FlowOutcome.Committed(), full.Outputs, null)
+                : (FlowOutcome.Failed($"{entry.Label}：声明流 {entry.FlowName} 执行失败（step={full.ErrorStep}）"), null, null);
+        }
+
+        var result = await projected.RunProjectionAsync(entry.FileName, requiredOutputs, inports, ct).ConfigureAwait(false);
+        return result.Ok
+            ? (FlowOutcome.Committed(), result.Outputs, result.ExecutedSteps)
+            : (FlowOutcome.Failed($"{entry.Label}：声明流 {entry.FlowName} 投影执行失败（step={result.ErrorStep}）"), null, null);
+    }
+
     /// <summary>组装 inports：null 值不入参（等价「未给」），键序 = 声明面 inports= 书写序。</summary>
     /// <param name="items">(键, 值) 序列。</param>
     protected static Dictionary<string, object?> Inports(params (string Key, string? Value)[] items)

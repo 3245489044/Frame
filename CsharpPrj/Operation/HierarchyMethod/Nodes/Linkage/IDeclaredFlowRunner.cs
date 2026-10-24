@@ -17,3 +17,17 @@ public interface IDeclaredFlowRunner
     Task<DeclaredFlowRunResult> RunAsync(
         string workflowFile, IReadOnlyDictionary<string, object?> inports, CancellationToken ct = default);
 }
+
+/// <summary>
+/// 按需投影执行器（F4，可选能力）：执行器可只跑「达成期望产物」所需的最小步骤集。
+/// 未实现本接口 ⇒ 调用方回退全量运行（零回归）。
+/// </summary>
+public interface IProjectedFlowRunner : IDeclaredFlowRunner
+{
+    /// <summary>只执行达成 <paramref name="requiredOutputs"/> 所需的最小步骤集。</summary>
+    Task<DeclaredFlowRunResult> RunProjectionAsync(
+        string workflowFile,
+        IReadOnlyCollection<string> requiredOutputs,
+        IReadOnlyDictionary<string, object?> inports,
+        CancellationToken ct = default);
+}

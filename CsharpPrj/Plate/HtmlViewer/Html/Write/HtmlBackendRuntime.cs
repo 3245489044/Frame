@@ -116,6 +116,13 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
 
     public IHtmlChannel Channel => _channel;
 
+    /// <summary>
+    /// 消息调度器（F1，可选）：装配后页面消息只在 UI 线程入队（O(1)），
+    /// 取数/渲染在 worker 串行执行；DOM 落地仍经 <see cref="IHtmlChannel"/> 单点封送。
+    /// null ⇒ 维持「UI 线程直接执行」旧路径（零回归）。
+    /// </summary>
+    public IWebMessageScheduler? MessageScheduler { get; set; }
+
     /// <summary>写回运行时开关/预算（宿主只读视图）。</summary>
     public UiWriteRuntimeOptions Options => _options;
 
@@ -160,6 +167,26 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
 
     public Task<string> HandleEventAsync(string payload, CancellationToken ct = default)
         => _eventBridge.HandleAsync(payload, ct);
+
+    /// <summary>消息路由执行体（F1 worker / 旧路径共用）：异常统一诊断，不向页面回抛。</summary>
+    private async Task HandleMessageAsync(string hostControlName, string json, CancellationToken ct)
+    {
+        try
+        {
+            // 单协议路由中枢：data-cmd="event:{name}" 已由点击桥翻译回事件负载（含 event+name）→ 页内声明事件 HandleAsync；
+            // 否则（cmd 消息桥 selectTask/selectType 等）→ 宿主 events.message 路由。
+            var (eventName, controlName, _) = HtmlEventBridge.ParsePayload(json);
+            if (!string.IsNullOrWhiteSpace(eventName) && !string.IsNullOrWhiteSpace(controlName))
+                await _eventBridge.HandleAsync(json, ct).ConfigureAwait(false);
+            else
+                await _eventBridge.HandleHostMessageAsync(hostControlName, json, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // 收敛静默 catch：记录错误分类 + 上下文（仍不向页面回抛，但必须有诊断出口）。
+            Report("HtmlChannel_webmessage_error", $"消息路由异常: {ex.GetType().Name}: {ex.Message}, 负载={TextUtil.Truncate(json)}");
+        }
+    }
 
     /// <summary>
     /// 按宿主控件声明 events["message"] 自动绑定 MessageReceived（声明驱动：函数名/参数映射/output 全部来自声明，不在硬编码）。
@@ -212,26 +239,20 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
             hostViewer.RenderPlanExecutor = plan => ExecuteAsync(plan, plan.Source, plan.TraceId);
         }
 
-        var handler = new EventHandler<HtmlMessageReceivedEventArgs>(async (_, e) =>
+        var handler = new EventHandler<HtmlMessageReceivedEventArgs>((_, e) =>
         {
             if (string.IsNullOrWhiteSpace(e?.Json))
                 return;
-            Report("HtmlChannel_webmessage", $"收到 postMessage: {TextUtil.Truncate(e.Json)}");
-            try
-            {
-                // 单协议路由中枢：data-cmd="event:{name}" 已由点击桥翻译回事件负载（含 event+name）→ 页内声明事件 HandleAsync；
-                // 否则（cmd 消息桥 selectTask/selectType 等）→ 宿主 events.message 路由。
-                var (eventName, controlName, _) = HtmlEventBridge.ParsePayload(e.Json);
-                if (!string.IsNullOrWhiteSpace(eventName) && !string.IsNullOrWhiteSpace(controlName))
-                    await _eventBridge.HandleAsync(e.Json, CancellationToken.None).ConfigureAwait(false);
-                else
-                    await _eventBridge.HandleHostMessageAsync(hostControlName, e.Json, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // 收敛静默 catch：不再空吞——记录错误分类 + 上下文（仍不向页面回抛，但必须有诊断出口）
-                Report("HtmlChannel_webmessage_error", $"消息路由异常: {ex.GetType().Name}: {ex.Message}, 负载={TextUtil.Truncate(e.Json)}");
-            }
+            var json = e.Json;
+            Report("HtmlChannel_webmessage", $"收到 postMessage: {TextUtil.Truncate(json)}");
+
+            // F1：UI 线程只投递（O(1)）；执行体在 RefreshWorker 内串行运行。
+            // 未装配 scheduler / 循环探针等必须同步返回的消息 ⇒ 沿用旧直接路径。
+            if (MessageScheduler is not null
+                && MessageScheduler.TrySchedule(json, ct => HandleMessageAsync(hostControlName, json, ct)))
+                return;
+
+            _ = HandleMessageAsync(hostControlName, json, CancellationToken.None);
         });
         // D3 单入口（仲裁式，可撤销）：抢占 hostControlName 的消息订阅权——撤销他方旧 owner，顺序无关，
         // 消除「plate 桥 + ECS 事件绑定」对同一 MessageReceived 的双路调用（重复副作用与双写根因）。
@@ -256,6 +277,8 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         foreach (var kv in _hostSubscriptions)
             kv.Value.Dispose();
         _hostSubscriptions.Clear();
+        (MessageScheduler as IDisposable)?.Dispose();
+        MessageScheduler = null;
     }
 
     /// <summary>

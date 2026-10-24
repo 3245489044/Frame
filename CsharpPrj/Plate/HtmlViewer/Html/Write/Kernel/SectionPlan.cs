@@ -24,6 +24,18 @@ public enum SectionVariance
 }
 
 /// <summary>
+/// 渐进表面阶段（F5）：首挂载按 壳 → 结构 → 内容 → 装饰 顺序落地；
+/// 装饰（徽标/成本/易变叶子）在预算压力下可丢且可见化。
+/// </summary>
+public enum SurfaceStage
+{
+    Shell = 0,
+    Structure,
+    Content,
+    Decorations,
+}
+
+/// <summary>
 /// 单节写计划（一拍唯一写请求的组成单位）。载荷形态由字段表达（Html/Tree/Stream/Trim/LeafValue/FullDocument），
 /// 由 <see cref="SectionPlanAdapter"/> 从 <see cref="UiWritePlan"/> 单向派生（L2 不直接构造）。
 /// <para><see cref="Nodes"/>/<see cref="Bytes"/> 为结构估算（构建时 O(n) 顺带计数，不遍历 DOM）。</para>
@@ -41,7 +53,8 @@ public sealed record SectionPlan(
     UiStreamTrim? Trim = null,
     string? LeafValue = null,
     UiInteractionSnapshot? Interaction = null,
-    bool FullDocument = false)
+    bool FullDocument = false,
+    SurfaceStage Stage = SurfaceStage.Content)
 {
     /// <summary>目标 DOM 名（= 既有 UiWriteTarget.Name 口径）。</summary>
     public string Name => Id.Key;

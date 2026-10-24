@@ -57,8 +57,9 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         string regionSlotPrefix,
         string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
         Action<string, Exception>? onFailure = null,
-        string streamRegionPrefix = "bubbles:",
-        string streamName = "bubbles")
+        string streamRegionPrefix = HtmlPageRegionLayout.StreamSectionPrefix,
+        // 流目标 DOM 名 = 壳体容器名（region-bubbles）；曾与段键前缀 "bubbles:" 混用 ⇒ 目标恒 NOT_FOUND（failed=[bubbles]）。
+        string streamName = HtmlShellProjector.RegionNamePrefix + "bubbles")
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));

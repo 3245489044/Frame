@@ -884,6 +884,50 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     Task<IReadOnlyList<string>> IHierarchyReferenceManager.GetHistoryTaskKeysAsync(string historyId, CancellationToken ct)
         => GetHistoryTasksAsync(historyId, ct);
 
+    /// <summary>
+    /// 批量成员集（F3）：一次持锁读多个历史出边，避免逐 history 门等待。
+    /// </summary>
+    async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> IHierarchyReferenceManager.GetHistoryTaskKeysManyAsync(
+        IReadOnlyCollection<string> historyIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        if (historyIds is null) return result;
+        var ids = historyIds
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .Select(static id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0) return result;
+
+        var resources = ids
+            .Select(id => (HistoryId: id, Resource: new ResourceIdentifier
+            {
+                ResourceType = NodeResourceTypes.History,
+                Id = HistoryNodeId(id),
+            }))
+            .ToList();
+        var refsByKey = await _graph
+            .GetReferencesManyAsync(resources.Select(static r => r.Resource).ToList(), includeIncoming: false, ct)
+            .ConfigureAwait(false);
+
+        foreach (var (historyId, resource) in resources)
+        {
+            var keys = new List<string>();
+            if (refsByKey.TryGetValue(resource.GetUniqueKey(), out var refs))
+            {
+                foreach (var reference in refs)
+                {
+                    if (!string.Equals(reference.RefType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal))
+                        continue;
+                    if (!string.IsNullOrWhiteSpace(reference.Target?.Id))
+                        keys.Add(reference.Target!.Id);
+                }
+            }
+            result[historyId] = keys.Distinct(StringComparer.Ordinal).ToList();
+        }
+        return result;
+    }
+
     Task IHierarchyReferenceManager.LinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct)
         => EnsureTaskNodeLinkAsync(taskKey, workflowId, nodeKey, ct);
 

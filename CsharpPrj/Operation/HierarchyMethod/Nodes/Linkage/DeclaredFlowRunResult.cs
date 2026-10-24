@@ -20,6 +20,9 @@ public readonly record struct DeclaredFlowRunResult(bool Ok, string? Error, stri
     /// <summary>本轮节点执行记录（读投影流回收产物用；簿记流 / 失败 ⇒ null）。</summary>
     public IReadOnlyList<NodeExecutionRecord>? Outputs { get; init; }
 
+    /// <summary>实际执行的步骤集（F4 投影审计；未投影 / 不可用 ⇒ null）。</summary>
+    public IReadOnlyList<string>? ExecutedSteps { get; init; }
+
     /// <summary>成功结论。</summary>
     public static DeclaredFlowRunResult Committed() => new(true, null, null, null);
 
@@ -27,6 +30,11 @@ public readonly record struct DeclaredFlowRunResult(bool Ok, string? Error, stri
     /// <param name="outputs">本轮节点执行记录。</param>
     public static DeclaredFlowRunResult Committed(IReadOnlyList<NodeExecutionRecord>? outputs)
         => new(true, null, null, null) { Outputs = outputs };
+
+    /// <summary>成功结论 + 产物回收 + 实执行步骤集（F4）。</summary>
+    public static DeclaredFlowRunResult Committed(
+        IReadOnlyList<NodeExecutionRecord>? outputs, IReadOnlyList<string>? executedSteps)
+        => new(true, null, null, null) { Outputs = outputs, ExecutedSteps = executedSteps };
 
     /// <summary>失败结论（归因逐字携带，供诊断可见化）。</summary>
     public static DeclaredFlowRunResult Failed(string? error, string? errorStep, string? errorClass)

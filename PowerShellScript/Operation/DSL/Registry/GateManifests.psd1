@@ -752,6 +752,15 @@
         Note   = '节/拍遥测字段（T1 基线入面 / T2 nodes/bytes/jsMs/outcome + batchNodes/lane/queueMs/droppedSections / T3 指标字段 / T4 msgId 注册 / T5 负对照）；基线 = Baselines\Meta\UiTelemetryFields.psd1'
     }
 
+    RefreshFetch = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 刷新取数（R1 消息边界只投递 / R2 按需投影 member_keys / R3 树版本快照 / R4 批量取数 / R5 禁同步等待 / N1 负对照）'
+    }
+
+
     CircuitSemantics = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

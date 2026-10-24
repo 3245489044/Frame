@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -67,7 +68,11 @@ public sealed partial class HtmlBackendRuntime : ISurfaceWriter
             ? _options.MaxNodesPerBeat
             : Math.Min(_options.MaxNodesPerBeat, _options.MaxNodesPerBeatBackground);
         var budget = new WriteBudget(maxNodes, _options.MaxBytesPerFlush, _options.MaxMsPerFlush);
-        var decision = WriteBudgetPolicy.Decide(budget, sections, source);
+        // F5：按阶段排序（壳 → 结构 → 内容 → 装饰）；预算在装饰阶段可先行丢弃。
+        var ordered = sections
+            .OrderBy(static s => s.Stage)
+            .ToList();
+        var decision = WriteBudgetPolicy.Decide(budget, ordered, source, _options.ProgressiveSurface);
 
         if (decision.Dropped.Count > 0)
         {

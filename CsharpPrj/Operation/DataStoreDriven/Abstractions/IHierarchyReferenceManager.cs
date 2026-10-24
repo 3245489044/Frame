@@ -35,6 +35,23 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>该历史归拢的任务键集（History class 容器成员）。</summary>
         Task<IReadOnlyList<string>> GetHistoryTaskKeysAsync(string historyId, CancellationToken ct = default);
 
+        /// <summary>
+        /// 批量版本（F3）：一次取多个历史的成员集（键 = historyId；缺失/空 ⇒ 空列表）。
+        /// 缺省实现逐条回退（零回归）；存储实现宜覆写为单次图遍历。
+        /// </summary>
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTaskKeysManyAsync(
+            IReadOnlyCollection<string> historyIds, CancellationToken ct = default)
+        {
+            var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+            if (historyIds is null) return result;
+            foreach (var id in historyIds)
+            {
+                if (string.IsNullOrWhiteSpace(id) || result.ContainsKey(id)) continue;
+                result[id] = await GetHistoryTaskKeysAsync(id, ct).ConfigureAwait(false);
+            }
+            return result;
+        }
+
         // ---- task ↔ node（M:N，一条 (task,workflowId,nodeKey) 一条 cross_db_link 边）----
         /// <summary>节点关联到任务（幂等加法；同一节点可被多任务共享引用）。</summary>
         Task LinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);

@@ -72,8 +72,11 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
         }
 
 
-        /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。</summary>
-        public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(CancellationToken ct = default)
+        /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。
+        /// <para><paramref name="includeTaskNodeKeys"/> 缺省 <c>false</c>：task→node 键集当前**无消费方**，
+        /// 构建它对每个 task 各发一次图枚举（N+1），是每拍 6.7s 的主因 ⇒ 默认不构建（需要时显式开启）。</para></summary>
+        public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(
+            CancellationToken ct = default, bool includeTaskNodeKeys = false)
         {
             var nodes = new List<HierarchyTree>();
             // DUP-1：唯一根枚举入口（root store 优先 + 迁移期旧表回退在 catalog 内部）。
@@ -95,7 +98,10 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
                     : _relations is null
                         ? (IReadOnlyList<string>)Array.Empty<string>()
                         : await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);
-                var taskNodeKeys = await BuildTaskNodeKeysAsync(tasks, ct).ConfigureAwait(false);
+                // 修剪原则：只为「有消费方」的字段付费。TaskNodeKeys 无人读 ⇒ 不构建（否则 tasks × 图枚举 = N+1）。
+                var taskNodeKeys = includeTaskNodeKeys
+                    ? await BuildTaskNodeKeysAsync(tasks, ct).ConfigureAwait(false)
+                    : null;
                 nodes.Add(new HierarchyTree(hid, tasks, taskNodeKeys));
             }
             return nodes;

@@ -25,7 +25,7 @@ public sealed class SqlitePersistenceStore : PersistenceStoreFacade
         : base(new InMemoryCheckpointStore(),
                BuildSchema(connectionFactory, options, schemaSource),
                ct => Task.FromResult<ITransaction>(new SqliteTransaction(
-                   ThreadingSqliteWriteHost.Shared, connectionFactory.ConnectionString)),
+                   ThreadingSqliteWriteHost.Shared, connectionFactory.ConnectionString, "persist:facade")),
                BuildSnapshots(connectionFactory, options, codec))
     {
         _factory = connectionFactory as SqliteConnectionFactory

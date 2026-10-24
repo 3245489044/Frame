@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading;
+using UniversalWorkflowFramework.Storage;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
 
 namespace Operation.DataStoreDriven.Sqlite;
@@ -123,6 +124,19 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
         var entry = GetEntry(connectionString);
         WaitTxIdle(entry);
         return entry.Actor.Execute(c => action(c), cancellationToken);
+    }
+
+    /// <summary>
+    /// 读面执行（F4/ERR-13）：**不占写权、不等事务门**，走 WAL 只读连接。
+    /// <para>读取原语单源 = <see cref="SqliteRelate.DataUniversal.SetReadConnect"/>（与 <c>SqliteChannelSession</c> 读面同一实现）。</para>
+    /// </summary>
+    public T RunRead<T>(string connectionString, Func<SQLiteConnection, T> action,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var conn = SqliteRelate.DataUniversal.SetReadConnect(connectionString);
+        return action(conn);
     }
 
     /// <summary>释放全部库级写通道（停 worker）。关闭用。</summary>

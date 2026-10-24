@@ -23,6 +23,13 @@ public interface ISqliteWriteHost
     T RunWrite<T>(string connectionString, Func<SQLiteConnection, T> action,
         int timeoutMs = 5000, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 读面执行器（F4）：走 **WAL 只读连接**，不占写权、不等待事务门。
+    /// <para>语义：与写面 <see cref="RunWrite{T}"/> 解耦（ERR-13 根因：读经写门 ⇒ 一次长事务令全部读 10s 超时）。</para>
+    /// </summary>
+    T RunRead<T>(string connectionString, Func<SQLiteConnection, T> action,
+        CancellationToken cancellationToken = default);
+
     /// <summary>卸载指定库的写通道（停 worker、释放常驻写连接、移除条目）。释放后再次写入会重建。</summary>
     void Release(string connectionString);
 

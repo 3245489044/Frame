@@ -383,7 +383,7 @@ public sealed class SqliteInstanceStore : IInstanceStore
             });
 
         public object? ExecuteScalar(string sql, IDictionary<string, object>? parameters = null)
-            => _host.RunWrite(_connectionString, conn =>
+            => _host.RunRead(_connectionString, conn =>
             {
                 using var command = CreateCommand(conn, sql, parameters);
                 var value = command.ExecuteScalar();
@@ -392,7 +392,7 @@ public sealed class SqliteInstanceStore : IInstanceStore
 
         public IReadOnlyList<IReadOnlyDictionary<string, object>> ExecuteQuery(
             string sql, IDictionary<string, object>? parameters = null)
-            => _host.RunWrite(_connectionString, conn =>
+            => _host.RunRead(_connectionString, conn =>
             {
                 var rows = new List<IReadOnlyDictionary<string, object>>();
                 using var command = CreateCommand(conn, sql, parameters);

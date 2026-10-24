@@ -46,6 +46,9 @@ public static class KeyReasonCodes
     // 提示词前置失败（B2 一等化）：提示词端口缺失不再借 exec.port-missing 归因。
     public const string PromptMissing = "prompt.missing";
 
+    // ---- 运行身份（R0）：身份缺失为一等失败码，不再以空作用域继续（ERR-01 / SR-04）----
+    public const string IdentityMissing = "round.identity-missing";
+
     // ---- 种子单源（S1–S5）----
     public const string SeedEmptyInput = "seed.empty-input";
     public const string SeedSourceMissing = "seed.source-missing";
@@ -60,7 +63,7 @@ public static class KeyReasonCodes
         ExecStepMissing, ExecPortMissing, ExecUndeclaredInport, ExecUndeclaredOutport, ExecDriverConflict,
         ExecBindFailed, ExecFunctionMissing, ExecExecutionFailure,
         RoundCriterionUnmet, SeedCarrierMissing, SeedPortUncovered, GuardEmptyInput,
-        SeedEmptyInput, SeedSourceMissing, StateRootSplit, PromptMissing,
+        SeedEmptyInput, SeedSourceMissing, StateRootSplit, PromptMissing, IdentityMissing,
     };
 
     public static bool IsRegistered(string code) => Registered.Contains(code);

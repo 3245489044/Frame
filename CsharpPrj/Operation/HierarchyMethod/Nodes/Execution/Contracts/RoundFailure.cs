@@ -23,6 +23,9 @@ public static class RoundFailureCodes
 
     /// <summary>提示词前置失败（B2）：提示词端口缺失（先于 T2 端口契约归因）。</summary>
     public const string PromptMissing = KeyReasonCodes.PromptMissing;
+
+    /// <summary>运行身份缺失（R0 一等失败码）：不再以空作用域继续执行（ERR-01）。</summary>
+    public const string IdentityMissing = KeyReasonCodes.IdentityMissing;
 }
 
 /// <summary>
@@ -70,6 +73,15 @@ public sealed record RoundFailure(
     /// <summary>提示词前置失败（一等步骤失败；先于端口契约归因，避免被 exec.port-missing 覆盖）。</summary>
     public static RoundFailure PromptMissing(string step, IReadOnlyList<string> missing, string detail)
         => new(RoundFailureCodes.PromptMissing, step, None, None, detail, UndeclaredKeys: missing);
+
+    /// <summary>
+    /// 运行身份缺失（结构缺口）：作用域不可锚定 ⇒ 显式失败，禁空作用域继续（ERR-01 / SR-04）。
+    /// </summary>
+    public static RoundFailure IdentityMissing(string step, string detail = "")
+        => new(RoundFailureCodes.IdentityMissing, step, None, None,
+            string.IsNullOrWhiteSpace(detail)
+                ? "运行身份缺失（RunRef 为空）：作用域不可锚定，禁止以空作用域/常量顶替继续执行"
+                : detail);
 
     public RoundFailureException ToException() => new(this);
 }

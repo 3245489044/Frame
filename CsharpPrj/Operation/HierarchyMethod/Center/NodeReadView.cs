@@ -56,7 +56,10 @@ public sealed class NodeReadView
         Func<string, string, CancellationToken, Task<IReadOnlyCollection<string>>>? resolveTaskNodeKeys,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(taskKey) || resolveTaskNodeKeys is null)
+        // 身份缺失（空白键）⇒ 空集：不再降级为全量枚举（ERR-01 跨 task 读回归的唯一入口）。
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<NodeOutput>();
+        // 解析器未装配 ⇒ 全量（既有兼容面；新调用点应改用 NodeReadScope 显式声明读量）。
+        if (resolveTaskNodeKeys is null)
             return await _store.EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
 
         var taskNodeKeys = await resolveTaskNodeKeys(taskKey, workflowId, ct).ConfigureAwait(false);
@@ -64,6 +67,61 @@ public sealed class NodeReadView
 
         var all = await _store.EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
         return all.Where(o => taskNodeKeys.Contains(o.NodeKey)).ToList();
+    }
+
+    /// <summary>
+    /// 范围化读取（F3 唯一入口）：<see cref="NodeReadScope"/> 三形态由调用点显式声明，
+    /// 禁再出现「空 key ⇒ 全量」的隐式落点（ERR-01）。
+    /// </summary>
+    public Task<IReadOnlyList<NodeOutput>> ListOutputsAsync(
+        string workflowId, NodeReadScope scope, CancellationToken ct = default)
+        => ListOutputsAsync(workflowId, scope, _resolveTaskNodeKeys, ct);
+
+    /// <summary>
+    /// 范围化读取（解析器经调用方显式注入）：
+    /// <see cref="NodeReadScopeKind.Full"/> ⇒ 全量枚举；<see cref="NodeReadScopeKind.ByTask"/> ⇒ 解析归属键后有界读取；
+    /// <see cref="NodeReadScopeKind.ByKeys"/> ⇒ 按键集合有界读取（键集即上界）。
+    /// <para>ByTask 未装配解析器 ⇒ 抛（接线缺口不得表现为「读到全量」）；直跑/单测请显式用 <see cref="NodeReadScope.Full"/>。</para>
+    /// </summary>
+    public async Task<IReadOnlyList<NodeOutput>> ListOutputsAsync(
+        string workflowId, NodeReadScope scope,
+        Func<string, string, CancellationToken, Task<IReadOnlyCollection<string>>>? resolveTaskNodeKeys,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        ArgumentNullException.ThrowIfNull(workflowId);
+
+        switch (scope.Kind)
+        {
+            case NodeReadScopeKind.Full:
+                return await _store.EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
+
+            case NodeReadScopeKind.ByTask:
+                if (resolveTaskNodeKeys is null)
+                    throw new InvalidOperationException(
+                        "NodeReadScope.ByTask 需要 task→归属节点键解析器（未装配即接线缺口）；直跑/单测请显式使用 NodeReadScope.Full。");
+                var taskNodeKeys = await resolveTaskNodeKeys(scope.TaskKey!, workflowId, ct).ConfigureAwait(false);
+                return await ReadByKeysAsync(workflowId, taskNodeKeys, ct).ConfigureAwait(false);
+
+            default:
+                return await ReadByKeysAsync(workflowId, scope.NodeKeys, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>按键有界读取（复用单节点读端口，不再「全量枚举 + 内存过滤」；键集为空 ⇒ 空集）。</summary>
+    private async Task<IReadOnlyList<NodeOutput>> ReadByKeysAsync(
+        string workflowId, IReadOnlyCollection<string> nodeKeys, CancellationToken ct)
+    {
+        if (nodeKeys.Count == 0) return Array.Empty<NodeOutput>();
+
+        var outputs = new List<NodeOutput>(nodeKeys.Count);
+        foreach (var nodeKey in nodeKeys)
+        {
+            var output = await _store.TryGetNodeOutputAsync(workflowId, nodeKey, ct).ConfigureAwait(false);
+            if (output is not null) outputs.Add(output);
+        }
+
+        return outputs;
     }
 
     /// <summary>由输出列表构建入参候选源映射（qualified + 裸端口、含溯源）；纯函数无 IO。</summary>

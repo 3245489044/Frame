@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（67 件）
+## Agent（68 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -53,6 +53,7 @@
 | `NodePromptBinding` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-NodePromptBinding.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-OperationRowCarriesActor.ps1` |
 | `PowerShellHostSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-PowerShellHostSingleSource.ps1` |
+| `PromptCacheStability` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-PromptCacheStability.ps1` |
 | `PromptSegments` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-PromptSegments.ps1` |
 | `PsSkillToolMap` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-PsSkillToolMap.ps1` |
 | `ReadinessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ReadinessSingleEntry.ps1` |
@@ -86,7 +87,7 @@
 | `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Data（13 件）
+## Data（17 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -98,9 +99,13 @@
 | `DualCarrierExclusion` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DualCarrierExclusion.ps1` |
 | `FactStandard` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FactStandard.ps1` |
 | `FrameworkActivation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1` |
+| `GraphPathSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1` |
+| `ReadIdentitySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ReadIdentitySingleSource.ps1` |
+| `RenderLayerStoreFree` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-RenderLayerStoreFree.ps1` |
 | `SessionDuplication` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SessionDuplication.ps1` |
 | `SingleWriter` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1` |
 | `SqliteTablePolicySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SqliteTablePolicySingleSource.ps1` |
+| `StorageWriteEntries` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-StorageWriteEntries.ps1` |
 | `TableConvergenceSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableConvergenceSingleEntry.ps1` |
 | `TableWriteDeclaration` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableWriteDeclaration.ps1` |
 
@@ -123,7 +128,7 @@
 | `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（13 件）
+## Meta（16 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -140,6 +145,9 @@
 | `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
 | `PsCapabilityFileOnly` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1` |
 | `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
+| `UiBudget` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiBudget.ps1` |
+| `UiIncremental` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1` |
+| `UiSingleWrite` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1` |
 
 ## Node（26 件）
 

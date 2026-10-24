@@ -38,6 +38,13 @@ public static class DomOps
 
     public const string Set = "set";
 
+    /// <summary>流追加原语（append-only 面：日志 / 过程帧 / 气泡）：按项稳定键定点更新同名项、其余插入流首、按 cap 裁尾，
+    /// 全程不重建文档（滚动/展开/焦点保持）。与 <see cref="Reconcile"/> 同属写落地原语族，由 <c>__uiReconcile.append</c> 承载。</summary>
+    public const string Append = "append";
+
+    /// <summary>流裁剪原语：保留流首 N 项（与 <see cref="Append"/> 的 cap 同语义，供显式裁尾调用）。</summary>
+    public const string Trim = "trim";
+
     /// <summary>键控对齐写（**唯一写原语**；Region/节点树/首挂载整页共用）：**恒**经键控对齐原语（reconcile）对齐活 DOM，
     /// 保留展开/滚动/焦点/选中态（无「对齐原语不可用 → 整块 innerHTML 落地」回退链；原语缺失 ⇒ <c>STATE_NOT_READY</c> 由自愈补注入）。
     /// name 为空 → 目标为 <c>document.body</c>（**仅首挂载整页**）；具名缺失 ⇒ NOT_FOUND（无隐式整页替换）。</summary>

@@ -7,7 +7,7 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'BatchScope'
 
-    Manifest = @{ Value = 'Docs\analysis\2026\10\10.24\2026-10-24-运行内核改造-通用框架与缺陷收敛.batches.json'; Origin = 'Derived'; DueWhen = '' }
+    Manifest = @{ Value = 'Docs\analysis\2026\10\10.24\2026-10-24-UI写回与刷新.batches.json'; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照下限：活动批的允许面模式数须 ≥ 此值（防授权单被掏空 ⇒ 判据无标的假绿）。
     MinAllowPatterns = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

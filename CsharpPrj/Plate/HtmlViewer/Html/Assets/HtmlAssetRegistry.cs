@@ -75,8 +75,8 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         string.Join("\n", FrameworkComponentCssOrder.Select(GetStyleModule));
 
     /// <summary>点击桥脚本（写原语=键控对齐；reconcile 不可用 → STATE_NOT_READY）：定义 <c>window.__domBridge</c>
-    /// （受控 DOM 操作 handle：set/get/click/bounds/event/reconcile/patch）+ 点击桥（<c>[data-cmd]</c> → postMessage）；
-    /// patch/reconcile 委托键控对齐引擎 <c>window.__uiReconcile</c>（未注入 → <c>STATE_NOT_READY</c>，可见化不静默）。
+    /// （受控 DOM 操作 handle：set/get/click/bounds/event/reconcile/patch/append/trim）+ 点击桥（<c>[data-cmd]</c> → postMessage）；
+    /// patch/reconcile 委托键控对齐引擎 <c>window.__uiReconcile</c>，append/trim 委托流原语（缺失 → <c>STATE_NOT_READY</c>，可见化不静默）。
     /// <para>幂等守卫用 <c>document.__domBridgeClickInstalled</c>（**document 级**，非 window 级）：WebView2 经 NavigateToString 重渲染会替换 document 而保留 window，
     /// 若守卫挂在 window 上会因「window 持久 → 误判已注入」而不再为新 document 重新挂载 document 级点击监听器 → [data-cmd] 点击转 postMessage 失效
     /// （8.26 实证：回流探针正常但按钮点击无效）。document 级守卫保证每个新 document 都重新注入桥、重新挂载点击监听器。</para>
@@ -97,6 +97,9 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         // 仅 name 缺省（全页 patch）= 显式目标 document.body。patch/reconcile 均委托键控对齐引擎（保留展开/滚动/焦点）。
         + "case 'patch':if(name){if(!el){return 'NOT_FOUND';}}else{el=document.body;}if(!el){return 'NOT_FOUND';}if(!window.__uiReconcile){return 'STATE_NOT_READY';}return window.__uiReconcile.apply(el,value);"
         + "case 'reconcile':if(name){if(!el){return 'NOT_FOUND';}}else{el=document.body;}if(!el){return 'NOT_FOUND';}if(!window.__uiReconcile){return 'STATE_NOT_READY';}return window.__uiReconcile.apply(el,value);"
+        // 流原语（append-only 面）：按稳定键定点更新/插入流首 + cap 裁尾；不做任何文档重建。
+        + "case 'append':if(!el){return 'NOT_FOUND';}if(!window.__uiReconcile||!window.__uiReconcile.append){return 'STATE_NOT_READY';}return window.__uiReconcile.append(el,value);"
+        + "case 'trim':if(!el){return 'NOT_FOUND';}if(!window.__uiReconcile||!window.__uiReconcile.trim){return 'STATE_NOT_READY';}return window.__uiReconcile.trim(el,value);"
         + "case 'get':if(isForm){return el.value;}else if(el.classList.contains('list')){var s=el.querySelector('li.selected');return s?s.textContent:'';}else{return el.textContent;}"
         + "case 'click':el.dispatchEvent(new MouseEvent('click',{bubbles:true}));return 'OK';"
         + "case 'bounds':var r=value?JSON.parse(value):null;if(r){el.style.position='absolute';el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';}return 'OK';"
@@ -219,14 +222,15 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
 
     /// <summary>键控对齐引擎（**唯一写原语**，恒开无回退）：**递归**按稳定键对齐复用 DOM 节点
     /// （保留 &lt;details&gt;.open / 焦点 / 滚动，免 save/restore 启发式）。document 级幂等守卫 <c>__uiReconcileInstalled</c>；
-    /// 提供 <c>apply(host,html)</c>（HTML 片段）与 <c>applyTree(host,json)</c>（键控节点树）两入口。
+    /// 提供 <c>apply(host,html)</c>（HTML 片段）、<c>applyTree(host,json)</c>（键控节点树）与
+    /// <c>append(host,payload)</c>/<c>trim(host,payload)</c>（append-only 流原语：定点更新同名项 + 流首插入 + cap 裁尾 + 滚动锚补偿）。
     /// 红线：不得再引入整块 <c>innerHTML</c> 落地回退（那是「第二条写落地」，与单写者不变量冲突）。</summary>
     internal static readonly string UiReconcileScript =
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
         + "document.__uiReconcileInstalled=true;"
         // reconcile 内核即 patch 写原语（DomOps.Patch 已收敛为 reconcile）：同置 patch 位，使模块清单可达全就绪。
-        + "document.__bridgeModules=document.__bridgeModules||{};document.__bridgeModules.reconcile=true;document.__bridgeModules.patch=true;"
+        + "document.__bridgeModules=document.__bridgeModules||{};document.__bridgeModules.reconcile=true;document.__bridgeModules.patch=true;document.__bridgeModules.append=true;document.__bridgeModules.trim=true;"
         + "var __kk=" + HtmlKey.JsArrayLiteral + ";"
         + "function keyOf(n){if(!n||!n.getAttribute){return null;}for(var i=0;i<__kk.length;i++){var v=n.getAttribute(__kk[i]);if(v){return __kk[i]+'='+v;}}return null;}"
         + "function syncAttrs(oldN,newN){"
@@ -284,7 +288,22 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         + "function appendInto(container,t){if(t==null){return;}if(t.tag){container.appendChild(buildNode(t));return;}"
         + "if(t.children){for(var i=0;i<t.children.length;i++){var c=t.children[i];if(!c){continue;}if(c.tag){container.appendChild(buildNode(c));}else if(c.text!=null){container.appendChild(document.createTextNode(''+c.text));}}}}"
         + "function capture(){var open=[];var ds=document.querySelectorAll('details');for(var i=0;i<ds.length;i++){if(ds[i].open){var k=keyOf(ds[i]);if(k){open.push(k);}}}var scroll=[];var ae=document.activeElement;var focus=(ae&&ae!==document.body)?keyOf(ae):null;var esc=document.scrollingElement||document.documentElement;if(esc){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);if(ty>0||tx>0){var ek=keyOf(esc);if(ek&&ek!=='id=null'){scroll.push({k:ek,t:esc.scrollTop,l:esc.scrollLeft,b:false});}}}var ns=document.querySelectorAll('[data-key],[data-name],[id]');for(var j=0;j<ns.length;j++){var n=ns[j];if(n.scrollTop>0||n.scrollLeft>0){var nk=keyOf(n);if(nk){scroll.push({k:nk,t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}}}var sel=[];var sl=document.querySelectorAll('[data-select-slot]');for(var si=0;si<sl.length;si++){var se=sl[si];if(se.hasAttribute('data-selected')){sel.push(se.getAttribute('data-select-slot')+'='+(se.getAttribute('data-select-key')||''));}}return {open:open,scroll:scroll,focus:focus,select:sel};}"
-        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture,lastAnomalies:[]};"
+        // 流原语（append-only 面）：按稳定键**定点更新**同名项（重复折叠 ⇒ xN 更新不新增行），其余插入流首；cap 裁尾。
+        // 顶部插入按滚动锚补偿：非顶部读者保持视觉位置（不跳动），顶部读者恒见最新（scrollTop=0）。
+        + "function findByKeyIn(host,k){var ns=host.querySelectorAll('[data-key]');for(var i=0;i<ns.length;i++){if(ns[i].getAttribute('data-key')===k){return ns[i];}}return null;}"
+        + "function streamAppend(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var items=(p&&p.items)||[];var cap=(p&&p.cap)?p.cap:0;lastAnomalies=[];"
+        + "var sc=host.scrollTop||0;var atTop=sc<=2;var sh=host.scrollHeight;"
+        + "for(var i=items.length-1;i>=0;i--){var it=items[i];if(!it||!it.html){continue;}var tmp=document.createElement('div');tmp.innerHTML=it.html;var nn=tmp.firstElementChild;if(!nn){continue;}"
+        + "if(it.key&&!nn.getAttribute('data-key')){nn.setAttribute('data-key',it.key);}"
+        + "var old=it.key?findByKeyIn(host,it.key):null;"
+        + "if(old){var r=reconcile(old,nn);if(r!==old&&old.parentNode){old.parentNode.replaceChild(r,old);}}"
+        + "else if(host.firstElementChild){host.insertBefore(nn,host.firstElementChild);}else{host.appendChild(nn);}}"
+        + "if(cap>0){while(host.children.length>cap){host.removeChild(host.children[host.children.length-1]);}}"
+        + "if(atTop){host.scrollTop=0;}else{host.scrollTop=sc+(host.scrollHeight-sh);}"
+        + "window.__uiReconcile.lastAnomalies=lastAnomalies;return lastAnomalies.length?('OK:'+lastAnomalies.join(';')):'OK';}"
+        + "function streamTrim(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var keep=(p&&p.keep)?p.keep:0;"
+        + "if(keep>0){while(host.children.length>keep){host.removeChild(host.children[host.children.length-1]);}}return 'OK';}"
+        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture,append:streamAppend,trim:streamTrim,lastAnomalies:[]};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

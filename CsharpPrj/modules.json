@@ -75,6 +75,7 @@
     "EventFramework": "Modules\\EventFramework\\EventFramework.csproj",
     "ExecutionFramework": "Modules\\ExecutionFramework\\ExecutionFramework.csproj",
     "GraphProcessing": "Modules\\GraphProcessing\\GraphProcessing.csproj",
+    "Governance": "Modules\\Governance\\Governance.csproj",
     "InternalStorage": "Modules\\InternalStorage\\InternalStorage.csproj",
     "KeySpace": "Modules\\KeySpace\\Modules.KeySpace.csproj",
     "LogicComposition": "Modules\\LogicComposition\\LogicComposition.csproj",

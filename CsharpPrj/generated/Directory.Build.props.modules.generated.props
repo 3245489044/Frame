@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-22 18:30:02
+  生成时间: 2026-10-24 16:12:46
 -->
 <Project>
 
@@ -53,6 +53,7 @@
     <Mod_EventFramework>$(CsharpPrjDir)Modules\EventFramework\</Mod_EventFramework>
     <Mod_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\</Mod_ExecutionFramework>
     <Mod_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\</Mod_GraphProcessing>
+    <Mod_Governance>$(CsharpPrjDir)Modules\Governance\</Mod_Governance>
     <Mod_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\</Mod_InternalStorage>
     <Mod_KeySpace>$(CsharpPrjDir)Modules\KeySpace\</Mod_KeySpace>
     <Mod_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\</Mod_LogicComposition>
@@ -175,6 +176,7 @@
     <Proj_EventFramework>$(CsharpPrjDir)Modules\EventFramework\EventFramework.csproj</Proj_EventFramework>
     <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
+    <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
     <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>

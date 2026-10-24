@@ -696,6 +696,30 @@
         Note   = '语义集中守卫 SC1–SC2：收口类定义点 ≥ 基线 / 域内边类型字面量直接赋值（非豁免）≤ 基线（只减不增）；基线 = Baselines\Meta\SemanticCentralization.psd1'
     }
 
+    UiSingleWrite = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 写落地单写者（U1 白名单外 SetHtmlAsync( 调用 = 0 / U2 白名单正对照 / U3 负对照）；基线 = Baselines\Meta\UiSingleWrite.psd1'
+    }
+
+    UiIncremental = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 增量契约（I1 日志 sink 具备 UiWritePlan.Append( + RenderBlock( / I2 禁回退 SetHtmlAsync( / I3 整页 Render 调用面收口 / I4 负对照）；基线 = Baselines\Meta\UiIncremental.psd1'
+    }
+
+    UiBudget = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 流原语闭合（B1 契约 / B2 协调器分支 / B3 DomOps 原语 / B4 JS 落地 / B5 负对照）；帧预算阈值随后续批扩项；基线 = Baselines\Meta\UiBudget.psd1'
+    }
+
     CircuitSemantics = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

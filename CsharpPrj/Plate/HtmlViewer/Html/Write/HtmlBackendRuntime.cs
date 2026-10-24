@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Plate.HtmlViewer;
@@ -64,6 +65,9 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     private static string HostSlot(string name) => "host:" + name;
     private static string RegionSlot(string name) => "region:" + name;
     private static string TreeSlot(string name) => "tree:" + name;
+
+    /// <summary>流槽（append-only 面：日志 / 过程帧 / 气泡）：与 region/tree 同属写去重命名空间，前缀隔离不串。</summary>
+    private static string StreamSlot(string name) => "stream:" + name;
 
     /// <summary>已完成整页渲染（文档壳 + 主题 CSS 就位）的宿主控件：首次写回必须整页渲染（补丁只换 body，头/主题需先落地）。</summary>
     private readonly HashSet<string> _navigatedHosts = new(StringComparer.OrdinalIgnoreCase);
@@ -463,6 +467,59 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         return parsed;
     }
 
+    /// <summary>流载荷 JSON 口径（camelCase：<c>{items:[{key,html}],cap}</c> / <c>{keep}</c>），与 <c>__uiReconcile.append|trim</c> 契约一致。</summary>
+    private static readonly JsonSerializerOptions StreamJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    /// <summary>流追加唯一实现（不发射轨迹）：按项稳定键定点更新同名项 / 其余插入流首 / cap 裁尾，不重建文档。</summary>
+    private async Task<(DomOpStatus Status, bool Admitted)> WriteStreamCoreStatusAsync(
+        string streamName, UiStreamAppend payload, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(streamName) || payload is null) return (DomOpStatus.Unknown, false);
+        var slotKey = StreamSlot(streamName);
+        var json = JsonSerializer.Serialize(payload, StreamJsonOptions);
+        var dedupKey = _fingerprint("append|" + json);
+        if (!TryAdmit(slotKey, dedupKey, out var version))
+            return (DomOpStatus.Ok, false);
+
+        var parsed = await ExecuteDomTypedAsync(DomOps.Append, streamName, json, ct).ConfigureAwait(false);
+        if (parsed == DomOpStatus.Ok)
+            RecordWrite(slotKey, version, dedupKey, true);
+        return (parsed, true);
+    }
+
+    /// <summary>流裁剪唯一实现（不发射轨迹）：保留流首 N 项。</summary>
+    private async Task<(DomOpStatus Status, bool Admitted)> WriteTrimCoreStatusAsync(
+        string streamName, UiStreamTrim payload, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(streamName) || payload is null) return (DomOpStatus.Unknown, false);
+        var slotKey = StreamSlot(streamName);
+        var json = JsonSerializer.Serialize(payload, StreamJsonOptions);
+        var dedupKey = _fingerprint("trim|" + json);
+        if (!TryAdmit(slotKey, dedupKey, out var version))
+            return (DomOpStatus.Ok, false);
+
+        var parsed = await ExecuteDomTypedAsync(DomOps.Trim, streamName, json, ct).ConfigureAwait(false);
+        if (parsed == DomOpStatus.Ok)
+            RecordWrite(slotKey, version, dedupKey, true);
+        return (parsed, true);
+    }
+
+    /// <summary>流追加公开壳（append-only 面增量落地）：<paramref name="items"/> 按「新→旧」序，<paramref name="cap"/> 为流长度上限。
+    /// 返回 false = 未命中 / 流原语未就绪（STATE_NOT_READY）/ 被仲裁去重。</summary>
+    public async Task<bool> WriteStreamAsync(
+        string streamName, IReadOnlyList<UiStreamItem> items, int? cap = null, CancellationToken ct = default)
+    {
+        if (items is null || items.Count == 0) return false;
+        var (status, admitted) = await WriteStreamCoreStatusAsync(streamName, new UiStreamAppend(items, cap), ct).ConfigureAwait(false);
+        Report("EventBridge_writeback", admitted
+            ? $"流追加 {streamName}: {status}（items={items.Count}, cap={(cap?.ToString() ?? "-")}）"
+            : $"流追加 {streamName} 跳过（仲裁：未变/过期，不触 DOM）");
+        return status == DomOpStatus.Ok;
+    }
+
     /// <summary>按叶子节点定点写回（S5/L3）：经受控 <c>DomOps.Set</c> 仅更新命中的单元素文本（如 elapsed 徽章），
     /// 不触发区域重渲染；用于心跳刷新只改易变叶子的场景（DOM 变更计数=1）。name 命中失败返回 false。
     /// <para><see cref="DomOps.Set"/> 语义：表单元素写 value，<c>.host</c> 写 innerHTML，其余写 textContent。</para></summary>
@@ -530,6 +587,40 @@ public sealed class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
                     var regionHtml = t.Payload as string ?? string.Empty;
                     var (regionStatus, _) = await WriteRegionCoreStatusAsync(name, regionHtml, ct).ConfigureAwait(false);
                     if (regionStatus == DomOpStatus.Ok) written.Add(name);
+                    else skipped.Add(name);
+                }
+                break;
+
+            case UiWriteKind.Append:
+                foreach (var t in plan.Targets)
+                {
+                    var name = t.Name ?? string.Empty;
+                    if (t.Payload is not UiStreamAppend append)
+                    {
+                        Report("EventBridge_writeback",
+                            $"流追加 {name} 跳过：载荷类型={t.Payload?.GetType().Name ?? "<null>"}（期望 UiStreamAppend）trace={trace}");
+                        skipped.Add(name);
+                        continue;
+                    }
+                    var (appendStatus, _) = await WriteStreamCoreStatusAsync(name, append, ct).ConfigureAwait(false);
+                    if (appendStatus == DomOpStatus.Ok) written.Add(name);
+                    else skipped.Add(name);
+                }
+                break;
+
+            case UiWriteKind.Trim:
+                foreach (var t in plan.Targets)
+                {
+                    var name = t.Name ?? string.Empty;
+                    if (t.Payload is not UiStreamTrim trim)
+                    {
+                        Report("EventBridge_writeback",
+                            $"流裁剪 {name} 跳过：载荷类型={t.Payload?.GetType().Name ?? "<null>"}（期望 UiStreamTrim）trace={trace}");
+                        skipped.Add(name);
+                        continue;
+                    }
+                    var (trimStatus, _) = await WriteTrimCoreStatusAsync(name, trim, ct).ConfigureAwait(false);
+                    if (trimStatus == DomOpStatus.Ok) written.Add(name);
                     else skipped.Add(name);
                 }
                 break;

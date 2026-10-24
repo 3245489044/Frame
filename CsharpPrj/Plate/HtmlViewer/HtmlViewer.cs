@@ -125,7 +125,11 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
     }
 
     /// <summary>渲染并显示 HTML（body 片段由 <see cref="HtmlDocumentRenderer"/> 包成完整页）。可任意次数调用；首次会完成 WebView2 初始化。
-    /// WebView2 仅限 UI 线程访问，本方法在后台线程调用时经 UI 线程封送器封送回 UI 线程。</summary>
+    /// WebView2 仅限 UI 线程访问，本方法在后台线程调用时经 UI 线程封送器封送回 UI 线程。
+    /// <para><b>非生产写入口</b>：本方法是「整文档注入」原语（不重构语义，滚动/焦点/展开态全丢），只供控件内部（
+    /// <see cref="WriteContentAsync"/> 无协调器时的回退）与首挂载使用。生产者一律经
+    /// <see cref="WriteContentAsync"/> / <see cref="RenderPlanExecutor"/>（单写者），门禁 <c>Check-UiSingleWrite</c> 强制。</para></summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public Task SetHtmlAsync(string? html, CancellationToken ct = default)
         => _marshaler.RunAsync(c => new ValueTask(_lifecycle.RenderAsync(html, c)), ct);
 
@@ -165,6 +169,13 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
     public Task WriteContentAsync(string? html, CancellationToken ct = default)
         => _contentWriter.WriteAsync(html, ct, (h, c) => SetHtmlAsync(h, c));
 
+    /// <summary>显式清空（整文档重置）：有计划执行器 ⇒ 经协调器整页写（单写者，不产生第二写路径）；
+    /// 无协调器 ⇒ 控件内部整页回退。清空不可用「空内容写」表达（空写按无写回短路）。</summary>
+    public Task ClearContentAsync()
+        => RenderPlanExecutor is { } executor
+            ? executor(UiBackend.Abstractions.UiWritePlan.FullDocument(string.Empty))
+            : SetHtmlAsync(string.Empty);
+
     /// <summary>值契约 / 同步出口触发的写回（fire-and-forget）：写回失败经 <see cref="BridgeDiagnostics"/> 上报，
     /// 不以「未观察 Task 异常」逃逸（F2）；需要 await 语义的调用方仍用 <see cref="WriteContentAsync"/>。</summary>
     public void WriteContentDetached(string? html)
@@ -198,7 +209,7 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         // 自愈（防部分注入）：patch/reconcile 依赖键控对齐模块 window.__uiReconcile 与桥模块清单；
         // 若注入在点击桥之后中断，区域写会返回 STATE_NOT_READY → 调用方整页回退（折叠态重置）。
         // 此处按模块清单探测缺失即补注入全部文档脚本（幂等守卫防重复），使写原语可自愈而非静默降级。
-        if ((op == DomOps.Patch || op == DomOps.Reconcile) && CoreWebView2 is not null)
+        if ((op == DomOps.Patch || op == DomOps.Reconcile || op == DomOps.Append || op == DomOps.Trim) && CoreWebView2 is not null)
         {
             var modules = BridgeModuleManifest.Parse(
                 await CoreWebView2.ExecuteScriptAsync(BridgeModuleManifest.QueryScript));

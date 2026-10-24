@@ -21,7 +21,23 @@ public enum UiWriteKind
 
     /// <summary>键控树 + 易变叶子合并写（同拍：区域树先落地，叶子后定点更新；payload 按 <see cref="UiNode"/>/string 区分）。</summary>
     TreeAndLeaf,
+
+    /// <summary>流追加（append-only 面：日志 / 过程帧 / 消息气泡；payload = <see cref="UiStreamAppend"/>）。
+    /// 语义 = 只增不重建：按项 key 定点更新同名项，其余插入流首，并按 cap 裁尾。</summary>
+    Append,
+
+    /// <summary>流裁剪（保留流首 N 项；payload = <see cref="UiStreamTrim"/>）。</summary>
+    Trim,
 }
+
+/// <summary>流项（append-only 面单条）：<paramref name="Key"/> 为稳定键（同键 ⇒ 定点更新，不新增行）。</summary>
+public sealed record UiStreamItem(string Key, string Html);
+
+/// <summary>流追加载荷：<paramref name="Items"/> 按「新→旧」序（流首为最新）；<paramref name="Cap"/> 为流长度上限（null/≤0 = 不裁）。</summary>
+public sealed record UiStreamAppend(IReadOnlyList<UiStreamItem> Items, int? Cap = null);
+
+/// <summary>流裁剪载荷：保留流首 <paramref name="Keep"/> 项（≤0 = 不裁）。</summary>
+public sealed record UiStreamTrim(int Keep);
 
 /// <summary>单条写回目标（Region/Tree/Leaf 用具名 Name；FullDocument 用 null）。Payload 形态随 Kind：Region=string / Tree=UiNode / Leaf=string / FullDocument=string。</summary>
 public readonly record struct UiWriteTarget(string? Name, object? Payload);
@@ -78,6 +94,14 @@ public sealed record UiWritePlan(
     /// <summary>多点叶子定点写计划（替换易变叶子值，不重渲染区域）。</summary>
     public static UiWritePlan Leaves(IReadOnlyList<UiWriteTarget> leaves, UiInteractionSnapshot? interaction = null, string? traceId = null)
         => new(UiWriteKind.Leaf, leaves, null, interaction, traceId);
+
+    /// <summary>流追加计划（append-only 面单点落地；<paramref name="items"/> 按「新→旧」序）。</summary>
+    public static UiWritePlan Append(string stream, IReadOnlyList<UiStreamItem> items, int? cap = null)
+        => new(UiWriteKind.Append, new[] { new UiWriteTarget(stream, new UiStreamAppend(items, cap)) });
+
+    /// <summary>流裁剪计划（保留流首 <paramref name="keep"/> 项）。</summary>
+    public static UiWritePlan Trim(string stream, int keep)
+        => new(UiWriteKind.Trim, new[] { new UiWriteTarget(stream, new UiStreamTrim(keep)) });
 
     /// <summary>整文档写计划。</summary>
     public static UiWritePlan FullDocument(string html, string? fingerprint = null)

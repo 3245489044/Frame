@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Strategy.Refresh.Core;
@@ -14,10 +13,11 @@ namespace FrontEndDriven.HtmlHosting;
 /// 同键（cmd + 作用域）latest-wins 合并，worker 串行执行。
 /// <para>循环探针等必须同步回投的消息不改道（返回 false ⇒ 运行时就地执行）。</para>
 /// </summary>
-public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposable
+public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposable, IAsyncDisposable
 {
     private readonly UiCommandQueue _queue;
     private long _generation;
+    private int _disposed;
 
     public HostMessageCommandScheduler(UiCommandQueue? queue = null)
         => _queue = queue ?? new UiCommandQueue();
@@ -32,55 +32,38 @@ public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposa
         // 回流自检必须走原路（探针等待即时回投；排队会引入假超时）。
         if (payload.IndexOf("__loopback__", StringComparison.OrdinalIgnoreCase) >= 0) return false;
 
-        var (key, priority) = Classify(payload);
+        // 唯一解析（UiMessageEnvelope）：合并键/优先级同源，本层不再二次 Parse（DUP-06）。
+        var envelope = UiMessageEnvelope.Parse(payload);
         var command = new UiCommand(
-            key,
+            envelope.MergeKey,
             Interlocked.Increment(ref _generation),
             "webmessage",
-            priority,
+            PriorityOf(envelope.Kind),
             payload,
             execute);
         return _queue.Enqueue(command);
     }
 
-    private static (string Key, UiCommandPriority Priority) Classify(string payload)
+    /// <summary>命令 → 优先级（显式表；表外命令按 <see cref="UiCommandPriority.Interactive"/>：未知命令不得被后台合并/延迟）。</summary>
+    private static UiCommandPriority PriorityOf(string kind) => kind.ToLowerInvariant() switch
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(payload);
-            var root = doc.RootElement;
-            var cmd = Field(root, "cmd") ?? Field(root, "event") ?? "message";
-            var scope = Field(root, "session")
-                        ?? Field(root, "history")
-                        ?? Field(root, "task")
-                        ?? Field(root, "name")
-                        ?? string.Empty;
-            var priority = cmd switch
-            {
-                "refresh" => UiCommandPriority.Refresh,
-                "selectTask" or "selectHistory" or "selectType" => UiCommandPriority.Interactive,
-                "tick" or "update" => UiCommandPriority.Background,
-                _ => UiCommandPriority.Background,
-            };
-            return ($"{cmd}|{scope}", priority);
-        }
-        catch (JsonException)
-        {
-            return ("message", UiCommandPriority.Background);
-        }
+        "refresh" => UiCommandPriority.Refresh,
+        "selecttask" or "selecthistory" or "selecttype" or "selectnode" => UiCommandPriority.Interactive,
+        "tick" or "update" or "message" or "stream" => UiCommandPriority.Background,
+        _ => UiCommandPriority.Interactive,
+    };
+
+    /// <summary>同步释放：只停止接收并请求取消，**不等待** worker（禁在 UI 线程阻塞）；异步宿主用 <see cref="DisposeAsync"/>。</summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _queue.SignalStop();
     }
 
-    private static string? Field(JsonElement root, string name)
+    /// <summary>异步释放：等待 worker 退出（有界：worker 只在当前命令完成/取消后结束）。</summary>
+    public async ValueTask DisposeAsync()
     {
-        if (root.ValueKind != JsonValueKind.Object) return null;
-        if (!root.TryGetProperty(name, out var value)) return null;
-        return value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            _ => null,
-        };
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await _queue.DisposeAsync().ConfigureAwait(false);
     }
-
-    public void Dispose() => _ = _queue.DisposeAsync().AsTask();
 }

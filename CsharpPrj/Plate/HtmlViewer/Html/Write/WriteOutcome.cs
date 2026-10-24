@@ -43,13 +43,16 @@ public sealed record TargetOutcome(string Target, TargetOutcomeKind Kind, string
 /// </summary>
 public static class TargetOutcomeAlgebra
 {
+    /// <summary>四类计数 → 每目标唯一终态；输出顺序 = 输入序（稳定，遥测/断言可按索引复算）。</summary>
     public static IReadOnlyList<TargetOutcome> Classify(
         IReadOnlyList<string> applied,
         IReadOnlyList<string> unchanged,
         IReadOnlyList<string> failed,
         IReadOnlyList<string>? anomalies = null)
     {
-        var map = new Dictionary<string, TargetOutcome>(StringComparer.Ordinal);
+        var index = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outcomes = new List<TargetOutcome>(applied.Count + unchanged.Count + failed.Count);
+
         foreach (var name in applied) Add(name, TargetOutcomeKind.Committed, null);
         foreach (var name in unchanged) Add(name, TargetOutcomeKind.Skipped, "unchanged");
         foreach (var name in failed) Add(name, TargetOutcomeKind.Failed, "write-failed");
@@ -57,25 +60,55 @@ public static class TargetOutcomeAlgebra
         {
             foreach (var name in anomalies)
             {
-                if (map.ContainsKey(name)) continue;
-                map[name] = new TargetOutcome(name, TargetOutcomeKind.Superseded, "alignment-anomaly");
+                if (index.ContainsKey(name)) continue;
+                Add(name, TargetOutcomeKind.Superseded, "alignment-anomaly");
             }
         }
 
-        return map.Values.ToList();
+        return outcomes;
 
         void Add(string? name, TargetOutcomeKind kind, string? code)
         {
             if (string.IsNullOrWhiteSpace(name)) return;
-            if (map.TryGetValue(name, out var existing))
+            if (index.TryGetValue(name, out var at))
             {
                 // 同目标跨类别 ⇒ 终态不唯一，显式记为失败（禁后写覆盖前写）。
-                if (existing.Kind != kind)
-                    map[name] = new TargetOutcome(name, TargetOutcomeKind.Failed, "conflicting-outcome");
+                if (outcomes[at].Kind != kind)
+                    outcomes[at] = new TargetOutcome(name, TargetOutcomeKind.Failed, "conflicting-outcome");
                 return;
             }
-            map[name] = new TargetOutcome(name, kind, code);
+            index[name] = outcomes.Count;
+            outcomes.Add(new TargetOutcome(name, kind, code));
         }
+    }
+
+    /// <summary>
+    /// 结果种类唯一判据：只读每目标终态（禁再读 applied/unchanged/failed 计数，禁第二套聚合）。
+    /// <para>判据：有 Failed/Superseded ⇒ <c>committed&gt;0 ? Partial : Failed</c>；否则 <c>committed&gt;0 ? Applied : (skipped&gt;0 ? Unchanged : Nothing)</c>。</para>
+    /// </summary>
+    public static WriteOutcomeKind KindOf(IReadOnlyList<TargetOutcome> outcomes)
+    {
+        if (outcomes is null || outcomes.Count == 0) return WriteOutcomeKind.Nothing;
+
+        var committed = 0;
+        var skipped = 0;
+        var failed = 0;
+        var superseded = 0;
+        foreach (var outcome in outcomes)
+        {
+            switch (outcome.Kind)
+            {
+                case TargetOutcomeKind.Committed: committed++; break;
+                case TargetOutcomeKind.Skipped: skipped++; break;
+                case TargetOutcomeKind.Failed: failed++; break;
+                default: superseded++; break;
+            }
+        }
+
+        if (failed > 0 || superseded > 0)
+            return committed > 0 ? WriteOutcomeKind.Partial : WriteOutcomeKind.Failed;
+        if (committed > 0) return WriteOutcomeKind.Applied;
+        return skipped > 0 ? WriteOutcomeKind.Unchanged : WriteOutcomeKind.Nothing;
     }
 }
 
@@ -95,24 +128,16 @@ public readonly record struct WriteOutcome(
     public IReadOnlyList<TargetOutcome> TargetOutcomes
         => TargetOutcomeAlgebra.Classify(Applied, Unchanged, Failed, Anomalies);
 
-    /// <summary>唯一裁决点：由目标分类计数推出结果种类。</summary>
+    /// <summary>唯一裁决点：由每目标终态反推结果种类（不另写计数判据，禁第二套聚合）。</summary>
     public static WriteOutcome Classify(
         IReadOnlyList<string> applied,
         IReadOnlyList<string> unchanged,
         IReadOnlyList<string> failed,
         IReadOnlyList<string>? anomalies = null)
     {
-        var hasAnomaly = anomalies is { Count: > 0 };
-        WriteOutcomeKind kind;
-        if (applied.Count == 0 && failed.Count == 0 && !hasAnomaly)
-            kind = unchanged.Count == 0 ? WriteOutcomeKind.Nothing : WriteOutcomeKind.Unchanged;
-        else if (failed.Count == 0 && !hasAnomaly)
-            kind = WriteOutcomeKind.Applied;
-        else if (applied.Count == 0)
-            kind = WriteOutcomeKind.Failed;
-        else
-            kind = WriteOutcomeKind.Partial;
-        return new WriteOutcome(kind, applied, unchanged, failed, anomalies);
+        var outcomes = TargetOutcomeAlgebra.Classify(applied, unchanged, failed, anomalies);
+        return new WriteOutcome(
+            TargetOutcomeAlgebra.KindOf(outcomes), applied, unchanged, failed, anomalies);
     }
 
     /// <summary>映射为对外状态（Skipped = 未触 DOM；FailedTargets 另见 <see cref="ToResult"/>）。</summary>

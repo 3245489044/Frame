@@ -12,6 +12,24 @@ namespace UiBackend.Html;
 /// </summary>
 public static class SectionPlanAdapter
 {
+    /// <summary>一次展开的结果（节 + 节点数 + 字节数同源；调用方禁再各自 <see cref="From"/> 二次展开）。</summary>
+    public readonly record struct SectionPlanEstimate(
+        IReadOnlyList<SectionPlan> Sections, int Nodes, int Bytes);
+
+    /// <summary>唯一展开入口：计划 → 节 + 结构估算（预算/遥测/写回共用同一口径）。</summary>
+    public static SectionPlanEstimate Build(UiWritePlan? plan)
+    {
+        var sections = From(plan);
+        var nodes = 0;
+        var bytes = 0;
+        foreach (var section in sections)
+        {
+            nodes += Math.Max(0, section.Nodes);
+            bytes += Math.Max(0, section.Bytes);
+        }
+        return new SectionPlanEstimate(sections, nodes, bytes);
+    }
+
     /// <summary>把写计划展开为节计划（保持目标顺序；载荷形态决定节类型）。</summary>
     public static IReadOnlyList<SectionPlan> From(UiWritePlan? plan)
     {
@@ -73,21 +91,11 @@ public static class SectionPlanAdapter
         return list;
     }
 
-    /// <summary>计划级节点数估算（遥测/预算预检；与节口径一致）。</summary>
-    public static int EstimateNodes(UiWritePlan? plan)
-    {
-        var nodes = 0;
-        foreach (var s in From(plan)) nodes += Math.Max(0, s.Nodes);
-        return nodes;
-    }
+    /// <summary>计划级节点数估算（兼容面：内部经 <see cref="Build"/> 单次展开；新调用方应直接用 Build）。</summary>
+    public static int EstimateNodes(UiWritePlan? plan) => Build(plan).Nodes;
 
-    /// <summary>计划级字节估算（与节口径一致）。</summary>
-    public static int EstimateBytes(UiWritePlan? plan)
-    {
-        var bytes = 0;
-        foreach (var s in From(plan)) bytes += Math.Max(0, s.Bytes);
-        return bytes;
-    }
+    /// <summary>计划级字节估算（兼容面：内部经 <see cref="Build"/> 单次展开；新调用方应直接用 Build）。</summary>
+    public static int EstimateBytes(UiWritePlan? plan) => Build(plan).Bytes;
 
     private static SectionPlan HtmlSection(string name, string html, UiInteractionSnapshot? interaction)
         => new(
@@ -137,16 +145,31 @@ public static class SectionPlanAdapter
         => new(new SectionId("unknown", name), SectionWriteMode.Patch, Variance: SectionVariance.Volatile,
             Stage: SurfaceStage.Decorations);
 
-    /// <summary>节名 → 阶段（结构壳/左树/标题属 Structure；主内容/流属 Content；叶子属 Decorations）。</summary>
+    // 区域名 → 阶段（显式表，禁字符串子串启发式）：按分隔符切词后查表；未命中 ⇒ Content。
+    private static readonly HashSet<string> StructureTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "selector", "aside", "title", "subtitle", "tree",
+    };
+
+    private static readonly HashSet<string> DecorationTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "overlay", "leaf", "elapsed", "cost", "badge", "badges", "metric", "metrics",
+    };
+
+    private static readonly char[] NameSeparators = { '-', '_', '.', '/', ':', ' ', '|' };
+
+    /// <summary>节名 → 阶段：显式区域→阶段表（结构壳/左树/标题属 Structure；浮层/叶子/成本属 Decorations；其余 Content）。</summary>
     private static SurfaceStage StageOf(string name)
     {
-        var n = name ?? string.Empty;
-        if (n.Contains("aside", StringComparison.OrdinalIgnoreCase)
-            || n.Contains("selector", StringComparison.OrdinalIgnoreCase)
-            || n.Contains("tree", StringComparison.OrdinalIgnoreCase)
-            || n.Contains("title", StringComparison.OrdinalIgnoreCase)
-            || n.Contains("subtitle", StringComparison.OrdinalIgnoreCase))
-            return SurfaceStage.Structure;
+        foreach (var token in (name ?? string.Empty).Split(NameSeparators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (StructureTokens.Contains(token)
+                || token.StartsWith("tree", StringComparison.OrdinalIgnoreCase))
+                return SurfaceStage.Structure;
+            if (DecorationTokens.Contains(token)
+                || token.StartsWith("overlay", StringComparison.OrdinalIgnoreCase))
+                return SurfaceStage.Decorations;
+        }
         return SurfaceStage.Content;
     }
 

@@ -47,18 +47,60 @@ public static class NodeEndpointIds
     /// <summary>历史端点 Id 前缀（<c>history.</c>；取自文法族前缀）。</summary>
     public static readonly string HistoryPrefix = HistoryGrammar.FamilyPrefix;
 
+    /// <summary>历史端点 ResourceType 前缀（<c>history:</c>；由族前缀派生，禁第二处字面量）。</summary>
+    private static readonly string HistoryTypePrefix = HistoryPrefix.TrimEnd('.') + ":";
+
     /// <summary>节点端点 Id 段分隔符（<c>.</c>；取自文法内字面段）。</summary>
     public static readonly string Separator = NodeGrammar.LiteralBefore("nodeKey");
 
-    /// <summary>历史容器端点 Id（<c>history.{historyId}</c>；两端空白裁剪，宽松代入与既有拼串逐字一致）。</summary>
+    /// <summary>
+    /// 历史身份归一（端点 Id 幂等单点）：调用方传入 <c>242e</c> / <c>history:242e</c> / <c>history.242e</c> /
+    /// 历史三重前缀 <c>history.history:242e</c> 一律产出同一裸身份；<see cref="History"/> 与迁移/门禁共用本实现。
+    /// </summary>
+    public static string NormalizeHistoryId(string? historyId)
+        => NormalizeBare(historyId, HistoryTypePrefix, HistoryPrefix);
+
+    /// <summary>历史容器端点 Id（<c>history.{historyId}</c>；幂等：身份内已带的 <c>history:</c>/<c>history.</c> 先剥净）。</summary>
     public static string History(string? historyId)
-        => HistoryGrammar.BuildLenient((historyId ?? string.Empty).Trim());
+        => HistoryGrammar.BuildLenient(NormalizeHistoryId(historyId));
 
-    /// <summary>业务节点端点 Id（<c>{workflowId}.{nodeKey}</c>；宽松代入，与既有拼串逐字一致）。</summary>
+    /// <summary>业务节点端点 Id（<c>{workflowId}.{nodeKey}</c>；幂等：<c>nodeKey</c> 已带本 workflowId 前缀时先剥一次）。</summary>
     public static string Node(string? workflowId, string? nodeKey)
-        => NodeGrammar.BuildLenient(workflowId, nodeKey);
+    {
+        var wf = (workflowId ?? string.Empty).Trim();
+        var key = (nodeKey ?? string.Empty).Trim();
+        if (wf.Length > 0)
+        {
+            key = StripOnce(key, wf + Separator);
+        }
+        return NodeGrammar.BuildLenient(wf, key);
+    }
 
-    /// <summary>由历史端点 Id 还原 historyId（含 <c>.</c> 的 Id 整段归还）；非历史端点返回 false。</summary>
+    /// <summary>剥掉身份内层叠的 <c>{type}:</c> / 族前缀（有界收敛，保证构造是不动点）。</summary>
+    private static string NormalizeBare(string? value, string typePrefix, string familyPrefix)
+    {
+        var raw = (value ?? string.Empty).Trim();
+        for (var i = 0; i < 4; i++)
+        {
+            var next = StripOnce(StripOnce(raw, typePrefix), familyPrefix);
+            if (string.Equals(next, raw, StringComparison.Ordinal)) break;
+            raw = next;
+        }
+        return raw;
+    }
+
+    /// <summary>剥一层前缀（等值或剥空则原样返回，防「只剩前缀」被吞成空身份）。</summary>
+    private static string StripOnce(string value, string prefix)
+        => !string.IsNullOrEmpty(prefix)
+           && value.Length > prefix.Length
+           && value.StartsWith(prefix, StringComparison.Ordinal)
+            ? value[prefix.Length..]
+            : value;
+
+    /// <summary>
+    /// 由历史端点 Id 还原 historyId（含 <c>.</c> 的 Id 整段归还）；非历史端点返回 false。
+    /// <para>返回**裸身份**（端点内的层叠前缀先归一，K1）；与端点构造互为逆（构造侧再补族前缀）。</para>
+    /// </summary>
     public static bool TryParseHistoryId(string? resourceId, out string historyId)
     {
         historyId = string.Empty;
@@ -67,7 +109,7 @@ public static class NodeEndpointIds
             return false;
         }
 
-        historyId = values.Text("historyId") ?? string.Empty;
+        historyId = NormalizeBare(values.Text("historyId"), HistoryTypePrefix, HistoryPrefix);
         return historyId.Length > 0;
     }
 

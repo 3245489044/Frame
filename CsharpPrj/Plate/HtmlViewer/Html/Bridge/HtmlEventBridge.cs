@@ -94,26 +94,12 @@ public sealed class HtmlEventBridge
         return dict;
     }
 
-    /// <summary>解析 postMessage 负载 JSON → (eventName, controlName, eventPayload)。非法输入回退空事件名。</summary>
+    /// <summary>解析 postMessage 负载 JSON → (eventName, controlName, eventPayload)。非法输入回退空事件名。
+    /// <para>唯一解析实现 = <see cref="UiMessageEnvelope.Parse"/>（本方法只做形态映射，不再次解析）。</para></summary>
     public static (string EventName, string? ControlName, string? Payload) ParsePayload(string payload)
     {
-        if (string.IsNullOrWhiteSpace(payload))
-            return (string.Empty, null, null);
-        try
-        {
-            using var doc = JsonDocument.Parse(payload);
-            var root = doc.RootElement;
-            var eventName = root.TryGetProperty("event", out var evt) ? evt.GetString() : string.Empty;
-            var name = root.TryGetProperty("name", out var nm) ? nm.GetString() : null;
-            var payloadStr = root.TryGetProperty("payload", out var pl) && pl.ValueKind == JsonValueKind.String
-                ? pl.GetString()
-                : root.GetRawText();
-            return (eventName ?? string.Empty, name, payloadStr);
-        }
-        catch (JsonException)
-        {
-            return (string.Empty, null, payload);
-        }
+        var envelope = UiMessageEnvelope.Parse(payload);
+        return (envelope.EventName ?? string.Empty, envelope.ControlName, envelope.PayloadText);
     }
 
     /// <summary>注册宿主内容写回端口（output 指向宿主 viewer 时经此写回；幂等覆盖）。写入来源由调用方显式给出。</summary>

@@ -32,19 +32,19 @@ $checks = @(
     @{ Tag = 'R1'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.cs';
        Must = @('IWebMessageScheduler', 'MessageScheduler', 'HandleMessageAsync') },
     @{ Tag = 'R1'; File = 'Frame\CsharpPrj\Strategy\Refresh\Core\UiCommandQueue.cs';
-       Must = @('class UiCommandQueue', 'TryWrite(command)', 'ReferenceEquals(latest, command)') },
+       Must = @('class UiCommandQueue', 'TryWrite(normalized)', 'ReferenceEquals(latest, command)', 'SignalStop') },
     @{ Tag = 'R2'; File = 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Bookkeeping\TransferFlow.cs';
        Must = @('RunProjectionAsync', '"member_keys"') },
     @{ Tag = 'R2'; File = 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Workflows\RoundSpecProjection.cs';
        Must = @('class RoundSpecProjector', 'MissingOutputs', 'producers') },
     @{ Tag = 'R3'; File = 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\ConversationTreeProjection.cs';
-       Must = @('ConversationTreeSnapshotCache.TryGet', 'versionSource.Version', 'ConversationTreeSnapshotCache.Put') },
+       Must = @('ConversationTreeSnapshotCache.TryGet', 'versionSource.MembershipVersion', 'ConversationTreeSnapshotCache.Put') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryMemberSetReader.cs';
        Must = @('ReadManyAsync', 'GetHistoryTaskKeysManyAsync') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\TaskRuntimeReportProvider.cs';
        Must = @('GetForHistoriesAsync', 'GetManyAsync(refs') },
     @{ Tag = 'R4'; File = 'Frame\CsharpPrj\Operation\DataStoreDriven\Graph\ReferenceGraphCoordinator.cs';
-       Must = @('GetReferencesManyAsync', 'public long Version') },
+       Must = @('GetReferencesManyAsync', 'public long Version', 'public long MembershipVersion') },
     @{ Tag = 'R6'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\Kernel\SectionPlan.cs';
        Must = @('enum SurfaceStage', 'Shell', 'Decorations') },
     @{ Tag = 'R6'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\Kernel\WriteBudgetPolicy.cs';
@@ -73,6 +73,55 @@ foreach ($spec in $checks) {
         }
     }
     if ($ShowDetail) { Write-Host "  [$($spec.Tag)] $($spec.File) 已核（$($spec.Must.Count) 项）" -ForegroundColor DarkGray }
+}
+
+# U 类：唯一性判据（禁形态）——同一判定语义只允许一个实现点。
+# 判据载体 = 已消除的第二实现指纹；命中即说明「并存」回归（存在性 Must 无法发现，故单列）。
+$forbidden = @(
+    @{ Tag = 'U1'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\WriteOutcome.cs';
+       Tokens = @('applied.Count == 0', 'failed.Count == 0') },          # 计数裁决（第二套聚合）
+    @{ Tag = 'U2'; File = 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlHosting\HostMessageCommandScheduler.cs';
+       Tokens = @('JsonDocument.Parse', '_ = _queue.DisposeAsync') },     # 二次解析 / 即发即忘关闭
+    @{ Tag = 'U3'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\Kernel\SectionPlanAdapter.cs';
+       Tokens = @('foreach (var s in From(plan))', 'n.Contains("tree"') },# 二次展开 / 子串启发式
+    @{ Tag = 'U4'; File = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs';
+       Tokens = @('HistoryBoardProjector.TakeLast', 'SectionPlanAdapter.From(output.Plan).Count') }, # 视图二次切片 / 计划二次展开
+    @{ Tag = 'U5'; File = 'Projects\Plug\Agent\src\Agent.Session\Contracts\ConversationReadPort.cs';
+       Tokens = @('Skip(messages.Count - take)') },                       # 接口层自带切片
+    @{ Tag = 'U5'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\ConversationReadPort.cs';
+       Tokens = @('Skip(messages.Count - take)') },                       # 实现层第二切片
+    @{ Tag = 'U6'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\ContextProjection.cs';
+       Tokens = @('InsertRange(0,') },                                    # O(n²) 前插
+    @{ Tag = 'U7'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryTaskRuntimeSource.cs';
+       Tokens = @('rows.Add(new TaskRuntimeRow(') },                      # 行投影第二实现
+    @{ Tag = 'U7'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\TaskRuntimeReportProvider.cs';
+       Tokens = @('list.Add(new TaskRuntimeReport(') }                    # 报告映射第二实现
+)
+
+foreach ($spec in $forbidden) {
+    $abs = Join-Path $Root $spec.File
+    if (-not (Test-Path -LiteralPath $abs)) {
+        $violations.Add("[$($spec.Tag)] 层文件不在位：$($spec.File)")
+        continue
+    }
+    $text = Get-Content -LiteralPath $abs -Raw -Encoding UTF8
+    foreach ($token in $spec.Tokens) {
+        if ($text.IndexOf($token, [StringComparison]::Ordinal) -ge 0) {
+            $violations.Add("[$($spec.Tag)] 禁形态复现「$token」（第二实现并存）：$($spec.File)")
+        }
+    }
+}
+
+# N2 负对照：含禁形态的合成样本必须被判违禁（防判据恒真）。
+$syntheticForbidden = 'if (applied.Count == 0) kind = Failed;'
+$syntheticDetected = $false
+foreach ($spec in $forbidden) {
+    foreach ($token in $spec.Tokens) {
+        if ($syntheticForbidden.IndexOf($token, [StringComparison]::Ordinal) -ge 0) { $syntheticDetected = $true }
+    }
+}
+if (-not $syntheticDetected) {
+    $violations.Add('[N2] 负对照失效：含禁形态的合成样本未被判违禁（判据恒真）')
 }
 
 # R5：刷新链禁同步阻塞等待（采样核心文件）。

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Relations;
@@ -94,13 +95,28 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     private async Task<IReadOnlyList<string>> GetOutgoingTargetIdsAsync(string edgeType, ResourceIdentifier source, CancellationToken ct)
     {
         var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct).ConfigureAwait(false);
-        return refs
-            .Where(r => string.Equals(r.RefType, edgeType, StringComparison.Ordinal))
-            .Select(r => r.Target?.Id)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Select(id => id!)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        return ProjectOutgoingTargetIds(refs, edgeType, static r => r.RefType, static r => r.Target?.Id);
+    }
+
+    /// <summary>
+    /// 出边过滤 + 目标 Id 去重保序**唯一实现**（单条/批量共用）。
+    /// <para>新增边类型/过滤规则只改这里；调用方只提供「取边类型 / 取目标 Id」两个选择器（禁各写一套边过滤）。</para>
+    /// </summary>
+    private static IReadOnlyList<string> ProjectOutgoingTargetIds<T>(
+        IEnumerable<T>? refs, string edgeType, Func<T, string?> refType, Func<T, string?> targetId)
+    {
+        var result = new List<string>();
+        if (refs is null) return result;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var reference in refs)
+        {
+            if (!string.Equals(refType(reference), edgeType, StringComparison.Ordinal)) continue;
+            var id = targetId(reference);
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (seen.Add(id!)) result.Add(id!);
+        }
+        return result;
     }
 
     public ReferenceGrounding(ReferenceGraphCoordinator graph)
@@ -289,6 +305,26 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         var historyNodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
         return await GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.HistoryOwnsTask, historyNodeId, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// K3 端点重键**计划**（只读，零写）：全量采集出边 → <see cref="EndpointKeyRekey.Plan"/> 分类。
+    /// 供迁移批 dry-run 与门禁对拍；执行见 <see cref="ApplyEndpointRekeyAsync"/>（唯一写边 owner）。
+    /// </summary>
+    /// <param name="taskKeys">实体真源 <c>ur_tasks</c> 主键集（由调用方从 SQL 读取，图侧不复制实体）。</param>
+    public async Task<EndpointRekeyPlan> PlanEndpointRekeyAsync(
+        IReadOnlyCollection<string> taskKeys, CancellationToken ct = default)
+    {
+        var resources = await _graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
+        var ids = resources.Select(r => r.Identifier).Where(id => id is not null).ToList();
+        if (ids.Count == 0) return EndpointRekeyPlan.Empty;
+        var byKey = await _graph.GetReferencesManyAsync(ids, includeIncoming: false, ct).ConfigureAwait(false);
+        var edges = byKey.Values.SelectMany(list => list).Where(e => !e.IsIncoming).ToList();
+        return EndpointKeyRekey.Plan(edges, taskKeys ?? Array.Empty<string>());
+    }
+
+    /// <summary>K3 端点重键**执行**（幂等，经协调器 Add/Remove；见 <see cref="EndpointKeyRekey.ApplyAsync"/>）。</summary>
+    public Task<EndpointRekeyResult> ApplyEndpointRekeyAsync(EndpointRekeyPlan plan, CancellationToken ct = default)
+        => EndpointKeyRekey.ApplyAsync(_graph, plan, ct);
 
     /// <summary>历史 Id 单一权威：history.{historyId}（构造与还原见 <see cref="HierarchyResourceKeys"/>）。</summary>
     private static string HistoryNodeId(string historyId) => HierarchyResourceKeys.History(historyId);
@@ -912,18 +948,15 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
         foreach (var (historyId, resource) in resources)
         {
-            var keys = new List<string>();
             if (refsByKey.TryGetValue(resource.GetUniqueKey(), out var refs))
             {
-                foreach (var reference in refs)
-                {
-                    if (!string.Equals(reference.RefType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal))
-                        continue;
-                    if (!string.IsNullOrWhiteSpace(reference.Target?.Id))
-                        keys.Add(reference.Target!.Id);
-                }
+                result[historyId] = ProjectOutgoingTargetIds(
+                    refs, CrossDbReferenceTypes.HistoryOwnsTask, static r => r.RefType, static r => r.Target?.Id);
             }
-            result[historyId] = keys.Distinct(StringComparer.Ordinal).ToList();
+            else
+            {
+                result[historyId] = Array.Empty<string>();
+            }
         }
         return result;
     }

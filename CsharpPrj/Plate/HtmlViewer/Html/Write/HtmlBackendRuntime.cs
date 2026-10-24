@@ -247,10 +247,19 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
             Report("HtmlChannel_webmessage", $"收到 postMessage: {TextUtil.Truncate(json)}");
 
             // F1：UI 线程只投递（O(1)）；执行体在 RefreshWorker 内串行运行。
-            // 未装配 scheduler / 循环探针等必须同步返回的消息 ⇒ 沿用旧直接路径。
-            if (MessageScheduler is not null
-                && MessageScheduler.TrySchedule(json, ct => HandleMessageAsync(hostControlName, json, ct)))
-                return;
+            // 未装配 scheduler / 循环探针等必须同步返回的消息 ⇒ 沿用旧直接路径（但必须可见化，禁静默）。
+            if (MessageScheduler is not null)
+            {
+                if (MessageScheduler.TrySchedule(json, ct => HandleMessageAsync(hostControlName, json, ct)))
+                    return;
+                Report("HtmlChannel_webmessage",
+                    $"调度器未接管（同步回投/关闭中）⇒ UI 线程就地执行: {TextUtil.Truncate(json)}");
+            }
+            else
+            {
+                Report("HtmlChannel_webmessage",
+                    $"未装配 MessageScheduler ⇒ UI 线程就地执行（可能阻塞）: {TextUtil.Truncate(json)}");
+            }
 
             _ = HandleMessageAsync(hostControlName, json, CancellationToken.None);
         });

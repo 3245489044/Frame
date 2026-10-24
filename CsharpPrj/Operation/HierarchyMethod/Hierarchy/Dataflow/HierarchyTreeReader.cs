@@ -79,7 +79,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             CancellationToken ct = default, bool includeTaskNodeKeys = false)
         {
             var nodes = new List<HierarchyTree>();
-            // DUP-1：唯一根枚举入口（root store 优先 + 迁移期旧表回退在 catalog 内部）。
+            // DUP-1：唯一根枚举入口（root store 优先；legacy 回退须显式分类器，本处不提供 ⇒ 不产生伪根）。
             var catalog = _catalog
                 ?? (_rootStore is not null || _historyStore is not null
                     ? new Operation.HierarchyMethod.History.HistoryRootCatalog(_rootStore, _historyStore)

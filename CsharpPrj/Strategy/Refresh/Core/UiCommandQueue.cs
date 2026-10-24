@@ -45,14 +45,19 @@ public sealed class UiCommandQueue : IAsyncDisposable
     private readonly ConcurrentDictionary<string, UiCommand> _latest = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _worker;
+    private readonly Action<Exception, UiCommand>? _onFault;
     private long _generation;
     private long _enqueued;
     private long _executed;
     private long _coalesced;
+    private long _dropped;
     private long _failed;
+    private int _stopped;
 
-    public UiCommandQueue()
+    /// <param name="onFault">执行体异常诊断口（key/source 可见化；未接线仍计入 Failed，禁静默）。</param>
+    public UiCommandQueue(Action<Exception, UiCommand>? onFault = null)
     {
+        _onFault = onFault;
         _channel = Channel.CreateUnbounded<UiCommand>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -68,26 +73,58 @@ public sealed class UiCommandQueue : IAsyncDisposable
     /// <summary>已执行命令总数（不含被合并丢弃的代）。</summary>
     public long Executed => Interlocked.Read(ref _executed);
 
-    /// <summary>被同键新代合并/丢弃的命令数。</summary>
+    /// <summary>被同键新代合并/丢弃的命令数（入队前判过期 + 出队时判过期，同一本账）。</summary>
     public long Coalesced => Interlocked.Read(ref _coalesced);
+
+    /// <summary>写通道失败被丢弃的命令数（回滚 <c>_latest</c>，不留幽灵最新代）。</summary>
+    public long Dropped => Interlocked.Read(ref _dropped);
 
     /// <summary>执行体抛异常次数（已诊断，不中断 worker）。</summary>
     public long Failed => Interlocked.Read(ref _failed);
 
-    /// <summary>队列深度（待执行命令数，近似）。</summary>
-    public int Pending => _latest.Count;
+    /// <summary>队列深度（精确：已入队 − 已执行 − 已合并 − 已丢弃）。</summary>
+    public int Pending
+    {
+        get
+        {
+            var pending = Enqueued - Executed - Coalesced - Dropped;
+            return pending <= 0 ? 0 : (int)Math.Min(int.MaxValue, pending);
+        }
+    }
 
     /// <summary>分配单调代际（调用方也可自带）。</summary>
     public long NextGeneration() => Interlocked.Increment(ref _generation);
 
-    /// <summary>入队（O(1)，UI 线程安全）：同键旧代在出队时被识别并丢弃。</summary>
+    /// <summary>
+    /// 入队（O(1)，UI 线程安全）：同键已有**不旧于**本代的命令 ⇒ 本代直接合并（不写通道，禁积压必丢命令）；
+    /// 写通道失败 ⇒ 回滚 <c>_latest</c> 并计 <see cref="Dropped"/>（不留永不执行的幽灵最新代）。
+    /// </summary>
     public bool Enqueue(UiCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
         if (string.IsNullOrWhiteSpace(command.Key)) return false;
-        _latest[command.Key] = command;
+        if (Volatile.Read(ref _stopped) != 0) return false;
+
+        // 代际归一：调用方未给代（<=0）则由队列分配，保证同键可判新旧。
+        var normalized = command.Generation > 0 ? command : command with { Generation = NextGeneration() };
+
+        if (_latest.TryGetValue(normalized.Key, out var existing)
+            && existing.Generation >= normalized.Generation)
+        {
+            Interlocked.Increment(ref _coalesced);   // 本代过期：不写通道（最新代已在通道或已在飞）
+            return false;
+        }
+
+        _latest[normalized.Key] = normalized;
         Interlocked.Increment(ref _enqueued);
-        return _channel.Writer.TryWrite(command);
+        if (_channel.Writer.TryWrite(normalized)) return true;
+
+        // 通道已关闭/写失败：回滚，避免“最新代只在 _latest 里、永不出队”。
+        if (existing is null) _latest.TryRemove(normalized.Key, out _);
+        else _latest[normalized.Key] = existing;
+        Interlocked.Decrement(ref _enqueued);
+        Interlocked.Increment(ref _dropped);
+        return false;
     }
 
     private async Task RunAsync()
@@ -113,10 +150,11 @@ public sealed class UiCommandQueue : IAsyncDisposable
                 {
                     // 关闭期取消：正常退出。
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // worker 不因单条命令失败而终止；诊断由执行体自身出口负责。
+                    // worker 不因单条命令失败而终止；诊断经注入出口可见化（未接线仍计入 Failed）。
                     Interlocked.Increment(ref _failed);
+                    _onFault?.Invoke(ex, command);
                 }
             }
         }
@@ -125,11 +163,20 @@ public sealed class UiCommandQueue : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 停止接收并请求取消（**不等待** worker）：供同步 <c>Dispose</c> 使用，避免在 UI 线程阻塞等待。
+    /// 关闭后新入队一律拒绝（返回 false），worker 不再执行未开始命令。
+    /// </summary>
+    public void SignalStop()
+    {
+        if (Interlocked.Exchange(ref _stopped, 1) != 0) return;
+        _channel.Writer.TryComplete();
+        try { _cts.Cancel(); } catch (ObjectDisposedException) { /* 已释放：幂等 */ }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_cts.IsCancellationRequested) return;
-        _cts.Cancel();
-        _channel.Writer.TryComplete();
+        SignalStop();
         try { await _worker.ConfigureAwait(false); }
         catch { /* 关闭期异常不阻塞 */ }
         _cts.Dispose();

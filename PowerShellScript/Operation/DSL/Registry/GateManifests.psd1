@@ -70,6 +70,14 @@
         Note   = '节点提示词绑定：模板槽 ⊆ PromptSlot 词表 / node:// domain 已声明 / 禁 SQL 旁路 / 禁新增 ContextNodeKind 用法；正负对照'
     }
 
+    EndpointKeyConsistency = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '端点键一致性（node/task 加载失败）：G1 history 源 ∈ 历史根派生端点 / G2 cross_db_link task 源 ∈ 树可达成员 / G3 端点 Id 不动点 / G4 session 源不动点；基线棘轮只降不升 + 负对照'
+    }
+
     AgentModulesFrameworkLayout = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

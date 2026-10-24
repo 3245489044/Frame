@@ -52,12 +52,19 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private bool _initialized;
     private int _disposed;
     private long _version;
+    private long _membershipVersion;
 
     /// <summary>
     /// 图变更版本（单调递增）：任意写边/端点/声明成功后 +1。
     /// 供快照缓存做「读前=读后」一致性校验与版本失效（F2），不参与写仲裁。
     /// </summary>
     public long Version => Interlocked.Read(ref _version);
+
+    /// <summary>
+    /// 成员变更版本（单调递增）：仅「影响树成员」的写（<c>history_owns_task</c> 等归属边）推进。
+    /// <para>与 <see cref="Version"/> 分离，避免 outbox/tombstone/端点镜像等无关写把树缓存整体失效（RED-11）。</para>
+    /// </summary>
+    public long MembershipVersion => Interlocked.Read(ref _membershipVersion);
 
     /// <summary>边文档主键（_id）分隔符（单一权威）。端点键已用 <see cref="ResourceIdentifier.UniqueKeySeparator"/>（":"），
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
@@ -399,7 +406,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             if (!_graph.ContainsEdge(edgeId))
                 _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
             return Task.CompletedTask;
-        });
+        }, affectsMembership: AffectsMembership(refType));
     }
 
     public Task RemoveReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
@@ -413,7 +420,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             _edges.DeleteMany(Query.EQ("_id", edgeId));
             if (_graph.ContainsEdge(edgeId)) _graph.RemoveEdge(edgeId);
             return Task.CompletedTask;
-        });
+        }, affectsMembership: AffectsMembership(refType));
     }
 
     public Task<IReadOnlyList<ResourceReference>> GetReferencesAsync(ResourceIdentifier resourceId,
@@ -1115,7 +1122,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // 拖死整条 PersistAsync（OnAfterStep）→ 任务永久 Running。加有界等待，超时抛异常转非致命归类。
     private static readonly TimeSpan GateLeaseTimeout = TimeSpan.FromSeconds(5);
 
-    private async Task MutateAsync(CancellationToken ct, Func<Task> body)
+    private async Task MutateAsync(CancellationToken ct, Func<Task> body, bool affectsMembership = false)
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
@@ -1123,11 +1130,12 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         {
             await body().ConfigureAwait(false);
             Interlocked.Increment(ref _version);
+            if (affectsMembership) Interlocked.Increment(ref _membershipVersion);
         }
         finally { _gate.Release(); }
     }
 
-    private async Task<T> MutateAsync<T>(CancellationToken ct, Func<Task<T>> body)
+    private async Task<T> MutateAsync<T>(CancellationToken ct, Func<Task<T>> body, bool affectsMembership = false)
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
@@ -1135,10 +1143,15 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         {
             var result = await body().ConfigureAwait(false);
             Interlocked.Increment(ref _version);
+            if (affectsMembership) Interlocked.Increment(ref _membershipVersion);
             return result;
         }
         finally { _gate.Release(); }
     }
+
+    /// <summary>该边类型是否影响树成员（唯一判据：新增成员边类型只改这里）。</summary>
+    private static bool AffectsMembership(string refType)
+        => string.Equals(refType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal);
 
     /// <summary>读面串行化（B5）：枚举内存图邻接的读方法经本助手与写面（<see cref="_gate"/>）互斥，
     /// 避免并发写图时读到不一致中间态或触发集合变更异常。调用方须为最外层读方法——不可在已持 <see cref="_gate"/> 的上下文内再调本助手。</summary>

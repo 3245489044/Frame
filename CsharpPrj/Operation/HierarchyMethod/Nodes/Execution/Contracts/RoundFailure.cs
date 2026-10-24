@@ -20,6 +20,9 @@ public static class RoundFailureCodes
     public const string SeedPortUncovered = KeyReasonCodes.SeedPortUncovered;
     public const string RoundCriterionUnmet = KeyReasonCodes.RoundCriterionUnmet;
     public const string ExecExecutionFailure = KeyReasonCodes.ExecExecutionFailure;
+
+    /// <summary>提示词前置失败（B2）：提示词端口缺失（先于 T2 端口契约归因）。</summary>
+    public const string PromptMissing = KeyReasonCodes.PromptMissing;
 }
 
 /// <summary>
@@ -63,6 +66,10 @@ public sealed record RoundFailure(
 
     public static RoundFailure ExecutionFailed(string step, IReadOnlyList<string> completed, string detail)
         => new(RoundFailureCodes.ExecExecutionFailure, step, completed, None, detail);
+
+    /// <summary>提示词前置失败（一等步骤失败；先于端口契约归因，避免被 exec.port-missing 覆盖）。</summary>
+    public static RoundFailure PromptMissing(string step, IReadOnlyList<string> missing, string detail)
+        => new(RoundFailureCodes.PromptMissing, step, None, None, detail, UndeclaredKeys: missing);
 
     public RoundFailureException ToException() => new(this);
 }

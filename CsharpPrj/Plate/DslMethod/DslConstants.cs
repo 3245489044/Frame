@@ -34,6 +34,9 @@ public enum DslSymbolKind
     // LLM 判定契约语言单元（[LLMDecl]）：把 LLM 判定点的「判定形状与契约」（prompt/输入/输出 schema）外置为声明。
     // 前置缀由 Usharp 领域包自持（UsharpPrefixes），此仅登记符号类型（核心零领域语义：GateEngine 不分支于它）。
     LlmDecl,
+    // 提示词段声明语言单元（[Segment]）：段键/组/序/适用性/需求量/可空/别名/开关的唯一声明面。
+    // 与 [Skill] 同范式：核心表仅登记符号类型，消费（facet provider / 段注册）由领域包承担。
+    Segment,
     Unknown,
 }
 
@@ -88,6 +91,8 @@ public static class DslConstants
         // Agent 技能语言单元（U-V4 唯一新增）：[Skill] 技能声明。登记进核心表 ⇒ 任何 DSL 解析路径（含 UsharpParser）
         // 均可解析；其领域消费（facet provider / 闸规则 / 投影器）由 Usharp.Adapters.Agent 领域包承担（I1：核心零领域语义）。
         new("[Skill]",      DslSymbolKind.Skill,      "Skill"),
+        // 提示词段声明语言单元：段声明面（键/组/序/适用性/需求量/可空/别名/开关）的单一权威。
+        new("[Segment]",    DslSymbolKind.Segment,    "Segment"),
         // 注：Usharp 五前缀（[Space]/[Matrix]/[Flow]/[Ref]/[Obs]）不在此核心表 —— 由 Usharp 领域包自持并
         //     注册到 DslPrefixRegistry（见 Frame\Usharp\src\Usharp.Syntax\UsharpPrefixes.cs）。
     };

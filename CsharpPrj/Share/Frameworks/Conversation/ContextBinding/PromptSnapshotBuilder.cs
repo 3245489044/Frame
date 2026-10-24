@@ -17,7 +17,8 @@ public static class PromptSnapshotBuilder
         IReadOnlyList<string>? selectedSkills,
         string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
         IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null,
-        IReadOnlyCollection<string>? enabledToggles = null, string? resourceBlock = null)
+        IReadOnlyCollection<string>? enabledToggles = null, string? resourceBlock = null,
+        int schemaVersion = PromptSnapshot.CurrentSchemaVersion)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -32,34 +33,46 @@ public static class PromptSnapshotBuilder
             .Where(b => b is not null && !string.IsNullOrWhiteSpace(b.Text))
             .ToArray();
 
-        // 段集合 → 声明（L0 分段族 / 固定段），装配与绑定由通用内核（Plan → Compose）单点产出，
-        // 本类只做「提示词域声明 → 通用段声明」的映射，不再自行判空/排序/发射。
-        var specs = new List<TextSpec>(bands.Length + PromptSegmentCatalog.Fixed.Count);
+        // 段集合 → 声明（L0 分段族 / 固定段），装配与绑定由通用内核（Plan → Compose）单点产出；
+        // 段元数据（组/序/适用性/需求量/可空/别名/开关）全部来自声明面（PromptSegmentCatalog.Rows），
+        // 本类只做「声明行 + 域内取值委托」的绑定，不再自行判空/排序/发射。
+        var rows = PromptSegmentCatalog.Rows;
+        var bandRow = PromptSegmentCatalog.BandTemplate;
+        var specs = new List<TextSpec>(bands.Length + rows.Count);
         if (bands.Length > 0)
         {
             foreach (var band in bands)
-                specs.Add(SpecOf(PromptSegmentCatalog.L0BandKey(band.Name), band.Text));
+                specs.Add(SpecOf(PromptSegmentCatalog.L0BandKey(band.Name), band.Text, bandRow));
         }
         else
         {
-            specs.Add(SpecOf(AnchorKey.PromptL0, l0));
+            var l0Row = PromptSegmentCatalog.RowOf(AnchorKey.PromptL0.Value);
+            if (l0Row is not null) specs.Add(SpecOf(AnchorKey.PromptL0, l0, l0Row));
         }
 
-        // 其余固定段：键 / 顺序 / 档案开关 全部由段目录**单一驱动**（新增段只改目录 ⇒ 不再漏发射/漏投影）。
+        // 其余固定段：键 / 组 / 顺序 / 适用性 / 档案开关 全部由声明面**单一驱动**（新增段只改声明 ⇒ 不漏发射/漏投影）。
         var inputs = new SegmentBuildInputs(
             l0 ?? string.Empty, skillBlock ?? string.Empty, l1 ?? string.Empty, l2 ?? string.Empty,
             toolBlock, mode, subAgent, resourceBlock);
-        foreach (var spec in PromptSegmentCatalog.Fixed)
+        foreach (var row in rows)
         {
-            if (spec.Key == AnchorKey.PromptL0) continue; // L0 由上方分段族/回退处理
-            var declared = spec;
+            if (row.ExpandBands) continue;                                              // 分段族模板行按 bands 展开
+            if (string.Equals(row.Key, AnchorKey.PromptL0.Value, StringComparison.Ordinal)) continue; // L0 由上方分段族/回退处理
+
+            var declared = PromptSegmentCatalog.FixedSpecOf(row.Key);
+            if (declared is null) continue;  // 声明了未登记取值委托的段：由 PromptDeclarationClosure 门禁收口（不静默发空段）
+
             specs.Add(new TextSpec(
-                new TextKey(declared.Key.Value),
-                GroupName,
-                new OrderKey((int)declared.Band),
-                static _ => true,
+                new TextKey(row.Key),
+                string.IsNullOrWhiteSpace(row.Group) ? GroupName : row.Group,
+                new OrderKey(row.Order),
+                WhenVocabulary.Resolve(row.When),
                 _ => BlockOf(declared.Key, declared.Produce(inputs)),
-                Toggle: declared.Toggle));
+                row.Requirement,
+                row.AllowEmpty,
+                row.Aliases,
+                row.Toggle,
+                string.IsNullOrWhiteSpace(row.Provider) ? "catalog" : row.Provider));
         }
 
         var plan = TextPlanBuilder.Build(specs, new SegmentContext(toggles: enabledToggles));
@@ -67,6 +80,7 @@ public static class PromptSnapshotBuilder
 
         return new PromptSnapshot
         {
+            SchemaVersion = schemaVersion,
             L0 = l0 ?? string.Empty,
             SkillBlock = skillBlock ?? string.Empty,
             L1 = l1 ?? string.Empty,
@@ -90,14 +104,19 @@ public static class PromptSnapshotBuilder
     /// <summary>提示词段所属的通用组标签（唯一出现组语义的地方）。</summary>
     private const string GroupName = "system";
 
-    /// <summary>按段目录的缓存带映射通用序键（顺序语义留在域内）。</summary>
-    private static TextSpec SpecOf(AnchorKey key, string? text)
+    /// <summary>按声明行绑定取值委托（组/序/适用性/需求量/可空/别名/开关全部来自行；缺行 ⇒ 目录默认）。</summary>
+    private static TextSpec SpecOf(AnchorKey key, string? text, SegmentDeclRow? row)
         => new(
             new TextKey(key.Value),
-            GroupName,
-            new OrderKey((int)PromptSegmentCatalog.BandFor(key)),
-            static _ => true,
-            _ => BlockOf(key, text));
+            string.IsNullOrWhiteSpace(row?.Group) ? GroupName : row!.Group,
+            new OrderKey(row?.Order ?? (int)PromptSegmentCatalog.BandFor(key)),
+            WhenVocabulary.Resolve(row?.When),
+            _ => BlockOf(key, text),
+            row?.Requirement ?? SegmentRequirement.Optional,
+            row?.AllowEmpty ?? false,
+            row?.Aliases,
+            row?.Toggle,
+            string.IsNullOrWhiteSpace(row?.Provider) ? "catalog" : row!.Provider);
 
     /// <summary>域值 → 四态：空/缺失一律显式 <see cref="TextState.Empty"/>，不再以 null 承载语义。</summary>
     private static TextBlock BlockOf(AnchorKey key, string? text)

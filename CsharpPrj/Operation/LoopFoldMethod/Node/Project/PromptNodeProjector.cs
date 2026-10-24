@@ -3,6 +3,7 @@ using System.Linq;
 using Operation.LoopFoldMethod.Node.Assemble;
 using Operation.LoopFoldMethod.Node.Model;
 using Share.Composition;
+using Share.Composition.Text;
 
 namespace Operation.LoopFoldMethod.Node.Project;
 
@@ -32,11 +33,45 @@ public sealed class PromptNodeProjector : INodeProjector<PromptLayeredResult>
     /// <inheritdoc />
     public PromptLayeredResult Project(NodeAssembly assembly)
     {
-        var system = Join(assembly.Head);
+        // 段序/拼接由通用内核单点承担：head/body/tail 三组 + KeepAll（不过滤空段）+ 纯空白组丢弃。
+        // 口径与旧实现逐字等价：组内 string.Join("\n\n", …)（KeepAll），组间成条（System 一条 / User 有序）。
+        var specs = new List<TextSpec>(assembly.Head.Count + assembly.Body.Count + assembly.Tail.Count);
+        AddGroup(specs, HeadGroup, assembly.Head);
+        AddGroup(specs, BodyGroup, assembly.Body);
+        AddGroup(specs, TailGroup, assembly.Tail);
+
+        var plan = TextPlanBuilder.Build(specs, SegmentContext.Empty);
+        var composed = TextCompose.Compose(plan, LayeredPolicy);
+
+        var system = composed.TextOf(HeadGroup);
         var users = new List<string>(2);
-        AddIfNonEmpty(users, Join(assembly.Body));
-        AddIfNonEmpty(users, Join(assembly.Tail));
+        AddIfNonEmpty(users, composed.TextOf(BodyGroup));
+        AddIfNonEmpty(users, composed.TextOf(TailGroup));
         return new PromptLayeredResult(system, users);
+    }
+
+    private const string HeadGroup = "head";
+    private const string BodyGroup = "body";
+    private const string TailGroup = "tail";
+
+    /// <summary>分层装配策略：三组保序、组内 KeepAll、空/纯空白组不发射。</summary>
+    private static readonly ComposePolicy LayeredPolicy = new(
+        new[] { HeadGroup, BodyGroup, TailGroup },
+        static _ => JoinPolicy.KeepAll,
+        EmitEmptyGroups: false,
+        DropBlankGroups: true);
+
+    /// <summary>段声明（每个节点载荷一条；键 = 组:序，保证计划内唯一）。</summary>
+    private static void AddGroup(List<TextSpec> specs, string group, IReadOnlyList<NodeItem> band)
+    {
+        for (var i = 0; i < band.Count; i++)
+        {
+            var payload = band[i].Payload;
+            if (payload is null) continue;
+            var key = new TextKey($"{group}:{i}");
+            var text = payload.ToString();
+            specs.Add(TextSpec.Always(key, group, new OrderKey(i), _ => TextBlock.Filled(key, text)));
+        }
     }
 
     /// <summary>便捷装配：节点集 → 分层提示词（默认 <see cref="CacheStableSlotPolicy"/> 稳定前缀策略）。</summary>
@@ -63,12 +98,4 @@ public sealed class PromptNodeProjector : INodeProjector<PromptLayeredResult>
     {
         if (!string.IsNullOrWhiteSpace(text)) users.Add(text);
     }
-
-    /// <summary>
-    /// 段内拼接 —— 非 null 载荷按序以空行连接，语义委托内核 <see cref="KernelJoins.JoinAll"/>。
-    /// 保真说明：既有口径为 <c>string.Join("\n\n", …)</c>（<b>不过滤空段</b>，与 <see cref="KernelJoins.BlankLine"/> 不同），
-    /// 故选用 <see cref="KernelJoins.JoinAll"/> 而非 <see cref="KernelJoins.BlankLine"/>，迁移前后逐字等价。
-    /// </summary>
-    private static string Join(IReadOnlyList<NodeItem> band)
-        => KernelJoins.JoinAll(band.Where(n => n.Payload is not null).Select(n => n.Payload!.ToString()));
 }

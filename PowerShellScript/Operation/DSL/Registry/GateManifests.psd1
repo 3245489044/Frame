@@ -7,6 +7,14 @@
         Note   = '键域严格化（K-01）：KD1 构造收口（KeyRef/KeyDomainId 只允许在 KeySpace 内 new） / KD2 域词隔离 / KD3 域注册表有产品侧消费方 / KD4 负对照'
     }
 
+    PromptCacheStability = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '提示词单源与缓存稳定（B6）：C1 段声明面在册且无第二张别名表 / C2 required_prompt_ports ⊆ cline_execute.inports（结构事实） / C3 UI 无节点端口反读（快照单源） / C4 指纹基线（report 级） / C5 负对照'
+    }
+
     DeclarationClosure = @{
         Domain = 'KeySpace'
         Args   = @{ Check = $true; NegativeControl = $true }

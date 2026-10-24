@@ -12,10 +12,14 @@ namespace Share.Composition.Text;
 /// <param name="GroupOrder">组的输出顺序（声明序即输出序）。</param>
 /// <param name="JoinOf">组级拼接策略（null → <see cref="JoinPolicy.BlankLine"/>）。</param>
 /// <param name="EmitEmptyGroups">空组是否保留（默认丢弃）。</param>
+/// <param name="DropBlankGroups">纯空白组是否丢弃（默认 false：只丢空串组）。</param>
+/// <param name="FinalTrim">组文本是否整体裁剪（默认 false；Wire 等最终串形态用）。</param>
 public sealed record ComposePolicy(
     IReadOnlyList<string> GroupOrder,
     Func<string, JoinPolicy>? JoinOf = null,
-    bool EmitEmptyGroups = false)
+    bool EmitEmptyGroups = false,
+    bool DropBlankGroups = false,
+    bool FinalTrim = false)
 {
     /// <summary>单组装配（全部段进同一组）。</summary>
     public static ComposePolicy SingleGroup(string group, JoinPolicy? join = null)

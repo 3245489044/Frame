@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Share.Composition.Text;
+using Share.Conversation.ContextBinding;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -37,19 +38,10 @@ public sealed record PromptPreflightResult(
 /// </summary>
 public static class PromptPreflight
 {
-    /// <summary>派生别名（声明口径单源）：声明端口 → 可替代来源（顺序即优先级）。</summary>
-    private static readonly IReadOnlyDictionary<string, string[]> Aliases =
-        new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            ["l1"] = new[] { "session_input" },
-            ["l2"] = new[] { "session_window" },
-            ["session_input"] = new[] { "l1" },
-            ["session_window"] = new[] { "l2" },
-        };
-
     /// <summary>
     /// 解析前置条件（判据唯一实现 = <see cref="TextJudge"/>）：必填端口 → 契约 → 轻量计划 → 结论。
     /// <para>空白口径 = <see cref="BlankSemantics.Absent"/>（提示词域空白串视为未给出）；别名派生同一判据内完成。</para>
+    /// <para>别名唯一权威 = 段声明面（<see cref="PromptSegmentAliases"/>）：本处不再自持第二张表。</para>
     /// </summary>
     /// <param name="ports">工作流参数空间（可空）。</param>
     /// <param name="required">声明面必填端口（空/未声明 ⇒ 直接 Resolved(<c>declaration-off</c>)）。</param>
@@ -87,7 +79,7 @@ public static class PromptPreflight
                 new TextKey(name),
                 SegmentRequirement.Required,
                 AllowEmpty: false,
-                Aliases: Aliases.TryGetValue(name, out var aliases) ? aliases : Array.Empty<string>(),
+                Aliases: PromptSegmentAliases.Of(name),
                 Applicable: static _ => true));
         }
         return new TextContract(ports);

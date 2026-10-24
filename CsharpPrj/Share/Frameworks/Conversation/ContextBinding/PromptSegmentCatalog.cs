@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Share.Composition.Text;
 
 namespace Share.Conversation.ContextBinding;
 
@@ -46,6 +47,89 @@ public static class PromptSegmentCatalog
         new SegmentSpec(AnchorKey.PromptMode, "prompt:mode", i => i.Mode, s => s.Mode, ToggleMode, CacheBand.B5, SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptSubAgent, "prompt:subagent", i => i.SubAgent, s => s.SubAgent, Band: CacheBand.B5, Target: SegmentTarget.User),
     };
+
+    /// <summary>L0 分段族模板行键（<c>expand=band</c>）。</summary>
+    public const string BandTemplateKey = "prompt.l0.band";
+
+    private static readonly object DeclaredGate = new();
+    private static IReadOnlyList<SegmentDeclRow>? _declared;
+
+    /// <summary>
+    /// 段声明行（声明面唯一事实）—— 未注入声明（<see cref="Override"/>）时由 <see cref="Fixed"/>
+    /// 派生等价行（<b>行为逐字不变</b>），注入后以声明面为准。
+    /// </summary>
+    public static IReadOnlyList<SegmentDeclRow> Rows => _declared ?? DefaultRows;
+
+    /// <summary>由段目录派生的默认声明行（回退路径；含 L0 分段族模板行）。</summary>
+    public static IReadOnlyList<SegmentDeclRow> DefaultRows { get; } = BuildDefaultRows();
+
+    private static IReadOnlyList<SegmentDeclRow> BuildDefaultRows()
+    {
+        var rows = new List<SegmentDeclRow>(Fixed.Count + 1);
+        foreach (var spec in Fixed)
+        {
+            rows.Add(new SegmentDeclRow(
+                spec.Key.Value, "system", (int)spec.Band,
+                WhenVocabulary.Always, SegmentRequirement.Optional,
+                AllowEmpty: false, Aliases: LegacyAliases(spec.Key.Value), Toggle: spec.Toggle, Provider: "catalog"));
+        }
+
+        rows.Add(new SegmentDeclRow(
+            BandTemplateKey, "system", (int)CacheBand.B0,
+            WhenVocabulary.Always, SegmentRequirement.Optional,
+            AllowEmpty: false, Aliases: null, Toggle: null, Provider: "catalog",
+            ExpandBands: true));
+        return rows;
+    }
+
+    /// <summary>回退口径（声明面缺失时的等价别名）：与 <c>prompt-segments.ushar</c> 声明同义，声明可覆盖。</summary>
+    private static IReadOnlyList<string>? LegacyAliases(string key) => key switch
+    {
+        "prompt.l1" => new[] { "session_input" },
+        "prompt.l2" => new[] { "session_window", "prompt" },
+        _ => null,
+    };
+
+    /// <summary>
+    /// 注入声明面（组合根调用一次）。重复注入不同内容 ⇒ 抛（声明必须是单源，禁运行期漂移）；
+    /// 相同内容 ⇒ 幂等。
+    /// </summary>
+    public static void Override(IReadOnlyList<SegmentDeclRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        lock (DeclaredGate)
+        {
+            if (_declared is not null)
+            {
+                if (_declared.Count == rows.Count && _declared.Zip(rows).All(static p => p.First.SameAs(p.Second)))
+                    return;
+                throw new InvalidOperationException("段声明面已注入且内容不同：禁止第二份段声明（说明面必须单源）");
+            }
+
+            _declared = rows.ToArray();
+        }
+    }
+
+    /// <summary>清除注入（测试/回退开关用）。</summary>
+    public static void Reset()
+    {
+        lock (DeclaredGate)
+        {
+            _declared = null;
+        }
+    }
+
+    /// <summary>按键取声明行（不存在 ⇒ null）。</summary>
+    public static SegmentDeclRow? RowOf(string key)
+        => Rows.FirstOrDefault(r => string.Equals(r.Key, key, StringComparison.Ordinal));
+
+    /// <summary>按键取固定段规格（取值委托；L0 分段族与动态段不在本表）。</summary>
+    public static SegmentSpec? FixedSpecOf(string key)
+        => Fixed.FirstOrDefault(s => string.Equals(s.Key.Value, key, StringComparison.Ordinal));
+
+    /// <summary>L0 分段族模板行（未声明 ⇒ null）。</summary>
+    public static SegmentDeclRow? BandTemplate
+        => Rows.FirstOrDefault(static r => r.ExpandBands);
 
     /// <summary>段键 → 缓存带（顺序单一权威；未知键 → B5 兜底，不抛）。L0 分段族 = B0（基底前缀）。</summary>
     public static CacheBand BandFor(AnchorKey key)

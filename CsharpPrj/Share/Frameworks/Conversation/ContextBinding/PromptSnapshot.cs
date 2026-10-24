@@ -10,7 +10,8 @@ namespace Share.Conversation.ContextBinding;
 internal sealed record PromptSnapshotData(
     string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
     string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null, string? Mode = null,
-    IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null, string? ResourceBlock = null);
+    IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null, string? ResourceBlock = null,
+    int SchemaVersion = 1);
 
 /// <summary>
 /// 写侧快照 —— provide_prompt 装配后捕获的真实 system 值（L0 / 填槽 L1 / L2 / 本轮选中 SkillBlock），
@@ -19,6 +20,15 @@ internal sealed record PromptSnapshotData(
 /// </summary>
 public sealed class PromptSnapshot
 {
+    /// <summary>当前快照 schema 版本（改字段必须先升版本 + 保 Legacy 读取路径）。</summary>
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>快照 schema 版本（旧归档 &lt; 当前 ⇒ <see cref="IsLegacy"/>）。</summary>
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
+
+    /// <summary>是否旧版本归档（按 Legacy 读取路径解释，UI 可见化时必须标注）。</summary>
+    public bool IsLegacy => SchemaVersion < CurrentSchemaVersion;
+
     public string L0 { get; init; } = string.Empty;
     public string SkillBlock { get; init; } = string.Empty;
     public string L1 { get; init; } = string.Empty;
@@ -67,7 +77,9 @@ public sealed class PromptSnapshot
 
     /// <summary>序列化为 JSON（落 __prompt_snapshot 归档；仅存段字段，Bindings/System 反序列化时重建）。</summary>
     public string ToJson()
-        => JsonSerializer.Serialize(new PromptSnapshotData(L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent, ResourceBlock));
+        => JsonSerializer.Serialize(new PromptSnapshotData(
+            L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent, ResourceBlock,
+            SchemaVersion));
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -77,10 +89,13 @@ public sealed class PromptSnapshot
         {
             var d = JsonSerializer.Deserialize<PromptSnapshotData>(json);
             if (d is null) return null;
-            return PromptSnapshotBuilder.Build(
+            var snapshot = PromptSnapshotBuilder.Build(
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
                 d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
-                d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent, resourceBlock: d.ResourceBlock);
+                d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent, resourceBlock: d.ResourceBlock,
+                schemaVersion: d.SchemaVersion <= 0 ? 1 : d.SchemaVersion);
+            // 旧归档（无 SchemaVersion 字段 ⇒ 0/1）按 Legacy 读取并显式标记来源，不静默当新版。
+            return snapshot;
         }
         catch (JsonException)
         {

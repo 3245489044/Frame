@@ -4,6 +4,7 @@ using System.Linq;
 using Operation.HierarchyMethod.Judgment;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Workflows;
+using Share.Composition.Text;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -61,16 +62,50 @@ public static class RoundContractJudge
     /// <param name="declaredPorts">声明产出端口。</param>
     /// <param name="produced">实际产出端口。</param>
     /// <param name="nullablePorts">允许显式 null 的端口（缺省 null = null 亦算缺失，零回归）；非空集合内的端口只在「键不存在」时算缺失（E7）。</param>
+    /// <param name="promptContract">
+    /// 提示词端口契约（可选）：命中契约的端口改走 <see cref="TextJudge"/>（与前置门同一判据），
+    /// 其余端口维持 <see cref="PortPresenceRule"/>。null ⇒ 全部走端口存在性判据（零回归）。
+    /// </param>
     public static IReadOnlyList<string> MissingPorts(
         IEnumerable<string>? declaredPorts, IReadOnlyDictionary<string, object?> produced,
-        IReadOnlyCollection<string>? nullablePorts = null)
+        IReadOnlyCollection<string>? nullablePorts = null,
+        TextContract? promptContract = null)
     {
         ArgumentNullException.ThrowIfNull(produced);
         if (declaredPorts is null) return Array.Empty<string>();
 
+        var declared = declaredPorts.Where(static p => !string.IsNullOrWhiteSpace(p)).ToArray();
+        if (promptContract is null)
+            return MissingPortsByPortRule(declared, produced, nullablePorts);
+
+        // 提示词端口（契约命中）→ TextJudge（与 PromptPreflight 同判据：空白串视为未给出）。
+        var promptPorts = declared
+            .Where(p => promptContract.Ports.Any(port => string.Equals(port.Key.Value, p, StringComparison.Ordinal)))
+            .ToArray();
+        var missing = new List<string>();
+        if (promptPorts.Length > 0)
+        {
+            var context = new SegmentContext(produced);
+            var plan = TextPlan.FromPorts(promptContract, context, BlankSemantics.Absent);
+            var verdict = TextJudge.Judge(plan, context, promptContract, BlankSemantics.Absent);
+            foreach (var key in verdict.Missing)
+                if (promptPorts.Contains(key.Value, StringComparer.Ordinal))
+                    missing.Add(key.Value);
+        }
+
+        // 非提示词端口：维持端口存在性判据。
+        var rest = declared.Where(p => !promptPorts.Contains(p, StringComparer.Ordinal)).ToArray();
+        missing.AddRange(MissingPortsByPortRule(rest, produced, nullablePorts));
+        return missing;
+    }
+
+    private static IReadOnlyList<string> MissingPortsByPortRule(
+        IReadOnlyList<string> declared, IReadOnlyDictionary<string, object?> produced,
+        IReadOnlyCollection<string>? nullablePorts)
+    {
         var input = new JudgmentInput(JudgmentScope.Step)
         {
-            DeclaredPorts = declaredPorts.Where(static p => !string.IsNullOrWhiteSpace(p)).ToArray(),
+            DeclaredPorts = declared,
             Fact = new JudgmentFact(produced),
             Capability = new DeclarationCapability(
                 NullablePorts: DeclarationCapability.Set(nullablePorts)),

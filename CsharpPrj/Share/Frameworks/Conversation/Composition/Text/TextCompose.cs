@@ -38,6 +38,8 @@ public static class TextCompose
                 .ToArray();
             var text = TextJoin.Apply(members.Select(static b => b.Text), policy.JoinFor(group));
 
+            if (policy.FinalTrim) text = text.Trim();
+            if (policy.DropBlankGroups && text.Trim().Length == 0) continue;
             if (text.Length == 0 && !policy.EmitEmptyGroups) continue;
             groups.Add(new GroupText(group, text, members));
         }

@@ -57,6 +57,15 @@ public static class DomOps
     /// <c>[dep]</c> 保留为向后兼容别名；新代码一律用 <see cref="Reconcile"/>。</summary>
     public const string Patch = Reconcile;
 
+    /// <summary>整体替换原语（第二落地原语，**非回退**）：由 <c>SectionPlan.BulkReplace</c> 显式选择，
+    /// 一次 DOM 赋值替代 N 次结构变更；仅对 stable 节，丢节内交互态（滚动锚由原语补偿）。
+    /// JS 承载 = <c>__uiReconcile.bulk</c>。</summary>
+    public const string Bulk = "bulk";
+
+    /// <summary>批处理原语（一拍一次跨进程）：逐节分派 apply/applyTree/bulk/set/append/trim，
+    /// 回串 <c>BATCH:[...]</c>（逐节 outcome）。JS 承载 = <c>__uiReconcile.batch</c>。</summary>
+    public const string Batch = "batch";
+
     public const string Get = "get";
     public const string Click = "click";
     public const string RealClick = "realclick";

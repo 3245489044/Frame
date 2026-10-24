@@ -222,9 +222,12 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
 
     /// <summary>键控对齐引擎（**唯一写原语**，恒开无回退）：**递归**按稳定键对齐复用 DOM 节点
     /// （保留 &lt;details&gt;.open / 焦点 / 滚动，免 save/restore 启发式）。document 级幂等守卫 <c>__uiReconcileInstalled</c>；
-    /// 提供 <c>apply(host,html)</c>（HTML 片段）、<c>applyTree(host,json)</c>（键控节点树）与
+    /// 提供 <c>apply(host,html)</c>（HTML 片段）、<c>applyTree(host,json)</c>（键控节点树）、
+    /// <c>bulk(host,html)</c>（第二原语：整节一次赋值，仅由 SectionPlan.BulkReplace 显式选择）、
+    /// <c>batch(ops)</c>（一拍一次跨进程：逐节分派）与
     /// <c>append(host,payload)</c>/<c>trim(host,payload)</c>（append-only 流原语：定点更新同名项 + 流首插入 + cap 裁尾 + 滚动锚补偿）。
-    /// 红线：不得再引入整块 <c>innerHTML</c> 落地回退（那是「第二条写落地」，与单写者不变量冲突）。</summary>
+    /// 红线：整块 <c>innerHTML</c> 仅可出现在 <c>bulk</c> 内（显式第二原语），**禁止**作为 apply/applyTree 失败后的回退路径
+    /// （回退会形成「第二条写落地」，与单写者不变量冲突）。</summary>
     internal static readonly string UiReconcileScript =
         "(function(){"
         + "if(document.__uiReconcileInstalled){return;}"
@@ -306,7 +309,14 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         + "window.__uiReconcile.lastAnomalies=lastAnomalies;return lastAnomalies.length?('OK:'+lastAnomalies.join(';')):'OK';}"
         + "function streamTrim(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var keep=(p&&p.keep)?p.keep:0;"
         + "if(keep>0){while(host.children.length>keep){host.removeChild(host.children[host.children.length-1]);}}return 'OK';}"
-        + "window.__uiReconcile={apply:apply,applyTree:applyTree,capture:capture,append:streamAppend,trim:streamTrim,lastAnomalies:[]};"
+        // 第二落地原语（Bulk）：整节一次赋值（滚动锚补偿，不恢复 details/focus —— Bulk 语义即丢节内交互态）。
+        // 仅由 SectionPlan.BulkReplace 显式选择（BulkThresholdPolicy 判定），禁作 apply/applyTree 的失败回退。
+        + "function findEl(name){if(!name){return null;}var a=document.querySelectorAll('[data-name]');for(var i=0;i<a.length;i++){if(a[i].getAttribute('data-name')===name){return a[i];}}return null;}"
+        + "function bulk(host,html){if(!host){return 'NOT_FOUND';}lastAnomalies=[];var sc=host.scrollTop||0,sl=host.scrollLeft||0;var atTop=sc<=2;var atBottom=(host.scrollHeight-sc-host.clientHeight)<=2;var tmp=document.createElement('div');var mb=/<body[^>]*>([\\s\\S]*)<\\/body>/i.exec(html);host.innerHTML=mb?mb[1]:html;if(atBottom){host.scrollTop=host.scrollHeight;}else if(atTop){host.scrollTop=0;}else{host.scrollTop=sc;host.scrollLeft=sl;}return 'OK';}"
+        + "function setLeaf(el,value){if(!el){return 'NOT_FOUND';}var t=(el.tagName||'').toUpperCase();if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'){el.value=value;}else if(el.classList&&el.classList.contains('host')){el.innerHTML=value;}else{el.textContent=value;}return 'OK';}"
+        // 批量入口（一拍一次跨进程）：逐节分派，回串 BATCH:[逐节 outcome]（禁整批当单结果）。
+        + "function batch(ops){var res=[];for(var i=0;i<ops.length;i++){var o=ops[i]||{};var st='UNKNOWN_OP';try{var h=findEl(o.name);if(o.op==='tree'){st=h?applyTree(h,o.tree,o.state||null):'NOT_FOUND';}else if(o.op==='html'){st=h?apply(h,o.html,o.state||null):'NOT_FOUND';}else if(o.op==='bulk'){st=h?bulk(h,o.html):'NOT_FOUND';}else if(o.op==='leaf'){st=setLeaf(h,o.value);}else if(o.op==='append'){st=h?streamAppend(h,o.payload):'NOT_FOUND';}else if(o.op==='trim'){st=h?streamTrim(h,o.payload):'NOT_FOUND';}}catch(e){st='FAIL';}res.push(st);}return 'BATCH:'+JSON.stringify(res);}"
+        + "window.__uiReconcile={apply:apply,applyTree:applyTree,bulk:bulk,batch:batch,setLeaf:setLeaf,capture:capture,append:streamAppend,trim:streamTrim,lastAnomalies:[]};"
         + "})();";
 
     /// <summary>DOM 指令执行模板：$OP/$NAME/$VALUE 由执行层 JSON 序列化展开（防引号转义漂移）。</summary>

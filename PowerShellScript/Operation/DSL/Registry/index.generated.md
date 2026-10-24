@@ -128,11 +128,12 @@
 | `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（16 件）
+## Meta（20 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `AntiPatternFamily` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1` |
+| `BulkThreshold` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BulkThreshold.ps1` |
 | `ContractRegistry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ContractRegistry.ps1` |
 | `DeclaredBundle` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1` |
 | `FallbackInventory` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-FallbackInventory.ps1` |
@@ -144,10 +145,13 @@
 | `OperationLayerIsolation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
 | `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
 | `PsCapabilityFileOnly` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1` |
+| `SectionWrite` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SectionWrite.ps1` |
 | `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
 | `UiBudget` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiBudget.ps1` |
 | `UiIncremental` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1` |
 | `UiSingleWrite` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1` |
+| `UiTelemetryFields` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiTelemetryFields.ps1` |
+| `WriteBudgetNodes` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
 ## Node（26 件）
 

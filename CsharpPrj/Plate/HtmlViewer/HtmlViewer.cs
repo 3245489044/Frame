@@ -151,6 +151,14 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         set => _contentWriter.PlanExecutor = value;
     }
 
+    /// <summary>带结果的计划执行器（S4）：流面据 <c>result.Status</c> 自愈（丢块/未就绪可判），未装配回退 <see cref="RenderPlanExecutor"/>。</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Func<UiBackend.Abstractions.UiWritePlan, Task<UiBackend.Abstractions.UiWriteResult>>? RenderPlanResultExecutor
+    {
+        get => _contentWriter.PlanResultExecutor;
+        set => _contentWriter.PlanResultExecutor = value;
+    }
+
     /// <summary>抢占式获取消息订阅权（撤销同控件名旧 owner）——后到者接管，顺序无关。</summary>
     public IDisposable AcquireMessageChannel(string controlName, EventHandler<HtmlMessageReceivedEventArgs> handler)
         => _messageRoutes.Acquire(controlName, handler);

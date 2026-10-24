@@ -8,7 +8,7 @@
     VerbClosureLayers = @{
         Value = @(
             'Frame\CsharpPrj\Plate\HtmlViewer\Abstractions\UiWritePlan.cs',
-            'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.cs',
+            'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.PlanWrite.cs',
             'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\DomOps.cs',
             'Frame\CsharpPrj\Plate\HtmlViewer\Html\Assets\HtmlAssetRegistry.cs'
         )
@@ -47,13 +47,14 @@
     }
 
     # B5：帧预算 + 指标 + 灰度开关（单源载体：选项 / 指标 / 协调器降级入口）。
+    # S2 起：预算主维度 = 节点数（MaxNodesPerBeat），MaxOpsPerFlush 降为辅助判据。
     WriteRuntimeContract = @{
         Value = @(
             @{ File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\UiWriteRuntimeOptions.cs';
-               Must = @('FrameBudget', 'InteractiveFastPath', 'MaxOpsPerFlush', 'MaxBytesPerFlush') },
+               Must = @('FrameBudget', 'InteractiveFastPath', 'MaxOpsPerFlush', 'MaxBytesPerFlush', 'MaxNodesPerBeat') },
             @{ File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\UiWriteMetrics.cs';
                Must = @('class UiWriteMetrics', 'CoalescedOps', 'DroppedOps', 'LastDegradeReason', 'ApplyLatencyP95Ms', 'StreamLagMs') },
-            @{ File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.cs';
+            @{ File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.PlanWrite.cs';
                Must = @('ApplyFrameBudget', 'OnDropped', 'ReportMetricsIfDue', 'InteractiveFastPath') }
         )
         Origin = 'Derived'

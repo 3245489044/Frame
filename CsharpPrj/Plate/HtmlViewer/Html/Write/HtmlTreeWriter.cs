@@ -33,14 +33,19 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
 
     private void Report(string category, string message) => _diagnostics.Report(category, message);
 
+    /// <summary>结构化序列化（单一口径）：与 <see cref="ReconcileAsync"/> 同 <see cref="JsonOptions"/>——供节批量写入口/去重共用。</summary>
+    public static string SerializeTree(UiNode tree) => JsonSerializer.Serialize(tree, JsonOptions);
+
+    /// <summary>交互态序列化（空/无 ⇒ <c>null</c>）。</summary>
+    public static string SerializeInteraction(UiInteractionSnapshot? interaction)
+        => interaction is null || interaction.IsEmpty ? "null" : JsonSerializer.Serialize(interaction, JsonOptions);
+
     public async Task<UiWriteResult> ReconcileAsync(string? rootName, UiNode tree, UiInteractionSnapshot? interaction = null, CancellationToken ct = default)
     {
         var name = rootName ?? string.Empty;
         var nameJson = JsonSerializer.Serialize(name);
-        var treeJson = JsonSerializer.Serialize(tree, JsonOptions);
-        var stateJson = interaction is null || interaction.IsEmpty
-            ? "null"
-            : JsonSerializer.Serialize(interaction, JsonOptions);
+        var treeJson = SerializeTree(tree);
+        var stateJson = SerializeInteraction(interaction);
         // 目标定位走属性等值匹配（不做 CSS 选择器拼接）：data-name 含引号/反斜杠/方括号时选择器会失效或注入。
         var script = "(function(){var n=" + nameJson + ";var a=document.querySelectorAll('[data-name]');var h=null;"
             + "for(var i=0;i<a.length;i++){if(a[i].getAttribute('data-name')===n){h=a[i];break;}}"

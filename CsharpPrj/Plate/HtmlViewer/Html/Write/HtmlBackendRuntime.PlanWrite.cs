@@ -169,7 +169,10 @@ public sealed partial class HtmlBackendRuntime
         // 封送排队探针（单源）：先清峰值，再按本轨迹窗口取峰值（区分「UI 线程被占」与「V8/DOM 执行慢」）。
         UiThreadMarshaler.TakePeakQueueWaitMs();
         var started = Environment.TickCount64;
-        var result = await WriteCoreAsync(effective, trace!, ct).ConfigureAwait(false);
+        // 节批量写入口（S2，灰度开关）：一拍一 batch、一次跨进程；关 ⇒ 旧逐目标路径（行为等价）。
+        var result = _options.UseSectionWriter
+            ? await SubmitAsync(SectionPlanAdapter.From(effective), source, trace, ct).ConfigureAwait(false)
+            : await WriteCoreAsync(effective, trace!, ct).ConfigureAwait(false);
         var elapsed = Environment.TickCount64 - started;
         var marshalWait = UiThreadMarshaler.TakePeakQueueWaitMs();
         _metrics.OnMarshalWait(marshalWait);

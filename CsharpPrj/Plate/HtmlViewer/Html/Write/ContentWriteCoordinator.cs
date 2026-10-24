@@ -23,6 +23,9 @@ public sealed class ContentWriteCoordinator
     /// <summary>写回计划执行器（单写落地）；未装配为 null。</summary>
     public Func<UiWritePlan, Task>? PlanExecutor { get; set; }
 
+    /// <summary>带结果的写回计划执行器（D6/S4：丢块与未就绪可判，不靠异常猜）；未装配为 null。</summary>
+    public Func<UiWritePlan, Task<UiWriteResult>>? PlanResultExecutor { get; set; }
+
     /// <summary>内容写回：有协调器且内容非空 ⇒ 经协调器落页；否则经 <paramref name="renderFallback"/> 整页渲染。</summary>
     public Task WriteAsync(string? html, UiWriteSource source, CancellationToken ct, Func<string?, CancellationToken, Task> renderFallback)
         => Writer is { } writer && !string.IsNullOrEmpty(html)

@@ -30,6 +30,14 @@ public sealed class UiWriteMetrics
     private long _uiThreadBlockMs;
     private long _streamLagMs;
     private long _marshalWaitPeakMs;
+    private long _beatNodes;
+    private long _beatBytes;
+    private long _beatCount;
+    private long _sectionsApplied;
+    private long _sectionsBulk;
+    private long _sectionsSkipped;
+    private long _droppedSections;
+    private long _queueMsPeak;
     private string? _lastDegradeReason;
 
     /// <summary>整文档渲染次数（稳态应 ≤ 1 次/分钟）。</summary>
@@ -58,6 +66,61 @@ public sealed class UiWriteMetrics
 
     /// <summary>最近一次降级原因（<see cref="DroppedOps"/>&gt;0 时必非空）。</summary>
     public string? LastDegradeReason { get { lock (_gate) return _lastDegradeReason; } }
+
+    /// <summary>累计写入节点数（主预算口径）。</summary>
+    public long BeatNodes => Interlocked.Read(ref _beatNodes);
+
+    /// <summary>累计写入字节数。</summary>
+    public long BeatBytes => Interlocked.Read(ref _beatBytes);
+
+    /// <summary>批次数（一拍一 batch）。</summary>
+    public long BeatCount => Interlocked.Read(ref _beatCount);
+
+    /// <summary>已落地节数。</summary>
+    public long SectionsApplied => Interlocked.Read(ref _sectionsApplied);
+
+    /// <summary>走 Bulk 原语的节数。</summary>
+    public long SectionsBulk => Interlocked.Read(ref _sectionsBulk);
+
+    /// <summary>未变跳过节数。</summary>
+    public long SectionsSkipped => Interlocked.Read(ref _sectionsSkipped);
+
+    /// <summary>被预算丢弃的节数（stream 可丢）。</summary>
+    public long DroppedSections => Interlocked.Read(ref _droppedSections);
+
+    /// <summary>封送排队峰值（毫秒；按拍窗口）。</summary>
+    public long QueueMsPeak => Interlocked.Read(ref _queueMsPeak);
+
+    /// <summary>每拍记账（节点/字节为主预算口径；dropped 必须可归因）。</summary>
+    public void OnBeat(int nodes, int bytes, int droppedSections, string? degradeReason = null)
+    {
+        Interlocked.Increment(ref _beatCount);
+        Interlocked.Add(ref _beatNodes, Math.Max(0, nodes));
+        Interlocked.Add(ref _beatBytes, Math.Max(0, bytes));
+        if (droppedSections > 0) Interlocked.Add(ref _droppedSections, droppedSections);
+        if (!string.IsNullOrEmpty(degradeReason)) lock (_gate) _lastDegradeReason = degradeReason;
+    }
+
+    /// <summary>单节记账（Bulk 计数用于 I9 复算）。</summary>
+    public void OnSection(SectionWriteMode mode, bool applied)
+    {
+        if (!applied)
+        {
+            Interlocked.Increment(ref _sectionsSkipped);
+            return;
+        }
+
+        Interlocked.Increment(ref _sectionsApplied);
+        if (mode == SectionWriteMode.BulkReplace) Interlocked.Increment(ref _sectionsBulk);
+    }
+
+    /// <summary>封送排队样本（按拍窗口，供 queueMs 分账复算）。</summary>
+    public void OnQueueWait(long queueMs)
+    {
+        var sample = Math.Max(0, queueMs);
+        Interlocked.Exchange(ref _queueMsPeak, sample);
+        OnMarshalWait(sample);
+    }
 
     /// <summary>整页渲染记账（“整页可被 Replace(shell) 替代”判据的分子）。</summary>
     public void OnRender(int bytes)
@@ -144,5 +207,8 @@ public sealed class UiWriteMetrics
         => $"renderCount={RenderCount}, renderBytes={RenderBytes}, plannedOps={PlannedOps}, " +
            $"applyP50={ApplyLatencyP50Ms:F1}ms, applyP95={ApplyLatencyP95Ms:F1}ms, uiThreadBlockMs={UiThreadBlockMs}, " +
            $"coalescedOps={CoalescedOps}, droppedOps={DroppedOps}, streamLagMs={StreamLagMs}, " +
-           $"marshalWaitPeakMs={MarshalWaitPeakMs}, degradeReason={(LastDegradeReason ?? "-")}";
+           $"marshalWaitPeakMs={MarshalWaitPeakMs}, degradeReason={(LastDegradeReason ?? "-")}, " +
+           $"beatCount={BeatCount}, batchNodes={BeatNodes}, batchBytes={BeatBytes}, " +
+           $"sectionsApplied={SectionsApplied}, sectionsBulk={SectionsBulk}, sectionsSkipped={SectionsSkipped}, " +
+           $"droppedSections={DroppedSections}, queueMsPeak={QueueMsPeak}";
 }

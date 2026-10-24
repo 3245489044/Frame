@@ -720,6 +720,38 @@
         Note   = 'UI 流原语闭合（B1 契约 / B2 协调器分支 / B3 DomOps 原语 / B4 JS 落地 / B5 负对照）；帧预算阈值随后续批扩项；基线 = Baselines\Meta\UiBudget.psd1'
     }
 
+    SectionWrite = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '写入单位 = 节（S1 基线层入面 / S2 ISurfaceWriter.SubmitAsync + 预算 + 批量脚本 / S3 UseSectionWriter + SectionPlanAdapter / S4 负对照）；基线 = Baselines\Meta\SectionWrite.psd1'
+    }
+
+    WriteBudgetNodes = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '预算主维度 = 节点数（B1 基线入面 / B2 选项+策略 / B3 写入口消费 MaxNodesPerBeat / B4 负对照）；基线 = Baselines\Meta\WriteBudgetNodes.psd1'
+    }
+
+    BulkThreshold = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '双原语（K1 基线入面 / K2 changeRatio + BulkReplace / K3 JS bulk 原语 / K4 负对照）；基线 = Baselines\Meta\BulkThreshold.psd1'
+    }
+
+    UiTelemetryFields = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '节/拍遥测字段（T1 基线入面 / T2 nodes/bytes/jsMs/outcome + batchNodes/lane/queueMs/droppedSections / T3 指标字段 / T4 msgId 注册 / T5 负对照）；基线 = Baselines\Meta\UiTelemetryFields.psd1'
+    }
+
     CircuitSemantics = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

@@ -67,6 +67,14 @@ public static class HtmlBridgeAssembly
             MaxOpsPerFlush = 64,
             MaxBytesPerFlush = 1536 * 1024,
             MaxMsPerFlush = 120,
+            // S2 转正：节批量写入口（一拍一 batch）；关掉即回旧逐目标路径（灰度回退）。
+            UseSectionWriter = true,
+            MaxNodesPerBeat = 1500,
+            MaxNodesPerBeatBackground = 500,
+            BulkNodeThreshold = 800,
+            BulkRatioThreshold = 0.5,
+            BulkReplaceEnabled = true,
+            StreamDroppable = true,
         };
         var writeMetrics = new UiWriteMetrics();
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
@@ -83,13 +91,21 @@ public static class HtmlBridgeAssembly
             sink("UiWriteOptions",
                 $"frameBudget={writeOptions.FrameBudget}, maxOps={writeOptions.MaxOpsPerFlush}, " +
                 $"maxBytes={writeOptions.MaxBytesPerFlush}, maxMs={writeOptions.MaxMsPerFlush}, " +
-                $"interactiveFastPath={writeOptions.InteractiveFastPath}, maxMsCap={writeOptions.MaxMsPerFlush}");
+                $"interactiveFastPath={writeOptions.InteractiveFastPath}, maxMsCap={writeOptions.MaxMsPerFlush}, " +
+                $"sectionWriter={writeOptions.UseSectionWriter}, maxNodesPerBeat={writeOptions.MaxNodesPerBeat}, " +
+                $"bulkNode={writeOptions.BulkNodeThreshold}, bulkRatio={writeOptions.BulkRatioThreshold:F2}");
             // P2 观测补漏：HtmlViewer 侧桥诊断（HtmlChannel_webmessage / HtmlChannel_inject_bridge / HtmlChannel_init_failed）
             // 此前只经 HtmlViewer.BridgeDiagnostics 发出、从未接日志门面 → 桥链断点（注入失败/收到 postMessage）全部静默被吞。
             // 统一接入同一 sink，使"点击无效却无日志"的断链在日志可见（对接 fde_log_messages 的 HtmlChannel_* msgId）。
             if (channel is HtmlViewer hv)
                 hv.BridgeDiagnostics += sink;
+            // 节/拍遥测（D6）：每节 nodes/bytes/jsMs/outcome + 每拍 batchNodes/lane/queueMs/droppedSections。
+            runtime.SectionTelemetry = line => sink("UiWriteSection", line);
         }
+
+        // S4 接线：流面「按结果自愈」需要带结果的执行器（未显式装配时由此兜底，职责仍属单写者）。
+        if (channel is HtmlViewer planViewer)
+            planViewer.RenderPlanResultExecutor ??= plan => runtime.ExecuteAsync(plan, plan.Source, plan.TraceId);
 
         host.AttachHtmlUi(runtime);
         host.AttachPageDeclaration(ExtractPage(uiConfig, hostControl, pageName));

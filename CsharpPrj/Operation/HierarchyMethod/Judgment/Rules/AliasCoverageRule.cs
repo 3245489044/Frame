@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Modules.Node.Ports;
+using Share.Composition.Text;
 
 namespace Operation.HierarchyMethod.Judgment;
 
@@ -25,10 +26,10 @@ public sealed class AliasCoverageRule : IJudgmentRule
             if (string.IsNullOrWhiteSpace(port)) continue;
 
             var presence = input.Fact.PresenceOf(port, input.Semantics);
-            if (presence == PortPresence.Value) continue;
+            if (presence.ToState() == TextState.Known) continue;
 
             var source = input.Capability.AliasesOf(port)
-                .FirstOrDefault(alias => input.Fact.PresenceOf(alias, input.Semantics) == PortPresence.Value);
+                .FirstOrDefault(alias => input.Fact.PresenceOf(alias, input.Semantics).ToState() == TextState.Known);
 
             if (source is not null)
             {

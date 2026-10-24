@@ -113,11 +113,14 @@
 | `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
 | `RuntimeMirror` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
 
-## KeySpace（2 件）
+## KeySpace（5 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
+| `DeclarationClosure` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-DeclarationClosure.ps1` |
 | `DispatchTraceSchema` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DispatchTraceSchema.ps1` |
+| `ExecutionOwnership` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-ExecutionOwnership.ps1` |
+| `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
 ## Meta（13 件）
@@ -176,18 +179,23 @@
 | `KeyGrammar` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（10 件）
+## Process（15 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `AnalysisDocGrounding` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-AnalysisDocGrounding.ps1` |
 | `BatchLineEndings` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
+| `DeclarationCapability` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-DeclarationCapability.ps1` |
 | `InvokeEntrypoints` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
+| `JudgmentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentParity.ps1` |
+| `JudgmentPoints` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1` |
 | `OrchestrationKernel` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1` |
 | `PreflightCost` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-PreflightCost.ps1` |
 | `RunConvergence` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-RunConvergence.ps1` |
+| `SpecExempt` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1` |
 | `TestDoubleParity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-TestDoubleParity.ps1` |
+| `TextKernelPurity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-TextKernelPurity.ps1` |
 | `VerifyProportionality` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifyProportionality.ps1` |
 | `VerifySingleShot` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifySingleShot.ps1` |
 

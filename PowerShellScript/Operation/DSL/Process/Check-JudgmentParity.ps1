@@ -5,7 +5,7 @@
 .DESCRIPTION
     C1 RoundContractJudge 调用 JudgmentEngine.Judge；
     C2 RoundContractJudge 不再出现 `Except(` 集合差判定体；
-    C3 PromptPreflight 调用 AliasCoverageRule，且不再自写 IsNullOrWhiteSpace 口径；
+    C3 PromptPreflight 走统一判据（TextJudge 或 AliasCoverageRule），且不再自写 IsNullOrWhiteSpace 口径；
     C4 对拍测试文件在位；
     C5 负对照：含 `Except(` 的合成样本必须被判违规。
 #>
@@ -29,7 +29,7 @@ function Get-ParityViolations {
     if (-not $KernelPresent) { $violations.Add('Judgment/ 内核目录缺失') }
     if ($JudgeText -notmatch 'JudgmentEngine\.Judge') { $violations.Add('RoundContractJudge 未转发 JudgmentEngine.Judge') }
     if ($JudgeText -match 'Except\(') { $violations.Add('RoundContractJudge 仍保留 Except( 判定体') }
-    if ($PreflightText -notmatch 'AliasCoverageRule') { $violations.Add('PromptPreflight 未接 AliasCoverageRule') }
+    if ($PreflightText -notmatch 'TextJudge|AliasCoverageRule') { $violations.Add('PromptPreflight 未走统一判据（TextJudge/AliasCoverageRule）') }
     if ($PreflightText -match 'IsNullOrWhiteSpace') { $violations.Add('PromptPreflight 仍自写 IsNullOrWhiteSpace 口径') }
     if (-not $TestPresent) { $violations.Add('JudgmentParityTests.cs 不在位') }
     return $violations

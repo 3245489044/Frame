@@ -8,7 +8,7 @@ namespace Operation.HierarchyMethod.Judgment;
 /// 判定引擎（纯函数）：过滤 AppliesTo → Specificity 降序 → 稳定序 → 逐条 Evaluate → 聚合。
 /// 禁止在本类内写领域分支、IO、日志或 throw。
 /// </summary>
-public static class JudgmentEngine
+public static partial class JudgmentEngine
 {
     public static JudgmentVerdict Judge(
         JudgmentInput input,

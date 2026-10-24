@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-21T05:52:03.3479811Z",
+  "builtAt": "2026-10-24T04:24:03.9231479Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -250,13 +250,13 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 121,
+      "total": 127,
       "truncated": false,
       "byRole": {
         "Gate": 7,
-        "Test": 38,
+        "Test": 43,
         "Declaration": 0,
-        "Code": 21,
+        "Code": 22,
         "Doc": 52,
         "Other": 3
       },
@@ -285,7 +285,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundContext.cs",
-          "line": 41,
+          "line": 42,
           "role": "Code",
           "text": "/// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+\"R\"+n</c> 已废除）。"
         },
@@ -627,6 +627,34 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Cost/CostReconcileCollectorTests.cs",
+          "line": 18,
+          "role": "Test",
+          "text": "private const string Round = \"task-1#R1\";"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Cost/CostReconcileCollectorTests.cs",
+          "line": 58,
+          "role": "Test",
+          "text": "Push(collector, \"other-scope\", \"CostRecorded\", 1, Payload(\"task-1#R999\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Cost/CostReconcileCollectorTests.cs",
+          "line": 59,
+          "role": "Test",
+          "text": "Push(collector, \"other-scope\", \"CostPriced\", 2, Payload(\"task-1#R999\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Cost/CostReconcileCollectorTests.cs",
+          "line": 60,
+          "role": "Test",
+          "text": "Push(collector, \"other-scope\", \"CostSpanPersisted\", 3, Payload(\"task-1#R999\"));"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/SessionFactContractTests.cs",
           "line": 103,
           "role": "Test",
@@ -666,6 +694,13 @@
           "line": 177,
           "role": "Test",
           "text": "Assert.AreEqual(\"#REF\", merged.BorderColor, \"StyleRef 中未被内联覆盖的字段应保留\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Governance.Tests/LimitKernelTests.cs",
+          "line": 191,
+          "role": "Test",
+          "text": "using (kernel.Enter(LimitScopeKind.Round, \"r1#R1\"))"
         },
         {
           "repo": "Main",
@@ -1107,6 +1142,13 @@
           "line": 55,
           "role": "Doc",
           "text": "| 取证（一轮全事实） | `Get-Content \"<dataDir>\\session-facts\\default\\default#R6.jsonl\"` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/Cost/CostBadgeProvider.cs",
+          "line": 23,
+          "role": "Code",
+          "text": "private static readonly Regex RoundKey = new(\"#R(?<n>\\\\d+)$\", RegexOptions.Compiled);"
         }
       ]
     },
@@ -1406,14 +1448,14 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 356,
+      "total": 360,
       "truncated": false,
       "byRole": {
         "Gate": 4,
-        "Test": 74,
+        "Test": 76,
         "Declaration": 5,
-        "Code": 43,
-        "Doc": 166,
+        "Code": 44,
+        "Doc": 167,
         "Other": 64
       },
       "hits": [
@@ -1497,21 +1539,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundRuntime.cs",
-          "line": 46,
+          "line": 47,
           "role": "Code",
           "text": "// （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
-          "line": 63,
+          "line": 66,
           "role": "Code",
           "text": "// （IsCollectToken）时追加非 ur_nodes 事实（P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
-          "line": 215,
+          "line": 251,
           "role": "Code",
           "text": "/// 追加「附加输入源」到整包（P4-2 机制②）：把非 ur_nodes 事实（如过程域 <c>proc.*</c>）并入 <c>nodes.*</c>。"
         },
@@ -2116,6 +2158,13 @@
           "line": 122,
           "role": "Doc",
           "text": "proc.<taskKey>                          // 现有过程 run 容器（可复用，不另建真源）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-执行体必走工作流与降级兜底-通用框架重构与施工单.md",
+          "line": 503,
+          "role": "Doc",
+          "text": "| M3 | PS 任务 `workflow-plan`/`workflow-step` 帧 > 0 | `proc.*` 帧 |"
         },
         {
           "repo": "Main",
@@ -2788,6 +2837,20 @@
           "line": 99,
           "role": "Test",
           "text": "return proc is not null && proc.HasExited && proc.ExitCode == 0;"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 89,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r1.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 102,
+          "role": "Test",
+          "text": "\"观测帧非空 ⇒ canonical 的 proc.* 条目被剔除（双写期去重）\");"
         },
         {
           "repo": "Main",
@@ -3814,7 +3877,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-          "line": 151,
+          "line": 161,
           "role": "Code",
           "text": "// K3：识别产物帧（type:\"node\"）经**唯一写门**落库 —— 过程节点进入 proc.* 域，轮末随既有沉淀路径物化"
         },
@@ -3891,23 +3954,30 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 227,
+          "line": 294,
           "role": "Code",
           "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 403,
+          "line": 524,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 404,
+          "line": 525,
           "role": "Code",
           "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ObservabilityMessageMerge.cs",
+          "line": 21,
+          "role": "Code",
+          "text": "/// <summary>合并帧与 canonical 消息（canonical 的 <c>proc.*</c> 条目在帧非空时剔除，保持双写期去重语义）。</summary>"
         }
       ]
     },
@@ -3916,14 +3986,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 151,
+      "total": 154,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
-        "Code": 77,
-        "Doc": 57,
+        "Code": 79,
+        "Doc": 58,
         "Other": 1
       },
       "hits": [
@@ -4021,7 +4091,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 703,
+          "line": 721,
           "role": "Code",
           "text": "if (relations is null || relations.Count == 0) continue;"
         },
@@ -4084,28 +4154,28 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 62,
+          "line": 63,
           "role": "Code",
           "text": "await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 107,
+          "line": 108,
           "role": "Code",
           "text": "await _relations.AttachTaskAsync(cmd.History.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 113,
+          "line": 114,
           "role": "Code",
           "text": "return _relations.DetachTaskAsync(cmd.History.Value, cmd.Task.Value, ct);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 130,
+          "line": 131,
           "role": "Code",
           "text": "await _relations.DeleteAsync(cmd.Key.Value, ct).ConfigureAwait(false);"
         },
@@ -4126,21 +4196,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 69,
+          "line": 70,
           "role": "Code",
           "text": "await _relations.CreateAsync(hid, name: Nodes.Keys.KeyAddressing.ContainerName(name, hid), ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 76,
+          "line": 77,
           "role": "Code",
           "text": ": _relations.AttachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 82,
+          "line": 83,
           "role": "Code",
           "text": ": _relations.DetachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
         },
@@ -4332,6 +4402,13 @@
           "line": 87,
           "role": "Doc",
           "text": "nodeKey       = \"relations.{workflowId}.{relationId}\"   # 直录 SQL NodeKey，便于 1:1 对账/审计"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-Agent.Ui重复冗余错误逻辑-重构方案.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "- 位置：`Core/Functions/Batch/AgentWriteSources.cs:199-234`（`IHistoryStore.DeleteAsync + relations.DeleteAsync`） / `Core/Functions/History/AgentUiLibraryHistory.cs:369-385`（`IHistoryCommandPort.DeleteAsy"
         },
         {
           "repo": "Main",
@@ -4791,7 +4868,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/NodeWrite/SyncRelationsBlock.cs",
-          "line": 66,
+          "line": 64,
           "role": "Code",
           "text": "var members = await _relations.GetTaskKeysAsync(key, cancellationToken).ConfigureAwait(false);"
         },
@@ -4818,99 +4895,113 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentUiLibraryCleanup.cs",
+          "line": 274,
+          "role": "Code",
+          "text": "return await relations.GetTaskKeysAsync(key, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
-          "line": 234,
+          "line": 221,
           "role": "Code",
           "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 546,
+          "line": 304,
+          "role": "Code",
+          "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
+          "line": 547,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 226,
+          "line": 134,
+          "role": "Code",
+          "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
+          "line": 264,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 247,
-          "role": "Code",
-          "text": ": relations.GetTaskKeysAsync(hid, CancellationToken.None).GetAwaiter().GetResult();"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 297,
+          "line": 314,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 348,
+          "line": 349,
           "role": "Code",
           "text": "// ---- 声明式构建 + 图维护（relations.* / graph.*）----"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 352,
+          "line": 353,
           "role": "Code",
           "text": "/// <summary>主动声明关系（relations.declare）：经守卫写 ur_nodes + 推导边。未装配守卫返回诊断。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 357,
+          "line": 358,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.declare 不可用：请经完整框架路径装配引用层。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 359,
+          "line": 360,
           "role": "Code",
           "text": "return \"（缺少声明）relations.declare 需提供 declarations[]（relationId + from/to/refType）。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 364,
+          "line": 365,
           "role": "Code",
           "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 369,
+          "line": 370,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.undeclare 不可用。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 371,
+          "line": 372,
           "role": "Code",
           "text": "return \"（缺少 relationIds）relations.undeclare 需提供 relationIds[]。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 376,
+          "line": 377,
           "role": "Code",
           "text": "/// <summary>列出声明（relations.list）为文本。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 380,
+          "line": 381,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.list 不可用。\";"
         },
@@ -4995,10 +5086,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 2,
-        "Test": 93,
+        "Test": 90,
         "Declaration": 0,
-        "Code": 155,
-        "Doc": 149,
+        "Code": 156,
+        "Doc": 151,
         "Other": 1
       },
       "hits": [
@@ -5649,77 +5740,77 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 164,
+          "line": 171,
           "role": "Code",
           "text": "// ---- 会话图子图（方案 C：会话 = LiteDB 引用关系连接的节点；Id = session.{name}） ----"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 168,
+          "line": 175,
           "role": "Code",
           "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像（会话图子图锚点；缺省=无会话时的图条目展示锚）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 76,
+          "line": 83,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKind, UsharpScalar.Str(session.Owner.Kind.ToString())),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 77,
+          "line": 84,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKey, UsharpScalar.Str(session.Owner.Key)),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 78,
+          "line": 85,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldRole, UsharpScalar.Str(session.Role.ToString())),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 79,
+          "line": 86,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldAgent, UsharpScalar.Str(session.Agent)),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 80,
+          "line": 87,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(session.CreatedAt.ToString(\"O\"))),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 82,
+          "line": 89,
           "role": "Code",
           "text": "var text = _codec.SerializeRecord(\"session:\" + session.Key.Value, TableId, session.Key.Value, record);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 83,
+          "line": 90,
           "role": "Code",
           "text": "ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params((\"k\", session.Key.Value), (\"d\", text)));"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 139,
+          "line": 140,
           "role": "Code",
           "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 140,
+          "line": 141,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
@@ -6138,6 +6229,13 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Plate/DataManage/StorageFramework/Sqlite/SqliteTableReader.cs",
+          "line": 44,
+          "role": "Code",
+          "text": "return session.ExecuteQuery($\"SELECT * FROM [{table}] LIMIT {take} OFFSET {off}\");"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Share/Composition/UniversalMiddleware/Rendering/ConfigRenderPipeline.cs",
           "line": 44,
           "role": "Code",
@@ -6436,6 +6534,20 @@
           "line": 100,
           "role": "Doc",
           "text": "- **待实测 reader**：`conversation-identity.json` / `history.json` / `session.json` / `task.json`（`Search-Repo -Untracked` 定位；EmptyResultGate：未命中 ≠ 不存在）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-子智能体工作流UI不可见-节点实例身份与轮次结果单一来源-通用框架设计与施工单.md",
+          "line": 55,
+          "role": "Doc",
+          "text": "session:session.task_member_b06bba17bc40829a"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-PowerShellHost-通用框架提取分析.md",
+          "line": 273,
+          "role": "Doc",
+          "text": "| `PsRuntimeHost.Restart/DrainStderr/StderrTail`（`:495-547`） | `PowerShellStdioSession` | 直接迁入 | `PsRuntimeHost` 只读 `session.StderrTail` |"
         },
         {
           "repo": "Main",
@@ -7461,6 +7573,223 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 47,
+          "role": "Test",
+          "text": "var ready = await session.StartAsync(line =>"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 56,
+          "role": "Test",
+          "text": "var readId = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 59,
+          "role": "Test",
+          "text": "var response = await session.RequestAsync("
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 67,
+          "role": "Test",
+          "text": "var listId = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 70,
+          "role": "Test",
+          "text": "var response = await session.RequestAsync("
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
+          "line": 80,
+          "role": "Test",
+          "text": "await session.DisposeAsync();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 46,
+          "role": "Test",
+          "text": "var hello = await session.StartAsync(line => line.Contains(\"\\\"ready\\\"\", StringComparison.Ordinal)"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 52,
+          "role": "Test",
+          "text": "Assert.IsTrue(session.IsRunning);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 54,
+          "role": "Test",
+          "text": "var id = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 55,
+          "role": "Test",
+          "text": "var response = await session.RequestAsync("
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 79,
+          "role": "Test",
+          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 81,
+          "role": "Test",
+          "text": "var id = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 82,
+          "role": "Test",
+          "text": "var response = await session.RequestAsync("
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 106,
+          "role": "Test",
+          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 108,
+          "role": "Test",
+          "text": "var id = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 110,
+          "role": "Test",
+          "text": "() => session.RequestAsync(id, PowerShellStdioSession.BuildRequestJson(id, \"slow\", null)));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 113,
+          "role": "Test",
+          "text": "Assert.IsFalse(session.IsRunning, \"超时必须杀进程树（不得保留半死会话）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 116,
+          "role": "Test",
+          "text": "() => session.RequestAsync(\"99\", PowerShellStdioSession.BuildRequestJson(\"99\", \"ping\", null)));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 137,
+          "role": "Test",
+          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 139,
+          "role": "Test",
+          "text": "var id = session.NextId();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 140,
+          "role": "Test",
+          "text": "await session.RequestAsync(id, PowerShellStdioSession.BuildRequestJson(id, \"stderr\", null));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 143,
+          "role": "Test",
+          "text": "while (session.StderrTail.Count < 16 && elapsed.Elapsed < TimeSpan.FromSeconds(10))"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 146,
+          "role": "Test",
+          "text": "Assert.IsTrue(session.StderrTail.Count <= 16,"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 147,
+          "role": "Test",
+          "text": "$\"stderr 尾部必须有界（实际 {session.StderrTail.Count}）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 148,
+          "role": "Test",
+          "text": "Assert.IsTrue(session.StderrTail.Count > 0, \"stderr 应被持续排空\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 169,
+          "role": "Test",
+          "text": "() => session.StartAsync(line => line.Contains(\"\\\"failure\\\"\", StringComparison.Ordinal)"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 174,
+          "role": "Test",
+          "text": "Assert.IsFalse(session.IsRunning, \"握手失败必须释放进程\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 193,
+          "role": "Test",
+          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 194,
+          "role": "Test",
+          "text": "Assert.IsTrue(session.IsRunning);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 196,
+          "role": "Test",
+          "text": "await session.DisposeAsync();"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
+          "line": 198,
+          "role": "Test",
+          "text": "Assert.IsFalse(session.IsRunning);"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Productions/ContentWriteSingleSourceTests.cs",
           "line": 94,
           "role": "Test",
@@ -7563,244 +7892,6 @@
           "line": 196,
           "role": "Test",
           "text": "Assert.AreEqual(\"value1\", session.Get<string>(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 203,
-          "role": "Test",
-          "text": "Assert.IsNull(session.Get<string>(\"nonexistent\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 209,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 211,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.Has(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 212,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Has(\"nonexistent\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 218,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 220,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.Remove(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 221,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Has(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 228,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Remove(\"nonexistent\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 234,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 235,
-          "role": "Test",
-          "text": "session.Set(\"key2\", \"value2\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 237,
-          "role": "Test",
-          "text": "session.Clear();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 238,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Has(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 239,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.Has(\"key2\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 245,
-          "role": "Test",
-          "text": "session.Expire();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 247,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.IsExpired);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 253,
-          "role": "Test",
-          "text": "session.Expire(\"timeout\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 255,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.IsExpired);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 256,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"timeout\", session.ExpirationReason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 262,
-          "role": "Test",
-          "text": "var before = session.LastAccessed;"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 265,
-          "role": "Test",
-          "text": "session.Touch();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 267,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.LastAccessed > before);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 273,
-          "role": "Test",
-          "text": "session.Expire();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 276,
-          "role": "Test",
-          "text": "session.Touch());"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 282,
-          "role": "Test",
-          "text": "session.Expire();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 285,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 291,
-          "role": "Test",
-          "text": "session.Expire();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 294,
-          "role": "Test",
-          "text": "session.Get<string>(\"key1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 301,
-          "role": "Test",
-          "text": "Assert.AreEqual(0, session.ItemCount);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 302,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 303,
-          "role": "Test",
-          "text": "Assert.AreEqual(1, session.ItemCount);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 304,
-          "role": "Test",
-          "text": "session.Set(\"key2\", \"value2\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 305,
-          "role": "Test",
-          "text": "Assert.AreEqual(2, session.ItemCount);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 306,
-          "role": "Test",
-          "text": "session.Remove(\"key1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 307,
-          "role": "Test",
-          "text": "Assert.AreEqual(1, session.ItemCount);"
         }
       ]
     },
@@ -7809,14 +7900,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 286,
+      "total": 336,
       "truncated": false,
       "byRole": {
         "Gate": 3,
-        "Test": 66,
-        "Declaration": 41,
-        "Code": 12,
-        "Doc": 163,
+        "Test": 78,
+        "Declaration": 52,
+        "Code": 20,
+        "Doc": 182,
         "Other": 1
       },
       "hits": [
@@ -7840,6 +7931,41 @@
           "line": 72,
           "role": "Other",
           "text": "@{ Id = 'kind.toolcall';   Kind = 'Vocabulary'; Pattern = 'tool-call';   Note = '识别词表条目（过程类别）' }"
+        },
+        {
+          "repo": "Frame",
+          "file": "TypeScriptPrj/TsWorkspace/ClineApi/src/daemon.ts",
+          "line": 159,
+          "role": "Code",
+          "text": "if (type === \"tool-call\") {"
+        },
+        {
+          "repo": "Frame",
+          "file": "TypeScriptPrj/TsWorkspace/ClineApi/src/daemon.ts",
+          "line": 163,
+          "role": "Code",
+          "text": "type: \"tool-call\","
+        },
+        {
+          "repo": "Frame",
+          "file": "TypeScriptPrj/TsWorkspace/ClineApi/src/transport/agent-tools.ts",
+          "line": 4,
+          "role": "Code",
+          "text": "* 执行不在这里发生：`execute` 只发 `tool-call` 帧给 daemon，由 C# 侧"
+        },
+        {
+          "repo": "Frame",
+          "file": "TypeScriptPrj/TsWorkspace/ClineApi/src/transport/sdk-transport.ts",
+          "line": 390,
+          "role": "Code",
+          "text": "// ---- agent 工具回桥（P1）：tool-call 帧 → C# ToolFaceHost → tool-result 帧 ----"
+        },
+        {
+          "repo": "Frame",
+          "file": "TypeScriptPrj/TsWorkspace/ClineApi/src/transport/sdk-transport.ts",
+          "line": 420,
+          "role": "Code",
+          "text": "`${JSON.stringify({ type: \"tool-call\", toolCallId, name, arguments: args ?? {} })}\\n`"
         },
         {
           "repo": "Frame",
@@ -8305,6 +8431,76 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-Cline-PS工作流委派-实施记录.md",
+          "line": 15,
+          "role": "Doc",
+          "text": "| R1 回桥 | 新增 daemon 反向帧（`tool-call` / `tool-result`），零新依赖 | `daemon.ts`、`engine-main.ts`、`ClineDaemonIpc`、`ClineDaemonHost` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-Cline-PS工作流委派-实施记录.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "- `engine-main.ts`：识别 `tool-result` 反向帧；`daemon.ts`：中继 `tool-call`、透传 `tool-result`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-会话发送与轮次装配-实施记录.md",
+          "line": 95,
+          "role": "Doc",
+          "text": "1. **G5 身份闭环**：`ClineApi`（TS）tool-call 帧写 `runKey`（需重建 ClineApi）；C# 侧已能消费。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-会话发送与轮次装配-通用框架提取与缺陷修复-设计与施工单.md",
+          "line": 329,
+          "role": "Doc",
+          "text": "1. **首选**：在 cline tool-call 帧中增加 `runKey`（TS 侧从会话上下文取），`ClineDaemonHost` 映射到 `ToolInvokeRequest.TaskKey`（`ClineDaemonHost.cs:133-135`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-会话发送与轮次装配-通用框架提取与缺陷修复-设计与施工单.md",
+          "line": 425,
+          "role": "Doc",
+          "text": "| `Agent.Modules/Cline/Cline/Pool/ClineDaemonHost.cs` | tool-call 帧携带 `runKey` → `ToolInvokeRequest.TaskKey`；缺省走 worker→run 映射 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-会话发送与轮次装配-通用框架提取与缺陷修复-设计与施工单.md",
+          "line": 521,
+          "role": "Doc",
+          "text": "3. **Cline tool-call 帧能否携带 `runKey`**：需查 `ClineApi/src/transport/sdk-transport.ts` 的 tool-call 回传结构与 daemon 帧协议；不能则只能走 worker→run 映射兜底。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-执行体必走工作流与降级兜底-通用框架重构与施工单.md",
+          "line": 285,
+          "role": "Doc",
+          "text": "- 非降级会话的 `tool-call` 帧中 `run_commands` 计数 = 0（`recognizers.json` 已把 `tool-call` 识别为独立 kind）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-执行体必走工作流与降级兜底-通用框架重构与施工单.md",
+          "line": 365,
+          "role": "Doc",
+          "text": "| 工具禁用 | `tool-call` 帧（零 `run_commands`） | 判据 = 计数为 0 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-执行体必走工作流与降级兜底-通用框架重构与施工单.md",
+          "line": 501,
+          "role": "Doc",
+          "text": "| M1 | 非降级会话 `run_commands` 调用数 = 0 | `tool-call` 帧计数 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.22/2026-10-22-执行体必走工作流与降级兜底-通用框架重构与施工单.md",
+          "line": 587,
+          "role": "Doc",
+          "text": "2. **P1 实验**：同一会话 ⇒ `tool-call` 帧无 `run_commands`；`delegate_subagent` 仍在工具面。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.4/2026-10-04-运行日志分析-函数调用链-工具调用上屏测试.md",
           "line": 115,
           "role": "Doc",
@@ -8536,6 +8732,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/Agent/plans/2026-10-23-subagent-function-test-failure-and-false-green.md",
+          "line": 64,
+          "role": "Doc",
+          "text": "| outputTextBox tool-call | PASS | **恒真**：同样是 `agent_tag` 回显 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/Agent/plans/2026-10-23-subagent-function-test-failure-and-false-green.md",
+          "line": 70,
+          "role": "Doc",
+          "text": "`agent_tag` 由发布侧原样回填（[SubAgentResultEnvelope.cs](file:///d:/Project/Main/Projects/Plug/Agent/src/Agent.Contract/Runtime/SubAgent/SubAgentResultEnvelope.cs)），因此 `tool-catalog`/`tool-call` 这两条断言不验证任何产物。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/Agent/plans/2026-10-23-subagent-function-test-failure-and-false-green.md",
+          "line": 121,
+          "role": "Doc",
+          "text": "| 3 tool-call | 新增 `\"status\": \"success\"`；`tool-call` 保留，另加产物串 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
           "line": 113,
           "role": "Doc",
@@ -8547,6 +8764,34 @@
           "line": 19,
           "role": "Doc",
           "text": "一个被广泛持有的隐含假设是：提示词分级是一种适用于任何场景的\"写作技巧精进\"。本文的第一个主张是反驳这一假设——**分级并非普遍最佳实践，而是由两个前提条件共同触发的结构性必然**：**循环**（multi-turn iterative execution，多轮迭代执行）与 **Agent**（autonomous, tool-calling, goal-directed operation，自主"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
+          "line": 20,
+          "role": "Test",
+          "text": "\"tools\": [\"tool\", \"tool-call\", \"tool-progress\", \"tool-result\"],"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
+          "line": 29,
+          "role": "Test",
+          "text": "\"tool-call\": { \"family\": \"tools\", \"titleKey\": \"tool\", \"summary\": [\"tool\", \"input\"], \"badge\": \"调用\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
+          "line": 49,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tools\", classification.Kinds[\"tool-call\"].GroupKey);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 72,
+          "role": "Test",
+          "text": "Msg(ConversationRole.Tool, \"tool-call\", 1, \"只有过程项\"),"
         },
         {
           "repo": "Main",
@@ -8607,16 +8852,44 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 29,
+          "line": 30,
           "role": "Test",
           "text": "{ \"seq\": 1, \"kind\": \"tool-call\", \"atUtc\": \"t1\", \"tool\": \"read_files\" },"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 49,
+          "line": 50,
           "role": "Test",
           "text": "new[] { \"tool-call\", \"stage\", \"done\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 118,
+          "role": "Test",
+          "text": "\"tools\": [\"tool-call\", \"tool-result\"],"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 123,
+          "role": "Test",
+          "text": "\"tool-call\": { \"family\": \"tools\", \"titleKey\": \"tool\", \"summary\": [\"tool\", \"input\"], \"badge\": \"调用\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 132,
+          "role": "Test",
+          "text": "+ \"{\\\"seq\\\":1,\\\"kind\\\":\\\"tool-call\\\",\\\"atUtc\\\":\\\"t1\\\",\\\"tool\\\":\\\"read_files\\\",\\\"input\\\":\\\"{}\\\"},\""
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 146,
+          "role": "Test",
+          "text": "StringAssert.Contains(messages[0].Text, \"read_files\", \"tool-call 文本按声明 summary（tool,input）\");"
         },
         {
           "repo": "Main",
@@ -8778,6 +9051,20 @@
           "line": 54,
           "role": "Test",
           "text": "Assert.AreEqual(\"tool-call\", tool!.SubAgentTag);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/SubAgent/ToolInvokeStepHandlerTests.cs",
+          "line": 22,
+          "role": "Test",
+          "text": "Agent = \"tool-call\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/SubAgent/ToolInvokeStepHandlerTests.cs",
+          "line": 109,
+          "role": "Test",
+          "text": "\"tp_tool\", \"tool-call\", SubAgentExecutorIds.SingleStep,"
         },
         {
           "repo": "Main",
@@ -8956,6 +9243,20 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
+          "line": 64,
+          "role": "Test",
+          "text": "[\"tool-call\"] = new(\"tool-call\", \"tools\", \"调用\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
+          "line": 365,
+          "role": "Test",
+          "text": "new ConversationRenderItem(ConversationRole.Tool, \"tool-call\", null, \"read_files · {}\", 1)));"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
           "line": 21,
           "role": "Test",
@@ -9048,14 +9349,14 @@
         {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_multi_subagent_test.json",
-          "line": 31,
+          "line": 33,
           "role": "Declaration",
           "text": "{ \"template\": \"echo-section\", \"title\": \"[B] 成员 1：tool-call（单工具结构化调用；input = {tool:{name,arguments}}）\" },"
         },
         {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_group/agent_group_multi_subagent_test.json",
-          "line": 32,
+          "line": 34,
           "role": "Declaration",
           "text": "{ \"action\": \"exec\", \"target\": \"AgentUi_RunJson\", \"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"ag_grp_m_tc\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"input\\\":\\\"{\\\\\\\"tool\\\\\\\":{\\\\\\\""
         },
@@ -9124,6 +9425,118 @@
         },
         {
           "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 7,
+          "role": "Declaration",
+          "text": "\"title\": \"子智能体单步功能测试：tool-catalog index/describe、tool-call 直调、写工具幂等门、非法 op、未登记标签负对照（本地优先，零真实 API）\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 350,
+          "role": "Declaration",
+          "text": "\"title\": \"[3] 用例 3/6：tool-call 确定性直调 tool_catalog_index → 断言结果节点含 tool-call + tool_catalog_index\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 355,
+          "role": "Declaration",
+          "text": "\"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"sa_fn_call\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"active\\\":true,\\\"input\\\":\\\"{\\\\\\\"tool\\\\\\\":{\\\\\\\"name\\\\\\\":\\\\\\\"tool_catalog_index\\\\\\"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 387,
+          "role": "Declaration",
+          "text": "\"target\": \"text-contains outputTextBox tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 405,
+          "role": "Declaration",
+          "text": "\"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"sa_fn_badkey\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"active\\\":true,\\\"input\\\":\\\"{\\\\\\\"tool\\\\\\\":{\\\\\\\"name\\\\\\\":\\\\\\\"db_write_node\\\\\\\",\\"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_function_test.json",
+          "line": 739,
+          "role": "Declaration",
+          "text": "\"title\": \"子智能体单步功能测试完成：1=index 完成；2=describe 域展开；3=tool-call 直调；4=缺幂等键拒绝；5=非法 op 拒绝；6=未登记标签不派生执行腿（NotStarted + 无结果节点）。全程本地优先，零真实 API。\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_ui_display_test.json",
+          "line": 51,
+          "role": "Declaration",
+          "text": "{ \"template\": \"echo-section\", \"title\": \"[4] 判据二-数据面：入队 subAgentTag=tool-call（active=false，休眠不执行）→ attachTask 归拢 default 历史 → overview 出现 taskKey/标签/派生执行腿\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_ui_display_test.json",
+          "line": 52,
+          "role": "Declaration",
+          "text": "{ \"action\": \"exec\", \"target\": \"AgentUi_RunJson\", \"value\": \"requestJson={\\\"action\\\":\\\"task\\\",\\\"op\\\":\\\"enqueue\\\",\\\"taskKey\\\":\\\"sa_ui_tc\\\",\\\"subAgentTag\\\":\\\"tool-call\\\",\\\"active\\\":false,\\\"input\\\":\\\"SA_UI"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_ui_display_test.json",
+          "line": 65,
+          "role": "Declaration",
+          "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox tool-call\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_ui_display_test.json",
+          "line": 68,
+          "role": "Declaration",
+          "text": "{ \"template\": \"echo-section\", \"title\": \"[5] 判据二-UI 面：当前选中历史（default）的任务窗口板卡片出现 tag 芯片 tool-call + 执行腿芯片 subagent-single-step；左树 sa_ui_hist 仍为空容器\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/agent_subagent_ui_display_test.json",
+          "line": 75,
+          "role": "Declaration",
+          "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox tool-call\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/README.md",
+          "line": 14,
+          "role": "Doc",
+          "text": "| `agent_subagent_function_test` | **单步功能**：`tool-catalog` index/describe、`tool-call` 确定性直调、写工具幂等门、非法 op、未登记标签负对照 | 本地（零 AI，确定性） |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/README.md",
+          "line": 35,
+          "role": "Doc",
+          "text": "- 声明真源：`Plug/Agent/Config/subagents.ushar`（`tool-catalog` / `tool-call` 均为 `step_mode=single`）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/README.md",
+          "line": 53,
+          "role": "Doc",
+          "text": "| `sa_fn_call` | `tool-call` + `{\"tool\":{\"name\":\"tool_catalog_index\",\"arguments\":{}}}` | `Completed`；结果节点含 `tool-call` + `tool_catalog_index` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/README.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "| `sa_fn_badkey` | `tool-call` + `db_write_node` 且缺 `idempotency_key` | `Faulted`；结果节点含 `failure` |"
+        },
+        {
+          "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/agent_subagent/README.md",
+          "line": 111,
+          "role": "Doc",
+          "text": "4. **单步 `tool-call` 不走 `ToolCallSubAgentTools`**：`ToolInvokeStepHandler` 直接调 `IToolInvoker`；`ToolCallSubAgentTools` 只在 loop 腿装配领域工具时使用。要覆盖该 provider，需在 `Agent.Modules.Tests` 补单元测试。"
+        },
+        {
+          "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_usharp/README.md",
           "line": 40,
           "role": "Doc",
@@ -9138,6 +9551,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Information/DrivenConfig/Scripts/Agent/README.md",
+          "line": 29,
+          "role": "Doc",
+          "text": "| **子智能体单步功能** | `agent_subagent/agent_subagent_function_test` | 带标签 task → `subagent-single-step`：`tool-catalog` index/describe、`tool-call` 确定性直调、写工具幂等门、非法 op、未登记标签负对照；强判据 = 任务终态 + 结果节点 `result:<task"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/collaboration.ushar",
           "line": 24,
           "role": "Declaration",
@@ -9146,7 +9566,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/history-loop.ushar",
-          "line": 34,
+          "line": 35,
           "role": "Declaration",
           "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
         },
@@ -9181,56 +9601,56 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 56,
+          "line": 59,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 73,
+          "line": 76,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 82,
+          "line": 88,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 102,
+          "line": 108,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 114,
+          "line": 120,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 126,
+          "line": 132,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 148,
+          "line": 157,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 158,
+          "line": 168,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
@@ -9272,21 +9692,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 75,
+          "line": 77,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 136,
+          "line": 138,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/recognizers.json",
-          "line": 272,
+          "line": 274,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
         },
@@ -9321,21 +9741,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 54,
+          "line": 69,
           "role": "Declaration",
           "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 55,
+          "line": 70,
           "role": "Declaration",
           "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 57,
+          "line": 72,
           "role": "Declaration",
           "text": "skills = tool-call"
         },
@@ -9769,16 +10189,37 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/RecognizedKinds.cs",
-          "line": 38,
+          "line": 44,
           "role": "Code",
           "text": "public const string ToolCall = \"tool-call\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 205,
+          "line": 221,
           "role": "Code",
           "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonHost.cs",
+          "line": 122,
+          "role": "Code",
+          "text": "WriteToolResult(callId, false, null, \"tool-call 缺 name\");"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonIpc.cs",
+          "line": 33,
+          "role": "Code",
+          "text": "/// <summary>收到反向工具调用帧（type:\"tool-call\"）时触发（参数 = 原始 JSON 行），供宿主执行工具面并回填 tool-result。</summary>"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonIpc.cs",
+          "line": 73,
+          "role": "Code",
+          "text": "if (resp.Type == \"tool-call\")"
         },
         {
           "repo": "Projects",
@@ -10423,13 +10864,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1462.0,
+    "hitCount": 1525.0,
     "byRole": {
       "Gate": 22,
-      "Test": 302,
-      "Declaration": 73,
-      "Code": 344,
-      "Doc": 646,
+      "Test": 318,
+      "Declaration": 84,
+      "Code": 357,
+      "Doc": 669,
       "Other": 75
     },
     "truncatedFacts": [
@@ -10438,15 +10879,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 422
+        "lines": 428
       },
       {
         "repo": "Projects",
-        "lines": 427
+        "lines": 465
       },
       {
         "repo": "Main",
-        "lines": 808
+        "lines": 890
       }
     ]
   }

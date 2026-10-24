@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Share.Composition.Text;
 
 namespace Share.Composition;
 
@@ -11,14 +12,14 @@ public static class KernelJoins
 {
     /// <summary>
     /// 空行拼接：按序过滤空段后以 <c>\n\n</c> 分隔。
-    /// 权威语义 = <see cref="TextComposer.JoinNonEmpty"/>（提示词 / 文本 / 快照 system 段共用）。
+    /// 权威语义 = <see cref="JoinPolicy.BlankLine"/>（提示词 / 文本 / 快照 system 段共用）。
     /// </summary>
     public static string BlankLine(IReadOnlyList<IComponent> components)
-        => TextComposer.JoinNonEmpty(components.OrderBy(c => c.Order).Select(TextOf));
+        => TextJoin.Apply(components.OrderBy(c => c.Order).Select(TextOf), JoinPolicy.BlankLine);
 
     /// <summary>原样首尾相接（无分隔、不过滤空段；模板填充等由消费方另行处理）。</summary>
     public static string Concat(IReadOnlyList<IComponent> components)
-        => string.Concat(components.OrderBy(c => c.Order).Select(TextOf));
+        => TextJoin.Apply(components.OrderBy(c => c.Order).Select(TextOf), JoinPolicy.Concat);
 
     /// <summary>
     /// 序列空行拼接（<c>string.Join("\n\n", …)</c> 原义）—— <b>不过滤空段</b>。
@@ -27,7 +28,7 @@ public static class KernelJoins
     /// </summary>
     /// <param name="parts">片段序列（null → 空串）。</param>
     public static string JoinAll(IEnumerable<string?>? parts)
-        => parts is null ? string.Empty : string.Join("\n\n", parts);
+        => TextJoin.Apply(parts, JoinPolicy.KeepAll);
 
     /// <summary>取部件文本表示（null → 空串）。</summary>
     public static string TextOf(IComponent component) => component.Content?.ToString() ?? string.Empty;

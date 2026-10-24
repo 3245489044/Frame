@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
+using Share.Composition.Text;
 
 namespace Share.Conversation.ContextBinding;
 
@@ -33,16 +32,17 @@ public static class PromptSnapshotBuilder
             .Where(b => b is not null && !string.IsNullOrWhiteSpace(b.Text))
             .ToArray();
 
-        var bindings = new List<MessageBinding>(8);
-        // L0 段：分段时逐段发射 prompt.l0.<技能名>（UI 一文件一气泡）；未分段回退单一 prompt.l0。
+        // 段集合 → 声明（L0 分段族 / 固定段），装配与绑定由通用内核（Plan → Compose）单点产出，
+        // 本类只做「提示词域声明 → 通用段声明」的映射，不再自行判空/排序/发射。
+        var specs = new List<TextSpec>(bands.Length + PromptSegmentCatalog.Fixed.Count);
         if (bands.Length > 0)
         {
             foreach (var band in bands)
-                Add(bindings, PromptSegmentCatalog.L0BandKey(band.Name), band.Text);
+                specs.Add(SpecOf(PromptSegmentCatalog.L0BandKey(band.Name), band.Text));
         }
         else
         {
-            Add(bindings, AnchorKey.PromptL0, l0);
+            specs.Add(SpecOf(AnchorKey.PromptL0, l0));
         }
 
         // 其余固定段：键 / 顺序 / 档案开关 全部由段目录**单一驱动**（新增段只改目录 ⇒ 不再漏发射/漏投影）。
@@ -52,10 +52,18 @@ public static class PromptSnapshotBuilder
         foreach (var spec in PromptSegmentCatalog.Fixed)
         {
             if (spec.Key == AnchorKey.PromptL0) continue; // L0 由上方分段族/回退处理
-            if (spec.Toggle is not null && enabledToggles is not null && !enabledToggles.Contains(spec.Toggle))
-                continue;
-            Add(bindings, spec.Key, spec.Produce(inputs));
+            var declared = spec;
+            specs.Add(new TextSpec(
+                new TextKey(declared.Key.Value),
+                GroupName,
+                new OrderKey((int)declared.Band),
+                static _ => true,
+                _ => BlockOf(declared.Key, declared.Produce(inputs)),
+                Toggle: declared.Toggle));
         }
+
+        var plan = TextPlanBuilder.Build(specs, new SegmentContext(toggles: enabledToggles));
+        var assembly = TextCompose.Compose(plan, ComposePolicy.SingleGroup(GroupName));
 
         return new PromptSnapshot
         {
@@ -70,19 +78,33 @@ public static class PromptSnapshotBuilder
             Mode = mode ?? string.Empty,
             SubAgent = subAgent ?? string.Empty,
             ResourceBlock = resourceBlock ?? string.Empty,
-            // 顺序单一权威：按 CacheBand 升序稳定排序（B0 分段族 → B1 能力 → B2/B3 → B5 本轮）；
-            // OrderBy 稳定 ⇒ Band 内保持原声明序（L0 分段族保文件序）。
-            Bindings = bindings.OrderBy(b => PromptSegmentCatalog.BandFor(b.Key)).ToList(),
+            // 顺序单一权威 = 内核（OrderKey 升序 + 声明序稳定）；本类不再二次排序。
+            Bindings = assembly.Bindings
+                .Where(static b => b.State == TextState.Known)
+                .Select(static b => new MessageBinding(
+                    new AnchorKey(b.Key.Value), MessageOrigin.LlmSystem, FeedTarget.System, b.TextHash))
+                .ToList(),
         };
     }
 
-    private static void Add(List<MessageBinding> bindings, AnchorKey key, string text)
-    {
-        if (string.IsNullOrEmpty(text)) return;
-        bindings.Add(new MessageBinding(key, MessageOrigin.LlmSystem, FeedTarget.System, Hash(text)));
-    }
+    /// <summary>提示词段所属的通用组标签（唯一出现组语义的地方）。</summary>
+    private const string GroupName = "system";
 
-    /// <summary>文本 SHA256 十六进制摘要（确定性；空/非法 → 空串哈希）。</summary>
-    public static string Hash(string? text)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text ?? string.Empty)));
+    /// <summary>按段目录的缓存带映射通用序键（顺序语义留在域内）。</summary>
+    private static TextSpec SpecOf(AnchorKey key, string? text)
+        => new(
+            new TextKey(key.Value),
+            GroupName,
+            new OrderKey((int)PromptSegmentCatalog.BandFor(key)),
+            static _ => true,
+            _ => BlockOf(key, text));
+
+    /// <summary>域值 → 四态：空/缺失一律显式 <see cref="TextState.Empty"/>，不再以 null 承载语义。</summary>
+    private static TextBlock BlockOf(AnchorKey key, string? text)
+        => string.IsNullOrEmpty(text)
+            ? TextBlock.Blank(new TextKey(key.Value))
+            : TextBlock.Filled(new TextKey(key.Value), text);
+
+    /// <summary>文本 SHA256 十六进制摘要（确定性；空/非法 → 空串哈希）。权威实现 = <see cref="TextDigest.Hash"/>。</summary>
+    public static string Hash(string? text) => TextDigest.Hash(text);
 }

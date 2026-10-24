@@ -1219,5 +1219,13 @@
         Expect = 0
         Note   = '声明能力闭合（K5/K7）：nullable=/conditional= 端口必须 ⊆ outports；负对照：未知能力端口必须判违规'
     }
+
+    TextKernelPurity = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '通用文本代数纯度：零领域常量 · 裸判空仅语义承担位 · TextState/Apply/Compose/From 四单源；负对照防恒真'
+    }
 }
 

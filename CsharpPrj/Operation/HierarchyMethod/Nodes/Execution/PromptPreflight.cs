@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Operation.HierarchyMethod.Judgment;
+using Share.Composition.Text;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -47,13 +47,9 @@ public static class PromptPreflight
             ["session_window"] = new[] { "l2" },
         };
 
-    private static readonly IReadOnlyList<IJudgmentRule> Rules = new IJudgmentRule[]
-    {
-        new AliasCoverageRule(),
-    };
-
     /// <summary>
-    /// 解析前置条件（判据唯一实现 = <see cref="AliasCoverageRule"/>）。
+    /// 解析前置条件（判据唯一实现 = <see cref="TextJudge"/>）：必填端口 → 契约 → 轻量计划 → 结论。
+    /// <para>空白口径 = <see cref="BlankSemantics.Absent"/>（提示词域空白串视为未给出）；别名派生同一判据内完成。</para>
     /// </summary>
     /// <param name="ports">工作流参数空间（可空）。</param>
     /// <param name="required">声明面必填端口（空/未声明 ⇒ 直接 Resolved(<c>declaration-off</c>)）。</param>
@@ -62,24 +58,38 @@ public static class PromptPreflight
         if (required is not { Count: > 0 })
             return PromptPreflightResult.Resolved(Array.Empty<string>(), "declaration-off");
 
-        var input = new JudgmentInput(JudgmentScope.Preflight)
-        {
-            DeclaredPorts = required.Where(static p => !string.IsNullOrWhiteSpace(p)).ToArray(),
-            Fact = new JudgmentFact(ports ?? new Dictionary<string, object?>(StringComparer.Ordinal)),
-            Capability = new DeclarationCapability(Aliases: Aliases),
-            Semantics = PresenceSemantics.PromptPreflight,
-        };
+        var contract = BuildContract(required);
+        var context = new SegmentContext(ports);
+        var plan = TextPlan.FromPorts(contract, context, BlankSemantics.Absent);
+        var verdict = TextJudge.Judge(plan, context, contract, BlankSemantics.Absent);
 
-        var verdict = JudgmentEngine.Judge(input, Rules);
-        var missing = verdict.Violations.SelectMany(static f => f.Subjects)
-            .Where(static p => !string.IsNullOrWhiteSpace(p))
+        var missing = verdict.Missing
+            .Select(static k => k.Value)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(static p => p, StringComparer.Ordinal)
             .ToArray();
-        var derived = verdict.Findings.Any(static f => f.Code == AliasCoverageRule.DerivedCode);
 
         return missing.Length == 0
-            ? PromptPreflightResult.Resolved(required, derived ? "derived" : "declared")
+            ? PromptPreflightResult.Resolved(required, verdict.Derived.Count > 0 ? "derived" : "declared")
             : PromptPreflightResult.MissingPortsOf(required, missing, "缺少必填提示词端口：" + string.Join("/", missing));
+    }
+
+    /// <summary>必填端口 → 契约（需求量/可空/别名全部来自声明，判定里不再另写一套）。</summary>
+    private static TextContract BuildContract(IReadOnlyList<string> required)
+    {
+        var ports = new List<PortSpec>(required.Count);
+        foreach (var port in required)
+        {
+            var name = (port ?? string.Empty).Trim();
+            if (name.Length == 0) continue;
+
+            ports.Add(new PortSpec(
+                new TextKey(name),
+                SegmentRequirement.Required,
+                AllowEmpty: false,
+                Aliases: Aliases.TryGetValue(name, out var aliases) ? aliases : Array.Empty<string>(),
+                Applicable: static _ => true));
+        }
+        return new TextContract(ports);
     }
 }

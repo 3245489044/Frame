@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Modules.Node.Ports;
+using Share.Composition.Text;
 using Operation.HierarchyMethod.Nodes.Execution;
 
 namespace Operation.HierarchyMethod.Judgment;
@@ -23,9 +24,10 @@ public sealed class PortPresenceRule : IJudgmentRule
             if (string.IsNullOrWhiteSpace(port)) continue;
 
             var presence = input.Fact.PresenceOf(port, input.Semantics);
-            if (presence == PortPresence.Value) continue;
-            if (presence == PortPresence.ExplicitNull && input.Capability.IsNullable(port)) continue;
-            if (presence == PortPresence.Absent && input.Capability.IsConditional(port)) continue;
+            var state = presence.ToState();
+            if (state == TextState.Known) continue;
+            if (state == TextState.Empty && input.Capability.IsNullable(port)) continue;
+            if (state == TextState.Unknown && input.Capability.IsConditional(port)) continue;
 
             findings.Add(new JudgmentFinding(
                 Name,

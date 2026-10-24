@@ -13,6 +13,10 @@
       B3 原语层：DomOps 声明 Append/Trim 常量；
       B4 JS 层：HtmlAssetRegistry 注册 `append:streamAppend` 与 `trim:streamTrim`（缺失即落地断链）；
       B5 负对照：缺 `case UiWriteKind.Append:` 的合成样本必须判违规（防判据恒真）。
+      B6 刷新分层：RegionRenderPipeline 的 Tick 唯一产地（AsTick）只允许 Leaf 动词；
+      B7 气泡段流契约：方向枚举 / JS 方向分支 / 段键前缀 / 渲染器分段入口（四层）；
+      B10 帧预算/指标/灰度开关：选项 + 指标 + 降级入口三载体结构事实；
+      B8/B9/B11 负对照：合成「Tick 产树」「无方向分支」「缺开关」样本必须判违规。
 
     模式：默认报告（不设退出码）；-Check 时违规 → 退出码 1。
 #>
@@ -91,9 +95,107 @@ if ($missingInSynthetic.Count -eq 0)
     $violations.Add('[B5] 负对照失效：缺 Append/Trim 分支的合成样本未被判违规（判据恒真）')
 }
 
+# ---------------- 结构事实判定原语（单源：正/负对照共用同一判定） ----------------
+function Get-MissingTokens {
+    param([string]$Text, [object[]]$Must)
+    return @($Must | Where-Object { $Text.IndexOf([string]$_, [StringComparison]::Ordinal) -lt 0 })
+}
+
+# B6：Tick 只产叶子（唯一产地 AsTick 的函数体窗口判据：必含 Tick/Leaf，禁区域/树/流动词）
+function Test-TickBody {
+    param([string]$Text, [hashtable]$Spec)
+    $entry = [string]$Spec.EntryToken
+    $idx = $Text.IndexOf($entry, [StringComparison]::Ordinal)
+    if ($idx -lt 0) { return @{ Ok = $false; Reason = "缺 Tick 唯一产地「$entry」" } }
+    $len = [Math]::Min([int]$Spec.WindowRadius, $Text.Length - $idx)
+    $window = $Text.Substring($idx, $len)
+    foreach ($t in @([string]$Spec.TickToken, [string]$Spec.LeafToken)) {
+        if ($window.IndexOf($t, [StringComparison]::Ordinal) -lt 0) {
+            return @{ Ok = $false; Reason = "Tick 产地缺结构事实「$t」" }
+        }
+    }
+    foreach ($f in @($Spec.ForbiddenTokens)) {
+        if ($window.IndexOf([string]$f, [StringComparison]::Ordinal) -ge 0) {
+            return @{ Ok = $false; Reason = "Tick 产地出现禁用动词「$f」" }
+        }
+    }
+    return @{ Ok = $true; Reason = '' }
+}
+
+$tickSpec = $baseline.TickPath.Value
+$tickRel = [string]$tickSpec.Pipeline
+$tickAbs = Join-Path $Root $tickRel
+if (-not (Test-Path -LiteralPath $tickAbs))
+{
+    $violations.Add("[B6] 判据无标的（文件不在位）：$tickRel")
+}
+else
+{
+    $tickResult = Test-TickBody -Text (Get-Content -LiteralPath $tickAbs -Raw -Encoding UTF8) -Spec $tickSpec
+    if (-not $tickResult.Ok) { $violations.Add("[B6] $($tickResult.Reason)：$tickRel") }
+    elseif ($ShowDetail) { Write-Host "  [B6] $tickRel Tick 产地已核（只产叶子）" -ForegroundColor DarkGray }
+}
+
+# B7：气泡段流契约四层（方向枚举 / JS 方向分支 / 段键前缀 / 渲染器分段入口）
+$streamLayers = @($baseline.StreamSectionContract.Value)
+if ($streamLayers.Count -eq 0) { $violations.Add('[B7] 基线缺 StreamSectionContract（判据无标的）') }
+foreach ($layer in $streamLayers)
+{
+    $layerRel = [string]$layer.File
+    $layerAbs = Join-Path $Root $layerRel
+    if (-not (Test-Path -LiteralPath $layerAbs))
+    {
+        $violations.Add("[B7] 层文件不在位：$layerRel")
+        continue
+    }
+
+    $layerText = Get-Content -LiteralPath $layerAbs -Raw -Encoding UTF8
+    $missing = @(Get-MissingTokens -Text $layerText -Must @($layer.Must))
+    foreach ($m in $missing) { $violations.Add("[B7] 缺结构事实「$m」：$layerRel") }
+    if ($ShowDetail -and $missing.Count -eq 0) { Write-Host "  [B7] $layerRel 已核（$(@($layer.Must).Count) 项）" -ForegroundColor DarkGray }
+}
+
+# B10：帧预算 + 指标 + 灰度开关（三载体结构事实：选项 / 指标 / 降级入口）
+$runtimeLayers = @($baseline.WriteRuntimeContract.Value)
+if ($runtimeLayers.Count -eq 0) { $violations.Add('[B10] 基线缺 WriteRuntimeContract（判据无标的）') }
+foreach ($layer in $runtimeLayers)
+{
+    $layerRel = [string]$layer.File
+    $layerAbs = Join-Path $Root $layerRel
+    if (-not (Test-Path -LiteralPath $layerAbs))
+    {
+        $violations.Add("[B10] 层文件不在位：$layerRel")
+        continue
+    }
+
+    $layerText = Get-Content -LiteralPath $layerAbs -Raw -Encoding UTF8
+    $missing = @(Get-MissingTokens -Text $layerText -Must @($layer.Must))
+    foreach ($m in $missing) { $violations.Add("[B10] 缺结构事实「$m」：$layerRel") }
+    if ($ShowDetail -and $missing.Count -eq 0) { Write-Host "  [B10] $layerRel 已核（$(@($layer.Must).Count) 项）" -ForegroundColor DarkGray }
+}
+
+# B11 负对照：缺开关的合成选项样本必须判缺（防预算/开关判据恒真）
+$negativeOptions = 'public sealed record UiWriteRuntimeOptions { public bool SingleWrite { get; init; } = true; }'
+$negativeOptionMissing = @(Get-MissingTokens -Text $negativeOptions -Must @('SingleWrite', 'FrameBudget', 'InteractiveFastPath'))
+if ($negativeOptionMissing.Count -eq 0) { $violations.Add('[B11] 负对照失效：缺开关样本未被判缺（判据恒真）') }
+
+# B8 负对照：合成「Tick 产树」样本必须判违规（防 Tick 判据恒真）
+$negativeTick = 'private static RenderOutput AsTick(UiWritePlan plan) { var leaf = UiWriteKind.Leaf; ' +
+                'return RenderOutput.Write(UiWritePlan.Trees(trees, null, null, null, UiWriteSource.Tick)); }'
+$negativeTickResult = Test-TickBody -Text $negativeTick -Spec @{
+    EntryToken = 'AsTick('; TickToken = 'UiWriteSource.Tick'; LeafToken = 'UiWriteKind.Leaf'
+    ForbiddenTokens = @('UiWritePlan.Trees('); WindowRadius = 600
+}
+if ($negativeTickResult.Ok) { $violations.Add('[B8] 负对照失效：合成「Tick 产树」样本未被判违规（判据恒真）') }
+
+# B9 负对照：缺方向分支的合成流原语必须判缺（防段流契约判据恒真）
+$negativeStream = 'function streamAppend(host,payload){items.forEach(function(it){host.appendChild(it);});}'
+$negativeMissing = @(Get-MissingTokens -Text $negativeStream -Must @('direction', 'oldestFirst'))
+if ($negativeMissing.Count -eq 0) { $violations.Add('[B9] 负对照失效：无方向分支样本未被判缺（判据恒真）') }
+
 if ($violations.Count -eq 0)
 {
-    Write-Host '[OK] UiBudget：Append/Trim 契约-协调器-原语-JS 四层闭合；负对照绿。' -ForegroundColor Green
+    Write-Host '[OK] UiBudget：Append/Trim 四层闭合 + Tick 只产叶子 + 气泡段流契约 + 帧预算/指标/开关；正/负对照全绿。' -ForegroundColor Green
     exit 0
 }
 

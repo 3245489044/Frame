@@ -15,6 +15,8 @@ public enum DomOpStatus
     NotFound,
     /// <summary>桥补丁态模块未就绪（写回层据此按显式策略处置，非静默丢刷新）。</summary>
     StateNotReady,
+    /// <summary>桥本身未就绪（脚本注入未完成；与"未知回串"区分，供补注入自愈定向判断）。</summary>
+    BridgeNotReady,
     /// <summary>元素存在但不可见（真实点击坐标不可解析）。</summary>
     NotVisible,
 }
@@ -29,6 +31,7 @@ public static class DomOps
             "OK" => DomOpStatus.Ok,
             "NOT_FOUND" => DomOpStatus.NotFound,
             "STATE_NOT_READY" => DomOpStatus.StateNotReady,
+            "BRIDGE_NOT_READY" => DomOpStatus.BridgeNotReady,
             "NOT_VISIBLE" => DomOpStatus.NotVisible,
             _ => DomOpStatus.Unknown,
         };

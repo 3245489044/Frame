@@ -28,13 +28,28 @@ public enum UiWriteKind
 
     /// <summary>流裁剪（保留流首 N 项；payload = <see cref="UiStreamTrim"/>）。</summary>
     Trim,
+
+    /// <summary>同拍组合（树 + 流 + 叶子，按载荷形态分派；顺序 = 树 → 流 → 叶子）。
+    /// payload 判别：<see cref="UiNode"/> / <see cref="UiStreamAppend"/> / string。</summary>
+    Composite,
 }
 
 /// <summary>流项（append-only 面单条）：<paramref name="Key"/> 为稳定键（同键 ⇒ 定点更新，不新增行）。</summary>
 public sealed record UiStreamItem(string Key, string Html);
 
-/// <summary>流追加载荷：<paramref name="Items"/> 按「新→旧」序（流首为最新）；<paramref name="Cap"/> 为流长度上限（null/≤0 = 不裁）。</summary>
-public sealed record UiStreamAppend(IReadOnlyList<UiStreamItem> Items, int? Cap = null);
+/// <summary>流方向（DOM 序）：<see cref="NewestFirst"/> = 流首为最新（日志/过程帧）；<see cref="OldestFirst"/> = 流尾为最新（会话气泡）。</summary>
+public enum UiStreamDirection
+{
+    NewestFirst = 0,
+    OldestFirst,
+}
+
+/// <summary>流追加载荷：<paramref name="Items"/> 按「新→旧」序；<paramref name="Cap"/> 为流长度上限（null/≤0 = 不裁）；
+/// <paramref name="Direction"/> 决定插入端与裁剪端（缺省 NewestFirst = 日志语义，零回归）。</summary>
+public sealed record UiStreamAppend(
+    IReadOnlyList<UiStreamItem> Items,
+    int? Cap = null,
+    UiStreamDirection Direction = UiStreamDirection.NewestFirst);
 
 /// <summary>流裁剪载荷：保留流首 <paramref name="Keep"/> 项（≤0 = 不裁）。</summary>
 public sealed record UiStreamTrim(int Keep);
@@ -44,33 +59,35 @@ public readonly record struct UiWriteTarget(string? Name, object? Payload);
 
 /// <summary>
 /// 写回计划（L1 通用契约）——业务/渲染侧唯一产出形态；由写协调器（单写者）独占执行，产出 <see cref="UiWriteResult"/>。
-/// <paramref name="Interaction"/> 为键控对齐后回放的交互态（滚动/焦点）；<paramref name="TraceId"/> 为刷新链路追踪号（一次刷新一条轨迹）。
+/// <paramref name="Interaction"/> 为键控对齐后回放的交互态（滚动/焦点）；<paramref name="TraceId"/> 为刷新链路追踪号（一次刷新一条轨迹）；
+/// <paramref name="Source"/> 为写回来源（决定收敛窗口/合并优先级；Tick 只允许易变叶子目标）。
 /// </summary>
 public sealed record UiWritePlan(
     UiWriteKind Kind,
     IReadOnlyList<UiWriteTarget> Targets,
     string? Fingerprint = null,
     UiInteractionSnapshot? Interaction = null,
-    string? TraceId = null)
+    string? TraceId = null,
+    UiWriteSource Source = UiWriteSource.Mount)
 {
     /// <summary>不写（显式空计划）。</summary>
     public static UiWritePlan Skip { get; } = new(UiWriteKind.Skip, Array.Empty<UiWriteTarget>());
 
     /// <summary>单区域计划（HTML 片段写作载荷）。</summary>
-    public static UiWritePlan Region(string regionName, string html, string? fingerprint = null)
-        => new(UiWriteKind.Region, new[] { new UiWriteTarget(regionName, html) }, fingerprint);
+    public static UiWritePlan Region(string regionName, string html, string? fingerprint = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Region, new[] { new UiWriteTarget(regionName, html) }, fingerprint, null, null, source);
 
     /// <summary>多区域计划。</summary>
-    public static UiWritePlan Regions(IReadOnlyList<UiWriteTarget> regions, string? fingerprint = null)
-        => new(UiWriteKind.Region, regions, fingerprint);
+    public static UiWritePlan Regions(IReadOnlyList<UiWriteTarget> regions, string? fingerprint = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Region, regions, fingerprint, null, null, source);
 
     /// <summary>键控节点树计划（单区域）。</summary>
-    public static UiWritePlan Tree(string regionName, UiNode tree, string? fingerprint = null)
-        => new(UiWriteKind.Tree, new[] { new UiWriteTarget(regionName, tree) }, fingerprint);
+    public static UiWritePlan Tree(string regionName, UiNode tree, string? fingerprint = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Tree, new[] { new UiWriteTarget(regionName, tree) }, fingerprint, null, null, source);
 
     /// <summary>键控节点树计划（多区域；每目标 payload = <see cref="UiNode"/>）。</summary>
-    public static UiWritePlan Trees(IReadOnlyList<UiWriteTarget> trees, UiInteractionSnapshot? interaction = null, string? fingerprint = null, string? traceId = null)
-        => new(UiWriteKind.Tree, trees, fingerprint, interaction, traceId);
+    public static UiWritePlan Trees(IReadOnlyList<UiWriteTarget> trees, UiInteractionSnapshot? interaction = null, string? fingerprint = null, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Tree, trees, fingerprint, interaction, traceId, source);
 
     /// <summary>带追踪号的键控节点树计划（多区域）。</summary>
     public static UiWritePlan TreesTraced(IReadOnlyList<UiWriteTarget> trees, UiInteractionSnapshot? interaction, string? traceId)
@@ -92,18 +109,29 @@ public sealed record UiWritePlan(
         => new(UiWriteKind.Leaf, new[] { new UiWriteTarget(name, value) });
 
     /// <summary>多点叶子定点写计划（替换易变叶子值，不重渲染区域）。</summary>
-    public static UiWritePlan Leaves(IReadOnlyList<UiWriteTarget> leaves, UiInteractionSnapshot? interaction = null, string? traceId = null)
-        => new(UiWriteKind.Leaf, leaves, null, interaction, traceId);
+    public static UiWritePlan Leaves(IReadOnlyList<UiWriteTarget> leaves, UiInteractionSnapshot? interaction = null, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Leaf, leaves, null, interaction, traceId, source);
 
     /// <summary>流追加计划（append-only 面单点落地；<paramref name="items"/> 按「新→旧」序）。</summary>
-    public static UiWritePlan Append(string stream, IReadOnlyList<UiStreamItem> items, int? cap = null)
-        => new(UiWriteKind.Append, new[] { new UiWriteTarget(stream, new UiStreamAppend(items, cap)) });
+    public static UiWritePlan Append(
+        string stream, IReadOnlyList<UiStreamItem> items, int? cap = null,
+        UiStreamDirection direction = UiStreamDirection.NewestFirst, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Append, new[] { new UiWriteTarget(stream, new UiStreamAppend(items, cap, direction)) }, null, null, null, source);
+
+    /// <summary>多流追加计划（每目标 `Name`=流名、payload=<see cref="UiStreamAppend"/>）。</summary>
+    public static UiWritePlan AppendMany(IReadOnlyList<UiWriteTarget> streams, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Append, streams, null, null, traceId, source);
 
     /// <summary>流裁剪计划（保留流首 <paramref name="keep"/> 项）。</summary>
     public static UiWritePlan Trim(string stream, int keep)
         => new(UiWriteKind.Trim, new[] { new UiWriteTarget(stream, new UiStreamTrim(keep)) });
 
-    /// <summary>整文档写计划。</summary>
-    public static UiWritePlan FullDocument(string html, string? fingerprint = null)
-        => new(UiWriteKind.FullDocument, new[] { new UiWriteTarget(null, html) }, fingerprint);
+    /// <summary>同拍组合计划（树 → 流 → 叶子；载荷形态分派）。</summary>
+    public static UiWritePlan Composite(
+        IReadOnlyList<UiWriteTarget> targets, UiInteractionSnapshot? interaction = null, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.Composite, targets, null, interaction, traceId, source);
+
+    /// <summary>整文档写计划（唯一整页出口；缺省 Mount 语义）。</summary>
+    public static UiWritePlan FullDocument(string html, string? fingerprint = null, UiWriteSource source = UiWriteSource.Mount)
+        => new(UiWriteKind.FullDocument, new[] { new UiWriteTarget(null, html) }, fingerprint, null, null, source);
 }

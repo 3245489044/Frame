@@ -136,7 +136,7 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
     /// <summary>宿主内容写回协调器（D2 单写者）：由 <see cref="UiBackend.Html.HtmlBackendRuntime"/> 在装配时挂接。
     /// 挂接后，所有「输出 → 页面内容」的落地（值契约 / ECS 输出 / 消息桥）统一经协调器（reconcile / 去重 / 区域，保态）。</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    public Func<string, Task>? HostContentWriter
+    public Func<string, UiBackend.Abstractions.UiWriteSource, CancellationToken, Task>? HostContentWriter
     {
         get => _contentWriter.Writer;
         set => _contentWriter.Writer = value;
@@ -165,9 +165,11 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
 
 
     /// <summary>内容写回入口（D2）：有协调器 ⇒ 经协调器落页（不重载文档，保展开 / 滚动 / 焦点）；
-    /// 无协调器 ⇒ 回退 <see cref="SetHtmlAsync"/> 整页渲染（首挂载或未装配协调器的宿主）。</summary>
-    public Task WriteContentAsync(string? html, CancellationToken ct = default)
-        => _contentWriter.WriteAsync(html, ct, (h, c) => SetHtmlAsync(h, c));
+    /// 无协调器 ⇒ 回退 <see cref="SetHtmlAsync"/> 整页渲染（首挂载或未装配协调器的宿主）。
+    /// <paramref name="source"/> 为写回来源（缺省 Mount；交互/刷新/流必须显式标注，否则优先级失效）。</summary>
+    public Task WriteContentAsync(string? html, CancellationToken ct = default,
+        UiBackend.Abstractions.UiWriteSource source = UiBackend.Abstractions.UiWriteSource.Mount)
+        => _contentWriter.WriteAsync(html, source, ct, (h, c) => SetHtmlAsync(h, c));
 
     /// <summary>显式清空（整文档重置）：有计划执行器 ⇒ 经协调器整页写（单写者，不产生第二写路径）；
     /// 无协调器 ⇒ 控件内部整页回退。清空不可用「空内容写」表达（空写按无写回短路）。</summary>
@@ -178,8 +180,9 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
 
     /// <summary>值契约 / 同步出口触发的写回（fire-and-forget）：写回失败经 <see cref="BridgeDiagnostics"/> 上报，
     /// 不以「未观察 Task 异常」逃逸（F2）；需要 await 语义的调用方仍用 <see cref="WriteContentAsync"/>。</summary>
-    public void WriteContentDetached(string? html)
-        => _contentWriter.WriteDetached(html, (h, c) => SetHtmlAsync(h, c));
+    public void WriteContentDetached(string? html,
+        UiBackend.Abstractions.UiWriteSource source = UiBackend.Abstractions.UiWriteSource.Mount)
+        => _contentWriter.WriteDetached(html, source, (h, c) => SetHtmlAsync(h, c));
 
     /// <summary>当前生效主题文档：控件级 <see cref="Theme"/>（IHtmlTheme 兼容）优先，未设置经全局 <see cref="HtmlTheme.ResolveProvider"/> 解析（主题单一源，唯一收敛点）。</summary>
     private ThemeDocument ResolveThemeDocument()
@@ -262,6 +265,13 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
 
     Task<T> IUiThreadAffine.InvokeOnUiAsync<T>(Func<CancellationToken, ValueTask<T>> action, CancellationToken ct)
         => InvokeAsync(action, ct);
+
+    // 句柄创建通知（显式接口实现）：封送器在「句柄未创建 + 跨线程」时据此延后到句柄线程执行。
+    event EventHandler? IUiThreadAffine.HandleCreated
+    {
+        add => HandleCreated += value;
+        remove => HandleCreated -= value;
+    }
 
     CoreWebView2? IWebViewCore.Core => CoreWebView2;
 

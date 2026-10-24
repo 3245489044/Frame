@@ -38,7 +38,8 @@ public sealed class HtmlRenderOutputSink : IRefreshSink
 
         try
         {
-            var result = await executor.ExecuteAsync(plan, delivery.TraceId, ct).ConfigureAwait(false);
+            // 刷新链路的产物来源 = Refresh（计划自述来源仅作对照；漂移由协调器可见化）。
+            var result = await executor.ExecuteAsync(plan, UiWriteSource.Refresh, delivery.TraceId, ct).ConfigureAwait(false);
             if (result.Status is UiWriteStatus.Applied or UiWriteStatus.Partial)
             {
                 _onDelivered?.Invoke();

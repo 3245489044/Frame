@@ -40,6 +40,8 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
     private readonly string _volatileSlotKey;
     private readonly string _regionSlotPrefix;
     private readonly string _regionNamePrefix;
+    private readonly string _streamRegionPrefix;
+    private readonly string _streamName;
     private readonly Action<string, Exception>? _onFailure;
     private TSnapshot? _last;
 
@@ -54,7 +56,9 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         string volatileSlotKey,
         string regionSlotPrefix,
         string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
-        Action<string, Exception>? onFailure = null)
+        Action<string, Exception>? onFailure = null,
+        string streamRegionPrefix = "bubbles:",
+        string streamName = "bubbles")
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));
@@ -67,6 +71,8 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         _regionSlotPrefix = regionSlotPrefix;
         _regionNamePrefix = regionNamePrefix;
         _onFailure = onFailure;
+        _streamRegionPrefix = streamRegionPrefix;
+        _streamName = streamName;
     }
 
     /// <summary>记录本拍快照（渲染装配路径调用；供刷新/显式路径复用，避免重复取数）。</summary>
@@ -87,22 +93,33 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
 
     /// <summary>
     /// 构建写产物：<paramref name="fingerprintShortCircuit"/>=false（显式交互）时不做稳定输入短路。
+    /// <paramref name="source"/> 为入口意图（Mount/Refresh/Interactive）；仅产易变叶子的分支降标为 <see cref="UiWriteSource.Tick"/>。
+    /// 区域键以 <c>bubbles:</c> 前缀者按「流段」产出（同键定点更新、按流序追加），不进区域树。
     /// </summary>
     public async Task<RenderOutput> BuildAsync(
         bool fingerprintShortCircuit,
         IReadOnlyList<string>? openKeys,
         UiInteractionSnapshot? interaction,
         string? traceId,
+        UiWriteSource source,
         CancellationToken ct)
     {
         if (_last is not { } snapshot) return RenderOutput.Skip;
 
-        if (fingerprintShortCircuit && Unchanged(_stableSlotKey, _stableFingerprint(snapshot)))
+        // 去重提交延迟到"计划已建成"之后：渲染失败/提前返回不推进 baseline（禁预提交）。
+        var commits = new List<(string SlotKey, long Version, string Fingerprint)>();
+        RenderOutput Done(RenderOutput output)
         {
-            // 稳定输入未变 ⇒ 区域不重渲染；仅易变叶子可能变化（心跳定点更新路径）。
-            if (Unchanged(_volatileSlotKey, _volatileFingerprint(snapshot))) return RenderOutput.Skip;
+            foreach (var c in commits) _store.Commit(c.SlotKey, c.Version, c.Fingerprint);
+            return output;
+        }
+
+        if (fingerprintShortCircuit && !Changed(_stableSlotKey, _stableFingerprint(snapshot), commits))
+        {
+            // 稳定输入未变 ⇒ 区域不重渲染；仅易变叶子可能变化（心跳定点更新路径 ⇒ Tick）。
+            if (!Changed(_volatileSlotKey, _volatileFingerprint(snapshot), commits)) return RenderOutput.Skip;
             var heartbeatLeaves = _leaves(snapshot);
-            return heartbeatLeaves is null ? RenderOutput.Skip : RenderOutput.Write(heartbeatLeaves);
+            return heartbeatLeaves is null ? RenderOutput.Skip : Done(AsTick(heartbeatLeaves));
         }
 
         IReadOnlyDictionary<string, string> regions;
@@ -112,43 +129,76 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         }
         catch (Exception ex)
         {
-            // 渲染异常 ⇒ 显式不写，但必须可观测（不得静默吞）。
+            // 渲染异常 ⇒ 显式不写，但必须可观测（不得静默吞）；已决策的指纹不提交（下一拍重试）。
             _onFailure?.Invoke("region-render-failed", ex);
             return RenderOutput.Skip;
         }
 
         // 易变指纹在本拍只裁决一次（与稳定指纹同口径，避免「叶子计划永不可达」）。
-        var volatileChanged = !Unchanged(_volatileSlotKey, _volatileFingerprint(snapshot));
+        var volatileChanged = Changed(_volatileSlotKey, _volatileFingerprint(snapshot), commits);
 
         var trees = new List<UiWriteTarget>(regions.Count);
+        var streamItems = new List<UiStreamItem>();
         foreach (var region in regions)
         {
-            if (Unchanged(_regionSlotPrefix + region.Key, _hash(region.Value))) continue;
+            if (!Changed(_regionSlotPrefix + region.Key, _hash(region.Value), commits)) continue;
+            if (region.Key.StartsWith(_streamRegionPrefix, StringComparison.Ordinal))
+            {
+                // 流段（气泡）：同键 ⇒ 定点更新；新键 ⇒ 按流序插入（方向由载荷声明 = OldestFirst）。
+                streamItems.Add(new UiStreamItem(region.Key.Substring(_streamRegionPrefix.Length), region.Value));
+                continue;
+            }
+
             var parsed = UiStateBinder.Bind(HtmlNodeParser.Parse(region.Value), openKeys);
             trees.Add(new UiWriteTarget(_regionNamePrefix + region.Key, parsed));
         }
 
-        // 易变叶子与区域树同拍产出（树先落地、叶子后定点），不再因「区域非空」被丢弃。
-        var leafPlan = volatileChanged ? _leaves(snapshot) : null;
-        if (trees.Count == 0)
+        var streams = new List<UiWriteTarget>(1);
+        if (streamItems.Count > 0)
         {
-            return leafPlan is null ? RenderOutput.Skip : RenderOutput.Write(leafPlan);
+            streams.Add(new UiWriteTarget(
+                _streamName, new UiStreamAppend(streamItems, null, UiStreamDirection.OldestFirst)));
         }
 
-        if (leafPlan?.Targets is { Count: > 0 } leaves)
-        {
-            return RenderOutput.Write(UiWritePlan.TreesAndLeaves(trees, leaves, interaction, traceId));
-        }
+        var leaves = volatileChanged ? _leaves(snapshot)?.Targets : null;
+        var hasTrees = trees.Count > 0;
+        var hasStreams = streams.Count > 0;
+        var hasLeaves = leaves is { Count: > 0 };
 
-        return RenderOutput.Write(UiWritePlan.Trees(trees, interaction, null, traceId));
+        if (!hasTrees && !hasStreams && !hasLeaves) return Done(RenderOutput.Skip);
+        if (hasTrees && !hasStreams && !hasLeaves)
+            return Done(RenderOutput.Write(UiWritePlan.Trees(trees, interaction, null, traceId, source)));
+        if (!hasTrees && hasStreams && !hasLeaves)
+            return Done(RenderOutput.Write(UiWritePlan.AppendMany(streams, traceId, source)));
+        if (!hasTrees && !hasStreams)
+            // 仅易变叶子 ⇒ 心跳（Tick 判据载体 = 计划动词，非入口自述）。
+            return Done(AsTick(UiWritePlan.Leaves(leaves!, interaction, traceId)));
+
+        // 同拍组合（树 → 流 → 叶子）：单一计划、单一写入口。
+        var composite = new List<UiWriteTarget>(trees.Count + streams.Count + (leaves?.Count ?? 0));
+        composite.AddRange(trees);
+        composite.AddRange(streams);
+        if (hasLeaves) composite.AddRange(leaves!);
+        return Done(RenderOutput.Write(UiWritePlan.Composite(composite, interaction, traceId, source)));
     }
 
-    /// <summary>内容未变 ⇒ true（不触写回）；变了 ⇒ 记入框架单一状态源并返回 false。</summary>
-    private bool Unchanged(string slotKey, string fingerprint)
+    /// <summary>心跳产物唯一产地（Tick 只允许易变叶子）：动词非叶子即结构性违约 ⇒ 显式失败（禁静默降标）。
+    /// 判据载体 = 计划动词（结构事实），非入口自述。</summary>
+    private static RenderOutput AsTick(UiWritePlan plan)
+    {
+        if (plan.Kind != UiWriteKind.Leaf)
+            throw new InvalidOperationException(
+                $"Tick 计划只允许 Leaf 动词（实际={plan.Kind}；区域/树/流目标禁入 Tick 路径）");
+        return RenderOutput.Write(plan with { Source = UiWriteSource.Tick });
+    }
+
+    /// <summary>内容变化判定：变化 ⇒ true 并把「待提交」记入 <paramref name="commits"/>（计划建成后才提交）。
+    /// 未变/过期 ⇒ false（不触 DOM，也不推进 baseline）。</summary>
+    private bool Changed(string slotKey, string fingerprint, List<(string SlotKey, long Version, string Fingerprint)> commits)
     {
         var version = _store.NextVersion(slotKey);
-        if (_store.Decide(slotKey, version, fingerprint) == AcceptDecision.Skip) return true;
-        _store.Commit(slotKey, version, fingerprint);
-        return false;
+        if (_store.Decide(slotKey, version, fingerprint) == AcceptDecision.Skip) return false;
+        commits.Add((slotKey, version, fingerprint));
+        return true;
     }
 }

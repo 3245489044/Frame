@@ -3,6 +3,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
@@ -31,6 +32,7 @@ public enum HtmlWriteBackStatus
 /// plate 本地写回端口（唯一 Observe 消费点抽象化）——HtmlBackendRuntime 只依赖本委托做宿主内容写回，
 /// 收敛写真正语义（ObserveSessionManager + WebView2Transport）由连接层 FrontEndDriven 注入实现，
 /// 依赖方向倒转为 上层(连接层/组合根) → plate 抽象。
+/// <para><paramref name="source"/> 为写回来源：收敛窗口/屏障策略按来源选取（交互 ⇒ 不等待屏障）。</para>
 /// </summary>
 public delegate Task<HtmlWriteBackResult> HtmlWritePump(
-    string html, CancellationToken ct = default);
+    string html, UiWriteSource source, CancellationToken ct = default);

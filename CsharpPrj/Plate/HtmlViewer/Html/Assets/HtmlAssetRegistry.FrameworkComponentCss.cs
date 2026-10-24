@@ -130,6 +130,7 @@ public sealed partial class HtmlAssetRegistry
                 .status.started { color: var(--ok); }
                 .status.cancelled { color: var(--status-cancelled); }
                 .chip { font-size: 10px; color: var(--fg); background: var(--border); padding: 0 5px; border-radius: 4px; flex: 0 0 auto; }
+                .chip.leg { color: var(--muted); background: transparent; border: 1px solid var(--border); font-family: var(--font-mono, monospace); }
                 .item.active .chip { background: var(--user-fg); color: var(--user-bg); }
                 .item-meta { font-size: 10px; color: var(--muted); flex: 0 0 auto; }
                 .fold-count { font-size: 11px; color: var(--muted); margin-left: 6px; }

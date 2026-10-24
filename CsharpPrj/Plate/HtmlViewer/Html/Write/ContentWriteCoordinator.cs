@@ -17,20 +17,20 @@ public sealed class ContentWriteCoordinator
 
     public ContentWriteCoordinator(Action<string, string>? diagnostics = null) => _diagnostics.Sink = diagnostics;
 
-    /// <summary>宿主内容写回协调器（D2 单写者）；未装配为 null。</summary>
-    public Func<string, Task>? Writer { get; set; }
+    /// <summary>宿主内容写回协调器（D2 单写者）；未装配为 null。端口携带来源与取消令牌（禁 Mount 缺省吞掉交互来源）。</summary>
+    public Func<string, UiWriteSource, CancellationToken, Task>? Writer { get; set; }
 
     /// <summary>写回计划执行器（单写落地）；未装配为 null。</summary>
     public Func<UiWritePlan, Task>? PlanExecutor { get; set; }
 
     /// <summary>内容写回：有协调器且内容非空 ⇒ 经协调器落页；否则经 <paramref name="renderFallback"/> 整页渲染。</summary>
-    public Task WriteAsync(string? html, CancellationToken ct, Func<string?, CancellationToken, Task> renderFallback)
+    public Task WriteAsync(string? html, UiWriteSource source, CancellationToken ct, Func<string?, CancellationToken, Task> renderFallback)
         => Writer is { } writer && !string.IsNullOrEmpty(html)
-            ? writer(html)
+            ? writer(html, source, ct)
             : renderFallback(html, ct);
 
     /// <summary>值契约 / 同步出口触发的写回（fire-and-forget）：失败经诊断出口上报，不以未观察 Task 异常逃逸。</summary>
-    public void WriteDetached(string? html, Func<string?, CancellationToken, Task> renderFallback)
-        => AsyncObserve.Run(WriteAsync(html, default, renderFallback),
+    public void WriteDetached(string? html, UiWriteSource source, Func<string?, CancellationToken, Task> renderFallback)
+        => AsyncObserve.Run(WriteAsync(html, source, default, renderFallback),
             ex => _diagnostics.Report("HtmlChannel_writeback_observed_error", $"{ex.GetType().Name}: {ex.Message}"));
 }

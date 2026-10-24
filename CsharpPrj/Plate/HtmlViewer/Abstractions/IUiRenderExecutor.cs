@@ -12,6 +12,8 @@ namespace UiBackend.Abstractions;
 /// </summary>
 public interface IUiRenderExecutor
 {
-    /// <summary>执行写回计划（唯一 DOM 写落地入口）；<paramref name="traceId"/> 为刷新链路追踪号。</summary>
-    Task<UiWriteResult> ExecuteAsync(UiWritePlan plan, string? traceId = null, CancellationToken ct = default);
+    /// <summary>执行写回计划（唯一 DOM 写落地入口）。
+    /// <paramref name="source"/> 为写回来源（必填：编译期强制标注，决定收敛窗口与合并优先级）；
+    /// <paramref name="traceId"/> 为刷新链路追踪号。</summary>
+    Task<UiWriteResult> ExecuteAsync(UiWritePlan plan, UiWriteSource source, string? traceId = null, CancellationToken ct = default);
 }

@@ -288,18 +288,21 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         + "function appendInto(container,t){if(t==null){return;}if(t.tag){container.appendChild(buildNode(t));return;}"
         + "if(t.children){for(var i=0;i<t.children.length;i++){var c=t.children[i];if(!c){continue;}if(c.tag){container.appendChild(buildNode(c));}else if(c.text!=null){container.appendChild(document.createTextNode(''+c.text));}}}}"
         + "function capture(){var open=[];var ds=document.querySelectorAll('details');for(var i=0;i<ds.length;i++){if(ds[i].open){var k=keyOf(ds[i]);if(k){open.push(k);}}}var scroll=[];var ae=document.activeElement;var focus=(ae&&ae!==document.body)?keyOf(ae):null;var esc=document.scrollingElement||document.documentElement;if(esc){var ty=(window.scrollY||window.pageYOffset||0),tx=(window.scrollX||window.pageXOffset||0);if(ty>0||tx>0){var ek=keyOf(esc);if(ek&&ek!=='id=null'){scroll.push({k:ek,t:esc.scrollTop,l:esc.scrollLeft,b:false});}}}var ns=document.querySelectorAll('[data-key],[data-name],[id]');for(var j=0;j<ns.length;j++){var n=ns[j];if(n.scrollTop>0||n.scrollLeft>0){var nk=keyOf(n);if(nk){scroll.push({k:nk,t:n.scrollTop,l:n.scrollLeft,b:(n.scrollHeight-n.clientHeight-n.scrollTop)<=2});}}}var sel=[];var sl=document.querySelectorAll('[data-select-slot]');for(var si=0;si<sl.length;si++){var se=sl[si];if(se.hasAttribute('data-selected')){sel.push(se.getAttribute('data-select-slot')+'='+(se.getAttribute('data-select-key')||''));}}return {open:open,scroll:scroll,focus:focus,select:sel};}"
-        // 流原语（append-only 面）：按稳定键**定点更新**同名项（重复折叠 ⇒ xN 更新不新增行），其余插入流首；cap 裁尾。
-        // 顶部插入按滚动锚补偿：非顶部读者保持视觉位置（不跳动），顶部读者恒见最新（scrollTop=0）。
+        // 流原语（append-only 面）：按稳定键**定点更新**同名项（重复折叠 ⇒ xN 更新不新增行），其余按方向插入；
+        // 方向：newestFirst（缺省，日志/过程帧：插流首、裁尾、顶部读者恒见最新）/ oldestFirst（气泡：追加流尾、裁头、贴底读者跟随）。
+        // 顶部插入按滚动锚补偿：非顶部读者保持视觉位置（不跳动）。
         + "function findByKeyIn(host,k){var ns=host.querySelectorAll('[data-key]');for(var i=0;i<ns.length;i++){if(ns[i].getAttribute('data-key')===k){return ns[i];}}return null;}"
-        + "function streamAppend(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var items=(p&&p.items)||[];var cap=(p&&p.cap)?p.cap:0;lastAnomalies=[];"
-        + "var sc=host.scrollTop||0;var atTop=sc<=2;var sh=host.scrollHeight;"
-        + "for(var i=items.length-1;i>=0;i--){var it=items[i];if(!it||!it.html){continue;}var tmp=document.createElement('div');tmp.innerHTML=it.html;var nn=tmp.firstElementChild;if(!nn){continue;}"
+        + "function streamAppend(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var items=(p&&p.items)||[];var cap=(p&&p.cap)?p.cap:0;var tail=((p&&p.direction)||'newestFirst')==='oldestFirst';lastAnomalies=[];"
+        + "var sc=host.scrollTop||0;var atTop=sc<=2;var sh=host.scrollHeight;var atBottom=(sh-sc-host.clientHeight)<=2;"
+        + "for(var j=0;j<items.length;j++){var i=tail?j:(items.length-1-j);var it=items[i];if(!it||!it.html){continue;}var tmp=document.createElement('div');tmp.innerHTML=it.html;var nn=tmp.firstElementChild;if(!nn){continue;}"
         + "if(it.key&&!nn.getAttribute('data-key')){nn.setAttribute('data-key',it.key);}"
         + "var old=it.key?findByKeyIn(host,it.key):null;"
         + "if(old){var r=reconcile(old,nn);if(r!==old&&old.parentNode){old.parentNode.replaceChild(r,old);}}"
+        + "else if(tail){host.appendChild(nn);}"
         + "else if(host.firstElementChild){host.insertBefore(nn,host.firstElementChild);}else{host.appendChild(nn);}}"
-        + "if(cap>0){while(host.children.length>cap){host.removeChild(host.children[host.children.length-1]);}}"
-        + "if(atTop){host.scrollTop=0;}else{host.scrollTop=sc+(host.scrollHeight-sh);}"
+        + "if(cap>0){while(host.children.length>cap){host.removeChild(tail?host.firstElementChild:host.children[host.children.length-1]);}}"
+        + "if(tail){if(atBottom){host.scrollTop=host.scrollHeight;}else{host.scrollTop=sc;}}"
+        + "else if(atTop){host.scrollTop=0;}else{host.scrollTop=sc+(host.scrollHeight-sh);}"
         + "window.__uiReconcile.lastAnomalies=lastAnomalies;return lastAnomalies.length?('OK:'+lastAnomalies.join(';')):'OK';}"
         + "function streamTrim(host,payload){if(!host){return 'NOT_FOUND';}var p=(typeof payload==='string')?JSON.parse(payload):payload;var keep=(p&&p.keep)?p.keep:0;"
         + "if(keep>0){while(host.children.length>keep){host.removeChild(host.children[host.children.length-1]);}}return 'OK';}"

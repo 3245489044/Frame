@@ -60,8 +60,17 @@ public static class HtmlBridgeAssembly
         // （InMemoryRefreshStore）承载；两生产者交替写同 slot 时旧版本判 Stale、不触 DOM（治 region/tree ping-pong）。
         var writeArbiter = new RefreshWriteArbiter(new InMemoryRefreshStore());
         // P3 指纹单源 + P4 追踪单源：写落地与领域共用框架侧实现（plate 只经注入使用，不反向依赖）。
+        // B5：帧预算与指标在此接线（此前只声明未注入 ⇒ 默认全关，洪泛期无背压、无 P95 可判）。
+        var writeOptions = new UiWriteRuntimeOptions
+        {
+            FrameBudget = true,
+            MaxOpsPerFlush = 64,
+            MaxBytesPerFlush = 1536 * 1024,
+            MaxMsPerFlush = 120,
+        };
+        var writeMetrics = new UiWriteMetrics();
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
-            Fnv1aFingerprint.Default.Of, RefreshTraceId.New);
+            Fnv1aFingerprint.Default.Of, RefreshTraceId.New, writeOptions, writeMetrics);
         PopulateStaticReadiness(runtime.Readiness, index, registry);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;
@@ -70,6 +79,11 @@ public static class HtmlBridgeAssembly
         if (sink is not null)
         {
             runtime.Diagnostics += sink;
+            // 开关可见化（单发）：运行期即可判定「预算是否真的开着」，不靠读源码。
+            sink("UiWriteOptions",
+                $"frameBudget={writeOptions.FrameBudget}, maxOps={writeOptions.MaxOpsPerFlush}, " +
+                $"maxBytes={writeOptions.MaxBytesPerFlush}, maxMs={writeOptions.MaxMsPerFlush}, " +
+                $"interactiveFastPath={writeOptions.InteractiveFastPath}, maxMsCap={writeOptions.MaxMsPerFlush}");
             // P2 观测补漏：HtmlViewer 侧桥诊断（HtmlChannel_webmessage / HtmlChannel_inject_bridge / HtmlChannel_init_failed）
             // 此前只经 HtmlViewer.BridgeDiagnostics 发出、从未接日志门面 → 桥链断点（注入失败/收到 postMessage）全部静默被吞。
             // 统一接入同一 sink，使"点击无效却无日志"的断链在日志可见（对接 fde_log_messages 的 HtmlChannel_* msgId）。

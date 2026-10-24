@@ -21,8 +21,9 @@ public sealed class HtmlEventBridge
     private readonly IHtmlChannel _channel;
     private readonly HtmlFunctionInvoker _invoker;
 
-    /// <summary>输出写回目标 → 宿主内容写回端口（output 指向 htmlviewer 宿主自身时经此 SetHtmlAsync；未注册回落页内 DOM set）。</summary>
-    private readonly Dictionary<string, Func<string, Task>> _hostWriters = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>输出写回目标 → 宿主内容写回端口（output 指向 viewer 宿主自身时经此写回；未注册回落页内 DOM set）。
+    /// 端口必须携带来源（<see cref="UiWriteSource"/>）：来源决定收敛窗口/合并优先级，缺省 Mount 会让交互被在飞刷新吞并。</summary>
+    private readonly Dictionary<string, Func<string, UiWriteSource, Task>> _hostWriters = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>写回计划执行器（写协调器；由运行时 <see cref="HtmlBackendRuntime"/> 注入）。
     /// 计划产物（<see cref="RenderOutput.Plan"/>）经此单点落地——领域侧不再触通道（P0）。</summary>
@@ -56,7 +57,7 @@ public sealed class HtmlEventBridge
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
             return $"未找到控件: {controlName}";
 
-        return (await RunBindingLoopAsync(control, eventName, eventPayload, ct).ConfigureAwait(false)).Text ?? string.Empty;
+        return (await RunBindingLoopAsync(control, eventName, eventPayload, UiWriteSource.Interactive, ct).ConfigureAwait(false)).Text ?? string.Empty;
     }
 
     /// <summary>装配绑定参数：sourceType=control 经桥读 DOM 值；literal 用字面值；eventPayload 用事件负载原文。</summary>
@@ -115,29 +116,32 @@ public sealed class HtmlEventBridge
         }
     }
 
-    /// <summary>注册宿主内容写回端口（output 指向宿主 htmlviewer 时经此写回 SetHtmlAsync；幂等覆盖）。</summary>
-    public void RegisterHostWriter(string outputName, Func<string, Task> writer)
+    /// <summary>注册宿主内容写回端口（output 指向宿主 viewer 时经此写回；幂等覆盖）。写入来源由调用方显式给出。</summary>
+    public void RegisterHostWriter(string outputName, Func<string, UiWriteSource, Task> writer)
         => _hostWriters[outputName] = writer ?? throw new ArgumentNullException(nameof(writer));
 
     /// <summary>
     /// 处理宿主 htmlviewer 的 message 事件（MessageReceived 负载原文）→ 按声明 events["message"] 路由：
     /// 查控件声明 → 装配参数（sourceType=eventPayload 取负载原文）→ 逐函数调用 → output 双通道写回。
     /// 宿主由 <paramref name="hostControlName"/> 定位（与 data-event 用负载 name 定位页内控件相区别）。
+    /// <paramref name="source"/> = 本次消息触发的写回来源（页面消息缺省 <see cref="UiWriteSource.Interactive"/>）。
     /// </summary>
-    public async Task<string> HandleHostMessageAsync(string hostControlName, string messagePayload, CancellationToken ct = default)
+    public async Task<string> HandleHostMessageAsync(
+        string hostControlName, string messagePayload, CancellationToken ct = default,
+        UiWriteSource source = UiWriteSource.Interactive)
     {
-        Report("EventBridge_route", $"宿主消息 控件={hostControlName}");
+        Report("EventBridge_route", $"宿主消息 控件={hostControlName} source={source}");
         // 域隔离解析（单一入口）：宿主控件 = host 域偏好（裸名 → host:，不含 page）。
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, hostControlName,
                 HtmlDeclarationParser.ControlDomain.Host, out var control))
             return $"未找到控件: {hostControlName}";
 
-        return (await RunBindingLoopAsync(control, "message", messagePayload, ct).ConfigureAwait(false)).Text ?? string.Empty;
+        return (await RunBindingLoopAsync(control, "message", messagePayload, source, ct).ConfigureAwait(false)).Text ?? string.Empty;
     }
 
     /// <summary>共用的声明事件绑定执行循环：查 events → 逐函数装配参数 → 调用 → output 写回。HandleAsync / HandleHostMessageAsync 复用。</summary>
     private async Task<RenderOutput> RunBindingLoopAsync(
-        ControlConfig control, string eventName, string? eventPayload, CancellationToken ct)
+        ControlConfig control, string eventName, string? eventPayload, UiWriteSource source, CancellationToken ct)
     {
         if (control.Events is null
             || !TryGetFunctions(control.Events, eventName, out var functions)
@@ -155,7 +159,7 @@ public sealed class HtmlEventBridge
             Report("EventBridge_invoke", $"函数 {functionName}, 参数键=[{string.Join(",", parameters.Keys)}]");
             var output = await _invoker(functionName, parameters).ConfigureAwait(false);
             // 每条产物的写回计划已由 WriteOutputAsync 单点落地；此处文本恒保留（不再因首个产物带 plan 而丢文本）。
-            await WriteOutputAsync(control.Events.Bindings, output, planEmitted, ct).ConfigureAwait(false);
+            await WriteOutputAsync(control.Events.Bindings, output, planEmitted, source, ct).ConfigureAwait(false);
             if (output.HasPlan)
             {
                 plans.Add(output.Plan!);
@@ -185,7 +189,7 @@ public sealed class HtmlEventBridge
     }
 
     /// <summary>输出写回（P0 类型化）：携带写回计划 → 协调器单点执行（领域侧不触通道）；否则叙述文本经宿主/DOM 写回。</summary>
-    private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, bool planEmitted, CancellationToken ct)
+    private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, bool planEmitted, UiWriteSource source, CancellationToken ct)
     {
         // P0：计划产物自描述（含目标），由写协调器单点落地——不依赖 binding.Output 名。
         if (output.HasPlan)
@@ -193,7 +197,7 @@ public sealed class HtmlEventBridge
             var plan = output.Plan!;
             Report("EventBridge_writeback", $"计划产物 {plan.Kind} → 协调器执行（targets={plan.Targets.Count}）");
             if (RenderExecutor is not null)
-                await RenderExecutor.ExecuteAsync(plan, plan.TraceId, ct).ConfigureAwait(false);
+                await RenderExecutor.ExecuteAsync(plan, plan.Source, plan.TraceId, ct).ConfigureAwait(false);
             else
                 Report("EventBridge_writeback", $"计划产物 {plan.Kind} → 跳过（未装配协调器）");
             return;
@@ -213,8 +217,8 @@ public sealed class HtmlEventBridge
         }
         if (_hostWriters.TryGetValue(target, out var writer))
         {
-            Report("EventBridge_writeback", $"目标 {target} → hostWriter");
-            await writer(result).ConfigureAwait(false);
+            Report("EventBridge_writeback", $"目标 {target} → hostWriter source={source}");
+            await writer(result, source).ConfigureAwait(false);
             return;
         }
         // D6：页内 DOM set 仅限**已声明控件**（白名单）——output 名漂移（未声明）不落地，避免错误文本写坏页面。

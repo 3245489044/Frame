@@ -24,7 +24,9 @@ public enum UiWriteStatus
 }
 
 /// <summary>写回结果（协调器单点裁决；Written/Skipped = 具名目标，Changed = DOM 变更计数，Fallback = 显式回退动作）。
-/// <paramref name="Anomalies"/> = 键控对齐异常（如 duplicate-key-old/new），全链透传供日志/门禁可见化（不静默）。</summary>
+/// <paramref name="Anomalies"/> = 键控对齐异常（如 duplicate-key-old/new），全链透传供日志/门禁可见化（不静默）。
+/// <para><paramref name="UnchangedTargets"/>/<paramref name="FailedTargets"/> 把「未变」与「失败」从 <paramref name="Skipped"/>
+/// 中单列出来——<paramref name="Skipped"/> 仅作为「未触 DOM」的兼容聚合面（未变 ∪ 失败）。</para></summary>
 public sealed record UiWriteResult(
     UiWriteStatus Status,
     IReadOnlyList<string> Written,
@@ -32,4 +34,6 @@ public sealed record UiWriteResult(
     int Changed = 0,
     string? Fallback = null,
     string? TraceId = null,
-    IReadOnlyList<string>? Anomalies = null);
+    IReadOnlyList<string>? Anomalies = null,
+    IReadOnlyList<string>? UnchangedTargets = null,
+    IReadOnlyList<string>? FailedTargets = null);

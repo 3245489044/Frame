@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Observe;
 using Plate.HtmlViewer;
+using UiBackend.Abstractions;
 using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
@@ -59,13 +60,26 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
     /// <summary>
     /// 把本观察通道适配为 plate 的 <see cref="HtmlWritePump"/>（HtmlBackendRuntime 写回端口）：
     /// 经收敛写投递并等待「可观测」收敛，把 ObserveOutcome 映射为 plate 本地 <see cref="HtmlWriteBackResult"/>，
-    /// 使 plate 不再感知任何 Observe 类型。缺省 Barrier=Timeout / 5s 窗口（对齐原 plate 写回语义）。
+    /// 使 plate 不再感知任何 Observe 类型。缺省窗口 = Refresh 250ms / Mount 5s（对齐原 plate 写回语义）。
     /// </summary>
     public HtmlWritePump ToWritePump(TimeSpan? window = null)
-        => async (html, ct) =>
+        => ToWritePump(window is null ? null : _ => window);
+
+    /// <summary>按来源分档窗口（B4-5）：交互/流 ⇒ 不等待屏障（FireAndForget）；刷新 ⇒ 窄窗（缺省 250ms）；挂载 ⇒ 5s。</summary>
+    public HtmlWritePump ToWritePump(Func<UiWriteSource, TimeSpan?>? windowSelector)
+        => async (html, source, ct) =>
         {
-            var outcome = await WriteAsync(html, new WriteOptions(
-                BarrierMode.Timeout, window ?? TimeSpan.FromSeconds(5)), ct).ConfigureAwait(false);
+            var options = source switch
+            {
+                UiWriteSource.Interactive or UiWriteSource.Stream =>
+                    new WriteOptions(BarrierMode.FireAndForget, TimeSpan.Zero),
+                UiWriteSource.Refresh =>
+                    new WriteOptions(BarrierMode.Timeout,
+                        windowSelector?.Invoke(source) ?? TimeSpan.FromMilliseconds(RefreshWindowMs)),
+                _ => new WriteOptions(BarrierMode.Timeout,
+                        windowSelector?.Invoke(source) ?? TimeSpan.FromSeconds(5)),
+            };
+            var outcome = await WriteAsync(html, options, ct).ConfigureAwait(false);
             var status = outcome.Result switch
             {
                 ChangeResult.Committed => HtmlWriteBackStatus.Committed,
@@ -74,4 +88,7 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
             };
             return new HtmlWriteBackResult(status, outcome.Window, outcome.HighestAck.ToString());
         };
+
+    /// <summary>刷新来源的收敛窗口上限（毫秒）：交互已走直写，刷新无需 5s 长窗。</summary>
+    private const int RefreshWindowMs = 250;
 }

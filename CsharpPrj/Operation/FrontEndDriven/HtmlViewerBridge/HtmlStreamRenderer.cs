@@ -47,15 +47,24 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     /// 结构由 sectionHeader/blockItem 模板经引擎渲染，文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
     /// </summary>
     public string Render(IReadOnlyList<ConversationRenderItem> items)
+        => string.Concat(RenderSections(items).Select(section => section.Html));
+
+    /// <summary>
+    /// 分段渲染（流面增量单源）：<see cref="Render"/> = 本方法各段按序拼接（禁两套拼接逻辑）。
+    /// 段键：<c>head</c>（头提示层）/ <c>op</c>（操作流）/ <c>r{round}</c>（逐轮对话段）/ <c>empty</c>（空态）。
+    /// 新轮 = 新段键（流尾追加）；同轮变更 = 同段键定点更新（调用方只交付变更段）。
+    /// </summary>
+    public IReadOnlyList<ConversationRenderSection> RenderSections(IReadOnlyList<ConversationRenderItem> items)
     {
         var t = EffectiveTemplates;
         if (items is null || items.Count == 0)
         {
             // 空态：优先模板集 emptyP，未定义回退 Options.EmptyTemplate 语义
-            if (t.TryGetValue("emptyP", out var emptyTpl))
-                return HtmlTemplateEngine.RenderTemplate(
-                    emptyTpl, t, new Dictionary<string, object?> { ["text"] = _options.EmptyText });
-            return _options.EmptyTemplate.Replace("{text}", WebUtility.HtmlEncode(_options.EmptyText));
+            var emptyHtml = t.TryGetValue("emptyP", out var emptyTpl)
+                ? HtmlTemplateEngine.RenderTemplate(
+                    emptyTpl, t, new Dictionary<string, object?> { ["text"] = _options.EmptyText })
+                : _options.EmptyTemplate.Replace("{text}", WebUtility.HtmlEncode(_options.EmptyText));
+            return new[] { new ConversationRenderSection("empty", emptyHtml) };
         }
 
         // 通道分流：气泡流（Dialogue）承载 user/assistant/LLM 过程节点；操作流（Operation）承载
@@ -72,8 +81,6 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             }
         }
 
-        var sb = new StringBuilder(items.Count * 128);
-
         // 头提示层预抽取（与面序无关）：启用缓存稳定序时，把 prompt:* 段从对话流剔除，交 HeadPrompt 面单独编排。
         // 语义：头提示层顺序 = 快照 Bindings 序 = CacheBand 升序（顺序单一权威在段声明处，渲染层不重排）。
         IReadOnlyList<ConversationRenderItem> head = Array.Empty<ConversationRenderItem>();
@@ -86,43 +93,46 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 
         // 渲染面编排（声明式）：面序由 RenderSurfaceCatalog（CacheBand 派生）或宿主覆盖给出；
         // 渲染器只按序产出各面块 —— 禁在本处硬编码块拼接顺序（编排序单一权威 = 渲染面目录一处）。
+        var sections = new List<ConversationRenderSection>(8);
         foreach (var surface in _options.SurfaceOrder ?? RenderSurfaceCatalog.Order)
         {
             switch (surface)
             {
                 case RenderSurface.HeadPrompt:
-                    if (head.Count > 0) sb.Append(RenderHeadBandBlock(head, t));
+                    if (head.Count > 0) sections.Add(new ConversationRenderSection("head", RenderHeadBandBlock(head, t)));
                     break; // 未启用/无段 ⇒ 该面空产（prompt:* 段随对话轮渲染，逐字旧行为）
 
                 case RenderSurface.Operation:
-                    if (operations.Count > 0) sb.Append(RenderOperations(operations, t));
+                    if (operations.Count > 0) sections.Add(new ConversationRenderSection("op", RenderOperations(operations, t)));
                     break;
 
                 case RenderSurface.Dialogue:
-                    sb.Append(RenderRoundGroups(dialogue, t));
+                    foreach (var group in OrderedRounds(dialogue))
+                        sections.Add(new ConversationRenderSection("r" + group.Key, RenderRoundSection(group, t)));
                     break;
             }
         }
-        return sb.ToString();
+        return sections;
     }
 
-    /// <summary>对话轮分组块：Round 升序分组（Round=0 归「会话级」组），组内按近邻锚挂靠（R2）。</summary>
-    private string RenderRoundGroups(
-        IReadOnlyList<ConversationRenderItem> dialogue, IReadOnlyDictionary<string, string> t)
+    /// <summary>轮段序（Round 升序；Round=0 归「会话级」组）——单源：分段与整段拼接共用。</summary>
+    private static IEnumerable<IGrouping<int, ConversationRenderItem>> OrderedRounds(
+        IReadOnlyList<ConversationRenderItem> dialogue)
+        => dialogue.GroupBy(m => m.Round).OrderBy(g => g.Key);
+
+    /// <summary>单轮段渲染：Round 升序分组（Round=0 归「会话级」组），组内按近邻锚挂靠（R2）。
+    /// 段根带 <c>data-key</c>（= <c>r{round}</c>）⇒ 流原语可按段键定点更新/追加（首挂载与增量同源）。</summary>
+    private string RenderRoundSection(
+        IGrouping<int, ConversationRenderItem> group, IReadOnlyDictionary<string, string> t)
     {
-        var sb = new StringBuilder(dialogue.Count * 128);
-        foreach (var group in dialogue.GroupBy(m => m.Round).OrderBy(g => g.Key))
+        int round = group.Key;
+        var row = new Dictionary<string, object?>
         {
-            int round = group.Key;
-            var row = new Dictionary<string, object?>
-            {
-                ["round"] = round.ToString(),
-                ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
-                ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
-            };
-            sb.Append(HtmlTemplateEngine.Render(t, "sectionHeader", row));
-        }
-        return sb.ToString();
+            ["round"] = round.ToString(),
+            ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
+            ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
+        };
+        return HtmlTemplateEngine.Render(t, "sectionHeader", row);
     }
 
     /// <summary>

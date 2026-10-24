@@ -71,9 +71,61 @@ public static class HtmlShellProjector
         string contentHtml,
         string? pollAttrs = null,
         string? overlayHtml = null)
+        => RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml,
+            MainRegion(contentHtml), pollAttrs, overlayHtml);
+
+    /// <summary>
+    /// 分层布局壳（B3）：主区 <c>region-main</c> 降为**壳容器**，内含三个具名子容器
+    /// <c>region-nodes</c>（树/面板/操作面）/ <c>region-bubbles</c>（气泡流，仅流段）/ <c>region-composer</c>（输入区）。
+    /// 子容器即稳态写目标 ⇒ 消息变化只动气泡流，不重建主区。
+    /// </summary>
+    /// <param name="bubbles">气泡流段（已按 <see cref="WrapStreamSection"/> 包裹并带稳定段键，调用方与区域路径共用同一份）。</param>
+    public static string RenderSplitShell(
+        IReadOnlyDictionary<string, string> templates,
+        string selectorHtml,
+        string title,
+        string subtitle,
+        string treeHtml,
+        string nodesHtml,
+        IReadOnlyList<(string Key, string Html)> bubbles,
+        string composerHtml,
+        string? pollAttrs = null,
+        string? overlayHtml = null)
+    {
+        var bubbleHtml = new System.Text.StringBuilder();
+        if (bubbles is { Count: > 0 })
+        {
+            foreach (var section in bubbles) bubbleHtml.Append(section.Html);
+        }
+
+        var main = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">"
+                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "nodes\">" + nodesHtml + "</div>"
+                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "bubbles\">" + bubbleHtml + "</div>"
+                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "composer\">" + composerHtml + "</div>"
+                   + "</div>";
+        return RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml);
+    }
+
+    /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
+    public static string WrapStreamSection(string key, string html)
+        => "<div class=\"stream-item\" data-key=\"" + key + "\">" + html + "</div>";
+
+    /// <summary>主区壳（单内容形态）。</summary>
+    private static string MainRegion(string contentHtml)
+        => "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
+
+    /// <summary>整页壳渲染核心（单一拼接点）：区域容器 + 模板投影。</summary>
+    private static string RenderShellWithMain(
+        IReadOnlyDictionary<string, string> templates,
+        string selectorHtml,
+        string title,
+        string subtitle,
+        string treeHtml,
+        string mainRegionHtml,
+        string? pollAttrs,
+        string? overlayHtml)
     {
         var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "aside\">" + treeHtml + "</div>";
-        var mainRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
         // E-8：外壳动态位（选区/标题/副标题）各为独立区域元素（区域元素即 patch 目标，其内容 = 该位 HTML/文本）。
         var selectorRegion = "<div class=\"seg region\" data-name=\"" + RegionNamePrefix + "seg\">" + selectorHtml + "</div>";
         var titleRegion = "<span data-name=\"" + RegionNamePrefix + "head\">" + title + "</span>";
@@ -87,7 +139,7 @@ public static class HtmlShellProjector
                 ["title"] = titleRegion,
                 ["subtitle"] = subtitleRegion,
                 ["tree"] = treeRegion,
-                ["history"] = mainRegion,
+                ["history"] = mainRegionHtml,
                 ["overlay"] = overlayRegion,
                 ["pollAttrs"] = pollAttrs ?? string.Empty,
             });

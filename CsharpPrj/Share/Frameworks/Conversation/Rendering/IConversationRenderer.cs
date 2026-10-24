@@ -12,4 +12,11 @@ public interface IConversationRenderer
 {
     /// <summary>渲染整段会话历史为调用方目标载体内容；空列表由实现输出空态文案。</summary>
     string Render(IReadOnlyList<ConversationRenderItem> items);
+
+    /// <summary>
+    /// 分段渲染（流面增量）：返回按稳定段键切分的片段，供 <c>Append</c> 原语定点更新/追加。
+    /// 缺省实现 = 单段全量（<c>all</c>），语义与 <see cref="Render"/> 等价（零回归）。
+    /// </summary>
+    IReadOnlyList<ConversationRenderSection> RenderSections(IReadOnlyList<ConversationRenderItem> items)
+        => new[] { new ConversationRenderSection("all", Render(items)) };
 }

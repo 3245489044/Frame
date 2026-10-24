@@ -15,15 +15,19 @@ public sealed class RowPortRecordReadPort : IRecordReadPort
 {
     private readonly Func<string, IStoreRowPort?> _resolve;
     private readonly Func<string, string?, int, IReadOnlyList<string>>? _listKeys;
+    private readonly Func<string, string, string, IReadOnlyDictionary<string, string>>? _fields;
 
     /// <param name="resolve">域键 → 行端口（未注册 ⇒ null）。</param>
     /// <param name="listKeys">域键 + 前缀 + 上限 → 键集（缺省 ⇒ <see cref="ReadManyAsync"/> fail-closed）。</param>
+    /// <param name="fields">域键 + 真键 + 文档文本 → 呈现字段（缺省 ⇒ 空表；不伪造字段）。</param>
     public RowPortRecordReadPort(
         Func<string, IStoreRowPort?> resolve,
-        Func<string, string?, int, IReadOnlyList<string>>? listKeys = null)
+        Func<string, string?, int, IReadOnlyList<string>>? listKeys = null,
+        Func<string, string, string, IReadOnlyDictionary<string, string>>? fields = null)
     {
         _resolve = resolve ?? throw new ArgumentNullException(nameof(resolve));
         _listKeys = listKeys;
+        _fields = fields;
     }
 
     /// <inheritdoc />
@@ -40,7 +44,7 @@ public sealed class RowPortRecordReadPort : IRecordReadPort
 
         return Task.FromResult<RecordView?>(new RecordView(
             domain, key, key,
-            new Dictionary<string, string>(StringComparer.Ordinal),
+            Fields(domain, key, docText),
             docText,
             "Live"));
     }
@@ -65,9 +69,13 @@ public sealed class RowPortRecordReadPort : IRecordReadPort
             ct.ThrowIfCancellationRequested();
             if (views.Count >= limit) break;
             if (!port.TryRead(key, out var docText)) continue;
-            views.Add(new RecordView(domain, key, key,
-                new Dictionary<string, string>(StringComparer.Ordinal), docText, "Live"));
+            views.Add(new RecordView(domain, key, key, Fields(domain, key, docText), docText, "Live"));
         }
         return Task.FromResult<IReadOnlyList<RecordView>>(views);
     }
+
+    /// <summary>呈现字段投影（未注入 ⇒ 空表；禁伪造字段值）。</summary>
+    private IReadOnlyDictionary<string, string> Fields(string domain, string key, string docText)
+        => _fields?.Invoke(domain, key, docText)
+           ?? new Dictionary<string, string>(StringComparer.Ordinal);
 }

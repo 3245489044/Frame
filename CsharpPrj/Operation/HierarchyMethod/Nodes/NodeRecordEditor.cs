@@ -47,6 +47,55 @@ namespace Operation.HierarchyMethod.Nodes
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
+        /// <summary>按五字段构造编辑器 JSON（载荷 = 已解码的记录体 JSON；与 <see cref="ToEditorJson(NodeRecord)"/> 同形）。</summary>
+        /// <param name="nodeType">节点类型。</param>
+        /// <param name="threadId">线程/工作流 Id。</param>
+        /// <param name="key">节点键。</param>
+        /// <param name="status">状态。</param>
+        /// <param name="payloadJson">记录体 JSON（空 ⇒ null 载荷；非法 JSON ⇒ 转义保事实）。</param>
+        public static string ToEditorJson(string? nodeType, string? threadId, string key, string? status, string? payloadJson)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("nodeType", nodeType);
+                writer.WriteString("threadId", threadId);
+                writer.WriteString("key", key);
+                writer.WriteString("status", status);
+                writer.WritePropertyName("payload");
+                if (string.IsNullOrWhiteSpace(payloadJson))
+                {
+                    writer.WriteNullValue();
+                }
+                else if (IsJsonValue(payloadJson))
+                {
+                    writer.WriteRawValue(payloadJson);
+                }
+                else
+                {
+                    writer.WriteStringValue(payloadJson);
+                }
+
+                writer.WriteEndObject();
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private static bool IsJsonValue(string text)
+        {
+            try
+            {
+                using var _ = JsonDocument.Parse(text);
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>解析编辑器 JSON（非对象/非法 ⇒ false；payload 保留原始 JSON 文本）。</summary>
         public static bool TryParse(
             string? json,

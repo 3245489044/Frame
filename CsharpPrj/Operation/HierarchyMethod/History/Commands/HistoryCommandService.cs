@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.DataStoreDriven.Core;
 using Operation.HierarchyMethod.Abstractions;
 using Share.Foundations.Diagnostics;
 using Share.Conversation;
@@ -27,6 +28,7 @@ public sealed class HistoryCommandService : IHistoryCommandPort
     private readonly ISessionTranscriptStore? _transcripts;
     private readonly ITaskQuery? _tasks;
     private readonly IDiagnosticsSink _diagnostics;
+    private readonly ICompositeWriteUnit? _writeUnit;
 
     public HistoryCommandService(
         IHistoryRootStore roots,
@@ -35,7 +37,8 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         ISessionStore? sessions = null,
         ITaskQuery? tasks = null,
         IDiagnosticsSink? diagnostics = null,
-        ISessionTranscriptStore? transcripts = null)
+        ISessionTranscriptStore? transcripts = null,
+        ICompositeWriteUnit? writeUnit = null)
     {
         _roots = roots ?? throw new ArgumentNullException(nameof(roots));
         _relations = relations ?? throw new ArgumentNullException(nameof(relations));
@@ -44,6 +47,7 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         _tasks = tasks;
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
         _transcripts = transcripts;
+        _writeUnit = writeUnit;
     }
 
     public async Task<HistoryRoot> CreateAsync(CreateHistoryCommand cmd, CancellationToken ct = default)
@@ -57,14 +61,33 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         var root = existing ?? HistoryRoot.Create(cmd.Key, cmd.Name, cmd.Kind, cmd.Actor);
         if (existing is null)
         {
-            await _roots.CreateAsync(root, ct).ConfigureAwait(false);
-            try
+            if (_writeUnit is null)
             {
+                // 迁移期直调路径（未装配写单元）：保留一版，装配写单元后不再进入（禁长期并行）。
+                await _roots.CreateAsync(root, ct).ConfigureAwait(false);
                 await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            else
             {
-                _diagnostics.Report("HistoryCommand_root_mirror_failed", new { history = root.Key.Value, error = ex.Message });
+                // 跨库写单元：SQL（根行）→ Graph（history 锚点）；图失败入 Outbox（不吞、不阻断 SQL 语义）。
+                var result = await _writeUnit.ExecuteAsync(new StorageWriteUnit(
+                    "history.create",
+                    $"history:{root.Key.Value}:create:v1",
+                    Sql: sqlCt => _roots.CreateAsync(root, sqlCt),
+                    Graph: graphCt => _relations.CreateAsync(root.Key.Value, root.Name, graphCt),
+                    PayloadJson: root.Key.Value), ct).ConfigureAwait(false);
+
+                if (!result.SqlCommitted)
+                    throw new InvalidOperationException(
+                        $"创建历史根失败：{string.Join("; ", result.Reasons)}");
+
+                if (!result.GraphApplied)
+                    _diagnostics.Report("HistoryCommand_root_mirror_pending", new
+                    {
+                        history = root.Key.Value,
+                        outbox = result.OutboxKey,
+                        reasons = result.Reasons,
+                    });
             }
         }
 

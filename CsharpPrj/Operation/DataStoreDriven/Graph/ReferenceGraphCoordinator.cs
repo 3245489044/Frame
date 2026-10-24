@@ -31,13 +31,14 @@ namespace Operation.DataStoreDriven.Graph;
 ///   · 关系声明写/读一律经 ur_relations（USharp [Record]，_id = SQL NodeKey 文法），SQL 不再持有声明。
 /// 本类同时实现 <see cref="IResourceReferenceStore"/> 与 <see cref="INodeRelationStore"/> 端口，保持既有消费方（编排器/对账器）编译兼容。
 /// </summary>
-public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRelationStore, IGraphCatalogReader, IAsyncDisposable
+public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRelationStore, IGraphCatalogReader, IOutboxStore, IAsyncDisposable
 {
     private readonly LiteDatabase _db;                                    // 唯一持有句柄
     private readonly ILiteCollection<BsonDocument> _edges;                // ur_references（唯一集合，纯边）
     private readonly ILiteCollection<BsonDocument> _endpointDocs;         // ur_endpoints（端点符号/metadata 落盘缓存）
     private readonly ILiteCollection<BsonDocument> _relationDocs;         // ur_relations（关系声明真源；权威=LiteDB，G1）
     private readonly ILiteCollection<BsonDocument> _tombstones;           // ur_graph_tombstones（删除意图；先墓碑后物理删除）
+    private readonly ILiteCollection<BsonDocument> _outbox;               // ur_write_outbox（跨库写单元重放；与边同库，走单写门）
     private readonly ICoreGraph<string, Resource, ReferenceEdgeData> _graph; // 热邻接（内存，由边重建）
     private readonly Dictionary<string, Resource> _endpoints;             // 会话内存端点注册表（由 ur_endpoints + 边重建）
     private readonly Dictionary<string, string> _typeById;                // "{type}:{id}" -> key（端点 O(1) 查找；对齐 GetUniqueKey）
@@ -55,13 +56,16 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
     private const string EdgeKeySeparator = "::";
 
+    /// <summary>Outbox 集合后缀（与边同库同 owner ⇒ 重放不跨库事务；前缀由组合根统一加）。</summary>
+    private const string OutboxCollectionSuffix = "write_outbox";
+
     // 图行编解码（G-4 阶段二：**必填**，无默认回退）：图行 EdgeDoc/EndpointDoc 为非 [Record] 记录通道，
     // 由组合根经 UsharpDataPorts.Codec 显式注入；未注入 ⇒ fail-fast（禁静默回退 JSON）。旧行读兼容由注入 codec 承担。
 
 
     private ReferenceGraphCoordinator(
         LiteDatabase db, string edgesCollection, string endpointsCollection, string relationsCollection,
-        string tombstonesCollection,
+        string tombstonesCollection, string outboxCollection,
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
@@ -72,6 +76,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _endpointDocs = _db.GetCollection<BsonDocument>(endpointsCollection);
         _relationDocs = _db.GetCollection<BsonDocument>(relationsCollection);
         _tombstones = _db.GetCollection<BsonDocument>(tombstonesCollection);
+        _outbox = _db.GetCollection<BsonDocument>(outboxCollection);
         _graph = new CoreGraph<string, Resource, ReferenceEdgeData>();
         _endpoints = new Dictionary<string, Resource>(StringComparer.Ordinal);
         _typeById = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -113,7 +118,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var db = new LiteDatabase(conn);
         var coordinator = new ReferenceGraphCoordinator(
             db, prefix + TableNames.References, prefix + TableNames.Endpoints, prefix + TableNames.Relations,
-            prefix + TableNames.Tombstones,
+            prefix + TableNames.Tombstones, prefix + OutboxCollectionSuffix,
             vocabulary, vocabularyGate, edgeDiagnostics, codec);
         try
         {
@@ -1291,6 +1296,113 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         };
         _endpointDocs.Upsert(doc);
     }
+
+    // ---- 跨库写单元 Outbox（IOutboxStore；与边同库、同单写门）----
+
+    /// <inheritdoc />
+    public async Task UpsertPendingAsync(OutboxEntry entry, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entry.IdempotencyKey);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            _outbox.Upsert(new BsonDocument
+            {
+                ["_id"] = entry.IdempotencyKey,
+                ["UnitName"] = entry.UnitName ?? string.Empty,
+                ["PayloadJson"] = entry.PayloadJson ?? string.Empty,
+                ["Attempts"] = entry.Attempts,
+                ["LastError"] = entry.LastError ?? string.Empty,
+                ["State"] = string.IsNullOrWhiteSpace(entry.State) ? OutboxStates.Pending : entry.State,
+                ["FirstFailedAt"] = string.IsNullOrWhiteSpace(entry.FirstFailedAt)
+                    ? DateTimeOffset.UtcNow.ToString("o")
+                    : entry.FirstFailedAt,
+            });
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxEntry>> ListPendingAsync(int limit = 100, CancellationToken ct = default)
+    {
+        if (limit <= 0) return Array.Empty<OutboxEntry>();
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var docs = _outbox.Find(Query.EQ("State", OutboxStates.Pending))
+                .OrderBy(d => d["FirstFailedAt"].AsString)
+                .Take(Math.Max(1, limit))
+                .ToList();
+            var result = new List<OutboxEntry>(docs.Count);
+            foreach (var d in docs)
+                result.Add(ToOutboxEntry(d));
+            return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAppliedAsync(string idempotencyKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        await SetOutboxStateAsync(idempotencyKey, OutboxStates.Applied, error: null, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAbandonedAsync(string idempotencyKey, string reason, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        await SetOutboxStateAsync(idempotencyKey, OutboxStates.Abandoned, reason, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<(int Pending, int Abandoned)> CountAsync(CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var pending = _outbox.Count(Query.EQ("State", OutboxStates.Pending));
+            var abandoned = _outbox.Count(Query.EQ("State", OutboxStates.Abandoned));
+            return ((int)pending, (int)abandoned);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task SetOutboxStateAsync(string key, string state, string? error, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var doc = _outbox.FindById(key);
+            if (doc is null) return;
+            doc["State"] = state;
+            if (error is not null) doc["LastError"] = error;
+            _outbox.Update(doc);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private static OutboxEntry ToOutboxEntry(BsonDocument d) => new(
+        d["_id"].AsString,
+        d["UnitName"].AsString,
+        d["PayloadJson"].AsString,
+        d.ContainsKey("Attempts") ? d["Attempts"].AsInt32 : 0,
+        d.ContainsKey("LastError") && !string.IsNullOrEmpty(d["LastError"].AsString) ? d["LastError"].AsString : null,
+        d.ContainsKey("State") ? d["State"].AsString : OutboxStates.Pending,
+        d.ContainsKey("FirstFailedAt") ? d["FirstFailedAt"].AsString : string.Empty);
 
     // ---- 边文档编解码（ur_references）----
 

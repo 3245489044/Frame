@@ -1235,5 +1235,37 @@
         Expect = 0
         Note   = '通用文本代数纯度：零领域常量 · 裸判空仅语义承担位 · TextState/Apply/Compose/From 四单源；负对照防恒真'
     }
+
+    StorageWriteEntries = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '双库写入入口收敛：图库 owner 创建点 = 1 · 连接工厂/直构节点库/载荷写 ≤ 基线（结构事实：调用点计数）'
+    }
+
+    ReadIdentitySingleSource = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '行身份单源：存储键→表映射 = 1 · 旧标签表 = 1 · 域注册面 ≤ 基线 · 节点域单点读 ≤ 基线'
+    }
+
+    RenderLayerStoreFree = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '渲染层只接收模型：Agent.Ui\Ui\Views\** 内存储端口引用 = 0'
+    }
+
+    GraphPathSingleSource = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '图库路径单源：路径解析/文件名常量 = 1 · 启动指纹发射点 = 1 · 两库同目录断言 ≥ 1'
+    }
 }
 

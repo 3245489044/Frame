@@ -1,8 +1,8 @@
 @{
     Schema = 'gate-baseline-v1'
     Gate   = 'AntiPatternFamily'
-    FamilyCount = @{ Value = 19; Origin = 'Derived'; DueWhen = '' }
-    IdCount     = @{ Value = 73; Origin = 'Derived'; DueWhen = '' }
+    FamilyCount = @{ Value = 20; Origin = 'Derived'; DueWhen = '' }
+    IdCount     = @{ Value = 79; Origin = 'Derived'; DueWhen = '' }
     Ids = @{ Origin = 'Derived'; DueWhen = ''; Value = @(
         'ANTI-ABSENCE-FROM-SEARCH',
         'ANTI-ATTENTION-DILUTION',
@@ -25,6 +25,8 @@
         'ANTI-CYCLIC-AGGREGATION',
         'ANTI-DEPTH-MISMATCH',
         'ANTI-DIAGNOSE-WRITE',
+        'ANTI-DIMENSION-DELETION',
+        'ANTI-DUAL-PATH',
         'ANTI-DUPLICATED-IMPLEMENTATION',
         'ANTI-EMPTY-DEADLOOP',
         'ANTI-EMPTY-IGNORED',
@@ -33,6 +35,7 @@
         'ANTI-EXCESSIVE-SWITCH',
         'ANTI-FAILURE-REUSE',
         'ANTI-FIDELITY-LOSS',
+        'ANTI-FORM-SMUGGLING',
         'ANTI-FULL-REPO-SCAN',
         'ANTI-INCREMENTAL-VERIFY',
         'ANTI-INTERLEAVED-VERIFY',
@@ -40,6 +43,7 @@
         'ANTI-LEVEL-CONFUSION',
         'ANTI-LOW-COHESION',
         'ANTI-MECHANISM-SPIRAL',
+        'ANTI-MULTI-LEDGER',
         'ANTI-MULTI-RUN-VERIFY',
         'ANTI-NARRATIVE-COMPLETION',
         'ANTI-NESTED-POLLUTION',
@@ -52,6 +56,7 @@
         'ANTI-POINTWISE-READ',
         'ANTI-PROJECTION-PREFIX-TRUNCATION',
         'ANTI-PROXY-SCOREBOARD',
+        'ANTI-PSEUDO-DECLARATIVE',
         'ANTI-RAW-OUTPUT-LOSS',
         'ANTI-REASONING-AMNESIA',
         'ANTI-RECOVERY-SKIP',
@@ -65,6 +70,7 @@
         'ANTI-SEMANTIC-EXEMPTION',
         'ANTI-SHELL-LOCATE',
         'ANTI-SHELL-SPAM',
+        'ANTI-SILENT-OMISSION',
         'ANTI-STALE-ARTIFACT-VERIFY',
         'ANTI-STALE-LOADFACE',
         'ANTI-STRUCTURE-DRIFT',

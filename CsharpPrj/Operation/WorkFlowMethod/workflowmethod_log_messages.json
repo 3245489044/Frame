@@ -250,6 +250,11 @@
       "category": "WorkFlowMethod_Registry",
       "template": "[WorkflowMethodExecution] 未找到工作流定义: functionName={functionName}. {suggestion}"
     },
+    "ConditionSystem_FunctionNotTruthy": {
+      "level": "Warning",
+      "category": "WorkFlowMethod_Execution",
+      "template": "[ConditionSystem] 条件函数未产出 bool（按假分支执行，禁静默）: entity={entity}, funcRef={funcRef}, isSuccess={isSuccess}, valueType={valueType}, error={error}, parameterNames={parameterNames}"
+    },
     "WorkflowMethodExecution_Start": {
       "level": "Info",
       "category": "WorkFlowMethod_Execution",

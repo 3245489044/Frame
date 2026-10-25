@@ -15,8 +15,8 @@ namespace UiBackend.Html;
 /// </summary>
 public sealed class RealInputClicker
 {
-    /// <summary>真实点击「前台确权」等待上限（毫秒）。</summary>
-    private const int ForegroundTimeoutMs = 600;
+    /// <summary>真实点击「前台确权」等待上限（毫秒）。Windows 前台锁下激活可能需多次重试。</summary>
+    private const int ForegroundTimeoutMs = 1500;
 
     private readonly IWebViewHost _host;
     private readonly HtmlScriptExecutor _executor;
@@ -63,7 +63,7 @@ public sealed class RealInputClicker
         //    不产生 click（首击丢失）。等待前台再点击使首个真实点击即生效；无法确权 → NOT_EFFECTIVE（不假阳）。
         var fgOk = await EnsureForegroundAsync(ForegroundTimeoutMs, ct).ConfigureAwait(false);
         if (fgOk == false)
-            return $"NOT_EFFECTIVE|前台未确权（目标窗体未成为前台窗口，真实点击可能仅激活窗口）；fg=0x{Win32NativeInput.GetForegroundWindow().ToInt64():X}";
+            return $"NOT_EFFECTIVE|前台未确权（目标窗体未成为前台窗口，真实点击可能仅激活窗口）；target=0x{_host.HostFormHandle.ToInt64():X}, fg=0x{Win32NativeInput.GetForegroundWindow().ToInt64():X}";
 
         // ② 精确坐标：设备像素 = CSS 像素 × devicePixelRatio（WebView2 真实 DPI/缩放，优于 DeviceDpi 近似）；
         //    viewport 原点 = 控件客户区原点，再 ClientToScreen 转屏幕坐标。
@@ -103,7 +103,9 @@ public sealed class RealInputClicker
     }
 
     /// <summary>激活宿主窗体并聚焦控件，随后轮询等待前台确权（非阻塞 Task.Delay，保持消息泵）。
-    /// true=已成前台；false=超时仍未确权；null=无法判定（无句柄/无窗体：headless/测试桩，沿用旧行为）。</summary>
+    /// true=已成前台；false=超时仍未确权；null=无法判定（无句柄/无窗体：headless/测试桩，沿用旧行为）。
+    /// <para>强制路径：<see cref="Win32NativeInput.ForceForeground"/>（AttachThreadInput 绕过前台锁）——仅 <c>form.Activate()</c>
+    /// 在控制台/他进程持前台时会被 Windows 拒绝，导致「首击仅激活窗口」。</para></summary>
     private async Task<bool?> EnsureForegroundAsync(int timeoutMs, CancellationToken ct)
     {
         if (!_host.IsHandleCreated)
@@ -111,15 +113,16 @@ public sealed class RealInputClicker
         var formHandle = _host.HostFormHandle;
         if (formHandle == IntPtr.Zero)
             return null;
-        _host.ActivateForInput();
 
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < Math.Max(0, timeoutMs))
         {
-            if (Win32NativeInput.GetForegroundWindow() == formHandle)
+            _host.ActivateForInput();
+            Win32NativeInput.ForceForeground(formHandle);
+            if (Win32NativeInput.IsForegroundOf(formHandle))
                 return true;
-            await Task.Delay(20, ct).ConfigureAwait(false);
+            await Task.Delay(40, ct).ConfigureAwait(false);
         }
-        return Win32NativeInput.GetForegroundWindow() == formHandle;
+        return Win32NativeInput.IsForegroundOf(formHandle);
     }
 }

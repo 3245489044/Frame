@@ -89,11 +89,31 @@ public sealed partial class HtmlBackendRuntime : ISurfaceWriter
             }
         }
 
-        var ops = new List<object>(decision.Kept.Count);
-        var pending = new List<PendingSection>(decision.Kept.Count);
-        foreach (var s in decision.Kept)
+        // F-4 同拍同目标归并：一拍内同 name 只允许一次落地（后者为准），防「前者写后被后者空载荷清空」。
+        var merged = 0;
+        var kept = new List<SectionPlan>(decision.Kept.Count);
+        var lastAt = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var section in decision.Kept)
         {
-            var prepared = Prepare(s, unchanged);
+            if (lastAt.TryGetValue(section.Name, out var at))
+            {
+                kept[at] = section;
+                merged++;
+                continue;
+            }
+
+            lastAt[section.Name] = kept.Count;
+            kept.Add(section);
+        }
+
+        if (merged > 0)
+            Report("EventBridge_writeback", $"同拍同目标归并：merged={merged} kept={kept.Count} trace={trace}");
+
+        var ops = new List<object>(kept.Count);
+        var pending = new List<PendingSection>(kept.Count);
+        foreach (var s in kept)
+        {
+            var prepared = Prepare(s, unchanged, failed);
             if (prepared is null) continue;
             ops.Add(prepared.Op);
             pending.Add(prepared);
@@ -110,6 +130,8 @@ public sealed partial class HtmlBackendRuntime : ISurfaceWriter
         Accumulate(pending, statuses, jsMs, applied, failed, anomalies);
         _metrics.OnBeat(SumNodes(pending, statuses), SumBytes(pending, statuses), decision.Dropped.Count, decision.DegradeReason);
         _metrics.OnQueueWait(UiThreadMarshaler.LastQueueWaitMs);
+        // F-8 写后取证（只读诊断；不参与 Applied/Failed 裁决，异常自吞并可见化）。
+        await ProbeWriteBackAsync(pending, statuses, source, trace, ct).ConfigureAwait(false);
 
         Report("EventBridge_writeback",
             $"节批量写回 source={source} sections={batch.Count} kept={decision.Kept.Count} applied={applied.Count} " +
@@ -117,5 +139,76 @@ public sealed partial class HtmlBackendRuntime : ISurfaceWriter
             $"reason={decision.DegradeReason ?? "-"} trace={trace}");
 
         return WriteOutcome.Classify(applied, unchanged, failed, anomalies.Count > 0 ? anomalies : null).ToResult(trace);
+    }
+
+    /// <summary>
+    /// 写后 DOM 取证（诊断；F-8）：一次脚本查询全部已写目标 + 文档级计数，与载荷侧 mode/nodes/bytes/status 同行输出。
+    /// <para>只读、不参与裁决；异常吞并可见化（诊断不得改变写回结论）。仅交互来源执行（刷新/心跳零额外往返）。</para>
+    /// </summary>
+    private async Task ProbeWriteBackAsync(
+        List<PendingSection> pending, string[] statuses, UiWriteSource source, string trace, CancellationToken ct)
+    {
+        if (source != UiWriteSource.Interactive || pending.Count == 0) return;
+        var names = new List<string>(pending.Count + 1);
+        var payload = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < pending.Count; i++)
+        {
+            var plan = pending[i].Plan;
+            if (string.IsNullOrEmpty(plan.Name)) continue;
+            if (!payload.ContainsKey(plan.Name)) names.Add(plan.Name);
+            payload[plan.Name] = $"{plan.Mode}/{plan.Nodes}/{plan.Bytes}/{statuses[i]}";
+        }
+
+        if (names.Count == 0) return;
+        // 壳容器纳入取证（H3 判别：区域内容是否错位到 region-main）。
+        if (!names.Contains("region-main")) names.Add("region-main");
+        try
+        {
+            var script = "(function(){var ns=" + JsonSerializer.Serialize(names) + ";var all=document.querySelectorAll('[data-name]');"
+                + "var out=[];for(var i=0;i<ns.length;i++){var el=null;for(var j=0;j<all.length;j++){if(all[j].getAttribute('data-name')===ns[i]){el=all[j];break;}}"
+                + "var dn=el?el.querySelectorAll('[data-name]'):[];var f=dn.length?dn[0].getAttribute('data-name'):'';"
+                + "out.push({n:ns[i],c:el?el.children.length:-1,d:dn.length,f:f,t:el?((el.textContent||'').length):-1,h:el?el.innerHTML.length:-1});}"
+                + "var body=(document.body&&document.body.innerHTML)?document.body.innerHTML.length:0;"
+                + "return JSON.stringify({r:out,docNames:all.length,body:body});})()";
+            var raw = HtmlElementNode.UnwrapString(await _channel.ExecuteScriptAsync(script, ct).ConfigureAwait(false));
+            Report("EventBridge_writeback", BuildProbeLine(raw, payload, trace));
+        }
+        catch (Exception ex)
+        {
+            Report("EventBridge_writeback", $"写后取证: probe_failed {ex.GetType().Name} trace={trace}");
+        }
+    }
+
+    private static string BuildProbeLine(string raw, IReadOnlyDictionary<string, string> payload, string trace)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return $"写后取证: probe_empty trace={trace}";
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            var root = document.RootElement;
+            var sb = new System.Text.StringBuilder("写后取证: trace=").Append(trace);
+            if (root.TryGetProperty("docNames", out var docNames)) sb.Append(" docNames=").Append(docNames.GetInt32());
+            if (root.TryGetProperty("body", out var body)) sb.Append(" body=").Append(body.GetInt32());
+            if (root.TryGetProperty("r", out var rows) && rows.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var name = row.TryGetProperty("n", out var n) ? n.GetString() ?? "?" : "?";
+                    sb.Append(" | ").Append(name)
+                      .Append(" payload=").Append(payload.TryGetValue(name, out var p) ? p : "-")
+                      .Append(" domChildren=").Append(row.TryGetProperty("c", out var c) ? c.GetInt32() : -1)
+                      .Append(" dataNames=").Append(row.TryGetProperty("d", out var d) ? d.GetInt32() : -1)
+                      .Append(" first=").Append(row.TryGetProperty("f", out var f) ? f.GetString() ?? string.Empty : string.Empty)
+                      .Append(" textLen=").Append(row.TryGetProperty("t", out var t) ? t.GetInt32() : -1)
+                      .Append(" htmlBytes=").Append(row.TryGetProperty("h", out var h) ? h.GetInt32() : -1);
+                }
+            }
+
+            return sb.ToString();
+        }
+        catch (JsonException)
+        {
+            return $"写后取证: probe_unparsable raw={(raw.Length > 160 ? raw.Substring(0, 160) : raw)} trace={trace}";
+        }
     }
 }

@@ -2,6 +2,7 @@ using WorkFlowMethod.Diagnostics;
 using WorkFlowMethod.Guards;
 using ExecutionFramework.Abstractions;
 using ExecutionFramework.Engine;
+using ExecutionFramework.Systems;
 using ExecutionCenter.Abstractions;
 using ExecutionCenter.Matrix;
 using WorkFlowMethod.Execution.Messages;
@@ -26,6 +27,8 @@ namespace WorkFlowMethod.Usage
             _functionHub = functionHub ?? throw new ArgumentNullException(nameof(functionHub));
             _stepExecutor = stepExecutor ?? throw new ArgumentNullException(nameof(stepExecutor));
             _callChainGuard = callChainGuard ?? new CallChainGuard();
+            // 条件节点「非成功/非 bool ⇒ 假分支」的可见化出口（单点接线；不自建第二套日志通道）。
+            ConditionSystem.Trace = static (messageId, data) => WorkFlowMethodLog.Log(messageId, data);
             // 工作流执行采用 RGE 内核；开启"失败不中断"对齐栈B 语义（失败仅记录，继续执行后续步骤）。
             var scheduler = RgeGraphSchedulerExtensions.CreateDefault(atomExecutor);
             scheduler.ContinueOnFailure = true;

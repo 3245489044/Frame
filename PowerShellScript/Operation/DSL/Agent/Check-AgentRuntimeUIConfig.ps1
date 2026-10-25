@@ -34,6 +34,8 @@ param(
     # 上溯四级 = 仓库根（本脚本位于 Frame\PowerShellScript\Operation\DSL\）。
     [string]$ConfigPath = (Join-Path $PSScriptRoot '..\..\..\..\..\Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'),
     [string]$WorkFlowDir = (Join-Path $PSScriptRoot '..\..\..\..\..\Projects\Information\DrivenConfig\WorkFlow'),
+    # 框架默认模板（判据载体：配置 templates 覆盖键必须存在于本键集，防「默认/覆盖」两份声明漂移）
+    [string]$DefaultTemplatesPath = (Join-Path $PSScriptRoot '..\..\..\..\..\Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json'),
     [switch]$FailOnWarning
 )
 
@@ -391,6 +393,213 @@ if ($tplObj -and $tplObj.PSObject) {
     foreach ($t in $tplObj.PSObject.Properties) {
         if ($t.Value -is [string]) { Check-TemplateKeys $t.Name ([string]$t.Value) }
     }
+}
+
+# ---- 检查5：事件路由声明（data-cmd="event:*" ⇒ 必须 data-route；路由须落到同页 eventTargets 的同名事件） ----
+# 契约：data-name = 唯一寻址键（realclick/断言/DOM 读写），data-route = 静态路由键（eventTargets 命中）。
+$eventTargetEvents   = @{}   # 目标名 → HashSet[事件名]
+$eventTargetClickFn  = @{}   # 目标名 → click 函数名清单
+$eventTargetWorkflow = @{}   # 目标名 → HashSet[本目标声明的 workflow 名]
+
+function Get-AttrValue([string]$attrs, [string]$attributeName) {
+    $m = [regex]::Match($attrs, '(?i)(?:^|\s)' + [regex]::Escape($attributeName) + '\s*=\s*(?:"([^"]*)"|''([^'']*)''|([^\s>]+))')
+    if (-not $m.Success) { return $null }
+    if ($m.Groups[1].Success) { return $m.Groups[1].Value }
+    if ($m.Groups[2].Success) { return $m.Groups[2].Value }
+    return $m.Groups[3].Value
+}
+
+function Collect-EventTargetIndex($nodes) {
+    foreach ($c in $nodes) {
+        $page = Get-Prop $c 'htmlPage'
+        if ($page) {
+            $targets = Get-Prop $page 'eventTargets'
+            if ($targets -and $targets.PSObject) {
+                foreach ($t in $targets.PSObject.Properties) {
+                    $declaredName = Get-Prop $t.Value 'name'
+                    $name = if ([string]::IsNullOrWhiteSpace([string]$declaredName)) { $t.Name } else { [string]$declaredName }
+
+                    $events = Get-Prop $t.Value 'events'
+                    $eventNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                    $clickFns = @()
+                    $workflowNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                    if ($events -and $events.PSObject) {
+                        foreach ($ev in $events.PSObject.Properties) {
+                            if ($ev.Name -eq 'bindings') { continue }
+                            [void]$eventNames.Add($ev.Name)
+                            if ($ev.Name -eq 'click') { $clickFns = @($ev.Value) }
+                        }
+                        $bind = Get-Prop $events 'bindings'
+                        $wfs = Get-Prop $bind 'workflows'
+                        if ($wfs -and $wfs.PSObject) {
+                            foreach ($wf in $wfs.PSObject.Properties) { [void]$workflowNames.Add($wf.Name) }
+                        }
+                    }
+
+                    $eventTargetEvents[$name] = $eventNames
+                    $eventTargetClickFn[$name] = $clickFns
+                    $eventTargetWorkflow[$name] = $workflowNames
+                }
+            }
+        }
+        $children = Get-Prop $c 'controls'
+        if ($children) { Collect-EventTargetIndex $children }
+    }
+}
+
+function Test-EventRouteDeclared([string]$route, [string]$eventName) {
+    foreach ($name in $eventTargetEvents.Keys) {
+        $hit = $false
+        $open = $route.IndexOf('{')
+        if ($open -lt 0) {
+            $hit = [string]::Equals($route, $name, [System.StringComparison]::OrdinalIgnoreCase)
+        }
+        else {
+            # 模板路由（如 viewType-{type}）：按模板前缀匹配目标名
+            $prefix = $route.Substring(0, $open)
+            $hit = $name.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+        }
+        if ($hit -and $eventTargetEvents[$name].Contains($eventName)) { return $true }
+    }
+    return $false
+}
+
+function Check-EventTemplates([string]$source, $templates) {
+    if (-not $templates -or -not $templates.PSObject) { return }
+    foreach ($t in $templates.PSObject.Properties) {
+        if ($t.Value -isnot [string]) { continue }
+        foreach ($m in $tagRe.Matches([string]$t.Value)) {
+            if ($m.Groups[1].Value -eq '/') { continue }
+            $attrs = $m.Groups[3].Value
+            $cmd = Get-AttrValue $attrs 'data-cmd'
+            if (-not $cmd -or -not $cmd.StartsWith('event:', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+
+            $eventName = $cmd.Substring(6)
+            $route = Get-AttrValue $attrs 'data-route'
+            $domName = Get-AttrValue $attrs 'data-name'
+            if ([string]::IsNullOrWhiteSpace($route)) {
+                # 允许「与 eventTargets 同名」的静态寻址键（无模板占位），其余必须显式 data-route。
+                if (-not [string]::IsNullOrWhiteSpace($domName) -and $domName.IndexOf('{') -lt 0 -and (Test-EventRouteDeclared $domName $eventName)) { continue }
+                Add-Error "事件元素缺 data-route（路由键与寻址键须分离）: $source → template=$($t.Name), data-name=$domName, data-cmd=$cmd"
+                continue
+            }
+            if (-not (Test-EventRouteDeclared $route $eventName)) {
+                Add-Error "事件元素路由不可解析: $source → template=$($t.Name), data-route=$route, event=$eventName（须命中 eventTargets 键且该目标声明同名事件）"
+            }
+        }
+    }
+}
+
+foreach ($view in $config.views) {
+    $vc = Get-Prop $view 'controls'
+    if ($vc) { Collect-EventTargetIndex $vc }
+}
+Check-EventTemplates '配置 templates' (Get-Prop $config 'templates')
+
+# ---- 检查5b：data-payload 的 JSON 花括号必须实体转义（R3 根因：{...} 被模板引擎当绑定吞掉） ----
+function Check-PayloadEncoding([string]$source, $templates) {
+    if (-not $templates -or -not $templates.PSObject) { return }
+    foreach ($t in $templates.PSObject.Properties) {
+        if ($t.Value -isnot [string]) { continue }
+        foreach ($m in $tagRe.Matches([string]$t.Value)) {
+            if ($m.Groups[1].Value -eq '/') { continue }
+            $payload = Get-AttrValue $m.Groups[3].Value 'data-payload'
+            if ([string]::IsNullOrWhiteSpace($payload)) { continue }
+            if ($payload.TrimStart().StartsWith('{')) {
+                Add-Error "data-payload 含未转义 JSON 花括号（模板引擎会按 {...} 绑定吞掉该段）: $source → template=$($t.Name)；须写 &#123; … &#125;"
+            }
+        }
+    }
+}
+Check-PayloadEncoding '配置 templates' (Get-Prop $config 'templates')
+if (Test-Path -LiteralPath $DefaultTemplatesPath) {
+    try { Check-PayloadEncoding '框架默认模板' (Get-Content -Raw -LiteralPath $DefaultTemplatesPath | ConvertFrom-Json -Depth 16) }
+    catch { }
+}
+
+# ---- 检查6：配置模板覆盖键 ⊆ 框架默认键集（D9：同一交互契约两份声明禁漂移） ----
+$defaultTemplateKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+if (Test-Path -LiteralPath $DefaultTemplatesPath) {
+    try {
+        $defaultTpl = Get-Content -Raw -LiteralPath $DefaultTemplatesPath | ConvertFrom-Json -Depth 16
+        foreach ($p in $defaultTpl.PSObject.Properties) {
+            if ($p.Value -is [string]) { [void]$defaultTemplateKeys.Add($p.Name) }
+        }
+    }
+    catch { Add-Warning "框架默认模板解析失败（判据不可判）: $($_.Exception.Message)" }
+}
+else { Add-Warning "框架默认模板缺件（判据不可判）: $DefaultTemplatesPath" }
+if ($defaultTemplateKeys.Count -gt 0 -and $tplObj -and $tplObj.PSObject) {
+    foreach ($t in $tplObj.PSObject.Properties) {
+        if ($t.Value -isnot [string]) { continue }
+        if (-not $defaultTemplateKeys.Contains($t.Name)) {
+            Add-Error "模板覆盖键不存在于框架默认键集: $($t.Name)（新增键须先入框架默认模板）"
+        }
+    }
+}
+
+# ---- 检查7：eventTargets 事件函数可达性（本目标声明 ∨ 他处声明（全局复用）∨ 已知注册） ----
+$declaredWorkflowAnywhere = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($set in $eventTargetWorkflow.Values) { foreach ($n in $set) { [void]$declaredWorkflowAnywhere.Add($n) } }
+foreach ($name in $eventTargetClickFn.Keys) {
+    foreach ($fn in @($eventTargetClickFn[$name])) {
+        if ([string]::IsNullOrWhiteSpace([string]$fn)) { continue }
+        if ($eventTargetWorkflow[$name].Contains([string]$fn)) { continue }
+        if ($declaredWorkflowAnywhere.Contains([string]$fn)) { continue }
+        if ($knownFunctions.Contains([string]$fn) -or (Test-KnownPrefix ([string]$fn))) { continue }
+        Add-Warning "事件目标 click 函数不可达: $name → $fn（本目标未声明 workflow，且非已知注册函数）"
+    }
+}
+
+# ---- 检查8：区域声明闭合（shell 产出 ⊆ 页面 regions 声明；F-7/I-5） ----
+$shellProjectorPath = Join-Path $PSScriptRoot '../../../../../Frame/CsharpPrj/Plate/HtmlViewer/Html/Render/HtmlShellProjector.cs'
+$shellRegionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+if (Test-Path -LiteralPath $shellProjectorPath) {
+    $shellSrc = [System.IO.File]::ReadAllText($shellProjectorPath)
+    foreach ($m in [regex]::Matches($shellSrc, 'RegionNamePrefix[ ]*[+][ ]*')) {
+        $rest = $shellSrc.Substring($m.Index + $m.Length)
+        $q = $rest.IndexOf([char]34)
+        if ($q -lt 0) { continue }
+        $end = $rest.IndexOf([char]34, $q + 1)
+        if ($end -le $q) { continue }
+        $key = $rest.Substring($q + 1, $end - $q - 1).TrimEnd([char]92)
+        if ($key -match '^[a-z0-9-]+$') { [void]$shellRegionKeys.Add('region-' + $key) }
+    }
+    if ($shellRegionKeys.Count -lt 8) {
+        Add-Error "检查8 判据不可判：从 HtmlShellProjector 仅解析到 $($shellRegionKeys.Count) 个区域键（应 >= 8）"
+    }
+}
+else { Add-Warning "检查8 判据不可判：缺件 $shellProjectorPath" }
+
+function Collect-DeclaredRegions($node, $out) {
+    if ($null -eq $node) { return }
+    $regions = Get-Prop $node 'regions'
+    if ($regions) {
+        foreach ($r in @($regions)) {
+            $k = Get-Prop $r 'key'
+            if ($k) { [void]$out.Add([string]$k) }
+        }
+    }
+    foreach ($prop in @('controls', 'views')) {
+        $items = Get-Prop $node $prop
+        if ($items) { foreach ($c in @($items)) { Collect-DeclaredRegions $c $out } }
+    }
+    $htmlPage = Get-Prop $node 'htmlPage'
+    if ($htmlPage) { Collect-DeclaredRegions $htmlPage $out }
+}
+
+$declaredRegions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+Collect-DeclaredRegions $config $declaredRegions
+if ($declaredRegions.Count -gt 0 -and $shellRegionKeys.Count -gt 0) {
+    foreach ($k in $shellRegionKeys) {
+        if (-not $declaredRegions.Contains($k)) {
+            Add-Error "检查8 区域声明不闭合（shell 产出但页面 regions 未声明）: $k"
+        }
+    }
+    $neg = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    [void]$neg.Add('region-seg')
+    $negMissing = @($shellRegionKeys | Where-Object { -not $neg.Contains($_) })
+    if ($negMissing.Count -eq 0) { Add-Error '检查8 负对照失效：缺失未被判据捕获' }
 }
 
 # ---- 报告 ----

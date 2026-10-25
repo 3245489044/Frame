@@ -7,8 +7,9 @@ namespace UiBackend.Html;
 
 public sealed partial class HtmlBackendRuntime
 {
-    /// <summary>单节准入与载荷打包（去重经唯一账本 <see cref="WriteLedger"/>；Bulk 由阈值策略判定）。</summary>
-    private PendingSection? Prepare(SectionPlan s, List<string> unchanged)
+    /// <summary>单节准入与载荷打包（去重经唯一账本 <see cref="WriteLedger"/>；Bulk 由阈值策略判定）。
+    /// <paramref name="failed"/> 非空时，载荷自洽闸拒绝的节记入失败清单（可见化，不静默丢弃）。</summary>
+    private PendingSection? Prepare(SectionPlan s, List<string> unchanged, List<string>? failed = null)
     {
         switch (s)
         {
@@ -34,15 +35,29 @@ public sealed partial class HtmlBackendRuntime
             {
                 var slot = TreeSlot(s.Name);
                 var fp = HtmlTreeWriter.Fingerprint(tree, s.Interaction);
-                if (!Admit(slot, fp, s, unchanged, out var version)) return null;
-
                 var keys = BulkThresholdPolicy.CollectKeys(tree);
                 _sectionKeys.TryGetValue(slot, out var oldKeys);
                 var ratio = BulkThresholdPolicy.ChangeRatio(oldKeys, keys);
                 var mode = BulkThresholdPolicy.Decide(
                     _options.BulkReplaceEnabled, s.Nodes, ratio, _options.BulkNodeThreshold, _options.BulkRatioThreshold);
+                var bulkHtml = mode == SectionWriteMode.BulkReplace ? UiNodeHtml.ToHtml(tree) : null;
+                // F-1/F-2 写面自洽闸：输入有节点而序列化为空 ⇒ 禁止落地（显式失败，不静默清空目标）。
+                if (mode == SectionWriteMode.BulkReplace
+                    && string.IsNullOrWhiteSpace(bulkHtml)
+                    && SectionPlanAdapter.CountNodes(tree) > 1)
+                {
+                    failed?.Add(s.Name);
+                    _metrics.OnSection(mode, applied: false);
+                    _sectionTelemetry.OnSection(new SectionOutcome(s.Id, mode, s.Nodes, s.Bytes, 0, "failed", "empty-payload"));
+                    Report("EventBridge_writeback",
+                        $"空载荷拒绝落地：{s.Name} nodes={s.Nodes} keys={keys.Count} mode=bulk（序列化为空 ⇒ 不写，保留目标现值）");
+                    return null;
+                }
+
+                if (!Admit(slot, fp, s, unchanged, out var version)) return null;
+
                 object op = mode == SectionWriteMode.BulkReplace
-                    ? new { op = "bulk", name = s.Name, html = UiNodeHtml.ToHtml(tree) }
+                    ? new { op = "bulk", name = s.Name, html = bulkHtml }
                     : new { op = "tree", name = s.Name, tree, state = s.Interaction };
                 return new PendingSection(s with { Mode = mode }, op, slot, version, fp);
             }

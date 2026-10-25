@@ -60,6 +60,72 @@ internal static class Win32NativeInput
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
 
+    // 前台确权（真实输入前置）：Windows 前台锁会拒绝非前台进程的 SetForegroundWindow，
+    // 通用做法 = 临时 AttachThreadInput 到当前前台线程后再 SetForegroundWindow/BringWindowToTop/SetFocus。
+    [DllImport("user32.dll")]
+    internal static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr SetFocus(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    internal static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("kernel32.dll")]
+    internal static extern uint GetCurrentThreadId();
+
+    internal const int SW_RESTORE = 9;
+    internal const uint GA_ROOT = 2;
+
+    /// <summary>前台是否已是目标窗体（含其子窗口/被拥有的顶层窗口）。</summary>
+    internal static bool IsForegroundOf(IntPtr formHandle)
+    {
+        if (formHandle == IntPtr.Zero) return false;
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+        if (fg == formHandle) return true;
+        if (IsChild(formHandle, fg)) return true;
+        return GetAncestor(fg, GA_ROOT) == formHandle;
+    }
+
+    /// <summary>强制把目标窗体置前台（AttachThreadInput 绕过前台锁；失败不抛）。</summary>
+    internal static void ForceForeground(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        var fg = GetForegroundWindow();
+        var fgThread = fg == IntPtr.Zero ? 0u : GetWindowThreadProcessId(fg, IntPtr.Zero);
+        var curThread = GetCurrentThreadId();
+        var attached = false;
+        if (fgThread != 0 && fgThread != curThread)
+            attached = AttachThreadInput(curThread, fgThread, true);
+        try
+        {
+            ShowWindow(hWnd, SW_RESTORE);
+            BringWindowToTop(hWnd);
+            SetForegroundWindow(hWnd);
+            SetFocus(hWnd);
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(curThread, fgThread, false);
+        }
+    }
+
     // 命中测试（坐标回执取证）：返回屏幕点下的窗口句柄——用于判定真实点击坐标落在哪个窗口/控件。
     [DllImport("user32.dll")]
     internal static extern IntPtr WindowFromPoint(NativePoint point);

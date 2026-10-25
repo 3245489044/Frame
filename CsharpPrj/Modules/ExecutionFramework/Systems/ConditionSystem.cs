@@ -10,6 +10,12 @@ public sealed class ConditionSystem : IIntentSystem
     private readonly TConfig.IFunctionExecutor? _functionExecutor;
     private readonly EntityExecutionHelper _helper;
 
+    /// <summary>
+    /// 诊断探针（宿主注入日志器）：条件函数「未成功 / 非 bool」被按假分支处理时上报分类+原因。
+    /// <para>本钩子不改变控制流语义（缺省仍判假），只消除「点击 success 但静默走 else」的不可见性。</para>
+    /// </summary>
+    public static Action<string, object?>? Trace { get; set; }
+
     public ConditionSystem(
         TConfig.IFunctionExecutor? functionExecutor = null,
         IntentSystemRouter? router = null,
@@ -76,6 +82,17 @@ public sealed class ConditionSystem : IIntentSystem
         if (result.IsSuccess && result.Value is bool boolVal)
             return boolVal;
 
+        // 失败可见化：非成功（参数缺失/函数未注册/执行异常）或返回值非 bool 一律按假分支，
+        // 但必须留下结构化原因（否则表现为「点击成功但视图不变」）。
+        Trace?.Invoke("ConditionSystem_FunctionNotTruthy", new
+        {
+            entity = entity.Name,
+            funcRef,
+            isSuccess = result.IsSuccess,
+            valueType = result.Value?.GetType().Name ?? "(null)",
+            error = result.ErrorMessage ?? string.Empty,
+            parameterNames = string.Join(",", resolvedParameters.Keys)
+        });
         return false;
     }
 

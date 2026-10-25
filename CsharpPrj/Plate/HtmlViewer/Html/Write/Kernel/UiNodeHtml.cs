@@ -24,6 +24,13 @@ public static class UiNodeHtml
     {
         if (node.IsText)
         {
+            // 片段根（Tag=="" 且带子节点）：与页面 __uiReconcile.appendInto 同语义，按容器透传子节点。
+            // 曾把片段根当纯文本 ⇒ Bulk 载荷恒为空串 ⇒ bulk(innerHTML="") 清空整个区域（F-1/F-2 根因）。
+            if (node.Children is { Count: > 0 })
+            {
+                foreach (var child in node.Children) Append(child, sb);
+                return;
+            }
             sb.Append(EscapeText(node.Text));
             return;
         }

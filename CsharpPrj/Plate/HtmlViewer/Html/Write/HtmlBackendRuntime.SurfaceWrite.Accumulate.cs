@@ -23,7 +23,7 @@ public sealed partial class HtmlBackendRuntime
                 applied.Add(p.Plan.Name);
                 _metrics.OnSection(p.Plan.Mode, applied: true);
                 _sectionTelemetry.OnSection(new SectionOutcome(p.Plan.Id, p.Plan.Mode, p.Plan.Nodes, p.Plan.Bytes, jsMs, "applied"));
-                if (p.Plan.Tree is not null && p.Plan.Mode != SectionWriteMode.BulkReplace)
+                if (p.Plan.Tree is not null)
                     _sectionKeys[TreeSlot(p.Plan.Name)] = BulkThresholdPolicy.CollectKeys(p.Plan.Tree);
                 continue;
             }

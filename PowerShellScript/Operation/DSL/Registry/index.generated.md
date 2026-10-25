@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（68 件）
+## Agent（70 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -73,6 +73,8 @@
 | `ToolCallConvergence` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ToolCallConvergence.ps1` |
 | `TransferKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TransferKey.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
+| `UiTemplateSet` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiTemplateSet.ps1` |
+| `UiWriteFidelity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiWriteFidelity.ps1` |
 | `UnknownVisible` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UnknownVisible.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
 | `WorkflowRegistration` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-WorkflowRegistration.ps1` |
@@ -87,7 +89,7 @@
 | `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Data（19 件）
+## Data（20 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -104,6 +106,7 @@
 | `GraphPathSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1` |
 | `ReadIdentitySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ReadIdentitySingleSource.ps1` |
 | `RenderLayerStoreFree` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-RenderLayerStoreFree.ps1` |
+| `SelectionContract` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SelectionContract.ps1` |
 | `SessionDuplication` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SessionDuplication.ps1` |
 | `SingleWriter` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1` |
 | `SqliteTablePolicySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SqliteTablePolicySingleSource.ps1` |
@@ -130,7 +133,7 @@
 | `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（21 件）
+## Meta（22 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -154,6 +157,7 @@
 | `UiIncremental` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1` |
 | `UiSingleWrite` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1` |
 | `UiTelemetryFields` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiTelemetryFields.ps1` |
+| `UiThreadAffinity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
 ## Node（26 件）
@@ -194,7 +198,7 @@
 | `KeyGrammar` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（15 件）
+## Process（16 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -202,6 +206,7 @@
 | `BatchLineEndings` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
 | `DeclarationCapability` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-DeclarationCapability.ps1` |
+| `DimensionReduction` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |
 | `InvokeEntrypoints` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
 | `JudgmentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentParity.ps1` |
 | `JudgmentPoints` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1` |

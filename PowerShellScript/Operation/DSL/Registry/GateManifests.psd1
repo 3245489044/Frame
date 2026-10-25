@@ -880,6 +880,16 @@
         Note   = '测试替身一致性守卫 D0–D3（因6）：测试侧 `new <Type>{ Member=… }` 引用的成员须 ∈ 产品类型成员面（含 record 主构造）；含继承子句的类型跳过（禁猜测，防假红）；标的 < 基线下限即红'
     }
 
+    # ===== 降维门禁（声明式与工作流即降维）=====
+    DimensionReduction = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Carrier = '源码静态计数（git 索引枚举）：形态转换点数/形态走私点/写原语数/账本写者数/取证文件数'
+        Note   = '降维门禁（D1–D6）：C0 登记载体自审（Carrier/Note 不含语义豁免词）/ C1–C4 计数棘轮（只降不升）/ C5 取证下限（ADR-6 降维不得删信息）/ C6 声明面完备（rules 须声明集合级 default、条目禁步骤键）/ C7 正对照（符号清单被掏空即判「判据无标的」）/ C8 负对照 ADR-1..ADR-6 / C9 -Target 列真实目标差距；基线 = Baselines\Process\DimensionReduction.psd1；-WriteBaseline 为写操作，聚合器禁用'
+    }
+
     # ===== 反模式族守卫（P9 落地）=====
     AntiPatternFamily = @{
         Domain = 'Meta'
@@ -1364,6 +1374,23 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '选择态契约（作用域×槽）：C1 切换器声明 view 槽 / C2 锚回退链唯一实现 / C3 领域消费点=2（会话页+DB页，证明通用）/ C4 导航禁归一化占位键 / C5 负对照'
+    }
+
+
+    UiWriteFidelity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '写面保真（F-1/F-8）：G1 片段根 Bulk 透传子节点 / G2 解析实体解码 / G3 页面属性同步 / G4 往返用例 / G5 负对照'
+    }
+
+    UiTemplateSet = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '模板集完整性（F-3/I-2）：T1 必需键齐备 / T2 覆盖键闭合 / T3 装配期合并结构 / T4 解析入口防御合并 / T5 负对照'
     }
 
 

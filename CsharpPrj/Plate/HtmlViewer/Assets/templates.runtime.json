@@ -1,7 +1,7 @@
 {
   "domHandle": "window.__domBridge.handle($OP,$NAME,$VALUE);",
   "emptyP": "<p class=\"empty\">{text}</p>",
-  "rectQuery": "(function(){var nm=$NAME;var el=document.querySelector('[data-name=\"'+nm+'\"]');if(!el){var names=Array.from(document.querySelectorAll('[data-name]')).map(function(e){return e.getAttribute('data-name');}).join(',');var bodyLen=(document.body&&document.body.innerHTML)?document.body.innerHTML.length:0;return 'NOT_FOUND|names='+names+'|body='+bodyLen+'|state='+document.readyState+'|href='+location.href;}var r=el.getBoundingClientRect();if(!r||(r.width===0&&r.height===0))return 'NOT_VISIBLE';return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,dpr:window.devicePixelRatio||1});})()",
+  "rectQuery": "(function(){var nm=$NAME;var el=document.querySelector('[data-name=\"'+nm+'\"]');if(!el){var names=Array.from(document.querySelectorAll('[data-name]')).map(function(e){return e.getAttribute('data-name');}).join(',');var bodyLen=(document.body&&document.body.innerHTML)?document.body.innerHTML.length:0;var txt=(document.body&&document.body.textContent)?document.body.textContent.replace(/\\s+/g,' ').slice(0,120):'';return 'NOT_FOUND|names='+names+'|body='+bodyLen+'|text='+txt+'|state='+document.readyState+'|href='+location.href;}var r=el.getBoundingClientRect();if(!r||(r.width===0&&r.height===0))return 'NOT_VISIBLE';return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,dpr:window.devicePixelRatio||1});})()",
   "bridgeDiagnosis": "JSON.stringify({ready:document.readyState,href:location.href,body:!!document.body,installed:!!document.__domBridgeInstalled,chromeWebview:!!(window.chrome&&window.chrome.webview)});",
   "emptyDiv": "<div class=\"empty\">{text}</div>"
 }

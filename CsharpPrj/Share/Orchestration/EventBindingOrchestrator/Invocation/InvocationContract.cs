@@ -35,6 +35,12 @@ public enum InvocationOutcome
     /// <summary>框架绝对超时（Absolute 预算到期）→ 责任在框架执行层。</summary>
     FrameworkTimedOut,
 
+    /// <summary>框架内部异常（非函数自身、非超时/取消）→ 责任在框架执行层。</summary>
+    FrameworkFault,
+
+    /// <summary>对账裁决失败（strict 模式失配）→ 责任在对账契约，不归函数。</summary>
+    ReconcileFault,
+
     /// <summary>框架空闲挂起（预算窗口内无心跳）→ 责任在框架执行层。</summary>
     FrameworkIdleHung,
 
@@ -43,6 +49,19 @@ public enum InvocationOutcome
 
     /// <summary>完成信号未在预算+宽限内落定 → 框架缺陷（明确可判）。</summary>
     SignalLost
+}
+
+/// <summary>
+/// 结构化调用失败（唯一失败载体）：异常必须携带终态分类，避免「业务失败 → 字符串 → 再翻译」丢归因。
+/// 适配器/工作流/对账只抛本类型；内核直接采信 <see cref="Outcome"/>。
+/// </summary>
+public class InvocationFaultException : Exception
+{
+    public InvocationFaultException(InvocationOutcome outcome, string message, Exception? inner = null)
+        : base(message, inner)
+        => Outcome = outcome;
+
+    public InvocationOutcome Outcome { get; }
 }
 
 /// <summary>

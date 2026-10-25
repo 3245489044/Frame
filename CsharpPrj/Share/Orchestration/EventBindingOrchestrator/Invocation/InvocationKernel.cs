@@ -94,6 +94,7 @@ public static class InvocationKernel
             return await RunFallbackAsync(request, opId, invoker, stages, sw).ConfigureAwait(false);
 
         object? value = null;
+        InvocationFaultException? fault = null;
         try
         {
             var aef = await scheduler.RunAsync(
@@ -103,10 +104,30 @@ public static class InvocationKernel
                     lock (stageLock) stages.Add(new("Dispatch", sw.ElapsedMilliseconds));
                     var ctx = new KernelContext(op);
                     lock (stageLock) stages.Add(new("FunctionStart", sw.ElapsedMilliseconds));
-                    var reconcileHook = ReconcileHook;
-                    value = reconcileHook is { Enabled: true }
-                        ? await reconcileHook.InvokeAsync(request.FunctionName, request.Parameters, () => invoker.InvokeAsync(request, ctx)).ConfigureAwait(false)
-                        : await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
+                    try
+                    {
+                        var reconcileHook = ReconcileHook;
+                        value = reconcileHook is { Enabled: true }
+                            ? await reconcileHook.InvokeAsync(request.FunctionName, request.Parameters, () => invoker.InvokeAsync(request, ctx)).ConfigureAwait(false)
+                            : await invoker.InvokeAsync(request, ctx).ConfigureAwait(false);
+                        fault = null;
+                    }
+                    catch (InvocationFaultException ex)
+                    {
+                        // 结构化失败：保留归因，交给结果构造；不进入调度器的 FunctionFault 兜底。
+                        value = null;
+                        fault = ex;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw; // 取消必须由调度器按 Cancelled/TimedOut 裁决
+                    }
+                    catch (Exception ex)
+                    {
+                        // 函数体抛出 → 函数错；框架错由适配器显式抛 InvocationFaultException(FrameworkFault)。
+                        value = null;
+                        fault = new InvocationFaultException(InvocationOutcome.FunctionFault, ex.Message, ex);
+                    }
                     lock (stageLock) stages.Add(new("FunctionEnd", sw.ElapsedMilliseconds));
                     return (object?)value;
                 },
@@ -130,12 +151,32 @@ public static class InvocationKernel
             // 超时/空闲挂起时 RunAsync 可能在 worker 收尾前返回 → 快照须加锁，避免读写交错。
             InvocationStage[] snapshot;
             lock (stageLock) snapshot = stages.ToArray();
-            return BuildResult(request, opId, aef, value, snapshot);
+            return BuildResult(request, opId, aef, value, snapshot, fault);
+        }
+        catch (InvocationFaultException ex)
+        {
+            sw.Stop();
+            return new FunctionInvocationResult(opId, ex.Outcome, false, null,
+                ex.Message, sw.ElapsedMilliseconds, stages, request.FunctionName);
+        }
+        catch (OperationCanceledException) when (
+            request.CallerToken is { } caller && caller.IsCancellationRequested)
+        {
+            sw.Stop();
+            return new FunctionInvocationResult(opId, InvocationOutcome.Cancelled, false, null,
+                "调用被外部取消", sw.ElapsedMilliseconds, stages, request.FunctionName);
+        }
+        catch (OperationCanceledException)
+        {
+            sw.Stop();
+            return new FunctionInvocationResult(opId,
+                request.Budget.AbsoluteMs is > 0 ? InvocationOutcome.FrameworkTimedOut : InvocationOutcome.Cancelled,
+                false, null, "内核执行被取消", sw.ElapsedMilliseconds, stages, request.FunctionName);
         }
         catch (Exception ex)
         {
             sw.Stop();
-            return new FunctionInvocationResult(opId, InvocationOutcome.SignalLost, false, null,
+            return new FunctionInvocationResult(opId, InvocationOutcome.FrameworkFault, false, null,
                 $"内核执行异常: {ex.Message}", sw.ElapsedMilliseconds, stages, request.FunctionName);
         }
     }
@@ -166,6 +207,12 @@ public static class InvocationKernel
             sw.Stop();
             return new FunctionInvocationResult(opId, InvocationOutcome.Completed,
                 true, output, null, sw.ElapsedMilliseconds, stages, request.FunctionName);
+        }
+        catch (InvocationFaultException ex)
+        {
+            sw.Stop();
+            return new FunctionInvocationResult(opId, ex.Outcome,
+                false, null, ex.Message, sw.ElapsedMilliseconds, stages, request.FunctionName);
         }
         catch (OperationCanceledException) when (
             request.CallerToken is { } caller && caller.IsCancellationRequested)
@@ -217,8 +264,14 @@ public static class InvocationKernel
         Guid opId,
         AsyncOperationResult aef,
         object? value,
-        IReadOnlyList<InvocationStage> stages)
+        IReadOnlyList<InvocationStage> stages,
+        InvocationFaultException? fault = null)
     {
+        // 结构化失败优先于成功影子：调度器成功但函数返回失败时，归因不丢。
+        if (fault is not null)
+            return new FunctionInvocationResult(opId, fault.Outcome, false,
+                null, fault.Message, aef.ElapsedMs, stages, request.FunctionName);
+
         var (outcome, error) = Classify(request, aef, stages);
         var success = outcome == InvocationOutcome.Completed;
         return new FunctionInvocationResult(opId, outcome, success,

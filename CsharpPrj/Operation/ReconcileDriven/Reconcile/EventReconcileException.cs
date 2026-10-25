@@ -1,15 +1,16 @@
 ﻿using Operation.ReconcileDriven.Trace;
+using Share.EventBindingOrchestrator.Invocation;
 
 namespace Operation.ReconcileDriven.Reconcile;
 
 /// <summary>
 /// 对账失败异常（strict 模式裁决）：结构化携带判据号、缺失 EventKind、顺序断点、串台 ScopeId、EventSeq 断点。
-/// 禁止静默通过——任一环断裂即抛。
+/// 禁止静默通过——任一环断裂即抛。继承 <see cref="InvocationFaultException"/>，使内核保留 ReconcileFault 归因。
 /// </summary>
-public sealed class EventReconcileException : Exception
+public sealed class EventReconcileException : InvocationFaultException
 {
     public EventReconcileException(string trigger, ReconcileVerdict verdict, SignalTrace trace)
-        : base(BuildMessage(trigger, verdict, trace))
+        : base(InvocationOutcome.ReconcileFault, BuildMessage(trigger, verdict, trace))
     {
         Trigger = trigger;
         Verdict = verdict;

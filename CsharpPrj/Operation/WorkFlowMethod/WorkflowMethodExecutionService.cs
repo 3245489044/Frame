@@ -141,6 +141,11 @@ namespace WorkFlowMethod.Usage
 
                 return result;
             }
+            catch (OperationCanceledException)
+            {
+                // 取消/超时是框架终态，不得被包装成函数失败（E3）。
+                throw;
+            }
             catch (Exception ex)
             {
                 WorkFlowMethodLog.Log("WorkflowMethodExecution_Rge_Error", new

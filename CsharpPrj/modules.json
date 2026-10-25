@@ -78,6 +78,7 @@
     "Governance": "Modules\\Governance\\Governance.csproj",
     "InternalStorage": "Modules\\InternalStorage\\InternalStorage.csproj",
     "KeySpace": "Modules\\KeySpace\\Modules.KeySpace.csproj",
+    "Wiring": "Modules\\Wiring\\Modules.Wiring.csproj",
     "LogicComposition": "Modules\\LogicComposition\\LogicComposition.csproj",
     "LogicComposition.Conversion": "Modules\\LogicComposition\\Conversion\\LogicComposition.Conversion.csproj",
     "Maintain": "Modules\\Maintain\\Maintain.csproj",

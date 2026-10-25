@@ -53,6 +53,8 @@
     <ProjectReference Include="$(Proj_InternalStorage)" />
     <!-- 键空间语义框架（Modules\KeySpace，仅依赖 Parsing.Keys）：键族/身份/三态/集合策略/端口契约 -->
     <ProjectReference Include="$(Proj_KeySpace)" />
+    <!-- 端口接盒通用框架（Modules\Wiring，仅依赖 KeySpace + Parsing.Keys）：声明式接线/供给闭合/单投递点 -->
+    <ProjectReference Include="$(Proj_Wiring)" />
     <ProjectReference Include="$(Proj_ValidationFramework)" />
     <ProjectReference Include="$(Proj_Observe)" />
   </ItemGroup>
@@ -77,6 +79,7 @@
     <Compile Remove="ParameterResolver\**\*.cs" />
     <Compile Remove="InternalStorage\**\*.cs" />
     <Compile Remove="KeySpace\**\*.cs" />
+    <Compile Remove="Wiring\**\*.cs" />
     <Compile Remove="ValidationFramework\**\*.cs" />
     <Compile Remove="EventFramework\**\*.cs" />
     <Compile Remove="Observe\**\*.cs" />

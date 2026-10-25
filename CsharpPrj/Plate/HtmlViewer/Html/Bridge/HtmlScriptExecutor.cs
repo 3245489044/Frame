@@ -47,6 +47,17 @@ public sealed class HtmlScriptExecutor
         => Fill(_assets.GetTemplate(HtmlAssetKeys.RectQueryTemplate),
             ("$NAME", JsonSerializer.Serialize(name)));
 
+    /// <summary>渲染「点击回执监听安装」脚本（$OPID 令牌 + $ATTEMPT 尝试号；点击前清空上一拍回执）。</summary>
+    public string RenderClickAckInstall(string opId, int attempt = 0)
+        => Fill(_assets.GetTemplate(HtmlAssetKeys.ClickAckInstallTemplate),
+            ("$OPID", JsonSerializer.Serialize(opId)),
+            ("$ATTEMPT", attempt.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+    /// <summary>渲染「点击回执回读」脚本（同步表达式；等待语义由 C# 有界轮询承担——
+    /// WebView2 对 <c>return new Promise(...)</c> 会序列化 Promise 对象为 <c>{}</c>，不可依赖其 await 语义）。</summary>
+    public string RenderClickAckRead()
+        => _assets.GetTemplate(HtmlAssetKeys.ClickAckReadTemplate);
+
     /// <summary>渲染桥诊断查询脚本（供注入失败时定位根因）。</summary>
     public string RenderBridgeDiagnosis()
         => _assets.GetTemplate(HtmlAssetKeys.BridgeDiagnosisTemplate);

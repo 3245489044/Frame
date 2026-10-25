@@ -108,15 +108,36 @@ public sealed class AsyncOperationScheduler : IDisposable
         using var reentry = options.ReentryKey != null ? ReentryGuard.Enter(options.ReentryKey) : null;
         if (watchdog != null) watchdog.Track(op, idle);
 
-        await _gate.WaitAsync();
-        Interlocked.Increment(ref _runningCount);
+        // 单一计时器：CancelAfter 是唯一预算时钟；取消即落定唯一完成信号（排队阶段同样生效）。
+        using var termination = op.Token.Register(() =>
+        {
+            if (op.IsTerminal) return;
+            if (options.ExternalToken.IsCancellationRequested)
+            {
+                op.TransitionTo(AsyncOpPhase.Cancelled);
+                op.Fail(new OperationCanceledException($"操作 '{name}' 被外部取消"));
+                return;
+            }
+            if (options.AbsoluteTimeout is { } budget && budget > TimeSpan.Zero)
+            {
+                op.TransitionTo(AsyncOpPhase.TimedOut);
+                op.Process?.Kill();
+                op.Fail(new TimeoutException($"操作 '{name}' 超过绝对时限 {budget}"));
+            }
+        });
 
         var started = DateTimeOffset.UtcNow;
+        var gateEntered = false;
         try
         {
             op.TransitionTo(AsyncOpPhase.Running);
             if (options.AbsoluteTimeout is { } at && at > TimeSpan.Zero)
                 op.Cts.CancelAfter(at);
+
+            // 排队时间计入预算：token 已链接取消，超时/取消在闸门处即可返回。
+            await _gate.WaitAsync(op.Token).ConfigureAwait(false);
+            gateEntered = true;
+            Interlocked.Increment(ref _runningCount);
 
             Task<object?> workTask;
             try
@@ -130,14 +151,8 @@ public sealed class AsyncOperationScheduler : IDisposable
                 return BuildResult(op, started, null, ex);
             }
 
-            var absoluteDelay = options.AbsoluteTimeout is { } at2 && at2 > TimeSpan.Zero
-                ? Task.Delay(at2)
-                : null;
-
-            var winner = absoluteDelay is null
-                ? await Task.WhenAny(workTask, op.Completion)
-                : await Task.WhenAny(workTask, op.Completion, absoluteDelay);
-
+            // 单一竞速：workTask vs 唯一完成信号（预算/取消/看门狗都经 op.Fail 落定）。
+            var winner = await Task.WhenAny(workTask, op.Completion).ConfigureAwait(false);
             object? value = null;
             Exception? error = null;
 
@@ -145,7 +160,7 @@ public sealed class AsyncOperationScheduler : IDisposable
             {
                 try
                 {
-                    value = await workTask;
+                    value = await workTask.ConfigureAwait(false);
                     op.Complete(value);
                 }
                 catch (OperationCanceledException oce)
@@ -158,20 +173,18 @@ public sealed class AsyncOperationScheduler : IDisposable
                     error = ex;
                 }
             }
-            else if (absoluteDelay != null && ReferenceEquals(winner, absoluteDelay))
-            {
-                op.TransitionTo(AsyncOpPhase.TimedOut);
-                op.Process?.Kill();
-                error = new TimeoutException($"操作 '{name}' 超过绝对时限 {options.AbsoluteTimeout}");
-                op.Fail(error);
-            }
             else
             {
-                // op.Completion 先行：看门狗(IdleHung) 或外部 Cancel 已终结
+                // 完成信号先行（预算/外部取消/空闲挂起）：workTask 必须被观察，禁止弃置。
+                Observe(workTask);
                 op.Process?.Kill();
-                error = op.Phase == AsyncOpPhase.IdleHung
-                    ? new TimeoutException($"操作 '{name}' 空闲挂起")
-                    : new OperationCanceledException($"操作 '{name}' 被取消");
+                error = op.Phase switch
+                {
+                    AsyncOpPhase.TimedOut => new TimeoutException($"操作 '{name}' 超过绝对时限 {options.AbsoluteTimeout}"),
+                    AsyncOpPhase.IdleHung => new TimeoutException($"操作 '{name}' 空闲挂起"),
+                    AsyncOpPhase.Cancelled => new OperationCanceledException($"操作 '{name}' 被取消"),
+                    _ => new TimeoutException($"操作 '{name}' 已由完成信号终止（{op.Phase}）")
+                };
             }
 
             // 真实警告：op 以非成功态终止时在此发出（超时/空闲/取消/异常），携带阶段与耗时——
@@ -181,14 +194,39 @@ public sealed class AsyncOperationScheduler : IDisposable
 
             return BuildResult(op, started, value, error);
         }
+        catch (OperationCanceledException oce)
+        {
+            var error = HandleCancelException(op, options, name, oce);
+            EmitTerminated(name, op.Phase, started, error);
+            return BuildResult(op, started, null, error);
+        }
+        catch (Exception ex)
+        {
+            op.Fail(ex);
+            EmitTerminated(name, op.Phase, started, ex);
+            return BuildResult(op, started, null, ex);
+        }
         finally
         {
-            Interlocked.Decrement(ref _runningCount);
-            _gate.Release();
+            if (gateEntered)
+            {
+                Interlocked.Decrement(ref _runningCount);
+                _gate.Release();
+            }
             if (watchdog != null) watchdog.Untrack(op);
             _activeOps.TryRemove(op.Id, out _);
             op.Dispose();
         }
+    }
+
+    /// <summary>标记已被完成信号取代的 workTask 已观察（不吞 await 侧异常，只消除进程级未观察告警）。</summary>
+    private static void Observe(Task task)
+    {
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static Exception HandleCancelException(

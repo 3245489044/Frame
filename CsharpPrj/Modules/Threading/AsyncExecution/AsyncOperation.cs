@@ -7,8 +7,6 @@ namespace Modules.Threading;
 public abstract class AsyncOperation : IDisposable
 {
     private readonly object _lock = new();
-    protected readonly TaskCompletionSource _lifecycle =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private AsyncOpPhase _phase = AsyncOpPhase.Pending;
     private bool _disposed;
 
@@ -47,8 +45,8 @@ public abstract class AsyncOperation : IDisposable
     /// <summary>可杀对象（如 node / ClineCore 进程）。</summary>
     public IProcessHandle? Process { get; set; }
 
-    /// <summary>非泛型完成信号（终结即落定）。</summary>
-    public Task Completion => _lifecycle.Task;
+    /// <summary>唯一完成信号（泛型派生提供类型化 Task；基类不持有第二份完成源）。</summary>
+    public abstract Task Completion { get; }
 
     public AsyncOpPhase Phase
     {
@@ -73,7 +71,7 @@ public abstract class AsyncOperation : IDisposable
 
     public virtual void Cancel()
     {
-        FinishTerminal(AsyncOpPhase.Cancelled, () => _lifecycle.TrySetResult());
+        FinishTerminal(AsyncOpPhase.Cancelled, static () => { });
         Process?.Kill();
         Cts.Cancel();
     }
@@ -140,7 +138,7 @@ public sealed class AsyncOperation<T> : AsyncOperation
     }
 
     /// <summary>类型化完成信号（唯一完成信号）。</summary>
-    public new Task<T> Completion => _typed.Task;
+    public override Task<T> Completion => _typed.Task;
 
     public T? Result
     {
@@ -164,7 +162,6 @@ public sealed class AsyncOperation<T> : AsyncOperation
         FinishTerminal(AsyncOpPhase.Completed, () =>
         {
             _typed.TrySetResult(result);
-            _lifecycle.TrySetResult();
         });
     }
 
@@ -176,8 +173,9 @@ public sealed class AsyncOperation<T> : AsyncOperation
         FinishTerminal(AsyncOpPhase.Failed, () =>
         {
             _typed.TrySetException(ex);
-            _lifecycle.TrySetResult();
         });
+        // E1：故障副本必须有观察者——await 侧仍会收到异常，但不再触发进程级 UnobservedTaskException。
+        ObserveFailure(_typed.Task);
         Cts.Cancel();
     }
 
@@ -186,9 +184,18 @@ public sealed class AsyncOperation<T> : AsyncOperation
         FinishTerminal(AsyncOpPhase.Cancelled, () =>
         {
             _typed.TrySetCanceled();
-            _lifecycle.TrySetResult();
         });
         Process?.Kill();
         Cts.Cancel();
+    }
+
+    /// <summary>标记故障 Task 已观察（不改变 await 语义）。</summary>
+    private static void ObserveFailure(Task task)
+    {
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 }

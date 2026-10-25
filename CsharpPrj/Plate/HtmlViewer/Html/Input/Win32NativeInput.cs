@@ -130,6 +130,10 @@ internal static class Win32NativeInput
     [DllImport("user32.dll")]
     internal static extern IntPtr WindowFromPoint(NativePoint point);
 
+    /// <summary>控件所在窗口的 DPI（96=100%）。0=不可用；用于与 devicePixelRatio 交叉核对（不静默修正坐标）。</summary>
+    [DllImport("user32.dll")]
+    internal static extern uint GetDpiForWindow(IntPtr hWnd);
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint nInputs, NativeInput[] pInputs, int cbSize);
 

@@ -149,7 +149,15 @@ public sealed class HtmlBridgeLibrary
         {
             var commands = HtmlScriptBridge.ParseCommands(scriptJson);
             var result = await runtime.ScriptBridge.ExecuteAsync(commands, CancellationToken.None).ConfigureAwait(false);
+            // 判定失败不可退化为成功文本：命令级分型（NOT_EFFECTIVE/OCCLUDED/UNSUPPORTED/...）⇒ 抛型异常，
+            // 由 InvocationKernel 归因 FunctionFault，exec 命令随即判红（不再依赖脚本文案子串）。
+            if (result.HasFailure) throw new HtmlScriptFailedException(result);
             return result.ToText();
+        }
+        catch (HtmlScriptFailedException)
+        {
+            // 判据失败必须到达调用方；若被下方通用 catch 吞成成功文本，等于把判据彻底废掉。
+            throw;
         }
         catch (Exception ex)
         {

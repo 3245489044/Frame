@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-25 12:46:51
+  生成时间: 2026-10-26 01:09:53
 -->
 <Project>
 
@@ -56,6 +56,7 @@
     <Mod_Governance>$(CsharpPrjDir)Modules\Governance\</Mod_Governance>
     <Mod_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\</Mod_InternalStorage>
     <Mod_KeySpace>$(CsharpPrjDir)Modules\KeySpace\</Mod_KeySpace>
+    <Mod_Wiring>$(CsharpPrjDir)Modules\Wiring\</Mod_Wiring>
     <Mod_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\</Mod_LogicComposition>
     <Mod_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\</Mod_LogicComposition_Conversion>
     <Mod_Maintain>$(CsharpPrjDir)Modules\Maintain\</Mod_Maintain>
@@ -180,6 +181,7 @@
     <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
+    <Proj_Wiring>$(CsharpPrjDir)Modules\Wiring\Modules.Wiring.csproj</Proj_Wiring>
     <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>
     <Proj_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\LogicComposition.Conversion.csproj</Proj_LogicComposition_Conversion>
     <Proj_Maintain>$(CsharpPrjDir)Modules\Maintain\Maintain.csproj</Proj_Maintain>

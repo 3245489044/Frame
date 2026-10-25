@@ -87,6 +87,12 @@ public enum EventFunctionResultKind
     /// <summary>框架绝对超时 → 责任在框架执行层。</summary>
     FrameworkTimedOut,
 
+    /// <summary>框架内部异常（非函数自身）→ 责任在框架执行层。</summary>
+    FrameworkFault,
+
+    /// <summary>对账裁决失败 → 责任在对账契约。</summary>
+    ReconcileFault,
+
     /// <summary>框架空闲挂起 → 责任在框架执行层。</summary>
     FrameworkIdleHung,
 

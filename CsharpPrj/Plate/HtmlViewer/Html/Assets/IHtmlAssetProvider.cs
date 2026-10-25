@@ -23,6 +23,12 @@ public static class HtmlAssetKeys
     public const string RectQueryTemplate = "rectQuery";
     public const string BridgeDiagnosisTemplate = "bridgeDiagnosis";
 
+    /// <summary>点击回执监听安装（$OPID 令牌；点击前清空上一拍）。</summary>
+    public const string ClickAckInstallTemplate = "clickAckInstall";
+
+    /// <summary>点击回执单次回读（$OPID 匹配 + $TIMEOUT_MS 上限；页面内 Promise，C# 不轮询）。</summary>
+    public const string ClickAckReadTemplate = "clickAckRead";
+
     // 空态模板（引擎语法 {text}；供 HtmlEmptyState 缺 JSON 模板时回退）
     public const string EmptyDivTemplate = "emptyDiv";
     public const string EmptyPTemplate = "emptyP";

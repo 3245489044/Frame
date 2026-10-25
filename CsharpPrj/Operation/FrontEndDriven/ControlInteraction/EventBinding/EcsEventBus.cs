@@ -405,12 +405,13 @@ public sealed class EcsEventBus : IInteractionEventPort
                     controlName = evt.ControlName,
                     eventName = evt.EventName,
                     functionName = binding.FunctionName,
-                    outcome = "FunctionFault",
+                    stage = "Invoke",
+                    outcome = "FrameworkFault",
                     budgetMs = budget,
                     error = ex.Message,
                     hint = string.Empty
                 });
-            op?.Complete(new EventFunctionOutcome(false, EventFunctionResultKind.FunctionFault, ex.Message));
+            op?.Complete(new EventFunctionOutcome(false, EventFunctionResultKind.FrameworkFault, ex.Message));
         }
         finally
         {
@@ -593,7 +594,9 @@ public sealed class EcsEventBus : IInteractionEventPort
         InvocationOutcome.Completed => EventFunctionResultKind.Succeeded,
         InvocationOutcome.FunctionFault => EventFunctionResultKind.FunctionFault,
         InvocationOutcome.FrameworkTimedOut => EventFunctionResultKind.FrameworkTimedOut,
+        InvocationOutcome.FrameworkFault => EventFunctionResultKind.FrameworkFault,
         InvocationOutcome.FrameworkIdleHung => EventFunctionResultKind.FrameworkIdleHung,
+        InvocationOutcome.ReconcileFault => EventFunctionResultKind.ReconcileFault,
         InvocationOutcome.Cancelled => EventFunctionResultKind.Cancelled,
         _ => EventFunctionResultKind.SignalLost
     };

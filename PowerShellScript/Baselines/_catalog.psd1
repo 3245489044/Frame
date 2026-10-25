@@ -28,6 +28,7 @@
         @{ File = 'Declarations\FuncCallSingleSource.psd1'; Role = 'Data'; Domain = 'Declarations'; Gate = 'FuncCallSingleSource'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-FuncCallSingleSource.ps1'; UnregisteredGate = '未在 GateManifests 登记（脚本存在、未被聚合器调度）'; DueWhen = '登记进 GateManifests 或退役时' }
         @{ File = 'Declarations\InitGuards.psd1'; Role = 'Data'; Domain = 'Declarations'; Gate = 'InitGuards'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1' }
         @{ File = 'KeySpace\KeyDomainStrict.psd1'; Role = 'Data'; Domain = 'KeySpace'; Gate = 'KeyDomainStrict'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1' }
+        @{ File = 'KeySpace\WireFabric.psd1'; Role = 'Data'; Domain = 'KeySpace'; Gate = 'WireFabric'; Shape = 'FactRow'; Origins = @('Derived', 'Verdict'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1' }
         @{ File = 'Process\_SpecExemptions.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1' }
 
 

@@ -15,6 +15,14 @@
         Note   = '提示词单源与缓存稳定（B6）：C1 段声明面在册且无第二张别名表 / C2 required_prompt_ports ⊆ cline_execute.inports（结构事实） / C3 UI 无节点端口反读（快照单源） / C4 指纹基线（report 级） / C5 负对照'
     }
 
+    WireFabric = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '端口接盒框架（WireFabric）：C0 登记在位 / C1 依赖面仅 KeySpace+Parsing.Keys / C2 框架文件齐 / C3 测试别名在册 / C4 引用数非空正对照 / C5 第三个引用必红的负对照'
+    }
+
     DeclarationClosure = @{
         Domain = 'KeySpace'
         Args   = @{ Check = $true; NegativeControl = $true }

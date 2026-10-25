@@ -49,11 +49,56 @@ public sealed class TrConfigFunctionInvoker
     public static HtmlEventBridge.HtmlFunctionInvoker ToBridgeInvoker(ITrConfigRegistry registry)
         => new TrConfigFunctionInvoker(registry).InvokeAsync;
 
-    /// <summary>适配脚本桥端口（文本结果；计划产物取其文本叙述）。</summary>
+    /// <summary>适配脚本桥端口（文本结果；失败必须上抛，禁止把失败文本当成功输出）。</summary>
     public static HtmlScriptBridge.HtmlScriptInvoker ToScriptInvoker(ITrConfigRegistry registry)
     {
         var invoker = new TrConfigFunctionInvoker(registry);
-        return async (name, parameters) => (await invoker.InvokeAsync(name, parameters).ConfigureAwait(false)).Text ?? string.Empty;
+        return invoker.InvokeForScriptAsync;
+    }
+
+    /// <summary>
+    /// 脚本 exec 专用入口：未注册/执行异常均抛出结构化失败，由脚本桥计入 Failures（判红）。
+    /// 与 <see cref="InvokeAsync"/> 的「诊断文本」语义分离，避免两套 exec 失败语义相反（D7）。
+    /// </summary>
+    public async Task<string> InvokeForScriptAsync(string functionName, IReadOnlyDictionary<string, object?> parameters)
+    {
+        if (!_registry.TryGetConfig(functionName, out var config))
+            throw new HtmlFunctionInvocationException($"函数未注册: {functionName}");
+
+        try
+        {
+            var args = BuildArguments(config, parameters);
+            var raw = await UnwrapAsyncStrict(config, config.Invoke(args)).ConfigureAwait(false);
+            return raw switch
+            {
+                null => string.Empty,
+                RenderOutput output => output.Text ?? string.Empty,
+                _ => raw.ToString() ?? string.Empty,
+            };
+        }
+        catch (HtmlFunctionInvocationException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // 取消必须保持为框架终态
+        }
+        catch (Exception ex)
+        {
+            throw new HtmlFunctionInvocationException(
+                $"函数执行失败[{ex.GetType().Name}]: {ex.Message}", ex);
+        }
+    }
+
+    private static async Task<object?> UnwrapAsyncStrict(ITrConfig config, object? result)
+    {
+        if (!config.IsAsync || result is not Task task)
+            return result;
+
+        await task.ConfigureAwait(false);
+        var resultProp = task.GetType().GetProperty("Result");
+        return resultProp?.GetValue(task);
     }
 
     private static object?[] BuildArguments(ITrConfig config, IReadOnlyDictionary<string, object?> parameters)
@@ -102,5 +147,14 @@ public sealed class TrConfigFunctionInvoker
             var inner = ex.InnerException ?? ex;
             return $"函数执行失败[{inner.GetType().Name}]: {inner.Message}";
         }
+    }
+}
+
+/// <summary>脚本 exec 的结构化失败（未注册/执行异常）：桥据此计入 Failures，不再恒 Ok。</summary>
+public sealed class HtmlFunctionInvocationException : Exception
+{
+    public HtmlFunctionInvocationException(string message, Exception? inner = null)
+        : base(message, inner)
+    {
     }
 }

@@ -20,15 +20,19 @@ public sealed class DelegateInvocationAdapter : IInvocationAdapter
     {
         var svc = AppServiceProvider.Resolve<IEventExecutionService>();
         if (svc == null)
-            throw new InvalidOperationException("IEventExecutionService 未注册到 AppServiceProvider");
+            throw new InvocationFaultException(
+                InvocationOutcome.FrameworkFault,
+                "IEventExecutionService 未注册到 AppServiceProvider");
 
         var parameters = new Dictionary<string, object?>(request.Parameters);
         var result = await svc.ExecuteFunctionAsync(request.FunctionName, parameters, ctx.CancellationToken)
             .ConfigureAwait(false);
 
-        // 执行服务返回失败：抛异常使其归入 FunctionFault（函数自身失败），而非静默成功。
+        // 执行服务返回失败：抛结构化失败（携带 FunctionFault），由内核直接采信；
+        // 不再用无分类的 InvalidOperationException 让归因在中途丢失（E2）。
         if (result != null && !result.IsSuccess)
-            throw new InvalidOperationException(
+            throw new InvocationFaultException(
+                InvocationOutcome.FunctionFault,
                 string.IsNullOrWhiteSpace(result.ErrorMessage)
                     ? $"函数 '{request.FunctionName}' 执行失败"
                     : result.ErrorMessage);

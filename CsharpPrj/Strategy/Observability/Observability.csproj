@@ -40,6 +40,8 @@
        属向下引用（先例：HierarchyMethod.csproj → $(Proj_CircuitFramework)）。 -->
   <ItemGroup>
     <ProjectReference Include="$(Proj_CircuitFramework)" />
+    <!-- 接线框架（Modules.Wiring，layer=1，向下的框架依赖）：IWireLedger → CallLog 的唯一适配点。 -->
+    <ProjectReference Include="$(Proj_Wiring)" />
   </ItemGroup>
 
   <ItemGroup>

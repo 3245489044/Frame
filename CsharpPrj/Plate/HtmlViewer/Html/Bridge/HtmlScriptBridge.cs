@@ -6,10 +6,19 @@ using Plate.JsonMethod.Serialization;
 
 namespace UiBackend.Html;
 
-/// <summary>脚本执行结果：逐条命令输出行 + 不支持命令计数（E12：白名单外命令不得算成功）。</summary>
-public sealed record HtmlScriptResult(IReadOnlyList<string> Lines, int UnsupportedCount = 0)
+/// <summary>脚本执行结果：逐条命令输出行 + 命令级失败事实（判定失败不得退化为成功文本）。</summary>
+public sealed record HtmlScriptResult(
+    IReadOnlyList<string> Lines,
+    int UnsupportedCount = 0,
+    IReadOnlyList<HtmlScriptFailure>? Failures = null)
 {
+    public IReadOnlyList<HtmlScriptFailure> FailureList => Failures ?? Array.Empty<HtmlScriptFailure>();
+
+    /// <summary>白名单外命令（E12：不得静默成功）。</summary>
     public bool HasUnsupported => UnsupportedCount > 0;
+
+    /// <summary>任一条命令判定失败（含白名单外命令）——宿主据此抛型异常，使 exec 命令判红。</summary>
+    public bool HasFailure => HasUnsupported || FailureList.Count > 0;
 
     public string ToText() => string.Join(Environment.NewLine, Lines);
 }
@@ -42,39 +51,50 @@ public sealed class HtmlScriptBridge
         _assets = assets ?? HtmlAssetRegistry.Default;
     }
 
-    /// <summary>逐条执行命令，返回全部输出行；单条失败不中断后续（对齐脚本整体结果语义）。
-    /// E12：不支持的命令计入 <see cref="HtmlScriptResult.UnsupportedCount"/>（可判定失败，不再静默成功）。</summary>
+    /// <summary>逐条执行命令，返回全部输出行 + 命令级失败事实；单条失败不中断后续（保持脚本整体可观测）。
+    /// 失败判定载体=命令结果分型（<see cref="ClickOutcome"/>），不是文案子串。</summary>
     public async Task<HtmlScriptResult> ExecuteAsync(IEnumerable<HtmlScriptCommand> commands, CancellationToken ct = default)
     {
         var lines = new List<string>();
+        var failures = new List<HtmlScriptFailure>();
         var unsupported = 0;
+        var index = 0;
         foreach (var cmd in commands)
         {
             ct.ThrowIfCancellationRequested();
-            var (line, isUnsupported) = await ExecuteOneAsync(cmd, ct).ConfigureAwait(false);
+            var (line, outcome, detail) = await ExecuteOneAsync(cmd, ct).ConfigureAwait(false);
             lines.Add(line);
-            if (isUnsupported) unsupported++;
+            if (outcome == ClickOutcome.Unsupported) unsupported++;
+            if (outcome != ClickOutcome.Ok)
+            {
+                failures.Add(new HtmlScriptFailure(
+                    index, cmd.Action ?? string.Empty, cmd.Target ?? string.Empty, outcome, Truncate(detail)));
+            }
+            index++;
         }
-        return new HtmlScriptResult(lines, unsupported);
+        return new HtmlScriptResult(lines, unsupported, failures);
     }
 
-    private async Task<(string Line, bool Unsupported)> ExecuteOneAsync(HtmlScriptCommand cmd, CancellationToken ct)
+    private async Task<(string Line, ClickOutcome Outcome, string Detail)> ExecuteOneAsync(
+        HtmlScriptCommand cmd,
+        CancellationToken ct)
     {
         var action = cmd.Action?.Trim().ToLowerInvariant() ?? string.Empty;
         switch (action)
         {
             case DomOps.Set:
                 await _channel.ExecuteAsync(DomOps.Set, cmd.Target, cmd.Value).ConfigureAwait(false);
-                return ($"[set] {cmd.Target} = {cmd.Value}", false);
+                return ($"[set] {cmd.Target} = {cmd.Value}", ClickOutcome.Ok, string.Empty);
 
             case DomOps.Get:
                 var raw = await _channel.ExecuteAsync(DomOps.Get, cmd.Target, null).ConfigureAwait(false);
-                return ($"[get] {cmd.Target} = {HtmlElementNode.UnwrapString(raw)}", false);
+                return ($"[get] {cmd.Target} = {HtmlElementNode.UnwrapString(raw)}", ClickOutcome.Ok, string.Empty);
 
             case DomOps.Click:
                 // 返回 __domBridge.handle 的真实命中结果（OK/NOT_FOUND），不再无条件成功——
                 // 消除「元素缺失/桥未通仍显示成功」的假阳性（对齐 realclick 的 OK/NOT_FOUND/NOT_VISIBLE 语义）。
                 var clickRaw = await _channel.ExecuteAsync(DomOps.Click, cmd.Target, null).ConfigureAwait(false);
+                var clickText = HtmlElementNode.UnwrapString(clickRaw);
                 var probe = "n/a";
                 try
                 {
@@ -86,30 +106,51 @@ public sealed class HtmlScriptBridge
                 {
                     probe = $"err:{ex.GetType().Name}";
                 }
-                return ($"[click] {cmd.Target} → {HtmlElementNode.UnwrapString(clickRaw)} | probe={probe}", false);
+                return ($"[click] {cmd.Target} → {clickText} | probe={probe}", ClickOutcomes.Parse(clickText), clickText);
 
             case DomOps.RealClick:
-                // 真实鼠标点击（宿主经 Win32 SendInput 注入，isTrusted=true）；返回桥的真实命中结果（OK/NOT_FOUND/NOT_VISIBLE），
-                // 避免「元素缺失仍显示成功」的假阳性，使日志可核对元素是否找到/可见/坐标解析。
+                // 真实鼠标点击（宿主经 Win32 SendInput 注入，isTrusted=true）；返回桥的真实命中结果，
+                // 失败按结构化分型（NOT_EFFECTIVE/OCCLUDED/...）计入失败，不再以文本行冒充成功。
                 var rc = await _channel.ExecuteAsync(DomOps.RealClick, cmd.Target, null).ConfigureAwait(false);
-                return ($"[realclick] {cmd.Target} → {rc}", false);
+                return ($"[realclick] {cmd.Target} → {rc}", ClickOutcomes.Parse(rc), rc);
 
             case ScriptCommand.Exec:
                 var parameters = ParseKeyValues(cmd.Value);
-                var result = await _invoker(cmd.Target ?? string.Empty, parameters).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(cmd.Output))
-                    await _channel.ExecuteAsync(DomOps.Set, cmd.Output, result).ConfigureAwait(false);
-                return ($"[exec] {cmd.Target} → {result}", false);
+                try
+                {
+                    var result = await _invoker(cmd.Target ?? string.Empty, parameters).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(cmd.Output))
+                        await _channel.ExecuteAsync(DomOps.Set, cmd.Output, result).ConfigureAwait(false);
+                    return ($"[exec] {cmd.Target} → {result}", ClickOutcome.Ok, string.Empty);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // D7：内层 exec 失败必须判红（与 FileDriven exec 语义一致），不再恒 Ok。
+                    var detail = $"[exec] {cmd.Target} 失败: {ex.Message}";
+                    return (detail, ClickOutcome.FunctionFault, detail);
+                }
 
             case ScriptCommand.Sleep:
                 var ms = int.TryParse(cmd.Target ?? cmd.Value, out var v) ? v : 500;
                 await Task.Delay(ms, ct).ConfigureAwait(false);
-                return ($"[sleep] {ms}ms", false);
+                return ($"[sleep] {ms}ms", ClickOutcome.Ok, string.Empty);
 
             default:
                 // E12：白名单外命令 = 可判定失败（计入 UnsupportedCount），不再以文本行冒充成功。
-                return ($"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/realclick/exec/sleep）", true);
+                var unsupportedLine = $"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/realclick/exec/sleep）";
+                return (unsupportedLine, ClickOutcome.Unsupported, unsupportedLine);
         }
+    }
+
+    /// <summary>失败证据串截断（避免把整段页面诊断灌进异常消息/日志造成折叠与匹配歧义）。</summary>
+    private static string Truncate(string? text, int max = 400)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= max ? text : text.Substring(0, max) + "…";
     }
 
     /// <summary>把 04-json-script 脚本 JSON 解析为命令列表（统一经 Plate.JsonMethod 的 ScriptCommand 选项，大小写不敏感 + 宽松容错）。

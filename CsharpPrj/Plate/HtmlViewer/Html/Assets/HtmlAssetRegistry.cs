@@ -50,6 +50,8 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
             [HtmlAssetKeys.DomHandleTemplate] = "domHandle",
             [HtmlAssetKeys.RectQueryTemplate] = "rectQuery",
             [HtmlAssetKeys.BridgeDiagnosisTemplate] = "bridgeDiagnosis",
+            [HtmlAssetKeys.ClickAckInstallTemplate] = "clickAckInstall",
+            [HtmlAssetKeys.ClickAckReadTemplate] = "clickAckRead",
             [HtmlAssetKeys.EmptyDivTemplate] = "emptyDiv",
             [HtmlAssetKeys.EmptyPTemplate] = "emptyP",
         };

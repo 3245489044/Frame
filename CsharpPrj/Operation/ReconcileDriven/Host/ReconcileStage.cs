@@ -82,16 +82,17 @@ public sealed class ReconcileStage
     {
         if (budgetMs <= 0) return;
 
+        // 终止信号集合单次计算（轮询内不再重建 ToList/Contains）。
         var terminals = contract.Signals
             .Where(s => s.Terminal && !string.IsNullOrWhiteSpace(s.Signal))
             .Select(s => s.Signal!)
-            .ToList();
+            .ToHashSet(StringComparer.Ordinal);
         if (terminals.Count == 0) return;
 
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < budgetMs)
         {
-            if (scope.Peek().Any(r => terminals.Contains(r.EventKind, StringComparer.Ordinal)))
+            if (scope.Peek().Any(r => terminals.Contains(r.EventKind)))
                 return;
             await Task.Delay(25).ConfigureAwait(false);
         }

@@ -13,14 +13,16 @@ namespace UiBackend.Abstractions;
 public sealed record UiStatePatch(
     IReadOnlyList<string> Open,
     IReadOnlyList<string> Select,
-    IReadOnlyDictionary<string, string?> Scalars)
+    IReadOnlyDictionary<string, string?> Scalars,
+    IReadOnlyDictionary<string, string?> Inputs)
 {
     public static UiStatePatch Empty { get; } = new(
         Array.Empty<string>(),
         Array.Empty<string>(),
+        new Dictionary<string, string?>(StringComparer.Ordinal),
         new Dictionary<string, string?>(StringComparer.Ordinal));
 
-    public bool IsEmpty => Open.Count == 0 && Select.Count == 0 && Scalars.Count == 0;
+    public bool IsEmpty => Open.Count == 0 && Select.Count == 0 && Scalars.Count == 0 && Inputs.Count == 0;
 
     /// <summary>解析 uiState 原文（非对象/非法 JSON → null：调用方据此报差集/格式问题）。</summary>
     public static UiStatePatch? Parse(string? json)
@@ -45,6 +47,7 @@ public sealed record UiStatePatch(
         var open = new List<string>();
         var select = new List<string>();
         var scalars = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var inputs = new Dictionary<string, string?>(StringComparer.Ordinal);
 
         foreach (var property in root.EnumerateObject())
         {
@@ -52,11 +55,13 @@ public sealed record UiStatePatch(
                 ReadKeys(property.Value, open);
             else if (string.Equals(property.Name, "select", StringComparison.OrdinalIgnoreCase))
                 ReadKeys(property.Value, select);
+            else if (string.Equals(property.Name, "input", StringComparison.OrdinalIgnoreCase))
+                ReadInputs(property.Value, inputs);
             else
                 scalars[property.Name] = ReadScalar(property.Value);
         }
 
-        return new UiStatePatch(open, select, scalars);
+        return new UiStatePatch(open, select, scalars, inputs);
     }
 
     private static void ReadKeys(JsonElement value, List<string> target)
@@ -73,6 +78,16 @@ public sealed record UiStatePatch(
 
         var single = ReadScalar(value);
         if (!string.IsNullOrWhiteSpace(single)) target.Add(single!);
+    }
+
+    private static void ReadInputs(JsonElement value, Dictionary<string, string?> target)
+    {
+        if (value.ValueKind != JsonValueKind.Object) return;
+        foreach (var property in value.EnumerateObject())
+        {
+            var text = ReadScalar(property.Value);
+            if (text is not null) target[property.Name] = text;
+        }
     }
 
     private static string? ReadScalar(JsonElement value) => value.ValueKind switch

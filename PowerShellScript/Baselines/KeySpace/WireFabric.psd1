@@ -22,6 +22,9 @@
         @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Compile\WiringValidator.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Compile\WiringPlanner.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWirePortStore.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWireHandlerTable.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\WireDeliveryMode.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWireLedger.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Diagnostics\WiringReasonCodes.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Environment\CentralTest\CSharpTest\Modules.Tests\Wiring.Tests\Wiring.Tests.csproj'; Origin = 'Derived'; DueWhen = '' }
@@ -30,7 +33,24 @@
     # 测试别名（TestTargets.psd1 单源）
     TestAlias = @{ Value = 'wiring'; Origin = 'Derived'; DueWhen = '' }
 
-    # 首批接线声明（W5）：UI 发送链；WireFloor = 接线规模下限（被掏空 ⇒ 判据无标的）
-    WiringDeclaration = @{ Value = 'Projects\Plug\Agent\Config\wiring\ui-send.wiring.json'; Origin = 'Derived'; DueWhen = '' }
-    WiringDeclarationWireFloor = @{ Value = 2; Origin = 'Verdict'; DueWhen = '接入更多链后按实际重裁（只升不降）' }
+    # 首批接线声明（W5）：UI 全量入口；WireFloor = 接线规模下限（被掏空 ⇒ 判据无标的）
+    WiringDeclaration = @{ Value = 'Projects\Plug\Agent\Config\wiring\ui-all.wiring.json'; Origin = 'Derived'; DueWhen = '' }
+    WiringDeclarationWireFloor = @{ Value = 49; Origin = 'Verdict'; DueWhen = '接入更多链后按实际重裁（只升不降）' }
+
+    # 声明唯一源（生成器输入）：sourceHash 必须与这些文件的组合指纹一致（C8）
+    WiringSources = @(
+        @{ Value = 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Projects\Information\DrivenConfig\JsonConfig\ProducePanel.json'; Origin = 'Derived'; DueWhen = '' }
+    )
+
+    # ===== C9–C15（R7）=====
+    CoverageFloor = @{ Value = 100; Origin = 'Verdict'; DueWhen = 'UI 入口覆盖率 100%（入口集合 = events ∪ 非命令 eventTargets ∪ cmd）' }
+    CommandSourceMax = @{ Value = 1; Origin = 'Verdict'; DueWhen = '同一 cmd 的源端口数上限（禁共享 ui.command_source + judge）' }
+    ForbiddenFormClr = @{ Value = 'System.Object'; Origin = 'Verdict'; DueWhen = 'Form 禁 System.Object 兜底（C12）' }
+    ParseCountMax = @{ Value = 1; Origin = 'Verdict'; DueWhen = '事件链 JsonDocument.Parse 上限（C10）' }
+    ParseFiles = @(
+        @{ Value = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Bridge\HtmlEventBridge.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Projects\Plug\Agent\src\Agent.Ui\Core\Host\AgentUiWiring.cs'; Origin = 'Derived'; DueWhen = '' }
+    )
+    LedgerWriterFile = @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = 'I2 单写者：ledger.Record 只允许 Junction 调用（C13 静态面）' }
 }

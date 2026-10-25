@@ -39,6 +39,12 @@ public sealed class HtmlEventBridge
     /// <summary>页面受控态仓库（B2/R3）：uiState 回投与 state 参数读取的唯一落点；null = 未装配（回投忽略）。</summary>
     public UiPageStateStore? PageState { get; set; }
 
+    /// <summary>接线框架入口（上层注入；null = 旧直调路径，零回归）。</summary>
+    public IUiWireIngress? WireIngress { get; set; }
+
+    /// <summary>Primary = 投递成功后不再直调（唯一投递点）；false = Shadow（并投递 + 直调，仅对拍）。</summary>
+    public bool WireIngressPrimary { get; set; }
+
     public HtmlEventBridge(
         IReadOnlyDictionary<string, ControlConfig> controlsByName,
         IHtmlChannel channel,
@@ -66,6 +72,16 @@ public sealed class HtmlEventBridge
         var controlName = envelope.ControlName;
         var eventPayload = envelope.PayloadText;
         Report("EventBridge_route", $"负载 event={eventName}, name={controlName}");
+        if (WireIngress is not null)
+        {
+            var wireId = "wi_page_" + WireKey(controlName);
+            var fields = BuildEventFields(envelope, eventPayload);
+            var delivery = await WireIngress.DeliverAsync(wireId, "PageEvent", fields, envelope.Kind, ct).ConfigureAwait(false);
+            Report("EventBridge_wire", $"{wireId} delivered={delivery.Delivered} reason={delivery.Reason ?? "-"}");
+            if (WireIngressPrimary && delivery.Delivered) return string.Empty;
+        }
+        if (WireIngressPrimary) return string.Empty; // Primary：接线是唯一投递点，禁 fall-through 二次派发
+
         // 域隔离解析：data-event 优先 page: 域（页内元素），其次 host: 域（物理控件），回退裸名（兼容裸名索引/测试桩）。
         // 域隔离解析（单一入口）：裸名 → page: → host:（B1 收敛）。
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
@@ -81,6 +97,19 @@ public sealed class HtmlEventBridge
     /// A2 总线路由：把页面事件投递到交互端口（ECS 事件总线），不再直调注册函数。
     /// 写回由总线侧（RenderOutput 计划 / output 回写）单点落地，本桥返回空文本（禁二次写）。
     /// </summary>
+    /// <summary>页面事件直调（不经接线入口）：供接线 handler 复用，避免递归。</summary>
+    public async Task<string> DispatchPageEventDirectAsync(
+        string? controlName, string eventName, string? eventPayload, CancellationToken ct = default)
+    {
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
+            return $"未找到控件: {controlName}";
+
+        if (InteractionRoute == HtmlInteractionRoute.Bus && InteractionPort is not null)
+            return await DispatchToBusAsync(controlName, eventName, eventPayload, ct).ConfigureAwait(false);
+
+        return (await RunBindingLoopAsync(control, eventName, eventPayload, UiWriteSource.Interactive, ct).ConfigureAwait(false)).Text ?? string.Empty;
+    }
+
     private async Task<string> DispatchToBusAsync(
         string? controlName, string eventName, string? eventPayload, CancellationToken ct)
     {
@@ -204,7 +233,18 @@ public sealed class HtmlEventBridge
         string hostControlName, string messagePayload, CancellationToken ct = default,
         UiWriteSource source = UiWriteSource.Interactive)
     {
-        ApplyUiState(UiMessageEnvelope.Parse(messagePayload).UiStateJson);
+        var hostEnvelope = UiMessageEnvelope.Parse(messagePayload);
+        ApplyUiState(hostEnvelope.UiStateJson);
+        if (WireIngress is not null)
+        {
+            var wireId = "wi_host_event_" + WireKey(hostControlName);
+            var fields = BuildHostFields(hostControlName, hostEnvelope, messagePayload);
+            var delivery = await WireIngress.DeliverAsync(wireId, "HostMessage", fields, hostEnvelope.Kind, ct).ConfigureAwait(false);
+            Report("EventBridge_wire", $"{wireId} delivered={delivery.Delivered} reason={delivery.Reason ?? "-"}");
+            if (WireIngressPrimary && delivery.Delivered) return string.Empty;
+        }
+        if (WireIngressPrimary) return string.Empty; // Primary：接线是唯一投递点，禁 fall-through 二次派发
+
         Report("EventBridge_route", $"宿主消息 控件={hostControlName} source={source}");
         // 域隔离解析（单一入口）：宿主控件 = host 域偏好（裸名 → host:，不含 page）。
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, hostControlName,
@@ -215,6 +255,18 @@ public sealed class HtmlEventBridge
     }
 
     /// <summary>共用的声明事件绑定执行循环：查 events → 逐函数装配参数 → 调用 → output 写回。HandleAsync / HandleHostMessageAsync 复用。</summary>
+    /// <summary>宿主消息直调（不经接线入口）：供接线 handler 复用，避免递归。</summary>
+    public async Task<string> DispatchHostMessageDirectAsync(
+        string hostControlName, string messagePayload, CancellationToken ct = default,
+        UiWriteSource source = UiWriteSource.Interactive)
+    {
+        if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, hostControlName,
+                HtmlDeclarationParser.ControlDomain.Host, out var control))
+            return $"未找到控件: {hostControlName}";
+
+        return (await RunBindingLoopAsync(control, "message", messagePayload, source, ct).ConfigureAwait(false)).Text ?? string.Empty;
+    }
+
     private async Task<RenderOutput> RunBindingLoopAsync(
         ControlConfig control, string eventName, string? eventPayload, UiWriteSource source, CancellationToken ct)
     {
@@ -264,6 +316,83 @@ public sealed class HtmlEventBridge
     }
 
     /// <summary>输出写回（P0 类型化）：携带写回计划 → 协调器单点执行（领域侧不触通道）；否则叙述文本经宿主/DOM 写回。</summary>
+    /// <summary>wire 坐标键（控件名 → 稳定段：仅保留字母数字，其余转下划线）。</summary>
+    private static string WireKey(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "unknown";
+        var chars = new char[name.Length];
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            chars[i] = char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : '_';
+        }
+
+        return new string(chars);
+    }
+
+    /// <summary>页面事件 → wire 载荷（协议键平铺；内层 payload JSON 只解析一次）。</summary>
+    private static Dictionary<string, string> BuildEventFields(UiMessageEnvelope envelope, string? eventPayload)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["name"] = envelope.ControlName ?? string.Empty,
+            ["event"] = envelope.EventName ?? string.Empty,
+            ["payload"] = eventPayload ?? string.Empty,
+            ["uiState"] = envelope.UiStateJson ?? string.Empty,
+            ["cmd"] = string.Empty,
+        };
+
+        ExtractFields(eventPayload, fields);
+        return fields;
+    }
+
+    /// <summary>宿主消息 → wire 载荷（cmd 取信封 Kind；内层字段一次解析）。</summary>
+    private static Dictionary<string, string> BuildHostFields(
+        string hostControl, UiMessageEnvelope envelope, string raw)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["control"] = hostControl,
+            ["cmd"] = envelope.Kind,
+            ["scope"] = envelope.Scope ?? string.Empty,
+            ["payload"] = raw,
+            ["uiState"] = envelope.UiStateJson ?? string.Empty,
+        };
+
+        ExtractFields(raw, fields);
+        return fields;
+    }
+
+    /// <summary>从 JSON 文本提取协议字段（cmd/session/task/history/type/value/round；已有值不覆盖）。</summary>
+    private static void ExtractFields(string? json, Dictionary<string, string> target)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;
+
+            foreach (var key in new[] { "cmd", "session", "task", "history", "type", "value", "round" })
+            {
+                if (!root.TryGetProperty(key, out var value)) continue;
+                var text = value.ValueKind switch
+                {
+                    JsonValueKind.String => value.GetString(),
+                    JsonValueKind.Number => value.GetRawText(),
+                    JsonValueKind.True => "true",
+                    JsonValueKind.False => "false",
+                    _ => null,
+                };
+                if (!string.IsNullOrEmpty(text) && !target.ContainsKey(key)) target[key] = text!;
+            }
+        }
+        catch (JsonException)
+        {
+            // 非 JSON 负载：保持原文，不在此处报错（格式问题由事件桥原有诊断承担）。
+        }
+    }
+
     private async Task WriteOutputAsync(EventBinding? bindings, RenderOutput output, bool planEmitted, UiWriteSource source, CancellationToken ct)
     {
         // P0：计划产物自描述（含目标），由写协调器单点落地——不依赖 binding.Output 名。

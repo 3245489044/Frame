@@ -99,10 +99,11 @@ public static partial class WiringValidator
 
         foreach (var form in catalog.Forms)
         {
-            if (form.ClrType is null)
+            // 封板形态允许无 CLR（结构形态：页事件/宿主消息/渲染产物等），未封板且无 clr 才是未定型。
+            if (form.ClrType is null && !form.Sealed)
             {
                 violations.Add(WiringViolation.Create(
-                    WiringReasonCodes.WireFormUnsealed, form.Id, "形态未定型（未声明 clr）"));
+                    WiringReasonCodes.WireFormUnsealed, form.Id, "形态未定型（未声明 clr 且未 sealed）"));
             }
         }
 

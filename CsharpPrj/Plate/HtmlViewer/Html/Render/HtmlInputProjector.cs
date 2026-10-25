@@ -36,7 +36,8 @@ public static class HtmlInputProjector
         string? placeholder = null,
         string? sendLabel = null,
         string? sendTitle = null,
-        IReadOnlyDictionary<string, object?>? extra = null)
+        IReadOnlyDictionary<string, object?>? extra = null,
+        string? value = null)
     {
         var row = new Dictionary<string, object?>
         {
@@ -45,6 +46,7 @@ public static class HtmlInputProjector
             ["placeholder"] = placeholder ?? string.Empty,
             ["sendLabel"] = sendLabel ?? "发送",
             ["sendTitle"] = sendTitle ?? string.Empty,
+            ["value"] = value ?? string.Empty,
         };
         // 领域扩展字段并入（模板可选绑定，缺省渲染为空，零回归）。
         if (extra is not null)

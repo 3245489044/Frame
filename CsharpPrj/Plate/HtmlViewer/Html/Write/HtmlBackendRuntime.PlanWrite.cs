@@ -148,6 +148,17 @@ public sealed partial class HtmlBackendRuntime
 
     /// <summary>单一写回协调器入口（来源显式）：来源决定收敛窗口/合并优先级，并写入轨迹（可复算归因）。
     /// 本层同时承担：交互快路径开关归一、帧预算降级、指标埋点与 60s 限流上报。</summary>
+    /// <summary>把页面输入态并入写回计划（键控对齐后回放输入值，防 textarea 重建丢草稿）。</summary>
+    private UiWritePlan? MergeInputState(UiWritePlan? plan)
+    {
+        if (plan is null) return null;
+        var inputs = PageState.Inputs;
+        if (inputs.Count == 0) return plan;
+
+        var current = plan.Interaction ?? UiInteractionSnapshot.Empty;
+        return plan with { Interaction = current with { Inputs = inputs } };
+    }
+
     public async Task<UiWriteResult> WriteAsync(UiWritePlan plan, UiWriteSource source, string? traceId = null, CancellationToken ct = default)
     {
         // 交互快路径开关（关 ⇒ 交互按刷新语义；单开关回退，行为等价 B3 结束态）。
@@ -163,6 +174,7 @@ public sealed partial class HtmlBackendRuntime
             Report("EventBridge_writeback",
                 $"写回追踪号自造 trace={trace} kind={plan?.Kind} source={source}（调用链未传 traceId；刷新驱动写应在上层携带）");
 
+        plan = MergeInputState(plan);
         _metrics.OnPlan(plan?.Targets.Count ?? 0);
         var effective = ApplyFrameBudget(plan, trace!);
 

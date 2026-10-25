@@ -123,6 +123,30 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     /// <summary>页面受控态仓库（B2/R3）：装配期按 htmlPage.state 初始化；回投/参数读取唯一来源。</summary>
     public UiPageStateStore PageState { get; } = new();
 
+    /// <summary>接线框架入口（透传到事件桥；null = 旧直调路径）。</summary>
+    public IUiWireIngress? WireIngress
+    {
+        get => _eventBridge.WireIngress;
+        set => _eventBridge.WireIngress = value;
+    }
+
+    /// <summary>Primary = 投递成功后不再直调；false = Shadow。</summary>
+    public bool WireIngressPrimary
+    {
+        get => _eventBridge.WireIngressPrimary;
+        set => _eventBridge.WireIngressPrimary = value;
+    }
+
+    /// <summary>宿主消息直调（接线 handler 复用；不经接线入口）。</summary>
+    public Task<string> DispatchHostMessageDirectAsync(
+        string hostControlName, string messagePayload, CancellationToken ct = default)
+        => _eventBridge.DispatchHostMessageDirectAsync(hostControlName, messagePayload, ct);
+
+    /// <summary>页面事件直调（接线 handler 复用；不经接线入口）。</summary>
+    public Task<string> DispatchPageEventDirectAsync(
+        string? controlName, string eventName, string? eventPayload, CancellationToken ct = default)
+        => _eventBridge.DispatchPageEventDirectAsync(controlName, eventName, eventPayload, ct);
+
     /// <summary>交互总线端口（A2）：转发到事件桥；null = 只用旧直调路径。</summary>
     public IHtmlInteractionPort? InteractionPort
     {

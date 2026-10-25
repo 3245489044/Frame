@@ -11,7 +11,9 @@ public sealed record WireLedgerRecord(
     int Length,
     WireStatus Status,
     string? Reason = null,
-    string? Generation = null);
+    string? Generation = null,
+    string? Scope = null,
+    string? Port = null);
 
 /// <summary>
 /// 账本抽象（上层适配 <c>PortCatalog</c> / <c>CallLog</c>；Modules 不引用上层）。

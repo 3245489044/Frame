@@ -38,7 +38,8 @@ public static partial class JsonWiringDeclarationSource
                 OnMissing: onMissing.Value,
                 Merge: merge.Value,
                 Each: Text(item, "each"),
-                Bridge: Flag(item, "bridge")));
+                Bridge: Flag(item, "bridge"),
+                Default: Text(item, "default")));
         }
 
         return wires;

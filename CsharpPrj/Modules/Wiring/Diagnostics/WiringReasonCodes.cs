@@ -29,6 +29,12 @@ public static class WiringReasonCodes
     public const string WireValueFormDrift = "WIRE_VALUE_FORM_DRIFT";
     public const string WireAdapterUnbound = "WIRE_ADAPTER_UNBOUND";
     public const string WireUnknownWire = "WIRE_UNKNOWN_WIRE";
+    public const string WireHandlerUnbound = "WIRE_HANDLER_UNBOUND";
+    public const string WireMergeUnsupported = "WIRE_MERGE_UNSUPPORTED";
+    public const string WireDefaultMissing = "WIRE_DEFAULT_MISSING";
+    public const string WireOrphanSource = "WIRE_ORPHAN_SOURCE";
+    public const string WireStaleGeneration = "WIRE_STALE_GENERATION";
+    public const string WireDynamicUnbound = "WIRE_DYNAMIC_UNBOUND";
 
     private static readonly HashSet<string> Registered = new(StringComparer.Ordinal)
     {
@@ -37,6 +43,8 @@ public static class WiringReasonCodes
         WireDeclInvalid, WireAdapterMissing, WireAdapterAmbiguous, WireJudgeInvalid,
         WireFormUnsealed, WireDuplicateId, WireProfileUnknown,
         WireMissingRequired, WireValueFormDrift, WireAdapterUnbound, WireUnknownWire,
+        WireHandlerUnbound, WireMergeUnsupported, WireDefaultMissing,
+        WireOrphanSource, WireStaleGeneration, WireDynamicUnbound,
     };
 
     public static bool IsRegistered(string code) => Registered.Contains(code);

@@ -91,7 +91,16 @@ public sealed class HtmlBridgePayload
     }
 
     /// <summary>按键取字符串（缺失 / 非字符串 → null）。</summary>
-    public string? Text(string name) => JsonTolerantReader.Text(_root, name);
+    public string? Text(string name)
+        => name == "value" && ValueOverride is not null
+            ? ValueOverride
+            : JsonTolerantReader.Text(_root, name);
+
+    /// <summary>端口值槽注入（R4）：业务值来自接线 PortStore，不再依赖原始载荷内的 value 字段。</summary>
+    public string? ValueOverride { get; init; }
+
+    /// <summary>同根负载 + 值覆盖（不改写共享实例；Empty 单例安全）。</summary>
+    public HtmlBridgePayload WithValue(string? value) => new(_root) { ValueOverride = value };
 
     /// <summary>回投负载原文（JSON 原串）——供域经框架单一门（<c>RefreshRequest.ContextJson</c>）重解析，避免二次序列化。</summary>
     public string RawJson => _root.GetRawText();

@@ -81,7 +81,8 @@ public static class WiringCatalogFactory
                 .Append(wire.To).Append('|').Append(wire.Adapter ?? "-").Append('|')
                 .Append(wire.Judge ?? "-").Append('|').Append(wire.OnMissing.ToString()).Append('|')
                 .Append(wire.Merge.ToString()).Append('|').Append(wire.Each ?? "-").Append('|')
-                .Append(wire.Bridge ? "bridge" : "direct").Append('\n');
+                .Append(wire.Bridge ? "bridge" : "direct").Append('|')
+                .Append(wire.Default ?? "-").Append('\n');
         }
 
         foreach (var adapter in adapters)

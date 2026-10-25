@@ -36,7 +36,9 @@ public static class WiringFreezer
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(wires);
 
-        var plan = new WiringPlan(catalog.Fingerprint, wires, Array.Empty<Diagnostics.WiringViolation>());
+        var plan = WiringPlan.Create(
+            catalog.Fingerprint, wires, Array.Empty<Diagnostics.WiringViolation>(),
+            WiringPlanner.RequiredInputsOf(catalog));
         return Freeze(plan, generation);
     }
 

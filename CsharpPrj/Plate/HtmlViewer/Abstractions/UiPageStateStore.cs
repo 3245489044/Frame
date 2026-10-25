@@ -18,6 +18,7 @@ public sealed class UiPageStateStore
 {
     private readonly UiViewState _values = new();
     private readonly Dictionary<string, string?> _selection = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _inputs = new(StringComparer.Ordinal);
     private readonly Dictionary<string, HtmlPageStateSlot> _declarations = new(StringComparer.Ordinal);
 
     public UiPageStateStore(IReadOnlyDictionary<string, HtmlPageStateSlot>? declarations = null)
@@ -68,6 +69,24 @@ public sealed class UiPageStateStore
     /// <summary>当前选择态快照。</summary>
     public UiSelectionState Selection => new(new Dictionary<string, string?>(_selection, StringComparer.Ordinal));
 
+    /// <summary>写入输入框值（声明面以 <c>input</c> 槽为开关；未声明 ⇒ 拒绝并可见）。</summary>
+    public bool TrySetInput(string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        // 输入态是框架级通道：页面已声明任一状态槽即可承载（兼容旧配置副本无 input 槽）。
+        if (_declarations.Count == 0) return false;
+        _inputs[name] = value;
+        return true;
+    }
+
+    /// <summary>读取输入框值（未声明/未置位 → null）。</summary>
+    public string? GetInput(string name)
+        => !string.IsNullOrWhiteSpace(name) && _inputs.TryGetValue(name, out var value) ? value : null;
+
+    /// <summary>当前输入态快照（供写回计划回放）。</summary>
+    public IReadOnlyDictionary<string, string?> Inputs
+        => new Dictionary<string, string?>(_inputs, StringComparer.Ordinal);
+
     /// <summary>应用页面回投的选择态（仅接受已声明槽；未声明槽忽略并暴露在返回值）。</summary>
     public IReadOnlyList<string> ApplySelection(UiSelectionState selection)
     {
@@ -100,6 +119,12 @@ public sealed class UiPageStateStore
         {
             if (!TrySet(kvp.Key, kvp.Value))
                 rejected.Add(kvp.Key);
+        }
+
+        foreach (var kvp in patch.Inputs)
+        {
+            if (!TrySetInput(kvp.Key, kvp.Value))
+                rejected.Add("input." + kvp.Key);
         }
 
         return new UiStateApplyResult(rejected, patch.Open);

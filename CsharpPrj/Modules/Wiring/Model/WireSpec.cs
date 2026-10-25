@@ -32,4 +32,5 @@ public sealed record WireSpec(
     OnMissing OnMissing = OnMissing.Fail,
     MergeMode Merge = MergeMode.None,
     string? Each = null,
-    bool Bridge = false);
+    bool Bridge = false,
+    string? Default = null);

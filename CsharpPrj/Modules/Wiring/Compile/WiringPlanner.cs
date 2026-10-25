@@ -25,7 +25,25 @@ public static class WiringPlanner
             .ToArray();
 
         var ordered = OrderByTopology(compiled);
-        return new WiringPlan(catalog.Fingerprint, ordered, report.Violations);
+        return WiringPlan.Create(catalog.Fingerprint, ordered, report.Violations, RequiredInputsOf(catalog));
+    }
+
+    /// <summary>盒 → 必填 inport 坐标清单（Junction handler 前置供给闸门的编译期来源）。</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> RequiredInputsOf(WiringCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+
+        var required = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var box in catalog.Boxes)
+        {
+            var ports = box.Ports
+                .Where(port => port.IsIn && port.Required)
+                .Select(port => port.Ref)
+                .ToArray();
+            if (ports.Length > 0) required[box.Id] = ports;
+        }
+
+        return required;
     }
 
     /// <summary>拓扑序（同输入同序；成环时剩余项按 Id 序补齐，可复算）。</summary>
@@ -88,7 +106,7 @@ public static class WiringPlanner
             .ToArray();
     }
 
-    /// <summary>单条 wire 的委托：判据 → 缺值 → 就绪（适配与投递由 Junction 统一承担）。</summary>
+    /// <summary>单条 wire 的委托：缺值 → 就绪（判据在 Junction 用**原始信封**求值；适配与投递由 Junction 统一承担）。</summary>
     private static Func<ValueEnvelope, ValueTask<WireResult>> BuildRoute(LinkedWire link)
         => envelope =>
         {
@@ -96,12 +114,6 @@ public static class WiringPlanner
             {
                 return ValueTask.FromResult(
                     new WireResult(WireStatus.Skipped, link.Id, envelope.Length, link.JudgeError));
-            }
-
-            if (link.Judge is not null && !link.Judge(envelope))
-            {
-                return ValueTask.FromResult(
-                    new WireResult(WireStatus.Skipped, link.Id, envelope.Length, "judge-false"));
             }
 
             if (!envelope.HasPayload && link.To.Required)

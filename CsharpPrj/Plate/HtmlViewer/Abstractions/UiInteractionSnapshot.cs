@@ -13,11 +13,14 @@ public sealed record UiScrollState(string Key, double Top, double Left, bool Bot
 /// </summary>
 public sealed record UiInteractionSnapshot(
     string? Focus = null,
-    IReadOnlyList<UiScrollState>? Scroll = null)
+    IReadOnlyList<UiScrollState>? Scroll = null,
+    IReadOnlyDictionary<string, string?>? Inputs = null)
 {
     /// <summary>空快照。</summary>
     public static UiInteractionSnapshot Empty { get; } = new();
 
     /// <summary>是否无任何可回放态。</summary>
-    public bool IsEmpty => Focus is null && (Scroll is null || Scroll.Count == 0);
+    public bool IsEmpty => Focus is null
+        && (Scroll is null || Scroll.Count == 0)
+        && (Inputs is null || Inputs.Count == 0);
 }

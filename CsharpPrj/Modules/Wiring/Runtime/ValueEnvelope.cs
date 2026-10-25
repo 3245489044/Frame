@@ -9,7 +9,8 @@ public readonly record struct ValueEnvelope(
     object? Payload,
     string? TraceId = null,
     Guid? OpId = null,
-    string? ProducerWireId = null)
+    string? ProducerWireId = null,
+    string? Scope = null)
 {
     public bool HasPayload => Payload is not null;
 

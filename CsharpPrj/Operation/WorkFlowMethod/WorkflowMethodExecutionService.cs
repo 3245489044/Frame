@@ -84,6 +84,16 @@ namespace WorkFlowMethod.Usage
                     $"Workflow '{workflowDef.Name}' has no nodes");
             }
 
+            // 结构前置：叶子节点必须有可解析的函数引用。否则 RGE 只会报
+            // 「Entity 'x' 的 FuncRef 为空」，丢失工作流/节点归因（声明键拼写错误的唯一可见面）。
+            var invalidNode = FindUnresolvedNode(workflowDef.Nodes);
+            if (invalidNode != null)
+            {
+                return ExecutionResult.Failure(
+                    $"Workflow '{workflowDef.Name}' node '{invalidNode}' 缺少 functionName" +
+                    "（声明键须为 functionName；容器节点须声明 children/elseChildren）");
+            }
+
             try
             {
                 // _stepSelector 起点语义：从选中步骤起执行（对齐栈B CanExecute: index >= StartIndex）。
@@ -165,6 +175,28 @@ namespace WorkFlowMethod.Usage
             }
 
             return 0;
+        }
+
+        /// <summary>递归查找不可解析节点（叶子缺 functionName 且无子节点）；返回节点 Id 或 null。</summary>
+        private static string? FindUnresolvedNode(List<WorkflowNodeEntry> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node == null) continue;
+                if (!node.HasExecutable)
+                    return string.IsNullOrWhiteSpace(node.Id) ? "(no-id)" : node.Id;
+                if (node.Children is { Count: > 0 } children)
+                {
+                    var bad = FindUnresolvedNode(children);
+                    if (bad != null) return bad;
+                }
+                if (node.ElseChildren is { Count: > 0 } elseChildren)
+                {
+                    var bad = FindUnresolvedNode(elseChildren);
+                    if (bad != null) return bad;
+                }
+            }
+            return null;
         }
 
         /// <summary>

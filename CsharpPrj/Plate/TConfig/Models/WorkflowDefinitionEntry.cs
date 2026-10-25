@@ -35,6 +35,23 @@ public class WorkflowDefinitionEntry
             ["StepSelector"] = StepSelector ?? string.Empty
         }
     };
+
+    /// <summary>身份回填：声明以 <c>workflows</c> 的 map key 命名时，缺省 Id/Name 取该键。
+    /// 否则日志只出现 <c>Workflow ''</c>，无法定位是哪条声明失败（排障载体=声明键）。</summary>
+    public WorkflowDefinitionEntry WithFallbackIdentity(string key)
+    {
+        if (!string.IsNullOrWhiteSpace(Id) && !string.IsNullOrWhiteSpace(Name)) return this;
+        return new WorkflowDefinitionEntry
+        {
+            Id = string.IsNullOrWhiteSpace(Id) ? key : Id,
+            Name = string.IsNullOrWhiteSpace(Name) ? key : Name,
+            DisplayName = DisplayName,
+            OutputMapping = OutputMapping,
+            DefaultInput = DefaultInput,
+            StepSelector = StepSelector,
+            Nodes = Nodes
+        };
+    }
 }
 
 /// <summary>
@@ -43,9 +60,33 @@ public class WorkflowDefinitionEntry
 /// </summary>
 public class WorkflowNodeEntry
 {
+    private string? _functionName;
+
     public string Id { get; init; } = string.Empty;
 
-    public string? FunctionName { get; init; }
+    public string? FunctionName
+    {
+        get => _functionName;
+        init => _functionName = value;
+    }
+
+    /// <summary>兼容别名（json <c>function</c>）：与 <see cref="FunctionName"/> 同义；规范写法仍为 <c>functionName</c>。
+    /// 承载历史/文档示例的旧拼写，避免「键名写错 → 空 FuncRef」在运行期才以模糊错误暴露。</summary>
+    [JsonPropertyName("function")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FunctionAlias
+    {
+        get => null;
+        init
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _functionName = value;
+        }
+    }
+
+    /// <summary>可执行性或容器性：叶子节点必须有 FunctionName；纯容器须有子节点。</summary>
+    public bool HasExecutable
+        => !string.IsNullOrWhiteSpace(FunctionName) || Children is { Count: > 0 } || ElseChildren is { Count: > 0 };
 
     public object? Parameters { get; init; }
 

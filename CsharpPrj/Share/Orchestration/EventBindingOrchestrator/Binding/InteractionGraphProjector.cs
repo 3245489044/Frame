@@ -108,7 +108,7 @@ public static class InteractionGraphProjector
                     continue;
                 }
 
-                merged[kvp.Key] = kvp.Value;
+                merged[kvp.Key] = kvp.Value.WithFallbackIdentity(kvp.Key);
                 origins[kvp.Key] = node.Key;
             }
         }

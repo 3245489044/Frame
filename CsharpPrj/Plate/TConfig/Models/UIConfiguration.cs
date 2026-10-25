@@ -43,6 +43,22 @@ public class UIConfiguration
     /// </summary>
     [JsonPropertyName("intents")]
     public List<string>? Intents { get; set; }
+
+    /// <summary>页面组件声明（M2/M6）：由 <c>HtmlDeclarationParser.ExtractHtmlPage</c> 从 htmlPage 复制，
+    /// 供渲染器经 <c>HtmlUiHost.PageDeclaration</c> 读取。</summary>
+    [JsonPropertyName("components")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, HtmlComponentDeclaration>? Components { get; set; }
+
+    /// <summary>格式化器别名（M6）。</summary>
+    [JsonPropertyName("formatters")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? Formatters { get; set; }
+
+    /// <summary>文案表（M6）。</summary>
+    [JsonPropertyName("labels")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, Dictionary<string, string>>? Labels { get; set; }
 }
 
 public class BootPhase

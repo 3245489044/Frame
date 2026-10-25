@@ -183,6 +183,10 @@ public static class HtmlDeclarationParser
             {
                 new() { Name = page.Name ?? "internalPage", Type = "Panel", Controls = page.Controls },
             },
+            // M2/M6：页面级声明随页面一起提取（渲染器经 HtmlUiHost.PageDeclaration 读取）。
+            Components = page.Components,
+            Formatters = page.Formatters,
+            Labels = page.Labels,
         };
     }
 

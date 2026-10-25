@@ -44,15 +44,19 @@ public static class HtmlHierarchyListProjector
         string containerTemplate,
         string rowTemplate,
         IReadOnlyList<Container>? containers,
-        string? emptyText = null)
+        string? emptyText = null,
+        UiComponentCatalog? catalog = null,
+        string? containerComponent = null,
+        string? rowComponent = null)
     {
         if (containers is null || containers.Count == 0)
             return string.IsNullOrEmpty(emptyText) ? string.Empty : HtmlEmptyState.Render(templates, emptyText!);
 
+        var effectiveContainerTemplate = catalog?.TemplateFor(containerComponent) ?? containerTemplate;
         var sb = new StringBuilder(containers.Count * 64);
         foreach (var container in containers)
         {
-            var rows = BuildRows(container.Rows);
+            var rows = BuildRows(container.Rows, catalog, rowComponent);
             var nodes = container.Nodes ?? Array.Empty<string>();
             var model = NewModel(container.Extra);
             model["id"] = container.Id;
@@ -64,7 +68,8 @@ public static class HtmlHierarchyListProjector
             model["historyNodes"] = nodes;
             model["taskCount"] = container.CountText
                 ?? (rows.Count > 0 ? rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty);
-            sb.Append(HtmlTemplateEngine.Render(templates, containerTemplate, model));
+            var effectiveModel = catalog?.Apply(containerComponent, model) ?? model;
+            sb.Append(HtmlTemplateEngine.Render(templates, effectiveContainerTemplate, effectiveModel));
         }
 
         return sb.ToString();
@@ -75,22 +80,36 @@ public static class HtmlHierarchyListProjector
         IReadOnlyDictionary<string, string> templates,
         string rowTemplate,
         IReadOnlyList<Row>? rows,
-        string? emptyText = null)
+        string? emptyText = null,
+        UiComponentCatalog? catalog = null,
+        string? rowComponent = null)
     {
         if (rows is null || rows.Count == 0)
             return string.IsNullOrEmpty(emptyText) ? string.Empty : HtmlEmptyState.Render(templates, emptyText!);
 
+        var effectiveRowTemplate = catalog?.TemplateFor(rowComponent) ?? rowTemplate;
         var sb = new StringBuilder(rows.Count * 80);
         foreach (var row in rows)
-            sb.Append(HtmlTemplateEngine.Render(templates, rowTemplate, BuildRowModel(row)));
+        {
+            var model = BuildRowModel(row);
+            var effectiveModel = catalog?.Apply(rowComponent, model) ?? model;
+            sb.Append(HtmlTemplateEngine.Render(templates, effectiveRowTemplate, effectiveModel));
+        }
         return sb.ToString();
     }
 
-    private static List<object?> BuildRows(IReadOnlyList<Row>? rows)
+    private static List<object?> BuildRows(
+        IReadOnlyList<Row>? rows,
+        UiComponentCatalog? catalog = null,
+        string? rowComponent = null)
     {
         if (rows is null || rows.Count == 0) return new List<object?>();
         var list = new List<object?>(rows.Count);
-        foreach (var row in rows) list.Add(BuildRowModel(row));
+        foreach (var row in rows)
+        {
+            var model = BuildRowModel(row);
+            list.Add(catalog?.Apply(rowComponent, model) ?? model);
+        }
         return list;
     }
 

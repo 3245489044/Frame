@@ -149,6 +149,35 @@ public sealed class HtmlPageDeclaration
     /// </summary>
     [JsonPropertyName("eventTargets")]
     public Dictionary<string, ControlConfig>? EventTargets { get; set; }
+
+    /// <summary>
+    /// 页面组件声明（M2/M6）：键=组件名（如 taskRow/historyRow/viewItem），
+    /// 值=模板名 + 派生模型规则（白名单算子，见 <c>UiExpression</c>）。
+    /// <para>语义：投影器只产基础行模型；派生字段（active/selected/label/elapsed…）由声明计算，
+    /// 未声明组件 ⇒ 走 C# 兜底（零回归）。</para>
+    /// </summary>
+    [JsonPropertyName("components")]
+    public Dictionary<string, HtmlComponentDeclaration>? Components { get; set; }
+
+    /// <summary>格式化器别名（M6）：键=表达式使用的名字，值=内置格式化器（duration/number/integer/percent/upper/lower/date）。</summary>
+    [JsonPropertyName("formatters")]
+    public Dictionary<string, string>? Formatters { get; set; }
+
+    /// <summary>文案表（M6）：表名 → 键 → 文案；供 <c>lookup</c> 算子读取（禁 C# 硬编码 label）。</summary>
+    [JsonPropertyName("labels")]
+    public Dictionary<string, Dictionary<string, string>>? Labels { get; set; }
+}
+
+/// <summary>组件声明（M2/M6）：模板 + 派生模型规则。</summary>
+public sealed class HtmlComponentDeclaration
+{
+    /// <summary>模板名（templates 段键）；null = 用投影器传入的默认模板。</summary>
+    [JsonPropertyName("template")]
+    public string? Template { get; set; }
+
+    /// <summary>派生模型：键=模型字段，值=白名单算子表达式（JsonElement）。</summary>
+    [JsonPropertyName("model")]
+    public Dictionary<string, object?>? Model { get; set; }
 }
 
 /// <summary>页面受控态槽声明（B2）。</summary>

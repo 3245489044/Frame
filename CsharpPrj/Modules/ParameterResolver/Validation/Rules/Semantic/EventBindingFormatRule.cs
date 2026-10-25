@@ -132,16 +132,25 @@ public class EventBindingFormatRule : ValidationRuleBase
                 sourceValue.ValueKind != JsonValueKind.String ||
                 string.IsNullOrWhiteSpace(sourceValue.GetString()))
             {
-                var location = new SourceLocation(
-                    context.FilePath ?? "unknown",
-                    $"{eventsPath}.bindings.parameters[{index}]");
+                // eventPayload 承载触发事件的负载原文（来源=事件本身，非控件）；source 只在需要读
+                // 「某个 HtmlViewer 的最后负载」时才有意义，故缺省合法（与 EcsEventBus 求值一致）。
+                var sourceType = paramItem.TryGetProperty("sourceType", out var st)
+                    && st.ValueKind == JsonValueKind.String
+                        ? st.GetString()
+                        : null;
+                if (!string.Equals(sourceType, "eventPayload", StringComparison.OrdinalIgnoreCase))
+                {
+                    var location = new SourceLocation(
+                        context.FilePath ?? "unknown",
+                        $"{eventsPath}.bindings.parameters[{index}]");
 
-                diagnostics.Add(
-                    ValidationDiagnostic.CreateError(
-                        RuleName,
-                        $"parameters[{index}] 缺少必填字段 'source' 或值无效")
-                    .WithLocation(location)
-                    .WithSuggestion("添加 source 字段，如 \"source\": \"controlName\""));
+                    diagnostics.Add(
+                        ValidationDiagnostic.CreateError(
+                            RuleName,
+                            $"parameters[{index}] 缺少必填字段 'source' 或值无效")
+                        .WithLocation(location)
+                        .WithSuggestion("添加 source 字段，如 \"source\": \"controlName\"（sourceType=eventPayload 可省略）"));
+                }
             }
 
             // P5·值语义校验：semantic（可选）必须是合法值语义（Text/Selection/Content/Checked/Range/Path）

@@ -105,6 +105,41 @@ foreach ($sib in @(Get-ChildItem -LiteralPath $configDir -Filter *.json -File -E
     catch { Add-Warning "片段解析失败（未纳入控件名集合）: $($sib.Name) — $($_.Exception.Message)" }
 }
 
+# ---- 收集页面区域声明键（htmlPage.regions[].key）：region:<key> 的合法域 ----
+$regionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+function Collect-RegionKeys($node) {
+    if ($null -eq $node) { return }
+    if ($node -is [System.Collections.IEnumerable] -and $node -isnot [string]) {
+        foreach ($item in $node) { Collect-RegionKeys $item }
+        return
+    }
+    if ($node -isnot [pscustomobject]) { return }
+    $regions = Get-Prop $node 'regions'
+    if ($regions) {
+        foreach ($r in @($regions)) {
+            $k = Get-Prop $r 'key'
+            if ($k) { [void]$regionKeys.Add([string]$k) }
+        }
+    }
+    foreach ($p in $node.PSObject.Properties) {
+        if ($p.Name -eq 'regions') { continue }
+        Collect-RegionKeys $p.Value
+    }
+}
+Collect-RegionKeys $config
+
+# 输出目标合法性（单一判据）：region:<key> → 区域声明集；host:<name> → 控件集去前缀；裸名 → 控件集。
+function Test-ValidOutput([string]$output) {
+    if ([string]::IsNullOrWhiteSpace($output)) { return $true }
+    if ($output.StartsWith('region:', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $regionKeys.Contains($output.Substring(7).Trim())
+    }
+    if ($output.StartsWith('host:', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $controlNames.Contains($output.Substring(5).Trim())
+    }
+    return $controlNames.Contains($output)
+}
+
 # ---- 检查1：布局重叠（兄弟级，排除 TabControl/TabPage 固有堆叠） ----
 $overlapEpsilon = 1e-4   # 亚像素容差，避免浮点相邻误报
 function Test-Overlap($a, $b) {
@@ -154,8 +189,8 @@ function Check-Bindings($nodes) {
             $bind = Get-Prop $events 'bindings'
             if ($bind) {
                 $output = Get-Prop $bind 'output'
-                if ($output -and -not $controlNames.Contains([string]$output)) {
-                    Add-Error "绑定输出悬空: $(Get-Prop $c 'name') → output=$output"
+                if ($output -and -not (Test-ValidOutput ([string]$output))) {
+                    Add-Error "绑定输出悬空: $(Get-Prop $c 'name') → output=$output（控件/区域均未声明）"
                 }
                 $parameters = Get-Prop $bind 'parameters'
                 if ($parameters) {
@@ -176,6 +211,84 @@ function Check-Bindings($nodes) {
 foreach ($view in $config.views) {
     $vc = Get-Prop $view 'controls'
     if ($vc) { Check-Bindings $vc }
+}
+
+# ---- 检查2b：页面级事件目标（htmlPage.eventTargets）——绑定目标 + 工作流节点结构 ----
+$validStepTypes = @('Function', 'Condition', 'Loop')
+function Check-WorkflowNode([string]$workflowName, $node, [string]$path) {
+    if ($null -eq $node) { return }
+    $id = Get-Prop $node 'id'
+    $fn = Get-Prop $node 'functionName'
+    $legacyFn = Get-Prop $node 'function'
+    $children = Get-Prop $node 'children'
+    $elseChildren = Get-Prop $node 'elseChildren'
+    if ($legacyFn -and -not $fn) {
+        Add-Error "工作流节点键名非规范: $path `(workflow=$workflowName node=$id`)，'function' 应为 'functionName'"
+    }
+    if (-not $fn -and -not $legacyFn -and -not $children -and -not $elseChildren) {
+        Add-Error "工作流节点缺少 functionName 且无子节点: $path `(workflow=$workflowName node=$id`)"
+    }
+    if (-not $id) { Add-Warning "工作流节点缺少 id: $path (workflow=$workflowName)" }
+    $stepType = Get-Prop $node 'stepType'
+    if ($stepType -and ($validStepTypes -notcontains [string]$stepType)) {
+        Add-Error "工作流节点 stepType 非法: $path → $stepType（允许 Function/Condition/Loop）"
+    }
+    foreach ($c in @($children)) { Check-WorkflowNode $workflowName $c "$path.children" }
+    foreach ($c in @($elseChildren)) { Check-WorkflowNode $workflowName $c "$path.elseChildren" }
+}
+function Check-EventTarget([string]$targetName, $target) {
+    if ($null -eq $target) { return }
+    $events = Get-Prop $target 'events'
+    if (-not $events) { return }
+    $bind = Get-Prop $events 'bindings'
+    if (-not $bind) { return }
+    $output = Get-Prop $bind 'output'
+    if ($output -and -not (Test-ValidOutput ([string]$output))) {
+        Add-Error "事件目标输出悬空: $targetName → output=$output（控件/区域均未声明）"
+    }
+    foreach ($p in @(Get-Prop $bind 'parameters')) {
+        $sourceType = Get-Prop $p 'sourceType'
+        $source = Get-Prop $p 'source'
+        if ($sourceType -eq 'control' -and $source -and -not $controlNames.Contains([string]$source)) {
+            Add-Error "事件目标参数源悬空: $targetName → source=$source"
+        }
+    }
+    $click = Get-Prop $events 'click'
+    $workflows = Get-Prop $bind 'workflows'
+    if ($workflows -and $workflows.PSObject) {
+        if ($click -and -not $workflows.PSObject.Properties[$click]) {
+            Add-Warning "事件目标 click 意图无同名工作流: $targetName → click=$click"
+        }
+        foreach ($wf in $workflows.PSObject.Properties) {
+            $nodes = Get-Prop $wf.Value 'nodes'
+            if (-not $nodes -or @($nodes).Count -eq 0) {
+                Add-Error "工作流无节点: workflow=$($wf.Name) target=$targetName"
+                continue
+            }
+            $i = 0
+            foreach ($n in @($nodes)) {
+                Check-WorkflowNode ([string]$wf.Name) $n "eventTargets.$targetName.workflows.$($wf.Name).nodes[$i]"
+                $i++
+            }
+        }
+    }
+}
+function Walk-EventTargets($nodes) {
+    foreach ($c in $nodes) {
+        $page = Get-Prop $c 'htmlPage'
+        if ($page) {
+            $targets = Get-Prop $page 'eventTargets'
+            if ($targets -and $targets.PSObject) {
+                foreach ($t in $targets.PSObject.Properties) { Check-EventTarget $t.Name $t.Value }
+            }
+        }
+        $children = Get-Prop $c 'controls'
+        if ($children) { Walk-EventTargets $children }
+    }
+}
+foreach ($view in $config.views) {
+    $vc = Get-Prop $view 'controls'
+    if ($vc) { Walk-EventTargets $vc }
 }
 
 # ---- 检查3：click / initCommands 函数名注册（前缀库 + 工作流名清单） ----

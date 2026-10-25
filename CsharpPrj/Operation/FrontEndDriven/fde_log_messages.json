@@ -397,6 +397,21 @@
       "level": "Info",
       "category": "General"
     },
+    "EcsEventBus_Dispatch_output_region_written": {
+      "template": "ECS 事件输出写入页面区域 — opId={opId}, controlName={controlName}, functionName={functionName}, region={region}, append={append}, status={status}",
+      "level": "Info",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_region_rejected": {
+      "template": "ECS 事件输出区域目标被拒绝（未声明/无区域写者）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, region={region}, reason={reason}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_region_failed": {
+      "template": "ECS 事件输出区域写入失败 — opId={opId}, controlName={controlName}, functionName={functionName}, region={region}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
     "EcsEventBus_Dispatch": {
       "template": "ECS 事件分发 — controlName={controlName}, eventName={eventName}, functionName={functionName}, parameters={parameters}",
       "level": "Debug",

@@ -23,7 +23,9 @@ public static class HtmlShellProjector
     public static string RenderSelector(
         IReadOnlyDictionary<string, string> templates,
         IReadOnlyList<(string Key, string Label)> items,
-        string currentKey)
+        string currentKey,
+        UiComponentCatalog? catalog = null,
+        string? rowComponent = null)
     {
         var rows = new List<object?>(items?.Count ?? 0);
         if (items is not null)
@@ -31,13 +33,15 @@ public static class HtmlShellProjector
             foreach (var (key, label) in items)
             {
                 var isCurrent = key == currentKey;
-                rows.Add(new Dictionary<string, object?>
+                var model = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = key,
                     ["label"] = label,
+                    ["currentView"] = currentKey,
                     ["active"] = isCurrent ? "1" : string.Empty,
                     ["selected"] = isCurrent ? "1" : string.Empty,
-                });
+                };
+                rows.Add(catalog?.Apply(rowComponent, model) ?? model);
             }
         }
 

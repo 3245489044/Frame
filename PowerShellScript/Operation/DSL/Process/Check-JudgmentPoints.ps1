@@ -22,19 +22,25 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name JudgmentPoints
+
 function Get-JudgmentPointViolations {
     param(
         [int]$MissingPortsDefinitions,
         [int]$RoundFailureThrows,
         [int]$RuleFiles,
-        [bool]$KernelPresent
+        [bool]$KernelPresent,
+        [int]$RuleFilesMin = 5,
+        [int]$ExpectedMissingPorts = 1,
+        [int]$ExpectedThrows = 2
     )
 
     $violations = [System.Collections.Generic.List[string]]::new()
     if (-not $KernelPresent) { $violations.Add('Judgment/ 内核目录缺失') }
-    if ($RuleFiles -lt 5) { $violations.Add("Rules/ 规则文件数=$RuleFiles（期望 >= 5）") }
-    if ($MissingPortsDefinitions -ne 1) { $violations.Add("MissingPorts 定义点=$MissingPortsDefinitions（期望 1）") }
-    if ($RoundFailureThrows -ne 2) { $violations.Add("RoundFailureException 抛点=$RoundFailureThrows（期望 2：执行失败 + Apply）") }
+    if ($RuleFiles -lt $RuleFilesMin) { $violations.Add("Rules/ 规则文件数=$RuleFiles（期望 >= $RuleFilesMin）") }
+    if ($MissingPortsDefinitions -ne $ExpectedMissingPorts) { $violations.Add("MissingPorts 定义点=$MissingPortsDefinitions（期望 $ExpectedMissingPorts）") }
+    if ($RoundFailureThrows -ne $ExpectedThrows) { $violations.Add("RoundFailureException 抛点=$RoundFailureThrows（期望 $ExpectedThrows：执行失败 + Apply）") }
     return $violations
 }
 
@@ -68,7 +74,10 @@ $violations = Get-JudgmentPointViolations `
     -MissingPortsDefinitions $missingPorts.Count `
     -RoundFailureThrows $throws.Count `
     -RuleFiles $ruleFiles `
-    -KernelPresent $kernelPresent
+    -KernelPresent $kernelPresent `
+    -RuleFilesMin ([int]$g.RuleFilesMin.Value) `
+    -ExpectedMissingPorts ([int]$g.MissingPortsDefinitions.Value) `
+    -ExpectedThrows ([int]$g.RoundFailureThrows.Value)
 
 if ($ShowDetail) {
     $missingPorts | ForEach-Object { Write-Output ("MissingPorts: {0}:{1}" -f $_.Path, $_.LineNumber) }

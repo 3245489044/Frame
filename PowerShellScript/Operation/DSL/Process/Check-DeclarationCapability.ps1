@@ -20,6 +20,9 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name DeclarationCapability
+
 function Get-Field {
     param([string]$Line, [string]$Name)
     $m = [regex]::Match($Line, '(?:\||^)\s*' + [regex]::Escape($Name) + '=([^|]+)')
@@ -62,6 +65,7 @@ if ($NegativeControl) {
 
 $workflowDir = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $violations = [System.Collections.Generic.List[string]]::new()
+$declaredPorts = 0
 if (-not (Test-Path -LiteralPath $workflowDir)) {
     $violations.Add("声明目录缺失：$workflowDir")
 } else {
@@ -69,11 +73,18 @@ if (-not (Test-Path -LiteralPath $workflowDir)) {
         $lineNo = 0
         foreach ($line in Get-Content -LiteralPath $file.FullName) {
             $lineNo++
+            $declaredPorts += @(Split-Ports (Get-Field -Line $line -Name 'nullable')).Count
+            $declaredPorts += @(Split-Ports (Get-Field -Line $line -Name 'conditional')).Count
             foreach ($v in (Get-CapabilityViolations -Line $line)) {
                 $violations.Add("$($file.Name):$lineNo $v")
             }
         }
     }
+    # 基线：声明端口数=正对照下限（判据无标的即红）；越界端口=棘轮上限（只降不增）
+    $declaredPortsFloor = [int]$g.DeclaredCapabilityPorts.Value
+    $outOfScopeLimit = [int]$g.OutOfScopeCapabilityPorts.Value
+    if ($declaredPorts -lt $declaredPortsFloor) { $violations.Add("[C0] 声明能力端口数 $declaredPorts < 基线下限 $declaredPortsFloor（判据无标的）") }
+    if ($violations.Count -gt $outOfScopeLimit) { $violations.Add("[C2] 越界能力端口 $($violations.Count) > 基线 $outOfScopeLimit（只降不增）") }
 }
 
 if ($ShowDetail) {

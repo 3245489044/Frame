@@ -1,6 +1,6 @@
 using BackEndDriven.Diagnostics;
 using FrameworkAbstractions.ComponentRegistry;
-using Modules.Threading;
+using FrameworkAbstractions.WinFormsAbstractions;
 using Share.EventBindingOrchestrator.Abstractions;
 
 namespace BackEndDriven.CommandExecution;
@@ -23,8 +23,8 @@ public static class EventPlatformExecutor
     /// <summary>统一调用来源（决策见 IEventPlatform，ExecCommand 语义=命令层外部函数执行）。</summary>
     public const string Source = "ExecCommand";
 
-    /// <summary>默认超时（单一来源：<see cref="TimingDefaults.FunctionCallDefault"/>，对齐 IEventPlatform 契约 30s）。</summary>
-    public static int DefaultTimeoutMs => (int)TimingDefaults.FunctionCallDefault.TotalMilliseconds;
+    /// <summary>默认超时（单一来源：<see cref="InteractionDefaults.DefaultFunctionTimeoutMs"/>，对齐 IEventPlatform 契约）。</summary>
+    public static int DefaultTimeoutMs => InteractionDefaults.DefaultFunctionTimeoutMs;
 
     /// <summary>
     /// 同步执行函数。IEventPlatform 未注册时返回 PlatformAvailable=false 的调用结果。

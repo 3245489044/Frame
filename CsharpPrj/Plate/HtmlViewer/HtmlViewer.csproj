@@ -26,6 +26,8 @@
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 树遍历/索引原语统一经 FrameworkTree（Framework.Tree, GraphFoundation）：UiNode/ControlConfig 递归收敛为 TreeWalker/TreeIndex -->
     <ProjectReference Include="$(Proj_GraphFoundation)" />
+    <!-- D6/D7 单一实现：模板目录 + key=value 解析（与 ScriptRunner 共用 Modules.Parsing） -->
+    <ProjectReference Include="$(Proj_Parsing)" />
     <!-- ★ 2026-09 依赖倒置（DIP）：Observe.csproj / Share.Conversation.csproj 两个上游引用已移除——
          收敛写（ObservedHtmlChannel/WebView2Transport）与会话渲染（HtmlStreamRenderer）迁移至 FrontEndDriven/HtmlViewerBridge，
          plate 回归「纯渲染基础设施」定位。 -->

@@ -1,13 +1,16 @@
 #nullable enable
 
 using System.Text.Json;
+using Modules.Parsing.Parsing;
 using Plate.JsonMethod.Serialization;
 
 namespace UiBackend.Html;
 
-/// <summary>脚本执行结果：逐条命令输出行。</summary>
-public sealed record HtmlScriptResult(IReadOnlyList<string> Lines)
+/// <summary>脚本执行结果：逐条命令输出行 + 不支持命令计数（E12：白名单外命令不得算成功）。</summary>
+public sealed record HtmlScriptResult(IReadOnlyList<string> Lines, int UnsupportedCount = 0)
 {
+    public bool HasUnsupported => UnsupportedCount > 0;
+
     public string ToText() => string.Join(Environment.NewLine, Lines);
 }
 
@@ -39,30 +42,34 @@ public sealed class HtmlScriptBridge
         _assets = assets ?? HtmlAssetRegistry.Default;
     }
 
-    /// <summary>逐条执行命令，返回全部输出行；单条失败不中断后续（对齐脚本整体结果语义）。</summary>
+    /// <summary>逐条执行命令，返回全部输出行；单条失败不中断后续（对齐脚本整体结果语义）。
+    /// E12：不支持的命令计入 <see cref="HtmlScriptResult.UnsupportedCount"/>（可判定失败，不再静默成功）。</summary>
     public async Task<HtmlScriptResult> ExecuteAsync(IEnumerable<HtmlScriptCommand> commands, CancellationToken ct = default)
     {
         var lines = new List<string>();
+        var unsupported = 0;
         foreach (var cmd in commands)
         {
             ct.ThrowIfCancellationRequested();
-            lines.Add(await ExecuteOneAsync(cmd, ct).ConfigureAwait(false));
+            var (line, isUnsupported) = await ExecuteOneAsync(cmd, ct).ConfigureAwait(false);
+            lines.Add(line);
+            if (isUnsupported) unsupported++;
         }
-        return new HtmlScriptResult(lines);
+        return new HtmlScriptResult(lines, unsupported);
     }
 
-    private async Task<string> ExecuteOneAsync(HtmlScriptCommand cmd, CancellationToken ct)
+    private async Task<(string Line, bool Unsupported)> ExecuteOneAsync(HtmlScriptCommand cmd, CancellationToken ct)
     {
         var action = cmd.Action?.Trim().ToLowerInvariant() ?? string.Empty;
         switch (action)
         {
             case DomOps.Set:
                 await _channel.ExecuteAsync(DomOps.Set, cmd.Target, cmd.Value).ConfigureAwait(false);
-                return $"[set] {cmd.Target} = {cmd.Value}";
+                return ($"[set] {cmd.Target} = {cmd.Value}", false);
 
             case DomOps.Get:
                 var raw = await _channel.ExecuteAsync(DomOps.Get, cmd.Target, null).ConfigureAwait(false);
-                return $"[get] {cmd.Target} = {HtmlElementNode.UnwrapString(raw)}";
+                return ($"[get] {cmd.Target} = {HtmlElementNode.UnwrapString(raw)}", false);
 
             case DomOps.Click:
                 // 返回 __domBridge.handle 的真实命中结果（OK/NOT_FOUND），不再无条件成功——
@@ -79,28 +86,29 @@ public sealed class HtmlScriptBridge
                 {
                     probe = $"err:{ex.GetType().Name}";
                 }
-                return $"[click] {cmd.Target} → {HtmlElementNode.UnwrapString(clickRaw)} | probe={probe}";
+                return ($"[click] {cmd.Target} → {HtmlElementNode.UnwrapString(clickRaw)} | probe={probe}", false);
 
             case DomOps.RealClick:
                 // 真实鼠标点击（宿主经 Win32 SendInput 注入，isTrusted=true）；返回桥的真实命中结果（OK/NOT_FOUND/NOT_VISIBLE），
                 // 避免「元素缺失仍显示成功」的假阳性，使日志可核对元素是否找到/可见/坐标解析。
                 var rc = await _channel.ExecuteAsync(DomOps.RealClick, cmd.Target, null).ConfigureAwait(false);
-                return $"[realclick] {cmd.Target} → {rc}";
+                return ($"[realclick] {cmd.Target} → {rc}", false);
 
             case ScriptCommand.Exec:
                 var parameters = ParseKeyValues(cmd.Value);
                 var result = await _invoker(cmd.Target ?? string.Empty, parameters).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(cmd.Output))
                     await _channel.ExecuteAsync(DomOps.Set, cmd.Output, result).ConfigureAwait(false);
-                return $"[exec] {cmd.Target} → {result}";
+                return ($"[exec] {cmd.Target} → {result}", false);
 
             case ScriptCommand.Sleep:
                 var ms = int.TryParse(cmd.Target ?? cmd.Value, out var v) ? v : 500;
                 await Task.Delay(ms, ct).ConfigureAwait(false);
-                return $"[sleep] {ms}ms";
+                return ($"[sleep] {ms}ms", false);
 
             default:
-                return $"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/realclick/exec/sleep）";
+                // E12：白名单外命令 = 可判定失败（计入 UnsupportedCount），不再以文本行冒充成功。
+                return ($"[{cmd.Action}] 不支持（HTML 桥命令白名单: set/get/click/realclick/exec/sleep）", true);
         }
     }
 
@@ -146,7 +154,8 @@ public sealed class HtmlScriptBridge
         }
     }
 
-    /// <summary>{template} 命令展开：echo-section → echo 命令（Value=title）；其余模板命令名 → 转为其 action 名。</summary>
+    /// <summary>{template} 命令展开（D7 单一来源 = <see cref="ScriptTemplateCatalog"/>）：
+    /// 已知模板 → 规范化 action/target/value；未知模板 → 保留模板名（执行期计入 UnsupportedCount，显式失败）。</summary>
     private static IReadOnlyList<HtmlScriptCommand> ExpandTemplates(List<HtmlScriptCommand> cmds)
     {
         var result = new List<HtmlScriptCommand>(cmds.Count);
@@ -157,54 +166,25 @@ public sealed class HtmlScriptBridge
                 result.Add(cmd);
                 continue;
             }
-            if (string.Equals(cmd.Template, "echo-section", StringComparison.OrdinalIgnoreCase))
-                result.Add(new HtmlScriptCommand { Action = "echo", Value = cmd.Title ?? cmd.Template });
-            else
-                result.Add(new HtmlScriptCommand { Action = cmd.Template, Target = cmd.Target });
+
+            if (!ScriptTemplateCatalog.TryResolve(cmd.Template, out var spec))
+            {
+                result.Add(new HtmlScriptCommand { Action = cmd.Template, Target = cmd.Target, Value = cmd.Value });
+                continue;
+            }
+
+            result.Add(new HtmlScriptCommand
+            {
+                Action = spec.Action,
+                Target = spec.LiteralTarget ?? cmd.Target,
+                Value = spec.ValueKind == TemplateValueKind.Title ? cmd.Title : cmd.Value,
+                Output = cmd.Output
+            });
         }
         return result;
     }
 
-    /// <summary>解析 exec 的 key=value 参数串（空格分隔，值含空格用引号包裹）→ 命名参数字典。</summary>
+    /// <summary>解析 exec 的 key=value 参数串（D6 单一实现 = <see cref="KeyValueArguments"/>）。</summary>
     public static Dictionary<string, object?> ParseKeyValues(string? value)
-    {
-        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(value)) return dict;
-
-        foreach (var token in Tokenize(value))
-        {
-            var eq = token.IndexOf('=');
-            if (eq <= 0) continue;
-            var key = token[..eq].Trim();
-            var val = token[(eq + 1)..].Trim().Trim('"', '\'');
-            if (key.Length > 0)
-                dict[key] = val;
-        }
-        return dict;
-    }
-
-    private static IEnumerable<string> Tokenize(string value)
-    {
-        var result = new List<string>();
-        var current = new System.Text.StringBuilder();
-        bool inQuote = false;
-        foreach (var ch in value)
-        {
-            if (ch == '"')
-            {
-                inQuote = !inQuote;
-                current.Append(ch);
-            }
-            else if (ch == ' ' && !inQuote)
-            {
-                if (current.Length > 0) { result.Add(current.ToString()); current.Clear(); }
-            }
-            else
-            {
-                current.Append(ch);
-            }
-        }
-        if (current.Length > 0) result.Add(current.ToString());
-        return result;
-    }
+        => KeyValueArguments.ParseObjects(value);
 }

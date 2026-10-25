@@ -67,6 +67,30 @@
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1'; Origin = 'Debt'; DueWhen = 'K9：改用 GateFileIndex 共享索引（MaxHits=2）；到期：K9 收尾时清零或转 Derived' }
+        # ===== 2026-10-25 补登记（R1 清册闭合：此前未在册的递归枚举 ⇒ 逐件可见化；MaxHits = 实测，只减不增）=====
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-ContextGeometryBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-ContextGeometryConvergence.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-DispatchTraceSchema.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-NodePromptBinding.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-PowerShellHostSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-PsSkillToolMap.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-RoundFailureEnvelope.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-ShareMessagingBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-DataStoreDomainBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-ReadIdentitySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-RenderLayerStoreFree.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-StorageWriteEntries.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ZeroRetry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Node\Check-NodeEdgeIntegrity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
     )
 }
 

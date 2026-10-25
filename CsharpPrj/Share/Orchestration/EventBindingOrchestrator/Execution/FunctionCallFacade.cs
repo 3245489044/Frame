@@ -1,5 +1,6 @@
 
 #nullable enable
+using System.Threading;
 using FrameworkAbstractions.WinFormsAbstractions;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Invocation;
@@ -60,6 +61,12 @@ public sealed record FunctionCallRequest
 
     /// <summary>函数渲染副作用元数据（可空：null = 由执行门面按函数名推断，见 FunctionCallFacade.ResolveRenderingAffinity）。</summary>
     public RenderingAffinity? RenderingAffinity { get; init; }
+
+    /// <summary>输出目标（可选）：随请求透传内核，供输出落地/落地计划使用（EcsEventBus 单入口所需）。</summary>
+    public string? OutputTarget { get; init; }
+
+    /// <summary>调用方取消令牌（可选）：命令层等待超时可提前终止在途调用（双时钟对齐）。</summary>
+    public CancellationToken? CallerToken { get; init; }
 }
 
 /// <summary>
@@ -82,7 +89,9 @@ public static class FunctionCallFacade
             ToSource(request.Source),
             // 单一权威计时：预算=请求超时（<=0 不设绝对上限）；空闲窗口关闭（默认）——慢函数不再被全局空闲看门狗误杀。
             new InvocationBudget(AbsoluteMs: request.TimeoutMs > 0 ? request.TimeoutMs : null, IdleMs: null),
-            CorrelationId: request.CorrelationId);
+            OutputTarget: request.OutputTarget,
+            CorrelationId: request.CorrelationId,
+            CallerToken: request.CallerToken);
 
         var result = await InvocationKernel.ExecuteAsync(invocation).ConfigureAwait(false);
 
@@ -91,16 +100,25 @@ public static class FunctionCallFacade
             result.IsSuccess ? result.Output?.ToString() : null,
             result.IsSuccess ? null : (result.Error ?? "未知错误"),
             result.ElapsedMs,
-            affinity);
+            affinity,
+            // E4：归因分类与原始输出不再在门面边界丢失（框架错/函数错可区分，落地计划不退化文本）。
+            result.Outcome,
+            result.Output,
+            result.OpId);
     }
 
     public static FunctionCallFacadeResult ExecuteSyncRequest(FunctionCallRequest request)
     {
         PortGuard.Required(request, nameof(request));
 
-        return RunSyncCore(() => ExecuteAsync(request), -1);
+        // E1：预算透传（原写死 -1 ⇒ 调用方以为有预算、实际无上限）。
+        return RunSyncCore(() => ExecuteAsync(request), request.TimeoutMs);
     }
 
+    /// <summary>
+    /// 来源映射（单一枚举收敛）：函数调用来源唯一词表为 <see cref="InvocationSource"/>；
+    /// 外部枚举仅作词表入口，逐值映射并穷举（未知值显式失败，禁静默 Unknown）。
+    /// </summary>
     private static InvocationSource ToSource(FunctionCallSource source) => source switch
     {
         FunctionCallSource.ButtonClick => InvocationSource.ButtonClick,
@@ -109,7 +127,9 @@ public static class FunctionCallFacade
         FunctionCallSource.InitCommand => InvocationSource.InitCommand,
         FunctionCallSource.MatrixSink => InvocationSource.MatrixSink,
         FunctionCallSource.ExternalPort => InvocationSource.ExternalPort,
-        _ => InvocationSource.Unknown
+        FunctionCallSource.Other => InvocationSource.Unknown,
+        _ => throw new ArgumentOutOfRangeException(nameof(source), source,
+            "未映射的函数调用来源（新增枚举值须同步映射，禁静默归入 Unknown）")
     };
 
     /// <summary>
@@ -138,12 +158,13 @@ public static class FunctionCallFacade
             : RenderingAffinity.None;
     }
 
-    /// <summary>同步等待辅助（下沉自 BackEndDriven.Utilities.AsyncHelper——Share 层不依赖 Operation 层）。</summary>
+    /// <summary>同步等待辅助（下沉自 BackEndDriven.Utilities.AsyncHelper——Share 层不依赖 Operation 层）。
+    /// R5：不再用 Task.Run 包裹 async 方法（消除线程池嵌套）；预算到期经 Task.Wait 判定，超时抛出可归因异常。</summary>
     private static TResult RunSyncCore<TResult>(Func<Task<TResult>> asyncFunc, int timeoutMilliseconds)
     {
         asyncFunc = PortGuard.Required(asyncFunc, nameof(asyncFunc));
 
-        var task = Task.Run(asyncFunc);
+        var task = asyncFunc();
         if (timeoutMilliseconds > 0)
         {
             if (!task.Wait(timeoutMilliseconds))

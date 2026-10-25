@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using FrontEndDriven.Diagnostics;
 using FrameworkAbstractions.Framework;
+using FrameworkAbstractions.WinFormsAbstractions;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Execution;
 
@@ -135,7 +136,7 @@ public sealed class EventPlatform : IEventPlatform, IDisposable
         string functionName,
         Dictionary<string, object?>? parameters = null,
         string? source = null,
-        int timeoutMs = 30_000,
+        int timeoutMs = InteractionDefaults.DefaultFunctionTimeoutMs,
         string scope = "")
     {
         ThrowIfDisposed();
@@ -175,7 +176,7 @@ public sealed class EventPlatform : IEventPlatform, IDisposable
         string functionName,
         Dictionary<string, object?>? parameters = null,
         string? source = null,
-        int timeoutMs = 30_000,
+        int timeoutMs = InteractionDefaults.DefaultFunctionTimeoutMs,
         string scope = "")
         => InvokeFunctionAsync(functionName, parameters, source, timeoutMs, scope).GetAwaiter().GetResult();
 

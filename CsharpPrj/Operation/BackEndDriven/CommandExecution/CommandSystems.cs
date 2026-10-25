@@ -405,8 +405,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         if (!invocation.PlatformAvailable)
         {
             BackEndLog.Log("Command_Exec_Failed", new { function = target, error = invocation.Error });
-            // 控件被多条命令复用：失败时清空输出目标，防残留文本让后续控件断言误绿。
-            ClearOutputTarget(outputTarget);
+            // E9：失败不清空输出控件（清空即销毁现场证据）；失败原因由本行日志承载。
             SetFailure(entity, $"exec '{target}' 失败: {invocation.Error}");
             return;
         }
@@ -414,13 +413,11 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         var result = invocation.Result!;
         if (result.IsSuccess)
         {
-            // output 一致语义：函数结果先回写目标控件（ECS 状态真源 → 投影物理控件，与 SetSystem 同路径），
-            // 使后续 expectedContains 失配现场在 GUI 上可见。
-            if (!string.IsNullOrWhiteSpace(outputTarget)
-                && _stateAccessor != null
-                && result.Output != null)
+            // output 一致语义：函数结果先回写目标控件（唯一经 OutputTargetWriter，E10 单写者）。
+            // 使后续 expectedContains 失配现场在 GUI 上可见（证据保留）。
+            if (!string.IsNullOrWhiteSpace(outputTarget) && result.Output != null)
             {
-                _stateAccessor.SetValue(outputTarget, result.Output.ToString());
+                OutputTargetWriter.Write(_stateAccessor, outputTarget, result.Output.ToString());
             }
 
             // 结果级内容断言（expectedContains，可选用）：对函数返回文本做包含校验（忽略大小写）。
@@ -432,7 +429,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 {
                     BackEndLog.Log("Command_Exec_ExpectedContains_Mismatch",
                         new { function = target, expectedContains, actual = LogTextTruncation.TruncateForLog(actualOutput), note = "空期望恒真，拒绝静默通过" });
-                    ClearOutputTarget(outputTarget);
+                    // E9：断言失配不清空输出控件（保留证据）。
                     SetFailure(entity, $"exec '{target}' 结果断言失败: expectedContains 为空（空期望恒真，拒绝静默通过）");
                     return;
                 }
@@ -441,7 +438,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 {
                     BackEndLog.Log("Command_Exec_ExpectedContains_Mismatch",
                         new { function = target, expectedContains, actual = LogTextTruncation.TruncateForLog(actualOutput) });
-                    ClearOutputTarget(outputTarget);
+                    // E9：断言失配不清空输出控件（保留证据）。
                     SetFailure(entity,
                         $"exec '{target}' 结果断言失败: 函数返回文本不含期望子串 '{expectedContains}' — 实际 '{LogTextTruncation.TruncateForLog(actualOutput)}'");
                     return;
@@ -458,7 +455,7 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
                 {
                     BackEndLog.Log("Command_Exec_ExpectJson_Mismatch",
                         new { function = target, expectJson = expectedJson, error = jsonError, actual = LogTextTruncation.TruncateForLog(actualOutput) });
-                    ClearOutputTarget(outputTarget);
+                    // E9：断言失配不清空输出控件（保留证据）。
                     SetFailure(entity, $"exec '{target}' 结果断言失败 (expect-json): {jsonError}");
                     return;
                 }
@@ -474,19 +471,9 @@ public class ExecSystem : CommandSystemBase, IAsyncCommandSystem
         {
             BackEndLog.Log("Command_Exec_Failed",
                 new { function = target, error = result.ErrorMessage });
-            ClearOutputTarget(outputTarget);
+            // E9：失败不清空输出控件（保留证据）。
             SetFailure(entity, $"exec '{target}' 失败: {result.ErrorMessage}");
         }
-    }
-
-    /// <summary>
-    /// 清空命令级输出目标：控件被多条命令复用，失败/断言失配时若保留上一条命令的文本，
-    /// 紧随其后的 <c>assert text-contains</c> 会命中残留而误绿（判据载体污染）。
-    /// </summary>
-    private void ClearOutputTarget(string? outputTarget)
-    {
-        if (string.IsNullOrWhiteSpace(outputTarget) || _stateAccessor is null) return;
-        _stateAccessor.SetValue(outputTarget, string.Empty);
     }
 
     /// <summary>

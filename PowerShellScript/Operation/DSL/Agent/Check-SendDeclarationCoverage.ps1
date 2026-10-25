@@ -55,17 +55,17 @@ if (-not (Test-Path -LiteralPath $convFile)) {
     }
 }
 
+# G2/G4/G5 共用同一次 UI 源枚举（单次扫描；禁重复递归）
+$uiFiles = @()
 if (Test-Path -LiteralPath $uiDir) {
+    $uiFiles = @(Get-ChildItem -LiteralPath $uiDir -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue)
     $lit = [System.Collections.Generic.List[string]]::new()
-    foreach ($f in (Get-ChildItem -LiteralPath $uiDir -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue)) {
+    foreach ($f in $uiFiles) {
         if ([System.IO.File]::ReadAllText($f.FullName) -match '"dispatch"') { $lit.Add($f.Name) }
     }
     if ($lit.Count -gt 0) { $violations.Add("[G2] UI 层仍含 ""dispatch"" 字面量 $($lit.Count) 处（应引 SessionPresentation.DefaultMode）：$($lit -join ', ')") }
-}
 
-# G4/G5 策略与读取单源：发送面不得自行裁决空集，也不得自行枚举成员。
-if (Test-Path -LiteralPath $uiDir) {
-    $uiFiles = @(Get-ChildItem -LiteralPath $uiDir -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue)
+    # G4/G5 策略与读取单源：发送面不得自行裁决空集，也不得自行枚举成员。
     $policyHits = @($uiFiles | Where-Object { [System.IO.File]::ReadAllText($_.FullName) -match 'IsEmptyHistory|IsKnownEmptyHistory' })
     if ($policyHits.Count -gt 0) {
         $names = ($policyHits | ForEach-Object { $_.Name }) -join ', '

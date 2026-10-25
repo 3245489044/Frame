@@ -133,13 +133,14 @@ internal static class Win32NativeInput
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint nInputs, NativeInput[] pInputs, int cbSize);
 
-    /// <summary>发送一次鼠标输入（move/down/up；绝对坐标按虚拟桌面归一）。</summary>
-    internal static void SendMouse(uint flags, int absX, int absY)
+    /// <summary>发送一次鼠标输入（move/down/up；绝对坐标按虚拟桌面归一）。返回系统是否接受该输入
+    /// （SendInput 返回 0 = 被 UIPI/会话隔离拦截）。真实点击据此判 NOT_EFFECTIVE，不再无条件报 OK。</summary>
+    internal static bool SendMouse(uint flags, int absX, int absY)
     {
         var input = new NativeInput { Type = INPUT_MOUSE };
         input.Mouse.dx = absX;
         input.Mouse.dy = absY;
         input.Mouse.dwFlags = flags;
-        SendInput(1, new[] { input }, Marshal.SizeOf<NativeInput>());
+        return SendInput(1, new[] { input }, Marshal.SizeOf<NativeInput>()) == 1;
     }
 }

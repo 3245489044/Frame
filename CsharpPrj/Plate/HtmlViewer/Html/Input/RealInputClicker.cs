@@ -22,6 +22,26 @@ public sealed class RealInputClicker
     private readonly HtmlScriptExecutor _executor;
     private readonly DiagnosticPort _diagnostics = new();
 
+    /// <summary>安装「DOM click 回执」监听（幂等）并清空上一拍：只记录结构事实（命中的 data-name / isTrusted），
+    /// 供 <see cref="ClickAsync"/> 判定「点击是否真的送达页面」——SendInput 已发不足以称成功。</summary>
+    private const string ClickAckInstallScript =
+        "(() => {" +
+        " if (!document.__realClickAckInstalled) {" +
+        "  document.__realClickAckInstalled = true;" +
+        "  document.addEventListener('click', function (e) {" +
+        "   var t = e.target;" +
+        "   var el = (t && t.closest) ? t.closest('[data-name]') : null;" +
+        "   document.__lastClickAck = { name: el ? el.getAttribute('data-name') : null," +
+        "    tag: (t && t.tagName) ? t.tagName : null, trusted: e.isTrusted === true, at: Date.now() };" +
+        "  }, true);" +
+        " }" +
+        " document.__lastClickAck = null;" +
+        " return 'OK';" +
+        "})()";
+
+    /// <summary>读取点击回执（无回执 = 页面从未收到 click）。</summary>
+    private const string ClickAckReadScript = "JSON.stringify(document.__lastClickAck || null)";
+
     public RealInputClicker(IWebViewHost host, HtmlScriptExecutor executor, Action<string, string>? diagnostics = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -73,6 +93,24 @@ public sealed class RealInputClicker
         if (_host.IsHandleCreated)
             Win32NativeInput.ClientToScreen(_host.Handle, ref screenPt);
 
+        // ②-a 送达判据前置：安装一次性 DOM click 回执并清空上一拍（结构事实：命中 data-name / isTrusted）。
+        await RunOnUiAsync(() => core.ExecuteScriptAsync(ClickAckInstallScript), ct).ConfigureAwait(false);
+
+        // ②-b 落点归属校验 + 内容窗口聚焦：SendInput 的落点由系统命中测试决定——若被其它窗口遮挡，
+        //      旧实现仍然报 OK（假阳性，且可能把点击打到别的程序上）。Chromium 还要求内容窗口已获焦点，
+        //      否则首个真实点击被吞为「激活窗口」，页面不会产生 click（点击丢失）。
+        var formHandle = _host.HostFormHandle;
+        var hitBefore = Win32NativeInput.WindowFromPoint(screenPt);
+        if (formHandle != IntPtr.Zero && hitBefore != IntPtr.Zero
+            && hitBefore != formHandle
+            && !Win32NativeInput.IsChild(formHandle, hitBefore)
+            && Win32NativeInput.GetAncestor(hitBefore, Win32NativeInput.GA_ROOT) != formHandle)
+        {
+            return $"NOT_EFFECTIVE|坐标落点不在目标窗体（可能被其它窗口遮挡/坐标偏移）；screen=({screenPt.X},{screenPt.Y}), hit=0x{hitBefore.ToInt64():X}, target=0x{formHandle.ToInt64():X}";
+        }
+        if (hitBefore != IntPtr.Zero)
+            Win32NativeInput.SetFocus(hitBefore);
+
         // ③ 虚拟桌面归一（E-8）：绝对坐标按虚拟屏（含原点偏移 vx/vy）归一 + MOUSEEVENTF_VIRTUALDESK——
         //    旧实现按主屏 SM_CXSCREEN/SM_CYSCREEN 归一，窗口落在非主屏/多屏拼接处时坐标偏移 ⇒ 真实点击打偏。
         var vx = Win32NativeInput.GetSystemMetrics(Win32NativeInput.SM_XVIRTUALSCREEN);
@@ -87,9 +125,30 @@ public sealed class RealInputClicker
         Win32NativeInput.SendMouse(
             Win32NativeInput.MOUSEEVENTF_ABSOLUTE | Win32NativeInput.MOUSEEVENTF_VIRTUALDESK | Win32NativeInput.MOUSEEVENTF_MOVE, absX, absY);
         await Task.Delay(80, ct).ConfigureAwait(false);
-        Win32NativeInput.SendMouse(Win32NativeInput.MOUSEEVENTF_LEFTDOWN, 0, 0);
+        if (!Win32NativeInput.SendMouse(Win32NativeInput.MOUSEEVENTF_LEFTDOWN, 0, 0))
+            return $"NOT_EFFECTIVE|输入被系统拦截（SendInput=0，疑似 UIPI/会话隔离）；screen=({screenPt.X},{screenPt.Y})";
         await Task.Delay(50, ct).ConfigureAwait(false);
         Win32NativeInput.SendMouse(Win32NativeInput.MOUSEEVENTF_LEFTUP, 0, 0);
+
+        // ④-b 送达校验（OK 必须由「页面产生 click」证明）：等待 DOM 回执，最多 900ms。
+        string? ackText = null;
+        var ackWait = Stopwatch.StartNew();
+        while (ackWait.ElapsedMilliseconds < 900)
+        {
+            var rawAck = await RunOnUiAsync(() => core.ExecuteScriptAsync(ClickAckReadScript), ct).ConfigureAwait(false);
+            var ack = HtmlElementNode.UnwrapString(rawAck);
+            if (!string.IsNullOrWhiteSpace(ack) && !string.Equals(ack, "null", StringComparison.OrdinalIgnoreCase))
+            {
+                ackText = ack;
+                break;
+            }
+            await Task.Delay(50, ct).ConfigureAwait(false);
+        }
+        if (ackText is null)
+            return $"NOT_EFFECTIVE|点击未被页面接收（DOM 未产生 click：输入已发送但未被派发）；target={name}, screen=({screenPt.X},{screenPt.Y})";
+        var ackName = ReadAckName(ackText);
+        if (!string.Equals(ackName, name, StringComparison.Ordinal))
+            return $"NOT_EFFECTIVE|点击落到其它元素（DOM click 命中 '{ackName}'，期望 '{name}'）；screen=({screenPt.X},{screenPt.Y})";
 
         // ⑤ 坐标回执取证（IC-1）：一条结构化诊断回答「点击坐标落在哪个窗口/控件」——hit 非 WebView2 内容 ⇒ 判坐标偏移；
         //    fg 非本窗体 ⇒ 判前台缺失。回执并入返回串（前缀仍是 `OK`，保持既有断言兼容）。
@@ -99,7 +158,27 @@ public sealed class RealInputClicker
             $"realclick target={name} rect=({cx:F0},{cy:F0}) dpr={dpr:F2} client=({clientPt.X},{clientPt.Y}) "
             + $"screen=({screenPt.X},{screenPt.Y}) abs=({absX},{absY}) virtual=({vx},{vy},{vw},{vh}) "
             + $"fg=0x{fg.ToInt64():X} hit=0x{hit.ToInt64():X}");
-        return $"OK|client=({clientPt.X},{clientPt.Y});screen=({screenPt.X},{screenPt.Y});fg=0x{fg.ToInt64():X};hit=0x{hit.ToInt64():X}";
+        return $"OK|client=({clientPt.X},{clientPt.Y});screen=({screenPt.X},{screenPt.Y});fg=0x{fg.ToInt64():X};hit=0x{hit.ToInt64():X};ack={ackName}";
+    }
+
+    /// <summary>在 UI 线程执行脚本（CoreWebView2 仅限 UI 线程；本方法在首个 await 之后可能已在线程池）。</summary>
+    private Task<string> RunOnUiAsync(Func<Task<string>> action, CancellationToken ct)
+        => _host.InvokeOnUiAsync(_ => new ValueTask<string>(action()), ct);
+
+    /// <summary>从回执 JSON 取命中元素的 data-name（缺失/非法为空串）。</summary>
+    private static string ReadAckName(string ackJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(ackJson);
+            return doc.RootElement.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
+                ? n.GetString() ?? string.Empty
+                : string.Empty;
+        }
+        catch (JsonException)
+        {
+            return string.Empty;
+        }
     }
 
     /// <summary>激活宿主窗体并聚焦控件，随后轮询等待前台确权（非阻塞 Task.Delay，保持消息泵）。

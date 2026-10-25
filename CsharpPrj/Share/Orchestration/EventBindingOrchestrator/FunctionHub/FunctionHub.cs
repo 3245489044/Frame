@@ -23,17 +23,6 @@ namespace Share.EventBindingOrchestrator.FunctionHub
             _workflows = new Dictionary<string, WorkflowDefinitionEntry>(StringComparer.OrdinalIgnoreCase);
         }
 
-        public void RegisterFunctions(IEnumerable<FunctionRegistrationEntry>? functions)
-        {
-            if (functions == null) return;
-
-            foreach (var func in functions)
-            {
-                _logger.LogDebug("FunctionHub registered function: {FunctionName}, type={Type}, enabled={Enabled}",
-                    func.Name, func.Type, func.Enabled);
-            }
-        }
-
         public void RegisterWorkflows(Dictionary<string, WorkflowDefinitionEntry>? workflows)
         {
             if (workflows == null) return;
@@ -46,15 +35,17 @@ namespace Share.EventBindingOrchestrator.FunctionHub
             }
         }
 
-        public WorkflowExecutionPlan? Resolve(string functionName)
+        /// <summary>
+        /// 解析函数（唯一裁决点）：工作流字典 → ITrConfigRegistry 单函数自动包装。
+        /// R1 修复：原 RegisterFunctions 空实现已删除（只打日志不登记 = 名实不符的假注册面）。
+        /// </summary>
+        public FunctionResolution ResolveDetailed(string functionName)
         {
             if (string.IsNullOrWhiteSpace(functionName))
-                return null;
+                return new FunctionResolution(FunctionResolveStatus.InvalidName, null, "函数名为空");
 
             if (_workflows.TryGetValue(functionName, out var workflowDef))
-            {
-                return new WorkflowExecutionPlan(workflowDef);
-            }
+                return new FunctionResolution(FunctionResolveStatus.Found, new WorkflowExecutionPlan(workflowDef), null);
 
             if (_registry.Find(functionName) != null)
             {
@@ -65,14 +56,15 @@ namespace Share.EventBindingOrchestrator.FunctionHub
                     "FunctionHub auto-wrapped function '{FunctionName}' as single-node workflow (from ITrConfigRegistry)",
                     functionName);
 
-                return new WorkflowExecutionPlan(autoWrapped);
+                return new FunctionResolution(FunctionResolveStatus.Found, new WorkflowExecutionPlan(autoWrapped), null);
             }
 
-            _logger.LogWarning(
-                "FunctionHub could not resolve function '{FunctionName}': not found in workflows or registry",
-                functionName);
-            return null;
+            var reason = $"函数未注册: '{functionName}'（工作流字典与 ITrConfigRegistry 均未命中）";
+            _logger.LogError("FunctionHub resolve failed: {Reason}", reason);
+            return new FunctionResolution(FunctionResolveStatus.NotRegistered, null, reason);
         }
+
+        public WorkflowExecutionPlan? Resolve(string functionName) => ResolveDetailed(functionName).Plan;
 
         private WorkflowDefinitionEntry AutoWrapAsWorkflow(string functionName)
         {

@@ -77,8 +77,8 @@ function Get-SessionEndpointId {
 
 # 已知工作流集（默认 + 数据面 + 基线）：重复 wf 判据的载体（非执行者叙述）。
 $script:knownWorkflowIds = @('agent-round')
-if ($baseline.ContainsKey('KnownWorkflowIds')) {
-    $script:knownWorkflowIds += @($baseline['KnownWorkflowIds'] | ForEach-Object { [string]$_ })
+if ($baseline.KnownWorkflowIds.Value) {
+    $script:knownWorkflowIds += @($baseline.KnownWorkflowIds.Value | ForEach-Object { [string]$_ })
 }
 $script:knownWorkflowIds = @($script:knownWorkflowIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
     Select-Object -Unique)
@@ -155,7 +155,7 @@ if ([string]::IsNullOrWhiteSpace($ModulesDir)) {
         (Join-Path $repoRoot 'BuildOutput\publish-smoke-agent')
     ) | Where-Object {
         $dir = $_
-        Test-Path -LiteralPath $dir -PathType Container -and
+        (Test-Path -LiteralPath $dir -PathType Container) -and
         -not (@($canonicalDlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dir $_)) }).Count)
     } | Select-Object -First 1
 }
@@ -344,8 +344,16 @@ foreach ($e in $edges) {
 function Get-BaselineRows {
     param([string]$Name)
     $rows = [hashtable]::new([System.StringComparer]::Ordinal)
-    if (-not $baseline.ContainsKey($Name)) { return $rows }
-    foreach ($entry in @($baseline[$Name])) {
+    $row = switch ($Name) {
+        'G1'  { $baseline.G1 }
+        'G2a' { $baseline.G2a }
+        'G2b' { $baseline.G2b }
+        'G3'  { $baseline.G3 }
+        'G4'  { $baseline.G4 }
+        default { $null }
+    }
+    if ($null -eq $row) { return $rows }
+    foreach ($entry in @($row.Value)) {
         if ($entry -is [string]) { $rows[[string]$entry] = 1; continue }
         if ($entry -is [System.Collections.IDictionary]) {
             $key = [string]$entry['Key']
@@ -374,8 +382,7 @@ function Add-Ratchet {
 
 Add-Ratchet -Name 'G1' -Current $g1
 Add-Ratchet -Name 'G2a' -Current $g2a
-$g2Baseline = if ($baseline.ContainsKey('G2b')) { 'G2b' } elseif ($baseline.ContainsKey('G2')) { 'G2' } else { 'G2b' }
-Add-Ratchet -Name 'G2b' -Current $g2b -BaselineName $g2Baseline
+Add-Ratchet -Name 'G2b' -Current $g2b -BaselineName 'G2b'
 Add-Ratchet -Name 'G3' -Current $g3
 Add-Ratchet -Name 'G4' -Current $g4
 

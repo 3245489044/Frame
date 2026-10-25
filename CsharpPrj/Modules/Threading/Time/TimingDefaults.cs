@@ -20,8 +20,8 @@ public static class TimingDefaults
     /// <summary>UI 等待命令默认超时。</summary>
     public static TimeSpan UiWaitCommand { get; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>函数/命令调用默认超时（对齐 EventPlatformExecutor 的 30_000ms 单一来源）。</summary>
-    public static TimeSpan FunctionCallDefault { get; } = TimeSpan.FromSeconds(30);
+    // 函数/命令调用默认超时的权威常量已收敛到 InteractionDefaults.DefaultFunctionTimeoutMs
+    // （交互层单一来源，D2）；此处不再保留同名属性，避免第二处「30s」。
 
     // —— Cline 链路（消除 120s/90s/60s/20min 重复；Phase 1 由 ClineDaemonOptions 引用）——
     /// <summary>Cline 池预热预算（覆盖 56s 冷启动 + 波动；留足冷机/首次初始化余量）。</summary>

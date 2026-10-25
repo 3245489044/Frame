@@ -93,6 +93,9 @@ public enum EventFunctionResultKind
     /// <summary>主动/外部取消。</summary>
     Cancelled,
 
+    /// <summary>调用完成但输出回写失败（写回阶段框架错，不与函数错混同）。</summary>
+    OutputWriteFault,
+
     /// <summary>完成信号未落定 → 框架缺陷（明确可判）。</summary>
     SignalLost
 }

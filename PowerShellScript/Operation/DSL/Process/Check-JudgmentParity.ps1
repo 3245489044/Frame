@@ -22,6 +22,9 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$g = Import-GateBaseline -Name JudgmentParity
+
 function Get-ParityViolations {
     param([string]$JudgeText, [string]$PreflightText, [bool]$TestPresent, [bool]$KernelPresent)
 
@@ -56,6 +59,14 @@ if ($NegativeControl) {
 }
 
 $violations = Get-ParityViolations -JudgeText $judgeText -PreflightText $preflightText -TestPresent $testPresent -KernelPresent $kernelPresent
+
+# 基线棘轮（只降不增；下限=正对照，防判据无标的）
+$kernelWeight = if ($kernelPresent) { 1 } else { 0 }
+$exceptBodies = ([regex]::Matches($judgeText, 'Except\(')).Count
+$localJudges = ([regex]::Matches($preflightText, 'IsNullOrWhiteSpace')).Count
+if ($kernelWeight -lt [int]$g.KernelPresent.Value) { $violations.Add("[C1] Judgment 内核在位数 $kernelWeight < 基线 $([int]$g.KernelPresent.Value)") }
+if ($exceptBodies -gt [int]$g.LegacyExceptBodies.Value) { $violations.Add("[C2] Except( 判定体 $exceptBodies 处 > 基线 $([int]$g.LegacyExceptBodies.Value)（只降不增）") }
+if ($localJudges -gt [int]$g.PreflightLocalPresence.Value) { $violations.Add("[C3] PromptPreflight 自写 IsNullOrWhiteSpace $localJudges 处 > 基线 $([int]$g.PreflightLocalPresence.Value)（只降不增）") }
 
 if ($ShowDetail) {
     Write-Output "Judge=$judgeFile"

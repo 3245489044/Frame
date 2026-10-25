@@ -61,6 +61,7 @@ $companionAllowlist = @{
     'DeclarationReloadRegistry'   = '未登记独立门——待登记或销账'
     'ExceptionGateway'            = '未登记独立门——待登记或销账'
     'FuncCallSingleSource'        = '未登记独立门（含基线 Baselines\Declarations\FuncCallSingleSource.psd1）——待登记或销账'
+    'ZeroRetry'                   = '未登记独立门（基线 Registry\zero-retry-baseline.json）：现状超基线（retrySymbolsInFrame +7 / thirdStateReturns +63 等），登记即红；待零重试轴收口后登记'
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()

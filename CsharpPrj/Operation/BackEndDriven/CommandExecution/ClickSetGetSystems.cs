@@ -295,11 +295,12 @@ public class GetSystem : CommandSystemBase
             BackEndLog.Log("Command_Get", new { target, value = value ?? "(空)" });
             // get 支持 output：把读回值写 ECS 并投影物理控件（如 resultTextBox），供脚本/日志核对读回内容
             // （如 htmlviewer 视图切换后的 HTML，端到端验证真实点击是否触发重渲染）。
+            // E10：回写唯一经 OutputTargetWriter（单写者），不再直呼写方法。
             if (meta.Parameters != null
                 && meta.Parameters.TryGetValue("output", out var outObj) && outObj is string outName
                 && !string.IsNullOrWhiteSpace(outName))
             {
-                _stateAccessor.SetValue(outName, value ?? "");
+                OutputTargetWriter.Write(_stateAccessor, outName, value);
             }
             SetSuccess(entity, value ?? "");
         }

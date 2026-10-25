@@ -38,7 +38,8 @@ $dsRoot      = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven'
 $coreProj    = Join-Path $dsRoot 'DataStoreDriven.csproj'
 $domainsRoot = Join-Path $dsRoot 'Domains'
 $launcher    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher'
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Data\DataStoreDomainBoundary.psd1'
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$dataStoreBaseline = Import-GateBaseline -Name DataStoreDomainBoundary
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $notes      = [System.Collections.Generic.List[string]]::new()
@@ -74,6 +75,11 @@ foreach ($f in $coreFiles) {
 }
 foreach ($h in $p1Hits) { $violations.Add("[P1] 核心域 import：$($h.File):$($h.Line) $($h.Text)") }
 Write-Host ("  P1 核心（排除 Domains）域 import：{0} 处 / 扫描 {1} 文件" -f $p1Hits.Count, $coreFiles.Count) -ForegroundColor Gray
+# 基线：核心域 import 只降不增（上限）/ 核心文件数正对照下限（判据无标的即红）
+$coreUsingLimit = [int]$dataStoreBaseline.CoreDomainUsingFilesBaseline.Value
+$coreFilesFloor = [int]$dataStoreBaseline.CoreDomainFilesBaseline.Value
+if ($p1Hits.Count -gt $coreUsingLimit) { $violations.Add("[P1] 核心域 import $($p1Hits.Count) 处 > 基线 $coreUsingLimit（只减不增）") }
+if ($coreFiles.Count -lt $coreFilesFloor) { $violations.Add("[P1] 核心文件数 $($coreFiles.Count) < 正对照下限 $coreFilesFloor（判据无标的）") }
 
 # ---------------- P2 / P3 工程引用 ----------------
 $coreProjText = if (Test-Path -LiteralPath $coreProj) { [System.IO.File]::ReadAllText($coreProj) } else { '' }
@@ -167,13 +173,9 @@ if (Test-Path -LiteralPath $operationDir) {
     }
 }
 $measuredSame = @($sameLayer | Sort-Object -Unique)
-$baselineSame = 19
-if (Test-Path -LiteralPath $baselinePath) {
-    $baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
-    if ($baseline.ContainsKey('SameLayerRefBaseline')) { $baselineSame = [int]$baseline.SameLayerRefBaseline.Value }
-}
-if ($measuredSame.Count -gt $baselineSame) {
-    $violations.Add("[P7] Operation 同层引用 $($measuredSame.Count) 条 > 基线 $baselineSame（只减不增）")
+$sameLayerRefLimit = [int]$dataStoreBaseline.SameLayerRefBaseline.Value
+if ($measuredSame.Count -gt $sameLayerRefLimit) {
+    $violations.Add("[P7] Operation 同层引用 $($measuredSame.Count) 条 > 基线 $sameLayerRefLimit（只减不增）")
 }
 $mustBeZero = @(
     'Operation\WorkFlowMethod\WorkFlowMethod.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj',
@@ -184,7 +186,7 @@ $mustBeZero = @(
 foreach ($pair in $mustBeZero) {
     if ($measuredSame -contains $pair) { $violations.Add("[P7] 目标对须恒 0：$pair") }
 }
-Write-Host ("  P7 Operation 同层引用：{0} 条 / 基线 {1}" -f $measuredSame.Count, $baselineSame) -ForegroundColor Gray
+Write-Host ("  P7 Operation 同层引用：{0} 条 / 基线 {1}" -f $measuredSame.Count, $sameLayerRefLimit) -ForegroundColor Gray
 
 # ---------------- 汇总 ----------------
 $notes.Add(("基线：核心域 import {0} 处 / 核心文件 {1} 个" -f $p1Hits.Count, $coreFiles.Count))

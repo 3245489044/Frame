@@ -28,6 +28,8 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
 
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
+
 $dslDir   = $PSScriptRoot
 $agentSrc = Join-Path $Root 'Projects\Plug\Agent\src'
 $ledgerPath = Join-Path $Root 'Projects\Plug\Agent\doc\data-ownership.json'
@@ -136,8 +138,9 @@ function Test-LedgerMatch {
 $holders = [System.Collections.Generic.List[object]]::new()
 $unowned = [System.Collections.Generic.List[object]]::new()
 $pendingEntries = [System.Collections.Generic.List[object]]::new()
-$files = Get-ChildItem -Path $agentSrc -Recurse -File -Include *.cs -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
+$files = @(Get-GateFiles -Root $agentSrc -Extension @('cs') -Exclude '\\(obj|bin|BuildOutput)\\' |
+    Where-Object { $_ -notlike '*\_deprecated\*' } |
+    ForEach-Object { [System.IO.FileInfo]::new($_) })
 foreach ($file in $files) {
     $rel = $file.FullName.Substring($Root.Length).TrimStart('\')
     $relNorm = $rel -replace '\\', '/'

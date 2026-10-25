@@ -16,26 +16,28 @@ namespace Operation.DataStoreDriven.Core;
 /// 单一真源：镜像/边是否联动由 <see cref="IsBusinessNode"/> 白名单裁决，调用方不可按 per-call 开关越权。
 /// <para>
 /// 资源镜像 Id = <c>wf.node</c>（<see cref="NodeRelationFactory.NodeId"/>，workflowId 统一由
-/// <see cref="WorkflowIds.Resolve(NodeRecord)"/> 解析），幂等（GetResourceAsync 已存在即跳过），删除级联沿用
+/// <see cref="_workflowIds.Resolve(NodeRecord)"/> 解析），幂等（GetResourceAsync 已存在即跳过），删除级联沿用
 /// <c>RemoveResourceAsync</c>。业务/执行代码不再手写 <c>EnsureNodeAsync</c>——写业务节点即自动落图镜像（写透 I1 不变式）。
 /// </para>
 /// </summary>
 public sealed class WriteGuardPort : INodeStore
 {
     private readonly INodeStore _inner;
-    private readonly ReferenceGrounding _grounding;
+    private readonly IGraphGrounding _grounding;
+    private readonly IDefaultWorkflowIdProvider _workflowIds;
 
-    public WriteGuardPort(INodeStore inner, ReferenceGrounding grounding)
+    public WriteGuardPort(INodeStore inner, IGraphGrounding grounding, IDefaultWorkflowIdProvider? workflowIds = null)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _grounding = grounding ?? throw new ArgumentNullException(nameof(grounding));
+        _workflowIds = workflowIds ?? ConfiguredDefaultWorkflowIdProvider.Default;
     }
 
     public Task InitializeAsync(CancellationToken ct = default) => _inner.InitializeAsync(ct);
 
     /// <summary>写入业务节点 → 写透图镜像（内容跟随 upsert，wf.node）；并依据节点关系状态对账收敛边。
     /// 非业务节点仅落基础节点库（不建图资源）。修改节点即自动同步 LiteDB 镜像与关系。
-    /// workflowId 真源统一为 <see cref="WorkflowIds.Resolve(NodeRecord)"/>（节点 ThreadId 缺失回退默认值）——
+    /// workflowId 真源统一为 <see cref="_workflowIds.Resolve(NodeRecord)"/>（节点 ThreadId 缺失回退默认值）——
     /// 与对账/重建侧同一权威，消除「写透注入」与「对账按 node.ThreadId」两套解析导致的图镜像 id 漂移（E-类风险）。</summary>
     public async Task<long> PutAsync(NodeRecord node, CancellationToken ct = default)
     {
@@ -43,7 +45,7 @@ public sealed class WriteGuardPort : INodeStore
         var id = await _inner.PutAsync(node, ct).ConfigureAwait(false);
         if (IsBusinessNode(node.NodeType))
         {
-            var wf = WorkflowIds.Resolve(node);
+            var wf = _workflowIds.Resolve(node.ThreadId);
             // ① 镜像内容跟随（upsert）：修改节点载荷/状态 → 图资源 symbol/metadata 同步更新（不再"仅确保存在"）。
             await _grounding.MirrorNodeAsync(wf, node, ct).ConfigureAwait(false);
             // ② 关系对账：权威边优先取自声明源（USharp 声明构建期确定，G3/G4）；缺省回退节点内关系状态（兼容读）。
@@ -68,7 +70,7 @@ public sealed class WriteGuardPort : INodeStore
         var wasBusiness = node is not null && IsBusinessNode(node.NodeType);
         var removed = await _inner.DeleteAsync(nodeKey, ct).ConfigureAwait(false);
         if (removed && wasBusiness)
-            await _grounding.RemoveNodeMirrorAsync(WorkflowIds.Resolve(node!), nodeKey, ct).ConfigureAwait(false);
+            await _grounding.RemoveNodeMirrorAsync(_workflowIds.Resolve(node!.ThreadId), nodeKey, ct).ConfigureAwait(false);
         return removed;
     }
 
@@ -82,7 +84,7 @@ public sealed class WriteGuardPort : INodeStore
         {
             var node = await _inner.GetAsync(key, ct).ConfigureAwait(false);
             if (node is not null && IsBusinessNode(node.NodeType))
-                business.Add((key, WorkflowIds.Resolve(node)));
+                business.Add((key, _workflowIds.Resolve(node.ThreadId)));
         }
 
         var removed = await _inner.DeleteManyAsync(keys, ct).ConfigureAwait(false);

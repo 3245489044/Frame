@@ -16,11 +16,11 @@ namespace Operation.DataStoreDriven.Core;
 /// </summary>
 public sealed class StorageConsistencyGuard : IStorageConsistencyGuard
 {
-    private readonly ReferenceGrounding _grounding;
+    private readonly IGraphGrounding _grounding;
     private readonly IOutboxStore _outbox;
     private readonly ICompositeWriteUnit _writeUnit;
 
-    public StorageConsistencyGuard(ReferenceGrounding grounding, IOutboxStore outbox, ICompositeWriteUnit writeUnit)
+    public StorageConsistencyGuard(IGraphGrounding grounding, IOutboxStore outbox, ICompositeWriteUnit writeUnit)
     {
         _grounding = grounding ?? throw new ArgumentNullException(nameof(grounding));
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));

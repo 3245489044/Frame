@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Core;
 using Plate.DslMethod.Usharp;
 using Share.Conversation;
 using Share.Conversation.Ids;
@@ -72,11 +73,11 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
         var merged = Merge(existing, log);
         var record = new UsharpRecord(new[]
         {
-            new KeyValuePair<string, UsharpValue>(FieldConversation, ParsePayload(merged.Serialize())),
-            new KeyValuePair<string, UsharpValue>(FieldWatermark, UsharpScalar.Str(watermark.ToString())),
-            new KeyValuePair<string, UsharpValue>(FieldMessageCount, UsharpScalar.Str(merged.Messages.Count.ToString())),
+            RecordEnvelope.Value(FieldConversation, KvPayloadReader.ParsePayload(merged.Serialize())),
+            RecordEnvelope.Text(FieldWatermark, watermark.ToString()),
+            RecordEnvelope.Text(FieldMessageCount, merged.Messages.Count.ToString()),
         });
-        var text = _codec.SerializeRecord("session_log:" + key.Value, TableId, key.Value, record);
+        var text = _codec.SerializeRecord(RecordEnvelope.RecordId("session_log", key.Value), TableId, key.Value, record);
         ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", key.Value), ("d", text)));
     }
 
@@ -91,7 +92,7 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
         if (string.IsNullOrWhiteSpace(doc)) return Task.FromResult(0);
         if (_codec.TryDeserializeRecord(doc, out _, out _, out _, out var body))
         {
-            var raw = SqliteHistoryRootStore.ReadString(body, FieldMessageCount);
+            var raw = KvPayloadReader.ReadString(body, FieldMessageCount);
             if (int.TryParse(raw, out var count) && count >= 0) return Task.FromResult(count);
             if (body.TryGet(FieldConversation, out var value))
             {
@@ -135,10 +136,4 @@ public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTran
     /// <summary>消息去重签名（轮次 + 角色 + 文本；用于增量投影合并）。</summary>
     private static string Signature(ConversationMessage message)
         => $"{message.Round}|{message.Role}|{message.Text}";
-
-    private static UsharpValue ParsePayload(string json)
-    {
-        try { return UsharpValueJson.Parse(json); }
-        catch { return UsharpScalar.Str(json); }
-    }
 }

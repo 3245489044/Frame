@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Operation.DataStoreDriven.Core;
 using Share.Conversation;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
@@ -15,6 +16,7 @@ public sealed class LegacyFallbackSessionTranscriptStore : ISessionTranscriptSto
 {
     private readonly ISessionTranscriptStore _primary;
     private readonly IHistoryStore _legacy;
+    private readonly FallbackReadThroughStore<SessionKey, ConversationLog> _fallback;
 
     public LegacyFallbackSessionTranscriptStore(
         ISessionTranscriptStore primary,
@@ -22,28 +24,24 @@ public sealed class LegacyFallbackSessionTranscriptStore : ISessionTranscriptSto
     {
         _primary = primary ?? throw new ArgumentNullException(nameof(primary));
         _legacy = legacy ?? throw new ArgumentNullException(nameof(legacy));
+        // U7：双读/双删收敛到通用回退装饰器（唯一实现）。
+        _fallback = new FallbackReadThroughStore<SessionKey, ConversationLog>(
+            primaryRead: (key, ct) => _primary.GetAsync(key, ct),
+            fallbackRead: (key, ct) => _legacy.GetAsync(key.Value, ct),
+            primaryDelete: (key, ct) => _primary.DeleteAsync(key, ct),
+            fallbackDelete: (key, ct) => _legacy.DeleteAsync(key.Value, ct));
     }
 
     public Task InitializeAsync(CancellationToken ct = default) => _primary.InitializeAsync(ct);
 
-    public async Task<ConversationLog?> GetAsync(SessionKey key, CancellationToken ct = default)
-    {
-        var log = await _primary.GetAsync(key, ct).ConfigureAwait(false);
-        if (log is not null) return log;
-
-        return await _legacy.GetAsync(key.Value, ct).ConfigureAwait(false);
-    }
+    public Task<ConversationLog?> GetAsync(SessionKey key, CancellationToken ct = default)
+        => _fallback.GetAsync(key, ct);
 
     public Task AppendProjectionAsync(SessionKey key, ConversationLog log, long watermark, CancellationToken ct = default)
         => _primary.AppendProjectionAsync(key, log, watermark, ct);
 
-    public async Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default)
-    {
-        var removed = await _primary.DeleteAsync(key, ct).ConfigureAwait(false);
-        // 迁移期：新表未命中时旧表行也要清，避免“删除后仍从回退读到”。
-        var legacyRemoved = await _legacy.DeleteAsync(key.Value, ct).ConfigureAwait(false);
-        return removed || legacyRemoved;
-    }
+    public Task<bool> DeleteAsync(SessionKey key, CancellationToken ct = default)
+        => _fallback.DeleteAsync(key, ct);
 
     /// <summary>消息数：与 <see cref="GetAsync"/> 同源（新表优先，未命中回退旧表）。</summary>
     public async Task<int> CountMessagesAsync(SessionKey key, CancellationToken ct = default)

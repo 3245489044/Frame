@@ -87,7 +87,7 @@
 | `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Data（17 件）
+## Data（19 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -96,7 +96,9 @@
 | `ConversationReadSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ConversationReadSingleSource.ps1` |
 | `DataCenterGenericity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1` |
 | `DataContracts` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DataContracts.ps1` |
+| `DataStoreDomainBoundary` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DataStoreDomainBoundary.ps1` |
 | `DualCarrierExclusion` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-DualCarrierExclusion.ps1` |
+| `EndpointKeyConsistency` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-EndpointKeyConsistency.ps1` |
 | `FactStandard` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FactStandard.ps1` |
 | `FrameworkActivation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1` |
 | `GraphPathSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1` |
@@ -128,7 +130,7 @@
 | `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 
-## Meta（20 件）
+## Meta（21 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -145,6 +147,7 @@
 | `OperationLayerIsolation` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
 | `PrjBridgeDecoupling` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
 | `PsCapabilityFileOnly` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1` |
+| `RefreshFetch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-RefreshFetch.ps1` |
 | `SectionWrite` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SectionWrite.ps1` |
 | `SemanticCentralization` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
 | `UiBudget` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiBudget.ps1` |

@@ -95,6 +95,7 @@
     "BackEndDriven": "Operation\\BackEndDriven\\BackEndDriven.csproj",
     "DataStoreDriven": "Operation\\DataStoreDriven\\DataStoreDriven.csproj",
     "DataStoreDriven.Instances": "Operation\\DataStoreDriven\\Instances\\DataStoreDriven.Instances.csproj",
+    "DataStoreDriven.Domains": "Operation\\DataStoreDriven\\Domains\\DataStoreDriven.Domains.csproj",
     "FrontEndDriven": "Operation\\FrontEndDriven\\FrontEndDriven.csproj",
     "HierarchyMethod": "Operation\\HierarchyMethod\\HierarchyMethod.csproj",
     "LoopFoldMethod": "Operation\\LoopFoldMethod\\LoopFoldMethod.csproj",

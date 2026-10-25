@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
@@ -83,6 +84,16 @@ namespace Operation.HierarchyMethod.Nodes
         /// <summary>会话子图投影：同上（无挂载 → 空投影，不伪造时序）。</summary>
         public Task<IReadOnlyList<NodeProjectionItem>> ProjectSessionNodesAsync(string sessionName, string workflowId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<NodeProjectionItem>>(Array.Empty<NodeProjectionItem>());
+
+        /// <summary>task 作用域候选投影：内存端口只按挂载顺序出索引（不伪造图拓扑）。</summary>
+        public Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
+        {
+            var keys = Keys(_taskNodes, taskKey);
+            IReadOnlyList<NodeProjectionItem> items = keys
+                .Select((k, i) => new NodeProjectionItem(k, workflowId, i + 1))
+                .ToList();
+            return Task.FromResult(items);
+        }
 
         // ---- 测试面簿记流入口（INodeAttributionFlow）：直接改内存状态 ----
 

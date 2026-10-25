@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Operation.DataStoreDriven.Sqlite;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
@@ -10,13 +11,20 @@ namespace Operation.DataStoreDriven.Resolvers;
 
 /// <summary>
 /// 任务池持久化存储解析（组合根）：按后端 Provider 解析具体 <see cref="ITaskPoolPersistence{TItem}"/>。
-/// Sqlite → <see cref="SqliteTaskPoolStore{TItem}"/>（ur_tasks 持久化）；其余后端 → 内存占位
-/// <see cref="InMemoryTaskPoolPersistence{TItem}"/>（重启即失，仅接线/原型，对齐三区内存占位语义）。
-/// 与 <see cref="DataStoreProviderFactory"/> 解耦：任务池是独立状态机存储，不复用 IPersistenceStore 骨干契约。
+/// <para>控制反转后本类位于 <c>Domains</c> 程序集；主入口 = <see cref="Create{TItem}(StorageKernelContext)"/>。</para>
 /// </summary>
 public static class TaskPoolStoreFactory
 {
-    /// <summary>Sqlite 任务池存储（持久化 ur_tasks）。codec 缺省 JSON（零行为变更）；注入 USharp codec ⇒ 文档 USharp 化。</summary>
+    /// <summary>Sqlite 任务池存储（持久化 ur_tasks）：内核上下文单参入口。</summary>
+    public static ITaskPoolPersistence<TItem> Create<TItem>(StorageKernelContext kernel)
+        where TItem : ITaskPoolItem
+    {
+        ArgumentNullException.ThrowIfNull(kernel);
+        return new SqliteTaskPoolStore<TItem>(kernel.Executor, kernel.TablePrefix, jsonOptions: null, codec: kernel.Codec);
+    }
+
+    /// <summary>Sqlite 任务池存储（旧装配签名；D-5 后删除）。</summary>
+    [Obsolete("使用 Create<TItem>(StorageKernelContext)（控制反转后的单参入口）。")]
     public static ITaskPoolPersistence<TItem> Create<TItem>(IDbCommandExecutor executor, string tablePrefix, JsonSerializerOptions? jsonOptions = null, IDocumentCodec? codec = null)
         where TItem : ITaskPoolItem
         => new SqliteTaskPoolStore<TItem>(executor, tablePrefix, jsonOptions, codec);
@@ -26,3 +34,4 @@ public static class TaskPoolStoreFactory
         where TItem : ITaskPoolItem
         => new InMemoryTaskPoolPersistence<TItem>();
 }
+

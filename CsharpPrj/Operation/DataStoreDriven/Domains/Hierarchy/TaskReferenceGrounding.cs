@@ -1,0 +1,197 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Modules.Node.Relations;
+using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Core;
+using Operation.DataStoreDriven.Graph;
+using UniversalWorkflowFramework.Core.Models;
+
+namespace Operation.DataStoreDriven.Core;
+
+/// <summary>task 域接地服务（U8 域半）：task 镜像 / task↔node / task_owns_task 子任务树 / 投影。</summary>
+public sealed class TaskReferenceGrounding
+{
+    private readonly GraphEdgeWriter _edges;
+    private readonly GraphMirrorWriter _mirrors;
+    private readonly ReferenceGraphCoordinator _graph;
+
+    /// <summary>子任务树遍历预算（不定深度树信任反转上界）。</summary>
+    private const int SubTaskTraversalBudget = 4096;
+
+    public TaskReferenceGrounding(GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph)
+    {
+        _edges = edges ?? throw new ArgumentNullException(nameof(edges));
+        _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
+        _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+    }
+
+    /// <summary>镜像 task 端点（Id=taskKey，幂等）。</summary>
+    public Task EnsureTaskMirrorAsync(string taskKey, CancellationToken ct = default)
+        => _mirrors.EnsureResourceAsync(
+            new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, taskKey, ct);
+
+    /// <summary>移除 task 端点镜像（级联清边）。</summary>
+    public Task RemoveTaskMirrorAsync(string taskKey, CancellationToken ct = default)
+        => _graph.DeleteEndpointDurablyAsync(
+            new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, "task-removed", ct);
+
+    /// <summary>task 关联节点（增量维护任务关联；幂等）。</summary>
+    public Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
+        string workflowId = "", CancellationToken ct = default)
+        => _graph.ReconcileTaskAsync(taskKey, relatedNodeKeys, workflowId, ct);
+
+    /// <summary>运行时 task 归属边（cross_db_link）：task → 节点。幂等加法。</summary>
+    public async Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        // 边跟随落库事实（I2）：节点行不存在 ⇒ 不写边（Skip + Diagnostic），不得静默造幻影边。
+        if (_edges.NodeStore is not null)
+        {
+            var record = await _edges.NodeStore.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            if (record is null)
+            {
+                (_edges.EdgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance)
+                    .EdgeUndeclared("cross_db_link:node-missing", $"{taskKey}|{nodeKey}");
+                return;
+            }
+        }
+        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
+        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, $"{taskKey}|{nodeKey}", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>解除 task 与节点的关联边（M:N 撤销；幂等）。</summary>
+    public Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
+        return _edges.DetachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, ct);
+    }
+
+    /// <summary>按 task 查 cross_db_link 出边，返回本 task 归属的节点键集。</summary>
+    public async Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var targets = await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.CrossDbLink, taskId, ct).ConfigureAwait(false);
+        var keys = new List<string>();
+        foreach (var id in targets)
+            if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey)) keys.Add(nodeKey);
+        return keys.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>task → sub-task 归属边（task_owns_task，不定深度任务树；幂等加法）。</summary>
+    public async Task LinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentTaskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
+        if (string.Equals(parentTaskKey, subTaskKey, StringComparison.Ordinal)) return; // 自指无意义
+
+        await EnsureTaskMirrorAsync(parentTaskKey, ct).ConfigureAwait(false);
+        await EnsureTaskMirrorAsync(subTaskKey, ct).ConfigureAwait(false);
+        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
+        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
+        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, $"{parentTaskKey}|{subTaskKey}", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>解除 task → sub-task 归属边（幂等）。</summary>
+    public Task UnlinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentTaskKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
+        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
+        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
+        return _edges.DetachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, ct);
+    }
+
+    /// <summary>按 task 查 task_owns_task 出边，返回其直属子任务键集（一层展开）。</summary>
+    public async Task<IReadOnlyList<string>> GetSubTaskKeysAsync(string taskKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+        return await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.TaskOwnsTask, taskId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>带环检测的 task_owns_task 写入口：自指/成环 ⇒ 拒绝且不写边。</summary>
+    public async Task<bool> LinkSubTaskCheckedAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(parentTaskKey) || string.IsNullOrWhiteSpace(subTaskKey)) return false;
+        if (string.Equals(parentTaskKey, subTaskKey, StringComparison.Ordinal)) return false;
+        if (await IsReachableAsync(subTaskKey, parentTaskKey, ct).ConfigureAwait(false)) return false;
+        await LinkSubTaskAsync(parentTaskKey, subTaskKey, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>沿 task_owns_task 出边判定可达（环检测，遍历预算收口）。</summary>
+    private async Task<bool> IsReachableAsync(string from, string target, CancellationToken ct)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal) { from };
+        var queue = new Queue<string>();
+        queue.Enqueue(from);
+        var visited = 0;
+        while (queue.Count > 0 && visited++ < SubTaskTraversalBudget)
+        {
+            var current = queue.Dequeue();
+            foreach (var next in await GetSubTaskKeysAsync(current, ct).ConfigureAwait(false))
+            {
+                if (string.Equals(next, target, StringComparison.Ordinal)) return true;
+                if (seen.Add(next)) queue.Enqueue(next);
+            }
+        }
+        return false;
+    }
+
+    /// <summary>投影候选清单：task 作用域挂载 + NodeToNode 组合边 Kahn 拓扑（环内按 nodeKey 稳定序）。</summary>
+    public async Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<NodeProjectionItem>();
+        var mounted = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+        if (mounted.Count == 0) return Array.Empty<NodeProjectionItem>();
+        var mountedSet = new HashSet<string>(mounted, StringComparer.Ordinal);
+
+        var downstream = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var indegree = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var n in mounted) { downstream[n] = new List<string>(); indegree[n] = 0; }
+        foreach (var n in mounted)
+        {
+            foreach (var next in await _graph.GetRelatedNodesAsync(workflowId, n, NodeRelationType.NodeToNode, outgoing: true, ct: ct).ConfigureAwait(false))
+                if (mountedSet.Contains(next) && !downstream[n].Contains(next))
+                {
+                    downstream[n].Add(next);
+                    indegree[next]++;
+                }
+        }
+
+        var queue = new List<string>(mounted.Where(n => indegree[n] == 0).OrderBy(n => n, StringComparer.Ordinal));
+        var result = new List<string>();
+        var processed = new HashSet<string>(StringComparer.Ordinal);
+        for (var qi = 0; qi < queue.Count; qi++)
+        {
+            var n = queue[qi];
+            if (!processed.Add(n)) continue;
+            result.Add(n);
+            foreach (var next in downstream[n])
+                if (--indegree[next] == 0)
+                    InsertSorted(queue, next);
+        }
+        foreach (var n in mounted.OrderBy(x => x, StringComparer.Ordinal))
+            if (!result.Contains(n))
+                result.Add(n);
+
+        return result.Select((nk, idx) => new NodeProjectionItem(nk, workflowId, idx + 1)).ToList();
+    }
+
+    private static void InsertSorted(List<string> queue, string value)
+    {
+        var i = queue.FindIndex(x => string.CompareOrdinal(x, value) > 0);
+        if (i < 0) queue.Add(value); else queue.Insert(i, value);
+    }
+}
+

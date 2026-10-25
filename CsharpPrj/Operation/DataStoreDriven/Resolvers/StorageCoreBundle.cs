@@ -36,7 +36,7 @@ public sealed record StorageCoreBundle(
     IDataStore DataStore,
     INodeStore Nodes,
     ReferenceGraphCoordinator Graph,
-    ReferenceGrounding Grounding,
+    IGraphGrounding Grounding,
     ICompositeWriteUnit WriteUnit,
     IStorageConsistencyGuard Consistency)
 {
@@ -75,6 +75,7 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
     private readonly IReferenceTypeRegistry? _vocabulary;
     private readonly ReferenceVocabularyGate _vocabularyGate;
     private readonly IReferenceEdgeDiagnostics? _edgeDiagnostics;
+    private readonly Func<ReferenceGraphCoordinator, IGraphGrounding> _groundingFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private StorageCoreBundle? _bundle;
 
@@ -87,7 +88,8 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
         ITableSchemaSource? schemaSource = null,
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
-        IReferenceEdgeDiagnostics? edgeDiagnostics = null)
+        IReferenceEdgeDiagnostics? edgeDiagnostics = null,
+        Func<ReferenceGraphCoordinator, IGraphGrounding>? groundingFactory = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         ArgumentException.ThrowIfNullOrWhiteSpace(sqlitePath);
@@ -101,6 +103,8 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
         _edgeDiagnostics = edgeDiagnostics;
+        // 控制反转：缺省用通用 GraphGrounding（无域语义）；域宿主注入 Domains 的 ReferenceGrounding 门面。
+        _groundingFactory = groundingFactory ?? (coordinator => new GraphGrounding(coordinator));
     }
 
     /// <inheritdoc />
@@ -132,8 +136,8 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
                 edgeDiagnostics: _edgeDiagnostics,
                 codec: _codec));
 
-            // ② 引用守卫（边推导/对账/镜像）。
-            var grounding = new ReferenceGrounding(graph);
+            // ② 引用守卫（边推导/对账/镜像）：通用面由核心提供，域宿主经工厂注入完整门面。
+            var grounding = _groundingFactory(graph);
 
             // ③ 持久化骨干 + 数据驱动层（复用骨干；守卫覆盖整库写面）。
             var persistence = PersistenceProviderFactory.Create(_options, codec: _codec, schemaSource: _schemaSource);

@@ -61,7 +61,11 @@ $declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\reference.u
 #   `Operation.DataStoreDriven.Abstractions.ReferenceTypes` / `CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
 #   `NodeResourceTypes` / LoopFoldMethod.Reference.Model.ReferenceTypes 均为其别名门面（const 转发，无字面量）。
 $constsFile      = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalReference\Reference\Models\ReferenceEdgeTypes.cs'
-$groundingFile   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Domain\ReferenceGrounding.cs'   # 目录分组（DS-P4a-pre）：判据不变，仅路径改指
+$groundingFiles  = @(
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\TaskReferenceGrounding.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\HistoryReferenceGrounding.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\SessionReferenceGrounding.cs')
+)   # 控制反转：三个域接地服务（通用半 = Core\Graph，不含域词）
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
@@ -166,9 +170,11 @@ if (-not (Test-Path -LiteralPath $constsFile)) {
 }
 
 $usedByConst = @{}
-if (-not (Test-Path -LiteralPath $groundingFile)) {
-    $violations.Add("[E2] 未找到写边唯一 owner：$groundingFile")
-} else {
+foreach ($groundingFile in $groundingFiles) {
+    if (-not (Test-Path -LiteralPath $groundingFile)) {
+        $violations.Add("[E2] 未找到域接地服务：$groundingFile")
+        continue
+    }
     foreach ($m in [regex]::Matches((Get-Content -LiteralPath $groundingFile -Raw),
             'CrossDbReferenceTypes\.(?<n>\w+)')) {
         $name = $m.Groups['n'].Value

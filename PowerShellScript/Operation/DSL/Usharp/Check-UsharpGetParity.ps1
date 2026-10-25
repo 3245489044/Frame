@@ -40,7 +40,7 @@ Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.p
 $baseline = Import-GateBaseline -Name UsharpGetParity
 
 $storesDir  = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Sqlite'
-$taskPool   = Join-Path $storesDir 'SqliteTaskPoolStore.cs'
+$taskPool   = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\TaskPool\SqliteTaskPoolStore.cs'
 $snapshot   = Join-Path $storesDir 'SqliteSnapshotStore.cs'
 
 $excludeRx      = '\\(obj|bin|BuildOutput|_deprecated|backups)\\'

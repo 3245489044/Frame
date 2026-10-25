@@ -36,7 +36,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
     /// 把结果作为该节点的输出端口持久化到 <see cref="INodeOutputStore"/>（节点为存储基底）。
     /// 增强路径：KeyMapping（节点逻辑）分类写 SQL（<see cref="IKeyMappingStore"/>）；
     /// 节点关系（业务节点写透镜像 + KeyMapping↔节点 / 节点↔节点边）经引用自动落地守卫
-    /// （<see cref="ReferenceGrounding"/> + <see cref="WriteGuardPort"/>，不手写建边）。
+    /// （<see cref="IReferenceMaintenance"/> + <see cref="WriteGuardPort"/>，不手写建边）。
     /// </summary>
     public sealed class NodeStepExecutionService
     {
@@ -45,7 +45,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private readonly INodeStore? _nodes;
         private readonly IKeyMappingStore? _keyMappings;
         private readonly Func<CancellationToken, Task<ITransaction>>? _beginTransaction;
-        private readonly ReferenceGrounding? _grounding;
+        private readonly IReferenceMaintenance? _grounding;
         private readonly NodeRelationGateway? _relationGateway;
         // 归属边簿记流入口（R1）：task→node（cross_db_link）的唯一编排触发点；null ⇒ 迁移期直调回退（见字段声明处退役条件）。
         private readonly Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
@@ -79,7 +79,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             INodeStore? nodeStore = null,
             IKeyMappingStore? keyMappings = null,
             Func<CancellationToken, Task<ITransaction>>? beginTransaction = null,
-            ReferenceGrounding? grounding = null,
+            IReferenceMaintenance? grounding = null,
             INodeFunctionInvoker? functionInvoker = null,
             WriteCoordinator? writeCoordinator = null,
             bool unifiedStateWrite = false,

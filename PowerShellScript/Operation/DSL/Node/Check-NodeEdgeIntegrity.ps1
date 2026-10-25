@@ -92,7 +92,7 @@ if ($syncRelations -notmatch 'PersistResult') { $violations.Add('C5 SyncRelation
 if ($roundFlow -notmatch 'PersistResult') { $violations.Add('C5 RoundAttributionFlow 未消费 PersistResult') }
 
 # ---- C6 边写断言 ----
-$grounding = Read-Text 'Frame\CsharpPrj\Operation\DataStoreDriven\Core\Domain\ReferenceGrounding.cs'
+$grounding = Read-Text 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\TaskReferenceGrounding.cs'
 $reason = Test-EdgeAssertion $grounding
 if ($reason) { $violations.Add("C6 $reason") } elseif ($ShowDetail) { $details.Add('C6 边写节点存在断言 OK') }
 

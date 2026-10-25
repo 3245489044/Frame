@@ -25,7 +25,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 public sealed record NodePersistenceAssembly(
     INodeStore? NodeStore = null,
     IKeyMappingStore? KeyMappings = null,
-    ReferenceGrounding? Grounding = null,
+    IReferenceMaintenance? Grounding = null,
     IReferenceTypeRegistry? ReferenceRegistry = null,
     // 元素类型对齐共享端口 IPersistenceStore.BeginTransactionAsync 的非空返回真值（§2.3 收敛，非 ITransaction?）。
     Func<CancellationToken, Task<ITransaction>>? BeginTransaction = null,

@@ -44,8 +44,8 @@ public static class SessionMessageKeys
     /// <summary>轮次段标记（紧邻 <c>round</c> 占位符的字面量段，取自文法）。</summary>
     public static string RoundInfix => KeyGrammar.LiteralBefore("round");
 
-    /// <summary>会话根 Id（<c>session.{name}</c>）：会话图子图端点键，与会话消息键同族。</summary>
-    public static string SessionRoot(string sessionName) => Prefix + (sessionName ?? string.Empty).Trim();
+    /// <summary>会话根 Id（<c>session.{name}</c>）：会话图子图端点键，与会话消息键同族（身份前缀归一单源）。</summary>
+    public static string SessionRoot(string sessionName) => NodeEndpointIds.Session(sessionName);
 
     /// <summary>
     /// 构造会话消息节点键：<c>session.{name}.r{round}.{kind}.{ordinal}</c>

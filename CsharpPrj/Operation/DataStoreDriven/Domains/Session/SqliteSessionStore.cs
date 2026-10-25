@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Core;
 using Plate.DslMethod.Usharp;
 using Share.Conversation.Aggregates;
 using Share.Conversation.Ids;
@@ -86,7 +87,7 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
             new KeyValuePair<string, UsharpValue>(FieldAgent, UsharpScalar.Str(session.Agent)),
             new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(session.CreatedAt.ToString("O"))),
         });
-        var text = _codec.SerializeRecord("session:" + session.Key.Value, TableId, session.Key.Value, record);
+        var text = _codec.SerializeRecord(RecordEnvelope.RecordId("session", session.Key.Value), TableId, session.Key.Value, record);
         ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", session.Key.Value), ("d", text)));
         return Task.CompletedTask;
     }

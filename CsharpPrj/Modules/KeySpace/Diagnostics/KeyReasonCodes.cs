@@ -22,6 +22,11 @@ public static class KeyReasonCodes
     public const string ProvisionUnattached = "key.set-provision-unattached";
     public const string ProvisionFailed = "key.set-provision-failed";
 
+    // ---- 表示面（构造/解析/归一）----
+    public const string SurfaceMismatch = "key.surface-mismatch";
+    public const string EmptyIdentity = "key.empty-identity";
+    public const string LegacyForm = "key.legacy-form";
+
     // ---- 声明→绑定闭合（R1/R2/R3，fail-fast 结构码）----
     public const string DeclStoreMissing = "decl.store-missing";
     public const string DeclFingerprintMismatch = "decl.fingerprint-mismatch";
@@ -59,6 +64,7 @@ public static class KeyReasonCodes
         Blank, Unparsable, FamilyUnresolved, FamilyAmbiguous, NotDeclared,
         SetSelfOnly, SetEmpty, SetCap, RequiredMissing, DeclaredMissing,
         WriteConflict, ProvisionUnattached, ProvisionFailed,
+        SurfaceMismatch, EmptyIdentity, LegacyForm,
         DeclStoreMissing, DeclFingerprintMismatch, DeclUnbound, DeclUnboundPort, DeclOrphanImpl,
         ExecStepMissing, ExecPortMissing, ExecUndeclaredInport, ExecUndeclaredOutport, ExecDriverConflict,
         ExecBindFailed, ExecFunctionMissing, ExecExecutionFailure,

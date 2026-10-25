@@ -30,12 +30,12 @@ namespace Operation.LoopFoldMethod.Reference.Gateways;
 /// </summary>
 public sealed class NodeRelationGateway
 {
-    private readonly ReferenceGrounding? _grounding;
+    private readonly IReferenceMaintenance? _grounding;
     private readonly IResourceReferenceStore? _store;
 
     /// <param name="grounding">引用守卫（可空；未装配则节点执行期写 no-op）。</param>
     /// <param name="store">引用图读/写侧（可空；未装配则资源查询空集、资源写抛异常）。</param>
-    public NodeRelationGateway(ReferenceGrounding? grounding, IResourceReferenceStore? store)
+    public NodeRelationGateway(IReferenceMaintenance? grounding, IResourceReferenceStore? store)
     {
         _grounding = grounding;
         _store = store;

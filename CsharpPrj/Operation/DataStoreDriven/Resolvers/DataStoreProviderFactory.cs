@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Operation.DataStoreDriven.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Operation.DataStoreDriven.Configuration;
@@ -34,7 +34,7 @@ public static class DataStoreProviderFactory
         ICheckpointStore? placeholderCheckpoints = null,
         ISnapshotStore? placeholderSnapshots = null,
         IReferenceTypeRegistry? referenceTypeRegistry = null,
-        ReferenceGrounding? grounding = null,
+        IGraphGrounding? grounding = null,
         IDocumentCodec? codec = null,
         ITableSchemaSource? schemaSource = null)
     {
@@ -63,7 +63,7 @@ public static class DataStoreProviderFactory
             disposeBackbone: sharedBackbone is null);
     }
 
-    private static IDataStore BuildSqliteDataStore(PersistenceOptions options, IPersistenceStore? sharedBackbone, ReferenceGrounding? grounding, IDocumentCodec? codec, ITableSchemaSource? schemaSource)
+    private static IDataStore BuildSqliteDataStore(PersistenceOptions options, IPersistenceStore? sharedBackbone, IGraphGrounding? grounding, IDocumentCodec? codec, ITableSchemaSource? schemaSource)
     {
         var factory = new SqliteConnectionFactory(options);
         var backbone = sharedBackbone ?? new SqlitePersistenceStore(factory, options, codec, schemaSource);

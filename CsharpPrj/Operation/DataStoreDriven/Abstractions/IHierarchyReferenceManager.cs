@@ -62,6 +62,11 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>该 task 关联的节点键集（task 作用域寻址）。</summary>
         Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
+        /// <summary>
+        /// task 作用域候选节点投影（沿 cross_db_link 挂载 + NodeToNode 组合边 Kahn 拓扑，环内稳定序）。
+        /// </summary>
+        Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default);
+
         /// <summary>该历史的工作流节点键集（**派生**：= 其全部任务的节点并集，不依赖 history_owns_node）。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 

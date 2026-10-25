@@ -34,6 +34,8 @@
     <ProjectReference Include="$(Proj_DataStoreDriven)" />
     <!-- 子工程：通用实例框架的 SQLite 单文件承载实现（层 4；源码经上方 DataStoreDriven\** 排除规则不再重复编译） -->
     <ProjectReference Include="$(Proj_DataStoreDriven_Instances)" />
+    <!-- 子工程：领域实现（历史/会话/任务池/层级引用）的控制反转落点（层 4；核心工程不得反向引用） -->
+    <ProjectReference Include="$(Proj_DataStoreDriven_Domains)" />
     <ProjectReference Include="$(Proj_StatisticalDriven)" />
     <ProjectReference Include="$(Proj_ReconcileDriven)" />
     <ProjectReference Include="$(Proj_HierarchyMethod)" />

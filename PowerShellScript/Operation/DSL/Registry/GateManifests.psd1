@@ -1340,5 +1340,14 @@
         Expect = 0
         Note   = '图库路径单源：路径解析/文件名常量 = 1 · 启动指纹发射点 = 1 · 两库同目录断言 ≥ 1'
     }
-}
 
+    DataStoreDomainBoundary = @{
+        Domain = 'Data'
+        Args   = @{}
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'DataStoreDriven 领域边界（控制反转）：P1 核心零域 import / P2 核心零域工程引用 / P3 禁反向引用 Domains / P4 核心零领域字面量 / P5 宿主零具体介质 using / P6 正对照 / P7 同层引用棘轮 ≤19 且 WorkFlowMethod↔DataStoreDriven=0、HierarchyMethod/LoopFoldMethod→Domains=0；默认报告、-Check 拒绝'
+    }
+
+
+}

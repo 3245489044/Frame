@@ -6,10 +6,10 @@ namespace Operation.HierarchyMethod.Nodes.Discovery;
 
 public sealed class NodeProjectionService
 {
-    private readonly ReferenceGrounding _grounding;
+    private readonly IHierarchyReferenceManager _grounding;
     private readonly INodeStore _nodes;
 
-    public NodeProjectionService(ReferenceGrounding grounding, INodeStore nodes)
+    public NodeProjectionService(IHierarchyReferenceManager grounding, INodeStore nodes)
     {
         _grounding = grounding;
         _nodes = nodes;

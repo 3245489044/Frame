@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>领域存储实现（DataStoreDriven.Domains）</ModuleRule_Title>
+    <ModuleRule_Layer>4</ModuleRule_Layer>
+    <ModuleRule_Description>历史/会话/任务池/层级引用的**领域实现唯一落点**。核心工程 Operation.DataStoreDriven 保持 Agent 无关：领域契约（IHistoryStore / ITaskPoolPersistence / IHierarchyReferenceManager）留在核心 Abstractions，实现集中在本工程；单向依赖：Domains → 核心。</ModuleRule_Description>
+    <ModuleRule_Keywords>领域实现;历史;会话;任务池;层级引用;控制反转;DataStoreDriven.Domains</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="领域实现唯一落点；禁止被核心工程 Operation.DataStoreDriven 引用（无反向引用）" />
+    <ModuleRule_Rule Include="只允许被宿主/聚合工程引用（Operation.csproj），同层其它工程（HierarchyMethod / LoopFoldMethod）禁引" />
+    <ModuleRule_Rule Include="命名空间保持 Operation.DataStoreDriven.Sqlite / .Core（阶段一仅物理迁址，源码零改）" />
+    <ModuleRule_Rule Include="写一律经单写通道 host（ThreadingSqliteWriteHost / SqliteChannelSession），禁自建第二套写门" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Operation.DataStoreDriven.Domains</RootNamespace>
+    <AssemblyName>DataStoreDriven.Domains</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>DataStoreDriven 领域实现（历史/会话/任务池/层级引用）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 核心端口（Abstractions / Sqlite 通用介质 / Core 通用件）——向下引用 -->
+    <ProjectReference Include="$(Proj_DataStoreDriven)" />
+    <!-- 会话历史容器契约（SqliteHistoryStore / 历史根 / 会话存储实现） -->
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
+    <!-- 任务池持久化端口契约（SqliteTaskPoolStore 实现 ITaskPoolPersistence） -->
+    <ProjectReference Include="$(Proj_TaskStatusPool)" />
+    <!-- 命令执行抽象（IDbCommandExecutor / ITransaction） -->
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
+    <!-- 键文法/端点身份（NodeEndpointIds / HistoryKey 构造口径） -->
+    <ProjectReference Include="$(Proj_Node)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 落盘后端依赖（版本收敛于 CsharpPrj/versions.json；与核心同版本） -->
+    <PackageReference Include="System.Data.SQLite.Core" Version="$(SystemDataSQLiteVersion)" />
+    <PackageReference Include="LiteDB" Version="$(LiteDBVersion)" />
+  </ItemGroup>
+
+</Project>

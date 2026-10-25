@@ -14,9 +14,9 @@ namespace Operation.DataStoreDriven.Core;
 /// </summary>
 public sealed class NodeGraphReconciler
 {
-    private readonly ReferenceGrounding _grounding;
+    private readonly IGraphGrounding _grounding;
 
-    public NodeGraphReconciler(INodeStore nodes, ReferenceGrounding grounding)
+    public NodeGraphReconciler(INodeStore nodes, IGraphGrounding grounding)
     {
         // nodes 参数保留源兼容（G3 起对账不再读 SQL 节点库，声明权威 = LiteDB ur_relations）。
         _ = nodes ?? throw new ArgumentNullException(nameof(nodes));

@@ -226,7 +226,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     }
 
     /// <summary>记录 ID（<c>task:&lt;TaskKey&gt;</c>）。</summary>
-    private static string RecordId(string taskKey) => "task:" + taskKey;
+    private static string RecordId(string taskKey) => RecordEnvelope.RecordId("task", taskKey);
 
     /// <summary>记录头字段（与 TItem 字段扁平同层，供 usharp_get 过滤/排序）。</summary>
     private static IReadOnlyList<KeyValuePair<string, UsharpValue>> Envelope(string status, string createdAt, string updatedAt) => new[]
@@ -243,9 +243,9 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     /// <summary>任务池行过滤的公共 WHERE（固定 ThreadId 命名空间 + 可选 Status）与参数字典。</summary>
     private (string Where, Dictionary<string, object> Ps) BuildPoolWhere(TaskExecutionStatus? status)
     {
-        var where = $"{Extract(UsharpRecordPaths.ThreadId)}=@t";
+        var where = KvQueryBuilder.Eq(UsharpRecordPaths.ThreadId, "@t");
         var ps = Params(("t", PoolThreadId));
-        if (status is not null) { where += $" AND {Extract(UsharpRecordPaths.Status)}=@s"; ps["@s"] = status.Value.ToString(); }
+        if (status is not null) { where = KvQueryBuilder.And(where, KvQueryBuilder.Eq(UsharpRecordPaths.Status, "@s")); ps["@s"] = status.Value.ToString(); }
         return (where, ps);
     }
 
@@ -269,5 +269,5 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     }
 
     private static string? Str(UsharpRecord body, string name)
-        => body.TryGet(name, out var v) && v is UsharpScalar sc && sc.Kind != UsharpScalarKind.Null ? sc.Text : null;
+        => KvPayloadReader.ReadScalarText(body, name);
 }

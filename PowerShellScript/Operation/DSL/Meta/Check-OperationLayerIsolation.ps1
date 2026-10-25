@@ -10,6 +10,8 @@
 
     实测基线（2026-09-29）：同层引用**已存在 18 条**（历史存量，只减不增；其中 9 条来自聚合工程 `Operation.csproj`，
     它本就应引其子工程）；**目标对 `WorkFlowMethod ↔ DataStoreDriven` = 0**（本方案的硬约束，必须恒 0）。
+    2026-10-25 控制反转（DataStoreDriven 领域实现外移）：新增 `DataStoreDriven.Domains -> DataStoreDriven` 1 条（单向：域实现依赖核心端口），
+    基线 18 → 19；核心**不得**反向引用 Domains（`Check-DataStoreDomainBoundary` P3 硬判）。
 
     判据：
       D1 棘轮基线：实测同层引用集合 ⊆ 基线集合（新增即违规）；基线中已消失的条目给**告警**（提示收紧基线）
@@ -58,6 +60,7 @@ $operationDir = Join-Path $csharpPrjDir 'Operation'
 $SameLayerBaseline = @(
     'Operation\BackEndDriven\BackEndDriven.csproj -> Operation\WorkFlowMethod\WorkFlowMethod.csproj'
     'Operation\DataStoreDriven\Instances\DataStoreDriven.Instances.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj'
+    'Operation\DataStoreDriven\Domains\DataStoreDriven.Domains.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj'
     'Operation\FrontEndDriven\FrontEndDriven.csproj -> Operation\StateHoldDriven\StateHoldDriven.csproj'
     'Operation\HierarchyMethod\HierarchyMethod.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj'
     'Operation\HierarchyMethod\HierarchyMethod.csproj -> Operation\LoopFoldMethod\LoopFoldMethod.csproj'
@@ -65,6 +68,8 @@ $SameLayerBaseline = @(
     'Operation\LoopFoldMethod\LoopFoldMethod.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj'
     'Operation\Operation.csproj -> Operation\BackEndDriven\BackEndDriven.csproj'
     'Operation\Operation.csproj -> Operation\DataStoreDriven\DataStoreDriven.csproj'
+    'Operation\Operation.csproj -> Operation\DataStoreDriven\Domains\DataStoreDriven.Domains.csproj'
+    'Operation\Operation.csproj -> Operation\ReconcileDriven\ReconcileDriven.csproj'
     'Operation\Operation.csproj -> Operation\DataStoreDriven\Instances\DataStoreDriven.Instances.csproj'
     'Operation\Operation.csproj -> Operation\FrontEndDriven\FrontEndDriven.csproj'
     'Operation\Operation.csproj -> Operation\HierarchyMethod\HierarchyMethod.csproj'

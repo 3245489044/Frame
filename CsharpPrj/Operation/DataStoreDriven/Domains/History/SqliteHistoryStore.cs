@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Share.Conversation;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Core;
 using Plate.DslMethod.Usharp;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Core;
@@ -72,11 +73,11 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
 
         var record = new UsharpRecord(new[]
         {
-            new KeyValuePair<string, UsharpValue>(FieldThreadId, UsharpScalar.Str(HistoryThreadId)),
-            new KeyValuePair<string, UsharpValue>(FieldSessionId, UsharpScalar.Str(sessionId)),
-            new KeyValuePair<string, UsharpValue>(FieldConversation, ParsePayload(log.Serialize())),
+            RecordEnvelope.ThreadId(HistoryThreadId),
+            RecordEnvelope.Text(FieldSessionId, sessionId),
+            RecordEnvelope.Value(FieldConversation, KvPayloadReader.ParsePayload(log.Serialize())),
         });
-        var text = _codec.SerializeRecord(RecordId(sessionId), TableId, sessionId, record);
+        var text = _codec.SerializeRecord(RecordEnvelope.RecordId("history", sessionId), TableId, sessionId, record);
         ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", sessionId), ("d", text)));
         return Task.CompletedTask;
     }
@@ -116,12 +117,5 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
         return Task.FromResult(removed > 0);
     }
 
-    private static string RecordId(string sessionId) => "history:" + sessionId;
-
-    /// <summary>会话日志 JSON 文本 → 中立值（非法 JSON ⇒ 不透明字符串标量，原样保留）。</summary>
-    private static UsharpValue ParsePayload(string json)
-    {
-        try { return UsharpValueJson.Parse(json); }
-        catch { return UsharpScalar.Str(json); }
-    }
+    private static string RecordId(string sessionId) => RecordEnvelope.RecordId("history", sessionId);
 }

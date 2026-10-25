@@ -61,7 +61,7 @@ public interface IHistoryCommandPort
 }
 
 /// <summary>
-/// 历史根目录查询（唯一枚举入口）—— root store 优先，旧 ur_histories 行仅在迁移期回退；
+/// 历史根目录查询（唯一枚举入口）—— 只认 root store（根注册表行）；
 /// 过滤/去重/排序全部在本实现内完成，消费方不得再写第二份根枚举逻辑。
 /// </summary>
 public interface IHistoryRootCatalog

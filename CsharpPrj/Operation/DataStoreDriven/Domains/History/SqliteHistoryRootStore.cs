@@ -4,10 +4,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using Modules.Node.Identity;
 using Plate.DslMethod.Usharp;
 using Share.Conversation.Aggregates;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
+using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using UniversalWorkflowFramework.StorageFramework.Core;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
@@ -74,9 +76,11 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
     {
         ct.ThrowIfCancellationRequested();
         if (key.IsEmpty) return Task.FromResult<HistoryRoot?>(null);
-        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", key.Value)));
+        var rowKey = RowKey(key);
+        if (rowKey.Length == 0) return Task.FromResult<HistoryRoot?>(null);
+        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rowKey)));
         if (rows.Count == 0) return Task.FromResult<HistoryRoot?>(null);
-        return Task.FromResult(TryReadRoot(key.Value, SqliteRows.Str(rows[0], "Doc")));
+        return Task.FromResult(TryReadRoot(rowKey, SqliteRows.Str(rows[0], "Doc")));
     }
 
     public Task CreateAsync(HistoryRoot root, CancellationToken ct = default)
@@ -90,8 +94,14 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
             new KeyValuePair<string, UsharpValue>(FieldCreatedBy, UsharpScalar.Str(root.CreatedBy)),
             new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(root.CreatedAt.ToString("O"))),
         });
-        var text = _codec.SerializeRecord(RecordPrefix + root.Key.Value, TableId, root.Key.Value, record);
-        ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", root.Key.Value), ("d", text)));
+        var rowKey = RowKey(root.Key);
+        if (rowKey.Length == 0)
+        {
+            throw new ArgumentException("历史根身份为空，拒绝写入根行。", nameof(root));
+        }
+
+        var text = _codec.SerializeRecord(RecordPrefix + rowKey, TableId, rowKey, record);
+        ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params(("k", rowKey), ("d", text)));
         return Task.CompletedTask;
     }
 
@@ -99,33 +109,38 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
     {
         ct.ThrowIfCancellationRequested();
         if (key.IsEmpty) return Task.FromResult(false);
-        var removed = ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", key.Value)));
+        var rowKey = RowKey(key);
+        if (rowKey.Length == 0) return Task.FromResult(false);
+        var removed = ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", rowKey)));
         return Task.FromResult(removed > 0);
     }
+
+    /// <summary>身份 → 行键（<c>history:{identity}</c>）；空身份 ⇒ 空串（不伪造行键）。</summary>
+    private static string RowKey(HistoryKey key) => NodeEndpointIds.ToHistoryRowKey(key.Value);
 
     private HistoryRoot? TryReadRoot(string key, string? doc)
     {
         if (string.IsNullOrWhiteSpace(doc)) return null;
         if (!_codec.TryDeserializeRecord(doc, out var recordId, out _, out _, out var body)) return null;
+        // D-01=A（Identity 规范面）：HistoryKey 一律裸身份；行键 history:{id} 只在存储边界出现。
+        var identity = NodeEndpointIds.NormalizeHistoryId(key);
+        if (identity.Length == 0) return null;
+        var historyKey = HistoryKey.Create(identity);
         if (!recordId.StartsWith(RecordPrefix, StringComparison.Ordinal))
         {
             return _legacy?.IsLegacyRoot(key) == true
-                ? new HistoryRoot(HistoryKey.Create(key), key, HistoryKind.Imported, "migration", DateTimeOffset.UtcNow)
+                ? new HistoryRoot(historyKey, identity, HistoryKind.Imported, "migration", DateTimeOffset.MinValue)
                 : null;
         }
 
-        var name = ReadString(body, FieldName) ?? key;
+        var name = ReadString(body, FieldName);
         var kind = Enum.TryParse<HistoryKind>(ReadString(body, FieldKind), true, out var k) ? k : HistoryKind.User;
         var createdBy = ReadString(body, FieldCreatedBy) ?? "system";
-        var createdAt = DateTimeOffset.TryParse(ReadString(body, FieldCreatedAt), out var at) ? at : DateTimeOffset.UtcNow;
-        return new HistoryRoot(HistoryKey.Create(key), name, kind, createdBy, createdAt);
+        var createdAt = DateTimeOffset.TryParse(ReadString(body, FieldCreatedAt), out var at) ? at : DateTimeOffset.MinValue;
+        return new HistoryRoot(historyKey, string.IsNullOrWhiteSpace(name) ? identity : name, kind, createdBy, createdAt);
     }
 
+    /// <summary>字段读取单源（U4）：委托 <see cref="KvPayloadReader.ReadString"/>。</summary>
     internal static string? ReadString(UsharpRecord body, string field)
-    {
-        if (!body.TryGet(field, out var value)) return null;
-        var json = UsharpValueJson.ToJson(value);
-        try { return JsonSerializer.Deserialize<string>(json); }
-        catch { return json; }
-    }
+        => KvPayloadReader.ReadString(body, field);
 }

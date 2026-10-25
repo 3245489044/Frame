@@ -10,7 +10,7 @@
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="身份唯一且位置不改变身份（N1/N2）：键经 IdentitySpec 生成/解析，序数由 ISequenceAuthority 单源分配" />
     <ModuleRule_Rule Include="载荷恒为 JSON 文档（N11）：框架契约以 JSON 字符串 + BCL 类型为界，DTO 与序列化单源由上层适配器持有（D-1 案 A，禁把 Operation/Share 类型写进本工程公共签名）" />
-    <ModuleRule_Rule Include="框架零 Frame 依赖（仅 BCL + **BCL-only 键文法内核 Modules.Parsing.Keys**）：键文法（模板构造/反解/族判据/键序）统一由该内核提供，本工程禁自建第二套词法或正则；载体经 INodeCarrier、声明经 ISpecSource、位置反解经 IPlacementResolver 注入；未装配即 Null 实现 + 可见化诊断，不静默兜底（N9）" />
+    <ModuleRule_Rule Include="框架零 Frame 依赖（仅 BCL + 键文法内核 Modules.Parsing.Keys + 键空间语义层 Modules.KeySpace）：键文法（模板构造/反解/族判据/键序）统一由内核提供，面/族/坐标转换由语义层提供；本工程禁自建第二套词法或正则；载体经 INodeCarrier、声明经 ISpecSource、位置反解经 IPlacementResolver 注入；未装配即 Null 实现 + 可见化诊断，不静默兜底（N9）" />
     <ModuleRule_Rule Include="唯一写入口 NodeMaterializer（单写门 NodeWriteGate，旁路调用点 = 0）；框架只产「待物化载荷 + 位置意图 + 诊断」，不各自落库" />
     <ModuleRule_Rule Include="禁 Usharp* 类型 / AsyncLocal 可变配置 / 硬编码 loc→carrier 映射（P20/P14/P22）；由 PowerShellScript/Modules/Node/Check-NodeFramework.ps1 门禁" />
     <ModuleRule_Rule Include="写计划只搬模型/介质端口/编排（V-1′）：NodeWritePlanExecutor 复用 NodeWriteGate（target=medium|collection|key）；介质实现与库级 WriteCoordinator/SingleWriteGuard 留宿主，禁双写门/双补偿（P16）；介质词不进框架" />
@@ -31,11 +31,12 @@
 
   <!-- 依赖面：D-1 案 A —— 位置层不引 Operation/Share 类型（NodeOutput/INodeOutputStore 在 Operation、
        Chain<TKey,TNode>/UniversalMiddlewareEntry 在 Share）；契约以 JSON/BCL 为界，DTO 与序列化经上层适配器持有。
-       ★ 键面收敛（2026-09-26）：唯一 ProjectReference = 键文法内核 Modules.Parsing.Keys（**BCL-only，零依赖**），
+       ★ 键面收敛（2026-09-26）：ProjectReference = 键文法内核 Modules.Parsing.Keys（BCL-only）+ 键空间语义层 Modules.KeySpace（面/族/坐标转换单源），
        使「模板词法/反解/族判据/键序」全库单源；本工程不再自建第二套正则或手写切片
        （原 KeyTemplateEvaluator 实现已下沉内核，本工程仅留转发门面）。 -->
   <ItemGroup>
     <ProjectReference Include="$(Proj_Parsing_Keys)" />
+    <ProjectReference Include="$(Proj_KeySpace)" />
   </ItemGroup>
 
 </Project>

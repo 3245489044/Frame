@@ -167,18 +167,9 @@ public static class EndpointKeyRekey
         return new EndpointRekeyResult(rekeyed, plan.Orphans.Count, retired);
     }
 
-    /// <summary><c>history:{historyId}</c> 形态的 task 端点判定（结构事实：类型层前缀）。</summary>
+    /// <summary><c>history:{historyId}</c> 形态的 task 端点判定（前缀单源 = <see cref="NodeEndpointIds"/>）。</summary>
     private static bool TryGetHistoryTaskKey(string taskSourceId, out string historyId)
-    {
-        const string prefix = "history:";
-        if (taskSourceId.Length > prefix.Length && taskSourceId.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            historyId = NodeEndpointIds.NormalizeHistoryId(taskSourceId);
-            return historyId.Length > 0;
-        }
-        historyId = string.Empty;
-        return false;
-    }
+        => NodeEndpointIds.TryParseHistoryTypeKey(taskSourceId, out historyId);
 
     private static bool IsType(ResourceIdentifier? id, string type)
         => id is not null && string.Equals(id.ResourceType, type, StringComparison.Ordinal);

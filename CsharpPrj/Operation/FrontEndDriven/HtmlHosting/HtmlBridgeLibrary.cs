@@ -6,7 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Plate.HtmlViewer;
 using TConfig;
+using UiBackend.Abstractions;
 using UiBackend.Html;
+using FrameworkAbstractions.ComponentRegistry;
+using FrameworkAbstractions.WinFormsAbstractions;
 
 namespace FrontEndDriven.HtmlHosting;
 
@@ -155,6 +158,32 @@ public sealed class HtmlBridgeLibrary
     }
 
     /// <summary>
+    /// A2 交互端口：从组合根解析 ECS 事件端口并包装为 Plate 本地端口；未装配 → null（回退旧直调）。
+    /// </summary>
+    private static IHtmlInteractionPort? ResolveInteractionPort()
+    {
+        var port = AppServiceProvider.Resolve<IInteractionEventPort>();
+        return port is null ? null : new HtmlInteractionAdapter(port);
+    }
+
+    /// <summary>
+    /// A2 交互路由灰度：环境变量 <c>WF_HTML_INTERACTION_ROUTE=legacy|bus</c> 显式覆盖；
+    /// 未显式声明时「端口可得 ⇒ bus」——使声明式链路默认生效，回退只需设 legacy。
+    /// </summary>
+    private static HtmlInteractionRoute ResolveInteractionRoute()
+    {
+        var configured = Environment.GetEnvironmentVariable("WF_HTML_INTERACTION_ROUTE");
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured.Trim().Equals("legacy", StringComparison.OrdinalIgnoreCase)
+                ? HtmlInteractionRoute.Legacy
+                : HtmlInteractionRoute.Bus;
+        }
+
+        return ResolveInteractionPort() is null ? HtmlInteractionRoute.Legacy : HtmlInteractionRoute.Bus;
+    }
+
+    /// <summary>
     /// 装配 HTML 后端运行时（DOM 桥 + 页面声明 + 模板 + 主题 + 消息桥订阅 + 回流探针）：页面 sideload 后调用。
     /// 取控件经 <see cref="IHtmlUiHostAccess.HtmlViewerResolver"/>，注册库取 <see cref="Register"/> 登记值（回退注入的提供者），
     /// 配置路径取 <see cref="IHtmlUiHostAccess.ConfigPath"/> —— 消除「完整装配生产无调用点」缺口。
@@ -181,7 +210,8 @@ public sealed class HtmlBridgeLibrary
             var uiConfig = HtmlBridgeAssembly.Load(configPath);
             if (uiConfig is null)
                 return $"（配置加载失败）configPath={configPath}";
-            var report = HtmlBridgeAssembly.Attach(viewer, uiConfig, registry, _host, _hostControl, _pageName);
+            var report = HtmlBridgeAssembly.Attach(viewer, uiConfig, registry, _host, _hostControl, _pageName,
+                ResolveInteractionPort(), ResolveInteractionRoute());
             var runtime = _backend.HtmlUi;
 
             // 声明驱动：按宿主控件声明 events.message + bindings 自动绑定 MessageReceived。

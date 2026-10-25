@@ -29,6 +29,16 @@ public sealed class HtmlEventBridge
     /// 计划产物（<see cref="RenderOutput.Plan"/>）经此单点落地——领域侧不再触通道（P0）。</summary>
     public IUiRenderExecutor? RenderExecutor { get; set; }
 
+    /// <summary>交互总线端口（A2）：非空且 <see cref="InteractionRoute"/>=Bus 时，页面事件改走 ECS 总线
+    /// （InvocationKernel → FunctionHub → 工作流），写回由总线侧负责。</summary>
+    public IHtmlInteractionPort? InteractionPort { get; set; }
+
+    /// <summary>交互路由（A2 灰度开关）：缺省 Legacy（旧直调路径，零回归）。</summary>
+    public HtmlInteractionRoute InteractionRoute { get; set; } = HtmlInteractionRoute.Legacy;
+
+    /// <summary>页面受控态仓库（B2/R3）：uiState 回投与 state 参数读取的唯一落点；null = 未装配（回投忽略）。</summary>
+    public UiPageStateStore? PageState { get; set; }
+
     public HtmlEventBridge(
         IReadOnlyDictionary<string, ControlConfig> controlsByName,
         IHtmlChannel channel,
@@ -50,14 +60,67 @@ public sealed class HtmlEventBridge
     /// <summary>处理页面事件负载；返回函数执行结果拼接（写回 output 元素的副作用已执行）。</summary>
     public async Task<string> HandleAsync(string payload, CancellationToken ct = default)
     {
-        var (eventName, controlName, eventPayload) = ParsePayload(payload);
+        var envelope = UiMessageEnvelope.Parse(payload);
+        ApplyUiState(envelope.UiStateJson);
+        var eventName = envelope.EventName ?? string.Empty;
+        var controlName = envelope.ControlName;
+        var eventPayload = envelope.PayloadText;
         Report("EventBridge_route", $"负载 event={eventName}, name={controlName}");
         // 域隔离解析：data-event 优先 page: 域（页内元素），其次 host: 域（物理控件），回退裸名（兼容裸名索引/测试桩）。
         // 域隔离解析（单一入口）：裸名 → page: → host:（B1 收敛）。
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, controlName, out var control))
             return $"未找到控件: {controlName}";
 
+        if (InteractionRoute == HtmlInteractionRoute.Bus && InteractionPort is not null)
+            return await DispatchToBusAsync(controlName, eventName, eventPayload, ct).ConfigureAwait(false);
+
         return (await RunBindingLoopAsync(control, eventName, eventPayload, UiWriteSource.Interactive, ct).ConfigureAwait(false)).Text ?? string.Empty;
+    }
+
+    /// <summary>
+    /// A2 总线路由：把页面事件投递到交互端口（ECS 事件总线），不再直调注册函数。
+    /// 写回由总线侧（RenderOutput 计划 / output 回写）单点落地，本桥返回空文本（禁二次写）。
+    /// </summary>
+    private async Task<string> DispatchToBusAsync(
+        string? controlName, string eventName, string? eventPayload, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(controlName))
+        {
+            Report("EventBridge_invoke", "总线路由缺少元素名（name），未分发");
+            return "事件缺少元素名: name";
+        }
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            Report("EventBridge_invoke", $"总线路由缺少事件名（element={controlName}），未分发");
+            return $"事件缺少事件名: {controlName}";
+        }
+
+        var key = ResolveInteractionKey(controlName);
+        Report("EventBridge_invoke", $"总线分发 {key}.{eventName}");
+        var outcome = await InteractionPort!
+            .DispatchAsync(key, eventName, eventPayload, timeoutMs: null, ct)
+            .ConfigureAwait(false);
+
+        if (!outcome.Dispatched)
+            return string.IsNullOrWhiteSpace(outcome.Error)
+                ? $"事件未分发: {key}.{eventName}"
+                : outcome.Error!;
+
+        return string.Empty;
+    }
+
+    /// <summary>把裸元素名解析为域限定键（page 优先、host 次之、无域声明回退裸名）。</summary>
+    private string ResolveInteractionKey(string name)
+    {
+        if (name.StartsWith(TConfig.InteractionDomains.Host, StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith(TConfig.InteractionDomains.Page, StringComparison.OrdinalIgnoreCase))
+            return name;
+
+        if (_controlsByName.ContainsKey(HtmlDeclarationParser.PageKey(name)))
+            return HtmlDeclarationParser.PageKey(name);
+        if (_controlsByName.ContainsKey(HtmlDeclarationParser.HostKey(name)))
+            return HtmlDeclarationParser.HostKey(name);
+        return name;
     }
 
     /// <summary>装配绑定参数：sourceType=control 经桥读 DOM 值；literal 用字面值；eventPayload 用事件负载原文。</summary>
@@ -82,6 +145,11 @@ public sealed class HtmlEventBridge
                     value = HtmlElementNode.UnwrapString(raw);
                     break;
                 // 注：SourceType 已 ToLowerInvariant，case 须全小写（原 "eventPayload" 大小写不匹配 → 误落 default）
+                // R3：声明式受控态参数（source 缺省回落声明默认值）。
+                case "state":
+                    value = string.IsNullOrWhiteSpace(p.Source) ? null : PageState?.GetWithDefault(p.Source!);
+                    if (value is null) value = p.DefaultValue;
+                    break;
                 case "eventpayload":
                     value = eventPayload;
                     break;
@@ -102,6 +170,26 @@ public sealed class HtmlEventBridge
         return (envelope.EventName ?? string.Empty, envelope.ControlName, envelope.PayloadText);
     }
 
+    /// <summary>
+    /// 应用页面回投受控态（R3）：先状态、后事件（同帧顺序固定）。
+    /// 未声明槽 → 差集报告（不落状态，禁隐式状态）；open 交回既有展开态通道（本桥只做可见化）。
+    /// </summary>
+    private void ApplyUiState(string? uiStateJson)
+    {
+        if (PageState is null || string.IsNullOrWhiteSpace(uiStateJson)) return;
+        var patch = UiStatePatch.Parse(uiStateJson);
+        if (patch is null)
+        {
+            Report("EventBridge_uiState", "uiState 解析失败（非对象/非法 JSON）→ 不落状态");
+            return;
+        }
+        if (patch.IsEmpty) return;
+
+        var result = PageState.ApplyPatch(patch);
+        var rejected = result.RejectedSlots.Count == 0 ? "-" : string.Join(",", result.RejectedSlots);
+        Report("EventBridge_uiState", $"applied scalars={patch.Scalars.Count}, select={patch.Select.Count}, open={result.Open.Count}, rejected=[{rejected}]");
+    }
+
     /// <summary>注册宿主内容写回端口（output 指向宿主 viewer 时经此写回；幂等覆盖）。写入来源由调用方显式给出。</summary>
     public void RegisterHostWriter(string outputName, Func<string, UiWriteSource, Task> writer)
         => _hostWriters[outputName] = writer ?? throw new ArgumentNullException(nameof(writer));
@@ -116,6 +204,7 @@ public sealed class HtmlEventBridge
         string hostControlName, string messagePayload, CancellationToken ct = default,
         UiWriteSource source = UiWriteSource.Interactive)
     {
+        ApplyUiState(UiMessageEnvelope.Parse(messagePayload).UiStateJson);
         Report("EventBridge_route", $"宿主消息 控件={hostControlName} source={source}");
         // 域隔离解析（单一入口）：宿主控件 = host 域偏好（裸名 → host:，不含 page）。
         if (!HtmlDeclarationParser.TryResolveControl(_controlsByName, hostControlName,

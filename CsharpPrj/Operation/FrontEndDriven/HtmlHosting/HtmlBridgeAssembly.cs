@@ -11,7 +11,9 @@ using Plate.JsonMethod.Utilities;
 using Strategy.Refresh.Core;
 using Strategy.Refresh.Diagnostics;
 using TConfig;
+using UiBackend.Abstractions;
 using UiBackend.Html;
+using Share.EventBindingOrchestrator.Binding;
 
 namespace FrontEndDriven.HtmlHosting;
 
@@ -41,7 +43,9 @@ public static class HtmlBridgeAssembly
         ITrConfigRegistry registry,
         HtmlUiHostSlot host,
         string hostControl,
-        string pageName)
+        string pageName,
+        IHtmlInteractionPort? interactions = null,
+        HtmlInteractionRoute interactionRoute = HtmlInteractionRoute.Legacy)
     {
         ArgumentNullException.ThrowIfNull(channel);
         ArgumentNullException.ThrowIfNull(uiConfig);
@@ -50,7 +54,13 @@ public static class HtmlBridgeAssembly
 
         // P4 域隔离：物理控件 host: 域 + htmlPage 内部元素 page: 域（同名裸控件分域互不覆盖），output/脚本 target 显式带域。
         var index = HtmlDeclarationParser.BuildDomainControlIndex(uiConfig);
+        // R2/R3：页面区域目录与受控态声明（区域目标合法性 + uiState 回投落点）。
+        var pageDeclaration = HtmlDeclarationParser.FindPageDeclaration(uiConfig, hostControl, pageName);
         var invoker = TrConfigFunctionInvoker.ToBridgeInvoker(registry);
+        // A1：声明式工作流也是合法绑定目标——就绪检查认「注册函数 ∪ 已声明工作流」，否则 page 绑定会被误判缺失。
+        var workflowNames = new HashSet<string>(
+            InteractionGraphProjector.CollectWorkflows(InteractionGraphProjector.Project(uiConfig), out _).Keys,
+            StringComparer.OrdinalIgnoreCase);
         // DIP：HtmlBackendRuntime 的写回端口（HtmlWritePump）由连接层 FrontEndDriven.HtmlViewerBridge 提供——
         // ObservedHtmlChannel 把通道包装为 Observe 收敛写（Converged/Degraded），plate 不再感知 Modules.Observe。
         // 注：observed 不在此 dispose——其生命周期须与 HtmlBackendRuntime 一致（写回经 ToWritePump 持续调用；
@@ -81,9 +91,16 @@ public static class HtmlBridgeAssembly
         var writeMetrics = new UiWriteMetrics();
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
             Fnv1aFingerprint.Default.Of, RefreshTraceId.New, writeOptions, writeMetrics);
+        // A2：页面事件可选改走交互总线（缺省 Legacy = 旧直调，零回归）。
+        // R2/R3：写入装配面（区域声明 + 状态声明）；未声明 regions ⇒ 区域目标一律拒绝（fail-fast 可见化）。
+        runtime.PageRegions = RegionCatalog.From(pageDeclaration);
+        runtime.PageState.Initialize(pageDeclaration?.State);
+        runtime.InteractionPort = interactions;
+        runtime.InteractionRoute = interactionRoute;
         // F1：消息边界只投递（O(1)），取数/渲染在单 worker 串行；DOM 落地仍经 IHtmlChannel 单点封送。
         runtime.MessageScheduler = new HostMessageCommandScheduler();
-        PopulateStaticReadiness(runtime.Readiness, index, registry);
+        PopulateStaticReadiness(runtime.Readiness, index, registry, workflowNames);
+        ValidateRegionTargets(runtime.Readiness, index, runtime.PageRegions);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;
         // P2 观测：宿主注入的诊断 sink（category,message → 日志门面）接到运行时统一出口。
@@ -117,11 +134,27 @@ public static class HtmlBridgeAssembly
         return runtime.Readiness;
     }
 
+    /// <summary>R2：写回目标 <c>region:&lt;key&gt;</c> 须在页面 regions 声明内；未声明 → 装配期问题（不静默）。</summary>
+    private static void ValidateRegionTargets(
+        HtmlRuntimeReadinessReport report,
+        IReadOnlyDictionary<string, ControlConfig> index,
+        RegionCatalog regions)
+    {
+        foreach (var control in index.Values)
+        {
+            var output = control.Events?.Bindings?.Output;
+            if (!RegionCatalog.IsRegionTarget(output)) continue;
+            var key = RegionCatalog.Normalize(output!);
+            if (!regions.IsDeclared(key))
+                report.AddProblem($"output 区域未声明: {control.Name} → region:{key}");
+        }
+    }
     /// <summary>填充就绪报告静态可判定项：绑定函数是否在注册库、output 写回目标是否唯一命中索引；缺失记入 Problems。</summary>
     private static void PopulateStaticReadiness(
         HtmlRuntimeReadinessReport report,
         IReadOnlyDictionary<string, ControlConfig> index,
-        ITrConfigRegistry registry)
+        ITrConfigRegistry registry,
+        IReadOnlySet<string>? workflowNames = null)
     {
         var missing = new List<string>();
         var unresolvedOutputs = new List<string>();
@@ -132,11 +165,13 @@ public static class HtmlBridgeAssembly
             foreach (var fn in functions.Values.SelectMany(f => f))
             {
                 if (string.IsNullOrWhiteSpace(fn)) continue;
-                if (!registry.Contains(fn))
+                if (!registry.Contains(fn) && (workflowNames is null || !workflowNames.Contains(fn)))
                     missing.Add($"{control.Name}.{fn}");
             }
             var output = control.Events.Bindings?.Output;
+            // R2：region: 目标由区域声明单独校验（ValidateRegionTargets），不参与控件索引唯一性判定。
             if (!string.IsNullOrWhiteSpace(output)
+                && !RegionCatalog.IsRegionTarget(output)
                 && !index.ContainsKey(output)
                 && !index.ContainsKey(HtmlDeclarationParser.HostKey(output))
                 && !index.ContainsKey(HtmlDeclarationParser.PageKey(output)))

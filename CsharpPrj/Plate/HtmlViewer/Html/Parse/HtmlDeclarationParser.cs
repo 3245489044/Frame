@@ -36,8 +36,8 @@ public static class HtmlDeclarationParser
     /// <summary>域名常量（P4 域隔离）：外层宿主物理控件 <c>host:</c>；htmlPage 内元素 <c>page:</c>。
     /// 同名控件按域前缀消歧，output/脚本 target 显式带域。设计理由：外层承载 events.message 的事件桥定位与写回，
     /// 页内元素承载渲染内容，两者同裸名时语义含混（见 8.26 重构方案 R4）。</summary>
-    public const string HostDomainPrefix = "host:";
-    public const string PageDomainPrefix = "page:";
+    public const string HostDomainPrefix = TConfig.InteractionDomains.Host;
+    public const string PageDomainPrefix = TConfig.InteractionDomains.Page;
 
     /// <summary>把控件名提升到 host 域（外层物理控件定位键）。</summary>
     public static string HostKey(string name) => HostDomainPrefix + name;
@@ -90,7 +90,10 @@ public static class HtmlDeclarationParser
         if (config.Views is not null)
         {
             foreach (var view in config.Views)
+            {
                 IndexControlsDomain(view.Controls, index);
+                IndexEventTargets(view.Controls, index);
+            }
         }
         var dict = new Dictionary<string, ControlConfig>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in index.GetAll())
@@ -117,6 +120,24 @@ public static class HtmlDeclarationParser
             foreach (var child in pageControls) yield return child;
     }
 
+    /// <summary>页面级事件目标（R4）：只登记索引，不进入布局渲染（eventTargets 键 → <c>page:</c> 域）。</summary>
+    private static void IndexEventTargets(List<ControlConfig>? controls, TreeIndex<ControlConfig, string> index)
+    {
+        if (controls is null) return;
+        foreach (var root in controls)
+        {
+            HostWalker.Walk(root, (c, _) =>
+            {
+                if (c.HtmlPage?.EventTargets is not { Count: > 0 } targets) return;
+                foreach (var kvp in targets)
+                {
+                    if (kvp.Value is null) continue;
+                    if (string.IsNullOrWhiteSpace(kvp.Value.Name)) kvp.Value.Name = kvp.Key;
+                    index.RegisterNode(kvp.Value, PageDomainPrefix + kvp.Key);
+                }
+            });
+        }
+    }
     private static void IndexControlsDomain(List<ControlConfig>? controls, TreeIndex<ControlConfig, string> index)
     {
         if (controls is null) return;
@@ -174,6 +195,18 @@ public static class HtmlDeclarationParser
         return ExtractHtmlPage(hostControl, pageName);
     }
 
+    /// <summary>按宿主控件名定位其内部页面声明对象（页名不匹配视为未命中）；未命中 → null。</summary>
+    public static HtmlPageDeclaration? FindPageDeclaration(UIConfiguration config, string hostControlName, string pageName)
+    {
+        if (config is null || string.IsNullOrWhiteSpace(hostControlName)) return null;
+        if (!BuildControlIndex(config).TryGetValue(hostControlName, out var hostControl)) return null;
+        var page = hostControl.HtmlPage;
+        if (page?.Controls is not { Count: > 0 }) return null;
+        if (!string.IsNullOrWhiteSpace(pageName)
+            && !string.Equals(page.Name, pageName, StringComparison.OrdinalIgnoreCase))
+            return null;
+        return page;
+    }
     /// <summary>从文件加载并解析整体声明（文件不存在 → null）；仅解析声明，不注入模板。</summary>
     public static UIConfiguration? Load(string path)
     {

@@ -118,6 +118,9 @@ public class EventBindingSystem
         return _entityManager.GetEntities<EventBindingsComponent>()
             .Where(e => _entityManager.TryGetComponent<EventBindingStateComponent>(e, out var state)
                         && state.State == EventBindingState.Pending)
+            // A1：page 域实体无物理控件（交互由 HTML 适配器入总线），物理挂接阶段直接跳过。
+            .Where(e => !_entityManager.TryGetComponent<InteractionDomainComponent>(e, out var domain)
+                        || !string.Equals(domain.Domain, TConfig.InteractionDomains.PageName, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 

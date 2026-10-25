@@ -107,6 +107,10 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         _eventBridge = new HtmlEventBridge(declaration, channel, invoker);
         // P0：事件桥的计划产物（RenderOutput.Plan）经本运行时（写协调器）单点落地——领域侧只产产物、不触通道。
         _eventBridge.RenderExecutor = this;
+        // B2/R3：页面回投 uiState 的落点（装配期按 htmlPage.state 初始化）。
+        _eventBridge.PageState = PageState;
+        // R2：区域写端口自注册（事件总线按元素归属解析拥有者；Dispose 注销）。
+        PageRegionWriterRegistry.Register(this);
         // 脚本桥与事件桥共享同一通道；exec 端口取文本叙述（计划产物不适用脚本 exec，单一实例避免重复 new）。
         _scriptBridge = new HtmlScriptBridge(channel,
             async (name, parameters) => (await invoker(name, parameters).ConfigureAwait(false)).Text ?? string.Empty);
@@ -115,6 +119,23 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
     }
 
     public IHtmlChannel Channel => _channel;
+
+    /// <summary>页面受控态仓库（B2/R3）：装配期按 htmlPage.state 初始化；回投/参数读取唯一来源。</summary>
+    public UiPageStateStore PageState { get; } = new();
+
+    /// <summary>交互总线端口（A2）：转发到事件桥；null = 只用旧直调路径。</summary>
+    public IHtmlInteractionPort? InteractionPort
+    {
+        get => _eventBridge.InteractionPort;
+        set => _eventBridge.InteractionPort = value;
+    }
+
+    /// <summary>交互路由（A2 灰度开关）。</summary>
+    public HtmlInteractionRoute InteractionRoute
+    {
+        get => _eventBridge.InteractionRoute;
+        set => _eventBridge.InteractionRoute = value;
+    }
 
     /// <summary>
     /// 消息调度器（F1，可选）：装配后页面消息只在 UI 线程入队（O(1)），
@@ -286,6 +307,7 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
         foreach (var kv in _hostSubscriptions)
             kv.Value.Dispose();
         _hostSubscriptions.Clear();
+        PageRegionWriterRegistry.Unregister(this);
         (MessageScheduler as IDisposable)?.Dispose();
         MessageScheduler = null;
     }

@@ -1,4 +1,7 @@
 
+using System.Linq;
+using System.Text.Json.Serialization;
+
 namespace TConfig;
 
 public class WorkflowDefinitionEntry
@@ -34,6 +37,10 @@ public class WorkflowDefinitionEntry
     };
 }
 
+/// <summary>
+/// 工作流节点声明（B0：暴露既有 RGE 能力——条件/循环/重试/超时/子节点）。
+/// 缺省（未声明新字段）时行为等价旧单节点映射。
+/// </summary>
 public class WorkflowNodeEntry
 {
     public string Id { get; init; } = string.Empty;
@@ -49,19 +56,63 @@ public class WorkflowNodeEntry
 
     public string? OutputTarget { get; init; }
 
-    public StepDefinition ToStepDefinition() => new()
+    /// <summary>步骤类型（json <c>stepType</c>）：Function（缺省）/ Condition / Loop。</summary>
+    public string? StepType { get; init; }
+
+    /// <summary>真分支/循环体子节点（json <c>children</c>）。Condition 的 <c>children</c> 为真分支。</summary>
+    public List<WorkflowNodeEntry>? Children { get; init; }
+
+    /// <summary>假分支子节点（json <c>elseChildren</c>）；仅 Condition 使用。</summary>
+    [JsonPropertyName("elseChildren")]
+    public List<WorkflowNodeEntry>? ElseChildren { get; init; }
+
+    /// <summary>循环配置（json <c>loop</c>）；仅 Loop 使用。</summary>
+    public LoopConfig? Loop { get; init; }
+
+    /// <summary>重试次数（json <c>retryCount</c>）；null = 继承默认（0）。</summary>
+    public int? RetryCount { get; init; }
+
+    /// <summary>重试间隔毫秒（json <c>retryDelayMs</c>）；null = 继承默认（1000）。</summary>
+    public int? RetryDelayMs { get; init; }
+
+    /// <summary>单步超时毫秒（json <c>timeoutMs</c>）；null = 继承默认（30000）。</summary>
+    public int? TimeoutMs { get; init; }
+
+    /// <summary>附加元数据（json <c>metadata</c>）；与框架键合并（框架键优先）。</summary>
+    public Dictionary<string, object>? Metadata { get; init; }
+
+    public StepDefinition ToStepDefinition()
     {
-        Id = $"step_{FunctionName ?? Id}",
-        Name = FunctionName ?? Id,
-        StepType = "Function",
-        FunctionName = FunctionName,
-        Parameters = Parameters,
-        Metadata = new Dictionary<string, object>
+        var metadata = new Dictionary<string, object>();
+        if (Metadata != null)
         {
-            ["OutputKey"] = OutputKey ?? string.Empty,
-            ["OutputTarget"] = OutputTarget ?? string.Empty,
-            ["NodeId"] = Id,
-            ["InputKeys"] = InputKeys ?? new List<string>()
+            foreach (var kvp in Metadata)
+                metadata[kvp.Key] = kvp.Value;
         }
-    };
+        metadata["OutputKey"] = OutputKey ?? string.Empty;
+        metadata["OutputTarget"] = OutputTarget ?? string.Empty;
+        metadata["NodeId"] = Id;
+        metadata["InputKeys"] = InputKeys ?? new List<string>();
+
+        return new StepDefinition
+        {
+            Id = $"step_{FunctionName ?? Id}",
+            Name = FunctionName ?? Id,
+            StepType = string.IsNullOrWhiteSpace(StepType) ? "Function" : StepType!,
+            FunctionName = FunctionName,
+            Parameters = Parameters,
+            TimeoutMs = TimeoutMs ?? 30000,
+            RetryCount = RetryCount ?? 0,
+            RetryDelayMs = RetryDelayMs ?? 1000,
+            LoopConfig = Loop,
+            Children = MapChildren(Children),
+            FalseChildren = MapChildren(ElseChildren),
+            Metadata = metadata
+        };
+    }
+
+    private static List<StepDefinition> MapChildren(List<WorkflowNodeEntry>? children)
+        => children is { Count: > 0 }
+            ? children.Where(c => c != null).Select(c => c!.ToStepDefinition()).ToList()
+            : new List<StepDefinition>();
 }

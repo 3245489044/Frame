@@ -57,12 +57,15 @@ public static class EventBindingDeclarationFactory
         if (config.Views == null || config.Views.Count == 0)
             return declarations;
 
-        ControlTreeWalker.WalkAllViews(config, ctrl =>
+        ControlTreeWalker.WalkAllDomains(config, (ctrl, domain, _) =>
         {
             if (ctrl?.Events?.Bindings == null) return;
             if (ctrl.Events.EventsDictionary == null) return;
 
             var bindings = ctrl.Events.Bindings;
+            var sourceName = domain == TConfig.InteractionDomains.PageName
+                ? TConfig.InteractionDomains.Qualify(domain, ctrl.Name)
+                : ctrl.Name;
 
             foreach (var kv in ctrl.Events.EventsDictionary)
             {
@@ -81,7 +84,7 @@ public static class EventBindingDeclarationFactory
 
                     declarations.Add(new EventBindingDeclaration<IReadOnlyList<ParameterBinding>>
                     {
-                        SourceName = ctrl.Name,
+                        SourceName = sourceName,
                         EventType = eventName,
                         FunctionName = functionName,
                         Parameters = parameters,

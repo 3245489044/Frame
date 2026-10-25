@@ -36,6 +36,13 @@ public class UIConfiguration
     /// 单源且被 <c>HtmlBridgeAssembly.AttachTemplatesAndTheme</c> 消费（禁构建产物副本）。</para></summary>
     [JsonPropertyName("templates")]
     public Dictionary<string, string>? Templates { get; set; }
+
+    /// <summary>
+    /// 受控意图声明（B1）：页面交互动作的合法动词表（如 <c>view.select</c>）；由配置声明、通用框架零领域词汇。
+    /// 消费方：<c>IntentCatalog.From</c>（装配期门禁/诊断）。
+    /// </summary>
+    [JsonPropertyName("intents")]
+    public List<string>? Intents { get; set; }
 }
 
 public class BootPhase

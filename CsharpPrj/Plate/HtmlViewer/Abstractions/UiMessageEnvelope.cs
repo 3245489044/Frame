@@ -24,6 +24,9 @@ public sealed record UiMessageEnvelope(
     string? PayloadText,
     string Raw)
 {
+    /// <summary>页面回投的受控态原文（<c>uiState</c> 对象；无 ⇒ null）。B2：状态外置的唯一读取入口。</summary>
+    public string? UiStateJson { get; init; }
+
     /// <summary>无法归类时的命令名（非 JSON / 非对象 / 空负载）。</summary>
     public const string FallbackKind = "message";
 
@@ -46,7 +49,10 @@ public sealed record UiMessageEnvelope(
             var payloadText = root.TryGetProperty("payload", out var pl) && pl.ValueKind == JsonValueKind.String
                 ? pl.GetString()
                 : root.GetRawText();
-            return new(kind, eventName, controlName, scope, payloadText, raw);
+            var uiStateJson = root.TryGetProperty("uiState", out var uiState) && uiState.ValueKind == JsonValueKind.Object
+                ? uiState.GetRawText()
+                : null;
+            return new(kind, eventName, controlName, scope, payloadText, raw) { UiStateJson = uiStateJson };
         }
         catch (JsonException)
         {

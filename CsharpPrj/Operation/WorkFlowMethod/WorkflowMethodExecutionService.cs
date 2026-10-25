@@ -99,13 +99,7 @@ namespace WorkFlowMethod.Usage
                     Name = workflowDef.Name,
                     ResultMode = TConfig.ResultCollectionMode.Single,
                     Steps = effectiveNodes
-                        .Select(n =>
-                        {
-                            var step = n!.ToStepDefinition();
-                            // 步骤参数仅取命名参数中 InputKeys 白名单键（对齐栈B inputKeys 过滤）。
-                            step.Parameters = BuildStepParameters(n, namedParameters);
-                            return step;
-                        })
+                        .Select(n => BuildStepDefinition(n!, namedParameters))
                         .ToList(),
                     Metadata = new Dictionary<string, object>
                     {
@@ -174,14 +168,56 @@ namespace WorkFlowMethod.Usage
         }
 
         /// <summary>
-        /// 构建步骤参数：仅白名单 InputKeys 从命名参数取值（对齐栈B inputKeys 过滤语义）；
-        /// 未声明 InputKeys 时使用全部命名参数。
+        /// 递归构建步骤（B0）：节点树（children/elseChildren）原样保留为 <see cref="TConfig.StepDefinition.Children"/> /
+        /// <see cref="TConfig.StepDefinition.FalseChildren"/>，参数按节点自身 InputKeys 过滤后递归注入。
+        /// </summary>
+        private static TConfig.StepDefinition BuildStepDefinition(
+            WorkflowNodeEntry node,
+            Dictionary<string, object> namedParameters)
+        {
+            var step = node.ToStepDefinition();
+            step.Parameters = BuildStepParameters(node, namedParameters);
+
+            if (node.Children is { Count: > 0 })
+            {
+                step.Children = node.Children
+                    .Where(c => c != null)
+                    .Select(c => BuildStepDefinition(c!, namedParameters))
+                    .ToList();
+            }
+
+            if (node.ElseChildren is { Count: > 0 })
+            {
+                step.FalseChildren = node.ElseChildren
+                    .Where(c => c != null)
+                    .Select(c => BuildStepDefinition(c!, namedParameters))
+                    .ToList();
+            }
+
+            return step;
+        }
+
+        /// <summary>
+        /// 构建步骤参数：节点声明参数为底（字面量/占位），命名参数按 InputKeys 白名单覆盖（对齐栈B inputKeys 过滤语义）；
+        /// 未声明 InputKeys 时命名参数全量覆盖。声明参数此前被整体丢弃，导致节点级字面量无法随工作流下发。
         /// </summary>
         private static Dictionary<string, object> BuildStepParameters(
             WorkflowNodeEntry node,
             Dictionary<string, object> namedParameters)
         {
             var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+
+            if (node.Parameters is Dictionary<string, object> declared)
+            {
+                foreach (var kvp in declared)
+                    result[kvp.Key] = kvp.Value;
+            }
+            else if (node.Parameters is System.Text.Json.JsonElement element
+                     && element.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                foreach (var prop in element.EnumerateObject())
+                    result[prop.Name] = ConvertJsonToObject(prop.Value)!;
+            }
 
             if (node.InputKeys is { Count: > 0 })
             {

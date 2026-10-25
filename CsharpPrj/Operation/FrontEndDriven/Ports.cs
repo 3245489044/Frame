@@ -23,6 +23,8 @@ using FrontEndDriven.Shared.Utils;
 using TConfig.ECS.Components;
 using System.Windows.Forms;
 using FrameworkAbstractions.ComponentRegistry;
+using FrontEndDriven.ControlInteraction.Interaction;
+using Share.EventBindingOrchestrator.Binding;
 
 namespace Ports;
 
@@ -865,7 +867,7 @@ public sealed class EcsInputPort
         // FrontEndDriven 亦解析 events.bindings.workflows：把配置树中声明的显式工作流定义
         // 注册进事件执行服务（WorkflowMethodExecutionService → FunctionHub），使事件绑定可将
         // click 指向工作流名执行多节点编排（而非裸函数自动包装），参数经事件命名参数传递。
-        RegisterDeclaredWorkflows(config);
+        RegisterDeclaredWorkflows(config, scope);
 
         var rootEntity = _configDrivenFactory.Convert(config, scope);
 
@@ -876,53 +878,42 @@ public sealed class EcsInputPort
     }
 
     /// <summary>
-    /// FrontEndDriven 配置侧工作流注册（对齐 BackEndDriven BindingMetadataTransformer → RegisterWorkflows 语义）：
-    /// 递归扫描 UIConfiguration 控件树，收集各控件 events.bindings.workflows 的显式工作流定义，
-    /// 合并后一次性注册进 IEventExecutionService（WorkflowMethodExecutionService → FunctionHub），
-    /// 使事件绑定可将 click 指向工作流名、参数经工作流命名参数 ${...} 传递、输出经节点 outputTarget 回写。
+    /// FrontEndDriven 配置侧交互注册（A0/A1）：UIConfiguration → 交互图（host/page 两域）→
+    /// ① 注册 page 域实体（无物理控件，供 EcsEventBus 按域限定键命中）；
+    /// ② 合并两域 bindings.workflows 并一次性注册（同名冲突 fail-fast，禁静默覆盖）。
     /// </summary>
-    private static void RegisterDeclaredWorkflows(UIConfiguration config)
+    private void RegisterDeclaredWorkflows(UIConfiguration config, string scope)
     {
         if (config?.Views is not { Count: > 0 })
             return;
 
-        Dictionary<string, TConfig.WorkflowDefinitionEntry>? collected = null;
+        var nodes = InteractionGraphProjector.Project(config);
+        if (nodes.Count == 0) return;
 
-        void Collect(TConfig.ControlConfig? control)
+        var registeredEntities = new InteractionEntityRegistrar(_entityManager).Register(nodes, scope);
+
+        var collected = InteractionGraphProjector.CollectWorkflows(nodes, out var conflicts);
+        if (conflicts.Count > 0)
         {
-            if (control == null) return;
-
-            if (control.Events?.Bindings?.Workflows is { Count: > 0 })
-            {
-                collected ??= new Dictionary<string, TConfig.WorkflowDefinitionEntry>(StringComparer.OrdinalIgnoreCase);
-                foreach (var kvp in control.Events.Bindings.Workflows)
-                    collected[kvp.Key] = kvp.Value;
-            }
-
-            if (control.Controls is { Count: > 0 })
-                foreach (var c in control.Controls) Collect(c);
-            if (control.Panel1Controls is { Count: > 0 })
-                foreach (var c in control.Panel1Controls) Collect(c);
-            if (control.Panel2Controls is { Count: > 0 })
-                foreach (var c in control.Panel2Controls) Collect(c);
+            throw new InvalidOperationException(
+                $"交互工作流声明冲突（禁止静默覆盖）：{string.Join("; ", conflicts)}");
         }
 
-        foreach (var view in config.Views)
-        {
-            if (view?.Controls is { Count: > 0 })
-                foreach (var c in view.Controls) Collect(c);
-        }
+        if (collected.Count == 0)
+            return;
 
-        if (collected is { Count: > 0 })
+        var exec = FrameworkAbstractions.ComponentRegistry.AppServiceProvider
+            .Resolve<TConfig.IEventExecutionService>();
+        if (exec != null)
         {
-            var exec = FrameworkAbstractions.ComponentRegistry.AppServiceProvider
-                .Resolve<TConfig.IEventExecutionService>();
-            if (exec != null)
-            {
-                exec.RegisterWorkflows(collected);
-                FrontEndDrivenLog.Log("EcsInputPort_RegisterWorkflows",
-                    new { workflowCount = collected.Count, names = string.Join(",", collected.Keys.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)) });
-            }
+            exec.RegisterWorkflows(collected);
+            FrontEndDrivenLog.Log("EcsInputPort_RegisterWorkflows",
+                new
+                {
+                    workflowCount = collected.Count,
+                    pageEntities = registeredEntities,
+                    names = string.Join(",", collected.Keys.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+                });
         }
     }
 

@@ -41,6 +41,76 @@ namespace Share.EventBindingOrchestrator.Utils
             }
         }
 
+        /// <summary>
+        /// 统一交互遍历（A0 单源）：host 域 = 物理控件树（Controls/Panel1/Panel2）；
+        /// page 域 = 宿主控件 <see cref="ControlConfig.HtmlPage"/> 内的元素树（含嵌套容器，但不再下钻 page 元素自身的内嵌 htmlPage）。
+        /// 消费者据此同时拿到两域节点与域限定键，避免各层各写一套遍历（漏 page 域或误把 page 当物理控件）。
+        /// </summary>
+        public static void WalkAllDomains(
+            UIConfiguration config,
+            Action<ControlConfig, string, string> action)
+        {
+            if (config?.Views == null || action == null) return;
+
+            foreach (var view in config.Views)
+            {
+                if (view?.Controls is not { Count: > 0 }) continue;
+
+                foreach (var root in view.Controls)
+                    WalkHostNode(root, path: string.Empty, action);
+            }
+
+            static void WalkHostNode(ControlConfig node, string path, Action<ControlConfig, string, string> sink)
+            {
+                if (node == null) return;
+
+                var nodePath = string.IsNullOrWhiteSpace(path) ? node.Name : $"{path}.{node.Name}";
+                sink(node, TConfig.InteractionDomains.HostName, nodePath);
+
+                if (node.HtmlPage?.Controls is { Count: > 0 } pageRoots)
+                {
+                    foreach (var pageRoot in pageRoots)
+                        WalkPageNode(pageRoot, $"{nodePath}#{node.HtmlPage.Name ?? "page"}", sink);
+                }
+
+                foreach (var child in HostChildren(node))
+                    WalkHostNode(child, nodePath, sink);
+            }
+
+            static void WalkPageNode(ControlConfig node, string path, Action<ControlConfig, string, string> sink)
+            {
+                if (node == null) return;
+
+                var nodePath = string.IsNullOrWhiteSpace(path) ? node.Name : $"{path}.{node.Name}";
+                sink(node, TConfig.InteractionDomains.PageName, nodePath);
+
+                foreach (var child in PageChildren(node))
+                    WalkPageNode(child, nodePath, sink);
+            }
+        }
+
+        /// <summary>host 域直接子节点（物理控件树：Controls/Panel1/Panel2）。</summary>
+        public static IEnumerable<ControlConfig> HostChildren(ControlConfig config)
+            => GetDirectChildren(config);
+
+        /// <summary>page 域直接子节点（htmlPage 内元素树：容器子控件 + 分栏面板；不含内嵌 htmlPage）。</summary>
+        public static IEnumerable<ControlConfig> PageChildren(ControlConfig config)
+        {
+            if (config == null) yield break;
+
+            if (config.Controls is { Count: > 0 })
+                foreach (var child in config.Controls)
+                    yield return child;
+
+            if (config.Panel1Controls is { Count: > 0 })
+                foreach (var child in config.Panel1Controls)
+                    yield return child;
+
+            if (config.Panel2Controls is { Count: > 0 })
+                foreach (var child in config.Panel2Controls)
+                    yield return child;
+        }
+
         public static void WalkControls(List<ControlConfig> controls, Action<ControlConfig> action)
         {
             if (controls == null) return;

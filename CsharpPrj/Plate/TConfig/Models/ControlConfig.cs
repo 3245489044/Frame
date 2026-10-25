@@ -129,4 +129,52 @@ public sealed class HtmlPageDeclaration
 
     [JsonPropertyName("height")]
     public int Height { get; set; }
+
+    /// <summary>
+    /// 页面受控态声明（B2）：槽名 → 默认值 + 归一化开关。装配期与页面回投 <c>uiState</c> 做键集合对拍，
+    /// 未声明键不落状态（禁隐式状态）。
+    /// </summary>
+    [JsonPropertyName("state")]
+    public Dictionary<string, HtmlPageStateSlot>? State { get; set; }
+
+    /// <summary>
+    /// 页面区域声明（B4）：写回目标 <c>region:&lt;key&gt;</c> 的合法域；未声明区域写入 → 装配失败。
+    /// </summary>
+    [JsonPropertyName("regions")]
+    public List<HtmlPageRegionDeclaration>? Regions { get; set; }
+    /// <summary>
+    /// 页面级事件目标声明（R4）：键=元素名（模板 data-name），值=事件/绑定声明。
+    /// 这些键不参与布局渲染，只进入交互图/域索引/实体注册——使模板动态生成的行能声明事件，
+    /// 无需为每一行创建 ControlConfig。
+    /// </summary>
+    [JsonPropertyName("eventTargets")]
+    public Dictionary<string, ControlConfig>? EventTargets { get; set; }
+}
+
+/// <summary>页面受控态槽声明（B2）。</summary>
+public sealed class HtmlPageStateSlot
+{
+    /// <summary>默认值（未回投/首次渲染时生效）；null = 无默认（槽未置位）。</summary>
+    [JsonPropertyName("default")]
+    public object? Default { get; set; }
+
+    /// <summary>归一化：trim（字符串槽）；缺省/空 = 原样。</summary>
+    [JsonPropertyName("normalize")]
+    public string? Normalize { get; set; }
+}
+
+/// <summary>页面区域声明（B4）。</summary>
+public sealed class HtmlPageRegionDeclaration
+{
+    /// <summary>区域键（写回目标 <c>region:&lt;key&gt;</c>）。</summary>
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>区域模板名（templates 段键）；null = 由数据直接投影。</summary>
+    [JsonPropertyName("template")]
+    public string? Template { get; set; }
+
+    /// <summary>流式段声明（追加写而非替换）；false = 覆盖写。</summary>
+    [JsonPropertyName("stream")]
+    public bool Stream { get; set; }
 }

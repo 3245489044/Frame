@@ -20,6 +20,7 @@ using Share.EventBindingOrchestrator.Invocation;
 using TConfig;
 using TConfig.ECS.Components;
 using UiBackend.Abstractions;
+using UiBackend.Html;
 
 namespace FrontEndDriven.ControlInteraction.EventBinding;
 
@@ -52,6 +53,9 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// <summary>F4.2：Failed 作用域提供者（缺省 null = 关闭聚合，走既有逐条 EntityNotFound 日志）。</summary>
     private readonly Func<IReadOnlyCollection<string>>? _failedScopeProvider;
 
+    /// <summary>R2：页面区域写者解析（按触发元素的域限定键找拥有该页面的运行时；缺省查注册表）。</summary>
+    private readonly Func<string, IPageRegionWriter?> _regionWriterResolver;
+
     /// <summary>F4.2：本次分发突发中已见的 EntityNotFound 命中计数（首条聚合，后续静默）。</summary>
     private int _entityNotFoundBurst;
 
@@ -72,13 +76,15 @@ public sealed class EcsEventBus : IInteractionEventPort
         IEcsStateAccessor stateAccessor,
         ControlPool controlPool,
         EntityQueryService entityQuery,
-        Func<IReadOnlyCollection<string>>? failedScopeProvider = null)
+        Func<IReadOnlyCollection<string>>? failedScopeProvider = null,
+        Func<string, IPageRegionWriter?>? regionWriterResolver = null)
     {
         _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
         _stateAccessor = stateAccessor ?? throw new ArgumentNullException(nameof(stateAccessor));
         _controlPool = controlPool ?? throw new ArgumentNullException(nameof(controlPool));
         _entityQuery = entityQuery ?? throw new ArgumentNullException(nameof(entityQuery));
         _failedScopeProvider = failedScopeProvider;
+        _regionWriterResolver = regionWriterResolver ?? PageRegionWriterRegistry.Resolve;
     }
 
     public int PendingCount => _queue.Count;
@@ -423,7 +429,7 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// append（终端/日志型目标）= 追加一行累积（<see cref="IEcsStateAccessor.AppendValue"/>）；
     /// 其余（缺省 replace）= 覆盖写。语义取值权威见 <see cref="TConfig.OutputWriteModes"/>。
     /// </summary>
-    private void WriteOutput(EventBindingComponent binding, string? text, Guid opId, UIInteractionEvent evt)
+    private void WriteOutput(EventBindingComponent binding, string target, string? text, Guid opId, UIInteractionEvent evt)
     {
         // D4 空输出不写：空 / 空白结果不得写入目标——否则 htmlviewer 值契约会 NavigateToString(空文档) 清空页面。
         if (string.IsNullOrWhiteSpace(text))
@@ -431,13 +437,13 @@ public sealed class EcsEventBus : IInteractionEventPort
 
         if (string.Equals(binding.OutputMode, TConfig.OutputWriteModes.Append, StringComparison.OrdinalIgnoreCase))
         {
-            var appended = _stateAccessor.AppendValue(binding.OutputTarget, text);
+            var appended = _stateAccessor.AppendValue(target, text);
             FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_appended",
                 new { opId, controlName = evt.ControlName, functionName = binding.FunctionName, outputTarget = binding.OutputTarget, appended });
             return;
         }
 
-        _stateAccessor.SetValue(binding.OutputTarget, text);
+        _stateAccessor.SetValue(target, text);
     }
 
     /// <summary>输出落地（单写落地 B3）：<see cref="RenderOutput"/> 携带写回计划且目标为 <see cref="HtmlViewer"/> 时，
@@ -445,40 +451,79 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// 无法落地/执行异常 → 显式告警（不静默），随后回退文本写（空则跳过）。</summary>
     private async Task WriteOutputLandingAsync(EventBindingComponent binding, object effectiveOutput, Guid opId, UIInteractionEvent evt)
     {
-        if (effectiveOutput is RenderOutput { HasPlan: true } ro)
+        var regionWriter = _regionWriterResolver(evt.ControlName);
+        var disposition = PageWriteRouting.Resolve(binding.OutputTarget, regionWriter?.Regions);
+
+        if (disposition.IsRejected)
         {
-            if (_controlPool.GetControl(binding.OutputTarget) is HtmlViewer hv && hv.RenderPlanExecutor is { } executor)
+            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_region_rejected",
+                new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                      outputTarget = binding.OutputTarget, region = disposition.RegionKey, reason = disposition.Reason,
+                      declared = regionWriter?.Regions?.Keys });
+            return;
+        }
+
+        if (!disposition.IsRegion && string.IsNullOrWhiteSpace(disposition.Target))
+        {
+            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_unresolved",
+                new { opId, controlName = evt.ControlName, functionName = binding.FunctionName });
+            return;
+        }
+        if (effectiveOutput is RenderOutput { HasPlan: true } planOutput)
+        {
+            var plan = planOutput.Plan!;
+            if (disposition.IsRegion)
+            {
+                if (regionWriter is null)
+                {
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_region_rejected",
+                        new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                              outputTarget = binding.OutputTarget, reason = "无区域写者（页面运行时未装配）" });
+                    return;
+                }
+
+                try
+                {
+                    await regionWriter.ExecutePlanAsync(plan, opId.ToString("N")).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
+                        new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                              outputTarget = binding.OutputTarget, planKind = plan.Kind.ToString(), error = ex.Message });
+                }
+                return;
+            }
+
+            var planTarget = disposition.Target;
+            if (_controlPool.GetControl(planTarget) is HtmlViewer hv && hv.RenderPlanExecutor is { } executor)
             {
                 try
                 {
-                    await executor(ro.Plan!).ConfigureAwait(false);
+                    await executor(plan).ConfigureAwait(false);
                     return;
                 }
                 catch (Exception ex)
                 {
                     FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
                         new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
-                              outputTarget = binding.OutputTarget, error = ex.Message });
+                              outputTarget = planTarget, error = ex.Message });
                 }
             }
             else
             {
-                var targetControl = _controlPool.GetControl(binding.OutputTarget);
+                var targetControl = _controlPool.GetControl(planTarget);
                 var pageViewer = targetControl as HtmlViewer;
                 FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
                     new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
-                          outputTarget = binding.OutputTarget,
-                          targetType = targetControl?.GetType().Name ?? "(null)",
+                          outputTarget = planTarget, targetType = targetControl?.GetType().Name ?? "(null)",
                           executorPresent = pageViewer?.RenderPlanExecutor is not null,
-                          planKind = ro.Plan!.Kind.ToString(),
-                          error = "目标非 HtmlViewer 或未装配计划执行器" });
+                          planKind = plan.Kind.ToString(), error = "目标非 HtmlViewer 或未装配计划执行器" });
 
-                // 兜底可见落地（C）：整页计划自带完整 HTML，装配缺失时仍经唯一整页出口落地——
-                // 不让「装配身份过期」把用户动作的产物静默丢弃（Tree/Region 计划无文本载荷，只能等重装配）。
                 if (pageViewer is not null
-                    && ro.Plan.Kind == UiWriteKind.FullDocument
-                    && ro.Plan.Targets.Count > 0
-                    && ro.Plan.Targets[0].Payload is string fallbackHtml
+                    && plan.Kind == UiWriteKind.FullDocument
+                    && plan.Targets.Count > 0
+                    && plan.Targets[0].Payload is string fallbackHtml
                     && !string.IsNullOrWhiteSpace(fallbackHtml))
                 {
                     try
@@ -489,15 +534,52 @@ public sealed class EcsEventBus : IInteractionEventPort
                     {
                         FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
                             new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
-                                  outputTarget = binding.OutputTarget, fallback = "WriteContentAsync", error = ex.Message });
+                                  outputTarget = planTarget, fallback = "WriteContentAsync", error = ex.Message });
                     }
                 }
             }
             return;
         }
-        WriteOutput(binding, effectiveOutput.ToString(), opId, evt);
-    }
 
+        if (disposition.IsRegion)
+        {
+            var text = effectiveOutput?.ToString();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_empty",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                          outputTarget = binding.OutputTarget, outputType = effectiveOutput?.GetType().Name ?? "(null)" });
+                return;
+            }
+
+            if (regionWriter is null)
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_region_rejected",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                          outputTarget = binding.OutputTarget, reason = "无区域写者（页面运行时未装配）" });
+                return;
+            }
+
+            var append = regionWriter.IsStreamRegion(disposition.RegionKey!)
+                         || string.Equals(binding.OutputMode, TConfig.OutputWriteModes.Append, StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                var write = await regionWriter.WriteRegionAsync(disposition.RegionKey!, text, append, opId.ToString("N")).ConfigureAwait(false);
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_region_written",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                          region = disposition.RegionKey, append, status = write.Status.ToString() });
+            }
+            catch (Exception ex)
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_region_failed",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                          region = disposition.RegionKey, error = ex.Message });
+            }
+            return;
+        }
+
+        WriteOutput(binding, disposition.Target, effectiveOutput.ToString(), opId, evt);
+    }
     private static EventFunctionResultKind ToKind(InvocationOutcome outcome) => outcome switch
     {
         InvocationOutcome.Completed => EventFunctionResultKind.Succeeded,
@@ -617,7 +699,8 @@ public sealed class EcsEventBus : IInteractionEventPort
                 var src = string.IsNullOrEmpty(sourceName) ? evt.ControlName : sourceName;
                 var srcEntity = FindEntityByName(src);
                 var srcControl = srcEntity.IsValid ? _controlPool.GetControl(srcEntity) : null;
-                value = (srcControl as HtmlViewer)?.LastMessagePayloadJson ?? string.Empty;
+                var payloadText = (srcControl as HtmlViewer)?.LastMessagePayloadJson;
+                value = string.IsNullOrEmpty(payloadText) ? (evt.Payload?.ToString() ?? string.Empty) : payloadText;
             }
             else if (string.IsNullOrEmpty(sourceName))
             {

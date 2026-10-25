@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.HierarchyMethod.History;
+using Operation.HierarchyMethod.Nodes.Keys;
 using Operation.HierarchyMethod.Nodes.Linkage;
-using Share.Conversation;
-using Share.Conversation.Ids;
+using Modules.Node.Identity;
 using Share.Conversation.Ports;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow
@@ -37,38 +37,25 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     /// </summary>
     public sealed class HierarchyTreeReader
     {
-        private readonly IHistoryStore? _historyStore;
-        private readonly IHistoryRootStore? _rootStore;
-        private readonly IHistoryRootCatalog? _catalog;
+        private readonly IHistoryRootCatalog _catalog;
         private readonly IHistoryRelationManager? _relations;
-        private readonly ReferenceGrounding? _grounding;
+        private readonly IReferenceMaintenance? _grounding;
         private readonly ITransferFlow? _transfer;
+        private readonly string _workflowId;
 
-        /// <summary>迁移期兼容构造：历史存在性来自旧 ur_histories 表行。</summary>
+        /// <summary>根目录为必填（唯一根枚举入口）；未装配即构造期失败。</summary>
         public HierarchyTreeReader(
-            IHistoryStore? historyStore,
+            IHistoryRootCatalog catalog,
             IHistoryRelationManager? relations = null,
-            ReferenceGrounding? grounding = null,
-            ITransferFlow? transfer = null)
-            : this(historyStore, null, relations, grounding, transfer)
-        {
-        }
-
-        /// <summary>目标构造：历史根只来自 root store；旧 store 仅迁移期回退。</summary>
-        public HierarchyTreeReader(
-            IHistoryStore? historyStore,
-            IHistoryRootStore? rootStore,
-            IHistoryRelationManager? relations = null,
-            ReferenceGrounding? grounding = null,
+            IReferenceMaintenance? grounding = null,
             ITransferFlow? transfer = null,
-            IHistoryRootCatalog? catalog = null)
+            string? workflowId = null)
         {
-            _historyStore = historyStore;
-            _rootStore = rootStore;
-            _catalog = catalog;
+            _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _relations = relations;
             _grounding = grounding;
             _transfer = transfer;
+            _workflowId = KeyAddressing.NormalizeNamespace(workflowId);
         }
 
 
@@ -79,13 +66,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             CancellationToken ct = default, bool includeTaskNodeKeys = false)
         {
             var nodes = new List<HierarchyTree>();
-            // DUP-1：唯一根枚举入口（root store 优先；legacy 回退须显式分类器，本处不提供 ⇒ 不产生伪根）。
-            var catalog = _catalog
-                ?? (_rootStore is not null || _historyStore is not null
-                    ? new Operation.HierarchyMethod.History.HistoryRootCatalog(_rootStore, _historyStore)
-                    : null);
-            if (catalog is null) return nodes;
-            var roots = await catalog.ListAsync(ct).ConfigureAwait(false);
+            var roots = await _catalog.ListAsync(ct).ConfigureAwait(false);
             var ids = roots.Select(r => r.Key.Value).ToList();
 
             foreach (var hid in ids)
@@ -126,7 +107,13 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
                 foreach (var k in rawKeys)
                 {
                     if (string.IsNullOrWhiteSpace(k)) continue;
-                    cleanKeys.Add(NodeKey.StripPrefix(k));
+                    if (NodeEndpointIds.TryParseNodeIdentity(k, _workflowId, out var clean) &&
+                        clean.Length > 0)
+                    {
+                        cleanKeys.Add(clean);
+                    }
+                    // 无法归属本工作流的形态（history./session./类型前缀/外来命名空间）⇒ 不猜、不入树；
+                    // 走空集而非静默原样带入（R-05：禁把异常形态原样带进层级视图）。
                 }
                 if (cleanKeys.Count > 0)
                     dict[task] = cleanKeys;

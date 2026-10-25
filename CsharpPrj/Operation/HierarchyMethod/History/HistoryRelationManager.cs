@@ -77,6 +77,14 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
         return await _maintenance.GetHistoryTasksAsync(historyId, ct).ConfigureAwait(false);
     }
 
+    /// <summary>批量成员集（R-21）：一次委托引用守卫的批量读，消除逐 root 的 N+1。</summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskKeysManyAsync(
+        IReadOnlyCollection<string> historyIds, CancellationToken ct = default)
+        => _maintenance is null
+            ? Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<string>>>(
+                new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal))
+            : _maintenance.GetHistoryTasksManyAsync(historyIds, ct);
+
     /// <summary>反向成员查询（M:N）：读 task 的 history_owns_task 入边并反解历史 Id。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default)
     {
@@ -108,24 +116,5 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     {
         if (_maintenance is null) return Array.Empty<string>();
         return await _maintenance.GetHistoryNodeKeysAsync(historyId, workflowId, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>列出全部历史容器 Id（枚举图中 ResourceType=history 端点，去 history. 前缀）。</summary>
-    public async Task<IReadOnlyList<string>> ListHistoryContainersAsync(CancellationToken ct = default)
-    {
-        if (_graph is null) return Array.Empty<string>();
-        var resources = await _graph.GetAllResourcesAsync(ct).ConfigureAwait(false);
-        var ids = new List<string>();
-        foreach (var resource in resources)
-        {
-            if (!string.Equals(resource.Identifier.ResourceType, NodeResourceTypes.History, StringComparison.Ordinal)) continue;
-            // 端点 Id → historyId 的唯一反解（单源 = HierarchyResourceKeys → 层 2；禁本地前缀拼接/切片）
-            if (HierarchyResourceKeys.TryParseHistoryId(resource.Identifier.Id, out var historyId)
-                && !string.IsNullOrWhiteSpace(historyId))
-            {
-                ids.Add(historyId);
-            }
-        }
-        return ids.Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 }

@@ -23,4 +23,11 @@
     <EmbeddedResource Include="Facts\Schema\session-fact.v1.schema.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 锚点族单源（R5）：history 锚点族 + 节点端点文法一律取层 2 键框架，禁本地第二套切分/正则。 -->
+    <ProjectReference Include="$(Proj_Parsing_Keys)" />
+    <ProjectReference Include="$(Proj_KeySpace)" />
+    <ProjectReference Include="$(Proj_Node)" />
+  </ItemGroup>
+
 </Project>

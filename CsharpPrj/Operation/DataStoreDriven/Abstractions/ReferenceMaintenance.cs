@@ -2,28 +2,22 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Relations;
-using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Abstractions
 {
-    /// <summary>
-    /// 对账作用域：单节点 / 全图（守卫编排的 Reconcile 两级入口）。
-    /// </summary>
+    /// <summary>对账作用域：单节点 / 全图。</summary>
     public enum MaintenanceScope
     {
         /// <summary>单节点：仅对账指定节点（携带 workflowId + nodeKey）。</summary>
         Node,
 
-        /// <summary>全图：对账全部业务节点（复用全量对账器语义）。</summary>
+        /// <summary>全图：对账全部业务节点。</summary>
         All,
     }
 
-    /// <summary>
-    /// 图对账差异报告（A5）—— 维护面 <c>graph.maintain=diff</c> 的判据载荷：
-    /// 差异计数（悬空端点数）+ 本次对账处理节点数。差异计数登记入门禁基线（只减不增）。
-    /// </summary>
-    /// <param name="DanglingNodeResources">图库中无对应业务节点的悬空 node 资源 Id（仅报告，不自动删除，防级联误删）。</param>
-    /// <param name="ReconciledNodes">本次对账处理的业务节点数（携带关系状态并已收敛）。</param>
+    /// <summary>图对账差异报告（A5）：差异计数（悬空端点数）+ 本次对账处理节点数。</summary>
+    /// <param name="DanglingNodeResources">图库中无对应业务节点的悬空 node 资源 Id（仅报告，不自动删除）。</param>
+    /// <param name="ReconciledNodes">本次对账处理的业务节点数。</param>
     public sealed record GraphMaintenanceDiff(
         IReadOnlyList<string> DanglingNodeResources,
         int ReconciledNodes)
@@ -34,94 +28,61 @@ namespace Operation.DataStoreDriven.Abstractions
 
     /// <summary>
     /// 引用关系维护守卫（唯一守卫入口，对齐 SingleImplementation / TH-12）。
-    /// 业务/执行/UI/声明/存储桥一律经本端口写入引用层；本守卫只负责「何时写 / 推导出哪些边 / 对账编排」，
-    /// 写边原语仍在 <c>ReferenceGraphCoordinator</c>（纯执行者，本守卫不复制写边逻辑）。
-    /// 装配可空：未装配守卫（DB-only / 无引用层）的调用方跳过，不依赖具体装饰器类型（对齐「移除运行时类型判断」）。
+    /// <para>
+    /// 通用图维护面下沉到 <see cref="IGraphGrounding"/>（节点镜像 / 权威边 / 声明 / 对账 / 重建 / 墓碑 / seed）；
+    /// 本接口只保留**领域语义**成员（task / history / session）。
+    /// </para>
     /// </summary>
-    public interface IReferenceMaintenance
+    public interface IReferenceMaintenance : IGraphGrounding
     {
-        /// <summary>镜像业务节点内容（upsert：存在更新 symbol/metadata，不存在新增；不删引用边）。</summary>
-        Task MirrorNodeAsync(string workflowId, NodeRecord node, CancellationToken ct = default);
-
-        /// <summary>镜像 node 端点（业务节点写透，白名单仅 {node}）。</summary>
-        Task EnsureNodeMirrorAsync(string workflowId, string nodeKey, string? symbol = null, CancellationToken ct = default);
-
-        /// <summary>移除 node 端点镜像（级联清边）。</summary>
-        Task RemoveNodeMirrorAsync(string workflowId, string nodeKey, CancellationToken ct = default);
-
         /// <summary>镜像 task 端点（Id=taskKey，幂等）。</summary>
         Task EnsureTaskMirrorAsync(string taskKey, CancellationToken ct = default);
 
         /// <summary>移除 task 端点镜像（级联清边）。</summary>
         Task RemoveTaskMirrorAsync(string taskKey, CancellationToken ct = default);
 
-        /// <summary>权威边集写入：以 <paramref name="authoritative"/> 为权威边集，收敛到图（经协调器原子 apply，删残留 + 补缺失）。</summary>
-        Task WriteRelationsAsync(string workflowId, string nodeKey,
-            IReadOnlyCollection<NodeRelation> authoritative, CancellationToken ct = default);
-
-        /// <summary>task 关联节点：注册 task 端点 + 与关联节点建 task→node 边（幂等；增量维护任务关联）。</summary>
+        /// <summary>task 关联节点：注册 task 端点 + 与关联节点建 task→node 边（幂等）。</summary>
         Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
             string workflowId = "", CancellationToken ct = default);
 
-        /// <summary>运行时 task 归属边（cross_db_link，真多对多）：task（ur_tasks）→ 节点（ur_nodes）。幂等加法，
-        /// 同一节点可被多 task 共享引用；不并入数据流权威边集（避免 WriteRelationsAsync 按目标节点删残留时误删本归属边）。</summary>
+        /// <summary>运行时 task 归属边（cross_db_link）：task（ur_tasks）→ 节点（ur_nodes）。幂等加法。</summary>
         Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>解除 task 与节点的关联边（M:N 撤销：task→node cross_db_link 出边移除；节点删除时须级联清多 task 归属）。</summary>
+        /// <summary>解除 task 与节点的关联边（M:N 撤销）。</summary>
         Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像（History=Task 更上层容器，归拢多 task 多 node）。</summary>
+        /// <summary>该 task 关联的节点键集（task 作用域寻址；供执行期输入解析）。</summary>
+        Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
+
+        /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像。</summary>
         Task EnsureHistoryMirrorAsync(string historyId, CancellationToken ct = default);
 
-        /// <summary>移除历史根端点镜像（级联清边；删除历史即删除其引用图锚点）。</summary>
+        /// <summary>移除历史根端点镜像（级联清边）。</summary>
         Task RemoveHistoryMirrorAsync(string historyId, CancellationToken ct = default);
 
-        /// <summary>历史归拢任务：history.{historyId} → task（taskKey）引用边（幂等加法；一个历史归拢多个任务）。</summary>
+        /// <summary>历史归拢任务：history.{historyId} → task（taskKey）引用边（幂等加法）。</summary>
         Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>解除历史归拢任务边（历史 → task 出边移除）。</summary>
         Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
 
-        /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集（History class 容器成员）。</summary>
+        /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集。</summary>
         Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default);
 
-        /// <summary>【**已退役**（W1）】历史挂载节点曾写 <c>history_owns_node</c> 边；该边已降级为**派生视图**
-        /// ⇒ 实现抛 <see cref="System.NotSupportedException"/>（成员保留仅为源兼容；调用即语义错误）。</summary>
+        /// <summary>批量成员集（一次持锁读多个历史出边，避免逐 history 门等待）。</summary>
+        Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTasksManyAsync(
+            IReadOnlyCollection<string> historyIds, CancellationToken ct);
+
+        /// <summary>【**已退役**（W1）】历史挂载节点曾写 <c>history_owns_node</c> 边；调用即抛。</summary>
         Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>按历史查工作流节点键集（历史作用域寻址）。**派生视图**（<c>history_owns_node</c> 已退役，
-        /// 不独立存边）：= 该历史全部归拢任务的 task→node 边并集。</summary>
+        /// <summary>按历史查工作流节点键集（派生视图：该历史全部任务的 task→node 边并集）。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
-        /// <summary>会话归属边（session_owns）：把业务节点（消息/工作流产出）挂到会话根（幂等加法）。</summary>
+        /// <summary>会话归属边（session_owns）：把业务节点挂到会话根（幂等加法）。</summary>
         Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 
-        /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键（会话作用域寻址）。</summary>
+        /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键。</summary>
         Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default);
-
-        /// <summary>工作流静态引用（组合 + 控制流）seed 写入：tombstone-aware create-only（不覆盖用户删除）。</summary>
-        Task WriteStaticReferencesAsync(string workflowId,
-            IReadOnlyCollection<StaticReference> references, CancellationToken ct = default);
-
-        /// <summary>主动声明关系（G1）：显式写 LiteDB ur_relations（USharp [Record]）+ 声明派生边（声明优先，幂等）。</summary>
-        Task DeclareRelationsAsync(string workflowId, IReadOnlyCollection<RelationDeclarationEntry> declarations, CancellationToken ct = default);
-
-        /// <summary>撤销声明：置 status=revoked（软删，只增）→ 级联清边。</summary>
-        Task UndeclareRelationsAsync(string workflowId, IReadOnlyCollection<string> relationIds, CancellationToken ct = default);
-
-        /// <summary>列出全部声明（含状态）；workflowId 为空则列全部。</summary>
-        Task<IReadOnlyList<RelationDeclarationEntry>> ListRelationsAsync(string? workflowId = null, CancellationToken ct = default);
-
-        /// <summary>对账（单节点 / 全图两级），返回处理节点数（以 LiteDB 声明集合为参照，不读 SQL）。</summary>
-        Task<int> ReconcileAsync(MaintenanceScope scope, string? workflowId = null, string? nodeKey = null, CancellationToken ct = default);
-
-        /// <summary>全量重建：清空图库 → 从 LiteDB 自身集合重灌（ur_relations 声明边重建），幂等可重复。</summary>
-        Task RebuildAllAsync(CancellationToken ct = default);
-
-        /// <summary>
-        /// 图对账差异报告（A5，维护面 <c>graph.maintain=diff</c>）：先全量对账收敛（图 ← LiteDB 声明权威），
-        /// 再报告「悬空端点」（无任何引用边的 node 端点）与本次对账节点数。返回差异计数即「只减不增」判据的载体。
-        /// </summary>
-        Task<GraphMaintenanceDiff> GetDiffAsync(CancellationToken ct = default);
     }
 }

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using Modules.KeySpace.Model;
+using Modules.KeySpace.Rules;
 using Modules.Parsing.Keys;
 
 namespace Modules.Node.Identity;
@@ -22,24 +26,71 @@ namespace Modules.Node.Identity;
 /// </summary>
 public static class NodeEndpointIds
 {
+    private static readonly KeyFamily HistoryFamily = new(
+        "hierarchy.history",
+        "history:{historyId}",
+        "history.",
+        KeyRelation.Container,
+        KeyCardinality.Many,
+        Array.Empty<string>(),
+        IdentityKeys: new[] { "historyId" },
+        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
+        {
+            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "history:{historyId}" }, "history:"),
+            [KeySurface.Endpoint] = new KeySurfaceSpec(KeySurface.Endpoint, new[] { "history.{historyId}" }, "history."),
+        });
+
+    private static readonly KeyFamily NodeFamily = new(
+        "hierarchy.node",
+        "{workflowId}.{nodeKey}[@{instanceKey}]",
+        string.Empty,
+        KeyRelation.Member,
+        KeyCardinality.Many,
+        Array.Empty<string>(),
+        IdentityKeys: new[] { "nodeKey" },
+        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
+        {
+            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "{nodeKey}[@{instanceKey}]" }),
+            [KeySurface.Endpoint] = new KeySurfaceSpec(
+                KeySurface.Endpoint,
+                new[] { "{workflowId}.{nodeKey}[@{instanceKey}]", "{workflowId}.{nodeKey}" }),
+        });
+
+    private static readonly KeyFamily SessionFamily = new(
+        "hierarchy.session",
+        "session.{sessionName}",
+        "session.",
+        KeyRelation.Container,
+        KeyCardinality.Many,
+        Array.Empty<string>(),
+        IdentityKeys: new[] { "sessionName" },
+        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
+        {
+            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "session:{sessionName}" }, "session:"),
+            [KeySurface.Endpoint] = new KeySurfaceSpec(KeySurface.Endpoint, new[] { "session.{sessionName}" }, "session."),
+        });
+
+    private static readonly KeyAlgebra HierarchyKeys = new(new[] { HistoryFamily, NodeFamily, SessionFamily });
+
     /// <summary>历史容器端点 Id 文法（<c>history.{historyId}</c>）。</summary>
     public static readonly KeyGrammar HistoryGrammar =
-        KeyGrammar.Create("endpoint-history", "history.{historyId}", familyPrefix: "history.");
+        KeySurfaceRules.Grammar(HistoryFamily, KeySurface.Endpoint);
 
     /// <summary>业务节点端点 Id 文法（<c>{workflowId}.{nodeKey}</c>；与 KeyMapping 节点级规范键同形同源）。</summary>
     public static readonly KeyGrammar NodeGrammar =
-        KeyGrammar.Create("endpoint-node", "{workflowId}.{nodeKey}");
+        KeySurfaceRules.Grammar(NodeFamily, KeySurface.Endpoint, 1);
 
-    /// <summary>
-    /// 节点存储键文法（<c>{nodeKey}[@{instanceKey}]</c>；实例后缀可缺席 = legacy 裸键）。
-    /// 实例分隔符 <c>@</c> 由本模板声明一次，禁第二处字面量。
-    /// </summary>
+    /// <summary>节点存储键文法（<c>{nodeKey}[@{instanceKey}]</c>；实例后缀可缺席 = legacy 裸键）。</summary>
     public static readonly KeyGrammar NodeStorageGrammar =
-        KeyGrammar.Create("node-address", "{nodeKey}[@{instanceKey}]");
+        KeySurfaceRules.Grammar(NodeFamily, KeySurface.Storage);
 
     /// <summary>带实例的节点端点 Id 文法（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>）。</summary>
     public static readonly KeyGrammar InstanceEndpointGrammar =
-        KeyGrammar.Create("endpoint-node-instance", "{workflowId}.{nodeKey}[@{instanceKey}]");
+        KeySurfaceRules.Grammar(NodeFamily, KeySurface.Endpoint);
+
+    /// <summary>会话根端点文法（<c>session.{sessionName}</c>）。</summary>
+    public static readonly KeyGrammar SessionGrammar =
+        KeySurfaceRules.Grammar(SessionFamily, KeySurface.Endpoint);
 
     /// <summary>实例分隔符（<c>@</c>；取自存储键文法内字面段）。</summary>
     public static readonly string InstanceSeparator = NodeStorageGrammar.LiteralBefore("instanceKey");
@@ -49,6 +100,9 @@ public static class NodeEndpointIds
 
     /// <summary>历史端点 ResourceType 前缀（<c>history:</c>；由族前缀派生，禁第二处字面量）。</summary>
     private static readonly string HistoryTypePrefix = HistoryPrefix.TrimEnd('.') + ":";
+
+    /// <summary>会话端点 ResourceType 前缀（<c>session:</c>；由族前缀派生）。</summary>
+    private static readonly string SessionTypePrefix = SessionGrammar.FamilyPrefix.TrimEnd('.') + ":";
 
     /// <summary>节点端点 Id 段分隔符（<c>.</c>；取自文法内字面段）。</summary>
     public static readonly string Separator = NodeGrammar.LiteralBefore("nodeKey");
@@ -60,20 +114,60 @@ public static class NodeEndpointIds
     public static string NormalizeHistoryId(string? historyId)
         => NormalizeBare(historyId, HistoryTypePrefix, HistoryPrefix);
 
-    /// <summary>历史容器端点 Id（<c>history.{historyId}</c>；幂等：身份内已带的 <c>history:</c>/<c>history.</c> 先剥净）。</summary>
+    /// <summary>历史容器端点 Id（<c>history.{historyId}</c>；空身份即抛，不产出 <c>history.</c> 僵尸键）。</summary>
     public static string History(string? historyId)
-        => HistoryGrammar.BuildLenient(NormalizeHistoryId(historyId));
+    {
+        var identity = NormalizeHistoryId(historyId);
+        if (identity.Length == 0)
+        {
+            throw new ArgumentException(
+                "历史身份为空（history: / history. 不是身份）。", nameof(historyId));
+        }
 
-    /// <summary>业务节点端点 Id（<c>{workflowId}.{nodeKey}</c>；幂等：<c>nodeKey</c> 已带本 workflowId 前缀时先剥一次）。</summary>
+        return HierarchyKeys.Build(
+            KeyPoint.Of(HistoryFamily.Id, ("historyId", identity)), KeySurface.Endpoint).Value;
+    }
+
+    /// <summary>历史身份的行键形态（<c>history:{identity}</c>；空身份 ⇒ 空串）。</summary>
+    public static string ToHistoryRowKey(string? value)
+    {
+        var identity = NormalizeHistoryId(value);
+        return identity.Length == 0 ? string.Empty : HistoryTypePrefix + identity;
+    }
+
+    /// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>
+    public static string NormalizeSessionId(string? sessionName)
+        => NormalizeBare(sessionName, SessionTypePrefix, SessionGrammar.FamilyPrefix);
+
+    /// <summary>会话根端点 Id（<c>session.{name}</c>；空身份即抛）。</summary>
+    public static string Session(string? sessionName)
+    {
+        var identity = NormalizeSessionId(sessionName);
+        if (identity.Length == 0)
+        {
+            throw new ArgumentException(
+                "会话身份为空（session: / session. 不是身份）。", nameof(sessionName));
+        }
+
+        return HierarchyKeys.Build(
+            KeyPoint.Of(SessionFamily.Id, ("sessionName", identity)), KeySurface.Endpoint).Value;
+    }
+
+    /// <summary>业务节点端点 Id（<c>{workflowId}.{nodeKey}</c>；幂等：<c>nodeKey</c> 已带本 workflowId 前缀时先剥一次）。
+    /// <para>节点身份为空 ⇒ 抛（不产出 <c>.key</c> 半成品）；workflowId 为空 ⇒ 退化为存储面裸键（既有「空命名空间 = 裸键」口径）。</para></summary>
     public static string Node(string? workflowId, string? nodeKey)
     {
         var wf = (workflowId ?? string.Empty).Trim();
-        var key = (nodeKey ?? string.Empty).Trim();
-        if (wf.Length > 0)
+        var key = RequireNodeKey(nodeKey, nameof(nodeKey));
+        if (wf.Length == 0)
         {
-            key = StripOnce(key, wf + Separator);
+            return Storage(key, null);
         }
-        return NodeGrammar.BuildLenient(wf, key);
+
+        key = StripOnce(key, wf + Separator);
+        return HierarchyKeys.Build(
+            KeyPoint.Of(NodeFamily.Id, ("workflowId", wf), ("nodeKey", key)),
+            KeySurface.Endpoint).Value;
     }
 
     /// <summary>剥掉身份内层叠的 <c>{type}:</c> / 族前缀（有界收敛，保证构造是不动点）。</summary>
@@ -86,6 +180,14 @@ public static class NodeEndpointIds
             if (string.Equals(next, raw, StringComparison.Ordinal)) break;
             raw = next;
         }
+
+        if (raw.Length == 0
+            || string.Equals(raw, typePrefix, StringComparison.Ordinal)
+            || string.Equals(raw, familyPrefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
         return raw;
     }
 
@@ -96,6 +198,25 @@ public static class NodeEndpointIds
            && value.StartsWith(prefix, StringComparison.Ordinal)
             ? value[prefix.Length..]
             : value;
+
+    /// <summary>节点身份非空校验（空/空白 ⇒ 抛，禁产出 <c>.key</c> / <c>@inst</c> 半成品）。</summary>
+    private static string RequireNodeKey(string? nodeKey, string paramName)
+    {
+        var key = (nodeKey ?? string.Empty).Trim();
+        if (key.Length == 0)
+        {
+            throw new ArgumentException("节点身份为空（nodeKey 不能为空）。", paramName);
+        }
+
+        return key;
+    }
+
+    /// <summary>已知的其它族前缀（裸键兜底前显式排除，防 <c>history.*</c> / <c>session.*</c> 被误认成节点）。</summary>
+    private static bool IsForeignFamily(string value)
+        => value.StartsWith(HistoryPrefix, StringComparison.Ordinal)
+           || value.StartsWith(SessionGrammar.FamilyPrefix, StringComparison.Ordinal)
+           || value.StartsWith(HistoryTypePrefix, StringComparison.Ordinal)
+           || value.StartsWith(SessionTypePrefix, StringComparison.Ordinal);
 
     /// <summary>
     /// 由历史端点 Id 还原 historyId（含 <c>.</c> 的 Id 整段归还）；非历史端点返回 false。
@@ -113,26 +234,47 @@ public static class NodeEndpointIds
         return historyId.Length > 0;
     }
 
-    /// <summary>节点存储键（<c>{nodeKey}[@{instanceKey}]</c>；实例空 ⇒ 裸键）。</summary>
+    /// <summary>节点存储键（<c>{nodeKey}[@{instanceKey}]</c>；实例空 ⇒ 裸键；节点身份空 ⇒ 抛）。</summary>
     public static string Storage(string? nodeKey, string? instanceKey)
-        => NodeStorageGrammar.BuildLenient(nodeKey, instanceKey);
+        => HierarchyKeys.Build(
+            KeyPoint.Of(
+                NodeFamily.Id,
+                ("nodeKey", RequireNodeKey(nodeKey, nameof(nodeKey))),
+                ("instanceKey", (instanceKey ?? string.Empty).Trim())),
+            KeySurface.Storage).Value;
 
-    /// <summary>带实例的节点端点 Id（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>）。</summary>
+    /// <summary>带实例的节点端点 Id（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>；节点身份空 ⇒ 抛）。</summary>
     public static string Endpoint(string? workflowId, string? nodeKey, string? instanceKey)
-        => InstanceEndpointGrammar.BuildLenient(workflowId, nodeKey, instanceKey);
+    {
+        var wf = (workflowId ?? string.Empty).Trim();
+        var key = RequireNodeKey(nodeKey, nameof(nodeKey));
+        if (wf.Length == 0)
+        {
+            return Storage(key, instanceKey);
+        }
+
+        return HierarchyKeys.Build(
+            KeyPoint.Of(
+                NodeFamily.Id,
+                ("workflowId", wf),
+                ("nodeKey", key),
+                ("instanceKey", (instanceKey ?? string.Empty).Trim())),
+            KeySurface.Endpoint).Value;
+    }
 
     /// <summary>反解存储键（实例缺席 ⇒ 空串，不返回 null 冒充「存在且为空」）。</summary>
     public static bool TryParseStorage(string? storageKey, out string nodeKey, out string instanceKey)
     {
         nodeKey = string.Empty;
         instanceKey = string.Empty;
-        if (!NodeStorageGrammar.TryParse(storageKey, out var values))
+        if (!HierarchyKeys.TryParse(
+                storageKey, KeySurface.Storage, NodeFamily.Id, out var parsed, out _))
         {
             return false;
         }
 
-        nodeKey = values.Text("nodeKey") ?? string.Empty;
-        instanceKey = values.Text("instanceKey") ?? string.Empty;
+        nodeKey = parsed.Point.Text("nodeKey");
+        instanceKey = parsed.Point.Text("instanceKey");
         return nodeKey.Length > 0;
     }
 
@@ -143,14 +285,15 @@ public static class NodeEndpointIds
         workflowId = string.Empty;
         nodeKey = string.Empty;
         instanceKey = string.Empty;
-        if (!InstanceEndpointGrammar.TryParse(endpointId, out var values))
+        if (!HierarchyKeys.TryParse(
+                endpointId, KeySurface.Endpoint, NodeFamily.Id, out var parsed, out _))
         {
             return false;
         }
 
-        workflowId = values.Text("workflowId") ?? string.Empty;
-        nodeKey = values.Text("nodeKey") ?? string.Empty;
-        instanceKey = values.Text("instanceKey") ?? string.Empty;
+        workflowId = parsed.Point.Text("workflowId");
+        nodeKey = parsed.Point.Text("nodeKey");
+        instanceKey = parsed.Point.Text("instanceKey");
         return nodeKey.Length > 0;
     }
 
@@ -180,5 +323,72 @@ public static class NodeEndpointIds
 
         nodeKey = resourceId[prefix.Length..];
         return nodeKey.Length > 0;
+    }
+
+    /// <summary>
+    /// <c>history:{identity}</c> 形态的身份反解（任务端点旧表示/迁移用）；前缀取自历史族，禁第二处字面量。
+    /// </summary>
+    public static bool TryParseHistoryTypeKey(string? value, out string historyId)
+    {
+        historyId = string.Empty;
+        if (string.IsNullOrWhiteSpace(value) ||
+            !value.StartsWith(HistoryTypePrefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        historyId = NormalizeHistoryId(value);
+        return historyId.Length > 0;
+    }
+
+    /// <summary>
+    /// 由端点/存储键/裸键还原节点身份（nodeKey）：带实例端点按面文法反解，裸键原样返回；
+    /// 外来命名空间 ⇒ false（不按首个分隔符猜测，避免含点的 nodeKey 被截断）。
+    /// </summary>
+    public static bool TryParseNodeIdentity(
+        string? resourceId, string? workflowId, out string nodeKey, string? familyHint = null)
+    {
+        nodeKey = string.Empty;
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return false;
+        }
+
+        // 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。
+        var raw = resourceId.Trim();
+        if (IsForeignFamily(raw))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(familyHint) &&
+            !string.Equals(familyHint, NodeFamily.Id, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var wf = (workflowId ?? string.Empty).Trim();
+        if (TryParseEndpoint(resourceId, out var parsedWf, out var parsedNode, out _) &&
+            (wf.Length == 0 || string.Equals(parsedWf, wf, StringComparison.Ordinal)))
+        {
+            nodeKey = parsedNode;
+            return nodeKey.Length > 0;
+        }
+
+        if (wf.Length > 0 && TryParseNodeKey(resourceId, wf, out nodeKey))
+        {
+            return nodeKey.Length > 0;
+        }
+
+        // 裸键（无命名空间前缀、不含实例分隔符、不含类型前缀）：整串视为身份，不截断。
+        if (!raw.Contains(':') &&
+            (wf.Length == 0 || (!raw.Contains(Separator, StringComparison.Ordinal) &&
+                                !raw.Contains(InstanceSeparator, StringComparison.Ordinal))))
+        {
+            nodeKey = raw;
+            return true;
+        }
+
+        return false;
     }
 }

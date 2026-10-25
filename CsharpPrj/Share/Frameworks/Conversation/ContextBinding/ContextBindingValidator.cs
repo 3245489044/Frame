@@ -159,35 +159,7 @@ public static class ContextBindingValidator
         return map;
     }
 
-    /// <summary>锚点可解析判定：非空，且要么为已知前缀（history.{seq}/prompt.l*/skill.*），要么为 NodeKey 可拆的节点键。</summary>
+    /// <summary>锚点可解析判定：非空且命中已知锚点/端点族（唯一实现 = <see cref="AnchorKeyRules"/>）。</summary>
     private static bool TryResolve(string key, out string detail)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            detail = "AnchorKey 为空（悬空）";
-            return false;
-        }
-        if (key.StartsWith("history.", StringComparison.Ordinal))
-        {
-            var seq = key.Substring("history.".Length);
-            var ok = int.TryParse(seq, out _);
-            detail = ok ? string.Empty : $"history 后缀非数字: '{seq}'";
-            return ok;
-        }
-        if (key.StartsWith("prompt.", StringComparison.Ordinal)
-            || key.StartsWith("skill.", StringComparison.Ordinal)
-            || key.StartsWith("tool.", StringComparison.Ordinal))
-        {
-            detail = string.Empty;
-            return true;
-        }
-        // 节点键：NodeKey 拆出 (wf, node)，至少 node 非空（有或没有 wf 前缀均可）
-        if (string.IsNullOrEmpty(NodeKey.Split(key).Node))
-        {
-            detail = "节点键无法解析（node 为空）";
-            return false;
-        }
-        detail = string.Empty;
-        return true;
-    }
+        => AnchorKeyRules.TryResolve(key, out detail);
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Identity;
 using Operation.DataStoreDriven.Core;
 using Operation.HierarchyMethod.Abstractions;
 using Share.Foundations.Diagnostics;
@@ -57,8 +58,9 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         if (!decision.Allowed)
             throw new InvalidOperationException($"创建历史被拒绝：{decision.Reason}");
 
-        var existing = await _roots.GetAsync(cmd.Key, ct).ConfigureAwait(false);
-        var root = existing ?? HistoryRoot.Create(cmd.Key, cmd.Name, cmd.Kind, cmd.Actor);
+        var key = Normalize(cmd.Key);
+        var existing = await _roots.GetAsync(key, ct).ConfigureAwait(false);
+        var root = existing ?? HistoryRoot.Create(key, cmd.Name, cmd.Kind, cmd.Actor);
         if (existing is null)
         {
             if (_writeUnit is null)
@@ -112,29 +114,38 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         return root;
     }
 
+    /// <summary>D-01=A：命令面入参统一归一到 HistoryKey 规范面（裸身份），存储/图端点各自在其边界转换。</summary>
+    private static HistoryKey Normalize(HistoryKey key)
+    {
+        if (key.IsEmpty) return key;
+        var identity = NodeEndpointIds.NormalizeHistoryId(key.Value);
+        return identity.Length == 0 ? key : HistoryKey.Create(identity);
+    }
+
     public async Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
+        var historyKey = Normalize(cmd.History);
         // DUP-4：自环判据只有写边守卫一处（ReferenceGrounding → HistorySelfLoopException）；
         // 本层不重复判断，避免两份错误源/两份文案。
         var decision = _gate.AuthorizeTask(
-            cmd.Intent, new[] { cmd.History }, SessionRole.TaskMember, null, null, null);
+            cmd.Intent, new[] { historyKey }, SessionRole.TaskMember, null, null, null);
         if (!decision.Allowed)
             throw new InvalidOperationException($"归拢任务被拒绝：{decision.Reason}");
 
-        if (!await _roots.ExistsAsync(cmd.History, ct).ConfigureAwait(false))
-            throw new InvalidOperationException($"历史根不存在：{cmd.History.Value}（禁止隐式建根）");
+        if (!await _roots.ExistsAsync(historyKey, ct).ConfigureAwait(false))
+            throw new InvalidOperationException($"历史根不存在：{historyKey.Value}（禁止隐式建根）");
 
         if (_tasks is not null && !await _tasks.ExistsAsync(cmd.Task, ct).ConfigureAwait(false))
             throw new InvalidOperationException($"任务不存在：{cmd.Task.Value}（禁止隐式建任务）");
 
-        await _relations.AttachTaskAsync(cmd.History.Value, cmd.Task.Value, ct).ConfigureAwait(false);
+        await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);
     }
 
     public Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
-        return _relations.DetachTaskAsync(cmd.History.Value, cmd.Task.Value, ct);
+        return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);
     }
 
     public async Task<bool> DeleteAsync(DeleteHistoryCommand cmd, CancellationToken ct = default)
@@ -144,19 +155,20 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         if (!decision.Allowed)
             throw new InvalidOperationException($"删除历史被拒绝：{decision.Reason}");
 
-        if (!await _roots.ExistsAsync(cmd.Key, ct).ConfigureAwait(false))
+        var key = Normalize(cmd.Key);
+        if (!await _roots.ExistsAsync(key, ct).ConfigureAwait(false))
         {
-            _diagnostics.Report("HistoryCommand_delete_missing", new { history = cmd.Key.Value });
+            _diagnostics.Report("HistoryCommand_delete_missing", new { history = key.Value });
             return false;
         }
 
         // 1) 图锚点/边（history_owns_task 出边随节点删除级联）。
-        await _relations.DeleteAsync(cmd.Key.Value, ct).ConfigureAwait(false);
+        await _relations.DeleteAsync(key.Value, ct).ConfigureAwait(false);
 
         // 2) 聚合拥有的会话与日志（顺序：先日志后会话；task 会话不在此删除）。
         if (cmd.DeleteSessions && _sessions is not null)
         {
-            var owned = await _sessions.ListByOwnerAsync(SessionOwner.OfHistory(cmd.Key), ct).ConfigureAwait(false);
+            var owned = await _sessions.ListByOwnerAsync(SessionOwner.OfHistory(key), ct).ConfigureAwait(false);
             foreach (var session in owned)
             {
                 if (_transcripts is not null)
@@ -166,8 +178,8 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         }
 
         // 3) 根行最后删：确保中途失败时仍可从 root store 看到“待清理”实体。
-        await _roots.DeleteAsync(cmd.Key, ct).ConfigureAwait(false);
-        _diagnostics.Report("HistoryCommand_deleted", new { history = cmd.Key.Value });
+        await _roots.DeleteAsync(key, ct).ConfigureAwait(false);
+        _diagnostics.Report("HistoryCommand_deleted", new { history = key.Value });
         return true;
     }
 }

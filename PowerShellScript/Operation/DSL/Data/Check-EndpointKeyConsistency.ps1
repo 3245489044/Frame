@@ -28,7 +28,8 @@ param(
     [switch]$Check,
     [switch]$NegativeControl,
     [string]$StateRoot = '',
-    [string]$DllDir = ''
+    [string]$DllDir = '',
+    [string]$ModulesDir = ''
 )
 
 Set-StrictMode -Version Latest
@@ -53,50 +54,54 @@ function Write-Skip {
     exit 0
 }
 
-# ── 判据原语（与 NodeEndpointIds.History / SessionRoot 同构；负对照覆盖）──
-function Strip-Once {
-    param([string]$Value, [string]$Prefix)
-    if (-not [string]::IsNullOrEmpty($Prefix) -and $Value.Length -gt $Prefix.Length -and
-        $Value.StartsWith($Prefix, [System.StringComparison]::Ordinal)) {
-        return $Value.Substring($Prefix.Length)
-    }
-    return $Value
-}
-
+# ── 判据原语（唯一来源 = NodeEndpointIds；本脚本不留第二套归一实现）──
 function Get-HistoryIdentity {
     param([string]$Id)
-    $v = $Id
-    for ($i = 0; $i -lt 4; $i++) {
-        $n = Strip-Once (Strip-Once $v 'history:') 'history.'
-        if ($n -eq $v) { break }
-        $v = $n
-    }
-    return $v
+    return [Modules.Node.Identity.NodeEndpointIds]::NormalizeHistoryId($Id)
 }
 
-function Get-HistoryEndpointId { param([string]$Id) return 'history.' + (Get-HistoryIdentity $Id) }
+function Get-HistoryEndpointId {
+    param([string]$Id)
+    try { return [Modules.Node.Identity.NodeEndpointIds]::History($Id) } catch { return '' }
+}
 
 function Get-SessionIdentity {
     param([string]$Id)
-    $v = $Id
-    for ($i = 0; $i -lt 4; $i++) {
-        $n = Strip-Once (Strip-Once $v 'session:') 'session.'
-        if ($n -eq $v) { break }
-        $v = $n
-    }
-    return $v
+    return [Modules.Node.Identity.NodeEndpointIds]::NormalizeSessionId($Id)
 }
 
-function Get-SessionEndpointId { param([string]$Id) return 'session.' + (Get-SessionIdentity $Id) }
+function Get-SessionEndpointId {
+    param([string]$Id)
+    try { return [Modules.Node.Identity.NodeEndpointIds]::Session($Id) } catch { return '' }
+}
+
+# 已知工作流集（默认 + 数据面 + 基线）：重复 wf 判据的载体（非执行者叙述）。
+$script:knownWorkflowIds = @('agent-round')
+if ($baseline.ContainsKey('KnownWorkflowIds')) {
+    $script:knownWorkflowIds += @($baseline['KnownWorkflowIds'] | ForEach-Object { [string]$_ })
+}
+$script:knownWorkflowIds = @($script:knownWorkflowIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Select-Object -Unique)
 
 function Test-DuplicateWorkflowPrefix {
     param([string]$Id)
-    return [regex]::IsMatch($Id, '^(?<wf>[^.]+)\.\k<wf>\.')
+    $value = ($Id -split '@', 2)[0]
+    $segments = $value -split '\.'
+    foreach ($wf in $script:knownWorkflowIds) {
+        $count = @($segments | Where-Object { $_ -eq $wf }).Count
+        if ($count -gt 1) { return $true }
+    }
+    return $false
 }
 
 function Get-EndpointIdFromUniqueKey {
     param([string]$UniqueKey, [string]$Type)
-    return Strip-Once $UniqueKey ("$Type" + ':')
+    $prefix = "$Type" + ':'
+    if (-not [string]::IsNullOrEmpty($Type) -and $UniqueKey.Length -gt $prefix.Length -and
+        $UniqueKey.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+        return $UniqueKey.Substring($prefix.Length)
+    }
+    return $UniqueKey
 }
 
 # ── 依赖与数据根（缺 ⇒ SKIP，不伪造通过）──
@@ -138,6 +143,50 @@ function Import-Assembly {
     param([string]$Path)
     try { Add-Type -Path $Path -ErrorAction Stop }
     catch { if ($_.Exception.Message -notmatch 'already') { throw } }
+}
+
+# 判定原语单源：必须复用产品程序集（禁第二套归一文法）；缺失 ⇒ -Check 红 / 报告模式 SKIP。
+$canonicalDlls = @('Modules.Parsing.Keys.dll', 'Modules.KeySpace.dll', 'Modules.Node.dll')
+if ([string]::IsNullOrWhiteSpace($ModulesDir)) {
+    $ModulesDir = @(
+        (Join-Path $repoRoot 'Frame\CsharpPrj\BuildOutput\Debug'),
+        (Join-Path $repoRoot 'Frame\CsharpPrj\BuildOutput\Release'),
+        (Join-Path $repoRoot 'Environment\CentralTest\CSharpTest\BuildOutput\Debug'),
+        (Join-Path $repoRoot 'BuildOutput\publish-smoke-agent')
+    ) | Where-Object {
+        $dir = $_
+        Test-Path -LiteralPath $dir -PathType Container -and
+        -not (@($canonicalDlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dir $_)) }).Count)
+    } | Select-Object -First 1
+}
+if ([string]::IsNullOrWhiteSpace($ModulesDir) -or -not (Test-Path -LiteralPath $ModulesDir)) {
+    $msg = "缺判定原语程序集（$($canonicalDlls -join ', ')）；先构建 Frame 或用 -ModulesDir 指定。禁静默回退 PS 镜像。"
+    if ($Check) {
+        $violations.Add("PRIMITIVE_UNAVAILABLE $msg")
+        Write-GateVerdict -Violations $violations -Check:$true -Key 'EndpointKeyConsistency'
+    }
+    Write-Skip $msg
+}
+$ModulesDir = (Resolve-Path -LiteralPath $ModulesDir).Path
+foreach ($dll in $canonicalDlls) {
+    if (-not (Test-Path -LiteralPath (Join-Path $ModulesDir $dll))) {
+        $msg = "缺判定原语程序集：$dll（目录 $ModulesDir）"
+        if ($Check) {
+            $violations.Add("PRIMITIVE_UNAVAILABLE $msg")
+            Write-GateVerdict -Violations $violations -Check:$true -Key 'EndpointKeyConsistency'
+        }
+        Write-Skip $msg
+    }
+}
+try {
+    foreach ($dll in $canonicalDlls) { Import-Assembly (Join-Path $ModulesDir $dll) }
+} catch {
+    $msg = "判定原语程序集加载失败：$($_.Exception.Message)（禁回退 PS 镜像）"
+    if ($Check) {
+        $violations.Add("PRIMITIVE_UNAVAILABLE $msg")
+        Write-GateVerdict -Violations $violations -Check:$true -Key 'EndpointKeyConsistency'
+    }
+    Write-Skip $msg
 }
 
 function Read-Histories {
@@ -216,9 +265,23 @@ if ($NegativeControl) {
     if ((Get-HistoryEndpointId 'history.242e') -ne 'history.242e') { $nc.Add('history 合法端点被误判') }
     if ((Get-SessionEndpointId 'session.session.session.x') -eq 'session.session.session.x') { $nc.Add('session 重复前缀未被判出') }
     if ((Get-SessionEndpointId 'session.history:242e') -ne 'session.history:242e') { $nc.Add('session 合法端点被误判') }
+    if (-not [string]::IsNullOrEmpty((Get-HistoryEndpointId 'history.'))) { $nc.Add('history 空身份未被判出') }
+    if (-not [string]::IsNullOrEmpty((Get-SessionEndpointId 'session.'))) { $nc.Add('session 空身份未被判出') }
     if (-not (Test-DuplicateWorkflowPrefix 'agent-round.agent-round.state_response')) { $nc.Add('node 重复 wf 未被判出') }
+    if (-not (Test-DuplicateWorkflowPrefix 'agent-round.a.agent-round.a')) { $nc.Add('node 中段重复 wf 未被判出') }
     if (Test-DuplicateWorkflowPrefix 'agent-round.state_response@history:242e') { $nc.Add('node 合法端点被误判') }
     foreach ($m in $nc) { $violations.Add("[NC] $m") }
+}
+
+# ── 计数载体（集合 + 计数双判据；同名违规计数上涨即红）──
+function Add-Count {
+    param($Map, [string]$Key)
+    if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    if ($Map.ContainsKey($Key)) { $Map[$Key] = [int]$Map[$Key] + 1 } else { $Map[$Key] = 1 }
+}
+
+function New-CountMap {
+    return [hashtable]::new([System.StringComparer]::Ordinal)
 }
 
 # ── G1：history 源端点 ∈ 历史根派生端点集 ──
@@ -227,30 +290,32 @@ foreach ($h in $histories) {
     if ($h.Doc -notmatch '^\[Record\]\s+history_root:') { continue }
     [void]$rootEndpointIds.Add((Get-HistoryEndpointId $h.Key))
 }
-$g1 = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$g1 = New-CountMap
 $memberTaskKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 foreach ($e in $edges) {
     $sid = Get-EndpointIdFromUniqueKey $e.SourceKey $e.SourceType
     $tid = Get-EndpointIdFromUniqueKey $e.TargetKey $e.TargetType
     if ($e.RefType -eq 'history_owns_task') {
         if ($e.TargetType -eq 'task') { [void]$memberTaskKeys.Add($tid) }
-        if ($e.SourceType -eq 'history' -and -not $rootEndpointIds.Contains($sid)) { [void]$g1.Add($sid) }
+        if ($e.SourceType -eq 'history' -and -not $rootEndpointIds.Contains($sid)) { Add-Count $g1 $sid }
     }
 }
 
-# ── G2：cross_db_link 的 task 源 ∈ 成员 task（树可达；幻影/会话任务即违规）──
-$g2 = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+# ── G2a/G2b：实体存在（∈ur_tasks）与树可达（∈history_owns_task.target）分离 ──
+$g2a = New-CountMap
+$g2b = New-CountMap
 $taskSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 foreach ($k in $taskKeys) { [void]$taskSet.Add($k) }
 foreach ($e in $edges) {
     if ($e.RefType -ne 'cross_db_link' -or $e.SourceType -ne 'task') { continue }
     $sid = Get-EndpointIdFromUniqueKey $e.SourceKey $e.SourceType
-    if (-not $taskSet.Contains($sid) -or -not $memberTaskKeys.Contains($sid)) { [void]$g2.Add($sid) }
+    if (-not $taskSet.Contains($sid)) { Add-Count $g2a $sid }
+    elseif (-not $memberTaskKeys.Contains($sid)) { Add-Count $g2b $sid }
 }
 
 # ── G3：端点 Id 不动点（history / session / node）──
-$g3 = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-$g4 = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$g3 = New-CountMap
+$g4 = New-CountMap
 foreach ($e in $edges) {
     foreach ($side in @(
         [pscustomobject]@{ Type = $e.SourceType; Key = $e.SourceKey },
@@ -258,39 +323,65 @@ foreach ($e in $edges) {
         if ([string]::IsNullOrWhiteSpace($side.Type) -or [string]::IsNullOrWhiteSpace($side.Key)) { continue }
         $id = Get-EndpointIdFromUniqueKey $side.Key $side.Type
         switch ($side.Type) {
-            'history' { if ((Get-HistoryEndpointId $id) -ne $id) { [void]$g3.Add($id) } }
-            'session' { if ((Get-SessionEndpointId $id) -ne $id) { [void]$g3.Add($id) } }
-            'node' { if (Test-DuplicateWorkflowPrefix $id) { [void]$g3.Add($id) } }
+            'history' {
+                if ((Get-HistoryEndpointId $id) -ne $id) { Add-Count $g3 $id }
+                if ([string]::IsNullOrWhiteSpace((Get-HistoryIdentity $id))) { Add-Count $g3 $id }
+            }
+            'session' {
+                if ((Get-SessionEndpointId $id) -ne $id) { Add-Count $g3 $id }
+                if ([string]::IsNullOrWhiteSpace((Get-SessionIdentity $id))) { Add-Count $g3 $id }
+            }
+            'node' { if (Test-DuplicateWorkflowPrefix $id) { Add-Count $g3 $id } }
         }
     }
     if ($e.RefType -eq 'session_owns' -and $e.SourceType -eq 'session') {
         $sid = Get-EndpointIdFromUniqueKey $e.SourceKey $e.SourceType
-        if ((Get-SessionEndpointId $sid) -ne $sid) { [void]$g4.Add($sid) }
+        if ((Get-SessionEndpointId $sid) -ne $sid) { Add-Count $g4 $sid }
     }
 }
 
-# ── 基线棘轮：新键即红；基线中已消失的键提示收紧 ──
-function Add-Ratchet {
-    param([string]$Name, $Current)
-    $allowed = @()
-    if ($baseline.ContainsKey($Name)) { $allowed = @($baseline[$Name] | ForEach-Object { [string]$_ }) }
-    $allowedSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    foreach ($a in $allowed) { [void]$allowedSet.Add($a) }
-    foreach ($k in $Current) {
-        if (-not $allowedSet.Contains($k)) { $violations.Add("[$Name] 未登记端点键：$k（新增违规 ⇒ 只降不升）") }
+# ── 基线棘轮：新键即红；同名计数上涨即红；基线中已消失的键提示收紧 ──
+function Get-BaselineRows {
+    param([string]$Name)
+    $rows = [hashtable]::new([System.StringComparer]::Ordinal)
+    if (-not $baseline.ContainsKey($Name)) { return $rows }
+    foreach ($entry in @($baseline[$Name])) {
+        if ($entry -is [string]) { $rows[[string]$entry] = 1; continue }
+        if ($entry -is [System.Collections.IDictionary]) {
+            $key = [string]$entry['Key']
+            if ([string]::IsNullOrWhiteSpace($key)) { continue }
+            $count = if ($entry.Contains('Count')) { [int]$entry['Count'] } else { 1 }
+            $rows[$key] = $count
+        }
     }
-    $disappeared = @($allowed | Where-Object { -not $Current.Contains($_) })
+    return $rows
+}
+
+function Add-Ratchet {
+    param([string]$Name, $Current, [string]$BaselineName = '')
+    if ([string]::IsNullOrWhiteSpace($BaselineName)) { $BaselineName = $Name }
+    $allowed = Get-BaselineRows $BaselineName
+    foreach ($k in $Current.Keys) {
+        if (-not $allowed.ContainsKey($k)) {
+            $violations.Add("[$Name] 未登记端点键：$k（新增违规 ⇒ 只降不升）")
+        } elseif ([int]$Current[$k] -gt [int]$allowed[$k]) {
+            $violations.Add("[$Name] 违规计数上涨：$k（actual=$($Current[$k]), baseline=$($allowed[$k])）")
+        }
+    }
+    $disappeared = @($allowed.Keys | Where-Object { -not $Current.ContainsKey($_) })
     if ($disappeared.Count -gt 0) { $notes.Add("[$Name] 基线可收紧：已消失 $($disappeared.Count) 项（$($disappeared -join ', ')）") }
 }
 
 Add-Ratchet -Name 'G1' -Current $g1
-Add-Ratchet -Name 'G2' -Current $g2
+Add-Ratchet -Name 'G2a' -Current $g2a
+$g2Baseline = if ($baseline.ContainsKey('G2b')) { 'G2b' } elseif ($baseline.ContainsKey('G2')) { 'G2' } else { 'G2b' }
+Add-Ratchet -Name 'G2b' -Current $g2b -BaselineName $g2Baseline
 Add-Ratchet -Name 'G3' -Current $g3
 Add-Ratchet -Name 'G4' -Current $g4
 
 foreach ($n in $notes) { Write-Host "  [INFO] $n" -ForegroundColor DarkGray }
-Write-Host ("  [INFO] roots={0} history_edges={1} g1={2} g2={3} g3={4} g4={5}" -f `
-    $rootEndpointIds.Count, $memberTaskKeys.Count, $g1.Count, $g2.Count, $g3.Count, $g4.Count) -ForegroundColor DarkGray
+Write-Host ("  [INFO] roots={0} member_tasks={1} g1={2} g2a={3} g2b={4} g3={5} g4={6}" -f `
+    $rootEndpointIds.Count, $memberTaskKeys.Count, $g1.Count, $g2a.Count, $g2b.Count, $g3.Count, $g4.Count) -ForegroundColor DarkGray
 
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'EndpointKeyConsistency'
 

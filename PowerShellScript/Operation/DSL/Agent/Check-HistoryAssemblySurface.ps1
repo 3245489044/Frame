@@ -370,11 +370,17 @@ if ($ensureDirect.Count -ne 1) {
     Add-Violation 'H24' "建容器原语（.EnsureHistoryAsync）直呼点=$($ensureDirect.Count)（应为 1；5 处入口须经 IHistoryProvision）"
 }
 
-# H25 派生任务键声明化（P2/K4）：task_state_ 字面量仅允许出现在声明对账单源 DerivedTaskKeyRules.cs（单点），
-#     散落（>1 文件 / 非该文件）即红。
-$derivedFiles = @($agentCs | Select-String -Pattern 'task_state_' | ForEach-Object { $_.Path } | Sort-Object -Unique)
-if ($derivedFiles.Count -ne 1 -or ($derivedFiles[0] -notmatch 'DerivedTaskKeyRules\.cs$')) {
-    Add-Violation 'H25' "task_state_ 字面量分布于 $($derivedFiles.Count) 个文件（应为 1 且为 DerivedTaskKeyRules.cs 声明对账单源）"
+# H25 派生任务键声明化（P2/K4）：C# 字面量唯一允许点 = AgentKeySpaceDeclaration.cs（声明单源）；
+#     DerivedTaskKeyRules / MemberKeyPolicy 等一律转发；JSON 声明面必须同时登记。
+$derivedFiles = @($agentCs | Select-String -Pattern 'task_state_|task_member_' | ForEach-Object { $_.Path } | Sort-Object -Unique)
+$disallowedDerived = @($derivedFiles | Where-Object { $_ -notmatch 'AgentKeySpaceDeclaration\.cs$' })
+if ($disallowedDerived.Count -gt 0) {
+    Add-Violation 'H25' "派生任务前缀字面量散落 $($disallowedDerived.Count) 个非声明单源文件：$($disallowedDerived -join ', ')"
+}
+$keyspaceJson = Join-Path $agentRoot 'Config\keyspaces\agent.keyspace.json'
+$jsonText = Read-Text $keyspaceJson
+if ($jsonText -notmatch 'task_state_' -or $jsonText -notmatch 'task_member_') {
+    Add-Violation 'H25' 'agent.keyspace.json 未登记派生任务前缀（task_member_ / task_state_）'
 }
 
 if ($violations.Count -eq 0) {

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,20 @@ public interface IHistoryRelationManager
     /// <summary>返回该历史归拢的任务键集（History class 容器成员）。</summary>
     Task<IReadOnlyList<string>> GetTaskKeysAsync(string historyId, CancellationToken ct = default);
 
+    /// <summary>批量版本（缺省逐条回退；真实实现宜覆写为单次图遍历）。</summary>
+    async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskKeysManyAsync(
+        IReadOnlyCollection<string> historyIds, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        if (historyIds is null) return result;
+        foreach (var id in historyIds)
+        {
+            if (string.IsNullOrWhiteSpace(id) || result.ContainsKey(id)) continue;
+            result[id] = await GetTaskKeysAsync(id, ct).ConfigureAwait(false);
+        }
+        return result;
+    }
+
     /// <summary>反向成员查询：该 task 被哪些历史根归拢（M:N 真源 = 图边；禁 ur_tasks.HistoryId）。</summary>
     Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default);
 
@@ -43,9 +58,4 @@ public interface IHistoryRelationManager
 
     /// <summary>会话归属边（session_owns）：会话消息节点 → 会话根（入史层挂载；幂等加法）。</summary>
     Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
-
-    /// <summary>列出全部历史**容器**（枚举图中 ResourceType=history 端点）。
-    /// 与 <c>IHistoryStore.ListHistoryIdsAsync</c>（ur_histories **表行**）语义不同——本方法读**图端点**（D2 消歧：
-    /// 会话/历史「存在性」唯一真源 = ur_histories，图只作归属边真源，见 CONV-SS）。</summary>
-    Task<IReadOnlyList<string>> ListHistoryContainersAsync(CancellationToken ct = default);
 }

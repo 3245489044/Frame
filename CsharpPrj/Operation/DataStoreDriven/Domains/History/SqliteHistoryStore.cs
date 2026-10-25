@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Share.Conversation;
+using Modules.Node.Identity;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Plate.DslMethod.Usharp;
@@ -62,7 +63,10 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
         ct.ThrowIfCancellationRequested();
         // 根行保护（D1/D4）：ur_histories 的新语义是历史根注册表；旧日志面不得覆盖根行。
         // 过渡期同一主键可能同时是根与会话键，这里显式拒绝并把写入责任交给 ur_session_logs。
-        var existing = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", sessionId)));
+        // D-01=A：根行存储面 = history:{id}；旧日志入参可能是裸 id，根保护须按行键探测。
+        var rootProbeKey = NodeEndpointIds.ToHistoryRowKey(sessionId);
+        if (rootProbeKey.Length == 0) rootProbeKey = sessionId;
+        var existing = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rootProbeKey)));
         if (existing.Count > 0)
         {
             var doc = SqliteRows.Str(existing[0], "Doc");

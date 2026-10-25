@@ -12,6 +12,8 @@ namespace UiBackend.Html;
 /// 回流链路自检探针（L0 控件适配层）——注入 <c>__loopback__</c> postMessage 并确认回到 C# 消息桥入口，
 /// 直接证明「DOM postMessage → WebMessageReceived → 消息桥」闭环（不依赖可选诊断 sink）。
 /// 自愈重试：装配时序/导航竞态导致的瞬时断裂自动重试恢复；过程失败归拢，终态失败整块上报（降噪不丢信号）。
+/// <para>线程契约：探针**全程在 UI 线程**（入口经 <see cref="UiThreadMarshaler"/> 封送）——内部禁把 await 续体切到线程池，
+/// 否则重试轮会以池线程访问 <c>CoreWebView2</c>（WebView2 线程亲和），由 IWebViewCore 守卫 fail-fast。</para>
 /// </summary>
 public sealed class LoopbackProbe
 {
@@ -70,12 +72,12 @@ public sealed class LoopbackProbe
             ct.ThrowIfCancellationRequested();
             try
             {
-                await _ensureReady(ct).ConfigureAwait(false);
+                await _ensureReady(ct);
                 if (_host.Core is null)
                 {
                     if (attempt < ProbeAttempts)
                     {
-                        await Task.Delay(ProbeDelayMs, ct).ConfigureAwait(false);
+                        await Task.Delay(ProbeDelayMs, ct);
                         continue;
                     }
                     break; // 终态仍无 CoreWebView2 → 失败（下方统一上报）
@@ -87,9 +89,9 @@ public sealed class LoopbackProbe
                 try
                 {
                     var js = "window.chrome.webview.postMessage(JSON.stringify({cmd:'__loopback__',nonce:'" + nonce + "'}));";
-                    var exec = await _host.Core.ExecuteScriptAsync(js).ConfigureAwait(false);
+                    var exec = await _host.Core.ExecuteScriptAsync(js);
                     using var timeout = new CancellationTokenSource(ProbeTimeout);
-                    var done = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token)).ConfigureAwait(false);
+                    var done = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token));
                     if (done == tcs.Task && tcs.Task.IsCompletedSuccessfully)
                         return true; // 成功：瞬时失败不占行，终态确认由调用方统一输出
                     transientNotes.Add($"回流自检尝试 {attempt}/{ProbeAttempts} 未达 C# 消息桥（ExecuteScriptAsync 返回={TextUtil.Truncate(exec ?? string.Empty)}）");
@@ -106,7 +108,7 @@ public sealed class LoopbackProbe
             }
 
             if (attempt < ProbeAttempts)
-                await Task.Delay(ProbeDelayMs, ct).ConfigureAwait(false);
+                await Task.Delay(ProbeDelayMs, ct);
         }
 
         // 终态失败：把各次瞬态失败整块上报（保留失败定位所需细节）；外层自愈重试成功的预期路径不丢信号（明细走 transient 通道）。

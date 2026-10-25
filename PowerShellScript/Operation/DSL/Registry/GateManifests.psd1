@@ -760,6 +760,14 @@
         Note   = '节/拍遥测字段（T1 基线入面 / T2 nodes/bytes/jsMs/outcome + batchNodes/lane/queueMs/droppedSections / T3 指标字段 / T4 msgId 注册 / T5 负对照）；基线 = Baselines\Meta\UiTelemetryFields.psd1'
     }
 
+    UiThreadAffinity = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'WebView2 线程亲和（U1 续体逃逸 ConfigureAwait(false) = 0 / U2 IWebViewCore 端口守卫 ≥ 基线且带成员名 / U3 sink 先置退避后记诊断且诊断唯一入口 LogSelfDiagnostic / U4 UiThreadMarshaler 定义恰 1 / U5 正负对照 / U6 首帧退避按失败次数 + 固定 1s 字面量 = 0 / U7 失败消息带 threadId / L1-L2 活性自检）；基线 = Baselines\Meta\UiThreadAffinity.psd1'
+    }
+
     RefreshFetch = @{
         Domain = 'Meta'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -1347,6 +1355,15 @@
         Tier   = 'fast'
         Expect = 0
         Note   = 'DataStoreDriven 领域边界（控制反转）：P1 核心零域 import / P2 核心零域工程引用 / P3 禁反向引用 Domains / P4 核心零领域字面量 / P5 宿主零具体介质 using / P6 正对照 / P7 同层引用棘轮 ≤19 且 WorkFlowMethod↔DataStoreDriven=0、HierarchyMethod/LoopFoldMethod→Domains=0；默认报告、-Check 拒绝'
+    }
+
+
+    SelectionContract = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '选择态契约（作用域×槽）：C1 切换器声明 view 槽 / C2 锚回退链唯一实现 / C3 领域消费点=2（会话页+DB页，证明通用）/ C4 导航禁归一化占位键 / C5 负对照'
     }
 
 

@@ -463,9 +463,35 @@ public sealed class EcsEventBus : IInteractionEventPort
             }
             else
             {
+                var targetControl = _controlPool.GetControl(binding.OutputTarget);
+                var pageViewer = targetControl as HtmlViewer;
                 FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
                     new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
-                          outputTarget = binding.OutputTarget, error = "目标非 HtmlViewer 或未装配计划执行器" });
+                          outputTarget = binding.OutputTarget,
+                          targetType = targetControl?.GetType().Name ?? "(null)",
+                          executorPresent = pageViewer?.RenderPlanExecutor is not null,
+                          planKind = ro.Plan!.Kind.ToString(),
+                          error = "目标非 HtmlViewer 或未装配计划执行器" });
+
+                // 兜底可见落地（C）：整页计划自带完整 HTML，装配缺失时仍经唯一整页出口落地——
+                // 不让「装配身份过期」把用户动作的产物静默丢弃（Tree/Region 计划无文本载荷，只能等重装配）。
+                if (pageViewer is not null
+                    && ro.Plan.Kind == UiWriteKind.FullDocument
+                    && ro.Plan.Targets.Count > 0
+                    && ro.Plan.Targets[0].Payload is string fallbackHtml
+                    && !string.IsNullOrWhiteSpace(fallbackHtml))
+                {
+                    try
+                    {
+                        await pageViewer.WriteContentAsync(fallbackHtml).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
+                            new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                                  outputTarget = binding.OutputTarget, fallback = "WriteContentAsync", error = ex.Message });
+                    }
+                }
             }
             return;
         }

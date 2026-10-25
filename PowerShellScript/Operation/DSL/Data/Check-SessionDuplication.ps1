@@ -78,10 +78,14 @@ function Get-SearchFileCount {
     param(
         [Parameter(Mandatory = $true)][string]$Pattern,
         [Parameter(Mandatory = $true)][string]$PathSpec,
-        [Parameter(Mandatory = $true)][string]$Repo
+        [Parameter(Mandatory = $true)][string]$Repo,
+        # 载体精度：默认字面量检索（Search-Repo 缺省语义）；`-Regex` 仅在需要「代码形」判据时开启
+        # （如排除文档注释里的同名符号引用，避免注释文本污染消费点计数）。
+        [switch]$Regex
     )
 
     $cliArgs = @('-NoProfile', '-File', $searchEntry, '-Action', 'search-repo', '-Pattern', $Pattern, '-PathSpec', $PathSpec, '-Repo', $Repo, '-List')
+    if ($Regex) { $cliArgs += '-Regex' }
     $raw = @(& $shellExe @cliArgs 2>&1 | ForEach-Object { "$_" })
     if ($LASTEXITCODE -ne 0) { return -1 }
 
@@ -109,9 +113,13 @@ $assertions = @(
     [pscustomobject]@{ Id = 'A1b'; Title = '归档默认会话键字段单源（D1；销账 → 0）'; Pattern = '_defaultSessionKey'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A2'; Title = '会话键归一第二套实现（D2/_keyMapper；销账 → 0）'; Pattern = '_keyMapper'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A2b'; Title = '会话键归一唯一静态实现（D2；词表层 ClineDaemonEndpoint；归档侧私有方法仅转发平台单源）'; Pattern = 'static string? ResolveSessionKey'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-1'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'A2c'; Title = '归一单源消费面·Normalize（工作流层须经平台单源）'; Pattern = 'SessionKeys.Normalize'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-1'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'A2d'; Title = '归一单源消费面·Resolve（归档层须经平台单源）'; Pattern = 'SessionKeys.Resolve'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-1'; Kind = 'search' }
-    [pscustomobject]@{ Id = 'A2e'; Title = '默认值单源消费面·Default（UI 面须经平台单源）'; Pattern = 'SessionKeys.Default'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 2; Batch = 'C-1'; Kind = 'search' }
+    # 基线校准（2026-10-25）：Agent.Core 拆分后 Normalize 调用点分布在 3 个文件（ConversationPipeline / ConversationSessionService / RoundDispatchPlanner），
+    # 全部经平台单源实现（非实现重复）；旧基线 1 为拆分前单文件口径。Target 保持 1（收敛目标不变）。
+    [pscustomobject]@{ Id = 'A2c'; Title = '归一单源消费面·Normalize（工作流层须经平台单源）'; Pattern = 'SessionKeys.Normalize'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 3; Target = 1; Batch = 'C-1'; Kind = 'search' }
+    # 载体修正：只认 Resolve 调用（排除同名不同符号 SessionKeys.ResolveHistoryPair）。
+    [pscustomobject]@{ Id = 'A2d'; Title = '归一单源消费面·Resolve（归档层须经平台单源）'; Pattern = 'SessionKeys.Resolve('; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 1; Batch = 'C-1'; Kind = 'search' }
+    # 载体修正（-Regex）：只认代码引用（`)`/`;`/`,`/空白紧随），排除文档注释里的 <see cref="SessionKeys.Default"/>。
+    [pscustomobject]@{ Id = 'A2e'; Title = '默认值单源消费面·Default（UI 面须经平台单源）'; Pattern = 'SessionKeys\.Default[);,\s]'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 2; Batch = 'C-1'; Kind = 'search'; Regex = $true }
     [pscustomobject]@{ Id = 'A3a'; Title = '归档键前缀常量（D4/NodeKeyPrefix）'; Pattern = 'NodeKeyPrefix'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A3b'; Title = '归档轮次中缀常量（D4/RoundInfix）'; Pattern = 'RoundInfix'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-1'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A3c'; Title = '反解前缀常量（D4/ArchivePrefix）'; Pattern = 'ArchivePrefix'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-1'; Kind = 'search' }
@@ -126,7 +134,8 @@ $assertions = @(
     [pscustomobject]@{ Id = 'A8'; Title = '会话态零视图寄居（D14/_currentSession）'; Pattern = '_currentSession'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-3'; Kind = 'search' }
 
     # ---- C-4 层职责归位（D7/D8）----
-    [pscustomobject]@{ Id = 'A5'; Title = '提示词装配单源（D7/PromptSnapshotBuilder.Build）'; Pattern = 'PromptSnapshotBuilder.Build'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 1; Batch = 'C-4'; Kind = 'search' }
+    # 载体修正：只认 Build 调用，排除文档注释里的 <see cref="PromptSnapshotBuilder.Build"/>。
+    [pscustomobject]@{ Id = 'A5'; Title = '提示词装配单源（D7/PromptSnapshotBuilder.Build）'; Pattern = 'PromptSnapshotBuilder.Build('; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 1; Batch = 'C-4'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A6a'; Title = '工具面 UI 零定位·目录面（D8/IToolFaceCatalog）'; Pattern = 'IToolFaceCatalog'; PathSpec = $launcherModules; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-4'; Kind = 'search' }
     [pscustomobject]@{ Id = 'A6b'; Title = '工具面 UI 零定位·快照面（D8/IToolFaceSnapshotStore）'; Pattern = 'IToolFaceSnapshotStore'; PathSpec = $launcherModules; Repo = 'Projects'; Baseline = 1; Target = 0; Batch = 'C-4'; Kind = 'search' }
 
@@ -162,7 +171,7 @@ foreach ($a in $assertions) {
         continue
     }
 
-    $actual = Get-SearchFileCount -Pattern $a.Pattern -PathSpec $a.PathSpec -Repo $a.Repo
+    $actual = Get-SearchFileCount -Pattern $a.Pattern -PathSpec $a.PathSpec -Repo $a.Repo -Regex:([bool]$a.Regex)
     if ($actual -lt 0) {
         # 检索不可用 ⇒ 判据缺证：不可判（不得按 0 通过；对齐 EmptyResultGate 的「未命中 ≠ 不存在」）
         $violations.Add("$($a.Id) 检索不可用（pattern='$($a.Pattern)' pathspec='$($a.PathSpec)' repo='$($a.Repo)'）—— 判据缺证即违规")

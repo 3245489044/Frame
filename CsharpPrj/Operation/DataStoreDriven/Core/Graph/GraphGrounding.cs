@@ -64,13 +64,28 @@ public sealed class GraphGrounding : IGraphGrounding
 
     public IDeclaredReferenceSource? DeclarationSource { get; set; }
 
-    /// <summary>取某节点的权威边（G1/G3 单一取值缝）。</summary>
+    /// <summary>取某节点的权威边（G1/G3 单一取值缝）：声明源 → 节点内 RelationsJson 推导 → 图内声明投影（逐级回退）。</summary>
     public IReadOnlyList<NodeRelation> AuthoritativeEdgesFor(string workflowId, NodeRecord node)
     {
         if (node is null) return Array.Empty<NodeRelation>();
-        var result = new List<NodeRelation>();
+
+        // ① 声明源（G3/G4）：配置声明优先，非空即权威。
         if (DeclarationSource is not null)
-            result.AddRange(DeclarationSource.GetNodeRelations(workflowId, node.NodeKey));
+        {
+            var declared = DeclarationSource.GetNodeRelations(workflowId, node.NodeKey);
+            if (declared is { Count: > 0 }) return declared;
+        }
+
+        // ② 节点内关系状态（兼容读，U4 单源）：非空即权威（保证「移除溯源 ⇒ 过期边被对账删除」）。
+        if (node.Relations is not null)
+        {
+            var derived = RelationStateCodec.DeriveEdgesFromRelationsJson(
+                workflowId, node.NodeKey, UsharpValueJson.ToJson(node.Relations));
+            if (derived.Count > 0) return derived;
+        }
+
+        // ③ 图内声明投影（兜底）。
+        var result = new List<NodeRelation>();
         var nodeId = NodeRelationFactory.NodeId(workflowId, node.NodeKey);
         foreach (var e in _graph.GetRelationEdges(workflowId))
             if (string.Equals(e.TargetId, nodeId, StringComparison.Ordinal)) result.Add(e);

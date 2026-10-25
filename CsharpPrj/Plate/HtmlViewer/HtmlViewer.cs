@@ -281,16 +281,49 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         remove => HandleCreated -= value;
     }
 
-    CoreWebView2? IWebViewCore.Core => CoreWebView2;
+    // IWebViewCore 显式实现（WebView2 线程亲和守卫）：跨线程即抛，异常文本带成员名——调用方只许经
+    // UiThreadMarshaler 封送；判据落在代码结构（禁以类注释"调用须在 UI 线程"充当守卫）。
+    CoreWebView2? IWebViewCore.Core
+    {
+        get
+        {
+            AssertUiThread(nameof(IWebViewCore.Core));
+            return CoreWebView2;
+        }
+    }
 
-    Task IWebViewCore.EnsureCoreAsync() => EnsureCoreWebView2Async();
+    Task IWebViewCore.EnsureCoreAsync()
+    {
+        AssertUiThread(nameof(IWebViewCore.EnsureCoreAsync));
+        return EnsureCoreWebView2Async();
+    }
 
-    void IWebViewCore.NavigateToHtmlDocument(string html) => CoreWebView2?.NavigateToString(html);
+    void IWebViewCore.NavigateToHtmlDocument(string html)
+    {
+        AssertUiThread(nameof(IWebViewCore.NavigateToHtmlDocument));
+        CoreWebView2?.NavigateToString(html);
+    }
 
     System.Drawing.Color IWebViewCore.DefaultBackgroundColor
     {
-        get => DefaultBackgroundColor;
-        set => DefaultBackgroundColor = value;
+        get
+        {
+            AssertUiThread(nameof(IWebViewCore.DefaultBackgroundColor));
+            return DefaultBackgroundColor;
+        }
+        set
+        {
+            AssertUiThread(nameof(IWebViewCore.DefaultBackgroundColor));
+            DefaultBackgroundColor = value;
+        }
+    }
+
+    /// <summary>WebView2 线程亲和断言（<see cref="IWebViewCore"/> 端口守卫）：跨线程即抛，异常文本带成员名与线程 id。</summary>
+    private void AssertUiThread(string member)
+    {
+        if (InvokeRequired)
+            throw new InvalidOperationException(
+                $"IWebViewCore.{member} 跨线程调用（WebView2 仅限 UI 线程；当前线程={Environment.CurrentManagedThreadId}）。");
     }
 
     void IWebViewHost.Post(Action action)

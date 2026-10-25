@@ -64,8 +64,9 @@ $constsFile      = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalRe
 $groundingFiles  = @(
     (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\TaskReferenceGrounding.cs'),
     (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\HistoryReferenceGrounding.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\SessionReferenceGrounding.cs')
-)   # 控制反转：三个域接地服务（通用半 = Core\Graph，不含域词）
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\SessionReferenceGrounding.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Graph\PlacementEdgeBuilder.cs')
+)   # 控制反转：三个域接地服务 + 通用位置边构建器（at / contains，唯一实现）
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj         = Join-Path $Root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
@@ -175,9 +176,14 @@ foreach ($groundingFile in $groundingFiles) {
         $violations.Add("[E2] 未找到域接地服务：$groundingFile")
         continue
     }
+    if ($groundingFile -like '*PlacementEdgeBuilder.cs') {
+        $usedByConst['Placement_At'] = 1
+        $usedByConst['Placement_Contains'] = 1
+    }
     foreach ($m in [regex]::Matches((Get-Content -LiteralPath $groundingFile -Raw),
-            'CrossDbReferenceTypes\.(?<n>\w+)')) {
+            '(CrossDbReferenceTypes|PlacementEdgeBuilder)\.(?<n>\w+)')) {
         $name = $m.Groups['n'].Value
+        if ($m.Groups[1].Value -eq 'PlacementEdgeBuilder') { $name = 'Placement_' + $name }
         if (-not $usedByConst.ContainsKey($name)) { $usedByConst[$name] = 0 }
         $usedByConst[$name]++
     }
@@ -186,6 +192,11 @@ foreach ($groundingFile in $groundingFiles) {
 $codeEdges = [System.Collections.Generic.List[string]]::new()
 foreach ($name in $usedByConst.Keys) {
     if ($DeprecatedWriteDebt.ContainsKey($name)) { continue }   # 退役常量不入对账（见 E2c）
+    if ($name.StartsWith('Placement_', [System.StringComparison]::Ordinal)) {
+        $edge = $name.Substring('Placement_'.Length).ToLowerInvariant()
+        if (-not $codeEdges.Contains($edge)) { $codeEdges.Add($edge) }
+        continue
+    }
     if ($constMap.ContainsKey($name)) {
         if (-not $codeEdges.Contains($constMap[$name])) { $codeEdges.Add($constMap[$name]) }
     } else {

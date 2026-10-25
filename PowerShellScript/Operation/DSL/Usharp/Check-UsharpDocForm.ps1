@@ -171,7 +171,7 @@ $jsonTokens = 'System\.Text\.Json|JsonSerializer|JsonDocument|JsonElement'
 #   ReferenceTypeRegistry.cs  = 编译产物反序列化（测试/工具面；生产入口 = DeclaredReferenceVocabulary）
 #   TaskPoolStoreFactory.cs   = 工厂透传 JsonSerializerOptions（同 SqliteTaskPoolStore 兼容参数）
 $jsonWhitelist = @('UsharpValueJson.cs', 'JsonDocumentCodec.cs', 'SqliteTaskPoolStore.cs', 'ReferenceGraphCoordinator.cs',
-                   'PersistenceJson.cs', 'ReferenceTypeRegistry.cs', 'TaskPoolStoreFactory.cs')
+                   'PersistenceJson.cs', 'ReferenceTypeRegistry.cs', 'TaskPoolStoreFactory.cs', 'KvPayloadReader.cs')
 $u7 = 0
 foreach ($f in $dsdFiles) {
     if ($jsonWhitelist -contains $f.Name) { continue }

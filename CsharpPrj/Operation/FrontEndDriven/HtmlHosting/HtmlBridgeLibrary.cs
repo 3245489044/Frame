@@ -119,6 +119,9 @@ public sealed class HtmlBridgeLibrary
     /// <summary>处理页面 data-event 交互负载 → 声明绑定函数执行 + 结果写回 output 元素。</summary>
     public async Task<string> HtmlEventDispatchAsync(string payload)
     {
+        // 交互入口自愈（B）：控件实例可能因配置重载/作用域重建被更换——先按「装配身份」校验并重挂，
+        // 否则事件产出无法落地（旧运行时把写回/计划执行器留在旧实例上）。
+        await EnsureHtmlUiAttachedAsync().ConfigureAwait(false);
         var runtime = _backend.HtmlUi;
         if (runtime is null) return HtmlUiNotAttached;
         try
@@ -135,6 +138,8 @@ public sealed class HtmlBridgeLibrary
     /// <see cref="HtmlScriptBridge.ParseCommands"/>（单一真源，不在插件侧私有实现）。</summary>
     public async Task<string> HtmlScriptAsync(string scriptJson)
     {
+        // 交互入口自愈（B），语义同 HtmlEventDispatchAsync。
+        await EnsureHtmlUiAttachedAsync().ConfigureAwait(false);
         var runtime = _backend.HtmlUi;
         if (runtime is null) return HtmlUiNotAttached;
         try
@@ -156,9 +161,12 @@ public sealed class HtmlBridgeLibrary
     /// </summary>
     public async Task<string> HtmlAttachAsync()
     {
-        // B1 幂等装配：已装配即跳过——重复 attach 会新建运行时并重复订阅 MessageReceived（双路调用/双写根因）。
-        if (_backend.HasHtmlUi)
-            return $"（HTML 后端已装配，幂等跳过重复装配；hostControl={_hostControl}）";
+        // B1 幂等装配（**身份化**）：仅当「已装配 ∧ 运行时绑定的通道仍是当前解析到的控件实例」才跳过重复装配。
+        // 只看 HasHtmlUi 会把「控件已被配置重载/作用域重建换掉」误判为「已装配」——旧运行时把
+        // HostContentWriter / RenderPlanExecutor 写在旧实例上，新实例无执行器 ⇒ ECS 计划产物无法落地（面板空）。
+        if (IsAttachedToCurrentViewer())
+            return $"（HTML 后端已装配且绑定当前控件，幂等跳过重复装配；hostControl={_hostControl}）";
+        DetachStaleRuntime();
         try
         {
             var viewer = _backend.HtmlViewerResolver?.Invoke(_hostControl);
@@ -235,7 +243,8 @@ public sealed class HtmlBridgeLibrary
     /// </summary>
     public async Task EnsureHtmlUiAttachedAsync()
     {
-        if (_backend.HasHtmlUi) return;
+        // 身份化判据（A）：控件实例被配置重载/作用域重建换掉后，旧运行时的执行器留在旧实例 ⇒ 必须重挂。
+        if (IsAttachedToCurrentViewer()) return;
         _ = await HtmlAttachAsync().ConfigureAwait(false);
     }
 
@@ -248,11 +257,41 @@ public sealed class HtmlBridgeLibrary
     public string? AttachExtraHost(string extraHostControl)
     {
         if (string.IsNullOrWhiteSpace(extraHostControl)) return "extraHostControl 为空";
+        if (!IsAttachedToCurrentViewer())
+            return $"HTML 后端未绑定当前控件（{_hostControl}）⇒ 须先重新装配（{_prefix}HtmlAttach）";
         var runtime = _backend.HtmlUi;
         if (runtime is null) return HtmlUiNotAttached;
         var viewer = _backend.HtmlViewerResolver?.Invoke(extraHostControl);
         if (viewer is null) return $"未找到宿主控件 {extraHostControl}（未 sideload 或 resolver 未注入）";
         return runtime.AttachHostMessage(viewer, extraHostControl, _backend.HtmlContentSink);
+    }
+
+    /// <summary>
+    /// 装配身份判据（结构事实）：已装配 ∧ 运行时绑定的通道 == 当前解析到的控件实例。
+    /// 载体 = 实例引用（<see cref="HtmlBackendRuntime.Channel"/> ↔ <see cref="IHtmlUiHostAccess.HtmlViewerResolver"/>），
+    /// 不是「HasHtmlUi 布尔」——后者无法区分「同一控件」与「控件已重建」。
+    /// </summary>
+    private bool IsAttachedToCurrentViewer()
+    {
+        if (!_backend.HasHtmlUi) return false;
+        var runtime = _backend.HtmlUi;
+        if (runtime is null) return false;
+        var current = _backend.HtmlViewerResolver?.Invoke(_hostControl);
+        return current is not null && ReferenceEquals(runtime.Channel, current);
+    }
+
+    /// <summary>
+    /// 解装配陈旧运行时（控件实例已变更）：先清槽位、再释放旧订阅，防孤儿 handler 与新运行时双触发；
+    /// 随后由调用方重新 Attach（新实例重新获得 HostContentWriter / RenderPlanExecutor）。
+    /// </summary>
+    private void DetachStaleRuntime()
+    {
+        var previous = _backend.HtmlUi;
+        if (previous is null) return;
+        _host.DetachHtmlUi();
+        previous.Dispose();
+        _backend.DiagnosticsSink?.Invoke("HtmlChannel_attach",
+            "HTML 后端绑定控件实例已变更（配置重载/作用域重建）→ 解装配旧运行时并重新装配（消除『已装配但执行器在旧实例』的落地断链）。");
     }
 
     /// <summary>函数参数描述符（注册库注册用）。</summary>

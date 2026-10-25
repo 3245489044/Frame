@@ -12,22 +12,35 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlShellProjector
 {
-    /// <summary>渲染切换器（segGroup 模板）：<paramref name="items"/> 为 (键, 标签) 列表，当前项（= <paramref name="currentKey"/>）标 .active。</summary>
+    /// <summary>
+    /// 渲染切换器（segGroup 模板）：<paramref name="items"/> 为 (键, 标签) 列表，当前项（= <paramref name="currentKey"/>）标 .active。
+    /// <para>
+    /// 选中态同时投影为 <c>selected</c>（配合模板 <c>data-select-slot="view"</c> + <c>{?selected} data-selected{/}</c>），
+    /// 使「当前作用域」成为可回投的选择态（页面回投 <c>uiState.select</c> 的 view 槽），
+    /// 不再依赖后端进程级全局槽猜当前视图。
+    /// </para>
+    /// </summary>
     public static string RenderSelector(
         IReadOnlyDictionary<string, string> templates,
         IReadOnlyList<(string Key, string Label)> items,
         string currentKey)
     {
-        var rows = new List<object?>();
-        foreach (var (key, label) in items)
+        var rows = new List<object?>(items?.Count ?? 0);
+        if (items is not null)
         {
-            rows.Add(new Dictionary<string, object?>
+            foreach (var (key, label) in items)
             {
-                ["type"] = key,
-                ["label"] = label,
-                ["active"] = key == currentKey ? "1" : string.Empty,
-            });
+                var isCurrent = key == currentKey;
+                rows.Add(new Dictionary<string, object?>
+                {
+                    ["type"] = key,
+                    ["label"] = label,
+                    ["active"] = isCurrent ? "1" : string.Empty,
+                    ["selected"] = isCurrent ? "1" : string.Empty,
+                });
+            }
         }
+
         return HtmlTemplateEngine.Render(templates, "segGroup",
             new Dictionary<string, object?> { ["items"] = rows });
     }

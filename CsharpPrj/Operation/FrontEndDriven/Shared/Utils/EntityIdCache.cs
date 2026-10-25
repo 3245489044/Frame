@@ -1,6 +1,7 @@
 
 #nullable enable
 
+using FrameworkAbstractions.Framework;
 using FrontEndDriven.Shared.Framework;
 using TConfig.ECS;
 

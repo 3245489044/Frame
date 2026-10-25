@@ -4,7 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using FrontEndDriven.Diagnostics;
-using FrontEndDriven.Shared.Framework;
+using FrameworkAbstractions.Framework;
 using TConfig.Abstractions;
 
 namespace FrontEndDriven.Pipeline;

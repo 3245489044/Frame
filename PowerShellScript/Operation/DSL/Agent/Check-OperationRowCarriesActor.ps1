@@ -32,7 +32,7 @@ Write-Host '  操作行承载执行体守卫（OperationRowCarriesActor：G5）'
 Write-Host '============================================================'
 
 $renderer = Join-Path $Root 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\HtmlStreamRenderer.cs'
-$templates = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Assets\HtmlAssetRegistry.DefaultTemplates.cs'
+$templates = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json'
 
 function Get-RenderOpsBody([string]$Text) {
     $start = $Text.IndexOf('private static string RenderOperations(')
@@ -73,7 +73,7 @@ if (-not (Test-Path -LiteralPath $templates)) {
     $violations.Add("[G2] 缺件（判据不可判）：$templates")
 } else {
     $tplText = [System.IO.File]::ReadAllText($templates)
-    $line = ($tplText -split "`n" | Where-Object { $_ -match '\["actionPanel"\]' } | Select-Object -First 1)
+    $line = ($tplText -split "`n" | Where-Object { $_ -match '"actionPanel"\s*:' } | Select-Object -First 1)
     if ([string]::IsNullOrWhiteSpace($line)) {
         $violations.Add('[G2] 框架默认模板缺 actionPanel（操作流承载面缺失）')
     } elseif ($line -notmatch '\{subagent\}') {

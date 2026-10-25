@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 通用节流门（集中管理散落的刷新节流）：按 key 的滑动窗口次数上限。

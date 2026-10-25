@@ -186,14 +186,29 @@ public static class HtmlBridgeAssembly
     }
 
     /// <summary>注入页面模板集与 JSON 主题（只需模板集，不依赖 htmlviewer 实例/注册库；宿主可在创建控件前调用，使 JSON 主题在生产生效）。
-    /// 通用 HTML 由框架内嵌默认模板承担（<see cref="HtmlAssetRegistry.DefaultTemplates"/>），配置可按同名键覆盖。</summary>
-    public static void AttachTemplatesAndTheme(HtmlUiHostSlot host, IReadOnlyDictionary<string, string> templates)
+    /// 通用 HTML 由框架默认资产承担（经 <see cref="IHtmlAssetProvider"/> 端口读取，配置可按同名键覆盖）；
+    /// 消费方不再直取具体内核的静态成员，消除跨程序集「成员改名即 MissingField」耦合。</summary>
+    /// <summary>兼容重载（二进制稳定）：保留旧 2 参签名，供已编译消费方调用。</summary>
+    public static void AttachTemplatesAndTheme(
+        HtmlUiHostSlot host,
+        IReadOnlyDictionary<string, string> templates)
+        => AttachTemplatesAndTheme(host, templates, null);
+
+    public static void AttachTemplatesAndTheme(
+        HtmlUiHostSlot host,
+        IReadOnlyDictionary<string, string> templates,
+        IHtmlAssetProvider? assets)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(templates);
 
         // 框架默认模板为底，配置显式模板覆盖其上（配置只声明差异/覆盖，通用 HTML 由框架单点维护）。
-        var resolved = new Dictionary<string, string>(HtmlAssetRegistry.DefaultTemplates, System.StringComparer.OrdinalIgnoreCase);
+        var provider = assets ?? HtmlAssetRegistry.Default;
+        var defaults = provider.GetDefaultTemplates();
+        if (defaults.Count == 0)
+            host.DiagnosticsSink?.Invoke("HtmlAssets_default_templates_empty",
+                "框架默认模板集为空（资产未嵌入或提供者未覆写 GetDefaultTemplates）→ 配置模板独占；若配置也未声明，页面将缺壳。");
+        var resolved = new Dictionary<string, string>(defaults, System.StringComparer.OrdinalIgnoreCase);
         foreach (var kv in templates)
             resolved[kv.Key] = kv.Value;
 
@@ -230,14 +245,23 @@ public static class HtmlBridgeAssembly
     /// 模板注入与 UI 结构整体解析解耦：仅用 <see cref="JsonDocument"/> 读取 templates 段，UI 结构（form/views/htmlPage）字段类型失配
     /// 不连带丢失模板（修复 8.24 主对话框渲染为空中「整份反序列化抛错 → 模板槽位 null」根因）。
     /// </summary>
-    public static async Task<bool> AttachTemplatesAndThemeFromConfigAsync(HtmlUiHostSlot host, string configPath)
+    /// <summary>兼容重载（二进制稳定）：保留旧 2 参签名，供已编译消费方（PrjBridge/插件 DLL）调用。</summary>
+    public static Task<bool> AttachTemplatesAndThemeFromConfigAsync(
+        HtmlUiHostSlot host,
+        string configPath)
+        => AttachTemplatesAndThemeFromConfigAsync(host, configPath, null);
+
+    public static async Task<bool> AttachTemplatesAndThemeFromConfigAsync(
+        HtmlUiHostSlot host,
+        string configPath,
+        IHtmlAssetProvider? assets)
     {
         ArgumentNullException.ThrowIfNull(host);
         if (string.IsNullOrWhiteSpace(configPath) || !System.IO.File.Exists(configPath))
             return false;
         var templates = await LoadTemplatesAsync(configPath).ConfigureAwait(false)
             ?? new Dictionary<string, string>();
-        AttachTemplatesAndTheme(host, templates);
+        AttachTemplatesAndTheme(host, templates, assets);
         return true;
     }
 

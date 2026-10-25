@@ -88,20 +88,8 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
         if (asyncFunc == null)
             throw new ArgumentNullException(nameof(asyncFunc));
 
-        if (IsUIThread)
-        {
-            await asyncFunc();
-        }
-        else
-        {
-            var tcs = new TaskCompletionSource();
-            _pumpControl.BeginInvoke((Action)(async () =>
-            {
-                try { await asyncFunc(); tcs.SetResult(); }
-                catch (Exception ex) { tcs.SetException(ex); }
-            }));
-            await tcs.Task;
-        }
+        // 统一走带栅栏/超时的异步封送（与 TryPost/Send 同一存活判定，消除关窗后永久挂起）。
+        await InvokeAsync(async () => { await asyncFunc(); return true; }).ConfigureAwait(false);
     }
 
     public async Task<T> InvokeAsync<T>(Func<Task<T>> asyncFunc)
@@ -110,17 +98,44 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
             throw new ArgumentNullException(nameof(asyncFunc));
 
         if (IsUIThread)
-        {
             return await asyncFunc();
+
+        if (!HostAcceptsDispatch())
+            return default!;
+
+        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            _pumpControl.BeginInvoke((Action)(async () =>
+            {
+                try { tcs.TrySetResult(await asyncFunc()); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            }));
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
+        {
+            System.Threading.Interlocked.Increment(ref _droppedAfterHostClosed);
+            return default!;
         }
 
-        var tcs = new TaskCompletionSource<T>();
-        _pumpControl.BeginInvoke((Action)(async () =>
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(UiDispatcherCore.SyncDispatchTimeoutMs))
+            .ConfigureAwait(false);
+        if (completed != tcs.Task)
+            throw new TimeoutException(
+                $"UI 线程异步封送等待超时（{UiDispatcherCore.SyncDispatchTimeoutMs}ms）：UI 线程可能被同步阻塞。");
+
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>投递栅栏：宿主存活 ∧ 控件未释放 ∧ 句柄已创建；不可达则计数并丢弃（与 <see cref="TryPost"/> 同口径）。</summary>
+    private bool HostAcceptsDispatch()
+    {
+        if (!_hostAlive() || _pumpControl.IsDisposed || !_pumpControl.IsHandleCreated)
         {
-            try { tcs.SetResult(await asyncFunc()); }
-            catch (Exception ex) { tcs.SetException(ex); }
-        }));
-        return await tcs.Task;
+            System.Threading.Interlocked.Increment(ref _droppedAfterHostClosed);
+            return false;
+        }
+        return true;
     }
 
     public void AssertUIThread()

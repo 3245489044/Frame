@@ -57,7 +57,7 @@ $contractDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Observabi
 $tokenJson   = Join-Path $contractDir 'unknown_tokens.json'
 $facadeFile  = Join-Path $contractDir 'UnknownTokens.cs'
 $csproj      = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Agent.Contract.csproj'
-$tplFile     = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Assets\HtmlAssetRegistry.DefaultTemplates.cs'
+$tplFile     = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json'
 
 # ---------------- G1 载体在册 ----------------
 if (-not (Test-Path -LiteralPath $tokenJson)) {

@@ -24,11 +24,19 @@ public sealed class HtmlScriptBridge
 
     private readonly IHtmlChannel _channel;
     private readonly HtmlScriptInvoker _invoker;
+    private readonly IHtmlAssetProvider _assets;
 
+    /// <summary>兼容重载（二进制稳定）：保留旧 2 参构造签名。</summary>
     public HtmlScriptBridge(IHtmlChannel channel, HtmlScriptInvoker invoker)
+        : this(channel, invoker, null)
+    {
+    }
+
+    public HtmlScriptBridge(IHtmlChannel channel, HtmlScriptInvoker invoker, IHtmlAssetProvider? assets)
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
+        _assets = assets ?? HtmlAssetRegistry.Default;
     }
 
     /// <summary>逐条执行命令，返回全部输出行；单条失败不中断后续（对齐脚本整体结果语义）。</summary>
@@ -63,9 +71,9 @@ public sealed class HtmlScriptBridge
                 var probe = "n/a";
                 try
                 {
-                    // 复用资产层诊断模板（与 BridgeDiagnosisTemplate 单一来源，消除探针串漂移）。
+                    // 复用资产层诊断模板（与 BridgeDiagnosisTemplate 单一来源，消除探针串漂移）；经端口取，不直连静态成员。
                     probe = HtmlElementNode.UnwrapString(
-                        await _channel.ExecuteScriptAsync(HtmlAssetRegistry.GetTemplate(HtmlAssetKeys.BridgeDiagnosisTemplate), ct).ConfigureAwait(false));
+                        await _channel.ExecuteScriptAsync(_assets.GetTemplate(HtmlAssetKeys.BridgeDiagnosisTemplate), ct).ConfigureAwait(false));
                 }
                 catch (Exception ex)
                 {

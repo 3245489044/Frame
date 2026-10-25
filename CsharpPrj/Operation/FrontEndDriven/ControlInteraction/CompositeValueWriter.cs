@@ -44,6 +44,10 @@ public class CompositeValueWriter : TConfig.Controls.IControlValueAccessor
         return writer?.GetValue(control);
     }
 
+    /// <summary>
+    /// 写入：与 <see cref="GetValue"/> 同口径命中「首个支持该控件的 writer」——读写对称。
+    /// 原实现写广播到全部 writer（读只取首个）导致同一对象两套语义、后注册 writer 永远读不到。
+    /// </summary>
     public void SetValue(object control, object? value)
     {
         if (control == null)

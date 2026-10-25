@@ -1,0 +1,76 @@
+:root {
+    --bg: #ffffff;
+    --fg: #24292f;
+    --muted: #57606a;
+    --border: #d0d7de;
+    --user-bg: #dbe7ff;
+    --user-fg: #0b2a52;
+    --agent-bg: #f1f2f4;
+    --agent-fg: #1f2328;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0d1117;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --border: #30363d;
+        --user-bg: #1f3a5f;
+        --user-fg: #e6edf3;
+        --agent-bg: #21262d;
+        --agent-fg: #e6edf3;
+    }
+}
+* { box-sizing: border-box; }
+body {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    margin: 0; padding: 14px 16px;
+    font-size: 15px; line-height: 1.7;
+    color: var(--fg); background: var(--bg);
+    word-wrap: break-word;
+}
+/* ── 块式对话 ── */
+.block { display: flex; flex-direction: column; margin: 10px 0; }
+.block.user { align-items: flex-end; }
+.block.assistant { align-items: flex-start; }
+.block-badge {
+    font-size: 12px; color: var(--muted);
+    margin: 0 6px 3px; letter-spacing: .02em;
+}
+.block-body {
+    max-width: 86%; padding: 8px 12px;
+    border-radius: 10px;
+    white-space: pre-wrap; word-break: break-word;
+}
+.block.user .block-body {
+    background: var(--user-bg); color: var(--user-fg);
+    border-top-right-radius: 2px;
+}
+.block.assistant .block-body {
+    background: var(--agent-bg); color: var(--agent-fg);
+    border-top-left-radius: 2px;
+}
+.empty { color: var(--muted); text-align: center; margin-top: 24px; }
+/* ── 层次化对话 ── */
+.section { margin: 4px 0 14px; }
+.section-header {
+    font-size: 12px; color: var(--muted);
+    margin: 8px 0 4px; padding-bottom: 3px;
+    letter-spacing: .04em; cursor: pointer; user-select: none;
+    border-bottom: 1px solid var(--border);
+}
+.section-header:hover { color: var(--fg); }
+.block.nested .fold-layer { margin: 0 6px; }
+.fold-summary { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+.fold-summary::before { content: "▸ "; }
+details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
+.block.error .block-body { background: #fbe3e3; color: #7a1f1f; }
+.block.system { align-items: center; }
+.block.system .block-body {
+    background: transparent; color: var(--muted);
+    border: 1px dashed var(--border); font-size: 13px;
+}
+/* ── 域外扩展位 ──
+   交互式会话页（task 侧栏 / history 两级树 / dot / composer 等）属应用域样式，
+   不属 plate 纯渲染基础：由应用侧经 JSON templates.theme 以「基础 + 差异」方式叠加
+   （装配点 HtmlBridgeAssembly.AttachTemplatesAndTheme 会把本基础主题与应用主题合并），
+   避免「框架 DefaultCss ↔ 应用 theme」两份逐字复制漂移。 */

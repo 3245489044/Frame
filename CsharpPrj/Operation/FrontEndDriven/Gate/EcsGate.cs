@@ -233,15 +233,8 @@ public sealed class EcsGate : IDisposable
         }
 
         // 2026-08-06 M4b 收敛：销毁实体统一经 ICompositionLifecycle.ScopeDestroyed（StateCenter 单一路径，绝不 Dispose composition）。
-        // 旧 IScopeDestroyer 分支已删除（ConfigurationLifecycleManager 收敛为仅启动编排）；无 StateCenter 装配场景回退 composition 直毁。
-        if (_compositionLifecycle != null)
-        {
-            _compositionLifecycle.ScopeDestroyed(scopeName);
-        }
-        else
-        {
-            _composition.DestroyScopeEntities(scopeName);
-        }
+        // 回退分支已上收 CompositionTeardown（单一出口），避免与 RenderTransaction / ScopeLifecycleAdapter 各复制一份。
+        CompositionTeardown.DestroyScope(_compositionLifecycle, _composition, scopeName);
 
         if (platform != null)
         {

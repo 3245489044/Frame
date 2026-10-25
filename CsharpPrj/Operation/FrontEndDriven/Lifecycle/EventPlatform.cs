@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FrontEndDriven.Diagnostics;
-using FrontEndDriven.Shared.Framework;
+using FrameworkAbstractions.Framework;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Execution;
 

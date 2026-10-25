@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 类型化事件总线（通用框架）：以事件类型（string）为键的多订阅者总线。

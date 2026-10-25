@@ -2,6 +2,7 @@
 #nullable enable
 
 using System.Windows.Forms;
+using FrameworkAbstractions.Framework;
 using FrontEndDriven.Shared.Framework;
 
 namespace FrontEndDriven.WinForms.Applier.Projection;

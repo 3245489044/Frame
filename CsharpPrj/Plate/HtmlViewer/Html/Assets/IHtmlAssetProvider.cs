@@ -1,5 +1,7 @@
 #nullable enable
 
+using System.Collections.Generic;
+
 namespace UiBackend.Html;
 
 /// <summary>前端资产键（脚本 / 样式 / 参数化模板的统一命名空间）。容纳 HtmlViewer 原内嵌 JS/CSS/JS 模板，消除散落 const 字符串。</summary>
@@ -44,4 +46,11 @@ public interface IHtmlAssetProvider
 
     /// <summary>取参数化 JS 模板；key 缺失返回空串。</summary>
     string GetTemplate(string key);
+
+    /// <summary>
+    /// 取框架内嵌默认模板集（配置按同名键覆盖其上的「底」）；未提供返回空集。
+    /// 默认实现返回空集（保持既有实现零改动），具默认资产的内核应覆写。
+    /// </summary>
+    IReadOnlyDictionary<string, string> GetDefaultTemplates()
+        => new Dictionary<string, string>();
 }

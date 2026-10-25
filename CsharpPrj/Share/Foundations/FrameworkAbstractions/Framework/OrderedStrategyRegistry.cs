@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 有序策略注册表（通用框架）：注册顺序即优先级（先注册先判定），未命中回退默认策略。

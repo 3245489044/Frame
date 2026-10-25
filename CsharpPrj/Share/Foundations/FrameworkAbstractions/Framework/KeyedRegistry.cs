@@ -4,7 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 键值注册表（通用框架）：以并发字典为后端的线程安全键-值存储，覆盖

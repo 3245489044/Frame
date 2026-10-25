@@ -1,11 +1,11 @@
 #nullable enable
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
-/// 队列排空共享策略（单点可调）：RenderRequestQueue 与 LayoutScheduler 共用的排空预算。
+/// 队列排空共享策略（单点可调）：所有 latest-wins 单消费者队列共用的排空预算。
 /// drain 骨架已由 <see cref="VersionedKeyedQueue{TKey,TEntry}.DrainAllAsync"/> 收敛，
-/// 本策略承载两者排空的预算行为，杜绝各实现自行硬编码（治两层调度策略分散）。
+/// 本策略承载排空预算行为，杜绝各实现自行硬编码（治多层调度策略分散）。
 /// </summary>
 public static class QueueDrainPolicy
 {

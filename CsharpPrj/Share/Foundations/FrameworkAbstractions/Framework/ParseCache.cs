@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 值解析缓存（通用框架）：仅缓存解析成功的结果；负结果不缓存（随时可重试），

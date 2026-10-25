@@ -63,7 +63,8 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
         var platform = _platform;
         platform?.Publish(PlatformEvent.Destroying(scope));
 
-        _composition.ScopeDestroyed(scope);
+        // 销毁出口上收单一实现（与 EcsGate / RenderTransaction 同一路径）。
+        CompositionTeardown.DestroyScope(_composition, scope);
 
         platform?.Publish(PlatformEvent.Destroyed(scope));
     }

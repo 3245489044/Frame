@@ -2,7 +2,7 @@
 
 using System;
 using FrontEndDriven.Pipeline;
-using FrontEndDriven.Shared.Framework;
+using FrameworkAbstractions.Framework;
 using Share.StateManagement;
 
 namespace FrontEndDriven.Gate;
@@ -33,16 +33,10 @@ public sealed class RenderTransaction : IDisposable
         _composition = composition ?? throw new ArgumentNullException(nameof(composition));
         _compositionLifecycle = compositionLifecycle;
 
-        // 事务回滚 = DestroyScopeEntities 级清理（含宿主清理/MountState 回写），
-        // 与正常销毁同一出口（CompositionLifecycleAdapter.ScopeDestroyed），不发布 Destroying/Destroyed 事件
-        // （事务失败非正常销毁语义）。
+        // 事务回滚 = DestroyScopeEntities 级清理（含宿主清理/MountState 回写），与正常销毁同一出口
+        // （CompositionTeardown，不发布 Destroying/Destroyed 事件——事务失败非正常销毁语义）。
         _guard = new TransactionGuard(() =>
-        {
-            if (_compositionLifecycle != null)
-                _compositionLifecycle.ScopeDestroyed(_scope);
-            else
-                _composition.DestroyScopeEntities(_scope);
-        });
+            CompositionTeardown.DestroyScope(_compositionLifecycle, _composition, _scope));
     }
 
     /// <summary>事务成功落定：跳过 Dispose 时的回滚补偿。</summary>

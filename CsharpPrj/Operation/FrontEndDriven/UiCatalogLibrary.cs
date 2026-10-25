@@ -52,9 +52,12 @@ public static class UiCatalogLibrary
             "按相对 id 加载模板说明（缺省回退分类 README）");
     }
 
-    /// <summary>默认扫描根为 Agent 请求体模板库（Templates/AgentRun），id = 分类/文件名；调用方可传入 Dir 覆盖。</summary>
+    /// <summary>默认扫描根提供者（宿主装配期可覆盖；缺省解析框架模板根，消除对具体插件目录的硬编码）。</summary>
+    public static Func<string> DefaultRootProvider { get; set; } = () => UiPathManager.GetAgentRunTemplatesRoot();
+
+    /// <summary>默认扫描根为宿主注入的模板库，id = 分类/文件名；调用方可传入 Dir 覆盖。</summary>
     private static FileCatalogSpec Spec(string? dir)
-        => new FileCatalogSpec { Dir = string.IsNullOrWhiteSpace(dir) ? UiPathManager.GetAgentRunTemplatesRoot() : dir };
+        => new FileCatalogSpec { Dir = string.IsNullOrWhiteSpace(dir) ? DefaultRootProvider() : dir };
 
     /// <summary>幂等装配模板目录源（同 Id 已存在则复用，避免热加载重复注册抛重复源）。</summary>
     private static void EnsureTemplatesSource()

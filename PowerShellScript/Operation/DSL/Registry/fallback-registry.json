@@ -13,7 +13,7 @@
     {
       "dimension": "subagent",
       "token": "unknown",
-      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs",
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Assets/templates.default.json",
       "exit": "U",
       "owner": "plate-htmlviewer",
       "note": "M1 已接线：模板去 {?subagent} 包裹，改供数侧可见位 {?showSubagent}"
@@ -21,7 +21,7 @@
     {
       "dimension": "targets",
       "token": "unknown",
-      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Assets/HtmlAssetRegistry.DefaultTemplates.cs",
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Assets/templates.default.json",
       "exit": "U",
       "owner": "plate-htmlviewer",
       "note": "M1 已接线：模板去 {?targets} 包裹，改供数侧可见位 {?showTargets}"

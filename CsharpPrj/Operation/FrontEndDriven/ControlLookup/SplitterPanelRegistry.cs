@@ -3,7 +3,7 @@
 
 using ECS.Core;
 using FrontEndDriven.Protocol;
-using FrontEndDriven.Shared.Framework;
+using FrameworkAbstractions.Framework;
 
 namespace FrontEndDriven.ControlLookup;
 

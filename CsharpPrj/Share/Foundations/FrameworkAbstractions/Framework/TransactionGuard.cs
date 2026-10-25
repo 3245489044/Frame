@@ -2,7 +2,7 @@
 
 using System;
 
-namespace FrontEndDriven.Shared.Framework;
+namespace FrameworkAbstractions.Framework;
 
 /// <summary>
 /// 事务守卫（通用框架）：using 作用域内执行事务体，显式 <see cref="Commit"/> 落定；

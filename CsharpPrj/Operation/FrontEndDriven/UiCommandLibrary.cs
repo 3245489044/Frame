@@ -24,8 +24,15 @@ namespace FrontEndDriven;
 [FunctionLibrary]
 public static class UiCommandLibrary
 {
-    /// <summary>缺省执行器：Agent 的单一 JSON 请求体入口。</summary>
-    public const string DefaultExecutor = "AgentUi_RunJson";
+    /// <summary>缺省执行器（可经 <see cref="Configure"/> 由宿主替换；默认值仅为向后兼容的装配缺省）。</summary>
+    public static string DefaultExecutor { get; private set; } = "AgentUi_RunJson";
+
+    /// <summary>宿主装配期覆盖缺省执行器（消除通用命令库对具体插件函数的硬编码）。</summary>
+    public static void Configure(string? defaultExecutor)
+    {
+        if (!string.IsNullOrWhiteSpace(defaultExecutor))
+            DefaultExecutor = defaultExecutor.Trim();
+    }
 
     /// <summary>空模板占位（表示"无模板，仅用输入"）。</summary>
     public const string EmptyTemplate = "-";

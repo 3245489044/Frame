@@ -14,6 +14,11 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
   </ItemGroup>
 
+  <!-- 前端资产（模板/CSS/脚本）与代码同版本化：键 → 资产路径的加载器见 HtmlAssetRegistry（缺资源 ⇒ 显式降级 + 诊断）。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\**\*" LogicalName="Plate.HtmlViewer.Assets.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- ★ 2026-08-24 HTML 后端逻辑（Abstractions/ + Html/）已并入本项目：声明模型仍依赖 TConfig -->
   <ItemGroup>
     <ProjectReference Include="$(Proj_TConfig)" />

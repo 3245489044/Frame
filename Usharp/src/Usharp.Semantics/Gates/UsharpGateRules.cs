@@ -412,6 +412,61 @@ internal sealed class GatherGateRule : IGateRule<UsharpGateModel>
                     $"[Gather] {gather.DomainId}: 缺通配塑形 '{WildcardKind}'（治「未声明 kind 被丢行」）",
                     gather.SourceFile, gather.LineNumber));
             }
+
+            CheckRead(gather, sink);
+        }
+    }
+
+    /// <summary>
+    /// 读轴段闸A：受控词 + 完备性（声明任意 read-* ⇒ scope/source 必填；source=edge ⇒ edge 必填）。
+    /// 未声明读轴 ⇒ 合法（容器轴默认，零回归）。
+    /// </summary>
+    private static void CheckRead(UsharpGatherDecl gather, IConversionDiagnosticSink sink)
+    {
+        if (gather.Read is not { } read)
+        {
+            return;
+        }
+
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadScope, read.Scope, UsharpLanguage.ReadScopes, required: true);
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadSource, read.Source, UsharpLanguage.ReadSources, required: true);
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadNormalize, read.Normalize, UsharpLanguage.ReadNormalizes, required: false);
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadOrder, read.Order, UsharpLanguage.ReadOrders, required: false);
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadEmpty, read.Empty, UsharpLanguage.ReadEmptyReasons, required: false);
+
+        if (string.Equals(read.Source, "edge", StringComparison.Ordinal) &&
+            string.IsNullOrWhiteSpace(read.Edge))
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: read-source=edge 须声明 read-edge=（边类型是唯一事实来源）",
+                gather.SourceFile, gather.LineNumber));
+        }
+    }
+
+    private static void CheckWord(
+        UsharpGatherDecl gather,
+        IConversionDiagnosticSink sink,
+        string marker,
+        string? value,
+        string[] allowed,
+        bool required)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (required)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                    $"[Gather] {gather.DomainId}: 读轴缺 {marker}=（声明 read-* 后该词必填）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+            return;
+        }
+
+        if (Array.IndexOf(allowed, value!) < 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: {marker}='{value}' 不在受控词域（{string.Join('/', allowed)}）",
+                gather.SourceFile, gather.LineNumber));
         }
     }
 }

@@ -141,6 +141,25 @@ public static class UsharpLanguage
     public const string MarkerFamily = "family";
     public const string MarkerShaping = "shaping";
 
+    /// <summary>
+    /// 聚拢声明续行首词（<c>[Gather]</c> 的读轴段）：键集取得方式与归一/排序/空因的受控词。
+    /// <para>读轴是**数据**（声明一行），不是 C# 分支；未声明 ⇒ 走既有容器轴默认（零回归）。</para>
+    /// </summary>
+    public const string MarkerReadScope = "read-scope";
+    public const string MarkerReadSource = "read-source";
+    public const string MarkerReadEdge = "read-edge";
+    public const string MarkerReadNormalize = "read-normalize";
+    public const string MarkerReadOrder = "read-order";
+    public const string MarkerReadEmpty = "read-empty";
+
+    /// <summary>读轴受控词（scope / source / normalize / order / empty 的取值域；闸A 唯一判据）。</summary>
+    public static readonly string[] ReadScopes = { "task", "history", "node", "container", "full" };
+    public static readonly string[] ReadSources = { "edge", "container", "key-prefix", "full" };
+    public static readonly string[] ReadNormalizes = { "nodeEndpoint" };
+    public static readonly string[] ReadOrders = { "nodeKeyOrdinal" };
+    public static readonly string[] ReadEmptyReasons =
+        { "no-binding", "source-unavailable", "foreign-namespace", "unparsable-key", "empty-key", "edge-target-missing" };
+
     /// <summary>塑形字段名（<c>shaping</c> 行内 <c>k=v</c>；与 JSON 键名同形）。</summary>
     public const string FieldFamily = "family";
     public const string FieldTitleKey = "titleKey";

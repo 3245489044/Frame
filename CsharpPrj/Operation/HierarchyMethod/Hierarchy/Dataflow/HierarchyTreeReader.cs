@@ -60,10 +60,10 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 
 
         /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。
-        /// <para><paramref name="includeTaskNodeKeys"/> 缺省 <c>false</c>：task→node 键集当前**无消费方**，
-        /// 构建它对每个 task 各发一次图枚举（N+1），是每拍 6.7s 的主因 ⇒ 默认不构建（需要时显式开启）。</para></summary>
+        /// <para><paramref name="includeTaskNodeKeys"/> 缺省 <c>true</c>：task→node 键集经**批量**端口
+        /// （一次图枚举，见 <see cref="IHierarchyReferenceManager.GetTaskNodeKeysManyAsync"/>）构建，无 N+1。</para></summary>
         public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(
-            CancellationToken ct = default, bool includeTaskNodeKeys = false)
+            CancellationToken ct = default, bool includeTaskNodeKeys = true)
         {
             var nodes = new List<HierarchyTree>();
             var roots = await _catalog.ListAsync(ct).ConfigureAwait(false);
@@ -88,36 +88,45 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             return nodes;
         }
 
-        /// <summary>对每个任务查询引用守卫，返回 taskKey → nodeKeys 映射（端口内完成 wf. 前缀剥离；无节点返回空表）。</summary>
+        /// <summary>批量查询引用守卫（一次图枚举；键已由端口归一，本层不再自剥前缀）。</summary>
         private async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> BuildTaskNodeKeysAsync(
             IReadOnlyList<string>? taskKeys, CancellationToken ct)
         {
             if (taskKeys is null || taskKeys.Count == 0 || (_grounding is null && _transfer is null))
                 return null;
+
             var dict = new Dictionary<string, IReadOnlyList<string>>(taskKeys.Count, StringComparer.Ordinal);
+            if (_grounding is not null)
+            {
+                var many = await _grounding
+                    .GetTaskNodeKeysManyAsync(taskKeys, _workflowId, ct)
+                    .ConfigureAwait(false);
+                foreach (var pair in many)
+                {
+                    if (pair.Value.Count > 0) dict[pair.Key] = pair.Value;
+                }
+
+                return dict.Count > 0 ? dict : null;
+            }
+
+            // 传递端口（声明流）路径：保持逐 task；键形态交由节点端点文法归一（不自写切片）。
             foreach (var task in taskKeys)
             {
                 if (string.IsNullOrWhiteSpace(task)) continue;
-                // 空 workflowId 匹配所有 cross_db_link 边；返回的键含 wf. 前缀，需剥离。
-                // 枚举单源（USharp 流 enumerate_members，edge_type=cross_db_link）；未装配传递端口 ⇒ 回退图端口。
-                var rawKeys = _transfer is not null
-                    ? await _transfer.EnumerateAsync(task, CrossDbReferenceTypes.CrossDbLink, ct).ConfigureAwait(false)
-                    : await _grounding!.GetTaskNodeKeysAsync(task, string.Empty, ct).ConfigureAwait(false);
+                var rawKeys = await _transfer!.EnumerateAsync(task, CrossDbReferenceTypes.CrossDbLink, ct).ConfigureAwait(false);
                 var cleanKeys = new List<string>(rawKeys.Count);
                 foreach (var k in rawKeys)
                 {
                     if (string.IsNullOrWhiteSpace(k)) continue;
-                    if (NodeEndpointIds.TryParseNodeIdentity(k, _workflowId, out var clean) &&
-                        clean.Length > 0)
+                    if (NodeEndpointIds.TryParseNodeIdentity(k, _workflowId, out var clean) && clean.Length > 0)
                     {
                         cleanKeys.Add(clean);
                     }
-                    // 无法归属本工作流的形态（history./session./类型前缀/外来命名空间）⇒ 不猜、不入树；
-                    // 走空集而非静默原样带入（R-05：禁把异常形态原样带进层级视图）。
                 }
-                if (cleanKeys.Count > 0)
-                    dict[task] = cleanKeys;
+
+                if (cleanKeys.Count > 0) dict[task] = cleanKeys;
             }
+
             return dict.Count > 0 ? dict : null;
         }
     }

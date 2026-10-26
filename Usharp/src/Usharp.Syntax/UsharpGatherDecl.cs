@@ -44,6 +44,22 @@ public sealed record UsharpGatherShaping(
 }
 
 /// <summary>
+/// <c>[Gather]</c> 的**读轴段**（键集取得方式的数据声明；未声明 ⇒ null = 容器轴默认）。
+/// <para>
+/// 语义：<c>scope</c> 层级锚点 / <c>source</c> 取得方式 / <c>edge</c> 边类型（source=edge 时必填）/
+/// <c>normalize</c> 归一实现名 / <c>order</c> 序实现名 / <c>empty</c> 合法空因词。
+/// 全部为受控词，闸A 校验；消费方（NodeGatherSpec）只读，不解释。
+/// </para>
+/// </summary>
+public sealed record UsharpGatherRead(
+    string Scope,
+    string Source,
+    string? Edge,
+    string? Normalize,
+    string? Order,
+    string? Empty);
+
+/// <summary>
 /// <c>[Gather] Name</c> 的语法视图（收集端口声明：族 → kind 集 + kind 塑形词表；U2）。
 /// <para>
 /// 书写形态（**扁平续行**，复用 U1 通道，零第二表层风格）：头 = <c>[Gather] &lt;domainId&gt;</c>；
@@ -62,7 +78,8 @@ public sealed record UsharpGatherDecl(
     IReadOnlyList<UsharpGatherShaping> Shapings,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
-    int LineNumber)
+    int LineNumber,
+    UsharpGatherRead? Read = null)
 {
     /// <summary>投影单条 <c>[Gather]</c> 声明（无名 ⇒ null；无法解析的续行落入 <see cref="UnparsedLines"/>，闸A 报出）。</summary>
     public static UsharpGatherDecl? From(DslDeclaration d)
@@ -76,6 +93,13 @@ public sealed record UsharpGatherDecl(
         var duplicateFamilies = new List<string>();
         var shapings = new List<UsharpGatherShaping>();
         var unparsed = new List<string>();
+        string? readScope = null;
+        string? readSource = null;
+        string? readEdge = null;
+        string? readNormalize = null;
+        string? readOrder = null;
+        string? readEmpty = null;
+        var hasReadMarker = false;
 
         foreach (var raw in d.Continuation)
         {
@@ -92,6 +116,43 @@ public sealed record UsharpGatherDecl(
                 groupBy = string.IsNullOrWhiteSpace(groupByValue) ? null : groupByValue;
                 continue;
             }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadScope, out var readScopeValue))
+            {
+                readScope = readScopeValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadSource, out var readSourceValue))
+            {
+                readSource = readSourceValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadEdge, out var readEdgeValue))
+            {
+                readEdge = readEdgeValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadNormalize, out var readNormalizeValue))
+            {
+                readNormalize = readNormalizeValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadOrder, out var readOrderValue))
+            {
+                readOrder = readOrderValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (TryStripMarker(line, UsharpLanguage.MarkerReadEmpty, out var readEmptyValue))
+            {
+                readEmpty = readEmptyValue;
+                hasReadMarker = true;
+                continue;
+            }
+
             if (TryStripMarker(line, UsharpLanguage.MarkerFamily, out var familyValue))
             {
                 if (TryParseFamily(familyValue, out var name, out var kinds))
@@ -116,10 +177,23 @@ public sealed record UsharpGatherDecl(
             unparsed.Add(line);
         }
 
+        var read = hasReadMarker
+            ? new UsharpGatherRead(
+                readScope ?? string.Empty,
+                readSource ?? string.Empty,
+                NullIfBlank(readEdge),
+                NullIfBlank(readNormalize),
+                NullIfBlank(readOrder),
+                NullIfBlank(readEmpty))
+            : null;
+
         return new UsharpGatherDecl(
             d.Name, kindField, groupBy, familyOrder, families, duplicateFamilies, shapings,
-            unparsed, d.SourceFile, d.LineNumber);
+            unparsed, d.SourceFile, d.LineNumber, read);
     }
+
+    private static string? NullIfBlank(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>首词标记剥离（标记后须跟空白或整行即标记；防裸键误剥，同 <c>UsharpDomainDecl</c> 口径）。</summary>
     private static bool TryStripMarker(string line, string marker, out string rest)

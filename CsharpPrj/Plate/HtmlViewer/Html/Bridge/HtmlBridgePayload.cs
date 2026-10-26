@@ -50,6 +50,16 @@ public sealed class HtmlBridgePayload
     /// <summary>刷新链路追踪号（框架协议 <c>traceId</c>）；无 → null。</summary>
     public string? TraceId => Text("traceId");
 
+    /// <summary>页面已持有的内容版本（框架协议 <c>v</c>；与 <c>IRefreshStore</c> 的已交付版本同源）；无 → null。</summary>
+    public long? Version
+    {
+        get
+        {
+            var value = Number("v");
+            return value is null ? null : (long)value.Value;
+        }
+    }
+
     /// <summary>浮层受控态（框架态外置协议 <c>uiState.overlay{key,open}</c>，P-A）；无 → null。</summary>
     public UiOverlayState? Overlay
     {

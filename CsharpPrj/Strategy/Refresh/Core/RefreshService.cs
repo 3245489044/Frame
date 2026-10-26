@@ -22,6 +22,7 @@ namespace Strategy.Refresh.Core
         private readonly IRefreshStore _store;
         private readonly IFingerprint _fingerprint;
         private readonly RefreshSchedulerOptions _options;
+        private readonly RefreshBeatOwnership _beats = new();
         private long _unchangedDeliveries;
 
         public RefreshService(
@@ -62,6 +63,9 @@ namespace Strategy.Refresh.Core
         public long PushCount => _scheduler.PushCount;
 
         public long UnchangedDeliveries => Interlocked.Read(ref _unchangedDeliveries);
+
+        /// <summary>被「一拍一票」拦下的重复拍数（同一 slot + 同一 traceId 的第二次请求；已在渲染前早退）。</summary>
+        public long SuppressedDuplicateBeats => _beats.SuppressedCount;
 
         public long SuppressedHeartbeats => _scheduler.SuppressedHeartbeats;
 
@@ -118,6 +122,29 @@ namespace Strategy.Refresh.Core
             ArgumentNullException.ThrowIfNull(request);
             var started = _options.UtcNow();
             var slot = request.SlotKey;
+
+            // 一拍一票（唯一拍所有权）：页面回投的同一 (slot, traceId) 只允许渲染一次。
+            // 重复投递（消息重入 / 页面重复回投）⇒ 渲染前早退为 Unchanged，不产生第二次全量重投影。
+            // 仅约束 PagePull：Change/Manual/Heartbeat 各有独立驱动语义，不得因拍号复用被吞。
+            if (trigger == RefreshTrigger.PagePull && !_beats.TryBegin(slot, request.TraceId))
+            {
+                var beatState = _store.GetState(slot);
+                return Result(slot, beatState.LastDeliveredVersion, trigger, RefreshOutcome.Unchanged,
+                    AcceptDecision.Skip, false, false, false, beatState.LastFingerprint, started, null, null);
+            }
+
+            // 版本单源早退（渲染前）：页面回投的 baseVersion 与本槽已交付版本相同 ⇒ 页面已持有该内容，
+            // 本拍只做「确认」不做重投影（消掉每拍必然 NextVersion ⇒ 必然 RenderAsync 的白跑）。
+            if (request.BaseVersion is long baseVersion)
+            {
+                var versionState = _store.GetState(slot);
+                if (baseVersion == versionState.LastDeliveredVersion)
+                {
+                    _store.RecordOutcome(slot, RefreshOutcome.Unchanged, versionState.LastFingerprint, null, started);
+                    return Result(slot, versionState.LastDeliveredVersion, trigger, RefreshOutcome.Unchanged,
+                        AcceptDecision.Skip, false, false, false, versionState.LastFingerprint, started, null, null);
+                }
+            }
 
             if (trigger is RefreshTrigger.Change or RefreshTrigger.Manual)
                 _store.ResetProgress(slot, started);

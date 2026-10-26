@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +54,19 @@ namespace Operation.DataStoreDriven.Abstractions
 
         /// <summary>该 task 关联的节点键集（task 作用域寻址；供执行期输入解析）。</summary>
         Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
+
+        /// <summary>批量 task 节点键集（消 N+1；默认逐条，生产实现覆盖为单次枚举）。</summary>
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+            IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
+        {
+            var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+            foreach (var taskKey in taskKeys)
+            {
+                result[taskKey] = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+            }
+
+            return result;
+        }
 
         /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像。</summary>
         Task EnsureHistoryMirrorAsync(string historyId, CancellationToken ct = default);

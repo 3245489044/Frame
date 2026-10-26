@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,6 +62,22 @@ namespace Operation.DataStoreDriven.Abstractions
 
         /// <summary>该 task 关联的节点键集（task 作用域寻址）。</summary>
         Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
+
+        /// <summary>
+        /// 批量 task 节点键集（消 N+1：一次图枚举 + 按 task 分组）。
+        /// <para>默认实现退化为逐条（兼容既有实现）；生产实现须覆盖为单次枚举。</para>
+        /// </summary>
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+            IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
+        {
+            var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+            foreach (var taskKey in taskKeys)
+            {
+                result[taskKey] = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+            }
+
+            return result;
+        }
 
         /// <summary>
         /// task 作用域候选节点投影（沿 cross_db_link 挂载 + NodeToNode 组合边 Kahn 拓扑，环内稳定序）。

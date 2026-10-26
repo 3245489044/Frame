@@ -19,15 +19,20 @@ public sealed class HtmlUpdatePusher
 {
     private readonly Func<IHtmlChannel?> _channelResolver;
     private readonly Func<string, string> _traceFactory;
+    private readonly Func<long>? _versionProvider;
     private int _version;
 
     /// <param name="channelResolver">通道解析（返回 null = 页面未挂载 → 静默零推送）。</param>
     /// <param name="traceFactory">追踪号工厂（必填；唯一实现由上层注入
     /// <c>Strategy.Refresh.Diagnostics.RefreshTraceId.New</c>，Plate 不持有第二个序号空间）。</param>
-    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string> traceFactory)
+    /// <param name="versionProvider">内容版本提供者（须与 <c>IRefreshStore</c> 已交付版本同源；
+    /// 缺省或非正数时回落本类内部序号——仅兼容面，不得作为版本单源）。</param>
+    public HtmlUpdatePusher(Func<IHtmlChannel?> channelResolver, Func<string, string> traceFactory,
+        Func<long>? versionProvider = null)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
         _traceFactory = traceFactory ?? throw new ArgumentNullException(nameof(traceFactory));
+        _versionProvider = versionProvider;
     }
 
     /// <summary>推送一次更新（scope=null/空 = 显式全量）；false = 未送达（未挂载 / 通道异常）。</summary>
@@ -35,9 +40,12 @@ public sealed class HtmlUpdatePusher
     {
         var channel = _channelResolver();
         if (channel is null) return false;
+        var version = _versionProvider?.Invoke() ?? 0;
+        if (version <= 0) version = Interlocked.Increment(ref _version);
+        var envelopeVersion = version > int.MaxValue ? int.MaxValue : (int)version;
         var envelope = new UiUpdateEnvelope(
             scopes is null ? Array.Empty<string>() : new List<string>(scopes),
-            Interlocked.Increment(ref _version),
+            envelopeVersion,
             TraceId: _traceFactory("push"));
         try
         {

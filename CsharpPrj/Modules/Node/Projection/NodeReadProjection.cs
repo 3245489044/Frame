@@ -70,7 +70,8 @@ public sealed record ReadScope(
     string? Loc = null,
     string? Container = null,
     int? Round = null,
-    NodeSelectionSpec? Selection = null);
+    NodeSelectionSpec? Selection = null,
+    IReadOnlyList<string>? Keys = null);
 
 /// <summary>
 /// 读投影：<c>Scope → placements → 解码 → selection → 排序 → Origin 标注</c>。
@@ -119,43 +120,92 @@ public sealed class NodeReadProjection
         var targets = ResolvePlacements(scope);
         var items = new List<NodeProjectionItem>();
 
-        foreach (var placement in targets)
+        if (scope.Keys is { Count: > 0 } explicitKeys)
         {
-            if (!_carriers.TryGet(placement.CarrierId, out var carrier))
+            if (!string.IsNullOrEmpty(scope.KeyPrefix))
             {
-                _diagnostics.Report(new NodeDiagnostic(
-                    "carrier.unbound",
-                    NodeDiagnosticSeverity.Warning,
-                    $"载体 '{placement.CarrierId}' 未注册：该位置读投影为空（不阻断其它位置）",
-                    placement.PlacementId));
-                continue;
+                throw new ArgumentException(
+                    "ReadScope.Keys 与 KeyPrefix 互斥（禁二义读轴）", nameof(scope));
             }
 
-            // 读前缀**逐位置**派生（位置键模板；显式 scope.KeyPrefix 优先）：
-            // 单键身份模板（{container}）不能当前缀来源，否则载体全量枚举且跨域混读。
-            var prefix = scope.KeyPrefix ?? PlacementKeyPrefix.LiteralPrefixOf(
-                placement.KeyTemplate, scope.Container, scope.Round);
-            var keys = await carrier.EnumerateKeysAsync(prefix, cancellationToken).ConfigureAwait(false);
-
-            foreach (var key in keys)
+            foreach (var placement in targets)
             {
-                if (prefix is { Length: > 0 } && !key.StartsWith(prefix, StringComparison.Ordinal))
+                if (!_carriers.TryGet(placement.CarrierId, out var carrier))
                 {
+                    _diagnostics.Report(new NodeDiagnostic(
+                        "carrier.unbound",
+                        NodeDiagnosticSeverity.Warning,
+                        $"载体 '{placement.CarrierId}' 未注册：该位置读投影为空（不阻断其它位置）",
+                        placement.PlacementId));
                     continue;
                 }
 
-                var record = await carrier.ReadAsync(key, cancellationToken).ConfigureAwait(false);
-                if (record is null)
+                foreach (var key in explicitKeys)
                 {
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        continue;
+                    }
+
+                    var record = await carrier.ReadAsync(key, cancellationToken).ConfigureAwait(false);
+                    if (record is null)
+                    {
+                        _diagnostics.Report(new NodeDiagnostic(
+                            "projection.key-missing",
+                            NodeDiagnosticSeverity.Warning,
+                            $"显式键集读：键 '{key}' 在载体 '{placement.CarrierId}' 无行（不伪造）",
+                            key));
+                        continue;
+                    }
+
+                    var payload = _codec.Decode(placement.Form, record.Json);
+                    NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
+                    items.Add(new NodeProjectionItem(
+                        key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
+                        DomainKey: placement.Domain, Address: address, SourceKey: key));
+                }
+            }
+        }
+        else
+        {
+            foreach (var placement in targets)
+            {
+                if (!_carriers.TryGet(placement.CarrierId, out var carrier))
+                {
+                    _diagnostics.Report(new NodeDiagnostic(
+                        "carrier.unbound",
+                        NodeDiagnosticSeverity.Warning,
+                        $"载体 '{placement.CarrierId}' 未注册：该位置读投影为空（不阻断其它位置）",
+                        placement.PlacementId));
                     continue;
                 }
 
-                var payload = _codec.Decode(placement.Form, record.Json);
-                // Snapshot 完整化：地址由存储键反解（实例轴随键保留；容器/域取读侧作用域）。
-                NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
-                items.Add(new NodeProjectionItem(
-                    key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
-                    DomainKey: placement.Domain, Address: address));
+                // 读前缀**逐位置**派生（位置键模板；显式 scope.KeyPrefix 优先）：
+                // 单键身份模板（{container}）不能当前缀来源，否则载体全量枚举且跨域混读。
+                var prefix = scope.KeyPrefix ?? PlacementKeyPrefix.LiteralPrefixOf(
+                    placement.KeyTemplate, scope.Container, scope.Round);
+                var keys = await carrier.EnumerateKeysAsync(prefix, cancellationToken).ConfigureAwait(false);
+
+                foreach (var key in keys)
+                {
+                    if (prefix is { Length: > 0 } && !key.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var record = await carrier.ReadAsync(key, cancellationToken).ConfigureAwait(false);
+                    if (record is null)
+                    {
+                        continue;
+                    }
+
+                    var payload = _codec.Decode(placement.Form, record.Json);
+                    // Snapshot 完整化：地址由存储键反解（实例轴随键保留；容器/域取读侧作用域）。
+                    NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
+                    items.Add(new NodeProjectionItem(
+                        key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
+                        DomainKey: placement.Domain, Address: address));
+                }
             }
         }
 

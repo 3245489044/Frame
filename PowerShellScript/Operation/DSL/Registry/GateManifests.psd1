@@ -472,6 +472,14 @@
         Note   = '节点位置反解声明守卫 C1–C5（U12：位置 = loc 反解，不手写声明）：闸A 编译 0 错 / 反解域完备（位置 id ∪ Loc 词表，双向无游离）/ 反解唯一（每位置恰一行）/ 正对照（位置数 ≥ 基线）/ 负对照（U12 §13.2 原样形态必须报 US1003 ∧ US1009）'
     }
 
+    NodeReadSingleSource = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '节点读面单源：task-node 读轴声明闭合（read-scope/source/edge/normalize/order）/ 端点归一生产调用点 ≤ 基线（唯一实现 NodeKeySetResolver）/ 框架读面零自写剥离 / Modules.Node 零上层依赖 / ReadScope.Keys 与 KeyPrefix 互斥；负对照=删 read-source 必须判红'
+    }
+
     NodeKeyAddress = @{
         Domain = 'Node'
         Args   = @{ Check = $true }

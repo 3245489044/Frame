@@ -21,7 +21,8 @@ namespace Strategy.Refresh.Ports
         string? ContextJson = null,
         string? TraceId = null,
         IReadOnlyList<string>? SelectionKeys = null,
-        IReadOnlyList<string>? OpenKeys = null);
+        IReadOnlyList<string>? OpenKeys = null,
+        long? BaseVersion = null);
 
     /// <summary>
     /// 领域渲染端口（L1 **唯一接入点**）：从「做什么」到「长什么样」的生产者。

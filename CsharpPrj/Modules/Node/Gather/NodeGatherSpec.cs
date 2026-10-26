@@ -4,6 +4,23 @@ using Modules.Node.Diagnostics;
 namespace Modules.Node.Gather;
 
 /// <summary>
+/// 聚拢声明的**读轴**（键集取得方式；声明化，禁 C# 分支）。未声明 ⇒ null = 容器轴默认。
+/// </summary>
+/// <param name="Scope">层级锚点（task/history/node/container/full）。</param>
+/// <param name="Source">取得方式（edge/container/key-prefix/full）。</param>
+/// <param name="Edge">边类型（source=edge 时必填，如 cross_db_link）。</param>
+/// <param name="Normalize">归一实现名（默认 nodeEndpoint）。</param>
+/// <param name="Order">序实现名（默认 nodeKeyOrdinal）。</param>
+/// <param name="Empty">合法空因词（如 no-binding）。</param>
+public sealed record NodeGatherReadSpec(
+    string Scope,
+    string Source,
+    string? Edge = null,
+    string? Normalize = null,
+    string? Order = null,
+    string? Empty = null);
+
+/// <summary>
 /// 节点**聚拢**声明（<c>node-gather.json</c> 读入模型）——**声明化**：新增一种节点类别的呈现
 /// = 改声明 + 词表条目，不改 C#。<b>零领域字面量</b>（族名/字段名/徽标一律来自 JSON）。
 /// <para>
@@ -17,13 +34,15 @@ namespace Modules.Node.Gather;
 /// <param name="Families">族名 → kind 集。</param>
 /// <param name="Shapings">kind → 塑形声明。</param>
 /// <param name="GroupByField">二级分组轴字段名（未命中族时按该字段值分组；如 <c>nodeType</c>）。</param>
+/// <param name="Read">读轴（键集取得方式；null = 容器轴默认）。</param>
 public sealed record NodeGatherSpec(
     string Domain,
     string KindField,
     IReadOnlyList<string> FamilyOrder,
     IReadOnlyDictionary<string, IReadOnlyList<string>> Families,
     IReadOnlyDictionary<string, KindShaping> Shapings,
-    string? GroupByField = null)
+    string? GroupByField = null,
+    NodeGatherReadSpec? Read = null)
 {
     /// <summary>载荷判别字段缺省名（未在声明给 <c>kindField</c> 时的单点默认）。</summary>
     public const string DefaultKindField = "kind";
@@ -147,8 +166,33 @@ public sealed record NodeGatherSpec(
         var groupByField = ReadText(root["groupByField"]);
         var (familyOrder, families) = ReadFamilies(root["families"], sink);
         var shapings = ReadShapings(root["kind-shaping"], sink);
+        var read = ReadRead(root["read"]);
 
-        return new NodeGatherSpec(domain, kindField!, familyOrder, families, shapings, groupByField);
+        return new NodeGatherSpec(domain, kindField!, familyOrder, families, shapings, groupByField, read);
+    }
+
+    /// <summary>读轴段（受控词原样读入；非法/缺项由闸A 前置拦截，本层不解释）。</summary>
+    private static NodeGatherReadSpec? ReadRead(JsonNode? node)
+    {
+        if (node is not JsonObject read)
+        {
+            return null;
+        }
+
+        var scope = ReadText(read["read-scope"]);
+        var source = ReadText(read["read-source"]);
+        if (string.IsNullOrWhiteSpace(scope) || string.IsNullOrWhiteSpace(source))
+        {
+            return null;
+        }
+
+        return new NodeGatherReadSpec(
+            scope!,
+            source!,
+            ReadText(read["read-edge"]),
+            ReadText(read["read-normalize"]),
+            ReadText(read["read-order"]),
+            ReadText(read["read-empty"]));
     }
 
     private static (List<string> Order, Dictionary<string, IReadOnlyList<string>> Families) ReadFamilies(

@@ -212,7 +212,7 @@ public static class NodeEndpointIds
     }
 
     /// <summary>已知的其它族前缀（裸键兜底前显式排除，防 <c>history.*</c> / <c>session.*</c> 被误认成节点）。</summary>
-    private static bool IsForeignFamily(string value)
+    public static bool IsForeignFamily(string value)
         => value.StartsWith(HistoryPrefix, StringComparison.Ordinal)
            || value.StartsWith(SessionGrammar.FamilyPrefix, StringComparison.Ordinal)
            || value.StartsWith(HistoryTypePrefix, StringComparison.Ordinal)

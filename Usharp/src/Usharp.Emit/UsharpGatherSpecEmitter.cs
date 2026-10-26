@@ -112,6 +112,21 @@ public static class UsharpGatherSpecEmitter
         }
         root["kind-shaping"] = shapings;
 
+        // 读轴段（可选；未声明 ⇒ 不产出 = 消费方按容器轴默认，零回归）。
+        if (gather.Read is { } read)
+        {
+            var readNode = new JsonObject
+            {
+                [UsharpLanguage.MarkerReadScope] = read.Scope,
+                [UsharpLanguage.MarkerReadSource] = read.Source,
+            };
+            if (!string.IsNullOrWhiteSpace(read.Edge)) readNode[UsharpLanguage.MarkerReadEdge] = read.Edge;
+            if (!string.IsNullOrWhiteSpace(read.Normalize)) readNode[UsharpLanguage.MarkerReadNormalize] = read.Normalize;
+            if (!string.IsNullOrWhiteSpace(read.Order)) readNode[UsharpLanguage.MarkerReadOrder] = read.Order;
+            if (!string.IsNullOrWhiteSpace(read.Empty)) readNode[UsharpLanguage.MarkerReadEmpty] = read.Empty;
+            root["read"] = readNode;
+        }
+
         return root.ToJsonString();
     }
 }

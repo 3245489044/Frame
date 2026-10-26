@@ -87,6 +87,56 @@ public sealed class TaskReferenceGrounding
         return keys.Distinct(StringComparer.Ordinal).ToList();
     }
 
+    /// <summary>批量 task 节点键集（一次图枚举 + 按 task 分组；消 N+1）。</summary>
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+        IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var tasks = (taskKeys ?? Array.Empty<string>())
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Select(static key => key.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (tasks.Count == 0) return result;
+
+        var resources = tasks
+            .Select(key => new ResourceIdentifier
+            {
+                ResourceType = NodeResourceTypes.Task,
+                Id = key,
+                Location = workflowId,
+            })
+            .ToList();
+        var refsByKey = await _graph
+            .GetReferencesManyAsync(resources, includeIncoming: false, ct)
+            .ConfigureAwait(false);
+
+        foreach (var taskKey in tasks)
+        {
+            var resource = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+            if (!refsByKey.TryGetValue(resource.GetUniqueKey(), out var refs))
+            {
+                result[taskKey] = Array.Empty<string>();
+                continue;
+            }
+
+            var targets = GraphEdgeWriter.ProjectOutgoingTargetIds(
+                refs, CrossDbReferenceTypes.CrossDbLink, static r => r.RefType, static r => r.Target?.Id);
+            var keys = new List<string>(targets.Count);
+            foreach (var id in targets)
+            {
+                if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey))
+                {
+                    keys.Add(nodeKey);
+                }
+            }
+
+            result[taskKey] = keys.Distinct(StringComparer.Ordinal).ToList();
+        }
+
+        return result;
+    }
+
     /// <summary>task → sub-task 归属边（task_owns_task，不定深度任务树；幂等加法）。</summary>
     public async Task LinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
     {

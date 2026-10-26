@@ -30,6 +30,7 @@ public sealed class RefreshPublisherHost
     private readonly RefreshSchedulerOptions _options;
     private readonly IInFlightSource? _inFlight;
     private readonly IRefreshSink? _sink;
+    private readonly Func<long>? _beatVersion;
     private RefreshService? _service;
     private HtmlUpdatePusher? _pusher;
     private long _deliveredSeq;
@@ -42,6 +43,8 @@ public sealed class RefreshPublisherHost
     /// <param name="options">调度参数（缺省框架默认）。</param>
     /// <param name="inFlight">在途租约源（可选）。</param>
     /// <param name="sink">写落地端口（缺省 <see cref="HtmlRenderOutputSink"/>，带直接写回调）。</param>
+    /// <param name="beatVersion">推送携带的内容版本提供者（须为 <see cref="IRefreshStore"/> 已交付版本单源；
+    /// 页面据此回投 baseVersion，框架在渲染前早退）。</param>
     public RefreshPublisherHost(
         Func<IHtmlChannel?> channelResolver,
         Func<string, string>? traceFactory = null,
@@ -49,7 +52,8 @@ public sealed class RefreshPublisherHost
         IFingerprint? fingerprint = null,
         RefreshSchedulerOptions? options = null,
         IInFlightSource? inFlight = null,
-        IRefreshSink? sink = null)
+        IRefreshSink? sink = null,
+        Func<long>? beatVersion = null)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
         _traceFactory = traceFactory;
@@ -58,6 +62,7 @@ public sealed class RefreshPublisherHost
         _fingerprint = fingerprint ?? Fnv1aFingerprint.Default;
         _inFlight = inFlight;
         _sink = sink;
+        _beatVersion = beatVersion;
     }
 
     /// <summary>单一刷新状态源（去重/版本裁决）。</summary>
@@ -172,7 +177,7 @@ public sealed class RefreshPublisherHost
         }
 
         lock (_gate)
-            _pusher ??= new HtmlUpdatePusher(_channelResolver, _traceFactory ?? RefreshTraceId.New);
+            _pusher ??= new HtmlUpdatePusher(_channelResolver, _traceFactory ?? RefreshTraceId.New, _beatVersion);
 
         var ok = await _pusher.PushAsync(scopes, ct).ConfigureAwait(false);
         if (ok)

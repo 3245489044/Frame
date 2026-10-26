@@ -227,7 +227,7 @@ namespace Share.TaskStatusPool.TaskPool
 
             if (state.TryCancel())
             {
-                await _persistence.UpdateStatusAsync(taskKey, from, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
+                await TerminalizeAsync(taskKey, from, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
                 Emit(taskKey, from, TaskExecutionStatus.Cancelled, "cancelled");
             }
         }
@@ -439,13 +439,13 @@ namespace Share.TaskStatusPool.TaskPool
                     && st is { CurrentState: TaskExecutionStatus.Running }
                     && st.TryComplete())
                 {
-                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, ct).ConfigureAwait(false);
+                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, "completed");
                 }
                 else if (target == TaskExecutionStatus.Faulted
                     && st is not null && st.TryFault())
                 {
-                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
+                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted_by_outcome");
                 }
                 else if (target is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted))
@@ -459,7 +459,7 @@ namespace Share.TaskStatusPool.TaskPool
                 var st = _states.Get(key);
                 if (st is not null && st.TryCancel())
                 {
-                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
+                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, "cancelled");
                 }
             }
@@ -469,7 +469,7 @@ namespace Share.TaskStatusPool.TaskPool
                 var st = _states.Get(key);
                 if (st is not null && st.TryFault())
                 {
-                    await _persistence.UpdateStatusAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
+                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
                     Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted");
                 }
             }
@@ -529,6 +529,25 @@ namespace Share.TaskStatusPool.TaskPool
             {
                 throw new TimeoutException($"TaskPool drain 操作等待超时（{_drainTimeout.TotalMilliseconds}ms）");
             }
+        }
+
+        /// <summary>终态单点（收敛点）：状态迁移 + 退出消费集（<see cref="IActivatableTaskPoolItem.Active"/>=false）一次完成。
+        /// <para>终态任务不得再带 Active=true：否则重启回填 / 毒化对齐会把已终结的任务重新当作可消费候选
+        /// （现场成员任务「Running/round=0 且 active=true」的成因之一）。</para></summary>
+        private async Task TerminalizeAsync(
+            string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, CancellationToken ct)
+        {
+            await _persistence.UpdateStatusAsync(taskKey, from, to, ct).ConfigureAwait(false);
+
+            // 以持久化最新快照为准（不拿消费期旧对象覆盖并发写入的 Failure/结果字段）。
+            var latest = await _persistence.GetAsync(taskKey, ct).ConfigureAwait(false);
+            if (latest is IActivatableTaskPoolItem activatable && activatable.Active)
+            {
+                activatable.Active = false;
+                await _persistence.UpdatePayloadAsync(taskKey, latest, ct).ConfigureAwait(false);
+            }
+
+            _activeFlags[taskKey] = false;
         }
 
         /// <summary>激活判定：实现 <see cref="IActivatableTaskPoolItem"/> 的条目以 Active 标志为准；未实现（无激活语义）恒真（向后兼容）。</summary>

@@ -58,7 +58,7 @@ public static class KeySurfaceRules
     public static KeyGrammar Canonical(KeyFamily family, KeySurface surface)
         => Grammar(family, surface, 0);
 
-    /// <summary>全部可读形态（规范 + 兼容）；返回顺序 = 判定优先序。</summary>
+    /// <summary>全部可读形态（规范模板 + 并列变体 + 只读兼容）；返回顺序 = 判定优先序；<c>Compatible=true</c> 仅表示只读兼容形态。</summary>
     public static IReadOnlyList<(KeyGrammar Grammar, bool Compatible)> Readable(
         KeyFamily family, KeySurface surface)
     {
@@ -72,7 +72,8 @@ public static class KeySurfaceRules
         var list = new List<(KeyGrammar, bool)>();
         for (var index = 0; index < spec.Templates.Count; index++)
         {
-            list.Add((Grammar(family, surface, index), index > 0));
+            // 同面并列规范变体（index>0）不是 legacy：仅 CompatibleTemplates 报只读兼容。
+            list.Add((Grammar(family, surface, index), false));
         }
 
         var compatible = spec.CompatibleTemplates;

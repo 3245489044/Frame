@@ -123,15 +123,27 @@
 | `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
 | `RuntimeMirror` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
 
-## KeySpace（5 件）
+## KeySpace（17 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `DeclarationClosure` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-DeclarationClosure.ps1` |
 | `DispatchTraceSchema` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-DispatchTraceSchema.ps1` |
 | `ExecutionOwnership` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-ExecutionOwnership.ps1` |
+| `KeyAxisCompleteness` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyAxisCompleteness.ps1` |
+| `KeyCorpusGolden` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyCorpusGolden.ps1` |
+| `KeyDeclNoLogic` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDeclNoLogic.ps1` |
+| `KeyDeclSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDeclSingleSource.ps1` |
 | `KeyDomainStrict` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
+| `KeyOpsClosedSet` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyOpsClosedSet.ps1` |
+| `KeyOwnerUnique` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyOwnerUnique.ps1` |
+| `KeyParseAmbiguity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyParseAmbiguity.ps1` |
+| `KeyParseSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyParseSingleSource.ps1` |
+| `KeyRoundTrip` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyRoundTrip.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
+| `KeySurfaceDistinguishable` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySurfaceDistinguishable.ps1` |
+| `WireFabric` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
+| `WorkFlowMethodKeySemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
 ## Meta（22 件）
 
@@ -160,7 +172,7 @@
 | `UiThreadAffinity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（26 件）
+## Node（27 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -182,6 +194,7 @@
 | `NodeLocConsistency` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeLocConsistency.ps1` |
 | `NodeLocPlacement` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeLocPlacement.ps1` |
 | `NodePortPurity` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1` |
+| `NodeReadSingleSource` | fast | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeReadSingleSource.ps1` |
 | `NodeWriteBypass` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1` |
 | `ObservabilitySurface` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1` |
 | `ReferenceExclusion` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1` |

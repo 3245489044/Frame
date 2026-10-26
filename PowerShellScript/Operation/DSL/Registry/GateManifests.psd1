@@ -65,7 +65,7 @@
 
     KeyAxisCompleteness = @{
         Domain = 'KeySpace'
-        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'axis' }
+        Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
         Note   = 'KB6 轴完备：规范模板有轴，面模板占位符 ⊆ 规范轴；负对照必红'
@@ -73,7 +73,7 @@
 
     KeySurfaceDistinguishable = @{
         Domain = 'KeySpace'
-        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'surface' }
+        Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
         Note   = 'KB6 面可区分：同族各面模板形状两两不同；负对照必红'
@@ -81,7 +81,7 @@
 
     KeyOwnerUnique = @{
         Domain = 'KeySpace'
-        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'owner' }
+        Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
         Note   = 'KB6 归属唯一：族 id 唯一 + 规范模板形状不重复；负对照必红'

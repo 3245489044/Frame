@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Modules.KeySpace.Abstractions;
 using Modules.KeySpace.Diagnostics;
 using Modules.KeySpace.Model;
 using Modules.KeySpace.Runtime;
@@ -26,23 +27,31 @@ public sealed class KeyOps
 
     private readonly KeyAlgebra _algebra;
     private readonly IReadOnlyDictionary<string, KeyFamily> _families;
+    private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<KeySurface, KeySurfaceSpec>> _surfaces;
+    private readonly IKeyDiagnosticsSink _diagnostics;
 
-    private KeyOps(IEnumerable<KeyFamily> families)
+    private KeyOps(IEnumerable<KeyFamily> families, IKeyDiagnosticsSink? diagnostics = null)
     {
         ArgumentNullException.ThrowIfNull(families);
         var list = families.Where(static f => f is not null).ToArray();
         _families = list.ToDictionary(static f => f.Id, StringComparer.Ordinal);
-        _algebra = new KeyAlgebra(list, NullKeyDiagnosticsSink.Instance);
+        _surfaces = list.ToDictionary(
+            static f => f.Id,
+            static f => KeySurfaceRules.EffectiveSurfaces(f),
+            StringComparer.Ordinal);
+        _diagnostics = diagnostics ?? NullKeyDiagnosticsSink.Instance;
+        _algebra = new KeyAlgebra(list, _diagnostics);
     }
 
     /// <summary>以族声明构造算子实例（产品侧装配；框架层不持有域词）。</summary>
-    public static KeyOps FromFamilies(IEnumerable<KeyFamily> families) => new(families);
+    public static KeyOps FromFamilies(IEnumerable<KeyFamily> families, IKeyDiagnosticsSink? diagnostics = null)
+        => new(families, diagnostics);
 
-    /// <summary>以键空间声明构造算子实例。</summary>
-    public static KeyOps FromDeclaration(KeySpaceDeclaration declaration)
+    /// <summary>以键空间声明构造算子实例（可注入诊断汇：无观察者场景显式传 <see cref="NullKeyDiagnosticsSink"/>）。</summary>
+    public static KeyOps FromDeclaration(KeySpaceDeclaration declaration, IKeyDiagnosticsSink? diagnostics = null)
     {
         ArgumentNullException.ThrowIfNull(declaration);
-        return new KeyOps(declaration.Families);
+        return new KeyOps(declaration.Families, diagnostics);
     }
 
     /// <summary>
@@ -121,27 +130,31 @@ public sealed class KeyOps
         if (key.IsEmpty)
         {
             diagnostic = KeyDiagnostic.Error(KeyReasonCodes.Blank, KeyResolution.Empty, null, "空键实例");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
-        if (!_families.TryGetValue(key.Family, out var family))
+        if (!_families.ContainsKey(key.Family))
         {
             diagnostic = KeyDiagnostic.Error(
                 KeyReasonCodes.FamilyUnresolved, KeyResolution.NotDeclared,
                 KeyRef.Of(key.Family, string.Empty), $"键族未声明: {key.Family}");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
-        if (!KeySurfaceRules.EffectiveSurfaces(family).ContainsKey(key.Surface))
+        if (!SurfacesOf(key.Family).ContainsKey(key.Surface))
         {
             diagnostic = KeyDiagnostic.Error(
                 KeyReasonCodes.SurfaceMismatch, KeyResolution.NotDeclared,
                 KeyRef.Of(key.Family, string.Empty), $"族 '{key.Family}' 未声明键面 '{key.Surface}'");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
         if (!_algebra.TryBuild(key.Point, key.Surface, out var built, out diagnostic))
         {
+            if (diagnostic is not null) _diagnostics.Report(diagnostic);
             return false;
         }
 
@@ -207,6 +220,7 @@ public sealed class KeyOps
         if (string.IsNullOrWhiteSpace(raw))
         {
             diagnostic = KeyDiagnostic.Warn(KeyReasonCodes.Blank, KeyResolution.Empty, null, "空键文本");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
@@ -215,6 +229,7 @@ public sealed class KeyOps
             diagnostic = KeyDiagnostic.Error(
                 KeyReasonCodes.FamilyUnresolved, KeyResolution.NotDeclared,
                 KeyRef.Of(familyId, raw!), $"键族未声明: {familyId}");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
@@ -223,13 +238,14 @@ public sealed class KeyOps
             diagnostic = KeyDiagnostic.Warn(
                 KeyReasonCodes.ParseTrailingDot, KeyResolution.Unparsable,
                 KeyRef.Of(familyId, raw), "尾随点号 = 前缀片段（不是完整键）");
+            _diagnostics.Report(diagnostic);
             return false;
         }
 
         return true;
     }
 
-    /// <summary>族判据（结构事实）：解析成功或落在声明前缀内（前缀片段用于读侧范围枚举）。</summary>
+    /// <summary>族判据（结构事实）：**解析成功**才算本族键；前缀片段不是键。</summary>
     public bool IsKeyOf(string familyId, KeySurface surface, string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw) || !_families.ContainsKey(familyId))
@@ -237,9 +253,15 @@ public sealed class KeyOps
             return false;
         }
 
-        if (TryParse(familyId, surface, raw, out _, out _))
+        return TryParse(familyId, surface, raw, out _, out _);
+    }
+
+    /// <summary>前缀片段判据（读侧范围枚举用；与 <see cref="IsKeyOf"/> 分离，禁以片段冒充键）。</summary>
+    public bool IsPrefixOf(string familyId, KeySurface surface, string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || !_families.ContainsKey(familyId))
         {
-            return true;
+            return false;
         }
 
         return raw!.StartsWith(Prefix(familyId, surface), StringComparison.Ordinal);
@@ -248,8 +270,8 @@ public sealed class KeyOps
     /// <summary>面的规范模板（构造/诊断单源；域类禁手拼模板字面量）。</summary>
     public string Template(string familyId, KeySurface surface = KeySurface.Storage)
     {
-        var family = RequireFamily(familyId);
-        var surfaces = KeySurfaceRules.EffectiveSurfaces(family);
+        RequireFamily(familyId);
+        var surfaces = SurfacesOf(familyId);
         if (!surfaces.TryGetValue(surface, out var spec))
         {
             throw new InvalidOperationException(
@@ -272,7 +294,7 @@ public sealed class KeyOps
     public string Prefix(string familyId, KeySurface surface = KeySurface.Storage)
     {
         var family = RequireFamily(familyId);
-        var surfaces = KeySurfaceRules.EffectiveSurfaces(family);
+        var surfaces = SurfacesOf(familyId);
         if (surfaces.TryGetValue(surface, out var spec) && !string.IsNullOrEmpty(spec.FamilyPrefix))
         {
             return spec.FamilyPrefix!;
@@ -306,8 +328,7 @@ public sealed class KeyOps
     /// </summary>
     public string RenderPrefix(KeyInstance key)
     {
-        var family = RequireFamily(key.Family);
-        var surfaces = KeySurfaceRules.EffectiveSurfaces(family);
+        var surfaces = SurfacesOf(key.Family);
         if (!surfaces.TryGetValue(key.Surface, out var spec))
         {
             throw new InvalidOperationException(
@@ -379,5 +400,15 @@ public sealed class KeyOps
         }
 
         return family;
+    }
+
+    /// <summary>族的面声明（构造期缓存；禁每次重查 <see cref="KeySurfaceRules.EffectiveSurfaces"/>）。</summary>
+    private IReadOnlyDictionary<KeySurface, KeySurfaceSpec> SurfacesOf(string familyId)
+        => _surfaces.TryGetValue(familyId, out var surfaces) ? surfaces : RequireSurfaces(familyId);
+
+    private IReadOnlyDictionary<KeySurface, KeySurfaceSpec> RequireSurfaces(string familyId)
+    {
+        RequireFamily(familyId);
+        throw new InvalidOperationException($"{KeyReasonCodes.SurfaceMismatch}: 族 '{familyId}' 未缓存面声明");
     }
 }

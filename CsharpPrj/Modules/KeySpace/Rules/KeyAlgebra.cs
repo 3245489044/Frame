@@ -26,7 +26,6 @@ public sealed class KeyAlgebra : IKeyAlgebra
         IReadOnlyDictionary<KeySurface, SurfaceGrammar> Surfaces);
 
     private sealed record Match(
-        string Family,
         KeyPoint Point,
         bool Compatible,
         string Template,
@@ -227,13 +226,12 @@ public sealed class KeyAlgebra : IKeyAlgebra
         }
 
         var matches = new List<Match>();
-        KeyDiagnostic? axisFailure = null;
-        var axisFailureScore = 0;
+        var axisFailures = new Dictionary<string, (int Score, KeyDiagnostic Diagnostic)>(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(familyHint))
         {
             if (_families.TryGetValue(familyHint!, out var entry))
             {
-                Collect(entry, surface, raw!, matches, ref axisFailure, ref axisFailureScore);
+                Collect(entry, surface, raw!, matches, axisFailures);
             }
         }
         else
@@ -241,14 +239,24 @@ public sealed class KeyAlgebra : IKeyAlgebra
             foreach (var entry in _families.Values)
             {
                 if (!HasFamilyPrefix(entry, surface)) continue;
-                Collect(entry, surface, raw!, matches, ref axisFailure, ref axisFailureScore);
+                Collect(entry, surface, raw!, matches, axisFailures);
             }
         }
 
         if (matches.Count == 0)
         {
-            // 形状/词表命中但轴约束不合法 ⇒ 报轴诊断（比「无模板匹配」更具可复算性）。
-            diagnostic = axisFailure ?? KeyDiagnostic.Warn(
+            // 形状/词表命中但轴约束不合法 ⇒ 报轴诊断（比「无模板匹配」更具可复算性）；
+            // 跨族只取最高分失败样本（并列按族 id 升序，确定性）。
+            KeyDiagnostic? bestFailure = null;
+            var bestFailureScore = int.MinValue;
+            foreach (var pair in axisFailures.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+            {
+                if (pair.Value.Score <= bestFailureScore) continue;
+                bestFailureScore = pair.Value.Score;
+                bestFailure = pair.Value.Diagnostic;
+            }
+
+            diagnostic = bestFailure ?? KeyDiagnostic.Warn(
                 KeyReasonCodes.ParseUnmatched, KeyResolution.Unparsable,
                 string.IsNullOrWhiteSpace(familyHint) ? null : KeyRef.Of(familyHint!, surface.ToString()),
                 $"键面 '{surface}' 无模板匹配（key.parse-unmatched）");
@@ -276,7 +284,7 @@ public sealed class KeyAlgebra : IKeyAlgebra
         }
 
         var families = matches
-            .Select(static candidate => candidate.Family)
+            .Select(static candidate => candidate.Point.Family)
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (families.Count > 1)
@@ -290,9 +298,10 @@ public sealed class KeyAlgebra : IKeyAlgebra
 
         var best = matches.Max(static candidate => candidate.Score);
         // 更具体的模板因轴约束不合格而落选时，禁由更宽的模板吞掉（否则非法键被静默降级为宽容器）。
-        if (axisFailure is not null && axisFailureScore > best)
+        // 轴失败**按族分组**比较：他族的高分失败不得污染本族裁决。
+        if (axisFailures.TryGetValue(families[0], out var familyFailure) && familyFailure.Score > best)
         {
-            diagnostic = axisFailure;
+            diagnostic = familyFailure.Diagnostic;
             if (report) _diagnostics.Report(diagnostic);
             return false;
         }
@@ -309,13 +318,13 @@ public sealed class KeyAlgebra : IKeyAlgebra
         }
 
         var selected = top[0];
-        key = new SurfaceKey(selected.Family, surface, selected.Point, raw!);
+        key = new SurfaceKey(selected.Point.Family, surface, selected.Point, raw!);
         match = new KeyParseMatch(selected.Template, selected.Compatible, selected.Score);
         if (selected.Compatible)
         {
             diagnostic = KeyDiagnostic.Info(
                 KeyReasonCodes.LegacyForm, KeyResolution.Resolved,
-                KeyRef.Of(selected.Family, raw!), $"命中只读兼容形态：{selected.Template}");
+                KeyRef.Of(selected.Point.Family, raw!), $"命中只读兼容形态：{selected.Template}");
             if (report) _diagnostics.Report(diagnostic);
         }
 
@@ -334,8 +343,7 @@ public sealed class KeyAlgebra : IKeyAlgebra
         KeySurface surface,
         string raw,
         List<Match> matches,
-        ref KeyDiagnostic? axisFailure,
-        ref int axisFailureScore)
+        Dictionary<string, (int Score, KeyDiagnostic Diagnostic)> axisFailures)
     {
         if (!entry.Surfaces.TryGetValue(surface, out var grammar)) return;
 
@@ -345,17 +353,17 @@ public sealed class KeyAlgebra : IKeyAlgebra
             var score = Score(candidate.Template, entry.Axes);
             if (!TryCheckAxes(entry, candidate, values, raw, surface, out var failure))
             {
-                if (failure is not null && score > axisFailureScore)
+                if (failure is not null &&
+                    (!axisFailures.TryGetValue(entry.Family.Id, out var existing) || score > existing.Score))
                 {
-                    axisFailure = failure;
-                    axisFailureScore = score;
+                    axisFailures[entry.Family.Id] = (score, failure);
                 }
 
                 continue;
             }
 
             var point = new KeyPoint(entry.Family.Id, values.Present());
-            matches.Add(new Match(entry.Family.Id, point, compatible, candidate.Template, score));
+            matches.Add(new Match(point, compatible, candidate.Template, score));
         }
     }
 
@@ -390,6 +398,15 @@ public sealed class KeyAlgebra : IKeyAlgebra
                     KeyReasonCodes.AxisInvalid, KeyResolution.Unparsable,
                     KeyRef.Of(entry.Family.Id, raw),
                     $"键面 '{surface}' 轴 '{spec.Name}' 值不在词表：{value}（模板 {grammar.Template}）");
+                return false;
+            }
+
+            if (spec.Disallows(value))
+            {
+                diagnostic = KeyDiagnostic.Error(
+                    KeyReasonCodes.AxisInvalid, KeyResolution.Unparsable,
+                    KeyRef.Of(entry.Family.Id, raw),
+                    $"键面 '{surface}' 轴 '{spec.Name}' 含声明保留中缀：{value}（模板 {grammar.Template}）");
                 return false;
             }
         }
@@ -467,6 +484,7 @@ public sealed class KeyAlgebra : IKeyAlgebra
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var undeclared = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var surface in surfaces)
         {
             foreach (var (grammar, _) in surface.Readable)
@@ -475,7 +493,12 @@ public sealed class KeyAlgebra : IKeyAlgebra
                 {
                     if (!segment.IsPlaceholder) continue;
                     seen.Add(segment.Text);
-                    if (!axes.TryGetValue(segment.Text, out var spec)) continue;
+                    if (!axes.TryGetValue(segment.Text, out var spec))
+                    {
+                        // 双向闭合：模板占位符必须声明轴（否则该轴既不受必填/词表约束，也不报装配错误）。
+                        undeclared.Add(segment.Text);
+                        continue;
+                    }
 
                     if (spec.Shape != KeyValueShape.Text && segment.Shape != spec.Shape)
                     {
@@ -490,6 +513,12 @@ public sealed class KeyAlgebra : IKeyAlgebra
                     }
                 }
             }
+        }
+
+        if (undeclared.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"键族 '{family.Id}' 模板占位符未声明轴：{string.Join(",", undeclared)}（声明面须双向闭合）");
         }
 
         foreach (var name in axes.Keys)

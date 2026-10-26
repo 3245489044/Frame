@@ -46,29 +46,19 @@ public sealed class KeyValues
 
     /// <summary>取非负整数（缺席 / 非纯数字 ⇒ false）。</summary>
     public bool TryGetLong(string name, out long value)
-    {
-        if (TryGetText(name, out var text) &&
-            long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value))
-        {
-            return true;
-        }
-
-        value = 0;
-        return false;
-    }
+        => TryParseLong(Text(name), out value);
 
     /// <summary>取整数（缺席 / 非纯数字 / 溢出 ⇒ false）。</summary>
     public bool TryGetInt(string name, out int value)
-    {
-        if (TryGetText(name, out var text) &&
-            int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value))
-        {
-            return true;
-        }
+        => TryParseInt(Text(name), out value);
 
-        value = 0;
-        return false;
-    }
+    /// <summary>纯数字解析（唯一口径：<see cref="NumberStyles.None"/> + Invariant；BOM/符号/空白/前导 0 规则见形状声明）。</summary>
+    public static bool TryParseLong(string? text, out long value)
+        => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+
+    /// <summary>纯数字解析（唯一口径；见 <see cref="TryParseLong(string?, out long)"/>）。</summary>
+    public static bool TryParseInt(string? text, out int value)
+        => int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value);
 
     /// <summary>快照（含缺席者可缺省段，值为空串；供对拍 / 序列化）。</summary>
     public IReadOnlyDictionary<string, string> ToDictionary() =>

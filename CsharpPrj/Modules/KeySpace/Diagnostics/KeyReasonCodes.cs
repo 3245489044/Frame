@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Reflection;
 using Modules.KeySpace.Abstractions;
 using Modules.KeySpace.Model;
 
@@ -75,23 +77,26 @@ public static class KeyReasonCodes
     public const string SeedSourceMissing = "seed.source-missing";
     public const string StateRootSplit = "state.root-split";
 
-    private static readonly HashSet<string> Registered = new(StringComparer.Ordinal)
-    {
-        Blank, Unparsable, FamilyUnresolved, FamilyAmbiguous, NotDeclared,
-        SetSelfOnly, SetEmpty, SetCap, RequiredMissing, DeclaredMissing,
-        WriteConflict, ProvisionUnattached, ProvisionFailed,
-        SurfaceMismatch, EmptyIdentity, LegacyForm,
-        ParseTrailingDot, ParseUnmatched, ParseAmbiguous, AxisInvalid, AxisMissing, ScopeMismatch,
-        OpsHostMissing, AxisNotInFamily, PrefixSourceInvalid,
-        IdentityValueMismatch, IdentityAxisUnknown, FamilyMismatch,
-        DeclStoreMissing, DeclFingerprintMismatch, DeclUnbound, DeclUnboundPort, DeclOrphanImpl,
-        ExecStepMissing, ExecPortMissing, ExecUndeclaredInport, ExecUndeclaredOutport, ExecDriverConflict,
-        ExecBindFailed, ExecFunctionMissing, ExecExecutionFailure,
-        RoundCriterionUnmet, SeedCarrierMissing, SeedPortUncovered, GuardEmptyInput,
-        SeedEmptyInput, SeedSourceMissing, StateRootSplit, PromptMissing, IdentityMissing,
-    };
+    /// <summary>注册集合（由 <c>const string</c> 字段反射生成：新增码只需加常量，禁双清单）。</summary>
+    private static readonly HashSet<string> Registered = BuildRegistered();
 
     public static bool IsRegistered(string code) => Registered.Contains(code);
+
+    private static HashSet<string> BuildRegistered()
+    {
+        var registered = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var field in typeof(KeyReasonCodes).GetFields(
+                     BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy))
+        {
+            if (field.IsLiteral && field.FieldType == typeof(string) &&
+                field.GetRawConstantValue() is string code && !string.IsNullOrWhiteSpace(code))
+            {
+                registered.Add(code);
+            }
+        }
+
+        return registered;
+    }
 }
 
 /// <summary>空诊断汇：保留结构、不产生 IO（用于无观察者的构造场景）。</summary>

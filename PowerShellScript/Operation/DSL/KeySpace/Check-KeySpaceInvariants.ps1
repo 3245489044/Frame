@@ -48,26 +48,49 @@ function Get-InvariantViolations {
 
         if ($View -eq 'axis') {
             if ($canonicalPlaceholders.Count -eq 0) { $out.Add("$id 规范模板无轴：$canonical") }
+
+            $allTemplates = @([string]$canonical)
             foreach ($surfaceName in @($family.surfaces.PSObject.Properties.Name)) {
-                foreach ($template in @($family.surfaces.$surfaceName.templates)) {
-                    foreach ($placeholder in @(Get-Placeholders ([string]$template))) {
-                        if ($canonicalPlaceholders -notcontains $placeholder) {
-                            $out.Add("$id/$surfaceName 轴越界：{$placeholder} 不在规范模板")
-                        }
+                $surface = $family.surfaces.$surfaceName
+                $allTemplates += @($surface.templates | ForEach-Object { [string]$_ })
+                $allTemplates += @($surface.readOnlyTemplates | ForEach-Object { [string]$_ })
+            }
+
+            $declaredAxes = @($family.axes | Where-Object { $_ } | ForEach-Object { [string]$_.name } | Where-Object { $_ })
+            $allowed = if ($declaredAxes.Count -gt 0) {
+                $declaredAxes
+            } else {
+                @($allTemplates | ForEach-Object { Get-Placeholders $_ }) | Select-Object -Unique
+            }
+
+            $used = @()
+            foreach ($template in $allTemplates) {
+                foreach ($placeholder in @(Get-Placeholders $template)) {
+                    $used += $placeholder
+                    if ($allowed -notcontains $placeholder) {
+                        $out.Add("$id 轴越界：{$placeholder} 不在声明轴集合（模板：$template）")
                     }
                 }
+            }
+
+            foreach ($axis in $declaredAxes) {
+                if ($used -notcontains $axis) { $out.Add("$id 声明轴未落地：{$axis} 不在任何模板中") }
             }
         }
 
         if ($View -eq 'surface') {
-            $templates = @()
             foreach ($surfaceName in @($family.surfaces.PSObject.Properties.Name)) {
-                $templates += @($family.surfaces.$surfaceName.templates | ForEach-Object { [string]$_ })
-            }
-            for ($i = 0; $i -lt $templates.Count; $i++) {
-                for ($j = $i + 1; $j -lt $templates.Count; $j++) {
-                    if ((Get-Shape $templates[$i]) -eq (Get-Shape $templates[$j])) {
-                        $out.Add("$id 面模板不可区分：$($templates[$i]) ≡ $($templates[$j])")
+                if ([string]::IsNullOrWhiteSpace($surfaceName)) { continue }
+                $surface = $family.surfaces.$surfaceName
+                $templates = @()
+                $templates += @($surface.templates | ForEach-Object { [string]$_ })
+                $templates += @($surface.readOnlyTemplates | ForEach-Object { [string]$_ })
+                if ($templates.Count -lt 2) { continue }
+                for ($i = 0; $i -lt $templates.Count; $i++) {
+                    for ($j = $i + 1; $j -lt $templates.Count; $j++) {
+                        if ((Get-Shape $templates[$i]) -eq (Get-Shape $templates[$j])) {
+                            $out.Add("$id/$surfaceName 面模板不可区分：$($templates[$i]) ≡ $($templates[$j])")
+                        }
                     }
                 }
             }

@@ -9,13 +9,18 @@ namespace Modules.KeySpace.Rules;
 /// </summary>
 public static class KeyFamilyRules
 {
+    /// <summary>
+    /// 声明 → 文法（与 <see cref="KeySurfaceRules.Canonical"/> 同源：模板取存储面规范模板，
+    /// 不再与面声明分叉；grammarId 保持族 id 以维持注册表主键语义）。
+    /// </summary>
     public static KeyGrammar ToGrammar(KeyFamily family)
     {
         ArgumentNullException.ThrowIfNull(family);
+        var canonical = KeySurfaceRules.Canonical(family, KeySurface.Storage);
         return KeyGrammar.Create(
             grammarId: family.Id,
-            template: family.Template,
-            familyPrefix: family.FamilyPrefix ?? string.Empty,
+            template: canonical.Template,
+            familyPrefix: canonical.FamilyPrefix,
             orderKeys: family.OrderKeys);
     }
 

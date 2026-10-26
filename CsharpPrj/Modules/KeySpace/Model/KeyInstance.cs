@@ -1,4 +1,5 @@
 using System.Globalization;
+using Modules.Parsing.Keys;
 
 namespace Modules.KeySpace.Model;
 
@@ -63,6 +64,14 @@ public readonly record struct KeyInstance(string Family, KeySurface Surface, Key
     /// <summary>取轴值（缺席 ⇒ null）。</summary>
     public string? Value(KeyAxis axis)
         => !axis.IsEmpty && Point.Values.TryGetValue(axis.Name!, out var value) ? value : null;
+
+    /// <summary>轴值 → 整数（缺席 / 非纯数字 / 溢出 ⇒ false；口径唯一 = <see cref="KeyValues.TryParseInt"/>）。</summary>
+    public bool TryGetInt(KeyAxis axis, out int value)
+        => KeyValues.TryParseInt(Value(axis), out value);
+
+    /// <summary>轴值 → 长整数（缺席 / 非纯数字 / 溢出 ⇒ false；口径唯一 = <see cref="KeyValues.TryParseLong"/>）。</summary>
+    public bool TryGetLong(KeyAxis axis, out long value)
+        => KeyValues.TryParseLong(Value(axis), out value);
 
     /// <summary>值袋快照（供代数求值；不复制字典）。</summary>
     public KeyPoint ToPoint() => Point;

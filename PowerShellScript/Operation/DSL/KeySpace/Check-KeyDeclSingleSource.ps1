@@ -39,7 +39,7 @@ foreach ($scanRoot in $scanRoots) {
 }
 
 $allowed = @{}
-foreach ($row in @($baseline.Value)) {
+foreach ($row in @($baseline.Value.Value)) {
     if ($row -is [string]) { $allowed[$row] = 1; continue }
     $key = [string]$row['Key']; if ([string]::IsNullOrWhiteSpace($key)) { continue }
     $allowed[$key] = if ($row.Contains('Count')) { [int]$row['Count'] } else { 1 }

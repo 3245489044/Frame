@@ -55,6 +55,7 @@ $domainEnum = @('Meta', 'Agent', 'Node', 'Parsing', 'Data', 'Spec', 'Process', '
 
 # 伴随件白名单：DSL 目录内存在但未登记为独立门的 Check-*.ps1（fail-loud：新增未登记件须显式登记或入白名单）
 $companionAllowlist = @{
+    'KeySpaceInvariants'          = '伴随件：三视图（axis/surface/owner）共用实现，经 Check-Key{AxisCompleteness,SurfaceDistinguishable,OwnerUnique}.ps1 薄转发登记'
     'AgentCarrierSurface'         = '伴随件：载体面分项判据（未登记为独立门）'
     'AgentLayerBoundary'          = '伴随件：层边界分项判据（未登记为独立门）'
     'DeclarationEditSingleSource' = '未登记独立门（含基线 Baselines\Declarations\DeclarationEditSingleSource.psd1）——待登记或销账'

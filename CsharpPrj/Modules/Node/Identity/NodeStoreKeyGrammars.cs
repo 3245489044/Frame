@@ -44,12 +44,12 @@ public static class NodeStoreKeyGrammars
     /// </remarks>
     public static readonly KeyGrammar SessionMessageGrammar = KeyGrammar.Create(
         "session-message",
-        "session.{container}.r{round:number}.{kind}.{ordinal:number}",
+        "session.{container}.r{round:digits}.{kind}.{ordinal:digits}",
         familyPrefix: "session.",
         legacyTemplates: new[]
         {
-            "session.{container}.r{round:number}.msg.{ordinal:number}",
-            "session.{container}.msg.{ordinal:number}",
+            "session.{container}.r{round:digits}.msg.{ordinal:digits}",
+            "session.{container}.msg.{ordinal:digits}",
         },
         orderKeys: new[] { "round", "ordinal" });
 
@@ -63,9 +63,9 @@ public static class NodeStoreKeyGrammars
     /// </remarks>
     public static readonly KeyGrammar ProcessGrammar = KeyGrammar.Create(
         "process-node",
-        "proc.{container}.r{round:number}.{kind}.{ordinal:number}",
+        "proc.{container}.r{round:digits}.{kind}.{ordinal:digits}",
         familyPrefix: "proc.",
-        legacyTemplates: new[] { "proc.{container}.r{round:number}.step{ordinal:number}" },
+        legacyTemplates: new[] { "proc.{container}.r{round:digits}.step{ordinal:digits}" },
         orderKeys: new[] { "round", "ordinal" });
 
     /// <summary>节点库键族文法注册表（读侧归属反解唯一入口；歧义/未命中即诊断可见化）。</summary>

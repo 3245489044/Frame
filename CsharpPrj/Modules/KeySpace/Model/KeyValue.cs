@@ -1,7 +1,7 @@
 namespace Modules.KeySpace.Model;
 
 /// <summary>解析结果分类（唯一 reason 语义来源）。</summary>
-public enum KeyResolution { Resolved, Missing, Empty, Unparsable, Ambiguous, NotDeclared }
+public enum KeyResolution { Resolved, Missing, Empty, Unparsable, Ambiguous, NotDeclared, Mismatched }
 
 /// <summary>三态值状态：Known / Unknown / NotApplicable（禁 default/空串冒充）。</summary>
 public enum KeyValueState { Known, Unknown, NotApplicable }

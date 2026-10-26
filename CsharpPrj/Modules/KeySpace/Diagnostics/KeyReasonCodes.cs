@@ -27,6 +27,14 @@ public static class KeyReasonCodes
     public const string EmptyIdentity = "key.empty-identity";
     public const string LegacyForm = "key.legacy-form";
 
+    // ---- 固有函数层（KeyOps / 键一致性门）----
+    public const string OpsHostMissing = "key.ops.host-missing";
+    public const string AxisNotInFamily = "key.axis-not-in-family";
+    public const string PrefixSourceInvalid = "key.prefix.source-invalid";
+    public const string IdentityValueMismatch = "key.identity-value-mismatch";
+    public const string IdentityAxisUnknown = "key.identity-axis-unknown";
+    public const string FamilyMismatch = "key.family-mismatch";
+
     // ---- 声明→绑定闭合（R1/R2/R3，fail-fast 结构码）----
     public const string DeclStoreMissing = "decl.store-missing";
     public const string DeclFingerprintMismatch = "decl.fingerprint-mismatch";
@@ -65,6 +73,8 @@ public static class KeyReasonCodes
         SetSelfOnly, SetEmpty, SetCap, RequiredMissing, DeclaredMissing,
         WriteConflict, ProvisionUnattached, ProvisionFailed,
         SurfaceMismatch, EmptyIdentity, LegacyForm,
+        OpsHostMissing, AxisNotInFamily, PrefixSourceInvalid,
+        IdentityValueMismatch, IdentityAxisUnknown, FamilyMismatch,
         DeclStoreMissing, DeclFingerprintMismatch, DeclUnbound, DeclUnboundPort, DeclOrphanImpl,
         ExecStepMissing, ExecPortMissing, ExecUndeclaredInport, ExecUndeclaredOutport, ExecDriverConflict,
         ExecBindFailed, ExecFunctionMissing, ExecExecutionFailure,

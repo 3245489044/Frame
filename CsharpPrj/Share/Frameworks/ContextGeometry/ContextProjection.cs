@@ -17,6 +17,9 @@ public enum ContextEventKind
 
     /// <summary>委托事件（工具调用意图 → 子智能体）。</summary>
     Delegated,
+
+    /// <summary>无法识别的历史种类（读侧保留原值，禁静默归入 Tool）。</summary>
+    Unknown,
 }
 
 /// <summary>投影出的工具调用（内核中立形态；不引用领域 LLM 契约）。</summary>

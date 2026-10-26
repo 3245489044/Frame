@@ -87,13 +87,20 @@ public static class NodeKeySetReasons
 /// <param name="DomainKey">读域。</param>
 /// <param name="KeySet">键集结果（Keys/Origin/Reasons）。</param>
 /// <param name="Items">投影项（键序）。</param>
-/// <param name="Reasons">读原因（键集原因 + key-missing）。</param>
+/// <param name="Reasons">读原因样本（键集原因 + 限定/缺行；仅供日志）。</param>
+/// <param name="Status">三态（显式；禁由 Reasons 反推）。</param>
+/// <param name="ReasonCodes">类型化原因（⊆ <see cref="NodeReadReason"/>；门禁判据）。</param>
 public sealed record NodeReadResult(
     string DomainKey,
     NodeKeySetResult KeySet,
     IReadOnlyList<Projection.NodeProjectionItem> Items,
-    IReadOnlyList<string> Reasons)
+    IReadOnlyList<string> Reasons,
+    NodeReadStatus Status = NodeReadStatus.Ok,
+    IReadOnlyList<NodeReadReason>? ReasonCodes = null)
 {
     /// <summary>可用（含空）。</summary>
-    public bool IsAvailable => !Reasons.Contains(NodeKeySetReasons.SourceUnavailable, StringComparer.Ordinal);
+    public bool IsAvailable => Status != NodeReadStatus.Unavailable;
+
+    /// <summary>类型化原因（恒非 null 视图）。</summary>
+    public IReadOnlyList<NodeReadReason> Codes => ReasonCodes ?? Array.Empty<NodeReadReason>();
 }

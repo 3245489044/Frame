@@ -488,6 +488,16 @@
       "level": "Warning",
       "category": "General"
     },
+    "EcsStateAccessor_LiveText_unavailable": {
+      "template": "DOM 承载控件活文档文本不可用，回落既有读链（ECS 快照可能陈旧） — controlName={controlName}",
+      "level": "Debug",
+      "category": "General"
+    },
+    "EcsStateAccessor_LiveText_failed": {
+      "template": "DOM 承载控件活文档文本读取失败，回落既有读链 — controlName={controlName}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
     "InputCapturePort_Subscribed": {
       "template": "输入采集端口挂接 — controlName={controlName}, entityId={entityId}, controlType={controlType}",
       "level": "Debug",

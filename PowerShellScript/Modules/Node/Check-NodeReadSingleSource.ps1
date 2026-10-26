@@ -115,6 +115,45 @@ if (-not (Test-Path $projectionFile)) {
     }
 }
 
+# ===== I1 投影生产调用点唯一（FW-3）：ProjectAsync 只允许 NodeReadService 调用 =====
+$projectAsyncFiles = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+    Select-String -Pattern '\.ProjectAsync\s*\(' |
+    Select-Object -ExpandProperty Path -Unique)
+$projectionCallSites = $projectAsyncFiles.Count
+if ($projectionCallSites -gt 1) {
+    $violations.Add("ProjectAsync 生产调用文件数 = $projectionCallSites > 1（唯一入口 = NodeReadService）")
+}
+$projectionGate = Join-Path $nodeDir 'Projection\NodeReadProjection.cs'
+$readServiceFile = Join-Path $nodeDir 'Read\NodeReadService.cs'
+if (-not (Test-Path $readServiceFile)) {
+    $violations.Add('缺少读门面：Read\NodeReadService.cs')
+}
+
+# ===== I2 全量读须显式声明（NodeKeySetScope.Full 出现点 ⊆ 白名单） =====
+$fullScopeHits = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+    Select-String -Pattern 'NodeKeySetScope\.Full' |
+    Select-Object -ExpandProperty Path -Unique)
+if ($fullScopeHits.Count -gt 3) {
+    $violations.Add("NodeKeySetScope.Full 出现文件数 = $($fullScopeHits.Count) > 3（全量读须显式且白名单）")
+}
+
+# ===== I5 原因类型化（禁裸字符串原因） =====
+$reasonEnumFile = Join-Path $nodeDir 'Read\NodeReadReason.cs'
+if (-not (Test-Path $reasonEnumFile)) {
+    $violations.Add('缺少原因注册枚举：Read\NodeReadReason.cs（I5）')
+}
+$bareReasonHits = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\src') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+    Select-String -Pattern '"prefix-undefined"')
+if ($bareReasonHits.Count -gt 0) {
+    $violations.Add("Agent 侧仍出现裸原因词 prefix-undefined：$($bareReasonHits[0].Path):$($bareReasonHits[0].LineNumber)")
+}
+
+# ===== I7 声明可达（装配期校验器在位） =====
+$validatorFile = Join-Path $nodeDir 'Spec\NodeSpecValidator.cs'
+if ((Test-Path $validatorFile) -and ((Get-Content -LiteralPath $validatorFile -Raw) -notmatch 'ValidateGather')) {
+    $violations.Add('NodeSpecValidator 缺 ValidateGather（声明字段可达性，I7）')
+}
+
 if ($violations.Count -gt 0) {
     Write-Host 'NodeReadSingleSource 违规：' -ForegroundColor Red
     foreach ($v in $violations) { Write-Host "  - $v" -ForegroundColor Red }

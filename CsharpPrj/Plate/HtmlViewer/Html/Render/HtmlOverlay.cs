@@ -25,6 +25,16 @@ public sealed record HtmlOverlayOptions
 
     /// <summary>浮层高度 CSS。默认 min(78%,480px)。</summary>
     public string HeightCss { get; init; } = "min(78%,480px)";
+
+    /// <summary>
+    /// 安全左边界 CSS（默认 null = 视口固定，不受宿主区域约束）。
+    /// <para>非 null 时浮层从该左边界起算并封顶可用宽度 —— 宿主用它声明「不得覆盖的区域」
+    /// （如侧栏宽度 + 间距），把 `position:fixed` 逃逸区域收敛为区域约束（I1 选择安全）。</para>
+    /// </summary>
+    public string? LeftCss { get; init; }
+
+    /// <summary>安全左边界对应的最大宽度 CSS（默认由 <see cref="LeftCss"/> 自动派生 <c>calc(100vw - left - 14px)</c>）。</summary>
+    public string? MaxWidthCss { get; init; }
 }
 
 /// <summary>
@@ -48,7 +58,7 @@ public static class HtmlOverlay
         var safeTitle = WebUtility.HtmlEncode(title ?? string.Empty);
         var closeBtn = CloseButtonHtml(o);
         return
-            "<style>" + OverlayCss(cls, o.WidthCss, o.HeightCss) + "</style>"
+            "<style>" + OverlayCss(cls, o.WidthCss, o.HeightCss, o.LeftCss, o.MaxWidthCss) + "</style>"
             + "<div class=\"" + cls + "\" data-name=\"" + name + "\">"
             + "<div class=\"" + cls + "-title\"><span>" + safeTitle + "</span>"
             + closeBtn + "</div>"
@@ -69,12 +79,21 @@ public static class HtmlOverlay
         return sb.ToString();
     }
 
-    /// <summary>浮层 CSS（position:fixed 悬浮于右上，受宿主主题变量 --bg/--border/--muted/--agent-bg 控制）。</summary>
-    private static string OverlayCss(string cls, string widthCss, string heightCss)
-        => "." + cls + "{position:fixed;top:34px;right:14px;width:" + (widthCss ?? "min(46%,520px)") + ";height:" + (heightCss ?? "min(78%,480px)") + ";"
+    /// <summary>浮层 CSS（position:fixed 悬浮于右上，受宿主主题变量 --bg/--border/--muted/--agent-bg 控制）。
+    /// <para>安全左边界模式：给出 <paramref name="leftCss"/> 时以该边界起算并封顶可用宽度，避免覆盖宿主左侧可交互区域。</para></summary>
+    private static string OverlayCss(string cls, string widthCss, string heightCss, string? leftCss = null, string? maxWidthCss = null)
+    {
+        var left = string.IsNullOrWhiteSpace(leftCss) ? null : leftCss!.Trim();
+        var bounds = left is null
+            ? string.Empty
+            : "left:" + left + ";" + "max-width:" + (string.IsNullOrWhiteSpace(maxWidthCss)
+                ? "calc(100vw - " + left + " - 14px)"
+                : maxWidthCss!.Trim()) + ";";
+        return "." + cls + "{position:fixed;top:34px;right:14px;" + bounds + "width:" + (widthCss ?? "min(46%,520px)") + ";height:" + (heightCss ?? "min(78%,480px)") + ";"
             + "background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);"
             + "display:flex;flex-direction:column;overflow:hidden;z-index:20}"
             + "." + cls + "-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;"
             + "font-size:12px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);background:var(--agent-bg)}"
             + "." + cls + "-body{flex:1;overflow:auto;padding:8px 10px}";
+    }
 }

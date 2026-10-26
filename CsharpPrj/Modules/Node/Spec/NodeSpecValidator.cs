@@ -96,6 +96,96 @@ public sealed class NodeSpecValidator
         return new NodeSpecValidationReport(violations);
     }
 
+    /// <summary>
+    /// 聚拢声明可达性（FW-5 / I7）：声明字段必须有提供者（投影产物或载体元数据），否则装配失败。
+    /// <para>
+    /// <paramref name="availableFields"/> = 该域读面实际可提供的字段名集（由装配方从投影产物/载体
+    /// <c>RecordMeta</c> 取得）；未提供 ⇒ 只做声明自身完备性检查（不猜产物，避免伪判据）。
+    /// </para>
+    /// </summary>
+    public NodeSpecValidationReport ValidateGather(
+        Modules.Node.Gather.NodeGatherSpec gather,
+        IReadOnlyCollection<string>? availableFields = null)
+    {
+        ArgumentNullException.ThrowIfNull(gather);
+        var violations = new List<NodeSpecViolation>();
+
+        if (string.IsNullOrWhiteSpace(gather.KindField))
+        {
+            violations.Add(new NodeSpecViolation(
+                "spec.gather-kind-field-missing",
+                NodeDiagnosticSeverity.Error,
+                "聚拢声明缺 kind-field（判别字段为空 ⇒ 无法塑形/分组）",
+                gather.Domain));
+        }
+
+        if (!string.IsNullOrWhiteSpace(gather.GroupByField) &&
+            string.Equals(gather.GroupByField, gather.KindField, StringComparison.Ordinal))
+        {
+            violations.Add(new NodeSpecViolation(
+                "spec.gather-groupby-shadow",
+                NodeDiagnosticSeverity.Warning,
+                "二级分组轴与 kind-field 同名（同轴两用：分组退化为 kind）",
+                gather.Domain));
+        }
+
+        foreach (var pair in gather.Shapings)
+        {
+            var shaping = pair.Value;
+            if (!shaping.Shaped)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(shaping.TitleKey) && shaping.SummaryKeys.Count == 0)
+            {
+                violations.Add(new NodeSpecViolation(
+                    "spec.gather-shape-no-visible-field",
+                    NodeDiagnosticSeverity.Warning,
+                    $"塑形 '{pair.Key}' 既无 titleKey 也无 summary（该 kind 的行将无标题/摘要 ⇒ unshaped）",
+                    gather.Domain));
+            }
+        }
+
+        if (availableFields is { Count: > 0 })
+        {
+            var available = new HashSet<string>(availableFields, StringComparer.Ordinal);
+            void Check(string? field, string what)
+            {
+                if (string.IsNullOrWhiteSpace(field) || available.Contains(field!))
+                {
+                    return;
+                }
+
+                violations.Add(new NodeSpecViolation(
+                    "spec.gather-field-unreachable",
+                    NodeDiagnosticSeverity.Error,
+                    $"聚拢声明 {what}='{field}' 在读面字段集中不存在（伪声明式：声明可写、永不生效）",
+                    gather.Domain));
+            }
+
+            Check(gather.KindField, "kind-field");
+            Check(gather.GroupByField, "group-by");
+            foreach (var pair in gather.Shapings)
+            {
+                Check(pair.Value.TitleKey, $"shaping[{pair.Key}].titleKey");
+                Check(pair.Value.TimeKey, $"shaping[{pair.Key}].timeKey");
+                foreach (var key in pair.Value.SummaryKeys)
+                {
+                    Check(key, $"shaping[{pair.Key}].summary");
+                }
+
+                foreach (var key in pair.Value.EffectivePortKeys)
+                {
+                    Check(key, $"shaping[{pair.Key}].ports");
+                }
+            }
+        }
+
+        Report(violations);
+        return new NodeSpecValidationReport(violations);
+    }
+
     private void Report(IReadOnlyList<NodeSpecViolation> violations)
     {
         foreach (var violation in violations)

@@ -60,8 +60,8 @@ public sealed class NodeSelectionService
         var spec = scope.Selection ?? _defaultSpec;
         var dropped = new List<NodeSelectionDrop>();
 
-        var source = await _projection
-            .ProjectAsync(scope with { Selection = null }, overlays, cancellationToken)
+        var source = await global::Modules.Node.Read.NodeReadService
+            .ProjectRawAsync(_projection, scope with { Selection = null }, overlays, cancellationToken)
             .ConfigureAwait(false);
 
         var items = new List<NodeProjectionItem>(source.Count);

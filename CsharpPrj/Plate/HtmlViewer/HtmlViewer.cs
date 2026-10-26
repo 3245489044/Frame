@@ -235,6 +235,59 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         return await _scriptExecutor.ExecuteHandleAsync(op, name, value, ct);
     }
 
+    /// <summary>活文档文本读（DOM 承载控件的「当前真值」）：返回 <c>document.body.textContent</c>（与 HTML 桥 get 同语义：
+    /// 不剥标签、含折叠内文本）。区域写回（<c>region-*</c>）只改 DOM、不回写 ECS 值，故「当前页面文本」必须从此读取，
+    /// 不能取 ECS 快照（那是最近一次整页写）。就绪前 / 无 CoreWebView2 / 执行异常 ⇒ null（显式不可用，不以空串冒充「页面为空」）。</summary>
+    public Task<string?> GetDocumentTextAsync(CancellationToken ct = default)
+        => _marshaler.RunAsync(c => new ValueTask<string?>(ReadDocumentTextCoreAsync(c)), ct);
+
+    private async Task<string?> ReadDocumentTextCoreAsync(CancellationToken ct)
+    {
+        await _lifecycle.EnsureReadyAsync(ct).ConfigureAwait(false);
+        if (CoreWebView2 is null)
+        {
+            ReportDiagnostics("HtmlViewer_document_text_unavailable", "活文档文本读取跳过：CoreWebView2 未就绪。");
+            return null;
+        }
+        try
+        {
+            var raw = await CoreWebView2.ExecuteScriptAsync(DocumentTextScript).ConfigureAwait(false);
+            return HtmlElementNode.UnwrapString(raw);
+        }
+        catch (Exception ex)
+        {
+            ReportDiagnostics("HtmlViewer_document_text_failed", $"活文档文本读取失败: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// <see cref="GetDocumentTextAsync"/> 的同步门面（**仅非 UI 线程**）：命令/断言层为同步签名，由后台命令线程调用；
+    /// UI 线程调用会与 WebView2 回调自等待死锁，故直接返回 false 并上报诊断（由调用方按既有语义兜底，不静默）。
+    /// </summary>
+    public bool TryGetDocumentText(out string text)
+    {
+        text = string.Empty;
+        if (!IsHandleCreated)
+        {
+            ReportDiagnostics("HtmlViewer_document_text_not_ready", "活文档文本同步读取跳过：控件句柄未创建。");
+            return false;
+        }
+        if (!InvokeRequired)
+        {
+            ReportDiagnostics("HtmlViewer_document_text_ui_thread", "活文档文本同步读取跳过：调用发生在 UI 线程（避免自等待死锁）。");
+            return false;
+        }
+
+        var live = GetDocumentTextAsync(CancellationToken.None).GetAwaiter().GetResult();
+        if (live is null) return false;
+        text = live;
+        return true;
+    }
+
+    /// <summary>整页文本查询脚本（textContent 与 HTML 桥 get 同语义）。</summary>
+    private const string DocumentTextScript = "(document.body?document.body.textContent:'')";
+
     /// <summary>回流链路自检（<see cref="IHtmlChannel.LoopbackProbeAsync"/>）：注入 __loopback postMessage 并等消息桥收到同一 nonce。
     /// 整个探针（含初始化）封送 UI 线程，兼容脚本/工作线程调用。</summary>
     public Task<bool> LoopbackProbeAsync(CancellationToken ct = default)

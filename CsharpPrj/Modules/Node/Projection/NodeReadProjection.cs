@@ -36,6 +36,7 @@ public enum ProjectionOrigin
 /// <param name="Address">节点地址（Snapshot 完整化：逻辑键 + 实例轴；Live 可空 = 身份不完整）。</param>
 /// <param name="Tags">标签集（<c>|</c> 规范串；null = 无标签）。</param>
 /// <param name="Signal">信号元数据（排序/过滤/预算用；null = 未提供）。</param>
+/// <param name="RecordMeta">记录级元数据（<c>nodeType</c> / <c>threadId</c> / <c>writtenAt</c>；FW-1）。</param>
 public sealed record NodeProjectionItem(
     string Key,
     string PlacementId,
@@ -47,7 +48,8 @@ public sealed record NodeProjectionItem(
     string? WriteDomain = null,
     NodeAddress? Address = null,
     string? Tags = null,
-    NodeSignal? Signal = null);
+    NodeSignal? Signal = null,
+    IReadOnlyDictionary<string, string>? RecordMeta = null);
 
 /// <summary>
 /// 读投影范围（裁剪只在读侧：N7）。
@@ -162,7 +164,8 @@ public sealed class NodeReadProjection
                     NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
                     items.Add(new NodeProjectionItem(
                         key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
-                        DomainKey: placement.Domain, Address: address, SourceKey: key));
+                        DomainKey: placement.Domain, Address: address, SourceKey: key,
+                        RecordMeta: RecordMetaOf(record)));
                 }
             }
         }
@@ -204,7 +207,8 @@ public sealed class NodeReadProjection
                     NodeAddress.TryParseStorage(key, placement.Domain, scope.Container, out var address);
                     items.Add(new NodeProjectionItem(
                         key, placement.PlacementId, Flatten(payload), ProjectionOrigin.Snapshot, payload,
-                        DomainKey: placement.Domain, Address: address));
+                        DomainKey: placement.Domain, Address: address,
+                        RecordMeta: RecordMetaOf(record)));
                 }
             }
         }
@@ -360,6 +364,7 @@ public sealed class NodeReadProjection
         {
             var ordered = bucket.OrderBy(item => Array.IndexOf(order, item.Origin)).ToArray();
             var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+            var meta = new Dictionary<string, string>(StringComparer.Ordinal);
             string? payload = null;
             NodeAddress? address = null;
             NodeSignal? signal = null;
@@ -377,6 +382,17 @@ public sealed class NodeReadProjection
                     }
 
                     fields[pair.Key] = pair.Value;
+                }
+
+                if (item.RecordMeta is { Count: > 0 } recordMeta)
+                {
+                    foreach (var pair in recordMeta)
+                    {
+                        if (!string.IsNullOrEmpty(pair.Value) || !meta.ContainsKey(pair.Key))
+                        {
+                            meta[pair.Key] = pair.Value;
+                        }
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(item.PayloadJson))
@@ -414,10 +430,31 @@ public sealed class NodeReadProjection
             merged.Add(new NodeProjectionItem(
                 ordered[0].Key, ordered[0].PlacementId, fields, origin, payload,
                 ordered[0].DomainKey, ordered[0].SourceKey, ordered[0].WriteDomain,
-                address, tags.Count == 0 ? null : string.Join("|", tags), signal));
+                address, tags.Count == 0 ? null : string.Join("|", tags), signal,
+                meta.Count == 0 ? null : meta));
         }
 
         return merged;
+    }
+
+    /// <summary>
+    /// 记录级元数据（FW-1 单源）：只回传载体**已有**的判别值/坐标，缺值不伪造键。
+    /// </summary>
+    private static IReadOnlyDictionary<string, string>? RecordMetaOf(CarrierRecord record)
+    {
+        var meta = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(record.NodeType))
+        {
+            meta["nodeType"] = record.NodeType!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(record.ThreadId))
+        {
+            meta["threadId"] = record.ThreadId!;
+        }
+
+        meta["writtenAt"] = record.WrittenAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        return meta.Count == 0 ? null : meta;
     }
 
     private static IReadOnlyDictionary<string, string> Flatten(string payload)

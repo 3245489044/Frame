@@ -24,7 +24,7 @@ public sealed class DeclaredAxisGatherPolicy : INodeGatherPolicy<string>
     public string GroupKey(NodeProjectionItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return _spec.GroupOf(item.Fields);
+        return _spec.GroupOf(NodeFieldBag.Of(item));
     }
 
     /// <summary>表头 = 组键（呈现层可换本地化名而不改框架）。</summary>

@@ -12,13 +12,16 @@ namespace FrameworkAbstractions.WinFormsAbstractions;
 public interface IEcsStateAccessor
 {
     /// <summary>
-    /// 按控件名读 ECS 状态值（命令/脚本真源读）。策略="ECS 真源优先 + 物理兜底"：
+    /// 按控件名读 ECS 状态值（命令/脚本真源读）。策略="DOM 承载控件活文档优先 + ECS 真源优先 + 物理兜底"：
     /// 用于 get 命令、脚本 set 后的回读、响应式订阅——以写入 ECS 的状态（含脚本 set 历史）为权威。
+    /// <para>例外（单列语义）：htmlviewer 等内容可经区域写回（region-*）直接落 DOM 的控件，活文档
+    /// <c>textContent</c> 才是「当前页面文本」真源（ECS 值仅为最近一次整页写快照）；活文档不可用（UI 线程/未就绪）
+    /// 时回落既有链并留下诊断，不静默返回快照冒充实时值。</para>
     /// </summary>
     string? GetValue(string controlName);
 
     /// <summary>
-    /// 按控件名读"交互实时值"（事件分发参数真值读）。策略="物理控件真值优先 + ECS 兜底"：
+    /// 按控件名读"交互实时值"（事件分发参数真值读）。策略="DOM 承载控件活文档优先 + 物理控件真值优先 + ECS 兜底"：
     /// 用于事件绑定参数解析（用户触发事件时的当前 UI 状态即真值），避免空值/过期 ECS 状态遮蔽物理选择。
     /// 语义互补而非互斥：GetValue 服务命令/脚本（set 历史优先），GetLiveValue 服务交互分发（物理当前优先）。
     /// </summary>

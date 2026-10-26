@@ -31,7 +31,9 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var kind = _spec.KindOf(item.Fields);
+        // 字段袋单源（payload 优先 + 记录级 meta 补缺）：禁各处自行取 Fields。
+        var fields = NodeFieldBag.Of(item);
+        var kind = _spec.KindOf(fields);
         if (!_spec.TryGetShaping(kind, out var shaping) || !shaping.Shaped)
         {
             return null;
@@ -41,9 +43,9 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             kind,
             shaping.Badge,
             item.Key,
-            TextClipPolicy.Summary(Field(item, shaping.TitleKey)),
+            TextClipPolicy.Summary(NodeFieldBag.ValueOf(item, shaping.TitleKey)),
             TextClipPolicy.Summary(JoinSummary(item, shaping.SummaryKeys)),
-            Field(item, shaping.TimeKey),
+            NodeFieldBag.ValueOf(item, shaping.TimeKey),
             item.DomainKey,
             item.SourceKey,
             PortsOf(item, shaping.EffectivePortKeys),
@@ -62,7 +64,7 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var key in keys)
         {
-            var value = Field(item, key);
+            var value = NodeFieldBag.ValueOf(item, key);
             if (string.IsNullOrWhiteSpace(value))
             {
                 continue;
@@ -83,14 +85,14 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
         return ports.Count == 0 ? null : ports;
     }
 
-    private static string? Field(NodeProjectionItem item, string? name)
+    private static string? Field(IReadOnlyDictionary<string, string> fields, string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        return item.Fields.TryGetValue(name!, out var value) && !string.IsNullOrEmpty(value) ? value : null;
+        return fields.TryGetValue(name!, out var value) && !string.IsNullOrEmpty(value) ? value : null;
     }
 
     private static string? JoinSummary(NodeProjectionItem item, IReadOnlyList<string> keys)
@@ -103,7 +105,7 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
         var parts = new List<string>(keys.Count);
         foreach (var key in keys)
         {
-            var value = Field(item, key);
+            var value = NodeFieldBag.ValueOf(item, key);
             if (!string.IsNullOrEmpty(value))
             {
                 parts.Add(value!);

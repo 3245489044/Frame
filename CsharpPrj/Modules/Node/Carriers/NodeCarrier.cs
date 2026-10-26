@@ -27,7 +27,20 @@ public sealed record CarrierWriteResult(CarrierWriteStatus Status, string? Reaso
     public static CarrierWriteResult Rejected(string reason) => new(CarrierWriteStatus.Rejected, reason);
 }
 
-public sealed record CarrierRecord(string Key, string Json, string? Digest, DateTimeOffset WrittenAt);
+/// <summary>
+/// 载体读记录（读写对称：写侧四字段 + 记录级判别值）。
+/// <para>
+/// <see cref="NodeType"/> / <see cref="ThreadId"/> 由载体回传（FW-1）：缺此二者，
+/// 声明的 <c>group-by nodeType</c> / <c>kindField=nodeType</c> 在框架层结构上不可能生效。
+/// </para>
+/// </summary>
+public sealed record CarrierRecord(
+    string Key,
+    string Json,
+    string? Digest,
+    DateTimeOffset WrittenAt,
+    string? NodeType = null,
+    string? ThreadId = null);
 
 /// <summary>
 /// 载体四原语（N4/N5/N10）：载体细节（库/表/控件）只在其实现内，不进框架。

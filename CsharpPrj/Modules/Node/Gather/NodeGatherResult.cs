@@ -23,12 +23,14 @@ public sealed record NodeShapeGroup<TGroupKey, TShape>(
 /// <param name="Groups">分组序列（按族声明序）。</param>
 /// <param name="Read">适配三态（诊断/归因）。</param>
 /// <param name="Readable">读面可用（含空集）；不可用 ⇒ 由调用方回退。</param>
+/// <param name="Unshaped">塑形不合格被移出行集的条数（I6 可见化；&gt;0 即「有行但不可见」已发生）。</param>
 public sealed record NodeGatherResult<TGroupKey, TShape>(
     string DomainKey,
     string Container,
     IReadOnlyList<NodeShapeGroup<TGroupKey, TShape>> Groups,
     NodeGatherOutcome Read,
-    bool Readable)
+    bool Readable,
+    int Unshaped = 0)
 {
     /// <summary>总项数（跨组求和；空结果判据）。</summary>
     public int ItemCount

@@ -50,6 +50,7 @@ public sealed class NodeGatherEngine<TGroupKey, TShape>
         ArgumentNullException.ThrowIfNull(read);
 
         var buckets = new Dictionary<TGroupKey, List<(string Key, TShape Shape)>>();
+        var unshaped = 0;
         foreach (var item in items)
         {
             if (item is null)
@@ -61,6 +62,13 @@ public sealed class NodeGatherEngine<TGroupKey, TShape>
             if (shape is null)
             {
                 continue; // shaped=false / 无塑形器认领 ⇒ 该行不产出
+            }
+
+            // 可呈现最小字段（I6）：无标题/摘要/键 ⇒ 不计入行集，计数可见化（不静默）。
+            if (shape is DeclaredNodeShape declared && !ShapingWellFormed.IsSatisfied(declared))
+            {
+                unshaped++;
+                continue;
             }
 
             var groupKey = _policy.GroupKey(item);
@@ -88,7 +96,7 @@ public sealed class NodeGatherEngine<TGroupKey, TShape>
             .ToArray();
 
         return new NodeGatherResult<TGroupKey, TShape>(
-            domainKey ?? string.Empty, container ?? string.Empty, groups, read, read.IsOk);
+            domainKey ?? string.Empty, container ?? string.Empty, groups, read, read.IsOk, unshaped);
     }
 
     private TShape? Shape(string kind, NodeProjectionItem item)

@@ -23,6 +23,18 @@ public sealed record ClickProbe(
     string? HitTag,
     bool Scrolled)
 {
+    /// <summary>遮挡层矩形（`hitRect`，CSS 像素文本；探测脚本未回带 ⇒ null）。</summary>
+    public string? HitRect { get; init; }
+
+    /// <summary>遮挡层 z-index（`hitZIndex`；未回带 ⇒ null）。</summary>
+    public string? HitZIndex { get; init; }
+
+    /// <summary>遮挡层路径（`hitPath`，tag.class 链；未回带 ⇒ null）。</summary>
+    public string? HitPath { get; init; }
+
+    /// <summary>与目标矩形的重叠面积（`overlapArea`，CSS 像素²；未回带 ⇒ null）。</summary>
+    public double? OverlapArea { get; init; }
+
     /// <summary>dpr 合法区间（越界=配置异常，显式判红，不再 Math.Max 静默夹紧）。</summary>
     public const double MinDpr = 0.5;
 
@@ -55,7 +67,11 @@ public sealed record ClickProbe(
 
     public string ToEvidence()
         => $"probe=({F(X)},{F(Y)}) rect=({F(Width)}x{F(Height)}) dpr={Dpr.ToString("F2", CultureInfo.InvariantCulture)} "
-           + $"inViewport={InViewport} hitSame={HitSame} hitName={HitName ?? "-"} hitTag={HitTag ?? "-"} scrolled={Scrolled}";
+           + $"inViewport={InViewport} hitSame={HitSame} hitName={HitName ?? "-"} hitTag={HitTag ?? "-"} scrolled={Scrolled}"
+           + (HitRect is null ? string.Empty : $" hitRect={HitRect}")
+           + (HitZIndex is null ? string.Empty : $" hitZIndex={HitZIndex}")
+           + (HitPath is null ? string.Empty : $" hitPath={HitPath}")
+           + (OverlapArea is null ? string.Empty : $" overlapArea={OverlapArea.Value.ToString("F1", CultureInfo.InvariantCulture)}");
 
     /// <summary>解析探测脚本负载（非法/非对象 ⇒ false，不抛）。</summary>
     public static bool TryParse(string? json, out ClickProbe? probe)
@@ -77,7 +93,13 @@ public sealed record ClickProbe(
                 GetBool(root, "hitSame"),
                 GetString(root, "hitName"),
                 GetString(root, "hitTag"),
-                GetBool(root, "scrolled"));
+                GetBool(root, "scrolled"))
+            {
+                HitRect = GetString(root, "hitRect"),
+                HitZIndex = GetString(root, "hitZIndex"),
+                HitPath = GetString(root, "hitPath"),
+                OverlapArea = GetNullableDouble(root, "overlapArea"),
+            };
             return true;
         }
         catch (JsonException)
@@ -92,6 +114,11 @@ public sealed record ClickProbe(
         => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
             ? value.GetDouble()
             : 0;
+
+    private static double? GetNullableDouble(JsonElement element, string name)
+        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
+            ? value.GetDouble()
+            : null;
 
     private static bool GetBool(JsonElement element, string name)
         => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;

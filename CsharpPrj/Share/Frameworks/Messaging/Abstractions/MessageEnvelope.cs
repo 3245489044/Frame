@@ -29,7 +29,9 @@ public sealed record MessageEnvelope(
     string? ReplyTo = null,
     string? Error = null,
     MessageState State = MessageState.Created,
-    int Revision = 0)
+    int Revision = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    string? SubAgentTag = null)
 {
     /// <summary>恒定摘要（未显式给出时由内核计算，保证「恒有摘要」）。</summary>
     public string EffectiveDigest

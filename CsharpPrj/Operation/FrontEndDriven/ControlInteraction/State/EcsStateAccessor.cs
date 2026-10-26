@@ -11,6 +11,7 @@ using FrontEndDriven.Diagnostics;
 using FrontEndDriven.ECS.Components;
 using FrontEndDriven.Utils;
 using Modules.ComponentData.Extensions;
+using Plate.HtmlViewer;
 using TConfig.Controls;
 
 namespace FrontEndDriven.ControlInteraction.State;
@@ -18,8 +19,10 @@ namespace FrontEndDriven.ControlInteraction.State;
 /// <summary>
 /// ECS 状态访问器（M3·事件与命令收编 + P2·值语义契约接管）：命令 set/get 与 GUI 输入回灌统一读写 ECS 状态。
 /// 真源方向：写 ECS（ControlValueComponent）→ 契约投影物理；读分离为两条语义——
-///   <see cref="GetValue"/>（命令/脚本真源读，ECS 优先 + 物理兜底）；
-///   <see cref="GetLiveValue"/>（交互分发实时真值读，物理优先 + ECS 兜底，避免空/过期 ECS 遮蔽物理选择）。
+///   <see cref="GetValue"/>（命令/脚本真源读，DOM 承载控件活文档优先 → ECS 优先 → 物理兜底）；
+///   <see cref="GetLiveValue"/>（交互分发实时真值读，DOM 承载控件活文档优先 → 物理优先 → ECS 兜底）。
+/// <para>DOM 承载控件（htmlviewer）单列一条：内容可经区域写回（region-*）直接落 DOM 而不回写 ECS 值，
+/// 故「当前页面文本」以活文档 <c>textContent</c> 为真源（与 HTML 桥 get 同源）；活文档不可用时回落既有链并记诊断。</para>
 /// 值语义经 <see cref="IControlService"/>（ControlValueBridge / ValueContractRegistry）——ListView 等选择型控件的
 /// "匹配选中 + 回读 Tag 规范值"由契约承载，不再散落控件类型特判（原 ListView 专用分支已删除）。
 /// </summary>
@@ -54,8 +57,8 @@ public sealed class EcsStateAccessor : IEcsStateAccessor
     }
 
     /// <summary>
-    /// 交互实时值读（事件分发参数真值读）：物理控件当前真值优先（值语义契约），
-    /// 无物理控件/未渲染则回退 ECS 状态，再回退 ControlInfoComponent.Text。
+    /// 交互实时值读（事件分发参数真值读）：DOM 承载控件（htmlviewer）取活文档文本 → 物理控件当前真值（值语义契约）
+    /// → ECS 状态 → ControlInfoComponent.Text。
     /// 与 <see cref="GetValue"/>（ECS 真源优先）语义互补：本方法服务用户触发事件时的"当前 UI 状态"，
     /// 避免空值/过期 ECS 状态遮蔽物理选择（如下拉框已选但 ECS 未回灌/为空的场景）。
     /// </summary>
@@ -71,13 +74,40 @@ public sealed class EcsStateAccessor : IEcsStateAccessor
     }
 
     /// <summary>
-    /// 公共读链（GetValue/GetLiveValue 近复制收敛）：三段式回退（ECS 状态 / 物理契约读 / ControlInfo.Text），
+    /// DOM 承载控件（<see cref="HtmlViewer"/>）的活文档文本读：唯一判据 = 控件类型，值取 <c>document.body.textContent</c>。
+    /// 不可用（UI 线程同步门面拒绝 / 句柄未建 / WebView2 未就绪）⇒ null + 结构化诊断，由既有读链兜底（不静默吞）。
+    /// </summary>
+    private string? TryReadDocumentText(Entity entity)
+    {
+        try
+        {
+            if (_controlPool.GetControl(entity) is not HtmlViewer viewer) return null;
+            if (viewer.TryGetDocumentText(out var text)) return text;
+
+            FrontEndDrivenLog.Log("EcsStateAccessor_LiveText_unavailable",
+                new { controlName = _controlPool.GetControlName(entity) });
+            return null;
+        }
+        catch (Exception ex)
+        {
+            FrontEndDrivenLog.Log("EcsStateAccessor_LiveText_failed",
+                new { controlName = _controlPool.GetControlName(entity), error = ex.Message });
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 公共读链（GetValue/GetLiveValue 近复制收敛）：DOM 承载控件活文档前置 → 三段式回退（ECS 状态 / 物理契约读 / ControlInfo.Text），
     /// 由 <paramref name="ecsFirst"/> 决定 ECS 与物理的优先级顺序：
     /// ecsFirst=true（真源读，GetValue）ECS 优先；ecsFirst=false（实时真值读，GetLiveValue）物理优先。
     /// 尾部均为 ControlInfo.Text 兜底。兜底/异常处理单点维护，消除两条链各自复制。
     /// </summary>
     private string? ReadValue(Entity entity, bool ecsFirst)
     {
+        // DOM 承载控件（htmlviewer）：页面内容由区域写回（region-*）直接落 DOM，ECS 值只是「最近一次整页写」的快照；
+        // 读数以活文档 textContent 为权威（与 HTML 桥 get 同源），否则 get/assert 会读到挂载期陈旧值（假红/假绿）。
+        if (TryReadDocumentText(entity) is { } liveDocumentText) return liveDocumentText;
+
         // P2·契约读：物理控件经值语义契约（默认语义）读取（如 ListView 选中项 Tag??Text）
         string? ReadPhysical()
         {

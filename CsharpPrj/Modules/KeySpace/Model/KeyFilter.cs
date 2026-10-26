@@ -46,7 +46,7 @@ public sealed record KeyFilter(
     public bool Matches(KeyOps ops, string? key, out KeyInstance parsed)
     {
         ArgumentNullException.ThrowIfNull(ops);
-        parsed = default;
+        parsed = default(KeyInstance);
         if (string.IsNullOrWhiteSpace(key)) return false;
         if (!ops.TryParse(Family, Surface, key, out parsed, out _)) return false;
 

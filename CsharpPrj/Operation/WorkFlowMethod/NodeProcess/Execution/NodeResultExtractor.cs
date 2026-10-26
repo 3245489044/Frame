@@ -7,6 +7,7 @@ using System.Reflection;
 using Modules.KeySpace.Model;
 using Modules.KeySpace.Runtime;
 using Modules.Node.Ports;
+using WorkFlowMethod.KeySpace.Adapters;
 using WorkFlowMethod.Skeletons.NodeProcess.Diagnostics;
 using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
@@ -171,34 +172,19 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 : ExtractResultKeys(keys, result);
         }
 
-        /// <summary>宽松归一化：剥离 JSON 引号/外部括号后按逗号切分，过滤空白。兼容 "\"r1\"" 与 "a,b"。</summary>
+        /// <summary>
+        /// 宽松归一化（A2）：JSON 数组 / 历史逗号形态均经 <see cref="KeySetParse"/> 单入口；
+        /// 解析失败产出诊断而非静默空集；空集必带 <see cref="EmptySetPolicy.Report"/> 理由。
+        /// </summary>
         internal static IEnumerable<string> NormalizeResultKeys(string? raw)
         {
-            if (string.IsNullOrWhiteSpace(raw)) return Enumerable.Empty<string>();
-            var text = raw.Trim();
-
-            // JSON 数组形态（真实落库形态，见 KeyProcessor.AddHierarchyToKeysJson 的 JsonSerializer.Serialize）→ 权威解析器。
-            if (text.StartsWith("[", StringComparison.Ordinal))
+            var parsed = KeySetParse.Parse(raw, "workflow.result-keys");
+            if (parsed.Diagnostic is not null)
             {
-                var parsed = KeyProcessor.ParseKeysFromJson(text);
-                // 严格 JSON 失败（返回空且非合法空数组 "[]"）→ 兼容旧宽松形态；"[]" → 合法空数组，保持空。
-                return (parsed.Count == 0 && text != "[]")
-                    ? SplitLegacyCommaForm(text)
-                    : parsed;
+                WorkflowKeyDiagnosticsSink.Instance.Report(parsed.Diagnostic);
             }
 
-            // 非 JSON 数组（旧宽松落库/字面量）→ 旧宽松形态。
-            return SplitLegacyCommaForm(text);
-        }
-
-        /// <summary>旧宽松形态：剥引号/外部括号后按逗号切分，过滤空白（仅供非 JSON 数组输入兼容；JSON 走权威解析器）。</summary>
-        private static IEnumerable<string> SplitLegacyCommaForm(string text)
-        {
-            if (text.StartsWith("[", StringComparison.Ordinal)) text = text.Substring(1).TrimEnd();
-            if (text.EndsWith("]", StringComparison.Ordinal)) text = text.Substring(0, text.Length - 1);
-            return text.Split(',')
-                .Select(s => s.Trim().Trim('"'))
-                .Where(s => s.Length > 0);
+            return parsed.Members;
         }
 
         private static Dictionary<string, object?> BuildLookup(object result)

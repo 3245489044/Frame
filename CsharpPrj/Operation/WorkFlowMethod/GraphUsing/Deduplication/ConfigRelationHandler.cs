@@ -7,6 +7,7 @@ using System.Linq;
 using GraphFoundation.Chain;
 using Modules.GraphProcessing.Reference;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using WorkFlowMethod.Skeletons.NodeProcess.ReferenceRegistration;
 #endregion
 
 namespace WorkFlowMethod.GraphFramework.Deduplication
@@ -21,27 +22,78 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
             _nodeHandler = nodeHandler ?? throw new ArgumentNullException(nameof(nodeHandler));
         }
 
+        /// <summary>字段访问器（清单本身来自 <see cref="NodeReferenceFields.Declared"/>，禁第二份字段表）。</summary>
+        private sealed record ReferenceBinding(
+            string Name,
+            Func<NodeConfig, string?> Get,
+            Action<NodeConfig, string?> Set);
+
+        private static readonly IReadOnlyList<ReferenceBinding> Bindings = BuildBindings();
+
+        private static IReadOnlyList<ReferenceBinding> BuildBindings()
+        {
+            var bindings = new List<ReferenceBinding>(NodeReferenceFields.Declared.Count);
+            foreach (var field in NodeReferenceFields.Declared)
+            {
+                bindings.Add(field.Name switch
+                {
+                    NodeReferenceFields.AddConfigAddKey => new ReferenceBinding(
+                        field.Name,
+                        node => node.addNodeConfig?.AddConfigAddKey,
+                        (node, value) =>
+                        {
+                            if (node.addNodeConfig is not null) node.addNodeConfig.AddConfigAddKey = value;
+                        }),
+                    NodeReferenceFields.ConnectChainInfoKey => new ReferenceBinding(
+                        field.Name,
+                        node => node.nextNodeConfig?.ConnectChainInfoKey,
+                        (node, value) =>
+                        {
+                            if (node.nextNodeConfig is not null) node.nextNodeConfig.ConnectChainInfoKey = value;
+                        }),
+                    NodeReferenceFields.NextNodeKey => new ReferenceBinding(
+                        field.Name,
+                        node => node.nextNodeConfig?.NextNodeKey,
+                        (node, value) =>
+                        {
+                            if (node.nextNodeConfig is not null) node.nextNodeConfig.NextNodeKey = value;
+                        }),
+                    NodeReferenceFields.ParameterKeys => new ReferenceBinding(
+                        field.Name,
+                        node => node.funcPipelineConfig?.ParameterKeys,
+                        (node, value) =>
+                        {
+                            if (node.funcPipelineConfig is not null) node.funcPipelineConfig.ParameterKeys = value;
+                        }),
+                    NodeReferenceFields.ResultKeys => new ReferenceBinding(
+                        field.Name,
+                        node => node.funcPipelineConfig?.ResultKeys,
+                        (node, value) =>
+                        {
+                            if (node.funcPipelineConfig is not null) node.funcPipelineConfig.ResultKeys = value;
+                        }),
+                    _ => throw new InvalidOperationException(
+                        $"引用字段 '{field.Name}' 已在 NodeReferenceFields.Declared 声明，但缺少访问器绑定"),
+                });
+            }
+
+            return bindings;
+        }
+
         public List<(string referenceValue, string referenceType)> ExtractReferences(
             string nodeKey, NodeConfig node)
         {
             var references = new List<(string, string)>();
-
             if (node == null) return references;
 
-            if (node.nextNodeConfig?.ConnectChainInfoKey != null)
-                references.Add((node.nextNodeConfig.ConnectChainInfoKey, "ConnectChainInfoKey"));
-
-            if (node.nextNodeConfig?.NextNodeKey != null)
-                references.Add((node.nextNodeConfig.NextNodeKey, "NextNodeKey"));
-
-            if (node.addNodeConfig?.AddConfigAddKey != null)
-                references.Add((node.addNodeConfig.AddConfigAddKey, "AddConfigAddKey"));
-
-            if (node.funcPipelineConfig?.ParameterKeys != null)
-                references.Add((node.funcPipelineConfig.ParameterKeys, "ParameterKeys"));
-
-            if (node.funcPipelineConfig?.ResultKeys != null)
-                references.Add((node.funcPipelineConfig.ResultKeys, "ResultKeys"));
+            foreach (var binding in Bindings)
+            {
+                var value = binding.Get(node);
+                if (value != null)
+                {
+                    references.Add((value, binding.Name));
+                }
+            }
 
             return references;
         }
@@ -50,20 +102,13 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
         {
             if (node == null) return;
 
-            if (node.nextNodeConfig?.ConnectChainInfoKey == oldReference)
-                node.nextNodeConfig.ConnectChainInfoKey = newReference;
-
-            if (node.nextNodeConfig?.NextNodeKey == oldReference)
-                node.nextNodeConfig.NextNodeKey = newReference;
-
-            if (node.addNodeConfig?.AddConfigAddKey == oldReference)
-                node.addNodeConfig.AddConfigAddKey = newReference;
-
-            if (node.funcPipelineConfig?.ParameterKeys == oldReference)
-                node.funcPipelineConfig.ParameterKeys = newReference;
-
-            if (node.funcPipelineConfig?.ResultKeys == oldReference)
-                node.funcPipelineConfig.ResultKeys = newReference;
+            foreach (var binding in Bindings)
+            {
+                if (binding.Get(node) == oldReference)
+                {
+                    binding.Set(node, newReference);
+                }
+            }
         }
 
         public void UpdateReferences(NodeConfig node, Dictionary<string, string> renameMap)

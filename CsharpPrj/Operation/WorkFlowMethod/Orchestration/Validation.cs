@@ -52,6 +52,26 @@ namespace WorkFlowMethod.Orchestration.Config
                     }
                     return true;
                 }, "链配置为空"),
+
+                // P0-1：连接校验必须读取 ValidateWorkflowConnections 实际写入的键（此前写 "Connections"、
+                // 规则只读 "ConnectionPosition"，连接校验永远 Success）。
+                new("ConnectionsValid", ctx =>
+                {
+                    if (!ctx.CustomRules.TryGetValue("Connections", out var connectionsObj))
+                        return true;
+
+                    if (connectionsObj is not IEnumerable<WorkflowConnection<string, string>> connections)
+                        return false;
+
+                    foreach (var connection in connections)
+                    {
+                        if (connection is null) return false;
+                        if (string.IsNullOrWhiteSpace(connection.FromNode)) return false;
+                        if (string.IsNullOrWhiteSpace(connection.ToNode)) return false;
+                    }
+
+                    return true;
+                }, "连接列表无效：连接项为空或起止节点未指定"),
             };
 
             return new DefaultCompositionValidator(rules);
@@ -105,7 +125,36 @@ namespace WorkFlowMethod.Orchestration.Config
                         ["Connections"] = connections ?? new List<WorkflowConnection<string, string>>()
                     }
                 };
-                return validator.Validate(ctx);
+
+                // P0-1：框架 Validate 把规则失败记为 Warning（IsValid 恒 true），因此连接校验必须在
+                // 宿主侧把结构失败提升为 Error，避免「连接校验永远 Success」。
+                var result = validator.Validate(ctx);
+                if (connections is null || connections.Count == 0)
+                {
+                    result.AddError("连接列表为空");
+                    return result;
+                }
+
+                foreach (var connection in connections)
+                {
+                    if (connection is null)
+                    {
+                        result.AddError("连接项为 null");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(connection.FromNode))
+                    {
+                        result.AddError($"连接起点节点未指定（To={connection.ToNode}）");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(connection.ToNode))
+                    {
+                        result.AddError($"连接终点节点未指定（From={connection.FromNode}）");
+                    }
+                }
+
+                return result;
             }
 
             public static ValidationResult ValidateInsertOperation(ConnectionPositionInfo<string> pos)

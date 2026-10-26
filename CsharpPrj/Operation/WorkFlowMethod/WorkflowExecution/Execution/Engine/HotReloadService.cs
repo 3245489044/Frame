@@ -50,6 +50,8 @@ namespace WorkFlowMethod.Execution.Engine
 
             var newSession = _sessionFactory.CreateSession(newSnapshot);
 
+            // B3：新会话绑定新一代；旧代保留旧 generation，旧代投递由 Junction 按 stale 拒绝。
+            newSession.WiringGeneration = "g" + newSnapshot.Version;
             newSession.Data.RestoreFromSnapshot(dataSnapshot);
 
             foreach (var oldNodeState in oldSession.GetAllNodeStates())
@@ -80,6 +82,7 @@ namespace WorkFlowMethod.Execution.Engine
 
             result.OldSessionId = oldSession.SessionId;
             result.NewSession = newSession;
+            result.Generation = newSession.WiringGeneration;
             result.Success = true;
 
             return result;
@@ -111,6 +114,9 @@ namespace WorkFlowMethod.Execution.Engine
         public string OldSessionId { get; set; }
 
         public ExecutionSession NewSession { get; set; }
+
+        /// <summary>B3：新会话绑定的接线代际。</summary>
+        public string Generation { get; set; }
 
         public string ErrorMessage { get; set; }
     }

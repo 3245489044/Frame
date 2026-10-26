@@ -40,7 +40,8 @@ function Test-ClosureSet {
             if ($text.Length -eq 0) { continue }
             [void]$set.Add($text)
         }
-        return $set
+        # 逗号运算符阻止 HashSet 在管道中被展开（否则调用方拿到 string[]/null，Count/Contains 失效）。
+        return , $set
     }
 
     $declaredSet = & $normalize -Items $Declared

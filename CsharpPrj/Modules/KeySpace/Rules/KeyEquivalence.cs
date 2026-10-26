@@ -18,6 +18,9 @@ public sealed class KeyEquivalence : IKeyEquivalence
         _registry = KeyFamilyRules.BuildRegistry(declaration, diagnostics);
     }
 
+    /// <summary>统一判等口径（大小写不敏感，与既有存储层一致）；所有键比较必须经本属性。</summary>
+    public StringComparer Comparer => StringComparer.OrdinalIgnoreCase;
+
     public bool SameEntity(KeyRef left, KeyRef right)
     {
         if (left.IsEmpty || right.IsEmpty)
@@ -25,7 +28,7 @@ public sealed class KeyEquivalence : IKeyEquivalence
             return false;
         }
 
-        if (string.Equals(left.Value, right.Value, StringComparison.Ordinal))
+        if (Comparer.Equals(left.Value, right.Value))
         {
             return true;
         }
@@ -45,7 +48,7 @@ public sealed class KeyEquivalence : IKeyEquivalence
         foreach (var pair in leftPresent)
         {
             if (rightValues.Present().TryGetValue(pair.Key, out var rightValue) &&
-                string.Equals(pair.Value, rightValue, StringComparison.Ordinal))
+                Comparer.Equals(pair.Value, rightValue))
             {
                 return true;
             }
@@ -61,7 +64,7 @@ public sealed class KeyEquivalence : IKeyEquivalence
             return false;
         }
 
-        if (string.Equals(key.Value, self.Id, StringComparison.Ordinal))
+        if (Comparer.Equals(key.Value, self.Id))
         {
             return true;
         }

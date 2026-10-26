@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.KeySpace.Model;
+using Modules.KeySpace.Rules;
 using Modules.Node;
 using Modules.Node.Identity;
 using Modules.Node.Materialization;
@@ -60,6 +62,33 @@ public sealed class NodeContentMaterializeService
     public Task<NodeContentMaterializeOutcome> MaterializeAsync(
         string key, string json, CancellationToken ct = default)
         => MaterializeAsync(key, json, expectedValues: null, ct);
+
+    /// <summary>
+    /// 物化单个节点载荷 + **键实例一致性门**（写门显式调用 <see cref="KeyIntegrityGuard"/>，禁织入）。
+    /// <para>调用方给出族/面实例与算子；不一致即拒写（与值袋路径同码，不静默放行）。</para>
+    /// </summary>
+    public async Task<NodeContentMaterializeOutcome> MaterializeAsync(
+        string key,
+        string json,
+        IReadOnlyDictionary<string, string>? expectedValues,
+        KeyInstance? keyInstance,
+        KeyOps? keyOps,
+        CancellationToken ct = default)
+    {
+        if (keyInstance is { } instance && keyOps is not null)
+        {
+            var values = expectedValues ?? EmptyValues;
+            if (!KeyIntegrityGuard.TryCheck(keyOps, instance, values, out var diagnostic))
+            {
+                return Reject(key, diagnostic?.Code ?? "key.identity-value-mismatch");
+            }
+        }
+
+        return await MaterializeAsync(key, json, expectedValues, ct).ConfigureAwait(false);
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyValues =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
     /// 物化单个节点载荷 + **反解值校验**：键往返通过不代表反解到的是本域期望值，故由调用方给出期望值逐键比对

@@ -1,7 +1,10 @@
 #region USINGS
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using GraphFramework.Models;
+using Modules.KeySpace.Abstractions;
+using WorkFlowMethod.KeySpace.Adapters;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 using INodeExecutorFactory = WorkFlowMethod.Orchestration.Context.Execution.INodeExecutorFactory;
 using DefaultNodeExecutorFactory = WorkFlowMethod.Orchestration.Context.Execution.DefaultNodeExecutorFactory;
@@ -11,8 +14,9 @@ namespace WorkFlowMethod.Orchestration.Context.Runtime
 {
     public class WorkflowRuntimeContext
     {
-        private readonly ConcurrentDictionary<string, NodeConfig> _nodeCache = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, Chain<string, NodeConfig>> _chainCache = new(StringComparer.OrdinalIgnoreCase);
+        // A7：键比较器唯一口径 = IKeyEquivalence.Comparer（禁各存储层自建 StringComparer）。
+        private readonly ConcurrentDictionary<string, NodeConfig> _nodeCache;
+        private readonly ConcurrentDictionary<string, Chain<string, NodeConfig>> _chainCache;
 
         private readonly INodeExecutorFactory _executorFactory;
         private readonly WorkflowConfiguration _configuration;
@@ -24,11 +28,18 @@ namespace WorkFlowMethod.Orchestration.Context.Runtime
         {
         }
 
-        public WorkflowRuntimeContext(INodeExecutorFactory executorFactory, WorkflowConfiguration configuration)
+        public WorkflowRuntimeContext(
+            INodeExecutorFactory executorFactory,
+            WorkflowConfiguration configuration,
+            IKeyEquivalence? equivalence = null)
         {
             // 必填端口（T）：节点执行器工厂/工作流配置由装配点显式提供；无参构造是组件自装配的唯一入口。
             _executorFactory = executorFactory ?? throw new ArgumentNullException(nameof(executorFactory));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+
+            var comparer = (equivalence ?? WorkflowKeySpaceDefaults.Equivalence).Comparer;
+            _nodeCache = new ConcurrentDictionary<string, NodeConfig>(comparer);
+            _chainCache = new ConcurrentDictionary<string, Chain<string, NodeConfig>>(comparer);
         }
 
         #region 节点管理

@@ -22,7 +22,8 @@ public sealed record KeyFamily(
     KeyDomainId? DomainId = null,
     IReadOnlyList<string>? IdentityKeys = null,
     IReadOnlyDictionary<KeySurface, KeySurfaceSpec>? Surfaces = null,
-    IReadOnlyDictionary<string, string>? DerivedPrefixRoles = null);
+    IReadOnlyDictionary<string, string>? DerivedPrefixRoles = null,
+    IReadOnlyList<KeyAxisSpec>? Axes = null);
 
 /// <summary>
 /// 实体：同一逻辑对象的所有称呼（别名）。判等由 IKeyEquivalence 消费本集合完成，实体本身不持有规则。

@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.KeySpace.Abstractions;
+using Modules.KeySpace.Diagnostics;
+using Modules.KeySpace.Model;
 using Modules.Node.Ports;
 using Modules.Node.Projection;
 using WorkFlowMethod.Skeletons.NodeProcess.Abstractions;
@@ -17,11 +20,27 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Persistence
     /// 键空间规则唯一实现 = <see cref="PortKeySpace{TValue}"/>（读写同一实现，G2）：
     /// 枚举序 = 键序数序（先按 <see cref="NodeKeyOrdinalComparer"/> 排序），"先到者胜"不得随载体枚举序漂移。
     /// </summary>
-    public sealed class NodeOutputReadView : INodeOutputReadView
+    public sealed class NodeOutputReadView : INodeOutputReadView, IKeyReader
     {
         private readonly INodeOutputStore _store;
+        private volatile PortKeySpace<object?> _space = new();
 
         public NodeOutputReadView(INodeOutputStore store) => _store = store;
+
+        /// <summary>A5：三态读取入口（最近一次 <see cref="BuildInputSourceAsync"/> 构建的键空间快照）。</summary>
+        public KeyValue<object?> Read(KeyRef key)
+        {
+            if (key.IsEmpty)
+            {
+                return KeyValue<object?>.NotApplicable(
+                    KeyReasonCodes.NotDeclared, "空键不参与读取", key);
+            }
+
+            return _space.TryGet(key.Value, out var value)
+                ? KeyValue<object?>.Known(value)
+                : KeyValue<object?>.Unknown(
+                    KeyReasonCodes.DeclaredMissing, $"端口未命中: {key.Value}", key);
+        }
 
         public async Task<IReadOnlyDictionary<string, object?>> BuildInputSourceAsync(string workflowId, CancellationToken ct = default)
         {
@@ -57,6 +76,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Persistence
                 provenance[entry.PortKey] = (entry.NodeKey, entry.Port);
             }
 
+            _space = space;
             return (space.Snapshot(), provenance);
         }
     }

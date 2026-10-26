@@ -1,9 +1,11 @@
 #region USINGS
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Node.Ports;
 using Modules.Pipeline;
 using Share.StateManagement;
 using SkeletonFlow;
@@ -26,6 +28,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         private readonly IExecutionStateStore<SMExecutionStatus> _stateStore;
         private readonly Share.StateManagement.INodeExecutionCoordinator _coordinator;
         private readonly IParameterResolver _parameterResolver;
+        private readonly ConcurrentDictionary<string, PortKeySpace<object?>> _portSpaces =
+            new(StringComparer.Ordinal);
         private readonly SemaphoreSlim _executionSemaphore = new(10, 10);
         private static readonly TimeSpan StateRetentionPeriod = TimeSpan.FromMinutes(5);
         private bool _disposed;
@@ -246,6 +250,13 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         {
             return _parameterResolver.GetParameters(executionId);
         }
+
+        /// <summary>
+        /// A5：执行会话持有的端口键空间（每个 workflow 一个实例；读写共用同一规则实现）。
+        /// 不再每节点每轮 <c>new PortKeySpace</c>/<c>new KeyBinder</c>。
+        /// </summary>
+        public PortKeySpace<object?> GetOrCreatePortSpace(string executionId)
+            => _portSpaces.GetOrAdd(executionId, static _ => new PortKeySpace<object?>());
 
         public object GetNodeResult(string executionId, string nodeKey)
         {

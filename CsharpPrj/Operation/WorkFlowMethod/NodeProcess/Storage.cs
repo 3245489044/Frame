@@ -4,6 +4,8 @@ using GraphFramework.Models;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using Modules.KeySpace.Abstractions;
+using WorkFlowMethod.KeySpace.Adapters;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 #endregion
 
@@ -12,8 +14,16 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
 
     public class ChainInfoWorkflowStorageManager
     {
-        private readonly ConcurrentDictionary<string, Chain<string, NodeConfig>> _storage = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, DateTime> _timestamps = new(StringComparer.OrdinalIgnoreCase);
+        // A7：键比较器唯一口径 = IKeyEquivalence.Comparer（禁各存储层自建 StringComparer）。
+        private readonly ConcurrentDictionary<string, Chain<string, NodeConfig>> _storage;
+        private readonly ConcurrentDictionary<string, DateTime> _timestamps;
+
+        public ChainInfoWorkflowStorageManager(IKeyEquivalence? equivalence = null)
+        {
+            var comparer = (equivalence ?? WorkflowKeySpaceDefaults.Equivalence).Comparer;
+            _storage = new ConcurrentDictionary<string, Chain<string, NodeConfig>>(comparer);
+            _timestamps = new ConcurrentDictionary<string, DateTime>(comparer);
+        }
 
         public void SaveChainInfo(string workflowId, Chain<string, NodeConfig> chainInfo)
         {

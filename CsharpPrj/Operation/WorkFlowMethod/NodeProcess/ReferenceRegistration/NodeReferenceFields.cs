@@ -19,6 +19,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.ReferenceRegistration
     {
         public const string AddConfigAddKey = "AddConfigAddKey";
         public const string ConnectChainInfoKey = "ConnectChainInfoKey";
+        public const string NextNodeKey = "NextNodeKey";
         public const string ParameterKeys = "ParameterKeys";
         public const string ResultKeys = "ResultKeys";
 
@@ -31,6 +32,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.ReferenceRegistration
         {
             new ReferenceField(AddConfigAddKey, AddConfigAddKey, AllowField: true),
             new ReferenceField(ConnectChainInfoKey, "." + ConnectChainInfoKey),
+            new ReferenceField(NextNodeKey, "." + NextNodeKey),
             new ReferenceField(ParameterKeys, "." + ParameterKeys),
             new ReferenceField(ResultKeys, "." + ResultKeys),
         };

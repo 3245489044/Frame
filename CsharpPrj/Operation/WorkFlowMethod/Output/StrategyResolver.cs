@@ -46,26 +46,51 @@ public class StrategyResolver
     public (IWriteStrategy<OutputAdapter> Strategy, bool HasExplicitConfig) ResolveWrite(OutputAdapter? adapter)
     {
         var mode = adapter?.Mode;
-        if (mode != null && _writeStrategies.TryGetValue(mode, out var strategy))
+        if (!string.IsNullOrWhiteSpace(mode))
         {
-            return (strategy, true);
+            // P0-6：显式声明了未知 mode ⇒ 显式失败；不得回落默认/任意策略。
+            return _writeStrategies.TryGetValue(mode, out var strategy)
+                ? (strategy, true)
+                : (MissingWriteStrategy.Instance, false);
         }
 
-        return (_writeStrategies.TryGetValue(_defaultWriteMode, out var defaultStrategy)
-            ? defaultStrategy
-            : _writeStrategies.Values.First(), false);
+        return _writeStrategies.TryGetValue(_defaultWriteMode, out var defaultStrategy)
+            ? (defaultStrategy, false)
+            : (MissingWriteStrategy.Instance, false);
     }
 
     public (IReadStrategy<InputAdapter> Strategy, bool HasExplicitConfig) ResolveRead(InputAdapter? adapter)
     {
         var mode = adapter?.Mode;
-        if (mode != null && _readStrategies.TryGetValue(mode, out var strategy))
+        if (!string.IsNullOrWhiteSpace(mode))
         {
-            return (strategy, true);
+            return _readStrategies.TryGetValue(mode, out var strategy)
+                ? (strategy, true)
+                : (MissingReadStrategy.Instance, false);
         }
 
-        return (_readStrategies.TryGetValue(_defaultReadMode, out var defaultStrategy)
-            ? defaultStrategy
-            : _readStrategies.Values.First(), false);
+        return _readStrategies.TryGetValue(_defaultReadMode, out var defaultStrategy)
+            ? (defaultStrategy, false)
+            : (MissingReadStrategy.Instance, false);
     }
+}
+
+/// <summary>未绑定写策略：显式失败（禁静默写回）。</summary>
+public sealed class MissingWriteStrategy : IWriteStrategy<OutputAdapter>
+{
+    public static readonly MissingWriteStrategy Instance = new();
+
+    public void Write(object target, object? value, OutputAdapter? adapter)
+        => throw new InvalidOperationException(
+            $"WIRE_HANDLER_UNBOUND: 未注册的输出模式 '{adapter?.Mode ?? "(null)"}'");
+}
+
+/// <summary>未绑定读策略：显式失败（禁静默读取）。</summary>
+public sealed class MissingReadStrategy : IReadStrategy<InputAdapter>
+{
+    public static readonly MissingReadStrategy Instance = new();
+
+    public object? Read(object source, InputAdapter? adapter)
+        => throw new InvalidOperationException(
+            $"WIRE_HANDLER_UNBOUND: 未注册的输入模式 '{adapter?.Mode ?? "(null)"}'");
 }

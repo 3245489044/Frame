@@ -34,13 +34,33 @@ namespace WorkFlowMethod.Infrastructure.Abstractions
 
         public IEnumerable<string> GetAllWorkflowIds() => _workflows.Keys;
 
+        /// <summary>
+        /// 注册或更新工作流。P0-3：身份必须可复算 —— 无 <c>_idGenerator</c> 时不得每次生成新 Guid
+        /// （否则 RegisterOrUpdate 永远 Insert，更新退化为新增行）。
+        /// </summary>
         public string RegisterOrUpdateWorkflow(TWorkflow workflow)
         {
-            var id = _idGenerator != null ? _idGenerator(workflow) : Guid.NewGuid().ToString();
-            _workflows[id] = workflow;
-            UpdateNodeToWorkflowMap(id, workflow);
-            NotifyObservers(id, workflow);
-            return id;
+            if (workflow is null) throw new ArgumentNullException(nameof(workflow));
+            if (_idGenerator is null)
+            {
+                throw new InvalidOperationException(
+                    "未配置工作流 id 生成器：RegisterOrUpdateWorkflow 需要稳定身份。请使用显式 id 重载或注入 idGenerator。");
+            }
+
+            return RegisterOrUpdateWorkflow(workflow, _idGenerator(workflow));
+        }
+
+        /// <summary>以显式身份注册或更新（同一 id 二次调用 = 更新，不新增行）。</summary>
+        public string RegisterOrUpdateWorkflow(TWorkflow workflow, string workflowId)
+        {
+            if (workflow is null) throw new ArgumentNullException(nameof(workflow));
+            if (string.IsNullOrWhiteSpace(workflowId))
+                throw new ArgumentException("工作流 id 不能为空", nameof(workflowId));
+
+            _workflows[workflowId] = workflow;
+            UpdateNodeToWorkflowMap(workflowId, workflow);
+            NotifyObservers(workflowId, workflow);
+            return workflowId;
         }
 
         private void UpdateNodeToWorkflowMap(string workflowId, TWorkflow workflow)

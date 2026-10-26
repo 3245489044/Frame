@@ -152,8 +152,58 @@ public sealed class KeyOps
     /// <summary>反解：族 + 面 给定 ⇒ 不按分隔符猜（兼容模板只读命中）。</summary>
     public bool TryParse(
         string familyId, KeySurface surface, string? raw, out KeyInstance parsed, out KeyDiagnostic? diagnostic)
+        => TryParseDetailed(familyId, surface, raw, out parsed, out _, out diagnostic);
+
+    /// <summary>反解并返回命中证据（模板 / 只读兼容标记 / 特异性得分）。</summary>
+    public bool TryParseDetailed(
+        string familyId, KeySurface surface, string? raw,
+        out KeyInstance parsed, out KeyParseMatch? match, out KeyDiagnostic? diagnostic)
     {
-        parsed = default;
+        parsed = default(KeyInstance);
+        match = null;
+        if (!TryEnterFamily(familyId, raw, out diagnostic))
+        {
+            return false;
+        }
+
+        if (!_algebra.TryParseDetailed(raw, surface, familyId, out var surfaceKey, out match, out diagnostic))
+        {
+            return false;
+        }
+
+        parsed = new KeyInstance(surfaceKey.Family, surfaceKey.Surface, surfaceKey.Point);
+        return true;
+    }
+
+    /// <summary>
+    /// 作用域解析（已知部分轴，如 <c>workflowId</c>）：已知轴作为候选过滤条件，
+    /// 反解值不一致 ⇒ <c>key.scope-mismatch</c>（替代调用方 <c>prefix + StartsWith + Substring</c>）。
+    /// </summary>
+    public bool TryParseScoped(
+        string familyId, KeySurface surface, string? raw,
+        IReadOnlyDictionary<string, string> knownAxes,
+        out KeyInstance parsed, out KeyParseMatch? match, out KeyDiagnostic? diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(knownAxes);
+        parsed = default(KeyInstance);
+        match = null;
+        if (!TryEnterFamily(familyId, raw, out diagnostic))
+        {
+            return false;
+        }
+
+        if (!_algebra.TryParseScoped(raw, surface, familyId, knownAxes, out var surfaceKey, out match, out diagnostic))
+        {
+            return false;
+        }
+
+        parsed = new KeyInstance(surfaceKey.Family, surfaceKey.Surface, surfaceKey.Point);
+        return true;
+    }
+
+    private bool TryEnterFamily(string familyId, string? raw, out KeyDiagnostic? diagnostic)
+    {
+        diagnostic = null;
         if (string.IsNullOrWhiteSpace(raw))
         {
             diagnostic = KeyDiagnostic.Warn(KeyReasonCodes.Blank, KeyResolution.Empty, null, "空键文本");
@@ -168,14 +218,52 @@ public sealed class KeyOps
             return false;
         }
 
-        if (!_algebra.TryParse(raw, surface, familyId, out var surfaceKey, out diagnostic))
+        if (raw!.EndsWith(".", StringComparison.Ordinal))
+        {
+            diagnostic = KeyDiagnostic.Warn(
+                KeyReasonCodes.ParseTrailingDot, KeyResolution.Unparsable,
+                KeyRef.Of(familyId, raw), "尾随点号 = 前缀片段（不是完整键）");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>族判据（结构事实）：解析成功或落在声明前缀内（前缀片段用于读侧范围枚举）。</summary>
+    public bool IsKeyOf(string familyId, KeySurface surface, string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || !_families.ContainsKey(familyId))
         {
             return false;
         }
 
-        parsed = new KeyInstance(surfaceKey.Family, surfaceKey.Surface, surfaceKey.Point);
-        return true;
+        if (TryParse(familyId, surface, raw, out _, out _))
+        {
+            return true;
+        }
+
+        return raw!.StartsWith(Prefix(familyId, surface), StringComparison.Ordinal);
     }
+
+    /// <summary>面的规范模板（构造/诊断单源；域类禁手拼模板字面量）。</summary>
+    public string Template(string familyId, KeySurface surface = KeySurface.Storage)
+    {
+        var family = RequireFamily(familyId);
+        var surfaces = KeySurfaceRules.EffectiveSurfaces(family);
+        if (!surfaces.TryGetValue(surface, out var spec))
+        {
+            throw new InvalidOperationException(
+                $"{KeyReasonCodes.SurfaceMismatch}: 族 '{familyId}' 未声明键面 '{surface}'");
+        }
+
+        return spec.CanonicalTemplate;
+    }
+
+    /// <summary>轴名集合（声明面给出；诊断/门禁用）。</summary>
+    public IReadOnlyList<string> AxisNames(string familyId)
+        => RequireFamily(familyId).Axes is { Count: > 0 } axes
+            ? axes.Select(static axis => axis.Name).ToArray()
+            : Array.Empty<string>();
 
     /// <summary>取轴值（缺席 ⇒ null）。</summary>
     public string? Value(KeyInstance key, KeyAxis axis) => key.Value(axis);
@@ -207,6 +295,41 @@ public sealed class KeyOps
         {
             throw new InvalidOperationException(
                 $"{KeyReasonCodes.PrefixSourceInvalid}: 族 '{familyId}' 面 '{surface}' 无前缀且模板无字面量起点");
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// 部分投影（前缀）：按模板序输出到**首个缺席占位符之前**的字面段为止。
+    /// <para>用途：读侧键前缀（如 <c>scope.{s}.r{r}.</c>）必须由声明模板派生，禁手拼。</para>
+    /// </summary>
+    public string RenderPrefix(KeyInstance key)
+    {
+        var family = RequireFamily(key.Family);
+        var surfaces = KeySurfaceRules.EffectiveSurfaces(family);
+        if (!surfaces.TryGetValue(key.Surface, out var spec))
+        {
+            throw new InvalidOperationException(
+                $"{KeyReasonCodes.SurfaceMismatch}: 族 '{key.Family}' 未声明键面 '{key.Surface}'");
+        }
+
+        var builder = new StringBuilder();
+        foreach (var segment in KeyTemplates.Segments(spec.CanonicalTemplate))
+        {
+            if (!segment.IsPlaceholder)
+            {
+                builder.Append(segment.Text);
+                continue;
+            }
+
+            var value = key.Value(KeyAxis.Of(segment.Text));
+            if (value is null)
+            {
+                break;
+            }
+
+            builder.Append(value);
         }
 
         return builder.ToString();

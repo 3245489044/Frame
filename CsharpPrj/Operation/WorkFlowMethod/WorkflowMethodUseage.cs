@@ -366,6 +366,13 @@ namespace WorkFlowMethod.Usage
         public static NodeProcessPipelineBuilder CreateNodeProcessPipelineBuilder()
             => new NodeProcessPipelineBuilder();
 
+        /// <summary>
+        /// A6：组合根注入键空间声明（节点端口契约/判等/集合策略的唯一来源）。
+        /// 非 Agent 宿主也必须调用；未调用 ⇒ 显式空声明（不静默回落到旧路径）。
+        /// </summary>
+        public static void ConfigureKeySpace(Modules.KeySpace.Abstractions.IKeySpaceDeclaration declaration)
+            => NodePortContractRegistry.Configure(declaration);
+
         public static string GetNodeConfigType()
             => NodeConfigFactory.ConfigType.Default;
 

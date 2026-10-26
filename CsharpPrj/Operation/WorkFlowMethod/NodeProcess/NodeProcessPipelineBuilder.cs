@@ -5,7 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.KeySpace.Abstractions;
 using Modules.Pipeline;
+using Modules.Wiring.Model;
+using Modules.Wiring.Runtime;
 using SkeletonFlow;
 using Share.StateManagement;
 using WorkFlowMethod.Execution.Engine;
@@ -21,6 +24,7 @@ using WorkFlowMethod.Skeletons.NodeProcess.Execution;
 using WorkFlowMethod.Skeletons.NodeProcess.Graph;
 using WorkFlowMethod.Skeletons.NodeProcess.Lifecycle;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
+using WorkFlowMethod.Skeletons.NodeProcess.Wiring;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 
 using WfPipelineContext = WorkflowExecution.Pipeline.PipelineContext;
@@ -33,6 +37,10 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
         private readonly StagePipeline<WfPipelineContext> _pipeline;
         private INodeOutputStore? _outputStore;
         private NodePersistCoordinator? _persistCoordinator;
+        private WorkflowWiringAttachment? _wiring;
+
+        /// <summary>B2：装配期接线闭合报告（未装配 ⇒ null；不改变阶段顺序）。</summary>
+        public WorkflowWiringAttachment? Wiring => _wiring;
 
         public NodeProcessPipelineBuilder(string? name = null)
         {
@@ -71,7 +79,9 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
             IContext? context = null,
             DefaultDirectiveApplier<string, NodeConfig, object>? updateService = null)
         {
-            var stage = new GraphChainUpdateStage(updateService);
+            var stage = updateService is null
+                ? new GraphChainUpdateStage()
+                : new GraphChainUpdateStage(updateService);
             _pipeline.Register(new SkeletonToStageAdapter<WfPipelineContext>(stage));
             return this;
         }
@@ -85,12 +95,16 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
 
             if (enableErrorHandling)
             {
-                var stagePipeline = PipelineUsage.CreateStage<WfPipelineContext>(
+                // P0-5：异步路径直达 asyncWithCtx，禁止在 stage action 内 GetAwaiter().GetResult()（SyncContext 死锁风险）。
+                var stagePipeline = PipelineUsage.CreateWithContext<WfPipelineContext, WfPipelineContext>(
                     name: "NodeExecution",
-                    action: (ctx, pipelineCtx) =>
+                    syncWithCtx: (_, _) => throw new NotSupportedException(
+                        "NodeExecution 仅支持异步管线执行（请使用 ExecuteAsync）。"),
+                    asyncWithCtx: async (ctx, pipelineCtx) =>
                     {
-                        var cts = CancellationTokenSource.CreateLinkedTokenSource(pipelineCtx.CancellationToken);
-                        executionStage.ExecuteAsync(ctx, cts.Token).GetAwaiter().GetResult();
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(pipelineCtx.CancellationToken);
+                        await executionStage.ExecuteAsync(ctx, cts.Token).ConfigureAwait(false);
+                        return ctx;
                     });
 
                 var tryCatchPipeline = PipelineUsage.TryCatch<WfPipelineContext>(
@@ -111,32 +125,37 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
         }
 
         public NodeProcessPipelineBuilder AddNodeLoop(
-            INodeProcessor<string, NodeConfig, object, WfPipelineContext>? nodeProcessor = null,
+            ISkeleton<WfPipelineContext, WfPipelineContext>? nodeProcessor = null,
             int maxIterations = 10000,
             Share.StateManagement.INodeExecutor? executor = null)
         {
-            var stepSkeleton = new NodeExecutionStepSkeleton(
-                nodeProcessor != null ? new NodeChainSkeleton() : null,
-                executor);
+            // P0-4：注入的处理器必须被真正使用（此前只判断 null，参数值被丢弃）。
+            var stepSkeleton = new NodeExecutionStepSkeleton(nodeProcessor, executor);
 
-            var stepPipeline = PipelineUsage.CreateStage<WfPipelineContext>(
+            var stepPipeline = PipelineUsage.CreateWithContext<WfPipelineContext, WfPipelineContext>(
                 name: "NodeLoopStep",
-                action: (ctx, pipelineCtx) =>
+                syncWithCtx: (_, _) => throw new NotSupportedException(
+                    "NodeLoopStep 仅支持异步管线执行（请使用 ExecuteAsync）。"),
+                asyncWithCtx: async (ctx, pipelineCtx) =>
                 {
                     var skeletonCtx = new SkeletonContext();
-                    stepSkeleton.ExecuteAsync(ctx, skeletonCtx).GetAwaiter().GetResult();
+                    await stepSkeleton.ExecuteAsync(ctx, skeletonCtx).ConfigureAwait(false);
 
                     // 节点即存储单元：注入 store 时，单节点执行后持久化当前节点产出端口（未注入 → 零回归）
                     if (_outputStore != null)
                     {
-                        NodeOutputPersistStage.PersistAsync(ctx, _outputStore, pipelineCtx.CancellationToken, _persistCoordinator)
-                            .GetAwaiter().GetResult();
+                        await NodeOutputPersistStage.PersistAsync(
+                                ctx, _outputStore, pipelineCtx.CancellationToken, _persistCoordinator)
+                            .ConfigureAwait(false);
 
                         // S4 入参读源：将刚持久化的当前节点输出端口水化进参数解析器，
                         // 使下游节点经 MergeParameters 可按 {port} 或 {nodeKey}.{port} 取用。
-                        NodeParameterHydrator.HydrateCurrentNodeAsync(ctx, _outputStore, pipelineCtx.CancellationToken)
-                            .GetAwaiter().GetResult();
+                        await NodeParameterHydrator.HydrateCurrentNodeAsync(
+                                ctx, _outputStore, pipelineCtx.CancellationToken)
+                            .ConfigureAwait(false);
                     }
+
+                    return ctx;
                 });
 
             var loopPipeline = PipelineUsage.Loop<WfPipelineContext>(
@@ -198,6 +217,37 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
             return this;
         }
 
+        /// <summary>
+        /// B2：装配期接线闭合（Shadow 默认）——读声明/图 → Plan → Freeze → Report。
+        /// <para>顺序仍由 Pipeline 决定（D2）；本方法只给出“供给是否闭合”的显式事实。</para>
+        /// </summary>
+        public NodeProcessPipelineBuilder WithWiring(
+            GraphFoundation.Abstractions.IGraph<string, NodeConfig, object> graph,
+            IKeySpaceDeclaration? declaration = null,
+            string generation = Modules.Wiring.Compile.WiringFreezer.LiveGeneration)
+        {
+            ArgumentNullException.ThrowIfNull(graph);
+
+            var nodes = new List<NodeConfig>();
+            foreach (var nodeKey in graph.GetAllNodeKeys())
+            {
+                var data = graph.GetNodeData(nodeKey);
+                if (data is NodeConfig config) nodes.Add(config);
+            }
+
+            var chain = new global::GraphFramework.Models.Chain<string, NodeConfig> { AllNodes = nodes };
+            _wiring = WorkflowWiringHost.Attach(chain, declaration: declaration, generation: generation);
+            return this;
+        }
+
+        public NodeProcessPipelineBuilder WithWiring(
+            WiringCatalog catalog,
+            string generation = Modules.Wiring.Compile.WiringFreezer.LiveGeneration)
+        {
+            _wiring = WorkflowWiringHost.Attach(catalog, generation: generation);
+            return this;
+        }
+
         public NodeProcessPipelineBuilder AddStage(IPipelineStage<WfPipelineContext> stage)
         {
             ArgumentNullException.ThrowIfNull(stage);
@@ -220,7 +270,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
             IWorkflowRuntimeContextAccessor? contextAccessor = null,
             IExecutionStateStore<SMExecutionStatus>? stateStore = null,
             Share.StateManagement.INodeExecutionCoordinator? coordinator = null,
-            INodeProcessor<string, NodeConfig, object, WfPipelineContext>? nodeProcessor = null,
+            ISkeleton<WfPipelineContext, WfPipelineContext>? nodeProcessor = null,
             bool enableErrorHandling = true,
             Share.StateManagement.INodeExecutor? executor = null)
         {

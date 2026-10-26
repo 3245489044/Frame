@@ -1,9 +1,17 @@
 #region USINGS
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.KeySpace.Abstractions;
+using Modules.KeySpace.Diagnostics;
+using Modules.KeySpace.Model;
+using Modules.KeySpace.Runtime;
+using Modules.Node.Ports;
 using Modules.Pipeline;
 using GraphFramework.Snapshots;
 using WorkflowExecution.Pipeline;
+using WorkFlowMethod.KeySpace.Adapters;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 #endregion
@@ -65,12 +73,23 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 
             var workflowId = context.WorkflowId;
 
+            // A5/A4：写侧唯一门 = KeyWriteGate（空键/非法键拒绝并诊断），实际落库异步提交。
+            var gate = new KeyWriteGate(WorkflowKeyDiagnosticsSink.Instance);
+            var writer = new NodeOutputKeyWriter();
+            foreach (var (port, value) in ports)
+            {
+                if (value is null) continue; // 空端口不产生槽位
+                var key = KeyRef.Of("workflow.node.port", PortKeySpace<object?>.BuildPortKey(nodeKey, port));
+                gate.Write(writer, key, value);
+            }
+
             async Task WriteCore()
             {
-                foreach (var (port, value) in ports)
+                foreach (var write in writer.Writes)
                 {
-                    if (value is null) continue; // 空端口不产生槽位
-                    await store.WriteOutputAsync(workflowId, nodeKey, port, value, ct).ConfigureAwait(false);
+                    await store.WriteOutputAsync(
+                            workflowId, write.NodeKey, write.Port, write.Value, ct)
+                        .ConfigureAwait(false);
                 }
             }
 
@@ -78,6 +97,31 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 await coordinator.RunWriteAsync(workflowId, _ => WriteCore(), ct).ConfigureAwait(false);
             else
                 await WriteCore().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A5：<see cref="IKeyWriter"/> 的缓冲适配 —— 键校验在前（KeyWriteGate），
+        /// 异步落库在后（<see cref="INodeOutputStore.WriteOutputAsync"/>），避免同步等待异步存储。
+        /// </summary>
+        private sealed class NodeOutputKeyWriter : IKeyWriter
+        {
+            public List<(string NodeKey, string Port, object? Value)> Writes { get; } = new();
+
+            public KeyWriteResult Write(KeyRef key, object? value)
+            {
+                var separator = key.Value.LastIndexOf('.');
+                if (separator <= 0 || separator >= key.Value.Length - 1)
+                {
+                    return new KeyWriteResult(
+                        KeyResolution.Unparsable,
+                        KeyDiagnostic.Warn(
+                            KeyReasonCodes.Unparsable, KeyResolution.Unparsable, key,
+                            "节点输出端口键须为 {node}.{port}"));
+                }
+
+                Writes.Add((key.Value[..separator], key.Value[(separator + 1)..], value));
+                return new KeyWriteResult(KeyResolution.Resolved, null);
+            }
         }
     }
 }

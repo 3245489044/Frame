@@ -7,6 +7,86 @@
         Note   = '键域严格化（K-01）：KD1 构造收口（KeyRef/KeyDomainId 只允许在 KeySpace 内 new） / KD2 域词隔离 / KD3 域注册表有产品侧消费方 / KD4 负对照'
     }
 
+    KeyCorpusGolden = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB1 golden 键语料（阻断）：结构/source 枚举/族×面覆盖/边界样本齐备；负对照缺族必红'
+    }
+
+    KeyRoundTrip = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB1 往返（阻断）：每族可往返条目在册 + KeyRoundTripTests 存在且调用 Render/TryParse；负对照空语料必红'
+    }
+
+    KeyOpsClosedSet = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB2 固有函数闭集（棘轮）：键上下文拼接/插值/前缀判据/切片只经 KeyOps；基线只降不升'
+    }
+
+    KeyDeclSingleSource = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB2 键形字面量单源（棘轮）：域前缀/模板只允许目录+模板常量+声明装载器；基线只降不升'
+    }
+
+    KeyParseSingleSource = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KPK1 解析单源（阻断）：域键类内禁 StartsWith/IndexOf/Substring/Split/数值解析，解析只经 KeyOps.TryParse*'
+    }
+
+    KeyDeclNoLogic = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KP6 声明无逻辑（阻断）：DomainKeyFamilies 仅 id 常量与只读转发，禁模板/面/形态构造'
+    }
+
+    KeyParseAmbiguity = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KPK1 歧义阻断在册（阻断）：特异性/歧义/轴词表/必填轴/作用域用例齐备；行为由 KeySpace.Tests 承担'
+    }
+
+    KeyAxisCompleteness = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'axis' }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB6 轴完备：规范模板有轴，面模板占位符 ⊆ 规范轴；负对照必红'
+    }
+
+    KeySurfaceDistinguishable = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'surface' }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB6 面可区分：同族各面模板形状两两不同；负对照必红'
+    }
+
+    KeyOwnerUnique = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true; Kind = 'owner' }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'KB6 归属唯一：族 id 唯一 + 规范模板形状不重复；负对照必红'
+    }
+
     PromptCacheStability = @{
         Domain = 'Agent'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -1108,6 +1188,14 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '键空间框架（Modules.KeySpace）：KS1 族命中 / KS1b 端口契约全集覆盖（集合闭合 = GateClosure；输出 coverage=）/ KS2 三态禁坍缩 / KS4 词法唯一 / KS5 域词隔离 / KS6 诊断码登记 / KS7 族注册唯一 / KS8 负对照'
+    }
+
+    WorkFlowMethodKeySemantics = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '层 4 键语义：键目录零自建 Regex/Split、Output 零 Values.First 兜底、管线零同步等待；负对照'
     }
 
     DispatchTraceSchema = @{

@@ -74,13 +74,20 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Graph
                         WorkFlowMethodLog.Info("GraphChainUpdate",
                             $"改图计划: v{plan.FromVersion}→v{plan.ToVersion}，动作 {plan.Actions.Count} 项");
 
-                        var updatedSnapshot = await UpdateWorkflowChainAsync(input, snapshot, directives);
+                        // B3：版本由改图计划给出（不再手写 Version + 1）；代际随快照推进。
+                        var updatedSnapshot = await UpdateWorkflowChainAsync(
+                            input, snapshot, directives, plan.ToVersion);
 
                         if (updatedSnapshot != null)
                         {
                             input.SetGraphSnapshot(updatedSnapshot);
+                            if (session != null)
+                            {
+                                session.WiringGeneration = "g" + updatedSnapshot.Version;
+                            }
+
                             WorkFlowMethodLog.Info("GraphChainUpdate",
-                                $"工作流链更新完成: NewVersion={updatedSnapshot.Version}");
+                                $"工作流链更新完成: NewVersion={updatedSnapshot.Version}, Generation={session?.WiringGeneration}");
                         }
                     }
                     else
@@ -114,7 +121,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Graph
         protected virtual Task<GraphSnapshot<string, NodeConfig, object>> UpdateWorkflowChainAsync(
             PipelineContext context,
             GraphSnapshot<string, NodeConfig, object> currentSnapshot,
-            List<GraphUpdateDirective<string, NodeConfig, object>> directives)
+            List<GraphUpdateDirective<string, NodeConfig, object>> directives,
+            int targetVersion)
         {
             var graph = new CoreGraph<string, NodeConfig, object>();
             currentSnapshot.ToGraph(graph);
@@ -127,7 +135,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Graph
             var updatedSnapshot = GraphSnapshot<string, NodeConfig, object>.CreateFrom(
                 graph,
                 currentSnapshot.GraphId,
-                currentSnapshot.Version + 1);
+                Math.Max(currentSnapshot.Version, targetVersion));
 
             return Task.FromResult(updatedSnapshot);
         }

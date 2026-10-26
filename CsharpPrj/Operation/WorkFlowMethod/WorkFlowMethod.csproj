@@ -145,4 +145,10 @@
     <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
+  <!-- ★ 端口接盒框架（Modules.Wiring，层 2；本模块层 4，向下引用）——
+       声明式接线 / 供给闭合 / 单投递点 / 代际隔离。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Wiring)" />
+  </ItemGroup>
+
 </Project>

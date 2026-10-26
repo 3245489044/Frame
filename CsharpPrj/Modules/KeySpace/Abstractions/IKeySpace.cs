@@ -32,6 +32,9 @@ public interface IKeyClassifier
 /// <summary>实体判等（禁 StartsWith / 字面 ==）。</summary>
 public interface IKeyEquivalence
 {
+    /// <summary>键比较器唯一口径（存储层/端口层共用；禁止各自 new StringComparer）。</summary>
+    StringComparer Comparer { get; }
+
     bool SameEntity(KeyRef left, KeyRef right);
 
     bool IsSelf(KeyRef key, KeyEntity self);

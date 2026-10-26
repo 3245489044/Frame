@@ -7,7 +7,7 @@ namespace Modules.KeySpace.Model;
 /// <summary>
 /// 实体构造<b>唯一宿主</b>：一组外部称呼（别名）→ 一个 <see cref="KeyEntity"/>。
 /// <para>
-/// 收敛对象：<c>Agent.Session.Keys.SessionKeySpace.EntityOf</c> 与 <c>TargetSetPlanner.Plan</c> 此前各自内联
+/// 收敛对象：上层键空间实现的 <c>EntityOf</c> 与 <c>TargetSetPlanner.Plan</c> 此前各自内联
 /// 构造实体（改派生规则时两处必须同步，无人声明谁是权威）。本件只做<b>机制</b>：
 /// 去空白 → 保序去重 → Id 取首个 → 逐称呼构造 <see cref="KeyRef"/>。
 /// </para>

@@ -27,6 +27,14 @@ public static class KeyReasonCodes
     public const string EmptyIdentity = "key.empty-identity";
     public const string LegacyForm = "key.legacy-form";
 
+    // ---- 解析内核（KPK1：候选排序/歧义/轴约束/作用域）----
+    public const string ParseTrailingDot = "key.parse-trailing-dot";
+    public const string ParseUnmatched = "key.parse-unmatched";
+    public const string ParseAmbiguous = "key.parse-ambiguous";
+    public const string AxisInvalid = "key.axis-invalid";
+    public const string AxisMissing = "key.axis-missing";
+    public const string ScopeMismatch = "key.scope-mismatch";
+
     // ---- 固有函数层（KeyOps / 键一致性门）----
     public const string OpsHostMissing = "key.ops.host-missing";
     public const string AxisNotInFamily = "key.axis-not-in-family";
@@ -73,6 +81,7 @@ public static class KeyReasonCodes
         SetSelfOnly, SetEmpty, SetCap, RequiredMissing, DeclaredMissing,
         WriteConflict, ProvisionUnattached, ProvisionFailed,
         SurfaceMismatch, EmptyIdentity, LegacyForm,
+        ParseTrailingDot, ParseUnmatched, ParseAmbiguous, AxisInvalid, AxisMissing, ScopeMismatch,
         OpsHostMissing, AxisNotInFamily, PrefixSourceInvalid,
         IdentityValueMismatch, IdentityAxisUnknown, FamilyMismatch,
         DeclStoreMissing, DeclFingerprintMismatch, DeclUnbound, DeclUnboundPort, DeclOrphanImpl,

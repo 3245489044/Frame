@@ -26,51 +26,11 @@ namespace Modules.Node.Identity;
 /// </summary>
 public static class NodeEndpointIds
 {
-    private static readonly KeyFamily HistoryFamily = new(
-        "hierarchy.history",
-        "history:{historyId}",
-        "history.",
-        KeyRelation.Container,
-        KeyCardinality.Many,
-        Array.Empty<string>(),
-        IdentityKeys: new[] { "historyId" },
-        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
-        {
-            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "history:{historyId}" }, "history:"),
-            [KeySurface.Endpoint] = new KeySurfaceSpec(KeySurface.Endpoint, new[] { "history.{historyId}" }, "history."),
-        });
+    private static readonly KeyFamily HistoryFamily = HierarchyKeyFamilies.History;
+    private static readonly KeyFamily NodeFamily = HierarchyKeyFamilies.Node;
+    private static readonly KeyFamily SessionFamily = HierarchyKeyFamilies.Session;
 
-    private static readonly KeyFamily NodeFamily = new(
-        "hierarchy.node",
-        "{workflowId}.{nodeKey}[@{instanceKey}]",
-        string.Empty,
-        KeyRelation.Member,
-        KeyCardinality.Many,
-        Array.Empty<string>(),
-        IdentityKeys: new[] { "nodeKey" },
-        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
-        {
-            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "{nodeKey}[@{instanceKey}]" }),
-            [KeySurface.Endpoint] = new KeySurfaceSpec(
-                KeySurface.Endpoint,
-                new[] { "{workflowId}.{nodeKey}[@{instanceKey}]", "{workflowId}.{nodeKey}" }),
-        });
-
-    private static readonly KeyFamily SessionFamily = new(
-        "hierarchy.session",
-        "session.{sessionName}",
-        "session.",
-        KeyRelation.Container,
-        KeyCardinality.Many,
-        Array.Empty<string>(),
-        IdentityKeys: new[] { "sessionName" },
-        Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
-        {
-            [KeySurface.Storage] = new KeySurfaceSpec(KeySurface.Storage, new[] { "session:{sessionName}" }, "session:"),
-            [KeySurface.Endpoint] = new KeySurfaceSpec(KeySurface.Endpoint, new[] { "session.{sessionName}" }, "session."),
-        });
-
-    private static readonly KeyAlgebra HierarchyKeys = new(new[] { HistoryFamily, NodeFamily, SessionFamily });
+    private static readonly KeyOps HierarchyKeys = KeyOps.FromFamilies(HierarchyKeyFamilies.All);
 
     /// <summary>历史容器端点 Id 文法（<c>history.{historyId}</c>）。</summary>
     public static readonly KeyGrammar HistoryGrammar =
@@ -124,8 +84,10 @@ public static class NodeEndpointIds
                 "历史身份为空（history: / history. 不是身份）。", nameof(historyId));
         }
 
-        return HierarchyKeys.Build(
-            KeyPoint.Of(HistoryFamily.Id, ("historyId", identity)), KeySurface.Endpoint).Value;
+        return HierarchyKeys.Render(
+            HierarchyKeys.With(
+                HierarchyKeys.Root(HistoryFamily.Id, KeySurface.Endpoint),
+                KeyAxis.Of("historyId"), identity));
     }
 
     /// <summary>历史身份的行键形态（<c>history:{identity}</c>；空身份 ⇒ 空串）。</summary>
@@ -149,8 +111,10 @@ public static class NodeEndpointIds
                 "会话身份为空（session: / session. 不是身份）。", nameof(sessionName));
         }
 
-        return HierarchyKeys.Build(
-            KeyPoint.Of(SessionFamily.Id, ("sessionName", identity)), KeySurface.Endpoint).Value;
+        return HierarchyKeys.Render(
+            HierarchyKeys.With(
+                HierarchyKeys.Root(SessionFamily.Id, KeySurface.Endpoint),
+                KeyAxis.Of("sessionName"), identity));
     }
 
     /// <summary>业务节点端点 Id（<c>{workflowId}.{nodeKey}</c>；幂等：<c>nodeKey</c> 已带本 workflowId 前缀时先剥一次）。
@@ -165,9 +129,12 @@ public static class NodeEndpointIds
         }
 
         key = StripOnce(key, wf + Separator);
-        return HierarchyKeys.Build(
-            KeyPoint.Of(NodeFamily.Id, ("workflowId", wf), ("nodeKey", key)),
-            KeySurface.Endpoint).Value;
+        return HierarchyKeys.Render(
+            HierarchyKeys.With(
+                HierarchyKeys.With(
+                    HierarchyKeys.Root(NodeFamily.Id, KeySurface.Endpoint),
+                    KeyAxis.Of("workflowId"), wf),
+                KeyAxis.Of("nodeKey"), key));
     }
 
     /// <summary>剥掉身份内层叠的 <c>{type}:</c> / 族前缀（有界收敛，保证构造是不动点）。</summary>
@@ -211,12 +178,13 @@ public static class NodeEndpointIds
         return key;
     }
 
-    /// <summary>已知的其它族前缀（裸键兜底前显式排除，防 <c>history.*</c> / <c>session.*</c> 被误认成节点）。</summary>
+    /// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>
     public static bool IsForeignFamily(string value)
-        => value.StartsWith(HistoryPrefix, StringComparison.Ordinal)
-           || value.StartsWith(SessionGrammar.FamilyPrefix, StringComparison.Ordinal)
-           || value.StartsWith(HistoryTypePrefix, StringComparison.Ordinal)
-           || value.StartsWith(SessionTypePrefix, StringComparison.Ordinal);
+        => !string.IsNullOrWhiteSpace(value)
+           && (HierarchyKeys.IsKeyOf(HistoryFamily.Id, KeySurface.Endpoint, value)
+               || HierarchyKeys.IsKeyOf(HistoryFamily.Id, KeySurface.Storage, value)
+               || HierarchyKeys.IsKeyOf(SessionFamily.Id, KeySurface.Endpoint, value)
+               || HierarchyKeys.IsKeyOf(SessionFamily.Id, KeySurface.Storage, value));
 
     /// <summary>
     /// 由历史端点 Id 还原 historyId（含 <c>.</c> 的 Id 整段归还）；非历史端点返回 false。
@@ -236,12 +204,12 @@ public static class NodeEndpointIds
 
     /// <summary>节点存储键（<c>{nodeKey}[@{instanceKey}]</c>；实例空 ⇒ 裸键；节点身份空 ⇒ 抛）。</summary>
     public static string Storage(string? nodeKey, string? instanceKey)
-        => HierarchyKeys.Build(
-            KeyPoint.Of(
-                NodeFamily.Id,
-                ("nodeKey", RequireNodeKey(nodeKey, nameof(nodeKey))),
-                ("instanceKey", (instanceKey ?? string.Empty).Trim())),
-            KeySurface.Storage).Value;
+        => HierarchyKeys.Render(
+            HierarchyKeys.With(
+                HierarchyKeys.With(
+                    HierarchyKeys.Root(NodeFamily.Id, KeySurface.Storage),
+                    KeyAxis.Of("nodeKey"), RequireNodeKey(nodeKey, nameof(nodeKey))),
+                KeyAxis.Of("instanceKey"), (instanceKey ?? string.Empty).Trim()));
 
     /// <summary>带实例的节点端点 Id（<c>{workflowId}.{nodeKey}[@{instanceKey}]</c>；节点身份空 ⇒ 抛）。</summary>
     public static string Endpoint(string? workflowId, string? nodeKey, string? instanceKey)
@@ -253,13 +221,14 @@ public static class NodeEndpointIds
             return Storage(key, instanceKey);
         }
 
-        return HierarchyKeys.Build(
-            KeyPoint.Of(
-                NodeFamily.Id,
-                ("workflowId", wf),
-                ("nodeKey", key),
-                ("instanceKey", (instanceKey ?? string.Empty).Trim())),
-            KeySurface.Endpoint).Value;
+        return HierarchyKeys.Render(
+            HierarchyKeys.With(
+                HierarchyKeys.With(
+                    HierarchyKeys.With(
+                        HierarchyKeys.Root(NodeFamily.Id, KeySurface.Endpoint),
+                        KeyAxis.Of("workflowId"), wf),
+                    KeyAxis.Of("nodeKey"), key),
+                KeyAxis.Of("instanceKey"), (instanceKey ?? string.Empty).Trim()));
     }
 
     /// <summary>反解存储键（实例缺席 ⇒ 空串，不返回 null 冒充「存在且为空」）。</summary>
@@ -268,7 +237,7 @@ public static class NodeEndpointIds
         nodeKey = string.Empty;
         instanceKey = string.Empty;
         if (!HierarchyKeys.TryParse(
-                storageKey, KeySurface.Storage, NodeFamily.Id, out var parsed, out _))
+                NodeFamily.Id, KeySurface.Storage, storageKey, out var parsed, out _))
         {
             return false;
         }
@@ -286,7 +255,7 @@ public static class NodeEndpointIds
         nodeKey = string.Empty;
         instanceKey = string.Empty;
         if (!HierarchyKeys.TryParse(
-                endpointId, KeySurface.Endpoint, NodeFamily.Id, out var parsed, out _))
+                NodeFamily.Id, KeySurface.Endpoint, endpointId, out var parsed, out _))
         {
             return false;
         }
@@ -315,13 +284,18 @@ public static class NodeEndpointIds
             return true;
         }
 
-        var prefix = workflowId + Separator;
-        if (!resourceId.StartsWith(prefix, StringComparison.Ordinal))
+        var known = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["workflowId"] = workflowId,
+        };
+
+        if (!HierarchyKeys.TryParseScoped(
+                NodeFamily.Id, KeySurface.Endpoint, resourceId, known, out var parsed, out _, out _))
         {
             return false;
         }
 
-        nodeKey = resourceId[prefix.Length..];
+        nodeKey = parsed.Point.Text("nodeKey");
         return nodeKey.Length > 0;
     }
 

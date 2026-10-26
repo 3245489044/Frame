@@ -35,15 +35,12 @@ public sealed class WorkflowContextKeyStore : IKeyReader, IKeyWriter
             KeyReasonCodes.DeclaredMissing, $"工作流参数未命中: {key.Value}", key);
     }
 
+    /// <summary>
+    /// 落库动作（A4：空键判定/诊断的唯一门 = <see cref="Modules.KeySpace.Runtime.KeyWriteGate"/>）。
+    /// 生产调用必须经 KeyWriteGate.Write；直接调用本方法视为旁路。
+    /// </summary>
     public KeyWriteResult Write(KeyRef key, object? value)
     {
-        if (key.IsEmpty)
-        {
-            return new KeyWriteResult(
-                KeyResolution.Empty,
-                KeyDiagnostic.Error(KeyReasonCodes.WriteConflict, KeyResolution.Empty, key, "空键禁止写入"));
-        }
-
         _context.Parameters[key.Value] = value;
         return new KeyWriteResult(KeyResolution.Resolved, null);
     }
@@ -74,15 +71,9 @@ public sealed class DataContextKeyStore : IKeyReader, IKeyWriter
                 KeyReasonCodes.DeclaredMissing, $"会话数据未命中: {key.Value}", key);
     }
 
+    /// <summary>落库动作（A4：空键门唯一 = <see cref="Modules.KeySpace.Runtime.KeyWriteGate"/>）。</summary>
     public KeyWriteResult Write(KeyRef key, object? value)
     {
-        if (key.IsEmpty)
-        {
-            return new KeyWriteResult(
-                KeyResolution.Empty,
-                KeyDiagnostic.Error(KeyReasonCodes.WriteConflict, KeyResolution.Empty, key, "空键禁止写入"));
-        }
-
         _context.Set(key.Value, value!);
         return new KeyWriteResult(KeyResolution.Resolved, null);
     }

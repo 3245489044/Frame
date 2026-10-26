@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Globalization;
 using Modules.KeySpace.Diagnostics;
 using Modules.KeySpace.Model;
+using WorkFlowMethod.KeySpace.Adapters;
 using WfContext = WorkFlowMethod.Orchestration.Context.Models.WorkflowContext;
 
 namespace WorkFlowMethod.Orchestration.Context.Models;
@@ -20,7 +18,13 @@ namespace WorkFlowMethod.Orchestration.Context.Models;
 /// </summary>
 public static class WorkflowContextParams
 {
-    /// <summary>取字符串入参（缺键 / null ⇒ 空串）。</summary>
+    /// <summary>
+    /// 取字符串入参（缺键 / null ⇒ 空串）。
+    /// <para>
+    /// A3 兼容适配器：**不区分「缺键」与「存在且为空」**。新调用点必须使用
+    /// <see cref="TryRead"/>（三态）；本方法仅保留给既有调用点，不得新增。
+    /// </para>
+    /// </summary>
     /// <param name="context">工作流上下文（可空）。</param>
     /// <param name="name">入参键名（= 声明面 <c>inports=</c> 项）。</param>
     public static string Get(WfContext? context, string name)
@@ -68,24 +72,25 @@ public static class WorkflowContextParams
         return !string.IsNullOrWhiteSpace(value);
     }
 
-    /// <summary>取 JSON 字符串数组入参（缺键 / 空白 / 非法 / 非数组 ⇒ 空集，不抛）。</summary>
+    /// <summary>
+    /// 取 JSON 字符串数组入参（A2）：缺键 / 空白 ⇒ 空集（合法）；非法 / 非数组 ⇒ 空集 + 诊断（不静默）。
+    /// </summary>
     /// <param name="context">工作流上下文（可空）。</param>
     /// <param name="name">入参键名（值为 JSON 数组文本）。</param>
     public static IReadOnlyList<string> GetJsonStrings(WfContext? context, string name)
     {
-        var json = Get(context, name);
-        if (string.IsNullOrWhiteSpace(json)) return Array.Empty<string>();
-        try
-        {
-            if (JsonNode.Parse(json) is not JsonArray array) return Array.Empty<string>();
-            return array
-                .Select(item => item?.ToString() ?? string.Empty)
-                .Where(text => !string.IsNullOrWhiteSpace(text))
-                .ToArray();
-        }
-        catch (JsonException)
+        var read = TryRead(context, name);
+        if (read.State != KeyValueState.Known)
         {
             return Array.Empty<string>();
         }
+
+        var parsed = KeySetParse.Parse(read.Value, "workflow.parameter:" + name);
+        if (parsed.Diagnostic is not null)
+        {
+            WorkflowKeyDiagnosticsSink.Instance.Report(parsed.Diagnostic);
+        }
+
+        return parsed.Members;
     }
 }

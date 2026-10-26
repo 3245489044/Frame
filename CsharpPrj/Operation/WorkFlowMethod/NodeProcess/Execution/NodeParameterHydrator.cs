@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraphFramework.Snapshots;
 using Modules.KeySpace.Model;
-using Modules.KeySpace.Runtime;
 using Modules.Node.Ports;
 using WorkFlowMethod.Diagnostics;
+using WorkFlowMethod.KeySpace.Adapters;
 using WorkflowExecution.Pipeline;
 using WorkFlowMethod.Execution.Session;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
@@ -57,7 +57,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             var effectiveContracts = contracts ?? NodePortContractRegistry.ForNode(snapshot?.GetNodeData(nodeKey));
             if (effectiveContracts is { Count: > 0 })
             {
-                var binding = new KeyBinder().BindOut(effectiveContracts, node.OutputPorts);
+                // A5：绑定唯一入口 = KeySpaceFacade.BindOut（不再每轮 new KeyBinder）。
+                var binding = WorkflowKeySpaceDefaults.CreateFacade().BindOut(effectiveContracts, node.OutputPorts);
                 if (binding.RequiredMissing)
                 {
                     WorkFlowMethodLog.Warn(
@@ -68,9 +69,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             }
 
             // 键空间规则唯一实现 = Modules.Node.Ports.PortKeySpace（与读视图同一实现，E1/G2）：
-            // 既有参数键先回放进同一键空间（裸键登记为已占用），再按规则准入本节点端口——
-            // 裸端口「先到者胜」（未被任一更早节点占用时才写入，避免跨节点互覆盖）、{node}.{port} 恒有。
-            var space = new PortKeySpace<object?>();
+            // A5：实例由执行会话持有（每 workflow 一个），既有参数键只做幂等回放，不再每轮重建。
+            var space = executionStage.GetOrCreatePortSpace(executionId);
             foreach (var existing in executionStage.GetExecutionParameters(executionId).Keys)
             {
                 space.Adopt(existing);

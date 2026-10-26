@@ -24,6 +24,12 @@ namespace WorkFlowMethod.Execution.Session
 
         public GraphSnapshot<string, NodeConfig, object> Snapshot { get; }
 
+        /// <summary>
+        /// B3：会话绑定的接线代际。改图/热重载产生新一代；旧代投递按
+        /// <c>WIRE_STALE_GENERATION</c> 拒绝（Junction.strictGeneration）。
+        /// </summary>
+        public string WiringGeneration { get; set; } = Modules.Wiring.Compile.WiringFreezer.LiveGeneration;
+
         public DateTime CreatedAt { get; }
 
         public DataContext Data { get; }

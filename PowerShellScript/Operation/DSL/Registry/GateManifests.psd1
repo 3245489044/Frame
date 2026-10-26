@@ -280,7 +280,39 @@
         Domain = 'Agent'
         Args   = @{ Check = $true }
         Expect = 0
-        Note   = '选择态外置守卫（框架级态外置）：C1 刷新协议禁 DOM 反查（PollAttrs 第三/四参 null）/ C2 采集端（capture 产出 uiState.select + [data-select-slot]）/ C3 消费端（HtmlBridgePayload.SelectionKeys + UiSelectionState）/ C4 历史归属解析禁伪造 default / C5 受控态 _currentHistory；负对照 -NegativeControl'
+        Note   = '选择态外置守卫（框架级态外置）：C1 刷新协议禁 DOM 反查（PollAttrs 第三/四参 null）/ C2 采集端（capture 产出 uiState.select + [data-select-slot]）/ C3 消费端（HtmlBridgePayload.SelectionKeys + UiSelectionState）/ C4 历史归属解析禁伪造 default / C5 选中态受控于 UiSelectionStore；负对照 -NegativeControl'
+    }
+
+    UiViewCatalog = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '视图词汇单源（D01）：C1 目录声在位 / C2 四个消费方均查表 / C3 领域禁本地 MainDialogViewType => "type" 映射；负对照旧映射必红'
+    }
+
+    UiReadOutcome = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '读取代数单源（D03/D05）：C1 框架 UiReadState 四态 + UiReadSpec 在位 / C2 领域消费 UiReadGateway / C3 旧 TaskConversation* 三态不残留；负对照旧枚举必红'
+    }
+
+    UiRenderEntry = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '渲染入口单源（D10）：C1 RenderOutput 构造点收敛（契约外=0）/ C2 CVS 经 RenderOutputCoordinator.BuildAsync / C3 领域禁自建 RefreshTraceId.New；负对照领域直构必红'
+    }
+
+    UiAnchorWrites = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '选择态单写者（E04）：C1 SetCurrentHistory/SetCurrentTask 只允许在 ConversationViewService.cs / C2 BuildViewOutputAsync 具备 rememberTask 申报面；负对照 handler 直写必红'
     }
 
     AgentProcessSurface = @{

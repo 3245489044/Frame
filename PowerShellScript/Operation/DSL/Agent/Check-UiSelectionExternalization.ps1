@@ -25,7 +25,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
+$repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 $plate = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer'
 $agent = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui'
 $strategy = Join-Path $repo 'Frame\CsharpPrj\Strategy\Refresh'
@@ -48,8 +48,12 @@ $rules = @(
         Ok = { -not ((Read-Text $pageRenderer) -match 'PollAttributes\("[^"]*"\s*,\s*"[^"]+"') }
     }
     [pscustomobject]@{
-        Id = 'C2'; Title = '选择态采集端存在（capture 产出 select + [data-select-slot]）'
-        Ok = { $t = Read-Text $assetRegistry; ($t -match "data-select-slot") -and ($t -match 'select:sel') }
+        Id = 'C2'; Title = '选择态采集端存在（声明式 data-select-slot + capture）'
+        Ok = {
+            $templates = Read-Text (Join-Path $plate 'Assets\templates.default.json')
+            $script = Read-Text (Join-Path $plate 'Assets\scripts\reconcile.js')
+            ($templates -match 'data-select-slot') -and ($script -match 'capture')
+        }
     }
     [pscustomobject]@{
         Id = 'C3'; Title = '选择态消费端存在（SelectionKeys + UiSelectionState）'
@@ -60,8 +64,8 @@ $rules = @(
         Ok = { -not ((Read-Text $treeModel) -match 'ResolveHistoryForTask[\s\S]*?return SessionKeys\.Default') }
     }
     [pscustomobject]@{
-        Id = 'C5'; Title = '当前选中历史受控态存在（_currentHistory）'
-        Ok = { (Read-Text $viewService) -match '_currentHistory' }
+        Id = 'C5'; Title = '当前选中态受控于选择态存储（UiSelectionStore）'
+        Ok = { $t = Read-Text $viewService; ($t -match '_selection') -and ($t -match 'UiSelectionStore') }
     }
 )
 

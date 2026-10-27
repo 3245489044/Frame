@@ -30,6 +30,8 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDoma
         new BindingDuplicateGateRule(),
         new DomainGateRule(),
         new GatherGateRule(),
+        new KeySpaceGateRule(),
+        new CommandGateRule(),
     };
 
     /// <summary>默认 facet provider 集（序 = spaces → obs → 其余，保既有诊断归因序与产物序）。</summary>
@@ -46,6 +48,8 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDoma
         new RecordFacetProvider(),
         new ConfigFacetProvider(),
         new RuleFacetProvider(),
+        new KeySpaceFacetProvider(),
+        new CommandFacetProvider(),
     };
 
     /// <summary>

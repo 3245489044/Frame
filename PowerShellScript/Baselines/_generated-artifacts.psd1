@@ -91,5 +91,29 @@
             Origin             = 'Derived'
             DueWhen            = ''
         }
+        @{
+            Name               = 'AgentKeySpace'
+            Artifact           = 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'
+            GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'keyspace' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'agent.history'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutFile Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json -Kind keyspace'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'UiCommands'
+            Artifact           = 'Projects\Plug\Agent\Config\commands\ui-commands.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'
+            GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'commands' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'ui-commands-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutFile Projects\Plug\Agent\Config\commands\ui-commands.generated.json -Kind commands'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
     )
 }

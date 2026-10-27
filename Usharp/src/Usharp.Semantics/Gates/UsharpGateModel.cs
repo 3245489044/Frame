@@ -72,6 +72,14 @@ public sealed class UsharpGateModel
     public IReadOnlyList<UsharpGatherDecl> Gathers
         => _facets.TryGetFacet<IReadOnlyList<UsharpGatherDecl>>(out var g) ? g : Array.Empty<UsharpGatherDecl>();
 
+    /// <summary><c>[KeySpace]</c> 键空间声明（空表 = 本编译无键声明面）。</summary>
+    public IReadOnlyList<UsharpKeySpaceDecl> KeySpaces
+        => _facets.TryGetFacet<IReadOnlyList<UsharpKeySpaceDecl>>(out var ks) ? ks : Array.Empty<UsharpKeySpaceDecl>();
+
+    /// <summary><c>[Command]</c> 连接点命令声明（空表 = 本编译无命令声明面）。</summary>
+    public IReadOnlyList<UsharpCommandDecl> Commands
+        => _facets.TryGetFacet<IReadOnlyList<UsharpCommandDecl>>(out var cmd) ? cmd : Array.Empty<UsharpCommandDecl>();
+
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }
 

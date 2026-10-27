@@ -131,3 +131,23 @@ internal sealed class RuleFacetProvider : IUsharpFacetProvider
     public object Project(UsharpFacetContext ctx)
         => ctx.Documents.SelectMany(UsharpSyntaxProjector.Rules).ToList();
 }
+
+/// <summary><c>[KeySpace]</c> 键空间声明集。</summary>
+internal sealed class KeySpaceFacetProvider : IUsharpFacetProvider
+{
+    public Type FacetType => typeof(IReadOnlyList<UsharpKeySpaceDecl>);
+    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.KeySpace };
+
+    public object Project(UsharpFacetContext ctx)
+        => ctx.Documents.SelectMany(UsharpSyntaxProjector.KeySpaces).ToList();
+}
+
+/// <summary><c>[Command]</c> 连接点命令声明集。</summary>
+internal sealed class CommandFacetProvider : IUsharpFacetProvider
+{
+    public Type FacetType => typeof(IReadOnlyList<UsharpCommandDecl>);
+    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Command };
+
+    public object Project(UsharpFacetContext ctx)
+        => ctx.Documents.SelectMany(UsharpSyntaxProjector.Commands).ToList();
+}

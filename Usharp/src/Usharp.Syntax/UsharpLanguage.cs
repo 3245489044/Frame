@@ -23,6 +23,12 @@ public static class UsharpLanguage
     /// <summary>观测声明前缀（第五语言单元：作用域 / 实体 / 事件；子类由 <c>kind=</c> 区分）。</summary>
     public const string ObsPrefix = "[Obs]";
 
+    /// <summary>键空间声明前缀（数据层之上的键声明面：族/模板/面/轴/端口/策略/回退链）。</summary>
+    public const string KeySpacePrefix = "[KeySpace]";
+
+    /// <summary>连接点命令声明前缀（action/op → channel/intent/handler/projector/ports + 键配方）。</summary>
+    public const string CommandPrefix = "[Command]";
+
     /// <summary>表结构声明前缀（数据层：让数据库表由声明派生；<c>[Table]</c>）。</summary>
     public const string TablePrefix = "[Table]";
 

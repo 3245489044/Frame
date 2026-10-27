@@ -51,6 +51,10 @@ public static class UsharpPrefixes
         new(UsharpLanguage.RulePrefix,   DslSymbolKind.Rule,   "Rule"),
         // LLM 判定契约语言单元（[LLMDecl]）：判定形状与契约外置（判定点 when + prompt/输入/输出 schema）
         new(UsharpLanguage.LlmDeclPrefix, DslSymbolKind.LlmDecl, "LLMDecl"),
+        // 键空间声明语言单元（[KeySpace]）：键族/面/轴/端口/策略/回退链的声明面
+        new(UsharpLanguage.KeySpacePrefix, DslSymbolKind.KeySpace, "KeySpace"),
+        // 连接点命令声明语言单元（[Command]）：action/op 路由 + 键配方
+        new(UsharpLanguage.CommandPrefix, DslSymbolKind.Command, "Command"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

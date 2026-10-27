@@ -71,6 +71,12 @@ public sealed class UsharpCompilation
     /// <summary><c>[Record]</c> 记录载荷声明（数据层：行/文档 USharp 化；声明序）。</summary>
     public IReadOnlyList<UsharpRecordDecl> Records => Facet<IReadOnlyList<UsharpRecordDecl>>();
 
+    /// <summary><c>[KeySpace]</c> 键空间声明（键族/面/轴/端口/策略/回退链；声明序）。</summary>
+    public IReadOnlyList<UsharpKeySpaceDecl> KeySpaces => Facet<IReadOnlyList<UsharpKeySpaceDecl>>();
+
+    /// <summary><c>[Command]</c> 连接点命令声明（action/op 路由 + 键配方；声明序）。</summary>
+    public IReadOnlyList<UsharpCommandDecl> Commands => Facet<IReadOnlyList<UsharpCommandDecl>>();
+
     /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
     public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
 

@@ -29,6 +29,8 @@ public sealed record DeclaredBundleArtifacts(
     string ManifestJson,
     string RoundSpecJson,
     string ReferenceSchemaJson,
+    string KeySpaceJson,
+    string CommandsJson,
     string SourceFingerprint,
     int Errors,
     IReadOnlyList<string> Files);
@@ -50,6 +52,18 @@ public static class DeclaredBundleBuilder
 
     /// <summary>工作流声明子目录名。</summary>
     public const string WorkflowsDirName = "workflows";
+
+    /// <summary>键空间声明子目录名（<c>[KeySpace]</c>）。</summary>
+    public const string KeyspacesDirName = "keyspaces";
+
+    /// <summary>连接点命令声明子目录名（<c>[Command]</c>）。</summary>
+    public const string CommandsDirName = "commands";
+
+    /// <summary>键空间产物文件名（与 Agent 侧 keyspace loader 同 schema）。</summary>
+    public const string KeySpaceFileName = "agent.keyspace.generated.json";
+
+    /// <summary>连接点命令目录产物文件名（<c>ui-commands-v1</c>）。</summary>
+    public const string CommandsFileName = "ui-commands.generated.json";
 
     /// <summary>产物文件名（磁盘形态）。</summary>
     public const string ManifestFileName = "declared-manifest.json";
@@ -98,6 +112,8 @@ public static class DeclaredBundleBuilder
         var documents = new List<(string Path, string Text)>();
         AppendDirectory(documents, Path.Combine(configRoot, NodesDirName));
         AppendDirectory(documents, Path.Combine(configRoot, WorkflowsDirName));
+        AppendDirectory(documents, Path.Combine(configRoot, KeyspacesDirName));
+        AppendDirectory(documents, Path.Combine(configRoot, CommandsDirName));
         return documents;
     }
 
@@ -117,11 +133,15 @@ public static class DeclaredBundleBuilder
         var manifest = BuildManifest(compilation, nodes, fingerprint);
         var roundSpec = BuildRoundSpec(compilation);
         var referenceSchema = SerializeReferenceSchema(UsharpReferenceSchemaEmitter.Emit(compilation));
+        var keySpaceJson = UsharpKeySpaceEmitter.Emit(compilation);
+        var commandsJson = UsharpCommandEmitter.Emit(compilation);
 
         return new DeclaredBundleArtifacts(
             JsonSerializer.Serialize(manifest, ManifestOptions),
             JsonSerializer.Serialize(roundSpec, ManifestOptions),
             referenceSchema,
+            keySpaceJson,
+            commandsJson,
             fingerprint,
             compilation.Errors.Count,
             documents.Select(d => d.Path).ToList());
@@ -139,6 +159,8 @@ public static class DeclaredBundleBuilder
         File.WriteAllText(Path.Combine(outputDir, ManifestFileName), artifacts.ManifestJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, RoundSpecFileName), artifacts.RoundSpecJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, ReferenceSchemaFileName), artifacts.ReferenceSchemaJson, Encoding.UTF8);
+        File.WriteAllText(Path.Combine(outputDir, KeySpaceFileName), artifacts.KeySpaceJson, Encoding.UTF8);
+        File.WriteAllText(Path.Combine(outputDir, CommandsFileName), artifacts.CommandsJson, Encoding.UTF8);
         WriteGzip(Path.Combine(outputDir, ManifestCompressedFileName), artifacts.ManifestJson);
     }
 

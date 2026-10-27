@@ -37,6 +37,10 @@ public enum DslSymbolKind
     // 提示词段声明语言单元（[Segment]）：段键/组/序/适用性/需求量/可空/别名/开关的唯一声明面。
     // 与 [Skill] 同范式：核心表仅登记符号类型，消费（facet provider / 段注册）由领域包承担。
     Segment,
+    // 键空间声明语言单元（[KeySpace]）：族/模板/面/轴/端口/策略/回退链的声明面（生成物供 Modules.KeySpace 消费）。
+    KeySpace,
+    // 连接点命令声明语言单元（[Command]）：action/op → channel/intent/handler/projector/ports + 键配方。
+    Command,
     Unknown,
 }
 

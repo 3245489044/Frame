@@ -273,6 +273,14 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpRuleDecl> Rules(DslDocument doc)
         => Project(doc, DslSymbolKind.Rule, UsharpRuleDecl.From);
 
+    /// <summary><c>[KeySpace]</c> 键空间声明（键族/面/轴/端口/策略/回退链）。</summary>
+    public static IReadOnlyList<UsharpKeySpaceDecl> KeySpaces(DslDocument doc)
+        => Project(doc, DslSymbolKind.KeySpace, UsharpKeySpaceDecl.From);
+
+    /// <summary><c>[Command]</c> 连接点命令声明（action/op 路由 + 键配方）。</summary>
+    public static IReadOnlyList<UsharpCommandDecl> Commands(DslDocument doc)
+        => Project(doc, DslSymbolKind.Command, UsharpCommandDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

@@ -29,7 +29,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ConfigRoot,
     [string]$OutDir = '',
     [string]$OutFile = '',
-    [ValidateSet('manifest', 'roundspec', 'schema')][string]$Kind = 'manifest'
+    [ValidateSet('manifest', 'roundspec', 'schema', 'keyspace', 'commands')][string]$Kind = 'manifest'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +51,8 @@ $fileName = switch ($Kind) {
     'manifest'  { 'declared-manifest.json' }
     'roundspec' { 'round-spec.generated.json' }
     'schema'    { 'reference-schema.generated.json' }
+    'keyspace'  { 'agent.keyspace.generated.json' }
+    'commands'  { 'ui-commands.generated.json' }
 }
 
 if ($OutDir) {

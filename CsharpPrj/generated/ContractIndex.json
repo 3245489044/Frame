@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-24T04:24:03.9231479Z",
+  "builtAt": "2026-10-27T05:18:10.9910690Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -250,10 +250,10 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 127,
+      "total": 128,
       "truncated": false,
       "byRole": {
-        "Gate": 7,
+        "Gate": 8,
         "Test": 43,
         "Declaration": 0,
         "Code": 22,
@@ -459,6 +459,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-ReadModelOnly.ps1",
+          "line": 1,
+          "role": "Gate",
+          "text": "#Requires -Version 7.0"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
           "line": 12,
           "role": "Gate",
@@ -495,7 +502,7 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-SessionDuplication.ps1",
-          "line": 123,
+          "line": 131,
           "role": "Gate",
           "text": "[pscustomobject]@{ Id = 'A3i'; Title = '轮次键字面量·#R（D3；唯一生成器 FactIds.Round）'; Pattern = '\"#R\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }"
         },
@@ -1448,14 +1455,14 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 360,
-      "truncated": false,
+      "total": 400,
+      "truncated": true,
       "byRole": {
-        "Gate": 4,
-        "Test": 76,
-        "Declaration": 5,
-        "Code": 44,
-        "Doc": 167,
+        "Gate": 5,
+        "Test": 83,
+        "Declaration": 12,
+        "Code": 35,
+        "Doc": 201,
         "Other": 64
       },
       "hits": [
@@ -1499,7 +1506,7 @@
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 66,
           "role": "Code",
-          "text": "\"proc.{container}.r{round:number}.{kind}.{ordinal:number}\","
+          "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
         },
         {
           "repo": "Frame",
@@ -1513,7 +1520,7 @@
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 68,
           "role": "Code",
-          "text": "legacyTemplates: new[] { \"proc.{container}.r{round:number}.step{ordinal:number}\" },"
+          "text": "legacyTemplates: new[] { \"proc.{container}.r{round:digits}.step{ordinal:digits}\" },"
         },
         {
           "repo": "Frame",
@@ -2056,6 +2063,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyDeclSingleSource.ps1",
+          "line": 57,
+          "role": "Gate",
+          "text": "if ('const string P = \"proc.\";' -notmatch $pattern) { $violations.Add('负对照失败：字面量样本未命中') }"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Tooling/Invoke-GateCheck.ps1",
           "line": 161,
           "role": "Other",
@@ -2165,6 +2179,237 @@
           "line": 503,
           "role": "Doc",
           "text": "| M3 | PS 任务 `workflow-plan`/`workflow-step` 帧 > 0 | `proc.*` 帧 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 111,
+          "role": "Doc",
+          "text": "**现象**：`ProcessNodeSink` 先报\"空身份\"；即使补上身份，下一步也会报 `ProcessNodeSink_ContainerMissing`——因为成员 run 根本没有建立 `proc.<taskKey>` 容器。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 123,
+          "role": "Doc",
+          "text": "**修复方向**：把\"过程/观测容器建立\"从会话阶段体上移到**run 边界**（AgentRunner 轮起点统一 `BeginRun`，与执行体无关）；或由 TaskPool 显式把成员 run 绑定到父 history 容器。判据：`ProcessNodeSink_EmptyIdentity=0 ∧ ContainerMissing=0 ∧ proc.<taskKey>` 有行。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 305,
+          "role": "Doc",
+          "text": "| B2 | run 边界统一 `BeginRun(Process/Observability/...)`（与执行体无关），成员 run 与历史 run 同构 | `AgentRunner` 轮起点 / `INodeDomainPort` | `ProcessNodeSink_EmptyIdentity=0 ∧ ContainerMissing=0`；`proc.<taskKey>` 有行 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 322,
+          "role": "Doc",
+          "text": "| 4 | `proc.task_member_...` 有过程行（llm-text/tool-call） | B2 生效 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-运行内核RunKernel-通用框架提取-设计与实施.md",
+          "line": 80,
+          "role": "Doc",
+          "text": "| 主循环接入（run 级 + 轮级） | `AgentRunner.BuildRunPorts` / `RunMainPipelineAsync` / `AgentStageFixedLayer.RouteRoundAsync/PersistAsync` | 成员 run 有 `proc.<taskKey>` 容器；取消路径仍结算 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-会话浮层遮挡与成员任务运行态不可观测-框架层缺陷分析.md",
+          "line": 140,
+          "role": "Doc",
+          "text": "└ 运行结束才物化为 ur_nodes 单行（proc.<taskKey> / obs.<taskKey>）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 107,
+          "role": "Doc",
+          "text": "\"template\": \"proc.{container}\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 117,
+          "role": "Doc",
+          "text": "\"templates\": [ \"proc.{container}\" ],"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 118,
+          "role": "Doc",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 120,
+          "role": "Doc",
+          "text": "\"proc.{container}.r{round:number}.{kind}.{ordinal:digits}\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 121,
+          "role": "Doc",
+          "text": "\"proc.{container}.r{round:number}.step{ordinal:digits}\""
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "\"templates\": [ \"proc.{container}.r{round:number}.{kind}.{ordinal:digits}\" ],"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 126,
+          "role": "Doc",
+          "text": "\"familyPrefix\": \"proc.\""
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 365,
+          "role": "Doc",
+          "text": "| 特异性 | 窄 legacy vs 宽 canonical（`proc.c1.r2.user.9`、`cline.session…`） | 窄者胜 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑-实施记录-KQ.md",
+          "line": 33,
+          "role": "Doc",
+          "text": "1. `IsKeyOf(..., \"proc.\")` 由 `true` → `false`：前缀片段不再算键；读侧范围枚举须改 `IsPrefixOf`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑-实施记录-KQ.md",
+          "line": 34,
+          "role": "Doc",
+          "text": "2. `proc.{container}` 的 `container` 声明保留中缀 `.r` / `.step` ⇒ 含这两个中缀的容器值被拒（原为域类硬编码守卫，现为声明规则 + 统一执行）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑盘点.md",
+          "line": 26,
+          "role": "Doc",
+          "text": "| 声明（真源） | `Projects/Plug/Agent/Config/keyspaces/agent.keyspace.json` `domain.process` / `domain.conversation` | `proc.{container}.r{round:digits}.{kind}.{ordinal:digits}` / `session.…{round:digits}…`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑盘点.md",
+          "line": 38,
+          "role": "Doc",
+          "text": "| 身份键渲染 | `ProcessKeys.UnifiedIdentityKey`（`ProcessKeys.cs:128` 用 `KeyGrammar.Create(\"proc.identity\", MultiRowIdentityTemplate)`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑盘点.md",
+          "line": 166,
+          "role": "Doc",
+          "text": "影响：同一键在「键空间解析」与「节点库归属解析」结论不同（如 `proc.c1.r02.tool.1` 后者判不合形）。属 LogicCorrectness 违反（两处 semantic 不一致）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑盘点.md",
+          "line": 215,
+          "role": "Doc",
+          "text": "影响：合法容器名 `a.r.b`、`x.step.y` 的单键 `proc.a.r.b` 被拒；该判据以字面量成员判断代替声明形状，属域补丁而非框架能力。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 95,
+          "role": "Doc",
+          "text": "| `domain.process` | `proc.{c}` | `proc.{c}.r{r}.{kind}.{o}` | `proc.{c}.r{r}.{kind}.{o}` / `proc.{c}.r{r}.step{o}` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 103,
+          "role": "Doc",
+          "text": "- 空/空白；`proc.c1`（单键）与 `proc.c1.r2.step9`（legacy）互不误判；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 142,
+          "role": "Doc",
+          "text": "| `KeyDeclSingleSource` | 域前缀/模板字面量（`\"smsg.\"`/`\"seg.\"`/`\"sv.\"`/`\"obs.\"`/`\"arch.\"`/`\"proc.\"`/`\"cline.session.\"`/`\"{container}.r{round}\"`）只允许出现在：① `DomainKeyFamilies.cs`（目录）② `ProcessKeys.cs`（模板常量）③ 声明装"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-设计与迁移方案.md",
+          "line": 27,
+          "role": "Doc",
+          "text": "| **T1** | **键形只在声明面**：模板/轴/面/legacy 形态全部写在键声明（`Config/keys/*.keys.ushar`），C# 无 `\"proc.\"` / `\"smsg.\"` / `\"{workflowId}.{nodeKey}\"` 之类字面量 | 域前缀/模板字面量在 C# = **0**；只在 `.keys.ushar` 出现 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-设计与迁移方案.md",
+          "line": 87,
+          "role": "Doc",
+          "text": "维度     KeyFamily（族：proc./smsg./seg./sv./obs./arch. / history. / {workflowId}.{nodeKey}）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-设计与迁移方案.md",
+          "line": 114,
+          "role": "Doc",
+          "text": "| I6 | **声明驱动**：轴序/分隔符/占位符名来自 `KeyFamily.SurfaceSpec` | C# 内域常量（`\"proc.\"`/`\"smsg.\"`/`.r`）只出现在族声明处 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-设计与迁移方案.md",
+          "line": 286,
+          "role": "Doc",
+          "text": "| **P5** 其余域 | `seg./sv./obs./arch./proc.` → 声明；`ProcessKeys` 多行/legacy → `legacy` 面（只读）；`DisplayKey` → `Display` 面 | 5 域类方法体 = 0（仅 `FamilyId`）；legacy 写路径命中 = 0（V5） | 中（`proc.` 三形态） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-节点读面聚拢-键集解析单源与通用读框架-设计与施工单.md",
+          "line": 51,
+          "role": "Doc",
+          "text": "| 过程帧 | **无** `proc.task_member_a04ccda626c29449.*`（该 run 停在第 0 轮，尚无过程域帧） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-节点读面聚拢-键集解析单源与通用读框架-设计与施工单.md",
+          "line": 66,
+          "role": "Doc",
+          "text": "代入键 `task_member_a04ccda626c29449` ⇒ `StartsWith` 全不命中 ⇒ TaskNode 源 0 行；Process 源要求 `proc.task_member_*` ⇒ 0 行；两域均「可用但空」⇒ 渲染空面板（不报错）。〔事实〕"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 178,
+          "role": "Doc",
+          "text": "| 各域 `FamilyPrefix`（`proc.`/`smsg.`/`seg.`/`sv.`） | 域身份不同 = 语义差异，不是重复；抽常量表只会把「域身份」降级为「配置查表」 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 193,
+          "role": "Doc",
+          "text": "③ 域键面（契约层）      Agent.Contract.NodeDomain.ProcessKeys       proc. + 单键/多行/legacy 三形态 + 位置 id"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 233,
+          "role": "Doc",
+          "text": "| 2 | C-7：单键族反解收为 `SingleKeyFamily` | 4 处手写切片 = 0；`proc./smsg./seg./sv.` 单键反解用例全绿 | 低 |"
         },
         {
           "repo": "Main",
@@ -2777,6 +3022,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计-核心中英对译.md",
+          "line": 296,
+          "role": "Doc",
+          "text": "| 脉冲 Pulse | `obs.* / proc.*` 帧在时间轴上的活动点 / activity point of frames on the timeline |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/design/3D可视化-实时依赖图宇宙与多Agent协作剧场-设计.md",
           "line": 148,
           "role": "Doc",
@@ -2938,6 +3190,76 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 70,
+          "role": "Test",
+          "text": "\"proc.c1.r2.step9\", out var legacy, out _), \"legacy .step 形态须可反解\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 75,
+          "role": "Test",
+          "text": "\"proc.c1.r2.tool.9\", out var multiRow, out _));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 87,
+          "role": "Test",
+          "text": "\"proc.c1.r2.user.7\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 94,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.c1.r2\", out _, out _, out _, out _),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 96,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.c1.r2.tool\", out _, out _, out _, out _));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 97,
+          "role": "Test",
+          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.c1.\", out _, out _, out _, out _));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 29,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\" }, \"rendered\": \"proc.c1\", \"source\": \"declaration\", \"stage\": \"KB1\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 30,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.process\", \"surface\": \"Display\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"tool\", \"ordinal\": \"9\" }, \"rendered\": \"proc.c1.r2.tool.9\", \"source\": \"old-impl\", \"stage\": \"KB1\""
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 31,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"ordinal\": \"9\" }, \"rendered\": \"proc.c1.r2.step9\", \"source\": \"old-impl\", \"parseOnly\": true, \"stage\": \"KB"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 32,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\" }, \"rendered\": \"proc.c1.\", \"source\": \"manual\", \"valid\": false, \"stage\": \"KB1\" },"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 43,
           "role": "Test",
@@ -2955,7 +3277,7 @@
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 48,
           "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}.r{round}.{kind}.{ordinal}\", ProcessKeys.MultiRowPositionKeyTemplate);"
+          "text": "Assert.AreEqual(\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\", ProcessKeys.MultiRowPositionKeyTemplate);"
         },
         {
           "repo": "Main",
@@ -3176,27 +3498,6 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
-          "line": 28,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"obs.task_a\", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
-          "line": 37,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"proc.task_a.r1\", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
-          "line": 46,
-          "role": "Test",
-          "text": "var admitted = NodeScopeGuard.Admit(\"   \", Scope(\"proc.\"), out var reason);"
-        },
-        {
-          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
           "line": 17,
           "role": "Test",
@@ -3270,14 +3571,14 @@
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
           "line": 126,
           "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.2\", \"tool-call\"),"
+          "text": "Item(\"proc.t.r1.tool-call.2\", \"tool-call\", (\"tool\", \"read_files\")),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
           "line": 127,
           "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\"),"
+          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\", (\"tool\", \"read_files\")),"
         },
         {
           "repo": "Main",
@@ -3383,6 +3684,55 @@
           "line": 70,
           "role": "Declaration",
           "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox proc.\" },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 239,
+          "role": "Declaration",
+          "text": "\"template\": \"proc.{container}\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 240,
+          "role": "Declaration",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 270,
+          "role": "Declaration",
+          "text": "\"templates\": [ \"proc.{container}\" ],"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 271,
+          "role": "Declaration",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 273,
+          "role": "Declaration",
+          "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 274,
+          "role": "Declaration",
+          "text": "\"proc.{container}.r{round:digits}.step{ordinal:digits}\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 277,
+          "role": "Declaration",
+          "text": "\"Display\": { \"templates\": [ \"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\" ], \"familyPrefix\": \"proc.\" }"
         },
         {
           "repo": "Projects",
@@ -3799,13 +4149,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilityKeys.cs",
-          "line": 10,
-          "role": "Code",
-          "text": "/// 存在理由：过程域键 <c>proc.{container}.r{round}.{kind}.{ordinal}</c> 每事件一条记录，键序"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
           "line": 29,
           "role": "Code",
@@ -3814,70 +4157,42 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 39,
+          "line": 42,
           "role": "Code",
           "text": "public const string FamilyPrefix = \"proc.\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 83,
+          "line": 86,
           "role": "Code",
           "text": "/// Stream 形态（单键）位置键：<c>proc.{container}</c> —— 同一任务的过程帧聚合为**一行**（<c>form=stream</c>）。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 127,
+          "line": 128,
+          "role": "Code",
+          "text": "KeyGrammar.Create(\"proc.identity\", MultiRowIdentityTemplate);"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
+          "line": 144,
           "role": "Code",
           "text": "/// <c>proc.{container}.r{round}.{kind}.{ordinal}</c>。"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 136,
+          "line": 163,
           "role": "Code",
-          "text": "/// <summary>键族判据（替代散落的 <c>StartsWith(\"proc.\")</c>）。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 147,
-          "role": "Code",
-          "text": "/// 多行形态 <c>proc.{container}.r{round}.{kind}.{ordinal}</c> → 四段值；其次 legacy"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 148,
-          "role": "Code",
-          "text": "/// <c>proc.{container}.r{round}.step{seq}</c> → 三段值（<paramref name=\"kind\"/> 为 <c>null</c>）；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 149,
-          "role": "Code",
-          "text": "/// 最后 **单键 Stream 形态** <c>proc.{container}</c> → 容器（<c>round=0</c>/<c>kind=null</c>/<c>ordinal=0</c>，不伪造）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 201,
-          "role": "Code",
-          "text": "/// 多行形态反解：<c>proc.{container}.r{round}.{kind}.{ordinal}</c> ——"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 247,
-          "role": "Code",
-          "text": "/// legacy 反解（**仅读兼容**）：<c>proc.{container}.r{round}.step{ordinal}</c>；"
+          "text": "/// <summary>键族判据（替代散落的 <c>StartsWith(\"proc.\")</c>；含只读 legacy 形态）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-          "line": 161,
+          "line": 168,
           "role": "Code",
           "text": "// K3：识别产物帧（type:\"node\"）经**唯一写门**落库 —— 过程节点进入 proc.* 域，轮末随既有沉淀路径物化"
         },
@@ -3932,13 +4247,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/NodeScopeGuard.cs",
-          "line": 55,
-          "role": "Code",
-          "text": "// 读作用域给出键族前缀时，**前缀匹配为权威判据**（节点族分类器把 proc./obs. 等"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/Signal/ProcessStreamNodes.cs",
           "line": 10,
           "role": "Code",
@@ -3953,31 +4261,10 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 294,
-          "role": "Code",
-          "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 524,
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
+          "line": 72,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-          "line": 525,
-          "role": "Code",
-          "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ObservabilityMessageMerge.cs",
-          "line": 21,
-          "role": "Code",
-          "text": "/// <summary>合并帧与 canonical 消息（canonical 的 <c>proc.*</c> 条目在帧非空时剔除，保持双写期去重语义）。</summary>"
         }
       ]
     },
@@ -3986,14 +4273,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 154,
+      "total": 157,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
-        "Code": 79,
-        "Doc": 58,
+        "Code": 80,
+        "Doc": 60,
         "Other": 1
       },
       "hits": [
@@ -4090,8 +4377,8 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 721,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Core/Graph/GraphGrounding.cs",
+          "line": 259,
           "role": "Code",
           "text": "if (relations is null || relations.Count == 0) continue;"
         },
@@ -4133,7 +4420,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/Ports.cs",
-          "line": 124,
+          "line": 126,
           "role": "Code",
           "text": "relations.Add(childRelation);"
         },
@@ -4147,37 +4434,44 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Hierarchy/Dataflow/HierarchyTreeReader.cs",
-          "line": 97,
+          "line": 81,
           "role": "Code",
           "text": ": await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 63,
+          "line": 70,
           "role": "Code",
           "text": "await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 108,
+          "line": 79,
           "role": "Code",
-          "text": "await _relations.AttachTaskAsync(cmd.History.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
+          "text": "Graph: graphCt => _relations.CreateAsync(root.Key.Value, root.Name, graphCt),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 114,
+          "line": 142,
           "role": "Code",
-          "text": "return _relations.DetachTaskAsync(cmd.History.Value, cmd.Task.Value, ct);"
+          "text": "await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 131,
+          "line": 148,
           "role": "Code",
-          "text": "await _relations.DeleteAsync(cmd.Key.Value, ct).ConfigureAwait(false);"
+          "text": "return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
+          "line": 166,
+          "role": "Code",
+          "text": "await _relations.DeleteAsync(key.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -4409,6 +4703,20 @@
           "line": 84,
           "role": "Doc",
           "text": "- 位置：`Core/Functions/Batch/AgentWriteSources.cs:199-234`（`IHistoryStore.DeleteAsync + relations.DeleteAsync`） / `Core/Functions/History/AgentUiLibraryHistory.cs:369-385`（`IHistoryCommandPort.DeleteAsy"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/双库保留下的存储聚拢重构-通用框架提取与重复逻辑收敛.md",
+          "line": 280,
+          "role": "Doc",
+          "text": "- **结构事实**：`HistoryCommandService.CreateAsync` 在 `_relations.CreateAsync` 抛异常时仅 `_diagnostics.Report(\"HistoryCommand_root_mirror_failed\", ...)` 后继续【事实：`Frame\\CsharpPrj\\Operation\\HierarchyMethod\\Histor"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/双库保留下的存储聚拢重构-通用框架提取与重复逻辑收敛.md",
+          "line": 327,
+          "role": "Doc",
+          "text": "- **结构事实**：`AgentWriteSources.DeleteHistoryCoreAsync` 在 `IHistoryCommandPort` 未装配时回落 `IHistoryStore.DeleteAsync + relations.DeleteAsync`【事实：`Functions\\Batch\\AgentWriteSources.cs:196-225`】。"
         },
         {
           "repo": "Main",
@@ -4679,7 +4987,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 363,
+          "line": 361,
           "role": "Test",
           "text": "=> _relations.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);"
         },
@@ -4861,7 +5169,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
-          "line": 48,
+          "line": 49,
           "role": "Code",
           "text": "var keys = await _relations.GetHistoryKeysAsync(task.Value, ct).ConfigureAwait(false);"
         },
@@ -4903,21 +5211,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
-          "line": 221,
+          "line": 200,
           "role": "Code",
           "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 304,
+          "line": 316,
           "role": "Code",
           "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 547,
+          "line": 565,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
@@ -4945,63 +5253,63 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 349,
+          "line": 363,
           "role": "Code",
           "text": "// ---- 声明式构建 + 图维护（relations.* / graph.*）----"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 353,
+          "line": 367,
           "role": "Code",
           "text": "/// <summary>主动声明关系（relations.declare）：经守卫写 ur_nodes + 推导边。未装配守卫返回诊断。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 358,
+          "line": 372,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.declare 不可用：请经完整框架路径装配引用层。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 360,
+          "line": 374,
           "role": "Code",
           "text": "return \"（缺少声明）relations.declare 需提供 declarations[]（relationId + from/to/refType）。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 365,
+          "line": 379,
           "role": "Code",
           "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 370,
+          "line": 384,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.undeclare 不可用。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 372,
+          "line": 386,
           "role": "Code",
           "text": "return \"（缺少 relationIds）relations.undeclare 需提供 relationIds[]。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 377,
+          "line": 391,
           "role": "Code",
           "text": "/// <summary>列出声明（relations.list）为文本。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 381,
+          "line": 395,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.list 不可用。\";"
         },
@@ -5085,11 +5393,11 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 2,
-        "Test": 90,
+        "Gate": 6,
+        "Test": 47,
         "Declaration": 0,
-        "Code": 156,
-        "Doc": 151,
+        "Code": 168,
+        "Doc": 178,
         "Other": 1
       },
       "hits": [
@@ -5508,6 +5816,69 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 52,
+          "role": "Code",
+          "text": "\"session.{sessionName}\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 53,
+          "role": "Code",
+          "text": "\"session.\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 63,
+          "role": "Code",
+          "text": "KeySurface.Endpoint, new[] { \"session.{sessionName}\" }, \"session.\"),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 51,
+          "role": "Code",
+          "text": "/// <summary>会话根端点文法（<c>session.{sessionName}</c>）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 100,
+          "role": "Code",
+          "text": "/// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 104,
+          "role": "Code",
+          "text": "/// <summary>会话根端点 Id（<c>session.{name}</c>；空身份即抛）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 111,
+          "role": "Code",
+          "text": "\"会话身份为空（session: / session. 不是身份）。\", nameof(sessionName));"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 181,
+          "role": "Code",
+          "text": "/// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
+          "line": 331,
+          "role": "Code",
+          "text": "// 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 38,
           "role": "Code",
@@ -5518,7 +5889,7 @@
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 47,
           "role": "Code",
-          "text": "\"session.{container}.r{round:number}.{kind}.{ordinal:number}\","
+          "text": "\"session.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
         },
         {
           "repo": "Frame",
@@ -5532,14 +5903,14 @@
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 51,
           "role": "Code",
-          "text": "\"session.{container}.r{round:number}.msg.{ordinal:number}\","
+          "text": "\"session.{container}.r{round:digits}.msg.{ordinal:digits}\","
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 52,
           "role": "Code",
-          "text": "\"session.{container}.msg.{ordinal:number}\","
+          "text": "\"session.{container}.msg.{ordinal:digits}\","
         },
         {
           "repo": "Frame",
@@ -5547,6 +5918,20 @@
           "line": 6,
           "role": "Code",
           "text": "/// （如 <c>session.sess-1.msg.1</c>），从键串反解 node/port 不可靠 ⇒ 读侧投影（按节点前缀裁剪 /"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Read/NodeKeySet.cs",
+          "line": 67,
+          "role": "Code",
+          "text": "/// <summary>外来族（history./session. 等）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Node/Read/NodeReadReason.cs",
+          "line": 29,
+          "role": "Code",
+          "text": "/// <summary>外来族（history./session. 等）。</summary>"
         },
         {
           "repo": "Frame",
@@ -5663,14 +6048,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IHierarchyReferenceManager.cs",
-          "line": 51,
+          "line": 90,
           "role": "Code",
           "text": "// ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IHierarchyReferenceManager.cs",
-          "line": 53,
+          "line": 92,
           "role": "Code",
           "text": "/// 入史层（L-B）读侧唯一入口：键形 <c>session.{name}.r{round}.msg.{seq}</c>"
         },
@@ -5721,7 +6106,7 @@
           "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/SessionMessageKeys.cs",
           "line": 47,
           "role": "Code",
-          "text": "/// <summary>会话根 Id（<c>session.{name}</c>）：会话图子图端点键，与会话消息键同族。</summary>"
+          "text": "/// <summary>会话根 Id（<c>session.{name}</c>）：会话图子图端点键，与会话消息键同族（身份前缀归一单源）。</summary>"
         },
         {
           "repo": "Frame",
@@ -5732,85 +6117,78 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Core/AggregateMemoryStores.cs",
-          "line": 60,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/SessionReferenceGrounding.cs",
+          "line": 28,
+          "role": "Code",
+          "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/AggregateMemoryStores.Session.cs",
+          "line": 72,
           "role": "Code",
           "text": "_sessions[session.Key.Value] = session;"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 171,
-          "role": "Code",
-          "text": "// ---- 会话图子图（方案 C：会话 = LiteDB 引用关系连接的节点；Id = session.{name}） ----"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Core/Domain/ReferenceGrounding.cs",
-          "line": 175,
-          "role": "Code",
-          "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像（会话图子图锚点；缺省=无会话时的图条目展示锚）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 83,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 84,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKind, UsharpScalar.Str(session.Owner.Kind.ToString())),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 84,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 85,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldOwnerKey, UsharpScalar.Str(session.Owner.Key)),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 85,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 86,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldRole, UsharpScalar.Str(session.Role.ToString())),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 86,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 87,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldAgent, UsharpScalar.Str(session.Agent)),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 87,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 88,
           "role": "Code",
           "text": "new KeyValuePair<string, UsharpValue>(FieldCreatedAt, UsharpScalar.Str(session.CreatedAt.ToString(\"O\"))),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 89,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 90,
           "role": "Code",
-          "text": "var text = _codec.SerializeRecord(\"session:\" + session.Key.Value, TableId, session.Key.Value, record);"
+          "text": "var text = _codec.SerializeRecord(RecordEnvelope.RecordId(\"session\", session.Key.Value), TableId, session.Key.Value, record);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Sqlite/SqliteSessionStore.cs",
-          "line": 90,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Session/SqliteSessionStore.cs",
+          "line": 91,
           "role": "Code",
           "text": "ExecuteNonQuery(KvUsharpTable.UpsertSql(Table), Params((\"k\", session.Key.Value), (\"d\", text)));"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 140,
+          "line": 175,
           "role": "Code",
           "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 141,
+          "line": 176,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
@@ -5915,9 +6293,16 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStage.cs",
-          "line": 52,
+          "line": 56,
           "role": "Code",
           "text": "var executionId = session.SessionId;"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Graph/GraphChainUpdateStage.cs",
+          "line": 86,
+          "role": "Code",
+          "text": "session.WiringGeneration = \"g\" + updatedSnapshot.Version;"
         },
         {
           "repo": "Frame",
@@ -6439,6 +6824,13 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/ContextBinding/AnchorKeyRules.cs",
+          "line": 37,
+          "role": "Code",
+          "text": "\"session.\", \"session:\", \"history:\", \"task:\", \"node:\","
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/UniversalReference/Reference/Models/ReferenceEdgeTypes.cs",
           "line": 24,
           "role": "Code",
@@ -6495,10 +6887,38 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
+          "line": 266,
+          "role": "Gate",
+          "text": "if ((Get-SessionEndpointId 'session.session.session.x') -eq 'session.session.session.x') { $nc.Add('session 重复前缀未被判出') }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
+          "line": 267,
+          "role": "Gate",
+          "text": "if ((Get-SessionEndpointId 'session.history:242e') -ne 'session.history:242e') { $nc.Add('session 合法端点被误判') }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
+          "line": 269,
+          "role": "Gate",
+          "text": "if (-not [string]::IsNullOrEmpty((Get-SessionEndpointId 'session.'))) { $nc.Add('session 空身份未被判出') }"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-SessionDuplication.ps1",
-          "line": 119,
+          "line": 127,
           "role": "Gate",
           "text": "[pscustomobject]@{ Id = 'A3e'; Title = '键模板字面量·归档前缀（D4/A11）'; Pattern = '\"cline.session.\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 0; Batch = 'C-1'; Kind = 'search' }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyOpsClosedSet.ps1",
+          "line": 63,
+          "role": "Gate",
+          "text": "$probe2 = 'var q = $\"session.{session}.r{round}.\";'"
         },
         {
           "repo": "Frame",
@@ -6548,6 +6968,195 @@
           "line": 273,
           "role": "Doc",
           "text": "| `PsRuntimeHost.Restart/DrainStderr/StderrTail`（`:495-547`） | `PowerShellStdioSession` | 直接迁入 | `PsRuntimeHost` 只读 `session.StderrTail` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-25-node-task加载失败-层级键口径错配-根因与施工单.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "session_owns      : session:session.history:242e98688161 -> node:agent-round.smsg.history:242e98688161          (5 条)"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-25-node-task加载失败-层级键口径错配-根因与施工单.md",
+          "line": 190,
+          "role": "Doc",
+          "text": "| `session:session.history:{hid}` | `session:{裸会话键}` | ①归一 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-25-node-task加载失败-层级键口径错配-根因与施工单.md",
+          "line": 222,
+          "role": "Doc",
+          "text": "| G3 | 端点 Id 不含双前缀（禁 `history:history.` / `session:session.`） | 合成 `history:history.history:` ⇒ 判违规 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-25-node-task加载失败-层级键口径错配-根因与施工单.md",
+          "line": 331,
+          "role": "Doc",
+          "text": "| `session:session.history:*` | 判为双前缀 | **合法三层**（`session:` 类型 + `session.` 族 + `history:<hid>` 名字），不动点成立 | 不迁移；门禁用不动点判据，不用正则误杀 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.25/2026-10-25-层级键空间-重复冗余与错误逻辑分析.md",
+          "line": 31,
+          "role": "Doc",
+          "text": "- **症状**：三类端点中只有 history/node 经过\"剥层 + 重建\"的幂等构造；session 传入 `session.x` / `session:x` 会叠加成 `session.session.x`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.25/2026-10-25-键逻辑通用框架-遗留与重复冗余错误盘点.md",
+          "line": 59,
+          "role": "Doc",
+          "text": "| R-10 | 空身份负对照缺失 | G3 已能判 `history.`，但负对照未覆盖空身份 | 判据可能空转 | 负对照补 `history.` / `session.` 样本 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.25/2026-10-25-键逻辑通用框架-遗留与重复冗余错误盘点.md",
+          "line": 92,
+          "role": "Doc",
+          "text": "| DUP-01 | session 端点构造 | `NodeEndpointIds.Session` vs 旧 `SessionMessageKeys.SessionRoot` 拼串 | ✅ | `SessionRoot` 已转发；保留 `session.history:<id>` 合法不动点 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 30,
+          "role": "Doc",
+          "text": "| P7 | `ArchiveKeys.TryParse` | `StartsWith(\"cline.session.\")` + `IndexOf(\".round.\")` + 区间切片 | 手写切片；legacy 形态变更需改代码；`cline.session.` 为已知 `KeyGrammar` 红点 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 165,
+          "role": "Doc",
+          "text": "| 字面量字符数 | +100/字符 | `cline.session.` 比 `{container}` 更具体 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 257,
+          "role": "Doc",
+          "text": "**Before**：`StartsWith(\"cline.session.\") + IndexOf(\".round.\") + rest[..at]`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 440,
+          "role": "Doc",
+          "text": "| B2 | `ArchiveKeys` 去切片 | `StartsWith(\"cline.session.\")+IndexOf+rest[..at]` 仍在 | legacy 进声明；`TryParse` 一行门面 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 455,
+          "role": "Doc",
+          "text": "| C2 | `domain.conversation` 前缀冲突 | `session.` 与 `hierarchy.session` Endpoint 前缀相同；`KeyOwnerUnique` 未跑 | 按模板形状判定唯一，或给 hierarchy.session 换前缀 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-实施记录-KP.md",
+          "line": 39,
+          "role": "Doc",
+          "text": "- golden 补 archive 短 legacy（`cline.session.c1.round.2`）；process Display kind 改用词表内值。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键空间重复冗余错误逻辑盘点.md",
+          "line": 26,
+          "role": "Doc",
+          "text": "| 声明（真源） | `Projects/Plug/Agent/Config/keyspaces/agent.keyspace.json` `domain.process` / `domain.conversation` | `proc.{container}.r{round:digits}.{kind}.{ordinal:digits}` / `session.…{round:digits}…`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 31,
+          "role": "Doc",
+          "text": "2. `KeyGrammar`：`cline.session.` / `.round.` 基线 0 但存量命中 1（`ArchiveKeys` legacy 解析）；K1 未新增落点。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 94,
+          "role": "Doc",
+          "text": "| `domain.archive` | `arch.{c}` | — | `cline.session.{c}.round.{r}[.{kind}.{o}]` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 96,
+          "role": "Doc",
+          "text": "| 端点族（KB3 补） | `history:{id}` / `session:{n}` | `{workflowId}.{nodeKey}[@{instanceKey}]` / `history.{id}` / `session.{n}` | 无实例端点形态 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 104,
+          "role": "Doc",
+          "text": "- 归档旧两段 `cline.session.c1.round.2` 与四段 `cline.session.c1.round.2.message.7`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 142,
+          "role": "Doc",
+          "text": "| `KeyDeclSingleSource` | 域前缀/模板字面量（`\"smsg.\"`/`\"seg.\"`/`\"sv.\"`/`\"obs.\"`/`\"arch.\"`/`\"proc.\"`/`\"cline.session.\"`/`\"{container}.r{round}\"`）只允许出现在：① `DomainKeyFamilies.cs`（目录）② `ProcessKeys.cs`（模板常量）③ 声明装"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 169,
+          "role": "Doc",
+          "text": "`{workflowId}.{nodeKey}[@{instanceKey}]` 与 `history.*` / `session.*` 的构造/反解全部走声明 + `KeyOps`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-后续批次施工单.md",
+          "line": 226,
+          "role": "Doc",
+          "text": "| 3 | 同文件 `:178` | `$\"session.{session}.r{round}.\"` | `SegmentKeys.PrefixOf(session, round)` | 代码内 `session.{` = 0 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键实例化框架-设计与迁移方案.md",
+          "line": 249,
+          "role": "Doc",
+          "text": "| `$\"session.{session}.r{round}.\"` | `KeyOps.Render(KeyOps.With(KeyOps.With(KeyOps.Root(\"domain.process\"), Container, s), Round, r))` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-节点读面聚拢-键集解析单源与通用读框架-设计与施工单.md",
+          "line": 179,
+          "role": "Doc",
+          "text": "public const string ForeignNamespace   = \"foreign-namespace\";    // history./session./task: 等外来族"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 172,
+          "role": "Doc",
+          "text": "| **C-15** | **UI 手拼键前缀** | 1 | `AgentUiLibraryHistoryOps.cs:178` 手写 `$\"session.{session}.r{round}.\"`；`:107` 与 `HistoryOpsFunctions:282` 两处 `FamilyPrefix + session` | **单点函数**：`SegmentKeys.PrefixOf(se"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 192,
+          "role": "Doc",
+          "text": "Modules.Node.Identity.NodeEndpointIds    history./session./{workflowId}.{nodeKey} 端点文法"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 257,
+          "role": "Doc",
+          "text": "| 键前缀拼接 | **消费方手拼** | `Agent.Ui/Core/Functions/HistoryOps/AgentUiLibraryHistoryOps.cs:178` 手写 `$\"session.{session}.r{round}.\"`；`:107` 与 `HistoryOpsFunctions.cs:282` 各写一次 `SegmentKeys.FamilyPrefix + se"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-Framework模块-重复冗余错误逻辑-现状盘点（FX5-FX7后）.md",
+          "line": 258,
+          "role": "Doc",
+          "text": "| 图端点 vs 存储族 | **两处声明（待确认是否漂移）** | `NodeEndpointIds`（Frame，`KeyAlgebra`：`history.{id}` / `{workflowId}.{nodeKey}` / `session.{name}`）与契约层 `*Keys`（`history:` / `smsg.` / `seg.` / `sv.` / `obs.` / `arch"
         },
         {
           "repo": "Main",
@@ -7266,7 +7875,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentAssemblySliceTests.cs",
-          "line": 352,
+          "line": 349,
           "role": "Test",
           "text": "Assert.IsTrue(result.TryGetValue(\"step_d_session.p17\", out var s) && true.Equals(s),"
         },
@@ -7524,6 +8133,55 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 58,
+          "role": "Test",
+          "text": "Assert.IsTrue(ArchiveKeys.TryParse(\"cline.session.c1.round.2.message.7\", out var container));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 60,
+          "role": "Test",
+          "text": "Assert.IsTrue(ArchiveKeys.TryParse(\"cline.session.c1.round.2\", out var shortForm));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
+          "line": 62,
+          "role": "Test",
+          "text": "Assert.IsTrue(ArchiveKeys.IsLegacyArchiveKey(\"cline.session.c1.round.2.message.7\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 25,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.archive\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"message\", \"ordinal\": \"7\" }, \"rendered\": \"cline.session.c1.round.2.message.7\", \"source\": \"old-i"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 26,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.archive\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"cline.session.c1.round.2\", \"source\": \"old-impl\", \"parseOnly\": true, \"stage\": \"KP0\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 34,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.conversation\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"user\", \"ordinal\": \"7\" }, \"rendered\": \"session.c1.r2.user.7\", \"source\": \"old-impl\", \"stage"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
+          "line": 35,
+          "role": "Test",
+          "text": "{ \"family\": \"domain.conversation\", \"surface\": \"Display\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"session.c1.r2.\", \"source\": \"manual\", \"prefix\": true, \"stage\": \"KB1\" }"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 112,
           "role": "Test",
@@ -7542,356 +8200,6 @@
           "line": 165,
           "role": "Test",
           "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 83,
-          "role": "Test",
-          "text": "\"展示面键族 = seg.*（与轮域 cline.session.* 分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 85,
-          "role": "Test",
-          "text": "Assert.IsTrue(context.KeyTemplate.StartsWith(\"session.\", System.StringComparison.Ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 86,
-          "role": "Test",
-          "text": "\"上下文面键族 = session.*.seg*（与轮域 session.*.r*.msg* 分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeSegmentSpecDeclarationTests.cs",
-          "line": 161,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 47,
-          "role": "Test",
-          "text": "var ready = await session.StartAsync(line =>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 56,
-          "role": "Test",
-          "text": "var readId = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 59,
-          "role": "Test",
-          "text": "var response = await session.RequestAsync("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 67,
-          "role": "Test",
-          "text": "var listId = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 70,
-          "role": "Test",
-          "text": "var response = await session.RequestAsync("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSession51Tests.cs",
-          "line": 80,
-          "role": "Test",
-          "text": "await session.DisposeAsync();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 46,
-          "role": "Test",
-          "text": "var hello = await session.StartAsync(line => line.Contains(\"\\\"ready\\\"\", StringComparison.Ordinal)"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 52,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.IsRunning);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 54,
-          "role": "Test",
-          "text": "var id = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 55,
-          "role": "Test",
-          "text": "var response = await session.RequestAsync("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 79,
-          "role": "Test",
-          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 81,
-          "role": "Test",
-          "text": "var id = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 82,
-          "role": "Test",
-          "text": "var response = await session.RequestAsync("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 106,
-          "role": "Test",
-          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 108,
-          "role": "Test",
-          "text": "var id = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 110,
-          "role": "Test",
-          "text": "() => session.RequestAsync(id, PowerShellStdioSession.BuildRequestJson(id, \"slow\", null)));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 113,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.IsRunning, \"超时必须杀进程树（不得保留半死会话）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 116,
-          "role": "Test",
-          "text": "() => session.RequestAsync(\"99\", PowerShellStdioSession.BuildRequestJson(\"99\", \"ping\", null)));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 137,
-          "role": "Test",
-          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 139,
-          "role": "Test",
-          "text": "var id = session.NextId();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 140,
-          "role": "Test",
-          "text": "await session.RequestAsync(id, PowerShellStdioSession.BuildRequestJson(id, \"stderr\", null));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 143,
-          "role": "Test",
-          "text": "while (session.StderrTail.Count < 16 && elapsed.Elapsed < TimeSpan.FromSeconds(10))"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 146,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.StderrTail.Count <= 16,"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 147,
-          "role": "Test",
-          "text": "$\"stderr 尾部必须有界（实际 {session.StderrTail.Count}）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 148,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.StderrTail.Count > 0, \"stderr 应被持续排空\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 169,
-          "role": "Test",
-          "text": "() => session.StartAsync(line => line.Contains(\"\\\"failure\\\"\", StringComparison.Ordinal)"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 174,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.IsRunning, \"握手失败必须释放进程\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 193,
-          "role": "Test",
-          "text": "await session.StartAsync(_ => PowerShellHandshakeDecision.Ready);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 194,
-          "role": "Test",
-          "text": "Assert.IsTrue(session.IsRunning);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 196,
-          "role": "Test",
-          "text": "await session.DisposeAsync();"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/PowerShellStdioSessionTests.cs",
-          "line": 198,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.IsRunning);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Productions/ContentWriteSingleSourceTests.cs",
-          "line": 94,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqliteNodeStoreTests.cs",
-          "line": 157,
-          "role": "Test",
-          "text": "var cols = _session.ExecuteQuery(\"PRAGMA table_info(ur_nodes)\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqliteNodeStoreTests.cs",
-          "line": 182,
-          "role": "Test",
-          "text": "session.ExecuteNonQuery("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqliteNodeStoreTests.cs",
-          "line": 189,
-          "role": "Test",
-          "text": "session.ExecuteNonQuery("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqliteNodeStoreTests.cs",
-          "line": 206,
-          "role": "Test",
-          "text": "var cols = session.ExecuteQuery(\"PRAGMA table_info(ur_nodes)\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqlitePersistenceTests.cs",
-          "line": 67,
-          "role": "Test",
-          "text": "var count = _session.ExecuteScalar("
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/SqlitePersistenceTests.cs",
-          "line": 78,
-          "role": "Test",
-          "text": "var count = _session.ExecuteScalar(\"SELECT COUNT(*) FROM sqlite_master WHERE type='table'\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 30,
-          "role": "Test",
-          "text": "refs.SessionNodes[\"sess-1\"] = new List<string> { \"session.sess-1.msg.2\", \"session.sess-1.msg.1\", \"wf.node.unrelated\" };"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 34,
-          "role": "Test",
-          "text": "NodeKey = \"session.sess-1.msg.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 41,
-          "role": "Test",
-          "text": "NodeKey = \"session.sess-1.msg.2\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 186,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"session1\", session.Id);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 187,
-          "role": "Test",
-          "text": "Assert.IsNotNull(session.CreatedAt);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 188,
-          "role": "Test",
-          "text": "Assert.IsFalse(session.IsExpired);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 194,
-          "role": "Test",
-          "text": "session.Set(\"key1\", \"value1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/BasicMethod.Tests/Pipeline.Tests/Models/EventSubscriptionManagerTests.cs",
-          "line": 196,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"value1\", session.Get<string>(\"key1\"));"
         }
       ]
     },
@@ -7900,14 +8208,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 336,
+      "total": 350,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 78,
-        "Declaration": 52,
+        "Declaration": 53,
         "Code": 20,
-        "Doc": 182,
+        "Doc": 195,
         "Other": 1
       },
       "hits": [
@@ -8498,6 +8806,97 @@
           "line": 587,
           "role": "Doc",
           "text": "2. **P1 实验**：同一会话 ⇒ `tool-call` 帧无 `run_commands`；`delegate_subagent` 仍在工具面。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 48,
+          "role": "Doc",
+          "text": "| 15:01:27–15:01:37 | `ProcessNodeSink 空身份（taskKey 为空）` × 20+（stage/llm-text/reasoning/tool-call/usage/...） | 所有过程事件被丢弃（D-01/D-02） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 121,
+          "role": "Doc",
+          "text": "**后果**：成员 run 的全部过程帧（llm-text / reasoning / tool-call / tool-progress / usage / stage）无容器可落，Task 窗口永远没有实时进度；即使把 D-01 的 `SessionId` 补齐，也只是把 `EmptyIdentity` 换成 `ContainerMissing`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-成员任务运行身份缺失与渲染内容入日志-框架缺陷分析.md",
+          "line": 322,
+          "role": "Doc",
+          "text": "| 4 | `proc.task_member_...` 有过程行（llm-text/tool-call） | B2 生效 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/2026-10-24-UI写回与刷新-框架层卡顿根因与彻底重构设计.md",
+          "line": 40,
+          "role": "Doc",
+          "text": "| 16:33:31–37 | `ProcessNodeSink 空身份` ×10（stage/llm-iteration/usage/llm-text/llm-reasoning/tool-call/tool-result/done/llm-call） | 单轮 10 条 WARN，直接驱动日志面重渲染 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/双库保留下的存储聚拢重构-通用框架提取与重复逻辑收敛.md",
+          "line": 628,
+          "role": "Doc",
+          "text": "| **A-E3** | 确定性工具调用**绕过工具面门禁** | tool-call agent：`domain=1, general=0, total=1, exposed=1`（只暴露 `tool_call_invoke`），却实际执行 `db_read` → `工具 db_read 未注册/未装配` | `ToolInvokeStepHandler.cs:55-65` 直接拿 `call."
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/双库保留下的存储聚拢重构-通用框架提取与重复逻辑收敛.md",
+          "line": 629,
+          "role": "Doc",
+          "text": "| **A-E4** | 全仓无 `db_read` 工具名，只有 `db_read_node` | 两段多智能体用例均报 `工具 db_read 未注册/未装配` | `ToolFaceNames.cs:29`、`LocalDbMcpTools.cs:62` 用 `db_read_node`；`skills\\internal\\tool-call\\SKILL.md:17` 与两份测试脚本写 `db"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.24/双库保留下的存储聚拢重构-通用框架提取与重复逻辑收敛.md",
+          "line": 719,
+          "role": "Doc",
+          "text": "| P0-3 | `ToolInvokeStepHandler` 入口按 `definition` / 已暴露工具面校验；`ToolInvokeRequest` 增 `AgentTag` | 未暴露工具返回 `tool_not_exposed`，不再落到 registry 深处；`tool-call` 不能调 `db_read` / `db_read_node`（除非显式暴露） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-大模型判断下移与History聚合内核-重构结论.md",
+          "line": 76,
+          "role": "Doc",
+          "text": "`use_tool/tool_use → tool-call`、`tool_result/tool → tool-result`、`ask → ask-question`、"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-大模型判断下移与History聚合内核-重构结论.md",
+          "line": 91,
+          "role": "Doc",
+          "text": "- `tags: role.subagent-face / role.workflow-root / role.tool-call / role.result-summary / ... / visibility.history`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-大模型判断下移与History聚合内核-重构结论.md",
+          "line": 95,
+          "role": "Doc",
+          "text": "- `owns-tool = \"role.tool-call\"`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-大模型判断下移与History聚合内核-重构结论.md",
+          "line": 350,
+          "role": "Doc",
+          "text": "face-dispatch   = sub_agent:tool-call    | mode:tool.call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-大模型判断下移与History聚合内核-重构结论.md",
+          "line": 352,
+          "role": "Doc",
+          "text": "owns-tool       = sub_agent:tool-call    | mode:tool.call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.26/2026-10-26-键解析通用框架-设计与后续施工单.md",
+          "line": 112,
+          "role": "Doc",
+          "text": "{ \"name\": \"kind\", \"shape\": \"enum\", \"required\": false, \"allowedValues\": [\"user\",\"assistant\",\"tool\",\"tool-call\",\"tool-result\",\"cost\",\"error\"] },"
         },
         {
           "repo": "Main",
@@ -9092,7 +9491,7 @@
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherCombinatorTests.cs",
           "line": 17,
           "role": "Test",
-          "text": "\"tool-call\": { \"family\": \"tools\", \"badge\": \"调用\" },"
+          "text": "\"tool-call\": { \"family\": \"tools\", \"badge\": \"调用\", \"summary\": [ \"kind\" ] },"
         },
         {
           "repo": "Main",
@@ -9190,14 +9589,14 @@
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
           "line": 126,
           "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.2\", \"tool-call\"),"
+          "text": "Item(\"proc.t.r1.tool-call.2\", \"tool-call\", (\"tool\", \"read_files\")),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
           "line": 127,
           "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\"),"
+          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\", (\"tool\", \"read_files\")),"
         },
         {
           "repo": "Main",
@@ -9552,7 +9951,7 @@
         {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/README.md",
-          "line": 29,
+          "line": 30,
           "role": "Doc",
           "text": "| **子智能体单步功能** | `agent_subagent/agent_subagent_function_test` | 带标签 task → `subagent-single-step`：`tool-catalog` index/describe、`tool-call` 确定性直调、写工具幂等门、非法 op、未登记标签负对照；强判据 = 任务终态 + 结果节点 `result:<task"
         },
@@ -9569,6 +9968,13 @@
           "line": 35,
           "role": "Declaration",
           "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
+          "line": 260,
+          "role": "Declaration",
+          "text": "\"llm-iteration\", \"llm-text\", \"llm-reasoning\", \"tool-call\", \"tool-progress\", \"tool-result\","
         },
         {
           "repo": "Projects",
@@ -9643,14 +10049,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 157,
+          "line": 163,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 168,
+          "line": 174,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
@@ -10196,7 +10602,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 221,
+          "line": 235,
           "role": "Code",
           "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
         },
@@ -10270,11 +10676,11 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 42,
+      "total": 41,
       "truncated": false,
       "byRole": {
         "Gate": 3,
-        "Test": 2,
+        "Test": 1,
         "Declaration": 17,
         "Code": 1,
         "Doc": 18,
@@ -10378,13 +10784,6 @@
           "line": 110,
           "role": "Doc",
           "text": "3. **语义级重复**（`agent-round` vs `agent_round`，见 `placement.ushar` 注释的「唯一映射点」）不可编译期判 ⇒ 只能「值对象 + 归一单点」收窄。"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
-          "line": 13,
-          "role": "Test",
-          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
@@ -10582,11 +10981,11 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 38,
+      "total": 37,
       "truncated": false,
       "byRole": {
         "Gate": 0,
-        "Test": 10,
+        "Test": 9,
         "Declaration": 2,
         "Code": 6,
         "Doc": 19,
@@ -10690,13 +11089,6 @@
           "line": 52,
           "role": "Test",
           "text": "Assert.IsTrue(spec.Placements.TryGet(\"process-node\", out var placement), \"应声明落库位置 process-node\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeScopeGuardTests.cs",
-          "line": 13,
-          "role": "Test",
-          "text": "=> new(\"process\", new[] { \"process-node\" }, \"agent_round\", keyPrefix, \"task_a\", 1);"
         },
         {
           "repo": "Main",
@@ -10827,14 +11219,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 62,
+          "line": 65,
           "role": "Code",
           "text": "/// <summary>位置键模板（声明面 <c>process.json.placements[process-node].key</c> 的编译视图）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 80,
+          "line": 83,
           "role": "Code",
           "text": "public const string PlacementId = \"process-node\";"
         },
@@ -10864,30 +11256,31 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1525.0,
+    "hitCount": 1581.0,
     "byRole": {
-      "Gate": 22,
-      "Test": 318,
-      "Declaration": 84,
-      "Code": 357,
-      "Doc": 669,
+      "Gate": 28,
+      "Test": 280,
+      "Declaration": 92,
+      "Code": 361,
+      "Doc": 745,
       "Other": 75
     },
     "truncatedFacts": [
+      "key.proc",
       "key.session"
     ],
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 428
+        "lines": 447
       },
       {
         "repo": "Projects",
-        "lines": 465
+        "lines": 476
       },
       {
         "repo": "Main",
-        "lines": 890
+        "lines": 992
       }
     ]
   }

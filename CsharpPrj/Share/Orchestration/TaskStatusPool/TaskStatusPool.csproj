@@ -25,6 +25,8 @@
     <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
     <!-- 休眠激活扫描（DormantActivationSweep）消费 ActivationCondition -->
     <ProjectReference Include="$(Proj_KeySpace)" />
+    <!-- USharp 映射忽略标记（B3a：持久化单载体，运行时镜像不落盘） -->
+    <ProjectReference Include="$(Proj_DslMethod)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Plate.DslMethod.Usharp;
 using Share.TaskStatusPool.TaskPool;
 
 namespace Operation.HierarchyMethod.Tasks
@@ -16,9 +17,11 @@ namespace Operation.HierarchyMethod.Tasks
     public sealed class TaskRecord : ITaskPoolItem, IStatusAwareTaskPoolItem, IActivatableTaskPoolItem
     {
         /// <summary>业务幂等键（去重；同时作为持久化键）。</summary>
+        [UsharpIgnore]
         public string TaskKey { get; set; } = Guid.NewGuid().ToString("N");
 
         /// <summary>任务生命周期状态（统一状态机；暂停/恢复直接改此字段）。</summary>
+        [UsharpIgnore]
         public TaskExecutionStatus Status { get; set; } = TaskExecutionStatus.NotStarted;
 
         /// <summary>激活标志（与写入解耦）：true=写入后进入消费循环可被采用 / false=仅持久化休眠，不被消费。

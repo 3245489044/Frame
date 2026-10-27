@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Plate.DslMethod.Usharp;
 using Share.HierarchySupport;
 using Operation.HierarchyMethod.Tasks;
 using Share.TaskStatusPool.Loops;
@@ -17,8 +18,10 @@ namespace Operation.HierarchyMethod.Tasks.Loops
     /// </summary>
     public sealed class AgentLoopState : IAgentLoopState
     {
-        /// <summary>关联任务键（回指 <see cref="TaskRecord.TaskKey"/>；供持久化/取消/暂停定位）。</summary>
-        public string TaskKey { get; set; } = Guid.NewGuid().ToString("N");
+        /// <summary>关联任务键（回指 <see cref="TaskRecord.TaskKey"/>；供持久化/取消/暂停定位）。
+        /// 缺省空串：由宿主在组装/投影时从 Record 同步，禁止独立生成（B2a 身份单源）。</summary>
+        [UsharpIgnore]
+        public string TaskKey { get; set; } = string.Empty;
 
         // ---- ILoopState 确定性核心（唯一写入入口：BudgetEscalator/ProgressUpdater/Decide）----
         /// <summary>熔断等级 level∈{0..3}。</summary>
@@ -50,6 +53,7 @@ namespace Operation.HierarchyMethod.Tasks.Loops
 
         // ---- IAgentLoopState 扩展 ----
         /// <summary>任务生命周期状态。</summary>
+        [UsharpIgnore]
         public TaskExecutionStatus Status { get; set; } = TaskExecutionStatus.NotStarted;
 
         /// <summary>错误处理作用域（Scope）。</summary>

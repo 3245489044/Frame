@@ -1,7 +1,8 @@
 @{
     # ===== Frame\Invoke 单一入口分发表（纯数据，单源）=====
     # 消费方 = Frame\Invoke\Invoke-Frame.ps1（经 Modules\Dispatcher 的 Import-DispatchTable/Get-DispatchEntry）。
-    # 收敛前 19 个 *.ps1 薄转发件 → 本表 19 行；另新增诊断面 read-agentdb（共 20 行）
+    # 收敛前 19 个 *.ps1 薄转发件 → 本表集中声明（含诊断面 read-agentdb / state-root-audit /
+    # task-consistency-audit / watch-observe）。
     # （结构事实；守卫 Check-InvokeEntrypoints 判据⑤ 校验 Target 存在性）。
     #
     # 表项字段：
@@ -41,6 +42,16 @@
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Data\Get-StateRootAudit.ps1'
             Map = @{ StateRoot = 'StateRoot'; Json = 'Json' }
+        }
+        'task-consistency-audit' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Get-TaskConsistencyAudit.ps1'
+            Map = @{ TaskKey = 'TaskKey'; StateRoot = 'StateRoot'; Limit = 'Limit'; Json = 'Json'; IncludeRows = 'IncludeRows'; SelfTest = 'SelfTest' }
+        }
+        'graph-doctor' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Invoke-GraphDoctor.ps1'
+            Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Json = 'Json'; OutFile = 'OutFile'; SelfTest = 'SelfTest' }
         }
         'watch-observe' = @{
             Kind = 'Ps'

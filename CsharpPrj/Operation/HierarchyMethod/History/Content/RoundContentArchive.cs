@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node;
@@ -67,9 +68,18 @@ public sealed class RoundContentArchive : IRoundContentArchive
     }
 
     public async Task ArchiveAsync(string sessionId, int round, string messagesJson, string status, CancellationToken ct = default)
+        => _ = await ArchiveWithOutcomeAsync(sessionId, round, messagesJson, status, ct).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<RoundArchiveOutcome> ArchiveWithOutcomeAsync(
+        string sessionId, int round, string messagesJson, string status, CancellationToken ct = default)
     {
+        // B5b：Messages（本次消息条数）与 Archived（归档结果）分离；空/无内容 ⇒ 显式 reason（禁裸 return）。
+        var messages = CountMessages(messagesJson);
+        if (string.IsNullOrWhiteSpace(messagesJson)) return RoundArchiveOutcome.Skipped("no-round-content", messages);
+
         var nodes = _nodeProvider();
-        if (nodes is null) return;
+        if (nodes is null) return RoundArchiveOutcome.Skipped("node-store-unattached", messages);
         var key = ResolveSessionKey(sessionId);
 
         // 归档域唯一写门（单行读改写）：读旧行 → 合并本轮 → 恰 1 次写（键 = 位置声明求值）。
@@ -87,7 +97,7 @@ public sealed class RoundContentArchive : IRoundContentArchive
                 reason,
                 action = "backed-off（归档域节点框架未装配：归档不落库，禁回退常量）",
             });
-            return;
+            return RoundArchiveOutcome.Skipped(reason, messages);
         }
 
         // RMW 串行化（同容器内读-改-写不可交错）。
@@ -117,6 +127,24 @@ public sealed class RoundContentArchive : IRoundContentArchive
                 status,
                 outcome = outcome.Describe(),
             });
+            return RoundArchiveOutcome.Skipped("materialize-rejected:" + outcome.Describe(), messages);
+        }
+
+        return RoundArchiveOutcome.Ok(messages);
+    }
+
+    /// <summary>消息条数（数组元素数；非数组按 1 计；不可解析 ⇒ 0，不冒充成功判据）。</summary>
+    private static int CountMessages(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.GetArrayLength() : 1;
+        }
+        catch (JsonException)
+        {
+            return 0;
         }
     }
 

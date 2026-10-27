@@ -32,6 +32,7 @@
 | `test-specrefs` | `SpecSourceGen\Cli`（`refs`） | 作者面 · 引用完整性（悬空 use；只读 + `-Check`） |
 | `get-specgenerated` | `SpecSourceGen\Cli`（`generated-list`） | 生成物清点（只读 `_manifest.json`；`-Verify` 复核 sha256） |
 | `read-agentdb` | `PowerShellScript\Share\Data\Read-AgentDb.ps1` | 诊断面 · 只读检视 Agent 数据库（SQLite `agent.db` / LiteDB `graph.db`） |
+| `task-consistency-audit` | `PowerShellScript\Share\Data\Get-TaskConsistencyAudit.ps1` | 诊断面 · 只读对账 `ur_tasks` 身份/状态多载体（TaskKeyAudit / TaskStateAudit；0 写 0 裁决） |
 
 > 迁移映射：旧 `.\<X>.ps1 -P v` ⇔ 新 `.\Invoke-Frame.ps1 -Action <x> -P v`（`<x>` = 旧文件名小写连字符，如 `Locate-Port` → `locate-port`）。
 

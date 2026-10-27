@@ -38,7 +38,8 @@ param(
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
-        'read-agentdb', 'watch-observe', 'state-root-audit'
+        'read-agentdb', 'watch-observe', 'state-root-audit', 'task-consistency-audit',
+        'graph-doctor'
     )]
     [string]$Action,
 
@@ -101,6 +102,7 @@ param(
     [int]$Limit = 50,
     [string]$StateRoot = '',
     [string]$DllDir = '',
+    [string]$TaskKey = '',
 
     [string]$PipeName = '',
     [string]$PipePrefix = 'agent-observe',
@@ -123,6 +125,8 @@ param(
     [switch]$Assert,
     [switch]$IncludeDeprecated,
     [switch]$Untracked,
+    [switch]$IncludeRows,
+    [switch]$SelfTest,
     [switch]$List,
     [switch]$Literal,
     [switch]$Regex,

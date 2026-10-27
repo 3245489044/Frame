@@ -68,6 +68,8 @@ public static class UsharpValueMapper
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (prop.GetIndexParameters().Length != 0) continue;
+            // 持久化单载体（B3a）：运行时镜像字段不进入 USharp 读写面，由权威字段在读取末尾回填。
+            if (prop.IsDefined(typeof(UsharpIgnoreAttribute), inherit: false)) continue;
 
             var mp = new MemberPlan { Name = prop.Name, Type = prop.PropertyType, Property = prop };
 

@@ -61,6 +61,9 @@ public static class DeclaredBundleBuilder
     /// <summary>连接点命令声明子目录名（<c>[Command]</c>）。</summary>
     public const string CommandsDirName = "commands";
 
+    /// <summary>状态/矩阵声明子目录名（<c>[Space]</c> / <c>[Matrix]</c>；O2 迁出 commands）。</summary>
+    public const string StateDirName = "state";
+
     /// <summary>提示词段声明文件名（配置根下；<c>[Segment]</c>）。</summary>
     public const string SegmentsFileName = "prompt-segments.ushar";
 
@@ -109,7 +112,7 @@ public static class DeclaredBundleBuilder
         return Build(LoadConfigDocuments(configRoot), configRoot);
     }
 
-    /// <summary>装载配置根下声明文档（<c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> 目录全部 + 根级段声明面，路径序）。</summary>
+    /// <summary>装载配置根下声明文档（<c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> / <c>state</c> 目录全部 + 根级段声明面，路径序）。</summary>
     /// <param name="configRoot">配置根目录。</param>
     public static IReadOnlyList<(string Path, string Text)> LoadConfigDocuments(string configRoot)
     {
@@ -120,6 +123,7 @@ public static class DeclaredBundleBuilder
                 Path.Combine(configRoot, WorkflowsDirName),
                 Path.Combine(configRoot, KeyspacesDirName),
                 Path.Combine(configRoot, CommandsDirName),
+                Path.Combine(configRoot, StateDirName),
             })
             .Select(s => (s.Path, s.Text))
             .ToList();

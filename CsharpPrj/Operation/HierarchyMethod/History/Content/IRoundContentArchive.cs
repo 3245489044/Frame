@@ -18,6 +18,18 @@ public interface IRoundContentArchive
     /// <summary>归档一轮原文（按 (会话容器, round) 幂等 upsert）。</summary>
     Task ArchiveAsync(string sessionId, int round, string messagesJson, string status, CancellationToken ct = default);
 
+    /// <summary>
+    /// 归档一轮原文并返回<b>结构化结果</b>（B5b）：<c>Archived</c> / <c>Messages</c> / <c>Reason</c> 分离，
+    /// 供账本对账复算；空归档必须带 reason（不静默）。
+    /// <para>缺省实现委托 <see cref="ArchiveAsync"/>（旧实现零破坏）；新实现应覆盖以给出真实 outcome。</para>
+    /// </summary>
+    async Task<RoundArchiveOutcome> ArchiveWithOutcomeAsync(
+        string sessionId, int round, string messagesJson, string status, CancellationToken ct = default)
+    {
+        await ArchiveAsync(sessionId, round, messagesJson, status, ct).ConfigureAwait(false);
+        return RoundArchiveOutcome.Ok(0);
+    }
+
     /// <summary>读取指定轮次原文（回放/对账/再材料化用）。</summary>
     Task<string?> LoadAsync(string sessionId, int round, CancellationToken ct = default);
 

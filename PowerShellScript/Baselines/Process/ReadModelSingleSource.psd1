@@ -9,11 +9,11 @@
     # 生成目录（op.model 与 readModels 段的唯一读取面）。
     Catalog = @{ Value = 'Projects\Plug\Agent\Config\commands\ui-commands.generated.json'; Origin = 'Derived'; DueWhen = '' }
 
-    # 声明条数（RM-B/C 已迁移 conversation.tree + cost.badge ⇒ 2）。
-    Declarations = @{ Value = 2; Origin = 'Derived'; DueWhen = 'RM-D/E 起随声明递增' }
+    # 声明条数（RM-B/C 迁移 conversation.tree + cost.badge ⇒ 3；B4a 增 task.runtime/task.board/history.board ⇒ 6）。
+    Declarations = @{ Value = 6; Origin = 'Derived'; DueWhen = 'RM-D/E 起随声明递增' }
 
-    # 投影实现数（= 声明条数；RM-B/C = 2）。
-    Projectors = @{ Value = 2; Origin = 'Derived'; DueWhen = '' }
+    # 投影实现数（= 声明条数；B4a = 6）。
+    Projectors = @{ Value = 6; Origin = 'Derived'; DueWhen = '' }
 
     # 视图侧缓存形态计数上限（RM-B/C 删除会话树缓存/成本 TTL 后实测 = 0；棘轮只降不升）。
     ViewCacheSites = @{ Value = 0; Origin = 'Debt'; DueWhen = '' }

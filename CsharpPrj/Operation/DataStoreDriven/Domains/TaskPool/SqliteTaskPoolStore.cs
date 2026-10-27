@@ -65,6 +65,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ArgumentNullException.ThrowIfNull(item);
         ct.ThrowIfCancellationRequested();
+        AssertStateConsistent(item);
         var now = PersistenceHelper.NowIso();
         // 读改写：保留既有 __createdAt（首次写入取 now）；Status 快照驱动取载荷内值，否则状态机初始 NotStarted。
         var existing = ReadEnvelope(item.TaskKey);
@@ -109,6 +110,9 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
         if (text is null) return Task.FromResult(false);
         if (!_codec.TryDeserializeRecord<TItem>(text, out var item) || item is null) return Task.FromResult(false);
         if (!_codec.TryDeserializeRecord(text, out _, out _, out _, out var body)) return Task.FromResult(false);
+        // 状态单源：body 镜像与 envelope 同值后才允许落盘（分叉 ⇒ fail-fast，不写坏快照）。
+        if (item is IStatusAwareTaskPoolItem statusItem) statusItem.Status = to;
+        AssertStateConsistent(item);
         var createdAt = Str(body, FieldCreatedAt) ?? PersistenceHelper.NowIso();
         var updated = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(to.ToString(), createdAt, PersistenceHelper.NowIso()));
         var affected = ExecuteNonQuery(
@@ -124,6 +128,7 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     {
         ArgumentNullException.ThrowIfNull(item);
         ct.ThrowIfCancellationRequested();
+        AssertStateConsistent(item);
         var existing = ReadEnvelope(taskKey);
         // 状态单写（防回写降级）：轮内快照的 item.Status 常为初始 NotStarted，
         // 不得把已迁移的 Running/Paused/Completed/Faulted/Cancelled 覆盖回 NotStarted；
@@ -138,6 +143,12 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
                 => existing.Status!,
             _ => proposed,
         };
+        // 状态单源：body 镜像回到最终 envelope 值（防「envelope 新 / body 旧」的分叉落盘）。
+        if (item is IStatusAwareTaskPoolItem statusItem
+            && Enum.TryParse<TaskExecutionStatus>(status, ignoreCase: false, out var parsed))
+        {
+            statusItem.Status = parsed;
+        }
         var createdAt = existing.CreatedAt ?? PersistenceHelper.NowIso();
         var text = _codec.SerializeRecord(RecordId(taskKey), TableId, taskKey, item, Envelope(status, createdAt, PersistenceHelper.NowIso()));
         ExecuteNonQuery(
@@ -258,7 +269,24 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     private bool TryReadItem(string doc, out TItem? item)
     {
         item = default;
-        return !string.IsNullOrWhiteSpace(doc) && _codec.TryDeserializeRecord<TItem>(doc, out item) && item is not null;
+        if (string.IsNullOrWhiteSpace(doc) || !_codec.TryDeserializeRecord<TItem>(doc, out item) || item is null)
+            return false;
+        // envelope Status 为持久化权威：旧行的 body 分叉（嵌套/平铺镜像）在读取末尾一次性纠正。
+        var envelopeStatus = UsharpGet.Extract(doc, UsharpRecordPaths.Status);
+        if (item is IStatusAwareTaskPoolItem statusItem
+            && !string.IsNullOrWhiteSpace(envelopeStatus)
+            && Enum.TryParse<TaskExecutionStatus>(envelopeStatus, ignoreCase: false, out var parsed))
+        {
+            statusItem.Status = parsed;
+        }
+        return true;
+    }
+
+    /// <summary>写前状态一致性守卫（B3a）：内存镜像分叉 ⇒ fail-fast（不落盘坏快照）。</summary>
+    private static void AssertStateConsistent(TItem item)
+    {
+        if (item is ITaskStateConsistency consistency && consistency.TryGetStateDivergence(out var detail))
+            throw new InvalidOperationException(detail);
     }
 
     private (string? Status, string? CreatedAt) ReadEnvelope(string taskKey)

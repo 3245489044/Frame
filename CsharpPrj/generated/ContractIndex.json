@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T14:57:45.5676671Z",
+  "builtAt": "2026-10-27T17:08:25.2092065Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -2413,6 +2413,111 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 15,
+          "role": "Doc",
+          "text": "┌─ 60a4d08ad969c92b     ← proc./obs./arch./cline@ 全部用它（写侧容器）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 33,
+          "role": "Doc",
+          "text": "| `proc.60a4d08ad969c92b` | `60a4d08ad969c92b` | **过程单行聚合（含工具帧）** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 43,
+          "role": "Doc",
+          "text": "`proc.60a4d08ad969c92b` 载荷（单行聚合 `rounds[].frames[]`，共 30 帧）节选："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 83,
+          "role": "Doc",
+          "text": "| C8 | 同文件 `:201-211` | Process 走 `StreamFrameReadAdapter`（单行流 → 帧级行；显示键 `proc.{task}.r{round}.{kind}.{seq}`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 94,
+          "role": "Doc",
+          "text": "- 写：`ProcessNodeSink` / `RunBoundary` 用 `session_key = task_id = 60a4…` 建容器 → `proc.60a4…`；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 96,
+          "role": "Doc",
+          "text": "- 若 `sessionName = history:5ad3…`（§1.3 的任务键），process 域读 `proc.history:5ad3…` ⇒ **0 行**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 130,
+          "role": "Doc",
+          "text": "| 1 | 容器不匹配（R1） | 面板可读但 0 行：`过程聚拢：Ok（组=0 行=0）` | 日志 `NodeDomainPort_ReadGuard` 的 `container=` vs `read-agentdb -Table ur_nodes -Where \"NodeKey LIKE 'proc.%'\"` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 132,
+          "role": "Doc",
+          "text": "| 3 | 帧级展开失败 | 面板有行但全归 `帧/节点` 徽标（无\"调用/结果\"） | 校验 `StreamFrameReadAdapter` 输出键是否 `proc.*`；载荷 `taskKey` 与读容器是否一致 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 144,
+          "role": "Doc",
+          "text": "| **G3 · 视图隔离（P0）** | `MergeObservabilityAsync` 加视图条件（仅 Task），或 History 显式声明「不并入过程/观测帧」 | History 视图 HTML 不含 `proc.`/`obs.` 锚点；Task 视图含 | 单行条件回退 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 151,
+          "role": "Doc",
+          "text": "> 1. `read-agentdb -Table ur_nodes -Where \"NodeKey LIKE 'proc.%'\"` → 取得真实容器集；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 177,
+          "role": "Doc",
+          "text": "与 SELECT NodeKey FROM ur_nodes WHERE NodeKey LIKE 'proc.%' 对比"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 141,
+          "role": "Doc",
+          "text": "| ② 规范为 `proc.<historyId>` | 需新规则 + 写侧改造 | 跨域容器语义统一，但改存量写点 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 193,
+          "role": "Doc",
+          "text": "3. 同时抓：`ur_nodes`（`proc.%` / `obs.%`）、`ur_tasks`、`ur_histories` 基线。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 200,
+          "role": "Doc",
+          "text": "∧ 键前缀 ∈ {proc., obs., cline@, arch.}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 206,
+          "role": "Doc",
+          "text": "pwsh Frame\\Invoke\\Invoke-Frame.ps1 -Action read-agentdb -Store agent -Table ur_nodes -Where \"NodeKey LIKE 'proc.%'\" -Limit 50"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
           "line": 19,
           "role": "Doc",
@@ -2522,6 +2627,13 @@
           "line": 271,
           "role": "Doc",
           "text": "- **P0-1 macro 端到端验收**（唯一目标终态度量：`region-nodes` 行数 ≥ 1 ∧ 键前缀 ∈ {proc., obs., cline@, arch.}）；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-重复冗余错误逻辑分析.md",
+          "line": 230,
+          "role": "Doc",
+          "text": "**后果**：当域声明了 `container` 坐标且 `on-miss=Fail`（如 `agent.task/container`：`from=task_member_ | strip-prefix | on-miss=Fail`）时，一个**本来就该按前缀裁剪**的读取（例如 `proc.` 全局前缀）会因「不像合法容器」被判 `Unavailable`，表现为面板整块不可用。"
         },
         {
           "repo": "Main",
@@ -3849,21 +3961,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 91,
+          "line": 90,
           "role": "Declaration",
           "text": "family domain.process | template=proc.{container} | prefix=proc. | relation=Member | cardinality=Many | domain=run | orderKeys= | identity=container | derivedPrefixes="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 92,
+          "line": 91,
           "role": "Declaration",
           "text": "surface domain.process/Storage | templates=proc.{container} | prefix=proc. | readOnly=proc.{container}.r{round:digits}.{kind}.{ordinal:digits},proc.{container}.r{round:digits}.step{ordinal:digits}"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 93,
+          "line": 92,
           "role": "Declaration",
           "text": "surface domain.process/Display | templates=proc.{container}.r{round:digits}.{kind}.{ordinal:digits} | prefix=proc. | readOnly="
         },
@@ -4153,118 +4265,6 @@
           "line": 214,
           "role": "Doc",
           "text": "\"key\": \"proc.{container}.r{round}.step{seq}\", \"form\": \"view\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 277,
-          "role": "Doc",
-          "text": "├─ 位置键（= overlay Key）= proc.{taskKey}.r{round}.step{seq} ← 内存节点用（须与落库后一致）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 283,
-          "role": "Doc",
-          "text": "> **overlay Key** 必须取**位置键**（`proc.*` 前缀），因为 Snapshot 侧的 `Key` 就是位置键。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 318,
-          "role": "Doc",
-          "text": "Key         : $\"proc.{taskKey}.r{round}.step{n.Seq}\",  // ← 位置键（与 Snapshot 同 Key）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 326,
-          "role": "Doc",
-          "text": "SelectionId: \"all\", KeyPrefix: $\"proc.{taskKey}.r{round}\"),"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 365,
-          "role": "Doc",
-          "text": "| **F-5** | 新 `Config\\nodes\\process.json`（**单位置** `process-node`，key `proc.{container}.r{round}.step{seq}`，`selections.llm=false`） | 声明（新） | `Test-JsonFiles` 4/4；装载 0 Error |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 403,
-          "role": "Doc",
-          "text": "| **D-8** | overlay 项用哪个 Key | **A** 身份键 `{container}.r{round}.step{seq}`／**B** 位置键 `proc.{container}.r{round}.step{seq}` | **B**（`Overlay` 的桶键由 `Key` 与 `PlacementId` **复合**而成，见 §8 证据索引；Snapshot 侧 Key"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 417,
-          "role": "Doc",
-          "text": "| **与 L-A 全量层重叠** | F-5 | P-1 | 独立键族（`proc.*`）+ 独立 `NodeType` 判别值 ⇒ 面板分组天然分离 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 76,
-          "role": "Doc",
-          "text": "| **G-2′ 可物化** | K2 的 `onNode` 由「诊断日志」改为**唯一写门** `ProcessNodeSink.Append(runKey, kind, payload)` | 过程节点进入 `proc.*` 域，轮末随既有沉淀路径落库 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 125,
-          "role": "Doc",
-          "text": "| 位置键 | `proc.…r{round}.step{seq}` | `proc.…r{round}.{kind}.{ordinal}` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 152,
-          "role": "Doc",
-          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\process.json` | `identity` → `{container}.r{round}.{kind}.{ordinal}`；`placements[process-node].key` → `proc.{container}.r{round}.{kind}.{ordinal}`；`sequence` 增 `kin"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 189,
-          "role": "Doc",
-          "text": "| `Frame\\PowerShellScript\\Modules\\Node\\Check-AgentProcessSurface.ps1` | **新增 P4**：`ProcessNodeKinds` 仅允许经 `RecognizedKinds` 赋值（禁再出现字面量 kind）；P1（`\"proc.\"` 单源）保持 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 190,
-          "role": "Doc",
-          "text": "| `Check-KeyGrammar.ps1` | K1b `\"proc.\"` 基线 = 1 **不变**；`.step` 退出历史（`.step` 未在字面量白名单内，无需改基线）；K2 基线 5 **不得上升**（新代码禁手写切片） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 205,
-          "role": "Doc",
-          "text": "| 1 | `Environment\\CentralTest\\AgentTest\\Agent.Modules.Tests\\ProcessKeysContractTests.cs` | `\"{container}.r{round}.step{seq}\"` / `\"proc.…\"` / `\"proc.task-1.r2.step37\"` / `TryParse` 三值签名 | 新模板字面量；`TryP"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 207,
-          "role": "Doc",
-          "text": "| 3 | `…\\ProcessNodeSinkTests.cs` | `\"proc.{taskKey}.r1.step1\"` 字面形状 | 新形状（含 `kind`/`ordinal` 段）；`PositionKey ↔ PositionKeyTemplate` 单源断言保持 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 218,
-          "role": "Doc",
-          "text": "| 键兼容读（旧形态） | `proc.task.r2.step37` 可解；`proc.task.r2.notakind.1` 不可解（D-6 负对照） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化识别与编排工作流化-总体方案.md",
-          "line": 280,
-          "role": "Doc",
-          "text": "| 位置键 | `proc.{container}.r{round}.step{seq}` | `proc.{container}.r{round}.{kind}.{ordinal}` | overlay 桶键与落库键同形（F-3 无闪断） |"
         }
       ]
     },
@@ -5408,10 +5408,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 6,
-        "Test": 44,
+        "Test": 42,
         "Declaration": 0,
         "Code": 168,
-        "Doc": 181,
+        "Doc": 183,
         "Other": 1
       },
       "hits": [
@@ -7174,6 +7174,20 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 32,
+          "role": "Doc",
+          "text": "| 3 | 5 族 `canonical=` + 规则集（`history:`/`arch.`/`smsg.`/`seg.`/`sv.`/`session:`/`session.`/`kind`） | 完成 | 同键空间文件 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-后续施工单.md",
+          "line": 258,
+          "role": "Doc",
+          "text": "2. **会话域坐标绑定为单族**：`conversation`/`message` 的 placement 跨 `domain.conversation` 与 `domain.archive`（`session.*` vs `cline.session.*`），当前绑定承载身份的主族；若后续要求「同一占位符跨族值域一致」，需在 `Check-KeySpaceInvariants` 增判据（会新增"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
           "line": 55,
           "role": "Doc",
@@ -8200,20 +8214,6 @@
           "line": 26,
           "role": "Test",
           "text": "{ \"family\": \"domain.archive\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"cline.session.c1.round.2\", \"source\": \"old-impl\", \"parseOnly\": true, \"stage\": \"KP0\" },"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 34,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.conversation\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"user\", \"ordinal\": \"7\" }, \"rendered\": \"session.c1.r2.user.7\", \"source\": \"old-impl\", \"stage"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 35,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.conversation\", \"surface\": \"Display\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"session.c1.r2.\", \"source\": \"manual\", \"prefix\": true, \"stage\": \"KB1\" }"
         }
       ]
     },
@@ -8222,14 +8222,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 353,
+      "total": 356,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 80,
         "Declaration": 54,
         "Code": 20,
-        "Doc": 195,
+        "Doc": 198,
         "Other": 1
       },
       "hits": [
@@ -8911,6 +8911,27 @@
           "line": 112,
           "role": "Doc",
           "text": "{ \"name\": \"kind\", \"shape\": \"enum\", \"required\": false, \"allowedValues\": [\"user\",\"assistant\",\"tool\",\"tool-call\",\"tool-result\",\"cost\",\"error\"] },"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 48,
+          "role": "Doc",
+          "text": "| 16 | **`tool-call`** | tool=`read_files`，callId=`call_00_kzM…` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 53,
+          "role": "Doc",
+          "text": "**结论（事实）**：工具调用已落库；`node-gather.ushar` 的 `tools` 族与 `tool-call`/`tool-result` 塑形（`titleKey=tool`、`badge=调用/结果`）齐备 ⇒ **不显示 = 读不到，不是塑形缺失**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-历史与任务节点渲染混乱-根因分析.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "| C9 | `Projects\\Plug\\Agent\\Config\\nodes\\node-gather.ushar:74-101` | process 族/塑形齐备（`tools` 族含 `tool-call`/`tool-result`） |"
         },
         {
           "repo": "Main",
@@ -10007,7 +10028,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 96,
+          "line": 95,
           "role": "Declaration",
           "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-reasoning,tool-call,tool-progress,tool-result,"
         },
@@ -11305,13 +11326,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1588.0,
+    "hitCount": 1591.0,
     "byRole": {
       "Gate": 28,
-      "Test": 279,
+      "Test": 277,
       "Declaration": 96,
       "Code": 345,
-      "Doc": 765,
+      "Doc": 770,
       "Other": 75
     },
     "truncatedFacts": [
@@ -11325,11 +11346,11 @@
       },
       {
         "repo": "Projects",
-        "lines": 493
+        "lines": 492
       },
       {
         "repo": "Main",
-        "lines": 1016
+        "lines": 1038
       }
     ]
   }

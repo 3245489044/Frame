@@ -4,9 +4,11 @@ using Usharp.Semantics;
 
 namespace Usharp.Emit;
 
-/// <summary>发射产物记录（吸收 7 份 Result 记录的基类样板：<c>DiagnosticList</c> / <c>EmptyReport</c>）。</summary>
-public sealed record UsharpEmitResult<T>(
-    T Value,
+/// <summary>
+/// 发射产物基类：吸收各 <c>*Result</c> 记录共有的两处样板（<c>DiagnosticList</c> / <c>EmptyReport</c>）。
+/// <para>子类只保留自身载荷字段（单行壳），诊断出口不再逐份重写。</para>
+/// </summary>
+public abstract record UsharpEmitResultBase(
     IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
 {
     /// <inheritdoc />
@@ -16,45 +18,42 @@ public sealed record UsharpEmitResult<T>(
     protected override string EmptyReport => "(no emit diagnostics)";
 }
 
-/// <summary>发射骨架：按 id 找单条声明 → 不可产出即报码（归因取声明 <c>文件:行</c>）。</summary>
+/// <summary>单载荷发射产物记录（<c>Value</c> + 诊断；骨架构件的通用返回形态）。</summary>
+public sealed record UsharpEmitResult<T>(
+    T Value,
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
+
+/// <summary>发射骨架：按 id 找单条声明 → 缺失即报码不产出（归因取给定装载面）。</summary>
 public static class UsharpEmit
 {
     /// <summary>
-    /// 统一「按 id 找单条 → 找不到 / 投影失败 ⇒ 不产出 + 报 <paramref name="notProducibleCode"/>」。
+    /// 统一「按 id 找单条 → 命中则投影；缺失 ⇒ 不产出 + 报 <paramref name="notProducibleCode"/>」。
+    /// <para>诊断文案与归因面由调用方给定（各发射器的对外文案属既有契约，禁在此改写）。</para>
     /// </summary>
     public static UsharpEmitResult<TDoc> Document<TDecl, TDoc>(
-        UsharpCompilation compilation,
-        string id,
-        string notProducibleCode,
-        string label,
         IEnumerable<TDecl> source,
+        string id,
         System.Func<TDecl, string> idOf,
-        System.Func<TDecl, (string File, int Line)> attribution,
-        System.Func<TDecl, TDoc?> project)
+        string notProducibleCode,
+        string message,
+        string file,
+        System.Func<TDecl, TDoc> project)
         where TDecl : class
         where TDoc : class
     {
-        System.ArgumentNullException.ThrowIfNull(compilation);
         System.ArgumentNullException.ThrowIfNull(source);
+        System.ArgumentNullException.ThrowIfNull(idOf);
+        System.ArgumentNullException.ThrowIfNull(project);
 
         var decl = source.FirstOrDefault(d => string.Equals(idOf(d), id, System.StringComparison.Ordinal));
         if (decl is null)
         {
-            var file = compilation.Documents.FirstOrDefault()?.FilePath ?? "(request)";
             return new UsharpEmitResult<TDoc>(null!, new[]
             {
-                UsharpDiagnostic.Error(notProducibleCode,
-                    $"{label}'{id}' 不可产出：本编译未声明该 id", file, 0),
+                UsharpDiagnostic.Error(notProducibleCode, message, file, 0),
             });
         }
 
-        var doc = project(decl);
-        var (sourceFile, line) = attribution(decl);
-        return doc is not null
-            ? new UsharpEmitResult<TDoc>(doc, System.Array.Empty<UsharpDiagnostic>())
-            : new UsharpEmitResult<TDoc>(null!, new[]
-            {
-                UsharpDiagnostic.Error(notProducibleCode, $"{label}'{id}' 不可产出：形态非法", sourceFile, line),
-            });
+        return new UsharpEmitResult<TDoc>(project(decl), System.Array.Empty<UsharpDiagnostic>());
     }
 }

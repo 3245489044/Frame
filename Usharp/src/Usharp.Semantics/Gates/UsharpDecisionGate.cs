@@ -46,7 +46,7 @@ internal sealed class DecisionGateRule : IGateRule<UsharpGateModel>
             if (string.IsNullOrWhiteSpace(matrix.OverSpaceId)) continue;
             if (!model.Spaces.TryGet(matrix.OverSpaceId, out var space)) continue;   // US1001 已报
 
-            var decision = UsharpDecisionDecl.From(matrix);
+            var decision = model.Decisions[matrix.MatrixId];
 
             if (space.Kind != UsharpSpaceKind.Terms)
             {

@@ -10,14 +10,7 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpLocPlacementResult(
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no loc-placement diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// 位置反解声明 → <c>loc → 位置 id 集</c> 映射（U12 L2：位置 = loc 的反解产物，不手写声明）。

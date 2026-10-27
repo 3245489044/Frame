@@ -10,14 +10,7 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpNodeSpecResult(
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no node-spec diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// 节点域定义面声明 → 中立 JSON（<c>domain / identity / context / sequence / placements / selections / retentions</c>）。
@@ -41,19 +34,16 @@ public static class UsharpNodeSpecEmitter
             throw new ArgumentException("域 id 不得为空", nameof(domainId));
         }
 
-        var diagnostics = new List<UsharpDiagnostic>();
-        var domain = compilation.Domains.FirstOrDefault(
-            d => string.Equals(d.DomainId, domainId, StringComparison.Ordinal));
+        var found = UsharpEmit.Document(
+            compilation.Domains,
+            domainId,
+            domain => domain.DomainId,
+            UsharpCodes.DomainSpecNotProducible,
+            $"节点域定义面不可产出：未找到 [Domain] {domainId}（域定义面的事实唯一真源）",
+            "(compilation)",
+            Serialize);
 
-        if (domain is null)
-        {
-            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.DomainSpecNotProducible,
-                $"节点域定义面不可产出：未找到 [Domain] {domainId}（域定义面的事实唯一真源）",
-                "(compilation)", 0));
-            return new UsharpNodeSpecResult(null, diagnostics);
-        }
-
-        return new UsharpNodeSpecResult(Serialize(domain), diagnostics);
+        return new UsharpNodeSpecResult(found.Value, found.Diagnostics);
     }
 
     /// <summary>规范化 JSON（<see cref="JsonObject"/> 保插入序 ⇒ 序 = 声明序，等价门可比对）。</summary>

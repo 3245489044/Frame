@@ -52,6 +52,7 @@ public static class UsharpUnitRegistry
         new ObsFacetProvider(),
         new UsharpFacetProvider<UsharpMatrixDecl>(DslSymbolKind.Matrix,
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Matrices)),
+        new DecisionFacetProvider(),
         new UsharpFacetProvider<UsharpFlowDecl>(DslSymbolKind.Flow,
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Flows)),
         new UsharpFacetProvider<UsharpRefDecl>(DslSymbolKind.Ref,

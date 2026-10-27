@@ -18,15 +18,24 @@ public static class UsharpRoundSpecEmitter
         ArgumentNullException.ThrowIfNull(compilation);
 
         var diagnostics = new List<UsharpDiagnostic>();
-        var flow = compilation.Flows.FirstOrDefault(f => string.Equals(f.FlowId, flowId, StringComparison.Ordinal));
-        if (flow is null)
-        {
-            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.FlowNotDeclared,
-                $"[Flow] '{flowId}' 未声明（本编译可发射的流：{string.Join(", ", compilation.Flows.Select(f => f.FlowId))}）",
-                compilation.Documents.FirstOrDefault()?.FilePath ?? "(request)", 0));
-            return new UsharpFlowEmitResult(null, null, diagnostics);
-        }
+        var found = UsharpEmit.Document(
+            compilation.Flows,
+            flowId,
+            flow => flow.FlowId,
+            UsharpCodes.FlowNotDeclared,
+            $"[Flow] '{flowId}' 未声明（本编译可发射的流：{string.Join(", ", compilation.Flows.Select(f => f.FlowId))}）",
+            compilation.Documents.FirstOrDefault()?.FilePath ?? "(request)",
+            flow => Project(compilation, flow, diagnostics));
 
+        return found.Value is null
+            ? new UsharpFlowEmitResult(null, null, found.Diagnostics)
+            : new UsharpFlowEmitResult(found.Value.Spec, found.Value.TransitionTable, diagnostics);
+    }
+
+    /// <summary>单条流声明 → 骨架契约 + 链转移表（投影点；诊断经 <paramref name="diagnostics"/> 汇集）。</summary>
+    private static Emitted Project(
+        UsharpCompilation compilation, UsharpFlowDecl flow, ICollection<UsharpDiagnostic> diagnostics)
+    {
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
         // 同文件节点表（D3）：步骤解析优先取本流所在文件的 [Node]，消除跨文件同名静默首胜。
         var sameFileNodes = UsharpNodePortReader.Read(compilation.Declarations, flow.SourceFile);
@@ -42,8 +51,13 @@ public static class UsharpRoundSpecEmitter
         // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）；复用本处已读的 [Node] 端口表。
         spec = UsharpControlFlowEmitter.Apply(spec, compilation, nodes);
 
-        return new UsharpFlowEmitResult(spec, UsharpTransitionTableBuilder.Build(flow), diagnostics);
+        return new Emitted(spec, UsharpTransitionTableBuilder.Build(flow));
     }
+
+    /// <summary>一次发射的中间产物（<see cref="UsharpEmit.Document"/> 的投影载体）。</summary>
+    private sealed record Emitted(
+        RoundSpec Spec,
+        IReadOnlyDictionary<string, string> TransitionTable);
 
     /// <summary>
     /// <c>[Flow]</c> 步骤声明的可执行体装配（**唯一映射点**）：步骤键 → <c>[Node]</c> → <see cref="RoundStep"/>。

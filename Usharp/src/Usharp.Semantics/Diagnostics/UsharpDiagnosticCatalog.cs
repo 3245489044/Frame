@@ -36,7 +36,6 @@ public static class UsharpDiagnosticCatalog
     public const string RuleEnabledInvalid = "US0010";
     public const string ObsEnumSegmentInvalid = "US0011";
     public const string DocumentBodyLineUnparsed = "US0012";
-    public const string TableDerivedUnsupported = "US0013";
 
     // ── US1xxx 闸A ──────────────────────────────────────────────────────
     public const string SpaceUnknown = "US1001";
@@ -167,7 +166,6 @@ public static class UsharpDiagnosticCatalog
         E(RuleEnabledInvalid, "Rule", UsharpSeverity.Error, "[Rule] enabled= 非法布尔", "ruleId, value"),
         E(ObsEnumSegmentInvalid, "Obs", UsharpSeverity.Error, "[Obs] enum= 段非法", "obsId, segment"),
         E(DocumentBodyLineUnparsed, "Document", UsharpSeverity.Error, "落库正文行不可解析", "documentId, line"),
-        E(TableDerivedUnsupported, "Table", UsharpSeverity.Error, "[Table] derived 列无 DDL 实现", "tableId, column"),
 
         E(SpaceUnknown, "Ref", UsharpSeverity.Error, "引用的空间未声明", "spaceId"),
         E(CoordUndeclared, "Ref", UsharpSeverity.Error, "引用坐标未在空间声明", "spaceId, key"),

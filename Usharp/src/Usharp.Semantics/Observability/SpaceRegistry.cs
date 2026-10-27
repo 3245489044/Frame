@@ -39,8 +39,9 @@ public sealed class SpaceRegistry : IUsharpDiagnosticCarrier
                     $"空间 {decl.SpaceId} 内坐标重复声明：{axis.Name}", decl.SourceFile, decl.LineNumber));
 
         // 声明面取值合法性：kind= 在场但非法 ⇒ 显式报错（不静默按 values 装配）
-        if (decl.KindRaw is not null
-            && !UsharpLanguage.SpaceKinds.Contains(decl.KindRaw, StringComparer.OrdinalIgnoreCase))
+        var kindInvalid = decl.KindRaw is not null
+            && !UsharpLanguage.SpaceKinds.Contains(decl.KindRaw, StringComparer.OrdinalIgnoreCase);
+        if (kindInvalid)
             _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.SpaceKindUnknown,
                 $"空间 {decl.SpaceId}: kind='{decl.KindRaw}' 非法（合法值：{string.Join("|", UsharpLanguage.SpaceKinds)}）",
                 decl.SourceFile, decl.LineNumber));
@@ -51,7 +52,8 @@ public sealed class SpaceRegistry : IUsharpDiagnosticCarrier
                 $"空间 {decl.SpaceId}: 坐标行无法解析（'{line}'）——形如 <坐标>[:<值类>] 或 <坐标>:<值类>(<min>..<max>)",
                 decl.SourceFile, decl.LineNumber));
 
-        if (decl.Axes.Count == 0)
+        // 空声明：非法 kind 已由 US0006 报出（坐标未装配是其后果），不再叠加第二码。
+        if (decl.Axes.Count == 0 && !kindInvalid)
             _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.DeclEmpty,
                 $"空间 {decl.SpaceId} 未声明任何坐标（缩进块为空）", decl.SourceFile, decl.LineNumber));
     }

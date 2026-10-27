@@ -19,24 +19,26 @@ public static class UsharpDecisionMatrixEmitter
     /// <summary>装配一个判据矩阵（<paramref name="space"/> 须为 <c>over=</c> 指向的词元空间声明）。</summary>
     /// <param name="decl">矩阵声明（<see cref="UsharpMatrixDecl.RawLines"/> 为续行真源）。</param>
     /// <param name="space">词元空间声明。</param>
-    public static UsharpMatrixBinding Emit(UsharpMatrixDecl decl, UsharpSpaceDecl space)
+    /// <param name="decision">既有判据读法投影（E5 单源；null ⇒ 就地投影，供独立调用方）。</param>
+    public static UsharpMatrixBinding Emit(
+        UsharpMatrixDecl decl, UsharpSpaceDecl space, UsharpDecisionDecl? decision = null)
     {
         ArgumentNullException.ThrowIfNull(decl);
         ArgumentNullException.ThrowIfNull(space);
 
         var diagnostics = new List<UsharpDiagnostic>();
-        var decision = UsharpDecisionDecl.From(decl);
+        var read = decision ?? UsharpDecisionDecl.From(decl);
 
         // 复合特征：同名即共享（一处定义、多面引用同一实例）。
         var crosses = new Dictionary<string, CrossFeature>(StringComparer.Ordinal);
-        foreach (var cross in decision.Crosses)
+        foreach (var cross in read.Crosses)
         {
             if (cross.When.Count == 0) continue;   // 闸A（US1106）已报
             crosses[cross.Name] = new CrossFeature(cross.Name, cross.When.Select(Term).ToList());
         }
 
-        var layers = new List<DecisionLayer>(decision.Layers.Count);
-        foreach (var layer in decision.Layers)
+        var layers = new List<DecisionLayer>(read.Layers.Count);
+        foreach (var layer in read.Layers)
         {
             var decisionLayer = new DecisionLayer(layer.LayerId, layer.OutputAxis, layer.Absorb);
             foreach (var rule in layer.Rules)

@@ -129,6 +129,19 @@ public sealed record UsharpSpaceDecl(
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var kindRaw = d.Field(UsharpLanguage.FieldKind)?.Trim();
+        var declared = string.IsNullOrWhiteSpace(kindRaw) ? null : kindRaw;
+
+        // kind= 在场但非法：只留诊断通道（US0006），**不做坐标装配** —— 否则非法声明会被
+        // 静默降级为值型空间并照常产出一批轴，形成「已报错却仍生效」的第二真源。
+        if (declared is not null && !UsharpLanguage.SpaceKinds.Contains(declared, StringComparer.OrdinalIgnoreCase))
+        {
+            return new UsharpSpaceDecl(d.Name, UsharpSpaceKind.Values, Array.Empty<UsharpAxis>(), d.SourceFile, d.LineNumber)
+            {
+                Contains = UsharpContainmentDecl.ParseList(d.Field(UsharpLanguage.FieldContains)),
+                KindRaw = declared,
+            };
+        }
+
         var kind = string.Equals(kindRaw, UsharpLanguage.KindKeys, StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Keys
             : string.Equals(kindRaw, UsharpLanguage.KindTerms, StringComparison.OrdinalIgnoreCase) ? UsharpSpaceKind.Terms
             : UsharpSpaceKind.Values;

@@ -23,7 +23,7 @@ public sealed record UsharpChainLink(
 /// </summary>
 public sealed record UsharpChainLinkResult(
     IReadOnlyList<UsharpChainLink> Links,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics)
 {
     /// <summary>落成的连接数（U-P9 判据取数）。</summary>
     public int LinkCount => Links.Count;
@@ -39,12 +39,6 @@ public sealed record UsharpChainLinkResult(
 
     /// <summary>连接边类型（声明序）。</summary>
     public IReadOnlyList<string> EdgeTypes => Links.Select(l => l.EdgeType).ToList();
-
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no connect diagnostics)";
 }
 
 /// <summary>

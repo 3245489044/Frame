@@ -57,6 +57,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
 
     public IReadOnlyList<UsharpMatrixDecl> Matrices => _facets.Facet<IReadOnlyList<UsharpMatrixDecl>>();
 
+    /// <summary><c>[Matrix]</c> 判据读法投影（E5：与装配共读同一份）。</summary>
+    public IReadOnlyDictionary<string, UsharpDecisionDecl> Decisions
+        => _facets.Facet<IReadOnlyDictionary<string, UsharpDecisionDecl>>();
+
     public IReadOnlyList<UsharpFlowDecl> Flows => _facets.Facet<IReadOnlyList<UsharpFlowDecl>>();
 
     public IReadOnlyList<UsharpRefDecl> Refs => _facets.Facet<IReadOnlyList<UsharpRefDecl>>();

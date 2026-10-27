@@ -10,14 +10,7 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpRefEdgeResult(
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no ref-edge diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// 归属边声明 → <c>edge=</c> 边类型集 + 引用明细（W1：归属事实的唯一声明面）。

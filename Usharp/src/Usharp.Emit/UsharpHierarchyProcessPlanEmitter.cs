@@ -13,14 +13,7 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpHierarchyPlanResult(
     HierarchyProcessPlan? Plan,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no plan diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// <c>[Flow]</c> → <see cref="HierarchyProcessPlan"/> 发射器（处理编排：方向 / 展开止层 / 预算）。
@@ -38,14 +31,19 @@ public static class UsharpHierarchyProcessPlanEmitter
     {
         ArgumentNullException.ThrowIfNull(compilation);
 
-        var flow = compilation.Flows.FirstOrDefault(f => string.Equals(f.FlowId, flowId, StringComparison.Ordinal));
-        if (flow is null)
-            return new UsharpHierarchyPlanResult(null, new[]
-            {
-                UsharpDiagnostic.Error(UsharpCodes.FlowNotDeclared,
-                    $"[Flow] '{flowId}' 未声明（本编译可编排的流：{string.Join(", ", compilation.Flows.Select(f => f.FlowId))}）",
-                    compilation.Documents.FirstOrDefault()?.FilePath ?? "(request)", 0),
-            });
+        var found = UsharpEmit.Document(
+            compilation.Flows,
+            flowId,
+            flow => flow.FlowId,
+            UsharpCodes.FlowNotDeclared,
+            $"[Flow] '{flowId}' 未声明（本编译可编排的流：{string.Join(", ", compilation.Flows.Select(f => f.FlowId))}）",
+            compilation.Documents.FirstOrDefault()?.FilePath ?? "(request)",
+            flow => new PlanFields(flow));
+
+        if (found.Value is null)
+            return new UsharpHierarchyPlanResult(null, found.Diagnostics);
+
+        var flow = found.Value.Flow;
 
         // 回退口径与闸A 同源（未知 order → BottomUp；非法 budget → 无显式预算）。
         UsharpPlanFields.TryOrder(flow, out var order);
@@ -65,4 +63,7 @@ public static class UsharpHierarchyProcessPlanEmitter
 
         return new UsharpHierarchyPlanResult(plan, diagnostics);
     }
+
+    /// <summary>投影载体（<see cref="UsharpEmit.Document"/> 需要 class 型 TDoc）。</summary>
+    private sealed record PlanFields(UsharpFlowDecl Flow);
 }

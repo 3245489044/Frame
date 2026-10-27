@@ -64,9 +64,6 @@ public static class UsharpCodes
     /// <summary>落库正文行不可解析（禁止仍返回成功）。</summary>
     public const string DocumentBodyLineUnparsed = UsharpDiagnosticCatalog.DocumentBodyLineUnparsed;
 
-    /// <summary><c>[Table] derived</c> 列无 DDL 实现（词表已声明但无效果，须可见化）。</summary>
-    public const string TableDerivedUnsupported = UsharpDiagnosticCatalog.TableDerivedUnsupported;
-
     // 矩阵装配面（[Matrix] 行 → 既有矩阵实例；判据/治理读法见 U2b）
     public const string MatrixRowInvalid = UsharpDiagnosticCatalog.MatrixRowInvalid;
     public const string AxisKindUnknown = UsharpDiagnosticCatalog.AxisKindUnknown;

@@ -10,14 +10,7 @@ namespace Usharp.Emit;
 /// </summary>
 public sealed record UsharpGatherSpecResult(
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no gather-spec diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// 节点聚拢声明 → 中立 JSON（<c>domain / kindField / groupByField? / families / kind-shaping</c>）。
@@ -41,19 +34,16 @@ public static class UsharpGatherSpecEmitter
             throw new ArgumentException("域 id 不得为空", nameof(domainId));
         }
 
-        var diagnostics = new List<UsharpDiagnostic>();
-        var gather = compilation.Gathers.FirstOrDefault(
-            g => string.Equals(g.DomainId, domainId, StringComparison.Ordinal));
+        var found = UsharpEmit.Document(
+            compilation.Gathers,
+            domainId,
+            gather => gather.DomainId,
+            UsharpCodes.GatherSpecNotProducible,
+            $"节点聚拢声明不可产出：未找到 [Gather] {domainId}（收集端口的事实唯一真源）",
+            "(compilation)",
+            Serialize);
 
-        if (gather is null)
-        {
-            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.GatherSpecNotProducible,
-                $"节点聚拢声明不可产出：未找到 [Gather] {domainId}（收集端口的事实唯一真源）",
-                "(compilation)", 0));
-            return new UsharpGatherSpecResult(null, diagnostics);
-        }
-
-        return new UsharpGatherSpecResult(Serialize(gather), diagnostics);
+        return new UsharpGatherSpecResult(found.Value, found.Diagnostics);
     }
 
     /// <summary>规范化 JSON（<see cref="JsonObject"/> 保插入序 ⇒ 键序 = 声明序，等价门可比对）。</summary>

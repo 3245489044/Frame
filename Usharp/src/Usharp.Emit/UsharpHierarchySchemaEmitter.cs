@@ -12,14 +12,7 @@ namespace Usharp.Emit;
 public sealed record UsharpHierarchySchemaResult(
     HierarchySchema? Schema,
     string? Json,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no schema diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
 
 /// <summary>
 /// <c>[Space] contains=</c> 图 → **单根** <see cref="HierarchySchema"/> 发射器（"层次是数据"的 Usharp 侧产出面）。

@@ -15,11 +15,16 @@ public static class UsharpMatrixEmitter
     public static UsharpMatrixEmitResult Emit(UsharpCompilation compilation)
     {
         ArgumentNullException.ThrowIfNull(compilation);
-        return Emit(compilation.Matrices, compilation.Spaces);
+        return Emit(compilation.Matrices, compilation.Spaces, compilation.Decisions);
     }
 
-    /// <summary>装配给定矩阵声明集（空间判据来自 <paramref name="spaces"/>，与闸A 同一真源）。</summary>
-    public static UsharpMatrixEmitResult Emit(IReadOnlyList<UsharpMatrixDecl> matrices, SpaceRegistry spaces)
+    /// <summary>
+    /// 装配给定矩阵声明集（空间判据来自 <paramref name="spaces"/>，与闸A 同一真源；
+    /// 判据读法取 <paramref name="decisions"/> 的既有投影，缺省时按声明就地投影）。
+    /// </summary>
+    public static UsharpMatrixEmitResult Emit(
+        IReadOnlyList<UsharpMatrixDecl> matrices, SpaceRegistry spaces,
+        IReadOnlyDictionary<string, UsharpDecisionDecl>? decisions = null)
     {
         ArgumentNullException.ThrowIfNull(matrices);
         ArgumentNullException.ThrowIfNull(spaces);
@@ -35,7 +40,10 @@ public static class UsharpMatrixEmitter
             var binding = space.Kind switch
             {
                 UsharpSpaceKind.Values => UsharpParameterMatrixEmitter.Emit(decl, space),
-                UsharpSpaceKind.Terms => UsharpDecisionMatrixEmitter.Emit(decl, space),
+                UsharpSpaceKind.Terms => UsharpDecisionMatrixEmitter.Emit(
+                    decl, space, decisions is not null && decisions.TryGetValue(decl.MatrixId, out var decision)
+                        ? decision
+                        : null),
                 _ => UsharpTransitionMatrixEmitter.Emit(decl, space),
             };
 

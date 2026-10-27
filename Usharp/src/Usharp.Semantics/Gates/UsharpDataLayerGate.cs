@@ -4,7 +4,7 @@ using Usharp.Syntax;
 
 namespace Usharp.Semantics;
 
-/// <summary>闸A：<c>[Table]</c> 数据层形态（列类型/标志受控词、列名唯一、<c>derived</c> 无实现可见化）。</summary>
+/// <summary>闸A：<c>[Table]</c> 数据层形态（列类型/标志受控词、列名唯一）。</summary>
 internal sealed class TableGateRule : IGateRule<UsharpGateModel>
 {
     public string Name => "usharp.table";
@@ -35,14 +35,6 @@ internal sealed class TableGateRule : IGateRule<UsharpGateModel>
 
                 foreach (var flag in column.Flags)
                 {
-                    if (string.Equals(flag, "derived", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.TableDerivedUnsupported,
-                            $"[Table] {table.TableId}.{column.Name}: 标志 'derived' 尚无 DDL 实现（不得静默忽略）",
-                            table.SourceFile, table.LineNumber));
-                        continue;
-                    }
-
                     if (!UsharpLanguage.ColumnFlags.Contains(flag, StringComparer.OrdinalIgnoreCase))
                         sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.TableColumnInvalid,
                             $"[Table] {table.TableId}.{column.Name}: 标志 '{flag}' 不在受控词（{string.Join("|", UsharpLanguage.ColumnFlags)}）",

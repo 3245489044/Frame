@@ -56,6 +56,10 @@ public sealed class UsharpCompilation : IUsharpFacetReader
 
     public SpaceRegistry Spaces => Facet<SpaceRegistry>();
     public IReadOnlyList<UsharpMatrixDecl> Matrices => Facet<IReadOnlyList<UsharpMatrixDecl>>();
+
+    /// <summary><c>[Matrix]</c> 判据读法投影（E5：闸A 与装配共读，禁各自解析）。</summary>
+    public IReadOnlyDictionary<string, UsharpDecisionDecl> Decisions
+        => Facet<IReadOnlyDictionary<string, UsharpDecisionDecl>>();
     public IReadOnlyList<UsharpFlowDecl> Flows => Facet<IReadOnlyList<UsharpFlowDecl>>();
     public IReadOnlyList<UsharpRefDecl> Refs => Facet<IReadOnlyList<UsharpRefDecl>>();
 

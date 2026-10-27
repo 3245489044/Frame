@@ -112,9 +112,9 @@ public static class UsharpLanguage
     public static readonly string[] ColumnTypes =
         { "string", "int", "decimal", "bool", "record", "list", "bytes" };
 
-    /// <summary>表列标志受控词（数据层标声明）。</summary>
+    /// <summary>表列标志受控词（数据层标声明；无 DDL 实现的标志不入词表，避免「可写但无效果」的假声明）。</summary>
     public static readonly string[] ColumnFlags =
-        { "auto", "unique", "source", "derived", "blob" };
+        { "auto", "unique", "source", "blob" };
 
 
     /// <summary>分支声明前缀（R3 声明式控制流：判定键 → then/else 激活/抑制）。</summary>

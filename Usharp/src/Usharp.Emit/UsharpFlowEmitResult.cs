@@ -10,11 +10,4 @@ namespace Usharp.Emit;
 public sealed record UsharpFlowEmitResult(
     RoundSpec? Spec,
     IReadOnlyDictionary<string, string>? TransitionTable,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpDiagnosticResult
-{
-    /// <inheritdoc />
-    protected override IReadOnlyList<UsharpDiagnostic> DiagnosticList => Diagnostics;
-
-    /// <inheritdoc />
-    protected override string EmptyReport => "(no emit diagnostics)";
-}
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);

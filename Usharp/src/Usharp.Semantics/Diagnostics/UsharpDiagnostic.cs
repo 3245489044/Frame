@@ -56,6 +56,23 @@ public static class UsharpCodes
     public const string CommandSpaceUndeclared = UsharpDiagnosticCatalog.CommandSpaceUndeclared;
 
     /// <summary><c>[Rule] enabled=</c> 非法布尔值（禁止静默变 null）。</summary>
+    public const string ReadModelDuplicate = UsharpDiagnosticCatalog.ReadModelDuplicate;
+
+    public const string ReadModelSourceMissing = UsharpDiagnosticCatalog.ReadModelSourceMissing;
+
+    public const string ReadModelVersionUnknown = UsharpDiagnosticCatalog.ReadModelVersionUnknown;
+
+    public const string ReadModelTtlInvalid = UsharpDiagnosticCatalog.ReadModelTtlInvalid;
+
+    public const string ReadModelProjectorMissing = UsharpDiagnosticCatalog.ReadModelProjectorMissing;
+
+    public const string ReadModelLineUnparsed = UsharpDiagnosticCatalog.ReadModelLineUnparsed;
+
+    public const string ReadModelOpRefUnknown = UsharpDiagnosticCatalog.ReadModelOpRefUnknown;
+
+    public const string ReadModelUnused = UsharpDiagnosticCatalog.ReadModelUnused;
+
+    /// <summary><c>[Rule] enabled=</c> 非法布尔值（禁止静默变 null）。</summary>
     public const string RuleEnabledInvalid = UsharpDiagnosticCatalog.RuleEnabledInvalid;
 
     /// <summary><c>[Obs] enum=</c> 段非法（禁止静默丢弃声明）。</summary>

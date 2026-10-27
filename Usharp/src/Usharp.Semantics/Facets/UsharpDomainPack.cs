@@ -34,6 +34,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDoma
         new GatherGateRule(),
         new KeySpaceGateRule(),
         new CommandGateRule(),
+        new ReadModelGateRule(),
         new TableGateRule(),
         new RecordGateRule(),
         new RuleGateRule(),

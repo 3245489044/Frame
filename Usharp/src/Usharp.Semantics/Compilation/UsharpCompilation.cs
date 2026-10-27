@@ -81,6 +81,9 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary><c>[Command]</c> 连接点命令声明（action/op 路由 + 键配方；声明序）。</summary>
     public IReadOnlyList<UsharpCommandDecl> Commands => Facet<IReadOnlyList<UsharpCommandDecl>>();
 
+    /// <summary><c>[ReadModel]</c> 读模型声明（模型 id → 源键/版本源/投影器/参数名表；声明序）。</summary>
+    public IReadOnlyList<UsharpReadModelDecl> ReadModels => Facet<IReadOnlyList<UsharpReadModelDecl>>();
+
     /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
     public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
 

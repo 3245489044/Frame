@@ -1018,6 +1018,16 @@
         Note   = '降维门禁（D1–D6）：C0 登记载体自审（Carrier/Note 不含语义豁免词）/ C1–C4 计数棘轮（只降不升）/ C5 取证下限（ADR-6 降维不得删信息）/ C6 声明面完备（rules 须声明集合级 default、条目禁步骤键）/ C7 正对照（符号清单被掏空即判「判据无标的」）/ C8 负对照 ADR-1..ADR-6 / C9 -Target 列真实目标差距；基线 = Baselines\Process\DimensionReduction.psd1；-WriteBaseline 为写操作，聚合器禁用'
     }
 
+    # ===== 读模型单源门禁（读模型框架 RM-A）=====
+    ReadModelSingleSource = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Carrier = '生成目录 JSON 结构（op.model ↔ readModels[].model）+ 源码静态计数（IReadModelProjector 实现数 / 视图缓存形态）'
+        Note   = '读模型单源 R1–R5：op.model 声明闭合（悬空/死声明判红）/ 视图侧缓存形态棘轮（只降不升）/ 投影实现数=声明数 / 负对照三样本必红 / 版本源词表 + versionProbe 非空；基线 = Baselines\Process\ReadModelSingleSource.psd1；判据口径 = op 级 model=（channel=ReadModel 为命令通道枚举，不参与）'
+    }
+
     # ===== UI 单入口门禁（连接点重构 R7）=====
     UiSingleEntry = @{
         Domain = 'Process'

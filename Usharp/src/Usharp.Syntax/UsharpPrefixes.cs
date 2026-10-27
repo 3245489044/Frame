@@ -55,6 +55,8 @@ public static class UsharpPrefixes
         new(UsharpLanguage.KeySpacePrefix, DslSymbolKind.KeySpace, "KeySpace"),
         // 连接点命令声明语言单元（[Command]）：action/op 路由 + 键配方
         new(UsharpLanguage.CommandPrefix, DslSymbolKind.Command, "Command"),
+        // 读模型声明语言单元（[ReadModel]）：模型 id → 源键/版本源/投影器/参数名表
+        new(UsharpLanguage.ReadModelPrefix, DslSymbolKind.ReadModel, "ReadModel"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

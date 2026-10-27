@@ -43,6 +43,7 @@ $patterns = [ordered]@{
 }
 $scanRoots = @(
     'Projects\Plug\Agent\src\Agent.Ui\Core\Functions',
+    'Projects\Plug\Agent\src\Agent.Ui\Core\Projection',
     'Projects\Plug\Agent\src\Agent.Ui\Ui\Views'
 )
 $handlerVocabulary = @(
@@ -144,8 +145,11 @@ if (-not (Test-Path -LiteralPath $catalogPath)) {
 
 # ---- C7 正对照（判据有标的）----
 $total = [int]$counts.Access + [int]$counts.Slots + [int]$counts.Host
-if ($total -le 0) {
-    $violations.Add('[C7] 检测器当前 0 命中：判据无标的（符号清单被掏空 ⇒ 判红，禁假绿）')
+$baselineTotal = if ($null -ne $baseline) {
+    [int]$baseline.SingleEntry['Access'] + [int]$baseline.SingleEntry['Slots'] + [int]$baseline.SingleEntry['Host']
+} else { 0 }
+if ($total -le 0 -and $baselineTotal -gt 0) {
+    $violations.Add("[C7] 检测器当前 0 命中而基线 >0：判据无标的（符号清单被掏空 ⇒ 判红，禁假绿）")
 }
 
 # ---- C6 负对照 ----

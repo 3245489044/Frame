@@ -110,7 +110,7 @@
             GeneratorArgs      = @{ ConfigRoot = 'Projects\Plug\Agent\Config'; OutFile = '{TEMP}'; Kind = 'commands' }
             Kind               = 'Json'
             IgnoreJsonFields   = @()
-            SentinelPattern    = 'ui-commands-v1'
+            SentinelPattern    = 'ui-commands-v2'
             FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -OutFile Projects\Plug\Agent\Config\commands\ui-commands.generated.json -Kind commands'
             Origin             = 'Derived'
             DueWhen            = ''

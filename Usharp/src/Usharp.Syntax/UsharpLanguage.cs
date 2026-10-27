@@ -29,6 +29,24 @@ public static class UsharpLanguage
     /// <summary>连接点命令声明前缀（action/op → channel/intent/handler/projector/ports + 键配方）。</summary>
     public const string CommandPrefix = "[Command]";
 
+    /// <summary>读模型声明前缀（模型 id → 源键/版本源/投影器/参数名表；<c>[ReadModel]</c>）。</summary>
+    public const string ReadModelPrefix = "[ReadModel]";
+
+    /// <summary>读模型源键字段（<c>source=</c>：<c>Slot.&lt;HostPort&gt;</c> / <c>Service.&lt;TypeName&gt;</c>，逗号或 <c>+</c> 分隔）。</summary>
+    public const string ReadModelFieldSource = "source";
+
+    /// <summary>读模型版本源字段（<c>version=</c>：None|Ttl|Event|GraphMembership）。</summary>
+    public const string ReadModelFieldVersion = "version";
+
+    /// <summary>读模型缓存存活期字段（<c>ttl=</c>；仅 Ttl 模式必填）。</summary>
+    public const string ReadModelFieldTtl = "ttl";
+
+    /// <summary>读模型投影器名（<c>projector=</c>；每名恰一实现）。</summary>
+    public const string ReadModelFieldProjector = "projector";
+
+    /// <summary>读模型允许的读参数名（<c>args=</c>；缺省空 = 无参）。</summary>
+    public const string ReadModelFieldArgs = "args";
+
     /// <summary>表结构声明前缀（数据层：让数据库表由声明派生；<c>[Table]</c>）。</summary>
     public const string TablePrefix = "[Table]";
 

@@ -62,7 +62,7 @@ public static class DeclaredBundleBuilder
     /// <summary>键空间产物文件名（与 Agent 侧 keyspace loader 同 schema）。</summary>
     public const string KeySpaceFileName = "agent.keyspace.generated.json";
 
-    /// <summary>连接点命令目录产物文件名（<c>ui-commands-v1</c>）。</summary>
+    /// <summary>连接点命令目录产物文件名（<c>ui-commands-v2</c>，<c>readModels</c> 段随读模型声明落地）。</summary>
     public const string CommandsFileName = "ui-commands.generated.json";
 
     /// <summary>产物文件名（磁盘形态）。</summary>
@@ -276,7 +276,8 @@ public static class DeclaredBundleBuilder
                 Distinct(nodes.Values.SelectMany(n => n.InputPorts)),
                 Distinct(nodes.Values.SelectMany(n => n.OutputPorts))),
             bindings,
-            BuildVocabulary(compilation));
+            BuildVocabulary(compilation),
+            BuildReadModels(compilation));
     }
 
     /// <summary>词表（G4）：<c>[Space]</c> 声明 → 空间号 + 种类 + 坐标名表（键型/词元型空间即词表真源）。
@@ -324,6 +325,12 @@ public static class DeclaredBundleBuilder
         return spec;
     }
 
+    /// <summary>读模型声明段（声明序；漂移守卫按此段对账）。</summary>
+    private static IReadOnlyList<ManifestReadModel> BuildReadModels(UsharpCompilation compilation)
+        => compilation.ReadModels
+            .Select(m => new ManifestReadModel(m.ModelId, m.Sources, m.Version, m.TtlMs, m.Projector, m.Args))
+            .ToList();
+
     private static IReadOnlyList<string> Distinct(IEnumerable<string> values)
         => values.Where(v => !string.IsNullOrWhiteSpace(v))
             .Distinct(StringComparer.Ordinal)
@@ -338,7 +345,13 @@ public static class DeclaredBundleBuilder
         string Schema, string Fingerprint, IReadOnlyList<ManifestFlow> Flows,
         IReadOnlyList<string> Functions, ManifestPorts Ports,
         IReadOnlyList<ManifestBinding> Bindings,
-        IReadOnlyList<ManifestVocabulary> Vocabulary);
+        IReadOnlyList<ManifestVocabulary> Vocabulary,
+        IReadOnlyList<ManifestReadModel> ReadModels);
+
+    /// <summary>读模型声明条目（<c>[ReadModel]</c> 语法单元落地前恒为空表；漂移守卫按此段对账）。</summary>
+    private sealed record ManifestReadModel(
+        string Model, IReadOnlyList<string> Sources, string Version, int? Ttl,
+        string? Projector, IReadOnlyList<string> Args);
 
     /// <summary>绑定条目（冻结产物）：声明侧标识 + 实现面函数名 + 端口契约（结构事实）。</summary>
     private sealed record ManifestBinding(

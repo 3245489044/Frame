@@ -84,6 +84,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpCommandDecl> Commands
         => _facets.TryGetFacet<IReadOnlyList<UsharpCommandDecl>>(out var cmd) ? cmd : Array.Empty<UsharpCommandDecl>();
 
+    /// <summary><c>[ReadModel]</c> 读模型声明（空表 = 本编译无读模型声明面）。</summary>
+    public IReadOnlyList<UsharpReadModelDecl> ReadModels
+        => _facets.TryGetFacet<IReadOnlyList<UsharpReadModelDecl>>(out var rm) ? rm : Array.Empty<UsharpReadModelDecl>();
+
     /// <summary><c>[Table]</c> 表结构声明（空表 = 本编译无数据层）。</summary>
     public IReadOnlyList<UsharpTableDecl> Tables
         => _facets.TryGetFacet<IReadOnlyList<UsharpTableDecl>>(out var t) ? t : Array.Empty<UsharpTableDecl>();

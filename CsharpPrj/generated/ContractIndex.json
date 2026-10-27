@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T05:44:14.5562912Z",
+  "builtAt": "2026-10-27T10:52:49.9805993Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1153,7 +1153,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Ui/Views/Cost/CostBadgeProvider.cs",
-          "line": 23,
+          "line": 18,
           "role": "Code",
           "text": "private static readonly Regex RoundKey = new(\"#R(?<n>\\\\d+)$\", RegexOptions.Compiled);"
         }
@@ -1455,13 +1455,13 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 399,
-      "truncated": false,
+      "total": 400,
+      "truncated": true,
       "byRole": {
         "Gate": 5,
         "Test": 83,
-        "Declaration": 8,
-        "Code": 38,
+        "Declaration": 15,
+        "Code": 32,
         "Doc": 201,
         "Other": 64
       },
@@ -3687,6 +3687,55 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 239,
+          "role": "Declaration",
+          "text": "\"template\": \"proc.{container}\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 240,
+          "role": "Declaration",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 270,
+          "role": "Declaration",
+          "text": "\"templates\": [ \"proc.{container}\" ],"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 271,
+          "role": "Declaration",
+          "text": "\"familyPrefix\": \"proc.\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 273,
+          "role": "Declaration",
+          "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 274,
+          "role": "Declaration",
+          "text": "\"proc.{container}.r{round:digits}.step{ordinal:digits}\""
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 277,
+          "role": "Declaration",
+          "text": "\"Display\": { \"templates\": [ \"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\" ], \"familyPrefix\": \"proc.\" }"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
           "line": 57,
           "role": "Declaration",
@@ -4216,48 +4265,6 @@
           "line": 198,
           "role": "Code",
           "text": "/// 装配过程域载体（运行过程节点落库面：<c>proc.{container}.r{round}.{kind}.{ordinal}</c>）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/Signal/ProcessStreamNodes.cs",
-          "line": 10,
-          "role": "Code",
-          "text": "/// 与观测域**独立成槽**（D-4=①：两域名共用通用件、互不串味）：位置键 <c>proc.{container}</c>、"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Session/Contracts/IProcessMessageSource.cs",
-          "line": 9,
-          "role": "Code",
-          "text": "/// 过程节点消息源（**中立端口**）—— 把「过程域节点（<c>proc.*</c>：工具 / LLM / 阶段 / 心跳…）」"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
-          "line": 72,
-          "role": "Code",
-          "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
-          "line": 73,
-          "role": "Code",
-          "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.View.cs",
-          "line": 223,
-          "role": "Code",
-          "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ObservabilityMessageMerge.cs",
-          "line": 21,
-          "role": "Code",
-          "text": "/// <summary>合并帧与 canonical 消息（canonical 的 <c>proc.*</c> 条目在帧非空时剔除，保持双写期去重语义）。</summary>"
         }
       ]
     },
@@ -4266,14 +4273,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 155,
+      "total": 159,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
-        "Code": 78,
-        "Doc": 60,
+        "Code": 81,
+        "Doc": 61,
         "Other": 1
       },
       "hits": [
@@ -4710,6 +4717,13 @@
           "line": 327,
           "role": "Doc",
           "text": "- **结构事实**：`AgentWriteSources.DeleteHistoryCoreAsync` 在 `IHistoryCommandPort` 未装配时回落 `IHistoryStore.DeleteAsync + relations.DeleteAsync`【事实：`Functions\\Batch\\AgentWriteSources.cs:196-225`】。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-Agent框架-UI与键及后端连接点聚拢-重构方案.md",
+          "line": 314,
+          "role": "Doc",
+          "text": "| `relations.*` / `graph.*` | `AgentUiLibraryRuntime` | ApiPort / ReadModel | `ReferenceGrounding` | workflowId / relationId |"
         },
         {
           "repo": "Main",
@@ -5182,113 +5196,134 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Connection/Handlers/MiscHandlers.cs",
+          "line": 47,
+          "role": "Code",
+          "text": "\"declare\" => UiHandlerSupport.OkAsync(\"relations.declare\", port.DeclareRelationsAsync(request)),"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Connection/Handlers/MiscHandlers.cs",
+          "line": 48,
+          "role": "Code",
+          "text": "\"undeclare\" => UiHandlerSupport.OkAsync(\"relations.undeclare\", port.UndeclareRelationsAsync(request)),"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Core/Connection/Handlers/MiscHandlers.cs",
+          "line": 49,
+          "role": "Code",
+          "text": "_ => UiHandlerSupport.OkAsync(\"relations.list\", port.ListRelationsAsync(request)),"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentUiLibraryCleanup.cs",
-          "line": 274,
+          "line": 277,
           "role": "Code",
           "text": "return await relations.GetTaskKeysAsync(key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
-          "line": 200,
+          "line": 203,
           "role": "Code",
           "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 316,
+          "line": 319,
           "role": "Code",
           "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 565,
+          "line": 568,
           "role": "Code",
           "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 134,
+          "line": 137,
           "role": "Code",
           "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 264,
+          "line": 267,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 314,
+          "line": 317,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 354,
+          "line": 357,
           "role": "Code",
           "text": "// ---- 声明式构建 + 图维护（relations.* / graph.*）----"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 358,
+          "line": 361,
           "role": "Code",
           "text": "/// <summary>主动声明关系（relations.declare）：经守卫写 ur_nodes + 推导边。未装配守卫返回诊断。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 363,
+          "line": 366,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.declare 不可用：请经完整框架路径装配引用层。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 365,
+          "line": 368,
           "role": "Code",
           "text": "return \"（缺少声明）relations.declare 需提供 declarations[]（relationId + from/to/refType）。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 370,
+          "line": 373,
           "role": "Code",
           "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 375,
+          "line": 378,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.undeclare 不可用。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 377,
+          "line": 380,
           "role": "Code",
           "text": "return \"（缺少 relationIds）relations.undeclare 需提供 relationIds[]。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 382,
+          "line": 385,
           "role": "Code",
           "text": "/// <summary>列出声明（relations.list）为文本。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 386,
+          "line": 389,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.list 不可用。\";"
         },
@@ -8187,12 +8222,12 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 350,
+      "total": 353,
       "truncated": false,
       "byRole": {
         "Gate": 3,
-        "Test": 78,
-        "Declaration": 53,
+        "Test": 80,
+        "Declaration": 54,
         "Code": 20,
         "Doc": 195,
         "Other": 1
@@ -9690,6 +9725,20 @@
           "text": "\"tools\": \"kind in (tool;tool-call;tool-progress;tool-result)\","
         },
         {
+          "repo": "Main",
+          "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/task-node.json",
+          "line": 38,
+          "role": "Test",
+          "text": "\"role.tool-call\": \"6\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/task-node.json",
+          "line": 46,
+          "role": "Test",
+          "text": "\"owns-tool\": \"role.tool-call\","
+        },
+        {
           "repo": "Projects",
           "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_conversation_toolcall_node_display_test.json",
           "line": 31,
@@ -9933,6 +9982,13 @@
           "line": 30,
           "role": "Doc",
           "text": "| **子智能体单步功能** | `agent_subagent/agent_subagent_function_test` | 带标签 task → `subagent-single-step`：`tool-catalog` index/describe、`tool-call` 确定性直调、写工具幂等门、非法 op、未登记标签负对照；强判据 = 任务终态 + 结果节点 `result:<task"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
+          "line": 260,
+          "role": "Declaration",
+          "text": "\"llm-iteration\", \"llm-text\", \"llm-reasoning\", \"tool-call\", \"tool-progress\", \"tool-result\","
         },
         {
           "repo": "Projects",
@@ -10718,7 +10774,7 @@
         {
           "repo": "Frame",
           "file": "Usharp/src/Usharp.Emit/UsharpLocPlacementEmitter.cs",
-          "line": 152,
+          "line": 145,
           "role": "Code",
           "text": "/// 行输出 = 位置 id（<c>archive_raw → archive-raw</c>）；行输入 = loc 值（<c>agent_round → agent-round</c>）。"
         },
@@ -11235,16 +11291,17 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1578.0,
+    "hitCount": 1586.0,
     "byRole": {
       "Gate": 28,
-      "Test": 280,
-      "Declaration": 88,
-      "Code": 362,
-      "Doc": 745,
+      "Test": 282,
+      "Declaration": 96,
+      "Code": 359,
+      "Doc": 746,
       "Other": 75
     },
     "truncatedFacts": [
+      "key.proc",
       "key.session"
     ],
     "repoLines": [
@@ -11254,11 +11311,11 @@
       },
       {
         "repo": "Projects",
-        "lines": 467
+        "lines": 489
       },
       {
         "repo": "Main",
-        "lines": 992
+        "lines": 995
       }
     ]
   }

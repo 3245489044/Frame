@@ -37,8 +37,10 @@ $checks = @(
        Must = @('RunProjectionAsync', '"member_keys"') },
     @{ Tag = 'R2'; File = 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Workflows\RoundSpecProjection.cs';
        Must = @('class RoundSpecProjector', 'MissingOutputs', 'producers') },
+    @{ Tag = 'R3'; File = 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\AgentReadModelBootstrap.cs';
+       Must = @('"conversation.tree"', 'ReadModelVersionMode.GraphMembership', 'new ReadModelHost(') },
     @{ Tag = 'R3'; File = 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\ConversationTreeProjection.cs';
-       Must = @('ConversationTreeSnapshotCache.TryGet', 'versionSource.MembershipVersion', 'ConversationTreeSnapshotCache.Put') },
+       Must = @('ReadCoreAsync', 'IHistoryRootCatalog', 'IReadOnlyList<HistoryNode>') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryMemberSetReader.cs';
        Must = @('ReadManyAsync', 'GetHistoryTaskKeysManyAsync') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\TaskRuntimeReportProvider.cs';
@@ -141,7 +143,7 @@ foreach ($rel in $syncBlocked) {
 
 # N1 负对照：空样本必须判缺（防判据恒真）。
 $synthetic = 'class EmptySample { }'
-$required = @('MessageScheduler', 'RunProjectionAsync', 'ConversationTreeSnapshotCache')
+$required = @('MessageScheduler', 'RunProjectionAsync', 'ReadModelHost')
 $missingInSynthetic = @($required | Where-Object { $synthetic.IndexOf($_, [StringComparison]::Ordinal) -lt 0 })
 if ($missingInSynthetic.Count -eq 0) {
     $violations.Add('[N1] 负对照失效：空样本未被判缺（判据恒真）')

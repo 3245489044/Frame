@@ -78,7 +78,8 @@
 | `[Rule]` | 规则（条件 → 动作） | `Rule` | 规则集 |
 | `[LLMDecl]` | LLM 判定契约 | `LlmDecl` | `llm.prompt` / `llm.contract` |
 | `[KeySpace]` | 键空间（族/面/轴/端口/策略/回退链） | `KeySpace` | 键声明产物 |
-| `[Command]` | 连接点命令（action/op 路由 + 键配方） | `Command` | `ui-commands-v1` |
+| `[Command]` | 连接点命令（action/op 路由 + 键配方） | `Command` | `ui-commands-v2`（`readModels` 段随读模型声明落地） |
+| `[ReadModel]` | 读模型（模型 id → 源键/版本源/投影器/参数名表） | `ReadModel` | `ui-commands-v2.readModels` |
 
 既有 `[Node]` / `[Edge]` / `[Constraint]` / `[CR]` / `%` / `#` 等核心前缀**继续沿用**（同一解析器、同一符号索引）。
 
@@ -308,6 +309,14 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7508` | error | Command：key op= 未声明 |
 | `US7509` | error | Command：default=/fallback= 未声明 |
 | `US7510` | error | Command：[Command] 续行不可解析 |
+| `US7701` | error | ReadModel：[ReadModel] 模型 id 重复声明 |
+| `US7702` | error | ReadModel：source= 缺失（至少一个源键） |
+| `US7703` | error | ReadModel：version= 不在词表（None\|Ttl\|Event\|GraphMembership） |
+| `US7704` | error | ReadModel：version=Ttl 但 ttl= 缺失或非正 |
+| `US7705` | error | ReadModel：projector= 缺失 |
+| `US7706` | error | ReadModel：[ReadModel] 续行不可解析 |
+| `US7707` | error | ReadModel：[Command] op model= 指向未声明读模型 |
+| `US7708` | error | ReadModel：声明无任何 op 引用（死声明） |
 | `US7601` | error | Agent.Skill：[Skill] backend= 不在工具注册表 |
 | `US7602` | error | Agent.Skill：[Profile] bands= 未声明 |
 | `US7603` | error | Agent.Skill：[Profile] base=on 缺 bands |

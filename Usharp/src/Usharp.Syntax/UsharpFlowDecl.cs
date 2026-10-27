@@ -279,6 +279,10 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpCommandDecl> Commands(DslDocument doc)
         => Project(doc, DslSymbolKind.Command, UsharpCommandDecl.From);
 
+    /// <summary><c>[ReadModel]</c> 读模型声明（模型 id → 源键/版本源/投影器/参数名表）。</summary>
+    public static IReadOnlyList<UsharpReadModelDecl> ReadModels(DslDocument doc)
+        => Project(doc, DslSymbolKind.ReadModel, UsharpReadModelDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

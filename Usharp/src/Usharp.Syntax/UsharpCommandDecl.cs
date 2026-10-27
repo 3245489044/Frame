@@ -5,7 +5,7 @@ namespace Usharp.Syntax;
 /// <summary>一条命令 op：<c>op &lt;name&gt; | intent=… | handler=… | projector=… | resolver=… | ports=a,b</c>。</summary>
 public sealed record UsharpCommandOpDecl(
     string Action, string Op, string? Intent, string? Handler, string? Projector,
-    string? Resolver, IReadOnlyList<string> Ports);
+    string? Resolver, IReadOnlyList<string> Ports, string? Model = null);
 
 /// <summary>一条键配方：<c>key op=&lt;op&gt; | name=… | family=… | surface=… | required=true | chain=a,b</c>。</summary>
 public sealed record UsharpCommandKeyDecl(
@@ -49,7 +49,8 @@ public sealed record UsharpCommandDecl(
                     UsharpLineReader.Get(fields, "handler"),
                     UsharpLineReader.Get(fields, "projector"),
                     UsharpLineReader.Get(fields, "resolver"),
-                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "ports"))));
+                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "ports")),
+                    UsharpLineReader.NullIfEmpty(UsharpLineReader.Get(fields, "model"))));
                 continue;
             }
 

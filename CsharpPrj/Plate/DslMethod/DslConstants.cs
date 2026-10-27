@@ -41,6 +41,8 @@ public enum DslSymbolKind
     KeySpace,
     // 连接点命令声明语言单元（[Command]）：action/op → channel/intent/handler/projector/ports + 键配方。
     Command,
+    // 读模型声明语言单元（[ReadModel]）：模型 id → 源键/版本源/投影器/参数名表（生成物 = ui-commands-v2.readModels）。
+    ReadModel,
     Unknown,
 }
 

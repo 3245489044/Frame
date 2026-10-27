@@ -28,6 +28,7 @@ public static class UsharpCommandEmitter
                 if (op.Handler is { } handler) entry["handler"] = handler;
                 if (op.Projector is { } projector) entry["projector"] = projector;
                 if (op.Resolver is { } resolver) entry["resolver"] = resolver;
+                if (op.Model is { } model) entry["model"] = model;
                 if (op.Ports.Count > 0) entry["ports"] = UsharpJson.Array(op.Ports.Select(UsharpJson.Tail).ToArray());
                 ops.Add(entry);
             }
@@ -50,10 +51,24 @@ public static class UsharpCommandEmitter
             commands.Add(item);
         }
 
+        var readModels = new JsonArray();
+        foreach (var model in compilation.ReadModels)
+        {
+            var item = new JsonObject { ["model"] = model.ModelId };
+            if (model.Sources.Count > 0) item["sources"] = UsharpJson.Array(model.Sources.ToArray());
+            if (!string.IsNullOrWhiteSpace(model.Version)) item["version"] = model.Version;
+            if (model.TtlMs is { } ttl) item["ttl"] = ttl;
+            if (model.Projector is { } projector) item["projector"] = projector;
+            if (model.Args.Count > 0) item["args"] = UsharpJson.Array(model.Args.ToArray());
+            readModels.Add(item);
+        }
+
         var root = new JsonObject
         {
-            ["schema"] = "ui-commands-v1",
+            ["schema"] = "ui-commands-v2",
             ["commands"] = commands,
+            // 读模型声明段：`[ReadModel]` 声明 →（模型 id / 源键 / 版本源 / TTL / 投影器 / 参数名表）。
+            ["readModels"] = readModels,
         };
         return root.ToJsonString();
     }

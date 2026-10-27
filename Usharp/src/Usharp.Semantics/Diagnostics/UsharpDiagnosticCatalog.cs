@@ -136,6 +136,16 @@ public static class UsharpDiagnosticCatalog
     public const string CommandDefaultUnknown = "US7509";
     public const string CommandLineUnparsed = "US7510";
 
+    // ── US77xx [ReadModel] ──────────────────────────────────────────────
+    public const string ReadModelDuplicate = "US7701";
+    public const string ReadModelSourceMissing = "US7702";
+    public const string ReadModelVersionUnknown = "US7703";
+    public const string ReadModelTtlInvalid = "US7704";
+    public const string ReadModelProjectorMissing = "US7705";
+    public const string ReadModelLineUnparsed = "US7706";
+    public const string ReadModelOpRefUnknown = "US7707";
+    public const string ReadModelUnused = "US7708";
+
     // ── US76xx Agent 适配面 ─────────────────────────────────────────────
     public const string SkillBackendUnknown = "US7601";
     public const string SkillBandUndeclared = "US7602";
@@ -271,6 +281,15 @@ public static class UsharpDiagnosticCatalog
         E(PortSkillUndeclared, "Agent.Port", UsharpSeverity.Error, "[Node] skill= 未声明", "nodeId, skill"),
         E(PortExecutorNotExclusive, "Agent.Port", UsharpSeverity.Error, "[Node] 执行体归属非恰一", "nodeId"),
         E(PortKindUnknown, "Agent.Port", UsharpSeverity.Error, "[Node] kind= 越界", "nodeId, kind"),
+
+        E(ReadModelDuplicate, "ReadModel", UsharpSeverity.Error, "[ReadModel] 模型 id 重复声明", "modelId"),
+        E(ReadModelSourceMissing, "ReadModel", UsharpSeverity.Error, "[ReadModel] source= 缺失（至少一个源键）", "modelId"),
+        E(ReadModelVersionUnknown, "ReadModel", UsharpSeverity.Error, "[ReadModel] version= 不在词表", "modelId, version"),
+        E(ReadModelTtlInvalid, "ReadModel", UsharpSeverity.Error, "[ReadModel] version=Ttl 但 ttl= 缺失或非正", "modelId, ttl"),
+        E(ReadModelProjectorMissing, "ReadModel", UsharpSeverity.Error, "[ReadModel] projector= 缺失", "modelId"),
+        E(ReadModelLineUnparsed, "ReadModel", UsharpSeverity.Error, "[ReadModel] 续行不可解析", "modelId, line"),
+        E(ReadModelOpRefUnknown, "ReadModel", UsharpSeverity.Error, "[Command] op model= 指向未声明读模型", "action, op, model"),
+        E(ReadModelUnused, "ReadModel", UsharpSeverity.Error, "[ReadModel] 声明无任何 op 引用（死声明）", "modelId"),
 
         E(GraphBackendUnavailable, "Graph", UsharpSeverity.Info, "图后端未装配", "-"),
         E(ObsBackendUnavailable, "Obs", UsharpSeverity.Info, "观测后端未装配", "-"),

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Net;
 
@@ -63,6 +64,33 @@ public static class HtmlOverlay
             + "<div class=\"" + cls + "-title\"><span>" + safeTitle + "</span>"
             + closeBtn + "</div>"
             + "<div class=\"" + cls + "-body\">" + (bodyHtml ?? string.Empty) + "</div></div>";
+    }
+
+    /// <summary>
+    /// 安全构建浮层（通用件）：内容工厂返回 null/空 或抛异常 ⇒ null；异常经 <paramref name="onFailure"/> 留诊断，
+    /// 不阻断宿主页。领域侧只注入内容生产与诊断出口（诊断键/上下文由领域在闭包内绑定）。
+    /// </summary>
+    /// <param name="bodyFactory">浮层内容工厂（返回已 encode 的 body 片段）。</param>
+    /// <param name="title">标题栏文本（本方法负责 encode）。</param>
+    /// <param name="options">浮层选项；缺省浮层默认值。</param>
+    /// <param name="onFailure">异常诊断出口（可为 null = 静默收敛，不向外抛）。</param>
+    public static string? BuildSafe(
+        Func<string?> bodyFactory,
+        string title,
+        HtmlOverlayOptions? options = null,
+        Action<Exception>? onFailure = null)
+    {
+        ArgumentNullException.ThrowIfNull(bodyFactory);
+        try
+        {
+            var body = bodyFactory();
+            return string.IsNullOrEmpty(body) ? null : Build(body, title, options);
+        }
+        catch (Exception ex)
+        {
+            onFailure?.Invoke(ex);
+            return null;
+        }
     }
 
     /// <summary>关闭按钮 HTML；未配置 CloseCmd 返回空串（无关闭按钮）。</summary>

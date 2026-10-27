@@ -36,9 +36,13 @@ public sealed class UsharpWorkflowRegistrar : IWorkflowRegistrar
     public static UsharpWorkflowRegistrar FromConfigDirectory(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var documents = new List<(string Path, string Text)>();
-        AppendDirectory(documents, Path.Combine(configRoot, "nodes"));
-        AppendDirectory(documents, Path.Combine(configRoot, "workflows"));
+        var documents = UsharpSourceLoader.FromDirectories(new[]
+            {
+                Path.Combine(configRoot, "nodes"),
+                Path.Combine(configRoot, "workflows"),
+            })
+            .Select(s => (s.Path, s.Text))
+            .ToList();
         return new UsharpWorkflowRegistrar(UsharpCompilation.Compile(documents));
     }
 
@@ -101,13 +105,5 @@ public sealed class UsharpWorkflowRegistrar : IWorkflowRegistrar
             });
         }
         return new Chain<string, NodeConfig>(flow.FlowId, nodes);
-    }
-
-    private static void AppendDirectory(List<(string Path, string Text)> sink, string directory)
-    {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
-        foreach (var file in Directory.EnumerateFiles(directory, "*.ushar", SearchOption.TopDirectoryOnly)
-                     .OrderBy(p => p, StringComparer.Ordinal))
-            sink.Add((file, File.ReadAllText(file)));
     }
 }

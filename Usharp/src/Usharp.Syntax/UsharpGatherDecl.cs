@@ -106,54 +106,54 @@ public sealed record UsharpGatherDecl(
             var line = raw.Trim();
             if (line.Length == 0) continue;
 
-            if (TryStripMarker(line, UsharpLanguage.MarkerKindField, out var kindFieldValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerKindField, UsharpMarkerBoundary.WhitespaceExactLine, out var kindFieldValue))
             {
                 kindField = kindFieldValue;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerGroupBy, out var groupByValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerGroupBy, UsharpMarkerBoundary.WhitespaceExactLine, out var groupByValue))
             {
                 groupBy = string.IsNullOrWhiteSpace(groupByValue) ? null : groupByValue;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadScope, out var readScopeValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadScope, UsharpMarkerBoundary.WhitespaceExactLine, out var readScopeValue))
             {
                 readScope = readScopeValue;
                 hasReadMarker = true;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadSource, out var readSourceValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadSource, UsharpMarkerBoundary.WhitespaceExactLine, out var readSourceValue))
             {
                 readSource = readSourceValue;
                 hasReadMarker = true;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadEdge, out var readEdgeValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadEdge, UsharpMarkerBoundary.WhitespaceExactLine, out var readEdgeValue))
             {
                 readEdge = readEdgeValue;
                 hasReadMarker = true;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadNormalize, out var readNormalizeValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadNormalize, UsharpMarkerBoundary.WhitespaceExactLine, out var readNormalizeValue))
             {
                 readNormalize = readNormalizeValue;
                 hasReadMarker = true;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadOrder, out var readOrderValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadOrder, UsharpMarkerBoundary.WhitespaceExactLine, out var readOrderValue))
             {
                 readOrder = readOrderValue;
                 hasReadMarker = true;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerReadEmpty, out var readEmptyValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadEmpty, UsharpMarkerBoundary.WhitespaceExactLine, out var readEmptyValue))
             {
                 readEmpty = readEmptyValue;
                 hasReadMarker = true;
                 continue;
             }
 
-            if (TryStripMarker(line, UsharpLanguage.MarkerFamily, out var familyValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerFamily, UsharpMarkerBoundary.WhitespaceExactLine, out var familyValue))
             {
                 if (TryParseFamily(familyValue, out var name, out var kinds))
                 {
@@ -167,7 +167,7 @@ public sealed record UsharpGatherDecl(
                 }
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.MarkerShaping, out var shapingValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerShaping, UsharpMarkerBoundary.WhitespaceExactLine, out var shapingValue))
             {
                 if (TryParseShaping(shapingValue, out var shaping)) shapings.Add(shaping!);
                 else unparsed.Add(line);
@@ -181,29 +181,15 @@ public sealed record UsharpGatherDecl(
             ? new UsharpGatherRead(
                 readScope ?? string.Empty,
                 readSource ?? string.Empty,
-                NullIfBlank(readEdge),
-                NullIfBlank(readNormalize),
-                NullIfBlank(readOrder),
-                NullIfBlank(readEmpty))
+                UsharpLineReader.NullIfEmpty(readEdge),
+                UsharpLineReader.NullIfEmpty(readNormalize),
+                UsharpLineReader.NullIfEmpty(readOrder),
+                UsharpLineReader.NullIfEmpty(readEmpty))
             : null;
 
         return new UsharpGatherDecl(
             d.Name, kindField, groupBy, familyOrder, families, duplicateFamilies, shapings,
             unparsed, d.SourceFile, d.LineNumber, read);
-    }
-
-    private static string? NullIfBlank(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value;
-
-    /// <summary>首词标记剥离（标记后须跟空白或整行即标记；防裸键误剥，同 <c>UsharpDomainDecl</c> 口径）。</summary>
-    private static bool TryStripMarker(string line, string marker, out string rest)
-    {
-        rest = string.Empty;
-        if (!line.StartsWith(marker, StringComparison.Ordinal)) return false;
-        if (line.Length == marker.Length) return true;
-        if (!char.IsWhiteSpace(line[marker.Length])) return false;
-        rest = line[marker.Length..].Trim();
-        return true;
     }
 
     /// <summary>族声明解析：<c>&lt;族名&gt; = k1, k2</c>（首 <c>=</c> 切分；kind 集可为空）。</summary>

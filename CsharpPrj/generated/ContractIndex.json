@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T05:18:10.9910690Z",
+  "builtAt": "2026-10-27T05:44:14.5562912Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1455,13 +1455,13 @@
       "kind": "KeyFamily",
       "pattern": "proc.",
       "note": "过程域键族前缀",
-      "total": 400,
-      "truncated": true,
+      "total": 399,
+      "truncated": false,
       "byRole": {
         "Gate": 5,
         "Test": 83,
-        "Declaration": 12,
-        "Code": 35,
+        "Declaration": 8,
+        "Code": 38,
         "Doc": 201,
         "Other": 64
       },
@@ -3687,52 +3687,24 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 239,
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 57,
           "role": "Declaration",
-          "text": "\"template\": \"proc.{container}\","
+          "text": "family domain.process | template=proc.{container} | prefix=proc. | relation=Member | cardinality=Many | domain=run | orderKeys= | identity=container | derivedPrefixes="
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 240,
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 58,
           "role": "Declaration",
-          "text": "\"familyPrefix\": \"proc.\","
+          "text": "surface domain.process/Storage | templates=proc.{container} | prefix=proc. | readOnly=proc.{container}.r{round:digits}.{kind}.{ordinal:digits},proc.{container}.r{round:digits}.step{ordinal:digits}"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 270,
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 59,
           "role": "Declaration",
-          "text": "\"templates\": [ \"proc.{container}\" ],"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 271,
-          "role": "Declaration",
-          "text": "\"familyPrefix\": \"proc.\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 273,
-          "role": "Declaration",
-          "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 274,
-          "role": "Declaration",
-          "text": "\"proc.{container}.r{round:digits}.step{ordinal:digits}\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 277,
-          "role": "Declaration",
-          "text": "\"Display\": { \"templates\": [ \"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\" ], \"familyPrefix\": \"proc.\" }"
+          "text": "surface domain.process/Display | templates=proc.{container}.r{round:digits}.{kind}.{ordinal:digits} | prefix=proc. | readOnly="
         },
         {
           "repo": "Projects",
@@ -4265,6 +4237,27 @@
           "line": 72,
           "role": "Code",
           "text": "/// 双写期去重：观测帧是过程帧（<c>proc.*</c>）的单行化替代 —— **仅当观测帧非空**时才剔除 canonical 中"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
+          "line": 73,
+          "role": "Code",
+          "text": "/// 锚点前缀为 <c>proc.</c> 的过程条目；观测不可用/无帧 ⇒ 原样返回（零回归，不误删既有过程面）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.View.cs",
+          "line": 223,
+          "role": "Code",
+          "text": "// 观测不可用/无帧 ⇒ 原样返回（零回归），非空时才剔除 canonical 的 proc.* 过程条目（双写期去重）。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Ui/Ui/Views/ObservabilityMessageMerge.cs",
+          "line": 21,
+          "role": "Code",
+          "text": "/// <summary>合并帧与 canonical 消息（canonical 的 <c>proc.*</c> 条目在帧非空时剔除，保持双写期去重语义）。</summary>"
         }
       ]
     },
@@ -4273,13 +4266,13 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 157,
+      "total": 155,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
         "Declaration": 7,
-        "Code": 80,
+        "Code": 78,
         "Doc": 60,
         "Other": 1
       },
@@ -5147,13 +5140,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/Api/RunActionMap.cs",
-          "line": 174,
-          "role": "Code",
-          "text": "new[] { \"declare\", \"undeclare\", \"list\" }, \"relations.list = data-store 读投影（无单意图）；declare/undeclare 已按 op 对齐\","
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Api/RunRequestPayloads.cs",
           "line": 78,
           "role": "Code",
@@ -5193,13 +5179,6 @@
           "line": 27,
           "role": "Code",
           "text": "var list = new List<AgentObservation>(Math.Min(correlations.Count, limit));"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Assembly/Dispatch/ForwardIntentRegistry.cs",
-          "line": 47,
-          "role": "Code",
-          "text": "[\"relations\"] = (\"M4\", \"relations.list 读面收口批\"),"
         },
         {
           "repo": "Projects",
@@ -5253,63 +5232,63 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 363,
+          "line": 354,
           "role": "Code",
           "text": "// ---- 声明式构建 + 图维护（relations.* / graph.*）----"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 367,
+          "line": 358,
           "role": "Code",
           "text": "/// <summary>主动声明关系（relations.declare）：经守卫写 ur_nodes + 推导边。未装配守卫返回诊断。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 372,
+          "line": 363,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.declare 不可用：请经完整框架路径装配引用层。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 374,
+          "line": 365,
           "role": "Code",
           "text": "return \"（缺少声明）relations.declare 需提供 declarations[]（relationId + from/to/refType）。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 379,
+          "line": 370,
           "role": "Code",
           "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 384,
+          "line": 375,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.undeclare 不可用。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 386,
+          "line": 377,
           "role": "Code",
           "text": "return \"（缺少 relationIds）relations.undeclare 需提供 relationIds[]。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 391,
+          "line": 382,
           "role": "Code",
           "text": "/// <summary>列出声明（relations.list）为文本。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 395,
+          "line": 386,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.list 不可用。\";"
         },
@@ -9971,10 +9950,10 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.json",
-          "line": 260,
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 62,
           "role": "Declaration",
-          "text": "\"llm-iteration\", \"llm-text\", \"llm-reasoning\", \"tool-call\", \"tool-progress\", \"tool-result\","
+          "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-reasoning,tool-call,tool-progress,tool-result,"
         },
         {
           "repo": "Projects",
@@ -11256,17 +11235,16 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1581.0,
+    "hitCount": 1578.0,
     "byRole": {
       "Gate": 28,
       "Test": 280,
-      "Declaration": 92,
-      "Code": 361,
+      "Declaration": 88,
+      "Code": 362,
       "Doc": 745,
       "Other": 75
     },
     "truncatedFacts": [
-      "key.proc",
       "key.session"
     ],
     "repoLines": [
@@ -11276,7 +11254,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 476
+        "lines": 467
       },
       {
         "repo": "Main",

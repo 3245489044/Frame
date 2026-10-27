@@ -16,10 +16,10 @@ public sealed record AgentToolFaceEdge(string Face, string Edge, string Target, 
 /// 工具面（MCP）领域反转包：把 <c>tool-face.ushar</c> 的「面→轨 / 面→源」引用反转为 facet，
 /// 并以 <c>US7004</c> 对账「声明轨 id ∈ 实现轨注册表」——不一致即**编译期红**，取代运行期静默漂移。
 /// </summary>
-public sealed class AgentToolPack : IUsharpDomainPack
+public sealed class AgentToolPack : UsharpDomainPackSpec
 {
-    /// <summary>US7004：<c>edge=hosts</c> 的轨 id 须 ∈ 轨实现注册表。</summary>
-    public const string CodeTrackUnknown = "US7004";
+    /// <summary>US7605：<c>edge=hosts</c> 的轨 id 须 ∈ 轨实现注册表。</summary>
+    public const string CodeTrackUnknown = UsharpCodes.ToolTrackUnknown;
 
     /// <summary>面→轨 边类型（单一真源 = Agent.Launcher ToolFaceDeclaration.EdgeHosts 同值）。</summary>
     public const string EdgeHosts = "hosts";
@@ -28,21 +28,12 @@ public sealed class AgentToolPack : IUsharpDomainPack
     public const string EdgeFeeds = "feeds";
 
     public AgentToolPack(IReadOnlyCollection<string>? knownTracks = null)
+        : base("agent.tool",
+            new IUsharpFacetProvider[] { new ToolFaceFacetProvider() },
+            new IGateRule<UsharpGateModel>[] { new ToolFaceTrackGateRule(knownTracks ?? Array.Empty<string>()) },
+            new IUsharpFacetProjector[] { new ToolFaceProjector() })
     {
-        FacetProviders = new IUsharpFacetProvider[] { new ToolFaceFacetProvider() };
-        GateRules = new IGateRule<UsharpGateModel>[] { new ToolFaceTrackGateRule(knownTracks ?? Array.Empty<string>()) };
-        FacetProjectors = new IUsharpFacetProjector[] { new ToolFaceProjector() };
     }
-
-    public string Id => "agent.tool";
-
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
 /// <summary>工具面边 facet（<c>IReadOnlyList&lt;AgentToolFaceEdge&gt;</c>）。</summary>

@@ -109,12 +109,15 @@ public static class DeclaredBundleBuilder
     public static IReadOnlyList<(string Path, string Text)> LoadConfigDocuments(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var documents = new List<(string Path, string Text)>();
-        AppendDirectory(documents, Path.Combine(configRoot, NodesDirName));
-        AppendDirectory(documents, Path.Combine(configRoot, WorkflowsDirName));
-        AppendDirectory(documents, Path.Combine(configRoot, KeyspacesDirName));
-        AppendDirectory(documents, Path.Combine(configRoot, CommandsDirName));
-        return documents;
+        return UsharpSourceLoader.FromDirectories(new[]
+            {
+                Path.Combine(configRoot, NodesDirName),
+                Path.Combine(configRoot, WorkflowsDirName),
+                Path.Combine(configRoot, KeyspacesDirName),
+                Path.Combine(configRoot, CommandsDirName),
+            })
+            .Select(s => (s.Path, s.Text))
+            .ToList();
     }
 
     /// <summary>由给定声明文档构建（<b>唯一一次</b>编译；调用方负责文档集，编译序 = 传入序）。</summary>
@@ -329,14 +332,6 @@ public static class DeclaredBundleBuilder
 
     private static string FileName(string? path)
         => string.IsNullOrWhiteSpace(path) ? string.Empty : Path.GetFileName(path!);
-
-    private static void AppendDirectory(List<(string Path, string Text)> sink, string directory)
-    {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
-        foreach (var file in Directory.EnumerateFiles(directory, "*" + UsharpSourceLoader.Extension, SearchOption.TopDirectoryOnly)
-                     .OrderBy(p => p, StringComparer.Ordinal))
-            sink.Add((file, File.ReadAllText(file)));
-    }
 
     // ---- manifest 结构（camelCase 序列化；键名与方案 §4.1 一致）----
     private sealed record ManifestDocument(

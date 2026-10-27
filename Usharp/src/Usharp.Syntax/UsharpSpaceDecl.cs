@@ -114,7 +114,7 @@ public sealed record UsharpSpaceDecl(
             }
             if (string.Equals(key, UsharpLanguage.FieldTerms, StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var term in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (var term in UsharpLineReader.SplitList(value, ','))
                     terms.Add(term);
                 continue;
             }

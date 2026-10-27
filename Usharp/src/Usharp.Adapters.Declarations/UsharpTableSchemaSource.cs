@@ -44,11 +44,8 @@ public sealed class UsharpTableSchemaSource : ITableSchemaSource
     /// <summary>由源文件集构建（磁盘读取；缺件/空集返回 <see cref="Empty"/>）。</summary>
     public static UsharpTableSchemaSource FromFiles(IEnumerable<string> paths)
     {
-        var list = (paths ?? Enumerable.Empty<string>())
-            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
-            .Select(p => (Path: p, Text: File.ReadAllText(p)))
-            .ToList();
-        return list.Count == 0 ? Empty : FromCompilation(UsharpCompilation.Compile(list));
+        var compilation = DeclaredProjectionSource.CompileFiles(paths);
+        return compilation is null ? Empty : FromCompilation(compilation);
     }
 
     /// <summary>列声明 → SQLite 列 DDL 片段（类型 + 标志受控词映射集中于此）。</summary>

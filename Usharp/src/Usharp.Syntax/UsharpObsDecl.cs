@@ -45,24 +45,31 @@ public sealed record UsharpObsDecl(
     /// <summary>声明是否含某必填字段（<c>enum=</c> 字段须落在其中，US6004 判据）。</summary>
     public bool RequiresField(string name) => Required.Contains(name, StringComparer.Ordinal);
 
+    /// <summary><c>enum=</c> 中无法解析的段原文（闸A 报 US0011；禁止静默丢弃声明）。</summary>
+    public IReadOnlyList<string> UnparsedEnums { get; init; } = Array.Empty<string>();
+
     public static UsharpObsDecl? From(DslDeclaration d)
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
 
-        var required = NullIfEmpty(d.Field(UsharpLanguage.FieldRequired)) ?? NullIfEmpty(d.Field(UsharpLanguage.FieldFields));
+        var required = UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldRequired)) ?? UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldFields));
+        var unparsedEnums = new List<string>();
 
         return new UsharpObsDecl(
             d.Name,
             ParseKind(d.Field(UsharpLanguage.FieldKind)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldParent)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldScope)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldEntity)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldParent)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldScope)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldEntity)),
             SplitList(required),
             SplitList(d.Field(UsharpLanguage.FieldMetrics)),
-            ParseEnums(d.Field(UsharpLanguage.FieldEnum)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldVersion)),
+            ParseEnums(d.Field(UsharpLanguage.FieldEnum), unparsedEnums),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldVersion)),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            UnparsedEnums = unparsedEnums,
+        };
     }
 
     private static UsharpObsKind ParseKind(string? value)
@@ -77,15 +84,13 @@ public sealed record UsharpObsDecl(
 
     /// <summary>逗号列表（去空去空白；空声明 → 空表）。</summary>
     private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(value, ',');
 
     /// <summary>
     /// <c>enum=</c> 解析：<c>&lt;字段&gt;:&lt;v1,v2&gt;</c>，多字段以 <c>;</c> 分段
     /// （<c>|</c> 为字段分隔、<c>,</c> 为列表分隔，均不可复用）。格式非法段忽略（不静默造字段）。
     /// </summary>
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ParseEnums(string? value)
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> ParseEnums(string? value, List<string> unparsed)
     {
         var enums = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (string.IsNullOrWhiteSpace(value)) return enums;
@@ -94,11 +99,13 @@ public sealed record UsharpObsDecl(
         {
             var (field, rawAllowed) = UsharpLanguage.SplitPair(segment);
             var allowed = SplitList(rawAllowed);
-            if (field.Length == 0 || allowed.Count == 0) continue;
+            if (field.Length == 0 || allowed.Count == 0)
+            {
+                unparsed.Add(segment);
+                continue;
+            }
             enums[field] = allowed;
         }
         return enums;
     }
-
-    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

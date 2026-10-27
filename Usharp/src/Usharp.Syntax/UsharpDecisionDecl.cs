@@ -190,15 +190,11 @@ public sealed record UsharpDecisionDecl(
     }
 
     private static string Field(Dictionary<string, string> fields, string key)
-        => fields.TryGetValue(key, out var value) ? value : string.Empty;
+        => UsharpLineReader.Get(fields, key) ?? string.Empty;
 
     private static IReadOnlyList<string> FieldList(Dictionary<string, string> fields, string key)
-        => Field(fields, key).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(Field(fields, key), ',');
 
     private static bool LooksLikeDecisionField(string line)
-    {
-        foreach (var key in DecisionFieldKeys)
-            if (line.Contains(key + "=", StringComparison.OrdinalIgnoreCase)) return true;
-        return false;
-    }
+        => UsharpLanguage.TryReadRowMarker(line.Trim(), out _);
 }

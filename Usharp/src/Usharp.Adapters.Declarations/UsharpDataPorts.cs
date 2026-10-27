@@ -76,20 +76,25 @@ public static class UsharpDataPorts
     /// 配置目录缺省 / 声明缺件 ⇒ 空源（调用方回落手写 DDL，零行为变更）。
     /// </summary>
     public static ITableSchemaSource SchemaSource(string? configDirectory)
-        => UsharpTableSchemaSource.FromFiles(
-            string.IsNullOrWhiteSpace(configDirectory)
-                ? Array.Empty<string>()
-                : new[] { Path.Combine(configDirectory, "nodes", TablesDeclarationFileName) });
+        => UsharpTableSchemaSource.FromFiles(TableDeclarationPaths(configDirectory));
 
     /// <summary>
     /// 表写面声明源：<c>configDirectory/nodes/tables.ushar</c> → <see cref="TableWriteSpec"/> 投影；
     /// 配置目录缺省 / 声明缺件 ⇒ 空源（调用方按 fail-closed 视作不可写）。
     /// </summary>
     public static ITableWriteSpecSource WriteSpecSource(string? configDirectory)
-        => UsharpTableWriteSpecSource.FromFiles(
-            string.IsNullOrWhiteSpace(configDirectory)
-                ? Array.Empty<string>()
-                : new[] { Path.Combine(configDirectory, "nodes", TablesDeclarationFileName) });
+        => UsharpTableWriteSpecSource.FromFiles(TableDeclarationPaths(configDirectory));
+
+    /// <summary>
+    /// 表结构 + 写面**双投影**：同一份 <c>tables.ushar</c> 只编译一次（消费方应优先用本入口）。
+    /// </summary>
+    public static (ITableSchemaSource Schema, ITableWriteSpecSource WriteSpec) TableSources(string? configDirectory)
+        => UsharpTableProjection.FromFiles(TableDeclarationPaths(configDirectory));
+
+    private static IEnumerable<string> TableDeclarationPaths(string? configDirectory)
+        => string.IsNullOrWhiteSpace(configDirectory)
+            ? Array.Empty<string>()
+            : new[] { Path.Combine(configDirectory, "nodes", TablesDeclarationFileName) };
 
     /// <summary>声明入库闭环：磁盘 <c>.ushar</c> 导入配置库并返回运行期唯一声明源（库优先、磁盘回退）。</summary>
     public static Task<IDeclarationStore> DeclarationStoreAsync(

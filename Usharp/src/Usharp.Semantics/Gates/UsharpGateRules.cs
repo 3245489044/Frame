@@ -204,6 +204,11 @@ internal sealed class ObsGateRule : IGateRule<UsharpGateModel>
 
         foreach (var decl in obs.Declarations)
         {
+            foreach (var segment in decl.UnparsedEnums)
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ObsEnumSegmentInvalid,
+                    $"[Obs] {decl.Name}: enum 段 '{segment}' 非法（须形如 <字段>:<v1,v2>）",
+                    decl.SourceFile, decl.LineNumber));
+
             foreach (var (field, value) in new[] { (UsharpLanguage.FieldScope, decl.Scope), (UsharpLanguage.FieldParent, decl.Parent) })
             {
                 if (value is null || obs.HasScope(value)) continue;
@@ -276,7 +281,7 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
                     domain.SourceFile, domain.LineNumber));
             }
 
-            if (domain.Placements.Count == 0)
+            if (domain.Placements.Count == 0 && domain.UnparsedLines.Count == 0)
             {
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
                     $"[Domain] {domain.DomainId}: placements 为空（域定义面须至少声明一个位置）",

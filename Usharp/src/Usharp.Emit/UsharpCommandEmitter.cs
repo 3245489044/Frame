@@ -15,10 +15,10 @@ public static class UsharpCommandEmitter
         foreach (var command in compilation.Commands)
         {
             var item = new JsonObject { ["action"] = command.Action };
-            if (command.Channel is { } channel) item["channel"] = Tail(channel);
+            if (command.Channel is { } channel) item["channel"] = UsharpJson.Tail(channel);
             if (command.DefaultOp is { } def) item["default"] = def;
             if (command.FallbackOp is { } fallback) item["fallback"] = fallback;
-            if (command.Ports.Count > 0) item["ports"] = Array(command.Ports.Select(Tail).ToArray());
+            if (command.Ports.Count > 0) item["ports"] = UsharpJson.Array(command.Ports.Select(UsharpJson.Tail).ToArray());
 
             var ops = new JsonArray();
             foreach (var op in command.Ops)
@@ -28,7 +28,7 @@ public static class UsharpCommandEmitter
                 if (op.Handler is { } handler) entry["handler"] = handler;
                 if (op.Projector is { } projector) entry["projector"] = projector;
                 if (op.Resolver is { } resolver) entry["resolver"] = resolver;
-                if (op.Ports.Count > 0) entry["ports"] = Array(op.Ports.Select(Tail).ToArray());
+                if (op.Ports.Count > 0) entry["ports"] = UsharpJson.Array(op.Ports.Select(UsharpJson.Tail).ToArray());
                 ops.Add(entry);
             }
             item["ops"] = ops;
@@ -43,7 +43,7 @@ public static class UsharpCommandEmitter
                     ["family"] = key.Family,
                     ["surface"] = key.Surface,
                     ["required"] = key.Required,
-                    ["chain"] = Array(key.Chain),
+                    ["chain"] = UsharpJson.Array(key.Chain),
                 });
             }
             item["keys"] = keys;
@@ -56,18 +56,5 @@ public static class UsharpCommandEmitter
             ["commands"] = commands,
         };
         return root.ToJsonString();
-    }
-
-    private static JsonArray Array(IReadOnlyList<string> values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values) array.Add(value);
-        return array;
-    }
-
-    private static string Tail(string value)
-    {
-        var dot = value.LastIndexOf('.');
-        return dot >= 0 && dot < value.Length - 1 ? value[(dot + 1)..] : value;
     }
 }

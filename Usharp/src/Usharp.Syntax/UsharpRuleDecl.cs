@@ -35,6 +35,9 @@ public sealed record UsharpRuleDecl(
     public IReadOnlyList<UsharpRuleEntry> Block(string root)
         => Body.Where(e => e.Path.StartsWith(root + ".", StringComparison.Ordinal)).ToList();
 
+    /// <summary><c>enabled=</c> 原文（null = 未声明；非法布尔由闸A 报 US0010，禁止静默变 null）。</summary>
+    public string? EnabledRaw { get; init; }
+
     /// <summary>按完整路径取首个值（未命中 ⇒ null）。</summary>
     /// <param name="path">路径项（如 <c>when.all.match.strategy</c>）。</param>
     public string? Value(string path)
@@ -45,10 +48,8 @@ public sealed record UsharpRuleDecl(
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
 
-        var enabled = d.HasField(UsharpLanguage.FieldEnabled)
-            && bool.TryParse(d.Field(UsharpLanguage.FieldEnabled), out var parsed)
-            ? parsed
-            : (bool?)null;
+        var enabledRaw = UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldEnabled));
+        var enabled = enabledRaw is not null && bool.TryParse(enabledRaw, out var parsed) ? parsed : (bool?)null;
 
         var conditions = new List<string>();
         var body = new List<UsharpRuleEntry>();
@@ -81,6 +82,9 @@ public sealed record UsharpRuleDecl(
             body,
             unparsed,
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            EnabledRaw = enabledRaw,
+        };
     }
 }

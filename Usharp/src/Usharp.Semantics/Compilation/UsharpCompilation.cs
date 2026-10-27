@@ -14,7 +14,7 @@ namespace Usharp.Semantics;
 /// 旧属性保留为**薄访问器**（<c>=&gt; Facet&lt;X&gt;()</c>），签名与语义逐字不变（零回归）。
 /// </para>
 /// </summary>
-public sealed class UsharpCompilation
+public sealed class UsharpCompilation : IUsharpFacetReader
 {
     private readonly UsharpFacetRegistry _facets;
 
@@ -114,6 +114,18 @@ public sealed class UsharpCompilation
     {
         ArgumentNullException.ThrowIfNull(sources);
         return CompileSources(sources.Select(s => new UsharpSourceFile(s.Path, s.Text ?? "", lib)).ToList());
+    }
+
+    /// <summary>
+    /// 编译磁盘文件集（**唯一装载入口**：路径 → <see cref="UsharpSourceLoader"/> → 编译）。
+    /// </summary>
+    public static UsharpCompilation CompileFiles(
+        IEnumerable<string> paths, IReadOnlyList<IUsharpDomainPack>? packs = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var sources = UsharpSourceLoader.FromFiles(
+            paths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => (p, (string?)null)));
+        return CompileSources(sources, packs);
     }
 
     /// <summary>

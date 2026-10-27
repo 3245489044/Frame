@@ -1,5 +1,7 @@
+using Plate.DslMethod;
 using Share.LogicComposition.Conversion.Packs;
 using Share.LogicComposition.Conversion.Validation;
+using Usharp.Syntax;
 
 namespace Usharp.Semantics;
 
@@ -32,25 +34,13 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDoma
         new GatherGateRule(),
         new KeySpaceGateRule(),
         new CommandGateRule(),
+        new TableGateRule(),
+        new RecordGateRule(),
+        new RuleGateRule(),
     };
 
-    /// <summary>默认 facet provider 集（序 = spaces → obs → 其余，保既有诊断归因序与产物序）。</summary>
-    private static readonly IReadOnlyList<IUsharpFacetProvider> Providers = new IUsharpFacetProvider[]
-    {
-        new SpaceFacetProvider(),
-        new ObsFacetProvider(),
-        new MatrixFacetProvider(),
-        new FlowFacetProvider(),
-        new RefFacetProvider(),
-        new DomainFacetProvider(),
-        new GatherFacetProvider(),
-        new TableFacetProvider(),
-        new RecordFacetProvider(),
-        new ConfigFacetProvider(),
-        new RuleFacetProvider(),
-        new KeySpaceFacetProvider(),
-        new CommandFacetProvider(),
-    };
+    /// <summary>默认 facet provider 集（序 = <see cref="UsharpUnitRegistry.Units"/>，保既有诊断归因序与产物序）。</summary>
+    private static readonly IReadOnlyList<IUsharpFacetProvider> Providers = UsharpUnitRegistry.Providers;
 
     /// <summary>
     /// 默认 facet 投影器集（空 = 既有发射器仍由消费方手写调用；本批只落「统一出口」抽象，

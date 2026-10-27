@@ -43,11 +43,8 @@ public sealed class UsharpTableWriteSpecSource : ITableWriteSpecSource
     /// <summary>由源文件集构建（磁盘读取；缺件/空集返回 <see cref="Empty"/>）。</summary>
     public static UsharpTableWriteSpecSource FromFiles(IEnumerable<string> paths)
     {
-        var list = (paths ?? Enumerable.Empty<string>())
-            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
-            .Select(p => (Path: p, Text: File.ReadAllText(p)))
-            .ToList();
-        return list.Count == 0 ? Empty : FromCompilation(UsharpCompilation.Compile(list));
+        var compilation = DeclaredProjectionSource.CompileFiles(paths);
+        return compilation is null ? Empty : FromCompilation(compilation);
     }
 
     private static TableWriteSpec ToSpec(UsharpTableDecl decl)

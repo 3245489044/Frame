@@ -12,81 +12,44 @@ namespace Usharp.Adapters.Agent;
 /// 技能 / 档案领域反转包：把 <c>[Skill]</c>（唯一新增语言单元）与 <c>[Profile]</c>（核心前缀，消费化）
 /// 绑为可注册单元 —— facet provider（元数据视图）+ 闸规则（声明↔实现对账）+ facet 投影器（提示词产物）。
 /// </summary>
-public sealed class AgentSkillPack : IUsharpDomainPack
+public sealed class AgentSkillPack : UsharpDomainPackSpec
 {
-    /// <summary>US7001：<c>[Skill] backend=</c> 须 ∈ 工具注册表。</summary>
-    public const string CodeBackendUnknown = "US7001";
+    /// <summary>US7601：<c>[Skill] backend=</c> 须 ∈ 工具注册表。</summary>
+    public const string CodeBackendUnknown = UsharpCodes.SkillBackendUnknown;
 
-    /// <summary>US7002：<c>[Profile] bands=</c> 须 ∈ 已声明技能的 dsl 集。</summary>
-    public const string CodeBandUndeclared = "US7002";
+    /// <summary>US7602：<c>[Profile] bands=</c> 须 ∈ 已声明技能的 dsl 集。</summary>
+    public const string CodeBandUndeclared = UsharpCodes.SkillBandUndeclared;
 
-    /// <summary>US7005：<c>[Profile] base=on</c> 的框架常驻段声明须 <c>bands</c> 非空。</summary>
-    public const string CodeBaseBandMissing = "US7005";
+    /// <summary>US7603：<c>[Profile] base=on</c> 的框架常驻段声明须 <c>bands</c> 非空。</summary>
+    public const string CodeBaseBandMissing = UsharpCodes.SkillBaseBandMissing;
 
     public AgentSkillPack(
         IReadOnlyCollection<string>? knownTools = null,
         IReadOnlyCollection<string>? knownBands = null)
+        : base("agent.skill",
+            new IUsharpFacetProvider[]
+            {
+                new UsharpFacetProvider<UsharpSkillDecl>(DslSymbolKind.Skill, ctx =>
+                    ctx.Declarations.OfKind(DslSymbolKind.Skill).Select(UsharpSkillDecl.From).OfType<UsharpSkillDecl>()),
+                new UsharpFacetProvider<UsharpProfileDecl>(DslSymbolKind.Profile, ctx =>
+                    ctx.Declarations.OfKind(DslSymbolKind.Profile).Select(UsharpProfileDecl.From).OfType<UsharpProfileDecl>()),
+            },
+            new IGateRule<UsharpGateModel>[]
+            {
+                new SkillBackendGateRule(knownTools ?? Array.Empty<string>()),
+                new ProfileBandGateRule(knownBands ?? Array.Empty<string>()),
+                new ProfileBaseGateRule(),
+            },
+            new IUsharpFacetProjector[]
+            {
+                new PromptSkillsProjector(),
+                new PromptBandsProjector(),
+            })
     {
-        FacetProviders = new IUsharpFacetProvider[]
-        {
-            new SkillFacetProvider(),
-            new ProfileFacetProvider(),
-        };
-
-        GateRules = new IGateRule<UsharpGateModel>[]
-        {
-            new SkillBackendGateRule(knownTools ?? Array.Empty<string>()),
-            new ProfileBandGateRule(knownBands ?? Array.Empty<string>()),
-            new ProfileBaseGateRule(),
-        };
-
-        FacetProjectors = new IUsharpFacetProjector[]
-        {
-            new PromptSkillsProjector(),
-            new PromptBandsProjector(),
-        };
     }
-
-    public string Id => "agent.skill";
-
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
-/// <summary><c>[Skill]</c> 元数据 facet（<c>IReadOnlyList&lt;UsharpSkillDecl&gt;</c>）。</summary>
-internal sealed class SkillFacetProvider : IUsharpFacetProvider
-{
-    public Type FacetType => typeof(IReadOnlyList<UsharpSkillDecl>);
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Skill };
-
-    public object Project(UsharpFacetContext ctx)
-        => ctx.Declarations.OfKind(DslSymbolKind.Skill)
-            .Select(UsharpSkillDecl.From)
-            .Where(s => s is not null)
-            .Select(s => s!)
-            .ToList();
-}
-
-/// <summary><c>[Profile]</c> 档案 facet（<c>IReadOnlyList&lt;UsharpProfileDecl&gt;</c>）。</summary>
-internal sealed class ProfileFacetProvider : IUsharpFacetProvider
-{
-    public Type FacetType => typeof(IReadOnlyList<UsharpProfileDecl>);
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Profile };
-
-    public object Project(UsharpFacetContext ctx)
-        => ctx.Declarations.OfKind(DslSymbolKind.Profile)
-            .Select(UsharpProfileDecl.From)
-            .Where(p => p is not null)
-            .Select(p => p!)
-            .ToList();
-}
-
-/// <summary>US7001：<c>[Skill] backend=</c> 须 ∈ 工具注册表（未注入注册表 ⇒ 不判定，避免误红）。</summary>
+/// <summary>US7601：<c>[Skill] backend=</c> 须 ∈ 工具注册表（未注入注册表 ⇒ 不判定，避免误红）。</summary>
 internal sealed class SkillBackendGateRule : IGateRule<UsharpGateModel>
 {
     private readonly IReadOnlyCollection<string> _knownTools;

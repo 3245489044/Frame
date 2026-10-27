@@ -92,13 +92,7 @@ public sealed record UsharpTableDecl(
         var parts = string.Join(" | ", lines)
             .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var part in parts)
-        {
-            var eq = part.IndexOf('=');
-            if (eq <= 0) continue;
-            map[part[..eq].Trim()] = part[(eq + 1)..].Trim();
-        }
+        var map = UsharpLineReader.ParseFieldBag(parts, 0, StringComparer.OrdinalIgnoreCase);
 
         var editable = map.TryGetValue(UsharpLanguage.WriteFieldEditable, out var e) && IsTrue(e);
         var editor = Get(UsharpLanguage.WriteFieldEditor);
@@ -119,9 +113,10 @@ public sealed record UsharpTableDecl(
                || value.Equals("yes", StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyList<string>? SplitList(string? raw)
-        => string.IsNullOrWhiteSpace(raw)
-            ? null
-            : raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    {
+        var list = UsharpLineReader.SplitList(raw, ',', ';');
+        return list.Count == 0 ? null : list;
+    }
 
     /// <summary><c>index=(a,b)</c> / <c>index=a,b</c> 两形态均取（去括号、逗号分段）。</summary>
     private static IReadOnlyList<string> SplitIndex(string raw)

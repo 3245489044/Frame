@@ -1018,6 +1018,16 @@
         Note   = '降维门禁（D1–D6）：C0 登记载体自审（Carrier/Note 不含语义豁免词）/ C1–C4 计数棘轮（只降不升）/ C5 取证下限（ADR-6 降维不得删信息）/ C6 声明面完备（rules 须声明集合级 default、条目禁步骤键）/ C7 正对照（符号清单被掏空即判「判据无标的」）/ C8 负对照 ADR-1..ADR-6 / C9 -Target 列真实目标差距；基线 = Baselines\Process\DimensionReduction.psd1；-WriteBaseline 为写操作，聚合器禁用'
     }
 
+    # ===== UI 单入口门禁（连接点重构 R7）=====
+    UiSingleEntry = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Carrier = '源码静态计数（Core/Functions + Ui/Views 静态槽直取点）+ 生成目录 handler 解析'
+        Note   = 'UI 单入口：C0 登记 / C1-C3 静态槽直取计数棘轮（只降不升）/ C4 目录 handler=LegacyRoute=0 / C5 handler 词表闭合 / C6 负对照 / C7 正对照；基线 = Baselines\Process\UiSingleEntry.psd1'
+    }
+
     # ===== 反模式族守卫（P9 落地）=====
     AntiPatternFamily = @{
         Domain = 'Meta'

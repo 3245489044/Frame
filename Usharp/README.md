@@ -1,6 +1,6 @@
 # Usharp —— 以矩阵为框架、引用关系为核心的逻辑语言
 
-> **层级**：语言框架（表层语言 + 编译器） | **状态**：五前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`）+ 闸A + 引用即边 + UR 接入 + 观测接入（批 U1–U6 / O0–O5 已落地）
+> **层级**：语言框架（表层语言 + 编译器） | **状态**：20 前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]`/`[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
 > **日期**：2026-09-22 | **基座**：`Frame\CsharpPrj`（不新造运行时）
 > **本文件 = 语言规范唯一权威**：语法/规则/诊断码在此定义，实现里不得重复语义（防抽象再生）。
 
@@ -55,7 +55,7 @@
 
 ## 2. 表层语法（复用行首前缀式）
 
-### 2.1 五前缀（Usharp 包自持，注册进 `Plate.DslMethod.Parsing.DslPrefixRegistry`，id=`usharp`）
+### 2.1 前缀表（20 项，单一真源 = `UsharpPrefixes.Scope`）
 
 | 前缀 | 语义 | 符号类型 | 编译到 |
 |---|---|---|---|
@@ -64,9 +64,26 @@
 | `[Flow]` | 链 / 工作流（以链为节点） | `Flow` | `RoundSpec` + `ChainTransitionMatrix` |
 | `[Ref]` | 带空间归属的引用 | `Ref` | `CoordinateRef` + 引用图边 |
 | `[Obs]` | 观测声明（作用域 / 实体 / 事件；`kind=` 分子类） | `Obs` | `BoundaryContract` / `EventContract`（经适配层登记；核心零观测依赖） |
-| `[LLMDecl]` | LLM 判定契约（判定形状与契约外置：`over`/`input`/`output` + `system_body`/`user_body` 提示词正文引用） | `LlmDecl` | 契约投影（`llm.prompt` / `llm.contract`；LLM 推理本身不进声明语言，执行仍由内核 LLM 网关完成） |
+| `[Branch]` | 声明式分支（判定键 → then/else） | `Branch` | 控制流装配（`RoundSpec` 分支） |
+| `[Switch]` | 多路分派 | `Switch` | 控制流装配 |
+| `[Call]` | 子流程调用 | `Call` | 控制流装配（`Invokes` 边） |
+| `[Region]` | 区域声明（父层单节点 + 子计划） | `Region` | 层次 schema |
+| `[When]` | 受控边（条件激活） | `When` | 转移表 |
+| `[Guard]` | 受护作用域 | `Guard` | 转移表 |
+| `[Domain]` | 节点域定义面 | `Domain` | 域定义投影 |
+| `[Gather]` | 节点聚拢声明（收集端口） | `Gather` | 聚拢投影 |
+| `[Table]` | 表结构（数据即声明） | `Table` | 列 DDL / 写面规格 |
+| `[Record]` | 记录载荷 | `Record` | 记录编解码 |
+| `[Config]` | 配置项声明 | `Config` | 配置树 |
+| `[Rule]` | 规则（条件 → 动作） | `Rule` | 规则集 |
+| `[LLMDecl]` | LLM 判定契约 | `LlmDecl` | `llm.prompt` / `llm.contract` |
+| `[KeySpace]` | 键空间（族/面/轴/端口/策略/回退链） | `KeySpace` | 键声明产物 |
+| `[Command]` | 连接点命令（action/op 路由 + 键配方） | `Command` | `ui-commands-v1` |
 
-既有 `[Node]` / `[Edge]` / `[Constraint]` / `[CR]` / `%` / `#` 等前缀**继续沿用**（同一解析器、同一符号索引）。
+既有 `[Node]` / `[Edge]` / `[Constraint]` / `[CR]` / `%` / `#` 等核心前缀**继续沿用**（同一解析器、同一符号索引）。
+
+> 新增语言单元 = 在 `UsharpUnitRegistry` 登记 unit（前缀/Kind/投影/规则/码段）+ 闸A 判据 + 真实消费方；禁复制上一个单元的词法器与码表。
+
 
 ### 2.2 书写模板
 
@@ -187,65 +204,119 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 
 ---
 
-## 5. 诊断码（`UsharpCodes` 单一真源）
+## 5. 诊断码（唯一真源 = `UsharpDiagnosticCatalog`）
 
-| 码 | 严重度 | 含义 |
+> 本表由 `UsharpDiagnosticCatalog.All` 生成；新增/改号必须同改目录与 README，唯一性由 `AssertUnique` + 单测双保险。
+
+| 码 | 严重度 | 归属：含义 |
 |---|---|---|
-| `US0001` | error | 空间重复声明 |
-| `US0002` | error | 空间内坐标重复声明 |
-| `US0003` | error | 声明块为空（未声明任何坐标/行/步骤） |
-| `US0004` | error | `[Matrix]` 行右式不可解析（非 `bias + Σ weight·axis` 形态） |
-| `US0005` | warn | 值型坐标声明了未知值类（按 numeric 装配，不静默） |
-| **`US0006`** | **error** | **`[Space]` 的 `kind=` 取值非法（合法值：`keys`/`values`）—— 不静默按 `values` 装配** |
-| **`US0007`** | **error** | **`[Space]` 缩进块内出现无法解析的坐标行 —— 禁止静默丢弃声明行** |
-| `US1001` | error | 引用了未声明的空间（`over=` / `space=` 指向不存在） |
-| `US1002` | error | `[Ref]` 坐标未在空间中声明（闸A） |
-| `US1003` | error | `[Matrix]` 输出坐标未声明（闸A） |
-| `US1004` | error | `[Matrix]` 行内引用坐标未声明（闸A；**可读域 = 自身层 ∪ 祖先闭包** —— 兄弟 / 跨子树块依赖须显式 `connects=`，否则归 `US1017`） |
-| **`US1005`** | **error** | **`[Flow]` 步骤键未声明（闸A）—— 对应「链声明被静默丢弃」类缺陷** |
-| `US1006` | error | 子链 `~ <SubFlowId>` 未声明（工作流连接链引用不可解析） |
-| `US1007` | error | `[Ref]` 形状非法（缺 `space`/`key`） |
-| `US1008` | error | 空间划分层图非法（`contains=` 形状非法 / 父空间未声明 / 层自根不可达 / 非自环层间环；**可达与环检测委托** `Modules.DeclarativeDataflow.HierarchySchemaValidator`） |
-| `US1009` | error | 子空间坐标未在父空间声明（**子集不成立 ⇒ 划分非法**） |
-| `US1010` | error | 矩阵行输出坐标属**祖先层**但不属自身层（越界写 / 父子双写；比 `US1003` 更精确的归因） |
-| `US1011` | error | 处理器绑定非单源（`process=` 为空 / 同一层重复声明处理器） |
-| `US1012` | warn | 含自环（递归划分 = 不定深度）的层未声明 `budget=`（预算风险前移；运行期由 `ProcessBudget` 强制收口） |
-| `US1014` | error | `[Ref] scope=` 指向未声明作用域（白名单 = `[Obs] kind=scope` 声明面） |
-| `US1015` | error | `connects=` 端点在本编译内不可解析（上游流号未声明 / 自连） |
-| `US1016` | error | `connects=` 边类型为空（须形如 `<上游流号>:<连接边类型>`） |
-| `US1017` | error | 跨块写依赖未声明：块读了由**非祖先块**写的坐标，而无 `connects=`（比 `US1004` 更精确的归因） |
-| `US1018` | warn | 处理编排字段取值非法（`order=` 未知值 / `budget=` 非两段正整数）——按缺省处理，不静默兜底 |
-| `US1101` | error | 词元空间（`kind=terms`）词元行的 `zone=` 缺失或非法（合法：`I`/`E`/`O`），或 `terms=` 未声明词元 |
-| `US1102` | error | 判据规则 `when=` 引用未声明词元（`<输入轴>.<词元>` 与 `<层输出轴>.<标签>` 二者皆不可解析） |
-| `US1103` | error | 判据层内 `priority` 冲突（面内须全序显式支配） |
-| `US1104` | error | 判据层 `absorb=` 的值不在该层标签集内（吸收集悬空） |
-| `US1105` | error | 判据读法形态非法（层缺 `output=` / 规则缺 `label=`·`priority=` / 续行不可归位 / 非词元空间含判据续行 / 无层） |
-| `US1106` | error | `cross.<名>` 引用未声明的复合特征（或 `cross` 行 `when=` 为空） |
-| `US2001` | warn | `[CR]` 悬空（符号索引不可解析；跨库引用需同批装载） |
-| `US2002` | warn | 标记 `dep` 的 `[Node]`/`[Edge]` 仍被流步骤 / 引用边使用（废弃指向） |
-| `US3001` | warn | `[Flow]` 步骤键尚无对应 `[Node]` 声明（可执行体未登记） |
-| `US4001` | error | 引用图成环（环检测经 `IUsharpGraphBackend`；归因到参与环的边） |
-| `US4002` | warn | 边类型未映射到 UR 词汇表（将塌缩为 `Other`，须显式 `ur=`） |
-| `US4003` | error | `ur=` 映射值不是合法 `ReferenceType`（映射表闸A） |
-| `US4004` | error | 流完整性违例（唯一入口 / 有终点 / 节点唯一 / 边端存在） |
-| `US5001` | error | 发射目标流未声明 |
-| `US5002` | error | 步骤键无 `[Node]` 声明（无法解析 FuncName，不可发射） |
-| `US5003` | warn | `[Flow]` 成功准则未知（按 decision 处理） |
-| `US5004` | error | 层次 schema 不可产出（`contains=` 形状非法 / 单根不成立 / 一层多处理器绑定）——产出面域内判据，不复读闸A 码 |
-| `US5005` | warn | 链尾重复连接：首个连接生效，后续 `connects=` 被忽略（可见化，不静默覆盖） |
-| `US5006` | error | 位置反解表不可产出（`[Matrix] LocToPlacement` 缺失 / 行输出不在反解域 / 引用了非 loc 词表项）——产出面域内判据，不复读闸A 码 |
-| `US5007` | error | 归属边声明不可产出（本编译无任何带 `edge=` 的 `[Ref]`）——产出面域内判据，静默兜底禁入（W1） |
-| `US6001` | error | `[Obs]` 事件的 `entity=`/`scope=`（或实体的 `scope=`、作用域的 `parent=`）指向未声明实体/作用域（闸A） |
-| `US6002` | error | `[Flow] step emit=` 引用未声明事件分类（**运行期 `UnregisteredEventException` 前移到编译期**） |
-| `US6003` | error | `[Obs]` 同 `kind` 同名重复声明 |
-| `US6004` | error | `[Obs]` 的 `enum=` 字段未出现在 `required=`（或 `fields=`）中（声明自洽性） |
-| `US6005` | warn | `[Obs]` 事件声明无任何 `[Flow] step emit=` 消费（声明未接线，显式可见化） |
-| `US6006` | error | `[Obs] kind=file` 多条（`version=` 版本双源；至多一条） |
-| `US6007` | error | `[Obs]` 的 `kind=` 缺省或非法（合法值：`file`/`scope`/`entity`/`event`） |
-| `US9001` | info | 未装配图后端（`NullGraphBackend`）：图类判据跳过，**显式可见化**（不假装通过） |
-| `US9002` | info | 未装配观测后端（`NullObservabilityBackend`）：契约产出与编译期自观测跳过，**显式可见化**（不假装产出） |
-
-所有诊断一律携带 `文件:行` 归因（`UsharpDiagnostic.ToString()`）。
+| `US0001` | error | Space：同一空间 id 重复声明 |
+| `US0002` | error | Space：同一空间内坐标重复声明 |
+| `US0003` | error | Space：声明为空（缺 id） |
+| `US0004` | error | Matrix：矩阵行形态非法 |
+| `US0005` | error | Matrix：矩阵轴种类非法 |
+| `US0006` | error | Space：[Space] kind= 取值非法 |
+| `US0007` | error | Space：缩进块内坐标行不可解析 |
+| `US0008` | error | Command：[Command] channel= 不含 '.' |
+| `US0009` | error | Command：[Command] 引用空间未声明 |
+| `US0010` | error | Rule：[Rule] enabled= 非法布尔 |
+| `US0011` | error | Obs：[Obs] enum= 段非法 |
+| `US0012` | error | Document：落库正文行不可解析 |
+| `US0013` | error | Table：[Table] derived 列无 DDL 实现 |
+| `US1001` | error | Ref：引用的空间未声明 |
+| `US1002` | error | Ref：引用坐标未在空间声明 |
+| `US1003` | error | Matrix：矩阵行输出坐标未声明 |
+| `US1004` | error | Matrix：矩阵行输入坐标未声明 |
+| `US1005` | error | Flow：流步骤键未声明 |
+| `US1006` | error | Flow：子流未声明 |
+| `US1007` | error | Ref：[Ref] 形态非法 |
+| `US1008` | error | Hierarchy：层图非法（形状/父层/可达/环） |
+| `US1009` | error | Hierarchy：子空间坐标未在父空间声明 |
+| `US1010` | error | Hierarchy：矩阵行越界写祖先层坐标 |
+| `US1011` | error | Hierarchy：处理器绑定非单源 |
+| `US1012` | warning | Hierarchy：自环层未声明 budget= |
+| `US1014` | error | Ref：[Ref] scope= 未声明 |
+| `US1015` | error | Connect：connects= 端点不可解析 |
+| `US1016` | error | Connect：connects= 边类型为空 |
+| `US1017` | error | Connect：跨块写依赖未声明 |
+| `US1018` | error | ProcessPlan：处理编排字段取值非法 |
+| `US1019` | error | Binding：控制流绑定段重复键 |
+| `US1101` | error | Decision：词元 zone= 缺失或非法 |
+| `US1102` | error | Decision：when= 引用未声明词元 |
+| `US1103` | error | Decision：同层 priority 冲突 |
+| `US1104` | error | Decision：absorb= 悬空 |
+| `US1105` | error | Decision：判据读法形态非法 |
+| `US1106` | error | Decision：cross.<名> 未声明 |
+| `US2001` | error | CrRef：跨库引用悬空 |
+| `US2002` | warning | CrRef：引用了废弃符号 |
+| `US3001` | error | Edge：边对端未声明 |
+| `US4001` | error | Graph：引用图存在环 |
+| `US4002` | error | Graph：边类型未映射 |
+| `US4003` | error | Graph：边类型未知 |
+| `US4004` | error | Graph：流完整性违规 |
+| `US5001` | error | FlowEmit：流未声明（不可产出） |
+| `US5002` | error | FlowEmit：步骤键无 [Node] 声明 |
+| `US5003` | error | FlowEmit：success= 词元未知 |
+| `US5004` | error | HierarchyEmit：层次 schema 不可产出 |
+| `US5005` | warning | ChainEmit：链尾重复连接（首个生效） |
+| `US5006` | error | LocEmit：位置反解表不可产出 |
+| `US5007` | error | RefEdgeEmit：归属边声明不可产出 |
+| `US5008` | error | DomainEmit：节点域定义不可产出 |
+| `US5009` | error | GatherEmit：节点聚拢声明不可产出 |
+| `US6001` | error | Obs：entity 的 scope 未声明 |
+| `US6002` | error | Obs：emit= 事件未声明 |
+| `US6003` | error | Obs：观测声明重复 |
+| `US6004` | error | Obs：enum= 字段不在 required= 集合 |
+| `US6005` | warning | Obs：事件无消费方 |
+| `US6006` | error | Obs：kind=file 重复声明 |
+| `US6007` | error | Obs：kind= 取值非法 |
+| `US7001` | error | Domain：域身份缺失或占位符不覆盖 |
+| `US7002` | error | Domain：域位置 id 重复 |
+| `US7003` | error | Domain：selection= 未声明 |
+| `US7004` | error | Domain：retention= 未声明 |
+| `US7005` | error | Domain：域声明形态非法 |
+| `US7101` | error | Gather：缺 kind-field |
+| `US7102` | error | Gather：聚拢族名重复 |
+| `US7103` | error | Gather：塑形行缺 family= |
+| `US7104` | error | Gather：summary 为空列表 |
+| `US7105` | error | Gather：缺通配塑形 * |
+| `US7106` | error | Gather：聚拢声明形态非法 |
+| `US7201` | error | Table：表声明形态非法 |
+| `US7202` | error | Table：列类型/标志非法 |
+| `US7203` | error | Table：列名重复 |
+| `US7204` | error | Record：记录声明形态非法 |
+| `US7205` | error | Record：记录引用的表未声明 |
+| `US7301` | error | LLMDecl：output= 字段未在 O 区声明 |
+| `US7302` | error | LLMDecl：input= 字段未在 I 区声明 |
+| `US7303` | error | LLMDecl：LLMDecl 形态非法 |
+| `US7304` | error | LLMDecl：over= 空间未声明 |
+| `US7401` | error | KeySpace：键族重复声明 |
+| `US7402` | error | KeySpace：键族缺 template= |
+| `US7403` | error | KeySpace：surface 族与所属族不一致 |
+| `US7404` | error | KeySpace：port 指向未声明族 |
+| `US7405` | error | KeySpace：policy 重复声明 |
+| `US7406` | error | KeySpace：[KeySpace] 续行不可解析 |
+| `US7501` | error | Command：[Command] 重复声明 |
+| `US7502` | error | Command：channel 坐标未声明 |
+| `US7503` | error | Command：op 声明不完整 |
+| `US7504` | error | Command：key 的族未声明 |
+| `US7505` | error | Command：key 的面未声明 |
+| `US7506` | error | Command：chain 字段未声明 |
+| `US7507` | error | Command：port 未声明 |
+| `US7508` | error | Command：key op= 未声明 |
+| `US7509` | error | Command：default=/fallback= 未声明 |
+| `US7510` | error | Command：[Command] 续行不可解析 |
+| `US7601` | error | Agent.Skill：[Skill] backend= 不在工具注册表 |
+| `US7602` | error | Agent.Skill：[Profile] bands= 未声明 |
+| `US7603` | error | Agent.Skill：[Profile] base=on 缺 bands |
+| `US7604` | error | Agent.Port：[Node] fn= 不在函数注册表 |
+| `US7605` | error | Agent.Tool：轨 id 不在实现注册表 |
+| `US7606` | error | Agent.Behavior：[Rule] action= 不在 [Node]/动作注册表 |
+| `US7801` | error | Agent.Port：[Node] skill= 未声明 |
+| `US7802` | error | Agent.Port：[Node] 执行体归属非恰一 |
+| `US7803` | error | Agent.Port：[Node] kind= 越界 |
+| `US9001` | info | Graph：图后端未装配 |
+| `US9002` | info | Obs：观测后端未装配 |
 
 ---
 
@@ -255,16 +326,20 @@ Usharp.Emit       ──► RoundSpec / ReferenceSchema / 公理类    ← Round
 Frame/Usharp/
   README.md                  ← 语言规范（唯一权威，即本文件）
   Directory.Build.props      ← Usharp 编译约定（net10.0-windows；输出 Usharp\BuildOutput\$(Configuration)\）
-  Usharp.sln                 ← 唯一聚合解决方案（Usharp 7 工程 + CsharpPrj 6 伞工程 = 13 条目）
+  Usharp.sln                 ← 唯一聚合解决方案（Usharp 11 工程 + CsharpPrj 6 伞工程 = 17 条目）
                                  平台叶子经伞 csproj 递归纳入，不入 .sln；禁用 Sync-SlnToDisk.ps1 同步本文件
   samples/*.ushar            ← 样例（单一真源：测试直接拷用，不复制文本）
-  src/Usharp.Syntax/          ← 语法层（复用 Plate.DslMethod 解析器）
-  src/Usharp.Semantics/       ← 语义层（空间注册 + 闸A + 引用图）
+  src/Usharp.Syntax/          ← 语法层（复用 Plate.DslMethod 解析器；Parsing/UsharpLineReader = 续行词法内核）
+  src/Usharp.Semantics/       ← 语义层（空间注册 + 闸A + 引用图 + Units/UsharpUnitRegistry 单元登记）
   src/Usharp.Matrix/          ← 矩阵实例化层（[Matrix] → ParameterMatrix / 转移表）
-  src/Usharp.Emit/            ← 发射层（[Flow] → RoundSpec + 链转移表）
-    src/Usharp.Cli/             ← 命令行（build / lint / graph / matrix / obs；零 UR）
+  src/Usharp.Emit/            ← 发射层（[Flow] → RoundSpec + 链转移表；UsharpJson / UsharpEmitResult 骨架）
+  src/Usharp.Cli/             ← 命令行（build / lint / graph / matrix / obs；零 UR）
+  src/Usharp.Bundle/          ← 打包入口
   src/Usharp.Adapters.UniversalReference/  ← UR 适配层（**唯一引 UR 处**：端口实现 / 边类型映射 / Schema / 落库）
   src/Usharp.Adapters.Observability/       ← 观测适配层（**唯一引 Strategy.Observability 处**：契约映射 / 端口实现 / manifest / 步骤自动埋点）
+  src/Usharp.Adapters.Node/                ← 节点适配层（.ushar → ISpecSource/DefinitionSet）
+  src/Usharp.Adapters.Declarations/        ← 声明库适配层（配置存储后端 / 词表 / 落库闭环 / 表投影）
+  src/Usharp.Adapters.Agent/               ← Agent 领域反转包（[Skill]/[Profile]/[Segment]/[LLMDecl]/端口/工具面）
   tests/（已迁 Environment\CentralTest\UsharpTests）：
     Usharp.Tests/             ← MSTest（50 例；核心，零 UR）
     Usharp.Emit.Tests/        ← MSTest（9 例；与 agent-loop.json 等价比对）
@@ -513,7 +588,7 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | 风险 | 对策（硬约束） |
 |---|---|
 | **双语言并存**（Usharp 与既有 4 类声明长期并行） | 迁移看板：每类旧声明有且仅有一个退役日；Usharp 不得只为新增而存在 |
-| **抽象再生**（先例：`Convert` 3→1、`Kind` 5→1 修后又长出新分散） | **四前缀 + 观测单元（`[Obs]`，批 O1 引入）之外不得新增语言单元**（U-V4 修订）；观测单元新增须附真实消费方与闸A 判据；语言面常量只在 `UsharpLanguage` 一处 |
+| **抽象再生**（先例：`Convert` 3→1、`Kind` 5→1 修后又长出新分散） | 新增语言单元须在 `UsharpUnitRegistry` 登记（前缀/Kind/投影）+ 闸A 判据 + 真实消费方 + 独立码段；禁复制上一个单元的词法器/码表；语言面常量只在 `UsharpLanguage` 一处 |
 | **语法先行、语义滞后** | 先有 U1 闸A（真实收益）再扩语法（拒绝无校验的新前缀） |
 | **闸A 被绕过** | 一切消费方必须经 `UsharpCompilation`（`HasErrors` 为闸）；禁止直接用 `DslParser` 后跳过 `UsharpValidator` |
 | **项目接入断裂** | 引用一律经 `$(UsharpCsharpPrjRoot)`；Usharp 不参与 CsharpPrj `modules.json`（避免双向耦合） |

@@ -116,9 +116,16 @@ public sealed class UsharpDeclarationEditor : IDeclarationEditor
     private static List<string> SplitLines(string? text)
         => (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').ToList();
 
-    /// <summary>顶层声明头行判定：去空白后以 <c>[</c> 起始。</summary>
+    /// <summary>顶层声明头行判定：去空白后以已注册前缀（<c>[Prefix]</c>）起始。</summary>
     private static bool IsHeader(string line)
-        => line.TrimStart().StartsWith("[", StringComparison.Ordinal);
+    {
+        var trimmed = line.TrimStart();
+        if (!trimmed.StartsWith("[", StringComparison.Ordinal)) return false;
+        var close = trimmed.IndexOf(']');
+        if (close <= 1) return false;
+        var prefix = trimmed[..(close + 1)];
+        return Usharp.Syntax.UsharpPrefixes.Scope.Find(prefix) is not null;
+    }
 
     /// <summary>头行 → 键（<c>[Node] my_step: fn=…</c> → <c>my_step</c>）；非头行/无键 → false。</summary>
     private static bool TryHeaderKey(string line, out string key)

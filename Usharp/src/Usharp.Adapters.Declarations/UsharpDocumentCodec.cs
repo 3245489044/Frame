@@ -80,7 +80,7 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
 
         var unparsed = new List<string>();
         body = UsharpValueParser.ParseRecordBlock(lines.Skip(1), unparsed);
-        return true;
+        return unparsed.Count == 0;
     }
 
     /// <inheritdoc />

@@ -48,7 +48,7 @@ public sealed record UsharpKeySpaceDecl(
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
 
-        var domains = SplitList(d.Field("domains"));
+        var domains = UsharpLineReader.SplitList(d.Field("domains"));
         var families = new List<FamilyBuilder>();
         var byFamily = new Dictionary<string, FamilyBuilder>(StringComparer.Ordinal);
         var ports = new List<UsharpKeyPortDecl>();
@@ -70,57 +70,57 @@ public sealed record UsharpKeySpaceDecl(
             var line = (raw ?? string.Empty).Trim();
             if (line.Length == 0) continue;
 
-            var parts = SplitParts(line);
+            var parts = UsharpLineReader.SplitParts(line);
             var head = parts[0];
-            var fields = ParseFields(parts, 1);
+            var fields = UsharpLineReader.ParseFieldBag(parts, 1, StringComparer.OrdinalIgnoreCase);
 
-            if (TryHead(head, "family", out var familyId))
+            if (UsharpLineReader.TryHead(head, "family", out var familyId))
             {
                 var family = Family(familyId);
-                family.Template = Get(fields, "template") ?? family.Template;
-                family.FamilyPrefix = Get(fields, "prefix") ?? family.FamilyPrefix;
-                family.Relation = Get(fields, "relation") ?? family.Relation;
-                family.Cardinality = Get(fields, "cardinality") ?? family.Cardinality;
-                family.BusinessKeyTemplate = Get(fields, "businessKey") ?? family.BusinessKeyTemplate;
-                family.DomainId = Get(fields, "domain") ?? family.DomainId;
-                family.Aliases.AddRange(SplitList(Get(fields, "aliases")));
-                family.OrderKeys.AddRange(SplitList(Get(fields, "orderKeys")));
-                family.IdentityKeys.AddRange(SplitList(Get(fields, "identity")));
-                family.DerivedPrefixes.AddRange(SplitList(Get(fields, "derivedPrefixes")));
+                family.Template = UsharpLineReader.Get(fields, "template") ?? family.Template;
+                family.FamilyPrefix = UsharpLineReader.Get(fields, "prefix") ?? family.FamilyPrefix;
+                family.Relation = UsharpLineReader.Get(fields, "relation") ?? family.Relation;
+                family.Cardinality = UsharpLineReader.Get(fields, "cardinality") ?? family.Cardinality;
+                family.BusinessKeyTemplate = UsharpLineReader.Get(fields, "businessKey") ?? family.BusinessKeyTemplate;
+                family.DomainId = UsharpLineReader.Get(fields, "domain") ?? family.DomainId;
+                family.Aliases.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "aliases")));
+                family.OrderKeys.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "orderKeys")));
+                family.IdentityKeys.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "identity")));
+                family.DerivedPrefixes.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "derivedPrefixes")));
                 continue;
             }
 
-            if (TryHead(head, "surface", out var surfaceRef))
+            if (UsharpLineReader.TryHead(head, "surface", out var surfaceRef))
             {
-                var (family, name) = SplitRef(surfaceRef);
+                var (family, name) = UsharpLineReader.SplitRef(surfaceRef);
                 if (family.Length == 0 || name.Length == 0) { unparsed.Add(line); continue; }
                 Family(family).Surfaces.Add(new UsharpKeySurfaceDecl(
-                    family, name, SplitList(Get(fields, "templates")),
-                    Get(fields, "prefix"), SplitList(Get(fields, "readOnly"))));
+                    family, name, UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "templates")),
+                    UsharpLineReader.Get(fields, "prefix"), UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "readOnly"))));
                 continue;
             }
 
-            if (TryHead(head, "axis", out var axisRef))
+            if (UsharpLineReader.TryHead(head, "axis", out var axisRef))
             {
-                var (family, name) = SplitRef(axisRef);
+                var (family, name) = UsharpLineReader.SplitRef(axisRef);
                 if (family.Length == 0 || name.Length == 0) { unparsed.Add(line); continue; }
                 Family(family).Axes.Add(new UsharpKeyAxisDecl(
-                    family, name, Get(fields, "shape") ?? "text",
-                    !string.Equals(Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
-                    SplitList(Get(fields, "allowed")), SplitList(Get(fields, "disallow"))));
+                    family, name, UsharpLineReader.Get(fields, "shape") ?? "text",
+                    !string.Equals(UsharpLineReader.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
+                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "allowed")), UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "disallow"))));
                 continue;
             }
 
-            if (TryHead(head, "alias", out var aliasRef))
+            if (UsharpLineReader.TryHead(head, "alias", out var aliasRef))
             {
-                var (family, _) = SplitRef(aliasRef);
-                var template = Get(fields, "template") ?? Get(fields, "templates");
+                var (family, _) = UsharpLineReader.SplitRef(aliasRef);
+                var template = UsharpLineReader.Get(fields, "template") ?? UsharpLineReader.Get(fields, "templates");
                 if (family.Length == 0 || string.IsNullOrWhiteSpace(template)) { unparsed.Add(line); continue; }
-                Family(family).Aliases.AddRange(SplitList(template));
+                Family(family).Aliases.AddRange(UsharpLineReader.SplitList(template));
                 continue;
             }
 
-            if (TryHead(head, "derived", out var derivedRef))
+            if (UsharpLineReader.TryHead(head, "derived", out var derivedRef))
             {
                 var eq = derivedRef.IndexOf('=');
                 if (eq <= 0) { unparsed.Add(line); continue; }
@@ -134,26 +134,26 @@ public sealed record UsharpKeySpaceDecl(
                 continue;
             }
 
-            if (TryHead(head, "port", out var portName))
+            if (UsharpLineReader.TryHead(head, "port", out var portName))
             {
                 ports.Add(new UsharpKeyPortDecl(
-                    portName, Get(fields, "direction") ?? "In", Get(fields, "family") ?? string.Empty,
-                    !string.Equals(Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
-                    Get(fields, "default"), Get(fields, "cardinality")));
+                    portName, UsharpLineReader.Get(fields, "direction") ?? "In", UsharpLineReader.Get(fields, "family") ?? string.Empty,
+                    !string.Equals(UsharpLineReader.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
+                    UsharpLineReader.Get(fields, "default"), UsharpLineReader.Get(fields, "cardinality")));
                 continue;
             }
 
-            if (TryHead(head, "policy", out var policyKey))
+            if (UsharpLineReader.TryHead(head, "policy", out var policyKey))
             {
-                var value = Get(fields, "value");
+                var value = UsharpLineReader.Get(fields, "value");
                 if (string.IsNullOrWhiteSpace(value)) { unparsed.Add(line); continue; }
                 policies.Add(new UsharpKeyPolicyDecl(policyKey, value));
                 continue;
             }
 
-            if (TryHead(head, "derive", out var deriveName))
+            if (UsharpLineReader.TryHead(head, "derive", out var deriveName))
             {
-                var chain = SplitList(Get(fields, "chain"));
+                var chain = UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "chain"));
                 if (chain.Count == 0) { unparsed.Add(line); continue; }
                 derives.Add(new UsharpKeyDeriveDecl(deriveName, chain));
                 continue;
@@ -188,48 +188,5 @@ public sealed record UsharpKeySpaceDecl(
         public UsharpKeyFamilyDecl Build() => new(
             Id, Template, FamilyPrefix, Relation, Cardinality, BusinessKeyTemplate,
             Aliases, OrderKeys, IdentityKeys, DomainId, DerivedPrefixes, DerivedPrefixRoles, Surfaces, Axes);
-    }
-
-    internal static List<string> SplitParts(string line)
-        => line.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-
-    internal static Dictionary<string, string> ParseFields(IReadOnlyList<string> parts, int skip)
-    {
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = skip; i < parts.Count; i++)
-        {
-            var eq = parts[i].IndexOf('=');
-            if (eq <= 0) continue;
-            map[parts[i][..eq].Trim()] = parts[i][(eq + 1)..].Trim();
-        }
-        return map;
-    }
-
-    internal static string? Get(IReadOnlyDictionary<string, string> map, string key)
-        => map.TryGetValue(key, out var value) && value.Length > 0 ? value : null;
-
-    internal static List<string> SplitList(string? raw)
-        => string.IsNullOrWhiteSpace(raw)
-            ? new List<string>()
-            : raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-
-    internal static bool TryHead(string head, string marker, out string rest)
-    {
-        rest = string.Empty;
-        if (!head.StartsWith(marker, StringComparison.Ordinal)) return false;
-        if (head.Length == marker.Length) return true;
-        if (!char.IsWhiteSpace(head[marker.Length])) return false;
-        rest = head[marker.Length..].Trim();
-        return rest.Length > 0;
-    }
-
-    internal static string? NullIfEmpty(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    internal static (string Family, string Name) SplitRef(string text)
-    {
-        var slash = text.IndexOf('/');
-        return slash <= 0 ? (string.Empty, string.Empty)
-            : (text[..slash].Trim(), text[(slash + 1)..].Trim());
     }
 }

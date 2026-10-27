@@ -42,6 +42,24 @@ public static class UsharpSourceLoader
     }
 
     /// <summary>
+    /// 多目录装载（**唯一实现**）：按传入目录序、目录内按路径序；缺目录静默跳过（装载而非校验）。
+    /// 吸收各适配层 <c>AppendDirectory</c> 样板，并支持顶层/递归两种口径。
+    /// </summary>
+    public static IReadOnlyList<UsharpSourceFile> FromDirectories(
+        IEnumerable<string>? directories, string? lib = null, SearchOption search = SearchOption.TopDirectoryOnly)
+    {
+        var result = new List<UsharpSourceFile>();
+        foreach (var directory in directories ?? Enumerable.Empty<string>())
+        {
+            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) continue;
+            foreach (var path in Directory.EnumerateFiles(directory, "*" + Extension, search)
+                         .OrderBy(p => p, StringComparer.Ordinal))
+                result.Add(new UsharpSourceFile(path, File.ReadAllText(path), lib));
+        }
+        return result;
+    }
+
+    /// <summary>
     /// 由声明库条目构造源集（**盘/库同形**）：诊断归因路径取 <see cref="DeclarationEntry.SourcePath"/>，
     /// 缺省回退 <see cref="DeclarationEntry.LogicalName"/>；保声明序（调用方按需排序）。
     /// </summary>

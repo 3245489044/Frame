@@ -14,20 +14,15 @@ public sealed record AgentPromptIndex(IReadOnlyList<string> Bands, IReadOnlyList
 /// 提示词面领域反转包（P5）：把 <c>[Profile].bands</c> + <c>[Skill].dsl/body</c> 汇聚为 band 索引产物
 /// （供 <c>prompt.emit</c> 派生提示词文本）；取代 <c>HistoryTaskRuntimePromptProjector</c> 的手写渲染装配面。
 /// </summary>
-public sealed class AgentPromptPack : IUsharpDomainPack
+public sealed class AgentPromptPack : UsharpDomainPackSpec
 {
     public AgentPromptPack()
+        : base("agent.prompt",
+            new IUsharpFacetProvider[] { new PromptIndexFacetProvider() },
+            Array.Empty<IGateRule<UsharpGateModel>>(),
+            new IUsharpFacetProjector[] { new PromptEmitProjector() })
     {
-        FacetProviders = new IUsharpFacetProvider[] { new PromptIndexFacetProvider() };
-        GateRules = Array.Empty<IGateRule<UsharpGateModel>>();
-        FacetProjectors = new IUsharpFacetProjector[] { new PromptEmitProjector() };
     }
-
-    public string Id => "agent.prompt";
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
 /// <summary>提示词面索引 facet（<see cref="AgentPromptIndex"/>）。</summary>

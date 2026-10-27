@@ -1,4 +1,5 @@
 using Plate.DslMethod.Model;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.Agent;
 
@@ -39,26 +40,23 @@ public sealed record UsharpSegmentDecl(
 
         return new UsharpSegmentDecl(
             d.Name.Trim(),
-            NullIfEmpty(d.Field("group")) ?? NullIfEmpty(d.Field("target")),
+            UsharpLineReader.NullIfEmpty(d.Field("group")) ?? UsharpLineReader.NullIfEmpty(d.Field("target")),
             order,
-            NullIfEmpty(d.Field("when")),
-            NullIfEmpty(d.Field("requirement")),
+            UsharpLineReader.NullIfEmpty(d.Field("when")),
+            UsharpLineReader.NullIfEmpty(d.Field("requirement")),
             IsOn(d.Field("allow_empty")),
             SplitList(d.Field("aliases")),
-            NullIfEmpty(d.Field("toggle")),
-            NullIfEmpty(d.Field("provider")),
+            UsharpLineReader.NullIfEmpty(d.Field("toggle")),
+            UsharpLineReader.NullIfEmpty(d.Field("provider")),
             band,
-            string.Equals(NullIfEmpty(d.Field("expand")), "band", StringComparison.OrdinalIgnoreCase),
+            string.Equals(UsharpLineReader.NullIfEmpty(d.Field("expand")), "band", StringComparison.OrdinalIgnoreCase),
             d.SourceFile,
             d.LineNumber);
     }
 
-    private static string? NullIfEmpty(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
     private static bool IsOn(string? value)
     {
-        var v = NullIfEmpty(value);
+        var v = UsharpLineReader.NullIfEmpty(value);
         return string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)
                || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
                || string.Equals(v, "1", StringComparison.Ordinal);

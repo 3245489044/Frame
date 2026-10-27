@@ -17,7 +17,7 @@ public static class UsharpKeySpaceEmitter
         var root = new JsonObject
         {
             ["id"] = space.Id,
-            ["domains"] = Array(space.Domains),
+            ["domains"] = UsharpJson.Array(space.Domains),
         };
 
         var families = new JsonArray();
@@ -29,14 +29,14 @@ public static class UsharpKeySpaceEmitter
                 ["template"] = family.Template,
             };
             if (family.FamilyPrefix is { } prefix) item["familyPrefix"] = prefix;
-            if (family.Relation is { } relation) item["relation"] = Tail(relation);
-            if (family.Cardinality is { } cardinality) item["cardinality"] = Tail(cardinality);
+            if (family.Relation is { } relation) item["relation"] = UsharpJson.Tail(relation);
+            if (family.Cardinality is { } cardinality) item["cardinality"] = UsharpJson.Tail(cardinality);
             if (family.BusinessKeyTemplate is { } business) item["businessKeyTemplate"] = business;
             if (family.DomainId is { } domain) item["domainId"] = domain;
-            if (family.Aliases.Count > 0) item["aliases"] = Array(family.Aliases);
-            if (family.OrderKeys.Count > 0) item["orderKeys"] = Array(family.OrderKeys);
-            if (family.IdentityKeys.Count > 0) item["identityKeys"] = Array(family.IdentityKeys);
-            if (family.DerivedPrefixes.Count > 0) item["derivedPrefixes"] = Array(family.DerivedPrefixes);
+            if (family.Aliases.Count > 0) item["aliases"] = UsharpJson.Array(family.Aliases);
+            if (family.OrderKeys.Count > 0) item["orderKeys"] = UsharpJson.Array(family.OrderKeys);
+            if (family.IdentityKeys.Count > 0) item["identityKeys"] = UsharpJson.Array(family.IdentityKeys);
+            if (family.DerivedPrefixes.Count > 0) item["derivedPrefixes"] = UsharpJson.Array(family.DerivedPrefixes);
 
             if (family.DerivedPrefixRoles.Count > 0)
             {
@@ -50,9 +50,9 @@ public static class UsharpKeySpaceEmitter
                 var surfaces = new JsonObject();
                 foreach (var surface in family.Surfaces)
                 {
-                    var entry = new JsonObject { ["templates"] = Array(surface.Templates) };
+                    var entry = new JsonObject { ["templates"] = UsharpJson.Array(surface.Templates) };
                     if (surface.FamilyPrefix is { } surfacePrefix) entry["familyPrefix"] = surfacePrefix;
-                    if (surface.ReadOnlyTemplates.Count > 0) entry["readOnlyTemplates"] = Array(surface.ReadOnlyTemplates);
+                    if (surface.ReadOnlyTemplates.Count > 0) entry["readOnlyTemplates"] = UsharpJson.Array(surface.ReadOnlyTemplates);
                     surfaces[surface.Surface] = entry;
                 }
                 item["surfaces"] = surfaces;
@@ -69,8 +69,8 @@ public static class UsharpKeySpaceEmitter
                         ["shape"] = axis.Shape,
                         ["required"] = axis.Required,
                     };
-                    if (axis.AllowedValues.Count > 0) entry["allowedValues"] = Array(axis.AllowedValues);
-                    if (axis.DisallowInfix.Count > 0) entry["disallowInfix"] = Array(axis.DisallowInfix);
+                    if (axis.AllowedValues.Count > 0) entry["allowedValues"] = UsharpJson.Array(axis.AllowedValues);
+                    if (axis.DisallowInfix.Count > 0) entry["disallowInfix"] = UsharpJson.Array(axis.DisallowInfix);
                     axes.Add(entry);
                 }
                 item["axes"] = axes;
@@ -86,11 +86,11 @@ public static class UsharpKeySpaceEmitter
             ports.Add(new JsonObject
             {
                 ["name"] = port.Name,
-                ["direction"] = Tail(port.Direction),
+                ["direction"] = UsharpJson.Tail(port.Direction),
                 ["familyId"] = port.FamilyId,
                 ["required"] = port.Required,
                 ["defaultValue"] = port.DefaultValue,
-                ["cardinality"] = port.Cardinality is null ? null : Tail(port.Cardinality),
+                ["cardinality"] = port.Cardinality is null ? null : UsharpJson.Tail(port.Cardinality),
             });
         }
         root["ports"] = ports;
@@ -99,19 +99,13 @@ public static class UsharpKeySpaceEmitter
         foreach (var policy in space.Policies) policies[policy.Key] = policy.Value;
         root["policies"] = policies;
 
+        if (space.Derives.Count > 0)
+        {
+            var derives = new JsonObject();
+            foreach (var derive in space.Derives) derives[derive.Name] = UsharpJson.Array(derive.Chain);
+            root["derives"] = derives;
+        }
+
         return root.ToJsonString();
-    }
-
-    private static JsonArray Array(IReadOnlyList<string> values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values) array.Add(value);
-        return array;
-    }
-
-    private static string Tail(string value)
-    {
-        var dot = value.LastIndexOf('.');
-        return dot >= 0 && dot < value.Length - 1 ? value[(dot + 1)..] : value;
     }
 }

@@ -71,6 +71,4 @@ public sealed record UsharpMatrixDecl(
         };
     }
 
-    private static string? NullIfEmpty(string value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

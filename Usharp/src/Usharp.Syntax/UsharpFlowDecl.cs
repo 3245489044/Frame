@@ -193,17 +193,15 @@ public sealed record UsharpRefDecl(
 
         return new UsharpRefDecl(
             d.Name, (space ?? "").Trim(), (key ?? "").Trim(),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldSrc)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldTgt)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldIntent)),
-            NullIfEmpty(d.Field(UsharpLanguage.FieldEdge)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldSrc)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldTgt)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldIntent)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldEdge)),
             d.SourceFile, d.LineNumber)
         {
-            Scope = d.HasField(UsharpLanguage.FieldScope) ? NullIfEmpty(d.Field(UsharpLanguage.FieldScope)) : null,
+            Scope = d.HasField(UsharpLanguage.FieldScope) ? UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldScope)) : null,
         };
     }
-
-    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
 
 /// <summary>把 DslDocument 投影为 Usharp 四类语法声明（按 <see cref="DslSymbolKind"/> 分派）。</summary>

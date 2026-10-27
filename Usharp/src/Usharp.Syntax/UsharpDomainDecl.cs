@@ -90,21 +90,21 @@ public sealed record UsharpDomainDecl(
             var line = raw.Trim();
             if (line.Length == 0) continue;
 
-            if (TryStripMarker(line, UsharpLanguage.FieldIdentity, out var identityValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.FieldIdentity, UsharpMarkerBoundary.Whitespace, out var identityValue))
             {
                 identity = identityValue;
                 section = Section.None;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.FieldContext, out var contextValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.FieldContext, UsharpMarkerBoundary.Whitespace, out var contextValue))
             {
-                context.AddRange(SplitCoordinates(contextValue));
+                context.AddRange(UsharpLineReader.SplitList(contextValue, ','));
                 section = Section.None;
                 continue;
             }
-            if (TryStripMarker(line, UsharpLanguage.FieldSequence, out var sequenceValue))
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.FieldSequence, UsharpMarkerBoundary.Whitespace, out var sequenceValue))
             {
-                sequence.AddRange(SplitCoordinates(sequenceValue));
+                sequence.AddRange(UsharpLineReader.SplitList(sequenceValue, ','));
                 section = Section.None;
                 continue;
             }
@@ -178,32 +178,12 @@ public sealed record UsharpDomainDecl(
             tags, behaviors, unparsed, d.SourceFile, d.LineNumber);
     }
 
-    /// <summary>首词标记剥离（标记后须跟空白，或整行即标记；防裸键误剥，同 <c>HasStepMarker</c> 口径）。</summary>
-    private static bool TryStripMarker(string line, string marker, out string rest)
-    {
-        rest = string.Empty;
-        if (!line.StartsWith(marker, StringComparison.Ordinal)) return false;
-        if (line.Length == marker.Length) return false;
-        if (!char.IsWhiteSpace(line[marker.Length])) return false;
-        rest = line[marker.Length..].Trim();
-        return true;
-    }
-
-    /// <summary>逗号坐标列表（去空去空白）。</summary>
-    private static IReadOnlyList<string> SplitCoordinates(string value)
-        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
     /// <summary>位置项解析：<c>k=v | k=v | …</c>（缺必填字段 ⇒ false，落 <see cref="UnparsedLines"/>）。</summary>
     private static bool TryParsePlacement(string line, out UsharpPlacementDecl? placement)
     {
         placement = null;
-        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var part in line.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            var eq = part.IndexOf('=');
-            if (eq <= 0) continue;
-            fields[part[..eq].Trim()] = part[(eq + 1)..].Trim();
-        }
+        var fields = UsharpLineReader.ParseFieldBag(
+            UsharpLineReader.SplitParts(line), 0, StringComparer.OrdinalIgnoreCase);
 
         if (!fields.TryGetValue(UsharpLanguage.FieldId, out var id) || id.Length == 0) return false;
         if (!fields.TryGetValue(UsharpLanguage.FieldLevel, out var level) || level.Length == 0) return false;

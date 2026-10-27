@@ -21,10 +21,10 @@ public sealed record AgentPortNode(
 /// 闸A 对账 <c>fn ∈ 函数注册表</c>（US7003）· <c>skill ∈ [Skill]</c>（US7801）·
 /// <c>fn= 必填 + skill=/llm= 可选互斥</c>（US7802）· <c>kind ∈ 已声明类别空间</c>（US7803）。
 /// </summary>
-public sealed class AgentPortPack : IUsharpDomainPack
+public sealed class AgentPortPack : UsharpDomainPackSpec
 {
-    /// <summary>US7003：<c>[Node] fn=</c> 须 ∈ 函数注册表。</summary>
-    public const string CodeFnUnknown = "US7003";
+    /// <summary>US7604：<c>[Node] fn=</c> 须 ∈ 函数注册表。</summary>
+    public const string CodeFnUnknown = UsharpCodes.PortFnUnknown;
 
     /// <summary>US7801：<c>[Node] skill=</c> 须 ∈ 已声明 <c>[Skill]</c> 空间。</summary>
     public const string CodeSkillUnknown = UsharpCodes.PortSkillUndeclared;
@@ -39,54 +39,35 @@ public sealed class AgentPortPack : IUsharpDomainPack
     public const string ExecutorKindSpaceId = "SessionStepExecutor";
 
     public AgentPortPack(IReadOnlyCollection<string>? knownFunctions = null)
+        : base("agent.port",
+            new IUsharpFacetProvider[]
+            {
+                new UsharpFacetProvider<AgentPortNode>(DslSymbolKind.Node, ctx =>
+                    ctx.Declarations.OfKind(DslSymbolKind.Node)
+                        .Where(d => !string.IsNullOrWhiteSpace(d.Name))
+                        .Select(d => new AgentPortNode(
+                            d.Name!,
+                            UsharpLineReader.NullIfEmpty(d.Field("fn")),
+                            UsharpLineReader.SplitList(d.Field("inports"), ',', ' '),
+                            UsharpLineReader.SplitList(d.Field("outports"), ',', ' '),
+                            d.SourceFile, d.LineNumber,
+                            UsharpLineReader.NullIfEmpty(d.Field("skill")),
+                            UsharpLineReader.NullIfEmpty(d.Field("llm")),
+                            UsharpLineReader.NullIfEmpty(d.Field("kind"))))),
+            },
+            new IGateRule<UsharpGateModel>[]
+            {
+                new PortFnGateRule(knownFunctions ?? Array.Empty<string>()),
+                new PortSkillGateRule(),
+                new PortExecutorExclusivityGateRule(),
+                new PortKindGateRule(),
+            },
+            new IUsharpFacetProjector[] { new PortContractProjector() })
     {
-        FacetProviders = new IUsharpFacetProvider[] { new PortNodeFacetProvider() };
-        GateRules = new IGateRule<UsharpGateModel>[]
-        {
-            new PortFnGateRule(knownFunctions ?? Array.Empty<string>()),
-            new PortSkillGateRule(),
-            new PortExecutorExclusivityGateRule(),
-            new PortKindGateRule(),
-        };
-        FacetProjectors = new IUsharpFacetProjector[] { new PortContractProjector() };
     }
-
-    public string Id => "agent.port";
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
-/// <summary>端口节点 facet（<c>IReadOnlyList&lt;AgentPortNode&gt;</c>；声明序）。</summary>
-internal sealed class PortNodeFacetProvider : IUsharpFacetProvider
-{
-    public Type FacetType => typeof(IReadOnlyList<AgentPortNode>);
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Node };
-
-    public object Project(UsharpFacetContext ctx)
-        => ctx.Declarations.OfKind(DslSymbolKind.Node)
-            .Where(d => !string.IsNullOrWhiteSpace(d.Name))
-            .Select(d => new AgentPortNode(
-                d.Name!,
-                NullIfEmpty(d.Field("fn")),
-                SplitList(d.Field("inports")),
-                SplitList(d.Field("outports")),
-                d.SourceFile, d.LineNumber,
-                NullIfEmpty(d.Field("skill")),
-                NullIfEmpty(d.Field("llm")),
-                NullIfEmpty(d.Field("kind"))))
-            .ToList();
-
-    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-}
-
-/// <summary>US7003：<c>[Node] fn=</c> 须 ∈ 函数注册表（未注入 ⇒ 不判定）。</summary>
+/// <summary>US7604：<c>[Node] fn=</c> 须 ∈ 函数注册表（未注入 ⇒ 不判定）。</summary>
 internal sealed class PortFnGateRule : IGateRule<UsharpGateModel>
 {
     private readonly HashSet<string> _knownFunctions;

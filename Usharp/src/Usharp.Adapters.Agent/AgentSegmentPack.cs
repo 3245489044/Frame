@@ -12,32 +12,18 @@ namespace Usharp.Adapters.Agent;
 /// <para>与 <see cref="AgentSkillPack"/> 同范式：语法视图在 <see cref="UsharpSegmentDecl"/>，
 /// 消费方（段注册 / 契约判定 / 前置门 / 快照）只读本 facet，禁止再解析配置文本。</para>
 /// </summary>
-public sealed class AgentSegmentPack : IUsharpDomainPack
+public sealed class AgentSegmentPack : UsharpDomainPackSpec
 {
     public AgentSegmentPack()
+        : base("agent.segment",
+            new IUsharpFacetProvider[]
+            {
+                new UsharpFacetProvider<UsharpSegmentDecl>(DslSymbolKind.Segment, ctx =>
+                    ctx.Declarations.OfKind(DslSymbolKind.Segment).Select(UsharpSegmentDecl.From).OfType<UsharpSegmentDecl>()),
+            },
+            Array.Empty<IGateRule<UsharpGateModel>>(),
+            Array.Empty<IUsharpFacetProjector>())
     {
-        FacetProviders = new IUsharpFacetProvider[] { new SegmentDeclFacetProvider() };
-        GateRules = Array.Empty<IGateRule<UsharpGateModel>>();
-        FacetProjectors = Array.Empty<IUsharpFacetProjector>();
     }
-
-    public string Id => "agent.segment";
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
-/// <summary>段声明 facet（<see cref="UsharpSegmentDecl"/> 集；声明行序即登记序）。</summary>
-internal sealed class SegmentDeclFacetProvider : IUsharpFacetProvider
-{
-    public Type FacetType => typeof(IReadOnlyList<UsharpSegmentDecl>);
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Segment };
-
-    public object Project(UsharpFacetContext ctx)
-        => ctx.Declarations.OfKind(DslSymbolKind.Segment)
-            .Select(UsharpSegmentDecl.From)
-            .Where(s => s is not null)
-            .Select(s => s!)
-            .ToArray();
-}

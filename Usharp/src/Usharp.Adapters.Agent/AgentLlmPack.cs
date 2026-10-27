@@ -26,7 +26,7 @@ public sealed record LlmContract(LlmPromptContract Prompt, LlmOutputContract Out
 /// 产出可执行提示词与契约化解析描述，取代 <c>HostResourceValueJudge</c>/<c>LlmStateDirector</c> 的
 /// 手写 prompt/Parse（只做契约投影，不另立裁决）。
 /// </summary>
-public sealed class AgentLlmPack : IUsharpDomainPack
+public sealed class AgentLlmPack : UsharpDomainPackSpec
 {
     /// <summary>US7301：<c>[LLMDecl] output=</c> 字段须 ∈ <c>over=</c> 空间 O 区词元。</summary>
     public const string CodeOutputUndeclared = UsharpCodes.LlmContractOutputUndeclared;
@@ -41,31 +41,16 @@ public sealed class AgentLlmPack : IUsharpDomainPack
     public const string CodeSpaceUnknown = UsharpCodes.LlmDeclSpaceUnknown;
 
     public AgentLlmPack()
+        : base("agent.llm",
+            new IUsharpFacetProvider[]
+            {
+                new UsharpFacetProvider<UsharpLlmDecl>(DslSymbolKind.LlmDecl, ctx =>
+                    ctx.Declarations.OfKind(DslSymbolKind.LlmDecl).Select(UsharpLlmDecl.From).OfType<UsharpLlmDecl>()),
+            },
+            new IGateRule<UsharpGateModel>[] { new LlmContractGateRule() },
+            new IUsharpFacetProjector[] { new LlmPromptProjector(), new LlmContractProjector() })
     {
-        FacetProviders = new IUsharpFacetProvider[] { new LlmDeclFacetProvider() };
-        GateRules = new IGateRule<UsharpGateModel>[] { new LlmContractGateRule() };
-        FacetProjectors = new IUsharpFacetProjector[] { new LlmPromptProjector(), new LlmContractProjector() };
     }
-
-    public string Id => "agent.llm";
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
-}
-
-/// <summary><c>[LLMDecl]</c> 契约 facet（<c>IReadOnlyList&lt;UsharpLlmDecl&gt;</c>；声明序）。</summary>
-internal sealed class LlmDeclFacetProvider : IUsharpFacetProvider
-{
-    public Type FacetType => typeof(IReadOnlyList<UsharpLlmDecl>);
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.LlmDecl };
-
-    public object Project(UsharpFacetContext ctx)
-        => ctx.Declarations.OfKind(DslSymbolKind.LlmDecl)
-            .Select(UsharpLlmDecl.From)
-            .Where(x => x is not null)
-            .Select(x => x!)
-            .ToList();
 }
 
 /// <summary>US7301–US7304：LLM 判定契约 ↔ 装配对账（判据载体 = 声明名/字段，结构事实）。</summary>

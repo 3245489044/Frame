@@ -20,27 +20,22 @@ public sealed record AgentRuleEdge(string RuleId, string? Scope, string? When, s
 /// 行为面领域反转包（P5）：<c>history-modes.ushar</c> 的模式词表 + <c>[Rule]</c> 的 mode→行为映射
 /// 反转为 facet；<c>US7005</c> 对账 <c>[Rule].action ∈ [Node]</c>（消 <c>StatePromptCatalog</c> 手写表）。
 /// </summary>
-public sealed class AgentBehaviorPack : IUsharpDomainPack
+public sealed class AgentBehaviorPack : UsharpDomainPackSpec
 {
-    /// <summary>US7005：<c>[Rule] action=</c> 须 ∈ 已声明 <c>[Node]</c> / 动作注册表。</summary>
-    public const string CodeActionUnknown = "US7005";
+    /// <summary>US7606：<c>[Rule] action=</c> 须 ∈ 已声明 <c>[Node]</c> / 动作注册表。</summary>
+    public const string CodeActionUnknown = UsharpCodes.BehaviorActionUnknown;
 
     /// <summary>模式词表空间 id（历史命名的内置档；通用取用时经构造参数可换）。</summary>
     public string ModeSpaceId { get; init; } = "HistoryMode";
 
     public AgentBehaviorPack(IReadOnlyCollection<string>? knownActions = null, string? modeSpaceId = null)
+        : base("agent.behavior",
+            new IUsharpFacetProvider[] { new BehaviorFacetProvider(modeSpaceId ?? "HistoryMode") },
+            new IGateRule<UsharpGateModel>[] { new BehaviorActionGateRule(knownActions ?? Array.Empty<string>()) },
+            new IUsharpFacetProjector[] { new BehaviorTableProjector() })
     {
         if (!string.IsNullOrWhiteSpace(modeSpaceId)) ModeSpaceId = modeSpaceId!;
-        FacetProviders = new IUsharpFacetProvider[] { new BehaviorFacetProvider(ModeSpaceId) };
-        GateRules = new IGateRule<UsharpGateModel>[] { new BehaviorActionGateRule(knownActions ?? Array.Empty<string>()) };
-        FacetProjectors = new IUsharpFacetProjector[] { new BehaviorTableProjector() };
     }
-
-    public string Id => "agent.behavior";
-    public IReadOnlyList<string> DiagnosticCodePrefixes => new[] { "US" };
-    public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
-    public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 }
 
 /// <summary>行为面 facet（<see cref="AgentBehaviorTable"/>）。</summary>
@@ -66,16 +61,14 @@ internal sealed class BehaviorFacetProvider : IUsharpFacetProvider
         var rules = ctx.Declarations.OfKind(DslSymbolKind.Rule)
             .Select(d => new AgentRuleEdge(
                 d.Name ?? string.Empty,
-                NullIfEmpty(d.Field("scope")),
-                NullIfEmpty(d.Field("when")),
-                NullIfEmpty(d.Field("action")),
+                UsharpLineReader.NullIfEmpty(d.Field("scope")),
+                UsharpLineReader.NullIfEmpty(d.Field("when")),
+                UsharpLineReader.NullIfEmpty(d.Field("action")),
                 d.SourceFile, d.LineNumber))
             .ToList();
 
         return new AgentBehaviorTable(modes, rules);
     }
-
-    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 /// <summary>US7005：<c>[Rule] action=</c> 须 ∈ 已声明 <c>[Node]</c> / 动作注册表（未注入 ⇒ 仍按 [Node] 判）。</summary>

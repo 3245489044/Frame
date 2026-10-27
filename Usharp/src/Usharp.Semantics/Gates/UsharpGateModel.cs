@@ -14,7 +14,7 @@ namespace Usharp.Semantics;
 /// <see cref="Facet{T}"/> 读取，属性保留为**薄访问器**（签名与语义逐字不变）。
 /// </para>
 /// </summary>
-public sealed class UsharpGateModel
+public sealed class UsharpGateModel : IUsharpFacetReader
 {
     private readonly UsharpFacetRegistry _facets;
     private readonly Dictionary<string, UsharpFlowDecl> _flowsById = new(StringComparer.Ordinal);
@@ -79,6 +79,18 @@ public sealed class UsharpGateModel
     /// <summary><c>[Command]</c> 连接点命令声明（空表 = 本编译无命令声明面）。</summary>
     public IReadOnlyList<UsharpCommandDecl> Commands
         => _facets.TryGetFacet<IReadOnlyList<UsharpCommandDecl>>(out var cmd) ? cmd : Array.Empty<UsharpCommandDecl>();
+
+    /// <summary><c>[Table]</c> 表结构声明（空表 = 本编译无数据层）。</summary>
+    public IReadOnlyList<UsharpTableDecl> Tables
+        => _facets.TryGetFacet<IReadOnlyList<UsharpTableDecl>>(out var t) ? t : Array.Empty<UsharpTableDecl>();
+
+    /// <summary><c>[Record]</c> 记录载荷声明（空表 = 本编译无记录面）。</summary>
+    public IReadOnlyList<UsharpRecordDecl> Records
+        => _facets.TryGetFacet<IReadOnlyList<UsharpRecordDecl>>(out var r) ? r : Array.Empty<UsharpRecordDecl>();
+
+    /// <summary><c>[Rule]</c> 规则声明（空表 = 本编译无规则面）。</summary>
+    public IReadOnlyList<UsharpRuleDecl> Rules
+        => _facets.TryGetFacet<IReadOnlyList<UsharpRuleDecl>>(out var rule) ? rule : Array.Empty<UsharpRuleDecl>();
 
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }

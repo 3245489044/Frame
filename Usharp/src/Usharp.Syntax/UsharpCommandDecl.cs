@@ -37,35 +37,35 @@ public sealed record UsharpCommandDecl(
             var line = (raw ?? string.Empty).Trim();
             if (line.Length == 0) continue;
 
-            var parts = UsharpKeySpaceDecl.SplitParts(line);
+            var parts = UsharpLineReader.SplitParts(line);
             var head = parts[0];
-            var fields = UsharpKeySpaceDecl.ParseFields(parts, 1);
+            var fields = UsharpLineReader.ParseFieldBag(parts, 1, StringComparer.OrdinalIgnoreCase);
 
-            if (UsharpKeySpaceDecl.TryHead(head, "op", out var opName))
+            if (UsharpLineReader.TryHead(head, "op", out var opName))
             {
                 ops.Add(new UsharpCommandOpDecl(
                     action, opName,
-                    UsharpKeySpaceDecl.Get(fields, "intent"),
-                    UsharpKeySpaceDecl.Get(fields, "handler"),
-                    UsharpKeySpaceDecl.Get(fields, "projector"),
-                    UsharpKeySpaceDecl.Get(fields, "resolver"),
-                    UsharpKeySpaceDecl.SplitList(UsharpKeySpaceDecl.Get(fields, "ports"))));
+                    UsharpLineReader.Get(fields, "intent"),
+                    UsharpLineReader.Get(fields, "handler"),
+                    UsharpLineReader.Get(fields, "projector"),
+                    UsharpLineReader.Get(fields, "resolver"),
+                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "ports"))));
                 continue;
             }
 
-            if (UsharpKeySpaceDecl.TryHead(head, "key", out var keyHead))
+            if (UsharpLineReader.TryHead(head, "key", out var keyHead))
             {
-                var keyHeadFields = UsharpKeySpaceDecl.ParseFields(new[] { keyHead }, 0);
-                var op = UsharpKeySpaceDecl.Get(keyHeadFields, "op")
-                         ?? UsharpKeySpaceDecl.Get(fields, "op") ?? string.Empty;
-                var name = UsharpKeySpaceDecl.Get(fields, "name") ?? string.Empty;
-                var family = UsharpKeySpaceDecl.Get(fields, "family") ?? string.Empty;
-                var surface = UsharpKeySpaceDecl.Get(fields, "surface") ?? "Storage";
+                var keyHeadFields = UsharpLineReader.ParseFieldBag(new[] { keyHead }, 0, StringComparer.OrdinalIgnoreCase);
+                var op = UsharpLineReader.Get(keyHeadFields, "op")
+                         ?? UsharpLineReader.Get(fields, "op") ?? string.Empty;
+                var name = UsharpLineReader.Get(fields, "name") ?? string.Empty;
+                var family = UsharpLineReader.Get(fields, "family") ?? string.Empty;
+                var surface = UsharpLineReader.Get(fields, "surface") ?? "Storage";
                 if (name.Length == 0 || family.Length == 0) { unparsed.Add(line); continue; }
                 keys.Add(new UsharpCommandKeyDecl(
                     action, op, name, family, surface,
-                    !string.Equals(UsharpKeySpaceDecl.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
-                    UsharpKeySpaceDecl.SplitList(UsharpKeySpaceDecl.Get(fields, "chain"))));
+                    !string.Equals(UsharpLineReader.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
+                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "chain"))));
                 continue;
             }
 
@@ -74,10 +74,10 @@ public sealed record UsharpCommandDecl(
 
         return new UsharpCommandDecl(
             action,
-            UsharpKeySpaceDecl.NullIfEmpty(d.Field("channel")),
-            UsharpKeySpaceDecl.NullIfEmpty(d.Field("default")),
-            UsharpKeySpaceDecl.NullIfEmpty(d.Field("fallback")),
-            UsharpKeySpaceDecl.SplitList(d.Field("ports")),
+            UsharpLineReader.NullIfEmpty(d.Field("channel")),
+            UsharpLineReader.NullIfEmpty(d.Field("default")),
+            UsharpLineReader.NullIfEmpty(d.Field("fallback")),
+            UsharpLineReader.SplitList(d.Field("ports")),
             ops, keys, unparsed, d.SourceFile, d.LineNumber);
     }
 }

@@ -1,4 +1,5 @@
 using Plate.DslMethod.Model;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.Agent;
 
@@ -43,25 +44,25 @@ public sealed record UsharpSkillDecl(
 
         return new UsharpSkillDecl(
             d.Name.Trim(),
-            NullIfEmpty(d.Field("kind")),
-            NullIfEmpty(d.Field("module")),
-            NullIfEmpty(d.Field("dsl")),
-            NullIfEmpty(d.Field("body")),
-            NullIfEmpty(d.Field("backend")),
-            NullIfEmpty(d.Field("executor")),
-            NullIfEmpty(d.Field("description")),
-            NullIfEmpty(d.Field("schema")),
-            NullIfEmpty(d.Field("trigger")),
+            UsharpLineReader.NullIfEmpty(d.Field("kind")),
+            UsharpLineReader.NullIfEmpty(d.Field("module")),
+            UsharpLineReader.NullIfEmpty(d.Field("dsl")),
+            UsharpLineReader.NullIfEmpty(d.Field("body")),
+            UsharpLineReader.NullIfEmpty(d.Field("backend")),
+            UsharpLineReader.NullIfEmpty(d.Field("executor")),
+            UsharpLineReader.NullIfEmpty(d.Field("description")),
+            UsharpLineReader.NullIfEmpty(d.Field("schema")),
+            UsharpLineReader.NullIfEmpty(d.Field("trigger")),
             SplitList(d.Field("tags")),
             SplitList(d.Field("bands")),
             SplitList(d.Field("profiles")),
             ParseOrder(d.Field("order")),
             SplitList(d.Field("sections")),
             SplitList(d.Field("refs")),
-            NullIfEmpty(d.Field("version")),
+            UsharpLineReader.NullIfEmpty(d.Field("version")),
             IsOn(d.Field("always")),
-            string.Equals(NullIfEmpty(d.Field("on_demand")), "on", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(NullIfEmpty(d.Field("rare")), "on", StringComparison.OrdinalIgnoreCase),
+            string.Equals(UsharpLineReader.NullIfEmpty(d.Field("on_demand")), "on", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(UsharpLineReader.NullIfEmpty(d.Field("rare")), "on", StringComparison.OrdinalIgnoreCase),
             d.SourceFile,
             d.LineNumber);
     }
@@ -69,12 +70,9 @@ public sealed record UsharpSkillDecl(
     /// <summary>正文是否附引用（<c>body=</c> 非空 ⇒ Usharp 管理该 SKILL.md 引用）。</summary>
     public bool HasBody => !string.IsNullOrWhiteSpace(Body);
 
-    private static string? NullIfEmpty(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
     private static bool IsOn(string? value)
     {
-        var v = NullIfEmpty(value);
+        var v = UsharpLineReader.NullIfEmpty(value);
         return string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)
                || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
                || string.Equals(v, "1", StringComparison.Ordinal)

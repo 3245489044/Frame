@@ -11,8 +11,15 @@ public sealed record KeySpaceDeclaration(
     IReadOnlyList<KeyFamily> Families,
     IReadOnlyList<PortContract> Ports,
     IReadOnlyDictionary<string, EmptySetPolicy> Policies,
-    IReadOnlyList<string>? Domains = null) : IKeySpaceDeclaration
+    IReadOnlyList<string>? Domains = null,
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? Derives = null) : IKeySpaceDeclaration
 {
+    /// <summary>已声明回退链（名 → 字段序；首个非空即取；未声明 ⇒ 空表）。</summary>
+    public IReadOnlyList<string> DeriveChain(string name)
+        => Derives is not null && Derives.TryGetValue(name, out var chain)
+            ? chain
+            : Array.Empty<string>();
+
     /// <summary>已声明域词（声明驱动；空 = 未声明域段，框架不内置域词）。</summary>
     public IReadOnlyList<string> DomainIds => Domains ?? Array.Empty<string>();
 

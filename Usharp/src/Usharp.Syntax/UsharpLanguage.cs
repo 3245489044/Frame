@@ -32,6 +32,9 @@ public static class UsharpLanguage
     /// <summary>读模型声明前缀（模型 id → 源键/版本源/投影器/参数名表；<c>[ReadModel]</c>）。</summary>
     public const string ReadModelPrefix = "[ReadModel]";
 
+    /// <summary>提示词段声明前缀（段键 → 组/序/适用性/需求量/别名/开关/字段名/字段类型；<c>[Segment]</c>）。</summary>
+    public const string SegmentPrefix = "[Segment]";
+
     /// <summary>读模型源键字段（<c>source=</c>：<c>Slot.&lt;HostPort&gt;</c> / <c>Service.&lt;TypeName&gt;</c>，逗号或 <c>+</c> 分隔）。</summary>
     public const string ReadModelFieldSource = "source";
 
@@ -46,6 +49,56 @@ public static class UsharpLanguage
 
     /// <summary>读模型允许的读参数名（<c>args=</c>；缺省空 = 无参）。</summary>
     public const string ReadModelFieldArgs = "args";
+
+    /// <summary>读模型字段面（<c>fields=</c>：引用 <c>[Segment]</c> 段键表；生成物发射解析后的字段表）。</summary>
+    public const string ReadModelFieldFields = "fields";
+
+    // ---- 提示词段声明字段（[Segment]；与 [ReadModel] 同层，消费方 = 段注册 / 读模型字段表）----
+
+    /// <summary>段所属投喂组（<c>group=</c>；兼容旧写法 <c>target=</c>）。</summary>
+    public const string SegmentFieldGroup = "group";
+
+    /// <summary>段投喂组兼容键（<c>target=</c>）。</summary>
+    public const string SegmentFieldTarget = "target";
+
+    /// <summary>段序（<c>order=</c>；与 CacheBand 同源）。</summary>
+    public const string SegmentFieldOrder = "order";
+
+    /// <summary>段序兼容键（<c>band=</c>）。</summary>
+    public const string SegmentFieldBand = "band";
+
+    /// <summary>适用性（<c>when=always|continue|replan</c>）。</summary>
+    public const string SegmentFieldWhen = "when";
+
+    /// <summary>需求量（<c>requirement=required|optional</c>）。</summary>
+    public const string SegmentFieldRequirement = "requirement";
+
+    /// <summary>可空位（<c>allow_empty=on|off</c>）。</summary>
+    public const string SegmentFieldAllowEmpty = "allow_empty";
+
+    /// <summary>兼容来源键表（<c>aliases=a,b</c>；顺序即优先级）。</summary>
+    public const string SegmentFieldAliases = "aliases";
+
+    /// <summary>档案开关名（<c>toggle=…</c>）。</summary>
+    public const string SegmentFieldToggle = "toggle";
+
+    /// <summary>段提供方（<c>provider=…</c>）。</summary>
+    public const string SegmentFieldProvider = "provider";
+
+    /// <summary>分段族展开标记（<c>expand=band</c>）。</summary>
+    public const string SegmentFieldExpand = "expand";
+
+    /// <summary>分段族展开取值（<c>expand=band</c> 的 <c>band</c>）。</summary>
+    public const string SegmentExpandBands = "band";
+
+    /// <summary>该段在 DTO 中的字段名（<c>field=</c>；唯一，重复 ⇒ 闸A 红）。</summary>
+    public const string SegmentFieldField = "field";
+
+    /// <summary>该段字段类型（<c>type=</c>；受控词表见 <see cref="SegmentTypes"/>）。</summary>
+    public const string SegmentFieldType = "type";
+
+    /// <summary>段字段类型受控词表（越界 ⇒ 闸A 红）。</summary>
+    public static readonly string[] SegmentTypes = { "text", "texts", "bands", "bool", "int" };
 
     /// <summary>表结构声明前缀（数据层：让数据库表由声明派生；<c>[Table]</c>）。</summary>
     public const string TablePrefix = "[Table]";

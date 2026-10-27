@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using Usharp.Semantics;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.Agent;
 
@@ -78,7 +79,6 @@ public static class AgentPacks
             new AgentBehaviorPack(knownActions),
             new AgentPortPack(knownFunctions),
             new AgentSkillPack(knownTools, knownBands),
-            new AgentSegmentPack(),
             new AgentToolPack(knownTracks),
             new AgentPromptPack(),
             new AgentLlmPack(),

@@ -44,6 +44,7 @@ public static class UsharpUnitRegistry
         (UsharpLanguage.KeySpacePrefix, DslSymbolKind.KeySpace),
         (UsharpLanguage.CommandPrefix, DslSymbolKind.Command),
         (UsharpLanguage.ReadModelPrefix, DslSymbolKind.ReadModel),
+        (UsharpLanguage.SegmentPrefix, DslSymbolKind.Segment),
     };
 
     /// <summary>默认 facet provider 集（序 = <see cref="Units"/>）。</summary>
@@ -76,5 +77,7 @@ public static class UsharpUnitRegistry
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Commands)),
         new UsharpFacetProvider<UsharpReadModelDecl>(DslSymbolKind.ReadModel,
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.ReadModels)),
+        new UsharpFacetProvider<UsharpSegmentDecl>(DslSymbolKind.Segment,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.Segment).Select(UsharpSegmentDecl.From).OfType<UsharpSegmentDecl>()),
     };
 }

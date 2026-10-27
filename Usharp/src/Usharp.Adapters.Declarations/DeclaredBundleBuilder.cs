@@ -12,6 +12,7 @@ using Plate.DslMethod.Schema;
 using Usharp.Adapters.UniversalReference;
 using Usharp.Emit;
 using Usharp.Semantics;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.Declarations;
 
@@ -33,7 +34,8 @@ public sealed record DeclaredBundleArtifacts(
     string CommandsJson,
     string SourceFingerprint,
     int Errors,
-    IReadOnlyList<string> Files);
+    IReadOnlyList<string> Files,
+    IReadOnlyList<UsharpDiagnostic> Diagnostics);
 
 /// <summary>
 /// <b>声明单点编译器</b>（G1）：对声明面（<c>Config\nodes\*.ushar</c> + <c>Config\workflows\*.ushar</c>）执行
@@ -58,6 +60,9 @@ public static class DeclaredBundleBuilder
 
     /// <summary>连接点命令声明子目录名（<c>[Command]</c>）。</summary>
     public const string CommandsDirName = "commands";
+
+    /// <summary>提示词段声明文件名（配置根下；<c>[Segment]</c>）。</summary>
+    public const string SegmentsFileName = "prompt-segments.ushar";
 
     /// <summary>键空间产物文件名（与 Agent 侧 keyspace loader 同 schema）。</summary>
     public const string KeySpaceFileName = "agent.keyspace.generated.json";
@@ -104,12 +109,12 @@ public static class DeclaredBundleBuilder
         return Build(LoadConfigDocuments(configRoot), configRoot);
     }
 
-    /// <summary>装载配置根下声明文档（<c>nodes</c> 目录全部 + <c>workflows</c> 目录全部，路径序）。</summary>
+    /// <summary>装载配置根下声明文档（<c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> 目录全部 + 根级段声明面，路径序）。</summary>
     /// <param name="configRoot">配置根目录。</param>
     public static IReadOnlyList<(string Path, string Text)> LoadConfigDocuments(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        return UsharpSourceLoader.FromDirectories(new[]
+        var sources = UsharpSourceLoader.FromDirectories(new[]
             {
                 Path.Combine(configRoot, NodesDirName),
                 Path.Combine(configRoot, WorkflowsDirName),
@@ -118,6 +123,13 @@ public static class DeclaredBundleBuilder
             })
             .Select(s => (s.Path, s.Text))
             .ToList();
+
+        // 根级段声明面（[Segment]）：`[ReadModel] fields=` 的跨声明闭合要求同一次编译可见（禁跨编译判据）。
+        var segmentFile = Path.Combine(configRoot, SegmentsFileName);
+        if (File.Exists(segmentFile))
+            sources.Add((segmentFile, File.ReadAllText(segmentFile)));
+
+        return sources;
     }
 
     /// <summary>由给定声明文档构建（<b>唯一一次</b>编译；调用方负责文档集，编译序 = 传入序）。</summary>
@@ -147,7 +159,8 @@ public static class DeclaredBundleBuilder
             commandsJson,
             fingerprint,
             compilation.Errors.Count,
-            documents.Select(d => d.Path).ToList());
+            documents.Select(d => d.Path).ToList(),
+            compilation.Diagnostics);
     }
 
     /// <summary>写出三份产物到目录（存在即覆盖；产物名 = 各 <c>FileName</c> 常量）。</summary>
@@ -327,8 +340,32 @@ public static class DeclaredBundleBuilder
 
     /// <summary>读模型声明段（声明序；漂移守卫按此段对账）。</summary>
     private static IReadOnlyList<ManifestReadModel> BuildReadModels(UsharpCompilation compilation)
-        => compilation.ReadModels
-            .Select(m => new ManifestReadModel(m.ModelId, m.Sources, m.Version, m.TtlMs, m.Projector, m.Args))
+    {
+        compilation.TryGetFacet<IReadOnlyList<UsharpSegmentDecl>>(out var segments);
+        var byKey = new Dictionary<string, UsharpSegmentDecl>(StringComparer.Ordinal);
+        if (segments is not null)
+            foreach (var segment in segments) byKey[segment.Key] = segment;
+
+        return compilation.ReadModels
+            .Select(m => new ManifestReadModel(
+                m.ModelId, m.Sources, m.Version, m.TtlMs, m.Projector, m.Args,
+                m.Fields.Count == 0 ? null : BuildFields(m, byKey)))
+            .ToList();
+    }
+
+    /// <summary>字段表（序 = <c>fields=</c> 列出顺序；<c>from</c> = 段键）。</summary>
+    private static IReadOnlyList<ManifestReadModelField> BuildFields(
+        UsharpReadModelDecl model, IReadOnlyDictionary<string, UsharpSegmentDecl> byKey)
+        => model.Fields
+            .Where(byKey.ContainsKey)
+            .Select(key =>
+            {
+                var segment = byKey[key];
+                return new ManifestReadModelField(
+                    segment.Field, segment.Type, segment.Order,
+                    string.Equals(segment.Requirement, "required", StringComparison.OrdinalIgnoreCase),
+                    segment.Key);
+            })
             .ToList();
 
     private static IReadOnlyList<string> Distinct(IEnumerable<string> values)
@@ -348,10 +385,15 @@ public static class DeclaredBundleBuilder
         IReadOnlyList<ManifestVocabulary> Vocabulary,
         IReadOnlyList<ManifestReadModel> ReadModels);
 
-    /// <summary>读模型声明条目（<c>[ReadModel]</c> 语法单元落地前恒为空表；漂移守卫按此段对账）。</summary>
+    /// <summary>读模型声明条目（<c>[ReadModel]</c> 语法单元；漂移守卫按此段对账）。</summary>
     private sealed record ManifestReadModel(
         string Model, IReadOnlyList<string> Sources, string Version, int? Ttl,
-        string? Projector, IReadOnlyList<string> Args);
+        string? Projector, IReadOnlyList<string> Args,
+        IReadOnlyList<ManifestReadModelField>? Fields);
+
+    /// <summary>读模型字段条目（<c>fields=</c> → 段声明解析结果；<c>From</c> = 段键）。</summary>
+    private sealed record ManifestReadModelField(
+        string Name, string Type, int Order, bool Required, string From);
 
     /// <summary>绑定条目（冻结产物）：声明侧标识 + 实现面函数名 + 端口契约（结构事实）。</summary>
     private sealed record ManifestBinding(

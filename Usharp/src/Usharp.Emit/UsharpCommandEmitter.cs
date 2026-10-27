@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using Usharp.Semantics;
+using Usharp.Syntax;
 
 namespace Usharp.Emit;
 
@@ -52,6 +55,7 @@ public static class UsharpCommandEmitter
         }
 
         var readModels = new JsonArray();
+        compilation.TryGetFacet<IReadOnlyList<UsharpSegmentDecl>>(out var segments);
         foreach (var model in compilation.ReadModels)
         {
             var item = new JsonObject { ["model"] = model.ModelId };
@@ -60,6 +64,7 @@ public static class UsharpCommandEmitter
             if (model.TtlMs is { } ttl) item["ttl"] = ttl;
             if (model.Projector is { } projector) item["projector"] = projector;
             if (model.Args.Count > 0) item["args"] = UsharpJson.Array(model.Args.ToArray());
+            if (model.Fields.Count > 0) item["fields"] = EmitFields(model, segments);
             readModels.Add(item);
         }
 
@@ -71,5 +76,33 @@ public static class UsharpCommandEmitter
             ["readModels"] = readModels,
         };
         return root.ToJsonString();
+    }
+
+    /// <summary>
+    /// <c>fields=</c> → 解析后的字段表（<c>name/type/order/required/from</c>）。
+    /// <para>序 = <c>fields=</c> 的**列出顺序**（位置即语义，无隐藏 tiebreak）；<c>from</c> = 段键（可回溯声明面）。</para>
+    /// </summary>
+    private static JsonArray EmitFields(
+        UsharpReadModelDecl model,
+        IReadOnlyList<UsharpSegmentDecl>? segments)
+    {
+        var byKey = new Dictionary<string, UsharpSegmentDecl>(StringComparer.Ordinal);
+        if (segments is not null)
+            foreach (var segment in segments) byKey[segment.Key] = segment;
+
+        var fields = new JsonArray();
+        foreach (var key in model.Fields)
+        {
+            if (!byKey.TryGetValue(key, out var segment)) continue; // 悬空引用由闸A US7711 拦（此处不伪造）
+            fields.Add(new JsonObject
+            {
+                ["name"] = segment.Field,
+                ["type"] = segment.Type,
+                ["order"] = segment.Order,
+                ["required"] = string.Equals(segment.Requirement, "required", StringComparison.OrdinalIgnoreCase),
+                ["from"] = segment.Key,
+            });
+        }
+        return fields;
     }
 }

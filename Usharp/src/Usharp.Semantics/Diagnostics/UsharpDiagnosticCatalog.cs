@@ -145,6 +145,12 @@ public static class UsharpDiagnosticCatalog
     public const string ReadModelLineUnparsed = "US7706";
     public const string ReadModelOpRefUnknown = "US7707";
     public const string ReadModelUnused = "US7708";
+    public const string SegmentFieldDuplicate = "US7709";
+    public const string SegmentTypeUnknown = "US7710";
+    public const string ReadModelFieldsUndeclared = "US7711";
+    public const string ReadModelFieldsEmpty = "US7712";
+    public const string ReadModelFieldNoField = "US7713";
+    public const string SegmentFieldMissing = "US7714";
 
     // ── US76xx Agent 适配面 ─────────────────────────────────────────────
     public const string SkillBackendUnknown = "US7601";
@@ -290,6 +296,12 @@ public static class UsharpDiagnosticCatalog
         E(ReadModelLineUnparsed, "ReadModel", UsharpSeverity.Error, "[ReadModel] 续行不可解析", "modelId, line"),
         E(ReadModelOpRefUnknown, "ReadModel", UsharpSeverity.Error, "[Command] op model= 指向未声明读模型", "action, op, model"),
         E(ReadModelUnused, "ReadModel", UsharpSeverity.Error, "[ReadModel] 声明无任何 op 引用（死声明）", "modelId"),
+        E(SegmentFieldDuplicate, "Segment", UsharpSeverity.Error, "[Segment] field= 重复声明", "segmentId, field"),
+        E(SegmentTypeUnknown, "Segment", UsharpSeverity.Error, "[Segment] type= 不在词表", "segmentId, type"),
+        E(ReadModelFieldsUndeclared, "ReadModel", UsharpSeverity.Error, "[ReadModel] fields= 引用未声明段", "modelId, segment"),
+        E(ReadModelFieldsEmpty, "ReadModel", UsharpSeverity.Error, "[ReadModel] fields= 解析后为空", "modelId"),
+        E(ReadModelFieldNoField, "ReadModel", UsharpSeverity.Error, "[ReadModel] fields= 引用段缺 field=", "modelId, segment"),
+        E(SegmentFieldMissing, "Segment", UsharpSeverity.Warning, "[Segment] 缺 field=（未进 DTO）", "segmentId"),
 
         E(GraphBackendUnavailable, "Graph", UsharpSeverity.Info, "图后端未装配", "-"),
         E(ObsBackendUnavailable, "Obs", UsharpSeverity.Info, "观测后端未装配", "-"),

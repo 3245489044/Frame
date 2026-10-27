@@ -13,6 +13,8 @@ public sealed record UsharpReadModelDecl(
     int? TtlMs,
     string? Projector,
     IReadOnlyList<string> Args,
+    IReadOnlyList<string> Fields,
+    bool FieldsDeclared,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
     int LineNumber)
@@ -33,6 +35,8 @@ public sealed record UsharpReadModelDecl(
         if (int.TryParse(d.Field(UsharpLanguage.ReadModelFieldTtl), out var parsed) && parsed > 0)
             ttl = parsed;
 
+        var rawFields = UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.ReadModelFieldFields));
+
         return new UsharpReadModelDecl(
             d.Name.Trim(),
             SplitSources(d.Field(UsharpLanguage.ReadModelFieldSource)),
@@ -40,6 +44,8 @@ public sealed record UsharpReadModelDecl(
             ttl,
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.ReadModelFieldProjector)),
             UsharpLineReader.SplitList(d.Field(UsharpLanguage.ReadModelFieldArgs)),
+            UsharpLineReader.SplitList(rawFields),
+            rawFields is not null,
             unparsed,
             d.SourceFile,
             d.LineNumber);

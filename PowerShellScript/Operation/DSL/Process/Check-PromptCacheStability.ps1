@@ -40,6 +40,28 @@ function Get-Violations {
     if ($SeedContract -match 'IReadOnlyDictionary<string,\s*string>\s+Aliases') { $violations.Add('C1 SessionSeedContract 仍自持别名表（应读声明面）') }
     if ($Preflight -match 'IReadOnlyDictionary<string,\s*string\[\]>\s+Aliases') { $violations.Add('C1 PromptPreflight 仍自持别名表（应读声明面）') }
 
+    # C1 字段面：每条 [Segment] 须声明 field=（读模型字段表的上游）；字段名唯一。
+    $seenFields = @{}
+    foreach ($m in [regex]::Matches($SegmentDecl, '(?m)^\s*\[Segment\]\s+(\S+?)\s*:(.*)$')) {
+        $key = $m.Groups[1].Value
+        $body = $m.Groups[2].Value
+        $fieldMatch = [regex]::Match($body, '\bfield=([^|\s]+)')
+        if (-not $fieldMatch.Success) {
+            $violations.Add("C1 [Segment] $key 缺 field=（该段不进读模型字段面）")
+            continue
+        }
+        $name = $fieldMatch.Groups[1].Value
+        if ($seenFields.ContainsKey($name)) {
+            $violations.Add("C1 [Segment] field='$name' 重复（$key 与 $($seenFields[$name])）")
+        }
+        else {
+            $seenFields[$name] = $key
+        }
+        if ([regex]::IsMatch($body, '\bfield=') -and -not [regex]::IsMatch($body, '\btype=')) {
+            $violations.Add("C1 [Segment] $key 有 field= 但缺 type=")
+        }
+    }
+
     # C2 必填闭包：required_prompt_ports ⊆ cline_execute.inports
     $required = [regex]::Match($Workflow, '(?m)^\s*\[Flow\][^\r\n]*required_prompt_ports=([^\r\n|]+)')
     if ($required.Success) {

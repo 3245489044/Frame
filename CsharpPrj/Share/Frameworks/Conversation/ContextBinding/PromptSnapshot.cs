@@ -11,7 +11,7 @@ internal sealed record PromptSnapshotData(
     string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
     string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null, string? Mode = null,
     IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null, string? ResourceBlock = null,
-    int SchemaVersion = 1);
+    int SchemaVersion = PromptSnapshot.CurrentSchemaVersion);
 
 /// <summary>
 /// 写侧快照 —— provide_prompt 装配后捕获的真实 system 值（L0 / 填槽 L1 / L2 / 本轮选中 SkillBlock），
@@ -89,17 +89,34 @@ public sealed class PromptSnapshot
         {
             var d = JsonSerializer.Deserialize<PromptSnapshotData>(json);
             if (d is null) return null;
+            // 旧归档（无 SchemaVersion 字段）按 Legacy 读取并显式标记来源，不静默当新版。
+            var declaredVersion = HasSchemaVersion(json) ? d.SchemaVersion : 1;
             var snapshot = PromptSnapshotBuilder.Build(
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
                 d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
                 d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent, resourceBlock: d.ResourceBlock,
-                schemaVersion: d.SchemaVersion <= 0 ? 1 : d.SchemaVersion);
-            // 旧归档（无 SchemaVersion 字段 ⇒ 0/1）按 Legacy 读取并显式标记来源，不静默当新版。
+                schemaVersion: declaredVersion <= 0 ? 1 : declaredVersion);
             return snapshot;
         }
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    /// <summary>旧归档缺 SchemaVersion 字段 ⇒ 按 Legacy(1) 解释（禁把"未声明"当最新版）。</summary>
+    private static bool HasSchemaVersion(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                   && doc.RootElement.TryGetProperty(nameof(PromptSnapshotData.SchemaVersion), out var value)
+                   && value.ValueKind == JsonValueKind.Number;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 

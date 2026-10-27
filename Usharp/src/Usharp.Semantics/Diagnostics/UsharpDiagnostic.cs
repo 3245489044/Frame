@@ -72,6 +72,18 @@ public static class UsharpCodes
 
     public const string ReadModelUnused = UsharpDiagnosticCatalog.ReadModelUnused;
 
+    public const string SegmentFieldDuplicate = UsharpDiagnosticCatalog.SegmentFieldDuplicate;
+
+    public const string SegmentTypeUnknown = UsharpDiagnosticCatalog.SegmentTypeUnknown;
+
+    public const string ReadModelFieldsUndeclared = UsharpDiagnosticCatalog.ReadModelFieldsUndeclared;
+
+    public const string ReadModelFieldsEmpty = UsharpDiagnosticCatalog.ReadModelFieldsEmpty;
+
+    public const string ReadModelFieldNoField = UsharpDiagnosticCatalog.ReadModelFieldNoField;
+
+    public const string SegmentFieldMissing = UsharpDiagnosticCatalog.SegmentFieldMissing;
+
     /// <summary><c>[Rule] enabled=</c> 非法布尔值（禁止静默变 null）。</summary>
     public const string RuleEnabledInvalid = UsharpDiagnosticCatalog.RuleEnabledInvalid;
 

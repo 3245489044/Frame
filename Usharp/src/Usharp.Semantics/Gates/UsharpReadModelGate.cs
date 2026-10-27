@@ -55,6 +55,8 @@ internal sealed class ReadModelGateRule : IGateRule<UsharpGateModel>
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelProjectorMissing,
                     $"[ReadModel] {readModel.ModelId}: 缺 projector=",
                     readModel.SourceFile, readModel.LineNumber));
+
+            CheckFields(readModel, model, sink);
         }
 
         foreach (var command in model.Commands)
@@ -73,5 +75,45 @@ internal sealed class ReadModelGateRule : IGateRule<UsharpGateModel>
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelUnused,
                     $"[ReadModel] {readModel.ModelId}: 死声明（无任何 op model= 引用）",
                     readModel.SourceFile, readModel.LineNumber));
+    }
+
+    /// <summary>
+    /// 字段面闭合（US7711–US7713）：<c>fields=</c> 的每项须指向已声明 <c>[Segment]</c> 且该段有 <c>field=</c>。
+    /// <para>未声明 <c>fields=</c> ⇒ 合法（无字段面，零回归）；声明了但解析为空 ⇒ 红（禁空字段面冒充已声明）。</para>
+    /// </summary>
+    private static void CheckFields(UsharpReadModelDecl readModel, UsharpGateModel model, IConversionDiagnosticSink sink)
+    {
+        if (!readModel.FieldsDeclared) return;
+
+        if (readModel.Fields.Count == 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelFieldsEmpty,
+                $"[ReadModel] {readModel.ModelId}: 声明了 fields= 但解析后为空（须列出 ≥1 个段键）",
+                readModel.SourceFile, readModel.LineNumber));
+            return;
+        }
+
+        if (!model.TryGetFacet<IReadOnlyList<UsharpSegmentDecl>>(out var segments)) return;
+
+        var byKey = new Dictionary<string, UsharpSegmentDecl>(StringComparer.Ordinal);
+        foreach (var segment in segments) byKey[segment.Key] = segment;
+
+        foreach (var key in readModel.Fields)
+        {
+            if (!byKey.TryGetValue(key, out var segment))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelFieldsUndeclared,
+                    $"[ReadModel] {readModel.ModelId}: fields= 引用未声明段 '{key}'",
+                    readModel.SourceFile, readModel.LineNumber));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(segment.Field))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelFieldNoField,
+                    $"[ReadModel] {readModel.ModelId}: fields= 引用段 '{key}' 缺 field=（字段面不可再生）",
+                    readModel.SourceFile, readModel.LineNumber));
+            }
+        }
     }
 }

@@ -22,6 +22,13 @@ try
         $"declared-bundle: files={artifacts.Files.Count} errors={artifacts.Errors} fingerprint={artifacts.SourceFingerprint}");
     Console.WriteLine($"  out={Path.GetFullPath(outDir)}");
 
+    // 诊断事实可见（AX.NoSilentOutlet）：error 明细逐条上报，不静默只报计数。
+    foreach (var diagnostic in artifacts.Diagnostics)
+    {
+        if (diagnostic.Severity != Usharp.Semantics.UsharpSeverity.Error) continue;
+        Console.Error.WriteLine("  " + diagnostic);
+    }
+
     // 生成 = 机械操作：声明编译 error 不判生成失败（产物流已落盘，事实可读）；
     // 失败姿态由消费侧声明门（IDeclarationGate，G3）裁决，本工具不自持策略。
     return 0;

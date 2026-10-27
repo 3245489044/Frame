@@ -100,6 +100,97 @@ function Get-CatalogClosure {
     }
 }
 
+function Read-Text([string]$path) { if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' } }
+
+# R6 字段面单源：[ReadModel] fields=（声明序）+ [Segment] field=/type=/order=/requirement=
+function Get-SegmentFieldMap {
+    param([AllowEmptyString()][string]$Text)
+
+    $map = @{}
+    foreach ($m in [regex]::Matches($Text, '(?m)^\s*\[Segment\]\s+(\S+?)\s*:(.*)$')) {
+        $key = $m.Groups[1].Value
+        $body = $m.Groups[2].Value
+        $field = [regex]::Match($body, '\bfield=([^|\s]+)')
+        if (-not $field.Success) { continue }
+        $type = [regex]::Match($body, '\btype=([^|\s]+)')
+        $order = [regex]::Match($body, '\border=([^|\s]+)')
+        $req = [regex]::Match($body, '\brequirement=([^|\s]+)')
+        $map[$key] = [pscustomobject]@{
+            Name     = $field.Groups[1].Value
+            Type     = $(if ($type.Success) { $type.Groups[1].Value } else { '' })
+            Order    = $(if ($order.Success) { [int]$order.Groups[1].Value } else { 0 })
+            Required = ($req.Success -and $req.Groups[1].Value -eq 'required')
+        }
+    }
+    return $map
+}
+
+function Get-DeclaredFieldOrder {
+    param([AllowEmptyString()][string]$Text)
+
+    $map = @{}
+    foreach ($m in [regex]::Matches($Text, '(?m)^\s*\[ReadModel\]\s+(\S+?)\s*:.*?\bfields=([^|\r\n]+)')) {
+        $id = $m.Groups[1].Value
+        $map[$id] = @($m.Groups[2].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    return $map
+}
+
+function Format-FieldRow([string]$name, [string]$type, [int]$order, [bool]$required, [string]$from) {
+    return ('{0}|{1}|{2}|{3}|{4}' -f $name, $type, $order, ($(if ($required) { 'true' } else { 'false' })), $from)
+}
+
+function Get-FieldParity {
+    param(
+        [string]$Json,
+        [hashtable]$Segments,
+        [hashtable]$DeclaredOrder
+    )
+
+    $violations = [System.Collections.Generic.List[string]]::new()
+    $doc = $Json | ConvertFrom-Json
+    if ($doc.PSObject.Properties.Name -notcontains 'readModels') { return @() }
+
+    foreach ($rm in @($doc.readModels)) {
+        if ($null -eq $rm) { continue }
+        $id = [string]$rm.model
+        if ([string]::IsNullOrWhiteSpace($id)) { continue }
+
+        $actual = @()
+        if ($rm.PSObject.Properties.Name -contains 'fields') {
+            foreach ($f in @($rm.fields)) {
+                if ($null -eq $f) { continue }
+                $actual += (Format-FieldRow ([string]$f.name) ([string]$f.type) ([int]$f.order) ([bool]$f.required) ([string]$f.from))
+            }
+        }
+
+        if (-not $DeclaredOrder.ContainsKey($id)) {
+            if ($actual.Count -gt 0) { $violations.Add("[R6] $id：生成物有字段面但声明面无 fields=（字段面来源不明）") }
+            continue
+        }
+
+        $expected = @()
+        foreach ($key in @($DeclaredOrder[$id])) {
+            if (-not $Segments.ContainsKey($key)) { $expected += ('?missing-segment:' + $key); continue }
+            $s = $Segments[$key]
+            $expected += (Format-FieldRow $s.Name $s.Type $s.Order $s.Required $key)
+        }
+
+        if ($actual.Count -ne $expected.Count) {
+            $violations.Add(("[R6] {0}：字段数 {1} ≠ 声明 {2}" -f $id, $actual.Count, $expected.Count))
+            continue
+        }
+        for ($i = 0; $i -lt $expected.Count; $i++) {
+            if ($actual[$i] -ne $expected[$i]) {
+                $violations.Add(("[R6] {0} 第 {1} 项不一致：产物 '{2}' vs 声明 '{3}'" -f $id, $i, $actual[$i], $expected[$i]))
+                break
+            }
+        }
+    }
+    return $violations
+}
+
+
 function Measure-ViewCacheSites {
     param([Parameter(Mandatory = $true)][string[]]$Texts)
 
@@ -144,13 +235,21 @@ if ($NegativeControl) {
         @{ Id = 'R4-2 死声明'; Kind = 'catalog'
            Json = '{"schema":"ui-commands-v2","commands":[],"readModels":[{"model":"dead.model","version":"None"}]}' },
         @{ Id = 'R4-3 视图缓存字段'; Kind = 'view'
-           Text = 'private readonly Dictionary<string,int> _snapshot = new();' }
+           Text = 'private readonly Dictionary<string,int> _snapshot = new();' },
+        @{ Id = 'R4-4 字段面漂移'; Kind = 'fields'
+           Json = '{"schema":"ui-commands-v2","commands":[],"readModels":[{"model":"m","version":"None","fields":[{"name":"b","type":"text","order":0,"required":false,"from":"s.b"},{"name":"a","type":"text","order":0,"required":false,"from":"s.a"}]}]}'
+           Segments = @{ 's.a' = [pscustomobject]@{ Name = 'a'; Type = 'text'; Order = 0; Required = $false };
+                         's.b' = [pscustomobject]@{ Name = 'b'; Type = 'text'; Order = 0; Required = $false } }
+           Declared = @{ 'm' = @('s.a', 's.b') } }
     )
     $missed = [System.Collections.Generic.List[string]]::new()
     foreach ($s in $samples) {
         if ($s.Kind -eq 'catalog') {
             $r = Get-CatalogClosure -Json $s.Json
             $hit = (@($r.Dangling).Count + @($r.Dead).Count) -gt 0
+        }
+        elseif ($s.Kind -eq 'fields') {
+            $hit = @(Get-FieldParity -Json $s.Json -Segments $s.Segments -DeclaredOrder $s.Declared).Count -gt 0
         }
         else {
             $hit = (Measure-ViewCacheSites -Texts @($s.Text)) -gt 0
@@ -182,6 +281,15 @@ else {
     foreach ($d in $closure.Dead) { $violations.Add("[R1] 死声明（读模型无任何 op 引用）：$d") }
     foreach ($d in $closure.BadVersion) { $violations.Add("[R5] 版本源不在词表：$d") }
     foreach ($d in $closure.FakeProbe) { $violations.Add("[R5] versionProbe 为空串（假版本）：$d") }
+
+    # R6 字段面单源：生成物 fields[] ↔（[ReadModel] fields= 声明序 × [Segment] field=/type=/order=/requirement=）
+    $segmentText = Read-Text (Join-Path $Root 'Projects\Plug\Agent\Config\prompt-segments.ushar')
+    $declText = Read-Text (Join-Path $Root 'Projects\Plug\Agent\Config\commands\agent-commands.ushar')
+    $segments = Get-SegmentFieldMap -Text $segmentText
+    $declaredOrder = Get-DeclaredFieldOrder -Text $declText
+    foreach ($d in (Get-FieldParity -Json (Get-Content -LiteralPath $catalogPath -Raw) -Segments $segments -DeclaredOrder $declaredOrder)) {
+        $violations.Add($d)
+    }
 
     if ($ShowDetail) {
         Write-Host ("  声明 {0} 条 | schema={1}" -f $declaredCount, $closure.Schema) -ForegroundColor DarkGray

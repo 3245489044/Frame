@@ -33,14 +33,39 @@ function Get-RoundTripViolations {
     return $out
 }
 
+function Get-CanonicalViolations {
+    param($Samples)
+    $out = [System.Collections.Generic.List[string]]::new()
+    $items = @($Samples)
+    if ($items.Count -eq 0) {
+        $out.Add('语料缺少 canonical 幂等样本（canonical 段：coord/raw/expected）')
+        return $out
+    }
+    # 派生键样本（KB1 扩展）：哈希派生前缀不得被当作业务键往返。
+    if (@($items | Where-Object { $_.derived -eq $true }).Count -eq 0) {
+        $out.Add('canonical 段缺少派生键样本（derived=true；判据：派生前缀不产生业务键）')
+    }
+    foreach ($entry in $items) {
+        if ([string]::IsNullOrWhiteSpace([string]$entry.coord)) { $out.Add('canonical 样本缺 coord') }
+        if ([string]::IsNullOrWhiteSpace([string]$entry.raw)) { $out.Add("canonical 样本缺 raw：$($entry.coord)") }
+        if ([string]::IsNullOrWhiteSpace([string]$entry.expected)) { $out.Add("canonical 样本缺 expected：$($entry.coord)") }
+    }
+    return $out
+}
+
 $entries = @()
+$canonical = @()
 if (-not (Test-Path -LiteralPath $fixture)) {
     $violations.Add("语料文件缺失：$fixture")
 } else {
-    $entries = @((Get-Content -LiteralPath $fixture -Raw | ConvertFrom-Json).entries)
+    $document = Get-Content -LiteralPath $fixture -Raw | ConvertFrom-Json
+    $entries = @($document.entries)
+    $canonical = @($document.canonical)
 }
 $found = @(Get-RoundTripViolations -Entries $entries -Families $requiredFamilies -Min $minimum)
 if ($found.Count -gt 0) { $violations.AddRange([string[]]$found) }
+$shape = @(Get-CanonicalViolations -Samples $canonical)
+if ($shape.Count -gt 0) { $violations.AddRange([string[]]$shape) }
 
 if (-not (Test-Path -LiteralPath $testFile)) {
     $violations.Add("往返测试缺失：$testFile")
@@ -54,6 +79,8 @@ if (-not (Test-Path -LiteralPath $testFile)) {
 if ($NegativeControl) {
     $probeViolations = @(Get-RoundTripViolations -Entries @() -Families $requiredFamilies -Min $minimum)
     if ($probeViolations.Count -eq 0) { $violations.Add('负对照失败：空语料未被判红') }
+    $probeShape = @(Get-CanonicalViolations -Samples @())
+    if ($probeShape.Count -eq 0) { $violations.Add('负对照失败：空 canonical 段未被判红') }
 }
 
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyRoundTrip'

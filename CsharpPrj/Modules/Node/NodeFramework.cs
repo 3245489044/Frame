@@ -77,6 +77,12 @@ public sealed record NodeFrameworkOptions
 
     /// <summary>身份坐标绑定（缺省 = 空：未声明 coordinates 的域零回归）。</summary>
     public IReadOnlyList<ContextCoordinateSpec>? Coordinates { get; init; }
+
+    /// <summary>轴化标签声明（<c>[Domain] tags</c>；运行期可见性等语义的唯一来源）。</summary>
+    public IReadOnlyDictionary<string, string>? Tags { get; init; }
+
+    /// <summary>行为声明（<c>[Domain] behaviors</c>；token → 谓词名）。</summary>
+    public IReadOnlyDictionary<string, string>? Behaviors { get; init; }
 }
 
 /// <summary>
@@ -98,6 +104,8 @@ public sealed class NodeFramework
 
         Identity = opt.Identity ?? IdentitySpec.Create("{key}");
         Coordinates = opt.Coordinates ?? Array.Empty<ContextCoordinateSpec>();
+        Tags = opt.Tags ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        Behaviors = opt.Behaviors ?? new Dictionary<string, string>(StringComparer.Ordinal);
         if (opt.Identity is null)
         {
             Diagnostics.Report(new NodeDiagnostic(
@@ -163,6 +171,12 @@ public sealed class NodeFramework
 
     /// <summary>身份坐标绑定（声明面 <c>[Domain] coordinates</c>；空 = 未声明，零回归）。</summary>
     public IReadOnlyList<ContextCoordinateSpec> Coordinates { get; }
+
+    /// <summary>轴化标签声明（声明面 <c>[Domain] tags</c>；空 = 未声明）。</summary>
+    public IReadOnlyDictionary<string, string> Tags { get; }
+
+    /// <summary>行为声明（声明面 <c>[Domain] behaviors</c>；空 = 未声明）。</summary>
+    public IReadOnlyDictionary<string, string> Behaviors { get; }
 
     public PlacementRegistry Placements { get; }
 
@@ -299,6 +313,8 @@ public sealed class NodeFramework
             ExecutionBindings = executionBindings,
             TagVocabularies = tagVocabularies,
             Coordinates = spec.Coordinates,
+            Tags = spec.Tags,
+            Behaviors = spec.Behaviors,
         };
 
         var framework = new NodeFramework(options);

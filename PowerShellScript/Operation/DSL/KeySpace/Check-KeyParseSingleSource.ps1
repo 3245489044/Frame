@@ -14,9 +14,14 @@ Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateFileIndex.psm1') 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
 $scanRoots = @(
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain'),
-    (Join-Path $Root 'Frame\CsharpPrj\Modules\Node\Identity')
+    @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain'); KeysOnly = $true },
+    @{ Path = (Join-Path $Root 'Frame\CsharpPrj\Modules\Node\Identity'); KeysOnly = $true },
+    # 读侧/装配侧容器解析面（KPK1 扩展）：类型化后这些目录不得再出现解析原语。
+    @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\NodeSpec'); KeysOnly = $false },
+    @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather'); KeysOnly = $false }
 )
+# 显式豁免位：解析桥（唯一允许持有 resolver 入口的实现）与解析器单源。
+$allowlisted = @('DomainKeyOps.cs', 'NodeContainerCoordinates.cs')
 $parsePattern = 'IndexOf\(|Substring\(|Split\('
 $keysPattern = $parsePattern + '|StartsWith\(|\.TryParse\(|\[\s*\.\.'
 
@@ -39,9 +44,18 @@ function Get-ParseViolations {
 $violations = [System.Collections.Generic.List[string]]::new()
 $scanned = 0
 foreach ($scanRoot in $scanRoots) {
-    if (-not (Test-Path -LiteralPath $scanRoot)) { continue }
-    foreach ($file in @(Get-ChildItem -LiteralPath $scanRoot -File | Where-Object { $_.Name -like '*Keys.cs' -or $_.Name -eq 'NodeEndpointIds.cs' })) {
-        if ($file.Name -eq 'DomainKeyOps.cs') { continue }
+    $rootPath = [string]$scanRoot.Path
+    if (-not (Test-Path -LiteralPath $rootPath)) { continue }
+    $files = Get-ChildItem -LiteralPath $rootPath -File -Recurse | Where-Object {
+        if ($allowlisted -contains $_.Name) { return $false }
+        if ($scanRoot.KeysOnly) { return $_.Name -like '*Keys.cs' -or $_.Name -eq 'NodeEndpointIds.cs' }
+        if ($_.Extension -ne '.cs') { return $false }
+        # 非域类目录：只扫**容器坐标装配面**（结构事实 = 引用读请求/坐标类型），
+        # 避免把参数解析/标签切分等既存原语（JsonParamReader / NodeTagWriter 等）混入判据。
+        $text = Get-Content -LiteralPath $_.FullName -Raw
+        return $text -match 'NodeReadRequest|ContainerCoordinate'
+    }
+    foreach ($file in @($files)) {
         $scanned++
         $pattern = if ($file.Name -eq 'NodeEndpointIds.cs') { $parsePattern } else { $keysPattern }
         $found = @(Get-ParseViolations -File $file.FullName -Pattern $pattern)

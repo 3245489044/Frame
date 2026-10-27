@@ -37,7 +37,7 @@ Write-Host '============================================================'
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
 $service = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather\NodeGatherService.cs'
-$view    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs'
+$view    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Nodes.cs'
 
 if (-not (Test-Path -LiteralPath $service)) {
     $violations.Add("[G1] 缺件：$service")

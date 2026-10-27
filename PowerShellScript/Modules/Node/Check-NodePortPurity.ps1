@@ -144,7 +144,7 @@ if ($bridgeSourceHits -eq 0) {
 function Test-ConsumesTriState([string]$text) { return $text -match 'IsUnavailable' }
 
 $contractsRel  = 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\NodeDomainPortContracts.cs'
-$adapterRel    = 'Projects\Plug\Agent\src\Agent.Modules\Gather\DomainNodeReadAdapter.cs'
+$adapterRel    = 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather\DomainNodeReadAdapter.cs'
 $contractsPath = Join-Path $Root $contractsRel
 $adapterPath   = Join-Path $Root $adapterRel
 

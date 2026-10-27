@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T13:46:18.9997528Z",
+  "builtAt": "2026-10-27T14:57:45.5676671Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1461,8 +1461,8 @@
         "Gate": 5,
         "Test": 83,
         "Declaration": 15,
-        "Code": 32,
-        "Doc": 201,
+        "Code": 18,
+        "Doc": 215,
         "Other": 64
       },
       "hits": [
@@ -2410,6 +2410,118 @@
           "line": 233,
           "role": "Doc",
           "text": "| 2 | C-7：单键族反解收为 `SingleKeyFamily` | 4 处手写切片 = 0；`proc./smsg./seg./sv.` 单键反解用例全绿 | 低 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 19,
+          "role": "Doc",
+          "text": "1. **不是 UI 缺陷，是键空间 L3 坐标层缺了一格声明**：`[Domain] process` 的 `identity {container}` 里 `{container}` **没有任何声明说它取哪个键族的哪个规范值**。于是写侧填「哈希业务键」、读侧填「成员实例键」，各自拼 `proc.{container}`，**两侧都不报错**。〔事实〕"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 66,
+          "role": "Doc",
+          "text": "| 1947 | `proc.60a4d08ad969c92b`（`payload.taskKey=60a4d08ad969c92b`，30 帧含 `done.text`） | 真实 run |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 112,
+          "role": "Doc",
+          "text": "→ 轮末 CommitRunAsync → ur_nodes: proc.{container} / obs.{container}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 113,
+          "role": "Doc",
+          "text": "（声明面：Config\\nodes\\process.ushar `placements key=proc.{container}`）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 122,
+          "role": "Doc",
+          "text": "⇒ 查 proc.task_member_60a4d08ad969c92b ⇒ 0 行"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "**同一份 `proc.{container}` 模板，两侧填了不同的 `{container}`；两侧都「自洽」，故单测/门禁长期为绿。**"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 144,
+          "role": "Doc",
+          "text": "| **L3 存储地址键** | `ur_nodes.NodeKey`（`proc.*` / `obs.*` / `session.*` / `seg.*` / `{storage}.{node}`） | `Config/nodes/*.ushar` 的 `identity` + `placements[].key` | ⚠️ 声明已就位，但**坐标取值域仍靠约定** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 162,
+          "role": "Doc",
+          "text": "placements id=process-node key=proc.{container}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 232,
+          "role": "Doc",
+          "text": "**关键性质**：消费层**不再出现任何键拼接**；`proc.{container}` 的生成与反解都发生在「发射产物 + 解析器」内。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 276,
+          "role": "Doc",
+          "text": "| key=proc.{container} | …（其余不变）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 344,
+          "role": "Doc",
+          "text": "| `Check-KeyDeclSingleSource.ps1` | 声明单源 | 追加：`proc.{container}` 的 `{container}` 必须在 `context` 中绑定族（禁隐式坐标） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 402,
+          "role": "Doc",
+          "text": "| `ur_nodes` 中 `proc.*` / `obs.*` / `arch.*` / `cline@*` | **不改**（这是「真实 run 的执行身份」，语义正确） | 行数不变 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 432,
+          "role": "Doc",
+          "text": "判据：行数 ≥ 1 ∧ 键前缀 ∈ {proc., obs., cline@, arch.} ∧ ur_tasks 该 history 下任务身份恰 1 行"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 445,
+          "role": "Doc",
+          "text": "| 改 `proc.*` 键模板为别的形态 | 模板本身正确，缺陷在占位符取值域 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-实施记录与后续步骤.md",
+          "line": 132,
+          "role": "Doc",
+          "text": "| P0-3 | **`history:` 规则取证定稿**：当前为 `identity`，需确认容器是否应落 `proc.<historyId>` 或判定为非法 | DB 基线 + 写点取证 | `crit:micro`：规则与真实写点一致；负样本必红 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-实施记录与后续步骤.md",
+          "line": 271,
+          "role": "Doc",
+          "text": "- **P0-1 macro 端到端验收**（唯一目标终态度量：`region-nodes` 行数 ≥ 1 ∧ 键前缀 ∈ {proc., obs., cline@, arch.}）；"
         },
         {
           "repo": "Main",
@@ -4153,118 +4265,6 @@
           "line": 280,
           "role": "Doc",
           "text": "| 位置键 | `proc.{container}.r{round}.step{seq}` | `proc.{container}.r{round}.{kind}.{ordinal}` | overlay 桶键与落库键同形（F-3 无闪断） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 74,
-          "role": "Doc",
-          "text": "`identity = {container}.r{round}.{kind}.{ordinal}` / `context=[\"container\",\"kind\"]` / `sequence=[\"round\",\"ordinal\"]` 已是目标形态（本批的模板来源）；`process-node` 位置键 `proc.{container}.r{round}.{kind}.{ordinal}` 不变。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 16,
-          "role": "Doc",
-          "text": "| **D3** | 合并后身份模板 | `{container}.r{round}.{kind}.{ordinal}`（对齐 `process.json` 现行形态） | 各位置族前缀：`session.` / `cline.` / `proc.` / `seg.` + `legacyTemplates` 兼容读 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 29,
-          "role": "Code",
-          "text": "/// 纪律：**禁**在其它位置出现 <c>\"proc.\"</c> 字面量或手写 <c>r{round}.{kind}.{ordinal}</c> 拼接"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 42,
-          "role": "Code",
-          "text": "public const string FamilyPrefix = \"proc.\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 86,
-          "role": "Code",
-          "text": "/// Stream 形态（单键）位置键：<c>proc.{container}</c> —— 同一任务的过程帧聚合为**一行**（<c>form=stream</c>）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 128,
-          "role": "Code",
-          "text": "KeyGrammar.Create(\"proc.identity\", MultiRowIdentityTemplate);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 144,
-          "role": "Code",
-          "text": "/// <c>proc.{container}.r{round}.{kind}.{ordinal}</c>。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 163,
-          "role": "Code",
-          "text": "/// <summary>键族判据（替代散落的 <c>StartsWith(\"proc.\")</c>；含只读 legacy 形态）。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-          "line": 168,
-          "role": "Code",
-          "text": "// K3：识别产物帧（type:\"node\"）经**唯一写门**落库 —— 过程节点进入 proc.* 域，轮末随既有沉淀路径物化"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/Context/ContextOpsFunctions.cs",
-          "line": 58,
-          "role": "Code",
-          "text": "// 跳过非过程（ur_nodes）产出分支 —— 过程流作为工具唯一来源；ur_nodes 键（wf.*）与过程键（proc.*）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/Context/ProcessCollectSource.cs",
-          "line": 13,
-          "role": "Code",
-          "text": "/// 经域聚拢服务（<see cref=\"INodeGatherService\"/>，与过程面板**同源**）读 <c>proc.*</c> 过程节点，"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/Context/ProcessCollectSource.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "/// 条目 <c>Node</c> = 过程位置键（<c>proc.{container}.r{round}.{kind}.{ordinal}</c>）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/Context/ProcessNodeProjection.cs",
-          "line": 15,
-          "role": "Code",
-          "text": "/// <c>proc.{container}.r{round}.{kind}.{ordinal}</c>）投影为一条 <see cref=\"ConversationMessage\"/>（Role=Tool）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs",
-          "line": 57,
-          "role": "Code",
-          "text": "// ── 过程域载体（运行过程节点：阶段 / 端点心跳 / LLM 调用 / 工具；键族 proc.* 与轮/段/消息域分离）──"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs",
-          "line": 62,
-          "role": "Code",
-          "text": "/// <summary>过程域-落库位置（<c>proc.{container}.r{round}.{kind}.{ordinal}</c>）→ <see cref=\"NodeTypes.Event\"/>。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs",
-          "line": 198,
-          "role": "Code",
-          "text": "/// 装配过程域载体（运行过程节点落库面：<c>proc.{container}.r{round}.{kind}.{ordinal}</c>）。"
         }
       ]
     },
@@ -5408,10 +5408,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 6,
-        "Test": 47,
+        "Test": 44,
         "Declaration": 0,
         "Code": 168,
-        "Doc": 178,
+        "Doc": 181,
         "Other": 1
       },
       "hits": [
@@ -7174,6 +7174,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 55,
+          "role": "Doc",
+          "text": "session_owns      : session:session.60a4d08ad969c92b  -> node:agent-round.smsg.60a4d08ad969c92b"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 144,
+          "role": "Doc",
+          "text": "| **L3 存储地址键** | `ur_nodes.NodeKey`（`proc.*` / `obs.*` / `session.*` / `seg.*` / `{storage}.{node}`） | `Config/nodes/*.ushar` 的 `identity` + `placements[].key` | ⚠️ 声明已就位，但**坐标取值域仍靠约定** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-实施记录与后续步骤.md",
+          "line": 252,
+          "role": "Doc",
+          "text": "3. 会话域容器规范值：`history:`/`arch.`/`smsg.`/`seg.`/`sv.`/`session:`/`session.` 前缀均可反转，其余原样（`* identity`）。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.3/2026-10-03-CircuitFramework-声明式接缝缺陷-整理优化分析.md",
           "line": 60,
           "role": "Doc",
@@ -8193,27 +8214,6 @@
           "line": 35,
           "role": "Test",
           "text": "{ \"family\": \"domain.conversation\", \"surface\": \"Display\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"session.c1.r2.\", \"source\": \"manual\", \"prefix\": true, \"stage\": \"KB1\" }"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 112,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"session.a.r1\", out _, out _, out _, out _), \"非过程键族\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 149,
-          "role": "Test",
-          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 165,
-          "role": "Test",
-          "text": "Assert.IsNull(AgentNodeCarriers.ThreadIdFromProcessKey(\"session.work.r1\"));"
         }
       ]
     },
@@ -10112,14 +10112,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/task-node.ushar",
-          "line": 24,
+          "line": 25,
           "role": "Declaration",
           "text": "role.tool-call = 6"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/task-node.ushar",
-          "line": 31,
+          "line": 32,
           "role": "Declaration",
           "text": "owns-tool = \"role.tool-call\""
         },
@@ -11016,14 +11016,14 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 37,
+      "total": 39,
       "truncated": false,
       "byRole": {
         "Gate": 0,
         "Test": 9,
         "Declaration": 2,
         "Code": 6,
-        "Doc": 19,
+        "Doc": 21,
         "Other": 1
       },
       "hits": [
@@ -11040,6 +11040,20 @@
           "line": 71,
           "role": "Other",
           "text": "@{ Id = 'placement.process'; Kind = 'Placement'; Pattern = 'process-node'; Note = '过程域位置 id' }"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 162,
+          "role": "Doc",
+          "text": "placements id=process-node key=proc.{container}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-任务节点不上屏-容器坐标未声明-以Usharp为核心的键坐标通用框架方案.md",
+          "line": 275,
+          "role": "Doc",
+          "text": "placements id=process-node | level=node | carrier=sql-nodes-process"
         },
         {
           "repo": "Main",
@@ -11291,13 +11305,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1586.0,
+    "hitCount": 1588.0,
     "byRole": {
       "Gate": 28,
-      "Test": 282,
+      "Test": 279,
       "Declaration": 96,
-      "Code": 359,
-      "Doc": 746,
+      "Code": 345,
+      "Doc": 765,
       "Other": 75
     },
     "truncatedFacts": [
@@ -11315,7 +11329,7 @@
       },
       {
         "repo": "Main",
-        "lines": 995
+        "lines": 1016
       }
     ]
   }

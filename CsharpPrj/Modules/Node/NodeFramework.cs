@@ -74,6 +74,9 @@ public sealed record NodeFrameworkOptions
 
     /// <summary>标签词表注册表（未提供 ⇒ 空实例注册表）。</summary>
     public ITagVocabularyRegistry? TagVocabularies { get; init; }
+
+    /// <summary>身份坐标绑定（缺省 = 空：未声明 coordinates 的域零回归）。</summary>
+    public IReadOnlyList<ContextCoordinateSpec>? Coordinates { get; init; }
 }
 
 /// <summary>
@@ -94,6 +97,7 @@ public sealed class NodeFramework
         Diagnostics = opt.Diagnostics ?? _collector!;
 
         Identity = opt.Identity ?? IdentitySpec.Create("{key}");
+        Coordinates = opt.Coordinates ?? Array.Empty<ContextCoordinateSpec>();
         if (opt.Identity is null)
         {
             Diagnostics.Report(new NodeDiagnostic(
@@ -156,6 +160,9 @@ public sealed class NodeFramework
     public NodeFrameworkDiagnostics? Collector => _collector;
 
     public IdentitySpec Identity { get; }
+
+    /// <summary>身份坐标绑定（声明面 <c>[Domain] coordinates</c>；空 = 未声明，零回归）。</summary>
+    public IReadOnlyList<ContextCoordinateSpec> Coordinates { get; }
 
     public PlacementRegistry Placements { get; }
 
@@ -291,6 +298,7 @@ public sealed class NodeFramework
             Containers = containers,
             ExecutionBindings = executionBindings,
             TagVocabularies = tagVocabularies,
+            Coordinates = spec.Coordinates,
         };
 
         var framework = new NodeFramework(options);

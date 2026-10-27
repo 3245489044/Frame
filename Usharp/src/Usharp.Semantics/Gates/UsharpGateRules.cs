@@ -289,6 +289,9 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
             }
 
             var identityPlaceholders = Placeholders(domain.Identity);
+            // 坐标 = **外部运行态值**的取值域；其载体是 context（运行期由调用方显式提供），
+            // sequence 项（round/ordinal 等）由域内生成，不属坐标。
+            var contextSlots = new HashSet<string>(domain.Context, StringComparer.Ordinal);
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var placement in domain.Placements)
             {
@@ -322,6 +325,93 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainRetentionUndeclared,
                         $"[Domain] {domain.DomainId}: 位置 '{placement.Id}' 的 retention='{placement.Retention}' 未在 retentions 词表声明",
                         domain.SourceFile, domain.LineNumber));
+                }
+            }
+
+            // 坐标绑定 ↔ 键空间（跨层）：声明了 coordinates 的域，其身份占位符必须全部绑定到已声明族/轴，
+            // 且该轴必须声明 canonical 规则集（否则运行期无从求规范值 ⇒ 写读两侧各自拼串）。
+            // 单文件装载（节点 .ushar 单独编译，如运行期 TryLoadDeclared）没有 [KeySpace] ⇒ 只可见化不判红，
+            // 跨层判据由整包编译（Generate-DeclaredBundle / 门禁）承担。
+            if (domain.Coordinates.Count > 0 && model.KeySpaces.Count == 0)
+            {
+                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.KeyLineUnparsed,
+                    $"[Domain] {domain.DomainId}: 已声明 coordinates 但本次编译无 [KeySpace]"
+                    + "（单文件装载：跨层校验由整包编译承担）",
+                    domain.SourceFile, domain.LineNumber));
+            }
+            else if (domain.Coordinates.Count > 0)
+            {
+                var families = model.KeySpaces
+                    .SelectMany(space => space.Families)
+                    .GroupBy(family => family.Id, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.Last(), StringComparer.Ordinal);
+                var bound = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (var coordinate in domain.Coordinates)
+                {
+                    if (!bound.Add(coordinate.Name))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 坐标 '{coordinate.Name}' 重复绑定",
+                            domain.SourceFile, domain.LineNumber));
+                    }
+
+                    if (!identityPlaceholders.Contains(coordinate.Name))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 坐标 '{coordinate.Name}' 不是身份模板占位符"
+                            + "（绑定名须与 identity 段一致）",
+                            domain.SourceFile, domain.LineNumber));
+                        continue;
+                    }
+
+                    if (!contextSlots.Contains(coordinate.Name))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 身份坐标 '{coordinate.Name}' 未在 context 中声明"
+                            + "（坐标 = 外部运行态值；sequence 项不属坐标）",
+                            domain.SourceFile, domain.LineNumber));
+                        continue;
+                    }
+
+                    if (!families.TryGetValue(coordinate.Family, out var family))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 坐标 '{coordinate.Name}' 绑定的族 '{coordinate.Family}'"
+                            + " 未在 [KeySpace] 声明",
+                            domain.SourceFile, domain.LineNumber));
+                        continue;
+                    }
+
+                    var axis = family.Axes.FirstOrDefault(
+                        candidate => string.Equals(candidate.Name, coordinate.Axis, StringComparison.Ordinal));
+                    if (axis is null)
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 坐标 '{coordinate.Name}' 绑定的轴"
+                            + $" '{coordinate.Family}/{coordinate.Axis}' 未声明",
+                            domain.SourceFile, domain.LineNumber));
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(axis.Canonical))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: 轴 '{coordinate.Family}/{coordinate.Axis}' 缺 canonical="
+                            + "（坐标值域未声明：写读两侧会各自拼串）",
+                            domain.SourceFile, domain.LineNumber));
+                    }
+                }
+
+                foreach (var slot in contextSlots)
+                {
+                    if (!bound.Contains(slot))
+                    {
+                        sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DomainShapeInvalid,
+                            $"[Domain] {domain.DomainId}: context 项 '{slot}' 缺 coordinates 绑定"
+                            + "（已声明 coordinates 的域须覆盖全部外部坐标）",
+                            domain.SourceFile, domain.LineNumber));
+                    }
                 }
             }
         }

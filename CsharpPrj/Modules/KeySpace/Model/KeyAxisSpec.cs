@@ -16,7 +16,8 @@ public sealed record KeyAxisSpec(
     KeyValueShape Shape = KeyValueShape.Text,
     bool Required = true,
     IReadOnlyList<string>? AllowedValues = null,
-    IReadOnlyList<string>? DisallowInfix = null)
+    IReadOnlyList<string>? DisallowInfix = null,
+    string? Canonical = null)
 {
     /// <summary>是否带词表约束（词表 = 该轴合法值全集）。</summary>
     public bool HasAllowedValues => AllowedValues is { Count: > 0 };

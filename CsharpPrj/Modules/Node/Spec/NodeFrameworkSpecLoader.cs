@@ -23,7 +23,8 @@ public sealed record NodeFrameworkSpec(
     IReadOnlyList<string>? Origins = null,
     IReadOnlyDictionary<string, string>? Tags = null,
     IReadOnlyDictionary<string, string>? Behaviors = null,
-    NodeSelectionSpec? Selection = null)
+    NodeSelectionSpec? Selection = null,
+    IReadOnlyList<ContextCoordinateSpec>? Coordinates = null)
 {
     public bool HasErrors => Diagnostics.Any(d => d.Severity == NodeDiagnosticSeverity.Error);
 
@@ -133,6 +134,7 @@ public static class NodeFrameworkSpecLoader
         var referenceFields = ReadStringArray(root, "referenceFields", collected);
         var directives = NodeDirectiveSet.Parse(ReadArrayJson(root, "directives"), sink);
         var selectionSpec = ParseSelectionSpec(root, collected);
+        var coordinates = ParseCoordinates(root, collected);
 
         foreach (var diagnostic in collected)
         {
@@ -155,7 +157,52 @@ public static class NodeFrameworkSpecLoader
             origins,
             tags,
             behaviors,
-            selectionSpec);
+            selectionSpec,
+            coordinates);
+    }
+
+    /// <summary>
+    /// 解析身份坐标绑定（<c>coordinates</c>）：缺 name/family/axis ⇒ Error（不静默忽略）。
+    /// 未声明 ⇒ null（零回归；绑定完整性由闸A 对已声明域强制）。
+    /// </summary>
+    private static IReadOnlyList<ContextCoordinateSpec>? ParseCoordinates(
+        JsonObject root, List<NodeDiagnostic> collected)
+    {
+        if (root["coordinates"] is not JsonArray array || array.Count == 0)
+        {
+            return null;
+        }
+
+        var coordinates = new List<ContextCoordinateSpec>(array.Count);
+        foreach (var node in array)
+        {
+            if (node is not JsonObject item)
+            {
+                collected.Add(new NodeDiagnostic(
+                    "spec.coordinate-shape", NodeDiagnosticSeverity.Error,
+                    "coordinates 项须为对象", "coordinates"));
+                continue;
+            }
+
+            var name = ReadString(item, "name");
+            var family = ReadString(item, "family");
+            var axis = ReadString(item, "axis");
+            if (string.IsNullOrWhiteSpace(name)
+                || string.IsNullOrWhiteSpace(family)
+                || string.IsNullOrWhiteSpace(axis))
+            {
+                collected.Add(new NodeDiagnostic(
+                    "spec.coordinate-incomplete", NodeDiagnosticSeverity.Error,
+                    "coordinates 项缺 name/family/axis（坐标绑定不完整 ⇒ 运行期无从求规范值）",
+                    "coordinates"));
+                continue;
+            }
+
+            coordinates.Add(new ContextCoordinateSpec(
+                name, family, axis, ReadString(item, "canonical") ?? "required"));
+        }
+
+        return coordinates.Count == 0 ? null : coordinates;
     }
 
     /// <summary>

@@ -45,6 +45,13 @@ public static class UsharpKeySpaceEmitter
                 item["derivedPrefixRoles"] = roles;
             }
 
+            if (family.DerivedPrefixReversibility.Count > 0)
+            {
+                var reversibility = new JsonObject();
+                foreach (var pair in family.DerivedPrefixReversibility) reversibility[pair.Key] = pair.Value;
+                item["derivedPrefixReversibility"] = reversibility;
+            }
+
             if (family.Surfaces.Count > 0)
             {
                 var surfaces = new JsonObject();
@@ -71,9 +78,39 @@ public static class UsharpKeySpaceEmitter
                     };
                     if (axis.AllowedValues.Count > 0) entry["allowedValues"] = UsharpJson.Array(axis.AllowedValues);
                     if (axis.DisallowInfix.Count > 0) entry["disallowInfix"] = UsharpJson.Array(axis.DisallowInfix);
+                    if (axis.Canonical is { } axisCanonical) entry["canonical"] = axisCanonical;
                     axes.Add(entry);
                 }
                 item["axes"] = axes;
+            }
+
+            if (family.CanonicalSets.Count > 0)
+            {
+                var canonical = new JsonObject();
+                foreach (var set in family.CanonicalSets)
+                {
+                    var rules = new JsonArray();
+                    foreach (var rule in set.Rules)
+                    {
+                        var entry = new JsonObject
+                        {
+                            ["from"] = rule.From,
+                            ["rule"] = rule.Rule,
+                            ["onMiss"] = rule.OnMiss,
+                        };
+                        if (rule.Family is { } ruleFamily) entry["family"] = ruleFamily;
+                        rules.Add(entry);
+                    }
+
+                    canonical[set.Name] = new JsonObject
+                    {
+                        ["family"] = set.FamilyId,
+                        ["axis"] = set.Axis,
+                        ["idempotent"] = set.Idempotent,
+                        ["rules"] = rules,
+                    };
+                }
+                item["canonical"] = canonical;
             }
 
             families.Add(item);

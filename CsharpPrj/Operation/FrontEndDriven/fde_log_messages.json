@@ -387,6 +387,11 @@
       "level": "Warning",
       "category": "General"
     },
+    "EcsEventBus_Dispatch_output_skip": {
+      "template": "ECS 事件输出显式跳过（RenderOutput.Skip：不写，合法决策）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}",
+      "level": "Info",
+      "category": "General"
+    },
     "EcsEventBus_Dispatch_output_plan_unlanded": {
       "template": "ECS 事件输出计划未落地（目标非 HtmlViewer / 未装配计划执行器 / 执行异常）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, error={error}",
       "level": "Warning",

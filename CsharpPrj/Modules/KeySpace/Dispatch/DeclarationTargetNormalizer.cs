@@ -20,6 +20,7 @@ public sealed class DeclarationTargetNormalizer : ITargetNormalizer
     private readonly List<KeyFamily> _families = new();
     private readonly Dictionary<string, KeyGrammar[]> _identity = new(StringComparer.Ordinal);
     private readonly Dictionary<string, KeyGrammar> _business = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _irreversiblePrefixes = new(StringComparer.Ordinal);
 
     public DeclarationTargetNormalizer(IKeySpaceDeclaration declaration, IBusinessKeyResolver? resolver = null)
     {
@@ -40,6 +41,21 @@ public sealed class DeclarationTargetNormalizer : ITargetNormalizer
                 grammarId: family.Id + "#business",
                 template: family.BusinessKeyTemplate!,
                 familyPrefix: LiteralPrefixOf(family.BusinessKeyTemplate!));
+
+            // 不可逆派生前缀（reversible=False）：剥出的是实例哈希，不得落入业务键文法兜底。
+            if (family.DerivedPrefixes is { Count: > 0 } prefixes
+                && family.DerivedPrefixReversibility is { Count: > 0 } reversibility)
+            {
+                foreach (var prefix in prefixes)
+                {
+                    if (!string.IsNullOrEmpty(prefix)
+                        && reversibility.TryGetValue(prefix, out var reversible)
+                        && !reversible)
+                    {
+                        _irreversiblePrefixes.Add(prefix);
+                    }
+                }
+            }
         }
     }
 
@@ -72,14 +88,24 @@ public sealed class DeclarationTargetNormalizer : ITargetNormalizer
             }
         }
 
-        // 2) 业务键投影（领域适配器：实例键/派生前缀 → 业务键）。
+        // 2) 不可逆派生前缀（声明 reversible=False）⇒ 显式不可还原：
+        //    剥前缀得到的是实例哈希（幽灵业务键），且不得落入业务键文法兜底（否则原文被当业务键放行）。
+        foreach (var prefix in _irreversiblePrefixes)
+        {
+            if (raw.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return new NormalizedKey(null, raw, NormalizeOutcome.Unresolvable, "irreversible-derived-key");
+            }
+        }
+
+        // 3) 业务键投影（领域适配器：实例键/派生前缀 → 业务键）。
         var restored = _resolver?.Resolve(raw, _declaration);
         if (restored is { IsEmpty: false })
         {
             return new NormalizedKey(restored, raw, NormalizeOutcome.BusinessKeyRestored, null);
         }
 
-        // 3) 业务键文法（裸业务键，如 tp_hist_read_child）。
+        // 4) 业务键文法（裸业务键，如 tp_hist_read_child）。
         foreach (var family in _families)
         {
             if (!_business.TryGetValue(family.Id, out var grammar) || !grammar.TryParseAny(raw, out var values))

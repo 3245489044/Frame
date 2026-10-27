@@ -26,6 +26,13 @@ public sealed record UsharpPlacementDecl(
     string Writer,
     string? State);
 
+/// <summary>身份坐标绑定：<c>container | family=agent.task | axis=container | canonical=required</c>。</summary>
+/// <param name="Name">身份占位符名（须与 identity 模板一致）。</param>
+/// <param name="Family">键族 id（须在 [KeySpace] 已声明）。</param>
+/// <param name="Axis">族内轴名（须在 [KeySpace] 已声明）。</param>
+/// <param name="Canonical">规范值姿态（required = 必须经声明规则解析）。</param>
+public sealed record UsharpCoordinateDecl(string Name, string Family, string Axis, string Canonical);
+
 /// <summary>
 /// <c>[Domain] Name</c> 的语法视图（节点域定义面的事实唯一真源；U1）。
 /// <para>
@@ -51,6 +58,7 @@ public sealed record UsharpDomainDecl(
     IReadOnlyList<string> Origins,
     IReadOnlyDictionary<string, string> Tags,
     IReadOnlyDictionary<string, string> Behaviors,
+    IReadOnlyList<UsharpCoordinateDecl> Coordinates,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
     int LineNumber)
@@ -65,6 +73,7 @@ public sealed record UsharpDomainDecl(
         Origins,
         Tags,
         Behaviors,
+        Coordinates,
     }
 
     /// <summary>投影单条 <c>[Domain]</c> 声明（无名 ⇒ null；无法解析的续行落入 <see cref="UnparsedLines"/>，闸A 报出）。</summary>
@@ -82,6 +91,7 @@ public sealed record UsharpDomainDecl(
         var origins = new List<string>();
         var tags = new Dictionary<string, string>(StringComparer.Ordinal);
         var behaviors = new Dictionary<string, string>(StringComparer.Ordinal);
+        var coordinates = new List<UsharpCoordinateDecl>();
         var unparsed = new List<string>();
         var section = Section.None;
 
@@ -143,6 +153,11 @@ public sealed record UsharpDomainDecl(
                 section = Section.Behaviors;
                 continue;
             }
+            if (string.Equals(line, "coordinates", StringComparison.Ordinal))
+            {
+                section = Section.Coordinates;
+                continue;
+            }
 
             switch (section)
             {
@@ -167,6 +182,9 @@ public sealed record UsharpDomainDecl(
                 case Section.Behaviors when TryParsePair(line, out var behaviorName, out var behaviorExpr):
                     behaviors[behaviorName] = behaviorExpr;
                     break;
+                case Section.Coordinates when TryParseCoordinate(line, out var coordinate):
+                    coordinates.Add(coordinate!);
+                    break;
                 default:
                     unparsed.Add(line);
                     break;
@@ -175,7 +193,27 @@ public sealed record UsharpDomainDecl(
 
         return new UsharpDomainDecl(
             d.Name, identity, context, sequence, placements, selections, retentions, marks, origins,
-            tags, behaviors, unparsed, d.SourceFile, d.LineNumber);
+            tags, behaviors, coordinates, unparsed, d.SourceFile, d.LineNumber);
+    }
+
+    /// <summary>坐标项解析：<c>name | family=… | axis=… | canonical=…</c>（缺 family/axis ⇒ false）。</summary>
+    private static bool TryParseCoordinate(string line, out UsharpCoordinateDecl? coordinate)
+    {
+        coordinate = null;
+        var parts = UsharpLineReader.SplitParts(line);
+        if (parts.Count == 0) return false;
+
+        var name = parts[0];
+        if (name.IndexOf('=') >= 0 || name.Length == 0) return false;
+
+        var fields = UsharpLineReader.ParseFieldBag(parts, 1, StringComparer.OrdinalIgnoreCase);
+        var family = UsharpLineReader.Get(fields, "family");
+        var axis = UsharpLineReader.Get(fields, "axis");
+        if (string.IsNullOrWhiteSpace(family) || string.IsNullOrWhiteSpace(axis)) return false;
+
+        coordinate = new UsharpCoordinateDecl(
+            name, family, axis, UsharpLineReader.Get(fields, "canonical") ?? "required");
+        return true;
     }
 
     /// <summary>位置项解析：<c>k=v | k=v | …</c>（缺必填字段 ⇒ false，落 <see cref="UnparsedLines"/>）。</summary>

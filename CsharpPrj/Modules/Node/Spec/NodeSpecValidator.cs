@@ -212,6 +212,43 @@ public sealed class NodeSpecValidator
             }
         }
 
+        if (spec.Coordinates is { Count: > 0 } coordinates)
+        {
+            var bound = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var coordinate in coordinates)
+            {
+                if (!bound.Add(coordinate.Name))
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.coordinate-duplicate",
+                        NodeDiagnosticSeverity.Error,
+                        $"身份坐标 '{coordinate.Name}' 重复绑定",
+                        "coordinates"));
+                }
+
+                if (!spec.ContextKeys.Contains(coordinate.Name, StringComparer.Ordinal))
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.coordinate-undeclared-context",
+                        NodeDiagnosticSeverity.Error,
+                        $"身份坐标 '{coordinate.Name}' 未在 context 中声明（绑定名须与 context 项一致）",
+                        "coordinates"));
+                }
+            }
+
+            foreach (var contextKey in spec.Identity.ContextKeys)
+            {
+                if (!bound.Contains(contextKey))
+                {
+                    violations.Add(new NodeSpecViolation(
+                        "spec.coordinate-missing",
+                        NodeDiagnosticSeverity.Error,
+                        $"身份占位符 '{contextKey}' 缺 coordinates 绑定（已声明 coordinates 的域须覆盖全部身份占位符）",
+                        "coordinates"));
+                }
+            }
+        }
+
         if (!spec.Identity.HasSequencePlaceholder && spec.Identity.Placeholders.Count > 0)
         {
             violations.Add(new NodeSpecViolation(

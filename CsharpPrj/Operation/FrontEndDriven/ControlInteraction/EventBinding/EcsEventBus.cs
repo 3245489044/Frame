@@ -367,18 +367,32 @@ public sealed class EcsEventBus : IInteractionEventPort
             else
             {
                 // 成功但无输出目标/输出为空：命令仍视为完成（成功），等待方解阻塞。
-                // 输出联动断点告警：指定了输出目标但函数无输出值 → 输入框不会刷新（「选中模板无效」根因候选）。
+                // 输出联动断点告警：显式 Skip（不写）与真无输出可区分（Skip 是合法决策，不是断点）。
                 if (!string.IsNullOrWhiteSpace(binding.OutputTarget))
                 {
-                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_empty",
-                        new
-                        {
-                            opId,
-                            controlName = evt.ControlName,
-                            functionName = binding.FunctionName,
-                            outputTarget = binding.OutputTarget,
-                            outputType = result.RawOutput?.GetType().Name ?? "(null)"
-                        });
+                    if (result.RawOutput is RenderOutput { IsSkip: true })
+                    {
+                        FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_skip",
+                            new
+                            {
+                                opId,
+                                controlName = evt.ControlName,
+                                functionName = binding.FunctionName,
+                                outputTarget = binding.OutputTarget,
+                            });
+                    }
+                    else
+                    {
+                        FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_empty",
+                            new
+                            {
+                                opId,
+                                controlName = evt.ControlName,
+                                functionName = binding.FunctionName,
+                                outputTarget = binding.OutputTarget,
+                                outputType = result.RawOutput?.GetType().Name ?? "(null)"
+                            });
+                    }
                 }
                 op?.Complete(EventFunctionOutcome.Success());
             }
@@ -544,9 +558,18 @@ public sealed class EcsEventBus : IInteractionEventPort
             var text = effectiveOutput?.ToString();
             if (string.IsNullOrWhiteSpace(text))
             {
-                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_empty",
-                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
-                          outputTarget = binding.OutputTarget, outputType = effectiveOutput?.GetType().Name ?? "(null)" });
+                if (effectiveOutput is RenderOutput { IsSkip: true })
+                {
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_skip",
+                        new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                              outputTarget = binding.OutputTarget });
+                }
+                else
+                {
+                    FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_empty",
+                        new { opId, controlName = evt.ControlName, functionName = binding.FunctionName,
+                              outputTarget = binding.OutputTarget, outputType = effectiveOutput?.GetType().Name ?? "(null)" });
+                }
                 return;
             }
 

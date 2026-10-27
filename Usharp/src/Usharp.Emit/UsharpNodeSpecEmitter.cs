@@ -105,6 +105,22 @@ public static class UsharpNodeSpecEmitter
             root["origins"] = StringArray(domain.Origins);
         }
 
+        if (domain.Coordinates.Count > 0)
+        {
+            var coordinates = new JsonArray();
+            foreach (var coordinate in domain.Coordinates)
+            {
+                coordinates.Add(new JsonObject
+                {
+                    ["name"] = coordinate.Name,
+                    ["family"] = coordinate.Family,
+                    ["axis"] = coordinate.Axis,
+                    ["canonical"] = coordinate.Canonical,
+                });
+            }
+            root["coordinates"] = coordinates;
+        }
+
         return root.ToJsonString();
     }
 

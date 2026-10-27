@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T10:52:49.9805993Z",
+  "builtAt": "2026-10-27T13:46:18.9997528Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -3737,28 +3737,28 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 57,
+          "line": 91,
           "role": "Declaration",
           "text": "family domain.process | template=proc.{container} | prefix=proc. | relation=Member | cardinality=Many | domain=run | orderKeys= | identity=container | derivedPrefixes="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 58,
+          "line": 92,
           "role": "Declaration",
           "text": "surface domain.process/Storage | templates=proc.{container} | prefix=proc. | readOnly=proc.{container}.r{round:digits}.{kind}.{ordinal:digits},proc.{container}.r{round:digits}.step{ordinal:digits}"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 59,
+          "line": 93,
           "role": "Declaration",
           "text": "surface domain.process/Display | templates=proc.{container}.r{round:digits}.{kind}.{ordinal:digits} | prefix=proc. | readOnly="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/process.ushar",
-          "line": 8,
+          "line": 10,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
         },
@@ -10007,7 +10007,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 62,
+          "line": 96,
           "role": "Declaration",
           "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-reasoning,tool-call,tool-progress,tool-result,"
         },
@@ -10098,14 +10098,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/observability.ushar",
-          "line": 12,
+          "line": 14,
           "role": "Declaration",
           "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/process.ushar",
-          "line": 12,
+          "line": 14,
           "role": "Declaration",
           "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
         },
@@ -11163,7 +11163,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/process.ushar",
-          "line": 8,
+          "line": 10,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
         },
@@ -11311,7 +11311,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 489
+        "lines": 493
       },
       {
         "repo": "Main",

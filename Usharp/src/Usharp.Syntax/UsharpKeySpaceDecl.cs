@@ -7,18 +7,30 @@ public sealed record UsharpKeySurfaceDecl(
     string FamilyId, string Surface, IReadOnlyList<string> Templates,
     string? FamilyPrefix, IReadOnlyList<string> ReadOnlyTemplates);
 
-/// <summary>键轴声明：<c>axis &lt;family&gt;/&lt;name&gt; | shape=text | required=true | allowed=a,b</c>。</summary>
+/// <summary>键轴声明：<c>axis &lt;family&gt;/&lt;name&gt; | shape=text | required=true | canonical=&lt;rule&gt;</c>。</summary>
 public sealed record UsharpKeyAxisDecl(
     string FamilyId, string Name, string Shape, bool Required,
-    IReadOnlyList<string> AllowedValues, IReadOnlyList<string> DisallowInfix);
+    IReadOnlyList<string> AllowedValues, IReadOnlyList<string> DisallowInfix,
+    string? Canonical = null);
 
-/// <summary>键族声明：身份模板 + 面 + 轴 + 别名 + 派生前缀。</summary>
+/// <summary>坐标规范规则：<c>from=&lt;前缀|*&gt; | rule=strip-prefix|identity | on-miss=Fail|Keep</c>。</summary>
+public sealed record UsharpKeyCanonicalRuleDecl(
+    string From, string Rule, string OnMiss, string? Family);
+
+/// <summary>坐标规范规则集：<c>canonical &lt;family&gt;/&lt;axis&gt;/&lt;name&gt; | idempotent=True</c>。</summary>
+public sealed record UsharpKeyCanonicalSetDecl(
+    string FamilyId, string Axis, string Name, bool Idempotent,
+    IReadOnlyList<UsharpKeyCanonicalRuleDecl> Rules);
+
+/// <summary>键族声明：身份模板 + 面 + 轴 + 别名 + 派生前缀（+ 可逆性与坐标规则集）。</summary>
 public sealed record UsharpKeyFamilyDecl(
     string Id, string Template, string? FamilyPrefix, string? Relation, string? Cardinality,
     string? BusinessKeyTemplate, IReadOnlyList<string> Aliases, IReadOnlyList<string> OrderKeys,
     IReadOnlyList<string> IdentityKeys, string? DomainId, IReadOnlyList<string> DerivedPrefixes,
     IReadOnlyDictionary<string, string> DerivedPrefixRoles,
-    IReadOnlyList<UsharpKeySurfaceDecl> Surfaces, IReadOnlyList<UsharpKeyAxisDecl> Axes);
+    IReadOnlyList<UsharpKeySurfaceDecl> Surfaces, IReadOnlyList<UsharpKeyAxisDecl> Axes,
+    IReadOnlyDictionary<string, bool> DerivedPrefixReversibility,
+    IReadOnlyList<UsharpKeyCanonicalSetDecl> CanonicalSets);
 
 /// <summary>键端口声明：<c>port &lt;name&gt; | direction=In | family=&lt;id&gt; | required=true</c>。</summary>
 public sealed record UsharpKeyPortDecl(
@@ -55,6 +67,7 @@ public sealed record UsharpKeySpaceDecl(
         var policies = new List<UsharpKeyPolicyDecl>();
         var derives = new List<UsharpKeyDeriveDecl>();
         var unparsed = new List<string>();
+        CanonicalBuilder? canonical = null;
 
         FamilyBuilder Family(string id)
         {
@@ -65,6 +78,15 @@ public sealed record UsharpKeySpaceDecl(
             return created;
         }
 
+        void FlushCanonical()
+        {
+            if (canonical is null) return;
+            Family(canonical.FamilyId).CanonicalSets.Add(new UsharpKeyCanonicalSetDecl(
+                canonical.FamilyId, canonical.Axis, canonical.Name, canonical.Idempotent,
+                canonical.Rules.ToList()));
+            canonical = null;
+        }
+
         foreach (var raw in d.Continuation)
         {
             var line = (raw ?? string.Empty).Trim();
@@ -73,6 +95,23 @@ public sealed record UsharpKeySpaceDecl(
             var parts = UsharpLineReader.SplitParts(line);
             var head = parts[0];
             var fields = UsharpLineReader.ParseFieldBag(parts, 1, StringComparer.OrdinalIgnoreCase);
+
+            // canonical 段内的规则续行（from=…）；非规则行 ⇒ 结束该段回到常规首词解析。
+            if (canonical is not null)
+            {
+                var ruleFields = UsharpLineReader.ParseFieldBag(parts, 0, StringComparer.OrdinalIgnoreCase);
+                if (ruleFields.TryGetValue("from", out var ruleFrom) && ruleFrom.Length > 0)
+                {
+                    var rule = UsharpLineReader.Get(ruleFields, "rule");
+                    if (string.IsNullOrWhiteSpace(rule)) { unparsed.Add(line); continue; }
+                    canonical.Rules.Add(new UsharpKeyCanonicalRuleDecl(
+                        ruleFrom, rule, UsharpLineReader.Get(ruleFields, "on-miss") ?? "Fail",
+                        UsharpLineReader.Get(ruleFields, "family")));
+                    continue;
+                }
+
+                FlushCanonical();
+            }
 
             if (UsharpLineReader.TryHead(head, "family", out var familyId))
             {
@@ -107,7 +146,23 @@ public sealed record UsharpKeySpaceDecl(
                 Family(family).Axes.Add(new UsharpKeyAxisDecl(
                     family, name, UsharpLineReader.Get(fields, "shape") ?? "text",
                     !string.Equals(UsharpLineReader.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
-                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "allowed")), UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "disallow"))));
+                    UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "allowed")), UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "disallow")),
+                    UsharpLineReader.Get(fields, "canonical")));
+                continue;
+            }
+
+            if (UsharpLineReader.TryHead(head, "canonical", out var canonicalRef))
+            {
+                var segments = canonicalRef.Split('/', StringSplitOptions.TrimEntries);
+                if (segments.Length != 3 || segments.Any(static s => s.Length == 0))
+                {
+                    unparsed.Add(line);
+                    continue;
+                }
+
+                canonical = new CanonicalBuilder(
+                    segments[0], segments[1], segments[2],
+                    !string.Equals(UsharpLineReader.Get(fields, "idempotent"), "false", StringComparison.OrdinalIgnoreCase));
                 continue;
             }
 
@@ -129,7 +184,13 @@ public sealed record UsharpKeySpaceDecl(
                 var slash = familyRole.IndexOf('/');
                 if (slash <= 0 || slash >= familyRole.Length - 1 || prefix.Length == 0) { unparsed.Add(line); continue; }
                 var builder = Family(familyRole[..slash]);
-                builder.DerivedPrefixes.Add(prefix);
+                var reversible = !string.Equals(
+                    UsharpLineReader.Get(fields, "reversible"), "false", StringComparison.OrdinalIgnoreCase);
+                if (!builder.DerivedPrefixes.Contains(prefix, StringComparer.Ordinal))
+                {
+                    builder.DerivedPrefixes.Add(prefix);
+                }
+                builder.DerivedPrefixReversibility[prefix] = reversible;
                 builder.DerivedPrefixRoles[familyRole[(slash + 1)..]] = prefix;
                 continue;
             }
@@ -162,6 +223,8 @@ public sealed record UsharpKeySpaceDecl(
             unparsed.Add(line);
         }
 
+        FlushCanonical();
+
         return new UsharpKeySpaceDecl(
             d.Name.Trim(), domains, families.Select(f => f.Build()).ToList(),
             ports, policies, derives, unparsed, d.SourceFile, d.LineNumber);
@@ -182,11 +245,31 @@ public sealed record UsharpKeySpaceDecl(
         public List<string> IdentityKeys { get; } = new();
         public List<string> DerivedPrefixes { get; } = new();
         public Dictionary<string, string> DerivedPrefixRoles { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, bool> DerivedPrefixReversibility { get; } = new(StringComparer.Ordinal);
         public List<UsharpKeySurfaceDecl> Surfaces { get; } = new();
         public List<UsharpKeyAxisDecl> Axes { get; } = new();
+        public List<UsharpKeyCanonicalSetDecl> CanonicalSets { get; } = new();
 
         public UsharpKeyFamilyDecl Build() => new(
             Id, Template, FamilyPrefix, Relation, Cardinality, BusinessKeyTemplate,
-            Aliases, OrderKeys, IdentityKeys, DomainId, DerivedPrefixes, DerivedPrefixRoles, Surfaces, Axes);
+            Aliases, OrderKeys, IdentityKeys, DomainId, DerivedPrefixes, DerivedPrefixRoles, Surfaces, Axes,
+            DerivedPrefixReversibility, CanonicalSets);
+    }
+
+    private sealed class CanonicalBuilder
+    {
+        public CanonicalBuilder(string familyId, string axis, string name, bool idempotent)
+        {
+            FamilyId = familyId;
+            Axis = axis;
+            Name = name;
+            Idempotent = idempotent;
+        }
+
+        public string FamilyId { get; }
+        public string Axis { get; }
+        public string Name { get; }
+        public bool Idempotent { get; }
+        public List<UsharpKeyCanonicalRuleDecl> Rules { get; } = new();
     }
 }

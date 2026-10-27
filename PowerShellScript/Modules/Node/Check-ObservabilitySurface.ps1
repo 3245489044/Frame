@@ -77,9 +77,11 @@ $g = Import-GateBaseline -Name ObservabilitySurface
 $EventBaseline = [int]$g.EventCount.Value
 $KeyVisible = @(
     'NodeDomainPort_ReadTrimmed',
+    'NodeDomainPort_ReadGuard',
     'ConversationView_TaskNodesPanel_readParity',
     'ProcessNodeSink_EmptyIdentity',
-    'ProcessNodeSink_ContainerMissing'
+    'ProcessNodeSink_ContainerMissing',
+    'ProcessNodeSink_CoordinateUnresolved'
 )
 
 # F-P0-1d：Agent.Modules 日志门面（ModuleLog）10 个调用点不经 AgentLog ⇒ 其「禁静默」面须单独在册，

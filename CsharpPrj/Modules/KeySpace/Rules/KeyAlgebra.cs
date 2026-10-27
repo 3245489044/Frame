@@ -521,11 +521,13 @@ public sealed class KeyAlgebra : IKeyAlgebra
                 $"键族 '{family.Id}' 模板占位符未声明轴：{string.Join(",", undeclared)}（声明面须双向闭合）");
         }
 
-        foreach (var name in axes.Keys)
+        foreach (var pair in axes)
         {
-            if (!seen.Contains(name))
+            // 坐标轴（canonical 非空）是**值域声明**：由 [Domain] coordinates 绑定消费，不必出现在本族模板。
+            if (pair.Value.Canonical is not null) continue;
+            if (!seen.Contains(pair.Key))
             {
-                throw new InvalidOperationException($"键族 '{family.Id}' 轴 '{name}' 未出现在任何模板中");
+                throw new InvalidOperationException($"键族 '{family.Id}' 轴 '{pair.Key}' 未出现在任何模板中");
             }
         }
 

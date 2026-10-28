@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     环境体检 —— 只读检查（不安装、不写标记）。
 .DESCRIPTION

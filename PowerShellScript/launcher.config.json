@@ -275,6 +275,38 @@
       "type": "ps1",
       "workDir": ".",
       "allParam": ""
+    },
+    "EnvMaintenance/Commands/Invoke-EnvMaintenance.ps1": {
+      "category": "env-maintenance",
+      "description": "环境维护统一入口（list/health/repair/update/report）",
+      "alias": "env",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": ""
+    },
+    "EnvMaintenance/Commands/Test-EnvHealth.ps1": {
+      "category": "env-maintenance",
+      "description": "环境只读体检（含 torch/comfy_kitchen 能力断言）",
+      "alias": "env-health",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Json"
+    },
+    "EnvMaintenance/Commands/Repair-Env.ps1": {
+      "category": "env-maintenance",
+      "description": "补齐缺失/修复版本（plan → apply → verify → rollback）",
+      "alias": "env-repair",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Force"
+    },
+    "EnvMaintenance/Commands/Update-Env.ps1": {
+      "category": "env-maintenance",
+      "description": "按清单升级（-Check 仅输出差异）",
+      "alias": "env-update",
+      "type": "ps1",
+      "workDir": ".",
+      "allParam": "-Check"
     }
   }
 }

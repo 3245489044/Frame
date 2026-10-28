@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     ComfyUI 漫画套件安装/维护入口（薄壳 — 已收敛到 EnvMaintenance）。
 .DESCRIPTION

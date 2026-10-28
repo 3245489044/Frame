@@ -1,4 +1,4 @@
-# @requires: Core/EnvPath, Core/NativeRunner
+﻿# @requires: Core/EnvPath, Core/NativeRunner
 # @version: 1.0.0
 # @author: WorkFlowPrj
 # @category: env-maintenance

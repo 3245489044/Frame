@@ -1,4 +1,4 @@
-# @requires: Core/PipRunner, Core/PythonVerifier, Core/EnvManifest
+﻿# @requires: Core/PipRunner, Core/PythonVerifier, Core/EnvManifest
 # @version: 1.0.0
 # @author: WorkFlowPrj
 # @category: env-maintenance

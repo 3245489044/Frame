@@ -1,4 +1,4 @@
-# @requires: Core/EnvProviders, Core/PythonVerifier
+﻿# @requires: Core/EnvProviders, Core/PythonVerifier
 # @version: 1.0.0
 # @author: WorkFlowPrj
 # @category: env-maintenance

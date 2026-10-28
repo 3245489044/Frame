@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     EnvMaintenance 统一入口 —— list / health / repair / update / report。
 .DESCRIPTION

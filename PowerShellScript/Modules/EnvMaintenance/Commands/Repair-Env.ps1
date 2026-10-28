@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     环境修复 —— 按清单补齐缺失/版本不符的依赖（plan → apply → verify → rollback）。
 .DESCRIPTION

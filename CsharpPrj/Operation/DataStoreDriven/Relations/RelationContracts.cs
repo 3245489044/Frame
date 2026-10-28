@@ -127,9 +127,9 @@ public interface IEntityExistenceProbe
 
     /// <summary>
     /// 该实体类型是否已映射到存在性谓词（GP-2/E3）：未映射 ⇒ 内核报 <c>probe_unmapped</c>，
-    /// 不得与「端点缺失（endpoint_missing）」混同。旧实现缺省 true（不改变既有语义）。
+    /// 不得与「端点缺失（endpoint_missing）」混同。实现必须显式声明（禁接口缺省 true 静默放行）。
     /// </summary>
-    bool IsMapped(string entityType) => true;
+    bool IsMapped(string entityType);
 }
 
 /// <summary>
@@ -143,6 +143,9 @@ public sealed class UnassembledEntityExistenceProbe : IEntityExistenceProbe
 
     public Task<bool> ExistsAsync(string entityType, string id, CancellationToken ct = default)
         => Task.FromResult(false);
+
+    /// <summary>未装配 ⇒ 没有任何类型被映射（内核据此报 <c>probe_unmapped</c>）。</summary>
+    public bool IsMapped(string entityType) => false;
 }
 
 /// <summary>关系诊断出口（结构化；未装配时由内核把原因写进 <see cref="RelationResult.Diagnostics"/>）。</summary>

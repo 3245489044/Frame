@@ -1,4 +1,4 @@
-# @requires: Core/EnvProviders, Core/PipRunner
+﻿# @requires: Core/EnvProviders, Core/PipRunner
 # @version: 1.0.0
 # @author: WorkFlowPrj
 # @category: env-maintenance

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     环境升级 —— 对照清单版本，升级 Outdated 项（-Check 只出差异）。
 .DESCRIPTION

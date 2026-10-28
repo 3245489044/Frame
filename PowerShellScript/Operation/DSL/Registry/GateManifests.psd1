@@ -175,6 +175,22 @@
     }
 
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
+    RelationPlan = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '关系声明面单源：E1 [Relation] 存在 / E2 edge ⊆ [Edge] / E3 归属边恰一 ensure / E4 hierarchy contains 对账 / E5 负对照 / E6 intent+exists 显式 / E7 C# 归属边字面量报告态'
+    }
+
+    WriteSurface = @{
+        Domain = 'Node'
+        Args   = @{}
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '关系写面清单（RF0 报告态）：C1 清单↔声明 / C2 状态谎报（migrated 仍直写）/ C3 pending 棘轮 / C4 写入口唯一 / C5 负对照；转判红见 RF6（Args=@{Check=$true}）'
+    }
+
     NodeEdgeIntegrity = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

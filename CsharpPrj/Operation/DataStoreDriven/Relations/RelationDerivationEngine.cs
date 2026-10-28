@@ -30,25 +30,33 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<string>> EnumerateAsync(
+    public async Task<RelationQueryResult> EnumerateAsync(
         string edgeOrDerive, RelationScope scope, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
 
         if (_catalog.ResolveDerivation(edgeOrDerive) is not null)
-            return (await DeriveAsync(edgeOrDerive, scope, ct)).Keys;
+            return await DeriveAsync(edgeOrDerive, scope, ct).ConfigureAwait(false);
 
-        var sourceType = scope.SourceType ?? _policy.FindEdge(edgeOrDerive)?.Source ?? "node";
+        var edge = _policy.FindEdge(edgeOrDerive);
+        if (edge is null)
+            return RelationQueryResult.Empty("edge-undeclared:" + edgeOrDerive);
+
+        var sourceType = scope.SourceType ?? (string.IsNullOrWhiteSpace(edge.Source) ? "node" : edge.Source);
         var source = RelationEndpoints.Create(sourceType, scope.SourceKey, LocationFor(sourceType, scope));
-        var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct);
+        var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct).ConfigureAwait(false);
 
-        return refs
+        var keys = refs
             .Where(r => !r.IsIncoming && string.Equals(r.RefType, edgeOrDerive, StringComparison.Ordinal))
             .Select(r => r.Target.Id ?? string.Empty)
             .Where(id => id.Length > 0)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
+
+        return keys.Count == 0
+            ? RelationQueryResult.Empty("no-member")
+            : new RelationQueryResult(keys, Array.Empty<string>());
     }
 
     /// <inheritdoc />

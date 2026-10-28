@@ -18,6 +18,7 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
     private readonly IRelationPolicy _policy;
     private readonly IWorkflowNamespace _namespaces;
     private readonly IEntityExistenceProbe _probe;
+    private readonly bool _probeAssembled;
     private readonly RelationInvariantChecker _invariants;
     private readonly IRelationDiagnostics? _diagnostics;
 
@@ -33,10 +34,14 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _namespaces = namespaces ?? throw new ArgumentNullException(nameof(namespaces));
-        _probe = probe ?? PermissiveEntityExistenceProbe.Instance;
+        _probeAssembled = probe is not null;
+        _probe = probe ?? UnassembledEntityExistenceProbe.Instance;
         _diagnostics = diagnostics;
         _invariants = new RelationInvariantChecker(_graph);
     }
+
+    /// <inheritdoc />
+    public RelationOperation? Describe(string operation) => _catalog.Resolve(operation);
 
     /// <inheritdoc />
     public async Task<RelationResult> EnsureAsync(
@@ -44,13 +49,18 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (TargetConflict(request) is { } conflict) return Fail(operation, null, conflict);
+
         if (!TryResolve(operation, out var plan, out var failure)) return failure!;
+        if (plan.IsRemove)
+            return Fail(operation, plan.Edge, $"operation '{operation}' 声明 intent=remove；EnsureAsync 不接受");
 
         var targets = request.Targets;
         if (targets.Count == 0)
             return Fail(operation, plan.Edge, "未提供 target_key(s)");
 
         var location = ResolveLocation(plan, request);
+        var role = RoleOf(request.Origin);
         var source = RelationEndpoints.Create(plan.Source, request.SourceKey, location);
         var diagnostics = new List<string>();
         var written = 0;
@@ -59,21 +69,24 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         {
             var target = RelationEndpoints.Create(plan.Target, targetKey, location);
 
-            if (!await ProbeAsync(plan, request.SourceKey, targetKey, diagnostics))
+            if (!await ProbeAsync(plan, request.SourceKey, targetKey, diagnostics).ConfigureAwait(false))
                 return Fail(operation, plan.Edge,
                     $"端点缺失：{plan.Source}:{request.SourceKey} → {plan.Target}:{targetKey}（on_missing=reject）");
 
-            var violation = await FirstRejectingViolationAsync(plan, source, target, diagnostics, ct);
+            var violation = await FirstRejectingViolationAsync(plan, source, target, diagnostics, ct).ConfigureAwait(false);
             if (violation is not null)
                 return Fail(operation, plan.Edge, violation);
 
             if (string.Equals(plan.Duplicate, "reject", StringComparison.Ordinal)
-                && await EdgeExistsAsync(source, target, plan.Edge, ct))
+                && await EdgeExistsAsync(source, target, plan.Edge, ct).ConfigureAwait(false))
+            {
+                var reason = $"重复边（duplicate=reject）：{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)} @ {plan.Edge}";
+                _diagnostics?.RelationDuplicate(operation, plan.Edge, reason);
                 return new RelationResult(false, operation, plan.Edge, written,
-                    new[] { $"重复边（duplicate=reject）：{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)} @ {plan.Edge}" },
-                    RelationOutcome.Duplicate);
+                    new[] { reason }, RelationOutcome.Duplicate);
+            }
 
-            await _graph.AddReferenceAsync(source, target, plan.Edge, GraphMountRole.Business, 1.0, ct);
+            await _graph.AddReferenceAsync(source, target, plan.Edge, role, 1.0, ct).ConfigureAwait(false);
             written++;
         }
 
@@ -86,13 +99,18 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (TargetConflict(request) is { } conflict) return Fail(operation, null, conflict);
+
         if (!TryResolve(operation, out var plan, out var failure)) return failure!;
+        if (!plan.IsRemove)
+            return Fail(operation, plan.Edge, $"operation '{operation}' 声明 intent=ensure；RemoveAsync 不接受");
 
         var targets = request.Targets;
         if (targets.Count == 0)
             return Fail(operation, plan.Edge, "未提供 target_key(s)");
 
         var location = ResolveLocation(plan, request);
+        var role = RoleOf(request.Origin);
         var source = RelationEndpoints.Create(plan.Source, request.SourceKey, location);
         var diagnostics = new List<string>();
         var removed = 0;
@@ -101,7 +119,7 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         {
             var target = RelationEndpoints.Create(plan.Target, targetKey, location);
             var outcome = await _graph.RemoveReferenceResultAsync(
-                source, target, plan.Edge, GraphMountRole.Business, ct);
+                source, target, plan.Edge, role, ct).ConfigureAwait(false);
             if (outcome.Status == GraphDeleteStatus.Ok)
             {
                 removed++;
@@ -128,7 +146,7 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         {
             _diagnostics?.RelationPlanMissing("relation plan 为空：声明面缺失或未装配");
             failure = new RelationResult(false, operation, null, 0,
-                new[] { "关系计划未装配（relation.plan.generated.json 缺失或为空）" },
+                new[] { "关系计划未装配（Config/relations 声明缺失、为空或编译失败）" },
                 RelationOutcome.NotAssembled);
             return false;
         }
@@ -164,14 +182,39 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         return string.IsNullOrWhiteSpace(plan.Namespace) ? null : plan.Namespace;
     }
 
+    private static string? TargetConflict(RelationRequest request)
+        => request.TargetKey is { Length: > 0 } && request.TargetKeys is { Count: > 0 }
+            ? "target_key 与 target_keys 不可同时提供（目标静默丢弃被禁止）"
+            : null;
+
+    /// <summary>写来源 → 图写角色（单点映射；禁内核各处硬编码 Business）。</summary>
+    private static GraphMountRole RoleOf(RelationOrigin origin) => origin switch
+    {
+        RelationOrigin.Rebuild => GraphMountRole.Reconcile,
+        RelationOrigin.Admin => GraphMountRole.Declare,
+        _ => GraphMountRole.Business,
+    };
+
     private async Task<bool> ProbeAsync(
         RelationOperation plan, string sourceKey, string targetKey, List<string> diagnostics)
     {
+        var probeSource = plan.Probes("src");
+        var probeTarget = plan.Probes("tgt");
+        if (!probeSource && !probeTarget) return true;
+
+        if (!_probeAssembled)
+        {
+            const string reason = "probe-unassembled：存在性探针未装配，写前门 fail-closed（禁恒真放行）";
+            diagnostics.Add(reason);
+            _diagnostics?.RelationMissingEndpoint(plan.Id, plan.Edge, reason);
+            return false;
+        }
+
         var missing = new List<string>();
 
-        if (plan.Probes("src") && !await _probe.ExistsAsync(plan.Source, sourceKey))
+        if (probeSource && !await _probe.ExistsAsync(plan.Source, sourceKey).ConfigureAwait(false))
             missing.Add($"{plan.Source}:{sourceKey}");
-        if (plan.Probes("tgt") && !await _probe.ExistsAsync(plan.Target, targetKey))
+        if (probeTarget && !await _probe.ExistsAsync(plan.Target, targetKey).ConfigureAwait(false))
             missing.Add($"{plan.Target}:{targetKey}");
 
         if (missing.Count == 0) return true;
@@ -201,7 +244,9 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
             foreach (var violation in violations)
             {
                 _diagnostics?.RelationInvariantViolation(plan.Id, violation.InvariantId, violation.Reason);
-                if (string.Equals(invariant.OnViolation, "report", StringComparison.Ordinal))
+                // 预算超限≠成环：只可见化，不拒绝（E9）；其余按声明 on_violation 裁决。
+                if (violation.Kind == RelationViolationKind.BudgetExceeded
+                    || string.Equals(invariant.OnViolation, "report", StringComparison.Ordinal))
                 {
                     diagnostics.Add(violation.Reason);
                     continue;

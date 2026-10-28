@@ -102,6 +102,13 @@ public static class UsharpLanguage
     /// <summary>目标基数受控词表。</summary>
     public static readonly string[] RelationArities = { RelationArityOne, RelationArityMany };
 
+    /// <summary>写意图取值。</summary>
+    public const string RelationIntentEnsure = "ensure";
+    public const string RelationIntentRemove = "remove";
+
+    /// <summary>写意图受控词表。</summary>
+    public static readonly string[] RelationIntents = { RelationIntentEnsure, RelationIntentRemove };
+
     /// <summary>关系不变量种类受控词表。</summary>
     public static readonly string[] InvariantKinds =
         { "target_single_parent", "source_single_target", "acyclic", "many_to_many", "target_exists" };

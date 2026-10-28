@@ -7,6 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
+using Operation.DataStoreDriven.Relations;
 using Share.Conversation.Aggregates;
 using UniversalWorkflowFramework.Core.Models;
 
@@ -19,14 +20,17 @@ public sealed class HistoryReferenceGrounding
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
     private readonly TaskReferenceGrounding _tasks;
+    private readonly HistoryRelationSurface _relations;
 
     public HistoryReferenceGrounding(
-        GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph, TaskReferenceGrounding tasks)
+        GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
+        TaskReferenceGrounding tasks, IRelationPorts ports)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
+        _relations = new HistoryRelationSurface(ports ?? throw new ArgumentNullException(nameof(ports)));
     }
 
     /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像。</summary>
@@ -62,24 +66,24 @@ public sealed class HistoryReferenceGrounding
             throw new HistorySelfLoopException(historyId, taskKey);
         await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
         await _tasks.EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
-        var historyId2 = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.HistoryOwnsTask, historyId2, taskId, $"{historyId}|{taskKey}", ct).ConfigureAwait(false);
+        var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result);
     }
 
     /// <summary>解除历史归拢任务边。</summary>
-    public Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _edges.DetachEdgeAsync(
-            CrossDbReferenceTypes.HistoryOwnsTask,
-            new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) },
-            new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, ct);
+    public async Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
+    {
+        var result = await _relations.DetachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
+        // 未命中 = 已不存在（幂等删除）
+        RelationResultGuard.ThrowIfFailed(result, allowNotFound: true);
+    }
 
-    /// <summary>按历史查 history_owns_task 出边，返回归拢的任务键集。</summary>
+    /// <summary>按 HistoryTasks 派生集返回归拢的任务键集。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(historyId)) return Array.Empty<string>();
-        var historyNodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) };
-        return await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.HistoryOwnsTask, historyNodeId, ct).ConfigureAwait(false);
+        var result = await _relations.DeriveHistoryTasksAsync(historyId, ct).ConfigureAwait(false);
+        return result.Keys;
     }
 
     /// <summary>批量成员集（一次持锁读多个历史出边）。</summary>
@@ -122,16 +126,14 @@ public sealed class HistoryReferenceGrounding
         => throw new NotSupportedException(
             "history_owns_node 已退役（派生视图）：历史节点集须经 GetHistoryNodeKeysAsync 按 task→node 边派生，禁独立存边");
 
-    /// <summary>历史的工作流节点键集（派生视图：其全部任务的 task→node 边并集）。</summary>
+    /// <summary>历史的工作流节点键集（派生视图：<c>[Derive] HistoryNodes</c>）。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(historyId)) return Array.Empty<string>();
-        var tasks = await GetHistoryTasksAsync(historyId, ct).ConfigureAwait(false);
-        if (tasks.Count == 0) return Array.Empty<string>();
-        var keys = new List<string>();
-        foreach (var taskKey in tasks)
-            keys.AddRange(await _tasks.GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false));
-        return keys.Distinct(StringComparer.Ordinal).ToList();
+        var result = await _relations
+            .DeriveHistoryNodesAsync(historyId, workflowId, ct)
+            .ConfigureAwait(false);
+        return result.Keys;
     }
 
     /// <summary>历史容器合并（先写后撤，幂等可重跑）。</summary>

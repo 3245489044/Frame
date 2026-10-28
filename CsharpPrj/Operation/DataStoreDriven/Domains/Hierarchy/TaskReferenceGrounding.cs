@@ -7,6 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
+using Operation.DataStoreDriven.Relations;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Core;
@@ -18,17 +19,20 @@ public sealed class TaskReferenceGrounding
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
     private readonly IDefaultWorkflowIdProvider? _workflowIds;
+    private readonly TaskRelationSurface _relations;
 
     /// <summary>子任务树遍历预算（不定深度树信任反转上界）。</summary>
     private const int SubTaskTraversalBudget = 4096;
 
-    public TaskReferenceGrounding(GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
-        IDefaultWorkflowIdProvider? workflowIds = null)
+    public TaskReferenceGrounding(
+        GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
+        IRelationPorts ports, IDefaultWorkflowIdProvider? workflowIds = null)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
         _workflowIds = workflowIds;
+        _relations = new TaskRelationSurface(ports ?? throw new ArgumentNullException(nameof(ports)));
     }
 
     /// <summary>镜像 task 端点（Id=taskKey，幂等）。</summary>
@@ -42,9 +46,29 @@ public sealed class TaskReferenceGrounding
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, "task-removed", ct);
 
     /// <summary>task 关联节点（增量维护任务关联；幂等）。<paramref name="workflowId"/> 为空 ⇒ 取 <see cref="IDefaultWorkflowIdProvider"/> 单源。</summary>
-    public Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
+    public async Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
         string workflowId = "", CancellationToken ct = default)
-        => _graph.ReconcileTaskAsync(taskKey, relatedNodeKeys, ResolveWorkflow(workflowId), ct);
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+
+        var targets = (relatedNodeKeys ?? Array.Empty<string>())
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Select(static key => key.Trim())
+            .Where(key => !string.Equals(key, taskKey, StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (targets.Count == 0) return;
+
+        // 端点镜像（非边写）：关系内核只写边，task 端点文档仍由域侧保证。
+        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+
+        var result = await _relations
+            .EnsureNodeTaskManyAsync(taskKey, targets, ResolveWorkflow(workflowId), ct)
+            .ConfigureAwait(false);
+
+        RelationResultGuard.ThrowIfFailed(result);
+    }
 
     /// <summary>工作流 Id 单源（空 ⇒ 配置缺省；禁调用方各传 "agent-round" / ""）。</summary>
     private string ResolveWorkflow(string? workflowId)
@@ -67,31 +91,31 @@ public sealed class TaskReferenceGrounding
             }
         }
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, $"{taskKey}|{nodeKey}", ct).ConfigureAwait(false);
+        var result = await _relations
+            .EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct)
+            .ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result);
     }
 
     /// <summary>解除 task 与节点的关联边（M:N 撤销；幂等）。</summary>
-    public Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+    public async Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        return _edges.DetachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, ct);
+        var result = await _relations
+            .RemoveNodeTaskAsync(taskKey, nodeKey, workflowId, ct)
+            .ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result, allowNotFound: true);
     }
 
-    /// <summary>按 task 查 cross_db_link 出边，返回本 task 归属的节点键集。</summary>
+    /// <summary>按 task 查 TaskNodes 派生集（唯一读入口：<c>[Derive] TaskNodes</c>）。</summary>
     public async Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        var targets = await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.CrossDbLink, taskId, ct).ConfigureAwait(false);
-        var keys = new List<string>();
-        foreach (var id in targets)
-            if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey)) keys.Add(nodeKey);
-        return keys.Distinct(StringComparer.Ordinal).ToList();
+        var result = await _relations
+            .DeriveTaskNodesAsync(taskKey, workflowId, ct)
+            .ConfigureAwait(false);
+        return result.Keys;
     }
 
     /// <summary>批量 task 节点键集（一次图枚举 + 按 task 分组；消 N+1）。</summary>
@@ -152,27 +176,29 @@ public sealed class TaskReferenceGrounding
 
         await EnsureTaskMirrorAsync(parentTaskKey, ct).ConfigureAwait(false);
         await EnsureTaskMirrorAsync(subTaskKey, ct).ConfigureAwait(false);
-        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
-        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
-        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, $"{parentTaskKey}|{subTaskKey}", ct).ConfigureAwait(false);
+        var result = await _relations
+            .EnsureSubTaskAsync(parentTaskKey, subTaskKey, ct)
+            .ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result);
     }
 
     /// <summary>解除 task → sub-task 归属边（幂等）。</summary>
-    public Task UnlinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
+    public async Task UnlinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parentTaskKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(subTaskKey);
-        var parentId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = parentTaskKey };
-        var childId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = subTaskKey };
-        return _edges.DetachEdgeAsync(CrossDbReferenceTypes.TaskOwnsTask, parentId, childId, ct);
+        var result = await _relations
+            .RemoveSubTaskAsync(parentTaskKey, subTaskKey, ct)
+            .ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result, allowNotFound: true);
     }
 
     /// <summary>按 task 查 task_owns_task 出边，返回其直属子任务键集（一层展开）。</summary>
     public async Task<IReadOnlyList<string>> GetSubTaskKeysAsync(string taskKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        return await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.TaskOwnsTask, taskId, ct).ConfigureAwait(false);
+        var result = await _relations.EnumerateSubTasksAsync(taskKey, ct).ConfigureAwait(false);
+        return result.Keys;
     }
 
     /// <summary>带环检测的 task_owns_task 写入口：自指/成环 ⇒ 拒绝且不写边。</summary>

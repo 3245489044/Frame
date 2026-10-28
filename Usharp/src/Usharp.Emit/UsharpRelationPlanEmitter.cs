@@ -50,6 +50,7 @@ public static class UsharpRelationPlanEmitter
                 ["flow"] = relation.Flow,
                 ["namespace"] = relation.Namespace,
                 ["exists"] = UsharpJson.Array(relation.Exists),
+                ["intent"] = relation.Intent,
             };
 
             if (relation.Display is { Length: > 0 } display) item["display"] = display;

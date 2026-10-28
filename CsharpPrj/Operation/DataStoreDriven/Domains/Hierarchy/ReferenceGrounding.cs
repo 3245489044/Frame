@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Graph;
+using Operation.DataStoreDriven.Relations;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -21,6 +22,7 @@ namespace Operation.DataStoreDriven.Core;
 public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyReferenceManager
 {
     private readonly GraphGrounding _core;
+    private readonly RelationPortLease _ports;
     private readonly TaskReferenceGrounding _tasks;
     private readonly HistoryReferenceGrounding _history;
     private readonly SessionReferenceGrounding _sessions;
@@ -29,11 +31,15 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     public ReferenceGrounding(ReferenceGraphCoordinator graph, IDefaultWorkflowIdProvider? workflowIds = null)
     {
         _core = new GraphGrounding(graph, workflowIds);
-        _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _core.WorkflowIds);
-        _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _tasks);
-        _sessions = new SessionReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator);
+        _ports = new RelationPortLease();
+        _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports, _core.WorkflowIds);
+        _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _tasks, _ports);
+        _sessions = new SessionReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports);
         _hierarchy = new HierarchyReferenceManager(_history, _tasks, _sessions);
     }
+
+    /// <summary>关系端口租约（唯一装配点 = <c>AgentStorageBundle.RegisterRelationPorts</c>；未 Attach 即抛）。</summary>
+    public RelationPortLease Ports => _ports;
 
     /// <summary>写透目标图协调器（graph-log.db 唯一 owner）。</summary>
     public ReferenceGraphCoordinator Coordinator => _core.Coordinator;

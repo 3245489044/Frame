@@ -13,11 +13,15 @@ public sealed record RelationOperation(
     string Duplicate,
     string OnMissing,
     string Arity,
+    string Intent,
     string? Emit)
 {
     /// <summary>是否存在 <c>exists=</c> 声明；缺省 = <c>src,tgt</c>（与声明面默认一致）。</summary>
     public bool Probes(string side)
         => Exists.Count == 0 || Exists.Contains(side, StringComparer.Ordinal);
+
+    /// <summary>删除意图（唯一来源 = 声明面 <c>intent=</c>；禁由 operation 名/前缀推断）。</summary>
+    public bool IsRemove => string.Equals(Intent, "remove", StringComparison.Ordinal);
 }
 
 /// <summary>关系不变量声明（<c>[Invariant]</c> 的中性运行期形态）。</summary>
@@ -59,7 +63,7 @@ public sealed class RelationPlanCatalog
 {
     private readonly Dictionary<string, RelationOperation> _operations = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RelationDerivation> _derivations = new(StringComparer.Ordinal);
-    private readonly List<RelationInvariant> _invariants = new();
+    private readonly Dictionary<string, IReadOnlyList<RelationInvariant>> _invariantsByEdge = new(StringComparer.Ordinal);
 
     public RelationPlanCatalog(RelationPlan plan)
     {
@@ -70,20 +74,15 @@ public sealed class RelationPlanCatalog
             _operations.TryAdd(operation.Id, operation);
         foreach (var derivation in plan.Derivations)
             _derivations.TryAdd(derivation.Id, derivation);
-        _invariants.AddRange(plan.Invariants);
+
+        // 一次分组（D8）：按边取不变量不再逐次线性过滤（内核曾在 foreach target 内反复调用）。
+        _invariantsByEdge = plan.Invariants
+            .GroupBy(i => i.Edge, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RelationInvariant>)g.ToList(), StringComparer.Ordinal);
     }
 
     /// <summary>底层计划（fingerprint / 诊断对账用）。</summary>
     public RelationPlan Plan { get; }
-
-    /// <summary>全部 operation（声明序）。</summary>
-    public IReadOnlyList<RelationOperation> Operations => Plan.Operations;
-
-    /// <summary>全部不变量（声明序）。</summary>
-    public IReadOnlyList<RelationInvariant> Invariants => _invariants;
-
-    /// <summary>全部派生（声明序）。</summary>
-    public IReadOnlyList<RelationDerivation> Derivations => Plan.Derivations;
 
     /// <summary>是否为空计划（无任何 operation）。</summary>
     public bool IsEmpty => _operations.Count == 0;
@@ -96,7 +95,19 @@ public sealed class RelationPlanCatalog
     public RelationDerivation? ResolveDerivation(string deriveId)
         => !string.IsNullOrWhiteSpace(deriveId) && _derivations.TryGetValue(deriveId, out var found) ? found : null;
 
-    /// <summary>某边的全部不变量（声明序）。</summary>
+    /// <summary>
+    /// 按「边 + 意图」反查唯一 operation（UI/编排层只持有边字面量时的唯一映射入口；未命中/多义 ⇒ null）。
+    /// </summary>
+    public RelationOperation? ResolveByEdge(string edge, bool remove)
+    {
+        if (string.IsNullOrWhiteSpace(edge)) return null;
+        var matches = _operations.Values
+            .Where(o => string.Equals(o.Edge, edge, StringComparison.Ordinal) && o.IsRemove == remove)
+            .ToList();
+        return matches.Count == 1 ? matches[0] : null;
+    }
+
+    /// <summary>某边的全部不变量（声明序；字典查找）。</summary>
     public IReadOnlyList<RelationInvariant> InvariantsFor(string edge)
-        => _invariants.Where(i => string.Equals(i.Edge, edge, StringComparison.Ordinal)).ToList();
+        => _invariantsByEdge.TryGetValue(edge, out var found) ? found : Array.Empty<RelationInvariant>();
 }

@@ -734,24 +734,6 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     internal static string RelationKey(NodeRelation r)
         => $"{r.Type}|{r.SourceResourceType}|{r.SourceId}|{r.SourcePort}|{r.TargetResourceType}|{r.TargetId}|{r.TargetPort}|{r.KeyMappingRef}";
 
-    /// <summary>task 写透：注册 task 端点（内存）+ 与关联节点建 task→node 边（缺省 <see cref="ReferenceTypes.NodeToNode"/>）。幂等。
-    /// 不整段包外层门锁：内层 AddResource/AddReference 各自经 <see cref="MutateAsync"/> 串行取门锁，避免「持锁内同步重入 SemaphoreSlim」自死锁。</summary>
-    public async Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
-        string workflowId = "", CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        // task 端点身份 = 裸 taskKey（跨工作流唯一），不随 Location 分叉；node 端点携带工作流作用域。
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-        await AddResourceAsync(taskId, symbol: taskKey, ct: ct).ConfigureAwait(false);
-        foreach (var nodeKey in relatedNodeKeys)
-        {
-            if (string.IsNullOrWhiteSpace(nodeKey) || string.Equals(nodeKey, taskKey, StringComparison.Ordinal)) continue;
-            var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-            await AddResourceAsync(nodeId, symbol: nodeKey, ct: ct).ConfigureAwait(false);
-            await AddReferenceAsync(taskId, nodeId, ReferenceTypes.NodeToNode, 1.0, ct).ConfigureAwait(false);
-        }
-    }
-
     /// <summary>task 删除写透：级联移除 task 端点、其全部边与**其关系声明**（实体删除 ⇒ 声明级联，单向 + 墓碑）。</summary>
     public Task RemoveTaskAsync(string taskKey, CancellationToken ct = default)
         => DeleteEndpointDurablyAsync(new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, "task-removed", ct);

@@ -42,7 +42,7 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
     {
         var seen = new Dictionary<string, (string File, int Line)>(StringComparer.Ordinal);
         var mountCountByEdge = new Dictionary<string, int>(StringComparer.Ordinal);
-        var derivedEdges = DerivedEdges(model);
+        var unmountCountByEdge = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var relation in model.Relations)
         {
@@ -77,17 +77,25 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
             CheckRelationVocab(sink, relation);
             CheckEmit(sink, relation, obsNames);
 
-            if (relation.OperationId.StartsWith("mount_", StringComparison.Ordinal))
+            if (string.Equals(relation.Intent, UsharpLanguage.RelationIntentEnsure, StringComparison.Ordinal))
                 mountCountByEdge[relation.Edge] = mountCountByEdge.TryGetValue(relation.Edge, out var n) ? n + 1 : 1;
+            else if (string.Equals(relation.Intent, UsharpLanguage.RelationIntentRemove, StringComparison.Ordinal))
+                unmountCountByEdge[relation.Edge] = unmountCountByEdge.TryGetValue(relation.Edge, out var m) ? m + 1 : 1;
         }
 
+        // E2：豁免条件 = 该边「无任何 mount_/unmount_ 声明」∧「被单跳 [Derive] 覆盖」。
+        // 仅凭存在单跳 [Derive] 就豁免会让「删掉 mount_node_task」仍绿（假绿）。
+        var derivedEdges = DerivedEdges(model);
         foreach (var edge in OwnershipEdges)
         {
-            if (derivedEdges.Contains(edge)) continue;
-            var count = mountCountByEdge.TryGetValue(edge, out var c) ? c : 0;
-            if (count != 1)
+            var mountCount = mountCountByEdge.TryGetValue(edge, out var c) ? c : 0;
+            var unmountCount = unmountCountByEdge.TryGetValue(edge, out var u) ? u : 0;
+            if (mountCount == 0 && unmountCount == 0 && derivedEdges.Contains(edge)) continue;
+
+            if (mountCount != 1)
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationMountMissing,
-                    $"归属边 '{edge}' 必须恰有一个 mount_* operation（实测 {count} 个），或由单跳 [Derive] 标记为派生",
+                    $"归属边 '{edge}' 必须恰有一个 mount_* operation（实测 {mountCount} 个），"
+                    + "或该边无任何 mount_/unmount_ 且由单跳 [Derive] 派生",
                     model.Documents.FirstOrDefault()?.FilePath ?? "(memory)", 0));
         }
     }
@@ -152,6 +160,11 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
             && !UsharpLanguage.RelationArities.Contains(relation.Arity, StringComparer.Ordinal))
             sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationFieldInvalid,
                 $"[Relation] '{relation.OperationId}'：arity='{relation.Arity}' 非法",
+                relation.SourceFile, relation.LineNumber));
+        // 删除意图必须显式声明（唯一判据 = 声明事实；禁 operation 前缀推断）。
+        if (!UsharpLanguage.RelationIntents.Contains(relation.Intent, StringComparer.Ordinal))
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationFieldInvalid,
+                $"[Relation] '{relation.OperationId}'：intent='{relation.Intent}' 非法或缺失（须 ensure|remove）",
                 relation.SourceFile, relation.LineNumber));
     }
 

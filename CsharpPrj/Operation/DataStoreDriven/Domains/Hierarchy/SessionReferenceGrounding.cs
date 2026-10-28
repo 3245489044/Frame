@@ -7,6 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
+using Operation.DataStoreDriven.Relations;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Core;
@@ -17,12 +18,15 @@ public sealed class SessionReferenceGrounding
     private readonly GraphEdgeWriter _edges;
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
+    private readonly SessionRelationSurface _relations;
 
-    public SessionReferenceGrounding(GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph)
+    public SessionReferenceGrounding(
+        GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph, IRelationPorts ports)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _relations = new SessionRelationSurface(ports ?? throw new ArgumentNullException(nameof(ports)));
     }
 
     /// <summary>会话根端点：幂等建 session.{name} 端点镜像。</summary>
@@ -42,21 +46,18 @@ public sealed class SessionReferenceGrounding
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
         await EnsureSessionMirrorAsync(sessionName, ct).ConfigureAwait(false);
-        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName) };
-        var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        await _edges.AttachEdgeAsync(CrossDbReferenceTypes.SessionOwns, sessionId, nodeId, $"{sessionName}|{nodeKey}", ct).ConfigureAwait(false);
+        var result = await _relations.AttachNodeAsync(sessionName, nodeKey, workflowId, ct).ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result);
     }
 
-    /// <summary>会话子图节点键集：按 session_owns 出边返回。</summary>
+    /// <summary>会话子图节点键集：按 <c>session_owns</c> 边枚举（唯一读入口；空集带空因）。</summary>
     public async Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<string>();
-        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName) };
-        var targets = await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.SessionOwns, sessionId, ct).ConfigureAwait(false);
-        var keys = new List<string>();
-        foreach (var id in targets)
-            if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey)) keys.Add(nodeKey);
-        return keys.Distinct(StringComparer.Ordinal).ToList();
+        var result = await _relations
+            .EnumerateNodesAsync(sessionName, workflowId, ct)
+            .ConfigureAwait(false);
+        return result.Keys;
     }
 
     /// <summary>会话子图投影（时序序唯一实现）。</summary>

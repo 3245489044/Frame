@@ -3,8 +3,18 @@ using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Relations;
 
-/// <summary>一条不变量违反（不变量 id + 结构事实理由）。</summary>
-public sealed record RelationViolation(string InvariantId, string Reason);
+/// <summary>违反种类（结构事实；<c>BudgetExceeded</c> 与 <c>Cycle</c> 不得共用出口）。</summary>
+public enum RelationViolationKind
+{
+    Cycle = 0,
+    BudgetExceeded = 1,
+    SingleParent = 2,
+    SingleTarget = 3,
+    MissingEndpoint = 4,
+}
+
+/// <summary>一条不变量违反（不变量 id + 种类 + 结构事实理由）。</summary>
+public sealed record RelationViolation(string InvariantId, RelationViolationKind Kind, string Reason);
 
 /// <summary>
 /// 关系不变量检查器（声明驱动；kind 判定全在 <see cref="CheckAsync"/>，禁内核内联分支）。
@@ -56,7 +66,7 @@ public sealed class RelationInvariantChecker
             ? Array.Empty<RelationViolation>()
             : new[]
             {
-                new RelationViolation(invariant.Id,
+                new RelationViolation(invariant.Id, RelationViolationKind.SingleParent,
                     $"目标 '{RelationEndpoints.KeyOf(target)}' 已由 {string.Join(",", parents)} 持有 '{invariant.Edge}' 入边（单父约束）"),
             };
     }
@@ -77,7 +87,7 @@ public sealed class RelationInvariantChecker
             ? Array.Empty<RelationViolation>()
             : new[]
             {
-                new RelationViolation(invariant.Id,
+                new RelationViolation(invariant.Id, RelationViolationKind.SingleTarget,
                     $"源 '{RelationEndpoints.KeyOf(source)}' 已有 '{invariant.Edge}' 出边 → {string.Join(",", targets)}（单目标约束）"),
             };
     }
@@ -96,7 +106,7 @@ public sealed class RelationInvariantChecker
             if (++steps > TraversalBudget)
                 return new[]
                 {
-                    new RelationViolation(invariant.Id,
+                    new RelationViolation(invariant.Id, RelationViolationKind.BudgetExceeded,
                         $"环检测超出遍历预算 {TraversalBudget}（目标 '{RelationEndpoints.KeyOf(target)}' 起的 '{invariant.Edge}' 子图过大）"),
                 };
 
@@ -104,7 +114,7 @@ public sealed class RelationInvariantChecker
             if (RelationEndpoints.SameEntity(current, source))
                 return new[]
                 {
-                    new RelationViolation(invariant.Id,
+                    new RelationViolation(invariant.Id, RelationViolationKind.Cycle,
                         $"加入 '{RelationEndpoints.KeyOf(source)}' → '{RelationEndpoints.KeyOf(target)}' 将形成 '{invariant.Edge}' 环"),
                 };
 
@@ -129,7 +139,7 @@ public sealed class RelationInvariantChecker
             ? Array.Empty<RelationViolation>()
             : new[]
             {
-                new RelationViolation(invariant.Id,
+                new RelationViolation(invariant.Id, RelationViolationKind.MissingEndpoint,
                     $"目标端点 '{RelationEndpoints.KeyOf(target)}' 不存在（target_exists）"),
             };
     }

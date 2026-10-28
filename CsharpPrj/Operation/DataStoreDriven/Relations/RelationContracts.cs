@@ -68,12 +68,15 @@ public interface IRelationCommandPort
     Task<RelationResult> EnsureAsync(string operation, RelationRequest request, CancellationToken ct = default);
 
     Task<RelationResult> RemoveAsync(string operation, RelationRequest request, CancellationToken ct = default);
+
+    /// <summary>只读声明视图（operation → 声明事实；未声明 ⇒ null）。删除意图只由声明面 <c>intent=</c> 决定。</summary>
+    RelationOperation? Describe(string operation);
 }
 
 /// <summary>关系查询端口（<b>唯一读入口</b>）：按边枚举 / 按派生集求值。</summary>
 public interface IRelationQueryPort
 {
-    Task<IReadOnlyList<string>> EnumerateAsync(string edgeOrDerive, RelationScope scope, CancellationToken ct = default);
+    Task<RelationQueryResult> EnumerateAsync(string edgeOrDerive, RelationScope scope, CancellationToken ct = default);
 
     Task<RelationQueryResult> DeriveAsync(string deriveId, RelationScope scope, CancellationToken ct = default);
 }
@@ -90,6 +93,20 @@ public interface IRelationPolicy
     bool IsDeprecated(string edgeName);
 }
 
+/// <summary>未装配策略（plan 编译失败时的显式占位）：一切边均视为未声明/未废弃。</summary>
+public sealed class UnassembledRelationPolicy : IRelationPolicy
+{
+    public static readonly UnassembledRelationPolicy Instance = new();
+
+    public ReferenceEdgeType? FindEdge(string edgeName) => null;
+
+    public ReferenceConstraint? FindConstraint(string edgeName) => null;
+
+    public bool IsDeclared(string edgeName) => false;
+
+    public bool IsDeprecated(string edgeName) => false;
+}
+
 /// <summary>
 /// 工作流命名空间单源端口：所有写边 Location 的唯一取值点。
 /// <para>禁调用方各写 <c>threadId ?? "agent-round"</c> / <c>string.Empty</c> / 本地归一。</para>
@@ -103,21 +120,23 @@ public interface IWorkflowNamespace
     string Resolve(string? explicitValue, string fallbackKey);
 }
 
-/// <summary>端点存在性探针（写前判据；未装配 ⇒ <see cref="PermissiveEntityExistenceProbe"/>）。</summary>
+/// <summary>端点存在性探针（写前判据；未装配 ⇒ <see cref="UnassembledEntityExistenceProbe"/>）。</summary>
 public interface IEntityExistenceProbe
 {
     Task<bool> ExistsAsync(string entityType, string id, CancellationToken ct = default);
 }
 
 /// <summary>
-/// 未装配探针（显式命名，禁默认值伪装事实）：恒返回 true 且由内核记 <see cref="IRelationDiagnostics.RelationPlanMissing"/> 之外的可查询状态。
+/// 未装配探针（显式命名，禁默认值伪装事实）：恒返回 <c>false</c>。
+/// <para>语义：无法证明存在 ⇒ 视为不存在（写前门 fail-closed）；内核另记 <c>probe-unassembled</c> 诊断，
+/// 禁以恒真探针静默放行（原 <c>PermissiveEntityExistenceProbe</c> 已删除）。</para>
 /// </summary>
-public sealed class PermissiveEntityExistenceProbe : IEntityExistenceProbe
+public sealed class UnassembledEntityExistenceProbe : IEntityExistenceProbe
 {
-    public static readonly PermissiveEntityExistenceProbe Instance = new();
+    public static readonly UnassembledEntityExistenceProbe Instance = new();
 
     public Task<bool> ExistsAsync(string entityType, string id, CancellationToken ct = default)
-        => Task.FromResult(true);
+        => Task.FromResult(false);
 }
 
 /// <summary>关系诊断出口（结构化；未装配时由内核把原因写进 <see cref="RelationResult.Diagnostics"/>）。</summary>

@@ -13,7 +13,7 @@ namespace Operation.HierarchyMethod.Hierarchy;
 /// 三层层级统一管理门面（多 nodes ↔ 多 tasks ↔ 单 history）—— 消费方（Agent / UI / StorageBridge）唯一入口。
 /// <para>
 /// 模块化分离边界（对齐用户确认的真多对多语义）：
-///   · **引用管理**（LiteDB 边）经注入端口 <c>IHierarchyReferenceManager</c>（实现 = DataStoreDriven.ReferenceGrounding），
+///   · **引用管理**（LiteDB 边）经注入端口 <c>IContainerMemberPort</c>（实现 = DataStoreDriven.ReferenceGrounding），
 ///     本门面及三层实例只依赖该接口、不触碰任何 LiteDB 具体类型；
 ///   · **三层实例**（NodeOutputStore / TaskRecord / 历史内容）由本门面编排持久化，实例本身零 LiteDB 依赖。
 /// </para>
@@ -29,7 +29,7 @@ public interface IHierarchyManager
     Task<ContainerRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default);
 
     /// <summary>删除历史（级联清其引用边）。返回是否命中。</summary>
-    Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default);
+    Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default);
 
     // ---- task（注册 + 归拢历史）----
     /// <summary>注册任务（保存 TaskRecord；可选归拢到 history：建历史根 + 挂 history→task 边）。</summary>

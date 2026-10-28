@@ -37,7 +37,7 @@ public sealed class ReferenceHierarchyRelationReader : IHierarchyRelationReader
     /// <param name="workflowId">节点层工作流命名空间（空 → 归一化为默认工作流）。</param>
     /// <param name="referenceStore">引用图读写端口（可空；仅反向父查询需要，如 <c>ReferenceGrounding.Graph</c>）。</param>
     public ReferenceHierarchyRelationReader(
-        IHierarchyReferenceManager? reference,
+        IContainerMemberPort? reference,
         string? workflowId = null,
         IResourceReferenceStore? referenceStore = null)
     {

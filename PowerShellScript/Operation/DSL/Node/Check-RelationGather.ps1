@@ -6,7 +6,7 @@
 .DESCRIPTION
     G1 聚拢点唯一：IRelationGatherPoint 的实现类恰 1；生产调用点直连 AddReferenceResultAsync 的文件 ⊆ {图原语, 内核, 端口实现}。
     G2 层向：UniversalReference 源码不得出现 `using Operation.` / `using Modules.` / `using LiteDB` / `using Plate.DslMethod`。
-    G3 派生单源：生产源码 GetHistoryNodeKeysAsync 命中 = 0（HistoryNodes 只经 [Derive]）。
+    G3 派生单源：生产源码 GetContainerNodeKeysAsync 命中 = 0（HistoryNodes 只经 [Derive]）。
     G4 负对照：合成「聚拢点缺失」「层向越界」样本必须被同一判定函数判红。
 
 .PARAMETER Check         存在违规 → 退出码 1（缺省报告态恒 0）。
@@ -80,8 +80,8 @@ function Test-DeriveSingleSource([string[]]$files) {
         $hits.Add('ContainerReferenceGrounding.cs:missing（派生唯一实现缺失）')
         return $hits
     }
-    if ($text -notmatch 'GetHistoryNodeKeysAsync') {
-        $hits.Add('ContainerReferenceGrounding.cs:GetHistoryNodeKeysAsync-missing')
+    if ($text -notmatch 'GetContainerNodeKeysAsync') {
+        $hits.Add('ContainerReferenceGrounding.cs:GetContainerNodeKeysAsync-missing')
     }
     if ($text -notmatch 'DeriveHistoryNodesAsync|DeriveAsync') {
         $hits.Add('ContainerReferenceGrounding.cs:manual-derivation（须委托 [Derive] HistoryNodes）')
@@ -137,7 +137,7 @@ foreach ($hit in (Test-LayerViolation $urFiles)) {
 # ---- G3 ----
 $deriveHits = Test-DeriveSingleSource (@(Get-CsFiles $frameCs) + @(Get-CsFiles $projectsCs))
 foreach ($hit in ($deriveHits | Select-Object -Unique)) {
-    $violations.Add("G3 派生双实现（GetHistoryNodeKeysAsync 应删除，改 [Derive]）：$hit")
+    $violations.Add("G3 派生双实现（GetContainerNodeKeysAsync 应删除，改 [Derive]）：$hit")
 }
 
 # ---- G5 结构计数棘轮（只降不升；判据载体 = 源码静态计数）----

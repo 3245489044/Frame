@@ -288,11 +288,11 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // 诊断：进入读源边界（若卡死在任一存储读，此条在而后续某条缺失 → 精确定位读锁归属）。
             _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_enumerateStart", new { taskKey = taskKey ?? "", workflowId = _workflowId });
             // 显式解析器（R4 读源经 NodeReadView）：仅在「有 taskKey 且装配引用守卫」时提供，内部在图读后打点
-            // （缺此条 = 卡图读 GetTaskNodeKeysAsync）；无 taskKey / 无守卫 → 传 null → ReadView 回退全量（语义与既有兼容）。
+            // （缺此条 = 卡图读 GetMemberNodeKeysAsync）；无 taskKey / 无守卫 → 传 null → ReadView 回退全量（语义与既有兼容）。
             Func<string, string, CancellationToken, Task<IReadOnlyCollection<string>>>? resolver =
                 _grounding is null ? null : async (tk, wf, t) =>
                 {
-                    var keys = await _grounding!.GetTaskNodeKeysAsync(tk, wf, t).ConfigureAwait(false);
+                    var keys = await _grounding!.GetMemberNodeKeysAsync(tk, wf, t).ConfigureAwait(false);
                     _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_graphKeysDone", new { taskKey = tk, keyCount = keys.Count });
                     return keys;
                 };

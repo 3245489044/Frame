@@ -10,19 +10,19 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow.Readers;
 
 /// <summary>
 /// **领域端口**层次读取器 —— 只读已建模的包含边：
-/// <c>history_owns_task</c> → <see cref="IHierarchyReferenceManager.GetHistoryTaskKeysAsync"/>、
-/// <c>cross_db_link</c> → <see cref="IHierarchyReferenceManager.GetTaskNodeKeysAsync"/>。
+/// <c>history_owns_task</c> → <see cref="IContainerMemberPort.GetMemberKeysAsync"/>、
+/// <c>cross_db_link</c> → <see cref="IContainerMemberPort.GetMemberNodeKeysAsync"/>。
 /// <para>其余包含边（如自递归 <c>task_owns_task</c>）返回空集，由组合器回退引用图读取器。</para>
 /// <para>不实现反向（子 → 父）查询：领域端口无入边能力，反向由引用图读取器提供。</para>
 /// </summary>
 internal sealed class HierarchyDomainPortReader : IHierarchyRelationReader
 {
-    private readonly IHierarchyReferenceManager? _reference;
+    private readonly IContainerMemberPort? _reference;
     private readonly string _workflowId;
 
     /// <param name="reference">三层层级引用管理端口（可空；未装配 → 子集空）。</param>
     /// <param name="workflowId">节点层工作流命名空间（已归一化）。</param>
-    public HierarchyDomainPortReader(IHierarchyReferenceManager? reference, string workflowId)
+    public HierarchyDomainPortReader(IContainerMemberPort? reference, string workflowId)
     {
         _reference = reference;
         _workflowId = workflowId;
@@ -43,14 +43,14 @@ internal sealed class HierarchyDomainPortReader : IHierarchyRelationReader
         if (HierarchyLevelRefs.IsHistory(parent) &&
             string.Equals(containment.ContainsEdgeType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal))
         {
-            var taskKeys = await _reference.GetHistoryTaskKeysAsync(parent.Id, ct).ConfigureAwait(false);
+            var taskKeys = await _reference.GetMemberKeysAsync(parent.Id, ct).ConfigureAwait(false);
             return Map(taskKeys, HierarchyLevelRefs.Task);
         }
 
         if (HierarchyLevelRefs.IsTask(parent) &&
             string.Equals(containment.ContainsEdgeType, CrossDbReferenceTypes.CrossDbLink, StringComparison.Ordinal))
         {
-            var nodeKeys = await _reference.GetTaskNodeKeysAsync(parent.Id, _workflowId, ct).ConfigureAwait(false);
+            var nodeKeys = await _reference.GetMemberNodeKeysAsync(parent.Id, _workflowId, ct).ConfigureAwait(false);
             return Map(nodeKeys, key => HierarchyLevelRefs.Node(_workflowId, key));
         }
 

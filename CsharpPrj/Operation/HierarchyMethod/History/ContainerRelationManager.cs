@@ -57,11 +57,11 @@ public sealed class ContainerRelationManager : IContainerRelationManager
 
     /// <summary>历史归拢任务（history → task，history_owns_task 边；幂等）。</summary>
     public Task AttachTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _maintenance is null ? Task.CompletedTask : _maintenance.AttachHistoryTaskAsync(historyId, taskKey, ct);
+        => _maintenance is null ? Task.CompletedTask : _maintenance.AttachMemberAsync(historyId, taskKey, ct);
 
     /// <summary>解除历史归拢任务边。</summary>
     public Task DetachTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _maintenance is null ? Task.CompletedTask : _maintenance.DetachHistoryTaskAsync(historyId, taskKey, ct);
+        => _maintenance is null ? Task.CompletedTask : _maintenance.DetachMemberAsync(historyId, taskKey, ct);
 
     // task→node 归属（cross_db_link）已移出本端口（分层收口：属节点执行层 canonical 写边 IReferenceMaintenance；
     // 历史节点集经 GetNodeKeysAsync 派生读，不直写 node 边）。写路径唯一 owner = ReferenceGrounding（节点层）。
@@ -115,6 +115,6 @@ public sealed class ContainerRelationManager : IContainerRelationManager
     public async Task<IReadOnlyList<string>> GetNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
     {
         if (_maintenance is null) return Array.Empty<string>();
-        return await _maintenance.GetHistoryNodeKeysAsync(historyId, workflowId, ct).ConfigureAwait(false);
+        return await _maintenance.GetContainerNodeKeysAsync(historyId, workflowId, ct).ConfigureAwait(false);
     }
 }

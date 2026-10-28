@@ -9,10 +9,10 @@ namespace Operation.DataStoreDriven.Core;
 /// </summary>
 public sealed class EdgeNodeKeySetSource : INodeKeySetSource
 {
-    private readonly Func<IHierarchyReferenceManager?> _references;
+    private readonly Func<IContainerMemberPort?> _references;
 
     /// <param name="references">关系管理器提供者（未装配 ⇒ null = source-unavailable，不静默空）。</param>
-    public EdgeNodeKeySetSource(Func<IHierarchyReferenceManager?> references)
+    public EdgeNodeKeySetSource(Func<IContainerMemberPort?> references)
         => _references = references ?? throw new ArgumentNullException(nameof(references));
 
     /// <inheritdoc />
@@ -28,8 +28,8 @@ public sealed class EdgeNodeKeySetSource : INodeKeySetSource
         var workflowId = request.WorkflowId ?? string.Empty;
         IReadOnlyList<string> keys = request.Scope switch
         {
-            NodeKeySetScope.Task => await manager.GetTaskNodeKeysAsync(request.Key, workflowId, ct).ConfigureAwait(false),
-            NodeKeySetScope.History => await manager.GetHistoryNodeKeysAsync(request.Key, workflowId, ct).ConfigureAwait(false),
+            NodeKeySetScope.Task => await manager.GetMemberNodeKeysAsync(request.Key, workflowId, ct).ConfigureAwait(false),
+            NodeKeySetScope.History => await manager.GetContainerNodeKeysAsync(request.Key, workflowId, ct).ConfigureAwait(false),
             NodeKeySetScope.Node => new[] { request.Key },
             _ => Array.Empty<string>(),
         };
@@ -68,7 +68,7 @@ public sealed class EdgeNodeKeySetSource : INodeKeySetSource
         {
             // 一次图枚举（消 N+1）：生产实现覆盖为 GetReferencesManyAsync。
             var many = await manager
-                .GetTaskNodeKeysManyAsync(keys, workflowId ?? string.Empty, ct)
+                .GetMemberNodeKeysManyAsync(keys, workflowId ?? string.Empty, ct)
                 .ConfigureAwait(false);
             foreach (var key in keys)
             {

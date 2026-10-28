@@ -20,27 +20,27 @@ namespace Operation.DataStoreDriven.Abstractions
     /// （历史节点集 = 其全部任务的节点并集，不独立存边）。
     /// </para>
     /// </summary>
-    public interface IHierarchyReferenceManager
+    public interface IContainerMemberPort
     {
         // ---- history 根（单 history = 顶层 class 容器）----
         /// <summary>幂等建 history.{historyId} 根端点。</summary>
-        Task EnsureHistoryAsync(string historyId, CancellationToken ct = default);
+        Task EnsureContainerAsync(string historyId, CancellationToken ct = default);
 
         /// <summary>删除历史（级联清其 history_owns_task 出边）。返回是否命中删除。</summary>
-        Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default);
+        Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default);
 
         // ---- history → task（1:N，幂等）----
-        Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
-        Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
+        Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
+        Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>该历史归拢的任务键集（History class 容器成员）。</summary>
-        Task<IReadOnlyList<string>> GetHistoryTaskKeysAsync(string historyId, CancellationToken ct = default);
+        Task<IReadOnlyList<string>> GetMemberKeysAsync(string historyId, CancellationToken ct = default);
 
         /// <summary>
         /// 批量版本（F3）：一次取多个历史的成员集（键 = historyId；缺失/空 ⇒ 空列表）。
         /// 缺省实现逐条回退（零回归）；存储实现宜覆写为单次图遍历。
         /// </summary>
-        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTaskKeysManyAsync(
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberKeysManyAsync(
             IReadOnlyCollection<string> historyIds, CancellationToken ct = default)
         {
             var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
@@ -48,32 +48,32 @@ namespace Operation.DataStoreDriven.Abstractions
             foreach (var id in historyIds)
             {
                 if (string.IsNullOrWhiteSpace(id) || result.ContainsKey(id)) continue;
-                result[id] = await GetHistoryTaskKeysAsync(id, ct).ConfigureAwait(false);
+                result[id] = await GetMemberKeysAsync(id, ct).ConfigureAwait(false);
             }
             return result;
         }
 
         // ---- task ↔ node（M:N，一条 (task,workflowId,nodeKey) 一条 cross_db_link 边）----
         /// <summary>节点关联到任务（幂等加法；同一节点可被多任务共享引用）。</summary>
-        Task LinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
+        Task LinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>解除节点与任务的关联（M:N 撤销边）。</summary>
-        Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
+        Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>该 task 关联的节点键集（task 作用域寻址）。</summary>
-        Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
+        Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
         /// <summary>
         /// 批量 task 节点键集（消 N+1：一次图枚举 + 按 task 分组）。
         /// <para>默认实现退化为逐条（兼容既有实现）；生产实现须覆盖为单次枚举。</para>
         /// </summary>
-        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
             IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
         {
             var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
             foreach (var taskKey in taskKeys)
             {
-                result[taskKey] = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+                result[taskKey] = await GetMemberNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
             }
 
             return result;
@@ -82,10 +82,10 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>
         /// task 作用域候选节点投影（沿 cross_db_link 挂载 + NodeToNode 组合边 Kahn 拓扑，环内稳定序）。
         /// </summary>
-        Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default);
+        Task<IReadOnlyList<NodeProjectionItem>> ProjectMemberNodesAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
         /// <summary>该历史的工作流节点键集（**派生**：= 其全部任务的节点并集，不独立存边）。</summary>
-        Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
+        Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
         // ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----
         /// <summary>会话子图节点键集（按 <c>session_owns</c> 出边返回会话挂载的业务节点键）。

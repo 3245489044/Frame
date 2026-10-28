@@ -86,7 +86,7 @@ public sealed class HierarchyProcessFacade
     /// —— 同一守卫实例既作层级引用端口又提供图读面，无需额外适配。
     /// </remarks>
     public static HierarchyProcessFacade Create(
-        IHierarchyReferenceManager? reference = null,
+        IContainerMemberPort? reference = null,
         INodeOutputStore? nodeOutputs = null,
         IContainerRuntimePort? runtimePort = null,
         IContainerRuntimeService? historyRuntime = null,

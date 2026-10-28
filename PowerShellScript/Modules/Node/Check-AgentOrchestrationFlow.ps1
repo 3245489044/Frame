@@ -44,7 +44,7 @@
                          ⊆ RoundKeys 常量值 ∧ 其常量名 ∈ RoundStateKeyCatalog.CompatSeedKeys
                         （漏登记 ⇒ 步骤 inports 解析为空串 = 功能静默失效）
       E11 归属边/供给/挂载调用点数基线（只减不增）：`LinkNodeAsync` / `EnsureTaskNodeLinkAsync`
-                        / `EnsureHistoryAsync` / `AttachHistoryTaskAsync` / `AddSessionMessageLinkAsync`
+                        / `EnsureContainerAsync` / `AttachMemberAsync` / `AddSessionMessageLinkAsync`
                         五组成员访问调用点（O-1 触发点的机器判据）
       E12 task→node 边命名空间取值点基线（只减不增）：边写侧（SyncRelationsBlock / HistoryProjector）
                         的 `NodeOutputKeys.Normalize(` + `NodeKeys.DefaultWorkflowId` 取值点（ERR-3）
@@ -134,8 +134,8 @@ $CollectPortTokens = @('nodes.*')
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
     'EnsureTaskNodeLinkAsync'    = 9   # RF7：调用点改调 canonical 原语（原藏在声明流入口后，现显式化）；写入仍唯一经守卫
-    'EnsureHistoryAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
-    'AttachHistoryTaskAsync'     = 6   # RF7：UI/编排直调 canonical 端口（原经 NodeTaskHistoryService 门面）
+    'EnsureContainerAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
+    'AttachMemberAsync'     = 6   # RF7：UI/编排直调 canonical 端口（原经 NodeTaskHistoryService 门面）
     'AddSessionMessageLinkAsync' = 5   # RF7：session_owns 调用点改调 canonical 原语（原经 INodeAttributionFlow）
 }
 # E12 task→node 边命名空间取值点基线（只减不增；目标 = 单源 1）

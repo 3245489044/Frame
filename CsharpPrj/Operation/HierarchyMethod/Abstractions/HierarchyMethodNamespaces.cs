@@ -25,7 +25,7 @@ namespace Operation.Container.Runtime
 namespace Operation.HierarchyMethod.Hierarchy
 {
     /// <summary>三层层级统一管理门面命名空间占位（多 nodes ↔ 多 tasks ↔ 单 history）。
-    /// IHierarchyManager / HierarchyManager 组合根：编排引用管理（IHierarchyReferenceManager）与三层实例，零 LiteDB 依赖。</summary>
+    /// IHierarchyManager / HierarchyManager 组合根：编排引用管理（IContainerMemberPort）与三层实例，零 LiteDB 依赖。</summary>
     internal static class HierarchyNamespaceMarker { }
 }
 

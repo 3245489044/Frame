@@ -104,7 +104,7 @@ $assertions = @(
     [pscustomobject]@{ Id = 'J2'; Title = '步骤节点端口全文取值（ClineResult.Text）'; Pattern = 'ClineResult.Text'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 3; Target = 0; Batch = 'W4'; Kind = 'search' }
 
     # ---- J4 取全文单入口（W5 引入 deref 后收敛）----
-    [pscustomobject]@{ Id = 'J4a'; Title = '任务节点读面（GetTaskNodeKeysAsync）'; Pattern = 'GetTaskNodeKeysAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 4; Target = $null; Batch = 'W5'; Kind = 'search' }
+    [pscustomobject]@{ Id = 'J4a'; Title = '任务节点读面（GetMemberNodeKeysAsync）'; Pattern = 'GetMemberNodeKeysAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 4; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4b'; Title = '历史 blob 读面（GetHistoryAsync）'; Pattern = 'GetHistoryAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 7; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4c'; Title = '会话日志读面（GetLogAsync）'; Pattern = 'GetLogAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = $null; Batch = 'W5'; Kind = 'search' }
     # J4d 基线 18 → 23：2026-10-12 CONV-SS（历史/任务删除级联补 ur_histories 行删除）新增 IConversationLogStore 消费面同步

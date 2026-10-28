@@ -248,7 +248,7 @@ foreach ($f in (Get-ChildItem -LiteralPath $agentSrc -Recurse -File -Filter '*.c
     foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
         $t = $line.Trim()
         if ($t.StartsWith('//') -or $t.StartsWith('/*') -or $t.StartsWith('*')) { continue }
-        if ($line.Contains('GetTaskNodeKeysAsync')) { $hasEnumeration = $true }
+        if ($line.Contains('GetMemberNodeKeysAsync')) { $hasEnumeration = $true }
         if ($line.Contains('TryGetNodeOutputAsync')) { $hasKeyedRead = $true }
     }
     if ($hasEnumeration -and $hasKeyedRead) { $comboFiles.Add($f.Name) }

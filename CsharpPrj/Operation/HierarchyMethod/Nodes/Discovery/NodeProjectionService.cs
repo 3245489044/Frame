@@ -6,10 +6,10 @@ namespace Operation.HierarchyMethod.Nodes.Discovery;
 
 public sealed class NodeProjectionService
 {
-    private readonly IHierarchyReferenceManager _grounding;
+    private readonly IContainerMemberPort _grounding;
     private readonly INodeStore _nodes;
 
-    public NodeProjectionService(IHierarchyReferenceManager grounding, INodeStore nodes)
+    public NodeProjectionService(IContainerMemberPort grounding, INodeStore nodes)
     {
         _grounding = grounding;
         _nodes = nodes;
@@ -18,7 +18,7 @@ public sealed class NodeProjectionService
     public async Task<ProjectionResult> ProjectAsync(string taskKey, string workflowId, int limit, CancellationToken ct)
     {
         var result = new ProjectionResult { TaskKey = taskKey, WorkflowId = workflowId };
-        var projected = await _grounding.ProjectTaskNodesAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+        var projected = await _grounding.ProjectMemberNodesAsync(taskKey, workflowId, ct).ConfigureAwait(false);
         if (projected.Count == 0) return result;
 
         var order = 0;

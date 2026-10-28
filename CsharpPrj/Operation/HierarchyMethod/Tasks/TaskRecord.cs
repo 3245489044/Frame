@@ -35,7 +35,7 @@ namespace Operation.HierarchyMethod.Tasks
         public int MaxRetries { get; set; }
 
         /// <summary>归属的历史 class 容器 Id（History=Task 更上层容器；可空 = 未归拢到历史）。
-        /// 注：历史↔任务归属**权威承载**在引用图（history_owns_task 边，见 <c>IHierarchyReferenceManager</c>）；
+        /// 注：历史↔任务归属**权威承载**在引用图（history_owns_task 边，见 <c>IContainerMemberPort</c>）；
         /// 本字段仅为实例内冗余视图，不作为图关系真源。</summary>
         public string? HistoryId { get; set; }
 
@@ -49,7 +49,7 @@ namespace Operation.HierarchyMethod.Tasks
         public string UserInput { get; set; } = string.Empty;
 
         /// <summary>关联节点引用（nodeKey 列表，task op=enqueue 专用声明；纯引用，不读 payload）。
-        /// 注：task↔node 关联**权威承载**在引用图（cross_db_link 边，真多对多，见 <c>IHierarchyReferenceManager</c>）；
+        /// 注：task↔node 关联**权威承载**在引用图（cross_db_link 边，真多对多，见 <c>IContainerMemberPort</c>）；
         /// 本字段仅为实例内冗余视图，不作为图关系真源。</summary>
         public IReadOnlyList<string> RelatedNodes { get; set; } = Array.Empty<string>();
 

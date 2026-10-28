@@ -72,19 +72,19 @@ namespace Operation.DataStoreDriven.Abstractions
         }
 
         /// <summary>解除 task 与节点的关联边（M:N 撤销）。</summary>
-        Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
+        Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>该 task 关联的节点键集（task 作用域寻址；供执行期输入解析）。</summary>
-        Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
+        Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
         /// <summary>批量 task 节点键集（消 N+1；默认逐条，生产实现覆盖为单次枚举）。</summary>
-        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+        async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
             IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
         {
             var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
             foreach (var taskKey in taskKeys)
             {
-                result[taskKey] = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+                result[taskKey] = await GetMemberNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
             }
 
             return result;
@@ -97,10 +97,10 @@ namespace Operation.DataStoreDriven.Abstractions
         Task RemoveHistoryMirrorAsync(string historyId, CancellationToken ct = default);
 
         /// <summary>历史归拢任务：history.{historyId} → task（taskKey）引用边（幂等加法）。</summary>
-        Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
+        Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>解除历史归拢任务边（历史 → task 出边移除）。</summary>
-        Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
+        Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集。</summary>
         Task<IReadOnlyList<string>> GetHistoryTasksAsync(string historyId, CancellationToken ct = default);
@@ -110,7 +110,7 @@ namespace Operation.DataStoreDriven.Abstractions
             IReadOnlyCollection<string> historyIds, CancellationToken ct);
 
         /// <summary>按历史查工作流节点键集（派生视图：该历史全部任务的 task→node 边并集）。</summary>
-        Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
+        Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
         /// <summary>会话归属边（session_owns）：把业务节点挂到会话根（幂等加法）。</summary>
         Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);

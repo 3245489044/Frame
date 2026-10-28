@@ -47,7 +47,7 @@ public sealed class ContainerReferenceGrounding
             new ResourceIdentifier { ResourceType = NodeResourceTypes.History, Id = HistoryNodeId(historyId) }, "history-removed", ct);
 
     /// <summary>删除历史（返回是否命中删除）。</summary>
-    public async Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default)
+    public async Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(historyId)) return false;
         try
@@ -61,7 +61,7 @@ public sealed class ContainerReferenceGrounding
 
     /// <summary>历史归拢任务：history → task（history_owns_task，幂等加法；禁自环）。</summary>
     /// <remarks>聚拢点装配后端点镜像由 <c>provision=</c> 委托承担；未装配时保留兼容镜像（零回归）。</remarks>
-    public async Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
+    public async Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
@@ -77,7 +77,7 @@ public sealed class ContainerReferenceGrounding
     }
 
     /// <summary>解除历史归拢任务边。</summary>
-    public async Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
+    public async Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
     {
         var result = await _relations.DetachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
         // 未命中 = 已不存在（幂等删除）
@@ -128,7 +128,7 @@ public sealed class ContainerReferenceGrounding
     }
 
     /// <summary>历史的工作流节点键集（派生视图：<c>[Derive] HistoryNodes</c>）。</summary>
-    public async Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(historyId)) return Array.Empty<string>();
         var result = await _relations
@@ -149,8 +149,8 @@ public sealed class ContainerReferenceGrounding
         foreach (var taskKey in tasks)
         {
             if (string.IsNullOrWhiteSpace(taskKey)) continue;
-            await AttachHistoryTaskAsync(intoHistory, taskKey, ct).ConfigureAwait(false);
-            await DetachHistoryTaskAsync(fromHistory, taskKey, ct).ConfigureAwait(false);
+            await AttachMemberAsync(intoHistory, taskKey, ct).ConfigureAwait(false);
+            await DetachMemberAsync(fromHistory, taskKey, ct).ConfigureAwait(false);
             moved++;
         }
         return moved;

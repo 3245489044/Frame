@@ -1,5 +1,6 @@
 using Operation.HierarchyMethod.Tasks.Loops;
 using Share.HierarchySupport;
+using Share.TaskStatusPool.Loops;
 
 namespace Operation.HierarchyMethod.Tasks.Ports
 {
@@ -18,13 +19,13 @@ namespace Operation.HierarchyMethod.Tasks.Ports
     }
 
     /// <summary>
-    /// 任务执行器解析端口 —— 按 <see cref="TaskRecord"/> 的 <see cref="ExecutionNode"/> 解析执行器句柄。
+    /// 任务执行器解析端口 —— 按任务键 + 执行节点解析执行器句柄（**不持有具体任务记录类型**）。
     /// 框架与 Agent 的唯一执行耦合面（P3 端口注入）：未注入 / 未命中返回 null → 调用方走确定性路径（P5 可空守卫）。
     /// </summary>
     public interface ITaskExecutorResolver
     {
         /// <summary>解析执行器句柄；未注入 / 未命中返回 null（零 LLM 确定性执行）。</summary>
-        ITaskExecutor? Resolve(TaskRecord task);
+        ITaskExecutor? Resolve(string taskKey, ExecutionNode? node);
     }
 
     /// <summary>
@@ -38,12 +39,12 @@ namespace Operation.HierarchyMethod.Tasks.Ports
     }
 
     /// <summary>
-    /// 导演提供端口 —— 按 <see cref="AgentLoopState"/> 提供导演（Hybrid 混合调度时）；缺省 = 确定性导演（零 LLM）。
+    /// 导演提供端口 —— 按循环状态（中性 <see cref="ILoopState"/>）提供导演（Hybrid 混合调度时）；缺省 = 确定性导演（零 LLM）。
     /// 未注入返回 null → 框架走确定性路径，不消耗 AI 额度。
     /// </summary>
     public interface IStateDirectorProvider
     {
-        IStateDirector? Resolve(AgentLoopState state);
+        IStateDirector? Resolve(ILoopState state);
     }
 
     /// <summary>

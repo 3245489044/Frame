@@ -42,7 +42,7 @@ $checks = @(
     @{ Tag = 'R3'; File = 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\ConversationTreeProjection.cs';
        Must = @('ReadCoreAsync', 'IHistoryRootCatalog', 'IReadOnlyList<HistoryNode>') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryMemberSetReader.cs';
-       Must = @('ReadManyAsync', 'GetHistoryTaskKeysManyAsync') },
+       Must = @('ReadManyAsync', 'GetMemberKeysManyAsync') },
     @{ Tag = 'R4'; File = 'Projects\Plug\Agent\src\Agent.Session\Projection\TaskRuntimeReportProvider.cs';
        Must = @('GetForHistoriesAsync', 'GetManyAsync(refs') },
     @{ Tag = 'R4'; File = 'Frame\CsharpPrj\Operation\DataStoreDriven\Graph\ReferenceGraphCoordinator.cs';

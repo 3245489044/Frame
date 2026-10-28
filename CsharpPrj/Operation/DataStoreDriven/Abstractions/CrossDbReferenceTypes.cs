@@ -14,7 +14,7 @@ namespace Operation.DataStoreDriven.Abstractions;
 public static class CrossDbReferenceTypes
 {
     /// <summary>task → node 跨库归属边（运行时节点产出归属）。**真多对多**：一条 (task,workflowId,nodeKey) 一条边，
-    /// 同一节点可被多个 task 共享引用（LinkTaskNodeAsync / UnlinkTaskNodeAsync）。</summary>
+    /// 同一节点可被多个 task 共享引用（LinkMemberNodeAsync / UnlinkMemberNodeAsync）。</summary>
     public const string CrossDbLink = ReferenceTypes.CrossDbLink;
 
     /// <summary>会话归属边（方案 C）：session.{name} → 会话消息/产出节点（会话图子图挂载，读侧按 session 过滤节点）。

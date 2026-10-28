@@ -235,7 +235,7 @@ if (Test-Path $agentNodesDeclDir) {
     }
 }
 
-# I. 写面唯一写原语（IEF INV-2）：graph:history_owns_task 的写点 = ReferenceGrounding.AttachHistoryTaskAsync，
+# I. 写面唯一写原语（IEF INV-2）：graph:history_owns_task 的写点 = ReferenceGrounding.AttachMemberAsync，
 #    入口后端只能经注入委托 _attachHistoryTask 调用，禁直调写原语（否则出现第二写通道）。
 $historyEdgeWriter = $csFiles | Where-Object { $_.Name -eq 'ContainerReferenceGrounding.cs' } | Select-Object -First 1
 $intentBackend = $csFiles | Where-Object { $_.Name -eq 'AgentApiIntentSource.cs' } | Select-Object -First 1
@@ -243,8 +243,8 @@ if (-not $historyEdgeWriter) {
     $violations.Add("缺失 ReferenceGrounding.cs（history_owns_task 写原语无法审计）")
 }
 else {
-    if (-not (Select-String -LiteralPath $historyEdgeWriter.FullName -Pattern 'AttachHistoryTaskAsync' -SimpleMatch -Quiet)) {
-        $violations.Add("ReferenceGrounding.cs 缺少 AttachHistoryTaskAsync（history_owns_task 单写原语）")
+    if (-not (Select-String -LiteralPath $historyEdgeWriter.FullName -Pattern 'AttachMemberAsync' -SimpleMatch -Quiet)) {
+        $violations.Add("ReferenceGrounding.cs 缺少 AttachMemberAsync（history_owns_task 单写原语）")
     }
 }
 if (-not $intentBackend) {
@@ -254,15 +254,15 @@ else {
     if (-not (Select-String -LiteralPath $intentBackend.FullName -Pattern '_attachHistoryTask(' -SimpleMatch -Quiet)) {
         $violations.Add("AgentApiIntentSource.cs 未经注入委托 _attachHistoryTask 写边（第二写通道风险）")
     }
-    $directWrites = @(Select-String -LiteralPath $intentBackend.FullName -Pattern 'AttachHistoryTaskAsync(' -SimpleMatch -ErrorAction SilentlyContinue)
+    $directWrites = @(Select-String -LiteralPath $intentBackend.FullName -Pattern 'AttachMemberAsync(' -SimpleMatch -ErrorAction SilentlyContinue)
     if ($directWrites.Count -gt 0) {
-        $violations.Add("AgentApiIntentSource.cs 直调 AttachHistoryTaskAsync（$($directWrites.Count) 处）——必须经注入委托")
+        $violations.Add("AgentApiIntentSource.cs 直调 AttachMemberAsync（$($directWrites.Count) 处）——必须经注入委托")
     }
 }
 # 正/负对照（防判据恒真/恒假）
-$iNeg = 'svc.AttachHistoryTaskAsync(h, t);'
+$iNeg = 'svc.AttachMemberAsync(h, t);'
 $iPos = '_attachHistoryTask(h, t);'
-if (($iNeg -notmatch 'AttachHistoryTaskAsync\(') -or ($iPos -notmatch '_attachHistoryTask\(')) {
+if (($iNeg -notmatch 'AttachMemberAsync\(') -or ($iPos -notmatch '_attachHistoryTask\(')) {
     $violations.Add("history 写面单写原语对照失效：正/负样本未按预期区分")
 }
 

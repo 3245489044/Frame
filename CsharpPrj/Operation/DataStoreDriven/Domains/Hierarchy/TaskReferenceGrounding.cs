@@ -138,7 +138,7 @@ public sealed class TaskReferenceGrounding
     }
 
     /// <summary>解除 task 与节点的关联边（M:N 撤销；幂等）。</summary>
-    public async Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+    public async Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
@@ -149,7 +149,7 @@ public sealed class TaskReferenceGrounding
     }
 
     /// <summary>按 task 查 TaskNodes 派生集（唯一读入口：<c>[Derive] TaskNodes</c>）。</summary>
-    public async Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
         var result = await _relations
@@ -159,7 +159,7 @@ public sealed class TaskReferenceGrounding
     }
 
     /// <summary>批量 task 节点键集（一次图枚举 + 按 task 分组；消 N+1）。</summary>
-    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetTaskNodeKeysManyAsync(
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
         IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
@@ -271,10 +271,10 @@ public sealed class TaskReferenceGrounding
     }
 
     /// <summary>投影候选清单：task 作用域挂载 + NodeToNode 组合边 Kahn 拓扑（环内按 nodeKey 稳定序）。</summary>
-    public async Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<NodeProjectionItem>> ProjectMemberNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<NodeProjectionItem>();
-        var mounted = await GetTaskNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
+        var mounted = await GetMemberNodeKeysAsync(taskKey, workflowId, ct).ConfigureAwait(false);
         if (mounted.Count == 0) return Array.Empty<NodeProjectionItem>();
         var mountedSet = new HashSet<string>(mounted, StringComparer.Ordinal);
 

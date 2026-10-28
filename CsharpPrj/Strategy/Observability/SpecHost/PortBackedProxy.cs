@@ -27,7 +27,7 @@ public static class PortBackedProxy
 {
     /// <summary>
     /// 生成依赖接口 <typeparamref name="T"/> 的代理：方法 <c>M</c> → 端口键 <c>&lt;类型名&gt;.M</c>。
-    /// <paramref name="typeName"/> 缺省 = <c>typeof(T).Name</c>（如 <c>IHierarchyReferenceManager</c>）。
+    /// <paramref name="typeName"/> 缺省 = <c>typeof(T).Name</c>（如 <c>IContainerMemberPort</c>）。
     /// <para>调用期解析（非创建期快照）：目录绑定被 <c>given ports</c> 替换后，后续调用即走替身。</para>
     /// </summary>
     public static T Create<T>(IPortCatalog catalog, string? typeName = null) where T : class

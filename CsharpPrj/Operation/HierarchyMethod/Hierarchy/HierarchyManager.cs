@@ -20,7 +20,7 @@ using UniversalWorkflowFramework.StorageFramework.Abstractions;
 namespace Operation.HierarchyMethod.Hierarchy;
 
 /// <summary>
-/// 三层层级统一管理门面默认实现（LLM-free 组合根）：编排「引用管理（IHierarchyReferenceManager）」与
+/// 三层层级统一管理门面默认实现（LLM-free 组合根）：编排「引用管理（IContainerMemberPort）」与
 /// 「三层实例（节点输出 / 任务簿记）」—— 只编排不复制写边原语（SingleImplementation / TH-12）。
 /// 装配可空：未装配引用端口 → 查询空集 / 写 no-op；未装配节点/任务端口 → 对应持久化跳过。不阻断 DB-only 路径。
 /// <para>
@@ -31,7 +31,7 @@ namespace Operation.HierarchyMethod.Hierarchy;
 /// </summary>
 public sealed class HierarchyManager : IHierarchyManager
 {
-    private readonly IHierarchyReferenceManager? _reference;
+    private readonly IContainerMemberPort? _reference;
     private readonly INodeOutputStore? _nodes;
     private readonly Func<TaskRecord, CancellationToken, Task>? _saveTask;
     private readonly Func<string, CancellationToken, Task>? _deleteTask;
@@ -53,7 +53,7 @@ public sealed class HierarchyManager : IHierarchyManager
     /// 数据面缺失时回退合取，见 S4）。如需改回全合取，显式传 <see cref="Modules.DeclarativeDataflow.Processing.CollectChildResultAggregator.Default"/>。</param>
     /// <param name="runStateProvider">运行态门面（可空；多来源 live/snapshot/derived 合并的唯一入口，经注入由组合根装配）。</param>
     public HierarchyManager(
-        IHierarchyReferenceManager? reference = null,
+        IContainerMemberPort? reference = null,
         INodeOutputStore? nodes = null,
         Func<TaskRecord, CancellationToken, Task>? saveTask = null,
         Func<string, CancellationToken, Task>? deleteTask = null,
@@ -102,12 +102,12 @@ public sealed class HierarchyManager : IHierarchyManager
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         if (_reference is not null)
-            await _reference.EnsureHistoryAsync(historyId, ct).ConfigureAwait(false);
+            await _reference.EnsureContainerAsync(historyId, ct).ConfigureAwait(false);
         return new ContainerRecord(historyId, name ?? historyId);
     }
 
-    public Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default)
-        => _reference is null ? Task.FromResult(false) : _reference.DeleteHistoryAsync(historyId, ct);
+    public Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default)
+        => _reference is null ? Task.FromResult(false) : _reference.DeleteContainerAsync(historyId, ct);
 
     public async Task RegisterTaskAsync(string taskKey, string? historyId = null, TaskRecord? spec = null, CancellationToken ct = default)
     {
@@ -135,19 +135,19 @@ public sealed class HierarchyManager : IHierarchyManager
         => MemberKeysAsync(
             HierarchyLevelRefs.History(historyId),
             HierarchySchemas.TaskLevel,
-            () => _reference!.GetHistoryTaskKeysAsync(historyId, ct));
+            () => _reference!.GetMemberKeysAsync(historyId, ct));
 
     public Task<IReadOnlyList<string>> GetNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
         => MemberKeysAsync(
             HierarchyLevelRefs.Task(taskKey),
             HierarchySchemas.NodeLevel,
-            () => _reference!.GetTaskNodeKeysAsync(taskKey, workflowId, ct));
+            () => _reference!.GetMemberNodeKeysAsync(taskKey, workflowId, ct));
 
     public Task<IReadOnlyList<string>> GetHistoryNodesAsync(string historyId, string workflowId, CancellationToken ct = default)
         => MemberKeysAsync(
             HierarchyLevelRefs.History(historyId),
             HierarchySchemas.NodeLevel,
-            () => _reference!.GetHistoryNodeKeysAsync(historyId, workflowId, ct));
+            () => _reference!.GetContainerNodeKeysAsync(historyId, workflowId, ct));
 
     /// <summary>
     /// 成员集查询（**无界**：不施加展开预算，仅按实体去重）——优先经声明式引擎（与

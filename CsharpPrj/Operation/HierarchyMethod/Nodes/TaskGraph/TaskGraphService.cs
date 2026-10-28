@@ -33,19 +33,19 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         private readonly ITaskGraphTaskStore? _taskPool;
         private readonly IResourceReferenceStore? _resources;
         private readonly ITaskRouteResolver? _routeResolver;
-        private readonly IHierarchyReferenceManager? _hierarchy;
+        private readonly IContainerMemberPort? _hierarchy;
         private readonly IRelationPorts? _ports;
 
         /// <param name="taskPool">任务入队端口（可选；提供 task 入队/状态/删除，由 Agent.Core 适配）。</param>
         /// <param name="resources">资源/引用关系存储（可选；提供节点与引用边读写，LiteDB 关系投影）。</param>
         /// <param name="routeResolver">路由解析端口（可选；标签/执行腿 → 执行腿，唯一实现 = Agent.Core.SubAgentRouteResolver）。</param>
-        /// <param name="hierarchy">层级引用管理端口（可选；history 归属唯一写原语 = AttachHistoryTaskAsync）。</param>
+        /// <param name="hierarchy">层级引用管理端口（可选；history 归属唯一写原语 = AttachMemberAsync）。</param>
         /// <param name="ports">关系端口（可选；缺省从 <paramref name="hierarchy"/> 的租约提供者取）。</param>
         public TaskGraphService(
             ITaskGraphTaskStore? taskPool = null,
             IResourceReferenceStore? resources = null,
             ITaskRouteResolver? routeResolver = null,
-            IHierarchyReferenceManager? hierarchy = null,
+            IContainerMemberPort? hierarchy = null,
             IRelationPorts? ports = null)
         {
             _taskPool = taskPool;
@@ -103,7 +103,7 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
                     writtenEdges.Add(edge);
             }
 
-            // 3) history 归属（成员可见性）：唯一写原语 = IHierarchyReferenceManager.AttachHistoryTaskAsync
+            // 3) history 归属（成员可见性）：唯一写原语 = IContainerMemberPort.AttachMemberAsync
             //    （写边由 Attach 承担；本服务不再把该边混入 Edges 结果集，避免消费方重复计数）。
             var historyId = NonBlank(request.HistoryId);
             var historyAttached = false;
@@ -116,7 +116,7 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
                 }
                 try
                 {
-                    await _hierarchy.AttachHistoryTaskAsync(historyId, request.TaskKey, ct).ConfigureAwait(false);
+                    await _hierarchy.AttachMemberAsync(historyId, request.TaskKey, ct).ConfigureAwait(false);
                     historyAttached = true;
                 }
                 catch (Exception ex)

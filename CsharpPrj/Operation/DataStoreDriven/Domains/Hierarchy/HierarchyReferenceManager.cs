@@ -9,9 +9,9 @@ namespace Operation.DataStoreDriven.Core;
 
 /// <summary>
 /// 三层层级引用管理端口实现（U8）：组合 history / task / session 三个域接地服务。
-/// <para>三层实例只依赖 <see cref="IHierarchyReferenceManager"/>，不触碰具体介质。</para>
+/// <para>三层实例只依赖 <see cref="IContainerMemberPort"/>，不触碰具体介质。</para>
 /// </summary>
-public sealed class HierarchyReferenceManager : IHierarchyReferenceManager
+public sealed class HierarchyReferenceManager : IContainerMemberPort
 {
     private readonly ContainerReferenceGrounding _history;
     private readonly TaskReferenceGrounding _tasks;
@@ -27,39 +27,39 @@ public sealed class HierarchyReferenceManager : IHierarchyReferenceManager
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
     }
 
-    public Task EnsureHistoryAsync(string historyId, CancellationToken ct = default)
+    public Task EnsureContainerAsync(string historyId, CancellationToken ct = default)
         => _history.EnsureHistoryMirrorAsync(historyId, ct);
 
-    public Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default)
-        => _history.DeleteHistoryAsync(historyId, ct);
+    public Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default)
+        => _history.DeleteContainerAsync(historyId, ct);
 
-    public Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _history.AttachHistoryTaskAsync(historyId, taskKey, ct);
+    public Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
+        => _history.AttachMemberAsync(historyId, taskKey, ct);
 
-    public Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
-        => _history.DetachHistoryTaskAsync(historyId, taskKey, ct);
+    public Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
+        => _history.DetachMemberAsync(historyId, taskKey, ct);
 
-    public Task<IReadOnlyList<string>> GetHistoryTaskKeysAsync(string historyId, CancellationToken ct = default)
+    public Task<IReadOnlyList<string>> GetMemberKeysAsync(string historyId, CancellationToken ct = default)
         => _history.GetHistoryTasksAsync(historyId, ct);
 
-    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTaskKeysManyAsync(
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberKeysManyAsync(
         IReadOnlyCollection<string> historyIds, CancellationToken ct = default)
         => _history.GetHistoryTasksManyAsync(historyIds, ct);
 
-    public Task LinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+    public Task LinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
         => _tasks.EnsureTaskNodeLinkAsync(taskKey, workflowId, nodeKey, ct);
 
-    public Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _tasks.UnlinkTaskNodeAsync(taskKey, workflowId, nodeKey, ct);
+    public Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+        => _tasks.UnlinkMemberNodeAsync(taskKey, workflowId, nodeKey, ct);
 
-    public Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
-        => _tasks.GetTaskNodeKeysAsync(taskKey, workflowId, ct);
+    public Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
+        => _tasks.GetMemberNodeKeysAsync(taskKey, workflowId, ct);
 
-    public Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
-        => _tasks.ProjectTaskNodesAsync(taskKey, workflowId, ct);
+    public Task<IReadOnlyList<NodeProjectionItem>> ProjectMemberNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
+        => _tasks.ProjectMemberNodesAsync(taskKey, workflowId, ct);
 
-    public Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
-        => _history.GetHistoryNodeKeysAsync(historyId, workflowId, ct);
+    public Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
+        => _history.GetContainerNodeKeysAsync(historyId, workflowId, ct);
 
     public Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)
         => _sessions.GetSessionNodeKeysAsync(sessionName, workflowId, ct);

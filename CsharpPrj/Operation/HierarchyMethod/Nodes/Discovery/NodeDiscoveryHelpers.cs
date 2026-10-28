@@ -4,7 +4,7 @@ using Operation.DataStoreDriven.Abstractions;
 namespace Operation.HierarchyMethod.Nodes.Discovery;
 
 /// <summary>节点记录解析：由节点键解析业务节点记录 —— 输出并入业务节点后，裸 <c>{nodeKey}</c> 为唯一主键。
-/// 图端点 Id = {wf}.{node}（NodeRelationFactory.NodeId，GetTaskNodeKeysAsync 剥离前缀返回裸键）；
+/// 图端点 Id = {wf}.{node}（NodeRelationFactory.NodeId，GetMemberNodeKeysAsync 剥离前缀返回裸键）；
 /// 遗留 <c>nodes.{wf}.{node}</c> 输出记录不再查询（消除输出节点双写）。</summary>
 public static class NodeRecordResolver
 {

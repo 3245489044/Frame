@@ -13,7 +13,7 @@ namespace Operation.HierarchyMethod.Nodes
     /// <para>与持久实现 <c>ReferenceGrounding</c> 并列：本类为内存最小落地
     /// （原 Agent 侧 TaskPool 的 DeclaredHierarchyReferenceManager 下沉，SingleImplementation / TH-12）。</para>
     /// </summary>
-    public sealed class MemoryHierarchyReferenceManager : IHierarchyReferenceManager
+    public sealed class MemoryHierarchyReferenceManager : IContainerMemberPort
     {
         private readonly List<string> _histories = new();
         private readonly Dictionary<string, List<string>> _historyTasks = new(StringComparer.Ordinal);
@@ -27,49 +27,49 @@ namespace Operation.HierarchyMethod.Nodes
         public bool HasTaskNode(string taskKey, string nodeKey)
             => _taskNodes.TryGetValue(taskKey, out var keys) && keys.Contains(nodeKey);
 
-        public Task EnsureHistoryAsync(string historyId, CancellationToken ct = default)
+        public Task EnsureContainerAsync(string historyId, CancellationToken ct = default)
         {
             if (!_histories.Contains(historyId)) _histories.Add(historyId);
             return Task.CompletedTask;
         }
 
-        public Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default)
+        public Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default)
         {
             _historyTasks.Remove(historyId);
             return Task.FromResult(_histories.Remove(historyId));
         }
 
-        public Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
+        public Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
         {
             Link(_historyTasks, historyId, taskKey);
             return Task.CompletedTask;
         }
 
-        public Task DetachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
+        public Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default)
         {
             if (_historyTasks.TryGetValue(historyId, out var tasks)) tasks.Remove(taskKey);
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<string>> GetHistoryTaskKeysAsync(string historyId, CancellationToken ct = default)
+        public Task<IReadOnlyList<string>> GetMemberKeysAsync(string historyId, CancellationToken ct = default)
             => Task.FromResult(Keys(_historyTasks, historyId));
 
-        public Task LinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+        public Task LinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
         {
             Link(_taskNodes, taskKey, nodeKey);
             return Task.CompletedTask;
         }
 
-        public Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
+        public Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
         {
             if (_taskNodes.TryGetValue(taskKey, out var keys)) keys.Remove(nodeKey);
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
+        public Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
             => Task.FromResult(Keys(_taskNodes, taskKey));
 
-        public Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
+        public Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
 
         /// <summary>会话子图读面：内存端口不承载会话挂载（会话边由引用守卫写），恒空集（不伪造）。</summary>
@@ -81,7 +81,7 @@ namespace Operation.HierarchyMethod.Nodes
             => Task.FromResult<IReadOnlyList<NodeProjectionItem>>(Array.Empty<NodeProjectionItem>());
 
         /// <summary>task 作用域候选投影：内存端口只按挂载顺序出索引（不伪造图拓扑）。</summary>
-        public Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
+        public Task<IReadOnlyList<NodeProjectionItem>> ProjectMemberNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
         {
             var keys = Keys(_taskNodes, taskKey);
             IReadOnlyList<NodeProjectionItem> items = keys
@@ -90,7 +90,7 @@ namespace Operation.HierarchyMethod.Nodes
             return Task.FromResult(items);
         }
 
-        // ---- 测试面簿记：LinkTaskNodeAsync（IHierarchyReferenceManager）直接改内存状态 ----
+        // ---- 测试面簿记：LinkMemberNodeAsync（IContainerMemberPort）直接改内存状态 ----
 
         private static void Link(Dictionary<string, List<string>> map, string key, string value)
         {

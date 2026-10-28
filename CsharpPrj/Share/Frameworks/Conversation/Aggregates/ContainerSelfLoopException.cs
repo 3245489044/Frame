@@ -4,7 +4,7 @@ namespace Share.Conversation.Aggregates;
 
 /// <summary>
 /// 历史归拢自环拒绝（history == task）——唯一错误源。命令层不重复判断，
-/// 由写边守卫 <c>ReferenceGrounding.AttachHistoryTaskAsync</c> 抛出，上层按此类型映射统一诊断码。
+/// 由写边守卫 <c>ReferenceGrounding.AttachMemberAsync</c> 抛出，上层按此类型映射统一诊断码。
 /// </summary>
 public sealed class ContainerSelfLoopException : InvalidOperationException
 {

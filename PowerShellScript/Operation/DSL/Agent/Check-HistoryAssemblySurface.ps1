@@ -7,7 +7,7 @@
       H1 空态预装配：ConversationViewService 空态分支渲染预装配面（BuildBasePromptSnapshot(profileKey)），非空数组短路。
       H2 档案分档：存在 PromptProfiles.History 消费 + Config/prompt-profiles.ushar 声明面；框架常驻基础段声明化（[Profile] base=on 在册 ∧ FrameworkBaseBands 读声明面 BaseBands）。
       H3 模式注入：History 视图快照注入 mode（HistoryDefaultMode）。
-      H4 视口单一入口：TaskRuntimeReportProvider 为 History 侧 task 枚举唯一入口（HistoryTaskRuntimeContext 内无裸调 GetHistoryTaskKeysAsync）。
+      H4 视口单一入口：TaskRuntimeReportProvider 为 History 侧 task 枚举唯一入口（HistoryTaskRuntimeContext 内无裸调 GetMemberKeysAsync）。
       H5 端口只读：新增视口实现文件零 ur_* 写命中。
       H6 缓存最大化：HistoryViewportAssembler 提供稳定/易变分段（RenderSegments）+ 差分（RenderDelta）。
       H7 通用框架件：StatePromptCatalog / IDecisionSource / IInjectionPort 在册，HistoryModeCatalog 已通用化删除。
@@ -78,7 +78,7 @@ $provider = Join-Path $agentRoot 'src\Agent.Session\Projection\TaskRuntimeReport
 $context = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeContext.cs'
 if (-not (Test-Path -LiteralPath $provider)) { Add-Violation 'H4' '缺 TaskRuntimeReportProvider.cs（通用视口供数口）' }
 $ct = Read-Text $context
-if ($ct -match 'GetHistoryTaskKeysAsync') { Add-Violation 'H4' 'HistoryTaskRuntimeContext 仍裸调 GetHistoryTaskKeysAsync（应收敛到端口）' }
+if ($ct -match 'GetMemberKeysAsync') { Add-Violation 'H4' 'HistoryTaskRuntimeContext 仍裸调 GetMemberKeysAsync（应收敛到端口）' }
 
 # H5 端口只读（新增视口实现零 ur_* 写）
 foreach ($f in @($provider, (Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryViewportAssembler.cs'))) {
@@ -365,9 +365,9 @@ $provisionImpls = @($agentCs | Select-String -Pattern ':\s*IHistoryProvision\b' 
 if ($provisionImpls.Count -ne 1) {
     Add-Violation 'H24' "IHistoryProvision 实现点=$($provisionImpls.Count)（应为 1；建容器须收敛为单一所有者）"
 }
-$ensureDirect = @($agentCs | Select-String -Pattern '\.EnsureHistoryAsync\(' -List)
+$ensureDirect = @($agentCs | Select-String -Pattern '\.EnsureContainerAsync\(' -List)
 if ($ensureDirect.Count -ne 1) {
-    Add-Violation 'H24' "建容器原语（.EnsureHistoryAsync）直呼点=$($ensureDirect.Count)（应为 1；5 处入口须经 IHistoryProvision）"
+    Add-Violation 'H24' "建容器原语（.EnsureContainerAsync）直呼点=$($ensureDirect.Count)（应为 1；5 处入口须经 IHistoryProvision）"
 }
 
 # H25 派生任务键声明化（P2/K4）：C# 字面量唯一允许点 = AgentKeySpaceDeclaration.cs（声明单源）；

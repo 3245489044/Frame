@@ -61,7 +61,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 
         /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。
         /// <para><paramref name="includeTaskNodeKeys"/> 缺省 <c>true</c>：task→node 键集经**批量**端口
-        /// （一次图枚举，见 <see cref="IHierarchyReferenceManager.GetTaskNodeKeysManyAsync"/>）构建，无 N+1。</para></summary>
+        /// （一次图枚举，见 <see cref="IContainerMemberPort.GetMemberNodeKeysManyAsync"/>）构建，无 N+1。</para></summary>
         public async Task<IReadOnlyList<HierarchyTree>> ReadAsync(
             CancellationToken ct = default, bool includeTaskNodeKeys = true)
         {
@@ -99,7 +99,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             if (_grounding is not null)
             {
                 var many = await _grounding
-                    .GetTaskNodeKeysManyAsync(taskKeys, _workflowId, ct)
+                    .GetMemberNodeKeysManyAsync(taskKeys, _workflowId, ct)
                     .ConfigureAwait(false);
                 foreach (var pair in many)
                 {

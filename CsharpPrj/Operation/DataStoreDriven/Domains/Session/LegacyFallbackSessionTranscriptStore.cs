@@ -15,12 +15,12 @@ namespace Operation.DataStoreDriven.Sqlite;
 public sealed class LegacyFallbackSessionTranscriptStore : ISessionTranscriptStore
 {
     private readonly ISessionTranscriptStore _primary;
-    private readonly IHistoryStore _legacy;
+    private readonly IConversationLogStore _legacy;
     private readonly FallbackReadThroughStore<SessionKey, ConversationLog> _fallback;
 
     public LegacyFallbackSessionTranscriptStore(
         ISessionTranscriptStore primary,
-        IHistoryStore legacy)
+        IConversationLogStore legacy)
     {
         _primary = primary ?? throw new ArgumentNullException(nameof(primary));
         _legacy = legacy ?? throw new ArgumentNullException(nameof(legacy));

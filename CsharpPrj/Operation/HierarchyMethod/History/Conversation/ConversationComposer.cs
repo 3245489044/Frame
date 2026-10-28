@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 using Modules.Node;
 using Modules.Node.Projection;
 using Modules.Node.Stream;
-using Operation.HierarchyMethod.History.Ports;
+using Operation.Container.Ports;
 
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>
 /// 历史重组器（域无关）：读投影 → 排序（键序数 / 显式列表）→ 解码 → 消息序列 / wire。
@@ -21,16 +21,16 @@ namespace Operation.HierarchyMethod.History.Conversation;
 /// <item>不写库（重组 = 读侧投影）。</item>
 /// </list>
 /// </summary>
-public sealed class HistoryComposer
+public sealed class ConversationComposer
 {
     private readonly NodeFramework _framework;
-    private readonly IHistoryKeyGrammar _grammar;
+    private readonly IContainerKeyGrammar _grammar;
     private readonly IFrameSelection? _frameSelection;
 
     /// <param name="framework">读投影框架（域身份/位置/选择单源）。</param>
     /// <param name="grammar">键文法（帧容器反解 + 显示键合成）。</param>
     /// <param name="frameSelection">Stream 域帧级选择应用器（非 null ⇒ 单行聚合载荷展开为帧消息；null ⇒ 逐事件行直读）。</param>
-    public HistoryComposer(NodeFramework framework, IHistoryKeyGrammar grammar, IFrameSelection? frameSelection = null)
+    public ConversationComposer(NodeFramework framework, IContainerKeyGrammar grammar, IFrameSelection? frameSelection = null)
     {
         _framework = framework ?? throw new ArgumentNullException(nameof(framework));
         _grammar = grammar ?? throw new ArgumentNullException(nameof(grammar));
@@ -42,7 +42,7 @@ public sealed class HistoryComposer
     /// <param name="order">显式组装顺序（键列表；空/null = 纯键序数序）。</param>
     /// <param name="additions">额外键（自由重组）。</param>
     /// <param name="ct">取消令牌。</param>
-    public async Task<IReadOnlyList<ComposedHistoryMessage>> ComposeAsync(
+    public async Task<IReadOnlyList<ComposedMessage>> ComposeAsync(
         ReadScope scope,
         IReadOnlyList<string>? order = null,
         IReadOnlyList<string>? additions = null,
@@ -79,14 +79,14 @@ public sealed class HistoryComposer
     }
 
     /// <summary>消息序列 → wire 文本（LLM 投喂形态；可逐字复现：同 selection/order ⇒ 同文本）。</summary>
-    public static string ToWire(IReadOnlyList<ComposedHistoryMessage> messages)
+    public static string ToWire(IReadOnlyList<ComposedMessage> messages)
         => messages is null || messages.Count == 0
             ? string.Empty
             : string.Join("\n", messages.Select(m => $"[{m.Role}] {m.Text}"));
 
     /// <summary>显式顺序覆盖（列出的键按给定顺序，其余按键序数续接）。</summary>
-    private static IReadOnlyList<ComposedHistoryMessage> ApplyOrder(
-        List<ComposedHistoryMessage> messages, IReadOnlyList<string>? order)
+    private static IReadOnlyList<ComposedMessage> ApplyOrder(
+        List<ComposedMessage> messages, IReadOnlyList<string>? order)
     {
         if (order is not { Count: > 0 })
         {
@@ -105,7 +105,7 @@ public sealed class HistoryComposer
     }
 
     /// <summary>按键读单节点载荷（additions 用；键不在任何可读位置 → null，不伪造）。</summary>
-    private async Task<ComposedHistoryMessage?> ReadByKeyAsync(ReadScope scope, string key, CancellationToken ct)
+    private async Task<ComposedMessage?> ReadByKeyAsync(ReadScope scope, string key, CancellationToken ct)
     {
         foreach (var placement in _framework.Placements.All.Where(p => p.IsReadable))
         {
@@ -133,10 +133,10 @@ public sealed class HistoryComposer
         return null;
     }
 
-    private static ComposedHistoryMessage ToMessage(NodeProjectionItem item)
+    private static ComposedMessage ToMessage(NodeProjectionItem item)
     {
         var payload = ParseObject(item.PayloadJson);
-        return new ComposedHistoryMessage(
+        return new ComposedMessage(
             item.Key,
             Field(item, payload, "role"),
             Field(item, payload, "kind"),
@@ -149,10 +149,10 @@ public sealed class HistoryComposer
     /// Stream 域展开：单行聚合载荷经 <see cref="StreamPayloadReader"/> 解析 → 帧级选择 → 帧消息序列。
     /// 选择未声明/不可识别 ⇒ 空集（⊥，不放行，不伪造）；分区键与容器不一致 ⇒ 该行不采信。
     /// </summary>
-    private List<ComposedHistoryMessage> ExpandStreamFrames(
+    private List<ComposedMessage> ExpandStreamFrames(
         IReadOnlyList<NodeProjectionItem> items, string? selectionId)
     {
-        var messages = new List<ComposedHistoryMessage>();
+        var messages = new List<ComposedMessage>();
         if (_frameSelection is null ||
             !_frameSelection.TryResolve(selectionId, out var predicate, out _) || predicate is null)
         {
@@ -186,13 +186,13 @@ public sealed class HistoryComposer
     }
 
     /// <summary>帧记录 → 消息（显示键 = 域帧级显示键；帧字段面与原逐事件载荷逐字等价）。</summary>
-    private ComposedHistoryMessage ToMessage(string container, StreamFrameRecord frame)
+    private ComposedMessage ToMessage(string container, StreamFrameRecord frame)
     {
         var fields = frame.Fields;
         var kind = fields.TryGetValue("kind", out var value) && !string.IsNullOrEmpty(value)
             ? value
             : frame.Kind;
-        return new ComposedHistoryMessage(
+        return new ComposedMessage(
             _grammar.DisplayKey(container, frame.Round, kind, frame.Seq),
             FieldOf(fields, "role"),
             kind,

@@ -10,16 +10,16 @@ namespace Operation.HierarchyMethod.Tasks
     internal static class TasksNamespaceMarker { }
 }
 
-namespace Operation.HierarchyMethod.History
+namespace Operation.Container
 {
     /// <summary>history 层命名空间占位（框架骨架阶段）。历史容器/消息日志/关系编排类型将落位于此。</summary>
-    internal static class HistoryNamespaceMarker { }
+    internal static class ContainerNamespaceMarker { }
 }
 
-namespace Operation.HierarchyMethod.History.Runtime
+namespace Operation.Container.Runtime
 {
     /// <summary>history 会话编排层命名空间占位（运行态聚合 / 批量控制 / 装配声明，LLM-free 通用逻辑）。</summary>
-    internal static class HistoryRuntimeNamespaceMarker { }
+    internal static class ContainerRuntimeNamespaceMarker { }
 }
 
 namespace Operation.HierarchyMethod.Hierarchy

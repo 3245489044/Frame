@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Operation.HierarchyMethod.History;
+namespace Operation.Container;
 
 /// <summary>
 /// 历史关系管理端口（History = Task 更上层的 class 容器，归拢多 task）—— 纯抽象，零实现依赖。
@@ -16,10 +16,10 @@ namespace Operation.HierarchyMethod.History;
 /// 实现（Agent.Reference）只编排，写边原语委托 <c>IReferenceMaintenance</c>/图协调器（SingleImplementation/TH-12）。
 /// 装配可空：未装配时消费方跳过，不阻断运行（对齐「未装配返回诊断」模式）。
 /// </summary>
-public interface IHistoryRelationManager
+public interface IContainerRelationManager
 {
     /// <summary>幂等建历史根端点（history.{historyId}）。</summary>
-    Task<HistoryRecord> CreateAsync(string historyId, string? name = null, CancellationToken ct = default);
+    Task<ContainerRecord> CreateAsync(string historyId, string? name = null, CancellationToken ct = default);
 
     /// <summary>删除历史（级联清其引用边）。返回是否命中删除。</summary>
     Task<bool> DeleteAsync(string historyId, CancellationToken ct = default);
@@ -51,7 +51,7 @@ public interface IHistoryRelationManager
     Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default);
 
     /// <summary>返回该历史归拢的任务链接记录。</summary>
-    Task<IReadOnlyList<HistoryTaskLink>> GetTasksAsync(string historyId, CancellationToken ct = default);
+    Task<IReadOnlyList<ContainerMemberLink>> GetTasksAsync(string historyId, CancellationToken ct = default);
 
     /// <summary>返回该历史挂载的业务节点键（历史作用域寻址）。**派生**：= 该历史全部任务的节点并集。</summary>
     Task<IReadOnlyList<string>> GetNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);

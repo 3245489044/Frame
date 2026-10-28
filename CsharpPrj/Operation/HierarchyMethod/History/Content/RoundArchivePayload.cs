@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 归档**单行**载荷的编解码**单源**：

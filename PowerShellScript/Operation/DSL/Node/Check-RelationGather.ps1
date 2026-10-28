@@ -73,18 +73,18 @@ function Test-LayerViolation([string[]]$files) {
 
 function Test-DeriveSingleSource([string[]]$files) {
     # 唯一历史节点派生实现必须委托 [Derive]（DeriveHistoryNodesAsync）；手写图遍历即第二实现。
-    $core = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\HistoryReferenceGrounding.cs'
+    $core = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\ContainerReferenceGrounding.cs'
     $text = Read-Text $core
     $hits = New-Object System.Collections.Generic.List[string]
     if ([string]::IsNullOrWhiteSpace($text)) {
-        $hits.Add('HistoryReferenceGrounding.cs:missing（派生唯一实现缺失）')
+        $hits.Add('ContainerReferenceGrounding.cs:missing（派生唯一实现缺失）')
         return $hits
     }
     if ($text -notmatch 'GetHistoryNodeKeysAsync') {
-        $hits.Add('HistoryReferenceGrounding.cs:GetHistoryNodeKeysAsync-missing')
+        $hits.Add('ContainerReferenceGrounding.cs:GetHistoryNodeKeysAsync-missing')
     }
     if ($text -notmatch 'DeriveHistoryNodesAsync|DeriveAsync') {
-        $hits.Add('HistoryReferenceGrounding.cs:manual-derivation（须委托 [Derive] HistoryNodes）')
+        $hits.Add('ContainerReferenceGrounding.cs:manual-derivation（须委托 [Derive] HistoryNodes）')
     }
     return $hits
 }
@@ -142,7 +142,7 @@ foreach ($hit in ($deriveHits | Select-Object -Unique)) {
 
 # ---- G5 结构计数棘轮（只降不升；判据载体 = 源码静态计数）----
 $productionFiles = @(Get-CsFiles $frameCs) + @(Get-CsFiles $projectsCs)
-$deriveCallSites = Get-ProductionCallSiteCount $productionFiles 'DeriveHistoryNodesAsync\s*\('
+$deriveCallSites = Get-ProductionCallSiteCount $productionFiles '\.DeriveHistoryNodesAsync\s*\('
 $layerHitCount = @(Test-LayerViolation $urFiles).Count
 $directWriterCount = @($directWriters | Select-Object -Unique).Count
 

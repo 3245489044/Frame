@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 原文归档的**域差异参数**（宿主注入；框架本体零域字面量）。

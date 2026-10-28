@@ -3,22 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Operation.HierarchyMethod.History.Ports;
+using Operation.Container.Ports;
 
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>
 /// 历史切分器（**纯函数**：<c>中性条目 + SegmentationSpec → ConversationSegment[]</c>）—— 域无关的分组引擎。
 /// <list type="bullet">
 /// <item>输入 = 宿主经 <see cref="IConversationItemReader"/> 映射的中性条目（不感知任何宿主消息形态）；</item>
 /// <item>不落库、不碰位置（写侧经内容物化服务 → 唯一写门）；</item>
-/// <item>段 <c>seq</c> 源索引派生（幂等）；<c>parent</c> 为键引用（经 <see cref="IHistoryKeyGrammar"/>）。</item>
+/// <item>段 <c>seq</c> 源索引派生（幂等）；<c>parent</c> 为键引用（经 <see cref="IContainerKeyGrammar"/>）。</item>
 /// </list>
 /// <para>
 /// 契约：<see cref="ConversationItem.Index"/> 须等于其在 <paramref name="items"/> 中的零基位置（宿主 1:1 映射）。
 /// </para>
 /// </summary>
-public static class HistorySegmenter
+public static class ConversationSegmenter
 {
     /// <summary>
     /// 切分一轮中性条目。空输入 → 空段集（不抛）；模式参数缺失（Regex/Marker 无 Value、Budget 无上限）→ 抛
@@ -31,7 +31,7 @@ public static class HistorySegmenter
     /// <param name="grammar">键文法（父键引用构造）。</param>
     public static IReadOnlyList<ConversationSegment> Segment(
         IReadOnlyList<ConversationItem> items, SegmentationSpec spec, string container, int round,
-        IHistoryKeyGrammar grammar)
+        IContainerKeyGrammar grammar)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(spec);

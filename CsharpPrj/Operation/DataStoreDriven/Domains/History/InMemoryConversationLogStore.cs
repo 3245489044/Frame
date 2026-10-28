@@ -9,13 +9,13 @@ using Share.Conversation;
 namespace Operation.DataStoreDriven.Core;
 
 /// <summary>
-/// 内存会话历史存储（<see cref="IHistoryStore"/>）：ur_history 的进程内承载；非 Sqlite 后端与测试使用，进程重启即失。
+/// 内存会话历史存储（<see cref="IConversationLogStore"/>）：ur_history 的进程内承载；非 Sqlite 后端与测试使用，进程重启即失。
 /// <para>
 /// 只做「真实契约的内存落点」，不承担业务语义：不抛异常、缺键返回 null / 空列表，与 NotFound 判定解耦
-/// （由被测组件决定）；与 <see cref="Sqlite.SqliteHistoryStore"/> 同契约、同口径。
+/// （由被测组件决定）；与 <see cref="Sqlite.SqliteConversationLogStore"/> 同契约、同口径。
 /// </para>
 /// </summary>
-public sealed class InMemoryHistoryStore : IHistoryStore
+public sealed class InMemoryConversationLogStore : IConversationLogStore
 {
     private readonly Dictionary<string, ConversationLog> _logs = new(StringComparer.Ordinal);
 

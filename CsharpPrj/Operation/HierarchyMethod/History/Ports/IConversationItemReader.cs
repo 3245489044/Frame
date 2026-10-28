@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Operation.HierarchyMethod.History.Conversation;
+using Operation.Conversation;
 
-namespace Operation.HierarchyMethod.History.Ports;
+namespace Operation.Container.Ports;
 
 /// <summary>
 /// 会话条目读取端口（框架声明，宿主实现）—— 把宿主域的原始轮载荷映射为**中性条目**

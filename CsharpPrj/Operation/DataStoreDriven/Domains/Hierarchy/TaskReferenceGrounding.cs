@@ -82,7 +82,9 @@ public sealed class TaskReferenceGrounding
                 return;
             }
         }
-        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担（R2：attach 路径不再各自镜像）。
+        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担；未装配时保留兼容镜像（零回归）。
+        if (!_relations.UsesGather)
+            await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var result = await _relations
             .EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct)
             .ConfigureAwait(false);
@@ -120,7 +122,14 @@ public sealed class TaskReferenceGrounding
 
         if (existing.Count == 0) return 0;
 
-        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担（R2：attach 路径不再各自镜像）。
+        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担；未装配时保留兼容镜像（零回归）。
+        if (!_relations.UsesGather)
+        {
+            await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+            foreach (var key in existing)
+                await _mirrors.EnsureNodeMirrorAsync(wf, key, null, ct).ConfigureAwait(false);
+        }
+
         var result = await _relations
             .EnsureNodeTaskManyAsync(taskKey, existing, wf, ct)
             .ConfigureAwait(false);

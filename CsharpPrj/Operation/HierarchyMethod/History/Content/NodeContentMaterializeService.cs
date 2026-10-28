@@ -9,7 +9,7 @@ using Modules.Node;
 using Modules.Node.Identity;
 using Modules.Node.Materialization;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 内容物化服务（**唯一写门适配层**，域无关）：把领域载荷转成 <see cref="NodeMaterializeRequest"/>

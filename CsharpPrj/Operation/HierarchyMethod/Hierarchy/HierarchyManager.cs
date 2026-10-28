@@ -10,8 +10,8 @@ using Operation.HierarchyMethod.Abstractions;
 using Share.Foundations.Diagnostics;
 using Operation.HierarchyMethod.Hierarchy.Dataflow;
 using Modules.DeclarativeDataflow.RunState;
-using Operation.HierarchyMethod.History;
-using Operation.HierarchyMethod.History.Runtime;
+using Operation.Container;
+using Operation.Container.Runtime;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Tasks;
 using Operation.WorkFlowMethod.Nodes.Contracts;
@@ -57,8 +57,8 @@ public sealed class HierarchyManager : IHierarchyManager
         INodeOutputStore? nodes = null,
         Func<TaskRecord, CancellationToken, Task>? saveTask = null,
         Func<string, CancellationToken, Task>? deleteTask = null,
-        IHistoryRuntimePort? runtimePort = null,
-        IHistoryRuntimeService? historyRuntime = null,
+        IContainerRuntimePort? runtimePort = null,
+        IContainerRuntimeService? historyRuntime = null,
         IResourceReferenceStore? referenceStore = null,
         HierarchySchema? schema = null,
         string? workflowId = null,
@@ -98,12 +98,12 @@ public sealed class HierarchyManager : IHierarchyManager
             runStateProvider: runStateProvider));
     }
 
-    public async Task<HistoryRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default)
+    public async Task<ContainerRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         if (_reference is not null)
             await _reference.EnsureHistoryAsync(historyId, ct).ConfigureAwait(false);
-        return new HistoryRecord(historyId, name ?? historyId);
+        return new ContainerRecord(historyId, name ?? historyId);
     }
 
     public Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default)

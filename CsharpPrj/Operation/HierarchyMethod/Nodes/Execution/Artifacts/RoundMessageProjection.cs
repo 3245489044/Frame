@@ -15,7 +15,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 public static class RoundMessageProjection
 {
     /// <summary>标记 → 消息角色：终答 = <see cref="ConversationRole.Assistant"/>；其余（编号中间节点）= <see cref="ConversationRole.Tool"/>。</summary>
-    /// <param name="mark">入史标记名（<see cref="NodeHistoryMark"/> 具名值；不可识别 ⇒ Tool）。</param>
+    /// <param name="mark">入史标记名（<see cref="ContainerMark"/> 具名值；不可识别 ⇒ Tool）。</param>
     public static ConversationRole RoleOf(string? mark)
         => NodeTags.IsTerminal(mark)
             ? ConversationRole.Assistant

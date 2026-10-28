@@ -28,7 +28,7 @@ public interface INodeWriteCoordinator
 /// 与节点执行服务的 <c>ur_nodes.persist</c> 不同 → <see cref="SingleWriteGuard"/> 不误报平行实现）。
 /// </para>
 /// <para>
-/// 原子性口径（**不做假事务**）：<c>INodeStore</c> / <c>IHistoryStore</c> 契约不暴露事务句柄（无 ITransaction 参数），
+/// 原子性口径（**不做假事务**）：<c>INodeStore</c> / <c>IConversationLogStore</c> 契约不暴露事务句柄（无 ITransaction 参数），
 /// 故本门提供的是「写门串行（消除并发交错）+ 已应用步骤逆序补偿」（AX-CORE.SyncProtocolTriple.Compensate）；
 /// 真正的单事务写入需介质端口扩展事务 seam（登记为后续项，不在本轮冒充）。
 /// </para>

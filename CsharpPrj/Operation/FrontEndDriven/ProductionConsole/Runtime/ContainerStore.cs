@@ -10,7 +10,7 @@ namespace FrontEndDriven.ProductionConsole.Runtime;
 /// 文件历史存储（JSONL 追加 + 内存查询 + 容量轮转）。单文件、单写者锁；损坏行跳过不抛。
 /// <para>用途：控制台历史/一稿一痕核对；插件只需给定路径（如 stores/console/runs.jsonl）。</para>
 /// </summary>
-public sealed class HistoryStore : IProductionHistory
+public sealed class ContainerStore : IProductionContainer
 {
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -24,7 +24,7 @@ public sealed class HistoryStore : IProductionHistory
     private readonly int _maxEntries;
     private int _writes;
 
-    public HistoryStore(string filePath, int maxEntries = 5000)
+    public ContainerStore(string filePath, int maxEntries = 5000)
     {
         if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentException("历史文件路径为空", nameof(filePath));
         _path = System.IO.Path.GetFullPath(filePath);
@@ -46,9 +46,9 @@ public sealed class HistoryStore : IProductionHistory
         }
     }
 
-    public PagedResult<JobSnapshot> Query(HistoryQuery query)
+    public PagedResult<JobSnapshot> Query(ContainerQuery query)
     {
-        query ??= new HistoryQuery();
+        query ??= new ContainerQuery();
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize <= 0 ? 20 : query.PageSize, 1, 200);
 
@@ -125,7 +125,7 @@ public sealed class HistoryStore : IProductionHistory
         }
     }
 
-    private static bool Matches(JobSnapshot snapshot, HistoryQuery query)
+    private static bool Matches(JobSnapshot snapshot, ContainerQuery query)
     {
         if (!string.IsNullOrWhiteSpace(query.CapabilityId)
             && !string.Equals(snapshot.CapabilityId, query.CapabilityId, StringComparison.OrdinalIgnoreCase))

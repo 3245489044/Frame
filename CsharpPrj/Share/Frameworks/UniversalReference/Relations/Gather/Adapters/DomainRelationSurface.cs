@@ -23,6 +23,12 @@ public abstract class RelationSurfaceAdapter
     /// <summary>唯一端口租约（未装配即抛）。</summary>
     protected IRelationPorts Ports { get; }
 
+    /// <summary>聚拢点是否已装配（装配后端点 provision 由聚拢点承担；未装配时域侧保留兼容镜像）。</summary>
+    protected bool GatherAttached => _gather is not null;
+
+    /// <summary>域侧可读的聚拢点装配状态（禁用其分流写语义；仅用于兼容镜像开关）。</summary>
+    public bool UsesGather => GatherAttached;
+
     private readonly IRelationGatherPoint? _gather;
 
     /// <summary>单条/批量统一入口：已装配聚拢点 ⇒ 唯一求值入口；未装配 ⇒ 端口直连（兼容）。</summary>

@@ -13,7 +13,7 @@
       P3 DataStoreDriven.csproj 不含 Proj_DataStoreDriven_Domains（禁反向引用）
       P4 核心（排除 Domains\）不含领域字面量：history_root: / agent-round / "taskpool" / ur_sessions / ur_session_logs
       P5 Agent.Launcher 不含 using Operation.DataStoreDriven.Sqlite（宿主不再依赖具体介质）
-      P6 正对照：Domains\History\SqliteHistoryStore.cs 含 IHistoryStore；Domains\DataStoreDrivenDomains.cs 含 All(
+      P6 正对照：Domains\History\SqliteConversationLogStore.cs 含 IConversationLogStore；Domains\DataStoreDrivenDomains.cs 含 All(
       P7 棘轮：Operation 同层引用 ≤ 基线；WorkFlowMethod ↔ DataStoreDriven = 0；HierarchyMethod/LoopFoldMethod → Domains = 0
 
     模式：默认报告（不设退出码）；-Check 违规 → 退出码 1。只读仓库，零侧写。
@@ -108,7 +108,7 @@ Write-Host ("  P4 核心领域字面量：{0} 处" -f $p4Hits.Count) -Foreground
 
 # ---------------- P5 宿主：不得依赖具体领域存储（通用介质类型允许） ----------------
 $domainStoreTypes = @(
-    'SqliteHistoryStore', 'SqliteHistoryRootStore', 'SqliteSessionStore', 'SqliteSessionTranscriptStore',
+    'SqliteConversationLogStore', 'SqliteContainerRootStore', 'SqliteSessionStore', 'SqliteSessionTranscriptStore',
     'LegacyFallbackSessionTranscriptStore', 'SqliteTaskPoolStore'
 )
 $p5Hits = @()
@@ -131,12 +131,12 @@ foreach ($h in $p5Hits) { $violations.Add("[P5] 宿主依赖具体领域存储 $
 Write-Host ("  P5 宿主具体领域存储引用：{0} 处（通用介质 SqliteConnectionFactory 等不在此判据）" -f $p5Hits.Count) -ForegroundColor Gray
 
 # ---------------- P6 正对照（防判据空转） ----------------
-$historyStore = Join-Path $domainsRoot 'History\SqliteHistoryStore.cs'
+$historyStore = Join-Path $domainsRoot 'History\SqliteConversationLogStore.cs'
 $domainsList  = Join-Path $domainsRoot 'DataStoreDrivenDomains.cs'
 if (-not (Test-Path -LiteralPath $historyStore)) {
     $violations.Add("[P6] 正对照失效：缺 $historyStore")
-} elseif (-not ([System.IO.File]::ReadAllText($historyStore)).Contains('IHistoryStore')) {
-    $violations.Add("[P6] 正对照失效：$historyStore 未实现 IHistoryStore")
+} elseif (-not ([System.IO.File]::ReadAllText($historyStore)).Contains('IConversationLogStore')) {
+    $violations.Add("[P6] 正对照失效：$historyStore 未实现 IConversationLogStore")
 }
 if (-not (Test-Path -LiteralPath $domainsList)) {
     $violations.Add("[P6] 正对照失效：缺 $domainsList")

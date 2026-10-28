@@ -104,13 +104,13 @@ public sealed class SqliteSessionStore : KvJsonStoreBase, ISessionStore
     {
         if (string.IsNullOrWhiteSpace(doc)) return null;
         if (!_codec.TryDeserializeRecord(doc, out _, out _, out _, out var body)) return null;
-        var ownerKind = Enum.TryParse<SessionOwnerKind>(SqliteHistoryRootStore.ReadString(body, FieldOwnerKind), true, out var ok)
+        var ownerKind = Enum.TryParse<SessionOwnerKind>(SqliteContainerRootStore.ReadString(body, FieldOwnerKind), true, out var ok)
             ? ok : SessionOwnerKind.Task;
-        var ownerKey = SqliteHistoryRootStore.ReadString(body, FieldOwnerKey) ?? key;
-        var role = Enum.TryParse<SessionRole>(SqliteHistoryRootStore.ReadString(body, FieldRole), true, out var r)
+        var ownerKey = SqliteContainerRootStore.ReadString(body, FieldOwnerKey) ?? key;
+        var role = Enum.TryParse<SessionRole>(SqliteContainerRootStore.ReadString(body, FieldRole), true, out var r)
             ? r : SessionRole.TaskMember;
-        var agent = SqliteHistoryRootStore.ReadString(body, FieldAgent) ?? "history";
-        var createdAt = DateTimeOffset.TryParse(SqliteHistoryRootStore.ReadString(body, FieldCreatedAt), out var at)
+        var agent = SqliteContainerRootStore.ReadString(body, FieldAgent) ?? "history";
+        var createdAt = DateTimeOffset.TryParse(SqliteContainerRootStore.ReadString(body, FieldCreatedAt), out var at)
             ? at : DateTimeOffset.UtcNow;
         return new SessionRecord(SessionKey.Create(key), new SessionOwner(ownerKind, ownerKey), role, agent, createdAt);
     }

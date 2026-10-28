@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Nodes.Execution;
 
-namespace Operation.HierarchyMethod.History;
+namespace Operation.Container;
 
 /// <summary>
 /// 上下文投影器（History 层）：「上下文组装」的粘合点 —— 把本轮输入（<see cref="Nodes.Execution.NodeRoundInput"/>）

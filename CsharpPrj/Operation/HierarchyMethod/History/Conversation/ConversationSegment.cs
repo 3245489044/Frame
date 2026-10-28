@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>
 /// 单个切分段（切分器产物；载荷恒为 JSON 文档）。
@@ -44,8 +44,8 @@ public sealed record ConversationSegment(
         ["sourceIndex"] = SourceIndex,
         ["parent"] = Parent,
         ["tags"] = Tags,
-    }, HistoryPayloadJson.Options);
+    }, ConversationPayloadJson.Options);
 
     /// <summary>内容摘要（稳定哈希；同输入 ⇒ 同摘要，供幂等对账）。</summary>
-    public string Digest() => HistorySegmenter.ComputeDigest(ToJson());
+    public string Digest() => ConversationSegmenter.ComputeDigest(ToJson());
 }

@@ -27,13 +27,13 @@ public sealed class DefaultNodeTagVocabulary : INodeTagVocabulary
     /// <inheritdoc />
     public IReadOnlyDictionary<string, int> Marks { get; }
 
-    /// <summary>由 <see cref="NodeHistoryMark"/> 具名值**反射派生**（位值单源；<c>None=0</c> 不入映射 = 空集以 0 表示）。</summary>
+    /// <summary>由 <see cref="ContainerMark"/> 具名值**反射派生**（位值单源；<c>None=0</c> 不入映射 = 空集以 0 表示）。</summary>
     private static IReadOnlyDictionary<string, int> BuildFromEnum()
     {
         var map = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var name in Enum.GetNames(typeof(NodeHistoryMark)))
+        foreach (var name in Enum.GetNames(typeof(ContainerMark)))
         {
-            var value = Convert.ToInt64(Enum.Parse(typeof(NodeHistoryMark), name, ignoreCase: false));
+            var value = Convert.ToInt64(Enum.Parse(typeof(ContainerMark), name, ignoreCase: false));
             if (value == 0) continue;
             map[name] = (int)value;
         }

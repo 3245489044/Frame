@@ -11,7 +11,7 @@ namespace Operation.DataStoreDriven.Abstractions
     /// <para>
     /// 模块化分离边界（用户确认语义 = 真多对多）：本端口只描述「层级实体之间存在哪种引用边」，
     /// 实现 = <see cref="ReferenceGrounding"/>（唯一守卫）→ <see cref="Graph.ReferenceGraphCoordinator"/>（唯一 LiteDB 写边 owner）。
-    /// 三层实例（<c>HierarchyMethod.Nodes/Tasks/History</c> 的 NodeRecord/TaskRecord/HistoryRecord）**只依赖本接口**、
+    /// 三层实例（<c>HierarchyMethod.Nodes/Tasks/History</c> 的 NodeRecord/TaskRecord/ContainerRecord）**只依赖本接口**、
     /// 不触碰任何 LiteDB 具体类型，引用管理与实例承载据此正式切开。
     /// </para>
     /// <para>

@@ -37,8 +37,8 @@ public readonly record struct AnchorKey(string Value)
     /// 命中 R5 白名单前缀 <c>prompt.</c>，无需改校验器。</summary>
     public static AnchorKey PromptResource(string sourceId) => new($"prompt.resources.{sourceId}");
 
-    /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillHistoryMapping.KeyForBlock"/>，禁复制模板）。</summary>
-    public static AnchorKey SkillBlock(string name) => new(SkillHistoryMapping.KeyForBlock(name));
+    /// <summary>按技能名取头块锚点（键约定权威 = <see cref="SkillBlockMapping.KeyForBlock"/>，禁复制模板）。</summary>
+    public static AnchorKey SkillBlock(string name) => new(SkillBlockMapping.KeyForBlock(name));
 
     /// <summary>L0 分段锚点（按文件/技能拆分）：<c>prompt.l0.&lt;技能名&gt;</c>（如 prompt.l0.l0-format）。
     /// 命中 R5 白名单前缀 <c>prompt.l</c>；每段唯一（R4）。</summary>

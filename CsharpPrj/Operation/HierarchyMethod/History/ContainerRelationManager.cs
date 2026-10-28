@@ -8,7 +8,7 @@ using Operation.DataStoreDriven.Abstractions;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace Operation.HierarchyMethod.History;
+namespace Operation.Container;
 
 /// <summary>
 /// 历史关系管理实现（唯一 owner）—— 只承载 **history 层关系**（历史容器与 history→task 归拢），
@@ -25,26 +25,26 @@ namespace Operation.HierarchyMethod.History;
 /// 装配可空：未装配守卫/图则返回空集 / 诊断，不阻断运行（对齐「未装配返回诊断」模式）。
 /// </para>
 /// </summary>
-public sealed class HistoryRelationManager : IHistoryRelationManager
+public sealed class ContainerRelationManager : IContainerRelationManager
 {
     private readonly IReferenceMaintenance? _maintenance;
     private readonly IResourceReferenceStore? _graph;
 
     /// <param name="maintenance">引用维护守卫（可空；未装配则编排 no-op）。</param>
     /// <param name="graph">引用图读侧（可空；未装配则枚举/查询返回空集）。</param>
-    public HistoryRelationManager(IReferenceMaintenance? maintenance, IResourceReferenceStore? graph)
+    public ContainerRelationManager(IReferenceMaintenance? maintenance, IResourceReferenceStore? graph)
     {
         _maintenance = maintenance;
         _graph = graph;
     }
 
     /// <summary>幂等建历史根端点；未装配守卫返回仅含 Id 的空视图（不写图）。</summary>
-    public async Task<HistoryRecord> CreateAsync(string historyId, string? name = null, CancellationToken ct = default)
+    public async Task<ContainerRecord> CreateAsync(string historyId, string? name = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         if (_maintenance is not null)
             await _maintenance.EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
-        return new HistoryRecord(historyId, name ?? historyId, await GetTaskKeysAsync(historyId, ct).ConfigureAwait(false));
+        return new ContainerRecord(historyId, name ?? historyId, await GetTaskKeysAsync(historyId, ct).ConfigureAwait(false));
     }
 
     /// <summary>删除历史（级联清其引用边；未装配守卫返回 false）。</summary>
@@ -105,10 +105,10 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
         return ids.Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 
-    public async Task<IReadOnlyList<HistoryTaskLink>> GetTasksAsync(string historyId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ContainerMemberLink>> GetTasksAsync(string historyId, CancellationToken ct = default)
     {
         var keys = await GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);
-        return keys.Select(k => new HistoryTaskLink(historyId, k)).ToList();
+        return keys.Select(k => new ContainerMemberLink(historyId, k)).ToList();
     }
 
     /// <summary>返回该历史挂载的业务节点键（历史作用域寻址；派生：= 该历史全部任务的节点并集）。</summary>

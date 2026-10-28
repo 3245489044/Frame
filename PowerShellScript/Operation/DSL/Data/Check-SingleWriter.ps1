@@ -237,7 +237,7 @@ if (Test-Path $agentNodesDeclDir) {
 
 # I. 写面唯一写原语（IEF INV-2）：graph:history_owns_task 的写点 = ReferenceGrounding.AttachHistoryTaskAsync，
 #    入口后端只能经注入委托 _attachHistoryTask 调用，禁直调写原语（否则出现第二写通道）。
-$historyEdgeWriter = $csFiles | Where-Object { $_.Name -eq 'HistoryReferenceGrounding.cs' } | Select-Object -First 1
+$historyEdgeWriter = $csFiles | Where-Object { $_.Name -eq 'ContainerReferenceGrounding.cs' } | Select-Object -First 1
 $intentBackend = $csFiles | Where-Object { $_.Name -eq 'AgentApiIntentSource.cs' } | Select-Object -First 1
 if (-not $historyEdgeWriter) {
     $violations.Add("缺失 ReferenceGrounding.cs（history_owns_task 写原语无法审计）")

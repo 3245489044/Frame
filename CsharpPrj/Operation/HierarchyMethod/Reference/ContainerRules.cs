@@ -14,7 +14,7 @@ namespace Operation.HierarchyMethod.Reference;
 /// <c>Agent.Modules.History.RoundMessageSettlement</c>（原各自私有 <c>ResolveHistoryId</c> 的重复实现收敛于此）。
 /// </para>
 /// </summary>
-public static class HistoryContainerRules
+public static class ContainerRules
 {
     /// <summary>规则 ①：显式容器 Id 来源键（声明面 `[Space] HistoryContainerRule` 首项）。</summary>
     public const string ExplicitHistoryId = "explicit_history_id";

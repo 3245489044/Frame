@@ -1,6 +1,6 @@
 using Modules.Node.Spec;
 
-namespace Operation.HierarchyMethod.History.Ports;
+namespace Operation.Container.Ports;
 
 /// <summary>
 /// 帧级选择端口（框架声明，宿主实现）—— 把域声明 <c>*.json</c>/<c>.ushar</c> 的 <c>selections</c>

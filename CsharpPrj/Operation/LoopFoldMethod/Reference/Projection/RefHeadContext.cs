@@ -4,7 +4,7 @@ namespace Operation.LoopFoldMethod.Reference.Projection;
 
 /// <summary>
 /// 投影输入：累积引用关系的中立承载（RefHead 默认投影的输入）。
-/// 由编排门面/消费方从引用图（IResourceReferenceStore / IHistoryRelationManager 读侧）聚合而来，
+/// 由编排门面/消费方从引用图（IResourceReferenceStore / IContainerRelationManager 读侧）聚合而来，
 /// 本模型不认识具体存储/HierarchyMethod 类型 —— 只描述「累积了哪些节点 + 其键序权威」。
 /// </summary>
 /// <param name="ScopeKey">当前作用域锚（taskKey / historyId）。</param>

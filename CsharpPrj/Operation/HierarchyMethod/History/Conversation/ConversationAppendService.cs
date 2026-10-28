@@ -6,15 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Materialization;
 using Modules.Node.Stream;
-using Operation.HierarchyMethod.History.Content;
-using Operation.HierarchyMethod.History.Ports;
+using Operation.Container.Content;
+using Operation.Container.Ports;
 
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>追加结果（mark 语义 + 物化结果）。</summary>
 /// <param name="Mark">归一的标记（未识别 → 原值）。</param>
 /// <param name="Materialize">物化结果。</param>
-public sealed record HistoryAppendResult(string Mark, NodeContentMaterializeOutcome Materialize);
+public sealed record ConversationAppendResult(string Mark, NodeContentMaterializeOutcome Materialize);
 
 /// <summary>
 /// 历史追加服务（域无关）：把**人工/外部**节点物化为历史节点（经唯一写门），并表达 <c>mark</c> 语义。
@@ -25,21 +25,21 @@ public sealed record HistoryAppendResult(string Mark, NodeContentMaterializeOutc
 /// <item>归属边不在本层写：由上层按结果语义编排。</item>
 /// </list>
 /// </summary>
-public sealed class HistoryAppendService
+public sealed class ConversationAppendService
 {
     private readonly NodeContentMaterializeService _writer;
-    private readonly IHistoryKeyGrammar _grammar;
-    private readonly HistoryMarkVocabulary _marks;
+    private readonly IContainerKeyGrammar _grammar;
+    private readonly MarkVocabulary _marks;
     private readonly IStreamRegistry _streamRegistry;
 
     /// <param name="writer">消息域内容物化服务（经唯一写门）。</param>
     /// <param name="grammar">键文法（身份键构造 / 身份值袋）。</param>
     /// <param name="marks">入史标记词表（归一 + 标记→类别映射）。</param>
     /// <param name="streamRegistry">消息域 Stream 运行时（聚合累积器门面）。</param>
-    public HistoryAppendService(
+    public ConversationAppendService(
         NodeContentMaterializeService writer,
-        IHistoryKeyGrammar grammar,
-        HistoryMarkVocabulary marks,
+        IContainerKeyGrammar grammar,
+        MarkVocabulary marks,
         IStreamRegistry streamRegistry)
     {
         _writer = writer ?? throw new ArgumentNullException(nameof(writer));
@@ -53,7 +53,7 @@ public sealed class HistoryAppendService
     /// <param name="json">节点载荷 JSON（对象）。</param>
     /// <param name="mark">具名标记（空 = None）。</param>
     /// <param name="ct">取消令牌。</param>
-    public Task<HistoryAppendResult> AppendAsync(
+    public Task<ConversationAppendResult> AppendAsync(
         string key, string json, string? mark, CancellationToken ct = default)
         => AppendStreamAsync(key, 1, 0, json, mark, ct);
 
@@ -64,25 +64,25 @@ public sealed class HistoryAppendService
     /// <param name="json">节点载荷 JSON（对象）。</param>
     /// <param name="mark">具名标记（空 = None）。</param>
     /// <param name="ct">取消令牌。</param>
-    public Task<HistoryAppendResult> AppendAsync(
+    public Task<ConversationAppendResult> AppendAsync(
         string container, int round, long ordinal, string json, string? mark, CancellationToken ct = default)
         => AppendStreamAsync(container, round, ordinal, json, mark, ct);
 
     /// <summary>追加核心（mark 归一 + 载荷校验 = 单源；写侧经单节点化消息域容器）。</summary>
-    private async Task<HistoryAppendResult> AppendStreamAsync(
+    private async Task<ConversationAppendResult> AppendStreamAsync(
         string container, int round, long ordinal, string json, string? mark, CancellationToken ct)
     {
         var normalized = _marks.Normalize(mark);
         if (normalized is null)
         {
-            return new HistoryAppendResult(
+            return new ConversationAppendResult(
                 mark ?? string.Empty,
                 Reject(container, $"mark.unrecognized（允许：{string.Join("/", _marks.Marks)}）"));
         }
 
         if (!TryEmbedMark(json, normalized, out var payload, out var reason))
         {
-            return new HistoryAppendResult(normalized, Reject(container, reason));
+            return new ConversationAppendResult(normalized, Reject(container, reason));
         }
 
         var kind = _marks.KindOfMark(normalized);
@@ -93,7 +93,7 @@ public sealed class HistoryAppendService
         var frame = run.Append(kind, FrameFields(payload, ordinal), AtUtcOf(payload));
         if (frame is null)
         {
-            return new HistoryAppendResult(
+            return new ConversationAppendResult(
                 normalized,
                 Reject(container, "append.rejected（未成轮 / 同 kind 连续同指纹去重 / 超上限）"));
         }
@@ -112,11 +112,11 @@ public sealed class HistoryAppendService
                         aggregate.IdentityKey, mergedPayload, _grammar.ValuesOfContainer(container), ct)
                     .ConfigureAwait(false);
                 _streamRegistry.Release(container);
-                return new HistoryAppendResult(normalized, materialized);
+                return new ConversationAppendResult(normalized, materialized);
             }
         }
 
-        return new HistoryAppendResult(
+        return new ConversationAppendResult(
             normalized,
             new NodeContentMaterializeOutcome(
                 container, MaterializeStatus.Written, 0, 0, 0, 0, 0, Array.Empty<string>()));
@@ -171,7 +171,7 @@ public sealed class HistoryAppendService
         }
 
         obj["mark"] = mark;
-        payload = obj.ToJsonString(HistoryPayloadJson.Options);
+        payload = obj.ToJsonString(ConversationPayloadJson.Options);
         return true;
     }
 

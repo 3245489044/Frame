@@ -1,11 +1,11 @@
-namespace Operation.HierarchyMethod.History.Runtime;
+namespace Operation.Container.Runtime;
 
 /// <summary>
 /// 单个 task 的运行状态快照（History 编排层通用 DTO，词汇中立）。
 /// 承载「任务池状态（TaskExecutionStatus）」与「子智能体执行状态（AgentRunStatus）」两维度文本，
-/// 由注入端口 <see cref="IHistoryRuntimePort"/> 的 Agent 适配器填充；本框架本体零 Agent / 零具体状态枚举依赖。
+/// 由注入端口 <see cref="IContainerRuntimePort"/> 的 Agent 适配器填充；本框架本体零 Agent / 零具体状态枚举依赖。
 /// </summary>
-public sealed record HistoryTaskRunStatus(
+public sealed record ContainerTaskRunStatus(
     string TaskKey,
     /// <summary>执行器标识（如 cline / stateless-answer）；null = 未解析/纯簿记。</summary>
     string? ExecutorId = null,

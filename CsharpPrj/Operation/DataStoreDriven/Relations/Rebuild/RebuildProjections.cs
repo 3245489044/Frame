@@ -19,7 +19,7 @@ public sealed record SessionRebuildRow(
     string? WorkflowId = null);
 
 /// <summary><c>ur_tasks.HistoryId</c> 非空 → <c>mount_task_history</c>（history → task）。</summary>
-public sealed class TaskHistoryProjection : IRebuildProjection<TaskRebuildRow>
+public sealed class TaskContainerProjection : IRebuildProjection<TaskRebuildRow>
 {
     public IEnumerable<RebuildAction> Project(TaskRebuildRow item)
     {

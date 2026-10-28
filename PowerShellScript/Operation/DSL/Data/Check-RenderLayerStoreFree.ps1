@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     基线 = Baselines\Data\RenderLayerStoreFree.psd1。
-    RL1 `Agent.Ui\Ui\Views\**` 内 INodeStore | IStoreRowPort | IHistoryStore | INodeDomainPort 引用计数 = 基线（期望 0）。
+    RL1 `Agent.Ui\Ui\Views\**` 内 INodeStore | IStoreRowPort | IConversationLogStore | INodeDomainPort 引用计数 = 基线（期望 0）。
     违例 → 退出码 1（-Report 仅报告）。
 #>
 [CmdletBinding()]
@@ -28,7 +28,7 @@ $hits = @()
 if (Test-Path $viewsRoot) {
     $files = Get-ChildItem -Path $viewsRoot -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\|\\BuildOutput\\' }
-    $hits = @($files | Select-String -Pattern 'INodeStore|IStoreRowPort|IHistoryStore|INodeDomainPort' -ErrorAction SilentlyContinue)
+    $hits = @($files | Select-String -Pattern 'INodeStore|IStoreRowPort|IConversationLogStore|INodeDomainPort' -ErrorAction SilentlyContinue)
 }
 
 $actual = $hits.Count

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 轮次键控**原文全量归档**端口（通用）。

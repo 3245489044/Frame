@@ -3,13 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.RunState;
-using Operation.HierarchyMethod.History.Runtime;
+using Operation.Container.Runtime;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
 
 /// <summary>
 /// 快照运行态来源（<see cref="RunStateOrigin.Snapshot"/>）—— 包装既有的单实体运行状态端口
-/// <see cref="IHistoryRuntimePort"/>（其实现读持久快照），把端口词汇中立 DTO 映射为通用
+/// <see cref="IContainerRuntimePort"/>（其实现读持久快照），把端口词汇中立 DTO 映射为通用
 /// <see cref="LevelRunState"/>。
 /// <para>
 /// 端口语义 = "按实体键读运行状态"，与层无关（层由外部 schema 决定）；未装配端口 / 未命中 → null。
@@ -17,13 +17,13 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow.RunState;
 /// 这是**适配层的域映射决策**（该端口的执行器标识在本域内为代理类），框架本体不做此假设。
 /// </para>
 /// </summary>
-public sealed class HistoryPortRunStateSource : IRunStateSource
+public sealed class ContainerPortRunStateSource : IRunStateSource
 {
-    private readonly IHistoryRuntimePort? _port;
+    private readonly IContainerRuntimePort? _port;
 
     /// <param name="port">单实体运行状态端口（可空；未装配 → 恒 null 诊断透传）。</param>
     /// <param name="actorKind">执行器标识的类别（缺省代理类；调用方可注入其它受控词）。</param>
-    public HistoryPortRunStateSource(IHistoryRuntimePort? port, string? actorKind = null)
+    public ContainerPortRunStateSource(IContainerRuntimePort? port, string? actorKind = null)
     {
         _port = port;
         ActorKind = string.IsNullOrWhiteSpace(actorKind) ? ActorKinds.Agent : actorKind!;
@@ -51,7 +51,7 @@ public sealed class HistoryPortRunStateSource : IRunStateSource
     /// <param name="reference">实体定位。</param>
     /// <param name="status">端口状态快照。</param>
     /// <param name="actorKind">执行体类别（受控词）。</param>
-    public static LevelRunState FromStatus(LevelRef reference, HistoryTaskRunStatus status, string actorKind)
+    public static LevelRunState FromStatus(LevelRef reference, ContainerTaskRunStatus status, string actorKind)
     {
         ArgumentNullException.ThrowIfNull(status);
 

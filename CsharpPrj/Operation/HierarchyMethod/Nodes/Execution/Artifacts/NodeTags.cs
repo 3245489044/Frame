@@ -5,10 +5,10 @@ using System.Linq;
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
 /// <summary>
-/// 入史标签词表（**单字段位掩码/集合**）—— 具名 token ⇔ <see cref="NodeHistoryMark"/> 位值的**唯一解析点**。
+/// 入史标签词表（**单字段位掩码/集合**）—— 具名 token ⇔ <see cref="ContainerMark"/> 位值的**唯一解析点**。
 /// <para>
 /// 语义：一个节点的标签 = 一个集合（单字段承载全部标签），标签可共存（如 <c>Terminal|Port</c>）；
-/// 序列化形式 = 规范具名 token 串（分隔符 <c>|</c>）；<see cref="NodeHistoryMark.None"/> = 空集。
+/// 序列化形式 = 规范具名 token 串（分隔符 <c>|</c>）；<see cref="ContainerMark.None"/> = 空集。
 /// 标签名/位值的真源应在声明面（<c>Config\nodes\*.ushar</c> marks），本类只做 token ⇔ 位值的归一。
 /// </para>
 /// </summary>
@@ -145,11 +145,11 @@ public static class NodeTags
     /// <summary>是否终答标签（**唯一终端谓词**；role/kind 派生等消费方一律经此，禁各自 <c>Contains(..., Terminal)</c>）。</summary>
     public static bool IsTerminal(string? mark) => Contains(mark, Terminal);
 
-    /// <summary>具名 token 集 → 位掩码（仅 history 轴参与；None/未识别 ⇒ <see cref="NodeHistoryMark.None"/>）。</summary>
-    public static NodeHistoryMark Parse(string? mark)
+    /// <summary>具名 token 集 → 位掩码（仅 history 轴参与；None/未识别 ⇒ <see cref="ContainerMark.None"/>）。</summary>
+    public static ContainerMark Parse(string? mark)
     {
         var normalized = Normalize(mark);
-        if (normalized is null || normalized == None) return NodeHistoryMark.None;
+        if (normalized is null || normalized == None) return ContainerMark.None;
 
         var bits = 0;
         foreach (var name in normalized.Split('|'))
@@ -159,11 +159,11 @@ public static class NodeTags
             if (_registry.TryResolve(HistoryAxis, local, out var bit)) bits |= bit;
         }
 
-        return (NodeHistoryMark)bits;
+        return (ContainerMark)bits;
     }
 
     /// <summary>位掩码 → 规范具名 token 串（空集 ⇒ "None"；history 轴无前缀）。</summary>
-    public static string Serialize(NodeHistoryMark mark)
+    public static string Serialize(ContainerMark mark)
     {
         var bits = (int)mark;
         if (bits == 0) return None;

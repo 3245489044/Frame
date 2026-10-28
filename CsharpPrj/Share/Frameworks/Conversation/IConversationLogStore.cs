@@ -9,7 +9,7 @@ namespace Share.Conversation;
 /// 会话历史容器存储端口 —— 以 <see cref="ConversationLog"/> 为统一存储模型（History 空壳已废弃，无往返）。
 /// 写入整条会话日志（幂等 upsert，SnapshotJson = ConversationLog 全量序列化）；读取返回 ConversationLog。
 /// </summary>
-public interface IHistoryStore
+public interface IConversationLogStore
 {
     /// <summary>幂等建表（ur_histories）。</summary>
     Task InitializeAsync(CancellationToken ct = default);

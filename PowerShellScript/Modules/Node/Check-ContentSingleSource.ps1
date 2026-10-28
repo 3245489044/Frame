@@ -107,8 +107,8 @@ $assertions = @(
     [pscustomobject]@{ Id = 'J4a'; Title = '任务节点读面（GetTaskNodeKeysAsync）'; Pattern = 'GetTaskNodeKeysAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 4; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4b'; Title = '历史 blob 读面（GetHistoryAsync）'; Pattern = 'GetHistoryAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 7; Target = $null; Batch = 'W5'; Kind = 'search' }
     [pscustomobject]@{ Id = 'J4c'; Title = '会话日志读面（GetLogAsync）'; Pattern = 'GetLogAsync'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = $null; Batch = 'W5'; Kind = 'search' }
-    # J4d 基线 18 → 23：2026-10-12 CONV-SS（历史/任务删除级联补 ur_histories 行删除）新增 IHistoryStore 消费面同步
-    [pscustomobject]@{ Id = 'J4d'; Title = '历史存储端口面（IHistoryStore；W5 deref 收口）'; Pattern = 'IHistoryStore'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 23; Target = $null; Batch = 'W5'; Kind = 'search' }
+    # J4d 基线 18 → 23：2026-10-12 CONV-SS（历史/任务删除级联补 ur_histories 行删除）新增 IConversationLogStore 消费面同步
+    [pscustomobject]@{ Id = 'J4d'; Title = '历史存储端口面（IConversationLogStore；W5 deref 收口）'; Pattern = 'IConversationLogStore'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 23; Target = $null; Batch = 'W5'; Kind = 'search' }
     # J4e 基线 54 → 57：2026-10-12 数据库页节点读写删（DB-RW）+ CONV-SS 在途改动同步
     [pscustomobject]@{ Id = 'J4e'; Title = '节点库载体面（ur_nodes；W5 读面收口）'; Pattern = 'ur_nodes'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 57; Target = $null; Batch = 'W5'; Kind = 'search' }
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>切分参数（运行期输入，**不进声明**：声明只定"允许哪些模式、产物落哪些位置"）。</summary>
 /// <param name="Mode">切分模式。</param>

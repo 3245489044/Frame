@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using Operation.HierarchyMethod.Nodes.Execution;
 using Share.Conversation;
 
-namespace Operation.HierarchyMethod.History.Ports;
+namespace Operation.Container.Ports;
 
 /// <summary>
 /// 入史标记词表（框架声明，宿主注入）—— history 轴**唯一策略端口**：mark 具名值集 + 归一（薄壳委托
 /// <see cref="NodeTags.Normalize(string?)"/>）+ mark→角色/类别派生（<see cref="RoleOfMark"/> / <see cref="KindOfMark"/>）。
 /// <para>框架内容层不持任何宿主标记字面量；归一/派生经本词表，同源注入一次。</para>
 /// </summary>
-public sealed class HistoryMarkVocabulary
+public sealed class MarkVocabulary
 {
     private readonly string[] _marks;
 
@@ -20,7 +20,7 @@ public sealed class HistoryMarkVocabulary
     /// <param name="marks">全部具名值（含 <paramref name="none"/>）。</param>
     /// <param name="kindOfMark">mark → 内容类别（须 ∈ 宿主识别词表）。</param>
     /// <param name="roleOfMark">mark → 消息角色（缺省 = 终答 ⇒ Assistant / 其余 ⇒ Tool）；同一注入点给定。</param>
-    public HistoryMarkVocabulary(
+    public MarkVocabulary(
         string none,
         string[] marks,
         Func<string, string> kindOfMark,

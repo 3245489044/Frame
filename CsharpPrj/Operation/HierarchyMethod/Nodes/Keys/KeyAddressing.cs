@@ -13,7 +13,7 @@ namespace Operation.HierarchyMethod.Nodes.Keys;
 /// </para>
 /// <para>
 /// 消费口径：业务调用点只经本模块取坐标；归一/缺省规则的**实现**仍单源在
-/// <see cref="NodeOutputKeys.Normalize"/> 与 <see cref="Reference.HistoryContainerRules"/>（声明面对账），
+/// <see cref="NodeOutputKeys.Normalize"/> 与 <see cref="Reference.ContainerRules"/>（声明面对账），
 /// 本模块是其唯一对外门面（禁绕过直取）。
 /// </para>
 /// </summary>
@@ -36,21 +36,21 @@ public static class KeyAddressing
 
     /// <summary>
     /// 历史容器 Id 缺省解析（ERR-1 收口）：显式 Id 优先，缺省回退 <paramref name="fallback"/>。
-    /// 规则实现单源 = <see cref="Reference.HistoryContainerRules"/>（声明面 `[Space] HistoryContainerRule` 对账单源）。
+    /// 规则实现单源 = <see cref="Reference.ContainerRules"/>（声明面 `[Space] HistoryContainerRule` 对账单源）。
     /// </summary>
     /// <param name="explicitId">调用方显式给出的容器 Id（可空）。</param>
     /// <param name="fallback">缺省回退来源（通常 = taskKey）。</param>
     public static string ContainerId(string? explicitId, string? fallback)
-        => Reference.HistoryContainerRules.Resolve(explicitId, fallback); // fallback 保留签名兼容，不参与解析
+        => Reference.ContainerRules.Resolve(explicitId, fallback); // fallback 保留签名兼容，不参与解析
 
     /// <summary>
     /// 历史容器展示名缺省解析：显式名优先，缺省 = 容器 Id
-    /// （规则实现单源 = <see cref="Reference.HistoryContainerRules.ResolveName"/>；禁各层再写三元兜底）。
+    /// （规则实现单源 = <see cref="Reference.ContainerRules.ResolveName"/>；禁各层再写三元兜底）。
     /// </summary>
     /// <param name="explicitName">调用方显式给出的展示名（可空 / 空白 ⇒ 缺省）。</param>
     /// <param name="containerId">容器 Id（缺省来源）。</param>
     public static string ContainerName(string? explicitName, string containerId)
-        => Reference.HistoryContainerRules.ResolveName(explicitName, containerId);
+        => Reference.ContainerRules.ResolveName(explicitName, containerId);
 }
 
 /// <summary>

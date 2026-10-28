@@ -1,11 +1,11 @@
-namespace Operation.HierarchyMethod.History.Runtime;
+namespace Operation.Container.Runtime;
 
 /// <summary>
 /// history 容器运行态聚合视图（只读投影）—— 由该 history 归拢的任务状态派生，非独立状态源。
-/// 计数在 <see cref="HistoryRuntimeService.GetOverviewAsync"/> 内对 <see cref="Tasks"/> 各状态文本聚合生成，
+/// 计数在 <see cref="ContainerRuntimeService.GetOverviewAsync"/> 内对 <see cref="Tasks"/> 各状态文本聚合生成，
 /// 供 history 侧一次总览多 task 运行情况。
 /// </summary>
-public sealed record HistoryRuntimeView(
+public sealed record ContainerRuntimeView(
     string HistoryId,
     /// <summary>该 history 归拢的任务总数。</summary>
     int TaskCount,
@@ -20,4 +20,4 @@ public sealed record HistoryRuntimeView(
     /// <summary>失败（Faulted/Error）任务数。</summary>
     int ErrorCount,
     /// <summary>逐 task 状态明细。</summary>
-    IReadOnlyList<HistoryTaskRunStatus> Tasks);
+    IReadOnlyList<ContainerTaskRunStatus> Tasks);

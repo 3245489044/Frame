@@ -1,4 +1,4 @@
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 轮次归档结果（B5b）：<see cref="Archived"/> = 本轮原文是否已落库；<see cref="Messages"/> = 本次消息条数

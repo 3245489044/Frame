@@ -26,14 +26,14 @@ public sealed record PlannedRoundAttribution(int Round, IReadOnlyList<PlannedRou
 /// <param name="Ordinal">轮内**全局到达序**（1 起；= 本轮节点产出源索引，**非**入史条目计数）——键身份组成。</param>
 /// <param name="Kind">内容类别（键身份组成；取词表值，由调用方经 <c>kindOfMark</c> 注入，Frame 层不持词表）。</param>
 /// <param name="Text">消息文本（终答节点 = 轮终答文本；其余 = 首个非空白端口文本；可为空串）。</param>
-/// <param name="Mark">入史标记名（<see cref="NodeHistoryMark"/> 具名值）。</param>
+/// <param name="Mark">入史标记名（<see cref="ContainerMark"/> 具名值）。</param>
 /// <param name="AtUnixMs">产出时刻（Unix 毫秒；0 = 缺失，由消费方取当前时刻）。</param>
 public sealed record PlannedRoundMessage(
     string NodeKey, long Ordinal, string Kind, string Text, string Mark, long AtUnixMs);
 
 /// <summary>
 /// 轮末入史计划（DEBT-4 单源）—— 把「标记判定 + 文本提取 + 序号编排 + 轮次归一」收敛为一处纯函数：
-/// <see cref="Build"/> 复用 <see cref="HistoryMarkPolicy"/>（标记唯一权威）与
+/// <see cref="Build"/> 复用 <see cref="ContainerMarkPolicy"/>（标记唯一权威）与
 /// <see cref="RoundArtifacts.TerminalText"/>（终答文本），<see cref="ToJson"/>/<see cref="FromJson"/>
 /// 为跨程序集（Agent.Core ⇄ Agent.Modules）的载荷编解码。
 /// </summary>
@@ -42,7 +42,7 @@ public static class RoundAttributionPlan
     /// <summary>
     /// 装配入史计划：<paramref name="ordinal"/> = **本轮节点产出源索引**（1 起，含未入史节点占位），
     /// 使键内序数与「轮内全局到达序」同义（W2-A2 裁决）；仅纳入
-    /// <see cref="HistoryMarkPolicy"/> 判定为入史的节点。
+    /// <see cref="ContainerMarkPolicy"/> 判定为入史的节点。
     /// </summary>
     /// <param name="artifacts">轮次产物（含终答归因与文本）。</param>
     /// <param name="spec">本轮骨架（提供声明面标记；null = 仅默认规则）。</param>
@@ -61,10 +61,10 @@ public static class RoundAttributionPlan
         for (var index = 0; index < nodes.Count; index++)
         {
             var record = nodes[index];
-            var mark = HistoryMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
-            if (mark == NodeHistoryMark.None) continue;   // 空集 = 不入史
+            var mark = ContainerMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
+            if (mark == ContainerMark.None) continue;   // 空集 = 不入史
 
-            var isTerminal = (mark & NodeHistoryMark.Terminal) != 0;
+            var isTerminal = (mark & ContainerMark.Terminal) != 0;
             var text = isTerminal && !string.IsNullOrWhiteSpace(artifacts.TerminalText)
                 ? artifacts.TerminalText!
                 : RoundMessageProjection.FirstPortText(record.OutputPorts) ?? string.Empty;

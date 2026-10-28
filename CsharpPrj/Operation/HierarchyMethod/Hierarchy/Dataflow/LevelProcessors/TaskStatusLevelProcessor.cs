@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
 using Modules.DeclarativeDataflow.RunState;
-using Operation.HierarchyMethod.History.Runtime;
+using Operation.Container.Runtime;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow.LevelProcessors;
 
 /// <summary>
-/// 任务层处理器 —— 把「任务运行状态」投影为层结论（读 <see cref="IHistoryRuntimePort"/> + 运行态门面
+/// 任务层处理器 —— 把「任务运行状态」投影为层结论（读 <see cref="IContainerRuntimePort"/> + 运行态门面
 /// <see cref="IRunStateProvider"/>，LLM-free）。
 /// <para>
 /// 状态文本由注入端口填充（框架零 Agent 枚举依赖）；终态失败文本（Faulted/Cancelled/Error）判为层失败。
@@ -27,12 +27,12 @@ public sealed class TaskStatusLevelProcessor : ILevelProcessor
     private static readonly HashSet<string> FailedStatusTexts =
         new(StringComparer.OrdinalIgnoreCase) { "Faulted", "Cancelled", "Error", "Failed" };
 
-    private readonly IHistoryRuntimePort? _runtime;
+    private readonly IContainerRuntimePort? _runtime;
     private readonly IRunStateProvider? _runStates;
 
     /// <param name="runtime">单实体运行状态读取端口（可空；未装配 → 透传诊断）。</param>
     /// <param name="runStates">运行态门面（可空；未装配 → 载荷仅含 available=false）。</param>
-    public TaskStatusLevelProcessor(IHistoryRuntimePort? runtime = null, IRunStateProvider? runStates = null)
+    public TaskStatusLevelProcessor(IContainerRuntimePort? runtime = null, IRunStateProvider? runStates = null)
     {
         _runtime = runtime;
         _runStates = runStates;

@@ -16,7 +16,7 @@
          （如 `leaseId = lease.LeaseId,`、`var leaseId = Arg(...)`）不是废除项，不得计入。
       C4 单写者：事实写入调用点仅 SessionFactWriter（AppendAsync 调用方白名单）。
          口径（2026-09-26 收窄）：只认**首实参为事实封套**的追加调用（`AppendAsync(fact…`，即
-         ISessionFactStore 契约面）；同名 API 的其它类型（如 HistoryAppendService.AppendAsync(节点载荷)）
+         ISessionFactStore 契约面）；同名 API 的其它类型（如 ConversationAppendService.AppendAsync(节点载荷)）
          不是事实写入，不得计入（旧口径把它们误报为旁路）。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（标识 / 事实标准回归）。
 
@@ -171,7 +171,7 @@ foreach ($item in $legacyPatterns)
 
 # C4. 单写者：会话事实追加调用方白名单（事实只经 SessionFactWriter 追加）
 # 判据收窄：只认首实参为「事实封套」的追加调用（ISessionFactStore.AppendAsync(SessionFactEnvelope fact, …)）；
-# 同名 API 的其它类型（HistoryAppendService.AppendAsync(节点载荷) 等）不是事实写入。
+# 同名 API 的其它类型（ConversationAppendService.AppendAsync(节点载荷) 等）不是事实写入。
 $c4Allow = @('SessionFactWriter.cs', 'JsonlSessionFactStore.cs')
 $c4FactAppend = '\.AppendAsync\(\s*[A-Za-z_][A-Za-z0-9_]*[Ff]act\b'
 foreach ($f in $csFiles)

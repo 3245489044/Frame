@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Modules.Node.Materialization;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>一次物化的聚合结果（按位置状态计票 + 可见化原因清单；禁静默）。</summary>
 /// <param name="Key">身份键。</param>

@@ -12,7 +12,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution;
 /// <see cref="None"/>：仅留全量层（任务面板），不入史、不进 LLM 上下文（空集）。</para>
 /// </summary>
 [Flags]
-public enum NodeHistoryMark
+public enum ContainerMark
 {
     /// <summary>不入史（仅任务面板全量层）。</summary>
     None = 0,
@@ -29,35 +29,35 @@ public enum NodeHistoryMark
 
 /// <summary>
 /// 入史标记策略（CP-4，唯一决定「哪些节点进历史」的**纯函数**，零 IO）：
-/// 终答节点默认 <see cref="NodeHistoryMark.Terminal"/>；声明面（<see cref="RoundStep.Mark"/>）显式
-/// <c>Numbered</c> 的中间节点入史；其余 <see cref="NodeHistoryMark.None"/>。
+/// 终答节点默认 <see cref="ContainerMark.Terminal"/>；声明面（<see cref="RoundStep.Mark"/>）显式
+/// <c>Numbered</c> 的中间节点入史；其余 <see cref="ContainerMark.None"/>。
 /// <para>
 /// 零配置即成立：无任何声明时「必有且仅有 1 个 Terminal」（终答来源节点），使 L-B 入史层始终有唯一对话真源。
 /// </para>
 /// </summary>
-public static class HistoryMarkPolicy
+public static class ContainerMarkPolicy
 {
     /// <summary>解析某节点的入史标记。</summary>
     /// <param name="spec">本轮骨架（提供声明面；null = 无声明 → 仅默认规则）。</param>
     /// <param name="record">待判节点产出快照。</param>
     /// <param name="terminalNodeKey">终答来源节点键（由 <see cref="RoundArtifactAssembler"/> 归因）。</param>
-    public static NodeHistoryMark Resolve(RoundSpec? spec, NodeExecutionRecord record, string? terminalNodeKey)
+    public static ContainerMark Resolve(RoundSpec? spec, NodeExecutionRecord record, string? terminalNodeKey)
     {
         ArgumentNullException.ThrowIfNull(record);
-        if (string.IsNullOrWhiteSpace(record.NodeKey)) return NodeHistoryMark.None;
+        if (string.IsNullOrWhiteSpace(record.NodeKey)) return ContainerMark.None;
         // 终答优先：链终点产出是对话真源（且默认兼作 task↔history 端口节点 = Terminal|Port）。
         if (!string.IsNullOrWhiteSpace(terminalNodeKey)
             && string.Equals(record.NodeKey, terminalNodeKey, StringComparison.Ordinal))
-            return NodeHistoryMark.Terminal | NodeHistoryMark.Port;
+            return ContainerMark.Terminal | ContainerMark.Port;
 
         var declared = ResolveDeclaredMark(spec, record.NodeKey);
-        return declared ?? NodeHistoryMark.None;
+        return declared ?? ContainerMark.None;
     }
 
     /// <summary>声明面标记（<see cref="RoundStep.Mark"/>；未声明/不可识别 → null = 走默认规则）。
     /// 仅接受**具名 token 集**（Numbered/Terminal/Port/None，大小写不敏感；分隔符 <c>|</c>/<c>,</c>/<c>;</c>）：
     /// 禁 <c>Enum.TryParse</c> 的数字串静默映射（<c>Mark=1</c>→Numbered 会越权覆盖终答归因）。</summary>
-    private static NodeHistoryMark? ResolveDeclaredMark(RoundSpec? spec, string nodeKey)
+    private static ContainerMark? ResolveDeclaredMark(RoundSpec? spec, string nodeKey)
     {
         if (spec?.Steps is not { Count: > 0 }) return null;
         foreach (var step in spec.Steps)

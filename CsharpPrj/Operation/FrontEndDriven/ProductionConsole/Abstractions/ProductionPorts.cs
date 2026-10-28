@@ -34,7 +34,7 @@ public interface IProductionRunner
 }
 
 /// <summary>历史查询条件（分页；空值 = 不过滤）。</summary>
-public sealed class HistoryQuery
+public sealed class ContainerQuery
 {
     public string? CapabilityId { get; set; }
 
@@ -70,11 +70,11 @@ public sealed class PagedResult<T>
 }
 
 /// <summary>历史存储端口（文件/数据库实现由运行时提供）。</summary>
-public interface IProductionHistory
+public interface IProductionContainer
 {
     void Append(JobSnapshot snapshot);
 
-    PagedResult<JobSnapshot> Query(HistoryQuery query);
+    PagedResult<JobSnapshot> Query(ContainerQuery query);
 
     JobSnapshot? LastByInputHash(string inputHash);
 }

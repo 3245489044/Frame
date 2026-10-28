@@ -12,7 +12,7 @@ using Share.Conversation.Ports;
 namespace Operation.DataStoreDriven.Core;
 
 /// <summary>内存历史根注册表（测试替身；与 Sqlite 实现同契约）。</summary>
-public sealed class InMemoryHistoryRootStore : IHistoryRootStore
+public sealed class InMemoryConversationLogRootStore : IConversationLogRootStore
 {
     private readonly Dictionary<string, HistoryRoot> _roots = new(StringComparer.Ordinal);
     public IReadOnlyDictionary<string, HistoryRoot> Roots => _roots;

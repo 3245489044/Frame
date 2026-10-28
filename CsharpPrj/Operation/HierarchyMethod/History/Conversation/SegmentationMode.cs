@@ -1,4 +1,4 @@
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>
 /// 历史切分模式（域无关；模式词表由宿主声明面校验，未声明即拒绝）。

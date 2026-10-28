@@ -18,9 +18,9 @@ namespace Operation.DataStoreDriven.Sqlite;
 /// <summary>
 /// 历史根注册表（ur_histories）—— 只存聚合根身份与展示字段，不存 Conversation 日志。
 /// 旧行（含 Conversation）由注入的 <see cref="ILegacyHistoryClassifier"/> 兼容读为根；
-/// 新行以 <c>history_root:</c> 记录标记，旧 <see cref="SqliteHistoryStore"/> 不得覆盖根行。
+/// 新行以 <c>history_root:</c> 记录标记，旧 <see cref="SqliteConversationLogStore"/> 不得覆盖根行。
 /// </summary>
-public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
+public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLogRootStore
 {
     private const string TableId = "Histories";
     private const string RecordPrefix = "history_root:";
@@ -33,7 +33,7 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
     private readonly ITableSchemaSource? _schemaSource;
     private readonly ILegacyHistoryClassifier? _legacy;
 
-    public SqliteHistoryRootStore(
+    public SqliteContainerRootStore(
         IDbCommandExecutor executor, string tablePrefix, IDocumentCodec codec,
         ITableSchemaSource? schemaSource = null, ILegacyHistoryClassifier? legacy = null)
         : base(executor, tablePrefix, TableNames.Histories)

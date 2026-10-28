@@ -87,7 +87,7 @@ namespace Operation.HierarchyMethod.Nodes.Workflows
 
     /// <summary>
     /// 入史标记声明（CP-4 声明面）：<c>Numbered</c>（显式声明中间节点入史，供分层气泡）/ <c>None</c> / <c>Terminal</c>；
-    /// 缺省 null = 由 <c>HistoryMarkPolicy</c> 默认规则裁决（终答默认 Terminal，其余 None）。
+    /// 缺省 null = 由 <c>ContainerMarkPolicy</c> 默认规则裁决（终答默认 Terminal，其余 None）。
     /// 加法式扩展：缺省 null，旧模板/内置骨架零影响。
     /// </summary>
     public string? Mark { get; init; }

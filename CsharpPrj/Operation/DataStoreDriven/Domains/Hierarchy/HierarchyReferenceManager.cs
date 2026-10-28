@@ -13,12 +13,12 @@ namespace Operation.DataStoreDriven.Core;
 /// </summary>
 public sealed class HierarchyReferenceManager : IHierarchyReferenceManager
 {
-    private readonly HistoryReferenceGrounding _history;
+    private readonly ContainerReferenceGrounding _history;
     private readonly TaskReferenceGrounding _tasks;
     private readonly SessionReferenceGrounding _sessions;
 
     public HierarchyReferenceManager(
-        HistoryReferenceGrounding history,
+        ContainerReferenceGrounding history,
         TaskReferenceGrounding tasks,
         SessionReferenceGrounding sessions)
     {

@@ -98,7 +98,7 @@ public sealed class ConsoleCommandRouter
 
     private readonly IProductionCatalog _catalog;
     private readonly IProductionRunner _runner;
-    private readonly IProductionHistory _history;
+    private readonly IProductionContainer _history;
     private readonly IArtifactPublisher _publisher;
     private readonly ConsoleRouterOptions _options;
     private readonly Dictionary<string, Func<ConsoleCommand, CancellationToken, Task<ConsoleCommandOutcome>>> _custom =
@@ -111,7 +111,7 @@ public sealed class ConsoleCommandRouter
     public ConsoleCommandRouter(
         IProductionCatalog catalog,
         IProductionRunner runner,
-        IProductionHistory history,
+        IProductionContainer history,
         IArtifactPublisher publisher,
         ConsoleState? state = null,
         ConsoleRouterOptions? options = null)
@@ -147,7 +147,7 @@ public sealed class ConsoleCommandRouter
 
         PagedResult<JobSnapshot>? history = null;
         if (string.Equals(State.Drawer, "history", StringComparison.OrdinalIgnoreCase))
-            history = _history.Query(new HistoryQuery
+            history = _history.Query(new ContainerQuery
             {
                 CapabilityId = null,
                 Text = State.Filter,

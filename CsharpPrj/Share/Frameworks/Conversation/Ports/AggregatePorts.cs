@@ -11,7 +11,7 @@ using Share.Conversation.Ids;
 namespace Share.Conversation.Ports;
 
 /// <summary>历史根注册表只读/写端口（真源 = ur_histories，只存根，不存日志）。</summary>
-public interface IHistoryRootStore
+public interface IConversationLogRootStore
 {
     Task InitializeAsync(CancellationToken ct = default);
     Task<IReadOnlyList<HistoryRoot>> ListRootsAsync(CancellationToken ct = default);

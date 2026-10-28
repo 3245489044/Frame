@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
-using Operation.HierarchyMethod.History;
+using Operation.Container;
 using Operation.HierarchyMethod.Tasks;
 
 namespace Operation.HierarchyMethod.Hierarchy;
@@ -26,7 +26,7 @@ public interface IHierarchyManager
 {
     // ---- history 根（单 history = 顶层 class 容器）----
     /// <summary>幂等建历史根端点 + 返回视图。未装配引用端口 → 返回仅含 Id 的空视图（不写图）。</summary>
-    Task<HistoryRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default);
+    Task<ContainerRecord> CreateHistoryAsync(string historyId, string? name = null, CancellationToken ct = default);
 
     /// <summary>删除历史（级联清其引用边）。返回是否命中。</summary>
     Task<bool> DeleteHistoryAsync(string historyId, CancellationToken ct = default);

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
-using Operation.HierarchyMethod.History;
+using Operation.Container;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -18,7 +18,7 @@ namespace Operation.HierarchyMethod.Reference;
 public sealed class ExecutionFlagService : IExecutionFlagService
 {
     private readonly IResourceReferenceStore? _store;
-    private readonly IHistoryRelationManager? _relations;
+    private readonly IContainerRelationManager? _relations;
     private readonly FlagConductor _conductor;
 
     /// <param name="store">图资源存储端口（可空；未装配则各方法 no-op/返回默认）。</param>
@@ -26,7 +26,7 @@ public sealed class ExecutionFlagService : IExecutionFlagService
     /// <param name="conductor">后台反应式驱动（可空；缺省自建）。</param>
     public ExecutionFlagService(
         IResourceReferenceStore? store,
-        IHistoryRelationManager? relations = null,
+        IContainerRelationManager? relations = null,
         FlagConductor? conductor = null)
     {
         _store = store;

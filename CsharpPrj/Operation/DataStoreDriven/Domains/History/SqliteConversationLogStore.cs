@@ -21,7 +21,7 @@ namespace Operation.DataStoreDriven.Sqlite;
 /// ThreadId 固定命名空间 "history"（随文档持久化）。
 /// </para>
 /// </summary>
-public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
+public sealed class SqliteConversationLogStore : KvJsonStoreBase, IConversationLogStore
 {
     /// <summary>历史容器状态根的固定 ThreadId 命名空间（随文档持久化；NodeKey = 会话 ID 全局唯一）。</summary>
     public const string HistoryThreadId = "history";
@@ -36,7 +36,7 @@ public sealed class SqliteHistoryStore : KvJsonStoreBase, IHistoryStore
 
     /// <summary>注入命令执行器 + 表名前缀。编解码缺省 = JSON；注入 USharp codec ⇒ 文档 USharp 化。
     /// <paramref name="schemaSource"/> 缺省 ⇒ 建表回落手写 <see cref="KvUsharpTable.SchemaColumns"/>（声明面缺件时零行为变更）。</summary>
-    public SqliteHistoryStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
+    public SqliteConversationLogStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(executor, tablePrefix, TableNames.Histories)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec), "ur_histories 记录型存储须注入 IDocumentCodec（USharp codec）。");

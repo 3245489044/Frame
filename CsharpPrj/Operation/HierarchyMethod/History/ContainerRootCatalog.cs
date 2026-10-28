@@ -7,18 +7,18 @@ using Share.Conversation.Aggregates;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
 
-namespace Operation.HierarchyMethod.History;
+namespace Operation.Container;
 
 /// <summary>
 /// 历史根目录唯一实现：**只认 root store**（结构事实 = 根注册表行）；旧日志表不再参与根判定。
 /// 过滤空键 / 去重 / 排序在此单点完成，UI / API / 会话页 / 树读取全部委托本类。
 /// </summary>
-public sealed class HistoryRootCatalog : IHistoryRootCatalog
+public sealed class ContainerRootCatalog : IHistoryRootCatalog
 {
-    private readonly IHistoryRootStore _roots;
+    private readonly IConversationLogRootStore _roots;
 
     /// <summary>root store 为必填（未装配即构造期失败，禁「全表即根」的静默伪根）。</summary>
-    public HistoryRootCatalog(IHistoryRootStore roots)
+    public ContainerRootCatalog(IConversationLogRootStore roots)
         => _roots = roots ?? throw new ArgumentNullException(nameof(roots));
 
     /// <summary>最近一次根枚举的可见化原因：<c>ok</c> / <c>root-store-empty</c>（空树与装配失败不再同形）。</summary>

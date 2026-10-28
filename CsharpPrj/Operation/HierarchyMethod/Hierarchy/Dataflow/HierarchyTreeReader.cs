@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
-using Operation.HierarchyMethod.History;
+using Operation.Container;
 using Operation.HierarchyMethod.Nodes.Keys;
 using Operation.HierarchyMethod.Nodes.Linkage;
 using Modules.Node.Identity;
@@ -26,7 +26,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 
     /// <summary>
     /// 三层树只读装配器（LLM-free）—— 把「容器→成员→子成员」物化为只读树：
-    /// <c>IHistoryStore.ListHistoryIdsAsync</c>（历史存在性）→ <c>ITransferFlow.EnumerateAsync</c>
+    /// <c>IConversationLogStore.ListHistoryIdsAsync</c>（历史存在性）→ <c>ITransferFlow.EnumerateAsync</c>
     /// （归属枚举单源 = USharp 流 <c>[Flow] TransferContribute</c> 的 <c>enumerate_members</c> 步，
     /// <c>edge_type</c> ∈ {history_owns_task, cross_db_link}）→ 键前缀剥离。
     /// <para>
@@ -38,7 +38,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     public sealed class HierarchyTreeReader
     {
         private readonly IHistoryRootCatalog _catalog;
-        private readonly IHistoryRelationManager? _relations;
+        private readonly IContainerRelationManager? _relations;
         private readonly IReferenceMaintenance? _grounding;
         private readonly ITransferFlow? _transfer;
         private readonly string _workflowId;
@@ -46,7 +46,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
         /// <summary>根目录为必填（唯一根枚举入口）；未装配即构造期失败。</summary>
         public HierarchyTreeReader(
             IHistoryRootCatalog catalog,
-            IHistoryRelationManager? relations = null,
+            IContainerRelationManager? relations = null,
             IReferenceMaintenance? grounding = null,
             ITransferFlow? transfer = null,
             string? workflowId = null)

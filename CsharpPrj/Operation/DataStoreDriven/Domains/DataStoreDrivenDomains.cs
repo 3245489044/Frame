@@ -24,19 +24,19 @@ public static class DataStoreDrivenDomains
         ILegacyHistoryClassifier? legacyHistoryClassifier = null)
         => new IDomainStoreModule[]
         {
-            new HistoryDomainModule(kernel, legacyHistoryClassifier),
+            new ConversationLogDomainModule(kernel, legacyHistoryClassifier),
             new SessionDomainModule(kernel),
             new TaskPoolDomainModule(kernel),
         };
 }
 
-/// <summary>历史域模块：ur_histories 表 + IHistoryStore / IHistoryRootStore 注册。</summary>
-public sealed class HistoryDomainModule : IDomainStoreModule
+/// <summary>历史域模块：ur_histories 表 + IConversationLogStore / IConversationLogRootStore 注册。</summary>
+public sealed class ConversationLogDomainModule : IDomainStoreModule
 {
     private readonly StorageKernelContext _kernel;
     private readonly ILegacyHistoryClassifier? _legacy;
 
-    public HistoryDomainModule(StorageKernelContext kernel, ILegacyHistoryClassifier? legacy = null)
+    public ConversationLogDomainModule(StorageKernelContext kernel, ILegacyHistoryClassifier? legacy = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _legacy = legacy;
@@ -48,15 +48,15 @@ public sealed class HistoryDomainModule : IDomainStoreModule
     {
         var table = PersistenceHelper.ResolveTablePrefix(_kernel.TablePrefix) + TableNames.Histories;
         catalog.Add(new DelegateTableDeclaration(table, (executor, ct) =>
-            new SqliteHistoryStore(executor, _kernel.TablePrefix, _kernel.Codec, _kernel.SchemaSource).InitializeAsync(ct)));
+            new SqliteConversationLogStore(executor, _kernel.TablePrefix, _kernel.Codec, _kernel.SchemaSource).InitializeAsync(ct)));
     }
 
     public void Register(IDomainStoreRegistry registry, StorageKernelContext kernel)
     {
-        registry.Register(typeof(IHistoryStore), () =>
-            new SqliteHistoryStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource));
-        registry.Register(typeof(IHistoryRootStore), () =>
-            new SqliteHistoryRootStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource, _legacy));
+        registry.Register(typeof(IConversationLogStore), () =>
+            new SqliteConversationLogStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource));
+        registry.Register(typeof(IConversationLogRootStore), () =>
+            new SqliteContainerRootStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource, _legacy));
     }
 }
 
@@ -86,7 +86,7 @@ public sealed class SessionDomainModule : IDomainStoreModule
         registry.Register(typeof(ISessionTranscriptStore), () =>
         {
             var primary = new SqliteSessionTranscriptStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource);
-            var history = registry.Resolve(typeof(IHistoryStore)) as IHistoryStore;
+            var history = registry.Resolve(typeof(IConversationLogStore)) as IConversationLogStore;
             return history is null ? primary : new LegacyFallbackSessionTranscriptStore(primary, history);
         });
     }

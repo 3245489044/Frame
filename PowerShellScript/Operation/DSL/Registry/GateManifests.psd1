@@ -197,7 +197,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '关系聚拢点：G1 聚拢点实现=1 且调用点直连写=0 / G2 层向（UR 不得 using Operation./Modules.Node/LiteDB/Plate.DslMethod；Modules.GraphProcessing|Pipeline 豁免）/ G3 派生单源（HistoryReferenceGrounding 必须委托 [Derive] HistoryNodes）/ G4 负对照'
+        Note   = '关系聚拢点：G1 聚拢点实现=1 且调用点直连写=0 / G2 层向（UR 不得 using Operation./Modules.Node/LiteDB/Plate.DslMethod；Modules.GraphProcessing|Pipeline 豁免）/ G3 派生单源（ContainerReferenceGrounding 必须委托 [Derive] HistoryNodes）/ G4 负对照'
     }
 
     NodeEdgeIntegrity = @{
@@ -1620,6 +1620,14 @@
         Tier   = 'fast'
         Expect = 0
         Note   = 'GP-2 实体存在性单源：直读探针 0 / 实现 2（未装配桩 + 注册表）/ 命令层重复前置检查 0 / 未映射码 1'
+    }
+
+    ContainerSemantics = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '容器族语义：Operation 内 *History* 类型 0 / Frame using Agent 0 / History 命名空间 0 / 底座引用不下降（135/106）/ 载体表名与记录类型棘轮'
     }
 
 }

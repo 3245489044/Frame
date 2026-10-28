@@ -11,28 +11,28 @@ using Share.Conversation.Commands;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
 
-namespace Operation.HierarchyMethod.History.Commands;
+namespace Operation.Container.Commands;
 
 /// <summary>
 /// 历史命令唯一实现（C1/C2/C8 聚拢点）：
 /// 创建历史根 = root 注册表 + graph mirror（可选 HistoryRoot session）；
 /// 归拢 task = 只写 history_owns_task 边，不隐式建 history/task；禁止自环。
-/// 除本类外，任何层不得直接调用 <see cref="IHistoryRelationManager.CreateAsync"/> /
-/// <see cref="IHistoryRelationManager.AttachTaskAsync"/>。
+/// 除本类外，任何层不得直接调用 <see cref="IContainerRelationManager.CreateAsync"/> /
+/// <see cref="IContainerRelationManager.AttachTaskAsync"/>。
 /// </summary>
-public sealed class HistoryCommandService : IHistoryCommandPort
+public sealed class ContainerCommandService : IHistoryCommandPort
 {
-    private readonly IHistoryRootStore _roots;
-    private readonly IHistoryRelationManager _relations;
+    private readonly IConversationLogRootStore _roots;
+    private readonly IContainerRelationManager _relations;
     private readonly ICreationGate _gate;
     private readonly ISessionStore? _sessions;
     private readonly ISessionTranscriptStore? _transcripts;
     private readonly IDiagnosticsSink _diagnostics;
     private readonly ICompositeWriteUnit? _writeUnit;
 
-    public HistoryCommandService(
-        IHistoryRootStore roots,
-        IHistoryRelationManager relations,
+    public ContainerCommandService(
+        IConversationLogRootStore roots,
+        IContainerRelationManager relations,
         ICreationGate? gate = null,
         ISessionStore? sessions = null,
         IDiagnosticsSink? diagnostics = null,
@@ -123,7 +123,7 @@ public sealed class HistoryCommandService : IHistoryCommandPort
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var historyKey = Normalize(cmd.History);
-        // DUP-4：自环判据只有写边守卫一处（ReferenceGrounding → HistorySelfLoopException）；
+        // DUP-4：自环判据只有写边守卫一处（ReferenceGrounding → ContainerSelfLoopException）；
         // 本层不重复判断，避免两份错误源/两份文案。
         var decision = _gate.AuthorizeTask(
             cmd.Intent, new[] { historyKey }, SessionRole.TaskMember, null, null, null);

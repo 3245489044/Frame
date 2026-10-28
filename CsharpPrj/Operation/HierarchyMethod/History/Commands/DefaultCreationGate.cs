@@ -4,7 +4,7 @@ using Share.Conversation.Aggregates;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
 
-namespace Operation.HierarchyMethod.History.Commands;
+namespace Operation.Container.Commands;
 
 /// <summary>
 /// 默认创建门禁（Frame 通用规则，零 Agent 词）：

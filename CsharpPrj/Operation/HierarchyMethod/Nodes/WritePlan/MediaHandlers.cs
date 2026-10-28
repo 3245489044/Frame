@@ -68,16 +68,16 @@ public sealed class NodeStoreMediaHandler : WriteMediaHandlerBase
 
 /// <summary>
 /// ur_histories 唯一写端口处理器（集合 <see cref="WriteCollections.Histories"/> / <see cref="WriteCollections.HistoriesDelete"/>）。
-/// 经既有 <see cref="IHistoryStore"/> 单写者落库；载荷 = <see cref="ConversationLog"/> 全量 JSON（真源形态）。
+/// 经既有 <see cref="IConversationLogStore"/> 单写者落库；载荷 = <see cref="ConversationLog"/> 全量 JSON（真源形态）。
 /// </summary>
-public sealed class HistoryStoreMediaHandler : WriteMediaHandlerBase
+public sealed class ConversationLogMediaHandler : WriteMediaHandlerBase
 {
     private static readonly IReadOnlyList<string> OwnedCollections =
         new[] { WriteCollections.Histories, WriteCollections.HistoriesDelete };
 
-    private readonly IHistoryStore _histories;
+    private readonly IConversationLogStore _histories;
 
-    public HistoryStoreMediaHandler(IHistoryStore histories)
+    public ConversationLogMediaHandler(IConversationLogStore histories)
         => _histories = histories ?? throw new ArgumentNullException(nameof(histories));
 
     /// <inheritdoc />

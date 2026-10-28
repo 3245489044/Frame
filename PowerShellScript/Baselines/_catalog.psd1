@@ -110,5 +110,6 @@
         @{ File = 'GateClosure.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-DeclarationClosure.ps1' }
         @{ File = 'ArtifactFreshness.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'VerifyScope.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
+        @{ File = 'Process\ContainerSemantics.psd1'; Role = 'Data'; Domain = 'Process'; Gate = 'ContainerSemantics'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-ContainerSemantics.ps1' }
     )
 }

@@ -1,4 +1,4 @@
-namespace Operation.HierarchyMethod.History.Conversation;
+namespace Operation.Conversation;
 
 /// <summary>
 /// 切分**中性条目**（域无关；由宿主 <c>IConversationItemReader</c> 从原始载荷映射而来）。

@@ -11,7 +11,7 @@ using Modules.Node.Placement;
 using Operation.DataStoreDriven.Abstractions;
 using Share.Conversation.Ids;
 
-namespace Operation.HierarchyMethod.History.Content;
+namespace Operation.Container.Content;
 
 /// <summary>
 /// 子智能体轮次归档实现（**原文全量层**，域无关）—— 一个历史（会话容器）**恰一行**归档节点

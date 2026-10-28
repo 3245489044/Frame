@@ -20,7 +20,7 @@ public enum SkillHistoryPosition
 /// 把 skill（以及 L0/L1/L2 提示词等仅存在于运行期/快照、不进 ur_histories/ur_nodes 的逻辑）映射为
 /// 主对话框可在消息序列中定位/展示的稳定键。键形与既有 <c>wf.</c> 前缀 + <c>nodes.{wf}.{node}</c> 约定一致。
 /// </summary>
-public sealed record SkillHistoryMapping(
+public sealed record SkillBlockMapping(
     string TaskKey,
     int Round,
     string SkillName,
@@ -47,17 +47,17 @@ public sealed record SkillHistoryMapping(
 public static class SkillHistoryMapper
 {
     /// <summary>由技能名集合推导映射行：每个技能 → 头部块 + 末尾产出两个 history 键（去重、稳定序）。</summary>
-    public static IReadOnlyList<SkillHistoryMapping> ResolveMappings(
+    public static IReadOnlyList<SkillBlockMapping> ResolveMappings(
         string taskKey, int round, IReadOnlyList<string> skillNames)
     {
-        if (skillNames is null || skillNames.Count == 0) return Array.Empty<SkillHistoryMapping>();
-        var list = new List<SkillHistoryMapping>(skillNames.Count * 2);
+        if (skillNames is null || skillNames.Count == 0) return Array.Empty<SkillBlockMapping>();
+        var list = new List<SkillBlockMapping>(skillNames.Count * 2);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in skillNames)
         {
             if (string.IsNullOrWhiteSpace(name) || !seen.Add(name)) continue;
-            list.Add(new SkillHistoryMapping(taskKey, round, name, SkillHistoryMapping.KeyForBlock(name), SkillHistoryPosition.HeadBlock));
-            list.Add(new SkillHistoryMapping(taskKey, round, name, SkillHistoryMapping.KeyForEnd(name), SkillHistoryPosition.EndNode));
+            list.Add(new SkillBlockMapping(taskKey, round, name, SkillBlockMapping.KeyForBlock(name), SkillHistoryPosition.HeadBlock));
+            list.Add(new SkillBlockMapping(taskKey, round, name, SkillBlockMapping.KeyForEnd(name), SkillHistoryPosition.EndNode));
         }
         return list;
     }

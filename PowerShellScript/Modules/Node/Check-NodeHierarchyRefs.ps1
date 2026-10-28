@@ -63,7 +63,7 @@ $declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\reference.u
 $constsFile      = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalReference\Reference\Models\ReferenceEdgeTypes.cs'
 $groundingFiles  = @(
     (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\TaskReferenceGrounding.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\HistoryReferenceGrounding.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\ContainerReferenceGrounding.cs'),
     (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\SessionReferenceGrounding.cs'),
     (Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Graph\PlacementEdgeBuilder.cs')
 )   # 控制反转：三个域接地服务 + 通用位置边构建器（at / contains，唯一实现）

@@ -7,7 +7,7 @@ using Share.Conversation;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
 
-namespace Operation.HierarchyMethod.History;
+namespace Operation.Container;
 
 /// <summary>
 /// 会话日志聚拢点（C3/C4）：唯一写入口 = append projection；唯一读入口 = transcript store。

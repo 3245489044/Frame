@@ -15,7 +15,7 @@ namespace Operation.HierarchyMethod.Nodes.Linkage;
 /// </para>
 /// <para>
 /// 与写边原语的分工：本接口是**编排入口**，写边原语仍唯一归 <c>ReferenceGrounding</c> /
-/// <c>IHistoryRelationManager</c>（不复制写边逻辑），由流内 <c>fn=</c> 单步调用。
+/// <c>IContainerRelationManager</c>（不复制写边逻辑），由流内 <c>fn=</c> 单步调用。
 /// </para>
 /// <para>装配可空：未装配 ⇒ 调用方按「可见化（禁静默）」处理。</para>
 /// </summary>

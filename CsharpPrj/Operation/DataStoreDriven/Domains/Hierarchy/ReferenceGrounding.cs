@@ -24,7 +24,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     private readonly GraphGrounding _core;
     private readonly RelationPortLease _ports;
     private readonly TaskReferenceGrounding _tasks;
-    private readonly HistoryReferenceGrounding _history;
+    private readonly ContainerReferenceGrounding _history;
     private readonly SessionReferenceGrounding _sessions;
     private readonly HierarchyReferenceManager _hierarchy;
 
@@ -33,7 +33,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         _core = new GraphGrounding(graph, workflowIds);
         _ports = new RelationPortLease();
         _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports, _core.WorkflowIds);
-        _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports);
+        _history = new ContainerReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _tasks, _ports);
         _sessions = new SessionReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports);
         _hierarchy = new HierarchyReferenceManager(_history, _tasks, _sessions);
     }
@@ -183,7 +183,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     public Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default)
         => _tasks.ProjectTaskNodesAsync(taskKey, workflowId, ct);
 
-    // ---- history 域（委托 HistoryReferenceGrounding）----
+    // ---- history 域（委托 ContainerReferenceGrounding）----
 
     public Task EnsureHistoryMirrorAsync(string historyId, CancellationToken ct = default)
         => _history.EnsureHistoryMirrorAsync(historyId, ct);

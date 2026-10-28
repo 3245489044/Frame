@@ -10,7 +10,7 @@
     - graph.db（LiteDB）：独占/单 owner（ReferenceGraphStoreRegistry），宿主运行时会打不开，
       须先关闭宿主（本脚本只给可执行指引，不绕过单 owner 纪律）。
 
-    本脚本为诊断面导出，不替代产品读路径（IHistoryStore / IHistoryRelationManager）。
+    本脚本为诊断面导出，不替代产品读路径（IConversationLogStore / IContainerRelationManager）。
 
     退出码：0 成功 / 1 库缺失·被占用·用法错 / 2 依赖 DLL 缺失或未知异常。
 .EXAMPLE

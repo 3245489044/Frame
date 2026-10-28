@@ -14,21 +14,23 @@ using UniversalWorkflowFramework.Core.Models;
 namespace Operation.DataStoreDriven.Core;
 
 /// <summary>history 域接地服务（U8 域半）：历史根镜像 / 历史↔task / 派生节点集 / 合并 / 端点重键。</summary>
-public sealed class HistoryReferenceGrounding
+public sealed class ContainerReferenceGrounding
 {
     private readonly GraphEdgeWriter _edges;
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
+    private readonly TaskReferenceGrounding _tasks;
     private readonly IRelationPorts _ports;
     private readonly HistoryRelationSurface _relations;
 
-    public HistoryReferenceGrounding(
+    public ContainerReferenceGrounding(
         GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
-        IRelationPorts ports)
+        TaskReferenceGrounding tasks, IRelationPorts ports)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _ports = ports ?? throw new ArgumentNullException(nameof(ports));
         _relations = new HistoryRelationSurface(_ports);
     }
@@ -58,13 +60,18 @@ public sealed class HistoryReferenceGrounding
     }
 
     /// <summary>历史归拢任务：history → task（history_owns_task，幂等加法；禁自环）。</summary>
-    /// <remarks>端点镜像由关系聚拢点的 <c>provision=</c> 委托承担（R2：attach 路径不再各自镜像）。</remarks>
+    /// <remarks>聚拢点装配后端点镜像由 <c>provision=</c> 委托承担；未装配时保留兼容镜像（零回归）。</remarks>
     public async Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         if (string.Equals(historyId, taskKey, StringComparison.Ordinal))
-            throw new HistorySelfLoopException(historyId, taskKey);
+            throw new ContainerSelfLoopException(historyId, taskKey);
+        if (!_relations.UsesGather)
+        {
+            await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
+            await _tasks.EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+        }
         var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
         RelationResultGuard.ThrowIfFailed(result);
     }

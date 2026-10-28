@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Share.HierarchySupport;
 using Operation.DataStoreDriven.Abstractions;
+using Operation.DataStoreDriven.Relations;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Share.TaskStatusPool.TaskPool;
 using UniversalWorkflowFramework.Core.Models;
@@ -33,21 +34,25 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         private readonly IResourceReferenceStore? _resources;
         private readonly ITaskRouteResolver? _routeResolver;
         private readonly IHierarchyReferenceManager? _hierarchy;
+        private readonly IRelationPorts? _ports;
 
         /// <param name="taskPool">任务入队端口（可选；提供 task 入队/状态/删除，由 Agent.Core 适配）。</param>
         /// <param name="resources">资源/引用关系存储（可选；提供节点与引用边读写，LiteDB 关系投影）。</param>
         /// <param name="routeResolver">路由解析端口（可选；标签/执行腿 → 执行腿，唯一实现 = Agent.Core.SubAgentRouteResolver）。</param>
         /// <param name="hierarchy">层级引用管理端口（可选；history 归属唯一写原语 = AttachHistoryTaskAsync）。</param>
+        /// <param name="ports">关系端口（可选；缺省从 <paramref name="hierarchy"/> 的租约提供者取）。</param>
         public TaskGraphService(
             ITaskGraphTaskStore? taskPool = null,
             IResourceReferenceStore? resources = null,
             ITaskRouteResolver? routeResolver = null,
-            IHierarchyReferenceManager? hierarchy = null)
+            IHierarchyReferenceManager? hierarchy = null,
+            IRelationPorts? ports = null)
         {
             _taskPool = taskPool;
             _resources = resources;
             _routeResolver = routeResolver;
             _hierarchy = hierarchy;
+            _ports = ports ?? (hierarchy as IRelationPortsProvider)?.Ports;
         }
 
         /// <summary>入队任务并激活消费（写 ur_tasks 即激活 AI 循环）。任务端口未装配返回 -1 供调用方诊断。</summary>
@@ -158,20 +163,12 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
             IEnumerable<ReferenceEdge> edges, bool remove = false, CancellationToken ct = default)
         {
             var diagnostics = new List<string>();
-            if (_resources is null)
-            {
-                diagnostics.Add("引用关系库未装配：跳过引用边维护");
-                return diagnostics;
-            }
             if (edges is null) return diagnostics;
             foreach (var edge in edges)
             {
                 try
                 {
-                    if (remove)
-                        await _resources.RemoveReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, ct).ConfigureAwait(false);
-                    else
-                        await _resources.AddReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, edge.Strength, ct).ConfigureAwait(false);
+                    await ApplyEdgeAsync(edge, remove, diagnostics, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -266,17 +263,47 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
         }
 
         private async Task<bool> EnsureReferenceAsync(ReferenceEdge edge, List<string> diagnostics, CancellationToken ct)
+            => await ApplyEdgeAsync(edge, remove: false, diagnostics, ct).ConfigureAwait(false);
+
+        /// <summary>
+        /// 边写唯一实现：归属边 → 声明 operation（内核）；数据流边 → 图原语；未声明归属边 ⇒ 拒绝（禁裸写）。
+        /// </summary>
+        private async Task<bool> ApplyEdgeAsync(ReferenceEdge edge, bool remove, List<string> diagnostics, CancellationToken ct)
         {
+            var operation = ResolveOwnershipOperation(edge, remove);
+            if (operation is not null)
+            {
+                var request = new RelationRequest(edge.SourceId, TargetKey: edge.TargetId);
+                var result = remove
+                    ? await _ports!.Commands.RemoveAsync(operation, request, ct).ConfigureAwait(false)
+                    : await _ports!.Commands.EnsureAsync(operation, request, ct).ConfigureAwait(false);
+                if (result.Ok) return true;
+
+                var detail = result.Diagnostics.Count > 0 ? string.Join("; ", result.Diagnostics) : result.Outcome.ToString();
+                diagnostics.Add($"引用边 {edge.SourceId} -[{edge.RefType}]-> {edge.TargetId} 失败: {detail}");
+                return false;
+            }
+
+            // 已装配端口但既非声明归属边、也非数据流边 ⇒ fail-closed（禁绕过内核写归属边）。
+            if (_ports is not null && !_ports.Operations.IsDataflowEdge(edge.RefType))
+            {
+                diagnostics.Add($"undeclared-ownership-edge:{edge.RefType}");
+                return false;
+            }
+
             if (_resources is null)
             {
                 diagnostics.Add($"引用关系库未装配：跳过引用边 {edge.SourceId} -> {edge.TargetId}");
                 return false;
             }
+
             try
             {
-                // 端点为 SQL 实体（ur_tasks / ur_nodes），存在性由 SQL 写透时序保证 ⇒ 协调器不校验端点；
-                // 守卫 StructuralGrounding 管的是归属边准入，不是端点存在性。
-                await _resources.AddReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, edge.Strength, ct).ConfigureAwait(false);
+                // 数据流边（node_to_node provenance / keymapping_to_node）：端点为 SQL 实体，存在性由 SQL 写透时序保证。
+                if (remove)
+                    await _resources.RemoveReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, ct).ConfigureAwait(false);
+                else
+                    await _resources.AddReferenceAsync(To(edge.SourceResourceType, edge.SourceId), To(edge.TargetResourceType, edge.TargetId), edge.RefType, edge.Strength, ct).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
@@ -284,6 +311,33 @@ namespace Operation.HierarchyMethod.Nodes.TaskGraph
                 diagnostics.Add($"引用边 {edge.SourceId} -[{edge.RefType}]-> {edge.TargetId} 失败: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>归属边 → 声明 operation（0/多义 ⇒ null）；裸 <c>node_to_node</c> + task→node 归到 mount/unmount_node_task。</summary>
+        private string? ResolveOwnershipOperation(ReferenceEdge edge, bool remove)
+        {
+            if (_ports is null) return null;
+
+            var declared = _ports.Operations.ResolveByEdge(edge.RefType, remove);
+            if (declared is not null)
+            {
+                if (!string.Equals(declared.Source, edge.SourceResourceType, StringComparison.Ordinal)
+                    || !string.Equals(declared.Target, edge.TargetResourceType, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"关系端点与声明不符：{edge.SourceResourceType}->{edge.TargetResourceType}（operation={declared.Id}）");
+                }
+                return declared.Id;
+            }
+
+            if (string.Equals(edge.RefType, ReferenceTypes.NodeToNode, StringComparison.Ordinal)
+                && string.Equals(edge.SourceResourceType, "task", StringComparison.Ordinal)
+                && string.Equals(edge.TargetResourceType, "node", StringComparison.Ordinal))
+            {
+                return remove ? RelationOperationIds.UnmountNodeTask : RelationOperationIds.MountNodeTask;
+            }
+
+            return null;
         }
 
         private static IEnumerable<ReferenceEdge> DefaultEdges(string resourceType, string taskKey, IReadOnlyList<NodeSpec>? related)

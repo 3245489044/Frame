@@ -39,7 +39,7 @@ param(
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
         'read-agentdb', 'watch-observe', 'state-root-audit', 'task-consistency-audit',
-        'graph-doctor', 'graph-archive-legacy', 'graph-key-normalize'
+        'graph-doctor', 'graph-archive-legacy', 'graph-key-normalize', 'graph-rebuild'
     )]
     [string]$Action,
 

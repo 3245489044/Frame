@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
+using Operation.DataStoreDriven.Relations;
 using Operation.LoopFoldMethod.Reference.Derivation;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
@@ -32,13 +33,16 @@ public sealed class NodeRelationGateway
 {
     private readonly IReferenceMaintenance? _grounding;
     private readonly IResourceReferenceStore? _store;
+    private readonly IRelationPorts? _ports;
 
     /// <param name="grounding">引用守卫（可空；未装配则节点执行期写 no-op）。</param>
     /// <param name="store">引用图读/写侧（可空；未装配则资源查询空集、资源写抛异常）。</param>
-    public NodeRelationGateway(IReferenceMaintenance? grounding, IResourceReferenceStore? store)
+    /// <param name="ports">关系端口（可空；缺省从 <paramref name="grounding"/> 的租约提供者取）。</param>
+    public NodeRelationGateway(IReferenceMaintenance? grounding, IResourceReferenceStore? store, IRelationPorts? ports = null)
     {
         _grounding = grounding;
         _store = store;
+        _ports = ports ?? (grounding as IRelationPortsProvider)?.Ports;
     }
 
     /// <summary>暴露底层 store（组合根复用 / 测试断言）。</summary>
@@ -98,13 +102,37 @@ public sealed class NodeRelationGateway
     public Task RemoveResourceAsync(string resourceType, string id, CancellationToken ct = default)
         => RequireStore().RemoveResourceAsync(Id(resourceType, id), ct);
 
-    /// <summary>幂等新增引用边（先删后加 upsert；写操作；未装配 store → 抛异常）。</summary>
-    public Task AddReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
-        => RequireStore().AddReferenceAsync(Id(sourceType, sourceId), Id(targetType, targetId), refType, strength: 1.0, ct);
+    /// <summary>幂等新增引用边（归属边 → 声明 operation；数据流边 → 图原语；写操作；未装配 store → 抛异常）。</summary>
+    public async Task AddReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
+    {
+        if (ResolveOwnershipOperation(sourceType, targetType, refType, remove: false) is { } operation)
+        {
+            var result = await _ports!.Commands.EnsureAsync(
+                operation, new RelationRequest(sourceId, TargetKey: targetId), ct).ConfigureAwait(false);
+            RelationResultGuard.ThrowIfFailed(result);
+            return;
+        }
 
-    /// <summary>删除引用边（写操作；未装配 store → 抛异常）。</summary>
-    public Task RemoveReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
-        => RequireStore().RemoveReferenceAsync(Id(sourceType, sourceId), Id(targetType, targetId), refType, ct);
+        EnsureDataflowEdge(refType);
+        await RequireStore().AddReferenceAsync(Id(sourceType, sourceId), Id(targetType, targetId), refType, strength: 1.0, ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>删除引用边（归属边 → 声明 operation；数据流边 → 图原语；写操作；未装配 store → 抛异常）。</summary>
+    public async Task RemoveReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
+    {
+        if (ResolveOwnershipOperation(sourceType, targetType, refType, remove: true) is { } operation)
+        {
+            var result = await _ports!.Commands.RemoveAsync(
+                operation, new RelationRequest(sourceId, TargetKey: targetId), ct).ConfigureAwait(false);
+            RelationResultGuard.ThrowIfFailed(result, allowNotFound: true);
+            return;
+        }
+
+        EnsureDataflowEdge(refType);
+        await RequireStore().RemoveReferenceAsync(Id(sourceType, sourceId), Id(targetType, targetId), refType, ct)
+            .ConfigureAwait(false);
+    }
 
     /// <summary>列出某资源全部引用关系（含入/出边）；未装配 store → 空集。</summary>
     public Task<IReadOnlyList<ResourceReference>> ListReferencesAsync(string resourceType, string id, bool includeIncoming = true, CancellationToken ct = default)
@@ -113,6 +141,45 @@ public sealed class NodeRelationGateway
 
     private static ResourceIdentifier Id(string resourceType, string id, string? name = null)
         => new() { ResourceType = resourceType, Id = id, Name = name };
+
+    /// <summary>
+    /// 归属边 → 声明 operation（0/多义 ⇒ null）；裸 <c>node_to_node</c> + task→node 归到 mount/unmount_node_task。
+    /// <para>端点与声明不符 ⇒ 抛（禁把归属边写到别的形状上）。</para>
+    /// </summary>
+    private string? ResolveOwnershipOperation(string sourceType, string targetType, string refType, bool remove)
+    {
+        if (_ports is null) return null;
+
+        var declared = _ports.Operations.ResolveByEdge(refType, remove);
+        if (declared is not null)
+        {
+            if (!string.Equals(declared.Source, sourceType, StringComparison.Ordinal)
+                || !string.Equals(declared.Target, targetType, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"关系端点与声明不符：{sourceType}->{targetType}（声明 {declared.Source}->{declared.Target}，operation={declared.Id}）");
+            }
+            return declared.Id;
+        }
+
+        if (string.Equals(refType, Modules.Node.Relations.ReferenceTypes.NodeToNode, StringComparison.Ordinal)
+            && string.Equals(sourceType, "task", StringComparison.Ordinal)
+            && string.Equals(targetType, "node", StringComparison.Ordinal))
+        {
+            return remove ? RelationOperationIds.UnmountNodeTask : RelationOperationIds.MountNodeTask;
+        }
+
+        return null;
+    }
+
+    /// <summary>未命中归属 operation ⇒ 仅数据流边允许写图原语（禁裸写归属边）。</summary>
+    private void EnsureDataflowEdge(string refType)
+    {
+        if (_ports is null) return;
+        if (_ports.Operations.IsDataflowEdge(refType)) return;
+        throw new InvalidOperationException(
+            $"归属边 {refType} 未在 [Relation] 声明（拒绝裸写；数据流边须显式登记）");
+    }
 
     private IResourceReferenceStore RequireStore()
         => _store ?? throw new InvalidOperationException("资源引用库（IResourceReferenceStore）未装配：资源/引用写操作不可用。");

@@ -20,6 +20,7 @@ public sealed class HistoryReferenceGrounding
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
     private readonly TaskReferenceGrounding _tasks;
+    private readonly IRelationPorts _ports;
     private readonly HistoryRelationSurface _relations;
 
     public HistoryReferenceGrounding(
@@ -30,7 +31,8 @@ public sealed class HistoryReferenceGrounding
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
-        _relations = new HistoryRelationSurface(ports ?? throw new ArgumentNullException(nameof(ports)));
+        _ports = ports ?? throw new ArgumentNullException(nameof(ports));
+        _relations = new HistoryRelationSurface(_ports);
     }
 
     /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像。</summary>
@@ -167,9 +169,9 @@ public sealed class HistoryReferenceGrounding
         return EndpointKeyRekey.Plan(edges, taskKeys ?? Array.Empty<string>());
     }
 
-    /// <summary>K3 端点重键执行（幂等，经协调器 Add/Remove）。</summary>
+    /// <summary>K3 端点重键执行（幂等，归属边经内核 <c>Origin=Rebuild</c>）。</summary>
     public Task<EndpointRekeyResult> ApplyEndpointRekeyAsync(EndpointRekeyPlan plan, CancellationToken ct = default)
-        => EndpointKeyRekey.ApplyAsync(_graph, plan, ct);
+        => EndpointKeyRekey.ApplyAsync(_graph, plan, ct, _ports);
 
     /// <summary>历史 Id 单一权威：history.{historyId}。</summary>
     public static string HistoryNodeId(string historyId) => HierarchyResourceKeys.History(historyId);

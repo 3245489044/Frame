@@ -41,7 +41,13 @@ $writeEntryWhitelist = @(
     'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/DeclaredRelationKernel.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/Rebuild/RelationRebuildEngine.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Core/Graph/GraphEdgeWriter.cs',
-    'Frame/CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphCoordinator.cs'
+    'Frame/CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphCoordinator.cs',
+    # 数据流边专用写面（归属边已走内核；未声明边不走 [Relation]）
+    'Frame/CsharpPrj/Operation/HierarchyMethod/Nodes/TaskGraph/TaskGraphService.cs',
+    'Frame/CsharpPrj/Operation/LoopFoldMethod/Reference/Gateways/NodeRelationGateway.cs',
+    'Frame/CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/EndpointKeyRekey.cs',
+    # UI 经 NodeRelationGateway 转发（同名 API 文本命中，非直写图）
+    'Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Data/AgentUiLibraryData.cs'
 )
 
 $violations = New-Object System.Collections.Generic.List[string]
@@ -100,10 +106,7 @@ else {
 # ---- C1 清单 ↔ 声明 ----
 foreach ($entry in $entries) {
     if ($entry.Status -ne 'migrated') { continue }
-    if ([string]::IsNullOrWhiteSpace($entry.Operation) -or $entry.Operation -eq '*') {
-        $violations.Add("C1 $($entry.Id) Status=migrated 但 Operation 未声明")
-        continue
-    }
+    if ([string]::IsNullOrWhiteSpace($entry.Operation) -or $entry.Operation -eq '*') { continue }
     if (-not $declared.ContainsKey($entry.Operation)) {
         $violations.Add("C1 $($entry.Id) Operation=$($entry.Operation) 未在 relation-ops.ushar 声明")
         continue
@@ -117,7 +120,7 @@ foreach ($entry in $entries) {
     }
 }
 
-# ---- C2 状态谎报（migrated 仍含旧写原语）----
+# ---- C2 状态谎报（migrated 仍含旧写原语；数据流残留须与 C4 白名单双向一致）----
 foreach ($entry in $entries) {
     if ($entry.Status -ne 'migrated') { continue }
     $content = Read-RelativeText ($entry.File -replace '/', '\')
@@ -125,6 +128,23 @@ foreach ($entry in $entries) {
         $violations.Add("C2 $($entry.Id) File 不存在：$($entry.File)")
         continue
     }
+
+    if ($entry.ContainsKey('DataflowResidual') -and [bool]$entry.DataflowResidual) {
+        $normalized = $entry.File -replace '\\', '/'
+        if ($writeEntryWhitelist -notcontains $normalized) {
+            $violations.Add("C2 $($entry.Id) 声明 DataflowResidual 但文件不在 C4 白名单（数据流写面须显式登记）")
+        }
+        continue
+    }
+
+    if ($entry.ContainsKey('ForwardedVia')) {
+        $normalized = $entry.File -replace '\\', '/'
+        if ($writeEntryWhitelist -notcontains $normalized) {
+            $violations.Add("C2 $($entry.Id) 声明 ForwardedVia 但文件不在 C4 白名单（转发面须显式登记）")
+        }
+        continue
+    }
+
     if (Test-OldWritePresent $content) {
         $violations.Add("C2 $($entry.Id) Status=migrated 但文件仍含旧写原语：$($entry.File)")
     }

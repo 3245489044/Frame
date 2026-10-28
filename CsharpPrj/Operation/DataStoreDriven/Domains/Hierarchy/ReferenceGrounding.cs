@@ -19,7 +19,7 @@ namespace Operation.DataStoreDriven.Core;
 /// 命名空间与公开方法签名逐一保留 ⇒ 既有调用方源码零改。
 /// </para>
 /// </summary>
-public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyReferenceManager
+public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyReferenceManager, IRelationPortsProvider
 {
     private readonly GraphGrounding _core;
     private readonly RelationPortLease _ports;
@@ -40,6 +40,9 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
 
     /// <summary>关系端口租约（唯一装配点 = <c>AgentStorageBundle.RegisterRelationPorts</c>；未 Attach 即抛）。</summary>
     public RelationPortLease Ports => _ports;
+
+    /// <summary>租约提供者显式实现（接口返回基类型；具体类型保留给装配点调用 Attach）。</summary>
+    IRelationPorts IRelationPortsProvider.Ports => _ports;
 
     /// <summary>写透目标图协调器（graph-log.db 唯一 owner）。</summary>
     public ReferenceGraphCoordinator Coordinator => _core.Coordinator;

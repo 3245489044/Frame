@@ -7,6 +7,7 @@ using Modules.Node.Identity;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Graph;
+using Operation.DataStoreDriven.Relations;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -139,10 +140,12 @@ public static class EndpointKeyRekey
     }
 
     /// <summary>执行计划（幂等；顺序 = 先加新边后删旧边，失败时不清理旧端点）。</summary>
+    /// <param name="ports">关系端口（可选；装配后归属边经内核 <c>Origin=Rebuild</c>，未声明边仍走图原语）。</param>
     public static async Task<EndpointRekeyResult> ApplyAsync(
         ReferenceGraphCoordinator graph,
         EndpointRekeyPlan plan,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IRelationPorts? ports = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(plan);
@@ -151,8 +154,29 @@ public static class EndpointKeyRekey
         foreach (var action in plan.Rekeyable)
         {
             ct.ThrowIfCancellationRequested();
-            await graph.AddReferenceAsync(action.NewSource, action.Target, action.RefType, 1.0, ct).ConfigureAwait(false);
-            await graph.RemoveReferenceAsync(action.Source, action.Target, action.RefType, ct).ConfigureAwait(false);
+
+            if (ports is not null && ports.Operations.ResolveByEdge(action.RefType, remove: false) is { } ensureOp)
+            {
+                var request = new RelationRequest(
+                    action.NewSource.Id ?? string.Empty,
+                    TargetKey: action.Target.Id ?? string.Empty,
+                    Namespace: action.NewSource.Location,
+                    Origin: RelationOrigin.Rebuild);
+                var applied = await ports.Commands.EnsureAsync(ensureOp.Id, request, ct).ConfigureAwait(false);
+                if (!applied.Ok) continue;
+
+                if (ports.Operations.ResolveByEdge(action.RefType, remove: true) is { } removeOp)
+                {
+                    var removeRequest = request with { SourceKey = action.Source.Id ?? string.Empty };
+                    await ports.Commands.RemoveAsync(removeOp.Id, removeRequest, ct).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await graph.AddReferenceAsync(action.NewSource, action.Target, action.RefType, 1.0, ct).ConfigureAwait(false);
+                await graph.RemoveReferenceAsync(action.Source, action.Target, action.RefType, ct).ConfigureAwait(false);
+            }
+
             rekeyed++;
         }
 

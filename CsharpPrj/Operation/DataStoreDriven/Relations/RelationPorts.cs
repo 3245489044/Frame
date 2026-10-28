@@ -17,6 +17,14 @@ public interface IRelationPorts
 }
 
 /// <summary>
+/// 端口租约提供者：通用编排门面从既有 grounding 句柄取端口（免新增装配点；无反向依赖）。
+/// </summary>
+public interface IRelationPortsProvider
+{
+    IRelationPorts Ports { get; }
+}
+
+/// <summary>
 /// 端口租约实现（唯一装配点 = <c>AgentStorageBundle.RegisterRelationPorts</c>）。
 /// <para>读取未装配成员 ⇒ <see cref="InvalidOperationException"/>，消息含 <c>关系端口未装配</c>。</para>
 /// </summary>

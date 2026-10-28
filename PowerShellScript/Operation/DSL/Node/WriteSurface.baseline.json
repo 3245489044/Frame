@@ -5,7 +5,8 @@
   "measuredAt": "2026-10-28",
   "manifest": "Frame/PowerShellScript/Operation/DSL/Node/WriteSurface.psd1",
   "entries": 19,
-  "pending": 11,
-  "directWriteFiles": 4,
+  "pending": 0,
+  "whitelisted": 1,
+  "directWriteFiles": 0,
   "note": "pending 只降不升；每次下降须同批更新本文件（C3 棘轮）。"
 }

@@ -63,6 +63,11 @@
             Target = '..\PowerShellScript\Share\Data\Invoke-GraphKeyNormalize.ps1'
             Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Apply = 'Apply'; Json = 'Json' }
         }
+        'graph-rebuild' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Invoke-GraphRebuild.ps1'
+            Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Apply = 'Apply'; Json = 'Json'; OutFile = 'OutFile' }
+        }
         'watch-observe' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Observe\Watch-AgentObserve.ps1'

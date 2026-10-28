@@ -185,10 +185,10 @@
 
     WriteSurface = @{
         Domain = 'Node'
-        Args   = @{}
+        Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '关系写面清单（RF0 报告态）：C1 清单↔声明 / C2 状态谎报（migrated 仍直写）/ C3 pending 棘轮 / C4 写入口唯一 / C5 负对照；转判红见 RF6（Args=@{Check=$true}）'
+        Note   = '关系写面清单（RF6 判红态）：C1 清单↔声明 / C2 状态谎报（migrated 仍直写；数据流残留须与 C4 白名单双向一致）/ C3 pending 棘轮（当前=0）/ C4 写入口唯一 / C5 负对照'
     }
 
     NodeEdgeIntegrity = @{

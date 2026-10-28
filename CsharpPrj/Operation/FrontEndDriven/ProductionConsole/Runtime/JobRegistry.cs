@@ -154,6 +154,24 @@ public sealed class JobRegistry : IDisposable
                 .ToList();
     }
 
+    /// <summary>
+    /// 移除已终态任务（产物删除后避免控制台仍显示任务卡）。排队/运行中任务拒绝移除。
+    /// </summary>
+    public bool Remove(string jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId)) return false;
+
+        lock (_gate)
+        {
+            if (!_jobs.TryGetValue(jobId, out var record)) return false;
+            if (record.Status is not (JobStatus.Succeeded or JobStatus.Failed or JobStatus.Cancelled))
+                return false;
+
+            _jobs.Remove(jobId);
+            return true;
+        }
+    }
+
     /// <summary>取消：排队中立即生效；运行中协作式（把 CancellationToken 交给执行体）。</summary>
     public bool Cancel(string jobId)
     {

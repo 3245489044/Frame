@@ -48,22 +48,35 @@ public sealed record RelationPlan(
     string Version,
     IReadOnlyList<RelationOperation> Operations,
     IReadOnlyList<RelationInvariant> Invariants,
-    IReadOnlyList<RelationDerivation> Derivations)
+    IReadOnlyList<RelationDerivation> Derivations,
+    IReadOnlyList<RelationBinding>? Bindings = null,
+    IReadOnlyList<RelationProvision>? Provisions = null)
 {
     /// <summary>空计划（声明面缺失时的显式占位；禁以空目录冒充已装配）。</summary>
     public static readonly RelationPlan Empty = new(
         "0", Array.Empty<RelationOperation>(), Array.Empty<RelationInvariant>(), Array.Empty<RelationDerivation>());
 }
 
-/// <summary>
-/// 关系计划目录（operation / derive 的唯一解析点）。
-/// <para>调用方只传 operation id；边类型只能从本目录查（禁传裸 <c>refType</c>）。</para>
-/// </summary>
+/// <summary>容器归属声明（<c>[Binding]</c> 中性形态；U4 起由语言层产出）。</summary>
+public sealed record RelationBinding(
+    string Id,
+    string Target,
+    string ContainerFrom,
+    string OnMismatch);
+
+/// <summary>端点镜像归属声明（<c>[Provision]</c> 中性形态）。</summary>
+public sealed record RelationProvision(
+    string Id,
+    string Entity,
+    string Owner);
+
+/// <summary>关系计划目录（operation / derive / binding 的唯一解析点）。</summary>
 public sealed class RelationPlanCatalog
 {
     private readonly Dictionary<string, RelationOperation> _operations = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RelationDerivation> _derivations = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IReadOnlyList<RelationInvariant>> _invariantsByEdge = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, RelationBinding> _bindings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<RelationInvariant>> _invariantsByEdge;
 
     public RelationPlanCatalog(RelationPlan plan)
     {
@@ -74,30 +87,31 @@ public sealed class RelationPlanCatalog
             _operations.TryAdd(operation.Id, operation);
         foreach (var derivation in plan.Derivations)
             _derivations.TryAdd(derivation.Id, derivation);
+        foreach (var binding in plan.Bindings ?? Array.Empty<RelationBinding>())
+            _bindings.TryAdd(binding.Target, binding);
 
-        // 一次分组（D8）：按边取不变量不再逐次线性过滤（内核曾在 foreach target 内反复调用）。
         _invariantsByEdge = plan.Invariants
             .GroupBy(i => i.Edge, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<RelationInvariant>)g.ToList(), StringComparer.Ordinal);
     }
 
-    /// <summary>底层计划（fingerprint / 诊断对账用）。</summary>
     public RelationPlan Plan { get; }
 
-    /// <summary>是否为空计划（无任何 operation）。</summary>
     public bool IsEmpty => _operations.Count == 0;
 
-    /// <summary>按 operation id 取声明（未声明 ⇒ null；不兜底、不猜边）。</summary>
     public RelationOperation? Resolve(string operation)
         => !string.IsNullOrWhiteSpace(operation) && _operations.TryGetValue(operation, out var found) ? found : null;
 
-    /// <summary>按 derive id 取声明（未声明 ⇒ null）。</summary>
     public RelationDerivation? ResolveDerivation(string deriveId)
         => !string.IsNullOrWhiteSpace(deriveId) && _derivations.TryGetValue(deriveId, out var found) ? found : null;
 
-    /// <summary>
-    /// 按「边 + 意图」反查唯一 operation（UI/编排层只持有边字面量时的唯一映射入口；未命中/多义 ⇒ null）。
-    /// </summary>
+    /// <summary>按端点类型取容器归属声明（未声明 ⇒ null）。</summary>
+    public RelationBinding? BindingFor(string target)
+        => !string.IsNullOrWhiteSpace(target) && _bindings.TryGetValue(target, out var found) ? found : null;
+
+    public IReadOnlyList<RelationInvariant> InvariantsFor(string edge)
+        => _invariantsByEdge.TryGetValue(edge, out var found) ? found : Array.Empty<RelationInvariant>();
+
     public RelationOperation? ResolveByEdge(string edge, bool remove)
     {
         if (string.IsNullOrWhiteSpace(edge)) return null;
@@ -106,8 +120,4 @@ public sealed class RelationPlanCatalog
             .ToList();
         return matches.Count == 1 ? matches[0] : null;
     }
-
-    /// <summary>某边的全部不变量（声明序；字典查找）。</summary>
-    public IReadOnlyList<RelationInvariant> InvariantsFor(string edge)
-        => _invariantsByEdge.TryGetValue(edge, out var found) ? found : Array.Empty<RelationInvariant>();
 }

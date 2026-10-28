@@ -58,6 +58,9 @@ public enum NodeReadReason
 
     /// <summary>塑形不合格（无标题/摘要/键）。</summary>
     Unshaped,
+
+    /// <summary>坐标已给但读投影无行（与 <see cref="NoBinding"/> 区分：空必须可归因）。</summary>
+    NoProjectionRows,
 }
 
 /// <summary>原因词文本 ↔ 注册枚举的唯一映射（禁各处 switch）。</summary>
@@ -73,6 +76,7 @@ public static class NodeReadReasons
             [NodeKeySetReasons.EmptyKey] = NodeReadReason.EmptyKey,
             [NodeKeySetReasons.EdgeTargetMissing] = NodeReadReason.EdgeTargetMissing,
             [NodeKeySetReasons.KeyMissing] = NodeReadReason.KeyMissing,
+            [NodeKeySetReasons.NoProjectionRows] = NodeReadReason.NoProjectionRows,
             ["scope-undefined"] = NodeReadReason.ScopeUndefined,
             ["placement-unresolved"] = NodeReadReason.PlacementUnresolved,
             ["container-mismatch"] = NodeReadReason.ContainerMismatch,
@@ -143,6 +147,7 @@ public static class NodeReadReasons
         NodeReadReason.NoBinding => NodeKeySetReasons.NoBinding,
         NodeReadReason.SourceUnavailable => NodeKeySetReasons.SourceUnavailable,
         NodeReadReason.KeyMissing => NodeKeySetReasons.KeyMissing,
+        NodeReadReason.NoProjectionRows => NodeKeySetReasons.NoProjectionRows,
         NodeReadReason.EdgeTargetMissing => NodeKeySetReasons.EdgeTargetMissing,
         NodeReadReason.ScopeUndefined => "scope-undefined",
         NodeReadReason.PlacementUnresolved => "placement-unresolved",

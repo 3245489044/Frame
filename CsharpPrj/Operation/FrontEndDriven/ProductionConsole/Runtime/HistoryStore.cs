@@ -76,6 +76,55 @@ public sealed class HistoryStore : IProductionHistory
         return all.LastOrDefault(s => string.Equals(s.InputHash, inputHash, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// 按 jobId 删除历史行（带锁 + 临时文件原子替换）。返回删除行数；损坏行保留不动。
+    /// 用于测试/运维清理产物对应的历史，避免“文件已删、历史仍可查”。
+    /// </summary>
+    public int Remove(string jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId)) return 0;
+
+        lock (_gate)
+        {
+            if (!File.Exists(_path)) return 0;
+
+            var kept = new List<string>();
+            var removed = 0;
+            foreach (var line in File.ReadLines(_path))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    kept.Add(line);
+                    continue;
+                }
+
+                try
+                {
+                    var snapshot = JsonSerializer.Deserialize<JobSnapshot>(line, Json);
+                    if (snapshot is not null
+                        && string.Equals(snapshot.JobId, jobId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        removed++;
+                        continue;
+                    }
+                }
+                catch
+                {
+                    // 损坏行不参与匹配，原样保留
+                }
+
+                kept.Add(line);
+            }
+
+            if (removed == 0) return 0;
+
+            var temp = _path + ".tmp";
+            File.WriteAllLines(temp, kept);
+            File.Move(temp, _path, overwrite: true);
+            return removed;
+        }
+    }
+
     private static bool Matches(JobSnapshot snapshot, HistoryQuery query)
     {
         if (!string.IsNullOrWhiteSpace(query.CapabilityId)

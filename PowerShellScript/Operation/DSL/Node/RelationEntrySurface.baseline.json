@@ -1,0 +1,17 @@
+{
+  "surface": "relation-entry",
+  "measuredAt": "2026-10-29",
+  "batch": "U1-U3",
+  "values": {
+    "gatherImplementation": 1,
+    "directWriteCallSites": 0,
+    "layerViolations": 0,
+    "deriveImplementations": 1,
+    "note": "U1-U3 结构值；U4/U5（[Binding]/[Provision]、账本收敛）后复测并只降不升"
+  },
+  "recompute": [
+    "pwsh Frame\\PowerShellScript\\Operation\\DSL\\Node\\Check-RelationGather.ps1 -Check -ShowDetail -NegativeControl",
+    "git -C Frame grep -n IRelationGatherPoint -- '*.cs'",
+    "git -C Frame grep -n 'using Operation\\.' -- 'CsharpPrj/Share/Frameworks/UniversalReference/*.cs'"
+  ]
+}

@@ -100,7 +100,14 @@ public sealed class NodeReadService
                 new[] { NodeReadReason.ScopeUndefined });
         }
 
-        if (keySet.Keys.Count == 0 && request.ExplicitKeys is null)
+        // 键集为空**且无其它作用域坐标**（容器 / 键前缀 / 显式全量）⇒ 键集即唯一限定源：合法空（no-binding 等）。
+        // 有坐标时**必须进投影**：容器轴 / 键前缀轴 / 全量轴的枚举发生在投影侧（读前缀 → 载体枚举），
+        // 此处提前返回会把「本可读到的行」判成空集 ⇒ 面板/库视图恒零行（读面不可用却报「可用但空」）。
+        var hasNonKeyScopeCoordinate =
+            !string.IsNullOrWhiteSpace(request.Container) ||
+            !string.IsNullOrWhiteSpace(request.KeyPrefix) ||
+            request.ExplicitFull;
+        if (keySet.Keys.Count == 0 && request.ExplicitKeys is null && !hasNonKeyScopeCoordinate)
         {
             // 键集合法空（no-binding 等）：可用但空，不清面。
             return new NodeReadResult(
@@ -187,6 +194,17 @@ public sealed class NodeReadService
                 {
                     reasons.Add($"{NodeKeySetReasons.KeyMissing}:{key}");
                 }
+            }
+        }
+
+        // 空必须可归因（NoSilentOutlet / EmptyResultGate）：坐标已给、来源已定位、投影无行
+        // ≠ 「无归属边」（后者由键集给 no-binding）。二者不得同形，否则面板空无可查。
+        if (items.Count == 0 && reasons.Count == 0)
+        {
+            reasons.Add(NodeKeySetReasons.NoProjectionRows);
+            if (!codes.Contains(NodeReadReason.NoProjectionRows))
+            {
+                codes.Add(NodeReadReason.NoProjectionRows);
             }
         }
 

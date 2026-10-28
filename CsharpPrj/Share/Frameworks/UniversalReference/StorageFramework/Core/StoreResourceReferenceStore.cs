@@ -21,6 +21,31 @@ public sealed class StoreResourceReferenceStore : IResourceReferenceStore
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     }
 
+    /// <summary>
+    /// 写边（结构化结果）：本实现只有 <see cref="IResourceStorage"/> 原语，**无写前门**（无 policy/tombstone/revive 概念），
+    /// 故显式返回 <see cref="ReferenceWriteVerdict.WrittenWithoutPolicy"/>，不伪装成经门裁决的 Written。
+    /// </summary>
+    public async Task<ReferenceWriteOutcome> AddReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, double strength = 1.0, CancellationToken ct = default)
+    {
+        await AddReferenceAsync(sourceId, targetId, refType, strength, ct).ConfigureAwait(false);
+        return new ReferenceWriteOutcome(
+            Wrote: true,
+            Verdict: ReferenceWriteVerdict.WrittenWithoutPolicy,
+            Reason: "storage-without-write-gate",
+            TombstoneCleared: false);
+    }
+
+    /// <inheritdoc />
+    public Task<ReferenceDeleteOutcome> RemoveReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, CancellationToken ct = default)
+        => RemoveReferenceAsync(sourceId, targetId, refType, ct)
+            .ContinueWith(_ => new ReferenceDeleteOutcome(
+                key: $"{sourceId.ResourceType}:{sourceId.Id}->{targetId.ResourceType}:{targetId.Id}",
+                status: ReferenceDeleteStatus.Ok,
+                message: "storage-without-write-gate"), ct, TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     public Task AddResourceAsync(ResourceIdentifier resourceId, IReadOnlyDictionary<string, object>? metadata = null, string? symbol = null, CancellationToken ct = default)

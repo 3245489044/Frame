@@ -83,6 +83,7 @@ public static class ConsoleHtmlKit
                 var active = string.Equals(cap.Id, model.SelectedCapabilityId, StringComparison.Ordinal);
                 sb.Append("<button type=\"button\" class=\"pcx-cap")
                   .Append(active ? " active" : "")
+                  .Append("\" data-name=\"cap-").Append(A(cap.Id))
                   .Append("\" data-pcx=\"cap.select\" data-cap=\"").Append(A(cap.Id))
                   .Append("\" data-key=\"cap-").Append(A(cap.Id))
                   .Append("\" data-arg=\"").Append(A(Arg("capability", cap.Id)))
@@ -122,10 +123,12 @@ public static class ConsoleHtmlKit
         sb.Append("</div>");
 
         sb.Append("<div class=\"pcx-form-actions\">");
-        sb.Append("<button type=\"button\" class=\"pcx-btn primary\" data-pcx=\"form.run\" data-pcx-collect=\"1\">▶ 生成</button>");
-        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-pcx=\"form.reset\">重置</button>");
+        sb.Append("<button type=\"button\" class=\"pcx-btn primary\" data-name=\"form-run\" data-pcx=\"form.run\" data-pcx-collect=\"1\">▶ 生成</button>");
+        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"form-reset\" data-pcx=\"form.reset\">重置</button>");
+        var actionIndex = 0;
         foreach (var action in cap.Actions)
-            sb.Append("<button type=\"button\" class=\"pcx-btn\" data-pcx=\"cap.action\" data-arg=\"")
+            sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"cap-action-").Append(actionIndex++)
+              .Append("\" data-pcx=\"cap.action\" data-arg=\"")
               .Append(A(Arg("action", action))).Append("\">").Append(E(action)).Append("</button>");
         sb.Append("</div>");
         return sb.ToString();
@@ -252,7 +255,9 @@ public static class ConsoleHtmlKit
 
     private static void JobButton(StringBuilder sb, string cmd, string jobId, string label, string extraCss)
     {
+        var action = cmd.StartsWith("job.", StringComparison.OrdinalIgnoreCase) ? cmd[4..] : cmd;
         sb.Append("<button type=\"button\" class=\"pcx-btn small ").Append(extraCss)
+          .Append("\" data-name=\"job-").Append(A(action)).Append("-").Append(A(jobId))
           .Append("\" data-pcx=\"").Append(A(cmd)).Append("\" data-arg=\"")
           .Append(A(Arg("jobId", jobId))).Append("\">").Append(E(label)).Append("</button>");
     }
@@ -341,7 +346,7 @@ public static class ConsoleHtmlKit
         DrawerTab(sb, "history", "历史", model.Drawer);
         DrawerTab(sb, "graph", "结构图", model.Drawer);
         DrawerTab(sb, "diag", "诊断", model.Drawer);
-        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-pcx=\"drawer.open\" data-arg=\"")
+        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"drawer-close\" data-pcx=\"drawer.open\" data-arg=\"")
           .Append(A(Arg("drawer", "none"))).Append("\">收起</button>");
         sb.Append("</div>");
 
@@ -367,6 +372,7 @@ public static class ConsoleHtmlKit
     {
         sb.Append("<button type=\"button\" class=\"pcx-btn small")
           .Append(string.Equals(drawer, current, StringComparison.Ordinal) ? " active" : "")
+          .Append("\" data-name=\"drawer-").Append(A(drawer))
           .Append("\" data-pcx=\"drawer.open\" data-arg=\"").Append(A(Arg("drawer", drawer)))
           .Append("\">").Append(E(label)).Append("</button>");
     }
@@ -408,7 +414,7 @@ public static class ConsoleHtmlKit
     {
         var sb = new StringBuilder();
         sb.Append("<span class=\"pcx-status-text\">").Append(E(model.StatusText ?? "")).Append("</span>");
-        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-pcx=\"diag.probe\" title=\"重新探测 ComfyUI / ACE-Step 并刷新状态\">重新探活</button>");
+        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"diag-probe\" data-pcx=\"diag.probe\" title=\"重新探测 ComfyUI / ACE-Step 并刷新状态\">重新探活</button>");
         if (!string.IsNullOrWhiteSpace(model.Notice))
             sb.Append("<span class=\"pcx-notice\">").Append(E(model.Notice!)).Append("</span>");
         return sb.ToString();

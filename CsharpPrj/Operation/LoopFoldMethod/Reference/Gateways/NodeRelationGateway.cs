@@ -162,13 +162,7 @@ public sealed class NodeRelationGateway
             return declared.Id;
         }
 
-        if (string.Equals(refType, Modules.Node.Relations.ReferenceTypes.NodeToNode, StringComparison.Ordinal)
-            && string.Equals(sourceType, "task", StringComparison.Ordinal)
-            && string.Equals(targetType, "node", StringComparison.Ordinal))
-        {
-            return remove ? RelationOperationIds.UnmountNodeTask : RelationOperationIds.MountNodeTask;
-        }
-
+        // 归属边只能由 [Relation] 声明解析（裸 refType 推导会引入第二套 operation 口径，已删除）。
         return null;
     }
 

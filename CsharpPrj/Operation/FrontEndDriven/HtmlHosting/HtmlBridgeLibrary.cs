@@ -87,6 +87,15 @@ public sealed class HtmlBridgeLibrary
             new IParamConfig[] { Param("scriptJson", typeof(string)) },
             "执行 HTML 脚本（04-json-script 命令协议 set/get/click/exec/sleep → HTML 原生元素；{template} 仅 echo-section）");
 
+        registry.Register(_prefix + "HtmlDomScript",
+            (Func<string, string, Task<string>>)(HtmlDomScriptAsync),
+            new IParamConfig[]
+            {
+                Param("scriptJson", typeof(string)),
+                Param("hostControl", typeof(string), optional: true, def: null),
+            },
+            "对指定 htmlviewer 执行 DOM 脚本（set/get/click/realclick/sleep；不装配/不接管消息桥）。参数：scriptJson=命令 JSON；hostControl=目标控件名（缺省用库宿主控件）");
+
         registry.Register(_prefix + "HtmlAttach",
             (Func<Task<string>>)(HtmlAttachAsync),
             "装配 HTML 后端运行时（DOM 桥 + 页面声明 + 模板 + 主题）；页面 sideload 后调用");
@@ -163,6 +172,82 @@ public sealed class HtmlBridgeLibrary
         {
             return $"HTML 脚本执行失败[{ex.GetType().Name}]: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// 对指定 htmlviewer 执行 DOM 脚本（set/get/click/realclick/sleep），**不装配 HTML 运行时、不接管消息桥**。
+    /// <para>用途：v2 单页控制台（如 ProducePanel 的 tabConsoleViewer）仍由声明式 events.message 承载消息桥时，
+    /// 测试/自动化需要真实 DOM 操作但又不能抢占消息订阅；此入口直接经 <see cref="HtmlViewer.ExecuteDomAsync"/>
+    /// 对目标控件执行白名单 DOM 指令。与 <see cref="HtmlScriptAsync"/> 的区别仅是不依赖宿主槽装配态。</para>
+    /// </summary>
+    /// <param name="scriptJson">04-json-script 命令 JSON（整脚本或裸命令数组）。</param>
+    /// <param name="hostControl">目标 htmlviewer 控件名；空 = 库宿主控件。</param>
+    public async Task<string> HtmlDomScriptAsync(string scriptJson, string? hostControl = null)
+    {
+        var control = string.IsNullOrWhiteSpace(hostControl) ? _hostControl : hostControl!;
+        var viewer = _backend.HtmlViewerResolver?.Invoke(control);
+        if (viewer is null)
+            return $"未找到宿主控件 {control}（未 sideload 或 resolver 未注入）";
+
+        var commands = HtmlScriptBridge.ParseCommands(scriptJson);
+        if (commands.Count == 0)
+            return "（脚本为空或解析失败）";
+
+        var lines = new List<string>();
+        foreach (var cmd in commands)
+        {
+            var action = cmd.Action?.Trim().ToLowerInvariant() ?? string.Empty;
+            switch (action)
+            {
+                case DomOps.Set:
+                {
+                    var status = await viewer.ExecuteDomAsync(DomOps.Set, cmd.Target ?? string.Empty, cmd.Value)
+                        .ConfigureAwait(false);
+                    var text = HtmlElementNode.UnwrapString(status);
+                    if (!DomOps.IsOk(text))
+                        throw new InvalidOperationException($"[set] {cmd.Target} → {text}");
+                    lines.Add($"[set] {cmd.Target} = {cmd.Value}");
+                    break;
+                }
+
+                case DomOps.Get:
+                {
+                    var raw = await viewer.ExecuteDomAsync(DomOps.Get, cmd.Target ?? string.Empty, null)
+                        .ConfigureAwait(false);
+                    lines.Add($"[get] {cmd.Target} = {HtmlElementNode.UnwrapString(raw)}");
+                    break;
+                }
+
+                case DomOps.Click:
+                case DomOps.RealClick:
+                {
+                    var raw = await viewer.ExecuteDomAsync(action, cmd.Target ?? string.Empty, null)
+                        .ConfigureAwait(false);
+                    var text = HtmlElementNode.UnwrapString(raw);
+                    lines.Add($"[{action}] {cmd.Target} → {text}");
+                    var failed = action == DomOps.RealClick
+                        ? ClickOutcomes.IsFailure(ClickOutcomes.Parse(text))
+                        : !DomOps.IsOk(text);
+                    if (failed)
+                        throw new InvalidOperationException(string.Join(Environment.NewLine, lines));
+                    break;
+                }
+
+                case "sleep":
+                {
+                    var ms = int.TryParse(cmd.Target ?? cmd.Value, out var parsed) && parsed > 0 ? parsed : 200;
+                    await Task.Delay(ms).ConfigureAwait(false);
+                    lines.Add($"[sleep] {ms}ms");
+                    break;
+                }
+
+                default:
+                    throw new InvalidOperationException(
+                        $"[{cmd.Action}] 不支持（DOM 桥白名单：set/get/click/realclick/sleep）");
+            }
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     /// <summary>

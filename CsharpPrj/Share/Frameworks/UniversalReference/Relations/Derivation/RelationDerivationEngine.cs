@@ -1,35 +1,31 @@
-using Operation.DataStoreDriven.Graph;
 using UniversalWorkflowFramework.Core.Models;
+using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
 namespace Operation.DataStoreDriven.Relations;
 
 /// <summary>
 /// 派生成员集引擎：<b>唯一读入口</b>（<see cref="IRelationQueryPort"/>）。
-/// <para>
-/// 只做「路径遍历 / 去重 / 归一 / 排序」，不解释策略：每一跳走
-/// <c>ReferenceGraphCoordinator.GetReferencesAsync</c>（唯一图读）；空集必带空因。
-/// </para>
+/// <para>只做「路径遍历 / 去重 / 归一 / 排序」，不解释策略；每一跳走 <see cref="IResourceReferenceStore.GetReferencesAsync"/>。</para>
 /// </summary>
 public sealed class RelationDerivationEngine : IRelationQueryPort
 {
-    private readonly ReferenceGraphCoordinator _graph;
+    private readonly IResourceReferenceStore _reader;
     private readonly RelationPlanCatalog _catalog;
     private readonly IRelationPolicy _policy;
     private readonly IWorkflowNamespace _namespaces;
 
     public RelationDerivationEngine(
-        ReferenceGraphCoordinator graph,
+        IResourceReferenceStore reader,
         RelationPlanCatalog catalog,
         IRelationPolicy policy,
         IWorkflowNamespace namespaces)
     {
-        _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _reader = reader ?? throw new ArgumentNullException(nameof(reader));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _namespaces = namespaces ?? throw new ArgumentNullException(nameof(namespaces));
     }
 
-    /// <inheritdoc />
     public async Task<RelationQueryResult> EnumerateAsync(
         string edgeOrDerive, RelationScope scope, CancellationToken ct = default)
     {
@@ -44,7 +40,7 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
 
         var sourceType = scope.SourceType ?? (string.IsNullOrWhiteSpace(edge.Source) ? "node" : edge.Source);
         var source = RelationEndpoints.Create(sourceType, scope.SourceKey, LocationFor(sourceType, scope));
-        var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct).ConfigureAwait(false);
+        var refs = await _reader.GetReferencesAsync(source, includeIncoming: false, ct).ConfigureAwait(false);
 
         var keys = refs
             .Where(r => !r.IsIncoming && string.Equals(r.RefType, edgeOrDerive, StringComparison.Ordinal))
@@ -59,7 +55,6 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
             : new RelationQueryResult(keys, Array.Empty<string>());
     }
 
-    /// <inheritdoc />
     public async Task<RelationQueryResult> DeriveAsync(
         string deriveId, RelationScope scope, CancellationToken ct = default)
     {
@@ -82,7 +77,7 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
             foreach (var key in level)
             {
                 var source = RelationEndpoints.Create(currentType, key, LocationFor(currentType, scope));
-                var refs = await _graph.GetReferencesAsync(source, includeIncoming: false, ct);
+                var refs = await _reader.GetReferencesAsync(source, includeIncoming: false, ct);
                 foreach (var reference in refs)
                 {
                     if (reference.IsIncoming) continue;
@@ -93,7 +88,7 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
             }
 
             level = next.Distinct(StringComparer.Ordinal).ToList();
-            currentType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target!;
+            currentType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target;
 
             if (level.Count == 0)
                 return RelationQueryResult.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-edge");
@@ -102,7 +97,6 @@ public sealed class RelationDerivationEngine : IRelationQueryPort
         var keys = derivation.Normalize switch
         {
             "node-key" => level.Select(NormalizeNodeKey).Distinct(StringComparer.Ordinal).ToList(),
-            "identity" => level,
             _ => level,
         };
 

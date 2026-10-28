@@ -1,36 +1,21 @@
-using Operation.DataStoreDriven.Graph;
 using UniversalWorkflowFramework.Core.Models;
+using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
 namespace Operation.DataStoreDriven.Relations;
 
-/// <summary>违反种类（结构事实；<c>BudgetExceeded</c> 与 <c>Cycle</c> 不得共用出口）。</summary>
-public enum RelationViolationKind
-{
-    Cycle = 0,
-    BudgetExceeded = 1,
-    SingleParent = 2,
-    SingleTarget = 3,
-    MissingEndpoint = 4,
-}
-
-/// <summary>一条不变量违反（不变量 id + 种类 + 结构事实理由）。</summary>
-public sealed record RelationViolation(string InvariantId, RelationViolationKind Kind, string Reason);
-
 /// <summary>
 /// 关系不变量检查器（声明驱动；kind 判定全在 <see cref="CheckAsync"/>，禁内核内联分支）。
-/// <para>遍历预算 = 4096（有界，对齐 <c>QuantificationConstraint</c>）；超预算按违反处理并可见化。</para>
+/// <para>遍历预算 = 4096（有界）；超预算按违反处理并可见化（不拒绝，见内核 E9 口径）。</para>
 /// </summary>
 public sealed class RelationInvariantChecker
 {
-    /// <summary>环检测遍历预算（步数上限；超限即拒绝，不静默截断）。</summary>
     public const int TraversalBudget = 4096;
 
-    private readonly ReferenceGraphCoordinator _graph;
+    private readonly IResourceReferenceStore _reader;
 
-    public RelationInvariantChecker(ReferenceGraphCoordinator graph)
-        => _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+    public RelationInvariantChecker(IResourceReferenceStore reader)
+        => _reader = reader ?? throw new ArgumentNullException(nameof(reader));
 
-    /// <summary>检查单条不变量（无违反 ⇒ 空表）。</summary>
     public async Task<IReadOnlyList<RelationViolation>> CheckAsync(
         RelationInvariant invariant,
         ResourceIdentifier source,
@@ -46,14 +31,14 @@ public sealed class RelationInvariantChecker
             "source_single_target" => await SingleTargetAsync(invariant, source, target, ct),
             "acyclic" => await AcyclicAsync(invariant, source, target, ct),
             "target_exists" => await TargetExistsAsync(invariant, target, probe, ct),
-            _ => Array.Empty<RelationViolation>(), // many_to_many：只声明/审计，不拒绝
+            _ => Array.Empty<RelationViolation>(),
         };
     }
 
     private async Task<IReadOnlyList<RelationViolation>> SingleParentAsync(
         RelationInvariant invariant, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
     {
-        var incoming = await _graph.GetReferencesAsync(target, includeIncoming: true, ct);
+        var incoming = await _reader.GetReferencesAsync(target, includeIncoming: true, ct);
         var parents = incoming
             .Where(r => r.IsIncoming
                         && string.Equals(r.RefType, invariant.Edge, StringComparison.Ordinal)
@@ -74,7 +59,7 @@ public sealed class RelationInvariantChecker
     private async Task<IReadOnlyList<RelationViolation>> SingleTargetAsync(
         RelationInvariant invariant, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
     {
-        var outgoing = await _graph.GetReferencesAsync(source, includeIncoming: false, ct);
+        var outgoing = await _reader.GetReferencesAsync(source, includeIncoming: false, ct);
         var targets = outgoing
             .Where(r => !r.IsIncoming
                         && string.Equals(r.RefType, invariant.Edge, StringComparison.Ordinal)
@@ -95,7 +80,6 @@ public sealed class RelationInvariantChecker
     private async Task<IReadOnlyList<RelationViolation>> AcyclicAsync(
         RelationInvariant invariant, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
     {
-        // 从 target 沿同边类型出边走；若可达 source ⇒ 新增边成环。
         var queue = new Queue<ResourceIdentifier>();
         var seen = new HashSet<string>(StringComparer.Ordinal) { RelationEndpoints.KeyOf(target) };
         queue.Enqueue(target);
@@ -118,7 +102,7 @@ public sealed class RelationInvariantChecker
                         $"加入 '{RelationEndpoints.KeyOf(source)}' → '{RelationEndpoints.KeyOf(target)}' 将形成 '{invariant.Edge}' 环"),
                 };
 
-            var outgoing = await _graph.GetReferencesAsync(current, includeIncoming: false, ct);
+            var outgoing = await _reader.GetReferencesAsync(current, includeIncoming: false, ct);
             foreach (var next in outgoing)
             {
                 if (next.IsIncoming) continue;

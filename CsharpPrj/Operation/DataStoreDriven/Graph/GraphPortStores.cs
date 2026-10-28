@@ -68,6 +68,17 @@ public sealed class GraphResourceStore : IResourceReferenceStore
         => Port.RemoveReferenceAsync(sourceId, targetId, refType, ct);
 
     /// <inheritdoc />
+    public Task<ReferenceWriteOutcome> AddReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, double strength = 1.0,
+        CancellationToken ct = default)
+        => Port.AddReferenceResultAsync(sourceId, targetId, refType, role, strength, ct);
+
+    /// <inheritdoc />
+    public Task<ReferenceDeleteOutcome> RemoveReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, CancellationToken ct = default)
+        => Port.RemoveReferenceResultAsync(sourceId, targetId, refType, role, ct);
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<ResourceReference>> GetReferencesAsync(ResourceIdentifier resourceId,
         bool includeIncoming = true, CancellationToken ct = default)
         => Port.GetReferencesAsync(resourceId, includeIncoming, ct);

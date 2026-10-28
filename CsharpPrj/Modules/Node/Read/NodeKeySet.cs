@@ -78,6 +78,9 @@ public static class NodeKeySetReasons
 
     /// <summary>显式键集读时缺行（不伪造行）。</summary>
     public const string KeyMissing = "key-missing";
+
+    /// <summary>坐标已给、来源已定位，但读投影无行（≠ 无归属边；空必须可归因）。</summary>
+    public const string NoProjectionRows = "no-projection-rows";
 }
 
 /// <summary>

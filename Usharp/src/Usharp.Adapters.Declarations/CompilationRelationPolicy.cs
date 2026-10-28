@@ -31,13 +31,15 @@ public sealed class CompilationRelationPolicy : IRelationPolicy
     }
 
     /// <inheritdoc />
-    public ReferenceEdgeType? FindEdge(string edgeName)
-        => !string.IsNullOrWhiteSpace(edgeName) && _edges.TryGetValue(edgeName, out var edge) ? edge : null;
+    public RelationEdgeSpec? FindEdge(string edgeName)
+        => !string.IsNullOrWhiteSpace(edgeName) && _edges.TryGetValue(edgeName, out var edge)
+            ? new RelationEdgeSpec(edge.Name, edge.Source, edge.Target, edge.Deprecated)
+            : null;
 
     /// <inheritdoc />
-    public ReferenceConstraint? FindConstraint(string edgeName)
+    public RelationConstraintSpec? FindConstraint(string edgeName)
         => !string.IsNullOrWhiteSpace(edgeName) && _constraints.TryGetValue(edgeName, out var constraint)
-            ? constraint
+            ? new RelationConstraintSpec(constraint.Edge, "declared")
             : null;
 
     /// <inheritdoc />

@@ -538,6 +538,54 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         }, affectsMembership: AffectsMembership(refType));
     }
 
+    // ── IResourceReferenceStore 关系内核面（string role；UR 中性 outcome）───────────
+
+    /// <summary>写边（string role → GraphMountRole 单点映射；返回 UR 中性结果）。</summary>
+    public async Task<ReferenceWriteOutcome> AddReferenceResultAsync(
+        ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+        string role, double strength = 1.0, CancellationToken ct = default)
+    {
+        var outcome = await AddReferenceResultAsync(
+            sourceId, targetId, refType, ParseRole(role), strength, ct).ConfigureAwait(false);
+        return new ReferenceWriteOutcome(
+            Wrote: outcome.Wrote,
+            Verdict: MapVerdict(outcome.Verdict),
+            Reason: outcome.Reason,
+            TombstoneCleared: outcome.TombstoneCleared);
+    }
+
+    /// <summary>删边（string role；返回 UR 中性结果）。</summary>
+    public async Task<ReferenceDeleteOutcome> RemoveReferenceResultAsync(
+        ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+        string role, CancellationToken ct = default)
+    {
+        var outcome = await RemoveReferenceResultAsync(
+            sourceId, targetId, refType, ParseRole(role), ct).ConfigureAwait(false);
+        return new ReferenceDeleteOutcome(outcome.Key, MapStatus(outcome.Status), outcome.Message);
+    }
+
+    private static GraphMountRole ParseRole(string role) => role?.Trim().ToLowerInvariant() switch
+    {
+        RelationWriteRoles.Reconcile => GraphMountRole.Reconcile,
+        RelationWriteRoles.Declare => GraphMountRole.Declare,
+        _ => GraphMountRole.Business,
+    };
+
+    private static ReferenceWriteVerdict MapVerdict(GraphWriteVerdict verdict) => verdict switch
+    {
+        GraphWriteVerdict.Write or GraphWriteVerdict.ClearTombstoneThenWrite => ReferenceWriteVerdict.Written,
+        GraphWriteVerdict.SkipAndReport => ReferenceWriteVerdict.Skipped,
+        _ => ReferenceWriteVerdict.Denied,
+    };
+
+    private static ReferenceDeleteStatus MapStatus(GraphDeleteStatus status) => status switch
+    {
+        GraphDeleteStatus.Ok => ReferenceDeleteStatus.Ok,
+        GraphDeleteStatus.Skipped => ReferenceDeleteStatus.Skipped,
+        GraphDeleteStatus.NotFound => ReferenceDeleteStatus.NotFound,
+        _ => ReferenceDeleteStatus.Rejected,
+    };
+
     /// <summary>
     /// 删除边（**purge 语义**，带结果）：命中 ⇒ 按 <c>[Edge] tombstone</c> 声明写墓碑 + 物理删除；未命中 ⇒
     /// <see cref="GraphDeleteStatus.NotFound"/>（禁假成功）。用户删除（UI removeReference / DB 页）与需要「删除有约束力」的路径走本入口。

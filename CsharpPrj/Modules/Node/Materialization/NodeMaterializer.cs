@@ -88,7 +88,7 @@ public sealed class NodeMaterializer
     /// 无运行域 ⇒ 仅在 <c>requireRunScope</c> 开启时拒写（默认不拒，行为与既有一致）。
     /// </summary>
     private NodeRunScopeViolation? RunScopeViolation(
-        NodeMaterializeRequest request, IReadOnlyDictionary<string, string> values)
+        NodeMaterializeRequest request, IReadOnlyDictionary<string, string> values, string suggestIdentity)
     {
         // 域来源：框架自身域（按声明装配）优先，退回写请求显式域；两者皆无 ⇒ 不由运行域裁决。
         var domain = _domain ?? request.Domain;
@@ -104,7 +104,8 @@ public sealed class NodeMaterializer
             return _requireRunScope
                 ? new NodeRunScopeViolation(
                     "materialize.run-scope-missing",
-                    $"域 '{domain}' 要求运行域但容器 '{container ?? "<无 container 段>"}' 无当前 run（未 BeginRun）")
+                    $"域 '{domain}' 要求运行域但容器 '{container ?? "<无 container 段>"}' 无当前 run（未 BeginRun）；"
+                    + $"suggest={suggestIdentity}")
                 : null;
         }
 
@@ -140,6 +141,99 @@ public sealed class NodeMaterializer
     /// <summary>运行域违规（代码 + 可见化原因；<c>null</c> = 通过）。</summary>
     private readonly record struct NodeRunScopeViolation(string Code, string Message);
 
+    /// <summary>键形态判定结果（是否位置键 + 建议身份键 + 命中模板）。</summary>
+    private readonly record struct KeyShapeVerdict(bool IsPositionKey, string? SuggestIdentity, string? Template);
+
+    /// <summary>
+    /// 身份键 / 位置键形态判定（G2：把「调用方自觉」升级为框架可判）。
+    /// <para>
+    /// 判据载体 = 声明面位置模板（结构事实），禁在本类硬编码任何键前缀：
+    /// 同域任一位置模板能反解输入键、其反解覆盖身份全部上下文占位符、且至少一个占位符取值与身份反解不同
+    /// ⇒ 输入键是<b>位置键</b>（如 <c>smsg.c1</c> 被身份模板 <c>{container}</c> 整体吞成容器名）。
+    /// </para>
+    /// <para>
+    /// 该判定必须先于运行域校验：否则同一个错误会以 <c>materialize.run-scope-missing</c> 呈现，
+    /// 错误码指向真因之外（2026-10-28 误归因 ≈ 3 小时）。
+    /// </para>
+    /// </summary>
+    private KeyShapeVerdict InspectKeyShape(NodeMaterializeRequest request, IReadOnlyDictionary<string, string> values)
+    {
+        if (_identity.ContextKeys.Count == 0)
+        {
+            return new KeyShapeVerdict(false, null, null);
+        }
+
+        var domain = _domain ?? request.Domain;
+        var candidates = string.IsNullOrWhiteSpace(domain)
+            ? _placements.All
+            : _placements.ByDomain(domain!);
+
+        foreach (var spec in candidates)
+        {
+            if (spec.State == PlacementState.Retired)
+            {
+                continue;
+            }
+
+            // 与身份模板同形的位置键 = 身份键本身（不是「冒充」）。
+            if (!KeyTemplateEvaluator.TemplatesDistinguishable(spec.KeyTemplate, _identity.Template))
+            {
+                continue;
+            }
+
+            if (!KeyTemplateEvaluator.TryParseValues(spec.KeyTemplate, request.Key, out var positionValues))
+            {
+                continue;
+            }
+
+            if (_identity.ContextKeys.Any(key => !positionValues.ContainsKey(key)))
+            {
+                continue;
+            }
+
+            var differs = false;
+            foreach (var key in _identity.ContextKeys)
+            {
+                if (positionValues.TryGetValue(key, out var fromPosition) &&
+                    values.TryGetValue(key, out var fromIdentity) &&
+                    !string.Equals(fromPosition, fromIdentity, StringComparison.Ordinal))
+                {
+                    differs = true;
+                    break;
+                }
+            }
+
+            if (!differs)
+            {
+                continue;
+            }
+
+            var suggest = KeyTemplateEvaluator.TryEvaluate(_identity.Template, positionValues, out var rebuilt, out _)
+                ? rebuilt
+                : null;
+            return new KeyShapeVerdict(true, suggest, spec.KeyTemplate);
+        }
+
+        return new KeyShapeVerdict(false, null, null);
+    }
+
+    /// <summary>
+    /// 建议身份键（G2-4 归因单源）：输入键可由某位置模板反解时，用该反解值回代身份模板；
+    /// 否则退回「按身份模板反解得到的值」（= 输入键本身，说明问题不在形态而在运行域）。
+    /// </summary>
+    private string SuggestIdentityKey(NodeMaterializeRequest request, IReadOnlyDictionary<string, string> values)
+    {
+        var verdict = InspectKeyShape(request, values);
+        if (verdict.SuggestIdentity is { Length: > 0 })
+        {
+            return verdict.SuggestIdentity;
+        }
+
+        return KeyTemplateEvaluator.TryEvaluate(_identity.Template, values, out var rebuilt, out _)
+            ? rebuilt
+            : request.Key;
+    }
+
     public async Task<NodeMaterializationResult> MaterializeAsync(
         NodeMaterializeRequest request,
         CancellationToken cancellationToken = default)
@@ -162,9 +256,26 @@ public sealed class NodeMaterializer
                 results);
         }
 
+        // 键形态门（G2-1，先于运行域校验）：位置键冒充身份键 ⇒ 专用拒绝码，
+        // 禁以 run-scope-missing 呈现（错误码须指向真因）。
+        var shape = InspectKeyShape(request, values);
+        if (shape.IsPositionKey)
+        {
+            return Reject(
+                request.Key,
+                "materialize.key-is-position-key",
+                $"输入键 '{request.Key}' 是位置键形态（命中位置模板 '{shape.Template}'），"
+                + $"身份模板为 '{_identity.Template}'；"
+                + (shape.SuggestIdentity is { Length: > 0 }
+                    ? $"应传入身份键 suggest={shape.SuggestIdentity}"
+                    : "应传入身份键"),
+                collected,
+                results);
+        }
+
         // 运行域校验（可选）：身份键 Context 段须与框架侧「当前 run」一致 ——
         // 把「身份靠调用方自觉」升级为「框架可校验」；不一致即 Rejected（不写入任何位置）。
-        if (RunScopeViolation(request, values) is { } violation)
+        if (RunScopeViolation(request, values, SuggestIdentityKey(request, values)) is { } violation)
         {
             return Reject(request.Key, violation.Code, violation.Message, collected, results);
         }
@@ -172,6 +283,14 @@ public sealed class NodeMaterializer
         var candidates = ResolvePlacements(request, collected);
         if (candidates.Count == 0)
         {
+            // 派生码短路（E2）：已有 placement.unknown（带 id）时不再追加 placement.none ——
+            // none 恒由 unknown 派生，两码并报会让「缺哪个 id」被第二个码冲淡。
+            if (collected.Any(static d => d.Code == "placement.unknown"))
+            {
+                Report(collected);
+                return new NodeMaterializationResult(MaterializeStatus.Rejected, request.Key, results, collected);
+            }
+
             return Reject(
                 request.Key,
                 "placement.none",
@@ -312,8 +431,8 @@ public sealed class NodeMaterializer
                     collected.Add(new NodeDiagnostic(
                         "placement.unknown",
                         NodeDiagnosticSeverity.Error,
-                        $"位置未声明: {id}",
-                        request.Key));
+                        $"位置未声明: id='{id}'（该域位置注册表无此 id；请核对声明面 placements 与调用点常量）",
+                        id));
                 }
             }
 

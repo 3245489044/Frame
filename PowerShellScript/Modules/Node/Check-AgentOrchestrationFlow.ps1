@@ -119,16 +119,17 @@ $SilentSkipBaseline        = [int]$g.SilentSkip.Value
 # E13 fn 常量豁免白名单（**非**声明面 fn= 的合法常量：引擎附加腿 / 编排阶段名 / 统一执行单元）。
 #   新增即违规（须先改声明面或显式登记于此 + 载体分工表 §3）。
 $FnConstExemptValues = @('guard_output', 'task_orchestrate', 'signal_flush', 'signal_eval_condition', 'call_func', 'signal_intake')
-# E10 簿记入参对账面（声明面 inports= 的对账对象；新增簿记流须同步本表）
-$InportAuditFiles = @('attribution.ushar', 'task-provision.ushar', 'session-attribution.ushar', 'round-attribution.ushar', 'context-projection.ushar', 'task-lifecycle.ushar', 'task-advance.ushar', 'task-compose.ushar', 'history-merge.ushar', 'history-detach.ushar', 'transfer-contribute.ushar', 'transfer-dispatch.ushar')
+# E10 簿记入参对账面（**派生面单源**）：一次性声明流（走 DeclaredFlowDelegateBase 的唯一入参通道 = 种子表）由
+#   BookkeepingFlowCatalog 登记 ⇒ 对账面从该表派生，新增簿记流 = 加一行（**禁再手工同步本表**）。
+#   漏同步曾导致 session-productions.ushar 长期未纳入对账（productions 未登记 ⇒ 入参静默丢弃，2026-10-28 实测）。
+#   G1-4：手工静态补充面已删除（派生面 ⊇ 原静态面 12 件），覆盖缺口由「派生失败」判据兜底。
+$BookkeepingFlowCatalogFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Bookkeeping\BookkeepingFlowCatalog.cs'
 # E10 收集式输入端口白名单（**逐字**写 token；来源 = NodeExecutionKeys.CollectNodePorts，
 #   判据族见 Check-NodeCollectPort C1–C5）：该 token 是「收集端口位置」标记，不是键值 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；
 #   非收集位置的 inports 仍须 ∈ RoundKeys ∧ ∈ CompatSeedKeys（本白名单**仅**对收集端口位置生效）。
 $CollectPortTokens = @('nodes.*')
-# E10 步间连线端口白名单（TransferF）：transfer-*.ushar 的 inports 中由上游步 outports 供给的键
-#   （非外部种子键 ⇒ 不参与 RoundKeys / CompatSeedKeys 对账；外部种子键 container_key/edge_type/workflow_id/
-#    window_budget/signal/payload/payload_flag 仍须登记）；**仅**对 transfer-* 声明文件生效（不扩大全局白名单）。
-$TransferStepPortTokens = @('member_keys', 'window_items', 'state_items', 'transfer_items', 'ensured_keys')
+# E10 步间连线的「手工白名单」已删除：改由每一步的 outports= 结构判定（Get-UsharOutportTokens），
+#   对所有审计文件生效（G1-2）；新增流不再需要逐条登记豁免（手工清单必然漂移，见 2026-10-28 E10 漏项）。
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
@@ -336,6 +337,21 @@ if (Test-Path -LiteralPath $seedCatalogFile) {
     $violations.Add("E10 判据面缺失：$seedCatalogFile")
 }
 $e10Checked = 0
+# 对账面并集 = 静态补充面 ∪ BookkeepingFlowCatalog 派生面（派生面是单源；静态面只增不减）。
+$InportAuditDerived = [System.Collections.Generic.List[string]]::new()
+if (Test-Path -LiteralPath $BookkeepingFlowCatalogFile) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $BookkeepingFlowCatalogFile -Raw), 'WorkflowSpecFiles\.(?<n>[A-Za-z_][A-Za-z0-9_]*)')) {
+        $constName = $m.Groups['n'].Value
+        if ($specConsts.ContainsKey($constName)) { $InportAuditDerived.Add($specConsts[$constName]) }
+        else { $violations.Add("E10 对账面派生失败：WorkflowSpecFiles 未声明常量 $constName（BookkeepingFlowCatalog 引用）") }
+    }
+} else {
+    $violations.Add("E10 对账面缺失：$BookkeepingFlowCatalogFile（一次性流单源；缺件禁静默通过）")
+}
+if ($InportAuditDerived.Count -eq 0) {
+    $violations.Add("E10 对账面派生为空：BookkeepingFlowCatalog 未解析出任何 WorkflowSpecFiles 引用（判据不可判）")
+}
+$InportAuditFiles = @($InportAuditDerived | Sort-Object -Unique)
 foreach ($file in $InportAuditFiles) {
     $path = Join-Path $workflowsDir $file
     if (-not (Test-Path -LiteralPath $path)) {
@@ -343,11 +359,31 @@ foreach ($file in $InportAuditFiles) {
         continue
     }
     $e10Checked++
+    # G1-2：步间连线端口对**所有**审计文件结构判定（不再对 transfer-* 特例）——
+    #   「inports − outports − collect ⊆ 种子键」是通用闭合式，新增流无需任何手工豁免。
     $tokens = $CollectPortTokens
-    if ($file -like 'transfer-*') { $tokens = $CollectPortTokens + $TransferStepPortTokens }
-    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $tokens)) {
-        $violations.Add("E10 簿记入参未登记：$file → $bad（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效）")
+    $stepPorts = @(Get-UsharOutportTokens -Path $path)
+    foreach ($bad in (Test-InportsRegistered -UsharPath $path -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $tokens -StepPortTokens $stepPorts)) {
+        $violations.Add("E10 簿记入参未登记：$file → $bad（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效；登记面 = RoundStateKeyCatalog.CompatSeedKeys）")
     }
+}
+
+# G1-2 负对照（防判据空转）：同一判据函数对「合成未登记入参」必须命中，且对「已登记 + 步间连线」必须放行。
+$closureProbePath = Join-Path ([System.IO.Path]::GetTempPath()) ("wf-e10-closure-{0}.ushar" -f [guid]::NewGuid().ToString('N'))
+try {
+    Set-Content -LiteralPath $closureProbePath -Encoding UTF8 -Value @(
+        '[Node] probe: fn=guard_input | inports=container_key,upstream_only,ghost_unregistered,productions | outports=filtered',
+        '[Flow] Probe: over=ProbeStep | success=run_to_end'
+    )
+    $probeBad = @(Test-InportsRegistered -UsharPath $closureProbePath -ValueToName $keyValueToName -SeedNames $seedNames -CollectTokens $CollectPortTokens -StepPortTokens @('upstream_only'))
+    if (-not ($probeBad | Where-Object { $_ -like 'ghost_unregistered*' })) {
+        $violations.Add('E10 负对照失败：合成未登记入参未被判违例（判据空转 ⇒ 恒绿）')
+    }
+    if ($probeBad | Where-Object { $_ -like 'container_key*' -or $_ -like 'upstream_only*' }) {
+        $violations.Add('E10 负对照失败：已登记种子键 / 步间连线端口被误判违例（判据恒红 ⇒ 不可用）')
+    }
+} finally {
+    Remove-Item -LiteralPath $closureProbePath -Force -ErrorAction SilentlyContinue
 }
 
 # ---------------- E11 调用点数基线（只减不增） ----------------

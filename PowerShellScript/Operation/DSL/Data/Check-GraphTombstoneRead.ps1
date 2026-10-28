@@ -6,9 +6,9 @@
 .DESCRIPTION
     判据（结构事实，非叙述）：
       GT1 写前裁决调用点 ≥ 1（ReferenceGraphCoordinator 内 _policy.Admit( ）；
-      GT2 边墓碑读取点 ≥ 1（EdgeTombstoneExists( 调用）；
+      GT2 边墓碑读取点 ≥ 1（FindEdgeTombstone( / EdgeTombstoneExists( 调用）；
       GT3 边墓碑键构造与读取同源（GraphIdentityKeys.EdgeTombstoneKey 在协调器内被引用于判据）。
-    负对照：从样本删掉 EdgeTombstoneExists( 调用后必须判红。
+    负对照：从样本删掉读取点后必须判红。
 #>
 [CmdletBinding()]
 param(
@@ -29,7 +29,8 @@ $text = Get-Content -LiteralPath $coordinator -Raw
 function Get-ReadViolations([string]$source) {
     $out = [System.Collections.Generic.List[string]]::new()
     if ([regex]::Matches($source, '_policy\.Admit\(').Count -lt 1) { $out.Add('GT1 写前裁决调用点 = 0（墓碑策略未接入写路径）') }
-    if ([regex]::Matches($source, 'EdgeTombstoneExists\(').Count -lt 1) { $out.Add('GT2 边墓碑读取点 = 0（只写不读 ⇒ 已删边会被写回）') }
+    # 读取点载体随内核收敛：单点查询 FindEdgeTombstone(（旧名 EdgeTombstoneExists( 仍接受）。
+    if ([regex]::Matches($source, 'FindEdgeTombstone\(|EdgeTombstoneExists\(').Count -lt 1) { $out.Add('GT2 边墓碑读取点 = 0（只写不读 ⇒ 已删边会被写回）') }
     if ([regex]::Matches($source, 'GraphIdentityKeys\.EdgeTombstoneKey\(').Count -lt 2) { $out.Add('GT3 边墓碑键构造/读取未同源（引用 < 2 处）') }
     return $out
 }
@@ -42,7 +43,7 @@ Write-Host "============================================================" -Foreg
 $violations = Get-ReadViolations $text
 
 if ($NegativeControl) {
-    $sample = [regex]::Replace($text, 'EdgeTombstoneExists\(', 'NotARead(')
+    $sample = [regex]::Replace($text, 'FindEdgeTombstone\(|EdgeTombstoneExists\(', 'NotARead(')
     $probe = Get-ReadViolations $sample
     if (@($probe | Where-Object { $_ -like 'GT2*' }).Count -gt 0) {
         Write-Host "  [OK] 负对照：移除读取点即判红" -ForegroundColor Green

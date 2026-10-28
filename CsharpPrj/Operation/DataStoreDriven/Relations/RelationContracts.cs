@@ -10,7 +10,7 @@ public enum RelationOrigin
     Admin = 2,
 }
 
-/// <summary>关系操作结果形态（禁以 <c>Ok=true</c> 掩盖未命中）。</summary>
+/// <summary>关系操作结果形态（禁以 <c>Ok=true</c> 掩盖未命中/被策略跳过）。</summary>
 public enum RelationOutcome
 {
     Applied = 0,
@@ -18,6 +18,9 @@ public enum RelationOutcome
     NotFound = 2,
     Rejected = 3,
     NotAssembled = 4,
+
+    /// <summary>写前门裁决为 SkipAndReport/Deny：未落库（不得复述为成功）。</summary>
+    Skipped = 5,
 }
 
 /// <summary>关系写请求（operation 之外的唯一可变面：键 + 作用域 + 来源）。</summary>
@@ -40,6 +43,12 @@ public sealed record RelationRequest(
 public sealed record RelationScope(string SourceKey, string? Namespace = null, string? SourceType = null);
 
 /// <summary>关系写结果（结构化诊断；失败不静默）。</summary>
+/// <param name="Ok">是否落库（策略跳过 ⇒ false）。</param>
+/// <param name="Operation">operation id。</param>
+/// <param name="Edge">边类型（未声明 ⇒ null）。</param>
+/// <param name="Written">本轮真正落库的边数（跳过不计）。</param>
+/// <param name="Diagnostics">结构化诊断（跳过原因、端点缺失、不变量违例…）。</param>
+/// <param name="Outcome">结果形态（Applied/Duplicate/NotFound/Rejected/NotAssembled/Skipped）。</param>
 public sealed record RelationResult(
     bool Ok,
     string Operation,
@@ -48,6 +57,12 @@ public sealed record RelationResult(
     IReadOnlyList<string> Diagnostics,
     RelationOutcome Outcome)
 {
+    /// <summary>本轮因显式复活（清墓碑后写入）的边数。</summary>
+    public int Revived { get; init; }
+
+    /// <summary>复活证据（边键 + 墓碑原因原值；禁只留计数）。</summary>
+    public IReadOnlyList<string> ReviveReasons { get; init; } = Array.Empty<string>();
+
     public static RelationResult Rejected(string operation, string? edge, string reason)
         => new(false, operation, edge, 0, new[] { reason }, RelationOutcome.Rejected);
 }
@@ -160,6 +175,12 @@ public interface IRelationDiagnostics
     void RelationInvariantViolation(string operation, string invariant, string reason);
 
     void RelationPlanMissing(string reason);
+
+    /// <summary>显式复活（清墓碑 + 写边）：<paramref name="tombstoneReason"/> 为墓碑原因原值。</summary>
+    void RelationRevived(string edge, string sourceKey, string targetKey, string? tombstoneReason);
+
+    /// <summary>写前门跳过/拒绝（未落库）：verdict/role/键均为结构事实。</summary>
+    void RelationWriteSkipped(string operation, string? edge, string verdict, string role, string key);
 }
 
 /// <summary>诊断收集器（测试/观测装配用；线程内顺序即事件序）。</summary>
@@ -183,4 +204,10 @@ public sealed class RelationDiagnosticsCollector : IRelationDiagnostics
 
     public void RelationPlanMissing(string reason)
         => _entries.Add($"plan-missing|{reason}");
+
+    public void RelationRevived(string edge, string sourceKey, string targetKey, string? tombstoneReason)
+        => _entries.Add($"revived|{edge}|{sourceKey}->{targetKey}|{tombstoneReason ?? string.Empty}");
+
+    public void RelationWriteSkipped(string operation, string? edge, string verdict, string role, string key)
+        => _entries.Add($"write-skipped|{operation}|{edge}|{verdict}|{role}|{key}");
 }

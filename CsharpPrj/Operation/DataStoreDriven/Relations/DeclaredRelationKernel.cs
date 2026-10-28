@@ -64,6 +64,8 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
         var source = RelationEndpoints.Create(plan.Source, request.SourceKey, location);
         var diagnostics = new List<string>();
         var written = 0;
+        var revived = 0;
+        var reviveReasons = new List<string>();
 
         foreach (var targetKey in targets)
         {
@@ -86,11 +88,44 @@ public sealed class DeclaredRelationKernel : IRelationCommandPort
                     new[] { reason }, RelationOutcome.Duplicate);
             }
 
-            await _graph.AddReferenceAsync(source, target, plan.Edge, role, 1.0, ct).ConfigureAwait(false);
+            var writeOutcome = await _graph
+                .AddReferenceResultAsync(source, target, plan.Edge, role, 1.0, ct).ConfigureAwait(false);
+            if (!writeOutcome.Wrote)
+            {
+                // 写前门跳过/拒绝：未落库 ⇒ 不得计成功（原实现无条件 written++ 并报 Applied，属静默出口）。
+                var skippedReason =
+                    $"写边未落库（{writeOutcome.Verdict}）：{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)}"
+                    + $" @ {plan.Edge}｜{writeOutcome.Reason}";
+                diagnostics.Add(skippedReason);
+                _diagnostics?.RelationWriteSkipped(
+                    operation, plan.Edge, writeOutcome.Verdict.ToString(), role.ToString(), RelationEndpoints.KeyOf(target));
+                return new RelationResult(false, operation, plan.Edge, written, diagnostics, RelationOutcome.Skipped)
+                {
+                    Revived = revived,
+                    ReviveReasons = reviveReasons,
+                };
+            }
+
+            if (writeOutcome.TombstoneCleared)
+            {
+                revived++;
+                var reviveReason =
+                    $"{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)} @ {plan.Edge}"
+                    + $"｜tombstoneReason={writeOutcome.Reason ?? "(none)"}";
+                reviveReasons.Add(reviveReason);
+                _diagnostics?.RelationRevived(
+                    plan.Edge, RelationEndpoints.KeyOf(source), RelationEndpoints.KeyOf(target), writeOutcome.Reason);
+            }
+
             written++;
         }
 
-        return new RelationResult(true, operation, plan.Edge, written, diagnostics, RelationOutcome.Applied);
+        var applied = new RelationResult(true, operation, plan.Edge, written, diagnostics, RelationOutcome.Applied)
+        {
+            Revived = revived,
+            ReviveReasons = reviveReasons,
+        };
+        return applied;
     }
 
     /// <inheritdoc />

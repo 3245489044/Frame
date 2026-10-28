@@ -42,7 +42,8 @@
         { "name": "torchvision", "version": "0.25.0+cu130" },
         { "name": "torchaudio", "version": "2.10.0+cu130" }
       ],
-      "index": "https://download.pytorch.org/whl/cu130",
+      "index": "https://pypi.org/simple",
+      "findLinks": "https://mirror.sjtu.edu.cn/pytorch-wheels/cu130",
       "timeoutSeconds": 3600,
       "verify": "import torch;assert torch.version.cuda; assert int(torch.version.cuda.split('.')[0]) >= 12",
       "description": "ComfyUI 0.34 要求 cu130；comfy-kitchen 0.2.31 依赖 torch>=2.10 的内置泛型签名"

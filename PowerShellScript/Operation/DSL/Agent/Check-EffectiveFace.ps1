@@ -72,6 +72,24 @@ $agentBuildDir  = Join-Path $Root "Projects\Plug\Agent\BuildOutput\$Configuratio
 $csharpBuildDir = Join-Path $Root "Frame\CsharpPrj\BuildOutput\$Configuration"
 $genRoot        = Join-Path $Root 'Projects\Plug\Agent\BuildOutput\Generations'
 
+# G7-2：代表件 = 显式清单 ∪ 构建产物清单驱动的 glob（拆分程序集自动纳入，禁手抄漂移）。
+$memberGlobs = @()
+if ($ef.ContainsKey('MemberGlobs')) { $memberGlobs = @($ef.MemberGlobs.Value) }
+$expandedMembers = [System.Collections.Generic.List[string]]::new()
+foreach ($m in $members) { if (-not $expandedMembers.Contains($m)) { $expandedMembers.Add($m) } }
+$globMatched = 0
+foreach ($pattern in $memberGlobs) {
+    if (-not (Test-Path -LiteralPath $agentBuildDir)) { continue }
+    foreach ($file in @(Get-ChildItem -LiteralPath $agentBuildDir -Filter $pattern -File -ErrorAction SilentlyContinue)) {
+        $globMatched++
+        if (-not $expandedMembers.Contains($file.Name)) { $expandedMembers.Add($file.Name) }
+    }
+}
+if ($memberGlobs.Count -gt 0 -and $globMatched -eq 0) {
+    $violations.Add(("[E0] 产物清单驱动面为空：{0} 下无匹配 {1}（构建未产或目录错位）" -f $agentBuildDir, ($memberGlobs -join ',')))
+}
+$members = $expandedMembers.ToArray()
+
 # 生效面目录（按模式）：locked = current→gen-<n>（回落最高代）；dev = 就地构建产物目录。
 $genDir = $null
 if ($Mode -eq 'locked') {

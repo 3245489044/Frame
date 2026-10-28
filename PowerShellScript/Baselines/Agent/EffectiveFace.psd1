@@ -19,4 +19,10 @@
         'Plate.HtmlViewer.dll',
         'WorkFlowMethod.dll'
     ) }
+
+    # G7-2（FD-9）：拆分程序集不得靠手抄清单 —— 由构建产物清单**驱动**（新增 Agent.*.dll 自动纳入，
+    # 缺失即 E1/E2 红）。手工清单必然漂移（同批新增 Framework 拆分件曾被整体漏判）。
+    MemberGlobs = @{ Origin = 'Derived'; DueWhen = ''; Value = @(
+        'Agent.*.dll'
+    ) }
 }

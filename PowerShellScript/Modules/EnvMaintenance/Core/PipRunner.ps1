@@ -44,6 +44,7 @@ function Invoke-EnvPip {
         [Parameter(Mandatory = $true)][string]$Python,
         [string[]]$PipArgs = @(),
         [string]$Index = '',
+        [string[]]$FindLinks = @(),
         [int]$TimeoutSeconds = 900,
         [string]$LogPath = '',
         [switch]$UseCache,
@@ -51,10 +52,15 @@ function Invoke-EnvPip {
     )
 
     $arguments = @('-m', 'pip') + $PipArgs
-    $arguments += @('--disable-pip-version-check', '--no-input', '--timeout', '60', '--retries', '2')
+    $arguments += @('--disable-pip-version-check', '--no-input', '--timeout', '60', '--retries', '3')
     if ($Index) {
         $arguments += @('--index-url', $Index)
-        $arguments += @('--extra-index-url', 'https://pypi.org/simple')
+        if ($Index -notmatch 'pypi\.org') {
+            $arguments += @('--extra-index-url', 'https://pypi.org/simple')
+        }
+    }
+    foreach ($link in $FindLinks) {
+        if ($link) { $arguments += @('--find-links', $link) }
     }
     if (-not $UseCache) { $arguments += '--no-cache-dir' }
 
@@ -73,6 +79,7 @@ function Invoke-EnvPipInstall {
         [Parameter(Mandatory = $true)][string]$Python,
         [string[]]$Packages = @(),
         [string]$Index = '',
+        [string[]]$FindLinks = @(),
         [int]$TimeoutSeconds = 900,
         [string]$LogPath = '',
         [switch]$UseCache,
@@ -80,8 +87,8 @@ function Invoke-EnvPipInstall {
     )
 
     $pipArgs = @('install') + $Packages
-    return (Invoke-EnvPip -Python $Python -PipArgs $pipArgs -Index $Index -TimeoutSeconds $TimeoutSeconds `
-            -LogPath $LogPath -UseCache:$UseCache -Quiet:$Quiet)
+    return (Invoke-EnvPip -Python $Python -PipArgs $pipArgs -Index $Index -FindLinks $FindLinks `
+            -TimeoutSeconds $TimeoutSeconds -LogPath $LogPath -UseCache:$UseCache -Quiet:$Quiet)
 }
 
 function Invoke-EnvPipRequirements {

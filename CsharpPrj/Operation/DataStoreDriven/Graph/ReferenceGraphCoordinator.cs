@@ -437,11 +437,21 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         => AddReferenceAsync(sourceId, targetId, refType, GraphMountRole.Business, strength, ct);
 
     /// <summary>
-    /// 写边（带角色）：写前经 <see cref="IGraphEdgePolicy.Admit"/> 裁决（role × tombstone × revive）。
-    /// <para><c>SkipAndReport</c>/<c>Deny</c> 不落库，且计入 <see cref="WriteSkipCount"/> + <see cref="LastWriteSkip"/>（可见化，不静默）。
-    /// <c>ClearTombstoneThenWrite</c> 先清边墓碑再写（显式复活）。</para>
+    /// 写边（带角色；只关心成败的兼容入口）：委托结构化入口。
+    /// <para>策略跳过/拒绝**不落库**，调用方不得复述为成功（判据见 <see cref="AddReferenceResultAsync"/>）。</para>
     /// </summary>
-    public Task AddReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+    public async Task AddReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+        GraphMountRole role, double strength = 1.0, CancellationToken ct = default)
+        => await AddReferenceResultAsync(sourceId, targetId, refType, role, strength, ct).ConfigureAwait(false);
+
+    /// <summary>
+    /// 写边（带角色）**唯一实现**：写前经 <see cref="IGraphEdgePolicy.Admit"/> 裁决（role × tombstone × revive），
+    /// 并把裁决结果结构化返回（<see cref="GraphWriteOutcome"/>）。
+    /// <para><c>SkipAndReport</c>/<c>Deny</c> 不落库，且计入 <see cref="WriteSkipCount"/> + <see cref="LastWriteSkip"/>；
+    /// <c>ClearTombstoneThenWrite</c> 先清边墓碑再写（显式复活），复活原因原值随结果透出。</para>
+    /// </summary>
+    public Task<GraphWriteOutcome> AddReferenceResultAsync(
+        ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
         GraphMountRole role, double strength = 1.0, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(sourceId);
@@ -452,21 +462,40 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var targetKey = _keys.Endpoint(targetId);
 
         // 词表准入（B3）：未声明边类型按姿态处置（报告模式放行 + 可见化 / 拒绝模式拒写）；已废弃恒拒（禁静默建边）。
-        if (!AllowByVocabulary(refType, sourceKey)) return Task.CompletedTask;
+        if (!AllowByVocabulary(refType, sourceKey))
+        {
+            RecordWriteSkip(refType, $"{sourceKey}->{targetKey}", GraphWriteVerdict.Deny, role);
+            return Task.FromResult(GraphWriteOutcome.Blocked(
+                GraphWriteVerdict.Deny, $"Deny:vocabulary|edge={GraphEdgeNames.Resolve(refType)}|role={role}"));
+        }
 
         // LiteDB 只维护关系（task/node 引用边），端点是 SQL 实体（ur_tasks / ur_nodes），存在性由 SQL 写透时序保证；
         // 故协调器不在此 fail-fast 校验端点，直接接受任意端点键（避免关系推导路径对未显式注册的上游端点抛错）。
         return MutateAsync(ct, () =>
         {
+            var reviveText = GraphEdgeNames.ReviveText(_policy.ReviveOf(refType));
+            var tombstone = FindEdgeTombstone(sourceKey, targetKey, refType);
+            var policyDeclared = (_policy as DeclaredGraphEdgePolicy)?.HasDeclaredPolicy(refType) ?? true;
             var verdict = _policy.Admit(new GraphWriteIntent(
-                refType, role, EdgeTombstoneExists(sourceKey, targetKey, refType),
-                Revive: GraphEdgeNames.ReviveText(_policy.ReviveOf(refType))));
+                refType, role, tombstone is not null, Revive: reviveText));
+
             if (verdict is GraphWriteVerdict.SkipAndReport or GraphWriteVerdict.Deny)
             {
+                // 策略字段缺省 ⇒ 「revive=explicit」是缺省值而非声明事实：必须可见化，禁把缺省复述为声明。
+                var reason = $"{verdict}:edge={GraphEdgeNames.Resolve(refType)}|role={role}"
+                             + $"|revive={reviveText}|tombstone={(tombstone is not null ? "durable" : "none")}"
+                             + (policyDeclared ? string.Empty : "|policy-fields-missing");
                 RecordWriteSkip(refType, $"{sourceKey}->{targetKey}", verdict, role);
-                return Task.CompletedTask;
+                return Task.FromResult(GraphWriteOutcome.Blocked(verdict, reason));
             }
-            if (verdict == GraphWriteVerdict.ClearTombstoneThenWrite) RemoveEdgeTombstones(sourceKey, targetKey, refType);
+
+            var cleared = false;
+            string? clearReason = null;
+            if (verdict == GraphWriteVerdict.ClearTombstoneThenWrite)
+            {
+                cleared = RemoveEdgeTombstones(sourceKey, targetKey, refType);
+                clearReason = tombstone?.Reason;
+            }
 
             EnsureNodeInMemory(sourceKey);
             EnsureNodeInMemory(targetKey);
@@ -483,7 +512,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location));
             if (!_graph.ContainsEdge(edgeId))
                 _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
-            return Task.CompletedTask;
+            return Task.FromResult(GraphWriteOutcome.Written(verdict, cleared, clearReason));
         }, affectsMembership: AffectsMembership(refType));
     }
 
@@ -1362,14 +1391,38 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return TombstoneExistsCore(GraphIdentityKeys.EndpointTombstoneKey(id.ResourceType ?? string.Empty, id.Id ?? string.Empty));
     }
 
-    /// <summary>边墓碑存在判据：当前文法键 + 旧端点形态（剥 <c>@location</c>）——旧删除意图不得因文法升级失效。</summary>
-    private bool EdgeTombstoneExists(string sourceKey, string targetKey, string refType)
+    /// <summary>边墓碑存在判据（当前文法键 + 旧可读形态 + 旧端点形态）；命中返回墓碑原文（供复活/跳过归因）。</summary>
+    private GraphTombstoneDoc? FindEdgeTombstone(string sourceKey, string targetKey, string refType)
     {
-        if (TombstoneExistsCore(GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType))) return true;
+        foreach (var key in EdgeTombstoneKeys(sourceKey, targetKey, refType))
+        {
+            var doc = ReadTombstoneCore(key);
+            if (doc is not null) return doc;
+        }
+        return null;
+    }
+
+    /// <summary>边墓碑键候选集（唯一构造点）：当前哈希键 → 旧可读三元组 → 旧端点形态（剥 <c>@location</c>）。</summary>
+    private static IEnumerable<string> EdgeTombstoneKeys(string sourceKey, string targetKey, string refType)
+    {
+        yield return GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType);
+        // 存量兼容：早期墓碑以可读三元组作 _id（{"{src}::{tgt}::{edge}"}），删除意图同样有约束力。
+        yield return $"{sourceKey}::{targetKey}::{refType}";
+
         var legacySource = StripLocation(sourceKey);
         var legacyTarget = StripLocation(targetKey);
-        if (legacySource == sourceKey && legacyTarget == targetKey) return false;
-        return TombstoneExistsCore(GraphIdentityKeys.EdgeTombstoneKey(legacySource, legacyTarget, refType));
+        if (legacySource == sourceKey && legacyTarget == targetKey) yield break;
+
+        yield return GraphIdentityKeys.EdgeTombstoneKey(legacySource, legacyTarget, refType);
+        yield return $"{legacySource}::{legacyTarget}::{refType}";
+    }
+
+    /// <summary>读墓碑（不可解码 ⇒ null；解码失败由读面另行可见化）。</summary>
+    private GraphTombstoneDoc? ReadTombstoneCore(string tombstoneKey)
+    {
+        if (string.IsNullOrWhiteSpace(tombstoneKey)) return null;
+        var doc = _tombstones.FindById(tombstoneKey);
+        return doc is null ? null : ReadTombstoneDoc(doc);
     }
 
     /// <summary>剥离端点键的 <c>@location</c> 段（旧形态兼容读）。</summary>
@@ -1379,14 +1432,13 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return at < 0 ? endpointKey : endpointKey.Substring(0, at);
     }
 
-    /// <summary>清边墓碑（当前形态 + 旧形态）。</summary>
-    private void RemoveEdgeTombstones(string sourceKey, string targetKey, string refType)
+    /// <summary>清边墓碑（全部候选形态）；返回是否命中（复活证据：false = 无墓碑可清）。</summary>
+    private bool RemoveEdgeTombstones(string sourceKey, string targetKey, string refType)
     {
-        RemoveTombstoneCore(GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType));
-        var legacySource = StripLocation(sourceKey);
-        var legacyTarget = StripLocation(targetKey);
-        if (legacySource != sourceKey || legacyTarget != targetKey)
-            RemoveTombstoneCore(GraphIdentityKeys.EdgeTombstoneKey(legacySource, legacyTarget, refType));
+        var removed = false;
+        foreach (var key in EdgeTombstoneKeys(sourceKey, targetKey, refType))
+            removed |= RemoveTombstoneCore(key);
+        return removed;
     }
 
     /// <summary>清端点墓碑（端点墓碑身份 = <c>{type}:{id}</c>，不随 <c>@location</c> 分叉；保证跨工作流删除意图一致）。</summary>

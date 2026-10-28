@@ -111,8 +111,20 @@ function Install-PipVenvItem {
     $timeout = 900
     if ($Item.timeoutSeconds) { $timeout = [int]$Item.timeoutSeconds }
 
+    $findLinks = @()
+    $localWheels = Join-Path $env:LOCALAPPDATA 'EnvMaintenance\wheels'
+    if (Test-Path -LiteralPath $localWheels) {
+        $findLinks += $localWheels
+        Write-EnvInfo '本地 wheel' $localWheels
+    }
+    if ($Item.findLinks) {
+        $findLinks += [string]$Item.findLinks
+        Write-EnvInfo '镜像' ([string]$Item.findLinks)
+    }
+
     $result = Invoke-EnvPipInstall -Python $python -Packages $requirements -Index ([string]$Item.index) `
-        -TimeoutSeconds $timeout -LogPath $logPath -UseCache:([bool]$Item.cache) -Quiet
+        -FindLinks $findLinks -TimeoutSeconds $timeout -LogPath $logPath `
+        -UseCache:([bool]$Item.cache) -Quiet
     if ($result.ExitCode -ne 0) {
         Write-EnvFail "pip 安装失败: $($result.Reason)"
         if ($logPath) { Write-EnvInfo '日志' $logPath }

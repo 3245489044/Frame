@@ -150,6 +150,21 @@ public sealed class DeclaredGraphEdgePolicy : IGraphEdgePolicy
 
     public bool UniqueOf(string refType) => GraphEdgeNames.FindEdge(_registry, refType)?.Unique ?? false;
 
+    /// <summary>
+    /// 边声明是否完整携带策略字段（identity/tombstone/unique/revive/cascade）。
+    /// <para>未声明 ⇒ 运行期取缺省值（零回归），但调用方须把「缺省」可见化（禁把缺省复述成声明事实）。</para>
+    /// </summary>
+    public bool HasDeclaredPolicy(string refType)
+    {
+        var edge = GraphEdgeNames.FindEdge(_registry, refType);
+        return edge is not null
+               && !string.IsNullOrWhiteSpace(edge.Identity)
+               && !string.IsNullOrWhiteSpace(edge.Tombstone)
+               && edge.Unique is not null
+               && !string.IsNullOrWhiteSpace(edge.Revive)
+               && !string.IsNullOrWhiteSpace(edge.Cascade);
+    }
+
     public RevivePolicy ReviveOf(string refType)
     {
         var text = GraphEdgeNames.PolicyField(_registry, refType, static e => e.Revive);

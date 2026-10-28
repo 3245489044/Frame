@@ -15,6 +15,10 @@ internal static class UsharpGateDiagnostics
 
     public static ConversionDiagnostic Warn(string code, string message, string file, int line)
         => ConversionDiagnostic.Warning(code, message, new SourceSpan(file, line, 0));
+
+    /// <summary>信息级（预期态/过程事实）：不占 WARN 通道（LG-F3：预期态不得以告警呈现）。</summary>
+    public static ConversionDiagnostic Info(string code, string message, string file, int line)
+        => ConversionDiagnostic.Info(code, message, new SourceSpan(file, line, 0));
 }
 
 /// <summary>规则 ①：<c>[Ref]</c> 坐标归属 + 闸A（空间须已声明、坐标须在空间内可解析）。</summary>
@@ -334,7 +338,9 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
             // 跨层判据由整包编译（Generate-DeclaredBundle / 门禁）承担。
             if (domain.Coordinates.Count > 0 && model.KeySpaces.Count == 0)
             {
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.KeyLineUnparsed,
+                // 预期态（单文件装载无整包 [KeySpace]）⇒ Info：跨层判据由整包编译承担，
+                // 不得占用 WARN 通道（LG-F3：预期态逐文件刷屏 = 信噪比坍塌）。
+                sink.Report(UsharpGateDiagnostics.Info(UsharpCodes.KeyLineUnparsed,
                     $"[Domain] {domain.DomainId}: 已声明 coordinates 但本次编译无 [KeySpace]"
                     + "（单文件装载：跨层校验由整包编译承担）",
                     domain.SourceFile, domain.LineNumber));

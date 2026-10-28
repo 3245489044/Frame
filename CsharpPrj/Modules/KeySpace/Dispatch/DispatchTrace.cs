@@ -23,6 +23,9 @@ public sealed record DispatchTrace(
 
     /// <summary>判据输入：本轮完成增量。</summary>
     public int CompletedDelta { get; init; }
+
+    /// <summary>未背靠输入的目标（M1 门剔除项；非空即红，禁静默执行）。</summary>
+    public IReadOnlyList<string> Unbacked { get; init; } = System.Array.Empty<string>();
 }
 
 /// <summary>阶段/schema 单源：phase 词表封闭，未知 phase 不得发射。</summary>

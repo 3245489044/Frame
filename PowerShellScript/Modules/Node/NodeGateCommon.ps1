@@ -69,6 +69,21 @@ function Get-UsharInportTokens {
     return $tokens
 }
 
+# 步间连线端口取数（outports= 全集）：用于把「上游步供给」与「外部种子」在结构上分离，
+# 使 inports 对账不必依赖手工白名单（新增流不再需要逐条登记豁免）。
+function Get-UsharOutportTokens {
+    param([string]$Path)
+    $tokens = [System.Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $Path)) { return $tokens }
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $Path -Raw), 'outports\s*=\s*(?<v>[A-Za-z0-9_,.*]+)')) {
+        foreach ($t in ($m.Groups['v'].Value -split ',')) {
+            $t = $t.Trim()
+            if ($t -and -not $tokens.Contains($t)) { $tokens.Add($t) }
+        }
+    }
+    return $tokens
+}
+
 function Test-InportsRegistered {
     param(
         [string]$UsharPath,
@@ -76,11 +91,16 @@ function Test-InportsRegistered {
         [System.Collections.Generic.HashSet[string]]$SeedNames,
         # 收集式输入端口白名单（**逐字** token；缺省空 = 全部须登记）：token 是「收集端口位置」标记而非键值，
         # 故豁免 RoundKeys / CompatSeedKeys 对账；**仅**对收集端口位置生效（其余 inports 仍须登记）。
-        [string[]]$CollectTokens = @()
+        [string[]]$CollectTokens = @(),
+        # 步间连线端口（同一声明文件内任一步的 outports=）——**结构判定**，非手工白名单：
+        # 由上游步供给的键不是外部种子，不参与 RoundKeys / CompatSeedKeys 对账；
+        # 外部种子键仍须登记（漏登记 ⇒ 步骤 inports 解析为空串，功能静默失效）。
+        [string[]]$StepPortTokens = @()
     )
     $bad = [System.Collections.Generic.List[string]]::new()
     foreach ($token in (Get-UsharInportTokens -Path $UsharPath)) {
         if ($CollectTokens -contains $token) { continue }
+        if ($StepPortTokens -contains $token) { continue }
         if (-not $ValueToName.ContainsKey($token)) { $bad.Add("$token（RoundKeys 无此键值）"); continue }
         if (-not $SeedNames.Contains($ValueToName[$token])) { $bad.Add("$token（CompatSeedKeys 未登记 $($ValueToName[$token])）") }
     }

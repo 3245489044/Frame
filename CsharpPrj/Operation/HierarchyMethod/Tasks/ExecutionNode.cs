@@ -3,7 +3,7 @@ using Share.HierarchySupport;
 namespace Operation.HierarchyMethod.Tasks
 {
     /// <summary>
-    /// 执行节点 —— 把 LLM / 执行相关逻辑封装为一个自包含节点，由任务（<see cref="TaskRecord"/>）作为**属性**直接携带
+    /// 执行节点 —— 把 LLM / 执行相关逻辑封装为一个自包含节点，由任务簿记实体作为**属性**直接携带
     /// （task 携带该节点，相当于任务的一个属性；task 本身不调用 LLM，节点由执行器在消费时解析执行）。
     /// 对齐既有"节点"概念（工作流步骤 = 子智能体函数；任务关联节点 relatedNodes）：本节点即"该任务如何执行"的执行单元。
     /// 提示词/轮数/停止规则等 LLM 细节不内嵌，经 <see cref="WorkflowConfigKey"/> 引用外部工作流/配置

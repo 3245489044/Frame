@@ -74,7 +74,7 @@ public sealed class HierarchyProcessFacade
     /// <param name="reference">三层层级引用管理端口（子层读取来源）。</param>
     /// <param name="nodeOutputs">节点输出存储（节点层处理器使用）。</param>
     /// <param name="runtimePort">单实体运行状态端口（任务层处理器使用）。</param>
-    /// <param name="historyRuntime">history 会话编排门面（历史层处理器使用）。</param>
+    /// <param name="containerLevel">容器层处理器（可空；缺省 = 该层无处理器，引擎按容器层透传）。</param>
     /// <param name="runStateProvider">运行态门面（任务层处理器使用；多来源 live/snapshot 合并的唯一入口，可空）。</param>
     /// <param name="workflowId">节点层工作流命名空间（空 → 默认工作流）。</param>
     /// <param name="schema">层次 schema（缺省 = <see cref="HierarchySchemas.HistoryTaskNode"/>）。</param>
@@ -82,14 +82,14 @@ public sealed class HierarchyProcessFacade
     /// <param name="observer">可选观测（诊断 / 测试）。</param>
     /// <param name="referenceStore">引用图读写端口（可空；仅反向父查询 <c>AncestorsAsync</c> 需要，如 <c>ReferenceGrounding.Graph</c>）。</param>
     /// <remarks>
-    /// 典型装配（见 DataStoreDriven）：<c>Create(reference: grounding, nodeOutputs: outputs, runtimePort: runtime, historyRuntime: historyRuntime, workflowId: wf, referenceStore: grounding.Graph)</c>
+    /// 典型装配（见 DataStoreDriven）：<c>Create(reference: grounding, nodeOutputs: outputs, runtimePort: runtime, containerLevel: containerProcessor, workflowId: wf, referenceStore: grounding.Graph)</c>
     /// —— 同一守卫实例既作层级引用端口又提供图读面，无需额外适配。
     /// </remarks>
     public static HierarchyProcessFacade Create(
         IContainerMemberPort? reference = null,
         INodeOutputStore? nodeOutputs = null,
         IContainerRuntimePort? runtimePort = null,
-        IContainerRuntimeService? historyRuntime = null,
+        ILevelProcessor? containerLevel = null,
         string? workflowId = null,
         HierarchySchema? schema = null,
         IChildResultAggregator? aggregator = null,
@@ -101,10 +101,11 @@ public sealed class HierarchyProcessFacade
             new SchemaTopology(schema ?? HierarchySchemas.HistoryTaskNode),
             new ReferenceHierarchyRelationReader(reference, workflowId, referenceStore));
 
-        var processors = new LevelProcessorRegistry(
-            new ContainerOverviewLevelProcessor(historyRuntime),
-            new TaskStatusLevelProcessor(runtimePort, runStateProvider),
-            new NodeOutputLevelProcessor(nodeOutputs, workflowId));
+        var registered = new List<ILevelProcessor>(3);
+        if (containerLevel is not null) registered.Add(containerLevel);
+        registered.Add(new TaskStatusLevelProcessor(runtimePort, runStateProvider));
+        registered.Add(new NodeOutputLevelProcessor(nodeOutputs, workflowId));
+        var processors = new LevelProcessorRegistry(registered);
 
         return new HierarchyProcessFacade(topology, processors, aggregator, observer);
     }

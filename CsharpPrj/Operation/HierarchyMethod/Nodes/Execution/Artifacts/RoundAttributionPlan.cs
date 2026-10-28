@@ -33,7 +33,7 @@ public sealed record PlannedRoundMessage(
 
 /// <summary>
 /// 轮末入史计划（DEBT-4 单源）—— 把「标记判定 + 文本提取 + 序号编排 + 轮次归一」收敛为一处纯函数：
-/// <see cref="Build"/> 复用 <see cref="ContainerMarkPolicy"/>（标记唯一权威）与
+/// <see cref="Build"/> 复用宿主标记策略端口 <see cref="IContainerMarkPolicy"/>（标记规则单源）与
 /// <see cref="RoundArtifacts.TerminalText"/>（终答文本），<see cref="ToJson"/>/<see cref="FromJson"/>
 /// 为跨程序集（Agent.Core ⇄ Agent.Modules）的载荷编解码。
 /// </summary>
@@ -51,17 +51,18 @@ public static class RoundAttributionPlan
     /// （L0/L1 分层：词表单源在 Agent 侧 <c>RecognizedKinds</c>）。
     /// </param>
     public static PlannedRoundAttribution Build(
-        RoundArtifacts artifacts, RoundSpec? spec, Func<string?, string> kindOfMark)
+        RoundArtifacts artifacts, RoundSpec? spec, Func<string?, string> kindOfMark, IContainerMarkPolicy markPolicy)
     {
         ArgumentNullException.ThrowIfNull(artifacts);
         ArgumentNullException.ThrowIfNull(kindOfMark);
+        ArgumentNullException.ThrowIfNull(markPolicy);
         var nodes = artifacts.Nodes ?? (IReadOnlyList<NodeExecutionRecord>)Array.Empty<NodeExecutionRecord>();
         var messages = new List<PlannedRoundMessage>();
 
         for (var index = 0; index < nodes.Count; index++)
         {
             var record = nodes[index];
-            var mark = ContainerMarkPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
+            var mark = markPolicy.Resolve(spec, record, artifacts.TerminalNodeKey);
             if (mark == ContainerMark.None) continue;   // 空集 = 不入史
 
             var isTerminal = (mark & ContainerMark.Terminal) != 0;

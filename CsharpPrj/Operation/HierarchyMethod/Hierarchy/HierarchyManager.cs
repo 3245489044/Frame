@@ -13,7 +13,6 @@ using Modules.DeclarativeDataflow.RunState;
 using Operation.Container;
 using Operation.Container.Runtime;
 using Operation.HierarchyMethod.Nodes;
-using Operation.HierarchyMethod.Tasks;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -33,7 +32,7 @@ public sealed class HierarchyManager : IHierarchyManager
 {
     private readonly IContainerMemberPort? _reference;
     private readonly INodeOutputStore? _nodes;
-    private readonly Func<TaskRecord, CancellationToken, Task>? _saveTask;
+    private readonly Func<string, string?, CancellationToken, Task>? _saveTask;
     private readonly Func<string, CancellationToken, Task>? _deleteTask;
     private readonly Lazy<HierarchyProcessFacade> _processing;
     private readonly Lazy<HierarchyProcessFacade> _taskTreeProcessing;
@@ -41,10 +40,10 @@ public sealed class HierarchyManager : IHierarchyManager
 
     /// <param name="reference">引用管理端口（可空；实现 = DataStoreDriven.ReferenceGrounding）。本门面及三层实例只依赖此接口、零 LiteDB 具体类型。</param>
     /// <param name="nodes">节点输出存储（可空；ur_nodes NodeType=output）。</param>
-    /// <param name="saveTask">任务簿记保存端口（可空；由组合根注入任务池持久化）。</param>
+    /// <param name="saveTask">任务簿记保存端口（可空；键 + 可选容器归属，由组合根注入任务池持久化）。</param>
     /// <param name="deleteTask">任务簿记删除端口（可空）。</param>
     /// <param name="runtimePort">单 task 运行状态端口（可空；任务层处理器用）。</param>
-    /// <param name="historyRuntime">history 会话编排门面（可空；历史层处理器用）。</param>
+    /// <param name="containerLevel">容器层处理器（可空；缺省 = 该层无处理器，引擎按容器层透传）。</param>
     /// <param name="referenceStore">引用图读写端口（可空；反向祖先链查询用，如 ReferenceGrounding.Graph）。</param>
     /// <param name="schema">层次 schema（可空；缺省 = 三层异构 history → task → node）。</param>
     /// <param name="workflowId">节点层工作流命名空间（可空；缺省 = agent-round，对齐 ur_nodes 约定）。</param>
@@ -55,10 +54,10 @@ public sealed class HierarchyManager : IHierarchyManager
     public HierarchyManager(
         IContainerMemberPort? reference = null,
         INodeOutputStore? nodes = null,
-        Func<TaskRecord, CancellationToken, Task>? saveTask = null,
+        Func<string, string?, CancellationToken, Task>? saveTask = null,
         Func<string, CancellationToken, Task>? deleteTask = null,
         IContainerRuntimePort? runtimePort = null,
-        IContainerRuntimeService? historyRuntime = null,
+        ILevelProcessor? containerLevel = null,
         IResourceReferenceStore? referenceStore = null,
         HierarchySchema? schema = null,
         string? workflowId = null,
@@ -77,7 +76,7 @@ public sealed class HierarchyManager : IHierarchyManager
             reference: _reference,
             nodeOutputs: _nodes,
             runtimePort: runtimePort,
-            historyRuntime: historyRuntime,
+            containerLevel: containerLevel,
             workflowId: workflowId,
             schema: schema ?? HierarchySchemas.HistoryTaskNode,
             observer: observer,
@@ -89,7 +88,7 @@ public sealed class HierarchyManager : IHierarchyManager
             reference: _reference,
             nodeOutputs: _nodes,
             runtimePort: runtimePort,
-            historyRuntime: historyRuntime,
+            containerLevel: containerLevel,
             workflowId: workflowId,
             schema: HierarchySchemas.TaskTree(CrossDbReferenceTypes.TaskOwnsTask),
             observer: observer,
@@ -109,18 +108,15 @@ public sealed class HierarchyManager : IHierarchyManager
     public Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default)
         => _reference is null ? Task.FromResult(false) : _reference.DeleteContainerAsync(historyId, ct);
 
-    public async Task RegisterTaskAsync(string taskKey, string? historyId = null, TaskRecord? spec = null, CancellationToken ct = default)
+    public async Task RegisterTaskAsync(string taskKey, string? historyId = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
-        var record = spec ?? new TaskRecord();
-        record.TaskKey = taskKey;
-        if (!string.IsNullOrWhiteSpace(historyId))
-            record.HistoryId = historyId;
+        var containerId = string.IsNullOrWhiteSpace(historyId) ? null : historyId.Trim();
 
         if (_saveTask is not null)
-            await _saveTask(record, ct).ConfigureAwait(false);
+            await _saveTask(taskKey.Trim(), containerId, ct).ConfigureAwait(false);
 
-        // RED-1：不再由层次管理器隐式归拢；task 的父历史只经 CreateTaskCommand / AttachTaskCommand 写入。
+        // RED-1：不再由层次管理器隐式归拢；task 的父容器只经 CreateTaskCommand / AttachTaskCommand 写入。
     }
 
     public async Task DeleteTaskAsync(string taskKey, CancellationToken ct = default)

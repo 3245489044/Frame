@@ -18,7 +18,7 @@ public static class SeedInputKeys
 /// <summary>
 /// 轮次启动输入解析**唯一实现**（SingleImplementation）：按 <c>input → UserInput → 兼容键 user_input</c>
 /// 的固定优先级取种子；三者皆空 ⇒ 显式失败（禁空串进入骨架）。
-/// <para>消费方：<see cref="LeaseContextFactory"/>（每轮租约播种）与 Agent 侧 <c>LeaseDeriver</c>（同字面守卫收敛到本实现）。</para>
+/// <para>消费方：执行租约工厂（每轮租约播种，Agent 侧）与 Agent 侧 <c>LeaseDeriver</c>（同字面守卫收敛到本实现）。</para>
 /// </summary>
 public static class SeedInput
 {

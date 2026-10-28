@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Modules.DeclarativeDataflow.Model;
 using Modules.DeclarativeDataflow.Processing;
 using Operation.Container;
-using Operation.HierarchyMethod.Tasks;
 
 namespace Operation.HierarchyMethod.Hierarchy;
 
@@ -15,7 +14,7 @@ namespace Operation.HierarchyMethod.Hierarchy;
 /// 模块化分离边界（对齐用户确认的真多对多语义）：
 ///   · **引用管理**（LiteDB 边）经注入端口 <c>IContainerMemberPort</c>（实现 = DataStoreDriven.ReferenceGrounding），
 ///     本门面及三层实例只依赖该接口、不触碰任何 LiteDB 具体类型；
-///   · **三层实例**（NodeOutputStore / TaskRecord / 历史内容）由本门面编排持久化，实例本身零 LiteDB 依赖。
+///   · **三层实例**（NodeOutputStore / 任务簿记 / 历史内容）由本门面编排持久化，实例本身零 LiteDB 依赖。
 /// </para>
 /// <para>
 /// 数据模型：单 history（顶层 class 容器）→ 多 task；task ↔ node 为真多对多（同一节点可被多 task 共享引用）。
@@ -31,9 +30,9 @@ public interface IHierarchyManager
     /// <summary>删除历史（级联清其引用边）。返回是否命中。</summary>
     Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default);
 
-    // ---- task（注册 + 归拢历史）----
-    /// <summary>注册任务（保存 TaskRecord；可选归拢到 history：建历史根 + 挂 history→task 边）。</summary>
-    Task RegisterTaskAsync(string taskKey, string? historyId = null, TaskRecord? spec = null, CancellationToken ct = default);
+    // ---- task（注册）----
+    /// <summary>注册任务（键 + 可选容器归属；簿记载荷由宿主装配的保存端口处理，框架不解释记录类型）。</summary>
+    Task RegisterTaskAsync(string taskKey, string? historyId = null, CancellationToken ct = default);
 
     /// <summary>删除任务（保存侧删除 + 解除历史归拢边）。</summary>
     Task DeleteTaskAsync(string taskKey, CancellationToken ct = default);

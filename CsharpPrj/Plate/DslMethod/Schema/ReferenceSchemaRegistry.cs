@@ -18,6 +18,16 @@ public sealed class ReferenceSchemaRegistry
     private readonly List<ReferenceEdgeType> _edges = new();
     private readonly List<ReferenceConstraint> _constraints = new();
 
+    // 闸A 受控词（[Edge] 图边策略字段；新增取值 = 改这里 + 声明面 + 运行时端口，三处同批）。
+    private static readonly HashSet<string> IdentityValues =
+        new(StringComparer.Ordinal) { "source_target_ref", "source_target_ref_location" };
+    private static readonly HashSet<string> TombstoneValues =
+        new(StringComparer.Ordinal) { "durable", "none" };
+    private static readonly HashSet<string> ReviveValues =
+        new(StringComparer.Ordinal) { "explicit", "attach", "never" };
+    private static readonly HashSet<string> CascadeValues =
+        new(StringComparer.Ordinal) { "declaration", "edge", "none" };
+
     public DslIndex Index => _index;
     public IReadOnlyList<DslDocument> Documents => _documents;
     public IReadOnlyList<ResourceNodeType> Nodes => _nodes;
@@ -84,6 +94,40 @@ public sealed class ReferenceSchemaRegistry
                 issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: src 悬空节点类型 '{e.Source}' ({e.SourceFile}:{e.LineNumber})"));
             if (!StringValueParser.IsAny(e.Target) && !nodeNames.Contains(e.Target!))
                 issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: tgt 悬空节点类型 '{e.Target}' ({e.SourceFile}:{e.LineNumber})"));
+        }
+
+        // 闸A（图边策略字段）：声明即须完整（identity/tombstone/unique 齐备）+ 取值受控。
+        // 未声明任何策略字段的边 = 纯词汇表条目（不参与图写入门）；覆盖率（运行时用到的边类型是否都已声明）
+        // 由门禁 GraphDeclarationParity 承担，不在此强制全量（否则模型型词汇表边会被一并判红）。
+        foreach (var e in _edges)
+        {
+            var declared = e.Identity is not null || e.Tombstone is not null || e.Unique is not null
+                || e.Revive is not null || e.Cascade is not null;
+            if (!declared) continue;
+
+            var site = $"({e.SourceFile}:{e.LineNumber})";
+            if (e.Identity is null)
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: 缺 identity（声明策略字段后 identity/tombstone/unique 必填）{site}"));
+            else if (!IdentityValues.Contains(e.Identity))
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: identity 非法 '{e.Identity}'（须 source_target_ref | source_target_ref_location）{site}"));
+
+            if (e.Tombstone is null)
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: 缺 tombstone（须 durable | none）{site}"));
+            else if (!TombstoneValues.Contains(e.Tombstone))
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: tombstone 非法 '{e.Tombstone}'（须 durable | none）{site}"));
+
+            if (e.Unique is null)
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: unique 缺项或非法（须 true | false）{site}"));
+
+            if (e.Revive is not null && !ReviveValues.Contains(e.Revive))
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: revive 非法 '{e.Revive}'（须 explicit | attach | never）{site}"));
+
+            if (e.Cascade is not null && !CascadeValues.Contains(e.Cascade))
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: cascade 非法 '{e.Cascade}'（须 declaration | edge | none）{site}"));
+
+            // 组合约束：退役边不得声明「声明级联」（声明退出后无声明可级联，属自相矛盾）。
+            if (e.Deprecated && string.Equals(e.Cascade, "declaration", StringComparison.Ordinal))
+                issues.Add(new ValidationIssue(null, $"[Edge] {e.Name}: 退役边不得声明 cascade=declaration{site}"));
         }
 
         // 第二遍：dep 目标须在完整边集合内（避免声明顺序导致误报）

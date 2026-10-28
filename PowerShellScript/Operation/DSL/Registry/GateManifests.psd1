@@ -1515,6 +1515,38 @@
         Note   = '图库路径单源：路径解析/文件名常量 = 1 · 启动指纹发射点 = 1 · 两库同目录断言 ≥ 1'
     }
 
+    GraphDeclarationParity = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '图边声明完整性：必需边五字段齐备（identity/tombstone/unique/revive/cascade）+ 受控词 + 规则动作受控；负对照删字段/越界动作必红；基线 Baselines\Data\GraphDeclarationParity.psd1'
+    }
+
+    GraphTombstoneRead = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '图边墓碑读取点 ≥1（删除有约束力）：写前 Admit 调用点 ≥1 + EdgeTombstoneExists 读取点 ≥1 + 墓碑键构造/读取同源；负对照移除读取点必红'
+    }
+
+    GraphKeySingleSource = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '图边键单源：手拼 "::" = 0（唯一实现 = DeclaredGraphKeyGrammar）+ 文法实现点 = 1；负对照合成拼键必红；基线 Baselines\Data\GraphKeySingleSource.psd1'
+    }
+
+    GraphIndexDeclaration = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '图库索引声明（棘轮）：EnsureIndex 计数 ≤ 基线（只降不升）+ 边身份唯一索引在位；负对照新增索引必红；基线 Baselines\Data\GraphIndexDeclaration.psd1'
+    }
+
     DataStoreDomainBoundary = @{
         Domain = 'Data'
         Args   = @{}

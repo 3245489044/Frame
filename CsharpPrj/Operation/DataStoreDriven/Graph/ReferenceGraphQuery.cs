@@ -36,15 +36,19 @@ public sealed class ReferenceGraphQuery
     private readonly IResourceReferenceStore _store;
     private readonly int _maxDepth;
     private readonly int _maxNodes;
+    private readonly IGraphKeyGrammar _keys;
 
     /// <param name="store">只读引用边端口（写边 owner 亦实现该端口 ⇒ 经端口注入而非持 owner 实例；本类不写、不复制写路径）。</param>
     /// <param name="maxDepth">遍历深度上限（缺省 8）。</param>
     /// <param name="maxNodes">遍历规模上限（缺省 2000 节点）。</param>
-    public ReferenceGraphQuery(IResourceReferenceStore store, int maxDepth = 8, int maxNodes = 2000)
+    /// <param name="keys">端点键文法（缺省 = <see cref="DeclaredGraphKeyGrammar.Instance"/>；禁本类另拼键）。</param>
+    public ReferenceGraphQuery(IResourceReferenceStore store, int maxDepth = 8, int maxNodes = 2000,
+        IGraphKeyGrammar? keys = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _maxDepth = maxDepth > 0 ? maxDepth : 8;
         _maxNodes = maxNodes > 0 ? maxNodes : 2000;
+        _keys = keys ?? DeclaredGraphKeyGrammar.Instance;
     }
 
     private IResourceReferenceStore Port => _store;
@@ -60,7 +64,7 @@ public sealed class ReferenceGraphQuery
             .ConfigureAwait(false);
         return refs
             .Where(r => r.IsIncoming != outgoing)
-            .Select(r => (outgoing ? r.Target : r.Source).GetUniqueKey())
+            .Select(r => _keys.Endpoint(outgoing ? r.Target : r.Source))
             .Where(k => !string.IsNullOrWhiteSpace(k))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -151,7 +155,7 @@ public sealed class ReferenceGraphQuery
                 foreach (var reference in refs)
                 {
                     if (reference.IsIncoming) continue;
-                    var target = reference.Target.GetUniqueKey();
+                    var target = _keys.Endpoint(reference.Target);
                     if (string.IsNullOrWhiteSpace(target)) continue;
 
                     if (adjacency.TryGetValue(key, out var outgoing)

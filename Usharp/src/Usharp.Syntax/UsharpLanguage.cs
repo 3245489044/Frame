@@ -35,6 +35,93 @@ public static class UsharpLanguage
     /// <summary>提示词段声明前缀（段键 → 组/序/适用性/需求量/别名/开关/字段名/字段类型；<c>[Segment]</c>）。</summary>
     public const string SegmentPrefix = "[Segment]";
 
+    // ---- 关系声明语言单元（[Relation] / [Invariant] / [Derive]）----
+    // 唯一声明面：关系操作（写哪种边）/ 关系不变量 / 派生成员集；编译为 relation.plan.generated.json。
+
+    /// <summary>关系操作声明前缀（<c>[Relation]</c>：operation → edge/src/tgt/flow/namespace）。</summary>
+    public const string RelationPrefix = "[Relation]";
+
+    /// <summary>关系不变量声明前缀（<c>[Invariant]</c>：单父 / 无环 / M:N / 端点存在）。</summary>
+    public const string InvariantPrefix = "[Invariant]";
+
+    /// <summary>派生成员集声明前缀（<c>[Derive]</c>：from → via 有序边链 → to）。</summary>
+    public const string DerivePrefix = "[Derive]";
+
+    // 字段名（复用既有：edge/src/tgt/flow/kind/scope/emit/from/to/order；不造别名）
+
+    /// <summary>写边作用域轴（<c>namespace=</c>：键空间轴名 / <c>workflow_id</c> / <c>none</c>）。</summary>
+    public const string FieldNamespace = "namespace";
+
+    /// <summary>写前端点存在性探针范围（<c>exists=src|tgt|src,tgt|none</c>）。</summary>
+    public const string FieldExists = "exists";
+
+    /// <summary>重复边处置（<c>duplicate=keep|replace|reject</c>）。</summary>
+    public const string FieldDuplicate = "duplicate";
+
+    /// <summary>端点缺失处置（<c>on_missing=reject|report</c>）。</summary>
+    public const string FieldOnMissing = "on_missing";
+
+    /// <summary>目标基数（<c>arity=one|many</c>）。</summary>
+    public const string FieldArity = "arity";
+
+    /// <summary>不变量违反处置（<c>on_violation=reject|report</c>）。</summary>
+    public const string FieldOnViolation = "on_violation";
+
+    /// <summary>派生路径（<c>via=</c>：有序边类型链，逗号分隔）。</summary>
+    public const string FieldVia = "via";
+
+    /// <summary>派生运算（<c>op=chain</c>；当前仅 chain）。</summary>
+    public const string FieldOp = "op";
+
+    /// <summary>派生结果归一（<c>normalize=node-key|identity|none</c>）。</summary>
+    public const string FieldNormalize = "normalize";
+
+    /// <summary>派生空因词（<c>empty=</c>：逗号分隔；禁静默空集）。</summary>
+    public const string FieldEmpty = "empty";
+
+    /// <summary>不填 Location 的命名空间取值。</summary>
+    public const string RelationNamespaceNone = "none";
+
+    /// <summary>按 workflow 作用域解析 Location 的命名空间取值。</summary>
+    public const string RelationNamespaceWorkflow = "workflow_id";
+
+    /// <summary>存在性探针范围取值（<c>exists=</c>；<c>src,tgt</c> 为默认）。</summary>
+    public const string RelationExistsSource = "src";
+    public const string RelationExistsTarget = "tgt";
+
+    /// <summary>目标基数取值。</summary>
+    public const string RelationArityOne = "one";
+    public const string RelationArityMany = "many";
+
+    /// <summary>重复边处置受控词表。</summary>
+    public static readonly string[] RelationDuplicateModes = { "keep", "replace", "reject" };
+
+    /// <summary>端点缺失处置受控词表。</summary>
+    public static readonly string[] RelationOnMissingModes = { "reject", "report" };
+
+    /// <summary>目标基数受控词表。</summary>
+    public static readonly string[] RelationArities = { RelationArityOne, RelationArityMany };
+
+    /// <summary>关系不变量种类受控词表。</summary>
+    public static readonly string[] InvariantKinds =
+        { "target_single_parent", "source_single_target", "acyclic", "many_to_many", "target_exists" };
+
+    /// <summary>不变量违反处置受控词表。</summary>
+    public static readonly string[] InvariantOnViolations = { "reject", "report" };
+
+    /// <summary>派生运算受控词（当前仅 chain）。</summary>
+    public const string DeriveOpChain = "chain";
+    public static readonly string[] DeriveOps = { DeriveOpChain };
+
+    /// <summary>派生归一受控词表。</summary>
+    public static readonly string[] DeriveNormalizes = { "node-key", "identity", "none" };
+
+    /// <summary>派生排序受控词表。</summary>
+    public static readonly string[] DeriveOrders = { "key-ordinal", "edge-order", "none" };
+
+    /// <summary>关系编排唯一执行体函数名（<c>fn=relation_apply</c>；闸A R4 判据）。</summary>
+    public const string RelationApplyFunction = "relation_apply";
+
     /// <summary>读模型源键字段（<c>source=</c>：<c>Slot.&lt;HostPort&gt;</c> / <c>Service.&lt;TypeName&gt;</c>，逗号或 <c>+</c> 分隔）。</summary>
     public const string ReadModelFieldSource = "source";
 

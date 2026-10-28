@@ -108,7 +108,7 @@ public sealed class HistoryReferenceGrounding
 
         foreach (var (historyId, resource) in resources)
         {
-            if (refsByKey.TryGetValue(resource.GetUniqueKey(), out var refs))
+            if (refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
                 result[historyId] = GraphEdgeWriter.ProjectOutgoingTargetIds(
                     refs, CrossDbReferenceTypes.HistoryOwnsTask, static r => r.RefType, static r => r.Target?.Id);
             else

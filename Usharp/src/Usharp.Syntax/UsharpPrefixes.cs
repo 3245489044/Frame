@@ -57,6 +57,10 @@ public static class UsharpPrefixes
         new(UsharpLanguage.CommandPrefix, DslSymbolKind.Command, "Command"),
         // 读模型声明语言单元（[ReadModel]）：模型 id → 源键/版本源/投影器/参数名表
         new(UsharpLanguage.ReadModelPrefix, DslSymbolKind.ReadModel, "ReadModel"),
+        // 关系声明语言单元（[Relation]/[Invariant]/[Derive]）：关系操作 / 关系不变量 / 派生成员集
+        new(UsharpLanguage.RelationPrefix,  DslSymbolKind.Relation,  "Relation"),
+        new(UsharpLanguage.InvariantPrefix, DslSymbolKind.Invariant, "Invariant"),
+        new(UsharpLanguage.DerivePrefix,    DslSymbolKind.Derive,    "Derive"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

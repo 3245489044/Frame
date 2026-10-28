@@ -53,6 +53,16 @@
             Target = '..\PowerShellScript\Share\Data\Invoke-GraphDoctor.ps1'
             Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Json = 'Json'; OutFile = 'OutFile'; SelfTest = 'SelfTest' }
         }
+        'graph-archive-legacy' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Invoke-GraphArchiveLegacyDb.ps1'
+            Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Apply = 'Apply'; Json = 'Json' }
+        }
+        'graph-key-normalize' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Invoke-GraphKeyNormalize.ps1'
+            Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Apply = 'Apply'; Json = 'Json' }
+        }
         'watch-observe' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Observe\Watch-AgentObserve.ps1'

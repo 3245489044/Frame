@@ -104,6 +104,9 @@ public static class DeclaredBundleBuilder
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    /// <summary>关系声明目录名（<c>[Relation]</c>/<c>[Invariant]</c>/<c>[Derive]</c> 的唯一声明面）。</summary>
+    public const string RelationsDirName = "relations";
+
     /// <summary>从配置根构建（<c>Config\nodes</c> + <c>Config\workflows</c>；二目录缺失即空集，不兜底内容）。</summary>
     /// <param name="configRoot">配置根目录（含 <c>nodes</c> / <c>workflows</c> 子目录）。</param>
     public static DeclaredBundleArtifacts Build(string configRoot)
@@ -124,6 +127,7 @@ public static class DeclaredBundleBuilder
                 Path.Combine(configRoot, KeyspacesDirName),
                 Path.Combine(configRoot, CommandsDirName),
                 Path.Combine(configRoot, StateDirName),
+                Path.Combine(configRoot, RelationsDirName),
             })
             .Select(s => (s.Path, s.Text))
             .ToList();

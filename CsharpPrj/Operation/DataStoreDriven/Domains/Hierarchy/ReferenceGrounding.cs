@@ -29,7 +29,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
     public ReferenceGrounding(ReferenceGraphCoordinator graph, IDefaultWorkflowIdProvider? workflowIds = null)
     {
         _core = new GraphGrounding(graph, workflowIds);
-        _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator);
+        _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _core.WorkflowIds);
         _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _tasks);
         _sessions = new SessionReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator);
         _hierarchy = new HierarchyReferenceManager(_history, _tasks, _sessions);

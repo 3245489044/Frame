@@ -42,7 +42,7 @@ public sealed class SessionReferenceGrounding
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
         await EnsureSessionMirrorAsync(sessionName, ct).ConfigureAwait(false);
-        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
+        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName) };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
         await _edges.AttachEdgeAsync(CrossDbReferenceTypes.SessionOwns, sessionId, nodeId, $"{sessionName}|{nodeKey}", ct).ConfigureAwait(false);
     }
@@ -51,7 +51,7 @@ public sealed class SessionReferenceGrounding
     public async Task<IReadOnlyList<string>> GetSessionNodeKeysAsync(string sessionName, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sessionName)) return Array.Empty<string>();
-        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName), Location = workflowId };
+        var sessionId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Session, Id = SessionNodeId(sessionName) };
         var targets = await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.SessionOwns, sessionId, ct).ConfigureAwait(false);
         var keys = new List<string>();
         foreach (var id in targets)

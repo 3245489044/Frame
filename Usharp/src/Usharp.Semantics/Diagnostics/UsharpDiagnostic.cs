@@ -316,4 +316,28 @@ public static class UsharpCodes
     public const string PortFnUnknown = UsharpDiagnosticCatalog.PortFnUnknown;
     public const string ToolTrackUnknown = UsharpDiagnosticCatalog.ToolTrackUnknown;
     public const string BehaviorActionUnknown = UsharpDiagnosticCatalog.BehaviorActionUnknown;
+
+    // ── 关系声明面（US81xx）：[Relation] / [Invariant] / [Derive] ─────
+    public const string RelationDuplicate = UsharpDiagnosticCatalog.RelationDuplicate;
+    public const string RelationEdgeUndeclared = UsharpDiagnosticCatalog.RelationEdgeUndeclared;
+    public const string RelationEndpointMismatch = UsharpDiagnosticCatalog.RelationEndpointMismatch;
+    public const string RelationFlowUnknown = UsharpDiagnosticCatalog.RelationFlowUnknown;
+    public const string RelationNamespaceUnknown = UsharpDiagnosticCatalog.RelationNamespaceUnknown;
+    public const string RelationFieldInvalid = UsharpDiagnosticCatalog.RelationFieldInvalid;
+    public const string RelationMountMissing = UsharpDiagnosticCatalog.RelationMountMissing;
+    public const string RelationEmitUndeclared = UsharpDiagnosticCatalog.RelationEmitUndeclared;
+    public const string InvariantDuplicate = UsharpDiagnosticCatalog.InvariantDuplicate;
+    public const string InvariantEdgeUndeclared = UsharpDiagnosticCatalog.InvariantEdgeUndeclared;
+    public const string InvariantKindUnknown = UsharpDiagnosticCatalog.InvariantKindUnknown;
+    public const string InvariantOnViolationInvalid = UsharpDiagnosticCatalog.InvariantOnViolationInvalid;
+    public const string InvariantScopeUndeclared = UsharpDiagnosticCatalog.InvariantScopeUndeclared;
+    public const string InvariantDuplicateShape = UsharpDiagnosticCatalog.InvariantDuplicateShape;
+    public const string DeriveDuplicate = UsharpDiagnosticCatalog.DeriveDuplicate;
+    public const string DeriveEndpointUndeclared = UsharpDiagnosticCatalog.DeriveEndpointUndeclared;
+    public const string DeriveEdgeUndeclared = UsharpDiagnosticCatalog.DeriveEdgeUndeclared;
+    public const string DeriveViaBroken = UsharpDiagnosticCatalog.DeriveViaBroken;
+    public const string DeriveFieldInvalid = UsharpDiagnosticCatalog.DeriveFieldInvalid;
+    public const string DeriveEdgeDeprecated = UsharpDiagnosticCatalog.DeriveEdgeDeprecated;
+    public const string DeriveDuplicateShape = UsharpDiagnosticCatalog.DeriveDuplicateShape;
+    public const string RelationPlanNotProducible = UsharpDiagnosticCatalog.RelationPlanNotProducible;
 }

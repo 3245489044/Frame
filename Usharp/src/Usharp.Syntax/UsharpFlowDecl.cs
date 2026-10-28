@@ -283,6 +283,18 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpReadModelDecl> ReadModels(DslDocument doc)
         => Project(doc, DslSymbolKind.ReadModel, UsharpReadModelDecl.From);
 
+    /// <summary><c>[Relation]</c> 关系操作声明（唯一写入口 operation）。</summary>
+    public static IReadOnlyList<UsharpRelationDecl> Relations(DslDocument doc)
+        => Project(doc, DslSymbolKind.Relation, UsharpRelationDecl.From);
+
+    /// <summary><c>[Invariant]</c> 关系不变量声明（单父 / 无环 / M:N / 端点存在）。</summary>
+    public static IReadOnlyList<UsharpInvariantDecl> Invariants(DslDocument doc)
+        => Project(doc, DslSymbolKind.Invariant, UsharpInvariantDecl.From);
+
+    /// <summary><c>[Derive]</c> 派生成员集声明（from → via 有序边链 → to）。</summary>
+    public static IReadOnlyList<UsharpDeriveDecl> Derivations(DslDocument doc)
+        => Project(doc, DslSymbolKind.Derive, UsharpDeriveDecl.FromDeclaration);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-27T17:08:25.2092065Z",
+  "builtAt": "2026-10-28T04:00:03.0179853Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -2637,6 +2637,20 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-TaskKey与多套状态-usharp单源收敛-设计与平行逻辑清单.md",
+          "line": 27,
+          "role": "Doc",
+          "text": "└─ ur_nodes 容器           = proc.085ecf / arch.085ecf / state_response@history:15097ceb90b5"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-TaskKey与多套状态-usharp单源收敛-设计与平行逻辑清单.md",
+          "line": 64,
+          "role": "Doc",
+          "text": "| `proc.085ecf175c318ff2` | `085ecf175c318ff2` | 过程帧 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.3/2026-10-03-运行日志分析-函数调用链重复冗余错误逻辑与模块化建议.md",
           "line": 83,
           "role": "Doc",
@@ -4251,20 +4265,6 @@
           "line": 61,
           "role": "Doc",
           "text": "| **系统行为** | 写入本 run 的**内存过程节点**（`InMemoryNodeCarrier`，`AppendOnly`），键 = `proc.{taskKey}.r{round}.step{seq}` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 103,
-          "role": "Doc",
-          "text": "| **系统行为** | 独立声明域 `process`（identity `{container}.r{round}.step{seq}`）、独立键族 `proc.*`、独立 `NodeType` 判别值 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 214,
-          "role": "Doc",
-          "text": "\"key\": \"proc.{container}.r{round}.step{seq}\", \"form\": \"view\","
         }
       ]
     },
@@ -4273,14 +4273,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 159,
+      "total": 162,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 8,
-        "Declaration": 7,
+        "Declaration": 9,
         "Code": 81,
-        "Doc": 61,
+        "Doc": 62,
         "Other": 1
       },
       "hits": [
@@ -4727,6 +4727,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-图关系挂载失败与边删除失效-框架级修复与USharp声明式收敛-设计与施工单.md",
+          "line": 214,
+          "role": "Doc",
+          "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/7/7.19/ECS_Extension_Optimization.md",
           "line": 504,
           "role": "Doc",
@@ -5112,6 +5119,20 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 103,
+          "role": "Declaration",
+          "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many | orderKeys= | identity= | derivedPrefixes="
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "line": 104,
+          "role": "Declaration",
+          "text": "surface graph.declaration/Storage | templates=relations.{workflowId}.{relationId} | prefix=relations. | readOnly="
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/doc/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
           "line": 88,
           "role": "Doc",
@@ -5408,11 +5429,11 @@
       "truncated": true,
       "byRole": {
         "Gate": 6,
-        "Test": 42,
-        "Declaration": 0,
+        "Test": 27,
+        "Declaration": 11,
         "Code": 168,
-        "Doc": 183,
-        "Other": 1
+        "Doc": 185,
+        "Other": 3
       },
       "hits": [
         {
@@ -6936,6 +6957,20 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Share/Data/Invoke-GraphDoctor.ps1",
+          "line": 60,
+          "role": "Other",
+          "text": "# 裸身份归一：剥净 history: / history. / session: / session.（幂等；与 NodeEndpointIds.NormalizeHistoryId 同口径）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Data/Invoke-GraphDoctor.ps1",
+          "line": 67,
+          "role": "Other",
+          "text": "if ($v.StartsWith('history.') -or $v.StartsWith('session.')) { $v = $v.Substring(8); continue }"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Share/Index/Build-ContractIndex.ps1",
           "line": 65,
           "role": "Other",
@@ -7206,6 +7241,97 @@
           "line": 252,
           "role": "Doc",
           "text": "3. 会话域容器规范值：`history:`/`arch.`/`smsg.`/`seg.`/`sv.`/`session:`/`session.` 前缀均可反转，其余原样（`* identity`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.27/2026-10-27-TaskKey与多套状态-usharp单源收敛-设计与平行逻辑清单.md",
+          "line": 350,
+          "role": "Doc",
+          "text": "| K3 | `task_member_` / `task_state_` / `history:` / `session:` / `session.` 多套剥前缀 | 键空间声明唯一 | `agent.keyspace.ushar:11-15,25-36` | 剥前缀规则只在 keyspace 出现；C# 字面量 = 0 | P0 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-图关系挂载失败与边删除失效-框架级修复与USharp声明式收敛-设计与施工单.md",
+          "line": 40,
+          "role": "Doc",
+          "text": "| LiteDB | `ur_endpoints` | **18**（`history:history.000…111`、`task:000…111`、`session:session.000…`） | 与现存实体**不相交** ⇒ 孤儿端点 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 94,
+          "role": "Declaration",
+          "text": "\"session:session.*\": 5,"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 116,
+          "role": "Declaration",
+          "text": "\"session.000\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 117,
+          "role": "Declaration",
+          "text": "\"session.001\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 118,
+          "role": "Declaration",
+          "text": "\"session.003\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 119,
+          "role": "Declaration",
+          "text": "\"session.004\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 120,
+          "role": "Declaration",
+          "text": "\"session.cv_toolcall_node\""
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 211,
+          "role": "Declaration",
+          "text": "\"session:session.000\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 212,
+          "role": "Declaration",
+          "text": "\"session:session.001\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 213,
+          "role": "Declaration",
+          "text": "\"session:session.003\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 214,
+          "role": "Declaration",
+          "text": "\"session:session.004\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/evidence/graph-health-20261028.json",
+          "line": 215,
+          "role": "Declaration",
+          "text": "\"session:session.cv_toolcall_node\""
         },
         {
           "repo": "Main",
@@ -8109,111 +8235,6 @@
           "line": 109,
           "role": "Test",
           "text": "\"cline.session.work.round.2.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 110,
-          "role": "Test",
-          "text": "\"cline.session.work.round.3.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 183,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"work\", archive(\"cline.session.work.round.2.stage.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 185,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"a\", archive(\"cline.session.a.round.b.round.2.stage.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 186,
-          "role": "Test",
-          "text": "Assert.IsNull(archive(\"session.work.r1\"), \"非本键族 ⇒ 合法不命中\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 188,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"work\", session(\"session.work.r1.tool.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 189,
-          "role": "Test",
-          "text": "Assert.IsNull(session(\"cline.session.work.round.1.stage.1\"), \"非本键族 ⇒ 合法不命中\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 200,
-          "role": "Test",
-          "text": "Assert.IsNull(parser(\"cline.session.work.round.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 215,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"session.s1.r1.tool.1\", \"{\\\"mark\\\":\\\"Terminal\\\"}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 222,
-          "role": "Test",
-          "text": "var keys = await carrier.EnumerateKeysAsync(\"session.s1.r1.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 223,
-          "role": "Test",
-          "text": "CollectionAssert.AreEqual(new[] { \"session.s1.r1.tool.1\" }, keys.ToArray());"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
-          "line": 58,
-          "role": "Test",
-          "text": "Assert.IsTrue(ArchiveKeys.TryParse(\"cline.session.c1.round.2.message.7\", out var container));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
-          "line": 60,
-          "role": "Test",
-          "text": "Assert.IsTrue(ArchiveKeys.TryParse(\"cline.session.c1.round.2\", out var shortForm));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
-          "line": 62,
-          "role": "Test",
-          "text": "Assert.IsTrue(ArchiveKeys.IsLegacyArchiveKey(\"cline.session.c1.round.2.message.7\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 25,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.archive\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"message\", \"ordinal\": \"7\" }, \"rendered\": \"cline.session.c1.round.2.message.7\", \"source\": \"old-i"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 26,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.archive\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\" }, \"rendered\": \"cline.session.c1.round.2\", \"source\": \"old-impl\", \"parseOnly\": true, \"stage\": \"KP0\" },"
         }
       ]
     },
@@ -11326,14 +11347,14 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1591.0,
+    "hitCount": 1594.0,
     "byRole": {
       "Gate": 28,
-      "Test": 277,
-      "Declaration": 96,
+      "Test": 262,
+      "Declaration": 109,
       "Code": 345,
-      "Doc": 770,
-      "Other": 75
+      "Doc": 773,
+      "Other": 77
     },
     "truncatedFacts": [
       "key.proc",
@@ -11342,15 +11363,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 447
+        "lines": 449
       },
       {
         "repo": "Projects",
-        "lines": 492
+        "lines": 494
       },
       {
         "repo": "Main",
-        "lines": 1038
+        "lines": 1054
       }
     ]
   }

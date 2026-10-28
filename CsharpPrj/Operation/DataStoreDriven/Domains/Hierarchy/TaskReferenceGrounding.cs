@@ -17,15 +17,18 @@ public sealed class TaskReferenceGrounding
     private readonly GraphEdgeWriter _edges;
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
+    private readonly IDefaultWorkflowIdProvider? _workflowIds;
 
     /// <summary>子任务树遍历预算（不定深度树信任反转上界）。</summary>
     private const int SubTaskTraversalBudget = 4096;
 
-    public TaskReferenceGrounding(GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph)
+    public TaskReferenceGrounding(GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
+        IDefaultWorkflowIdProvider? workflowIds = null)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _workflowIds = workflowIds;
     }
 
     /// <summary>镜像 task 端点（Id=taskKey，幂等）。</summary>
@@ -38,10 +41,14 @@ public sealed class TaskReferenceGrounding
         => _graph.DeleteEndpointDurablyAsync(
             new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey }, "task-removed", ct);
 
-    /// <summary>task 关联节点（增量维护任务关联；幂等）。</summary>
+    /// <summary>task 关联节点（增量维护任务关联；幂等）。<paramref name="workflowId"/> 为空 ⇒ 取 <see cref="IDefaultWorkflowIdProvider"/> 单源。</summary>
     public Task ReconcileTaskAsync(string taskKey, IReadOnlyCollection<string> relatedNodeKeys,
         string workflowId = "", CancellationToken ct = default)
-        => _graph.ReconcileTaskAsync(taskKey, relatedNodeKeys, workflowId, ct);
+        => _graph.ReconcileTaskAsync(taskKey, relatedNodeKeys, ResolveWorkflow(workflowId), ct);
+
+    /// <summary>工作流 Id 单源（空 ⇒ 配置缺省；禁调用方各传 "agent-round" / ""）。</summary>
+    private string ResolveWorkflow(string? workflowId)
+        => _workflowIds?.Resolve(workflowId) ?? (workflowId ?? string.Empty);
 
     /// <summary>运行时 task 归属边（cross_db_link）：task → 节点。幂等加法。</summary>
     public async Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
@@ -60,7 +67,7 @@ public sealed class TaskReferenceGrounding
             }
         }
         await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
         await _edges.AttachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, $"{taskKey}|{nodeKey}", ct).ConfigureAwait(false);
     }
@@ -70,7 +77,7 @@ public sealed class TaskReferenceGrounding
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
         return _edges.DetachEdgeAsync(CrossDbReferenceTypes.CrossDbLink, taskId, nodeId, ct);
     }
@@ -79,7 +86,7 @@ public sealed class TaskReferenceGrounding
     public async Task<IReadOnlyList<string>> GetTaskNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(taskKey)) return Array.Empty<string>();
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
         var targets = await _edges.GetOutgoingTargetIdsAsync(CrossDbReferenceTypes.CrossDbLink, taskId, ct).ConfigureAwait(false);
         var keys = new List<string>();
         foreach (var id in targets)
@@ -104,7 +111,6 @@ public sealed class TaskReferenceGrounding
             {
                 ResourceType = NodeResourceTypes.Task,
                 Id = key,
-                Location = workflowId,
             })
             .ToList();
         var refsByKey = await _graph
@@ -113,8 +119,8 @@ public sealed class TaskReferenceGrounding
 
         foreach (var taskKey in tasks)
         {
-            var resource = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
-            if (!refsByKey.TryGetValue(resource.GetUniqueKey(), out var refs))
+            var resource = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
+            if (!refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
             {
                 result[taskKey] = Array.Empty<string>();
                 continue;

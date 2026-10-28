@@ -76,6 +76,21 @@ public sealed record ReferenceEdgeType(
     string SourceFile,
     int LineNumber)
 {
+    /// <summary>边身份文法（<c>[Edge] identity=</c>）：<c>source_target_ref</c> | <c>source_target_ref_location</c>；未声明 ⇒ null。</summary>
+    public string? Identity { get; init; }
+
+    /// <summary>墓碑策略（<c>[Edge] tombstone=</c>）：<c>durable</c> | <c>none</c>；未声明 ⇒ null。</summary>
+    public string? Tombstone { get; init; }
+
+    /// <summary>唯一性（<c>[Edge] unique=</c>）：按 <c>(SourceId,TargetId,RefType)</c> 是否唯一；未声明 ⇒ null。</summary>
+    public bool? Unique { get; init; }
+
+    /// <summary>复活来源（<c>[Edge] revive=</c>）：<c>explicit</c> | <c>attach</c> | <c>never</c>；未声明 ⇒ null。</summary>
+    public string? Revive { get; init; }
+
+    /// <summary>端点删除级联（<c>[Edge] cascade=</c>）：<c>declaration</c> | <c>edge</c> | <c>none</c>；未声明 ⇒ null。</summary>
+    public string? Cascade { get; init; }
+
     /// <summary>从 <c>[Edge]</c> 声明解析；非边声明或无名返回 null。</summary>
     public static ReferenceEdgeType? From(DslDeclaration d)
     {
@@ -91,8 +106,19 @@ public sealed record ReferenceEdgeType(
             dep,
             replaced,
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            Identity = StringValueParser.NullIfEmpty(d.Field("identity")),
+            Tombstone = StringValueParser.NullIfEmpty(d.Field("tombstone")),
+            Unique = ParseBool(d.Field("unique")),
+            Revive = StringValueParser.NullIfEmpty(d.Field("revive")),
+            Cascade = StringValueParser.NullIfEmpty(d.Field("cascade")),
+        };
     }
+
+    /// <summary>可选布尔解析（未声明 / 非法 ⇒ null；合法性由闸A 判据负责，不在解析层兜底）。</summary>
+    private static bool? ParseBool(string? text)
+        => bool.TryParse((text ?? string.Empty).Trim(), out var value) ? value : null;
 }
 
 /// <summary>配对约束（映射 UniversalReference <c>ValidationRule</c>/<c>FilterRule</c>）：某引用类型的合法源/目标节点类型与上限。</summary>

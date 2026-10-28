@@ -88,6 +88,18 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpReadModelDecl> ReadModels
         => _facets.TryGetFacet<IReadOnlyList<UsharpReadModelDecl>>(out var rm) ? rm : Array.Empty<UsharpReadModelDecl>();
 
+    /// <summary><c>[Relation]</c> 关系操作声明（空表 = 无关系操作声明面）。</summary>
+    public IReadOnlyList<UsharpRelationDecl> Relations
+        => _facets.TryGetFacet<IReadOnlyList<UsharpRelationDecl>>(out var rel) ? rel : Array.Empty<UsharpRelationDecl>();
+
+    /// <summary><c>[Invariant]</c> 关系不变量声明（空表 = 无关系不变量）。</summary>
+    public IReadOnlyList<UsharpInvariantDecl> Invariants
+        => _facets.TryGetFacet<IReadOnlyList<UsharpInvariantDecl>>(out var inv) ? inv : Array.Empty<UsharpInvariantDecl>();
+
+    /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
+    public IReadOnlyList<UsharpDeriveDecl> Derivations
+        => _facets.TryGetFacet<IReadOnlyList<UsharpDeriveDecl>>(out var der) ? der : Array.Empty<UsharpDeriveDecl>();
+
     /// <summary><c>[Table]</c> 表结构声明（空表 = 本编译无数据层）。</summary>
     public IReadOnlyList<UsharpTableDecl> Tables
         => _facets.TryGetFacet<IReadOnlyList<UsharpTableDecl>>(out var t) ? t : Array.Empty<UsharpTableDecl>();

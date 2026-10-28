@@ -167,6 +167,30 @@ public static class UsharpDiagnosticCatalog
     public const string GraphBackendUnavailable = "US9001";
     public const string ObsBackendUnavailable = "US9002";
 
+    // ── US81xx 关系声明面（[Relation] / [Invariant] / [Derive]）──────────
+    public const string RelationDuplicate = "US8101";
+    public const string RelationEdgeUndeclared = "US8102";
+    public const string RelationEndpointMismatch = "US8103";
+    public const string RelationFlowUnknown = "US8104";
+    public const string RelationNamespaceUnknown = "US8105";
+    public const string RelationFieldInvalid = "US8106";
+    public const string RelationMountMissing = "US8107";
+    public const string RelationEmitUndeclared = "US8108";
+    public const string InvariantDuplicate = "US8109";
+    public const string InvariantEdgeUndeclared = "US8110";
+    public const string InvariantKindUnknown = "US8111";
+    public const string InvariantOnViolationInvalid = "US8112";
+    public const string InvariantScopeUndeclared = "US8113";
+    public const string InvariantDuplicateShape = "US8114";
+    public const string DeriveDuplicate = "US8115";
+    public const string DeriveEndpointUndeclared = "US8116";
+    public const string DeriveEdgeUndeclared = "US8117";
+    public const string DeriveViaBroken = "US8118";
+    public const string DeriveFieldInvalid = "US8119";
+    public const string DeriveEdgeDeprecated = "US8120";
+    public const string DeriveDuplicateShape = "US8121";
+    public const string RelationPlanNotProducible = "US8122";
+
     /// <summary>全量码表（声明序；序用于 README 生成与唯一性断言）。</summary>
     public static readonly IReadOnlyList<UsharpCodeSpec> All = new[]
     {
@@ -305,6 +329,29 @@ public static class UsharpDiagnosticCatalog
 
         E(GraphBackendUnavailable, "Graph", UsharpSeverity.Info, "图后端未装配", "-"),
         E(ObsBackendUnavailable, "Obs", UsharpSeverity.Info, "观测后端未装配", "-"),
+
+        E(RelationDuplicate, "Relation", UsharpSeverity.Error, "[Relation] 操作名重复声明", "operation"),
+        E(RelationEdgeUndeclared, "Relation", UsharpSeverity.Error, "[Relation] edge= 未声明", "operation, edge"),
+        E(RelationEndpointMismatch, "Relation", UsharpSeverity.Error, "[Relation] src/tgt 未声明或与 [Edge] 不一致", "operation, src, tgt"),
+        E(RelationFlowUnknown, "Relation", UsharpSeverity.Error, "[Relation] flow= 不存在或执行体不是 fn=relation_apply", "operation, flow"),
+        E(RelationNamespaceUnknown, "Relation", UsharpSeverity.Error, "[Relation] namespace= 未声明", "operation, namespace"),
+        E(RelationFieldInvalid, "Relation", UsharpSeverity.Error, "[Relation] duplicate/on_missing/arity 非法", "operation, field"),
+        E(RelationMountMissing, "Relation", UsharpSeverity.Error, "归属边缺少 mount_* operation（或有多个）", "edge"),
+        E(RelationEmitUndeclared, "Relation", UsharpSeverity.Error, "[Relation] emit= 事件未声明", "operation, emit"),
+        E(InvariantDuplicate, "Invariant", UsharpSeverity.Error, "[Invariant] 名重复声明", "invariant"),
+        E(InvariantEdgeUndeclared, "Invariant", UsharpSeverity.Error, "[Invariant] edge= 未声明", "invariant, edge"),
+        E(InvariantKindUnknown, "Invariant", UsharpSeverity.Error, "[Invariant] kind= 非法", "invariant, kind"),
+        E(InvariantOnViolationInvalid, "Invariant", UsharpSeverity.Error, "[Invariant] on_violation= 非法", "invariant, value"),
+        E(InvariantScopeUndeclared, "Invariant", UsharpSeverity.Error, "[Invariant] scope= 未声明", "invariant, scope"),
+        E(InvariantDuplicateShape, "Invariant", UsharpSeverity.Error, "[Invariant] (edge,kind,scope) 重复声明", "invariant, edge, kind"),
+        E(DeriveDuplicate, "Derive", UsharpSeverity.Error, "[Derive] 名重复声明", "derive"),
+        E(DeriveEndpointUndeclared, "Derive", UsharpSeverity.Error, "[Derive] from/to 未声明", "derive, type"),
+        E(DeriveEdgeUndeclared, "Derive", UsharpSeverity.Error, "[Derive] via 含未声明边", "derive, edge"),
+        E(DeriveViaBroken, "Derive", UsharpSeverity.Error, "[Derive] via 首尾不相接", "derive, via"),
+        E(DeriveFieldInvalid, "Derive", UsharpSeverity.Error, "[Derive] op/normalize/order/empty 非法", "derive, field"),
+        E(DeriveEdgeDeprecated, "Derive", UsharpSeverity.Error, "[Derive] via 含废弃边", "derive, edge"),
+        E(DeriveDuplicateShape, "Derive", UsharpSeverity.Error, "[Derive] (from,to,via) 重复声明", "derive"),
+        E(RelationPlanNotProducible, "RelationEmit", UsharpSeverity.Error, "关系计划不可产出", "reason"),
     };
 
     /// <summary>全部码值（声明序）。</summary>

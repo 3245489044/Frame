@@ -75,6 +75,8 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
     private readonly IReferenceTypeRegistry? _vocabulary;
     private readonly ReferenceVocabularyGate _vocabularyGate;
     private readonly IReferenceEdgeDiagnostics? _edgeDiagnostics;
+    private readonly IGraphPolicyDecider? _policyDecider;
+    private readonly IGraphKeyGrammar? _keyGrammar;
     private readonly Func<ReferenceGraphCoordinator, IGraphGrounding> _groundingFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private StorageCoreBundle? _bundle;
@@ -89,7 +91,9 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
-        Func<ReferenceGraphCoordinator, IGraphGrounding>? groundingFactory = null)
+        Func<ReferenceGraphCoordinator, IGraphGrounding>? groundingFactory = null,
+        IGraphPolicyDecider? policyDecider = null,
+        IGraphKeyGrammar? keyGrammar = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         ArgumentException.ThrowIfNullOrWhiteSpace(sqlitePath);
@@ -103,6 +107,8 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
         _vocabulary = vocabulary;
         _vocabularyGate = vocabularyGate;
         _edgeDiagnostics = edgeDiagnostics;
+        _policyDecider = policyDecider;
+        _keyGrammar = keyGrammar;
         // 控制反转：缺省用通用 GraphGrounding（无域语义）；域宿主注入 Domains 的 ReferenceGrounding 门面。
         _groundingFactory = groundingFactory ?? (coordinator => new GraphGrounding(coordinator));
     }
@@ -134,7 +140,11 @@ public sealed class StorageCoreCompositionRoot : IStorageCompositionRoot
                 vocabulary: _vocabulary,
                 vocabularyGate: _vocabularyGate,
                 edgeDiagnostics: _edgeDiagnostics,
-                codec: _codec));
+                codec: _codec,
+                // 策略端口单点装配：声明（[Edge] tombstone/revive/…）→ 运行时；未装配词表 ⇒ 声明缺省值。
+                // 规则表装载器（graph-policy.rules.ushar）注入后成为唯一裁决面；未注入 ⇒ 内置四态。
+                policy: new DeclaredGraphEdgePolicy(_vocabulary, _policyDecider),
+                keys: _keyGrammar));
 
             // ② 引用守卫（边推导/对账/镜像）：通用面由核心提供，域宿主经工厂注入完整门面。
             var grounding = _groundingFactory(graph);

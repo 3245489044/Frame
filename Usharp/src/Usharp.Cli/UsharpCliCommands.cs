@@ -25,6 +25,7 @@ public static class UsharpCliCommands
           graph  <file|dir> [--reachable <n>] [--path <a> <b>]       引用图查询（环检测 / 影响域 / 两点路径）
           matrix <file|dir>                                         矩阵装配取数（值域矩阵 / 转移表）
           obs    <file|dir>                                         观测取数（[Obs] 闸A + manifest；未装配后端 → US9002）
+          relation-plan <file|dir>                                  关系计划发射（operations / invariants / derivations）
         """;
 
     /// <summary>命令入口。</summary>
@@ -55,6 +56,7 @@ public static class UsharpCliCommands
             "lint" => RunWithPath(rest, output, (path, writer) => Lint(path, writer, backend)),
             "graph" => RunGraph(rest, output, backend),
             "obs" => RunWithPath(rest, output, (path, writer) => Obs(path, writer, obsBackend)),
+            "relation-plan" => RunWithPath(rest, output, RelationPlan),
             _ => Unknown(command, output),
         };
     }
@@ -225,6 +227,26 @@ public static class UsharpCliCommands
         output.WriteLine($"未知命令：{command}");
         output.WriteLine(Usage);
         return ExitUsage;
+    }
+
+    /// <summary>
+    /// 关系计划发射：<c>[Relation]/[Invariant]/[Derive]</c> → <c>relation.plan.generated.json</c>（stdout）。
+    /// <para>无声明 ⇒ <c>US8122</c>（不产出空计划）；编译有 error ⇒ 只打印诊断，不产出计划。</para>
+    /// </summary>
+    public static int RelationPlan(string path, TextWriter output)
+    {
+        var compilation = Compile(path, output, out var failure);
+        if (compilation is null) return failure;
+
+        WriteDiagnostics(compilation.Diagnostics, output);
+        if (compilation.HasErrors) return ExitFailed;
+
+        var result = Usharp.Emit.UsharpRelationPlanEmitter.Emit(compilation);
+        WriteDiagnostics(result.Diagnostics, output);
+        if (result.Json is null) return ExitFailed;
+
+        output.WriteLine(result.Json);
+        return ExitOk;
     }
 
     private static UsharpCompilation? Compile(string path, TextWriter output, out int exitCode)

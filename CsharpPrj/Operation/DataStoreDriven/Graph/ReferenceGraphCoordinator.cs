@@ -49,6 +49,12 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // 文档编解码端口（G1）：边/端点文档 = { _id, Doc }，Doc = USharp [Record] 文本真源（组合根注入 UsharpDocumentCodec）。
     private readonly IDocumentCodec _codec;
     private readonly IReferenceEdgeDiagnostics _edgeDiagnostics;
+    private readonly IGraphEdgePolicy _policy;
+    private readonly IGraphKeyGrammar _keys;
+    private long _writeSkips;
+    private string? _lastWriteSkip;
+    private bool _uniqueIndexEnforced;
+    private string? _uniqueIndexError;
     private bool _initialized;
     private int _disposed;
     private long _version;
@@ -66,9 +72,22 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// </summary>
     public long MembershipVersion => Interlocked.Read(ref _membershipVersion);
 
-    /// <summary>边文档主键（_id）分隔符（单一权威）。端点键已用 <see cref="ResourceIdentifier.UniqueKeySeparator"/>（":"），
-    /// 边键在其上再叠加本分隔符，避免与端点键内的 ":" 冲突；原实现用不可打印控制符 \u0001，重构为可读/可 grep 的 "::"。</summary>
-    private const string EdgeKeySeparator = "::";
+    /// <summary>因墓碑策略被跳过/拒绝的写入计数（可见化判据；0 = 无跳过）。</summary>
+    public long WriteSkipCount => Interlocked.Read(ref _writeSkips);
+
+    /// <summary>最近一次被跳过/拒绝的写入原因（<c>verdict:edge|role=…|key=…</c>；null = 无跳过）。</summary>
+    public string? LastWriteSkip => Volatile.Read(ref _lastWriteSkip);
+
+    /// <summary>唯一索引是否已生效（<c>(SourceId,TargetId,RefType)</c>）。false ⇒ 存量重复导致建索引失败，原因见 <see cref="UniqueIndexError"/>。</summary>
+    public bool UniqueIndexEnforced => _uniqueIndexEnforced;
+
+    /// <summary>唯一索引未生效的原因（null = 已生效 / 未尝试）。</summary>
+    public string? UniqueIndexError => _uniqueIndexError;
+
+    /// <summary>端点/边键文法（唯一构造与反解点；消费方禁手拼）。</summary>
+    public IGraphKeyGrammar Keys => _keys;
+
+    /// <summary>边文档主键（_id）分隔符由 <see cref="IGraphKeyGrammar"/> 唯一持有（本类不得手拼）。</summary>
 
     /// <summary>Outbox 集合后缀（与边同库同 owner ⇒ 重放不跨库事务；前缀由组合根统一加）。</summary>
     private const string OutboxCollectionSuffix = "write_outbox";
@@ -83,7 +102,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
-        IDocumentCodec? codec = null)
+        IDocumentCodec? codec = null,
+        IGraphEdgePolicy? policy = null,
+        IGraphKeyGrammar? keys = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _edges = _db.GetCollection<BsonDocument>(edgesCollection);
@@ -99,6 +120,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _codec = codec ?? throw new ArgumentNullException(nameof(codec),
             "图行编解码为必填（G-4 阶段二）：组合根须注入 UsharpDataPorts.Codec；未注入 ⇒ fail-fast，禁静默回退 JSON。");
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
+        _policy = policy ?? new DeclaredGraphEdgePolicy(vocabulary);
+        _keys = keys ?? DeclaredGraphKeyGrammar.Instance;
     }
 
     /// <summary>组合根工厂：建目录 → 自开自持 LiteDatabase → 载入持久端点 + 边重建内存邻接。失败则释放回滚。</summary>
@@ -113,7 +136,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         IReferenceTypeRegistry? vocabulary = null,
         ReferenceVocabularyGate vocabularyGate = ReferenceVocabularyGate.Report,
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
-        IDocumentCodec? codec = null)
+        IDocumentCodec? codec = null,
+        IGraphEdgePolicy? policy = null,
+        IGraphKeyGrammar? keys = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         if (codec is null)
@@ -133,7 +158,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var coordinator = new ReferenceGraphCoordinator(
             db, prefix + TableNames.References, prefix + TableNames.Endpoints, prefix + TableNames.Relations,
             prefix + TableNames.Tombstones, prefix + OutboxCollectionSuffix,
-            vocabulary, vocabularyGate, edgeDiagnostics, codec);
+            vocabulary, vocabularyGate, edgeDiagnostics, codec, policy, keys);
         try
         {
             coordinator.Initialize();
@@ -150,12 +175,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// 把 refType 归一为**词表边名**（B3）：节点关系边形如 <c>node_to_node:{from}&gt;{to}?km=…</c>
     /// 带端口/km 后缀 ⇒ 词表查名须取前缀；其余（归属边 / 工作流静态边）为裸类型名，原样返回。
     /// </summary>
-    private static string ResolveEdgeName(string refType)
-    {
-        if (refType.StartsWith(ReferenceTypes.NodeToNode, StringComparison.Ordinal)) return ReferenceTypes.NodeToNode;
-        if (refType.StartsWith(ReferenceTypes.KeyMappingToNode, StringComparison.Ordinal)) return ReferenceTypes.KeyMappingToNode;
-        return refType;
-    }
+    private static string ResolveEdgeName(string refType) => GraphEdgeNames.Resolve(refType);
 
     /// <summary>词表准入判定（B3）：未装配词表 ⇒ 放行；已废弃 ⇒ 恒拒（禁新增引用）；未声明 ⇒ 按姿态放行/拒写 + 可见化。</summary>
     /// <returns>true = 放行写边；false = 拒写（归因已经诊断出口可见化）。</returns>
@@ -187,6 +207,20 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _endpointDocs.EnsureIndex("ResourceType");
         _endpointDocs.EnsureIndex("Id");
         _tombstones.EnsureIndex("Kind");
+        // 唯一索引（C1）：(SourceId,TargetId,RefType) 三元组唯一；存量重复会让建索引失败 —— 不静默，
+        // 记录原因并继续（迁移工具 graph-key-normalize -Apply 去重后可重启生效）。
+        try
+        {
+            _edges.EnsureIndex("idx_graph_edge_identity",
+                LiteDB.BsonExpression.Create("$.SourceId + '::' + $.TargetId + '::' + $.RefType"), unique: true);
+            _uniqueIndexEnforced = true;
+            _uniqueIndexError = null;
+        }
+        catch (Exception ex)
+        {
+            _uniqueIndexEnforced = false;
+            _uniqueIndexError = ex.Message;
+        }
         _endpoints.Clear();
         _typeById.Clear();
         // ① 载入持久端点（ur_endpoints；重启保留符号/metadata，避免造裸资源退化图可读性）。旧数据无该集合 → 空集，走纯边兜底。
@@ -322,18 +356,32 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return Task.CompletedTask;
     }
 
-    /// <summary>注册/覆盖一个端点（会话内存 + ur_endpoints 落盘符号/metadata；实体持久化由 SQL 负责）。</summary>
+    /// <summary>注册/覆盖一个端点（会话内存 + ur_endpoints 落盘符号/metadata；实体持久化由 SQL 负责）。
+    /// <para>端点墓碑存在 ⇒ 业务路径不重建镜像（SkipAndReport + 计数可见化）；显式声明路径经 <c>DeclareRelationAsync</c> 清墓碑。</para></summary>
     public Task AddResourceAsync(ResourceIdentifier resourceId, IReadOnlyDictionary<string, object>? metadata = null,
         string? symbol = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(resourceId);
-        var key = resourceId.GetUniqueKey();
-        var resource = ToResource(resourceId, metadata, symbol);
-        _endpoints[key] = resource;
-        _typeById[KeyOfType(resourceId)] = key;
-        PersistEndpointDoc(key, resource, resource.Identifier);
-        EnsureNodeInMemory(key);
-        return Task.CompletedTask;
+        return MutateAsync(ct, () =>
+        {
+            var key = _keys.Endpoint(resourceId);
+            var tombstoneKey = GraphIdentityKeys.EndpointTombstoneKey(resourceId);
+            var verdict = _policy.Admit(new GraphWriteIntent(
+                string.Empty, GraphMountRole.Business, EndpointTombstoneExists(resourceId), Endpoint: true));
+            if (verdict is GraphWriteVerdict.SkipAndReport or GraphWriteVerdict.Deny)
+            {
+                RecordWriteSkip("endpoint", key, verdict, GraphMountRole.Business);
+                return Task.CompletedTask;
+            }
+            if (verdict == GraphWriteVerdict.ClearTombstoneThenWrite) RemoveTombstoneCore(tombstoneKey);
+
+            var resource = ToResource(resourceId, metadata, symbol);
+            _endpoints[key] = resource;
+            _typeById[KeyOfType(resourceId)] = key;
+            PersistEndpointDoc(key, resource, resource.Identifier);
+            EnsureNodeInMemory(key);
+            return Task.CompletedTask;
+        });
     }
 
     public Task UpdateResourceAsync(ResourceIdentifier resourceId, IReadOnlyDictionary<string, object>? metadata = null,
@@ -343,7 +391,11 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     public Task<Resource?> GetResourceAsync(ResourceIdentifier resourceId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(resourceId);
-        return Task.FromResult(_endpoints.TryGetValue(resourceId.GetUniqueKey(), out var r) ? r : null);
+        var key = _keys.Endpoint(resourceId);
+        if (_endpoints.TryGetValue(key, out var resource)) return Task.FromResult<Resource?>(resource);
+        // 旧形态兼容读：无 @location 的端点键（task/history/session 全局身份的历史行）。
+        var legacy = EndpointLegacyKey(resourceId, key);
+        return Task.FromResult(legacy is not null && _endpoints.TryGetValue(legacy, out var legacyResource) ? legacyResource : null);
     }
 
     public Task<IReadOnlyList<Resource>> GetAllResourcesAsync(CancellationToken ct = default)
@@ -355,7 +407,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     public Task RemoveResourceAsync(ResourceIdentifier resourceId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(resourceId);
-        var key = resourceId.GetUniqueKey();
+        var key = _keys.Endpoint(resourceId);
         _endpoints.Remove(key);
         _typeById.Remove(KeyOfType(resourceId));
         _endpointDocs.Delete(key);
@@ -382,13 +434,22 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     public Task AddReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
         double strength = 1.0, CancellationToken ct = default)
+        => AddReferenceAsync(sourceId, targetId, refType, GraphMountRole.Business, strength, ct);
+
+    /// <summary>
+    /// 写边（带角色）：写前经 <see cref="IGraphEdgePolicy.Admit"/> 裁决（role × tombstone × revive）。
+    /// <para><c>SkipAndReport</c>/<c>Deny</c> 不落库，且计入 <see cref="WriteSkipCount"/> + <see cref="LastWriteSkip"/>（可见化，不静默）。
+    /// <c>ClearTombstoneThenWrite</c> 先清边墓碑再写（显式复活）。</para>
+    /// </summary>
+    public Task AddReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+        GraphMountRole role, double strength = 1.0, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(sourceId);
         ArgumentNullException.ThrowIfNull(targetId);
         if (string.IsNullOrWhiteSpace(refType)) throw new ArgumentException("refType 不能为空", nameof(refType));
 
-        var sourceKey = sourceId.GetUniqueKey();
-        var targetKey = targetId.GetUniqueKey();
+        var sourceKey = _keys.Endpoint(sourceId);
+        var targetKey = _keys.Endpoint(targetId);
 
         // 词表准入（B3）：未声明边类型按姿态处置（报告模式放行 + 可见化 / 拒绝模式拒写）；已废弃恒拒（禁静默建边）。
         if (!AllowByVocabulary(refType, sourceKey)) return Task.CompletedTask;
@@ -397,29 +458,88 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         // 故协调器不在此 fail-fast 校验端点，直接接受任意端点键（避免关系推导路径对未显式注册的上游端点抛错）。
         return MutateAsync(ct, () =>
         {
+            var verdict = _policy.Admit(new GraphWriteIntent(
+                refType, role, EdgeTombstoneExists(sourceKey, targetKey, refType),
+                Revive: GraphEdgeNames.ReviveText(_policy.ReviveOf(refType))));
+            if (verdict is GraphWriteVerdict.SkipAndReport or GraphWriteVerdict.Deny)
+            {
+                RecordWriteSkip(refType, $"{sourceKey}->{targetKey}", verdict, role);
+                return Task.CompletedTask;
+            }
+            if (verdict == GraphWriteVerdict.ClearTombstoneThenWrite) RemoveEdgeTombstones(sourceKey, targetKey, refType);
+
             EnsureNodeInMemory(sourceKey);
             EnsureNodeInMemory(targetKey);
-            var edgeId = BuildEdgeId(sourceKey, targetKey, refType);
+            var edgeId = BuildEdgeId(sourceKey, targetKey, refType, sourceId.Location);
             // durable：先删后加（幂等 upsert，避免重复边）；{ _id, Doc } 形态下按 _id 定位。
             _edges.DeleteMany(Query.EQ("_id", edgeId));
-            _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime));
+            // 旧端点形态（无 @location）的同一条边一并清除，避免文法升级后同一关系存在两行（C1 唯一性）。
+            var legacyEdgeId = _keys.Edge(StripLocation(sourceKey), StripLocation(targetKey), refType, _policy.IdentityOf(refType));
+            if (!string.Equals(legacyEdgeId, edgeId, StringComparison.Ordinal))
+            {
+                _edges.DeleteMany(Query.EQ("_id", legacyEdgeId));
+                if (_graph.ContainsEdge(legacyEdgeId)) _graph.RemoveEdge(legacyEdgeId);
+            }
+            _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location));
             if (!_graph.ContainsEdge(edgeId))
                 _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
             return Task.CompletedTask;
         }, affectsMembership: AffectsMembership(refType));
     }
 
+    /// <summary>解除引用边（**detach 语义**：不写墓碑，供内部撤销/重规划使用；用户删除请走
+    /// <see cref="RemoveReferenceResultAsync"/> 或 <see cref="DeleteEdgeDurablyAsync"/>）。</summary>
     public Task RemoveReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
         CancellationToken ct = default)
     {
-        var sourceKey = sourceId.GetUniqueKey();
-        var targetKey = targetId.GetUniqueKey();
+        var sourceKey = _keys.Endpoint(sourceId);
+        var targetKey = _keys.Endpoint(targetId);
         return MutateAsync(ct, () =>
         {
-            var edgeId = BuildEdgeId(sourceKey, targetKey, refType);
+            var edgeId = BuildEdgeId(sourceKey, targetKey, refType, sourceId.Location);
             _edges.DeleteMany(Query.EQ("_id", edgeId));
             if (_graph.ContainsEdge(edgeId)) _graph.RemoveEdge(edgeId);
+            var legacyEdgeId = _keys.Edge(StripLocation(sourceKey), StripLocation(targetKey), refType, _policy.IdentityOf(refType));
+            if (!string.Equals(legacyEdgeId, edgeId, StringComparison.Ordinal))
+            {
+                _edges.DeleteMany(Query.EQ("_id", legacyEdgeId));
+                if (_graph.ContainsEdge(legacyEdgeId)) _graph.RemoveEdge(legacyEdgeId);
+            }
             return Task.CompletedTask;
+        }, affectsMembership: AffectsMembership(refType));
+    }
+
+    /// <summary>
+    /// 删除边（**purge 语义**，带结果）：命中 ⇒ 按 <c>[Edge] tombstone</c> 声明写墓碑 + 物理删除；未命中 ⇒
+    /// <see cref="GraphDeleteStatus.NotFound"/>（禁假成功）。用户删除（UI removeReference / DB 页）与需要「删除有约束力」的路径走本入口。
+    /// </summary>
+    public Task<GraphDeleteOutcome> RemoveReferenceResultAsync(
+        ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType,
+        GraphMountRole role = GraphMountRole.Business, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(sourceId);
+        ArgumentNullException.ThrowIfNull(targetId);
+        var sourceKey = _keys.Endpoint(sourceId);
+        var targetKey = _keys.Endpoint(targetId);
+        return MutateAsync(ct, () =>
+        {
+            var edgeId = BuildEdgeId(sourceKey, targetKey, refType, sourceId.Location);
+            var legacyEdgeId = _keys.Edge(StripLocation(sourceKey), StripLocation(targetKey), refType, _policy.IdentityOf(refType));
+            var canonicalExists = ReadEdgeDocCore(edgeId) is not null;
+            var legacyExists = !string.Equals(legacyEdgeId, edgeId, StringComparison.Ordinal) && ReadEdgeDocCore(legacyEdgeId) is not null;
+            if (!canonicalExists && !legacyExists)
+                return Task.FromResult(new GraphDeleteOutcome(edgeId, GraphDeleteStatus.NotFound, "引用边不存在"));
+
+            var tombstoneKey = GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType);
+            var durable = _policy.TombstoneOf(refType) == TombstonePolicy.Durable;
+            if (durable)
+                AddTombstoneCore(tombstoneKey, NewTombstone(GraphTombstoneKinds.Edge, edgeId, $"purge:{role}"));
+
+            RemoveEdgeCore(edgeId);
+            if (legacyExists) RemoveEdgeCore(legacyEdgeId);
+            return Task.FromResult(durable
+                ? new GraphDeleteOutcome(edgeId, GraphDeleteStatus.Ok, "引用边已删除（墓碑已写）", tombstoneKey)
+                : new GraphDeleteOutcome(edgeId, GraphDeleteStatus.Ok, "引用边已删除（该边类型声明 tombstone=none，未写墓碑）"));
         }, affectsMembership: AffectsMembership(refType));
     }
 
@@ -427,8 +547,20 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         bool includeIncoming = true, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(resourceId);
-        var key = resourceId.GetUniqueKey();
-        return Task.FromResult<IReadOnlyList<ResourceReference>>(ReadLocked(ct, () => GetReferencesCore(key, includeIncoming)));
+        var key = _keys.Endpoint(resourceId);
+        return Task.FromResult<IReadOnlyList<ResourceReference>>(ReadLocked(ct, () =>
+        {
+            var refs = GetReferencesCore(key, includeIncoming);
+            var legacy = EndpointLegacyKey(resourceId, key);
+            return refs.Count == 0 && legacy is not null ? GetReferencesCore(legacy, includeIncoming) : refs;
+        }));
+    }
+
+    /// <summary>旧形态端点键（剥 <c>@location</c>）；与当前键相同 ⇒ null（无需回退）。</summary>
+    private string? EndpointLegacyKey(ResourceIdentifier id, string currentKey)
+    {
+        var legacy = _keys.Endpoint(id.ResourceType ?? string.Empty, id.Id ?? string.Empty, null);
+        return string.Equals(legacy, currentKey, StringComparison.Ordinal) ? null : legacy;
     }
 
     /// <summary>
@@ -443,8 +575,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         ArgumentNullException.ThrowIfNull(resourceIds);
         var ids = resourceIds
             .Where(static id => id is not null)
-            .Select(static id => id.GetUniqueKey())
-            .Distinct(StringComparer.Ordinal)
+            .Distinct()
             .ToList();
         var result = new Dictionary<string, IReadOnlyList<ResourceReference>>(ids.Count, StringComparer.Ordinal);
         if (ids.Count == 0) return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<ResourceReference>>>(result);
@@ -452,8 +583,14 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<ResourceReference>>>(
             ReadLocked(ct, () =>
             {
-                foreach (var key in ids)
-                    result[key] = GetReferencesCore(key, includeIncoming);
+                foreach (var id in ids)
+                {
+                    var key = _keys.Endpoint(id);
+                    var refs = GetReferencesCore(key, includeIncoming);
+                    if (refs.Count == 0 && EndpointLegacyKey(id, key) is { } legacy)
+                        refs = GetReferencesCore(legacy, includeIncoming);
+                    result[key] = refs;
+                }
                 return result;
             }));
     }
@@ -498,16 +635,16 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     public Task AddRelationAsync(string workflowId, NodeRelation relation, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(relation);
-        var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = workflowId };
-        var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = workflowId };
+        var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = LocationOf(relation.SourceResourceType, workflowId) };
+        var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = LocationOf(relation.TargetResourceType, workflowId) };
         return AddReferenceAsync(src, tgt, NodeRelationRefCodec.Encode(relation), relation.Strength, ct);
     }
 
     public Task RemoveRelationAsync(string workflowId, NodeRelation relation, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(relation);
-        var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = workflowId };
-        var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = workflowId };
+        var src = new ResourceIdentifier { ResourceType = relation.SourceResourceType, Id = relation.SourceId, Location = LocationOf(relation.SourceResourceType, workflowId) };
+        var tgt = new ResourceIdentifier { ResourceType = relation.TargetResourceType, Id = relation.TargetId, Location = LocationOf(relation.TargetResourceType, workflowId) };
         return RemoveReferenceAsync(src, tgt, NodeRelationRefCodec.Encode(relation), ct);
     }
 
@@ -516,7 +653,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         NodeRelationType? type = null, bool includeIncoming = true, CancellationToken ct = default)
     {
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        var nodeIdKey = nodeId.GetUniqueKey();
+        var nodeIdKey = _keys.Endpoint(nodeId);
         return Task.FromResult<IReadOnlyList<NodeRelation>>(ReadLocked(ct, () => GetRelationsCore(nodeIdKey, type, includeIncoming)));
     }
 
@@ -566,7 +703,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         NodeRelationType type, bool outgoing = true, CancellationToken ct = default)
     {
         var nodeId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Node, Id = NodeRelationFactory.NodeId(workflowId, nodeKey), Location = workflowId };
-        var nodeIdKey = nodeId.GetUniqueKey();
+        var nodeIdKey = _keys.Endpoint(nodeId);
         // 端点 Id 前缀 = 键文法单源（DS-P1b-2 收口第 5 处：原 `workflowId + "."` 字面量去除，切片口径与旧 Substring 逐字等价）。
         var nodePrefix = workflowId + Modules.Node.Identity.NodeEndpointIds.Separator;
         return Task.FromResult<IReadOnlyList<string>>(ReadLocked(ct, () =>
@@ -603,7 +740,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         string workflowId = "", CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey, Location = workflowId };
+        // task 端点身份 = 裸 taskKey（跨工作流唯一），不随 Location 分叉；node 端点携带工作流作用域。
+        var taskId = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
         await AddResourceAsync(taskId, symbol: taskKey, ct: ct).ConfigureAwait(false);
         foreach (var nodeKey in relatedNodeKeys)
         {
@@ -736,9 +874,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return MutateAsync(ct, () =>
         {
             RemoveTombstoneCore(GraphIdentityKeys.DeclarationTombstoneKey(doc));
-            RemoveTombstoneCore(GraphIdentityKeys.EdgeTombstoneKey(SourceKeyOf(doc), TargetKeyOf(doc), doc.RefType));
-            RemoveTombstoneCore(GraphIdentityKeys.EndpointTombstoneKey(doc.SourceType, doc.Source));
-            RemoveTombstoneCore(GraphIdentityKeys.EndpointTombstoneKey(doc.TargetType, doc.Target));
+            RemoveEdgeTombstones(SourceKeyOf(doc), TargetKeyOf(doc), doc.RefType);
+            RemoveEndpointTombstones(doc.SourceType, doc.Source, doc.WorkflowId);
+            RemoveEndpointTombstones(doc.TargetType, doc.Target, doc.WorkflowId);
             InsertRelationDocCore(nodeKey, doc);
             AddDeclaredEdgeCore(doc);
             return Task.CompletedTask;
@@ -780,7 +918,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         {
             var doc = ReadRelationDocCore(nodeKey);
             if (doc is null) return Task.FromResult(false);
-            RemoveEdgeCore(BuildEdgeId(SourceKeyOf(doc), TargetKeyOf(doc), doc.RefType));
+            RemoveDeclarationEdge(doc);
             RemoveRelationDocCore(nodeKey);
             return Task.FromResult(true);
         });
@@ -798,7 +936,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
             var tombstoneKey = GraphIdentityKeys.DeclarationTombstoneKey(doc);
             AddTombstoneCore(tombstoneKey, NewTombstone(GraphTombstoneKinds.Declaration, nodeKey, reason, doc));
-            RemoveEdgeCore(BuildEdgeId(SourceKeyOf(doc), TargetKeyOf(doc), doc.RefType));
+            RemoveDeclarationEdge(doc);
             RemoveRelationDocCore(nodeKey);
             return Task.FromResult(new GraphDeleteOutcome(nodeKey, GraphDeleteStatus.Ok,
                 "声明已物理删除，墓碑已写（重启/装配/重建均不恢复）", tombstoneKey));
@@ -817,8 +955,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         {
             var edge = ReadEdgeDocCore(edgeId);
             var matches = ReadRelationDocsCore(null)
-                .Where(d => string.Equals(SourceKeyOf(d), sourceKey, StringComparison.Ordinal)
-                    && string.Equals(TargetKeyOf(d), targetKey, StringComparison.Ordinal)
+                .Where(d => string.Equals(SourceKeyOf(d), StripLocation(sourceKey), StringComparison.Ordinal)
+                    && string.Equals(TargetKeyOf(d), StripLocation(targetKey), StringComparison.Ordinal)
                     && string.Equals(d.RefType, refType, StringComparison.Ordinal))
                 .ToList();
             var tombstoneKey = GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType);
@@ -828,16 +966,33 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             AddTombstoneCore(tombstoneKey, NewTombstone(GraphTombstoneKinds.Edge, edgeId, reason));
             foreach (var d in matches) DeleteDeclarationCore(d, reason);
             RemoveEdgeCore(edgeId);
+            // 旧端点形态的同一条边（若存在）一并删除，保证「删得干净」。
+            var legacyEdgeId = _keys.Edge(StripLocation(sourceKey), StripLocation(targetKey), refType, EdgeIdentity.SourceTargetRef);
+            if (!string.Equals(legacyEdgeId, edgeId, StringComparison.Ordinal)) RemoveEdgeCore(legacyEdgeId);
             return Task.FromResult(new GraphDeleteOutcome(edgeId, GraphDeleteStatus.Ok,
                 $"引用边已物理删除（关联声明 {matches.Count} 条同删，墓碑已写）", tombstoneKey));
         });
     }
 
-    /// <summary>删除端点 + incident 声明/边 + 墓碑（绝不触碰 SQLite 实体）。</summary>
+    /// <summary>删除端点 + incident 声明/边 + 墓碑（绝不触碰 SQLite 实体）。
+    /// <para>级联按 <c>[Edge] cascade</c> 声明执行：<c>declaration</c>=声明与派生边同删；<c>edge</c>=只删边留声明；<c>none</c>=都不删。</para>
+    /// <para>端点自身墓碑恒写（删除意图有约束力）。</para></summary>
     public Task<GraphDeleteOutcome> DeleteEndpointDurablyAsync(ResourceIdentifier id, string reason, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(id);
-        var key = id.GetUniqueKey();
+        return DeleteEndpointByKeyCoreAsync(_keys.Endpoint(id), id, reason, ct);
+    }
+
+    /// <summary>按**原始端点键**删除（旧形态 <c>{type}:{id}</c> 行可删，禁按当前文法重拼）。</summary>
+    public Task<GraphDeleteOutcome> DeleteEndpointByKeyDurablyAsync(string endpointKey, string reason, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointKey);
+        var id = KeyToIdentifier(endpointKey);
+        return DeleteEndpointByKeyCoreAsync(endpointKey, id, reason, ct);
+    }
+
+    private Task<GraphDeleteOutcome> DeleteEndpointByKeyCoreAsync(string key, ResourceIdentifier id, string reason, CancellationToken ct)
+    {
         return MutateAsync(ct, () =>
         {
             var endpoint = _endpointDocs.FindById(key);
@@ -847,22 +1002,51 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 return Task.FromResult(new GraphDeleteOutcome(key, GraphDeleteStatus.NotFound, $"端点不存在：{key}"));
 
             AddTombstoneCore(tombstoneKey, NewTombstone(GraphTombstoneKinds.Endpoint, key, reason));
-            foreach (var d in affected) DeleteDeclarationCore(d, reason);
+
+            var cascadedDeclarations = 0;
+            var cascadedEdges = 0;
+            var keptDeclarations = 0;
+            foreach (var d in affected)
+            {
+                switch (_policy.CascadeOf(d.RefType))
+                {
+                    case CascadePolicy.Declaration:
+                        DeleteDeclarationCore(d, reason);
+                        cascadedDeclarations++;
+                        cascadedEdges++;
+                        break;
+                    case CascadePolicy.Edge:
+                        RemoveDeclarationEdge(d);
+                        cascadedEdges++;
+                        keptDeclarations++;
+                        break;
+                    default:
+                        keptDeclarations++;
+                        break;
+                }
+            }
 
             var edgeIds = new List<string>();
             edgeIds.AddRange(_edges.Find(Query.EQ("SourceId", key)).Select(d => d["_id"].AsString));
             edgeIds.AddRange(_edges.Find(Query.EQ("TargetId", key)).Select(d => d["_id"].AsString));
             edgeIds.AddRange(_edges.FindAll()
-                .Where(d => d["_id"].IsString && d["_id"].AsString.StartsWith(key + "::", StringComparison.Ordinal))
+                .Where(d => d["_id"].IsString && _keys.EdgeHasEndpointPrefix(d["_id"].AsString, key))
                 .Select(d => d["_id"].AsString));
-            foreach (var edgeId in edgeIds.Distinct(StringComparer.Ordinal).ToList()) RemoveEdgeCore(edgeId);
+            foreach (var edgeId in edgeIds.Distinct(StringComparer.Ordinal).ToList())
+            {
+                var edgeDoc = ReadEdgeDocCore(edgeId);
+                if (edgeDoc is not null && _policy.CascadeOf(edgeDoc.RefType) == CascadePolicy.None) continue; // 声明 none：保留边
+                RemoveEdgeCore(edgeId);
+                cascadedEdges++;
+            }
 
             _endpoints.Remove(key);
             _typeById.Remove(KeyOfType(id));
             _endpointDocs.Delete(key);
             if (_graph.ContainsNode(key)) _graph.RemoveNode(key);
             return Task.FromResult(new GraphDeleteOutcome(key, GraphDeleteStatus.Ok,
-                $"端点已物理删除（关联声明 {affected.Count} 条；墓碑已写）", tombstoneKey));
+                $"端点已物理删除（级联声明 {cascadedDeclarations} 条 / 边 {cascadedEdges} 条 / 保留声明 {keptDeclarations} 条；墓碑已写）",
+                tombstoneKey));
         });
     }
 
@@ -968,69 +1152,81 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
 
-    /// <summary>端点分页（Total = 集合计数；_id 升序稳定）。</summary>
+    /// <summary>端点分页（先解码再分页；不可解码行显式成行并计入 Undecodable；_id 升序稳定）。</summary>
     public GraphPage<GraphEndpointRow> ReadEndpoints(int offset, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var (off, take) = NormalizePage(offset, limit);
         return ReadLocked(ct, () =>
         {
-            var total = _endpointDocs.Count();
-            var items = new List<GraphEndpointRow>();
-            foreach (var d in _endpointDocs.FindAll()
-                .OrderBy(x => x["_id"].AsString, StringComparer.Ordinal).Skip(off).Take(take))
+            var rows = new List<GraphEndpointRow>();
+            var undecodable = 0;
+            foreach (var d in _endpointDocs.FindAll().OrderBy(x => x["_id"].AsString, StringComparer.Ordinal))
             {
                 var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
                 var e = ReadEndpointDoc(d);
-                var id = new ResourceIdentifier { ResourceType = e?.ResourceType ?? string.Empty, Id = e?.Id ?? string.Empty };
+                if (e is null)
+                {
+                    undecodable++;
+                    rows.Add(new GraphEndpointRow(key, string.Empty, string.Empty, null, 0, 0, null));
+                    continue;
+                }
                 var refs = _graph.ContainsNode(key) ? GetReferencesCore(key, includeIncoming: true) : new List<ResourceReference>();
-                items.Add(new GraphEndpointRow(key, e?.ResourceType ?? string.Empty, e?.Id ?? string.Empty, e?.Symbol,
-                    refs.Count(r => !r.IsIncoming), refs.Count(r => r.IsIncoming), e?.UpdatedAt));
+                rows.Add(new GraphEndpointRow(key, e.ResourceType, e.Id, e.Symbol,
+                    refs.Count(r => !r.IsIncoming), refs.Count(r => r.IsIncoming), e.UpdatedAt));
             }
-            return new GraphPage<GraphEndpointRow>(items, total, off, take);
+            return new GraphPage<GraphEndpointRow>(rows.Skip(off).Take(take).ToList(), rows.Count, off, take, undecodable);
         });
     }
 
-    /// <summary>边分页（Total = 集合计数；_id 升序稳定）。</summary>
+    /// <summary>边分页（先解码再分页；不可解码行显式成行为 <c>(undecodable)</c> 占位，仍可按 Key 删除；_id 升序稳定）。</summary>
     public GraphPage<GraphEdgeRow> ReadEdges(int offset, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var (off, take) = NormalizePage(offset, limit);
         return ReadLocked(ct, () =>
         {
-            var total = _edges.Count();
-            var items = new List<GraphEdgeRow>();
-            foreach (var d in _edges.FindAll()
-                .OrderBy(x => x["_id"].AsString, StringComparer.Ordinal).Skip(off).Take(take))
+            var rows = new List<GraphEdgeRow>();
+            var undecodable = 0;
+            foreach (var d in _edges.FindAll().OrderBy(x => x["_id"].AsString, StringComparer.Ordinal))
             {
                 var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
                 var e = ReadEdgeDoc(d);
-                if (e is null) continue;
-                items.Add(new GraphEdgeRow(key, e.SourceId, e.TargetId, e.RefType, e.Strength, e.Origin, null));
+                if (e is null)
+                {
+                    undecodable++;
+                    rows.Add(new GraphEdgeRow(key, string.Empty, string.Empty, "(undecodable)", 0, "undecodable", null));
+                    continue;
+                }
+                rows.Add(new GraphEdgeRow(key, e.SourceId, e.TargetId, e.RefType, e.Strength, e.Origin, null));
             }
-            return new GraphPage<GraphEdgeRow>(items, total, off, take);
+            return new GraphPage<GraphEdgeRow>(rows.Skip(off).Take(take).ToList(), rows.Count, off, take, undecodable);
         });
     }
 
-    /// <summary>声明分页（Total = 集合计数；_id 升序稳定；Tombstoned 恒 false——墓碑即已物理删除）。</summary>
+    /// <summary>声明分页（先解码再分页；不可解码行显式成行；Tombstoned 恒 false——墓碑即已物理删除）。</summary>
     public GraphPage<GraphDeclarationRow> ReadDeclarations(int offset, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var (off, take) = NormalizePage(offset, limit);
         return ReadLocked(ct, () =>
         {
-            var total = _relationDocs.Count();
-            var items = new List<GraphDeclarationRow>();
-            foreach (var d in _relationDocs.FindAll()
-                .OrderBy(x => x["_id"].AsString, StringComparer.Ordinal).Skip(off).Take(take))
+            var rows = new List<GraphDeclarationRow>();
+            var undecodable = 0;
+            foreach (var d in _relationDocs.FindAll().OrderBy(x => x["_id"].AsString, StringComparer.Ordinal))
             {
                 var key = d["_id"].IsString ? d["_id"].AsString : string.Empty;
                 var r = ReadRelationDoc(d);
-                if (r is null) continue;
-                items.Add(new GraphDeclarationRow(key, r.RelationId, r.WorkflowId,
+                if (r is null)
+                {
+                    undecodable++;
+                    rows.Add(new GraphDeclarationRow(key, string.Empty, string.Empty, string.Empty, string.Empty, "(undecodable)", false));
+                    continue;
+                }
+                rows.Add(new GraphDeclarationRow(key, r.RelationId, r.WorkflowId,
                     $"{r.SourceType}:{r.Source}", $"{r.TargetType}:{r.Target}", r.RefType, false));
             }
-            return new GraphPage<GraphDeclarationRow>(items, total, off, take);
+            return new GraphPage<GraphDeclarationRow>(rows.Skip(off).Take(take).ToList(), rows.Count, off, take, undecodable);
         });
     }
 
@@ -1153,6 +1349,14 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private static bool AffectsMembership(string refType)
         => string.Equals(refType, CrossDbReferenceTypes.HistoryOwnsTask, StringComparison.Ordinal);
 
+    /// <summary>记录一次被策略跳过/拒绝的写入（可见化载体：计数 + 最近原因；调用方须已持写门）。</summary>
+    private void RecordWriteSkip(string refType, string key, GraphWriteVerdict verdict, GraphMountRole role)
+    {
+        Interlocked.Increment(ref _writeSkips);
+        Volatile.Write(ref _lastWriteSkip,
+            $"{verdict}:{GraphEdgeNames.Resolve(refType)}|role={role}|key={key}");
+    }
+
     /// <summary>读面串行化（B5）：枚举内存图邻接的读方法经本助手与写面（<see cref="_gate"/>）互斥，
     /// 避免并发写图时读到不一致中间态或触发集合变更异常。调用方须为最外层读方法——不可在已持 <see cref="_gate"/> 的上下文内再调本助手。</summary>
     private T ReadLocked<T>(CancellationToken ct, Func<T> read)
@@ -1163,11 +1367,49 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         finally { _gate.Release(); }
     }
 
-    private static string BuildEdgeId(string sourceKey, string targetKey, string refType)
-        => EdgeIdKeys.Build(sourceKey, targetKey, refType);
+    private string BuildEdgeId(string sourceKey, string targetKey, string refType, string? location = null)
+        => _keys.Edge(sourceKey, targetKey, refType, _policy.IdentityOf(refType), location);
 
     private bool TombstoneExistsCore(string tombstoneKey)
         => !string.IsNullOrWhiteSpace(tombstoneKey) && _tombstones.FindById(tombstoneKey) is not null;
+
+    /// <summary>端点墓碑存在判据：先查当前文法键，再查旧形态（<c>@location</c> 剥离）——删除意图跨文法形态有约束力。</summary>
+    private bool EndpointTombstoneExists(ResourceIdentifier id)
+    {
+        if (TombstoneExistsCore(GraphIdentityKeys.EndpointTombstoneKey(id))) return true;
+        return TombstoneExistsCore(GraphIdentityKeys.EndpointTombstoneKey(id.ResourceType ?? string.Empty, id.Id ?? string.Empty));
+    }
+
+    /// <summary>边墓碑存在判据：当前文法键 + 旧端点形态（剥 <c>@location</c>）——旧删除意图不得因文法升级失效。</summary>
+    private bool EdgeTombstoneExists(string sourceKey, string targetKey, string refType)
+    {
+        if (TombstoneExistsCore(GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType))) return true;
+        var legacySource = StripLocation(sourceKey);
+        var legacyTarget = StripLocation(targetKey);
+        if (legacySource == sourceKey && legacyTarget == targetKey) return false;
+        return TombstoneExistsCore(GraphIdentityKeys.EdgeTombstoneKey(legacySource, legacyTarget, refType));
+    }
+
+    /// <summary>剥离端点键的 <c>@location</c> 段（旧形态兼容读）。</summary>
+    private static string StripLocation(string endpointKey)
+    {
+        var at = endpointKey.LastIndexOf('@');
+        return at < 0 ? endpointKey : endpointKey.Substring(0, at);
+    }
+
+    /// <summary>清边墓碑（当前形态 + 旧形态）。</summary>
+    private void RemoveEdgeTombstones(string sourceKey, string targetKey, string refType)
+    {
+        RemoveTombstoneCore(GraphIdentityKeys.EdgeTombstoneKey(sourceKey, targetKey, refType));
+        var legacySource = StripLocation(sourceKey);
+        var legacyTarget = StripLocation(targetKey);
+        if (legacySource != sourceKey || legacyTarget != targetKey)
+            RemoveTombstoneCore(GraphIdentityKeys.EdgeTombstoneKey(legacySource, legacyTarget, refType));
+    }
+
+    /// <summary>清端点墓碑（端点墓碑身份 = <c>{type}:{id}</c>，不随 <c>@location</c> 分叉；保证跨工作流删除意图一致）。</summary>
+    private void RemoveEndpointTombstones(string? resourceType, string? id, string? location = null)
+        => RemoveTombstoneCore(GraphIdentityKeys.EndpointTombstoneKey(resourceType ?? string.Empty, id ?? string.Empty));
 
     private void AddTombstoneCore(string tombstoneKey, GraphTombstoneDoc doc)
         => _tombstones.Upsert(new BsonDocument
@@ -1254,6 +1496,23 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     private static string TargetKeyOf(RelationDoc d) => TargetTypeOf(d) + ResourceIdentifier.UniqueKeySeparator + d.Target;
 
+    /// <summary>声明的源端点键（按端点作用域文法：node 携带 workflow 作用域）。</summary>
+    private string SourceEndpointKeyOf(RelationDoc d)
+        => _keys.Endpoint(SourceTypeOf(d), d.Source, LocationOf(SourceTypeOf(d), d.WorkflowId));
+
+    /// <summary>声明的目标端点键（按端点作用域文法）。</summary>
+    private string TargetEndpointKeyOf(RelationDoc d)
+        => _keys.Endpoint(TargetTypeOf(d), d.Target, LocationOf(TargetTypeOf(d), d.WorkflowId));
+
+    /// <summary>删除声明派生边（当前文法键 + 旧形态键）。</summary>
+    private void RemoveDeclarationEdge(RelationDoc d)
+    {
+        RemoveEdgeCore(BuildEdgeId(SourceEndpointKeyOf(d), TargetEndpointKeyOf(d), d.RefType, d.WorkflowId));
+        var legacy = BuildEdgeId(SourceKeyOf(d), TargetKeyOf(d), d.RefType, d.WorkflowId);
+        if (!string.Equals(legacy, BuildEdgeId(SourceEndpointKeyOf(d), TargetEndpointKeyOf(d), d.RefType, d.WorkflowId), StringComparison.Ordinal))
+            RemoveEdgeCore(legacy);
+    }
+
     private void InsertRelationDocCore(string nodeKey, RelationDoc doc)
     {
         _relationDocs.DeleteMany(Query.EQ("_id", nodeKey));
@@ -1272,6 +1531,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         return doc is null ? null : ReadRelationDoc(doc);
     }
 
+    /// <summary>端点作用域：仅 node 端点携带工作流作用域（task/history/session 为全局裸身份）。</summary>
+    internal static string? LocationOf(string? resourceType, string? workflowId)
+        => string.Equals(resourceType, NodeResourceTypes.Node, StringComparison.Ordinal) ? workflowId : null;
+
     private EdgeDoc? ReadEdgeDocCore(string edgeId)
     {
         var doc = _edges.FindById(edgeId);
@@ -1281,15 +1544,15 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     /// <summary>声明派生边（Origin=declared；唯一写在声明路径内）。</summary>
     private void AddDeclaredEdgeCore(RelationDoc doc)
     {
-        var src = new ResourceIdentifier { ResourceType = SourceTypeOf(doc), Id = doc.Source };
-        var tgt = new ResourceIdentifier { ResourceType = TargetTypeOf(doc), Id = doc.Target };
-        var sourceKey = src.GetUniqueKey();
-        var targetKey = tgt.GetUniqueKey();
-        var edgeId = BuildEdgeId(sourceKey, targetKey, doc.RefType);
+        var src = new ResourceIdentifier { ResourceType = SourceTypeOf(doc), Id = doc.Source, Location = LocationOf(SourceTypeOf(doc), doc.WorkflowId) };
+        var tgt = new ResourceIdentifier { ResourceType = TargetTypeOf(doc), Id = doc.Target, Location = LocationOf(TargetTypeOf(doc), doc.WorkflowId) };
+        var sourceKey = _keys.Endpoint(src);
+        var targetKey = _keys.Endpoint(tgt);
+        var edgeId = BuildEdgeId(sourceKey, targetKey, doc.RefType, doc.WorkflowId);
         EnsureNodeInMemory(sourceKey);
         EnsureNodeInMemory(targetKey);
         _edges.DeleteMany(Query.EQ("_id", edgeId));
-        _edges.Insert(ToEdgeDoc(sourceKey, src, targetKey, tgt, doc.RefType, 1.0, EdgeOrigin.Declared));
+        _edges.Insert(ToEdgeDoc(sourceKey, src, targetKey, tgt, doc.RefType, 1.0, EdgeOrigin.Declared, doc.WorkflowId));
         if (!_graph.ContainsEdge(edgeId))
             _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(doc.RefType, 1.0), 1.0);
     }
@@ -1307,7 +1570,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     {
         AddTombstoneCore(GraphIdentityKeys.DeclarationTombstoneKey(doc),
             NewTombstone(GraphTombstoneKinds.Declaration, doc.NodeKey, reason, doc));
-        RemoveEdgeCore(BuildEdgeId(SourceKeyOf(doc), TargetKeyOf(doc), doc.RefType));
+        RemoveDeclarationEdge(doc);
         RemoveRelationDocCore(doc.NodeKey);
     }
 
@@ -1326,6 +1589,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
 
     internal static ResourceIdentifier KeyToIdentifier(string key)
     {
+        if (DeclaredGraphKeyGrammar.Instance.TryParseEndpoint(key, out var endpoint))
+            return new ResourceIdentifier { ResourceType = endpoint.ResourceType, Id = endpoint.Id, Location = endpoint.Location };
+
         var i = key.IndexOf(':');
         return i < 0 ? new ResourceIdentifier { Id = key } : new ResourceIdentifier { ResourceType = key.Substring(0, i), Id = key.Substring(i + 1) };
     }
@@ -1463,9 +1729,9 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // ---- 边文档编解码（ur_references）----
 
     private BsonDocument ToEdgeDoc(string sourceKey, ResourceIdentifier src, string targetKey, ResourceIdentifier tgt,
-        string refType, double strength, string origin = EdgeOrigin.Runtime)
+        string refType, double strength, string origin = EdgeOrigin.Runtime, string? location = null)
     {
-        var id = BuildEdgeId(sourceKey, targetKey, refType);
+        var id = BuildEdgeId(sourceKey, targetKey, refType, location);
         return new BsonDocument
         {
             ["_id"] = id,

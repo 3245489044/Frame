@@ -84,6 +84,15 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary><c>[ReadModel]</c> 读模型声明（模型 id → 源键/版本源/投影器/参数名表；声明序）。</summary>
     public IReadOnlyList<UsharpReadModelDecl> ReadModels => Facet<IReadOnlyList<UsharpReadModelDecl>>();
 
+    /// <summary><c>[Relation]</c> 关系操作声明（唯一写入口 operation；空表 = 无关系操作声明面）。</summary>
+    public IReadOnlyList<UsharpRelationDecl> Relations => Facet<IReadOnlyList<UsharpRelationDecl>>();
+
+    /// <summary><c>[Invariant]</c> 关系不变量声明（空表 = 无关系不变量）。</summary>
+    public IReadOnlyList<UsharpInvariantDecl> Invariants => Facet<IReadOnlyList<UsharpInvariantDecl>>();
+
+    /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
+    public IReadOnlyList<UsharpDeriveDecl> Derivations => Facet<IReadOnlyList<UsharpDeriveDecl>>();
+
     /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
     public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
 

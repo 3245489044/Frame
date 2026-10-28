@@ -317,8 +317,18 @@ public sealed class GraphGrounding : IGraphGrounding
             || await _graph.IsTombstonedAsync(GraphIdentityKeys.EndpointTombstoneKey(effective.TargetType, effective.Target), ct).ConfigureAwait(false))
             return;
 
-        var src = new ResourceIdentifier { ResourceType = effective.SourceType, Id = effective.Source, Location = effective.WorkflowId };
-        var tgt = new ResourceIdentifier { ResourceType = effective.TargetType, Id = effective.Target, Location = effective.WorkflowId };
+        var src = new ResourceIdentifier
+        {
+            ResourceType = effective.SourceType,
+            Id = effective.Source,
+            Location = ReferenceGraphCoordinator.LocationOf(effective.SourceType, effective.WorkflowId),
+        };
+        var tgt = new ResourceIdentifier
+        {
+            ResourceType = effective.TargetType,
+            Id = effective.Target,
+            Location = ReferenceGraphCoordinator.LocationOf(effective.TargetType, effective.WorkflowId),
+        };
         await _graph.EnsureResourceAsync(src, effective.Source, null, ct).ConfigureAwait(false);
         await _graph.EnsureResourceAsync(tgt, effective.Target, null, ct).ConfigureAwait(false);
         await _graph.AddDeclaredEdgeAsync(effective, ct).ConfigureAwait(false);
@@ -332,8 +342,18 @@ public sealed class GraphGrounding : IGraphGrounding
             if (await _graph.IsTombstonedAsync(GraphIdentityKeys.EndpointTombstoneKey(d.SourceType, d.Source), ct).ConfigureAwait(false)
                 || await _graph.IsTombstonedAsync(GraphIdentityKeys.EndpointTombstoneKey(d.TargetType, d.Target), ct).ConfigureAwait(false))
                 continue;
-            var src = new ResourceIdentifier { ResourceType = d.SourceType, Id = d.Source, Location = d.WorkflowId };
-            var tgt = new ResourceIdentifier { ResourceType = d.TargetType, Id = d.Target, Location = d.WorkflowId };
+            var src = new ResourceIdentifier
+            {
+                ResourceType = d.SourceType,
+                Id = d.Source,
+                Location = ReferenceGraphCoordinator.LocationOf(d.SourceType, d.WorkflowId),
+            };
+            var tgt = new ResourceIdentifier
+            {
+                ResourceType = d.TargetType,
+                Id = d.Target,
+                Location = ReferenceGraphCoordinator.LocationOf(d.TargetType, d.WorkflowId),
+            };
             await _graph.EnsureResourceAsync(src, d.Source, null, ct).ConfigureAwait(false);
             await _graph.EnsureResourceAsync(tgt, d.Target, null, ct).ConfigureAwait(false);
             await _graph.AddDeclaredEdgeAsync(d, ct).ConfigureAwait(false);

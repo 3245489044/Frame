@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Plate.HtmlViewer;
 using Share.HostAssembly.Concurrency;
 using TConfig;
@@ -90,6 +92,18 @@ public sealed class HtmlUiHostSlot
 
     /// <summary>由宿主注入 htmlviewer 控件解析器（幂等：覆盖式）。传入需非 null。</summary>
     public void AttachHtmlViewerResolver(Func<string, HtmlViewer?> resolver) => _htmlViewerResolver.Attach(resolver);
+
+    /// <summary>
+    /// 给宿主控件声明产物资源虚拟主机（目录 → <c>https://{host}/…</c>），供图片/音频直接引用。
+    /// 控件未解析 / 映射失败返回 false（调用方降级，不抛）。
+    /// </summary>
+    public async Task<bool> TrySetArtifactHostAsync(
+        string hostControl, string hostName, string directory, CancellationToken ct = default)
+    {
+        var viewer = HtmlViewerResolver?.Invoke(hostControl);
+        if (viewer is null) return false;
+        return await viewer.SetArtifactHostAsync(hostName, directory, ct).ConfigureAwait(false);
+    }
 
     /// <summary>解除 htmlviewer 控件解析器槽位。</summary>
     public void DetachHtmlViewerResolver() => _htmlViewerResolver.Detach();

@@ -131,12 +131,6 @@ public sealed class HierarchyManager : IHierarchyManager
         // → ReferenceGrounding.RemoveTaskMirrorAsync）；本门面不重复写边（SingleImplementation / TH-12）。
     }
 
-    public Task LinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _reference is null ? Task.CompletedTask : _reference.LinkTaskNodeAsync(taskKey, workflowId, nodeKey, ct);
-
-    public Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _reference is null ? Task.CompletedTask : _reference.UnlinkTaskNodeAsync(taskKey, workflowId, nodeKey, ct);
-
     public Task<IReadOnlyList<string>> GetTasksAsync(string historyId, CancellationToken ct = default)
         => MemberKeysAsync(
             HierarchyLevelRefs.History(historyId),

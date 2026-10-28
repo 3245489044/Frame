@@ -6,5 +6,5 @@
     Gate   = 'ReferenceVocabulary'
 
     # 单源字面量命中数基线（只减不增）
-    SingleSourceLiteral = @{ Value = 13; Origin = 'Debt'; DueWhen = '词表收敛（SR-4 同形字面量判据）落地后 → 下调' }
+    SingleSourceLiteral = @{ Value = 12; Origin = 'Debt'; DueWhen = '词表收敛（SR-4 同形字面量判据）落地后 → 下调' }
 }

@@ -132,11 +132,11 @@ $TransferStepPortTokens = @('member_keys', 'window_items', 'state_items', 'trans
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
-    'LinkNodeAsync'              = 2   # 实测 2（B2 续：SyncRelationsBlock 旧路径删除；余 HistoryProjector/NodeTaskHistoryService 迁移期回退）
-    'EnsureTaskNodeLinkAsync'    = 4   # 实测 4（B2 续：NodeStepExecutionService 回退支删除）；目标 2 待 B9 测试面端口迁移（NodeTaskLinker）
+    'LinkNodeAsync'              = 0   # RF7：LinkTaskNodeAsync 迁移后再无调用点（R2 D4/D5 删除）
+    'EnsureTaskNodeLinkAsync'    = 9   # RF7：调用点改调 canonical 原语（原藏在声明流入口后，现显式化）；写入仍唯一经守卫
     'EnsureHistoryAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
-    'AttachHistoryTaskAsync'     = 3   # 实测 3（P0 基线复核：+1 来自已提交的 ResponsePorts.cs 直调，非本批 P1–P5 引入；目标 2）
-    'AddSessionMessageLinkAsync' = 2   # 实测 2（B4/DUP-5 收口：入史挂载 + UI 运维两条直调改经 session-attribution 流；余 HistoryRelationManager 适配 + 流内 fn）
+    'AttachHistoryTaskAsync'     = 6   # RF7：UI/编排直调 canonical 端口（原经 NodeTaskHistoryService 门面）
+    'AddSessionMessageLinkAsync' = 5   # RF7：session_owns 调用点改调 canonical 原语（原经 INodeAttributionFlow）
 }
 # E12 task→node 边命名空间取值点基线（只减不增；目标 = 单源 1）
 $NamespaceBaselines = [ordered]@{

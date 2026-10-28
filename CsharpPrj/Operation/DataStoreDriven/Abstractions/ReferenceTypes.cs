@@ -8,7 +8,7 @@ namespace Operation.DataStoreDriven.Abstractions;
 /// 本类对应常量降为别名转发（<c>const = Modules.Node.Relations.ReferenceTypes.X</c>）。
 /// </para>
 /// <para>
-/// 层级 / 归属边（CrossDbLink / SessionOwns / TaskOwnsTask / HistoryOwnsTask / HistoryOwnsNode）
+/// 层级 / 归属边（CrossDbLink / SessionOwns / TaskOwnsTask / HistoryOwnsTask）
 /// 字面量唯一源仍为 L3 语义层 <see cref="UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes"/>。
 /// </para>
 /// <para>
@@ -55,9 +55,6 @@ public static class ReferenceTypes
 
     /// <summary>历史归拢任务边：history.{historyId} → task（一个历史归拢多个任务）。</summary>
     public const string HistoryOwnsTask = global::UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes.HistoryOwnsTask;
-
-    /// <summary>历史挂载节点边（**已降级为派生视图**，deprecated 语义：写点已退役，保留仅作旧数据兼容读）。</summary>
-    public const string HistoryOwnsNode = global::UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes.HistoryOwnsNode;
 
     // ---- 工作流静态引用边（转发 L2 单源 Modules.Node.Relations）----
 

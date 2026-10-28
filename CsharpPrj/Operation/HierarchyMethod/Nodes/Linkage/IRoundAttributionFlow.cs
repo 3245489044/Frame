@@ -45,7 +45,7 @@ public sealed record RoundAttributionRequest(
 /// 使 Frame 侧调用点（<c>ConversationPipeline</c> / <c>SyncRelationsBlock</c>）不反向依赖 Agent 程序集。
 /// </para>
 /// <para>
-/// 与既有单点流的分工：<see cref="INodeAttributionFlow"/> 管**节点执行期即时归属**（一个 task×node 事实），
+/// 与既有单点写边的分工：节点执行期即时归属（一个 task×node 事实）走 <c>IReferenceMaintenance</c>，
 /// 本接口管**轮末批量沉淀**（一轮的产出集合 + 入史范围）；两者共用同一写边守卫，不复制写边逻辑。
 /// </para>
 /// <para>装配可空：未装配 ⇒ 调用方按「迁移期回退 + 可见化」处理，不静默。</para>

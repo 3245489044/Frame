@@ -198,9 +198,6 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         IReadOnlyCollection<string> historyIds, CancellationToken ct)
         => _history.GetHistoryTasksManyAsync(historyIds, ct);
 
-    public Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default)
-        => _history.AttachHistoryNodeAsync(historyId, workflowId, nodeKey, ct);
-
     public Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
         => _history.GetHistoryNodeKeysAsync(historyId, workflowId, ct);
 

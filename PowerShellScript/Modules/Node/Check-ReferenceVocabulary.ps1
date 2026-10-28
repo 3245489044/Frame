@@ -79,7 +79,7 @@ $ExemptBaselines = [ordered]@{
     'Frame\CsharpPrj\Modules\DeclarativeDataflow'      = 3   # BuiltinHierarchy：零项目引用，无法引用单源
 }
 # ---- C3 正对照基线：单源文件**边类型**字面量数下限 ----
-# 13 = 归属边 5（cross_db_link/session_owns/task_owns_task/history_owns_task/history_owns_node）
+# 12 = 归属边 4（cross_db_link/session_owns/task_owns_task/history_owns_task；history_owns_node 已删声明）
 #    + 工作流边 6（Calls/Owns/Exports/Inherits/Implements/DependsOn）+ 节点关系边 2（node_to_node/keymapping_to_node）。
 # 端点类型（node/keymapping 经 NodeTypes 单源；task/session/history/workflow）同为单源定义，但因其名过短易误判，
 # 不入本判据的词表（其唯一性由单源文件本身 + 消费面均为常量引用保证）。

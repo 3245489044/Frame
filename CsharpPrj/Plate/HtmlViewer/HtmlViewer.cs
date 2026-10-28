@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -233,6 +234,58 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         }
         // L2 执行层统一渲染 __domBridge.handle 占位模板（参数 JSON 序列化，防引号转义漂移）并执行。
         return await _scriptExecutor.ExecuteHandleAsync(op, name, value, ct);
+    }
+
+    /// <summary>
+    /// 声明产物资源虚拟主机：把本地目录映射为 <c>https://{hostName}/相对路径</c>，供页面直接引用图片/音频
+    /// （避免大文件 base64 膨胀；WebView2 原生虚拟主机映射，无需网络与本地文件权限）。失败返回 false + 诊断，不抛。
+    /// <para>建议 hostName 形如 <c>produce.local</c>（字母/数字/连字符/点）；目录须真实存在。</para>
+    /// </summary>
+    public Task<bool> SetArtifactHostAsync(string hostName, string directory, CancellationToken ct = default)
+        => _marshaler.RunAsync(c => new ValueTask<bool>(ApplyArtifactHostAsync(hostName, directory, c)), ct);
+
+    private async Task<bool> ApplyArtifactHostAsync(string hostName, string directory, CancellationToken ct)
+    {
+        var host = (hostName ?? string.Empty).Trim();
+        if (!IsValidHostName(host))
+        {
+            ReportDiagnostics("HtmlViewer_artifact_host", $"主机名非法: {hostName}");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            ReportDiagnostics("HtmlViewer_artifact_host", $"目录不存在: {directory}");
+            return false;
+        }
+
+        await _lifecycle.EnsureReadyAsync(ct);
+        if (CoreWebView2 is null)
+        {
+            ReportDiagnostics("HtmlViewer_artifact_host", "CoreWebView2 未就绪，产物宿主未装配");
+            return false;
+        }
+
+        try
+        {
+            var full = Path.GetFullPath(directory);
+            CoreWebView2.SetVirtualHostNameToFolderMapping(host, full, CoreWebView2HostResourceAccessKind.Allow);
+            ReportDiagnostics("HtmlViewer_artifact_host", $"产物宿主 {host} → {full}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ReportDiagnostics("HtmlViewer_artifact_host", $"产物宿主装配失败[{ex.GetType().Name}]: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool IsValidHostName(string host)
+    {
+        if (host.Length is 0 or > 128) return false;
+        foreach (var ch in host)
+            if (!char.IsLetterOrDigit(ch) && ch != '.' && ch != '-')
+                return false;
+        return true;
     }
 
     /// <summary>活文档文本读（DOM 承载控件的「当前真值」）：返回 <c>document.body.textContent</c>（与 HTML 桥 get 同语义：

@@ -70,7 +70,7 @@ $sqlitePath = Join-Path $StateRoot 'agent.db'
 if (-not (Test-Path -LiteralPath $sqlitePath)) { Write-Fail "SQLite 库不存在：$sqlitePath"; exit 1 }
 
 if ($Apply) {
-    Write-Fail 'Apply 未接宿主：重建写须经 C# 内核（IRelationPorts + Origin=Rebuild）；本入口只提供 DryRun 计划面'
+    Write-Fail 'Apply 须经宿主服务：Agent 宿主内 IGraphRebuildService.RunAsync(dryRun:false)（IRelationPorts + Origin=Rebuild）；CLI 不直写图'
     exit 2
 }
 
@@ -197,6 +197,40 @@ try {
         }
         $reader.Close(); $cmd.Dispose()
     }
+
+    # ── 会话投影（session→node）：计数键恒在（0 也出现，禁静默缺面）；表缺失 ⇒ 显式 skipped ──
+    $applied['mount_session_node'] = 0
+    $sCmd = $connection.CreateCommand()
+    $sCmd.CommandText = 'PRAGMA table_info([ur_sessions])'
+    $sReader = $sCmd.ExecuteReader()
+    $sessionColumns = [System.Collections.Generic.List[string]]::new()
+    while ($sReader.Read()) { $sessionColumns.Add([string]$sReader.GetValue(1)) }
+    $sReader.Close(); $sCmd.Dispose()
+
+    if ($sessionColumns.Count -eq 0) {
+        $skipped['session-table-missing'] = 1
+    }
+    else {
+        $sCmd = $connection.CreateCommand()
+        $sCmd.CommandText = 'SELECT * FROM [ur_sessions]'
+        $sReader = $sCmd.ExecuteReader()
+        $docOrdinal = -1
+        try { $docOrdinal = $sReader.GetOrdinal('Doc') } catch { $docOrdinal = -1 }
+        while ($sReader.Read()) {
+            if ($docOrdinal -lt 0 -or $sReader.IsDBNull($docOrdinal)) { $skipped['session-row-unmappable'] = 1; continue }
+            try {
+                $sdoc = ([string]$sReader.GetValue($docOrdinal)) | ConvertFrom-Json
+                $nk = $sdoc.PSObject.Properties['NodeKeys']
+                if ($null -eq $nk) { $nk = $sdoc.PSObject.Properties['RelatedNodes'] }
+                if ($null -ne $nk -and $null -ne $nk.Value -and @($nk.Value).Count -gt 0) {
+                    $applied['mount_session_node']++
+                }
+                else { $skipped['session-row-unmappable'] = 1 }
+            }
+            catch { $skipped['session-row-unmappable'] = 1 }
+        }
+        $sReader.Close(); $sCmd.Dispose()
+    }
 }
 finally { $connection.Dispose() }
 
@@ -222,8 +256,8 @@ if (-not [string]::IsNullOrWhiteSpace($OutFile)) {
 
 if ($Json) { $report | ConvertTo-Json -Depth 6; exit 0 }
 
-Write-Output ("GraphRebuild(dry-run): history={0} subtask={1} node={2} skipped={3} rejected={4}" -f `
-    $applied['mount_task_history'], $applied['mount_subtask'], $applied['mount_node_task'], $skipped.Count, $rejected.Count)
+Write-Output ("GraphRebuild(dry-run): history={0} subtask={1} node={2} session={3} skipped={4} rejected={5}" -f `
+    $applied['mount_task_history'], $applied['mount_subtask'], $applied['mount_node_task'], $applied['mount_session_node'], $skipped.Count, $rejected.Count)
 foreach ($k in $skipped.Keys) { Write-Output ("  · skipped {0}" -f $k) }
 foreach ($r in $rejected) { Write-Output ("  x rejected {0}" -f $r) }
 exit 0

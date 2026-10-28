@@ -30,9 +30,6 @@ namespace UniversalWorkflowFramework.Reference.Models
         /// <summary>历史归拢任务边：history.{historyId} → task。</summary>
         public const string HistoryOwnsTask = "history_owns_task";
 
-        /// <summary>历史挂载节点边（已降级为派生视图，deprecated 语义：写点退役，仅旧数据兼容读）。</summary>
-        public const string HistoryOwnsNode = "history_owns_node";
-
         // ---- 工作流静态引用边 ----
 
         /// <summary>控制流：上一步骤调用下一步骤（node → node）。</summary>

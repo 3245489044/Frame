@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-28T04:00:03.0179853Z",
+  "builtAt": "2026-10-28T11:16:54.5719324Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1546,21 +1546,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundRuntime.cs",
-          "line": 47,
+          "line": 44,
           "role": "Code",
           "text": "// （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
-          "line": 66,
+          "line": 64,
           "role": "Code",
           "text": "// （IsCollectToken）时追加非 ur_nodes 事实（P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
-          "line": 251,
+          "line": 247,
           "role": "Code",
           "text": "/// 追加「附加输入源」到整包（P4-2 机制②）：把非 ur_nodes 事实（如过程域 <c>proc.*</c>）并入 <c>nodes.*</c>。"
         },
@@ -4273,13 +4273,13 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 162,
+      "total": 164,
       "truncated": false,
       "byRole": {
-        "Gate": 1,
-        "Test": 8,
+        "Gate": 4,
+        "Test": 5,
         "Declaration": 9,
-        "Code": 81,
+        "Code": 83,
         "Doc": 62,
         "Other": 1
       },
@@ -4405,6 +4405,41 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
+          "line": 71,
+          "role": "Code",
+          "text": "var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
+          "line": 78,
+          "role": "Code",
+          "text": "var result = await _relations.DetachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
+          "line": 87,
+          "role": "Code",
+          "text": "var result = await _relations.DeriveHistoryTasksAsync(historyId, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/SessionReferenceGrounding.cs",
+          "line": 49,
+          "role": "Code",
+          "text": "var result = await _relations.AttachNodeAsync(sessionName, nodeKey, workflowId, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
+          "line": 200,
+          "role": "Code",
+          "text": "var result = await _relations.EnumerateSubTasksAsync(taskKey, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Graph/RelationDoc.cs",
           "line": 5,
           "role": "Code",
@@ -4486,27 +4521,6 @@
           "line": 93,
           "role": "Code",
           "text": "? (_relations is null ? (IReadOnlyList<string>)System.Array.Empty<string>() : await _relations.GetTaskKeysAsync(scope.OwnerId, ct).ConfigureAwait(false))"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 70,
-          "role": "Code",
-          "text": "await _relations.CreateAsync(hid, name: Nodes.Keys.KeyAddressing.ContainerName(name, hid), ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 77,
-          "role": "Code",
-          "text": ": _relations.AttachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/Reference/NodeTaskHistoryService.cs",
-          "line": 83,
-          "role": "Code",
-          "text": ": _relations.DetachTaskAsync(historyId.Trim(), taskKey.Trim(), ct);"
         },
         {
           "repo": "Frame",
@@ -4612,6 +4626,27 @@
           "line": 12,
           "role": "Gate",
           "text": "\"keymapping.\" / \"checkpoint.\" / \"relations.\"）只允许出现在「键文法单源白名单」文件内；"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
+          "line": 97,
+          "role": "Gate",
+          "text": "if ($relations.Count -eq 0) { $problems.Add('E1 relation-ops.ushar 无 [Relation] 声明'); return $problems }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
+          "line": 139,
+          "role": "Gate",
+          "text": "$details.Add(\"E1 [Relation]=$($relations.Count) / [Edge]=$($edgeNames.Count) / contains=$($containsEdges.Count)\")"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Node/Check-WriteSurface.ps1",
+          "line": 185,
+          "role": "Gate",
+          "text": "$syntheticClean = 'await _relations.EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct);'"
         },
         {
           "repo": "Frame",
@@ -4980,30 +5015,9 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 214,
-          "role": "Test",
-          "text": "Assert.AreEqual(1, relations.SessionLinks.Count, \"单节点化：一个会话的入史边恰 1 条（指向 smsg.{container} 单节点）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 216,
-          "role": "Test",
-          "text": "relations.SessionLinks[0], MessageStreamKeys.StreamPositionKey(\"task.1\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
           "line": 236,
           "role": "Test",
           "text": "Assert.AreEqual(0, relations.SessionLinks.Count, \"类别缺失 ⇒ 不建悬空边\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 361,
-          "role": "Test",
-          "text": "=> _relations.AddSessionMessageLinkAsync(sessionName, workflowId, nodeKey, ct);"
         },
         {
           "repo": "Main",
@@ -5197,7 +5211,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/NodeWrite/SyncRelationsBlock.cs",
-          "line": 64,
+          "line": 66,
           "role": "Code",
           "text": "var members = await _relations.GetTaskKeysAsync(key, cancellationToken).ConfigureAwait(false);"
         },
@@ -5259,17 +5273,17 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 568,
+          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
+          "line": 138,
           "role": "Code",
-          "text": "await relations.AttachNodeToTaskAsync(name, wf, nodeKey, ct).ConfigureAwait(false);"
+          "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 137,
+          "line": 141,
           "role": "Code",
-          "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
+          "text": "await relations.DetachTaskAsync(hid, key, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
@@ -6153,7 +6167,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/SessionReferenceGrounding.cs",
-          "line": 28,
+          "line": 32,
           "role": "Code",
           "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像。</summary>"
         },
@@ -11347,12 +11361,12 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1594.0,
+    "hitCount": 1596.0,
     "byRole": {
-      "Gate": 28,
-      "Test": 262,
+      "Gate": 31,
+      "Test": 259,
       "Declaration": 109,
-      "Code": 345,
+      "Code": 347,
       "Doc": 773,
       "Other": 77
     },
@@ -11363,7 +11377,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 449
+        "lines": 454
       },
       {
         "repo": "Projects",
@@ -11371,7 +11385,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1054
+        "lines": 1051
       }
     ]
   }

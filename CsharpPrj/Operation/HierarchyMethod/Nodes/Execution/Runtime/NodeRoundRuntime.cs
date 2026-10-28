@@ -35,9 +35,6 @@ public sealed record NodePersistenceAssembly(
     // DP-3（W2-0）双写收敛开关：默认关 = 旧路径（执行期扁平 vars 写入保留，行为等价）；
     // 开 = 写侧单写 ur_nodes（权威） + 读侧投影重算（自权威回填），vars 不再作为同一事实的第二写点。
     bool EnableUnifiedStateWrite = false,
-    // 归属边簿记流入口（R1，可空）：装配后节点执行期的 task→node 归属边经**声明流**写（唯一编排触发点）；
-    // null ⇒ 迁移期沿用 <c>NodeRelationGateway</c> 直调 + 可见化（退役条件：装配切片全量提供本入口后删回退支）。
-    Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? AttributionFlow = null,
     // 缺失处置姿态（可空 = AllowLegacyFallback，零行为变化）：缩减切片置 Reduced ⇒ 端口缺失静默（有意不参与，治误报）；
     // 收口装配置 RequireFlow ⇒ 缺失即诊断可见化。与 OneShotFlowFactory 切片口径同源（M2/M3 单一 owner）。
     Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? Posture = null,
@@ -89,7 +86,6 @@ public sealed class NodeRoundRuntime
             outputs, wf, assembly.NodeStore, assembly.KeyMappings, assembly.BeginTransaction, assembly.Grounding,
             unifiedStateWrite: assembly.EnableUnifiedStateWrite,
             diagnostics: sink,
-            attributionFlow: assembly.AttributionFlow,
             posture: assembly.Posture,
             // 附加输入源经装配切片透传（P4-2 机制②；默认 null ⇒ 零回归）。
             additionalCollectSource: assembly.AdditionalCollectSource,

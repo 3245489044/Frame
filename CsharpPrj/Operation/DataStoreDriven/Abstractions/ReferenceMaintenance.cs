@@ -87,9 +87,6 @@ namespace Operation.DataStoreDriven.Abstractions
         Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTasksManyAsync(
             IReadOnlyCollection<string> historyIds, CancellationToken ct);
 
-        /// <summary>【**已退役**（W1）】历史挂载节点曾写 <c>history_owns_node</c> 边；调用即抛。</summary>
-        Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default);
-
         /// <summary>按历史查工作流节点键集（派生视图：该历史全部任务的 task→node 边并集）。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 

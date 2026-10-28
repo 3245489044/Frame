@@ -177,10 +177,10 @@
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
     RelationPlan = @{
         Domain = 'Agent'
-        Args   = @{ Check = $true }
+        Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '关系声明面单源：E1 [Relation] 存在 / E2 edge ⊆ [Edge] / E3 归属边恰一 ensure / E4 hierarchy contains 对账 / E5 负对照 / E6 intent+exists 显式 / E7 C# 归属边字面量报告态'
+        Note   = '关系声明面单源：E1 [Relation] 存在 / E2 edge ⊆ [Edge] / E3 归属边恰一 ensure / E4 hierarchy contains 对账 / E5 负对照 / E6 intent+exists 显式 / E7 C# 归属边字面量 ≤ 基线（负对照）'
     }
 
     WriteSurface = @{

@@ -123,13 +123,6 @@ public sealed class FlowPosture
     // ===== 端口感知重载（M2 收拢）：把「flow is null ? null : () => flow.XxxAsync(...)」收进姿态，
     //      调用点零判空（不再手写 `_xxxFlow is null`），缺失处置口径单源。=====
 
-    /// <summary>驱动一次归属边转换（<see cref="INodeAttributionFlow.AttachAsync"/> 形态）。</summary>
-    public Task<FlowOutcome> RunAsync(
-        INodeAttributionFlow? flow, string taskKey, string workflowId, string nodeKey,
-        IDiagnosticsSink? diagnostics, string context, object? payload = null, CancellationToken ct = default)
-        => RunAsync(flow is null ? null : () => flow.AttachAsync(taskKey, workflowId, nodeKey, ct),
-            legacy: null, diagnostics, context, payload);
-
     /// <summary>驱动一次轮末沉淀转换（<see cref="IRoundAttributionFlow.SettleRoundAsync"/> 形态）。</summary>
     public Task<FlowOutcome> RunAsync(
         IRoundAttributionFlow? flow, RoundAttributionRequest request,

@@ -17,7 +17,7 @@ namespace Operation.HierarchyMethod.History;
 /// 职责边界（SingleImplementation / TH-12）：本实现**只编排**，写边原语委托 <see cref="IReferenceMaintenance"/>
 /// （唯一守卫 → 图协调器纯写边），读边经 <see cref="IResourceReferenceStore"/>；不复制任何写边逻辑。
 /// <para>
-/// 分层口径：task→node 归属（cross_db_link）不在本类（属节点执行层 attribution.ushar / INodeAttributionFlow）；
+/// 分层口径：task→node 归属（cross_db_link）不在本类（属节点执行层 canonical 写边：attribution.ushar / IReferenceMaintenance）；
 /// 历史节点集为**派生读**（= 归拢任务的节点并集），不再直写 history→node 边。
 /// </para>
 /// 实体真源在 SQL（ur_histories / ur_tasks / ur_nodes），引用图（LiteDB graph-log.db）只存关系投影，
@@ -63,7 +63,7 @@ public sealed class HistoryRelationManager : IHistoryRelationManager
     public Task DetachTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
         => _maintenance is null ? Task.CompletedTask : _maintenance.DetachHistoryTaskAsync(historyId, taskKey, ct);
 
-    // task→node 归属（cross_db_link）已移出本端口（分层收口：属节点执行层 attribution.ushar / INodeAttributionFlow；
+    // task→node 归属（cross_db_link）已移出本端口（分层收口：属节点执行层 canonical 写边 IReferenceMaintenance；
     // 历史节点集经 GetNodeKeysAsync 派生读，不直写 node 边）。写路径唯一 owner = ReferenceGrounding（节点层）。
 
     /// <summary>会话归属边（session_owns）：把会话消息/产出节点挂到会话根（入史层挂载；幂等加法）。</summary>

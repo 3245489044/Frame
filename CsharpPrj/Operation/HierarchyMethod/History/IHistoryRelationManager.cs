@@ -11,7 +11,7 @@ namespace Operation.HierarchyMethod.History;
 /// 派生节点读（= 归拢任务的节点并集）、会话归属边、图查询。
 /// <para>
 /// task→node 归属（cross_db_link）属**节点执行层**（attribution.ushar / INodeAttributionFlow），
-/// 不在本端口（禁 history 直连 node）；`history_owns_node` 边已退役为派生视图。
+/// 不在本端口（禁 history 直连 node）；历史节点集为派生视图（任务 task→node 边并集）。
 /// </para>
 /// 实现（Agent.Reference）只编排，写边原语委托 <c>IReferenceMaintenance</c>/图协调器（SingleImplementation/TH-12）。
 /// 装配可空：未装配时消费方跳过，不阻断运行（对齐「未装配返回诊断」模式）。

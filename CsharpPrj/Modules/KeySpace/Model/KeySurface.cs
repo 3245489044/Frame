@@ -23,7 +23,10 @@ public enum KeySurface
     Level,
 
     /// <summary>展示键（渲染层使用，不参与寻址）。</summary>
-    Display
+    Display,
+
+    /// <summary>定位键（图端点/边的 <c>@{location}</c> 变体；持久化定位面，不参与身份寻址）。</summary>
+    Location
 }
 
 /// <summary>

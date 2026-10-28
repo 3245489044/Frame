@@ -38,6 +38,8 @@ public sealed class KeyAlgebra : IKeyAlgebra
         KeySurface.Identity,
         KeySurface.Display,
         KeySurface.Level,
+        // 定位面（@location 变体）列末位：仅在其余面文法不匹配时命中，避免抢走身份/存储归一面。
+        KeySurface.Location,
     };
 
     private readonly Dictionary<string, FamilyEntry> _families;

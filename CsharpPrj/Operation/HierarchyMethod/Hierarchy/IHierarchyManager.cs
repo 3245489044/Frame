@@ -38,13 +38,6 @@ public interface IHierarchyManager
     /// <summary>删除任务（保存侧删除 + 解除历史归拢边）。</summary>
     Task DeleteTaskAsync(string taskKey, CancellationToken ct = default);
 
-    // ---- task ↔ node（真多对多）----
-    /// <summary>节点关联到任务（幂等加法；同一节点可被多 task 共享引用）。</summary>
-    Task LinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
-
-    /// <summary>解除节点与任务的关联（M:N 撤销；不影响其它 task）。</summary>
-    Task UnlinkNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
-
     // ---- 查询（成员集经引用边推导；**无界**：不施加展开预算）----
     // 遍历实现与下方「层次处理与查询」组同一（经声明式引擎；schema 无法表达该查询时回退 owner 侧直读端口）。
     // 二者分工：本组 = schema 无关、无预算、只返回键集；引擎组 = schema 驱动、带显式预算、返回层引用/结论。

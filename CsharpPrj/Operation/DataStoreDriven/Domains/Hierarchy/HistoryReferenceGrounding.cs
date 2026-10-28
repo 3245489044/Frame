@@ -123,11 +123,6 @@ public sealed class HistoryReferenceGrounding
         return result;
     }
 
-    /// <summary>【已退役】history_owns_node 写点：调用即抛。</summary>
-    public Task AttachHistoryNodeAsync(string historyId, string workflowId, string nodeKey, CancellationToken ct = default)
-        => throw new NotSupportedException(
-            "history_owns_node 已退役（派生视图）：历史节点集须经 GetHistoryNodeKeysAsync 按 task→node 边派生，禁独立存边");
-
     /// <summary>历史的工作流节点键集（派生视图：<c>[Derive] HistoryNodes</c>）。</summary>
     public async Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
     {

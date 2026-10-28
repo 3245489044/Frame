@@ -19,7 +19,8 @@
 param(
     [string]$Root = '',
     [switch]$Check,
-    [switch]$ShowDetail
+    [switch]$ShowDetail,
+    [switch]$NegativeControl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +28,11 @@ $ErrorActionPreference = 'Stop'
 if (-not $Root) {
     $Root = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')
 }
+
+# 基线单源 = Baselines\Node\RelationPlan.psd1（禁内联数值基线）
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$e7Baseline = Import-GateBaseline -Name RelationPlan
+$e7Max = [int]$e7Baseline.E7MaxLiteralFiles.Value
 
 $violations = New-Object System.Collections.Generic.List[string]
 $details = New-Object System.Collections.Generic.List[string]
@@ -68,6 +74,19 @@ function Get-ContainsEdges([string]$text) {
         $names.Add($m.Groups[2].Value)
     }
     return $names
+}
+
+# 归属边字面量检测（判据载体 = 源码静态计数；禁执行者叙述）：返回命中文件数。
+function Get-OwnershipLiteralFileCount([string[]]$Roots) {
+    $files = 0
+    foreach ($src in $Roots) {
+        if ([string]::IsNullOrWhiteSpace($src) -or -not (Test-Path -LiteralPath $src)) { continue }
+        $hits = Get-ChildItem -LiteralPath $src -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\Tests\\' -and $_.Name -notlike '*Tests.cs' -and $_.Name -notlike '*.generated.*' } |
+            Select-String -Pattern '"(cross_db_link|history_owns_task|session_owns|task_owns_task)"' -ErrorAction SilentlyContinue
+        $files += @($hits | ForEach-Object { $_.Path } | Sort-Object -Unique).Count
+    }
+    return $files
 }
 
 
@@ -127,16 +146,31 @@ if ($violations.Count -eq 0) {
         $violations.Add('E5 负对照失效（缺 ensure 未被判红）')
     } elseif ($ShowDetail) { $details.Add('E5 负对照命中 E3 OK') }
 
-    # E7 报告态：C# 归属边字面量（迁移期不判红；D 波后目标 0）
-    $literalFiles = 0
-    foreach ($src in @((Join-Path $Root 'Frame\CsharpPrj'), (Join-Path $Root 'Projects\Plug\Agent\src'))) {
-        if (-not (Test-Path -LiteralPath $src)) { continue }
-        $hits = Get-ChildItem -LiteralPath $src -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\Tests\\' -and $_.Name -notlike '*Tests.cs' -and $_.Name -notlike '*.generated.*' } |
-            Select-String -Pattern '"(cross_db_link|history_owns_task|session_owns|task_owns_task)"' -ErrorAction SilentlyContinue
-        $literalFiles += @($hits | ForEach-Object { $_.Path } | Sort-Object -Unique).Count
+    # E7 判红：C# 归属边字面量文件数 ≤ 基线（只降不升；与 WriteSurface C4 分工：E7 管声明侧字面量，C4 管写入口）
+    $literalFiles = Get-OwnershipLiteralFileCount @(
+        (Join-Path $Root 'Frame\CsharpPrj'),
+        (Join-Path $Root 'Projects\Plug\Agent\src'))
+    $e7Limit = [int]$e7Max
+    if ($literalFiles -gt $e7Limit) {
+        $violations.Add("E7 C# 归属边字面量文件=$literalFiles > 基线 $e7Limit（禁新增；清理后同批下调基线）")
+    } elseif ($ShowDetail) {
+        $details.Add("E7 C# 归属边字面量文件=$literalFiles（基线 $e7Limit）OK")
     }
-    $details.Add("E7 报告态：C# 归属边字面量文件=$literalFiles（D 波完成后目标 0）")
+
+    if ($NegativeControl) {
+        $probeDir = Join-Path ([IO.Path]::GetTempPath()) ('relationplan-negative-' + [guid]::NewGuid().ToString('N'))
+        try {
+            New-Item -ItemType Directory -Path $probeDir -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $probeDir 'Probe.cs') `
+                -Value 'internal static class P { public const string E = "cross_db_link"; }' -Encoding UTF8
+            if ((Get-OwnershipLiteralFileCount @($probeDir)) -ne 1) {
+                $violations.Add('E7 负对照失效：合成归属字面量文件未被检出')
+            } elseif ($ShowDetail) { $details.Add('E7 负对照命中 OK') }
+        }
+        finally {
+            Remove-Item -LiteralPath $probeDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 if ($ShowDetail) { foreach ($line in $details) { Write-Host "  $line" } }

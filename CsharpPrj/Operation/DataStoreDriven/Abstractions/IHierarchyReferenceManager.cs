@@ -17,7 +17,7 @@ namespace Operation.DataStoreDriven.Abstractions
     /// <para>
     /// 边类型见 <see cref="CrossDbReferenceTypes"/>：<c>history_owns_task</c>（history→task 1:N）、
     /// <c>cross_db_link</c>（task→node M:N）。历史节点集**派生** = 其全部任务的 task→node 边并集
-    /// （<c>history_owns_node</c> 已降级为派生视图，不再独立存边）。
+    /// （历史节点集 = 其全部任务的节点并集，不独立存边）。
     /// </para>
     /// </summary>
     public interface IHierarchyReferenceManager
@@ -84,7 +84,7 @@ namespace Operation.DataStoreDriven.Abstractions
         /// </summary>
         Task<IReadOnlyList<NodeProjectionItem>> ProjectTaskNodesAsync(string taskKey, string workflowId, CancellationToken ct = default);
 
-        /// <summary>该历史的工作流节点键集（**派生**：= 其全部任务的节点并集，不依赖 history_owns_node）。</summary>
+        /// <summary>该历史的工作流节点键集（**派生**：= 其全部任务的节点并集，不独立存边）。</summary>
         Task<IReadOnlyList<string>> GetHistoryNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
         // ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----

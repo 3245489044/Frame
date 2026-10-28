@@ -47,9 +47,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         private readonly Func<CancellationToken, Task<ITransaction>>? _beginTransaction;
         private readonly IReferenceMaintenance? _grounding;
         private readonly NodeRelationGateway? _relationGateway;
-        // 归属边簿记流入口（R1）：task→node（cross_db_link）的唯一编排触发点；null ⇒ 迁移期直调回退（见字段声明处退役条件）。
-        private readonly Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? _attributionFlow;
-        // 缺失处置姿态（装配期一处选定，M2 单一 owner）：端口缺失时按姿态裁决（Reduced 静默 / 其余诊断可见化），调用点零判空。
+        // 缺失处置姿态（装配期一处选定，M2 单一 owner）：缺失处置单源（Reduced 静默 / 其余诊断可见化），调用点零判空。
         private readonly Operation.HierarchyMethod.Nodes.Linkage.FlowPosture _posture;
         private readonly string _workflowId;
         // 阶段二：函数调用端口（解耦 WorkFlowMethod/WorkflowContext 直调；默认 canonical 兜底，行为与旧直调一致）。
@@ -84,7 +82,6 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             WriteCoordinator? writeCoordinator = null,
             bool unifiedStateWrite = false,
             IDiagnosticsSink? diagnostics = null,
-            Operation.HierarchyMethod.Nodes.Linkage.INodeAttributionFlow? attributionFlow = null,
             Operation.HierarchyMethod.Nodes.Linkage.FlowPosture? posture = null,
             // 收集端口「附加输入源」（可空；默认 null ⇒ 现状零回归）：仅在整包展开时追加（P4-2 机制②）。
             Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? additionalCollectSource = null,
@@ -101,7 +98,6 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             _grounding = grounding;
             // 引用写（权威边 + task 归属边）直连 Reference 门面 NodeRelationGateway；未装配守卫 → null（引用写 no-op）
             _relationGateway = grounding is null ? null : new NodeRelationGateway(grounding, store: null);
-            _attributionFlow = attributionFlow;
             _posture = posture ?? Operation.HierarchyMethod.Nodes.Linkage.FlowPosture.AllowLegacyFallback;
             _additionalCollectSource = additionalCollectSource;
             _workflowId = workflowId;
@@ -642,16 +638,30 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     _workflowId, node.NodeKey, edges, isWriteThroughStore: _nodes is WriteGuardPort, ct).ConfigureAwait(false);
             }
 
-            // ③ task 归属边（cross_db_link）：R1 归流 —— 经**归属边簿记流入口**触发（编排真源 =
-            //    Config/workflows/attribution.ushar 的 [Flow] NodeAttribution；本处只是唯一触发点，不持编排）。
-            //    M2 收拢：缺失处置由**姿态**单源裁决（缩减切片 = 有意不参与，静默；真缺失经 FlowMissing 可见化），
-            //    调用点零判空、零本地诊断键（统一 DiagnosticsCodes.FlowMissing + context）。
+            // ③ task 归属边（cross_db_link）：canonical 写原语（唯一守卫 → 关系内核）；
+            //    缩减切片（Reduced）= 有意不参与 ⇒ 直接短路（零写零诊断，非「未装配」误报）；
+            //    未装配守卫 ⇒ FlowMissing 可见化（禁静默丢边）。
             if (!string.IsNullOrWhiteSpace(taskKey))
             {
-                await _posture.RunAsync(
-                    _attributionFlow, taskKey!, _workflowId, node.NodeKey,
-                    _diagnostics, "NodeStepExecutionService_attribution",
-                    new { taskKey, workflowId = _workflowId, nodeKey = node.NodeKey }).ConfigureAwait(false);
+                if (_posture.IsReduced)
+                {
+                    // 有意不参与（读投影 / 防递归切片）。
+                }
+                else if (_grounding is null)
+                {
+                    _diagnostics?.Report(DiagnosticsCodes.FlowMissing, new
+                    {
+                        context = "NodeStepExecutionService_attribution",
+                        taskKey,
+                        workflowId = _workflowId,
+                        nodeKey = node.NodeKey,
+                    });
+                }
+                else
+                {
+                    await _grounding.EnsureTaskNodeLinkAsync(taskKey!, _workflowId, node.NodeKey, ct)
+                        .ConfigureAwait(false);
+                }
             }
             // taskKey 缺失 = 合法 no-op（与写边守卫口径一致），非失败。
         }

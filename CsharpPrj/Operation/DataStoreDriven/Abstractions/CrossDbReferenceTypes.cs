@@ -29,13 +29,6 @@ public static class CrossDbReferenceTypes
     /// <summary>历史归拢任务边：history.{historyId} → task（taskKey）。History=Task 更上层的 class 容器，
     /// 一个历史归拢多个任务；成员集由本出边集合推导（图即真源，可 graph.rebuild 幂等重建）。</summary>
     public const string HistoryOwnsTask = ReferenceTypes.HistoryOwnsTask;
-
-    /// <summary>历史挂载节点边：history.{historyId} → wf.node。**已降级为派生视图**（deprecated 语义，不再独立存边）：
-    /// 历史节点集 = 其全部归拢任务的 task→node（cross_db_link）边并集，由
-    /// <see cref="IHierarchyReferenceManager.GetHistoryNodeKeysAsync(string,string,System.Threading.CancellationToken)"/> 派生。
-    /// **写点已于 W1 退役**（<c>ReferenceGrounding.AttachHistoryNodeAsync</c> 改为抛 + 派生视图，禁回流）；
-    /// 保留常量仅作旧数据兼容读。</summary>
-    public const string HistoryOwnsNode = ReferenceTypes.HistoryOwnsNode;
 }
 
 /// <summary>

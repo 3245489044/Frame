@@ -175,6 +175,20 @@ foreach ($file in $productionFiles) {
     }
 }
 
+# ---- C6 operation/edge 字面量单源（生产写面文件只允许经常量/声明面）----
+$literalPattern = '"(mount_[a-z_]+|unmount_[a-z_]+|cross_db_link|history_owns_task|session_owns|task_owns_task)"'
+$literalAllowlist = @(
+    'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/RelationSurfaces.cs'
+)
+foreach ($file in $productionFiles) {
+    if ($literalAllowlist -contains $file) { continue }
+    $content = Read-RelativeText ($file -replace '/', '\')
+    if ($null -eq $content) { continue }
+    if ([regex]::IsMatch($content, $literalPattern)) {
+        $violations.Add("C6 operation/edge 字面量越界（须经 RelationOperationIds / RelationEdgeNames）：$file")
+    }
+}
+
 # ---- C5 负对照（判据空转检测）----
 function Test-MigratedEntry([string]$status, [string]$content) {
     if ($status -ne 'migrated') { return $false }
@@ -192,6 +206,11 @@ if (Test-MigratedEntry -status 'pending' -content $syntheticDirect) {
 }
 if (Test-MigratedEntry -status 'migrated' -content $syntheticClean) {
     $violations.Add('C5 负对照失效：干净文件被误报')
+}
+
+$syntheticCallLiteral = 'await Ports.Commands.EnsureAsync("mount_node_task", request, ct);'
+if (-not [regex]::IsMatch($syntheticCallLiteral, $literalPattern)) {
+    $violations.Add('C6 负对照失效：调用点 operation 字面量未命中')
 }
 
 # ---- 输出 ----

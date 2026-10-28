@@ -217,7 +217,7 @@ try {
         $docOrdinal = -1
         try { $docOrdinal = $sReader.GetOrdinal('Doc') } catch { $docOrdinal = -1 }
         while ($sReader.Read()) {
-            if ($docOrdinal -lt 0 -or $sReader.IsDBNull($docOrdinal)) { $skipped['session-row-unmappable'] = 1; continue }
+            if ($docOrdinal -lt 0 -or $sReader.IsDBNull($docOrdinal)) { $skipped['session-row-unmappable'] = [int]$skipped['session-row-unmappable'] + 1; continue }
             try {
                 $sdoc = ([string]$sReader.GetValue($docOrdinal)) | ConvertFrom-Json
                 $nk = $sdoc.PSObject.Properties['NodeKeys']
@@ -225,9 +225,9 @@ try {
                 if ($null -ne $nk -and $null -ne $nk.Value -and @($nk.Value).Count -gt 0) {
                     $applied['mount_session_node']++
                 }
-                else { $skipped['session-row-unmappable'] = 1 }
+                else { $skipped['session-row-unmappable'] = [int]$skipped['session-row-unmappable'] + 1 }
             }
-            catch { $skipped['session-row-unmappable'] = 1 }
+            catch { $skipped['session-row-unmappable'] = [int]$skipped['session-row-unmappable'] + 1 }
         }
         $sReader.Close(); $sCmd.Dispose()
     }

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-28T11:16:54.5719324Z",
+  "builtAt": "2026-10-28T11:51:03.6414175Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -4273,14 +4273,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 164,
+      "total": 165,
       "truncated": false,
       "byRole": {
         "Gate": 4,
         "Test": 5,
         "Declaration": 9,
         "Code": 83,
-        "Doc": 62,
+        "Doc": 63,
         "Other": 1
       },
       "hits": [
@@ -4434,7 +4434,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
-          "line": 200,
+          "line": 234,
           "role": "Code",
           "text": "var result = await _relations.EnumerateSubTasksAsync(taskKey, ct).ConfigureAwait(false);"
         },
@@ -4644,7 +4644,7 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-WriteSurface.ps1",
-          "line": 185,
+          "line": 199,
           "role": "Gate",
           "text": "$syntheticClean = 'await _relations.EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct);'"
         },
@@ -4759,6 +4759,13 @@
           "line": 314,
           "role": "Doc",
           "text": "| `relations.*` / `graph.*` | `AgentUiLibraryRuntime` | ApiPort / ReadModel | `ReferenceGrounding` | workflowId / relationId |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-节点任务历史-基于Usharp原语的彻底重构方案.md",
+          "line": 118,
+          "role": "Doc",
+          "text": "| 7 | 节点-历史门面 | `Frame/.../Reference/NodeTaskHistoryService.cs:74-77` | **弱：直接 `_relations.AttachTaskAsync`** | 绕过 gate/root/task 校验；内部还会隐式建镜像 |"
         },
         {
           "repo": "Main",
@@ -5443,10 +5450,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 6,
-        "Test": 27,
+        "Test": 26,
         "Declaration": 11,
         "Code": 168,
-        "Doc": 185,
+        "Doc": 186,
         "Other": 3
       },
       "hits": [
@@ -7265,6 +7272,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-关系写面框架-RF7-后续实施步骤.md",
+          "line": 355,
+          "role": "Doc",
+          "text": "| ERR-6 | `GraphRebuildService.MapSessionRow`：`sessionName ?? view.Key` 直接把行键当会话名；若 `ur_sessions` 行键带 `session.` 前缀（键空间 `hierarchy.session` 模板 `session.{sessionName}`） | 可能写出 `session_owns` 的 source 带"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.28/2026-10-28-图关系挂载失败与边删除失效-框架级修复与USharp声明式收敛-设计与施工单.md",
           "line": 40,
           "role": "Doc",
@@ -8242,13 +8256,6 @@
           "line": 108,
           "role": "Test",
           "text": "\"cline.session.work.round.1.stage.1\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 109,
-          "role": "Test",
-          "text": "\"cline.session.work.round.2.stage.1\","
         }
       ]
     },
@@ -11361,13 +11368,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1596.0,
+    "hitCount": 1597.0,
     "byRole": {
       "Gate": 31,
-      "Test": 259,
+      "Test": 258,
       "Declaration": 109,
       "Code": 347,
-      "Doc": 773,
+      "Doc": 775,
       "Other": 77
     },
     "truncatedFacts": [
@@ -11381,11 +11388,11 @@
       },
       {
         "repo": "Projects",
-        "lines": 494
+        "lines": 495
       },
       {
         "repo": "Main",
-        "lines": 1051
+        "lines": 1053
       }
     ]
   }

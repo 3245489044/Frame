@@ -98,7 +98,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             _grounding = grounding;
             // 引用写（权威边 + task 归属边）直连 Reference 门面 NodeRelationGateway；未装配守卫 → null（引用写 no-op）
             _relationGateway = grounding is null ? null : new NodeRelationGateway(grounding, store: null);
-            _posture = posture ?? Operation.HierarchyMethod.Nodes.Linkage.FlowPosture.AllowLegacyFallback;
+            _posture = posture ?? Operation.HierarchyMethod.Nodes.Linkage.FlowPosture.RequireFlow;
             _additionalCollectSource = additionalCollectSource;
             _workflowId = workflowId;
             _functionInvoker = functionInvoker ?? new WorkflowMethodFunctionInvoker(workflowId); // R2 canonical：Center 唯一实现

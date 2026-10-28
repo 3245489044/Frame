@@ -27,6 +27,14 @@ public static class KeyAddressing
     public static string NormalizeNamespace(string? workflowId) => NodeOutputKeys.Normalize(workflowId);
 
     /// <summary>
+    /// 节点键归一为裸 nodeKey（唯一实现，委托 <see cref="Operation.DataStoreDriven.Abstractions.NodeKeyPlan"/>）：
+    /// <c>nodes.{wf}.{node}</c> / <c>{wf}.{node}</c> / 裸键 ⇒ 裸键；实例键（<c>{node}@{task}</c>）**原样保留**。
+    /// </summary>
+    /// <param name="nodeKey">候选节点键（可空 / 空白 ⇒ 空串）。</param>
+    public static string NodeKey(string? nodeKey)
+        => Operation.DataStoreDriven.Abstractions.NodeKeyPlan.NodeKey(nodeKey);
+
+    /// <summary>
     /// 历史容器 Id 缺省解析（ERR-1 收口）：显式 Id 优先，缺省回退 <paramref name="fallback"/>。
     /// 规则实现单源 = <see cref="Reference.HistoryContainerRules"/>（声明面 `[Space] HistoryContainerRule` 对账单源）。
     /// </summary>

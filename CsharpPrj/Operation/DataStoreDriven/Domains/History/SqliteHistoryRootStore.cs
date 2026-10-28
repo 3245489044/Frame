@@ -75,11 +75,18 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
     {
         ct.ThrowIfCancellationRequested();
         if (key.IsEmpty) return Task.FromResult<HistoryRoot?>(null);
-        var rowKey = RowKey(key);
-        if (rowKey.Length == 0) return Task.FromResult<HistoryRoot?>(null);
-        var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rowKey)));
-        if (rows.Count == 0) return Task.FromResult<HistoryRoot?>(null);
-        return Task.FromResult(TryReadRoot(rowKey, SqliteRows.Str(rows[0], "Doc")));
+
+        // 行键双形态（迁移期）：规范形态 history:{id} 优先，旧行裸键 {id} 兜底。
+        // 单形态查找是「列表可见、删除判不存在」的根因（同表混存两种键形态）。
+        foreach (var rowKey in CandidateRowKeys(key))
+        {
+            var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rowKey)));
+            if (rows.Count == 0) continue;
+            var root = TryReadRoot(rowKey, SqliteRows.Str(rows[0], "Doc"));
+            if (root is not null) return Task.FromResult<HistoryRoot?>(root);
+        }
+
+        return Task.FromResult<HistoryRoot?>(null);
     }
 
     public Task CreateAsync(HistoryRoot root, CancellationToken ct = default)
@@ -108,10 +115,25 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
     {
         ct.ThrowIfCancellationRequested();
         if (key.IsEmpty) return Task.FromResult(false);
-        var rowKey = RowKey(key);
-        if (rowKey.Length == 0) return Task.FromResult(false);
-        var removed = ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", rowKey)));
+
+        // 删除必须命中实际存在的行键形态（规范 / 旧裸键），否则「视为已删除」会留下僵尸行。
+        var removed = 0;
+        foreach (var rowKey in CandidateRowKeys(key))
+            removed += ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", rowKey)));
+
         return Task.FromResult(removed > 0);
+    }
+
+    /// <summary>候选行键（规范 <c>history:{id}</c> → 旧裸键 <c>{id}</c>，去重保序）。</summary>
+    private static IReadOnlyList<string> CandidateRowKeys(HistoryKey key)
+    {
+        var identity = NodeEndpointIds.NormalizeHistoryId(key.Value);
+        if (identity.Length == 0) return Array.Empty<string>();
+
+        var canonical = NodeEndpointIds.ToHistoryRowKey(identity);
+        return string.Equals(canonical, identity, StringComparison.Ordinal)
+            ? new[] { canonical }
+            : new[] { canonical, identity };
     }
 
     /// <summary>身份 → 行键（<c>history:{identity}</c>）；空身份 ⇒ 空串（不伪造行键）。</summary>

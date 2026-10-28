@@ -49,6 +49,28 @@ namespace Operation.DataStoreDriven.Abstractions
         /// <summary>运行时 task 归属边（cross_db_link）：task（ur_tasks）→ 节点（ur_nodes）。幂等加法。</summary>
         Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
+        /// <summary>
+        /// 批量 task 归属边（单条与批量的唯一写入口）：缺省逐条；生产实现覆盖为一次批量内核调用。
+        /// <para>调用方须先经归一单源（<c>TaskNodeLinkPlan.Normalize</c>）——本成员不重复键规则。</para>
+        /// </summary>
+        async Task<int> EnsureTaskNodeLinksAsync(
+            string taskKey, string workflowId, IReadOnlyCollection<string> nodeKeys, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(taskKey) || nodeKeys is null) return 0;
+
+            await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+            var written = 0;
+            foreach (var nodeKey in nodeKeys)
+            {
+                if (string.IsNullOrWhiteSpace(nodeKey)) continue;
+                await EnsureNodeMirrorAsync(workflowId, nodeKey, null, ct).ConfigureAwait(false);
+                await EnsureTaskNodeLinkAsync(taskKey, workflowId, nodeKey, ct).ConfigureAwait(false);
+                written++;
+            }
+
+            return written;
+        }
+
         /// <summary>解除 task 与节点的关联边（M:N 撤销）。</summary>
         Task UnlinkTaskNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 

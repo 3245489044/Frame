@@ -9,7 +9,7 @@ namespace Operation.DataStoreDriven.Relations.Rebuild;
 /// <summary>重建动作：operation + 请求（来源固定 <see cref="RelationOrigin.Rebuild"/>）。</summary>
 public sealed record RebuildAction(string Operation, RelationRequest Request);
 
-/// <summary>重建报告：按 operation 计数 + 拒绝原因（禁只给总数）。</summary>
+/// <summary>重建报告：按 operation 计数 + 拒绝原因（禁只给总数）；<see cref="Sources"/> = 源可用性一等事实。</summary>
 public sealed record RebuildReport(
     string Name,
     bool DryRun,
@@ -17,6 +17,9 @@ public sealed record RebuildReport(
     IReadOnlyDictionary<string, int> Skipped,
     IReadOnlyList<string> Rejected)
 {
+    /// <summary>按来源的可用性/计数（源不可用 ≠ 0 条数据；禁以假 0 冒充）。</summary>
+    public IReadOnlyList<RebuildSourceReport> Sources { get; init; } = Array.Empty<RebuildSourceReport>();
+
     /// <summary>已应用（DryRun 下为「将应用」）总数。</summary>
     public int AppliedTotal => Applied.Values.Sum();
 
@@ -25,7 +28,44 @@ public sealed record RebuildReport(
 
     /// <summary>拒绝总数。</summary>
     public int RejectedTotal => Rejected.Count;
+
+    /// <summary>
+    /// 源不可用报告（域未注册 / 无列举器）：显式 <c>Available=false</c> + 原因 + 计数键，
+    /// 不写入「0 条将应用」的假象（ERR-1 / ERR-2）。
+    /// </summary>
+    public static RebuildReport Unavailable(
+        string name, string domain, string reason, bool dryRun, string skippedKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(skippedKey);
+
+        var skipped = new Dictionary<string, int>(StringComparer.Ordinal) { [skippedKey] = 1 };
+        return new RebuildReport(
+            name,
+            dryRun,
+            new Dictionary<string, int>(StringComparer.Ordinal),
+            skipped,
+            new[] { $"{name}|source-unavailable|{reason}" })
+        {
+            Sources = new[]
+            {
+                new RebuildSourceReport(name, domain, Available: false, Read: 0, Applied: 0, Skipped: 1,
+                    Rejected: 1, UnavailableReason: reason),
+            },
+        };
+    }
 }
+
+/// <summary>重建源事实（可用性 + 计数 + 不可用原因）。</summary>
+public sealed record RebuildSourceReport(
+    string Name,
+    string Domain,
+    bool Available,
+    int Read,
+    int Applied,
+    int Skipped,
+    int Rejected,
+    string? UnavailableReason = null);
 
 /// <summary>重建源：从持久化实体（SQL）读取候选行。</summary>
 public interface IRebuildSource<out T>
@@ -57,7 +97,7 @@ public sealed class RelationRebuildEngine
     /// <summary>执行一次重建（同一 source 重跑计数稳定）。</summary>
     public async Task<RebuildReport> RunAsync<T>(
         string name, IRebuildSource<T> source, IRebuildProjection<T> projection,
-        bool dryRun, CancellationToken ct = default)
+        bool dryRun, CancellationToken ct = default, string? domain = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(source);
@@ -66,10 +106,12 @@ public sealed class RelationRebuildEngine
         var applied = new Dictionary<string, int>(StringComparer.Ordinal);
         var skipped = new Dictionary<string, int>(StringComparer.Ordinal);
         var rejected = new List<string>();
+        var read = 0;
 
         await foreach (var item in source.ReadAsync(ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();
+            read++;
 
             foreach (var action in projection.Project(item))
             {
@@ -109,7 +151,15 @@ public sealed class RelationRebuildEngine
             }
         }
 
-        return new RebuildReport(name, dryRun, applied, skipped, rejected);
+        return new RebuildReport(name, dryRun, applied, skipped, rejected)
+        {
+            Sources = new[]
+            {
+                new RebuildSourceReport(
+                    name, domain ?? string.Empty, Available: true, Read: read,
+                    Applied: applied.Values.Sum(), Skipped: skipped.Values.Sum(), Rejected: rejected.Count),
+            },
+        };
     }
 
     private void Reject(List<string> rejected, string operation, string reason)

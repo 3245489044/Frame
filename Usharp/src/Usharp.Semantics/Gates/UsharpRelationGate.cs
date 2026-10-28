@@ -83,11 +83,25 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
                 unmountCountByEdge[relation.Edge] = unmountCountByEdge.TryGetValue(relation.Edge, out var m) ? m + 1 : 1;
         }
 
+        // E2 作用域 = 本编译单元内的归属边（有 [Relation] 或 [Edge] 声明）。
+        // 工作流单文件（agent-loop.ushar 等）不含关系声明 ⇒ 不承担归属边完整性
+        //（归属边完整性由 relation-ops.ushar 的编译单元负责；单文件工作流编译不得因跨文件声明缺失而红）。
+        var scopedEdges = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var relation in model.Relations) scopedEdges.Add(relation.Edge);
+        foreach (var edge in OwnershipEdges)
+        {
+            if (model.Declarations.TryGetEdgeDecl(edge, out _)) scopedEdges.Add(edge);
+        }
+
+        if (scopedEdges.Count == 0) return;
+
         // E2：豁免条件 = 该边「无任何 mount_/unmount_ 声明」∧「被单跳 [Derive] 覆盖」。
         // 仅凭存在单跳 [Derive] 就豁免会让「删掉 mount_node_task」仍绿（假绿）。
         var derivedEdges = DerivedEdges(model);
         foreach (var edge in OwnershipEdges)
         {
+            if (!scopedEdges.Contains(edge)) continue;
+
             var mountCount = mountCountByEdge.TryGetValue(edge, out var c) ? c : 0;
             var unmountCount = unmountCountByEdge.TryGetValue(edge, out var u) ? u : 0;
             if (mountCount == 0 && unmountCount == 0 && derivedEdges.Contains(edge)) continue;

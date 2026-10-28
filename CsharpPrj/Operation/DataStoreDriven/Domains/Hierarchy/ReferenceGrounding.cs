@@ -153,6 +153,12 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         string workflowId = "", CancellationToken ct = default)
         => _tasks.ReconcileTaskAsync(taskKey, relatedNodeKeys, workflowId, ct);
 
+    // ---- task 域写面（委托 TaskReferenceGrounding）----
+
+    public Task<int> EnsureTaskNodeLinksAsync(
+        string taskKey, string workflowId, IReadOnlyCollection<string> nodeKeys, CancellationToken ct = default)
+        => _tasks.EnsureTaskNodeLinksAsync(taskKey, workflowId, nodeKeys, ct);
+
     public Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default)
         => _tasks.EnsureTaskNodeLinkAsync(taskKey, workflowId, nodeKey, ct);
 

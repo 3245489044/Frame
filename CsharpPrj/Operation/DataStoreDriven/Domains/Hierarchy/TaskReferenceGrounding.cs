@@ -52,22 +52,14 @@ public sealed class TaskReferenceGrounding
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
 
         var targets = (relatedNodeKeys ?? Array.Empty<string>())
-            .Where(static key => !string.IsNullOrWhiteSpace(key))
-            .Select(static key => key.Trim())
             .Where(key => !string.Equals(key, taskKey, StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal)
             .ToList();
 
         if (targets.Count == 0) return;
 
-        // 端点镜像（非边写）：关系内核只写边，task 端点文档仍由域侧保证。
-        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
-
-        var result = await _relations
-            .EnsureNodeTaskManyAsync(taskKey, targets, ResolveWorkflow(workflowId), ct)
-            .ConfigureAwait(false);
-
-        RelationResultGuard.ThrowIfFailed(result);
+        // 单一批量原语（键归一 / 去重 / 节点行存在性 / 端点镜像 / 批量建边）——
+        // 禁本类或调用方再实现第二套键规则（DUP-2 / DUP-3）。
+        await EnsureTaskNodeLinksAsync(taskKey, workflowId, targets, ct).ConfigureAwait(false);
     }
 
     /// <summary>工作流 Id 单源（空 ⇒ 配置缺省；禁调用方各传 "agent-round" / ""）。</summary>
@@ -95,6 +87,48 @@ public sealed class TaskReferenceGrounding
             .EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct)
             .ConfigureAwait(false);
         RelationResultGuard.ThrowIfFailed(result);
+    }
+
+    /// <summary>
+    /// 批量归属边（单条与批量的唯一生产实现）：键归一 / 去重 → 节点行存在性（边跟随落库事实）→ 一次批量内核调用。
+    /// </summary>
+    public async Task<int> EnsureTaskNodeLinksAsync(
+        string taskKey, string workflowId, IReadOnlyCollection<string> nodeKeys, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
+        if (nodeKeys is null || nodeKeys.Count == 0) return 0;
+
+        var keys = TaskNodeLinkPlan.Normalize(nodeKeys);
+        if (keys.Count == 0) return 0;
+
+        var wf = ResolveWorkflow(workflowId);
+        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+
+        var existing = new List<string>(keys.Count);
+        foreach (var key in keys)
+        {
+            // 边跟随落库事实（I2）：节点行不存在 ⇒ 不写边（诊断 + 跳过），不得静默造幻影边。
+            if (_edges.NodeStore is not null
+                && await _edges.NodeStore.GetAsync(key, ct).ConfigureAwait(false) is null)
+            {
+                (_edges.EdgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance)
+                    .EdgeUndeclared("cross_db_link:node-missing", $"{taskKey}|{key}");
+                continue;
+            }
+
+            existing.Add(key);
+        }
+
+        if (existing.Count == 0) return 0;
+
+        foreach (var key in existing)
+            await _mirrors.EnsureNodeMirrorAsync(wf, key, null, ct).ConfigureAwait(false);
+
+        var result = await _relations
+            .EnsureNodeTaskManyAsync(taskKey, existing, wf, ct)
+            .ConfigureAwait(false);
+        RelationResultGuard.ThrowIfFailed(result);
+        return existing.Count;
     }
 
     /// <summary>解除 task 与节点的关联边（M:N 撤销；幂等）。</summary>

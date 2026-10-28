@@ -132,7 +132,6 @@ $TransferStepPortTokens = @('member_keys', 'window_items', 'state_items', 'trans
 # E11 调用点数基线（只减不增；实测于 R1–R6 落地后；目标值见括号）
 #   白名单内允许的调用点 = 流内 fn 实现 + 端口适配实现 + 唯一写边守卫；收口改码后须下调本表
 $CallSiteBaselines = [ordered]@{
-    'LinkNodeAsync'              = 0   # RF7：LinkTaskNodeAsync 迁移后再无调用点（R2 D4/D5 删除）
     'EnsureTaskNodeLinkAsync'    = 9   # RF7：调用点改调 canonical 原语（原藏在声明流入口后，现显式化）；写入仍唯一经守卫
     'EnsureHistoryAsync'         = 3   # 实测 3（B2 续：TaskOrchestrator R2 回退支删除）
     'AttachHistoryTaskAsync'     = 6   # RF7：UI/编排直调 canonical 端口（原经 NodeTaskHistoryService 门面）

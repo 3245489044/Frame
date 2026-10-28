@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Operation.DataStoreDriven.Abstractions;
 
 namespace Operation.HierarchyMethod.Nodes.Instances;
 
@@ -21,8 +22,8 @@ public sealed record NodeInstanceRef(
     string NodeKey,
     string InstanceKey)
 {
-    /// <summary>存储键分隔符（实例后缀；仅本类型可读写，禁调用点手拼）。</summary>
-    public const char InstanceSeparator = '@';
+    /// <summary>存储键分隔符（实例后缀；唯一权威 = <c>NodeKeyPlan.InstanceSeparator</c>，禁调用点手拼）。</summary>
+    public const char InstanceSeparator = NodeKeyPlan.InstanceSeparator;
 
     /// <summary>构造实例身份（<paramref name="instanceKey"/> 空 ⇒ 任务键；两者皆空 ⇒ legacy 裸键）。</summary>
     public static NodeInstanceRef Create(string? containerKey, string? workflowId, string? nodeKey, string? instanceKey)

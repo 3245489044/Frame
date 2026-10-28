@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Identity;
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.StorageFramework.Batch;
 
 namespace Operation.DataStoreDriven.Abstractions;

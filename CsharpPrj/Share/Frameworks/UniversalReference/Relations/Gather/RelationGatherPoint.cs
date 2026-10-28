@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>
 /// 关系聚拢点实现：把「operation 解析 / 端点 provision / 写读转发」收到单一求值入口。
@@ -73,31 +73,61 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
         if (plan is null)
             return RelationResult.Rejected(operation, null, $"operation '{operation}' 未在 [Relation] 声明");
 
-        await EnsureProvisionedAsync(plan, request, ct).ConfigureAwait(false);
+        // provision 只在写入方向发生（删除方向补建端点会复活镜像，语义相反）。
+        if (intent == RelationIntent.Ensure)
+            await EnsureProvisionedAsync(plan, request, ct).ConfigureAwait(false);
 
         return intent == RelationIntent.Remove
             ? await _commands.RemoveAsync(operation, request, ct).ConfigureAwait(false)
             : await _commands.EnsureAsync(operation, request, ct).ConfigureAwait(false);
     }
 
-    /// <summary>端点 provision（谁建实体谁建镜像）：未注册 ⇒ 跳过并记诊断（不静默）。</summary>
+    /// <summary>
+    /// 端点 provision（谁建实体谁建镜像）：声明面 <c>provision=</c> 给定实体集（缺省 = src+tgt）；
+    /// 未注册 ⇒ 跳过并记诊断（不静默）。同一 (实体,键) 只镜像一次。
+    /// </summary>
     private async Task EnsureProvisionedAsync(RelationOperation plan, RelationRequest request, CancellationToken ct)
     {
-        foreach (var (entityType, key) in new[]
-                 {
-                     (plan.Source, request.SourceKey),
-                     (plan.Target, request.Targets.Count > 0 ? request.Targets[0] : null),
-                 })
+        var entities = string.IsNullOrWhiteSpace(plan.Provision)
+            ? new[] { plan.Source, plan.Target }
+            : plan.Provision.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entity in entities)
         {
-            if (string.IsNullOrWhiteSpace(key)) continue;
-            var provision = _adapters.TryGet(entityType);
+            var provision = _adapters.TryGet(entity);
             if (provision is null)
             {
-                _diagnostics?.RelationWriteSkipped(plan.Id, plan.Edge, "provision-unregistered", entityType, key);
+                _diagnostics?.RelationWriteSkipped(
+                    plan.Id, plan.Edge, "provision-unregistered", entity,
+                    string.Equals(entity, plan.Target, StringComparison.Ordinal) && request.Targets.Count > 0
+                        ? request.Targets[0]
+                        : request.SourceKey);
                 continue;
             }
 
-            await provision(key, ct).ConfigureAwait(false);
+            foreach (var key in KeysOf(entity, plan, request))
+            {
+                if (!seen.Add(entity + "|" + key)) continue;
+                await provision(key, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>该端点实体在本请求中对应的键集（批量 arity=many 逐键 provision）。</summary>
+    private static IEnumerable<string> KeysOf(string entity, RelationOperation plan, RelationRequest request)
+    {
+        if (string.Equals(entity, plan.Source, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrWhiteSpace(request.SourceKey)) yield return request.SourceKey;
+            yield break;
+        }
+
+        if (!string.Equals(entity, plan.Target, StringComparison.Ordinal)) yield break;
+
+        foreach (var key in request.Targets)
+        {
+            if (!string.IsNullOrWhiteSpace(key)) yield return key;
         }
     }
 

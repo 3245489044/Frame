@@ -1,7 +1,7 @@
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>
 /// 关系不变量检查器（声明驱动；kind 判定全在 <see cref="CheckAsync"/>，禁内核内联分支）。

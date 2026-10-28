@@ -1,17 +1,19 @@
 {
   "surface": "relation-entry",
   "measuredAt": "2026-10-29",
-  "batch": "U4",
+  "batch": "RN5-R5",
   "values": {
     "gatherImplementation": 1,
     "directWriteCallSites": 0,
     "layerViolations": 0,
     "deriveImplementations": 1,
-    "note": "U4 实测：G1/G2/G3 全绿（派生已委托 [Derive] HistoryNodes）；container= 已声明化（mount_node_task=reject / mount_task_history=report / session|subtask=none 显式豁免）"
+    "deriveCallSites": 1,
+    "note": "RN5-R5 棘轮登记：R1 容器解析已装配（containers: NodeContainerResolver）、R2 镜像剥离（attach 路径 0 处 Ensure*MirrorAsync）、派生只经 [Derive] HistoryNodes（生产调用点=1）。只降不升：任何回升即 Check-RelationGather G5 判红，同批下调本表。"
   },
   "recompute": [
     "pwsh Frame\\PowerShellScript\\Operation\\DSL\\Node\\Check-RelationGather.ps1 -Check -ShowDetail -NegativeControl",
     "git -C Frame grep -n IRelationGatherPoint -- '*.cs'",
-    "git -C Frame grep -n 'using Operation\\.' -- 'CsharpPrj/Share/Frameworks/UniversalReference/*.cs'"
+    "git -C Frame grep -n 'using Operation\\.' -- 'CsharpPrj/Share/Frameworks/UniversalReference/*.cs'",
+    "git -C Frame grep -n 'DeriveHistoryNodesAsync' -- '*.cs'"
   ]
 }

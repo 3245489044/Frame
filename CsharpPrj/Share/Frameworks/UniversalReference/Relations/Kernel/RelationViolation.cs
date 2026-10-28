@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>违反种类（结构事实；<c>BudgetExceeded</c> 与 <c>Cycle</c> 不得共用出口）。</summary>
 public enum RelationViolationKind

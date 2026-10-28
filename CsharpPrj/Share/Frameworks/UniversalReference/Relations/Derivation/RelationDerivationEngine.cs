@@ -1,7 +1,7 @@
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>
 /// 派生成员集引擎：<b>唯一读入口</b>（<see cref="IRelationQueryPort"/>）。

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>
 /// 关系写面适配模板：把「operation 解析 / 单条与批量归一 / 失败可见化」收到基类。

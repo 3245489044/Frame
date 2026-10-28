@@ -7,7 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Core;

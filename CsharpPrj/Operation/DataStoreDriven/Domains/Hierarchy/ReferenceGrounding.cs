@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Graph;
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -33,7 +33,7 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IHierarchyRefere
         _core = new GraphGrounding(graph, workflowIds);
         _ports = new RelationPortLease();
         _tasks = new TaskReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports, _core.WorkflowIds);
-        _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _tasks, _ports);
+        _history = new HistoryReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports);
         _sessions = new SessionReferenceGrounding(_core.Edges, _core.Mirrors, _core.Coordinator, _ports);
         _hierarchy = new HierarchyReferenceManager(_history, _tasks, _sessions);
     }

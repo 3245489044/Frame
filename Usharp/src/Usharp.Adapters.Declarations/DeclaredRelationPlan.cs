@@ -1,4 +1,4 @@
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Declarations;

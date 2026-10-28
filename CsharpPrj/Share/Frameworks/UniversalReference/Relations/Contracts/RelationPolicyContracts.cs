@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>边的中性声明视图（脱离 Plate.DslMethod.Schema 依赖；桥接层负责映射）。</summary>
 public sealed record RelationEdgeSpec(

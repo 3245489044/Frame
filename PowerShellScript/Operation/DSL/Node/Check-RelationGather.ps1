@@ -89,6 +89,24 @@ function Test-DeriveSingleSource([string[]]$files) {
     return $hits
 }
 
+# 生产调用点计数（结构事实：源码静态计数，禁执行者叙述）。
+function Get-ProductionCallSiteCount([string[]]$files, [string]$pattern) {
+    $count = 0
+    foreach ($file in $files) {
+        $text = Read-Text $file
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        $count += ([regex]::Matches($text, $pattern)).Count
+    }
+    return $count
+}
+
+# 基线棘轮（只降不升）：实测 ≤ 基线；基线缺项 ⇒ 不参与（首次登记例外，见 baseline note）。
+function Read-RelationBaseline {
+    $path = Join-Path $PSScriptRoot 'RelationEntrySurface.baseline.json'
+    if (-not (Test-Path -LiteralPath $path)) { return $null }
+    try { return (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json) } catch { return $null }
+}
+
 # ---- G1 ----
 $urFiles = @(Get-CsFiles $urRoot)
 $gatherCount = Test-GatherImplementationCount $urFiles
@@ -122,6 +140,36 @@ foreach ($hit in ($deriveHits | Select-Object -Unique)) {
     $violations.Add("G3 派生双实现（GetHistoryNodeKeysAsync 应删除，改 [Derive]）：$hit")
 }
 
+# ---- G5 结构计数棘轮（只降不升；判据载体 = 源码静态计数）----
+$productionFiles = @(Get-CsFiles $frameCs) + @(Get-CsFiles $projectsCs)
+$deriveCallSites = Get-ProductionCallSiteCount $productionFiles 'DeriveHistoryNodesAsync\s*\('
+$layerHitCount = @(Test-LayerViolation $urFiles).Count
+$directWriterCount = @($directWriters | Select-Object -Unique).Count
+
+if ($deriveCallSites -ne 1) {
+    $violations.Add("G5 派生调用点=$deriveCallSites（期望 1：[Derive] HistoryNodes 的唯一生产入口）")
+}
+
+$baseline = Read-RelationBaseline
+if ($null -ne $baseline -and $null -ne $baseline.values) {
+    $measurements = @(
+        @{ Name = 'gatherImplementation';  Actual = $gatherCount;       Limit = $baseline.values.gatherImplementation }
+        @{ Name = 'directWriteCallSites';  Actual = $directWriterCount; Limit = $baseline.values.directWriteCallSites }
+        @{ Name = 'layerViolations';       Actual = $layerHitCount;     Limit = $baseline.values.layerViolations }
+        @{ Name = 'deriveImplementations'; Actual = @($deriveHits | Select-Object -Unique).Count; Limit = $baseline.values.deriveImplementations }
+        @{ Name = 'deriveCallSites';       Actual = $deriveCallSites;   Limit = $baseline.values.deriveCallSites }
+    )
+    foreach ($m in $measurements) {
+        if ($null -eq $m.Limit) { continue }
+        if ($m.Actual -gt [int]$m.Limit) {
+            $violations.Add("G5 棘轮超基线：$($m.Name)=$($m.Actual) > $($m.Limit)（只降不升；同批须下调基线）")
+        }
+    }
+}
+else {
+    $violations.Add('G5 基线缺失/不可解析（RelationEntrySurface.baseline.json）')
+}
+
 # ---- G4 负对照 ----
 if ($NegativeControl) {
     $probe = 'internal sealed class FakeGather : IRelationGatherPoint { }'
@@ -135,9 +183,9 @@ if ($NegativeControl) {
 }
 
 $verdict = if ($violations.Count -eq 0) { 'PASS' } else { 'FAIL' }
-Write-Output ("RelationGather: {0} | gatherImpl={1} directWriters={2} layerHits={3} deriveHits={4} violations={5}" -f `
-    $verdict, $gatherCount, @($directWriters | Select-Object -Unique).Count,
-    @(Test-LayerViolation $urFiles).Count, @($deriveHits | Select-Object -Unique).Count, $violations.Count)
+Write-Output ("RelationGather: {0} | gatherImpl={1} directWriters={2} layerHits={3} deriveHits={4} deriveCallSites={5} violations={6}" -f `
+    $verdict, $gatherCount, $directWriterCount,
+    $layerHitCount, @($deriveHits | Select-Object -Unique).Count, $deriveCallSites, $violations.Count)
 
 if ($ShowDetail -or $Check) {
     foreach ($violation in $violations) { Write-Output ("  x {0}" -f $violation) }

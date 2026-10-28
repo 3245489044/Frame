@@ -7,7 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using Share.Conversation.Aggregates;
 using UniversalWorkflowFramework.Core.Models;
 
@@ -19,18 +19,16 @@ public sealed class HistoryReferenceGrounding
     private readonly GraphEdgeWriter _edges;
     private readonly GraphMirrorWriter _mirrors;
     private readonly ReferenceGraphCoordinator _graph;
-    private readonly TaskReferenceGrounding _tasks;
     private readonly IRelationPorts _ports;
     private readonly HistoryRelationSurface _relations;
 
     public HistoryReferenceGrounding(
         GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
-        TaskReferenceGrounding tasks, IRelationPorts ports)
+        IRelationPorts ports)
     {
         _edges = edges ?? throw new ArgumentNullException(nameof(edges));
         _mirrors = mirrors ?? throw new ArgumentNullException(nameof(mirrors));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
-        _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _ports = ports ?? throw new ArgumentNullException(nameof(ports));
         _relations = new HistoryRelationSurface(_ports);
     }
@@ -60,14 +58,13 @@ public sealed class HistoryReferenceGrounding
     }
 
     /// <summary>历史归拢任务：history → task（history_owns_task，幂等加法；禁自环）。</summary>
+    /// <remarks>端点镜像由关系聚拢点的 <c>provision=</c> 委托承担（R2：attach 路径不再各自镜像）。</remarks>
     public async Task AttachHistoryTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(taskKey);
         if (string.Equals(historyId, taskKey, StringComparison.Ordinal))
             throw new HistorySelfLoopException(historyId, taskKey);
-        await EnsureHistoryMirrorAsync(historyId, ct).ConfigureAwait(false);
-        await _tasks.EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
         var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);
         RelationResultGuard.ThrowIfFailed(result);
     }

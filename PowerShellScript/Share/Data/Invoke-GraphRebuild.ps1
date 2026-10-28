@@ -9,6 +9,11 @@
       · Apply：本入口**不直接写图**——重建写必须经 C# 内核（Origin=Rebuild）；
         未接宿主 ⇒ fail-fast 退出 2（禁以 PS 直写冒充重建）
 
+    R3 口径：本脚本 = **只读诊断视图**（DryRun 计划面），重建实现唯一 = C#
+    `RelationRebuildEngine`（`Operation/DataStoreDriven/Relations/Rebuild/`）。脚本内投影只服务于
+    「人可读的待重建清单」，不构成第二写实现（Apply 恒 exit 2）；按 operation 的最终计数以宿主
+    `IGraphRebuildService.RunAsync` 为准。
+
     动作投影（与 C# RebuildProjections 同口径）：
       · HistoryId 非空      → mount_task_history（history → task）
       · ParentTaskKey 非空  → mount_subtask（parent → task）

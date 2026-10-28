@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>
 /// 关系端口聚合（唯一租约）：命令 / 查询 / 声明反查三件同源装配。

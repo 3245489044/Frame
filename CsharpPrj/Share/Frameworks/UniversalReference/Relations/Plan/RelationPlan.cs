@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>关系操作声明（<c>[Relation]</c> 的中性运行期形态；边类型/端点/作用域的唯一来源）。</summary>
 public sealed record RelationOperation(

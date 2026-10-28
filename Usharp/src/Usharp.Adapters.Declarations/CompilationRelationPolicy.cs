@@ -1,4 +1,4 @@
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using Plate.DslMethod.Schema;
 using Usharp.Semantics;
 

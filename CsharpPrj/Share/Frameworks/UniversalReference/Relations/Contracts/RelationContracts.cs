@@ -1,9 +1,9 @@
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
-// 命名空间保留 Operation.* 兼容（零调用点改动）；程序集归属已倒置为 UniversalWorkflowFramework。
+// 命名空间已收敛为 UniversalWorkflowFramework.Relations（R5）；Operation 侧消费方经同一命名空间引用，源码零改动。
 
 /// <summary>关系写入来源（裁决可见化：Runtime/Rebuild/Admin）。</summary>
 public enum RelationOrigin

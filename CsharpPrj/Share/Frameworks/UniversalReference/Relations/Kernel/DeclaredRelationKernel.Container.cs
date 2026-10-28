@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>容器归属校验段（U4）：声明面 <c>container=</c> 的写前判据。</summary>
 public sealed partial class DeclaredRelationKernel
@@ -21,7 +21,24 @@ public sealed partial class DeclaredRelationKernel
             return null;
         }
 
-        var actual = await _containers.GetContainerAsync(plan.Target, targetKey, ct).ConfigureAwait(false);
+        var resolution = await _containers.ResolveAsync(plan.Target, targetKey, ct).ConfigureAwait(false);
+        switch (resolution.Status)
+        {
+            case RelationContainerStatus.NotApplicable:
+                diagnostics.Add($"container-not-applicable:{resolution.Reason}");
+                _diagnostics?.RelationWriteSkipped(
+                    plan.Id, plan.Edge, "container-not-applicable", plan.Container, targetKey);
+                return null;
+
+            case RelationContainerStatus.Unresolvable:
+                // 不可判定 ≠ 违规：解析失败只可见化，不据此拒绝（否则存量非域键被 on_mismatch=reject 误伤）。
+                diagnostics.Add($"container-unresolved:{resolution.Reason}");
+                _diagnostics?.RelationWriteSkipped(
+                    plan.Id, plan.Edge, "container-unresolved", plan.Container, targetKey);
+                return null;
+        }
+
+        var actual = resolution.Container;
         if (string.Equals(actual, sourceKey, StringComparison.Ordinal)) return null;
 
         var reason = $"container-mismatch:{sourceKey}|{actual ?? "(none)"}";

@@ -1,4 +1,4 @@
-namespace Operation.DataStoreDriven.Relations;
+namespace UniversalWorkflowFramework.Relations;
 
 /// <summary>聚拢点意图（写侧）：ensure / remove。</summary>
 public enum RelationIntent

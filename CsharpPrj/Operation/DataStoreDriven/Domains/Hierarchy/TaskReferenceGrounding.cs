@@ -7,7 +7,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
-using Operation.DataStoreDriven.Relations;
+using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Core;
@@ -82,7 +82,7 @@ public sealed class TaskReferenceGrounding
                 return;
             }
         }
-        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
+        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担（R2：attach 路径不再各自镜像）。
         var result = await _relations
             .EnsureNodeTaskAsync(taskKey, nodeKey, workflowId, ct)
             .ConfigureAwait(false);
@@ -102,7 +102,6 @@ public sealed class TaskReferenceGrounding
         if (keys.Count == 0) return 0;
 
         var wf = ResolveWorkflow(workflowId);
-        await EnsureTaskMirrorAsync(taskKey, ct).ConfigureAwait(false);
 
         var existing = new List<string>(keys.Count);
         foreach (var key in keys)
@@ -121,9 +120,7 @@ public sealed class TaskReferenceGrounding
 
         if (existing.Count == 0) return 0;
 
-        foreach (var key in existing)
-            await _mirrors.EnsureNodeMirrorAsync(wf, key, null, ct).ConfigureAwait(false);
-
+        // 端点镜像（task / node）由关系聚拢点的 provision= 委托承担（R2：attach 路径不再各自镜像）。
         var result = await _relations
             .EnsureNodeTaskManyAsync(taskKey, existing, wf, ct)
             .ConfigureAwait(false);

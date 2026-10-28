@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-28T11:51:03.6414175Z",
+  "builtAt": "2026-10-28T23:53:13.9609845Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1459,10 +1459,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 83,
+        "Test": 84,
         "Declaration": 15,
         "Code": 18,
-        "Doc": 215,
+        "Doc": 214,
         "Other": 64
       },
       "hits": [
@@ -2651,6 +2651,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-节点挂载多入口上提-UniversalReference通用关系框架-设计与施工单.md",
+          "line": 67,
+          "role": "Doc",
+          "text": "| G5 身份未声明 | `node.container` 属于哪个端点，声明面没有 | 本次 `state_response@59e08…`（history 容器）与 `proc.ec677…`（task 容器）并存，框架无从判红 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-节点挂载多入口上提-UniversalReference通用关系框架-设计与施工单.md",
+          "line": 245,
+          "role": "Doc",
+          "text": "#   选定 taskKey → 检查 proc./obs./arch./state_response@/smsg. 的容器段是否等于该 taskKey"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-节点挂载上提-后续施工步骤-R1-R6.md",
+          "line": 65,
+          "role": "Doc",
+          "text": "- `DomainOf(key)`：节点键 → 域（`proc./obs./arch./state_response@/smsg.` 等）的**唯一解析入口**；落地前须核实既有键文法域判据（`Modules.Node.Identity` / `NodeStoreKeyGrammars`），禁在本类自写第二套前缀表。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.3/2026-10-03-运行日志分析-函数调用链重复冗余错误逻辑与模块化建议.md",
           "line": 83,
           "role": "Doc",
@@ -3764,6 +3785,13 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/RelationContainerResolutionTests.cs",
+          "line": 23,
+          "role": "Test",
+          "text": "private const string TargetKey = \"proc.task-1.r1.tool.1\";"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
           "line": 314,
           "role": "Test",
@@ -3975,21 +4003,21 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 90,
+          "line": 93,
           "role": "Declaration",
           "text": "family domain.process | template=proc.{container} | prefix=proc. | relation=Member | cardinality=Many | domain=run | orderKeys= | identity=container | derivedPrefixes="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 91,
+          "line": 94,
           "role": "Declaration",
           "text": "surface domain.process/Storage | templates=proc.{container} | prefix=proc. | readOnly=proc.{container}.r{round:digits}.{kind}.{ordinal:digits},proc.{container}.r{round:digits}.step{ordinal:digits}"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 92,
+          "line": 95,
           "role": "Declaration",
           "text": "surface domain.process/Display | templates=proc.{container}.r{round:digits}.{kind}.{ordinal:digits} | prefix=proc. | readOnly="
         },
@@ -4237,34 +4265,6 @@
           "line": 17,
           "role": "Doc",
           "text": "| **冗余逻辑** | 7 条 | `proc.` 键族**两套解析器**；`expectedValues` 字典 5 处手抄；段 `fn` 载荷 `key`/`digest` 死值 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点写入调用链-重复冗余错误逻辑分析.md",
-          "line": 72,
-          "role": "Doc",
-          "text": "### DUP-3 `proc.` 键族两套解析器（与 K2 纪律冲突）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
-          "line": 61,
-          "role": "Doc",
-          "text": "**补充边界（D-8）**：**同一事实的\"位置键\"与\"身份键\"必须分开**。身份键（`{container}.r{round}.step{seq}`）进物化入口（按身份模板反解 + `expectedValues` 校验）；位置键（`proc.{container}.r{round}.step{seq}`）进读投影与载体。二者混用即静默漂移。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
-          "line": 77,
-          "role": "Doc",
-          "text": "| **过程域**（运行过程节点） | `process.json`：`process-node`（**单位置**） | `proc.{taskKey}.r{round}.step{seq}` | `node` | `HistoryMaterializeService.ForProcess`（P-3 待接线） | `ProjectAsync(scope, overlays)`（P-4 待接线） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 61,
-          "role": "Doc",
-          "text": "| **系统行为** | 写入本 run 的**内存过程节点**（`InMemoryNodeCarrier`，`AppendOnly`），键 = `proc.{taskKey}.r{round}.step{seq}` |"
         }
       ]
     },
@@ -4273,14 +4273,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 165,
+      "total": 169,
       "truncated": false,
       "byRole": {
         "Gate": 4,
         "Test": 5,
         "Declaration": 9,
-        "Code": 83,
-        "Doc": 63,
+        "Code": 86,
+        "Doc": 64,
         "Other": 1
       },
       "hits": [
@@ -4405,22 +4405,29 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
-          "line": 71,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
+          "line": 70,
+          "role": "Code",
+          "text": "if (!_relations.UsesGather)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
+          "line": 75,
           "role": "Code",
           "text": "var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
-          "line": 78,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
+          "line": 82,
           "role": "Code",
           "text": "var result = await _relations.DetachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/HistoryReferenceGrounding.cs",
-          "line": 87,
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
+          "line": 91,
           "role": "Code",
           "text": "var result = await _relations.DeriveHistoryTasksAsync(historyId, ct).ConfigureAwait(false);"
         },
@@ -4434,7 +4441,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
-          "line": 234,
+          "line": 86,
+          "role": "Code",
+          "text": "if (!_relations.UsesGather)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
+          "line": 126,
+          "role": "Code",
+          "text": "if (!_relations.UsesGather)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
+          "line": 240,
           "role": "Code",
           "text": "var result = await _relations.EnumerateSubTasksAsync(taskKey, ct).ConfigureAwait(false);"
         },
@@ -4475,45 +4496,38 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 70,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 67,
           "role": "Code",
           "text": "await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 79,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 76,
           "role": "Code",
           "text": "Graph: graphCt => _relations.CreateAsync(root.Key.Value, root.Name, graphCt),"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 142,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 135,
           "role": "Code",
-          "text": "await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
+          "text": "return _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 148,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 141,
           "role": "Code",
           "text": "return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 166,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 159,
           "role": "Code",
           "text": "await _relations.DeleteAsync(key.Value, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Runtime/HistoryRuntimeService.cs",
-          "line": 116,
-          "role": "Code",
-          "text": ": await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -4637,7 +4651,7 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
-          "line": 139,
+          "line": 147,
           "role": "Gate",
           "text": "$details.Add(\"E1 [Relation]=$($relations.Count) / [Edge]=$($edgeNames.Count) / contains=$($containsEdges.Count)\")"
         },
@@ -4759,6 +4773,13 @@
           "line": 314,
           "role": "Doc",
           "text": "| `relations.*` / `graph.*` | `AgentUiLibraryRuntime` | ApiPort / ReadModel | `ReferenceGrounding` | workflowId / relationId |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-多套逻辑收拢-基于聚拢点消除冗余-重构设计与施工单.md",
+          "line": 57,
+          "role": "Doc",
+          "text": "- 再委托 `_relations.AttachTaskAsync`"
         },
         {
           "repo": "Main",
@@ -5141,14 +5162,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 103,
+          "line": 106,
           "role": "Declaration",
           "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many | orderKeys= | identity= | derivedPrefixes="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 104,
+          "line": 107,
           "role": "Declaration",
           "text": "surface graph.declaration/Storage | templates=relations.{workflowId}.{relationId} | prefix=relations. | readOnly="
         },
@@ -5200,6 +5221,13 @@
           "line": 78,
           "role": "Code",
           "text": "/// <summary>relations.declare/undeclare 专用：声明关系内容（批量）或待撤销 relationId 列表。</summary>"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Core/Engine/ContainerRuntime/ContainerRuntimeService.cs",
+          "line": 117,
+          "role": "Code",
+          "text": ": await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
@@ -5267,42 +5295,42 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Batch/AgentWriteSources.cs",
-          "line": 203,
+          "line": 214,
           "role": "Code",
           "text": "await relations.DeleteAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 319,
+          "line": 330,
           "role": "Code",
           "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 138,
+          "line": 142,
           "role": "Code",
           "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 141,
+          "line": 145,
           "role": "Code",
           "text": "await relations.DetachTaskAsync(hid, key, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 267,
+          "line": 271,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 317,
+          "line": 321,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
@@ -5450,10 +5478,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 6,
-        "Test": 26,
+        "Test": 25,
         "Declaration": 11,
         "Code": 168,
-        "Doc": 186,
+        "Doc": 187,
         "Other": 3
       },
       "hits": [
@@ -5873,63 +5901,63 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 52,
+          "line": 54,
           "role": "Code",
           "text": "\"session.{sessionName}\","
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 53,
+          "line": 55,
           "role": "Code",
           "text": "\"session.\","
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 63,
+          "line": 65,
           "role": "Code",
           "text": "KeySurface.Endpoint, new[] { \"session.{sessionName}\" }, \"session.\"),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 51,
+          "line": 54,
           "role": "Code",
           "text": "/// <summary>会话根端点文法（<c>session.{sessionName}</c>）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 100,
+          "line": 117,
           "role": "Code",
           "text": "/// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 104,
+          "line": 121,
           "role": "Code",
           "text": "/// <summary>会话根端点 Id（<c>session.{name}</c>；空身份即抛）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 111,
+          "line": 128,
           "role": "Code",
           "text": "\"会话身份为空（session: / session. 不是身份）。\", nameof(sessionName));"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 181,
+          "line": 198,
           "role": "Code",
           "text": "/// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 331,
+          "line": 348,
           "role": "Code",
           "text": "// 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。"
         },
@@ -6103,14 +6131,14 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IHierarchyReferenceManager.cs",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IContainerMemberPort.cs",
           "line": 90,
           "role": "Code",
           "text": "// ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IHierarchyReferenceManager.cs",
+          "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IContainerMemberPort.cs",
           "line": 92,
           "role": "Code",
           "text": "/// 入史层（L-B）读侧唯一入口：键形 <c>session.{name}.r{round}.msg.{seq}</c>"
@@ -6236,15 +6264,15 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 175,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 168,
           "role": "Code",
           "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/HistoryCommandService.cs",
-          "line": 176,
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
+          "line": 169,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
@@ -7272,6 +7300,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.28/2026-10-28-分发成员键身份统一-路线A设计与施工单.md",
+          "line": 31,
+          "role": "Doc",
+          "text": "| 相关端点墓碑 | `endpoint:task:tp_hist_read_child`（`task-removed`）、`endpoint:session:session.tp_hist_read_child`（`ui-delete-endpoint`）、`endpoint:node:agent-round.cline@tp_hist_read_child`（`node-removed`） |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.28/2026-10-28-关系写面框架-RF7-后续实施步骤.md",
           "line": 355,
           "role": "Doc",
@@ -8169,21 +8204,21 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 36,
+          "line": 37,
           "role": "Test",
           "text": "/// <c>cline.session.{c}.round.{n}.{kind}.{ordinal}</c>（NodeKey / NodeType / ThreadId / Payload 逐字对拍）；"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 135,
+          "line": 136,
           "role": "Test",
           "text": "NodeKey = \"cline.session.s1.round.1.stage.1\","
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 142,
+          "line": 143,
           "role": "Test",
           "text": "NodeKey = \"cline.session.s1.round.2.stage.1\","
         },
@@ -8249,13 +8284,6 @@
           "line": 103,
           "role": "Test",
           "text": "var keys = await carrier.EnumerateKeysAsync(\"cline.session.work.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 108,
-          "role": "Test",
-          "text": "\"cline.session.work.round.1.stage.1\","
         }
       ]
     },
@@ -10070,7 +10098,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 95,
+          "line": 98,
           "role": "Declaration",
           "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-reasoning,tool-call,tool-progress,tool-result,"
         },
@@ -11345,7 +11373,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Engine/Nodes/Registry/AgentDomainCatalog.cs",
-          "line": 35,
+          "line": 37,
           "role": "Code",
           "text": "public const string ProcessPlacement = \"process-node\";"
         },
@@ -11368,13 +11396,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1597.0,
+    "hitCount": 1601.0,
     "byRole": {
       "Gate": 31,
       "Test": 258,
       "Declaration": 109,
-      "Code": 347,
-      "Doc": 775,
+      "Code": 350,
+      "Doc": 776,
       "Other": 77
     },
     "truncatedFacts": [
@@ -11384,15 +11412,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 454
+        "lines": 456
       },
       {
         "repo": "Projects",
-        "lines": 495
+        "lines": 497
       },
       {
         "repo": "Main",
-        "lines": 1053
+        "lines": 1059
       }
     ]
   }

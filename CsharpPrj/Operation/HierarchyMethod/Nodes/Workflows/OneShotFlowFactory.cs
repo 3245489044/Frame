@@ -26,7 +26,7 @@ public static class OneShotFlowFactory
     /// <summary>
     /// 读投影切片（S4）—— 由基切片派生：**保留**节点输出存储与引用域（收集式输入端口需要 task 作用域枚举
     /// + ur_nodes 节点输出读），**清**写侧（<c>AttributionFlow</c> / Outbox）：
-    /// 读投影流不得反写历史与归属边（方案 §8-4「让 context_project 反写 ur_histories」= 明确不做）。
+    /// 读投影流不得反写历史与归属边（方案 §8-4「让 context_project 反写会话历史容器」= 明确不做）。
     /// <para>为何不能直接复用完整切片：<c>WorkflowRunner.RunRoundAsync</c> 在编排器返回后会调
     /// 历史写入 ⇒ 完整切片会让一次"读"产生历史写入。</para>
     /// <para><c>KeyMappings</c> 亦清：读投影不过键映射（留则无害但非读路径所需）。</para>

@@ -67,7 +67,7 @@ public sealed class NodeStoreMediaHandler : WriteMediaHandlerBase
 }
 
 /// <summary>
-/// ur_histories 唯一写端口处理器（集合 <see cref="WriteCollections.Histories"/> / <see cref="WriteCollections.HistoriesDelete"/>）。
+/// 会话历史容器唯一写端口处理器（集合 <see cref="WriteCollections.Histories"/> / <see cref="WriteCollections.HistoriesDelete"/>）。
 /// 经既有 <see cref="IConversationLogStore"/> 单写者落库；载荷 = <see cref="ConversationLog"/> 全量 JSON（真源形态）。
 /// </summary>
 public sealed class ConversationLogMediaHandler : WriteMediaHandlerBase

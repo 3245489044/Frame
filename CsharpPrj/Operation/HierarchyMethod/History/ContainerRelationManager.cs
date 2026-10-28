@@ -20,7 +20,7 @@ namespace Operation.Container;
 /// 分层口径：task→node 归属（cross_db_link）不在本类（属节点执行层 canonical 写边：attribution.ushar / IReferenceMaintenance）；
 /// 历史节点集为**派生读**（= 归拢任务的节点并集），不再直写 history→node 边。
 /// </para>
-/// 实体真源在 SQL（ur_histories / ur_tasks / ur_nodes），引用图（LiteDB graph-log.db）只存关系投影，
+/// 实体真源在 SQL（节点库 / 任务集合 / 会话历史容器），引用图（LiteDB graph-log.db）只存关系投影，
 /// 成员集（归拢任务）由图边推导，可 graph.rebuild 幂等重建。
 /// 装配可空：未装配守卫/图则返回空集 / 诊断，不阻断运行（对齐「未装配返回诊断」模式）。
 /// </para>

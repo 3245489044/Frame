@@ -43,7 +43,7 @@ $writeEntryWhitelist = @(
     'Frame/CsharpPrj/Operation/DataStoreDriven/Core/Graph/GraphEdgeWriter.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphCoordinator.cs',
     # 数据流边专用写面（归属边已走内核；未声明边不走 [Relation]）
-    'Frame/CsharpPrj/Operation/HierarchyMethod/Nodes/TaskGraph/TaskGraphService.cs',
+    'Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskGraphService.cs',
     'Frame/CsharpPrj/Operation/LoopFoldMethod/Reference/Gateways/NodeRelationGateway.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/EndpointKeyRekey.cs',
     # UI 经 NodeRelationGateway 转发（同名 API 文本命中，非直写图）

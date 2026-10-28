@@ -14,7 +14,7 @@ namespace Operation.DataStoreDriven.Domains;
 
 /// <summary>
 /// 域清单单源：新增域只改本文件（<see cref="All"/>）。
-/// <para>顺序冻结：History → Session → TaskPool（会话回退装饰器依赖历史存储已注册）。</para>
+/// <para>顺序冻结：History → Session → TaskPool（表声明顺序稳定；双读回退通道已删除，无跨模块读依赖）。</para>
 /// </summary>
 public static class DataStoreDrivenDomains
 {
@@ -30,7 +30,7 @@ public static class DataStoreDrivenDomains
         };
 }
 
-/// <summary>历史域模块：ur_histories 表 + IConversationLogStore / IConversationLogRootStore 注册。</summary>
+/// <summary>历史域模块：会话历史容器表 + IConversationLogStore / IConversationLogRootStore 注册。</summary>
 public sealed class ConversationLogDomainModule : IDomainStoreModule
 {
     private readonly StorageKernelContext _kernel;
@@ -84,11 +84,7 @@ public sealed class SessionDomainModule : IDomainStoreModule
         registry.Register(typeof(ISessionStore), () =>
             new SqliteSessionStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource));
         registry.Register(typeof(ISessionTranscriptStore), () =>
-        {
-            var primary = new SqliteSessionTranscriptStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource);
-            var history = registry.Resolve(typeof(IConversationLogStore)) as IConversationLogStore;
-            return history is null ? primary : new LegacyFallbackSessionTranscriptStore(primary, history);
-        });
+            new SqliteSessionTranscriptStore(kernel.Executor, kernel.TablePrefix, kernel.Codec, kernel.SchemaSource));
     }
 }
 

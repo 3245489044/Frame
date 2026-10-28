@@ -15,8 +15,8 @@ using UniversalWorkflowFramework.StorageFramework.Sqlite;
 namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
-/// 会话日志表（ur_session_logs）—— 对话内容投影；只按 sessionKey 读写，不再触碰 ur_histories。
-/// 迁移期旧表回退由 <see cref="LegacyFallbackSessionTranscriptStore"/> 装饰器**单点**承担。
+/// 会话日志表（会话日志投影表）—— 对话内容投影；只按 sessionKey 读写，不再触碰会话历史容器表。
+/// 旧表回退通道已删除（迁移期结束，单一读面 = 本表）。
 /// </summary>
 public sealed class SqliteSessionTranscriptStore : KvJsonStoreBase, ISessionTranscriptStore
 {

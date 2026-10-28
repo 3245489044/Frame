@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Share.TaskStatusPool.Loops;
+using UniversalWorkflowFramework.StorageFramework.Core;
 
 namespace Operation.HierarchyMethod.Nodes.WritePlan;
 
 /// <summary>
 /// 写介质（唯一写权的物理分类）：一个介质对应一组唯一写端口。
-/// Sqlite = agent.db（ur_nodes / ur_tasks / ur_histories）；Graph = 引用/归属边；ConfigFile = agent-config.json。
+/// Sqlite = agent.db（节点库 / 任务集合 / 会话历史容器）；Graph = 引用/归属边；ConfigFile = agent-config.json。
 /// </summary>
 public enum WriteMedia
 {
@@ -27,11 +28,13 @@ public enum WriteMedia
 /// </summary>
 public static class WriteCollections
 {
-    public const string Nodes = "ur_nodes";
-    public const string NodesDelete = "ur_nodes.delete";
-    public const string Tasks = "ur_tasks";
-    public const string Histories = "ur_histories";
-    public const string HistoriesDelete = "ur_histories.delete";
+    // 物理表名单源 = TableNames（后缀）+ 默认前缀 "ur_"（与 PersistenceHelper.ResolveTablePrefix 默认一致）；
+    // 本层只做集合判别，禁再复制表名字面量。
+    public const string Nodes = "ur_" + TableNames.Nodes;
+    public const string NodesDelete = Nodes + ".delete";
+    public const string Tasks = "ur_" + TableNames.Tasks;
+    public const string Histories = "ur_" + TableNames.Histories;
+    public const string HistoriesDelete = Histories + ".delete";
     public const string Edges = "edges";
 }
 

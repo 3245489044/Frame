@@ -11,7 +11,7 @@ namespace Operation.Container;
 
 /// <summary>
 /// 会话日志聚拢点（C3/C4）：唯一写入口 = append projection；唯一读入口 = transcript store。
-/// 不再触碰 ur_histories；旧日志双读由 store 内部完成并可见化。
+/// 不再触碰会话历史容器表；旧日志双读已随迁移期通道删除。
 /// </summary>
 public sealed class SessionTranscriptService
 {

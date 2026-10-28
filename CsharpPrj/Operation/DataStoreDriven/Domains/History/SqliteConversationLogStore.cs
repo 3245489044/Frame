@@ -14,7 +14,7 @@ using UniversalWorkflowFramework.StorageFramework.Sqlite;
 namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
-/// SQLite 会话历史容器存储（ur_histories 表）—— 以 <see cref="ConversationLog"/> 为统一存储模型。
+/// SQLite 会话历史容器存储（会话历史容器表）—— 以 <see cref="ConversationLog"/> 为统一存储模型。
 /// <para>
 /// 表为**纯 USharp 三列**；真源 <c>[Doc]</c> = <c>[Record] history:&lt;SessionId&gt;: table=Histories | key=&lt;SessionId&gt;</c> 实例规范文本
 /// （ThreadId/SessionId/Conversation 记录字段）；无 <c>[IndexJson]</c>。NodeKey = 会话 ID 全局唯一。
@@ -39,7 +39,7 @@ public sealed class SqliteConversationLogStore : KvJsonStoreBase, IConversationL
     public SqliteConversationLogStore(IDbCommandExecutor executor, string tablePrefix, IDocumentCodec? codec = null, ITableSchemaSource? schemaSource = null)
         : base(executor, tablePrefix, TableNames.Histories)
     {
-        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "ur_histories 记录型存储须注入 IDocumentCodec（USharp codec）。");
+        _codec = codec ?? throw new ArgumentNullException(nameof(codec), "会话历史容器存储须注入 IDocumentCodec（USharp codec）。");
         _schemaSource = schemaSource;
     }
 
@@ -61,7 +61,7 @@ public sealed class SqliteConversationLogStore : KvJsonStoreBase, IConversationL
     {
         ArgumentNullException.ThrowIfNull(log);
         ct.ThrowIfCancellationRequested();
-        // 根行保护（D1/D4）：ur_histories 的新语义是历史根注册表；旧日志面不得覆盖根行。
+        // 根行保护（D1/D4）：会话历史容器表的新语义是历史根注册表；旧日志面不得覆盖根行。
         // 过渡期同一主键可能同时是根与会话键，这里显式拒绝并把写入责任交给 ur_session_logs。
         // D-01=A：根行存储面 = history:{id}；旧日志入参可能是裸 id，根保护须按行键探测。
         var rootProbeKey = NodeEndpointIds.ToHistoryRowKey(sessionId);
@@ -72,7 +72,7 @@ public sealed class SqliteConversationLogStore : KvJsonStoreBase, IConversationL
             var doc = SqliteRows.Str(existing[0], "Doc");
             if (!string.IsNullOrWhiteSpace(doc) && doc.Contains("history_root:", StringComparison.Ordinal))
                 throw new InvalidOperationException(
-                    $"ur_histories 键 '{sessionId}' 已是历史根行，禁止用会话日志覆盖；请写入 ur_session_logs。");
+                    $"会话历史容器键 '{sessionId}' 已是历史根行，禁止用会话日志覆盖；请写入会话日志表。");
         }
 
         var record = new UsharpRecord(new[]

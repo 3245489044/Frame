@@ -111,5 +111,6 @@
         @{ File = 'ArtifactFreshness.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'VerifyScope.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'Process\ContainerSemantics.psd1'; Role = 'Data'; Domain = 'Process'; Gate = 'ContainerSemantics'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-ContainerSemantics.ps1' }
+        @{ File = 'Process\HistorySemantics.psd1'; Role = 'Data'; Domain = 'Process'; Gate = 'HistorySemantics'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-HistorySemantics.ps1' }
     )
 }

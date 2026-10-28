@@ -1630,4 +1630,12 @@
         Note   = '容器族语义：Operation 内 *History* 类型 0 / Frame using Agent 0 / History 命名空间 0 / 底座引用不下降（135/106）/ 载体表名与记录类型棘轮'
     }
 
+    HistorySemantics = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'history 语义收拢（H6）：H1 Operation *History* 类型 0 / H2 History 命名空间 0 / H3 Frame using Agent 0 / H4 Operation Agent* 类型 0 / H5 提及文件棘轮 / NC 正负对照'
+    }
+
 }

@@ -11,7 +11,7 @@ namespace Operation.DataStoreDriven.Sqlite;
 /// <see cref="IStoreRowPort"/> 的 **SQLite 实现**（同构三列 <c>[Id]/[NodeKey]/[Doc]</c>）：
 /// 组合 <see cref="KvUsharpTable"/>（SQL 单源）+ <see cref="IBatchStore"/>（批量唯一构建点）+ 可选域校验/写后动作委托。
 /// <para>
-/// ur_nodes / ur_tasks / ur_histories / 快照共用；差异仅在 表名 + 键列名 + 域校验器与写后动作（由域侧注入）。
+/// 节点库 / 任务集合 / 会话历史容器 / 快照共用；差异仅在 表名 + 键列名 + 域校验器与写后动作（由域侧注入）。
 /// 注入库级单写通道（<see cref="IDbCommandExecutor"/> = SqliteChannelSession / 事务会话）即得「原子 + 单写者」。
 /// </para>
 /// </summary>

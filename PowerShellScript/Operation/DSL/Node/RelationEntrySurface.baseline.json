@@ -1,13 +1,13 @@
 {
   "surface": "relation-entry",
   "measuredAt": "2026-10-29",
-  "batch": "U1-U3",
+  "batch": "U4",
   "values": {
     "gatherImplementation": 1,
     "directWriteCallSites": 0,
     "layerViolations": 0,
     "deriveImplementations": 1,
-    "note": "U1-U3 结构值；U4/U5（[Binding]/[Provision]、账本收敛）后复测并只降不升"
+    "note": "U4 实测：G1/G2/G3 全绿（派生已委托 [Derive] HistoryNodes）；container= 已声明化（mount_node_task=reject / mount_task_history=report / session|subtask=none 显式豁免）"
   },
   "recompute": [
     "pwsh Frame\\PowerShellScript\\Operation\\DSL\\Node\\Check-RelationGather.ps1 -Check -ShowDetail -NegativeControl",

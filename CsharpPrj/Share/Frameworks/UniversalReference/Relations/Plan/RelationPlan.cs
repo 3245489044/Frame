@@ -14,7 +14,10 @@ public sealed record RelationOperation(
     string OnMissing,
     string Arity,
     string Intent,
-    string? Emit)
+    string? Emit,
+    string Container = "",
+    string OnMismatch = "",
+    string Provision = "")
 {
     /// <summary>是否存在 <c>exists=</c> 声明；缺省 = <c>src,tgt</c>（与声明面默认一致）。</summary>
     public bool Probes(string side)
@@ -22,6 +25,12 @@ public sealed record RelationOperation(
 
     /// <summary>删除意图（唯一来源 = 声明面 <c>intent=</c>；禁由 operation 名/前缀推断）。</summary>
     public bool IsRemove => string.Equals(Intent, "remove", StringComparison.Ordinal);
+
+    /// <summary>容器归属校验是否启用（<c>container=</c> 非空）。</summary>
+    public bool ChecksContainer => !string.IsNullOrWhiteSpace(Container);
+
+    /// <summary>容器不一致处置（<c>on_mismatch=reject|report</c>；缺省 reject）。</summary>
+    public bool ContainerRejects => !string.Equals(OnMismatch, "report", StringComparison.Ordinal);
 }
 
 /// <summary>关系不变量声明（<c>[Invariant]</c> 的中性运行期形态）。</summary>

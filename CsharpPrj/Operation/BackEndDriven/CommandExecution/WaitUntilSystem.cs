@@ -7,6 +7,7 @@ using Modules.Threading;
 using BackEndDriven.Diagnostics;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
+using Share.EventBindingOrchestrator.Invocation;
 
 namespace BackEndDriven.CommandExecution;
 
@@ -61,6 +62,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         string? lastText = null;
         var matched = false;
         var failedByTerminal = false;
+        string? frameworkFailure = null;
 
         while (true)
         {
@@ -78,8 +80,13 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
                 var window = remainingMs is { } remain
                     ? TimeSpan.FromMilliseconds(remain)
                     : System.Threading.Timeout.InfiniteTimeSpan;
+                // 预算穿透：探测调用的函数预算不得短于等待窗口（否则「外层 330s / 内层 30s」错配 →
+                // 每 30s 空撞一次框架超时）。窗口无界（未声明 timeout）时沿用框架默认。
+                var probeBudget = remainingMs is { } budget
+                    ? (int)Math.Min(budget, int.MaxValue)
+                    : (int?)null;
                 var run = await BoundedRun.RunAsync(
-                    _ => EventPlatformExecutor.InvokeAsync(probe, parameters, null),
+                    _ => EventPlatformExecutor.InvokeAsync(probe, parameters, probeBudget),
                     window,
                     token).ConfigureAwait(false);
 
@@ -98,6 +105,13 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
                 else if (!invocation.Result.IsSuccess)
                 {
                     lastText = invocation.Result.ErrorMessage;
+                    // 框架级终态（超时/空闲挂起/信号丢失/框架异常/对账失败）重试无意义 ⇒ 立即失败，
+                    // 不再「每 30s 撞一次、空转整段 timeout」。
+                    if (IsTerminalFrameworkFailure(invocation.Result.Outcome))
+                    {
+                        frameworkFailure = lastText;
+                        break;
+                    }
                 }
                 else
                 {
@@ -148,6 +162,16 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
 
         var detail = string.IsNullOrWhiteSpace(lastText) ? "(空)" : LogTextTruncation.TruncateForLog(lastText);
 
+        // 框架级终态：探测链路本身不可用（超时/空闲/信号丢失/框架异常/对账失败），重试无意义 ⇒ 立即失败。
+        if (frameworkFailure is not null)
+        {
+            var reason = LogTextTruncation.TruncateForLog(frameworkFailure);
+            scope?.Terminate(TerminationReason.Failed, $"wait-until '{probe}' 探测失败（框架终态）: {reason}");
+            SetFailure(entity,
+                $"wait-until '{probe}' 探测失败（框架终态，不再空转）: {reason}");
+            return;
+        }
+
         if (failedByTerminal)
         {
             scope?.Terminate(TerminationReason.Failed,
@@ -163,6 +187,14 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         SetFailure(entity,
             $"wait-until '{probe}' 超时（{timeoutMs}ms）: 结果不含 '{expectedContains}' — 最后一次 '{detail}'");
     }
+
+    /// <summary>框架级终态判据（纯函数）：该类失败重试无法恢复，等待应立即终止而非继续轮询。</summary>
+    public static bool IsTerminalFrameworkFailure(InvocationOutcome outcome)
+        => outcome is InvocationOutcome.FrameworkTimedOut
+            or InvocationOutcome.FrameworkIdleHung
+            or InvocationOutcome.FrameworkFault
+            or InvocationOutcome.SignalLost
+            or InvocationOutcome.ReconcileFault;
 
     /// <summary>终态失败判据（纯函数）：探测文本命中任一失败词即真（空词表/空文本恒假）。</summary>
     public static bool MatchesFailure(string? text, IReadOnlyList<string> failTokens)

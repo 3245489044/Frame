@@ -62,6 +62,29 @@ public sealed class UniversalReferenceResourceReferenceStore : IResourceReferenc
     public Task RemoveReferenceAsync(ResourceIdentifier sourceId, ResourceIdentifier targetId, string refType, CancellationToken ct = default)
         => _manager.RemoveReferenceAsync(sourceId, targetId, ToReferenceType(refType));
 
+    /// <summary>写边（结构化结果）：本适配器无写前门（manager 无 policy/tombstone）⇒ 显式 WrittenWithoutPolicy。</summary>
+    public async Task<ReferenceWriteOutcome> AddReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, double strength = 1.0, CancellationToken ct = default)
+    {
+        await AddReferenceAsync(sourceId, targetId, refType, strength, ct).ConfigureAwait(false);
+        return new ReferenceWriteOutcome(
+            Wrote: true,
+            Verdict: ReferenceWriteVerdict.WrittenWithoutPolicy,
+            Reason: "universal-reference-without-write-gate",
+            TombstoneCleared: false);
+    }
+
+    /// <inheritdoc />
+    public async Task<ReferenceDeleteOutcome> RemoveReferenceResultAsync(ResourceIdentifier sourceId,
+        ResourceIdentifier targetId, string refType, string role, CancellationToken ct = default)
+    {
+        await RemoveReferenceAsync(sourceId, targetId, refType, ct).ConfigureAwait(false);
+        return new ReferenceDeleteOutcome(
+            Key: $"{sourceId.ResourceType}:{sourceId.Id}->{targetId.ResourceType}:{targetId.Id}",
+            Status: ReferenceDeleteStatus.Ok,
+            Message: "universal-reference-without-write-gate");
+    }
+
     public async Task<IReadOnlyList<UniversalWorkflowFramework.StorageFramework.Abstractions.ResourceReference>> GetReferencesAsync(ResourceIdentifier resourceId, bool includeIncoming = true, CancellationToken ct = default)
     {
         var result = new List<UniversalWorkflowFramework.StorageFramework.Abstractions.ResourceReference>();

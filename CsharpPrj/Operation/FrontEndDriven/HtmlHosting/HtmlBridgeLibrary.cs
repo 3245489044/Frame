@@ -293,16 +293,16 @@ public sealed class HtmlBridgeLibrary
         {
             var viewer = _backend.HtmlViewerResolver?.Invoke(_hostControl);
             if (viewer is null)
-                return _labels.ViewerUnresolved;
+                return ReportAttachFailure($"{_labels.ViewerUnresolved}（hostControl={_hostControl}）");
             var registry = _registryProvider?.Invoke() ?? _registry;
             if (registry is null)
-                return _labels.RegistryNotAttached;
+                return ReportAttachFailure(_labels.RegistryNotAttached);
             var configPath = _backend.ConfigPath;
             if (string.IsNullOrWhiteSpace(configPath) || !System.IO.File.Exists(configPath))
-                return _labels.ConfigPathNotReady(configPath);
+                return ReportAttachFailure(_labels.ConfigPathNotReady(configPath));
             var uiConfig = HtmlBridgeAssembly.Load(configPath);
             if (uiConfig is null)
-                return $"（配置加载失败）configPath={configPath}";
+                return ReportAttachFailure($"（配置加载失败）configPath={configPath}");
             var report = HtmlBridgeAssembly.Attach(viewer, uiConfig, registry, _host, _hostControl, _pageName,
                 ResolveInteractionPort(), ResolveInteractionRoute());
             var runtime = _backend.HtmlUi;
@@ -363,12 +363,14 @@ public sealed class HtmlBridgeLibrary
     /// 自愈装配：未装配 HTML 后端时执行一次完整装配（DOM 桥 + 消息桥订阅 + 回流探针）；已装配直接返回。
     /// 生产宿主 OnLoad 中 resolver/控件晚于 sideload 就绪，此处由「页面首次渲染 / 消息桥消费前」触发，
     /// 保证消息桥在任何交互前已订阅（消除生产无调用点缺口）。
+    /// <para>返回装配结论文本（成功摘要或失败原因）：失败不得静默——否则「宿主控件名写错」会表现为
+    /// 点击无效/整页重建而无任何日志证据（NoSilentOutlet）。</para>
     /// </summary>
-    public async Task EnsureHtmlUiAttachedAsync()
+    public async Task<string> EnsureHtmlUiAttachedAsync()
     {
         // 身份化判据（A）：控件实例被配置重载/作用域重建换掉后，旧运行时的执行器留在旧实例 ⇒ 必须重挂。
-        if (IsAttachedToCurrentViewer()) return;
-        _ = await HtmlAttachAsync().ConfigureAwait(false);
+        if (IsAttachedToCurrentViewer()) return $"（HTML 后端已装配且绑定当前控件，hostControl={_hostControl}）";
+        return await HtmlAttachAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -415,6 +417,13 @@ public sealed class HtmlBridgeLibrary
         previous.Dispose();
         _backend.DiagnosticsSink?.Invoke("HtmlChannel_attach",
             "HTML 后端绑定控件实例已变更（配置重载/作用域重建）→ 解装配旧运行时并重新装配（消除『已装配但执行器在旧实例』的落地断链）。");
+    }
+
+    /// <summary>装配失败统一出口：诊断可见（宿主控件名/注册库/配置路径错配不再静默）。</summary>
+    private string ReportAttachFailure(string message)
+    {
+        _backend.DiagnosticsSink?.Invoke("HtmlChannel_attach_failed", message);
+        return message;
     }
 
     /// <summary>函数参数描述符（注册库注册用）。</summary>

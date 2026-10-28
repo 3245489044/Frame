@@ -1,3 +1,5 @@
+using UniversalWorkflowFramework.StorageFramework.Abstractions;
+
 namespace Operation.DataStoreDriven.Relations;
 
 public sealed partial class DeclaredRelationKernel

@@ -38,6 +38,9 @@ public sealed class ConsoleCommandOutcome
 
     public bool Handled { get; set; }
 
+    /// <summary>本拍构建的页面模型（区域写回宿主据此补齐未变更区域，避免重复取数/物化）。</summary>
+    public ConsolePageModel? Model { get; set; }
+
     public static ConsoleCommandOutcome Unhandled(string notice) =>
         new() { Handled = false, Notice = notice };
 }
@@ -372,7 +375,7 @@ public sealed class ConsoleCommandRouter
     private async Task<ConsoleCommandOutcome> RenderAsync(string[] regions, CancellationToken ct)
     {
         var model = await BuildPageAsync(ct).ConfigureAwait(false);
-        var outcome = new ConsoleCommandOutcome { Handled = true, Notice = State.Notice };
+        var outcome = new ConsoleCommandOutcome { Handled = true, Notice = State.Notice, Model = model };
         foreach (var region in regions)
             outcome.Regions[region] = ConsoleHtmlKit.RenderRegion(region, model);
         return outcome;

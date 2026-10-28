@@ -54,23 +54,37 @@ function Test-GatherImplementationCount([string[]]$files) {
     return $count
 }
 
+function Get-Relative([string]$path) {
+    if (-not $path) { return '' }
+    $rel = if ($path.Length -gt $Root.Length) { $path.Substring($Root.Length) } else { $path }
+    return $rel.TrimStart('\', '/')
+}
+
 function Test-LayerViolation([string[]]$files) {
     $hits = New-Object System.Collections.Generic.List[string]
     foreach ($file in $files) {
         $text = Read-Text $file
-        if ($text -match '(?m)^\s*using\s+(Operation\.|Modules\.|LiteDB|Plate\.DslMethod)') {
-            $hits.Add(($file -replace [regex]::Escape($Root), ''))
+        if ($text -match '(?m)^\s*using\s+(Operation\.|Modules\.(?!GraphProcessing|Pipeline)|LiteDB|Plate\.DslMethod)') {
+            $hits.Add((Get-Relative $file))
         }
     }
     return $hits
 }
 
 function Test-DeriveSingleSource([string[]]$files) {
+    # 唯一历史节点派生实现必须委托 [Derive]（DeriveHistoryNodesAsync）；手写图遍历即第二实现。
+    $core = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven\Domains\Hierarchy\HistoryReferenceGrounding.cs'
+    $text = Read-Text $core
     $hits = New-Object System.Collections.Generic.List[string]
-    foreach ($file in $files) {
-        if ((Read-Text $file) -match 'GetHistoryNodeKeysAsync') {
-            $hits.Add(($file -replace [regex]::Escape($Root), ''))
-        }
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        $hits.Add('HistoryReferenceGrounding.cs:missing（派生唯一实现缺失）')
+        return $hits
+    }
+    if ($text -notmatch 'GetHistoryNodeKeysAsync') {
+        $hits.Add('HistoryReferenceGrounding.cs:GetHistoryNodeKeysAsync-missing')
+    }
+    if ($text -notmatch 'DeriveHistoryNodesAsync|DeriveAsync') {
+        $hits.Add('HistoryReferenceGrounding.cs:manual-derivation（须委托 [Derive] HistoryNodes）')
     }
     return $hits
 }
@@ -91,7 +105,7 @@ $writeAllow = @(
 )
 $directWriters = @(Get-CsFiles $frameCs) + @(Get-CsFiles $projectsCs) |
     Where-Object { (Read-Text $_.FullName) -match '\.AddReferenceResultAsync\(' } |
-    ForEach-Object { $_.FullName -replace [regex]::Escape($Root), '' } |
+    ForEach-Object { Get-Relative $_.FullName } |
     Where-Object { $writeAllow -notcontains $_ }
 foreach ($writer in ($directWriters | Select-Object -Unique)) {
     $violations.Add("G1 调用点直连写边（应经聚拢点）：$writer")

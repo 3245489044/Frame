@@ -55,6 +55,14 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
         return await InvokeCoreAsync(intent, operation.Id, request, ct).ConfigureAwait(false);
     }
 
+    public Task<RelationResult> InvokeByOperationAsync(
+        string operation, RelationIntent intent, RelationRequest request, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+        ArgumentNullException.ThrowIfNull(request);
+        return InvokeCoreAsync(intent, operation, request, ct);
+    }
+
     public Task<RelationQueryResult> DeriveAsync(string deriveId, RelationScope scope, CancellationToken ct = default)
         => _queries.DeriveAsync(deriveId, scope, ct);
 

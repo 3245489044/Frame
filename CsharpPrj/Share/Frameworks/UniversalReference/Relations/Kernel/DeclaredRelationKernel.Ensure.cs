@@ -35,6 +35,10 @@ public sealed partial class DeclaredRelationKernel
                 is { } missingReason)
                 return Fail(operation, plan.Edge, missingReason);
 
+            if (await CheckContainerAsync(plan, request.SourceKey, targetKey, diagnostics, ct).ConfigureAwait(false)
+                is { } containerReason)
+                return Fail(operation, plan.Edge, containerReason);
+
             var violation = await FirstRejectingViolationAsync(plan, source, target, diagnostics, ct).ConfigureAwait(false);
             if (violation is not null)
                 return Fail(operation, plan.Edge, violation);

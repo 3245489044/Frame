@@ -16,6 +16,9 @@ public interface IRelationGatherPoint
     /// <summary>写：operation 可直给 id，或由 (edge, intent) 反查唯一 operation。</summary>
     Task<RelationResult> InvokeAsync(RelationIntent intent, RelationRequest request, CancellationToken ct = default);
 
+    /// <summary>写（operation id 直给；适配器/域服务的唯一转发面，调用点不持 operation 字面量）。</summary>
+    Task<RelationResult> InvokeByOperationAsync(string operation, RelationIntent intent, RelationRequest request, CancellationToken ct = default);
+
     /// <summary>读：deriveId = [Derive] 的 id；返回键集 + 空因。</summary>
     Task<RelationQueryResult> DeriveAsync(string deriveId, RelationScope scope, CancellationToken ct = default);
 

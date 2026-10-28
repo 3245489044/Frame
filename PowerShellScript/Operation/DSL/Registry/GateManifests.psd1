@@ -191,6 +191,15 @@
         Note   = '关系写面清单（RF6 判红态）：C1 清单↔声明 / C2 状态谎报（migrated 仍直写；数据流残留须与 C4 白名单双向一致）/ C3 pending 棘轮（当前=0）/ C4 写入口唯一 / C5 负对照'
     }
 
+    # U4 判红态（G1/G2/G3 已全绿；回退即红）
+    RelationGather = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '关系聚拢点：G1 聚拢点实现=1 且调用点直连写=0 / G2 层向（UR 不得 using Operation./Modules.Node/LiteDB/Plate.DslMethod；Modules.GraphProcessing|Pipeline 豁免）/ G3 派生单源（HistoryReferenceGrounding 必须委托 [Derive] HistoryNodes）/ G4 负对照'
+    }
+
     NodeEdgeIntegrity = @{
         Domain = 'Agent'
         Args   = @{ Check = $true }

@@ -53,7 +53,7 @@ function Get-RelationEntries([string]$text) {
         foreach ($m in [regex]::Matches($line, '([A-Za-z_]+)\s*=\s*([^|]+)')) {
             $fields[$m.Groups[1].Value] = $m.Groups[2].Value.Trim()
         }
-        $entries += [pscustomobject]@{ Id = $id; Edge = $fields['edge']; Intent = $fields['intent']; Exists = $fields['exists'] }
+        $entries += [pscustomobject]@{ Id = $id; Edge = $fields['edge']; Intent = $fields['intent']; Exists = $fields['exists']; Container = $fields['container'] }
     }
     return $entries
 }
@@ -111,6 +111,14 @@ function Test-RelationSet($relations, $edgeNames, $containsEdges) {
         if ($ensure.Count -ne 1) { $problems.Add("E3 归属边 $edge 须恰一 ensure operation（实测 $($ensure.Count)）") }
     }
 
+    # E8 容器归属完备：归属边的 ensure operation 必须声明 container=（写前判据唯一来源）
+    foreach ($edge in $ownershipEdges) {
+        $ensure = @($relations | Where-Object { $_.Edge -eq $edge -and $_.Intent -eq 'ensure' })
+        if ($ensure.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ensure[0].Container)) {
+            $problems.Add("E8 归属边 $edge 的 ensure operation 缺 container=（容器归属须声明）")
+        }
+    }
+
     foreach ($edge in $containsEdges) {
         if (-not ($relations | Where-Object { $_.Edge -eq $edge })) {
             $problems.Add("E4 hierarchy.ushar contains=$edge 未在 [Relation] 声明")
@@ -145,6 +153,17 @@ if ($violations.Count -eq 0) {
     if (-not ($negative | Where-Object { $_ -like 'E3 *cross_db_link*' })) {
         $violations.Add('E5 负对照失效（缺 ensure 未被判红）')
     } elseif ($ShowDetail) { $details.Add('E5 负对照命中 E3 OK') }
+
+    # E8 负对照：去掉 cross_db_link ensure 的 container 后同一判定函数必须报 E8
+    $syntheticNoContainer = @($relations | ForEach-Object {
+        if ($_.Edge -eq 'cross_db_link' -and $_.Intent -eq 'ensure') {
+            [pscustomobject]@{ Id = $_.Id; Edge = $_.Edge; Intent = $_.Intent; Exists = $_.Exists; Container = '' }
+        } else { $_ }
+    })
+    $negativeContainer = Test-RelationSet $syntheticNoContainer $edgeNames $containsEdges
+    if (-not ($negativeContainer | Where-Object { $_ -like 'E8 *cross_db_link*' })) {
+        $violations.Add('E8 负对照失效（缺 container= 未被判红）')
+    } elseif ($ShowDetail) { $details.Add('E8 负对照命中 OK') }
 
     # E7 判红：C# 归属边字面量文件数 ≤ 基线（只降不升；与 WriteSurface C4 分工：E7 管声明侧字面量，C4 管写入口）
     $literalFiles = Get-OwnershipLiteralFileCount @(

@@ -41,9 +41,9 @@ public sealed class StoreResourceReferenceStore : IResourceReferenceStore
         ResourceIdentifier targetId, string refType, string role, CancellationToken ct = default)
         => RemoveReferenceAsync(sourceId, targetId, refType, ct)
             .ContinueWith(_ => new ReferenceDeleteOutcome(
-                key: $"{sourceId.ResourceType}:{sourceId.Id}->{targetId.ResourceType}:{targetId.Id}",
-                status: ReferenceDeleteStatus.Ok,
-                message: "storage-without-write-gate"), ct, TaskContinuationOptions.ExecuteSynchronously,
+                $"{sourceId.ResourceType}:{sourceId.Id}->{targetId.ResourceType}:{targetId.Id}",
+                ReferenceDeleteStatus.Ok,
+                "storage-without-write-gate"), ct, TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;

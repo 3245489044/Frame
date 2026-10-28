@@ -17,7 +17,8 @@ public static class DeclaredRelationPlan
         var operations = compilation.Relations
             .Select(r => new RelationOperation(
                 r.OperationId, r.Display, r.Edge, r.Source, r.Target, r.Flow, r.Namespace,
-                r.Exists, r.Duplicate, r.OnMissing, r.Arity, r.Intent, r.Emit))
+                r.Exists, r.Duplicate, r.OnMissing, r.Arity, r.Intent, r.Emit,
+                r.Container, r.OnMismatch, r.Provision))
             .ToList();
 
         var invariants = compilation.Invariants

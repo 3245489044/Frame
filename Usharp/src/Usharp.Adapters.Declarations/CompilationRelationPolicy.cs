@@ -46,5 +46,5 @@ public sealed class CompilationRelationPolicy : IRelationPolicy
     public bool IsDeclared(string edgeName) => FindEdge(edgeName) is not null;
 
     /// <inheritdoc />
-    public bool IsDeprecated(string edgeName) => FindEdge(edgeName)?.Deprecated == true;
+    public bool IsDeprecated(string edgeName) => FindEdge(edgeName)?.IsDeprecated == true;
 }

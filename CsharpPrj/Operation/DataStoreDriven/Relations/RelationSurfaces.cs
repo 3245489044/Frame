@@ -17,23 +17,30 @@ public abstract class RelationSurfaceAdapter
     {
         Ports = ports ?? throw new ArgumentNullException(nameof(ports));
         _surfaceName = string.IsNullOrWhiteSpace(surfaceName) ? GetType().Name : surfaceName;
+        _gather = ports.Gather;
     }
 
     /// <summary>唯一端口租约（未装配即抛）。</summary>
     protected IRelationPorts Ports { get; }
 
-    /// <summary>单条/批量统一入口：批量走 <see cref="RelationRequest.TargetKeys"/>（禁调用方循环拼边）。</summary>
+    private readonly IRelationGatherPoint? _gather;
+
+    /// <summary>单条/批量统一入口：已装配聚拢点 ⇒ 唯一求值入口；未装配 ⇒ 端口直连（兼容）。</summary>
     protected Task<RelationResult> EnsureAsync(string operation, RelationRequest request, CancellationToken ct)
     {
         RequireDeclared(operation, remove: false);
-        return Ports.Commands.EnsureAsync(operation, request, ct);
+        return _gather is not null
+            ? _gather.InvokeByOperationAsync(operation, RelationIntent.Ensure, request, ct)
+            : Ports.Commands.EnsureAsync(operation, request, ct);
     }
 
-    /// <summary>删除入口（intent 必须为 remove）。</summary>
+    /// <summary>删除入口（intent 必须为 remove；已装配聚拢点 ⇒ 唯一求值入口）。</summary>
     protected Task<RelationResult> RemoveAsync(string operation, RelationRequest request, CancellationToken ct)
     {
         RequireDeclared(operation, remove: true);
-        return Ports.Commands.RemoveAsync(operation, request, ct);
+        return _gather is not null
+            ? _gather.InvokeByOperationAsync(operation, RelationIntent.Remove, request, ct)
+            : Ports.Commands.RemoveAsync(operation, request, ct);
     }
 
     /// <summary>按派生集读（空集带空因）。</summary>

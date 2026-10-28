@@ -23,7 +23,10 @@ public sealed record UsharpRelationDecl(
     string? Emit,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
-    int LineNumber)
+    int LineNumber,
+    string Container = "",
+    string OnMismatch = "",
+    string Provision = "")
 {
     /// <summary>投影单条 <c>[Relation]</c>（无名 ⇒ null；未知续行进 <see cref="UnparsedLines"/>）。</summary>
     public static UsharpRelationDecl? From(DslDeclaration d)
@@ -46,7 +49,10 @@ public sealed record UsharpRelationDecl(
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldEmit)),
             Unparsed(d),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber,
+            (d.Field("container") ?? string.Empty).Trim(),
+            (d.Field("on_mismatch") ?? string.Empty).Trim(),
+            (d.Field("provision") ?? string.Empty).Trim());
     }
 
     /// <summary>续行去空白后保留（空 ⇒ 空表）；由闸A 统一报 <c>US8115</c> 类错误。</summary>

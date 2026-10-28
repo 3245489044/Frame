@@ -58,6 +58,9 @@ public static class UsharpRelationPlanEmitter
             if (relation.OnMissing.Length > 0) item["onMissing"] = relation.OnMissing;
             if (relation.Arity.Length > 0) item["arity"] = relation.Arity;
             if (relation.Emit is { Length: > 0 } emit) item["emit"] = emit;
+            if (relation.Container.Length > 0) item["container"] = relation.Container;
+            if (relation.OnMismatch.Length > 0) item["onMismatch"] = relation.OnMismatch;
+            if (relation.Provision.Length > 0) item["provision"] = relation.Provision;
 
             operations.Add(item);
         }

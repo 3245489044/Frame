@@ -77,6 +77,16 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _recentlyLogged = new();
 
+        // LOG-6 载荷预算：单条日志文本上限（超限截断并显式标注原文长度；禁整段模型输出内联）。
+        private const int MaxMessageChars = 2048;
+
+        private static string CapPayload(string msgId, string message)
+        {
+            if (string.IsNullOrEmpty(message) || message.Length <= MaxMessageChars) return message;
+            return message.Substring(0, MaxMessageChars)
+                + $"…[truncated msgId={msgId} originalChars={message.Length}]";
+        }
+
         private static bool TryMarkLogged(string key)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -115,7 +125,7 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
                 return false;
 
             var paramDict = StringUtils.ConvertParameters(parameters);
-            var message = StringUtils.FormatTemplate(msgDef.Template, paramDict);
+            var message = CapPayload(msgId, StringUtils.FormatTemplate(msgDef.Template, paramDict));
             LogRepository.Write(msgDef.Level, msgDef.Category, moduleName, message);
             return true;
         }
@@ -125,7 +135,7 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
             if (!TryResolveMessage(msgId, moduleName, keyPrefix, out var msgDef))
                 return false;
 
-            LogRepository.Write(msgDef.Level, msgDef.Category, moduleName, message);
+            LogRepository.Write(msgDef.Level, msgDef.Category, moduleName, CapPayload(msgId, message));
             return true;
         }
 

@@ -32,6 +32,9 @@ public static class NodeEndpointIds
 
     private static readonly KeyOps HierarchyKeys = KeyOps.FromFamilies(HierarchyKeyFamilies.All);
 
+    /// <summary>键面投影（框架默认声明；行键/端点形态只经此产生，禁第二处拼接）。</summary>
+    private static readonly KeyProjection Projection = new(HierarchyKeyFamilies.All);
+
     /// <summary>历史容器端点 Id 文法（<c>history.{historyId}</c>）。</summary>
     public static readonly KeyGrammar HistoryGrammar =
         KeySurfaceRules.Grammar(HistoryFamily, KeySurface.Endpoint);
@@ -94,7 +97,21 @@ public static class NodeEndpointIds
     public static string ToHistoryRowKey(string? value)
     {
         var identity = NormalizeHistoryId(value);
-        return identity.Length == 0 ? string.Empty : HistoryTypePrefix + identity;
+        return identity.Length == 0
+            ? string.Empty
+            : Projection.Project(HistoryFamily.Id, identity, KeySurface.Storage).Value;
+    }
+
+    /// <summary>
+    /// 历史身份的全部可读行键形态（规范 <c>history:{id}</c> 在前，只读兼容裸 <c>{id}</c> 随后）。
+    /// <para>唯一候选键来源：读取/删除/存在性探针共用，禁再各写候选表。</para>
+    /// </summary>
+    public static IReadOnlyList<string> HistoryRowKeys(string? value)
+    {
+        var identity = NormalizeHistoryId(value);
+        return identity.Length == 0
+            ? Array.Empty<string>()
+            : Projection.Candidates(HistoryFamily.Id, identity, KeySurface.Storage);
     }
 
     /// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>

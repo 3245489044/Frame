@@ -39,6 +39,9 @@ public static class KeyReasonCodes
 
     // ---- 固有函数层（KeyOps / 键一致性门）----
     public const string OpsHostMissing = "key.ops.host-missing";
+
+    // ---- 键面投影（GP-1：唯一入口）----
+    public const string ProjectionHostMissing = "key.projection-unattached";
     public const string AxisNotInFamily = "key.axis-not-in-family";
     public const string PrefixSourceInvalid = "key.prefix.source-invalid";
     public const string IdentityValueMismatch = "key.identity-value-mismatch";

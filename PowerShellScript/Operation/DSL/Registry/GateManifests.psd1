@@ -1597,5 +1597,20 @@
         Note   = '模板集完整性（F-3/I-2）：T1 必需键齐备 / T2 覆盖键闭合 / T3 装配期合并结构 / T4 解析入口防御合并 / T5 负对照'
     }
 
+    KeySurfaceSingleSource = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'GP-1 键面单源（棘轮）：候选行键表 0 / 行键解析实现 1（键面投影 + 声明 readOnly）/ 前缀拼串 0'
+    }
+
+    EntityExistenceSingleSource = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'GP-2 实体存在性单源：直读探针 0 / 实现 2（未装配桩 + 注册表）/ 命令层重复前置检查 0 / 未映射码 1'
+    }
 
 }

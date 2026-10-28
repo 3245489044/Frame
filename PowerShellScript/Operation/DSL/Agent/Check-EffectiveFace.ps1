@@ -91,7 +91,9 @@ if ($Mode -eq 'locked') {
 }
 
 function Get-BuildOutputDir([string]$name) {
-    if ($name -eq 'Agent.Launcher.dll') { return $agentBuildDir }
+    # Agent 面 = 本仓插件产物目录（Agent.* 单程序集同批）；其余 = 共享核心件目录。
+    # 禁按「Launcher 特例」写死：模块层（Agent.Modules.dll）漏判会退回共享目录 ⇒ 恒判未对齐。
+    if ($name -like 'Agent.*') { return $agentBuildDir }
     return $csharpBuildDir
 }
 

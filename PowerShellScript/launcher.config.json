@@ -67,6 +67,12 @@
       "order": 0,
       "icon": "📜",
       "description": "PScriptManager — 脚本扫描、注册、构建、脚手架"
+    },
+    "env-maintenance": {
+      "name": "环境维护",
+      "order": 11,
+      "icon": "🛠️",
+      "description": "外部环境体检/修复/升级（ComfyUI/ACE-Step 依赖与版本）"
     }
   },
   "tools": {

@@ -20,7 +20,7 @@
 | `locate-build` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action locate-build` | 诊断相位 · 零运行定位（改动文件 → 构建/测试/门禁清单） |
 | `locate-port` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action locate-port` | 诊断相位 · 零运行定位（端口键 → 声明/实现/消费用例/工程） |
 | `invoke-verify` | `Environment\CentralTest\Invoke-CentralTest.ps1 -Action verify` | P2 唯一验证命令（bake→test→gate 一次完成） |
-| `invoke-buildeffective` | `Projects\BuildFramework\Build-Effective.ps1` | 单一生效入口（构建→生效面上效→生效面断言；`-Assert` 复算断言） |
+| `invoke-buildeffective` | `Projects\BuildFramework\Entry\Build-Effective.ps1` | 单一生效入口（构建→生效面上效→生效面断言；`-Assert` 复算断言） |
 | `invoke-specgen` | `SpecSourceGen\Cli`（`gen`） | 作者面 · 生成（PS 可调用、产物落生成根、可清点；`-EmitManifest` 另出 `_manifest.json`） |
 | `get-spec-chain` | `SpecSourceGen\Cli`（`chain-get`） | 作者面 · 只读（链/引用清单 + 内联载荷去重候选；**混装块按 `port` 子块签名**判定） |
 | `new-spec-chain` | `SpecSourceGen\Cli`（`chain-new`） | 作者面 · 抽链（内联 invocation → `chain` + `use`；DryRun 缺省 + 三类自检） |

@@ -1,0 +1,78 @@
+{
+  // ComfyUI 出图环境维护清单（清单 v2：version/index/verify/phase 声明式）
+  // 对应 Produce/Config/envs.json 中 envId=comfyui 的运行时声明。
+  "name": "ComfyUI 出图环境",
+  "envId": "comfyui",
+  "version": "2.0.0",
+  "description": "ComfyUI 0.34 + cu130 PyTorch + Manager 依赖 + comfy-kitchen 能力断言",
+  "stateDir": "D:\\DevEnv\\_state\\EnvMaintenance",
+  "python": {
+    "executable": "python",
+    "venv": "D:\\DevEnv\\ComfyUI\\.venv"
+  },
+  "pip": {
+    "index": "",
+    "timeoutSeconds": 1800
+  },
+  "items": [
+    {
+      "name": "venv",
+      "type": "venv",
+      "phase": 1,
+      "venv": "D:\\DevEnv\\ComfyUI\\.venv",
+      "description": "ComfyUI 专用虚拟环境（Python 3.13）"
+    },
+    {
+      "name": "comfyui-repo",
+      "type": "git-clone",
+      "phase": 1,
+      "source": "https://github.com/comfyanonymous/ComfyUI.git",
+      "directory": "D:\\DevEnv\\ComfyUI",
+      "requiredFiles": ["main.py", "requirements.txt"],
+      "timeoutSeconds": 900,
+      "description": "ComfyUI 主仓库（已存在则跳过，避免误更新代码）"
+    },
+    {
+      "name": "torch",
+      "type": "pip-venv",
+      "phase": 1,
+      "venv": "D:\\DevEnv\\ComfyUI\\.venv",
+      "packages": [
+        { "name": "torch", "version": "2.10.0+cu130" },
+        { "name": "torchvision", "version": "0.25.0+cu130" },
+        { "name": "torchaudio", "version": "2.10.0+cu130" }
+      ],
+      "index": "https://download.pytorch.org/whl/cu130",
+      "timeoutSeconds": 3600,
+      "verify": "import torch;assert torch.version.cuda; assert int(torch.version.cuda.split('.')[0]) >= 12",
+      "description": "ComfyUI 0.34 要求 cu130；comfy-kitchen 0.2.31 依赖 torch>=2.10 的内置泛型签名"
+    },
+    {
+      "name": "manager-deps",
+      "type": "pip-venv",
+      "phase": 2,
+      "venv": "D:\\DevEnv\\ComfyUI\\.venv",
+      "packages": ["gitpython", "toml", "rich", "chardet"],
+      "timeoutSeconds": 600,
+      "verify": "import git,toml,rich,chardet",
+      "description": "ComfyUI-Manager prestartup 依赖；缺失会让启动卡在自装 pip"
+    },
+    {
+      "name": "comfyui-requirements",
+      "type": "pip-req-venv",
+      "phase": 2,
+      "venv": "D:\\DevEnv\\ComfyUI\\.venv",
+      "requirements": "D:\\DevEnv\\ComfyUI\\requirements.txt",
+      "timeoutSeconds": 3600,
+      "description": "ComfyUI requirements（按文件指纹判定，仅变更时重装）"
+    },
+    {
+      "name": "comfy-kitchen-import",
+      "type": "python-verify",
+      "phase": 3,
+      "venv": "D:\\DevEnv\\ComfyUI\\.venv",
+      "verify": "import comfy_kitchen;from comfy_kitchen import tensor",
+      "description": "能力断言：comfy_kitchen 可导入（torch 版本不足时此处必然失败）"
+    }
+  ]
+}

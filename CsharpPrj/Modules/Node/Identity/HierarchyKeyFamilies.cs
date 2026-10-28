@@ -24,8 +24,10 @@ public static class HierarchyKeyFamilies
         IdentityKeys: new[] { "historyId" },
         Surfaces: new Dictionary<KeySurface, KeySurfaceSpec>
         {
+            // 只读兼容形态 <c>{historyId}</c>：迁移期旧行裸键（只反解、不构造）。
             [KeySurface.Storage] = new KeySurfaceSpec(
-                KeySurface.Storage, new[] { "history:{historyId}" }, "history:"),
+                KeySurface.Storage, new[] { "history:{historyId}" }, "history:",
+                ReadOnlyTemplates: new[] { "{historyId}" }),
             [KeySurface.Endpoint] = new KeySurfaceSpec(
                 KeySurface.Endpoint, new[] { "history.{historyId}" }, "history."),
         });

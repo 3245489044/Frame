@@ -78,7 +78,8 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
 
         // 行键双形态（迁移期）：规范形态 history:{id} 优先，旧行裸键 {id} 兜底。
         // 单形态查找是「列表可见、删除判不存在」的根因（同表混存两种键形态）。
-        foreach (var rowKey in CandidateRowKeys(key))
+        // 候选形态唯一来源 = 键面投影（NodeEndpointIds.HistoryRowKeys），本处禁再自建候选表。
+        foreach (var rowKey in NodeEndpointIds.HistoryRowKeys(key.Value))
         {
             var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rowKey)));
             if (rows.Count == 0) continue;
@@ -118,22 +119,10 @@ public sealed class SqliteHistoryRootStore : KvJsonStoreBase, IHistoryRootStore
 
         // 删除必须命中实际存在的行键形态（规范 / 旧裸键），否则「视为已删除」会留下僵尸行。
         var removed = 0;
-        foreach (var rowKey in CandidateRowKeys(key))
+        foreach (var rowKey in NodeEndpointIds.HistoryRowKeys(key.Value))
             removed += ExecuteNonQuery(KvUsharpTable.DeleteByKeySql(Table), Params(("k", rowKey)));
 
         return Task.FromResult(removed > 0);
-    }
-
-    /// <summary>候选行键（规范 <c>history:{id}</c> → 旧裸键 <c>{id}</c>，去重保序）。</summary>
-    private static IReadOnlyList<string> CandidateRowKeys(HistoryKey key)
-    {
-        var identity = NodeEndpointIds.NormalizeHistoryId(key.Value);
-        if (identity.Length == 0) return Array.Empty<string>();
-
-        var canonical = NodeEndpointIds.ToHistoryRowKey(identity);
-        return string.Equals(canonical, identity, StringComparison.Ordinal)
-            ? new[] { canonical }
-            : new[] { canonical, identity };
     }
 
     /// <summary>身份 → 行键（<c>history:{identity}</c>）；空身份 ⇒ 空串（不伪造行键）。</summary>

@@ -124,6 +124,12 @@ public interface IWorkflowNamespace
 public interface IEntityExistenceProbe
 {
     Task<bool> ExistsAsync(string entityType, string id, CancellationToken ct = default);
+
+    /// <summary>
+    /// 该实体类型是否已映射到存在性谓词（GP-2/E3）：未映射 ⇒ 内核报 <c>probe_unmapped</c>，
+    /// 不得与「端点缺失（endpoint_missing）」混同。旧实现缺省 true（不改变既有语义）。
+    /// </summary>
+    bool IsMapped(string entityType) => true;
 }
 
 /// <summary>

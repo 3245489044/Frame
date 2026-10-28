@@ -27,7 +27,6 @@ public sealed class HistoryCommandService : IHistoryCommandPort
     private readonly ICreationGate _gate;
     private readonly ISessionStore? _sessions;
     private readonly ISessionTranscriptStore? _transcripts;
-    private readonly ITaskQuery? _tasks;
     private readonly IDiagnosticsSink _diagnostics;
     private readonly ICompositeWriteUnit? _writeUnit;
 
@@ -36,7 +35,6 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         IHistoryRelationManager relations,
         ICreationGate? gate = null,
         ISessionStore? sessions = null,
-        ITaskQuery? tasks = null,
         IDiagnosticsSink? diagnostics = null,
         ISessionTranscriptStore? transcripts = null,
         ICompositeWriteUnit? writeUnit = null)
@@ -45,7 +43,6 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         _relations = relations ?? throw new ArgumentNullException(nameof(relations));
         _gate = gate ?? new DefaultCreationGate();
         _sessions = sessions;
-        _tasks = tasks;
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
         _transcripts = transcripts;
         _writeUnit = writeUnit;
@@ -122,7 +119,7 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         return identity.Length == 0 ? key : HistoryKey.Create(identity);
     }
 
-    public async Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
+    public Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var historyKey = Normalize(cmd.History);
@@ -133,13 +130,9 @@ public sealed class HistoryCommandService : IHistoryCommandPort
         if (!decision.Allowed)
             throw new InvalidOperationException($"归拢任务被拒绝：{decision.Reason}");
 
-        if (!await _roots.ExistsAsync(historyKey, ct).ConfigureAwait(false))
-            throw new InvalidOperationException($"历史根不存在：{historyKey.Value}（禁止隐式建根）");
-
-        if (_tasks is not null && !await _tasks.ExistsAsync(cmd.Task, ct).ConfigureAwait(false))
-            throw new InvalidOperationException($"任务不存在：{cmd.Task.Value}（禁止隐式建任务）");
-
-        await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);
+        // 存在性判据唯一归属 = 关系内核写前门（EntityExistenceRegistry → 各实体 Store）：
+        // 本层不再重复检查 root/task，避免「命令层通过、内核层拒绝」的两套判定（GP-2/E1）。
+        return _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct);
     }
 
     public Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default)

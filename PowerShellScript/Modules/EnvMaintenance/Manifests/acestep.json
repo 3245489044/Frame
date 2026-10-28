@@ -1,0 +1,46 @@
+{
+  // ACE-Step 出曲环境维护清单（对应 Produce/Config/envs.json 中 envId=acestep）
+  "name": "ACE-Step 出曲环境",
+  "envId": "acestep",
+  "version": "1.0.0",
+  "description": "ACE-Step 1.5 + cu128 PyTorch（venv312）",
+  "stateDir": "D:\\DevEnv\\_state\\EnvMaintenance",
+  "python": {
+    "executable": "python",
+    "venv": "D:\\DevEnv\\ACE-Step-1.5\\venv312"
+  },
+  "pip": {
+    "index": "",
+    "timeoutSeconds": 1800
+  },
+  "items": [
+    {
+      "name": "venv",
+      "type": "venv",
+      "phase": 1,
+      "venv": "D:\\DevEnv\\ACE-Step-1.5\\venv312",
+      "description": "ACE-Step 专用虚拟环境（刻意不使用 .venv 命名）"
+    },
+    {
+      "name": "torch",
+      "type": "pip-venv",
+      "phase": 1,
+      "venv": "D:\\DevEnv\\ACE-Step-1.5\\venv312",
+      "packages": [
+        { "name": "torch", "version": "2.7.1+cu128" }
+      ],
+      "index": "https://download.pytorch.org/whl/cu128",
+      "timeoutSeconds": 3600,
+      "verify": "import torch;print(torch.__version__)",
+      "description": "ACE-Step 已实测可用的 torch 版本"
+    },
+    {
+      "name": "acestep-import",
+      "type": "python-verify",
+      "phase": 2,
+      "venv": "D:\\DevEnv\\ACE-Step-1.5\\venv312",
+      "verify": "import acestep",
+      "description": "能力断言：acestep 可导入"
+    }
+  ]
+}

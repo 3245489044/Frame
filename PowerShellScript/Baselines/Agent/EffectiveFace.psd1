@@ -7,11 +7,13 @@
     Gate   = 'EffectiveFace'
 
     # 正对照下限：代表件数须 ≥ 此值（防判据无标的假绿）。
-    MinReps = @{ Value = 5; Origin = 'Derived'; DueWhen = '' }
+    MinReps = @{ Value = 6; Origin = 'Derived'; DueWhen = '' }
 
     # 生效面代表件（Agent 面 + 共享核心件；与 Build-AgentGeneration.ps1 / Check-GenerationLayout.ps1 判据同名单）。
+    # Agent.Modules.dll 单列：模块层承载轮末沉淀/物化写门，缺它则「已改码未生效」无法被机械判出（R-3）。
     Members = @{ Origin = 'Derived'; DueWhen = ''; Value = @(
         'Agent.Launcher.dll',
+        'Agent.Modules.dll',
         'Share.HostAssembly.dll',
         'Share.Conversation.dll',
         'Plate.HtmlViewer.dll',

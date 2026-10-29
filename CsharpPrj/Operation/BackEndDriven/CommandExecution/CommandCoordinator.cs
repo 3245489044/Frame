@@ -453,6 +453,13 @@ public class CommandSystemCoordinator
                             MarkFailed(entity, $"Command '{meta.Action}' 超时（{budgetMs}ms，强制退出）", sw);
                             return;
                         }
+
+                        // 外层取消（窗体关闭/宿主终止）：命令已被放弃，必须落终态，否则只能报「未设置最终状态」。
+                        if (run.Kind == BoundedRunOutcomeKind.OuterCanceled)
+                        {
+                            MarkFailed(entity, $"Command '{meta.Action}' 被外层取消（窗体关闭/宿主终止，强制退出）", sw);
+                            return;
+                        }
                     }
                     else
                     {

@@ -51,6 +51,12 @@ public sealed class UiViewProjection
 {
     private readonly GatherHub _hub = new();
 
+    /// <summary>
+    /// 按注册表缓存的 Hub（E-4 修复）：同一装配只建一次，否则 <c>_snapshot</c> 恒空 ⇒ <c>Reusable</c> 形同关闭。
+    /// <para>键 = <see cref="GatherRegistry"/> 引用（装配结果不可变）；<c>Lazy</c> 保证并发拍只建一个。</para>
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<GatherRegistry, Lazy<GatherHub>> _hubs = new();
+
     /// <summary>Hub 实例（上层按声明面 stages 编排时直接使用）。</summary>
     public GatherHub Hub => _hub;
 
@@ -99,11 +105,39 @@ public sealed class UiViewProjection
                 $"聚拢未闭合（模块 '{module.Name}'）：{string.Join("；", registry.Issues)}");
         }
 
-        var hub = new GatherHub(registry);
+        var hub = BindHub(registry);
         var stage = new GatherStageSpec(spec.View, domains, Array.Empty<string>(), spec.Sections);
         var result = await hub.GatherAsync(stage, needs, changedScopes, ct).ConfigureAwait(false);
         return new UiViewGatherResult(result.Values, result.Gathered, result.Reused);
     }
+
+    /// <summary>
+    /// 整视图执行（**多阶段、按 deps 拓扑序**）：声明面（<see cref="GatherViewSpec"/>）+ 模块 ↔ 实现双向对账（R9/R10）。
+    /// <para>与 <see cref="GatherAsync(UiViewSpec, IGatherModule, IReadOnlyCollection{string}?, CancellationToken)"/> 的差别：
+    /// 后者为单阶段适配（既有视图），本方法跑完整 stage 图（管道型视图，如 conversation-canon）。</para>
+    /// </summary>
+    public async Task<IReadOnlyList<GatherStageResult>> RunAsync(
+        GatherViewSpec view,
+        IGatherModule module,
+        IReadOnlyCollection<string>? changedScopes,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(module);
+
+        var registry = GatherRegistry.Build(new IGatherModule[] { module }, view);
+        if (!registry.IsClosed)
+        {
+            throw new GatherClosureViolationException(
+                $"聚拢未闭合（视图 '{view.View}' / 模块 '{module.Name}'）：{string.Join("；", registry.Issues)}");
+        }
+
+        return await BindHub(registry).RunAsync(view, changedScopes, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>出口闭合判定（C-OUT）：返回票据；未声明产物 ⇒ 抛。</summary>
+    public GatherEmitTicket Emit(GatherViewSpec view, string produceName, object payload)
+        => _hub.Emit(view, produceName, payload);
 
     private static (List<GatherNeedSpec> Needs, List<string> Domains) BuildNeeds(UiViewSpec spec)
     {
@@ -124,7 +158,18 @@ public sealed class UiViewProjection
     }
 
     /// <summary>丢弃上拍快照（作用域切换/强制刷新时调用）。</summary>
-    public void Reset() => _hub.Reset();
+    public void Reset()
+    {
+        _hub.Reset();
+        _hubs.Clear();
+    }
+
+    /// <summary>注册表 → 缓存单例 Hub（复用键恒 <c>(Domain, Scope)</c>，<c>CrossScope</c> 保持默认 false）。</summary>
+    private GatherHub BindHub(GatherRegistry registry)
+        => _hubs.GetOrAdd(
+                registry,
+                static r => new Lazy<GatherHub>(() => new GatherHub(r), LazyThreadSafetyMode.ExecutionAndPublication))
+            .Value;
 
     /// <summary>数据源端口 → Hub 生产者（唯一适配点）。</summary>
     private sealed class DataSourceProducer : IGatherProducer

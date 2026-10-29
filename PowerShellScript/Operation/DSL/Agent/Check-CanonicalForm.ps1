@@ -31,8 +31,8 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
 $canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\conversation-canon.ushar'
-$cliPath    = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\build\cli.js'
-$nodeExe    = if ($env:CLINE_NODE) { $env:CLINE_NODE } else { 'node' }
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Modules\Parsing\Invoke-CanonCli.psm1') -Force
+$cliPath    = Resolve-CanonCliPath -Root $Root
 $extraKeys  = @('retention', 'materialize')
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -56,15 +56,7 @@ $keysLine = [regex]::Match($canonText, '(?m)^\s*keys\s*=\s*(.+)$')
 $allowedKeys = @()
 if ($keysLine.Success) { $allowedKeys = @($keysLine.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
 
-if ($canonText -notmatch '(?m)^\s*unmapped\s*=\s*emit\(\s*unrecognized\s*\)')
-{
-    $violations.Add('[C1] conversation-canon 缺 unmapped = emit(unrecognized)（未映射 kind 会被压成 Default）')
-}
-if ($canonText -notmatch '(?m)^\s*unrecognized\s+→')
-{
-    $violations.Add('[C1] conversation-canon 未显式登记 unrecognized 映射')
-}
-
+# R-3：unmapped 末路在位由 Check-AgentSpec A7 单点裁决（声明合格性），本脚本只判产物结构（C2–C5）。
 
 <# 判据核心（纯函数；负对照直接复用）。 #>
 function Get-CanonIssues
@@ -125,15 +117,7 @@ function Get-CanonIssues
     return $issues
 }
 
-# 从 CLI 输出提取 JSON（node 告警行走 stderr，禁因此判失败）。
-function ConvertFrom-CliOutput
-{
-    param([string]$Raw)
-    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
-    $start = $Raw.IndexOf('{')
-    if ($start -lt 0) { return $null }
-    try { return ($Raw.Substring($start) | ConvertFrom-Json) } catch { return $null }
-}
+# 从 CLI 输出提取 JSON（node 告警行走 stderr，禁因此判失败）—— 单实现见 Invoke-CanonCli.psm1。
 
 # ---------------- 实测样本（同一 TS 执行器） ----------------
 $agentDirs = @(if (Test-Path -LiteralPath $agentsRoot) { Get-ChildItem -LiteralPath $agentsRoot -Directory })
@@ -144,13 +128,12 @@ foreach ($dir in $agentDirs)
     })
     $sample = @($samples | Where-Object { $_.Name -notlike 'missing-*' }) | Select-Object -First 1
     if ($null -eq $sample) { continue }
-    if (-not (Test-Path -LiteralPath $cliPath)) { continue }
+    if ($null -eq $cliPath) { continue }
 
-    $raw = & $nodeExe $cliPath canon-replay --agent $dir.Name --round $sample.FullName 2>$null | Out-String
-    $result = ConvertFrom-CliOutput $raw
+    $result = Invoke-CanonReplay -Root $Root -Agent $dir.Name -RoundFile $sample.FullName
     if ($null -eq $result -or $result.ok -ne $true)
     {
-        $violations.Add("[C0] agent '$($dir.Name)' 重放失败（无法校验 canonical）：$($raw.Trim())")
+        $violations.Add("[C0] agent '$($dir.Name)' 重放失败（无法校验 canonical）：$($result | ConvertTo-Json -Depth 8 -Compress)")
         continue
     }
 

@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 <#
 .SYNOPSIS
     渲染纯化守卫（DbRenderPurity）—— 渲染路径只读交互态。
@@ -8,6 +8,7 @@
       G1 零写：数据库页渲染文件内 `state.<成员> =` 赋值 = 0；`state.Selected/Page` 变更调用 = 0。
       G2 只读读取与渲染入口在位：`dbPage.State` + `RenderNodePanelHtml` 在位。
       G3 正/负对照：合成样本（渲染期写 state）必被捕获。
+    正/负对照由 Assert-GateControls 统一执行。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 #>
@@ -18,19 +19,25 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
 
-$violations = [System.Collections.Generic.List[string]]::new()
-Write-Host ''
-Write-Host '============================================================'
-Write-Host '  渲染纯化守卫（DbRenderPurity）'
-Write-Host '============================================================'
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'DbRenderPurity'
+$violations = $ctx.Violations
+
+Write-GateHeader '渲染纯化守卫（DbRenderPurity）'
 
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
-$file = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Db.cs'
+# 判据自证（同一谓词既用于扫描也用于对照）
+$controls = @(
+    @{ Id = 'G1-write'; Predicate = { param($t) $t -match 'state\.[A-Za-z]+\s*=[^=]' }
+       Good = 'var current = state.CurrentDb;'; Bad = 'state.CurrentDb = x;' }
+    @{ Id = 'G1-mutate'; Predicate = { param($t) $t -match 'state\.Selected\.(Add|Remove|Clear)\s*\(' }
+       Good = 'var n = state.Selected.Count;'; Bad = 'state.Selected.Add(key);' }
+)
+foreach ($issue in (Assert-GateControls -Cases $controls -Label 'DbRenderPurity')) { $violations.Add($issue) }
+
+$file = Join-Path (Get-MappedPath -Key 'AgentSrc') 'Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Db.cs'
 if (-not (Test-Path -LiteralPath $file)) {
     $violations.Add('[G1] 未见 ConversationViewService.Db.cs')
 } else {
@@ -43,21 +50,4 @@ if (-not (Test-Path -LiteralPath $file)) {
     if ((Get-Count $t 'RenderNodePanelHtml') -eq 0) { $violations.Add('[G2] 渲染入口 RenderNodePanelHtml 缺失') }
 }
 
-# 正/负对照
-if ((Get-Count 'state.CurrentDb = x;' 'state\.[A-Za-z]+\s*=[^=]') -eq 0) {
-    $violations.Add('[G3] 负对照失效：合成样本（state 赋值）未被捕获')
-}
-
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2 渲染纯化通过（正负对照绿）' -ForegroundColor Green
-    Write-Host ''
-    exit 0
-}
-
-Write-Host ''
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-Write-Host '  结果: 失败' -ForegroundColor Red
-Write-Host ''
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'DbRenderPurity'

@@ -229,6 +229,43 @@ function Clear-GateFileIndexCache {
     $script:Stats = @{ Source = 'none'; Worktrees = @(); Files = 0; Ms = 0 }
 }
 
+function Find-GatePattern {
+    <#
+    .SYNOPSIS
+        源码文本命中（文件 + 行号 + 行内容），统一「按行扫描 + 注释行排除」。
+    .DESCRIPTION
+        动机：门禁脚本各自用 Get-ChildItem/Select-String 枚举，注释行排除写法不一
+        （`//` / `*` / `/*` / `#` 四套），同一"代码事实"口径反复漂移。
+        判据载体 = 行文本（结构事实），不做任何语义解释。
+    .PARAMETER Files
+        待扫描文件绝对路径（通常由 Get-GateFiles 产出）。
+    .PARAMETER Pattern
+        行级正则（[regex]::IsMatch）。
+    .PARAMETER SkipComments
+        跳过整行注释（`//`、`*`、`/*`、`#` 开头）；行尾注释不剥离（保持行文本原样）。
+    #>
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Files,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [switch]$SkipComments
+    )
+
+    $hits = [System.Collections.Generic.List[object]]::new()
+    foreach ($f in @($Files)) {
+        if ([string]::IsNullOrWhiteSpace($f) -or -not (Test-Path -LiteralPath $f)) { continue }
+        $lineNo = 0
+        foreach ($line in [System.IO.File]::ReadAllLines($f)) {
+            $lineNo++
+            $text = $line.Trim()
+            if ($SkipComments -and ($text.StartsWith('//') -or $text.StartsWith('*') -or $text.StartsWith('/*') -or $text.StartsWith('#'))) { continue }
+            if ([regex]::IsMatch($line, $Pattern)) {
+                $hits.Add([pscustomobject]@{ File = $f; Line = $lineNo; Text = $text })
+            }
+        }
+    }
+    return $hits
+}
+
 function Export-GateFileIndexCache {
     <#
     .SYNOPSIS
@@ -255,6 +292,7 @@ function Export-GateFileIndexCache {
 Export-ModuleMember -Function @(
     'Resolve-GateWorktree',
     'Get-GateFiles',
+    'Find-GatePattern',
     'Get-GateFileStats',
     'Clear-GateFileIndexCache',
     'Export-GateFileIndexCache'

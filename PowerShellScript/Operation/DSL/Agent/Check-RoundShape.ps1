@@ -33,8 +33,8 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
-$cliPath    = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\build\cli.js'
-$nodeExe    = if ($env:CLINE_NODE) { $env:CLINE_NODE } else { 'node' }
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Modules\Parsing\Invoke-CanonCli.psm1') -Force
+$cliPath    = Resolve-CanonCliPath -Root $Root
 
 $violations = [System.Collections.Generic.List[string]]::new()
 
@@ -43,20 +43,12 @@ Write-Host "============================================================" -Foreg
 Write-Host "  轮次形状守卫（required / terminal=exactly(n) / pairings / 完整性账）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-if (-not (Test-Path -LiteralPath $cliPath))
+if ($null -eq $cliPath)
 {
-    $violations.Add("[S0] 缺 canon-replay 入口：$cliPath（先构建 ClineApi：pnpm -C Frame/TypeScriptPrj/TsWorkspace/ClineApi run build）")
+    $violations.Add("[S0] 缺 canon-replay 入口（先构建 ClineApi：pnpm -C Frame/TypeScriptPrj/TsWorkspace/ClineApi run build）")
 }
 
-# 从 CLI 输出提取 JSON（node 告警行走 stderr/首行，禁因此判失败）。
-function ConvertFrom-CliOutput
-{
-    param([string]$Raw)
-    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
-    $start = $Raw.IndexOf('{')
-    if ($start -lt 0) { return $null }
-    try { return ($Raw.Substring($start) | ConvertFrom-Json) } catch { return $null }
-}
+# 从 CLI 输出提取 JSON（node 告警行走 stderr/首行，禁因此判失败）—— 单实现见 Invoke-CanonCli.psm1。
 
 $agentDirs = @(if (Test-Path -LiteralPath $agentsRoot) { Get-ChildItem -LiteralPath $agentsRoot -Directory })
 foreach ($dir in $agentDirs)
@@ -75,10 +67,10 @@ foreach ($dir in $agentDirs)
 
     foreach ($sample in $samples)
     {
-        if (-not (Test-Path -LiteralPath $cliPath)) { break }
+        if ($null -eq $cliPath) { break }
         $expectOk = $sample.Name -notlike 'missing-*'
-        $raw = & $nodeExe $cliPath canon-replay --agent $dir.Name --round $sample.FullName 2>$null | Out-String
-        $result = ConvertFrom-CliOutput $raw
+        $result = Invoke-CanonReplay -Root $Root -Agent $dir.Name -RoundFile $sample.FullName
+        $raw = ($result | ConvertTo-Json -Depth 12 -Compress)
 
         if ($null -eq $result -or $result.ok -ne $true)
         {

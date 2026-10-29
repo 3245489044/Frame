@@ -15,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plate", "Plate\Plate.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Strategy", "Strategy\Strategy.csproj", "{F7A1B2C3-4D5E-4F60-8A9B-0C1D2E3F4A5B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules", "Modules", "{CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules.Gather", "Modules.Gather", "{CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gather", "Modules\Gather\Gather.csproj", "{B62C46FD-7DE3-4680-B176-BAAA6D993A94}"
 EndProject

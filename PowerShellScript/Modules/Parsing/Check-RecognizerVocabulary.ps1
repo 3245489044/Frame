@@ -222,24 +222,8 @@ if ($null -ne $spec)
         $violations.Add("[R7] recognizer 数 $($rules.Count) < 基线 $ruleBaseline（识别规则被删 ⇒ 门禁失效，禁假绿）")
     }
 
-    # ---------------- R8 C# 镜像对账 ----------------
-    if (Test-Path -LiteralPath $mirrorPath)
-    {
-        $mirrorText = Get-Content -LiteralPath $mirrorPath -Raw
-        foreach ($kind in $kinds)
-        {
-            if ($kind -eq $fallbackKind) { continue }
-            if ($mirrorText -notmatch ('"' + [regex]::Escape($kind) + '"'))
-            {
-                $violations.Add("[R8] C# 镜像缺 kind '$kind'（RecognizedKinds.cs 与声明面不一致）")
-            }
-        }
-    }
-    else
-    {
-        # R8 到期（K3 收口）：镜像必须落地，缺失即违规（不再记迁移期 pending）。
-        $violations.Add("[R8] C# 镜像缺失（Agent.Contract\NodeDomain\RecognizedKinds.cs）—— K3 收口项到期：镜像必须落地")
-    }
+    # ---------------- R8（已合并） ----------------
+    # R-4：C# 镜像 ↔ 声明面对账归 R11 单点（双向 + 编译视图 + 负对照；R11 已覆盖 R8 的全部判据）。
 
     # ---------------- R9 去重（决策 C / D-8：live ∩ snapshot 成节点类别 = ∅） ----------------
     $overlap = @(Get-EmittedKindOverlap -Rules $rules)
@@ -405,6 +389,11 @@ if ($null -ne $spec)
         {
             $violations.Add("[R11] 负对照失效：注入未声明类别未被判据捕获（判据恒真）")
         }
+    }
+    else
+    {
+        # K3 收口项到期（原 R8 判据，归并后由 R11 承担）：镜像必须落地，缺失即违规。
+        $violations.Add("[R11] C# 镜像缺失（Agent.Contract\NodeDomain\RecognizedKinds.cs）—— K3 收口项到期：镜像必须落地")
     }
 
     if ($ShowDetail)

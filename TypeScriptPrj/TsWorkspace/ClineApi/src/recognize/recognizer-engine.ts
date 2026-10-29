@@ -140,6 +140,8 @@ export class RecognizerEngine {
       return [this.recordUnrecognized(frame)];
     }
 
+    // R-2：规则 kind 越界已由装载期校验拒绝（Check-RecognizerVocabulary R3）；normalizeKind 仅保留为容错出口，
+    // 与 fallbackKind 不是双兜底——前者处理「已装载但越界」（不可达），后者处理「未匹配任何规则」。
     const kind = normalizeKind(rule.kind, this.kinds);
     const ordinal = (this.ordinals.get(kind) ?? 0) + 1;
     this.ordinals.set(kind, ordinal);

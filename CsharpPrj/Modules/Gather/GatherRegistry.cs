@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Modules.Gather;
 
@@ -59,7 +60,16 @@ public sealed class GatherRegistry
             var builder = new GatherModuleBuilder();
             module.Declare(builder);
 
-            declarations.Add(new GatherDecl(GatherDeclKind.Class, module.Name, GatherSchema.ModuleInterface));
+            // Class 声明单源 = 本注册表（模块名即 Class 名）；模块再声明同义 Class 会与自动声明撞 [D2]。
+            if (builder.Declarations.Any(d => d.Kind == GatherDeclKind.Class))
+            {
+                issues.Add($"[D2] 模块 '{module.Name}' 不得自行声明 Class（唯一作者 = GatherRegistry，模块名即 Class 名）");
+            }
+            else
+            {
+                declarations.Add(new GatherDecl(GatherDeclKind.Class, module.Name, GatherSchema.ModuleInterface));
+            }
+
             declarations.AddRange(builder.Declarations);
 
             foreach (var pair in builder.Providers)

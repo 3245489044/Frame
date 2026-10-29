@@ -8,6 +8,7 @@
       C2 写侧直呼：DOM / 节点 / 归档写回不得绕过 Hub.Emit（同上）。
       C3 棘轮：违规数 ≤ 基线（Baselines\Process\GatherClosure.psd1，只降不升）。
       C4 负对照：合成直呼样本必须被判据捕获（防判据恒真）。
+      C5 出口闭合（C-OUT）：Emit 的字面量产物名必须 ∈ 声明面 produces（未声明写回 ⇒ 红）；常量引用放行。
     模式：默认报告（不设退出码）；-Check 时超基线 → 退出码 1。
 .PARAMETER Root
     仓库根（默认由本脚本位置上溯五级）。
@@ -43,12 +44,17 @@ $patterns = @(
     @{ Domain = 'prompt';       Symbol = 'PromptSurfaceResolver.ResolveAsync'; Regex = '\bPromptSurfaceResolver\.ResolveAsync\s*\(' },
     @{ Domain = 'board';        Symbol = 'TryReadHistoryBoardAsync';   Regex = '\bTryReadHistoryBoardAsync\s*\(' },
     @{ Domain = 'dom';          Symbol = 'WriteOutputAsync';           Regex = '\bWriteOutputAsync\s*\(' },
-    @{ Domain = 'node';         Symbol = 'NodeWriteGate';              Regex = '\bNodeWriteGate\b' }
+    @{ Domain = 'node';         Symbol = 'NodeWriteGate';              Regex = '\bNodeWriteGate\b' },
+    @{ Domain = 'node-write';   Symbol = 'WriteBatchAsync';            Regex = '\bWriteBatchAsync\s*\(' }
 )
 
 # 允许集（producer 实现侧）：声明了 produce/need 的唯一落点；其余直呼即违规。
 $allowFileNames = @(
     'ConversationViewService.Nodes.cs',
+    'ConversationCanonGatherModule.Write.cs',
+    # 契约声明与端口实现：写原语的定义面，不是「绕过 Hub 的调用点」。
+    'NodeDomainPortContracts.cs',
+    'NodeDomainPort.cs',
     'GatherHub.cs'
 )
 
@@ -102,17 +108,98 @@ if (@(Test-GatherClosureText -Text $probe -FileName 'Probe.cs').Count -eq 0) {
     exit 0
 }
 
+# ---------------- C5 出口闭合（C-OUT：Emit 产物名 ∈ 声明面 produces） ----------------
+$gatherDeclDir = Join-Path $Root 'Projects\Plug\Agent\Config\gather'
+$declaredProduces = [System.Collections.Generic.HashSet[string]]::new()
+foreach ($declFile in @(Get-ChildItem -LiteralPath $gatherDeclDir -Filter '*.json' -File -ErrorAction SilentlyContinue))
+{
+    try
+    {
+        $declSpec = Get-Content -LiteralPath $declFile.FullName -Raw | ConvertFrom-Json
+        foreach ($viewProp in $declSpec.views.PSObject.Properties)
+        {
+            foreach ($produce in @($viewProp.Value.produces))
+            {
+                if (-not [string]::IsNullOrWhiteSpace([string]$produce.name)) { [void]$declaredProduces.Add([string]$produce.name) }
+            }
+        }
+    }
+    catch
+    {
+        Write-Host ("  [WARN] C5 声明面解析失败（跳过该文件）：{0}" -f $declFile.Name) -ForegroundColor Yellow
+    }
+}
+
+# 判据：Emit 的第二参数为字面量时必须命中声明面 produces；标识符（常量）放行（常量一致性由 GatherSpec/R9-R10 承担）。
+function Get-EmitProduceNameIssues
+{
+    param([string]$Text, [string]$FileName, [System.Collections.Generic.HashSet[string]]$Declared)
+
+    $issues = [System.Collections.Generic.List[object]]::new()
+    $lineNo = 0
+    foreach ($line in ($Text -split "`n"))
+    {
+        $lineNo++
+        $trimmed = $line.TrimStart()
+        if ($trimmed.StartsWith('//') -or $trimmed.StartsWith('///') -or $trimmed.StartsWith('*')) { continue }
+        foreach ($m in [regex]::Matches($line, '\.Emit\s*\(\s*[^,]+,\s*(?<arg>[^,]+?)\s*,'))
+        {
+            $arg = $m.Groups['arg'].Value.Trim()
+            if (-not $arg.StartsWith('"')) { continue }
+            $name = $arg.Trim('"')
+            if (-not $Declared.Contains($name))
+            {
+                $issues.Add([pscustomobject]@{ File = $FileName; Line = $lineNo; Name = $name })
+            }
+        }
+    }
+
+    return , $issues
+}
+
+$emitViolations = [System.Collections.Generic.List[object]]::new()
+foreach ($file in $files)
+{
+    $text = [System.IO.File]::ReadAllText($file.FullName)
+    foreach ($hit in (Get-EmitProduceNameIssues -Text $text -FileName $file.Name -Declared $declaredProduces))
+    {
+        $hit | Add-Member -NotePropertyName Path -NotePropertyValue $file.FullName -Force
+        $emitViolations.Add($hit)
+    }
+}
+
+# 负对照（防假绿）：未声明的字面量产物名必须被捕获。
+$emitProbe = 'var t = hub.Emit(view, "ghost-produce", payload);'
+if (@(Get-EmitProduceNameIssues -Text $emitProbe -FileName 'Probe.cs' -Declared $declaredProduces).Count -eq 0)
+{
+    Write-Host '[FAIL] C5 负对照失效：未声明产物名未被捕获（判据恒真）' -ForegroundColor Red
+    if ($Check) { exit 1 }
+    exit 0
+}
+
 $count = @($hits).Count
 if ($ShowDetail) {
     foreach ($hit in $hits) {
         Write-Host ("  {0}:{1}  [{2}] {3}" -f $hit.File, $hit.Line, $hit.Domain, $hit.Symbol) -ForegroundColor Gray
     }
+    foreach ($hit in $emitViolations) {
+        Write-Host ("  {0}:{1}  [emit] {2}" -f $hit.File, $hit.Line, $hit.Name) -ForegroundColor Gray
+    }
 }
 
-Write-Host ("  实测直呼 {0} 处 / 基线上限 {1} 处（只降不升）" -f $count, $maxViolations) -ForegroundColor Gray
+Write-Host ("  实测直呼 {0} 处 / 基线上限 {1} 处（只降不升）；出口闭合违规 {2} 处" -f $count, $maxViolations, $emitViolations.Count) -ForegroundColor Gray
+
+if ($emitViolations.Count -gt 0) {
+    Write-Host ("[FAIL] C5 出口闭合：{0} 处 Emit 产物名未在声明面 produces（未声明写回）" -f $emitViolations.Count) -ForegroundColor Yellow
+    foreach ($hit in $emitViolations) {
+        Write-Host ("  - {0}:{1} produce='{2}'" -f $hit.File, $hit.Line, $hit.Name) -ForegroundColor Yellow
+    }
+    if ($Check) { exit 1 }
+    exit 0
+}
 
 if ($count -le $maxViolations) {
-    Write-Host '[OK] 聚拢闭合守卫：未超基线（直呼清单棘轮在位）' -ForegroundColor Green
+    Write-Host '[OK] 聚拢闭合守卫：未超基线（直呼清单棘轮在位 + 出口闭合 C5 绿）' -ForegroundColor Green
     exit 0
 }
 

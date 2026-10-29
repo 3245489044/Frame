@@ -29,8 +29,8 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
-$cliPath    = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\build\cli.js'
-$nodeExe    = if ($env:CLINE_NODE) { $env:CLINE_NODE } else { 'node' }
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Modules\Parsing\Invoke-CanonCli.psm1') -Force
+$cliPath    = Resolve-CanonCliPath -Root $Root
 $violations = [System.Collections.Generic.List[string]]::new()
 
 Write-Host ""
@@ -38,20 +38,16 @@ Write-Host "============================================================" -Foreg
 Write-Host "  重放对拍守卫（幂等 / 完整性账 / 差集可见）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-if (-not (Test-Path -LiteralPath $cliPath))
+if ($null -eq $cliPath)
 {
-    Write-Host "[FAIL] 缺 canon-replay 入口：$cliPath（先构建 ClineApi）" -ForegroundColor Yellow
+    Write-Host "[FAIL] 缺 canon-replay 入口（先构建 ClineApi）" -ForegroundColor Yellow
     if ($Check) { exit 1 }
     exit 0
 }
 
 function Get-ReplayResult([string]$Agent, [string]$RoundFile)
 {
-    $raw = & $nodeExe $cliPath canon-replay --agent $Agent --round $RoundFile 2>$null | Out-String
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-    $start = $raw.IndexOf('{')
-    if ($start -lt 0) { return $null }
-    try { return ($raw.Substring($start) | ConvertFrom-Json) } catch { return $null }
+    return Invoke-CanonReplay -Root $Root -Agent $Agent -RoundFile $RoundFile
 }
 
 function Get-HitKeys([object]$Replay)

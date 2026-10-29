@@ -44,11 +44,15 @@ $rows = foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec   = $gates[$name]
     $domain = [string]$spec.Domain
     $tier   = if ($spec.ContainsKey('Tier')) { [string]$spec.Tier } else { 'full' }
+    $family = if ($spec.ContainsKey('Family')) { [string]$spec.Family } else { '—' }
+    $form   = if ($spec.ContainsKey('Form')) { [string]$spec.Form } else { '—' }
     [pscustomobject]@{
         Domain = $domain
         Gate   = [string]$name
         Tier   = $tier
         Expect = [int]$spec.Expect
+        Family = $family
+        Form   = $form
         Script = (Get-GateScriptCell -Gate $name -Domain $domain -AllowFallback)
     }
 }
@@ -58,7 +62,7 @@ $domains = @($rows.Domain | Sort-Object -Unique)
 $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine('# 门禁索引（生成产物，禁手改）')
 [void]$sb.AppendLine('')
-[void]$sb.AppendLine('> 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` 字段编译生成。')
+[void]$sb.AppendLine('> 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` / `Family` / `Form` 字段编译生成。')
 [void]$sb.AppendLine('> 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。')
 [void]$sb.AppendLine('')
 [void]$sb.AppendLine('<!-- PROTO_AUTO:gateIndex:BEGIN -->')
@@ -67,10 +71,10 @@ foreach ($d in $domains) {
     $items = @($rows | Where-Object { $_.Domain -eq $d } | Sort-Object Gate)
     [void]$sb.AppendLine("## $d（$($items.Count) 件）")
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| Gate | Tier | Expect | 脚本 |')
-    [void]$sb.AppendLine('|---|---|---|---|')
+    [void]$sb.AppendLine('| Gate | Tier | Expect | Family | Form | 脚本 |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|')
     foreach ($it in $items) {
-        [void]$sb.AppendLine("| ``$($it.Gate)`` | $($it.Tier) | $($it.Expect) | ``$($it.Script)`` |")
+        [void]$sb.AppendLine("| ``$($it.Gate)`` | $($it.Tier) | $($it.Expect) | $($it.Family) | $($it.Form) | ``$($it.Script)`` |")
     }
     [void]$sb.AppendLine('')
 }

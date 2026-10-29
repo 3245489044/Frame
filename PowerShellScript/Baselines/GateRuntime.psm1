@@ -4,13 +4,16 @@
     GateRuntime —— 门禁运行时（根定位 / 脚本发现 / 裁决 / 结果结构），纯原语，无判据语义。
 
 .DESCRIPTION
-    本件把门禁脚本内重复散落的四类样板收敛为单源（分析文档 D1/D2/D4/D6/E2/E4 的收拢面）：
+    本件把门禁脚本内重复散落的六类样板收敛为单源（分析文档 D1/D2/D4/D6/E2/E4 的收拢面）：
       · 根定位   —— 委托**目录映射基础框架** PScriptManager\Framework\DirectoryMap.psm1
                     （超根 = 含 Frame\+Projects\ 的目录；与深度无关；禁门内再写 ..\..\..\..\ 上溯）。
       · 脚本发现 —— 委托 DirectoryMap 的 Resolve-GateScript / Get-GateScriptCell
                     （Domain→候选目录 + 名称例外；歧义即抛）。
       · 裁决     —— Write-GateVerdict 单义退出码（0 无违规 / -Check 且违规 1 / 异常由调用方 2）。
       · 结果结构 —— New-GateResult（供组合门读结果产物，不解析文本）。
+      · 参数协议 —— New-GateContext（-Root/-Check/-Detail/-Json/-NegativeControl → 单一上下文对象，
+                    含 Root 与 Violations 清单）；Assert-GatePrerequisite（前置缺失统一 exit 2）。
+      · 判据自证 —— Assert-GateControls（正样本必过 / 负样本必红 / 缺对照即违规）。
 
     形态：本 .psm1 以 Import-Module 装载 DirectoryMap（函数不重复导出 ⇒ 无同名多属主）。
     本件无 Export-ModuleMember：默认仅导出本文件自定义函数（导入件不外溢）。
@@ -18,9 +21,10 @@
 .NOTES
     用法（门禁脚本头部）：
         Import-Module (Join-Path $PSRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force
-        $violations = [System.Collections.Generic.List[string]]::new()
-        # ... 判据 ...
-        Write-GateVerdict -Violations $violations -Check:$Check -Key 'GateTaxonomy'
+        $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'GateTaxonomy'
+        # ... 判据（$ctx.Root / $ctx.Violations）...
+        foreach ($issue in (Assert-GateControls -Cases $controls -Label 'GateTaxonomy')) { $ctx.Violations.Add($issue) }
+        Write-GateVerdict -Violations $ctx.Violations -Check:$Check -Key 'GateTaxonomy'
 #>
 
 Import-Module (Join-Path $PSScriptRoot '..\PScriptManager\Framework\DirectoryMap.psm1') -Force -DisableNameChecking
@@ -151,6 +155,127 @@ function Test-BaselineNoIncrease {
     return $violations
 }
 
+<#
+.SYNOPSIS
+    构造门禁上下文（参数协议 + 根定位 + 违规清单的单源）。
+.DESCRIPTION
+    把各门自写的「根定位 + 模式开关 + `$violations = List[string]::new()`」收敛为一次调用：
+      · 根 = -Root（显式）> Get-GateRepoRoot（$ScriptRoot 上溯；与目录深度无关）。
+      · 模式 = Check（判定）/ Detail（清单）/ Json（结构化输出）/ NegativeControl（判据自检）。
+.PARAMETER ScriptRoot
+    门禁脚本目录（缺省 = 调用方 $PSScriptRoot；不传则由 Get-GateRepoRoot 取本文件位置）。
+.PARAMETER Root
+    显式仓库超根（外部编排传入时优先）。
+#>
+function New-GateContext {
+    param(
+        [string]$ScriptRoot = '',
+        [string]$Root = '',
+        [switch]$Check,
+        [switch]$Detail,
+        [switch]$Json,
+        [switch]$NegativeControl,
+        [string]$Key = ''
+    )
+    $repo = if (-not [string]::IsNullOrWhiteSpace($Root)) { $Root }
+            elseif (-not [string]::IsNullOrWhiteSpace($ScriptRoot)) { Get-GateRepoRoot -ScriptRoot $ScriptRoot }
+            else { Get-GateRepoRoot }
+    return [pscustomobject]@{
+        Root            = $repo
+        Check           = [bool]$Check
+        Detail          = [bool]$Detail
+        Json            = [bool]$Json
+        NegativeControl = [bool]$NegativeControl
+        Key             = $Key
+        Violations      = [System.Collections.Generic.List[string]]::new()
+    }
+}
+
+<#
+.SYNOPSIS
+    前置面断言：文件/目录缺失 ⇒ 统一 exit 2（不可判定 ≠ 通过）。
+.DESCRIPTION
+    各门此前用 Write-Error/throw/裸 exit 2 三种写法，文案各异；本函数是唯一前置缺失出口。
+#>
+function Assert-GatePrerequisite {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$Label = '前置面',
+        [string]$Key = ''
+    )
+    if (Test-Path -LiteralPath $Path) { return }
+    Write-Host ""
+    Write-Host "  [FAIL] $Key 前置缺失：$Label = $Path（不可判定，非通过）" -ForegroundColor Yellow
+    Write-Host ""
+    exit 2
+}
+
+<#
+.SYNOPSIS
+    判据自证：正样本必过、负样本必红；未提供对照 ⇒ 判红。
+.DESCRIPTION
+    动机：各门内联手写「负对照」65 件 286 处，写法各异，且存在「恒假/恒真」假绿。
+    判据载体 = 同一 Predicate 对 Good/Bad 样本的返回值（判据自证，禁执行者叙述）。
+
+    每个 Case 必带：
+      Id        判据编号（违规文案前缀）
+      Predicate 单参函数块（输入文本 ⇒ $true 命中违规）
+      Good      合法样本（Predicate 必须为 $false）
+      Bad       违规样本（Predicate 必须为 $true）
+    缺 Predicate 或缺任一对照样本 ⇒ 违规（"无自证不可采信"）。
+#>
+function Assert-GateControls {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Cases,
+        [string]$Label = '判据自证'
+    )
+    $issues = [System.Collections.Generic.List[string]]::new()
+    if (@($Cases).Count -eq 0) {
+        $issues.Add("$Label 无对照样本（判据无自证 ⇒ 不可采信）")
+        return $issues
+    }
+    foreach ($c in @($Cases)) {
+        # 样本既可为 hashtable（门脚本惯用）也可为 pscustomobject；两种成员的读法必须一致。
+        $isDict = $c -is [System.Collections.IDictionary]
+        $hasMember = {
+            param($n)
+            if ($isDict) { return $c.Contains($n) }
+            return (@($c.PSObject.Properties.Name) -contains $n)
+        }
+        $getMember = {
+            param($n)
+            if ($isDict) { if ($c.Contains($n)) { return $c[$n] } else { return $null } }
+            if (@($c.PSObject.Properties.Name) -contains $n) { return $c.$n }
+            return $null
+        }
+
+        $id = if (& $hasMember 'Id') { [string](& $getMember 'Id') } else { '<未编号>' }
+        $predicate = if (& $hasMember 'Predicate') { & $getMember 'Predicate' } else { $null }
+        if ($null -eq $predicate) {
+            $issues.Add("$Label [$id] 缺 Predicate（判据不可执行）")
+            continue
+        }
+
+        $hasGood = & $hasMember 'Good'
+        $hasBad = & $hasMember 'Bad'
+        if (-not $hasGood -and -not $hasBad) {
+            $issues.Add("$Label [$id] 缺正/负对照样本（无自证 ⇒ 不可采信）")
+            continue
+        }
+        if ($hasGood) {
+            $good = $false
+            try { $good = [bool](& $predicate (& $getMember 'Good')) } catch { $issues.Add("$Label [$id] 正对照执行异常：$($_.Exception.Message)"); continue }
+            if ($good) { $issues.Add("$Label [$id] 正对照失败：合法样本被判定为违规") }
+        }
+        if ($hasBad) {
+            $bad = $true
+            try { $bad = [bool](& $predicate (& $getMember 'Bad')) } catch { $issues.Add("$Label [$id] 负对照执行异常：$($_.Exception.Message)"); continue }
+            if (-not $bad) { $issues.Add("$Label [$id] 负对照失败：违规样本未被捕获（判据空转）") }
+        }
+    }
+    return $issues
+}
+
 
 # 显式导出面（自有 API + 门禁面向的目录映射 API）：
 #   固定契约，禁依赖「默认全导出」的隐式面（防随导入件漂移）。
@@ -162,6 +287,9 @@ Export-ModuleMember -Function @(
     'Write-GateHeader',
     'Write-GateVerdict',
     'Test-BaselineNoIncrease',
+    'New-GateContext',
+    'Assert-GatePrerequisite',
+    'Assert-GateControls',
     # 目录映射（委托 DirectoryMap；一键装载供门禁消费）
     'Get-SuperRoot',
     'Get-RepositoryRoot',

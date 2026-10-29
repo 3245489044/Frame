@@ -10,6 +10,8 @@
     [A4] 负对照：合成未声明动作不得出现在已登记动作集；
     [A5] CommandLineValidator 保留 SetRegisteredCommands（唯一投影入口）。
     只读源码；-Check 时违规 > 0 退出码 1。
+
+    框架接线：根定位/违规清单 → GateRuntime.New-GateContext；裁决 → Write-GateVerdict。
 #>
 [CmdletBinding()]
 param(
@@ -18,16 +20,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
 
-$runner = Join-Path $Root 'Projects\FileDriven\FileDriven.Execution\Pipeline\FileDrivenPipelineRunner.cs'
-$coordinator = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\CommandCoordinator.cs'
-$waitUntil = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\WaitUntilSystem.cs'
-$validator = Join-Path $Root 'Projects\FileDriven\FileDriven.Utilities\CommandLineValidator.cs'
+# 门禁运行时（根定位 + 上下文 + 裁决；与目录深度解耦）
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'ActionCatalogSingleSource'
+$violations = $ctx.Violations
 
-$violations = [System.Collections.Generic.List[string]]::new()
+Write-GateHeader '动作目录单源守卫（ActionCatalogSingleSource）'
+
+$runner      = Join-Path $ctx.Root 'Projects\FileDriven\FileDriven.Execution\Pipeline\FileDrivenPipelineRunner.cs'
+$coordinator = Join-Path $ctx.Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\CommandCoordinator.cs'
+$waitUntil   = Join-Path $ctx.Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\WaitUntilSystem.cs'
+$validator   = Join-Path $ctx.Root 'Projects\FileDriven\FileDriven.Utilities\CommandLineValidator.cs'
 
 foreach ($file in @($runner, $coordinator, $waitUntil, $validator)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少动作目录面文件: $file") }
@@ -71,11 +75,4 @@ if ($violations.Count -eq 0) {
     }
 }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host '[通过] 动作目录单源：运行期注册表 = 加载期白名单投影；wait-until 能力在位（正/负对照命中）'
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'ActionCatalogSingleSource'

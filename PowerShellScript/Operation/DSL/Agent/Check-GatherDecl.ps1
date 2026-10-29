@@ -30,7 +30,7 @@ $publicAllow = @(
     'GatherCostClass', 'GatherDeclKind', 'GatherDecl', 'GatherSchema',
     'GatherToken', 'GatherProduceToken', 'GatherProducer', 'IGatherModule', 'GatherModuleBuilder',
     'GatherRegistry', 'IGatherProducer', 'GatherStageResult', 'GatherClosureViolationException', 'GatherHub',
-    'GatherSpecLoader'
+    'GatherSpecLoader', 'GatherEmitTicket'
 )
 
 Write-Host ''

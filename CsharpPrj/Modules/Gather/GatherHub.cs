@@ -30,6 +30,15 @@ public sealed class GatherClosureViolationException : InvalidOperationException
 }
 
 /// <summary>
+/// 写回票据（C-OUT 结构级）：由 <see cref="GatherHub.Emit"/> 唯一产出，承载「哪个视图的哪个已声明产物 + 载荷」。
+/// <para>唯一 writer 只接受票据 ⇒ 未声明产物在结构上写不出来（不再依赖调用方自觉）。</para>
+/// </summary>
+/// <param name="View">产出该载荷的视图名。</param>
+/// <param name="Produce">命中的产物声明（出口闭合判据载体）。</param>
+/// <param name="Payload">载荷（写入内容；非空）。</param>
+public sealed record GatherEmitTicket(string View, GatherProduceSpec Produce, object Payload);
+
+/// <summary>
 /// 聚拢 Hub —— 唯一读写面（C-IN / C-OUT / C-DEP）：
 /// <list type="bullet">
 /// <item>C-IN：取数只经 <see cref="GatherAsync"/>（生产者在 <see cref="IGatherProducer"/> 内实现）；</item>
@@ -126,8 +135,20 @@ public sealed class GatherHub
         => _snapshot.TryGetValue((token.Domain, token.Scope), out var value) && value is T typed ? typed : default;
 
     /// <summary>产物令牌版出口闭合判定。</summary>
-    public GatherProduceSpec Emit(GatherViewSpec view, GatherProduceToken token, object payload)
+    public GatherEmitTicket Emit(GatherViewSpec view, GatherProduceToken token, object payload)
         => Emit(view, token.Name, payload);
+
+    /// <summary>按注册表执行全视图（loc 反转：域 → location → 实现；阶段序 = deps 拓扑序）。</summary>
+    public Task<IReadOnlyList<GatherStageResult>> RunAsync(
+        GatherViewSpec view,
+        IReadOnlyCollection<string>? changedScopes,
+        CancellationToken ct)
+    {
+        var registry = _registry
+                       ?? throw new GatherClosureViolationException(
+                           "未装配 GatherRegistry（loc 反转要求先 Build 并注入模块）");
+        return RunAsync(view, new RegistryProducer(registry), changedScopes, ct);
+    }
 
     /// <summary>按 deps 拓扑序执行全部阶段（同阶段内 need 顺序 = 声明序）。</summary>
     public async Task<IReadOnlyList<GatherStageResult>> RunAsync(
@@ -147,13 +168,18 @@ public sealed class GatherHub
         return results;
     }
 
-    /// <summary>出口闭合（C-OUT）：写回必须命中视图的 produces 名单，否则抛。</summary>
-    public GatherProduceSpec Emit(GatherViewSpec view, string produceName, object payload)
+    /// <summary>
+    /// 出口闭合（C-OUT）：写回必须命中视图的 produces 名单，否则抛。
+    /// <para>返回 <see cref="GatherEmitTicket"/>（结构级凭证）：唯一 writer 只收票据，裸 payload 不构成写回许可。</para>
+    /// </summary>
+    public GatherEmitTicket Emit(GatherViewSpec view, string produceName, object payload)
     {
         ArgumentNullException.ThrowIfNull(view);
-        return view.FindProduce(produceName)
-               ?? throw new GatherClosureViolationException(
-                   $"未声明产物 '{produceName}'（视图 '{view.View}'）：写出必须命中 produces 名单（C-OUT）");
+        ArgumentNullException.ThrowIfNull(payload);
+        var produce = view.FindProduce(produceName)
+                      ?? throw new GatherClosureViolationException(
+                          $"未声明产物 '{produceName}'（视图 '{view.View}'）：写出必须命中 produces 名单（C-OUT）");
+        return new GatherEmitTicket(view.View, produce, payload);
     }
 
     /// <summary>丢弃上拍快照（作用域切换 / 强制刷新）。</summary>

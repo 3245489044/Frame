@@ -129,6 +129,8 @@
 
     ShareMessagingBoundary = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -137,6 +139,8 @@
 
     ContextGeometryBoundary = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -145,6 +149,8 @@
 
     ContextGeometryPrefixPurity = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -153,6 +159,8 @@
 
     NodePromptBinding = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '节点提示词绑定：模板槽 ⊆ PromptSlot 词表 / node:// domain 已声明 / 禁 SQL 旁路 / 禁新增 ContextNodeKind 用法；正负对照'
@@ -168,6 +176,8 @@
 
     AgentModulesFrameworkLayout = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -210,12 +220,16 @@
 
     AgentBuildPoint = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Expect = 0
     }
 
     ToolCallConvergence = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -224,12 +238,16 @@
 
     AgentDataSeparation = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
     }
 
     HistoryAssemblySurface = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'History 装配面：空态预装配(H1) / 档案分档+声明面(H2) / mode 注入(H3) / 视口单一入口(H4) / 端口只读(H5) / 缓存最大化分段+差分(H6) / UI 轨零 Binding(H15) / 双出口同供数(H16) / 空态可见化(H17) / 任务池状态单源(H18)'
@@ -237,6 +255,8 @@
 
     TransferKey = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -245,6 +265,8 @@
 
     KeyspaceMirror = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Drift'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -253,6 +275,8 @@
 
     AgentDefaultDispatch = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{}
         Tier   = 'fast'
         Expect = 0
@@ -261,6 +285,8 @@
 
     PsSkillToolMap = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -269,6 +295,8 @@
 
     LlmRoutingSurface = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'LLM 路由生效面：L1 禁静默降级(catch→local) / L2 缺省声明面(禁硬编码 local 兜底) / L3 生产兜底非 local / L4 自举不覆写配置真实 provider / L5 来源可审计(RouteOrigin origin)'
@@ -276,12 +304,16 @@
 
     AgentDecisionCoreBoundary = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
     }
 
     VmKernelReferenceBoundary = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'VM 内核引用面（VM-P6-d）：内核热路径（队列/循环/实例/路由/换代/装载/通用换代服务）零编译依赖——禁 Roslyn（Microsoft.CodeAnalysis）/ CSharpCompilation / VmCompiler；按面分层机器判据'
@@ -289,6 +321,8 @@
 
     AgentRuntimeSlots = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '承载面 K10（S1/S2 静态可变槽）+ 取用面 S4–S8（键值唯一 / 键↔宿主 1:1 / 取用面类型化 / 声明↔形态集合相等〔B2-c〕 / 跨代句柄禁令〔B5-a〕）；-WriteManifest 为写操作，聚合器禁用'
@@ -296,6 +330,8 @@
 
     RefreshFrameworkBoundary = @{
         Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'UI 刷新通用框架红线（Strategy.Refresh）：框架内零领域串（agent/conversation/db/task/session/history）/ 零上层依赖（Agent./Plate./UiBackend./FrontEndDriven.）；正负对照 -NegativeControl'
@@ -303,6 +339,8 @@
 
     UiSelectionExternalization = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '选择态外置守卫（框架级态外置）：C1 刷新协议禁 DOM 反查（PollAttrs 第三/四参 null）/ C2 采集端（capture 产出 uiState.select + [data-select-slot]）/ C3 消费端（HtmlBridgePayload.SelectionKeys + UiSelectionState）/ C4 历史归属解析禁伪造 default / C5 选中态受控于 UiSelectionStore；负对照 -NegativeControl'
@@ -310,6 +348,8 @@
 
     UiViewCatalog = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -318,6 +358,8 @@
 
     UiNoViewBranch = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -326,6 +368,8 @@
 
     UiRegionOwnership = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -334,6 +378,8 @@
 
     UiTextSafe = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -342,6 +388,8 @@
 
     FallbackInventoryRate = @{
         Domain = 'Meta'
+        Family = 'Meta'
+        Form   = 'Ratchet'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -350,6 +398,8 @@
 
     UiReadOutcome = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -358,6 +408,8 @@
 
     UiRenderEntry = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -366,6 +418,8 @@
 
     UiAnchorWrites = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -374,6 +428,8 @@
 
     AgentProcessSurface = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '过程面单源守卫：键文法(ProcessKeys) / 事件类别(ProcessNodeKinds) / 进度接收器(SyncProgress)'
@@ -381,6 +437,8 @@
 
     EntrySingleSource = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '入口单源守卫（写库即实现 · Agent.Core.Entry）：E-1 AgentApiPort 定义恰 1 · E-1b AgentEntryCallableTrack 恰 1 · E-2 AgentIntentMapping 恰 1 · E-3 AgentDispatcher 恰 1 · E-4 通用轨经 AgentEntryPort 转发 · P-1 正对照（intent 常量 ≥ 基线）· P-2 负对照'
@@ -388,6 +446,8 @@
 
     IntentMappingNoLiteral = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -396,6 +456,8 @@
 
     DbToolbarDictAlloc = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Ratchet'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -404,6 +466,8 @@
 
     RecordSingleTextForm = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -412,6 +476,8 @@
 
     GatherDiagnosticsSingleSource = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -420,6 +486,8 @@
 
     HostAccessNoRestate = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -784,6 +852,8 @@
 
     AgentRuntimeUIConfig = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
         Args   = @{}
         Expect = 0
         Note   = '默认校验模式；-FailOnWarning 为严格模式（默认关闭）'
@@ -819,6 +889,8 @@
 
     AgentStorageIsolation = @{
         Domain = 'Usharp'
+        Family = 'Boundary'
+        Form   = 'Boundary'
         Args   = @{}
         Tier   = 'fast'
         Expect = 0
@@ -857,6 +929,8 @@
 
     RoundFailureEnvelope = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -999,6 +1073,8 @@
 
     CircuitSemantics = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1016,6 +1092,8 @@
     # ===== 入口框架守卫 =====
     AgentSpec = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1024,6 +1102,8 @@
 
     RoundShape = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1032,6 +1112,8 @@
 
     CanonicalForm = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1040,6 +1122,8 @@
 
     CanonReplay = @{
         Domain = 'Agent'
+        Family = 'Meta'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1183,6 +1267,8 @@
     # ===== VM 换代路线收敛（VM-R1 构建到新目录）=====
     GenerationLayout = @{
         Domain = 'Agent'
+        Family = 'Meta'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'VM-R1 代目录布局契约：gen-<n>（n ≥ 1）须含全 Agent.*.dll（计数 ≥ 就地产物面参照）+ Agent.Launcher.deps.json（ALC 解析基座=本目录）+ vm-program.json；代根 = Projects\Plug\Agent\BuildOutput\Generations；落点禁 BuildOutput\<Config>（被运行进程锁定）'
@@ -1190,6 +1276,8 @@
 
     GenerationRebuildChain = @{
         Domain = 'Agent'
+        Family = 'Meta'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'VM-R5 换代链结构守卫：构建到新目录（代目录布局单源）→ 换 ALC（重装配桥 + 按代端口注册）→ 重装配（F 段重挂 + 装配契约）→ 触发（源码监视 + 命令触发）之结构锚点 C1–C7 在位'
@@ -1198,6 +1286,8 @@
     # ===== 生效面断言（B′ · AI 行为护栏）=====
     EffectiveFace = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Drift'
         Args   = @{ Check = $true }
         Expect = 0
         Note   = '生效面断言（EffectiveFace）：运行时装载面指纹 == 构建产物指纹（Agent.Launcher.dll + 共享核心件；dev=就地 / locked=current→gen-<n>）· [E3] 正/负对照；基线 = Baselines\Agent\EffectiveFace.psd1；机械复算 = Frame\Invoke\Invoke-BuildEffective.ps1 -Assert'
@@ -1278,6 +1368,8 @@
 
     WriteCapabilitySinglePredicate = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1286,6 +1378,8 @@
 
     SaveDispatchNoDomainSwitch = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1294,6 +1388,8 @@
 
     DbRenderPurity = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1302,6 +1398,8 @@
 
     DomainResolveSingleEntry = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1310,6 +1408,8 @@
 
     RowIdentityBareKey = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Ratchet'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1318,6 +1418,8 @@
 
     IntentSupportsProjected = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1327,6 +1429,8 @@
 
     EffectiveModeSingleSource = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1335,6 +1439,8 @@
 
     DetailReadWriteSamePort = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1343,6 +1449,8 @@
 
     RenderNoDomainBranch = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1351,6 +1459,8 @@
 
     OperationRowCarriesActor = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1376,6 +1486,8 @@
 
     DispatchTraceSchema = @{
         Domain = 'KeySpace'
+        Family = 'Observability'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1384,6 +1496,8 @@
 
     IdentityTemplatePrefix = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1392,6 +1506,8 @@
 
     SendDeclarationCoverage = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1400,6 +1516,8 @@
 
     ReadinessSingleEntry = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1408,6 +1526,8 @@
 
     UnknownVisible = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1416,6 +1536,8 @@
 
     RecordDraftSingleSource = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1424,6 +1546,8 @@
 
     TemplateAccessSingleEntry = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1432,6 +1556,8 @@
 
     IntentParity = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1440,6 +1566,8 @@
 
     ActionCatalogSingleSource = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1448,6 +1576,8 @@
 
     PowerShellHostSingleSource = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1456,6 +1586,8 @@
 
     IntentContract = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1464,6 +1596,8 @@
 
     EchoConstants = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1472,6 +1606,8 @@
 
     ScriptNoFixedSleep = @{
         Domain = 'Agent'
+        Family = 'Meta'
+        Form   = 'Ratchet'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1480,6 +1616,8 @@
 
     SignalDeclaration = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1488,6 +1626,8 @@
 
     SignalTraceSchema = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1496,6 +1636,8 @@
 
     ContextGeometryConvergence = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1504,6 +1646,8 @@
 
     LaneCatalog = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1512,6 +1656,8 @@
 
     ExecutionLaneGate = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1520,6 +1666,8 @@
 
     PromptSegments = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1528,6 +1676,8 @@
 
     DelegateEntry = @{
         Domain = 'Agent'
+        Family = 'Contract'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1536,6 +1686,8 @@
 
     WorkflowRegistration = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1545,6 +1697,8 @@
     # ===== 执行体观察面（Actor Observation：K-2/K-3/K-4）=====
     ActorBindingSingleWriter = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1553,6 +1707,8 @@
 
     ActorObservationSurface = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Consistency'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1561,6 +1717,8 @@
 
     ActorObservationEmptyReason = @{
         Domain = 'Agent'
+        Family = 'Observability'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1569,6 +1727,8 @@
 
     ActorInvocationSingleSource = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1691,6 +1851,8 @@
 
     UiWriteFidelity = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1699,6 +1861,8 @@
 
     UiTemplateSet = @{
         Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Closure'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1740,6 +1904,8 @@
     # ===== 聚拢框架（Gather-as-Pipeline，G0–G2）=====
     GatherSpec = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1748,14 +1914,18 @@
 
     GatherClosure = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Closure'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '聚拢闭合守卫 C1–C4：读/写直呼清单（file:line + 符号）不得超基线（Baselines\Process\GatherClosure.psd1，只降不升）/ 允许集 = producer 实现文件 / 负对照（合成直呼必被捕获）'
+        Note   = '聚拢闭合守卫 C1–C5：读/写直呼清单（file:line + 符号）不得超基线（Baselines\Process\GatherClosure.psd1，只降不升）/ 允许集 = producer 实现文件 + 契约定义面 / C5 出口闭合（Emit 字面量产物名 ∈ 声明面 produces，常量引用放行）/ 负对照（合成直呼、未声明产物名必被捕获）'
     }
 
     GatherDecl = @{
         Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Boundary'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0

@@ -14,6 +14,8 @@
          要么在伴随件白名单（防「新增门却未登记」脱钩）。
       T4 索引等价：index.generated.md 存在且其条目集与清单复算等价（防手改产物 / 漂移）。
       T5 正/负对照：复算器对合成样本行为正确（判据不恒真/恒假）。
+      T6 Family 合法：落点在 Agent 域的门须声明 Family（判据面）且 ∈ 枚举。
+      T7 Form 合法：落点在 Agent 域的门须声明 Form（判据形态）且 ∈ 枚举。
 
     模式：默认报告模式（列违规，不设退出码）；-Check 校验模式（违规 → 退出码 1）。只读仓库，零侧写。
 
@@ -58,6 +60,7 @@ $companionAllowlist = @{
     'KeySpaceInvariants'          = '伴随件：三视图（axis/surface/owner）共用实现，经 Check-Key{AxisCompleteness,SurfaceDistinguishable,OwnerUnique}.ps1 薄转发登记'
     'AgentCarrierSurface'         = '伴随件：载体面分项判据（未登记为独立门）'
     'AgentLayerBoundary'          = '伴随件：层边界分项判据（未登记为独立门）'
+    'ReadModelOnly'               = '未登记独立门：基线 Agent\ReadModelOnly.psd1 尚未事实行化（Check-GateBaselines U9/U11 债务）；基线外置合规后登记'
     'DeclarationEditSingleSource' = '未登记独立门（含基线 Baselines\Declarations\DeclarationEditSingleSource.psd1）——待登记或销账'
     'DeclarationReloadRegistry'   = '未登记独立门——待登记或销账'
     'ExceptionGateway'            = '未登记独立门——待登记或销账'
@@ -87,6 +90,22 @@ function Resolve-GateCell {
 function Test-DomainValid {
     param([string]$Domain)
     return (-not [string]::IsNullOrWhiteSpace($Domain)) -and ($domainEnum -contains $Domain)
+}
+
+# ── T6/T7 轴枚举与谓词（唯一定义点；判定与 T5 对照共用 ⇒ 防两套口径）──
+# 动机：Domain 只回答「脚本放哪」，不回答「判据看哪类结构 / 用什么运算判」；
+#   Agent 域曾平铺 88 件，检索与复用只能靠文件名猜。
+$familyEnum = @('Declaration', 'Contract', 'Runtime', 'Presentation', 'Observability', 'Boundary', 'Meta')
+$formEnum   = @('SingleSource', 'Closure', 'Boundary', 'Ratchet', 'Drift', 'Consistency')
+$agentCellPrefix = 'Frame\PowerShellScript\Operation\DSL\Agent\'
+
+function Test-FamilyValid { param([string]$Family) return (-not [string]::IsNullOrWhiteSpace($Family)) -and ($familyEnum -contains $Family) }
+function Test-FormValid   { param([string]$Form)   return (-not [string]::IsNullOrWhiteSpace($Form))   -and ($formEnum -contains $Form) }
+
+# 落点缓存：T2/T3/T4/T6/T7 共用一次解析（防多套口径与重复扫描）
+$cellCache = @{}
+foreach ($name in $gates.Keys) {
+    $cellCache[$name] = (Resolve-GateCell -Name $name -Spec $gates[$name]).Cell
 }
 
 # ── T1：Domain 合法 ──
@@ -145,8 +164,10 @@ foreach ($name in $gates.Keys) {
     $spec = $gates[$name]
     [void]$expectedDomains.Add([string]$spec.Domain)
     $tier = if ($spec.ContainsKey('Tier')) { [string]$spec.Tier } else { 'full' }
-    $cell = (Resolve-GateCell -Name $name -Spec $spec).Cell
-    [void]$expectedRows.Add("| ``$name`` | $tier | $([int]$spec.Expect) | ``$cell`` |")
+    $family = if ($spec.ContainsKey('Family')) { [string]$spec.Family } else { '—' }
+    $form   = if ($spec.ContainsKey('Form')) { [string]$spec.Form } else { '—' }
+    $cell = [string]$cellCache[$name]
+    [void]$expectedRows.Add("| ``$name`` | $tier | $([int]$spec.Expect) | $family | $form | ``$cell`` |")
 }
 
 if (-not (Test-Path -LiteralPath $indexPath)) {
@@ -166,6 +187,32 @@ if (-not (Test-Path -LiteralPath $indexPath)) {
     }
 }
 
+# ── T6/T7：判据面（Family）与判据形态（Form）分类轴 ──
+# 适用面 = 落点在 Agent 域的门（其余域尚未补轴；Domain 仍是唯一组织轴）
+foreach ($name in ($gates.Keys | Sort-Object)) {
+    $spec = $gates[$name]
+    $cell = [string]$cellCache[$name]
+    if (-not $cell.StartsWith($agentCellPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+
+    $family = if ($spec.ContainsKey('Family')) { [string]$spec.Family } else { '' }
+    if (-not (Test-FamilyValid -Family $family)) {
+        if ([string]::IsNullOrWhiteSpace($family)) {
+            $violations.Add("[T6] $name — Agent 域脚本缺 Family（判据面未定；枚举 $($familyEnum -join '/')）")
+        } else {
+            $violations.Add("[T6] $name — Family '$family' 不在枚举 [$($familyEnum -join '/')]")
+        }
+    }
+
+    $form = if ($spec.ContainsKey('Form')) { [string]$spec.Form } else { '' }
+    if (-not (Test-FormValid -Form $form)) {
+        if ([string]::IsNullOrWhiteSpace($form)) {
+            $violations.Add("[T7] $name — Agent 域脚本缺 Form（判据形态未定；枚举 $($formEnum -join '/')）")
+        } else {
+            $violations.Add("[T7] $name — Form '$form' 不在枚举 [$($formEnum -join '/')]")
+        }
+    }
+}
+
 # ── T5：正/负对照（判据自证：T1 的 Domain 合法性谓词 Test-DomainValid）──
 if ($expectedRows.Count -eq 0) { $violations.Add('[T5] 正对照失败：复算行集为空（判据无标的假绿）') }
 # 负对照：合成非法域**必须**被判非法（谓词恒真/恒假都将被此处捕获 —— 原实现 `-contains '__NONEXISTENT__'` 恒假 ⇒ 该对照永不触发）
@@ -177,6 +224,12 @@ $posDomain = @($domainEnum)[0]
 if (-not (Test-DomainValid -Domain $posDomain)) {
     $violations.Add("[T5] 正对照失败：枚举内合法域 '$posDomain' 被判非法（谓词被改坏）")
 }
+
+# T6/T7 谓词自证：合成非法值必被判非法，枚举内合法值必被判合法
+if (Test-FamilyValid -Family '__NONEXISTENT__') { $violations.Add('[T5] 负对照失败：合成非法 Family 被 T6 谓词误判为合法') }
+if (Test-FormValid -Form '__NONEXISTENT__')     { $violations.Add('[T5] 负对照失败：合成非法 Form 被 T7 谓词误判为合法') }
+if (-not (Test-FamilyValid -Family @($familyEnum)[0])) { $violations.Add('[T5] 正对照失败：枚举内合法 Family 被判非法') }
+if (-not (Test-FormValid -Form @($formEnum)[0]))       { $violations.Add('[T5] 正对照失败：枚举内合法 Form 被判非法') }
 
 # ── 报告 ──
 Write-Host '=== 门禁分类守卫（GateTaxonomy：清单 ⇄ 索引 ⇄ 脚本 三方对账）===' -ForegroundColor White

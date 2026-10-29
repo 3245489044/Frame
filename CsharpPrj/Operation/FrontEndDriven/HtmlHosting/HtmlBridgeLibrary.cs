@@ -31,6 +31,9 @@ public sealed class HtmlBridgeLibrary
     private readonly Func<ITrConfigRegistry?>? _registryProvider;
     private ITrConfigRegistry? _registry;
 
+    /// <summary>最近一次装配失败签名（同因重复失败不重复发诊断，避免逐轮轮询刷屏）。</summary>
+    private string? _lastAttachFailure;
+
     /// <summary>默认页面壳模板（未装配 htmlShell 模板时兜底）。css/body 为受信已投影片段，用 |raw 原文绑定。</summary>
     private const string DefaultHtmlShell = "<style>{css|raw}</style>{body|raw}";
 
@@ -291,9 +294,13 @@ public sealed class HtmlBridgeLibrary
         DetachStaleRuntime();
         try
         {
-            var viewer = _backend.HtmlViewerResolver?.Invoke(_hostControl);
+            // 两种情况语义完全不同：解析器未注入 = 真装配缺失；解析器返回 null = 控件尚未创建（时序状态）。
+            var resolver = _backend.HtmlViewerResolver;
+            if (resolver is null)
+                return ReportAttachFailure(_labels.ViewerUnresolved);
+            var viewer = resolver(_hostControl);
             if (viewer is null)
-                return ReportAttachFailure($"{_labels.ViewerUnresolved}（hostControl={_hostControl}）");
+                return ReportAttachFailure(_labels.HostControlNotFound(_hostControl));
             var registry = _registryProvider?.Invoke() ?? _registry;
             if (registry is null)
                 return ReportAttachFailure(_labels.RegistryNotAttached);
@@ -348,6 +355,7 @@ public sealed class HtmlBridgeLibrary
                 return $"HTML 装配不完整（就绪契约未满足）: {problems}";
             }
 
+            _lastAttachFailure = null;
             return _labels.AttachedSummary(
                 report.Summary(),
                 _backend.Templates is not null,
@@ -369,7 +377,11 @@ public sealed class HtmlBridgeLibrary
     public async Task<string> EnsureHtmlUiAttachedAsync()
     {
         // 身份化判据（A）：控件实例被配置重载/作用域重建换掉后，旧运行时的执行器留在旧实例 ⇒ 必须重挂。
-        if (IsAttachedToCurrentViewer()) return $"（HTML 后端已装配且绑定当前控件，hostControl={_hostControl}）";
+        if (IsAttachedToCurrentViewer())
+        {
+            _lastAttachFailure = null;
+            return $"（HTML 后端已装配且绑定当前控件，hostControl={_hostControl}）";
+        }
         return await HtmlAttachAsync().ConfigureAwait(false);
     }
 
@@ -402,7 +414,10 @@ public sealed class HtmlBridgeLibrary
         var runtime = _backend.HtmlUi;
         if (runtime is null) return false;
         var current = _backend.HtmlViewerResolver?.Invoke(_hostControl);
-        return current is not null && ReferenceEquals(runtime.Channel, current);
+        if (current is null || !ReferenceEquals(runtime.Channel, current)) return false;
+        // 装配完整性：runtime 已挂但消息桥/计划执行器未挂到当前控件 = 部分装配（装配中途失败），
+        // 必须视为「未装配」触发重挂，否则会被幂等判据永久跳过（表现为交互写回计划无法落地）。
+        return current.RenderPlanExecutor is not null;
     }
 
     /// <summary>
@@ -419,10 +434,16 @@ public sealed class HtmlBridgeLibrary
             "HTML 后端绑定控件实例已变更（配置重载/作用域重建）→ 解装配旧运行时并重新装配（消除『已装配但执行器在旧实例』的落地断链）。");
     }
 
-    /// <summary>装配失败统一出口：诊断可见（宿主控件名/注册库/配置路径错配不再静默）。</summary>
+    /// <summary>装配失败统一出口：诊断可见（宿主控件名/注册库/配置路径错配不再静默）。
+    /// <para>同因失败只发一次（如面板尚未 sideload 时的逐轮轮询）：重复同签名失败静默，避免刷屏；
+    /// 原因变化或装配成功后重置。</para></summary>
     private string ReportAttachFailure(string message)
     {
-        _backend.DiagnosticsSink?.Invoke("HtmlChannel_attach_failed", message);
+        if (!string.Equals(_lastAttachFailure, message, StringComparison.Ordinal))
+        {
+            _lastAttachFailure = message;
+            _backend.DiagnosticsSink?.Invoke("HtmlChannel_attach_failed", message);
+        }
         return message;
     }
 

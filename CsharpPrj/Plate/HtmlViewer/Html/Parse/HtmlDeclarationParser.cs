@@ -205,7 +205,10 @@ public static class HtmlDeclarationParser
         if (config is null || string.IsNullOrWhiteSpace(hostControlName)) return null;
         if (!BuildControlIndex(config).TryGetValue(hostControlName, out var hostControl)) return null;
         var page = hostControl.HtmlPage;
-        if (page?.Controls is not { Count: > 0 }) return null;
+        // 区域式页面（只声明 regions / state / eventTargets，无内部控件）同样合法——
+        // 控制台类页面由插件自行渲染 HTML，仅借用区域目录做 patch 写回。
+        if (page is null) return null;
+        if (page.Controls is not { Count: > 0 } && page.Regions is not { Count: > 0 }) return null;
         if (!string.IsNullOrWhiteSpace(pageName)
             && !string.Equals(page.Name, pageName, StringComparison.OrdinalIgnoreCase))
             return null;

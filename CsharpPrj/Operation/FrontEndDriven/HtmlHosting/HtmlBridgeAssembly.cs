@@ -129,7 +129,12 @@ public static class HtmlBridgeAssembly
             planViewer.RenderPlanResultExecutor ??= plan => runtime.ExecuteAsync(plan, plan.Source, plan.TraceId);
 
         host.AttachHtmlUi(runtime);
-        host.AttachPageDeclaration(ExtractPage(uiConfig, hostControl, pageName));
+        // 页面内部声明可为空（区域式页面只声明 regions、无内部控件；由插件自行渲染 HTML）。
+        // 空值不得进入槽位（ThreadSafeSlot.Attach 对 null 直接抛 MissingDependencyException，
+        // 会把「无内部页面声明」误判为装配失败并中断后续消息桥/计划执行器接线）。
+        var pageDeclarationConfig = ExtractPage(uiConfig, hostControl, pageName);
+        if (pageDeclarationConfig is not null)
+            host.AttachPageDeclaration(pageDeclarationConfig);
         AttachTemplatesAndTheme(host, uiConfig.Templates ?? new Dictionary<string, string>());
         return runtime.Readiness;
     }

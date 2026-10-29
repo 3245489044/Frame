@@ -591,7 +591,15 @@ $runAction = {
             if ($pipeConnected) {
                 # ★ 管道模式（Test-PipeMode）空闲超时收紧为 30s——管道输入无 TTY，
                 #   用户无法手动干预，长时间无输出按卡死处理比长时间等待更可诊断
-                $idleTimeoutMs = if (Test-PipeMode) { 30000 } else { 120000 }
+                # ★ 例外：显式设置 FILEDRIVEN_IDLE_TIMEOUT_MS 时以其为准（覆盖两种默认）——
+                #   用于「等待外部服务冷启动/长任务」的脚本（如 Produce env.start 冷启动 ComfyUI），
+                #   此类阶段本就不产生日志，30s 阈值会把正常等待误判为卡死。
+                $envIdle = 0
+                if ([int]::TryParse($env:FILEDRIVEN_IDLE_TIMEOUT_MS, [ref]$envIdle) -and $envIdle -gt 0) {
+                    $idleTimeoutMs = $envIdle
+                } else {
+                    $idleTimeoutMs = if (Test-PipeMode) { 30000 } else { 120000 }
+                }
                 $idleCheckMs   = 500     # 空闲检查间隔（毫秒）
                 $idle = [System.Diagnostics.Stopwatch]::StartNew()
                 # ★ 卡死诊断缓冲：保留最近 N 条回读输出，供空闲超时（判定卡死）时定位停滞步骤

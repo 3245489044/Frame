@@ -27,6 +27,9 @@ public sealed record HtmlHostingLabels
     /// <summary>整串覆盖：htmlviewer 控件未解析提示（缺省由 HostName/PageNoun 合成）。</summary>
     public string? ViewerUnresolvedTemplate { get; init; }
 
+    /// <summary>整串覆盖：宿主控件尚未创建提示（占位 <c>{0}</c> 为控件名；缺省由 PageNoun 合成）。</summary>
+    public string? HostControlNotFoundTemplate { get; init; }
+
     /// <summary>整串覆盖：函数注册库未装配提示（缺省由 LibraryName 合成）。</summary>
     public string? RegistryNotAttachedTemplate { get; init; }
 
@@ -37,9 +40,14 @@ public sealed record HtmlHostingLabels
     public string NotAttached => NotAttachedTemplate
         ?? $"（HTML 后端未装配）请宿主创建 HtmlBackendRuntime 并调用 {HostName}.AttachHtmlUi(...)。";
 
-    /// <summary>htmlviewer 控件未解析时的诊断文案。</summary>
+    /// <summary>htmlviewer 控件未解析时的诊断文案（解析器未注入；逐字保留既有文案）。</summary>
     public string ViewerUnresolved => ViewerUnresolvedTemplate
         ?? $"（htmlviewer 控件未解析）请宿主注入 {HostName}.AttachHtmlViewerResolver 并在{PageNoun} sideload 后调用";
+
+    /// <summary>宿主控件尚未创建（通常是{PageNoun}配置尚未 sideload）——属时序状态，非装配缺失。</summary>
+    public string HostControlNotFound(string controlName) =>
+        (HostControlNotFoundTemplate ?? $"（htmlviewer 控件未就绪）{PageNoun}尚未创建控件 {{0}}，请先 sideload {PageNoun} 配置后再交互")
+        .Replace("{0}", controlName ?? "null");
 
     /// <summary>函数注册库未装配时的诊断文案。</summary>
     public string RegistryNotAttached => RegistryNotAttachedTemplate

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-27 22:59:22",
+  "timestamp": "2026-10-29 21:55:57",
   "summary": {
     "files_scanned": 6,
     "index_symbols": 266,
@@ -22,136 +22,31 @@
     }
   ],
   "reverse_references": {
-    "axioms:AX-CORE.EssentiallyUndecidable": [
-      "axioms.md:86"
-    ],
-    "formula:Gate.CallMergeGate": [
-      "formula.md:226"
-    ],
-    "axioms:Type.Context": [
-      "formula.md:74"
-    ],
-    "formula:SM.RawOutputRetention": [
-      "formula.md:240"
-    ],
-    "dsl:Sec.2": [
-      "project.md:148"
-    ],
-    "axioms:Strategy.SingleImplementation": [
-      "axioms.md:59",
-      "axioms.md:84",
-      "formula.md:167",
-      "formula.md:225"
-    ],
-    "axioms:AX.TransientRetryNoCost": [
-      "formula.md:134"
-    ],
-    "axioms:AX.DependencyCycleDetection": [
-      "formula.md:192"
-    ],
-    "project:Sec.1.4": [
-      "formula.md:180"
-    ],
-    "formula:SM.DiagnosePhaseFlow": [
-      "formula.md:169"
-    ],
-    "axioms:AX.AttentionWeighting": [
-      "formula.md:129",
-      "logic.md:34"
-    ],
-    "axioms:Param.BATCH_BOUNDARY_RULE": [
-      "formula.md:222"
+    "dsl:Sec.0": [
+      "project.md:180"
     ],
     "axioms:Sec.1": [
       "dsl.md:119"
     ],
-    "formula:Gate.DimensionReductionGate": [
-      "axioms.md:178",
-      "axioms.md:237",
-      "axioms.md:238",
-      "axioms.md:239",
-      "axioms.md:240",
-      "project.md:147"
-    ],
-    "axioms:AX.EntryCondition": [
-      "formula.md:85",
-      "theorems.md:12"
-    ],
-    "axioms:AX-CORE.InformationMonotonicity": [
-      "formula.md:212"
-    ],
-    "axioms:AX-CORE.QuantificationConstraint": [
-      "axioms.md:57"
-    ],
-    "axioms:AX-CORE.AxiomHierarchyStructure": [
-      "axioms.md:135",
-      "formula.md:10"
-    ],
-    "axioms:Param.SHELL_CALL_BUDGET_PER_BATCH": [
-      "formula.md:226"
-    ],
-    "axioms:SEP.JudgmentCarrierStructural": [
-      "axioms.md:57",
-      "axioms.md:59",
-      "axioms.md:84",
-      "formula.md:166",
-      "formula.md:225"
-    ],
-    "dsl:Sec.4.5": [
-      "axioms.md:94",
-      "formula.md:33"
-    ],
-    "axioms:Param.DIM_TARGET_WRITE_PRIMITIVES": [
-      "formula.md:97"
+    "axioms:AX.StateSnapshot": [
+      "formula.md:78",
+      "formula.md:224"
     ],
     "formula:SM.VerifyAlignmentFlow": [
       "formula.md:170",
       "formula.md:222",
       "formula.md:225"
     ],
-    "formula:SM.ErrorHandler": [
-      "axioms.md:102",
-      "axioms.md:110",
-      "dsl.md:224",
-      "formula.md:92"
+    "axioms:AX.TerminationBipartition": [
+      "axioms.md:123",
+      "axioms.md:184"
     ],
-    "axioms:Sec.6": [
-      "theorems.md:6"
+    "dsl:Sec.4.5": [
+      "axioms.md:94",
+      "formula.md:33"
     ],
-    "axioms:Type.VisibleValue": [
-      "axioms.md:177",
-      "formula.md:96"
-    ],
-    "axioms:Sec.0": [
-      "formula.md:4",
-      "formula.md:41"
-    ],
-    "axioms:Def.handle": [
-      "formula.md:145"
-    ],
-    "formula:SM.DecideDrivenUpdate": [
-      "axioms.md:85",
-      "axioms.md:86"
-    ],
-    "axioms:Sec.9": [
-      "formula.md:56",
-      "project.md:118",
-      "project.md:149"
-    ],
-    "project:Sec.1.6": [
-      "formula.md:186"
-    ],
-    "axioms:AX.StateSnapshot": [
-      "formula.md:78",
-      "formula.md:224"
-    ],
-    "axioms:AX.TerminationPriority": [
-      "axioms.md:86",
-      "formula.md:118",
-      "formula.md:138"
-    ],
-    "logic:Sec.3": [
-      "formula.md:103"
+    "project:Sec.1.7": [
+      "formula.md:187"
     ],
     "axioms:AX-FRAME.CriterionWellFormedness": [
       "axioms.md:46",
@@ -159,29 +54,58 @@
       "formula.md:91",
       "formula.md:177"
     ],
-    "axioms:AX.NoSilentOutlet": [
-      "axioms.md:47",
-      "formula.md:96"
+    "axioms:AX-CORE.EssentiallyUndecidable": [
+      "axioms.md:86"
     ],
-    "formula:Gate.ShouldWrite": [
-      "axioms.md:84",
-      "axioms.md:209"
+    "formula:SM.StateValidity": [
+      "formula.md:195",
+      "logic.md:4"
     ],
-    "axioms:Type.Scope": [
-      "formula.md:48"
-    ],
-    "formula:SM.EffectiveFaceAssertion": [
-      "project.md:141"
-    ],
-    "formula:Gate.RunStateDisplayGate": [
-      "axioms.md:177"
-    ],
-    "axioms:AX-META.OutputWellFormedness": [
-      "formula.md:206"
-    ],
-    "project:Sec.1.9": [
-      "formula.md:166",
+    "project:Sec.1.10": [
+      "axioms.md:235",
+      "formula.md:168",
+      "formula.md:222",
       "formula.md:223"
+    ],
+    "axioms:Param.DIM_TARGET_WRITE_PRIMITIVES": [
+      "formula.md:97"
+    ],
+    "axioms:AX.FormatInstructionLocality": [
+      "formula.md:181"
+    ],
+    "axioms:Param.DIM_TARGET_LEDGERS": [
+      "formula.md:97"
+    ],
+    "axioms:AX.MacroFirst": [
+      "formula.md:51",
+      "formula.md:93"
+    ],
+    "axioms:AX.AttentionWeighting": [
+      "formula.md:129",
+      "logic.md:34"
+    ],
+    "formula:SM.ErrorHandler": [
+      "axioms.md:102",
+      "axioms.md:110",
+      "dsl.md:224",
+      "formula.md:92"
+    ],
+    "project:Sec.1.5": [
+      "formula.md:185"
+    ],
+    "project:Sec.2": [
+      "formula.md:203"
+    ],
+    "axioms:AX.StructuralGrounding": [
+      "formula.md:232"
+    ],
+    "axioms:AX.DecisionOutputSet": [
+      "axioms.md:34",
+      "formula.md:106",
+      "formula.md:142"
+    ],
+    "project:Sec.1.4": [
+      "formula.md:180"
     ],
     "logic:LO.Aggregate": [
       "axioms.md:52",
@@ -190,54 +114,118 @@
       "formula.md:174",
       "formula.md:212"
     ],
-    "formula:Gate.DiagnosePhaseReadOnlyGate": [
-      "formula.md:223"
+    "theorems:TH.TH-9": [
+      "formula.md:71",
+      "formula.md:138"
     ],
-    "formula:Gate.MacroGate": [
-      "axioms.md:144",
-      "axioms.md:175"
-    ],
-    "axioms:AX-META.ToolCallWellFormedness": [
-      "formula.md:165",
-      "formula.md:166"
+    "axioms:Param.VERIFY_ALIGNMENT_REQUIRED": [
+      "formula.md:170",
+      "formula.md:224"
     ],
     "axioms:Def.GlobalDecisionKey": [
       "formula.md:36",
       "formula.md:153"
     ],
-    "axioms:AX.InitialState": [
-      "formula.md:118",
-      "theorems.md:12"
+    "axioms:Type.UnknownTokens": [
+      "axioms.md:177",
+      "formula.md:96"
     ],
-    "formula:SM.FocusDecision": [
-      "axioms.md:176"
+    "axioms:Def.handle": [
+      "formula.md:145"
     ],
-    "dsl:Sec.0": [
-      "project.md:180"
+    "logic:Sec.1": [
+      "formula.md:4",
+      "formula.md:5"
     ],
-    "axioms:AX.RepeatedCallStable": [
-      "axioms.md:70",
-      "formula.md:136",
-      "formula.md:176"
+    "axioms:AX.DimensionalityReduction": [
+      "formula.md:97",
+      "formula.md:139",
+      "formula.md:140",
+      "project.md:147"
     ],
-    "axioms:AX.BlastRadiusNonExemption": [
-      "axioms.md:58",
-      "axioms.md:59",
-      "axioms.md:83"
+    "axioms:Sec.3": [
+      "formula.md:36"
     ],
-    "axioms:Param.DIM_TARGET_LEDGERS": [
+    "axioms:Param.BATCH_BOUNDARY_RULE": [
+      "formula.md:222"
+    ],
+    "axioms:SEP.DeclarativeProcessDisjoint": [
+      "formula.md:98"
+    ],
+    "formula:SM.BatchEditThenTestFlow": [
+      "formula.md:168"
+    ],
+    "axioms:Param.DIM_TARGET_FORM_CONVERSIONS": [
       "formula.md:97"
+    ],
+    "axioms:Param.SHELL_CALL_BUDGET_PER_BATCH": [
+      "formula.md:226"
+    ],
+    "axioms:AX.NoSilentOutlet": [
+      "axioms.md:47",
+      "formula.md:96"
+    ],
+    "formula:SM.SyncGuard": [
+      "axioms.md:152"
+    ],
+    "formula:SM.RunStateProjection": [
+      "axioms.md:73"
+    ],
+    "formula:SM.ShellBudgetFlow": [
+      "formula.md:168"
+    ],
+    "axioms:AX.FailureSubtyping": [
+      "axioms.md:94"
+    ],
+    "axioms:AX-CORE.TruthValueDomainLogic": [
+      "logic.md:4"
+    ],
+    "axioms:AX-META.ToolCallWellFormedness": [
+      "formula.md:165",
+      "formula.md:166"
+    ],
+    "axioms:Param.VERIFY_SINGLE_ENTRY": [
+      "formula.md:168",
+      "formula.md:222"
+    ],
+    "formula:SM.DiagnosePhaseFlow": [
+      "formula.md:169"
+    ],
+    "axioms:AX-META.OutputWellFormedness": [
+      "formula.md:206"
     ],
     "theorems:TH.TH-18": [
       "formula.md:225"
     ],
-    "axioms:AX.FirstCallTransient": [
-      "formula.md:134"
+    "axioms:Type.Context": [
+      "formula.md:74"
     ],
-    "formula:Gate.CallNecessityGate": [
+    "project:Sec.1.8": [
+      "formula.md:190"
+    ],
+    "axioms:Sec.9": [
+      "formula.md:56",
+      "project.md:118",
+      "project.md:149"
+    ],
+    "axioms:SEP.JudgmentCarrierStructural": [
       "axioms.md:57",
-      "axioms.md:173",
-      "axioms.md:228"
+      "axioms.md:59",
+      "axioms.md:84",
+      "formula.md:166",
+      "formula.md:225"
+    ],
+    "axioms:Sec.2": [
+      "formula.md:5"
+    ],
+    "axioms:AX-META.FormatFidelity": [
+      "formula.md:235"
+    ],
+    "axioms:Param.TOOL_FALLBACK_ATTEMPT": [
+      "formula.md:227"
+    ],
+    "formula:Gate.SelectionExprGate": [
+      "formula.md:240"
     ],
     "logic:LO.Assess": [
       "axioms.md:83",
@@ -252,15 +240,19 @@
       "formula.md:225",
       "formula.md:232"
     ],
-    "formula:Gate.SelectionExprGate": [
-      "formula.md:240"
+    "axioms:AX.ExploratoryEntry": [
+      "axioms.md:178",
+      "formula.md:85"
     ],
-    "axioms:SEP.LevelStateAxisIndependence": [
-      "formula.md:95"
+    "axioms:Param.VERIFY_CALL_BUDGET_PER_BATCH": [
+      "formula.md:168",
+      "formula.md:222",
+      "formula.md:226"
     ],
-    "axioms:AX.FailureBudgetEscalation": [
-      "formula.md:92",
-      "formula.md:147"
+    "axioms:AX.BlastRadiusNonExemption": [
+      "axioms.md:58",
+      "axioms.md:59",
+      "axioms.md:83"
     ],
     "logic:LO.Resolve": [
       "axioms.md:136",
@@ -315,96 +307,52 @@
       "formula.md:235",
       "logic.md:6"
     ],
-    "axioms:Sec.8": [
-      "theorems.md:6"
+    "formula:Gate.EditPhaseVerifyGate": [
+      "axioms.md:173",
+      "axioms.md:235"
     ],
-    "axioms:AX.ResultComposition": [
-      "formula.md:218"
+    "axioms:Type.Scope": [
+      "formula.md:48"
     ],
-    "axioms:Def.CostClassBoundedness": [
-      "formula.md:166",
-      "project.md:114"
-    ],
-    "formula:SM.RunStateProjection": [
-      "axioms.md:73"
-    ],
-    "axioms:Def.op.needsSync": [
-      "theorems.md:18"
-    ],
-    "axioms:Sec.2": [
-      "formula.md:5"
-    ],
-    "axioms:AX.FormatInstructionLocality": [
-      "formula.md:181"
-    ],
-    "project:Sec.1.7": [
-      "formula.md:187"
-    ],
-    "axioms:AX.MacroFirst": [
-      "formula.md:51",
-      "formula.md:93"
-    ],
-    "axioms:SEP.DeclarativeProcessDisjoint": [
-      "formula.md:98"
-    ],
-    "axioms:AX.TerminationBipartition": [
-      "axioms.md:123",
-      "axioms.md:184"
+    "axioms:AX.FailureBudgetEscalation": [
+      "formula.md:92",
+      "formula.md:147"
     ],
     "axioms:SEP.AxisIndependence": [
       "formula.md:10",
       "formula.md:41"
     ],
-    "project:Sec.2": [
-      "formula.md:203"
+    "axioms:SEP.LevelStateAxisIndependence": [
+      "formula.md:95"
     ],
-    "formula:SM.RootCauseGrounding": [
-      "formula.md:240"
+    "axioms:AX-CORE.AxiomHierarchyStructure": [
+      "axioms.md:135",
+      "formula.md:10"
     ],
-    "logic:Sec.1": [
-      "formula.md:4",
-      "formula.md:5"
+    "axioms:Sec.6": [
+      "theorems.md:6"
     ],
-    "project:Sec.1.8": [
-      "formula.md:190"
-    ],
-    "axioms:AX-META.ContextPollutionIsolation": [
-      "formula.md:209"
-    ],
-    "axioms:AX.DimensionalityReduction": [
-      "formula.md:97",
-      "formula.md:139",
-      "formula.md:140",
+    "formula:Gate.DimensionReductionGate": [
+      "axioms.md:178",
+      "axioms.md:237",
+      "axioms.md:238",
+      "axioms.md:239",
+      "axioms.md:240",
       "project.md:147"
     ],
-    "logic:Sec.2": [
-      "axioms.md:5"
+    "formula:Gate.MacroGate": [
+      "axioms.md:144",
+      "axioms.md:175"
     ],
-    "axioms:AX-META.FormatFidelity": [
-      "formula.md:235"
+    "formula:Gate.CallMergeGate": [
+      "formula.md:226"
     ],
-    "formula:Gate.EditPhaseVerifyGate": [
-      "axioms.md:173",
-      "axioms.md:235"
+    "logic:Sec.3": [
+      "formula.md:103"
     ],
-    "axioms:Strategy.LogicCorrectness": [
-      "axioms.md:59",
-      "axioms.md:84"
-    ],
-    "axioms:Strategy.RedundancyElimination": [
-      "axioms.md:59",
+    "formula:Gate.ShouldWrite": [
       "axioms.md:84",
-      "formula.md:198"
-    ],
-    "axioms:AX.SubRoundInitialState": [
-      "formula.md:137",
-      "theorems.md:12"
-    ],
-    "axioms:Sec.3": [
-      "formula.md:36"
-    ],
-    "axioms:Param.DIM_TARGET_FORM_CONVERSIONS": [
-      "formula.md:97"
+      "axioms.md:209"
     ],
     "axioms:Param.DIAGNOSE_CALL_BUDGET_PER_BATCH": [
       "formula.md:169",
@@ -412,91 +360,31 @@
       "formula.md:223",
       "formula.md:226"
     ],
-    "axioms:AX.FailureSubtyping": [
-      "axioms.md:94"
+    "axioms:Def.CostClassBoundedness": [
+      "formula.md:166",
+      "project.md:114"
     ],
-    "axioms:AX.ExploratoryEntry": [
-      "axioms.md:178",
-      "formula.md:85"
-    ],
-    "axioms:Type.UnknownTokens": [
-      "axioms.md:177",
-      "formula.md:96"
-    ],
-    "axioms:AX.DecisionOutputSet": [
-      "axioms.md:34",
-      "formula.md:106",
-      "formula.md:142"
-    ],
-    "axioms:Param.VERIFY_CALL_BUDGET_PER_BATCH": [
-      "formula.md:168",
-      "formula.md:222",
-      "formula.md:226"
-    ],
-    "axioms:Param.VERIFY_ALIGNMENT_REQUIRED": [
-      "formula.md:170",
-      "formula.md:224"
-    ],
-    "axioms:AX.StateMerge": [
-      "formula.md:156"
-    ],
-    "axioms:Param.VERIFY_SINGLE_ENTRY": [
-      "formula.md:168",
-      "formula.md:222"
-    ],
-    "formula:SM.FormatCheck": [
-      "logic.md:65"
-    ],
-    "theorems:TH.TH-9": [
-      "formula.md:71",
-      "formula.md:138"
-    ],
-    "axioms:Param.TOOL_FALLBACK_ATTEMPT": [
-      "formula.md:227"
-    ],
-    "project:Sec.1.10": [
-      "axioms.md:235",
-      "formula.md:168",
-      "formula.md:222",
-      "formula.md:223"
-    ],
-    "formula:SM.BatchEditThenTestFlow": [
-      "formula.md:168"
-    ],
-    "axioms:Gate.ClassifyError": [
-      "axioms.md:69",
-      "axioms.md:156",
-      "formula.md:92",
-      "formula.md:145"
-    ],
-    "formula:SM.SyncGuard": [
-      "axioms.md:152"
-    ],
-    "formula:SM.StateValidity": [
-      "formula.md:195",
-      "logic.md:4"
-    ],
-    "axioms:AX.RoundLifecycle": [
-      "formula.md:103",
-      "formula.md:112",
-      "formula.md:115",
-      "formula.md:135"
-    ],
-    "axioms:AX-CORE.TruthValueDomainLogic": [
-      "logic.md:4"
-    ],
-    "axioms:Param.BUDGET_ALLOC": [
-      "axioms.md:83"
+    "axioms:AX.EntryCondition": [
+      "formula.md:85",
+      "theorems.md:12"
     ],
     "formula:Gate.DeclarativeCompletenessGate": [
       "axioms.md:179",
       "project.md:147"
     ],
-    "axioms:AX.StructuralGrounding": [
-      "formula.md:232"
+    "axioms:AX-CORE.QuantificationConstraint": [
+      "axioms.md:57"
     ],
-    "formula:SM.ShellBudgetFlow": [
-      "formula.md:168"
+    "axioms:AX.FirstCallTransient": [
+      "formula.md:134"
+    ],
+    "axioms:Sec.8": [
+      "theorems.md:6"
+    ],
+    "axioms:AX.TerminationPriority": [
+      "axioms.md:86",
+      "formula.md:118",
+      "formula.md:138"
     ],
     "axioms:AX.MacroMicroSeparation": [
       "axioms.md:67",
@@ -505,8 +393,120 @@
       "formula.md:89",
       "formula.md:94"
     ],
-    "project:Sec.1.5": [
-      "formula.md:185"
+    "axioms:Strategy.RedundancyElimination": [
+      "axioms.md:59",
+      "axioms.md:84",
+      "formula.md:198"
+    ],
+    "logic:Sec.2": [
+      "axioms.md:5"
+    ],
+    "formula:Gate.CallNecessityGate": [
+      "axioms.md:57",
+      "axioms.md:173",
+      "axioms.md:228"
+    ],
+    "axioms:Type.VisibleValue": [
+      "axioms.md:177",
+      "formula.md:96"
+    ],
+    "formula:SM.RawOutputRetention": [
+      "formula.md:240"
+    ],
+    "formula:SM.DecideDrivenUpdate": [
+      "axioms.md:85",
+      "axioms.md:86"
+    ],
+    "project:Sec.1.9": [
+      "formula.md:166",
+      "formula.md:223"
+    ],
+    "formula:Gate.RunStateDisplayGate": [
+      "axioms.md:177"
+    ],
+    "project:Sec.1.6": [
+      "formula.md:186"
+    ],
+    "formula:SM.RootCauseGrounding": [
+      "formula.md:240"
+    ],
+    "axioms:AX.SubRoundInitialState": [
+      "formula.md:137",
+      "theorems.md:12"
+    ],
+    "axioms:Strategy.SingleImplementation": [
+      "axioms.md:59",
+      "axioms.md:84",
+      "formula.md:167",
+      "formula.md:225"
+    ],
+    "axioms:Def.op.needsSync": [
+      "theorems.md:18"
+    ],
+    "axioms:AX.TransientRetryNoCost": [
+      "formula.md:134"
+    ],
+    "dsl:Sec.2": [
+      "project.md:148"
+    ],
+    "axioms:AX.RoundLifecycle": [
+      "formula.md:103",
+      "formula.md:112",
+      "formula.md:115",
+      "formula.md:135"
+    ],
+    "axioms:AX.InitialState": [
+      "formula.md:118",
+      "theorems.md:12"
+    ],
+    "axioms:AX.RepeatedCallStable": [
+      "axioms.md:70",
+      "formula.md:136",
+      "formula.md:176"
+    ],
+    "formula:SM.FormatCheck": [
+      "logic.md:65"
+    ],
+    "axioms:AX.StateMerge": [
+      "formula.md:156"
+    ],
+    "formula:SM.EffectiveFaceAssertion": [
+      "project.md:141"
+    ],
+    "axioms:AX.DependencyCycleDetection": [
+      "formula.md:192"
+    ],
+    "axioms:AX-CORE.InformationMonotonicity": [
+      "formula.md:212"
+    ],
+    "axioms:Param.BUDGET_ALLOC": [
+      "axioms.md:83"
+    ],
+    "formula:SM.FocusDecision": [
+      "axioms.md:176"
+    ],
+    "formula:Gate.DiagnosePhaseReadOnlyGate": [
+      "formula.md:223"
+    ],
+    "axioms:AX-META.ContextPollutionIsolation": [
+      "formula.md:209"
+    ],
+    "axioms:AX.ResultComposition": [
+      "formula.md:218"
+    ],
+    "axioms:Sec.0": [
+      "formula.md:4",
+      "formula.md:41"
+    ],
+    "axioms:Gate.ClassifyError": [
+      "axioms.md:69",
+      "axioms.md:156",
+      "formula.md:92",
+      "formula.md:145"
+    ],
+    "axioms:Strategy.LogicCorrectness": [
+      "axioms.md:59",
+      "axioms.md:84"
     ]
   }
 }

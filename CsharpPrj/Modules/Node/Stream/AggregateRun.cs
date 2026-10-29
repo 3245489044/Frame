@@ -33,6 +33,7 @@ public class AggregateRun
     private readonly string _appendBeforeRoundLogKey;
     private readonly Action<string, object?>? _logSink;
     private long _seq;
+    private string? _runId;
     private DateTimeOffset? _startedAtUtc;
     private DateTimeOffset? _endedAtUtc;
 
@@ -79,6 +80,12 @@ public class AggregateRun
 
     /// <summary>当前轮次（未 <see cref="BeginRound"/> 前为 <c>-1</c>：此期间的帧被**拒收**）。</summary>
     public int Round { get; private set; } = -1;
+
+    /// <summary>
+    /// 本次 run 的身份（首次成轮时生成，<see cref="Release"/> 后清空 ⇒ 下次成轮即新 run）。
+    /// 写入载荷根 <c>runId</c>：读侧据此判定「同一 run / 跨 run」，并作为帧身份段来源。
+    /// </summary>
+    public string? RunId { get { lock (_gate) return _runId; } }
 
     /// <summary>当前存活帧数。</summary>
     public int Count { get { lock (_gate) return _rounds.Sum(r => r.Frames.Count); } }
@@ -132,6 +139,8 @@ public class AggregateRun
 
             Round = round;
             _startedAtUtc ??= DateTimeOffset.UtcNow;
+            // run 身份在**首次成轮**时确定：同一 run 内换轮不变（帧身份段稳定），Release 后为新 run。
+            _runId ??= "run-" + Guid.NewGuid().ToString("N");
             _rounds.Sort((left, right) => left.Round.CompareTo(right.Round));
         }
     }
@@ -223,6 +232,7 @@ public class AggregateRun
             var document = new JsonObject
             {
                 ["taskKey"] = PartitionKey,
+                [StreamPayloadSchema.DefaultRunField] = _runId,
                 ["startedAtUtc"] = _startedAtUtc?.ToString("O"),
                 ["endedAtUtc"] = _endedAtUtc?.ToString("O"),
                 ["rounds"] = new JsonArray(
@@ -258,6 +268,7 @@ public class AggregateRun
             _droppedOfKind.Clear();
             _refusedOfKind.Clear();
             _seq = 0;
+            _runId = null;
             Round = -1;
             _startedAtUtc = null;
             _endedAtUtc = null;

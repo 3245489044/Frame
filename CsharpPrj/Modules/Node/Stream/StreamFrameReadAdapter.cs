@@ -20,7 +20,8 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
 {
     private readonly INodeReadAdapter _inner;
     private readonly StreamFrameSelector _selector;
-    private readonly string _displayKeyPrefix;
+    private readonly IFrameKeyRenderer _renderer;
+    private readonly string _familyId;
     private readonly string _placementId;
     private readonly StreamPayloadSchema _schema;
     private readonly string? _frameSelectionId;
@@ -29,16 +30,18 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
 
     /// <param name="inner">单行读适配器（该 Stream 域，节点级 selection 固定 <c>all</c>）。</param>
     /// <param name="selector">帧级选择应用器（声明面单源）。</param>
-    /// <param name="displayKeyPrefix">合成显示键族前缀（如 <c>obs.</c>）。</param>
+    /// <param name="renderer">帧级键渲染端口（实现 = 声明驱动；框架不内置键形）。</param>
+    /// <param name="familyId">键族 id（声明面单源）。</param>
     /// <param name="placementId">落库位置 id（帧项携带）。</param>
     /// <param name="schema">载荷字段面差异参数。</param>
     /// <param name="frameSelectionId">帧级选择名（缺省 = 全量）。</param>
-    /// <param name="displayKeyOf">帧级显示键工厂（缺省 = <c>{prefix}{task}.f{seq}</c>）；域可注入既有形状以保读侧消费方/锚点幂等。</param>
+    /// <param name="displayKeyOf">帧级显示键工厂（缺省 = 声明面渲染；域仅在**显式迁移期**注入）。</param>
     /// <param name="domainKey">所属域键（用于回写行身份：帧项 <c>DomainKey</c>）；缺省 null（由消费方回退域键）。</param>
     public StreamFrameReadAdapter(
         INodeReadAdapter inner,
         StreamFrameSelector selector,
-        string displayKeyPrefix,
+        IFrameKeyRenderer renderer,
+        string familyId,
         string placementId,
         StreamPayloadSchema schema,
         string? frameSelectionId = null,
@@ -48,12 +51,14 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
         _domainKey = string.IsNullOrWhiteSpace(domainKey) ? null : domainKey;
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
-        _displayKeyPrefix = displayKeyPrefix ?? throw new ArgumentNullException(nameof(displayKeyPrefix));
+        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        ArgumentException.ThrowIfNullOrWhiteSpace(familyId);
+        _familyId = familyId;
         _placementId = placementId ?? throw new ArgumentNullException(nameof(placementId));
         _schema = schema ?? throw new ArgumentNullException(nameof(schema));
         _frameSelectionId = frameSelectionId;
         _displayKeyOf = displayKeyOf
-            ?? ((task, frame) => StreamFrameKeys.DisplayKey(_displayKeyPrefix, task, frame.Seq));
+            ?? ((task, frame) => _renderer.Render(_familyId, task, frame.Identity));
     }
 
     /// <inheritdoc />

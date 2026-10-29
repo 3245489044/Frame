@@ -13,22 +13,32 @@ namespace Modules.Node.Stream;
 /// <param name="Seq">到达序（帧载荷 <c>seq</c>；容器级、跨轮不重置）。</param>
 /// <param name="Kind">帧类别（帧载荷 <c>kind</c>；缺失 ⇒ 空串）。</param>
 /// <param name="Fields">帧对象展平字段袋（塑形/选择共用）。</param>
+/// <param name="Identity">帧身份（唯一载体；<see cref="IdentityReason"/> 非空 ⇒ 不可识别）。</param>
+/// <param name="IdentityReason">身份不可识别原因（可空；不静默）。</param>
 public sealed record StreamFrameRecord(
     int Round,
     long Seq,
     string Kind,
-    IReadOnlyDictionary<string, string> Fields);
+    IReadOnlyDictionary<string, string> Fields,
+    StreamFrameIdentity Identity = default,
+    string? IdentityReason = null)
+{
+    /// <summary>身份是否可识别（可识别 ⇒ 合并/显示键/绑定锚共用同一键）。</summary>
+    public bool HasIdentity => IdentityReason is null;
+}
 
 /// <summary>单行 Stream 载荷的解析产物（通用；域无关）：分区 → 轮 → 帧 展平为帧记录序列。</summary>
 /// <param name="PartitionKey">载荷自述分区键（须与容器一致，否则不采信）。</param>
 /// <param name="StartedAtUtc">首次成轮时刻（可空）。</param>
 /// <param name="EndedAtUtc">最后一帧到达时刻（可空）。</param>
 /// <param name="Frames">帧记录序列（保序）。</param>
+/// <param name="RunId">载荷根 run 身份（旧载荷缺失 ⇒ null，不伪造）。</param>
 public sealed record StreamPayload(
     string PartitionKey,
     string? StartedAtUtc,
     string? EndedAtUtc,
-    IReadOnlyList<StreamFrameRecord> Frames);
+    IReadOnlyList<StreamFrameRecord> Frames,
+    string? RunId = null);
 
 /// <summary>
 /// Stream 载荷**字段面差异参数**（声明驱动；全部经构造注入，禁在读取逻辑内硬编码领域常量）：
@@ -44,6 +54,11 @@ public sealed record StreamPayload(
 /// <param name="AtUtcField">帧时刻字段名（默认 <c>atUtc</c>）。</param>
 /// <param name="StartedAtUtcField">开始时刻字段名（默认 <c>startedAtUtc</c>）。</param>
 /// <param name="EndedAtUtcField">结束时刻字段名（默认 <c>endedAtUtc</c>）。</param>
+/// <param name="RunField">载荷根 run 身份字段名（默认 <c>runId</c>）。</param>
+/// <param name="ReplaceOnRunChange">
+/// 跨 run 驻留策略：<c>true</c> ⇒ 既有载荷与本轮 run 不同则**整载荷替换**（单 run 语义，旧 run 帧不再并集）；
+/// <c>false</c>（缺省）⇒ 跨 run 保持并集（零回归）。
+/// </param>
 public sealed record StreamPayloadSchema(
     string Label,
     string PartitionKeyField,
@@ -54,8 +69,13 @@ public sealed record StreamPayloadSchema(
     string SeqField,
     string AtUtcField,
     string StartedAtUtcField,
-    string EndedAtUtcField)
+    string EndedAtUtcField,
+    string RunField = StreamPayloadSchema.DefaultRunField,
+    bool ReplaceOnRunChange = false)
 {
+    /// <summary>run 身份字段名缺省值（累积器写入与读取共用，禁第二处字面量）。</summary>
+    public const string DefaultRunField = "runId";
+
     /// <summary>现行累积器序列化口径（轮嵌套；分区键 <c>taskKey</c>）。</summary>
     public static StreamPayloadSchema Default { get; } = new(
         "stream", "taskKey", "round", "frames", "rounds", "kind", "seq", "atUtc", "startedAtUtc", "endedAtUtc");
@@ -119,6 +139,7 @@ public static class StreamPayloadReader
             return false;
         }
 
+        var runId = ReadText(root[schema.RunField]);
         var frames = new List<StreamFrameRecord>();
         if (root[schema.RoundsField] is JsonArray rounds)
         {
@@ -148,7 +169,13 @@ public static class StreamPayloadReader
                               long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedSeq)
                         ? parsedSeq
                         : 0L;
-                    frames.Add(new StreamFrameRecord(round, seq, kind, fields));
+
+                    // 身份单点解析：可识别 ⇒ 合并/显示键/绑定锚共用；不可识别 ⇒ 显式原因（调用方回落文本键）。
+                    var hasIdentity = StreamFrameIdentityReader.TryRead(
+                        frameObject, round, runId, schema, out var identity);
+                    frames.Add(new StreamFrameRecord(
+                        round, seq, kind, fields, identity,
+                        hasIdentity ? null : $"{schema.Label}.frame-identity-missing（{schema.SeqField} 非正/缺失）"));
                 }
             }
         }
@@ -157,7 +184,8 @@ public static class StreamPayloadReader
             partition,
             ReadText(root[schema.StartedAtUtcField]),
             ReadText(root[schema.EndedAtUtcField]),
-            frames);
+            frames,
+            runId);
         return true;
     }
 

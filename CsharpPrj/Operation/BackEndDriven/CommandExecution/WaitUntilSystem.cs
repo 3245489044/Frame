@@ -62,12 +62,17 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         string? lastText = null;
         var matched = false;
         var failedByTerminal = false;
+        var canceled = false;
         string? frameworkFailure = null;
 
         while (true)
         {
             // 强制退出/外部取消：立即停止轮询（不等待探测返回）。
-            if (token.IsCancellationRequested) break;
+            if (token.IsCancellationRequested)
+            {
+                canceled = true;
+                break;
+            }
 
             var remainingMs = deadline == long.MaxValue
                 ? (long?)null
@@ -95,7 +100,11 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
                     lastText = $"探测 '{probe}' 超出等待窗口仍未返回";
                     break;
                 }
-                if (run.Kind == BoundedRunOutcomeKind.OuterCanceled) break;
+                if (run.Kind == BoundedRunOutcomeKind.OuterCanceled)
+                {
+                    canceled = true;
+                    break;
+                }
 
                 var invocation = run.Value!;
                 if (!invocation.PlatformAvailable || invocation.Result is null)
@@ -147,6 +156,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             }
             catch (OperationCanceledException)
             {
+                canceled = true;
                 break;
             }
         }
@@ -161,6 +171,13 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         }
 
         var detail = string.IsNullOrWhiteSpace(lastText) ? "(空)" : LogTextTruncation.TruncateForLog(lastText);
+
+        // 取消 ≠ 超时：外层终止（窗体关闭/宿主终止）必须如实上报，禁冒充 IdleHung/超时（否则「被取消」永不作为成因出现）。
+        if (canceled)
+        {
+            SetFailure(entity, $"wait-until '{probe}' 被取消（宿主终止/窗体关闭），未产出结果；最后一次: '{detail}'");
+            return;
+        }
 
         // 框架级终态：探测链路本身不可用（超时/空闲/信号丢失/框架异常/对账失败），重试无意义 ⇒ 立即失败。
         if (frameworkFailure is not null)

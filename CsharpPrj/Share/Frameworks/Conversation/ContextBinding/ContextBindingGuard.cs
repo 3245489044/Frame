@@ -28,4 +28,37 @@ public static class ContextBindingGuard
                 $"[ContextBinding] UI ≡ LLM 违规({scope}): {string.Join(" | ", violations)}");
         return violations;
     }
+
+    /// <summary>
+    /// 校验并**一次聚合**报告（诊断爆发抑制）：<see cref="IBindingDiagnosticSink.Warn"/> 每调用一条，
+    /// 明细走 <see cref="IBindingDiagnosticSink.Debug"/>；返回同一报告供调用方断言/取证。
+    /// </summary>
+    /// <param name="scope">校验作用域。</param>
+    /// <param name="uiView">UI 视图消息（可空）。</param>
+    /// <param name="llmView">LLM 输入消息（可空）。</param>
+    /// <param name="snapshot">写侧快照（可空）。</param>
+    /// <param name="strict">true ⇒ 任一违规 fail-fast。</param>
+    /// <param name="sink">诊断出口（可空 ⇒ 只返回报告）。</param>
+    public static BindingReport CheckReported(
+        string scope,
+        IReadOnlyList<ConversationMessage>? uiView,
+        IReadOnlyList<ConversationMessage>? llmView,
+        PromptSnapshot? snapshot,
+        bool strict,
+        IBindingDiagnosticSink? sink = null)
+    {
+        var violations = ContextBindingValidator.Validate(uiView, llmView, snapshot);
+        var report = BindingReport.From(scope, violations);
+        if (sink is not null)
+        {
+            sink.Warn(report);
+            foreach (var violation in violations)
+                sink.Debug(violation);
+        }
+
+        if (strict && violations.Count > 0)
+            throw new InvalidOperationException(
+                $"[ContextBinding] UI ≡ LLM 违规({scope}): {string.Join(" | ", violations)}");
+        return report;
+    }
 }

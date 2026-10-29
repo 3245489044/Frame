@@ -53,28 +53,38 @@ public sealed class StreamFrameProjection
     private readonly NodeGatherSpec _spec;
     private readonly StreamFrameSelector _selector;
     private readonly DeclaredShaper _shaper;
-    private readonly string _displayKeyPrefix;
+    private readonly Func<string, StreamFrameRecord, string> _displayKeyOf;
     private readonly string _placementId;
     private readonly StreamPayloadSchema _schema;
+    private readonly IFrameKeyRenderer _renderer;
+    private readonly string _familyId;
 
     /// <param name="spec">帧级聚拢声明（族/塑形轴）。</param>
     /// <param name="selector">帧级选择应用器（声明面单源）。</param>
-    /// <param name="displayKeyPrefix">合成显示键族前缀（如 <c>obs.</c>）。</param>
+    /// <param name="renderer">帧级键渲染端口（声明驱动）。</param>
+    /// <param name="familyId">键族 id（声明面单源）。</param>
     /// <param name="placementId">落库位置 id（帧项携带）。</param>
     /// <param name="schema">载荷字段面差异参数。</param>
+    /// <param name="displayKeyOf">帧级显示键工厂（缺省 = 声明面渲染；显式迁移期可注入）。</param>
     public StreamFrameProjection(
         NodeGatherSpec spec,
         StreamFrameSelector selector,
-        string displayKeyPrefix,
+        IFrameKeyRenderer renderer,
+        string familyId,
         string placementId,
-        StreamPayloadSchema schema)
+        StreamPayloadSchema schema,
+        Func<string, StreamFrameRecord, string>? displayKeyOf = null)
     {
         _spec = spec ?? throw new ArgumentNullException(nameof(spec));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _shaper = new DeclaredShaper(_spec);
-        _displayKeyPrefix = displayKeyPrefix ?? throw new ArgumentNullException(nameof(displayKeyPrefix));
+        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        ArgumentException.ThrowIfNullOrWhiteSpace(familyId);
+        _familyId = familyId;
         _placementId = placementId ?? throw new ArgumentNullException(nameof(placementId));
         _schema = schema ?? throw new ArgumentNullException(nameof(schema));
+        _displayKeyOf = displayKeyOf
+            ?? ((task, frame) => _renderer.Render(_familyId, task, frame.Identity));
     }
 
     /// <summary>
@@ -148,7 +158,7 @@ public sealed class StreamFrameProjection
     private StreamShapedFrame Shape(StreamFrameRecord frame, string taskKey)
     {
         var item = new NodeProjectionItem(
-            StreamFrameKeys.DisplayKey(_displayKeyPrefix, taskKey, frame.Seq),
+            _displayKeyOf(taskKey, frame),
             _placementId,
             frame.Fields,
             ProjectionOrigin.Derived);

@@ -57,6 +57,12 @@ public sealed class UiViewProjection
     /// </summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<GatherRegistry, Lazy<GatherHub>> _hubs = new();
 
+    /// <summary>Hub 缓存上限：每拍新建注册表 ⇒ 键几乎不可命中，缓存必须有界（否则只增不减）。</summary>
+    private const int HubCacheCapacity = 8;
+
+    /// <summary>最近一次按注册表绑定的 Hub（<see cref="Emit"/> 的出口面：禁回落到未绑定的默认 Hub）。</summary>
+    private GatherHub? _lastBoundHub;
+
     /// <summary>Hub 实例（上层按声明面 stages 编排时直接使用）。</summary>
     public GatherHub Hub => _hub;
 
@@ -135,9 +141,10 @@ public sealed class UiViewProjection
         return await BindHub(registry).RunAsync(view, changedScopes, ct).ConfigureAwait(false);
     }
 
-    /// <summary>出口闭合判定（C-OUT）：返回票据；未声明产物 ⇒ 抛。</summary>
+    /// <summary>出口闭合判定（C-OUT）：返回票据；未声明产物 ⇒ 抛。
+    /// <para>出口面 = 最近一次绑定的 Hub（与取数同一装配）；禁回落到未绑定的默认 Hub（两套装配会让出口判定与实际执行面脱节）。</para></summary>
     public GatherEmitTicket Emit(GatherViewSpec view, string produceName, object payload)
-        => _hub.Emit(view, produceName, payload);
+        => (_lastBoundHub ?? _hub).Emit(view, produceName, payload);
 
     private static (List<GatherNeedSpec> Needs, List<string> Domains) BuildNeeds(UiViewSpec spec)
     {
@@ -162,14 +169,25 @@ public sealed class UiViewProjection
     {
         _hub.Reset();
         _hubs.Clear();
+        _lastBoundHub = null;
     }
 
-    /// <summary>注册表 → 缓存单例 Hub（复用键恒 <c>(Domain, Scope)</c>，<c>CrossScope</c> 保持默认 false）。</summary>
+    /// <summary>注册表 → 缓存单例 Hub（复用键恒 <c>(Domain, Scope)</c>，<c>CrossScope</c> 保持默认 false）。
+    /// <para>缓存封顶：超限即清空重建（有界优先于命中率，治「每拍新注册表 ⇒ 字典只增不减」）。</para></summary>
     private GatherHub BindHub(GatherRegistry registry)
-        => _hubs.GetOrAdd(
+    {
+        if (_hubs.Count >= HubCacheCapacity)
+        {
+            _hubs.Clear();
+        }
+
+        var hub = _hubs.GetOrAdd(
                 registry,
                 static r => new Lazy<GatherHub>(() => new GatherHub(r), LazyThreadSafetyMode.ExecutionAndPublication))
             .Value;
+        _lastBoundHub = hub;
+        return hub;
+    }
 
     /// <summary>数据源端口 → Hub 生产者（唯一适配点）。</summary>
     private sealed class DataSourceProducer : IGatherProducer
@@ -182,11 +200,11 @@ public sealed class UiViewProjection
             => _source.GatherAsync(new UiDataNeed(need.Domain, need.Scope, ToUiCost(need.Cost), need.Reusable), ct);
     }
 
-    /// <summary>宿主成本档 → 通用内核成本档（唯一映射点）。</summary>
-    private static GatherCostClass ToGatherCost(UiCostClass cost)
+    /// <summary>宿主成本档 → 通用内核成本档（唯一映射点；宿主侧不得再写第二份转换）。</summary>
+    public static GatherCostClass ToGatherCost(UiCostClass cost)
         => cost == UiCostClass.High ? GatherCostClass.High : GatherCostClass.Low;
 
-    /// <summary>通用内核成本档 → 宿主成本档（唯一映射点）。</summary>
-    private static UiCostClass ToUiCost(GatherCostClass cost)
+    /// <summary>通用内核成本档 → 宿主成本档（唯一映射点；宿主侧不得再写第二份转换）。</summary>
+    public static UiCostClass ToUiCost(GatherCostClass cost)
         => cost == GatherCostClass.High ? UiCostClass.High : UiCostClass.Low;
 }

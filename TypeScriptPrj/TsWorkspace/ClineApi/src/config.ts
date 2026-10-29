@@ -40,7 +40,12 @@ export interface ClineApiConfig {
   /** 命令权限策略 */
   commandPermissions?: CommandPermissions;
   /**
-   * 识别声明文件路径（声明**内容**真源 = `Projects\Plug\Agent\Config\recognizers.json`）。
+   * agent 身份（目录名即身份；`Config\agents\<agent>\`）。
+   * 缺省 = `CLINE_RECOGNIZER_AGENT` 或未配置（走 legacy `recognizerSpecFile` 单路径）。
+   */
+  agent?: string;
+  /**
+   * 识别声明文件路径（**legacy**：单文件时代；agent 维度生效后退役）。
    * 相对路径 = 相对 ClineApi 项目根（与 `credentialsFile` 同范式）；未配置 ⇒ 识别层停用（∅ + 诊断）。
    */
   recognizerSpecFile?: string;

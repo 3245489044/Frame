@@ -24,7 +24,12 @@
 
 import { runCline, runCliCommand } from "./cline-cli.js";
 import { loadConfig } from "./config.js";
+import { replayRoundFile } from "./recognize/canon-replay.js";
+import { canonicalize, loadConversationCanon, loadRoundShape, validateRoundShape } from "./recognize/canonicalize.js";
+import { loadRecognizerSpec, resolveAgentDir } from "./recognize/recognizer-spec-loader.js";
 import type { ClineRunOptions } from "./types.js";
+import * as fs from "fs";
+import * as path from "path";
 
 // cline-cli → sdk-transport 仅以 `import type` 引用 @cline/sdk 并按需 loadSdk()，
 // 顶层静态 import 不触发 SDK 加载副作用，故 version/config 等非 LLM 命令不受影响
@@ -142,6 +147,8 @@ function printHelp(): void {
   node build/cli.js plan <提示词> [选项]       plan 模式只规划
   node build/cli.js resume --id <会话ID> [提示词]
   node build/cli.js history [--limit N]        列出历史会话
+  node build/cli.js canon-replay --agent <a> --round <file.json> [--spec <path>] [--out <json>]
+                                               离线重放归档轮次 → 同一 spec 同一节点集
   node build/cli.js version                    显示 @cline/sdk 版本
   node build/cli.js config                     显示当前生效配置（不含 API Key）
   node build/cli.js help                       显示本帮助
@@ -201,6 +208,54 @@ export async function startCli(): Promise<void> {
         mode: options.mode ?? "act",
       });
       printJson(result);
+      break;
+    }
+
+    case "canon-replay": {
+      const agent = typeof parsed.flags["agent"] === "string" ? parsed.flags["agent"] : "cline";
+      const round = typeof parsed.flags["round"] === "string" ? parsed.flags["round"] : "";
+      const spec = typeof parsed.flags["spec"] === "string" ? parsed.flags["spec"] : undefined;
+      const out = typeof parsed.flags["out"] === "string" ? parsed.flags["out"] : "";
+      if (!round) {
+        printJson({ ok: false, degraded: true, error: "canon-replay 需要 --round <归档轮次.json>" });
+        break;
+      }
+      try {
+        const record = replayRoundFile(agent, round, spec);
+        // P3：同一 spec 的规范形 + 轮次形状校验（映射单源 = conversation-canon.ushar）。
+        const container = typeof parsed.flags["container"] === "string" ? parsed.flags["container"] : "replay";
+        const roundNo = Number(typeof parsed.flags["round-no"] === "string" ? parsed.flags["round-no"] : "1") || 1;
+        const agentDir = resolveAgentDir(agent);
+        const canon = loadConversationCanon(path.join(agentDir, "..", "..", "conversation-canon.ushar"));
+        const shape = loadRoundShape(path.join(agentDir, "round-shape.ushar"));
+        const specFile = loadRecognizerSpec(record.specPath, agent);
+        const issues = validateRoundShape(shape, record.hits, specFile);
+        const canonical = canonicalize(record.hits, canon, specFile, {
+          agent,
+          container,
+          round: roundNo,
+          source: "Archive",
+          vocabulary: record.vocabulary,
+        });
+
+        const json = JSON.stringify(
+          { ...record, roundShape: { ok: issues.length === 0, issues }, canonical },
+          null,
+          2
+        );
+        if (out) fs.writeFileSync(out, json, "utf-8");
+        printJson({
+          ok: true,
+          out: out || null,
+          ...record,
+          roundShape: { ok: issues.length === 0, issues },
+          canonical,
+        });
+      } catch (err) {
+        // 失败可见化：缺 spec / 结构非法 ⇒ 显式 degraded（禁静默空集冒充成功）。
+        const message = err instanceof Error ? err.message : String(err);
+        printJson({ ok: false, degraded: true, error: message });
+      }
       break;
     }
 

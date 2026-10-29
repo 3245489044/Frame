@@ -106,6 +106,7 @@ function projectPayload(rule: RecognizerRule, frame: RecognizerFrame): Record<st
 export class RecognizerEngine {
   private readonly kinds: ReadonlySet<string>;
   private readonly rules: readonly RecognizerRule[];
+  private readonly fallbackKind: string;
   private readonly ordinals = new Map<string, number>();
   private readonly byKind: Record<string, number> = {};
   private readonly unrecognizedBuckets: Record<string, number> = {};
@@ -125,6 +126,8 @@ export class RecognizerEngine {
         throw new Error(`识别声明非法：kind "${rule.kind}" ∉ 词表`);
       }
     }
+    // 末路单源 = 声明面 `default`（缺省 = 兜底类）；装载器已校验 default.kind ∈ kinds。
+    this.fallbackKind = spec.default?.kind ?? UNRECOGNIZED_KIND;
     this.rules = spec.recognizers;
   }
 
@@ -164,14 +167,14 @@ export class RecognizerEngine {
   /** 未识别帧：计入 `unrecognized` 并按「source/eventType」分桶可见化（禁静默丢）。 */
   private recordUnrecognized(frame: RecognizerFrame): RecognizedNode {
     this.unrecognized++;
-    this.byKind[UNRECOGNIZED_KIND] = (this.byKind[UNRECOGNIZED_KIND] ?? 0) + 1;
+    this.byKind[this.fallbackKind] = (this.byKind[this.fallbackKind] ?? 0) + 1;
     const bucket = `${frame.source}/${frame.eventType}`;
     this.unrecognizedBuckets[bucket] = (this.unrecognizedBuckets[bucket] ?? 0) + 1;
 
     return {
-      kind: UNRECOGNIZED_KIND,
+      kind: this.fallbackKind,
       payload: {},
-      ordinal: this.byKind[UNRECOGNIZED_KIND],
+      ordinal: this.byKind[this.fallbackKind],
       node: false,
       origin: "Live",
       source: { sdk: frame.source, eventType: frame.eventType },

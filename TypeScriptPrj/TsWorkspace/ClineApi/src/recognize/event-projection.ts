@@ -26,7 +26,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * 类别分工完全由声明面规则决定（本层不判定）。展开项非法（缺 `content` / 块缺 `type`）**逐条跳过**，
  * 不整批丢（R5：逐条投影 + 逐条跳过）。`Message.content` 允许为裸字符串 ⇒ 视作单个 `text` 块。
  */
-function snapshotFrames(payload: unknown): RecognizerFrame[] {
+export function snapshotFrames(payload: unknown): RecognizerFrame[] {
   const messages = asRecord(asRecord(payload)["snapshot"])["messages"];
   if (!Array.isArray(messages)) {
     return [];
@@ -63,6 +63,16 @@ function snapshotFrames(payload: unknown): RecognizerFrame[] {
   });
 
   return frames;
+}
+
+/**
+ * 归档消息 → 帧（**离线重放唯一入口**；与在线 `session_snapshot` 路径共用 {@link snapshotFrames}）。
+ *
+ * 纪律（P2-0 / X-5）：禁第二份投影 —— 归档轮次与在线快照必须过同一函数，
+ * 否则 A/B 对拍测的是"两个投影实现"，不是"两条数据路径"。
+ */
+export function framesFromArchivedMessages(messages: unknown): RecognizerFrame[] {
+  return snapshotFrames({ snapshot: { messages } });
 }
 
 export function toRecognizerFrames(ev: CoreSessionEvent): RecognizerFrame[] {

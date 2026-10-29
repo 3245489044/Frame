@@ -637,7 +637,7 @@ export class SdkTransport {
     let recognizer: RecognizerEngine | undefined;
     if (this.onNode) {
       try {
-        const spec = loadRecognizerSpec(resolveRecognizerSpecPath());
+        const spec = loadRecognizerSpec(resolveRecognizerSpecPath(config.agent), config.agent);
         if (spec) {
           recognizer = new RecognizerEngine(spec);
           this.emitStage(options.trace, "recognizer-ready", { vocabulary: spec.vocabulary, rules: spec.recognizers.length });

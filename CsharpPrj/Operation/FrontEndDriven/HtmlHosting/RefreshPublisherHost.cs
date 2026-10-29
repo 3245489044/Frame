@@ -31,6 +31,7 @@ public sealed class RefreshPublisherHost
     private readonly IInFlightSource? _inFlight;
     private readonly IRefreshSink? _sink;
     private readonly Func<long>? _beatVersion;
+    private readonly Action<string, object?>? _diagnostics;
     private RefreshService? _service;
     private HtmlUpdatePusher? _pusher;
     private long _deliveredSeq;
@@ -45,6 +46,8 @@ public sealed class RefreshPublisherHost
     /// <param name="sink">写落地端口（缺省 <see cref="HtmlRenderOutputSink"/>，带直接写回调）。</param>
     /// <param name="beatVersion">推送携带的内容版本提供者（须为 <see cref="IRefreshStore"/> 已交付版本单源；
     /// 页面据此回投 baseVersion，框架在渲染前早退）。</param>
+    /// <param name="diagnostics">刷新轨迹通道（缺省零观测）。早退（beat-suppressed / version-same）与异常必须经此可见化 ——
+    /// P0-3：否则「一次刷新零写回」不可归因。</param>
     public RefreshPublisherHost(
         Func<IHtmlChannel?> channelResolver,
         Func<string, string>? traceFactory = null,
@@ -53,7 +56,8 @@ public sealed class RefreshPublisherHost
         RefreshSchedulerOptions? options = null,
         IInFlightSource? inFlight = null,
         IRefreshSink? sink = null,
-        Func<long>? beatVersion = null)
+        Func<long>? beatVersion = null,
+        Action<string, object?>? diagnostics = null)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
         _traceFactory = traceFactory;
@@ -63,6 +67,7 @@ public sealed class RefreshPublisherHost
         _inFlight = inFlight;
         _sink = sink;
         _beatVersion = beatVersion;
+        _diagnostics = diagnostics;
     }
 
     /// <summary>单一刷新状态源（去重/版本裁决）。</summary>
@@ -84,7 +89,8 @@ public sealed class RefreshPublisherHost
                     inFlightSource: _inFlight,
                     store: _store,
                     fingerprint: _fingerprint,
-                    options: _options);
+                    options: _options,
+                    diagnostics: _diagnostics);
             }
         }
     }

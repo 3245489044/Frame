@@ -1014,6 +1014,38 @@
     }
 
     # ===== 入口框架守卫 =====
+    AgentSpec = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'agent 识别声明守卫 A1–A8：每个 agent 目录齐备（recognizers.json + round-shape.ushar）/ default 非空且 ∈ kinds / match 仅结构谓词 / 禁过程语义键 / 映射闭合（conversation-canon）/ 正负对照（缺 default、含 step 键必红）'
+    }
+
+    RoundShape = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '轮次形状守卫 S1–S4（A-2 / P2-4）：样本轮次经同一 TS 执行器重放后须满足 required / terminal=exactly(n) / pairings；负例（missing-*）必红；完整性账 emitted+countedOnly+unrecognized=total'
+    }
+
+    CanonicalForm = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'CanonicalForm 结构守卫 C1–C5（P3-5）：映射单源 conversation-canon（unmapped 末路在位）/ 类型闭合（未映射 type 必拒、禁 Default 冒充）/ 边闭合（无悬空边）/ 属性闭合（受控键）/ 负对照（type=Foo 必红）'
+    }
+
+    CanonReplay = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '重放对拍守卫 R1–R3（P2-4 / A-3 / A-5）：同一输入两次重放 hits 键集逐项相同（幂等）/ 完整性账平 / 人为删帧后差集非空（防对拍恒绿）'
+    }
+
     AnalysisDocGrounding = @{
         Domain = 'Process'
         Args   = @{ Check = $true }

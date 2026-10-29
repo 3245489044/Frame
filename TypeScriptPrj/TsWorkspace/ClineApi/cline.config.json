@@ -7,7 +7,8 @@
   "autoApprove": true,
   "thinking": "medium",
   "credentialsFile": "../../../../EnableMent/credentials/cline.json",
-  "recognizerSpecFile": "../../../../Projects/Plug/Agent/Config/recognizers.json",
+  "agent": "cline",
+  "recognizerSpecFile": "../../../../Projects/Plug/Agent/Config/agents/cline/recognizers.json",
   "commandPermissions": {
     "allow": [
       "git *",

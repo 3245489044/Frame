@@ -54,7 +54,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 $violations = [System.Collections.Generic.List[string]]::new()
 $pending    = [System.Collections.Generic.List[string]]::new()
 
-$specPath   = Join-Path $Root 'Projects\Plug\Agent\Config\recognizers.json'
+$specPath   = Join-Path $Root 'Projects\Plug\Agent\Config\agents\cline\recognizers.json'
 $tsDir      = Join-Path $Root 'Frame\TypeScriptPrj\TsWorkspace\ClineApi\src\recognize'
 $mirrorPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\RecognizedKinds.cs'
 
@@ -265,50 +265,91 @@ if ($null -ne $spec)
         }
     }
 
-    # ---------------- R10 聚拢声明品类闭合（node-gather-*.json ⊆ 词表） ----------------
+    # ---------------- R10 聚拢声明品类闭合（node-gather*.ushar / node-gather-*.json ⊆ 词表） ----------------
     # 权威：节点聚拢声明（families[].kinds ∪ kind-shaping 键）出现的每个 kind 必在识别词表内；
-    # 通配塑形键 '*' 非具体 kind，不作闭合标的。覆盖「新增一域/一 kind = 改声明 + 词表」的守卫。
+    # 通配塑形键 '*' 非具体 kind，不作闭合标的。声明面单源 = `node-gather.ushar`（JSON 为生成物）。
     $gatherDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
-    $gatherFiles = @(Get-ChildItem -LiteralPath $gatherDir -Filter 'node-gather-*.json' -File -ErrorAction SilentlyContinue)
+    $gatherFiles = @(Get-ChildItem -LiteralPath $gatherDir -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'node-gather*.ushar' -or $_.Name -like 'node-gather-*.json' })
     if ($gatherFiles.Count -eq 0)
     {
-        $violations.Add("[R10] 未发现任何聚拢声明（node-gather-*.json）—— 声明被删 ⇒ 门禁失效（禁假绿）")
+        $violations.Add("[R10] 未发现任何聚拢声明（node-gather*.ushar / node-gather-*.json）—— 声明被删 ⇒ 门禁失效（禁假绿）")
     }
     else
     {
         $kindLookup = @{}
         foreach ($k in $kinds) { $kindLookup[$k] = $true }
 
+        # 节点域集合（结构事实）：Config\nodes\*.ushar 的 `[Domain] <name>`；存储表段不属此集。
+        $nodeDomains = @(Get-ChildItem -LiteralPath $gatherDir -Filter '*.ushar' -File -ErrorAction SilentlyContinue |
+            ForEach-Object { Select-String -LiteralPath $_.FullName -Pattern '^\[Domain\]\s+(\S+)' } |
+            ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique)
+
         foreach ($gFile in $gatherFiles)
         {
-            $gSpec = $null
-            try
-            {
-                $gSpec = Get-Content -LiteralPath $gFile.FullName -Raw | ConvertFrom-Json
-            }
-            catch
-            {
-                $violations.Add("[R10] 聚拢声明 JSON 非法：$($gFile.Name) — $($_.Exception.Message)")
-                continue
-            }
-
             $declaredKinds = [System.Collections.Generic.List[string]]::new()
-            if ($null -ne $gSpec.families)
+
+            if ($gFile.Extension -eq '.ushar')
             {
-                foreach ($fam in $gSpec.families.PSObject.Properties)
-                {
-                    foreach ($k in @($fam.Value))
+                # 只校验「节点域」段（段名 ∈ Config\nodes\*.ushar 的 [Domain] 声明）：
+                # 存储表段（[Gather] nodes/tasks/… 的 ur_*）不是识别类别面。
+                $sectionName = ''
+                $sectionFamilies = [System.Collections.Generic.List[string]]::new()
+                $sectionShaping  = [System.Collections.Generic.List[string]]::new()
+                $flush = {
+                    if ($nodeDomains -contains $sectionName)
                     {
-                        if (-not [string]::IsNullOrWhiteSpace([string]$k)) { $declaredKinds.Add([string]$k) }
+                        foreach ($k in $sectionFamilies) { $declaredKinds.Add($k) }
+                        foreach ($k in $sectionShaping)  { $declaredKinds.Add($k) }
+                    }
+                    $sectionFamilies.Clear()
+                    $sectionShaping.Clear()
+                }
+                foreach ($line in (Get-Content -LiteralPath $gFile.FullName))
+                {
+                    $trimmed = $line.Trim()
+                    if ($trimmed -match '^\[Gather\]\s+(\S+)') { . $flush; $sectionName = $Matches[1]; continue }
+                    if ($trimmed -match '^family\s+\S+\s*=\s*(.+)$')
+                    {
+                        foreach ($k in ($Matches[1] -split ',')) { if ($k.Trim()) { $sectionFamilies.Add($k.Trim()) } }
+                    }
+                    elseif ($trimmed -match '^shaping\s+(\S+)\s*\|')
+                    {
+                        if ($Matches[1] -ne '*') { $sectionShaping.Add($Matches[1]) }
                     }
                 }
+                . $flush
             }
-            if ($null -ne $gSpec.'kind-shaping')
+            else
             {
-                foreach ($sh in $gSpec.'kind-shaping'.PSObject.Properties)
+                $gSpec = $null
+                try
                 {
-                    if ($sh.Name -eq '*') { continue }   # 通配塑形非具体 kind
-                    $declaredKinds.Add([string]$sh.Name)
+                    $gSpec = Get-Content -LiteralPath $gFile.FullName -Raw | ConvertFrom-Json
+                }
+                catch
+                {
+                    $violations.Add("[R10] 聚拢声明 JSON 非法：$($gFile.Name) — $($_.Exception.Message)")
+                    continue
+                }
+
+                if ($null -ne $gSpec.families)
+                {
+                    foreach ($fam in $gSpec.families.PSObject.Properties)
+                    {
+                        foreach ($k in @($fam.Value))
+                        {
+                            if (-not [string]::IsNullOrWhiteSpace([string]$k)) { $declaredKinds.Add([string]$k) }
+                        }
+                    }
+                }
+                if ($null -ne $gSpec.'kind-shaping')
+                {
+                    foreach ($sh in $gSpec.'kind-shaping'.PSObject.Properties)
+                    {
+                        if ($sh.Name -eq '*') { continue }   # 通配塑形非具体 kind
+                        $declaredKinds.Add([string]$sh.Name)
+                    }
                 }
             }
 

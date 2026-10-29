@@ -51,7 +51,18 @@ namespace Strategy.Refresh.Core
                 inFlightSource,
                 _store,
                 stallPolicy,
-                onDiagnostics: null,
+                // P0-3：调度器诊断与早退轨迹走同一通道（单源）；映射为受控 reason = scheduler-state。
+                onDiagnostics: diagnostics is null
+                    ? null
+                    : d => diagnostics("刷新轨迹", new
+                    {
+                        slot = d.SlotKey,
+                        trigger = d.LastTrigger.ToString(),
+                        reason = "scheduler-state",
+                        outcome = d.LastOutcome.ToString(),
+                        version = d.LastVersion,
+                        noChange = d.ConsecutiveNoChange,
+                    }),
                 timerFactory: ToTimerFactory(clock));
         }
 
@@ -171,6 +182,7 @@ namespace Strategy.Refresh.Core
             }
             catch (Exception ex)
             {
+                TraceException(slot, trigger, ex);
                 return Result(slot, 0, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null, ex);
             }
@@ -182,6 +194,7 @@ namespace Strategy.Refresh.Core
             }
             catch (Exception ex)
             {
+                TraceException(slot, trigger, ex);
                 _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null, ex);
@@ -189,6 +202,7 @@ namespace Strategy.Refresh.Core
 
             if (artifact is null)
             {
+                TraceException(slot, trigger, null);
                 _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null,
@@ -198,6 +212,7 @@ namespace Strategy.Refresh.Core
             var fingerprint = artifact.Fingerprint ?? string.Empty;
             if (fingerprint.Length == 0)
             {
+                TraceException(slot, trigger, null);
                 _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, artifact.ProgressToken, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null,
@@ -222,6 +237,7 @@ namespace Strategy.Refresh.Core
             }
             catch (Exception ex)
             {
+                TraceException(slot, trigger, ex);
                 _store.RecordOutcome(slot, RefreshOutcome.Failed, fingerprint, artifact.ProgressToken, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, fingerprint, started, artifact.Payload, ex);
@@ -236,6 +252,18 @@ namespace Strategy.Refresh.Core
             return Result(slot, version, trigger, outcome, arbitration.Decision,
                 arbitration.Delivery.Delivered, arbitration.Delivery.ContentChanged, arbitration.Merged,
                 fingerprint, started, artifact.Payload, arbitration.Delivery.Error);
+        }
+
+        /// <summary>P0-3：失败必留轨迹（reason 受控三值之一 = <c>exception</c>），禁静默早退。</summary>
+        private void TraceException(string slot, RefreshTrigger trigger, Exception? ex)
+        {
+            _diagnostics?.Invoke("刷新轨迹", new
+            {
+                slot,
+                trigger = trigger.ToString(),
+                reason = "exception",
+                error = ex?.GetType().Name ?? "unknown",
+            });
         }
 
         private static RefreshOutcome MapOutcome(RefreshArbitrationResult arbitration)

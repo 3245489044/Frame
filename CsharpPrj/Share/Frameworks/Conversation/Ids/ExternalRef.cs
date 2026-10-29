@@ -29,7 +29,7 @@ public static class ExternalRefKinds
 /// <summary>
 /// 外部代号容器（值对象）：承载「不属于本轴、但需留痕」的外部标识。
 /// <para>
-/// 纪律：外部代号**不具备标识资格** —— 会话键恒为框架会话键（<c>RunKey == TaskKey == HistoryId</c>），
+/// 纪律：外部代号**不具备标识资格** —— 会话键恒为框架会话键（<c>RunKey == TaskKey == ContainerId</c>），
 /// 外部代号只进 <c>SessionFactEnvelope.ExternalRefs</c> 供跨介质对照（如 hooks 的 <c>taskId</c> 与
 /// 框架 <c>RoundKey</c> 在同一文档内 join）。
 /// </para>

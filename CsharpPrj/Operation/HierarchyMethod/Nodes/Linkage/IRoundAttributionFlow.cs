@@ -27,7 +27,7 @@ public sealed record RoundAttributionRequest(
     RoundSpec? Spec,
     IReadOnlyList<NodeExecutionRecord>? Nodes,
     string? TerminalText = null,
-    string? HistoryId = null,
+    string? ContainerId = null,
     string? SessionKey = null,
     /// <summary>
     /// 本轮落库结果（I2）：非空 ⇒ 归属边只由 <see cref="RoundPersistResult.Persisted"/> 派生（含实例键）；

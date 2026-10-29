@@ -5,8 +5,8 @@
     OperationHistoryTypeDeclarations   = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     OperationHistoryNamespaceFiles     = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     FrameUsingAgent                    = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
-    FrameHistoryMentionFiles           = @{ Value = 161; Origin = 'Debt'; DueWhen = 'CF5 收口后仅剩声明面/键白名单注释' }
-    AgentHistoryMentionFiles           = @{ Value = 361; Origin = 'Derived'; DueWhen = '' }
+    FrameHistoryMentionFiles           = @{ Value = 103; Origin = 'Debt'; DueWhen = 'RF8 正名后仅剩声明面/键白名单/载荷列注释（同 HistorySemantics H5d）' }
+    AgentHistoryMentionFiles           = @{ Value = 283; Origin = 'Derived'; DueWhen = '' }
     CarrierTableLiterals               = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     TaskRecordFrameRefs                = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     PoolFrameRefs                      = @{ Value = 131; Origin = 'Derived'; DueWhen = '' }

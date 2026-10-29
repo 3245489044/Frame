@@ -42,4 +42,20 @@ public interface ITaskPoolPersistence<TItem>
         var page = await GetPageAsync(0, limit <= 0 ? 500 : limit, null, ct).ConfigureAwait(false);
         return page.Items.Select(i => i.TaskKey).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
     }
+
+    /// <summary>
+    /// 批量读取（成员复用/诊断用）：缺省逐键回退 <see cref="GetAsync"/>（保持既有存储零改动），
+    /// 存储实现宜覆写为一次分批查询，消除上层 N+1。
+    /// </summary>
+    async Task<IReadOnlyList<TItem>> GetManyAsync(IReadOnlyCollection<string> taskKeys, CancellationToken ct = default)
+    {
+        var result = new List<TItem>(taskKeys.Count);
+        foreach (var key in taskKeys)
+        {
+            if (string.IsNullOrWhiteSpace(key)) continue;
+            var item = await GetAsync(key, ct).ConfigureAwait(false);
+            if (item is not null) result.Add(item);
+        }
+        return result;
+    }
 }

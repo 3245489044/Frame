@@ -6,6 +6,6 @@ namespace Operation.Container;
 /// 不冗余存储成员（实体真源 = 会话历史容器表内容 + 引用图关系）。
 /// </summary>
 public sealed record ContainerRecord(
-    string HistoryId,
+    string ContainerId,
     string? Name = null,
     IReadOnlyList<string>? TaskKeys = null);

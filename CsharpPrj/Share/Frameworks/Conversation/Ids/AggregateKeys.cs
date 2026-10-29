@@ -6,20 +6,20 @@ namespace Share.Conversation.Ids;
 /// 历史根键（强类型）—— 与 TaskKey / SessionKey 分离，禁止隐式字符串互转。
 /// 线格式保持原样（历史根 Id 即图端点反解值），构造时只做非空校验，不改变既有键文法。
 /// </summary>
-public readonly record struct HistoryKey
+public readonly record struct ContainerKey
 {
     public string Value { get; }
 
-    private HistoryKey(string value) => Value = value;
+    private ContainerKey(string value) => Value = value;
 
     public bool IsEmpty => string.IsNullOrWhiteSpace(Value);
 
-    public static HistoryKey Create(string? value)
+    public static ContainerKey Create(string? value)
         => TryCreate(value, out var key)
             ? key
-            : throw new ArgumentException("HistoryKey 不能为空。", nameof(value));
+            : throw new ArgumentException("ContainerKey 不能为空。", nameof(value));
 
-    public static bool TryCreate(string? value, out HistoryKey key)
+    public static bool TryCreate(string? value, out ContainerKey key)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -27,7 +27,7 @@ public readonly record struct HistoryKey
             return false;
         }
 
-        key = new HistoryKey(value.Trim());
+        key = new ContainerKey(value.Trim());
         return true;
     }
 
@@ -107,8 +107,8 @@ public readonly record struct SessionOwner(SessionOwnerKind Kind, string Key)
 {
     public bool IsEmpty => string.IsNullOrWhiteSpace(Key);
 
-    public static SessionOwner OfHistory(HistoryKey key) => new(SessionOwnerKind.History, key.Value);
-    public static SessionOwner OfHistory(string key) => new(SessionOwnerKind.History, HistoryKey.Create(key).Value);
+    public static SessionOwner OfHistory(ContainerKey key) => new(SessionOwnerKind.History, key.Value);
+    public static SessionOwner OfHistory(string key) => new(SessionOwnerKind.History, ContainerKey.Create(key).Value);
     public static SessionOwner OfTask(TaskKey key) => new(SessionOwnerKind.Task, key.Value);
     public static SessionOwner OfTask(string key) => new(SessionOwnerKind.Task, TaskKey.Create(key).Value);
 

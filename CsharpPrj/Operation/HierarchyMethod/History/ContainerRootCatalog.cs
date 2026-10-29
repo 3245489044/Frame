@@ -13,7 +13,7 @@ namespace Operation.Container;
 /// 历史根目录唯一实现：**只认 root store**（结构事实 = 根注册表行）；旧日志表不再参与根判定。
 /// 过滤空键 / 去重 / 排序在此单点完成，UI / API / 会话页 / 树读取全部委托本类。
 /// </summary>
-public sealed class ContainerRootCatalog : IHistoryRootCatalog
+public sealed class ContainerRootCatalog : IContainerRootCatalog
 {
     private readonly IConversationLogRootStore _roots;
 
@@ -27,18 +27,18 @@ public sealed class ContainerRootCatalog : IHistoryRootCatalog
     /// <summary>最近一次根枚举的原始根数（归一前）。</summary>
     public int LastRootCount { get; private set; }
 
-    public async Task<IReadOnlyList<HistoryRoot>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ContainerRoot>> ListAsync(CancellationToken ct = default)
     {
         var roots = await _roots.ListRootsAsync(ct).ConfigureAwait(false);
         LastRootCount = roots?.Count ?? 0;
         LastResolveReason = LastRootCount == 0 ? "root-store-empty" : "ok";
-        return Normalize(roots ?? Array.Empty<HistoryRoot>());
+        return Normalize(roots ?? Array.Empty<ContainerRoot>());
     }
 
-    public Task<bool> ExistsAsync(HistoryKey key, CancellationToken ct = default)
+    public Task<bool> ExistsAsync(ContainerKey key, CancellationToken ct = default)
         => key.IsEmpty ? Task.FromResult(false) : _roots.ExistsAsync(key, ct);
 
-    private static IReadOnlyList<HistoryRoot> Normalize(IEnumerable<HistoryRoot> roots)
+    private static IReadOnlyList<ContainerRoot> Normalize(IEnumerable<ContainerRoot> roots)
         => roots
             .Where(r => !r.Key.IsEmpty)
             .GroupBy(r => r.Key.Value, StringComparer.Ordinal)

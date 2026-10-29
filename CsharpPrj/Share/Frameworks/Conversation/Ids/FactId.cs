@@ -29,7 +29,7 @@ public enum FactIdKind
 /// 相等性由 record struct 值语义保证（可安全作字典键与集合元素）。
 /// </para>
 /// </summary>
-/// <param name="SessionKey">会话键（= runId = TaskKey = HistoryId）。</param>
+/// <param name="SessionKey">会话键（= runId = TaskKey = ContainerId）。</param>
 /// <param name="RoundNo">轮次序号（会话累计轮，从 1 起；<c>&lt;=0</c> 表示 run 级键）。</param>
 /// <param name="StepName">工作流步骤名（轮键为 null）。</param>
 /// <param name="Attempt">同一步骤重试代次（从 1 起；null 视作 1）。</param>

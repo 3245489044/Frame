@@ -47,7 +47,7 @@ public interface IContainerRelationManager
         return result;
     }
 
-    /// <summary>反向成员查询：该 task 被哪些历史根归拢（M:N 真源 = 图边；禁 ur_tasks.HistoryId）。</summary>
+    /// <summary>反向成员查询：该 task 被哪些历史根归拢（M:N 真源 = 图边；禁 ur_tasks.ContainerId）。</summary>
     Task<IReadOnlyList<string>> GetHistoryKeysAsync(string taskKey, CancellationToken ct = default);
 
     /// <summary>返回该历史归拢的任务链接记录。</summary>

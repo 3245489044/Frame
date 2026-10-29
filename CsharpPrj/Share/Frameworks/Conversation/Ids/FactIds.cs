@@ -12,7 +12,7 @@ namespace Share.Conversation.Ids;
 public static class FactIds
 {
     /// <summary>run 级键（会话 = 任务；线格式为裸会话键）。</summary>
-    /// <param name="sessionKey">会话键（= runId = TaskKey = HistoryId）。</param>
+    /// <param name="sessionKey">会话键（= runId = TaskKey = ContainerId）。</param>
     public static FactId Run(string sessionKey)
     {
         RequireId(sessionKey, nameof(sessionKey), "会话键");

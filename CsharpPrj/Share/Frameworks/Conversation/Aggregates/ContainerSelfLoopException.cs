@@ -10,13 +10,13 @@ public sealed class ContainerSelfLoopException : InvalidOperationException
 {
     public const string DiagnosticCode = "HISTORY_SELF_LOOP_REJECTED";
 
-    public string HistoryKey { get; }
+    public string ContainerKey { get; }
     public string TaskKey { get; }
 
     public ContainerSelfLoopException(string historyKey, string taskKey)
         : base($"{DiagnosticCode}: history_owns_task 禁止自环（history={historyKey}, task={taskKey}）。")
     {
-        HistoryKey = historyKey;
+        ContainerKey = historyKey;
         TaskKey = taskKey;
     }
 }

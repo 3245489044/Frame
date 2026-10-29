@@ -34,7 +34,7 @@ public static class SessionKeys
     /// </summary>
     /// <param name="historyId">历史容器键（可选；空 ⇒ 回退 taskKey 的同键约定）。</param>
     /// <param name="taskKey">成员任务键（可选；无显式 historyId 时不作成员）。</param>
-    public static (string HistoryId, string? TaskKey) ResolveHistoryPair(string? historyId, string? taskKey)
+    public static (string ContainerId, string? TaskKey) ResolveHistoryPair(string? historyId, string? taskKey)
     {
         if (string.IsNullOrWhiteSpace(historyId))
             return (Resolve(taskKey), null);

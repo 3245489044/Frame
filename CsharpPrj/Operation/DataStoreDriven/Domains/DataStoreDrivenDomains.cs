@@ -21,7 +21,7 @@ public static class DataStoreDrivenDomains
     /// <summary>全部域模块（唯一清单）。</summary>
     public static IReadOnlyList<IDomainStoreModule> All(
         StorageKernelContext kernel,
-        ILegacyHistoryClassifier? legacyHistoryClassifier = null)
+        ILegacyContainerClassifier? legacyHistoryClassifier = null)
         => new IDomainStoreModule[]
         {
             new ConversationLogDomainModule(kernel, legacyHistoryClassifier),
@@ -34,9 +34,9 @@ public static class DataStoreDrivenDomains
 public sealed class ConversationLogDomainModule : IDomainStoreModule
 {
     private readonly StorageKernelContext _kernel;
-    private readonly ILegacyHistoryClassifier? _legacy;
+    private readonly ILegacyContainerClassifier? _legacy;
 
-    public ConversationLogDomainModule(StorageKernelContext kernel, ILegacyHistoryClassifier? legacy = null)
+    public ConversationLogDomainModule(StorageKernelContext kernel, ILegacyContainerClassifier? legacy = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _legacy = legacy;

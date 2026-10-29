@@ -17,7 +17,7 @@ namespace Operation.DataStoreDriven.Sqlite;
 
 /// <summary>
 /// 历史根注册表（会话历史容器表）—— 只存聚合根身份与展示字段，不存 Conversation 日志。
-/// 旧行（含 Conversation）由注入的 <see cref="ILegacyHistoryClassifier"/> 兼容读为根；
+/// 旧行（含 Conversation）由注入的 <see cref="ILegacyContainerClassifier"/> 兼容读为根；
 /// 新行以 <c>history_root:</c> 记录标记，旧 <see cref="SqliteConversationLogStore"/> 不得覆盖根行。
 /// </summary>
 public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLogRootStore
@@ -31,11 +31,11 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
 
     private readonly IDocumentCodec _codec;
     private readonly ITableSchemaSource? _schemaSource;
-    private readonly ILegacyHistoryClassifier? _legacy;
+    private readonly ILegacyContainerClassifier? _legacy;
 
     public SqliteContainerRootStore(
         IDbCommandExecutor executor, string tablePrefix, IDocumentCodec codec,
-        ITableSchemaSource? schemaSource = null, ILegacyHistoryClassifier? legacy = null)
+        ITableSchemaSource? schemaSource = null, ILegacyContainerClassifier? legacy = null)
         : base(executor, tablePrefix, TableNames.Histories)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
@@ -52,11 +52,11 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<HistoryRoot>> ListRootsAsync(CancellationToken ct = default)
+    public Task<IReadOnlyList<ContainerRoot>> ListRootsAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var rows = Query($"SELECT {KvUsharpTable.ColNodeKey}, Doc FROM [{Table}] ORDER BY {KvUsharpTable.ColId}");
-        var roots = new List<HistoryRoot>();
+        var roots = new List<ContainerRoot>();
         foreach (var row in rows)
         {
             // 结果集字典键 = 无引号列名（ColNodeKey 带方括号，仅用于 SQL 文本）。
@@ -65,16 +65,16 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
             var root = TryReadRoot(key, SqliteRows.Str(row, "Doc"));
             if (root is not null) roots.Add(root);
         }
-        return Task.FromResult<IReadOnlyList<HistoryRoot>>(roots);
+        return Task.FromResult<IReadOnlyList<ContainerRoot>>(roots);
     }
 
-    public async Task<bool> ExistsAsync(HistoryKey key, CancellationToken ct = default)
+    public async Task<bool> ExistsAsync(ContainerKey key, CancellationToken ct = default)
         => await GetAsync(key, ct).ConfigureAwait(false) is not null;
 
-    public Task<HistoryRoot?> GetAsync(HistoryKey key, CancellationToken ct = default)
+    public Task<ContainerRoot?> GetAsync(ContainerKey key, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        if (key.IsEmpty) return Task.FromResult<HistoryRoot?>(null);
+        if (key.IsEmpty) return Task.FromResult<ContainerRoot?>(null);
 
         // 行键双形态（迁移期）：规范形态 history:{id} 优先，旧行裸键 {id} 兜底。
         // 单形态查找是「列表可见、删除判不存在」的根因（同表混存两种键形态）。
@@ -84,13 +84,13 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
             var rows = Query(KvUsharpTable.SelectByKeySql(Table), Params(("k", rowKey)));
             if (rows.Count == 0) continue;
             var root = TryReadRoot(rowKey, SqliteRows.Str(rows[0], "Doc"));
-            if (root is not null) return Task.FromResult<HistoryRoot?>(root);
+            if (root is not null) return Task.FromResult<ContainerRoot?>(root);
         }
 
-        return Task.FromResult<HistoryRoot?>(null);
+        return Task.FromResult<ContainerRoot?>(null);
     }
 
-    public Task CreateAsync(HistoryRoot root, CancellationToken ct = default)
+    public Task CreateAsync(ContainerRoot root, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(root);
         ct.ThrowIfCancellationRequested();
@@ -112,7 +112,7 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
         return Task.CompletedTask;
     }
 
-    public Task<bool> DeleteAsync(HistoryKey key, CancellationToken ct = default)
+    public Task<bool> DeleteAsync(ContainerKey key, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         if (key.IsEmpty) return Task.FromResult(false);
@@ -126,28 +126,28 @@ public sealed class SqliteContainerRootStore : KvJsonStoreBase, IConversationLog
     }
 
     /// <summary>身份 → 行键（<c>history:{identity}</c>）；空身份 ⇒ 空串（不伪造行键）。</summary>
-    private static string RowKey(HistoryKey key) => NodeEndpointIds.ToHistoryRowKey(key.Value);
+    private static string RowKey(ContainerKey key) => NodeEndpointIds.ToHistoryRowKey(key.Value);
 
-    private HistoryRoot? TryReadRoot(string key, string? doc)
+    private ContainerRoot? TryReadRoot(string key, string? doc)
     {
         if (string.IsNullOrWhiteSpace(doc)) return null;
         if (!_codec.TryDeserializeRecord(doc, out var recordId, out _, out _, out var body)) return null;
-        // D-01=A（Identity 规范面）：HistoryKey 一律裸身份；行键 history:{id} 只在存储边界出现。
+        // D-01=A（Identity 规范面）：ContainerKey 一律裸身份；行键 history:{id} 只在存储边界出现。
         var identity = NodeEndpointIds.NormalizeHistoryId(key);
         if (identity.Length == 0) return null;
-        var historyKey = HistoryKey.Create(identity);
+        var historyKey = ContainerKey.Create(identity);
         if (!recordId.StartsWith(RecordPrefix, StringComparison.Ordinal))
         {
             return _legacy?.IsLegacyRoot(key) == true
-                ? new HistoryRoot(historyKey, identity, HistoryKind.Imported, "migration", DateTimeOffset.MinValue)
+                ? new ContainerRoot(historyKey, identity, ContainerKind.Imported, "migration", DateTimeOffset.MinValue)
                 : null;
         }
 
         var name = ReadString(body, FieldName);
-        var kind = Enum.TryParse<HistoryKind>(ReadString(body, FieldKind), true, out var k) ? k : HistoryKind.User;
+        var kind = Enum.TryParse<ContainerKind>(ReadString(body, FieldKind), true, out var k) ? k : ContainerKind.User;
         var createdBy = ReadString(body, FieldCreatedBy) ?? "system";
         var createdAt = DateTimeOffset.TryParse(ReadString(body, FieldCreatedAt), out var at) ? at : DateTimeOffset.MinValue;
-        return new HistoryRoot(historyKey, string.IsNullOrWhiteSpace(name) ? identity : name, kind, createdBy, createdAt);
+        return new ContainerRoot(historyKey, string.IsNullOrWhiteSpace(name) ? identity : name, kind, createdBy, createdAt);
     }
 
     /// <summary>字段读取单源（U4）：委托 <see cref="KvPayloadReader.ReadString"/>。</summary>

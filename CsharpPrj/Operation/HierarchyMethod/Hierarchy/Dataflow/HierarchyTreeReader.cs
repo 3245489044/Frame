@@ -20,7 +20,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     /// <param name="TaskKeys">该历史归拢的 task 键集（空 = 无归拢，不合成）。</param>
     /// <param name="TaskNodeKeys">taskKey → node 键集（可空；未装配引用守卫或该 task 无节点时为 null）。</param>
     public sealed record HierarchyTree(
-        string HistoryId,
+        string ContainerId,
         IReadOnlyList<string> TaskKeys,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? TaskNodeKeys = null);
 
@@ -37,7 +37,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
     /// </summary>
     public sealed class HierarchyTreeReader
     {
-        private readonly IHistoryRootCatalog _catalog;
+        private readonly IContainerRootCatalog _catalog;
         private readonly IContainerRelationManager? _relations;
         private readonly IReferenceMaintenance? _grounding;
         private readonly ITransferFlow? _transfer;
@@ -45,7 +45,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 
         /// <summary>根目录为必填（唯一根枚举入口）；未装配即构造期失败。</summary>
         public HierarchyTreeReader(
-            IHistoryRootCatalog catalog,
+            IContainerRootCatalog catalog,
             IContainerRelationManager? relations = null,
             IReferenceMaintenance? grounding = null,
             ITransferFlow? transfer = null,

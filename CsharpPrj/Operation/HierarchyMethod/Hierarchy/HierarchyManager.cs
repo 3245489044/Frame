@@ -36,7 +36,7 @@ public sealed class HierarchyManager : IHierarchyManager
     private readonly Func<string, CancellationToken, Task>? _deleteTask;
     private readonly Lazy<HierarchyProcessFacade> _processing;
     private readonly Lazy<HierarchyProcessFacade> _taskTreeProcessing;
-    // RED-1：任务供给流已退役；task→history 归拢只经 IHistoryCommandPort（显式命令）。
+    // RED-1：任务供给流已退役；task→history 归拢只经 IContainerCommandPort（显式命令）。
 
     /// <param name="reference">引用管理端口（可空；实现 = DataStoreDriven.ReferenceGrounding）。本门面及三层实例只依赖此接口、零 LiteDB 具体类型。</param>
     /// <param name="nodes">节点输出存储（可空；ur_nodes NodeType=output）。</param>

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-28T23:53:13.9609845Z",
+  "builtAt": "2026-10-29T00:12:57.1608749Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -5050,7 +5050,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/AggregateStoreSeparationTests.cs",
-          "line": 133,
+          "line": 132,
           "role": "Test",
           "text": "Assert.IsTrue(relations.Deleted);"
         },
@@ -8292,13 +8292,13 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 356,
+      "total": 351,
       "truncated": false,
       "byRole": {
         "Gate": 3,
-        "Test": 80,
+        "Test": 76,
         "Declaration": 54,
-        "Code": 20,
+        "Code": 19,
         "Doc": 198,
         "Other": 1
       },
@@ -9761,34 +9761,6 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
-          "line": 21,
-          "role": "Test",
-          "text": "var service = new TaskGraphService(store, resources: null, new FixedResolver(TaskRoute.Allow(\"subagent-tool-call\")));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
-          "line": 25,
-          "role": "Test",
-          "text": "SubAgentTag: \"tool-call\")).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
-          "line": 29,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"tool-call\", spec.SubAgentTag);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/HierarchyMethod.Tests/TaskGraph/TaskGraphRouteTests.cs",
-          "line": 30,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"subagent-tool-call\", spec.ExecutorId);"
-        },
-        {
-          "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Share.Tsets/ContextGeometry.Tests/PolicyTests.cs",
           "line": 47,
           "role": "Test",
@@ -10728,9 +10700,9 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 235,
+          "line": 233,
           "role": "Code",
-          "text": "\"subagent-tool-call\", \"subagent-base\", \"subagent-workflow\", \"subagent-ps\", \"subagent-usharp\","
+          "text": "[\"subagent-tool-call\"] = Agent.Modules.SubAgent.SingleStep.SingleStepSubAgentTaskExecutor.ExecutorId,"
         },
         {
           "repo": "Projects",
@@ -10787,13 +10759,6 @@
           "line": 30,
           "role": "Code",
           "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/SingleStep/SingleStepLegAliasExecutor.cs",
-          "line": 11,
-          "role": "Code",
-          "text": "/// 迁移期执行腿别名（计划 §8 双注册）：把旧腿 Id（<c>subagent-tool-call</c> / <c>subagent-base</c> /"
         }
       ]
     },
@@ -11396,12 +11361,12 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1601.0,
+    "hitCount": 1596.0,
     "byRole": {
       "Gate": 31,
-      "Test": 258,
+      "Test": 254,
       "Declaration": 109,
-      "Code": 350,
+      "Code": 349,
       "Doc": 776,
       "Other": 77
     },
@@ -11416,11 +11381,11 @@
       },
       {
         "repo": "Projects",
-        "lines": 497
+        "lines": 496
       },
       {
         "repo": "Main",
-        "lines": 1059
+        "lines": 1055
       }
     ]
   }

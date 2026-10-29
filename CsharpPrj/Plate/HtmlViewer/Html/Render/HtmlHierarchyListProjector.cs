@@ -21,7 +21,7 @@ public static class HtmlHierarchyListProjector
         string Key,
         bool Active = false,
         bool Selected = false,
-        string? HistoryId = null,
+        string? ContainerId = null,
         IReadOnlyList<string>? Nodes = null,
         IReadOnlyDictionary<string, object?>? Extra = null);
 
@@ -119,7 +119,7 @@ public static class HtmlHierarchyListProjector
         model["session"] = row.Key;
         model["active"] = row.Active ? "1" : string.Empty;
         model["selected"] = row.Selected || row.Active ? "1" : string.Empty;
-        if (!string.IsNullOrWhiteSpace(row.HistoryId)) model["history"] = row.HistoryId;
+        if (!string.IsNullOrWhiteSpace(row.ContainerId)) model["history"] = row.ContainerId;
         var nodes = row.Nodes;
         model["hasNodes"] = nodes is { Count: > 0 } ? "1" : string.Empty;
         if (nodes is { Count: > 0 }) model["nodes"] = nodes;

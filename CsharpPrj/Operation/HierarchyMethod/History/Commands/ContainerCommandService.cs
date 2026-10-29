@@ -15,12 +15,12 @@ namespace Operation.Container.Commands;
 
 /// <summary>
 /// 历史命令唯一实现（C1/C2/C8 聚拢点）：
-/// 创建历史根 = root 注册表 + graph mirror（可选 HistoryRoot session）；
+/// 创建历史根 = root 注册表 + graph mirror（可选 ContainerRoot session）；
 /// 归拢 task = 只写 history_owns_task 边，不隐式建 history/task；禁止自环。
 /// 除本类外，任何层不得直接调用 <see cref="IContainerRelationManager.CreateAsync"/> /
 /// <see cref="IContainerRelationManager.AttachTaskAsync"/>。
 /// </summary>
-public sealed class ContainerCommandService : IHistoryCommandPort
+public sealed class ContainerCommandService : IContainerCommandPort
 {
     private readonly IConversationLogRootStore _roots;
     private readonly IContainerRelationManager _relations;
@@ -48,7 +48,7 @@ public sealed class ContainerCommandService : IHistoryCommandPort
         _writeUnit = writeUnit;
     }
 
-    public async Task<HistoryRoot> CreateAsync(CreateHistoryCommand cmd, CancellationToken ct = default)
+    public async Task<ContainerRoot> CreateAsync(CreateContainerCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var decision = _gate.AuthorizeHistory(cmd.Intent, cmd.Actor);
@@ -57,7 +57,7 @@ public sealed class ContainerCommandService : IHistoryCommandPort
 
         var key = Normalize(cmd.Key);
         var existing = await _roots.GetAsync(key, ct).ConfigureAwait(false);
-        var root = existing ?? HistoryRoot.Create(key, cmd.Name, cmd.Kind, cmd.Actor);
+        var root = existing ?? ContainerRoot.Create(key, cmd.Name, cmd.Kind, cmd.Actor);
         if (existing is null)
         {
             if (_writeUnit is null)
@@ -96,7 +96,7 @@ public sealed class ContainerCommandService : IHistoryCommandPort
             if (await _sessions.GetAsync(sessionKey, ct).ConfigureAwait(false) is null)
             {
                 await _sessions.CreateAsync(
-                    SessionRecord.Create(sessionKey, SessionOwner.OfHistory(root.Key), SessionRole.HistoryRoot, "history"),
+                    SessionRecord.Create(sessionKey, SessionOwner.OfHistory(root.Key), SessionRole.ContainerRoot, "history"),
                     ct).ConfigureAwait(false);
             }
 
@@ -111,12 +111,12 @@ public sealed class ContainerCommandService : IHistoryCommandPort
         return root;
     }
 
-    /// <summary>D-01=A：命令面入参统一归一到 HistoryKey 规范面（裸身份），存储/图端点各自在其边界转换。</summary>
-    private static HistoryKey Normalize(HistoryKey key)
+    /// <summary>D-01=A：命令面入参统一归一到 ContainerKey 规范面（裸身份），存储/图端点各自在其边界转换。</summary>
+    private static ContainerKey Normalize(ContainerKey key)
     {
         if (key.IsEmpty) return key;
         var identity = NodeEndpointIds.NormalizeHistoryId(key.Value);
-        return identity.Length == 0 ? key : HistoryKey.Create(identity);
+        return identity.Length == 0 ? key : ContainerKey.Create(identity);
     }
 
     public Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
@@ -141,7 +141,7 @@ public sealed class ContainerCommandService : IHistoryCommandPort
         return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);
     }
 
-    public async Task<bool> DeleteAsync(DeleteHistoryCommand cmd, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(DeleteContainerCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var decision = _gate.AuthorizeHistory(cmd.Intent, cmd.Actor);

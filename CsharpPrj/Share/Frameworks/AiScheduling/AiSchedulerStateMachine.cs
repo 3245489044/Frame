@@ -22,7 +22,7 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
     private const int MaxRecentTransitions = 20;
 
     /// <summary>全量转移历史归档键（窗口弹出时归档到 <see cref="IStateFacet.ReadArchive"/> 区）。</summary>
-    private const string HistoryKey = "transitionHistory";
+    private const string ContainerKey = "transitionHistory";
 
     /// <summary>执行状态缺省（executor 未登记时默认 from 状态，字符串承载）。</summary>
     private const string DefaultRunStatus = "Pending";
@@ -249,8 +249,8 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
             var evicted = _state.RecentTransitions[0];
             _state.RecentTransitions.RemoveAt(0);
             // 全量只增：弹出有界遥测窗口时归档到归档区（InformationMonotonicity：信息不丢失，可跨会话持久化）。
-            var cur = _state.ReadArchive(HistoryKey);
-            _state.WriteArchive(HistoryKey, string.IsNullOrEmpty(cur) ? evicted : cur + "\n" + evicted);
+            var cur = _state.ReadArchive(ContainerKey);
+            _state.WriteArchive(ContainerKey, string.IsNullOrEmpty(cur) ? evicted : cur + "\n" + evicted);
         }
     }
 }

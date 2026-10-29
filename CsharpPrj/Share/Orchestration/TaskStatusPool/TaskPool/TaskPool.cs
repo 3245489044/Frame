@@ -533,7 +533,10 @@ namespace Share.TaskStatusPool.TaskPool
 
         /// <summary>终态单点（收敛点）：状态迁移 + 退出消费集（<see cref="IActivatableTaskPoolItem.Active"/>=false）一次完成。
         /// <para>终态任务不得再带 Active=true：否则重启回填 / 毒化对齐会把已终结的任务重新当作可消费候选
-        /// （现场成员任务「Running/round=0 且 active=true」的成因之一）。</para></summary>
+        /// （现场成员任务「Running/round=0 且 active=true」的成因之一）。</para>
+        /// <para>B3b 修复：对快照驱动条目（<see cref="IStatusAwareTaskPoolItem"/>），载荷内 Status 为权威 ——
+        /// 必须在写回载荷前置为终态，否则 <c>UpdatePayloadAsync</c> 会用载荷内旧状态覆盖刚写入的 Status 列
+        /// （表现为终态被回滚成 NotStarted，Completed/Faulted 查询恒 0）。</para></summary>
         private async Task TerminalizeAsync(
             string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, CancellationToken ct)
         {
@@ -541,11 +544,22 @@ namespace Share.TaskStatusPool.TaskPool
 
             // 以持久化最新快照为准（不拿消费期旧对象覆盖并发写入的 Failure/结果字段）。
             var latest = await _persistence.GetAsync(taskKey, ct).ConfigureAwait(false);
+            if (latest is null) return;
+
+            var dirty = false;
+            if (latest is IStatusAwareTaskPoolItem statusAware && statusAware.Status != to)
+            {
+                statusAware.Status = to;
+                dirty = true;
+            }
+
             if (latest is IActivatableTaskPoolItem activatable && activatable.Active)
             {
                 activatable.Active = false;
-                await _persistence.UpdatePayloadAsync(taskKey, latest, ct).ConfigureAwait(false);
+                dirty = true;
             }
+
+            if (dirty) await _persistence.UpdatePayloadAsync(taskKey, latest, ct).ConfigureAwait(false);
 
             _activeFlags[taskKey] = false;
         }

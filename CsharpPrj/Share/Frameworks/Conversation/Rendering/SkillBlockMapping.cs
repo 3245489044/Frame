@@ -5,7 +5,7 @@ namespace Share.Conversation.Rendering;
 /// <see cref="HeadBlock"/> = 会话级头系统块（L0 之后高注意区，注入 system）；<see cref="MidNode"/> = 工作流中间产出节点；
 /// <see cref="EndNode"/> = skill 驱动链的末尾产出节点（与 assistant 终答对齐）。
 /// </summary>
-public enum SkillHistoryPosition
+public enum SkillPosition
 {
     HeadBlock,
     MidNode,
@@ -21,7 +21,7 @@ public sealed record SkillBlockMapping(
     string TaskKey,
     int Round,
     string SkillName,
-    string HistoryKey,
-    SkillHistoryPosition Position,
+    string ContainerKey,
+    SkillPosition Position,
     string? BlockText = null,
     string? Status = null);

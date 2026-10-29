@@ -21,7 +21,7 @@ public sealed class ContainerReferenceGrounding
     private readonly ReferenceGraphCoordinator _graph;
     private readonly TaskReferenceGrounding _tasks;
     private readonly IRelationPorts _ports;
-    private readonly HistoryRelationSurface _relations;
+    private readonly ContainerRelationSurface _relations;
 
     public ContainerReferenceGrounding(
         GraphEdgeWriter edges, GraphMirrorWriter mirrors, ReferenceGraphCoordinator graph,
@@ -32,7 +32,7 @@ public sealed class ContainerReferenceGrounding
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _ports = ports ?? throw new ArgumentNullException(nameof(ports));
-        _relations = new HistoryRelationSurface(_ports);
+        _relations = new ContainerRelationSurface(_ports);
     }
 
     /// <summary>历史 class 容器根端点：幂等建 history.{historyId} 端点镜像。</summary>
@@ -106,7 +106,7 @@ public sealed class ContainerReferenceGrounding
         if (ids.Count == 0) return result;
 
         var resources = ids
-            .Select(id => (HistoryId: id, Resource: new ResourceIdentifier
+            .Select(id => (ContainerId: id, Resource: new ResourceIdentifier
             {
                 ResourceType = NodeResourceTypes.History,
                 Id = HistoryNodeId(id),

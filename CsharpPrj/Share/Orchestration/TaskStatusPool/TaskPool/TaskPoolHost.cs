@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +12,7 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
     where TItem : ITaskPoolItem
 {
     private readonly TaskPool<TItem, TResult> _pool;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<TResult>> _awaiters = new(StringComparer.Ordinal);
+    private readonly TaskAwaiterRegistry<TResult> _awaiters = new();
 
     public TaskPoolHost(
         ITaskPoolPersistence<TItem> persistence,
@@ -30,12 +28,12 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
                 try
                 {
                     var result = await handler(item, executionId, ct).ConfigureAwait(false);
-                    Complete(item.TaskKey, result);
+                    _awaiters.Complete(item.TaskKey, result);
                     return result;
                 }
                 catch (Exception ex)
                 {
-                    Fail(item.TaskKey, ex);
+                    _awaiters.Fail(item.TaskKey, ex);
                     throw;
                 }
             },
@@ -43,6 +41,9 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
             initializer,
             outcomePolicy);
     }
+
+    /// <summary>在途等待者数量（诊断）。</summary>
+    public int PendingAwaiters => _awaiters.Count;
 
     public ITaskPool<TItem> Pool => _pool;
 
@@ -67,10 +68,22 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
     public async Task<TResult> EnqueueAndWaitAsync(TItem item, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(item);
-        var tcs = _awaiters.GetOrAdd(item.TaskKey, static _ => new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously));
-        await _pool.EnqueueAsync(item, ct).ConfigureAwait(false);
-        using var registration = ct.Register(static state => ((TaskCompletionSource<TResult>)state!).TrySetCanceled(), tcs);
-        return await tcs.Task.ConfigureAwait(false);
+        // 同键并发等待 = 调用方误用：显式失败（不覆盖先到者 TCS，避免永久等待）。
+        if (!_awaiters.TryRegister(item.TaskKey, out var completion))
+            throw new InvalidOperationException(
+                $"任务 {item.TaskKey} 已有一个等待中的 EnqueueAndWaitAsync；同一 taskKey 不支持并发等待。");
+
+        try
+        {
+            await _pool.EnqueueAsync(item, ct).ConfigureAwait(false);
+            return await completion!.WaitAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // 入队失败 / 取消 / 超时：释放等待位（任务仍可能在池内继续执行，此时不再回投结果）。
+            _awaiters.Remove(item.TaskKey);
+            throw;
+        }
     }
 
     public Task PauseAsync(string taskKey, string? source = null, string? reason = null, CancellationToken ct = default)
@@ -84,14 +97,4 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
     public Task<int> ProcessPendingAsync(CancellationToken ct = default) => _pool.ProcessPendingAsync(ct);
 
     public ValueTask DisposeAsync() => _pool.DisposeAsync();
-
-    private void Complete(string taskKey, TResult result)
-    {
-        if (_awaiters.TryRemove(taskKey, out var tcs)) tcs.TrySetResult(result);
-    }
-
-    private void Fail(string taskKey, Exception ex)
-    {
-        if (_awaiters.TryRemove(taskKey, out var tcs)) tcs.TrySetException(ex);
-    }
 }

@@ -166,9 +166,9 @@ public sealed class TaskRelationSurface : RelationSurfaceAdapter
 }
 
 /// <summary>history 域写面：history↔task（history_owns_task）。</summary>
-public sealed class HistoryRelationSurface : RelationSurfaceAdapter
+public sealed class ContainerRelationSurface : RelationSurfaceAdapter
 {
-    public HistoryRelationSurface(IRelationPorts ports) : base(ports, "history") { }
+    public ContainerRelationSurface(IRelationPorts ports) : base(ports, "history") { }
 
     public Task<RelationResult> AttachTaskAsync(string historyId, string taskKey, CancellationToken ct = default)
         => EnsureAsync(

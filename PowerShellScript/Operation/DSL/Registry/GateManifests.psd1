@@ -1705,4 +1705,29 @@
         Note   = 'history 语义收拢（H6/RF8）：扫描面 = Frame\CsharpPrj；H1a Operation / H1b Share / H1c 其余层 *History* 类型声明 0（正则含 struct，防 record struct 逃逸）/ H2 History 命名空间 0 / H3 Frame using Agent 0 / H4 Frame Agent* 类型 0 / H5a-d 提及文件分区棘轮 / NC 正负对照（含 Share 扩面与排除规则）/ -List 逐条列命中'
     }
 
+    # ===== 聚拢框架（Gather-as-Pipeline，G0–G2）=====
+    GatherSpec = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢声明守卫 S1–S7：Config\gather\*.json 合格性（schema / stages / needs 闭合 / deps 无环 / produces crit 与 macro recompute）/ 禁过程语义键（step/order/sequence/then/next）/ 正负对照（缺 need、成环、step 键三类样本必红）'
+    }
+
+    GatherClosure = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢闭合守卫 C1–C4：读/写直呼清单（file:line + 符号）不得超基线（Baselines\Process\GatherClosure.psd1，只降不升）/ 允许集 = producer 实现文件 / 负对照（合成直呼必被捕获）'
+    }
+
+    GatherDecl = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢声明约束 G1–G4：Modules\Gather 公开类型 ⊆ 白名单（新增公开面须登记）/ IGatherModule 实现只允许 *GatherModule*.cs / new GatherHub 只允许 Modules\Gather 与 UiViewProjection.cs / 负对照（未登记公开类型、非法实现点必红）'
+    }
+
 }

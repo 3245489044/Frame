@@ -108,6 +108,9 @@
 
     <!-- ★ 2026-10-15 通用分级查询框架（Strategy.Catalog，L3 向下引用合规）：模板目录（templates source）接入 -->
     <ProjectReference Include="$(Proj_Catalog)" />
+    <!-- 聚拢通用框架（Modules.Gather，L1 通用内核）：Need/Stage/Produce 声明模型 + GatherHub（唯一读写面）；
+         本层（Operation/L4）只做 UI 适配（UiViewProjection 薄转发），通用语义不下沉到驱动层 -->
+    <ProjectReference Include="$(Proj_Gather)" />
   </ItemGroup>
 
 </Project>

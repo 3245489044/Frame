@@ -37,6 +37,7 @@
     <ProjectReference Include="$(Proj_GraphProcessing)" />
     <!-- 通用限制与治理内核（Modules\Governance，BCL-only L2）：资源计量/作用域链/两相预留/统一裁决 -->
     <ProjectReference Include="$(Proj_Governance)" />
+    <ProjectReference Include="$(Proj_Gather)" />
     <ProjectReference Include="$(Proj_LogicComposition)" />
     <ProjectReference Include="$(Proj_MetaCommand)" />
     <ProjectReference Include="$(Proj_Node)" />
@@ -68,6 +69,7 @@
     <Compile Remove="ExecutionFramework\**\*.cs" />
     <Compile Remove="GraphProcessing\**\*.cs" />
     <Compile Remove="Governance\**\*.cs" />
+    <Compile Remove="Gather\**\*.cs" />
     <Compile Remove="LogicComposition\**\*.cs" />
     <Compile Remove="MetaCommand\**\*.cs" />
     <Compile Remove="Node\**\*.cs" />

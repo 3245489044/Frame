@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-10-26 01:09:53
+  生成时间: 2026-10-29 20:15:38
 -->
 <Project>
 
@@ -54,6 +54,7 @@
     <Mod_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\</Mod_ExecutionFramework>
     <Mod_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\</Mod_GraphProcessing>
     <Mod_Governance>$(CsharpPrjDir)Modules\Governance\</Mod_Governance>
+    <Mod_Gather>$(CsharpPrjDir)Modules\Gather\</Mod_Gather>
     <Mod_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\</Mod_InternalStorage>
     <Mod_KeySpace>$(CsharpPrjDir)Modules\KeySpace\</Mod_KeySpace>
     <Mod_Wiring>$(CsharpPrjDir)Modules\Wiring\</Mod_Wiring>
@@ -179,6 +180,7 @@
     <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
     <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
+    <Proj_Gather>$(CsharpPrjDir)Modules\Gather\Gather.csproj</Proj_Gather>
     <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
     <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
     <Proj_Wiring>$(CsharpPrjDir)Modules\Wiring\Modules.Wiring.csproj</Proj_Wiring>

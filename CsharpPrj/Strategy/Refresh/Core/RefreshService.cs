@@ -23,6 +23,7 @@ namespace Strategy.Refresh.Core
         private readonly IFingerprint _fingerprint;
         private readonly RefreshSchedulerOptions _options;
         private readonly RefreshBeatOwnership _beats = new();
+        private readonly Action<string, object?>? _diagnostics;
         private long _unchangedDeliveries;
 
         public RefreshService(
@@ -33,11 +34,13 @@ namespace Strategy.Refresh.Core
             IFingerprint? fingerprint = null,
             IStallPolicy? stallPolicy = null,
             RefreshSchedulerOptions? options = null,
-            IRefreshClock? clock = null)
+            IRefreshClock? clock = null,
+            Action<string, object?>? diagnostics = null)
         {
             ArgumentNullException.ThrowIfNull(push);
             ArgumentNullException.ThrowIfNull(sink);
 
+            _diagnostics = diagnostics;
             _options = options ?? new RefreshSchedulerOptions();
             _fingerprint = fingerprint ?? Fnv1aFingerprint.Default;
             _store = store ?? new InMemoryRefreshStore(_options);
@@ -129,6 +132,12 @@ namespace Strategy.Refresh.Core
             if (trigger == RefreshTrigger.PagePull && !_beats.TryBegin(slot, request.TraceId))
             {
                 var beatState = _store.GetState(slot);
+                // P0-3：早退必须留轨迹（否则「一次刷新零写回」不可归因）。
+                _diagnostics?.Invoke("刷新轨迹", new
+                {
+                    slot, trigger = trigger.ToString(), reason = "beat-suppressed",
+                    version = beatState.LastDeliveredVersion,
+                });
                 return Result(slot, beatState.LastDeliveredVersion, trigger, RefreshOutcome.Unchanged,
                     AcceptDecision.Skip, false, false, false, beatState.LastFingerprint, started, null, null);
             }
@@ -141,6 +150,12 @@ namespace Strategy.Refresh.Core
                 if (baseVersion == versionState.LastDeliveredVersion)
                 {
                     _store.RecordOutcome(slot, RefreshOutcome.Unchanged, versionState.LastFingerprint, null, started);
+                    // P0-3：版本相同早退同样留轨迹（reason 受控三值之一）。
+                    _diagnostics?.Invoke("刷新轨迹", new
+                    {
+                        slot, trigger = trigger.ToString(), reason = "version-same",
+                        version = versionState.LastDeliveredVersion,
+                    });
                     return Result(slot, versionState.LastDeliveredVersion, trigger, RefreshOutcome.Unchanged,
                         AcceptDecision.Skip, false, false, false, versionState.LastFingerprint, started, null, null);
                 }

@@ -18,4 +18,7 @@ public enum MessageChannel
 
     /// <summary>操作流（task create/activate/stop/settle 等状态变更命令与回执；非气泡呈现）。</summary>
     Operation = 1,
+
+    /// <summary>过程流（工具/阶段/LLM 等观测帧与节点产出；不进对话气泡，由节点面承载）。</summary>
+    Process = 2,
 }

@@ -76,6 +76,7 @@
     "ExecutionFramework": "Modules\\ExecutionFramework\\ExecutionFramework.csproj",
     "GraphProcessing": "Modules\\GraphProcessing\\GraphProcessing.csproj",
     "Governance": "Modules\\Governance\\Governance.csproj",
+    "Gather": "Modules\\Gather\\Gather.csproj",
     "InternalStorage": "Modules\\InternalStorage\\InternalStorage.csproj",
     "KeySpace": "Modules\\KeySpace\\Modules.KeySpace.csproj",
     "Wiring": "Modules\\Wiring\\Modules.Wiring.csproj",

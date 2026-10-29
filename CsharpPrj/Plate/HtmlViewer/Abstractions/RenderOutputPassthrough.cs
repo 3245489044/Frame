@@ -13,10 +13,21 @@ namespace UiBackend.Abstractions;
 /// </summary>
 public static class RenderOutputPassthrough
 {
-    /// <summary>await 产物；非 null 原样返回，null（异常/未装配）→ <see cref="RenderOutput.Skip"/>（不写）。</summary>
-    public static async Task<RenderOutput> OrSkip(Func<Task<RenderOutput?>> artifact)
+    /// <summary>await 产物；非 null 原样返回；异常/未装配 → <see cref="RenderOutput.Skip"/>（不写，且异常可见化）。</summary>
+    public static async Task<RenderOutput> OrSkip(Func<Task<RenderOutput?>> artifact, Action<Exception>? onError = null)
     {
-        var output = await artifact().ConfigureAwait(false);
-        return output ?? RenderOutput.Skip;
+        try
+        {
+            var output = await artifact().ConfigureAwait(false);
+            return output ?? RenderOutput.Skip;
+        }
+        catch (Exception ex)
+        {
+            // P0-3：捕获不得静默 —— 至少打 Warn（宿主可注入 onError 转正式日志通道）。
+            onError?.Invoke(ex);
+            System.Diagnostics.Trace.TraceWarning(
+                $"[RenderOutputPassthrough] 产物异常按 Skip 处理：{ex.GetType().Name}: {ex.Message}");
+            return RenderOutput.Skip;
+        }
     }
 }

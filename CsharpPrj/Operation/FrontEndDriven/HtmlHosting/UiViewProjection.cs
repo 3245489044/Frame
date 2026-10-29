@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Gather;
 
 namespace FrontEndDriven.HtmlHosting;
 
@@ -40,13 +41,18 @@ public sealed record UiViewGatherResult(
     IReadOnlyList<string> Reused);
 
 /// <summary>
-/// 视图投影执行器（通用件，唯一实现）：<c>ChangeScope → DataNeeds</c> 取数，
-/// 声明为 <see cref="UiDataNeed.Reusable"/> 且作用域未变更的域复用上拍快照（未命中则照常取数）。
-/// <para>未变更域 0 取数、0 写目标由「复用域」清单可复算；新增数据域只加声明，不改执行器。</para>
+/// 视图投影执行器（通用件，唯一实现）：<c>ChangeScope → DataNeeds</c> 取数。
+/// <para>
+/// 本类现为 <see cref="GatherHub"/> 的**薄适配器**（保留既有签名，禁留第二套缓存/第二套取数语义）；
+/// 未变更域 0 取数、0 写目标由「复用域」清单可复算；新增数据域只加声明，不改执行器。
+/// </para>
 /// </summary>
 public sealed class UiViewProjection
 {
-    private readonly Dictionary<string, object?> _snapshot = new(StringComparer.Ordinal);
+    private readonly GatherHub _hub = new();
+
+    /// <summary>Hub 实例（上层按声明面 stages 编排时直接使用）。</summary>
+    public GatherHub Hub => _hub;
 
     /// <summary>执行一拍取数；<paramref name="changedScopes"/> 为 null ⇒ 视为全量变更（禁静默跳过）。</summary>
     public async Task<UiViewGatherResult> GatherAsync(
@@ -58,35 +64,84 @@ public sealed class UiViewProjection
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(source);
 
-        var changed = changedScopes is null
-            ? null
-            : new HashSet<string>(changedScopes, StringComparer.OrdinalIgnoreCase);
+        var (needs, domains) = BuildNeeds(spec);
+        var stage = new GatherStageSpec(spec.View, domains, Array.Empty<string>(), spec.Sections);
+        var result = await _hub
+            .GatherAsync(stage, needs, new DataSourceProducer(source), changedScopes, ct)
+            .ConfigureAwait(false);
 
-        var values = new Dictionary<string, object?>(spec.Needs.Count, StringComparer.Ordinal);
-        var gathered = new List<string>(spec.Needs.Count);
-        var reused = new List<string>();
+        return new UiViewGatherResult(result.Values, result.Gathered, result.Reused);
+    }
 
+    /// <summary>
+    /// 按模块装配（**loc 反转**）：宿主只声明（<see cref="IGatherModule"/>），框架做闭合校验与执行。
+    /// <para>未闭合（缺实现/孤儿实现/签名非法）⇒ 抛 <see cref="GatherClosureViolationException"/>，逐项列出。</para>
+    /// </summary>
+    public async Task<UiViewGatherResult> GatherAsync(
+        UiViewSpec spec,
+        IGatherModule module,
+        IReadOnlyCollection<string>? changedScopes,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        ArgumentNullException.ThrowIfNull(module);
+
+        var (needs, domains) = BuildNeeds(spec);
+        var viewSpec = new GatherViewSpec(
+            spec.View,
+            Array.Empty<GatherStageSpec>(),
+            needs,
+            Array.Empty<GatherProduceSpec>());
+        var registry = GatherRegistry.Build(new IGatherModule[] { module }, viewSpec);
+        if (!registry.IsClosed)
+        {
+            throw new GatherClosureViolationException(
+                $"聚拢未闭合（模块 '{module.Name}'）：{string.Join("；", registry.Issues)}");
+        }
+
+        var hub = new GatherHub(registry);
+        var stage = new GatherStageSpec(spec.View, domains, Array.Empty<string>(), spec.Sections);
+        var result = await hub.GatherAsync(stage, needs, changedScopes, ct).ConfigureAwait(false);
+        return new UiViewGatherResult(result.Values, result.Gathered, result.Reused);
+    }
+
+    private static (List<GatherNeedSpec> Needs, List<string> Domains) BuildNeeds(UiViewSpec spec)
+    {
+        var needs = new List<GatherNeedSpec>(spec.Needs.Count);
+        var domains = new List<string>(spec.Needs.Count);
         foreach (var need in spec.Needs)
         {
-            if (string.IsNullOrWhiteSpace(need.Domain)) continue;
-
-            var unchanged = changed is not null && !changed.Contains(need.Scope);
-            if (need.Reusable && unchanged && _snapshot.TryGetValue(need.Domain, out var cached))
+            if (string.IsNullOrWhiteSpace(need.Domain))
             {
-                values[need.Domain] = cached;
-                reused.Add(need.Domain);
                 continue;
             }
 
-            var value = await source.GatherAsync(need, ct).ConfigureAwait(false);
-            values[need.Domain] = value;
-            _snapshot[need.Domain] = value;
-            gathered.Add(need.Domain);
+            needs.Add(new GatherNeedSpec(need.Domain, need.Scope, ToGatherCost(need.Cost), need.Reusable));
+            domains.Add(need.Domain);
         }
 
-        return new UiViewGatherResult(values, gathered, reused);
+        return (needs, domains);
     }
 
     /// <summary>丢弃上拍快照（作用域切换/强制刷新时调用）。</summary>
-    public void Reset() => _snapshot.Clear();
+    public void Reset() => _hub.Reset();
+
+    /// <summary>数据源端口 → Hub 生产者（唯一适配点）。</summary>
+    private sealed class DataSourceProducer : IGatherProducer
+    {
+        private readonly IUiViewDataSource _source;
+
+        internal DataSourceProducer(IUiViewDataSource source) => _source = source;
+
+        public Task<object?> ProduceAsync(GatherNeedSpec need, CancellationToken ct)
+            => _source.GatherAsync(new UiDataNeed(need.Domain, need.Scope, ToUiCost(need.Cost), need.Reusable), ct);
+    }
+
+    /// <summary>宿主成本档 → 通用内核成本档（唯一映射点）。</summary>
+    private static GatherCostClass ToGatherCost(UiCostClass cost)
+        => cost == UiCostClass.High ? GatherCostClass.High : GatherCostClass.Low;
+
+    /// <summary>通用内核成本档 → 宿主成本档（唯一映射点）。</summary>
+    private static UiCostClass ToUiCost(GatherCostClass cost)
+        => cost == GatherCostClass.High ? UiCostClass.High : UiCostClass.Low;
 }

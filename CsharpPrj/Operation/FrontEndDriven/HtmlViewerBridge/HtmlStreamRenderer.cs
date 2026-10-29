@@ -67,16 +67,18 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             return new[] { new ConversationRenderSection("empty", emptyHtml) };
         }
 
-        // 通道分流：气泡流（Dialogue）承载 user/assistant/LLM 过程节点；操作流（Operation）承载
-        // task 创建/管理等操作命令与回执，走顶部操作面板（非气泡）。关闭开关 ⇒ 逐字旧行为（全按气泡）。
+        // 通道分流（三通道）：Dialogue → 气泡；Operation → 操作面板；Process → 过程面板（禁按 Role 二次猜测）。
         var dialogue = items;
         IReadOnlyList<ConversationRenderItem> operations = Array.Empty<ConversationRenderItem>();
+        IReadOnlyList<ConversationRenderItem> process = Array.Empty<ConversationRenderItem>();
         if (_options.SplitOperationChannel)
         {
-            var split = items.Where(m => m.Channel != MessageChannel.Dialogue).ToList();
-            if (split.Count > 0)
+            var operationSplit = items.Where(m => m.Channel == MessageChannel.Operation).ToList();
+            var processSplit = items.Where(m => m.Channel == MessageChannel.Process).ToList();
+            if (operationSplit.Count > 0 || processSplit.Count > 0)
             {
-                operations = split;
+                operations = operationSplit;
+                process = processSplit;
                 dialogue = items.Where(m => m.Channel == MessageChannel.Dialogue).ToList();
             }
         }
@@ -104,6 +106,8 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 
                 case RenderSurface.Operation:
                     if (operations.Count > 0) sections.Add(new ConversationRenderSection("op", RenderOperations(operations, t)));
+                    // 过程流独立成段（非气泡、非操作），段键 proc ⇒ 与操作面板物理分离。
+                    if (process.Count > 0) sections.Add(new ConversationRenderSection("proc", RenderProcess(process, t)));
                     break;
 
                 case RenderSurface.Dialogue:
@@ -133,6 +137,54 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
         };
         return HtmlTemplateEngine.Render(t, "sectionHeader", row);
+    }
+
+    /// <summary>
+    /// 过程流渲染（非气泡、非操作）：<see cref="MessageChannel.Process"/> 消息落独立「过程」面板，
+    /// 复用分组折叠列表模板（groupedPanel/groupBlock/detailRow），文本由模板引擎编码。
+    /// 行键由**内容**派生（轮次+类别+文本哈希+同内容序号），禁序号键（插帧会整体位移）。
+    /// </summary>
+    private static string RenderProcess(
+        IReadOnlyList<ConversationRenderItem> process, IReadOnlyDictionary<string, string> t)
+    {
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        var rows = new List<IReadOnlyDictionary<string, object?>>(process.Count);
+        foreach (var m in process)
+        {
+            var text = m.Text ?? string.Empty;
+            var baseKey = "proc:" + m.Round + ":" + (m.Stage ?? string.Empty) + ":" + StableTextHash(text);
+            seen.TryGetValue(baseKey, out var nth);
+            seen[baseKey] = nth + 1;
+            rows.Add(new Dictionary<string, object?>
+            {
+                ["key"] = baseKey + ":" + nth,
+                ["badge"] = m.Stage ?? string.Empty,
+                ["title"] = m.SubAgent ?? string.Empty,
+                ["updated"] = string.Empty,
+                ["summary"] = text,
+                ["ports"] = string.Empty,
+            });
+        }
+
+        var groups = new List<HtmlGroupedListProjector.Group>
+        {
+            new("过程帧", process.Count.ToString(), rows),
+        };
+        return HtmlGroupedListProjector.Render(
+            t, "groupedPanel", new Dictionary<string, object?> { ["task"] = "过程", ["note"] = null }, groups);
+    }
+
+    /// <summary>内容稳定哈希（FNV-1a 64；确定性，跨进程稳定）。</summary>
+    private static string StableTextHash(string text)
+    {
+        var hash = 14695981039346656037UL;
+        foreach (var c in text)
+        {
+            hash ^= c;
+            hash *= 1099511628211UL;
+        }
+
+        return hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>

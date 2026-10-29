@@ -447,11 +447,14 @@ namespace Plate.HttpMethod.OpenAI
             return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
         }
 
-        /// <summary>SSE 流式响应（Kestrel 原生流式）：单 chunk + [DONE]，与迁移前 HTTP 冒烟契约一致。</summary>
+        /// <summary>SSE 流式响应（Kestrel 原生流式）：内容片 + 结束片 + <c>[DONE]</c>，逐事件以空行分隔。</summary>
         private static IResult Sse(HttpResponse res, string id, string model, long created, string text)
         {
             res.Headers["Cache-Control"] = "no-cache";
-            var chunk = new
+            // SSE 规范：每个事件以**空行**结尾。旧实现把 `data: {json}\ndata: [DONE]` 写在同一事件内，
+            // 客户端按规范把两行 data 合并 ⇒ `JSON.parse("{json}\n[DONE]")` 失败（protocolOk=false）。
+            var sb = new StringBuilder();
+            AppendSseChunk(sb, new
             {
                 id,
                 @object = "chat.completion.chunk",
@@ -459,11 +462,27 @@ namespace Plate.HttpMethod.OpenAI
                 model,
                 choices = new[]
                 {
-                    new { index = 0, delta = new { role = "assistant", content = text }, finish_reason = (string?)null },
+                    new
+                    {
+                        index = 0,
+                        delta = new { role = "assistant", content = text },
+                        finish_reason = (string?)null,
+                    },
                 },
-            };
-            var line = "data: " + JsonSerializer.Serialize(chunk, JsonOptions) + "\ndata: [DONE]\n\n";
-            return Results.Stream(new System.IO.MemoryStream(Encoding.UTF8.GetBytes(line)), "text/event-stream");
+            });
+            AppendSseChunk(sb, new
+            {
+                id,
+                @object = "chat.completion.chunk",
+                created,
+                model,
+                choices = new[]
+                {
+                    new { index = 0, delta = new Dictionary<string, object>(), finish_reason = "stop" },
+                },
+            });
+            sb.Append("data: [DONE]\n\n");
+            return Results.Stream(new System.IO.MemoryStream(Encoding.UTF8.GetBytes(sb.ToString())), "text/event-stream");
         }
 
         /// <summary>

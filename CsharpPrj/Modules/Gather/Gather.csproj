@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>聚拢通用框架（Gather）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>声明驱动的聚拢管线内核：Need（域/作用域/成本/可复用）× Stage（deps 拓扑）× Produce（出口闭合）。Hub 只编排与记账（Get/Emit），取数在生产者、落库在写门、判定在 Crit；零领域语义、零 UI 依赖、零 Frame 依赖。</ModuleRule_Description>
+    <ModuleRule_Keywords>聚拢;取数;声明驱动;拓扑;复用;出口闭合;Hub;Need;Stage;Produce</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="唯一读写面：取数只经 GatherHub.GatherAsync（生产者实现 IGatherProducer）；写出只经 GatherHub.Emit（未声明产物 ⇒ 抛）" />
+    <ModuleRule_Rule Include="声明面禁过程语义键（step/order/sequence/then/next）：阶段序只由 deps 拓扑表达（对齐 SEP.DeclarativeProcessDisjoint）" />
+    <ModuleRule_Rule Include="复用键 = (Domain, Scope)：跨作用域复用视为影子缓存缺陷，CrossScope=false 默认" />
+    <ModuleRule_Rule Include="零 UI / 零宿主依赖：成本档为本工程中性枚举 GatherCostClass，UI 适配在调用方（禁把宿主枚举写进本工程公共签名）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.Gather</RootNamespace>
+    <AssemblyName>Modules.Gather</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>聚拢通用框架 — 声明驱动 Need/Stage/Produce + 唯一 Hub（BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

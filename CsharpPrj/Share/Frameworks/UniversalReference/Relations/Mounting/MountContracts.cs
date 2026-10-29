@@ -218,6 +218,7 @@ public static class MountIds
 {
     public const string NodeToTask = "node_to_task";
     public const string TaskToHistory = "task_to_history";
+    public const string WindowToHistory = "window_to_history";
     public const string MessageToSession = "message_to_session";
     public const string TaskTree = "task_tree";
 }

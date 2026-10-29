@@ -114,6 +114,17 @@ public sealed class MountBindingCatalog
             ProjectionId: "HistoryTasks"),
 
         new MountBinding(
+            MountIds.WindowToHistory,
+            RelationOperation: "mount_window",
+            Triggers: new[] { MountTriggers.CommandExplicit, MountTriggers.RebuildRequested },
+            Stage: MountStages.Provision,
+            Order: 25,
+            Family: MountFamilies.Structural,
+            Coalesce: "edge",
+            Posture: MountPostures.Require,
+            ProjectionId: "HistoryWindows"),
+
+        new MountBinding(
             MountIds.MessageToSession,
             RelationOperation: "mount_session_node",
             Triggers: new[] { MountTriggers.RoundSettled, MountTriggers.RebuildRequested },

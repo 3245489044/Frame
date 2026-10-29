@@ -49,6 +49,12 @@ public static class UsharpUnitRegistry
         (UsharpLanguage.DerivePrefix, DslSymbolKind.Derive),
         (UsharpLanguage.MountPrefix, DslSymbolKind.Mount),
         (UsharpLanguage.SegmentPrefix, DslSymbolKind.Segment),
+        (UsharpLanguage.EntityPrefix, DslSymbolKind.Entity),
+        (UsharpLanguage.KeyLexiconPrefix, DslSymbolKind.KeyLexicon),
+        (UsharpLanguage.AnswerShapePrefix, DslSymbolKind.AnswerShape),
+        (UsharpLanguage.WindowShapePrefix, DslSymbolKind.WindowShape),
+        (UsharpLanguage.KeyPolicyPrefix, DslSymbolKind.KeyPolicy),
+        (UsharpLanguage.KeyBridgePrefix, DslSymbolKind.KeyBridge),
     };
 
     /// <summary>默认 facet provider 集（序 = <see cref="Units"/>）。</summary>
@@ -91,5 +97,16 @@ public static class UsharpUnitRegistry
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Mounts)),
         new UsharpFacetProvider<UsharpSegmentDecl>(DslSymbolKind.Segment,
             ctx => ctx.Declarations.OfKind(DslSymbolKind.Segment).Select(UsharpSegmentDecl.From).OfType<UsharpSegmentDecl>()),
+        new UsharpFacetProvider<UsharpEntityDecl>(DslSymbolKind.Entity,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.Entity).Select(UsharpEntityDecl.From).OfType<UsharpEntityDecl>()),
+        new UsharpFacetProvider<UsharpKeyLexiconDecl>(DslSymbolKind.KeyLexicon,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.KeyLexicon).Select(UsharpKeyLexiconDecl.From).OfType<UsharpKeyLexiconDecl>()),
+        new UsharpFacetProvider<UsharpKeyShapeDecl>(DslSymbolKind.AnswerShape,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.AnswerShape).Select(d => UsharpKeyShapeDecl.From(d, "Answer")).OfType<UsharpKeyShapeDecl>()
+                .Concat(ctx.Declarations.OfKind(DslSymbolKind.WindowShape).Select(d => UsharpKeyShapeDecl.From(d, "Window")).OfType<UsharpKeyShapeDecl>())),
+        new UsharpFacetProvider<UsharpIdentityPolicyDecl>(DslSymbolKind.KeyPolicy,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.KeyPolicy).Select(UsharpIdentityPolicyDecl.From).OfType<UsharpIdentityPolicyDecl>()),
+        new UsharpFacetProvider<UsharpKeyBridgeDecl>(DslSymbolKind.KeyBridge,
+            ctx => ctx.Declarations.OfKind(DslSymbolKind.KeyBridge).Select(UsharpKeyBridgeDecl.Project).OfType<UsharpKeyBridgeDecl>()),
     };
 }

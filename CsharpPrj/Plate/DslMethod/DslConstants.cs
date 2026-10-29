@@ -48,6 +48,10 @@ public enum DslSymbolKind
     Relation, Invariant, Derive,
     // 挂载绑定声明语言单元（[Mount]）：MountId → 关系操作 + 触发/阶段/族/顺序/姿态/投影（唯一组合点）。
     Mount,
+    // 键身份语义层（与语法轴 family/surface 正交）：语义轴（是什么）+ 形状/策略/跨域契约。
+    // [Entity] 实体类型 / [KeyLexicon] 受控词表 / [AnswerShape] 终答形状 / [WindowShape] 窗口形状 /
+    // [KeyPolicy] 写侧策略 / [KeyBridge] 跨域映射（核心零领域语义：规则与消费由 Usharp 包承担）。
+    Entity, KeyLexicon, AnswerShape, WindowShape, KeyPolicy, KeyBridge,
     Unknown,
 }
 

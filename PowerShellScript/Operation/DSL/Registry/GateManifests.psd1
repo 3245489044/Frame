@@ -87,6 +87,22 @@
         Note   = 'KB6 归属唯一：族 id 唯一 + 规范模板形状不重复；负对照必红'
     }
 
+    KeyIdentity = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '键身份语义层（J2/J3/J4/J9）：[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge] 结构闭包 + 权威面唯一 + 执行端零泄漏；负对照必红'
+    }
+
+    KeyPolicy = @{
+        Domain = 'KeySpace'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'data'
+        Expect = 0
+        Note   = '键写侧策略（J5/J7 声明面）：终结实体 cardinality=one-per-turn ∧ 单写者 ∧ window_single_parent 不变量在册 ∧ 形状 default 非空；负对照必红'
+    }
+
     PromptCacheStability = @{
         Domain = 'Agent'
         Args   = @{ Check = $true; NegativeControl = $true }

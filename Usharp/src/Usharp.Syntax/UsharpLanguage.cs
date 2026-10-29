@@ -35,6 +35,26 @@ public static class UsharpLanguage
     /// <summary>提示词段声明前缀（段键 → 组/序/适用性/需求量/别名/开关/字段名/字段类型；<c>[Segment]</c>）。</summary>
     public const string SegmentPrefix = "[Segment]";
 
+    // ---- 键身份语义层（语义轴；与语法轴 family/surface 正交）----
+
+    /// <summary>实体类型声明前缀（<c>[Entity]</c>：scope/container/cardinality/role/authority）。</summary>
+    public const string EntityPrefix = "[Entity]";
+
+    /// <summary>受控词表声明前缀（<c>[KeyLexicon]</c>：词表名 + 值列表）。</summary>
+    public const string KeyLexiconPrefix = "[KeyLexicon]";
+
+    /// <summary>终答形状契约前缀（<c>[AnswerShape]</c>）。</summary>
+    public const string AnswerShapePrefix = "[AnswerShape]";
+
+    /// <summary>窗口形状契约前缀（<c>[WindowShape]</c>）。</summary>
+    public const string WindowShapePrefix = "[WindowShape]";
+
+    /// <summary>键写侧策略前缀（<c>[KeyPolicy]</c>：基数/终结/唯一写者/不可判处置）。</summary>
+    public const string KeyPolicyPrefix = "[KeyPolicy]";
+
+    /// <summary>键跨域映射前缀（<c>[KeyBridge]</c>：语义 → 语义，不含语法形）。</summary>
+    public const string KeyBridgePrefix = "[KeyBridge]";
+
     // ---- 关系声明语言单元（[Relation] / [Invariant] / [Derive]）----
     // 唯一声明面：关系操作（写哪种边）/ 关系不变量 / 派生成员集；编译为 relation.plan.generated.json。
 

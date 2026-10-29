@@ -56,6 +56,12 @@ public static class ReferenceTypes
     /// <summary>历史归拢任务边：history.{historyId} → task（一个历史归拢多个任务）。</summary>
     public const string HistoryOwnsTask = global::UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes.HistoryOwnsTask;
 
+    /// <summary>历史开窗边：history.{historyId} → window（窗口键自描述：win.{parent}.{member}）。</summary>
+    public const string HistoryOwnsWindow = global::UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes.HistoryOwnsWindow;
+
+    /// <summary>窗口实体类型（引用/挂载端点类型；与 <c>reference.ushar</c> 的 <c>[Node] window</c> 逐字一致）。</summary>
+    public const string Window = "window";
+
     // ---- 工作流静态引用边（转发 L2 单源 Modules.Node.Relations）----
 
     /// <summary>控制流：上一步骤调用下一步骤（node → node，按 RoundSpec 主路径线性序）。</summary>

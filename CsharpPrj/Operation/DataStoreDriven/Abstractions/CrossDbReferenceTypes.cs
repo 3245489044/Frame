@@ -29,6 +29,9 @@ public static class CrossDbReferenceTypes
     /// <summary>历史归拢任务边：history.{historyId} → task（taskKey）。History=Task 更上层的 class 容器，
     /// 一个历史归拢多个任务；成员集由本出边集合推导（图即真源，可 graph.rebuild 幂等重建）。</summary>
     public const string HistoryOwnsTask = ReferenceTypes.HistoryOwnsTask;
+
+    /// <summary>历史开窗边：history.{historyId} → window（窗口键自描述，容器判据可判）。</summary>
+    public const string HistoryOwnsWindow = ReferenceTypes.HistoryOwnsWindow;
 }
 
 /// <summary>

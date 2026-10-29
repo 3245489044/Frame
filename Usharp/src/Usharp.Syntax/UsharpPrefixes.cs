@@ -46,6 +46,13 @@ public static class UsharpPrefixes
         new(UsharpLanguage.DerivePrefix,    DslSymbolKind.Derive,    "Derive"),
         // 挂载绑定语言单元（[Mount]）：MountId → relation + trigger/stage/family/order/posture/projection
         new(UsharpLanguage.MountPrefix,     DslSymbolKind.Mount,     "Mount"),
+        // 键身份语义层（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]）
+        new(UsharpLanguage.EntityPrefix,      DslSymbolKind.Entity,      "Entity"),
+        new(UsharpLanguage.KeyLexiconPrefix,  DslSymbolKind.KeyLexicon,  "KeyLexicon"),
+        new(UsharpLanguage.AnswerShapePrefix, DslSymbolKind.AnswerShape, "AnswerShape"),
+        new(UsharpLanguage.WindowShapePrefix, DslSymbolKind.WindowShape, "WindowShape"),
+        new(UsharpLanguage.KeyPolicyPrefix,   DslSymbolKind.KeyPolicy,   "KeyPolicy"),
+        new(UsharpLanguage.KeyBridgePrefix,   DslSymbolKind.KeyBridge,   "KeyBridge"),
     };
 
     /// <summary>本包全部前缀（核心结构 13 ∪ 业务领域 12）—— <c>usharp</c> 全量语法面。</summary>

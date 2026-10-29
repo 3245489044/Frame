@@ -86,6 +86,18 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpGatherDecl> Gathers
         => _facets.TryGetFacet<IReadOnlyList<UsharpGatherDecl>>(out var g) ? g : Array.Empty<UsharpGatherDecl>();
 
+    /// <summary><c>[Entity]</c> 语义轴声明（空表 = 无实体语义面）。</summary>
+    public IReadOnlyList<UsharpEntityDecl> Entities
+        => _facets.TryGetFacet<IReadOnlyList<UsharpEntityDecl>>(out var ent) ? ent : Array.Empty<UsharpEntityDecl>();
+
+    /// <summary><c>[KeyLexicon]</c> 受控词表声明（空表 = 无词表面）。</summary>
+    public IReadOnlyList<UsharpKeyLexiconDecl> KeyLexicons
+        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyLexiconDecl>>(out var lex) ? lex : Array.Empty<UsharpKeyLexiconDecl>();
+
+    /// <summary><c>[AnswerShape]</c> / <c>[WindowShape]</c> 形状契约（空表 = 无形状面）。</summary>
+    public IReadOnlyList<UsharpKeyShapeDecl> KeyShapes
+        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyShapeDecl>>(out var shape) ? shape : Array.Empty<UsharpKeyShapeDecl>();
+
     /// <summary><c>[KeySpace]</c> 键空间声明（空表 = 本编译无键声明面）。</summary>
     public IReadOnlyList<UsharpKeySpaceDecl> KeySpaces
         => _facets.TryGetFacet<IReadOnlyList<UsharpKeySpaceDecl>>(out var ks) ? ks : Array.Empty<UsharpKeySpaceDecl>();
@@ -109,6 +121,14 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
     public IReadOnlyList<UsharpDeriveDecl> Derivations
         => _facets.TryGetFacet<IReadOnlyList<UsharpDeriveDecl>>(out var der) ? der : Array.Empty<UsharpDeriveDecl>();
+
+    /// <summary><c>[KeyPolicy]</c> 写侧策略声明（空表 = 无写侧策略面）。</summary>
+    public IReadOnlyList<UsharpIdentityPolicyDecl> IdentityPolicies
+        => _facets.TryGetFacet<IReadOnlyList<UsharpIdentityPolicyDecl>>(out var pol) ? pol : Array.Empty<UsharpIdentityPolicyDecl>();
+
+    /// <summary><c>[KeyBridge]</c> 跨域映射声明（空表 = 无跨域映射）。</summary>
+    public IReadOnlyList<UsharpKeyBridgeDecl> KeyBridges
+        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyBridgeDecl>>(out var br) ? br : Array.Empty<UsharpKeyBridgeDecl>();
 
     /// <summary><c>[Mount]</c> 挂载绑定声明（空表 = 本编译无绑定面）。</summary>
     public IReadOnlyList<UsharpMountDecl> Mounts

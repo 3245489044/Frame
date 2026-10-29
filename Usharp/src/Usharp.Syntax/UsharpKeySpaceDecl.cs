@@ -30,7 +30,8 @@ public sealed record UsharpKeyFamilyDecl(
     IReadOnlyDictionary<string, string> DerivedPrefixRoles,
     IReadOnlyList<UsharpKeySurfaceDecl> Surfaces, IReadOnlyList<UsharpKeyAxisDecl> Axes,
     IReadOnlyDictionary<string, bool> DerivedPrefixReversibility,
-    IReadOnlyList<UsharpKeyCanonicalSetDecl> CanonicalSets);
+    IReadOnlyList<UsharpKeyCanonicalSetDecl> CanonicalSets,
+    bool? Authority = null, string? KindLexicon = null);
 
 /// <summary>键端口声明：<c>port &lt;name&gt; | direction=In | family=&lt;id&gt; | required=true</c>。</summary>
 public sealed record UsharpKeyPortDecl(
@@ -126,6 +127,8 @@ public sealed record UsharpKeySpaceDecl(
                 family.OrderKeys.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "orderKeys")));
                 family.IdentityKeys.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "identity")));
                 family.DerivedPrefixes.AddRange(UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "derivedPrefixes")));
+                family.Authority = ParseOptionalBool(UsharpLineReader.Get(fields, "authority")) ?? family.Authority;
+                family.KindLexicon = UsharpLineReader.Get(fields, "kind-lexicon") ?? family.KindLexicon;
                 continue;
             }
 
@@ -230,6 +233,11 @@ public sealed record UsharpKeySpaceDecl(
             ports, policies, derives, unparsed, d.SourceFile, d.LineNumber);
     }
 
+    private static bool? ParseOptionalBool(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? null
+            : string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+
     private sealed class FamilyBuilder
     {
         public FamilyBuilder(string id) => Id = id;
@@ -246,6 +254,8 @@ public sealed record UsharpKeySpaceDecl(
         public List<string> DerivedPrefixes { get; } = new();
         public Dictionary<string, string> DerivedPrefixRoles { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> DerivedPrefixReversibility { get; } = new(StringComparer.Ordinal);
+        public bool? Authority { get; set; }
+        public string? KindLexicon { get; set; }
         public List<UsharpKeySurfaceDecl> Surfaces { get; } = new();
         public List<UsharpKeyAxisDecl> Axes { get; } = new();
         public List<UsharpKeyCanonicalSetDecl> CanonicalSets { get; } = new();
@@ -253,7 +263,7 @@ public sealed record UsharpKeySpaceDecl(
         public UsharpKeyFamilyDecl Build() => new(
             Id, Template, FamilyPrefix, Relation, Cardinality, BusinessKeyTemplate,
             Aliases, OrderKeys, IdentityKeys, DomainId, DerivedPrefixes, DerivedPrefixRoles, Surfaces, Axes,
-            DerivedPrefixReversibility, CanonicalSets);
+            DerivedPrefixReversibility, CanonicalSets, Authority, KindLexicon);
     }
 
     private sealed class CanonicalBuilder

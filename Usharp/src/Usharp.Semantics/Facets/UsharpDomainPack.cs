@@ -41,6 +41,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGram
         new RuleGateRule(),
         new RelationGateRule(),
         new MountGateRule(),
+        new KeyIdentityGateRule(),
     };
 
     /// <summary>默认 facet provider 集（序 = <see cref="UsharpUnitRegistry.Units"/>，保既有诊断归因序与产物序）。</summary>

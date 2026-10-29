@@ -216,8 +216,9 @@ public static class StreamPayloadMerge
 
                 if (bucket.Index.TryGetValue(identityKey, out var existingIndex))
                 {
-                    if (replace)
+                    if (replace && !SameFrame(bucket.Frames[existingIndex], frame))
                     {
+                        // 仅**内容不同**才计覆盖（同身份同内容 = 幂等重提交，不产噪声账）。
                         bucket.Frames[existingIndex] = Clone(frame);
                         replaced++;
                     }
@@ -230,6 +231,13 @@ public static class StreamPayloadMerge
             }
         }
     }
+
+    /// <summary>同身份帧内容是否一致（幂等重提交判定；文本口径 = 载荷原文）。</summary>
+    private static bool SameFrame(JsonNode? left, JsonNode? right)
+        => string.Equals(
+            left?.ToJsonString() ?? string.Empty,
+            right?.ToJsonString() ?? string.Empty,
+            StringComparison.Ordinal);
 
     /// <summary>按到达序数值升序稳定排序（身份不可读者保持原序靠后）。</summary>
     private static List<JsonNode?> OrderedFrames(FrameBucket bucket, StreamPayloadSchema schema)

@@ -209,6 +209,10 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IContainerMember
         IReadOnlyCollection<string> historyIds, CancellationToken ct)
         => _history.GetHistoryTasksManyAsync(historyIds, ct);
 
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryWindowsManyAsync(
+        IReadOnlyCollection<string> historyIds, CancellationToken ct)
+        => _history.GetHistoryWindowsManyAsync(historyIds, ct);
+
     public Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
         => _history.GetContainerNodeKeysAsync(historyId, workflowId, ct);
 

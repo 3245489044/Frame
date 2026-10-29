@@ -25,7 +25,9 @@ public sealed record KeyFamily(
     IReadOnlyDictionary<string, string>? DerivedPrefixRoles = null,
     IReadOnlyList<KeyAxisSpec>? Axes = null,
     IReadOnlyDictionary<string, bool>? DerivedPrefixReversibility = null,
-    IReadOnlyList<CoordinateRuleSet>? CoordinateRules = null);
+    IReadOnlyList<CoordinateRuleSet>? CoordinateRules = null,
+    bool? Authority = null,
+    string? KindLexicon = null);
 
 /// <summary>
 /// 实体：同一逻辑对象的所有称呼（别名）。判等由 IKeyEquivalence 消费本集合完成，实体本身不持有规则。

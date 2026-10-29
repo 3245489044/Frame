@@ -127,6 +127,41 @@ public sealed class ContainerReferenceGrounding
         return result;
     }
 
+    /// <summary>批量窗口集（一次持锁读多个历史的开窗出边；窗口键自描述）。</summary>
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryWindowsManyAsync(
+        IReadOnlyCollection<string> historyIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        if (historyIds is null) return result;
+        var ids = historyIds
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .Select(static id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0) return result;
+
+        var resources = ids
+            .Select(id => (ContainerId: id, Resource: new ResourceIdentifier
+            {
+                ResourceType = NodeResourceTypes.History,
+                Id = HistoryNodeId(id),
+            }))
+            .ToList();
+        var refsByKey = await _graph
+            .GetReferencesManyAsync(resources.Select(static r => r.Resource).ToList(), includeIncoming: false, ct)
+            .ConfigureAwait(false);
+
+        foreach (var (historyId, resource) in resources)
+        {
+            if (refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
+                result[historyId] = GraphEdgeWriter.ProjectOutgoingTargetIds(
+                    refs, CrossDbReferenceTypes.HistoryOwnsWindow, static r => r.RefType, static r => r.Target?.Id);
+            else
+                result[historyId] = Array.Empty<string>();
+        }
+        return result;
+    }
+
     /// <summary>历史的工作流节点键集（派生视图：<c>[Derive] HistoryNodes</c>）。</summary>
     public async Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default)
     {

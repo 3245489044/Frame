@@ -40,6 +40,28 @@ public static class UsharpDiagnosticCatalog
     /// <summary>声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别；禁静默丢声明）。</summary>
     public const string UnregisteredPrefix = "US0013";
 
+    // ── US79xx 键身份语义层（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]）──
+    /// <summary>[Entity] 语义轴字段缺失/非法。</summary>
+    public const string IdentityEntityInvalid = "US7901";
+
+    /// <summary>语义实体在 family 表中的权威面不唯一（S1/J3）。</summary>
+    public const string IdentityAuthorityNotSingle = "US7902";
+
+    /// <summary>词表重叠（A4：ProcessKind/ContentKind/AnswerPart 互斥）。</summary>
+    public const string IdentityLexiconOverlap = "US7903";
+
+    /// <summary>形状契约缺必填项或 default 未声明（未命中处置不完整）。</summary>
+    public const string IdentityShapeInvalid = "US7904";
+
+    /// <summary>[KeyPolicy] 写侧策略字段缺失（唯一写者/基数/不可判处置）。</summary>
+    public const string IdentityPolicyInvalid = "US7905";
+
+    /// <summary>[KeyBridge] 跨域映射字段缺失或可逆性未声明。</summary>
+    public const string IdentityBridgeInvalid = "US7906";
+
+    /// <summary>语义实体尚无权威族（信息级：语义层已声明，语法族待接）。</summary>
+    public const string IdentityAuthorityPending = "US7907";
+
     // ── US1xxx 闸A ──────────────────────────────────────────────────────
     public const string SpaceUnknown = "US1001";
     public const string CoordUndeclared = "US1002";
@@ -366,6 +388,13 @@ public static class UsharpDiagnosticCatalog
         E(MountTriggerUnknown, "Mount", UsharpSeverity.Error, "[Mount] trigger= 未声明事件或不在内置触发集", "mount, trigger"),
         E(MountFieldInvalid, "Mount", UsharpSeverity.Error, "[Mount] stage/family/coalesce/posture/order 非法或出现禁用字段", "mount, field"),
         E(MountRelationUnbound, "Mount", UsharpSeverity.Error, "ensure 关系操作缺少 [Mount] 绑定", "relation"),
+        E(IdentityEntityInvalid, "Entity", UsharpSeverity.Error, "[Entity] scope/container/cardinality/role/authority 缺失或非法", "entity, field"),
+        E(IdentityAuthorityNotSingle, "Entity", UsharpSeverity.Error, "每个 [Entity] 在 family 表中的 authority=true 权威面须恰一个", "entity, count"),
+        E(IdentityLexiconOverlap, "KeyLexicon", UsharpSeverity.Error, "[KeyLexicon] 词表互斥被破坏（同一词条出现在两个词表）", "lexicon, value"),
+        E(IdentityShapeInvalid, "Shape", UsharpSeverity.Error, "[AnswerShape]/[WindowShape] 缺必填约束或 default 未声明", "shape, field"),
+        E(IdentityPolicyInvalid, "KeyPolicy", UsharpSeverity.Error, "[KeyPolicy] entity/cardinality/writer/on_unresolvable 缺失", "policy, field"),
+        E(IdentityBridgeInvalid, "KeyBridge", UsharpSeverity.Error, "[KeyBridge] from/to/rule 缺失或 reversible 未声明", "bridge, field"),
+        E(IdentityAuthorityPending, "Entity", UsharpSeverity.Info, "[Entity] 尚无 authority=true 的 family（语义层已声明；语法族待接）", "entity"),
     };
 
     /// <summary>全部码值（声明序）。</summary>

@@ -52,6 +52,9 @@ public static class UsharpKeySpaceEmitter
                 item["derivedPrefixReversibility"] = reversibility;
             }
 
+            if (family.Authority is { } authority) item["authority"] = authority;
+            if (family.KindLexicon is { } kindLexicon) item["kindLexicon"] = kindLexicon;
+
             if (family.Surfaces.Count > 0)
             {
                 var surfaces = new JsonObject();

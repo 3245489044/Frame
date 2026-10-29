@@ -34,7 +34,7 @@ $pageRenderer = Join-Path $agent 'Ui\Views\ConversationPageRenderer.cs'
 $assetRegistry = Join-Path $plate 'Html\Assets\HtmlAssetRegistry.cs'
 $payload = Join-Path $plate 'Html\Bridge\HtmlBridgePayload.cs'
 $selectionState = Join-Path $plate 'Abstractions\UiSelectionState.cs'
-$treeModel = Join-Path $agent 'Ui\Views\ConversationTreeModel.cs'
+$treeModel = Join-Path $agent 'Core\Projection\ConversationTreeProjection.cs'
 $viewService = Join-Path $agent 'Ui\Views\ConversationViewService.cs'
 
 function Read-Text([string]$path) {

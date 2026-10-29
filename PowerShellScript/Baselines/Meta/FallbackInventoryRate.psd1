@@ -8,8 +8,6 @@
     Measured = '2026-10-29'
 
     Entries = @(
-        @{ Value = 'Agent.Ui/Ui/Views/ConversationPageRenderer.cs|template-empty'
-           Origin = 'Debt'; DueWhen = 'B5 删除 ConversationTemplates.Empty（装配期 fail-fast）' }
         @{ Value = 'Agent.Core/DataStream/ReactiveTrigger.cs|empty-catch'
            Origin = 'Debt'; DueWhen = '响应式触发器取消/回填失败显式化' }
         @{ Value = 'Agent.Core/DataStream/ReactiveZoneBridge.cs|empty-catch'

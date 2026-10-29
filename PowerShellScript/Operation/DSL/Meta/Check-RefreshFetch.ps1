@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     UI 刷新取数守卫（RefreshFetch）：线程边界 / 按需投影 / 树快照 / 批量取数 四类结构事实。
@@ -86,7 +86,7 @@ $forbidden = @(
        Tokens = @('JsonDocument.Parse', '_ = _queue.DisposeAsync') },     # 二次解析 / 即发即忘关闭
     @{ Tag = 'U3'; File = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\Kernel\SectionPlanAdapter.cs';
        Tokens = @('foreach (var s in From(plan))', 'n.Contains("tree"') },# 二次展开 / 子串启发式
-    @{ Tag = 'U4'; File = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs';
+    @{ Tag = 'U4'; File = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs';
        Tokens = @('HistoryBoardProjector.TakeLast', 'SectionPlanAdapter.From(output.Plan).Count') }, # 视图二次切片 / 计划二次展开
     @{ Tag = 'U5'; File = 'Projects\Plug\Agent\src\Agent.Session\Contracts\ConversationReadPort.cs';
        Tokens = @('Skip(messages.Count - take)') },                       # 接口层自带切片
@@ -128,7 +128,7 @@ if (-not $syntheticDetected) {
 
 # R5：刷新链禁同步阻塞等待（采样核心文件）。
 $syncBlocked = @(
-    'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs',
+    'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs',
     'Projects\Plug\Agent\src\Agent.Core\Engine\Nodes\Bookkeeping\TransferFlow.cs',
     'Frame\CsharpPrj\Plate\HtmlViewer\Html\Write\HtmlBackendRuntime.cs'
 )

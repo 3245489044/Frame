@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
     选择态写入单源守卫（E04）：选择态只能由 ConversationViewService（渲染入口）写。
@@ -15,7 +15,7 @@ param([switch]$Check, [switch]$NegativeControl)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 $agent = Join-Path $repo 'Projects\Plug\Agent\src'
-$viewService = Join-Path $agent 'Agent.Ui\Ui\Views\ConversationViewService.cs'
+$viewService = Join-Path $agent 'Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'
 
 function Find-WriteSites {
     $hits = New-Object System.Collections.Generic.List[string]

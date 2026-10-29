@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     模板访问单入口守卫（TemplateAccessSingleEntry）—— F6 模板访问单入口框架。
@@ -31,7 +31,7 @@ Write-Host '============================================================'
 
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
-$convTemplates = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationTemplates.cs'
+$convTemplates = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationTemplates.cs'
 
 if (-not (Test-Path -LiteralPath $convTemplates)) {
     $violations.Add("[G2] 缺件（判据不可判）：$convTemplates")

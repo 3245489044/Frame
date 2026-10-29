@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     HtmlViewer 结构词汇守卫 —— 框架内嵌模板键 / 类名 / region 锚零领域语义（防语义回渗）。
@@ -13,7 +13,7 @@
           → 模板键 / 模板值内 class 与片段引用 / CSS 选择器类名 / region 锚
       S2  Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\HtmlStreamRenderer.cs
           → 模板键字面量（round / operationPanel 等真消费点）
-      S3  Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationPageRenderer.cs
+      S3  Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs
           → 模板键字面量 + region 键字面量
 
     判据：
@@ -150,7 +150,7 @@ foreach ($f in $assetFiles)
 # ---- S2/S3：模板键消费点（键字面量 + region 键字面量）----
 $consumerSpecs = @(
     [pscustomobject]@{ Path = 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\HtmlStreamRenderer.cs'; Region = $false }
-    [pscustomobject]@{ Path = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationPageRenderer.cs'; Region = $true }
+    [pscustomobject]@{ Path = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs'; Region = $true }
 )
 foreach ($spec in $consumerSpecs)
 {

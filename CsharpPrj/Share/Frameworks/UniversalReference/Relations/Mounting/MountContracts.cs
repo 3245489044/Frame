@@ -30,24 +30,11 @@ public interface IMountQuery
 
     /// <summary>
     /// 批量枚举（UMF · R3）：一次域委托返回多作用域结果，禁门面内 <c>foreach</c> 拼 N+1。
-    /// <para>
-    /// 缺省实现逐 scope 回退 <see cref="EnumerateAsync"/>（兼容旧实现/测试夹具）；装配了批量委托的
-    /// 实现须覆写为**一次**委托调用，未命中批量注册表时须在 <see cref="MountSet.EmptyReasons"/> 标
-    /// <c>batch-fallback</c>（可见化，禁静默）。
-    /// </para>
+    /// <para>实现方：<see cref="MountQueryService"/>（唯一实现，未命中批量注册表时标 <c>batch-fallback</c>）。
+    /// 已删除接口默认 foreach（B4.1：批量回退实现数 = 1）。</para>
     /// </summary>
-    async Task<IReadOnlyDictionary<string, MountSet>> EnumerateManyAsync(
-        IReadOnlyList<MountScope> scopes, string mountId, CancellationToken ct = default)
-    {
-        var result = new Dictionary<string, MountSet>(StringComparer.Ordinal);
-        foreach (var scope in scopes ?? Array.Empty<MountScope>())
-        {
-            if (scope is null || string.IsNullOrWhiteSpace(scope.ContainerKey)) continue;
-            result[scope.ContainerKey] = await EnumerateAsync(scope, mountId, ct).ConfigureAwait(false);
-        }
-
-        return result;
-    }
+    Task<IReadOnlyDictionary<string, MountSet>> EnumerateManyAsync(
+        IReadOnlyList<MountScope> scopes, string mountId, CancellationToken ct = default);
 }
 
 /// <summary>挂载意图（写方向）。</summary>

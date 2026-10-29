@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     提示词缓存稳定性与单源门禁（PromptCacheStability）。
@@ -89,7 +89,7 @@ function Get-Violations {
 $segmentFile = Join-Path $Root 'Projects\Plug\Agent\Config\prompt-segments.ushar'
 $seedFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Prompts\SessionSeedContract.cs'
 $preflightFile = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Execution\PromptPreflight.cs'
-$surfaceFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\PromptSurfaceResolver.cs'
+$surfaceFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\PromptSurfaceResolver.cs'
 $workflowFile = Join-Path $Root 'Projects\Plug\Agent\Config\workflows\agent-loop.ushar'
 $baselineDir = Join-Path $Root 'Data\Tests\prompt-golden'
 

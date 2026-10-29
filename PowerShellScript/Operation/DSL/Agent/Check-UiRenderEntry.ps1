@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
     渲染入口单源守卫（D10）：页面产物必须经 RenderOutputCoordinator；禁领域直构 RenderOutput。
@@ -15,7 +15,7 @@ param([switch]$Check, [switch]$NegativeControl)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 $contract = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Abstractions\RenderOutput.cs'
-$viewService = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs'
+$viewService = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'
 $scanRoots = @((Join-Path $repo 'Projects\Plug\Agent\src'))
 
 function Read-Text([string]$path) {

@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     就绪/诊断单点守卫（ReadinessSingleEntry）—— F4 就绪/诊断单点框架。
@@ -32,8 +32,8 @@ Write-Host '============================================================'
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
 $uiDir       = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui'
-$faceFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ReadinessFace.cs'
-$viewFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs'
+$faceFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\ReadinessFace.cs'
+$viewFile    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'
 
 if (-not (Test-Path -LiteralPath $faceFile)) {
     $violations.Add("[G1] 缺件（判据不可判）：$faceFile")

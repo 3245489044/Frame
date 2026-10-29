@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     执行体观测面守卫（ActorObservationSurface）—— P5′-P7 调用实例驱动。
@@ -40,8 +40,8 @@ $required = @(
     'Agent.Session\Projection\ResultObservationLedger.cs',
     'Agent.Session\Projection\ActorObservationProjector.cs',
     'Agent.Session\Projection\ActorObservationHub.cs',
-    'Agent.Ui\Ui\Views\ActorObservationViewProjector.cs',
-    'Agent.Ui\Ui\Views\PromptSnapshotResolver.cs',
+    'Agent.Ui\Ui\Views\Projection\ActorObservationViewProjector.cs',
+    'Agent.Ui\Ui\Views\Projection\PromptSnapshotResolver.cs',
     'Agent.Ui\Core\Host\ActorFactObservationSource.cs',
     'Agent.Modules\SubAgent\Runtime\SubAgentResultPublisher.cs'
 )
@@ -80,7 +80,7 @@ if ((Get-ViewViolations $probe).Count -eq 0) {
     $violations.Add('[S6] 负对照失效：注入目录的合成样本未被 S2 捕获')
 }
 
-$viewService = Join-Path $views 'ConversationViewService.cs'
+$viewService = Join-Path $views 'Orchestration\ConversationViewService.cs'
 if (Test-Path -LiteralPath $viewService) {
     $text = [System.IO.File]::ReadAllText($viewService)
     if ($text -notmatch 'IActorObservationSource') { $violations.Add('[S3] 视图服务未引用 IActorObservationSource（单一入口断链）') }
@@ -104,7 +104,7 @@ if (Test-Path -LiteralPath $assembly) {
     $violations.Add('[S8] 缺件（判据不可判）：ConversationAssemblySteps.cs')
 }
 
-$viewProjector = Join-Path $views 'ActorObservationViewProjector.cs'
+$viewProjector = Join-Path $views 'Projection\ActorObservationViewProjector.cs'
 if (Test-Path -LiteralPath $viewProjector) {
     $text = [System.IO.File]::ReadAllText($viewProjector)
     if ($text -notmatch 'Id: string\.IsNullOrWhiteSpace\(row\.Id\)') { $violations.Add('[S5] 身份列未以 Id 为主标签（执行腿可能冒充身份）') }
@@ -116,7 +116,7 @@ if (Test-Path -LiteralPath $viewProjector) {
     $violations.Add('[S5] 缺件（判据不可判）：ActorObservationViewProjector.cs')
 }
 
-$renderer = Join-Path $views 'ConversationPageRenderer.cs'
+$renderer = Join-Path $views 'Rendering\ConversationPageRenderer.cs'
 if (Test-Path -LiteralPath $renderer) {
     $text = [System.IO.File]::ReadAllText($renderer)
     if ($text -match 'PauseAsync|ResumeAsync|StepAsync|CancelAsync') {
@@ -160,7 +160,7 @@ if (Test-Path -LiteralPath $viewService) {
         $violations.Add('[S11] 视图服务仍直读 IPromptSnapshotStore（须经 PromptSnapshotResolver 单点）')
     }
 }
-$resolver = Join-Path $views 'PromptSnapshotResolver.cs'
+$resolver = Join-Path $views 'Projection\PromptSnapshotResolver.cs'
 if (Test-Path -LiteralPath $resolver) {
     if ([System.IO.File]::ReadAllText($resolver) -notmatch '\.Read\(') {
         $violations.Add('[S11] PromptSnapshotResolver 未承载读点')

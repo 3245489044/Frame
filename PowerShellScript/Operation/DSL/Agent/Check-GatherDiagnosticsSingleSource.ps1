@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     聚拢诊断单源守卫（GatherDiagnosticsSingleSource）—— 诊断文本由模型字段投影，无自拼副本。
@@ -37,7 +37,7 @@ Write-Host '============================================================'
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
 $service = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather\NodeGatherService.cs'
-$view    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Nodes.cs'
+$view    = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Nodes.cs'
 
 if (-not (Test-Path -LiteralPath $service)) {
     $violations.Add("[G1] 缺件：$service")

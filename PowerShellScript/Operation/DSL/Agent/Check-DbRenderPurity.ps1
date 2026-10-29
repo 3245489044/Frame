@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     渲染纯化守卫（DbRenderPurity）—— 渲染路径只读交互态。
@@ -30,7 +30,7 @@ Write-Host '============================================================'
 
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
-$file = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Db.cs'
+$file = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Db.cs'
 if (-not (Test-Path -LiteralPath $file)) {
     $violations.Add('[G1] 未见 ConversationViewService.Db.cs')
 } else {

@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     模板集完整性守卫（UiTemplateSet）—— F-3/I-2：生效模板集必须含区域渲染必需键。
@@ -35,7 +35,7 @@ Write-Host '============================================================'
 $defaultsPath = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json'
 $configPath = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
 $assemblyPath = Join-Path $Root 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlHosting\HtmlBridgeAssembly.cs'
-$resolverPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationTemplates.cs'
+$resolverPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationTemplates.cs'
 
 $requiredKeys = @('layoutShell', 'segGroup', 'emptyDiv', 'composer', 'segItem', 'listItem', 'foldItem', 'emptyP')
 

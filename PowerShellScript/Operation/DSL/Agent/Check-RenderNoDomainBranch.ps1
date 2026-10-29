@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     详情呈现零域分支守卫（RenderNoDomainBranch）—— G4 呈现投影聚拢点。
@@ -31,7 +31,7 @@ Write-Host '============================================================'
 Write-Host '  详情呈现零域分支守卫（RenderNoDomainBranch：G4）'
 Write-Host '============================================================'
 
-$dbView = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Db.cs'
+$dbView = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Db.cs'
 $hardcodedNote = '整记录（JSON 可编辑'
 
 function Get-RenderBody([string]$Text) {

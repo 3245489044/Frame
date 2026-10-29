@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 $views = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views'
 $textPath = Join-Path $views 'HtmlText.cs'
-$rendererPath = Join-Path $views 'ConversationPageRenderer.cs'
+$rendererPath = Join-Path $views 'Rendering\ConversationPageRenderer.cs'
 
 $unsafePattern = '\.Add\(\s*[A-Za-z_]\w*\.(Payload|Fields|Raw)\s*\)|\+\s*[A-Za-z_]\w*\.(Payload|Fields|Raw)\b'
 

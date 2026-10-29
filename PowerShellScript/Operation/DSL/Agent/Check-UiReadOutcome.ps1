@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
     读取代数单源守卫（D03/D05）：空/失败/未装配必须经 UiReadState，禁字符串哨兵与本地三态枚举。
@@ -15,7 +15,7 @@ param([switch]$Check, [switch]$NegativeControl)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 $gateway = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Abstractions\UiReadGateway.cs'
-$viewService = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.cs'
+$viewService = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'
 $legacyPattern = 'TaskConversationStatus|TaskConversationShape|TaskConversationResult'
 
 function Read-Text([string]$path) {

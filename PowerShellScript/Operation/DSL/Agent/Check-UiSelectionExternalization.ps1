@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
     UI 选择态外置一致性守卫（框架级态外置）。
@@ -30,12 +30,12 @@ $plate = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer'
 $agent = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui'
 $strategy = Join-Path $repo 'Frame\CsharpPrj\Strategy\Refresh'
 
-$pageRenderer = Join-Path $agent 'Ui\Views\ConversationPageRenderer.cs'
+$pageRenderer = Join-Path $agent 'Ui\Views\Rendering\ConversationPageRenderer.cs'
 $assetRegistry = Join-Path $plate 'Html\Assets\HtmlAssetRegistry.cs'
 $payload = Join-Path $plate 'Html\Bridge\HtmlBridgePayload.cs'
 $selectionState = Join-Path $plate 'Abstractions\UiSelectionState.cs'
 $treeModel = Join-Path $agent 'Core\Projection\ConversationTreeProjection.cs'
-$viewService = Join-Path $agent 'Ui\Views\ConversationViewService.cs'
+$viewService = Join-Path $agent 'Ui\Views\Orchestration\ConversationViewService.cs'
 
 function Read-Text([string]$path) {
     if (-not (Test-Path -LiteralPath $path)) { throw "缺文件: $path" }

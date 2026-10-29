@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
     区域归属守卫（P1）：每个 RegionKind 恰一个生产者；nodes 区域不得承载 feed/board/prompt。
@@ -14,7 +14,7 @@ param([switch]$Check, [switch]$NegativeControl)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
-$rendererPath = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationPageRenderer.cs'
+$rendererPath = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs'
 
 $nodesBlock = '(?s)case\s+UiRegionKind\.Nodes\s*:(.*?)(?=case\s+UiRegionKind\.|\}\s*\r?\n\s*var\s+bubbles)'
 function Test-NodesLeak([string]$text) {

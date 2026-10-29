@@ -25,11 +25,11 @@ function Read-Text([string]$path) {
 }
 
 $localMapPattern = 'MainDialogViewType\.(Task|Nodes|History)\s*=>\s*"(task|node|nodes|history)"'
-$catalog = Join-Path $views 'ConversationViewCatalog.cs'
+$catalog = Join-Path $views 'Declaration\ConversationViewCatalog.cs'
 $consumers = @(
-    (Join-Path $views 'ViewScope.cs'),
-    (Join-Path $views 'ConversationPageRenderer.cs'),
-    (Join-Path $views 'ConversationViewService.cs'),
+    (Join-Path $views 'Declaration\ViewScope.cs'),
+    (Join-Path $views 'Rendering\ConversationPageRenderer.cs'),
+    (Join-Path $views 'Orchestration\ConversationViewService.cs'),
     (Join-Path $conv 'AgentUiLibraryConversation.cs')
 )
 

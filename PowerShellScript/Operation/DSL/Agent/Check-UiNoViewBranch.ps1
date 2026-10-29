@@ -38,9 +38,9 @@ $rules = @(
     [pscustomobject]@{ Id = 'C1'; Title = '渲染层零视图分支（switch/if viewType）'
         Ok = { (Find-Violations).Count -eq 0 } }
     [pscustomobject]@{ Id = 'C2'; Title = '视图差异在目录声明（Regions）'
-        Ok = { (Get-Content -LiteralPath (Join-Path $views 'ConversationViewCatalog.cs') -Raw) -match 'Regions\s*:' } }
+        Ok = { (Get-Content -LiteralPath (Join-Path $views 'Declaration\ConversationViewCatalog.cs') -Raw) -match 'Regions\s*:' } }
     [pscustomobject]@{ Id = 'C3'; Title = '渲染器按声明 regions 拼接（单点 foreach）'
-        Ok = { (Get-Content -LiteralPath (Join-Path $views 'ConversationPageRenderer.cs') -Raw) -match 'foreach\s*\(\s*var\s+region\s+in\s+model\.Regions\s*\)' } }
+        Ok = { (Get-Content -LiteralPath (Join-Path $views 'Rendering\ConversationPageRenderer.cs') -Raw) -match 'foreach\s*\(\s*var\s+region\s+in\s+model\.Regions\s*\)' } }
 )
 
 if ($NegativeControl) {

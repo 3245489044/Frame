@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     数据库页工具条字典分配守卫（DbToolbarDictAlloc）—— 渲染路径零逐命令 `new Dictionary{type=db}`。
@@ -36,7 +36,7 @@ Write-Host '============================================================'
 
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
-$viewFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\ConversationViewService.Db.cs'
+$viewFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Db.cs'
 $factory  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\DbCmdAttrs.cs'
 $pattern  = 'new\s+Dictionary<string,\s*string>\s*\{\s*\["type"'
 

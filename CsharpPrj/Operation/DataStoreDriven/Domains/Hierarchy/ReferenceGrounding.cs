@@ -168,6 +168,11 @@ public sealed class ReferenceGrounding : IReferenceMaintenance, IContainerMember
     public Task<IReadOnlyList<string>> GetMemberNodeKeysAsync(string taskKey, string workflowId, CancellationToken ct = default)
         => _tasks.GetMemberNodeKeysAsync(taskKey, workflowId, ct);
 
+    /// <summary>批量节点键集（单次枚举实现 = <see cref="TaskReferenceGrounding"/>；本类只转调，禁第二份 fallback）。</summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
+        IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
+        => _tasks.GetMemberNodeKeysManyAsync(taskKeys, workflowId, ct);
+
     public Task LinkSubTaskAsync(string parentTaskKey, string subTaskKey, CancellationToken ct = default)
         => _tasks.LinkSubTaskAsync(parentTaskKey, subTaskKey, ct);
 

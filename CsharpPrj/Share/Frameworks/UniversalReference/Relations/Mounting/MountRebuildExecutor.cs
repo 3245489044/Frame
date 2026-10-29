@@ -38,7 +38,10 @@ public sealed class MountRebuildExecutor
         ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
         ArgumentNullException.ThrowIfNull(request);
 
-        var stub = new MountRequest(string.Empty, new MountScope(string.Empty, request.SourceKey), Array.Empty<MountTarget>());
+        var correlation = $"rebuild:{name}:{request.SourceKey}";
+        var stub = new MountRequest(string.Empty,
+            new MountScope(string.Empty, request.SourceKey, request.Namespace, correlation),
+            Array.Empty<MountTarget>());
 
         var operation = _ports.Operations.Resolve(operationId);
         if (operation is null)
@@ -53,7 +56,6 @@ public sealed class MountRebuildExecutor
         if (mountId is null)
             return MountReceipt.Rejected(stub, operation.Id, operation.Edge, "orphan-rebuild-action:" + operationId);
 
-        var correlation = $"rebuild:{name}:{request.SourceKey}";
         var scope = new MountScope(operation.Source, request.SourceKey, request.Namespace, correlation);
         var targets = request.Targets
             .Select(key => new MountTarget(operation.Target, key))

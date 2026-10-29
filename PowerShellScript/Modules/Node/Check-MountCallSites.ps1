@@ -29,21 +29,26 @@ Write-Host '============================================================' -Foreg
 Write-Host '  UMF MountCallSites（调用点棘轮 · 批量 · 仲裁窗口）' -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Cyan
 
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Node\MountCallSites.psd1'
-if (-not (Test-Path -LiteralPath $baselinePath)) {
-    Write-Host "  [失败] 缺基线：$baselinePath" -ForegroundColor Red
-    exit 1
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$baseline = Import-GateBaseline -Name MountCallSites
+$mountBudgets = @{
+    node_to_task       = [int]$baseline.node_to_task.Value
+    task_to_history    = [int]$baseline.task_to_history.Value
+    message_to_session = [int]$baseline.message_to_session.Value
+    task_tree          = [int]$baseline.task_tree.Value
 }
-$baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
-$mountBudgets = @{}
-foreach ($k in $baseline.MountCallSites.Keys) { $mountBudgets[$k] = [int]$baseline.MountCallSites[$k].Value }
-$batchBudget = [int]$baseline.Facts.BatchInLoop.Value
-$windowBudget = [int]$baseline.Facts.MissingWindow.Value
+$batchBudget = [int]$baseline.BatchInLoop.Value
+$windowBudget = [int]$baseline.MissingWindow.Value
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $mountIds = @('node_to_task', 'task_to_history', 'message_to_session', 'task_tree')
 $counts = @{}
 foreach ($id in $mountIds) { $counts[$id] = 0 }
+$symbols = @{}
+foreach ($id in $mountIds) {
+    $constName = $id.Split('_') | ForEach-Object { $_.Substring(0,1).ToUpper() + $_.Substring(1) }
+    $symbols[$id] = 'MountIds.' + ($constName -join '')
+}
 $batchHits = 0
 $windowHits = 0
 
@@ -72,12 +77,14 @@ foreach ($rootDir in $scanRoots) {
         $text = [System.IO.File]::ReadAllText($file.FullName)
         $rel = $file.FullName.Replace($Root + '\', '')
 
-        # A 段：MountId 调用点
-        foreach ($id in $mountIds) {
-            $constName = $id.Split('_') | ForEach-Object { $_.Substring(0,1).ToUpper() + $_.Substring(1) }
-            $symbol = 'MountIds.' + ($constName -join '')
-            $n = ([regex]::Matches($text, [regex]::Escape($symbol))).Count
-            if ($n -gt 0) { $counts[$id] += $n }
+        # A 段：MountId 调用点（逐行计数；注释与 [Obsolete] 文案不计）
+        foreach ($line in [System.IO.File]::ReadAllLines($file.FullName)) {
+            $trim = $line.TrimStart()
+            if ($trim.StartsWith('//') -or $trim.StartsWith('*') -or $trim.StartsWith('/*')) { continue }
+            if ($trim.StartsWith('[Obsolete')) { continue }
+            foreach ($id in $mountIds) {
+                if ($line -match [regex]::Escape($symbols[$id])) { $counts[$id]++ }
+            }
         }
 
         # B 段：循环内 ApplyAsync / 循环内构造 MountTarget

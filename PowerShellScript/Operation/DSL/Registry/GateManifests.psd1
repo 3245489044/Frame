@@ -316,6 +316,38 @@
         Note   = '视图词汇单源（D01）：C1 目录声在位 / C2 四个消费方均查表 / C3 领域禁本地 MainDialogViewType => "type" 映射；负对照旧映射必红'
     }
 
+    UiNoViewBranch = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '渲染层零视图分支（P2/B2）：C1 switch(viewType)/if(viewType==) = 0 / C2 视图差异在目录 Regions / C3 渲染器按 model.Regions 单点拼接；负对照视图分支必红、区域分派不误报'
+    }
+
+    UiRegionOwnership = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '区域归属（P1）：C1 nodes 不再前置 runtime / C2 nodes 不承载 feed·board·prompt / C3 五区域各恰一个生产者 case；负对照 nodes 越界必红'
+    }
+
+    UiTextSafe = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '文本安全（P4/C4）：C1 HtmlText 单源在位（非标量 ⇒ ⊘）/ C2 HtmlSectionItem 经 HtmlText / C3 Views 内禁对象字段直拼；负对照 details.Add(row.Payload) 必红'
+    }
+
+    FallbackInventoryRate = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '兜底清册（P3/C7）：C1 未登记兜底 = 0（template-empty/empty-catch/tryload-null）/ C2 登记表非空；负对照未登记必红'
+    }
+
     UiReadOutcome = @{
         Domain = 'Agent'
         Args   = @{ Check = $true; NegativeControl = $true }

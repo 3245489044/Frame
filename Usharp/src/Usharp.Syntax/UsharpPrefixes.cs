@@ -1,4 +1,3 @@
-
 using System.Runtime.CompilerServices;
 using Plate.DslMethod;
 using Plate.DslMethod.Parsing;
@@ -6,14 +5,16 @@ using Plate.DslMethod.Parsing;
 namespace Usharp.Syntax;
 
 /// <summary>
-/// Usharp 前缀作用域（领域包注册）：五前缀 <c>[Space]</c>/<c>[Matrix]</c>/<c>[Flow]</c>/<c>[Ref]</c>/<c>[Obs]</c>。
+/// Usharp 前缀作用域（领域包自持注册）：核心结构前缀 13 条（<see cref="UsharpCorePrefixes"/>）+
+/// 业务领域前缀 12 条（本类 <see cref="DomainPrefixes"/>，B2 起按域下沉到 <c>Usharp.Packs.*</c>）。
 /// <para>
-/// 前缀由本包自持（<b>不再写入框架核心表</b> <c>DslConstants.Prefixes</c>），并注册到
-/// <see cref="DslPrefixRegistry"/>（id = <see cref="PackId"/>），使 Usharp 语言面与其它领域包互不可见。
-/// 解析入口 <see cref="UsharpParser"/> 一律以 <see cref="Scope"/> 为作用域。
+/// 前缀由本包自持（<b>不写入框架核心表</b> <c>DslConstants.Prefixes</c>），并注册到
+/// <see cref="DslPrefixRegistry"/>（id = <see cref="PackId"/>）。编译期作用域由
+/// <c>UsharpPrefixScope.Resolve(已装载包)</c> 逐次构造（核心 ∪ 已装载包），本类 <see cref="Scope"/>
+/// 保留为**全量兼容别名**（测试 / 迁移期 / 编辑器前缀校验共用）。
 /// </para>
 /// <para>
-/// 作用域 = <b>框架核心前缀 ∪ 本包五前缀</b>：Usharp 文档仍可使用核心词汇（如 UniversalReference 的
+/// 作用域 = <b>框架核心前缀 ∪ 本包前缀</b>：Usharp 文档仍可使用核心词汇（如 UniversalReference 的
 /// <c>[Node]</c>/<c>[Edge]</c>）；「互不可见」针对的是各<b>领域包</b>之间的私有前缀。
 /// </para>
 /// </summary>
@@ -22,27 +23,9 @@ public static class UsharpPrefixes
     /// <summary>包标识（<see cref="DslPrefixRegistry"/> 注册键）。</summary>
     public const string PackId = "usharp";
 
-    /// <summary>本包私有前缀（长度降序由 <see cref="DslPrefixSet"/> 内部保证）。</summary>
-    private static readonly DslPrefixDef[] OwnPrefixes =
+    /// <summary>业务领域前缀（12 条）：B2 起按域下沉到各 <c>Usharp.Packs.*</c>，本类只保留声明序真源至迁移完成。</summary>
+    public static readonly IReadOnlyList<DslPrefixDef> DomainPrefixes = new DslPrefixDef[]
     {
-        new(UsharpLanguage.SpacePrefix,  DslSymbolKind.Space,  "Space"),
-        new(UsharpLanguage.MatrixPrefix, DslSymbolKind.Matrix, "Matrix"),
-        new(UsharpLanguage.FlowPrefix,   DslSymbolKind.Flow,   "Flow"),
-        new(UsharpLanguage.RefPrefix,    DslSymbolKind.Ref,    "Ref"),
-        new(UsharpLanguage.ObsPrefix,    DslSymbolKind.Obs,    "Obs"),
-        // R3 控制流语言单元：分支 / 多路分派 / 调用（声明式控制流）
-        new(UsharpLanguage.BranchPrefix, DslSymbolKind.Branch, "Branch"),
-        new(UsharpLanguage.SwitchPrefix, DslSymbolKind.Switch, "Switch"),
-        new(UsharpLanguage.CallPrefix,   DslSymbolKind.Call,   "Call"),
-        // R3+ 区域语言单元：区域声明（父层单节点 + 子计划迭代计划）
-        new(UsharpLanguage.RegionPrefix, DslSymbolKind.Region, "Region"),
-        // R3+ 容错/门控语言单元：受控边（When）/ 受护作用域（Guard）
-        new(UsharpLanguage.WhenPrefix, DslSymbolKind.When, "When"),
-        new(UsharpLanguage.GuardPrefix, DslSymbolKind.Guard, "Guard"),
-        // 域定义语言单元：节点域定义面（[Domain]）
-        new(UsharpLanguage.DomainPrefix, DslSymbolKind.Domain, "Domain"),
-        // 聚拢声明语言单元：收集端口（[Gather]；U2）
-        new(UsharpLanguage.GatherPrefix, DslSymbolKind.Gather, "Gather"),
         // 数据层语言单元（数据即声明）：表结构 / 记录载荷
         new(UsharpLanguage.TablePrefix,  DslSymbolKind.Table,  "Table"),
         new(UsharpLanguage.RecordPrefix, DslSymbolKind.Record, "Record"),
@@ -65,7 +48,11 @@ public static class UsharpPrefixes
         new(UsharpLanguage.MountPrefix,     DslSymbolKind.Mount,     "Mount"),
     };
 
-    /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>
+    /// <summary>本包全部前缀（核心结构 13 ∪ 业务领域 12）—— <c>usharp</c> 全量语法面。</summary>
+    public static readonly IReadOnlyList<DslPrefixDef> OwnPrefixes =
+        UsharpCorePrefixes.Definitions.Concat(DomainPrefixes).ToArray();
+
+    /// <summary>Usharp 前缀作用域（**全量兼容别名**）= 框架核心前缀 ∪ 本包全部前缀。</summary>
     public static readonly DslPrefixSet Scope =
         new DslPrefixSet(PackId, DslConstants.Prefixes.Concat(OwnPrefixes));
 

@@ -55,7 +55,11 @@
 
 ## 2. 表层语法（复用行首前缀式）
 
-### 2.1 前缀表（20 项，单一真源 = `UsharpPrefixes.Scope`）
+### 2.1 前缀表（单一真源 = `UsharpCorePrefixes`（13 核心）+ `UsharpPrefixes.DomainPrefixes`（12 领域））
+
+> **所有权（B1 已落地）**：核心结构前缀（`Space/Matrix/Flow/Ref/Obs/Branch/Switch/Call/Region/When/Guard/Domain/Gather`）恒在；
+> 领域前缀由领域包自持（声明面 `IUsharpGrammarPack.Prefixes`）。编译作用域 = 框架核心前缀 ∪ **已装载包**前缀；
+> 未装载 ⇒ 对应前缀不被识别 ⇒ `US0013` 报错（不再静默丢声明）。`UsharpPrefixes.Scope` 保留为全量兼容别名。
 
 | 前缀 | 语义 | 符号类型 | 编译到 |
 |---|---|---|---|
@@ -226,6 +230,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US0010` | error | Rule：[Rule] enabled= 非法布尔 |
 | `US0011` | error | Obs：[Obs] enum= 段非法 |
 | `US0012` | error | Document：落库正文行不可解析 |
+| `US0013` | error | Decl：声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别） |
 | `US1001` | error | Ref：引用的空间未声明 |
 | `US1002` | error | Ref：引用坐标未在空间声明 |
 | `US1003` | error | Matrix：矩阵行输出坐标未声明 |

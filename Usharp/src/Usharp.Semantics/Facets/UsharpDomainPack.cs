@@ -10,7 +10,7 @@ namespace Usharp.Semantics;
 /// 绑定为可注册单元（实现内核 <see cref="IDomainPack{TModel}"/> + Usharp <see cref="IUsharpDomainPack"/>）。
 /// 规则执行序 = 声明序，与既有校验顺序逐字一致；facet provider 序 = 既有编译流序（保诊断归因序）。
 /// </summary>
-public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDomainPack
+public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGrammarPack
 {
     /// <summary>单例（规则集/facet 集无状态，可安全复用）。</summary>
     public static readonly UsharpDomainPack Instance = new();
@@ -65,6 +65,16 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpDoma
     public IReadOnlyList<IUsharpFacetProvider> FacetProviders => Providers;
 
     public IReadOnlyList<IUsharpFacetProjector> FacetProjectors => Projectors;
+
+    /// <summary>
+    /// 本包私有前缀（B1 暂为全量 25 条：核心结构 13 + 业务领域 12）。
+    /// B2 拆分后降级为核心包（13 核心闸 + 核心 provider），领域前缀随各 <c>Usharp.Packs.*</c> 走。
+    /// </summary>
+    public IReadOnlyList<DslPrefixDef> Prefixes => UsharpPrefixes.OwnPrefixes;
+
+    /// <summary>本包消费的符号种类（前缀声明序去重）。</summary>
+    public IReadOnlyList<DslSymbolKind> Kinds =>
+        Prefixes.Select(p => p.Kind).Distinct().ToArray();
 
     /// <summary>构造本包的闸A 执行器（规则集有序，产出诊断序稳定）。</summary>
     public GateEngine<UsharpGateModel> CreateEngine() => new GateEngine<UsharpGateModel>(Rules);

@@ -157,28 +157,35 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary>
     /// 编译源集（**去硬编码编译流**）：解析 → 泛型索引 → 符号索引 → facet 投影（packs）→ 引用即边 → 闸A。
     /// <para><paramref name="packs"/> 为 null/空 ⇒ 默认 <c>new[] { UsharpDomainPack.Instance }</c>（单包零回归）。</para>
+    /// <para>
+    /// <b>编译作用域（I2）</b> = 框架核心前缀 ∪ 已装载包前缀（<see cref="UsharpPrefixScope.Resolve"/>）：
+    /// 未装载某包 ⇒ 其前缀不被识别 ⇒ 核心闸报 <c>US0013</c>（不再静默丢声明）。
+    /// </para>
     /// </summary>
     public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources, IReadOnlyList<IUsharpDomainPack>? packs)
     {
         ArgumentNullException.ThrowIfNull(sources);
         System.Threading.Interlocked.Increment(ref _compileCount);
 
+        var effectivePacks = packs is { Count: > 0 }
+            ? packs
+            : new IUsharpDomainPack[] { UsharpDomainPack.Instance };
+
+        // ⓪ 编译作用域（核心 ∪ 已装载包；同前缀双主 ⇒ 启动期抛，禁后注册覆盖）
+        var scope = UsharpPrefixScope.Resolve(effectivePacks);
+
         // ① 解析 + ③ 符号索引
         var documents = new List<DslDocument>();
         var index = new DslIndex();
         foreach (var source in sources)
         {
-            var doc = UsharpParser.Parse(source.Text ?? "", source.Path ?? "(memory)", source.Lib ?? UsharpParser.DefaultLib);
+            var doc = UsharpParser.Parse(source.Text ?? "", source.Path ?? "(memory)", source.Lib ?? UsharpParser.DefaultLib, scope);
             documents.Add(doc);
             index.AddDocument(doc);
         }
 
         // ② 泛型索引（kind 分组）
         var declarations = UsharpDeclarationIndex.Build(documents);
-
-        var effectivePacks = packs is { Count: > 0 }
-            ? packs
-            : new IUsharpDomainPack[] { UsharpDomainPack.Instance };
 
         // ⑤ facet 投影（序 = 包声明序 × provider 序；诊断按注册序汇集，保既有 spaces → obs 归因序）
         var ctx = new UsharpFacetContext(documents, declarations, index);
@@ -202,7 +209,7 @@ public sealed class UsharpCompilation : IUsharpFacetReader
         // ⑥ 闸A + ⑦ 诊断投影
         var diagnostics = new List<UsharpDiagnostic>();
         diagnostics.AddRange(facets.Diagnostics);
-        diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, facets, effectivePacks));
+        diagnostics.AddRange(UsharpValidator.Validate(documents, declarations, index, facets, effectivePacks, sources, scope));
 
         return new UsharpCompilation(documents, declarations, index, edges, facets, diagnostics);
     }

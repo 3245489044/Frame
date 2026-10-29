@@ -38,13 +38,9 @@ Write-Host '============================================================' -Foreg
 Write-Host '  UMF MountRead（唯一读入口 · 直连图查询回归锁）' -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Cyan
 
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Node\MountRead.psd1'
-if (-not (Test-Path -LiteralPath $baselinePath)) {
-    Write-Host "  [失败] 缺基线：$baselinePath" -ForegroundColor Red
-    exit 1
-}
-$baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
-$budget = [int]$baseline.Facts.DirectGraphReads.Value
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$baseline = Import-GateBaseline -Name MountRead
+$budget = [int]$baseline.DirectGraphReads.Value
 $fileBudgets = @{}
 if ($baseline.ContainsKey('Files')) { foreach ($k in $baseline.Files.Keys) { $fileBudgets[$k] = [int]$baseline.Files[$k] } }
 

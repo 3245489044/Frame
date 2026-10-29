@@ -4,6 +4,7 @@ using System.Linq;
 using Plate.DslMethod;
 using Plate.DslMethod.Logic;
 using Plate.DslMethod.Model;
+using Plate.DslMethod.Parsing;
 using Share.LogicComposition.Conversion.Validation;
 using Usharp.Syntax;
 
@@ -18,6 +19,10 @@ namespace Usharp.Semantics;
 /// 不再随 facet 膨胀。判据已抽为可注册的领域包规则集（<see cref="IUsharpDomainPack.GateRules"/>），
 /// 由内核 <c>GateEngine</c> 按包声明序有序编排；本类只负责「装配领域模型 → 运行引擎 → 投影回公共诊断」。
 /// </para>
+/// <para>
+/// <b>核心常驻闸</b>：<c>UnregisteredPrefixGateRule</c>（<c>US0013</c>）不属任何包，固定排在规则序首位
+/// —— 未装载包导致的「前缀不识别」是后续一切下游怪象的根因，须先暴露。
+/// </para>
 /// </summary>
 public static class UsharpValidator
 {
@@ -26,13 +31,18 @@ public static class UsharpValidator
         UsharpDeclarationIndex declarations,
         DslIndex index,
         UsharpFacetRegistry facets,
-        IReadOnlyList<IUsharpDomainPack> packs)
+        IReadOnlyList<IUsharpDomainPack> packs,
+        IReadOnlyList<UsharpSourceFile>? sources = null,
+        DslPrefixSet? prefixScope = null)
     {
         ArgumentNullException.ThrowIfNull(facets);
         ArgumentNullException.ThrowIfNull(packs);
 
-        var model = new UsharpGateModel(documents, declarations, index, facets);
-        var rules = packs.SelectMany(p => p.GateRules).ToList();
+        var model = new UsharpGateModel(documents, declarations, index, facets, sources, prefixScope);
+
+        var rules = new List<IGateRule<UsharpGateModel>> { new UnregisteredPrefixGateRule() };
+        rules.AddRange(packs.SelectMany(p => p.GateRules));
+
         var result = new GateEngine<UsharpGateModel>(rules).Run(model);
         return result.Diagnostics.Select(UsharpDiagnosticProjection.ToUsharp).ToList();
     }

@@ -182,7 +182,7 @@
 | `UiThreadAffinity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（31 件）
+## Node（34 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -194,7 +194,10 @@
 | `DomainWireSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainWireSingleSource.ps1` |
 | `FreshnessFamilySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-FreshnessFamilySingleSource.ps1` |
 | `GatherFieldMapping` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-GatherFieldMapping.ps1` |
+| `MountCallSites` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountCallSites.ps1` |
 | `MountDeclaration` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountDeclaration.ps1` |
+| `MountFailurePosture` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountFailurePosture.ps1` |
+| `MountRead` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountRead.ps1` |
 | `MountSingleWriter` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountSingleWriter.ps1` |
 | `NodeCollectPort` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1` |
 | `NodeDeclSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1` |

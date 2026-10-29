@@ -23,12 +23,16 @@ public sealed class UsharpGateModel : IUsharpFacetReader
         IReadOnlyList<DslDocument> documents,
         UsharpDeclarationIndex declarations,
         DslIndex index,
-        UsharpFacetRegistry facets)
+        UsharpFacetRegistry facets,
+        IReadOnlyList<UsharpSourceFile>? sources = null,
+        Plate.DslMethod.Parsing.DslPrefixSet? prefixScope = null)
     {
         Documents = documents;
         Declarations = declarations;
         Index = index;
         _facets = facets;
+        Sources = sources ?? System.Array.Empty<UsharpSourceFile>();
+        PrefixScope = prefixScope;
 
         var flows = Flows;
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
@@ -46,6 +50,12 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public UsharpDeclarationIndex Declarations { get; }
 
     public DslIndex Index { get; }
+
+    /// <summary>本次编译的源文本（<c>US0013</c> 前缀可见性判据的唯一读面；空 = 无源文本 ⇒ 该判据跳过）。</summary>
+    public IReadOnlyList<UsharpSourceFile> Sources { get; }
+
+    /// <summary>本次编译的前缀作用域（核心 ∪ 已装载包；null = 未提供 ⇒ 该判据跳过）。</summary>
+    public Plate.DslMethod.Parsing.DslPrefixSet? PrefixScope { get; }
 
     /// <summary>取 facet 视图（未注册 → 抛）。</summary>
     public T Facet<T>() where T : class => _facets.Facet<T>();

@@ -25,9 +25,11 @@ public interface IContainerRelationManager
     Task<bool> DeleteAsync(string historyId, CancellationToken ct = default);
 
     /// <summary>历史归拢任务（history → task，history_owns_task 边；幂等）。</summary>
+    [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory)")]
     Task AttachTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
 
     /// <summary>解除历史归拢任务边。</summary>
+    [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory, Intent=Remove)")]
     Task DetachTaskAsync(string historyId, string taskKey, CancellationToken ct = default);
 
     /// <summary>返回该历史归拢的任务键集（History class 容器成员）。</summary>
@@ -57,5 +59,6 @@ public interface IContainerRelationManager
     Task<IReadOnlyList<string>> GetNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
     /// <summary>会话归属边（session_owns）：会话消息节点 → 会话根（入史层挂载；幂等加法）。</summary>
+    [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.MessageToSession)")]
     Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 }

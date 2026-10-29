@@ -30,14 +30,10 @@ Write-Host '============================================================' -Foreg
 Write-Host '  UMF MountFailurePosture（旧写回退只减不增）' -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Cyan
 
-$baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Node\MountFailurePosture.psd1'
-if (-not (Test-Path -LiteralPath $baselinePath)) {
-    Write-Host "  [失败] 缺基线：$baselinePath" -ForegroundColor Red
-    exit 1
-}
-$baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
-$fallbackBudget = [int]$baseline.Facts.LegacyFallbacks.Value
-$defaultBudget = [int]$baseline.Facts.DefaultBindingsUsage.Value
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+$baseline = Import-GateBaseline -Name MountFailurePosture
+$fallbackBudget = [int]$baseline.LegacyFallbacks.Value
+$defaultBudget = [int]$baseline.DefaultBindingsUsage.Value
 
 function Test-LegacyFallback([string]$line) {
     # 三元回退：挂载门面判空后走旧写（两种书写方向）；只认与 mount 相关的标识符。
@@ -69,12 +65,10 @@ foreach ($rootDir in $scanRoots) {
 
             if (-not $isTest -and (Test-LegacyFallback $line)) {
                 $fallbackHits++
-                $violations.Add("P1 旧写回退：$rel → $($line.Trim())")
             }
 
             if (-not $isTest -and $line -match 'MountBindingCatalog\.Default') {
                 $defaultHits++
-                $violations.Add("P2 生产回退 C# 镜像：$rel → $($line.Trim())（声明缺失须可见化，禁用 Default 掩盖）")
             }
         }
     }

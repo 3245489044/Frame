@@ -37,6 +37,9 @@ public static class UsharpDiagnosticCatalog
     public const string ObsEnumSegmentInvalid = "US0011";
     public const string DocumentBodyLineUnparsed = "US0012";
 
+    /// <summary>声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别；禁静默丢声明）。</summary>
+    public const string UnregisteredPrefix = "US0013";
+
     // ── US1xxx 闸A ──────────────────────────────────────────────────────
     public const string SpaceUnknown = "US1001";
     public const string CoordUndeclared = "US1002";
@@ -211,6 +214,7 @@ public static class UsharpDiagnosticCatalog
         E(RuleEnabledInvalid, "Rule", UsharpSeverity.Error, "[Rule] enabled= 非法布尔", "ruleId, value"),
         E(ObsEnumSegmentInvalid, "Obs", UsharpSeverity.Error, "[Obs] enum= 段非法", "obsId, segment"),
         E(DocumentBodyLineUnparsed, "Document", UsharpSeverity.Error, "落库正文行不可解析", "documentId, line"),
+        E(UnregisteredPrefix, "Decl", UsharpSeverity.Error, "声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别）", "prefix"),
 
         E(SpaceUnknown, "Ref", UsharpSeverity.Error, "引用的空间未声明", "spaceId"),
         E(CoordUndeclared, "Ref", UsharpSeverity.Error, "引用坐标未在空间声明", "spaceId, key"),

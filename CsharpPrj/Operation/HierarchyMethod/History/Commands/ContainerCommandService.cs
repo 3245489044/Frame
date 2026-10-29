@@ -10,6 +10,7 @@ using Share.Conversation.Aggregates;
 using Share.Conversation.Commands;
 using Share.Conversation.Ids;
 using Share.Conversation.Ports;
+using UniversalWorkflowFramework.Relations.Mounting;
 
 namespace Operation.Container.Commands;
 
@@ -29,6 +30,7 @@ public sealed class ContainerCommandService : IContainerCommandPort
     private readonly ISessionTranscriptStore? _transcripts;
     private readonly IDiagnosticsSink _diagnostics;
     private readonly ICompositeWriteUnit? _writeUnit;
+    private readonly Func<IMountPort?>? _mounts;
 
     public ContainerCommandService(
         IConversationLogRootStore roots,
@@ -37,7 +39,8 @@ public sealed class ContainerCommandService : IContainerCommandPort
         ISessionStore? sessions = null,
         IDiagnosticsSink? diagnostics = null,
         ISessionTranscriptStore? transcripts = null,
-        ICompositeWriteUnit? writeUnit = null)
+        ICompositeWriteUnit? writeUnit = null,
+        Func<IMountPort?>? mounts = null)
     {
         _roots = roots ?? throw new ArgumentNullException(nameof(roots));
         _relations = relations ?? throw new ArgumentNullException(nameof(relations));
@@ -46,6 +49,7 @@ public sealed class ContainerCommandService : IContainerCommandPort
         _diagnostics = diagnostics ?? NullDiagnosticsSink.Instance;
         _transcripts = transcripts;
         _writeUnit = writeUnit;
+        _mounts = mounts;
     }
 
     public async Task<ContainerRoot> CreateAsync(CreateContainerCommand cmd, CancellationToken ct = default)
@@ -119,7 +123,7 @@ public sealed class ContainerCommandService : IContainerCommandPort
         return identity.Length == 0 ? key : ContainerKey.Create(identity);
     }
 
-    public Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
+    public async Task AttachTaskAsync(AttachTaskCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var historyKey = Normalize(cmd.History);
@@ -132,13 +136,56 @@ public sealed class ContainerCommandService : IContainerCommandPort
 
         // 存在性判据唯一归属 = 关系内核写前门（EntityExistenceRegistry → 各实体 Store）：
         // 本层不再重复检查 root/task，避免「命令层通过、内核层拒绝」的两套判定（GP-2/E1）。
-        return _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct);
+        // UMF · M3：归属边只经 IMountPort（命令端口保留 gate/root 语义；未装配门面 ⇒ 回退旧路径并可见化）。
+        var mounts = _mounts?.Invoke();
+        if (mounts is not null)
+        {
+            var receipt = await mounts.ApplyAsync(new MountRequest(
+                MountIds.TaskToHistory,
+                new MountScope("history", historyKey.Value,
+                    CorrelationId: $"container-command:{historyKey.Value}:{cmd.Task.Value}"),
+                new[] { new MountTarget("task", cmd.Task.Value) },
+                MountIntent.Ensure,
+                MountOrigin.Command,
+                MountTriggers.CommandExplicit,
+                Actor: cmd.Actor,
+                CorrelationId: $"container-command:{historyKey.Value}:{cmd.Task.Value}"), ct).ConfigureAwait(false);
+
+            if (receipt.Ok) return;
+
+            throw new InvalidOperationException(
+                $"归拢任务失败（mount={MountIds.TaskToHistory}, outcome={receipt.Outcome}）：{receipt.Reason}");
+        }
+
+        await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);
     }
 
-    public Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default)
+    public async Task DetachTaskAsync(DetachTaskCommand cmd, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cmd);
-        return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);
+        var historyKey = Normalize(cmd.History);
+
+        var mounts = _mounts?.Invoke();
+        if (mounts is not null)
+        {
+            var receipt = await mounts.ApplyAsync(new MountRequest(
+                MountIds.TaskToHistory,
+                new MountScope("history", historyKey.Value,
+                    CorrelationId: $"container-command:{historyKey.Value}:{cmd.Task.Value}"),
+                new[] { new MountTarget("task", cmd.Task.Value) },
+                MountIntent.Remove,
+                MountOrigin.Command,
+                MountTriggers.CommandExplicit,
+                Actor: cmd.Actor,
+                CorrelationId: $"container-command:{historyKey.Value}:{cmd.Task.Value}"), ct).ConfigureAwait(false);
+
+            if (receipt.Ok) return;
+
+            throw new InvalidOperationException(
+                $"解除归拢失败（mount={MountIds.TaskToHistory}, outcome={receipt.Outcome}）：{receipt.Reason}");
+        }
+
+        await _relations.DetachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> DeleteAsync(DeleteContainerCommand cmd, CancellationToken ct = default)

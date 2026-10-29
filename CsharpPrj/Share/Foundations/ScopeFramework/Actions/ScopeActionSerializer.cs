@@ -54,6 +54,7 @@ internal static class ScopeActionSerializer
         Set("targetType", a.TargetType);
         Set("targetId", a.TargetId);
         Set("refType", a.RefType);
+        Set("mountId", a.MountId);
         Set("resourceType", a.ResourceType);
         Set("id", a.Id);
         Set("name", a.Name);

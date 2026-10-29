@@ -30,7 +30,12 @@ namespace Operation.DataStoreDriven.Abstractions
         Task<bool> DeleteContainerAsync(string historyId, CancellationToken ct = default);
 
         // ---- history → task（1:N，幂等）----
+        /// <summary>历史归拢任务（UMF：{Obsolete} 生产调用点归零；唯一写入口 = IMountPort(task_to_history)）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory)")]
         Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
+
+        /// <summary>解除历史归拢（UMF：{Obsolete}）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory, Intent=Remove)")]
         Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>该历史归拢的任务键集（History class 容器成员）。</summary>
@@ -55,9 +60,11 @@ namespace Operation.DataStoreDriven.Abstractions
 
         // ---- task ↔ node（M:N，一条 (task,workflowId,nodeKey) 一条 cross_db_link 边）----
         /// <summary>节点关联到任务（幂等加法；同一节点可被多任务共享引用）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.NodeToTask)")]
         Task LinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>解除节点与任务的关联（M:N 撤销边）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.NodeToTask, Intent=Remove)")]
         Task UnlinkMemberNodeAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>该 task 关联的节点键集（task 作用域寻址）。</summary>

@@ -47,6 +47,7 @@ public static class UsharpUnitRegistry
         (UsharpLanguage.RelationPrefix, DslSymbolKind.Relation),
         (UsharpLanguage.InvariantPrefix, DslSymbolKind.Invariant),
         (UsharpLanguage.DerivePrefix, DslSymbolKind.Derive),
+        (UsharpLanguage.MountPrefix, DslSymbolKind.Mount),
         (UsharpLanguage.SegmentPrefix, DslSymbolKind.Segment),
     };
 
@@ -86,6 +87,8 @@ public static class UsharpUnitRegistry
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Invariants)),
         new UsharpFacetProvider<UsharpDeriveDecl>(DslSymbolKind.Derive,
             ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Derivations)),
+        new UsharpFacetProvider<UsharpMountDecl>(DslSymbolKind.Mount,
+            ctx => ctx.Documents.SelectMany(UsharpSyntaxProjector.Mounts)),
         new UsharpFacetProvider<UsharpSegmentDecl>(DslSymbolKind.Segment,
             ctx => ctx.Declarations.OfKind(DslSymbolKind.Segment).Select(UsharpSegmentDecl.From).OfType<UsharpSegmentDecl>()),
     };

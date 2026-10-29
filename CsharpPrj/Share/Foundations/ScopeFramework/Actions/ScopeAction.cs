@@ -35,6 +35,10 @@ public sealed record ScopeAction
     public string? TargetType { get; init; }
     public string? TargetId { get; init; }
     public string? RefType { get; init; }
+
+    /// <summary>挂载语义 id（UMF）：<c>addReference</c> 的归属形状走 <c>IMountPort</c> 时的唯一语义名。</summary>
+    public string? MountId { get; init; }
+
     public string? ResourceType { get; init; }
     public string? Id { get; init; }
     public string? Name { get; init; }

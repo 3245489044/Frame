@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Mounting;
 
 namespace Operation.DataStoreDriven.Relations.Rebuild;
 
@@ -88,11 +89,23 @@ public sealed class RelationRebuildEngine
 {
     private readonly IRelationPorts _ports;
     private readonly IRelationDiagnostics? _diagnostics;
+    private readonly MountRebuildExecutor? _mountExecutor;
 
-    public RelationRebuildEngine(IRelationPorts ports, IRelationDiagnostics? diagnostics = null)
+    /// <param name="ports">关系端口（旧路径；仅测试/迁移夹具使用）。</param>
+    /// <param name="diagnostics">诊断出口（可空）。</param>
+    /// <param name="mounts">UMF 挂载门面；装配后**全部**动作经 <see cref="MountRebuildExecutor"/>（唯一写路径）。</param>
+    /// <param name="bindings">挂载绑定目录（与 <paramref name="mounts"/> 同批装配）。</param>
+    public RelationRebuildEngine(
+        IRelationPorts ports,
+        IRelationDiagnostics? diagnostics = null,
+        IMountPort? mounts = null,
+        MountBindingCatalog? bindings = null)
     {
         _ports = ports ?? throw new ArgumentNullException(nameof(ports));
         _diagnostics = diagnostics;
+        _mountExecutor = mounts is not null && bindings is not null
+            ? new MountRebuildExecutor(_ports, bindings, mounts)
+            : null;
     }
 
     /// <summary>执行一次重建（同一 source 重跑计数稳定）。</summary>
@@ -131,6 +144,27 @@ public sealed class RelationRebuildEngine
                 }
 
                 var request = action.Request with { Origin = RelationOrigin.Rebuild };
+
+                // UMF · R2：装配门面 ⇒ 唯一写路径 = IMountPort（禁重建直连内核）。
+                if (_mountExecutor is not null)
+                {
+                    var receipt = await _mountExecutor
+                        .ExecuteAsync(name, action.Operation, request, ct).ConfigureAwait(false);
+                    switch (receipt.Outcome)
+                    {
+                        case MountOutcome.Committed:
+                        case MountOutcome.PartiallyApplied:
+                            Bump(applied, action.Operation);
+                            break;
+                        default:
+                            Reject(rejected, action.Operation,
+                                $"{receipt.Outcome}|{receipt.Reason ?? string.Empty}");
+                            break;
+                    }
+
+                    continue;
+                }
+
                 var result = declared.IsRemove
                     ? await _ports.Commands.RemoveAsync(action.Operation, request, ct).ConfigureAwait(false)
                     : await _ports.Commands.EnsureAsync(action.Operation, request, ct).ConfigureAwait(false);

@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（70 件）
+## Agent（75 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -60,6 +60,7 @@
 | `RecordDraftSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordDraftSingleSource.ps1` |
 | `RecordSingleTextForm` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RecordSingleTextForm.ps1` |
 | `RefreshFrameworkBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RefreshFrameworkBoundary.ps1` |
+| `RelationPlan` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-RelationPlan.ps1` |
 | `RenderNoDomainBranch` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RenderNoDomainBranch.ps1` |
 | `RoundFailureEnvelope` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RoundFailureEnvelope.ps1` |
 | `RowIdentityBareKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-RowIdentityBareKey.ps1` |
@@ -72,8 +73,12 @@
 | `TemplateAccessSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TemplateAccessSingleEntry.ps1` |
 | `ToolCallConvergence` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ToolCallConvergence.ps1` |
 | `TransferKey` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TransferKey.ps1` |
+| `UiAnchorWrites` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiAnchorWrites.ps1` |
+| `UiReadOutcome` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiReadOutcome.ps1` |
+| `UiRenderEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiRenderEntry.ps1` |
 | `UiSelectionExternalization` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiSelectionExternalization.ps1` |
 | `UiTemplateSet` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiTemplateSet.ps1` |
+| `UiViewCatalog` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiViewCatalog.ps1` |
 | `UiWriteFidelity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiWriteFidelity.ps1` |
 | `UnknownVisible` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UnknownVisible.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Agent\Check-VmKernelReferenceBoundary.ps1` |
@@ -89,7 +94,7 @@
 | `BuildTargetMap` | full | 0 | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Data（20 件）
+## Data（24 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -103,7 +108,11 @@
 | `EndpointKeyConsistency` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-EndpointKeyConsistency.ps1` |
 | `FactStandard` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FactStandard.ps1` |
 | `FrameworkActivation` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1` |
+| `GraphDeclarationParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphDeclarationParity.ps1` |
+| `GraphIndexDeclaration` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphIndexDeclaration.ps1` |
+| `GraphKeySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphKeySingleSource.ps1` |
 | `GraphPathSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1` |
+| `GraphTombstoneRead` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-GraphTombstoneRead.ps1` |
 | `ReadIdentitySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-ReadIdentitySingleSource.ps1` |
 | `RenderLayerStoreFree` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-RenderLayerStoreFree.ps1` |
 | `SelectionContract` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Data\Check-SelectionContract.ps1` |
@@ -123,7 +132,7 @@
 | `LogMessages` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
 | `RuntimeMirror` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
 
-## KeySpace（17 件）
+## KeySpace（18 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -142,6 +151,7 @@
 | `KeyRoundTrip` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyRoundTrip.ps1` |
 | `KeySpaceCoverage` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 | `KeySurfaceDistinguishable` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySurfaceDistinguishable.ps1` |
+| `KeySurfaceSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySurfaceSingleSource.ps1` |
 | `WireFabric` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
@@ -172,7 +182,7 @@
 | `UiThreadAffinity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（27 件）
+## Node（31 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
@@ -184,6 +194,8 @@
 | `DomainWireSingleSource` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainWireSingleSource.ps1` |
 | `FreshnessFamilySingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-FreshnessFamilySingleSource.ps1` |
 | `GatherFieldMapping` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-GatherFieldMapping.ps1` |
+| `MountDeclaration` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountDeclaration.ps1` |
+| `MountSingleWriter` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-MountSingleWriter.ps1` |
 | `NodeCollectPort` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeCollectPort.ps1` |
 | `NodeDeclSingleSource` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeDeclSingleSource.ps1` |
 | `NodeFlowDomainMatch` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-NodeFlowDomainMatch.ps1` |
@@ -199,10 +211,12 @@
 | `ObservabilitySurface` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1` |
 | `ReferenceExclusion` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1` |
 | `ReferenceVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1` |
+| `RelationGather` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-RelationGather.ps1` |
 | `StoreReadPayloadRecordForm` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-StoreReadPayloadRecordForm.ps1` |
 | `StoreReadPortSingleTable` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-StoreReadPortSingleTable.ps1` |
 | `TextClipSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-TextClipSingleSource.ps1` |
 | `Wiring` | full | 0 | `Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1` |
+| `WriteSurface` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Node\Check-WriteSurface.ps1` |
 
 ## Parsing（2 件）
 
@@ -211,24 +225,29 @@
 | `KeyGrammar` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（16 件）
+## Process（21 件）
 
 | Gate | Tier | Expect | 脚本 |
 |---|---|---|---|
 | `AnalysisDocGrounding` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-AnalysisDocGrounding.ps1` |
 | `BatchLineEndings` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
+| `ContainerSemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-ContainerSemantics.ps1` |
 | `DeclarationCapability` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-DeclarationCapability.ps1` |
 | `DimensionReduction` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |
+| `EntityExistenceSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-EntityExistenceSingleSource.ps1` |
+| `HistorySemantics` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-HistorySemantics.ps1` |
 | `InvokeEntrypoints` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
 | `JudgmentParity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentParity.ps1` |
 | `JudgmentPoints` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1` |
 | `OrchestrationKernel` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1` |
 | `PreflightCost` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-PreflightCost.ps1` |
+| `ReadModelSingleSource` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-ReadModelSingleSource.ps1` |
 | `RunConvergence` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-RunConvergence.ps1` |
 | `SpecExempt` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1` |
 | `TestDoubleParity` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-TestDoubleParity.ps1` |
 | `TextKernelPurity` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-TextKernelPurity.ps1` |
+| `UiSingleEntry` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-UiSingleEntry.ps1` |
 | `VerifyProportionality` | full | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifyProportionality.ps1` |
 | `VerifySingleShot` | fast | 0 | `Frame\PowerShellScript\Operation\DSL\Process\Check-VerifySingleShot.ps1` |
 

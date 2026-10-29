@@ -93,6 +93,9 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
     public IReadOnlyList<UsharpDeriveDecl> Derivations => Facet<IReadOnlyList<UsharpDeriveDecl>>();
 
+    /// <summary><c>[Mount]</c> 挂载绑定声明（四轴唯一组合点；空表 = 未声明绑定）。</summary>
+    public IReadOnlyList<UsharpMountDecl> Mounts => Facet<IReadOnlyList<UsharpMountDecl>>();
+
     /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
     public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
 

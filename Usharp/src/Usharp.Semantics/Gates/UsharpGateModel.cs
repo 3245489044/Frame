@@ -100,6 +100,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpDeriveDecl> Derivations
         => _facets.TryGetFacet<IReadOnlyList<UsharpDeriveDecl>>(out var der) ? der : Array.Empty<UsharpDeriveDecl>();
 
+    /// <summary><c>[Mount]</c> 挂载绑定声明（空表 = 本编译无绑定面）。</summary>
+    public IReadOnlyList<UsharpMountDecl> Mounts
+        => _facets.TryGetFacet<IReadOnlyList<UsharpMountDecl>>(out var mount) ? mount : Array.Empty<UsharpMountDecl>();
+
     /// <summary><c>[Table]</c> 表结构声明（空表 = 本编译无数据层）。</summary>
     public IReadOnlyList<UsharpTableDecl> Tables
         => _facets.TryGetFacet<IReadOnlyList<UsharpTableDecl>>(out var t) ? t : Array.Empty<UsharpTableDecl>();

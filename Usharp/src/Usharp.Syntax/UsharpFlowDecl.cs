@@ -295,6 +295,10 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpDeriveDecl> Derivations(DslDocument doc)
         => Project(doc, DslSymbolKind.Derive, UsharpDeriveDecl.FromDeclaration);
 
+    /// <summary><c>[Mount]</c> 挂载绑定声明（MountId → relation + trigger/stage/…）。</summary>
+    public static IReadOnlyList<UsharpMountDecl> Mounts(DslDocument doc)
+        => Project(doc, DslSymbolKind.Mount, UsharpMountDecl.From);
+
     /// <summary>统一投影：按 <see cref="DslSymbolKind"/> 过滤 → 投影声明 → 去空（D9：消除 11 处样板复制）。</summary>
     private static IReadOnlyList<T> Project<T>(DslDocument doc, DslSymbolKind kind, Func<DslDeclaration, T?> from)
         where T : class

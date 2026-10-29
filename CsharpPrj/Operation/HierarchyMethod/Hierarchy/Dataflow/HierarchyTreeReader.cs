@@ -10,6 +10,7 @@ using Operation.HierarchyMethod.Nodes.Keys;
 using Operation.HierarchyMethod.Nodes.Linkage;
 using Modules.Node.Identity;
 using Share.Conversation.Ports;
+using UniversalWorkflowFramework.Relations.Mounting;
 
 namespace Operation.HierarchyMethod.Hierarchy.Dataflow
 {
@@ -41,6 +42,7 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
         private readonly IContainerRelationManager? _relations;
         private readonly IReferenceMaintenance? _grounding;
         private readonly ITransferFlow? _transfer;
+        private readonly IMountQuery? _mounts;
         private readonly string _workflowId;
 
         /// <summary>根目录为必填（唯一根枚举入口）；未装配即构造期失败。</summary>
@@ -49,14 +51,20 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             IContainerRelationManager? relations = null,
             IReferenceMaintenance? grounding = null,
             ITransferFlow? transfer = null,
-            string? workflowId = null)
+            string? workflowId = null,
+            IMountQuery? mounts = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _relations = relations;
             _grounding = grounding;
             _transfer = transfer;
+            _mounts = mounts;
             _workflowId = KeyAddressing.NormalizeNamespace(workflowId);
         }
+
+        /// <summary>命名空间轴（空 ⇒ null，由声明面单源解析）。</summary>
+        private string? NamespaceOrNull
+            => string.IsNullOrWhiteSpace(_workflowId) ? null : _workflowId;
 
 
         /// <summary>装配三层树（只读真源）。三源皆空 ⇒ 返回空表（禁造 default 容器、禁任务池补行）。
@@ -72,13 +80,16 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
             foreach (var hid in ids)
             {
                 if (string.IsNullOrWhiteSpace(hid)) continue;
-                // 归属枚举单源（USharp 流 [Flow] TransferContribute 的 enumerate_members 步，edge_type 参数化）；
-                // 未装配传递端口 ⇒ 回退图端口（迁移期双读；图未装配 ⇒ 该历史下无任务行，不猜测）。
-                var tasks = _transfer is not null
-                    ? await _transfer.EnumerateAsync(hid, CrossDbReferenceTypes.HistoryOwnsTask, ct).ConfigureAwait(false)
-                    : _relations is null
-                        ? (IReadOnlyList<string>)Array.Empty<string>()
-                        : await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);
+                // 归属枚举单源（UMF · R3：装配读门面 ⇒ IMountQuery；未装配 ⇒ 迁移期回退旧端口，可见化）。
+                var tasks = _mounts is not null
+                    ? (await _mounts
+                        .EnumerateAsync(new MountScope("history", hid, NamespaceOrNull), MountIds.TaskToHistory, ct)
+                        .ConfigureAwait(false)).Keys
+                    : _transfer is not null
+                        ? await _transfer.EnumerateAsync(hid, CrossDbReferenceTypes.HistoryOwnsTask, ct).ConfigureAwait(false)
+                        : _relations is null
+                            ? (IReadOnlyList<string>)Array.Empty<string>()
+                            : await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);
                 // 修剪原则：只为「有消费方」的字段付费。TaskNodeKeys 无人读 ⇒ 不构建（否则 tasks × 图枚举 = N+1）。
                 var taskNodeKeys = includeTaskNodeKeys
                     ? await BuildTaskNodeKeysAsync(tasks, ct).ConfigureAwait(false)
@@ -92,10 +103,29 @@ namespace Operation.HierarchyMethod.Hierarchy.Dataflow
         private async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> BuildTaskNodeKeysAsync(
             IReadOnlyList<string>? taskKeys, CancellationToken ct)
         {
-            if (taskKeys is null || taskKeys.Count == 0 || (_grounding is null && _transfer is null))
+            if (taskKeys is null || taskKeys.Count == 0 || (_grounding is null && _transfer is null && _mounts is null))
                 return null;
 
             var dict = new Dictionary<string, IReadOnlyList<string>>(taskKeys.Count, StringComparer.Ordinal);
+
+            // UMF · R3：批量读门面（一次委托，非 N+1）。
+            if (_mounts is not null)
+            {
+                var scopes = taskKeys
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => new MountScope("task", t, NamespaceOrNull))
+                    .ToList();
+                var many = await _mounts
+                    .EnumerateManyAsync(scopes, MountIds.NodeToTask, ct)
+                    .ConfigureAwait(false);
+                foreach (var pair in many)
+                {
+                    if (pair.Value.Keys.Count > 0) dict[pair.Key] = pair.Value.Keys;
+                }
+
+                return dict.Count > 0 ? dict : null;
+            }
+
             if (_grounding is not null)
             {
                 var many = await _grounding

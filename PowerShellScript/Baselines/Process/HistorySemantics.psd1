@@ -9,8 +9,8 @@
     FrameHistoryNamespaceFiles        = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     FrameUsingAgent                   = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
     FrameAgentTypeDeclarations        = @{ Value = 0;   Origin = 'Derived'; DueWhen = '' }
-    OperationHistoryMentionFiles      = @{ Value = 60;  Origin = 'Debt'; DueWhen = '白名单（键族/工具方法/持久化载荷列）外词面清零后归零' }
-    ShareHistoryMentionFiles          = @{ Value = 25;  Origin = 'Debt'; DueWhen = '同上' }
-    OtherFrameHistoryMentionFiles     = @{ Value = 18;  Origin = 'Debt'; DueWhen = '同上' }
-    FrameHistoryMentions              = @{ Value = 103; Origin = 'Debt'; DueWhen = '同上' }
+    OperationHistoryMentionFiles      = @{ Value = 84;  Origin = 'Debt'; DueWhen = '白名单（键族/工具方法/持久化载荷列）外词面清零后归零' }
+    ShareHistoryMentionFiles          = @{ Value = 38;  Origin = 'Debt'; DueWhen = '同上' }
+    OtherFrameHistoryMentionFiles     = @{ Value = 38;  Origin = 'Debt'; DueWhen = '同上' }
+    FrameHistoryMentions              = @{ Value = 160; Origin = 'Debt'; DueWhen = '同上' }
 }

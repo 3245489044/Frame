@@ -41,10 +41,10 @@ internal sealed class EnsureTaskNodeEdgeStep : IStep
                     SourceId = scope.TaskKey,
                     TargetType = "node",
                     TargetId = id,
-                    // 层内自治常量（零依赖豁免，A1）：Share.ScopeFramework 为零项目引用的纯逻辑框架，
-                    // 物理上无法引用唯一源 Operation.DataStoreDriven.Abstractions.ReferenceTypes ⇒ 本层保留字面量，
-                    // 由门禁 Check-ReferenceVocabulary 白名单登记（见其 §零依赖层豁免）。
-                    RefType = "node_to_node",
+                    // UMF · M4：归属边类型唯一 = cross_db_link（读侧只认它）；语义 id 供执行端走 IMountPort。
+                    // 层内自治常量（零依赖豁免，A1）：由门禁 Check-ReferenceVocabulary 白名单登记。
+                    RefType = "cross_db_link",
+                    MountId = "node_to_task",
                 });
             }
             return list;
@@ -61,7 +61,7 @@ internal sealed class EnsureTaskNodeEdgeStep : IStep
             {
                 relationId = rid,
                 // 层内自治常量（零依赖豁免，A1）：同上（Share.ScopeFramework 零项目引用）。
-                refType = "node_to_node",
+                refType = "cross_db_link",
                 source = new { resourceType = "task", id = scope.TaskKey },
                 target = new { resourceType = "node", id = $"{wf}.{name}" },
             };

@@ -573,6 +573,41 @@
         Note   = 'P6-A 委托接线架构不变式：键格式声明化 / 端口准入单源 / 节点写路径单源 / 运行态面结算单源 / I 段 Stream 结算恰 1 次写（B/C/I 段为 Error；I 段防退回逐帧写）；-ShowDetail 显示详情'
     }
 
+    MountSingleWriter = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'UMF 唯一写入口：history_owns_node 写路径=0 / ScopeFramework 不再产出 node_to_node 归属 / Agent 侧裸写 task→node 归属=0；负对照必红'
+    }
+
+    MountDeclaration = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'UMF 声明对账：每个绑定引用真实 [Relation] / 每个 ensure operation 至少一个绑定 / Stage·Family·Posture 闭集词表；负对照必红'
+    }
+
+    MountRead = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'UMF 唯一读入口：UI/Session 直连图查询点数 ≤ 基线（只减不增）/ 负对照必红；基线 Baselines\Node\MountRead.psd1'
+    }
+
+    MountCallSites = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'UMF 调用点棘轮 + 批量语义（循环内 MountTarget/ApplyAsync 禁）+ 仲裁窗口（MountScope.CorrelationId 必填）；基线 Baselines\Node\MountCallSites.psd1'
+    }
+
+    MountFailurePosture = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'UMF 失败姿态：门面判空走旧写的三元回退只减不增 / 生产禁用 MountBindingCatalog.Default；基线 Baselines\Node\MountFailurePosture.psd1'
+    }
+
     DomainWireSingleSource = @{
         Domain = 'Node'
         Expect = 0

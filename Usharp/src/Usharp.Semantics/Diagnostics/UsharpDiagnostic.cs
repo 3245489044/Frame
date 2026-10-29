@@ -340,4 +340,11 @@ public static class UsharpCodes
     public const string DeriveEdgeDeprecated = UsharpDiagnosticCatalog.DeriveEdgeDeprecated;
     public const string DeriveDuplicateShape = UsharpDiagnosticCatalog.DeriveDuplicateShape;
     public const string RelationPlanNotProducible = UsharpDiagnosticCatalog.RelationPlanNotProducible;
+
+    // 挂载绑定（[Mount]）闸A
+    public const string MountDuplicate = UsharpDiagnosticCatalog.MountDuplicate;
+    public const string MountRelationUndeclared = UsharpDiagnosticCatalog.MountRelationUndeclared;
+    public const string MountTriggerUnknown = UsharpDiagnosticCatalog.MountTriggerUnknown;
+    public const string MountFieldInvalid = UsharpDiagnosticCatalog.MountFieldInvalid;
+    public const string MountRelationUnbound = UsharpDiagnosticCatalog.MountRelationUnbound;
 }

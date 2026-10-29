@@ -190,6 +190,11 @@ public static class UsharpDiagnosticCatalog
     public const string DeriveEdgeDeprecated = "US8120";
     public const string DeriveDuplicateShape = "US8121";
     public const string RelationPlanNotProducible = "US8122";
+    public const string MountDuplicate = "US8123";
+    public const string MountRelationUndeclared = "US8124";
+    public const string MountTriggerUnknown = "US8125";
+    public const string MountFieldInvalid = "US8126";
+    public const string MountRelationUnbound = "US8127";
 
     /// <summary>全量码表（声明序；序用于 README 生成与唯一性断言）。</summary>
     public static readonly IReadOnlyList<UsharpCodeSpec> All = new[]
@@ -352,6 +357,11 @@ public static class UsharpDiagnosticCatalog
         E(DeriveEdgeDeprecated, "Derive", UsharpSeverity.Error, "[Derive] via 含废弃边", "derive, edge"),
         E(DeriveDuplicateShape, "Derive", UsharpSeverity.Error, "[Derive] (from,to,via) 重复声明", "derive"),
         E(RelationPlanNotProducible, "RelationEmit", UsharpSeverity.Error, "关系计划不可产出", "reason"),
+        E(MountDuplicate, "Mount", UsharpSeverity.Error, "[Mount] MountId 重复声明", "mount"),
+        E(MountRelationUndeclared, "Mount", UsharpSeverity.Error, "[Mount] relation= 未在 [Relation] 声明", "mount, relation"),
+        E(MountTriggerUnknown, "Mount", UsharpSeverity.Error, "[Mount] trigger= 未声明事件或不在内置触发集", "mount, trigger"),
+        E(MountFieldInvalid, "Mount", UsharpSeverity.Error, "[Mount] stage/family/coalesce/posture/order 非法或出现禁用字段", "mount, field"),
+        E(MountRelationUnbound, "Mount", UsharpSeverity.Error, "ensure 关系操作缺少 [Mount] 绑定", "relation"),
     };
 
     /// <summary>全部码值（声明序）。</summary>

@@ -47,6 +47,7 @@ namespace Operation.DataStoreDriven.Abstractions
             string workflowId = "", CancellationToken ct = default);
 
         /// <summary>运行时 task 归属边（cross_db_link）：task（ur_tasks）→ 节点（ur_nodes）。幂等加法。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.NodeToTask)")]
         Task EnsureTaskNodeLinkAsync(string taskKey, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>
@@ -97,9 +98,11 @@ namespace Operation.DataStoreDriven.Abstractions
         Task RemoveHistoryMirrorAsync(string historyId, CancellationToken ct = default);
 
         /// <summary>历史归拢任务：history.{historyId} → task（taskKey）引用边（幂等加法）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory)")]
         Task AttachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>解除历史归拢任务边（历史 → task 出边移除）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.TaskToHistory, Intent=Remove)")]
         Task DetachMemberAsync(string historyId, string taskKey, CancellationToken ct = default);
 
         /// <summary>按历史查 history_owns_task 出边，返回该历史归拢的任务键集。</summary>
@@ -113,6 +116,7 @@ namespace Operation.DataStoreDriven.Abstractions
         Task<IReadOnlyList<string>> GetContainerNodeKeysAsync(string historyId, string workflowId, CancellationToken ct = default);
 
         /// <summary>会话归属边（session_owns）：把业务节点挂到会话根（幂等加法）。</summary>
+        [Obsolete("UMF: 使用 IMountPort.ApplyAsync(MountIds.MessageToSession)")]
         Task AddSessionMessageLinkAsync(string sessionName, string workflowId, string nodeKey, CancellationToken ct = default);
 
         /// <summary>会话子图节点键集：按 session_owns 出边返回会话挂载的业务节点键。</summary>

@@ -61,6 +61,8 @@ public static class UsharpPrefixes
         new(UsharpLanguage.RelationPrefix,  DslSymbolKind.Relation,  "Relation"),
         new(UsharpLanguage.InvariantPrefix, DslSymbolKind.Invariant, "Invariant"),
         new(UsharpLanguage.DerivePrefix,    DslSymbolKind.Derive,    "Derive"),
+        // 挂载绑定语言单元（[Mount]）：MountId → relation + trigger/stage/family/order/posture/projection
+        new(UsharpLanguage.MountPrefix,     DslSymbolKind.Mount,     "Mount"),
     };
 
     /// <summary>Usharp 前缀作用域 = 框架核心前缀 ∪ 本包五前缀。</summary>

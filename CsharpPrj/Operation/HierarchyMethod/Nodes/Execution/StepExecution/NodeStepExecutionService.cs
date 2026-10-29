@@ -638,32 +638,11 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     _workflowId, node.NodeKey, edges, isWriteThroughStore: _nodes is WriteGuardPort, ct).ConfigureAwait(false);
             }
 
-            // ③ task 归属边（cross_db_link）：canonical 写原语（唯一守卫 → 关系内核）；
-            //    缩减切片（Reduced）= 有意不参与 ⇒ 直接短路（零写零诊断，非「未装配」误报）；
-            //    未装配守卫 ⇒ FlowMissing 可见化（禁静默丢边）。
-            if (!string.IsNullOrWhiteSpace(taskKey))
-            {
-                if (_posture.IsReduced)
-                {
-                    // 有意不参与（读投影 / 防递归切片）。
-                }
-                else if (_grounding is null)
-                {
-                    _diagnostics?.Report(DiagnosticsCodes.FlowMissing, new
-                    {
-                        context = "NodeStepExecutionService_attribution",
-                        taskKey,
-                        workflowId = _workflowId,
-                        nodeKey = node.NodeKey,
-                    });
-                }
-                else
-                {
-                    await _grounding.EnsureTaskNodeLinkAsync(taskKey!, _workflowId, node.NodeKey, ct)
-                        .ConfigureAwait(false);
-                }
-            }
-            // taskKey 缺失 = 合法 no-op（与写边守卫口径一致），非失败。
+            // ③ task 归属边（cross_db_link）已归流（UMF · M2）：本逐节点路径不再写归属边。
+            //    唯一触发 = 轮末沉淀流（fn=link_nodes → IMountPort，Trigger=round.settled），
+            //    避免同轮「逐点 + 批量」双触发；直跑无轮末时由上层显式 Live 挂载补齐（禁止在此静默回退）。
+            //    taskKey 保留仅为调用面兼容，本方法不再消费（下批删除参数）。
+            _ = taskKey;
         }
 
         /// <summary>

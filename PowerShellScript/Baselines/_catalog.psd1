@@ -112,5 +112,8 @@
         @{ File = 'VerifyScope.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'Process\ContainerSemantics.psd1'; Role = 'Data'; Domain = 'Process'; Gate = 'ContainerSemantics'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-ContainerSemantics.ps1' }
         @{ File = 'Process\HistorySemantics.psd1'; Role = 'Data'; Domain = 'Process'; Gate = 'HistorySemantics'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-HistorySemantics.ps1' }
+        @{ File = 'Node\MountRead.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountRead'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountRead.ps1'; DueWhen = 'R3/R4 收口后总量归零' }
+        @{ File = 'Node\MountCallSites.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountCallSites'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountCallSites.ps1'; DueWhen = 'R5 后调用点收敛到 1' }
+        @{ File = 'Node\MountFailurePosture.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountFailurePosture'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountFailurePosture.ps1'; DueWhen = 'R6 判红：回退与镜像用量归零' }
     )
 }

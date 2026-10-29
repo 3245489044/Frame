@@ -47,6 +47,29 @@ public static class UsharpLanguage
     /// <summary>派生成员集声明前缀（<c>[Derive]</c>：from → via 有序边链 → to）。</summary>
     public const string DerivePrefix = "[Derive]";
 
+    // ---- 挂载绑定语言单元（[Mount]）----
+
+    /// <summary>挂载绑定声明前缀（<c>[Mount]</c>：MountId → relation + trigger/stage/…）。</summary>
+    public const string MountPrefix = "[Mount]";
+
+    /// <summary>绑定的关系操作 id（<c>relation=</c>；必须已在 <c>[Relation]</c> 声明）。</summary>
+    public const string FieldRelation = "relation";
+
+    /// <summary>触发事件 id 集（<c>trigger=</c>：逗号分隔；事件须为 <c>[Obs] kind=event</c> 或内置触发）。</summary>
+    public const string FieldTrigger = "trigger";
+
+    /// <summary>触发阶段类（<c>stage=live|provision|settle|explicit|rebuild</c>）。</summary>
+    public const string FieldStage = "stage";
+
+    /// <summary>批内去重口径（<c>coalesce=edge|none</c>）。</summary>
+    public const string FieldCoalesce = "coalesce";
+
+    /// <summary>失败姿态（<c>posture=require|best-effort|reduced</c>）。</summary>
+    public const string FieldPosture = "posture";
+
+    /// <summary>读投影 id（<c>projection=</c>，可空）。</summary>
+    public const string FieldProjection = "projection";
+
     // 字段名（复用既有：edge/src/tgt/flow/kind/scope/emit/from/to/order；不造别名）
 
     /// <summary>写边作用域轴（<c>namespace=</c>：键空间轴名 / <c>workflow_id</c> / <c>none</c>）。</summary>

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Operation.HierarchyMethod.Abstractions;
 using Share.Foundations.Diagnostics;
+using UniversalWorkflowFramework.Relations.Mounting;
 
 namespace Operation.HierarchyMethod.Nodes.Linkage;
 
@@ -42,6 +43,16 @@ public sealed class FlowPosture
 
     /// <summary>是否缩减切片姿态（端口缺失 = 有意不参与，静默不报）。</summary>
     public bool IsReduced => Kind == FlowPostureKind.Reduced;
+
+    /// <summary>
+    /// 姿态词表收口（UMF · R5）：`FlowPosture` 只保留「姿态语义」，词汇单一来源 = <see cref="MountPostures"/>。
+    /// <para>旧「流是否存在」分支已删除（RequirePort 即 Require）；新增代码应直接使用 UMF 词表。</para>
+    /// </summary>
+    public string MountPosture => IsReduced ? MountPostures.Reduced : MountPostures.Require;
+
+    /// <summary>由 UMF 姿态词构造（未知姿态 ⇒ Require，fail-closed 可见化）。</summary>
+    public static FlowPosture FromMountPosture(string? posture)
+        => string.Equals(posture, MountPostures.Reduced, StringComparison.Ordinal) ? Reduced : RequirePort;
 
     /// <summary>
     /// 驱动一次簿记转换：入口缺失时按姿态裁决（缩减 / 拒绝），结果与归因单一回报。

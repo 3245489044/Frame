@@ -46,6 +46,8 @@ public enum DslSymbolKind
     // 关系声明语言单元（[Relation] / [Invariant] / [Derive]）：关系操作 / 关系不变量 / 派生成员集
     // （唯一声明面 → relation.plan.generated.json → Frame 关系内核；见 2026-10-28 节点任务历史重构方案 §3）。
     Relation, Invariant, Derive,
+    // 挂载绑定声明语言单元（[Mount]）：MountId → 关系操作 + 触发/阶段/族/顺序/姿态/投影（唯一组合点）。
+    Mount,
     Unknown,
 }
 

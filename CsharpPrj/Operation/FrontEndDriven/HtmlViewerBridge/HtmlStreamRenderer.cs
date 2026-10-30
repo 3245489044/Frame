@@ -168,31 +168,7 @@ public sealed record HtmlStreamRendererOptions
     /// <summary>附属项分类表（宿主注入；null/空 ⇒ 旧行为：下拉栏为扁平列表）。</summary>
     public AttachClassification? AttachClassification { get; init; }
 
-    /// <summary>过程帧旧分组策略（**兼容适配**）：仅用于把旧选项转成单一语义表。</summary>
+    /// <summary>过程帧旧分组策略（声明驱动；仅用于把旧选项转成单一语义表）。</summary>
     public AttachGrouping? AttachGrouping { get; init; }
 }
 
-/// <summary>过程帧旧分组策略（声明驱动；通用渲染器不硬编码领域词表）。</summary>
-public sealed record AttachGrouping(
-    IReadOnlySet<string> BoundaryKinds,
-    IReadOnlySet<string> TrailerKinds,
-    IReadOnlySet<string> TerminalKinds,
-    IReadOnlySet<string> CallKinds,
-    IReadOnlySet<string> ResultKinds,
-    string LeadLabel,
-    string IterationLabel,
-    string TrailerLabel,
-    string TraceLabel);
-
-/// <summary>附属项分组（呈现）：<paramref name="Key"/> = 族键；<paramref name="Order"/> = 组序（升序）。</summary>
-public sealed record AttachGroupSpec(string Key, string Label, int Order);
-
-/// <summary>附属项类别（分类事实）：kind → 族 + 徽标。</summary>
-public sealed record AttachKindSpec(string Kind, string GroupKey, string? Badge);
-
-/// <summary>附属项分类表：<see cref="Groups"/>（组序/组名）+ <see cref="Kinds"/>（kind → 族/徽标）。</summary>
-public sealed record AttachClassification(
-    IReadOnlyList<AttachGroupSpec> Groups,
-    IReadOnlyDictionary<string, AttachKindSpec> Kinds,
-    string OtherGroupKey = "other",
-    string OtherLabel = "other");

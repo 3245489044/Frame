@@ -4,10 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using Share.Conversation;
-using Share.Conversation.Rendering;
-
-namespace FrontEndDriven.HtmlViewerBridge;
+namespace Share.Conversation.Rendering;
 
 /// <summary>顶层锚点条目：锚点消息 + 折叠到其下拉栏的过程帧（源序）。</summary>
 public sealed record AttachEntry(ConversationRenderItem Item, IReadOnlyList<ConversationRenderItem> Attach);

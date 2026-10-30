@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using Strategy.Refresh.Core;
-using UiBackend.Abstractions;
 
-namespace FrontEndDriven.HtmlHosting;
+namespace Strategy.Refresh.Core;
 
 /// <summary>
 /// 命令 kind → 优先级注册面（宿主/插件注册领域命令词；框架不硬编码任何领域命令名）。

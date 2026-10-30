@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace FrontEndDriven.HtmlViewerBridge;
+namespace Share.Conversation.Rendering;
 
 /// <summary>
 /// 稳定键**单源**（禁各处手拼 <c>"m:" + round</c>）。键格式是渲染层派生物，作者不得手写。

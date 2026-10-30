@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using Modules.Gather;
 
-namespace FrontEndDriven.HtmlHosting;
+namespace Modules.Gather;
 
-/// <summary>取数成本档（界判据见领域声明面；本层只承载枚举）。</summary>
+/// <summary>取数成本档（界判据见调用方声明面；本层只承载枚举）。</summary>
 public enum UiCostClass
 {
     Low = 0,
@@ -42,20 +42,16 @@ public sealed record UiViewGatherResult(
 
 /// <summary>
 /// 视图投影执行器（通用件，唯一实现）：<c>ChangeScope → DataNeeds</c> 取数。
-/// <para>
-/// 本类现为 <see cref="GatherHub"/> 的**薄适配器**（保留既有签名，禁留第二套缓存/第二套取数语义）；
-/// 未变更域 0 取数、0 写目标由「复用域」清单可复算；新增数据域只加声明，不改执行器。
-/// </para>
+/// <para>本类为 <see cref="GatherHub"/> 的薄适配器（保留既有签名，禁留第二套缓存/第二套取数语义）；
+/// 未变更域 0 取数、0 写目标由「复用域」清单可复算；新增数据域只加声明，不改执行器。</para>
 /// </summary>
 public sealed class UiViewProjection
 {
     private readonly GatherHub _hub = new();
 
-    /// <summary>
-    /// 按注册表缓存的 Hub（E-4 修复）：同一装配只建一次，否则 <c>_snapshot</c> 恒空 ⇒ <c>Reusable</c> 形同关闭。
-    /// <para>键 = <see cref="GatherRegistry"/> 引用（装配结果不可变）；<c>Lazy</c> 保证并发拍只建一个。</para>
-    /// </summary>
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<GatherRegistry, Lazy<GatherHub>> _hubs = new();
+    /// <summary>按注册表缓存的 Hub：同一装配只建一次，否则快照恒空 ⇒ <c>Reusable</c> 形同关闭。
+    /// <para>键 = <see cref="GatherRegistry"/> 引用（装配结果不可变）；<c>Lazy</c> 保证并发拍只建一个。</para></summary>
+    private readonly ConcurrentDictionary<GatherRegistry, Lazy<GatherHub>> _hubs = new();
 
     /// <summary>Hub 缓存上限：每拍新建注册表 ⇒ 键几乎不可命中，缓存必须有界（否则只增不减）。</summary>
     private const int HubCacheCapacity = 8;
@@ -85,10 +81,8 @@ public sealed class UiViewProjection
         return new UiViewGatherResult(result.Values, result.Gathered, result.Reused);
     }
 
-    /// <summary>
-    /// 按模块装配（**loc 反转**）：宿主只声明（<see cref="IGatherModule"/>），框架做闭合校验与执行。
-    /// <para>未闭合（缺实现/孤儿实现/签名非法）⇒ 抛 <see cref="GatherClosureViolationException"/>，逐项列出。</para>
-    /// </summary>
+    /// <summary>按模块装配（loc 反转）：宿主只声明（<see cref="IGatherModule"/>），框架做闭合校验与执行。
+    /// <para>未闭合（缺实现/孤儿实现/签名非法）⇒ 抛 <see cref="GatherClosureViolationException"/>，逐项列出。</para></summary>
     public async Task<UiViewGatherResult> GatherAsync(
         UiViewSpec spec,
         IGatherModule module,
@@ -117,11 +111,9 @@ public sealed class UiViewProjection
         return new UiViewGatherResult(result.Values, result.Gathered, result.Reused);
     }
 
-    /// <summary>
-    /// 整视图执行（**多阶段、按 deps 拓扑序**）：声明面（<see cref="GatherViewSpec"/>）+ 模块 ↔ 实现双向对账（R9/R10）。
+    /// <summary>整视图执行（多阶段、按 deps 拓扑序）：声明面（<see cref="GatherViewSpec"/>）+ 模块 ↔ 实现双向对账（R9/R10）。
     /// <para>与 <see cref="GatherAsync(UiViewSpec, IGatherModule, IReadOnlyCollection{string}?, CancellationToken)"/> 的差别：
-    /// 后者为单阶段适配（既有视图），本方法跑完整 stage 图（管道型视图，如 conversation-canon）。</para>
-    /// </summary>
+    /// 后者为单阶段适配（既有视图），本方法跑完整 stage 图（管道型视图，如 conversation-canon）。</para></summary>
     public async Task<IReadOnlyList<GatherStageResult>> RunAsync(
         GatherViewSpec view,
         IGatherModule module,
@@ -142,9 +134,17 @@ public sealed class UiViewProjection
     }
 
     /// <summary>出口闭合判定（C-OUT）：返回票据；未声明产物 ⇒ 抛。
-    /// <para>出口面 = 最近一次绑定的 Hub（与取数同一装配）；禁回落到未绑定的默认 Hub（两套装配会让出口判定与实际执行面脱节）。</para></summary>
+    /// <para>出口面 = 最近一次绑定的 Hub（与取数同一装配）；禁回落到未绑定的默认 Hub。</para></summary>
     public GatherEmitTicket Emit(GatherViewSpec view, string produceName, object payload)
         => (_lastBoundHub ?? _hub).Emit(view, produceName, payload);
+
+    /// <summary>丢弃上拍快照（作用域切换/强制刷新时调用）。</summary>
+    public void Reset()
+    {
+        _hub.Reset();
+        _hubs.Clear();
+        _lastBoundHub = null;
+    }
 
     private static (List<GatherNeedSpec> Needs, List<string> Domains) BuildNeeds(UiViewSpec spec)
     {
@@ -162,14 +162,6 @@ public sealed class UiViewProjection
         }
 
         return (needs, domains);
-    }
-
-    /// <summary>丢弃上拍快照（作用域切换/强制刷新时调用）。</summary>
-    public void Reset()
-    {
-        _hub.Reset();
-        _hubs.Clear();
-        _lastBoundHub = null;
     }
 
     /// <summary>注册表 → 缓存单例 Hub（复用键恒 <c>(Domain, Scope)</c>，<c>CrossScope</c> 保持默认 false）。

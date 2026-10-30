@@ -18,29 +18,23 @@ public sealed record UiWriteBarrierPolicy(
     TimeSpan? MountWindow = null,
     Func<UiWriteSource, TimeSpan?>? WindowSelector = null)
 {
-    /// <summary>缺省窗口的刷新来源上限（毫秒）。</summary>
-    public const int DefaultRefreshWindowMs = 250;
-
-    /// <summary>缺省窗口的挂载来源上限（秒）。</summary>
-    public const int DefaultMountWindowSeconds = 5;
-
     /// <summary>框架默认策略（交互/流不等待；刷新 250ms；挂载 5s）。</summary>
     public static readonly UiWriteBarrierPolicy Default = new();
 
-    /// <summary>来源 → 屏障选项（受控词映射单点）。</summary>
+    /// <summary>来源 → 屏障选项（受控词映射单点；窗口取值见 <see cref="ObserveBarrierDefaults"/>）。</summary>
     public WriteOptions For(UiWriteSource source)
         => source switch
         {
             UiWriteSource.Interactive or UiWriteSource.Stream =>
-                new WriteOptions(BarrierMode.FireAndForget, TimeSpan.Zero),
+                new WriteOptions(BarrierMode.FireAndForget, TimeSpan.FromMilliseconds(ObserveBarrierDefaults.FireAndForgetWindowMs)),
             UiWriteSource.Refresh =>
                 new WriteOptions(BarrierMode.Timeout,
                     WindowSelector?.Invoke(source)
                     ?? RefreshWindow
-                    ?? TimeSpan.FromMilliseconds(DefaultRefreshWindowMs)),
+                    ?? TimeSpan.FromMilliseconds(ObserveBarrierDefaults.RefreshWindowMs)),
             _ => new WriteOptions(BarrierMode.Timeout,
                     WindowSelector?.Invoke(source)
                     ?? MountWindow
-                    ?? TimeSpan.FromSeconds(DefaultMountWindowSeconds)),
+                    ?? TimeSpan.FromSeconds(ObserveBarrierDefaults.MountWindowSeconds)),
         };
 }

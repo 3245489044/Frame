@@ -2,7 +2,7 @@
 
 using System;
 
-namespace FrontEndDriven.HtmlViewerBridge;
+namespace Share.Conversation.Rendering;
 
 /// <summary>轮段折叠模式（受控词；声明面 <c>ui-regions.json:content.fold</c>）。</summary>
 public enum RoundFoldMode

@@ -2,16 +2,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Globalization;
-using Share.Conversation.Rendering;
+using System.Linq;
 
-namespace FrontEndDriven.HtmlViewerBridge;
+namespace Share.Conversation.Rendering;
 
 /// <summary>
-/// 帧角色标识受控词（**唯一语义轴**）：分组、终端提升、徽标与配对全部由本轴派生。
-/// <para>取值是**字符串标识**（非枚举）：角色语义由宿主声明面给出（kind→RoleId），
-/// 通用渲染器只做机械匹配，不认识任何领域角色名（终答/LLM 回合等由 Agent 插件声明）。</para>
+/// 帧角色标识受控词（唯一语义轴）：分组、终端提升、徽标与配对全部由本轴派生。
+/// <para>取值是字符串标识（非枚举）：角色语义由宿主声明面给出（kind→RoleId），
+/// 通用渲染器只做机械匹配，不认识任何领域角色名。</para>
 /// </summary>
 public static class FrameRoleIds
 {
@@ -39,7 +38,7 @@ public static class FrameRoleIds
     /// <summary>结果帧（嵌套到最近调用行；无配对则独立成行，零丢失）。</summary>
     public const string Result = "result";
 
-    /// <summary>操作帧（非气泡：进顶部操作面板；通道由角色派生，不再依赖写侧字面量）。</summary>
+    /// <summary>操作帧（非气泡：进顶部操作面板；通道由角色派生）。</summary>
     public const string Operation = "operation";
 
     /// <summary>终答实体（归档权威源；<c>TerminalPromotion.EntityOnly</c> 只认本角色）。</summary>
@@ -49,7 +48,7 @@ public static class FrameRoleIds
 /// <summary>kind → 角色标识 + 徽标（声明驱动的单表条目；宿主注入）。</summary>
 public sealed record FrameRoleSpec(string Kind, string RoleId, string? Badge);
 
-/// <summary>终端提升策略（通用流呈现开关；终端实体落地后切 <see cref="EntityOnly"/>）。</summary>
+/// <summary>终端提升策略（通用流呈现开关）。</summary>
 public enum TerminalPromotion
 {
     /// <summary>不提升（全部按过程文本呈现）。</summary>
@@ -69,7 +68,7 @@ public sealed record TerminalPolicy(TerminalPromotion Promotion, IReadOnlySet<st
     public static readonly TerminalPolicy None =
         new(TerminalPromotion.None, new HashSet<string>(StringComparer.Ordinal));
 
-    /// <summary>去重比较用归一化：trim + 空白折叠（E9：近似重复不得生成两个气泡）。</summary>
+    /// <summary>去重比较用归一化：trim + 空白折叠（近似重复不得生成两个气泡）。</summary>
     public string Normalize(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return string.Empty;
@@ -78,11 +77,7 @@ public sealed record TerminalPolicy(TerminalPromotion Promotion, IReadOnlySet<st
     }
 }
 
-/// <summary>
-/// 分组/摘要**文案与格式**（宿主经 loc 声明注入；未注入取**零领域词**的 ASCII 默认）。
-/// <para>纪律：桥内禁出现领域中文与拼接式文案 —— 一切可读文本由宿主注入；
-/// 带占位的格式串用 <see cref="string.Format(IFormatProvider, string, object[])"/> 组装（不拼串）。</para>
-/// </summary>
+/// <summary>分组/摘要文案与格式（宿主经 loc 声明注入；未注入取零领域词的 ASCII 默认）。</summary>
 public sealed record FrameGroupLabels(
     string Lead,
     string Iteration,
@@ -107,18 +102,13 @@ public sealed record FrameGroupLabels(
 }
 
 /// <summary>
-/// 帧语义策略（**单一注入面**）：分类（kind→角色标识/徽标）+ 分组文案 + 终端身份
-/// + **气泡锚点扩展规则**（宿主声明；框架零领域词）。
-/// 渲染器只读本表，不再读 <see cref="AttachClassification"/> 的组序或 <see cref="AttachGrouping"/> 的多集合。
+/// 帧语义策略（单一注入面）：分类（kind→角色标识/徽标）+ 分组文案 + 终端身份 + 气泡锚点扩展规则。
+/// <para>渲染器只读本表，不再读 <see cref="AttachClassification"/> 的组序或 <see cref="AttachGrouping"/> 的多集合。</para>
 /// </summary>
 /// <param name="Kinds">kind → 角色/徽标。</param>
 /// <param name="Labels">分组文案。</param>
 /// <param name="Terminal">终端身份策略。</param>
-/// <param name="ExtraBubbleAnchor">
-/// 额外的**气泡锚点**判定（宿主注入；默认 null）。框架默认锚点 = 对话通道的角色锚点
-/// （<see cref="ConversationAnchors.IsAnchor(ConversationRenderItem)"/>）；宿主可在此声明
-/// 「过程帧中哪些也算气泡」（如“角色=Assistant 且 kind=某文本类”）。框架不内置任何领域 kind 判定。
-/// </param>
+/// <param name="ExtraBubbleAnchor">额外的气泡锚点判定（宿主注入；默认 null）。</param>
 public sealed record FramePolicy(
     IReadOnlyDictionary<string, FrameRoleSpec> Kinds,
     FrameGroupLabels Labels,
@@ -137,14 +127,10 @@ public sealed record FramePolicy(
     public bool IsTrace(string? kind) => RoleOf(kind) == FrameRoleIds.Trace;
 
     /// <summary>气泡锚点（框架默认 ∪ 宿主扩展规则）：锚点形成气泡，其余帧一律折叠。</summary>
-    /// <param name="item">渲染项。</param>
     public bool IsBubbleAnchor(ConversationRenderItem item)
         => ConversationAnchors.IsAnchor(item) || (ExtraBubbleAnchor?.Invoke(item) ?? false);
 
-    /// <summary>
-    /// 旧选项适配（单批次兼容）：把 <see cref="AttachGrouping"/> + <see cref="AttachClassification"/>
-    /// 转成单表策略；两者皆空 ⇒ null（渲染器走逐字旧行为：扁平下拉栏）。
-    /// </summary>
+    /// <summary>旧选项适配（单批次兼容）：把 <see cref="AttachGrouping"/> + <see cref="AttachClassification"/> 转成单表策略。</summary>
     public static FramePolicy? FromLegacy(
         AttachGrouping? grouping, AttachClassification? classification)
     {
@@ -197,3 +183,28 @@ public sealed record FramePolicy(
         return new FramePolicy(kinds, labels, terminal);
     }
 }
+
+/// <summary>过程帧旧分组策略（声明驱动；兼容适配层用）。</summary>
+public sealed record AttachGrouping(
+    IReadOnlySet<string> BoundaryKinds,
+    IReadOnlySet<string> TrailerKinds,
+    IReadOnlySet<string> TerminalKinds,
+    IReadOnlySet<string> CallKinds,
+    IReadOnlySet<string> ResultKinds,
+    string LeadLabel,
+    string IterationLabel,
+    string TrailerLabel,
+    string TraceLabel);
+
+/// <summary>附属项分组（呈现）：<paramref name="Key"/> = 族键；<paramref name="Order"/> = 组序（升序）。</summary>
+public sealed record AttachGroupSpec(string Key, string Label, int Order);
+
+/// <summary>附属项类别（分类事实）：kind → 族 + 徽标。</summary>
+public sealed record AttachKindSpec(string Kind, string GroupKey, string? Badge);
+
+/// <summary>附属项分类表：<see cref="Groups"/>（组序/组名）+ <see cref="Kinds"/>（kind → 族/徽标）。</summary>
+public sealed record AttachClassification(
+    IReadOnlyList<AttachGroupSpec> Groups,
+    IReadOnlyDictionary<string, AttachKindSpec> Kinds,
+    string OtherGroupKey = "other",
+    string OtherLabel = "other");

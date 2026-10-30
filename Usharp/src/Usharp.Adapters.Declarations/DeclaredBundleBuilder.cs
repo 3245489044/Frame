@@ -70,6 +70,9 @@ public static class DeclaredBundleBuilder
     /// <summary>键空间产物文件名（与 Agent 侧 keyspace loader 同 schema）。</summary>
     public const string KeySpaceFileName = "agent.keyspace.generated.json";
 
+    /// <summary>生成器版本标记（写入产物，供运行期/门禁自证「产物=生成器当前输出」）。</summary>
+    public const string GeneratorVersion = "usharp-emitter/1";
+
     /// <summary>连接点命令目录产物文件名（<c>ui-commands-v2</c>，<c>readModels</c> 段随读模型声明落地）。</summary>
     public const string CommandsFileName = "ui-commands.generated.json";
 
@@ -156,7 +159,7 @@ public static class DeclaredBundleBuilder
         var manifest = BuildManifest(compilation, nodes, fingerprint);
         var roundSpec = BuildRoundSpec(compilation);
         var referenceSchema = SerializeReferenceSchema(UsharpReferenceSchemaEmitter.Emit(compilation));
-        var keySpaceJson = UsharpKeySpaceEmitter.Emit(compilation);
+        var keySpaceJson = UsharpKeySpaceEmitter.Emit(compilation, KeySpaceFingerprint(documents), GeneratorVersion);
         var commandsJson = UsharpCommandEmitter.Emit(compilation);
 
         return new DeclaredBundleArtifacts(
@@ -207,6 +210,29 @@ public static class DeclaredBundleBuilder
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(buffer.ToString()));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    /// <summary>键空间源指纹：仅 <c>keyspaces</c> 目录文档（文件名 + 文本，路径序）的 SHA256；无该段 ⇒ null。</summary>
+    private static string? KeySpaceFingerprint(IReadOnlyList<(string Path, string Text)> documents)
+    {
+        var buffer = new StringBuilder();
+        foreach (var document in documents
+                     .Where(d => NormalizeDirectory(d.Path).Contains("/keyspaces/", StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(d => d.Path, StringComparer.Ordinal))
+        {
+            buffer.Append(Path.GetFileName(document.Path)).Append('|')
+                  .Append(document.Text ?? string.Empty).Append('\n');
+        }
+
+        if (buffer.Length == 0)
+        {
+            return null;
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(buffer.ToString()))).ToLowerInvariant();
+    }
+
+    private static string NormalizeDirectory(string path)
+        => (path ?? string.Empty).Replace('\\', '/');
 
     private static string NormalizePath(string path, string? configRoot)
     {

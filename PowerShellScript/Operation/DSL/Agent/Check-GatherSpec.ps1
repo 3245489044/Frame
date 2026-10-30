@@ -153,6 +153,97 @@ function Get-ForbiddenKeyHits
     return , $hits
 }
 
+function Add-OrReplaceItem
+{
+    param([System.Collections.IList]$Items, $Item, [string]$KeyName)
+    for ($i = 0; $i -lt $Items.Count; $i++) {
+        if ([string]$Items[$i].$KeyName -ceq [string]$Item.$KeyName) { $Items[$i] = $Item; return }
+    }
+    [void]$Items.Add($Item)
+}
+
+function Resolve-ViewEffective
+{
+    param([string]$Key, $Views, [hashtable]$Cache, [System.Collections.Generic.HashSet[string]]$Visiting,
+        [System.Collections.Generic.List[string]]$Issues)
+
+    if ($Cache.ContainsKey($Key)) { return $Cache[$Key] }
+    $view = $Views.$Key
+    if ($null -eq $view) { return $null }
+    if (-not $Visiting.Add($Key)) {
+        $Issues.Add("[S9] 视图 '$Key' 的 extends 链存在环")
+        return $null
+    }
+
+    $stages = [System.Collections.Generic.List[object]]::new()
+    $needs = [System.Collections.Generic.List[object]]::new()
+    $produces = [System.Collections.Generic.List[object]]::new()
+
+    $parentKey = [string]$view.extends
+    if (-not [string]::IsNullOrWhiteSpace($parentKey)) {
+        $parent = Resolve-ViewEffective -Key $parentKey -Views $Views -Cache $Cache -Visiting $Visiting -Issues $Issues
+        if ($null -eq $parent) {
+            $Issues.Add("[S9] 视图 '$Key' extends 未声明视图 '$parentKey'")
+        }
+        else {
+            foreach ($s in @($parent.stages)) { Add-OrReplaceItem -Items $stages -Item $s -KeyName 'name' }
+            foreach ($n in @($parent.needs)) { Add-OrReplaceItem -Items $needs -Item $n -KeyName 'domain' }
+            foreach ($p in @($parent.produces)) { Add-OrReplaceItem -Items $produces -Item $p -KeyName 'name' }
+        }
+    }
+
+    foreach ($s in @($view.stages)) { if ($null -ne $s) { Add-OrReplaceItem -Items $stages -Item $s -KeyName 'name' } }
+    foreach ($n in @($view.needs)) { if ($null -ne $n) { Add-OrReplaceItem -Items $needs -Item $n -KeyName 'domain' } }
+    foreach ($p in @($view.produces)) { if ($null -ne $p) { Add-OrReplaceItem -Items $produces -Item $p -KeyName 'name' } }
+
+    $excludeStages = @($view.excludeStages | ForEach-Object { [string]$_ } | Where-Object { $_ })
+    $excludeNeeds = @($view.excludeNeeds | ForEach-Object { [string]$_ } | Where-Object { $_ })
+    $excludeProduces = @($view.excludeProduces | ForEach-Object { [string]$_ } | Where-Object { $_ })
+
+    foreach ($name in $excludeStages) {
+        if (-not ($stages | Where-Object { [string]$_.name -ceq $name })) {
+            $Issues.Add("[S10] 视图 '$Key' excludeStages 指向基视图不存在的阶段 '$name'")
+        }
+    }
+    foreach ($domain in $excludeNeeds) {
+        if (-not ($needs | Where-Object { [string]$_.domain -ceq $domain })) {
+            $Issues.Add("[S10] 视图 '$Key' excludeNeeds 指向基视图不存在的 need '$domain'")
+        }
+    }
+    foreach ($name in $excludeProduces) {
+        if (-not ($produces | Where-Object { [string]$_.name -ceq $name })) {
+            $Issues.Add("[S10] 视图 '$Key' excludeProduces 指向基视图不存在的产物 '$name'")
+        }
+    }
+
+    $effective = [pscustomobject]@{
+        stages   = @($stages | Where-Object { $excludeStages -notcontains [string]$_.name })
+        needs    = @($needs | Where-Object { $excludeNeeds -notcontains [string]$_.domain })
+        produces = @($produces | Where-Object { $excludeProduces -notcontains [string]$_.name })
+    }
+
+    [void]$Visiting.Remove($Key)
+    $Cache[$Key] = $effective
+    return $effective
+}
+
+<# 组合折叠（S9/S10）→ 返回 effective spec（视图名 → 展开后视图）。 #>
+function Get-EffectiveSpec
+{
+    param($Spec, [System.Collections.Generic.List[string]]$Issues)
+
+    if ($null -eq $Spec -or $null -eq $Spec.views) { return $Spec }
+    $cache = @{}
+    $resolved = [ordered]@{}
+    foreach ($prop in $Spec.views.PSObject.Properties) {
+        $effective = Resolve-ViewEffective -Key $prop.Name -Views $Spec.views -Cache $cache `
+            -Visiting ([System.Collections.Generic.HashSet[string]]::new()) -Issues $Issues
+        if ($null -ne $effective) { $resolved[$prop.Name] = $effective }
+    }
+
+    return [pscustomobject]@{ schema = $Spec.schema; views = [pscustomobject]$resolved }
+}
+
 $declDir = Join-Path $Root 'Projects\Plug\Agent\Config\gather'
 $files = @(Get-ChildItem -LiteralPath $declDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
 if ($files.Count -eq 0) {
@@ -164,7 +255,11 @@ foreach ($file in $files) {
     try { $spec = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json }
     catch { $violations.Add("[S1] $($file.Name) JSON 解析失败：$($_.Exception.Message)"); continue }
 
-    foreach ($issue in (Get-GatherSpecIssues -Spec $spec)) { $violations.Add("$($file.Name) $issue") }
+    # S9/S10 组合折叠 → S11 对 effective 复跑合格性（raw 视图只有 extends，直接校验会假红）。
+    $compositionIssues = [System.Collections.Generic.List[string]]::new()
+    $effectiveSpec = Get-EffectiveSpec -Spec $spec -Issues $compositionIssues
+    foreach ($issue in $compositionIssues) { $violations.Add("$($file.Name) $issue") }
+    foreach ($issue in (Get-GatherSpecIssues -Spec $effectiveSpec)) { $violations.Add("$($file.Name) $issue") }
     foreach ($hit in (Get-ForbiddenKeyHits -Node $spec -Path '$')) {
         $violations.Add("[S6] $($file.Name) 含过程语义键：$hit")
     }
@@ -192,6 +287,24 @@ $probeName = '{"schema":"gather-spec-v1","views":{"v":{"stages":[{"name":"captur
 if (@(Get-GatherSpecIssues -Spec $probeName).Count -eq 0) {
     $violations.Add('[S8] 负对照失效：camelCase 命名样本未被捕获')
 }
+
+# S9/S10 负对照（组合缺陷必须被判红）。
+$probeBase = '{"schema":"gather-spec-v1","views":{"base":{"stages":[{"name":"s","needs":["d"],"deps":[]}],"needs":[{"domain":"d","scope":"x"}],"produces":[{"name":"p","kind":"k","retention":"c","crit":"micro"}]},"child":{"extends":"base"}}}' | ConvertFrom-Json
+$okProbe = [System.Collections.Generic.List[string]]::new()
+$null = Get-EffectiveSpec -Spec $probeBase -Issues $okProbe
+if (@($okProbe).Count -ne 0) { $violations.Add("[S9] 正对照失效：合法 extends 被误判（$($okProbe -join '；')）") }
+$probeEffective = Get-EffectiveSpec -Spec $probeBase -Issues ([System.Collections.Generic.List[string]]::new())
+if (@($probeEffective.views.child.stages).Count -eq 0) { $violations.Add('[S11] 组合折叠失效：child 未继承 base 阶段') }
+
+$probeGhostBase = '{"schema":"gather-spec-v1","views":{"child":{"extends":"ghost"}}}' | ConvertFrom-Json
+$ghostIssues = [System.Collections.Generic.List[string]]::new()
+$null = Get-EffectiveSpec -Spec $probeGhostBase -Issues $ghostIssues
+if (@($ghostIssues).Count -eq 0) { $violations.Add('[S9] 负对照失效：extends 未声明视图未被捕获') }
+
+$probeGhostExclude = '{"schema":"gather-spec-v1","views":{"base":{"stages":[{"name":"s","needs":["d"],"deps":[]}],"needs":[{"domain":"d","scope":"x"}],"produces":[]},"child":{"extends":"base","excludeProduces":["nope"]}}}' | ConvertFrom-Json
+$excludeIssues = [System.Collections.Generic.List[string]]::new()
+$null = Get-EffectiveSpec -Spec $probeGhostExclude -Issues $excludeIssues
+if (@($excludeIssues).Count -eq 0) { $violations.Add('[S10] 负对照失效：排除不存在的产物未被捕获') }
 
 if ($ShowDetail) {
     Write-Host "  声明文件：$($files.Count) 个 / 视图：$totalViews 个" -ForegroundColor Gray

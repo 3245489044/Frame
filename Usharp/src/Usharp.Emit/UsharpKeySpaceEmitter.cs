@@ -8,17 +8,34 @@ namespace Usharp.Emit;
 public static class UsharpKeySpaceEmitter
 {
     /// <summary>发射全部 <c>[KeySpace]</c>（多声明时取首个；缺失 ⇒ 空对象）。</summary>
-    public static string Emit(UsharpCompilation compilation)
+    /// <param name="compilation">编译结果。</param>
+    /// <param name="sourceFingerprint">源声明内容指纹（SHA256 小写 hex；构建期计算，运行期自证新鲜度）。</param>
+    /// <param name="generatorVersion">生成器版本（产物↔生成器对的显式标记）。</param>
+    public static string Emit(
+        UsharpCompilation compilation, string? sourceFingerprint = null, string? generatorVersion = null)
     {
         ArgumentNullException.ThrowIfNull(compilation);
         var space = compilation.KeySpaces.FirstOrDefault();
-        if (space is null) return "{\"id\":\"(empty)\",\"domains\":[],\"families\":[],\"ports\":[],\"policies\":{}}";
+        if (space is null)
+        {
+            var empty = new JsonObject
+            {
+                ["id"] = "(empty)",
+                ["domains"] = new JsonArray(),
+                ["families"] = new JsonArray(),
+                ["ports"] = new JsonArray(),
+                ["policies"] = new JsonObject(),
+            };
+            AddProvenance(empty, sourceFingerprint, generatorVersion);
+            return empty.ToJsonString();
+        }
 
         var root = new JsonObject
         {
             ["id"] = space.Id,
             ["domains"] = UsharpJson.Array(space.Domains),
         };
+        AddProvenance(root, sourceFingerprint, generatorVersion);
 
         var families = new JsonArray();
         foreach (var family in space.Families)
@@ -139,6 +156,14 @@ public static class UsharpKeySpaceEmitter
         foreach (var policy in space.Policies) policies[policy.Key] = policy.Value;
         root["policies"] = policies;
 
+        var required = space.RequiredPolicies;
+        if (required is { Count: > 0 })
+        {
+            var requiredArray = new JsonArray();
+            foreach (var item in required) requiredArray.Add(item.Key);
+            root["requiredPolicies"] = requiredArray;
+        }
+
         if (space.Derives.Count > 0)
         {
             var derives = new JsonObject();
@@ -147,5 +172,17 @@ public static class UsharpKeySpaceEmitter
         }
 
         return root.ToJsonString();
+    }
+
+    private static void AddProvenance(JsonObject root, string? sourceFingerprint, string? generatorVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceFingerprint))
+        {
+            root["sourceFingerprint"] = sourceFingerprint;
+        }
+
+        root["generatorVersion"] = string.IsNullOrWhiteSpace(generatorVersion)
+            ? (typeof(UsharpKeySpaceEmitter).Assembly.GetName().Version?.ToString() ?? "0.0.0")
+            : generatorVersion;
     }
 }

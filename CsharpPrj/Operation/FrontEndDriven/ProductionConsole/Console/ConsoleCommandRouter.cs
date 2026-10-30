@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FrontEndDriven.ProductionConsole.Assistant;
 
 namespace FrontEndDriven.ProductionConsole.Console;
 
@@ -45,6 +46,18 @@ public sealed class ConsoleCommandOutcome
         new() { Handled = false, Notice = notice };
 }
 
+/// <summary>插件侧操作结果（删除/校验）：Success 决定提示样式，Message 为可诊断文本。</summary>
+public sealed class ConsoleOperationResult
+{
+    public bool Success { get; init; }
+
+    public string Message { get; init; } = "";
+
+    public static ConsoleOperationResult Ok(string message) => new() { Success = true, Message = message };
+
+    public static ConsoleOperationResult Failed(string message) => new() { Success = false, Message = message };
+}
+
 /// <summary>控制台会话状态（选中能力/任务/抽屉/分页/表单值）；宿主负责持久化与恢复。</summary>
 public sealed class ConsoleState
 {
@@ -62,15 +75,6 @@ public sealed class ConsoleState
     public Dictionary<string, object?> FormValues { get; } = new(StringComparer.Ordinal);
 
     public string? Notice { get; set; }
-
-    /// <summary>AI 参数助理输入框原文（仅用于重渲染回填，不进入任务参数）。</summary>
-    public string? AssistantPrompt { get; set; }
-
-    /// <summary>待应用的参数提案（仅含被建议的声明键）。</summary>
-    public Dictionary<string, object?>? PendingProposal { get; set; }
-
-    /// <summary>提案失败原因（超时/未装配/解析失败）。</summary>
-    public string? ProposalError { get; set; }
 }
 
 /// <summary>路由可选钩子：结构图、打开目录、诊断文本、状态栏。空实现 = 对应功能降级为提示。</summary>
@@ -88,8 +92,14 @@ public sealed class ConsoleRouterOptions
     /// <summary>状态栏文本（如能力可用性/探活结论）。</summary>
     public Func<string?>? StatusProvider { get; set; }
 
-    /// <summary>AI 参数提案（自然语言 → 参数键值）；null = 该插件未接入提案能力。</summary>
-    public Func<CapabilityDescriptor, string, CancellationToken, Task<IReadOnlyDictionary<string, object?>?>>? ProposeAsync { get; set; }
+    /// <summary>JSON 参数提案端口（自然语言 → 提案 JSON）；null = 该插件未接入提案能力（助理区给出接入提示）。</summary>
+    public IJsonProposalSource? ProposalSource { get; set; }
+
+    /// <summary>删除终态任务与产物（含历史行）；null = 未接入删除能力。</summary>
+    public Func<string, CancellationToken, Task<ConsoleOperationResult>>? DeleteJob { get; set; }
+
+    /// <summary>校验任务产物（存在/签名/尺寸/哈希）；null = 未接入校验能力。</summary>
+    public Func<string, CancellationToken, Task<ConsoleOperationResult>>? VerifyArtifact { get; set; }
 
     /// <summary>最近任务条数。</summary>
     public int RecentJobs { get; set; } = 30;
@@ -113,6 +123,7 @@ public sealed class ConsoleCommandRouter
     private readonly IProductionContainer _history;
     private readonly IArtifactPublisher _publisher;
     private readonly ConsoleRouterOptions _options;
+    private readonly ParameterAssistant _assistant;
     private readonly Dictionary<string, Func<ConsoleCommand, CancellationToken, Task<ConsoleCommandOutcome>>> _custom =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -134,6 +145,7 @@ public sealed class ConsoleCommandRouter
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
         State = state ?? new ConsoleState();
         _options = options ?? new ConsoleRouterOptions();
+        _assistant = new ParameterAssistant(new ParameterAssistantState(), _options.ProposalSource);
     }
 
     public ConsoleState State { get; }
@@ -184,14 +196,13 @@ public sealed class ConsoleCommandRouter
             SelectedJob = selected,
             Artifacts = artifacts,
             History = history,
+            HistoryFilter = State.Filter,
             Drawer = State.Drawer,
             GraphSvg = graph,
             DrawerText = diag,
             StatusText = _options.StatusProvider?.Invoke(),
             Notice = State.Notice,
-            AssistantPrompt = State.AssistantPrompt,
-            PendingProposal = State.PendingProposal,
-            ProposalError = State.ProposalError,
+            Assistant = _assistant.Snapshot(State.CapabilityId),
         };
     }
 
@@ -233,7 +244,8 @@ public sealed class ConsoleCommandRouter
                 State.CapabilityId = cap.Id;
                 State.JobId = null;
                 ResetForm(cap);
-                return await RenderAsync(new[] { ConsoleRegions.Caps, ConsoleRegions.Form, ConsoleRegions.Result }, ct)
+                return await RenderAsync(
+                    new[] { ConsoleRegions.Caps, ConsoleRegions.Form, ConsoleRegions.Assist, ConsoleRegions.Result }, ct)
                     .ConfigureAwait(false);
             }
 
@@ -243,7 +255,7 @@ public sealed class ConsoleCommandRouter
                 if (cap is null) return await NoticeAsync("未选择能力", ct).ConfigureAwait(false);
                 State.CapabilityId = cap.Id;
                 ResetForm(cap);
-                return await RenderAsync(new[] { ConsoleRegions.Form }, ct).ConfigureAwait(false);
+                return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Assist }, ct).ConfigureAwait(false);
             }
 
             case "form.run":
@@ -279,7 +291,8 @@ public sealed class ConsoleCommandRouter
                     State.Notice = $"提交失败: {ex.Message}";
                 }
 
-                return await RenderAsync(new[] { ConsoleRegions.Status, ConsoleRegions.Jobs, ConsoleRegions.Result }, ct)
+                return await RenderAsync(
+                    new[] { ConsoleRegions.Status, ConsoleRegions.Jobs, ConsoleRegions.Result, ConsoleRegions.Assist }, ct)
                     .ConfigureAwait(false);
             }
 
@@ -288,49 +301,12 @@ public sealed class ConsoleCommandRouter
                 var cap = Find(_catalog.List(), command.Capability ?? State.CapabilityId);
                 if (cap is null) return await NoticeAsync("未选择能力", ct).ConfigureAwait(false);
 
-                // 先吸收页面未提交的表单值（propose 会重渲染 form，不能把用户正在编辑的内容打回默认）
-                AbsorbFormValues(cap, command.Params);
-
+                // 解析只刷新助理区：不重排表单（焦点/滚动/未提交编辑均不受影响）
                 var text = command.Params is not null && command.Params.TryGetValue("__nl", out var raw)
-                    ? raw?.ToString()?.Trim()
+                    ? raw?.ToString()
                     : null;
-                if (string.IsNullOrWhiteSpace(text))
-                    return await NoticeAsync("请输入一句自然语言描述再解析", ct).ConfigureAwait(false);
-
-                State.CapabilityId = cap.Id;
-                State.AssistantPrompt = text;
-                State.PendingProposal = null;
-                State.ProposalError = null;
-
-                if (_options.ProposeAsync is null)
-                {
-                    State.ProposalError = "AI 参数助理未接入（插件未提供提案能力）";
-                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
-                }
-
-                IReadOnlyDictionary<string, object?>? proposal;
-                try
-                {
-                    proposal = await _options.ProposeAsync(cap, text!, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    State.ProposalError = $"AI 解析异常: {ex.Message}";
-                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
-                }
-
-                var pending = Suggested(cap, proposal);
-                if (pending.Count == 0)
-                {
-                    State.ProposalError = "AI 未返回可用参数（可能超时或解析失败），请重试或手动填写";
-                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
-                }
-
-                var errors = ParamSet.Validate(cap.Params, ParamSet.Merge(cap.Params, pending));
-                State.PendingProposal = pending;
-                if (errors.Count > 0) State.ProposalError = "提案校验: " + string.Join("；", errors);
-                return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+                await _assistant.ProposeAsync(cap, text, ct).ConfigureAwait(false);
+                return await RenderAsync(new[] { ConsoleRegions.Assist, ConsoleRegions.Status }, ct).ConfigureAwait(false);
             }
 
             case "assist.apply":
@@ -341,19 +317,13 @@ public sealed class ConsoleCommandRouter
                 // 先吸收页面未提交的表单值：apply 只覆盖被建议键，其余保持用户当前输入
                 AbsorbFormValues(cap, command.Params);
 
-                if (State.PendingProposal is not { Count: > 0 } pending)
-                    return await NoticeAsync("没有待应用的提案，请先点「AI 解析」", ct).ConfigureAwait(false);
-
-                var applied = 0;
-                foreach (var kv in pending)
-                {
-                    State.FormValues[kv.Key] = kv.Value;
-                    applied++;
-                }
-                State.PendingProposal = null;
-                State.ProposalError = null;
-                State.Notice = $"已应用 {applied} 项提案参数";
-                return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+                var applied = _assistant.ApplyTo(cap.Id, State.FormValues);
+                State.Notice = applied > 0
+                    ? $"已应用 {applied} 项提案参数"
+                    : "没有待应用的提案，请先点「AI 解析」";
+                return await RenderAsync(
+                    new[] { ConsoleRegions.Assist, ConsoleRegions.Form, ConsoleRegions.Status }, ct)
+                    .ConfigureAwait(false);
             }
 
             case "job.tick":
@@ -396,7 +366,8 @@ public sealed class ConsoleCommandRouter
                 State.JobId = job.JobId;
                 State.FormValues.Clear();
                 foreach (var kv in job.Params) State.FormValues[kv.Key] = kv.Value;
-                return await RenderAsync(new[] { ConsoleRegions.Caps, ConsoleRegions.Form }, ct).ConfigureAwait(false);
+                return await RenderAsync(
+                    new[] { ConsoleRegions.Caps, ConsoleRegions.Form, ConsoleRegions.Assist }, ct).ConfigureAwait(false);
             }
 
             case "job.retry":
@@ -428,7 +399,12 @@ public sealed class ConsoleCommandRouter
             case "history.query":
             {
                 State.Drawer = "history";
-                State.Filter = command.Filter;
+                // 筛选值既可走显式 Filter 字段，也可由页面 collect() 以 params.filter 回传。
+                var filter = command.Filter;
+                if (filter is null && command.Params is not null
+                    && command.Params.TryGetValue("filter", out var filterRaw))
+                    filter = filterRaw?.ToString();
+                State.Filter = filter;
                 State.Page = Math.Max(1, command.Page);
                 return await RenderAsync(new[] { ConsoleRegions.Drawer }, ct).ConfigureAwait(false);
             }
@@ -443,6 +419,36 @@ public sealed class ConsoleCommandRouter
                 var opened = await _options.OpenArtifact(command.Path!).ConfigureAwait(false);
                 if (!opened) State.Notice = "打开目录失败: " + command.Path;
                 return await RenderAsync(new[] { ConsoleRegions.Status }, ct).ConfigureAwait(false);
+            }
+
+            case "artifact.verify":
+            {
+                var jobId = command.JobId ?? State.JobId;
+                if (string.IsNullOrWhiteSpace(jobId))
+                    return await NoticeAsync("未选择任务", ct).ConfigureAwait(false);
+                if (_options.VerifyArtifact is null)
+                    return await NoticeAsync("未接入「产物校验」能力", ct).ConfigureAwait(false);
+
+                var result = await _options.VerifyArtifact(jobId!, ct).ConfigureAwait(false);
+                State.Notice = result.Message;
+                return await RenderAsync(new[] { ConsoleRegions.Status, ConsoleRegions.Result }, ct).ConfigureAwait(false);
+            }
+
+            case "job.delete":
+            {
+                var jobId = command.JobId ?? State.JobId;
+                if (string.IsNullOrWhiteSpace(jobId))
+                    return await NoticeAsync("未选择任务", ct).ConfigureAwait(false);
+                if (_options.DeleteJob is null)
+                    return await NoticeAsync("未接入「删除任务」能力", ct).ConfigureAwait(false);
+
+                var result = await _options.DeleteJob(jobId!, ct).ConfigureAwait(false);
+                State.Notice = result.Message;
+                if (result.Success && string.Equals(State.JobId, jobId, StringComparison.Ordinal))
+                    State.JobId = null;
+                return await RenderAsync(
+                    new[] { ConsoleRegions.Status, ConsoleRegions.Jobs, ConsoleRegions.Result, ConsoleRegions.Drawer }, ct)
+                    .ConfigureAwait(false);
             }
 
             case "cap.action":
@@ -493,9 +499,7 @@ public sealed class ConsoleCommandRouter
         foreach (var kv in ParamSet.Defaults(capability.Params))
             State.FormValues[kv.Key] = kv.Value;
         // 切换/重置能力时清空提案态，避免把上一能力的提案应用到新能力
-        State.AssistantPrompt = null;
-        State.PendingProposal = null;
-        State.ProposalError = null;
+        _assistant.Invalidate(capability.Id);
     }
 
     /// <summary>把页面回传的已声明键写入表单态（__nl 等未声明键在此丢弃，不进入任务参数）。</summary>
@@ -505,19 +509,6 @@ public sealed class ConsoleCommandRouter
         foreach (var spec in capability.Params)
             if (values.TryGetValue(spec.Key, out var value) && value is not null)
                 State.FormValues[spec.Key] = ParamSet.Coerce(spec.Kind, value);
-    }
-
-    /// <summary>提案裁剪：只保留能力声明的键并按控件形态归一（未知键丢弃，不进入表单/任务）。</summary>
-    private static Dictionary<string, object?> Suggested(
-        CapabilityDescriptor capability,
-        IReadOnlyDictionary<string, object?>? proposal)
-    {
-        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-        if (proposal is null) return result;
-        foreach (var spec in capability.Params)
-            if (proposal.TryGetValue(spec.Key, out var value) && value is not null)
-                result[spec.Key] = ParamSet.Coerce(spec.Kind, value);
-        return result;
     }
 
     private JobSnapshot? ResolveSelectedJob(IReadOnlyList<JobSnapshot> jobs)

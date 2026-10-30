@@ -41,6 +41,9 @@ public sealed record UsharpKeyPortDecl(
 /// <summary>空集策略声明：<c>policy &lt;key&gt; | value=CreateMember</c>。</summary>
 public sealed record UsharpKeyPolicyDecl(string Key, string Value);
 
+/// <summary>必备策略声明：<c>required-policy &lt;key&gt;</c>（缺项即装配期红，防声明漂移）。</summary>
+public sealed record UsharpKeyRequiredPolicyDecl(string Key);
+
 /// <summary>回退链声明：<c>derive &lt;name&gt; | chain=a,b,c</c>。</summary>
 public sealed record UsharpKeyDeriveDecl(string Name, IReadOnlyList<string> Chain);
 
@@ -54,7 +57,8 @@ public sealed record UsharpKeySpaceDecl(
     IReadOnlyList<UsharpKeyPolicyDecl> Policies,
     IReadOnlyList<UsharpKeyDeriveDecl> Derives,
     IReadOnlyList<string> UnparsedLines,
-    string SourceFile, int LineNumber)
+    string SourceFile, int LineNumber,
+    IReadOnlyList<UsharpKeyRequiredPolicyDecl>? RequiredPolicies = null)
 {
     /// <summary>投影单条 <c>[KeySpace]</c>（无名 ⇒ null）。</summary>
     public static UsharpKeySpaceDecl? From(DslDeclaration d)
@@ -66,6 +70,7 @@ public sealed record UsharpKeySpaceDecl(
         var byFamily = new Dictionary<string, FamilyBuilder>(StringComparer.Ordinal);
         var ports = new List<UsharpKeyPortDecl>();
         var policies = new List<UsharpKeyPolicyDecl>();
+        var requiredPolicies = new List<UsharpKeyRequiredPolicyDecl>();
         var derives = new List<UsharpKeyDeriveDecl>();
         var unparsed = new List<string>();
         CanonicalBuilder? canonical = null;
@@ -215,6 +220,13 @@ public sealed record UsharpKeySpaceDecl(
                 continue;
             }
 
+            if (UsharpLineReader.TryHead(head, "required-policy", out var requiredPolicyKey))
+            {
+                if (string.IsNullOrWhiteSpace(requiredPolicyKey)) { unparsed.Add(line); continue; }
+                requiredPolicies.Add(new UsharpKeyRequiredPolicyDecl(requiredPolicyKey.Trim()));
+                continue;
+            }
+
             if (UsharpLineReader.TryHead(head, "derive", out var deriveName))
             {
                 var chain = UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "chain"));
@@ -230,7 +242,8 @@ public sealed record UsharpKeySpaceDecl(
 
         return new UsharpKeySpaceDecl(
             d.Name.Trim(), domains, families.Select(f => f.Build()).ToList(),
-            ports, policies, derives, unparsed, d.SourceFile, d.LineNumber);
+            ports, policies, derives, unparsed, d.SourceFile, d.LineNumber,
+            requiredPolicies.Count > 0 ? requiredPolicies : null);
     }
 
     private static bool? ParseOptionalBool(string? value)

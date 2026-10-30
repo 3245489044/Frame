@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-29T00:12:57.1608749Z",
+  "builtAt": "2026-10-30T10:32:29.7929060Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -250,14 +250,14 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 128,
+      "total": 129,
       "truncated": false,
       "byRole": {
         "Gate": 8,
         "Test": 43,
         "Declaration": 0,
         "Code": 22,
-        "Doc": 52,
+        "Doc": 53,
         "Other": 3
       },
       "hits": [
@@ -285,7 +285,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundContext.cs",
-          "line": 42,
+          "line": 43,
           "role": "Code",
           "text": "/// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+\"R\"+n</c> 已废除）。"
         },
@@ -452,6 +452,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
+          "line": 425,
+          "role": "Doc",
+          "text": "5. **环境限制**：本机仅 Windows PowerShell 5.1（无 `pwsh`）。10 件 `#Requires -Version 7.0` 的门禁、以及 `Check-GateFileIndex` / `Check-GateBaselines` 中依赖 `.NET Core` API 的判据无法本地执行；上述验证均限于 5.1 可运行面。"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Modules/Parsing/Check-KeyGrammar.ps1",
           "line": 11,
           "role": "Gate",
@@ -547,6 +554,202 @@
           "line": 46,
           "role": "Doc",
           "text": "**问题**：两者行为不一致，`WdUI.Settings` 的 `ParseColor` 支持 `\"r, g, b\"` 格式，而 `WdUIUsage.ParseColor` 只支持 `#RRGGBB` 和命名颜色。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话层通用逻辑下沉Share.Conversation-提取分析.md",
+          "line": 64,
+          "role": "Doc",
+          "text": "| **轮次键** | ① `runId+\"R\"+n`；② `{taskKey}@{seq}` / `{taskKey}#{gen}#{seq}`；③ 新标准 `SessionKey#R<n>` | `Agent.Operation/Observe/AgentScope.cs:29`、`Agent.Core/Nodes/GovernanceRoundRegistry.cs`、`Agent.Sess"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话层通用逻辑下沉Share.Conversation-提取分析.md",
+          "line": 271,
+          "role": "Doc",
+          "text": "**判据**：`dotnet build MainProj/Agent.sln` 0 警告 0 错误；`Agent.Session.Tests` + `Conversation.Tests` 全绿；`Invoke-GateCheck -Only FactStandard` 通过；`AgentScope` 产出的 `ScopeId` 形状 = `default#R<n>`（P1-6 的前置）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话层通用逻辑下沉Share.Conversation-提取分析.md",
+          "line": 370,
+          "role": "Doc",
+          "text": "| `AgentScope.RoundIdOf` 实现体改委托 `FactIds.Round(runId, n).ToString()`（消重 + P1-6 前置：形状 `default#R<n>`） | `Agent.Operation/Observe/AgentScope.cs:34` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 89,
+          "role": "Doc",
+          "text": "RoundKey   ::= SessionKey \"#R\" ROUND_NO            // 例：default#R1、tp_cline_toolcall#R4"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 90,
+          "role": "Doc",
+          "text": "StepKey    ::= RoundKey \"/\" STEP_NAME [\"#\" ATTEMPT] // 例：default#R1/cline_execute#1"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 91,
+          "role": "Doc",
+          "text": "CallKey    ::= StepKey \"/\" ITERATION \"/\" CALL_ID    // 例：default#R1/cline_execute#1/2/call_00_FJLmIZn…"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 103,
+          "role": "Doc",
+          "text": "^[A-Za-z0-9_.\\-]+#R[0-9]+(?:\\/[A-Za-z0-9_.\\-]+#[0-9]+(?:\\/[0-9]+\\/[A-Za-z0-9_.\\-]+)?)?$"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 110,
+          "role": "Doc",
+          "text": "- I4 键**可排序**：同会话内语义序 == 时间序（`#R10` 与 `#R2` 的字典序陷阱由解析器按数值段比较消除，见 §1.3）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 118,
+          "role": "Doc",
+          "text": "| `FactIdGrammar.cs` | 文法常量（分隔符/正则）——**唯一字面量来源**，其他件禁写 `\"#R\"`、`\"/\"` 等分隔串 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 165,
+          "role": "Doc",
+          "text": "- **观测面**：`AgentScope.RoundIdOf(runId, n)` 保留名称，实现改为 `FactIds.Round(...)` ⇒ 观测 `ScopeId` 由 `defaultR1` 变为 `default#R1`（**契约变更**，需同步 `Agent.Observe/README.md` 与观测断言）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 176,
+          "role": "Doc",
+          "text": "| ID-1 框架轮次键 | `default@1` | **E2 归一** → `default#R1` | `GovernanceRoundRegistry.Acquire`（`$\"{taskKey}@{seq}\"` 移除） | 全仓 grep `\\{taskKey\\}@` / `@\\{seq\\}` = 0 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 178,
+          "role": "Doc",
+          "text": "| ID-3 观测轮次键 | `defaultR1` | **E2 归一** → `default#R1` | `AgentScope.RoundIdOf` 实现体；`Agent.Observe/README.md` §约定表 | 观测事件 `ScopeId` 形状 == `FactId`（断言） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 194,
+          "role": "Doc",
+          "text": "| C1 键字面量唯一 | 除 `FactIdGrammar.cs` 外，源码中不得出现 `\"#R\"` / `\"@\"` 轮键拼接 | 新增键拼接点（防回归） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 205,
+          "role": "Doc",
+          "text": "| `default@1` | `default#R1` | 提取尾段数字为轮号 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 206,
+          "role": "Doc",
+          "text": "| `default#1#1` | `default#R?` | `gen/seq` 无轮号信息 → 标 `legacy=true` + `ExternalRef{Lease}`，读侧标记「未归因」而**不猜测** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 207,
+          "role": "Doc",
+          "text": "| `defaultR1` | `default#R1` | 观测历史事件按此归一后可与事实对齐 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 497,
+          "role": "Doc",
+          "text": "\"key\": \"default#R6/cline_execute#1\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 521,
+          "role": "Doc",
+          "text": "| `AgentScope.RoundIdOf` | 实现体改 `FactIds.Round(...)`（形状 `default#R1`）；README 同步 | P1 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 548,
+          "role": "Doc",
+          "text": "- 复跑同输入后：`session-facts/default/default#R6.jsonl` 存在，且含 `1 × RoundDispatch + 4 × LlmIteration + 3 × ToolCall + 1 × FinalAnswer(len=1890, authority=Authoritative)`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 584,
+          "role": "Doc",
+          "text": "| R2 观测 `ScopeId` 形状变更（`defaultR1`→`default#R1`） | 既有观测断言/查询受影响 | P1 同步 `Agent.Observe/README.md` + 断言；存量事件由 `FactIdMigration` 读侧归一 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 620,
+          "role": "Doc",
+          "text": "| `default@1` | `default#R1` | 归一 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 621,
+          "role": "Doc",
+          "text": "| `default#1#1`（lease） | `default#R<no>`（gen/seq 入文档属性） | 标识资格**废除** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 622,
+          "role": "Doc",
+          "text": "| `defaultR1`（obs） | `default#R1` | 归一 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 625,
+          "role": "Doc",
+          "text": "| `req-1` | `default#R6` | **废除** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 633,
+          "role": "Doc",
+          "text": "Get-Content \"<dataDir>\\session-facts\\default\\default#R6.jsonl\""
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 636,
+          "role": "Doc",
+          "text": "Get-Content \"<dataDir>\\session-facts\\default\\default#R6.jsonl\" |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 641,
+          "role": "Doc",
+          "text": "Get-ChildItem \"<dataDir>\\cline_runtime\\*\\data\\facts\\default#R6.jsonl\" | Get-Content"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话事实标准与唯一标识-设计与实施方案.md",
+          "line": 834,
+          "role": "Doc",
+          "text": "| 生成器（C# 常量 `RoundPrefix=\"#R\"`/正则、TS 常量、`session-fact.v1.schema.json` 的 `key` pattern） | **生成物**（`Usharp.Cli` 发射，落 `Facts/Schema/` 与 `generated/`） | 跨语言同形（I7），禁手写第二份 |"
         },
         {
           "repo": "Main",
@@ -935,202 +1138,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/doc/会话层通用逻辑下沉Share.Conversation-提取分析.md",
-          "line": 64,
-          "role": "Doc",
-          "text": "| **轮次键** | ① `runId+\"R\"+n`；② `{taskKey}@{seq}` / `{taskKey}#{gen}#{seq}`；③ 新标准 `SessionKey#R<n>` | `Agent.Operation/Observe/AgentScope.cs:29`、`Agent.Core/Nodes/GovernanceRoundRegistry.cs`、`Agent.Sess"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话层通用逻辑下沉Share.Conversation-提取分析.md",
-          "line": 271,
-          "role": "Doc",
-          "text": "**判据**：`dotnet build MainProj/Agent.sln` 0 警告 0 错误；`Agent.Session.Tests` + `Conversation.Tests` 全绿；`Invoke-GateCheck -Only FactStandard` 通过；`AgentScope` 产出的 `ScopeId` 形状 = `default#R<n>`（P1-6 的前置）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话层通用逻辑下沉Share.Conversation-提取分析.md",
-          "line": 370,
-          "role": "Doc",
-          "text": "| `AgentScope.RoundIdOf` 实现体改委托 `FactIds.Round(runId, n).ToString()`（消重 + P1-6 前置：形状 `default#R<n>`） | `Agent.Operation/Observe/AgentScope.cs:34` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 89,
-          "role": "Doc",
-          "text": "RoundKey   ::= SessionKey \"#R\" ROUND_NO            // 例：default#R1、tp_cline_toolcall#R4"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 90,
-          "role": "Doc",
-          "text": "StepKey    ::= RoundKey \"/\" STEP_NAME [\"#\" ATTEMPT] // 例：default#R1/cline_execute#1"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 91,
-          "role": "Doc",
-          "text": "CallKey    ::= StepKey \"/\" ITERATION \"/\" CALL_ID    // 例：default#R1/cline_execute#1/2/call_00_FJLmIZn…"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 103,
-          "role": "Doc",
-          "text": "^[A-Za-z0-9_.\\-]+#R[0-9]+(?:\\/[A-Za-z0-9_.\\-]+#[0-9]+(?:\\/[0-9]+\\/[A-Za-z0-9_.\\-]+)?)?$"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 110,
-          "role": "Doc",
-          "text": "- I4 键**可排序**：同会话内语义序 == 时间序（`#R10` 与 `#R2` 的字典序陷阱由解析器按数值段比较消除，见 §1.3）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 118,
-          "role": "Doc",
-          "text": "| `FactIdGrammar.cs` | 文法常量（分隔符/正则）——**唯一字面量来源**，其他件禁写 `\"#R\"`、`\"/\"` 等分隔串 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 165,
-          "role": "Doc",
-          "text": "- **观测面**：`AgentScope.RoundIdOf(runId, n)` 保留名称，实现改为 `FactIds.Round(...)` ⇒ 观测 `ScopeId` 由 `defaultR1` 变为 `default#R1`（**契约变更**，需同步 `Agent.Observe/README.md` 与观测断言）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 176,
-          "role": "Doc",
-          "text": "| ID-1 框架轮次键 | `default@1` | **E2 归一** → `default#R1` | `GovernanceRoundRegistry.Acquire`（`$\"{taskKey}@{seq}\"` 移除） | 全仓 grep `\\{taskKey\\}@` / `@\\{seq\\}` = 0 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 178,
-          "role": "Doc",
-          "text": "| ID-3 观测轮次键 | `defaultR1` | **E2 归一** → `default#R1` | `AgentScope.RoundIdOf` 实现体；`Agent.Observe/README.md` §约定表 | 观测事件 `ScopeId` 形状 == `FactId`（断言） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 194,
-          "role": "Doc",
-          "text": "| C1 键字面量唯一 | 除 `FactIdGrammar.cs` 外，源码中不得出现 `\"#R\"` / `\"@\"` 轮键拼接 | 新增键拼接点（防回归） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 205,
-          "role": "Doc",
-          "text": "| `default@1` | `default#R1` | 提取尾段数字为轮号 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 206,
-          "role": "Doc",
-          "text": "| `default#1#1` | `default#R?` | `gen/seq` 无轮号信息 → 标 `legacy=true` + `ExternalRef{Lease}`，读侧标记「未归因」而**不猜测** |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 207,
-          "role": "Doc",
-          "text": "| `defaultR1` | `default#R1` | 观测历史事件按此归一后可与事实对齐 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 497,
-          "role": "Doc",
-          "text": "\"key\": \"default#R6/cline_execute#1\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 521,
-          "role": "Doc",
-          "text": "| `AgentScope.RoundIdOf` | 实现体改 `FactIds.Round(...)`（形状 `default#R1`）；README 同步 | P1 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 548,
-          "role": "Doc",
-          "text": "- 复跑同输入后：`session-facts/default/default#R6.jsonl` 存在，且含 `1 × RoundDispatch + 4 × LlmIteration + 3 × ToolCall + 1 × FinalAnswer(len=1890, authority=Authoritative)`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 584,
-          "role": "Doc",
-          "text": "| R2 观测 `ScopeId` 形状变更（`defaultR1`→`default#R1`） | 既有观测断言/查询受影响 | P1 同步 `Agent.Observe/README.md` + 断言；存量事件由 `FactIdMigration` 读侧归一 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 620,
-          "role": "Doc",
-          "text": "| `default@1` | `default#R1` | 归一 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 621,
-          "role": "Doc",
-          "text": "| `default#1#1`（lease） | `default#R<no>`（gen/seq 入文档属性） | 标识资格**废除** |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 622,
-          "role": "Doc",
-          "text": "| `defaultR1`（obs） | `default#R1` | 归一 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 625,
-          "role": "Doc",
-          "text": "| `req-1` | `default#R6` | **废除** |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 633,
-          "role": "Doc",
-          "text": "Get-Content \"<dataDir>\\session-facts\\default\\default#R6.jsonl\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 636,
-          "role": "Doc",
-          "text": "Get-Content \"<dataDir>\\session-facts\\default\\default#R6.jsonl\" |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 641,
-          "role": "Doc",
-          "text": "Get-ChildItem \"<dataDir>\\cline_runtime\\*\\data\\facts\\default#R6.jsonl\" | Get-Content"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话事实标准与唯一标识-设计与实施方案.md",
-          "line": 834,
-          "role": "Doc",
-          "text": "| 生成器（C# 常量 `RoundPrefix=\"#R\"`/正则、TS 常量、`session-fact.v1.schema.json` 的 `key` pattern） | **生成物**（`Usharp.Cli` 发射，落 `Facts/Schema/` 与 `generated/`） | 跨语言同形（I7），禁手写第二份 |"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Runtime/AgentInstance.cs",
           "line": 36,
           "role": "Code",
@@ -1459,10 +1466,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 84,
-        "Declaration": 15,
+        "Test": 65,
+        "Declaration": 1,
         "Code": 18,
-        "Doc": 214,
+        "Doc": 247,
         "Other": 64
       },
       "hits": [
@@ -1626,6 +1633,20 @@
           "line": 43,
           "role": "Code",
           "text": "proc.on('error', (err: Error) => {"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
+          "line": 148,
+          "role": "Doc",
+          "text": "| `AgentProcessSurface` | SingleSource | `proc.` 键族字面量单源（`ProcessKeys.cs`） |"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
+          "line": 263,
+          "role": "Doc",
+          "text": "| 源文件枚举、注释/产物排除、行号定位 | 领域词表与正则（如 `proc.`、信封字段、`NonScalar`） |"
         },
         {
           "repo": "Frame",
@@ -2064,14 +2085,14 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyDeclSingleSource.ps1",
-          "line": 57,
+          "line": 71,
           "role": "Gate",
           "text": "if ('const string P = \"proc.\";' -notmatch $pattern) { $violations.Add('负对照失败：字面量样本未命中') }"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Tooling/Invoke-GateCheck.ps1",
-          "line": 161,
+          "line": 178,
           "role": "Other",
           "text": "$running[$proc.Id] = [PSCustomObject]@{ Name = $name; Proc = $proc; Out = $outFile; Err = $errFile; Sw = $sw; Spec = $spec }"
         },
@@ -2098,6 +2119,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 18,
+          "role": "Doc",
+          "text": "| 1 | 用户现象已定性：**工具调用已采集、已落库**（`proc.*.tool-call/tool-result`），缺口在**展示/读面**（C-3 弱判据 + C-5 不可读观测）。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 34,
+          "role": "Doc",
+          "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 132,
+          "role": "Doc",
+          "text": "`save/complete` 是**会话阶段**（`SessionContext` 载体），工具调用是**过程事件**（`proc.*`）。二者经不同电路链："
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.10/USharp键文法v2-设计.md",
           "line": 124,
           "role": "Doc",
@@ -2109,6 +2151,41 @@
           "line": 137,
           "role": "Doc",
           "text": "Range    ::= Key \"..\" Key        // 闭区间（按 orderKeys 规范序，如 proc.{c}.r1..r3）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-剩余项施工单.md",
+          "line": 156,
+          "role": "Doc",
+          "text": "| 前置裁决 | **键族前缀来源**：声明面模板多为 `{container}`（无前缀）⇒ 需先定“按容器键族（`proc.` / `obs.` 的实际生成点）”还是“按 `PlacementIds` 过滤”。裁决前不得写死前缀清单（禁 C# 手列） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "| 2 | `15:53:07.492 / 07.563 / 07.677` 等 6 条 `读侧裁剪 … key-unparsable=2` | process 域拿到 `obs.*`，observability 域拿到 `proc.*` | `NodeDomainPort.cs:178-204`（先投影后裁剪） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 126,
+          "role": "Doc",
+          "text": "| 节点键前缀 | `proc.*` / `obs.*` | 位置键模板 | `NodeIdentityTrim` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 308,
+          "role": "Doc",
+          "text": "// 键族前缀由声明面派生（proc./obs./seg.…），禁止本类硬编码清单。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 318,
+          "role": "Doc",
+          "text": "1. `ReadScope` 构造补 `KeyPrefix = NodeKeyFamily.PrefixOf(domainKey)`（框架支持前缀时直接收窄）。`NodeKeyFamily` 为**新增单一实现**：前缀表从 `Config/nodes/*.ushar` 的声明键模板派生，禁止在 C# 里手列 `proc./obs.` 清单。"
         },
         {
           "repo": "Main",
@@ -2137,6 +2214,83 @@
           "line": 673,
           "role": "Doc",
           "text": "- 当前采用 process 流帧 `kind=cost`（`proc.{container}` 单行聚合）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-实施记录.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "- `NodeDomainPortTests.SubAgentRunBoundary_Commit_PersistsProcessRow`（池任务 run 边界 → `proc.<taskKey>` 落库）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "samples 恒为同一批 `obs.task_member_*` / `proc.task_member_*`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 78,
+          "role": "Doc",
+          "text": "- `process` 与 `observability` 共用 `NodeTypes.Event`（`Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs:57-71`），因此 process 读必然看到 `obs.*`，observability 读必然看到 `proc.*`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "- 真正带字面前缀的是**位置键模板**：`proc.{container}`、`obs.{container}`（`Config/nodes/process.ushar:8`、`Config/nodes/observability.ushar:8`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 90,
+          "role": "Doc",
+          "text": "- `obs.*` 在 process 域无法按 `proc.{container}` 反解 ⇒ `key-unparsable` ⇒ 归入 `placement-unresolved`（`NodeDomainPort.cs:572-574`），日志 action 还写着“属缺陷”。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 102,
+          "role": "Doc",
+          "text": "1. `ReadScope.KeyPrefix` 改由**位置键模板**派生（`proc.` / `obs.`），并确认它真的被 `EnumerateKeysAsync` 消费；不要用 `Identity.Template`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "- process 读 `projected` 只含 `proc.*`；observability 读只含 `obs.*`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 158,
+          "role": "Doc",
+          "text": "- 结算时两个域各 `CommitRunAsync` 一次（`ConversationStageBodies.cs:516-533`），同一批帧落成 `proc.*` 与 `obs.*` 两行。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 164,
+          "role": "Doc",
+          "text": "- 工具事件落地后，`proc.<taskKey>` 行存在且帧含 `tool/db_read`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 452,
+          "role": "Doc",
+          "text": "| **P0** | §2 工具身份双断线（补 `TaskKey` + 池任务 `BeginRun`） | 过程事件全部丢失，面板无数据 | `EmptyIdentity`/`ContainerMissing` = 0；`proc.<taskKey>` 行存在 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.21/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
+          "line": 454,
+          "role": "Doc",
+          "text": "| **P0** | §1 读前缀由位置模板派生 + 单趟分类 | 面板少行、跨域误判、读放大 | process 读只含 `proc.*`；`prefix-undefined` = 0 |"
         },
         {
           "repo": "Main",
@@ -2672,10 +2826,59 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-上下文绑定重复告警-根因分析与治理方案.md",
+          "line": 90,
+          "role": "Doc",
+          "text": "├─ 仅剔除 `proc.*` 过程条目（IsProcessEntry）        :47-49, :77-80"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-上下文绑定重复告警-根因分析与治理方案.md",
+          "line": 120,
+          "role": "Doc",
+          "text": "- `ObservabilityMessageMerge` 只过滤 `proc.*`（`IsProcessEntry`），不处理 `obs.*` 重复（`ObservabilityMessageMerge.cs:47-49`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 443,
+          "role": "Doc",
+          "text": "| P2-3 | 对拍：在线增量（`proc.*` 的 live 帧）vs 离线重放，逐 `(kind,ordinal,payloadHash)` | 本次 cline 轮次 A==B；负对照删帧 ⇒ 差集非空且告警 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.3/2026-10-03-运行日志分析-函数调用链重复冗余错误逻辑与模块化建议.md",
           "line": 83,
           "role": "Doc",
           "text": "第 108~115 行:process 域 `projected=121`,按 `container=default` 查询 kept=36(裁 85),按 `container=cv_toolcall_node` 查询 kept=20(裁 101)。写侧键为 `proc.002.r1.done.1`(container 段为 `proc.002`),读侧按会话名 `cv_toolcall_nod"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-键逻辑通用框架收敛-迁移与稳定化施工单.md",
+          "line": 13,
+          "role": "Doc",
+          "text": "> **触发样本**：任务节点面板同时出现两套过程行（节点域 `proc.{container}.r{round}.{kind}.{ordinal}` 与 UI 合成 `proc:{round}:{stage}:{hash}`）；`conversation-canon` 视图曾因声明名不合规在运行期降级为 `not-run`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-键逻辑通用框架收敛-迁移与稳定化施工单.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "### 4.1 单键族（`smsg.` / `seg.` / `sv.` / `obs.` / `arch.` / `proc.`）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-键逻辑通用框架收敛-迁移与稳定化施工单.md",
+          "line": 194,
+          "role": "Doc",
+          "text": "| `starts` | `StartsWith(…FamilyPrefix` | 增加 `StartsWith(\"字面量前缀`（`\"smsg.`/`\"proc.`/`\"session.`/`\"win.`/`\"ans.`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-终答与窗口-通用身份架构-usharp声明式设计.md",
+          "line": 612,
+          "role": "Doc",
+          "text": "| **R5** | 退役：`history_owns_task` 写路径删除、裸 task 键只读窗口关闭、`ProcessKeys` 手写模板常量删除 | R4 | J1/J8 仍绿；`\"proc.\"` 字面量（除声明）= 0 | 保留一个 release 的只读映射 |"
         },
         {
           "repo": "Main",
@@ -3113,10 +3316,283 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
+          "line": 17,
+          "role": "Doc",
+          "text": "| **C-4** | **过程域是零存量**（今日之前从未落库，实测：`proc.*` 写入点今天才接）：现在引入专用判别值 / 运行域，**无数据迁移成本**，是唯一低代价窗口 | §2 G-2 连带项 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
+          "line": 62,
+          "role": "Doc",
+          "text": "**现状**：过程域载体取 `NodeTypes.Node`（`AgentNodeCarriers.cs:165`，其注释声称「面板分组的『过程』独立成组由**键前缀**承载（`proc.*`）」）；而面板实现**按 NodeType 分组**（`ConversationViewService.cs:533` `records.GroupBy(r => r.NodeType)`）⇒ 过程节点与段域"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
+          "line": 144,
+          "role": "Doc",
+          "text": "**A（过渡，零框架改动）面板分组改为「声明可推导」**：面板不再只看 `NodeType`，而按 `placement.retention`（已声明：`presentational` / `contextual` / `audit` / `legacy`）+ 键前缀分组 ⇒「过程」组由 `retention=presentational` + `proc.*` 界定。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
+          "line": 158,
+          "role": "Doc",
+          "text": "**零迁移**：过程域今日之前从未落库（`proc.*` 写入点本轮才接），改判别值**不需要任何数据回填**；若 W-2 波次同时上线 `event` 域判别值，亦同理（`ur_events` 独立表，节点侧全新）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
+          "line": 160,
+          "role": "Doc",
+          "text": "**C（不推荐）面板硬编码 `proc.` 前缀分组**：与「位置不硬编码」（`Check-NodeFramework C`）冲突，且每新增运行态域都要改 UI。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "**补充边界（D-8）**：**同一事实的\"位置键\"与\"身份键\"必须分开**。身份键（`{container}.r{round}.step{seq}`）进物化入口（按身份模板反解 + `expectedValues` 校验）；位置键（`proc.{container}.r{round}.step{seq}`）进读投影与载体。二者混用即静默漂移。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 77,
+          "role": "Doc",
+          "text": "| **过程域**（运行过程节点） | `process.json`：`process-node`（**单位置**） | `proc.{taskKey}.r{round}.step{seq}` | `node` | `HistoryMaterializeService.ForProcess`（P-3 待接线） | `ProjectAsync(scope, overlays)`（P-4 待接线） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "| **系统行为** | 写入本 run 的**内存过程节点**（`InMemoryNodeCarrier`，`AppendOnly`），键 = `proc.{taskKey}.r{round}.step{seq}` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 103,
+          "role": "Doc",
+          "text": "| **系统行为** | 独立声明域 `process`（identity `{container}.r{round}.step{seq}`）、独立键族 `proc.*`、独立 `NodeType` 判别值 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 214,
+          "role": "Doc",
+          "text": "\"key\": \"proc.{container}.r{round}.step{seq}\", \"form\": \"view\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 277,
+          "role": "Doc",
+          "text": "├─ 位置键（= overlay Key）= proc.{taskKey}.r{round}.step{seq} ← 内存节点用（须与落库后一致）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 283,
+          "role": "Doc",
+          "text": "> **overlay Key** 必须取**位置键**（`proc.*` 前缀），因为 Snapshot 侧的 `Key` 就是位置键。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 318,
+          "role": "Doc",
+          "text": "Key         : $\"proc.{taskKey}.r{round}.step{n.Seq}\",  // ← 位置键（与 Snapshot 同 Key）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 326,
+          "role": "Doc",
+          "text": "SelectionId: \"all\", KeyPrefix: $\"proc.{taskKey}.r{round}\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 365,
+          "role": "Doc",
+          "text": "| **F-5** | 新 `Config\\nodes\\process.json`（**单位置** `process-node`，key `proc.{container}.r{round}.step{seq}`，`selections.llm=false`） | 声明（新） | `Test-JsonFiles` 4/4；装载 0 Error |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 403,
+          "role": "Doc",
+          "text": "| **D-8** | overlay 项用哪个 Key | **A** 身份键 `{container}.r{round}.step{seq}`／**B** 位置键 `proc.{container}.r{round}.step{seq}` | **B**（`Overlay` 的桶键由 `Key` 与 `PlacementId` **复合**而成，见 §8 证据索引；Snapshot 侧 Key"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 417,
+          "role": "Doc",
+          "text": "| **与 L-A 全量层重叠** | F-5 | P-1 | 独立键族（`proc.*`）+ 独立 `NodeType` 判别值 ⇒ 面板分组天然分离 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 101,
+          "role": "Doc",
+          "text": "| **L3 存储地址键** | `ur_nodes.NodeKey` 五族（`session.*.r*.msg.*`、`cline.session.*`、`proc.*`、`{storage}.{node}`、`seg.*`） | `Config/nodes/*.json` 的**手写文本模板**（`identity` + `placements[].key`），反解靠正则 | ❌ 唯一停留在「"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 220,
+          "role": "Doc",
+          "text": "| 3.1 | 把 L3 五键族（`session.*` / `cline.session.*` / `proc.*` / `seg.*` / `task-node`）全部注册为 `KeyGrammar`（族前缀 + 模板 + 序数占位 + 键序项 + legacy 模板），与既有 6 个文法并表 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 290,
+          "role": "Doc",
+          "text": "- `Agent-DataOwnership.md` / `运行过程节点化-过程内存节点与轮末落库方案.md`：过程域状态不变；批次 4 的读侧坐标化覆盖其 `proc.*` 键族。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点三转换-应用工作流化-下一步实施规划.md",
+          "line": 238,
+          "role": "Doc",
+          "text": "| `运行过程节点化-过程内存节点与轮末落库方案.md` | 过程域（`proc.*`）写入路径不变；其\"轮末落库\"即本批 node→位置 转换的一个触发点 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.26/数据库中心化→节点中心化-存储模块化分离与彻底重构方案.md",
           "line": 62,
           "role": "Doc",
           "text": "| 过程键 | `proc.{c}.r{r}.step{seq}` | `Agent.Contract\\NodeDomain\\ProcessKeys.cs` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 62,
+          "role": "Doc",
+          "text": "| ⑤ | `ProcessNodeSink` → `proc.*`（`llm-text` / `done`） | 过程节点 | 全文 | `recognizers.json:59-64,119-125` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 76,
+          "role": "Doc",
+          "text": "⇒ 工具事实只剩 live 过程面 `proc.*`（`process.json`：`retention=presentational`、`selection.llm=false`），**对话面永不可见**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 116,
+          "role": "Doc",
+          "text": "| `process-node` | `proc.{container}.r{round}.{kind}.{ordinal}` | `writer-process` | presentational | `all` | 同节点位置（Live 由 overlay 注入） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 207,
+          "role": "Doc",
+          "text": "- `seal_process_nodes`：把 `ProcessRunNodes`（Live overlay）经唯一写门封为 `proc.*` 位置；**再释放内存容器**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 314,
+          "role": "Doc",
+          "text": "| 存量键不可读（`session.*.r*.msg.*` / `proc.*.r*.step*` / `seg.*.r*.seg*` / 裸轮） | W2 | `KeyGrammar` 注册 `legacyTemplates` + `TryParseAny` 兼容读；**写侧恒新形态** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 17,
+          "role": "Doc",
+          "text": "| **冗余逻辑** | 7 条 | `proc.` 键族**两套解析器**；`expectedValues` 字典 5 处手抄；段 `fn` 载荷 `key`/`digest` 死值 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 72,
+          "role": "Doc",
+          "text": "### DUP-3 `proc.` 键族两套解析器（与 K2 纪律冲突）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 76,
+          "role": "Doc",
+          "text": "| **G-2′ 可物化** | K2 的 `onNode` 由「诊断日志」改为**唯一写门** `ProcessNodeSink.Append(runKey, kind, payload)` | 过程节点进入 `proc.*` 域，轮末随既有沉淀路径落库 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "| 位置键 | `proc.…r{round}.step{seq}` | `proc.…r{round}.{kind}.{ordinal}` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 152,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\process.json` | `identity` → `{container}.r{round}.{kind}.{ordinal}`；`placements[process-node].key` → `proc.{container}.r{round}.{kind}.{ordinal}`；`sequence` 增 `kin"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 189,
+          "role": "Doc",
+          "text": "| `Frame\\PowerShellScript\\Modules\\Node\\Check-AgentProcessSurface.ps1` | **新增 P4**：`ProcessNodeKinds` 仅允许经 `RecognizedKinds` 赋值（禁再出现字面量 kind）；P1（`\"proc.\"` 单源）保持 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 190,
+          "role": "Doc",
+          "text": "| `Check-KeyGrammar.ps1` | K1b `\"proc.\"` 基线 = 1 **不变**；`.step` 退出历史（`.step` 未在字面量白名单内，无需改基线）；K2 基线 5 **不得上升**（新代码禁手写切片） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 205,
+          "role": "Doc",
+          "text": "| 1 | `Environment\\CentralTest\\AgentTest\\Agent.Modules.Tests\\ProcessKeysContractTests.cs` | `\"{container}.r{round}.step{seq}\"` / `\"proc.…\"` / `\"proc.task-1.r2.step37\"` / `TryParse` 三值签名 | 新模板字面量；`TryP"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 207,
+          "role": "Doc",
+          "text": "| 3 | `…\\ProcessNodeSinkTests.cs` | `\"proc.{taskKey}.r1.step1\"` 字面形状 | 新形状（含 `kind`/`ordinal` 段）；`PositionKey ↔ PositionKeyTemplate` 单源断言保持 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 218,
+          "role": "Doc",
+          "text": "| 键兼容读（旧形态） | `proc.task.r2.step37` 可解；`proc.task.r2.notakind.1` 不可解（D-6 负对照） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化识别与编排工作流化-总体方案.md",
+          "line": 280,
+          "role": "Doc",
+          "text": "| 位置键 | `proc.{container}.r{round}.step{seq}` | `proc.{container}.r{round}.{kind}.{ordinal}` | overlay 桶键与落库键同形（F-3 无闪断） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 74,
+          "role": "Doc",
+          "text": "`identity = {container}.r{round}.{kind}.{ordinal}` / `context=[\"container\",\"kind\"]` / `sequence=[\"round\",\"ordinal\"]` 已是目标形态（本批的模板来源）；`process-node` 位置键 `proc.{container}.r{round}.{kind}.{ordinal}` 不变。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 16,
+          "role": "Doc",
+          "text": "| **D3** | 合并后身份模板 | `{container}.r{round}.{kind}.{ordinal}`（对齐 `process.json` 现行形态） | 各位置族前缀：`session.` / `cline.` / `proc.` / `seg.` + `legacyTemplates` 兼容读 |"
         },
         {
           "repo": "Main",
@@ -3796,475 +4272,6 @@
           "line": 314,
           "role": "Test",
           "text": "// 对话(2) + 节点产出(1) = 3；无任何 proc.* 过程帧。"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 318,
-          "role": "Test",
-          "text": "&& m.Binding.Key.Value.StartsWith(\"proc.\", StringComparison.Ordinal)),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 369,
-          "role": "Test",
-          "text": "Assert.IsFalse(ctx.Messages.Any(m => m.Binding!.Key.Value.StartsWith(\"proc.\", StringComparison.Ordinal)));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 106,
-          "role": "Test",
-          "text": "Item(\"proc.t.r1.llm-call.1\", \"llm-call\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 107,
-          "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\", (\"tool\", \"read_files\")),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 108,
-          "role": "Test",
-          "text": "Item(\"proc.t.r1.usage.1\", \"usage\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 126,
-          "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.2\", \"tool-call\", (\"tool\", \"read_files\")),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 127,
-          "role": "Test",
-          "text": "Item(\"proc.t.r1.tool-call.1\", \"tool-call\", (\"tool\", \"read_files\")),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Gather/NodeGatherTests.cs",
-          "line": 133,
-          "role": "Test",
-          "text": "new[] { \"proc.t.r1.tool-call.1\", \"proc.t.r1.tool-call.2\" },"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Spec/NodeSpecValidatorTests.cs",
-          "line": 158,
-          "role": "Test",
-          "text": "\"proc.{container}.r{round}.{kind}.{ordinal}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Kernel/KeyGrammarKernelTests.cs",
-          "line": 84,
-          "role": "Test",
-          "text": "\"t.proc\", \"proc.{container}.r{round:number}.{kind:id}.{ordinal:digits}\", familyPrefix: \"proc.\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Kernel/KeyGrammarKernelTests.cs",
-          "line": 86,
-          "role": "Test",
-          "text": "Assert.IsTrue(grammar.IsFamily(\"proc.abc.r1.tool.1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/DeclarationBindingTests.cs",
-          "line": 115,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}.r{round}.{kind}.{ordinal}\", placement);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/DeclarationBindingTests.cs",
-          "line": 117,
-          "role": "Test",
-          "text": "\"proc.task1.r2.tool-call.17\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/KeyGrammarParityTests.cs",
-          "line": 178,
-          "role": "Test",
-          "text": "// ---- ⑥ 过程键 proc.{c}.r{r}.{kind}.{ordinal}（声明绑定 = placements[].key） ----"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/KeyGrammarParityTests.cs",
-          "line": 182,
-          "role": "Test",
-          "text": "const string declared = \"proc.{container}.r{round}.{kind}.{ordinal}\";"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/KeyGrammarParityTests.cs",
-          "line": 185,
-          "role": "Test",
-          "text": "\"proc.{container}.r{round:number}.{kind:id}.{ordinal:digits}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/KeyGrammarParityTests.cs",
-          "line": 186,
-          "role": "Test",
-          "text": "familyPrefix: \"proc.\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/KeyGrammarParityTests.cs",
-          "line": 193,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task1.r2.tool-call.17\", expected);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/process.json",
-          "line": 12,
-          "role": "Test",
-          "text": "\"key\": \"proc.{container}\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_conversation_toolcall_node_display_test.json",
-          "line": 48,
-          "role": "Declaration",
-          "text": "{ \"template\": \"echo-section\", \"title\": \"[4.2] 选中任务 cv_toolcall_node（cmd=selectTask）→ 节点面板按 NodeType 分组渲染；process 组行形态 = code.node-key（proc.cv_toolcall_node.r1.…，键段含 tool-call / tool-result 英文 kind）+ s"
-        },
-        {
-          "repo": "Projects",
-          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_conversation_toolcall_node_display_test.json",
-          "line": 69,
-          "role": "Declaration",
-          "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox proc.cv_toolcall_node.r1.tool-call\" },"
-        },
-        {
-          "repo": "Projects",
-          "file": "Information/DrivenConfig/Scripts/Agent/agent_conversation/agent_conversation_toolcall_node_display_test.json",
-          "line": 70,
-          "role": "Declaration",
-          "text": "{ \"action\": \"assert\", \"target\": \"text-contains outputTextBox proc.\" },"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 239,
-          "role": "Declaration",
-          "text": "\"template\": \"proc.{container}\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 240,
-          "role": "Declaration",
-          "text": "\"familyPrefix\": \"proc.\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 270,
-          "role": "Declaration",
-          "text": "\"templates\": [ \"proc.{container}\" ],"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 271,
-          "role": "Declaration",
-          "text": "\"familyPrefix\": \"proc.\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 273,
-          "role": "Declaration",
-          "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 274,
-          "role": "Declaration",
-          "text": "\"proc.{container}.r{round:digits}.step{ordinal:digits}\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/_deprecated/keyspaces/agent.keyspace.json",
-          "line": 277,
-          "role": "Declaration",
-          "text": "\"Display\": { \"templates\": [ \"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\" ], \"familyPrefix\": \"proc.\" }"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 93,
-          "role": "Declaration",
-          "text": "family domain.process | template=proc.{container} | prefix=proc. | relation=Member | cardinality=Many | domain=run | orderKeys= | identity=container | derivedPrefixes="
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 94,
-          "role": "Declaration",
-          "text": "surface domain.process/Storage | templates=proc.{container} | prefix=proc. | readOnly=proc.{container}.r{round:digits}.{kind}.{ordinal:digits},proc.{container}.r{round:digits}.step{ordinal:digits}"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 95,
-          "role": "Declaration",
-          "text": "surface domain.process/Display | templates=proc.{container}.r{round:digits}.{kind}.{ordinal:digits} | prefix=proc. | readOnly="
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/process.ushar",
-          "line": 10,
-          "role": "Declaration",
-          "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-实施记录.md",
-          "line": 61,
-          "role": "Doc",
-          "text": "- `NodeDomainPortTests.SubAgentRunBoundary_Commit_PersistsProcessRow`（池任务 run 边界 → `proc.<taskKey>` 落库）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 54,
-          "role": "Doc",
-          "text": "samples 恒为同一批 `obs.task_member_*` / `proc.task_member_*`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 78,
-          "role": "Doc",
-          "text": "- `process` 与 `observability` 共用 `NodeTypes.Event`（`Agent.Modules/Framework/NodeCarriers/AgentNodeCarriers.cs:57-71`），因此 process 读必然看到 `obs.*`，observability 读必然看到 `proc.*`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 84,
-          "role": "Doc",
-          "text": "- 真正带字面前缀的是**位置键模板**：`proc.{container}`、`obs.{container}`（`Config/nodes/process.ushar:8`、`Config/nodes/observability.ushar:8`）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 90,
-          "role": "Doc",
-          "text": "- `obs.*` 在 process 域无法按 `proc.{container}` 反解 ⇒ `key-unparsable` ⇒ 归入 `placement-unresolved`（`NodeDomainPort.cs:572-574`），日志 action 还写着“属缺陷”。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 102,
-          "role": "Doc",
-          "text": "1. `ReadScope.KeyPrefix` 改由**位置键模板**派生（`proc.` / `obs.`），并确认它真的被 `EnumerateKeysAsync` 消费；不要用 `Identity.Template`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 108,
-          "role": "Doc",
-          "text": "- process 读 `projected` 只含 `proc.*`；observability 读只含 `obs.*`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 158,
-          "role": "Doc",
-          "text": "- 结算时两个域各 `CommitRunAsync` 一次（`ConversationStageBodies.cs:516-533`），同一批帧落成 `proc.*` 与 `obs.*` 两行。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 164,
-          "role": "Doc",
-          "text": "- 工具事件落地后，`proc.<taskKey>` 行存在且帧含 `tool/db_read`。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 452,
-          "role": "Doc",
-          "text": "| **P0** | §2 工具身份双断线（补 `TaskKey` + 池任务 `BeginRun`） | 过程事件全部丢失，面板无数据 | `EmptyIdentity`/`ContainerMissing` = 0；`proc.<taskKey>` 行存在 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-21-多子智能体调用链-重复冗余错误分析.md",
-          "line": 454,
-          "role": "Doc",
-          "text": "| **P0** | §1 读前缀由位置模板派生 + 单趟分类 | 面板少行、跨域误判、读放大 | process 读只含 `proc.*`；`prefix-undefined` = 0 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-剩余项施工单.md",
-          "line": 156,
-          "role": "Doc",
-          "text": "| 前置裁决 | **键族前缀来源**：声明面模板多为 `{container}`（无前缀）⇒ 需先定“按容器键族（`proc.` / `obs.` 的实际生成点）”还是“按 `PlacementIds` 过滤”。裁决前不得写死前缀清单（禁 C# 手列） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 108,
-          "role": "Doc",
-          "text": "| 2 | `15:53:07.492 / 07.563 / 07.677` 等 6 条 `读侧裁剪 … key-unparsable=2` | process 域拿到 `obs.*`，observability 域拿到 `proc.*` | `NodeDomainPort.cs:178-204`（先投影后裁剪） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 126,
-          "role": "Doc",
-          "text": "| 节点键前缀 | `proc.*` / `obs.*` | 位置键模板 | `NodeIdentityTrim` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 308,
-          "role": "Doc",
-          "text": "// 键族前缀由声明面派生（proc./obs./seg.…），禁止本类硬编码清单。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 318,
-          "role": "Doc",
-          "text": "1. `ReadScope` 构造补 `KeyPrefix = NodeKeyFamily.PrefixOf(domainKey)`（框架支持前缀时直接收窄）。`NodeKeyFamily` 为**新增单一实现**：前缀表从 `Config/nodes/*.ushar` 的声明键模板派生，禁止在 C# 里手列 `proc./obs.` 清单。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工具调用可见化与过程面可归因-电路驱动实施规划.md",
-          "line": 18,
-          "role": "Doc",
-          "text": "| 1 | 用户现象已定性：**工具调用已采集、已落库**（`proc.*.tool-call/tool-result`），缺口在**展示/读面**（C-3 弱判据 + C-5 不可读观测）。 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工具调用可见化与过程面可归因-电路驱动实施规划.md",
-          "line": 34,
-          "role": "Doc",
-          "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工具调用可见化与过程面可归因-电路驱动实施规划.md",
-          "line": 132,
-          "role": "Doc",
-          "text": "`save/complete` 是**会话阶段**（`SessionContext` 载体），工具调用是**过程事件**（`proc.*`）。二者经不同电路链："
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/过程节点闭环-框架层实施分析.md",
-          "line": 17,
-          "role": "Doc",
-          "text": "| **C-4** | **过程域是零存量**（今日之前从未落库，实测：`proc.*` 写入点今天才接）：现在引入专用判别值 / 运行域，**无数据迁移成本**，是唯一低代价窗口 | §2 G-2 连带项 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/过程节点闭环-框架层实施分析.md",
-          "line": 62,
-          "role": "Doc",
-          "text": "**现状**：过程域载体取 `NodeTypes.Node`（`AgentNodeCarriers.cs:165`，其注释声称「面板分组的『过程』独立成组由**键前缀**承载（`proc.*`）」）；而面板实现**按 NodeType 分组**（`ConversationViewService.cs:533` `records.GroupBy(r => r.NodeType)`）⇒ 过程节点与段域"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/过程节点闭环-框架层实施分析.md",
-          "line": 144,
-          "role": "Doc",
-          "text": "**A（过渡，零框架改动）面板分组改为「声明可推导」**：面板不再只看 `NodeType`，而按 `placement.retention`（已声明：`presentational` / `contextual` / `audit` / `legacy`）+ 键前缀分组 ⇒「过程」组由 `retention=presentational` + `proc.*` 界定。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/过程节点闭环-框架层实施分析.md",
-          "line": 158,
-          "role": "Doc",
-          "text": "**零迁移**：过程域今日之前从未落库（`proc.*` 写入点本轮才接），改判别值**不需要任何数据回填**；若 W-2 波次同时上线 `event` 域判别值，亦同理（`ur_events` 独立表，节点侧全新）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/过程节点闭环-框架层实施分析.md",
-          "line": 160,
-          "role": "Doc",
-          "text": "**C（不推荐）面板硬编码 `proc.` 前缀分组**：与「位置不硬编码」（`Check-NodeFramework C`）冲突，且每新增运行态域都要改 UI。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 62,
-          "role": "Doc",
-          "text": "| ⑤ | `ProcessNodeSink` → `proc.*`（`llm-text` / `done`） | 过程节点 | 全文 | `recognizers.json:59-64,119-125` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 76,
-          "role": "Doc",
-          "text": "⇒ 工具事实只剩 live 过程面 `proc.*`（`process.json`：`retention=presentational`、`selection.llm=false`），**对话面永不可见**。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 116,
-          "role": "Doc",
-          "text": "| `process-node` | `proc.{container}.r{round}.{kind}.{ordinal}` | `writer-process` | presentational | `all` | 同节点位置（Live 由 overlay 注入） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 207,
-          "role": "Doc",
-          "text": "- `seal_process_nodes`：把 `ProcessRunNodes`（Live overlay）经唯一写门封为 `proc.*` 位置；**再释放内存容器**。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 314,
-          "role": "Doc",
-          "text": "| 存量键不可读（`session.*.r*.msg.*` / `proc.*.r*.step*` / `seg.*.r*.seg*` / 裸轮） | W2 | `KeyGrammar` 注册 `legacyTemplates` + `TryParseAny` 兼容读；**写侧恒新形态** |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 101,
-          "role": "Doc",
-          "text": "| **L3 存储地址键** | `ur_nodes.NodeKey` 五族（`session.*.r*.msg.*`、`cline.session.*`、`proc.*`、`{storage}.{node}`、`seg.*`） | `Config/nodes/*.json` 的**手写文本模板**（`identity` + `placements[].key`），反解靠正则 | ❌ 唯一停留在「"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 220,
-          "role": "Doc",
-          "text": "| 3.1 | 把 L3 五键族（`session.*` / `cline.session.*` / `proc.*` / `seg.*` / `task-node`）全部注册为 `KeyGrammar`（族前缀 + 模板 + 序数占位 + 键序项 + legacy 模板），与既有 6 个文法并表 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 290,
-          "role": "Doc",
-          "text": "- `Agent-DataOwnership.md` / `运行过程节点化-过程内存节点与轮末落库方案.md`：过程域状态不变；批次 4 的读侧坐标化覆盖其 `proc.*` 键族。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点三转换-应用工作流化-下一步实施规划.md",
-          "line": 238,
-          "role": "Doc",
-          "text": "| `运行过程节点化-过程内存节点与轮末落库方案.md` | 过程域（`proc.*`）写入路径不变；其\"轮末落库\"即本批 node→位置 转换的一个触发点 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点写入调用链-重复冗余错误逻辑分析.md",
-          "line": 17,
-          "role": "Doc",
-          "text": "| **冗余逻辑** | 7 条 | `proc.` 键族**两套解析器**；`expectedValues` 字典 5 处手抄；段 `fn` 载荷 `key`/`digest` 死值 |"
         }
       ]
     },
@@ -4273,10 +4280,10 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 169,
+      "total": 172,
       "truncated": false,
       "byRole": {
-        "Gate": 4,
+        "Gate": 7,
         "Test": 5,
         "Declaration": 9,
         "Code": 86,
@@ -4490,42 +4497,42 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Hierarchy/Dataflow/HierarchyTreeReader.cs",
-          "line": 81,
+          "line": 92,
           "role": "Code",
           "text": ": await _relations.GetTaskKeysAsync(hid, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 67,
+          "line": 71,
           "role": "Code",
           "text": "await _relations.CreateAsync(root.Key.Value, root.Name, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 76,
+          "line": 80,
           "role": "Code",
           "text": "Graph: graphCt => _relations.CreateAsync(root.Key.Value, root.Name, graphCt),"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 135,
+          "line": 160,
           "role": "Code",
-          "text": "return _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct);"
+          "text": "await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 141,
+          "line": 188,
           "role": "Code",
-          "text": "return _relations.DetachTaskAsync(Normalize(cmd.History).Value, cmd.Task.Value, ct);"
+          "text": "await _relations.DetachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 159,
+          "line": 206,
           "role": "Code",
           "text": "await _relations.DeleteAsync(key.Value, ct).ConfigureAwait(false);"
         },
@@ -4633,6 +4640,27 @@
           "line": 141,
           "role": "Code",
           "text": "/// <summary>⑥ 关系声明集合（LiteDB 图库集合 ur_relations：关系声明真源，USharp [Record]；_id = SQL NodeKey <c>relations.{workflowId}.{relationId}</c>）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Modules/Node/Check-MountDeclaration.ps1",
+          "line": 111,
+          "role": "Gate",
+          "text": "if (-not $relations.ContainsKey($op)) {"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Modules/Node/Check-MountDeclaration.ps1",
+          "line": 116,
+          "role": "Gate",
+          "text": "$ensureOps = @($relations.Keys | Where-Object { $relations[$_] -eq 'ensure' })"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Modules/Node/Check-MountDeclaration.ps1",
+          "line": 127,
+          "role": "Gate",
+          "text": "if ($relations.ContainsKey($sampleId)) {"
         },
         {
           "repo": "Frame",
@@ -4748,6 +4776,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.15/统一入口迁移至Agent.Core-写库即实现-下一步施工单.md",
+          "line": 56,
+          "role": "Doc",
+          "text": "- **阻塞与所需裁决**：退役白名单会使 `history.create/delete/link`、`node.write/delete`、`relations.declare`、`graph.rebuild`、`scenario.apply` 等**新增转发** ⇒ 属运行期行为变更。**须裁决**：是否授权在**未跑全量金标矩阵**前提下切换？若否则先「逐 intent 开白名单（每项一提交"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.21/2026-10-21-Agent.Ui重复冗余错误逻辑-重构方案.md",
           "line": 84,
           "role": "Doc",
@@ -4822,6 +4857,13 @@
           "line": 84,
           "role": "Doc",
           "text": "| 落点写权矩阵 | 见 `Doc\\通用节点修改与写入框架-设计与整理方案.md` §2.4 | 模板退化为纯声明 → 唯一裁决点展开**写计划（WritePlan）** | 写侧 `NodeWriteCoordinator` 落地；`node.delete` / `relations.*` / `graph.*` / `taskcenter/*` 的 Deferred intent 补齐 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 88,
+          "role": "Doc",
+          "text": "| **关系边**（`cross_db_link` / `round_sequence` / `history_owns_task`） | SQL 边表（`ReferenceGrounding` / `ReferenceGraphCoordinator`） | `NodeTypes.Relation` 已存在（`relations.{workflowId}.{relationId}`） | 边是\""
         },
         {
           "repo": "Main",
@@ -5162,30 +5204,16 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 106,
+          "line": 119,
           "role": "Declaration",
           "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many | orderKeys= | identity= | derivedPrefixes="
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 107,
+          "line": 120,
           "role": "Declaration",
           "text": "surface graph.declaration/Storage | templates=relations.{workflowId}.{relationId} | prefix=relations. | readOnly="
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
-          "line": 88,
-          "role": "Doc",
-          "text": "| **关系边**（`cross_db_link` / `round_sequence` / `history_owns_task`） | SQL 边表（`ReferenceGrounding` / `ReferenceGraphCoordinator`） | `NodeTypes.Relation` 已存在（`relations.{workflowId}.{relationId}`） | 边是\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/统一入口迁移至Agent.Core-写库即实现-下一步施工单.md",
-          "line": 56,
-          "role": "Doc",
-          "text": "- **阻塞与所需裁决**：退役白名单会使 `history.create/delete/link`、`node.write/delete`、`relations.declare`、`graph.rebuild`、`scenario.apply` 等**新增转发** ⇒ 属运行期行为变更。**须裁决**：是否授权在**未跑全量金标矩阵**前提下切换？若否则先「逐 intent 开白名单（每项一提交"
         },
         {
           "repo": "Projects",
@@ -5302,7 +5330,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 330,
+          "line": 347,
           "role": "Code",
           "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
         },
@@ -5477,11 +5505,11 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 6,
-        "Test": 25,
+        "Gate": 7,
+        "Test": 0,
         "Declaration": 11,
         "Code": 168,
-        "Doc": 187,
+        "Doc": 211,
         "Other": 3
       },
       "hits": [
@@ -5901,21 +5929,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 54,
+          "line": 56,
           "role": "Code",
           "text": "\"session.{sessionName}\","
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 55,
+          "line": 57,
           "role": "Code",
           "text": "\"session.\","
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 65,
+          "line": 67,
           "role": "Code",
           "text": "KeySurface.Endpoint, new[] { \"session.{sessionName}\" }, \"session.\"),"
         },
@@ -6132,14 +6160,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IContainerMemberPort.cs",
-          "line": 90,
+          "line": 97,
           "role": "Code",
           "text": "// ---- session（会话图子图：session.{name} 出边挂载的消息/产出节点；与 task 作用域正交）----"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Abstractions/IContainerMemberPort.cs",
-          "line": 92,
+          "line": 99,
           "role": "Code",
           "text": "/// 入史层（L-B）读侧唯一入口：键形 <c>session.{name}.r{round}.msg.{seq}</c>"
         },
@@ -6265,14 +6293,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 168,
+          "line": 215,
           "role": "Code",
           "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 169,
+          "line": 216,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
@@ -6964,6 +6992,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Modules/Node/Check-MountCallSites.ps1",
+          "line": 37,
+          "role": "Gate",
+          "text": "message_to_session = [int]$baseline.message_to_session.Value"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Modules/Parsing/Check-KeyGrammar.ps1",
           "line": 11,
           "role": "Gate",
@@ -7000,7 +7035,7 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyOpsClosedSet.ps1",
-          "line": 63,
+          "line": 118,
           "role": "Gate",
           "text": "$probe2 = 'var q = $\"session.{session}.r{round}.\";'"
         },
@@ -7024,6 +7059,13 @@
           "line": 65,
           "role": "Other",
           "text": "@{ Id = 'key.session';     Kind = 'KeyFamily'; Pattern = 'session.';     Note = '会话消息键族前缀' }"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 157,
+          "role": "Doc",
+          "text": "| 落点 | `ConversationSendRegionCircuit.cs`（`save` 上挂 Call → `session.productions`）；`ConversationStageBodies.cs`（注册 productions 子电路节点体）；`AgentServiceCollectionExtensions.cs:75`（fn 已注册，确认） |"
         },
         {
           "repo": "Main",
@@ -7052,6 +7094,41 @@
           "line": 100,
           "role": "Doc",
           "text": "- **待实测 reader**：`conversation-identity.json` / `history.json` / `session.json` / `task.json`（`Search-Repo -Untracked` 定位；EmptyResultGate：未命中 ≠ 不存在）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-剩余项施工单.md",
+          "line": 255,
+          "role": "Doc",
+          "text": "| 键归一改动面大 | 存量会话读取异常 | P0 已完成新/旧派生差集对拍（差集为空才接管） | `session.key.derived=false` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 686,
+          "role": "Doc",
+          "text": "| 键归一改动面大（分发、落库、读侧） | 可能打断存量会话读取 | 先 P0 只读归因，观察一轮再接管；契约测试覆盖三形键 | `session.key.derived=false` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.2/框架层模块化重构与整理代码-实施规划.md",
+          "line": 20,
+          "role": "Doc",
+          "text": "| 4 | 整理完成后可进一步实施：**ur_histories 完全退役**、**读侧单一投影全面接管**、**三链声明与执行同源（编译期判红）**、**用户输入节点化（步3：`session.{c}.r{r}.msg.0`）**、**边类型字面量收编后业务实现降级 alias facades**。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.2/框架层模块化重构与整理代码-实施规划.md",
+          "line": 169,
+          "role": "Doc",
+          "text": "用户消息目前只进 legacy 脊梁，不在 `ur_nodes`。legacy 退役前须把用户输入物化为内容节点：`session.{c}.r{r}.msg.0`（kind=`msg`，ordinal=0 作为轮内根锚点），经 `NodeWrite` 唯一写门 + 域身份模板（`conversation.json` 的 `{container}.r{round}.{kind}.{ordinal}`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-调用链重复冗余错误-已修与后续施工单.md",
+          "line": 120,
+          "role": "Doc",
+          "text": "**回退**：`session.keySpace.unified=false`（保留旧键路径一版）。"
         },
         {
           "repo": "Main",
@@ -7405,6 +7482,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-键逻辑通用框架收敛-迁移与稳定化施工单.md",
+          "line": 194,
+          "role": "Doc",
+          "text": "| `starts` | `StartsWith(…FamilyPrefix` | 增加 `StartsWith(\"字面量前缀`（`\"smsg.`/`\"proc.`/`\"session.`/`\"win.`/`\"ans.`） |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.6/2026-10-06-会话域单节点化-模块化重构方案.md",
           "line": 52,
           "role": "Doc",
@@ -7521,6 +7605,20 @@
           "line": 221,
           "role": "Doc",
           "text": "- 若「历史」= 轮归档（`archive-raw`：`cline.session.{container}.round.{round}.{kind}.{ordinal}`，**逐轮逐事件多行**）：则需同样切 `Stream`（`arch.{container}`），属 **P4**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.9/统一节点管理框架-后续实施步骤-施工单.md",
+          "line": 117,
+          "role": "Doc",
+          "text": "| key=cline.session.{container}.round.{round}.{kind}.{ordinal}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.9/统一节点管理框架-后续实施步骤-施工单.md",
+          "line": 121,
+          "role": "Doc",
+          "text": "| key=session.{container}.r{round}.{kind}.{ordinal}"
         },
         {
           "repo": "Main",
@@ -7839,6 +7937,216 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 22,
+          "role": "Doc",
+          "text": "| D | **cline 轮次原文** | `NodeType=cline_messages`（`cline.session.{sid}.round.{n}`）**实现已退役**，改塞 `ur_histories`；且折叠链路 `SessionId` 丢失 → 归档被 gate 跳过（实测本轮 0 条） | 恢复为**节点库归档层**（任务面板详情源）；归档参数经唯一调用点透传 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 55,
+          "role": "Doc",
+          "text": "| `NodeType=conversation_message`，`NodeKey=session.{name}.msg.{seq}`（`PayloadJson`=单条 `ConversationMessage`，`seq`=round_sequence 序号） | `DataStoreDriven/Abstractions/NodeStore.cs:87-89` | **无写入者**（全仓仅定"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 56,
+          "role": "Doc",
+          "text": "| `NodeType=cline_messages`，`NodeKey=cline.session.{sessionId}.round.{round}`（`PayloadJson`=messages.json 全文） | `NodeStore.cs:77-80` | 实现**已退役**（`HistoryClineMessageArchive.cs:13-14` 自述改写 `ur_historie"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 79,
+          "role": "Doc",
+          "text": "| **L-B 入史层** | `ur_nodes` | `NodeType=conversation_message`，`NodeKey=session.{name}.msg.{seq}`（`seq` = round_sequence 序号，**唯一编号权威**） | **只有标记节点**的投影（终答默认标记；显式声明可标中间节点） | 主对话框对话流 / `conversation_conte"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 80,
+          "role": "Doc",
+          "text": "| **L-C 归档层** | `ur_nodes` | `NodeType=cline_messages`，`NodeKey=cline.session.{sid}.round.{n}` | 子 cline 每轮原始 `messages.json` 全文（12 轮/工具调用明细） | 任务面板\"展开详情\"、resume 回灌、审计 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 249,
+          "role": "Doc",
+          "text": "FROM ur_nodes WHERE NodeKey LIKE 'session.%.msg.%';"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 251,
+          "role": "Doc",
+          "text": "**通过**：键符合 `session.{name}.msg.{seq}`；`seq` 连续无洞；行数 == 本轮标记节点数（终答 1 + 声明 `Numbered` 若干）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.24/会话轮次产物分层-历史终答与节点全量-收敛重构方案.md",
+          "line": 290,
+          "role": "Doc",
+          "text": "| `session.{name}.msg.{seq}` 的 seq 与既有 `Round` 号错位 | 轮次显示漂移 | seq 只作**时序**权威，轮号永远取轮次治理 Id（§2.2）；两者一并写入节点元数据，读侧显式声明用哪个 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-可切分重组追加与运行时实例化-重构方案.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "| W1 | cline 轮原文归档（L-C） | `Agent.Modules\\Cline\\HistoryClineMessageArchive.cs:47-61` | `cline.session.{sid}.round.{n}`，`NodeType=cline_messages`，载荷=整轮 `messages.json` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-可切分重组追加与运行时实例化-重构方案.md",
+          "line": 55,
+          "role": "Doc",
+          "text": "| W2 | 标记节点入史（L-B） | `Frame\\CsharpPrj\\Operation\\HierarchyMethod\\History\\HistoryProjector.cs:97-135` | `session.{task}.r{round}.msg.{seq}`，`NodeType=conversation_message` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-可切分重组追加与运行时实例化-重构方案.md",
+          "line": 126,
+          "role": "Doc",
+          "text": "\"key\": \"session.{container}.r{round}.seg{seq}\", \"form\": \"view\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-可切分重组追加与运行时实例化-重构方案.md",
+          "line": 325,
+          "role": "Doc",
+          "text": "| **段键与既有键族冲突** | Q-1 | 键族分离：`seg.*` / `session.*.seg*` 与既有 `cline.session.*` / `session.*.r*.msg.*` 前缀不同；`NodeReconciler` 对账验证 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 16,
+          "role": "Doc",
+          "text": "| **Q-1+** | 消息域声明（**L-B 键族逐字保持** `session.{container}.r{round}.msg.{seq}`，判别值 `conversation_message`） | `Config\\nodes\\messages.json`、`TryLoadMessages/TryCreateMessages`、`CreateMessages`、`TryAttachMes"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 37,
+          "role": "Doc",
+          "text": "| **I-6** | **读投影枚举效率债**：`segment-context` 前缀 `session.{s}`（无 `.r` 段）无法反解 ThreadId ⇒ `EnumerateKeysAsync` 退化为按 NodeType 全扫 + 前缀过滤 | `AgentSqlNodeCarrier.EnumerateKeysAsync:164`（`threadId = keyPrefix i"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 70,
+          "role": "Doc",
+          "text": "| **关键口径** | 归档键 `cline.session.{s}.round.{n}` 与轮身份 `{container}.r{round}` 不同形，但**位置键模板可产出既有键**：物化键取身份形状 `{session}.r{round}`，位置 `archive-raw` 键模板 `cline.session.{container}.round.{round}` + 写入者 `writ"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 109,
+          "role": "Doc",
+          "text": "| **动作** | ① 修 `conversation.json` 的 `marked`（改载荷字段；`llm` / `tools` 与段域对齐）；② `BuildTaskAsync` 增投影路径（`ReadScope{PlacementIds=[\"segment-context\"], SelectionId=\"llm\", KeyPrefix=\"session.{session}\"}`），**带"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 110,
+          "role": "Doc",
+          "text": "| **判据** | **双读对账**（读投影 vs `ur_histories`）逐条一致或差异可见化；Task 节点数 = 段数 + 轮节点数；同轮正文出现次数 **3 → 1**；**开关关闭时行为与今日逐字一致**（回归）；顺带修 I-6（投影前缀传全键 `session.{s}.r{round}` 以命中线程过滤） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 181,
+          "role": "Doc",
+          "text": "| 段键与既有键族冲突 | Q-3b / Q-3c | 键族分离：`seg.*` / `session.*.seg*` / `session.*.r*.msg.*` 与 `cline.session.*` 前缀互不重叠；`NodeReconciler` 对账 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/对话历史节点化-下一批施工单.md",
+          "line": 191,
+          "role": "Doc",
+          "text": "| **U11** | 归档物化键口径（物化键 `{session}.r{round}` ≠ 存储键 `cline.session.{s}.round.{n}`） | **A** 接受（N2：位置不改变身份，位置键模板产出既有键）／**B** 改建归档键族以与身份同形（破坏既有读方） | **A** | Q-3b |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 74,
+          "role": "Doc",
+          "text": "| **轮域**（会话轮粒度） | `conversation.json`：`archive-raw` / `session-view` / `task-node` / `legacy-history` | `cline.session.{c}.round.{r}`、`session.{c}.r{r}`、`{storage}.{node}`、`{container}` | `cline_messa"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 75,
+          "role": "Doc",
+          "text": "| **段域**（切分产物） | `segments.json`：`segment-node` / `segment-context` | `seg.{c}.r{r}.seg{s}`、`session.{c}.r{r}.seg{s}` | `node` | `HistoryMaterializeService.ForSegments` | 投影 + `HistoryComposer` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 76,
+          "role": "Doc",
+          "text": "| **消息域**（L-B 会话消息） | `messages.json`：`session-message` | `session.{c}.r{r}.msg.{s}` | `conversation_message` | `HistoryMaterializeService.ForMessages` | `StandardContextBuilder.BuildSessionAsync` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 78,
+          "role": "Doc",
+          "text": "| **归档层**（子 Cline 原文） | 轮域 `archive-raw` | `cline.session.{sessionId}.round.{round}` | `cline_messages` | `HistoryMaterializeService.ForArchive`（`HistoryClineMessageArchive`） | 归档端口（`history_load`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 45,
+          "role": "Doc",
+          "text": "| **I2** | U12 **L1**：loc 词表分层（U17 裁决：单值 → 多值 + `session.*` / `cline.session.*` / `archive.*`） | 声明面闸A + C2 双向完备 | 待做 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 101,
+          "role": "Doc",
+          "text": "| **L3 存储地址键** | `ur_nodes.NodeKey` 五族（`session.*.r*.msg.*`、`cline.session.*`、`proc.*`、`{storage}.{node}`、`seg.*`） | `Config/nodes/*.json` 的**手写文本模板**（`identity` + `placements[].key`），反解靠正则 | ❌ 唯一停留在「"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 107,
+          "role": "Doc",
+          "text": "1. **同一事实两处文本**：`Config/nodes/conversation.json` 的 `identity: \"{container}.r{round}\"` 与位置 `session-view.key: \"session.{container}.r{round}\"` 必须人工保持同形；无任何机器判据。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 109,
+          "role": "Doc",
+          "text": "> 非贪婪占位符 `{container}` 会把 `cline.session.s1.round.1` 反解为 `container=cline.session.s1` / `round=ound.1`，而**回代后与原键逐字相等** ⇒ 往返校验抓不住，位置键会静默漂移成 `cline.session.cline.session.s1.round.ound.1`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 220,
+          "role": "Doc",
+          "text": "| 3.1 | 把 L3 五键族（`session.*` / `cline.session.*` / `proc.*` / `seg.*` / `task-node`）全部注册为 `KeyGrammar`（族前缀 + 模板 + 序数占位 + 键序项 + legacy 模板），与既有 6 个文法并表 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 234,
+          "role": "Doc",
+          "text": "**判据**：读投影行数不变（双读对账）；`StringComparison` 级反解用例（`cline.session.s1.round.1` → 不再产出 `round=ound.1`）新增回归。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 270,
+          "role": "Doc",
+          "text": "| 存量 legacy 键（`session.{name}.msg.{seq}`）读不到 | 批次 3/4 切换 | `KeyGrammar.legacyTemplates` 容忍读；写侧只产新形态 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.26/框架层重构规划-数据与运行态分离·通用性·单一实例.md",
           "line": 280,
           "role": "Doc",
@@ -7916,374 +8224,94 @@
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.29/2026-09-29-工作流驱动通用框架-过耦合缺陷收敛-实施台账与批次计划.md",
-          "line": 24,
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 59,
           "role": "Doc",
-          "text": "| D9 | （实测新增）`placement.ushar` 分域词表范围（U17） | **待裁** | ① 按现单值 `agent_round` 保留（9 行不拆，仅做反解自检）② 扩词表按域拆行（`session.*` / `archive.*`） | F-P2-4 |"
+          "text": "| ② | `project_marked` → `RoundMessageSettlement.SettleAsync` | `session.{c}.r{r}.msg.{s}`（`conversation_message`） | 全文 | `RoundMessageSettlement.cs:88-97` |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.29/2026-09-29-Agent框架过耦合-架构级缺陷与诊断成本分析.md",
-          "line": 205,
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 60,
           "role": "Doc",
-          "text": "| 历史只留终答（设计，非缺陷） | `Agent.Orchestration\\SessionWorkflow\\ConversationCentralPipeline.cs:250`（`Role != Tool` 才入史）；DB 中 `session.default.r1.assistant-message.1` 带 `mark:\"Terminal\"` |"
+          "text": "| ③ | 归档 L-C `HistoryClineMessageArchive` | `cline.session.{c}.round.{r}` | 整轮 messages.json | （实现已退役） |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.29/2026-09-29-Agent框架过耦合-架构级缺陷与诊断成本分析.md",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 114,
+          "role": "Doc",
+          "text": "| `session-view` | `session.{container}.r{round}.{kind}.{ordinal}` | `writer-session` | contextual | `marked` | ✅ 内容真源 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
           "line": 214,
           "role": "Doc",
-          "text": "| 已 checkpoint 的可读行 | `agent.db`：`cline`(node) / `session.default.r1.assistant-message.1`(conversation_message,`mark=Terminal`) / `proc.default.r1.endpoint.1,2` / `proc.default.r1.llm-call.1` |"
+          "text": "| `round-attribution.ushar` | `project_marked` 语义收窄为\"**只挂边**\"（`session_owns` 目标 = **内容节点键**，不再指向 `session.*.msg.*` 副本）；`link_nodes` 不变 | 边目标 = 内容节点键（用例） |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/Agent/会话运行时模板触发初始化方案.md",
-          "line": 74,
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 314,
           "role": "Doc",
-          "text": "- 新建 `Templates/AgentRun/data/init-session.json`："
+          "text": "| 存量键不可读（`session.*.r*.msg.*` / `proc.*.r*.step*` / `seg.*.r*.seg*` / 裸轮） | W2 | `KeyGrammar` 注册 `legacyTemplates` + `TryParseAny` 兼容读；**写侧恒新形态** |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/主循环对话统一接入历史容器-重构方案.md",
-          "line": 36,
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 118,
           "role": "Doc",
-          "text": "NodeKey = cline.session.{sessionId}.round.{round}，NodeType = cline_messages"
+          "text": "| 机理 | 该构造点只传 `container`/`round` 两值；A2 后 `archive-raw` 键模板为 `cline.session.{container}.round.{round}.{kind}.{ordinal}`（4 占位） |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 117,
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 128,
           "role": "Doc",
-          "text": "NodeKey = cline.session.{sessionId}.round.{round},"
+          "text": "| 机理 | 该处用**位置模板反解**（`TryParsePlacementValues(placements, ArchivePlacement, …)`）而非前缀匹配 ⇒ 旧键 `cline.session.{c}.round.{r}` 与新模板不同形 ⇒ 归 0 ⇒ `Where(round > 0)` 剔除 |"
         },
         {
           "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 145,
-          "role": "Doc",
-          "text": "cline.session.{sessionId}.round.{round}"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 156,
-          "role": "Doc",
-          "text": "| `NodeKey` | `cline.session.{sessionId}.round.{n}` | 幂等键 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 178,
-          "role": "Doc",
-          "text": "-- @nk = 'cline.session.{sessionId}.round.{n}'"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 190,
-          "role": "Doc",
-          "text": "/// 每轮一条 NodeKey（cline.session.{sessionId}.round.{round}），幂等 upsert。"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 223,
-          "role": "Doc",
-          "text": "/// NodeKey = cline.session.{sessionId}.round.{round}；NodeType = cline_messages。"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 228,
-          "role": "Doc",
-          "text": "private const string KeyPrefix = \"cline.session.\";"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 468,
-          "role": "Doc",
-          "text": "| 1.7 | `ClineAgentExecutor.ExecuteAsync` 插入回灌 + 归档逻辑 | 调用后 `ur_nodes` 出现 `cline.session.{sessionId}.round.1` 记录 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/Cline对话数据落库重构方案.md",
-          "line": 578,
-          "role": "Doc",
-          "text": "- 按会话归档总大小阈值触发压缩（合并历史轮次到单条 `cline.session.{id}.archive`）。"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/Agent/doc/NodesTasksHistory_关系介绍.md",
-          "line": 47,
-          "role": "Doc",
-          "text": "| `session_owns` | `session.{name}` → 会话消息/产出节点（会话图子图挂载） | 会话装配侧 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/FileDriven/2026/5.18/FileDriven_JsonUI拉伸问题_综合分析_下一步规划.md",
-          "line": 48,
-          "role": "Doc",
-          "text": "_relayoutPipeline.ExecuteFrom(target, session.Config, session.Context, 0);"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 138,
-          "role": "Doc",
-          "text": "│   └── session.Pipeline.Execute(...)"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 143,
-          "role": "Doc",
-          "text": "│   └── session.Pipeline.ExecuteFrom(startIndex: 1)"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 150,
-          "role": "Doc",
-          "text": "├── session.Dispose()               // 取消 Resize 订阅、清理缓存"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 168,
-          "role": "Doc",
-          "text": "session.Pipeline.ExecuteFrom(c, session.Config, session.Context, startIndex: 1);"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 270,
-          "role": "Doc",
-          "text": "│  └─ session.Pipeline.Execute(...)                       │"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 274,
-          "role": "Doc",
-          "text": "│  └─ session.Pipeline.ExecuteFrom(1)                     │"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/WdUI/6.5/WdUI_布局管线Pipeline阶段化重构_总结与规划.md",
-          "line": 277,
-          "role": "Doc",
-          "text": "│  ├─ session.Dispose()                                   │"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/design/基于 Agent 运行时事件的自动 Skill 加载机制架构设计文档.md",
-          "line": 353,
-          "role": "Doc",
-          "text": "if session.loaded_skills.has(skill.id):"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/design/基于 Agent 运行时事件的自动 Skill 加载机制架构设计文档.md",
-          "line": 359,
-          "role": "Doc",
-          "text": "session.loaded_skills.add(skill.id)"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/design/DataStoreDriven-分层提取-实施台账与批次计划.md",
-          "line": 113,
-          "role": "Doc",
-          "text": "> - `Parity/DeclarationBindingTests.cs`：修复 3 参 `Build`；声明面逐字锁定 `session.{container}.r{round}.{kind}.{ordinal}`；identity 反解改四段统一序（`sess.r3.tool.7`）；`conversation` / `segments` 两处过时期望按 W2-A2 键形改正；补 `Are"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/design/DataStoreDriven-节点图引用逻辑通用化与分层提取方案.md",
-          "line": 311,
-          "role": "Doc",
-          "text": "| **D1** | `Modules.Node` 能否收编**领域键模板**（`session.*` / `task.*` / `history.*`） | ① 只收编\"形态\"，具体键名留 L4 声明 ② 连键名一起进 L2 | **①**（N11 边界：L2 不含具体键名，文法由调用方注册） |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/superpowers/specs/2026-09-30-UniversalReference彻底重构-design.md",
-          "line": 94,
-          "role": "Doc",
-          "text": "- 目标：单一 `KeyFamilyGrammar`，定义键族前缀（proc./session./checkpoint./keymapping./relations. 等）与层次化规则。"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentAssemblySliceTests.cs",
-          "line": 349,
-          "role": "Test",
-          "text": "Assert.IsTrue(result.TryGetValue(\"step_d_session.p17\", out var s) && true.Equals(s),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 111,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"session:conv-a\", session.Id.ToString(), \"身份单源拼法 = {kind}:{key}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 112,
-          "role": "Test",
-          "text": "Assert.AreNotSame(session.Store, node.Store, \"异实例各自持有承载句柄（粒度 A·同文件多句柄）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 113,
-          "role": "Test",
-          "text": "Assert.AreEqual(session.Store.Path, node.Store.Path, \"同文件承载（粒度 A：agent-root 单文件）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 114,
-          "role": "Test",
-          "text": "Assert.AreEqual(AgentInstanceHosting.RootStoreKey, session.Store.StoreKey, \"承载键 = 声明 store 值\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 123,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"keep\", session.Retention.ToString().ToLowerInvariant(), \"会话根常驻（不自动封存）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInstanceHostingTests.cs",
-          "line": 126,
-          "role": "Test",
-          "text": "session.Cascades.Select(rule => rule.Kind).ToArray(),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/NodeFrameworkHostingTests.cs",
-          "line": 166,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\", placement.KeyTemplate,"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
-          "line": 60,
-          "role": "Test",
-          "text": "// 轮键族（cline.session.*.round.*）与段身份不同形：若放行会被反解出垃圾值 → 位置键漂移。"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
-          "line": 61,
-          "role": "Test",
-          "text": "var outcome = await writer.MaterializeAsync(\"cline.session.s1.round.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
-          "line": 80,
-          "role": "Test",
-          "text": "KeyPrefix: \"session.s1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
-          "line": 105,
-          "role": "Test",
-          "text": "KeyPrefix: \"session.s1\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryOpsServicesTests.cs",
-          "line": 253,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\", PlacementForm.View, PlacementRetention.Contextual,"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 37,
-          "role": "Test",
-          "text": "/// <c>cline.session.{c}.round.{n}.{kind}.{ordinal}</c>（NodeKey / NodeType / ThreadId / Payload 逐字对拍）；"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
           "line": 136,
-          "role": "Test",
-          "text": "NodeKey = \"cline.session.s1.round.1.stage.1\","
+          "role": "Doc",
+          "text": "| 事实 | conversation `session-view` 键 = `session.{container}.r{round}.{kind}.{ordinal}`；message `session-message` 键 = **逐字同形** |"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 143,
-          "role": "Test",
-          "text": "NodeKey = \"cline.session.s1.round.2.stage.1\","
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 171,
+          "role": "Doc",
+          "text": "| **P1** | ERR-2 | 批 **A2-fix** | ✅ **已修复（2026-09-27，路线① 声明驱动）**：`conversation.json` 补 `archive-raw-legacy`（`key=cline.session.{container}.round.{round}`、`state:\"legacy\"`、`writer-archive-legacy`）；`pla"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 290,
-          "role": "Test",
-          "text": "\"session.{container}.r{round}.{kind}.{ordinal}\", PlacementForm.View, PlacementRetention.Contextual,"
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 184,
+          "role": "Doc",
+          "text": "- **ERR-2 已闭合**（见上表 P1 行）；**ERR-1 补回归**：既有 `ClineArchiveRoundPolicyTests` 的 L-C/L-B 线格式断言已随批更新为统一键形（`cline.session.work.round.7.stage.1` / `session.work.r7.tool.1`）。"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/RoundSourcePolicyTests.cs",
-          "line": 51,
-          "role": "Test",
-          "text": "// L-B（会话消息）：session.{c}.r{r}.{kind}.{ordinal} —— 轮次段可反解回同一轮"
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 34,
+          "role": "Doc",
+          "text": "| `archive-raw` | `cline.session.{container}.round.{round}` | `cline.session.{container}.round.{round}.{kind}.{ordinal}` | ✅（本域**唯一**写目标） | **F1 必改**：不带 `{kind}.{ordinal}` ⇒ 多身份塌成同一位置键 |"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/RoundSourcePolicyTests.cs",
-          "line": 53,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"session.work.r7.tool.1\", messageKey);"
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 35,
+          "role": "Doc",
+          "text": "| `session-view` | `session.{container}.r{round}` | `session.{container}.r{round}.{kind}.{ordinal}` | ❌ | W4 转为内容面写目标（当前写侧仅经 `message` 域） |"
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 29,
-          "role": "Test",
-          "text": "private const string ArchiveKey = \"cline.session.work.round.1.stage.1\";"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 98,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.1.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 99,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.2.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 100,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.work.round.3.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 101,
-          "role": "Test",
-          "text": "await carrier.UpsertAsync(\"cline.session.other.round.1.stage.1\", \"{}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/AgentNodeCarriersTests.cs",
-          "line": 103,
-          "role": "Test",
-          "text": "var keys = await carrier.EnumerateKeysAsync(\"cline.session.work.\");"
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 49,
+          "role": "Doc",
+          "text": "| `session-message` | `session.{container}.r{round}.msg.{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | 该位置 **W4 退役**（D2）⇒ 本批键变更只为兼容期 |"
         }
       ]
     },
@@ -8292,14 +8320,14 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 351,
+      "total": 377,
       "truncated": false,
       "byRole": {
-        "Gate": 3,
-        "Test": 76,
-        "Declaration": 54,
+        "Gate": 6,
+        "Test": 80,
+        "Declaration": 57,
         "Code": 19,
-        "Doc": 198,
+        "Doc": 214,
         "Other": 1
       },
       "hits": [
@@ -8316,6 +8344,27 @@
           "line": 76,
           "role": "Gate",
           "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
+          "line": 203,
+          "role": "Gate",
+          "text": "kinds = @('unrecognized', 'tool-call')"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
+          "line": 204,
+          "role": "Gate",
+          "text": "recognizers = @([pscustomobject]@{ match = [pscustomobject]@{ step = 1 }; kind = 'tool-call' })"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
+          "line": 207,
+          "role": "Gate",
+          "text": "$probeStepIssues = @(Get-AgentSpecIssues -AgentName 'probe' -Spec $probeStepKey -HasRoundShape $true -CanonText \"unrecognized → X`ntool-call → Y\")"
         },
         {
           "repo": "Frame",
@@ -8382,6 +8431,279 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 18,
+          "role": "Doc",
+          "text": "| 1 | 用户现象已定性：**工具调用已采集、已落库**（`proc.*.tool-call/tool-result`），缺口在**展示/读面**（C-3 弱判据 + C-5 不可读观测）。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.1/工具调用可见化与过程面可归因-电路驱动实施规划.md",
+          "line": 34,
+          "role": "Doc",
+          "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 13,
+          "role": "Doc",
+          "text": "> **一句话**：在 `Agent.Modules.SubAgent` 下新增标签 `workflow`（执行腿 `subagent-workflow`），以「**声明模板 + 运行期计划图 + 执行轨迹**」承载通用智能体工作流：模板静态可验证，计划受约束可校验，轨迹可记录、可追踪、可诊断；并补 §13 的默认运行逻辑改造（工具调用 → `tool-call`、节点归位、`base` 基础智能"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 28,
+          "role": "Doc",
+          "text": "| **C-8** | history 默认运行逻辑增加**结构化意图分类**：工具意图 → `tool-call` 子 Agent；工作流意图 → `workflow` 子 Agent；基础意图 → `base` 子 Agent；非结构化输入保持既有 L-D 决策（零回归）。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 588,
+          "role": "Doc",
+          "text": "| 单工具结构化调用 | `tool-call` 子 Agent（确定性直调优先） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 611,
+          "role": "Doc",
+          "text": "| `src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs` | 工具调用执行腿 `subagent-tool-call` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 645,
+          "role": "Doc",
+          "text": "| `skills/internal/tool-call/SKILL.md` | 工具调用 Agent 提示词面 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 653,
+          "role": "Doc",
+          "text": "| `Config/subagents.ushar` | 增加 `workflow` / `tool-call` / `base` 标签 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 654,
+          "role": "Doc",
+          "text": "| `Config/skills.ushar` | 增加 `agent-workflow` / `tool-call` / `base-agent` 技能登记 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 685,
+          "role": "Doc",
+          "text": "| `src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs` | 注册 `subagent-tool-call` / `subagent-base` 执行器 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 791,
+          "role": "Doc",
+          "text": "- 标签→执行器解析修复（tool-call / workflow / base）；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 800,
+          "role": "Doc",
+          "text": "- 结构化工具意图默认走 `tool-call`，执行器不再被 cline 覆盖；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 801,
+          "role": "Doc",
+          "text": "- workflow/tool-call/base 节点归属正确，无 `history_owns_node` 写入；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 860,
+          "role": "Doc",
+          "text": "| D6 | 工具调用 Agent 是否独立标签 | **独立 `tool-call`**，与目录发现 `tool-catalog` 分离 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 873,
+          "role": "Doc",
+          "text": "| 2026-10-18 | 增补 §13：history 默认运行逻辑改造（结构化意图分类 → tool-call / workflow / base）、标签执行器解析修复、history/task/workflow 节点归位、基础智能体经 history 窗口提交与结果槽预言式预分配（P5 / A13–A22 / D6–D10） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 901,
+          "role": "Doc",
+          "text": "1. **执行腿错配**：标签 `tool-call` / `workflow` 建出的成员仍走 cline，不会走专用执行腿。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 902,
+          "role": "Doc",
+          "text": "2. **路由无默认语义**：没有“结构化工具意图 → tool-call Agent”的确定性默认；LLM 决策可选项有限且路径不稳定。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 913,
+          "role": "Doc",
+          "text": "├─ 结构化 ToolCallSubmission   → 默认 sub_agent = tool-call  → executor = subagent-tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 923,
+          "role": "Doc",
+          "text": "| 输入含 `submission_id` + `intent=tool_call` + `tool.name` | 建/复用 `tool-call` 成员，执行器 `subagent-tool-call` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 965,
+          "role": "Doc",
+          "text": "### 13.3 工具调用 Agent（标签 `tool-call`）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 972,
+          "role": "Doc",
+          "text": "[SubAgent] tool-call:"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 973,
+          "role": "Doc",
+          "text": "agent = tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 975,
+          "role": "Doc",
+          "text": "skills = tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 977,
+          "role": "Doc",
+          "text": "executor = subagent-tool-call"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 983,
+          "role": "Doc",
+          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 986,
+          "role": "Doc",
+          "text": "`skills/internal/tool-call/SKILL.md` 约束："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1001,
+          "role": "Doc",
+          "text": "public const string ExecutorId = \"subagent-tool-call\";"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1082,
+          "role": "Doc",
+          "text": "| tool 调用 / 工具结果 | `cross_db_link` | tool-call 任务 | 不写回 history 任务节点 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1103,
+          "role": "Doc",
+          "text": "**默认取 `flat`**：workflow 根任务、tool-call 子任务、base 提交任务都直接归拢到 history；`task_owns_task` 只补充结构，不改变可见性。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1121,
+          "role": "Doc",
+          "text": "// tool-call / tool-result                    → ToolCallTask"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1132,
+          "role": "Doc",
+          "text": "workflow/tool-call 节点载荷至少包含："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1155,
+          "role": "Doc",
+          "text": "- tool-call 任务的窗口包含工具结果；history 的 `dispatch_context` 能看见摘要，但不会把原始工具输出灌进 history 上下文（避免上下文污染）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1416,
+          "role": "Doc",
+          "text": "| **P5-A 路由契约** | `TaskDispatchParams` 扩展；`IHistorySubmissionClassifier`；`history-loop.ushar` 默认键；`history-modes.ushar` 增加 `tool.call` | 结构化工具意图 → `subAgentTag=tool-call`；非结构化输入零回归 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1417,
+          "role": "Doc",
+          "text": "| **P5-B 执行腿修复** | `MemberProvisionRequest` + 标签→`SubAgentDefinition.Executor` 解析；注册 `subagent-tool-call` / `subagent-base` | 入队/成员创建后 `ExecutorId` 正确；未登记标签 fail-fast |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1418,
+          "role": "Doc",
+          "text": "| **P5-C 工具调用 Agent** | `ToolCallSubAgentTools` + `ToolCallSubAgentTaskExecutor` + `IToolInvoker` | 工具名/参数校验；幂等；结果节点归属 tool-call 任务 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1419,
+          "role": "Doc",
+          "text": "| **P5-D 节点归位** | `WorkflowNodeOwnership` 策略；`RoundAttribution` 接入；任务层级 flat | workflow/tool-call/base 节点归属正确；负对照拒绝错归属 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1429,
+          "role": "Doc",
+          "text": "| A13 | 结构化工具意图默认走 tool-call | 入队 `intent=tool_call`，读 `SubAgentTag=tool-call`、`ExecutorId=subagent-tool-call` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1430,
+          "role": "Doc",
+          "text": "| A14 | 标签执行腿不被 cline 覆盖 | 三个标签（tool-call/workflow/base）分别断言 `ExecutorId` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.18/通用智能体工作流子Agent-架构设计与施工方案.md",
+          "line": 1457,
+          "role": "Doc",
+          "text": "| D6 | 工具调用 Agent 是否独立标签，还是复用 `tool-catalog` | **独立 `tool-call`**；目录发现与执行分离 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.19/2026-10-19-Agent-PS子智能体全工具与通用传递键框架-重构设计.md",
           "line": 354,
           "role": "Doc",
@@ -8414,6 +8736,20 @@
           "line": 755,
           "role": "Doc",
           "text": "- **D7**：`intent=file` → `powershell`；`tool_call` → `tool-call`；默认值用 `[Ref]` 表达。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/工作流节点参数化与提示词模板组装-后续批次施工单.md",
+          "line": 220,
+          "role": "Doc",
+          "text": "role.tool-call = 5"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.19/工作流节点参数化与提示词模板组装-后续批次施工单.md",
+          "line": 227,
+          "role": "Doc",
+          "text": "owns-tool = \"role.tool-call\""
         },
         {
           "repo": "Main",
@@ -8746,6 +9082,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-SubAgent模块-重复冗余与错误逻辑分析.md",
+          "line": 125,
+          "role": "Doc",
+          "text": "2. 同一工具调用 JSON 在单步壳与 `tool-call` 工具面得到相同解析结果与相同幂等判定；"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.20/2026-10-20-USharp声明面驱动-任务分发执行回传-实施方案.md",
           "line": 17,
           "role": "Doc",
@@ -9005,6 +9348,118 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 31,
+          "role": "Doc",
+          "text": "| **C-3** | 现有 spec 只描述「帧 → kind」，**没有轮次形状契约**：无法判\"这一轮节点齐不齐\"，`tool-call` 与 `tool-result` 的配对只靠 `callId` 隐式维系（无 edge） | §1.2 G-2 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 76,
+          "role": "Doc",
+          "text": "| **G-2** | 无轮次形状契约 | spec 只产出 `RuleHit{kind,payload,ordinal,node,origin}`（`recognizer-engine.ts:34-47`），无 required / terminal / pairing 声明 | 无法机械判定\"这轮节点是否完整\"；`tool-call` 与 `tool-result` 只靠 `payload.c"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 176,
+          "role": "Doc",
+          "text": "| `kind` | `Config/agents/<agent>/recognizers.json.kinds` | `assistant-message` / `tool-call` | 身份模板 `{kind}` 段 + 语义分类 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 203,
+          "role": "Doc",
+          "text": "\"kinds\": [\"user-message\", \"assistant-message\", \"tool-call\", \"tool-result\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 207,
+          "role": "Doc",
+          "text": "\"kind\": \"tool-call\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 234,
+          "role": "Doc",
+          "text": "pairings   = tool-call ⇄ tool-result by callId    # 缺配 ⇒ 生成 fault 节点，不得丢弃"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 248,
+          "role": "Doc",
+          "text": "tool-call         → CanonicalNodeType.Action    | slot=invoke"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 299,
+          "role": "Doc",
+          "text": "{ \"id\": \"cline.s1.r1.tool-call.2\",         \"type\": \"Action\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 300,
+          "role": "Doc",
+          "text": "\"properties\": { \"kind\": \"tool-call\", \"slot\": \"invoke\", \"tool\": \"read_files\", \"callId\": \"kw8…\" } },"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 307,
+          "role": "Doc",
+          "text": "{ \"id\": \"e1\", \"sourceId\": \"…user-message.1\", \"targetId\": \"…tool-call.2\",    \"type\": \"ControlFlow\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 308,
+          "role": "Doc",
+          "text": "{ \"id\": \"e2\", \"sourceId\": \"…tool-call.2\",    \"targetId\": \"…tool-result.3\",  \"type\": \"DataFlow\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 339,
+          "role": "Doc",
+          "text": "| 2 | Live 覆盖本就不全，是既有设计 | `Config\\recognizers.json:275,283` 把 `session_snapshot` 的 `tool_use` / `tool_result` 标为 `node:false`，注释写明\"由 live 的 tool-call/tool-result 负责\" | live 一断，归档有全量、节点却缺，且无补齐手段 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 451,
+          "role": "Doc",
+          "text": "| P3-2 | 边生成（turn / calls / returns / parent / replaces） | `tool-call` 必有 `returns` 入边；缺配 ⇒ `fault` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.29/2026-10-29-智能体对话历史节点化-统一规范化框架-重构方案.md",
+          "line": 730,
+          "role": "Doc",
+          "text": "| P3-2 | 边生成 `turn/calls/returns/parent/replaces`；`tool-call` 缺 `returns` ⇒ `fault` | 删 `tool-result` ⇒ 出 `fault` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-终答与窗口-通用身份架构-usharp声明式设计.md",
+          "line": 237,
+          "role": "Doc",
+          "text": "[KeyLexicon] ProcessKind: stage, endpoint, llm-call, llm-iteration, llm-output, tool-call, tool-progress,"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-终答与窗口-通用身份架构-usharp声明式设计.md",
+          "line": 263,
+          "role": "Doc",
+          "text": "axis domain.process/kind | allowed=stage,endpoint,llm-call,llm-iteration,llm-output,tool-call,tool-progress,tool-result,say-text,say-command,say-command-output,say-diff,ask-question,notice,usage,done,"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.4/2026-10-04-运行日志分析-函数调用链-工具调用上屏测试.md",
           "line": 115,
           "role": "Doc",
@@ -9208,6 +9663,69 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "| **live（agent_event）** | `llm-iteration` · `llm-text` · `llm-reasoning` · `tool-call` · `tool-progress` · `tool-result` · `usage` · `notice` · `error` · `done` | 时序敏感、需随运行即刻可见 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 110,
+          "role": "Doc",
+          "text": "| **snapshot（对账用，不成节点）** | 复用 `llm-text`/`llm-reasoning`/`tool-call`/`tool-result`，`node:false` | 仅用于「过程 ⊆ 归档」对账，防双写 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 134,
+          "role": "Doc",
+          "text": "- 按类裁剪：`process.json` 增 `selections`（如 `tools: \"kind in (tool-call;tool-result)\"`），读侧以 `SelectionId` 选择；**谓词只用极小文法**（`field=value` / `field!=value` / `field in (a;b)` / `true`），防 `ANTI-SELECTION-EXPR-"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 217,
+          "role": "Doc",
+          "text": "| 键往返（新形态） | `IdentityKey(task,2,\"tool-call\",7)` → `TryParse` 反解一致（D-2） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化识别与编排工作流化-总体方案.md",
+          "line": 218,
+          "role": "Doc",
+          "text": "| **工具（细）** | `tool-call` / `tool-progress` / `tool-result` | `content_start│content_update│content_end`（`contentType=tool`） | `toolName` / `toolCallId` / `input` / `output` / `error` / `durationMs` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化识别与编排工作流化-总体方案.md",
+          "line": 232,
+          "role": "Doc",
+          "text": "\"kind\":    \"tool-call\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化识别与编排工作流化-总体方案.md",
+          "line": 281,
+          "role": "Doc",
+          "text": "| 读裁剪 | `selection: \"all\"` | `\"tools\": \"kind in (tool-call;tool-result)\"` | **按识别类别读 = 声明一行** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 154,
+          "role": "Doc",
+          "text": "| message（内容面） | `user-message` · `assistant-message` · `tool-call` · `tool-result` · `llm-text` · `llm-reasoning` · `attachment` · `generic` | **全部已在** `recognizers.json` 词表内 | 与 `session_snapshot` 识"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 17,
+          "role": "Doc",
+          "text": "| **D4** | 工具调用 `kind` 词表 | 与 `recognizers.json` 现有词表统一（`tool-call` / `tool-result` 形态），新增即登记 | `Check-RecognizerVocabulary` R7 基线上调 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.29/2026-09-29-工作流驱动通用框架-过耦合缺陷收敛-实施台账与批次计划.md",
           "line": 251,
           "role": "Doc",
@@ -9233,6 +9751,34 @@
           "line": 239,
           "role": "Doc",
           "text": "| 中间工具调用**未采集** | ❌ 否 | WAL 有 `tool-call/tool-result` 行；`hooks.jsonl` 有逐迭代记录 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.9/4B小模型工具调用框架可行性分析.md",
+          "line": 83,
+          "role": "Doc",
+          "text": "- **约束解码（constrained decoding / grammar）**：别让 4B 自由生成 JSON，用 schema / grammar 约束只产出合法参数。这是小模型 tool-calling 从\"会崩\"到\"能跑\"的分水岭，比 4B 本身更重要。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.9/4B小模型工具调用框架可行性分析.md",
+          "line": 91,
+          "role": "Doc",
+          "text": "- `stateless-answer`、`ChatWithTools`（answer 带本地库工具）→ **4B + tool-calling 最自然落点**：schema 封闭、工具集小、上下文窄。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.9/4B小模型工具调用框架可行性分析.md",
+          "line": 104,
+          "role": "Doc",
+          "text": "| 1. 配置 | `Config/agent-config.json` 增 `Agents` 条目，如 `provider=local-4b, baseUrl=http://127.0.0.1:<PORT>/v1, model=<4B 带 tool-calling 型号>` | 配置 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.9/4B小模型工具调用框架可行性分析.md",
+          "line": 123,
+          "role": "Doc",
+          "text": "| **tool-calling 原生能力** | 需选**原生支持函数调用**的 4B 级模型（如 Qwen2.5-3B/7B-Instruct 等），并对齐 OpenAI function-calling 协议 | 选型清单化 + 协议对齐 |"
         },
         {
           "repo": "Main",
@@ -9370,28 +9916,28 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 118,
+          "line": 145,
           "role": "Test",
           "text": "\"tools\": [\"tool-call\", \"tool-result\"],"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 123,
+          "line": 150,
           "role": "Test",
           "text": "\"tool-call\": { \"family\": \"tools\", \"titleKey\": \"tool\", \"summary\": [\"tool\", \"input\"], \"badge\": \"调用\" },"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 132,
+          "line": 159,
           "role": "Test",
           "text": "+ \"{\\\"seq\\\":1,\\\"kind\\\":\\\"tool-call\\\",\\\"atUtc\\\":\\\"t1\\\",\\\"tool\\\":\\\"read_files\\\",\\\"input\\\":\\\"{}\\\"},\""
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
-          "line": 146,
+          "line": 173,
           "role": "Test",
           "text": "StringAssert.Contains(messages[0].Text, \"read_files\", \"tool-call 文本按声明 summary（tool,input）\");"
         },
@@ -9569,6 +10115,34 @@
           "line": 109,
           "role": "Test",
           "text": "\"tp_tool\", \"tool-call\", SubAgentExecutorIds.SingleStep,"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Tasks/TaskGraphRouteTests.cs",
+          "line": 22,
+          "role": "Test",
+          "text": "var service = new TaskGraphService(store, resources: null, new FixedResolver(TaskRoute.Allow(\"subagent-tool-call\")));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Tasks/TaskGraphRouteTests.cs",
+          "line": 26,
+          "role": "Test",
+          "text": "SubAgentTag: \"tool-call\")).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Tasks/TaskGraphRouteTests.cs",
+          "line": 30,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"tool-call\", spec.SubAgentTag);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Tasks/TaskGraphRouteTests.cs",
+          "line": 31,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"subagent-tool-call\", spec.ExecutorId);"
         },
         {
           "repo": "Main",
@@ -10055,10 +10629,52 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/agents/cline/recognizers.json",
+          "line": 13,
+          "role": "Declaration",
+          "text": "\"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/agents/cline/recognizers.json",
+          "line": 144,
+          "role": "Declaration",
+          "text": "\"kind\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/agents/cline/recognizers.json",
+          "line": 291,
+          "role": "Declaration",
+          "text": "\"kind\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/agents/cline/recognizers.json",
+          "line": 613,
+          "role": "Declaration",
+          "text": "\"kind\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/agents/cline/round-shape.ushar",
+          "line": 11,
+          "role": "Declaration",
+          "text": "pairings   = tool-call ⇄ tool-result by callId"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/collaboration.ushar",
           "line": 24,
           "role": "Declaration",
           "text": "Route.tool-call = tools_on"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/conversation-canon.ushar",
+          "line": 12,
+          "role": "Declaration",
+          "text": "tool-call         → CanonicalNodeType.Action    | slot=invoke"
         },
         {
           "repo": "Projects",
@@ -10070,9 +10686,16 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
-          "line": 98,
+          "line": 99,
           "role": "Declaration",
-          "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-reasoning,tool-call,tool-progress,tool-result,"
+          "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-output,llm-reasoning,tool-call,tool-progress,t"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/identity.ushar",
+          "line": 10,
+          "role": "Declaration",
+          "text": "[KeyLexicon] ProcessKind: stage, endpoint, llm-call, llm-iteration, llm-output, tool-call, tool-progress, tool-result, say-text, say-command, say-command-output, say-diff, ask-question, notice, usage,"
         },
         {
           "repo": "Projects",
@@ -10188,34 +10811,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/recognizers.json",
-          "line": 12,
-          "role": "Declaration",
-          "text": "\"tool-call\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/recognizers.json",
-          "line": 77,
-          "role": "Declaration",
-          "text": "\"kind\": \"tool-call\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/recognizers.json",
-          "line": 138,
-          "role": "Declaration",
-          "text": "\"kind\": \"tool-call\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/recognizers.json",
-          "line": 274,
-          "role": "Declaration",
-          "text": "\"kind\": \"tool-call\","
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
           "line": 11,
           "role": "Declaration",
@@ -10262,391 +10857,6 @@
           "line": 72,
           "role": "Declaration",
           "text": "skills = tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-20-SubAgent模块-重复冗余与错误逻辑分析.md",
-          "line": 125,
-          "role": "Doc",
-          "text": "2. 同一工具调用 JSON 在单步壳与 `tool-call` 工具面得到相同解析结果与相同幂等判定；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/4B小模型工具调用框架可行性分析.md",
-          "line": 83,
-          "role": "Doc",
-          "text": "- **约束解码（constrained decoding / grammar）**：别让 4B 自由生成 JSON，用 schema / grammar 约束只产出合法参数。这是小模型 tool-calling 从\"会崩\"到\"能跑\"的分水岭，比 4B 本身更重要。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/4B小模型工具调用框架可行性分析.md",
-          "line": 91,
-          "role": "Doc",
-          "text": "- `stateless-answer`、`ChatWithTools`（answer 带本地库工具）→ **4B + tool-calling 最自然落点**：schema 封闭、工具集小、上下文窄。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/4B小模型工具调用框架可行性分析.md",
-          "line": 104,
-          "role": "Doc",
-          "text": "| 1. 配置 | `Config/agent-config.json` 增 `Agents` 条目，如 `provider=local-4b, baseUrl=http://127.0.0.1:<PORT>/v1, model=<4B 带 tool-calling 型号>` | 配置 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/4B小模型工具调用框架可行性分析.md",
-          "line": 123,
-          "role": "Doc",
-          "text": "| **tool-calling 原生能力** | 需选**原生支持函数调用**的 4B 级模型（如 Qwen2.5-3B/7B-Instruct 等），并对齐 OpenAI function-calling 协议 | 选型清单化 + 协议对齐 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工具调用可见化与过程面可归因-电路驱动实施规划.md",
-          "line": 18,
-          "role": "Doc",
-          "text": "| 1 | 用户现象已定性：**工具调用已采集、已落库**（`proc.*.tool-call/tool-result`），缺口在**展示/读面**（C-3 弱判据 + C-5 不可读观测）。 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工具调用可见化与过程面可归因-电路驱动实施规划.md",
-          "line": 34,
-          "role": "Doc",
-          "text": "| 写·过程落库 | 工具调用已入 `proc.{container}.r{round}.{kind}.{ordinal}`（`tool-call`/`tool-result`/`llm-*`） | `Agent.Modules\\Signal\\ProcessNodes.cs:190-296`；`ClineAgentExecutor.cs:116`、`ClineDaemonEndpoint.cs:1"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工作流节点参数化与提示词模板组装-后续批次施工单.md",
-          "line": 220,
-          "role": "Doc",
-          "text": "role.tool-call = 5"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/工作流节点参数化与提示词模板组装-后续批次施工单.md",
-          "line": 227,
-          "role": "Doc",
-          "text": "owns-tool = \"role.tool-call\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 13,
-          "role": "Doc",
-          "text": "> **一句话**：在 `Agent.Modules.SubAgent` 下新增标签 `workflow`（执行腿 `subagent-workflow`），以「**声明模板 + 运行期计划图 + 执行轨迹**」承载通用智能体工作流：模板静态可验证，计划受约束可校验，轨迹可记录、可追踪、可诊断；并补 §13 的默认运行逻辑改造（工具调用 → `tool-call`、节点归位、`base` 基础智能"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 28,
-          "role": "Doc",
-          "text": "| **C-8** | history 默认运行逻辑增加**结构化意图分类**：工具意图 → `tool-call` 子 Agent；工作流意图 → `workflow` 子 Agent；基础意图 → `base` 子 Agent；非结构化输入保持既有 L-D 决策（零回归）。 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 588,
-          "role": "Doc",
-          "text": "| 单工具结构化调用 | `tool-call` 子 Agent（确定性直调优先） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 611,
-          "role": "Doc",
-          "text": "| `src/Agent.Modules/SubAgent/Runtime/ToolCallSubAgentTaskExecutor.cs` | 工具调用执行腿 `subagent-tool-call` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 645,
-          "role": "Doc",
-          "text": "| `skills/internal/tool-call/SKILL.md` | 工具调用 Agent 提示词面 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 653,
-          "role": "Doc",
-          "text": "| `Config/subagents.ushar` | 增加 `workflow` / `tool-call` / `base` 标签 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 654,
-          "role": "Doc",
-          "text": "| `Config/skills.ushar` | 增加 `agent-workflow` / `tool-call` / `base-agent` 技能登记 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 685,
-          "role": "Doc",
-          "text": "| `src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs` | 注册 `subagent-tool-call` / `subagent-base` 执行器 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 791,
-          "role": "Doc",
-          "text": "- 标签→执行器解析修复（tool-call / workflow / base）；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 800,
-          "role": "Doc",
-          "text": "- 结构化工具意图默认走 `tool-call`，执行器不再被 cline 覆盖；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 801,
-          "role": "Doc",
-          "text": "- workflow/tool-call/base 节点归属正确，无 `history_owns_node` 写入；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 860,
-          "role": "Doc",
-          "text": "| D6 | 工具调用 Agent 是否独立标签 | **独立 `tool-call`**，与目录发现 `tool-catalog` 分离 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 873,
-          "role": "Doc",
-          "text": "| 2026-10-18 | 增补 §13：history 默认运行逻辑改造（结构化意图分类 → tool-call / workflow / base）、标签执行器解析修复、history/task/workflow 节点归位、基础智能体经 history 窗口提交与结果槽预言式预分配（P5 / A13–A22 / D6–D10） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 901,
-          "role": "Doc",
-          "text": "1. **执行腿错配**：标签 `tool-call` / `workflow` 建出的成员仍走 cline，不会走专用执行腿。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 902,
-          "role": "Doc",
-          "text": "2. **路由无默认语义**：没有“结构化工具意图 → tool-call Agent”的确定性默认；LLM 决策可选项有限且路径不稳定。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 913,
-          "role": "Doc",
-          "text": "├─ 结构化 ToolCallSubmission   → 默认 sub_agent = tool-call  → executor = subagent-tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 923,
-          "role": "Doc",
-          "text": "| 输入含 `submission_id` + `intent=tool_call` + `tool.name` | 建/复用 `tool-call` 成员，执行器 `subagent-tool-call` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 965,
-          "role": "Doc",
-          "text": "### 13.3 工具调用 Agent（标签 `tool-call`）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 972,
-          "role": "Doc",
-          "text": "[SubAgent] tool-call:"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 973,
-          "role": "Doc",
-          "text": "agent = tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 975,
-          "role": "Doc",
-          "text": "skills = tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 977,
-          "role": "Doc",
-          "text": "executor = subagent-tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 983,
-          "role": "Doc",
-          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 986,
-          "role": "Doc",
-          "text": "`skills/internal/tool-call/SKILL.md` 约束："
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1001,
-          "role": "Doc",
-          "text": "public const string ExecutorId = \"subagent-tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1082,
-          "role": "Doc",
-          "text": "| tool 调用 / 工具结果 | `cross_db_link` | tool-call 任务 | 不写回 history 任务节点 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1103,
-          "role": "Doc",
-          "text": "**默认取 `flat`**：workflow 根任务、tool-call 子任务、base 提交任务都直接归拢到 history；`task_owns_task` 只补充结构，不改变可见性。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1121,
-          "role": "Doc",
-          "text": "// tool-call / tool-result                    → ToolCallTask"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1132,
-          "role": "Doc",
-          "text": "workflow/tool-call 节点载荷至少包含："
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1155,
-          "role": "Doc",
-          "text": "- tool-call 任务的窗口包含工具结果；history 的 `dispatch_context` 能看见摘要，但不会把原始工具输出灌进 history 上下文（避免上下文污染）。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1416,
-          "role": "Doc",
-          "text": "| **P5-A 路由契约** | `TaskDispatchParams` 扩展；`IHistorySubmissionClassifier`；`history-loop.ushar` 默认键；`history-modes.ushar` 增加 `tool.call` | 结构化工具意图 → `subAgentTag=tool-call`；非结构化输入零回归 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1417,
-          "role": "Doc",
-          "text": "| **P5-B 执行腿修复** | `MemberProvisionRequest` + 标签→`SubAgentDefinition.Executor` 解析；注册 `subagent-tool-call` / `subagent-base` | 入队/成员创建后 `ExecutorId` 正确；未登记标签 fail-fast |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1418,
-          "role": "Doc",
-          "text": "| **P5-C 工具调用 Agent** | `ToolCallSubAgentTools` + `ToolCallSubAgentTaskExecutor` + `IToolInvoker` | 工具名/参数校验；幂等；结果节点归属 tool-call 任务 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1419,
-          "role": "Doc",
-          "text": "| **P5-D 节点归位** | `WorkflowNodeOwnership` 策略；`RoundAttribution` 接入；任务层级 flat | workflow/tool-call/base 节点归属正确；负对照拒绝错归属 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1429,
-          "role": "Doc",
-          "text": "| A13 | 结构化工具意图默认走 tool-call | 入队 `intent=tool_call`，读 `SubAgentTag=tool-call`、`ExecutorId=subagent-tool-call` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1430,
-          "role": "Doc",
-          "text": "| A14 | 标签执行腿不被 cline 覆盖 | 三个标签（tool-call/workflow/base）分别断言 `ExecutorId` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/通用智能体工作流子Agent-架构设计与施工方案.md",
-          "line": 1457,
-          "role": "Doc",
-          "text": "| D6 | 工具调用 Agent 是否独立标签，还是复用 `tool-catalog` | **独立 `tool-call`**；目录发现与执行分离 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 108,
-          "role": "Doc",
-          "text": "| **live（agent_event）** | `llm-iteration` · `llm-text` · `llm-reasoning` · `tool-call` · `tool-progress` · `tool-result` · `usage` · `notice` · `error` · `done` | 时序敏感、需随运行即刻可见 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 110,
-          "role": "Doc",
-          "text": "| **snapshot（对账用，不成节点）** | 复用 `llm-text`/`llm-reasoning`/`tool-call`/`tool-result`，`node:false` | 仅用于「过程 ⊆ 归档」对账，防双写 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 134,
-          "role": "Doc",
-          "text": "- 按类裁剪：`process.json` 增 `selections`（如 `tools: \"kind in (tool-call;tool-result)\"`），读侧以 `SelectionId` 选择；**谓词只用极小文法**（`field=value` / `field!=value` / `field in (a;b)` / `true`），防 `ANTI-SELECTION-EXPR-"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 217,
-          "role": "Doc",
-          "text": "| 键往返（新形态） | `IdentityKey(task,2,\"tool-call\",7)` → `TryParse` 反解一致（D-2） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化识别与编排工作流化-总体方案.md",
-          "line": 218,
-          "role": "Doc",
-          "text": "| **工具（细）** | `tool-call` / `tool-progress` / `tool-result` | `content_start│content_update│content_end`（`contentType=tool`） | `toolName` / `toolCallId` / `input` / `output` / `error` / `durationMs` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化识别与编排工作流化-总体方案.md",
-          "line": 232,
-          "role": "Doc",
-          "text": "\"kind\":    \"tool-call\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化识别与编排工作流化-总体方案.md",
-          "line": 281,
-          "role": "Doc",
-          "text": "| 读裁剪 | `selection: \"all\"` | `\"tools\": \"kind in (tool-call;tool-result)\"` | **按识别类别读 = 声明一行** |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 154,
-          "role": "Doc",
-          "text": "| message（内容面） | `user-message` · `assistant-message` · `tool-call` · `tool-result` · `llm-text` · `llm-reasoning` · `attachment` · `generic` | **全部已在** `recognizers.json` 词表内 | 与 `session_snapshot` 识"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 17,
-          "role": "Doc",
-          "text": "| **D4** | 工具调用 `kind` 词表 | 与 `recognizers.json` 现有词表统一（`tool-call` / `tool-result` 形态），新增即登记 | `Check-RecognizerVocabulary` R7 基线上调 |"
         },
         {
           "repo": "Projects",
@@ -10836,6 +11046,69 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 148,
+          "role": "Doc",
+          "text": "而 `Config/nodes/placement.ushar` 把**15 个位置 id 全部反解到同一个 loc 坐标 `agent_round`**（`[Matrix] LocToPlacement` 每行 = `agent_round`），`ReadScope.Loc` 由 `DeriveLoc` 推出（`NodeDomainPort.cs:524-526`）。⇒ 按 loc 投影时，pr"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 323,
+          "role": "Doc",
+          "text": "**根因备注（结构事实）**：`Config/nodes/placement.ushar` 的 `[Matrix] LocToPlacement` 把 15 个位置全部反解到同一 loc 坐标 `agent_round`；`DeriveLoc` 只推出 loc（`NodeDomainPort.cs:524-526`）。若框架按 loc 投影而不按 `PlacementIds` 过滤，则 proce"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.17/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
+          "line": 531,
+          "role": "Doc",
+          "text": "| **E3** | `key-unparsable` 每容器每次出现（日志自述属缺陷） | 按 loc 投影 + 15 位置共用 `agent_round` | F3 读前域限定 | `key-unparsable=0` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.20/2026-10-20-调用链重复冗余错误-已修与后续施工单.md",
+          "line": 175,
+          "role": "Doc",
+          "text": "- 根因：`Config/nodes/placement.ushar` 的 15 个位置全部反解到同一 loc `agent_round`；身份模板以 `{container}` 起始 ⇒ **无字面前缀**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 60,
+          "role": "Doc",
+          "text": "（新用例断言\"键已归一为 `agent-round`\"，实际产出 `agent_round`），而构建**零警告零错误**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 69,
+          "role": "Doc",
+          "text": "| 1 | **映射键 = loc 值**（非坐标名）：声明坐标取 loc **实际值**的下划线形（现状单值 = `agent_round` ↔ 运行期 `agent-round`，见 `ReferenceGrounding.EnsureNodeMirrorAsync` 的 `Location = workflowId` 与 `NodeKeys.DefaultWorkflowId`） | `IP"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点键关系彻底重构-坐标声明化与框架算键方案.md",
+          "line": 70,
+          "role": "Doc",
+          "text": "| 2 | **两侧同规则归一**：`_` → `-` 同时施加于行输出（位置 id：`archive_raw → archive-raw`）与行输入（loc 值：`agent_round → agent-round`），唯一映射点 = `UsharpLocPlacementEmitter.ToRuntimeId` | 坐标名禁 `-`（`UsharpIdentifier`：与线性表达式减号同形）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点三转换-应用工作流化-下一步实施规划.md",
+          "line": 39,
+          "role": "Doc",
+          "text": "| 声明真源 | `Config/nodes/placement.ushar`：`[Space] Loc(agent_round)` + `[Space] LocPlacement` + `[Matrix] LocToPlacement`（行 = ⟨位置 id = loc 值⟩） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.26/节点三转换-应用工作流化-下一步实施规划.md",
+          "line": 57,
+          "role": "Doc",
+          "text": "| ① | 位置反解表键 | 声明面 `agent_round` → 运行期 `agent-round`（**已有判据**：`Check-NodeLocPlacement` C1–C5） |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.29/2026-09-29-工作流驱动通用框架-过耦合缺陷收敛-实施台账与批次计划.md",
           "line": 24,
           "role": "Doc",
@@ -11001,69 +11274,6 @@
           "line": 66,
           "role": "Declaration",
           "text": "task_node = agent_round"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/2026-10-20-调用链重复冗余错误-已修与后续施工单.md",
-          "line": 175,
-          "role": "Doc",
-          "text": "- 根因：`Config/nodes/placement.ushar` 的 15 个位置全部反解到同一 loc `agent_round`；身份模板以 `{container}` 起始 ⇒ **无字面前缀**。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 148,
-          "role": "Doc",
-          "text": "而 `Config/nodes/placement.ushar` 把**15 个位置 id 全部反解到同一个 loc 坐标 `agent_round`**（`[Matrix] LocToPlacement` 每行 = `agent_round`），`ReadScope.Loc` 由 `DeriveLoc` 推出（`NodeDomainPort.cs:524-526`）。⇒ 按 loc 投影时，pr"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 323,
-          "role": "Doc",
-          "text": "**根因备注（结构事实）**：`Config/nodes/placement.ushar` 的 `[Matrix] LocToPlacement` 把 15 个位置全部反解到同一 loc 坐标 `agent_round`；`DeriveLoc` 只推出 loc（`NodeDomainPort.cs:524-526`）。若框架按 loc 投影而不按 `PlacementIds` 过滤，则 proce"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/分发与上下文装配链-重复冗余错误-通用框架化重构方案.md",
-          "line": 531,
-          "role": "Doc",
-          "text": "| **E3** | `key-unparsable` 每容器每次出现（日志自述属缺陷） | 按 loc 投影 + 15 位置共用 `agent_round` | F3 读前域限定 | `key-unparsable=0` |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 60,
-          "role": "Doc",
-          "text": "（新用例断言\"键已归一为 `agent-round`\"，实际产出 `agent_round`），而构建**零警告零错误**。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 69,
-          "role": "Doc",
-          "text": "| 1 | **映射键 = loc 值**（非坐标名）：声明坐标取 loc **实际值**的下划线形（现状单值 = `agent_round` ↔ 运行期 `agent-round`，见 `ReferenceGrounding.EnsureNodeMirrorAsync` 的 `Location = workflowId` 与 `NodeKeys.DefaultWorkflowId`） | `IP"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点键关系彻底重构-坐标声明化与框架算键方案.md",
-          "line": 70,
-          "role": "Doc",
-          "text": "| 2 | **两侧同规则归一**：`_` → `-` 同时施加于行输出（位置 id：`archive_raw → archive-raw`）与行输入（loc 值：`agent_round → agent-round`），唯一映射点 = `UsharpLocPlacementEmitter.ToRuntimeId` | 坐标名禁 `-`（`UsharpIdentifier`：与线性表达式减号同形）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点三转换-应用工作流化-下一步实施规划.md",
-          "line": 39,
-          "role": "Doc",
-          "text": "| 声明真源 | `Config/nodes/placement.ushar`：`[Space] Loc(agent_round)` + `[Space] LocPlacement` + `[Matrix] LocToPlacement`（行 = ⟨位置 id = loc 值⟩） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点三转换-应用工作流化-下一步实施规划.md",
-          "line": 57,
-          "role": "Doc",
-          "text": "| ① | 位置反解表键 | 声明面 `agent_round` → 运行期 `agent-round`（**已有判据**：`Check-NodeLocPlacement` C1–C5） |"
         }
       ]
     },
@@ -11148,6 +11358,62 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
+          "line": 77,
+          "role": "Doc",
+          "text": "| **过程域**（运行过程节点） | `process.json`：`process-node`（**单位置**） | `proc.{taskKey}.r{round}.step{seq}` | `node` | `HistoryMaterializeService.ForProcess`（P-3 待接线） | `ProjectAsync(scope, overlays)`（P-4 待接线） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 71,
+          "role": "Doc",
+          "text": "| **系统行为** | 把本 run 的内存过程节点**批量经唯一写门**（`HistoryMaterializeService` → `NodeMaterializer`）物化到 `process-node` 位置 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 213,
+          "role": "Doc",
+          "text": "{ \"id\": \"process-node\", \"level\": \"node\", \"carrier\": \"sql-nodes-process\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 234,
+          "role": "Doc",
+          "text": "| **位置数** | **仅 1 个**：`process-node` | 内存面不是位置（overlay 源）；同域多位置会触发键模板可区分性/ writer 一对一判据 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 241,
+          "role": "Doc",
+          "text": "> **`Key` = 落库位置键** 且 **`PlacementId` = `process-node`**，就会与 Snapshot 落进**同一桶**，按 `Live > Snapshot > Derived` **字段级叠加**；"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 319,
+          "role": "Doc",
+          "text": "PlacementId : \"process-node\",                          // ← 必须 = 目标位置 id（桶键的另一半）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 325,
+          "role": "Doc",
+          "text": "ReadScope(Domain: \"process\", PlacementIds: [\"process-node\"],"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.25/运行过程节点化-过程内存节点与轮末落库方案.md",
+          "line": 365,
+          "role": "Doc",
+          "text": "| **F-5** | 新 `Config\\nodes\\process.json`（**单位置** `process-node`，key `proc.{container}.r{round}.step{seq}`，`selections.llm=false`） | 声明（新） | `Test-JsonFiles` 4/4；装载 0 Error |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.26/Agent_RuntimeSlot源生成-设计与实施卡.md",
           "line": 382,
           "role": "Doc",
@@ -11159,6 +11425,34 @@
           "line": 384,
           "role": "Doc",
           "text": "\"instanceScoped\": [\"boundary\", \"prompt-framework\", \"runtime-state\", \"process-nodes\"],"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
+          "line": 116,
+          "role": "Doc",
+          "text": "| `process-node` | `proc.{container}.r{round}.{kind}.{ordinal}` | `writer-process` | presentational | `all` | 同节点位置（Live 由 overlay 注入） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
+          "line": 152,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\process.json` | `identity` → `{container}.r{round}.{kind}.{ordinal}`；`placements[process-node].key` → `proc.{container}.r{round}.{kind}.{ordinal}`；`sequence` 增 `kin"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 74,
+          "role": "Doc",
+          "text": "`identity = {container}.r{round}.{kind}.{ordinal}` / `context=[\"container\",\"kind\"]` / `sequence=[\"round\",\"ordinal\"]` 已是目标形态（本批的模板来源）；`process-node` 位置键 `proc.{container}.r{round}.{kind}.{ordinal}` 不变。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 15,
+          "role": "Doc",
+          "text": "| **D2** | 位置集口径 | **B：退役 `session-message` / `segment-context`**；`legacy-history` 留兼容读 | 位置数 8 → 5（session-view / archive-raw / process-node / segment-node / task-node）。**注（S1/S5 修正）**：退役**不在 W2-A 执行"
         },
         {
           "repo": "Main",
@@ -11239,90 +11533,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/doc/会话全链工作流化-全文基于节点与工具调用不丢弃-重构方案.md",
-          "line": 116,
-          "role": "Doc",
-          "text": "| `process-node` | `proc.{container}.r{round}.{kind}.{ordinal}` | `writer-process` | presentational | `all` | 同节点位置（Live 由 overlay 注入） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/节点域端口通用化-面向Agent各领域模块的统一节点存储与端口方案.md",
-          "line": 77,
-          "role": "Doc",
-          "text": "| **过程域**（运行过程节点） | `process.json`：`process-node`（**单位置**） | `proc.{taskKey}.r{round}.step{seq}` | `node` | `HistoryMaterializeService.ForProcess`（P-3 待接线） | `ProjectAsync(scope, overlays)`（P-4 待接线） |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 71,
-          "role": "Doc",
-          "text": "| **系统行为** | 把本 run 的内存过程节点**批量经唯一写门**（`HistoryMaterializeService` → `NodeMaterializer`）物化到 `process-node` 位置 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 213,
-          "role": "Doc",
-          "text": "{ \"id\": \"process-node\", \"level\": \"node\", \"carrier\": \"sql-nodes-process\","
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 234,
-          "role": "Doc",
-          "text": "| **位置数** | **仅 1 个**：`process-node` | 内存面不是位置（overlay 源）；同域多位置会触发键模板可区分性/ writer 一对一判据 |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 241,
-          "role": "Doc",
-          "text": "> **`Key` = 落库位置键** 且 **`PlacementId` = `process-node`**，就会与 Snapshot 落进**同一桶**，按 `Live > Snapshot > Derived` **字段级叠加**；"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 319,
-          "role": "Doc",
-          "text": "PlacementId : \"process-node\",                          // ← 必须 = 目标位置 id（桶键的另一半）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 325,
-          "role": "Doc",
-          "text": "ReadScope(Domain: \"process\", PlacementIds: [\"process-node\"],"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/运行过程节点化-过程内存节点与轮末落库方案.md",
-          "line": 365,
-          "role": "Doc",
-          "text": "| **F-5** | 新 `Config\\nodes\\process.json`（**单位置** `process-node`，key `proc.{container}.r{round}.step{seq}`，`selections.llm=false`） | 声明（新） | `Test-JsonFiles` 4/4；装载 0 Error |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/Cline过程节点化-A快照全量与K3键落位-下一步施工单.md",
-          "line": 152,
-          "role": "Doc",
-          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\process.json` | `identity` → `{container}.r{round}.{kind}.{ordinal}`；`placements[process-node].key` → `proc.{container}.r{round}.{kind}.{ordinal}`；`sequence` 增 `kin"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 74,
-          "role": "Doc",
-          "text": "`identity = {container}.r{round}.{kind}.{ordinal}` / `context=[\"container\",\"kind\"]` / `sequence=[\"round\",\"ordinal\"]` 已是目标形态（本批的模板来源）；`process-node` 位置键 `proc.{container}.r{round}.{kind}.{ordinal}` 不变。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 15,
-          "role": "Doc",
-          "text": "| **D2** | 位置集口径 | **B：退役 `session-message` / `segment-context`**；`legacy-history` 留兼容读 | 位置数 8 → 5（session-view / archive-raw / process-node / segment-node / task-node）。**注（S1/S5 修正）**：退役**不在 W2-A 执行"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
           "line": 65,
           "role": "Code",
@@ -11361,13 +11571,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1596.0,
+    "hitCount": 1626.0,
     "byRole": {
-      "Gate": 31,
-      "Test": 254,
-      "Declaration": 109,
+      "Gate": 38,
+      "Test": 214,
+      "Declaration": 98,
       "Code": 349,
-      "Doc": 776,
+      "Doc": 850,
       "Other": 77
     },
     "truncatedFacts": [
@@ -11377,15 +11587,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 456
+        "lines": 466
       },
       {
         "repo": "Projects",
-        "lines": 496
+        "lines": 278
       },
       {
         "repo": "Main",
-        "lines": 1055
+        "lines": 1303
       }
     ]
   }

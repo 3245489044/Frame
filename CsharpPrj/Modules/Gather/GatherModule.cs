@@ -91,6 +91,42 @@ public sealed class GatherModuleBuilder
         return this;
     }
 
+    /// <summary>
+    /// 按视图声明**派生** Need/Function/Stage/Produce（消除模块内硬编码视图声明）。
+    /// <para>location 约定 = need.Domain（一个域一个取数实现点）；实现体由 <see cref="ProvideFor"/> 登记。</para>
+    /// </summary>
+    public GatherModuleBuilder FromView(GatherViewSpec view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+
+        foreach (var stage in view.Stages)
+        {
+            Stage(stage.Name, stage.Deps);
+        }
+
+        foreach (var need in view.Needs)
+        {
+            Need(need.Domain, need.Scope, need.Domain, need.Cost, need.Reusable);
+            Function(need.Domain, need.Domain);
+        }
+
+        foreach (var produce in view.Produces)
+        {
+            Produce(produce.Name, produce.Kind, produce.Retention, produce.Crit, produce.Recompute);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// 为「视图确实需要的域」登记实现；视图未声明该 need ⇒ 不登记（禁孤儿实现 R6）。
+    /// </summary>
+    public GatherModuleBuilder ProvideFor(GatherViewSpec view, string domain, GatherProducer producer)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return view.FindNeed(domain) is null ? this : Provide(domain, producer);
+    }
+
     /// <summary>声明产物（出口闭合的判据载体）。</summary>
     public GatherModuleBuilder Produce(
         string name,

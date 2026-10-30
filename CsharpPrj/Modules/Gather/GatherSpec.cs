@@ -53,12 +53,18 @@ public sealed record GatherProduceSpec(
 /// <summary>
 /// 一个视图的聚拢声明：Stage 图 + Need 词表 + Produce 名单。
 /// <para>新增视图 = 新增一条本记录（零使用方代码改动）；删声明即装载/门禁红。</para>
+/// <para><see cref="Extends"/> / <c>Exclude*</c> 只承载**组合意图**（基视图名 + 排除项），
+/// 装载期由 <c>GatherSpecLoader</c> 折叠为 effective 视图（运行期只见展开后的视图）。</para>
 /// </summary>
 public sealed record GatherViewSpec(
     string View,
     IReadOnlyList<GatherStageSpec> Stages,
     IReadOnlyList<GatherNeedSpec> Needs,
-    IReadOnlyList<GatherProduceSpec> Produces)
+    IReadOnlyList<GatherProduceSpec> Produces,
+    string? Extends = null,
+    IReadOnlyList<string>? ExcludeStages = null,
+    IReadOnlyList<string>? ExcludeNeeds = null,
+    IReadOnlyList<string>? ExcludeProduces = null)
 {
     /// <summary>按域查 need（未声明 ⇒ null）。</summary>
     public GatherNeedSpec? FindNeed(string domain)

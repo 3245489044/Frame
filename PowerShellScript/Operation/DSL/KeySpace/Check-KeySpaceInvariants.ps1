@@ -3,7 +3,7 @@
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [ValidateSet('axis', 'surface', 'owner', 'coord')]
+    [ValidateSet('axis', 'surface', 'owner', 'coord', 'policy')]
     [string]$Kind = 'axis',
     [switch]$Check,
     [switch]$NegativeControl
@@ -212,14 +212,48 @@ function Get-CoordinateViolations {
     return $out
 }
 
+# policy 视图：必备策略键 ↔ 已声明值（requiredPolicies ⊆ policies）+ 取值合法。
+function Get-PolicyViolations {
+    param($Document)
+    $out = [System.Collections.Generic.List[string]]::new()
+    if ($null -eq $Document) { $out.Add('[policy] 声明不可读'); return $out }
+
+    $policyNames = @($Document.policies.PSObject.Properties.Name | Where-Object { $_ })
+    $required = @($Document.requiredPolicies | ForEach-Object { [string]$_ } | Where-Object { $_ })
+    $allowed = @('CreateMember', 'Report', 'Fail', 'PassThrough')
+
+    if ($policyNames.Count -eq 0) {
+        $out.Add('[policy] 声明面 policies 为空（必备策略无从落地；禁「缺项静默落 Report」）')
+    }
+
+    foreach ($key in $required) {
+        if ($policyNames -notcontains $key) {
+            $out.Add("[policy] required-policy '$key' 缺对应 policy 值")
+        }
+    }
+
+    foreach ($prop in $Document.policies.PSObject.Properties) {
+        if ($allowed -notcontains [string]$prop.Value) {
+            $out.Add("[policy] '$($prop.Name)' 取值 '$($prop.Value)' 未登记（∈ CreateMember|Report|Fail|PassThrough）")
+        }
+    }
+
+    return $out
+}
+
 $families = @()
 if (-not (Test-Path -LiteralPath $declaration)) {
     $violations.Add("声明文件缺失：$declaration")
 } else {
-    $families = @((Get-Content -LiteralPath $declaration -Raw | ConvertFrom-Json).families)
+    $document = Get-Content -LiteralPath $declaration -Raw | ConvertFrom-Json
+    $families = @($document.families)
     if ($families.Count -eq 0) { $violations.Add('声明族为空') }
     $found = @(Get-InvariantViolations -Families $families -View $Kind)
     if ($found.Count -gt 0) { $violations.AddRange([string[]]$found) }
+    if ($Kind -eq 'policy') {
+        $policyFound = @(Get-PolicyViolations -Document $document)
+        if ($policyFound.Count -gt 0) { $violations.AddRange([string[]]$policyFound) }
+    }
     if ($Kind -eq 'coord') {
         $nodesDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
         $coordFound = @(Get-CoordinateViolations -Families $families -NodesDir $nodesDir)
@@ -228,7 +262,24 @@ if (-not (Test-Path -LiteralPath $declaration)) {
 }
 
 if ($NegativeControl) {
-    if ($Kind -eq 'coord') {
+    if ($Kind -eq 'policy') {
+        $probeRequired = [pscustomobject]@{
+            policies = [pscustomobject]@{ 'probe.a' = 'CreateMember' }
+            requiredPolicies = @('probe.a', 'probe.b')
+        }
+        if (@(Get-PolicyViolations -Document $probeRequired).Count -eq 0) {
+            $violations.Add('负对照失败：required-policy 缺值样本未命中')
+        }
+
+        $probeValue = [pscustomobject]@{
+            policies = [pscustomobject]@{ 'probe.a' = 'NotAPolicy' }
+            requiredPolicies = @()
+        }
+        if (@(Get-PolicyViolations -Document $probeValue).Count -eq 0) {
+            $violations.Add('负对照失败：非法策略取值样本未命中')
+        }
+    }
+    elseif ($Kind -eq 'coord') {
         $probeCoord = @(
             [pscustomobject]@{
                 id = 'probe.task'
@@ -274,6 +325,7 @@ $gateName = switch ($Kind) {
     'axis' { 'KeyAxisCompleteness' }
     'surface' { 'KeySurfaceDistinguishable' }
     'coord' { 'KeyCoordinateBindings' }
+    'policy' { 'KeyPolicyDeclared' }
     default { 'KeyOwnerUnique' }
 }
 Write-GateVerdict -Violations $violations -Check:$Check -Key $gateName

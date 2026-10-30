@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FrontEndDriven.ProductionConsole.Assistant;
 
 namespace FrontEndDriven.ProductionConsole.Console;
 
@@ -33,6 +34,9 @@ public sealed class ConsolePageModel
 
     public PagedResult<JobSnapshot>? History { get; init; }
 
+    /// <summary>历史抽屉的当前筛选词（渲染输入框回显）。</summary>
+    public string? HistoryFilter { get; init; }
+
     /// <summary>抽屉：none / history / graph / diag。</summary>
     public string Drawer { get; init; } = "none";
 
@@ -48,12 +52,6 @@ public sealed class ConsolePageModel
     /// <summary>提示/错误（表单校验失败、命令失败）。</summary>
     public string? Notice { get; init; }
 
-    /// <summary>AI 参数助理输入框原文（自然语言描述；不进入任务参数）。</summary>
-    public string? AssistantPrompt { get; init; }
-
-    /// <summary>待应用的参数提案（仅含被建议的声明键；apply 时只覆盖这些键）。</summary>
-    public IReadOnlyDictionary<string, object?>? PendingProposal { get; init; }
-
-    /// <summary>提案失败原因（超时/未装配/解析失败）；空 = 无错误。</summary>
-    public string? ProposalError { get; init; }
+    /// <summary>AI 参数助理视图（独立区域 region-assist 的唯一渲染输入）。</summary>
+    public ParameterAssistantView? Assistant { get; init; }
 }

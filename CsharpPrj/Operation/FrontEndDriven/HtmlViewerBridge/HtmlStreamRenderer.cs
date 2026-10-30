@@ -67,19 +67,17 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             return new[] { new ConversationRenderSection("empty", emptyHtml) };
         }
 
-        // 通道分流（三通道）：Dialogue → 气泡；Operation → 操作面板；Process → 过程面板（禁按 Role 二次猜测）。
+        // 通道分流：Operation → 操作面板；其余（Dialogue/Process）→ 对话流。
+        // Process = 过程帧（trace）：不再单独成“过程面板”，改由锚点气泡下拉栏承载（A1 单呈现路径）。
         var dialogue = items;
         IReadOnlyList<ConversationRenderItem> operations = Array.Empty<ConversationRenderItem>();
-        IReadOnlyList<ConversationRenderItem> process = Array.Empty<ConversationRenderItem>();
         if (_options.SplitOperationChannel)
         {
             var operationSplit = items.Where(m => m.Channel == MessageChannel.Operation).ToList();
-            var processSplit = items.Where(m => m.Channel == MessageChannel.Process).ToList();
-            if (operationSplit.Count > 0 || processSplit.Count > 0)
+            if (operationSplit.Count > 0)
             {
                 operations = operationSplit;
-                process = processSplit;
-                dialogue = items.Where(m => m.Channel == MessageChannel.Dialogue).ToList();
+                dialogue = items.Where(m => m.Channel != MessageChannel.Operation).ToList();
             }
         }
 
@@ -106,8 +104,6 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 
                 case RenderSurface.Operation:
                     if (operations.Count > 0) sections.Add(new ConversationRenderSection("op", RenderOperations(operations, t)));
-                    // 过程流独立成段（非气泡、非操作），段键 proc ⇒ 与操作面板物理分离。
-                    if (process.Count > 0) sections.Add(new ConversationRenderSection("proc", RenderProcess(process, t)));
                     break;
 
                 case RenderSurface.Dialogue:
@@ -130,13 +126,40 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         IGrouping<int, ConversationRenderItem> group, IReadOnlyDictionary<string, string> t)
     {
         int round = group.Key;
+        var items = new List<ConversationRenderItem>(group);
+        PromoteTraceAnswer(items);
         var row = new Dictionary<string, object?>
         {
             ["round"] = round.ToString(),
             ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
-            ["messages"] = GroupByNearestAnchor(group).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
+            ["messages"] = GroupByNearestAnchor(items).Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
         };
         return HtmlTemplateEngine.Render(t, "sectionHeader", row);
+    }
+
+    /// <summary>
+    /// 终答提升（A1）：本轮无归档 assistant 锚点时，把最后一条 answer-kind 过程帧提升为 assistant 气泡。
+    /// <para>提升是**显式来源**（行模型 answerTrace=1 + 文案角标），不冒充 answer 实体（AX.NoSilentOutlet）。
+    /// 有归档 assistant-message 时直接使用它，过程帧保持为 trace（不重复）。</para>
+    /// </summary>
+    private void PromoteTraceAnswer(List<ConversationRenderItem> items)
+    {
+        var grouping = _options.AttachGrouping;
+        if (grouping is null || grouping.AnswerKinds.Count == 0) return;
+        if (items.Any(m => m.Role == ConversationRole.Assistant)) return;
+
+        var index = -1;
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (grouping.AnswerKinds.Contains(items[i].Stage ?? string.Empty)) index = i;
+        }
+
+        if (index < 0) return;
+        var answer = items[index];
+        items.RemoveAt(index);
+        items.Add(new ConversationRenderItem(
+            ConversationRole.Assistant, answer.Stage, answer.SubAgent, answer.Text,
+            answer.Round, MessageChannel.Dialogue, answer.Targets));
     }
 
     /// <summary>

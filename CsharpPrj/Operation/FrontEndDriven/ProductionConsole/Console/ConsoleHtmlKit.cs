@@ -5,20 +5,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
+using FrontEndDriven.ProductionConsole.Assistant;
+
 namespace FrontEndDriven.ProductionConsole.Console;
-
-/// <summary>控制台区域键（与面板 htmlPage.regions 声明一一对应；写回按 region:&lt;key&gt; 收敛）。</summary>
-public static class ConsoleRegions
-{
-    public const string Caps = "region-caps";
-    public const string Form = "region-form";
-    public const string Jobs = "region-jobs";
-    public const string Result = "region-result";
-    public const string Drawer = "region-drawer";
-    public const string Status = "region-status";
-
-    public static readonly string[] All = { Caps, Form, Jobs, Result, Drawer, Status };
-}
 
 /// <summary>
 /// 通用生产控制台渲染器：把 <see cref="ConsolePageModel"/> 投影为自包含 HTML（三栏 + 抽屉 + 状态栏）。
@@ -35,6 +24,7 @@ public static class ConsoleHtmlKit
         sb.Append("<div class=\"pcx\">");
         RegionBlock(sb, ConsoleRegions.Caps, "pcx-col-caps", RenderCaps(model));
         RegionBlock(sb, ConsoleRegions.Form, "pcx-col-form", RenderForm(model));
+        RegionBlock(sb, ConsoleRegions.Assist, "pcx-row-assist", RenderAssistant(model));
         RegionBlock(sb, ConsoleRegions.Jobs, "pcx-col-jobs", RenderJobs(model));
         RegionBlock(sb, ConsoleRegions.Result, "pcx-col-result", RenderResult(model));
         RegionBlock(sb, ConsoleRegions.Drawer, "pcx-row-drawer", RenderDrawer(model));
@@ -52,6 +42,7 @@ public static class ConsoleHtmlKit
         {
             ConsoleRegions.Caps => RenderCaps(model),
             ConsoleRegions.Form => RenderForm(model),
+            ConsoleRegions.Assist => RenderAssistant(model),
             ConsoleRegions.Jobs => RenderJobs(model),
             ConsoleRegions.Result => RenderResult(model),
             ConsoleRegions.Drawer => RenderDrawer(model),
@@ -110,8 +101,6 @@ public static class ConsoleHtmlKit
         if (!string.IsNullOrWhiteSpace(cap.Description))
             sb.Append("<div class=\"pcx-desc\">").Append(E(cap.Description)).Append("</div>");
 
-        RenderAssistant(sb, model);
-
         sb.Append("<div class=\"pcx-fields\">");
         foreach (var spec in cap.Params.Where(p => !p.Advanced)) RenderField(sb, spec, model);
 
@@ -137,24 +126,33 @@ public static class ConsoleHtmlKit
     }
 
     /// <summary>
-    /// AI 参数助理块：自然语言输入 + 解析/应用。`__nl` 由页面 collect() 自动回传；
-    /// 未声明键在 ParamSet.Merge/AbsorbFormValues 处丢弃，不会进入任务参数或历史。
+    /// AI 参数助理独立区域（region-assist）：自然语言输入 + 解析/应用。`__nl` 由页面 collect() 自动回传；
+    /// 未声明键在 ParamSet.Merge/助理裁剪处丢弃，不会进入任务参数或历史。
     /// </summary>
-    private static void RenderAssistant(StringBuilder sb, ConsolePageModel model)
+    private static string RenderAssistant(ConsolePageModel model)
     {
-        var pending = model.PendingProposal;
+        var view = model.Assistant;
+        var sb = new StringBuilder();
         sb.Append("<div class=\"pcx-assist\">");
         sb.Append("<div class=\"pcx-assist-title\">AI 参数助理</div>");
+
+        if (view is null || !view.IsAvailable)
+            sb.Append("<div class=\"pcx-hint\">AI 参数助理未接入（插件未提供提案来源），参数可直接手填</div>");
+
         sb.Append("<textarea rows=\"2\" data-param=\"__nl\" data-name=\"assist-nl\" placeholder=\"用一句话描述你要生成的内容，例如：做一首 60 秒、82bpm、中文歌词的 lo-fi 歌\">")
-          .Append(E(model.AssistantPrompt ?? "")).Append("</textarea>");
+          .Append(E(view?.Prompt ?? "")).Append("</textarea>");
+
+        var unavailable = view is null || !view.IsAvailable;
         sb.Append("<div class=\"pcx-assist-actions\">");
-        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-propose\" data-pcx=\"assist.propose\" data-pcx-collect=\"1\">AI 解析</button>");
+        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-propose\" data-pcx=\"assist.propose\" data-pcx-collect=\"1\"")
+          .Append(unavailable ? " disabled" : "")
+          .Append(">AI 解析</button>");
         sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-apply\" data-pcx=\"assist.apply\" data-pcx-collect=\"1\"")
-          .Append(pending is { Count: > 0 } ? "" : " disabled")
+          .Append(view is { HasPending: true } ? "" : " disabled")
           .Append(">应用</button>");
         sb.Append("</div>");
 
-        if (pending is { Count: > 0 })
+        if (view?.PendingProposal is { Count: > 0 } pending)
         {
             sb.Append("<div class=\"pcx-assist-preview\">");
             foreach (var kv in pending)
@@ -163,10 +161,11 @@ public static class ConsoleHtmlKit
             sb.Append("</div>");
         }
 
-        if (!string.IsNullOrWhiteSpace(model.ProposalError))
-            sb.Append("<div class=\"pcx-assist-err\">").Append(E(model.ProposalError!)).Append("</div>");
+        if (!string.IsNullOrWhiteSpace(view?.ProposalError))
+            sb.Append("<div class=\"pcx-assist-err\">").Append(E(view!.ProposalError!)).Append("</div>");
 
         sb.Append("</div>");
+        return sb.ToString();
     }
 
     private static void RenderField(StringBuilder sb, ParamSpec spec, ConsolePageModel model)
@@ -283,6 +282,7 @@ public static class ConsoleHtmlKit
             if (!job.IsTerminal) JobButton(sb, "job.cancel", job.JobId, "取消", "");
             if (job.IsTerminal) JobButton(sb, "job.reuse", job.JobId, "复用参数", "");
             if (job.Status is JobStatus.Failed or JobStatus.Cancelled) JobButton(sb, "job.retry", job.JobId, "重试", "");
+            if (job.IsTerminal) JobButton(sb, "job.delete", job.JobId, "删除", "danger");
             sb.Append("</div></article>");
         }
         return sb.ToString();
@@ -312,6 +312,12 @@ public static class ConsoleHtmlKit
         if (job.CacheHit) sb.Append("<span class=\"pcx-badge cache\">cache-hit</span>");
         if (job.Planned) sb.Append("<span class=\"pcx-badge plan\">plan</span>");
         sb.Append("</div>");
+
+        if (job.IsTerminal && model.Artifacts.Count > 0)
+            sb.Append("<div class=\"pcx-actions\">")
+              .Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"artifact-verify\" data-pcx=\"artifact.verify\" data-arg=\"")
+              .Append(A(Arg("jobId", job.JobId))).Append("\">校验产物</button>")
+              .Append("</div>");
 
         if (!string.IsNullOrWhiteSpace(job.Reason))
             sb.Append("<div class=\"pcx-job-reason\">").Append(E(job.Reason)).Append("</div>");
@@ -388,7 +394,7 @@ public static class ConsoleHtmlKit
         switch (model.Drawer)
         {
             case "history":
-                RenderHistory(sb, model.History);
+                RenderHistory(sb, model.History, model.HistoryFilter);
                 break;
             case "graph":
                 sb.Append("<div class=\"pcx-graph\">").Append(model.GraphSvg ?? "<div class=\"pcx-hint\">无结构图数据</div>").Append("</div>");
@@ -412,13 +418,26 @@ public static class ConsoleHtmlKit
           .Append("\">").Append(E(label)).Append("</button>");
     }
 
-    private static void RenderHistory(StringBuilder sb, PagedResult<JobSnapshot>? history)
+    private static void RenderHistory(StringBuilder sb, PagedResult<JobSnapshot>? history, string? filter)
     {
         if (history is null)
         {
             sb.Append("<div class=\"pcx-hint\">加载中…</div>");
             return;
         }
+
+        sb.Append("<div class=\"pcx-history-actions\">");
+        sb.Append("<input type=\"text\" data-param=\"filter\" data-name=\"history-filter\" placeholder=\"按能力/任务/关键词筛选\" value=\"")
+          .Append(A(filter ?? "")).Append("\">");
+        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-filter-apply\" data-pcx=\"history.query\" data-pcx-collect=\"1\" data-arg=\"")
+          .Append(A(ArgInt("page", 1))).Append("\">筛选</button>");
+        if (history.Page > 1)
+            sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-prev\" data-pcx=\"history.query\" data-arg=\"")
+              .Append(A(ArgInt("page", history.Page - 1))).Append("\">上一页</button>");
+        if (history.Page < history.PageCount)
+            sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-next\" data-pcx=\"history.query\" data-arg=\"")
+              .Append(A(ArgInt("page", history.Page + 1))).Append("\">下一页</button>");
+        sb.Append("</div>");
 
         sb.Append("<div class=\"pcx-history-head\">共 ").Append(history.Total).Append(" 条 · 第 ")
           .Append(history.Page).Append("/").Append(Math.Max(1, history.PageCount)).Append(" 页</div>");
@@ -460,6 +479,10 @@ public static class ConsoleHtmlKit
     /// <summary>构造单个键值参数 JSON（写入 data-arg，由页面脚本并入 payload）。</summary>
     private static string Arg(string key, string value) =>
         JsonSerializer.Serialize(new Dictionary<string, object?> { [key] = value });
+
+    /// <summary>数值参数 JSON（页码等必须保持数字类型，避免反序列化到 int 失败）。</summary>
+    private static string ArgInt(string key, int value) =>
+        "{\"" + key + "\":" + value.ToString(CultureInfo.InvariantCulture) + "}";
 
     private static string Format(object? value) => value switch
     {
@@ -537,14 +560,15 @@ public static class ConsoleHtmlKit
         ".pcx{--pcx-bg:#fff;--pcx-fg:#24292f;--pcx-mut:#57606a;--pcx-line:#d0d7de;--pcx-soft:#f6f8fa;" +
         "--pcx-accent:#0969da;--pcx-ok:#1a7f37;--pcx-warn:#9a6700;--pcx-err:#cf222e;" +
         "display:grid;grid-template-columns:200px 320px minmax(0,1fr);" +
-        "grid-template-rows:minmax(0,1fr) minmax(150px,220px) auto auto;gap:8px;height:calc(100vh - 8px);" +
+        "grid-template-rows:minmax(0,1fr) minmax(150px,220px) auto auto auto;gap:8px;height:calc(100vh - 8px);" +
         "color:var(--pcx-fg);font-family:'Segoe UI','Microsoft YaHei',sans-serif;font-size:13px}" +
         "@media (prefers-color-scheme:dark){.pcx{--pcx-bg:#0d1117;--pcx-fg:#e6edf3;--pcx-mut:#8b949e;" +
         "--pcx-line:#30363d;--pcx-soft:#161b22;--pcx-accent:#4493f8;--pcx-ok:#3fb950;--pcx-warn:#d29922;--pcx-err:#f85149}}" +
         ".pcx-region{background:var(--pcx-bg);border:1px solid var(--pcx-line);border-radius:8px;padding:8px;overflow:auto;min-height:0}" +
         ".pcx-col-caps{grid-column:1;grid-row:1/3}.pcx-col-form{grid-column:2;grid-row:1/3}" +
         ".pcx-col-jobs{grid-column:3;grid-row:1}.pcx-col-result{grid-column:3;grid-row:2}" +
-        ".pcx-row-drawer{grid-column:1/4;grid-row:3}.pcx-row-status{grid-column:1/4;grid-row:4;padding:4px 8px}" +
+        ".pcx-row-assist{grid-column:1/4;grid-row:3}" +
+        ".pcx-row-drawer{grid-column:1/4;grid-row:4}.pcx-row-status{grid-column:1/4;grid-row:5;padding:4px 8px}" +
         ".pcx-title{font-weight:600;font-size:13px;margin-bottom:6px}" +
         ".pcx-desc,.pcx-hint{color:var(--pcx-mut);font-size:12px;margin:4px 0}" +
         ".pcx-group{margin-bottom:8px}.pcx-group-title{color:var(--pcx-mut);font-size:11px;text-transform:uppercase;margin:6px 0 4px}" +
@@ -589,6 +613,10 @@ public static class ConsoleHtmlKit
         ".pcx-job-err{color:var(--pcx-err);font-size:11.5px;margin-top:3px}" +
         ".pcx-job-reason{color:var(--pcx-warn);font-size:11.5px;margin-top:3px}" +
         ".pcx-actions{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}" +
+        ".pcx-btn.danger{color:var(--pcx-err);border-color:var(--pcx-err)}" +
+        ".pcx-history-actions{display:flex;gap:5px;align-items:center;margin:6px 0}" +
+        ".pcx-history-actions input{flex:1;min-width:120px;padding:4px 7px;border:1px solid var(--pcx-line);" +
+        "border-radius:5px;background:var(--pcx-bg);color:inherit;font:inherit}" +
         ".pcx-result-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}" +
         ".pcx-gallery{display:flex;flex-wrap:wrap;gap:8px}" +
         ".pcx-artifact{margin:0;border:1px solid var(--pcx-line);border-radius:8px;padding:6px;max-width:100%;background:var(--pcx-soft)}" +

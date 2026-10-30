@@ -102,9 +102,17 @@ public static class HtmlTemplateEngine
             switch (node)
             {
                 case TextNode t:
-                    if (t.Text.Length > 0) output.Add(UiNode.TextNode(t.Text));
+                    if (t.Text.Length > 0) output.Add(UiNode.RawText(t.Text));
                     break;
                 case BindingNode b:
+                    if (b.Raw)
+                    {
+                        // 节点出口不承载受信原文片段：|raw 意味着「内层片段已渲染成串」，
+                        // 与「产物 = 节点树」冲突 ⇒ 显式失败（可见），禁静默转义成文本。
+                        throw new System.InvalidOperationException(
+                            "RenderToNodes 不支持 |raw 绑定（节点出口须用真节点；壳文档请走 Render）");
+                    }
+
                     var val = Get(model, b.Field);
                     if (val is not null) output.Add(UiNode.TextNode(val));
                     break;

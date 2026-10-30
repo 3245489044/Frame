@@ -25,4 +25,5 @@ public interface IConversationFragmentRenderer : IConversationRenderer
 /// </summary>
 public sealed record ConversationRenderContext(
     IReadOnlyDictionary<int, string>? RoundLabels = null,
-    string? ViewKey = null);
+    string? ViewKey = null,
+    FoldPolicy? Fold = null);

@@ -11,7 +11,7 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// <para>纪律：本类只做结构组合（元素/文本/子节点），不产出 HTML 字符串；字符串出口唯一 =
 /// <see cref="FragmentSerializer"/>。</para>
 /// </summary>
-internal static class FragmentTemplates
+public static class FragmentTemplates
 {
     /// <summary>渲染命名模板为节点（缺失 ⇒ 回退节点）。</summary>
     public static IReadOnlyList<UiNode> Render(

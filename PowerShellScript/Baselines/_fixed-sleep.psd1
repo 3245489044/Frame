@@ -21,8 +21,7 @@
     'Demo/simple_demo.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
     'Engine/engine_smoke_test.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
     'FileDriven/agent_hotswap_runtime_recompile_test.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
-    'Produce/produce_panel_test.json' = @{ Value = 4; Origin = 'Derived'; DueWhen = '' }
-    'Produce/produce_panel_ui_render_test.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
+    'Produce/ui/produce_panel_test.json' = @{ Value = 4; Origin = 'Derived'; DueWhen = '' }
     'UI/mainlayout_function_test.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
     'UI/mainlayout_run_ui.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }
     'UI/p0_hook_verify.json' = @{ Value = 1; Origin = 'Derived'; DueWhen = '' }

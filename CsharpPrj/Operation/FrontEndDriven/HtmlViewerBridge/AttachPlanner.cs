@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Share.Conversation;
 using Share.Conversation.Rendering;
 
@@ -24,12 +25,13 @@ public sealed record AttachGroupPlan(string Kind, string Label, IReadOnlyList<At
 
 /// <summary>
 /// 过程帧计划（**计数单源**）：<see cref="FrameCount"/> = 输入帧数，
-/// <see cref="RowCount"/> = 实际呈现行数（结果嵌套后）；摘要与组计数均读本记录。
+/// <see cref="RowCount"/> = 实际呈现行数（结果嵌套后），<see cref="TextCount"/> = 文本类行数；
+/// 摘要、组计数与测试判据均读本记录（禁二次重算）。
 /// </summary>
-public sealed record AttachPlan(int FrameCount, int RowCount, IReadOnlyList<AttachGroupPlan> Groups)
+public sealed record AttachPlan(int FrameCount, int RowCount, int TextCount, IReadOnlyList<AttachGroupPlan> Groups)
 {
     /// <summary>空计划。</summary>
-    public static readonly AttachPlan Empty = new(0, 0, Array.Empty<AttachGroupPlan>());
+    public static readonly AttachPlan Empty = new(0, 0, 0, Array.Empty<AttachGroupPlan>());
 }
 
 /// <summary>
@@ -93,23 +95,6 @@ public static class AttachPlanner
         }
 
         return new TopLevelPlan(lead, entries);
-    }
-
-    /// <summary>兼容入口：前导帧按旧形态作为顶层条目返回（无段首折叠能力时使用）。</summary>
-    public static IReadOnlyList<AttachEntry> PlanTopLevel(
-        IReadOnlyList<ConversationRenderItem> items, FramePolicy? policy)
-    {
-        var plan = Plan(items, policy);
-        if (plan.Lead.Count == 0) return plan.Entries;
-
-        var merged = new List<AttachEntry>(plan.Lead.Count + plan.Entries.Count);
-        foreach (var item in plan.Lead)
-        {
-            merged.Add(new AttachEntry(item, Array.Empty<ConversationRenderItem>()));
-        }
-
-        merged.AddRange(plan.Entries);
-        return merged;
     }
 
     /// <summary>过渡提升：归档 assistant 已同文（归一化）⇒ 去重；本轮最后一条过程文本 ⇒ 终端气泡。</summary>
@@ -219,14 +204,16 @@ public static class AttachPlanner
 
         var groups = new List<AttachGroupPlan>(buckets.Count);
         var rowCount = 0;
+        var textCount = 0;
         foreach (var bucket in buckets)
         {
             var rows = BuildRows(bucket.Items, policy);
             rowCount += rows.Count;
+            textCount += rows.Count(row => policy.IsTrace(row.Kind));
             groups.Add(new AttachGroupPlan(bucket.Kind, bucket.Label, rows));
         }
 
-        return new AttachPlan(attach.Count, rowCount, groups);
+        return new AttachPlan(attach.Count, rowCount, textCount, groups);
     }
 
     /// <summary>组内行：结果并入最近调用行；无配对则独立成行（零丢失）。</summary>

@@ -18,6 +18,8 @@ namespace Modules.Node.Gather;
 /// <param name="TimeKey">时间取值字段（可空）。</param>
 /// <param name="Shaped">是否塑形（<c>false</c> = 该 kind 的行不呈现）。</param>
 /// <param name="PortKeys">端口取值字段集（声明 <c>ports=</c>；空 = 该 kind 不呈现端口）。</param>
+/// <param name="Role">呈现角色（声明 <c>role=</c>；受控词见 FrameRoleIds；空 = plain）。
+/// 角色是**呈现身份唯一来源**：分组/气泡/操作面板/终答均由此派生，禁在 C# 按 kind 写第二张表。</param>
 public sealed record KindShaping(
     string Kind,
     string Family,
@@ -26,7 +28,8 @@ public sealed record KindShaping(
     string? Badge,
     string? TimeKey,
     bool Shaped,
-    IReadOnlyList<string>? PortKeys = null)
+    IReadOnlyList<string>? PortKeys = null,
+    string? Role = null)
 {
     /// <summary>端口取值字段集（非空视图；未声明 ⇒ 空）。</summary>
     public IReadOnlyList<string> EffectivePortKeys => PortKeys ?? System.Array.Empty<string>();

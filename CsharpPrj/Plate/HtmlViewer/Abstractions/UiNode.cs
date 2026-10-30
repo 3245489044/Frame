@@ -14,10 +14,14 @@ public sealed record UiNode(
     IReadOnlyDictionary<string, string>? Attributes = null,
     string? Text = null,
     IReadOnlyList<UiNode>? Children = null,
-    UiControlState? Controlled = null)
+    UiControlState? Controlled = null,
+    bool Raw = false)
 {
     /// <summary>文本节点（<see cref="Tag"/> 为空串，仅 <see cref="Text"/> 有值）。</summary>
     public static UiNode TextNode(string text) => new(string.Empty, Text: text);
+
+    /// <summary>**受信原文**文本节点（模板字面量 HTML；不做二次转义）。</summary>
+    public static UiNode RawText(string html) => new(string.Empty, Text: html, Raw: true);
 
     /// <summary>元素节点（便捷构造）。</summary>
     public static UiNode Element(

@@ -31,10 +31,9 @@ public static class UiNodeHtml
                 foreach (var child in node.Children) Append(child, sb);
                 return;
             }
-            sb.Append(EscapeText(node.Text));
+            sb.Append(node.Raw ? node.Text ?? string.Empty : EscapeText(node.Text));
             return;
         }
-
         sb.Append('<').Append(node.Tag);
         if (node.Attributes is not null)
         {

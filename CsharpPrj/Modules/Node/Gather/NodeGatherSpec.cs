@@ -267,7 +267,8 @@ public sealed record NodeGatherSpec(
                 ReadText(entry["badge"]),
                 ReadText(entry["timeKey"]),
                 shaped,
-                ReadTextList(entry["ports"]));
+                ReadTextList(entry["ports"]),
+                ReadText(entry["role"]));
         }
 
         return shapings;

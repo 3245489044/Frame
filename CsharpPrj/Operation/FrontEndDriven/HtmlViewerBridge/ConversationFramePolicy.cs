@@ -38,6 +38,12 @@ public static class FrameRoleIds
 
     /// <summary>结果帧（嵌套到最近调用行；无配对则独立成行，零丢失）。</summary>
     public const string Result = "result";
+
+    /// <summary>操作帧（非气泡：进顶部操作面板；通道由角色派生，不再依赖写侧字面量）。</summary>
+    public const string Operation = "operation";
+
+    /// <summary>终答实体（归档权威源；<c>TerminalPromotion.EntityOnly</c> 只认本角色）。</summary>
+    public const string Answer = "answer";
 }
 
 /// <summary>kind → 角色标识 + 徽标（声明驱动的单表条目；宿主注入）。</summary>

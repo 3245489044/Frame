@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FrontEndDriven.ProductionConsole.Assistant;
+using FrontEndDriven.ProductionConsole.Runtime;
 
 namespace FrontEndDriven.ProductionConsole.Console;
 
@@ -39,7 +39,7 @@ public sealed class ConsoleCommandOutcome
 
     public bool Handled { get; set; }
 
-    /// <summary>本拍构建的页面模型（区域写回宿主据此补齐未变更区域，避免重复取数/物化）。</summary>
+    /// <summary>本拍构建的页面模型（宿主可复用于整页文本投影，免重复取数）。</summary>
     public ConsolePageModel? Model { get; set; }
 
     public static ConsoleCommandOutcome Unhandled(string notice) =>
@@ -121,15 +121,12 @@ public sealed class ConsoleCommandRouter
     private readonly IProductionCatalog _catalog;
     private readonly IProductionRunner _runner;
     private readonly IProductionContainer _history;
-    private readonly IArtifactPublisher _publisher;
     private readonly ConsoleRouterOptions _options;
     private readonly ParameterAssistant _assistant;
+    private readonly Func<ConsoleTemplateSet> _templates;
+    private readonly ConsoleArtifactCache _artifacts;
     private readonly Dictionary<string, Func<ConsoleCommand, CancellationToken, Task<ConsoleCommandOutcome>>> _custom =
         new(StringComparer.OrdinalIgnoreCase);
-
-    // 产物物化缓存（终态任务不可变）：自动刷新 tick 不重复读盘/base64；上限 64 后整体清空
-    private readonly Dictionary<string, IReadOnlyList<ConsoleArtifactView>> _artifactCache = new(StringComparer.Ordinal);
-    private readonly object _cacheGate = new();
 
     public ConsoleCommandRouter(
         IProductionCatalog catalog,
@@ -137,15 +134,19 @@ public sealed class ConsoleCommandRouter
         IProductionContainer history,
         IArtifactPublisher publisher,
         ConsoleState? state = null,
-        ConsoleRouterOptions? options = null)
+        ConsoleRouterOptions? options = null,
+        Func<ConsoleTemplateSet>? templates = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _runner = runner ?? throw new ArgumentNullException(nameof(runner));
         _history = history ?? throw new ArgumentNullException(nameof(history));
-        _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+        if (publisher is null) throw new ArgumentNullException(nameof(publisher));
         State = state ?? new ConsoleState();
         _options = options ?? new ConsoleRouterOptions();
+        // 模板惰性解析（宿主装配/面板路径就绪后可自愈），不在构造期固化。
+        _templates = templates ?? (static () => ConsoleTemplateSet.Empty);
         _assistant = new ParameterAssistant(new ParameterAssistantState(), _options.ProposalSource);
+        _artifacts = new ConsoleArtifactCache(publisher);
     }
 
     public ConsoleState State { get; }
@@ -167,7 +168,7 @@ public sealed class ConsoleCommandRouter
         var selected = ResolveSelectedJob(jobs);
         var artifacts = selected is null
             ? Array.Empty<ConsoleArtifactView>()
-            : await MaterializeAsync(selected, ct).ConfigureAwait(false);
+            : await _artifacts.MaterializeAsync(selected, ct).ConfigureAwait(false);
 
         PagedResult<JobSnapshot>? history = null;
         if (string.Equals(State.Drawer, "history", StringComparison.OrdinalIgnoreCase))
@@ -327,8 +328,10 @@ public sealed class ConsoleCommandRouter
             }
 
             case "job.tick":
+            case "refresh":
             {
-                // 自动刷新：合并页面未提交的表单值（避免轮询覆盖编辑中的输入），不触发新任务
+                // 自动刷新（标准协议命令名 refresh；job.tick 保留为脚本兼容别名）：
+                // 合并页面未提交的表单值（避免刷新覆盖编辑中的输入），不触发新任务。
                 if (command.Params is { Count: > 0 })
                 {
                     var cap = Find(_catalog.List(), command.Capability ?? State.CapabilityId);
@@ -469,9 +472,19 @@ public sealed class ConsoleCommandRouter
     private async Task<ConsoleCommandOutcome> RenderAsync(string[] regions, CancellationToken ct)
     {
         var model = await BuildPageAsync(ct).ConfigureAwait(false);
-        var outcome = new ConsoleCommandOutcome { Handled = true, Notice = State.Notice, Model = model };
+        var templates = _templates();
+        var outcome = new ConsoleCommandOutcome { Handled = true, Model = model };
         foreach (var region in regions)
-            outcome.Regions[region] = ConsoleHtmlKit.RenderRegion(region, model);
+        {
+            // 未声明区域不得作为写回目标（否则运行时 NOT_FOUND 静默丢更新；声明真源 = 面板 htmlPage.regions）。
+            if (!templates.IsDeclaredRegion(region))
+            {
+                State.Notice = $"写回区域未声明: {region}（面板 htmlPage.regions）";
+                continue;
+            }
+            outcome.Regions[region] = ConsoleHtmlKit.RenderRegion(region, model, templates);
+        }
+        outcome.Notice = State.Notice;
         return outcome;
     }
 
@@ -519,43 +532,6 @@ public sealed class ConsoleCommandRouter
             if (selected is not null) return selected;
         }
         return jobs.FirstOrDefault();
-    }
-
-    private async Task<IReadOnlyList<ConsoleArtifactView>> MaterializeAsync(JobSnapshot job, CancellationToken ct)
-    {
-        if (job.Artifacts.Count == 0) return Array.Empty<ConsoleArtifactView>();
-
-        var cacheKey = $"{job.JobId}|{job.Status}|{job.Artifacts.Count}";
-        if (job.IsTerminal)
-        {
-            lock (_cacheGate)
-                if (_artifactCache.TryGetValue(cacheKey, out var cached)) return cached;
-        }
-
-        var views = new List<ConsoleArtifactView>(job.Artifacts.Count);
-        foreach (var artifact in job.Artifacts)
-        {
-            var url = await _publisher.MaterializeAsync(artifact, ct).ConfigureAwait(false);
-            string? text = null;
-            if (artifact.Kind is ArtifactKind.Text or ArtifactKind.Json
-                && artifact.Bytes <= 64 * 1024
-                && File.Exists(artifact.Path))
-            {
-                try { text = await File.ReadAllTextAsync(artifact.Path, ct).ConfigureAwait(false); }
-                catch { /* 读取失败保留路径 */ }
-            }
-            views.Add(new ConsoleArtifactView { Spec = artifact, Url = url, Text = text });
-        }
-
-        if (job.IsTerminal)
-        {
-            lock (_cacheGate)
-            {
-                if (_artifactCache.Count >= 64) _artifactCache.Clear();
-                _artifactCache[cacheKey] = views;
-            }
-        }
-        return views;
     }
 
     private static CapabilityDescriptor? Find(IReadOnlyList<CapabilityDescriptor> capabilities, string? id) =>

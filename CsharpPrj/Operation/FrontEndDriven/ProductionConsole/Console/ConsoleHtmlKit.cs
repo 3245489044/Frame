@@ -1,488 +1,436 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Text;
-using System.Text.Json;
 
 using FrontEndDriven.ProductionConsole.Assistant;
+using UiBackend.Html;
 
 namespace FrontEndDriven.ProductionConsole.Console;
 
 /// <summary>
-/// 通用生产控制台渲染器：把 <see cref="ConsolePageModel"/> 投影为自包含 HTML（三栏 + 抽屉 + 状态栏）。
-/// 只输出 HTML，不触通道；区域可单独渲染供 patch 写回（保展开/滚动/焦点）。
+/// 通用生产控制台渲染器（声明驱动）：只把 <see cref="ConsolePageModel"/> 投影成**数据模型**，
+/// 结构与文案由 <see cref="ConsoleTemplateSet"/>（面板 JSON）承担 —— 本类不含 HTML 片段、CSS、JS。
+/// <para>区域片段可单独渲染供 patch 写回（保展开/滚动/焦点）；整页壳 <c>consoleShell</c> 负责区域容器与样式脚本挂载。</para>
 /// </summary>
 public static class ConsoleHtmlKit
 {
-    /// <summary>整页 body 片段（由宿主 htmlShell 包壳）。</summary>
-    public static string RenderPage(ConsolePageModel model)
+    public const string ShellTemplate = "consoleShell";
+    public const string StyleTemplate = "consoleStyle";
+    public const string ScriptTemplate = "consoleScript";
+
+    /// <summary>整页 body 片段（区域容器 + 样式 + 脚本均由 consoleShell 模板声明）。</summary>
+    /// <param name="renderedRegions">已渲染的区域片段（命中则直接复用，避免同拍二次渲染；缺省则按需渲染）。</param>
+    public static string RenderPage(
+        ConsolePageModel model,
+        ConsoleTemplateSet? templates = null,
+        IReadOnlyDictionary<string, string>? renderedRegions = null)
     {
         model ??= new ConsolePageModel();
-        var sb = new StringBuilder();
-        sb.Append("<style>").Append(Css).Append("</style>");
-        sb.Append("<div class=\"pcx\">");
-        RegionBlock(sb, ConsoleRegions.Caps, "pcx-col-caps", RenderCaps(model));
-        RegionBlock(sb, ConsoleRegions.Form, "pcx-col-form", RenderForm(model));
-        RegionBlock(sb, ConsoleRegions.Assist, "pcx-row-assist", RenderAssistant(model));
-        RegionBlock(sb, ConsoleRegions.Jobs, "pcx-col-jobs", RenderJobs(model));
-        RegionBlock(sb, ConsoleRegions.Result, "pcx-col-result", RenderResult(model));
-        RegionBlock(sb, ConsoleRegions.Drawer, "pcx-row-drawer", RenderDrawer(model));
-        RegionBlock(sb, ConsoleRegions.Status, "pcx-row-status", RenderStatus(model));
-        sb.Append("</div>");
-        sb.Append("<script>").Append(Script).Append("</script>");
-        return sb.ToString();
+        var set = templates ?? ConsoleTemplateSet.Empty;
+        var shell = set.Template(ShellTemplate);
+        if (shell is null) return Missing(ShellTemplate);
+
+        var data = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["css"] = set.Template(StyleTemplate) ?? string.Empty,
+            ["script"] = set.Template(ScriptTemplate) ?? string.Empty,
+            ["caps"] = RegionHtml(ConsoleRegions.Caps, model, set, renderedRegions),
+            ["form"] = RegionHtml(ConsoleRegions.Form, model, set, renderedRegions),
+            ["assist"] = RegionHtml(ConsoleRegions.Assist, model, set, renderedRegions),
+            ["jobs"] = RegionHtml(ConsoleRegions.Jobs, model, set, renderedRegions),
+            ["result"] = RegionHtml(ConsoleRegions.Result, model, set, renderedRegions),
+            ["drawer"] = RegionHtml(ConsoleRegions.Drawer, model, set, renderedRegions),
+            ["status"] = RegionHtml(ConsoleRegions.Status, model, set, renderedRegions),
+        };
+        return HtmlTemplateEngine.RenderTemplate(shell, set.Templates, data);
     }
+
+    private static string RegionHtml(
+        string region,
+        ConsolePageModel model,
+        ConsoleTemplateSet set,
+        IReadOnlyDictionary<string, string>? rendered)
+        => rendered is not null && rendered.TryGetValue(region, out var html)
+            ? html
+            : RenderRegion(region, model, set);
 
     /// <summary>单区域 HTML（patch 写回目标）。</summary>
-    public static string RenderRegion(string region, ConsolePageModel model)
+    public static string RenderRegion(string region, ConsolePageModel model, ConsoleTemplateSet? templates = null)
     {
         model ??= new ConsolePageModel();
-        return region switch
-        {
-            ConsoleRegions.Caps => RenderCaps(model),
-            ConsoleRegions.Form => RenderForm(model),
-            ConsoleRegions.Assist => RenderAssistant(model),
-            ConsoleRegions.Jobs => RenderJobs(model),
-            ConsoleRegions.Result => RenderResult(model),
-            ConsoleRegions.Drawer => RenderDrawer(model),
-            ConsoleRegions.Status => RenderStatus(model),
-            _ => $"<div class=\"pcx-hint\">未知区域: {E(region)}</div>",
-        };
+        var set = templates ?? ConsoleTemplateSet.Empty;
+        var name = TemplateFor(region);
+        var template = set.Template(name);
+        if (template is null) return Missing(name);
+        return HtmlTemplateEngine.RenderTemplate(template, set.Templates, BuildModel(region, model, set));
     }
 
-    private static void RegionBlock(StringBuilder sb, string region, string cssClass, string inner)
+    private static string TemplateFor(string region) => region switch
     {
-        sb.Append("<div class=\"pcx-region ").Append(cssClass).Append("\" data-name=\"").Append(region)
-          .Append("\" data-key=\"").Append(region).Append("\">").Append(inner).Append("</div>");
-    }
+        ConsoleRegions.Caps => "consoleCaps",
+        ConsoleRegions.Form => "consoleForm",
+        ConsoleRegions.Assist => "consoleAssist",
+        ConsoleRegions.Jobs => "consoleJobs",
+        ConsoleRegions.Result => "consoleResult",
+        ConsoleRegions.Drawer => "consoleDrawer",
+        ConsoleRegions.Status => "consoleStatus",
+        _ => "consoleUnknown",
+    };
+
+    private static string Missing(string templateName)
+        => $"<div class=\"pcx-hint\">控制台模板未装配：{templateName}（请在面板 templates 中声明）</div>";
+
+    private static Dictionary<string, object?> BuildModel(string region, ConsolePageModel model, ConsoleTemplateSet set)
+        => region switch
+        {
+            ConsoleRegions.Caps => CapsModel(model, set),
+            ConsoleRegions.Form => FormModel(model, set),
+            ConsoleRegions.Assist => AssistModel(model, set),
+            ConsoleRegions.Jobs => JobsModel(model, set),
+            ConsoleRegions.Result => ResultModel(model, set),
+            ConsoleRegions.Drawer => DrawerModel(model, set),
+            ConsoleRegions.Status => StatusModel(model, set),
+            _ => new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
+        };
 
     // ── 能力 ────────────────────────────────────────────────
 
-    private static string RenderCaps(ConsolePageModel model)
+    private static Dictionary<string, object?> CapsModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"pcx-title\">能力</div>");
-        if (model.Capabilities.Count == 0)
-            return sb.Append("<div class=\"pcx-hint\">未注册能力</div>").ToString();
-
+        var groups = new List<object?>();
         foreach (var group in model.Capabilities.GroupBy(c => string.IsNullOrWhiteSpace(c.Group) ? "默认" : c.Group))
         {
-            sb.Append("<div class=\"pcx-group\"><div class=\"pcx-group-title\">").Append(E(group.Key)).Append("</div>");
+            var caps = new List<object?>();
             foreach (var cap in group)
             {
-                var active = string.Equals(cap.Id, model.SelectedCapabilityId, StringComparison.Ordinal);
-                sb.Append("<button type=\"button\" class=\"pcx-cap")
-                  .Append(active ? " active" : "")
-                  .Append("\" data-name=\"cap-").Append(A(cap.Id))
-                  .Append("\" data-pcx=\"cap.select\" data-cap=\"").Append(A(cap.Id))
-                  .Append("\" data-key=\"cap-").Append(A(cap.Id))
-                  .Append("\" data-arg=\"").Append(A(Arg("capability", cap.Id)))
-                  .Append("\" title=\"").Append(A(cap.Description))
-                  .Append("\">").Append(E(cap.Name)).Append("</button>");
+                caps.Add(set.Catalog.Apply("capRow", new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["id"] = cap.Id,
+                    ["name"] = cap.Name,
+                    ["description"] = cap.Description,
+                    ["current"] = model.SelectedCapabilityId ?? string.Empty,
+                    ["payload"] = Payload("cap.select", ("capability", cap.Id)),
+                }));
             }
-            sb.Append("</div>");
+            groups.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = group.Key,
+                ["caps"] = caps,
+            });
         }
-        return sb.ToString();
+
+        return Model(
+            ("hasCaps", Flag(model.Capabilities.Count > 0)),
+            ("groups", groups));
     }
 
     // ── 表单 ────────────────────────────────────────────────
 
-    private static string RenderForm(ConsolePageModel model)
+    private static Dictionary<string, object?> FormModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        var cap = model.Capabilities.FirstOrDefault(c =>
-            string.Equals(c.Id, model.SelectedCapabilityId, StringComparison.Ordinal));
-
+        var cap = SelectedCapability(model);
         if (cap is null)
-            return sb.Append("<div class=\"pcx-title\">参数</div><div class=\"pcx-hint\">选择左侧能力后填写参数</div>").ToString();
+            return Model(("hasCap", string.Empty));
 
-        sb.Append("<div class=\"pcx-title\">").Append(E(cap.Name)).Append("</div>");
-        if (!string.IsNullOrWhiteSpace(cap.Description))
-            sb.Append("<div class=\"pcx-desc\">").Append(E(cap.Description)).Append("</div>");
+        var fields = new List<object?>();
+        var advanced = new List<object?>();
+        foreach (var spec in cap.Params)
+            (spec.Advanced ? advanced : fields).Add(FieldModel(spec, model, set));
 
-        sb.Append("<div class=\"pcx-fields\">");
-        foreach (var spec in cap.Params.Where(p => !p.Advanced)) RenderField(sb, spec, model);
-
-        var advanced = cap.Params.Where(p => p.Advanced).ToList();
-        if (advanced.Count > 0)
+        var actions = new List<object?>();
+        for (var i = 0; i < cap.Actions.Count; i++)
         {
-            sb.Append("<details class=\"pcx-advanced\" data-key=\"advanced\"><summary>高级参数</summary>");
-            foreach (var spec in advanced) RenderField(sb, spec, model);
-            sb.Append("</details>");
+            actions.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["label"] = cap.Actions[i],
+                ["action"] = cap.Actions[i],
+                ["index"] = i.ToString(CultureInfo.InvariantCulture),
+                ["payload"] = Payload("cap.action", ("action", cap.Actions[i]), ("capability", cap.Id)),
+            });
         }
-        sb.Append("</div>");
 
-        sb.Append("<div class=\"pcx-form-actions\">");
-        sb.Append("<button type=\"button\" class=\"pcx-btn primary\" data-name=\"form-run\" data-pcx=\"form.run\" data-pcx-collect=\"1\">▶ 生成</button>");
-        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"form-reset\" data-pcx=\"form.reset\">重置</button>");
-        var actionIndex = 0;
-        foreach (var action in cap.Actions)
-            sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"cap-action-").Append(actionIndex++)
-              .Append("\" data-pcx=\"cap.action\" data-arg=\"")
-              .Append(A(Arg("action", action))).Append("\">").Append(E(action)).Append("</button>");
-        sb.Append("</div>");
-        return sb.ToString();
+        return Model(
+            ("hasCap", Flag(true)),
+            ("capability", cap.Id),
+            ("capName", cap.Name),
+            ("capDescription", cap.Description),
+            ("hasDescription", Flag(!string.IsNullOrWhiteSpace(cap.Description))),
+            ("runPayload", Payload("form.run", ("capability", cap.Id))),
+            ("resetPayload", Payload("form.reset", ("capability", cap.Id))),
+            ("fields", fields),
+            ("advancedFields", advanced),
+            ("hasAdvanced", Flag(advanced.Count > 0)),
+            ("actions", actions));
     }
 
-    /// <summary>
-    /// AI 参数助理独立区域（region-assist）：自然语言输入 + 解析/应用。`__nl` 由页面 collect() 自动回传；
-    /// 未声明键在 ParamSet.Merge/助理裁剪处丢弃，不会进入任务参数或历史。
-    /// </summary>
-    private static string RenderAssistant(ConsolePageModel model)
+    private static IReadOnlyDictionary<string, object?> FieldModel(ParamSpec spec, ConsolePageModel model, ConsoleTemplateSet set)
+    {
+        var value = model.FormValues.TryGetValue(spec.Key, out var raw) ? raw : spec.Default;
+        var text = Format(value);
+        var options = new List<object?>();
+        foreach (var option in spec.Options ?? new List<string>())
+        {
+            options.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["value"] = option,
+                ["label"] = option,
+                ["selected"] = Flag(string.Equals(option, text, StringComparison.OrdinalIgnoreCase)),
+            });
+        }
+
+        var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["key"] = spec.Key,
+            ["name"] = "param-" + spec.Key,
+            ["label"] = ParamSet.Label(spec),
+            ["kind"] = KindText(spec.Kind),
+            ["required"] = Flag(spec.Required),
+            ["unit"] = spec.Unit ?? string.Empty,
+            ["hasUnit"] = Flag(!string.IsNullOrWhiteSpace(spec.Unit)),
+            ["help"] = spec.Help ?? string.Empty,
+            ["hasHelp"] = Flag(!string.IsNullOrWhiteSpace(spec.Help)),
+            ["value"] = text,
+            ["checked"] = Flag(string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)),
+            ["min"] = spec.Min is { } min ? Fmt(min) : string.Empty,
+            ["max"] = spec.Max is { } max ? Fmt(max) : string.Empty,
+            ["step"] = spec.Step is { } step ? Fmt(step) : string.Empty,
+            ["hasMin"] = Flag(spec.Min is not null),
+            ["hasMax"] = Flag(spec.Max is not null),
+            ["hasStep"] = Flag(spec.Step is not null),
+            ["rangeMin"] = Fmt(spec.Min ?? 0),
+            ["rangeMax"] = Fmt(spec.Max ?? 100),
+            ["rangeStep"] = Fmt(spec.Step ?? 1),
+            ["options"] = options,
+        };
+        return set.Catalog.Apply("fieldRow", row);
+    }
+
+    // ── AI 参数助理 ─────────────────────────────────────────
+
+    private static Dictionary<string, object?> AssistModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
         var view = model.Assistant;
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"pcx-assist\">");
-        sb.Append("<div class=\"pcx-assist-title\">AI 参数助理</div>");
+        var pending = new List<object?>();
+        if (view?.PendingProposal is { Count: > 0 } proposal)
+            foreach (var kv in proposal)
+                pending.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["key"] = kv.Key,
+                    ["value"] = Format(kv.Value),
+                });
 
-        if (view is null || !view.IsAvailable)
-            sb.Append("<div class=\"pcx-hint\">AI 参数助理未接入（插件未提供提案来源），参数可直接手填</div>");
-
-        sb.Append("<textarea rows=\"2\" data-param=\"__nl\" data-name=\"assist-nl\" placeholder=\"用一句话描述你要生成的内容，例如：做一首 60 秒、82bpm、中文歌词的 lo-fi 歌\">")
-          .Append(E(view?.Prompt ?? "")).Append("</textarea>");
-
-        var unavailable = view is null || !view.IsAvailable;
-        sb.Append("<div class=\"pcx-assist-actions\">");
-        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-propose\" data-pcx=\"assist.propose\" data-pcx-collect=\"1\"")
-          .Append(unavailable ? " disabled" : "")
-          .Append(">AI 解析</button>");
-        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-apply\" data-pcx=\"assist.apply\" data-pcx-collect=\"1\"")
-          .Append(view is { HasPending: true } ? "" : " disabled")
-          .Append(">应用</button>");
-        sb.Append("</div>");
-
-        if (view?.PendingProposal is { Count: > 0 } pending)
-        {
-            sb.Append("<div class=\"pcx-assist-preview\">");
-            foreach (var kv in pending)
-                sb.Append("<span class=\"pcx-assist-kv\"><code>").Append(E(kv.Key)).Append("</code> = ")
-                  .Append(E(Format(kv.Value))).Append("</span>");
-            sb.Append("</div>");
-        }
-
-        if (!string.IsNullOrWhiteSpace(view?.ProposalError))
-            sb.Append("<div class=\"pcx-assist-err\">").Append(E(view!.ProposalError!)).Append("</div>");
-
-        sb.Append("</div>");
-        return sb.ToString();
-    }
-
-    private static void RenderField(StringBuilder sb, ParamSpec spec, ConsolePageModel model)
-    {
-        var value = model.FormValues.TryGetValue(spec.Key, out var v) ? v : spec.Default;
-        var text = Format(value);
-        var name = "param-" + spec.Key;
-
-        sb.Append("<label class=\"pcx-field\" data-key=\"field-").Append(A(spec.Key)).Append("\">");
-        sb.Append("<span class=\"pcx-label\">").Append(E(ParamSet.Label(spec)));
-        if (spec.Required) sb.Append("<b class=\"pcx-req\">*</b>");
-        if (!string.IsNullOrWhiteSpace(spec.Unit)) sb.Append("<i class=\"pcx-unit\">(").Append(E(spec.Unit)).Append(")</i>");
-        sb.Append("</span>");
-
-        switch (spec.Kind)
-        {
-            case ParamKind.Multiline:
-                sb.Append("<textarea rows=\"4\" data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"").Append(A(name))
-                  .Append("\" title=\"").Append(A(spec.Help)).Append("\">").Append(E(text)).Append("</textarea>");
-                break;
-
-            case ParamKind.Number:
-                sb.Append("<input type=\"number\" data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"").Append(A(name))
-                  .Append("\" value=\"").Append(A(text)).Append("\"")
-                  .Append(spec.Min is { } min ? " min=\"" + A(Fmt(min)) + "\"" : "")
-                  .Append(spec.Max is { } max ? " max=\"" + A(Fmt(max)) + "\"" : "")
-                  .Append(spec.Step is { } step ? " step=\"" + A(Fmt(step)) + "\"" : "")
-                  .Append(">");
-                break;
-
-            case ParamKind.Range:
-                sb.Append("<input type=\"range\" data-range=\"1\" data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"")
-                  .Append(A(name)).Append("\" value=\"").Append(A(text)).Append("\"")
-                  .Append(" min=\"").Append(A(Fmt(spec.Min ?? 0))).Append("\"")
-                  .Append(" max=\"").Append(A(Fmt(spec.Max ?? 100))).Append("\"")
-                  .Append(" step=\"").Append(A(Fmt(spec.Step ?? 1))).Append("\">")
-                  .Append("<output class=\"pcx-range-out\">").Append(E(text)).Append("</output>");
-                break;
-
-            case ParamKind.Bool:
-                sb.Append("<span class=\"pcx-switch\"><input type=\"checkbox\" data-param=\"").Append(A(spec.Key))
-                  .Append("\" data-name=\"").Append(A(name)).Append("\"")
-                  .Append(string.Equals(text, "true", StringComparison.OrdinalIgnoreCase) ? " checked" : "")
-                  .Append(">").Append(string.IsNullOrWhiteSpace(spec.Help) ? "" : E(spec.Help)).Append("</span>");
-                break;
-
-            case ParamKind.Enum:
-                sb.Append("<select data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"").Append(A(name))
-                  .Append("\" title=\"").Append(A(spec.Help)).Append("\">");
-                foreach (var option in spec.Options ?? new List<string>())
-                    sb.Append("<option value=\"").Append(A(option)).Append("\"")
-                      .Append(string.Equals(option, text, StringComparison.OrdinalIgnoreCase) ? " selected" : "")
-                      .Append(">").Append(E(option)).Append("</option>");
-                sb.Append("</select>");
-                break;
-
-            case ParamKind.Json:
-                sb.Append("<textarea rows=\"3\" class=\"mono\" data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"")
-                  .Append(A(name)).Append("\" title=\"").Append(A(spec.Help)).Append("\">").Append(E(text)).Append("</textarea>");
-                break;
-
-            default:
-                sb.Append("<input type=\"text\" data-param=\"").Append(A(spec.Key)).Append("\" data-name=\"").Append(A(name))
-                  .Append("\" value=\"").Append(A(text)).Append("\" title=\"").Append(A(spec.Help)).Append("\">");
-                break;
-        }
-
-        if (!string.IsNullOrWhiteSpace(spec.Help) && spec.Kind != ParamKind.Bool)
-            sb.Append("<small class=\"pcx-help\">").Append(E(spec.Help)).Append("</small>");
-        sb.Append("</label>");
+        return Model(
+            ("unavailable", Flag(view is null || !view.IsAvailable)),
+            ("prompt", view?.Prompt ?? string.Empty),
+            ("proposePayload", Payload("assist.propose")),
+            ("applyPayload", Payload("assist.apply")),
+            ("hasPending", Flag(pending.Count > 0)),
+            ("pending", pending),
+            ("hasError", Flag(!string.IsNullOrWhiteSpace(view?.ProposalError))),
+            ("error", view?.ProposalError ?? string.Empty));
     }
 
     // ── 任务 ────────────────────────────────────────────────
 
-    private static string RenderJobs(ConsolePageModel model)
+    private static Dictionary<string, object?> JobsModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"pcx-title\">任务</div>");
-        if (model.Jobs.Any(j => !j.IsTerminal))
-            // 活动任务标记：页面脚本据此做 2s 自动刷新（无活动任务时零轮询）
-            sb.Append("<span class=\"pcx-live\" data-pcx-live=\"1\" style=\"display:none\"></span>");
-        if (model.Jobs.Count == 0)
-            return sb.Append("<div class=\"pcx-hint\">暂无任务</div>").ToString();
-
+        var jobs = new List<object?>();
         foreach (var job in model.Jobs)
-        {
-            sb.Append("<article class=\"pcx-job ").Append(StatusClass(job.Status))
-              .Append("\" data-key=\"job-").Append(A(job.JobId))
-              .Append("\" data-name=\"job-").Append(A(job.JobId)).Append("\">");
+            jobs.Add(set.Catalog.Apply("jobRow", JobModel(job)));
 
-            sb.Append("<header><span class=\"pcx-badge ").Append(StatusClass(job.Status)).Append("\">")
-              .Append(E(StatusText(job.Status))).Append("</span><code class=\"pcx-cap-id\">").Append(E(job.CapabilityId))
-              .Append("</code>");
-            if (job.CacheHit) sb.Append("<span class=\"pcx-badge cache\">cache-hit</span>");
-            if (job.Planned) sb.Append("<span class=\"pcx-badge plan\">plan</span>");
-            sb.Append("<time>").Append(E(job.CreatedAt.ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture))).Append("</time></header>");
-
-            sb.Append("<div class=\"pcx-progress\"><div style=\"width:")
-              .Append(A(Fmt(Math.Round(job.Progress * 100, 1)))).Append("%\"></div></div>");
-            sb.Append("<div class=\"pcx-job-meta\">").Append(E(job.Phase));
-            sb.Append(" · ").Append(job.ElapsedMs).Append("ms");
-            if (job.QueuePosition > 0) sb.Append(" · 队列第 ").Append(job.QueuePosition).Append(" 位");
-            if (!string.IsNullOrWhiteSpace(job.InputHash))
-                sb.Append(" · <code>").Append(E(job.InputHash)).Append("</code>");
-            sb.Append("</div>");
-
-            if (!string.IsNullOrWhiteSpace(job.Error))
-                sb.Append("<div class=\"pcx-job-err\">").Append(E(job.Error)).Append("</div>");
-            else if (!string.IsNullOrWhiteSpace(job.Reason))
-                sb.Append("<div class=\"pcx-job-reason\">").Append(E(job.Reason)).Append("</div>");
-
-            sb.Append("<div class=\"pcx-actions\">");
-            JobButton(sb, "job.select", job.JobId, "查看", "");
-            if (!job.IsTerminal) JobButton(sb, "job.cancel", job.JobId, "取消", "");
-            if (job.IsTerminal) JobButton(sb, "job.reuse", job.JobId, "复用参数", "");
-            if (job.Status is JobStatus.Failed or JobStatus.Cancelled) JobButton(sb, "job.retry", job.JobId, "重试", "");
-            if (job.IsTerminal) JobButton(sb, "job.delete", job.JobId, "删除", "danger");
-            sb.Append("</div></article>");
-        }
-        return sb.ToString();
+        return Model(
+            ("hasLive", Flag(model.Jobs.Any(j => !j.IsTerminal))),
+            ("jobs", jobs),
+            ("empty", Flag(jobs.Count == 0)));
     }
 
-    private static void JobButton(StringBuilder sb, string cmd, string jobId, string label, string extraCss)
-    {
-        var action = cmd.StartsWith("job.", StringComparison.OrdinalIgnoreCase) ? cmd[4..] : cmd;
-        sb.Append("<button type=\"button\" class=\"pcx-btn small ").Append(extraCss)
-          .Append("\" data-name=\"job-").Append(A(action)).Append("-").Append(A(jobId))
-          .Append("\" data-pcx=\"").Append(A(cmd)).Append("\" data-arg=\"")
-          .Append(A(Arg("jobId", jobId))).Append("\">").Append(E(label)).Append("</button>");
-    }
+    private static Dictionary<string, object?> JobModel(JobSnapshot job) => Model(
+        ("jobId", job.JobId),
+        ("capabilityId", job.CapabilityId),
+        ("status", job.Status.ToString()),
+        ("progress", Fmt(Math.Round(job.Progress * 100, 1))),
+        ("phase", job.Phase),
+        ("elapsedMs", job.ElapsedMs.ToString(CultureInfo.InvariantCulture)),
+        ("createdAt", job.CreatedAt.ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+        ("queuePosition", job.QueuePosition.ToString(CultureInfo.InvariantCulture)),
+        ("hasQueue", Flag(job.QueuePosition > 0)),
+        ("inputHash", job.InputHash ?? string.Empty),
+        ("hasInputHash", Flag(!string.IsNullOrWhiteSpace(job.InputHash))),
+        ("cacheHit", Flag(job.CacheHit)),
+        ("planned", Flag(job.Planned)),
+        ("error", job.Error ?? string.Empty),
+        ("hasError", Flag(!string.IsNullOrWhiteSpace(job.Error))),
+        ("reason", job.Reason ?? string.Empty),
+        ("hasReason", Flag(!string.IsNullOrWhiteSpace(job.Reason))),
+        ("canCancel", Flag(!job.IsTerminal)),
+        ("canReuse", Flag(job.IsTerminal)),
+        ("canRetry", Flag(job.Status is JobStatus.Failed or JobStatus.Cancelled)),
+        ("canDelete", Flag(job.IsTerminal)),
+        ("selectPayload", Payload("job.select", ("jobId", job.JobId))),
+        ("cancelPayload", Payload("job.cancel", ("jobId", job.JobId))),
+        ("reusePayload", Payload("job.reuse", ("jobId", job.JobId))),
+        ("retryPayload", Payload("job.retry", ("jobId", job.JobId))),
+        ("deletePayload", Payload("job.delete", ("jobId", job.JobId))));
 
     // ── 结果 ────────────────────────────────────────────────
 
-    private static string RenderResult(ConsolePageModel model)
+    private static Dictionary<string, object?> ResultModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"pcx-title\">结果</div>");
         var job = model.SelectedJob;
-        if (job is null)
-            return sb.Append("<div class=\"pcx-hint\">选择任务后查看产物</div>").ToString();
+        if (job is null) return Model(("hasJob", string.Empty));
 
-        sb.Append("<div class=\"pcx-result-head\"><span class=\"pcx-badge ").Append(StatusClass(job.Status)).Append("\">")
-          .Append(E(StatusText(job.Status))).Append("</span><code>").Append(E(job.JobId)).Append("</code>");
-        if (job.CacheHit) sb.Append("<span class=\"pcx-badge cache\">cache-hit</span>");
-        if (job.Planned) sb.Append("<span class=\"pcx-badge plan\">plan</span>");
-        sb.Append("</div>");
-
-        if (job.IsTerminal && model.Artifacts.Count > 0)
-            sb.Append("<div class=\"pcx-actions\">")
-              .Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"artifact-verify\" data-pcx=\"artifact.verify\" data-arg=\"")
-              .Append(A(Arg("jobId", job.JobId))).Append("\">校验产物</button>")
-              .Append("</div>");
-
-        if (!string.IsNullOrWhiteSpace(job.Reason))
-            sb.Append("<div class=\"pcx-job-reason\">").Append(E(job.Reason)).Append("</div>");
-
-        if (model.Artifacts.Count == 0)
-            return sb.Append("<div class=\"pcx-hint\">该任务无产物</div>").ToString();
-
-        sb.Append("<div class=\"pcx-gallery\">");
-        foreach (var view in model.Artifacts) RenderArtifact(sb, view);
-        sb.Append("</div>");
-        return sb.ToString();
-    }
-
-    private static void RenderArtifact(StringBuilder sb, ConsoleArtifactView view)
-    {
-        var spec = view.Spec;
-        var url = view.Url;
-        sb.Append("<figure class=\"pcx-artifact\" data-key=\"artifact-").Append(A(System.IO.Path.GetFileName(spec.Path))).Append("\">");
-
-        if (!url.IsUsable)
+        var artifacts = new List<object?>();
+        foreach (var view in model.Artifacts)
         {
-            sb.Append("<div class=\"pcx-artifact-err\">").Append(E(url.Error ?? "产物不可用")).Append("</div>");
-            sb.Append("<figcaption><code>").Append(E(spec.Path)).Append("</code></figcaption>");
-            sb.Append("</figure>");
-            return;
+            var spec = view.Spec;
+            var meta = new List<object?>();
+            if (spec.Meta is { Count: > 0 })
+                foreach (var kv in spec.Meta)
+                    meta.Add(Model(("key", kv.Key), ("value", kv.Value)));
+
+            artifacts.Add(set.Catalog.Apply("artifactRow", Model(
+                ("name", System.IO.Path.GetFileName(spec.Path)),
+                ("path", spec.Path),
+                ("url", view.Url.Url ?? string.Empty),
+                ("usable", Flag(view.Url.IsUsable)),
+                ("error", view.Url.Error ?? "产物不可用"),
+                ("kind", spec.Kind),
+                ("text", Truncate(view.Text ?? spec.Path, 4000)),
+                ("bytes", spec.Bytes.ToString(CultureInfo.InvariantCulture)),
+                ("meta", meta),
+                ("openPayload", Payload("artifact.open", ("path", spec.Path))))));
         }
 
-        switch (spec.Kind)
-        {
-            case ArtifactKind.Image:
-                sb.Append("<img loading=\"lazy\" src=\"").Append(A(url.Url)).Append("\" alt=\"").Append(A(System.IO.Path.GetFileName(spec.Path))).Append("\">");
-                break;
+        var data = Model(
+            ("hasJob", Flag(true)),
+            ("jobId", job.JobId),
+            ("status", job.Status.ToString()),
+            ("cacheHit", Flag(job.CacheHit)),
+            ("planned", Flag(job.Planned)),
+            ("reason", job.Reason ?? string.Empty),
+            ("hasReason", Flag(!string.IsNullOrWhiteSpace(job.Reason))),
+            ("hasArtifacts", Flag(artifacts.Count > 0)),
+            ("canVerify", Flag(job.IsTerminal && artifacts.Count > 0)),
+            ("verifyPayload", Payload("artifact.verify", ("jobId", job.JobId))),
+            ("artifacts", artifacts));
 
-            case ArtifactKind.Audio:
-                sb.Append("<audio controls preload=\"metadata\" src=\"").Append(A(url.Url)).Append("\"></audio>");
-                break;
-
-            case ArtifactKind.Text:
-            case ArtifactKind.Json:
-                sb.Append("<pre class=\"pcx-text\">").Append(E(Truncate(view.Text ?? spec.Path, 4000))).Append("</pre>");
-                break;
-
-            default:
-                sb.Append("<code class=\"pcx-path\">").Append(E(spec.Path)).Append("</code>");
-                break;
-        }
-
-        sb.Append("<figcaption>");
-        sb.Append("<code>").Append(E(System.IO.Path.GetFileName(spec.Path))).Append("</code>");
-        sb.Append(" <span class=\"pcx-bytes\">").Append(FormatBytes(spec.Bytes)).Append("</span>");
-        if (spec.Meta is { Count: > 0 })
-            foreach (var kv in spec.Meta)
-                sb.Append(" <span class=\"pcx-meta\">").Append(E(kv.Key)).Append("=").Append(E(kv.Value)).Append("</span>");
-        sb.Append(" <button type=\"button\" class=\"pcx-btn small\" data-pcx=\"artifact.copy\" data-arg=\"")
-          .Append(A(Arg("path", spec.Path))).Append("\">复制路径</button>");
-        sb.Append(" <button type=\"button\" class=\"pcx-btn small\" data-pcx=\"artifact.open\" data-arg=\"")
-          .Append(A(Arg("path", spec.Path))).Append("\">打开目录</button>");
-        sb.Append("</figcaption></figure>");
+        // 结果区状态徽章与任务卡同一组件口径（否则 statusText/statusClass 缺失 → 空徽章）。
+        foreach (var kv in set.Catalog.Apply("jobRow", data)) data[kv.Key] = kv.Value;
+        return data;
     }
 
     // ── 抽屉 / 状态 ─────────────────────────────────────────
 
-    private static string RenderDrawer(ConsolePageModel model)
+    private static Dictionary<string, object?> DrawerModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"pcx-drawer-tabs\">");
-        DrawerTab(sb, "history", "历史", model.Drawer);
-        DrawerTab(sb, "graph", "结构图", model.Drawer);
-        DrawerTab(sb, "diag", "诊断", model.Drawer);
-        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"drawer-close\" data-pcx=\"drawer.open\" data-arg=\"")
-          .Append(A(Arg("drawer", "none"))).Append("\">收起</button>");
-        sb.Append("</div>");
-
-        switch (model.Drawer)
+        var tabs = new List<object?>();
+        foreach (var (key, label) in new[] { ("history", "历史"), ("graph", "结构图"), ("diag", "诊断") })
         {
-            case "history":
-                RenderHistory(sb, model.History, model.HistoryFilter);
-                break;
-            case "graph":
-                sb.Append("<div class=\"pcx-graph\">").Append(model.GraphSvg ?? "<div class=\"pcx-hint\">无结构图数据</div>").Append("</div>");
-                break;
-            case "diag":
-                sb.Append("<pre class=\"pcx-text\">").Append(E(model.DrawerText ?? "(无诊断)")).Append("</pre>");
-                break;
-            default:
-                sb.Append("<div class=\"pcx-hint\">打开抽屉查看历史 / 结构图 / 诊断</div>");
-                break;
-        }
-        return sb.ToString();
-    }
-
-    private static void DrawerTab(StringBuilder sb, string drawer, string label, string current)
-    {
-        sb.Append("<button type=\"button\" class=\"pcx-btn small")
-          .Append(string.Equals(drawer, current, StringComparison.Ordinal) ? " active" : "")
-          .Append("\" data-name=\"drawer-").Append(A(drawer))
-          .Append("\" data-pcx=\"drawer.open\" data-arg=\"").Append(A(Arg("drawer", drawer)))
-          .Append("\">").Append(E(label)).Append("</button>");
-    }
-
-    private static void RenderHistory(StringBuilder sb, PagedResult<JobSnapshot>? history, string? filter)
-    {
-        if (history is null)
-        {
-            sb.Append("<div class=\"pcx-hint\">加载中…</div>");
-            return;
+            tabs.Add(set.Catalog.Apply("tabRow", Model(
+                ("key", key),
+                ("label", label),
+                ("current", model.Drawer),
+                ("payload", Payload("drawer.open", ("drawer", key))))));
         }
 
-        sb.Append("<div class=\"pcx-history-actions\">");
-        sb.Append("<input type=\"text\" data-param=\"filter\" data-name=\"history-filter\" placeholder=\"按能力/任务/关键词筛选\" value=\"")
-          .Append(A(filter ?? "")).Append("\">");
-        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-filter-apply\" data-pcx=\"history.query\" data-pcx-collect=\"1\" data-arg=\"")
-          .Append(A(ArgInt("page", 1))).Append("\">筛选</button>");
-        if (history.Page > 1)
-            sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-prev\" data-pcx=\"history.query\" data-arg=\"")
-              .Append(A(ArgInt("page", history.Page - 1))).Append("\">上一页</button>");
-        if (history.Page < history.PageCount)
-            sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"history-next\" data-pcx=\"history.query\" data-arg=\"")
-              .Append(A(ArgInt("page", history.Page + 1))).Append("\">下一页</button>");
-        sb.Append("</div>");
+        var drawer = model.Drawer;
+        var data = Model(
+            ("drawer", drawer),
+            ("tabs", tabs),
+            ("isHistory", Flag(string.Equals(drawer, "history", StringComparison.OrdinalIgnoreCase))),
+            ("isGraph", Flag(string.Equals(drawer, "graph", StringComparison.OrdinalIgnoreCase))),
+            ("isDiag", Flag(string.Equals(drawer, "diag", StringComparison.OrdinalIgnoreCase))),
+            ("isNone", Flag(!string.Equals(drawer, "history", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(drawer, "graph", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(drawer, "diag", StringComparison.OrdinalIgnoreCase))),
+            ("graphBody", model.GraphSvg ?? "<div class=\"pcx-hint\">无结构图数据</div>"),
+            ("diagText", model.DrawerText ?? "(无诊断)"),
+            ("closePayload", Payload("drawer.open", ("drawer", "none"))));
 
-        sb.Append("<div class=\"pcx-history-head\">共 ").Append(history.Total).Append(" 条 · 第 ")
-          .Append(history.Page).Append("/").Append(Math.Max(1, history.PageCount)).Append(" 页</div>");
-        if (history.Items.Count == 0)
-        {
-            sb.Append("<div class=\"pcx-hint\">无历史记录</div>");
-            return;
-        }
-
-        sb.Append("<ul class=\"pcx-history\">");
-        foreach (var item in history.Items)
-        {
-            sb.Append("<li data-key=\"h-").Append(A(item.JobId)).Append("\">");
-            sb.Append("<span class=\"pcx-badge ").Append(StatusClass(item.Status)).Append("\">")
-              .Append(E(StatusText(item.Status))).Append("</span>");
-            sb.Append("<code>").Append(E(item.CapabilityId)).Append("</code>");
-            sb.Append("<time>").Append(E(item.CreatedAt.ToString("MM-dd HH:mm", CultureInfo.InvariantCulture))).Append("</time>");
-            if (!string.IsNullOrWhiteSpace(item.InputHash))
-                sb.Append("<code class=\"pcx-hash\">").Append(E(item.InputHash)).Append("</code>");
-            sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-pcx=\"job.reuse\" data-arg=\"")
-              .Append(A(Arg("jobId", item.JobId))).Append("\">复用</button>");
-            sb.Append("</li>");
-        }
-        sb.Append("</ul>");
+        // 历史子模型扁平化（模板 {>consoleHistory} 以当前模型渲染，命名模板不切换作用域）。
+        foreach (var kv in HistoryModel(model, set)) data["history" + char.ToUpperInvariant(kv.Key[0]) + kv.Key[1..]] = kv.Value;
+        return data;
     }
 
-    private static string RenderStatus(ConsolePageModel model)
+    private static Dictionary<string, object?> HistoryModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
-        var sb = new StringBuilder();
-        sb.Append("<span class=\"pcx-status-text\">").Append(E(model.StatusText ?? "")).Append("</span>");
-        sb.Append("<button type=\"button\" class=\"pcx-btn small\" data-name=\"diag-probe\" data-pcx=\"diag.probe\" title=\"重新探测 ComfyUI / ACE-Step 并刷新状态\">重新探活</button>");
-        if (!string.IsNullOrWhiteSpace(model.Notice))
-            sb.Append("<span class=\"pcx-notice\">").Append(E(model.Notice!)).Append("</span>");
-        return sb.ToString();
+        var paged = model.History;
+        if (paged is null)
+            return Model(("loading", Flag(true)), ("hasItems", string.Empty));
+
+        var items = new List<object?>();
+        foreach (var item in paged.Items)
+        {
+            items.Add(set.Catalog.Apply("historyRow", Model(
+                ("jobId", item.JobId),
+                ("capabilityId", item.CapabilityId),
+                ("status", item.Status.ToString()),
+                ("createdAt", item.CreatedAt.ToString("MM-dd HH:mm", CultureInfo.InvariantCulture)),
+                ("inputHash", item.InputHash ?? string.Empty),
+                ("hasInputHash", Flag(!string.IsNullOrWhiteSpace(item.InputHash))))));
+        }
+
+        return Model(
+            ("loading", string.Empty),
+            ("filter", model.HistoryFilter ?? string.Empty),
+            ("total", paged.Total.ToString(CultureInfo.InvariantCulture)),
+            ("page", paged.Page.ToString(CultureInfo.InvariantCulture)),
+            ("pageCount", Math.Max(1, paged.PageCount).ToString(CultureInfo.InvariantCulture)),
+            ("hasPrev", Flag(paged.Page > 1)),
+            ("hasNext", Flag(paged.Page < paged.PageCount)),
+            ("prevPage", Math.Max(1, paged.Page - 1).ToString(CultureInfo.InvariantCulture)),
+            ("nextPage", (paged.Page + 1).ToString(CultureInfo.InvariantCulture)),
+            ("filterPayload", Payload("history.query", ("page", 1))),
+            ("prevPayload", Payload("history.query", ("page", Math.Max(1, paged.Page - 1)))),
+            ("nextPayload", Payload("history.query", ("page", paged.Page + 1))),
+            ("hasItems", Flag(items.Count > 0)),
+            ("items", items));
     }
+
+    private static Dictionary<string, object?> StatusModel(ConsolePageModel model, ConsoleTemplateSet set) => Model(
+        ("statusText", model.StatusText ?? string.Empty),
+        ("hasNotice", Flag(!string.IsNullOrWhiteSpace(model.Notice))),
+        ("notice", model.Notice ?? string.Empty),
+        ("diagPayload", Payload("diag.probe")));
 
     // ── 公共工具 ────────────────────────────────────────────
 
-    /// <summary>构造单个键值参数 JSON（写入 data-arg，由页面脚本并入 payload）。</summary>
-    private static string Arg(string key, string value) =>
-        JsonSerializer.Serialize(new Dictionary<string, object?> { [key] = value });
+    private static Dictionary<string, object?> Model(params (string Key, object? Value)[] pairs)
+    {
+        var model = new Dictionary<string, object?>(pairs.Length, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in pairs) model[key] = value;
+        return model;
+    }
 
-    /// <summary>数值参数 JSON（页码等必须保持数字类型，避免反序列化到 int 失败）。</summary>
-    private static string ArgInt(string key, int value) =>
-        "{\"" + key + "\":" + value.ToString(CultureInfo.InvariantCulture) + "}";
+    /// <summary>布尔 → 模板真值（"1"/""；模板对非空串判真）。</summary>
+    private static string Flag(bool value) => value ? "1" : string.Empty;
+
+    private static CapabilityDescriptor? SelectedCapability(ConsolePageModel model) =>
+        string.IsNullOrWhiteSpace(model.SelectedCapabilityId)
+            ? null
+            : model.Capabilities.FirstOrDefault(c =>
+                string.Equals(c.Id, model.SelectedCapabilityId, StringComparison.OrdinalIgnoreCase));
+
+    private static string KindText(ParamKind kind) => kind switch
+    {
+        ParamKind.Multiline => "multiline",
+        ParamKind.Number => "number",
+        ParamKind.Range => "range",
+        ParamKind.Bool => "bool",
+        ParamKind.Enum => "enum",
+        ParamKind.Json => "json",
+        ParamKind.Path => "path",
+        _ => "text",
+    };
+
+    /// <summary>页面命令负载（C# 单点序列化 → 模板只做属性绑定；避免自由文本插值破坏 JSON）。</summary>
+    public static string Payload(string cmd, params (string Key, object? Value)[] args)
+    {
+        var data = new Dictionary<string, object?>(args.Length + 1) { ["cmd"] = cmd };
+        foreach (var (key, value) in args) data[key] = value;
+        return System.Text.Json.JsonSerializer.Serialize(data);
+    }
 
     private static string Format(object? value) => value switch
     {
@@ -500,137 +448,6 @@ public static class ConsoleHtmlKit
             ? ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture)
             : value.ToString("0.###", CultureInfo.InvariantCulture);
 
-    private static string StatusText(JobStatus status) => status switch
-    {
-        JobStatus.Queued => "排队",
-        JobStatus.Running => "运行中",
-        JobStatus.Succeeded => "完成",
-        JobStatus.Failed => "失败",
-        JobStatus.Cancelled => "已取消",
-        _ => status.ToString(),
-    };
-
-    private static string StatusClass(JobStatus status) => status switch
-    {
-        JobStatus.Queued => "queued",
-        JobStatus.Running => "running",
-        JobStatus.Succeeded => "ok",
-        JobStatus.Failed => "err",
-        JobStatus.Cancelled => "cancel",
-        _ => "queued",
-    };
-
-    private static string FormatBytes(long bytes) =>
-        bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024d:0.#}MB"
-        : bytes >= 1024 ? $"{bytes / 1024d:0.#}KB"
-        : $"{bytes}B";
-
     private static string Truncate(string? text, int max) =>
         string.IsNullOrEmpty(text) ? "" : text.Length <= max ? text : text[..max] + "…";
-
-    private static string E(string? text) => WebUtility.HtmlEncode(text ?? "");
-
-    private static string A(string? text) => WebUtility.HtmlEncode(text ?? "");
-
-    /// <summary>页面交互脚本：捕获阶段收集表单值并注入 data-cmd/data-payload，交给既有点击桥回传（零新协议）。</summary>
-    private const string Script =
-        "(function(){if(window.__pcxInstalled){return;}window.__pcxInstalled=true;" +
-        "function collect(){var p={};document.querySelectorAll('[data-param]').forEach(function(el){" +
-        "var k=el.getAttribute('data-param');p[k]=(el.type==='checkbox')?el.checked:el.value;});return p;}" +
-        "document.addEventListener('click',function(e){var b=e.target&&e.target.closest?e.target.closest('[data-pcx]'):null;if(!b){return;}" +
-        "var cmd0=b.getAttribute('data-pcx');" +
-        "if(cmd0==='artifact.copy'){try{var o0=JSON.parse(b.getAttribute('data-arg')||'{}');" +
-        "if(navigator.clipboard&&o0.path){navigator.clipboard.writeText(o0.path);}}catch(_){}" +
-        "e.preventDefault();e.stopPropagation();return;}" +
-        "var p={cmd:cmd0};" +
-        "if(b.getAttribute('data-pcx-collect')==='1'){p.params=collect();}" +
-        "var arg=b.getAttribute('data-arg');if(arg){try{Object.assign(p,JSON.parse(arg));}catch(_){}}" +
-        "if(!p.capability){var a=document.querySelector('.pcx-cap.active');if(a){p.capability=a.getAttribute('data-cap');}}" +
-        "b.setAttribute('data-cmd','event:click');b.setAttribute('data-route','pcx');" +
-        "b.setAttribute('data-payload',JSON.stringify(p));},true);" +
-        "document.addEventListener('input',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('data-range')==='1'){" +
-        "var o=t.parentElement&&t.parentElement.querySelector('output');if(o){o.value=t.value;}}});" +
-        // 活动任务自动刷新：有 [data-pcx-live] 且焦点不在表单控件时，2s 提交 job.tick（携带未提交表单值）
-        "window.setInterval(function(){if(!document.querySelector('[data-pcx-live=\"1\"]')){return;}" +
-        "var a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)){return;}" +
-        "try{if(window.chrome&&window.chrome.webview){window.chrome.webview.postMessage({event:'click',name:'pcx'," +
-        "payload:JSON.stringify({cmd:'job.tick',params:collect()})});}}catch(_){}},2000);})();";
-
-    public const string Css =
-        ".pcx{--pcx-bg:#fff;--pcx-fg:#24292f;--pcx-mut:#57606a;--pcx-line:#d0d7de;--pcx-soft:#f6f8fa;" +
-        "--pcx-accent:#0969da;--pcx-ok:#1a7f37;--pcx-warn:#9a6700;--pcx-err:#cf222e;" +
-        "display:grid;grid-template-columns:200px 320px minmax(0,1fr);" +
-        "grid-template-rows:minmax(0,1fr) minmax(150px,220px) auto auto auto;gap:8px;height:calc(100vh - 8px);" +
-        "color:var(--pcx-fg);font-family:'Segoe UI','Microsoft YaHei',sans-serif;font-size:13px}" +
-        "@media (prefers-color-scheme:dark){.pcx{--pcx-bg:#0d1117;--pcx-fg:#e6edf3;--pcx-mut:#8b949e;" +
-        "--pcx-line:#30363d;--pcx-soft:#161b22;--pcx-accent:#4493f8;--pcx-ok:#3fb950;--pcx-warn:#d29922;--pcx-err:#f85149}}" +
-        ".pcx-region{background:var(--pcx-bg);border:1px solid var(--pcx-line);border-radius:8px;padding:8px;overflow:auto;min-height:0}" +
-        ".pcx-col-caps{grid-column:1;grid-row:1/3}.pcx-col-form{grid-column:2;grid-row:1/3}" +
-        ".pcx-col-jobs{grid-column:3;grid-row:1}.pcx-col-result{grid-column:3;grid-row:2}" +
-        ".pcx-row-assist{grid-column:1/4;grid-row:3}" +
-        ".pcx-row-drawer{grid-column:1/4;grid-row:4}.pcx-row-status{grid-column:1/4;grid-row:5;padding:4px 8px}" +
-        ".pcx-title{font-weight:600;font-size:13px;margin-bottom:6px}" +
-        ".pcx-desc,.pcx-hint{color:var(--pcx-mut);font-size:12px;margin:4px 0}" +
-        ".pcx-group{margin-bottom:8px}.pcx-group-title{color:var(--pcx-mut);font-size:11px;text-transform:uppercase;margin:6px 0 4px}" +
-        ".pcx-cap{display:block;width:100%;text-align:left;padding:6px 8px;margin:2px 0;border:1px solid transparent;" +
-        "border-radius:6px;background:var(--pcx-soft);color:inherit;cursor:pointer;font-size:12.5px}" +
-        ".pcx-cap:hover{border-color:var(--pcx-line)}.pcx-cap.active{border-color:var(--pcx-accent);color:var(--pcx-accent);font-weight:600}" +
-        ".pcx-assist{border:1px dashed var(--pcx-line);border-radius:8px;padding:7px;margin:6px 0 10px;background:var(--pcx-soft)}" +
-        ".pcx-assist-title{font-size:12px;font-weight:600;color:var(--pcx-mut);margin-bottom:5px}" +
-        ".pcx-assist textarea{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--pcx-line);" +
-        "border-radius:5px;background:var(--pcx-bg);color:inherit;font:inherit;resize:vertical;min-height:46px}" +
-        ".pcx-assist-actions{display:flex;gap:6px;margin-top:5px}" +
-        ".pcx-assist-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11.5px;color:var(--pcx-mut)}" +
-        ".pcx-assist-kv code{background:var(--pcx-bg);border-radius:4px;padding:0 4px}" +
-        ".pcx-assist-err{color:var(--pcx-err);font-size:11.5px;margin-top:5px}" +
-        ".pcx-fields{display:flex;flex-direction:column;gap:8px}" +
-        ".pcx-field{display:flex;flex-direction:column;gap:4px}" +
-        ".pcx-label{font-size:12px;color:var(--pcx-mut)}.pcx-req{color:var(--pcx-err);margin-left:2px}.pcx-unit{font-style:normal;margin-left:4px}" +
-        ".pcx-field input[type=text],.pcx-field input[type=number],.pcx-field textarea,.pcx-field select{width:100%;box-sizing:border-box;" +
-        "padding:5px 7px;border:1px solid var(--pcx-line);border-radius:5px;background:var(--pcx-bg);color:inherit;font:inherit}" +
-        ".pcx-field textarea{resize:vertical;min-height:64px}.pcx-field textarea.mono{font-family:Consolas,monospace;font-size:12px}" +
-        ".pcx-help{color:var(--pcx-mut);font-size:11px}" +
-        ".pcx-switch{display:flex;align-items:center;gap:6px;font-size:12px}" +
-        ".pcx-range-out{font-size:12px;color:var(--pcx-accent)}" +
-        ".pcx-advanced{margin-top:4px}.pcx-advanced summary{cursor:pointer;color:var(--pcx-mut);font-size:12px}" +
-        ".pcx-form-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}" +
-        ".pcx-btn{padding:5px 10px;border:1px solid var(--pcx-line);border-radius:6px;background:var(--pcx-soft);color:inherit;" +
-        "cursor:pointer;font-size:12px}.pcx-btn:hover{border-color:var(--pcx-accent)}" +
-        ".pcx-btn.primary{background:var(--pcx-accent);border-color:var(--pcx-accent);color:#fff;font-weight:600}" +
-        ".pcx-btn.small{padding:2px 7px;font-size:11.5px}.pcx-btn.active{border-color:var(--pcx-accent);color:var(--pcx-accent)}" +
-        ".pcx-job{border:1px solid var(--pcx-line);border-radius:8px;padding:7px 9px;margin-bottom:7px;background:var(--pcx-soft)}" +
-        ".pcx-job.running{border-color:var(--pcx-accent)}.pcx-job.err{border-color:var(--pcx-err)}" +
-        ".pcx-job header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}" +
-        ".pcx-job header time{margin-left:auto;color:var(--pcx-mut);font-size:11px}" +
-        ".pcx-cap-id{font-size:11.5px;color:var(--pcx-mut);background:transparent}" +
-        ".pcx-badge{font-size:11px;border-radius:10px;padding:1px 7px;border:1px solid var(--pcx-line);background:var(--pcx-bg)}" +
-        ".pcx-badge.queued{color:var(--pcx-mut)}.pcx-badge.running{color:var(--pcx-accent);border-color:var(--pcx-accent)}" +
-        ".pcx-badge.ok{color:var(--pcx-ok);border-color:var(--pcx-ok)}.pcx-badge.err{color:var(--pcx-err);border-color:var(--pcx-err)}" +
-        ".pcx-badge.cancel{color:var(--pcx-warn)}.pcx-badge.cache,.pcx-badge.plan{color:var(--pcx-accent)}" +
-        ".pcx-progress{height:5px;border-radius:3px;background:var(--pcx-line);overflow:hidden;margin:6px 0}" +
-        ".pcx-progress>div{height:100%;background:var(--pcx-accent);transition:width .2s ease}" +
-        ".pcx-job-meta{font-size:11.5px;color:var(--pcx-mut)}.pcx-job-meta code{font-size:11px}" +
-        ".pcx-job-err{color:var(--pcx-err);font-size:11.5px;margin-top:3px}" +
-        ".pcx-job-reason{color:var(--pcx-warn);font-size:11.5px;margin-top:3px}" +
-        ".pcx-actions{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}" +
-        ".pcx-btn.danger{color:var(--pcx-err);border-color:var(--pcx-err)}" +
-        ".pcx-history-actions{display:flex;gap:5px;align-items:center;margin:6px 0}" +
-        ".pcx-history-actions input{flex:1;min-width:120px;padding:4px 7px;border:1px solid var(--pcx-line);" +
-        "border-radius:5px;background:var(--pcx-bg);color:inherit;font:inherit}" +
-        ".pcx-result-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}" +
-        ".pcx-gallery{display:flex;flex-wrap:wrap;gap:8px}" +
-        ".pcx-artifact{margin:0;border:1px solid var(--pcx-line);border-radius:8px;padding:6px;max-width:100%;background:var(--pcx-soft)}" +
-        ".pcx-artifact img{max-width:100%;max-height:320px;border-radius:4px;display:block}" +
-        ".pcx-artifact audio{width:320px;max-width:100%}" +
-        ".pcx-artifact figcaption{font-size:11px;color:var(--pcx-mut);margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}" +
-        ".pcx-artifact-err{color:var(--pcx-err);font-size:12px}" +
-        ".pcx-text{margin:0;white-space:pre-wrap;word-break:break-word;font-family:Consolas,monospace;font-size:11.5px;max-height:260px;overflow:auto}" +
-        ".pcx-drawer-tabs{display:flex;gap:6px;margin-bottom:6px;align-items:center}" +
-        ".pcx-drawer-tabs .pcx-btn.active{border-color:var(--pcx-accent);color:var(--pcx-accent)}" +
-        ".pcx-history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}" +
-        ".pcx-history li{display:flex;align-items:center;gap:7px;font-size:12px}" +
-        ".pcx-history time,.pcx-hash{color:var(--pcx-mut);font-size:11px}" +
-        ".pcx-graph svg{max-width:100%;height:auto}" +
-        ".pcx-status-text{color:var(--pcx-mut);font-size:12px}" +
-        ".pcx-notice{color:var(--pcx-err);font-size:12px;margin-left:12px}";
 }

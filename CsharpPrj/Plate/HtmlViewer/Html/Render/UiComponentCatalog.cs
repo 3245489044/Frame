@@ -129,6 +129,8 @@ public sealed class UiComponentCatalog : IUiExpressionResources
                 return TryNumber(value, out var i) ? Math.Round(i).ToString(CultureInfo.InvariantCulture) : null;
             case "percent":
                 return TryNumber(value, out var p) ? (p * 100).ToString("0", CultureInfo.InvariantCulture) + "%" : null;
+            case "size":
+                return TryNumber(value, out var bytes) ? FormatSize(bytes) : null;
             case "upper":
                 return value?.ToString()?.ToUpperInvariant();
             case "lower":
@@ -156,6 +158,12 @@ public sealed class UiComponentCatalog : IUiExpressionResources
             : span.TotalMinutes >= 1
                 ? $"{span.Minutes}m{span.Seconds:00}s"
                 : $"{Math.Max(1, (int)span.TotalSeconds)}s";
+
+    /// <summary>字节量格式化（B / KB / MB；供产物尺寸声明式展示）。</summary>
+    private static string FormatSize(double bytes) =>
+        bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024d:0.#}MB"
+        : bytes >= 1024 ? $"{bytes / 1024d:0.#}KB"
+        : $"{bytes:0}B";
 
     private static bool TryNumber(object? value, out double number)
     {

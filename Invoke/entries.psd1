@@ -78,7 +78,22 @@
         'invoke-gatecheck' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1'
-            Map = @{ All = 'All'; Only = 'Only'; Manifest = 'Manifest'; Tier = 'Tier'; Parallel = 'Parallel' }
+            Map = @{ All = 'All'; Only = 'Only'; Domain = 'Domain'; Manifest = 'Manifest'; Tier = 'Tier'; Parallel = 'Parallel' }
+        }
+
+        # ---------- KeySpace 组合动作（P4：只编排，不复制判据） ----------
+        # keyspace-check：一次调用覆盖 KeySpace 域全部门禁；-Json/-EmitActual 时直接聚合 actual 表。
+        'keyspace-check' = @{
+            Kind   = 'Ps'
+            Target = '..\PowerShellScript\Operation\DSL\KeySpace\Invoke-KeySpaceCheck.ps1'
+            Map    = @{ Json = 'Json'; EmitActual = 'EmitActual'; Tier = 'Tier'; Parallel = 'Parallel'; OnlyPath = 'Only' }
+        }
+        # keyspace-verify：改键面文件后一次验证；计划缺 KeySpace 门禁即显式列缺口（fail-loud）。
+        'keyspace-verify' = @{
+            Kind   = 'Ps'
+            Target = '..\PowerShellScript\Operation\DSL\KeySpace\Invoke-KeySpaceVerify.ps1'
+            Map    = @{ Changed = 'Changed'; Configuration = 'Configuration'; GrantFile = 'GrantFile' }
+            Always = @('Changed')
         }
 
         # ---------- 验证 / 回归 / 定位（转发到 CentralTest 单一实现入口）----------
@@ -92,7 +107,8 @@
             Kind = 'Ps'
             Target = '..\..\Environment\CentralTest\Invoke-CentralTest.ps1'
             Map = @{ Matrix = 'Matrix'; Test = 'Test'; Project = 'Project'; Case = 'Case'; Parallel = 'Parallel'; NoKnownRedOk = 'NoKnownRedOk'; WithGates = 'WithGates' }
-            Always = @('Matrix')
+            # 治 R5：targeted 模式（-Test/-Project/-Case）不得透传空 Matrix（目标 ValidateSet 会报错）。
+            OmitWhenEmpty = @('Matrix')
             Fixed = @{ Action = 'regression' }
         }
         'locate-test' = @{

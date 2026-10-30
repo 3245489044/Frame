@@ -23,7 +23,8 @@ $scanRoots = @(
 # 显式豁免位：解析桥（唯一允许持有 resolver 入口的实现）与解析器单源。
 $allowlisted = @('DomainKeyOps.cs', 'NodeContainerCoordinates.cs')
 $parsePattern = 'IndexOf\(|Substring\(|Split\('
-$keysPattern = $parsePattern + '|StartsWith\(|\.TryParse\(|\[\s*\.\.'
+# KeyOps 是唯一解析入口：`Ops.TryParse(...)` 属允许面（判据只禁 .NET/Enum 等原生解析原语）。
+$keysPattern = $parsePattern + '|StartsWith\(|(?<!Ops)\.TryParse\(|\[\s*\.\.'
 
 function Get-ParseViolations {
     param([string]$File, [string]$Pattern)

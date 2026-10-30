@@ -77,10 +77,18 @@ function New-DispatchParams {
     )
 
     $always = @($Entry['Always'])
+    $omitWhenEmpty = @($Entry['OmitWhenEmpty'])
     $params = @{}
     foreach ($key in @($Entry['Map'].Keys)) {
         if ($BoundParameters.ContainsKey($key) -or ($always -contains $key)) {
-            $params[[string]$Entry['Map'][$key]] = $BoundParameters[$key]
+            $value = $BoundParameters[$key]
+            # OmitWhenEmpty（P4）：空串 / 空数组不下发，避免目标形参 ValidateSet 被空值打红。
+            if ($omitWhenEmpty -contains $key) {
+                if ($null -eq $value) { continue }
+                if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) { continue }
+                if (@($value).Count -eq 0) { continue }
+            }
+            $params[[string]$Entry['Map'][$key]] = $value
         }
     }
     # Fixed：常量目标形参（如转发到「单一入口 + -Action」形态时的 Action 选择子）

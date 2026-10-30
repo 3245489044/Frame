@@ -14,6 +14,8 @@
 param(
     [switch]$All,
     [string[]]$Only = @(),
+    # 域级批跑（P3）：按 GateManifests 的 Domain 字段解析集合（单一真源），与 -Only 互斥。
+    [string]$Domain = '',
     [string]$Manifest = '',
 
     # 分层：fast = 只跑「读产物」类轻量件（清单逐件 Tier='fast'）；full = 全量（缺省）
@@ -87,8 +89,23 @@ if (-not (Test-Path -LiteralPath $Manifest)) {
 $gates = Import-PowerShellDataFile -LiteralPath $Manifest
 
 # ---- 确定要运行的门禁 ----
+if ($Only.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($Domain)) {
+    Write-Result "FAIL" "-Only 与 -Domain 互斥（域解析 = 清单 Domain 字段；定向 = 显式名单）"
+    exit 1
+}
 if ($Only.Count -gt 0) {
     $names = $Only
+} elseif (-not [string]::IsNullOrWhiteSpace($Domain)) {
+    # 域级批跑（P3）：一次调用覆盖该 Domain 全部门禁（避免「4 个脚本 4 次调用」）。
+    $names = @($gates.Keys | Where-Object {
+            $spec = $gates[$_]
+            $spec.ContainsKey('Domain') -and [string]$spec.Domain -eq $Domain
+        } | Sort-Object)
+    if ($names.Count -eq 0) {
+        Write-Result "FAIL" "域 '$Domain' 无登记门禁（判据无标的，禁假绿）"
+        Write-Result "INFO" "可用域：$((@($gates.Keys | ForEach-Object { if ($gates[$_].ContainsKey('Domain')) { [string]$gates[$_].Domain } }) | Sort-Object -Unique) -join ', ')"
+        exit 1
+    }
 } else {
     $names = @($gates.Keys)
 }

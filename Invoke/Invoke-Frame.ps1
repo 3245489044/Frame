@@ -34,6 +34,7 @@ param(
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet(
         'search-repo', 'test-jsonfiles', 'invoke-gatecheck',
+        'keyspace-check', 'keyspace-verify',
         'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port',
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
@@ -64,6 +65,13 @@ param(
     [string]$Manifest = '',
     [switch]$EmitManifest,
     [string[]]$Only = @(),
+    [string]$Domain = '',
+    # CLI 逗号归一（P4）：`pwsh -File` 不会把 "A,B,C" 拆成数组 ⇒ 显式 CSV 变体。
+    [string]$OnlyCsv = '',
+    [string]$ProjectCsv = '',
+    [string]$TestCsv = '',
+    [string]$CaseCsv = '',
+    [string]$ChangedCsv = '',
     [ValidateSet('fast', 'full')]
     [string]$Tier = 'full',
 
@@ -144,6 +152,21 @@ $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 $dispatchTable = Import-DispatchTable -Path (Join-Path $PSScriptRoot 'entries.psd1')
 $entry = Get-DispatchEntry -Table $dispatchTable -Action $Action
 $bound = $PSBoundParameters
+
+# CSV 变体归一（P4）：覆盖同名数组形参后自身移除，避免透传到目标脚本。
+$csvMap = @(
+    @{ Csv = 'OnlyCsv'; Name = 'Only' },
+    @{ Csv = 'ProjectCsv'; Name = 'Project' },
+    @{ Csv = 'TestCsv'; Name = 'Test' },
+    @{ Csv = 'CaseCsv'; Name = 'Case' },
+    @{ Csv = 'ChangedCsv'; Name = 'Changed' }
+)
+foreach ($m in $csvMap) {
+    if ($bound.ContainsKey($m.Csv)) {
+        $bound[$m.Name] = @([string]$bound[$m.Csv] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $bound.Remove($m.Csv)
+    }
+}
 
 # SpecCli 缺省注入（等价于原 SpecChain 系列 `$PSBoundParameters.ContainsKey('CasesRoot')` 缺省 = AgentTest）
 if (-not $bound.ContainsKey('CasesRoot')) {

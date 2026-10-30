@@ -4,7 +4,10 @@
 param(
     [string]$Root = '',
     [switch]$Check,
-    [switch]$NegativeControl
+    [switch]$NegativeControl,
+    # 机器可读出口（P2）：-Json 整块结果；-EmitActual 只输出 actual 表。
+    [switch]$Json,
+    [switch]$EmitActual
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,8 +56,19 @@ foreach ($key in $actual.Keys) {
     }
 }
 
+# actual 三态表（P2）：已登记 / 未登记；未命中项也列出（便于机械对账）。
+$actualOut = [ordered]@{}
+foreach ($key in $actual.Keys) {
+    $state = if ($allowed.ContainsKey($key)) { 'registered' } else { 'unregistered' }
+    $limit = if ($allowed.ContainsKey($key)) { [int]$allowed[$key] } else { 0 }
+    $actualOut[$key] = [ordered]@{ count = [int]$actual[$key]; state = $state; limit = $limit }
+}
+foreach ($key in $allowed.Keys) {
+    if (-not $actualOut.Contains($key)) { $actualOut[$key] = [ordered]@{ count = 0; state = 'registered'; limit = [int]$allowed[$key] } }
+}
+
 if ($NegativeControl) {
     if ('const string P = "proc.";' -notmatch $pattern) { $violations.Add('负对照失败：字面量样本未命中') }
 }
 
-Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyDeclSingleSource'
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyDeclSingleSource' -Json:$Json -EmitActual:$EmitActual -Actual $actualOut

@@ -35,7 +35,16 @@ if (-not $RepoRoot) {
 if (-not $DocsRoot) { $DocsRoot = Join-Path $RepoRoot 'Docs\analysis' }
 
 $violations = [System.Collections.Generic.List[string]]::new()
+$warnings = [System.Collections.Generic.List[string]]::new()
 $optedIn = New-Object System.Collections.Generic.List[string]
+
+# P8：施工单 front-matter 的 verify 块 ↔ 实际冻结计划（Data\Tests\verify-plan.json）对账。
+# 先 warn（不阻断）；稳定后转红（届时把 $warnings.Add 换成 $violations.Add）。
+$verifyPlanPath = Join-Path $RepoRoot 'Data\Tests\verify-plan.json'
+$verifyPlan = $null
+if (Test-Path -LiteralPath $verifyPlanPath) {
+    try { $verifyPlan = Get-Content -LiteralPath $verifyPlanPath -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $verifyPlan = $null }
+}
 
 $stateTokens = @('事实', '建议', '待核实')
 $pathRoots = @('Frame', 'Environment', 'Projects', 'Docs', '.clinerules')
@@ -51,10 +60,43 @@ $docs = @(Get-ChildItem -Path $DocsRoot -Recurse -Filter '*.md' -File -ErrorActi
 
 foreach ($doc in $docs) {
     $raw = Get-Content -LiteralPath $doc.FullName -Raw
+    $rel = [IO.Path]::GetRelativePath($RepoRoot, $doc.FullName)
+
+    # ---- 判据 ③（P8，warn）：front-matter `verify:` 块 ↔ 冻结计划对账 ----
+    $fm = [regex]::Match($raw, '(?s)^---\s*\r?\n(?<body>.*?)\r?\n---')
+    if ($fm.Success) {
+        $fmBody = $fm.Groups['body'].Value
+        $gm = [regex]::Match($fmBody, '(?m)^\s*gates\s*:\s*\[(?<v>[^\]]*)\]')
+        $tm = [regex]::Match($fmBody, '(?m)^\s*tests\s*:\s*\[(?<v>[^\]]*)\]')
+        $em = [regex]::Match($fmBody, '(?m)^\s*effective\s*:\s*(?<v>true|false)')
+        if ($gm.Success -or $tm.Success) {
+            $declaredGates = @($gm.Groups['v'].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $declaredTests = @($tm.Groups['v'].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $declaredEffective = $em.Success -and ($em.Groups['v'].Value -eq 'true')
+            if ($null -eq $verifyPlan) {
+                $warnings.Add("[${rel}] 声明 verify 块但无冻结计划（Data\Tests\verify-plan.json 缺失 ⇒ 判据未执行）")
+            } else {
+                $plannedGates = @($verifyPlan.Gates)
+                $allGates = [bool]$verifyPlan.GatesAll
+                if (-not $allGates) {
+                    foreach ($dg in $declaredGates) {
+                        if ($plannedGates -notcontains $dg) { $warnings.Add("[${rel}] 声明门禁未被本批执行覆盖：$dg") }
+                    }
+                }
+                $plannedTests = @($verifyPlan.TestProjects)
+                foreach ($dt in $declaredTests) {
+                    if ($plannedTests -notcontains $dt) { $warnings.Add("[${rel}] 声明测试工程未被本批覆盖：$dt") }
+                }
+                if ($declaredEffective -and [string]$verifyPlan.TestScope -eq 'none' -and $plannedGates.Count -eq 0) {
+                    $warnings.Add("[${rel}] 声明 effective=true 但本批无任何验证面（构建/门禁/测试均空）")
+                }
+            }
+        }
+    }
+
     if ($raw -notmatch '<!--\s*grounding\s*:\s*tri-state\s*-->' -and $raw -notmatch 'grounding\s*[:=]\s*"tri-state"') { continue }
     $optedIn.Add($doc.FullName)
     $lines = Get-Content -LiteralPath $doc.FullName
-    $rel = [IO.Path]::GetRelativePath($RepoRoot, $doc.FullName)
 
     # ---- 判据 ①：含 marker 的文档，「根因」章节的内容行须三态标注 ----
     $inRootCauseSection = $false
@@ -109,7 +151,12 @@ foreach ($doc in $docs) {
 # ---- 报告 ----
 Write-Host "=== 分析文档根因对账门禁（G5） ==="
 Write-Host ("opt-in 文档数: {0}（marker: grounding:tri-state）" -f $optedIn.Count)
-Write-Host ("违规数: {0}" -f $violations.Count)
+Write-Host ("违规数: {0} | 提示数: {1}" -f $violations.Count, $warnings.Count)
+
+if ($warnings.Count -gt 0) {
+    Write-Host "--- 提示（P8 verify 块对账；先 warn 不阻断）---"
+    foreach ($w in $warnings) { Write-Host "  [WARN] $w" }
+}
 
 if ($violations.Count -gt 0) {
     Write-Host "--- 违规清单 ---"

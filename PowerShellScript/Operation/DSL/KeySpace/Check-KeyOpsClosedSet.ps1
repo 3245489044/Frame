@@ -4,7 +4,10 @@
 param(
     [string]$Root = '',
     [switch]$Check,
-    [switch]$NegativeControl
+    [switch]$NegativeControl,
+    # 机器可读出口（P2）：-Json 整块结果；-EmitActual 只输出 actual 三态表（供一次写基线）。
+    [switch]$Json,
+    [switch]$EmitActual
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +17,8 @@ Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 $baseline = Import-GateBaseline -Name KeyOpsClosedSet
+# 违规清单须先于白名单解析就位（白名单缺 Kind/Reason 也在本单收集，禁 null 方法调用）。
+$violations = [System.Collections.Generic.List[string]]::new()
 
 $scanRoots = @(
     (Join-Path $Root 'Frame\CsharpPrj'),
@@ -89,6 +94,24 @@ foreach ($key in $actual.Keys) {
     }
 }
 
+# actual 三态表（P2）：供 -EmitActual 一次写基线（已登记 / 白名单 / 未登记；未命中项也列出，便于机械对账）。
+$actualOut = [ordered]@{}
+foreach ($key in $actual.Keys) {
+    $state = if ($whitelist.ContainsKey($key)) { 'whitelist' }
+             elseif ($allowed.ContainsKey($key)) { 'registered' }
+             else { 'unregistered' }
+    $limit = if ($whitelist.ContainsKey($key)) { [int]$whitelist[$key] }
+             elseif ($allowed.ContainsKey($key)) { [int]$allowed[$key] }
+             else { 0 }
+    $actualOut[$key] = [ordered]@{ count = [int]$actual[$key]; state = $state; limit = $limit }
+}
+foreach ($key in $allowed.Keys) {
+    if (-not $actualOut.Contains($key)) { $actualOut[$key] = [ordered]@{ count = 0; state = 'registered'; limit = [int]$allowed[$key] } }
+}
+foreach ($key in $whitelist.Keys) {
+    if (-not $actualOut.Contains($key)) { $actualOut[$key] = [ordered]@{ count = 0; state = 'whitelist'; limit = [int]$whitelist[$key] } }
+}
+
 if ($NegativeControl) {
     $probe = 'var p = ProcessKeys.FamilyPrefix + session;'
     if ($probe -notmatch $rules['concat']) { $violations.Add('负对照失败：拼接样本未命中') }
@@ -110,4 +133,4 @@ if ($NegativeControl) {
     if ("var v = k.Split(',');" -match $rules['splitDot']) { $violations.Add('负对照失败：逗号切片被误判为点号切片') }
 }
 
-Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyOpsClosedSet'
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyOpsClosedSet' -Json:$Json -EmitActual:$EmitActual -Actual $actualOut

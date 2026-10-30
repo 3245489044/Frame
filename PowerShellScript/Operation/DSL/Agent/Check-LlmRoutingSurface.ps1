@@ -14,6 +14,9 @@
       L8 缺省单源：路由域 `"semantic"` 字面量 = 1（仅 LlmProviderKeys.cs）。
       L9 本地语义单源：全 src `"local"` 字面量 = 1（仅 LlmProviderKeys.cs）。
       L10 单一读面：UI/装配层零 `Routing.Name` / `Routing.Current` 直读（改读 ResolveEffectiveRoute）。
+      L11 HTTP 单源：Agent 侧 `new HttpClient(` = 0（连接池统一经 Plate HttpTransportFactory）。
+      L12 传输包装已删：Agent 侧 `LlmHttpTransport` 引用 = 0。
+      L13 端点单源：Agent 侧 `127.0.0.1:8787` / `api.deepseek.com` 字面量 = 0（单源 = Plate OpenAiEndpointDefaults）。
     模式：默认报告（不设退出码）；-Check 校验（违规 → 退出码 1）。只读仓库，零侧写。
 .PARAMETER Check
     校验模式：违规 → 退出码 1。
@@ -138,11 +141,31 @@ foreach ($f in $srcFiles) {
     }
 }
 
+# ---- 扩展判据 L11–L13（HTTP 面单源：Agent 侧不得自建连接池/端点常量；下沉 Plate.HttpMethod）----
+$agentHttpCount = 0
+$llmTransportCount = 0
+$endpointLiteralCount = 0
+foreach ($f in $srcFiles) {
+    $code = Get-CodeText $f.FullName
+    $agentHttpCount += ([regex]::Matches($code, 'new\s+HttpClient\s*\(')).Count
+    $llmTransportCount += ([regex]::Matches($code, '\bLlmHttpTransport\b')).Count
+    $endpointLiteralCount += ([regex]::Matches($code, '127\.0\.0\.1:8787|api\.deepseek\.com')).Count
+}
+if ($agentHttpCount -ne 0) {
+    Add-Violation 'L11' "Agent 侧 new HttpClient 计数=$agentHttpCount（连接池须统一经 Plate.HttpMethod.Transport.HttpTransportFactory）"
+}
+if ($llmTransportCount -ne 0) {
+    Add-Violation 'L12' "Agent 侧 LlmHttpTransport 引用计数=$llmTransportCount（该包装已删，须直接使用 HttpTransportFactory）"
+}
+if ($endpointLiteralCount -ne 0) {
+    Add-Violation 'L13' "Agent 侧端点字面量计数=$endpointLiteralCount（默认端点须单源 = Plate.HttpMethod.OpenAI.OpenAiEndpointDefaults）"
+}
+
 if ($violations.Count -gt 0) {
     Write-Host "[LlmRoutingSurface] 违规 $($violations.Count) 项："
     $violations | ForEach-Object { Write-Host "  - $_" }
     if ($Check) { exit 1 }
 } else {
-    Write-Host '[LlmRoutingSurface] OK（L1–L10 全绿）'
+    Write-Host '[LlmRoutingSurface] OK（L1–L13 全绿）'
     if ($Check) { exit 0 }
 }

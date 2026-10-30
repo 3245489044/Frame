@@ -106,9 +106,35 @@ function Write-GateVerdict {
         [System.Collections.Generic.List[string]]$Violations,
         [switch]$Check,
         [string]$Key = '',
-        [string]$ReportOnly = '（报告模式：不设退出码；加 -Check 进入门禁判定）'
+        [string]$ReportOnly = '（报告模式：不设退出码；加 -Check 进入门禁判定）',
+        # 机器可读出口（治 R2）：-Json 输出整块结果；-EmitActual 只输出 actual 表。
+        # JSON 模式禁止任何彩色 Write-Host（否则污染 stdout 解析）；退出码语义不变。
+        [switch]$Json,
+        [switch]$EmitActual,
+        [System.Collections.IDictionary]$Actual
     )
-    $count = if ($null -eq $Violations) { 0 } else { $Violations.Count }
+    $v = if ($null -eq $Violations) { @() } else { @($Violations) }
+    $count = $v.Count
+    $exit = if ($count -eq 0) { 0 } elseif ($Check) { 1 } else { 0 }
+
+    $actualTable = [ordered]@{}
+    if ($null -ne $Actual) {
+        foreach ($k in @($Actual.Keys)) { $actualTable[[string]$k] = $Actual[$k] }
+    }
+    if ($EmitActual) {
+        [ordered]@{ gate = $Key; actual = $actualTable } | ConvertTo-Json -Depth 8 -Compress
+        exit $exit
+    }
+    if ($Json) {
+        [ordered]@{
+            gate       = $Key
+            passed     = ($count -eq 0)
+            violations = @($v)
+            actual     = $actualTable
+        } | ConvertTo-Json -Depth 8 -Compress
+        exit $exit
+    }
+
     if ($count -eq 0) {
         Write-Host ""
         Write-Host "  [PASS] $Key：0 违规" -ForegroundColor Green
@@ -117,7 +143,7 @@ function Write-GateVerdict {
     }
     Write-Host ""
     Write-Host "  违规明细（$count 项）：" -ForegroundColor Yellow
-    foreach ($v in $Violations) { Write-Host "    - $v" -ForegroundColor Yellow }
+    foreach ($x in $v) { Write-Host "    - $x" -ForegroundColor Yellow }
     Write-Host ""
     if ($Check) { exit 1 }
     if ($ReportOnly) { Write-Host $ReportOnly -ForegroundColor DarkGray }

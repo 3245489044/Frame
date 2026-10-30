@@ -4,7 +4,10 @@
 param(
     [string]$Root = '',
     [switch]$Check,
-    [switch]$NegativeControl
+    [switch]$NegativeControl,
+    # 机器可读出口（P2/P4 聚合消费）：无计数基线，actual 为空表但保持统一载荷。
+    [switch]$Json,
+    [switch]$EmitActual
 )
 
 $ErrorActionPreference = 'Stop'
@@ -83,4 +86,4 @@ if ($NegativeControl) {
     if ($probeShape.Count -eq 0) { $violations.Add('负对照失败：空 canonical 段未被判红') }
 }
 
-Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyRoundTrip'
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeyRoundTrip' -Json:$Json -EmitActual:$EmitActual

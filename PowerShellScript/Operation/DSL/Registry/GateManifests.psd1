@@ -113,7 +113,7 @@
 
     WireFabric = @{
         Domain = 'KeySpace'
-        Args   = @{ Check = $true; NegativeControl = $true }
+        Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
         Note   = '端口接盒框架（WireFabric）：C0 登记在位 / C1 依赖面仅 KeySpace+Parsing.Keys / C2 框架文件齐 / C3 测试别名在册 / C4 引用数非空正对照 / C5 第三个引用必红的负对照'

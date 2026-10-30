@@ -10,13 +10,9 @@ namespace FrontEndDriven.HtmlHosting;
 
 /// <summary>
 /// 基于 <see cref="HtmlUiHostSlot"/> 实例的端口实现（当前装配源适配器；组合根显式化后可由宿主替换为实例承载）。
-/// 逐个槽实时读取，保持既有「晚装配 / 重装配即生效」语义。机制层只依赖 <see cref="IHtmlUiHostAccess"/>，不反引静态宿主。
+/// 逐个槽实时读取，保持既有「晚装配 / 重装配即生效」语义。机制层只依赖 <see cref="IHtmlBackendAttachment"/>，不反引静态宿主。
 /// </summary>
-/// <summary>
-/// 基于 <see cref="HtmlUiHostSlot"/> 实例的端口实现（当前装配源适配器；组合根显式化后可由宿主替换为实例承载）。
-/// 逐个槽实时读取，保持既有「晚装配 / 重装配即生效」语义。机制层只依赖 <see cref="IHtmlUiHostAccess"/>，不反引静态宿主。
-/// </summary>
-public sealed class HtmlUiHostAccess : IHtmlUiHostAccess
+public sealed class HtmlUiHostAccess : IHtmlBackendAttachment
 {
     /// <summary>默认宿主槽（<see cref="HtmlUiHost.Default"/>）的共享适配器（单插件兼容形态）。</summary>
     public static readonly HtmlUiHostAccess Instance = new(HtmlUiHost.Default);
@@ -35,3 +31,4 @@ public sealed class HtmlUiHostAccess : IHtmlUiHostAccess
     public string? ConfigPath => _host.ConfigPath;
     public bool HasHtmlUi => _host.HasHtmlUi;
 }
+

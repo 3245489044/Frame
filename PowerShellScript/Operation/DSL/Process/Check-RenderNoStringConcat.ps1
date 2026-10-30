@@ -23,6 +23,8 @@ while ($repo -and $repo -ne (Split-Path $repo -Parent)) {
 }
 
 $target = Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge'
+# 节点写出器已下沉 plate：同判据覆盖该文件（桥内 + 写出器，禁自行构造 HTML）。
+$extraSources = @(Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\UiFragmentWriter.cs')
 
 function Get-SourceText([string]$dir) {
     if (-not (Test-Path -LiteralPath $dir)) { throw "缺目录: $dir" }
@@ -64,6 +66,9 @@ if (-not $Check) {
 }
 
 $sources = @(Get-SourceText $target)
+foreach ($extra in $extraSources) {
+    if (Test-Path -LiteralPath $extra) { $sources += Get-Content -LiteralPath $extra -Raw }
+}
 $violations = Test-NoStringConcat $sources
 if ($violations.Count -gt 0) {
     Write-Host ("RenderNoStringConcat: {0} 项违规（桥内禁自行构造 HTML/文案）。" -f $violations.Count) -ForegroundColor Red

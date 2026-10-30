@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation;
 using Share.Conversation.Rendering;
+using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
 
@@ -12,7 +13,7 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// 通用会话消息流渲染器（**薄编排器**）：面序编排 + 能力判定；
 /// 投影由 <see cref="RoundSectionProjector"/> / <see cref="HeadBandProjector"/> /
 /// <see cref="OperationProjector"/> / <see cref="AttachProjector"/> 承担。
-/// <para>纪律：产物 = 节点树（字符串出口唯一 = <see cref="FragmentSerializer"/>）；
+/// <para>纪律：产物 = 节点树（字符串出口唯一 = <see cref="UiFragmentWriter"/>）；
 /// 能力经 <see cref="TemplateSurface"/> 一次解析；折叠态由 <see cref="FoldPolicy"/> 裁决；
 /// 缺能力 = 可见降级（禁伪造等价结构）。</para>
 /// </summary>
@@ -44,13 +45,13 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
 
     /// <summary>整段渲染（旧 string 端口）：段序列化拼接。</summary>
     public string Render(IReadOnlyList<ConversationRenderItem> items)
-        => FragmentSerializer.SerializeAll(
+        => UiFragmentWriter.SerializeAll(
             RenderFragments(items).Select(fragment => fragment.Root).ToList());
 
     /// <summary>分段渲染（旧 string 端口）：节点片段逐段序列化（唯一字符串出口）。</summary>
     public IReadOnlyList<ConversationRenderSection> RenderSections(IReadOnlyList<ConversationRenderItem> items)
         => RenderFragments(items)
-            .Select(fragment => new ConversationRenderSection(fragment.Key, FragmentSerializer.Serialize(fragment.Root)))
+            .Select(fragment => new ConversationRenderSection(fragment.Key, UiFragmentWriter.Serialize(fragment.Root)))
             .ToList();
 
     /// <summary>节点渲染（**唯一实现**）：按声明面序产出各面片段；段键 = 流差分单位。</summary>
@@ -74,8 +75,8 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
         {
             if (_degradedReason is { } emptyReason)
                 fragments.Add(new ConversationRenderFragment(
-                    "degraded", FragmentTemplates.Fragment(Notices.Degraded(emptyReason, projection))));
-            fragments.Add(new ConversationRenderFragment("empty", FragmentTemplates.Fragment(Notices.Empty(projection))));
+                    "degraded", UiFragmentWriter.Fragment(Notices.Degraded(emptyReason, projection))));
+            fragments.Add(new ConversationRenderFragment("empty", UiFragmentWriter.Fragment(Notices.Empty(projection))));
             return fragments;
         }
 
@@ -108,13 +109,13 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
                 case RenderSurface.HeadPrompt:
                     if (head.Count > 0)
                         fragments.Add(new ConversationRenderFragment(
-                            "head", FragmentTemplates.Fragment(HeadBandProjector.Project(head, projection))));
+                            "head", UiFragmentWriter.Fragment(HeadBandProjector.Project(head, projection))));
                     break;
 
                 case RenderSurface.Operation:
                     if (operations.Count > 0)
                         fragments.Add(new ConversationRenderFragment(
-                            "op", FragmentTemplates.Fragment(OperationProjector.Project(operations, projection))));
+                            "op", UiFragmentWriter.Fragment(OperationProjector.Project(operations, projection))));
                     break;
 
                 case RenderSurface.Dialogue:
@@ -123,14 +124,14 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
                     foreach (var round in rounds)
                         fragments.Add(new ConversationRenderFragment(
                             FragmentKeys.RoundSection(round.Key),
-                            FragmentTemplates.Fragment(RoundSectionProjector.Project(round, latestRound, projection))));
+                            UiFragmentWriter.Fragment(RoundSectionProjector.Project(round, latestRound, projection))));
                     break;
             }
         }
 
         if (_degradedReason is { } reason)
             fragments.Insert(0, new ConversationRenderFragment(
-                "degraded", FragmentTemplates.Fragment(Notices.Degraded(reason, projection))));
+                "degraded", UiFragmentWriter.Fragment(Notices.Degraded(reason, projection))));
 
         return fragments;
     }

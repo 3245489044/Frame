@@ -5,6 +5,7 @@ using System.Linq;
 using Share.Conversation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
+using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
 
@@ -47,16 +48,16 @@ internal static class RoundSectionProjector
         if (!context.Surface.HasLeadFold)
         {
             // 无前导折叠能力：前导行以 blockItem 直出（可见，不聚合 HTML 串）。
-            var roundNodes = FragmentTemplates.Render(templates, "roundFold", model);
+            var roundNodes = UiFragmentWriter.Render(templates, "roundFold", model);
             return leadRows.Count == 0
                 ? roundNodes
-                : FragmentTemplates.Concat(BlockNodes(templates, leadRows), roundNodes);
+                : UiFragmentWriter.Concat(BlockNodes(templates, leadRows), roundNodes);
         }
 
         model["leadFolds"] = leadRows.Count > 0
             ? new List<object?> { LeadFold(plan.Lead, leadRows, round, context) }
             : new List<object?>();
-        return FragmentTemplates.Render(templates, "roundFold", model);
+        return UiFragmentWriter.Render(templates, "roundFold", model);
     }
 
     /// <summary>无轮折叠能力：前导帧与锚点按合并序顶层呈现（等价旧定位，帧零丢失）。</summary>
@@ -80,7 +81,7 @@ internal static class RoundSectionProjector
             ["costLabel"] = context.CostLabel(round),
         };
 
-        return FragmentTemplates.Render(context.Surface.Templates, "sectionHeader", model);
+        return UiFragmentWriter.Render(context.Surface.Templates, "sectionHeader", model);
     }
 
     /// <summary>段首前导行（折叠承载：清空 tool/prompt 位）。</summary>
@@ -126,7 +127,7 @@ internal static class RoundSectionProjector
         foreach (var row in rows)
         {
             if (row is IReadOnlyDictionary<string, object?> model)
-                nodes.AddRange(FragmentTemplates.Render(templates, "blockItem", model));
+                nodes.AddRange(UiFragmentWriter.Render(templates, "blockItem", model));
         }
 
         return nodes;

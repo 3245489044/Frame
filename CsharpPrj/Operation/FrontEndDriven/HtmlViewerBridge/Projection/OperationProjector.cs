@@ -5,6 +5,7 @@ using System.Linq;
 using Share.Conversation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
+using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
 
@@ -26,7 +27,7 @@ internal static class OperationProjector
             .Select(item => (object?)RowModels.Operation(item))
             .ToList();
 
-        return FragmentTemplates.Render(context.Surface.Templates, "actionPanel",
+        return UiFragmentWriter.Render(context.Surface.Templates, "actionPanel",
             new Dictionary<string, object?>
             {
                 // 面板标题 = 宿主注入文案（模板 {title} 消费；桥内零领域词）。
@@ -45,14 +46,14 @@ internal static class Notices
     /// <summary>空态节点（<c>emptyP</c> 缺失 ⇒ 结构等价空态节点，仍可见，禁静默渲空）。</summary>
     public static IReadOnlyList<UiNode> Empty(ConversationProjectionContext context)
         => context.Surface.HasEmpty
-            ? FragmentTemplates.Render(context.Surface.Templates, "emptyP",
+            ? UiFragmentWriter.Render(context.Surface.Templates, "emptyP",
                 new Dictionary<string, object?> { ["text"] = context.EmptyText })
             : new[]
             {
                 new UiNode("p", Attributes: new Dictionary<string, string>(System.StringComparer.Ordinal)
                 {
                     ["class"] = "empty",
-                }, Children: FragmentTemplates.Texts(context.EmptyText)),
+                }, Children: UiFragmentWriter.Texts(context.EmptyText)),
             };
 
     /// <summary>降级节点（<c>renderDegraded</c> 优先；缺 ⇒ 同一契约的降级节点，原因可见）。</summary>
@@ -60,7 +61,7 @@ internal static class Notices
     {
         var text = context.DegradedText(reason);
         return context.Surface.HasDegraded
-            ? FragmentTemplates.Render(context.Surface.Templates, "renderDegraded",
+            ? UiFragmentWriter.Render(context.Surface.Templates, "renderDegraded",
                 new Dictionary<string, object?> { ["reason"] = reason, ["text"] = text })
             : new[]
             {
@@ -68,7 +69,7 @@ internal static class Notices
                 {
                     ["class"] = "render-degraded",
                     ["data-reason"] = reason,
-                }, Children: FragmentTemplates.Texts(text)),
+                }, Children: UiFragmentWriter.Texts(text)),
             };
     }
 }

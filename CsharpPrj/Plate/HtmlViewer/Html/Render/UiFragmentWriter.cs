@@ -1,18 +1,24 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UiBackend.Abstractions;
-using UiBackend.Html;
 
-namespace FrontEndDriven.HtmlViewerBridge;
+namespace UiBackend.Html;
 
 /// <summary>
-/// 节点片段助手（桥内**唯一**节点装配点）：模板 → 节点、片段根、流段包裹、文本占位。
-/// <para>纪律：本类只做结构组合（元素/文本/子节点），不产出 HTML 字符串；字符串出口唯一 =
-/// <see cref="FragmentSerializer"/>。</para>
+/// 片段写出器（通用件，唯一节点装配点 + 唯一字符串出口）：
+/// 模板 → 节点、片段根、流段包裹、文本占位、列表拼接，以及节点 → HTML 序列化。
+/// <para>纪律：结构组合只产节点，不产 HTML 字符串；需要字符串时只经本类序列化
+/// （多节点聚合用 <see cref="string.Join(string, IEnumerable{string})"/>，禁 StringBuilder/Concat 拼标签）。
+/// 消费方（会话渲染、区域流水线、宿主页渲染）不再各自持有装配/序列化助手。</para>
 /// </summary>
-public static class FragmentTemplates
+public static class UiFragmentWriter
 {
+    /// <summary>空片段。</summary>
+    public static UiNode Empty { get; } = Fragment(Array.Empty<UiNode>());
+
     /// <summary>渲染命名模板为节点（缺失 ⇒ 回退节点）。</summary>
     public static IReadOnlyList<UiNode> Render(
         IReadOnlyDictionary<string, string> templates,
@@ -25,12 +31,9 @@ public static class FragmentTemplates
     public static UiNode Fragment(IReadOnlyList<UiNode> children)
         => new(string.Empty, Children: children);
 
-    /// <summary>空片段。</summary>
-    public static UiNode Empty { get; } = Fragment(System.Array.Empty<UiNode>());
-
     /// <summary>流段包裹（段根带稳定键）：<c>&lt;div class="stream-item" data-key="{key}"&gt;</c>。</summary>
     public static UiNode WrapStream(string key, IReadOnlyList<UiNode> children)
-        => new("div", key, new Dictionary<string, string>(System.StringComparer.Ordinal)
+        => new("div", key, new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["class"] = "stream-item",
             ["data-key"] = key,
@@ -62,4 +65,11 @@ public static class FragmentTemplates
 
     /// <summary>单节点 → 片段（便于嵌套片段根）。</summary>
     public static IReadOnlyList<UiNode> One(UiNode node) => new[] { node };
+
+    /// <summary>单节点序列化（null ⇒ 空串）。</summary>
+    public static string Serialize(UiNode? node) => UiNodeHtml.ToHtml(node);
+
+    /// <summary>多节点顺序拼接（唯一致富点；输入已是序列化产物）。</summary>
+    public static string SerializeAll(IReadOnlyList<UiNode>? nodes)
+        => nodes is { Count: > 0 } ? string.Join(string.Empty, nodes.Select(Serialize)) : string.Empty;
 }

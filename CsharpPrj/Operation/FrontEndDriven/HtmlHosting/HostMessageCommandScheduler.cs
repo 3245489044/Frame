@@ -15,21 +15,26 @@ namespace FrontEndDriven.HtmlHosting;
 /// </summary>
 public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposable, IAsyncDisposable
 {
-    private readonly UiCommandQueue _queue;
-    private readonly ICommandPriorityRegistry _priorities;
-    private long _generation;
-    private int _disposed;
+    private readonly MessageCommandScheduler _inner;
 
     public HostMessageCommandScheduler(
         UiCommandQueue? queue = null,
         ICommandPriorityRegistry? priorities = null)
     {
-        _queue = queue ?? new UiCommandQueue();
-        _priorities = priorities ?? DefaultCommandPriorityRegistry.Instance;
+        var registry = priorities ?? DefaultCommandPriorityRegistry.Instance;
+        // 唯一解析（UiMessageEnvelope）：合并键/优先级同源，本层不再二次 Parse（DUP-06）。
+        _inner = new MessageCommandScheduler(
+            static payload =>
+            {
+                var envelope = UiMessageEnvelope.Parse(payload);
+                return new MessageCommandScheduler.CommandIdentity(envelope.MergeKey, envelope.Kind);
+            },
+            queue,
+            registry.Resolve);
     }
 
     /// <summary>底层队列（指标/诊断只读）。</summary>
-    public UiCommandQueue Queue => _queue;
+    public UiCommandQueue Queue => _inner.Queue;
 
     public bool TrySchedule(string payload, Func<CancellationToken, Task> execute)
     {
@@ -38,32 +43,12 @@ public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposa
         // 回流自检必须走原路（探针等待即时回投；排队会引入假超时）。
         if (payload.IndexOf("__loopback__", StringComparison.OrdinalIgnoreCase) >= 0) return false;
 
-        // 唯一解析（UiMessageEnvelope）：合并键/优先级同源，本层不再二次 Parse（DUP-06）。
-        var envelope = UiMessageEnvelope.Parse(payload);
-        var command = new UiCommand(
-            envelope.MergeKey,
-            Interlocked.Increment(ref _generation),
-            "webmessage",
-            PriorityOf(envelope.Kind),
-            payload,
-            execute);
-        return _queue.Enqueue(command);
+        return _inner.TrySchedule(payload, execute);
     }
-
-    /// <summary>命令 → 优先级（查注册表；未注册 ⇒ Interactive：未知命令不得被后台合并/延迟）。</summary>
-    private UiCommandPriority PriorityOf(string kind) => _priorities.Resolve(kind);
 
     /// <summary>同步释放：只停止接收并请求取消，**不等待** worker（禁在 UI 线程阻塞）；异步宿主用 <see cref="DisposeAsync"/>。</summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _queue.SignalStop();
-    }
+    public void Dispose() => _inner.Dispose();
 
     /// <summary>异步释放：等待 worker 退出（有界：worker 只在当前命令完成/取消后结束）。</summary>
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _queue.DisposeAsync().ConfigureAwait(false);
-    }
+    public ValueTask DisposeAsync() => _inner.DisposeAsync();
 }

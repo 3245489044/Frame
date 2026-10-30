@@ -221,10 +221,22 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
             // 单协议路由中枢：data-cmd="event:{name}" 已由点击桥翻译回事件负载（含 event+name）→ 页内声明事件 HandleAsync；
             // 否则（cmd 消息桥 selectTask/selectType 等）→ 宿主 events.message 路由。
             var (eventName, controlName, _) = HtmlEventBridge.ParsePayload(json);
-            if (!string.IsNullOrWhiteSpace(eventName) && !string.IsNullOrWhiteSpace(controlName))
-                await _eventBridge.HandleAsync(json, ct).ConfigureAwait(false);
-            else
-                await _eventBridge.HandleHostMessageAsync(hostControlName, json, ct).ConfigureAwait(false);
+            var handled = !string.IsNullOrWhiteSpace(eventName) && !string.IsNullOrWhiteSpace(controlName)
+                ? await _eventBridge.HandleAsync(json, ct).ConfigureAwait(false)
+                : await _eventBridge.HandleHostMessageAsync(hostControlName, json, ct).ConfigureAwait(false);
+
+            // 事件桥以文本回执表达「未找到控件 / 未声明事件绑定 / 未分发」——此前直接丢弃 ⇒ 点击无效且零日志。
+            if (IsUnhandledResult(handled))
+            {
+                Report("HtmlChannel_event_unhandled",
+                    $"event={eventName}, name={controlName ?? hostControlName}, result={TextUtil.Truncate(handled)}");
+            }
+            else if (!string.IsNullOrEmpty(handled))
+            {
+                // 成功回执同样保留（Debug 级）：点击链路端到端可追溯，而不只在失败时可见。
+                Report("HtmlChannel_event_result",
+                    $"event={eventName}, name={controlName ?? hostControlName}, result={TextUtil.Truncate(handled)}");
+            }
         }
         catch (Exception ex)
         {
@@ -232,6 +244,15 @@ public sealed partial class HtmlBackendRuntime : IUiRenderExecutor, IDisposable
             Report("HtmlChannel_webmessage_error", $"消息路由异常: {ex.GetType().Name}: {ex.Message}, 负载={TextUtil.Truncate(json)}");
         }
     }
+
+    /// <summary>事件桥回执是否为「未处理」失败（成功产物的叙述文本不算失败）。</summary>
+    private static bool IsUnhandledResult(string? result)
+        => !string.IsNullOrEmpty(result) &&
+           (result.StartsWith("未找到控件", StringComparison.Ordinal)
+            || result.StartsWith("未声明事件绑定", StringComparison.Ordinal)
+            || result.StartsWith("事件未分发", StringComparison.Ordinal)
+            || result.StartsWith("事件缺少", StringComparison.Ordinal)
+            || result.StartsWith("交互未分发", StringComparison.Ordinal));
 
     /// <summary>
     /// 按宿主控件声明 events["message"] 自动绑定 MessageReceived（声明驱动：函数名/参数映射/output 全部来自声明，不在硬编码）。

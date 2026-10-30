@@ -1,11 +1,11 @@
-﻿# 门禁索引（生成产物，禁手改）
+# 门禁索引（生成产物，禁手改）
 
 > 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` / `Family` / `Form` 字段编译生成。
 > 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（85 件）
+## Agent（86 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -81,6 +81,7 @@
 | `ToolCallConvergence` | fast | 0 | Contract | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Check-ToolCallConvergence.ps1` |
 | `TransferKey` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Check-TransferKey.ps1` |
 | `UiAnchorWrites` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiAnchorWrites.ps1` |
+| `UiLocDeclaration` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiLocDeclaration.ps1` |
 | `UiNoViewBranch` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiNoViewBranch.ps1` |
 | `UiReadOutcome` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiReadOutcome.ps1` |
 | `UiRegionOwnership` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Check-UiRegionOwnership.ps1` |
@@ -142,7 +143,7 @@
 | `LogMessages` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
 | `RuntimeMirror` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
 
-## KeySpace（18 件）
+## KeySpace（20 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -154,10 +155,12 @@
 | `KeyDeclNoLogic` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDeclNoLogic.ps1` |
 | `KeyDeclSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDeclSingleSource.ps1` |
 | `KeyDomainStrict` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyDomainStrict.ps1` |
+| `KeyIdentity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-KeyIdentity.ps1` |
 | `KeyOpsClosedSet` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyOpsClosedSet.ps1` |
 | `KeyOwnerUnique` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyOwnerUnique.ps1` |
 | `KeyParseAmbiguity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyParseAmbiguity.ps1` |
 | `KeyParseSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyParseSingleSource.ps1` |
+| `KeyPolicy` | data | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-KeyPolicy.ps1` |
 | `KeyRoundTrip` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeyRoundTrip.ps1` |
 | `KeySpaceCoverage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySpaceCoverage.ps1` |
 | `KeySurfaceDistinguishable` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-KeySurfaceDistinguishable.ps1` |
@@ -239,7 +242,7 @@
 | `KeyGrammar` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（21 件）
+## Process（23 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -250,6 +253,7 @@
 | `DeclarationCapability` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DeclarationCapability.ps1` |
 | `DimensionReduction` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |
 | `EntityExistenceSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-EntityExistenceSingleSource.ps1` |
+| `FragmentBoundary` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-FragmentBoundary.ps1` |
 | `HistorySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-HistorySemantics.ps1` |
 | `InvokeEntrypoints` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
 | `JudgmentParity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentParity.ps1` |
@@ -257,6 +261,7 @@
 | `OrchestrationKernel` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1` |
 | `PreflightCost` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-PreflightCost.ps1` |
 | `ReadModelSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-ReadModelSingleSource.ps1` |
+| `RenderNoStringConcat` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-RenderNoStringConcat.ps1` |
 | `RunConvergence` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-RunConvergence.ps1` |
 | `SpecExempt` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1` |
 | `TestDoubleParity` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-TestDoubleParity.ps1` |

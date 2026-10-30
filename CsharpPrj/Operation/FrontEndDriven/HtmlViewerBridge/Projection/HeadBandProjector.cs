@@ -5,6 +5,7 @@ using System.Linq;
 using Share.Conversation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
+using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
 
@@ -26,6 +27,6 @@ internal static class HeadBandProjector
                 .ToList(),
         };
 
-        return FragmentTemplates.Render(context.Surface.Templates, "sectionHeader", model);
+        return UiFragmentWriter.Render(context.Surface.Templates, "sectionHeader", model);
     }
 }

@@ -18,102 +18,29 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// </summary>
 public sealed class WebView2Transport : Modules.Observe.ITransport
 {
-    private static readonly TimeSpan DefaultConvergeTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan ProbeInterval = TimeSpan.FromMilliseconds(50);
-
-    private readonly IHtmlChannel _channel;
-    private readonly TimeSpan _convergeTimeout;
-    private readonly object _lock = new();
-    private readonly CancellationTokenSource _cts = new();
-    private Func<Modules.Observe.Message, CancellationToken, Task>? _handler;
-    private bool _disposed;
+    private readonly Modules.Observe.ProbeTransport _inner;
 
     public WebView2Transport(IHtmlChannel channel, TimeSpan? convergeTimeout = null)
     {
-        _channel = channel ?? throw new ArgumentNullException(nameof(channel));
-        _convergeTimeout = convergeTimeout ?? DefaultConvergeTimeout;
+        if (channel is null) throw new ArgumentNullException(nameof(channel));
+        // 收敛语义唯一实现 = Modules.Observe.ProbeTransport（投递 → Applied → 轮询就绪 → Converged）。
+        _inner = new Modules.Observe.ProbeTransport(
+            (command, ct) => channel.RenderHtmlAsync(command.PayloadObject?.ToString() ?? string.Empty, ct),
+            ct => channel.IsBridgeReadyAsync(ct),
+            convergeTimeout,
+            TimeSpan.FromMilliseconds(50),
+            "webview2 dom bridge ready");
     }
 
-    public Modules.Observe.EvidenceStrategy EvidenceStrategy => Modules.Observe.EvidenceStrategy.Probe;
+    public Modules.Observe.EvidenceStrategy EvidenceStrategy => _inner.EvidenceStrategy;
 
     public IDisposable Subscribe(Func<Modules.Observe.Message, CancellationToken, Task> handler)
-    {
-        ArgumentNullException.ThrowIfNull(handler);
-        lock (_lock) _handler = handler;
-        return new Unsubscriber(this);
-    }
+        => _inner.Subscribe(handler);
 
-    public async Task SendAsync(Modules.Observe.Message message, CancellationToken ct = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (message is not Modules.Observe.ChangeCommand cmd)
-            return;
 
-        // B 已接纳渲染指令（Applied）：投递 HTML 到通道（唯一封送点）。
-        var html = cmd.PayloadObject?.ToString() ?? string.Empty;
-        await _channel.RenderHtmlAsync(html, ct).ConfigureAwait(false);
-        Publish(new Modules.Observe.Ack(cmd.ChangeId, Modules.Observe.AckLevel.Applied, null));
+    public Task SendAsync(Modules.Observe.Message message, CancellationToken ct = default)
+        => _inner.SendAsync(message, ct);
 
-        // 收敛确认异步进行（不阻塞投递返回）：桥就绪即回发 Converged，未就绪则由协调器超时降级。
-        _ = ConfirmConvergenceAsync(cmd.ChangeId);
-    }
-
-    private async Task ConfirmConvergenceAsync(string changeId)
-    {
-        var deadline = DateTime.UtcNow + _convergeTimeout;
-        while (DateTime.UtcNow < deadline && !_cts.IsCancellationRequested)
-        {
-            try
-            {
-                if (await _channel.IsBridgeReadyAsync(_cts.Token).ConfigureAwait(false))
-                {
-                    Publish(new Modules.Observe.Ack(changeId, Modules.Observe.AckLevel.Converged,
-                        new Modules.Observe.ConvergedProof("webview2 dom bridge ready", DateTimeOffset.UtcNow)));
-                    return;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch
-            {
-                // 瞬时失败继续轮询（document 未就绪/导航中）
-            }
-            try { await Task.Delay(ProbeInterval, _cts.Token).ConfigureAwait(false); }
-            catch (OperationCanceledException) { return; }
-        }
-    }
-
-    private void Publish(Modules.Observe.Message message)
-    {
-        Func<Modules.Observe.Message, CancellationToken, Task>? h;
-        lock (_lock) h = _handler;
-        if (h is null) return;
-        _ = Task.Run(async () =>
-        {
-            try { await h(message, _cts.Token).ConfigureAwait(false); }
-            catch { /* 订阅方回调异常不向外抛 */ }
-        });
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        _cts.Cancel();
-        _cts.Dispose();
-        lock (_lock) _handler = null;
-    }
-
-    private sealed class Unsubscriber : IDisposable
-    {
-        private readonly WebView2Transport _owner;
-        public Unsubscriber(WebView2Transport owner) => _owner = owner;
-        public void Dispose()
-        {
-            lock (_owner._lock)
-                _owner._handler = null;
-        }
-    }
+    public void Dispose() => _inner.Dispose();
 }
+

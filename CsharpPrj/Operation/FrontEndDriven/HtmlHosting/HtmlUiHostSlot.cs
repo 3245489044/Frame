@@ -22,7 +22,7 @@ public sealed class HtmlUiHostSlot
 {
     private readonly object _gate = new();
 
-    private readonly ThreadSafeSlot<HtmlBackendRuntime> _htmlUi;
+    private readonly SwappableSlot<HtmlBackendRuntime> _htmlUi;
     private readonly ThreadSafeSlot<IReadOnlyDictionary<string, string>> _templates;
     private readonly ThreadSafeSlot<UIConfiguration> _pageDeclaration;
     private readonly ThreadSafeSlot<Func<string, HtmlViewer?>> _htmlViewerResolver;
@@ -32,14 +32,13 @@ public sealed class HtmlUiHostSlot
 
     public HtmlUiHostSlot()
     {
-        _htmlUi = new ThreadSafeSlot<HtmlBackendRuntime>(_gate);
+        _htmlUi = new SwappableSlot<HtmlBackendRuntime>(_gate);
         _templates = new ThreadSafeSlot<IReadOnlyDictionary<string, string>>(_gate);
         _pageDeclaration = new ThreadSafeSlot<UIConfiguration>(_gate);
         _htmlViewerResolver = new ThreadSafeSlot<Func<string, HtmlViewer?>>(_gate);
         _htmlContentSink = new ThreadSafeSlot<Action<string>>(_gate);
         _diagnosticsSink = new ThreadSafeSlot<Action<string, string>>(_gate);
     }
-
     /// <summary>当前装配的 HTML 后端运行时；未装配为 null。</summary>
     public HtmlBackendRuntime? HtmlUi => _htmlUi.Value;
 
@@ -49,13 +48,7 @@ public sealed class HtmlUiHostSlot
     /// <summary>装配 HTML 后端运行时（覆盖式 + 幂等释放）：替换前解装配旧运行时，消除旧订阅成孤儿仍触发。
     /// 传入需非 null。</summary>
     public void AttachHtmlUi(HtmlBackendRuntime runtime)
-    {
-        ArgumentNullException.ThrowIfNull(runtime);
-        var previous = _htmlUi.Value;
-        _htmlUi.Attach(runtime);
-        if (previous is not null && !ReferenceEquals(previous, runtime))
-            previous.Dispose();
-    }
+        => _htmlUi.Attach(runtime);
 
     /// <summary>解除 HTML 后端运行时槽位。</summary>
     public void DetachHtmlUi() => _htmlUi.Detach();

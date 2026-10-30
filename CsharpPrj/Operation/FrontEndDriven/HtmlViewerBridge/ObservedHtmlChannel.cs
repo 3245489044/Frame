@@ -20,11 +20,16 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
 {
     private readonly IHtmlChannel _inner;
     private readonly ObserveSessionManager _manager;
+    private readonly UiWriteBarrierPolicy _barrierPolicy;
 
-    public ObservedHtmlChannel(IHtmlChannel inner, TimeSpan? convergeTimeout = null)
+    public ObservedHtmlChannel(
+        IHtmlChannel inner,
+        TimeSpan? convergeTimeout = null,
+        UiWriteBarrierPolicy? barrierPolicy = null)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _manager = new ObserveSessionManager(new WebView2Transport(inner, convergeTimeout));
+        _barrierPolicy = barrierPolicy ?? UiWriteBarrierPolicy.Default;
     }
 
     public event EventHandler<HtmlMessageReceivedEventArgs>? MessageReceived
@@ -63,22 +68,19 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
     /// 使 plate 不再感知任何 Observe 类型。缺省窗口 = Refresh 250ms / Mount 5s（对齐原 plate 写回语义）。
     /// </summary>
     public HtmlWritePump ToWritePump(TimeSpan? window = null)
-        => ToWritePump(window is null ? null : _ => window);
+        => window is null
+            ? ToWritePump(_barrierPolicy)
+            : ToWritePump(new UiWriteBarrierPolicy(RefreshWindow: window, MountWindow: window));
 
     /// <summary>按来源分档窗口（B4-5）：交互/流 ⇒ 不等待屏障（FireAndForget）；刷新 ⇒ 窄窗（缺省 250ms）；挂载 ⇒ 5s。</summary>
     public HtmlWritePump ToWritePump(Func<UiWriteSource, TimeSpan?>? windowSelector)
+        => ToWritePump(new UiWriteBarrierPolicy(WindowSelector: windowSelector));
+
+    /// <summary>按声明策略计算屏障选项（策略单源 = <see cref="UiWriteBarrierPolicy"/>）。</summary>
+    public HtmlWritePump ToWritePump(UiWriteBarrierPolicy policy)
         => async (html, source, ct) =>
         {
-            var options = source switch
-            {
-                UiWriteSource.Interactive or UiWriteSource.Stream =>
-                    new WriteOptions(BarrierMode.FireAndForget, TimeSpan.Zero),
-                UiWriteSource.Refresh =>
-                    new WriteOptions(BarrierMode.Timeout,
-                        windowSelector?.Invoke(source) ?? TimeSpan.FromMilliseconds(RefreshWindowMs)),
-                _ => new WriteOptions(BarrierMode.Timeout,
-                        windowSelector?.Invoke(source) ?? TimeSpan.FromSeconds(5)),
-            };
+            var options = policy.For(source);
             var outcome = await WriteAsync(html, options, ct).ConfigureAwait(false);
             var status = outcome.Result switch
             {
@@ -88,7 +90,4 @@ public sealed class ObservedHtmlChannel : IObservedHtmlChannel
             };
             return new HtmlWriteBackResult(status, outcome.Window, outcome.HighestAck.ToString());
         };
-
-    /// <summary>刷新来源的收敛窗口上限（毫秒）：交互已走直写，刷新无需 5s 长窗。</summary>
-    private const int RefreshWindowMs = 250;
 }

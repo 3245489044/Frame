@@ -407,9 +407,15 @@ public sealed class HtmlEventBridge
             return;
         }
 
-        var target = bindings?.Output;
-        if (string.IsNullOrWhiteSpace(target))
+        // 目标裁决单点（PageWriteRouting）：与交互总线共用同一判据，本桥只负责落地方式（hostWriter / 声明控件 DOM set）。
+        var disposition = PageWriteRouting.Resolve(bindings?.Output, regions: null, hasSelfDescribingPlan: false, pageRuntimeAvailable: false);
+        if (disposition.IsUnlandable || disposition.IsRejected)
+        {
+            Report("EventBridge_writeback", $"目标 {bindings?.Output ?? "(空)"} → 跳过（{disposition.Reason}）");
             return;
+        }
+
+        var target = disposition.Target;
         var result = output.Text;
         // L2 类型化：空产物 = 无内容写回（取代 NoWrite 哨兵串；调用方已产计划即返回空文本）。
         if (string.IsNullOrEmpty(result))

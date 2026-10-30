@@ -1199,6 +1199,7 @@
     RenderNoStringConcat = @{
         Domain = 'Process'
         Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
         Expect = 0
         Note   = '渲染桥零字符串拼接（N1 HTML 标签字面量 / N2 StringBuilder / N3 拼接式字符串 / N4 string.Concat / N5 领域中文）：渲染只产节点，序列化唯一出口 = FragmentSerializer；负对照 -NegativeControl'
     }
@@ -1206,6 +1207,7 @@
     FragmentBoundary = @{
         Domain = 'Process'
         Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
         Expect = 0
         Note   = '渲染产物边界（节点树单一形态）：B1 UiNodeHtml.ToHtml 调用点 = 1（FragmentSerializer）/ B2 渲染链气泡段无「造串→解串」（Parse 仅两处登记边界）/ B3 会话模板无 |raw；负对照 -NegativeControl'
     }

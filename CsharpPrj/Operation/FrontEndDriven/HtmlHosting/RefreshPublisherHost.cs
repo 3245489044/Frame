@@ -32,8 +32,9 @@ public sealed class RefreshPublisherHost
     private readonly IRefreshSink? _sink;
     private readonly Func<long>? _beatVersion;
     private readonly Action<string, object?>? _diagnostics;
+    private readonly IPagePusher? _pagePusher;
     private RefreshService? _service;
-    private HtmlUpdatePusher? _pusher;
+    private IPagePusher? _pusher;
     private long _deliveredSeq;
     private long _pushedSeq;
 
@@ -57,7 +58,8 @@ public sealed class RefreshPublisherHost
         IInFlightSource? inFlight = null,
         IRefreshSink? sink = null,
         Func<long>? beatVersion = null,
-        Action<string, object?>? diagnostics = null)
+        Action<string, object?>? diagnostics = null,
+        IPagePusher? pusher = null)
     {
         _channelResolver = channelResolver ?? throw new ArgumentNullException(nameof(channelResolver));
         _traceFactory = traceFactory;
@@ -68,6 +70,7 @@ public sealed class RefreshPublisherHost
         _sink = sink;
         _beatVersion = beatVersion;
         _diagnostics = diagnostics;
+        _pagePusher = pusher;
     }
 
     /// <summary>单一刷新状态源（去重/版本裁决）。</summary>
@@ -183,7 +186,7 @@ public sealed class RefreshPublisherHost
         }
 
         lock (_gate)
-            _pusher ??= new HtmlUpdatePusher(_channelResolver, _traceFactory ?? RefreshTraceId.New, _beatVersion);
+            _pusher ??= _pagePusher ?? new HtmlPagePusher(_channelResolver, _traceFactory ?? RefreshTraceId.New, _beatVersion);
 
         var ok = await _pusher.PushAsync(scopes, ct).ConfigureAwait(false);
         if (ok)

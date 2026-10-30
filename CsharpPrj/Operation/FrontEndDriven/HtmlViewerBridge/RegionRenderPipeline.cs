@@ -142,12 +142,12 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         var streamItems = new List<UiStreamItem>();
         foreach (var region in regions)
         {
-            if (!Changed(_regionSlotPrefix + region.Key, _hash(FragmentSerializer.Serialize(region.Value)), commits)) continue;
+            if (!Changed(_regionSlotPrefix + region.Key, _hash(UiFragmentWriter.Serialize(region.Value)), commits)) continue;
             if (region.Key.StartsWith(_streamRegionPrefix, StringComparison.Ordinal))
             {
                 // 流段（气泡）：同键 ⇒ 定点更新；新键 ⇒ 按流序插入（方向由载荷声明 = OldestFirst）。
                 streamItems.Add(new UiStreamItem(
-                    region.Key.Substring(_streamRegionPrefix.Length), FragmentSerializer.Serialize(region.Value)));
+                    region.Key.Substring(_streamRegionPrefix.Length), UiFragmentWriter.Serialize(region.Value)));
                 continue;
             }
 

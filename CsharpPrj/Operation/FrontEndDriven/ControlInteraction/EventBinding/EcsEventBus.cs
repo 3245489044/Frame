@@ -303,9 +303,8 @@ public sealed class EcsEventBus : IInteractionEventPort
             // 原始输出（RenderOutput 落地计划）不经文本投影丢失；内核已 await，不再残留 Task 需解包（R8 删除）。
             var effectiveOutput = result.RawOutput;
 
-            if (result.IsSuccess
-                && !string.IsNullOrWhiteSpace(binding.OutputTarget)
-                && effectiveOutput != null)
+            // 落地判据单点：目标是否可落地统一由 PageWriteRouting 裁决（此处不再重复判 output 是否为空）。
+            if (result.IsSuccess && effectiveOutput != null)
             {
                 try
                 {
@@ -463,8 +462,14 @@ public sealed class EcsEventBus : IInteractionEventPort
     /// 无法落地/执行异常 → 显式告警（不静默），随后回退文本写（空则跳过）。</summary>
     private async Task WriteOutputLandingAsync(EventBindingComponent binding, object effectiveOutput, Guid opId, UIInteractionEvent evt)
     {
+        var hasPlan = effectiveOutput is RenderOutput { HasPlan: true };
         var regionWriter = _regionWriterResolver(evt.ControlName);
-        var disposition = PageWriteRouting.Resolve(binding.OutputTarget, regionWriter?.Regions);
+        // 目标裁决单点（PageWriteRouting）：是否可落地、落到控件/区域/页面运行时，全部在此判定，调用方不再重复判空。
+        var disposition = PageWriteRouting.Resolve(
+            binding.OutputTarget,
+            regionWriter?.Regions,
+            hasSelfDescribingPlan: hasPlan,
+            pageRuntimeAvailable: regionWriter is not null);
 
         if (disposition.IsRejected)
         {
@@ -475,10 +480,56 @@ public sealed class EcsEventBus : IInteractionEventPort
             return;
         }
 
-        if (!disposition.IsRegion && string.IsNullOrWhiteSpace(disposition.Target))
+        if (disposition.IsUnlandable)
         {
-            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_unresolved",
-                new { opId, controlName = evt.ControlName, functionName = binding.FunctionName });
+            // 计划产物被丢弃 = 真问题（Warning）；纯文本无目标 = 声明常态（Debug，不刷屏）。
+            if (hasPlan)
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_unresolved",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName, reason = disposition.Reason });
+            }
+            else
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_no_target",
+                    new { opId, controlName = evt.ControlName, functionName = binding.FunctionName, outputType = effectiveOutput.GetType().Name });
+            }
+            return;
+        }
+
+        if (disposition.IsPageRuntime)
+        {
+            // 未声明 output 但产物是自描述计划：交由触发元素所属页面运行时的单写者落地。
+            var pagePlan = ((RenderOutput)effectiveOutput).Plan!;
+            FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_via_page",
+                new
+                {
+                    opId,
+                    controlName = evt.ControlName,
+                    functionName = binding.FunctionName,
+                    planKind = pagePlan.Kind.ToString(),
+                    targets = pagePlan.Targets.Count
+                });
+
+            try
+            {
+                await regionWriter!.ExecutePlanAsync(pagePlan, opId.ToString("N")).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                FrontEndDrivenLog.Log("EcsEventBus_Dispatch_output_plan_unlanded",
+                    new
+                    {
+                        opId,
+                        controlName = evt.ControlName,
+                        functionName = binding.FunctionName,
+                        outputTarget = "(缺省→页面运行时)",
+                        targetType = regionWriter!.GetType().Name,
+                        executorPresent = true,
+                        planKind = pagePlan.Kind.ToString(),
+                        error = ex.Message
+                    });
+            }
+
             return;
         }
         if (effectiveOutput is RenderOutput { HasPlan: true } planOutput)

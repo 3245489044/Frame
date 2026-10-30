@@ -369,12 +369,22 @@
     },
     "EcsEventBus_Dispatch_start": {
       "template": "ECS 事件分发开始 — opId={opId}, controlName={controlName}, eventName={eventName}, functionName={functionName}, budgetMs={budgetMs}",
-      "level": "Debug",
+      "level": "Info",
       "category": "General"
     },
     "EcsEventBus_Dispatch_completed": {
       "template": "ECS 事件分发完成 — opId={opId}, controlName={controlName}, eventName={eventName}, functionName={functionName}, success={success}, outcome={outcome}, elapsedMs={elapsedMs}",
-      "level": "Debug",
+      "level": "Info",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_failed": {
+      "template": "ECS 事件写回阶段异常（阶段归因 OutputWrite）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, error={error}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_scope_failed_aggregate": {
+      "template": "ECS 事件指向 Failed 作用域（已聚合跳过）— controlName={controlName}, failedScopes={failedScopes}",
+      "level": "Warning",
       "category": "General"
     },
     "EcsEventBus_Dispatch_output_decision": {
@@ -395,6 +405,31 @@
     "EcsEventBus_Dispatch_output_plan_unlanded": {
       "template": "ECS 事件输出计划未落地（目标非 HtmlViewer / 未装配计划执行器 / 执行异常）— opId={opId}, controlName={controlName}, functionName={functionName}, outputTarget={outputTarget}, targetType={targetType}, executorPresent={executorPresent}, planKind={planKind}, error={error}",
       "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_plan_via_page": {
+      "template": "ECS 事件计划产物经页面运行时落地（未声明 output，目标=触发元素所属页面）— opId={opId}, controlName={controlName}, functionName={functionName}, planKind={planKind}, targets={targets}",
+      "level": "Info",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_unresolved": {
+      "template": "ECS 事件计划产物无落地目标（已丢弃）— opId={opId}, controlName={controlName}, functionName={functionName}, reason={reason}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "HtmlBridge_Diagnostic": {
+      "template": "HTML 桥诊断 — category={category}, message={message}",
+      "level": "Info",
+      "category": "General"
+    },
+    "HtmlBridge_DiagnosticProblem": {
+      "template": "HTML 桥诊断（问题）— category={category}, message={message}",
+      "level": "Warning",
+      "category": "General"
+    },
+    "EcsEventBus_Dispatch_output_no_target": {
+      "template": "ECS 事件文本产物无 output 目标（声明常态，未回写）— opId={opId}, controlName={controlName}, functionName={functionName}, outputType={outputType}",
+      "level": "Debug",
       "category": "General"
     },
     "EcsEventBus_Dispatch_output_appended": {

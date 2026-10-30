@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using FrontEndDriven.Diagnostics;
 using FrontEndDriven.HtmlViewerBridge;
 using Plate.HtmlViewer;
 using Plate.JsonMethod.Serialization;
@@ -27,6 +28,26 @@ namespace FrontEndDriven.HtmlHosting;
 /// </summary>
 public static class HtmlBridgeAssembly
 {
+    /// <summary>
+    /// 兜底诊断出口（宿主未注入 sink 时使用）：桥/通道诊断此前只在「宿主主动注入 sink」时才可见，
+    /// 脚本、自检、无 PrjBridge 的宿主上表现为「点击无效且零日志」。兜底只做分类落盘：
+    /// 失败类 → Warning，其余（路由/写回/通道）→ Info。
+    /// </summary>
+    private static readonly Action<string, string> BridgeDiagnosticsFallback = (category, message) =>
+    {
+        var isProblem = category.Contains("error", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("失败", StringComparison.Ordinal)
+            || message.Contains("未找到", StringComparison.Ordinal)
+            || message.Contains("未分发", StringComparison.Ordinal)
+            || message.Contains("拒绝", StringComparison.Ordinal)
+            || message.Contains("不完整", StringComparison.Ordinal);
+
+        if (isProblem)
+            FrontEndDrivenLog.Log("HtmlBridge_DiagnosticProblem", new { category, message });
+        else
+            FrontEndDrivenLog.Log("HtmlBridge_Diagnostic", new { category, message });
+    };
+
     /// <summary>
     /// 装配 HTML 后端运行时并挂载到 <see cref="HtmlUiHost"/>。返回装配就绪报告（P1 就绪契约：函数在注册表 /
     /// output 目标唯一已填充；hostWriter/message 订阅由宿主随后调用 <see cref="HtmlBackendRuntime.AttachHostMessage"/> 更新到同一报告引用）。
@@ -70,24 +91,8 @@ public static class HtmlBridgeAssembly
         // （InMemoryRefreshStore）承载；两生产者交替写同 slot 时旧版本判 Stale、不触 DOM（治 region/tree ping-pong）。
         var writeArbiter = new RefreshWriteArbiter(new InMemoryRefreshStore());
         // P3 指纹单源 + P4 追踪单源：写落地与领域共用框架侧实现（plate 只经注入使用，不反向依赖）。
-        // B5：帧预算与指标在此接线（此前只声明未注入 ⇒ 默认全关，洪泛期无背压、无 P95 可判）。
-        var writeOptions = new UiWriteRuntimeOptions
-        {
-            FrameBudget = true,
-            MaxOpsPerFlush = 64,
-            MaxBytesPerFlush = 1536 * 1024,
-            MaxMsPerFlush = 120,
-            // S2 转正：节批量写入口（一拍一 batch）；关掉即回旧逐目标路径（灰度回退）。
-            UseSectionWriter = true,
-            MaxNodesPerBeat = 1500,
-            MaxNodesPerBeatBackground = 500,
-            BulkNodeThreshold = 800,
-            BulkRatioThreshold = 0.5,
-            BulkReplaceEnabled = true,
-            StreamDroppable = true,
-            // F5：首挂载/刷新按 壳→结构→内容→装饰 落地；预算压力先丢装饰（可见化）。
-            ProgressiveSurface = true,
-        };
+        // B5：帧预算与指标在此接线（参数单源 = Plate 的 HtmlWriteRuntimeOptionsFactory；装配代码不再持有魔法数）。
+        var writeOptions = HtmlWriteRuntimeOptionsFactory.CreateDefault();
         var writeMetrics = new UiWriteMetrics();
         var runtime = new HtmlBackendRuntime(channel, index, invoker, observed.ToWritePump(), writeArbiter,
             Fnv1aFingerprint.Default.Of, RefreshTraceId.New, writeOptions, writeMetrics);
@@ -99,22 +104,24 @@ public static class HtmlBridgeAssembly
         runtime.InteractionRoute = interactionRoute;
         // F1：消息边界只投递（O(1)），取数/渲染在单 worker 串行；DOM 落地仍经 IHtmlChannel 单点封送。
         runtime.MessageScheduler = new HostMessageCommandScheduler();
-        PopulateStaticReadiness(runtime.Readiness, index, registry, workflowNames);
-        ValidateRegionTargets(runtime.Readiness, index, runtime.PageRegions);
+        HtmlAttachContract.PopulateStaticReadiness(runtime.Readiness, index, registry, workflowNames);
+        HtmlAttachContract.ValidateRegionTargets(runtime.Readiness, index, runtime.PageRegions);
         // P3 实例标识：记录装配所绑定通道的实例（渲染/订阅同源断言；多实例错配可据此定位）。
         runtime.Readiness.ChannelInstanceId = (channel as HtmlViewer)?.InstanceId.ToString("N") ?? channel.GetType().Name;
         // P2 观测：宿主注入的诊断 sink（category,message → 日志门面）接到运行时统一出口。
         var sink = host.DiagnosticsSink;
+        if (sink is null)
+        {
+            // 兜底：宿主未注入 sink（脚本/自检/无 PrjBridge 宿主）时不得让桥诊断静默消失。
+            sink = BridgeDiagnosticsFallback;
+            host.AttachDiagnosticsSink(sink);
+        }
+
         if (sink is not null)
         {
             runtime.Diagnostics += sink;
-            // 开关可见化（单发）：运行期即可判定「预算是否真的开着」，不靠读源码。
-            sink("UiWriteOptions",
-                $"frameBudget={writeOptions.FrameBudget}, maxOps={writeOptions.MaxOpsPerFlush}, " +
-                $"maxBytes={writeOptions.MaxBytesPerFlush}, maxMs={writeOptions.MaxMsPerFlush}, " +
-                $"interactiveFastPath={writeOptions.InteractiveFastPath}, maxMsCap={writeOptions.MaxMsPerFlush}, " +
-                $"sectionWriter={writeOptions.UseSectionWriter}, maxNodesPerBeat={writeOptions.MaxNodesPerBeat}, " +
-                $"bulkNode={writeOptions.BulkNodeThreshold}, bulkRatio={writeOptions.BulkRatioThreshold:F2}");
+            // 开关可见化（单发）：运行期即可判定「预算是否真的开着」，不靠读源码（描述与参数同源）。
+            sink("UiWriteOptions", HtmlWriteRuntimeOptionsFactory.Describe(writeOptions));
             // P2 观测补漏：HtmlViewer 侧桥诊断（HtmlChannel_webmessage / HtmlChannel_inject_bridge / HtmlChannel_init_failed）
             // 此前只经 HtmlViewer.BridgeDiagnostics 发出、从未接日志门面 → 桥链断点（注入失败/收到 postMessage）全部静默被吞。
             // 统一接入同一 sink，使"点击无效却无日志"的断链在日志可见（对接 fde_log_messages 的 HtmlChannel_* msgId）。
@@ -139,57 +146,6 @@ public static class HtmlBridgeAssembly
         return runtime.Readiness;
     }
 
-    /// <summary>R2：写回目标 <c>region:&lt;key&gt;</c> 须在页面 regions 声明内；未声明 → 装配期问题（不静默）。</summary>
-    private static void ValidateRegionTargets(
-        HtmlRuntimeReadinessReport report,
-        IReadOnlyDictionary<string, ControlConfig> index,
-        RegionCatalog regions)
-    {
-        foreach (var control in index.Values)
-        {
-            var output = control.Events?.Bindings?.Output;
-            if (!RegionCatalog.IsRegionTarget(output)) continue;
-            var key = RegionCatalog.Normalize(output!);
-            if (!regions.IsDeclared(key))
-                report.AddProblem($"output 区域未声明: {control.Name} → region:{key}");
-        }
-    }
-    /// <summary>填充就绪报告静态可判定项：绑定函数是否在注册库、output 写回目标是否唯一命中索引；缺失记入 Problems。</summary>
-    private static void PopulateStaticReadiness(
-        HtmlRuntimeReadinessReport report,
-        IReadOnlyDictionary<string, ControlConfig> index,
-        ITrConfigRegistry registry,
-        IReadOnlySet<string>? workflowNames = null)
-    {
-        var missing = new List<string>();
-        var unresolvedOutputs = new List<string>();
-        foreach (var control in index.Values)
-        {
-            if (control.Events?.EventsDictionary is not { Count: > 0 } functions)
-                continue;
-            foreach (var fn in functions.Values.SelectMany(f => f))
-            {
-                if (string.IsNullOrWhiteSpace(fn)) continue;
-                if (!registry.Contains(fn) && (workflowNames is null || !workflowNames.Contains(fn)))
-                    missing.Add($"{control.Name}.{fn}");
-            }
-            var output = control.Events.Bindings?.Output;
-            // R2：region: 目标由区域声明单独校验（ValidateRegionTargets），不参与控件索引唯一性判定。
-            if (!string.IsNullOrWhiteSpace(output)
-                && !RegionCatalog.IsRegionTarget(output)
-                && !index.ContainsKey(output)
-                && !index.ContainsKey(HtmlDeclarationParser.HostKey(output))
-                && !index.ContainsKey(HtmlDeclarationParser.PageKey(output)))
-                unresolvedOutputs.Add($"{control.Name}→{output}");
-        }
-        report.FunctionsInRegistry = missing.Count == 0;
-        report.OutputTargetUnique = unresolvedOutputs.Count == 0;
-        foreach (var m in missing)
-            report.AddProblem($"绑定函数未在注册库: {m}");
-        foreach (var o in unresolvedOutputs)
-            report.AddProblem($"output 目标未命中索引: {o}");
-    }
-
     /// <summary>注入页面模板集与 JSON 主题（只需模板集，不依赖 htmlviewer 实例/注册库；宿主可在创建控件前调用，使 JSON 主题在生产生效）。
     /// 通用 HTML 由框架默认资产承担（经 <see cref="IHtmlAssetProvider"/> 端口读取，配置可按同名键覆盖）；
     /// 消费方不再直取具体内核的静态成员，消除跨程序集「成员改名即 MissingField」耦合。</summary>
@@ -207,36 +163,21 @@ public static class HtmlBridgeAssembly
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(templates);
 
-        // 框架默认模板为底，配置显式模板覆盖其上（配置只声明差异/覆盖，通用 HTML 由框架单点维护）。
-        var provider = assets ?? HtmlAssetRegistry.Default;
-        var defaults = provider.GetDefaultTemplates();
-        if (defaults.Count == 0)
-            host.DiagnosticsSink?.Invoke("HtmlAssets_default_templates_empty",
-                "框架默认模板集为空（资产未嵌入或提供者未覆写 GetDefaultTemplates）→ 配置模板独占；若配置也未声明，页面将缺壳。");
-        var resolved = new Dictionary<string, string>(defaults, System.StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in templates)
-            resolved[kv.Key] = kv.Value;
+        // 框架默认模板为底，配置显式模板覆盖其上（合成单源 = Plate 的 HtmlAttachContract）。
+        var resolved = HtmlAttachContract.ComposeTemplates(
+            assets ?? HtmlAssetRegistry.Default, templates, host.DiagnosticsSink);
 
         host.AttachTemplates(resolved);
         // P0 键契约（I2/I4）：全元素 × 同父键唯一性 + 缺稳定键（<details> 无键 → 重渲染后展开态无法按 key 恢复）。
-        // 经诊断 sink 可见化后装配期 fail-fast（含修复引导；键由渲染层派生，不靠作者手写）。
-        var keyViolations = HtmlKeyContract.ValidateAll(resolved);
-        if (keyViolations.Count > 0)
-        {
-            host.DiagnosticsSink?.Invoke("HtmlKeyContract",
-                $"模板键契约：{keyViolations.Count} 处违规（缺稳定键 / 同父键冲突）→ 展开态不保持或键控对齐失效（P0）。首项: {keyViolations[0]}");
-            HtmlKeyContract.Enforce(keyViolations);
-        }
-        // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS；后续 JSON 结构化后再拆 token），
+        // 经诊断 sink 可见化后装配期 fail-fast（键由渲染层派生，不靠作者手写）。
+        HtmlAttachContract.EnforceTemplateKeys(resolved, host.DiagnosticsSink);
+        // P4 单一源：从裸 CSS 编译为结构化 ThemeDocument（componentCss 承载原 CSS），
         // 经 ConfigThemeProvider + HtmlTheme.AttachProvider 装配（优先于旧 ConfigHtmlTheme 的 IHtmlTheme 路径）。
         if (resolved.TryGetValue("theme", out var themeCss) && !string.IsNullOrWhiteSpace(themeCss))
         {
-            // P1 主题「基础 + 差异」：框架基础主题（DefaultCss）恒为底，应用 theme 追加/覆盖其上——
-            // 消除「框架 DefaultCss 更新而 JSON theme 逐字副本落后 → 静默漂移」的缺口；
-            // 应用侧 theme 只需声明差异（业务类），无需复制框架基础部分。
-            var baseCss = HtmlDocumentRenderer.DefaultCss;
-            var mergedCss = string.IsNullOrWhiteSpace(baseCss) ? themeCss : baseCss + "\n" + themeCss;
-            HtmlTheme.AttachProvider(new ConfigThemeProvider(componentCss: mergedCss));
+            // P1 主题「基础 + 差异」：框架基础主题恒为底，应用 theme 追加/覆盖其上（应用只声明差异）。
+            HtmlTheme.AttachProvider(new ConfigThemeProvider(
+                componentCss: HtmlAttachContract.ComposeThemeCss(HtmlDocumentRenderer.DefaultCss, themeCss)));
         }
 
         // 文档壳模板（P4）：合成集 htmlShell 注入全局壳槽（缺省回退内置 DOCTYPE 壳）；

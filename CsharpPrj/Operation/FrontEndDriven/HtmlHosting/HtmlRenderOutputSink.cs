@@ -27,6 +27,14 @@ public sealed class HtmlRenderOutputSink : IRefreshSink
         _onDelivered = onDelivered;
     }
 
+    /// <summary>按宿主槽装配（推荐：多插件隔离，不绑全局默认槽；未装配 ⇒ 未送达，可重试）。</summary>
+    public HtmlRenderOutputSink(HtmlUiHostSlot host, Action? onDelivered = null)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        _executor = () => host.HtmlUi;
+        _onDelivered = onDelivered;
+    }
+
     /// <inheritdoc />
     public async Task<DeliveryResult> DeliverAsync(RefreshDelivery delivery, CancellationToken ct = default)
     {

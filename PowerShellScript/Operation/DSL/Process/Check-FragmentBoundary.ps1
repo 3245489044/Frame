@@ -3,7 +3,7 @@
 .SYNOPSIS
     渲染产物边界守卫（FragmentBoundary）—— 渲染链只产节点，序列化出口唯一。
 .DESCRIPTION
-    B1 序列化出口 = 1：`UiNodeHtml.ToHtml` 的桥内调用点恰在 FragmentSerializer 一处。
+    B1 序列化出口 = 1：`UiNodeHtml.ToHtml` 的调用点恰在 plate 节点写出器（UiFragmentWriter）一处（桥内零调用）。
     B2 渲染链「造串→解串」= 0：ConversationPageRenderer / ConversationViewService / RegionRenderPipeline
        不得对气泡段调用 HtmlNodeParser.Parse（Agent 侧非气泡区域的边界解析登记为例外）。
     B3 会话模板 |raw = 0：templates.default.json 的 sectionHeader/roundFold/leadFold/blockItem/attachItem 等
@@ -21,7 +21,7 @@ while ($repo -and $repo -ne (Split-Path $repo -Parent)) {
     $repo = Split-Path $repo -Parent
 }
 
-$serializerPath = Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\Fragments\FragmentSerializer.cs'
+$writerPath = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\UiFragmentWriter.cs'
 $bridgeDir = Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge'
 $pipelinePath = Join-Path $bridgeDir 'RegionRenderPipeline.cs'
 $pageRendererPath = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs'
@@ -44,6 +44,12 @@ function Get-SerializerCallSites([string]$dir) {
     return $count
 }
 
+# 节点写出器已下沉 plate（HTML 单原语）：出口计数 = 桥内 + 写出器文件（不经整目录扫描，避免误计 plate 其它渲染件）。
+function Get-SerializerCallSitesInFile([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return 0 }
+    return ([regex]::Matches((Get-Content -LiteralPath $path -Raw), 'UiNodeHtml\.ToHtml\s*\(')).Count
+}
+
 if ($NegativeControl) {
     $badSources = '<div class="stream-item">' + 'x' + '</div>'
     if (-not ($badSources -match '<[A-Za-z]')) { throw '负对照失败：未识别内联 HTML 样本' }
@@ -64,7 +70,7 @@ function Report([string]$id, [string]$title, [bool]$ok) {
     Write-Host ("[{0}] {1} {2}" -f $mark, $id, $title) -ForegroundColor $(if ($ok) { 'Green' } else { 'Red' })
 }
 
-Report 'B1' '序列化出口唯一（UiNodeHtml.ToHtml 调用点 = 1）' ((Get-SerializerCallSites $bridgeDir) -eq 1)
+Report 'B1' '序列化出口唯一（UiNodeHtml.ToHtml 调用点 = 1：桥内 + plate 写出器）' (((Get-SerializerCallSites $bridgeDir) + (Get-SerializerCallSitesInFile $writerPath)) -eq 1)
 
 $hotPaths = @($pipelinePath, $viewServicePath)
 $parseHits = 0

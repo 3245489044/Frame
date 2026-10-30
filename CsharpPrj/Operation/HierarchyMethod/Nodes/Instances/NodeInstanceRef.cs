@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Modules.Node.Identity;
 using Operation.DataStoreDriven.Abstractions;
 
 namespace Operation.HierarchyMethod.Nodes.Instances;
@@ -40,17 +41,19 @@ public sealed record NodeInstanceRef(
     /// <summary>是否有实例身份（false = legacy 裸键）。</summary>
     public bool HasInstance => InstanceKey.Length > 0;
 
-    /// <summary>存储主键：<c>{NodeKey}@{InstanceKey}</c>；无实例 ⇒ 裸 <c>NodeKey</c>。</summary>
+    /// <summary>存储主键：<c>{NodeKey}@{InstanceKey}</c>；无实例 ⇒ 裸 <c>NodeKey</c>（文法单源 = <see cref="NodeAddress"/>）。</summary>
     public string ToStorageKey()
-        => HasInstance ? NodeKey + InstanceSeparator + InstanceKey : NodeKey;
+        => NodeKey.Length == 0 ? string.Empty : NodeAddress.StorageKeyOf(NodeKey, HasInstance ? InstanceKey : null);
 
     /// <summary>图端点 Id：<c>{WorkflowId}.{StorageKey}</c>（与 <c>NodeRelationFactory.NodeId</c> 同形）。</summary>
     public string ToEndpointId()
-        => WorkflowId.Length > 0 ? WorkflowId + "." + ToStorageKey() : ToStorageKey();
+        => NodeKey.Length == 0
+            ? string.Empty
+            : NodeAddress.Create(ContainerKey, WorkflowId, NodeKey, HasInstance ? InstanceKey : null).EndpointId;
 
     /// <summary>存储键合成（唯一构造点；禁调用点手拼分隔符）。</summary>
     public static string StorageKeyOf(string nodeKey, string? instanceKey)
-        => string.IsNullOrWhiteSpace(instanceKey) ? nodeKey : nodeKey + InstanceSeparator + instanceKey;
+        => string.IsNullOrWhiteSpace(nodeKey) ? nodeKey ?? string.Empty : NodeAddress.StorageKeyOf(nodeKey, instanceKey);
 
     /// <summary>是否实例存储键形态。</summary>
     public static bool IsInstanceStorageKey(string? storageKey)
@@ -58,19 +61,13 @@ public sealed record NodeInstanceRef(
 
     /// <summary>剥离实例后缀（legacy 兼容读）：非实例键 ⇒ 原样返回。</summary>
     public static string StripInstance(string storageKey)
-    {
-        if (!IsInstanceStorageKey(storageKey)) return storageKey;
-        return storageKey[..storageKey.IndexOf(InstanceSeparator)];
-    }
+        => IsInstanceStorageKey(storageKey) ? NodeAddress.StripInstance(storageKey) : storageKey;
 
     /// <summary>由存储键还原（无实例 ⇒ <see cref="FromLegacy"/> 形态）。</summary>
     public static NodeInstanceRef Parse(string? workflowId, string storageKey)
-    {
-        var key = storageKey ?? string.Empty;
-        if (!IsInstanceStorageKey(key)) return FromLegacy(workflowId, key);
-        var at = key.IndexOf(InstanceSeparator);
-        return new NodeInstanceRef(string.Empty, workflowId?.Trim() ?? string.Empty, key[..at], key[(at + 1)..]);
-    }
+        => NodeAddress.TryParseStorage(storageKey, workflowId, null, out var address)
+            ? new NodeInstanceRef(string.Empty, address.DomainKey, address.NodeKey, address.InstanceKey ?? string.Empty)
+            : FromLegacy(workflowId, storageKey);
 }
 
 /// <summary>已落库节点引用（<see cref="NodePersistResult"/> 的元素；承载 NodeType 与存储键）。</summary>

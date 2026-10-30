@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraphFramework.Snapshots;
 using Modules.KeySpace.Model;
+using Modules.Node.Identity;
 using Modules.Node.Ports;
 using WorkFlowMethod.Diagnostics;
 using WorkFlowMethod.KeySpace.Adapters;
@@ -86,7 +87,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 }
 
                 space.TryAdd(nodeKey, port, value);
-                executionStage.SetExecutionParameter(executionId, $"{nodeKey}.{port}", value);
+                executionStage.SetExecutionParameter(executionId, NodePortKeys.Format(nodeKey, port), value);
             }
         }
     }

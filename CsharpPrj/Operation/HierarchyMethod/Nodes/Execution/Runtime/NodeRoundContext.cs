@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Modules.Node.Identity;
 using Operation.HierarchyMethod.Nodes;
 using Operation.HierarchyMethod.Nodes.Workflows;
 using Share.HierarchySupport;
@@ -90,13 +91,13 @@ public sealed class NodeRoundContext
     /// R1 收敛：同一轮内同一节点端口至多登记一次 —— 重复登记计入 <see cref="DuplicatePersistRegistrations"/> 供调用方可见化。</summary>
     public void MarkPersistedPort(string nodeKey, string port)
     {
-        if (!_persistedPorts.Add($"{nodeKey}.{port}"))
+        if (!_persistedPorts.Add(NodePortKeys.Format(nodeKey, port)))
             DuplicatePersistRegistrations++;
     }
 
     /// <summary>查询某节点端口是否已由步骤横切持久化（false = 需终态信封补写兜底，如 guard_output 被 CanExecute 跳过）。</summary>
     public bool IsPortPersisted(string nodeKey, string port)
-        => _persistedPorts.Contains($"{nodeKey}.{port}");
+        => _persistedPorts.Contains(NodePortKeys.Format(nodeKey, port));
 
     /// <summary>记录当前步骤执行产物 + 入参溯源（步骤体调用；供 onAfterStep 持久化横切消费，消除溯源在落库后置时的丢失）。</summary>
     public void RecordStep(string stepName, NodeDefinition node, Dictionary<string, object?> props, NodeInputSnapshot input,

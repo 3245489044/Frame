@@ -110,6 +110,8 @@ public static class ConsoleHtmlKit
         if (!string.IsNullOrWhiteSpace(cap.Description))
             sb.Append("<div class=\"pcx-desc\">").Append(E(cap.Description)).Append("</div>");
 
+        RenderAssistant(sb, model);
+
         sb.Append("<div class=\"pcx-fields\">");
         foreach (var spec in cap.Params.Where(p => !p.Advanced)) RenderField(sb, spec, model);
 
@@ -132,6 +134,39 @@ public static class ConsoleHtmlKit
               .Append(A(Arg("action", action))).Append("\">").Append(E(action)).Append("</button>");
         sb.Append("</div>");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// AI 参数助理块：自然语言输入 + 解析/应用。`__nl` 由页面 collect() 自动回传；
+    /// 未声明键在 ParamSet.Merge/AbsorbFormValues 处丢弃，不会进入任务参数或历史。
+    /// </summary>
+    private static void RenderAssistant(StringBuilder sb, ConsolePageModel model)
+    {
+        var pending = model.PendingProposal;
+        sb.Append("<div class=\"pcx-assist\">");
+        sb.Append("<div class=\"pcx-assist-title\">AI 参数助理</div>");
+        sb.Append("<textarea rows=\"2\" data-param=\"__nl\" data-name=\"assist-nl\" placeholder=\"用一句话描述你要生成的内容，例如：做一首 60 秒、82bpm、中文歌词的 lo-fi 歌\">")
+          .Append(E(model.AssistantPrompt ?? "")).Append("</textarea>");
+        sb.Append("<div class=\"pcx-assist-actions\">");
+        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-propose\" data-pcx=\"assist.propose\" data-pcx-collect=\"1\">AI 解析</button>");
+        sb.Append("<button type=\"button\" class=\"pcx-btn\" data-name=\"assist-apply\" data-pcx=\"assist.apply\" data-pcx-collect=\"1\"")
+          .Append(pending is { Count: > 0 } ? "" : " disabled")
+          .Append(">应用</button>");
+        sb.Append("</div>");
+
+        if (pending is { Count: > 0 })
+        {
+            sb.Append("<div class=\"pcx-assist-preview\">");
+            foreach (var kv in pending)
+                sb.Append("<span class=\"pcx-assist-kv\"><code>").Append(E(kv.Key)).Append("</code> = ")
+                  .Append(E(Format(kv.Value))).Append("</span>");
+            sb.Append("</div>");
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.ProposalError))
+            sb.Append("<div class=\"pcx-assist-err\">").Append(E(model.ProposalError!)).Append("</div>");
+
+        sb.Append("</div>");
     }
 
     private static void RenderField(StringBuilder sb, ParamSpec spec, ConsolePageModel model)
@@ -516,6 +551,14 @@ public static class ConsoleHtmlKit
         ".pcx-cap{display:block;width:100%;text-align:left;padding:6px 8px;margin:2px 0;border:1px solid transparent;" +
         "border-radius:6px;background:var(--pcx-soft);color:inherit;cursor:pointer;font-size:12.5px}" +
         ".pcx-cap:hover{border-color:var(--pcx-line)}.pcx-cap.active{border-color:var(--pcx-accent);color:var(--pcx-accent);font-weight:600}" +
+        ".pcx-assist{border:1px dashed var(--pcx-line);border-radius:8px;padding:7px;margin:6px 0 10px;background:var(--pcx-soft)}" +
+        ".pcx-assist-title{font-size:12px;font-weight:600;color:var(--pcx-mut);margin-bottom:5px}" +
+        ".pcx-assist textarea{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--pcx-line);" +
+        "border-radius:5px;background:var(--pcx-bg);color:inherit;font:inherit;resize:vertical;min-height:46px}" +
+        ".pcx-assist-actions{display:flex;gap:6px;margin-top:5px}" +
+        ".pcx-assist-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11.5px;color:var(--pcx-mut)}" +
+        ".pcx-assist-kv code{background:var(--pcx-bg);border-radius:4px;padding:0 4px}" +
+        ".pcx-assist-err{color:var(--pcx-err);font-size:11.5px;margin-top:5px}" +
         ".pcx-fields{display:flex;flex-direction:column;gap:8px}" +
         ".pcx-field{display:flex;flex-direction:column;gap:4px}" +
         ".pcx-label{font-size:12px;color:var(--pcx-mut)}.pcx-req{color:var(--pcx-err);margin-left:2px}.pcx-unit{font-style:normal;margin-left:4px}" +

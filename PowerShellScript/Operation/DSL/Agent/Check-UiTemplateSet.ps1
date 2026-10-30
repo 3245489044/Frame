@@ -5,18 +5,20 @@
 
 .DESCRIPTION
     判据（结构事实）：
-      T1 框架默认模板含必需键（layoutShell/segGroup/emptyDiv/composer/segItem/listItem/foldItem/emptyP）且非空；
-      T2 配置模板覆盖键 ⊆ 框架默认键集（同一交互契约禁两份声明漂移）；
+      T1 生效集必需键（默认集 ∪ 配置覆盖）含必需键且非空；
+      T2 配置自有模板键须登记于 Baselines\Agent\UiTemplateOwnership.psd1（禁未登记自有键）；
       T3 装配期合并结构在位：HtmlBridgeAssembly 以 GetDefaultTemplates() 为底、配置逐键覆盖；
       T4 解析入口防御性合并在位：ConversationTemplates.Resolve 以框架默认集为底合并槽位；
-      T5 负对照：缺 segGroup 的合成默认集、无合并结构的合成源码必须被判缺（防判据恒真）。
+      T5 负对照：缺必需键的合成集 / 无合并结构源码 / 默认集∩配置集重复键必须被判出；
+      T6 模板键单源：默认集与配置集不得重复定义同一键（禁双份/漂移）。
 
     模式：默认报告；-Check 时违规 → 退出码 1。
 #>
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [switch]$Check
+    [switch]$Check,
+    [switch]$NegativeControl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,7 +39,17 @@ $configPath = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\Agen
 $assemblyPath = Join-Path $Root 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlHosting\HtmlBridgeAssembly.cs'
 $resolverPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationTemplates.cs'
 
-$requiredKeys = @('layoutShell', 'segGroup', 'emptyDiv', 'composer', 'segItem', 'listItem', 'foldItem', 'emptyP')
+# 必需键单源 = ConversationTemplates.RequiredKeys（禁门禁/默认集各写一份）
+$requiredKeys = @()
+if (Test-Path -LiteralPath $resolverPath) {
+    $resolverText = [System.IO.File]::ReadAllText($resolverPath)
+    if ($resolverText -match 'RequiredKeys\s*=\s*(?:new\[\]\s*)?\{([^}]*)\}') {
+        $requiredKeys = @([regex]::Matches($Matches[1], '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+    }
+}
+if ($requiredKeys.Count -eq 0) {
+    Add-Violation '[T1] 必需键声明不可得（判据不可判）：ConversationTemplates.RequiredKeys'
+}
 
 function Get-Prop($obj, [string]$name) {
     if ($null -eq $obj) { return $null }
@@ -61,34 +73,59 @@ function Test-RequiredKeys($map, [string]$source, [System.Collections.Generic.Li
     }
 }
 
-# ---- T1 默认模板必需键 ----
+# ---- T1 生效集必需键（默认集 ∪ 配置覆盖）----
 $defaultKeys = $null
+$configKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 if (-not (Test-Path -LiteralPath $defaultsPath)) {
     Add-Violation "[T1] 缺件（判据不可判）：$defaultsPath"
 } else {
     try {
         $defaults = Get-Content -Raw -LiteralPath $defaultsPath | ConvertFrom-Json -Depth 16
         $defaultKeys = Get-StringMapKeys $defaults
-        Test-RequiredKeys $defaultKeys 'T1' $violations
     }
     catch {
         Add-Violation "[T1] 默认模板解析失败: $($_.Exception.Message)"
     }
 }
 
-# ---- T2 配置覆盖键 ⊆ 默认键集 ----
-if ($defaultKeys -and (Test-Path -LiteralPath $configPath)) {
+if (-not (Test-Path -LiteralPath $configPath)) {
+    Add-Violation "[T1] 缺件（判据不可判）：$configPath"
+} else {
     try {
         $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json -Depth 64
         $configKeys = Get-StringMapKeys (Get-Prop $config 'templates')
-        foreach ($k in $configKeys) {
-            if (-not $defaultKeys.Contains($k)) {
-                Add-Violation "[T2] 配置覆盖键不存在于框架默认键集: $k"
-            }
-        }
     }
     catch {
-        Add-Violation "[T2] 配置模板解析失败: $($_.Exception.Message)"
+        Add-Violation "[T1] 配置模板解析失败: $($_.Exception.Message)"
+    }
+}
+
+if ($defaultKeys) {
+    $effective = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($k in $defaultKeys) { [void]$effective.Add($k) }
+    foreach ($k in $configKeys) { [void]$effective.Add($k) }
+    Test-RequiredKeys $effective 'T1' $violations
+}
+
+# ---- T2 配置自有模板键须登记（禁未登记的自有键）----
+$ownershipPath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Agent\UiTemplateOwnership.psd1'
+if (-not (Test-Path -LiteralPath $ownershipPath)) {
+    Add-Violation "[T2] 缺件（判据不可判）：$ownershipPath"
+} else {
+    $ownedKeys = @((Import-PowerShellDataFile -LiteralPath $ownershipPath).Keys)
+    foreach ($k in $configKeys) {
+        if ($ownedKeys -notcontains $k) {
+            Add-Violation "[T2] 配置模板键未登记为 Agent 自有：$k（Baselines\Agent\UiTemplateOwnership.psd1）"
+        }
+    }
+}
+
+# ---- T6 模板键单源：默认集 ∩ 配置集 = ∅ ----
+if ($defaultKeys) {
+    foreach ($k in $configKeys) {
+        if ($defaultKeys.Contains($k)) {
+            Add-Violation "[T6] 模板键双份定义（默认集 ∩ 配置集）：$k"
+        }
     }
 }
 
@@ -133,6 +170,21 @@ if ($negOut.Count -eq 0) {
 $negAssembly = 'var resolved = templates; host.AttachTemplates(resolved);'
 if ($negAssembly -match [regex]::Escape('GetDefaultTemplates()')) {
     Add-Violation '[T5] 负对照失效：无合并结构的样本未被判缺'
+}
+$dupDefault = @{ listItem = 'x' }
+$dupConfig = @('listItem')
+if (-not ($dupConfig | Where-Object { $dupDefault.ContainsKey($_) })) {
+    Add-Violation '[T5] 负对照失效：默认集∩配置集重复键样本未被判出'
+}
+
+if ($NegativeControl) {
+    if ($violations.Count -gt 0) {
+        Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
+        foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
+        exit 1
+    }
+    Write-Host '[OK] 负对照通过：必需键缺失 / 无合并结构 / 默认集∩配置集重复键均被捕获。' -ForegroundColor Green
+    exit 0
 }
 
 if ($violations.Count -eq 0) {

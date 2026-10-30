@@ -13,6 +13,8 @@ public static class HierarchyKeyFamilies
     public const string HistoryId = "hierarchy.history";
     public const string NodeId = "hierarchy.node";
     public const string SessionId = "hierarchy.session";
+    public const string RoundId = "hierarchy.round";
+    public const string PortId = "hierarchy.node-port";
 
     public static KeyFamily History { get; } = new(
         HistoryId,
@@ -65,5 +67,28 @@ public static class HierarchyKeyFamilies
                 KeySurface.Endpoint, new[] { "session.{sessionName}" }, "session."),
         });
 
-    public static IReadOnlyList<KeyFamily> All { get; } = new[] { History, Node, Session };
+    /// <summary>轮次父键（<c>{container}.r{round}</c>）：轮次容器寻址（父级聚合，不是节点身份）。</summary>
+    public static KeyFamily Round { get; } = new(
+        RoundId,
+        "{container}.r{round}",
+        string.Empty,
+        KeyRelation.Container,
+        KeyCardinality.Many,
+        Array.Empty<string>(),
+        IdentityKeys: new[] { "container", "round" });
+
+    /// <summary>
+    /// 节点端口键（<c>{nodeKey}.{port}</c>）：框架侧局部声明，形状与产品声明 <c>agent.node</c> 一致；
+    /// 供 <see cref="NodePortKeys"/> 构造/反解（模块内自用，产品侧寻址仍走 product keyspace）。
+    /// </summary>
+    public static KeyFamily Port { get; } = new(
+        PortId,
+        "{nodeKey}.{port}",
+        string.Empty,
+        KeyRelation.Member,
+        KeyCardinality.Many,
+        Array.Empty<string>(),
+        IdentityKeys: new[] { "nodeKey", "port" });
+
+    public static IReadOnlyList<KeyFamily> All { get; } = new[] { History, Node, Session, Round, Port };
 }

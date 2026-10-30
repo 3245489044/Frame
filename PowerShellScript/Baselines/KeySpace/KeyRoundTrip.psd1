@@ -3,7 +3,7 @@
     Schema = 'gate-baseline-v1'
     Gate   = 'KeyRoundTrip'
 
-    MinimumEntries = @{ Value = 15; Origin = 'Derived'; DueWhen = '' }
+    MinimumEntries = @{ Value = 20; Origin = 'Derived'; DueWhen = '' }
     RequiredFamilies = @{ Value = @(
         'domain.message-stream'
         'domain.segment-stream'
@@ -12,5 +12,7 @@
         'domain.archive'
         'domain.process'
         'domain.conversation'
+        'agent.node'
+        'hierarchy.node'
     ); Origin = 'Derived'; DueWhen = '' }
 }

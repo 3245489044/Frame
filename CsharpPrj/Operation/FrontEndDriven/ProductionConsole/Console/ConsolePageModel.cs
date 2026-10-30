@@ -47,4 +47,13 @@ public sealed class ConsolePageModel
 
     /// <summary>提示/错误（表单校验失败、命令失败）。</summary>
     public string? Notice { get; init; }
+
+    /// <summary>AI 参数助理输入框原文（自然语言描述；不进入任务参数）。</summary>
+    public string? AssistantPrompt { get; init; }
+
+    /// <summary>待应用的参数提案（仅含被建议的声明键；apply 时只覆盖这些键）。</summary>
+    public IReadOnlyDictionary<string, object?>? PendingProposal { get; init; }
+
+    /// <summary>提案失败原因（超时/未装配/解析失败）；空 = 无错误。</summary>
+    public string? ProposalError { get; init; }
 }

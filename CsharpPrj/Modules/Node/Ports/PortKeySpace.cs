@@ -1,3 +1,5 @@
+using Modules.Node.Identity;
+
 namespace Modules.Node.Ports;
 
 /// <summary>端口条目（值泛型：JSON 文本 / 宿主原生值共用同一键空间规则，规则不随值形态分叉）。</summary>
@@ -111,7 +113,7 @@ public class PortKeySpace<TValue>
 
     public IReadOnlyList<PortEntry<TValue>> Entries => _entries.Values.ToArray();
 
-    public static string BuildPortKey(string nodeKey, string port) => nodeKey + "." + port;
+    public static string BuildPortKey(string nodeKey, string port) => NodePortKeys.Format(nodeKey, port);
 }
 
 /// <summary>

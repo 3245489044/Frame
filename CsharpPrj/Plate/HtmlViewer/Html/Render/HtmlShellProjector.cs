@@ -87,9 +87,10 @@ public static class HtmlShellProjector
         string treeHtml,
         string contentHtml,
         string? pollAttrs = null,
-        string? overlayHtml = null)
+        string? overlayHtml = null,
+        string? refreshTitle = null)
         => RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml,
-            MainRegion(contentHtml), pollAttrs, overlayHtml);
+            MainRegion(contentHtml), pollAttrs, overlayHtml, refreshTitle);
 
     /// <summary>
     /// 分层布局壳（B3）：主区 <c>region-main</c> 降为**壳容器**，内含三个具名子容器
@@ -107,7 +108,8 @@ public static class HtmlShellProjector
         IReadOnlyList<(string Key, string Html)> bubbles,
         string composerHtml,
         string? pollAttrs = null,
-        string? overlayHtml = null)
+        string? overlayHtml = null,
+        string? refreshTitle = null)
     {
         var bubbleHtml = new System.Text.StringBuilder();
         if (bubbles is { Count: > 0 })
@@ -120,7 +122,7 @@ public static class HtmlShellProjector
                    + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "bubbles\">" + bubbleHtml + "</div>"
                    + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "composer\">" + composerHtml + "</div>"
                    + "</div>";
-        return RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml);
+        return RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml, refreshTitle);
     }
 
     /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
@@ -140,7 +142,8 @@ public static class HtmlShellProjector
         string treeHtml,
         string mainRegionHtml,
         string? pollAttrs,
-        string? overlayHtml)
+        string? overlayHtml,
+        string? refreshTitle)
     {
         var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "aside\">" + treeHtml + "</div>";
         // E-8：外壳动态位（选区/标题/副标题）各为独立区域元素（区域元素即 patch 目标，其内容 = 该位 HTML/文本）。
@@ -159,6 +162,7 @@ public static class HtmlShellProjector
                 ["history"] = mainRegionHtml,
                 ["overlay"] = overlayRegion,
                 ["pollAttrs"] = pollAttrs ?? string.Empty,
+                ["refreshTitle"] = refreshTitle ?? string.Empty,
             });
     }
 }

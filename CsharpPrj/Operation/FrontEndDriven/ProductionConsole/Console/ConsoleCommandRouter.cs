@@ -62,6 +62,15 @@ public sealed class ConsoleState
     public Dictionary<string, object?> FormValues { get; } = new(StringComparer.Ordinal);
 
     public string? Notice { get; set; }
+
+    /// <summary>AI 参数助理输入框原文（仅用于重渲染回填，不进入任务参数）。</summary>
+    public string? AssistantPrompt { get; set; }
+
+    /// <summary>待应用的参数提案（仅含被建议的声明键）。</summary>
+    public Dictionary<string, object?>? PendingProposal { get; set; }
+
+    /// <summary>提案失败原因（超时/未装配/解析失败）。</summary>
+    public string? ProposalError { get; set; }
 }
 
 /// <summary>路由可选钩子：结构图、打开目录、诊断文本、状态栏。空实现 = 对应功能降级为提示。</summary>
@@ -78,6 +87,9 @@ public sealed class ConsoleRouterOptions
 
     /// <summary>状态栏文本（如能力可用性/探活结论）。</summary>
     public Func<string?>? StatusProvider { get; set; }
+
+    /// <summary>AI 参数提案（自然语言 → 参数键值）；null = 该插件未接入提案能力。</summary>
+    public Func<CapabilityDescriptor, string, CancellationToken, Task<IReadOnlyDictionary<string, object?>?>>? ProposeAsync { get; set; }
 
     /// <summary>最近任务条数。</summary>
     public int RecentJobs { get; set; } = 30;
@@ -177,6 +189,9 @@ public sealed class ConsoleCommandRouter
             DrawerText = diag,
             StatusText = _options.StatusProvider?.Invoke(),
             Notice = State.Notice,
+            AssistantPrompt = State.AssistantPrompt,
+            PendingProposal = State.PendingProposal,
+            ProposalError = State.ProposalError,
         };
     }
 
@@ -266,6 +281,79 @@ public sealed class ConsoleCommandRouter
 
                 return await RenderAsync(new[] { ConsoleRegions.Status, ConsoleRegions.Jobs, ConsoleRegions.Result }, ct)
                     .ConfigureAwait(false);
+            }
+
+            case "assist.propose":
+            {
+                var cap = Find(_catalog.List(), command.Capability ?? State.CapabilityId);
+                if (cap is null) return await NoticeAsync("未选择能力", ct).ConfigureAwait(false);
+
+                // 先吸收页面未提交的表单值（propose 会重渲染 form，不能把用户正在编辑的内容打回默认）
+                AbsorbFormValues(cap, command.Params);
+
+                var text = command.Params is not null && command.Params.TryGetValue("__nl", out var raw)
+                    ? raw?.ToString()?.Trim()
+                    : null;
+                if (string.IsNullOrWhiteSpace(text))
+                    return await NoticeAsync("请输入一句自然语言描述再解析", ct).ConfigureAwait(false);
+
+                State.CapabilityId = cap.Id;
+                State.AssistantPrompt = text;
+                State.PendingProposal = null;
+                State.ProposalError = null;
+
+                if (_options.ProposeAsync is null)
+                {
+                    State.ProposalError = "AI 参数助理未接入（插件未提供提案能力）";
+                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+                }
+
+                IReadOnlyDictionary<string, object?>? proposal;
+                try
+                {
+                    proposal = await _options.ProposeAsync(cap, text!, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    State.ProposalError = $"AI 解析异常: {ex.Message}";
+                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+                }
+
+                var pending = Suggested(cap, proposal);
+                if (pending.Count == 0)
+                {
+                    State.ProposalError = "AI 未返回可用参数（可能超时或解析失败），请重试或手动填写";
+                    return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+                }
+
+                var errors = ParamSet.Validate(cap.Params, ParamSet.Merge(cap.Params, pending));
+                State.PendingProposal = pending;
+                if (errors.Count > 0) State.ProposalError = "提案校验: " + string.Join("；", errors);
+                return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
+            }
+
+            case "assist.apply":
+            {
+                var cap = Find(_catalog.List(), command.Capability ?? State.CapabilityId);
+                if (cap is null) return await NoticeAsync("未选择能力", ct).ConfigureAwait(false);
+
+                // 先吸收页面未提交的表单值：apply 只覆盖被建议键，其余保持用户当前输入
+                AbsorbFormValues(cap, command.Params);
+
+                if (State.PendingProposal is not { Count: > 0 } pending)
+                    return await NoticeAsync("没有待应用的提案，请先点「AI 解析」", ct).ConfigureAwait(false);
+
+                var applied = 0;
+                foreach (var kv in pending)
+                {
+                    State.FormValues[kv.Key] = kv.Value;
+                    applied++;
+                }
+                State.PendingProposal = null;
+                State.ProposalError = null;
+                State.Notice = $"已应用 {applied} 项提案参数";
+                return await RenderAsync(new[] { ConsoleRegions.Form, ConsoleRegions.Status }, ct).ConfigureAwait(false);
             }
 
             case "job.tick":
@@ -404,6 +492,32 @@ public sealed class ConsoleCommandRouter
         State.FormValues.Clear();
         foreach (var kv in ParamSet.Defaults(capability.Params))
             State.FormValues[kv.Key] = kv.Value;
+        // 切换/重置能力时清空提案态，避免把上一能力的提案应用到新能力
+        State.AssistantPrompt = null;
+        State.PendingProposal = null;
+        State.ProposalError = null;
+    }
+
+    /// <summary>把页面回传的已声明键写入表单态（__nl 等未声明键在此丢弃，不进入任务参数）。</summary>
+    private void AbsorbFormValues(CapabilityDescriptor capability, Dictionary<string, object?>? values)
+    {
+        if (values is null) return;
+        foreach (var spec in capability.Params)
+            if (values.TryGetValue(spec.Key, out var value) && value is not null)
+                State.FormValues[spec.Key] = ParamSet.Coerce(spec.Kind, value);
+    }
+
+    /// <summary>提案裁剪：只保留能力声明的键并按控件形态归一（未知键丢弃，不进入表单/任务）。</summary>
+    private static Dictionary<string, object?> Suggested(
+        CapabilityDescriptor capability,
+        IReadOnlyDictionary<string, object?>? proposal)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (proposal is null) return result;
+        foreach (var spec in capability.Params)
+            if (proposal.TryGetValue(spec.Key, out var value) && value is not null)
+                result[spec.Key] = ParamSet.Coerce(spec.Kind, value);
+        return result;
     }
 
     private JobSnapshot? ResolveSelectedJob(IReadOnlyList<JobSnapshot> jobs)

@@ -118,6 +118,13 @@ public static class GatherSpecLoader
                 issues.Add($"[V2] 视图键 '{pair.Key}' 与声明内 view='{view.View}' 不一致");
             }
 
+            // 命名判据（单源 = GatherSchema.IsValidName）：视图声明数据面与实现侧声明同规，
+            // 否则「声明与实现同名同错」会同时通过 R9/R10 对账，只在运行期降级。
+            if (!GatherSchema.IsValidName(pair.Key))
+            {
+                issues.Add($"[V11] 视图名非法：'{pair.Key}'（须匹配 {GatherSchema.NamePattern}）");
+            }
+
             if (view.Stages.Count == 0)
             {
                 issues.Add($"[V3] 视图 '{pair.Key}' 无 stages");
@@ -135,6 +142,11 @@ public static class GatherSpecLoader
                 {
                     issues.Add($"[V4] 视图 '{pair.Key}' need 域重复：'{need.Domain}'");
                 }
+
+                if (!GatherSchema.IsValidName(need.Domain))
+                {
+                    issues.Add($"[V11] 视图 '{pair.Key}' need 域名非法：'{need.Domain}'（须匹配 {GatherSchema.NamePattern}）");
+                }
             }
 
             var stageNames = new HashSet<string>(StringComparer.Ordinal);
@@ -149,6 +161,11 @@ public static class GatherSpecLoader
                 if (!stageNames.Add(stage.Name))
                 {
                     issues.Add($"[V5] 视图 '{pair.Key}' stage 重名：'{stage.Name}'");
+                }
+
+                if (!GatherSchema.IsValidName(stage.Name))
+                {
+                    issues.Add($"[V11] 视图 '{pair.Key}' stage 名非法：'{stage.Name}'（须匹配 {GatherSchema.NamePattern}）");
                 }
 
                 foreach (var needDomain in stage.Needs)
@@ -188,6 +205,11 @@ public static class GatherSpecLoader
                 if (!produceNames.Add(produce.Name))
                 {
                     issues.Add($"[V9] 视图 '{pair.Key}' produce 重名：'{produce.Name}'");
+                }
+
+                if (!GatherSchema.IsValidName(produce.Name))
+                {
+                    issues.Add($"[V11] 视图 '{pair.Key}' produce 名非法：'{produce.Name}'（须匹配 {GatherSchema.NamePattern}）");
                 }
 
                 if (produce.Crit is not ("micro" or "macro"))

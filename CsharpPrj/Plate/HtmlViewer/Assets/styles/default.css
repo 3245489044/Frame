@@ -74,3 +74,13 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
    不属 plate 纯渲染基础：由应用侧经 JSON templates.theme 以「基础 + 差异」方式叠加
    （装配点 HtmlBridgeAssembly.AttachTemplatesAndTheme 会把本基础主题与应用主题合并），
    避免「框架 DefaultCss ↔ 应用 theme」两份逐字复制漂移。 */
+
+/* ── 声明化呈现面（loc 反转）最小样式：模板只引用类，样式值不入 C# ── */
+.cost-badge { display:inline-block; margin-left:8px; padding:1px 6px; border-radius:999px; font-size:.86em; border:1px solid rgba(148,163,184,.45); background:rgba(20,184,166,.10); color:#0f766e; }
+.cost-badge.day { margin-left:6px; font-size:.82em; color:#475569; background:rgba(100,116,139,.10); border-color:rgba(148,163,184,.45); }
+.cost-view { font-size:13px; line-height:1.5; }
+.cost-head { margin:12px 0 6px; }
+.cost-table { border-collapse:collapse; width:100%; }
+.cost-table th, .cost-table td { border-bottom:1px solid var(--border); padding:2px 4px; }
+.cost-table th { text-align:left; }
+.cost-table .num { text-align:right; }

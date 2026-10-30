@@ -25,6 +25,9 @@ public enum KeySurface
     /// <summary>展示键（渲染层使用，不参与寻址）。</summary>
     Display,
 
+    /// <summary>协议键（提示词/外部协议形态；由权威面无信息增量投影，不参与寻址与写判定）。</summary>
+    Wire,
+
     /// <summary>定位键（图端点/边的 <c>@{location}</c> 变体；持久化定位面，不参与身份寻址）。</summary>
     Location
 }

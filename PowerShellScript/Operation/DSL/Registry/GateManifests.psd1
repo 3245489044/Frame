@@ -402,6 +402,16 @@
         Note   = '文本安全（P4/C4）：C1 HtmlText 单源在位（非标量 ⇒ ⊘）/ C2 HtmlSectionItem 经 HtmlText / C3 Views 内禁对象字段直拼；负对照 details.Add(row.Payload) 必红'
     }
 
+    UiLocDeclaration = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 位置反解（loc 反转）：C1 闸A 编译 0 错 / C2 产物无漂移（Generate-UiLoc 重跑逐字对拍）/ C3 C# 引用 loc 闭合 / C4 Views 中文字面量棘轮只降不升；负对照=未声明 loc 与缺行声明必红'
+    }
+
     FallbackInventoryRate = @{
         Domain = 'Meta'
         Family = 'Meta'

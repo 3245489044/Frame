@@ -11,6 +11,8 @@
       S5 produces 名唯一；crit ∈ {micro,macro}；crit=macro 必带 recompute。
       S6 声明面禁过程语义键（step/order/sequence/then/next）。
       S7 正/负对照：缺 need / 成环 / 出现 step 键 三类合成样本必须被判据捕获。
+      S8 命名合格性：视图名 / stage 名 / need 域名 / produce 名须匹配 ^[a-z][a-z0-9._-]*$
+         （单源 = GatherSchema.NamePattern；与实现侧声明同规，防两侧同名同错即通过）。
     模式：默认报告（不设退出码）；-Check 时违规 → 退出码 1。
 #>
 [CmdletBinding()]
@@ -28,6 +30,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $forbidden = @('step', 'order', 'sequence', 'then', 'next')
+$namePattern = '^[a-z][a-z0-9._-]*$'
 
 Write-Host ''
 Write-Host '============================================================'
@@ -55,15 +58,29 @@ function Get-GatherSpecIssues
         $viewKey = $viewProp.Name
         $view = $viewProp.Value
 
+        if ($viewKey -cnotmatch $namePattern) {
+            $issues.Add("[S8] 视图名非法：'$viewKey'（须匹配 $namePattern）")
+        }
+
         $stages = @($view.stages)
         if ($stages.Count -eq 0) { $issues.Add("[S2] 视图 '$viewKey' 无 stages") }
 
         $needDomains = @($view.needs | ForEach-Object { [string]$_.domain })
         if ($needDomains.Count -eq 0) { $issues.Add("[S3] 视图 '$viewKey' 无 needs") }
+        foreach ($domain in $needDomains) {
+            if ($domain -cnotmatch $namePattern) {
+                $issues.Add("[S8] 视图 '$viewKey' need 域名非法：'$domain'（须匹配 $namePattern）")
+            }
+        }
 
         $stageNames = @($stages | ForEach-Object { [string]$_.name })
         $dupes = @($stageNames | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
         foreach ($dupe in $dupes) { $issues.Add("[S2] 视图 '$viewKey' stage 重名：'$dupe'") }
+        foreach ($name in $stageNames) {
+            if ($name -cnotmatch $namePattern) {
+                $issues.Add("[S8] 视图 '$viewKey' stage 名非法：'$name'（须匹配 $namePattern）")
+            }
+        }
 
         foreach ($stage in $stages) {
             foreach ($need in @($stage.needs)) {
@@ -97,6 +114,10 @@ function Get-GatherSpecIssues
 
         foreach ($produce in @($view.produces)) {
             $crit = [string]$produce.crit
+            $produceName = [string]$produce.name
+            if ($produceName -cnotmatch $namePattern) {
+                $issues.Add("[S8] 视图 '$viewKey' produce 名非法：'$produceName'（须匹配 $namePattern）")
+            }
             if ($crit -notin @('micro', 'macro')) {
                 $issues.Add("[S5] 视图 '$viewKey' 产物 '$($produce.name)' 的 crit='$crit' 非法")
             }
@@ -164,6 +185,12 @@ if (@(Get-GatherSpecIssues -Spec $probeCycle).Count -eq 0) {
 $probeStep = '{"schema":"gather-spec-v1","step":1,"views":{"v":{"stages":[],"needs":[],"produces":[]}}}' | ConvertFrom-Json
 if (@(Get-ForbiddenKeyHits -Node $probeStep -Path '$').Count -eq 0) {
     $violations.Add('[S7] 负对照失效：step 键样本未被捕获')
+}
+
+# S8 负对照（回归样本）：声明与引用「同名同错」（camelCase 且两侧一致）必须被判红 —— 这正是 R9/R10 纯字符串对账漏掉的那类。
+$probeName = '{"schema":"gather-spec-v1","views":{"v":{"stages":[{"name":"capture","needs":["rawRound"],"deps":[]}],"needs":[{"domain":"rawRound","scope":"round"}],"produces":[]}}}' | ConvertFrom-Json
+if (@(Get-GatherSpecIssues -Spec $probeName).Count -eq 0) {
+    $violations.Add('[S8] 负对照失效：camelCase 命名样本未被捕获')
 }
 
 if ($ShowDetail) {

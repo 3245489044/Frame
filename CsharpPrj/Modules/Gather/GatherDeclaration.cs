@@ -54,6 +54,10 @@ public static class GatherSchema
 
     private static readonly Regex NameRegex = new(NamePattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>受控命名判定（**单源**）：实现侧声明与视图声明数据共用同一判据（防两侧同错即通过）。</summary>
+    public static bool IsValidName(string? name)
+        => !string.IsNullOrWhiteSpace(name) && NameRegex.IsMatch(name);
+
     /// <summary>声明合格性（纯函数；空 = 合格）。</summary>
     public static IReadOnlyList<string> Validate(IEnumerable<GatherDecl> declarations)
     {
@@ -62,7 +66,7 @@ public static class GatherSchema
 
         foreach (var decl in declarations)
         {
-            if (string.IsNullOrWhiteSpace(decl.Name) || !NameRegex.IsMatch(decl.Name))
+            if (!IsValidName(decl.Name))
             {
                 issues.Add($"[D1] 声明名非法：'{decl.Name}'（须匹配 {NamePattern}）");
                 continue;

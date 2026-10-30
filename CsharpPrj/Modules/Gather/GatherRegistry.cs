@@ -172,6 +172,37 @@ public sealed class GatherRegistry
         // R9/R10：声明面（视图 JSON）与实现面（模块 Declare）双向对账 —— 防「声明了视图要 X，代码却没提供」。
         if (view is not null)
         {
+            // R11：视图声明数据的命名合格性（单源判据 = GatherSchema.IsValidName）。
+            // 只看字符串相等会把「声明与实现同名同错」判为闭合（今日 conversation-canon 即此形态）。
+            if (!GatherSchema.IsValidName(view.View))
+            {
+                issues.Add($"[R11] 视图名非法：'{view.View}'（须匹配 {GatherSchema.NamePattern}）");
+            }
+
+            foreach (var need in view.Needs)
+            {
+                if (!GatherSchema.IsValidName(need.Domain))
+                {
+                    issues.Add($"[R11] 视图 '{view.View}' need 域名非法：'{need.Domain}'（须匹配 {GatherSchema.NamePattern}）");
+                }
+            }
+
+            foreach (var stage in view.Stages)
+            {
+                if (!GatherSchema.IsValidName(stage.Name))
+                {
+                    issues.Add($"[R11] 视图 '{view.View}' stage 名非法：'{stage.Name}'（须匹配 {GatherSchema.NamePattern}）");
+                }
+            }
+
+            foreach (var produce in view.Produces)
+            {
+                if (!GatherSchema.IsValidName(produce.Name))
+                {
+                    issues.Add($"[R11] 视图 '{view.View}' produce 名非法：'{produce.Name}'（须匹配 {GatherSchema.NamePattern}）");
+                }
+            }
+
             var needDomains = new HashSet<string>(StringComparer.Ordinal);
             var produceNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var decl in declarations)

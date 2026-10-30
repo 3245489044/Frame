@@ -3,15 +3,19 @@ namespace TConfig.ContainerAssertions
 {
     /// <summary>
     /// 容器解析/挂载判定失败类别（R3：统一失败文案源）。
-    /// 供 ContainerAssertionService（assert-container/validate-mount/validate）、ContainerProjector、
+    /// 供 ContainerAssertionService（assert-container/validate-mount/validate）、
     /// 等命令层/断言/投影共用同一判定语义与文案格式化，消除「宿主未解析/未挂载」在各处各自拼装的文字漂移。
     /// 纯值类型：不承载强类型句柄（ContainerHandle 权威在 FrameworkAbstractions.ContainerAbstractions），
     /// 避免制造第三套并行句柄类型；仅承载「判定类别 + 文案格式化」。
+    /// 类别即机读口径：命令层结构化日志直接落 Kind，回归统计按类别聚合，不再靠解析中文文案。
     /// </summary>
     public enum ContainerFailureKind
     {
         /// <summary>判定成功（无失败）。</summary>
         None,
+
+        /// <summary>容器访问端口未注册（框架装配缺失，非容器判定失败）。</summary>
+        AccessPortUnavailable,
 
         /// <summary>未找到宿主容器（scope 或 hostKey 均解析不到）。</summary>
         HostNotResolved,
@@ -34,8 +38,14 @@ namespace TConfig.ContainerAssertions
         /// <summary>未找到目标控件（按名）。</summary>
         TargetControlNotFound,
 
-        /// <summary>控件不在宿主控件树内。</summary>
+        /// <summary>控件不在宿主控件树内（宿主已解析、目标名在宿主树内不存在）。</summary>
         ControlNotInHostTree,
+
+        /// <summary>控件存在但未挂载到任何窗体树（孤儿控件）。</summary>
+        OrphanControl,
+
+        /// <summary>控件已挂载但不可见（Visible=false）。</summary>
+        ControlNotVisible,
 
         /// <summary>配置加载失败。</summary>
         ConfigLoadFailed,
@@ -43,13 +53,15 @@ namespace TConfig.ContainerAssertions
         /// <summary>渲染管线未成功（挂载跳过）。</summary>
         RenderNotSucceeded,
 
-        /// <summary>宿主未收到子控件（物理挂载断链）。</summary>
+        /// <summary>宿主未收到子控件（宿主物理挂载断链）。</summary>
         HostEmptyAfterRender,
     }
 
     /// <summary>
     /// 容器挂载失败文案的唯一格式化源（R3）。
     /// 命令层与断言经 <see cref="Format"/> 读取同一文案，改文案只改此处，杜绝文字漂移。
+    /// 「宿主已解析但目标控件不在树内」会附带宿主现有子控件样本（诊断证据），
+    /// 使「脚本断言了不存在的控件」一眼可辨，无需再去推断是不是宿主解析断链。
     /// </summary>
     public static class ContainerFailureMessages
     {
@@ -62,18 +74,21 @@ namespace TConfig.ContainerAssertions
         /// <param name="countExpr">计数断言表达式（CountAssertionFailed 专用）。</param>
         /// <param name="actual">实际值（CountAssertionFailed/HostEmptyAfterRender 的计数）。</param>
         /// <param name="mountState">挂载状态字符串（HostNotMounted 附带）。</param>
+        /// <param name="candidates">诊断证据：宿主/查找范围内现有子控件名样本（可空）。</param>
         public static string Format(
             ContainerFailureKind kind,
             string? target = null,
             string? host = null,
             string? countExpr = null,
             int? actual = null,
-            string? mountState = null)
+            string? mountState = null,
+            IReadOnlyList<string>? candidates = null)
         {
             var t = target ?? string.Empty;
-            return kind switch
+            var text = kind switch
             {
                 ContainerFailureKind.None => string.Empty,
+                ContainerFailureKind.AccessPortUnavailable => "容器访问端口未注册（IContainerAccessPort），无法判定容器/挂载（框架装配缺失）",
                 ContainerFailureKind.HostNotResolved => $"未找到宿主容器 '{t}'",
                 ContainerFailureKind.HostNoControl => $"宿主容器 '{t}' 无控件引用（未挂载到实际控件对象）",
                 ContainerFailureKind.HostNotMounted => $"宿主容器 '{t}' 未挂载（MountState={mountState}）",
@@ -84,11 +99,19 @@ namespace TConfig.ContainerAssertions
                     ? "未找到目标控件"
                     : $"未找到控件 '{t}'",
                 ContainerFailureKind.ControlNotInHostTree => $"控件 '{t}' 不在宿主 '{host}' 的控件树内",
+                ContainerFailureKind.OrphanControl => $"控件 '{t}' 存在但未挂载到任何可见窗体树（孤儿控件）",
+                ContainerFailureKind.ControlNotVisible => $"控件 '{t}' 不可见（Visible=false）",
                 ContainerFailureKind.ConfigLoadFailed => $"配置加载失败: {t}",
                 ContainerFailureKind.RenderNotSucceeded => "渲染管线未成功（挂载跳过）",
                 ContainerFailureKind.HostEmptyAfterRender => "宿主未收到子控件（宿主物理挂载断链）",
                 _ => string.Empty,
             };
+
+            // 只有「已解析到宿主、只是目标名不在树内」才附候选证据；宿主未解析时附候选无意义。
+            if (kind == ContainerFailureKind.ControlNotInHostTree && candidates is { Count: > 0 })
+                text += $"（宿主内可到达控件: {string.Join(", ", candidates)}）";
+
+            return text;
         }
     }
 }

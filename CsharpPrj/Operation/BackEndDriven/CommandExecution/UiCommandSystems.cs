@@ -295,13 +295,15 @@ public class AssertSystem : CommandSystemBase
             return;
         }
 
-        if (!service.AssertContainer(hostName, countExpr, out var reason))
+        // 判定语义与失败文案全部由断言内核产出（类别机读、文案单一源），命令层只做语法适配。
+        var diagnosis = service.AssertContainer(hostName, countExpr);
+        if (!diagnosis.IsSuccess)
         {
-            SetFailure(entity, reason);
+            SetFailure(entity, AssertionDiagnosisLog.Report("assert-container", diagnosis));
             return;
         }
 
-        BackEndLog.Log("Command_Assert_Container", new { hostName, countExpr });
+        BackEndLog.Log("Command_Assert_Container", new { hostName, expected = countExpr, actual = diagnosis.Actual });
         SetSuccess(entity, hostName);
     }
 
@@ -337,12 +339,12 @@ public class AssertSystem : CommandSystemBase
 
 public class ValidateSystem : CommandSystemBase
 {
-    private readonly FrameworkAbstractions.WinFormsAbstractions.IControlFinder? _controlFinder;
+    private readonly ContainerAssertionService? _assertionService;
 
     public ValidateSystem(EntityManager entityManager)
         : base(entityManager, "validate")
     {
-        _controlFinder = AppServiceProvider.Resolve<FrameworkAbstractions.WinFormsAbstractions.IControlFinder>();
+        _assertionService = AppServiceProvider.Resolve<ContainerAssertionService>();
     }
 
     public override void Execute(Entity entity, CommandMetaComponent meta)
@@ -356,25 +358,23 @@ public class ValidateSystem : CommandSystemBase
 
         try
         {
-            var foundControl = ResolveScopedControl(target, meta);
-
-            if (foundControl == null)
+            // 定位统一经断言内核（唯一寻址口径）：控件不存在 / 未挂载（孤儿）由诊断类别区分，
+            // 不再在此手写「未找到控件（作用域 X 内）」与「孤儿控件」两套文案。
+            var scopeOrHost = GetScopeParameter(meta);
+            var lookup = _assertionService?.Locate(target, scopeOrHost);
+            if (lookup == null)
             {
-                SetFailure(entity, $"validate: 未找到控件 '{target}'" +
-                    (GetScopeParameter(meta) != null ? $"（作用域 '{GetScopeParameter(meta)}' 内）" : ""));
+                SetFailure(entity, "validate: ContainerAssertionService 未注册");
                 return;
             }
 
-            // P7：挂载可见校验——「控件对象存在 ≠ 已挂载到可见窗体树」。
-            // 池中孤儿控件（未挂载到任何容器）在此判失败，消除「日志全绿但 UI 空」的假阳性。
-            if (!ValidateSystemHelpers.IsMountedOnVisibleTree(foundControl))
+            if (!lookup.IsFound)
             {
-                BackEndLog.Log("Command_Validate_NotMounted",
-                    new { target, note = "控件对象存在但未挂载到可见窗体（孤儿控件，请检查宿主解析/关系挂载）" });
-                SetFailure(entity,
-                    $"validate: 控件 '{target}' 存在但未挂载到可见窗体（孤儿控件）——validate 不再以「对象存在」为通过判据");
+                SetFailure(entity, AssertionDiagnosisLog.Report("validate", lookup.ToDiagnosis()));
                 return;
             }
+
+            var foundControl = lookup.Control!;
 
             // P7：文本断言——expectedText 参数存在即参与比对（含空串：合法"期望空文本"断言，如 commandTextBox 初始为空）。
             // 模板 ExpectedText 缺失展开为 expectedText=（空串）时同样参与比对：非空控件必然失配 → fail-fast，杜绝静默降级为存在性检查。
@@ -422,10 +422,6 @@ public class ValidateSystem : CommandSystemBase
         }
     }
 
-    /// <summary>挂载/计数辅助统一收口到 <see cref="ValidateSystemHelpers"/>（ValidateSystem/AssertSystem/ValidateMountSystem 复用）。</summary>
-    private static bool IsMountedOnVisibleTree(Control control)
-        => ValidateSystemHelpers.IsMountedOnVisibleTree(control);
-
     private static int? ConvertToInt(object? value)
     {
         if (value == null) return null;
@@ -444,95 +440,14 @@ public class ValidateSystem : CommandSystemBase
         return null;
     }
 
-    private Control? ResolveScopedControl(string target, CommandMetaComponent meta)
-    {
-        var scope = GetScopeParameter(meta);
-
-        // 显式 scope：经容器访问端口解析宿主（S3：删除 scope→hostName 硬编码 switch，以 ContainerRegistry 为唯一反查口径）。
-        if (!string.IsNullOrWhiteSpace(scope))
-        {
-            var host = ResolveHostOfScope(scope) ?? (Control?)null;
-            if (host == null)
-                return null;
-            return _controlFinder?.FindRecursive(host, target)
-                ?? ControlSearch(host, target);
-        }
-
-        // P7：无 scope 默认限定可见窗体树（挂载可见语义）——ControlPool/注册表直查仅作显式降级并 WARN。
-        // 孤儿控件即使被池直查命中，也会在 Execute 的 IsMountedOnVisibleTree 校验中判失败。
-        var inVisibleTree = _controlFinder?.FindAcrossForms(
-            formMatcher: form => form.Visible,
-            controlLookup: form => _controlFinder?.FindRecursive(form, target));
-        if (inVisibleTree != null)
-            return inVisibleTree;
-
-        // P7：孤儿控件（池直查命中但未挂载到可见窗体树）在查控件阶段即判失败——不再返回控件让 Execute 的
-        // IsMountedOnVisibleTree 绕一圈再判（避免双重日志）。孤儿诊断由此处 Fallback_PoolExistence 一条日志承载。
-        var poolOnly = _controlFinder?.FindByName<Control>(target);
-        if (poolOnly != null)
-        {
-            BackEndLog.Log("Command_Validate_Fallback_PoolExistence",
-                new { target, note = "控件对象存在但未挂载到可见窗体树（孤儿控件），validate 判失败" });
-            return null;
-        }
-
-        return null;
-    }
-
-    /// <summary>经容器访问端口按作用域解析宿主 Control（ContainerRegistry 唯一反查口径）。</summary>
-    private System.Windows.Forms.Control? ResolveHostOfScope(string scope)
-    {
-        var port = AppServiceProvider.Resolve<IContainerAccessPort>();
-        var handle = port?.ResolveHost(scope);
-        return handle?.Control;
-    }
-
-    private static Control? ControlSearch(Control root, string name)
-    {
-        foreach (Control c in root.Controls)
-        {
-            if (string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
-                return c;
-            var nested = ControlSearch(c, name);
-            if (nested != null) return nested;
-        }
-        return null;
-    }
 }
 
 /// <summary>
-/// P7：挂载可见/计数表达式共享辅助（ValidateSystem/AssertSystem/ValidateMountSystem 复用）。
-/// 「控件对象存在 ≠ 已挂载可见」——FindForm()==null 即孤儿控件（池直查命中的未挂载对象）。
+/// 命令层语法辅助（ValidateSystem/AssertSystem/ValidateMountSystem 复用）。
+/// 挂载/归属/计数判定不再在此实现——单一权威已收敛到 FrameworkAbstractions.ContainerAssertionService。
 /// </summary>
 internal static class ValidateSystemHelpers
 {
-    /// <summary>挂载可见判据：控件已挂载到窗体树（FindForm() != null）。</summary>
-    public static bool IsMountedOnVisibleTree(Control control)
-    {
-        if (control == null) return false;
-        try
-        {
-            return control.FindForm() != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>沿 Parent 链上溯判定 child 是否 ancestor 的后代。</summary>
-    public static bool IsDescendantOf(Control child, Control ancestor)
-    {
-        if (child == null || ancestor == null) return false;
-        var current = child.Parent;
-        while (current != null)
-        {
-            if (ReferenceEquals(current, ancestor)) return true;
-            current = current.Parent;
-        }
-        return false;
-    }
-
     /// <summary>从命令参数取值。</summary>
     public static string? GetParamString(CommandMetaComponent meta, string key)
     {
@@ -581,15 +496,11 @@ public class ValidateMountSystem : CommandSystemBase
                 return;
             }
 
-            if (!service.AssertMounted(controlName: target, hostKey: parent, out var reason))
+            // 一次调用走完「定位 + 挂载 + 可见」：避免先前挂载/可见两段各出一套文案（validate-mount / validate 前缀漂移）。
+            var diagnosis = service.AssertMounted(target, hostKey: parent, requireVisible: requireVisible);
+            if (!diagnosis.IsSuccess)
             {
-                SetFailure(entity, reason);
-                return;
-            }
-
-            if (requireVisible && !service.AssertVisible(target, out var visReason))
-            {
-                SetFailure(entity, visReason);
+                SetFailure(entity, AssertionDiagnosisLog.Report("validate-mount", diagnosis));
                 return;
             }
 

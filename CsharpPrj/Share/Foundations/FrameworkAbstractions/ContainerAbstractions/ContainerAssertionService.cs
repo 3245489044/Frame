@@ -9,11 +9,21 @@ namespace FrameworkAbstractions.ContainerAbstractions;
 
 /// <summary>
 /// 容器断言服务（ContainerAssertionService）——脚本断言与框架自检复用的单一断言权威。
+/// 结构固定为「定位（<see cref="Locate"/>）→ 判据（Assert*）→ 诊断（<see cref="ContainerDiagnosis"/>）」三段：
+/// 1）定位只回答「在哪儿 / 为什么找不到」，类别不折叠（宿主未解析 ≠ 宿主内控件缺失 ≠ 孤儿控件）；
+/// 2）判据只回答「已定位的对象是否满足断言」（计数 / 挂载 / 可见）；
+/// 3）诊断承载机读类别 + 事实 + 唯一文案，命令层不得自行拼装失败文本。
 /// 语义全部经 <see cref="IContainerAccessPort"/> 解析，命令层（UiCommandSystems）仅做薄语法适配；
 /// 脚本断言与框架自检（P7 审计 / 回归脚本）同口径（CountableOrderBridge：统一比较域）。
 /// </summary>
 public sealed class ContainerAssertionService
 {
+    /// <summary>诊断证据样本上限：证据要可读，不刷屏。</summary>
+    private const int CandidateSampleSize = 24;
+
+    /// <summary>诊断证据遍历深度上限（渲染根 → 视图 → 控件通常 ≤ 4 层）。</summary>
+    private const int CandidateSampleMaxDepth = 8;
+
     private readonly IContainerAccessPort? _port;
     private readonly Func<string, Control?>? _findOrdinaryControl;
 
@@ -29,136 +39,166 @@ public sealed class ContainerAssertionService
         _findOrdinaryControl = findOrdinaryControl;
     }
 
+    // ── 定位（唯一入口，类别不折叠） ──
+
     /// <summary>
-    /// 容器归属断言：<paramref name="countExpr"/> 形如 count&gt;0 / count&gt;=n / count==n / count&lt;n 等。
+    /// 定位目标控件：<paramref name="hostKeyOrScope"/> 非空时在宿主树内定位（scope 优先 + hostKey 反查，唯一寻址口径），
+    /// 为空时按可见窗体树定位（普通控件语义）。所有失败类别逐类区分并返回，供上层直接诊断。
     /// </summary>
-    public bool AssertContainer(string scopeOrHostKey, string countExpr, out string reason)
+    public ContainerLookup Locate(string controlName, string? hostKeyOrScope)
     {
-        reason = string.Empty;
-        if (_port == null)
+        if (string.IsNullOrWhiteSpace(controlName))
+            return new ContainerLookup { Kind = ContainerFailureKind.TargetControlNotFound, Subject = controlName };
+
+        if (!string.IsNullOrWhiteSpace(hostKeyOrScope))
         {
-            reason = "assert-container: 容器访问端口未注册（IContainerAccessPort）";
-            return false;
+            if (_port == null)
+                return new ContainerLookup
+                {
+                    Kind = ContainerFailureKind.AccessPortUnavailable,
+                    Subject = controlName,
+                    HostKey = hostKeyOrScope,
+                };
+
+            var handle = _port.ResolveHostByKeyOrScope(hostKeyOrScope);
+            if (handle == null)
+                return new ContainerLookup
+                {
+                    Kind = ContainerFailureKind.HostNotResolved,
+                    Subject = controlName,
+                    HostKey = hostKeyOrScope,
+                };
+
+            var hostControl = handle.Control;
+            if (hostControl == null)
+                return new ContainerLookup
+                {
+                    Kind = ContainerFailureKind.HostNoControl,
+                    Subject = controlName,
+                    HostKey = hostKeyOrScope,
+                    Host = handle,
+                };
+
+            var found = FindInControl(hostControl, controlName);
+            if (found != null)
+                return new ContainerLookup
+                {
+                    Kind = ContainerFailureKind.None,
+                    Control = found,
+                    Host = handle,
+                    Subject = controlName,
+                    HostKey = hostKeyOrScope,
+                };
+
+            // 宿主已解析：不是挂载断链，而是「目标名不在该宿主的树里」——附现有子控件样本作为证据。
+            return new ContainerLookup
+            {
+                Kind = ContainerFailureKind.ControlNotInHostTree,
+                Subject = controlName,
+                HostKey = hostKeyOrScope,
+                Host = handle,
+                Candidates = SampleReachableNames(hostControl),
+            };
         }
 
-        var handle = ResolveHandle(scopeOrHostKey);
+        var ordinary = _findOrdinaryControl?.Invoke(controlName);
+        if (ordinary == null)
+            return new ContainerLookup { Kind = ContainerFailureKind.TargetControlNotFound, Subject = controlName };
+
+        // 「控件对象存在 ≠ 已挂载可见」：FindForm()==null 即孤儿控件（池直查命中的未挂载对象）。
+        if (ordinary.FindForm() == null)
+            return new ContainerLookup { Kind = ContainerFailureKind.OrphanControl, Subject = controlName, Control = ordinary };
+
+        return new ContainerLookup { Kind = ContainerFailureKind.None, Control = ordinary, Subject = controlName };
+    }
+
+    // ── 判据（只判已定位对象是否满足断言） ──
+
+    /// <summary>
+    /// 容器归属断言：宿主已解析 + 已挂载 + 直接子控件数满足 <paramref name="countExpr"/>（count&gt;0 / count==n / count&gt;=n / count&lt;n）。
+    /// </summary>
+    public ContainerDiagnosis AssertContainer(string scopeOrHostKey, string countExpr)
+    {
+        if (_port == null)
+            return ContainerDiagnosis.Of(ContainerFailureKind.AccessPortUnavailable,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+
+        var handle = _port.ResolveHostByKeyOrScope(scopeOrHostKey);
         if (handle == null)
-        {
-            reason = "assert-container: " + ContainerFailureMessages.Format(ContainerFailureKind.HostNotResolved, scopeOrHostKey);
-            return false;
-        }
+            return ContainerDiagnosis.Of(ContainerFailureKind.HostNotResolved,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
 
         if (handle.Control == null)
-        {
-            reason = "assert-container: " + ContainerFailureMessages.Format(ContainerFailureKind.HostNoControl, scopeOrHostKey);
-            return false;
-        }
+            return ContainerDiagnosis.Of(ContainerFailureKind.HostNoControl,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
 
         // R4：Mounted 判定单一出口——统一经端口 IsMounted(ContainerId)（HostMountService → ContainerRegistry 实时挂载状态）。
-        // 删除 handle.IsMounted（句柄快照 State==Mounted && Control!=null）与 _port.IsMounted 的双重校验冗余分支，
-        // 消除「句柄快照 vs 实时状态」两套口径漂移。
         if (_port.IsMounted(handle.Id) == false)
-        {
-            reason = "assert-container: " + ContainerFailureMessages.Format(ContainerFailureKind.HostNotMounted, scopeOrHostKey, mountState: handle.State.ToString());
-            return false;
-        }
+            return ContainerDiagnosis.Of(ContainerFailureKind.HostNotMounted,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr,
+                mountState: handle.State.ToString());
 
         if (!TryParseCountExpr(countExpr, out var op, out var expected))
-        {
-            reason = "assert-container: " + ContainerFailureMessages.Format(ContainerFailureKind.InvalidCountExpression, countExpr: countExpr);
-            return false;
-        }
+            return ContainerDiagnosis.Of(ContainerFailureKind.InvalidCountExpression,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
 
         var actual = handle.Control.Controls.Count;
         if (!CompareCount(actual, op, expected))
-        {
-            reason = "assert-container: " + ContainerFailureMessages.Format(ContainerFailureKind.CountAssertionFailed, scopeOrHostKey, countExpr: countExpr, actual: actual);
-            return false;
-        }
+            return ContainerDiagnosis.Of(ContainerFailureKind.CountAssertionFailed,
+                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr, actual: actual);
 
-        return true;
+        return ContainerDiagnosis.Success(scopeOrHostKey, actual);
     }
 
     /// <summary>
-    /// 挂载断言：<paramref name="controlName"/> 已挂载到宿主 <paramref name="hostKey"/>（或任意可见窗体）。
+    /// 挂载断言：<paramref name="controlName"/> 已挂载到宿主 <paramref name="hostKey"/>（hostKey 为空则按可见窗体树判定），
+    /// <paramref name="requireVisible"/> 为 true 时追加「控件可见」判据（一个命令走完定位+挂载+可见，避免二次调用产生两套文案）。
     /// </summary>
-    public bool AssertMounted(string controlName, string? hostKey, out string reason)
+    public ContainerDiagnosis AssertMounted(string controlName, string? hostKey, bool requireVisible = false)
     {
-        reason = string.Empty;
-        if (string.IsNullOrWhiteSpace(controlName))
-        {
-            reason = "validate-mount: 缺少目标控件名";
-            return false;
-        }
+        var lookup = Locate(controlName, hostKey);
+        if (!lookup.IsFound)
+            return lookup.ToDiagnosis();
 
-        var (control, hostId) = ResolveInHost(controlName, hostKey);
-        if (control == null)
-        {
-            reason = hostKey != null
-                ? "validate-mount: " + ContainerFailureMessages.Format(ContainerFailureKind.HostNotResolved, hostKey)
-                : $"validate-mount: 控件 '{controlName}' 未挂载到任何可见窗体";
-            return false;
-        }
+        if (requireVisible && lookup.Control!.Visible == false)
+            return ContainerDiagnosis.Of(ContainerFailureKind.ControlNotVisible, subject: controlName, host: hostKey);
 
-        if (hostId != null && !IsDescendant(control, hostId))
-        {
-            reason = "validate-mount: " + ContainerFailureMessages.Format(ContainerFailureKind.ControlNotInHostTree, controlName, host: hostKey);
-            return false;
-        }
-
-        return true;
+        return ContainerDiagnosis.Success(controlName);
     }
 
-    /// <summary>
-    /// 可见性断言：控件已挂载到窗体树且 Visible。
-    /// </summary>
-    public bool AssertVisible(string controlName, out string reason)
-    {
-        reason = string.Empty;
-        var control = _findOrdinaryControl?.Invoke(controlName);
-        if (control == null)
-        {
-            reason = "validate: " + ContainerFailureMessages.Format(ContainerFailureKind.TargetControlNotFound, controlName);
-            return false;
-        }
-        if (control.FindForm() == null)
-        {
-            reason = $"validate: 控件 '{controlName}' 存在但未挂载到可见窗体（孤儿控件）";
-            return false;
-        }
-        if (!control.Visible)
-        {
-            reason = $"validate: 控件 '{controlName}' 不可见（Visible=false）";
-            return false;
-        }
-        return true;
-    }
+    /// <summary>可见性断言：控件已挂载到可见窗体树且 Visible。</summary>
+    public ContainerDiagnosis AssertVisible(string controlName)
+        => AssertMounted(controlName, hostKey: null, requireVisible: true);
 
     // ── 私有解析辅助 ──
 
-    private ContainerHandle? ResolveHandle(string scopeOrHostKey)
+    /// <summary>
+    /// 诊断证据：宿主内**可到达**的控件名样本。
+    /// 只取直接子控件不够——渲染根（<c>root:{scope}</c>）通常独占宿主，直接子控件只有这一个合成名，
+    /// 证据等于没有（实测：报「宿主现有子控件: root:Content」，仍看不出面板里到底有什么）。
+    /// 因此按树深度优先收集后代名（跳过合成根名），使「目标不存在」能直接看到实际存在的控件。
+    /// </summary>
+    private static IReadOnlyList<string>? SampleReachableNames(Control host)
     {
-        // 经端口统一解析：先按 scope（"Side"）、再按 hostKey（"sideContainer"）反查 scope 后解析。
-        // 与 ResolveInHost 共用同一条解析口径，消除 assert-container / validate-mount 的寻址分裂。
-        return _port?.ResolveHostByKeyOrScope(scopeOrHostKey);
+        var names = new List<string>();
+        Collect(host, names, depth: 0);
+        return names.Count == 0 ? null : names;
     }
 
-    private (Control? control, ContainerId? hostId) ResolveInHost(string controlName, string? hostKey)
+    private static void Collect(Control parent, List<string> names, int depth)
     {
-        if (!string.IsNullOrEmpty(hostKey))
+        if (depth > CandidateSampleMaxDepth || names.Count >= CandidateSampleSize) return;
+
+        foreach (Control child in parent.Controls)
         {
-            // 复用 ResolveHandle 的统一解析（scope 优先 + hostKey 反查兜底），
-            // 消除「validate-mount 直调 ResolveHost(hostKey) 只按 scope 查」导致的『未找到宿主』。
-            var handle = ResolveHandle(hostKey);
-            if (handle == null) return (null, null);
+            if (names.Count >= CandidateSampleSize) return;
 
-            var hostControl = handle.Control;
-            if (hostControl == null) return (null, null);
-            return (FindInControl(hostControl, controlName), handle.Id);
+            // 合成根名（root:{scope}）不是配置声明的控件名，作证据只会造成干扰，跳过但其子节点继续收集。
+            if (!string.IsNullOrEmpty(child.Name) && !child.Name.Contains(':'))
+                names.Add(child.Name);
+
+            Collect(child, names, depth + 1);
         }
-
-        var control = _findOrdinaryControl?.Invoke(controlName);
-        return (control, null);
     }
 
     // R2（C1a）：控件递归深搜语义统一为 WinForms 原生 Controls.Find(name, true) 一处实现。
@@ -171,21 +211,6 @@ public sealed class ContainerAssertionService
 
         var found = root.Controls.Find(name, true);
         return found.Length > 0 ? found[0] : null;
-    }
-
-    private bool IsDescendant(Control control, ContainerId hostId)
-    {
-        if (control == null) return false;
-        var host = _port?.ResolveHost(hostId)?.Control;
-        if (host == null) return false;
-
-        var current = control.Parent;
-        while (current != null)
-        {
-            if (ReferenceEquals(current, host)) return true;
-            current = current.Parent;
-        }
-        return false;
     }
 
     #region 计数表达式（计数口径与断言共用）

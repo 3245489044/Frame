@@ -4,10 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Text;
 using Share.Conversation;
 using Share.Conversation.Rendering;
+using UiBackend.Abstractions;
 using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
@@ -23,11 +22,11 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// <para>历史归属：本文件原置于 Plate.HtmlViewer（UiBackend.Html），属 Conversation×plate(HtmlTemplateEngine) 的桥
 /// （跨层胶水），现迁入 FrontEndDriven 连接层（真实组合根宿主层），使 plate 不再引用 Share.Conversation。</para>
 /// </summary>
-public sealed class HtmlStreamRenderer : IConversationRenderer
+public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
 {
     private readonly HtmlStreamRendererOptions _options;
     private readonly Func<IReadOnlyDictionary<string, string>>? _templateProvider;
-    private readonly ConversationFramePolicy? _policy;
+    private readonly FramePolicy? _policy;
     private readonly string? _degradedReason;
 
     public HtmlStreamRenderer(
@@ -38,7 +37,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         _templateProvider = templateProvider;
         // 单一语义表：宿主注入优先；否则把旧选项适配为同一策略（单批次兼容）。
         _policy = _options.Policy
-            ?? ConversationFramePolicy.FromLegacy(_options.AttachGrouping, _options.AttachClassification);
+            ?? FramePolicy.FromLegacy(_options.AttachGrouping, _options.AttachClassification);
         // 声明期望存在但不可用 ⇒ 可见降级（禁静默换语义）。
         _degradedReason = _options.RequireFramePolicy && _options.Policy is null
             ? "frame-policy-unavailable"
@@ -57,31 +56,31 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     /// 结构由 sectionHeader/blockItem 模板经引擎渲染，文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
     /// </summary>
     public string Render(IReadOnlyList<ConversationRenderItem> items)
-        => string.Concat(RenderSections(items).Select(section => section.Html));
+        => string.Join(string.Empty, RenderSections(items).Select(section => section.Html));
 
-    /// <summary>
-    /// 分段渲染（流面增量单源）：<see cref="Render"/> = 本方法各段按序拼接（禁两套拼接逻辑）。
-    /// 段键：<c>head</c>（头提示层）/ <c>op</c>（操作流）/ <c>r{round}</c>（逐轮对话段）/ <c>empty</c>（空态）。
-    /// 新轮 = 新段键（流尾追加）；同轮变更 = 同段键定点更新（调用方只交付变更段）。
-    /// </summary>
+    /// <summary>分段渲染（端口适配）：节点片段逐段序列化（唯一字符串出口；单实现两种载体）。</summary>
     public IReadOnlyList<ConversationRenderSection> RenderSections(IReadOnlyList<ConversationRenderItem> items)
+        => RenderFragments(items)
+            .Select(fragment => new ConversationRenderSection(fragment.Key, FragmentSerializer.Serialize(fragment.Root)))
+            .ToList();
+
+    /// <summary>节点渲染（**唯一实现**）：按声明面序产出各面片段；段键 = 流差分单位。</summary>
+    public IReadOnlyList<ConversationRenderFragment> RenderFragments(
+        IReadOnlyList<ConversationRenderItem> items, ConversationRenderContext? context = null)
     {
-        var t = EffectiveTemplates;
+        var templates = EffectiveTemplates;
+        var labels = _policy?.Labels ?? FrameGroupLabels.Default;
+        var fragments = new List<ConversationRenderFragment>(8);
+
         if (items is null || items.Count == 0)
         {
-            // 空态：优先模板集 emptyP，未定义回退 Options.EmptyTemplate 语义
-            var emptyHtml = t.TryGetValue("emptyP", out var emptyTpl)
-                ? HtmlTemplateEngine.RenderTemplate(
-                    emptyTpl, t, new Dictionary<string, object?> { ["text"] = _options.EmptyText })
-                : _options.EmptyTemplate.Replace("{text}", WebUtility.HtmlEncode(_options.EmptyText));
-            var emptySections = new List<ConversationRenderSection>(2);
-            if (DegradedSection() is { } degradedEmpty) emptySections.Add(degradedEmpty);
-            emptySections.Add(new ConversationRenderSection("empty", emptyHtml));
-            return emptySections;
+            if (DegradedNodes(templates, labels) is { } degradedEmpty)
+                fragments.Add(new ConversationRenderFragment("degraded", FragmentTemplates.Fragment(degradedEmpty)));
+            fragments.Add(new ConversationRenderFragment("empty", FragmentTemplates.Fragment(EmptyNodes(templates))));
+            return fragments;
         }
 
         // 通道分流：Operation → 操作面板；其余（Dialogue/Process）→ 对话流。
-        // Process = 过程帧（trace）：不再单独成“过程面板”，改由锚点气泡下拉栏承载（A1 单呈现路径）。
         var dialogue = items;
         IReadOnlyList<ConversationRenderItem> operations = Array.Empty<ConversationRenderItem>();
         if (_options.SplitOperationChannel)
@@ -94,8 +93,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             }
         }
 
-        // 头提示层预抽取（与面序无关）：启用缓存稳定序时，把 prompt:* 段从对话流剔除，交 HeadPrompt 面单独编排。
-        // 语义：头提示层顺序 = 快照 Bindings 序 = CacheBand 升序（顺序单一权威在段声明处，渲染层不重排）。
+        // 头提示层预抽取（与面序无关）：prompt:* 段交 HeadPrompt 面单独编排。
         IReadOnlyList<ConversationRenderItem> head = Array.Empty<ConversationRenderItem>();
         if (_options.HeadBandOrdering && _options.PromptStagePrefix is not null)
         {
@@ -104,110 +102,251 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
                 dialogue = dialogue.Where(m => !IsPromptLayer(m)).ToList();
         }
 
-        // 渲染面编排（声明式）：面序由 RenderSurfaceCatalog（CacheBand 派生）或宿主覆盖给出；
-        // 渲染器只按序产出各面块 —— 禁在本处硬编码块拼接顺序（编排序单一权威 = 渲染面目录一处）。
-        var sections = new List<ConversationRenderSection>(8);
+        // 渲染面编排（声明式）：面序由 RenderSurfaceCatalog 或宿主覆盖给出。
         foreach (var surface in _options.SurfaceOrder ?? RenderSurfaceCatalog.Order)
         {
             switch (surface)
             {
                 case RenderSurface.HeadPrompt:
-                    if (head.Count > 0) sections.Add(new ConversationRenderSection("head", RenderHeadBandBlock(head, t)));
-                    break; // 未启用/无段 ⇒ 该面空产（prompt:* 段随对话轮渲染，逐字旧行为）
+                    if (head.Count > 0)
+                        fragments.Add(new ConversationRenderFragment("head",
+                            FragmentTemplates.Fragment(RenderHeadBandBlock(head, templates, labels))));
+                    break;
 
                 case RenderSurface.Operation:
-                    if (operations.Count > 0) sections.Add(new ConversationRenderSection("op", RenderOperations(operations, t)));
+                    if (operations.Count > 0)
+                        fragments.Add(new ConversationRenderFragment("op",
+                            FragmentTemplates.Fragment(RenderOperations(operations, templates, labels))));
                     break;
 
                 case RenderSurface.Dialogue:
-                    foreach (var group in OrderedRounds(dialogue))
-                        sections.Add(new ConversationRenderSection("r" + group.Key, RenderRoundSection(group, t)));
+                    var rounds = OrderedRounds(dialogue).ToList();
+                    var lastRound = rounds.Count > 0 ? rounds[^1].Key : 0;
+                    foreach (var group in rounds)
+                        fragments.Add(new ConversationRenderFragment(FragmentKeys.RoundSection(group.Key),
+                            FragmentTemplates.Fragment(RenderRoundSection(
+                                group, templates, labels, open: group.Key == lastRound, context))));
                     break;
             }
         }
-        if (DegradedSection() is { } degraded) sections.Insert(0, degraded);
-        return sections;
+
+        if (DegradedNodes(templates, labels) is { } degraded)
+            fragments.Insert(0, new ConversationRenderFragment("degraded", FragmentTemplates.Fragment(degraded)));
+
+        return fragments;
     }
 
-    /// <summary>可见降级段（声明期望存在但不可用）：不静默换语义，用户与日志均可归因。</summary>
-    private ConversationRenderSection? DegradedSection()
+    /// <summary>可见降级节点（声明期望存在但不可用）：不静默换语义，用户与日志均可归因。</summary>
+    private IReadOnlyList<UiNode>? DegradedNodes(
+        IReadOnlyDictionary<string, string> templates, FrameGroupLabels labels)
     {
-        var reason = _degradedReason;
-        return reason is null
-            ? null
-            : new ConversationRenderSection(
-                "degraded",
-                "<p class=\"render-degraded\" data-reason=\"" + WebUtility.HtmlEncode(reason) + "\">渲染降级："
-                + WebUtility.HtmlEncode(reason) + "（过程分组声明不可用，已按扁平呈现）</p>");
+        if (_degradedReason is null) return null;
+        var text = string.Format(CultureInfo.InvariantCulture, labels.DegradedFormat, _degradedReason);
+        return FragmentTemplates.Render(templates, "renderDegraded",
+            new Dictionary<string, object?> { ["reason"] = _degradedReason, ["text"] = text },
+            DegradedFallback(_degradedReason, text));
     }
+
+    private static IReadOnlyList<UiNode> DegradedFallback(string reason, string text)
+        => new[]
+        {
+            new UiNode("p", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["class"] = "render-degraded",
+                ["data-reason"] = reason,
+            }, Children: FragmentTemplates.Texts(text)),
+        };
+
+    /// <summary>空态节点（模板 emptyP 优先；缺失 ⇒ 结构等价回退）。</summary>
+    private IReadOnlyList<UiNode> EmptyNodes(IReadOnlyDictionary<string, string> templates)
+        => FragmentTemplates.Render(templates, "emptyP",
+            new Dictionary<string, object?> { ["text"] = _options.EmptyText },
+            EmptyFallback(_options.EmptyText));
+
+    private static IReadOnlyList<UiNode> EmptyFallback(string text)
+        => new[]
+        {
+            new UiNode("p", Attributes: new Dictionary<string, string>(StringComparer.Ordinal) { ["class"] = "empty" },
+                Children: FragmentTemplates.Texts(text)),
+        };
 
     /// <summary>轮段序（Round 升序；Round=0 归「会话级」组）——单源：分段与整段拼接共用。</summary>
     private static IEnumerable<IGrouping<int, ConversationRenderItem>> OrderedRounds(
         IReadOnlyList<ConversationRenderItem> dialogue)
         => dialogue.GroupBy(m => m.Round).OrderBy(g => g.Key);
 
-    /// <summary>单轮段渲染：Round 升序分组（Round=0 归「会话级」组），组内按近邻锚挂靠（R2）。
-    /// 段根带 <c>data-key</c>（= <c>r{round}</c>）⇒ 流原语可按段键定点更新/追加（首挂载与增量同源）。</summary>
-    private string RenderRoundSection(
-        IGrouping<int, ConversationRenderItem> group, IReadOnlyDictionary<string, string> t)
+    /// <summary>单轮段节点：段首前导折叠 + 近邻锚挂靠；轮次可折叠（roundFold；缺省 sectionHeader）。</summary>
+    private IReadOnlyList<UiNode> RenderRoundSection(
+        IGrouping<int, ConversationRenderItem> group,
+        IReadOnlyDictionary<string, string> templates,
+        FrameGroupLabels labels,
+        bool open,
+        ConversationRenderContext? context)
     {
-        int round = group.Key;
+        var round = group.Key;
         var items = new List<ConversationRenderItem>(group);
-        // 单一定位规则：终答过渡提升 + 过程项挂其前方最近锚点（无前锚 ⇒ 原位顶层）。
-        var entries = AttachPlanner.PlanTopLevel(items, _policy);
+        // 单一定位规则：终答过渡提升 + 过程项挂其前方最近锚点；首锚之前的过程帧进段首折叠（不铺开）。
+        var plan = AttachPlanner.Plan(items, _policy);
+        var lead = RenderLead(plan.Lead, round, labels);
         var row = new Dictionary<string, object?>
         {
-            ["round"] = round.ToString(),
-            ["roundTitle"] = round <= 0 ? "会话级" : $"第 {round} 轮",
-            ["messages"] = entries.Select((e, gi) => ToAnchorRow(e, round, gi)).ToList<object?>(),
+            ["round"] = round.ToString(CultureInfo.InvariantCulture),
+            ["roundTitle"] = round <= 0
+                ? labels.SessionScope
+                : string.Format(CultureInfo.InvariantCulture, labels.RoundTitleFormat, round),
+            ["open"] = open ? "1" : string.Empty,
+            ["messages"] = plan.Entries.Select((entry, index) => ToAnchorRow(entry, round, index, labels)).ToList<object?>(),
+            ["costLabel"] = CostLabel(context, round),
         };
-        return HtmlTemplateEngine.Render(t, "sectionHeader", row);
+
+        if (templates.ContainsKey("roundFold"))
+        {
+            var hasLeadFold = templates.ContainsKey("leadFold");
+            row["leadFolds"] = lead.Count > 0 && hasLeadFold
+                ? new List<object?> { LeadFoldModel(round, plan.Lead, lead, labels) }
+                : new List<object?>();
+            var roundNodes = FragmentTemplates.Render(templates, "roundFold", row);
+            // 无 leadFold 模板 ⇒ 前导行以 blockItem 直出（可见，不静默丢帧）。
+            return hasLeadFold || lead.Count == 0
+                ? roundNodes
+                : FragmentTemplates.Concat(RenderLeadRows(templates, lead), roundNodes);
+        }
+
+        // 无轮折叠模板 ⇒ 段头 + 前导折叠节点（结构等价回退：不丢帧，不逐条铺开）。
+        var headerNodes = FragmentTemplates.Render(templates, "sectionHeader", row);
+        if (lead.Count == 0) return headerNodes;
+        var leadNodes = templates.ContainsKey("leadFold")
+            ? FragmentTemplates.Render(templates, "leadFold", LeadFoldModel(round, plan.Lead, lead, labels))
+            : RenderLeadRows(templates, lead);
+        return FragmentTemplates.Concat(leadNodes, headerNodes);
+    }
+
+    /// <summary>前导行直出（无 leadFold 时的可见回退；不聚合 HTML 串）。</summary>
+    private static IReadOnlyList<UiNode> RenderLeadRows(
+        IReadOnlyDictionary<string, string> templates, List<object?> rows)
+    {
+        var nodes = new List<UiNode>(rows.Count);
+        foreach (var row in rows)
+        {
+            if (row is IReadOnlyDictionary<string, object?> model)
+                nodes.AddRange(FragmentTemplates.Render(templates, "blockItem", model));
+        }
+
+        return nodes;
+    }
+
+    /// <summary>前导折叠模型（数据；模板 leadFold 消费），摘要含项数与文本类计数（V3）。</summary>
+    private Dictionary<string, object?> LeadFoldModel(
+        int round, IReadOnlyList<ConversationRenderItem> source, List<object?> rows, FrameGroupLabels labels)
+        => new()
+        {
+            ["round"] = round.ToString(CultureInfo.InvariantCulture),
+            ["leadSummary"] = string.Join(string.Empty, new[]
+            {
+                string.Format(CultureInfo.InvariantCulture, labels.LeadSummaryFormat, labels.Lead, source.Count),
+                TextCountSuffix(source, labels),
+            }),
+            ["lead"] = rows,
+        };
+
+    /// <summary>文本类计数后缀（V3：摘要须含项数与文本类计数）。</summary>
+    private string TextCountSuffix(IReadOnlyList<ConversationRenderItem> rows, FrameGroupLabels labels)
+    {
+        var count = _policy is null ? 0 : rows.Count(item => _policy.IsTrace(item.Stage));
+        return count > 0
+            ? string.Format(CultureInfo.InvariantCulture, labels.AttachSummaryTextFormat, count)
+            : string.Empty;
+    }
+
+    /// <summary>轮次成本注记（上下文数据；空 ⇒ 空串，模板判空不渲染）。</summary>
+    private static string CostLabel(ConversationRenderContext? context, int round)
+        => context?.RoundLabels is { } map && map.TryGetValue(round, out var label) ? label : string.Empty;
+
+    /// <summary>段首前导过程帧行模型（首锚之前的帧）：折叠承载，禁逐条铺开。</summary>
+    private List<object?> RenderLead(
+        IReadOnlyList<ConversationRenderItem> lead, int round, FrameGroupLabels labels)
+    {
+        var rows = new List<object?>(lead.Count);
+        for (var i = 0; i < lead.Count; i++)
+        {
+            var row = ToMessageRow(lead[i], labels, key: FragmentKeys.Lead(round, i));
+            row["tool"] = string.Empty;
+            row["prompt"] = string.Empty;
+            rows.Add(row);
+        }
+
+        return rows;
     }
 
     /// <summary>
-    /// 操作流渲染（非气泡）：<see cref="MessageChannel.Operation"/> 消息逐条落入顶部操作面板，
-    /// 与对话气泡物理分离（任务创建/管理等命令与回执不再冒充 user/assistant 气泡）。
-    /// <para>行承载（G5）：<c>{round,title,text,subagent}</c> —— 「分发到哪个子智能体」是**结构事实**（写侧单源），
-    /// 呈现侧不得由 Role 二次猜测（<see cref="MessageChannel"/> 契约）。模板 <c>actionPanel</c> 缺失 ⇒
-    /// 自足内联兜底（与模板路径**共享同一行模型**，禁双份构造）。</para>
+    /// 操作流节点（非气泡）：<see cref="MessageChannel.Operation"/> 消息逐条落入顶部操作面板。
+    /// <para>行承载：<c>{round,title,text,subagent,targets}</c>（结构事实单源）；模板 <c>actionPanel</c> 缺失 ⇒
+    /// 结构等价回退（同字段集，节点直构，零 HTML 串）。</para>
     /// </summary>
-    private static string RenderOperations(
-        IReadOnlyList<ConversationRenderItem> operations, IReadOnlyDictionary<string, string> t)
+    private static IReadOnlyList<UiNode> RenderOperations(
+        IReadOnlyList<ConversationRenderItem> operations,
+        IReadOnlyDictionary<string, string> templates,
+        FrameGroupLabels labels)
     {
         var rows = operations
             .OrderBy(m => m.Round)
             .Select(ToOperationRow)
             .ToList<object?>();
 
-        if (t.TryGetValue("actionPanel", out var panel) && !string.IsNullOrWhiteSpace(panel))
-            return HtmlTemplateEngine.RenderTemplate(panel, t, new Dictionary<string, object?> { ["rows"] = rows });
+        return FragmentTemplates.Render(templates, "actionPanel",
+            new Dictionary<string, object?> { ["rows"] = rows },
+            OperationFallback(rows, labels));
+    }
 
-        // 内联兜底 = 薄转发同一行模型（无 partial 依赖），字段集与模板路径恒等。
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"op-panel\"><div class=\"op-panel-title\">操作 / 任务</div>");
-        foreach (var row in rows)
+    /// <summary>操作面板结构回退（节点直构，零字符串拼接；字段集与模板路径恒等）。</summary>
+    private static IReadOnlyList<UiNode> OperationFallback(
+        IReadOnlyList<object?> rows, FrameGroupLabels labels)
+    {
+        var children = new List<UiNode>
         {
-            var r = (IReadOnlyDictionary<string, object?>)row!;
-            var badge = r["round"] + " · " + r["title"];
-            var sub = r["subagent"] as string;
-            sb.Append("<div class=\"op-row\"><span class=\"op-badge\">")
-              .Append(WebUtility.HtmlEncode(badge));
-            if (!string.IsNullOrWhiteSpace(sub))
+            new("div", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                sb.Append(" · ").Append(WebUtility.HtmlEncode(sub));
-            }
-            // F3 分发目标集（与模板路径字段集恒等）：空串 ⇒ 不产该段（负对照）
-            var targets = r["targets"] as string;
-            if (!string.IsNullOrWhiteSpace(targets))
+                ["class"] = "op-panel-title",
+            }, Children: FragmentTemplates.Texts(labels.OperationPanelTitle)),
+        };
+
+        foreach (var item in rows)
+        {
+            if (item is not IReadOnlyDictionary<string, object?> row) continue;
+            var badge = new List<string>
             {
-                sb.Append(" → ").Append(WebUtility.HtmlEncode(targets));
-            }
-            sb.Append("</span><div class=\"op-text\">")
-              .Append(WebUtility.HtmlEncode(r["text"] as string ?? string.Empty))
-              .Append("</div></div>");
+                row.TryGetValue("round", out var round) ? round as string ?? string.Empty : string.Empty,
+                row.TryGetValue("title", out var title) ? title as string ?? string.Empty : string.Empty,
+            };
+            var sub = row.TryGetValue("subagent", out var subagent) ? subagent as string : null;
+            if (!string.IsNullOrWhiteSpace(sub)) badge.Add(sub!);
+            var targets = row.TryGetValue("targets", out var target) ? target as string : null;
+            if (!string.IsNullOrWhiteSpace(targets)) badge.Add(targets!);
+
+            children.Add(new UiNode("div", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["class"] = "op-row",
+            }, Children: new List<UiNode>
+            {
+                new("span", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["class"] = "op-badge",
+                }, Children: FragmentTemplates.Texts(string.Join(" · ", badge))),
+                new("div", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["class"] = "op-text",
+                }, Children: FragmentTemplates.Texts(
+                    row.TryGetValue("text", out var text) ? text as string : string.Empty)),
+            }));
         }
-        sb.Append("</div>");
-        return sb.ToString();
+
+        return new[]
+        {
+            new UiNode("div", Attributes: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["class"] = "op-panel",
+            }, Children: children),
+        };
     }
 
     /// <summary>
@@ -230,22 +369,24 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 
 
     /// <summary>
-    /// 头提示层顺序块（CacheBand 升序 = 传入源序）：单组渲染（round=0 / 「会话级」），不参与 Round 分组。
+    /// 头提示层顺序块（CacheBand 升序 = 传入源序）：单组渲染（round=0 / 会话级），不参与 Round 分组。
     /// 仅当 <see cref="HtmlStreamRendererOptions.HeadBandOrdering"/> 开启且存在 prompt:* 段时调用。
     /// </summary>
-    private static string RenderHeadBandBlock(
-        IReadOnlyList<ConversationRenderItem> head, IReadOnlyDictionary<string, string> t)
+    private static IReadOnlyList<UiNode> RenderHeadBandBlock(
+        IReadOnlyList<ConversationRenderItem> head,
+        IReadOnlyDictionary<string, string> templates,
+        FrameGroupLabels labels)
     {
         var row = new Dictionary<string, object?>
         {
             ["round"] = "0",
-            ["roundTitle"] = "会话级",
+            ["roundTitle"] = labels.SessionScope,
             ["messages"] = head
                 .Select((m, i) => (Entry: (Item: m, Attach: new List<ConversationRenderItem>()), Index: i))
                 .Select(x => (object?)HeadRow(x.Entry, x.Index))
                 .ToList(),
         };
-        return HtmlTemplateEngine.Render(t, "sectionHeader", row);
+        return FragmentTemplates.Render(templates, "sectionHeader", row);
     }
 
     /// <summary>头提示层单行模型（无锚点语义；round=0）。</summary>
@@ -253,7 +394,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
         (ConversationRenderItem Item, List<ConversationRenderItem> Attach) entry, int index)
         => new Dictionary<string, object?>
         {
-            ["key"] = "h:0:" + index,
+            ["key"] = FragmentKeys.Head(index),
             ["role"] = entry.Item.Role.ToString().ToLowerInvariant(),
             ["round"] = "0",
             ["stage"] = entry.Item.Stage ?? string.Empty,
@@ -268,12 +409,13 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     /// <summary>构造单条消息行数据模型（供 message 模板绑定）。C# 只产原始数据（role/round/stage/subagent/text），
     /// 角色类/角标/summary 结构全部由 message 模板的条件绑定承担；文本经引擎 HTML 编码后入 DOM（XSS 防线在生产端）。
     /// <paramref name="isAnchor"/>=true 时置锚点位（模板据此选择"气泡 + 下拉栏附属"分支）。</summary>
-    private Dictionary<string, object?> ToMessageRow(ConversationRenderItem m, bool isAnchor = false, string? key = null)
+    private Dictionary<string, object?> ToMessageRow(
+        ConversationRenderItem m, FrameGroupLabels labels, bool isAnchor = false, string? key = null)
         => new Dictionary<string, object?>
         {
             ["key"] = key ?? string.Empty,
             ["role"] = m.Role.ToString().ToLowerInvariant(),
-            ["round"] = m.Round.ToString(),
+            ["round"] = m.Round.ToString(CultureInfo.InvariantCulture),
             ["stage"] = m.Stage ?? string.Empty,
             ["subagent"] = m.SubAgent ?? string.Empty,
             ["showSubagent"] = string.IsNullOrWhiteSpace(m.SubAgent) ? string.Empty : "1",
@@ -281,9 +423,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             ["prompt"] = IsPromptLayer(m) ? "1" : string.Empty,
             ["anchor"] = isAnchor ? "1" : string.Empty,
             ["answerTrace"] = IsTraceAnswer(m) ? "1" : string.Empty,
-            ["answerTraceLabel"] = IsTraceAnswer(m)
-                ? _policy?.Labels.AnswerTrace ?? string.Empty
-                : string.Empty,
+            ["answerTraceLabel"] = IsTraceAnswer(m) ? labels.Trace : string.Empty,
             ["text"] = m.Text,
         };
 
@@ -291,7 +431,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     private bool IsTraceAnswer(ConversationRenderItem m)
         => _policy is { } policy
            && m.Role == ConversationRole.Assistant
-           && policy.IsTraceText(m.Stage);
+           && policy.IsTrace(m.Stage);
 
     /// <summary>是否工具/过程层（Tool 且带 Stage；无 Stage 的 Tool 走普通气泡分支）。</summary>
     private static bool IsToolLayer(ConversationRenderItem m)
@@ -304,34 +444,36 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             && m.Stage is not null
             && m.Stage.StartsWith(_options.PromptStagePrefix!, StringComparison.Ordinal);
 
-    /// <summary>锚点判定（通用，不读领域 stage 语义）：委托 <see cref="ConversationAnchors.IsAnchor"/>（单源）。</summary>
-    private static bool IsAnchor(ConversationRole role) => ConversationAnchors.IsAnchor(role);
+    /// <summary>气泡锚点判定（单源 = <see cref="AttachPlanner.IsBubbleAnchor"/>）：
+    /// <c>assistant:llm-text</c> 与归档对话消息为气泡，其余过程帧一律折叠。</summary>
+    private bool IsAnchor(ConversationRenderItem item) => AttachPlanner.IsBubbleAnchor(item, _policy);
 
     /// <summary>锚点行模型：消息字段 + 下拉栏附属（<c>attachCount</c>/<c>attachSummary</c>）。
     /// <paramref name="groupIndex"/> 参与派生稳定键（S3/I2：键由渲染层产出，禁作者手写）。</summary>
     private IReadOnlyDictionary<string, object?> ToAnchorRow(
-        AttachEntry entry, int round, int groupIndex)
+        AttachEntry entry, int round, int groupIndex, FrameGroupLabels labels)
     {
-        var key = "m:" + round + ":" + groupIndex;
-        var row = ToMessageRow(entry.Item, isAnchor: IsAnchor(entry.Item.Role), key: key);
+        var key = FragmentKeys.Message(round, groupIndex);
+        var row = ToMessageRow(entry.Item, labels, isAnchor: IsAnchor(entry.Item), key: key);
         if (entry.Attach.Count == 0) return row;
 
-        row["attachCount"] = entry.Attach.Count.ToString();
+        row["attachCount"] = entry.Attach.Count.ToString(CultureInfo.InvariantCulture);
         if (_policy is null)
         {
-            // 未注入语义表 ⇒ 逐字旧行为：扁平下拉栏（零回归）。
-            row["attachSummary"] = "过程 · " + entry.Attach.Count;
+            // 未注入语义表 ⇒ 扁平下拉栏（结构等价回退）。
+            row["attachSummary"] = string.Format(CultureInfo.InvariantCulture,
+                labels.AttachGroupCountFormat, labels.AttachLabel, entry.Attach.Count);
             row["attach"] = entry.Attach
                 .Select((m, ai) => (object?)ToAttachRowSpec(
                     new AttachRowSpec(m.Stage ?? string.Empty, null, m, null, null),
-                    "a:" + round + ":" + groupIndex + ":" + ai, string.Empty))
+                    FragmentKeys.Attach(round, groupIndex, ai), string.Empty))
                 .ToList<object?>();
             return row;
         }
 
         var plan = AttachPlanner.PlanGroups(entry.Attach, _policy);
         row["attachGroups"] = BuildGroupRows(plan, round, groupIndex);
-        row["attachSummary"] = BuildAttachSummary(plan);
+        row["attachSummary"] = BuildAttachSummary(plan, labels);
         return row;
     }
 
@@ -347,12 +489,12 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             for (var ri = 0; ri < group.Rows.Count; ri++)
             {
                 items.Add(ToAttachRowSpec(
-                    group.Rows[ri], "a:" + round + ":" + groupIndex + ":" + gi + ":" + ri, group.Kind));
+                    group.Rows[ri], FragmentKeys.AttachRow(round, groupIndex, gi, ri), group.Kind));
             }
 
             result.Add(new Dictionary<string, object?>
             {
-                ["key"] = "g:" + round + ":" + groupIndex + ":" + gi,
+                ["key"] = FragmentKeys.Group(round, groupIndex, gi),
                 ["group"] = group.Kind,
                 ["label"] = group.Label,
                 ["count"] = group.Rows.Count.ToString(CultureInfo.InvariantCulture),
@@ -364,12 +506,29 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
     }
 
     /// <summary>下拉栏摘要（计数单源 = <see cref="AttachPlan"/>）：组计数之和 ≡ 摘要条数；
-    /// 帧数仅在“帧 ≠ 行”时显式补充（结果嵌套不另计）。</summary>
-    private static string BuildAttachSummary(AttachPlan plan)
-        => "过程 · " + plan.RowCount + " 项（"
-           + string.Join(" / ", plan.Groups.Select(g => g.Label + " " + g.Rows.Count))
-           + "）"
-           + (plan.RowCount == plan.FrameCount ? string.Empty : " · " + plan.FrameCount + " 帧");
+    /// 帧数仅在“帧 ≠ 行”时显式补充；文本类计数恒显（V3）。</summary>
+    private string BuildAttachSummary(AttachPlan plan, FrameGroupLabels labels)
+    {
+        var groups = string.Join(" / ", plan.Groups.Select(group =>
+            string.Format(CultureInfo.InvariantCulture, labels.AttachGroupCountFormat, group.Label, group.Rows.Count)));
+        var parts = new List<string>
+        {
+            string.Format(CultureInfo.InvariantCulture,
+                labels.AttachSummaryFormat, labels.AttachLabel, plan.RowCount, groups),
+        };
+        if (plan.RowCount != plan.FrameCount)
+            parts.Add(string.Format(CultureInfo.InvariantCulture, labels.AttachSummaryFramesFormat, plan.FrameCount));
+        var textCount = CountTextRows(plan);
+        if (textCount > 0)
+            parts.Add(string.Format(CultureInfo.InvariantCulture, labels.AttachSummaryTextFormat, textCount));
+        return string.Join(string.Empty, parts);
+    }
+
+    /// <summary>文本类行计数（V3 判据载体）。</summary>
+    private int CountTextRows(AttachPlan plan)
+        => _policy is null
+            ? 0
+            : plan.Groups.SelectMany(group => group.Rows).Count(row => _policy.IsTrace(row.Kind));
 
     /// <summary>附属项行模型（下拉栏子项）：结构与编码由 attachItem 模板承担；
     /// <paramref name="key"/> 为渲染层派生的稳定键（供 reconciler 复用）；徽标空 ⇒ 模板回退显示 stage。
@@ -393,7 +552,7 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
             result["hasResult"] = "1";
             result["resultText"] = row.ResultText;
             result["resultLabel"] = row.ResultLabel ?? string.Empty;
-            result["resultKey"] = key + "-result";
+            result["resultKey"] = FragmentKeys.Result(key);
         }
 
         return result;
@@ -403,11 +562,8 @@ public sealed class HtmlStreamRenderer : IConversationRenderer
 /// <summary>通用消息流 HTML 渲染器的可配置项（调用方注入）；缺省保持默认气泡输出。</summary>
 public sealed record HtmlStreamRendererOptions
 {
-    /// <summary>空历史文案（用于空态）。</summary>
-    public string EmptyText { get; init; } = "（空会话，尚无消息）";
-
-    /// <summary>空态包裹模板，{text} 占位注入 <see cref="EmptyText"/>（模板集未定义 emptyP 时回退）。</summary>
-    public string EmptyTemplate { get; init; } = "<p class=\"empty\">{text}</p>";
+    /// <summary>空历史文案（用于空态；宿主注入本地化值，桥内不含领域文案）。</summary>
+    public string EmptyText { get; init; } = "empty";
 
     /// <summary>「头提示层」折叠分支的 stage 前缀（如 Agent 的 "prompt:"）；null = 不启用该分支（消息统一按普通 tool 渲染）。
     /// 领域前缀由宿主注入，通用实现不硬编码。</summary>
@@ -434,7 +590,7 @@ public sealed record HtmlStreamRendererOptions
     /// 过程帧**语义单表**（宿主注入，唯一注入面）：kind → 角色/徽标 + 组文案 + 终答身份。
     /// null ⇒ 由旧 <see cref="AttachGrouping"/> / <see cref="AttachClassification"/> 适配（单批次兼容）。
     /// </summary>
-    public ConversationFramePolicy? Policy { get; init; }
+    public FramePolicy? Policy { get; init; }
 
     /// <summary>是否要求语义表：true 且 <see cref="Policy"/> 为空 ⇒ 可见降级（禁静默换语义）。</summary>
     public bool RequireFramePolicy { get; init; }
@@ -454,22 +610,22 @@ public sealed record HtmlStreamRendererOptions
 
 /// <summary>
 /// 过程帧顺序分组策略（声明驱动；通用渲染器不硬编码领域词表）：
-/// <paramref name="BoundaryKinds"/> = 开新组的边界 kind（如 llm-iteration）；
-/// <paramref name="TrailerKinds"/> = 收束组 kind（done/cost/usage…）；
-/// <paramref name="AnswerKinds"/> = 终答候选 kind（无归档 assistant 时提升为气泡）；
+/// <paramref name="BoundaryKinds"/> = 开新组的边界 kind；
+/// <paramref name="TrailerKinds"/> = 收束组 kind；
+/// <paramref name="TerminalKinds"/> = 终端候选 kind（无归档锚点时提升为气泡）；
 /// <paramref name="CallKinds"/> / <paramref name="ResultKinds"/> = 结果嵌套配对词表；
 /// 其余为组名/角标文案（由宿主经 loc 声明注入）。
 /// </summary>
 public sealed record AttachGrouping(
     IReadOnlySet<string> BoundaryKinds,
     IReadOnlySet<string> TrailerKinds,
-    IReadOnlySet<string> AnswerKinds,
+    IReadOnlySet<string> TerminalKinds,
     IReadOnlySet<string> CallKinds,
     IReadOnlySet<string> ResultKinds,
     string LeadLabel,
     string IterationLabel,
     string TrailerLabel,
-    string AnswerTraceLabel);
+    string TraceLabel);
 
 /// <summary>附属项分组（呈现）：<paramref name="Key"/> = 族键；<paramref name="Order"/> = 组序（升序）。</summary>
 public sealed record AttachGroupSpec(string Key, string Label, int Order);
@@ -486,4 +642,4 @@ public sealed record AttachClassification(
     IReadOnlyList<AttachGroupSpec> Groups,
     IReadOnlyDictionary<string, AttachKindSpec> Kinds,
     string OtherGroupKey = "other",
-    string OtherLabel = "其他");
+    string OtherLabel = "other");

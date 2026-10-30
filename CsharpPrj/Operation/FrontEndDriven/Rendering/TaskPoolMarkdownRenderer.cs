@@ -9,11 +9,16 @@ using Share.TaskStatusPool.TaskPool;
 namespace FrontEndDriven.Rendering;
 
 /// <summary>
-/// ur_tasks 任务池分页 → Markdown 渲染器：生成「标题 + 概览表(Id/TaskKey/Priority/MaxRetries/Status/时间戳) + 逐行 pretty JSON 代码块」的
+/// 任务池分页 → Markdown 渲染器：生成「标题 + 概览表(Id/TaskKey/Priority/MaxRetries/Status/时间戳) + 逐行 pretty JSON 代码块」的
 /// 可读文档。纯函数，供 <c>Plate.MarkdownViewer</c> 控件宿主与测试复用；坏 JSON 不阻断整页。
-/// 依赖 TaskStatusPool（TaskPoolRowView / TaskExecutionStatus），与 MarkdownViewer 纯 md 渲染解耦。</summary>
+/// 依赖 TaskStatusPool（TaskPoolRowView / TaskExecutionStatus），与 MarkdownViewer 纯 md 渲染解耦。
+/// 标题由宿主注入（禁止硬编码存储表名/领域名）。
+/// </summary>
 public static class TaskPoolMarkdownRenderer
 {
+    /// <summary>默认标题（中性；宿主可覆盖）。</summary>
+    public const string DefaultTitle = "任务池";
+
     // pretty + 中文原样（UnsafeRelaxedJsonEscaping）：修复 ur_tasks PayloadJson 的 \uXXXX 转义可读性问题。
     private static readonly JsonSerializerOptions PrettyJson = new()
     {
@@ -22,10 +27,11 @@ public static class TaskPoolMarkdownRenderer
     };
 
     /// <summary>把一页任务池行渲染为 Markdown 字符串（标题 + 概览表 + 每行详情）。</summary>
-    public static string RenderPage(IReadOnlyList<TaskPoolRowView> rows, int pageNumber, int total)
+    public static string RenderPage(
+        IReadOnlyList<TaskPoolRowView> rows, int pageNumber, int total, string? title = null)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"# 任务池（第 {Math.Max(1, pageNumber)} 页，共 {total} 条）");
+        sb.AppendLine($"# {title ?? DefaultTitle}（第 {Math.Max(1, pageNumber)} 页，共 {total} 条）");
         sb.AppendLine();
 
         if (rows.Count == 0)

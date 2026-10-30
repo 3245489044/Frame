@@ -33,25 +33,50 @@ public sealed record AttachPlan(int FrameCount, int RowCount, IReadOnlyList<Atta
 }
 
 /// <summary>
+/// 顶层分组结果：<see cref="Lead"/> = 首锚**之前**的过程帧（段首折叠，禁逐条铺开）；
+/// <see cref="Entries"/> = 锚点气泡 + 其下拉栏附属（源序）。
+/// </summary>
+public sealed record TopLevelPlan(
+    IReadOnlyList<ConversationRenderItem> Lead,
+    IReadOnlyList<AttachEntry> Entries);
+
+/// <summary>
 /// 过程帧计划器（纯函数）：顶层锚点归属 + 顺序分组，唯一实现。
-/// <para>归属规则：过程项挂到**其前方最近锚点**（any anchor）；无前锚 ⇒ 原位顶层（不改序）。
-/// 旧“优先其后 assistant”的文本锚算法已删除（因果反转，E1/E7）。</para>
+/// <para>归属规则：过程项挂到**其前方最近锚点**；首锚之前的过程帧进 <see cref="TopLevelPlan.Lead"/>（段首折叠）。
+/// 锚点判定 = 角色 + 对话通道（<see cref="ConversationAnchors.IsAnchor(ConversationRenderItem)"/>）：
+/// 过程通道的 assistant/trace 帧不是锚点，不得冒充气泡。</para>
 /// </summary>
 public static class AttachPlanner
 {
-    /// <summary>顶层分组：终答过渡提升 + 前最近锚点折叠（输入恰消费一次 ⇒ 顶层 + 挂靠 = 全集）。</summary>
-    public static IReadOnlyList<AttachEntry> PlanTopLevel(
-        IReadOnlyList<ConversationRenderItem> items, ConversationFramePolicy? policy)
+    /// <summary>
+    /// 气泡锚点判定（**委托策略**，框架零领域词）：
+    /// 默认 = 对话通道的角色锚点；宿主可经 <see cref="FramePolicy.ExtraBubbleAnchor"/> 追加规则
+    /// （如“角色=Assistant 且 kind=文本类”）。其余帧一律折叠。
+    /// </summary>
+    /// <param name="item">渲染项。</param>
+    /// <param name="policy">帧语义表（null ⇒ 仅框架默认锚点）。</param>
+    public static bool IsBubbleAnchor(ConversationRenderItem item, FramePolicy? policy)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return policy is not null
+            ? policy.IsBubbleAnchor(item)
+            : ConversationAnchors.IsAnchor(item);
+    }
+
+    /// <summary>顶层分组（含前导折叠集）：终答过渡提升 + 前最近锚点折叠（输入恰消费一次 ⇒ 前导 + 顶层 + 挂靠 = 全集）。</summary>
+    public static TopLevelPlan Plan(
+        IReadOnlyList<ConversationRenderItem> items, FramePolicy? policy)
     {
         var ordered = policy is null
             ? new List<ConversationRenderItem>(items)
             : PromoteAnswer(items, policy);
 
         var entries = new List<AttachEntry>(ordered.Count);
+        var lead = new List<ConversationRenderItem>();
         List<ConversationRenderItem>? bucket = null;
         foreach (var item in ordered)
         {
-            if (ConversationAnchors.IsAnchor(item.Role))
+            if (IsBubbleAnchor(item, policy))
             {
                 bucket = new List<ConversationRenderItem>();
                 entries.Add(new AttachEntry(item, bucket));
@@ -62,38 +87,56 @@ public static class AttachPlanner
             }
             else
             {
-                entries.Add(new AttachEntry(item, Array.Empty<ConversationRenderItem>()));
+                // 首个锚点之前：进段首折叠（旧行为是逐条顶层 ⇒ 上方全铺开）。
+                lead.Add(item);
             }
         }
 
-        return entries;
+        return new TopLevelPlan(lead, entries);
     }
 
-    /// <summary>过渡提升：归档 assistant 已同文（归一化）⇒ 去重；本轮最后一条过程文本 ⇒ 终答气泡。</summary>
+    /// <summary>兼容入口：前导帧按旧形态作为顶层条目返回（无段首折叠能力时使用）。</summary>
+    public static IReadOnlyList<AttachEntry> PlanTopLevel(
+        IReadOnlyList<ConversationRenderItem> items, FramePolicy? policy)
+    {
+        var plan = Plan(items, policy);
+        if (plan.Lead.Count == 0) return plan.Entries;
+
+        var merged = new List<AttachEntry>(plan.Lead.Count + plan.Entries.Count);
+        foreach (var item in plan.Lead)
+        {
+            merged.Add(new AttachEntry(item, Array.Empty<ConversationRenderItem>()));
+        }
+
+        merged.AddRange(plan.Entries);
+        return merged;
+    }
+
+    /// <summary>过渡提升：归档 assistant 已同文（归一化）⇒ 去重；本轮最后一条过程文本 ⇒ 终端气泡。</summary>
     private static List<ConversationRenderItem> PromoteAnswer(
-        IReadOnlyList<ConversationRenderItem> items, ConversationFramePolicy policy)
+        IReadOnlyList<ConversationRenderItem> items, FramePolicy policy)
     {
         var result = new List<ConversationRenderItem>(items);
-        if (policy.Answers.Promotion == AnswerPromotion.None) return result;
+        if (policy.Terminal.Promotion == TerminalPromotion.None) return result;
 
         var archived = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in result)
         {
             if (item.Role == ConversationRole.Assistant
-                && !policy.IsTraceText(item.Stage)
-                && policy.RoleOf(item.Stage) != FrameRole.Answer)
+                && !policy.IsTrace(item.Stage)
+                && policy.RoleOf(item.Stage) != FrameRoleIds.Terminal)
             {
-                archived.Add(policy.Answers.Normalize(item.Text));
+                archived.Add(policy.Terminal.Normalize(item.Text));
             }
         }
 
-        if (policy.Answers.Promotion == AnswerPromotion.EntityOnly)
+        if (policy.Terminal.Promotion == TerminalPromotion.EntityOnly)
         {
             for (var i = 0; i < result.Count; i++)
             {
                 var item = result[i];
-                if (policy.RoleOf(item.Stage) != FrameRole.Answer) continue;
-                if (archived.Contains(policy.Answers.Normalize(item.Text)))
+                if (policy.RoleOf(item.Stage) != FrameRoleIds.Terminal) continue;
+                if (archived.Contains(policy.Terminal.Normalize(item.Text)))
                 {
                     result.RemoveAt(i);
                     i--;
@@ -109,13 +152,13 @@ public static class AttachPlanner
         var last = -1;
         for (var i = 0; i < result.Count; i++)
         {
-            if (result[i].Role == ConversationRole.Tool && policy.IsTraceText(result[i].Stage)) last = i;
+            if (result[i].Role == ConversationRole.Tool && policy.IsTrace(result[i].Stage)) last = i;
         }
 
         if (last < 0) return result;
 
         var candidate = result[last];
-        if (archived.Contains(policy.Answers.Normalize(candidate.Text)))
+        if (archived.Contains(policy.Terminal.Normalize(candidate.Text)))
         {
             result.RemoveAt(last);
             return result;
@@ -126,12 +169,14 @@ public static class AttachPlanner
     }
 
     private static ConversationRenderItem Promote(ConversationRenderItem item)
+        // 过渡期提升：本轮最后一条过程文本成为可见气泡（带「未归档」角标），
+        // 其余过程帧（含其之前的前导帧）一律折叠，不再逐条铺开。
         => new(ConversationRole.Assistant, item.Stage, item.SubAgent, item.Text,
             item.Round, MessageChannel.Dialogue, item.Targets);
 
     /// <summary>顺序分组：边界开组 / 收束只收本类 / 收束后异类开新组 / 调用与结果配对。</summary>
     public static AttachPlan PlanGroups(
-        IReadOnlyList<ConversationRenderItem> attach, ConversationFramePolicy policy)
+        IReadOnlyList<ConversationRenderItem> attach, FramePolicy policy)
     {
         var buckets = new List<Bucket>();
         Bucket? current = null;
@@ -142,14 +187,14 @@ public static class AttachPlanner
             var kind = item.Stage ?? string.Empty;
             var role = policy.RoleOf(kind);
 
-            if (role == FrameRole.Boundary)
+            if (role == FrameRoleIds.Boundary)
             {
                 iteration++;
                 current = new Bucket("iteration",
                     string.Format(CultureInfo.InvariantCulture, policy.Labels.Iteration, iteration));
                 buckets.Add(current);
             }
-            else if (role == FrameRole.Trailer)
+            else if (role == FrameRoleIds.Trailer)
             {
                 if (current is null || current.Kind != "trailer")
                 {
@@ -186,7 +231,7 @@ public static class AttachPlanner
 
     /// <summary>组内行：结果并入最近调用行；无配对则独立成行（零丢失）。</summary>
     private static List<AttachRowSpec> BuildRows(
-        IReadOnlyList<ConversationRenderItem> items, ConversationFramePolicy policy)
+        IReadOnlyList<ConversationRenderItem> items, FramePolicy policy)
     {
         var rows = new List<AttachRowSpec>(items.Count);
         var callIndexes = new Stack<int>();
@@ -197,7 +242,7 @@ public static class AttachPlanner
             var role = policy.RoleOf(kind);
             var badge = policy.BadgeOf(kind);
 
-            if (role == FrameRole.Result && callIndexes.Count > 0)
+            if (role == FrameRoleIds.Result && callIndexes.Count > 0)
             {
                 var index = callIndexes.Pop();
                 var target = rows[index];
@@ -210,7 +255,7 @@ public static class AttachPlanner
             }
 
             rows.Add(new AttachRowSpec(kind, badge, item, null, null));
-            if (role == FrameRole.Call) callIndexes.Push(rows.Count - 1);
+            if (role == FrameRoleIds.Call) callIndexes.Push(rows.Count - 1);
         }
 
         return rows;

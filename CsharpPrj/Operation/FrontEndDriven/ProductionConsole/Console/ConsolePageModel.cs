@@ -14,12 +14,34 @@ public sealed class ConsoleArtifactView
     public string? Text { get; init; }
 }
 
+/// <summary>抽屉内容类型（声明驱动；渲染器按类型取数，不识别具体抽屉键名）。</summary>
+public enum DrawerKind
+{
+    /// <summary>不渲染内容。</summary>
+    None = 0,
+
+    /// <summary>容器分页查询（<c>IProductionContainer.Query</c>）。</summary>
+    Container = 1,
+
+    /// <summary>结构图 SVG（宿主 GraphProvider）。</summary>
+    Graph = 2,
+
+    /// <summary>诊断文本（宿主 Diagnose）。</summary>
+    Text = 3,
+}
+
+/// <summary>抽屉声明（键 + 标签 + 内容类型；宿主注入，框架不硬编码抽屉键）。</summary>
+public sealed record ConsoleDrawerSpec(string Key, string Label, DrawerKind Kind);
+
 /// <summary>
 /// 控制台页面模型（一次渲染的完整输入）：能力清单、表单值、任务列表、选中任务与产物、历史抽屉。
 /// 通用渲染只依赖本模型，不感知插件。
 /// </summary>
 public sealed class ConsolePageModel
 {
+    /// <summary>抽屉声明清单（渲染 tab 与内容分支的唯一来源）。</summary>
+    public IReadOnlyList<ConsoleDrawerSpec> Drawers { get; init; } = Array.Empty<ConsoleDrawerSpec>();
+
     public IReadOnlyList<CapabilityDescriptor> Capabilities { get; init; } = Array.Empty<CapabilityDescriptor>();
 
     public string? SelectedCapabilityId { get; init; }

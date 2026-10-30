@@ -69,6 +69,15 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
     background: transparent; color: var(--muted);
     border: 1px dashed var(--border); font-size: 13px;
 }
+/* ── 折叠壳（轮次 / 段首前导 / 区域面板） ── */
+.round-fold > .round-summary { margin-top: 0; }
+.round-summary::before { content: "▸ "; }
+.round-fold[open] > .round-summary::before { content: "▾ "; }
+.lead-fold { margin: 2px 6px 6px; }
+.lead-fold > .fold-summary { padding: 2px 0; }
+.region-fold > .panel-head { cursor: pointer; user-select: none; }
+.region-fold > .panel-head::before { content: "▸ "; }
+.region-fold[open] > .panel-head::before { content: "▾ "; }
 /* ── 域外扩展位 ──
    交互式会话页（task 侧栏 / history 两级树 / dot / composer 等）属应用域样式，
    不属 plate 纯渲染基础：由应用侧经 JSON templates.theme 以「基础 + 差异」方式叠加

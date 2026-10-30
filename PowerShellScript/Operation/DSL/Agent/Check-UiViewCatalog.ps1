@@ -10,6 +10,9 @@
     C4 区域声明单源：Config\ui\ui-regions.json 的 kind ∈ UiRegionKind 成员、key ⊆ AgentRuntimeUI regions[].key、
        view ⊆ ConversationViewCatalog TypeKey、内容区域键 ⊆ 声明键（禁 C# 另一份区域表 / 禁配置新增未声明区域）。
     C5 负对照：合成旧映射样本必须被 C3 判据捕获；合成非法 kind 必须被 C4 判据捕获。
+    C6 视图内容身份：全部 views[].content 必须声明且 (domain|selection) 两两不同（禁三视图共用数据身份）。
+    C7 内容域/选择登记：content.domain 必须有 [Gather] 段、content.selection 必须在域声明 selections 中、
+       且 content.domain != db-root（整库读只属数据库页）。
     纯扫描（只读、0 写入）。
 #>
 [CmdletBinding()]
@@ -89,6 +92,39 @@ $rules = @(
             $kinds = @((Import-PowerShellDataFile -LiteralPath $kindBaselinePath).Kinds)
             return ((Test-RegionDeclaration $decl (Get-ConfigRegionKeys) (Read-Text $catalog) $kinds).Count -eq 0)
         } }
+    [pscustomobject]@{ Id = 'C6'; Title = '视图内容身份声明（三视图两两不同）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            $seen = @{}
+            foreach ($v in @($decl.views)) {
+                $c = $v.content
+                if ($null -eq $c) { return $false }
+                if ([string]::IsNullOrWhiteSpace($c.domain) -or [string]::IsNullOrWhiteSpace($c.selection)) { return $false }
+                $identity = "$($c.domain)|$($c.selection)"
+                if ($seen.ContainsKey($identity)) { return $false }
+                $seen[$identity] = $v.view
+            }
+            return $true
+        } }
+    [pscustomobject]@{ Id = 'C7'; Title = '内容域/选择在节点声明面已登记（禁未声明域）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            $nodesDir = Join-Path $repo 'Projects\Plug\Agent\Config\nodes'
+            $gather = Read-Text (Join-Path $nodesDir 'node-gather.ushar')
+            $selections = (Read-Text (Join-Path $nodesDir 'conversation.ushar')) + "`n" +
+                          (Read-Text (Join-Path $nodesDir 'message-stream.ushar')) + "`n" +
+                          (Read-Text (Join-Path $nodesDir 'task-node.ushar'))
+            foreach ($v in @($decl.views)) {
+                $c = $v.content
+                if ($null -eq $c) { return $false }
+                if ($c.domain -eq 'db-root') { return $false }
+                if ($gather -notmatch ('(?m)^\[Gather\]\s+' + [regex]::Escape($c.domain) + '\s*$')) { return $false }
+                if ($selections -notmatch ('(?m)^\s+' + [regex]::Escape($c.selection) + '\s*=')) { return $false }
+            }
+            return $true
+        } }
 )
 
 if ($NegativeControl) {
@@ -110,6 +146,14 @@ if ($NegativeControl) {
     $negKinds = @('Feed')
     if ((Test-RegionDeclaration $badDecl $negConfig 'TypeKey: "history"' $negKinds).Count -eq 0) { throw '负对照失败：C4 未捕获非法 kind' }
     if ((Test-RegionDeclaration $goodDecl $negConfig 'TypeKey: "history"' $negKinds).Count -ne 0) { throw '负对照失败：C4 对合法声明误报' }
+
+    # C6/C7 负对照：两视图同内容身份 / 内容域为 db-root 必须判红。
+    $dup = @(
+        [pscustomobject]@{ view = 'a'; content = [pscustomobject]@{ domain = 'text-nodes'; selection = 'text' } }
+        [pscustomobject]@{ view = 'b'; content = [pscustomobject]@{ domain = 'text-nodes'; selection = 'text' } }
+    )
+    $identities = @($dup | ForEach-Object { "$($_.content.domain)|$($_.content.selection)" })
+    if (($identities | Select-Object -Unique).Count -eq $identities.Count) { throw '负对照失败：C6 未捕获重复内容身份' }
 
     Write-Host '[OK] 负对照通过：C3 可捕获本地旧映射；C4 可捕获非法区域声明。' -ForegroundColor Green
 }

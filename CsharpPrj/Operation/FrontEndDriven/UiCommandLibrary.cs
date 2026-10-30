@@ -24,7 +24,7 @@ namespace FrontEndDriven;
 [FunctionLibrary]
 public static class UiCommandLibrary
 {
-    /// <summary>缺省执行器（可经 <see cref="Configure"/> 由宿主替换；默认值仅为向后兼容的装配缺省）。</summary>
+    /// <summary>缺省执行器（宿主经 <see cref="Configure"/> 注入；默认值 = 既有装配缺省，属登记债务 A1-DEBT）。</summary>
     public static string DefaultExecutor { get; private set; } = "AgentUi_RunJson";
 
     /// <summary>宿主装配期覆盖缺省执行器（消除通用命令库对具体插件函数的硬编码）。</summary>
@@ -49,12 +49,14 @@ public static class UiCommandLibrary
             "通用：模板 id（分类/文件名，- = 空模板）+ JSON 输入 → 请求体文本（输入对象合并覆盖模板，纯文本包为 input 键）");
 
         registry.Register("Ui_RunRequest",
-            (Func<string, Task<string>>)(requestJson => RunRequestAsync(requestJson, DefaultExecutor)),
+            (Func<string, Task<string>>)(requestJson => string.IsNullOrWhiteSpace(DefaultExecutor)
+                ? Task.FromResult("未装配缺省执行器：宿主须调用 UiCommandLibrary.Configure(<executor>)")
+                : RunRequestAsync(requestJson, DefaultExecutor)),
             new IParamConfig[]
             {
                 new ParameterDescriptor { Name = "requestJson", Type = typeof(string) },
             },
-            $"通用：请求体文本 → 缺省执行器（{DefaultExecutor}）执行，返回输出");
+            "通用：请求体文本 → 缺省执行器（宿主配置）执行，返回输出");
 
         registry.Register("Ui_RunRequestEx",
             (Func<string, string, Task<string>>)((requestJson, executor) => RunRequestAsync(requestJson, executor)),

@@ -324,26 +324,30 @@ public static class ConsoleHtmlKit
 
     private static Dictionary<string, object?> DrawerModel(ConsolePageModel model, ConsoleTemplateSet set)
     {
+        ConsoleDrawerSpec? current = null;
+        foreach (var spec in model.Drawers)
+        {
+            if (string.Equals(spec.Key, model.Drawer, StringComparison.OrdinalIgnoreCase)) current = spec;
+        }
+
         var tabs = new List<object?>();
-        foreach (var (key, label) in new[] { ("history", "历史"), ("graph", "结构图"), ("diag", "诊断") })
+        foreach (var spec in model.Drawers)
         {
             tabs.Add(set.Catalog.Apply("tabRow", Model(
-                ("key", key),
-                ("label", label),
+                ("key", spec.Key),
+                ("label", spec.Label),
                 ("current", model.Drawer),
-                ("payload", Payload("drawer.open", ("drawer", key))))));
+                ("payload", Payload("drawer.open", ("drawer", spec.Key))))));
         }
 
         var drawer = model.Drawer;
         var data = Model(
             ("drawer", drawer),
             ("tabs", tabs),
-            ("isHistory", Flag(string.Equals(drawer, "history", StringComparison.OrdinalIgnoreCase))),
-            ("isGraph", Flag(string.Equals(drawer, "graph", StringComparison.OrdinalIgnoreCase))),
-            ("isDiag", Flag(string.Equals(drawer, "diag", StringComparison.OrdinalIgnoreCase))),
-            ("isNone", Flag(!string.Equals(drawer, "history", StringComparison.OrdinalIgnoreCase)
-                            && !string.Equals(drawer, "graph", StringComparison.OrdinalIgnoreCase)
-                            && !string.Equals(drawer, "diag", StringComparison.OrdinalIgnoreCase))),
+            ("isHistory", Flag(current?.Kind == DrawerKind.Container)),
+            ("isGraph", Flag(current?.Kind == DrawerKind.Graph)),
+            ("isDiag", Flag(current?.Kind == DrawerKind.Text)),
+            ("isNone", Flag(current is null)),
             ("graphBody", model.GraphSvg ?? "<div class=\"pcx-hint\">无结构图数据</div>"),
             ("diagText", model.DrawerText ?? "(无诊断)"),
             ("closePayload", Payload("drawer.open", ("drawer", "none"))));

@@ -23,8 +23,8 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// <typeparam name="TSnapshot">本拍渲染输入快照（引用类型）。</typeparam>
 public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
 {
-    /// <summary>区域渲染委托：快照 + 受控展开键 → 区域片段（区域键 → HTML）。</summary>
-    public delegate Task<IReadOnlyDictionary<string, string>> RegionRenderer(
+    /// <summary>区域渲染委托：快照 + 受控展开键 → 区域**节点**（区域键 → 节点树）。</summary>
+    public delegate Task<IReadOnlyDictionary<string, UiNode>> RegionRenderer(
         TSnapshot snapshot, IReadOnlyList<string>? openKeys, CancellationToken ct);
 
     /// <summary>易变叶子计划委托：快照 → 叶子写计划（null = 无定点计划）。</summary>
@@ -59,7 +59,7 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         Action<string, Exception>? onFailure = null,
         string streamRegionPrefix = HtmlPageRegionLayout.StreamSectionPrefix,
         // 流目标 DOM 名 = 壳体容器名（region-bubbles）；曾与段键前缀 "bubbles:" 混用 ⇒ 目标恒 NOT_FOUND（failed=[bubbles]）。
-        string streamName = HtmlShellProjector.RegionNamePrefix + "bubbles")
+        string streamName = $"{HtmlShellProjector.RegionNamePrefix}bubbles")
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));
@@ -123,7 +123,7 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
             return heartbeatLeaves is null ? RenderOutput.Skip : Done(AsTick(heartbeatLeaves));
         }
 
-        IReadOnlyDictionary<string, string> regions;
+        IReadOnlyDictionary<string, UiNode> regions;
         try
         {
             regions = await _renderRegions(snapshot, openKeys, ct).ConfigureAwait(false);
@@ -142,16 +142,18 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         var streamItems = new List<UiStreamItem>();
         foreach (var region in regions)
         {
-            if (!Changed(_regionSlotPrefix + region.Key, _hash(region.Value), commits)) continue;
+            if (!Changed(_regionSlotPrefix + region.Key, _hash(FragmentSerializer.Serialize(region.Value)), commits)) continue;
             if (region.Key.StartsWith(_streamRegionPrefix, StringComparison.Ordinal))
             {
                 // 流段（气泡）：同键 ⇒ 定点更新；新键 ⇒ 按流序插入（方向由载荷声明 = OldestFirst）。
-                streamItems.Add(new UiStreamItem(region.Key.Substring(_streamRegionPrefix.Length), region.Value));
+                streamItems.Add(new UiStreamItem(
+                    region.Key.Substring(_streamRegionPrefix.Length), FragmentSerializer.Serialize(region.Value)));
                 continue;
             }
 
-            var parsed = UiStateBinder.Bind(HtmlNodeParser.Parse(region.Value), openKeys);
-            trees.Add(new UiWriteTarget(_regionNamePrefix + region.Key, parsed));
+            // 节点直绑（不再把 HTML 解析回树：渲染产物本身即节点）。
+            var bound = UiStateBinder.Bind(region.Value, openKeys);
+            trees.Add(new UiWriteTarget(_regionNamePrefix + region.Key, bound));
         }
 
         var streams = new List<UiWriteTarget>(1);
@@ -189,7 +191,7 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
     {
         if (plan.Kind != UiWriteKind.Leaf)
             throw new InvalidOperationException(
-                $"Tick 计划只允许 Leaf 动词（实际={plan.Kind}；区域/树/流目标禁入 Tick 路径）");
+                $"Tick plan allows Leaf verb only (actual={plan.Kind}); region/tree/stream targets are not allowed on Tick path");
         return RenderOutput.Write(plan with { Source = UiWriteSource.Tick });
     }
 

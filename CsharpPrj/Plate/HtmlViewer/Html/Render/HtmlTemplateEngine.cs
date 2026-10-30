@@ -1,9 +1,11 @@
 #nullable enable
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
@@ -50,6 +52,78 @@ public static class HtmlTemplateEngine
         var sb = new StringBuilder(template.Length);
         RenderNodes(ParseWhole(template), templates, model ?? EmptyModel, sb);
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 渲染命名模板为**节点树**（与 <see cref="Render"/> 共用同一解析器与解析缓存，禁第二套模板解析）。
+    /// <para>语义与 <see cref="Render"/> 逐条一致：文本/绑定 → 文本节点（序列化时统一转义）；
+    /// <c>{#each}</c>/<c>{?}</c>/<c>{&gt;partial}</c> 同构展开。<c>|raw</c> 在节点出口按文本处理
+    /// （节点树不承载原文片段；会话模板已无 <c>|raw</c>，壳文档仍走 <see cref="Render"/>）。</para>
+    /// </summary>
+    /// <param name="templates">模板集。</param>
+    /// <param name="name">模板名。</param>
+    /// <param name="model">行数据模型。</param>
+    /// <param name="fallback">模板缺失时的回退节点（null ⇒ 空）。</param>
+    public static IReadOnlyList<UiNode> RenderToNodes(
+        IReadOnlyDictionary<string, string> templates,
+        string name,
+        IReadOnlyDictionary<string, object?>? model,
+        IReadOnlyList<UiNode>? fallback = null)
+    {
+        if (templates is null || !templates.TryGetValue(name, out var tpl) || string.IsNullOrWhiteSpace(tpl))
+            return fallback ?? Array.Empty<UiNode>();
+        return RenderTemplateToNodes(tpl, templates, model);
+    }
+
+    /// <summary>渲染模板字符串为节点树（唯一入口：<see cref="RenderToNodes"/> 的下层）。</summary>
+    /// <param name="template">模板原文。</param>
+    /// <param name="templates">模板集（供 partial 解析，可 null）。</param>
+    /// <param name="model">行数据模型。</param>
+    public static IReadOnlyList<UiNode> RenderTemplateToNodes(
+        string template,
+        IReadOnlyDictionary<string, string>? templates,
+        IReadOnlyDictionary<string, object?>? model)
+    {
+        if (string.IsNullOrEmpty(template)) return Array.Empty<UiNode>();
+        var nodes = new List<UiNode>();
+        RenderNodesTo(ParseWhole(template), templates, model ?? EmptyModel, nodes);
+        return nodes;
+    }
+
+    /// <summary>节点渲染（与 <see cref="RenderNodes"/> 同构；输出节点列表而非字符串）。</summary>
+    private static void RenderNodesTo(
+        List<Node> nodes,
+        IReadOnlyDictionary<string, string>? templates,
+        IReadOnlyDictionary<string, object?> model,
+        List<UiNode> output)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case TextNode t:
+                    if (t.Text.Length > 0) output.Add(UiNode.TextNode(t.Text));
+                    break;
+                case BindingNode b:
+                    var val = Get(model, b.Field);
+                    if (val is not null) output.Add(UiNode.TextNode(val));
+                    break;
+                case EachNode e:
+                    if (TryGetList(model, e.ListName, out var list))
+                    {
+                        foreach (var item in list)
+                            RenderNodesTo(e.Children, templates, ToModel(item), output);
+                    }
+                    break;
+                case CondNode c:
+                    RenderNodesTo(EvalCond(model, c.Cond) ? c.If : c.Else, templates, model, output);
+                    break;
+                case NamedNode nn:
+                    if (templates is not null && templates.TryGetValue(nn.Name, out var childTpl))
+                        RenderNodesTo(ParseWhole(childTpl), templates, model, output);
+                    break;
+            }
+        }
     }
 
     /// <summary>整段模板解析（结果缓存，避免反复解析同一模板）。</summary>

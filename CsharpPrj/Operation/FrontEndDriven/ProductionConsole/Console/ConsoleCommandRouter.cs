@@ -103,6 +103,27 @@ public sealed class ConsoleRouterOptions
 
     /// <summary>最近任务条数。</summary>
     public int RecentJobs { get; set; } = 30;
+
+    /// <summary>抽屉声明（渲染 tab 与内容分支的唯一来源；宿主可整体替换）。</summary>
+    public IReadOnlyList<ConsoleDrawerSpec> Drawers { get; set; } = DefaultDrawers;
+
+    /// <summary>插件命令别名 → 框架通用命令（框架内置通用名，领域命令名由别名表接入）。</summary>
+    public IReadOnlyDictionary<string, string> CommandAliases { get; set; } = DefaultCommandAliases;
+
+    /// <summary>默认抽屉声明（容器分页 / 结构图 / 诊断文本）。</summary>
+    public static readonly IReadOnlyList<ConsoleDrawerSpec> DefaultDrawers = new[]
+    {
+        new ConsoleDrawerSpec("history", "历史", DrawerKind.Container),
+        new ConsoleDrawerSpec("graph", "结构图", DrawerKind.Graph),
+        new ConsoleDrawerSpec("diag", "诊断", DrawerKind.Text),
+    };
+
+    /// <summary>默认命令别名（历史查询 → 通用容器查询）。</summary>
+    public static readonly IReadOnlyDictionary<string, string> DefaultCommandAliases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["history.query"] = "container.query",
+        };
 }
 
 /// <summary>
@@ -171,7 +192,8 @@ public sealed class ConsoleCommandRouter
             : await _artifacts.MaterializeAsync(selected, ct).ConfigureAwait(false);
 
         PagedResult<JobSnapshot>? history = null;
-        if (string.Equals(State.Drawer, "history", StringComparison.OrdinalIgnoreCase))
+        var drawerSpec = FindDrawer(State.Drawer);
+        if (drawerSpec?.Kind == DrawerKind.Container)
             history = _history.Query(new ContainerQuery
             {
                 CapabilityId = null,
@@ -180,16 +202,17 @@ public sealed class ConsoleCommandRouter
                 PageSize = 20,
             });
 
-        var graph = string.Equals(State.Drawer, "graph", StringComparison.OrdinalIgnoreCase) && State.CapabilityId is not null
+        var graph = drawerSpec?.Kind == DrawerKind.Graph && State.CapabilityId is not null
             ? _options.GraphProvider?.Invoke(State.CapabilityId)
             : null;
 
         string? diag = null;
-        if (string.Equals(State.Drawer, "diag", StringComparison.OrdinalIgnoreCase) && _options.Diagnose is not null)
+        if (drawerSpec?.Kind == DrawerKind.Text && _options.Diagnose is not null)
             diag = await _options.Diagnose().ConfigureAwait(false);
 
         return new ConsolePageModel
         {
+            Drawers = _options.Drawers,
             Capabilities = capabilities,
             SelectedCapabilityId = State.CapabilityId,
             FormValues = new Dictionary<string, object?>(State.FormValues, StringComparer.Ordinal),
@@ -234,7 +257,12 @@ public sealed class ConsoleCommandRouter
         if (_custom.TryGetValue(command.Cmd, out var handler))
             return await handler(command, ct).ConfigureAwait(false);
 
-        switch (command.Cmd.Trim().ToLowerInvariant())
+        var cmd = ResolveCommandName(command.Cmd);
+        if (!string.Equals(cmd, command.Cmd, StringComparison.OrdinalIgnoreCase)
+            && _custom.TryGetValue(cmd, out var aliasHandler))
+            return await aliasHandler(command, ct).ConfigureAwait(false);
+
+        switch (cmd.ToLowerInvariant())
         {
             case "cap.select":
             {
@@ -399,9 +427,9 @@ public sealed class ConsoleCommandRouter
                 return await RenderAsync(new[] { ConsoleRegions.Drawer }, ct).ConfigureAwait(false);
             }
 
-            case "history.query":
+            case "container.query":
             {
-                State.Drawer = "history";
+                State.Drawer = _options.Drawers.FirstOrDefault(d => d.Kind == DrawerKind.Container)?.Key ?? "none";
                 // 筛选值既可走显式 Filter 字段，也可由页面 collect() 以 params.filter 回传。
                 var filter = command.Filter;
                 if (filter is null && command.Params is not null
@@ -539,13 +567,23 @@ public sealed class ConsoleCommandRouter
             ? null
             : capabilities.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    private static string NormalizeDrawer(string? drawer) => (drawer ?? "none").Trim().ToLowerInvariant() switch
+    /// <summary>命令名归一：别名 → 框架通用命令（领域命令名不进入框架 switch）。</summary>
+    private string ResolveCommandName(string cmd)
     {
-        "history" => "history",
-        "graph" => "graph",
-        "diag" => "diag",
-        _ => "none",
-    };
+        var key = (cmd ?? string.Empty).Trim();
+        return _options.CommandAliases.TryGetValue(key, out var mapped) && !string.IsNullOrWhiteSpace(mapped)
+            ? mapped.Trim()
+            : key;
+    }
+
+    /// <summary>归一抽屉键：仅接受声明面已声明的键，其余 → none（未知抽屉不得静默成为内容分支）。</summary>
+    private string NormalizeDrawer(string? drawer) => FindDrawer(drawer)?.Key ?? "none";
+
+    /// <summary>按声明查抽屉（none/空 ⇒ null）。</summary>
+    private ConsoleDrawerSpec? FindDrawer(string? key)
+        => string.IsNullOrWhiteSpace(key) || string.Equals(key, "none", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : _options.Drawers.FirstOrDefault(d => string.Equals(d.Key, key.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static string Unwrap(string payloadJson)
     {

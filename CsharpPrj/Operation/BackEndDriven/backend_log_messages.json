@@ -133,16 +133,6 @@
       "category": "BackEndDriven_Execution",
       "template": "[Command] 位置匹配: target={target}, expected=({expectedX},{expectedY}), actual=({actualX},{actualY})"
     },
-    "Command_Validate_NotMounted": {
-      "level": "Warning",
-      "category": "BackEndDriven_Execution",
-      "template": "[Command] validate 失败: 控件存在但未挂载到可见窗体（孤儿控件）— target={target}, note={note}"
-    },
-    "Command_Validate_Fallback_PoolExistence": {
-      "level": "Warning",
-      "category": "BackEndDriven_Execution",
-      "template": "[Command] validate 池直查降级（控件未挂载到可见窗体树）: target={target}, note={note}"
-    },
     "Command_Validate_Mount_Success": {
       "level": "Debug",
       "category": "BackEndDriven_Execution",
@@ -152,6 +142,11 @@
       "level": "Debug",
       "category": "BackEndDriven_Execution",
       "template": "[Command] 容器断言通过: hostName={hostName}, actual={actual}, expected={expected}"
+    },
+    "Command_Assertion_Diagnosis": {
+      "level": "Warning",
+      "category": "BackEndDriven_Execution",
+      "template": "[Command] 断言诊断失败: command={command}, kind={kind}, target={target}, host={host}, expected={expected}, actual={actual}, mountState={mountState}, candidates={candidates} — {message}"
     },
     "Command_Assert_EventBound": {
       "level": "Debug",

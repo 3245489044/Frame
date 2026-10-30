@@ -16,11 +16,17 @@ namespace FrontEndDriven.HtmlHosting;
 public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposable, IAsyncDisposable
 {
     private readonly UiCommandQueue _queue;
+    private readonly ICommandPriorityRegistry _priorities;
     private long _generation;
     private int _disposed;
 
-    public HostMessageCommandScheduler(UiCommandQueue? queue = null)
-        => _queue = queue ?? new UiCommandQueue();
+    public HostMessageCommandScheduler(
+        UiCommandQueue? queue = null,
+        ICommandPriorityRegistry? priorities = null)
+    {
+        _queue = queue ?? new UiCommandQueue();
+        _priorities = priorities ?? DefaultCommandPriorityRegistry.Instance;
+    }
 
     /// <summary>底层队列（指标/诊断只读）。</summary>
     public UiCommandQueue Queue => _queue;
@@ -44,14 +50,8 @@ public sealed class HostMessageCommandScheduler : IWebMessageScheduler, IDisposa
         return _queue.Enqueue(command);
     }
 
-    /// <summary>命令 → 优先级（显式表；表外命令按 <see cref="UiCommandPriority.Interactive"/>：未知命令不得被后台合并/延迟）。</summary>
-    private static UiCommandPriority PriorityOf(string kind) => kind.ToLowerInvariant() switch
-    {
-        "refresh" => UiCommandPriority.Refresh,
-        "selecttask" or "selecthistory" or "selecttype" or "selectnode" => UiCommandPriority.Interactive,
-        "tick" or "update" or "message" or "stream" => UiCommandPriority.Background,
-        _ => UiCommandPriority.Interactive,
-    };
+    /// <summary>命令 → 优先级（查注册表；未注册 ⇒ Interactive：未知命令不得被后台合并/延迟）。</summary>
+    private UiCommandPriority PriorityOf(string kind) => _priorities.Resolve(kind);
 
     /// <summary>同步释放：只停止接收并请求取消，**不等待** worker（禁在 UI 线程阻塞）；异步宿主用 <see cref="DisposeAsync"/>。</summary>
     public void Dispose()

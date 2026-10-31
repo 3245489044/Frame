@@ -27,13 +27,15 @@ public static class DataEdgeKinds
 /// </para>
 /// 权威: Frame\DataCenter\Doc\DataCenter-工作流数据产品图框架-设计与实施.md §3.3/§3.4。
 /// </summary>
-/// <param name="EdgeId">边规范键（层内唯一；确定性形态 <c>{from}|{kind}|{to}</c>）。</param>
+/// <param name="EdgeId">边规范键（层内唯一；确定性形态 <c>{from}|{kind}|{to}</c>，带标签时为 <c>{from}|{kind}|{to}|{label}</c>）。</param>
 /// <param name="FromProductId">源产品。</param>
 /// <param name="FromFields">源字段路径（字段级血缘的起点；空 = 产品级依赖）。</param>
 /// <param name="ToProductId">目标产品。</param>
 /// <param name="ToFields">目标字段路径（须 ⊆ 目标产品出字段）。</param>
 /// <param name="EdgeKind">边种类（<see cref="DataEdgeKinds"/>）。</param>
 /// <param name="Assertion">断言强度（必填，DP4）。</param>
+/// <param name="Label">边标签（同一 (端点, 边族) 上的多重关系区分键；null = 无标签，边键形态保持旧口径）。</param>
+/// <param name="Properties">边属性（声明面结构事实，键序无语义；null = 无属性）。</param>
 public sealed record DataDependencyEdge(
     string EdgeId,
     string FromProductId,
@@ -41,4 +43,6 @@ public sealed record DataDependencyEdge(
     string ToProductId,
     IReadOnlyList<string> ToFields,
     string EdgeKind,
-    DependencyAssertion Assertion);
+    DependencyAssertion Assertion,
+    string? Label = null,
+    IReadOnlyDictionary<string, string?>? Properties = null);

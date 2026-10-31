@@ -63,4 +63,10 @@ public sealed class DataCenterHostOptions
 
     /// <summary>图查询面覆盖（null = Core 的 GraphQuery）。</summary>
     public IGraphQuery? GraphQuery { get; init; }
+
+    /// <summary>
+    /// 图查询面**装饰器**（null = 不装饰）—— 通用扩展点：宿主可挂「读即追踪」（<c>ProvenanceTappedQuery</c>）/
+    /// 缓存/诊断等装饰，而不必自建第二份查询实现（禁在 Hosting 内硬编码具体装饰）。
+    /// </summary>
+    public Func<IGraphQuery, IGraphQuery>? GraphQueryDecorator { get; init; }
 }

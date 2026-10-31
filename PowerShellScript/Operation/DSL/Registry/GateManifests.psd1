@@ -1882,6 +1882,14 @@
         Note   = '图边声明完整性：必需边五字段齐备（identity/tombstone/unique/revive/cascade）+ 受控词 + 规则动作受控；负对照删字段/越界动作必红；基线 Baselines\Data\GraphDeclarationParity.psd1'
     }
 
+    RelationGraphParity = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '关系图三方对账：ensure 关系的 edge 已声明 + 每条 ensure 有 [Mount] 绑定 + Mount 反向不悬空 + stage/family/posture/order 受控 + Derive via 边已声明；负对照删 [Mount]/换未声明边必红；基线 Baselines\Data\RelationGraphParity.psd1'
+    }
+
     GraphTombstoneRead = @{
         Domain = 'Data'
         Args   = @{ Check = $true; NegativeControl = $true }

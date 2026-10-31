@@ -36,6 +36,7 @@ public sealed class DataCenterHost : IAsyncDisposable
     private readonly IProvenanceStore _provenance;
     private readonly IGraphProjector? _graphProjectorOverride;
     private readonly IGraphQuery? _graphQueryOverride;
+    private readonly Func<IGraphQuery, IGraphQuery>? _graphQueryDecorator;
 
     private IDataCenterRoot _root;
     private IStateGeneration _generation;
@@ -71,6 +72,7 @@ public sealed class DataCenterHost : IAsyncDisposable
         _provenance = provenance;
         _graphProjectorOverride = options.GraphProjector;
         _graphQueryOverride = options.GraphQuery;
+        _graphQueryDecorator = options.GraphQueryDecorator;
     }
 
     /// <summary>整体数据流持有者（当前代数根）。</summary>
@@ -145,9 +147,12 @@ public sealed class DataCenterHost : IAsyncDisposable
             var provenance = options.Provenance ?? new ProvenanceStore();
 
             // 单根守卫在此隐式生效：已存在存活根 → 构造抛错（不产生第二根）
+            var graph = CreateGraphProjector(options.GraphProjector, graphSchema, graphStore, provenance);
+            var query = CreateQuery(graphSchema, graphStore, provenance, options.Generation,
+                options.GraphQuery, options.GraphQueryDecorator);
             var root = new DataCenterRoot(
                 cell, projector, options.Registry, options.Generation, slots,
-                graphSchema, graphStore, options.GraphProjector, provenance, options.GraphQuery);
+                graphSchema, graphStore, graph, provenance, query);
 
             var provider = new HostRootProvider();
             provider.Bind(root);
@@ -363,6 +368,25 @@ public sealed class DataCenterHost : IAsyncDisposable
         => projectorOverride
            ?? new TierStateProjector(new StateCenterEntrySource(center), registry, codec, generation);
 
+    /// <summary>图投影器装配单一工厂（Boot 与换代共用；null = Core 的 <see cref="LineageProjector"/>）。</summary>
+    private static IGraphProjector CreateGraphProjector(
+        IGraphProjector? projectorOverride, IGraphSchemaRegistry schema, IGraphStore store, IProvenanceStore provenance)
+        => projectorOverride ?? new LineageProjector(schema, store, provenance);
+
+    /// <summary>
+    /// 图查询面装配单一工厂（Boot 与换代共用）：覆盖优先 → 否则 Core <see cref="GraphQuery"/>；
+    /// 最后统一应用**通用装饰器**（读即追踪 / 缓存 / 诊断），禁在装配处硬编码具体装饰。
+    /// </summary>
+    private static IGraphQuery CreateQuery(
+        IGraphSchemaRegistry schema, IGraphStore store, IProvenanceStore provenance,
+        IStateGeneration generation, IGraphQuery? queryOverride,
+        Func<IGraphQuery, IGraphQuery>? decorator)
+    {
+        var query = queryOverride
+                    ?? new GraphQuery(schema, store, provenance, new RecomputePlanner(schema, provenance), generation);
+        return decorator?.Invoke(query) ?? query;
+    }
+
     /// <summary>
     /// 核心装配路径根（默认 ALC；复用当前真源/投影器/槽，目标代际为 <paramref name="generation"/>）。
     /// 供宿主在 <see cref="DataCenterHostOptions.RootFactory"/> 内<b>复用同一装配口径</b>（T3/F-02：
@@ -382,10 +406,9 @@ public sealed class DataCenterHost : IAsyncDisposable
     {
         // F-29：投影器构造单点（原实例版重载仅透传，已收敛）
         var projector = CreateProjector(_projectorOverride, _center, _registry, _codec, generation);
-        var graph = _graphProjectorOverride ?? new LineageProjector(_graphSchema, _graphStore, _provenance);
-        var query = _graphQueryOverride ?? new GraphQuery(
-            _graphSchema, _graphStore, _provenance,
-            new RecomputePlanner(_graphSchema, _provenance), generation);
+        var graph = CreateGraphProjector(_graphProjectorOverride, _graphSchema, _graphStore, _provenance);
+        var query = CreateQuery(_graphSchema, _graphStore, _provenance, generation,
+            _graphQueryOverride, _graphQueryDecorator);
 
         return new DataCenterRoot(
             _cell, projector, _registry, generation, _slots,

@@ -155,21 +155,35 @@ public sealed class LineageProjector : IGraphProjector
         },
     };
 
-    private static CanonicalEdge ToCanonicalEdge(DataDependencyEdge edge) => new()
+    private static CanonicalEdge ToCanonicalEdge(DataDependencyEdge edge)
     {
-        Id = edge.EdgeId,
-        SourceId = edge.FromProductId,
-        TargetId = edge.ToProductId,
-        Label = edge.EdgeKind,
-        Type = EdgeTypeOf(edge.EdgeKind),
-        Properties = new Dictionary<string, object?>(StringComparer.Ordinal)
+        // 键序固定 + 声明属性按 Ordinal 排序写入 ⇒ ToJson() 字节级幂等（V6）。
+        var properties = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["kind"] = edge.EdgeKind,
             ["assertion"] = DependencyAssertions.ToWire(edge.Assertion),
             ["fromFields"] = edge.FromFields.ToArray(),
             ["toFields"] = edge.ToFields.ToArray(),
-        },
-    };
+        };
+
+        if (!string.IsNullOrWhiteSpace(edge.Label)) properties["label"] = edge.Label;
+
+        if (edge.Properties is { Count: > 0 } declared)
+        {
+            foreach (var key in declared.Keys.OrderBy(k => k, StringComparer.Ordinal))
+                properties[key] = declared[key];
+        }
+
+        return new CanonicalEdge
+        {
+            Id = edge.EdgeId,
+            SourceId = edge.FromProductId,
+            TargetId = edge.ToProductId,
+            Label = edge.EdgeKind,
+            Type = EdgeTypeOf(edge.EdgeKind),
+            Properties = properties,
+        };
+    }
 
     private static CanonicalEdgeType EdgeTypeOf(string kind) => kind switch
     {

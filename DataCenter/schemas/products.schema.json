@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "数据产品台账标准（products.json）：第五本台账（ports/data/events/fakes 之后）。键 = 产品规范键；字段契约 inFields/outFields；幂等键 idempotencyKey 禁含 at/seq/round/timestamp。结构层由本 schema 闭合（关键字子集见 Plate.JsonMethod.Validation.JsonSchemaSubsetValidator：type/required/properties/additionalProperties/propertyNames.pattern/items/minProperties/enum/pattern/$ref/oneOf）；语义判据 C15–C17 见 DataCenter.Standards\\StandardConsistency。",
+  "title": "数据产品台账",
+  "type": "object",
+  "required": ["products"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "products": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["level", "role", "outFields", "idempotencyKey", "version", "compatibility"],
+        "properties": {
+          "level": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "role": { "type": "string", "enum": ["source", "transform", "derived"] },
+          "inFields": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+          "outFields": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/field" } },
+          "idempotencyKey": { "type": "string", "pattern": "^(?!.*\\b(at|seq|round|timestamp)\\b).+$" },
+          "version": { "type": "integer" },
+          "compatibility": { "type": "string", "enum": ["backward", "forward", "full", "breaking"] },
+          "migration": { "type": "string" },
+          "stage": { "type": "string", "enum": ["raw", "normalized", "derived"] },
+          "dependsOn": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$" },
+        "type": { "type": "string" },
+        "required": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

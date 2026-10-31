@@ -21,6 +21,9 @@ public static class StandardSchemas
     /// <summary>数据片段结构门文本。</summary>
     public static string Data => Read("data.schema.json");
 
+    /// <summary>数据产品台账结构门文本（第五本台账）。</summary>
+    public static string Products => Read("products.schema.json");
+
     private static string Read(string fileName)
         => ReadEmbedded($"DataCenter.Standards.Schemas.{fileName}");
 

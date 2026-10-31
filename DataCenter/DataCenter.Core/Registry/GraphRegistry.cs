@@ -50,22 +50,25 @@ public sealed class GraphRegistry : IStateRegistry
 
     /// <summary>默认节点种类（通用示例集）：状态值/分区锚点/追踪/通用产出。</summary>
     /// <remarks>
-    /// 域内种类（如域特有的记录/任务语义）由域扩展在装配期经 <see cref="WithNodeKinds"/> 登记（DF7：注册一行），
-    /// Core 保持通用、不出现域词汇（G1）。
+    /// G1：默认集<b>只留通用种类</b>；域内种类（如业务实体名）由域扩展在装配期经
+    /// <see cref="WithNodeKinds"/> 登记（DF7：注册一行）。Core 出现域词汇即违反模块规则。
     /// </remarks>
     public static IReadOnlyCollection<string> DefaultNodeKinds { get; } =
     [
-        "state.value", "state.scope", "state.trace", "task", "node.output", "resource",
+        "state.value", "state.scope", "state.trace", "data.product", "resource",
     ];
 
     /// <summary>默认边种类（示例集）：结构/因果/数据/引用/控制（分类决定 DF5 删除策略）。</summary>
+    /// <remarks>
+    /// G1：默认集不出现域词汇（如会话归属）；域侧装配期经 <see cref="WithEdgeKinds"/> 登记。
+    /// </remarks>
     public static IReadOnlyCollection<string> DefaultEdgeKinds { get; } =
     [
-        "structure.owns", "structure.session_owns", "structure.sequence",
+        "structure.owns", "structure.sequence",
         "causality.derives", "causality.invokes",
-        "data.cross_store", "data.keymap",
+        "data.derives", "data.aggregates", "data.cross_store", "data.keymap",
         "reference.exports", "reference.points_to",
-        "control.transition",
+        "control.sequence", "control.transition",
     ];
 
     /// <summary>分层标识（只读视图；F-32：原返回内部 HashSet，可被强转改写）。</summary>

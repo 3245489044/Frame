@@ -1,5 +1,7 @@
 using BasicMethod.Declarative.Ledger;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Standards;
+using System.Text.RegularExpressions;
 
 namespace DataCenter.Standards;
 
@@ -153,4 +155,104 @@ public static class StandardConsistency
         => name.Replace("_", string.Empty, StringComparison.Ordinal)
                .Replace("-", string.Empty, StringComparison.Ordinal)
                .ToUpperInvariant();
+
+    /// <summary>C15：产品版本单调 + 兼容性必填 + breaking 须带迁移声明。</summary>
+    internal static void CheckProductVersioning(IStandardCatalog catalog, StandardConsistencyOptions options, List<string> violations)
+    {
+        foreach (var product in catalog.Products)
+        {
+            var key = $"products:{product.ProductId}";
+
+            if (options.PreviousVersions is { } previous &&
+                previous.TryGetValue(key, out var known) &&
+                product.Version < known)
+            {
+                violations.Add($"C15 产品版本回退：products[{product.ProductId}].version {product.Version} < 上一快照 {known}");
+            }
+
+            if (string.IsNullOrWhiteSpace(product.Compatibility))
+            {
+                violations.Add($"C15 缺兼容性声明：products[{product.ProductId}].compatibility 必填（backward/forward/full/breaking）");
+                continue;
+            }
+
+            if (!IsKnownCompatibility(product.Compatibility))
+                violations.Add($"C15 兼容性取值非法：products[{product.ProductId}].compatibility='{product.Compatibility}'");
+
+            if (string.Equals(product.Compatibility, ProductCompatibility.Breaking, StringComparison.Ordinal) &&
+                string.IsNullOrWhiteSpace(product.Migration))
+            {
+                violations.Add($"C15 破坏性变更缺迁移声明：products[{product.ProductId}] compatibility=breaking 时 migration 必填");
+            }
+        }
+    }
+
+    /// <summary>C16：字段契约闭合（角色/层必填、出字段非空、非 source 须有入字段、字段名唯一非空）。</summary>
+    internal static void CheckProductFieldClosure(IStandardCatalog catalog, List<string> violations)
+    {
+        foreach (var product in catalog.Products)
+        {
+            var id = product.ProductId;
+
+            if (string.IsNullOrWhiteSpace(product.LevelId))
+                violations.Add($"C16 产品缺层级引用：products[{id}].level 必填");
+            if (!IsKnownRole(product.Role))
+                violations.Add($"C16 角色取值非法：products[{id}].role='{product.Role}'（source/transform/derived）");
+            if (product.OutFields.Count == 0)
+                violations.Add($"C16 出字段为空：products[{id}].outFields 必非空（对外承诺）");
+            if (!string.Equals(product.Role, ProductRoles.Source, StringComparison.Ordinal) && product.InFields.Count == 0)
+                violations.Add($"C16 入字段为空：products[{id}].inFields 必非空（role={product.Role}）");
+
+            ReportFieldNames($"products[{id}].inFields", product.InFields, violations);
+            ReportFieldNames($"products[{id}].outFields", product.OutFields, violations);
+        }
+    }
+
+    /// <summary>C17：幂等键必填且不含易变分量（at / seq / round / timestamp）。</summary>
+    internal static void CheckProductIdempotency(IStandardCatalog catalog, List<string> violations)
+    {
+        foreach (var product in catalog.Products)
+        {
+            if (string.IsNullOrWhiteSpace(product.IdempotencyKey))
+            {
+                violations.Add($"C17 缺幂等键：products[{product.ProductId}].idempotencyKey 必填");
+                continue;
+            }
+
+            if (VolatileKeyPattern.IsMatch(product.IdempotencyKey))
+            {
+                violations.Add(
+                    $"C17 幂等键含易变分量：products[{product.ProductId}].idempotencyKey='{product.IdempotencyKey}'（禁 at/seq/round/timestamp）");
+            }
+        }
+    }
+
+    private static readonly Regex VolatileKeyPattern =
+        new(@"\b(at|seq|round|timestamp)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static bool IsKnownRole(string role)
+        => string.Equals(role, ProductRoles.Source, StringComparison.Ordinal)
+           || string.Equals(role, ProductRoles.Transform, StringComparison.Ordinal)
+           || string.Equals(role, ProductRoles.Derived, StringComparison.Ordinal);
+
+    private static bool IsKnownCompatibility(string compatibility)
+        => string.Equals(compatibility, ProductCompatibility.Backward, StringComparison.Ordinal)
+           || string.Equals(compatibility, ProductCompatibility.Forward, StringComparison.Ordinal)
+           || string.Equals(compatibility, ProductCompatibility.Full, StringComparison.Ordinal)
+           || string.Equals(compatibility, ProductCompatibility.Breaking, StringComparison.Ordinal);
+
+    private static void ReportFieldNames(string context, IReadOnlyList<FieldSpec> fields, List<string> violations)
+    {
+        foreach (var duplicate in fields
+                     .Select(f => f.Name)
+                     .GroupBy(n => n, StringComparer.Ordinal)
+                     .Where(g => g.Count() > 1)
+                     .Select(g => g.Key))
+        {
+            violations.Add($"C16 字段重名：{context} 含重复字段 '{duplicate}'");
+        }
+
+        if (fields.Any(f => string.IsNullOrWhiteSpace(f.Name)))
+            violations.Add($"C16 字段缺名：{context} 存在空字段名");
+    }
 }

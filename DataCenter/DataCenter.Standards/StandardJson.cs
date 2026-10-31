@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Standards;
 using Plate.JsonMethod.Utilities;
 using static Plate.JsonMethod.Utilities.JsonTolerantReader;
@@ -26,6 +27,58 @@ public static partial class StandardJson
     private static readonly string[] EventEntryKeys = ["entity", "carries", "required", "metrics", "enum", "scope", "version"];
     private static readonly string[] FakeTopKeys = ["$comment", "fakes"];
     private static readonly string[] FakeEntryKeys = ["kind", "seed", "version"];
+    private static readonly string[] ProductTopKeys = ["$comment", "products"];
+    private static readonly string[] ProductEntryKeys =
+        ["level", "role", "inFields", "outFields", "idempotencyKey", "version", "compatibility", "migration", "stage", "dependsOn"];
+
+    /// <summary>数据产品标准（<c>products</c> 段；产品键 Ordinal 升序）。第五本台账。</summary>
+    public static IReadOnlyList<DataProductSpec> ReadProducts(string productsJson)
+        => ParseRoot<DataProductSpec[]>(productsJson, root =>
+        {
+            EnsureKnownKeys("products.json", root, ProductTopKeys);
+            if (!TrySection(root, "products", out var products)) return [];
+
+            return products.EnumerateObject().Select(p =>
+            {
+                EnsureKnownKeys($"products.{p.Name}", p.Value, ProductEntryKeys);
+                return new DataProductSpec(
+                    p.Name,
+                    Text(p.Value, "level") ?? string.Empty,
+                    Text(p.Value, "role") ?? string.Empty,
+                    ReadFields(p.Value, "inFields"),
+                    ReadFields(p.Value, "outFields"),
+                    Text(p.Value, "idempotencyKey") ?? string.Empty,
+                    (int)(Number(p.Value, "version") ?? 1),
+                    Text(p.Value, "compatibility"),
+                    Text(p.Value, "stage"),
+                    Strings(p.Value, "dependsOn"),
+                    Text(p.Value, "migration"));
+            }).OrderBy(x => x.ProductId, StringComparer.Ordinal).ToArray();
+        });
+
+    /// <summary>字段契约数组（<c>inFields</c> / <c>outFields</c>）；缺失 = 空集（C16 判空缺）。</summary>
+    private static IReadOnlyList<FieldSpec> ReadFields(JsonElement entry, string key)
+    {
+        if (!entry.TryGetProperty(key, out var array) || array.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var fields = new List<FieldSpec>();
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+
+            var required = true;
+            if (item.TryGetProperty("required", out var flag) &&
+                (flag.ValueKind == JsonValueKind.True || flag.ValueKind == JsonValueKind.False))
+            {
+                required = flag.GetBoolean();
+            }
+
+            fields.Add(new FieldSpec(Text(item, "name") ?? string.Empty, Text(item, "type") ?? "any", required));
+        }
+
+        return fields;
+    }
 
     /// <summary>端口标准（<c>ports</c> 段；键 Ordinal 升序）。</summary>
     public static IReadOnlyList<PortStandard> ReadPorts(string portsJson)

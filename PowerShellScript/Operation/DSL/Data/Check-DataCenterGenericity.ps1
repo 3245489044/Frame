@@ -60,6 +60,12 @@ $wordAllowList = @(
         LinePattern = '"scope".*\bRound\b'
         Reason      = '存储作用域枚举值（Lease/Round/Session/Root）= 通用数据维度，与 Agent「轮次」语义无关；类型侧同源 = Frame\CsharpPrj\Strategy\Observability\HierarchySupport\DataScope（线格式字符串 "Round" 由 BoundaryContractProjection 反解）'
     }
+    [pscustomobject]@{
+        Word        = 'Round'
+        Path        = 'Frame\DataCenter\schemas\products.schema.json'
+        LinePattern = 'idempotencyKey'
+        Reason      = '幂等键禁用分量词表（C17 判据载体）：字面量即判据本体，与「轮次」语义无关'
+    }
 )
 
 $hits = [System.Collections.Generic.List[object]]::new()

@@ -1,4 +1,5 @@
 using DataCenter.Abstractions.Cells;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Generation;
 using DataCenter.Protocol.Projection;
 using DataCenter.Protocol.Registry;
@@ -47,4 +48,19 @@ public sealed class DataCenterHostOptions
 
     /// <summary>根单元名（诊断用）。</summary>
     public string RootCellName { get; init; } = "datacenter-root";
+
+    /// <summary>图模式声明（层/边族/产品/声明边）；null = 空声明（投影产出空图）。</summary>
+    public GraphSchemaSpec? GraphSchema { get; init; }
+
+    /// <summary>图事实只读端口（Adapter/域装配侧注入只读快照）；null = 空图。</summary>
+    public IGraphStore? GraphStore { get; init; }
+
+    /// <summary>运行期 provenance；null = 宿主新建（跨代复用同一实例，追溯不断链）。</summary>
+    public IProvenanceStore? Provenance { get; init; }
+
+    /// <summary>图投影器覆盖（null = Core 的 LineageProjector）。</summary>
+    public IGraphProjector? GraphProjector { get; init; }
+
+    /// <summary>图查询面覆盖（null = Core 的 GraphQuery）。</summary>
+    public IGraphQuery? GraphQuery { get; init; }
 }

@@ -1,3 +1,4 @@
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Standards;
 
 namespace DataCenter.Standards;
@@ -15,27 +16,33 @@ public sealed class StandardCatalog : IStandardCatalog
     private readonly Dictionary<string, DataStandardItem> _data;
     private readonly Dictionary<string, EventStandard> _events;
     private readonly Dictionary<string, FakeStandard> _fakes;
+    private readonly Dictionary<string, DataProductSpec> _products;
 
     private StandardCatalog(
         IReadOnlyList<PortStandard> ports,
         IReadOnlyList<DataStandardItem> data,
         IReadOnlyList<EventStandard> events,
         IReadOnlyList<FakeStandard> fakes,
+        IReadOnlyList<DataProductSpec> products,
         string portsJson,
         string? eventsJson,
-        string? fakesJson)
+        string? fakesJson,
+        string? productsJson)
     {
         Ports = ports;
         Data = data;
         Events = events;
         Fakes = fakes;
+        Products = products;
         PortsJson = portsJson;
         EventsJson = eventsJson;
         FakesJson = fakesJson;
+        ProductsJson = productsJson;
         _ports = ports.ToDictionary(p => p.Key, StringComparer.Ordinal);
         _data = data.ToDictionary(d => d.Key, StringComparer.Ordinal);
         _events = events.ToDictionary(e => e.Key, StringComparer.Ordinal);
         _fakes = fakes.ToDictionary(f => f.PortKey, StringComparer.Ordinal);
+        _products = products.ToDictionary(p => p.ProductId, StringComparer.Ordinal);
     }
 
     public IReadOnlyList<PortStandard> Ports { get; }
@@ -53,6 +60,12 @@ public sealed class StandardCatalog : IStandardCatalog
     /// <summary>替身台账原始 JSON（可为 null = 无仓库级默认替身）。</summary>
     public string? FakesJson { get; }
 
+    /// <summary>数据产品标准（第五本台账；产品键 Ordinal 升序）。</summary>
+    public IReadOnlyList<DataProductSpec> Products { get; }
+
+    /// <summary>产品台账原始 JSON（可为 null = 未提供产品台账）。</summary>
+    public string? ProductsJson { get; }
+
     /// <summary>端口键集合（Ordinal 升序）。</summary>
     public IReadOnlyList<string> PortKeys => Ports.Select(p => p.Key).ToArray();
 
@@ -63,15 +76,21 @@ public sealed class StandardCatalog : IStandardCatalog
     public IReadOnlyList<string> EventKeys => Events.Select(e => e.Key).ToArray();
 
     /// <summary>装载三本台账（<paramref name="portsJson"/> 必给：含 ports/data 两段）。</summary>
-    public static StandardCatalog Load(string portsJson, string? eventsJson = null, string? fakesJson = null)
+    public static StandardCatalog Load(
+        string portsJson,
+        string? eventsJson = null,
+        string? fakesJson = null,
+        string? productsJson = null)
         => new(
             StandardJson.ReadPorts(portsJson),
             StandardJson.ReadData(portsJson),
             eventsJson is null ? [] : StandardJson.ReadEvents(eventsJson),
             fakesJson is null ? [] : StandardJson.ReadFakes(fakesJson),
+            productsJson is null ? [] : StandardJson.ReadProducts(productsJson),
             portsJson,
             eventsJson,
-            fakesJson);
+            fakesJson,
+            productsJson);
 
     /// <summary>装载并校验（结构门 + 语义判据；失败即抛 <see cref="StandardViolationException"/>，阻塞装载）。</summary>
     /// <param name="validateSchema">是否先跑结构门（默认 true）；置 false 可单独回退结构校验。</param>
@@ -80,11 +99,12 @@ public sealed class StandardCatalog : IStandardCatalog
         string? eventsJson = null,
         string? fakesJson = null,
         StandardConsistencyOptions? options = null,
-        bool validateSchema = true)
+        bool validateSchema = true,
+        string? productsJson = null)
     {
-        var schemaViolations = validateSchema ? CollectSchemaViolations(portsJson, eventsJson, fakesJson) : [];
+        var schemaViolations = validateSchema ? CollectSchemaViolations(portsJson, eventsJson, fakesJson, productsJson) : [];
 
-        var catalog = Load(portsJson, eventsJson, fakesJson);
+        var catalog = Load(portsJson, eventsJson, fakesJson, productsJson);
         if (schemaViolations.Count == 0)
         {
             // 结构门全绿 → 走语义判据单一路径（文案与异常与迁移前逐字一致）
@@ -102,8 +122,12 @@ public sealed class StandardCatalog : IStandardCatalog
             violations);
     }
 
-    /// <summary>结构门违规收集（四本台账各按其内嵌 schema；无文本的台账跳过）。</summary>
-    private static List<string> CollectSchemaViolations(string portsJson, string? eventsJson, string? fakesJson)
+    /// <summary>结构门违规收集（五本台账各按其内嵌 schema；无文本的台账跳过）。</summary>
+    private static List<string> CollectSchemaViolations(
+        string portsJson,
+        string? eventsJson,
+        string? fakesJson,
+        string? productsJson)
     {
         var violations = new List<string>();
         violations.AddRange(StandardSchemaValidator.Validate(portsJson, StandardSchemas.Ports, "ports.json"));
@@ -111,6 +135,8 @@ public sealed class StandardCatalog : IStandardCatalog
             violations.AddRange(StandardSchemaValidator.Validate(eventsJson, StandardSchemas.Events, "events.json"));
         if (fakesJson is not null)
             violations.AddRange(StandardSchemaValidator.Validate(fakesJson, StandardSchemas.Fakes, "fakes.json"));
+        if (productsJson is not null)
+            violations.AddRange(StandardSchemaValidator.Validate(productsJson, StandardSchemas.Products, "products.json"));
 
         return violations;
     }
@@ -126,4 +152,7 @@ public sealed class StandardCatalog : IStandardCatalog
 
     /// <summary>取替身标准（未登记 → null）。</summary>
     public FakeStandard? FindFake(string portKey) => _fakes.GetValueOrDefault(portKey);
+
+    /// <summary>取数据产品标准（未登记 → null）。</summary>
+    public DataProductSpec? FindProduct(string productId) => _products.GetValueOrDefault(productId);
 }

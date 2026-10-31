@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DataCenter.Abstractions.Cells;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Generation;
 using DataCenter.Protocol.Projection;
 using DataCenter.Protocol.Registry;
@@ -37,6 +38,15 @@ public interface IDataCenterRoot : IDisposable
     /// 装配期注册、运行期只读；未装配槽的宿主返回只读空分区（不抛错、不接受注册）。
     /// </summary>
     IRuntimeSlot Slots { get; }
+
+    /// <summary>数据产品图投影（顶点 + 边双通道；只读派生，可重算）。</summary>
+    IGraphProjector Graph { get; }
+
+    /// <summary>图查询面（六问：子图/祖先后代/字段血缘/影响面/跨代 diff/追溯）。</summary>
+    IGraphQuery Query { get; }
+
+    /// <summary>运行期 provenance（observed 边 + 追溯盖章；与域写同事务调用）。</summary>
+    IProvenanceStore Provenance { get; }
 }
 
 /// <summary>

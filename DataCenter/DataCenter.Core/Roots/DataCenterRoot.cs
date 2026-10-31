@@ -1,4 +1,6 @@
 using DataCenter.Abstractions.Cells;
+using DataCenter.Core.Dataflow;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Generation;
 using DataCenter.Protocol.Projection;
 using DataCenter.Protocol.Registry;
@@ -22,6 +24,11 @@ public sealed class DataCenterRoot : IDataCenterRoot
     private readonly IStateRegistry _registry;
     private readonly IStateGeneration _generation;
     private readonly IRuntimeSlot _slots;
+    private readonly IGraphSchemaRegistry _graphSchema;
+    private readonly IGraphStore _graphStore;
+    private readonly IGraphProjector _graph;
+    private readonly IProvenanceStore _provenance;
+    private readonly IGraphQuery _query;
     private int _disposed;
 
     /// <param name="root">状态真源（端口；如 InMemoryDataCell 或 StorageCellAdapter）。</param>
@@ -29,18 +36,34 @@ public sealed class DataCenterRoot : IDataCenterRoot
     /// <param name="registry">类型/键注册表（装配期注册、运行期只读）。</param>
     /// <param name="generation">代际读口（初始 <see cref="GenerationState.Initial"/>）。</param>
     /// <param name="slots">运行时槽分区（根的另一半）；null = 未装配槽的宿主（只读空分区）。</param>
+    /// <param name="graphSchema">图模式注册表；null = 空声明（投影产出空图）。</param>
+    /// <param name="graphStore">图事实只读端口；null = 空图。</param>
+    /// <param name="graph">图投影器；null = 由本根按 schema/store/provenance 装配（单一装配口径）。</param>
+    /// <param name="provenance">运行期 provenance；null = 本根新建（调用方应在跨代场景显式注入以保连续）。</param>
+    /// <param name="query">图查询面；null = 由本根装配（影响面与重算计划同源）。</param>
     public DataCenterRoot(
         IDataCell root,
         IStateProjector projector,
         IStateRegistry registry,
         IStateGeneration generation,
-        IRuntimeSlot? slots = null)
+        IRuntimeSlot? slots = null,
+        IGraphSchemaRegistry? graphSchema = null,
+        IGraphStore? graphStore = null,
+        IGraphProjector? graph = null,
+        IProvenanceStore? provenance = null,
+        IGraphQuery? query = null)
     {
         _root = root ?? throw new ArgumentNullException(nameof(root));
         _projector = projector ?? throw new ArgumentNullException(nameof(projector));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _generation = generation ?? throw new ArgumentNullException(nameof(generation));
         _slots = slots ?? EmptyRuntimeSlot.Instance;
+
+        _graphSchema = graphSchema ?? GraphSchemaRegistry.Empty;
+        _graphStore = graphStore ?? DelegateGraphStore.Empty;
+        _provenance = provenance ?? new ProvenanceStore();
+        _graph = graph ?? new LineageProjector(_graphSchema, _graphStore, _provenance);
+        _query = query ?? new GraphQuery(_graphSchema, _graphStore, _provenance, new RecomputePlanner(_graphSchema, _provenance), _generation);
 
         // 单根：进入即断言（失败则本实例不成立，构造抛错）
         RootInstanceGuard.Enter();
@@ -89,6 +112,36 @@ public sealed class DataCenterRoot : IDataCenterRoot
         {
             ThrowIfDisposed();
             return _slots;
+        }
+    }
+
+    /// <summary>数据产品图投影（顶点 + 边双通道；只读派生）。</summary>
+    public IGraphProjector Graph
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _graph;
+        }
+    }
+
+    /// <summary>图查询面（六问；只读）。</summary>
+    public IGraphQuery Query
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _query;
+        }
+    }
+
+    /// <summary>运行期 provenance（observed 边 + 追溯盖章）。</summary>
+    public IProvenanceStore Provenance
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _provenance;
         }
     }
 

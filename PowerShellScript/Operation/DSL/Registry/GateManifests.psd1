@@ -526,6 +526,30 @@
         Expect = 0
     }
 
+    GraphSingleSource = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Expect = 0
+    }
+
+    EdgeAsVertex = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Expect = 0
+    }
+
+    FieldLineageClosure = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Expect = 0
+    }
+
+    ProductIdempotency = @{
+        Domain = 'Data'
+        Args   = @{ Check = $true }
+        Expect = 0
+    }
+
     DataContracts = @{
         Domain = 'Data'
         Args   = @{ Check = $true }

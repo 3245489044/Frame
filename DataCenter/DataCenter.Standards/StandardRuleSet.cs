@@ -29,6 +29,9 @@ internal static class StandardRuleSet
         new ProjectionRule(),
         new ProductFieldCoverageRule(),
         new ValueSourceRule(),
+        new ProductVersioningRule(options),
+        new ProductFieldClosureRule(),
+        new ProductIdempotencyRule(),
     ];
 }
 
@@ -176,4 +179,31 @@ internal sealed class ProductFieldCoverageRule : ILedgerRule<IStandardCatalog>
         foreach (var port in catalog.Ports)
             StandardImplConsistency.CheckC14ProductFieldCoverage(port, port.Impl, violations);
     }
+}
+
+/// <summary>C15 产品版本单调 + 兼容性声明（第五本台账）。</summary>
+internal sealed class ProductVersioningRule(StandardConsistencyOptions options) : ILedgerRule<IStandardCatalog>
+{
+    public string Code => "C15";
+
+    public void Check(IStandardCatalog catalog, List<string> violations)
+        => StandardConsistency.CheckProductVersioning(catalog, options, violations);
+}
+
+/// <summary>C16 产品字段契约闭合（角色 ↔ 字段非空、字段名唯一）。</summary>
+internal sealed class ProductFieldClosureRule : ILedgerRule<IStandardCatalog>
+{
+    public string Code => "C16";
+
+    public void Check(IStandardCatalog catalog, List<string> violations)
+        => StandardConsistency.CheckProductFieldClosure(catalog, violations);
+}
+
+/// <summary>C17 幂等键结构事实（必填、不含易变分量）。</summary>
+internal sealed class ProductIdempotencyRule : ILedgerRule<IStandardCatalog>
+{
+    public string Code => "C17";
+
+    public void Check(IStandardCatalog catalog, List<string> violations)
+        => StandardConsistency.CheckProductIdempotency(catalog, violations);
 }

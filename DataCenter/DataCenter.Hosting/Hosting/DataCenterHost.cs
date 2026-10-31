@@ -1,4 +1,6 @@
 using DataCenter.Abstractions.Cells;
+using DataCenter.Core.Dataflow;
+using DataCenter.Protocol.Dataflow;
 using DataCenter.Protocol.Generation;
 using DataCenter.Protocol.Projection;
 using DataCenter.Protocol.Registry;
@@ -29,6 +31,11 @@ public sealed class DataCenterHost : IAsyncDisposable
     private readonly IStateValueCodec _codec;
     private readonly IStateProjector? _projectorOverride;
     private readonly Func<RootSwapContext, IDataCenterRoot>? _rootFactory;
+    private readonly GraphSchemaRegistry _graphSchema;
+    private readonly IGraphStore _graphStore;
+    private readonly IProvenanceStore _provenance;
+    private readonly IGraphProjector? _graphProjectorOverride;
+    private readonly IGraphQuery? _graphQueryOverride;
 
     private IDataCenterRoot _root;
     private IStateGeneration _generation;
@@ -44,7 +51,10 @@ public sealed class DataCenterHost : IAsyncDisposable
         HostRuntimeSlot slots,
         HostRootProvider provider,
         IDataCenterRoot root,
-        IStateGeneration generation)
+        IStateGeneration generation,
+        GraphSchemaRegistry graphSchema,
+        IGraphStore graphStore,
+        IProvenanceStore provenance)
     {
         _cell = cell;
         _center = center;
@@ -56,6 +66,11 @@ public sealed class DataCenterHost : IAsyncDisposable
         _codec = options.ValueCodec;
         _projectorOverride = options.Projector;
         _rootFactory = options.RootFactory;
+        _graphSchema = graphSchema;
+        _graphStore = graphStore;
+        _provenance = provenance;
+        _graphProjectorOverride = options.GraphProjector;
+        _graphQueryOverride = options.GraphQuery;
     }
 
     /// <summary>整体数据流持有者（当前代数根）。</summary>
@@ -124,13 +139,21 @@ public sealed class DataCenterHost : IAsyncDisposable
             center = new StateCenter(cell, options.PartitionCellFactory);
             var projector = CreateProjector(options.Projector, center, options.Registry, options.ValueCodec, options.Generation);
 
+            // 图组件（D2/D3/D6）：schema/store/provenance 跨代复用（追溯不断链），投影器与查询面随代际重建
+            var graphSchema = new GraphSchemaRegistry(options.GraphSchema);
+            var graphStore = options.GraphStore ?? DelegateGraphStore.Empty;
+            var provenance = options.Provenance ?? new ProvenanceStore();
+
             // 单根守卫在此隐式生效：已存在存活根 → 构造抛错（不产生第二根）
-            var root = new DataCenterRoot(cell, projector, options.Registry, options.Generation, slots);
+            var root = new DataCenterRoot(
+                cell, projector, options.Registry, options.Generation, slots,
+                graphSchema, graphStore, options.GraphProjector, provenance, options.GraphQuery);
 
             var provider = new HostRootProvider();
             provider.Bind(root);
 
-            return new DataCenterHost(options, cell, center, slots, provider, root, options.Generation);
+            return new DataCenterHost(options, cell, center, slots, provider, root, options.Generation,
+                graphSchema, graphStore, provenance);
         }
         catch (Exception assemblyFailure)
         {
@@ -359,7 +382,14 @@ public sealed class DataCenterHost : IAsyncDisposable
     {
         // F-29：投影器构造单点（原实例版重载仅透传，已收敛）
         var projector = CreateProjector(_projectorOverride, _center, _registry, _codec, generation);
-        return new DataCenterRoot(_cell, projector, _registry, generation, _slots);
+        var graph = _graphProjectorOverride ?? new LineageProjector(_graphSchema, _graphStore, _provenance);
+        var query = _graphQueryOverride ?? new GraphQuery(
+            _graphSchema, _graphStore, _provenance,
+            new RecomputePlanner(_graphSchema, _provenance), generation);
+
+        return new DataCenterRoot(
+            _cell, projector, _registry, generation, _slots,
+            _graphSchema, _graphStore, graph, _provenance, query);
     }
 
     /// <summary>

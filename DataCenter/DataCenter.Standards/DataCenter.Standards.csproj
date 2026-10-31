@@ -39,6 +39,8 @@
     <EmbeddedResource Include="..\schemas\events.schema.json" Link="Schemas\events.schema.json" LogicalName="DataCenter.Standards.Schemas.events.schema.json" />
     <EmbeddedResource Include="..\schemas\fakes.schema.json" Link="Schemas\fakes.schema.json" LogicalName="DataCenter.Standards.Schemas.fakes.schema.json" />
     <EmbeddedResource Include="..\schemas\data.schema.json" Link="Schemas\data.schema.json" LogicalName="DataCenter.Standards.Schemas.data.schema.json" />
+    <!-- 第五本台账（数据产品）结构门：products.schema.json -->
+    <EmbeddedResource Include="..\schemas\products.schema.json" Link="Schemas\products.schema.json" LogicalName="DataCenter.Standards.Schemas.products.schema.json" />
   </ItemGroup>
 
   <!-- ★ 烘焙轨（方案 B）：通用声明式契约台账机制 + 平台 JSON 框架均走权威烘焙二进制引用（Private=false 不复制产物）；

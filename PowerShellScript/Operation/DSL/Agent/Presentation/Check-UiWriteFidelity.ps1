@@ -27,11 +27,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'UiWriteFidelity'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 function Add-Violation([string]$m) { $script:violations.Add($m) }
 
 Write-Host ''
@@ -109,15 +108,4 @@ if (Test-EntityDecode $negParse) {
     Add-Violation '[G5] 负对照失效：无实体解码的属性样本未被判缺'
 }
 
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2/G3/G4 通过（片段根透传 + 实体解码 + 属性同步 + 往返用例）' -ForegroundColor Green
-    Write-Host ''
-    exit 0
-}
-
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-Write-Host '  结果: 失败' -ForegroundColor Red
-Write-Host ''
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'UiWriteFidelity'

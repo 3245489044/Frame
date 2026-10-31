@@ -40,16 +40,15 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'ScriptNoFixedSleep'
+$Root = $ctx.Root
 $scriptRoot = Join-Path $Root 'Projects\Information\DrivenConfig\Scripts'
 $baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\_fixed-sleep.psd1'
 $waitUntil = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\WaitUntilSystem.cs'
 $coordinator = Join-Path $Root 'Frame\CsharpPrj\Operation\BackEndDriven\CommandExecution\CommandCoordinator.cs'
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 $notes = [System.Collections.Generic.List[string]]::new()
 
 function Get-BaselineValue {
@@ -158,12 +157,4 @@ if ($notes.Count -gt 0) {
     $notes | ForEach-Object { Write-Host "[提示] $_" }
 }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host "[通过] 脚本固定等待无新增（≥ ${Threshold}ms 仅存基线内）；wait-until 有界轮询在位（正/负对照命中）"
-exit 0
-
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'ScriptNoFixedSleep'

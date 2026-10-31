@@ -44,7 +44,7 @@ function Add-Violation([string]$Id, [string]$Msg) { $script:violations.Add("$Id 
 $patterns = @(
     [pscustomobject]@{ Id = 'A1'; Title = 'Agent 函数名字面量'; Regex = 'AgentUi_[A-Za-z_]+' },
     [pscustomobject]@{ Id = 'A2'; Title = 'Agent 交互命令词'; Regex = '"(?:selecttask|selecthistory|selecttype|selectnode)"' },
-    [pscustomobject]@{ Id = 'A3'; Title = '终答语义旧类型名'; Regex = '\b(AnswerPolicy|AnswerPromotion|ConversationFramePolicy|FrameKindSpec)\b' },
+    [pscustomobject]@{ Id = 'A3'; Title = '终答语义旧类型名'; Regex = '\b(AnswerPolicy|AnswerPromotion|ConversationFramePolicy|FrameKindSpec|PromoteAnswer|LastTraceInRound)\b' },
     [pscustomobject]@{ Id = 'A4'; Title = 'Frame 反依赖 Agent'; Regex = '^\s*using\s+Agent\.' }
 )
 

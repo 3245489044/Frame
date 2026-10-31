@@ -1247,6 +1247,14 @@
         Note   = '渲染产物边界（节点树单一形态）：B1 UiNodeHtml.ToHtml 调用点 = 1（FragmentSerializer）/ B2 渲染链气泡段无「造串→解串」（Parse 仅两处登记边界）/ B3 会话模板无 |raw；负对照 -NegativeControl'
     }
 
+    FrameFactCoverage = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '帧事实覆盖率（P4b 前置）：canon/productions/observability 三写入者的帧字段构造方法须含 terminal 事实键；message-stream/observability 写入站点集合须等于登记集合；负对照缺事实键必红'
+    }
+
     AgentSemanticsLeak = @{
         Domain = 'Process'
         Args   = @{ Check = $true; NegativeControl = $true }

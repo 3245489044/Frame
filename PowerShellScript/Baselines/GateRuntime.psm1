@@ -111,7 +111,9 @@ function Write-GateVerdict {
         # JSON 模式禁止任何彩色 Write-Host（否则污染 stdout 解析）；退出码语义不变。
         [switch]$Json,
         [switch]$EmitActual,
-        [System.Collections.IDictionary]$Actual
+        [System.Collections.IDictionary]$Actual,
+        # 门内保留的修复口径 / 判据摘要（统一文案出口，避免各门各写一套头尾）
+        [string]$Hint = ''
     )
     $v = if ($null -eq $Violations) { @() } else { @($Violations) }
     $count = $v.Count
@@ -145,6 +147,7 @@ function Write-GateVerdict {
     Write-Host "  违规明细（$count 项）：" -ForegroundColor Yellow
     foreach ($x in $v) { Write-Host "    - $x" -ForegroundColor Yellow }
     Write-Host ""
+    if ($Hint) { Write-Host "  修复口径：$Hint" -ForegroundColor DarkGray; Write-Host "" }
     if ($Check) { exit 1 }
     if ($ReportOnly) { Write-Host $ReportOnly -ForegroundColor DarkGray }
     exit 0

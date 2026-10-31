@@ -54,9 +54,6 @@ public enum TerminalPromotion
     /// <summary>不提升（全部按过程文本呈现）。</summary>
     None = 0,
 
-    /// <summary>过渡：本轮最后一条过程文本提升为终端气泡（仅用于**事实缺失**的帧；事实优先）。</summary>
-    LastTraceInRound = 1,
-
     /// <summary>只认终端实体（终端角色/写侧终答事实）；禁以最后一条过程文本冒充终端实体。</summary>
     EntityOnly = 2,
 }
@@ -73,9 +70,6 @@ public static class TerminalPromotionWords
     /// <summary>不提升。</summary>
     public const string None = "none";
 
-    /// <summary>过渡：本轮最后一条过程文本提升为终端气泡（事实缺失时的兜底）。</summary>
-    public const string LastTraceInRound = "last-trace-in-round";
-
     /// <summary>只认终端实体（终端角色/写侧终答事实）。</summary>
     public const string EntityOnly = "entity-only";
 
@@ -83,7 +77,6 @@ public static class TerminalPromotionWords
     /// <param name="word">声明词。</param>
     public static TerminalPromotion Resolve(string? word) => word?.Trim() switch
     {
-        LastTraceInRound => TerminalPromotion.LastTraceInRound,
         EntityOnly => TerminalPromotion.EntityOnly,
         _ => TerminalPromotion.None,
     };
@@ -206,7 +199,7 @@ public sealed record FramePolicy(
 
         var terminal = terminalKinds.Count == 0
             ? TerminalPolicy.None
-            : new TerminalPolicy(TerminalPromotion.LastTraceInRound, terminalKinds);
+            : new TerminalPolicy(TerminalPromotion.EntityOnly, terminalKinds);
 
         return new FramePolicy(kinds, labels, terminal);
     }

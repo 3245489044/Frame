@@ -29,10 +29,9 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'IntentContract'
+$Root = $ctx.Root
 $registry = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Response\Intent\Registry\IntentExecutionRegistry.cs'
 $binding  = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Response\Intent\Contracts\IntentExecutionBinding.cs'
 $gateImpl = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Entry\IntentPreconditionGate.cs'
@@ -40,7 +39,7 @@ $contract = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Api\IntentPr
 $testRoot = Join-Path $Root 'Environment\CentralTest'
 $baselinePath = Join-Path $Root 'Frame\PowerShellScript\Baselines\Agent\IntentContract.psd1'
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 $notes      = [System.Collections.Generic.List[string]]::new()
 
 if (-not (Test-Path -LiteralPath $registry)) { $violations.Add("缺少注册表源: $registry") }
@@ -169,11 +168,4 @@ if ($violations.Count -eq 0) {
 
 foreach ($n in $notes) { Write-Host "  [INFO] $n" -ForegroundColor DarkGray }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host '[通过] IEF+ 执行契约：每行 ResultKind / 写入行 ReadBack / Writes⊆Reads / PreconditionKind 有实现 / parity CaseId 合法（正负对照绿）'
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'IntentContract'

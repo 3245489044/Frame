@@ -28,10 +28,9 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'PowerShellHostSingleSource'
+$Root = $ctx.Root
 $locator = Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHostLocator.cs'
 $resolver = Join-Path $Root 'Frame\CsharpPrj\Plate\PowerShellHost\PowerShellHostResolver.cs'
 $agent = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invoke\PsRuntime\ExecutableResolver.cs'
@@ -39,7 +38,7 @@ $hosting = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Invo
 $fileDriven = Join-Path $Root 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\GenerationBuildRunner.cs'
 $hostScript = Join-Path $Root 'Frame\PowerShellScript\Modules\PsRuntime\Binding\PsRuntime-Host.ps1'
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 foreach ($file in @($locator, $resolver, $agent, $hosting, $fileDriven, $hostScript)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少单源面文件: $file") }
 }
@@ -173,11 +172,4 @@ if ($violations.Count -eq 0) {
     }
 }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host '[通过] PowerShell 宿主定位单源：Plate\PowerShellHost 唯一实现；Agent/FileDriven 均委托'
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'PowerShellHostSingleSource'

@@ -64,6 +64,15 @@ public static class AttachPlanner
             return true;
         }
 
+        // 旧数据（事实缺失）且声明为 entity-only：终端角色仍是锚点（不按位置提升过程文本）。
+        if (item.Terminal is null
+            && policy is not null
+            && policy.Terminal.Promotion == TerminalPromotion.EntityOnly
+            && policy.RoleOf(item.Stage) == FrameRoleIds.Terminal)
+        {
+            return true;
+        }
+
         return policy is not null
             ? policy.IsBubbleAnchor(item)
             : ConversationAnchors.IsAnchor(item);
@@ -73,14 +82,10 @@ public static class AttachPlanner
     public static TopLevelPlan Plan(
         IReadOnlyList<ConversationRenderItem> items, FramePolicy? policy)
     {
-        var ordered = policy is null
-            ? new List<ConversationRenderItem>(items)
-            : PromoteAnswer(items, policy);
-
-        var entries = new List<AttachEntry>(ordered.Count);
+        var entries = new List<AttachEntry>(items.Count);
         var lead = new List<ConversationRenderItem>();
         List<ConversationRenderItem>? bucket = null;
-        foreach (var item in ordered)
+        foreach (var item in items)
         {
             if (IsBubbleAnchor(item, policy))
             {
@@ -100,79 +105,6 @@ public static class AttachPlanner
 
         return new TopLevelPlan(lead, entries);
     }
-
-    /// <summary>
-    /// 终端提升（**事实缺失时的兜底，单点**）：归档 assistant 已同文（归一化）⇒ 去重；
-    /// 本轮最后一条过程文本 ⇒ 终端气泡。
-    /// <para>
-    /// 事实优先：<see cref="ConversationRenderItem.Terminal"/> = true 已由锚点承接；
-    /// false（非终答）不参与去重/提升；**仅 null（旧数据 / 未落库）走位置兜底**。
-    /// 待终答事实覆盖全部帧写入者后，本兜底随 P4b 再删（禁在覆盖不足时删）。
-    /// </para>
-    /// </summary>
-    private static List<ConversationRenderItem> PromoteAnswer(
-        IReadOnlyList<ConversationRenderItem> items, FramePolicy policy)
-    {
-        var result = new List<ConversationRenderItem>(items);
-        if (policy.Terminal.Promotion == TerminalPromotion.None) return result;
-
-        var archived = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in result)
-        {
-            if (item.Terminal == false) continue;
-            if (item.Role == ConversationRole.Assistant
-                && !policy.IsTrace(item.Stage)
-                && policy.RoleOf(item.Stage) != FrameRoleIds.Terminal)
-            {
-                archived.Add(policy.Terminal.Normalize(item.Text));
-            }
-        }
-
-        if (policy.Terminal.Promotion == TerminalPromotion.EntityOnly)
-        {
-            for (var i = 0; i < result.Count; i++)
-            {
-                var item = result[i];
-                if (policy.RoleOf(item.Stage) != FrameRoleIds.Terminal) continue;
-                if (archived.Contains(policy.Terminal.Normalize(item.Text)))
-                {
-                    result.RemoveAt(i);
-                    i--;
-                    continue;
-                }
-
-                result[i] = Promote(item);
-            }
-
-            return result;
-        }
-
-        var last = -1;
-        for (var i = 0; i < result.Count; i++)
-        {
-            // 有事实的帧不走位置兜底（事实 = 写侧判定，位置不再二次裁决）。
-            if (result[i].Terminal is not null) continue;
-            if (result[i].Role == ConversationRole.Tool && policy.IsTrace(result[i].Stage)) last = i;
-        }
-
-        if (last < 0) return result;
-
-        var candidate = result[last];
-        if (archived.Contains(policy.Terminal.Normalize(candidate.Text)))
-        {
-            result.RemoveAt(last);
-            return result;
-        }
-
-        result[last] = Promote(candidate);
-        return result;
-    }
-
-    private static ConversationRenderItem Promote(ConversationRenderItem item)
-        // 过渡期提升：本轮最后一条过程文本成为可见气泡（带「未归档」角标），
-        // 其余过程帧（含其之前的前导帧）一律折叠，不再逐条铺开。
-        => new(ConversationRole.Assistant, item.Stage, item.SubAgent, item.Text,
-            item.Round, MessageChannel.Dialogue, item.Targets, item.Terminal, item.Archived);
 
     /// <summary>顺序分组：边界开组 / 收束只收本类 / 收束后异类开新组 / 调用与结果配对。</summary>
     public static AttachPlan PlanGroups(

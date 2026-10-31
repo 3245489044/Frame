@@ -24,14 +24,13 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'EchoConstants'
+$Root = $ctx.Root
 $bus = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Assembly\Dispatch\AgentUiLibraryBusForward.cs'
 $projector = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Response\Intent\Echo\OutcomeEchoProjector.cs'
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 
 if (-not (Test-Path -LiteralPath $bus)) { $violations.Add("缺少总线转发面: $bus") }
 if (-not (Test-Path -LiteralPath $projector)) { $violations.Add("缺少唯一回显投影: $projector") }
@@ -54,11 +53,4 @@ if ($violations.Count -eq 0) {
     if ($projectorText -notmatch 'wrote=') { $violations.Add('[E3] 回显投影未输出 wrote（实际写面）') }
 }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host '[通过] 回显仅由结构结果投影（无叙事常量，写面可见）'
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'EchoConstants'

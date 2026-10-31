@@ -25,11 +25,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'IntentSupportsProjected'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 Write-Host ''
 Write-Host '============================================================'
 Write-Host '  能力位注册表投影守卫（IntentSupportsProjected）'
@@ -59,16 +58,4 @@ if ((Get-Count 'case AgentIntents.TaskGet:' 'case\s+AgentIntents\.') -eq 0) {
     $violations.Add('[G3] 负对照失效：合成样本（逐 intent case）未被捕获')
 }
 
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] G1/G2 能力位注册表投影通过（正负对照绿）' -ForegroundColor Green
-    Write-Host ''
-    exit 0
-}
-
-Write-Host ''
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-Write-Host '  结果: 失败' -ForegroundColor Red
-Write-Host ''
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'IntentSupportsProjected'

@@ -35,11 +35,9 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 仓库超根由门禁运行时解析（与脚本所在目录深度无关）
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'GenerationLayout'
+$Root = $ctx.Root
 $agentRoot = Join-Path $Root 'Projects\Plug\Agent'
 $inPlace = Join-Path $agentRoot 'BuildOutput\Debug'
 if ([string]::IsNullOrWhiteSpace($GenRoot)) {
@@ -54,7 +52,7 @@ if (Test-Path $inPlace) {
 # [L6] CsharpPrj 核心域闭包关键件（B · 统一装载面：默认 ALC 共享面运行期来源 = 生效代目录）
 $coreProbe = @('Share.HostAssembly.dll', 'Share.Conversation.dll', 'Plate.HtmlViewer.dll', 'WorkFlowMethod.dll')
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 $gens = @()
 
 Write-Host '=== [VM-R1] 代目录布局契约（gen-<n> 产物面） ==='
@@ -117,13 +115,4 @@ if (Test-Path -LiteralPath $pointerPath) {
 }
 
 Write-Host ("代目录数: {0} | 违规命中: {1}" -f $gens.Count, $violations.Count)
-if ($violations.Count -gt 0) {
-    Write-Host '--- 违规清单 ---'
-    $violations | ForEach-Object { Write-Host ("  [违规] {0}" -f $_) }
-}
-
-if ($Check -and $violations.Count -gt 0) {
-    Write-Host '校验失败：代目录布局契约未满足（gen-<n> 须含全 Agent dll + deps.json + vm-program.json）。'
-    exit 1
-}
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'GenerationLayout'

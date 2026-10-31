@@ -27,11 +27,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'ActorInvocationSingleSource'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 $src = Join-Path $Root 'Projects\Plug\Agent\src'
 Import-Module (Join-Path (Get-FrameRoot) 'PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 
@@ -103,15 +102,4 @@ if (Get-RecordCallers 'ActorInvocationLedger\.Record\s*\(' -Text $probeReader) {
     $violations.Add('[I5] 正对照失效：读点被误判为写点')
 }
 
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] I1–I5 通过（登记/结果账各 1 写点 + InvocationId 必填 + 幂等）' -ForegroundColor Green
-    Write-Host ''
-    exit 0
-}
-
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-Write-Host '  结果: 失败' -ForegroundColor Red
-Write-Host ''
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'ActorInvocationSingleSource'

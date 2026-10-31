@@ -30,11 +30,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'GenerationRebuildChain'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 
 function Test-Anchor {
     param([string]$Id, [string]$RelPath, [string[]]$Patterns)
@@ -63,13 +62,4 @@ Test-Anchor 'C9' 'Projects\FileDriven\FileDriven.Abstractions\Ports\Agent\AgentH
 
 Write-Host '=== [VM-R5] 换代链结构守卫（构建→换 ALC→重装配→数据全在根） ==='
 Write-Host (("锚点检查: C1–C9 | 违规命中: {0}" -f $violations.Count))
-if ($violations.Count -gt 0) {
-    Write-Host '--- 违规清单 ---'
-    $violations | ForEach-Object { Write-Host ("  [违规] {0}" -f $_) }
-}
-
-if ($Check -and $violations.Count -gt 0) {
-    Write-Host '校验失败：换代链结构锚点缺失（链未接通或符号改名未同步）。'
-    exit 1
-}
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'GenerationRebuildChain'

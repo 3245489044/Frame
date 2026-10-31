@@ -413,6 +413,8 @@ $results = Invoke-GateDelegation -Gates @('AgentRuntimeSlots','DataCenterGeneric
 
 | Batch 4（Family 落目录，2026-11-01） | 92 件 `git mv` 到 7 个 Family 子目录 + `Meta\_tooling\`（`PromptCacheStability` 从 `Process\` 迁入 `Declaration\`）；同步 19 件引用（`Baselines\_catalog.psd1` 的 `Consumer`、`Baselines\*.psd1` 头注、脚本用法注释）；消除 2 处跨 Family 引用（`EffectiveFace` 改用 `Find-GateScript`、`AgentRuntimeUIConfig` 改用 `$Root` 拼绝对路径） | `Operation\DSL\Agent\`、`Baselines\` |
 
+| Batch 5（头尾统一 31 件，2026-11-01） | `Write-GateVerdict` 增 `-Hint`（保留修复口径的单一文案出口）；31 件接 `New-GateContext` + `Write-GateVerdict`（严格前置：标准 `-Root/-Check` 签名、标准根块与违规清单、纯输出尾巴、`-Check` 才红、不按名调用其它门）。等价判据：90 件退出码逐件对照 **0 变化**。采用度 6 → 37/92 | `Baselines\GateRuntime.psm1`、`Operation\DSL\Agent\` |
+
 ### C.2 验证
 
 | 判据 | 结果 |
@@ -436,6 +438,6 @@ $results = Invoke-GateDelegation -Gates @('AgentRuntimeSlots','DataCenterGeneric
 1. ~~根定位统一~~ ✅ 2026-11-01 完成：91 件全部改经门禁运行时（向上查找超根 + `Get-GateRepoRoot`/`Get-FrameRoot`），退出码逐件对照 89 件，仅 1 件由 1→0（`RefreshFrameworkBoundary` 参数默认值修复），其余完全一致。
 2. ~~分类轴补盲~~ ✅ 2026-11-01 完成（见 C.1 Batch 3）：T6/T7 适用面 87 件全覆盖、0 违规；T4 增域小节归属校验。
 3. ~~目录搬迁~~ ✅ 2026-11-01 完成（见 C.1 Batch 4）：92 件落 Family 子目录，根目录零平铺；引用同步 19 件；`_catalog.psd1` 的 `Consumer` 路径已更新。
-4. 试点扩散：其余 82 件按 `Family` 分批接 `New-GateContext` / `Assert-GateControls`；每批附负对照。
+4. 试点扩散：`New-GateContext`/`Write-GateVerdict` 已接 31/92（见 C.1 Batch 5）。剩余 55 件按阻塞原因分批，**不硬改**：① 无 `-Root` 参数（17 件，需先扩参数协议）② 无 `-Check`（12 件，裁决语义不同）③ 违规清单/根块形态非标准（8 件）④ 含 `-ShowDetail`/`-$ExitCode` 等额外结果变量（10 件）⑤ 委托其它门、靠文本协议（2 件，等 `GateReport` 结构化结果）⑥ 伴随件/工具件（6 件，无独立裁决面）。
 5. `GateReport` + `GateCompose`：先结构化结果，再改 `AgentDataSeparation` 的 `Get-CountByMark` 文本反推。
 6. `GateDecl`：随 8 件声明面门禁（`AgentSpec`/`LaneCatalog`/`TransferKey` 等）一起落地，避免空模块。

@@ -31,16 +31,15 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'IntentParity'
+$Root = $ctx.Root
 $agentSrc = Join-Path $Root 'Projects\Plug\Agent\src'
 $registry = Join-Path $agentSrc 'Agent.Modules\Response\Intent\Registry\IntentExecutionRegistry.cs'
 $backend  = Join-Path $agentSrc 'Agent.Core\Entry\Handlers\AgentApiIntentSource.cs'
 $entry    = Join-Path $agentSrc 'Agent.Modules\Response\Intent\Composition\IntentExecutionComposition.cs'
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 
 foreach ($file in @($registry, $backend, $entry)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少 IEF 面文件: $file") }
@@ -125,11 +124,4 @@ if ($violations.Count -eq 0) {
     }
 }
 
-if ($violations.Count -gt 0) {
-    $violations | ForEach-Object { Write-Host "[违规] $_" }
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-Write-Host '[通过] IEF 写读同源对账：history.link 写面=graph:history_owns_task，后端调用注入写原语，无 no-op 成功'
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'IntentParity'

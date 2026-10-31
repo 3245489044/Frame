@@ -35,11 +35,9 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    # DSL\Agent\ → 上溯 5 级到仓库根（与同域门禁 Check-AgentProcessSurface 同范式）
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'EntrySingleSource'
+$Root = $ctx.Root
 $scanRoots = @(
     (Join-Path $Root 'Projects\Plug\Agent\src'),
     (Join-Path $Root 'Frame\CsharpPrj')
@@ -67,7 +65,7 @@ function Get-DefinitionCount {
     return $count
 }
 
-$violations = [System.Collections.Generic.List[string]]::new()
+$violations = $ctx.Violations
 $files = Get-SourceFiles
 
 Write-Host ''
@@ -111,13 +109,4 @@ if ($probePortDefs -le 1) {
 Write-Host ("  实测：ApiPort {0} / AgentDispatcher {1} / AgentIntentMapping {2} / AgentEntryCallableTrack {3} / 转发点 {4} / intent 常量 {5}" -f `
     $portDefs, $dispatchDefs, $mapDefs, $trackDefs, $forwardHits, $intentCount) -ForegroundColor Gray
 
-if ($violations.Count -eq 0) {
-    Write-Host '[OK] 入口单源守卫：0 违规（E-1/E-1b/E-2/E-3 定义单源；E-4 经入口转发；P-1/P-2 对照命中）' -ForegroundColor Green
-    exit 0
-}
-
-Write-Host "[FAIL] 入口单源守卫命中 $($violations.Count) 处：" -ForegroundColor Yellow
-foreach ($item in $violations) { Write-Host "  - $item" -ForegroundColor Yellow }
-
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'EntrySingleSource'

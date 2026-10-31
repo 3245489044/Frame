@@ -248,7 +248,7 @@
 | `KeyGrammar` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（24 件）
+## Process（25 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -261,6 +261,7 @@
 | `DimensionReduction` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |
 | `EntityExistenceSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-EntityExistenceSingleSource.ps1` |
 | `FragmentBoundary` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-FragmentBoundary.ps1` |
+| `FrameFactCoverage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-FrameFactCoverage.ps1` |
 | `HistorySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-HistorySemantics.ps1` |
 | `InvokeEntrypoints` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1` |
 | `JudgmentParity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentParity.ps1` |

@@ -32,11 +32,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'ActorObservationSurface'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 $agent = Join-Path $Root 'Projects\Plug\Agent\src'
 $views = Join-Path $agent 'Agent.Ui\Ui\Views'
 $required = @(
@@ -214,16 +213,4 @@ if ((Test-Path -LiteralPath $frameworkStage) -and (Test-Path -LiteralPath $contr
     $violations.Add('[S12] 缺件（判据不可判）：RunStateStage.cs / ActorObservationContracts.cs')
 }
 
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] S1–S12 通过（调用实例驱动 + 层级过滤 + 身份纯度 + 零控制面 + 词表对拍）' -ForegroundColor Green
-    Write-Host ''
-    exit 0
-}
-
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-Write-Host '  结果: 失败' -ForegroundColor Red
-Write-Host ''
-if ($Check) { exit 1 }
-exit 0
-
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'ActorObservationSurface'

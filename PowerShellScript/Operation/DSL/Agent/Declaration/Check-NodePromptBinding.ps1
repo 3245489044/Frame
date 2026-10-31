@@ -26,11 +26,10 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-}
-
-$violations = [System.Collections.Generic.List[string]]::new()
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'NodePromptBinding'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 $workflowDir = Join-Path $Root 'Projects\Plug\Agent\Config\workflows'
 $nodesDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $skillsDir = Join-Path $Root 'Projects\Plug\Agent\skills'
@@ -143,11 +142,4 @@ foreach ($m in [regex]::Matches($domainProbe, 'node://(?<d>[A-Za-z0-9_-]+)')) {
 if (-not $domainProbeHit) { $violations.Add('[G5] 负对照失效：合成未声明 domain 未被捕获') }
 $kindProbe = 'ContextNodeKind.Utterance'
 if ($kindProbe -notmatch '\bContextNodeKind\b') { $violations.Add('[G5] 负对照失效：合成 legacy kind 未被捕获') }
-if ($violations.Count -eq 0) {
-    Write-Host '  [成功] 节点提示词绑定判据通过（G1–G5）' -ForegroundColor Green
-    exit 0
-}
-Write-Host "  [违规] $($violations.Count) 项：" -ForegroundColor Red
-foreach ($v in $violations) { Write-Host "    - $v" -ForegroundColor Red }
-if ($Check) { exit 1 }
-exit 0
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'NodePromptBinding'

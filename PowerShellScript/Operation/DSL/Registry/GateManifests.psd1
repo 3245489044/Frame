@@ -875,6 +875,15 @@
         Expect = 0
         Note   = '模块归属/依赖方向/单一实现/体量守卫（C1–C8）：文件归属唯一 · .psm1 落点 · M5 禁反向依赖 Entry · M4 禁依赖 M5 · Entry 禁 dotnet publish · 同名函数恰一处 · 正/负对照'
     }
+    BinaryContract = @{
+        Domain = 'Build'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '二进制契约漂移（BCD）判定：面（探针目录有序集合）+ P1 符号闭包（TypeRef/MemberRef 须在目标程序集元数据解析，含 TypeForwardedTo）+ P2 依赖指纹（旁车 <asm>.contract.json）+ P3 内容级单副本（同名不同内容=偏斜面）+ 正/负对照；基线 = Baselines\Build\BinaryContract.psd1'
+    }
+
+
 
     AgentRuntimeUIConfig = @{
         Domain = 'Agent'

@@ -42,9 +42,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 脚本位于 Frame\PowerShellScript\Operation\DSL\，上溯四级即仓库根
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    # 仓库超根由门禁运行时解析（与脚本所在目录深度无关）
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -164,9 +171,9 @@ if ($report.Count -lt $minReps) {
     $violations.Add(("[E0] 代表件数 {0} < 基线 {1}（判据无标的 ⇒ 假绿）" -f $report.Count, $minReps))
 }
 
-# ---- [E3] 正/负对照（防判据空转；只读：复用本目录既有 Check-*.ps1 作样本） ----
-$ctrlA = Join-Path $PSScriptRoot 'Check-EffectiveFace.ps1'
-$ctrlB = Join-Path $PSScriptRoot 'Check-GenerationLayout.ps1'
+# ---- [E3] 正/负对照（防判据空转；只读：按名复用既有 Check-*.ps1 作样本，与 Family 目录分层解耦） ----
+$ctrlA = Find-GateScript -Name 'EffectiveFace'
+$ctrlB = Find-GateScript -Name 'GenerationLayout'
 $fpA = Get-EffectiveFingerprint $ctrlA
 $fpB = Get-EffectiveFingerprint $ctrlB
 # 正对照：同内容 ⇒ 判「对齐」（命中；证明判据非恒假）。

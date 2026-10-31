@@ -515,6 +515,90 @@ internal sealed class GatherGateRule : IGateRule<UsharpGateModel>
             }
 
             CheckRead(gather, sink);
+            CheckProjection(gather, sink);
+            CheckPresentation(gather, sink);
+        }
+    }
+
+    /// <summary>
+    /// 呈现身份段闸A：帧选择名非空 / 终答策略受控词 / 锚点形如 <c>role:kind</c> / 折叠必须有帧选择。
+    /// 未声明呈现身份 ⇒ 合法（消费方缺省，零回归）。
+    /// </summary>
+    private static void CheckPresentation(UsharpGatherDecl gather, IConversionDiagnosticSink sink)
+    {
+        if (gather.Presentation is not { } presentation)
+        {
+            return;
+        }
+
+        if (presentation.FrameSelection is not null && presentation.FrameSelection.Trim().Length == 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: frame-selection 不得为空（空 = 不声明，全量帧）",
+                gather.SourceFile, gather.LineNumber));
+        }
+
+        if (presentation.TerminalPromotion is not null &&
+            Array.IndexOf(UsharpLanguage.TerminalPromotions, presentation.TerminalPromotion) < 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: terminal-promotion='{presentation.TerminalPromotion}' 非法"
+                + "（受控词：none|last-trace-in-round|entity-only）",
+                gather.SourceFile, gather.LineNumber));
+        }
+
+        foreach (var anchor in presentation.BubbleAnchors)
+        {
+            var colon = anchor.IndexOf(':');
+            if (colon <= 0 || colon == anchor.Length - 1)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                    $"[Gather] {gather.DomainId}: bubble-anchor='{anchor}' 形非法（须为 role:kind）",
+                    gather.SourceFile, gather.LineNumber));
+            }
+        }
+
+        // 折叠（identity+collapse）必须有明确的帧选择：否则「折叠什么」由渲染层猜（旧缺陷面）。
+        if (gather.Projection is { } projection &&
+            projection.Identity.Count > 0 &&
+            !string.Equals(projection.Collapse, "none", StringComparison.Ordinal) &&
+            presentation.FrameSelection is null)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: 声明折叠须同时声明 frame-selection（折叠对象单源）",
+                gather.SourceFile, gather.LineNumber));
+        }
+    }
+
+    /// <summary>
+    /// 投影段闸A：折叠策略受控词 / 折叠须有身份键 / 窗口须正整数量。未声明投影 ⇒ 合法（不折叠不分页）。
+    /// </summary>
+    private static void CheckProjection(UsharpGatherDecl gather, IConversionDiagnosticSink sink)
+    {
+        if (gather.Projection is not { } projection)
+        {
+            return;
+        }
+
+        if (Array.IndexOf(UsharpLanguage.CollapseModes, projection.Collapse) < 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: collapse='{projection.Collapse}' 非法（受控词：none|first|last|count）",
+                gather.SourceFile, gather.LineNumber));
+        }
+
+        if (!string.Equals(projection.Collapse, "none", StringComparison.Ordinal) && projection.Identity.Count == 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: collapse={projection.Collapse} 须声明 identity=（折叠身份键是唯一去重依据）",
+                gather.SourceFile, gather.LineNumber));
+        }
+
+        if (projection.Window is <= 0)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: window 须为正整数（单组行数上限；不限则不声明）",
+                gather.SourceFile, gather.LineNumber));
         }
     }
 

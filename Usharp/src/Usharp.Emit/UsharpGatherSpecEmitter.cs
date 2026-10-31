@@ -117,6 +117,49 @@ public static class UsharpGatherSpecEmitter
             root["read"] = readNode;
         }
 
+        // 投影段（可选；未声明 ⇒ 不产出 = 不折叠不分页，零回归）。
+        if (gather.Projection is { } projection)
+        {
+            var identity = new JsonArray();
+            foreach (var field in projection.Identity)
+            {
+                identity.Add(field);
+            }
+
+            var projectionNode = new JsonObject
+            {
+                [UsharpLanguage.MarkerIdentity] = identity,
+                [UsharpLanguage.MarkerCollapse] = projection.Collapse,
+            };
+            if (projection.Window is > 0) projectionNode[UsharpLanguage.MarkerWindow] = projection.Window.Value;
+            root["projection"] = projectionNode;
+        }
+
+        // 呈现身份段（可选；未声明 ⇒ 不产出 = 消费方缺省，零回归）。
+        if (gather.Presentation is { } presentation)
+        {
+            if (!string.IsNullOrWhiteSpace(presentation.FrameSelection))
+            {
+                root["frameSelection"] = presentation.FrameSelection;
+            }
+
+            if (!string.IsNullOrWhiteSpace(presentation.TerminalPromotion))
+            {
+                root["terminalPromotion"] = presentation.TerminalPromotion;
+            }
+
+            if (presentation.BubbleAnchors.Count > 0)
+            {
+                var anchors = new JsonArray();
+                foreach (var anchor in presentation.BubbleAnchors)
+                {
+                    anchors.Add(anchor);
+                }
+
+                root["bubbleAnchors"] = anchors;
+            }
+        }
+
         return root.ToJsonString();
     }
 }

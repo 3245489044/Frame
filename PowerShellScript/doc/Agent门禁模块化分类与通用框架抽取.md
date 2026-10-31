@@ -104,15 +104,17 @@ Family 与 Form 的关系：Family 决定"看哪一类结构"，Form 决定"用�
 
 ```
 Operation\DSL\Agent\
-├── Declaration\      (11)  Config\*.json / *.ushar 声明合格性、末路完备、映射闭合
+├── Declaration\      (12)  Config\*.json / *.ushar 声明合格性、末路完备、映射闭合
 ├── Contract\         (13)  注册表/词表/能力位/车道/工作流/键址的声明↔实现对账
 ├── Runtime\          (23)  装配入口、单源槽、单入口、生效面、上下文几何
-├── Presentation\     (17)  渲染入口/区域归属/视图目录/文本安全/读模型
+├── Presentation\     (18)  渲染入口/区域归属/视图目录/文本安全/读模型
 ├── Observability\    (9)   trace schema、失败信封、空态与未知可见化、诊断投影
 ├── Boundary\         (10)  层边界、依赖方向、零领域词、存储隔离、承载面度量
 ├── Meta\             (5)   脚本纪律、重放对拍、生成物布局、兜底登记（门）
 └── Meta\_tooling\    (2)   Generate-RecognizedKinds.ps1 / Invoke-StorageProbe.ps1（**非门禁件**）
 ```
+
+> 2026-11-01 实测（扫描 92 件，根目录已无平铺 `*.ps1`）：`Declaration` 含从 `Process\` 迁入的 `Check-PromptCacheStability.ps1`；`Presentation` 含伴随件 `ReadModelOnly`；`Boundary` 含伴随件 `AgentCarrierSurface` / `AgentLayerBoundary`；3 件跨域登记件（`DispatchTraceSchema` / `AgentStorageIsolation` / `FallbackInventoryRate`）按自身 `Family` 归位。
 
 三点约束（均有机器判据兜底）：
 
@@ -407,6 +409,10 @@ $results = Invoke-GateDelegation -Gates @('AgentRuntimeSlots','DataCenterGeneric
 
 试点前后行为等价（退出码不变）；试点件内 `Get-ChildItem -Recurse` 归零（`Check-GateFileIndex` 的 R1 债务可销账）。
 
+| Batch 3（分类轴补盲，2026-11-01） | ① T6/T7 适用面由「落点前缀」改为「语义域 `Domain=Agent` ∪ 物理落点 `DSL\Agent\`」，双向盲区归零；② `RelationPlan` / `NodeEdgeIntegrity` 归回 `Node`（与 `Baselines\Node\RelationPlan.psd1` 一致，消除 U12 域表漂移），`PromptCacheStability` 保持 `Agent` 并补 `Family=Declaration / Form=SingleSource`；③ T4 等价判据加入「所属域小节」，堵住「行恒等但挂错域」；④ T5 增适用面谓词三类对照（语义命中 / 落点命中 / 两者皆非） | `Registry\GateManifests.psd1`、`Meta\Check-GateTaxonomy.ps1`、`Registry\index.generated.md` |
+
+| Batch 4（Family 落目录，2026-11-01） | 92 件 `git mv` 到 7 个 Family 子目录 + `Meta\_tooling\`（`PromptCacheStability` 从 `Process\` 迁入 `Declaration\`）；同步 19 件引用（`Baselines\_catalog.psd1` 的 `Consumer`、`Baselines\*.psd1` 头注、脚本用法注释）；消除 2 处跨 Family 引用（`EffectiveFace` 改用 `Find-GateScript`、`AgentRuntimeUIConfig` 改用 `$Root` 拼绝对路径） | `Operation\DSL\Agent\`、`Baselines\` |
+
 ### C.2 验证
 
 | 判据 | 结果 |
@@ -418,16 +424,18 @@ $results = Invoke-GateDelegation -Gates @('AgentRuntimeSlots','DataCenterGeneric
 
 ### C.3 偏差与暂缓（实施中发现的约束）
 
-1. **目录搬迁暂缓**：文档 §2.3 假设「搬迁零成本」——实测不成立。88 件中 57 件用固定五级上溯 `'..\..\..\..\..'` 定位仓库根，搬入二级子目录即断；另有 2 件按同级路径引用彼此脚本（`Check-GenerationRebuildChain` → `Check-EffectiveFace` / `Check-GenerationLayout`）、3 件在 `param()` 默认值里写相对路径。**搬迁前必须先统一根定位（推广 `New-GateContext`）**，否则 57 件同时失效。
-2. **`Family` 目前是登记轴，不落目录**：T6/T7 已机器校验，物理目录仍平铺；待根定位统一后作为纯机械批次搬迁（`Resolve-GateScript` 递归发现 ⇒ 清单/索引零改动）。
+1. **目录搬迁暂缓 —— 已于 2026-11-01 批次 0 解除**（根定位统一）：91 件全部改为经门禁运行时解析根——脚本先向上查找「同时含 `Frame\` 与 `Projects\`」的仓库超根并导入 `GateRuntime.psm1`，再用 `Get-GateRepoRoot`/`Get-FrameRoot` 派生绝对路径；`AgentRuntimeUIConfig` / `RefreshFrameworkBoundary` 的参数默认值改为绑定后派生（参数绑定期 `$PSScriptRoot` 为空，原实现直接抛错）；`AgentDataSeparation` 的 DSL 根由 `$PSScriptRoot` 改为 `Get-MappedPath -Key 'DSL'`。实测 Agent 目录已无 `..\` 相对路径字面量 ⇒ 搬入 `Agent\<Family>\` 后无需再改路径，搬迁成为纯 `git mv` + 重跑索引。
+   （原始约束记录：88 件中 57 件曾用固定五级上溯 `'..\..\..\..\..'` 定位仓库根，搬入二级子目录即断；2 件按同级路径引用彼此脚本；3 件在 `param()` 默认值里写相对路径。）
+2. **`Family` 目前是登记轴，不落目录**：T6/T7 已机器校验，物理目录仍平铺；根定位统一已完成，剩余为纯机械批次搬迁（`Resolve-GateScript` 递归发现 ⇒ 清单/索引零改动）。
 3. **`GateDecl` / `GateReport` / `GateCompose` 未建**：当前无消费者，按「无消费者不建模块」暂缓；`AgentDataSeparation` 的文本协议仍在（改文案即假绿），需先有 `GateReport` 再改组合门。
-4. **3 件跨域件保持原 `Domain`**（`DispatchTraceSchema`=KeySpace、`AgentStorageIsolation`=Usharp、`FallbackInventoryRate`=Meta）：改 Domain 需同步 `_catalog.psd1` 的 `Domain` 字段（U12），收益仅为目录语义一致；其真实判据面已由 `Family`（Observability / Boundary / Meta）表达。
+4. **3 件跨域件保持原 `Domain`**（`DispatchTraceSchema`=KeySpace、`AgentStorageIsolation`=Usharp、`FallbackInventoryRate`=Meta）：改 Domain 需同步 `_catalog.psd1` 的 `Domain` 字段（U12），收益仅为目录语义一致；其真实判据面已由 `Family`（Observability / Boundary / Meta）表达。**另 3 件曾错登 Agent 域**（Batch 3 已校准）：`RelationPlan` / `NodeEdgeIntegrity` 归回 `Node`，`PromptCacheStability` 保持 `Agent` 并补 `Family`/`Form`。
 5. **环境限制**：本机仅 Windows PowerShell 5.1（无 `pwsh`）。10 件 `#Requires -Version 7.0` 的门禁、以及 `Check-GateFileIndex` / `Check-GateBaselines` 中依赖 `.NET Core` API 的判据无法本地执行；上述验证均限于 5.1 可运行面。
 
 ### C.4 后续批次（按依赖排序）
 
-1. 根定位统一：把 57 件固定上溯替换为 `New-GateContext`（或 `Get-GateRepoRoot`），同步替换 19 件 `Baselines` 相对导入。
-2. 目录搬迁 + `_catalog.psd1` 的 `Consumer` 路径同步（13 处）。
-3. 试点扩散：其余 82 件按 `Family` 分批接 `New-GateContext` / `Assert-GateControls`；每批附负对照。
-4. `GateReport` + `GateCompose`：先结构化结果，再改 `AgentDataSeparation` 的 `Get-CountByMark` 文本反推。
-5. `GateDecl`：随 8 件声明面门禁（`AgentSpec`/`LaneCatalog`/`TransferKey` 等）一起落地，避免空模块。
+1. ~~根定位统一~~ ✅ 2026-11-01 完成：91 件全部改经门禁运行时（向上查找超根 + `Get-GateRepoRoot`/`Get-FrameRoot`），退出码逐件对照 89 件，仅 1 件由 1→0（`RefreshFrameworkBoundary` 参数默认值修复），其余完全一致。
+2. ~~分类轴补盲~~ ✅ 2026-11-01 完成（见 C.1 Batch 3）：T6/T7 适用面 87 件全覆盖、0 违规；T4 增域小节归属校验。
+3. ~~目录搬迁~~ ✅ 2026-11-01 完成（见 C.1 Batch 4）：92 件落 Family 子目录，根目录零平铺；引用同步 19 件；`_catalog.psd1` 的 `Consumer` 路径已更新。
+4. 试点扩散：其余 82 件按 `Family` 分批接 `New-GateContext` / `Assert-GateControls`；每批附负对照。
+5. `GateReport` + `GateCompose`：先结构化结果，再改 `AgentDataSeparation` 的 `Get-CountByMark` 文本反推。
+6. `GateDecl`：随 8 件声明面门禁（`AgentSpec`/`LaneCatalog`/`TransferKey` 等）一起落地，避免空模块。

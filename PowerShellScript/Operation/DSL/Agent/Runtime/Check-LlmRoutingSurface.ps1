@@ -26,9 +26,15 @@ param([switch]$Check)
 
 $ErrorActionPreference = 'Stop'
 
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+
 function Find-RepoRoot {
-    $d = $PSScriptRoot
-    while ($d -and -not (Test-Path (Join-Path $d 'Projects\Plug\Agent'))) { $d = Split-Path $d -Parent }
+    $d = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
     if ($d) { return $d }
     throw '[LlmRoutingSurface] 无法定位仓库根（上溯未找到含 Projects\Plug\Agent 的目录）'
 }
@@ -42,7 +48,7 @@ function Read-Text([string]$Path) { if (Test-Path -LiteralPath $Path) { return (
 
 $routingClient = Join-Path $agentRoot 'src\Agent.Core\Runtime\State\Infrastructure\LlmRoutingClient.cs'
 $routingPolicy = Join-Path $agentRoot 'src\Agent.Contract\Llm\RoutingPolicy.cs'
-$runtimeFactory = Join-Path $agentRoot 'src\Agent.Launcher\Composition\Hosting\LlmRuntimeFactory.cs'
+$runtimeFactory = Join-Path $agentRoot 'src\Agent.Launcher\Composition\Hosting\Llm\LlmRuntimeFactory.cs'
 $uiHost = Join-Path $agentRoot 'src\Agent.Ui\Core\Host\AgentUiHost.cs'
 
 $clientText = Read-Text $routingClient

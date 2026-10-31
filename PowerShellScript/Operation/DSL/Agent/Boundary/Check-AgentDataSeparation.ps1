@@ -23,14 +23,21 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 脚本位于 Frame\PowerShellScript\Operation\DSL\，上溯四级即仓库根
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    # 仓库超根由门禁运行时解析（与脚本所在目录深度无关）
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateFileIndex.psm1') -Force
 
-$dslDir   = $PSScriptRoot
+$dslDir = Get-MappedPath -Key 'DSL'  # DSL 根（单一来源＝目录映射，禁脚本目录自指）
 $agentSrc = Join-Path $Root 'Projects\Plug\Agent\src'
 $ledgerPath = Join-Path $Root 'Projects\Plug\Agent\doc\data-ownership.json'
 if (-not (Test-Path $agentSrc)) { Write-Error "未找到 Agent 源码目录: $agentSrc"; exit 2 }
@@ -47,7 +54,7 @@ if (-not (Test-Path (Join-Path $Root 'Frame\CsharpPrj\Plate\DataManage\Storage\S
 # 委托目标按名在 DSL\ 全域递归发现（与 Invoke-GateCheck 同口径；分类到 <Domain>\ 子目录后仍可达）。
 function Invoke-DelegateGate {
     param([string]$Script, [hashtable]$Parameters)
-    $dslRoot = Split-Path $PSScriptRoot -Parent
+    $dslRoot = Get-MappedPath -Key 'DSL'
     $hit = Get-ChildItem -LiteralPath $dslRoot -Recurse -Filter $Script -File -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if (-not $hit) { throw "门禁脚本缺失: $Script（在 $dslRoot 递归未找到）" }

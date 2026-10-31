@@ -18,7 +18,7 @@
 #   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
 #   - 校验模式（-Check）：违规 > 0 → 退出码 1（CI 门禁）。无代（就地态）不违规。
 #
-# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
+# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
 
 [CmdletBinding()]
 param(
@@ -28,9 +28,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 脚本位于 Frame\PowerShellScript\Operation\DSL\，上溯四级即仓库根
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    # 仓库超根由门禁运行时解析（与脚本所在目录深度无关）
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $agentRoot = Join-Path $Root 'Projects\Plug\Agent'

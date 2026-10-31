@@ -10,16 +10,26 @@
     C4 区域声明单源：Config\ui\ui-regions.json 的 kind ∈ UiRegionKind 成员、key ⊆ AgentRuntimeUI regions[].key、
        view ⊆ ConversationViewCatalog TypeKey、内容区域键 ⊆ 声明键（禁 C# 另一份区域表 / 禁配置新增未声明区域）。
     C5 负对照：合成旧映射样本必须被 C3 判据捕获；合成非法 kind 必须被 C4 判据捕获。
-    C6 视图内容身份：全部 views[].content 必须声明且 (domain|selection) 两两不同（禁三视图共用数据身份）。
-    C7 内容域/选择登记：content.domain 必须有 [Gather] 段、content.selection 必须在域声明 selections 中、
-       且 content.domain != db-root（整库读只属数据库页）。
+    C6 视图内容域：全部 views[].content 必须声明且 domain 两两不同（禁三视图共用数据身份）。
+    C7 内容域登记：content.domain 必须有 [Gather] 段，且 content.domain != db-root（整库读只属数据库页）。
+    C10 视图声明不复制数据语义：content 只允许 {domain, scope, fold}；出现 selection/groupBy ⇒ 判红
+        （行集语义单源 = Config\nodes\node-gather.ushar 的 [Gather] 段）。
+    C11 渲染层不写死呈现身份：Agent.Ui 源码不得出现 TerminalPromotion 枚举值选择 / frameSelectionId 字面量
+        （策略单源 = [Gather] terminal-promotion / frame-selection）。
     纯扫描（只读、0 写入）。
 #>
 [CmdletBinding()]
 param([switch]$Check, [switch]$NegativeControl)
 
 $ErrorActionPreference = 'Stop'
-$repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+$repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $agent = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui'
 $views = Join-Path $agent 'Ui\Views'
 $conv = Join-Path $agent 'Core\Functions\Conversation'
@@ -77,6 +87,66 @@ $consumers = @(
     (Join-Path $conv 'AgentUiLibraryConversation.cs')
 )
 
+# 取 [Gather] <domain> 的续行集合（到下一个 [Gather] 或文件尾；空 = 未声明）。
+function Get-GatherBlock([string]$text, [string]$domain) {
+    $lines = $text -split "`r?`n"
+    $start = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match ('^\s*\[Gather\]\s+' + [regex]::Escape($domain) + '\s*$')) { $start = $i; break }
+    }
+    if ($start -lt 0) { return @() }
+    $block = [System.Collections.Generic.List[string]]::new()
+    for ($i = $start + 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\s*\[Gather\]\s+') { break }
+        $block.Add($lines[$i])
+    }
+    return $block.ToArray()
+}
+
+# 投影段完备（scope=all 的全量视图 ⇒ 折叠身份 + 折叠策略 + 行上限 三者齐备）。
+function Test-ProjectionDeclared([string[]]$block) {
+    $text = ($block -join "`n")
+    return ($text -match '(?m)^\s*identity\s+\S') -and
+           ($text -match '(?m)^\s*collapse\s+(none|first|last|count)\s*$') -and
+           ($text -match '(?m)^\s*window\s+\d+\s*$')
+}
+
+# 呈现类完备（半套禁止：一旦某域声明 presentation=，该域每条 shaping 都必须声明）。
+function Test-PresentationDeclared([string[]]$block) {
+    $shapings = @($block | Where-Object { $_ -match '^\s*shaping\s+' })
+    if ($shapings.Count -eq 0) { return $true }
+    $declared = @($shapings | Where-Object { $_ -match 'presentation=' })
+    if ($declared.Count -eq 0) { return $true }
+    return ($declared.Count -eq $shapings.Count)
+}
+
+# 视图 content 键判据：只允许 domain/scope/fold（行集语义单源 = [Gather] 段）。
+function Test-ContentKeys([string[]]$names) {
+    foreach ($n in $names) {
+        if (@('domain', 'scope', 'fold') -notcontains $n) { return $false }
+    }
+    return $true
+}
+
+# 渲染层语义泄漏判据（单行）：策略枚举字面量选择 / 帧选择字面量（注释不计入）。
+function Test-SemanticLeakText([string]$text) {
+    if ($text -match '^\s*(//|/\*|\*)') { return $false }
+    if ($text -match '\bTerminalPromotion\.(None|LastTraceInRound|EntityOnly)\b') { return $true }
+    if ($text -match 'frameSelectionId\s*:\s*"') { return $true }
+    return $false
+}
+
+function Test-UiSemanticLeak {
+    if (-not (Test-Path -LiteralPath $agent)) { return $false }
+    foreach ($f in Get-ChildItem -LiteralPath $agent -Recurse -Filter '*.cs' -File) {
+        if ($f.FullName -match '\\obj\\|\\bin\\|\\BuildOutput\\') { continue }
+        foreach ($line in Get-Content -LiteralPath $f.FullName) {
+            if (Test-SemanticLeakText $line) { return $true }
+        }
+    }
+    return $false
+}
+
 $rules = @(
     [pscustomobject]@{ Id = 'C1'; Title = '目录声明在位（node/task/history）'
         Ok = { $t = Read-Text $catalog; ($t -match '"node"') -and ($t -match '"task"') -and ($t -match '"history"') } }
@@ -92,7 +162,7 @@ $rules = @(
             $kinds = @((Import-PowerShellDataFile -LiteralPath $kindBaselinePath).Kinds)
             return ((Test-RegionDeclaration $decl (Get-ConfigRegionKeys) (Read-Text $catalog) $kinds).Count -eq 0)
         } }
-    [pscustomobject]@{ Id = 'C6'; Title = '视图内容身份声明（三视图两两不同）'
+    [pscustomobject]@{ Id = 'C6'; Title = '视图内容域声明（三视图 domain 两两不同）'
         Ok = {
             if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
             $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
@@ -100,28 +170,63 @@ $rules = @(
             foreach ($v in @($decl.views)) {
                 $c = $v.content
                 if ($null -eq $c) { return $false }
-                if ([string]::IsNullOrWhiteSpace($c.domain) -or [string]::IsNullOrWhiteSpace($c.selection)) { return $false }
-                $identity = "$($c.domain)|$($c.selection)"
+                if ([string]::IsNullOrWhiteSpace($c.domain)) { return $false }
+                $identity = "$($c.domain)"
                 if ($seen.ContainsKey($identity)) { return $false }
                 $seen[$identity] = $v.view
             }
             return $true
         } }
-    [pscustomobject]@{ Id = 'C7'; Title = '内容域/选择在节点声明面已登记（禁未声明域）'
+    [pscustomobject]@{ Id = 'C7'; Title = '内容域在节点声明面已登记（禁未声明域 / 禁整库域）'
         Ok = {
             if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
             $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
             $nodesDir = Join-Path $repo 'Projects\Plug\Agent\Config\nodes'
             $gather = Read-Text (Join-Path $nodesDir 'node-gather.ushar')
-            $selections = (Read-Text (Join-Path $nodesDir 'conversation.ushar')) + "`n" +
-                          (Read-Text (Join-Path $nodesDir 'message-stream.ushar')) + "`n" +
-                          (Read-Text (Join-Path $nodesDir 'task-node.ushar'))
             foreach ($v in @($decl.views)) {
                 $c = $v.content
                 if ($null -eq $c) { return $false }
                 if ($c.domain -eq 'db-root') { return $false }
                 if ($gather -notmatch ('(?m)^\[Gather\]\s+' + [regex]::Escape($c.domain) + '\s*$')) { return $false }
-                if ($selections -notmatch ('(?m)^\s+' + [regex]::Escape($c.selection) + '\s*=')) { return $false }
+            }
+            return $true
+        } }
+    [pscustomobject]@{ Id = 'C10'; Title = '视图声明不复制数据语义（content 只允许 domain/scope/fold）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            foreach ($v in @($decl.views)) {
+                $c = $v.content
+                if ($null -eq $c) { return $false }
+                if (-not (Test-ContentKeys @($c.PSObject.Properties.Name))) { return $false }
+            }
+            return $true
+        } }
+    [pscustomobject]@{ Id = 'C11'; Title = '渲染层不写死呈现身份（无 TerminalPromotion 枚举选择 / 无 frameSelectionId 字面量）'
+        Ok = { return (-not (Test-UiSemanticLeak)) } }
+    [pscustomobject]@{ Id = 'C8'; Title = '呈现类声明完备（每条 shaping 须 presentation=；选择按类不按 kind 集合）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            $nodesDir = Join-Path $repo 'Projects\Plug\Agent\Config\nodes'
+            $gather = Read-Text (Join-Path $nodesDir 'node-gather.ushar')
+            foreach ($v in @($decl.views)) {
+                $block = Get-GatherBlock $gather $v.content.domain
+                if ($block.Count -eq 0) { return $false }
+                if (-not (Test-PresentationDeclared $block)) { return $false }
+            }
+            return $true
+        } }
+    [pscustomobject]@{ Id = 'C9'; Title = '全量视图投影完备（scope=all ⇒ identity + collapse + window）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            $nodesDir = Join-Path $repo 'Projects\Plug\Agent\Config\nodes'
+            $gather = Read-Text (Join-Path $nodesDir 'node-gather.ushar')
+            foreach ($v in @($decl.views)) {
+                if ($v.content.scope -ne 'all') { continue }
+                $block = Get-GatherBlock $gather $v.content.domain
+                if (-not (Test-ProjectionDeclared $block)) { return $false }
             }
             return $true
         } }
@@ -147,15 +252,32 @@ if ($NegativeControl) {
     if ((Test-RegionDeclaration $badDecl $negConfig 'TypeKey: "history"' $negKinds).Count -eq 0) { throw '负对照失败：C4 未捕获非法 kind' }
     if ((Test-RegionDeclaration $goodDecl $negConfig 'TypeKey: "history"' $negKinds).Count -ne 0) { throw '负对照失败：C4 对合法声明误报' }
 
-    # C6/C7 负对照：两视图同内容身份 / 内容域为 db-root 必须判红。
+    # C6 负对照：两视图同内容域必须判红。
     $dup = @(
-        [pscustomobject]@{ view = 'a'; content = [pscustomobject]@{ domain = 'text-nodes'; selection = 'text' } }
-        [pscustomobject]@{ view = 'b'; content = [pscustomobject]@{ domain = 'text-nodes'; selection = 'text' } }
+        [pscustomobject]@{ view = 'a'; content = [pscustomobject]@{ domain = 'text-nodes'; scope = 'all'; fold = 'panel-open' } }
+        [pscustomobject]@{ view = 'b'; content = [pscustomobject]@{ domain = 'text-nodes'; scope = 'all'; fold = 'panel-open' } }
     )
-    $identities = @($dup | ForEach-Object { "$($_.content.domain)|$($_.content.selection)" })
-    if (($identities | Select-Object -Unique).Count -eq $identities.Count) { throw '负对照失败：C6 未捕获重复内容身份' }
+    $identities = @($dup | ForEach-Object { "$($_.content.domain)" })
+    if (($identities | Select-Object -Unique).Count -eq $identities.Count) { throw '负对照失败：C6 未捕获重复内容域' }
 
-    Write-Host '[OK] 负对照通过：C3 可捕获本地旧映射；C4 可捕获非法区域声明。' -ForegroundColor Green
+    # C10 负对照：content 携带 selection/groupBy ⇒ 必须判红；只含 domain/scope/fold 须判绿。
+    if (Test-ContentKeys @('domain', 'selection')) { throw '负对照失败：C10 未捕获 content 数据语义残留' }
+    if (-not (Test-ContentKeys @('domain', 'scope', 'fold'))) { throw '负对照失败：C10 对合法 content 误报' }
+
+    # C11 负对照：策略枚举字面量必命中；注释文本不命中。
+    if (-not (Test-SemanticLeakText 'new TerminalPolicy(TerminalPromotion.LastTraceInRound, set)')) { throw '负对照失败：C11 未捕获策略枚举字面量' }
+    if (Test-SemanticLeakText '// TerminalPromotion.LastTraceInRound（注释）') { throw '负对照失败：C11 误判注释' }
+    if (-not (Test-SemanticLeakText 'frameSelectionId: "bubble",')) { throw '负对照失败：C11 未捕获帧选择字面量' }
+
+    # C9 负对照：缺 window 的合成全量投影必须判红；三者齐备须判绿。
+    if (Test-ProjectionDeclared @('  identity text', '  collapse count')) { throw '负对照失败：C9 未捕获缺失 window 的投影声明' }
+    if (-not (Test-ProjectionDeclared @('  identity text', '  collapse count', '  window 50'))) { throw '负对照失败：C9 对合法投影声明误报' }
+
+    # C8 负对照：半套声明（部分 shaping 有 presentation）必须判红；全量声明须判绿。
+    if (Test-PresentationDeclared @('  shaping a | family=generic | summary=text | presentation=bubble', '  shaping b | family=generic | summary=text')) { throw '负对照失败：C8 未捕获半套呈现类声明' }
+    if (-not (Test-PresentationDeclared @('  shaping a | family=generic | summary=text | presentation=bubble'))) { throw '负对照失败：C8 对合法塑形误报' }
+
+    Write-Host '[OK] 负对照通过：C3 旧映射 / C4 非法区域 / C6 重复内容域 / C8 缺呈现类 / C9 缺投影 / C10 数据语义残留 / C11 语义硬编码。' -ForegroundColor Green
 }
 
 if (-not $Check -and -not $NegativeControl) {

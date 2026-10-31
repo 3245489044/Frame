@@ -54,7 +54,7 @@
             C = 'Agent.Launcher.ReferenceVocabularyProvider.Resolve'
             F = 'Frame\CsharpPrj\Operation\DataStoreDriven\ReferenceSchema\reference-schema.generated.json'
             Phi = 'Check-ReferenceVocabulary'; E = 'Check-BakeFramework+DeployFingerprint'
-            CProbeFile = 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\ReferenceVocabularyProvider.cs'
+            CProbeFile = 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Declaration\ReferenceVocabularyProvider.cs'
             CProbePattern = 'DeclaredReferenceVocabulary'; CProbeExpect = 'read'
             Retire = '内嵌产物退役 ∧ 边集 ≡ 声明集（双向）'
         }
@@ -95,8 +95,8 @@
             C = 'Agent.Launcher.ToolFaceAssembler.ReadFacePlan'
             F = 'Projects\Plug\Agent\Config\tool-face.json'
             Phi = 'Check-ToolFaceDeclaration'; E = 'Check-ToolFaceDeclaration'
-            CProbeFile = 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\ToolFaceAssembler.cs'
-            CProbePattern = 'ToolFaceDeclaration\.Load'; CProbeExpect = 'read'
+            CProbeFile = 'Projects\Plug\Agent\src\Agent.McpRegistryHost\Faces\ToolFaceAssembler.cs'
+            CProbePattern = 'ToolFaceDeclaration\.LoadWithPacks'; CProbeExpect = 'read'
             Retire = 'tool-face.json 消费面删除 ∧ 两面轨逐项一致'
         }
         @{
@@ -106,7 +106,7 @@
             C = 'Agent.Launcher.ConversationHosting#contextCache'
             F = ''
             Phi = ''; E = '派生缓存（无物理 E）'
-            CProbeFile = 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\ConversationHosting.cs'
+            CProbeFile = 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Session\ConversationHosting.cs'
             CProbePattern = 'contextCache'; CProbeExpect = 'read'
             Retire = '开关删除（恒开）∧ 旧读面删除'
         }

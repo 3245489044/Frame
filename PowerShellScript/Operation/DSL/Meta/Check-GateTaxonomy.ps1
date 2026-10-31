@@ -14,8 +14,8 @@
          要么在伴随件白名单（防「新增门却未登记」脱钩）。
       T4 索引等价：index.generated.md 存在且其条目集与清单复算等价（防手改产物 / 漂移）。
       T5 正/负对照：复算器对合成样本行为正确（判据不恒真/恒假）。
-      T6 Family 合法：落点在 Agent 域的门须声明 Family（判据面）且 ∈ 枚举。
-      T7 Form 合法：落点在 Agent 域的门须声明 Form（判据形态）且 ∈ 枚举。
+      T6 Family 合法：适用面（Domain=Agent ∪ 落点在 DSL\Agent\）的门须声明 Family（判据面）且 ∈ 枚举。
+      T7 Form 合法：同上适用面的门须声明 Form（判据形态）且 ∈ 枚举。
 
     模式：默认报告模式（列违规，不设退出码）；-Check 校验模式（违规 → 退出码 1）。只读仓库，零侧写。
 
@@ -102,6 +102,17 @@ $agentCellPrefix = 'Frame\PowerShellScript\Operation\DSL\Agent\'
 function Test-FamilyValid { param([string]$Family) return (-not [string]::IsNullOrWhiteSpace($Family)) -and ($familyEnum -contains $Family) }
 function Test-FormValid   { param([string]$Form)   return (-not [string]::IsNullOrWhiteSpace($Form))   -and ($formEnum -contains $Form) }
 
+# T6/T7 适用面谓词（唯一定义点；判定与 T5 对照共用 ⇒ 防两套口径）
+# 适用面 = 语义域（Domain=Agent）∪ 物理落点（DSL\Agent\）——消除双向盲区：
+#   ① 语义在 Agent 但落在他域目录（如 PromptCacheStability）
+#   ② 落点在 Agent 目录但登记域为他域（AgentStorageIsolation / DispatchTraceSchema / FallbackInventoryRate）
+function Test-AgentAxisApplicable {
+    param([string]$Domain, [string]$Cell)
+    if ([string]::IsNullOrWhiteSpace($Domain) -or [string]::IsNullOrWhiteSpace($Cell)) { return $false }
+    if ($Domain -eq 'Agent') { return $true }
+    return $Cell.StartsWith($agentCellPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 # 落点缓存：T2/T3/T4/T6/T7 共用一次解析（防多套口径与重复扫描）
 $cellCache = @{}
 foreach ($name in $gates.Keys) {
@@ -156,18 +167,19 @@ foreach ($f in $dslChecks) {
     }
 }
 
-# ── T4：index.generated.md 与清单复算等价 ──
-# 复算有效行集 = 每个登记项一行「| `Gate` | Tier | Expect | `Script` |」
+# ── T4：index.generated.md 与清单复算等价（行 + 所属域小节，防「行恒等但挂错域」）──
+# 复算有效行集 = 「Domain<TAB>| `Gate` | Tier | Expect | Family | Form | `Script` |」
 $expectedRows = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 $expectedDomains = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 foreach ($name in $gates.Keys) {
     $spec = $gates[$name]
-    [void]$expectedDomains.Add([string]$spec.Domain)
+    $domain = [string]$spec.Domain
+    [void]$expectedDomains.Add($domain)
     $tier = if ($spec.ContainsKey('Tier')) { [string]$spec.Tier } else { 'full' }
     $family = if ($spec.ContainsKey('Family')) { [string]$spec.Family } else { '—' }
     $form   = if ($spec.ContainsKey('Form')) { [string]$spec.Form } else { '—' }
     $cell = [string]$cellCache[$name]
-    [void]$expectedRows.Add("| ``$name`` | $tier | $([int]$spec.Expect) | $family | $form | ``$cell`` |")
+    [void]$expectedRows.Add("$domain`t| ``$name`` | $tier | $([int]$spec.Expect) | $family | $form | ``$cell`` |")
 }
 
 if (-not (Test-Path -LiteralPath $indexPath)) {
@@ -176,11 +188,12 @@ if (-not (Test-Path -LiteralPath $indexPath)) {
     $indexLines = Get-Content -LiteralPath $indexPath -Encoding UTF8
     $actualRows = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $actualDomains = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $currentSection = ''
     foreach ($ln in $indexLines) {
-        if ($ln -match '^##\s+(\S+?)（\d+ 件）') { [void]$actualDomains.Add($Matches[1]); continue }
-        if ($ln -match '^\|\s+`([^`]+)`\s+\|') { [void]$actualRows.Add($ln.TrimEnd()) }
+        if ($ln -match '^##\s+(\S+?)（\d+ 件）') { $currentSection = $Matches[1]; [void]$actualDomains.Add($currentSection); continue }
+        if ($ln -match '^\|\s+`([^`]+)`\s+\|') { [void]$actualRows.Add("$currentSection`t$($ln.TrimEnd())") }
     }
-    foreach ($r in $expectedRows) { if (-not $actualRows.Contains($r)) { $violations.Add("[T4] 索引漂移：清单有但产物缺行 → $r") } }
+    foreach ($r in $expectedRows) { if (-not $actualRows.Contains($r)) { $violations.Add("[T4] 索引漂移：清单有但产物缺行或挂错域小节 → $r") } }
     foreach ($r in $actualRows)   { if (-not $expectedRows.Contains($r)) { $violations.Add("[T4] 索引漂移：产物有但清单无行（手改?）→ $r") } }
     foreach ($d in ($expectedDomains | Sort-Object)) {
         if (-not $actualDomains.Contains($d)) { $violations.Add("[T4] 索引缺域小节：$d") }
@@ -188,11 +201,11 @@ if (-not (Test-Path -LiteralPath $indexPath)) {
 }
 
 # ── T6/T7：判据面（Family）与判据形态（Form）分类轴 ──
-# 适用面 = 落点在 Agent 域的门（其余域尚未补轴；Domain 仍是唯一组织轴）
+# 适用面 = 语义域（Domain=Agent）∪ 物理落点（DSL\Agent\）；其余域尚未补轴（Domain 仍是唯一组织轴）
 foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec = $gates[$name]
     $cell = [string]$cellCache[$name]
-    if (-not $cell.StartsWith($agentCellPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+    if (-not (Test-AgentAxisApplicable -Domain ([string]$spec.Domain) -Cell $cell)) { continue }
 
     $family = if ($spec.ContainsKey('Family')) { [string]$spec.Family } else { '' }
     if (-not (Test-FamilyValid -Family $family)) {
@@ -230,6 +243,17 @@ if (Test-FamilyValid -Family '__NONEXISTENT__') { $violations.Add('[T5] 负对�
 if (Test-FormValid -Form '__NONEXISTENT__')     { $violations.Add('[T5] 负对照失败：合成非法 Form 被 T7 谓词误判为合法') }
 if (-not (Test-FamilyValid -Family @($familyEnum)[0])) { $violations.Add('[T5] 正对照失败：枚举内合法 Family 被判非法') }
 if (-not (Test-FormValid -Form @($formEnum)[0]))       { $violations.Add('[T5] 正对照失败：枚举内合法 Form 被判非法') }
+
+# T6/T7 适用面谓词自证（三类样本：语义域命中 / 落点命中 / 两者皆非）
+$agentAxisCases = @(
+    @{ Id = '语义域命中（Domain=Agent、落点在 Node）'; Domain = 'Agent'; Cell = 'Frame\PowerShellScript\Operation\DSL\Node\Check-X.ps1'; Expect = $true },
+    @{ Id = '落点命中（Domain=Node、落在 Agent 目录）'; Domain = 'Node';  Cell = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-X.ps1'; Expect = $true },
+    @{ Id = '两者皆非（Domain=Node、落点在 Node）';       Domain = 'Node';  Cell = 'Frame\PowerShellScript\Operation\DSL\Node\Check-X.ps1'; Expect = $false }
+)
+foreach ($c in $agentAxisCases) {
+    $actual = Test-AgentAxisApplicable -Domain $c.Domain -Cell $c.Cell
+    if ($actual -ne $c.Expect) { $violations.Add("[T5] 适用面谓词对照失败：$($c.Id)（实际=$actual，期望=$($c.Expect)）") }
+}
 
 # ── 报告 ──
 Write-Host '=== 门禁分类守卫（GateTaxonomy：清单 ⇄ 索引 ⇄ 脚本 三方对账）===' -ForegroundColor White

@@ -1,5 +1,5 @@
 @{
-    # ===== AgentSpec 门禁基线（单源；守卫 = Operation\DSL\Agent\Check-AgentSpec.ps1）=====
+    # ===== AgentSpec 门禁基线（单源；守卫 = Operation\DSL\Agent\Declaration\Check-AgentSpec.ps1）=====
     # 正对照（防「声明被删而门禁恒绿」）：agent 目录数下限；新增 agent 只增不减。
     Schema = 'gate-baseline-v1'
     Gate   = 'AgentSpec'

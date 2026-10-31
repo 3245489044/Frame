@@ -1,5 +1,5 @@
 @{
-    # ===== LaneCatalog 门禁基线（单源；守卫 = Operation\DSL\Agent\Check-LaneCatalog.ps1）=====
+    # ===== LaneCatalog 门禁基线（单源；守卫 = Operation\DSL\Agent\Declaration\Check-LaneCatalog.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'LaneCatalog'
 

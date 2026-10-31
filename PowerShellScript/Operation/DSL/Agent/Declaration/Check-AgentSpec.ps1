@@ -32,9 +32,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
@@ -45,7 +52,7 @@ $processKeys = @('order', 'step', 'sequence', 'then', 'next')
 $violations = [System.Collections.Generic.List[string]]::new()
 $pending    = [System.Collections.Generic.List[string]]::new()
 
-Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path (Get-FrameRoot) 'PowerShellScript\Baselines\GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name AgentSpec
 $minAgents = [int]$baseline.MinAgents.Value
 

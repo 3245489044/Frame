@@ -1,5 +1,5 @@
 @{
-    # ===== ExecutionLaneGate 门禁基线（单源；守卫 = Operation\DSL\Agent\Check-ExecutionLaneGate.ps1）=====
+    # ===== ExecutionLaneGate 门禁基线（单源；守卫 = Operation\DSL\Agent\Contract\Check-ExecutionLaneGate.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'ExecutionLaneGate'
 

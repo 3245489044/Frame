@@ -1,10 +1,10 @@
 @{
-    # ===== IEF+ 执行契约门禁基线（纯数据单源；守卫 = Operation\DSL\Agent\Check-IntentContract.ps1）=====
+    # ===== IEF+ 执行契约门禁基线（纯数据单源；守卫 = Operation\DSL\Agent\Contract\Check-IntentContract.ps1）=====
     # 把设计单 §3.2 三张表落到「注册表声明结构事实」的机器判据（C1–C6）。
     # 每条事实必带 Origin/DueWhen（四分事实见 Baselines\README.md）。
     Schema = 'gate-baseline-v1'
     Gate   = 'IntentContract'
-    Source = 'Frame\PowerShellScript\Operation\DSL\Agent\Check-IntentContract.ps1'
+    Source = 'Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-IntentContract.ps1'
 
     # C1/C6 正对照下限：受检 Row 行数须 ≥ 此值（防授权面被掏空 ⇒ 判据无标的假绿）。
     MinRows = @{ Value = 20; Origin = 'Derived'; DueWhen = '' }

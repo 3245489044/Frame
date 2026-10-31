@@ -105,6 +105,8 @@
 
     PromptCacheStability = @{
         Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'SingleSource'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -202,7 +204,7 @@
 
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
     RelationPlan = @{
-        Domain = 'Agent'
+        Domain = 'Node'
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
@@ -227,7 +229,7 @@
     }
 
     NodeEdgeIntegrity = @{
-        Domain = 'Agent'
+        Domain = 'Node'
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
@@ -1243,6 +1245,13 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '渲染产物边界（节点树单一形态）：B1 UiNodeHtml.ToHtml 调用点 = 1（FragmentSerializer）/ B2 渲染链气泡段无「造串→解串」（Parse 仅两处登记边界）/ B3 会话模板无 |raw；负对照 -NegativeControl'
+    }
+
+    AgentSemanticsLeak = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Note   = 'Agent 领域语义泄漏（Frame 不得持有 Agent 产品语义）：A1 AgentUi_ 函数名 / A2 Agent 交互命令词 / A3 终答语义旧类型名 / A4 using Agent. = 0；负对照 -NegativeControl'
     }
 
     BatchScope = @{

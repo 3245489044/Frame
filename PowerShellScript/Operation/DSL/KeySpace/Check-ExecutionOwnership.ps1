@@ -62,7 +62,7 @@ if (-not (Test-Path -LiteralPath $ownershipFile)) {
 $gateFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Runtime\State\Orchestration\RegistrationGate.cs'
 $registrarFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Common\FunctionRegistrar.cs'
 $assemblyRootFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Host\Composition\AgentModuleRegistrar.cs'
-$launcherRegistrarFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\AgentWorkflowFunctionRegistrar.cs'
+$launcherRegistrarFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Registration\AgentWorkflowFunctionRegistrar.cs'
 
 if (-not (Test-Path -LiteralPath $gateFile)) {
     $violations.Add('EO5 注册面内核缺失：RegistrationGate.cs')

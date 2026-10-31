@@ -2,7 +2,7 @@
     # ===== ReadModelOnly 基线（Turn 读模型唯一读面）=====
     # 语义：Turn 事实（在途/阶段/轮次/耗时/空态原因）只允许经 ITurnReadModel / TurnReadModel 读取；
     # 禁止在 Turn 渲染面重新引入「任务池/运行态字段直判」（即原缺陷的镜像读法）。
-    # 消费方 = Operation\DSL\Agent\Check-ReadModelOnly.ps1（门禁名 ReadModelOnly）
+    # 消费方 = Operation\DSL\Agent\Presentation\Check-ReadModelOnly.ps1（门禁名 ReadModelOnly）
     Schema = 'read-model-only-v1'
 
     # 扫描面（仓库相对；只能缩不能放）

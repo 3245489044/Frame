@@ -1,6 +1,6 @@
 {
   "schema": "catch-triage-v1",
-  "generated": "2026-10-29",
+  "generated": "2026-10-31",
   "engine": "roslynmethod",
   "scan": {
     "roots": [
@@ -16,26 +16,26 @@
     ]
   },
   "totals": {
-    "catchTotal": 2078,
-    "candidate": 1730,
+    "catchTotal": 2118,
+    "candidate": 1756,
     "registered": 37
   },
   "byClass": [
     {
       "class": "candidate-empty",
-      "count": 1554
+      "count": 1573
     },
     {
       "class": "candidate-logonly",
-      "count": 213
+      "count": 220
     },
     {
       "class": "degrade",
-      "count": 15
+      "count": 20
     },
     {
       "class": "rethrow",
-      "count": 296
+      "count": 305
     }
   ],
   "items": [
@@ -2820,6 +2820,66 @@
       "candidate": true
     },
     {
+      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "line": 112,
+      "endLine": 115,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "ebf8caae63969bff53398b3f4190b08b4647b930898f726bb47a92c380fdf94d",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "line": 128,
+      "endLine": 131,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "7b03f87af34d6e2bd26458b3a4ef45ad2660e03f85a2686f036dccd36f1a46ac",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "line": 140,
+      "endLine": 143,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "af204988ab9a0405ef2948fc8b8136714c036f051bfd9a60817d80c039908126",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "line": 41,
+      "endLine": 44,
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "51f69146546ed602b662a259553247d1af25e4beb93508024e051c6f08e500e5",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "line": 60,
+      "endLine": 63,
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "c6c17f547117e96ea04070c3ca87380e395949368aea9953ce45366d38facb05",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "line": 127,
+      "endLine": 131,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "4570479364d9e18191205e123242f00a57103421e69922f59b0ac6b9950fd66d",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Modules/Governance/LimitKernel.cs",
       "line": 404,
       "endLine": 404,
@@ -2931,8 +2991,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Modules/KeySpace/Rules/KeyAlgebra.cs",
-      "line": 160,
-      "endLine": 166,
+      "line": 162,
+      "endLine": 168,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "ce408ce563cce16126b40dac8777be1697c331ca189795d630e7c8c27503498e",
@@ -3351,8 +3411,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayload.cs",
-      "line": 103,
-      "endLine": 107,
+      "line": 123,
+      "endLine": 127,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "0e6b073f78f6a68107155a75ab11199d705b8f484d623020293448871c8361f1",
@@ -3361,11 +3421,21 @@
     },
     {
       "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayloadMerge.cs",
-      "line": 35,
-      "endLine": 38,
+      "line": 71,
+      "endLine": 74,
       "exception": "",
       "class": "candidate-empty",
-      "bodyHash": "842910ec4006878907366fa1248dca57bc0cf069e7aaaa6a9c7ee114a7c33181",
+      "bodyHash": "35ea23c77b64a0b7c194a8ae4a14e67bede7dde0fe101f4ca2e1f087439cd63a",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayloadMerge.cs",
+      "line": 280,
+      "endLine": 283,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "da66f2be893972681f00eef89aca5698ad8e68aa619c8e883377c1ddd76af83a",
       "registered": false,
       "candidate": true
     },
@@ -3396,6 +3466,46 @@
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "14bc0e9e8e3f1bc324f0d8d541ef89c1dc63964af4b8b361f58799c9f2c963e8",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "line": 86,
+      "endLine": 89,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "8dccf2b5bfe2908036777a7d3f1ae7d0ccb94293e449bd5087e079e507bfa37b",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "line": 90,
+      "endLine": 93,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "line": 95,
+      "endLine": 95,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "dc2759e1b13d0d00d862dea711d652f2d990174e8d69d6908de018b23c0626a1",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "line": 107,
+      "endLine": 107,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "7e992bf6f78b965b4248d18efddcea4f1682b9311ff2d2dbadf8d5c441338832",
       "registered": false,
       "candidate": true
     },
@@ -5441,8 +5551,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/BackEndDriven/CommandExecution/CommandCoordinator.cs",
-      "line": 473,
-      "endLine": 477,
+      "line": 480,
+      "endLine": 484,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "a27af03da61d01d411b058166f921bf463ddda780f8bb57022a683c909f81eeb",
@@ -5551,18 +5661,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/BackEndDriven/CommandExecution/UiCommandSystems.cs",
-      "line": 517,
-      "endLine": 520,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "c5c5232597325cc1628ff6fd4c4145cd5ec6ff014a7cec8fd9eb2ad30fbeea3f",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/BackEndDriven/CommandExecution/UiCommandSystems.cs",
-      "line": 599,
-      "endLine": 602,
+      "line": 510,
+      "endLine": 513,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "3e7e0ef40bc38565974ed2699b32047cf67f3c5a55e8809c617f9b3f426a00ab",
@@ -5571,8 +5671,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/BackEndDriven/CommandExecution/WaitUntilSystem.cs",
-      "line": 122,
-      "endLine": 125,
+      "line": 131,
+      "endLine": 134,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "a74579fbfb121777a0ac085cb2226014f9e4e61e794a1de57459a121a1b1e0c8",
@@ -5581,11 +5681,11 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/BackEndDriven/CommandExecution/WaitUntilSystem.cs",
-      "line": 148,
-      "endLine": 151,
+      "line": 157,
+      "endLine": 161,
       "exception": "",
       "class": "candidate-empty",
-      "bodyHash": "442a19566a1766892d580be13ed271add7824cbd2291f5046682a2f9e1684c18",
+      "bodyHash": "7c84883cda12c0e140e9703627a3b0286ab8db0161956b80e58b442a3f858976",
       "registered": false,
       "candidate": true
     },
@@ -6031,11 +6131,21 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/UiCommandLibrary.cs",
-      "line": 233,
-      "endLine": 236,
+      "line": 235,
+      "endLine": 238,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/UiJsonAssistLibrary.cs",
+      "line": 118,
+      "endLine": 122,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "cc193f4d083871d6dc28e218a5cabc15bec2da851c63005c3f62ce6113ae5e62",
       "registered": false,
       "candidate": true
     },
@@ -6051,8 +6161,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 314,
-      "endLine": 329,
+      "line": 313,
+      "endLine": 328,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "d70b9e504cc38434558214e57a46a47d9a3d89064b93c68625876765e486111c",
@@ -6061,8 +6171,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 413,
-      "endLine": 429,
+      "line": 412,
+      "endLine": 428,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "4bce2ec3e440c1a5d73d774b0719f3b6037a5d3c49dfc4695f883026724a0493",
@@ -6071,8 +6181,18 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 501,
-      "endLine": 506,
+      "line": 517,
+      "endLine": 531,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "40aac5f569362533c660927dd7c4f0656aa188864f0f061f533edfef8d3b76c4",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
+      "line": 552,
+      "endLine": 557,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "c83aacf58d190c34352c8812061134c883a6860da7f5b250362325e4dc73c5df",
@@ -6081,8 +6201,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 518,
-      "endLine": 523,
+      "line": 569,
+      "endLine": 574,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "9f710d6e1d744d00acb35dfbdeb93d2ff61a538df69be1c6acca7c40f6dec8ac",
@@ -6091,8 +6211,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 545,
-      "endLine": 550,
+      "line": 596,
+      "endLine": 601,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "047eaaee58f27e1f474de89388ea0fc4cac01e39f1d72b687e25034080a339c0",
@@ -6101,8 +6221,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ControlInteraction/EventBinding/EcsEventBus.cs",
-      "line": 593,
-      "endLine": 598,
+      "line": 644,
+      "endLine": 649,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "363da99948f3b601611d6e4a8aff9d7f22924465ce0d3fe2177934632f70ae78",
@@ -6250,9 +6370,19 @@
       "candidate": false
     },
     {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlAttachmentCoordinator.cs",
+      "line": 186,
+      "endLine": 189,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "2c10b7ea5ef820a57a8e1ad0ea84138e3c0a1034a4e826998d1f2266d66d6677",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
-      "line": 125,
-      "endLine": 128,
+      "line": 153,
+      "endLine": 156,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "a0a462c007b01a9c326442cd9dff0b3332cbe81d2fb5b03581d167f2c32adca0",
@@ -6261,8 +6391,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
-      "line": 143,
-      "endLine": 146,
+      "line": 171,
+      "endLine": 174,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "e57b449456b6cd6096f403997e203673071d41388ea3bd0befa8fa7ebb2cd70e",
@@ -6271,8 +6401,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
-      "line": 166,
-      "endLine": 170,
+      "line": 194,
+      "endLine": 198,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "e29a86d26ce50600c18f12e00cc7323387eabecefad4a9dfd46e1ca0645f9abf",
@@ -6281,21 +6411,11 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
-      "line": 171,
-      "endLine": 174,
+      "line": 199,
+      "endLine": 202,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "30d3c39a36eccbb72405bab8b7ca4184e460106ddf6f065cd2a18db45443abd2",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlBridgeLibrary.cs",
-      "line": 356,
-      "endLine": 359,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "2c10b7ea5ef820a57a8e1ad0ea84138e3c0a1034a4e826998d1f2266d66d6677",
       "registered": false,
       "candidate": true
     },
@@ -6321,8 +6441,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlHosting/HtmlRenderOutputSink.cs",
-      "line": 55,
-      "endLine": 58,
+      "line": 63,
+      "endLine": 66,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "d30937a2b4e6b61ced5db157f706ca5472afca7b9d691b4579a95716cfbcb8bb",
@@ -6336,66 +6456,6 @@
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "291f2efe17e80e8aa5b6f876c3ac422df1e2768ca4e6ac88032e9ab3fbb3b6c9",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/RenderOutputCoordinator.cs",
-      "line": 79,
-      "endLine": 84,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "7f8eec910d6c17c5f869e5ce9da2dc9081e7302f4b7c7ad18cb92c4f4a5a4099",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/RenderOutputCoordinator.cs",
-      "line": 91,
-      "endLine": 95,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "660c1be0a2db42c9277abe05d58916bd2c14d1044872e080a5cfbaeb17fb8a86",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/WebView2Transport.cs",
-      "line": 75,
-      "endLine": 78,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "8dccf2b5bfe2908036777a7d3f1ae7d0ccb94293e449bd5087e079e507bfa37b",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/WebView2Transport.cs",
-      "line": 79,
-      "endLine": 82,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/WebView2Transport.cs",
-      "line": 84,
-      "endLine": 84,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "dc2759e1b13d0d00d862dea711d652f2d990174e8d69d6908de018b23c0626a1",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/WebView2Transport.cs",
-      "line": 96,
-      "endLine": 96,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "7e992bf6f78b965b4248d18efddcea4f1682b9311ff2d2dbadf8d5c441338832",
       "registered": false,
       "candidate": true
     },
@@ -6520,9 +6580,59 @@
       "candidate": true
     },
     {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Assistant/JsonProposalPipeline.cs",
+      "line": 35,
+      "endLine": 38,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Assistant/JsonStepAssistant.cs",
+      "line": 66,
+      "endLine": 69,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Assistant/JsonStepAssistant.cs",
+      "line": 70,
+      "endLine": 74,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "817c0466c966333eea4951e393083ceca16f8e9e4dcd6fce77145c216e5ba118",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Assistant/ParameterAssistant.cs",
+      "line": 73,
+      "endLine": 76,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Assistant/ParameterAssistant.cs",
+      "line": 77,
+      "endLine": 81,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "307d9683a7851e416121cce531f21722edd5db684d52afb0ccd80415bc750091",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Console/ConsoleCommandRouter.cs",
-      "line": 192,
-      "endLine": 195,
+      "line": 242,
+      "endLine": 245,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "b1af40efeba00e0a56416262e497bc597eada7171261b825feebc71bd3fff93c",
@@ -6531,8 +6641,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Console/ConsoleCommandRouter.cs",
-      "line": 262,
-      "endLine": 265,
+      "line": 318,
+      "endLine": 321,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "12b4e32e64f8069ae71c1cf9727b46002dcb606eded6ef1a8df817c31932e409",
@@ -6541,8 +6651,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Console/ConsoleCommandRouter.cs",
-      "line": 325,
-      "endLine": 328,
+      "line": 415,
+      "endLine": 418,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "0bdfd93554bf4eccde76bae199902ac15db8f9c728834db333982b04477ca331",
@@ -6551,18 +6661,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Console/ConsoleCommandRouter.cs",
-      "line": 440,
-      "endLine": 440,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "9aa3292e67a5be6d66314298bc485166635acfb0d147703f1dea572c4d50c1de",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Console/ConsoleCommandRouter.cs",
-      "line": 480,
-      "endLine": 483,
+      "line": 599,
+      "endLine": 602,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "35815493ce2e27a9f6fad08f93c3e2ff666bbbfd43b8de68b07c740d64db5667",
@@ -6586,6 +6686,16 @@
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "445fbee9bde6518316a98673b0c84b2db6607140544d417220231866ad8740ce",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/ProductionConsole/Runtime/ConsoleArtifactCache.cs",
+      "line": 46,
+      "endLine": 46,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "9aa3292e67a5be6d66314298bc485166635acfb0d147703f1dea572c4d50c1de",
       "registered": false,
       "candidate": true
     },
@@ -6671,8 +6781,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Operation/FrontEndDriven/Rendering/TaskPoolMarkdownRenderer.cs",
-      "line": 74,
-      "endLine": 77,
+      "line": 80,
+      "endLine": 83,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "a3349a9f3c2d45f13ddd21796c7e2f26a6849f6d3f46436365e121cdf68f5736",
@@ -6746,6 +6856,16 @@
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "61ad266a7aaf31f408347967d84e01c677a8633cd72807abb0bd6552c68112cb",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Operation/FrontEndDriven/Shared/Utils/WireJson.cs",
+      "line": 42,
+      "endLine": 45,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "918c35a4db8930567471610dfe15f3d93809875f1503251674d5c557d1032093",
       "registered": false,
       "candidate": true
     },
@@ -8990,6 +9110,16 @@
       "candidate": true
     },
     {
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Abstractions/RenderOutputPassthrough.cs",
+      "line": 24,
+      "endLine": 31,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "a651e56224a3305a67b84ae57c8cd44262dcd51629616a9730452a0fe4764e06",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Plate/HtmlViewer/Abstractions/UiMessageEnvelope.cs",
       "line": 57,
       "endLine": 60,
@@ -9250,6 +9380,26 @@
       "candidate": true
     },
     {
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Sync/RenderOutputCoordinator.cs",
+      "line": 82,
+      "endLine": 87,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "7f8eec910d6c17c5f869e5ce9da2dc9081e7302f4b7c7ad18cb92c4f4a5a4099",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Sync/RenderOutputCoordinator.cs",
+      "line": 94,
+      "endLine": 98,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "660c1be0a2db42c9277abe05d58916bd2c14d1044872e080a5cfbaeb17fb8a86",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Transport/LoopbackProbe.cs",
       "line": 104,
       "endLine": 108,
@@ -9341,8 +9491,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Plate/HtmlViewer/Html/Write/HtmlBackendRuntime.cs",
-      "line": 229,
-      "endLine": 233,
+      "line": 241,
+      "endLine": 245,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "380b40ca4d282ee22c7d9d803598f68caba2314dc5eeb93b55f56e6f0e4ba1dd",
@@ -9476,6 +9626,36 @@
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "f428cce08814a4fded77a5035e3ac6063c6cd32e716a532d2615e7da692d6527",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Plate/HttpMethod/Transport/HttpCallGuard.cs",
+      "line": 46,
+      "endLine": 49,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "e6a5dbb9feb58cb0c4e8633f31550f614a7c59e669685ad19d62d03ee0046739",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Plate/HttpMethod/Transport/HttpCallGuard.cs",
+      "line": 50,
+      "endLine": 54,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "d85f8735efbcf823692dd74c67052630d92134dda8b1fb6a1672cc0c4088cd31",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Frame/CsharpPrj/Plate/HttpMethod/Transport/HttpCallGuard.cs",
+      "line": 55,
+      "endLine": 58,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "0ffe62fbdeace779dbe52cd2e65e1d13d59f4366da473d123435fb28198103f6",
       "registered": false,
       "candidate": true
     },
@@ -12880,6 +13060,16 @@
       "candidate": true
     },
     {
+      "file": "Frame/CsharpPrj/Share/Frameworks/UniversalReference/Relations/Mounting/MountGateway.cs",
+      "line": 181,
+      "endLine": 185,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "8aac6d84286f8aee408a933b485ad0f8c9e8c386e39ec891047647a95dafea51",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Frame/CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/PersistenceHelper.cs",
       "line": 59,
       "endLine": 59,
@@ -13591,8 +13781,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Share/Orchestration/TaskStatusPool/TaskPool/TaskPool.cs",
-      "line": 573,
-      "endLine": 576,
+      "line": 587,
+      "endLine": 590,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "1619a5425da702dbfa7710442ae3b49776593e37663032253e47b489db8877d5",
@@ -13601,8 +13791,8 @@
     },
     {
       "file": "Frame/CsharpPrj/Share/Orchestration/TaskStatusPool/TaskPool/TaskPool.cs",
-      "line": 579,
-      "endLine": 579,
+      "line": 593,
+      "endLine": 593,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "ad2dd5194b1d7300d71e6846389383a0b9697c9df4ee0e8f839a9df2f409aa45",
@@ -13611,11 +13801,21 @@
     },
     {
       "file": "Frame/CsharpPrj/Share/Orchestration/TaskStatusPool/TaskPool/TaskPoolHost.cs",
-      "line": 36,
-      "endLine": 40,
+      "line": 34,
+      "endLine": 38,
       "exception": "ex",
       "class": "rethrow",
-      "bodyHash": "d37125edae8b02bfe226a2bc4691846b444c8f0b1fa7598ccf4dfd5b3651589e",
+      "bodyHash": "e810e9330f1e5a6621bce119ea7bf60b9fc0e4d72dadd0f679d124a64dfde70e",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Frame/CsharpPrj/Share/Orchestration/TaskStatusPool/TaskPool/TaskPoolHost.cs",
+      "line": 81,
+      "endLine": 86,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "a094c9dc5ba0d5181929ee576d14f0233a1431570e0e0d4181eba460f7c50f62",
       "registered": false,
       "candidate": false
     },
@@ -14401,31 +14601,31 @@
     },
     {
       "file": "Frame/CsharpPrj/Strategy/Refresh/Core/RefreshService.cs",
-      "line": 157,
-      "endLine": 161,
+      "line": 183,
+      "endLine": 188,
       "exception": "ex",
       "class": "candidate-empty",
-      "bodyHash": "f5531807e5c5cfe4c1fd414d82b9bec0829656b84a5c9dacf7dcb63100287460",
+      "bodyHash": "270a9408d157d2438cdc3349244687ae872d677a74c7ba204780994a6c15baf7",
       "registered": false,
       "candidate": true
     },
     {
       "file": "Frame/CsharpPrj/Strategy/Refresh/Core/RefreshService.cs",
-      "line": 168,
-      "endLine": 173,
+      "line": 195,
+      "endLine": 201,
       "exception": "ex",
       "class": "candidate-empty",
-      "bodyHash": "e8af5df478295906146c6e19194131267538c79b29cb4c1c5d299aea413870a0",
+      "bodyHash": "c9c30973ade493dd7b1e61124942d08ce1de436d10bb4c2feac05117eacea78c",
       "registered": false,
       "candidate": true
     },
     {
       "file": "Frame/CsharpPrj/Strategy/Refresh/Core/RefreshService.cs",
-      "line": 208,
-      "endLine": 213,
+      "line": 238,
+      "endLine": 244,
       "exception": "ex",
       "class": "candidate-empty",
-      "bodyHash": "8a3dec68b50fcc4f82935463bc3553eeca3394d0d74f262598337d545c98cc43",
+      "bodyHash": "86afb28c7efbd336ac17e7fa3bb540f00faed38969daf38c54117693aaed3662",
       "registered": false,
       "candidate": true
     },
@@ -15441,8 +15641,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/Nodes/WorkflowRunner.cs",
-      "line": 408,
-      "endLine": 411,
+      "line": 419,
+      "endLine": 422,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "7f28df05e7e2d92e379afb0b65e51083afecd4cc353162b44831311f3268b543",
@@ -15451,8 +15651,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/Nodes/WorkflowRunner.cs",
-      "line": 412,
-      "endLine": 417,
+      "line": 423,
+      "endLine": 428,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "fb30409aa3e65a2f8312f99a17c071f91753431983c23f7ec079f010985100ab",
@@ -15461,8 +15661,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/Nodes/WorkflowRunner.cs",
-      "line": 440,
-      "endLine": 444,
+      "line": 451,
+      "endLine": 455,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "a6704e4c35a42acbe532ba68cfc74088cc44b64748c3d779d41b73a653547459",
@@ -15631,28 +15831,38 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskPool.cs",
-      "line": 128,
-      "endLine": 135,
+      "line": 140,
+      "endLine": 147,
       "exception": "ex",
       "class": "rethrow",
-      "bodyHash": "23baf56545fe961a206ae4a4ba45cf7348e797ac0f542f28d353463a8daa1bb3",
+      "bodyHash": "818ce028a099eb60a45c9f1cd952b6596e0a5d2acb4b38daa17d69324f2d00fe",
       "registered": false,
       "candidate": false
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskPool.cs",
-      "line": 378,
-      "endLine": 382,
+      "line": 383,
+      "endLine": 387,
       "exception": "",
       "class": "rethrow",
-      "bodyHash": "2e1e73f4657201056a33156369f873b0e5c7a404e8a098738e03387099bca01f",
+      "bodyHash": "6d70b9807c70a72f6a18b631f3cff9c8498f25bbd21effaff05a25212e928f03",
       "registered": false,
       "candidate": false
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskPool.cs",
-      "line": 575,
-      "endLine": 578,
+      "line": 393,
+      "endLine": 398,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "a094c9dc5ba0d5181929ee576d14f0233a1431570e0e0d4181eba460f7c50f62",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskPool.cs",
+      "line": 548,
+      "endLine": 551,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "35815493ce2e27a9f6fad08f93c3e2ff666bbbfd43b8de68b07c740d64db5667",
@@ -15681,8 +15891,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskGraphService.cs",
-      "line": 123,
-      "endLine": 127,
+      "line": 142,
+      "endLine": 146,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "3b35e27238aeab93880877c9100e5a3020b831ff4c645b206c6f4b8caa0e2957",
@@ -15691,8 +15901,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskGraphService.cs",
-      "line": 174,
-      "endLine": 177,
+      "line": 193,
+      "endLine": 196,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "fc8bd3f7f7d5db1213de06c101a4761e336234f7863102f0235d5adcfc574636",
@@ -15701,8 +15911,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskGraphService.cs",
-      "line": 260,
-      "endLine": 263,
+      "line": 279,
+      "endLine": 282,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "a3cbab28833878c38eed9671f21e483eb305b183ad146965db43b9fc15c69014",
@@ -15711,8 +15921,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskGraphService.cs",
-      "line": 310,
-      "endLine": 314,
+      "line": 351,
+      "endLine": 355,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "fe431f40c9a8a999165aef949185806b11b2ca2133299141aad402188029b05f",
@@ -15721,11 +15931,11 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Engine/TaskPool/TaskOrchestrator.cs",
-      "line": 194,
-      "endLine": 200,
+      "line": 187,
+      "endLine": 193,
       "exception": "ex",
       "class": "rethrow",
-      "bodyHash": "399621c8e5a6e11f72b2cffd05ff0fdff3854177c7cdec82da83333b78d01d3c",
+      "bodyHash": "e7ecfbd66f2b64f07815c50e9c1edf964ca8be515feedde7ce46ce58d0f58f54",
       "registered": false,
       "candidate": false
     },
@@ -16031,8 +16241,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/RoundDispatchPlanner.cs",
-      "line": 121,
-      "endLine": 124,
+      "line": 124,
+      "endLine": 127,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
@@ -16041,8 +16251,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/RoundDispatchPlanner.cs",
-      "line": 125,
-      "endLine": 128,
+      "line": 128,
+      "endLine": 131,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "918c35a4db8930567471610dfe15f3d93809875f1503251674d5c557d1032093",
@@ -16151,8 +16361,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 98,
-      "endLine": 98,
+      "line": 99,
+      "endLine": 99,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "aa2186bb46b3e903132306e4fc177265b459c2058cbc821ceb4ea96b2af7a5a3",
@@ -16161,8 +16371,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 130,
-      "endLine": 130,
+      "line": 131,
+      "endLine": 131,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "49a2df929bc7f8cf79c798ba48eb158ee2542b35b4dfb4a89eb738df35c0dbfe",
@@ -16171,8 +16381,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 183,
-      "endLine": 187,
+      "line": 184,
+      "endLine": 188,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "e7fc44141fcbd27d9d9d13bbb7e9fcfc011c0bd9f6fff7149500293ca97d8fce",
@@ -16181,28 +16391,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 252,
-      "endLine": 268,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "2f908f89af332e1be0e2d5753ff73bd591e3757f226c7cb9c7d2443dd1e5e598",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 269,
-      "endLine": 284,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "35583feb243599f6e7d9e1e3c55e37b08276d47a557d1e95dcac76226ad9eec5",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Core/Runtime/State/Infrastructure/LlmRoutingClient.cs",
-      "line": 320,
-      "endLine": 323,
+      "line": 324,
+      "endLine": 327,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
@@ -16271,8 +16461,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/AgentRuntimeRootBootstrap.cs",
-      "line": 325,
-      "endLine": 328,
+      "line": 373,
+      "endLine": 376,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
@@ -16281,8 +16471,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/AgentRuntimeRootBootstrap.cs",
-      "line": 343,
-      "endLine": 346,
+      "line": 391,
+      "endLine": 394,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "46528a6ed6cbb1d211cfbbeff2d1da7c8e36e48f440b00abefd1da027102256e",
@@ -16291,8 +16481,18 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/AgentRuntimeRootBootstrap.cs",
-      "line": 358,
-      "endLine": 361,
+      "line": 406,
+      "endLine": 409,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "46528a6ed6cbb1d211cfbbeff2d1da7c8e36e48f440b00abefd1da027102256e",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.DataCenter/AgentRuntimeRootBootstrap.cs",
+      "line": 421,
+      "endLine": 424,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "c5c5232597325cc1628ff6fd4c4145cd5ec6ff014a7cec8fd9eb2ad30fbeea3f",
@@ -16341,8 +16541,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/Persistence/JsonFileDataCell.cs",
-      "line": 218,
-      "endLine": 221,
+      "line": 226,
+      "endLine": 229,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "b01d4935adc1d59478d043a593ce878a03e824ca15f87e226da29879e7f69949",
@@ -16351,8 +16551,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/Persistence/StateCellJournal.cs",
-      "line": 126,
-      "endLine": 129,
+      "line": 135,
+      "endLine": 138,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "805e628a0be32f8896f85a14506842bb8b1b3246c8ab0dfd4982b9b40cd0211d",
@@ -16361,8 +16561,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/Persistence/StateCellJournal.cs",
-      "line": 142,
-      "endLine": 146,
+      "line": 151,
+      "endLine": 155,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "bed462cebded21cd9ad44a247e3a668826451360bc1cb4946c3bf83f9fa53fd0",
@@ -16371,8 +16571,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.DataCenter/Persistence/StateCellJournal.cs",
-      "line": 191,
-      "endLine": 195,
+      "line": 200,
+      "endLine": 204,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "dd40e65d92852339311e7fbd137cd8d3cf7c3e35ba7b2d080801861cb4a10195",
@@ -16390,37 +16590,7 @@
       "candidate": false
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/AgentAssemblySegments.cs",
-      "line": 255,
-      "endLine": 255,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "36220f703994663252a4f9750dc767cb828a039fa671c880d99012ff34f9e275",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/AgentVmProgramHost.cs",
-      "line": 436,
-      "endLine": 439,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "720241045dfd39095d82d8f4fa2eaf0125c57ed6f73c71692b3ba26eeed7870e",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/ConversationAssemblySteps.cs",
-      "line": 198,
-      "endLine": 201,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "a7a58aee9060c959672024dd6e3befe1131d52342c530a22feb4f4dc5ee3b20d",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/FlowGraphRegistry.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/Flow/FlowGraphRegistry.cs",
       "line": 109,
       "endLine": 113,
       "exception": "ex",
@@ -16430,7 +16600,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/FlowGraphRegistry.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/Flow/FlowGraphRegistry.cs",
       "line": 135,
       "endLine": 138,
       "exception": "ex",
@@ -16440,177 +16610,47 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentHostContractAdapter.cs",
-      "line": 23,
-      "endLine": 26,
-      "exception": "ex",
-      "class": "rethrow",
-      "bodyHash": "ec6bc496975fe87356ede07b538d0a886bb47e1d915ae2c4ba4a1044f7d90d4a",
-      "registered": false,
-      "candidate": false
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentHostContractAdapter.cs",
-      "line": 35,
-      "endLine": 38,
-      "exception": "ex",
-      "class": "rethrow",
-      "bodyHash": "ec6bc496975fe87356ede07b538d0a886bb47e1d915ae2c4ba4a1044f7d90d4a",
-      "registered": false,
-      "candidate": false
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentInstanceHosting.cs",
-      "line": 102,
-      "endLine": 106,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "2d70984d30dce4ba0956db7467e84def616704b3f068e5ac03d22d47af09aaac",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentInstanceHosting.cs",
-      "line": 196,
-      "endLine": 201,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "21b65ef2cf251d018799b1aa0a3e5e23ba2586cedaa62ac52af33b6352090618",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentOptionalModules.cs",
-      "line": 161,
-      "endLine": 169,
-      "exception": "ex",
-      "class": "degrade",
-      "bodyHash": "43bd49d2159905687155789a3ef756371be936db5ad359fb088740515445e042",
-      "registered": false,
-      "candidate": false
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentStorageBundle.cs",
-      "line": 150,
-      "endLine": 154,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "b055f8aeee62f319c2af542f5b5e86db08d2be00c12f001f5f144933467e5c09",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentStorageBundle.cs",
-      "line": 309,
-      "endLine": 312,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "93e69cc7928bddb03809ef61a4852536001f5ab336d3f692d43719ba5cc2200d",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentUiCompositionBridgeWiring.cs",
-      "line": 25,
-      "endLine": 29,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "4a4e8172172e2c2fe82eea64189079cd809675c2771b4f3232af3d8c26f63f36",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/AgentUiCompositionBridgeWiring.cs",
-      "line": 30,
-      "endLine": 33,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "01d3c8babff0e0fce0f700532ad7b5ee6292859a733909d37450ef75f2c76f41",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ConversationHosting.cs",
-      "line": 120,
-      "endLine": 123,
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/Segments/AgentAssemblySegments.cs",
+      "line": 261,
+      "endLine": 261,
       "exception": "",
       "class": "candidate-empty",
-      "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
+      "bodyHash": "36220f703994663252a4f9750dc767cb828a039fa671c880d99012ff34f9e275",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ConversationHosting.cs",
-      "line": 165,
-      "endLine": 169,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "658646449a9a85a243d57fb3457eafdf59a03f33286d50b2c02f55094ccd2b71",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ConversationHosting.cs",
-      "line": 312,
-      "endLine": 316,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "0d456f14e686b4d004a1bc1562c6c771fcb2edb700b3dc4a5b282bf85bc521dd",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ConversationHosting.cs",
-      "line": 416,
-      "endLine": 419,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "d9470586ab3ed0878bb82e4e61f39c83eaefd84a1deead55685aede4da84b13f",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DatabaseBootstrapper.cs",
-      "line": 93,
-      "endLine": 101,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "931704d6306b5f48a1e1e3afb4b51a5ee48fb22fd42330cda42bca75631c9e71",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DatabaseBootstrapper.cs",
-      "line": 120,
-      "endLine": 124,
-      "exception": "probe",
-      "class": "candidate-empty",
-      "bodyHash": "05a68938d711be9c002686047c98a7fbb244730995b918b0c0e81bd979964115",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DatabaseBootstrapper.cs",
-      "line": 146,
-      "endLine": 149,
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Circuit/Segments/AgentVmProgramHost.cs",
+      "line": 436,
+      "endLine": 439,
       "exception": "",
       "class": "candidate-empty",
-      "bodyHash": "18b137107ed138c2376298e7504daa5217003d999e0916cece01b51a9bba412f",
+      "bodyHash": "720241045dfd39095d82d8f4fa2eaf0125c57ed6f73c71692b3ba26eeed7870e",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-      "line": 181,
-      "endLine": 184,
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
+      "line": 65,
+      "endLine": 69,
       "exception": "ex",
       "class": "candidate-logonly",
-      "bodyHash": "9b49b64eb2b2112cba8f8dd234df355c005c626604ad295b5cd69f5cffa8f437",
+      "bodyHash": "b478109c4caabd8b5d53349713a47cc4c3792ca4514c9a355237102a182c7bf6",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DeclarationEditPort.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
+      "line": 125,
+      "endLine": 130,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "bcae73a50294e8cc67a79cdc9988966841a5142b4422668e7f1d5c8f845b1d77",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/DeclarationEditPort.cs",
       "line": 58,
       "endLine": 61,
       "exception": "ex",
@@ -16620,7 +16660,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DeclarationHotReloadService.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/DeclarationHotReloadService.cs",
       "line": 78,
       "endLine": 81,
       "exception": "ex",
@@ -16630,7 +16670,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DeclaredReferenceSourceProvider.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/DeclaredReferenceSourceProvider.cs",
       "line": 35,
       "endLine": 38,
       "exception": "",
@@ -16640,7 +16680,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/DeclaredReferenceSourceProvider.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/DeclaredReferenceSourceProvider.cs",
       "line": 59,
       "endLine": 62,
       "exception": "",
@@ -16650,7 +16690,37 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/LimitHosting.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/ProvenanceMountPort.cs",
+      "line": 109,
+      "endLine": 116,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "083fc8df0e61feadc5c77095d77629129e71a7ba87b4d6b13cacff71643ddd0c",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/RelationPlanProvider.cs",
+      "line": 41,
+      "endLine": 45,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "fc505fc6beaeb536dd2dce097571d3fc60cc611b1c49dc39e149a1463f329eb9",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/UsharpDecisionControlSource.cs",
+      "line": 122,
+      "endLine": 125,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "805e628a0be32f8896f85a14506842bb8b1b3246c8ab0dfd4982b9b40cd0211d",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Governance/LimitHosting.cs",
       "line": 36,
       "endLine": 40,
       "exception": "ex",
@@ -16660,7 +16730,7 @@
       "candidate": false
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/LimitHosting.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Governance/LimitHosting.cs",
       "line": 135,
       "endLine": 138,
       "exception": "",
@@ -16670,7 +16740,37 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/LlmRuntimeFactory.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Instance/AgentInstanceHosting.cs",
+      "line": 102,
+      "endLine": 106,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "2d70984d30dce4ba0956db7467e84def616704b3f068e5ac03d22d47af09aaac",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Instance/AgentInstanceHosting.cs",
+      "line": 196,
+      "endLine": 201,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "21b65ef2cf251d018799b1aa0a3e5e23ba2586cedaa62ac52af33b6352090618",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Llm/LlmJsonLeg.cs",
+      "line": 67,
+      "endLine": 72,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "92d412f494220fac4f05f6fc599fa67cb29a83d2882b3a955de554d78b2cf9b4",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Llm/LlmRuntimeFactory.cs",
       "line": 170,
       "endLine": 170,
       "exception": "",
@@ -16680,7 +16780,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/NodeFrameworkHosting.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Node/NodeFrameworkHosting.cs",
       "line": 166,
       "endLine": 175,
       "exception": "ex",
@@ -16690,7 +16790,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/NodeFrameworkHosting.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Node/NodeFrameworkHosting.cs",
       "line": 389,
       "endLine": 396,
       "exception": "ex",
@@ -16700,7 +16800,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/NodeGatherHosting.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Node/NodeGatherHosting.cs",
       "line": 76,
       "endLine": 85,
       "exception": "ex",
@@ -16710,37 +16810,117 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/RelationPlanProvider.cs",
-      "line": 39,
-      "endLine": 43,
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Session/ConversationAssemblySteps.cs",
+      "line": 199,
+      "endLine": 202,
       "exception": "ex",
       "class": "candidate-logonly",
-      "bodyHash": "fc505fc6beaeb536dd2dce097571d3fc60cc611b1c49dc39e149a1463f329eb9",
+      "bodyHash": "a7a58aee9060c959672024dd6e3befe1131d52342c530a22feb4f4dc5ee3b20d",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ResponsePorts.cs",
-      "line": 118,
-      "endLine": 122,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "7bdc59d08fc99ad0e07a21365434468033dcfb056c926505faf5069fd097d9fa",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Session/ConversationHosting.cs",
+      "line": 121,
+      "endLine": 124,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/ResponsePorts.cs",
-      "line": 247,
-      "endLine": 251,
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Session/ConversationHosting.cs",
+      "line": 166,
+      "endLine": 170,
       "exception": "ex",
       "class": "candidate-logonly",
-      "bodyHash": "ad7acf2b0386fe7e2cb16ad318beb54053742158a19b9c3e89e79ba450571e80",
+      "bodyHash": "658646449a9a85a243d57fb3457eafdf59a03f33286d50b2c02f55094ccd2b71",
       "registered": false,
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/RouteStateLocation.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Session/ConversationHosting.cs",
+      "line": 318,
+      "endLine": 322,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "0d456f14e686b4d004a1bc1562c6c771fcb2edb700b3dc4a5b282bf85bc521dd",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Session/ConversationHosting.cs",
+      "line": 423,
+      "endLine": 426,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "d9470586ab3ed0878bb82e4e61f39c83eaefd84a1deead55685aede4da84b13f",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/AgentStorageBundle.cs",
+      "line": 156,
+      "endLine": 160,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "b055f8aeee62f319c2af542f5b5e86db08d2be00c12f001f5f144933467e5c09",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/AgentStorageBundle.cs",
+      "line": 370,
+      "endLine": 373,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "93e69cc7928bddb03809ef61a4852536001f5ab336d3f692d43719ba5cc2200d",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DatabaseBootstrapper.cs",
+      "line": 93,
+      "endLine": 101,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "931704d6306b5f48a1e1e3afb4b51a5ee48fb22fd42330cda42bca75631c9e71",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DatabaseBootstrapper.cs",
+      "line": 120,
+      "endLine": 124,
+      "exception": "probe",
+      "class": "candidate-empty",
+      "bodyHash": "05a68938d711be9c002686047c98a7fbb244730995b918b0c0e81bd979964115",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DatabaseBootstrapper.cs",
+      "line": 146,
+      "endLine": 149,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "18b137107ed138c2376298e7504daa5217003d999e0916cece01b51a9bba412f",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DataStoreHosting.cs",
+      "line": 181,
+      "endLine": 184,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "9b49b64eb2b2112cba8f8dd234df355c005c626604ad295b5cd69f5cffa8f437",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/RouteStateLocation.cs",
       "line": 72,
       "endLine": 75,
       "exception": "",
@@ -16750,7 +16930,7 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/StorageConsistencyHook.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/StorageConsistencyHook.cs",
       "line": 63,
       "endLine": 67,
       "exception": "ex",
@@ -16760,22 +16940,12 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/StorageConsistencyHook.cs",
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/StorageConsistencyHook.cs",
       "line": 107,
       "endLine": 111,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "4752ef2165457be43be5a9c0fddb59aefb8aadfa1056ab57ce45ffdd6b1f9a3c",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosting/UsharpDecisionControlSource.cs",
-      "line": 122,
-      "endLine": 125,
-      "exception": "",
-      "class": "candidate-empty",
-      "bodyHash": "805e628a0be32f8896f85a14506842bb8b1b3246c8ab0dfd4982b9b40cd0211d",
       "registered": false,
       "candidate": true
     },
@@ -16840,6 +17010,26 @@
       "candidate": false
     },
     {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosts/AgentUiCompositionBridgeWiring.cs",
+      "line": 25,
+      "endLine": 29,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "4a4e8172172e2c2fe82eea64189079cd809675c2771b4f3232af3d8c26f63f36",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Hosts/AgentUiCompositionBridgeWiring.cs",
+      "line": 30,
+      "endLine": 33,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "01d3c8babff0e0fce0f700532ad7b5ee6292859a733909d37450ef75f2c76f41",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Observing/DecisionRecorderBridge.cs",
       "line": 79,
       "endLine": 82,
@@ -16870,9 +17060,39 @@
       "candidate": false
     },
     {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Ports/AgentHostContractAdapter.cs",
+      "line": 23,
+      "endLine": 26,
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "ec6bc496975fe87356ede07b538d0a886bb47e1d915ae2c4ba4a1044f7d90d4a",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Ports/AgentHostContractAdapter.cs",
+      "line": 35,
+      "endLine": 38,
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "ec6bc496975fe87356ede07b538d0a886bb47e1d915ae2c4ba4a1044f7d90d4a",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Registration/AgentOptionalModules.cs",
+      "line": 161,
+      "endLine": 169,
+      "exception": "ex",
+      "class": "degrade",
+      "bodyHash": "43bd49d2159905687155789a3ef756371be936db5ad359fb088740515445e042",
+      "registered": false,
+      "candidate": false
+    },
+    {
       "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Root/AgentComposition.cs",
-      "line": 200,
-      "endLine": 205,
+      "line": 205,
+      "endLine": 210,
       "exception": "ex",
       "class": "rethrow",
       "bodyHash": "853b3ab81b70ee8819b9523c3dc1f5c5e5a30d536e301ff939c22557bcdc694a",
@@ -16881,8 +17101,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Launcher/Composition/Root/AgentComposition.cs",
-      "line": 306,
-      "endLine": 306,
+      "line": 311,
+      "endLine": 311,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "34d50509be99c18a677bec8abe42a4c4727bcc435b8eb1554dfd832994630c3b",
@@ -17641,8 +17861,18 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-      "line": 374,
-      "endLine": 377,
+      "line": 367,
+      "endLine": 376,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "dc8953d2bdf2ddd45a7997a50b017230f07e2519451d570fef2ca70700cc8174",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
+      "line": 411,
+      "endLine": 414,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "35815493ce2e27a9f6fad08f93c3e2ff666bbbfd43b8de68b07c740d64db5667",
@@ -17651,8 +17881,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-      "line": 566,
-      "endLine": 566,
+      "line": 588,
+      "endLine": 588,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "3cc348377d43c6f9197ff8598eb5fe75b2ce16d5a4ee4775a756af6068c05c59",
@@ -17661,18 +17891,18 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-      "line": 571,
-      "endLine": 577,
+      "line": 593,
+      "endLine": 599,
       "exception": "ex",
       "class": "candidate-empty",
-      "bodyHash": "7b2a96d2d0993ca6aabd91291f5e6f35a4d9f10c66d3638e15284265a958fd12",
+      "bodyHash": "cb6af9abc603e2db3b716212703d5f070feb7aadb179a68cbcdf7118be605ab7",
       "registered": false,
       "candidate": true
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Endpoints/ClineDaemonEndpoint.cs",
-      "line": 672,
-      "endLine": 675,
+      "line": 694,
+      "endLine": 697,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
@@ -17760,6 +17990,36 @@
       "candidate": true
     },
     {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Replay/RoundCanonReplayer.cs",
+      "line": 53,
+      "endLine": 56,
+      "exception": "ex",
+      "class": "degrade",
+      "bodyHash": "f010db3b7462d3bc6560d80b5a4a5d9e3628796b2f778a56c5b712c980d025eb",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Replay/RoundCanonReplayer.cs",
+      "line": 115,
+      "endLine": 118,
+      "exception": "",
+      "class": "degrade",
+      "bodyHash": "eae5c9f5816269d9e901d0b3772332b31f4f41555598f931e1e45a2398840a66",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Replay/RoundCanonReplayer.cs",
+      "line": 119,
+      "endLine": 122,
+      "exception": "ex",
+      "class": "degrade",
+      "bodyHash": "c9d8859e60157602bd6fc38030288eacf89a2ea71ab5ed098ccbaea29ff0b01b",
+      "registered": false,
+      "candidate": false
+    },
+    {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Transport/ClineClient.cs",
       "line": 96,
       "endLine": 100,
@@ -17840,9 +18100,19 @@
       "candidate": true
     },
     {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Transport/FailureSignals.cs",
+      "line": 100,
+      "endLine": 103,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "9377b9201a225a9806b24064ea1aec8b8a34d956c39cadddd78cc223c7bb9221",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Cline/Cline/Transport/ProviderResponseAdapter.cs",
-      "line": 59,
-      "endLine": 62,
+      "line": 49,
+      "endLine": 52,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "caee49b917ab4f131922a5507d90fa0c941779e8b768d188ed818b0e62446e7a",
@@ -18081,8 +18351,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Context/ObservabilityMessageSource.cs",
-      "line": 109,
-      "endLine": 112,
+      "line": 128,
+      "endLine": 131,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
@@ -18091,8 +18361,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Context/ObservabilityMessageSource.cs",
-      "line": 113,
-      "endLine": 118,
+      "line": 132,
+      "endLine": 137,
       "exception": "ex",
       "class": "candidate-logonly",
       "bodyHash": "171aebac662eda21925ba4ae95cd9e6bdf6ea21ba3a36020080c102e333cd49a",
@@ -18641,11 +18911,11 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Gather/ObservabilityFrameShaping.cs",
-      "line": 44,
-      "endLine": 49,
+      "line": 56,
+      "endLine": 62,
       "exception": "ex",
       "class": "candidate-logonly",
-      "bodyHash": "d0934dec36b962684e5dc58bb8624beddb5b3beda5952f74df3a33bb03d9d6bc",
+      "bodyHash": "be2a4867e5494678faa67e0bd0e8c4d303467ad1a83572cb09b60810cbe459b3",
       "registered": false,
       "candidate": true
     },
@@ -19050,6 +19320,16 @@
       "candidate": true
     },
     {
+      "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Provision/WindowProvisionOpsFunctions.cs",
+      "line": 65,
+      "endLine": 68,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "80951f9417b0415d904277351f7591995b7bf63e507365eff5679ec9e387d0ae",
+      "registered": false,
+      "candidate": true
+    },
+    {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/ReadIn/ReadInOpsFunctions.cs",
       "line": 121,
       "endLine": 128,
@@ -19081,8 +19361,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Relations/GraphRebuildService.cs",
-      "line": 89,
-      "endLine": 96,
+      "line": 104,
+      "endLine": 111,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "8ef329cf5b0e1f3b7577492fa1d11f1078d94036dd352c82a37e89ed2fe55e63",
@@ -19091,8 +19371,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Relations/GraphRebuildService.cs",
-      "line": 151,
-      "endLine": 154,
+      "line": 166,
+      "endLine": 169,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
@@ -19101,8 +19381,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Framework/Relations/GraphRebuildService.cs",
-      "line": 179,
-      "endLine": 182,
+      "line": 194,
+      "endLine": 197,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
@@ -19431,8 +19711,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Response/Response/StateResponseFunction.cs",
-      "line": 257,
-      "endLine": 260,
+      "line": 264,
+      "endLine": 267,
       "exception": "ex",
       "class": "degrade",
       "bodyHash": "0a5b891707bbe97660141556d245f768412b2b77c5da8ebe7ce6d70a5a2971b5",
@@ -19441,8 +19721,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Response/Response/StateResponseFunction.cs",
-      "line": 264,
-      "endLine": 267,
+      "line": 271,
+      "endLine": 274,
       "exception": "ex",
       "class": "degrade",
       "bodyHash": "1f9ac3ba2f85e58d96e6b4dcc693dffddcaf57162abee149a29ace409249b6cd",
@@ -19451,8 +19731,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Response/Response/StateResponseFunction.cs",
-      "line": 282,
-      "endLine": 285,
+      "line": 289,
+      "endLine": 292,
       "exception": "ex",
       "class": "degrade",
       "bodyHash": "8d86b0126595447b406aeb558068d3c48a13e0ac5ff4833b6873477b4267eb35",
@@ -19461,8 +19741,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Modules/Response/Response/StateResponseFunction.cs",
-      "line": 312,
-      "endLine": 316,
+      "line": 319,
+      "endLine": 323,
       "exception": "ex",
       "class": "degrade",
       "bodyHash": "800ef93ab1b0c2a2e874a24f4d0711495c76751b78a2ac13df7c92d61c8ac3d8",
@@ -19981,8 +20261,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Keys/AgentKeySpaceDeclaration.cs",
-      "line": 161,
-      "endLine": 165,
+      "line": 187,
+      "endLine": 191,
       "exception": "ex",
       "class": "rethrow",
       "bodyHash": "6b7d5229b797acb5f6e3d25c4ec39a0255a83d02dbec02c8852f37b5426db715",
@@ -20041,8 +20321,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 149,
-      "endLine": 152,
+      "line": 154,
+      "endLine": 157,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "f9d45325f2a8af6b876c2783dc20422e4625412ff2f639a6ae829e6b9034b548",
@@ -20051,8 +20331,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 153,
-      "endLine": 156,
+      "line": 158,
+      "endLine": 161,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "45a70cfed49dac58876be2d19950ec4abfb369f5accbcb87f4c2d4f1c9a4d98d",
@@ -20061,8 +20341,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 372,
-      "endLine": 375,
+      "line": 377,
+      "endLine": 380,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "cf8604521ff473da1fa4761df688e74f8c357f24db4608cb4b044539f362b765",
@@ -20071,8 +20351,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 602,
-      "endLine": 605,
+      "line": 611,
+      "endLine": 614,
       "exception": "",
       "class": "rethrow",
       "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
@@ -20081,8 +20361,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 606,
-      "endLine": 612,
+      "line": 615,
+      "endLine": 621,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "41c816158c8362005a051f29f1faaba595323c80faa4c979cc7bec0b4ed8652c",
@@ -20091,8 +20371,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 670,
-      "endLine": 673,
+      "line": 679,
+      "endLine": 682,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
@@ -20101,8 +20381,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Session/Projection/ContextProjection.cs",
-      "line": 713,
-      "endLine": 716,
+      "line": 723,
+      "endLine": 726,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "cf8604521ff473da1fa4761df688e74f8c357f24db4608cb4b044539f362b765",
@@ -20391,8 +20671,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-      "line": 430,
-      "endLine": 433,
+      "line": 447,
+      "endLine": 450,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "ca272094ba12a4d896796cefa90d396e59d231d3f0cde000b7b75ba16f843c88",
@@ -20401,8 +20681,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-      "line": 483,
-      "endLine": 487,
+      "line": 503,
+      "endLine": 507,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "2078fc26183b324c5f5b7a6585e8b947b0e162b33fd7929a190bbb3aa6fe9818",
@@ -20421,8 +20701,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Data/AgentUiLibraryData.cs",
-      "line": 510,
-      "endLine": 510,
+      "line": 569,
+      "endLine": 569,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "e4e284205991195eec72ceb8d57e6119382c8d371dc5faeb00dcddc7632099a7",
@@ -20531,8 +20811,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-      "line": 292,
-      "endLine": 295,
+      "line": 313,
+      "endLine": 316,
       "exception": "",
       "class": "candidate-empty",
       "bodyHash": "1f492d3b4ab8259c2847cf62a969e2c2f43ace1b5c534724018144766f251471",
@@ -20541,8 +20821,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-      "line": 570,
-      "endLine": 573,
+      "line": 571,
+      "endLine": 574,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "8b20457bf7c26b8636ced5d4c9849435398770d09c18d97c140db11c152acbf4",
@@ -20551,8 +20831,8 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-      "line": 592,
-      "endLine": 595,
+      "line": 593,
+      "endLine": 596,
       "exception": "ex",
       "class": "candidate-empty",
       "bodyHash": "7e8e4a4d1294c69fa4804e6d1f69443eb88cfaa8f8cbb9b4f3c90801fefddd12",
@@ -20730,76 +21010,6 @@
       "candidate": true
     },
     {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.cs",
-      "line": 154,
-      "endLine": 167,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "521066904cb3c9f1306eb4750ce42b70d00dc8184cded5dddee9bec3a0ac72e1",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Db.cs",
-      "line": 35,
-      "endLine": 40,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "4786df1d089513c2517c10c6de34b9b4405018fe5c67e3d29508176ed44cd16a",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Db.cs",
-      "line": 96,
-      "endLine": 99,
-      "exception": "ex",
-      "class": "candidate-empty",
-      "bodyHash": "383083131defcb64bcccc6b969ef92d264f05ad3cc018f2f01d408eaebf60647",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
-      "line": 58,
-      "endLine": 65,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "5e0ca4c50f89e6dc2fb730ad5e9e6e2e9d0d6ee15ed6aa908ace1501c21aeb75",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ConversationViewService.Read.cs",
-      "line": 238,
-      "endLine": 241,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "d3af11bb6aa9740f041dd776c27d5c717c666369ed2514fc73a089432160fc5a",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/ObservabilityAttachClassification.cs",
-      "line": 90,
-      "endLine": 95,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "f7fb8b3d2bbcff7fad1fabcdeaa0deb68d76589ef92fc8cbc88549301038a4f8",
-      "registered": false,
-      "candidate": true
-    },
-    {
-      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/PromptSurfaceResolver.cs",
-      "line": 112,
-      "endLine": 122,
-      "exception": "ex",
-      "class": "candidate-logonly",
-      "bodyHash": "a4dd35019b7f22d1bd90dda05c53f1445d42ec81e928ff001f3e6b0092f9ce40",
-      "registered": false,
-      "candidate": true
-    },
-    {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Cost/CostBadgeProvider.cs",
       "line": 65,
       "endLine": 68,
@@ -20811,11 +21021,201 @@
     },
     {
       "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Cost/CostViewRenderer.cs",
-      "line": 47,
-      "endLine": 50,
+      "line": 51,
+      "endLine": 54,
       "exception": "ex",
       "class": "candidate-empty",
-      "bodyHash": "5de0bc29366d900bd3882616fe0f0ce6c3039a4dca6a40dd842863167494baed",
+      "bodyHash": "37ab4c61cd4f4b2cabc293a74f75e958354965e9865e8a9d7718900d888ede7e",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonGatherModule.Facts.cs",
+      "line": 82,
+      "endLine": 85,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonGatherModule.Stages.cs",
+      "line": 30,
+      "endLine": 33,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "a7e275a8e396f9819b96fb4a5a8f4ab550824acea338cae2de0de83f508e48eb",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonGatherModule.Write.cs",
+      "line": 165,
+      "endLine": 168,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "d4ab154b53f952e39b8c232f429c105c7b046d26fb6db45cedd2da7f84663956",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonMaterializer.cs",
+      "line": 48,
+      "endLine": 55,
+      "exception": "ex",
+      "class": "degrade",
+      "bodyHash": "1438b817471a5f1d96dd6e76fd0a27a4d6d763fd6d7465ff737aeae1e53ba54d",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonMaterializer.cs",
+      "line": 80,
+      "endLine": 87,
+      "exception": "ex",
+      "class": "degrade",
+      "bodyHash": "9046515d508a8847bfd26786de6b17789ebb39b4e30ab096126f1e5eab299a75",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonMaterializer.cs",
+      "line": 94,
+      "endLine": 97,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "32424f83e7730febb5715114dfd44698b705c297ce34aa5b2b51ebeac747ab56",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonRebuildChannel.cs",
+      "line": 142,
+      "endLine": 145,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "ee3657e4048443d20481c866cfac87832e3e52c2ea326316e80b935e6dbfb556",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/ConversationCanonService.cs",
+      "line": 65,
+      "endLine": 70,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "849b9c22d31bd4d57235e93261d17c0f2e2e32a30a878f566f94c179ca6c4e8c",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/UiLocCatalog.cs",
+      "line": 93,
+      "endLine": 97,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "aad4612f5603ec4e195a77a5e85766156cb3efc8620cc4d218e865873eae211a",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Declaration/UiLocCatalog.cs",
+      "line": 231,
+      "endLine": 235,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "f1c9b006ba88dbb4e664b3b533c3fd6f87014a929be9fb0e1e9d937a52e8b2aa",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Orchestration/ConversationViewService.cs",
+      "line": 158,
+      "endLine": 173,
+      "exception": "ex",
+      "class": "rethrow",
+      "bodyHash": "0202070ee194e56ac2a61aaf151ed70a4a8fd735c3258749b455e930ab9d9b77",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Orchestration/ConversationViewService.Db.cs",
+      "line": 41,
+      "endLine": 46,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "97017b3301b7e69605e31603417e12f60acc2b5f0cadabe95529f79e7a1d5aea",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Orchestration/ConversationViewService.Db.cs",
+      "line": 98,
+      "endLine": 101,
+      "exception": "ex",
+      "class": "candidate-empty",
+      "bodyHash": "085b79f3163bdf1aae9e8e13892f26e0ad05126ba64b292c1fa0c7ddaf95186e",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Orchestration/ConversationViewService.Read.cs",
+      "line": 58,
+      "endLine": 65,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "5e0ca4c50f89e6dc2fb730ad5e9e6e2e9d0d6ee15ed6aa908ace1501c21aeb75",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Orchestration/ConversationViewService.Read.cs",
+      "line": 238,
+      "endLine": 241,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "d3af11bb6aa9740f041dd776c27d5c717c666369ed2514fc73a089432160fc5a",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Projection/PromptSurfaceResolver.cs",
+      "line": 113,
+      "endLine": 123,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "a4dd35019b7f22d1bd90dda05c53f1445d42ec81e928ff001f3e6b0092f9ce40",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Rendering/AgentJsonProposalSource.cs",
+      "line": 45,
+      "endLine": 48,
+      "exception": "",
+      "class": "rethrow",
+      "bodyHash": "33952f7831bf0ceef13f36462f8254de700d2cd44d48579f7f0a7c4a9dfc62de",
+      "registered": false,
+      "candidate": false
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Rendering/AgentJsonProposalSource.cs",
+      "line": 49,
+      "endLine": 52,
+      "exception": "",
+      "class": "candidate-empty",
+      "bodyHash": "918c35a4db8930567471610dfe15f3d93809875f1503251674d5c557d1032093",
+      "registered": false,
+      "candidate": true
+    },
+    {
+      "file": "Projects/Plug/Agent/src/Agent.Ui/Ui/Views/Rendering/ObservabilityAttachClassification.cs",
+      "line": 77,
+      "endLine": 82,
+      "exception": "ex",
+      "class": "candidate-logonly",
+      "bodyHash": "f7fb8b3d2bbcff7fad1fabcdeaa0deb68d76589ef92fc8cbc88549301038a4f8",
       "registered": false,
       "candidate": true
     }

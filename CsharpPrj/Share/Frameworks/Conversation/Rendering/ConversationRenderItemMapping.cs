@@ -17,7 +17,8 @@ public static class ConversationRenderItemMapping
         if (messages is null) return Array.Empty<ConversationRenderItem>();
         return messages
             .Select(m => new ConversationRenderItem(
-                m.Role, m.Stage, m.SubAgent, m.Text ?? string.Empty, m.Round, m.Channel, m.Targets))
+                m.Role, m.Stage, m.SubAgent, m.Text ?? string.Empty, m.Round, m.Channel, m.Targets,
+                m.Terminal, m.Archived))
             .ToList();
     }
 

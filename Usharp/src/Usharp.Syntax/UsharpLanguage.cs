@@ -366,6 +366,34 @@ public static class UsharpLanguage
     public const string MarkerReadOrder = "read-order";
     public const string MarkerReadEmpty = "read-empty";
 
+    /// <summary>
+    /// 聚拢声明续行首词（<c>[Gather]</c> 的**投影段**）：折叠身份键 / 折叠策略 / 窗口上限。
+    /// <para>投影段是**数据**（声明一行），表达「同一事实只占一行」与「单页上限」；未声明 ⇒ 不折叠不分页（零回归）。</para>
+    /// </summary>
+    public const string MarkerIdentity = "identity";
+    public const string MarkerCollapse = "collapse";
+    public const string MarkerWindow = "window";
+
+    /// <summary>投影段受控词（折叠策略取值域；闸A 唯一判据）。</summary>
+    public static readonly string[] CollapseModes = { "none", "first", "last", "count" };
+
+    /// <summary>
+    /// 聚拢声明续行首词（<c>[Gather]</c> 的**呈现身份段**）：读哪些帧 / 终答身份策略 / 附加气泡锚点。
+    /// <para>
+    /// 呈现身份是**数据**（声明一行）：渲染层不得再按位置（本轮最后一条）或 role+kind 写死判定；
+    /// 未声明 ⇒ 消费方按缺省（零回归）。
+    /// </para>
+    /// </summary>
+    public const string MarkerFrameSelection = "frame-selection";
+    public const string MarkerTerminalPromotion = "terminal-promotion";
+    public const string MarkerBubbleAnchor = "bubble-anchor";
+
+    /// <summary>终答身份策略受控词（闸A 唯一判据；词→枚举映射单源 = <c>TerminalPromotionWords</c>）。</summary>
+    public static readonly string[] TerminalPromotions = { "none", "last-trace-in-round", "entity-only" };
+
+    /// <summary>塑形字段名：呈现类（<c>presentation=</c>；受控词由宿主声明，选择表达式消费）。</summary>
+    public const string FieldPresentation = "presentation";
+
     /// <summary>读轴受控词（scope / source / normalize / order / empty 的取值域；闸A 唯一判据）。</summary>
     public static readonly string[] ReadScopes = { "task", "history", "node", "container", "full" };
     public static readonly string[] ReadSources = { "edge", "container", "key-prefix", "full" };

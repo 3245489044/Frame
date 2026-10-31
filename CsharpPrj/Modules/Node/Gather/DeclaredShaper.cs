@@ -39,12 +39,20 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
             return null;
         }
 
+        var summary = JoinSummary(item, shaping.SummaryKeys);
+        // 折叠计数可见化（×N）：重复不静默吞行，读侧折叠多少条必须上屏（权威: NodeGatherProjection.RepeatCountField）。
+        var repeat = NodeFieldBag.ValueOf(item, NodeGatherProjection.RepeatCountField);
+        if (int.TryParse(repeat, out var repeatCount) && repeatCount > 1)
+        {
+            summary = (summary ?? string.Empty) + " ×" + repeatCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         return new DeclaredNodeShape(
             kind,
             shaping.Badge,
             item.Key,
             TextClipPolicy.Summary(NodeFieldBag.ValueOf(item, shaping.TitleKey)),
-            TextClipPolicy.Summary(JoinSummary(item, shaping.SummaryKeys)),
+            TextClipPolicy.Summary(summary),
             NodeFieldBag.ValueOf(item, shaping.TimeKey),
             item.DomainKey,
             item.SourceKey,

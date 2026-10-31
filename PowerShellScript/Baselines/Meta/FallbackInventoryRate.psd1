@@ -1,6 +1,6 @@
 @{
     # ===== 兜底清册（FallbackInventoryRate）=====
-    # 语义：静默兜底一律登记；未登记即红（守卫 = Operation\DSL\Agent\Check-FallbackInventoryRate.ps1）。
+    # 语义：静默兜底一律登记；未登记即红（守卫 = Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1）。
     # 事实行形态 = @{ Value = '<File>|<Pattern>'; Origin='Debt'; DueWhen='…' }；
     #   File = Projects\Plug\Agent\src 相对路径（正斜杠）；Pattern ∈ {template-empty, empty-catch, tryload-null}。
     # 只减不增：删除兜底时同批删除本表条目（P3 无静默兜底）。

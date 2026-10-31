@@ -20,6 +20,8 @@ namespace Modules.Node.Gather;
 /// <param name="PortKeys">端口取值字段集（声明 <c>ports=</c>；空 = 该 kind 不呈现端口）。</param>
 /// <param name="Role">呈现角色（声明 <c>role=</c>；受控词见 FrameRoleIds；空 = plain）。
 /// 角色是**呈现身份唯一来源**：分组/气泡/操作面板/终答均由此派生，禁在 C# 按 kind 写第二张表。</param>
+/// <param name="Presentation">呈现类（声明 <c>presentation=</c>；如 <c>bubble</c>/<c>orchestration</c>/<c>answer</c>）。
+/// 帧级字段注入的选择依据（选择表达式 <c>presentation hasany (…)</c>），替代按 kind 集合的多处判定。</param>
 public sealed record KindShaping(
     string Kind,
     string Family,
@@ -29,7 +31,8 @@ public sealed record KindShaping(
     string? TimeKey,
     bool Shaped,
     IReadOnlyList<string>? PortKeys = null,
-    string? Role = null)
+    string? Role = null,
+    string? Presentation = null)
 {
     /// <summary>端口取值字段集（非空视图；未声明 ⇒ 空）。</summary>
     public IReadOnlyList<string> EffectivePortKeys => PortKeys ?? System.Array.Empty<string>();

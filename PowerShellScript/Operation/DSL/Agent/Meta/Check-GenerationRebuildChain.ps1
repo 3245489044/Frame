@@ -14,7 +14,7 @@
 #   [C9] 换代唯一触发逻辑（AgentHotSwapPort.TriggerOrRebuildAsync：宿主门面与函数库单源）
 # 说明：本脚本只读校验（不构建/不换代）；报告模式列事实，-Check 违规 > 0 → 退出码 1。
 #
-# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Check-GenerationRebuildChain.ps1 [-Root <repo>] [-Check]
+# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-GenerationRebuildChain.ps1 [-Root <repo>] [-Check]
 
 [CmdletBinding()]
 param(
@@ -23,8 +23,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -48,7 +55,7 @@ Test-Anchor 'C1' 'Frame\CsharpPrj\Modules\Registry\ExtensionGenerationLayout.cs'
 Test-Anchor 'C2' 'Projects\FileDriven\FileDriven.Execution\Lifecycle\Generation\AgentGenerationRebuildBridge.cs' @('class AgentGenerationRebuildBridge', 'class AgentGenerationPortRebind', '_registerPorts', '_ensureReady')
 Test-Anchor 'C3' 'Projects\PrjBridge\Composition\PrjBridgeRegistrar.cs' @('RegisterPortsForGeneration')
 Test-Anchor 'C4' 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\LauncherBootstrap.cs' @('TryRebuildAgentAssemblyAsync')
-Test-Anchor 'C5' 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\AgentVmProgramHost.cs' @('MountSlot', 'StartSourceWatch', 'TryTriggerGenerationSwapAsync', 'RegisterGenerationSwapTrigger')
+Test-Anchor 'C5' 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\Segments\AgentVmProgramHost.cs' @('MountSlot', 'StartSourceWatch', 'TryTriggerGenerationSwapAsync', 'RegisterGenerationSwapTrigger')
 Test-Anchor 'C6' 'Projects\Vm\Core\VmProgramHotReloadWatcher.cs' @('sourceRoot')
 Test-Anchor 'C7' 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Root\AgentAssemblyContract.cs' @('ColdStartEquivalent')
 Test-Anchor 'C8' 'Projects\FileDriven\FileDriven.Execution\Lifecycle\PrjBridgeInvoker.cs' @('class PrjBridgeInvoker', 'TryInvoke')

@@ -21,6 +21,39 @@ public sealed record NodeGatherReadSpec(
     string? Empty = null);
 
 /// <summary>
+/// 聚拢声明的**投影段**（读后加工：折叠 + 窗口；null = 不折叠不分页，零回归）。
+/// <para>
+/// 语义：<see cref="Identity"/> = 折叠身份键字段集（同一组字段值 ⇒ 同一事实，只占一行）；
+/// <see cref="Collapse"/> = 折叠策略（<c>none|first|last|count</c>；<c>count</c> 保留计数不丢行）；
+/// <see cref="Window"/> = 单组行数上限（可空 = 不限）。全部为数据，框架按声明执行，禁各视图自写去重。
+/// </para>
+/// </summary>
+/// <param name="Identity">折叠身份键字段集（声明序）。</param>
+/// <param name="Collapse">折叠策略受控词（缺省 none）。</param>
+/// <param name="Window">单组行数上限（可空/≤0 = 不限）。</param>
+public sealed record NodeGatherProjection(
+    IReadOnlyList<string> Identity,
+    string Collapse = NodeGatherProjection.CollapseNone,
+    int? Window = null)
+{
+    /// <summary>不折叠（缺省）。</summary>
+    public const string CollapseNone = "none";
+
+    /// <summary>折叠并保留重复计数（写回 <see cref="RepeatCountField"/>；不静默吞行）。</summary>
+    public const string CollapseCount = "count";
+
+    /// <summary>折叠结果写回的重复计数字段名（呈现层据此渲染 ×N）。</summary>
+    public const string RepeatCountField = "repeatCount";
+
+    /// <summary>是否生效（有身份键且策略非 none）。</summary>
+    public bool IsActive => Identity.Count > 0 &&
+                            !string.Equals(Collapse, CollapseNone, StringComparison.Ordinal);
+
+    /// <summary>是否保留重复计数。</summary>
+    public bool KeepsCount => string.Equals(Collapse, CollapseCount, StringComparison.Ordinal);
+}
+
+/// <summary>
 /// 节点**聚拢**声明（<c>node-gather.json</c> 读入模型）——**声明化**：新增一种节点类别的呈现
 /// = 改声明 + 词表条目，不改 C#。<b>零领域字面量</b>（族名/字段名/徽标一律来自 JSON）。
 /// <para>
@@ -35,6 +68,10 @@ public sealed record NodeGatherReadSpec(
 /// <param name="Shapings">kind → 塑形声明。</param>
 /// <param name="GroupByField">二级分组轴字段名（未命中族时按该字段值分组；如 <c>nodeType</c>）。</param>
 /// <param name="Read">读轴（键集取得方式；null = 容器轴默认）。</param>
+/// <param name="Projection">投影段（折叠 + 窗口；null = 不折叠不分页）。</param>
+/// <param name="FrameSelection">帧级选择名（<c>frame-selection</c>；null = 全量帧）。</param>
+/// <param name="TerminalPromotion">终答身份策略受控词（<c>terminal-promotion</c>；null = 消费方缺省）。</param>
+/// <param name="BubbleAnchors">附加气泡锚点（<c>bubble-anchor</c> 的 <c>role:kind</c> 列表）。</param>
 public sealed record NodeGatherSpec(
     string Domain,
     string KindField,
@@ -42,8 +79,15 @@ public sealed record NodeGatherSpec(
     IReadOnlyDictionary<string, IReadOnlyList<string>> Families,
     IReadOnlyDictionary<string, KindShaping> Shapings,
     string? GroupByField = null,
-    NodeGatherReadSpec? Read = null)
+    NodeGatherReadSpec? Read = null,
+    NodeGatherProjection? Projection = null,
+    string? FrameSelection = null,
+    string? TerminalPromotion = null,
+    IReadOnlyList<string>? BubbleAnchors = null)
 {
+    /// <summary>附加气泡锚点（未声明 ⇒ 空表；渲染层零特判）。</summary>
+    public IReadOnlyList<string> EffectiveBubbleAnchors => BubbleAnchors ?? System.Array.Empty<string>();
+
     /// <summary>载荷判别字段缺省名（未在声明给 <c>kindField</c> 时的单点默认）。</summary>
     public const string DefaultKindField = "kind";
 
@@ -167,8 +211,59 @@ public sealed record NodeGatherSpec(
         var (familyOrder, families) = ReadFamilies(root["families"], sink);
         var shapings = ReadShapings(root["kind-shaping"], sink);
         var read = ReadRead(root["read"]);
+        var projection = ReadProjection(root["projection"]);
+        var frameSelection = ReadText(root["frameSelection"]);
+        var terminalPromotion = ReadText(root["terminalPromotion"]);
+        var bubbleAnchors = ReadTextList(root["bubbleAnchors"]);
 
-        return new NodeGatherSpec(domain, kindField!, familyOrder, families, shapings, groupByField, read);
+        return new NodeGatherSpec(
+            domain, kindField!, familyOrder, families, shapings, groupByField, read, projection,
+            frameSelection, terminalPromotion, bubbleAnchors);
+    }
+
+    /// <summary>投影段（折叠身份键 / 策略 / 窗口；未声明或非法 ⇒ null = 不折叠不分页）。</summary>
+    private static NodeGatherProjection? ReadProjection(JsonNode? node)
+    {
+        if (node is not JsonObject projection)
+        {
+            return null;
+        }
+
+        var identity = new List<string>();
+        if (projection[UsharpMarkerKeys.Identity] is JsonArray array)
+        {
+            foreach (var entry in array)
+            {
+                var field = ReadText(entry);
+                if (!string.IsNullOrWhiteSpace(field))
+                {
+                    identity.Add(field!);
+                }
+            }
+        }
+
+        var collapse = ReadText(projection[UsharpMarkerKeys.Collapse]);
+        if (string.IsNullOrWhiteSpace(collapse))
+        {
+            collapse = NodeGatherProjection.CollapseNone;
+        }
+
+        int? window = null;
+        if (projection[UsharpMarkerKeys.Window] is JsonValue windowValue &&
+            windowValue.TryGetValue<int>(out var parsedWindow) && parsedWindow > 0)
+        {
+            window = parsedWindow;
+        }
+
+        return new NodeGatherProjection(identity, collapse!, window);
+    }
+
+    /// <summary>投影段 JSON 键名（与 <c>UsharpLanguage</c> 同名；本工程不引 Usharp ⇒ 单点常量）。</summary>
+    private static class UsharpMarkerKeys
+    {
+        public const string Identity = "identity";
+        public const string Collapse = "collapse";
+        public const string Window = "window";
     }
 
     /// <summary>读轴段（受控词原样读入；非法/缺项由闸A 前置拦截，本层不解释）。</summary>
@@ -268,7 +363,8 @@ public sealed record NodeGatherSpec(
                 ReadText(entry["timeKey"]),
                 shaped,
                 ReadTextList(entry["ports"]),
-                ReadText(entry["role"]));
+                ReadText(entry["role"]),
+                ReadText(entry["presentation"]));
         }
 
         return shapings;

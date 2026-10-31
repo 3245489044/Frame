@@ -54,11 +54,39 @@ public enum TerminalPromotion
     /// <summary>不提升（全部按过程文本呈现）。</summary>
     None = 0,
 
-    /// <summary>过渡：本轮最后一条过程文本提升为终端气泡（带“未归档”角标）。</summary>
+    /// <summary>过渡：本轮最后一条过程文本提升为终端气泡（仅用于**事实缺失**的帧；事实优先）。</summary>
     LastTraceInRound = 1,
 
-    /// <summary>只认终端实体（终端角色）；禁以最后一条过程文本冒充终端实体。</summary>
+    /// <summary>只认终端实体（终端角色/写侧终答事实）；禁以最后一条过程文本冒充终端实体。</summary>
     EntityOnly = 2,
+}
+
+/// <summary>
+/// 终答身份策略的**受控词**（声明面 <c>[Gather] terminal-promotion</c> 的取值）与枚举的**唯一映射**。
+/// <para>
+/// 存在理由（SingleImplementation）：策略选择是数据（声明一行），消费方只做词→枚举翻译；
+/// 禁在渲染层/宿主侧按位置或 role+kind 另写一套判定。
+/// </para>
+/// </summary>
+public static class TerminalPromotionWords
+{
+    /// <summary>不提升。</summary>
+    public const string None = "none";
+
+    /// <summary>过渡：本轮最后一条过程文本提升为终端气泡（事实缺失时的兜底）。</summary>
+    public const string LastTraceInRound = "last-trace-in-round";
+
+    /// <summary>只认终端实体（终端角色/写侧终答事实）。</summary>
+    public const string EntityOnly = "entity-only";
+
+    /// <summary>词 → 枚举（未声明/未知 ⇒ <see cref="TerminalPromotion.None"/>，不猜策略）。</summary>
+    /// <param name="word">声明词。</param>
+    public static TerminalPromotion Resolve(string? word) => word?.Trim() switch
+    {
+        LastTraceInRound => TerminalPromotion.LastTraceInRound,
+        EntityOnly => TerminalPromotion.EntityOnly,
+        _ => TerminalPromotion.None,
+    };
 }
 
 /// <summary>终端身份策略：提升模式 + 终端 kind 集 + 文本归一化（去重单源）。</summary>

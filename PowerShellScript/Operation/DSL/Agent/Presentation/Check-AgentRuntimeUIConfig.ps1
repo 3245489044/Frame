@@ -31,16 +31,29 @@
 [CmdletBinding()]
 param(
     # FileDriven 的 DrivenConfig 资源已整体迁入 Information 资源仓（见 Modules\FileDriven\FileDrivenTestUtils.ps1）；
-    # 上溯四级 = 仓库根（本脚本位于 Frame\PowerShellScript\Operation\DSL\）。
-    [string]$ConfigPath = (Join-Path $PSScriptRoot '..\..\..\..\..\Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'),
-    [string]$WorkFlowDir = (Join-Path $PSScriptRoot '..\..\..\..\..\Projects\Information\DrivenConfig\WorkFlow'),
+    # 仓库超根由门禁运行时解析（与脚本所在目录深度无关）
+    [string]$ConfigPath = '',
+    [string]$WorkFlowDir = '',
     # 框架默认模板（判据载体：配置 templates 覆盖键必须存在于本键集，防「默认/覆盖」两份声明漂移）
-    [string]$DefaultTemplatesPath = (Join-Path $PSScriptRoot '..\..\..\..\..\Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json'),
+    [string]$DefaultTemplatesPath = '',
     [switch]$FailOnWarning
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+
+# 参数默认值改由仓库超根派生（参数绑定期 $PSScriptRoot 不可用；与目录深度无关）
+$Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($ConfigPath)) { $ConfigPath = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json' }
+if ([string]::IsNullOrWhiteSpace($WorkFlowDir)) { $WorkFlowDir = Join-Path $Root 'Projects\Information\DrivenConfig\WorkFlow' }
+if ([string]::IsNullOrWhiteSpace($DefaultTemplatesPath)) { $DefaultTemplatesPath = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Assets\templates.default.json' }
 
 $ExitCode = 0
 $Errors = [System.Collections.Generic.List[string]]::new()
@@ -552,7 +565,7 @@ foreach ($name in $eventTargetClickFn.Keys) {
 }
 
 # ---- 检查8：区域声明闭合（shell 产出 ⊆ 页面 regions 声明；F-7/I-5） ----
-$shellProjectorPath = Join-Path $PSScriptRoot '../../../../../Frame/CsharpPrj/Plate/HtmlViewer/Html/Render/HtmlShellProjector.cs'
+$shellProjectorPath = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\HtmlShellProjector.cs'
 $shellRegionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 if (Test-Path -LiteralPath $shellProjectorPath) {
     $shellSrc = [System.IO.File]::ReadAllText($shellProjectorPath)

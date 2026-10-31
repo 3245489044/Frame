@@ -57,12 +57,19 @@ public static class AttachPlanner
     public static bool IsBubbleAnchor(ConversationRenderItem item, FramePolicy? policy)
     {
         ArgumentNullException.ThrowIfNull(item);
+        // 事实优先：写侧落库的终答事实（terminal=true）即成气泡；位置/role 不再造气泡。
+        // 事实缺失（旧数据 / 未落库）⇒ 声明锚点（P2 策略，零回归，不默认 false 冒充事实）。
+        if (item.Terminal == true)
+        {
+            return true;
+        }
+
         return policy is not null
             ? policy.IsBubbleAnchor(item)
             : ConversationAnchors.IsAnchor(item);
     }
 
-    /// <summary>顶层分组（含前导折叠集）：终答过渡提升 + 前最近锚点折叠（输入恰消费一次 ⇒ 前导 + 顶层 + 挂靠 = 全集）。</summary>
+    /// <summary>顶层分组（含前导折叠集）：事实锚点 + 前最近锚点折叠（输入恰消费一次 ⇒ 前导 + 顶层 + 挂靠 = 全集）。</summary>
     public static TopLevelPlan Plan(
         IReadOnlyList<ConversationRenderItem> items, FramePolicy? policy)
     {
@@ -94,7 +101,15 @@ public static class AttachPlanner
         return new TopLevelPlan(lead, entries);
     }
 
-    /// <summary>过渡提升：归档 assistant 已同文（归一化）⇒ 去重；本轮最后一条过程文本 ⇒ 终端气泡。</summary>
+    /// <summary>
+    /// 终端提升（**事实缺失时的兜底，单点**）：归档 assistant 已同文（归一化）⇒ 去重；
+    /// 本轮最后一条过程文本 ⇒ 终端气泡。
+    /// <para>
+    /// 事实优先：<see cref="ConversationRenderItem.Terminal"/> = true 已由锚点承接；
+    /// false（非终答）不参与去重/提升；**仅 null（旧数据 / 未落库）走位置兜底**。
+    /// 待终答事实覆盖全部帧写入者后，本兜底随 P4b 再删（禁在覆盖不足时删）。
+    /// </para>
+    /// </summary>
     private static List<ConversationRenderItem> PromoteAnswer(
         IReadOnlyList<ConversationRenderItem> items, FramePolicy policy)
     {
@@ -104,6 +119,7 @@ public static class AttachPlanner
         var archived = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in result)
         {
+            if (item.Terminal == false) continue;
             if (item.Role == ConversationRole.Assistant
                 && !policy.IsTrace(item.Stage)
                 && policy.RoleOf(item.Stage) != FrameRoleIds.Terminal)
@@ -134,6 +150,8 @@ public static class AttachPlanner
         var last = -1;
         for (var i = 0; i < result.Count; i++)
         {
+            // 有事实的帧不走位置兜底（事实 = 写侧判定，位置不再二次裁决）。
+            if (result[i].Terminal is not null) continue;
             if (result[i].Role == ConversationRole.Tool && policy.IsTrace(result[i].Stage)) last = i;
         }
 
@@ -154,7 +172,7 @@ public static class AttachPlanner
         // 过渡期提升：本轮最后一条过程文本成为可见气泡（带「未归档」角标），
         // 其余过程帧（含其之前的前导帧）一律折叠，不再逐条铺开。
         => new(ConversationRole.Assistant, item.Stage, item.SubAgent, item.Text,
-            item.Round, MessageChannel.Dialogue, item.Targets);
+            item.Round, MessageChannel.Dialogue, item.Targets, item.Terminal, item.Archived);
 
     /// <summary>顺序分组：边界开组 / 收束只收本类 / 收束后异类开新组 / 调用与结果配对。</summary>
     public static AttachPlan PlanGroups(

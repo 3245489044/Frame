@@ -91,9 +91,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -536,7 +543,7 @@ if (-not ($cs31Circuit -and $cs31Wired -and $cs31Judge -and $cs31SingleDecision)
 # 三链（写/读/轮内）调用声明面在册（SessionCallChainCatalog 三链 id）；**被消费** = Agent.Launcher.Tests 锁定测试
 # （CountErrors()==0 → 声明为合法电路；ProjectAll 三链齐备）—— 防"死声明"（声明有、无人验 ⇒ 与执行漂移不可见）。
 # 缺失 = 「声明有、校验无」假支持（与 CS23–CS31 同族正对照）。
-$sccFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\SessionCallChainCatalog.cs'
+$sccFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\Flow\SessionCallChainCatalog.cs'
 $sccTestFile = Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\SessionCallChainCatalogTests.cs'
 $cs32Declared = (Test-Path $sccFile) -and
     ((Get-Content -LiteralPath $sccFile -Raw -Encoding UTF8) -match 'session_send_write_chain') -and
@@ -554,7 +561,7 @@ if (-not ($cs32Declared -and $cs32Consumed))
 # H1：各域电路（装配段 / 域 *FlowCatalog / 既有声明面）汇集 → CircuitGraphComposer.Compose（∪ 成连通根图）→
 # ControlFlowGraph → CircuitFlowRenderer 渲染 DOT/Mermaid/JSON —— 图谱工具 FlowGraphRegistry 在册；
 # 缺失 = 「声明有、图谱无」假支持（与 CS28/CS32 同族正对照）。
-$fgRegistryFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\FlowGraphRegistry.cs'
+$fgRegistryFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\Flow\FlowGraphRegistry.cs'
 $fgTestFile = Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\FlowGraphRegistryTests.cs'
 $cs34Registry = (Test-Path $fgRegistryFile) -and
     ((Get-Content -LiteralPath $fgRegistryFile -Raw -Encoding UTF8) -match 'class FlowGraphRegistry') -and
@@ -573,27 +580,39 @@ if (-not ($cs34Registry -and $cs34Composer -and $cs34Consumed))
 # ---------- CS35 函数流动域目录在册（正对照，H2–H6） ----------
 # H2–H6：四域目录（Llm/Persistence/Node/ToolFace）+ 装配段桥接（AssemblyFlowCatalog）+ 装配入口
 # （FunctionFlowBootstrap）+ 共用支撑（FlowCatalogSupport）在册；缺失 = 「图谱有、域无」假支持。
-$flowHostingDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting'
-$flowCircuitDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit'
+# 2026-10-31（方案 B）：九个声明投影件归一 Composition\Circuit\Flow\（域流与段桥接同址，禁跨目录）
+$flowDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Circuit\Flow'
 $cs35Files = @(
-    (Join-Path $flowHostingDir 'LlmFlowCatalog.cs'),
-    (Join-Path $flowHostingDir 'PersistenceFlowCatalog.cs'),
-    (Join-Path $flowHostingDir 'NodeFlowCatalog.cs'),
-    (Join-Path $flowHostingDir 'ToolFaceFlowCatalog.cs'),
-    (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs'),
-    (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs'),
-    (Join-Path $flowCircuitDir 'FlowCatalogSupport.cs'))
+    (Join-Path $flowDir 'LlmFlowCatalog.cs'),
+    (Join-Path $flowDir 'PersistenceFlowCatalog.cs'),
+    (Join-Path $flowDir 'NodeFlowCatalog.cs'),
+    (Join-Path $flowDir 'ToolFaceFlowCatalog.cs'),
+    (Join-Path $flowDir 'AssemblyFlowCatalog.cs'),
+    (Join-Path $flowDir 'FunctionFlowBootstrap.cs'),
+    (Join-Path $flowDir 'FlowCatalogSupport.cs'))
 $cs35Present = @($cs35Files | Where-Object { Test-Path $_ }).Count
-$cs35Bootstrap = (Test-Path (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs')) -and
-    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'RegisterAll') -and
-    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'AssemblyFlowCatalog')
-$cs35Stitch = (Test-Path (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs')) -and
-    ((Get-Content -LiteralPath (Join-Path $flowCircuitDir 'AssemblyFlowCatalog.cs') -Raw -Encoding UTF8) -match 'CircuitCallSpec')
+$cs35Bootstrap = (Test-Path (Join-Path $flowDir 'FunctionFlowBootstrap.cs')) -and
+    ((Get-Content -LiteralPath (Join-Path $flowDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'RegisterAll') -and
+    ((Get-Content -LiteralPath (Join-Path $flowDir 'FunctionFlowBootstrap.cs') -Raw -Encoding UTF8) -match 'AssemblyFlowCatalog')
+$cs35Stitch = (Test-Path (Join-Path $flowDir 'AssemblyFlowCatalog.cs')) -and
+    ((Get-Content -LiteralPath (Join-Path $flowDir 'AssemblyFlowCatalog.cs') -Raw -Encoding UTF8) -match 'CircuitCallSpec')
 $cs35Test = Test-Path (Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\FunctionFlowCatalogTests.cs')
 Write-Host ("  CS35 函数流动域目录在册（正对照：目录件数={0}/7 / 入口={1} / 缝合={2} / 锁定测试={3}）：须均满足" -f $cs35Present, $cs35Bootstrap, $cs35Stitch, $cs35Test) -ForegroundColor Gray
 if ($cs35Present -lt 7 -or -not $cs35Bootstrap -or -not $cs35Stitch -or -not $cs35Test)
 {
     $violations.Add("[CS35] 函数流动域目录缺失（目录件数 $cs35Present/7 / 入口 $cs35Bootstrap / 缝合 $cs35Stitch / 锁定测试 $cs35Test）")
+}
+
+# ---------- CS35b 流图 CodeRef 落地守卫在册（正对照，E-1/E-3） ----------
+# 判据缺口修复：声明面（*FlowCatalog 的 CodeRef）须有「类型+方法存在」的机械校验面；缺失 = 图谱可画不存在的步骤（假阳性）。
+$cs35bGuardFile = Join-Path $Root 'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\FlowCatalogCodeRefTests.cs'
+$cs35bGuard = (Test-Path $cs35bGuardFile) -and
+    ((Get-Content -LiteralPath $cs35bGuardFile -Raw -Encoding UTF8) -match 'CodeRef') -and
+    ((Get-Content -LiteralPath $cs35bGuardFile -Raw -Encoding UTF8) -match 'IsLanded')
+Write-Host ("  CS35b 流图 CodeRef 落地守卫在册（正对照：锁定测试={0} / 判据=IsLanded）：须为 True" -f $cs35bGuard) -ForegroundColor Gray
+if (-not $cs35bGuard)
+{
+    $violations.Add('[CS35b] 流图 CodeRef 落地守卫缺失（FlowCatalogCodeRefTests 未在册或未含类型/方法存在性判据 ⇒ 声明可指向不存在的符号）')
 }
 
 # ---------- CS12 轮间链单驱动（负对照：Loops 内禁平行路由表）+ CS13 区域化轮循环在册（正对照） ----------

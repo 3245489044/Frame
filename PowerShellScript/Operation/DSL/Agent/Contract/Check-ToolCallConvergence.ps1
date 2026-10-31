@@ -21,8 +21,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+
 # Frame\PowerShellScript\Operation\DSL\Agent -> 上溯 5 级到仓库根
-$mainRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
+$mainRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $agentRoot = Join-Path $mainRoot 'Projects\Plug\Agent'
 $srcRoot = Join-Path $agentRoot 'src'
 

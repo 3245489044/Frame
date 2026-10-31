@@ -1,5 +1,5 @@
 @{
-    # ===== DelegateEntry 门禁基线（单源；守卫 = Operation\DSL\Agent\Check-DelegateEntry.ps1）=====
+    # ===== DelegateEntry 门禁基线（单源；守卫 = Operation\DSL\Agent\Contract\Check-DelegateEntry.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'DelegateEntry'
 

@@ -19,6 +19,10 @@ namespace Share.Conversation;
 /// 与 <see cref="Binding"/> 的 FeedTarget（投喂目标）正交；尾参，不影响既有位置构造调用。</param>
 /// <param name="Targets">本轮分发/注入的**目标集**（dispatch 执行体产出的事实；F3）。null/空 = 无分发（reply/status）。
 /// 尾参，不影响既有位置构造调用。</param>
+/// <param name="Terminal">写侧终答事实（<c>terminal</c> 帧字段）：true = 本轮终答；false = 非终答；
+/// null = 未知（旧数据/未落库，不冒充 false）。尾参，不影响既有位置构造调用。</param>
+/// <param name="Archived">写侧归档事实（<c>archived</c> 帧字段）：true = 已入史归档；false = 未归档；
+/// null = 未知。尾参，不影响既有位置构造调用。</param>
 public sealed record ConversationMessage(
     ConversationRole Role,
     string? Stage,
@@ -29,4 +33,6 @@ public sealed record ConversationMessage(
     string? Payload = null,
     MessageBinding? Binding = null,
     MessageChannel Channel = MessageChannel.Dialogue,
-    IReadOnlyList<string>? Targets = null);
+    IReadOnlyList<string>? Targets = null,
+    bool? Terminal = null,
+    bool? Archived = null);

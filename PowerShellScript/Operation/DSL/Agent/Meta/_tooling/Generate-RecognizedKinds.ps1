@@ -20,9 +20,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $specPath   = Join-Path $Root 'Projects\Plug\Agent\Config\agents\cline\recognizers.json'
@@ -50,7 +57,7 @@ if ($Emit)
     $lines.Add('namespace Agent.Contract.NodeDomain;')
     $lines.Add('')
     $lines.Add('/// <summary>')
-    $lines.Add('/// 识别词表 C# 镜像 —— **生成物**（生成器：Frame\PowerShellScript\Operation\DSL\Agent\Generate-RecognizedKinds.ps1）。')
+    $lines.Add('/// 识别词表 C# 镜像 —— **生成物**（生成器：Frame\PowerShellScript\Operation\DSL\Agent\Meta\_tooling\Generate-RecognizedKinds.ps1）。')
     $lines.Add('/// <para>纪律（W-1/W-2）：本类型只是声明面的镜像；新增/改名识别类别 = 只改声明面后重跑生成器。')
     $lines.Add('/// 门禁 Check-RecognizerVocabulary（R8/R11）逐 kind 对账；手写副本的退役条件 = 本文件由生成器产出且对拍恒绿。</para>')
     $lines.Add('/// </summary>')

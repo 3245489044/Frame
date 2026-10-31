@@ -15,12 +15,22 @@
 # ============================================================
 [CmdletBinding()]
 param(
-    [string]$Root = (Join-Path $PSScriptRoot '..\..\..\..\CsharpPrj\Strategy\Refresh'),
+    [string]$Root = '',
     [switch]$Check,
     [switch]$NegativeControl
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+
+# 参数默认值改由 Frame 根派生（参数绑定期 $PSScriptRoot 不可用；与目录深度无关）
+if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Join-Path (Get-FrameRoot) 'CsharpPrj\Strategy\Refresh' }
 
 $patterns = [ordered]@{
     'using-upper-layer' = 'using\s+(Agent|Plate|FrontEndDriven|UiBackend)\.'

@@ -1,5 +1,5 @@
 @{
-    # ===== PromptSegments 门禁基线（单源；守卫 = Operation\DSL\Agent\Check-PromptSegments.ps1）=====
+    # ===== PromptSegments 门禁基线（单源；守卫 = Operation\DSL\Agent\Declaration\Check-PromptSegments.ps1）=====
     Schema = 'gate-baseline-v1'
     Gate   = 'PromptSegments'
 

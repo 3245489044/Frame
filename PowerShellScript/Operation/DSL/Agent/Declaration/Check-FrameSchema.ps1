@@ -47,6 +47,8 @@ $kindsCsPath     = Join-Path $root 'Projects\Plug\Agent\src\Agent.Contract\NodeD
 $allowedClass  = @('message', 'text', 'tool', 'step', 'telemetry', 'terminal', 'accounting', 'notice')
 $allowedAnchor = @('always', 'if-answer', 'never')
 $allowedFold   = @('none', 'round', 'lead', 'attach', 'group')
+# 视图层折叠口径（ui-regions）是呈现层默认态，词域比帧级 fold 宽（含 round-closed）。
+$allowedViewFold = @('none', 'round', 'lead', 'attach', 'group', 'round-closed')
 
 function Get-RecognizedKinds([string]$path) {
     if (-not (Test-Path -LiteralPath $path)) { return @() }
@@ -121,6 +123,63 @@ function Test-SchemaRows($kinds, $recognized, $classes, $shapingKinds, $fileOrdi
     return $errors
 }
 
+function Get-GatherDomains([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return @() }
+    $text = Get-Content -LiteralPath $path -Raw
+    $names = [System.Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($text, '(?m)^\[Gather\]\s+(\S+)')) { $names.Add($m.Groups[1].Value) }
+    return @($names | Sort-Object -Unique)
+}
+
+# 跨表对账（F9–F12）：帧视图 ⊆ ui 视图 / ui 折叠词 / 读路径域 ⊆ [Gather] / 视图内容域非空且两两不同。
+function Test-CrossTable($schema, $readPaths, $uiRegions, $gatherDomains) {
+    $errors = [System.Collections.Generic.List[string]]::new()
+    if ($null -eq $schema -or $null -eq $readPaths -or $null -eq $uiRegions) {
+        $errors.Add('[F9] 跨表对账输入缺失（frame-kinds / read-paths / ui-regions 三者齐备才可判）')
+        return $errors
+    }
+
+    $rows = @($schema.kinds)
+    $views = @($uiRegions.views)
+    $viewNames = @($views | ForEach-Object { [string]$_.view })
+
+    foreach ($row in $rows) {
+        foreach ($v in @($row.views)) {
+            if ($viewNames -notcontains [string]$v) {
+                $errors.Add(("[F9] 帧 {0} 声明出现于视图 '{1}'，但 ui-regions.views 未声明" -f $row.kind, $v))
+            }
+        }
+    }
+
+    foreach ($view in $views) {
+        $fold = [string]$view.content.fold
+        if ($allowedViewFold -notcontains $fold) {
+            $errors.Add(("[F10] 视图 {0} 的 content.fold='{1}' 非受控词" -f $view.view, $fold))
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$view.content.domain)) {
+            $errors.Add(("[F12] 视图 {0} 缺 content.domain（内容域单源）" -f $view.view))
+        }
+    }
+
+    # F12：视图内容域两两不同（共用同一数据身份 = 双源）。
+    $declaredDomains = @($views | ForEach-Object { [string]$_.content.domain } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    foreach ($g in @($declaredDomains | Group-Object | Where-Object { $_.Count -gt 1 })) {
+        $errors.Add(("[F12] 视图内容域重复（须两两不同）：'{0}' 出现 {1} 次" -f $g.Name, $g.Count))
+    }
+
+    foreach ($path in @($readPaths.paths)) {
+        $d = [string]$path.domain
+        if ([string]::IsNullOrWhiteSpace($d)) { $errors.Add(("[F11] 读路径 {0} 缺 domain" -f $path.id)); continue }
+        if ($gatherDomains -notcontains $d) {
+            $errors.Add(("[F11] 读路径域 '{0}' 未在 [Gather] 声明（path={1}）" -f $d, $path.id))
+        }
+    }
+
+    return $errors
+}
+
 # ---- 载入声明面 ----
 if (-not (Test-Path -LiteralPath $schemaPath)) { Add-Violation 'F1' '编译视图缺失：Config\nodes\frame-kinds.json' }
 if (-not (Test-Path -LiteralPath $presentationPath)) { Add-Violation 'F3' '呈现声明缺失：presentation.json' }
@@ -135,6 +194,16 @@ if ((Test-Path -LiteralPath $schemaPath) -and (Test-Path -LiteralPath $presentat
     foreach ($e in (Test-SchemaRows $schema.kinds $recognized $classes $shapingKinds ([string]$schema.ordinal) ([string]$schema.subjectDefault))) {
         Add-Violation 'ROW' $e
     }
+
+    # ---- 跨表对账（P0：F9–F12；声明文本 → 表之前的结构闭环） ----
+    $readPathsPath = Join-Path $root 'Projects\Plug\Agent\Config\nodes\read-paths.json'
+    $uiRegionsPath = Join-Path $root 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+    $readPathsDecl = if (Test-Path -LiteralPath $readPathsPath) { Get-Content -LiteralPath $readPathsPath -Raw | ConvertFrom-Json -Depth 12 } else { $null }
+    $uiRegionsDecl = if (Test-Path -LiteralPath $uiRegionsPath) { Get-Content -LiteralPath $uiRegionsPath -Raw | ConvertFrom-Json -Depth 12 } else { $null }
+    $gatherDomains = @(Get-GatherDomains $gatherPath)
+    foreach ($e in (Test-CrossTable $schema $readPathsDecl $uiRegionsDecl $gatherDomains)) { Add-Violation 'X' $e }
+    Write-Host ("[FrameSchema] 跨表：readPaths={0} uiViews={1} gatherDomains={2}" -f `
+        (@($readPathsDecl.paths).Count), (@($uiRegionsDecl.views).Count), $gatherDomains.Count)
 
     # 行数对账（可见化，非判据）
     Write-Host ("[FrameSchema] 行={0} RecognizedKinds={1} shaping kinds={2}" -f @($schema.kinds).Count, $recognized.Count, $shapingKinds.Count)
@@ -172,6 +241,21 @@ if ($NegativeControl) {
         Add-Violation 'NC' '正对照误报：合法单行被判违规'
     }
     Write-Host '[FrameSchema] 负对照通过（重复/非法呈现词/缺 subject 均可判红）'
+
+    # 跨表负对照（F9–F12：帧视图悬空 / 折叠词越集 / 读路径域未进 [Gather] / 内容域不可解释）
+    $badSchema = [pscustomobject]@{ kinds = @([pscustomobject]@{ kind = 'a'; views = @('nope') }) }
+    $badUi = [pscustomobject]@{ views = @(
+        [pscustomobject]@{ view = 'task'; content = [pscustomobject]@{ domain = 'same'; fold = 'sideways' } },
+        [pscustomobject]@{ view = 'node'; content = [pscustomobject]@{ domain = 'same'; fold = 'none' } }
+    ) }
+    $badRp = [pscustomobject]@{ paths = @([pscustomobject]@{ id = 'p'; domain = 'ghost' }) }
+    $crossErrors = Test-CrossTable $badSchema $badRp $badUi @('task')
+    $crossCodes = @($crossErrors | ForEach-Object { ($_ -split ']')[0].TrimStart('[') })
+    foreach ($expected in @('F9', 'F10', 'F11', 'F12')) {
+        if ($crossCodes -notcontains $expected) { Add-Violation 'NC' "跨表负对照未命中：期望判据 $expected 未触发" }
+    }
+
+    Write-Host '[FrameSchema] 跨表负对照通过（F9/F10/F11/F12 均可判红）'
 }
 
 if ($violations.Count -gt 0) {

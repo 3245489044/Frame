@@ -1,0 +1,27 @@
+{
+  "schema": "view-golden-samples-v1",
+  "view": "task",
+  "$comment": "P6 端到端锁定样本（ViewEngine 离线对拍）：AnswerStatus 四态各至少一条；frames.terminal 为写侧事实（缺失 = null = 未知，禁默认 false）；frames 为空 ⇒ 源不可用（Unknown，非 NoAnswer）。",
+  "samples": [
+    {
+      "id": "S1-answered",
+      "frames": [ { "kind": "llm-text", "text": "最终答复", "terminal": true } ],
+      "expect": { "answer": "Answered", "rows": 1 }
+    },
+    {
+      "id": "S2-no-answer",
+      "frames": [ { "kind": "llm-text", "text": "中间过程", "terminal": false } ],
+      "expect": { "answer": "NoAnswer", "rows": 1 }
+    },
+    {
+      "id": "S3-process-only",
+      "frames": [ { "kind": "done", "text": "ok" } ],
+      "expect": { "answer": "ProcessOnly", "rows": 1 }
+    },
+    {
+      "id": "S4-unknown-source",
+      "frames": [],
+      "expect": { "answer": "Unknown", "rows": 0 }
+    }
+  ]
+}

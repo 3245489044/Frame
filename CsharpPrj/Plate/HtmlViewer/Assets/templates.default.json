@@ -24,7 +24,7 @@
   "segGroup": "{#each items}{>segItem}{/each}",
   "sectionHeader": "<section class=\"section\" data-round=\"{round}\"><header class=\"section-header\" data-cmd=\"selectHistory\" title=\"点击定位本轮历史\">{roundTitle}{?costLabel}<span class=\"cost-badge round-cost\">{costLabel}</span>{/}</header>{#each messages}{>row}{/each}</section>",
   "roundFold": "<section class=\"section\" data-round=\"{round}\"><details class=\"round-fold\" data-name=\"round-{round}\" data-round=\"{round}\" data-fold-key=\"round-{round}\" data-default-open=\"{foldOpen}\"><summary class=\"section-header round-summary\" data-cmd=\"selectHistory\" title=\"点击定位本轮历史\">{roundTitle}{?costLabel}<span class=\"cost-badge round-cost\">{costLabel}</span>{/}</summary>{#each leadFolds}{>leadFold}{/each}{#each messages}{>row}{/each}</details></section>",
-  "leadFold": "<details class=\"lead-fold\" data-name=\"lead-{round}\" data-fold-key=\"lead-{round}\" data-default-open=\"0\"><summary class=\"fold-summary\">{leadSummary}</summary>{#each lead}{>row}{/each}</details>",
+  "leadFold": "<details class=\"lead-fold\" data-name=\"lead-{round}\" data-fold-key=\"lead-{round}\" data-default-open=\"{leadOpen}\"><summary class=\"fold-summary\">{leadSummary}</summary>{#each lead}{>row}{/each}</details>",
   "renderDegraded": "<p class=\"render-degraded\" data-reason=\"{reason}\">{text}</p>",
   "dayBadge": "<span class=\"cost-badge day\" title=\"{title}\">{text}</span>",
   "costBadge": "<span class=\"cost-badge\" title=\"{title}\">{text}</span>",

@@ -60,7 +60,7 @@ internal static class RoundSectionProjector
         }
 
         model["leadFolds"] = leadRows.Count > 0
-            ? new List<object?> { LeadFold(plan.Lead, leadRows, round, context) }
+            ? new List<object?> { LeadFold(plan.Lead, leadRows, round, plan.Entries.Count == 0, context) }
             : new List<object?>();
         return UiFragmentWriter.Render(templates, roundFoldKey, model);
     }
@@ -110,12 +110,14 @@ internal static class RoundSectionProjector
         IReadOnlyList<ConversationRenderItem> source,
         List<object?> rows,
         int round,
+        bool noAnchor,
         ConversationProjectionContext context)
     {
         var textCount = AttachProjector.CountTrace(source, context.Policy);
         return new Dictionary<string, object?>
         {
             ["round"] = round.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["leadOpen"] = noAnchor ? "1" : "0",
             ["leadSummary"] = string.Join(string.Empty, new[]
             {
                 string.Format(System.Globalization.CultureInfo.InvariantCulture,

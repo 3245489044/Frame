@@ -85,9 +85,18 @@ public static class HtmlTemplateEngine
         IReadOnlyDictionary<string, object?>? model)
     {
         if (string.IsNullOrEmpty(template)) return Array.Empty<UiNode>();
-        var nodes = new List<UiNode>();
-        RenderNodesTo(ParseWhole(template), templates, model ?? EmptyModel, nodes);
-        return nodes;
+
+        // 节点出口 = 元素节点：模板字面量先按字符串渲染（保留绑定转义），再解析为元素树。
+        // 模板字面量若留在 RawText，按元素遍历的绑定器（折叠/键守卫）永远看不到 <details>（D17/E5）。
+        if (template.Contains("|raw", StringComparison.Ordinal))
+        {
+            throw new System.InvalidOperationException(
+                "RenderToNodes 不支持 |raw 绑定（节点出口须用真节点；壳文档请走 Render）");
+        }
+
+        var html = RenderTemplate(template, templates, model);
+        var root = HtmlNodeParser.Parse(html, preserveWhitespace: true);
+        return root.Children ?? Array.Empty<UiNode>();
     }
 
     /// <summary>节点渲染（与 <see cref="RenderNodes"/> 同构；输出节点列表而非字符串）。</summary>

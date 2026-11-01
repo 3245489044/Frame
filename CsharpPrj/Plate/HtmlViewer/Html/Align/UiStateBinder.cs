@@ -46,7 +46,8 @@ public static class UiStateBinder
 
         if (node.Tag.Length > 0
             && string.Equals(node.Tag, "details", System.StringComparison.OrdinalIgnoreCase)
-            && node.Key is not null)
+            && node.Key is not null
+            && (node.Attributes is null || !node.Attributes.ContainsKey(FoldBinder.FoldKeyAttribute)))
         {
             var open = openKeys.Contains(node.Key);
             var attrs = node.Attributes is null

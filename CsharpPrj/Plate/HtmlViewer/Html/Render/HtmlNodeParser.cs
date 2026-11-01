@@ -22,7 +22,9 @@ public static class HtmlNodeParser
     };
 
     /// <summary>解析 HTML 片段为键控节点树（片段根）。</summary>
-    public static UiNode Parse(string? html)
+    /// <param name="html">HTML 片段。</param>
+    /// <param name="preserveWhitespace">保留纯排版空白文本节点（模板出口须为 true：字符串渲染的空白不得在节点化时丢失）。</param>
+    public static UiNode Parse(string? html, bool preserveWhitespace = false)
     {
         var root = new Builder(null, null, null);
         if (string.IsNullOrEmpty(html)) return new UiNode(string.Empty, Children: Array.Empty<UiNode>());
@@ -38,7 +40,7 @@ public static class HtmlNodeParser
             // 注释 / doctype / CDATA：整段跳过。
             if (i + 1 < n && html[i + 1] == '!')
             {
-                FlushText(stack, text);
+                FlushText(stack, text, preserveWhitespace);
                 if (i + 3 < n && html[i + 2] == '-' && html[i + 3] == '-')
                 {
                     var end = html.IndexOf("-->", i + 4, StringComparison.Ordinal);
@@ -55,7 +57,7 @@ public static class HtmlNodeParser
             // 结束标签。
             if (i + 1 < n && html[i + 1] == '/')
             {
-                FlushText(stack, text);
+                FlushText(stack, text, preserveWhitespace);
                 var gt = html.IndexOf('>', i);
                 if (gt < 0) { i = n; continue; }
                 CloseTag(stack, html.Substring(i + 2, gt - (i + 2)).Trim());
@@ -69,7 +71,7 @@ public static class HtmlNodeParser
             while (j < n && (char.IsLetterOrDigit(html[j]) || html[j] == '-' || html[j] == ':')) { tagSb.Append(html[j]); j++; }
             if (tagSb.Length == 0) { text.Append(html[i]); i++; continue; }
 
-            FlushText(stack, text);
+            FlushText(stack, text, preserveWhitespace);
             var tag = tagSb.ToString();
             var attrs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             bool selfClose = false;
@@ -114,19 +116,19 @@ public static class HtmlNodeParser
             stack.Peek().Children.Add(builder);
             if (!selfClose && !VoidElements.Contains(tag)) stack.Push(builder);
         }
-        FlushText(stack, text);
+        FlushText(stack, text, preserveWhitespace);
         return root.ToNode();
     }
 
-    private static void FlushText(Stack<Builder> stack, StringBuilder text)
+    private static void FlushText(Stack<Builder> stack, StringBuilder text, bool preserveWhitespace)
     {
         if (text.Length == 0) return;
         // 实体解码到语义值：渲染产物（&amp;/&quot;/&amp;#123;…）经本投影后再序列化才幂等，
         // 否则属性/文本被二次转义写回（data-payload 在 DOM 侧变成字面实体 ⇒ 点击负载非法，F-1 保真缺口）。
         var s = DecodeEntities(text.ToString());
         text.Clear();
-        // 丢弃纯排版空白；但 <pre>/<textarea> 内的空白是内容，须保真。
-        if (string.IsNullOrWhiteSpace(s) && !PreserveWhitespace(stack.Peek().Tag)) return;
+        // 丢弃纯排版空白；但模板出口（preserveWhitespace）与 <pre>/<textarea> 内空白属内容，须保真。
+        if (!preserveWhitespace && string.IsNullOrWhiteSpace(s) && !PreserveWhitespace(stack.Peek().Tag)) return;
         stack.Peek().Children.Add(new Builder(null, null, s));
     }
 

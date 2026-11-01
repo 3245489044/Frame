@@ -42,6 +42,8 @@ internal static class RowModels
             ["prompt"] = prompt,
             ["anchor"] = isAnchor ? "1" : string.Empty,
             ["presentation"] = presentation.ClassId,
+            ["presentationOrigin"] = presentation.Origin.ToString().ToLowerInvariant(),
+            ["presentationUnknown"] = presentation.Origin == PresentationOrigin.Unknown ? "1" : string.Empty,
             ["class"] = context.StyleOf(item),
             ["template"] = context.TemplateOf(item),
             ["badge"] = context.Policy?.BadgeOf(item.Stage) ?? string.Empty,

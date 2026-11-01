@@ -32,6 +32,7 @@ public class AggregateRun
     private readonly Func<string, string> _positionKeyOf;
     private readonly string _appendBeforeRoundLogKey;
     private readonly Action<string, object?>? _logSink;
+    private readonly HashSet<string> _mutableFactFields;
     private long _seq;
     private string? _runId;
     private DateTimeOffset? _startedAtUtc;
@@ -43,13 +44,18 @@ public class AggregateRun
     /// <param name="maxPerKindPerRun">每 run 每 kind 的帧上限（防载荷爆炸）。</param>
     /// <param name="appendBeforeRoundLogKey">「未成轮拒收」的可见化日志键（登记在日志词表；每域可各持一枚）。</param>
     /// <param name="logSink">日志出口（宿主注入；null ⇒ 静默，不抛）。</param>
+    /// <param name="mutableFactFields">
+    /// 允许经 <see cref="MarkFact"/> 回标的事实字段名（缺省空集 = 禁回标）。
+    /// 内容字段永不可改写；字段名单由域侧注入（本类不持领域词）。
+    /// </param>
     public AggregateRun(
         string partitionKey,
         string kindFieldName,
         Func<string, string> positionKeyOf,
         int maxPerKindPerRun,
         string appendBeforeRoundLogKey,
-        Action<string, object?>? logSink = null)
+        Action<string, object?>? logSink = null,
+        IReadOnlyCollection<string>? mutableFactFields = null)
     {
         if (string.IsNullOrWhiteSpace(partitionKey))
         {
@@ -70,6 +76,7 @@ public class AggregateRun
         _appendBeforeRoundLogKey = appendBeforeRoundLogKey;
         _logSink = logSink;
         MaxPerKindPerRun = maxPerKindPerRun;
+        _mutableFactFields = new HashSet<string>(mutableFactFields ?? Array.Empty<string>(), StringComparer.Ordinal);
     }
 
     /// <summary>分区键（帧按它隔离，跨分区不串味）。</summary>
@@ -203,6 +210,79 @@ public class AggregateRun
             _lastFingerprintOfKind[kind] = fingerprint;
             _endedAtUtc = stamp;
             return frame;
+        }
+    }
+
+    /// <summary>
+    /// **事实回标**（唯一事实 enrichment 入口；内容字段永不可改写）：在快照前把某帧的**事实字段**置值。
+    /// <para>
+    /// 允许字段 = 构造注入的 <c>mutableFactFields</c>（域侧声明）；未声明字段、帧不存在（已释放/跨 run）、
+    /// 空值一律返回 <c>false</c>（调用方须可见化，禁静默）。同值重写为幂等成功。
+    /// </para>
+    /// </summary>
+    /// <param name="seq">目标帧到达序（<see cref="LastSeq"/> 选出）。</param>
+    /// <param name="field">事实字段名（须在域侧声明集内）。</param>
+    /// <param name="value">事实值（null ⇒ 拒，不写）。</param>
+    public bool MarkFact(long seq, string field, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(field);
+        if (value is null) return false;
+
+        lock (_gate)
+        {
+            if (!_mutableFactFields.Contains(field)) return false;
+
+            foreach (var round in _rounds)
+            {
+                for (var i = 0; i < round.Frames.Count; i++)
+                {
+                    var frame = round.Frames[i];
+                    if (frame.Seq != seq) continue;
+
+                    if (JsonNode.Parse(frame.PayloadJson) is not JsonObject payload) return false;
+                    var next = ToNode(value);
+                    var existing = payload[field];
+                    if (existing is not null && JsonNode.DeepEquals(existing, next)) return true;
+
+                    payload[field] = next;
+                    round.Frames[i] = frame with { PayloadJson = payload.ToJsonString() };
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 选取锚点帧的到达序：**指定轮内**、指定 kind、最后一个满足谓词的帧（无 ⇒ <c>-1</c>）。
+    /// <para>只读；谓词入参为帧载荷对象（供调用方按字段取值，如文本非空/文本相同）。</para>
+    /// </summary>
+    /// <param name="round">轮次号（须为已建轮；未建 ⇒ -1）。</param>
+    /// <param name="kind">帧类别（须为词表值）。</param>
+    /// <param name="predicate">附加判据（null = 只按 kind 取最后一条）。</param>
+    public long LastSeq(int round, string kind, Func<JsonObject, bool>? predicate = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+
+        lock (_gate)
+        {
+            var group = _rounds.FirstOrDefault(r => r.Round == round);
+            if (group is null) return -1;
+
+            for (var i = group.Frames.Count - 1; i >= 0; i--)
+            {
+                var frame = group.Frames[i];
+                if (!string.Equals(frame.Kind, kind, StringComparison.Ordinal)) continue;
+                if (predicate is not null)
+                {
+                    if (JsonNode.Parse(frame.PayloadJson) is not JsonObject payload || !predicate(payload)) continue;
+                }
+
+                return frame.Seq;
+            }
+
+            return -1;
         }
     }
 

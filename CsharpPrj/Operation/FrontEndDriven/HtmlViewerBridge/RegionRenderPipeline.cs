@@ -140,19 +140,21 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
 
         var trees = new List<UiWriteTarget>(regions.Count);
         var streamItems = new List<UiStreamItem>();
+        var foldState = FoldBinder.ParseState(openKeys);
         foreach (var region in regions)
         {
-            if (!Changed(_regionSlotPrefix + region.Key, _hash(UiFragmentWriter.Serialize(region.Value)), commits)) continue;
+            // 折叠态先绑定再算指纹/序列化：态变化必须进入变更判定（否则折叠交互被判「无变化」）。
+            var bound = UiStateBinder.Bind(FoldBinder.Bind(region.Value, foldState), openKeys);
+            if (!Changed(_regionSlotPrefix + region.Key, _hash(UiFragmentWriter.Serialize(bound)), commits)) continue;
             if (region.Key.StartsWith(_streamRegionPrefix, StringComparison.Ordinal))
             {
                 // 流段（气泡）：同键 ⇒ 定点更新；新键 ⇒ 按流序插入（方向由载荷声明 = OldestFirst）。
                 streamItems.Add(new UiStreamItem(
-                    region.Key.Substring(_streamRegionPrefix.Length), UiFragmentWriter.Serialize(region.Value)));
+                    region.Key.Substring(_streamRegionPrefix.Length), UiFragmentWriter.Serialize(bound)));
                 continue;
             }
 
             // 节点直绑（不再把 HTML 解析回树：渲染产物本身即节点）。
-            var bound = UiStateBinder.Bind(region.Value, openKeys);
             trees.Add(new UiWriteTarget(_regionNamePrefix + region.Key, bound));
         }
 

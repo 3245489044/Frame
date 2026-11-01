@@ -44,6 +44,7 @@ internal static class RoundSectionProjector
             ["round"] = round.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["roundTitle"] = context.RoundTitle(round),
             ["open"] = open ? "1" : string.Empty,
+            ["foldOpen"] = open ? "1" : "0",
             ["messages"] = anchorRows,
             ["costLabel"] = context.CostLabel(round),
         };
@@ -78,6 +79,7 @@ internal static class RoundSectionProjector
             ["round"] = round.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["roundTitle"] = context.RoundTitle(round),
             ["open"] = open ? "1" : string.Empty,
+            ["foldOpen"] = open ? "1" : "0",
             ["messages"] = merged
                 .Select((entry, index) => (object?)AttachProjector.AnchorRow(entry, round, index, context))
                 .ToList(),

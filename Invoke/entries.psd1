@@ -33,6 +33,11 @@
         }
 
         # ---------- 诊断 / 数据检视 ----------
+        'locate-failure' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Operation\DSL\Tooling\Locate-Failure.ps1'
+            Map = @{ Name = 'Name'; Changed = 'Changed'; Json = 'Json' }
+        }
         'read-agentdb' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Data\Read-AgentDb.ps1'

@@ -77,7 +77,13 @@ function Test-EffectiveAligned([string]$faceFp, [string]$builtFp) {
 # 构建产物权威目录（每代表件的「新构建」来源）。
 $agentBuildDir  = Join-Path $Root "Projects\Plug\Agent\BuildOutput\$Configuration"
 $csharpBuildDir = Join-Path $Root "Frame\CsharpPrj\BuildOutput\$Configuration"
-$genRoot        = Join-Path $Root 'Projects\Plug\Agent\BuildOutput\Generations'
+# 生效面代根 = 真实装载面（Runtime\Plugins\Agent\current → gen-<n>）；构建暂存面仅作兜底。
+# 历史上两处代根并存（Runtime 有 gen-12/13，BuildOutput 有 gen-1），断言错面 ⇒ 门禁假绿。
+$runtimeAgentRoot = Join-Path $Root 'Runtime\Plugins\Agent'
+$genRoot = Join-Path $runtimeAgentRoot 'Generations'
+if (-not (Test-Path -LiteralPath $genRoot)) {
+    $genRoot = Join-Path $Root 'Projects\Plug\Agent\BuildOutput\Generations'
+}
 
 # G7-2：代表件 = 显式清单 ∪ 构建产物清单驱动的 glob（拆分程序集自动纳入，禁手抄漂移）。
 $memberGlobs = @()
@@ -100,12 +106,17 @@ $members = $expandedMembers.ToArray()
 # 生效面目录（按模式）：locked = current→gen-<n>（回落最高代）；dev = 就地构建产物目录。
 $genDir = $null
 if ($Mode -eq 'locked') {
-    $ptr = Join-Path $genRoot 'current'
+    # current 指针在插件根（Runtime\Plugins\Agent\current）；旧布局可能放在代根内，二者兼容。
+    $ptr = Join-Path $runtimeAgentRoot 'current'
+    if (-not (Test-Path -LiteralPath $ptr)) { $ptr = Join-Path $genRoot 'current' }
     if (Test-Path -LiteralPath $ptr) {
         $pname = (Get-Content -LiteralPath $ptr -Raw -ErrorAction SilentlyContinue).Trim()
         if ($pname -match '^gen-[1-9]\d*$' -and (Test-Path -LiteralPath (Join-Path $genRoot $pname))) {
             $genDir = Join-Path $genRoot $pname
         }
+    }
+    if (-not $genDir) {
+        $violations.Add(("[E7] locked 模式未解析到代目录：current 指针缺失/无效（{0}）—— 断言无标的" -f $ptr))
     }
     if (-not $genDir -and (Test-Path -LiteralPath $genRoot)) {
         $gens = @(Get-ChildItem -LiteralPath $genRoot -Directory -ErrorAction SilentlyContinue |

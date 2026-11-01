@@ -35,7 +35,7 @@ param(
     [ValidateSet(
         'search-repo', 'test-jsonfiles', 'invoke-gatecheck',
         'keyspace-check', 'keyspace-verify',
-        'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port',
+        'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port', 'locate-failure',
         'invoke-buildeffective',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
@@ -140,7 +140,18 @@ param(
     [switch]$Literal,
     [switch]$Regex,
     [switch]$FailOnEmpty,
-    [switch]$Quiet
+    [switch]$Quiet,
+
+    # ── 调用治理（AX.CallAdmissibility）：票据五要素 + 区分力（缺 ⇒ shadow 记 R1 / enforce 拒绝）──
+    [string]$Batch = '',
+    [ValidateSet('diagnose', 'edit', 'verify')]
+    [string]$Phase = '',
+    [string]$Ticket = '',
+    [string]$Discriminates = '',
+    [string]$Purpose = '',
+    [string]$ExpectedOutcome = '',
+    [switch]$StrictCalls,
+    [switch]$NoLedger
 )
 
 $ErrorActionPreference = 'Stop'
@@ -166,6 +177,35 @@ foreach ($m in $csvMap) {
         $bound[$m.Name] = @([string]$bound[$m.Csv] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         $bound.Remove($m.Csv)
     }
+}
+
+# ── 调用治理（CallGovernor）：相位 → 票据/区分力 → 参数契约 → 分账预算 → 零增益重复 ──
+# 判据载体 = 结构事实（参数集合/账本计数/声明表），不读执行者叙述；
+# shadow 模式只记录并可见化，enforce 模式按原因码拒绝（策略单源 = Baselines\CallGovernance.psd1）。
+$envelopeParams = @('Action', 'Batch', 'Phase', 'Ticket', 'Discriminates', 'Purpose', 'ExpectedOutcome', 'StrictCalls', 'NoLedger')
+$acceptedParams = @()
+if ($entry.ContainsKey('Map')) { $acceptedParams += @($entry['Map'].Keys) }
+if ($entry.ContainsKey('Always')) { $acceptedParams += @($entry['Always']) }
+if ($entry.ContainsKey('Fixed')) { $acceptedParams += @($entry['Fixed'].Keys) }
+$droppedParams = @($bound.Keys | Where-Object { $envelopeParams -notcontains $_ -and $acceptedParams -notcontains $_ })
+
+$governorPath = Join-Path $PSScriptRoot '..\PowerShellScript\Baselines\CallGovernor.psm1'
+Import-Module $governorPath -Force -DisableNameChecking
+$callPolicy = Import-CallGovernance -RepoRoot $repoRoot
+if ($StrictCalls) { $callPolicy['Mode'] = 'enforce' }
+$ledger = Open-CallLedger -Policy $callPolicy -RepoRoot $repoRoot -Batch $Batch -Phase $Phase
+$admission = Resolve-CallAdmissibility -Policy $callPolicy -Ledger $ledger -Action $Action -Phase $Phase `
+    -DroppedParams $droppedParams -Ticket $Ticket -Discriminates $Discriminates
+if ($admission.Hard) {
+    Write-Host ("[CallGovernor][{0}] {1}" -f $admission.ReasonCode, $admission.Message) -ForegroundColor Yellow
+}
+if (-not $admission.Allowed) {
+    Get-CallLedgerReport -Ledger $ledger | ForEach-Object { Write-Host $_ }
+    if (-not $NoLedger) {
+        Write-CallOutcome -Ledger $ledger -Action $Action -ReasonCode $admission.ReasonCode -Discriminates $Discriminates `
+            -Phase $Phase -ExitCode 3 -Admitted $false -Note 'rejected' | Out-Null
+    }
+    exit 3
 }
 
 # SpecCli 缺省注入（等价于原 SpecChain 系列 `$PSBoundParameters.ContainsKey('CasesRoot')` 缺省 = AgentTest）
@@ -201,5 +241,11 @@ try {
 } catch {
     $rc = 2
     Write-Error $_.Exception.Message
+} finally {
+    # 记账（唯一写入口；与退出码同拍，拒绝亦入账已在上面处理）
+    if (-not $NoLedger -and $null -ne $ledger) {
+        Write-CallOutcome -Ledger $ledger -Action $Action -ReasonCode $admission.ReasonCode `
+            -Discriminates $Discriminates -Phase $Phase -ExitCode $rc -Admitted $true -Note 'executed' | Out-Null
+    }
 }
 exit $rc

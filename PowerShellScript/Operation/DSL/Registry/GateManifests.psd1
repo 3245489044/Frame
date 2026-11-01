@@ -1294,6 +1294,46 @@
         Note   = '帧事实覆盖率（P4b 前置）：canon/productions/observability 三写入者的帧字段构造方法须含 terminal 事实键；message-stream/observability 写入站点集合须等于登记集合；负对照缺事实键必红'
     }
 
+    AnswerIdentity = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '终答事实可达性（治“有事实、无答案”假绿）：A1 answer-facts 声明闭合 / A2 单写者含 terminal=true 分支 / A3 true 写入恰 1 处 / A4 端点接线 / A5 MarkFact 单点；常量 false 负对照必红'
+    }
+
+    FrameIdentity = @{
+        Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '身份模板口径单值：I1 多行 identity 形状唯一 / I2 声明↔ProcessKeys 双向绑定 / I3 ordinal 口径单值 / I4 占位符登记；段序错/双口径负对照必红'
+    }
+
+    CallGovernance = @{
+        Domain = 'Process'
+        Family = 'CallGovernance'
+        Form   = 'Boundary'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '调用治理执行体（治“声明层无执行体”）：G1 策略声明闭合 / G2 原语零运行 / G3 入口接线(exit 3) / G4 归属查表只读 / G5 入参 fail-fast / G6 公理可回溯；缺码·含 dotnet·含写盘负对照必红'
+    }
+
+    FrameSchema = @{
+        Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '帧语义表（C 阶段编译视图）：F1 kind 闭合≡RecognizedKinds / F2 shaping parity / F3 呈现词合法 / F4 anchor=always⇒bubble / F5 ordinal 单值 / F6 禁 answer 列（单源=answer-facts） / F7 subject 预留轴 / F8 受控词；重复·非法呈现·缺 subject 负对照必红'
+    }
+
     AgentSemanticsLeak = @{
         Domain = 'Process'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -1515,6 +1555,26 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '记录保存薄分派（B3/SCT-06）：SaveRecordAsync 体内域分支 = 0，域知识下沉 IRowSaveHandler 表；正/负对照'
+    }
+
+    PresentationContract = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '呈现契约（B1）：模板无 role 条件/role=tool；呈现类模板键在位；过程面不引用 bubbleRow；锚点裁决经 PresentationResolver；正/负对照'
+    }
+
+    FoldState = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '折叠协议（B2）：模板 open 字面量=0；details 全带 data-fold-key；模板出口产元素节点；先绑定后指纹；stream 序列化绑定节点；JS 捕获 fold key；正/负对照'
     }
 
     DbRenderPurity = @{

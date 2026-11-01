@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace Share.Conversation.Presentation;
 
-/// <summary>呈现**结构面**（框架级通用概念：气泡面 / 过程面 / 操作面 / 通知面）。</summary>
+/// <summary>呈现**结构面**（框架级通用概念：气泡面 / 过程面 / 操作面 / 通知面 / 未声明）。</summary>
 public enum PresentationSurface
 {
     /// <summary>气泡面（对话行）。</summary>
@@ -20,6 +20,9 @@ public enum PresentationSurface
 
     /// <summary>通知面（可见但非对话）。</summary>
     Notice = 3,
+
+    /// <summary>未声明面（呈现类未注册：可见占位，不猜、不成气泡）。</summary>
+    Unknown = 4,
 }
 
 /// <summary>单个呈现类声明（词 = 产品策略；本类型只承载数据）。</summary>
@@ -71,10 +74,10 @@ public sealed record PresentationDeclaration(
     public PresentationClassSpec? Of(string? id)
         => id is not null && Classes.TryGetValue(id, out var spec) ? spec : null;
 
-    /// <summary>结构面（未声明/未知 ⇒ Process：可见、不冒充气泡）。</summary>
+    /// <summary>结构面（未声明/未知 ⇒ <see cref="PresentationSurface.Unknown"/>：可见占位，不冒充过程/气泡）。</summary>
     /// <param name="id">呈现类标识。</param>
     public PresentationSurface SurfaceOf(string? id)
-        => Of(id)?.Surface ?? PresentationSurface.Process;
+        => Of(id)?.Surface ?? PresentationSurface.Unknown;
 
     /// <summary>行模板键（未声明 ⇒ 宿主 fallback）。</summary>
     /// <param name="id">呈现类标识。</param>

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UiBackend.Abstractions;
@@ -12,6 +13,16 @@ namespace UiBackend.Html;
 /// </summary>
 public static class UiNodeHtml
 {
+    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
+    };
+
+    private static readonly HashSet<string> BooleanAttributes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "open", "disabled", "checked", "selected", "readonly", "required", "multiple", "hidden", "autofocus",
+    };
+
     public static string ToHtml(UiNode? node)
     {
         if (node is null) return string.Empty;
@@ -40,7 +51,8 @@ public static class UiNodeHtml
             foreach (var kv in node.Attributes)
             {
                 if (string.IsNullOrEmpty(kv.Key)) continue;
-                sb.Append(' ').Append(kv.Key).Append("=\"").Append(EscapeAttr(kv.Value)).Append('"');
+                if (string.IsNullOrEmpty(kv.Value) && BooleanAttributes.Contains(kv.Key)) sb.Append(' ').Append(kv.Key);
+                else sb.Append(' ').Append(kv.Key).Append("=\"").Append(EscapeAttr(kv.Value)).Append('"');
             }
         }
 
@@ -51,7 +63,7 @@ public static class UiNodeHtml
             foreach (var child in node.Children) Append(child, sb);
         }
 
-        sb.Append("</").Append(node.Tag).Append('>');
+        if (!VoidElements.Contains(node.Tag)) sb.Append("</").Append(node.Tag).Append('>');
     }
 
     private static string EscapeText(string? text)

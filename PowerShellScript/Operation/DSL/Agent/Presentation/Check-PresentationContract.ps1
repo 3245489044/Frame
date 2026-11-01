@@ -10,6 +10,8 @@
       P3 过程面不入气泡：surface=process 的类不得引用 bubbleRow。
       P4 裁决单一：AttachPlanner 与 ConversationProjectionContext 均经 PresentationResolver.Resolve（≥2 消费点）。
       P5 行模板齐备：bubbleRow / processRow / noticeRow / operationRow 均在默认模板集。
+      P6 机制下沉：Modules/Node/Frame/FramePresentation.cs 存在（呈现裁决唯一实现）。
+      P7 无第二裁决：PresentationResolver 委托 FramePresentation.Resolve，且不含 terminal == true 分支。
       NC 正/负对照：合成 `{?role=tool}` 必被 P1 捕获；普通条件 `{?presentationUnknown}` 不命中。
     模式：默认报告；-Check 违规 → 退出码 1。只读、0 写。
 #>
@@ -76,6 +78,19 @@ $contextUses = $contextText -match 'PresentationResolver\.Resolve'
 Write-Host ("[PresentationContract] P4 planner={0} context={1}" -f $plannerUses, $contextUses)
 if (-not $plannerUses) { Add-Violation 'P4' 'AttachPlanner 未经 PresentationResolver.Resolve（出现第二套锚点判定）' }
 if (-not $contextUses) { Add-Violation 'P4' 'ConversationProjectionContext 未经 PresentationResolver.Resolve' }
+
+# P6/P7 呈现裁决单一实现（机制下沉 Modules.Node.Frame；Share 只做领域绑定）
+$framePresentationPath = Join-Path $root 'Frame\CsharpPrj\Modules\Node\Frame\FramePresentation.cs'
+$resolverPath = Join-Path $root 'Frame\CsharpPrj\Share\Frameworks\Conversation\Presentation\PresentationResolver.cs'
+$framePresentationText = if (Test-Path -LiteralPath $framePresentationPath) { Get-Content -LiteralPath $framePresentationPath -Raw } else { $null }
+$resolverText = if (Test-Path -LiteralPath $resolverPath) { Get-Content -LiteralPath $resolverPath -Raw } else { $null }
+$mechanismOk = ($framePresentationText -match 'public static class FramePresentation') -and ($framePresentationText -match 'Resolve\(')
+$resolverDelegates = ($resolverText -match 'FramePresentation\.Resolve')
+$resolverHasOwnDecision = ($resolverText -match 'terminal\s*==\s*true')
+if (-not $mechanismOk) { Add-Violation 'P6' '缺 Modules/Node/Frame/FramePresentation.cs（呈现裁决机制未下沉框架）' }
+if (-not $resolverDelegates) { Add-Violation 'P7' 'PresentationResolver 未经 FramePresentation.Resolve（出现第二套裁决）' }
+if ($resolverHasOwnDecision) { Add-Violation 'P7' 'PresentationResolver 仍含 terminal == true 裁决分支（第二实现）' }
+Write-Host ("[PresentationContract] P6/P7 mechanism={0} delegates={1} secondDecision={2}" -f $mechanismOk, $resolverDelegates, $resolverHasOwnDecision)
 
 # P5 行模板齐备
 foreach ($key in @('bubbleRow', 'processRow', 'noticeRow', 'operationRow')) {

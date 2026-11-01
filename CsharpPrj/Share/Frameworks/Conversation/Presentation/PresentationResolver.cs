@@ -10,7 +10,7 @@ namespace Share.Conversation.Presentation;
 /// **呈现身份唯一裁决点**（领域绑定；机制已下沉 <see cref="FramePresentation"/>）：
 /// 把本地枚举投影为通道词/角色兜底类，再委托框架六步短路（顺序不得交换）。
 /// <list type="number">
-/// <item><c>terminal == true</c> ⇒ 声明的事实类（终答）</item>
+/// <item>终答事实（<c>terminal=true</c>）⇒ 声明的事实类</item>
 /// <item><c>channel == Operation</c> ⇒ 声明的操作面类</item>
 /// <item>帧字段 <c>presentation</c> 词 ∈ 声明类清单 ⇒ 该类（声明投影）</item>
 /// <item><c>channel == Process</c> ⇒ 声明的过程面类</item>

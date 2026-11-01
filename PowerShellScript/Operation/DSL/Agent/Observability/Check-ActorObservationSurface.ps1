@@ -213,4 +213,20 @@ if ((Test-Path -LiteralPath $frameworkStage) -and (Test-Path -LiteralPath $contr
     $violations.Add('[S12] 缺件（判据不可判）：RunStateStage.cs / ActorObservationContracts.cs')
 }
 
+# S12b 终态集合单源（F5）：观测侧不得自持终态判定，必须委派框架 RunStateStage.IsTerminal。
+if (-not [string]::IsNullOrWhiteSpace($contractText)) {
+    $stageBlock = [regex]::Match($contractText, 'class ActorObservationStages(?s:.*?)\r?\n    \}').Value
+    if ([string]::IsNullOrWhiteSpace($stageBlock)) {
+        $violations.Add('[S12b] 合同缺 ActorObservationStages 块（不可判）')
+    } elseif ($stageBlock -notmatch 'RunStateStage\.IsTerminal\(') {
+        $violations.Add('[S12b] 终态集合未委派框架 RunStateStage.IsTerminal（观测侧自持终态集合）')
+    }
+
+    # 负对照：自持终态集合的合成样例必须被同一判据捕获（防判据空转）。
+    $probeSelfOwned = 'public static bool IsTerminal(string? stage) { var value = Normalize(stage); return value == Completed; }'
+    if ($probeSelfOwned -match 'RunStateStage\.IsTerminal\(') {
+        $violations.Add('[S12b] 负对照失效：自持终态合成样本未被捕获')
+    }
+}
+
 Write-GateVerdict -Violations $violations -Check:$Check -Key 'ActorObservationSurface'

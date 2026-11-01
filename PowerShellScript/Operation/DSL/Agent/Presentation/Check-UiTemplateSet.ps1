@@ -45,16 +45,15 @@ $configPath = Join-Path $Root 'Projects\Information\DrivenConfig\JsonConfig\Agen
 $assemblyPath = Join-Path $Root 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlHosting\HtmlBridgeAssembly.cs'
 $resolverPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationTemplates.cs'
 
-# 必需键单源 = ConversationTemplates.RequiredKeys（禁门禁/默认集各写一份）
+# 必需键单源 = Config\ui\presentation.regions.json:templates.required（禁门禁/默认集各写一份）
+$regionsDeclarationPath = Join-Path $Root 'Projects\Plug\Agent\Config\ui\presentation.regions.json'
 $requiredKeys = @()
-if (Test-Path -LiteralPath $resolverPath) {
-    $resolverText = [System.IO.File]::ReadAllText($resolverPath)
-    if ($resolverText -match 'RequiredKeys\s*=\s*(?:new\[\]\s*)?\{([^}]*)\}') {
-        $requiredKeys = @([regex]::Matches($Matches[1], '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
-    }
+if (Test-Path -LiteralPath $regionsDeclarationPath) {
+    $regionsDeclaration = Get-Content -LiteralPath $regionsDeclarationPath -Raw | ConvertFrom-Json
+    $requiredKeys = @($regionsDeclaration.templates.required)
 }
 if ($requiredKeys.Count -eq 0) {
-    Add-Violation '[T1] 必需键声明不可得（判据不可判）：ConversationTemplates.RequiredKeys'
+    Add-Violation '[T1] 必需键声明不可得（判据不可判）：presentation.regions.json:templates.required'
 }
 
 function Get-Prop($obj, [string]$name) {
@@ -147,7 +146,7 @@ if (-not (Test-Path -LiteralPath $assemblyPath)) {
     Add-Violation "[T3] 缺件（判据不可判）：$assemblyPath"
 } else {
     $t = [System.IO.File]::ReadAllText($assemblyPath)
-    foreach ($needle in @('GetDefaultTemplates()', 'new Dictionary<string, string>(defaults')) {
+    foreach ($needle in @('HtmlAttachContract.ComposeTemplates', 'HtmlAssetRegistry.Default')) {
         if ($t -notmatch [regex]::Escape($needle)) {
             Add-Violation "[T3] 装配期『默认 ⊕ 覆盖』合并结构缺失: $needle"
         }
@@ -159,7 +158,7 @@ if (-not (Test-Path -LiteralPath $resolverPath)) {
     Add-Violation "[T4] 缺件（判据不可判）：$resolverPath"
 } else {
     $t = [System.IO.File]::ReadAllText($resolverPath)
-    foreach ($needle in @('HtmlAssetRegistry.DefaultTemplates', 'RequiredKeys')) {
+    foreach ($needle in @('HtmlAssetRegistry.DefaultTemplates', 'RenderDeclarationCatalog.Regions.RequiredTemplates')) {
         if ($t -notmatch [regex]::Escape($needle)) {
             Add-Violation "[T4] 模板解析入口未以默认集为底合并/未声明必需键: $needle"
         }

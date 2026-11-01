@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using Share.Conversation;
+using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
 
@@ -26,8 +27,9 @@ internal static class RowModels
         string key,
         bool blankProcessFlags = false)
     {
-        var tool = blankProcessFlags ? string.Empty : IsToolLayer(item) ? "1" : string.Empty;
         var prompt = blankProcessFlags ? string.Empty : context.IsPrompt(item) ? "1" : string.Empty;
+        var presentation = context.PresentationOf(item);
+        var badge = context.HasAnswerBadge(item);
 
         return new Dictionary<string, object?>
         {
@@ -37,11 +39,14 @@ internal static class RowModels
             ["stage"] = item.Stage ?? string.Empty,
             ["subagent"] = item.SubAgent ?? string.Empty,
             ["showSubagent"] = string.IsNullOrWhiteSpace(item.SubAgent) ? string.Empty : "1",
-            ["tool"] = tool,
             ["prompt"] = prompt,
             ["anchor"] = isAnchor ? "1" : string.Empty,
-            ["answerTrace"] = context.IsTraceAnswer(item) ? "1" : string.Empty,
-            ["answerTraceLabel"] = context.IsTraceAnswer(item) ? context.Labels.Trace : string.Empty,
+            ["presentation"] = presentation.ClassId,
+            ["class"] = context.StyleOf(item),
+            ["template"] = context.TemplateOf(item),
+            ["badge"] = context.Policy?.BadgeOf(item.Stage) ?? string.Empty,
+            ["answerTrace"] = badge ? "1" : string.Empty,
+            ["answerTraceLabel"] = badge ? context.Labels.Trace : string.Empty,
             ["text"] = item.Text,
         };
     }
@@ -103,13 +108,9 @@ internal static class RowModels
             ["stage"] = item.Stage ?? string.Empty,
             ["subagent"] = item.SubAgent ?? string.Empty,
             ["showSubagent"] = string.IsNullOrWhiteSpace(item.SubAgent) ? string.Empty : "1",
-            ["tool"] = IsToolLayer(item) ? "1" : string.Empty,
             ["prompt"] = "1",
             ["anchor"] = string.Empty,
             ["text"] = item.Text,
         };
-
-    /// <summary>工具/过程层（Tool 且带 Stage；无 Stage 的 Tool 走普通气泡分支）。</summary>
-    private static bool IsToolLayer(ConversationRenderItem item)
-        => item.Role == ConversationRole.Tool && !string.IsNullOrWhiteSpace(item.Stage);
 }
+

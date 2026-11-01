@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Share.Conversation;
+using Share.Conversation.Presentation;
 
 namespace Share.Conversation.Rendering;
 
@@ -10,6 +11,7 @@ namespace Share.Conversation.Rendering;
 /// </summary>
 /// <param name="Terminal">终答事实（写侧落库 <c>terminal</c> 帧字段；null = 未知，禁默认 false）。</param>
 /// <param name="Archived">归档事实（写侧落库 <c>archived</c> 帧字段；null = 未知）。</param>
+/// <param name="Presentation">呈现词（声明投影/帧字段；null = 未声明，读侧走事实/旧数据分支）。</param>
 public sealed record ConversationRenderItem(
     ConversationRole Role,
     string? Stage,
@@ -19,5 +21,7 @@ public sealed record ConversationRenderItem(
     MessageChannel Channel = MessageChannel.Dialogue,
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
-    bool? Archived = null);
+    bool? Archived = null,
+    string? Presentation = null);
+
 

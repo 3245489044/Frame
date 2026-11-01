@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation.ContextBinding;
+using Share.Conversation.Presentation;
 
 namespace Share.Conversation.Rendering;
 
@@ -83,4 +84,39 @@ public static class RenderSurfaceCatalog
         }
         return violations;
     }
+
+    /// <summary>
+    /// 面编排序（**声明驱动**）：宿主声明的面序（Band 升序 + 同带声明序 + 启用位）即块序；
+    /// 未声明/空声明 ⇒ 结构缺省 <see cref="Order"/>；未登记的已启用面按结构序补在末尾（零丢失，可见）。
+    /// </summary>
+    /// <param name="regions">渲染区域声明（含 surfaces 段）。</param>
+    public static IReadOnlyList<RenderSurface> OrderOf(PresentationRegions? regions)
+    {
+        if (regions is null || regions.Surfaces.Count == 0)
+        {
+            return Order;
+        }
+
+        var declared = new List<RenderSurface>(Order.Count);
+        foreach (var spec in regions.Surfaces.Where(spec => spec.Enabled)
+                     .OrderBy(spec => spec.Order)
+                     .ThenBy(spec => spec.Band))
+        {
+            if (!Enum.TryParse<RenderSurface>(spec.Id, ignoreCase: true, out var surface)
+                || !Enum.IsDefined(typeof(RenderSurface), surface))
+            {
+                continue;
+            }
+
+            if (!declared.Contains(surface)) declared.Add(surface);
+        }
+
+        foreach (var surface in Order)
+        {
+            if (!declared.Contains(surface)) declared.Add(surface);
+        }
+
+        return declared;
+    }
 }
+

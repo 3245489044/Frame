@@ -127,7 +127,10 @@ public static class HtmlTemplateEngine
                     RenderNodesTo(EvalCond(model, c.Cond) ? c.If : c.Else, templates, model, output);
                     break;
                 case NamedNode nn:
-                    if (templates is not null && templates.TryGetValue(nn.Name, out var childTpl))
+                    // `{>@field}`：partial 名由数据给出（声明驱动分派）；`{>name}`：静态 partial。
+                    var dynamicName = nn.Name.StartsWith('@') ? Get(model, nn.Name[1..]) : nn.Name;
+                    if (dynamicName is not null && templates is not null &&
+                        templates.TryGetValue(dynamicName, out var childTpl))
                         RenderNodesTo(ParseWhole(childTpl), templates, model, output);
                     break;
             }
@@ -240,7 +243,10 @@ public static class HtmlTemplateEngine
                     RenderNodes(EvalCond(model, c.Cond) ? c.If : c.Else, templates, model, sb);
                     break;
                 case NamedNode nn:
-                    if (templates is not null && templates.TryGetValue(nn.Name, out var childTpl))
+                    // `{>@field}`：partial 名由数据给出（声明驱动分派）；`{>name}`：静态 partial。
+                    var dynamicName = nn.Name.StartsWith('@') ? Get(model, nn.Name[1..]) : nn.Name;
+                    if (dynamicName is not null && templates is not null &&
+                        templates.TryGetValue(dynamicName, out var childTpl))
                         RenderNodes(ParseWhole(childTpl), templates, model, sb);
                     break;
             }

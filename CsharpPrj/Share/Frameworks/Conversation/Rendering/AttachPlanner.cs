@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Share.Conversation.Presentation;
 namespace Share.Conversation.Rendering;
 
 /// <summary>顶层锚点条目：锚点消息 + 折叠到其下拉栏的过程帧（源序）。</summary>
@@ -42,40 +43,23 @@ public sealed record TopLevelPlan(
 /// <summary>
 /// 过程帧计划器（纯函数）：顶层锚点归属 + 顺序分组，唯一实现。
 /// <para>归属规则：过程项挂到**其前方最近锚点**；首锚之前的过程帧进 <see cref="TopLevelPlan.Lead"/>（段首折叠）。
-/// 锚点判定 = 角色 + 对话通道（<see cref="ConversationAnchors.IsAnchor(ConversationRenderItem)"/>）：
-/// 过程通道的 assistant/trace 帧不是锚点，不得冒充气泡。</para>
+/// 锚点判定 = **唯一呈现身份**（<see cref="ConversationRenderItem.PresentationIdentity"/> ∈ Bubble/Answer/Notice）：
+/// 过程/操作帧不是锚点，不得冒充气泡；禁再按 Terminal/Role/Channel 二次推断。</para>
 /// </summary>
 public static class AttachPlanner
 {
     /// <summary>
-    /// 气泡锚点判定（**委托策略**，框架零领域词）：
-    /// 默认 = 对话通道的角色锚点；宿主可经 <see cref="FramePolicy.ExtraBubbleAnchor"/> 追加规则
-    /// （如“角色=Assistant 且 kind=文本类”）。其余帧一律折叠。
+    /// 气泡锚点判定（**唯一判据 = 声明面的结构面**）：只有 <see cref="PresentationSurface.Bubble"/> 可以进入对话气泡面。
     /// </summary>
     /// <param name="item">渲染项。</param>
-    /// <param name="policy">帧语义表（null ⇒ 仅框架默认锚点）。</param>
-    public static bool IsBubbleAnchor(ConversationRenderItem item, FramePolicy? policy)
+    /// <param name="declaration">呈现声明（产品策略）。</param>
+    public static bool IsBubbleAnchor(ConversationRenderItem item, PresentationDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(item);
-        // 事实优先：写侧落库的终答事实（terminal=true）即成气泡；位置/role 不再造气泡。
-        // 事实缺失（旧数据 / 未落库）⇒ 声明锚点（P2 策略，零回归，不默认 false 冒充事实）。
-        if (item.Terminal == true)
-        {
-            return true;
-        }
-
-        // 旧数据（事实缺失）且声明为 entity-only：终端角色仍是锚点（不按位置提升过程文本）。
-        if (item.Terminal is null
-            && policy is not null
-            && policy.Terminal.Promotion == TerminalPromotion.EntityOnly
-            && policy.RoleOf(item.Stage) == FrameRoleIds.Terminal)
-        {
-            return true;
-        }
-
-        return policy is not null
-            ? policy.IsBubbleAnchor(item)
-            : ConversationAnchors.IsAnchor(item);
+        ArgumentNullException.ThrowIfNull(declaration);
+        var (classId, _) = PresentationResolver.Resolve(
+            declaration, item.Role, item.Channel, item.Presentation, item.Terminal);
+        return declaration.IsBubbleSurface(classId);
     }
 
     /// <summary>顶层分组（含前导折叠集）：事实锚点 + 前最近锚点折叠（输入恰消费一次 ⇒ 前导 + 顶层 + 挂靠 = 全集）。</summary>
@@ -84,10 +68,11 @@ public static class AttachPlanner
     {
         var entries = new List<AttachEntry>(items.Count);
         var lead = new List<ConversationRenderItem>();
+        var declaration = policy?.Presentation ?? PresentationDeclaration.Empty;
         List<ConversationRenderItem>? bucket = null;
         foreach (var item in items)
         {
-            if (IsBubbleAnchor(item, policy))
+            if (IsBubbleAnchor(item, declaration))
             {
                 bucket = new List<ConversationRenderItem>();
                 entries.Add(new AttachEntry(item, bucket));

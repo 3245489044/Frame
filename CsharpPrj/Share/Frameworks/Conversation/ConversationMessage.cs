@@ -23,6 +23,8 @@ namespace Share.Conversation;
 /// null = 未知（旧数据/未落库，不冒充 false）。尾参，不影响既有位置构造调用。</param>
 /// <param name="Archived">写侧归档事实（<c>archived</c> 帧字段）：true = 已入史归档；false = 未归档；
 /// null = 未知。尾参，不影响既有位置构造调用。</param>
+/// <param name="Presentation">写侧呈现词（<c>presentation</c> 帧字段/声明投影；<see cref="Presentation.PresentationWords"/> 受控词）。
+/// null = 未声明（读侧走事实/旧数据分支）。尾参，不影响既有位置构造调用。</param>
 public sealed record ConversationMessage(
     ConversationRole Role,
     string? Stage,
@@ -35,4 +37,5 @@ public sealed record ConversationMessage(
     MessageChannel Channel = MessageChannel.Dialogue,
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
-    bool? Archived = null);
+    bool? Archived = null,
+    string? Presentation = null);

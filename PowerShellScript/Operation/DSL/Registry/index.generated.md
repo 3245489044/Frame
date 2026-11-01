@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（84 件）
+## Agent（87 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -31,6 +31,7 @@
 | `ContextGeometryPrefixPurity` | fast | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryPrefixPurity.ps1` |
 | `DbRenderPurity` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-DbRenderPurity.ps1` |
 | `DbToolbarDictAlloc` | fast | 0 | Presentation | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-DbToolbarDictAlloc.ps1` |
+| `DeclarationParity` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-DeclarationParity.ps1` |
 | `DelegateEntry` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-DelegateEntry.ps1` |
 | `DetailReadWriteSamePort` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-DetailReadWriteSamePort.ps1` |
 | `DomainResolveSingleEntry` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-DomainResolveSingleEntry.ps1` |
@@ -61,6 +62,7 @@
 | `PromptCacheStability` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-PromptCacheStability.ps1` |
 | `PromptSegments` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-PromptSegments.ps1` |
 | `PsSkillToolMap` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-PsSkillToolMap.ps1` |
+| `ReadFactCoverage` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ReadFactCoverage.ps1` |
 | `ReadinessSingleEntry` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ReadinessSingleEntry.ps1` |
 | `RecordDraftSingleSource` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-RecordDraftSingleSource.ps1` |
 | `RecordSingleTextForm` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-RecordSingleTextForm.ps1` |
@@ -90,6 +92,7 @@
 | `UiViewCatalog` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiViewCatalog.ps1` |
 | `UiWriteFidelity` | fast | 0 | Presentation | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiWriteFidelity.ps1` |
 | `UnknownVisible` | fast | 0 | Observability | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-UnknownVisible.ps1` |
+| `ViewGolden` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ViewGolden.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-VmKernelReferenceBoundary.ps1` |
 | `WorkflowRegistration` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-WorkflowRegistration.ps1` |
 | `WriteCapabilitySinglePredicate` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-WriteCapabilitySinglePredicate.ps1` |
@@ -288,11 +291,12 @@
 | `SpecPortLedger` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1` |
 | `SpecToolingContract` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1` |
 
-## Usharp（7 件）
+## Usharp（8 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `AgentStorageIsolation` | fast | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-AgentStorageIsolation.ps1` |
+| `DeclarativeSurface` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-DeclarativeSurface.ps1` |
 | `FsSinkEntry` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1` |
 | `HtmlViewerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-HtmlViewerVocabulary.ps1` |
 | `ToolFaceDeclaration` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Usharp\Check-ToolFaceDeclaration.ps1` |

@@ -69,6 +69,18 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
     background: transparent; color: var(--muted);
     border: 1px dashed var(--border); font-size: 13px;
 }
+/* ── 呈现类分派：终答沿用助手气泡样式；过程/通知行不占气泡面 ── */
+.block.answer .block-body {
+    background: var(--agent-bg); color: var(--agent-fg);
+    border-top-left-radius: 2px;
+}
+.process-row { margin: 2px 6px; padding: 2px 0; }
+.process-badge { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+.process-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--fg); }
+.notice-row { margin: 2px 6px; padding: 2px 0; }
+.notice-badge { font-size: 12px; color: var(--muted); }
+.notice-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--muted); }
+.process-row.unknown, .notice-row.unknown { border-left: 2px solid var(--border); }
 /* ── 折叠壳（轮次 / 段首前导 / 区域面板） ── */
 .round-fold > .round-summary { margin-top: 0; }
 .round-summary::before { content: "▸ "; }

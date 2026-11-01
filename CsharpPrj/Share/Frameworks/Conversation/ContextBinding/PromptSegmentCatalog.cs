@@ -32,6 +32,10 @@ public static class PromptSegmentCatalog
     /// <summary>L0 分段键前缀（<c>prompt.l0.&lt;技能名&gt;</c>）。</summary>
     public const string L0BandPrefix = "prompt.l0.";
 
+    /// <summary>L0 分段展示 stage 前缀（<c>prompt:l0:</c>；段目录单源）。</summary>
+    public const string L0BandStagePrefix = "prompt:l0:";
+
+
     /// <summary>
     /// 固定段（有序；L0 分段族除外）。顺序 = 头提示层展示顺序 = **CacheBand 升序**（变更频率升序：稳定在前、易变在后）。
     /// <para>键 / stage / 写侧取值 / 读侧取值 / 档案开关 / CacheBand / Target 均在此单点声明（顺序单一权威）。</para>
@@ -160,7 +164,8 @@ public static class PromptSegmentCatalog
     public static string L0BandName(AnchorKey key) => key.Value.Substring(L0BandPrefix.Length);
 
     /// <summary>L0 分段展示 stage（<c>prompt:l0:&lt;技能名&gt;</c>）。</summary>
-    public static string L0BandStage(string name) => "prompt:l0:" + name;
+    public static string L0BandStage(string name) => L0BandStagePrefix + name;
+
 
     /// <summary>L0 分段键构造。</summary>
     public static AnchorKey L0BandKey(string name) => AnchorKey.PromptL0Band(name);
@@ -203,6 +208,20 @@ public static class PromptSegmentCatalog
         if (includeTools) set.Add(ToggleTools);
         if (includeResources) set.Add(ToggleResources);
         return set;
+    }
+
+    /// <summary>是否声明段展示 stage（声明面 = 段目录：固定段 UiStage ∪ L0 分段 stage）。</summary>
+    /// <param name="stage">阶段标识（可为 null）。</param>
+    public static bool IsUiStage(string? stage)
+    {
+        if (string.IsNullOrWhiteSpace(stage)) return false;
+        var text = stage.Trim();
+        foreach (var spec in Fixed)
+        {
+            if (string.Equals(spec.UiStage, text, StringComparison.Ordinal)) return true;
+        }
+
+        return text.StartsWith(L0BandStagePrefix, StringComparison.Ordinal);
     }
 
     /// <summary>段完备性判据（可机械复算）：每固定段须同时具备 UiStage/Produce/Text，且 CacheBand 序列**非降**（顺序单一权威）。</summary>

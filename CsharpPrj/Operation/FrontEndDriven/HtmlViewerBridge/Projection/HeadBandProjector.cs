@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation;
+using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
 using UiBackend.Html;
@@ -10,7 +11,7 @@ using UiBackend.Html;
 namespace FrontEndDriven.HtmlViewerBridge;
 
 /// <summary>
-/// 头提示层投影（唯一实现）：prompt:* 段整体前置为会话级块（round=0），不参与轮分组。
+/// 头提示层投影（唯一实现）：声明段整体前置为会话级块（round=0），不参与轮分组。
 /// </summary>
 internal static class HeadBandProjector
 {
@@ -27,6 +28,8 @@ internal static class HeadBandProjector
                 .ToList(),
         };
 
-        return UiFragmentWriter.Render(context.Surface.Templates, "sectionHeader", model);
+        return UiFragmentWriter.Render(context.Surface.Templates,
+            context.Surface.KeyOf(TemplateRegions.SectionHeader), model);
     }
 }
+

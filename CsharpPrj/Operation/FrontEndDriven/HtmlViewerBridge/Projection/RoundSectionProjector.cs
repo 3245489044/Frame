@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation;
+using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
 using UiBackend.Abstractions;
 using UiBackend.Html;
@@ -11,8 +12,9 @@ namespace FrontEndDriven.HtmlViewerBridge;
 
 /// <summary>
 /// 轮段投影（唯一实现）：折叠策略 → 前导折叠 + 锚点行 + 轮段模板。
-/// <para>能力缺失（无 <c>roundFold</c>）⇒ 平铺定位（前导帧原位顶层，不丢帧、不静默换语义）；</para>
-/// <para>能力缺失（无 <c>leadFold</c>）⇒ 前导行以 <c>blockItem</c> 直出（可见）。</para>
+/// <para>能力缺失（无轮折叠键）⇒ 平铺定位（前导帧原位顶层，不丢帧、不静默换语义）；</para>
+/// <para>能力缺失（无前导折叠键）⇒ 前导行以行模板直出（可见）。</para>
+/// <para>模板键一律取自声明（<see cref="TemplateRegions"/> → <see cref="ConversationProjectionContext.Surface"/>）。</para>
 /// </summary>
 internal static class RoundSectionProjector
 {
@@ -25,6 +27,7 @@ internal static class RoundSectionProjector
         var round = group.Key;
         var items = new List<ConversationRenderItem>(group);
         var templates = context.Surface.Templates;
+        var roundFoldKey = context.Surface.KeyOf(TemplateRegions.RoundFold);
         var open = context.Fold.IsOpen(round, latestRound);
 
         if (!context.Surface.HasRoundFold)
@@ -47,17 +50,17 @@ internal static class RoundSectionProjector
 
         if (!context.Surface.HasLeadFold)
         {
-            // 无前导折叠能力：前导行以 blockItem 直出（可见，不聚合 HTML 串）。
-            var roundNodes = UiFragmentWriter.Render(templates, "roundFold", model);
+            // 无前导折叠能力：前导行以行模板直出（可见，不聚合 HTML 串）。
+            var roundNodes = UiFragmentWriter.Render(templates, roundFoldKey, model);
             return leadRows.Count == 0
                 ? roundNodes
-                : UiFragmentWriter.Concat(BlockNodes(templates, leadRows), roundNodes);
+                : UiFragmentWriter.Concat(BlockNodes(templates, leadRows, context), roundNodes);
         }
 
         model["leadFolds"] = leadRows.Count > 0
             ? new List<object?> { LeadFold(plan.Lead, leadRows, round, context) }
             : new List<object?>();
-        return UiFragmentWriter.Render(templates, "roundFold", model);
+        return UiFragmentWriter.Render(templates, roundFoldKey, model);
     }
 
     /// <summary>无轮折叠能力：前导帧与锚点按合并序顶层呈现（等价旧定位，帧零丢失）。</summary>
@@ -81,7 +84,8 @@ internal static class RoundSectionProjector
             ["costLabel"] = context.CostLabel(round),
         };
 
-        return UiFragmentWriter.Render(context.Surface.Templates, "sectionHeader", model);
+        return UiFragmentWriter.Render(context.Surface.Templates,
+            context.Surface.KeyOf(TemplateRegions.SectionHeader), model);
     }
 
     /// <summary>段首前导行（折叠承载：清空 tool/prompt 位）。</summary>
@@ -121,13 +125,16 @@ internal static class RoundSectionProjector
 
     /// <summary>行模型 → 节点（模板缺失 ⇒ 空，调用方已按能力判定）。</summary>
     private static IReadOnlyList<UiNode> BlockNodes(
-        IReadOnlyDictionary<string, string> templates, IReadOnlyList<object?> rows)
+        IReadOnlyDictionary<string, string> templates,
+        IReadOnlyList<object?> rows,
+        ConversationProjectionContext context)
     {
+        var rowKey = context.Surface.KeyOf(TemplateRegions.Row);
         var nodes = new List<UiNode>(rows.Count);
         foreach (var row in rows)
         {
             if (row is IReadOnlyDictionary<string, object?> model)
-                nodes.AddRange(UiFragmentWriter.Render(templates, "blockItem", model));
+                nodes.AddRange(UiFragmentWriter.Render(templates, rowKey, model));
         }
 
         return nodes;

@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Share.Conversation;
+using Share.Conversation.ContextBinding;
+using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
 
 namespace FrontEndDriven.HtmlViewerBridge;
@@ -14,14 +16,11 @@ namespace FrontEndDriven.HtmlViewerBridge;
 /// </summary>
 internal sealed class ConversationProjectionContext
 {
-    private readonly string? _promptStagePrefix;
-
     public ConversationProjectionContext(
         TemplateSurface surface,
         FramePolicy? policy,
         FrameGroupLabels labels,
         FoldPolicy fold,
-        string? promptStagePrefix,
         IReadOnlyDictionary<int, string>? roundLabels,
         string emptyText)
     {
@@ -29,7 +28,6 @@ internal sealed class ConversationProjectionContext
         Labels = labels ?? throw new ArgumentNullException(nameof(labels));
         Fold = fold ?? throw new ArgumentNullException(nameof(fold));
         Policy = policy;
-        _promptStagePrefix = promptStagePrefix;
         RoundLabels = roundLabels;
         EmptyText = emptyText;
     }
@@ -52,28 +50,40 @@ internal sealed class ConversationProjectionContext
     /// <summary>空态文案（宿主注入）。</summary>
     public string EmptyText { get; }
 
-    /// <summary>头提示层（prompt:*）判定；前缀由宿主注入。</summary>
-    public bool IsPrompt(ConversationRenderItem item)
-        => _promptStagePrefix is not null
-           && item.Stage is not null
-           && item.Stage.StartsWith(_promptStagePrefix, StringComparison.Ordinal);
+    /// <summary>头提示层判定（**判据 = 段目录声明**：固定段 UiStage ∪ L0 分段 stage，非字符串前缀启发式）。</summary>
+    public bool IsPrompt(ConversationRenderItem item) => PromptSegmentCatalog.IsUiStage(item.Stage);
+
+    /// <summary>呈现声明（未注入语义表 ⇒ 空声明：全部 Unknown，可见占位）。</summary>
+    public PresentationDeclaration Presentation => Policy?.Presentation ?? PresentationDeclaration.Empty;
+
+    /// <summary>呈现身份（唯一派生点：声明 + 事实）。</summary>
+    /// <param name="item">渲染项。</param>
+    public (string ClassId, PresentationOrigin Origin) PresentationOf(ConversationRenderItem item)
+        => PresentationResolver.Resolve(Presentation, item.Role, item.Channel, item.Presentation, item.Terminal);
+
+    /// <summary>行模板键（声明映射；未声明 ⇒ 声明兜底模板，仍缺 ⇒ 空串，可见降级）。</summary>
+    /// <param name="item">渲染项。</param>
+    public string TemplateOf(ConversationRenderItem item)
+        => Presentation.TemplateOf(PresentationOf(item).ClassId, Surface.DefaultTemplate);
+
+    /// <summary>样式 token（声明映射）。</summary>
+    /// <param name="item">渲染项。</param>
+    public string StyleOf(ConversationRenderItem item)
+        => Presentation.StyleOf(PresentationOf(item).ClassId);
+
+    /// <summary>操作流判定（**唯一判据 = 声明面**）：Operation 面永不出气泡。</summary>
+    public bool IsOperation(ConversationRenderItem item)
+        => Presentation.SurfaceOf(PresentationOf(item).ClassId) == PresentationSurface.Operation;
+
+    /// <summary>气泡锚点（单源谓词，委托 <see cref="AttachPlanner.IsBubbleAnchor(ConversationRenderItem, PresentationDeclaration)"/>）。</summary>
+    public bool IsAnchor(ConversationRenderItem item) => AttachPlanner.IsBubbleAnchor(item, Presentation);
 
     /// <summary>
-    /// 操作流判定（**角色派生**，不再只看写侧通道）：声明角色 = operation ⇒ 操作面板；
-    /// 兼容旧数据（写侧 <see cref="MessageChannel.Operation"/>）仍成立。
+    /// 是否显示来源角标（**判据 = 声明的类位 <c>answerBadge</c>**；不再由角色+kind+面组合推断）。
     /// </summary>
-    public bool IsOperation(ConversationRenderItem item)
-        => item.Channel == MessageChannel.Operation
-           || (Policy is not null && Policy.RoleOf(item.Stage) == FrameRoleIds.Operation);
-
-    /// <summary>气泡锚点（单源谓词，委托 <see cref="AttachPlanner.IsBubbleAnchor"/>）。</summary>
-    public bool IsAnchor(ConversationRenderItem item) => AttachPlanner.IsBubbleAnchor(item, Policy);
-
-    /// <summary>是否「由过程帧过渡提升的终答」（来源角标可见；归档 assistant 不标）。</summary>
-    public bool IsTraceAnswer(ConversationRenderItem item)
-        => Policy is not null
-           && item.Role == ConversationRole.Assistant
-           && Policy.IsTrace(item.Stage);
+    /// <param name="item">渲染项。</param>
+    public bool HasAnswerBadge(ConversationRenderItem item)
+        => Presentation.HasAnswerBadge(PresentationOf(item).ClassId);
 
     /// <summary>轮标题（0 = 会话级）。</summary>
     public string RoundTitle(int round)
@@ -89,3 +99,4 @@ internal sealed class ConversationProjectionContext
     public string DegradedText(string reason)
         => string.Format(CultureInfo.InvariantCulture, Labels.DegradedFormat, reason);
 }
+

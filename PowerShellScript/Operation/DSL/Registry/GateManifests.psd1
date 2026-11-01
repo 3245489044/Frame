@@ -965,6 +965,14 @@
         Note   = '默认检查模式；-Fix 为写操作，聚合器禁用'
     }
 
+    DeclarativeSurface = @{
+        Domain = 'Usharp'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Expect = 0
+        Tier   = 'fast'
+        Note   = '呈现策略声明化：模板键/折叠词/面序/兜底模板/必需键/诊断码/标签只在声明面（Config\ui\*.json）；生产代码策略字面量 = 0；诊断码须在 diagnostics.json 在册；read-paths 事实与 FrameFacts 奇偶；基线 = Baselines\Usharp\DeclarativeSurface.psd1'
+    }
+
     ConversationConversion = @{
         Domain = 'Data'
         Args   = @{}

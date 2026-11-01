@@ -114,6 +114,10 @@ public static class UsharpGatherSpecEmitter
             if (!string.IsNullOrWhiteSpace(read.Normalize)) readNode[UsharpLanguage.MarkerReadNormalize] = read.Normalize;
             if (!string.IsNullOrWhiteSpace(read.Order)) readNode[UsharpLanguage.MarkerReadOrder] = read.Order;
             if (!string.IsNullOrWhiteSpace(read.Empty)) readNode[UsharpLanguage.MarkerReadEmpty] = read.Empty;
+            if (!string.IsNullOrWhiteSpace(read.Adapter)) readNode[UsharpLanguage.MarkerReadAdapter] = read.Adapter;
+            if (!string.IsNullOrWhiteSpace(read.KeyFamily)) readNode[UsharpLanguage.MarkerReadKeyFamily] = read.KeyFamily;
+            if (!string.IsNullOrWhiteSpace(read.Selection)) readNode[UsharpLanguage.MarkerReadSelection] = read.Selection;
+            if (!string.IsNullOrWhiteSpace(read.Domain)) readNode[UsharpLanguage.MarkerReadDomain] = read.Domain;
             root["read"] = readNode;
         }
 

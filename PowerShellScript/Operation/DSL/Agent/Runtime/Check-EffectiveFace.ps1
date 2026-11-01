@@ -188,6 +188,78 @@ if ($fpA -eq $fpB) {
     $violations.Add('[E3] 负对照失效：样本两文件内容相同（无法构造违规样本）')
 }
 
+# ---- [E4] 声明面指纹（Config\**\*.json|*.ushar 内容指纹聚合；声明漂移可复算） ----
+$configRoot = Join-Path $Root 'Projects\Plug\Agent\Config'
+$declFiles = @()
+if (Test-Path -LiteralPath $configRoot) {
+    $declFiles = @(Get-ChildItem -LiteralPath $configRoot -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -in '.json', '.ushar' } | Sort-Object FullName)
+}
+$declHash = $null
+if ($declFiles.Count -gt 0) {
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($f in $declFiles) {
+        $rel = $f.FullName.Substring($configRoot.Length).TrimStart('\')
+        $fp = Get-EffectiveFingerprint $f.FullName
+        [void]$sb.Append($rel).Append('=').Append($fp).Append("`n")
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($sb.ToString())
+        $declHash = ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    } finally { $sha.Dispose() }
+}
+$loadFace = if ($Mode -eq 'locked') { if ($genDir) { Split-Path -Leaf $genDir } else { '(unresolved)' } } else { 'inplace' }
+Write-Host ("  [EFFECTIVE] decl_sha256={0} decl_files={1} load_face={2} mode={3}" -f `
+    $(if ($declHash) { $declHash } else { '(none)' }), $declFiles.Count, $loadFace, $Mode)
+if (-not $declHash) {
+    $violations.Add(("[E4] 声明面指纹不可得：{0} 下无 .json/.ushar 声明（判据无标的 ⇒ 假绿）" -f $configRoot))
+}
+
+# ---- [E5] 声明面 P↔S 对账（视图内容域 / 读路径域 ⊆ 聚拢声明域） ----
+$uiRegionsPath = Join-Path $configRoot 'ui\ui-regions.json'
+$gatherPath   = Join-Path $configRoot 'nodes\node-gather.ushar'
+$readPathsPath = Join-Path $configRoot 'nodes\read-paths.json'
+if ((Test-Path -LiteralPath $gatherPath) -and (Test-Path -LiteralPath $uiRegionsPath)) {
+    $gatherText = Get-Content -LiteralPath $gatherPath -Raw
+    $gatherDomains = @([regex]::Matches($gatherText, '(?m)^\[Gather\]\s+(\S+)') | ForEach-Object { $_.Groups[1].Value })
+    $uiRegions = Get-Content -LiteralPath $uiRegionsPath -Raw | ConvertFrom-Json
+    foreach ($v in @($uiRegions.views)) {
+        $domain = $v.content.domain
+        if ([string]::IsNullOrWhiteSpace($domain)) {
+            $violations.Add(("[E5] 视图 '{0}' 未声明 content.domain（内容身份缺失）" -f $v.view))
+        } elseif ($gatherDomains -notcontains $domain) {
+            $violations.Add(("[E5] 视图 '{0}' 的内容域 '{1}' 未在 node-gather.ushar 声明（装配期不会产出该域）" -f $v.view, $domain))
+        }
+    }
+    if (Test-Path -LiteralPath $readPathsPath) {
+        $readPaths = Get-Content -LiteralPath $readPathsPath -Raw | ConvertFrom-Json
+        foreach ($p in @($readPaths.paths)) {
+            if ($gatherDomains -notcontains $p.domain) {
+                $violations.Add(("[E5] 读路径 '{0}' 的域 '{1}' 未在 node-gather.ushar 声明" -f $p.id, $p.domain))
+            }
+        }
+    } else {
+        $violations.Add(("[E5] 读路径事实声明缺失：{0}" -f $readPathsPath))
+    }
+} else {
+    $violations.Add('[E5] 判据不可判：缺 ui-regions.json 或 node-gather.ushar')
+}
+
+# ---- [E6] 域装配无 C# 写死（读适配器构造唯一来源 = 声明） ----
+$catalogPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather\NodeGatherCatalog.cs'
+if (Test-Path -LiteralPath $catalogPath) {
+    $catalogText = Get-Content -LiteralPath $catalogPath -Raw
+    if ($catalogText -match 'AdapterFactory\s*:') {
+        $violations.Add('[E6] NodeGatherCatalog 仍含 AdapterFactory 字面装配（读适配器须由 read-adapter 声明驱动）')
+    }
+    if ($catalogText -match 'frameSelectionId\s*:') {
+        $violations.Add('[E6] NodeGatherCatalog 仍含 frameSelectionId 字面值（须由 frame-selection 声明驱动）')
+    }
+} else {
+    $violations.Add(("[E6] 判据不可判：缺 {0}" -f $catalogPath))
+}
+
 foreach ($r in $report) {
     $mark = if ($r.Ok) { 'OK ' } else { 'BAD' }
     Write-Host ("  [{0}] {1}" -f $mark, $r.Name)

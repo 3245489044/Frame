@@ -53,6 +53,13 @@ function Get-ConfigRegionKeys {
     return $keys
 }
 
+function Get-ViewProp($obj, [string]$name) {
+    if ($null -eq $obj) { return $null }
+    $p = $obj.PSObject.Properties[$name]
+    if ($null -eq $p) { return $null }
+    return $p.Value
+}
+
 function Test-RegionDeclaration([object]$decl, $configKeys, [string]$catalogText, [string[]]$allowedKinds) {
     # 结构事实：kind 取自受控词汇快照；key 必须在配置区域键内；视图键必须在视图目录；配置内容键必须被声明覆盖
     $violations = [System.Collections.Generic.List[string]]::new()
@@ -68,8 +75,8 @@ function Test-RegionDeclaration([object]$decl, $configKeys, [string]$catalogText
     }
     foreach ($v in @($decl.views)) {
         if (-not $v.view) { $violations.Add('[C4] 视图条目缺 view'); continue }
-        if ($catalogText -notmatch ('TypeKey:\s*"' + [regex]::Escape($v.view) + '"')) {
-            $violations.Add("[C4] 视图键未在 ConversationViewCatalog 声明：$($v.view)")
+        if ([string]::IsNullOrWhiteSpace([string](Get-ViewProp $v 'typeKey'))) {
+            $violations.Add("[C4] 视图条目缺 typeKey：$($v.view)")
         }
         if (@($v.regions).Count -eq 0) { $violations.Add("[C4] 视图 $($v.view) 区域集为空") }
         foreach ($k in @($v.regions)) { if (-not $kinds.Contains($k)) { $violations.Add("[C4] 视图 $($v.view) 引用未声明区域：$k") } }
@@ -230,6 +237,54 @@ $rules = @(
             }
             return $true
         } }
+    [pscustomobject]@{ Id = 'C12'; Title = '视图程序完备（锚点/面板/快照/composer/渲染模式声明闭合）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $regionsPath)) { return $false }
+            $decl = Get-Content -Raw -LiteralPath $regionsPath | ConvertFrom-Json -Depth 16
+            foreach ($v in @($decl.views)) {
+                foreach ($k in @('typeKey', 'scopeKey', 'snapshot', 'sidebar', 'composer', 'actorLevel', 'board', 'sectionFilter', 'renderMode', 'gatherView')) {
+                    if ([string]::IsNullOrWhiteSpace([string](Get-ViewProp $v $k))) { return $false }
+                }
+                $anchor = Get-ViewProp $v 'anchor'
+                if ($null -eq $anchor -or @($anchor.chain).Count -eq 0) { return $false }
+                $panel = Get-ViewProp $v 'panel'
+                if ($null -eq $panel) { return $false }
+                if ($panel.mode -ne 'none' -and [string]::IsNullOrWhiteSpace([string]$panel.domain)) { return $false }
+                $chain = @($anchor.chain | ForEach-Object { [string]$_ })
+                $isNodesOnly = ([string]$v.renderMode) -eq 'nodes-only'
+                $notApplicable = $chain -contains 'not-applicable'
+                if ($isNodesOnly -and -not $notApplicable) { return $false }
+                if (-not $isNodesOnly -and $notApplicable) { return $false }
+                if ([string]$v.composer -ne 'none' -and $notApplicable) { return $false }
+            }
+            return $true
+        } }
+
+    [pscustomobject]@{ Id = 'C13'; Title = '读路径/适配器声明闭合（read-paths 事实 + 域读适配器全覆盖）'
+        Ok = {
+            $readPaths = Join-Path $repo 'Projects\Plug\Agent\Config\nodes\read-paths.json'
+            $gather = Join-Path $repo 'Projects\Plug\Agent\Config\nodes\node-gather.ushar'
+            $adaptersPath = Join-Path $repo 'Projects\Plug\Agent\Config\nodes\node-gather-adapters.json'
+            if (-not (Test-Path -LiteralPath $readPaths) -or -not (Test-Path -LiteralPath $gather) -or -not (Test-Path -LiteralPath $adaptersPath)) { return $false }
+
+            $paths = Get-Content -Raw -LiteralPath $readPaths | ConvertFrom-Json -Depth 16
+            if (@($paths.paths).Count -lt 3) { return $false }
+            foreach ($p in @($paths.paths)) {
+                if ([string]::IsNullOrWhiteSpace([string]$p.id) -or [string]::IsNullOrWhiteSpace([string]$p.domain)) { return $false }
+                if (@($p.facts).Count -eq 0) { return $false }
+                if (-not [bool]$p.anchorCapable -and [string]::IsNullOrWhiteSpace([string]$p.nonAnchorReason)) { return $false }
+            }
+
+            $gatherText = Get-Content -Raw -LiteralPath $gather
+            $domains = @([regex]::Matches($gatherText, '(?m)^\[Gather\]\s+(\S+)') | ForEach-Object { $_.Groups[1].Value })
+            $adapters = Get-Content -Raw -LiteralPath $adaptersPath | ConvertFrom-Json -Depth 16
+            foreach ($d in $domains) {
+                $entry = $adapters.domains.PSObject.Properties[$d]
+                if ($null -eq $entry) { return $false }
+                if ([string]::IsNullOrWhiteSpace([string]$entry.Value.adapter)) { return $false }
+            }
+            return $true
+        } }
 )
 
 if ($NegativeControl) {
@@ -240,11 +295,11 @@ if ($NegativeControl) {
 
     $badDecl = [pscustomobject]@{
         regions = @([pscustomobject]@{ kind = 'Bogus'; key = 'region-main'; loc = $null })
-        views   = @([pscustomobject]@{ view = 'history'; regions = @('Bogus') })
+        views   = @([pscustomobject]@{ view = 'history'; typeKey = 'history'; regions = @('Bogus') })
     }
     $goodDecl = [pscustomobject]@{
         regions = @([pscustomobject]@{ kind = 'Feed'; key = 'region-main'; loc = $null })
-        views   = @([pscustomobject]@{ view = 'history'; regions = @('Feed') })
+        views   = @([pscustomobject]@{ view = 'history'; typeKey = 'history'; regions = @('Feed') })
     }
     $negConfig = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     [void]$negConfig.Add('region-main')

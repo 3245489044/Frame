@@ -25,6 +25,7 @@ public sealed class HtmlUiHostSlot
     private readonly SwappableSlot<HtmlBackendRuntime> _htmlUi;
     private readonly ThreadSafeSlot<IReadOnlyDictionary<string, string>> _templates;
     private readonly ThreadSafeSlot<UIConfiguration> _pageDeclaration;
+    private readonly ThreadSafeSlot<HtmlPageDeclaration> _pageLayout;
     private readonly ThreadSafeSlot<Func<string, HtmlViewer?>> _htmlViewerResolver;
     private readonly ThreadSafeSlot<Action<string>> _htmlContentSink;
     private readonly ThreadSafeSlot<Action<string, string>> _diagnosticsSink;
@@ -35,6 +36,7 @@ public sealed class HtmlUiHostSlot
         _htmlUi = new SwappableSlot<HtmlBackendRuntime>(_gate);
         _templates = new ThreadSafeSlot<IReadOnlyDictionary<string, string>>(_gate);
         _pageDeclaration = new ThreadSafeSlot<UIConfiguration>(_gate);
+        _pageLayout = new ThreadSafeSlot<HtmlPageDeclaration>(_gate);
         _htmlViewerResolver = new ThreadSafeSlot<Func<string, HtmlViewer?>>(_gate);
         _htmlContentSink = new ThreadSafeSlot<Action<string>>(_gate);
         _diagnosticsSink = new ThreadSafeSlot<Action<string, string>>(_gate);
@@ -76,6 +78,18 @@ public sealed class HtmlUiHostSlot
 
     /// <summary>解除页面内部声明槽位。</summary>
     public void DetachPageDeclaration() => _pageDeclaration.Detach();
+
+    /// <summary>当前装配的页面区域声明（<c>htmlPage</c>；区域键唯一来源）；未装配为 null。</summary>
+    public HtmlPageDeclaration? PageLayout => _pageLayout.Value;
+
+    /// <summary>是否已装配页面区域声明。</summary>
+    public bool HasPageLayout => _pageLayout.Has;
+
+    /// <summary>装配页面区域声明（幂等：覆盖式）。</summary>
+    public void AttachPageLayout(HtmlPageDeclaration layout) => _pageLayout.Attach(layout);
+
+    /// <summary>解除页面区域声明槽位。</summary>
+    public void DetachPageLayout() => _pageLayout.Detach();
 
     /// <summary>宿主注入的 htmlviewer 控件解析器；未注入为 null。</summary>
     public Func<string, HtmlViewer?>? HtmlViewerResolver => _htmlViewerResolver.Value;

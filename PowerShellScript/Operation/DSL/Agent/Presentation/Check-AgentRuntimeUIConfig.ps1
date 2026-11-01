@@ -615,6 +615,33 @@ if ($declaredRegions.Count -gt 0 -and $shellRegionKeys.Count -gt 0) {
     if ($negMissing.Count -eq 0) { Add-Error '检查8 负对照失效：缺失未被判据捕获' }
 }
 
+# ---- 检查9：页面声明单源（ui-regions 区域键 ⊆ AgentRuntimeUI.htmlPage.regions；视图区域集闭合） ----
+$uiRegionsPath9 = Join-Path $Root 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+if (Test-Path -LiteralPath $uiRegionsPath9) {
+    $uiDecl = Get-Content -LiteralPath $uiRegionsPath9 -Raw | ConvertFrom-Json -Depth 16
+    $uiKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($r9 in @($uiDecl.regions)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$r9.key)) { [void]$uiKeys.Add([string]$r9.key) }
+    }
+    foreach ($k9 in $uiKeys) {
+        if (-not $declaredRegions.Contains($k9)) {
+            Add-Error "检查9 区域声明不闭合（ui-regions 引用 region 未在页面 htmlPage.regions 声明）: $k9"
+        }
+    }
+
+    $kinds9 = @{}
+    foreach ($r9 in @($uiDecl.regions)) { $kinds9[[string]$r9.kind] = [string]$r9.key }
+    foreach ($v9 in @($uiDecl.views)) {
+        foreach ($kind9 in @($v9.regions)) {
+            if (-not $kinds9.ContainsKey([string]$kind9)) {
+                Add-Error "检查9 视图 $($v9.view) 引用未声明区域 kind: $kind9"
+            }
+        }
+    }
+} else {
+    Add-Warning "检查9 判据不可判：缺件 $uiRegionsPath9"
+}
+
 # ---- 报告 ----
 Write-Host "=== Check-AgentRuntimeUIConfig ===" -ForegroundColor Cyan
 Write-Host ("配置: {0}" -f $ConfigPath)

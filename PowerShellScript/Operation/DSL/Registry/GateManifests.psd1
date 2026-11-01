@@ -374,6 +374,37 @@
         Note   = '视图词汇单源（D01）：C1 目录声在位 / C2 四个消费方均查表 / C3 领域禁本地 MainDialogViewType => "type" 映射；负对照旧映射必红'
     }
 
+    # ===== 读路径 / 声明面对账 / 视图黄金样本（P1/P2/P6）=====
+    ReadFactCoverage = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Drift'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '读路径事实覆盖（R1–R5）：read-paths.json 每条路径 facts 非空 / 域 ⊆ [Gather] / anchorCapable=false 须给理由 / session-message 必声明 terminal+archived'
+    }
+
+    DeclarationParity = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Drift'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明面对账（D1–D6）：[Gather] 全覆盖 read-adapter / 适配器闭集 / stream-frame 键族耦合 / 视图内容域与读路径域 ⊆ [Gather] / 渲染层无 view== 分支'
+    }
+
+    ViewGolden = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Drift'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '视图黄金样本（G1–G4）：三视图各 ≥2 场景，每场景 input/expected.snapshot/expected.dom 齐备且 snapshot.view 与目录一致'
+    }
+
     UiNoViewBranch = @{
         Domain = 'Agent'
         Family = 'Presentation'

@@ -57,7 +57,11 @@ public sealed record UsharpGatherRead(
     string? Edge,
     string? Normalize,
     string? Order,
-    string? Empty);
+    string? Empty,
+    string? Adapter = null,
+    string? KeyFamily = null,
+    string? Selection = null,
+    string? Domain = null);
 
 /// <summary>
 /// <c>[Gather]</c> 的**投影段**（读后加工：折叠 + 窗口；未声明 ⇒ null = 原样输出，零回归）。
@@ -136,6 +140,10 @@ public sealed record UsharpGatherDecl(
         string? readNormalize = null;
         string? readOrder = null;
         string? readEmpty = null;
+        string? readAdapter = null;
+        string? readKeyFamily = null;
+        string? readSelection = null;
+        string? readDomain = null;
         var hasReadMarker = false;
         var identityKeys = new List<string>();
         string? collapseMode = null;
@@ -194,6 +202,30 @@ public sealed record UsharpGatherDecl(
             if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadEmpty, UsharpMarkerBoundary.WhitespaceExactLine, out var readEmptyValue))
             {
                 readEmpty = readEmptyValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadAdapter, UsharpMarkerBoundary.WhitespaceExactLine, out var readAdapterValue))
+            {
+                readAdapter = readAdapterValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadKeyFamily, UsharpMarkerBoundary.WhitespaceExactLine, out var readKeyFamilyValue))
+            {
+                readKeyFamily = readKeyFamilyValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadSelection, UsharpMarkerBoundary.WhitespaceExactLine, out var readSelectionValue))
+            {
+                readSelection = readSelectionValue;
+                hasReadMarker = true;
+                continue;
+            }
+            if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerReadDomain, UsharpMarkerBoundary.WhitespaceExactLine, out var readDomainValue))
+            {
+                readDomain = readDomainValue;
                 hasReadMarker = true;
                 continue;
             }
@@ -271,7 +303,11 @@ public sealed record UsharpGatherDecl(
                 UsharpLineReader.NullIfEmpty(readEdge),
                 UsharpLineReader.NullIfEmpty(readNormalize),
                 UsharpLineReader.NullIfEmpty(readOrder),
-                UsharpLineReader.NullIfEmpty(readEmpty))
+                UsharpLineReader.NullIfEmpty(readEmpty),
+                UsharpLineReader.NullIfEmpty(readAdapter),
+                UsharpLineReader.NullIfEmpty(readKeyFamily),
+                UsharpLineReader.NullIfEmpty(readSelection),
+                UsharpLineReader.NullIfEmpty(readDomain))
             : null;
 
         var projection = hasProjectionMarker

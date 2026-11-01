@@ -626,6 +626,25 @@ internal sealed class GatherGateRule : IGateRule<UsharpGateModel>
                 $"[Gather] {gather.DomainId}: read-source=edge 须声明 read-edge=（边类型是唯一事实来源）",
                 gather.SourceFile, gather.LineNumber));
         }
+
+        // 读适配器段：闭集 + 键族与适配器种类的耦合（stream-frame 必需；其余不得携带）。
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadAdapter, read.Adapter, UsharpLanguage.ReadAdapters, required: false);
+        CheckWord(gather, sink, UsharpLanguage.MarkerReadKeyFamily, read.KeyFamily, UsharpLanguage.ReadKeyFamilies, required: false);
+
+        var isStreamFrame = string.Equals(read.Adapter, "stream-frame", StringComparison.Ordinal);
+        if (isStreamFrame && string.IsNullOrWhiteSpace(read.KeyFamily))
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: read-adapter=stream-frame 须声明 read-key-family=（键族决定显示键与容器解析）",
+                gather.SourceFile, gather.LineNumber));
+        }
+
+        if (!isStreamFrame && !string.IsNullOrWhiteSpace(read.KeyFamily))
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
+                $"[Gather] {gather.DomainId}: read-key-family 仅适用于 read-adapter=stream-frame（当前适配器 '{read.Adapter ?? "domain-node"}'）",
+                gather.SourceFile, gather.LineNumber));
+        }
     }
 
     private static void CheckWord(

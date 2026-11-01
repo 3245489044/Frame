@@ -367,6 +367,21 @@ public static class UsharpLanguage
     public const string MarkerReadEmpty = "read-empty";
 
     /// <summary>
+    /// 聚拢声明续行首词（<c>[Gather]</c> 的**读适配器段**）：适配器种类 / 键族 / 读选择 / 读域。
+    /// <para>适配器构造是**数据**（声明一行），装配层只按词解析工厂；未声明 ⇒ 通用域读适配器（零回归）。</para>
+    /// </summary>
+    public const string MarkerReadAdapter = "read-adapter";
+    public const string MarkerReadKeyFamily = "read-key-family";
+    public const string MarkerReadSelection = "read-selection";
+    public const string MarkerReadDomain = "read-domain";
+
+    /// <summary>读适配器受控词（闭集；闸A 唯一判据）。</summary>
+    public static readonly string[] ReadAdapters = { "domain-node", "stream-frame", "observability", "store", "db-root", "composite" };
+
+    /// <summary>帧级键族受控词（闭集；仅 <c>stream-frame</c> 使用）。</summary>
+    public static readonly string[] ReadKeyFamilies = { "process", "message-stream", "segment-stream", "session-view" };
+
+    /// <summary>
     /// 聚拢声明续行首词（<c>[Gather]</c> 的**投影段**）：折叠身份键 / 折叠策略 / 窗口上限。
     /// <para>投影段是**数据**（声明一行），表达「同一事实只占一行」与「单页上限」；未声明 ⇒ 不折叠不分页（零回归）。</para>
     /// </summary>

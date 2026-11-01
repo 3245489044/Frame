@@ -18,7 +18,11 @@ public sealed record NodeGatherReadSpec(
     string? Edge = null,
     string? Normalize = null,
     string? Order = null,
-    string? Empty = null);
+    string? Empty = null,
+    string? Adapter = null,
+    string? KeyFamily = null,
+    string? Selection = null,
+    string? Domain = null);
 
 /// <summary>
 /// 聚拢声明的**投影段**（读后加工：折叠 + 窗口；null = 不折叠不分页，零回归）。
@@ -287,7 +291,11 @@ public sealed record NodeGatherSpec(
             ReadText(read["read-edge"]),
             ReadText(read["read-normalize"]),
             ReadText(read["read-order"]),
-            ReadText(read["read-empty"]));
+            ReadText(read["read-empty"]),
+            ReadText(read["read-adapter"]),
+            ReadText(read["read-key-family"]),
+            ReadText(read["read-selection"]),
+            ReadText(read["read-domain"]));
     }
 
     private static (List<string> Order, Dictionary<string, IReadOnlyList<string>> Families) ReadFamilies(

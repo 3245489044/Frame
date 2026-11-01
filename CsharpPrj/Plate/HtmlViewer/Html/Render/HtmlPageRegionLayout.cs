@@ -35,9 +35,14 @@ public static class HtmlPageRegionLayout
         string PollAttrs = "");
 
     /// <summary>分区产物 → 区域片段字典（整页与区域路径共用同一口径）；气泡段按键逐个参与差分。</summary>
-    public static IReadOnlyDictionary<string, string> ToRegions(Parts parts)
+    public static IReadOnlyDictionary<string, string> ToRegions(Parts parts) => ToRegions(parts, RegionKeys);
+
+    /// <summary>分区产物 → 区域片段字典（区域键由声明驱动：<c>AgentRuntimeUI.htmlPage.regions</c>）。</summary>
+    /// <param name="parts">分区产物。</param>
+    /// <param name="keys">区域键顺序（声明序；未在 <paramref name="parts"/> 中的键跳过）。</param>
+    public static IReadOnlyDictionary<string, string> ToRegions(Parts parts, IReadOnlyList<string> keys)
     {
-        var regions = new Dictionary<string, string>(StringComparer.Ordinal)
+        var byKey = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["seg"] = parts.Selector,
             ["head"] = parts.Title,
@@ -47,6 +52,16 @@ public static class HtmlPageRegionLayout
             ["composer"] = parts.Composer,
             ["overlay"] = parts.Overlay,
         };
+
+        var regions = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var key in keys)
+        {
+            if (byKey.TryGetValue(key, out var html))
+            {
+                regions[key] = html;
+            }
+        }
+
         if (parts.Bubbles is { Count: > 0 } sections)
         {
             foreach (var section in sections)

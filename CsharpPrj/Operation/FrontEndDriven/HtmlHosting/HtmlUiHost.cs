@@ -45,6 +45,9 @@ public static class HtmlUiHost
     /// <summary>当前装配的页面内部声明；未装配为 null。</summary>
     public static UIConfiguration? PageDeclaration => Default.PageDeclaration;
 
+    /// <summary>当前装配的页面区域/模板声明（<c>htmlPage</c>；区域键唯一来源）；未装配为 null。</summary>
+    public static HtmlPageDeclaration? PageLayout => Default.PageLayout;
+
     /// <summary>是否已装配页面内部声明。</summary>
     public static bool HasPageDeclaration => Default.HasPageDeclaration;
 

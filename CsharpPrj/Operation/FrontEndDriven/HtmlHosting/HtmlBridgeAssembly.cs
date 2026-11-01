@@ -99,6 +99,11 @@ public static class HtmlBridgeAssembly
         // A2：页面事件可选改走交互总线（缺省 Legacy = 旧直调，零回归）。
         // R2/R3：写入装配面（区域声明 + 状态声明）；未声明 regions ⇒ 区域目标一律拒绝（fail-fast 可见化）。
         runtime.PageRegions = RegionCatalog.From(pageDeclaration);
+        if (pageDeclaration is not null)
+        {
+            // 区域键单源下传：渲染层读同一份 htmlPage.regions（禁 C# 第二份键表）。
+            host.AttachPageLayout(pageDeclaration);
+        }
         runtime.PageState.Initialize(pageDeclaration?.State);
         runtime.InteractionPort = interactions;
         runtime.InteractionRoute = interactionRoute;
